@@ -5,6 +5,19 @@ import crypto from 'crypto';
 import { ueberHttps } from '@/lib/vipCookie';
 import { DATEN_ORT } from '@/lib/datenOrt';
 
+/*
+ * Bei jeder Anfrage neu ausfuehren.
+ *
+ * Ohne das wertet Next die Route beim Bauen einmal aus und liefert danach
+ * immer dieselbe Antwort. Beim Abmelden wurde so die Adresse des Bauvorgangs
+ * eingebacken - jeder landete auf "https://0.0.0.0:3100/login", einer Adresse,
+ * die es nicht gibt. Wo die Antwort von der Anfrage abhaengt, muss sie auch
+ * bei jeder Anfrage entstehen.
+ */
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
+
 const VIP_USERS_FILE = path.join(DATEN_ORT, 'vip-users.json');
 const AUTH_COOKIE_SECRET = process.env.AUTH_COOKIE_SECRET || process.env.DISCORD_CLIENT_SECRET || process.env.TWITCH_CLIENT_SECRET || 'streamer-dashboard-secret';
 

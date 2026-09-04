@@ -31,6 +31,25 @@ if (-not (Test-Path $Skript)) {
 
 $Name = 'CompHub Dauerbetrieb (System)'
 
+# ------------------------------------------------------ Alte Prozesse weg
+
+# Warum das hier steht: startet der Waechter den Webserver unter dem
+# Systemkonto, gehoert der Vorgang danach dem System - und ein gewoehnliches
+# Fenster kann ihn nicht mehr beenden. "npm run veroeffentlichen" scheiterte
+# daran still: es baute neu, bekam den alten Server aber nicht weg, und
+# draussen lief weiter der Stand von vorher. Als Administrator geht es.
+Write-Host 'Alte Vorgaenge beenden ...'
+foreach ($port in 3100, 20999) {
+    $treffer = Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue
+    foreach ($v in $treffer) { Stop-Process -Id $v.OwningProcess -Force -ErrorAction SilentlyContinue }
+}
+Start-Sleep -Seconds 3
+foreach ($port in 3100, 20999) {
+    if (Get-NetTCPConnection -LocalPort $port -State Listen -ErrorAction SilentlyContinue) {
+        Write-Host "  Port $port ist noch belegt - bitte den Rechner neu starten." -ForegroundColor Yellow
+    }
+}
+
 # ------------------------------------------------------------- Die Aufgabe
 
 Write-Host 'Aufgabe eintragen ...'

@@ -4,6 +4,19 @@ import { t } from "@/app/lib/i18n";
 import { holeDienst } from '@/lib/dienstZugaenge';
 import { rueckwegVon } from '@/lib/oeffentlicheAdresse';
 
+/*
+ * Bei jeder Anfrage neu ausfuehren.
+ *
+ * Ohne das wertet Next die Route beim Bauen einmal aus und liefert danach
+ * immer dieselbe Antwort. Beim Abmelden wurde so die Adresse des Bauvorgangs
+ * eingebacken - jeder landete auf "https://0.0.0.0:3100/login", einer Adresse,
+ * die es nicht gibt. Wo die Antwort von der Anfrage abhaengt, muss sie auch
+ * bei jeder Anfrage entstehen.
+ */
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
+
 // Client-Id kommt zur Laufzeit aus der Ablage (oder der Umgebung).
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "";
 

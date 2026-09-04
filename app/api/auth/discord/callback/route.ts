@@ -39,8 +39,20 @@ function weiterleitung(req: NextRequest) {
   return `${wurzel(req)}/api/auth/discord/callback`;
 }
 
-function zurueck(req: NextRequest, ziel: string) {
-  return NextResponse.redirect(`${wurzel(req)}${ziel}`);
+/*
+ * Zurueck ins Werkzeug - mit einem relativen Ziel.
+ *
+ * NextResponse.redirect() verlangt eine vollstaendige Adresse und schreibt
+ * sie danach auf die Adresse um, unter der der Server lauscht. Hinter dem
+ * Tunnel ist das "0.0.0.0:3100": wer sich erfolgreich angemeldet hatte,
+ * wurde also auf eine Adresse geschickt, die es nicht gibt - die Anmeldung
+ * sah dadurch aus, als waere sie fehlgeschlagen.
+ *
+ * Ein relatives Ziel loest der Browser gegen die Adresse auf, die er offen
+ * hat. Damit landet jeder wieder dort, wo er hergekommen ist.
+ */
+function zurueck(_req: NextRequest, ziel: string) {
+  return new NextResponse(null, { status: 307, headers: { Location: ziel } });
 }
 
 export async function GET(req: NextRequest) {

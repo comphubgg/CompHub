@@ -1,5 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { rueckwegVon } from "@/lib/oeffentlicheAdresse";
+
+/*
+ * Bei jeder Anfrage neu ausfuehren.
+ *
+ * Ohne das wertet Next die Route beim Bauen einmal aus und liefert danach
+ * immer dieselbe Antwort. Beim Abmelden wurde so die Adresse des Bauvorgangs
+ * eingebacken - jeder landete auf "https://0.0.0.0:3100/login", einer Adresse,
+ * die es nicht gibt. Wo die Antwort von der Anfrage abhaengt, muss sie auch
+ * bei jeder Anfrage entstehen.
+ */
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+
 
 export function GET(request: NextRequest) {
   /*
@@ -14,11 +26,24 @@ export function GET(request: NextRequest) {
    * einer frueheren Veroeffentlichung. Die gehoerte niemandem mehr und
    * haette einen Abmeldenden auf eine fremde Seite geschickt.
    */
-  // Genommen wird der Name aus der Anfrage, nicht request.nextUrl.origin:
-  // letzteres ist die Adresse, auf der der Server lauscht. Hinter dem Tunnel
-  // ist das "0.0.0.0:3100", und wer sich abmeldete, landete auf
-  // "https://0.0.0.0:3100/login" - einer Adresse, die es nicht gibt.
-  const response = NextResponse.redirect(rueckwegVon(request, '/login'));
+  /*
+   * Ein relatives Ziel, kein vollstaendiges.
+   *
+   * NextResponse.redirect() verlangt eine vollstaendige Adresse und schreibt
+   * sie anschliessend auf die Adresse um, unter der der Server lauscht. Hinter
+   * dem Tunnel ist das "0.0.0.0:3100", und wer sich abmeldete, landete auf
+   * "https://0.0.0.0:3100/login" - einer Adresse, die es nicht gibt. Der
+   * Umweg ueber den Namen aus der Anfrage half nichts, weil das Umschreiben
+   * erst danach geschieht.
+   *
+   * Ein relatives Ziel loest der Browser selbst gegen die Adresse auf, die er
+   * gerade offen hat. Damit stimmt es ueberall, ohne dass jemand wissen muss,
+   * wie das Werkzeug gerade erreicht wird.
+   */
+  const response = new NextResponse(null, {
+    status: 307,
+    headers: { Location: '/login' },
+  });
   response.cookies.delete("streamer_dashboard_auth");
   return response;
 }
