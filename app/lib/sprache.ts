@@ -508,6 +508,12 @@ const AUF_ENGLISCH: Record<string, string> = {
    * stehen.
    */
   'Bitte zuerst anmelden.': 'Please sign in first.',
+  /* Das Gespraech mit dem Betreiber - siehe app/components/ChatFenster.tsx. */
+  'Nachrichten': 'Messages',
+  'Noch keine Nachrichten.': 'No messages yet.',
+  'Antwort schreiben …': 'Write a reply…',
+  'sendet …': 'sending…',
+  'Bitte schreib etwas.': 'Please write something.',
   'Passwort stimmt nicht.': 'That password is not correct.',
   'Zu dieser Adresse gibt es kein Konto. Bitte erst registrieren.':
     'There is no account for this address. Please sign up first.',

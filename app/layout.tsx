@@ -7,6 +7,7 @@ import SprachProvider from './components/SprachProvider';
 import { SPRACH_COOKIE } from './lib/sprache';
 import type { Sprache } from './lib/sprache';
 import Sprachschalter from './components/Sprachschalter';
+import ChatFenster from "@/app/components/ChatFenster";
 import PreviewTour from './components/PreviewTour';
 import RouteTransitionLoader from './components/RouteTransitionLoader';
 import SektionSperre from './components/SektionSperre';
@@ -169,6 +170,9 @@ export default async function RootLayout({
               : <SektionSperre>{children}</SektionSperre>}
           </Suspense>
           <Sprachschalter />
+          {/* Das Gespraech mit dem Betreiber. Links am Rand, damit es dem
+              Sprachschalter unten rechts nicht in die Quere kommt. */}
+          <ChatFenster />
         </SprachProvider>
       </body>
     </html>

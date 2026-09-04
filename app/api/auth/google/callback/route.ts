@@ -50,7 +50,22 @@ export async function GET(req: NextRequest) {
   const state = req.nextUrl.searchParams.get('state');
   const gemerkt = req.cookies.get('google_oauth_state')?.value;
 
-  if (!code) return zurueck(req, '/anmelden?fehler=abgebrochen');
+  /*
+   * Warum kein Code kam.
+   *
+   * Ohne Code hiess es hier frueher schlicht "abgebrochen" - und das sah aus,
+   * als haette der Nutzer selbst abgebrochen. Meistens hat aber der Dienst
+   * abgelehnt und den Grund mitgeschickt: ein Rueckweg, der dort nicht
+   * eingetragen ist, eine gesperrte Anwendung, eine fehlende Freigabe. Diesen
+   * Grund zu verschlucken macht die Fehlersuche unnoetig schwer, deshalb
+   * wandert er sichtbar in die Adresse.
+   */
+  if (!code) {
+    const grund = req.nextUrl.searchParams.get('error')
+      || req.nextUrl.searchParams.get('error_description') || '';
+    const anhang = grund ? `&grund=${encodeURIComponent(grund.slice(0, 200))}` : '';
+    return zurueck(req, `/anmelden?fehler=abgebrochen&dienst=google${anhang}`);
+  }
 
   /*
    * Der state-Vergleich. Zeitkonstant, damit die Laufzeit nicht verraet,
