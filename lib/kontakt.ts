@@ -61,6 +61,16 @@ export interface Meldung {
    */
   gelesenNutzer?: number;
   gelesenBetreiber?: number;
+  /*
+   * Wer ausser dem Absender mitliest.
+   *
+   * Konto-Ids, vom Betreiber ueber /add hinzugefuegt. Damit wird aus einer
+   * Meldung eine Gruppe - etwa wenn zwei Spieler dasselbe Duo betrifft.
+   * Bewusst getrennt von vonId: wer das Gespraech begonnen hat, bleibt
+   * erkennbar, und aus der Gruppe herausnehmen laesst sich nur, wer
+   * hinzugefuegt wurde.
+   */
+  teilnehmer?: string[];
 }
 
 /** Eine einzelne Nachricht im Gespraech. */
@@ -296,4 +306,26 @@ export async function ungelesenFuerNutzer(vonId: string): Promise<number> {
 /** Ungelesenes ueber alle Gespraeche - fuer die Zahl am Chatsymbol. */
 export async function ungelesenFuerBetreiber(): Promise<number> {
   return (await lies()).reduce((n, m) => n + ungelesen(m, 'betreiber'), 0);
+}
+
+
+/** Wer ausser dem Absender mitliest - vom Betreiber gepflegt. */
+export async function setzeTeilnehmer(id: string, ids: string[]): Promise<boolean> {
+  const liste = await lies();
+  const m = liste.find((x) => x.id === id);
+  if (!m) return false;
+  m.teilnehmer = [...new Set(ids.filter(Boolean))];
+  await schreibe(liste);
+  return true;
+}
+
+/** Darf dieses Konto das Gespraech sehen und darin schreiben? */
+export function darfMitlesen(m: Meldung, kontoId: string): boolean {
+  return m.vonId === kontoId || (m.teilnehmer ?? []).includes(kontoId);
+}
+
+/** Die Gespraeche eines Kontos - eigene und die, in die es geholt wurde. */
+export async function sichtbarFuer(kontoId: string): Promise<Meldung[]> {
+  const liste = (await lies()).filter((m) => darfMitlesen(m, kontoId));
+  return liste.sort((a, b) => letzteZeit(b) - letzteZeit(a));
 }

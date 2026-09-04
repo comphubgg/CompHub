@@ -4,9 +4,10 @@ import { kontoAus, nachId } from '@/lib/konten';
 import { istBetreiber, vipAus } from '@/lib/vipCookie';
 import { zugangNach, rechteVon } from '@/lib/vipZugaenge';
 import {
-  alle, meineVon, antworte, markiereGelesen,
+  alle, sichtbarFuer, antworte, markiereGelesen,
   ganzerVerlauf, ungelesen, letzteZeit, type Meldung,
 } from '@/lib/kontakt';
+import { fuehreAus } from '@/lib/chatBefehle';
 
 /*
  * Das Gespraech zu einer Meldung.
@@ -92,7 +93,7 @@ export async function GET(request: Request) {
   const wer = await werFragt();
   if (!wer) return NextResponse.json({ fehler: 'nicht angemeldet' }, { status: 401 });
 
-  const meldungen = wer.admin ? await alle() : await meineVon(wer.id);
+  const meldungen = wer.admin ? await alle() : await sichtbarFuer(wer.id);
   const seite = wer.admin ? 'betreiber' : 'nutzer';
   const zahl = meldungen.reduce((n, m) => n + ungelesen(m, seite), 0);
 
@@ -130,9 +131,42 @@ export async function POST(request: Request) {
    * wollte.
    */
   if (!wer.admin) {
-    const meine = await meineVon(wer.id);
+    const meine = await sichtbarFuer(wer.id);
     if (!meine.some((m) => m.id === id)) {
       return NextResponse.json({ fehler: 'nicht gefunden' }, { status: 404 });
+    }
+  }
+
+  /*
+   * Befehle - nur fuer den Betreiber.
+   *
+   * Ein Schraegstrich am Zeilenanfang ist auch ein zulaessiger Satzanfang,
+   * deshalb entscheidet nicht dieses Modul, sondern fuehreAus: was es nicht
+   * kennt, geht unveraendert als Nachricht hinaus.
+   *
+   * Fuer alle anderen gibt es das gar nicht erst. Wer als Nutzer "/close"
+   * schreibt, meint das als Satz - und duerfte ein Gespraech ohnehin nicht
+   * schliessen.
+   */
+  if (wer.admin) {
+    const ergebnis = await fuehreAus(id, text);
+    if (!ergebnis.keinBefehl) {
+      // Was das Gespraech veraendert hat, gehoert in den Verlauf: sonst
+      // stuende ein geschlossenes Ticket ohne Grund da.
+      let gespraech = null;
+      if (ergebnis.imVerlauf) {
+        const geaendert = await antworte({
+          id, von: 'betreiber', name: 'CompHub', text: ergebnis.imVerlauf,
+        });
+        if (geaendert) gespraech = fuerAnsicht(geaendert, true);
+      }
+      return NextResponse.json({
+        ok: true,
+        befehl: true,
+        hinweis: ergebnis.hinweis ?? null,
+        neuLaden: Boolean(ergebnis.neuLaden),
+        gespraech,
+      });
     }
   }
 
@@ -157,7 +191,7 @@ export async function PATCH(request: Request) {
   if (!id) return NextResponse.json({ fehler: 'keine Id' }, { status: 400 });
 
   if (!wer.admin) {
-    const meine = await meineVon(wer.id);
+    const meine = await sichtbarFuer(wer.id);
     if (!meine.some((m) => m.id === id)) {
       return NextResponse.json({ fehler: 'nicht gefunden' }, { status: 404 });
     }

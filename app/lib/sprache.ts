@@ -514,6 +514,12 @@ const AUF_ENGLISCH: Record<string, string> = {
   'ausblenden': 'hide',
   'Symbol ausblenden': 'Hide icon',
   'Symbol einblenden': 'Show icon',
+  'Nachrichten öffnen': 'Open messages',
+  ['Antwort schreiben — /hilfe zeigt die Befehle']:
+    'Write a reply — /hilfe lists the commands',
+  ['Bild anhängen (Strg+V geht auch)']: 'Attach an image (Ctrl+V works too)',
+  ['Alle Gespräche mit dem Betreiber — auch die älteren.']:
+    'Every conversation with the operator — older ones included.',
   ['Das Chatsymbol am linken Bildschirmrand. Ausgeblendet bleiben deine Nachrichten erhalten — du siehst nur den Knopf nicht mehr.']:
     'The chat icon on the left edge of the screen. Hidden, your messages stay — you just no longer see the button.',
   ['Symbol am Rand ausblenden — zurück unter „Mein Konto“']:

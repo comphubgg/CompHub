@@ -730,6 +730,12 @@ export default function KontoSeite() {
                     nicht mehr.</T>
                   </p>
                 </div>
+                <div className="flex shrink-0 flex-wrap items-center gap-2">
+                <Link href="/nachrichten"
+                  className="rounded-lg bg-sky-500 px-4 py-2 text-sm font-medium
+                             text-white transition hover:bg-sky-400">
+                  <T>Nachrichten öffnen</T>
+                </Link>
                 <button
                   type="button"
                   disabled={chatAmRand === null}
@@ -742,6 +748,7 @@ export default function KontoSeite() {
                     ? <T>Symbol einblenden</T>
                     : <T>Symbol ausblenden</T>}
                 </button>
+                </div>
               </div>
             </section>
 
