@@ -31,6 +31,36 @@ if (-not (Test-Path $Skript)) {
 
 $Name = 'CompHub Dauerbetrieb (System)'
 
+$Projekt = Split-Path -Parent $PSScriptRoot
+function Sag($text) { Write-Host "  $text" }
+
+$Cloudflared = @(
+    'C:\Program Files (x86)\cloudflared\cloudflared.exe',
+    'C:\Program Files\cloudflared\cloudflared.exe',
+    (Join-Path $env:LOCALAPPDATA 'Microsoft\WinGet\Links\cloudflared.exe'),
+    (Get-Command cloudflared -ErrorAction SilentlyContinue).Source
+) + @(Get-ChildItem -Path "C:\Users\*\AppData\Local\Microsoft\WinGet\Links\cloudflared.exe" -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName }) |
+    Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
+
+$KonfigDatei = @(
+    (Join-Path $env:USERPROFILE '.cloudflared\config.yml')
+) + @(Get-ChildItem -Path "C:\Users\*\.cloudflared\config.yml" -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName }) |
+    Where-Object { $_ -and (Test-Path $_) } | Select-Object -First 1
+
+# Die gefundenen Orte festhalten.
+#
+# Der Waechter laeuft spaeter unter dem Systemkonto und sieht das
+# Benutzerverzeichnis nicht, in dem winget cloudflared ablegt und in dem die
+# Tunneleinstellungen liegen. Ohne diesen Zettel fand er das Programm nicht
+# und meldete "cloudflared ist nicht installiert", obwohl es dalag - der
+# Webserver lief dann, der Tunnel nicht.
+@{
+    cloudflared = $Cloudflared
+    konfig      = $KonfigDatei
+    gestellt    = (Get-Date -Format o)
+} | ConvertTo-Json | Set-Content -Path (Join-Path $Projekt 'dauerbetrieb-orte.json') -Encoding utf8
+Sag 'Orte fuer den Waechter vermerkt.'
+
 # ------------------------------------------------------ Alte Prozesse weg
 
 # Warum das hier steht: startet der Waechter den Webserver unter dem

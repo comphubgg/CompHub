@@ -81,3 +81,6 @@ next-env.d.ts
 # Wer sie hat, kann thecomphub.com auf seinen eigenen Rechner umleiten.
 /tunnel-zugang
 /*.log
+
+# Rechnerabhaengige Orte fuer den Waechter - auf jedem Rechner andere.
+/dauerbetrieb-orte.json

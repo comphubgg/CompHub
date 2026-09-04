@@ -192,6 +192,20 @@ ingress:
 "@ | Set-Content -Path $KonfigDatei -Encoding utf8
 Sag "Einstellungen geschrieben: $KonfigDatei"
 
+# Die gefundenen Orte festhalten.
+#
+# Der Waechter laeuft spaeter unter dem Systemkonto und sieht das
+# Benutzerverzeichnis nicht, in dem winget cloudflared ablegt und in dem die
+# Tunneleinstellungen liegen. Ohne diesen Zettel fand er das Programm nicht
+# und meldete "cloudflared ist nicht installiert", obwohl es dalag - der
+# Webserver lief dann, der Tunnel nicht.
+@{
+    cloudflared = $Cloudflared
+    konfig      = $KonfigDatei
+    gestellt    = (Get-Date -Format o)
+} | ConvertTo-Json | Set-Content -Path (Join-Path $Projekt 'dauerbetrieb-orte.json') -Encoding utf8
+Sag 'Orte fuer den Waechter vermerkt.'
+
 # ------------------------------------------------------------------ 4. Bauen
 
 Kopf '4. Werkzeug bauen'

@@ -61,23 +61,48 @@ function ErsteVorhandene([string[]]$pfade) {
     return $null
 }
 
-$Cloudflared = ErsteVorhandene @(
+# Was beim Einrichten gefunden wurde.
+#
+# Der Waechter laeuft unter dem Systemkonto, das Einrichten dagegen unter dem
+# angemeldeten Benutzer. Wer cloudflared per winget installiert, bekommt es
+# nach C:\Users\<name>\AppData\Local - und dort sucht das Systemkonto nicht.
+# Genau daran scheiterte der Tunnel auf dem Laptop: der Webserver lief, der
+# Tunnel nicht, und im Protokoll stand "cloudflared ist nicht installiert",
+# obwohl es dalag. Deshalb schreibt das Einrichten die gefundenen Orte in eine
+# Datei, und hier werden sie zuerst gelesen.
+$Orte = $null
+$OrteDatei = Join-Path $Projekt 'dauerbetrieb-orte.json'
+if (Test-Path $OrteDatei) {
+    try { $Orte = Get-Content $OrteDatei -Raw | ConvertFrom-Json } catch { $Orte = $null }
+}
+
+# Zusaetzlich jedes Benutzerprofil durchsehen - winget legt die Verknuepfung
+# je Benutzer an, nicht fuer den ganzen Rechner.
+$WingetLinks = @(Get-ChildItem -Path "C:\Users\*\AppData\Local\Microsoft\WinGet\Links\cloudflared.exe" -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName })
+
+$Cloudflared = ErsteVorhandene (@(
+    $(if ($Orte) { $Orte.cloudflared }),
     'C:\Program Files (x86)\cloudflared\cloudflared.exe',
     'C:\Program Files\cloudflared\cloudflared.exe',
     (Join-Path $env:LOCALAPPDATA 'Microsoft\WinGet\Links\cloudflared.exe'),
     (Get-Command cloudflared -ErrorAction SilentlyContinue).Source
-)
+) + $WingetLinks)
 
 # Die Tunneleinstellungen liegen im Benutzerverzeichnis dessen, der sich
 # angemeldet hat - und das ist auf jedem Rechner ein anderes. Unter dem
 # Systemkonto zeigt $env:USERPROFILE ins Leere, deshalb werden die bekannten
 # Konten zusaetzlich durchgesehen.
-$Konfig = ErsteVorhandene @(
+# Dieselbe Frage fuer die Tunneleinstellungen: sie liegen im Verzeichnis des
+# angemeldeten Benutzers, und unter dem Systemkonto zeigt $env:USERPROFILE
+# woanders hin. Deshalb erst der beim Einrichten vermerkte Ort, dann die
+# ueblichen, und zuletzt jedes Benutzerprofil.
+$AlleProfile = @(Get-ChildItem -Path "C:\Users\*\.cloudflared\config.yml" -ErrorAction SilentlyContinue | ForEach-Object { $_.FullName })
+
+$Konfig = ErsteVorhandene (@(
+    $(if ($Orte) { $Orte.konfig }),
     (Join-Path $Projekt '.cloudflared\config.yml'),
-    (Join-Path $env:USERPROFILE '.cloudflared\config.yml'),
-    'C:\Users\jumik\.cloudflared\config.yml',
-    'C:\Users\diabo\.cloudflared\config.yml'
-)
+    (Join-Path $env:USERPROFILE '.cloudflared\config.yml')
+) + $AlleProfile)
 
 # ------------------------------------------------------------- Nachsehen
 
