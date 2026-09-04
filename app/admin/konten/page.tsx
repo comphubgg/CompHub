@@ -239,7 +239,7 @@ function VipZugaenge() {
         body: JSON.stringify({ name: name.trim(), neuerSchluessel }),
       });
       const j = await r.json();
-      if (!r.ok) { setFehler(j?.fehler ?? t('nicht gespeichert')); return; }
+      if (!r.ok) { setFehler(t(j?.fehler ?? 'nicht gespeichert')); return; }
       setFrisch({ name: j.name, schluessel: j.schluessel });
       setName('');
       await holen();
@@ -271,7 +271,7 @@ function VipZugaenge() {
         body: JSON.stringify({ name: n, neuerSchluessel: true }),
       });
       const j = await r.json();
-      if (!r.ok) { setFehler(j?.fehler ?? t('nicht gespeichert')); return; }
+      if (!r.ok) { setFehler(t(j?.fehler ?? 'nicht gespeichert')); return; }
       await holen();
       setZeigt(n);
     } catch (e) { setFehler((e as Error).message); }

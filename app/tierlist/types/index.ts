@@ -34,6 +34,14 @@ export interface TierListEntry {
   data: Player | Duo | any;
   isDuo?: boolean;
   localOnly?: boolean;
+  /**
+   * Von Hand angelegt, nicht aus einer Quelle geladen.
+   *
+   * Nimmt den Eintrag vom Flaggenfilter aus: was jemand selbst eingetippt
+   * hat, soll auch dann stehen bleiben, wenn zu dem Namen keine Herkunft
+   * gepflegt ist.
+   */
+  vonHand?: boolean;
 }
 
 export interface PlayerInfo { name: string; countryCode?: string; region?: Region }

@@ -76,3 +76,8 @@ next-env.d.ts
 !/data/tournamentLeaderboards.json
 .env* 
 .vercel-temp.env 
+
+# Die Tunnel-Zugangsdaten fuer den Umzug auf einen zweiten Rechner.
+# Wer sie hat, kann thecomphub.com auf seinen eigenen Rechner umleiten.
+/tunnel-zugang
+/*.log

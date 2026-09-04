@@ -72,7 +72,15 @@ export default function Anmelden() {
       const j = await r.json();
 
       if (!r.ok) {
-        setFehler(j?.fehler ?? 'Das hat nicht geklappt.');
+        /*
+         * Die Meldung des Servers durch die Uebersetzung schicken.
+         *
+         * Sie entsteht auf Deutsch - in der englischen Ansicht stand hier
+         * also "Dieses Konto ist gesperrt." mitten auf einer sonst
+         * englischen Seite. Der Satz steht im Woerterbuch; er musste nur
+         * noch hindurch.
+         */
+        setFehler(t(j?.fehler ?? 'Das hat nicht geklappt.'));
         // Kein Konto? Dann gleich zum Registrieren, mit der Adresse im Feld.
         if (j?.keinKonto) { setReiter('registrieren'); setPasswort(''); }
         return;

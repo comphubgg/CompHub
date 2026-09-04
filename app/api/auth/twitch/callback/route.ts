@@ -7,6 +7,7 @@ import {
 import { ergaenzeAusDienst } from '@/lib/kontoErgaenzen';
 import { ueberHttps } from '@/lib/vipCookie';
 import { holeDienst } from '@/lib/dienstZugaenge';
+import { wurzelVon } from '@/lib/oeffentlicheAdresse';
 
 // Der Rueckweg von Twitch.
 //
@@ -33,11 +34,7 @@ export const runtime = 'nodejs';
 const COOKIE = 'streamer_dashboard_konto';
 
 function wurzel(req: NextRequest) {
-  const basis = (process.env.NEXT_PUBLIC_BASE_URL || '').trim();
-  // Ohne den Schraegstrich am Ende: steht dort "http://localhost:3000/",
-  // entstuende sonst "localhost:3000//api/…" - und das stimmt mit keiner bei
-  // Twitch hinterlegten Adresse ueberein.
-  return basis ? basis.replace(/\/+$/, '') : req.nextUrl.origin;
+  return wurzelVon(req);
 }
 
 function weiterleitung(req: NextRequest) {

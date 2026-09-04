@@ -199,8 +199,26 @@ export function useTierList(listId: string, mode: 'solo' | 'duo') {
     });
   };
 
-  const addEntry = (entry: any, isDuo: boolean, options?: { localOnly?: boolean }) => {
-    saveList({ entries: [...entries, { id: entry.id, tier: null, isDuo, data: entry, localOnly: options?.localOnly }] });
+  /*
+   * Ein Eintrag, den jemand selbst angelegt hat.
+   *
+   * Der Merker `vonHand` entscheidet spaeter darueber, ob der Flaggenfilter
+   * ihn treffen darf. Wer einen Namen selbst eintippt, will ihn sehen - auch
+   * ohne Flagge, auch wenn ihn sonst niemand kennt. Ohne den Merker
+   * verschwand ein gerade angelegter Spieler sofort wieder aus der Liste,
+   * blieb aber gespeichert: beim naechsten Anlegen hiess es dann, es gebe
+   * ihn schon, obwohl nichts zu sehen war.
+   */
+  const addEntry = (
+    entry: any, isDuo: boolean,
+    options?: { localOnly?: boolean; vonHand?: boolean },
+  ) => {
+    saveList({
+      entries: [...entries, {
+        id: entry.id, tier: null, isDuo, data: entry,
+        localOnly: options?.localOnly, vonHand: options?.vonHand,
+      }],
+    });
   };
 
   const deleteEntry = (entryId: string) => {

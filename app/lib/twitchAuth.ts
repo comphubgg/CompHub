@@ -1,6 +1,7 @@
 import crypto from "crypto";
 import { NextRequest } from "next/server";
 import { t } from "@/app/lib/i18n";
+import { rueckwegVon } from '@/lib/oeffentlicheAdresse';
 
 const TWITCH_CLIENT_ID = process.env.TWITCH_CLIENT_ID || "";
 const TWITCH_CLIENT_SECRET = process.env.TWITCH_CLIENT_SECRET || "";
@@ -11,13 +12,7 @@ export const SESSION_COOKIE_NAME = "streamer_dashboard_auth";
 export const OAUTH_STATE_COOKIE = "twitch_oauth_state";
 
 export function getRedirectUri(req: NextRequest) {
-  const configuredBaseUrl = (process.env.NEXT_PUBLIC_BASE_URL || BASE_URL || "").trim();
-  if (configuredBaseUrl) {
-    return `${configuredBaseUrl.replace(/\/$/, "")}/api/auth/twitch/callback`;
-  }
-
-  const origin = req.headers.get("origin") || req.nextUrl.origin || "https://streamer-dashboard-i4qweorhb-juanitofnr-8042s-projects.vercel.app";
-  return `${origin.replace(/\/$/, "")}/api/auth/twitch/callback`;
+  return rueckwegVon(req, '/api/auth/twitch/callback');
 }
 
 export function signPayload(payload: string) {

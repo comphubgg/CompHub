@@ -87,7 +87,7 @@ export default function KontaktSeite() {
         body: JSON.stringify({ thema, eigenesThema, text, bilder }),
       });
       const j = await r.json();
-      if (!r.ok) { setFehler(j?.fehler || t('Das ging nicht.')); return; }
+      if (!r.ok) { setFehler(t(j?.fehler || 'Das ging nicht.')); return; }
       setGesendet(true);
     } catch {
       setFehler(t('Keine Verbindung zum Server.'));

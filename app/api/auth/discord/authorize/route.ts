@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { holeDienst } from '@/lib/dienstZugaenge';
+import { rueckwegVon } from '@/lib/oeffentlicheAdresse';
 
 // Der Hinweg zu Discord.
 //
@@ -22,16 +23,7 @@ export const runtime = 'nodejs';
 const PFAD = '/api/auth/discord/callback';
 
 function weiterleitung(req: NextRequest) {
-  const basis = (process.env.NEXT_PUBLIC_BASE_URL || '').trim();
-  // Ohne den Schraegstrich am Ende, sonst entstuende "…:3000//api/…" und das
-  // stimmt mit keiner bei Discord hinterlegten Adresse ueberein.
-  if (basis) return `${basis.replace(/\/+$/, '')}${PFAD}`;
-
-  const protokoll = req.headers.get('x-forwarded-proto') || 'https';
-  const host = req.headers.get('x-forwarded-host') || req.headers.get('host');
-  if (host) return `${protokoll}://${host}${PFAD}`;
-
-  return `${req.nextUrl.origin}${PFAD}`;
+  return rueckwegVon(req, PFAD);
 }
 
 export async function GET(req: NextRequest) {

@@ -2,19 +2,13 @@ import crypto from "crypto";
 import { NextRequest, NextResponse } from "next/server";
 import { t } from "@/app/lib/i18n";
 import { holeDienst } from '@/lib/dienstZugaenge';
+import { rueckwegVon } from '@/lib/oeffentlicheAdresse';
 
 // Client-Id kommt zur Laufzeit aus der Ablage (oder der Umgebung).
 const BASE_URL = process.env.NEXT_PUBLIC_BASE_URL || "";
 
 function getRedirectUri(req: NextRequest) {
-  if (BASE_URL) {
-    // Ohne den Schraegstrich am Ende: steht in .env.local
-    // "http://localhost:3000/", entstuende sonst "localhost:3000//api/…"
-    // - und das stimmt mit keiner bei Twitch hinterlegten Adresse
-    // ueberein. Der Fehler faellt erst auf, wenn alles andere passt.
-    return `${BASE_URL.replace(/\/+$/, "")}/api/auth/twitch/callback`;
-  }
-  return `${req.nextUrl.origin}/api/auth/twitch/callback`;
+  return rueckwegVon(req, '/api/auth/twitch/callback');
 }
 
 export async function GET(req: NextRequest) {

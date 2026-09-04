@@ -207,6 +207,29 @@ export default function TierListPage() {
     });
   }, []);
 
+  /*
+   * Wen der Betreiber aus der Tierlist genommen hat.
+   *
+   * Jede Tierlist gehoert einem Konto und wird als Ganzes gespeichert. Loescht
+   * der Betreiber ein Duo bei sich, verschwindet es deshalb nur aus seiner
+   * eigenen Liste - in den gespeicherten Listen der anderen steht es weiter.
+   * Diese gemeinsame Liste ist die Antwort darauf: was hier drinsteht, blendet
+   * jede Ansicht aus, egal wem sie gehoert.
+   */
+  const [entfernt, setEntfernt] = useState<Set<string>>(new Set());
+  const entferntLaden = useCallback(async () => {
+    try {
+      const j = await (await fetch('/api/tierlist-entfernt', { cache: 'no-store' })).json();
+      setEntfernt(new Set<string>(Array.isArray(j?.schluessel) ? j.schluessel : []));
+    } catch { /* ohne bleibt alles sichtbar - besser als eine leere Liste */ }
+  }, []);
+  useEffect(() => { void entferntLaden(); }, [entferntLaden]);
+
+  /** Der Schluessel, unter dem ein Eintrag in der Entfernt-Liste steht. */
+  const entfernSchluessel = useCallback((entry: any): string => (
+    entry?.isDuo ? getDuoKey(entry.data as any) : getSoloKey(entry?.data)
+  ), []);
+
   const landVon = useCallback((name: string): string | undefined => {
     const schluessel = String(name ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
     if (!schluessel) return undefined;
@@ -661,6 +684,16 @@ export default function TierListPage() {
 
   const filteredEntries = tierListState.entries.filter((entry: any) => {
     /*
+     * Was der Betreiber entfernt hat, ist fuer alle weg.
+     *
+     * Diese Regel steht bewusst ganz vorn und kennt keine Ausnahme - auch
+     * nicht fuer selbst Angelegtes. Wer als Betreiber einen Eintrag
+     * herausnimmt, will ihn nirgends mehr sehen.
+     */
+    const weg = entfernSchluessel(entry);
+    if (weg && entfernt.has(weg)) return false;
+
+    /*
      * Wen niemand kennt, muss auch nicht in der Liste stehen.
      *
      * Der Betreiber dazu: "Leute ohne Flagge kannst Du entfernen, weil die
@@ -676,7 +709,23 @@ export default function TierListPage() {
      * beim Laden auch mal ausbleiben koennen. Ein Filter laesst sich
      * zuruecknehmen, geloeschte Eintraege nicht.
      */
-    if (flaggenQuellenDa && !entry.tier && flaggenZahl(entry) === 0) return false;
+    /*
+     * Selbst Angelegtes bleibt immer stehen.
+     *
+     * Der Filter oben ist fuer die automatisch geladenen Duos gedacht, von
+     * denen es hunderte gibt. Wer dagegen selbst einen Namen eintippt, hat
+     * sich dabei etwas gedacht - den darf keine Regel wieder ausblenden.
+     * Genau das geschah bisher: ein neu angelegter Spieler ohne Flagge war
+     * gespeichert, aber unsichtbar, und beim zweiten Versuch hiess es, es
+     * gebe ihn schon.
+     */
+    const selbstAngelegt = Boolean(
+      entry.vonHand || entry.localOnly || entry.data?.createdBy,
+    );
+    if (!selbstAngelegt && flaggenQuellenDa && !entry.tier
+        && flaggenZahl(entry) === 0) {
+      return false;
+    }
 
     if (entry.localOnly) {
       const entryOwner = String(entry.data?.createdBy || '').trim().toLowerCase();
@@ -837,7 +886,7 @@ export default function TierListPage() {
       };
     }
 
-    tierListState.addEntry(player, false, { localOnly: !isAdmin });
+    tierListState.addEntry(player, false, { localOnly: !isAdmin, vonHand: true });
   };
 
   const handleCreateDuo = async (
@@ -878,7 +927,7 @@ export default function TierListPage() {
 
       if (duo) {
         console.log('[handleCreateDuo] duo prepared, adding to state', duo);
-        tierListState.addEntry(duo, true, { localOnly: !isAdmin });
+        tierListState.addEntry(duo, true, { localOnly: !isAdmin, vonHand: true });
         console.log('[handleCreateDuo] addEntry called');
       }
     } catch (error) {
@@ -911,6 +960,30 @@ export default function TierListPage() {
         if (!deleted) {
           console.warn('Failed to delete player from backend, removing locally only');
         }
+      }
+
+      /*
+       * Und in die gemeinsame Liste eintragen.
+       *
+       * Die beiden Aufrufe darueber nehmen den Eintrag aus der Quelle, aus der
+       * neue Listen entstehen. Sie erreichen aber nicht die Listen, die andere
+       * Konten schon gespeichert haben - dort stuende das Duo weiter. Erst
+       * dieser Vermerk sorgt dafuer, dass es ueberall verschwindet.
+       */
+      const schluessel = entfernSchluessel(entry);
+      if (schluessel) {
+        try {
+          await fetch('/api/tierlist-entfernt', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              schluessel,
+              name: entry.isDuo
+                ? `${(entry.data as any).player1?.name} & ${(entry.data as any).player2?.name}`
+                : (entry.data as any).name,
+            }),
+          });
+          setEntfernt((alt) => new Set(alt).add(schluessel));
+        } catch { /* dann greift es beim naechsten Laden */ }
       }
     }
 

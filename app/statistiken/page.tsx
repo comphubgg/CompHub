@@ -17,7 +17,7 @@
 //
 // Ebenso fehlen die Spielerfotos: das sind lizenzierte Pressebilder.
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import TeamFlagge from '@/components/TeamFlagge';
 import { ohneZierrat } from '@/lib/homoglyph';
 
@@ -2038,6 +2038,69 @@ export default function StatistikSeite() {
     setProfilSaison('alle');
     void profilLaden(s, 'alle');
   }, [profilLaden]);
+
+  /*
+   * Der geoeffnete Spieler steht in der Adresse.
+   *
+   * Vorher war ein Profil ein reiner Bildschirmzustand: wer die Seite neu
+   * lud, landete wieder ganz oben in der Liste, und ein Profil liess sich
+   * niemandem schicken. Der Betreiber dazu: "Wenn ich die Seite neu lade,
+   * bin ich nicht mehr auf diesem Statistik-Tool."
+   *
+   * Deshalb wandert der Name in die Adresse - lesbar, nicht als Konto-Id:
+   * "/statistiken?spieler=MrSavage" sagt einem Menschen, worauf er klickt,
+   * und laesst sich weitergeben. Geschrieben wird mit replaceState, nicht
+   * mit push: sonst entstuende fuer jedes angesehene Profil ein eigener
+   * Schritt im Verlauf, und der Zurueck-Knopf braeuchte zehn Klicks, um die
+   * Seite zu verlassen.
+   */
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const p = new URLSearchParams(window.location.search);
+    const ist = p.get('spieler');
+    const soll = offen ? (offen.anzeige || offen.name) : null;
+    if ((soll ?? null) === (ist ?? null)) return;
+    if (soll) p.set('spieler', soll); else p.delete('spieler');
+    const rest = p.toString();
+    window.history.replaceState(null, '',
+      window.location.pathname + (rest ? `?${rest}` : ''));
+  }, [offen]);
+
+  /*
+   * Und zurueck: beim Aufruf mit ?spieler=... dieses Profil oeffnen.
+   *
+   * Zuerst in der geladenen Liste nachsehen - meistens steht er dort. Wenn
+   * nicht, wird gezielt danach gesucht: die Liste zeigt nur die ersten
+   * dreihundert eines Zeitraums, und ein weitergegebener Link soll auch
+   * dann aufgehen, wenn der Betreffende gerade nicht darunter ist.
+   */
+  const ausAdresseGeholt = useRef(false);
+  useEffect(() => {
+    if (ausAdresseGeholt.current || typeof window === 'undefined') return;
+    const gesucht = new URLSearchParams(window.location.search).get('spieler');
+    if (!gesucht) { ausAdresseGeholt.current = true; return; }
+    if (!spieler.length) return;
+    ausAdresseGeholt.current = true;
+
+    const schluessel = (x: string) => String(x).trim().toLowerCase()
+      .replace(/[^a-z0-9]/g, '');
+    const gesuchtK = schluessel(gesucht);
+    const passt = (x: Spieler) => x.epicId === gesucht
+      || schluessel(x.anzeige || '') === gesuchtK
+      || schluessel(x.name || '') === gesuchtK;
+
+    void (async () => {
+      let treffer = spieler.find(passt);
+      if (!treffer) {
+        try {
+          const p = new URLSearchParams({ saison, sort, limit: '50', q: gesucht });
+          const j = await (await fetch(`/api/szene-stats?${p}`)).json();
+          treffer = (j.spieler ?? []).find(passt);
+        } catch { /* dann bleibt es bei der Liste */ }
+      }
+      if (treffer) oeffne(treffer);
+    })();
+  }, [spieler, saison, sort, oeffne]);
 
   /** Im offenen Profil den Zeitraum wechseln. */
   const profilZeitraum = useCallback((zeitraum: string) => {

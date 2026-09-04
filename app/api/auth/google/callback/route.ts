@@ -5,6 +5,7 @@ import {
   verknuepfe,
 } from '@/lib/konten';
 import { ueberHttps } from '@/lib/vipCookie';
+import { wurzelVon, rueckwegVon } from '@/lib/oeffentlicheAdresse';
 
 // Der Rueckweg von Google.
 //
@@ -25,15 +26,11 @@ const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '';
 const COOKIE = 'streamer_dashboard_konto';
 
 function weiterleitung(req: NextRequest) {
-  const basis = (process.env.NEXT_PUBLIC_BASE_URL || '').trim();
-  const wurzel = basis ? basis.replace(/\/+$/, '') : req.nextUrl.origin;
-  return `${wurzel}/api/auth/google/callback`;
+  return rueckwegVon(req, '/api/auth/google/callback');
 }
 
 function zurueck(req: NextRequest, ziel: string) {
-  const basis = (process.env.NEXT_PUBLIC_BASE_URL || '').trim();
-  const wurzel = basis ? basis.replace(/\/+$/, '') : req.nextUrl.origin;
-  return NextResponse.redirect(`${wurzel}${ziel}`);
+  return NextResponse.redirect(`${wurzelVon(req)}${ziel}`);
 }
 
 export async function GET(req: NextRequest) {

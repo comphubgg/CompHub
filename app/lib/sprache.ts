@@ -498,6 +498,34 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Grund für die Sperre (nur du siehst ihn):': 'Reason for the block (only you see it):',
   'Dieses Konto ist gesperrt.': 'This account is blocked.',
   'Von diesem Anschluss lässt sich kein Konto anlegen.': 'No account can be created from this connection.',
+  /*
+   * Die Antworten der Kontoverwaltung.
+   *
+   * Sie entstehen auf dem Server und kamen deshalb bisher immer auf Deutsch
+   * an - auch bei jemandem, der die Seite auf Englisch liest. Wer gesperrt
+   * war, bekam einen deutschen Satz vorgesetzt und wusste nicht, was los ist.
+   * Uebersetzt wird jetzt beim Anzeigen, und dafuer muessen die Saetze hier
+   * stehen.
+   */
+  'Bitte zuerst anmelden.': 'Please sign in first.',
+  'Passwort stimmt nicht.': 'That password is not correct.',
+  'Zu dieser Adresse gibt es kein Konto. Bitte erst registrieren.':
+    'There is no account for this address. Please sign up first.',
+  'Dieses Konto wurde über einen Anmeldedienst angelegt. Bitte darüber anmelden.':
+    'This account was created through a sign-in service. Please sign in that way.',
+  'Diese E-Mail-Adresse sieht nicht gültig aus.':
+    'That email address does not look valid.',
+  'Das Epic-Konto wird vom Betreiber zugewiesen.':
+    'The Epic account is assigned by the operator.',
+  'Die eingegebene Adresse stimmt nicht mit dem Konto überein.':
+    'The address you entered does not match the account.',
+  'Das Bild ist zu groß — bitte ein kleineres wählen.':
+    'That image is too large — please choose a smaller one.',
+  'Das war kein Bild.': 'That was not an image.',
+  'Das hat nicht geklappt.': 'That did not work.',
+  'nicht angemeldet': 'not signed in',
+  'nicht gefunden': 'not found',
+  'unbekannte Anfrage': 'unknown request',
   ['Hier stehen keine privaten Daten — keine Adressen, keine Social-Konten. Wer etwas beantragt, nennt dir seine Konto-Id; die sieht er bei sich selbst unter „Account“.']:
     'No private data here — no addresses, no social accounts. Anyone requesting something tells you their account id; they see it under “Account” themselves.',
   'Rollen und VIP vergeben': 'Grant roles and VIP',

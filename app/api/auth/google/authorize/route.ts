@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
+import { rueckwegVon } from '@/lib/oeffentlicheAdresse';
 
 // Der Weg zu Google.
 //
@@ -24,9 +25,7 @@ export const runtime = 'nodejs';
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
 
 export function weiterleitung(req: NextRequest) {
-  const basis = (process.env.NEXT_PUBLIC_BASE_URL || '').trim();
-  const wurzel = basis ? basis.replace(/\/+$/, '') : req.nextUrl.origin;
-  return `${wurzel}/api/auth/google/callback`;
+  return rueckwegVon(req, '/api/auth/google/callback');
 }
 
 export async function GET(req: NextRequest) {

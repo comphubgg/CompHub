@@ -12,7 +12,8 @@
     "epic-login": "node scripts/epic-login.js",
     "schnell": "next build && next start -H 0.0.0.0",
     "exe": "node elektron/bauen.mjs",
-    "exe-klein": "node elektron/bauen.mjs --ohne-daten"
+    "exe-klein": "node elektron/bauen.mjs --ohne-daten",
+    "veroeffentlichen": "next build && powershell -NoProfile -ExecutionPolicy Bypass -File scripts/neu-veroeffentlichen.ps1"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.8",
