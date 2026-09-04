@@ -48,10 +48,58 @@ Write-Host ''
 $antwort = Read-Host '  Umstellen? (j/n)'
 if ($antwort -notmatch '^[jJyY]') { Sag 'Abgebrochen - nichts geaendert.'; exit 0 }
 
+
+<#
+  Der Notweg, wenn cloudflared den Eintrag nicht ueberschreiben kann.
+
+  Beim Hauptnamen thecomphub.com liegt bereits ein Eintrag, und cloudflared
+  bricht dort auch mit --overwrite-dns ab: "An A, AAAA, or CNAME record with
+  that host already exists". Beim ersten Umschalten ist genau das passiert -
+  www zeigte danach auf den Laptop, der Hauptname weiter auf den PC. Wer dann
+  den anderen Rechner ausschaltet, legt die Seite halb tot, ohne es zu merken.
+
+  Deshalb hier der zweite Weg: den alten Eintrag ueber die Cloudflare-
+  Schnittstelle entfernen und es noch einmal versuchen. Der Zugang dafuer
+  steckt in cert.pem - derselben Datei, mit der sich cloudflared anmeldet.
+#>
+function EntferneEintrag([string]$name) {
+    $certPfad = Join-Path $env:USERPROFILE ".cloudflared\cert.pem"
+    if (-not (Test-Path $certPfad)) { return $false }
+    try {
+        $roh = Get-Content $certPfad -Raw
+        $b64 = ($roh -replace '-----[^-]*-----', '') -replace '\s', ''
+        $angaben = [Text.Encoding]::UTF8.GetString([Convert]::FromBase64String($b64)) | ConvertFrom-Json
+        $kopf = @{ Authorization = "Bearer $($angaben.apiToken)" }
+        $basis = "https://api.cloudflare.com/client/v4/zones/$($angaben.zoneID)/dns_records"
+        $liste = Invoke-RestMethod -Uri "$basis`?name=$name" -Headers $kopf
+        foreach ($e in $liste.result) {
+            if ($e.type -in @('A', 'AAAA', 'CNAME')) {
+                Invoke-RestMethod -Uri "$basis/$($e.id)" -Method Delete -Headers $kopf | Out-Null
+                Sag "  alten $($e.type)-Eintrag entfernt"
+            }
+        }
+        return $true
+    } catch {
+        Sag "  Der Notweg ging auch nicht: $($_.Exception.Message)" 'Yellow'
+        return $false
+    }
+}
 foreach ($name in 'thecomphub.com', 'www.thecomphub.com') {
     Write-Host ''
     Sag "$name umstellen ..."
-    & $Cloudflared tunnel route dns --overwrite-dns $TunnelId $name
+    $ausgabe = & $Cloudflared tunnel route dns --overwrite-dns $TunnelId $name 2>&1
+    $ausgabe | ForEach-Object { Sag "  $_" }
+
+    # Hat es nicht geklappt, den alten Eintrag entfernen und es noch einmal
+    # versuchen. Stillschweigend weiterzugehen waere hier das Schlimmste:
+    # halb umgezogen sieht von aussen aus wie umgezogen.
+    if ($LASTEXITCODE -ne 0 -or ($ausgabe -join " ") -match "already exists") {
+        Sag "  Der Eintrag laesst sich nicht ueberschreiben - alten entfernen ..." 'Yellow'
+        if (EntferneEintrag $name) {
+            $ausgabe = & $Cloudflared tunnel route dns $TunnelId $name 2>&1
+            $ausgabe | ForEach-Object { Sag "  $_" }
+        }
+    }
 }
 
 Write-Host ''
