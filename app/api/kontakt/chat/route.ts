@@ -151,21 +151,27 @@ export async function POST(request: Request) {
   if (wer.admin) {
     const ergebnis = await fuehreAus(id, text);
     if (!ergebnis.keinBefehl) {
-      // Was das Gespraech veraendert hat, gehoert in den Verlauf: sonst
-      // stuende ein geschlossenes Ticket ohne Grund da.
-      let gespraech = null;
-      if (ergebnis.imVerlauf) {
-        const geaendert = await antworte({
-          id, von: 'betreiber', name: 'CompHub', text: ergebnis.imVerlauf,
-        });
-        if (geaendert) gespraech = fuerAnsicht(geaendert, true);
-      }
+      /*
+       * Nichts davon landet im Verlauf.
+       *
+       * Erst stand die Wirkung eines Befehls als Nachricht im Gespraech -
+       * "Gespraech geschlossen", "X ist jetzt dabei". Der Betreiber wollte
+       * das nicht: "dass nur ich als Admin das sehe und die das im
+       * Chatverlauf eigentlich nicht sehen koennen." Das ist auch
+       * schluessiger - ein Befehl ist Bedienung des Werkzeugs, keine
+       * Nachricht an den Gegenueber.
+       *
+       * Die Rueckmeldung geht deshalb vollstaendig an den Betreiber und
+       * nirgendwo sonst hin.
+       */
+      const zusammen = [ergebnis.imVerlauf, ergebnis.hinweis]
+        .filter(Boolean).join('\n\n');
       return NextResponse.json({
         ok: true,
         befehl: true,
-        hinweis: ergebnis.hinweis ?? null,
+        hinweis: zusammen || null,
         neuLaden: Boolean(ergebnis.neuLaden),
-        gespraech,
+        gespraech: null,
       });
     }
   }
