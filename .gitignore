@@ -70,10 +70,6 @@ next-env.d.ts
 # und bleiben es - eine Regel hier wirkt nur auf noch nicht verfolgte
 # Dateien. Alles Neue bleibt auf dem Rechner.
 /data/**
-!/data/notes.json
-!/data/players.json
-!/data/streamers.json
-!/data/tournamentLeaderboards.json
 .env* 
 .vercel-temp.env 
 
@@ -84,3 +80,6 @@ next-env.d.ts
 
 # Rechnerabhaengige Orte fuer den Waechter - auf jedem Rechner andere.
 /dauerbetrieb-orte.json
+
+# Ein Sicherungsordner, den das Aktualisieren anlegt.
+/sicherung-*
