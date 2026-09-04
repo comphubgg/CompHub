@@ -37,6 +37,50 @@ interface Gespraech {
 const TAKT_ZU_MS = 30_000;
 const TAKT_OFFEN_MS = 5_000;
 
+/*
+ * Eine eigene Farbe je Person.
+ *
+ * In einem Gespraech zu zweit reicht links und rechts. Sobald der Betreiber
+ * jemanden dazuholt, reicht es nicht mehr: dann stehen drei Leute in einem
+ * Verlauf, und an der Seite allein ist nicht zu erkennen, wer was geschrieben
+ * hat. Der Betreiber dazu: "man weiss nicht genau, wer geschrieben hat."
+ *
+ * Die Farbe kommt aus dem Namen, nicht aus einer laufenden Nummer: derselbe
+ * Mensch bekommt dadurch in jedem Gespraech dieselbe Farbe, auch wenn er dort
+ * als Dritter statt als Erster auftaucht. Die Klassennamen stehen ausgeschrieben
+ * da, weil Tailwind sie sonst nicht findet - zusammengesetzte Namen fallen beim
+ * Bauen heraus.
+ */
+const FARBEN = [
+  { text: 'text-sky-300', grund: 'bg-sky-500/20', rand: 'border-sky-500/40' },
+  { text: 'text-emerald-300', grund: 'bg-emerald-500/20', rand: 'border-emerald-500/40' },
+  { text: 'text-amber-300', grund: 'bg-amber-500/20', rand: 'border-amber-500/40' },
+  { text: 'text-rose-300', grund: 'bg-rose-500/20', rand: 'border-rose-500/40' },
+  { text: 'text-violet-300', grund: 'bg-violet-500/20', rand: 'border-violet-500/40' },
+  { text: 'text-cyan-300', grund: 'bg-cyan-500/20', rand: 'border-cyan-500/40' },
+  { text: 'text-lime-300', grund: 'bg-lime-500/20', rand: 'border-lime-500/40' },
+  { text: 'text-orange-300', grund: 'bg-orange-500/20', rand: 'border-orange-500/40' },
+];
+
+/** Der Betreiber hat immer dieselbe Farbe - er kommt in jedem Gespraech vor. */
+const BETREIBER_FARBE = FARBEN[0];
+
+function farbeFuer(name: string, vonBetreiber: boolean) {
+  if (vonBetreiber) return BETREIBER_FARBE;
+  let h = 0;
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
+  // Die erste Farbe gehoert dem Betreiber, die anderen werden verteilt.
+  return FARBEN[1 + (h % (FARBEN.length - 1))];
+}
+
+/** Ein oder zwei Buchstaben fuer das Kreischen. */
+function kuerzel(name: string) {
+  const teile = String(name || '?').trim().split(/\s+/).filter(Boolean);
+  if (!teile.length) return '?';
+  if (teile.length === 1) return teile[0].slice(0, 2).toUpperCase();
+  return (teile[0][0] + teile[1][0]).toUpperCase();
+}
+
 const THEMENNAME: Record<string, string> = {
   support: 'Support', report: 'Report', hilfe: 'Hilfe',
   idee: 'Idee', anderes: 'Anderes',
@@ -393,13 +437,31 @@ export default function ChatFenster({ alsSeite = false }: { alsSeite?: boolean }
                 <div className="flex-1 space-y-3 overflow-y-auto px-4 py-4">
                   {aktuell.verlauf.map((n) => {
                     const eigen = admin ? n.von === 'betreiber' : n.von === 'nutzer';
+                    const vonBetreiber = n.von === 'betreiber';
+                    const name = vonBetreiber ? 'CompHub' : (n.name || aktuell.vonName || '?');
+                    const f = farbeFuer(name, vonBetreiber);
                     return (
                       <div key={n.id}
-                        className={`flex ${eigen ? 'justify-end' : 'justify-start'}`}>
-                        <div className={`max-w-[85%] rounded-2xl px-3.5 py-2.5
+                        className={`flex items-end gap-2
+                          ${eigen ? 'flex-row-reverse' : 'flex-row'}`}>
+                        {/* Das Kreischen mit den Anfangsbuchstaben. Es steht auf
+                            beiden Seiten: in einer Gruppe schreibt nicht nur
+                            einer von rechts. */}
+                        <span title={name}
+                          className={`grid h-7 w-7 shrink-0 place-items-center
+                            rounded-full border text-[10px] font-bold
+                            ${f.grund} ${f.rand} ${f.text}`}>
+                          {kuerzel(name)}
+                        </span>
+                        <div className={`max-w-[80%] rounded-2xl px-3.5 py-2.5
                           ${eigen
                             ? 'bg-sky-500/15 text-slate-100'
                             : 'bg-zinc-900 text-slate-200'}`}>
+                          {/* Wer geschrieben hat - vorher stand dort nur die
+                              Uhrzeit, und in einer Gruppe half die nicht weiter. */}
+                          <p className={`mb-0.5 text-[11px] font-semibold ${f.text}`}>
+                            {name}
+                          </p>
                           <p className="whitespace-pre-wrap text-sm leading-relaxed">
                             {n.text}
                           </p>
@@ -419,7 +481,8 @@ export default function ChatFenster({ alsSeite = false }: { alsSeite?: boolean }
                               ))}
                             </div>
                           )}
-                          <p className="mt-1 text-right text-[10px] text-slate-500">
+                          <p className={`mt-1 text-[10px] text-slate-500
+                            ${eigen ? 'text-right' : 'text-left'}`}>
                             {uhrzeit(n.zeit)}
                           </p>
                         </div>

@@ -34,17 +34,26 @@ export interface BefehlsErgebnis {
   keinBefehl?: boolean;
 }
 
+/*
+ * Die Befehlsausgabe ist englisch, und zwar durchgehend.
+ *
+ * Sie entsteht auf dem Server und traegt Namen in sich - durch das
+ * Woerterbuch, das ganze Saetze nachschlaegt, kaeme sie nie. Uebrig blieben
+ * zwei Wege: Bausteine verschicken und im Browser zusammensetzen, oder eine
+ * Sprache waehlen. Fuer eine Konsole, die nur der Betreiber sieht, ist das
+ * Zweite ehrlicher - und er liest das Werkzeug ohnehin auf Englisch.
+ */
 const HILFE = [
-  'Befehle im Gespräch:',
+  'Commands in this conversation:',
   '',
-  '  /hilfe            diese Liste',
-  '  /close            Gespräch als erledigt schließen',
-  '  /open             wieder öffnen',
-  '  /wer              wer in diesem Gespräch ist',
-  '  /nutzer <suche>   Konten suchen (ohne Suche: die letzten 20)',
-  '  /add <name>       jemanden hinzufügen (mehrere Namen möglich)',
-  '  /remove <name>    jemanden wieder herausnehmen',
-  '  /neu <name> …     neues Gespräch mit einem oder mehreren',
+  '  /help             this list',
+  '  /close            close the conversation as done',
+  '  /open             reopen it',
+  '  /who              who is in this conversation',
+  '  /users <search>   search accounts (no search: the last 20)',
+  '  /add <name>       add someone (several names work)',
+  '  /remove <name>    take someone out again',
+  '  /new <name> ...   new conversation with one or more people',
 ].join('\n');
 
 /** Ein Konto anhand von Name oder Adresse finden. */
@@ -86,26 +95,26 @@ export async function fuehreAus(
 
   if (befehl === 'close') {
     await aendere(gespraechId, { erledigt: true });
-    return { imVerlauf: 'Gespräch geschlossen.', neuLaden: true };
+    return { hinweis: 'Conversation closed.', neuLaden: true };
   }
 
   if (befehl === 'open') {
     await aendere(gespraechId, { erledigt: false });
-    return { imVerlauf: 'Gespräch wieder geöffnet.', neuLaden: true };
+    return { hinweis: 'Conversation reopened.', neuLaden: true };
   }
 
   if (['nutzer', 'users', 'konten'].includes(befehl)) {
     const treffer = await sucheKonten(argument);
-    if (!treffer.length) return { hinweis: `Kein Konto passt zu „${argument}".` };
+    if (!treffer.length) return { hinweis: `No account matches "${argument}".` };
     const kopf = argument
-      ? `${treffer.length} Treffer für „${argument}":`
-      : `Die letzten ${treffer.length} Konten:`;
+      ? `${treffer.length} match "${argument}":`
+      : `The last ${treffer.length} accounts:`;
     return { hinweis: [kopf, '', ...treffer.slice(0, 40).map(zeile)].join('\n') };
   }
 
   if (befehl === 'wer') {
     const m = (await alle()).find((x) => x.id === gespraechId);
-    if (!m) return { hinweis: 'Dieses Gespräch gibt es nicht mehr.' };
+    if (!m) return { hinweis: 'That conversation no longer exists.' };
     const konten = await alleKonten();
     const namen = (m.teilnehmer ?? [])
       .map((id) => konten.find((k) => k.id === id))
@@ -113,8 +122,8 @@ export async function fuehreAus(
       .map((k) => `  ${k!.name || k!.id}`);
     return {
       hinweis: [
-        `Begonnen von: ${m.vonName || '—'}`,
-        namen.length ? 'Dazugekommen:' : 'Sonst niemand dabei.',
+        `Started by: ${m.vonName || '—'}`,
+        namen.length ? 'Added later:' : 'Nobody else is in it.',
         ...namen,
       ].join('\n'),
     };
@@ -124,8 +133,8 @@ export async function fuehreAus(
     if (!argument) {
       const treffer = await sucheKonten('');
       return {
-        hinweis: ['Wen? So:  /add <name>', '',
-          'Zur Auswahl (die letzten 20):', '',
+        hinweis: ['Who? Like this:  /add <name>', '',
+          'To choose from (the last 20):', '',
           ...treffer.map(zeile)].join('\n'),
       };
     }
@@ -133,18 +142,18 @@ export async function fuehreAus(
   }
 
   if (['remove', 'raus'].includes(befehl)) {
-    if (!argument) return { hinweis: 'Wen? So:  /remove <name>' };
+    if (!argument) return { hinweis: 'Who? Like this:  /remove <name>' };
     return await teilnehmerAendern(gespraechId, argument, false);
   }
 
   if (['neu', 'new', 'gruppe'].includes(befehl)) {
     if (!argument) {
-      return { hinweis: 'So:  /neu <name> [name …]  — legt ein Gespräch mit diesen Leuten an.' };
+      return { hinweis: 'Like this:  /new <name> [name …]  — starts a conversation with these people.' };
     }
     return await neuesGespraech(argument);
   }
 
-  return { hinweis: `„/${befehl}" kenne ich nicht. /hilfe zeigt die Liste.` };
+  return { hinweis: `I do not know "/${befehl}". /help shows the list.` };
 }
 
 /**
@@ -159,7 +168,7 @@ async function teilnehmerAendern(
   gespraechId: string, argument: string, dazu: boolean,
 ): Promise<BefehlsErgebnis> {
   const m = (await alle()).find((x) => x.id === gespraechId);
-  if (!m) return { hinweis: 'Dieses Gespräch gibt es nicht mehr.' };
+  if (!m) return { hinweis: 'That conversation no longer exists.' };
 
   const { gefunden, meldungen } = await loeseNamenAuf(argument);
   if (!gefunden.length) return { hinweis: meldungen.join('\n') };
@@ -167,7 +176,7 @@ async function teilnehmerAendern(
   const bisher = new Set(m.teilnehmer ?? []);
   const namen: string[] = [];
   for (const k of gefunden) {
-    if (k.id === m.vonId) { meldungen.push(`${k.name} hat das Gespräch begonnen.`); continue; }
+    if (k.id === m.vonId) { meldungen.push(`${k.name} started this conversation.`); continue; }
     if (dazu) { bisher.add(k.id); } else { bisher.delete(k.id); }
     namen.push(k.name || k.id);
   }
@@ -176,10 +185,12 @@ async function teilnehmerAendern(
   await setzeTeilnehmer(gespraechId, [...bisher]);
 
   return {
-    imVerlauf: dazu
-      ? `${namen.join(', ')} ${namen.length > 1 ? 'sind' : 'ist'} jetzt dabei.`
-      : `${namen.join(', ')} ${namen.length > 1 ? 'sind' : 'ist'} nicht mehr dabei.`,
-    hinweis: meldungen.length ? meldungen.join('\n') : undefined,
+    // Was ging und was nicht, in einer Meldung - zwei getrennte Zeilen
+    // haetten bedeutet, dass eine davon uebersehen wird.
+    hinweis: [
+      dazu ? `Added: ${namen.join(', ')}` : `Removed: ${namen.join(', ')}`,
+      ...meldungen,
+    ].join('\n'),
     neuLaden: true,
   };
 }
@@ -197,9 +208,9 @@ async function loeseNamenAuf(argument: string) {
     const treffer = genau.length ? genau : konten.filter((x) =>
       String(x.name ?? '').toLowerCase().includes(k));
 
-    if (!treffer.length) { meldungen.push(`Kein Konto passt zu „${t}".`); continue; }
+    if (!treffer.length) { meldungen.push(`No account matches "${t}".`); continue; }
     if (treffer.length > 1) {
-      meldungen.push(`„${t}" passt auf mehrere: ${treffer.slice(0, 6).map((x) => x.name).join(', ')}`);
+      meldungen.push(`"${t}" matches several: ${treffer.slice(0, 6).map((x) => x.name).join(', ')}`);
       continue;
     }
     gefunden.push(treffer[0]);
@@ -216,9 +227,9 @@ async function neuesGespraech(argument: string): Promise<BefehlsErgebnis> {
   const m: Meldung = await lege({
     thema: 'anderes',
     eigenesThema: gefunden.length > 1
-      ? `Gruppe: ${gefunden.map((k) => k.name).join(', ')}`
-      : `Nachricht an ${erster.name}`,
-    text: 'Der Betreiber hat dieses Gespräch begonnen.',
+      ? `Group: ${gefunden.map((k) => k.name).join(', ')}`
+      : `Message to ${erster.name}`,
+    text: 'CompHub started this conversation.',
     bilder: [],
     vonId: erster.id,
     vonName: erster.name ?? '',
@@ -231,8 +242,8 @@ async function neuesGespraech(argument: string): Promise<BefehlsErgebnis> {
 
   return {
     hinweis: [
-      `Gespräch angelegt mit ${gefunden.map((k) => k.name).join(', ')}.`,
-      'Es steht jetzt oben in der Liste.',
+      `Conversation created with ${gefunden.map((k) => k.name).join(', ')}.`,
+      'It is now at the top of the list.',
       ...meldungen,
     ].join('\n'),
     neuLaden: true,
