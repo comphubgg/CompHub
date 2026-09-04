@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
+import { rueckwegVon } from "@/lib/oeffentlicheAdresse";
 
 export function GET(request: NextRequest) {
   /*
@@ -13,9 +14,11 @@ export function GET(request: NextRequest) {
    * einer frueheren Veroeffentlichung. Die gehoerte niemandem mehr und
    * haette einen Abmeldenden auf eine fremde Seite geschickt.
    */
-  const baseUrl = (request.nextUrl.origin
-    || process.env.NEXT_PUBLIC_BASE_URL || "").trim();
-  const response = NextResponse.redirect(`${baseUrl.replace(/\/$/, "")}/login`);
+  // Genommen wird der Name aus der Anfrage, nicht request.nextUrl.origin:
+  // letzteres ist die Adresse, auf der der Server lauscht. Hinter dem Tunnel
+  // ist das "0.0.0.0:3100", und wer sich abmeldete, landete auf
+  // "https://0.0.0.0:3100/login" - einer Adresse, die es nicht gibt.
+  const response = NextResponse.redirect(rueckwegVon(request, '/login'));
   response.cookies.delete("streamer_dashboard_auth");
   return response;
 }

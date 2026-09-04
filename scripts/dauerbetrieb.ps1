@@ -30,7 +30,9 @@ $ErrorActionPreference = 'SilentlyContinue'
 # sich orientieren koennte - der eigene Ort ist der einzige verlaessliche.
 $Projekt = Split-Path -Parent $PSScriptRoot
 $Port     = 3100
-$Tunnel   = 'comphub'
+# Welcher Tunnel gestartet wird, entscheidet die Einstellungsdatei selbst
+# (die Zeile "tunnel:" darin). Frueher stand hier fest "comphub" - auf dem
+# Laptop heisst er aber "comphub-laptop", und der Start scheiterte still.
 # Woran unser Tunnel zu erkennen ist.
 #
 # Nach dem Namen des Programms zu suchen genuegt nicht: auf dem PC liegt
@@ -109,7 +111,7 @@ if (-not (LauschtJemand $MessPort)) {
     } else {
         Notiere "Tunnel war weg, wird gestartet (Einstellungen: $Konfig)."
         Start-Process -FilePath $Cloudflared `
-            -ArgumentList 'tunnel', '--config', $Konfig, '--metrics', "127.0.0.1:$MessPort", 'run', $Tunnel `
+            -ArgumentList 'tunnel', '--config', $Konfig, '--metrics', "127.0.0.1:$MessPort", 'run' `
             -WindowStyle Hidden `
             -RedirectStandardOutput (Join-Path $Projekt 'tunnel-aus.log') `
             -RedirectStandardError  (Join-Path $Projekt 'tunnel.log')
