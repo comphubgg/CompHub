@@ -511,6 +511,13 @@ const AUF_ENGLISCH: Record<string, string> = {
   /* Das Gespraech mit dem Betreiber - siehe app/components/ChatFenster.tsx. */
   'Nachrichten': 'Messages',
   'Noch keine Nachrichten.': 'No messages yet.',
+  'ausblenden': 'hide',
+  'Symbol ausblenden': 'Hide icon',
+  'Symbol einblenden': 'Show icon',
+  ['Das Chatsymbol am linken Bildschirmrand. Ausgeblendet bleiben deine Nachrichten erhalten — du siehst nur den Knopf nicht mehr.']:
+    'The chat icon on the left edge of the screen. Hidden, your messages stay — you just no longer see the button.',
+  ['Symbol am Rand ausblenden — zurück unter „Mein Konto“']:
+    'Hide the icon on the edge — bring it back under “My account”',
   'Antwort schreiben …': 'Write a reply…',
   'sendet …': 'sending…',
   'Bitte schreib etwas.': 'Please write something.',

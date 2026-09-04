@@ -20,6 +20,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import T from './T';
 import { useT } from './SprachProvider';
+import { liesChatHud, setzeChatHud, CHAT_HUD_EREIGNIS } from '@/app/lib/chatHud';
 
 interface Nachricht {
   id: string; zeit: number; von: 'nutzer' | 'betreiber';
@@ -52,6 +53,28 @@ export default function ChatFenster() {
   const [entwurf, setEntwurf] = useState('');
   const [sendet, setSendet] = useState(false);
   const endeRef = useRef<HTMLDivElement | null>(null);
+
+  /*
+   * Steht der Knopf am Rand?
+   *
+   * null heisst "noch nicht gelesen". Erst nach dem Zusammenfuegen im Browser
+   * steht fest, was jemand eingestellt hat - haette man hier "ja" angenommen,
+   * blitzte der Knopf bei jedem Seitenaufruf kurz auf, obwohl er weg sein
+   * soll.
+   */
+  const [amRand, setAmRand] = useState<boolean | null>(null);
+  useEffect(() => {
+    setAmRand(liesChatHud());
+    const beiAenderung = (e: Event) => setAmRand((e as CustomEvent).detail !== false);
+    window.addEventListener(CHAT_HUD_EREIGNIS, beiAenderung);
+    // Wurde es in einem anderen Tab umgestellt, gilt es auch hier.
+    const beiSpeicher = () => setAmRand(liesChatHud());
+    window.addEventListener('storage', beiSpeicher);
+    return () => {
+      window.removeEventListener(CHAT_HUD_EREIGNIS, beiAenderung);
+      window.removeEventListener('storage', beiSpeicher);
+    };
+  }, []);
 
   /* --------------------------------------------------------------- Holen */
 
@@ -135,6 +158,9 @@ export default function ChatFenster() {
   // Kein Zugang, oder nichts zu besprechen: dann auch kein Knopf.
   if (!darf) return null;
   if (!admin && gespraeche.length === 0) return null;
+  // Ausgeblendet, oder noch nicht gelesen: dann nichts am Rand. Ein offenes
+  // Fenster bleibt offen - wer gerade schreibt, soll nicht unterbrochen werden.
+  if (amRand === null || (amRand === false && !offen)) return null;
 
   const betreff = (g: Gespraech) => (g.eigenesThema
     || t(THEMENNAME[g.thema] ?? 'Anderes'));
@@ -198,6 +224,20 @@ export default function ChatFenster() {
                     ← <T>zurück</T>
                   </button>
                 )}
+                {/*
+                  * Weg mit dem Knopf.
+                  *
+                  * Hier und nicht nur in den Einstellungen: wer das Ding
+                  * loswerden will, sitzt gerade davor. Zurueckholen laesst es
+                  * sich unter "Mein Konto".
+                  */}
+                <button
+                  onClick={() => { setzeChatHud(false); setOffen(false); }}
+                  title={t('Symbol am Rand ausblenden — zurück unter „Mein Konto"')}
+                  className="rounded-lg px-2 py-1 text-[11px] text-slate-500
+                             transition hover:text-sky-400">
+                  <T>ausblenden</T>
+                </button>
                 <button onClick={() => setOffen(false)} aria-label={t('schließen')}
                   className="rounded-lg p-1.5 text-slate-500 transition
                              hover:text-slate-200">

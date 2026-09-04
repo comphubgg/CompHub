@@ -9,6 +9,7 @@ import { rundenName } from '@/lib/rundenName';
 import { useT } from '@/app/components/SprachProvider';
 import { useZugang } from '@/app/lib/zugang';
 import { BEREICHE as VERWALTUNGSBEREICHE, type Bereich as BereichRecht } from '@/lib/rechte';
+import { liesChatHud, setzeChatHud, CHAT_HUD_EREIGNIS } from '@/app/lib/chatHud';
 
 // Das eigene Konto.
 //
@@ -138,6 +139,21 @@ export default function KontoSeite() {
   const [konto, setKonto] = useState<Konto | null>(null);
   const [laedt, setLaedt] = useState(true);
   const [bereich, setBereich] = useState<Bereich>('konto');
+
+  /*
+   * Ob das Chatsymbol am Bildschirmrand steht.
+   *
+   * Erst nach dem Zusammenfuegen im Browser gelesen: die Einstellung liegt im
+   * Browser, und ein Server weiss davon nichts. Wer das hier waehrend des
+   * Zeichnens laese, bekaeme eine Abweichung gemeldet.
+   */
+  const [chatAmRand, setChatAmRand] = useState<boolean | null>(null);
+  useEffect(() => {
+    setChatAmRand(liesChatHud());
+    const beiAenderung = (e: Event) => setChatAmRand((e as CustomEvent).detail !== false);
+    window.addEventListener(CHAT_HUD_EREIGNIS, beiAenderung);
+    return () => window.removeEventListener(CHAT_HUD_EREIGNIS, beiAenderung);
+  }, []);
   const [stand, setStand] = useState('');
 
   const [name, setName] = useState('');
@@ -693,6 +709,39 @@ export default function KontoSeite() {
                              font-medium text-white transition hover:bg-sky-400">
                   <T>Schreiben</T>
                 </Link>
+              </div>
+            </section>
+
+            {/*
+              * Das Chatsymbol am Rand an- und abschalten.
+              *
+              * Der Betreiber wollte es abstellen koennen: wer eine Karte baut
+              * oder einen Stream nebenher hat, will nichts Schwebendes im
+              * Bild. Das Gespraech bleibt davon unberuehrt - nur der Knopf
+              * verschwindet, und hier kommt er zurueck.
+              */}
+            <section className={kasten}>
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <div className="min-w-0">
+                  <h2 className={`${ueberschrift} mb-1`}><T>Nachrichten</T></h2>
+                  <p className="text-xs leading-relaxed text-slate-500">
+                    <T>Das Chatsymbol am linken Bildschirmrand. Ausgeblendet
+                    bleiben deine Nachrichten erhalten — du siehst nur den Knopf
+                    nicht mehr.</T>
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  disabled={chatAmRand === null}
+                  onClick={() => setzeChatHud(!chatAmRand)}
+                  className={`shrink-0 rounded-lg border px-4 py-2 text-sm
+                              transition disabled:opacity-40 ${chatAmRand
+                    ? 'border-sky-500 bg-sky-500/10 text-sky-300 hover:bg-sky-500/20'
+                    : 'border-zinc-700 text-slate-300 hover:border-sky-500'}`}>
+                  {chatAmRand === false
+                    ? <T>Symbol einblenden</T>
+                    : <T>Symbol ausblenden</T>}
+                </button>
               </div>
             </section>
 
