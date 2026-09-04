@@ -1,0 +1,108 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Spieler-Tracker</title>
+<link rel="stylesheet" href="overlay.css">
+</head>
+<body>
+
+<div id="shell">
+  <div id="imgbox"><img id="pimg" alt=""></div>
+  <div id="card" class="s-round">
+    <div id="bar"></div>
+    <div class="who">
+      <div class="namezeile">
+        <img id="logo" class="orglogo" alt="" style="display:none">
+        <div class="name" id="pname">—</div>
+      </div>
+      <div class="sub" id="psub">warte auf Daten</div>
+    </div>
+    <div class="stats" id="stats"></div>
+  </div>
+  <div id="imgbox2"><img id="pimg2" alt=""></div>
+</div>
+
+<script src="colors.js"></script>
+<script src="overlay.js"></script>
+<script>
+const C = Overlay.init();
+const P = C.P;
+const LAB = Overlay.labels(P);
+
+const QUERY = P.get('q') || '';
+// Eindeutige Account-ID. In offenen Cups gibt es oft mehrere Spieler mit
+// fast gleichem Namen - dann trifft nur die ID sicher den Richtigen.
+const PID = (P.get('id') || '').trim();
+const FIELDS = (P.get('show') || 'rank,points,elims,games').split(',').filter(Boolean);
+
+const shell = document.getElementById('shell');
+
+async function tick() {
+  if (!C.event || !C.window || (!QUERY && !PID)) {
+    document.getElementById('pname').textContent = 'Nicht eingerichtet';
+    document.getElementById('psub').textContent = 'Cup und Spieler im Konfigurator waehlen';
+    shell.classList.add('show');
+    return;
+  }
+  try {
+    const u = C.server + '/api/cup-leaderboard?event=' + encodeURIComponent(C.event) +
+      '&window=' + encodeURIComponent(C.window) +
+      (PID ? '&ids=' + encodeURIComponent(PID) : '') +
+      (QUERY ? '&q=' + encodeURIComponent(QUERY) : '');
+    const d = await (await fetch(u)).json();
+    const e = (d.entries || [])[0];
+
+    if (!e) {
+      document.getElementById('pname').textContent = QUERY || 'Spieler';
+      document.getElementById('psub').textContent = 'noch nicht im Leaderboard';
+      Overlay.baueStats(document.getElementById('stats'), FIELDS, LAB);
+      shell.classList.add('show');
+      return;
+    }
+
+    // Erst ueber die eindeutige ID, sonst ueber den Namensteil.
+    const needle = QUERY.toLowerCase();
+    const me = (PID && e.players.find(p => p.id === PID)) ||
+               (needle && e.players.find(p => p.name.toLowerCase().includes(needle))) ||
+               e.players[0];
+    const others = e.players.filter(p => p !== me);
+    const mate = others.find(p => p.img);
+
+    await Overlay.setzeStil(C, me, C);
+
+    const a = Overlay.setzeBild(document.getElementById('pimg'),
+      document.getElementById('imgbox'), me.img ? C.server + me.img : null,
+      C.imgMode !== 'off');
+    const b = Overlay.setzeBild(document.getElementById('pimg2'),
+      document.getElementById('imgbox2'), mate ? C.server + mate.img : null,
+      C.imgMode !== 'off' && C.partner);
+    document.body.classList.toggle('has-img', a);
+    document.body.classList.toggle('has-img2', a && b);
+
+    const logo = document.getElementById('logo');
+    if (C.logos && me.logo) { logo.src = C.server + me.logo; logo.style.display = ''; }
+    else logo.style.display = 'none';
+
+    document.getElementById('pname').textContent = me.name;
+    document.getElementById('psub').textContent =
+      others.length ? 'mit ' + others.map(p => p.name).join(', ') : '';
+
+    Overlay.baueStats(document.getElementById('stats'), FIELDS, LAB);
+    Overlay.schreibeStats(document.getElementById('stats'), FIELDS, e);
+    shell.classList.add('show');
+  } catch (err) {
+    document.getElementById('psub').textContent = 'Server nicht erreichbar';
+    shell.classList.add('show');
+  }
+}
+
+(async function () {
+  await Overlay.ladeCfg(C.server);
+  await tick();
+  setInterval(tick, C.every);
+  setInterval(() => Overlay.ladeCfg(C.server), C.every);
+})();
+</script>
+</body>
+</html>

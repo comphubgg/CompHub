@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Leaderboard</title>
+<link rel="stylesheet" href="overlay.css">
+<style>
+  :root { --row: rgba(255,255,255,.04); --row2: rgba(255,255,255,.015); }
+
+  #wrap {
+    display: block;
+    min-width: 340px;
+    background: linear-gradient(160deg, var(--bg) 0%, var(--bg2) 100%);
+    overflow: hidden;
+  }
+
+  h1 {
+    font-size: var(--label);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--muted);
+    padding: calc(var(--pad) * 1.1) calc(var(--pad) * 1.4) calc(var(--pad) * .6);
+    display: flex;
+    justify-content: space-between;
+    gap: 20px;
+    font-weight: 600;
+  }
+  h1 b { color: var(--accent); font-weight: 800; }
+
+  table { border-collapse: collapse; width: 100%; }
+  td {
+    padding: calc(var(--pad) * .55) calc(var(--pad) * .8);
+    font-size: var(--value);
+    font-variant-numeric: tabular-nums;
+    white-space: nowrap;
+  }
+  tr:nth-child(odd)  { background: var(--row); }
+  tr:nth-child(even) { background: var(--row2); }
+  tr { transition: background var(--speed) ease; }
+
+  td.r { width:1%; font-weight:800; color:var(--accent); text-align:right;
+         padding-left: calc(var(--pad) * 1.4); }
+  td.t { font-size: var(--name); font-weight:600; max-width:340px;
+         overflow:hidden; text-overflow:ellipsis; }
+  td.p { width:1%; font-weight:800; text-align:right; }
+  td.e { width:1%; text-align:right; color:var(--muted);
+         padding-right: calc(var(--pad) * 1.4); }
+
+  /* Schraege Kanten fressen sonst die aeussersten Spalten an. */
+  .s-slant td.e, .s-both td.e, .s-arrow td.e, .s-notch td.e, .s-bevel td.e {
+    padding-right: calc(var(--pad) * 1.4 + var(--cut));
+  }
+  .s-slantl td.r, .s-both td.r, .s-tag td.r, .s-bevel td.r {
+    padding-left: calc(var(--pad) * 1.4 + var(--cut));
+  }
+  .s-notch h1, .s-bevel h1 { padding-right: calc(var(--pad) * 1.4 + var(--cut)); }
+
+  /* Hervorgehobene Zeile - z.B. der eigene Spieler */
+  tr.me { background: linear-gradient(90deg,
+          color-mix(in srgb, var(--accent) 30%, transparent), transparent); }
+  tr.me td.t { color: var(--accent); font-weight: 800; }
+
+  .bump { display: inline-block; }
+</style>
+</head>
+<body>
+
+<div id="shell">
+  <div id="wrap" class="s-round">
+    <h1><span id="title">LEADERBOARD</span> <b id="range"></b></h1>
+    <table><tbody id="rows"></tbody></table>
+  </div>
+</div>
+
+<script src="overlay.js"></script>
+<script>
+const C = Overlay.init();
+const P = C.P;
+
+// Form gilt hier auf dem Rahmen, nicht auf #card.
+const SHAPES = ['round','slant','slantl','both','arrow','tag','notch','bevel'];
+document.getElementById('wrap').className =
+  's-' + (SHAPES.includes(P.get('shape')) ? P.get('shape') : 'round');
+
+const FROM  = Math.max(1, parseInt(P.get('from') || '1', 10));
+const TO    = Math.max(FROM, parseInt(P.get('to') || '10', 10));
+const HL    = (P.get('highlight') || '').toLowerCase().trim();
+const TITLE = P.get('title');
+
+if (TITLE !== null) document.getElementById('title').textContent = decodeURIComponent(TITLE);
+document.getElementById('range').textContent = FROM + '–' + TO;
+
+const shell = document.getElementById('shell');
+const prev = new Map();
+
+function render(entries) {
+  const tb = document.getElementById('rows');
+  tb.innerHTML = '';
+  for (const e of entries) {
+    const tr = document.createElement('tr');
+    const team = e.players.map(p => p.name).join(' + ');
+    if (HL && team.toLowerCase().includes(HL)) tr.className = 'me';
+
+    const changed = prev.get(e.rank) !== e.points;
+    prev.set(e.rank, e.points);
+
+    tr.innerHTML =
+      '<td class="r">' + e.rank + '</td>' +
+      '<td class="t">' + team.replace(/</g, '&lt;') + '</td>' +
+      '<td class="p">' + (changed ? '<span class="bump">' + e.points + '</span>' : e.points) + '</td>' +
+      '<td class="e">' + e.elims + '</td>';
+    tb.appendChild(tr);
+  }
+  shell.classList.add('show');
+}
+
+function meldung(text) {
+  document.getElementById('rows').innerHTML =
+    '<tr><td class="t" style="padding:16px">' + text + '</td></tr>';
+  shell.classList.add('show');
+}
+
+async function tick() {
+  if (!C.event || !C.window) return meldung('Cup im Konfigurator waehlen');
+  try {
+    const u = C.server + '/api/cup-leaderboard?event=' + encodeURIComponent(C.event) +
+      '&window=' + encodeURIComponent(C.window) + '&limit=' + TO;
+    const d = await (await fetch(u)).json();
+    render((d.entries || []).filter(e => e.rank >= FROM && e.rank <= TO));
+  } catch {
+    meldung('Server nicht erreichbar');
+  }
+}
+
+tick();
+setInterval(tick, C.every);
+</script>
+</body>
+</html>

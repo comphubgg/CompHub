@@ -1,0 +1,428 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Banner</title>
+<!--
+  Das Duo-Banner fuer OBS.
+
+  Links ein Foto, rechts ein Foto, in der Mitte die beiden Namen und darunter
+  die Zahlen des Spieltags. Bewusst eine eigene Seite und ein eigenes
+  Stilblatt: die aelteren Overlays tragen dreissig Stellschrauben mit sich,
+  und genau die sollten hier wegfallen.
+
+  Eingestellt wird ueber die Adresse:
+    ?event=…&window=…   welcher Cup und Spieltag
+    &id=…,…             die beiden Epic-Konten (sicherer als Namen)
+    &teams=a,b;c,d      mehrere Duos - das Banner wechselt der Reihe nach durch
+    &wechsel=8          Sekunden je Duo, wenn mehrere gesetzt sind
+    &n1=…&n2=…          Anzeigenamen, falls sie vom Spielnamen abweichen
+    &vorlage=nacht      eine der fertigen Vorlagen
+    &klar=70            wie deckend die Mitte ist, 0 bis 100
+    &abstand=18         Abstand zwischen Foto und Text, 8 bis 64
+    &felder=rank,points,games,elims
+-->
+<style>
+  :root {
+    --grund: #0d1b3a;
+    --grund2: #16264f;
+    --linie: rgba(255,255,255,.10);
+    --schrift: #ffffff;
+    --leise: #93a4c8;
+    --akzent: #38bdf8;
+    --klar: .92;
+    --hoehe: 108px;
+    /* Wie weit die Fotos vom Text abruecken - ueber ?abstand= regelbar. */
+    --abstand: 18px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: transparent; }
+  /* Das Banner mittig in der Quelle - in OBS faellt das nicht auf, weil der
+     Rest durchsichtig ist, und in der Vorschau steht es damit in der Mitte
+     statt am linken Rand zu kleben. */
+  body { display: flex; justify-content: center; align-items: flex-start; }
+  body {
+    font-family: 'Segoe UI', Roboto, system-ui, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Nur so breit wie noetig.
+     Vorher war es "flex" und die Mitte "flex: 1 1 auto" - damit zog sich das
+     Banner ueber die ganze Breite der Browser-Quelle, und zwischen Foto und
+     Text klaffte je nach Fenstergroesse eine handbreite Luecke. Jetzt richtet
+     sich die Breite nach dem Inhalt, die Fotos sitzen dicht am Text. */
+  #banner {
+    display: inline-flex; align-items: stretch;
+    height: var(--hoehe);
+    overflow: hidden;
+    border-radius: 10px;
+    opacity: 0; transform: translateY(6px);
+    transition: opacity .35s ease, transform .35s ease;
+  }
+  #banner.da { opacity: 1; transform: none; }
+
+  /* Der Wechsel zwischen mehreren Duos.
+     Nicht hart umschalten, sondern den Inhalt herausschieben und den
+     naechsten hereinholen - die Fotos etwas versetzt zum Text, damit es
+     nach einer Bewegung aussieht und nicht nach einem Bildwechsel. */
+  .mitte, .foto img {
+    transition: opacity .26s ease, transform .26s ease;
+  }
+  #banner.wechsel .mitte { opacity: 0; transform: translateY(-8px); }
+  #banner.wechsel .foto img { opacity: 0; transform: scale(1.06); }
+
+  /* Die Fotos sitzen buendig an den Kanten und werden vom Grund
+     hinterlegt - so bleibt die Zeile auch bei fehlendem Bild geschlossen. */
+  .foto {
+    width: calc(var(--hoehe) * 0.86);
+    flex: 0 0 auto;
+    background: var(--grund2);
+    overflow: hidden;
+    position: relative;
+  }
+  .foto img {
+    width: 100%; height: 100%;
+    object-fit: cover; object-position: center 18%;
+    display: block;
+  }
+  .foto.leer { display: none; }
+
+  .mitte {
+    flex: 0 1 auto;
+    min-width: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 4px;
+    padding: 8px var(--abstand);
+    background: color-mix(in srgb, var(--grund) calc(var(--klar) * 100%), transparent);
+  }
+
+  .namen {
+    font-size: 21px; font-weight: 800; letter-spacing: .04em;
+    color: var(--schrift); text-transform: uppercase;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    max-width: 100%;
+  }
+  .namen .und { color: var(--leise); font-weight: 600; margin: 0 6px; }
+
+  .werte { display: flex; gap: 18px; }
+  .spalte { display: flex; flex-direction: column; align-items: center; gap: 1px; }
+  .spalte .l {
+    font-size: 10px; font-weight: 700; letter-spacing: .16em;
+    color: var(--leise); text-transform: uppercase;
+  }
+  .spalte .v {
+    font-size: 19px; font-weight: 800; color: var(--schrift);
+    font-variant-numeric: tabular-nums;
+  }
+  /* Die Platzierung ist die Zahl, auf die alle sehen. */
+  .spalte.hl .v { color: var(--akzent); }
+
+  .spalte .v.stoss { animation: stoss .45s ease; }
+  @keyframes stoss {
+    0% { transform: none; } 35% { transform: scale(1.18); } 100% { transform: none; }
+  }
+
+  #hinweis {
+    display: none;
+    font-size: 12px; color: var(--leise); padding: 0 8px; text-align: center;
+  }
+  #banner.leerlauf .werte { display: none; }
+  #banner.leerlauf #hinweis { display: block; }
+</style>
+</head>
+<body>
+
+<div id="banner">
+  <div class="foto leer" id="foto1"><img id="bild1" alt=""></div>
+  <div class="mitte">
+    <div class="namen" id="namen">—</div>
+    <div class="werte" id="werte"></div>
+    <div id="hinweis"></div>
+  </div>
+  <div class="foto leer" id="foto2"><img id="bild2" alt=""></div>
+</div>
+
+<script src="vorlagen.js"></script>
+<script>
+const P = new URLSearchParams(location.search);
+const SERVER = P.get('server') || '';
+let EVENT = P.get('event') || '';
+let FENSTER = P.get('window') || '';
+/*
+ * "auto=EU" statt eines festen Cups.
+ *
+ * Eine gespeicherte Vorlage soll keinen Spieltag mitschleppen: sie gehoert
+ * einem Duo, nicht einem Turnier. Steht hier eine Region, sucht sich das
+ * Banner selbst den laufenden Spieltag - und wenn keiner laeuft, den zuletzt
+ * gespielten. So zeigt dieselbe Adresse naechste Woche den neuen Cup, ohne
+ * dass jemand in OBS etwas aendert.
+ */
+const AUTO = (P.get('auto') || '').trim().toUpperCase();
+let autoBis = 0;
+
+async function findeSpieltag() {
+  if (!AUTO || Date.now() < autoBis) return;
+  try {
+    const r = await fetch(SERVER + '/api/cup-events?region=' + encodeURIComponent(AUTO));
+    const d = await r.json();
+    const liste = (d.windows || []).filter(w => w.begin <= Date.now() + 864e5);
+    const live = liste.find(w => w.status === 'live');
+    const neuster = live || liste.sort((a, b) => b.begin - a.begin)[0];
+    if (neuster) { EVENT = neuster.eventId; FENSTER = neuster.windowId; }
+    // Nur alle fuenf Minuten nachsehen - Cups wechseln nicht im Sekundentakt.
+    autoBis = Date.now() + 300000;
+  } catch { autoBis = Date.now() + 60000; }
+}
+const IDS = (P.get('id') || '').split(',').map(s => s.trim()).filter(Boolean);
+
+/*
+ * Mehrere Duos in einer Quelle.
+ *
+ * "teams=a,b;c,d" - je Duo ein Paar Konto-Kennungen, mit Semikolon getrennt.
+ * Das Banner holt alle auf einmal und wechselt dann der Reihe nach durch.
+ * Der Betreiber wollte das ausdruecklich als ein Overlay: "mehrere Overlays
+ * in ein Overlay packen ... nicht einfach rueberswitchen, sondern mit einer
+ * Animation."
+ *
+ * Ohne "teams" bleibt alles wie bisher - ein Duo aus "id".
+ */
+const TEAMS = (P.get('teams') || '').split(';')
+  .map(t => t.split(',').map(x => x.trim()).filter(Boolean))
+  .filter(t => t.length);
+/** Sekunden je Duo. Unter drei wird es unruhig, darueber langweilig. */
+const WECHSEL = Math.max(3, parseInt(P.get('wechsel') || '8', 10)) * 1000;
+/** Anzeigenamen je Duo: "n1+n2;n3+n4" - sonst gelten n1/n2 fuer das erste. */
+const TEAMNAMEN = (P.get('namen') || '').split(';').map(t => t.split(','));
+let teamNr = 0;
+let letzteAntwort = null;
+const SUCHE = (P.get('q') || '').trim();
+const FELDER = (P.get('felder') || 'rank,points,games,elims').split(',').filter(Boolean);
+const TAKT = Math.max(10, parseInt(P.get('every') || '30', 10)) * 1000;
+
+const BESCHRIFTUNG = {
+  rank: 'Top', points: 'Pts', games: 'Games', elims: 'Kills',
+  wins: 'Wins', damage: 'Damage', headshots: 'Heads', avgPlace: 'Avg',
+  kd: 'K/D', bestPlace: 'Best', timeAlive: 'Alive',
+};
+
+// Vorlage und Deckkraft aus der Adresse.
+Vorlagen.anwenden(document.documentElement, P.get('vorlage'));
+if (P.get('klar')) {
+  const k = Math.max(0, Math.min(100, parseInt(P.get('klar'), 10) || 0));
+  document.documentElement.style.setProperty('--klar', String(k / 100));
+}
+if (P.get('abstand')) {
+  // Acht bis vierundsechzig Punkte - darunter kleben die Bilder am Text,
+  // darueber zerfaellt das Banner in drei lose Teile.
+  const a = Math.max(8, Math.min(64, parseInt(P.get('abstand'), 10) || 18));
+  document.documentElement.style.setProperty('--abstand', a + 'px');
+}
+if (P.get('hoehe')) {
+  document.documentElement.style.setProperty('--hoehe', parseInt(P.get('hoehe'), 10) + 'px');
+}
+
+const banner = document.getElementById('banner');
+const werteBox = document.getElementById('werte');
+const letzte = {};
+
+function baueSpalten() {
+  if (werteBox.children.length) return;
+  for (const f of FELDER) {
+    const d = document.createElement('div');
+    d.className = 'spalte' + (f === 'rank' ? ' hl' : '');
+    d.innerHTML = '<span class="l"></span><span class="v" data-f="' + f + '">–</span>';
+    d.firstChild.textContent = BESCHRIFTUNG[f] || f;
+    werteBox.appendChild(d);
+  }
+}
+
+function alsText(feld, wert) {
+  if (wert === null || wert === undefined) return '–';
+  if (feld === 'rank' || feld === 'bestPlace') return '#' + wert;
+  if (feld === 'timeAlive' || feld === 'avgTimeAlive') {
+    const s = Math.round(wert);
+    return s < 60 ? s + 's' : Math.floor(s / 60) + 'm';
+  }
+  if (typeof wert === 'number' && !Number.isInteger(wert)) return wert.toFixed(2);
+  return String(wert);
+}
+
+function schreibeWerte(e) {
+  for (const f of FELDER) {
+    const el = werteBox.querySelector('[data-f="' + f + '"]');
+    if (!el) continue;
+    const txt = alsText(f, e ? e[f] : null);
+    if (el.textContent === txt) continue;
+    el.textContent = txt;
+    // Beim ersten Mal nicht zappeln, nur bei echten Aenderungen.
+    if (letzte[f] !== undefined) {
+      el.classList.remove('stoss'); void el.offsetWidth; el.classList.add('stoss');
+    }
+    letzte[f] = txt;
+  }
+}
+
+/**
+ * Der Name, wie er im Banner stehen soll.
+ *
+ * Im Spiel heisst jemand "[EWC2026] AURA shxrk" - im Banner will das niemand
+ * lesen. Ein von Hand gesetzter Name geht deshalb immer vor; sonst fallen
+ * eckige Klammern und ein vorangestelltes Teamkuerzel weg. Erfunden wird
+ * nichts: bleibt danach nichts uebrig, steht der volle Name da.
+ */
+function anzeigeName(roh, gesetzt) {
+  if (gesetzt) return gesetzt;
+  let n = String(roh || '').replace(/\[[^\]]*\]/g, ' ').trim();
+  n = n.replace(/^[A-Z0-9]{2,5}\s+(?=\S)/, '').trim();
+  return n || String(roh || '');
+}
+
+function zeigeFoto(kasten, bild, pfad) {
+  if (!pfad) { kasten.classList.add('leer'); return false; }
+  const voll = pfad.startsWith('http') ? pfad : SERVER + pfad;
+  if (bild.getAttribute('src') !== voll) bild.src = voll;
+  kasten.classList.remove('leer');
+  return true;
+}
+
+/**
+ * Die Konten, um die es gerade geht.
+ *
+ * Mit mehreren Duos ist das der aktuelle Eintrag der Reihe, sonst schlicht
+ * die beiden aus "id".
+ */
+function aktuelleIds() {
+  if (!TEAMS.length) return IDS;
+  return TEAMS[teamNr % TEAMS.length];
+}
+
+/** Die von Hand gesetzten Namen zum aktuellen Duo. */
+function aktuelleNamen() {
+  if (!TEAMS.length) return [P.get('n1'), P.get('n2')];
+  const n = TEAMNAMEN[teamNr % TEAMS.length] || [];
+  return [(n[0] || '').trim(), (n[1] || '').trim()];
+}
+
+/**
+ * Das Foto zu einem Spieler.
+ *
+ * Der Turniereintrag bringt sein Bild ueber die Konto-Id mit. Fehlt dort
+ * eines, greift der Name, den der Betreiber selbst eingetragen hat: er
+ * schreibt "Mrsavage", wo im Spiel "XSET ØØ8" steht, und erwartet zu Recht,
+ * dass dann auch dessen Bild kommt.
+ *
+ * Nur der Rueckfall, nie der erste Weg - die Konto-Id ist eindeutig, ein
+ * Name ist es nicht.
+ */
+async function fotoNachName(spieler, eingetragen) {
+  if (spieler && spieler.img) return spieler.img;
+  const n = eingetragen || (spieler && spieler.name);
+  if (!n) return null;
+  try {
+    const a = await (await fetch(SERVER + '/api/spielerbild?name='
+      + encodeURIComponent(n))).json();
+    return a && a.img ? a.img : null;
+  } catch { return null; }
+}
+
+/**
+ * Das aktuelle Duo zeichnen.
+ *
+ * Mit "sanft" laeuft der Uebergang: der Inhalt geht heraus, wird getauscht
+ * und kommt wieder herein. Ohne, beim ersten Mal und beim Nachladen, wird
+ * direkt gezeichnet - sonst blinkte das Banner alle dreissig Sekunden.
+ */
+async function zeichne(sanft) {
+  const d = letzteAntwort;
+  if (!d) return;
+  const ids = aktuelleIds();
+  const [g1, g2] = aktuelleNamen();
+
+  /* Den Eintrag zu genau diesen Konten suchen - bei mehreren Duos liegen
+     alle in derselben Antwort, und der erste waere der falsche. */
+  const eintraege = d.entries || [];
+  const e = ids.length
+    ? eintraege.find(x => (x.players || []).some(p => ids.includes(p.id)))
+    : eintraege[0];
+
+  if (sanft) {
+    banner.classList.add('wechsel');
+    await new Promise(f => setTimeout(f, 260));
+  }
+
+  if (!e) {
+    document.getElementById('namen').textContent = g1 || SUCHE || 'Duo';
+    document.getElementById('hinweis').textContent = 'not in the leaderboard yet';
+    banner.classList.add('leerlauf', 'da');
+    banner.classList.remove('wechsel');
+    return;
+  }
+  banner.classList.remove('leerlauf');
+
+  // Die Reihenfolge folgt den angegebenen Konten, damit links und rechts
+  // bleiben, wo der Betreiber sie haben wollte.
+  const spieler = ids.length
+    ? ids.map(id => (e.players || []).find(p => p.id === id)).filter(Boolean)
+    : (e.players || []);
+  const liste = spieler.length ? spieler : (e.players || []);
+
+  const n1 = anzeigeName(liste[0] && liste[0].name, g1);
+  const n2 = anzeigeName(liste[1] && liste[1].name, g2);
+  document.getElementById('namen').innerHTML = n2
+    ? n1 + '<span class="und">&amp;</span>' + n2
+    : n1;
+
+  const [f1, f2] = await Promise.all([
+    fotoNachName(liste[0], g1),
+    fotoNachName(liste[1], g2),
+  ]);
+  zeigeFoto(document.getElementById('foto1'), document.getElementById('bild1'), f1);
+  zeigeFoto(document.getElementById('foto2'), document.getElementById('bild2'), f2);
+
+  schreibeWerte(e);
+  banner.classList.add('da');
+  banner.classList.remove('wechsel');
+}
+
+async function tick() {
+  baueSpalten();
+  await findeSpieltag();
+  const alle = TEAMS.length ? TEAMS.flat() : IDS;
+  if (!EVENT || !FENSTER || (!alle.length && !SUCHE)) {
+    document.getElementById('namen').textContent = 'Not set up';
+    document.getElementById('hinweis').textContent = 'Pick a cup and players in the configurator';
+    banner.classList.add('leerlauf', 'da');
+    return;
+  }
+  try {
+    const u = SERVER + '/api/cup-leaderboard?event=' + encodeURIComponent(EVENT)
+      + '&window=' + encodeURIComponent(FENSTER)
+      + (alle.length ? '&ids=' + encodeURIComponent(alle.join(',')) : '')
+      + (SUCHE ? '&q=' + encodeURIComponent(SUCHE) : '');
+    letzteAntwort = await (await fetch(u)).json();
+    await zeichne(false);
+  } catch {
+    document.getElementById('hinweis').textContent = 'Server not reachable';
+    banner.classList.add('leerlauf', 'da');
+  }
+}
+
+tick();
+setInterval(tick, TAKT);
+
+/*
+ * Der Reihe nach durch die Duos.
+ *
+ * Nur wenn mehr als eines gesetzt ist - bei einem einzigen gaebe es nichts
+ * zu wechseln, und ein Uebergang zu sich selbst waere bloss ein Zucken.
+ */
+if (TEAMS.length > 1) {
+  setInterval(() => {
+    teamNr = (teamNr + 1) % TEAMS.length;
+    void zeichne(true);
+  }, WECHSEL);
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,52 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Combined Flag Demo</title>
+  <style>
+    body { background:#0d0d0d; color:#fff; font-family:Inter, system-ui, Arial, sans-serif; padding:24px }
+    .grid { display:flex; gap:16px; flex-wrap:wrap }
+    .card { background:#111; border:1px solid rgba(255,255,255,0.04); padding:12px; border-radius:8px }
+    label { display:block; font-size:12px; color:rgba(255,255,255,0.6); margin-bottom:6px }
+  </style>
+</head>
+<body>
+  <h1>Combined Flag Demo</h1>
+  <p>Examples using <code>createCombinedFlag()</code> and the <code>&lt;combined-flag&gt;</code> component.</p>
+
+  <div class="grid" id="demo"></div>
+
+  <script src="/combined-flag.js"></script>
+  <script>
+    (async function(){
+      const demo = document.getElementById('demo');
+
+      // Examples with factory function
+      const a = await window.createCombinedFlag('de','us',{layout:'diagonal', size:72});
+      const b = await window.createCombinedFlag('fr','gb',{layout:'vertical', size:72});
+      const c = await window.createCombinedFlag('ua','pl',{layout:'horizontal', size:72});
+
+      const wrap = (label, el) => {
+        const div = document.createElement('div');
+        div.className = 'card';
+        const lab = document.createElement('label'); lab.textContent = label;
+        div.appendChild(lab);
+        div.appendChild(el);
+        return div;
+      };
+
+      demo.appendChild(wrap('DE / US (diagonal)', a));
+      demo.appendChild(wrap('FR / GB (vertical)', b));
+      demo.appendChild(wrap('UA / PL (horizontal)', c));
+
+      // Examples with Web Component
+      const comp1 = document.createElement('combined-flag'); comp1.setAttribute('first','us'); comp1.setAttribute('second','gb'); comp1.setAttribute('layout','diagonal'); comp1.setAttribute('size','72');
+      const comp2 = document.createElement('combined-flag'); comp2.setAttribute('first','mx'); comp2.setAttribute('second','us'); comp2.setAttribute('layout','vertical'); comp2.setAttribute('size','72');
+      demo.appendChild(wrap('US / GB (component)', comp1));
+      demo.appendChild(wrap('MX / US (component)', comp2));
+
+    })();
+  </script>
+</body>
+</html>

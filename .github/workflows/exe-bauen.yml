@@ -1,0 +1,62 @@
+# Die .exe bauen und veroeffentlichen.
+#
+# Laeuft, wenn eine Marke gesetzt wird (git tag v1.2.3) - nicht bei jeder
+# Aenderung. Eine Datei von 354 MB je Kleinigkeit neu zu bauen waere Unfug;
+# die Daten kommen ohnehin ueber den anderen Ablauf und brauchen keinen
+# neuen Bau.
+#
+# Das Ergebnis landet unter Releases. Die installierten Programme sehen dort
+# von selbst nach und holen sich nur den Unterschied.
+
+name: .exe bauen
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
+
+jobs:
+  bauen:
+    runs-on: windows-latest
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Abhängigkeiten
+        run: npm ci
+
+      - name: Zugangsdaten
+        # Sie werden mit eingepackt - das war die ausdrueckliche Entscheidung
+        # des Nutzers, damit das Programm genau so laeuft wie lokal. Wer die
+        # Datei hat, kann sie auslesen.
+        shell: bash
+        run: |
+          {
+            echo "EPIC_DEVICE_ID=${{ secrets.EPIC_DEVICE_ID }}"
+            echo "EPIC_ACCOUNT_ID=${{ secrets.EPIC_ACCOUNT_ID }}"
+            echo "EPIC_SECRET=${{ secrets.EPIC_SECRET }}"
+            echo "TWITCH_CLIENT_ID=${{ secrets.TWITCH_CLIENT_ID }}"
+            echo "TWITCH_CLIENT_SECRET=${{ secrets.TWITCH_CLIENT_SECRET }}"
+            echo "DISCORD_CLIENT_ID=${{ secrets.DISCORD_CLIENT_ID }}"
+            echo "DISCORD_CLIENT_SECRET=${{ secrets.DISCORD_CLIENT_SECRET }}"
+            echo "GOOGLE_CLIENT_ID=${{ secrets.GOOGLE_CLIENT_ID }}"
+            echo "GOOGLE_CLIENT_SECRET=${{ secrets.GOOGLE_CLIENT_SECRET }}"
+            echo "AUTH_COOKIE_SECRET=${{ secrets.AUTH_COOKIE_SECRET }}"
+          } > .env.local
+
+      - name: Bauen und veröffentlichen
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          npx next build
+          npx electron-builder --win --config elektron/bau.json --publish always

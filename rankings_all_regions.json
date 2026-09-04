@@ -1,0 +1,6008 @@
+{
+  "extracted_at": "2026-08-23T17:16:00.933842",
+  "player_count": 1000,
+  "region": "EU",
+  "source_pages": 20,
+  "rankings": [
+    {
+      "name": "AG Scroll 10ǃ",
+      "points": 39894,
+      "region": "DK",
+      "rank": 1
+    },
+    {
+      "name": "AG Sky.",
+      "points": 39736,
+      "region": "DK",
+      "rank": 2
+    },
+    {
+      "name": "falcon pollo 10ǃ",
+      "points": 39367,
+      "region": "MX",
+      "rank": 3
+    },
+    {
+      "name": "big tryonа",
+      "points": 39285,
+      "region": "GL",
+      "rank": 4
+    },
+    {
+      "name": "BIG CheeseBurgеr",
+      "points": 39195,
+      "region": "MX",
+      "rank": 5
+    },
+    {
+      "name": "AUR shxrk 19ǃ",
+      "points": 38435,
+      "region": "KR",
+      "rank": 6
+    },
+    {
+      "name": "twis boltzZzero0",
+      "points": 37819,
+      "region": "FR",
+      "rank": 7
+    },
+    {
+      "name": "HvK pixie bää 67",
+      "points": 37777,
+      "region": "SE",
+      "rank": 8
+    },
+    {
+      "name": "havok swizzуǃ",
+      "points": 37713,
+      "region": "MX",
+      "rank": 9
+    },
+    {
+      "name": "falcon peterbotǃ",
+      "points": 37618,
+      "region": "US",
+      "rank": 10
+    },
+    {
+      "name": "AUR t3eny",
+      "points": 37602,
+      "region": "KR",
+      "rank": 11
+    },
+    {
+      "name": "ROC Kami",
+      "points": 37553,
+      "region": "PL",
+      "rank": 12
+    },
+    {
+      "name": "havok pаblowingu",
+      "points": 37533,
+      "region": "DK",
+      "rank": 13
+    },
+    {
+      "name": "FocusHD yhyh",
+      "points": 37502,
+      "region": "AR",
+      "rank": 14
+    },
+    {
+      "name": "ROC charyy 23",
+      "points": 37444,
+      "region": "PL",
+      "rank": 15
+    },
+    {
+      "name": "Th0masHD yhyh",
+      "points": 37176,
+      "region": "DK",
+      "rank": 16
+    },
+    {
+      "name": "Twis Rаpid 5ǃ",
+      "points": 37156,
+      "region": "CA",
+      "rank": 17
+    },
+    {
+      "name": "GEN aj",
+      "points": 37098,
+      "region": "US",
+      "rank": 18
+    },
+    {
+      "name": "T1 demuś 10ǃ",
+      "points": 37049,
+      "region": "PL",
+      "rank": 19
+    },
+    {
+      "name": "Elite Deng Deng",
+      "points": 36966,
+      "region": "CA",
+      "rank": 20
+    },
+    {
+      "name": "T1 darmboss",
+      "points": 36879,
+      "region": "PL",
+      "rank": 21
+    },
+    {
+      "name": "hvk tj 14",
+      "points": 36716,
+      "region": "DK",
+      "rank": 22
+    },
+    {
+      "name": "xset νeno",
+      "points": 36693,
+      "region": "EN",
+      "rank": 23
+    },
+    {
+      "name": "M8 Kurαma",
+      "points": 36679,
+      "region": "FR",
+      "rank": 24
+    },
+    {
+      "name": "M8 vergoawesomer",
+      "points": 36671,
+      "region": "FR",
+      "rank": 25
+    },
+    {
+      "name": "twis acоrn",
+      "points": 36633,
+      "region": "GL",
+      "rank": 26
+    },
+    {
+      "name": "GodL Chap",
+      "points": 36588,
+      "region": "DE",
+      "rank": 27
+    },
+    {
+      "name": "GEN ritualx 9ǃ",
+      "points": 36581,
+      "region": "US",
+      "rank": 28
+    },
+    {
+      "name": "LEV RomeroFDP",
+      "points": 36505,
+      "region": "AR",
+      "rank": 29
+    },
+    {
+      "name": "GodL Flickzy",
+      "points": 36372,
+      "region": "DE",
+      "rank": 30
+    },
+    {
+      "name": "housen xavifnw",
+      "points": 36299,
+      "region": "MX",
+      "rank": 31
+    },
+    {
+      "name": "LEV Lewa",
+      "points": 36271,
+      "region": "AR",
+      "rank": 32
+    },
+    {
+      "name": "XP42 Cr1nge ψ",
+      "points": 36266,
+      "region": "SCO",
+      "rank": 33
+    },
+    {
+      "name": "twis cold 11ǃ",
+      "points": 36235,
+      "region": "GL",
+      "rank": 34
+    },
+    {
+      "name": "NTX shadow1x",
+      "points": 36235,
+      "region": "US",
+      "rank": 35
+    },
+    {
+      "name": "GEN KINGALING ʚɞ",
+      "points": 36099,
+      "region": "FR",
+      "rank": 36
+    },
+    {
+      "name": "gk panzer1111111",
+      "points": 36005,
+      "region": "RU",
+      "rank": 37
+    },
+    {
+      "name": "elite josh 88ǃ",
+      "points": 36004,
+      "region": "CA",
+      "rank": 38
+    },
+    {
+      "name": "KoS Curve",
+      "points": 35959,
+      "region": "GL",
+      "rank": 39
+    },
+    {
+      "name": "dig coopǃ",
+      "points": 35927,
+      "region": "KR",
+      "rank": 40
+    },
+    {
+      "name": "QTD ふーくんǃǃ",
+      "points": 35873,
+      "region": "JP",
+      "rank": 41
+    },
+    {
+      "name": "zeta koyotaǃ",
+      "points": 35831,
+      "region": "JP",
+      "rank": 42
+    },
+    {
+      "name": "XP42 Twi 27",
+      "points": 35809,
+      "region": "EN",
+      "rank": 43
+    },
+    {
+      "name": "XSET BatmnBugha",
+      "points": 35789,
+      "region": "DE",
+      "rank": 44
+    },
+    {
+      "name": "XSET Muz 7ǃ",
+      "points": 35685,
+      "region": "TR",
+      "rank": 45
+    },
+    {
+      "name": "GK japko",
+      "points": 35640,
+      "region": "KR",
+      "rank": 46
+    },
+    {
+      "name": "LEAF Aminished",
+      "points": 35568,
+      "region": "US",
+      "rank": 47
+    },
+    {
+      "name": "ZETA Minipiyo",
+      "points": 35552,
+      "region": "JP",
+      "rank": 48
+    },
+    {
+      "name": "DIG VictеrV",
+      "points": 35524,
+      "region": "GL",
+      "rank": 49
+    },
+    {
+      "name": "FURIA 916Gon",
+      "points": 35523,
+      "region": "BR",
+      "rank": 50
+    },
+    {
+      "name": "Lyost Momsy.",
+      "points": 35468,
+      "region": "FR",
+      "rank": 51
+    },
+    {
+      "name": "RVNS SkyJump 11",
+      "points": 35446,
+      "region": "FR",
+      "rank": 52
+    },
+    {
+      "name": "GEN Kraezfv",
+      "points": 35365,
+      "region": "AU",
+      "rank": 53
+    },
+    {
+      "name": "THEFELOZ 6",
+      "points": 35316,
+      "region": "BR",
+      "rank": 54
+    },
+    {
+      "name": "MGA pusheensyaaz",
+      "points": 35299,
+      "region": "ES",
+      "rank": 55
+    },
+    {
+      "name": "ZETA yuma4x",
+      "points": 35171,
+      "region": "JP",
+      "rank": 56
+    },
+    {
+      "name": "FURIA Nіght",
+      "points": 35147,
+      "region": "BR",
+      "rank": 57
+    },
+    {
+      "name": "GLORE F1SHYX 27",
+      "points": 35103,
+      "region": "CZ",
+      "rank": 58
+    },
+    {
+      "name": "sрhinx7",
+      "points": 35075,
+      "region": "KR",
+      "rank": 59
+    },
+    {
+      "name": "Dignitas Khanada",
+      "points": 35075,
+      "region": "KR",
+      "rank": 60
+    },
+    {
+      "name": "gabzeraǃ",
+      "points": 35064,
+      "region": "DE",
+      "rank": 61
+    },
+    {
+      "name": "curlу 7",
+      "points": 35055,
+      "region": "US",
+      "rank": 62
+    },
+    {
+      "name": "troolyǃ",
+      "points": 34962,
+      "region": "SE",
+      "rank": 63
+    },
+    {
+      "name": "force golden",
+      "points": 34962,
+      "region": "US",
+      "rank": 64
+    },
+    {
+      "name": "el scaryshawn 亗",
+      "points": 34949,
+      "region": "ES",
+      "rank": 65
+    },
+    {
+      "name": "xset clix 1x.",
+      "points": 34899,
+      "region": "US",
+      "rank": 66
+    },
+    {
+      "name": "еlite рxmp",
+      "points": 34850,
+      "region": "US",
+      "rank": 67
+    },
+    {
+      "name": "Jxness7",
+      "points": 34824,
+      "region": "BR",
+      "rank": 68
+    },
+    {
+      "name": "force ozoneǃ",
+      "points": 34812,
+      "region": "US",
+      "rank": 69
+    },
+    {
+      "name": "XP42 EpikWhale",
+      "points": 34801,
+      "region": "US",
+      "rank": 70
+    },
+    {
+      "name": "JOGO Ratgun",
+      "points": 34799,
+      "region": "US",
+      "rank": 71
+    },
+    {
+      "name": "jft tinka2x",
+      "points": 34795,
+      "region": "AU",
+      "rank": 72
+    },
+    {
+      "name": "Nxthan 68",
+      "points": 34738,
+      "region": "GB",
+      "rank": 73
+    },
+    {
+      "name": "7VEN Cringe",
+      "points": 34663,
+      "region": "DE",
+      "rank": 74
+    },
+    {
+      "name": "M8 akiira1",
+      "points": 34632,
+      "region": "FR",
+      "rank": 75
+    },
+    {
+      "name": "TwitterZynoxFNBR",
+      "points": 34593,
+      "region": "WLS",
+      "rank": 76
+    },
+    {
+      "name": "LOUD diguera",
+      "points": 34572,
+      "region": "BR",
+      "rank": 77
+    },
+    {
+      "name": "КINGBR",
+      "points": 34571,
+      "region": "BR",
+      "rank": 78
+    },
+    {
+      "name": "FOKUS JUU 888",
+      "points": 34522,
+      "region": "DE",
+      "rank": 79
+    },
+    {
+      "name": "CGN JannisZ",
+      "points": 34511,
+      "region": "DE",
+      "rank": 80
+    },
+    {
+      "name": "ora nebs slob",
+      "points": 34509,
+      "region": "SCO",
+      "rank": 81
+    },
+    {
+      "name": "AzatGo",
+      "points": 34496,
+      "region": "RU",
+      "rank": 82
+    },
+    {
+      "name": "nstar volko73",
+      "points": 34453,
+      "region": "DE",
+      "rank": 83
+    },
+    {
+      "name": "rax 8ǃ",
+      "points": 34449,
+      "region": "IT",
+      "rank": 84
+    },
+    {
+      "name": "last channce 24",
+      "points": 34403,
+      "region": "US",
+      "rank": 85
+    },
+    {
+      "name": "scarė",
+      "points": 34403,
+      "region": "KR",
+      "rank": 86
+    },
+    {
+      "name": "fut edsonbotǃ",
+      "points": 34400,
+      "region": "BE",
+      "rank": 87
+    },
+    {
+      "name": "ONIC retroǃ",
+      "points": 34383,
+      "region": "CA",
+      "rank": 88
+    },
+    {
+      "name": "solary ghonzoǃ",
+      "points": 34365,
+      "region": "NO",
+      "rank": 89
+    },
+    {
+      "name": "PWR resignz4x",
+      "points": 34349,
+      "region": "AU",
+      "rank": 90
+    },
+    {
+      "name": "Twitch liamtfup",
+      "points": 34326,
+      "region": "CA",
+      "rank": 91
+    },
+    {
+      "name": "nutiǃ",
+      "points": 34301,
+      "region": "DE",
+      "rank": 92
+    },
+    {
+      "name": "FNATIC Salko",
+      "points": 34272,
+      "region": "GL",
+      "rank": 93
+    },
+    {
+      "name": "DELTA LBworks",
+      "points": 34258,
+      "region": "JP",
+      "rank": 94
+    },
+    {
+      "name": "void eshou",
+      "points": 34211,
+      "region": "WLS",
+      "rank": 95
+    },
+    {
+      "name": "GRХ 10",
+      "points": 34207,
+      "region": "BR",
+      "rank": 96
+    },
+    {
+      "name": "qtd lilyxyz 19",
+      "points": 34132,
+      "region": "JP",
+      "rank": 97
+    },
+    {
+      "name": "LOUD mаck",
+      "points": 34103,
+      "region": "BR",
+      "rank": 98
+    },
+    {
+      "name": "onic phoenix",
+      "points": 34095,
+      "region": "US",
+      "rank": 99
+    },
+    {
+      "name": "nоahreyli",
+      "points": 34061,
+      "region": "KR",
+      "rank": 100
+    },
+    {
+      "name": "S8UL faded v9ǃ",
+      "points": 34057,
+      "region": "DE",
+      "rank": 101
+    },
+    {
+      "name": "HavoK Pixx",
+      "points": 34042,
+      "region": "PL",
+      "rank": 102
+    },
+    {
+      "name": "JFT ZDog",
+      "points": 34034,
+      "region": "AU",
+      "rank": 103
+    },
+    {
+      "name": "reеtǃ",
+      "points": 34027,
+      "region": "US",
+      "rank": 104
+    },
+    {
+      "name": "XP42 Visxals",
+      "points": 34009,
+      "region": "US",
+      "rank": 105
+    },
+    {
+      "name": "M8 MariusCOW",
+      "points": 34005,
+      "region": "DK",
+      "rank": 106
+    },
+    {
+      "name": "k1ng 伊万尔",
+      "points": 33969,
+      "region": "AR",
+      "rank": 107
+    },
+    {
+      "name": "xp42 braydz",
+      "points": 33926,
+      "region": "CZ",
+      "rank": 108
+    },
+    {
+      "name": "KoS Upl",
+      "points": 33896,
+      "region": "MX",
+      "rank": 109
+    },
+    {
+      "name": "FEAR oSydd 707",
+      "points": 33888,
+      "region": "EN",
+      "rank": 110
+    },
+    {
+      "name": "1up dolzeur",
+      "points": 33855,
+      "region": "CA",
+      "rank": 111
+    },
+    {
+      "name": "orc seyyto",
+      "points": 33842,
+      "region": "FR",
+      "rank": 112
+    },
+    {
+      "name": "ASP wheatǃ",
+      "points": 33813,
+      "region": "RU",
+      "rank": 113
+    },
+    {
+      "name": "sfg ocǃ",
+      "points": 33811,
+      "region": "GL",
+      "rank": 114
+    },
+    {
+      "name": "shinden fazer 35",
+      "points": 33775,
+      "region": "WLS",
+      "rank": 115
+    },
+    {
+      "name": "Poyo iFr0zi",
+      "points": 33761,
+      "region": "RU",
+      "rank": 116
+    },
+    {
+      "name": "1up zlinkǃ",
+      "points": 33742,
+      "region": "GB",
+      "rank": 117
+    },
+    {
+      "name": "PWR Alex8x",
+      "points": 33740,
+      "region": "RU",
+      "rank": 118
+    },
+    {
+      "name": "orc izzifvǃ",
+      "points": 33711,
+      "region": "KR",
+      "rank": 119
+    },
+    {
+      "name": "XP42 frxstyyǃ",
+      "points": 33705,
+      "region": "GB",
+      "rank": 120
+    },
+    {
+      "name": "GEN Jargue",
+      "points": 33694,
+      "region": "GL",
+      "rank": 121
+    },
+    {
+      "name": "JOGO Oatley",
+      "points": 33688,
+      "region": "AU",
+      "rank": 122
+    },
+    {
+      "name": "Twitch hcubefn",
+      "points": 33682,
+      "region": "US",
+      "rank": 123
+    },
+    {
+      "name": "Podasai 20",
+      "points": 33667,
+      "region": "FR",
+      "rank": 124
+    },
+    {
+      "name": "SFG Silxzys",
+      "points": 33659,
+      "region": "GL",
+      "rank": 125
+    },
+    {
+      "name": "Solary Zangi",
+      "points": 33643,
+      "region": "JP",
+      "rank": 126
+    },
+    {
+      "name": "FOKUS Fastrοki",
+      "points": 33628,
+      "region": "DE",
+      "rank": 127
+    },
+    {
+      "name": "solary seren 77",
+      "points": 33623,
+      "region": "PL",
+      "rank": 128
+    },
+    {
+      "name": "stellafn7",
+      "points": 33608,
+      "region": "FR",
+      "rank": 129
+    },
+    {
+      "name": "ISG Randu",
+      "points": 33600,
+      "region": "AR",
+      "rank": 130
+    },
+    {
+      "name": "kiiro1k-",
+      "points": 33595,
+      "region": "NL",
+      "rank": 131
+    },
+    {
+      "name": "orz Rura",
+      "points": 33589,
+      "region": "US",
+      "rank": 132
+    },
+    {
+      "name": "XSET ØØ8",
+      "points": 33585,
+      "region": "NO",
+      "rank": 133
+    },
+    {
+      "name": "tеddyache64",
+      "points": 33572,
+      "region": "JP",
+      "rank": 134
+    },
+    {
+      "name": "xp42 prism",
+      "points": 33570,
+      "region": "EN",
+      "rank": 135
+    },
+    {
+      "name": "FUT phzin 伊万尔",
+      "points": 33547,
+      "region": "IT",
+      "rank": 136
+    },
+    {
+      "name": "trkf 00",
+      "points": 33538,
+      "region": "DE",
+      "rank": 137
+    },
+    {
+      "name": "Hris ち",
+      "points": 33534,
+      "region": "GL",
+      "rank": 138
+    },
+    {
+      "name": "Pandore Huty",
+      "points": 33520,
+      "region": "CZ",
+      "rank": 139
+    },
+    {
+      "name": "TRKF Aspect",
+      "points": 33497,
+      "region": "PL",
+      "rank": 140
+    },
+    {
+      "name": "NEXUS たいがǃ",
+      "points": 33497,
+      "region": "CA",
+      "rank": 141
+    },
+    {
+      "name": "fno veerǃ",
+      "points": 33468,
+      "region": "US",
+      "rank": 142
+    },
+    {
+      "name": "S8UL KAAN BABA",
+      "points": 33465,
+      "region": "DE",
+      "rank": 143
+    },
+    {
+      "name": "G13ras",
+      "points": 33457,
+      "region": "PL",
+      "rank": 144
+    },
+    {
+      "name": "LYNX He-stin",
+      "points": 33451,
+      "region": "JP",
+      "rank": 145
+    },
+    {
+      "name": "Solary Minori",
+      "points": 33449,
+      "region": "CH",
+      "rank": 146
+    },
+    {
+      "name": "FLUXO Teuzz",
+      "points": 33426,
+      "region": "BR",
+      "rank": 147
+    },
+    {
+      "name": "FLC Howly",
+      "points": 33426,
+      "region": "SA",
+      "rank": 148
+    },
+    {
+      "name": "Nstar Predage.",
+      "points": 33419,
+      "region": "IT",
+      "rank": 149
+    },
+    {
+      "name": "PWR wreckless1x",
+      "points": 33401,
+      "region": "GL",
+      "rank": 150
+    },
+    {
+      "name": "F4T kaykyǃ",
+      "points": 33392,
+      "region": "DE",
+      "rank": 151
+    },
+    {
+      "name": "THREATS ヤ",
+      "points": 33390,
+      "region": "US",
+      "rank": 152
+    },
+    {
+      "name": "VOID Jayse1x",
+      "points": 33372,
+      "region": "US",
+      "rank": 153
+    },
+    {
+      "name": "K13 Asa ʕᵒᴥᵒʔ",
+      "points": 33365,
+      "region": "DE",
+      "rank": 154
+    },
+    {
+      "name": "tyt nvtylerhǃ",
+      "points": 33359,
+      "region": "US",
+      "rank": 155
+    },
+    {
+      "name": "rob jit 1st",
+      "points": 33350,
+      "region": "AU",
+      "rank": 156
+    },
+    {
+      "name": "KIT StL Nalu",
+      "points": 33336,
+      "region": "JP",
+      "rank": 157
+    },
+    {
+      "name": "BRN ぼっと",
+      "points": 33335,
+      "region": "JP",
+      "rank": 158
+    },
+    {
+      "name": "Lyost Twekǃ",
+      "points": 33333,
+      "region": "NL",
+      "rank": 159
+    },
+    {
+      "name": "abgxfragger",
+      "points": 33323,
+      "region": "AR",
+      "rank": 160
+    },
+    {
+      "name": "Pixovsky 10ǃ",
+      "points": 33314,
+      "region": "PL",
+      "rank": 161
+    },
+    {
+      "name": "xp42 velofpsǃ",
+      "points": 33305,
+      "region": "BE",
+      "rank": 162
+    },
+    {
+      "name": "DТ Rise",
+      "points": 33295,
+      "region": "CA",
+      "rank": 163
+    },
+    {
+      "name": "tribe letz 10ǃ",
+      "points": 33283,
+      "region": "IT",
+      "rank": 164
+    },
+    {
+      "name": "SFG timko",
+      "points": 33281,
+      "region": "US",
+      "rank": 165
+    },
+    {
+      "name": "DFM rainyǃ",
+      "points": 33272,
+      "region": "JP",
+      "rank": 166
+    },
+    {
+      "name": "BludGansta47",
+      "points": 33269,
+      "region": "US",
+      "rank": 167
+    },
+    {
+      "name": "welcometotheboss",
+      "points": 33266,
+      "region": "BR",
+      "rank": 168
+    },
+    {
+      "name": "dvs dexxsadesǃ",
+      "points": 33259,
+      "region": "NZ",
+      "rank": 169
+    },
+    {
+      "name": "7VEN KIRILLIAN",
+      "points": 33230,
+      "region": "RU",
+      "rank": 170
+    },
+    {
+      "name": "orc nociffǃ",
+      "points": 33227,
+      "region": "FR",
+      "rank": 171
+    },
+    {
+      "name": "VSN 27Q8ǃ",
+      "points": 33225,
+      "region": "GL",
+      "rank": 172
+    },
+    {
+      "name": "Belusi222",
+      "points": 33205,
+      "region": "IT",
+      "rank": 173
+    },
+    {
+      "name": "DELTA ちからv2",
+      "points": 33195,
+      "region": "GL",
+      "rank": 174
+    },
+    {
+      "name": "azizis44",
+      "points": 33190,
+      "region": "CA",
+      "rank": 175
+    },
+    {
+      "name": "rezon ay лол7.",
+      "points": 33180,
+      "region": "DE",
+      "rank": 176
+    },
+    {
+      "name": "dande 19ǃ",
+      "points": 33177,
+      "region": "BY",
+      "rank": 177
+    },
+    {
+      "name": "Chrome phazma",
+      "points": 33150,
+      "region": "AU",
+      "rank": 178
+    },
+    {
+      "name": "FataLРВуТузАтома",
+      "points": 33040,
+      "region": "LV",
+      "rank": 179
+    },
+    {
+      "name": "GW Repairs",
+      "points": 33036,
+      "region": "GL",
+      "rank": 180
+    },
+    {
+      "name": "HvK IDropY281",
+      "points": 33017,
+      "region": "KR",
+      "rank": 181
+    },
+    {
+      "name": "CHEF LUCX 203",
+      "points": 33016,
+      "region": "BR",
+      "rank": 182
+    },
+    {
+      "name": "lyost magomed",
+      "points": 33014,
+      "region": "RU",
+      "rank": 183
+    },
+    {
+      "name": "VSN Mshary",
+      "points": 33002,
+      "region": "AR",
+      "rank": 184
+    },
+    {
+      "name": "7VEN ǃGMonster",
+      "points": 32966,
+      "region": "US",
+      "rank": 185
+    },
+    {
+      "name": "coast vazenbotǃ",
+      "points": 32953,
+      "region": "LV",
+      "rank": 186
+    },
+    {
+      "name": "whathappenedtоme",
+      "points": 32949,
+      "region": "GL",
+      "rank": 187
+    },
+    {
+      "name": "LYNX raratteÿ",
+      "points": 32944,
+      "region": "JP",
+      "rank": 188
+    },
+    {
+      "name": "1UP 777ǃ",
+      "points": 32935,
+      "region": "UA",
+      "rank": 189
+    },
+    {
+      "name": "VSN Yassen 1st",
+      "points": 32908,
+      "region": "EG",
+      "rank": 190
+    },
+    {
+      "name": "NEXUS Reaper 77ǃ",
+      "points": 32908,
+      "region": "KR",
+      "rank": 191
+    },
+    {
+      "name": "FataL cheetiin",
+      "points": 32904,
+      "region": "DE",
+      "rank": 192
+    },
+    {
+      "name": "zarbwk 1stǃ",
+      "points": 32892,
+      "region": "SE",
+      "rank": 193
+    },
+    {
+      "name": "gameslefthim",
+      "points": 32865,
+      "region": "SE",
+      "rank": 194
+    },
+    {
+      "name": "King Josh75 Ψ",
+      "points": 32865,
+      "region": "GB",
+      "rank": 195
+    },
+    {
+      "name": "chrome jeraldǃ",
+      "points": 32858,
+      "region": "FR",
+      "rank": 196
+    },
+    {
+      "name": "FLC F1N4ІK",
+      "points": 32857,
+      "region": "UA",
+      "rank": 197
+    },
+    {
+      "name": "psr light jit1",
+      "points": 32857,
+      "region": "FR",
+      "rank": 198
+    },
+    {
+      "name": "hylnd wagers 16",
+      "points": 32856,
+      "region": "RU",
+      "rank": 199
+    },
+    {
+      "name": "cvx Takii 42",
+      "points": 32847,
+      "region": "US",
+      "rank": 200
+    },
+    {
+      "name": "bugha 6",
+      "points": 32840,
+      "region": "US",
+      "rank": 201
+    },
+    {
+      "name": "nahuxwq",
+      "points": 32833,
+      "region": "UY",
+      "rank": 202
+    },
+    {
+      "name": "venly white",
+      "points": 32827,
+      "region": "CA",
+      "rank": 203
+    },
+    {
+      "name": "GK FKS5x",
+      "points": 32815,
+      "region": "SA",
+      "rank": 204
+    },
+    {
+      "name": "AlbaXna",
+      "points": 32807,
+      "region": "IT",
+      "rank": 205
+    },
+    {
+      "name": "Monkey D Aryg0d",
+      "points": 32792,
+      "region": "EN",
+      "rank": 206
+    },
+    {
+      "name": "pingu sunderland",
+      "points": 32792,
+      "region": "BR",
+      "rank": 207
+    },
+    {
+      "name": "сhris bää",
+      "points": 32785,
+      "region": "KR",
+      "rank": 208
+    },
+    {
+      "name": "EDGE かめてぃん.魔女ǃ",
+      "points": 32776,
+      "region": "GL",
+      "rank": 209
+    },
+    {
+      "name": "GW S1neD",
+      "points": 32738,
+      "region": "UA",
+      "rank": 210
+    },
+    {
+      "name": "nlt meahǃ",
+      "points": 32700,
+      "region": "SCO",
+      "rank": 211
+    },
+    {
+      "name": "Casperinovic",
+      "points": 32694,
+      "region": "BE",
+      "rank": 212
+    },
+    {
+      "name": "NEXUS 3peace",
+      "points": 32688,
+      "region": "JP",
+      "rank": 213
+    },
+    {
+      "name": "KoS SShur4",
+      "points": 32677,
+      "region": "BY",
+      "rank": 214
+    },
+    {
+      "name": "KBR -ɢ-",
+      "points": 32676,
+      "region": "BR",
+      "rank": 215
+    },
+    {
+      "name": "havok woxshter",
+      "points": 32667,
+      "region": "SE",
+      "rank": 216
+    },
+    {
+      "name": "coast m0untain",
+      "points": 32662,
+      "region": "AU",
+      "rank": 217
+    },
+    {
+      "name": "Solary Darkos",
+      "points": 32655,
+      "region": "FR",
+      "rank": 218
+    },
+    {
+      "name": "гнить и нытьfnz3",
+      "points": 32643,
+      "region": "UA",
+      "rank": 219
+    },
+    {
+      "name": "E36 Stainǃ",
+      "points": 32621,
+      "region": "JP",
+      "rank": 220
+    },
+    {
+      "name": "señor seeyun",
+      "points": 32585,
+      "region": "WLS",
+      "rank": 221
+    },
+    {
+      "name": "glacier hxvacǃ",
+      "points": 32575,
+      "region": "GL",
+      "rank": 222
+    },
+    {
+      "name": "VSN Salvatore",
+      "points": 32571,
+      "region": "SA",
+      "rank": 223
+    },
+    {
+      "name": "xp42 fitoǃ",
+      "points": 32569,
+      "region": "JP",
+      "rank": 224
+    },
+    {
+      "name": "HYLND KLIXEY BA9",
+      "points": 32558,
+      "region": "MX",
+      "rank": 225
+    },
+    {
+      "name": "PWR Goofy",
+      "points": 32537,
+      "region": "AU",
+      "rank": 226
+    },
+    {
+      "name": "X6 fantxbublic",
+      "points": 32526,
+      "region": "CH",
+      "rank": 227
+    },
+    {
+      "name": "now chriscǃ",
+      "points": 32511,
+      "region": "DK",
+      "rank": 228
+    },
+    {
+      "name": "r4c bepro foczuś",
+      "points": 32472,
+      "region": "PL",
+      "rank": 229
+    },
+    {
+      "name": "XP42 Мoneymaker",
+      "points": 32472,
+      "region": "SE",
+      "rank": 230
+    },
+    {
+      "name": "fnatic inactǃ",
+      "points": 32450,
+      "region": "CA",
+      "rank": 231
+    },
+    {
+      "name": "XP42 Deckzee",
+      "points": 32447,
+      "region": "DK",
+      "rank": 232
+    },
+    {
+      "name": "Macesznǃ",
+      "points": 32442,
+      "region": "GL",
+      "rank": 233
+    },
+    {
+      "name": "R4C Rop.",
+      "points": 32439,
+      "region": "FR",
+      "rank": 234
+    },
+    {
+      "name": "vlc franekǃ",
+      "points": 32438,
+      "region": "RU",
+      "rank": 235
+    },
+    {
+      "name": "RodryGØD.",
+      "points": 32436,
+      "region": "AR",
+      "rank": 236
+    },
+    {
+      "name": "JOGO spookz 19ǃ",
+      "points": 32423,
+      "region": "FR",
+      "rank": 237
+    },
+    {
+      "name": "DFM むきぱぱǃǃ",
+      "points": 32398,
+      "region": "JP",
+      "rank": 238
+    },
+    {
+      "name": "1UP Aloe",
+      "points": 32396,
+      "region": "US",
+      "rank": 239
+    },
+    {
+      "name": "prs encrypted",
+      "points": 32378,
+      "region": "US",
+      "rank": 240
+    },
+    {
+      "name": "A1st RiaM 39ǃ",
+      "points": 32376,
+      "region": "JP",
+      "rank": 241
+    },
+    {
+      "name": "t6 gonzalito 67",
+      "points": 32375,
+      "region": "GL",
+      "rank": 242
+    },
+    {
+      "name": "chrome sazersǃ",
+      "points": 32370,
+      "region": "AU",
+      "rank": 243
+    },
+    {
+      "name": "mtrx noxy",
+      "points": 32368,
+      "region": "US",
+      "rank": 244
+    },
+    {
+      "name": "renat0ǃ",
+      "points": 32364,
+      "region": "BR",
+      "rank": 245
+    },
+    {
+      "name": "AlUla Hero",
+      "points": 32341,
+      "region": "SA",
+      "rank": 246
+    },
+    {
+      "name": "nmss 1lushafnz",
+      "points": 32325,
+      "region": "SA",
+      "rank": 247
+    },
+    {
+      "name": "Arda 297",
+      "points": 32317,
+      "region": "DE",
+      "rank": 248
+    },
+    {
+      "name": "prs batmanjoe 33",
+      "points": 32310,
+      "region": "US",
+      "rank": 249
+    },
+    {
+      "name": "OE slepzi17",
+      "points": 32296,
+      "region": "US",
+      "rank": 250
+    },
+    {
+      "name": "cvx bdawg",
+      "points": 32289,
+      "region": "CA",
+      "rank": 251
+    },
+    {
+      "name": "quax dinusǃ",
+      "points": 32289,
+      "region": "PL",
+      "rank": 252
+    },
+    {
+      "name": "NEXUS Boby74",
+      "points": 32282,
+      "region": "JP",
+      "rank": 253
+    },
+    {
+      "name": "chrome xavierǃ",
+      "points": 32275,
+      "region": "NL",
+      "rank": 254
+    },
+    {
+      "name": "jojofishy .",
+      "points": 32275,
+      "region": "US",
+      "rank": 255
+    },
+    {
+      "name": "v1x krreón",
+      "points": 32270,
+      "region": "MX",
+      "rank": 256
+    },
+    {
+      "name": "Birkenstocks 10ǃ",
+      "points": 32264,
+      "region": "DK",
+      "rank": 257
+    },
+    {
+      "name": "fear dash",
+      "points": 32258,
+      "region": "US",
+      "rank": 258
+    },
+    {
+      "name": "rbl drewbotǃ",
+      "points": 32254,
+      "region": "US",
+      "rank": 259
+    },
+    {
+      "name": "axeforce 139",
+      "points": 32245,
+      "region": "SE",
+      "rank": 260
+    },
+    {
+      "name": "Rad3on489",
+      "points": 32242,
+      "region": "IT",
+      "rank": 261
+    },
+    {
+      "name": "mvp.tisco",
+      "points": 32223,
+      "region": "DE",
+      "rank": 262
+    },
+    {
+      "name": "ORP Fnajen sc",
+      "points": 32204,
+      "region": "SE",
+      "rank": 263
+    },
+    {
+      "name": "1P Lericx",
+      "points": 32201,
+      "region": "DK",
+      "rank": 264
+    },
+    {
+      "name": "Blz Masezx",
+      "points": 32195,
+      "region": "AU",
+      "rank": 265
+    },
+    {
+      "name": "Ed Bimboǃ",
+      "points": 32195,
+      "region": "IT",
+      "rank": 266
+    },
+    {
+      "name": "gw tylioǃ",
+      "points": 32175,
+      "region": "FR",
+      "rank": 267
+    },
+    {
+      "name": "RXB Sharkman",
+      "points": 32172,
+      "region": "CA",
+      "rank": 268
+    },
+    {
+      "name": "voltiaxǃ",
+      "points": 32171,
+      "region": "EG",
+      "rank": 269
+    },
+    {
+      "name": "ktz 1",
+      "points": 32158,
+      "region": "DE",
+      "rank": 270
+    },
+    {
+      "name": "frans a. sch",
+      "points": 32154,
+      "region": "RU",
+      "rank": 271
+    },
+    {
+      "name": "listenǃ",
+      "points": 32141,
+      "region": "GL",
+      "rank": 272
+    },
+    {
+      "name": "smk hazzense 67",
+      "points": 32134,
+      "region": "GL",
+      "rank": 273
+    },
+    {
+      "name": "LYNX RAI",
+      "points": 32123,
+      "region": "JP",
+      "rank": 274
+    },
+    {
+      "name": "FNO spec 25ǃ",
+      "points": 32100,
+      "region": "IT",
+      "rank": 275
+    },
+    {
+      "name": "Fredoxie0452",
+      "points": 32083,
+      "region": "DK",
+      "rank": 276
+    },
+    {
+      "name": "Venly Lordfv.",
+      "points": 32075,
+      "region": "FR",
+      "rank": 277
+    },
+    {
+      "name": "K13 Firenǃ",
+      "points": 32064,
+      "region": "PL",
+      "rank": 278
+    },
+    {
+      "name": "BAZ Controller",
+      "points": 32058,
+      "region": "SE",
+      "rank": 279
+    },
+    {
+      "name": "PWR Anon5x",
+      "points": 32049,
+      "region": "KR",
+      "rank": 280
+    },
+    {
+      "name": "evo nickzrr",
+      "points": 32046,
+      "region": "DE",
+      "rank": 281
+    },
+    {
+      "name": "SNM Vorx",
+      "points": 32043,
+      "region": "US",
+      "rank": 282
+    },
+    {
+      "name": "M1 Kiełba",
+      "points": 32037,
+      "region": "PL",
+      "rank": 283
+    },
+    {
+      "name": "AST Hedra",
+      "points": 32033,
+      "region": "FR",
+      "rank": 284
+    },
+    {
+      "name": "Phaпtom2x",
+      "points": 32001,
+      "region": "SA",
+      "rank": 285
+    },
+    {
+      "name": "1up evolved",
+      "points": 31983,
+      "region": "US",
+      "rank": 286
+    },
+    {
+      "name": "SMK MYST イ",
+      "points": 31979,
+      "region": "CA",
+      "rank": 287
+    },
+    {
+      "name": "7VEN 51Cole",
+      "points": 31970,
+      "region": "US",
+      "rank": 288
+    },
+    {
+      "name": "ᵂᴷᵉʸNeo 8ǃ",
+      "points": 31967,
+      "region": "MX",
+      "rank": 289
+    },
+    {
+      "name": "MGA Bepro Trusio",
+      "points": 31960,
+      "region": "PL",
+      "rank": 290
+    },
+    {
+      "name": "NeFrizi jane",
+      "points": 31951,
+      "region": "BE",
+      "rank": 291
+    },
+    {
+      "name": "cr qjacfnz3",
+      "points": 31938,
+      "region": "JP",
+      "rank": 292
+    },
+    {
+      "name": "twitter maddenv",
+      "points": 31935,
+      "region": "US",
+      "rank": 293
+    },
+    {
+      "name": "1up zno",
+      "points": 31932,
+      "region": "US",
+      "rank": 294
+    },
+    {
+      "name": "Aurora Heror3h",
+      "points": 31931,
+      "region": "BY",
+      "rank": 295
+    },
+    {
+      "name": "Pandore Winther",
+      "points": 31916,
+      "region": "DK",
+      "rank": 296
+    },
+    {
+      "name": "tύrtl3 łƭđν",
+      "points": 31904,
+      "region": "MX",
+      "rank": 297
+    },
+    {
+      "name": "ntx fvǃ",
+      "points": 31901,
+      "region": "FR",
+      "rank": 298
+    },
+    {
+      "name": "efexy 23",
+      "points": 31890,
+      "region": "SE",
+      "rank": 299
+    },
+    {
+      "name": "VGN Northern",
+      "points": 31885,
+      "region": "PL",
+      "rank": 300
+    },
+    {
+      "name": "KL wolfie 一期一会",
+      "points": 31870,
+      "region": "AR",
+      "rank": 301
+    },
+    {
+      "name": "bepro matez",
+      "points": 31865,
+      "region": "PL",
+      "rank": 302
+    },
+    {
+      "name": "2R Kacpi",
+      "points": 31861,
+      "region": "PL",
+      "rank": 303
+    },
+    {
+      "name": "1UP CaioD3US",
+      "points": 31855,
+      "region": "BR",
+      "rank": 304
+    },
+    {
+      "name": "cxshy 10ǃ",
+      "points": 31853,
+      "region": "PL",
+      "rank": 305
+    },
+    {
+      "name": "14 in 6",
+      "points": 31852,
+      "region": "US",
+      "rank": 306
+    },
+    {
+      "name": "qte angel ʚɞ",
+      "points": 31850,
+      "region": "MX",
+      "rank": 307
+    },
+    {
+      "name": "spexхǃ",
+      "points": 31832,
+      "region": "KR",
+      "rank": 308
+    },
+    {
+      "name": "RVL Moda",
+      "points": 31827,
+      "region": "CA",
+      "rank": 309
+    },
+    {
+      "name": "рeterbotǃ.",
+      "points": 31826,
+      "region": "KR",
+      "rank": 310
+    },
+    {
+      "name": "LYNX rak1rye 10ǃ",
+      "points": 31822,
+      "region": "JP",
+      "rank": 311
+    },
+    {
+      "name": "twitch cyclopsfv",
+      "points": 31822,
+      "region": "KR",
+      "rank": 312
+    },
+    {
+      "name": "apracS 888",
+      "points": 31820,
+      "region": "LV",
+      "rank": 313
+    },
+    {
+      "name": "sfg peepotron",
+      "points": 31817,
+      "region": "KR",
+      "rank": 314
+    },
+    {
+      "name": "RVL Rew",
+      "points": 31789,
+      "region": "SA",
+      "rank": 315
+    },
+    {
+      "name": "lyl seek",
+      "points": 31789,
+      "region": "CA",
+      "rank": 316
+    },
+    {
+      "name": "void yuz",
+      "points": 31785,
+      "region": "DE",
+      "rank": 317
+    },
+    {
+      "name": "こいるやけん",
+      "points": 31782,
+      "region": "JP",
+      "rank": 318
+    },
+    {
+      "name": "Auvahalo",
+      "points": 31768,
+      "region": "DK",
+      "rank": 319
+    },
+    {
+      "name": "BABOS FINNFN",
+      "points": 31766,
+      "region": "DE",
+      "rank": 320
+    },
+    {
+      "name": "orz うぃっけしーとあすてる",
+      "points": 31757,
+      "region": "GL",
+      "rank": 321
+    },
+    {
+      "name": "IAm Enough",
+      "points": 31749,
+      "region": "CO",
+      "rank": 322
+    },
+    {
+      "name": "SFG Compton",
+      "points": 31748,
+      "region": "GL",
+      "rank": 323
+    },
+    {
+      "name": "DVS mxnty 19ǃ",
+      "points": 31739,
+      "region": "ES",
+      "rank": 324
+    },
+    {
+      "name": "FataL Kizersǃ",
+      "points": 31737,
+      "region": "PL",
+      "rank": 325
+    },
+    {
+      "name": "Chrome tame",
+      "points": 31725,
+      "region": "IT",
+      "rank": 326
+    },
+    {
+      "name": "Zayni Ӝ ۵ ззз",
+      "points": 31718,
+      "region": "DK",
+      "rank": 327
+    },
+    {
+      "name": "Settyz 8.",
+      "points": 31707,
+      "region": "PL",
+      "rank": 328
+    },
+    {
+      "name": "orz Astellf 11ǃ",
+      "points": 31701,
+      "region": "JP",
+      "rank": 329
+    },
+    {
+      "name": "SFG light",
+      "points": 31701,
+      "region": "EG",
+      "rank": 330
+    },
+    {
+      "name": "chrome deymo",
+      "points": 31698,
+      "region": "FR",
+      "rank": 331
+    },
+    {
+      "name": "SFG Zyro",
+      "points": 31689,
+      "region": "KR",
+      "rank": 332
+    },
+    {
+      "name": "1up salt",
+      "points": 31683,
+      "region": "IT",
+      "rank": 333
+    },
+    {
+      "name": "GIubschii",
+      "points": 31679,
+      "region": "DE",
+      "rank": 334
+    },
+    {
+      "name": "aideniwnl",
+      "points": 31675,
+      "region": "NO",
+      "rank": 335
+    },
+    {
+      "name": "Fishybc",
+      "points": 31670,
+      "region": "AR",
+      "rank": 336
+    },
+    {
+      "name": "Void Doxey BNN",
+      "points": 31662,
+      "region": "GL",
+      "rank": 337
+    },
+    {
+      "name": "M8 Vanyak3k",
+      "points": 31654,
+      "region": "UA",
+      "rank": 338
+    },
+    {
+      "name": "Mikson 75",
+      "points": 31651,
+      "region": "CO",
+      "rank": 339
+    },
+    {
+      "name": "Riddle RiIse",
+      "points": 31642,
+      "region": "WLS",
+      "rank": 340
+    },
+    {
+      "name": "fno barroso44",
+      "points": 31640,
+      "region": "BR",
+      "rank": 341
+    },
+    {
+      "name": "まぁǃ",
+      "points": 31640,
+      "region": "JP",
+      "rank": 342
+    },
+    {
+      "name": "GW kombek",
+      "points": 31627,
+      "region": "PL",
+      "rank": 343
+    },
+    {
+      "name": "1up avenger",
+      "points": 31626,
+      "region": "US",
+      "rank": 344
+    },
+    {
+      "name": "1P Julleǃ",
+      "points": 31626,
+      "region": "GL",
+      "rank": 345
+    },
+    {
+      "name": "PRS Doniee",
+      "points": 31610,
+      "region": "BR",
+      "rank": 346
+    },
+    {
+      "name": "ROC 7man1",
+      "points": 31608,
+      "region": "SA",
+      "rank": 347
+    },
+    {
+      "name": "RC MOFU 16",
+      "points": 31607,
+      "region": "JP",
+      "rank": 348
+    },
+    {
+      "name": "Ziffy 73",
+      "points": 31603,
+      "region": "NL",
+      "rank": 349
+    },
+    {
+      "name": "INSG solvey 19ǃ",
+      "points": 31598,
+      "region": "KR",
+      "rank": 350
+    },
+    {
+      "name": "gabǃx",
+      "points": 31596,
+      "region": "IT",
+      "rank": 351
+    },
+    {
+      "name": "R4C KevPieceYou",
+      "points": 31584,
+      "region": "DE",
+      "rank": 352
+    },
+    {
+      "name": "dаnаth",
+      "points": 31572,
+      "region": "AU",
+      "rank": 353
+    },
+    {
+      "name": "EQY Kqrma",
+      "points": 31572,
+      "region": "DE",
+      "rank": 354
+    },
+    {
+      "name": "turtle 10ǃ",
+      "points": 31566,
+      "region": "DE",
+      "rank": 355
+    },
+    {
+      "name": "HvK seekkzr谷t余市",
+      "points": 31557,
+      "region": "FR",
+      "rank": 356
+    },
+    {
+      "name": "1up Jemitty",
+      "points": 31545,
+      "region": "US",
+      "rank": 357
+    },
+    {
+      "name": "SK vampiǃ",
+      "points": 31543,
+      "region": "NG",
+      "rank": 358
+    },
+    {
+      "name": "1up munkǃ",
+      "points": 31541,
+      "region": "IT",
+      "rank": 359
+    },
+    {
+      "name": "psyc evyn",
+      "points": 31534,
+      "region": "US",
+      "rank": 360
+    },
+    {
+      "name": "Twitch Electrofv",
+      "points": 31529,
+      "region": "US",
+      "rank": 361
+    },
+    {
+      "name": "7VEN AVIVV",
+      "points": 31523,
+      "region": "RU",
+      "rank": 362
+    },
+    {
+      "name": "τidinotnice",
+      "points": 31519,
+      "region": "NL",
+      "rank": 363
+    },
+    {
+      "name": "ALP Qkayǃ",
+      "points": 31513,
+      "region": "US",
+      "rank": 364
+    },
+    {
+      "name": "queasy444",
+      "points": 31511,
+      "region": "SA",
+      "rank": 365
+    },
+    {
+      "name": "ASCEND SaNyaGoD-",
+      "points": 31494,
+      "region": "RU",
+      "rank": 366
+    },
+    {
+      "name": "Tiggz 24",
+      "points": 31492,
+      "region": "RU",
+      "rank": 367
+    },
+    {
+      "name": "JMC PESHKA",
+      "points": 31490,
+      "region": "WLS",
+      "rank": 368
+    },
+    {
+      "name": "RVL OB",
+      "points": 31490,
+      "region": "GL",
+      "rank": 369
+    },
+    {
+      "name": "staﱞr jit",
+      "points": 31467,
+      "region": "AU",
+      "rank": 370
+    },
+    {
+      "name": "now klayz",
+      "points": 31462,
+      "region": "ES",
+      "rank": 371
+    },
+    {
+      "name": "dummi2xx",
+      "points": 31457,
+      "region": "NZ",
+      "rank": 372
+    },
+    {
+      "name": "Kjeld Janeǃ",
+      "points": 31446,
+      "region": "DK",
+      "rank": 373
+    },
+    {
+      "name": "Lizer 1vanjkee",
+      "points": 31441,
+      "region": "CH",
+      "rank": 374
+    },
+    {
+      "name": "KoS aleezyfv 11ǃ",
+      "points": 31440,
+      "region": "IT",
+      "rank": 375
+    },
+    {
+      "name": "PARON りょうIT감자",
+      "points": 31435,
+      "region": "JP",
+      "rank": 376
+    },
+    {
+      "name": "Arthurbc Katchau",
+      "points": 31421,
+      "region": "JP",
+      "rank": 377
+    },
+    {
+      "name": "trippеrnn",
+      "points": 31417,
+      "region": "DK",
+      "rank": 378
+    },
+    {
+      "name": "rt maloyache666",
+      "points": 31414,
+      "region": "BY",
+      "rank": 379
+    },
+    {
+      "name": "zt hizixx 7ǃ",
+      "points": 31413,
+      "region": "UA",
+      "rank": 380
+    },
+    {
+      "name": "thorn vleccks",
+      "points": 31413,
+      "region": "MX",
+      "rank": 381
+    },
+    {
+      "name": "tarpz yhyh",
+      "points": 31392,
+      "region": "CO",
+      "rank": 382
+    },
+    {
+      "name": "Jobkame44",
+      "points": 31384,
+      "region": "KR",
+      "rank": 383
+    },
+    {
+      "name": "Rafha Saad",
+      "points": 31373,
+      "region": "SA",
+      "rank": 384
+    },
+    {
+      "name": "TL Visa Persa",
+      "points": 31365,
+      "region": "BR",
+      "rank": 385
+    },
+    {
+      "name": "jeze 309",
+      "points": 31361,
+      "region": "MX",
+      "rank": 386
+    },
+    {
+      "name": "AUR shxrk 17ǃﾠ",
+      "points": 31358,
+      "region": "FR",
+      "rank": 387
+    },
+    {
+      "name": "Clapzey.",
+      "points": 31353,
+      "region": "DK",
+      "rank": 388
+    },
+    {
+      "name": "Gazer 11",
+      "points": 31352,
+      "region": "KR",
+      "rank": 389
+    },
+    {
+      "name": "5aalD Q8",
+      "points": 31337,
+      "region": "GL",
+      "rank": 390
+    },
+    {
+      "name": "6x Jurdy",
+      "points": 31335,
+      "region": "NL",
+      "rank": 391
+    },
+    {
+      "name": "Lyost Boris",
+      "points": 31335,
+      "region": "PL",
+      "rank": 392
+    },
+    {
+      "name": "GLORE Mikay",
+      "points": 31330,
+      "region": "CH",
+      "rank": 393
+    },
+    {
+      "name": "RC tomat 魅",
+      "points": 31328,
+      "region": "GL",
+      "rank": 394
+    },
+    {
+      "name": "FLC Nova",
+      "points": 31311,
+      "region": "NL",
+      "rank": 395
+    },
+    {
+      "name": "jpfk1ngǃ",
+      "points": 31307,
+      "region": "BR",
+      "rank": 396
+    },
+    {
+      "name": "bs Tyler Durden",
+      "points": 31302,
+      "region": "UA",
+      "rank": 397
+    },
+    {
+      "name": "LYNX ZAZI 咲",
+      "points": 31286,
+      "region": "JP",
+      "rank": 398
+    },
+    {
+      "name": "sirencе1",
+      "points": 31284,
+      "region": "AR",
+      "rank": 399
+    },
+    {
+      "name": "Chopped Danicush",
+      "points": 31279,
+      "region": "GL",
+      "rank": 400
+    },
+    {
+      "name": "Twitter masnfn6",
+      "points": 31279,
+      "region": "SE",
+      "rank": 401
+    },
+    {
+      "name": "NoahWPlays",
+      "points": 31279,
+      "region": "US",
+      "rank": 402
+    },
+    {
+      "name": "FEAR VERTǃ",
+      "points": 31276,
+      "region": "US",
+      "rank": 403
+    },
+    {
+      "name": "M1 bepro krixx",
+      "points": 31275,
+      "region": "PL",
+      "rank": 404
+    },
+    {
+      "name": "MTRX CAM SLAM",
+      "points": 31256,
+      "region": "JP",
+      "rank": 405
+    },
+    {
+      "name": "caduxts",
+      "points": 31255,
+      "region": "KR",
+      "rank": 406
+    },
+    {
+      "name": "sekayg0d",
+      "points": 31251,
+      "region": "PL",
+      "rank": 407
+    },
+    {
+      "name": "Cofts",
+      "points": 31246,
+      "region": "US",
+      "rank": 408
+    },
+    {
+      "name": "pinq128",
+      "points": 31246,
+      "region": "EN",
+      "rank": 409
+    },
+    {
+      "name": "johndillermand67",
+      "points": 31245,
+      "region": "DK",
+      "rank": 410
+    },
+    {
+      "name": "ぜのぽったー",
+      "points": 31236,
+      "region": "JP",
+      "rank": 411
+    },
+    {
+      "name": "FataL KANTRI",
+      "points": 31234,
+      "region": "UA",
+      "rank": 412
+    },
+    {
+      "name": "alpha seljuny 2ǃ",
+      "points": 31234,
+      "region": "SA",
+      "rank": 413
+    },
+    {
+      "name": "ONYX Jagareet 72",
+      "points": 31232,
+      "region": "JP",
+      "rank": 414
+    },
+    {
+      "name": "zard kumofv",
+      "points": 31226,
+      "region": "KR",
+      "rank": 415
+    },
+    {
+      "name": "Sankuǃ",
+      "points": 31224,
+      "region": "AR",
+      "rank": 416
+    },
+    {
+      "name": "Xaizz Durden 1st",
+      "points": 31211,
+      "region": "KR",
+      "rank": 417
+    },
+    {
+      "name": "alpha 0m9sz",
+      "points": 31200,
+      "region": "GL",
+      "rank": 418
+    },
+    {
+      "name": "hylnd olk",
+      "points": 31199,
+      "region": "MX",
+      "rank": 419
+    },
+    {
+      "name": "SFG minit",
+      "points": 31197,
+      "region": "GL",
+      "rank": 420
+    },
+    {
+      "name": "double chаmp",
+      "points": 31194,
+      "region": "SA",
+      "rank": 421
+    },
+    {
+      "name": "1up praxǃ",
+      "points": 31193,
+      "region": "DE",
+      "rank": 422
+    },
+    {
+      "name": "QTD Pony ψ",
+      "points": 31192,
+      "region": "JP",
+      "rank": 423
+    },
+    {
+      "name": "KIT StL xMipoli",
+      "points": 31178,
+      "region": "JP",
+      "rank": 424
+    },
+    {
+      "name": "kernel f3kserǃ",
+      "points": 31176,
+      "region": "UA",
+      "rank": 425
+    },
+    {
+      "name": "spr zyftaroonie",
+      "points": 31176,
+      "region": "US",
+      "rank": 426
+    },
+    {
+      "name": "Shaykoz.",
+      "points": 31173,
+      "region": "FR",
+      "rank": 427
+    },
+    {
+      "name": "Lynox paulin32",
+      "points": 31172,
+      "region": "BR",
+      "rank": 428
+    },
+    {
+      "name": "kiduoo",
+      "points": 31163,
+      "region": "DE",
+      "rank": 429
+    },
+    {
+      "name": "GK Adapter",
+      "points": 31163,
+      "region": "SA",
+      "rank": 430
+    },
+    {
+      "name": "NEXUS LEOǃ",
+      "points": 31162,
+      "region": "WLS",
+      "rank": 431
+    },
+    {
+      "name": "21 KOSQFǃ",
+      "points": 31158,
+      "region": "SA",
+      "rank": 432
+    },
+    {
+      "name": "EGOᵗʷᵗʳ Ruinzfnx",
+      "points": 31147,
+      "region": "US",
+      "rank": 433
+    },
+    {
+      "name": "dvs sickboyrainy",
+      "points": 31137,
+      "region": "AU",
+      "rank": 434
+    },
+    {
+      "name": "IGNUM にかごん 147",
+      "points": 31131,
+      "region": "JP",
+      "rank": 435
+    },
+    {
+      "name": "E36 Shelom",
+      "points": 31114,
+      "region": "JP",
+      "rank": 436
+    },
+    {
+      "name": "magma 8.",
+      "points": 31111,
+      "region": "PL",
+      "rank": 437
+    },
+    {
+      "name": "O5 sails",
+      "points": 31111,
+      "region": "US",
+      "rank": 438
+    },
+    {
+      "name": "gabx 10ǃ",
+      "points": 31102,
+      "region": "MX",
+      "rank": 439
+    },
+    {
+      "name": "NŁT zagouの弟",
+      "points": 31100,
+      "region": "SA",
+      "rank": 440
+    },
+    {
+      "name": "MGApusheensyaaz",
+      "points": 31095,
+      "region": "GL",
+      "rank": 441
+    },
+    {
+      "name": "UC.natafishǃ",
+      "points": 31089,
+      "region": "KR",
+      "rank": 442
+    },
+    {
+      "name": "sanoba witch14ǃ",
+      "points": 31088,
+      "region": "GL",
+      "rank": 443
+    },
+    {
+      "name": "Oո and Oո",
+      "points": 31081,
+      "region": "DE",
+      "rank": 444
+    },
+    {
+      "name": "200MG 7MG DOSE",
+      "points": 31079,
+      "region": "RU",
+      "rank": 445
+    },
+    {
+      "name": "Jausshh",
+      "points": 31071,
+      "region": "MX",
+      "rank": 446
+    },
+    {
+      "name": "CTRL ghxstyah",
+      "points": 31066,
+      "region": "RU",
+      "rank": 447
+    },
+    {
+      "name": "JFT falcon 19ǃ",
+      "points": 31063,
+      "region": "ES",
+      "rank": 448
+    },
+    {
+      "name": "CR TEITEI",
+      "points": 31053,
+      "region": "AR",
+      "rank": 449
+    },
+    {
+      "name": "ceneto7v",
+      "points": 31053,
+      "region": "AU",
+      "rank": 450
+    },
+    {
+      "name": "Monto Gold7",
+      "points": 31052,
+      "region": "DE",
+      "rank": 451
+    },
+    {
+      "name": "Wozah mvp",
+      "points": 31050,
+      "region": "SE",
+      "rank": 452
+    },
+    {
+      "name": "FA artskill",
+      "points": 31046,
+      "region": "FR",
+      "rank": 453
+    },
+    {
+      "name": "kаyd",
+      "points": 31024,
+      "region": "WLS",
+      "rank": 454
+    },
+    {
+      "name": "Atlantic Mald1s",
+      "points": 31017,
+      "region": "DK",
+      "rank": 455
+    },
+    {
+      "name": "leal carlin",
+      "points": 31010,
+      "region": "DE",
+      "rank": 456
+    },
+    {
+      "name": "Lynox kaduzinrr",
+      "points": 31009,
+      "region": "BR",
+      "rank": 457
+    },
+    {
+      "name": "Blacha 212",
+      "points": 31009,
+      "region": "PL",
+      "rank": 458
+    },
+    {
+      "name": "db tryona",
+      "points": 31007,
+      "region": "JP",
+      "rank": 459
+    },
+    {
+      "name": "ZNN Eyne",
+      "points": 31001,
+      "region": "TR",
+      "rank": 460
+    },
+    {
+      "name": "gw Snaylyx 18",
+      "points": 31001,
+      "region": "FR",
+      "rank": 461
+    },
+    {
+      "name": "SK AmoZz",
+      "points": 31000,
+      "region": "DE",
+      "rank": 462
+    },
+    {
+      "name": "FLY darkyǃ",
+      "points": 31000,
+      "region": "IT",
+      "rank": 463
+    },
+    {
+      "name": "FA Cool 04",
+      "points": 30995,
+      "region": "EG",
+      "rank": 464
+    },
+    {
+      "name": "one joshbot 10ǃ",
+      "points": 30993,
+      "region": "US",
+      "rank": 465
+    },
+    {
+      "name": "ATC Polo281",
+      "points": 30987,
+      "region": "ES",
+      "rank": 466
+    },
+    {
+      "name": "kaua perfums",
+      "points": 30986,
+      "region": "BR",
+      "rank": 467
+    },
+    {
+      "name": "jft v 1234",
+      "points": 30972,
+      "region": "FR",
+      "rank": 468
+    },
+    {
+      "name": "Poyo snozQ 23",
+      "points": 30969,
+      "region": "PL",
+      "rank": 469
+    },
+    {
+      "name": "Twitter Hern1x",
+      "points": 30967,
+      "region": "GL",
+      "rank": 470
+    },
+    {
+      "name": "20s Ricky 14",
+      "points": 30966,
+      "region": "IT",
+      "rank": 471
+    },
+    {
+      "name": "ptt Raeyache67",
+      "points": 30966,
+      "region": "JP",
+      "rank": 472
+    },
+    {
+      "name": "ESP Kiwnada",
+      "points": 30963,
+      "region": "DK",
+      "rank": 473
+    },
+    {
+      "name": "waiting for mia",
+      "points": 30953,
+      "region": "MX",
+      "rank": 474
+    },
+    {
+      "name": "flexGOTY 7",
+      "points": 30953,
+      "region": "SCO",
+      "rank": 475
+    },
+    {
+      "name": "KoS Nero",
+      "points": 30939,
+      "region": "BR",
+      "rank": 476
+    },
+    {
+      "name": "cyn voidǃ",
+      "points": 30936,
+      "region": "US",
+      "rank": 477
+    },
+    {
+      "name": "wifi 10ǃ",
+      "points": 30933,
+      "region": "PL",
+      "rank": 478
+    },
+    {
+      "name": "vе1ryy",
+      "points": 30931,
+      "region": "UA",
+      "rank": 479
+    },
+    {
+      "name": "Lu 9ǃ",
+      "points": 30924,
+      "region": "IT",
+      "rank": 480
+    },
+    {
+      "name": "Aus Loverofv",
+      "points": 30923,
+      "region": "DE",
+      "rank": 481
+    },
+    {
+      "name": "vadeyy10ǃ",
+      "points": 30920,
+      "region": "AR",
+      "rank": 482
+    },
+    {
+      "name": "KoS sbari 5",
+      "points": 30916,
+      "region": "IT",
+      "rank": 483
+    },
+    {
+      "name": "Detect Trexer7",
+      "points": 30896,
+      "region": "DE",
+      "rank": 484
+    },
+    {
+      "name": "JMC Fiat",
+      "points": 30894,
+      "region": "NL",
+      "rank": 485
+    },
+    {
+      "name": "JMC Xantifyǃ",
+      "points": 30888,
+      "region": "NL",
+      "rank": 486
+    },
+    {
+      "name": "Mask Fridge",
+      "points": 30885,
+      "region": "SA",
+      "rank": 487
+    },
+    {
+      "name": "Detect Hijoe",
+      "points": 30884,
+      "region": "DE",
+      "rank": 488
+    },
+    {
+      "name": "1P Peakachu",
+      "points": 30884,
+      "region": "SE",
+      "rank": 489
+    },
+    {
+      "name": "HELIX ばぶっち 88",
+      "points": 30883,
+      "region": "JP",
+      "rank": 490
+    },
+    {
+      "name": "ROC KAL",
+      "points": 30883,
+      "region": "SA",
+      "rank": 491
+    },
+    {
+      "name": "xp42 Cris3eny",
+      "points": 30881,
+      "region": "KR",
+      "rank": 492
+    },
+    {
+      "name": "gents あくりあハンバーガー",
+      "points": 30865,
+      "region": "JP",
+      "rank": 493
+    },
+    {
+      "name": "EdRoadToGloryǃ",
+      "points": 30862,
+      "region": "BR",
+      "rank": 494
+    },
+    {
+      "name": "j4x j4x j4x j4x",
+      "points": 30861,
+      "region": "AR",
+      "rank": 495
+    },
+    {
+      "name": "egy hlechis",
+      "points": 30855,
+      "region": "RU",
+      "rank": 496
+    },
+    {
+      "name": "NIP Chic0",
+      "points": 30854,
+      "region": "DK",
+      "rank": 497
+    },
+    {
+      "name": "1up mirops",
+      "points": 30852,
+      "region": "US",
+      "rank": 498
+    },
+    {
+      "name": "IGNUM Noelcap_w",
+      "points": 30849,
+      "region": "JP",
+      "rank": 499
+    },
+    {
+      "name": "bs kaktusǃ",
+      "points": 30835,
+      "region": "GL",
+      "rank": 500
+    },
+    {
+      "name": "Aevion Vexi",
+      "points": 30835,
+      "region": "PL",
+      "rank": 501
+    },
+    {
+      "name": "jft massimo",
+      "points": 30830,
+      "region": "AU",
+      "rank": 502
+    },
+    {
+      "name": "Jâkebuca",
+      "points": 30825,
+      "region": "SCO",
+      "rank": 503
+    },
+    {
+      "name": "fno khaki 14",
+      "points": 30815,
+      "region": "US",
+      "rank": 504
+    },
+    {
+      "name": "ws cheapzǃ",
+      "points": 30812,
+      "region": "DE",
+      "rank": 505
+    },
+    {
+      "name": "Aoxy.",
+      "points": 30806,
+      "region": "GL",
+      "rank": 506
+    },
+    {
+      "name": "Wooka Szarik",
+      "points": 30805,
+      "region": "PL",
+      "rank": 507
+    },
+    {
+      "name": "alula balorǃ",
+      "points": 30802,
+      "region": "SA",
+      "rank": 508
+    },
+    {
+      "name": "EVO NoobPlays",
+      "points": 30795,
+      "region": "DE",
+      "rank": 509
+    },
+    {
+      "name": "NEXUS たいやまるǃ",
+      "points": 30782,
+      "region": "GL",
+      "rank": 510
+    },
+    {
+      "name": "NTX axadasz 水",
+      "points": 30781,
+      "region": "BR",
+      "rank": 511
+    },
+    {
+      "name": "Unknown Player",
+      "points": 30781,
+      "region": "US",
+      "rank": 512
+    },
+    {
+      "name": "matrx 1ǃﱞﱞ",
+      "points": 30747,
+      "region": "FR",
+      "rank": 513
+    },
+    {
+      "name": "ǃ SLAY",
+      "points": 30745,
+      "region": "ES",
+      "rank": 514
+    },
+    {
+      "name": "UC.Kolǃ",
+      "points": 30742,
+      "region": "JP",
+      "rank": 515
+    },
+    {
+      "name": "leal pedrin",
+      "points": 30739,
+      "region": "FR",
+      "rank": 516
+    },
+    {
+      "name": "A1st Michaelfvǃ",
+      "points": 30738,
+      "region": "JP",
+      "rank": 517
+    },
+    {
+      "name": "twunti",
+      "points": 30734,
+      "region": "US",
+      "rank": 518
+    },
+    {
+      "name": "NŁT Ritsufnzx_",
+      "points": 30723,
+      "region": "JP",
+      "rank": 519
+    },
+    {
+      "name": "lunex 11",
+      "points": 30722,
+      "region": "DK",
+      "rank": 520
+    },
+    {
+      "name": "sfg snevy",
+      "points": 30720,
+      "region": "MX",
+      "rank": 521
+    },
+    {
+      "name": "coast slxxybotǃ",
+      "points": 30712,
+      "region": "AU",
+      "rank": 522
+    },
+    {
+      "name": "hwk river",
+      "points": 30706,
+      "region": "AU",
+      "rank": 523
+    },
+    {
+      "name": "Patriсk Jane",
+      "points": 30705,
+      "region": "UA",
+      "rank": 524
+    },
+    {
+      "name": "9unachi",
+      "points": 30702,
+      "region": "US",
+      "rank": 525
+    },
+    {
+      "name": "LAVIE RinzYǃ",
+      "points": 30697,
+      "region": "LV",
+      "rank": 526
+    },
+    {
+      "name": "Rz KingVeri Ψ",
+      "points": 30696,
+      "region": "FR",
+      "rank": 527
+    },
+    {
+      "name": "sfg icyfxi 19ǃ",
+      "points": 30693,
+      "region": "US",
+      "rank": 528
+    },
+    {
+      "name": "7med3k",
+      "points": 30685,
+      "region": "SA",
+      "rank": 529
+    },
+    {
+      "name": "YOU ARE A MUFFIN",
+      "points": 30680,
+      "region": "WLS",
+      "rank": 530
+    },
+    {
+      "name": "Teichifishyyyyyy",
+      "points": 30680,
+      "region": "DE",
+      "rank": 531
+    },
+    {
+      "name": "CG ぜつぼーǃ",
+      "points": 30678,
+      "region": "GL",
+      "rank": 532
+    },
+    {
+      "name": "hrz voltz jit",
+      "points": 30675,
+      "region": "WLS",
+      "rank": 533
+    },
+    {
+      "name": "LuLuzito Ӝ",
+      "points": 30675,
+      "region": "BR",
+      "rank": 534
+    },
+    {
+      "name": "Detect Zaneǃ",
+      "points": 30665,
+      "region": "DE",
+      "rank": 535
+    },
+    {
+      "name": "nebulosopipoca47",
+      "points": 30662,
+      "region": "DE",
+      "rank": 536
+    },
+    {
+      "name": "xenonfv",
+      "points": 30655,
+      "region": "GL",
+      "rank": 537
+    },
+    {
+      "name": "Wavỳ",
+      "points": 30654,
+      "region": "SE",
+      "rank": 538
+    },
+    {
+      "name": "Kernel QnDx",
+      "points": 30652,
+      "region": "GB",
+      "rank": 539
+    },
+    {
+      "name": "Lavie Zenoxǃ",
+      "points": 30651,
+      "region": "GL",
+      "rank": 540
+    },
+    {
+      "name": "ˢˡʸ FaithLeGana",
+      "points": 30650,
+      "region": "US",
+      "rank": 541
+    },
+    {
+      "name": "teramcrazyǃ",
+      "points": 30646,
+      "region": "MX",
+      "rank": 542
+    },
+    {
+      "name": "it is to win",
+      "points": 30638,
+      "region": "BR",
+      "rank": 543
+    },
+    {
+      "name": "ast httyd 帝",
+      "points": 30638,
+      "region": "US",
+      "rank": 544
+    },
+    {
+      "name": "xviperzz jane",
+      "points": 30638,
+      "region": "RU",
+      "rank": 545
+    },
+    {
+      "name": "Aevion Purchawa",
+      "points": 30636,
+      "region": "PL",
+      "rank": 546
+    },
+    {
+      "name": "ZRX Leobot",
+      "points": 30634,
+      "region": "CZ",
+      "rank": 547
+    },
+    {
+      "name": "zYSxvǃi ÿÿÿÿÿ",
+      "points": 30631,
+      "region": "KR",
+      "rank": 548
+    },
+    {
+      "name": "one skì",
+      "points": 30627,
+      "region": "GB",
+      "rank": 549
+    },
+    {
+      "name": "retail 74",
+      "points": 30626,
+      "region": "DE",
+      "rank": 550
+    },
+    {
+      "name": "Lyost Mydro",
+      "points": 30608,
+      "region": "NL",
+      "rank": 551
+    },
+    {
+      "name": "DamageGOTY 7",
+      "points": 30601,
+      "region": "EN",
+      "rank": 552
+    },
+    {
+      "name": "Fury柴",
+      "points": 30594,
+      "region": "IS",
+      "rank": 553
+    },
+    {
+      "name": "1up velo",
+      "points": 30591,
+      "region": "UY",
+      "rank": 554
+    },
+    {
+      "name": "fallen bulldog",
+      "points": 30591,
+      "region": "AU",
+      "rank": 555
+    },
+    {
+      "name": "pаrz",
+      "points": 30591,
+      "region": "US",
+      "rank": 556
+    },
+    {
+      "name": "SRG Zanda",
+      "points": 30589,
+      "region": "WLS",
+      "rank": 557
+    },
+    {
+      "name": "SM1LY.",
+      "points": 30588,
+      "region": "US",
+      "rank": 558
+    },
+    {
+      "name": "Zst まぐろいち 10",
+      "points": 30586,
+      "region": "JP",
+      "rank": 559
+    },
+    {
+      "name": "hx neeon 7",
+      "points": 30585,
+      "region": "LV",
+      "rank": 560
+    },
+    {
+      "name": "mancity 1111",
+      "points": 30565,
+      "region": "FR",
+      "rank": 561
+    },
+    {
+      "name": "thiaginfv.",
+      "points": 30564,
+      "region": "AR",
+      "rank": 562
+    },
+    {
+      "name": "KovaaksXD 999",
+      "points": 30557,
+      "region": "EN",
+      "rank": 563
+    },
+    {
+      "name": "T6 Parkyn ネ",
+      "points": 30556,
+      "region": "AR",
+      "rank": 564
+    },
+    {
+      "name": "tayson5x.",
+      "points": 30549,
+      "region": "RU",
+      "rank": 565
+    },
+    {
+      "name": "Sangild 17",
+      "points": 30546,
+      "region": "DK",
+      "rank": 566
+    },
+    {
+      "name": "Aura donald",
+      "points": 30541,
+      "region": "DE",
+      "rank": 567
+    },
+    {
+      "name": "ARM Devury 7",
+      "points": 30540,
+      "region": "MX",
+      "rank": 568
+    },
+    {
+      "name": "TGA Pablete 1stǃ",
+      "points": 30540,
+      "region": "DE",
+      "rank": 569
+    },
+    {
+      "name": "kyrie jit",
+      "points": 30539,
+      "region": "US",
+      "rank": 570
+    },
+    {
+      "name": "Kernel Cubixӝ",
+      "points": 30539,
+      "region": "GL",
+      "rank": 571
+    },
+    {
+      "name": "Prooffer.",
+      "points": 30537,
+      "region": "GL",
+      "rank": 572
+    },
+    {
+      "name": "Maticeбor",
+      "points": 30530,
+      "region": "BE",
+      "rank": 573
+    },
+    {
+      "name": "1up mukutaf13",
+      "points": 30530,
+      "region": "LV",
+      "rank": 574
+    },
+    {
+      "name": "POI R8DR TTV",
+      "points": 30524,
+      "region": "US",
+      "rank": 575
+    },
+    {
+      "name": "kxуin",
+      "points": 30516,
+      "region": "LV",
+      "rank": 576
+    },
+    {
+      "name": "zoom3rx ツ",
+      "points": 30515,
+      "region": "SA",
+      "rank": 577
+    },
+    {
+      "name": "Mask Knr",
+      "points": 30508,
+      "region": "GB",
+      "rank": 578
+    },
+    {
+      "name": "Lynox Godoy yx",
+      "points": 30508,
+      "region": "GL",
+      "rank": 579
+    },
+    {
+      "name": "RY2 Noizy",
+      "points": 30506,
+      "region": "MX",
+      "rank": 580
+    },
+    {
+      "name": "3bacca",
+      "points": 30492,
+      "region": "US",
+      "rank": 581
+    },
+    {
+      "name": "egy wolvax",
+      "points": 30487,
+      "region": "SE",
+      "rank": 582
+    },
+    {
+      "name": "Loyal Purav ψ",
+      "points": 30484,
+      "region": "GL",
+      "rank": 583
+    },
+    {
+      "name": "GT Jakeocuh",
+      "points": 30479,
+      "region": "AU",
+      "rank": 584
+    },
+    {
+      "name": "Mapp1fnz",
+      "points": 30478,
+      "region": "SE",
+      "rank": 585
+    },
+    {
+      "name": "21 Battal",
+      "points": 30474,
+      "region": "SA",
+      "rank": 586
+    },
+    {
+      "name": "orz ドセントスむーん",
+      "points": 30469,
+      "region": "JP",
+      "rank": 587
+    },
+    {
+      "name": "nut 14",
+      "points": 30469,
+      "region": "US",
+      "rank": 588
+    },
+    {
+      "name": "kjcoins",
+      "points": 30467,
+      "region": "GL",
+      "rank": 589
+    },
+    {
+      "name": "RXB Flobby",
+      "points": 30467,
+      "region": "WLS",
+      "rank": 590
+    },
+    {
+      "name": "blzerd da oso",
+      "points": 30464,
+      "region": "WLS",
+      "rank": 591
+    },
+    {
+      "name": "FLWLSS SKOZR 10",
+      "points": 30462,
+      "region": "GB",
+      "rank": 592
+    },
+    {
+      "name": "codack 907",
+      "points": 30455,
+      "region": "US",
+      "rank": 593
+    },
+    {
+      "name": "PDR Kenty",
+      "points": 30453,
+      "region": "GL",
+      "rank": 594
+    },
+    {
+      "name": "psr Tightfv",
+      "points": 30449,
+      "region": "US",
+      "rank": 595
+    },
+    {
+      "name": "Ares.Okan",
+      "points": 30448,
+      "region": "JP",
+      "rank": 596
+    },
+    {
+      "name": "ONYX ぜろむ おまんキー",
+      "points": 30443,
+      "region": "JP",
+      "rank": 597
+    },
+    {
+      "name": "aggro ǃ",
+      "points": 30441,
+      "region": "AU",
+      "rank": 598
+    },
+    {
+      "name": "Vangucci 798",
+      "points": 30440,
+      "region": "EN",
+      "rank": 599
+    },
+    {
+      "name": "ego genoǃ",
+      "points": 30431,
+      "region": "CA",
+      "rank": 600
+    },
+    {
+      "name": "OE jeulzz 神",
+      "points": 30430,
+      "region": "MX",
+      "rank": 601
+    },
+    {
+      "name": "BIG Ankidoi8 月",
+      "points": 30425,
+      "region": "DE",
+      "rank": 602
+    },
+    {
+      "name": "1UP a1alexǃ",
+      "points": 30424,
+      "region": "GL",
+      "rank": 603
+    },
+    {
+      "name": "PDR Gobawfvǃ",
+      "points": 30423,
+      "region": "PL",
+      "rank": 604
+    },
+    {
+      "name": "lixiumǃ",
+      "points": 30421,
+      "region": "FR",
+      "rank": 605
+    },
+    {
+      "name": "lex clown",
+      "points": 30418,
+      "region": "AR",
+      "rank": 606
+    },
+    {
+      "name": "Blaze Stranger",
+      "points": 30416,
+      "region": "SA",
+      "rank": 607
+    },
+    {
+      "name": "ATC paceve yX",
+      "points": 30406,
+      "region": "ES",
+      "rank": 608
+    },
+    {
+      "name": "quax durski",
+      "points": 30401,
+      "region": "RU",
+      "rank": 609
+    },
+    {
+      "name": "Memphis Depayǃǃǃ",
+      "points": 30398,
+      "region": "ES",
+      "rank": 610
+    },
+    {
+      "name": "supereyeʕᵒᴥᵒʔ",
+      "points": 30392,
+      "region": "DK",
+      "rank": 611
+    },
+    {
+      "name": "KoS Pollazǃ",
+      "points": 30382,
+      "region": "GB",
+      "rank": 612
+    },
+    {
+      "name": "AVN Domler",
+      "points": 30381,
+      "region": "CZ",
+      "rank": 613
+    },
+    {
+      "name": "orz miyaCOW",
+      "points": 30377,
+      "region": "GL",
+      "rank": 614
+    },
+    {
+      "name": "GordeteAIM7 yX亗ǃ",
+      "points": 30376,
+      "region": "ES",
+      "rank": 615
+    },
+    {
+      "name": "saph kaliperǃ",
+      "points": 30368,
+      "region": "NO",
+      "rank": 616
+    },
+    {
+      "name": "clue qerzǃ",
+      "points": 30365,
+      "region": "DE",
+      "rank": 617
+    },
+    {
+      "name": "primeroozǃ",
+      "points": 30357,
+      "region": "GL",
+      "rank": 618
+    },
+    {
+      "name": "avery coldy999",
+      "points": 30356,
+      "region": "WLS",
+      "rank": 619
+    },
+    {
+      "name": "95V RAYZ ʚɞ",
+      "points": 30356,
+      "region": "PL",
+      "rank": 620
+    },
+    {
+      "name": "Big Cӝ",
+      "points": 30352,
+      "region": "NG",
+      "rank": 621
+    },
+    {
+      "name": "Not Hellfire",
+      "points": 30350,
+      "region": "DK",
+      "rank": 622
+    },
+    {
+      "name": "Mask Tizy",
+      "points": 30345,
+      "region": "SCO",
+      "rank": 623
+    },
+    {
+      "name": "CR Razl",
+      "points": 30343,
+      "region": "GL",
+      "rank": 624
+    },
+    {
+      "name": "cyn rezy ʚɞ",
+      "points": 30342,
+      "region": "US",
+      "rank": 625
+    },
+    {
+      "name": "Rocks D. Sad",
+      "points": 30342,
+      "region": "BR",
+      "rank": 626
+    },
+    {
+      "name": "zrx strapito",
+      "points": 30341,
+      "region": "CZ",
+      "rank": 627
+    },
+    {
+      "name": "Xmаdo",
+      "points": 30339,
+      "region": "ES",
+      "rank": 628
+    },
+    {
+      "name": "RT zLeo",
+      "points": 30337,
+      "region": "IT",
+      "rank": 629
+    },
+    {
+      "name": "cvx pietro 19ǃ",
+      "points": 30333,
+      "region": "IT",
+      "rank": 630
+    },
+    {
+      "name": "Zestfulfvǃ",
+      "points": 30332,
+      "region": "EN",
+      "rank": 631
+    },
+    {
+      "name": "vgn ttv syrosfv",
+      "points": 30332,
+      "region": "US",
+      "rank": 632
+    },
+    {
+      "name": "caueeǃ",
+      "points": 30331,
+      "region": "BR",
+      "rank": 633
+    },
+    {
+      "name": "еulogy-",
+      "points": 30326,
+      "region": "CA",
+      "rank": 634
+    },
+    {
+      "name": "AlAhli Mhnd",
+      "points": 30320,
+      "region": "SA",
+      "rank": 635
+    },
+    {
+      "name": "JarkoÆæǃ",
+      "points": 30315,
+      "region": "ES",
+      "rank": 636
+    },
+    {
+      "name": "trg lucci 爺",
+      "points": 30310,
+      "region": "GL",
+      "rank": 637
+    },
+    {
+      "name": "95V KingPieceǃ",
+      "points": 30307,
+      "region": "DE",
+      "rank": 638
+    },
+    {
+      "name": "detect exqu",
+      "points": 30303,
+      "region": "DE",
+      "rank": 639
+    },
+    {
+      "name": "Zard しゅんコロ",
+      "points": 30300,
+      "region": "JP",
+      "rank": 640
+    },
+    {
+      "name": "SRZ Jaemon.K",
+      "points": 30293,
+      "region": "JP",
+      "rank": 641
+    },
+    {
+      "name": "QAD FHD",
+      "points": 30291,
+      "region": "SA",
+      "rank": 642
+    },
+    {
+      "name": "KoS Algyz",
+      "points": 30285,
+      "region": "GB",
+      "rank": 643
+    },
+    {
+      "name": "flwlss spitä 10ǃ",
+      "points": 30281,
+      "region": "BR",
+      "rank": 644
+    },
+    {
+      "name": "sаnjogbuca",
+      "points": 30280,
+      "region": "GL",
+      "rank": 645
+    },
+    {
+      "name": "lorzzzzzzzzzzizs",
+      "points": 30273,
+      "region": "PT",
+      "rank": 646
+    },
+    {
+      "name": "sout polish 7ǃ",
+      "points": 30273,
+      "region": "PL",
+      "rank": 647
+    },
+    {
+      "name": "Mask Pryncypus",
+      "points": 30269,
+      "region": "NL",
+      "rank": 648
+    },
+    {
+      "name": "PTH TEYYDINHO",
+      "points": 30267,
+      "region": "DE",
+      "rank": 649
+    },
+    {
+      "name": "JariesFire",
+      "points": 30256,
+      "region": "US",
+      "rank": 650
+    },
+    {
+      "name": "Helix R1ze 777",
+      "points": 30253,
+      "region": "JP",
+      "rank": 651
+    },
+    {
+      "name": "sfg carbone",
+      "points": 30252,
+      "region": "CA",
+      "rank": 652
+    },
+    {
+      "name": "TTVgiganticboogy",
+      "points": 30252,
+      "region": "TR",
+      "rank": 653
+    },
+    {
+      "name": "sweeyǃ",
+      "points": 30249,
+      "region": "FR",
+      "rank": 654
+    },
+    {
+      "name": "onyx larkpex",
+      "points": 30242,
+      "region": "JP",
+      "rank": 655
+    },
+    {
+      "name": "skqttler",
+      "points": 30241,
+      "region": "EN",
+      "rank": 656
+    },
+    {
+      "name": "dazed cauzerzǃ",
+      "points": 30238,
+      "region": "US",
+      "rank": 657
+    },
+    {
+      "name": "TYT NoizFV",
+      "points": 30234,
+      "region": "IT",
+      "rank": 658
+    },
+    {
+      "name": "Xteryy 86",
+      "points": 30227,
+      "region": "LV",
+      "rank": 659
+    },
+    {
+      "name": "Avora zabo",
+      "points": 30224,
+      "region": "KR",
+      "rank": 660
+    },
+    {
+      "name": "BdWrld",
+      "points": 30218,
+      "region": "SA",
+      "rank": 661
+    },
+    {
+      "name": "Callejr 88",
+      "points": 30217,
+      "region": "SE",
+      "rank": 662
+    },
+    {
+      "name": "viei.",
+      "points": 30214,
+      "region": "GL",
+      "rank": 663
+    },
+    {
+      "name": "corvalann kizazo",
+      "points": 30214,
+      "region": "CZ",
+      "rank": 664
+    },
+    {
+      "name": "EDGE Unger",
+      "points": 30213,
+      "region": "JP",
+      "rank": 665
+    },
+    {
+      "name": "X7 puzera 74",
+      "points": 30213,
+      "region": "NO",
+      "rank": 666
+    },
+    {
+      "name": "NTO noia",
+      "points": 30211,
+      "region": "JP",
+      "rank": 667
+    },
+    {
+      "name": "Hx osku 6",
+      "points": 30207,
+      "region": "PL",
+      "rank": 668
+    },
+    {
+      "name": "Dediez is back",
+      "points": 30206,
+      "region": "AR",
+      "rank": 669
+    },
+    {
+      "name": "quax yummyfishy",
+      "points": 30205,
+      "region": "PL",
+      "rank": 670
+    },
+    {
+      "name": "Astrix kurosaki",
+      "points": 30205,
+      "region": "GL",
+      "rank": 671
+    },
+    {
+      "name": "Eddieyache 32",
+      "points": 30202,
+      "region": "SE",
+      "rank": 672
+    },
+    {
+      "name": "pureaikanaruby",
+      "points": 30202,
+      "region": "US",
+      "rank": 673
+    },
+    {
+      "name": "SeiliX3D",
+      "points": 30202,
+      "region": "FR",
+      "rank": 674
+    },
+    {
+      "name": "ZO spoctic",
+      "points": 30201,
+      "region": "BR",
+      "rank": 675
+    },
+    {
+      "name": "sandthelit23",
+      "points": 30200,
+      "region": "US",
+      "rank": 676
+    },
+    {
+      "name": "mannii14ǃ",
+      "points": 30186,
+      "region": "MX",
+      "rank": 677
+    },
+    {
+      "name": "mvxylink",
+      "points": 30181,
+      "region": "NL",
+      "rank": 678
+    },
+    {
+      "name": "helgizikk",
+      "points": 30169,
+      "region": "LV",
+      "rank": 679
+    },
+    {
+      "name": "osamabot 7",
+      "points": 30167,
+      "region": "SA",
+      "rank": 680
+    },
+    {
+      "name": "Poyo TheOptimist",
+      "points": 30166,
+      "region": "TR",
+      "rank": 681
+    },
+    {
+      "name": "VGN Act ǃ",
+      "points": 30165,
+      "region": "JP",
+      "rank": 682
+    },
+    {
+      "name": "moeze grind",
+      "points": 30165,
+      "region": "NL",
+      "rank": 683
+    },
+    {
+      "name": "Eclipsе 27",
+      "points": 30165,
+      "region": "EN",
+      "rank": 684
+    },
+    {
+      "name": "BRN はやとぽったーǃ",
+      "points": 30163,
+      "region": "JP",
+      "rank": 685
+    },
+    {
+      "name": "orz MUUCONǃQ ت",
+      "points": 30163,
+      "region": "JP",
+      "rank": 686
+    },
+    {
+      "name": "DIG OliverOG",
+      "points": 30161,
+      "region": "US",
+      "rank": 687
+    },
+    {
+      "name": "Celis YvngToax",
+      "points": 30158,
+      "region": "GL",
+      "rank": 688
+    },
+    {
+      "name": "OE Hellon 6",
+      "points": 30158,
+      "region": "TR",
+      "rank": 689
+    },
+    {
+      "name": "TGA Vegetaa",
+      "points": 30155,
+      "region": "ES",
+      "rank": 690
+    },
+    {
+      "name": "REJECT たろう",
+      "points": 30153,
+      "region": "US",
+      "rank": 691
+    },
+    {
+      "name": "slumcho z3ǃ",
+      "points": 30150,
+      "region": "US",
+      "rank": 692
+    },
+    {
+      "name": "sab iceleoǃ",
+      "points": 30148,
+      "region": "IT",
+      "rank": 693
+    },
+    {
+      "name": "morlezǃ",
+      "points": 30148,
+      "region": "ES",
+      "rank": 694
+    },
+    {
+      "name": "BLST winsler Luh",
+      "points": 30141,
+      "region": "KR",
+      "rank": 695
+    },
+    {
+      "name": "No Game No Lifeǃ",
+      "points": 30138,
+      "region": "ES",
+      "rank": 696
+    },
+    {
+      "name": "S2 ぜのぽったー",
+      "points": 30136,
+      "region": "JP",
+      "rank": 697
+    },
+    {
+      "name": "Kreg 逝",
+      "points": 30135,
+      "region": "DE",
+      "rank": 698
+    },
+    {
+      "name": "hwk tktok ceaqul",
+      "points": 30132,
+      "region": "SCO",
+      "rank": 699
+    },
+    {
+      "name": "TwitterStanfps",
+      "points": 30128,
+      "region": "EN",
+      "rank": 700
+    },
+    {
+      "name": "pt zenn",
+      "points": 30126,
+      "region": "US",
+      "rank": 701
+    },
+    {
+      "name": "void xo 2",
+      "points": 30117,
+      "region": "CA",
+      "rank": 702
+    },
+    {
+      "name": "AYS IY11",
+      "points": 30112,
+      "region": "PL",
+      "rank": 703
+    },
+    {
+      "name": "warr 10ǃ",
+      "points": 30109,
+      "region": "MX",
+      "rank": 704
+    },
+    {
+      "name": "OBI ϟ ごきぃやでǃǃ ϟ",
+      "points": 30106,
+      "region": "JP",
+      "rank": 705
+    },
+    {
+      "name": "Lit erunfnz",
+      "points": 30102,
+      "region": "JP",
+      "rank": 706
+    },
+    {
+      "name": "Noafvǃ",
+      "points": 30102,
+      "region": "FR",
+      "rank": 707
+    },
+    {
+      "name": "tismaǃ",
+      "points": 30100,
+      "region": "FR",
+      "rank": 708
+    },
+    {
+      "name": "yasir 02",
+      "points": 30099,
+      "region": "MX",
+      "rank": 709
+    },
+    {
+      "name": "clue zuckibotǃ",
+      "points": 30094,
+      "region": "DE",
+      "rank": 710
+    },
+    {
+      "name": "1tr synix",
+      "points": 30094,
+      "region": "ES",
+      "rank": 711
+    },
+    {
+      "name": "coast jai",
+      "points": 30088,
+      "region": "AU",
+      "rank": 712
+    },
+    {
+      "name": "qte ttv weezfnǃ",
+      "points": 30086,
+      "region": "GL",
+      "rank": 713
+    },
+    {
+      "name": "twitch raitexfv",
+      "points": 30080,
+      "region": "DE",
+      "rank": 714
+    },
+    {
+      "name": "sfg ashǃ",
+      "points": 30079,
+      "region": "GL",
+      "rank": 715
+    },
+    {
+      "name": "fourkayǃ",
+      "points": 30079,
+      "region": "EN",
+      "rank": 716
+    },
+    {
+      "name": "7VEN Seven",
+      "points": 30071,
+      "region": "EG",
+      "rank": 717
+    },
+    {
+      "name": "vsl decay 624",
+      "points": 30068,
+      "region": "WLS",
+      "rank": 718
+    },
+    {
+      "name": "Srapt999",
+      "points": 30068,
+      "region": "NG",
+      "rank": 719
+    },
+    {
+      "name": "ozbozǃ",
+      "points": 30067,
+      "region": "EN",
+      "rank": 720
+    },
+    {
+      "name": "ZNN Kaido",
+      "points": 30067,
+      "region": "GL",
+      "rank": 721
+    },
+    {
+      "name": "AdolbucaFNǃ",
+      "points": 30061,
+      "region": "SA",
+      "rank": 722
+    },
+    {
+      "name": "Rashi Messi 10",
+      "points": 30061,
+      "region": "PL",
+      "rank": 723
+    },
+    {
+      "name": "Twitter iggyfn6",
+      "points": 30056,
+      "region": "CH",
+      "rank": 724
+    },
+    {
+      "name": "cryptooǃ",
+      "points": 30056,
+      "region": "GL",
+      "rank": 725
+    },
+    {
+      "name": "headhurting212",
+      "points": 30053,
+      "region": "EN",
+      "rank": 726
+    },
+    {
+      "name": "vank perfums",
+      "points": 30052,
+      "region": "BR",
+      "rank": 727
+    },
+    {
+      "name": "realiseal",
+      "points": 30050,
+      "region": "EN",
+      "rank": 728
+    },
+    {
+      "name": "maligoty 11",
+      "points": 30048,
+      "region": "KR",
+      "rank": 729
+    },
+    {
+      "name": "lﱞ0ﱞl",
+      "points": 30047,
+      "region": "IS",
+      "rank": 730
+    },
+    {
+      "name": "تحيا الجزائر R10",
+      "points": 30043,
+      "region": "SA",
+      "rank": 731
+    },
+    {
+      "name": "monsterz.lo",
+      "points": 30041,
+      "region": "BR",
+      "rank": 732
+    },
+    {
+      "name": "ASC SkyL1ght 333",
+      "points": 30035,
+      "region": "UA",
+      "rank": 733
+    },
+    {
+      "name": "duträ",
+      "points": 30034,
+      "region": "BR",
+      "rank": 734
+    },
+    {
+      "name": "x6 soby ǃ",
+      "points": 30032,
+      "region": "BE",
+      "rank": 735
+    },
+    {
+      "name": "ca huggyfvǃ",
+      "points": 30027,
+      "region": "JP",
+      "rank": 736
+    },
+    {
+      "name": "Skn Gen-Zcatfvǃ",
+      "points": 30022,
+      "region": "FR",
+      "rank": 737
+    },
+    {
+      "name": "cvx centroǃ",
+      "points": 30021,
+      "region": "GL",
+      "rank": 738
+    },
+    {
+      "name": "bpro teku hǎo",
+      "points": 30019,
+      "region": "PL",
+      "rank": 739
+    },
+    {
+      "name": "plaazyǃ",
+      "points": 30018,
+      "region": "FR",
+      "rank": 740
+    },
+    {
+      "name": "blinkǃ",
+      "points": 30018,
+      "region": "US",
+      "rank": 741
+    },
+    {
+      "name": "hоnor skitsǃ",
+      "points": 30018,
+      "region": "RU",
+      "rank": 742
+    },
+    {
+      "name": "Zard tossy3k.",
+      "points": 30017,
+      "region": "ES",
+      "rank": 743
+    },
+    {
+      "name": "NoobLeon123123",
+      "points": 30016,
+      "region": "SE",
+      "rank": 744
+    },
+    {
+      "name": "M8 Merstachǃ",
+      "points": 30014,
+      "region": "LV",
+      "rank": 745
+    },
+    {
+      "name": "VNG Tanman",
+      "points": 30012,
+      "region": "AR",
+      "rank": 746
+    },
+    {
+      "name": "majifv",
+      "points": 30012,
+      "region": "GL",
+      "rank": 747
+    },
+    {
+      "name": "CZB ハイセ",
+      "points": 30009,
+      "region": "AU",
+      "rank": 748
+    },
+    {
+      "name": "whypplworksohard",
+      "points": 30002,
+      "region": "ES",
+      "rank": 749
+    },
+    {
+      "name": "R2P gutinhoǃ",
+      "points": 29998,
+      "region": "PL",
+      "rank": 750
+    },
+    {
+      "name": "kyryfps",
+      "points": 29996,
+      "region": "US",
+      "rank": 751
+    },
+    {
+      "name": "CLUE YUICE 21",
+      "points": 29989,
+      "region": "DE",
+      "rank": 752
+    },
+    {
+      "name": "NŁT Silentxieyǃ",
+      "points": 29988,
+      "region": "JP",
+      "rank": 753
+    },
+    {
+      "name": "sfg clonyyǃ",
+      "points": 29983,
+      "region": "US",
+      "rank": 754
+    },
+    {
+      "name": "VOLARE たら",
+      "points": 29980,
+      "region": "BR",
+      "rank": 755
+    },
+    {
+      "name": "Radas 11 22",
+      "points": 29980,
+      "region": "PL",
+      "rank": 756
+    },
+    {
+      "name": "Haykou Love Mai",
+      "points": 29973,
+      "region": "KR",
+      "rank": 757
+    },
+    {
+      "name": "Poyo Speedsaw",
+      "points": 29972,
+      "region": "FR",
+      "rank": 758
+    },
+    {
+      "name": "neyxdaya",
+      "points": 29969,
+      "region": "DE",
+      "rank": 759
+    },
+    {
+      "name": "VLN ZyyRoN",
+      "points": 29969,
+      "region": "FR",
+      "rank": 760
+    },
+    {
+      "name": "RXB freuzi 9",
+      "points": 29966,
+      "region": "UA",
+      "rank": 761
+    },
+    {
+      "name": "xp42 rigby",
+      "points": 29965,
+      "region": "EN",
+      "rank": 762
+    },
+    {
+      "name": "teqqzszn on yt",
+      "points": 29954,
+      "region": "US",
+      "rank": 763
+    },
+    {
+      "name": "Cheleǃ",
+      "points": 29948,
+      "region": "US",
+      "rank": 764
+    },
+    {
+      "name": "retxedǃ",
+      "points": 29946,
+      "region": "EN",
+      "rank": 765
+    },
+    {
+      "name": "meeeeeowmeowmeow",
+      "points": 29946,
+      "region": "BR",
+      "rank": 766
+    },
+    {
+      "name": "BS Doom 25",
+      "points": 29938,
+      "region": "GL",
+      "rank": 767
+    },
+    {
+      "name": "ResX01",
+      "points": 29936,
+      "region": "US",
+      "rank": 768
+    },
+    {
+      "name": "orz sepz ylfǃ",
+      "points": 29935,
+      "region": "UA",
+      "rank": 769
+    },
+    {
+      "name": "mtrx bojifv",
+      "points": 29934,
+      "region": "KR",
+      "rank": 770
+    },
+    {
+      "name": "CreamyPronghorn",
+      "points": 29930,
+      "region": "BY",
+      "rank": 771
+    },
+    {
+      "name": "MLR Zendosburger",
+      "points": 29925,
+      "region": "EN",
+      "rank": 772
+    },
+    {
+      "name": "SNM Tinytawnǃ",
+      "points": 29925,
+      "region": "US",
+      "rank": 773
+    },
+    {
+      "name": "1tr masonǃ",
+      "points": 29925,
+      "region": "CA",
+      "rank": 774
+    },
+    {
+      "name": "K2G Jayaguǃ",
+      "points": 29919,
+      "region": "CZ",
+      "rank": 775
+    },
+    {
+      "name": "softy haymaker",
+      "points": 29917,
+      "region": "CZ",
+      "rank": 776
+    },
+    {
+      "name": "invia peterchihy",
+      "points": 29916,
+      "region": "KR",
+      "rank": 777
+    },
+    {
+      "name": "nichemοn",
+      "points": 29908,
+      "region": "NO",
+      "rank": 778
+    },
+    {
+      "name": "kescary",
+      "points": 29908,
+      "region": "IT",
+      "rank": 779
+    },
+    {
+      "name": "сhrіsǃ",
+      "points": 29908,
+      "region": "MX",
+      "rank": 780
+    },
+    {
+      "name": "EXA Buzzbusy",
+      "points": 29906,
+      "region": "FR",
+      "rank": 781
+    },
+    {
+      "name": "2Trash1zr",
+      "points": 29901,
+      "region": "DK",
+      "rank": 782
+    },
+    {
+      "name": "Mask Visstick",
+      "points": 29889,
+      "region": "NL",
+      "rank": 783
+    },
+    {
+      "name": "barnyexwest",
+      "points": 29883,
+      "region": "GL",
+      "rank": 784
+    },
+    {
+      "name": "тимохаyache",
+      "points": 29879,
+      "region": "BY",
+      "rank": 785
+    },
+    {
+      "name": "keicox11",
+      "points": 29879,
+      "region": "AR",
+      "rank": 786
+    },
+    {
+      "name": "VAMOS SVǃ",
+      "points": 29876,
+      "region": "GL",
+      "rank": 787
+    },
+    {
+      "name": "rgn LuckyTeed",
+      "points": 29876,
+      "region": "US",
+      "rank": 788
+    },
+    {
+      "name": "Aryan Yagami",
+      "points": 29875,
+      "region": "BR",
+      "rank": 789
+    },
+    {
+      "name": "fl Alvin123mz",
+      "points": 29874,
+      "region": "PL",
+      "rank": 790
+    },
+    {
+      "name": "Nstar Mickie",
+      "points": 29873,
+      "region": "KR",
+      "rank": 791
+    },
+    {
+      "name": "verobuca",
+      "points": 29869,
+      "region": "MX",
+      "rank": 792
+    },
+    {
+      "name": "danycekPS4godbtw",
+      "points": 29866,
+      "region": "CZ",
+      "rank": 793
+    },
+    {
+      "name": "Skyy Loves Jesus",
+      "points": 29863,
+      "region": "GL",
+      "rank": 794
+    },
+    {
+      "name": "twtr moppingxd",
+      "points": 29857,
+      "region": "US",
+      "rank": 795
+    },
+    {
+      "name": "ricktellonada",
+      "points": 29855,
+      "region": "US",
+      "rank": 796
+    },
+    {
+      "name": "dzd crz あ",
+      "points": 29850,
+      "region": "US",
+      "rank": 797
+    },
+    {
+      "name": "Twitter XenexDC",
+      "points": 29848,
+      "region": "GB",
+      "rank": 798
+    },
+    {
+      "name": "mkh II Ie II",
+      "points": 29845,
+      "region": "SA",
+      "rank": 799
+    },
+    {
+      "name": "AnTtez-",
+      "points": 29840,
+      "region": "SE",
+      "rank": 800
+    },
+    {
+      "name": "NVX okram",
+      "points": 29838,
+      "region": "UA",
+      "rank": 801
+    },
+    {
+      "name": "evo kosovbotǃ",
+      "points": 29834,
+      "region": "GL",
+      "rank": 802
+    },
+    {
+      "name": "fl bambi19",
+      "points": 29833,
+      "region": "PL",
+      "rank": 803
+    },
+    {
+      "name": "riqueessj.",
+      "points": 29829,
+      "region": "AR",
+      "rank": 804
+    },
+    {
+      "name": "RXB Takestach7",
+      "points": 29826,
+      "region": "IT",
+      "rank": 805
+    },
+    {
+      "name": "twitch qasruh",
+      "points": 29820,
+      "region": "US",
+      "rank": 806
+    },
+    {
+      "name": "NTO Vyn werenoi",
+      "points": 29818,
+      "region": "BE",
+      "rank": 807
+    },
+    {
+      "name": "Mr. sxhool",
+      "points": 29805,
+      "region": "US",
+      "rank": 808
+    },
+    {
+      "name": "Twitch Icyybtw",
+      "points": 29803,
+      "region": "US",
+      "rank": 809
+    },
+    {
+      "name": "jettessi 10",
+      "points": 29799,
+      "region": "SA",
+      "rank": 810
+    },
+    {
+      "name": "Poyo Oeht",
+      "points": 29797,
+      "region": "DE",
+      "rank": 811
+    },
+    {
+      "name": "Fruzzy 7",
+      "points": 29794,
+      "region": "NO",
+      "rank": 812
+    },
+    {
+      "name": "wuseliger robin",
+      "points": 29792,
+      "region": "DE",
+      "rank": 813
+    },
+    {
+      "name": "BLST fxbin",
+      "points": 29788,
+      "region": "BR",
+      "rank": 814
+    },
+    {
+      "name": "snowyGOT",
+      "points": 29787,
+      "region": "GL",
+      "rank": 815
+    },
+    {
+      "name": "vnt flurry",
+      "points": 29786,
+      "region": "CA",
+      "rank": 816
+    },
+    {
+      "name": "mxxi 21ǃ",
+      "points": 29786,
+      "region": "JP",
+      "rank": 817
+    },
+    {
+      "name": "Twiter Nzlsinhio",
+      "points": 29785,
+      "region": "DE",
+      "rank": 818
+    },
+    {
+      "name": "Anаs0452",
+      "points": 29783,
+      "region": "DK",
+      "rank": 819
+    },
+    {
+      "name": "zakそ",
+      "points": 29783,
+      "region": "SCO",
+      "rank": 820
+    },
+    {
+      "name": "Kernel d4kz",
+      "points": 29777,
+      "region": "GL",
+      "rank": 821
+    },
+    {
+      "name": "jsn 1st.",
+      "points": 29776,
+      "region": "GL",
+      "rank": 822
+    },
+    {
+      "name": "AVE Nomzz 26 ʚïɞ",
+      "points": 29776,
+      "region": "DE",
+      "rank": 823
+    },
+    {
+      "name": "hwk bxltz1111",
+      "points": 29774,
+      "region": "US",
+      "rank": 824
+    },
+    {
+      "name": "sneshyǃ",
+      "points": 29771,
+      "region": "NZ",
+      "rank": 825
+    },
+    {
+      "name": "MTS Exoticzǃ",
+      "points": 29768,
+      "region": "KR",
+      "rank": 826
+    },
+    {
+      "name": "FL Czesiack 11",
+      "points": 29768,
+      "region": "US",
+      "rank": 827
+    },
+    {
+      "name": "Lyzpichu",
+      "points": 29768,
+      "region": "SE",
+      "rank": 828
+    },
+    {
+      "name": "Savage 19ǃ",
+      "points": 29767,
+      "region": "NO",
+      "rank": 829
+    },
+    {
+      "name": "Kebab 91",
+      "points": 29758,
+      "region": "NO",
+      "rank": 830
+    },
+    {
+      "name": "quax maciak",
+      "points": 29757,
+      "region": "PL",
+      "rank": 831
+    },
+    {
+      "name": "YatoroGOD雨",
+      "points": 29757,
+      "region": "UY",
+      "rank": 832
+    },
+    {
+      "name": "MatrekHard",
+      "points": 29756,
+      "region": "FR",
+      "rank": 833
+    },
+    {
+      "name": "KING ARCLIGHT",
+      "points": 29754,
+      "region": "DE",
+      "rank": 834
+    },
+    {
+      "name": "phenomǃ",
+      "points": 29753,
+      "region": "US",
+      "rank": 835
+    },
+    {
+      "name": "psyc chase",
+      "points": 29752,
+      "region": "FR",
+      "rank": 836
+    },
+    {
+      "name": "onyx みかん 7",
+      "points": 29751,
+      "region": "JP",
+      "rank": 837
+    },
+    {
+      "name": "clement bbb",
+      "points": 29751,
+      "region": "FR",
+      "rank": 838
+    },
+    {
+      "name": "welcomebosshouse",
+      "points": 29742,
+      "region": "DE",
+      "rank": 839
+    },
+    {
+      "name": "RXB MISTER",
+      "points": 29741,
+      "region": "FR",
+      "rank": 840
+    },
+    {
+      "name": "Circ 3",
+      "points": 29737,
+      "region": "IT",
+      "rank": 841
+    },
+    {
+      "name": "evo kropeczkaaaa",
+      "points": 29735,
+      "region": "PL",
+      "rank": 842
+    },
+    {
+      "name": "mon nr op",
+      "points": 29734,
+      "region": "NL",
+      "rank": 843
+    },
+    {
+      "name": "BRN bear106",
+      "points": 29721,
+      "region": "JP",
+      "rank": 844
+    },
+    {
+      "name": "VOLARE Asuka",
+      "points": 29721,
+      "region": "EN",
+      "rank": 845
+    },
+    {
+      "name": "FERA SarahCmeron",
+      "points": 29709,
+      "region": "ES",
+      "rank": 846
+    },
+    {
+      "name": "mimo dr palancas",
+      "points": 29704,
+      "region": "AR",
+      "rank": 847
+    },
+    {
+      "name": "kashfv",
+      "points": 29698,
+      "region": "US",
+      "rank": 848
+    },
+    {
+      "name": "lulu jit",
+      "points": 29697,
+      "region": "GL",
+      "rank": 849
+    },
+    {
+      "name": "KPI HELLO",
+      "points": 29695,
+      "region": "ES",
+      "rank": 850
+    },
+    {
+      "name": "Chrome Zephatore",
+      "points": 29695,
+      "region": "AU",
+      "rank": 851
+    },
+    {
+      "name": "Vibez Juh",
+      "points": 29694,
+      "region": "DE",
+      "rank": 852
+    },
+    {
+      "name": "1P AlvinIr",
+      "points": 29692,
+      "region": "NO",
+      "rank": 853
+    },
+    {
+      "name": "teezyfx",
+      "points": 29692,
+      "region": "DE",
+      "rank": 854
+    },
+    {
+      "name": "1P hyperr",
+      "points": 29691,
+      "region": "GL",
+      "rank": 855
+    },
+    {
+      "name": "NS Alongofm",
+      "points": 29687,
+      "region": "CA",
+      "rank": 856
+    },
+    {
+      "name": "KIIRE MAYBANK 7",
+      "points": 29686,
+      "region": "ES",
+      "rank": 857
+    },
+    {
+      "name": "JMC Sage",
+      "points": 29685,
+      "region": "NL",
+      "rank": 858
+    },
+    {
+      "name": "Natalcia Mеow",
+      "points": 29685,
+      "region": "PL",
+      "rank": 859
+    },
+    {
+      "name": "VortexM 羊",
+      "points": 29684,
+      "region": "AU",
+      "rank": 860
+    },
+    {
+      "name": "juѕtǃ",
+      "points": 29682,
+      "region": "IT",
+      "rank": 861
+    },
+    {
+      "name": "Adam22 variant",
+      "points": 29673,
+      "region": "GL",
+      "rank": 862
+    },
+    {
+      "name": "raxi kushtaka",
+      "points": 29671,
+      "region": "PL",
+      "rank": 863
+    },
+    {
+      "name": "txtuba7.",
+      "points": 29670,
+      "region": "BR",
+      "rank": 864
+    },
+    {
+      "name": "zelofvǃ",
+      "points": 29669,
+      "region": "US",
+      "rank": 865
+    },
+    {
+      "name": "Sable gxT",
+      "points": 29669,
+      "region": "WLS",
+      "rank": 866
+    },
+    {
+      "name": "Azamaru158",
+      "points": 29666,
+      "region": "JP",
+      "rank": 867
+    },
+    {
+      "name": "Rabbit Day 1",
+      "points": 29666,
+      "region": "ES",
+      "rank": 868
+    },
+    {
+      "name": "TR0NSERVICES.GG",
+      "points": 29666,
+      "region": "MX",
+      "rank": 869
+    },
+    {
+      "name": "wooka ferdy",
+      "points": 29662,
+      "region": "PT",
+      "rank": 870
+    },
+    {
+      "name": "ABZ Fxbio",
+      "points": 29658,
+      "region": "PL",
+      "rank": 871
+    },
+    {
+      "name": "aimznǃ",
+      "points": 29656,
+      "region": "FR",
+      "rank": 872
+    },
+    {
+      "name": "Haste 26",
+      "points": 29654,
+      "region": "EN",
+      "rank": 873
+    },
+    {
+      "name": "X6 Linqish",
+      "points": 29654,
+      "region": "SE",
+      "rank": 874
+    },
+    {
+      "name": "Bidouǃ",
+      "points": 29649,
+      "region": "FR",
+      "rank": 875
+    },
+    {
+      "name": "rt kayd",
+      "points": 29649,
+      "region": "US",
+      "rank": 876
+    },
+    {
+      "name": "aruya 7ǃ",
+      "points": 29638,
+      "region": "TR",
+      "rank": 877
+    },
+    {
+      "name": "hrz exist 17ǃ",
+      "points": 29635,
+      "region": "US",
+      "rank": 878
+    },
+    {
+      "name": "dazed darzy",
+      "points": 29631,
+      "region": "CA",
+      "rank": 879
+    },
+    {
+      "name": "sfg whizxiy",
+      "points": 29630,
+      "region": "MX",
+      "rank": 880
+    },
+    {
+      "name": "blaze48932432",
+      "points": 29630,
+      "region": "US",
+      "rank": 881
+    },
+    {
+      "name": "grimoiiree444",
+      "points": 29627,
+      "region": "FR",
+      "rank": 882
+    },
+    {
+      "name": "alpha rucaǃ",
+      "points": 29627,
+      "region": "WLS",
+      "rank": 883
+    },
+    {
+      "name": "Mark McClarkey",
+      "points": 29627,
+      "region": "CO",
+      "rank": 884
+    },
+    {
+      "name": "666 marinǃ",
+      "points": 29627,
+      "region": "SCO",
+      "rank": 885
+    },
+    {
+      "name": "Dribbler Skjalm",
+      "points": 29626,
+      "region": "DE",
+      "rank": 886
+    },
+    {
+      "name": "YT Sevenatra",
+      "points": 29615,
+      "region": "GL",
+      "rank": 887
+    },
+    {
+      "name": "bluisha cuthbert",
+      "points": 29613,
+      "region": "US",
+      "rank": 888
+    },
+    {
+      "name": "Cаraxes",
+      "points": 29613,
+      "region": "US",
+      "rank": 889
+    },
+    {
+      "name": "zаkそ",
+      "points": 29612,
+      "region": "AU",
+      "rank": 890
+    },
+    {
+      "name": "hawk 19ǃ",
+      "points": 29611,
+      "region": "ES",
+      "rank": 891
+    },
+    {
+      "name": "軍神 心湊 一希",
+      "points": 29610,
+      "region": "KR",
+      "rank": 892
+    },
+    {
+      "name": "Sainzeu 10",
+      "points": 29606,
+      "region": "KR",
+      "rank": 893
+    },
+    {
+      "name": "k0tyаrich",
+      "points": 29605,
+      "region": "UA",
+      "rank": 894
+    },
+    {
+      "name": "soleanäǃ",
+      "points": 29602,
+      "region": "US",
+      "rank": 895
+    },
+    {
+      "name": "gentelmen wojtus",
+      "points": 29600,
+      "region": "PL",
+      "rank": 896
+    },
+    {
+      "name": "fear hawkǃ",
+      "points": 29594,
+      "region": "GL",
+      "rank": 897
+    },
+    {
+      "name": "say waLahey1x",
+      "points": 29592,
+      "region": "GL",
+      "rank": 898
+    },
+    {
+      "name": "ItsAdri904",
+      "points": 29590,
+      "region": "BR",
+      "rank": 899
+    },
+    {
+      "name": "dzd siv",
+      "points": 29589,
+      "region": "MX",
+      "rank": 900
+    },
+    {
+      "name": "dazed kynǃ",
+      "points": 29588,
+      "region": "US",
+      "rank": 901
+    },
+    {
+      "name": "Ivory veazybot",
+      "points": 29586,
+      "region": "DE",
+      "rank": 902
+    },
+    {
+      "name": "Naughtyy.L2",
+      "points": 29584,
+      "region": "NL",
+      "rank": 903
+    },
+    {
+      "name": "Venoxache32",
+      "points": 29583,
+      "region": "CZ",
+      "rank": 904
+    },
+    {
+      "name": "lfc simʕᵒᴥᵒʔ",
+      "points": 29580,
+      "region": "PL",
+      "rank": 905
+    },
+    {
+      "name": "feastǃ",
+      "points": 29579,
+      "region": "MX",
+      "rank": 906
+    },
+    {
+      "name": "7VEN heartzkaitt",
+      "points": 29578,
+      "region": "US",
+      "rank": 907
+    },
+    {
+      "name": "sfg keen 7ǃ",
+      "points": 29576,
+      "region": "PT",
+      "rank": 908
+    },
+    {
+      "name": "ᴸʷᵏʸ cwoaky.",
+      "points": 29576,
+      "region": "US",
+      "rank": 909
+    },
+    {
+      "name": "qte raven 7ǃ",
+      "points": 29575,
+      "region": "GL",
+      "rank": 910
+    },
+    {
+      "name": "DTCT junex",
+      "points": 29574,
+      "region": "SE",
+      "rank": 911
+    },
+    {
+      "name": "hwk bruskiwinguǃ",
+      "points": 29567,
+      "region": "AU",
+      "rank": 912
+    },
+    {
+      "name": "luu 7ǃ",
+      "points": 29565,
+      "region": "DE",
+      "rank": 913
+    },
+    {
+      "name": "omexo.",
+      "points": 29561,
+      "region": "DK",
+      "rank": 914
+    },
+    {
+      "name": "amoris blazesskǃ",
+      "points": 29559,
+      "region": "CA",
+      "rank": 915
+    },
+    {
+      "name": "RXB Destro arrǃ",
+      "points": 29559,
+      "region": "JP",
+      "rank": 916
+    },
+    {
+      "name": "chapk3kk",
+      "points": 29558,
+      "region": "BR",
+      "rank": 917
+    },
+    {
+      "name": "glore owlbklyn42",
+      "points": 29557,
+      "region": "DE",
+      "rank": 918
+    },
+    {
+      "name": "barq 26ǃ",
+      "points": 29555,
+      "region": "GL",
+      "rank": 919
+    },
+    {
+      "name": "nicksreyn",
+      "points": 29554,
+      "region": "DE",
+      "rank": 920
+    },
+    {
+      "name": "Flare Rxtr",
+      "points": 29554,
+      "region": "SA",
+      "rank": 921
+    },
+    {
+      "name": "king sae 5ǃ",
+      "points": 29551,
+      "region": "US",
+      "rank": 922
+    },
+    {
+      "name": "Pogba 10ǃ",
+      "points": 29551,
+      "region": "PL",
+      "rank": 923
+    },
+    {
+      "name": "Anden 10ǃ",
+      "points": 29542,
+      "region": "DK",
+      "rank": 924
+    },
+    {
+      "name": "GT TTV Yenssney",
+      "points": 29541,
+      "region": "FR",
+      "rank": 925
+    },
+    {
+      "name": "saMz 7",
+      "points": 29539,
+      "region": "MX",
+      "rank": 926
+    },
+    {
+      "name": "alejo314ARG",
+      "points": 29534,
+      "region": "SCO",
+      "rank": 927
+    },
+    {
+      "name": "SWT Samux7",
+      "points": 29534,
+      "region": "IT",
+      "rank": 928
+    },
+    {
+      "name": "alahna luvr",
+      "points": 29532,
+      "region": "MX",
+      "rank": 929
+    },
+    {
+      "name": "orz Noa.",
+      "points": 29529,
+      "region": "JP",
+      "rank": 930
+    },
+    {
+      "name": "1P Coldrýýýýý1",
+      "points": 29528,
+      "region": "NL",
+      "rank": 931
+    },
+    {
+      "name": "1P Glub",
+      "points": 29527,
+      "region": "GB",
+      "rank": 932
+    },
+    {
+      "name": "GLORE Pruzengoat",
+      "points": 29525,
+      "region": "WLS",
+      "rank": 933
+    },
+    {
+      "name": "invia Swickeyǃǃǃ",
+      "points": 29524,
+      "region": "JP",
+      "rank": 934
+    },
+    {
+      "name": "Lyost Huguex 903",
+      "points": 29520,
+      "region": "PT",
+      "rank": 935
+    },
+    {
+      "name": "brnw mimi2k-",
+      "points": 29518,
+      "region": "JP",
+      "rank": 936
+    },
+    {
+      "name": "HOUSEN Pizzagon7",
+      "points": 29517,
+      "region": "DE",
+      "rank": 937
+    },
+    {
+      "name": "anonymous jit 1",
+      "points": 29512,
+      "region": "GL",
+      "rank": 938
+    },
+    {
+      "name": "t1lenfn.",
+      "points": 29507,
+      "region": "KR",
+      "rank": 939
+    },
+    {
+      "name": "Azulfv7",
+      "points": 29505,
+      "region": "IS",
+      "rank": 940
+    },
+    {
+      "name": "Sho Raycrocodile",
+      "points": 29504,
+      "region": "FR",
+      "rank": 941
+    },
+    {
+      "name": "SNM nutifyy",
+      "points": 29504,
+      "region": "MX",
+      "rank": 942
+    },
+    {
+      "name": "d-d-dom.",
+      "points": 29502,
+      "region": "CA",
+      "rank": 943
+    },
+    {
+      "name": "ogryzek 52",
+      "points": 29500,
+      "region": "US",
+      "rank": 944
+    },
+    {
+      "name": "VGN Lynx1zr",
+      "points": 29500,
+      "region": "SE",
+      "rank": 945
+    },
+    {
+      "name": "egy kyliesowskiǃ",
+      "points": 29497,
+      "region": "DK",
+      "rank": 946
+    },
+    {
+      "name": "Druklyreyli",
+      "points": 29492,
+      "region": "KR",
+      "rank": 947
+    },
+    {
+      "name": "hst r1emu 夢",
+      "points": 29491,
+      "region": "JP",
+      "rank": 948
+    },
+    {
+      "name": "9C MathoR",
+      "points": 29488,
+      "region": "FR",
+      "rank": 949
+    },
+    {
+      "name": "SCG Hyraxǃ",
+      "points": 29488,
+      "region": "PL",
+      "rank": 950
+    },
+    {
+      "name": "Twitch Mussfv",
+      "points": 29486,
+      "region": "US",
+      "rank": 951
+    },
+    {
+      "name": "21 Yoicyﱞﱞ",
+      "points": 29479,
+      "region": "SA",
+      "rank": 952
+    },
+    {
+      "name": "bkrog naanou",
+      "points": 29473,
+      "region": "FR",
+      "rank": 953
+    },
+    {
+      "name": "jaime pq",
+      "points": 29473,
+      "region": "CA",
+      "rank": 954
+    },
+    {
+      "name": "crot2behbeh",
+      "points": 29466,
+      "region": "PL",
+      "rank": 955
+    },
+    {
+      "name": "Delavauxx",
+      "points": 29465,
+      "region": "FR",
+      "rank": 956
+    },
+    {
+      "name": "Lizer uptemp",
+      "points": 29464,
+      "region": "SA",
+      "rank": 957
+    },
+    {
+      "name": "FL hembuu 23",
+      "points": 29461,
+      "region": "JP",
+      "rank": 958
+    },
+    {
+      "name": "chacal エスター",
+      "points": 29460,
+      "region": "CA",
+      "rank": 959
+    },
+    {
+      "name": "dazed bǃ xz",
+      "points": 29458,
+      "region": "FR",
+      "rank": 960
+    },
+    {
+      "name": "ZNN lenny 10ǃ",
+      "points": 29456,
+      "region": "DE",
+      "rank": 961
+    },
+    {
+      "name": "AlUla Mn9",
+      "points": 29449,
+      "region": "PT",
+      "rank": 962
+    },
+    {
+      "name": "N A K O O",
+      "points": 29447,
+      "region": "ES",
+      "rank": 963
+    },
+    {
+      "name": "merc 7ǃ",
+      "points": 29447,
+      "region": "DE",
+      "rank": 964
+    },
+    {
+      "name": "AG lúcxss",
+      "points": 29445,
+      "region": "DE",
+      "rank": 965
+    },
+    {
+      "name": "SniperDudeRIP",
+      "points": 29444,
+      "region": "US",
+      "rank": 966
+    },
+    {
+      "name": "Mask meroǃ",
+      "points": 29443,
+      "region": "EG",
+      "rank": 967
+    },
+    {
+      "name": "gents ちわわ",
+      "points": 29442,
+      "region": "JP",
+      "rank": 968
+    },
+    {
+      "name": "Sout Ghaple",
+      "points": 29437,
+      "region": "EN",
+      "rank": 969
+    },
+    {
+      "name": "lynox mxsty 水",
+      "points": 29437,
+      "region": "DK",
+      "rank": 970
+    },
+    {
+      "name": "No Mercy Rek",
+      "points": 29432,
+      "region": "NO",
+      "rank": 971
+    },
+    {
+      "name": "LD1 даняпират",
+      "points": 29427,
+      "region": "GL",
+      "rank": 972
+    },
+    {
+      "name": "Felpsz Betrayed",
+      "points": 29426,
+      "region": "BR",
+      "rank": 973
+    },
+    {
+      "name": "evo thiaz",
+      "points": 29420,
+      "region": "AR",
+      "rank": 974
+    },
+    {
+      "name": "Mystry LeHuntǃ",
+      "points": 29419,
+      "region": "KR",
+      "rank": 975
+    },
+    {
+      "name": "venly joeyǃ",
+      "points": 29416,
+      "region": "BR",
+      "rank": 976
+    },
+    {
+      "name": "pumpkin 皿",
+      "points": 29416,
+      "region": "KR",
+      "rank": 977
+    },
+    {
+      "name": "twitch voxzlz",
+      "points": 29415,
+      "region": "CA",
+      "rank": 978
+    },
+    {
+      "name": "AlAhli Snow",
+      "points": 29415,
+      "region": "RU",
+      "rank": 979
+    },
+    {
+      "name": "NV ROGUE",
+      "points": 29413,
+      "region": "US",
+      "rank": 980
+    },
+    {
+      "name": "jayx jit day2",
+      "points": 29412,
+      "region": "AU",
+      "rank": 981
+    },
+    {
+      "name": "s24ǃ",
+      "points": 29408,
+      "region": "CA",
+      "rank": 982
+    },
+    {
+      "name": "Solid M",
+      "points": 29407,
+      "region": "SA",
+      "rank": 983
+    },
+    {
+      "name": "ˢˡʸSorrereᵀᵀ",
+      "points": 29402,
+      "region": "US",
+      "rank": 984
+    },
+    {
+      "name": "PrimoDeFausto",
+      "points": 29401,
+      "region": "MX",
+      "rank": 985
+    },
+    {
+      "name": "M8 сынvаnyak3ka",
+      "points": 29400,
+      "region": "ES",
+      "rank": 986
+    },
+    {
+      "name": "avora neofinny",
+      "points": 29398,
+      "region": "DE",
+      "rank": 987
+    },
+    {
+      "name": "Yzаn",
+      "points": 29396,
+      "region": "BR",
+      "rank": 988
+    },
+    {
+      "name": "nvx mrtenq",
+      "points": 29394,
+      "region": "PL",
+      "rank": 989
+    },
+    {
+      "name": "ecs ぴのとまさし",
+      "points": 29389,
+      "region": "JP",
+      "rank": 990
+    },
+    {
+      "name": "hwk Slayaǃ",
+      "points": 29389,
+      "region": "AU",
+      "rank": 991
+    },
+    {
+      "name": "m7 royale7s",
+      "points": 29387,
+      "region": "KR",
+      "rank": 992
+    },
+    {
+      "name": "tiktok vBqtify",
+      "points": 29384,
+      "region": "NL",
+      "rank": 993
+    },
+    {
+      "name": "nov1ce 41 10",
+      "points": 29382,
+      "region": "SCO",
+      "rank": 994
+    },
+    {
+      "name": "nv max3eny",
+      "points": 29381,
+      "region": "PT",
+      "rank": 995
+    },
+    {
+      "name": "ˢˡʸN1tr01L",
+      "points": 29378,
+      "region": "CA",
+      "rank": 996
+    },
+    {
+      "name": "welmurfv 16ǃ",
+      "points": 29375,
+      "region": "SE",
+      "rank": 997
+    },
+    {
+      "name": "twtr BlаdeeCity",
+      "points": 29370,
+      "region": "KR",
+      "rank": 998
+    },
+    {
+      "name": "alpha 2star.",
+      "points": 29370,
+      "region": "GL",
+      "rank": 999
+    },
+    {
+      "name": "daаnǃ 7",
+      "points": 29363,
+      "region": "RU",
+      "rank": 1000
+    }
+  ]
+}

@@ -1,0 +1,407 @@
+'use client';
+
+// Das Dashboard nach dem Einloggen.
+//
+// Vorher war das eine ausladende Seite: eine bildschirmfuellende Warnung als
+// Tuersteher, darunter drei ineinander verschachtelte Kartenebenen mit
+// Eckenradien von zweiunddreissig Pixeln, eine Verwaltung fuer YouTube,
+// Twitter, Instagram und TikTok, eine Uebersicht, die zwei bereits sichtbare
+// Angaben wiederholte, und ein Kasten "Support", hinter dem nichts lag.
+//
+// Geblieben ist, was man hier wirklich tut: Namen und Twitch-Kanal pflegen,
+// den Zugangsschluessel holen, in die Werkzeuge springen, den Chat mitlesen.
+// Die uebrigen Netzwerke sind ersatzlos entfallen - ausdruecklich gewuenscht:
+// niemand soll hier seine Konten ausstellen, der Chat genuegt. Der
+// Twitch-Kanal bleibt allein deshalb stehen, weil der Chat eine Adresse
+// braucht.
+//
+// Ausserdem war das Speichern kaputt: die Funktion dafuer stand im Code, aber
+// kein Knopf rief sie auf. Wer seinen Namen aenderte, verlor die Aenderung
+// beim naechsten Laden. Jetzt gibt es den Knopf, und er meldet, was er tat.
+
+import { useCallback, useEffect, useRef, useState } from 'react';
+import Link from 'next/link';
+
+import T from '@/app/components/T';
+import { useT } from '@/app/components/SprachProvider';
+import { useZugang } from '@/app/lib/zugang';
+import { bereichVonPfad } from '@/lib/rechte';
+type ProfileData = {
+  displayName: string;
+  avatarUrl: string | null;
+  twitchChatEnabled: boolean;
+  /** Nur noch der Twitch-Kanal, und der allein wegen des Chats. */
+  socials: { twitch: string };
+};
+
+const DEFAULT_PROFILE: ProfileData = {
+  displayName: '',
+  avatarUrl: null,
+  twitchChatEnabled: true,
+  socials: { twitch: '' },
+};
+
+interface Ziel { href: string; titel: string; text: string }
+
+/** Wohin jeder springt, der angemeldet ist. */
+const ZIELE: Ziel[] = [
+  { href: '/', titel: 'Multiview', text: 'Streams nebeneinander' },
+  { href: '/power-rankings', titel: 'Rankings', text: 'Weltweite Bestenliste' },
+  { href: '/events', titel: 'Events', text: 'Cups und Leaderboards' },
+  { href: '/tierlist', titel: 'Tierlist', text: 'Spieler einsortieren' },
+  { href: '/overlays', titel: 'Overlays', text: 'Einblendungen für den Stream' },
+];
+
+/**
+ * Die Werkzeuge, die nur der Admin sieht.
+ *
+ * Bewusst als eigener Block unter dem Schnellzugriff, nicht dazwischen
+ * gemischt: was hier steht, veraendert die Inhalte des ganzen Werkzeugs -
+ * Karten, Beitraege, Prognosen. Kommt spaeter etwas dazu, gehoert es in diese
+ * Liste und sonst nirgendwohin.
+ */
+/*
+ * Die Verwaltungsbereiche.
+ *
+ * Dieselbe Liste zum Anhaken steht in lib/rechte.ts - zweimal gepflegt
+ * waeren sie in einer Woche auseinandergelaufen. Getrennt bleibt nur die
+ * Kontoverwaltung: die ist nicht vergebbar.
+ */
+const NUR_ADMIN: Ziel[] = [
+  { href: '/admin/konten', titel: 'Konten', text: 'Rollen und VIP vergeben' },
+  // Wer Bereiche zumachen darf, koennte sich damit selbst den Weg zurueck
+  // verbauen - deshalb nur der Admin, so wie bei den Konten.
+  { href: '/admin/sektionen', titel: 'Sections',
+    text: 'Bereiche auf Standby oder Offline stellen' },
+  // Wer auf der Startseite steht - eine Auswahl, keine Rechtevergabe.
+  { href: '/admin/vips', titel: 'VIPs',
+    text: 'Wer auf der Startseite gezeigt wird' },
+  // Client-Id und Secret der Anmeldedienste - Geheimnisse, also nur Admin.
+  { href: '/admin/dienste', titel: 'Anmeldedienste',
+    text: 'Twitch, Discord und Google einrichten' },
+];
+
+const ADMIN_ZIELE: Ziel[] = [
+  { href: '/karten', titel: 'Karten', text: 'Turnierkarten bauen' },
+  { href: '/admin/tweets', titel: 'Beiträge', text: 'Statistik-Posts erstellen' },
+  { href: '/admin/prognosen', titel: 'Prognosen', text: 'Vorhersagen zeichnen' },
+  { href: '/admin/replays', titel: 'Replays', text: 'Turnier-Replays nachsehen' },
+  { href: '/admin/spieler', titel: 'Player Center', text: 'Flaggen und @-Konten pflegen' },
+  { href: '/admin/assets', titel: 'Bildvorrat', text: 'Logos und Grafiken ablegen' },
+];
+
+export default function AdminDashboardPage() {
+  const t = useT();
+  const [profile, setProfile] = useState<ProfileData>(DEFAULT_PROFILE);
+  const [accountStatus, setAccountStatus] = useState('');
+  const [currentHost, setCurrentHost] = useState('');
+  const [laedt, setLaedt] = useState(true);
+  const [speichert, setSpeichert] = useState(false);
+  const [meldung, setMeldung] = useState('');
+  const [fehler, setFehler] = useState('');
+  const [schluesselOffen, setSchluesselOffen] = useState(false);
+  const [accessKey, setAccessKey] = useState('');
+  const [istAdmin, setIstAdmin] = useState(false);
+  const [rolle, setRolle] = useState<string | null>(null);
+  const [eigeneRechte, setEigeneRechte] = useState<string[]>([]);
+  const zugang = useZugang();
+  const [warnungWeg, setWarnungWeg] = useState(false);
+
+  useEffect(() => {
+    fetch('/api/profile')
+      .then(async (res) => {
+        if (!res.ok) throw new Error(t('Nicht angemeldet'));
+        const json = await res.json();
+        const geladen: ProfileData = json.profile || DEFAULT_PROFILE;
+        setProfile(geladen);
+        letzteFassung.current = JSON.stringify(geladen);
+        setAccountStatus(json.accountStatus || 'Normal User');
+        setAccessKey(json.accessKey || '');
+      })
+      .catch(() => {})
+      .finally(() => setLaedt(false));
+
+    /*
+     * Die Auskunft nennt jetzt auch die Rolle und die angehakten Bereiche.
+     * Vorher kannte sie nur den alten VIP-Schluessel - wer die Rolle am
+     * CompHub-Konto hatte, sah seine Kacheln nicht.
+     */
+    fetch('/api/auth/check-admin', { cache: 'no-store' })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json) => {
+        setIstAdmin(json?.isAdmin === true);
+        setRolle(json?.rolle ?? null);
+        setEigeneRechte(Array.isArray(json?.rechte) ? json.rechte : []);
+      })
+      .catch(() => setIstAdmin(false));
+
+    setCurrentHost(window.location.hostname);
+  }, []);
+
+  /**
+   * Ablegen, ohne dass jemand darum bitten muss.
+   *
+   * Ein Knopf zum Speichern ist hier eine Zumutung: es sind zwei Angaben, und
+   * wer den Knopf uebersieht, verliert sie beim naechsten Laden - genau das
+   * war vorher der Fall. Geschrieben wird deshalb von selbst, kurz nachdem das
+   * Tippen aufhoert. Die Wartezeit ist nicht Zierde, sondern verhindert einen
+   * Schreibvorgang je Tastendruck.
+   *
+   * Abgelegt wird beim Konto, nicht im Browser: wer sich woanders anmeldet,
+   * findet seinen Kanal wieder vor.
+   */
+  const uhr = useRef<number | null>(null);
+  const letzteFassung = useRef<string>('');
+
+  const sichern = useCallback(async (stand: ProfileData) => {
+    setSpeichert(true); setFehler('');
+    try {
+      const res = await fetch('/api/profile', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profile: stand }),
+      });
+      if (!res.ok) throw new Error(t('Speichern fehlgeschlagen'));
+      letzteFassung.current = JSON.stringify(stand);
+      setMeldung(t('Gespeichert'));
+    } catch {
+      setFehler(t('Nicht gespeichert — beim nächsten Tippen versuche ich es erneut.'));
+    } finally {
+      setSpeichert(false);
+    }
+  }, []);
+
+  const aendere = (teil: Partial<ProfileData>) => {
+    setMeldung(''); setFehler('');
+    setProfile((prev) => {
+      const neu = { ...prev, ...teil };
+      if (uhr.current) window.clearTimeout(uhr.current);
+      uhr.current = window.setTimeout(() => {
+        // Nur schreiben, wenn sich wirklich etwas geaendert hat.
+        if (JSON.stringify(neu) !== letzteFassung.current) void sichern(neu);
+      }, 700);
+      return neu;
+    });
+  };
+
+  const schluesselKopieren = async () => {
+    if (!accessKey) return;
+    try {
+      await navigator.clipboard.writeText(accessKey);
+      setMeldung(t('Zugangsschlüssel kopiert.')); setFehler('');
+    } catch {
+      setFehler(t('Kopieren fehlgeschlagen.'));
+    }
+  };
+
+  const twitch = profile.socials.twitch.trim();
+
+  /** Eine Kachel - fuer beide Blocke dieselbe Form. */
+  const Kachel = ({ z }: { z: Ziel }) => (
+    <Link href={z.href}
+      className="group rounded-lg border border-zinc-800 bg-zinc-900/40 px-3 py-2.5
+                 transition hover:border-sky-500 hover:bg-zinc-900/70">
+      <span className="block text-sm font-medium text-slate-200 group-hover:text-sky-400">
+        <T>{z.titel}</T>
+      </span>
+      <span className="block text-xs text-slate-500"><T>{z.text}</T></span>
+    </Link>
+  );
+
+  return (
+    <main className="min-h-screen bg-zinc-950 text-slate-100">
+      <div className="mx-auto max-w-[1400px] px-4 py-6">
+
+        {/* Kopf: eine Zeile statt eines Blocks. */}
+        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h1 className="text-xl font-semibold text-slate-100"><T>Dashboard</T></h1>
+            <p className="mt-0.5 text-sm text-slate-500">
+              {laedt ? t('Wird geladen …') : (profile.displayName || t('Ohne Namen'))}
+              {accountStatus && (
+                <span className="ml-2 rounded-md bg-sky-500/10 px-1.5 py-0.5
+                                 text-[11px] font-medium text-sky-400">
+                  {accountStatus}
+                </span>
+              )}
+            </p>
+          </div>
+          <button type="button"
+            onClick={() => { window.location.href = '/api/auth/logout'; }}
+            className="rounded-lg border border-zinc-800 px-3 py-1.5 text-sm
+                       text-slate-400 transition hover:border-rose-500/60
+                       hover:text-rose-400">
+            <T>Abmelden</T>
+          </button>
+        </div>
+
+        {/* Der Hinweis fuer den Stream: ein schmaler Streifen statt einer
+            bildschirmfuellenden Tuer. Er warnt vor demselben und kostet
+            keinen Klick, bevor man ueberhaupt etwas sieht. */}
+        {!warnungWeg && (
+          <div className="mb-4 flex items-start justify-between gap-3 rounded-lg
+                          border border-amber-500/25 bg-amber-500/[0.07] px-3 py-2">
+            <p className="text-sm text-amber-200/90">
+              <T>Diese Seite nicht im Stream zeigen — der Zugangsschlüssel steht hier.</T>
+            </p>
+            <button type="button" onClick={() => setWarnungWeg(true)}
+              className="shrink-0 text-sm text-amber-200/60 transition
+                         hover:text-amber-200">
+              <T>Verstanden</T>
+            </button>
+          </div>
+        )}
+
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
+          <div className="space-y-4">
+
+            {/* Profil */}
+            <section className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
+              <h2 className="text-sm font-semibold text-slate-100"><T>Profil</T></h2>
+              <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                {/* Der Anzeigename gehoert zum Konto und steht fest. Ein Feld
+                    dafuer taeuschte eine Wahl vor, die es nicht gibt. */}
+                <div>
+                  <span className="text-xs text-slate-500">
+                    <T>Anzeigename</T> <span className="text-slate-600"><T>— vom Konto</T></span>
+                  </span>
+                  <p className="mt-1 rounded-lg border border-zinc-900 bg-zinc-900/40
+                                px-3 py-2 text-sm text-slate-400">
+                    {laedt ? '…' : (profile.displayName || '—')}
+                  </p>
+                </div>
+                <label className="block">
+                  <span className="text-xs text-slate-500">
+                    <T>Twitch-Kanal</T> <span className="text-slate-600"><T>— für den Chat unten</T></span>
+                  </span>
+                  <input value={profile.socials.twitch}
+                    onChange={(e) => aendere({
+                      socials: { ...profile.socials, twitch: e.target.value.trim() },
+                    })}
+                    placeholder="kanalname"
+                    className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-900/80
+                               px-3 py-2 text-sm text-slate-100 outline-none
+                               placeholder:text-slate-600 focus:border-sky-500" />
+                </label>
+              </div>
+
+              {/* Kein Knopf mehr - nur die Rueckmeldung, dass es abgelegt ist. */}
+              <p className="mt-2 h-4 text-xs">
+                {speichert ? <span className="text-slate-500">Speichert …</span>
+                  : fehler ? <span className="text-rose-400">{fehler}</span>
+                  : meldung ? <span className="text-sky-400">{meldung}</span>
+                  : <span className="text-slate-600">
+                      <T>Änderungen werden von selbst gespeichert und gelten bei jeder Anmeldung.</T>
+                    </span>}
+              </p>
+            </section>
+
+            {/* Zugangsschluessel */}
+            <section className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
+              <h2 className="text-sm font-semibold text-slate-100"><T>Zugangsschlüssel</T></h2>
+              <div className="mt-3 flex flex-wrap items-center gap-3">
+                <code className="min-w-0 flex-1 truncate rounded-lg border border-zinc-800
+                                 bg-zinc-900/80 px-3 py-2 font-mono text-sm text-slate-200">
+                  {accessKey
+                    ? (schluesselOffen ? accessKey : '••••••••••••••••••••')
+                    : t('Kein Schlüssel hinterlegt')}
+                </code>
+                <button type="button" disabled={!accessKey}
+                  onClick={() => setSchluesselOffen((v) => !v)}
+                  className="rounded-lg border border-zinc-800 px-3 py-2 text-sm
+                             text-slate-300 transition hover:border-sky-500
+                             disabled:cursor-not-allowed disabled:opacity-30">
+                  <T>{schluesselOffen ? 'Verbergen' : 'Anzeigen'}</T>
+                </button>
+                <button type="button" disabled={!accessKey} onClick={schluesselKopieren}
+                  className="rounded-lg border border-zinc-800 px-3 py-2 text-sm
+                             text-slate-300 transition hover:border-sky-500
+                             disabled:cursor-not-allowed disabled:opacity-30">
+                  <T>Kopieren</T>
+                </button>
+              </div>
+            </section>
+
+            {/* Schnellzugriff */}
+            <section className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
+              <h2 className="text-sm font-semibold text-slate-100"><T>Schnellzugriff</T></h2>
+              <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {ZIELE.map((z) => <Kachel key={z.href} z={z} />)}
+              </div>
+            </section>
+
+            {/* Admin-Werkzeuge - eigener Block, nur fuer den Admin */}
+            {(istAdmin || rolle === 'admin' || rolle === 'manager'
+              || zugang.admin || zugang.manager) && (
+              <section className="rounded-xl border border-sky-500/25 bg-zinc-950/60 p-4">
+                <div className="flex items-baseline gap-2">
+                  <h2 className="text-sm font-semibold text-slate-100"><T>Admin-Werkzeuge</T></h2>
+                  <span className="text-xs text-slate-500">
+                    <T>sichtbar nur für dich</T>
+                  </span>
+                </div>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                  {/*
+                    * Nur die Bereiche, die dieses Konto pflegen darf. Ein
+                    * Manager sieht seine drei Kacheln, nicht alle sechs mit
+                    * fuenf gesperrten daneben.
+                    */}
+                  {ADMIN_ZIELE
+                    .filter((z) => {
+                      const b = bereichVonPfad(z.href);
+                      if (!b) return true;
+                      if (istAdmin || rolle === 'admin' || zugang.admin) return true;
+                      // Ein Manager sieht genau seine angehakten Bereiche.
+                      return eigeneRechte.includes(b) || zugang.darfBereich(b);
+                    })
+                    .map((z) => <Kachel key={z.href} z={z} />)}
+                  {(istAdmin || rolle === 'admin' || zugang.admin)
+                    && NUR_ADMIN.map((z) => <Kachel key={z.href} z={z} />)}
+                </div>
+              </section>
+            )}
+          </div>
+
+          {/* Der Chat bleibt: er ist der einzige Teil dieser Seite, den man
+              waehrend des Sendens tatsaechlich offen hat. */}
+          <section className="rounded-xl border border-zinc-800 bg-zinc-950/60">
+            <header className="flex items-center justify-between gap-3 border-b
+                               border-zinc-800 px-4 py-2.5">
+              <h2 className="truncate text-sm font-semibold text-slate-100">
+                {twitch ? `Chat · ${twitch}` : 'Twitch-Chat'}
+              </h2>
+              {twitch && (
+                <button type="button"
+                  onClick={() => aendere({ twitchChatEnabled: !profile.twitchChatEnabled })}
+                  aria-pressed={profile.twitchChatEnabled}
+                  className={`rounded-md px-2.5 py-1 text-xs font-semibold transition ${
+                    profile.twitchChatEnabled
+                      ? 'bg-sky-500/15 text-sky-400'
+                      : 'border border-zinc-800 text-slate-500'}`}>
+                  {profile.twitchChatEnabled ? 'An' : 'Aus'}
+                </button>
+              )}
+            </header>
+
+            {!twitch ? (
+              <p className="p-8 text-center text-sm text-slate-500">
+                <T>Trag oben deinen Twitch-Kanal ein, dann steht der Chat hier.</T>
+              </p>
+            ) : !profile.twitchChatEnabled ? (
+              <p className="p-8 text-center text-sm text-slate-500">
+                <T>Chat ist aus.</T>
+              </p>
+            ) : currentHost ? (
+              <iframe title={`Twitch-Chat ${twitch}`}
+                src={`https://www.twitch.tv/embed/${encodeURIComponent(twitch)}`
+                   + `/chat?parent=${currentHost}&darkpopout`}
+                className="h-[560px] w-full rounded-b-xl bg-black xl:h-[calc(100vh-230px)]" />
+            ) : (
+              <p className="p-8 text-center text-sm text-slate-500"><T>Chat wird geladen …</T></p>
+            )}
+          </section>
+        </div>
+      </div>
+    </main>
+  );
+}

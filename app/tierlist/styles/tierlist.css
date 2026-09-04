@@ -1,0 +1,1115 @@
+.tierlist-page * { box-sizing: border-box; margin: 0; padding: 0; }
+
+.tierlist-page {
+  background-color: #0a0a0a;
+  font-family: 'Roboto Mono', monospace;
+  color: white;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ── NAVBAR ── */
+.tierlist-page .navbar {
+  position: relative;
+  width: 100%;
+  background-color: #000000;
+  border-bottom: 1px solid rgba(255,255,255,0.08);
+  height: 60px;
+  display: flex;
+  align-items: center;
+  padding: 0 24px;
+  gap: 28px;
+}
+.tierlist-page .navbar img { height: 32px; opacity: 0.9; }
+.tierlist-page .nav-buttons { display: flex; gap: 2px; align-items: center; }
+.tierlist-page .nav-button {
+  color: rgba(255,255,255,0.4);
+  font-weight: 500;
+    width: 20px; height: 20px;
+    border-radius: 50%;
+    background: transparent;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 12px;
+    color: #38bdf8;
+    flex-shrink: 0;
+    overflow: hidden;
+    border: 1px solid rgba(255,255,255,0.04);
+  transition: color 0.15s;
+  font-family: 'Roboto Mono', monospace;
+}
+.tierlist-page .nav-button:hover { color: #ffffff; }
+.tierlist-page .social-icons { margin-left: auto; display: flex; gap: 4px; }
+.tierlist-page .social-link {
+  color: rgba(255,255,255,0.4);
+  font-size: 16px;
+  width: 34px; height: 34px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 5px;
+  transition: color 0.15s, background 0.15s;
+  text-decoration: none;
+}
+.tierlist-page .social-link:hover { color: #ffffff; background: #181818; }
+
+/* ── LAYOUT ── */
+.tierlist-page .page-wrapper {
+  display: flex;
+  gap: 0;
+  height: calc(100vh - 60px);
+  overflow: hidden;
+}
+
+/* ── LEFT: TIERLIST ── */
+.tierlist-page .tierlist-panel {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 24px;
+  border-right: 1px solid rgba(255,255,255,0.06);
+  scroll-behavior: smooth;
+  overscroll-behavior: contain;
+  background: #0a0a0a;
+}
+
+.tierlist-page .tierlist-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+  padding-bottom: 0;
+  border-bottom: none;
+  justify-content: flex-end;
+}
+
+.tierlist-header h2 {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: rgba(255,255,255,0.4);
+  font-weight: 700;
+  flex: 1;
+}
+
+.tierlist-header-main {
+  flex: 1;
+}
+
+.tierlist-header-main h2 {
+  font-size: 0;
+  overflow: hidden;
+}
+
+.tierlist-header-main h2::before {
+  /* removed visible label: keep pseudo-element but empty so layout unchanged */
+  content: "";
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: rgba(255,255,255,0.4);
+  font-weight: 700;
+}
+
+.tierlist-page .tier-row {
+  position: relative;
+  display: flex;
+  align-items: stretch;
+  margin-bottom: 6px;
+  min-height: 72px;
+  border-radius: 8px;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.05);
+  transition: border-color 0.2s, box-shadow 0.2s;
+}
+
+.tierlist-page .tier-row:hover {
+  border-color: rgba(56,189,248,0.2);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+}
+
+/* Die Beschriftung einer Stufe.
+   Sie bleibt auf einer Zeile. Vorher brach "Top 3" in "Top" und "3" um und
+   "Top 15" haette gar nicht hineingepasst - deshalb steht hier kein
+   Umbruch mehr, der Block ist breiter, und die Schriftgroesse richtet sich
+   nach der Laenge des Wortes (siehe TierRow: --stufen-schrift). */
+.tierlist-page .tier-label {
+  width: 86px;
+  min-width: 86px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--stufen-schrift, 20px);
+  font-weight: 800;
+  color: #000;
+  flex-shrink: 0;
+  user-select: none;
+  overflow: hidden;
+  text-align: center;
+  white-space: nowrap;
+  line-height: 1.1;
+  padding: 0 4px;
+}
+
+.tier-S .tier-label { background: #e53535; }
+.tier-A .tier-label { background: #f97316; }
+.tier-B .tier-label { background: #eab308; }
+.tier-C .tier-label { background: #22c55e; }
+.tier-D .tier-label { background: #3b82f6; }
+.tier-E .tier-label { background: #8b5cf6; }
+.tier-F .tier-label { background: #6b7280; }
+
+.tier-content {
+  flex: 1;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 8px;
+  background: #1a1a1a;
+  min-height: 64px;
+  transition: background 0.15s;
+}
+
+/* Die Zahl der Eintraege in einer Reihe.
+   Sie stand als eigene Spalte neben der Ablageflaeche - dadurch bekam jede
+   Reihe rechts ein zusaetzliches Feld mit eigenem Hintergrund, das wie ein
+   Bedienelement aussah. Jetzt liegt sie in der Ecke der Flaeche selbst,
+   gedaempft und ohne Rahmen: sie ist zum Nachsehen da, nicht zum Ansehen.
+   Absolut gesetzt, damit sie keine Breite mehr beansprucht. */
+.tierlist-page .tier-count {
+  position: absolute;
+  right: 10px;
+  bottom: 5px;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1;
+  color: rgba(255, 255, 255, 0.22);
+  pointer-events: none;
+  user-select: none;
+}
+
+.tier-content.drag-over {
+  background: #252525;
+  outline: 1px dashed rgba(56,189,248,0.4);
+}
+
+/* ── DUO CARD ── */
+.duo-card {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  background: #1b1b1b;
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 11px;
+  font-weight: 600;
+  cursor: grab;
+  transition: border-color 0.15s, transform 0.1s, box-shadow 0.15s;
+  user-select: none;
+  white-space: nowrap;
+}
+.duo-card:hover {
+  border-color: rgba(56,189,248,0.45);
+  box-shadow: 0 4px 14px rgba(56,189,248,0.08);
+}
+.duo-card.dragging {
+  opacity: 0.4;
+  transform: scale(0.96);
+}
+.duo-card .player-names {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  line-height: 1.2;
+}
+.duo-card .player-names span {
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.2;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.duo-card .player1,
+.duo-card .player2 {
+  color: #ffffff;
+}
+.flag-badge-wrapper {
+  position: relative;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  overflow: hidden;
+  border-radius: 50%;
+  background: #111;
+  border: 1px solid rgba(255,255,255,0.08);
+}
+.flag-badge-wrapper .full-flag {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  border-radius: 50%;
+}
+.flag-half {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+}
+.flag-half-left {
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+}
+.flag-half-right {
+  clip-path: polygon(100% 0, 100% 100%, 0 100%);
+}
+
+.tier-content .remove-btn {
+  display: none;
+}
+
+/* tier card remove on hover (admin) */
+.tier-content .duo-card:hover .remove-btn {
+  display: flex;
+}
+
+/* ── RIGHT: SIDEBAR ── */
+.sidebar {
+  width: 340px;
+  min-width: 340px;
+  display: flex;
+  flex-direction: column;
+  background: #0d0d0d;
+  border-left: 1px solid rgba(255,255,255,0.06);
+  height: 100%;
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+
+/* Der Titel "TIERLIST PLAYERS" ueber der Suche ist entfernt: die Liste
+   erklaert sich selbst, und die Zeile nahm nur Platz. */
+
+.sidebar-section {
+  padding: 16px;
+  border-bottom: 1px solid rgba(255,255,255,0.06);
+}
+
+.sidebar-section h3 {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: rgba(56,189,248,0.5);
+  margin-bottom: 10px;
+  font-weight: 700;
+}
+
+.search-wrap {
+  position: relative;
+}
+.search-wrap svg {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 13px; height: 13px;
+  pointer-events: none;
+}
+.search-wrap input {
+  width: 100%;
+  background: #181818;
+  border: 1px solid rgba(255,255,255,0.08);
+  color: #fff;
+  border-radius: 20px;
+  padding: 7px 14px 7px 30px;
+  font-size: 12px;
+  outline: none;
+  font-family: 'Roboto Mono', monospace;
+  transition: border-color 0.15s;
+}
+.search-wrap input:focus { border-color: rgba(56,189,248,0.45); }
+
+.duo-pool {
+  flex: 1;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 12px 16px;
+  min-height: 0;
+  scroll-behavior: smooth;
+  overscroll-behavior: contain;
+}
+
+.pool-duo-card {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 6px;
+  border-radius: 10px;
+  background: #161616;
+  border: 1px solid rgba(255,255,255,0.08);
+  margin-bottom: 4px;
+  cursor: grab;
+  transition: border-color 0.15s, background 0.15s, transform 0.15s;
+  user-select: none;
+}
+.pool-duo-card:hover {
+  border-color: rgba(56,189,248,0.32);
+  background: #1c1c1c;
+  transform: translateY(-0.5px);
+}
+.pool-duo-card.dragging { opacity: 0.65; }
+.pool-duo-card.in-tier {
+  opacity: 0.35;
+  cursor: default;
+  pointer-events: none;
+}
+.pool-duo-card .player-names { display: flex; flex-direction: column; gap: 0px; }
+.pool-duo-card .player1,
+.pool-duo-card .player2 {
+  font-size: 11px;
+  font-weight: 600;
+  color: #ffffff;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+  line-height: 1.1;
+}
+.pool-duo-card .flag-badge-wrapper {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  overflow: hidden;
+  background: #111;
+  border: 1px solid rgba(255,255,255,0.08);
+}
+.pool-duo-card .flag-badge-wrapper .full-flag {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+  border-radius: 50%;
+}
+
+/* ── ADMIN PANEL ── */
+.admin-toggle {
+  padding: 12px 16px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  margin-top: auto;
+}
+
+.admin-btn {
+  width: 100%;
+  height: 32px;
+  background: #181818;
+  border: 1px solid rgba(255,255,255,0.08);
+  color: rgba(255,255,255,0.4);
+  border-radius: 6px;
+  font-size: 11px;
+  font-family: 'Roboto Mono', monospace;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.admin-btn:hover { color: #fff; border-color: rgba(56,189,248,0.35); }
+.admin-btn.active { border-color: #38bdf8; color: #38bdf8; }
+
+/* Admin login overlay */
+.admin-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(4px);
+  z-index: 3000;
+  align-items: center;
+  justify-content: center;
+}
+.admin-overlay.show { display: flex; }
+
+.admin-modal {
+  background: #1a1a1a;
+  border: 1px solid rgba(255,255,255,0.1);
+  border-radius: 12px;
+  padding: 32px;
+  width: 340px;
+}
+.admin-modal h3 {
+  font-size: 14px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: rgba(255,255,255,0.7);
+  margin-bottom: 20px;
+  text-align: center;
+}
+.admin-modal input {
+  width: 100%;
+  background: #111;
+  border: 1px solid rgba(255,255,255,0.1);
+  color: #fff;
+  border-radius: 6px;
+  padding: 10px 14px;
+  font-size: 13px;
+  outline: none;
+  font-family: 'Roboto Mono', monospace;
+  margin-bottom: 12px;
+  transition: border-color 0.15s;
+}
+.admin-modal input:focus { border-color: rgba(56,189,248,0.4); }
+.admin-modal .modal-btns { display: flex; gap: 8px; }
+.admin-modal button {
+  flex: 1;
+  height: 36px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-family: 'Roboto Mono', monospace;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  border: none;
+  transition: all 0.15s;
+}
+.btn-confirm { background: #38bdf8; color: #000; font-weight: 700; }
+.btn-confirm:hover { background: #7dd3fc; }
+.btn-cancel { background: #222; color: rgba(255,255,255,0.5); border: 1px solid rgba(255,255,255,0.1) !important; }
+.btn-cancel:hover { color: #fff; }
+.admin-modal .error-msg {
+  font-size: 11px;
+  color: #ef4444;
+  text-align: center;
+  margin-bottom: 10px;
+  display: none;
+}
+
+/* Admin add duo panel */
+.add-duo-panel {
+  display: none;
+  padding: 12px 16px;
+  border-top: 1px solid rgba(255,255,255,0.06);
+  background: #0d0d0d;
+}
+.add-duo-panel.show { display: block; }
+.add-duo-panel h4 {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #38bdf8;
+  margin-bottom: 10px;
+}
+.add-duo-panel input {
+  width: 100%;
+  background: #181818;
+  border: 1px solid rgba(255,255,255,0.08);
+  color: #fff;
+  border-radius: 6px;
+  padding: 8px 12px;
+  font-size: 12px;
+  outline: none;
+  font-family: 'Roboto Mono', monospace;
+  margin-bottom: 6px;
+  transition: border-color 0.15s;
+}
+.add-duo-panel input:focus { border-color: rgba(56,189,248,0.45); }
+.add-duo-panel .add-btn {
+  width: 100%;
+  height: 32px;
+  background: #38bdf8;
+  border: none;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 700;
+  font-family: 'Roboto Mono', monospace;
+  color: #000;
+  cursor: pointer;
+  transition: background 0.15s;
+  margin-bottom: 4px;
+}
+.add-duo-panel .add-btn:hover { background: #7dd3fc; }
+
+/* Manage duos list */
+.manage-duo-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 6px 0;
+  border-bottom: 1px solid rgba(255,255,255,0.04);
+  font-size: 12px;
+}
+.manage-duo-item .names { color: rgba(255,255,255,0.7); }
+.manage-duo-item button {
+  background: none;
+  border: none;
+  color: rgba(255,255,255,0.25);
+  cursor: pointer;
+  font-size: 14px;
+  padding: 2px 4px;
+  transition: color 0.15s;
+}
+.manage-duo-item button:hover { color: #ef4444; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #1a1a1a; }
+::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #38bdf8; }
+* { scrollbar-width: thin; scrollbar-color: #333 #1a1a1a; }
+
+/* Empty tier placeholder */
+.tier-empty-hint {
+  font-size: 11px;
+  color: rgba(255,255,255,0.12);
+  font-style: italic;
+  padding: 4px;
+  user-select: none;
+  pointer-events: none;
+}
+
+.reset-btn {
+  height: 28px;
+  padding: 0 12px;
+  border-radius: 5px;
+  font-size: 11px;
+  font-family: 'Roboto Mono', monospace;
+  letter-spacing: 0.06em;
+  cursor: pointer;
+  border: 1px solid rgba(255,255,255,0.06);
+  background: #181818;
+  color: rgba(255,255,255,0.35);
+  transition: all 0.15s;
+}
+.reset-btn:hover { color: #ef4444; border-color: rgba(239,68,68,0.3); }
+
+.no-results {
+  font-size: 12px;
+  color: rgba(255,255,255,0.2);
+  text-align: center;
+  padding: 20px 0;
+}
+
+#searchInput:empty:before {
+content: attr(data-placeholder);
+color: rgba(255,255,255,0.35);
+pointer-events: none;
+}
+
+.duo-card.swap-target {
+  outline: 2px dashed rgba(56,189,248,0.5);
+  background: #2a2710;
+}
+
+.region-chip {
+  font-size: 9px;
+  font-weight: 700;
+  padding: 1px 5px;
+  border-radius: 3px;
+  letter-spacing: 0.05em;
+  flex-shrink: 0;
+  line-height: 1.4;
+  vertical-align: middle;
+}
+.region-chip.eu { background: rgba(59,130,246,0.18); color: #60a5fa; border: 1px solid rgba(59,130,246,0.3); }
+.region-chip.nac { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+:root{
+  --bg: #09090b;
+  --panel: #18181b;
+  --panel-dark: #09090b;
+  --input: #09090b;
+  --hover: #27272a;
+  --muted: rgba(255,255,255,0.35);
+  /* Das Blau der Startseite: Sky 500 fuer Flaechen und Raender,
+     Sky 400 fuer Hover und Schriftakzente. */
+  --accent: #0ea5e9;
+  --accent-hell: #38bdf8;
+  --border-weak: #27272a;
+  --border-subtle: #1c1c20;
+  --transition: background-color .18s ease, border-color .18s ease, color .18s ease, transform .18s ease;
+}
+
+/* Base */
+*{box-sizing:border-box}
+body .tierlist-page.new{
+  background:var(--bg);
+  color:#fff;
+  font-family:'Roboto Mono',monospace;
+  min-height:100vh;
+}
+
+.page-wrapper{display:flex;gap:0;height:calc(100vh - 60px);overflow:hidden}
+
+/* Tierlist panel */
+.tierlist-panel{flex:1;overflow-y:auto;padding:14px;padding-top:50px;border-right:1px solid rgba(255,255,255,0.04)}
+.tierlist-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.tierlist-header h2{font-size:14px;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.5);font-weight:600}
+
+/* Controls (Reset / Duos / Solo) */
+.tierlist-controls, .toolbar{display:flex;align-items:center;gap:6px}
+/* Reset, Duos und Solo sind drei gleichwertige Schalter und sollen auch
+   gleich aussehen: feste Breite, gleiche Hoehe, gleicher Abstand. Vorher
+   bestimmte die Wortlaenge die Breite, und die Reihe sass schief. */
+.tierlist-button, .reset-btn, .mode-btn{height:26px;min-width:58px;padding:0 10px;border-radius:6px;border:1px solid #27272a;background:rgba(255,255,255,0.03);color:rgba(255,255,255,0.7);font-weight:600;font-size:11px;letter-spacing:0.08em;text-transform:uppercase;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:var(--transition)}
+.tierlist-button{background:rgba(255,255,255,0.04)}
+.tierlist-button:hover,.reset-btn:hover,.mode-btn:hover{background:rgba(255,255,255,0.08);border-color:rgba(255,255,255,0.14)}
+
+/* Active/primary button */
+.tierlist-button-primary, .mode-btn.active{background:rgba(56,189,248,0.12);color:#7dd3fc;border:1px solid rgba(14,165,233,0.65);box-shadow:none}
+.tierlist-button-secondary{background: rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);color:rgba(255,255,255,0.85)}
+
+.tierlist-admin-floating-actions{
+  position: fixed;
+  left: 18px;
+  bottom: 18px;
+  display: flex;
+  gap: 6px;
+  padding: 8px 10px;
+  background: rgba(0,0,0,0.28);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 16px;
+  backdrop-filter: blur(10px);
+  z-index: 50;
+}
+.tierlist-admin-floating-actions .tierlist-button{
+  min-width: auto;
+  padding: 6px 10px;
+  background: rgba(255,255,255,0.08);
+}
+.tierlist-admin-floating-actions .tierlist-button:hover{
+  background: rgba(255,255,255,0.14);
+}
+
+.tierlist-status-overlay{
+  position: fixed;
+  left: 50%;
+  bottom: 18px;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 8px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  background: rgba(0,0,0,0.35);
+  backdrop-filter: blur(8px);
+  z-index: 60;
+  pointer-events: none;
+}
+.tierlist-status-message{
+  color: #fff;
+  font-size: 13px;
+  line-height: 1.4;
+}
+.tierlist-status-message--info{
+  color: rgba(255,255,255,0.95);
+}
+.tierlist-status-message--warning{
+  color: rgba(255,255,255,0.95);
+}
+
+.tierlist-status-messages{
+  display:flex;
+  flex-direction:column;
+  gap:8px;
+  margin-top:12px;
+}
+
+.tierlist-status-message{
+  padding:10px 12px;
+  border-radius:10px;
+  font-size:13px;
+  line-height:1.4;
+  color: #fff;
+}
+
+.tierlist-status-message--info{
+  background: rgba(24, 145, 255, 0.16);
+  border: 1px solid rgba(24, 145, 255, 0.28);
+}
+
+.tierlist-status-message--warning{
+  background: rgba(255, 205, 72, 0.16);
+  border: 1px solid rgba(255, 205, 72, 0.32);
+  color: #fff;
+}
+
+/* Reset smaller visual tone */
+.reset-btn{color:rgba(255,255,255,0.7);background:transparent;border:1px solid rgba(255,255,255,0.06)}
+.reset-btn:hover{color:#fff}
+
+/* Tier rows */
+.tier-row{display:flex;align-items:stretch;margin-bottom:10px;min-height:68px;border-radius:12px;overflow:hidden;border:1px solid #27272a;background:transparent}
+.tier-label{width:86px;min-width:86px;display:flex;align-items:center;justify-content:center;font-size:var(--stufen-schrift,18px);font-weight:800;color:#000;flex-shrink:0;user-select:none;white-space:nowrap}
+.tier-content{flex:1;display:flex;flex-wrap:wrap;align-items:center;gap:6px;padding:8px 10px;background:rgba(24,24,27,0.6);min-height:64px;transition:var(--transition)}
+.tier-content.drag-over{background:var(--hover);outline:1px dashed rgba(56,189,248,0.28)}
+
+/* Duo card */
+.duo-card{display:flex;align-items:center;gap:6px;padding:8px 10px;border-radius:10px;background:var(--panel);border:1px solid var(--border-subtle);font-size:12px;font-weight:700;cursor:grab;transition:var(--transition)}
+.duo-card:hover{border-color:rgba(56,189,248,0.22);box-shadow:0 6px 20px rgba(0,0,0,0.55);transform:translateY(-1px)}
+.duo-card.dragging{opacity:0.6;transform:scale(0.99)}
+.duo-card .player-names{display:flex;flex-direction:column;gap:0px}
+.duo-card .player1,
+.duo-card .player2 {
+  font-size: 12px;
+  font-weight: 700;
+  color: #ffffff;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  line-height: 1.2;
+}
+.duo-card.solo-entry,
+.pool-duo-card.solo-entry {
+  gap: 6px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  font-size: 12px;
+  font-weight: 700;
+}
+.duo-card.solo-entry .player1,
+.pool-duo-card.solo-entry .player1 {
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  line-height: 1.2;
+}
+.duo-card.solo-entry .duo-icon,
+.pool-duo-card.solo-entry .duo-icon {
+  width: 30px;
+  height: 30px;
+}
+.duo-card .duo-icon{width:30px;height:30px;border-radius:50%;background:#222;display:flex;align-items:center;justify-content:center;flex-shrink:0;overflow:hidden}
+.duo-icon img{width:100%;height:100%;object-fit:cover;display:block;border-radius:50%}
+
+/* Pool duo card (sidebar) */
+.pool-duo-card{display:flex;align-items:center;gap:6px;padding:8px 10px;border-radius:10px;background:var(--panel);border:1px solid rgba(255,255,255,0.04);margin-bottom:4px;cursor:grab;transition:var(--transition);box-shadow: inset 0 1px 0 rgba(255,255,255,0.02)}
+.pool-duo-card:hover{border-color:rgba(56,189,248,0.18);background:var(--panel-dark);transform:translateY(-1px)}
+.pool-duo-card.dragging{opacity:0.85;transform:scale(0.995)}
+.pool-duo-card .player-names{display:flex;flex-direction:column;gap:0px}
+.pool-duo-card .player1,
+.pool-duo-card .player2 {
+  font-size: 12px;
+  font-weight: 700;
+  color: #ffffff;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  line-height: 1.2;
+}
+
+/* Sidebar */
+.sidebar{width:300px;min-width:300px;display:flex;flex-direction:column;background:var(--bg);border-left:1px solid rgba(255,255,255,0.03);height:calc(100vh - 60px);overflow:hidden;padding:10px}
+.sidebar-card{display:flex;flex-direction:column}
+.sidebar-card.sidebar-search,
+.sidebar-card.sidebar-create{flex:0 0 auto}
+.sidebar-card.sidebar-pool{flex:1 1 0;min-height:0;display:flex;flex-direction:column}
+.sidebar-section{padding:16px;border-bottom:1px solid rgba(255,255,255,0.04)}
+.sidebar-section h3{font-size:11px;text-transform:uppercase;letter-spacing:0.1em;color:rgba(255,255,255,0.35);margin-bottom:12px;font-weight:600}
+
+/* Search */
+.search-wrap{position:relative}
+.search-wrap svg{position:absolute;left:14px;top:50%;transform:translateY(-50%);width:14px;height:14px;color:rgba(255,255,255,0.35);pointer-events:none}
+.search-input, #searchInput{width:100%;background:var(--input);border:1px solid var(--border-weak);color:#fff;border-radius:999px;padding:8px 14px 8px 34px;height:34px;font-size:13px;outline:none;font-family:'Roboto Mono',monospace;transition:var(--transition)}
+.search-input:focus, #searchInput:focus{border-color:rgba(14,165,233,0.7);box-shadow:0 0 0 4px rgba(56,189,248,0.12)}
+.search-input::placeholder{color:rgba(255,255,255,0.35)}
+
+/* Create panel */
+.create-panel{display:flex;flex-direction:column;gap:10px;background:rgba(24,24,27,0.55);border:1px solid #27272a;border-radius:14px;padding:14px}
+.create-panel-title{font-size:11px;font-weight:700;letter-spacing:0.22em;text-transform:uppercase;color:rgba(255,255,255,0.45);text-align:left}
+.create-panel-row{display:flex;gap:10px;align-items:center}
+.create-panel-field{flex:1;min-width:0;position:relative}
+.create-panel-field.create-panel-country{flex:0 0 66px;min-width:66px}
+.create-panel-field input, .create-panel-field select, .create-panel input, .create-panel select{width:100%;height:36px;padding:8px 12px;border-radius:9px;border:1px solid var(--border-weak);background:var(--input);color:#fff;font-size:14px;outline:none;transition:var(--transition)}
+.create-panel-field input:focus, .create-panel-field select:focus, .create-panel input:focus, .create-panel select:focus{border-color:var(--accent);box-shadow:0 0 0 4px rgba(56,189,248,0.12)}
+.create-panel button{height:38px;padding:8px 14px;border-radius:10px;border:none;background:#0ea5e9;color:#fff;font-weight:600;font-size:14px;letter-spacing:0.04em;cursor:pointer;transition:var(--transition);box-shadow:none}
+.create-panel button:hover{background:#38bdf8}
+
+/* Additional alias styles to match provided snippet for Create Duo / Create Solo panels */
+.create-duo-panel, .create-solo-panel {
+  flex-shrink:0;
+  padding:12px;
+  border-top:1px solid rgba(255,255,255,0.04);
+  background:transparent;
+}
+.create-duo-title, .create-solo-title {
+  font-size:13px;
+  font-weight:700;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  text-align:center;
+  color:#fff;
+  margin-bottom:18px;
+}
+.create-duo-panel input, .create-solo-panel input,
+.create-duo-panel textarea, .create-solo-panel textarea {
+  width:100%;
+  height:36px;
+  background:var(--input);
+  border:1px solid rgba(255,255,255,0.08);
+  border-radius:8px;
+  padding:0 12px;
+  color:#fff;
+  font-size:13px;
+  font-family:'Roboto Mono',monospace;
+  margin-bottom:8px;
+  transition:var(--transition);
+}
+.create-duo-panel input:focus, .create-solo-panel input:focus,
+.create-duo-panel textarea:focus, .create-solo-panel textarea:focus {
+  outline:none;
+  border-color:var(--accent);
+  box-shadow:0 0 0 4px rgba(56,189,248,0.12);
+}
+.create-duo-panel button, .create-solo-panel button {
+  width:100%;
+  height:36px;
+  border:none;
+  border-radius:10px;
+  background:#0ea5e9;
+  color:#fff;
+  font-weight:600;
+  font-size:13px;
+  letter-spacing:.08em;
+  cursor:pointer;
+  transition:var(--transition);
+}
+.create-duo-panel button:hover, .create-solo-panel button:hover{
+  transform:translateY(-1px);
+  background:#ffe04d;
+}
+
+/* Autocomplete / suggestions */
+.autocomplete-list{position:absolute;top:calc(100% + 8px);left:0;right:0;z-index:30;max-height:240px;overflow-y:auto;background:var(--input);border:1px solid var(--border-weak);border-radius:12px;box-shadow:0 12px 30px rgba(0,0,0,0.6);padding:6px}
+.autocomplete-item{display:flex;align-items:center;gap:8px;padding:8px 12px;color:#fff;font-size:14px;cursor:pointer;border-radius:8px;transition:background-color .12s}
+.autocomplete-item:hover{background:var(--hover)}
+
+/* Admin modal */
+.admin-modal{background:var(--input);border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:28px;width:360px}
+.admin-modal h3{font-size:14px;color:rgba(255,255,255,0.8);margin-bottom:16px}
+.admin-modal input{width:100%;height:36px;padding:8px 12px;border-radius:9px;border:1px solid var(--border-weak);background:var(--input);color:#fff;outline:none}
+
+/* small utilities */
+.flag-preview{width:34px;height:34px;display:flex;align-items:center;justify-content:center;border-radius:50%;overflow:hidden}
+.flag-preview img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+
+/* Boxed create panel at bottom of sidebar */
+.tierlist-page .sidebar .sidebar-create {
+  margin-top: auto; /* push create section to bottom */
+  padding: 10px 0 6px 0;
+}
+
+.tierlist-page .sidebar .sidebar-create .create-panel{
+  background:var(--panel-dark);
+  border:1px solid rgba(255,255,255,0.03);
+  border-radius:12px;
+  padding:12px;
+  box-shadow: 0 6px 20px rgba(0,0,0,0.6);
+}
+
+.tierlist-page .sidebar .sidebar-create .create-panel .create-panel-title{
+  margin-bottom:10px;
+  color: rgba(255,255,255,0.9);
+}
+
+/* Stack inputs vertically so the create box looks like the example (single panel) */
+.tierlist-page .sidebar .sidebar-create .create-panel .create-panel-row{
+  display:flex;
+  flex-direction:row;
+  gap:10px;
+  align-items:center;
+}
+.tierlist-page .sidebar .sidebar-create .create-panel .create-panel-field.create-panel-country{flex:0 0 66px}
+.tierlist-page .sidebar .sidebar-create .create-panel .flag-preview.small{margin-left:8px}
+
+/* Button tweaks: flatter, no heavy glow */
+.tierlist-page .sidebar .sidebar-create .create-panel button{
+  box-shadow:none;
+  height:36px;
+  border-radius:8px;
+  font-weight:700;
+}
+
+/* Make pool list items visually separate (single cards) */
+.tierlist-page .duo-pool{display:flex;flex-direction:column;gap:4px;padding:6px;overflow:auto}
+
+/* Ensure duo icons in pool are round */
+.tierlist-page .pool-duo-card .duo-icon, .tierlist-page .duo-card .duo-icon {
+  border-radius:50%;
+}
+
+.tier-empty-hint{font-size:12px;color:rgba(255,255,255,0.14);padding:6px;text-align:center}
+
+/* Scrollbar */
+::-webkit-scrollbar{width:8px}
+::-webkit-scrollbar-track{background:var(--input)}
+::-webkit-scrollbar-thumb{background:#333;border-radius:6px}
+::-webkit-scrollbar-thumb:hover{background:var(--accent)}
+
+/* ensure transitions are smooth across changed elements */
+button,input,select,textarea{transition:var(--transition)}
+
+/* Force create panel to pin to bottom with no extra gap */
+.tierlist-page .sidebar{padding-bottom:0}
+.tierlist-page .sidebar .sidebar-create{margin-top:auto;padding:8px 0 0 0}
+.tierlist-page .sidebar .sidebar-create .create-panel{margin-bottom:0;padding-bottom:24px}
+.tierlist-page .sidebar .duo-pool{flex:1;overflow:auto;padding-bottom:6px}
+
+/* ---------------------------------------------------------- Flaggenwahl */
+/* Ein Land waehlt man ueber die Flagge, nicht ueber ein Kuerzel im
+   Klappmenue - "RO" sagt beim Ueberfliegen nichts. */
+.flaggenwahl{position:relative;flex:0 0 46px}
+.flaggenwahl-knopf{width:46px;height:38px;padding:0;display:flex;align-items:center;
+  justify-content:center;border-radius:10px;border:1px solid #27272a;
+  background:#09090b;cursor:pointer;transition:var(--transition)}
+.flaggenwahl-knopf:hover{border-color:rgba(14,165,233,0.65)}
+.flaggenwahl-knopf img{width:26px;height:26px;border-radius:50%;object-fit:cover;
+  box-shadow:0 0 0 1px rgba(255,255,255,0.18)}
+.flaggenwahl-hinterher{position:fixed;inset:0;z-index:40}
+.flaggenwahl-raster{position:absolute;right:0;bottom:calc(100% + 8px);z-index:41;
+  width:250px;max-height:190px;overflow-y:auto;display:flex;flex-wrap:wrap;gap:5px;
+  padding:10px;border-radius:12px;border:1px solid #27272a;background:#18181b;
+  box-shadow:0 18px 40px rgba(0,0,0,0.6)}
+.flaggenwahl-raster button{width:28px;height:28px;min-width:0;padding:0;border:none;
+  background:transparent;border-radius:50%;cursor:pointer;box-shadow:none}
+.flaggenwahl-raster button img{width:28px;height:28px;border-radius:50%;object-fit:cover;
+  box-shadow:0 0 0 1px #27272a}
+.flaggenwahl-raster button:hover img{box-shadow:0 0 0 2px #38bdf8}
+.flaggenwahl-raster button.gewaehlt img{box-shadow:0 0 0 2px #38bdf8}
+
+/* Namensfeld beim Umbenennen - sieht aus wie der Name, nur eingerahmt. */
+.namensfeld{width:100%;min-width:0;background:#09090b;border:1px solid #38bdf8;
+  border-radius:6px;padding:2px 6px;color:#fff;outline:none;
+  font-family:inherit;font-size:inherit;font-weight:inherit;letter-spacing:inherit}
+
+
+/* ------------------------------------------------- Tier umbenennen */
+/* Kein eigener Kasten mehr.
+   Vorher oeffnete sich ein schwarzes Feld mit farbigem Rand mitten im
+   Buchstabenfeld - das sah aus wie ein fremdes Fenster. Jetzt bleibt der
+   farbige Grund stehen und nur der Buchstabe wird schreibbar. */
+.tier-label input, .tier-label-eingabe{
+  width:100%;height:100%;min-width:0;
+  background:transparent;border:none;outline:none;
+  text-align:center;color:#000;
+  font-size:18px;font-weight:800;font-family:inherit;
+  padding:0;border-radius:0;
+}
+.tier-label input:focus, .tier-label-eingabe:focus{background:rgba(0,0,0,0.12)}
+
+/* Die Flaggenwahl traegt keinen Kasten - nur die runde Flagge. */
+.flaggenwahl-knopf{
+  width:34px;height:34px;padding:0;border:none;background:transparent;
+  border-radius:50%;
+}
+.flaggenwahl{flex:0 0 34px}
+.flaggenwahl-knopf img{
+  width:32px;height:32px;border-radius:50%;object-fit:cover;
+  box-shadow:0 0 0 1px rgba(255,255,255,0.22);
+}
+.flaggenwahl-knopf:hover img{box-shadow:0 0 0 2px #38bdf8}
+
+/* Die Flaggenwahl ist kein Bestaetigungsknopf.
+   ".create-panel button" faerbt jeden Knopf im Anlege-Bereich blau ein -
+   auch diesen. Hier zaehlt aber nur die runde Flagge, ohne Flaeche
+   dahinter und ohne Verzerrung. */
+.create-panel .flaggenwahl-knopf,
+.create-panel .flaggenwahl-raster button{
+  height:auto;padding:0;border:none;background:transparent;
+  box-shadow:none;border-radius:50%;
+}
+.create-panel .flaggenwahl-knopf{width:34px;height:34px;flex:0 0 34px}
+.create-panel .flaggenwahl-knopf:hover,
+.create-panel .flaggenwahl-raster button:hover{background:transparent}
+.create-panel .flaggenwahl-knopf img{
+  width:32px;height:32px;border-radius:50%;object-fit:cover;
+  box-shadow:0 0 0 1px rgba(255,255,255,0.22);
+}
+.create-panel .flaggenwahl-knopf:hover img{box-shadow:0 0 0 2px #38bdf8}
+.create-panel .flaggenwahl-raster button{width:28px;height:28px;flex:0 0 28px}
+
+/* --------------------------------- Solo-Kacheln wie die Duo-Kacheln */
+/* Beide Listen sollen sich gleich lesen. Ein Duo bringt zwei Zeilen mit
+   und war dadurch hoeher; die Solo-Kachel bekommt jetzt dieselbe Hoehe,
+   dieselbe Polsterung und dieselbe Flaggengroesse - nur eben mit einem
+   Namen darin. */
+.pool-duo-card, .pool-duo-card.solo-entry{
+  min-height:44px;
+  padding:6px 10px;
+  gap:9px;
+  margin-bottom:6px;
+  border-radius:11px;
+  border:1px solid #27272a;
+  background:rgba(24,24,27,0.75);
+}
+.pool-duo-card:hover, .pool-duo-card.solo-entry:hover{
+  border-color:rgba(56,189,248,0.4);
+  background:rgba(39,39,42,0.75);
+}
+.pool-duo-card .flag-badge-wrapper,
+.pool-duo-card.solo-entry .flag-badge-wrapper{
+  width:28px;height:28px;flex:0 0 28px;border:1px solid #27272a;
+}
+.pool-duo-card .player1,
+.pool-duo-card .player2,
+.pool-duo-card.solo-entry .player1{
+  font-size:11.5px;font-weight:600;letter-spacing:0.02em;line-height:1.15;
+}
+
+/* Die Reihen enger zusammen.
+   Zwischen S, A, B, C, D, E und F stand zu viel Luft - die Liste zerfiel
+   dadurch in sieben Einzelbalken statt einer Tafel. */
+.tier-row{margin-bottom:4px;min-height:56px;border-radius:8px}
+.tier-content{min-height:52px;padding:5px 8px;gap:5px}
+.tierlist-page .tier-label,
+.tier-label{width:86px;min-width:86px}
+
+/* ------------------------------------------- Kachel bearbeiten (Stift) */
+.admin-card-actions{display:flex;align-items:center;gap:4px;margin-left:auto}
+.admin-edit-btn{background:transparent;border:none;color:rgba(255,255,255,0.35);
+  cursor:pointer;font-size:13px;line-height:1;padding:2px 4px;border-radius:5px}
+.admin-edit-btn:hover{color:#38bdf8;background:rgba(56,189,248,0.1)}
+/* Ein eigenes Fenster in der Bildmitte.
+   In der Kachel aufzuklappen ging nicht: die Liste scrollt, die Kacheln
+   haben eine feste Hoehe, und der Bereich wurde gequetscht oder
+   abgeschnitten. Ein Fenster ist unabhaengig von der Listengeometrie und
+   entspricht den Flaggen-Fenstern der uebrigen Seiten. */
+.kachel-bearbeiten{
+  position:fixed;inset:0;z-index:80;
+  display:flex;flex-direction:column;gap:10px;
+  align-items:stretch;justify-content:center;
+  width:min(420px,calc(100vw - 32px));height:max-content;max-height:80vh;
+  margin:auto;padding:18px;overflow:visible;
+  border-radius:16px;border:1px solid #27272a;background:#18181b;
+  box-shadow:0 24px 60px rgba(0,0,0,0.7);
+}
+.kachel-bearbeiten-zeile{display:flex;align-items:center;gap:8px}
+.kachel-bearbeiten-zeile input{
+  flex:1;min-width:0;height:30px;padding:0 8px;border-radius:7px;
+  border:1px solid #27272a;background:#09090b;color:#fff;outline:none;
+  font-family:inherit;font-size:12px;
+}
+.kachel-bearbeiten-zeile input:focus{border-color:#38bdf8}
+.kachel-fertig{
+  align-self:flex-end;height:26px;padding:0 12px;border-radius:7px;border:none;
+  background:#0ea5e9;color:#fff;font-size:11px;font-weight:600;cursor:pointer;
+}
+.kachel-fertig:hover{background:#38bdf8}
+/* Die Kachel braucht einen Bezugspunkt, damit das Fenster darunter sitzt. */
+.pool-duo-card, .duo-card{position:relative}
+
+/* Der Grund hinter dem Bearbeiten-Fenster faengt Klicks ab und schliesst
+   beim Klick daneben. Ohne ihn landeten Klicks auf der Liste dahinter. */
+.kachel-bearbeiten-grund{
+  position:fixed;inset:0;z-index:80;
+  display:flex;align-items:center;justify-content:center;
+  background:rgba(0,0,0,0.6);padding:16px;
+}
+.kachel-bearbeiten{
+  position:relative;inset:auto;margin:0;
+  width:min(420px,100%);
+}
+.kachel-bearbeiten-titel{
+  font-size:11px;font-weight:700;letter-spacing:0.18em;text-transform:uppercase;
+  color:rgba(255,255,255,0.45);margin:0 0 2px;
+}
+.kachel-bearbeiten-hinweis{
+  font-size:11px;line-height:1.4;color:rgba(255,255,255,0.35);margin:2px 0 0;
+}
+
+/* Das Flaggenraster im Bearbeiten-Fenster muss über dessen Grund liegen.
+   Der Grund traegt z-index 80; ein Raster mit 41 waere darunter gelandet
+   und haette sich nicht anklicken lassen. */
+.kachel-bearbeiten .flaggenwahl-raster{z-index:120;bottom:auto;top:calc(100% + 8px)}
+.kachel-bearbeiten .flaggenwahl-hinterher{z-index:110}
+.kachel-bearbeiten .flaggenwahl-knopf{border:1px solid #27272a;background:#09090b}
+.kachel-bearbeiten .flaggenwahl-knopf:hover{border-color:#38bdf8}

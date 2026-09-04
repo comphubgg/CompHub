@@ -1,0 +1,499 @@
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background-color: #131313;
+      font-family: 'Roboto Mono', monospace;
+      color: white;
+      min-height: 100vh;
+    }
+
+    /* ── NAVBAR ── */
+    .navbar {
+      position: relative;
+      width: 100%;
+      background-color: #0d0d0d;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      height: 60px;
+      display: flex;
+      align-items: center;
+      padding: 0 24px;
+      gap: 28px;
+    }
+    .navbar img { height: 32px; opacity: 0.9; }
+    .nav-buttons { display: flex; gap: 2px; align-items: center; }
+    .nav-button {
+      color: rgba(255,255,255,0.4);
+      font-weight: 500;
+      text-decoration: none;
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 7px 14px;
+      border-radius: 5px;
+      background: transparent;
+      transition: color 0.15s;
+      font-family: 'Roboto Mono', monospace;
+    }
+    .nav-button:hover { color: #ffffff; }
+    .social-icons { margin-left: auto; display: flex; gap: 4px; }
+    .social-link {
+      color: rgba(255,255,255,0.4);
+      font-size: 16px;
+      width: 34px; height: 34px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 5px;
+      transition: color 0.15s, background 0.15s;
+      text-decoration: none;
+    }
+    .social-link:hover { color: #ffffff; background: #181818; }
+
+    /* ── LAYOUT ── */
+    .page-wrapper {
+      display: flex;
+      gap: 0;
+      height: calc(100vh - 60px);
+      overflow: hidden;
+    }
+
+    /* ── LEFT: TIERLIST ── */
+    .tierlist-panel {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px;
+      padding-top: 60px;
+      border-right: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .tierlist-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .tierlist-header h2 {
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: rgba(255,255,255,0.5);
+      font-weight: 600;
+    }
+
+    .tier-row {
+      display: flex;
+      align-items: stretch;
+      margin-bottom: 4px;
+      min-height: 72px;
+      border-radius: 6px;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+
+.tier-label {
+  width: 64px;
+  min-width: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  font-weight: 800;
+  color: #000;
+  flex-shrink: 0;
+  user-select: none;
+  overflow: hidden;
+  word-break: break-word;
+  text-align: center;
+  white-space: normal;
+}
+
+    .tier-S .tier-label { background: #e53535; }
+    .tier-A .tier-label { background: #f97316; }
+    .tier-B .tier-label { background: #eab308; }
+    .tier-C .tier-label { background: #22c55e; }
+    .tier-D .tier-label { background: #3b82f6; }
+.tier-E .tier-label { background: #8b5cf6; }
+.tier-F .tier-label { background: #6b7280; }
+
+    .tier-content {
+      flex: 1;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 12px;
+      background: #1a1a1a;
+      min-height: 72px;
+      transition: background 0.15s;
+    }
+
+    .tier-content.drag-over {
+      background: #252525;
+      outline: 1px dashed rgba(255,215,0,0.4);
+    }
+
+    /* ── DUO CARD ── */
+    .duo-card {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #242424;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: grab;
+      transition: border-color 0.15s, transform 0.1s, box-shadow 0.15s;
+      user-select: none;
+      white-space: nowrap;
+    }
+    .duo-card:hover {
+      border-color: rgba(255,215,0,0.35);
+      box-shadow: 0 2px 8px rgba(255,215,0,0.1);
+    }
+    .duo-card.dragging {
+      opacity: 0.4;
+      transform: scale(0.95);
+    }
+    .duo-card .player-names {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      line-height: 1.3;
+    }
+    .duo-card .player1 { color: #ffffff; }
+    .duo-card .player2 { color: #ffffff; font-size: 11px; }
+    .duo-card .duo-icon {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      background: #333;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px;
+      color: #ffd700;
+      flex-shrink: 0;
+    }
+
+    .tier-content .remove-btn {
+      display: none;
+    }
+
+    /* tier card remove on hover (admin) */
+    .tier-content .duo-card:hover .remove-btn {
+      display: flex;
+    }
+
+    /* ── RIGHT: SIDEBAR ── */
+    .sidebar {
+  width: 280px;
+  min-width: 280px;
+  display: flex;
+  flex-direction: column;
+  background: #111111;
+  border-left: 1px solid rgba(255,255,255,0.06);
+  height: calc(100vh - 60px);
+  overflow: hidden;
+}
+
+    .sidebar-section {
+      padding: 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .sidebar-section h3 {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: rgba(255,255,255,0.35);
+      margin-bottom: 10px;
+      font-weight: 600;
+    }
+
+    .search-wrap {
+      position: relative;
+    }
+    .search-wrap svg {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 13px; height: 13px;
+      pointer-events: none;
+    }
+    .search-wrap input {
+      width: 100%;
+      background: #181818;
+      border: 1px solid rgba(255,255,255,0.08);
+      color: #fff;
+      border-radius: 20px;
+      padding: 7px 14px 7px 30px;
+      font-size: 12px;
+      outline: none;
+      font-family: 'Roboto Mono', monospace;
+      transition: border-color 0.15s;
+    }
+    .search-wrap input:focus { border-color: rgba(255,215,0,0.35); }
+
+    .duo-pool {
+  flex: 1;
+  overflow-y: scroll;
+  padding: 12px 16px;
+  min-height: 0;
+}
+
+    .pool-duo-card {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: 6px;
+      background: #1a1a1a;
+      border: 1px solid rgba(255,255,255,0.06);
+      margin-bottom: 6px;
+      cursor: grab;
+      transition: border-color 0.15s, background 0.15s;
+      user-select: none;
+    }
+    .pool-duo-card:hover {
+      border-color: rgba(255,215,0,0.3);
+      background: #222;
+    }
+    .pool-duo-card.dragging { opacity: 0.4; }
+    .pool-duo-card.in-tier {
+      opacity: 0.3;
+      cursor: default;
+      pointer-events: none;
+    }
+    .pool-duo-card .duo-icon {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      background: #2a2a2a;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px;
+      color: #ffd700;
+      flex-shrink: 0;
+    }
+    .pool-duo-card .player-names { display: flex; flex-direction: column; gap: 1px; }
+    .pool-duo-card .player1 { font-size: 12px; font-weight: 600; color: #fff; }
+.pool-duo-card .player2 { font-size: 12px; font-weight: 600; color: #ffffff; }
+
+    /* ── ADMIN PANEL ── */
+    .admin-toggle {
+      padding: 12px 16px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      margin-top: auto;
+    }
+
+    .admin-btn {
+      width: 100%;
+      height: 32px;
+      background: #181818;
+      border: 1px solid rgba(255,255,255,0.08);
+      color: rgba(255,255,255,0.4);
+      border-radius: 6px;
+      font-size: 11px;
+      font-family: 'Roboto Mono', monospace;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .admin-btn:hover { color: #fff; border-color: rgba(255,215,0,0.3); }
+    .admin-btn.active { border-color: #ffd700; color: #ffd700; }
+
+    /* Admin login overlay */
+    .admin-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(4px);
+      z-index: 3000;
+      align-items: center;
+      justify-content: center;
+    }
+    .admin-overlay.show { display: flex; }
+
+    .admin-modal {
+      background: #1a1a1a;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 32px;
+      width: 340px;
+    }
+    .admin-modal h3 {
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: rgba(255,255,255,0.7);
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    .admin-modal input {
+      width: 100%;
+      background: #111;
+      border: 1px solid rgba(255,255,255,0.1);
+      color: #fff;
+      border-radius: 6px;
+      padding: 10px 14px;
+      font-size: 13px;
+      outline: none;
+      font-family: 'Roboto Mono', monospace;
+      margin-bottom: 12px;
+      transition: border-color 0.15s;
+    }
+    .admin-modal input:focus { border-color: rgba(255,215,0,0.4); }
+    .admin-modal .modal-btns { display: flex; gap: 8px; }
+    .admin-modal button {
+      flex: 1;
+      height: 36px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-family: 'Roboto Mono', monospace;
+      letter-spacing: 0.06em;
+      cursor: pointer;
+      border: none;
+      transition: all 0.15s;
+    }
+    .btn-confirm { background: #ffd700; color: #000; font-weight: 700; }
+    .btn-confirm:hover { background: #ffed4e; }
+    .btn-cancel { background: #222; color: rgba(255,255,255,0.5); border: 1px solid rgba(255,255,255,0.1) !important; }
+    .btn-cancel:hover { color: #fff; }
+    .admin-modal .error-msg {
+      font-size: 11px;
+      color: #ef4444;
+      text-align: center;
+      margin-bottom: 10px;
+      display: none;
+    }
+
+    /* Admin add duo panel */
+    .add-duo-panel {
+      display: none;
+      padding: 12px 16px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      background: #0d0d0d;
+    }
+    .add-duo-panel.show { display: block; }
+    .add-duo-panel h4 {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #ffd700;
+      margin-bottom: 10px;
+    }
+    .add-duo-panel input {
+      width: 100%;
+      background: #181818;
+      border: 1px solid rgba(255,255,255,0.08);
+      color: #fff;
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 12px;
+      outline: none;
+      font-family: 'Roboto Mono', monospace;
+      margin-bottom: 6px;
+      transition: border-color 0.15s;
+    }
+    .add-duo-panel input:focus { border-color: rgba(255,215,0,0.35); }
+    .add-duo-panel .add-btn {
+      width: 100%;
+      height: 32px;
+      background: #ffd700;
+      border: none;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      font-family: 'Roboto Mono', monospace;
+      color: #000;
+      cursor: pointer;
+      transition: background 0.15s;
+      margin-bottom: 4px;
+    }
+    .add-duo-panel .add-btn:hover { background: #ffed4e; }
+
+    /* Manage duos list */
+    .manage-duo-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      font-size: 12px;
+    }
+    .manage-duo-item .names { color: rgba(255,255,255,0.7); }
+    .manage-duo-item button {
+      background: none;
+      border: none;
+      color: rgba(255,255,255,0.25);
+      cursor: pointer;
+      font-size: 14px;
+      padding: 2px 4px;
+      transition: color 0.15s;
+    }
+    .manage-duo-item button:hover { color: #ef4444; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #1a1a1a; }
+    ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #ffd700; }
+    * { scrollbar-width: thin; scrollbar-color: #333 #1a1a1a; }
+
+    /* Empty tier placeholder */
+    .tier-empty-hint {
+      font-size: 11px;
+      color: rgba(255,255,255,0.12);
+      font-style: italic;
+      padding: 4px;
+      user-select: none;
+      pointer-events: none;
+    }
+
+    .reset-btn {
+      height: 28px;
+      padding: 0 12px;
+      border-radius: 5px;
+      font-size: 11px;
+      font-family: 'Roboto Mono', monospace;
+      letter-spacing: 0.06em;
+      cursor: pointer;
+      border: 1px solid rgba(255,255,255,0.06);
+      background: #181818;
+      color: rgba(255,255,255,0.35);
+      transition: all 0.15s;
+    }
+    .reset-btn:hover { color: #ef4444; border-color: rgba(239,68,68,0.3); }
+
+    .no-results {
+      font-size: 12px;
+      color: rgba(255,255,255,0.2);
+      text-align: center;
+      padding: 20px 0;
+    }
+
+    #searchInput:empty:before {
+    content: attr(data-placeholder);
+    color: rgba(255,255,255,0.35);
+    pointer-events: none;
+}
+
+    .duo-card.swap-target {
+      outline: 2px dashed rgba(255,215,0,0.5);
+      background: #2a2710;
+    }
+
+    .region-chip {
+      font-size: 9px;
+      font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 3px;
+      letter-spacing: 0.05em;
+      flex-shrink: 0;
+      line-height: 1.4;
+      vertical-align: middle;
+    }
+    .region-chip.eu { background: rgba(59,130,246,0.18); color: #60a5fa; border: 1px solid rgba(59,130,246,0.3); }
+    .region-chip.nac { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+
+  

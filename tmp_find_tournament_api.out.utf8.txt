@@ -1,0 +1,18 @@
+﻿node : jsUrl https://nobleprac.com/main.461b1e37fda750b46557.js
+In Zeile:1 Zeichen:1
++ node .\tmp_find_tournament_api.js > tmp_find_tournament_api.out.txt 2 ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (jsUrl https://n...fda750b46557.js 
+   :String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+found count 8
+https://tournaments.nobleprac.com\
+https://map.nobleprac.com\
+https://auth.nobleprac.com\
+https://tickets.nobleprac.com\
+example/url
+"/tournaments/:id\"
+"/tournaments/usernameUpdate?accountId=\"
+"/tournaments/\"
+

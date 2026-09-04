@@ -1,0 +1,212 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Team-Details</title>
+<link rel="stylesheet" href="overlay.css">
+<style>
+  /* Hochkant-Panel mit allen Werten - das grosse Gegenstueck zum Banner. */
+  body { overflow-y: auto; }
+  #shell { display: block; }
+
+  #panel {
+    width: 300px;
+    background: linear-gradient(170deg, var(--bg) 0%, var(--bg2) 100%);
+    overflow: hidden;
+  }
+
+  .kopf {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 14px;
+    background: color-mix(in srgb, var(--accent) 16%, transparent);
+    border-bottom: 1px solid color-mix(in srgb, var(--accent) 30%, transparent);
+  }
+  .kopf .platz { font-size: 22px; font-weight: 900; color: var(--accent); }
+  .kopf .titel {
+    font-size: var(--label); letter-spacing: 2px;
+    text-transform: uppercase; color: var(--muted); font-weight: 700;
+  }
+
+  /* Spielerzeilen mit Akzentstrich links */
+  .spieler { padding: 12px 14px 6px; }
+  .sp {
+    display: flex; align-items: center; gap: 9px;
+    padding-left: 10px; margin-bottom: 10px;
+    border-left: 3px solid var(--accent);
+  }
+  .sp .n { font-size: 21px; font-weight: 800; color: var(--accent);
+           line-height: 1.1; white-space: nowrap; overflow: hidden;
+           text-overflow: ellipsis; }
+  .sp .org { font-size: 11px; color: var(--muted); display: flex;
+             align-items: center; gap: 5px; margin-top: 2px; }
+  .sp img.logo { height: 15px; width: auto; max-width: 34px; object-fit: contain; }
+  .sp .pic { width: 34px; height: 34px; border-radius: 6px; object-fit: cover;
+             object-position: top center; flex: none; }
+
+  /* Wertegitter */
+  .gitter { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px;
+            background: rgba(255,255,255,.06); margin-top: 6px; }
+  .gitter > div { background: var(--bg); padding: 9px 10px; }
+  .gitter .l { font-size: 9.5px; letter-spacing: 1.2px; text-transform: uppercase;
+               color: var(--muted); font-weight: 600; white-space: nowrap;
+               overflow: hidden; text-overflow: ellipsis; }
+  .gitter .v { font-size: 21px; font-weight: 800; line-height: 1.15;
+               font-variant-numeric: tabular-nums; margin-top: 1px; }
+  .gitter.gross .v { font-size: 30px; }
+  .gitter.gross .l { font-size: 10.5px; }
+  .gitter .v.akz { color: var(--accent); }
+
+  /* Match-Liste */
+  .matches { padding: 10px; display: flex; flex-direction: column; gap: 5px; }
+  .m {
+    display: flex; align-items: center; justify-content: space-between;
+    background: rgba(255,255,255,.045); border-radius: 7px;
+    padding: 8px 11px; gap: 10px;
+  }
+  .m.sieg { background: color-mix(in srgb, var(--accent) 22%, transparent); }
+  .m .pl { font-size: 15px; font-weight: 800; white-space: nowrap; }
+  .m .pl small { font-size: 10px; font-weight: 600; }
+  .m .dt { font-size: 10px; color: var(--muted); margin-top: 1px; }
+  .m .el { font-size: 14px; font-weight: 800; text-align: right; white-space: nowrap; }
+  .m .al { font-size: 10px; color: var(--muted); text-align: right; margin-top: 1px; }
+
+  .leer { padding: 22px 14px; color: var(--muted); font-size: 12.5px;
+          text-align: center; line-height: 1.5; }
+</style>
+</head>
+<body>
+
+<div id="shell">
+  <div id="panel" class="s-round">
+    <div class="kopf">
+      <span class="platz" id="platz">#–</span>
+      <span class="titel" id="titel">Team Details</span>
+    </div>
+    <div class="spieler" id="spieler"></div>
+    <div id="werte"></div>
+    <div class="matches" id="matches"></div>
+  </div>
+</div>
+
+<script src="colors.js"></script>
+<script src="overlay.js"></script>
+<script>
+const C = Overlay.init();
+const P = C.P;
+const LAB = Overlay.labels(P);
+
+const SHAPES = ['round','slant','slantl','both','arrow','tag','notch','bevel'];
+document.getElementById('panel').className =
+  's-' + (SHAPES.includes(P.get('shape')) ? P.get('shape') : 'round');
+
+const QUERY = P.get('q') || '';
+const PID = (P.get('id') || '').trim();
+const BREITE = P.get('width') || '300px';
+document.getElementById('panel').style.width = BREITE;
+
+// Welche Bloecke gezeigt werden. Reihenfolge wie im Panel.
+const BLOCK1 = (P.get('row1') || 'points,games,wins').split(',').filter(Boolean);
+const BLOCK2 = (P.get('row2') || 'damage,damageTaken,headshots').split(',').filter(Boolean);
+const BLOCK3 = (P.get('row3') || 'avgPoints,avgPlace,avgTimeAlive').split(',').filter(Boolean);
+const BLOCK4 = (P.get('row4') || 'elims,avgElims,kd').split(',').filter(Boolean);
+const MAXM = Math.max(0, parseInt(P.get('matches') || '12', 10));
+
+const shell = document.getElementById('shell');
+
+function gitter(felder, e, gross) {
+  if (!felder.length) return '';
+  const zellen = felder.map(function (f) {
+    const akz = (f === 'points' || f === 'rank') ? ' akz' : '';
+    return '<div><div class="l">' + (LAB[f] || f) + '</div>' +
+           '<div class="v' + akz + '">' + Overlay.formatiere(f, e[f]) + '</div></div>';
+  }).join('');
+  return '<div class="gitter' + (gross ? ' gross' : '') + '">' + zellen + '</div>';
+}
+
+function ordnung(n) {
+  if (n === 1) return '1<small>st</small>';
+  if (n === 2) return '2<small>nd</small>';
+  if (n === 3) return '3<small>rd</small>';
+  return n + '<small>th</small>';
+}
+
+function zeigeSpieler(players) {
+  document.getElementById('spieler').innerHTML = players.map(function (p) {
+    const bild = p.img ? '<img class="pic" src="' + C.server + p.img + '" alt="">' : '';
+    const logo = (C.logos && p.logo)
+      ? '<img class="logo" src="' + C.server + p.logo + '" alt="">' : '';
+    const org = logo ? '<div class="org">' + logo + '</div>' : '';
+    return '<div class="sp">' + bild +
+           '<div style="min-width:0"><div class="n">' +
+           p.name.replace(/</g, '&lt;') + '</div>' + org + '</div></div>';
+  }).join('');
+}
+
+function zeigeMatches(e) {
+  const box = document.getElementById('matches');
+  if (!MAXM || !e.matches || !e.matches.length) { box.innerHTML = ''; return; }
+  // Neueste zuerst - so steht es auch auf den Turnierseiten.
+  const liste = [...e.matches].reverse().slice(0, MAXM);
+  box.innerHTML = liste.map(function (m) {
+    const pl = typeof m.placement === 'number' ? m.placement : null;
+    const dt = m.endTime ? new Date(m.endTime) : null;
+    const datum = dt
+      ? dt.toLocaleDateString('de-DE', { day: '2-digit', month: 'short' }) + ', ' +
+        dt.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' })
+      : '';
+    return '<div class="m' + (pl === 1 ? ' sieg' : '') + '">' +
+      '<div><div class="pl">' + (pl ? ordnung(pl) + ' Place' : '–') + '</div>' +
+      '<div class="dt">' + datum + '</div></div>' +
+      '<div><div class="el">' + (m.elims || 0) + ' Elims</div>' +
+      '<div class="al">' + (m.timeAlive ? Overlay.zeit(m.timeAlive) : '') + '</div></div>' +
+      '</div>';
+  }).join('');
+}
+
+function leer(text) {
+  document.getElementById('spieler').innerHTML = '<div class="leer">' + text + '</div>';
+  document.getElementById('werte').innerHTML = '';
+  document.getElementById('matches').innerHTML = '';
+  shell.classList.add('show');
+}
+
+async function tick() {
+  if (!C.event || !C.window || (!QUERY && !PID)) {
+    return leer('Cup und Spieler im Konfigurator waehlen');
+  }
+  try {
+    const u = C.server + '/api/cup-leaderboard?event=' + encodeURIComponent(C.event) +
+      '&window=' + encodeURIComponent(C.window) +
+      (PID ? '&ids=' + encodeURIComponent(PID) : '') +
+      (QUERY ? '&q=' + encodeURIComponent(QUERY) : '');
+    const d = await (await fetch(u)).json();
+    const e = (d.entries || [])[0];
+    if (!e) return leer((QUERY || 'Der Spieler') + '<br>steht noch nicht im Leaderboard');
+
+    const needle = QUERY.toLowerCase();
+    const me = (PID && e.players.find(p => p.id === PID)) ||
+               (needle && e.players.find(p => p.name.toLowerCase().includes(needle))) ||
+               e.players[0];
+    await Overlay.setzeStil(C, me, C);
+
+    document.getElementById('platz').textContent = '#' + e.rank;
+    // Gesuchten Spieler zuerst, Partner darunter.
+    zeigeSpieler([me, ...e.players.filter(p => p !== me)]);
+    document.getElementById('werte').innerHTML =
+      gitter(BLOCK1, e, true) + gitter(BLOCK2, e) + gitter(BLOCK3, e) + gitter(BLOCK4, e);
+    zeigeMatches(e);
+    shell.classList.add('show');
+  } catch {
+    leer('Server nicht erreichbar');
+  }
+}
+
+(async function () {
+  await Overlay.ladeCfg(C.server);
+  await tick();
+  setInterval(tick, C.every);
+  setInterval(() => Overlay.ladeCfg(C.server), C.every);
+})();
+</script>
+</body>
+</html>

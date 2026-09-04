@@ -1,0 +1,284 @@
+1	interface Tournament {
+2	  id: string;
+3	  date: string;
+4	  time?: string;
+5	  startTime?: string;
+6	  endTime?: string;
+7	  name: string;
+8	  category: string;
+9	  round: string;
+10	  region: string;
+11	  type: "fncs" | "performance" | "cash" | "reload";
+12	  status: "completed" | "upcoming" | "live";
+13	  winner?: string;
+14	  platforms?: string[];
+15	  imageUrl?: string;
+16	}
+17	
+18	const CITO_API_KEY = process.env.CITO_API_KEY || '';
+19	const CITO_BASE_URL = 'https://api.citoapi.com/api/v1/fortnite';
+20	
+21	// In-Memory Speicher für neue Turniere (würde eine DB brauchen für Persistierung)
+22	let customTournaments: Tournament[] = [];
+23	let tournamentEdits: Record<string, Partial<Tournament>> = {};
+24	let deletedTournamentIds = new Set<string>();
+25	
+26	const getDefaultEndTime = (startTime: string) => {
+27	  if (!startTime) return '23:59';
+28	  const [hours, minutes] = startTime.split(':').map(Number);
+29	  const end = new Date();
+30	  end.setHours(hours, minutes, 0, 0);
+31	  end.setMinutes(end.getMinutes() + 120);
+32	  const paddedHours = String(end.getHours()).padStart(2, '0');
+33	  const paddedMinutes = String(end.getMinutes()).padStart(2, '0');
+34	  return `${paddedHours}:${paddedMinutes}`;
+35	};
+36	
+37	const getTournamentStartTime = (tournament: Tournament) => {
+38	  return tournament.startTime || tournament.time || '00:00';
+39	};
+40	
+41	const getTournamentEndTime = (tournament: Tournament) => {
+42	  if (tournament.endTime) return tournament.endTime;
+43	  return getDefaultEndTime(getTournamentStartTime(tournament));
+44	};
+45	
+46	const applyTournamentEdits = (tournament: Tournament) => {
+47	  const edits = tournamentEdits[tournament.id];
+48	  if (!edits) return tournament;
+49	  return { ...tournament, ...edits };
+50	};
+51	
+52	const computeTournamentStatus = (tournament: Tournament) => {
+53	  const startTime = getTournamentStartTime(tournament);
+54	  const endTime = getTournamentEndTime(tournament);
+55	  const startDate = new Date(`${tournament.date}T${startTime}`);
+56	  const endDate = new Date(`${tournament.date}T${endTime}`);
+57	  const now = new Date();
+58	
+59	  if (isNaN(startDate.getTime()) || isNaN(endDate.getTime())) {
+60	    return tournament.status;
+61	  }
+62	
+63	  if (now < startDate) return 'upcoming';
+64	  if (now >= startDate && now <= endDate) return 'live';
+65	  return 'completed';
+66	};
+67	
+68	const parseCitoDateTime = (value?: string) => {
+69	  if (!value) return null;
+70	  const date = new Date(value);
+71	  if (isNaN(date.getTime())) return null;
+72	  return {
+73	    date: date.toISOString().slice(0, 10),
+74	    time: date.toISOString().slice(11, 16),
+75	  };
+76	};
+77	
+78	const deriveType = (name: string) => {
+79	  const normalized = name.toLowerCase();
+80	  if (normalized.includes('fncs')) return 'fncs';
+81	  if (normalized.includes('reload')) return 'reload';
+82	  if (normalized.includes('cash')) return 'cash';
+83	  if (normalized.includes('performance')) return 'performance';
+84	  return 'cash';
+85	};
+86	
+87	const mapCitoTournament = (source: any): Tournament => {
+88	  const start = parseCitoDateTime(source.startDate || source.start_date || source.start);
+89	  const end = parseCitoDateTime(source.endDate || source.end_date || source.end);
+90	
+91	  const date = start?.date || end?.date || '';
+92	  const startTime = start?.time || undefined;
+93	  const endTime = end?.time || (startTime ? getDefaultEndTime(startTime) : undefined);
+94	
+95	  return {
+96	    id: source.id || source.tournamentId || source.identifiers?.cito_tournament_id || String(source.name),
+97	    date,
+98	    time: startTime,
+99	    startTime,
+100	    endTime,
+101	    name: source.name || 'Unknown Tournament',
+102	    category: source.format || source.organizer || 'Fortnite',
+103	    round: source.tier || source.tournament_tier || 'N/A',
+104	    region: source.region || 'Global',
+105	    type: deriveType(source.name || ''),
+106	    status: ['completed', 'upcoming', 'live'].includes(source.status) ? source.status : 'upcoming',
+107	    winner: source.winner || undefined,
+108	    platforms: undefined,
+109	    imageUrl: source.logoUrl || source.logo_url || undefined,
+110	  };
+111	};
+112	
+113	const fetchCitoTournaments = async (): Promise<Tournament[]> => {
+114	  if (!CITO_API_KEY) {
+115	    console.warn('CITO_API_KEY is not set. Skipping CitoAPI fetch.');
+116	    return [];
+117	  }
+118	
+119	  try {
+120	    const response = await fetch(`${CITO_BASE_URL}/tournaments`, {
+121	      headers: {
+122	        'x-api-key': CITO_API_KEY,
+123	      },
+124	      cache: 'no-store',
+125	    });
+126	
+127	    if (!response.ok) {
+128	      const text = await response.text();
+129	      console.error('CitoAPI response error', response.status, text);
+130	      return [];
+131	    }
+132	
+133	    const data = await response.json();
+134	    const items: any[] = Array.isArray(data.data) ? data.data : Array.isArray(data?.response) ? data.response : [];
+135	    const mapped: Tournament[] = items.map(mapCitoTournament);
+136	    return mapped.filter((tournament) => Boolean(tournament.date && tournament.name));
+137	  } catch (error) {
+138	    console.error('CitoAPI fetch error', error);
+139	    return [];
+140	  }
+141	};
+142	
+143	export async function GET() {
+144	  try {
+145	    const citoTournaments = await fetchCitoTournaments();
+146	
+147	    const allTournaments = [...citoTournaments, ...customTournaments]
+148	      .filter((tournament) => !deletedTournamentIds.has(tournament.id))
+149	      .map((tournament) => {
+150	        const updated = applyTournamentEdits(tournament);
+151	        const status = computeTournamentStatus(updated);
+152	        return { ...updated, status };
+153	      });
+154	
+155	    const sortedAll = allTournaments.sort((a, b) => {
+156	      const statusOrder = { upcoming: 0, live: 1, completed: 2 };
+157	      const statusCompare = statusOrder[a.status] - statusOrder[b.status];
+158	      if (statusCompare !== 0) return statusCompare;
+159	
+160	      const dateA = new Date(`${a.date}T${getTournamentStartTime(a)}`);
+161	      const dateB = new Date(`${b.date}T${getTournamentStartTime(b)}`);
+162	      return dateA.getTime() - dateB.getTime();
+163	    });
+164	
+165	    return Response.json({ success: true, count: sortedAll.length, tournaments: sortedAll });
+166	  } catch (error) {
+167	    console.error('Error fetching tournaments:', error);
+168	    return Response.json({ error: "Failed to fetch tournaments" }, { status: 500 });
+169	  }
+170	}
+171	
+172	export async function POST(request: Request) {
+173	  try {
+174	    const body = await request.json();
+175	    
+176	    const { name, category, round, date, time, startTime, endTime, region, type, imageUrl } = body;
+177	    
+178	    // Validierung
+179	    if (!name || !date || !(time || startTime) || !region) {
+180	      return Response.json({ error: "Missing required fields" }, { status: 400 });
+181	    }
+182	
+183	    // Generiere eindeutige ID
+184	    const newId = `custom-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
+185	    
+186	    // Erstelle neues Turnier
+187	    const newTournament: Tournament = {
+188	      id: newId,
+189	      name,
+190	      category: category || "",
+191	      round: round || "",
+192	      date,
+193	      time: time || startTime || undefined,
+194	      startTime: startTime || time,
+195	      endTime: endTime || getDefaultEndTime(startTime || time),
+196	      region: region as 'EU' | 'NAC',
+197	      type: (type as 'fncs' | 'performance' | 'cash' | 'reload') || 'cash',
+198	      status: 'upcoming',
+199	      imageUrl: imageUrl || undefined,
+200	    };
+201	
+202	    // Füge zu In-Memory Speicher hinzu
+203	    customTournaments.push(newTournament);
+204	    
+205	    // Hole alle Turniere (inklusive der neuen benutzerdefinierten)
+206	    const getResponse = await GET();
+207	    const allData = await getResponse.json();
+208	
+209	    return Response.json({ 
+210	      success: true, 
+211	      tournament: newTournament,
+212	      tournaments: allData.tournaments 
+213	    }, { status: 201 });
+214	  } catch (error) {
+215	    console.error('Error adding tournament:', error);
+216	    return Response.json({ error: "Failed to add tournament" }, { status: 500 });
+217	  }
+218	}
+219	
+220	export async function PATCH(request: Request) {
+221	  try {
+222	    const body = await request.json();
+223	    const { id, name, category, round, date, startTime, endTime, region, type, imageUrl } = body;
+224	
+225	    if (!id) {
+226	      return Response.json({ error: "Missing tournament id" }, { status: 400 });
+227	    }
+228	
+229	    const updatePayload: Partial<Tournament> = {
+230	      ...(name ? { name } : {}),
+231	      ...(category ? { category } : {}),
+232	      ...(round ? { round } : {}),
+233	      ...(date ? { date } : {}),
+234	      ...(startTime ? { startTime } : {}),
+235	      ...(endTime ? { endTime } : {}),
+236	      ...(region ? { region } : {}),
+237	      ...(type ? { type } : {}),
+238	      ...(imageUrl ? { imageUrl } : {}),
+239	    };
+240	
+241	    if (startTime || body.time) {
+242	      updatePayload.time = startTime || body.time;
+243	    }
+244	
+245	    const customIndex = customTournaments.findIndex(tournament => tournament.id === id);
+246	    if (customIndex >= 0) {
+247	      customTournaments[customIndex] = {
+248	        ...customTournaments[customIndex],
+249	        ...updatePayload,
+250	      };
+251	    } else {
+252	      tournamentEdits[id] = {
+253	        ...tournamentEdits[id],
+254	        ...updatePayload,
+255	      };
+256	    }
+257	
+258	    const getResponse = await GET();
+259	    const allData = await getResponse.json();
+260	
+261	    return Response.json({ success: true, tournaments: allData.tournaments });
+262	  } catch (error) {
+263	    console.error('Error updating tournament:', error);
+264	    return Response.json({ error: "Failed to update tournament" }, { status: 500 });
+265	  }
+266	}
+267	
+268	export async function DELETE(request: Request) {
+269	  try {
+270	    const url = new URL(request.url);
+271	    const id = url.searchParams.get('id');
+272	    if (!id) {
+273	      return Response.json({ error: "Missing tournament id" }, { status: 400 });
+274	    }
+275	
+276	    customTournaments = customTournaments.filter(tournament => tournament.id !== id);
+277	    deletedTournamentIds.add(id);
+278	
+279	    return Response.json({ success: true });
+280	  } catch (error) {
+281	    console.error('Error deleting tournament:', error);
+282	    return Response.json({ error: "Failed to delete tournament" }, { status: 500 });
+283	  }
+284	}

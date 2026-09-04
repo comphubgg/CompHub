@@ -1,0 +1,1157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>EUCompetitive</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto+Mono:wght@300;400;500;600;700&family=Roboto:wght@400;500;700&display=swap" rel="stylesheet" />
+  <link rel="icon" href="../logo.png" type="image/png" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
+
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      background-color: #131313;
+      font-family: 'Roboto Mono', monospace;
+      color: white;
+      min-height: 100vh;
+    }
+
+    /* ── NAVBAR ── */
+    .navbar {
+      position: relative;
+      width: 100%;
+      background-color: #0d0d0d;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+      height: 60px;
+      display: flex;
+      align-items: center;
+      padding: 0 24px;
+      gap: 28px;
+    }
+    .navbar img { height: 32px; opacity: 0.9; }
+    .nav-buttons { display: flex; gap: 2px; align-items: center; }
+    .nav-button {
+      color: rgba(255,255,255,0.4);
+      font-weight: 500;
+      text-decoration: none;
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      padding: 7px 14px;
+      border-radius: 5px;
+      background: transparent;
+      transition: color 0.15s;
+      font-family: 'Roboto Mono', monospace;
+    }
+    .nav-button:hover { color: #ffffff; }
+    .social-icons { margin-left: auto; display: flex; gap: 4px; }
+    .social-link {
+      color: rgba(255,255,255,0.4);
+      font-size: 16px;
+      width: 34px; height: 34px;
+      display: flex; align-items: center; justify-content: center;
+      border-radius: 5px;
+      transition: color 0.15s, background 0.15s;
+      text-decoration: none;
+    }
+    .social-link:hover { color: #ffffff; background: #181818; }
+
+    /* ── LAYOUT ── */
+    .page-wrapper {
+      display: flex;
+      gap: 0;
+      height: calc(100vh - 60px);
+      overflow: hidden;
+    }
+
+    /* ── LEFT: TIERLIST ── */
+    .tierlist-panel {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px;
+      padding-top: 60px;
+      border-right: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .tierlist-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+
+    .tierlist-header h2 {
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: rgba(255,255,255,0.5);
+      font-weight: 600;
+    }
+
+    .tier-row {
+      display: flex;
+      align-items: stretch;
+      margin-bottom: 4px;
+      min-height: 72px;
+      border-radius: 6px;
+      overflow: hidden;
+      border: 1px solid rgba(255,255,255,0.05);
+    }
+
+.tier-label {
+  width: 64px;
+  min-width: 64px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 22px;
+  font-weight: 800;
+  color: #000;
+  flex-shrink: 0;
+  user-select: none;
+  overflow: hidden;
+  word-break: break-word;
+  text-align: center;
+  white-space: normal;
+}
+
+    .tier-S .tier-label { background: #e53535; }
+    .tier-A .tier-label { background: #f97316; }
+    .tier-B .tier-label { background: #eab308; }
+    .tier-C .tier-label { background: #22c55e; }
+    .tier-D .tier-label { background: #3b82f6; }
+.tier-E .tier-label { background: #8b5cf6; }
+.tier-F .tier-label { background: #6b7280; }
+
+    .tier-content {
+      flex: 1;
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 12px;
+      background: #1a1a1a;
+      min-height: 72px;
+      transition: background 0.15s;
+    }
+
+    .tier-content.drag-over {
+      background: #252525;
+      outline: 1px dashed rgba(255,215,0,0.4);
+    }
+
+    /* ── DUO CARD ── */
+    .duo-card {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: #242424;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: grab;
+      transition: border-color 0.15s, transform 0.1s, box-shadow 0.15s;
+      user-select: none;
+      white-space: nowrap;
+    }
+    .duo-card:hover {
+      border-color: rgba(255,215,0,0.35);
+      box-shadow: 0 2px 8px rgba(255,215,0,0.1);
+    }
+    .duo-card.dragging {
+      opacity: 0.4;
+      transform: scale(0.95);
+    }
+    .duo-card .player-names {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      line-height: 1.3;
+    }
+    .duo-card .player1 { color: #ffffff; }
+    .duo-card .player2 { color: #ffffff; font-size: 11px; }
+    .duo-card .duo-icon {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      background: #333;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px;
+      color: #ffd700;
+      flex-shrink: 0;
+    }
+
+    .tier-content .remove-btn {
+      display: none;
+    }
+
+    /* tier card remove on hover (admin) */
+    .tier-content .duo-card:hover .remove-btn {
+      display: flex;
+    }
+
+    /* ── RIGHT: SIDEBAR ── */
+    .sidebar {
+  width: 280px;
+  min-width: 280px;
+  display: flex;
+  flex-direction: column;
+  background: #111111;
+  border-left: 1px solid rgba(255,255,255,0.06);
+  height: calc(100vh - 60px);
+  overflow: hidden;
+}
+
+    .sidebar-section {
+      padding: 16px;
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+
+    .sidebar-section h3 {
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: rgba(255,255,255,0.35);
+      margin-bottom: 10px;
+      font-weight: 600;
+    }
+
+    .search-wrap {
+      position: relative;
+    }
+    .search-wrap svg {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 13px; height: 13px;
+      pointer-events: none;
+    }
+    .search-wrap input {
+      width: 100%;
+      background: #181818;
+      border: 1px solid rgba(255,255,255,0.08);
+      color: #fff;
+      border-radius: 20px;
+      padding: 7px 14px 7px 30px;
+      font-size: 12px;
+      outline: none;
+      font-family: 'Roboto Mono', monospace;
+      transition: border-color 0.15s;
+    }
+    .search-wrap input:focus { border-color: rgba(255,215,0,0.35); }
+
+    .duo-pool {
+  flex: 1;
+  overflow-y: scroll;
+  padding: 12px 16px;
+  min-height: 0;
+}
+
+    .pool-duo-card {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: 6px;
+      background: #1a1a1a;
+      border: 1px solid rgba(255,255,255,0.06);
+      margin-bottom: 6px;
+      cursor: grab;
+      transition: border-color 0.15s, background 0.15s;
+      user-select: none;
+    }
+    .pool-duo-card:hover {
+      border-color: rgba(255,215,0,0.3);
+      background: #222;
+    }
+    .pool-duo-card.dragging { opacity: 0.4; }
+    .pool-duo-card.in-tier {
+      opacity: 0.3;
+      cursor: default;
+      pointer-events: none;
+    }
+    .pool-duo-card .duo-icon {
+      width: 28px; height: 28px;
+      border-radius: 50%;
+      background: #2a2a2a;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px;
+      color: #ffd700;
+      flex-shrink: 0;
+    }
+    .pool-duo-card .player-names { display: flex; flex-direction: column; gap: 1px; }
+    .pool-duo-card .player1 { font-size: 12px; font-weight: 600; color: #fff; }
+.pool-duo-card .player2 { font-size: 12px; font-weight: 600; color: #ffffff; }
+
+    /* ── ADMIN PANEL ── */
+    .admin-toggle {
+      padding: 12px 16px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      margin-top: auto;
+    }
+
+    .admin-btn {
+      width: 100%;
+      height: 32px;
+      background: #181818;
+      border: 1px solid rgba(255,255,255,0.08);
+      color: rgba(255,255,255,0.4);
+      border-radius: 6px;
+      font-size: 11px;
+      font-family: 'Roboto Mono', monospace;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+    .admin-btn:hover { color: #fff; border-color: rgba(255,215,0,0.3); }
+    .admin-btn.active { border-color: #ffd700; color: #ffd700; }
+
+    /* Admin login overlay */
+    .admin-overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.7);
+      backdrop-filter: blur(4px);
+      z-index: 3000;
+      align-items: center;
+      justify-content: center;
+    }
+    .admin-overlay.show { display: flex; }
+
+    .admin-modal {
+      background: #1a1a1a;
+      border: 1px solid rgba(255,255,255,0.1);
+      border-radius: 12px;
+      padding: 32px;
+      width: 340px;
+    }
+    .admin-modal h3 {
+      font-size: 14px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: rgba(255,255,255,0.7);
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    .admin-modal input {
+      width: 100%;
+      background: #111;
+      border: 1px solid rgba(255,255,255,0.1);
+      color: #fff;
+      border-radius: 6px;
+      padding: 10px 14px;
+      font-size: 13px;
+      outline: none;
+      font-family: 'Roboto Mono', monospace;
+      margin-bottom: 12px;
+      transition: border-color 0.15s;
+    }
+    .admin-modal input:focus { border-color: rgba(255,215,0,0.4); }
+    .admin-modal .modal-btns { display: flex; gap: 8px; }
+    .admin-modal button {
+      flex: 1;
+      height: 36px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-family: 'Roboto Mono', monospace;
+      letter-spacing: 0.06em;
+      cursor: pointer;
+      border: none;
+      transition: all 0.15s;
+    }
+    .btn-confirm { background: #ffd700; color: #000; font-weight: 700; }
+    .btn-confirm:hover { background: #ffed4e; }
+    .btn-cancel { background: #222; color: rgba(255,255,255,0.5); border: 1px solid rgba(255,255,255,0.1) !important; }
+    .btn-cancel:hover { color: #fff; }
+    .admin-modal .error-msg {
+      font-size: 11px;
+      color: #ef4444;
+      text-align: center;
+      margin-bottom: 10px;
+      display: none;
+    }
+
+    /* Admin add duo panel */
+    .add-duo-panel {
+      display: none;
+      padding: 12px 16px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      background: #0d0d0d;
+    }
+    .add-duo-panel.show { display: block; }
+    .add-duo-panel h4 {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: #ffd700;
+      margin-bottom: 10px;
+    }
+    .add-duo-panel input {
+      width: 100%;
+      background: #181818;
+      border: 1px solid rgba(255,255,255,0.08);
+      color: #fff;
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-size: 12px;
+      outline: none;
+      font-family: 'Roboto Mono', monospace;
+      margin-bottom: 6px;
+      transition: border-color 0.15s;
+    }
+    .add-duo-panel input:focus { border-color: rgba(255,215,0,0.35); }
+    .add-duo-panel .add-btn {
+      width: 100%;
+      height: 32px;
+      background: #ffd700;
+      border: none;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 700;
+      font-family: 'Roboto Mono', monospace;
+      color: #000;
+      cursor: pointer;
+      transition: background 0.15s;
+      margin-bottom: 4px;
+    }
+    .add-duo-panel .add-btn:hover { background: #ffed4e; }
+
+    /* Manage duos list */
+    .manage-duo-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 6px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.04);
+      font-size: 12px;
+    }
+    .manage-duo-item .names { color: rgba(255,255,255,0.7); }
+    .manage-duo-item button {
+      background: none;
+      border: none;
+      color: rgba(255,255,255,0.25);
+      cursor: pointer;
+      font-size: 14px;
+      padding: 2px 4px;
+      transition: color 0.15s;
+    }
+    .manage-duo-item button:hover { color: #ef4444; }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar { width: 6px; }
+    ::-webkit-scrollbar-track { background: #1a1a1a; }
+    ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #ffd700; }
+    * { scrollbar-width: thin; scrollbar-color: #333 #1a1a1a; }
+
+    /* Empty tier placeholder */
+    .tier-empty-hint {
+      font-size: 11px;
+      color: rgba(255,255,255,0.12);
+      font-style: italic;
+      padding: 4px;
+      user-select: none;
+      pointer-events: none;
+    }
+
+    .reset-btn {
+      height: 28px;
+      padding: 0 12px;
+      border-radius: 5px;
+      font-size: 11px;
+      font-family: 'Roboto Mono', monospace;
+      letter-spacing: 0.06em;
+      cursor: pointer;
+      border: 1px solid rgba(255,255,255,0.06);
+      background: #181818;
+      color: rgba(255,255,255,0.35);
+      transition: all 0.15s;
+    }
+    .reset-btn:hover { color: #ef4444; border-color: rgba(239,68,68,0.3); }
+
+    .no-results {
+      font-size: 12px;
+      color: rgba(255,255,255,0.2);
+      text-align: center;
+      padding: 20px 0;
+    }
+
+    #searchInput:empty:before {
+    content: attr(data-placeholder);
+    color: rgba(255,255,255,0.35);
+    pointer-events: none;
+}
+
+    .duo-card.swap-target {
+      outline: 2px dashed rgba(255,215,0,0.5);
+      background: #2a2710;
+    }
+
+    .region-chip {
+      font-size: 9px;
+      font-weight: 700;
+      padding: 1px 5px;
+      border-radius: 3px;
+      letter-spacing: 0.05em;
+      flex-shrink: 0;
+      line-height: 1.4;
+      vertical-align: middle;
+    }
+    .region-chip.eu { background: rgba(59,130,246,0.18); color: #60a5fa; border: 1px solid rgba(59,130,246,0.3); }
+    .region-chip.nac { background: rgba(239,68,68,0.15); color: #f87171; border: 1px solid rgba(239,68,68,0.3); }
+
+  </style>
+</head>
+<body>
+
+<!-- NAVBAR -->
+<div class="navbar">
+  <a href="index.html" style="display:flex; align-items:center; text-decoration:none;">
+    <img src="../logo.png" alt="logo" />
+  </a>
+  <div class="nav-buttons">
+    <a href="index.html" class="nav-button">Home</a>
+    <a href="fncs.html" class="nav-button">FNCS</a>
+    <a href="maps.html" class="nav-button">Maps</a>
+    <a href="https://eucompetitive.com/stats" class="nav-button">Statistics</a>
+    <a href="tierlist.html" class="nav-button">Tierlist</a>
+                <a href="heats.html" class="nav-button">Heats</a>
+<a href="ranking.html" class="nav-button">Ranking</a>
+  </div>
+  <div class="social-icons">
+    <a href="https://x.com/kxrr0" target="_blank" class="social-link"><i class="fab fa-x-twitter"></i></a>
+    <a href="https://www.twitch.tv/kxrr0" target="_blank" class="social-link"><i class="fab fa-twitch"></i></a>
+    <a href="https://discord.gg/zGuzHT6y" target="_blank" class="social-link"><i class="fab fa-discord"></i></a>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="page-wrapper">
+
+  <!-- LEFT: TIERLIST -->
+  <div class="tierlist-panel">
+
+
+    <div id="tierlist">
+      <!-- Rows generated by JS -->
+    </div>
+  </div>
+
+  <div style="position:fixed; top:70px; right:300px; z-index:100; display:flex; gap:4px;">
+    <button class="reset-btn" onclick="resetTierlist()">Reset</button>
+    <button id="modeDuosBtn" class="reset-btn" onclick="switchMode('duos')" style="border-color:#ffd700; color:#ffd700;">Duos</button>
+    <button id="modeSoloBtn" class="reset-btn" onclick="switchMode('solo')">Solo</button>
+  </div>
+
+<!-- RIGHT: SIDEBAR -->
+<div class="sidebar" style="width:280px; min-width:280px; display:flex; flex-direction:column; background:#111111; border-left:1px solid rgba(255,255,255,0.06); height:calc(100vh - 60px); overflow:hidden;">
+  <div style="flex-shrink:0; padding:16px 16px 8px 16px; border-bottom:1px solid rgba(255,255,255,0.06);">
+    <div class="search-wrap">
+      <svg fill="none" stroke="rgba(255,255,255,0.35)" viewBox="0 0 24 24">
+        <circle cx="11" cy="11" r="8"></circle>
+        <path d="M21 21l-4.35-4.35"></path>
+      </svg>
+      <div id="searchInput" contenteditable="true"
+        style="width:100%; background:#181818; border:1px solid rgba(255,255,255,0.08); color:#fff; border-radius:20px; padding:7px 14px 7px 30px; font-size:12px; outline:none; font-family:'Roboto Mono',monospace; min-height:32px; line-height:18px;"
+        oninput="renderPool()"
+        data-placeholder="Search player..."></div>
+    </div>
+  </div>
+
+  <div class="duo-pool" id="duoPool" style="flex:1; overflow-y:auto; min-height:0; padding:12px 16px;"></div>
+
+  <div style="flex-shrink:0; padding:12px 16px; border-top:1px solid rgba(255,255,255,0.06); background:#0d0d0d;">
+    <div style="font-size:10px; text-transform:uppercase; letter-spacing:0.1em; color:#ffffff; margin-bottom:10px; font-weight:600; text-align:center;">Create a duo</div>
+    <input type="text" style="display:none;" name="fake_user" />
+    <input type="password" style="display:none;" name="fake_pass" />
+    <input type="text" id="customPlayer1" name="search_player1" placeholder="Player 1..." autocomplete="off" readonly onfocus="this.removeAttribute('readonly')"
+      style="width:100%; background:#181818; border:1px solid rgba(255,255,255,0.08); color:#fff; border-radius:6px; padding:7px 12px; font-size:12px; outline:none; font-family:'Roboto Mono',monospace; margin-bottom:6px; text-align:center;"
+      oninput="showSuggestions(this.value, 'suggestions1', 'customPlayer1')" />
+    <div id="suggestions1" style="display:none; background:#1a1a1a; border:1px solid rgba(255,255,255,0.1); border-radius:6px; max-height:120px; overflow-y:auto; margin-bottom:6px;"></div>
+    <input type="text" id="customPlayer2" name="search_player2" placeholder="Player 2..." autocomplete="off" readonly onfocus="this.removeAttribute('readonly')"
+      style="width:100%; background:#181818; border:1px solid rgba(255,255,255,0.08); color:#fff; border-radius:6px; padding:7px 12px; font-size:12px; outline:none; font-family:'Roboto Mono',monospace; margin-bottom:6px; text-align:center;"
+      oninput="showSuggestions(this.value, 'suggestions2', 'customPlayer2')" />
+    <div id="suggestions2" style="display:none; background:#1a1a1a; border:1px solid rgba(255,255,255,0.1); border-radius:6px; max-height:120px; overflow-y:auto; margin-bottom:6px;"></div>
+    <button onclick="createCustomDuo()"
+      style="width:100%; height:32px; background:#ffd700; border:none; border-radius:6px; font-size:12px; font-weight:700; font-family:'Roboto Mono',monospace; color:#000; cursor:pointer;">
+      Create Duo
+    </button>
+  </div>
+</div>
+
+
+
+
+    
+  </div>
+</div>
+
+<!-- ADMIN LOGIN OVERLAY -->
+<div class="admin-overlay" id="adminOverlay">
+  <div class="admin-modal">
+    <h3><i class="fas fa-lock" style="margin-right:8px; color:#ffd700;"></i>Admin Login</h3>
+    <div class="error-msg" id="loginError">Incorrect password</div>
+    <input type="password" id="adminPassword" placeholder="Enter password..." onkeydown="if(event.key==='Enter') confirmLogin()" />
+    <div class="modal-btns">
+      <button class="btn-cancel" onclick="closeLogin()">Cancel</button>
+      <button class="btn-confirm" onclick="confirmLogin()">Login</button>
+    </div>
+  </div>
+</div>
+
+<script>
+
+const countryNameToCode = {
+  'DENMARK': 'DK', 'FRANCE': 'FR', 'GERMANY': 'DE', 'SWEDEN': 'SE',
+  'NORWAY': 'NO', 'FINLAND': 'FI', 'NETHERLANDS': 'NL', 'BELGIUM': 'BE',
+  'SPAIN': 'ES', 'ITALY': 'IT', 'POLAND': 'PL', 'RUSSIA': 'RU',
+  'UKRAINE': 'UA', 'TURKEY': 'TR', 'AUSTRIA': 'AT', 'SWITZERLAND': 'CH',
+  'PORTUGAL': 'PT', 'CZECHIA': 'CZ', 'HUNGARY': 'HU', 'ROMANIA': 'RO',
+  'UNITEDKINGDOM': 'GB', 'UNITEDSTATES': 'US', 'CANADA': 'CA',
+  'SERBIA': 'RS', 'CROATIA': 'HR', 'GREECE': 'GR', 'BULGARIA': 'BG',
+  'SLOVAKIA': 'SK', 'SLOVENIA': 'SI', 'LATVIA': 'LV', 'LITHUANIA': 'LT',
+  'ESTONIA': 'EE', 'IRELAND': 'IE', 'ISRAEL': 'IL', 'ALBANIA': 'AL',
+  'BOSNIAANDHERZEGOVINA': 'BA', 'NORTHMACEDONIA': 'MK', 'MOLDOVA': 'MD',
+  'LUXEMBOURG': 'LU', 'ICELAND': 'IS', 'KOSOVO': 'XK',
+};
+
+const countryToFlag = {
+            'US': 'https://flagcdn.com/w160/us.png',
+            'GB': 'https://flagcdn.com/w160/gb.png', 
+            'DE': 'https://flagcdn.com/w160/de.png',
+            'FR': 'https://flagcdn.com/w160/fr.png',
+            'IT': 'https://flagcdn.com/w160/it.png',
+            'ES': 'https://flagcdn.com/w160/es.png',
+            'PL': 'https://flagcdn.com/w160/pl.png',
+            'RU': 'https://flagcdn.com/w160/ru.png',
+            'CA': 'https://flagcdn.com/w160/ca.png',
+            'AU': 'https://flagcdn.com/w160/au.png',
+            'JP': 'https://flagcdn.com/w160/jp.png',
+            'KR': 'https://flagcdn.com/w160/kr.png',
+            'CN': 'https://flagcdn.com/w160/cn.png',
+            'BR': 'https://flagcdn.com/w160/br.png',
+            'MX': 'https://flagcdn.com/w160/mx.png',
+            'IN': 'https://flagcdn.com/w160/in.png',
+            'SE': 'https://flagcdn.com/w160/se.png',
+            'NO': 'https://flagcdn.com/w160/no.png',
+            'DK': 'https://flagcdn.com/w160/dk.png',
+            'FI': 'https://flagcdn.com/w160/fi.png',
+            'NL': 'https://flagcdn.com/w160/nl.png',
+            'BE': 'https://flagcdn.com/w160/be.png',
+            'AT': 'https://flagcdn.com/w160/at.png',
+            'CH': 'https://flagcdn.com/w160/ch.png',
+            'TR': 'https://flagcdn.com/w160/tr.png',
+            'GR': 'https://flagcdn.com/w160/gr.png',
+            'PT': 'https://flagcdn.com/w160/pt.png',
+            'CZ': 'https://flagcdn.com/w160/cz.png',
+            'HU': 'https://flagcdn.com/w160/hu.png',
+            'RO': 'https://flagcdn.com/w160/ro.png',
+            'BG': 'https://flagcdn.com/w160/bg.png',
+            'HR': 'https://flagcdn.com/w160/hr.png',
+            'SI': 'https://flagcdn.com/w160/si.png',
+            'SK': 'https://flagcdn.com/w160/sk.png',
+            'LT': 'https://flagcdn.com/w160/lt.png',
+            'LV': 'https://flagcdn.com/w160/lv.png',
+            'EE': 'https://flagcdn.com/w160/ee.png',
+            'IE': 'https://flagcdn.com/w160/ie.png',
+            'IS': 'https://flagcdn.com/w160/is.png',
+            'MT': 'https://flagcdn.com/w160/mt.png',
+            'CY': 'https://flagcdn.com/w160/cy.png',
+            'LU': 'https://flagcdn.com/w160/lu.png',
+            'MC': 'https://flagcdn.com/w160/mc.png',
+            'SM': 'https://flagcdn.com/w160/sm.png',
+            'VA': 'https://flagcdn.com/w160/va.png',
+            'UA': 'https://flagcdn.com/w160/ua.png',
+            'BY': 'https://flagcdn.com/w160/by.png',
+            'MD': 'https://flagcdn.com/w160/md.png',
+            'RS': 'https://flagcdn.com/w160/rs.png',
+            'ME': 'https://flagcdn.com/w160/me.png',
+            'BA': 'https://flagcdn.com/w160/ba.png',
+            'MK': 'https://flagcdn.com/w160/mk.png',
+            'AL': 'https://flagcdn.com/w160/al.png',
+            'XK': 'https://flagcdn.com/w160/xk.png',
+            'AR': 'https://flagcdn.com/w160/ar.png',
+            'IL': 'https://flagcdn.com/w160/il.png',
+'SA': 'https://flagcdn.com/w160/sa.png',
+'IR': 'https://flagcdn.com/w160/ir.png',
+'IQ': 'https://flagcdn.com/w160/iq.png',
+'AE': 'https://flagcdn.com/w160/ae.png',
+'QA': 'https://flagcdn.com/w160/qa.png',
+'KW': 'https://flagcdn.com/w160/kw.png',
+'OM': 'https://flagcdn.com/w160/om.png',
+'BH': 'https://flagcdn.com/w160/bh.png',
+'JO': 'https://flagcdn.com/w160/jo.png',
+'LB': 'https://flagcdn.com/w160/lb.png',
+'SY': 'https://flagcdn.com/w160/sy.png',
+'YE': 'https://flagcdn.com/w160/ye.png',
+'EG': 'https://flagcdn.com/w160/eg.png',
+'ZA': 'https://flagcdn.com/w160/za.png',
+'NG': 'https://flagcdn.com/w160/ng.png',
+'KE': 'https://flagcdn.com/w160/ke.png',
+'TH': 'https://flagcdn.com/w160/th.png',
+'VN': 'https://flagcdn.com/w160/vn.png',
+'PH': 'https://flagcdn.com/w160/ph.png',
+'ID': 'https://flagcdn.com/w160/id.png',
+'MY': 'https://flagcdn.com/w160/my.png',
+'SG': 'https://flagcdn.com/w160/sg.png',
+'NZ': 'https://flagcdn.com/w160/nz.png',
+'CL': 'https://flagcdn.com/w160/cl.png',
+'PE': 'https://flagcdn.com/w160/pe.png',
+'CO': 'https://flagcdn.com/w160/co.png',
+'VE': 'https://flagcdn.com/w160/ve.png',
+'PK': 'https://flagcdn.com/w160/pk.png',
+'BD': 'https://flagcdn.com/w160/bd.png'
+            
+        };
+
+        function buildDuoFlag(c1, c2) {
+  const f1 = countryToFlag[c1];
+  const f2 = countryToFlag[c2];
+
+  if (!f1 && !f2) return '🌍';
+
+  if (c1 === c2 && f1) {
+    return `<img src="${f1}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;">`;
+  }
+
+  if (f1 && f2) {
+    return `
+      <div style="width:28px;height:28px;border-radius:50%;overflow:hidden;position:relative;flex-shrink:0;">
+        <img src="${f1}" style="position:absolute;width:100%;height:100%;object-fit:cover;clip-path:polygon(0 0,100% 0,0 100%);">
+        <img src="${f2}" style="position:absolute;width:100%;height:100%;object-fit:cover;clip-path:polygon(100% 0,100% 100%,0 100%);">
+      </div>`;
+  }
+
+  return '🌍';
+}
+
+const TIERS = ['S','A','B','C','D','E','F'];
+const TIER_COLORS = { S:'#e53535', A:'#f97316', B:'#eab308', C:'#22c55e', D:'#3b82f6', E:'#8b5cf6', F:'#6b7280' };
+
+
+let duos = [];
+let soloPlayers = [];
+let playerIdToName = {};
+let currentMode = 'duos'; // 'duos' or 'solo'
+
+async function loadPlayers() {
+  try {
+    const [euRes, nacRes] = await Promise.all([
+      fetch('../get_players.php'),
+      fetch('../get_players_nac.php'),
+    ]);
+    const [euPlayers, nacPlayers] = await Promise.all([euRes.json(), nacRes.json()]);
+
+    const allWithRegion = [
+      ...euPlayers.map(p => ({ ...p, region: 'EU' })),
+      ...nacPlayers.map(p => ({ ...p, region: 'NAC' })),
+    ];
+
+    allWithRegion.forEach(p => {
+      const id = (p.ID || '').toString().trim();
+      const name = (p.NAME || '').toString().trim();
+      const country = (p.COUNTRY || '').toString().trim().toUpperCase();
+      if (id) playerIdToName[id] = { name, country, region: p.region };
+    });
+
+    soloPlayers = allWithRegion
+      .filter(p => (p.NAME || '').trim() && (p.NAME || '').trim() !== (p.ID || '').trim())
+      .map(p => ({
+        id: 'solo_' + p.region.toLowerCase() + '_' + (p.ID || '').trim(),
+        p1: (p.NAME || '').trim(),
+        c1: (p.COUNTRY || '').trim().toUpperCase(),
+        region: p.region,
+      }))
+      .sort((a, b) => a.p1.localeCompare(b.p1));
+
+    console.log(`Players loaded: ${euPlayers.length} EU, ${nacPlayers.length} NAC`);
+  } catch(e) {
+    console.error("Failed to load players:", e);
+  }
+}
+
+// "GroupIdentity_GeoIdentity_denmark" -> "DK"
+function extractCountry(flagToken) {
+  if (!flagToken) return '';
+  const part = flagToken.split('_').pop().toUpperCase();
+  // flagcdn używa 2-literowych kodów ISO, ale token ma pełną nazwę kraju
+  // Szukamy w playerCountryMap albo używamy odwróconego lookupa
+  return countryNameToCode[part] || '';
+}
+
+// Wyciąga eventId z windowId
+// np. "S39_FNCSDivisionalCup_Division1_Week5Final_EU"
+// -> "epicgames_S39_FNCSDivisionalCup_Division1_EU"
+function deriveEventId(windowId) {
+  // Format windowId: S39_FNCSDivisionalCup_Division1_Week5Final_EU
+  // Format eventId:  epicgames_S39_FNCSDivisionalCup_Division1_EU
+  const match = windowId.match(/^(S\d+_[A-Za-z]+_[A-Za-z0-9]+(?:_[A-Za-z0-9]+)?)_Week\d+[A-Za-z]*_(EU|NAC|BR|ASIA)$/);
+  if (match) return `epicgames_${match[1]}_${match[2]}`;
+
+  // Fallback dla innych formatów jak S39_PerformanceEvaluation_Event1Round2_EU
+  const match2 = windowId.match(/^(S\d+_[A-Za-z]+)_Event\d+Round\d+_(EU|NAC)$/);
+  if (match2) return `epicgames_${match2[1]}_${match2[2]}`;
+
+  return null;
+}
+
+async function loadDuos() {
+  try {
+    const SEASON = 'S41';
+    const ALLOWED_TYPES = ['fncs_div1_finals', 'performance_finals'];
+
+    const calRes = await fetch(`APISYSTEMV2/calendar.php?season=${SEASON}`);
+    const calData = await calRes.json();
+
+    if (!calData.events || !calData.events.length) {
+      console.error("Brak eventów w kalendarzu");
+      return;
+    }
+
+    const now = new Date();
+
+    // 2. Filtruj zakończone eventy odpowiednich typów, posortuj od najnowszych
+    const finished = calData.events
+      .filter(e =>
+        e.endTime &&
+        new Date(e.endTime) < now &&
+        ALLOWED_TYPES.includes(e.type)
+      )
+      .sort((a, b) => new Date(b.endTime) - new Date(a.endTime));
+
+    // 3. Weź ostatnie 3 unikalne turnieje (grupuj po nazwie bez Round/Week)
+    const tournamentGroups = {};
+    for (const ev of finished) {
+      const tourneyKey = ev.windowId
+        .replace(/_Round\d+/gi, '')
+        .replace(/_Week\d+[A-Za-z]*/gi, '')
+        .replace(/_Opens?/gi, '')
+        .replace(/_Finals?/gi, '');
+      if (!tournamentGroups[tourneyKey]) tournamentGroups[tourneyKey] = [];
+      tournamentGroups[tourneyKey].push(ev);
+    }
+
+    const last3Tournaments = Object.values(tournamentGroups).slice(0, 3).flat();
+
+    if (!last3Tournaments.length) {
+      console.error("Brak turniejów do załadowania");
+      return;
+    }
+
+    console.log(`Ładuję ${last3Tournaments.length} okien z 3 turniejów...`);
+
+    // 4. Pobierz leaderboardy i wyciągnij duety
+    const playerToPartner = {};
+    const playerRegionMap = {};
+
+    for (const ev of last3Tournaments) {
+      if (!ev.eventId || !ev.windowId) continue;
+
+      const regionMatch = ev.windowId.match(/_(EU|NAC|BR|ASIA)$/i);
+      const evRegion = regionMatch ? regionMatch[1].toUpperCase() : 'EU';
+
+      try {
+        const lbRes = await fetch(
+          `APISYSTEMV2/leaderboard.php?eventId=${encodeURIComponent(ev.eventId)}&eventWindowId=${encodeURIComponent(ev.windowId)}&page=0`
+        );
+        const lbData = await lbRes.json();
+
+        if (!lbData.entries) continue;
+
+        lbData.entries.forEach(entry => {
+          const ids = entry.teamAccountIds || [];
+          const names = entry.customNames || entry.teamAccountDisplayNames || [];
+          const countries = entry.customCountries || [];
+
+          if (ids.length !== 2) return;
+
+          const [id0, id1] = ids;
+          const name0 = names[0] || id0;
+          const name1 = names[1] || id1;
+          const c0 = countries[0] || '';
+          const c1 = countries[1] || '';
+
+          if (!playerToPartner[id0]) {
+            playerToPartner[id0] = { partnerId: id1, playerName: name0, partnerName: name1, country0: c0, country1: c1 };
+          }
+          if (!playerToPartner[id1]) {
+            playerToPartner[id1] = { partnerId: id0, playerName: name1, partnerName: name0, country0: c1, country1: c0 };
+          }
+          if (!playerRegionMap[id0]) playerRegionMap[id0] = evRegion;
+          if (!playerRegionMap[id1]) playerRegionMap[id1] = evRegion;
+        });
+
+      } catch(e) {
+        console.warn(`Błąd dla ${ev.windowId}:`, e);
+      }
+    }
+
+    // 5. Zbuduj unikalne duety
+    const seen = new Set();
+    const rawDuos = [];
+
+    Object.entries(playerToPartner).forEach(([id0, data]) => {
+      const key = [id0, data.partnerId].sort().join('|');
+      if (seen.has(key)) return;
+      seen.add(key);
+      rawDuos.push({ id0, id1: data.partnerId, name0: data.playerName, name1: data.partnerName, country0: data.country0, country1: data.country1 });
+    });
+
+    duos = rawDuos.map((d, i) => ({
+      id: String(i),
+      p1: d.name0,
+      p2: d.name1,
+      c1: d.country0,
+      c2: d.country1,
+    }));
+
+    console.log(`Załadowano ${duos.length} duetów`);
+
+    await loadPlayers();
+
+    renderAll();
+
+
+
+  } catch(e) {
+    console.error("Błąd loadDuos:", e);
+  }
+}
+
+let tierData = JSON.parse(localStorage.getItem('ec_tierlist') || '{}');
+  let tierDataSolo = JSON.parse(localStorage.getItem('ec_tierlist_solo') || '{}');
+
+  let isAdmin = false;
+  let draggedDuoId = null;
+  let dragSource = null;
+
+  function saveDuos() { localStorage.setItem('ec_duos', JSON.stringify(duos)); }
+  function saveTierlist() {
+    if (currentMode === 'solo') localStorage.setItem('ec_tierlist_solo', JSON.stringify(tierDataSolo));
+    else localStorage.setItem('ec_tierlist', JSON.stringify(tierData));
+  }
+  function getCurrentTierData() { return currentMode === 'solo' ? tierDataSolo : tierData; }
+  function getCurrentItems() { return currentMode === 'solo' ? soloPlayers : duos; }
+
+  function buildTierlist() {
+    const container = document.getElementById('tierlist');
+    container.innerHTML = '';
+    TIERS.forEach(tier => {
+      const row = document.createElement('div');
+      row.className = `tier-row tier-${tier}`;
+      const label = document.createElement('div');
+      label.className = 'tier-label';
+      const savedLabel = localStorage.getItem('tier_label_' + tier) || tier;
+      label.textContent = savedLabel;
+      label.style.fontSize = savedLabel.length > 3 ? '10px' : '22px';
+      label.addEventListener('click', () => {
+        const input = document.createElement('input');
+        input.value = label.textContent;
+input.style.cssText = 'width:56px;background:transparent;border:none;color:#000;font-weight:800;text-align:center;outline:none;font-family:Roboto Mono,monospace;white-space:nowrap;overflow:hidden;font-size:' + (input.value.length > 3 ? '10px' : '22px') + ';';
+input.addEventListener('input', () => {
+  input.style.fontSize = input.value.length > 3 ? '10px' : '22px';
+});
+label.textContent = '';
+label.appendChild(input);
+input.focus(); input.select();
+const save = () => { 
+  const val = input.value.trim() || tier; 
+  localStorage.setItem('tier_label_' + tier, val); 
+  label.textContent = val;
+  label.style.fontSize = val.length > 3 ? '10px' : '22px'; // <- dodaj
+};
+input.addEventListener('blur', save);
+input.addEventListener('keydown', e => { if(e.key === 'Enter') input.blur(); });
+      });
+      const content = document.createElement('div');
+      content.className = 'tier-content';
+      content.dataset.tier = tier;
+      content.addEventListener('dragover', e => { e.preventDefault(); content.classList.add('drag-over'); });
+      content.addEventListener('dragleave', () => content.classList.remove('drag-over'));
+      content.addEventListener('drop', e => {
+        e.preventDefault(); content.classList.remove('drag-over');
+        if (!draggedDuoId) return;
+        const td = getCurrentTierData();
+        td[draggedDuoId] = tier;
+        const items = getCurrentItems();
+        const draggedIndex = items.findIndex(d => d.id === draggedDuoId);
+        const [draggedItem] = items.splice(draggedIndex, 1);
+        const cards = [...content.querySelectorAll('.duo-card')];
+        const afterCard = cards.find(card => { const rect = card.getBoundingClientRect(); return e.clientX < rect.left + rect.width / 2; });
+        if (afterCard) { const afterIndex = items.findIndex(d => d.id === afterCard.dataset.id); items.splice(afterIndex, 0, draggedItem); }
+        else items.push(draggedItem);
+        saveTierlist(); renderAll();
+      });
+      const countEl = document.createElement('div');
+      countEl.dataset.tierCount = tier;
+      countEl.style.cssText = 'display:flex;align-items:center;padding:0 10px;background:#1a1a1a;color:rgba(255,255,255,0.25);font-size:12px;font-family:"Roboto",sans-serif;flex-shrink:0;';
+      row.appendChild(label); row.appendChild(content); row.appendChild(countEl);
+      container.appendChild(row);
+    });
+    const items = getCurrentItems();
+    const td = getCurrentTierData();
+    items.forEach(item => {
+      const assignedTier = td[item.id];
+      if (!assignedTier) return;
+      const content = container.querySelector(`[data-tier="${assignedTier}"]`);
+      if (content) content.appendChild(createTierCard(item));
+    });
+    TIERS.forEach(tier => {
+      const content = container.querySelector(`[data-tier="${tier}"]`);
+      const countEl = container.querySelector(`[data-tier-count="${tier}"]`);
+      if (countEl) { const count = content.querySelectorAll('.duo-card').length; countEl.textContent = count > 0 ? `(${count})` : ''; }
+    });
+  }
+
+  function createTierCard(duo) {
+    const card = document.createElement('div');
+    card.className = 'duo-card'; card.draggable = true; card.dataset.id = duo.id;
+    const icon = document.createElement('div'); icon.className = 'duo-icon';
+    if (currentMode === 'solo') { const flagUrl = countryToFlag[duo.c1]; icon.innerHTML = flagUrl ? `<img src="${flagUrl}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;">` : '🌍'; }
+    else icon.innerHTML = buildDuoFlag(duo.c1, duo.c2);
+    const names = document.createElement('div'); names.className = 'player-names';
+    if (currentMode === 'solo') {
+      const region = duo.region || 'EU';
+      names.innerHTML = `<span class="player1" style="display:flex;align-items:center;gap:5px;">${duo.p1}<span class="region-chip ${region.toLowerCase()}">${region}</span></span>`;
+    } else names.innerHTML = `<span class="player1">${duo.p1}</span><span class="player2">${duo.p2}</span>`;
+    card.appendChild(icon); card.appendChild(names);
+    let pressTimer = null;
+    card.addEventListener('mousedown', () => { pressTimer = setTimeout(() => { pressTimer = null; }, 200); });
+    card.addEventListener('mouseup', () => {
+      if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; const td = getCurrentTierData(); delete td[duo.id]; saveTierlist(); renderAll(); }
+    });
+    card.addEventListener('dragstart', () => { if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; } draggedDuoId = duo.id; dragSource = tierData[duo.id]; card.classList.add('dragging'); });
+    card.addEventListener('dragend', () => { card.classList.remove('dragging'); draggedDuoId = null; });
+    card.addEventListener('dragover', e => {
+      e.preventDefault(); e.stopPropagation();
+      if (draggedDuoId && card.dataset.id !== draggedDuoId) card.classList.add('swap-target');
+    });
+    card.addEventListener('dragleave', () => card.classList.remove('swap-target'));
+    card.addEventListener('drop', e => {
+      e.preventDefault(); e.stopPropagation();
+      card.classList.remove('swap-target');
+      if (!draggedDuoId || card.dataset.id === draggedDuoId) return;
+      const td = getCurrentTierData();
+      const items = getCurrentItems();
+      const draggedTier = td[draggedDuoId];
+      const targetTier = td[card.dataset.id];
+      if (targetTier) td[draggedDuoId] = targetTier; else delete td[draggedDuoId];
+      if (draggedTier) td[card.dataset.id] = draggedTier; else delete td[card.dataset.id];
+      const idxA = items.findIndex(d => d.id === draggedDuoId);
+      const idxB = items.findIndex(d => d.id === card.dataset.id);
+      if (idxA !== -1 && idxB !== -1) [items[idxA], items[idxB]] = [items[idxB], items[idxA]];
+      saveTierlist(); renderAll();
+    });
+    return card;
+  }
+
+  function renderPool() {
+    const pool = document.getElementById('duoPool');
+    const search = document.getElementById('searchInput').innerText.trim().toLowerCase();
+    pool.innerHTML = '';
+    const items = getCurrentItems();
+    const td = getCurrentTierData();
+    const filtered = items.filter(d => {
+      if (!search) return true;
+      const upperSearch = search.toUpperCase().replace(/\s/g, '');
+      if ((upperSearch === 'EU' || upperSearch === 'NAC') && currentMode === 'solo') return (d.region || 'EU') === upperSearch;
+      const found = countryNameToCode[upperSearch];
+      if (found) return d.c1?.toUpperCase() === found || (d.c2 && d.c2.toUpperCase() === found);
+      return d.p1.toLowerCase().includes(search) || (d.p2 && d.p2.toLowerCase().includes(search));
+    });
+    if (filtered.length === 0) { pool.innerHTML = '<div class="no-results">No duos found</div>'; return; }
+    filtered.forEach(duo => {
+      const inTier = !!td[duo.id];
+      const card = document.createElement('div');
+      card.className = 'pool-duo-card' + (inTier ? ' in-tier' : '');
+      card.draggable = !inTier; card.dataset.id = duo.id;
+      const flagEl = document.createElement('div'); flagEl.className = 'duo-icon';
+      if (currentMode === 'solo') { const flagUrl = countryToFlag[duo.c1]; flagEl.innerHTML = flagUrl ? `<img src="${flagUrl}" style="width:28px;height:28px;border-radius:50%;object-fit:cover;">` : '🌍'; }
+      else flagEl.innerHTML = buildDuoFlag(duo.c1, duo.c2);
+      card.appendChild(flagEl);
+      const namesEl = document.createElement('div'); namesEl.className = 'player-names';
+      if (currentMode === 'solo') {
+        const region = duo.region || 'EU';
+        namesEl.innerHTML = `<span class="player1" style="display:flex;align-items:center;gap:5px;">${duo.p1}<span class="region-chip ${region.toLowerCase()}">${region}</span></span>`;
+      } else namesEl.innerHTML = `<span class="player1">${duo.p1}</span><span class="player2">${duo.p2}</span>`;
+      card.appendChild(namesEl);
+      if (inTier) { const tierBadge = document.createElement('span'); tierBadge.style.cssText = 'font-size:10px;color:rgba(255,215,0,0.5);margin-left:auto;'; tierBadge.textContent = td[duo.id]; card.appendChild(tierBadge); }
+      card.addEventListener('dragstart', () => { draggedDuoId = duo.id; dragSource = 'pool'; card.classList.add('dragging'); });
+      card.addEventListener('dragend', () => { card.classList.remove('dragging'); draggedDuoId = null; });
+      pool.appendChild(card);
+    });
+  }
+
+  function renderManageList() {}
+function resetTierlist() { 
+  if (currentMode === 'solo') tierDataSolo = {}; 
+  else tierData = {}; 
+  saveTierlist(); 
+  
+  // Reset labelek tierów do oryginalnych
+  TIERS.forEach(tier => {
+    localStorage.removeItem('tier_label_' + tier);
+  });
+  
+  renderAll(); 
+}
+  function renderAll() { buildTierlist(); renderPool(); }
+
+  function confirmLogin() {
+    const pw = document.getElementById('adminPassword').value;
+    if (pw === 'admin') { isAdmin = true; document.getElementById('adminOverlay').classList.remove('show'); document.getElementById('adminPassword').value = ''; document.getElementById('loginError').style.display = 'none'; }
+    else { document.getElementById('loginError').style.display = 'block'; document.getElementById('adminPassword').value = ''; document.getElementById('adminPassword').focus(); }
+  }
+  function closeLogin() { document.getElementById('adminOverlay').classList.remove('show'); document.getElementById('adminPassword').value = ''; document.getElementById('loginError').style.display = 'none'; }
+  document.getElementById('adminOverlay').addEventListener('click', function(e) { if (e.target === this) closeLogin(); });
+
+  let allPlayerNames = [];
+  async function loadAllPlayerNames() {
+    try { const res = await fetch('../get_players.php'); const players = await res.json(); allPlayerNames = players.map(p => (p.NAME || '').trim()).filter(Boolean); } catch(e) {}
+  }
+  function showSuggestions(val, suggestionsId, inputId) {
+    const box = document.getElementById(suggestionsId);
+    if (!val || val.length < 2) { box.style.display = 'none'; return; }
+    const matches = allPlayerNames.filter(n => n.toLowerCase().includes(val.toLowerCase())).slice(0, 8);
+    if (!matches.length) { box.style.display = 'none'; return; }
+    box.style.display = 'block';
+    box.innerHTML = matches.map(n => `<div onclick="selectPlayer('${n.replace(/'/g,"\\'")}','${inputId}','${suggestionsId}')" style="padding:7px 12px;font-size:12px;cursor:pointer;color:#fff;border-bottom:1px solid rgba(255,255,255,0.05);" onmouseover="this.style.background='#252525'" onmouseout="this.style.background='transparent'">${n}</div>`).join('');
+  }
+  function selectPlayer(name, inputId, suggestionsId) { document.getElementById(inputId).value = name; document.getElementById(suggestionsId).style.display = 'none'; }
+  function createCustomDuo() {
+    const p1 = document.getElementById('customPlayer1').value.trim();
+    const p2 = document.getElementById('customPlayer2').value.trim();
+    if (!p1 || !p2 || p1 === p2) return;
+    if (duos.find(d => (d.p1 === p1 && d.p2 === p2) || (d.p1 === p2 && d.p2 === p1))) return;
+    const player1Data = Object.values(playerIdToName).find(p => p.name === p1);
+    const player2Data = Object.values(playerIdToName).find(p => p.name === p2);
+    duos.unshift({ id: 'custom_' + Date.now(), p1, p2, c1: player1Data ? player1Data.country : '', c2: player2Data ? player2Data.country : '' });
+    document.getElementById('customPlayer1').value = ''; document.getElementById('customPlayer2').value = '';
+    document.getElementById('suggestions1').style.display = 'none'; document.getElementById('suggestions2').style.display = 'none';
+    renderAll();
+  }
+  function switchMode(mode) {
+    currentMode = mode;
+    document.getElementById('modeDuosBtn').style.borderColor = mode === 'duos' ? '#ffd700' : 'rgba(255,255,255,0.06)';
+    document.getElementById('modeDuosBtn').style.color = mode === 'duos' ? '#ffd700' : 'rgba(255,255,255,0.45)';
+    document.getElementById('modeSoloBtn').style.borderColor = mode === 'solo' ? '#ffd700' : 'rgba(255,255,255,0.06)';
+    document.getElementById('modeSoloBtn').style.color = mode === 'solo' ? '#ffd700' : 'rgba(255,255,255,0.45)';
+    const createDuoSection = document.querySelector('.sidebar > div:last-child');
+    if (createDuoSection) createDuoSection.style.display = mode === 'solo' ? 'none' : '';
+    renderAll();
+  }
+
+  loadAllPlayerNames();
+// Always load solo players from DB regardless of whether tournaments exist
+loadPlayers().then(() => renderAll());
+loadDuos();
+
+</script>
+</body>
+</html>

@@ -1,0 +1,54 @@
+{
+  "appId": "gg.comphub.desktop",
+  "productName": "CompHub",
+  "directories": {
+    "output": "dist"
+  },
+  "files": [
+    "elektron/**/*",
+    ".next/**/*",
+    "!.next/dev/**",
+    "!.next/cache/**",
+    "!.next/trace",
+    "public/**/*",
+    "package.json",
+    "next.config.*",
+    ".env.local",
+    "!**/*.map",
+    "!**/*.ts",
+    "!**/*.tsx",
+    "!**/*.md",
+    "!node_modules/.cache/**",
+    "!.next/node_modules/**",
+    "!**/playwright/**",
+    "!**/@playwright/**",
+    "!**/.bin/**"
+  ],
+  "extraResources": [],
+  "asar": false,
+  "compression": "maximum",
+  "win": {
+    "target": [
+      {
+        "target": "nsis",
+        "arch": [
+          "x64"
+        ]
+      }
+    ],
+    "icon": "public/logos/CompHub-Logo.png"
+  },
+  "nsis": {
+    "oneClick": false,
+    "allowToChangeInstallationDirectory": true,
+    "shortcutName": "CompHub",
+    "artifactName": "CompHub-Setup-ohne-Archiv.exe"
+  },
+  "publish": [
+    {
+      "provider": "github",
+      "owner": "juanitofnr-ui",
+      "repo": "streamer-dashboard"
+    }
+  ]
+}

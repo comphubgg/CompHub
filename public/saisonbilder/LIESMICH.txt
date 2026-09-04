@@ -1,0 +1,14 @@
+Bilder fuer die Saison-Banner ueber der Turnierliste im Spielerprofil.
+
+Dateiname ist entweder die Epic-Kennung oder die kurze Schreibweise ohne
+Leerzeichen, Endung jpg, jpeg, png oder webp:
+
+    S39.jpg   oder   CH7S1.jpg
+    S40.jpg   oder   CH7S2.jpg
+    S41.jpg   oder   CH7S3.jpg
+    S42.jpg   oder   CH7S4.jpg
+
+Liegt zu einer Saison nichts hier, bleibt das Banner ohne Bild - es wird
+bewusst keine fremde Cup-Grafik eingesetzt.
+
+Ein liegendes Format passt am besten, ungefaehr im Verhaeltnis 2:1.

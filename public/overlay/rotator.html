@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="de">
+<head>
+<meta charset="utf-8">
+<title>Spieler-Rotation</title>
+<link rel="stylesheet" href="overlay.css">
+<style>
+  /* Der Wechsel zwischen zwei Spielern. Die Richtung steuert, ob die
+     Karte zur Seite, nach oben oder gar nicht bewegt wird. */
+  #shell { opacity: 1; transform: none; }
+  #shell.weg, #shell.rein { opacity: 0; }
+  body.fx-slide #shell.weg  { transform: translateX(-26px); }
+  body.fx-slide #shell.rein { transform: translateX(26px); }
+  body.fx-up    #shell.weg  { transform: translateY(-18px); }
+  body.fx-up    #shell.rein { transform: translateY(18px); }
+  body.fx-zoom  #shell.weg  { transform: scale(.93); }
+  body.fx-zoom  #shell.rein { transform: scale(1.06); }
+
+  /* Fortschrittsbalken: zeigt, wann der naechste Spieler kommt. */
+  #tick { position:absolute; left:0; bottom:0; height:3px;
+          background: var(--accent); width:0; z-index:3; }
+  body.notick #tick { display: none; }
+</style>
+</head>
+<body>
+
+<div id="shell">
+  <div id="imgbox"><img id="pimg" alt=""></div>
+  <div id="card" class="s-round">
+    <div id="bar"></div>
+    <div class="who">
+      <div class="namezeile">
+        <img id="logo" class="orglogo" alt="" style="display:none">
+        <div class="name" id="pname">—</div>
+      </div>
+      <div class="sub" id="psub">lade Spieler …</div>
+    </div>
+    <div class="stats" id="stats"></div>
+    <div id="tick"></div>
+  </div>
+  <div id="imgbox2"><img id="pimg2" alt=""></div>
+</div>
+
+<script src="colors.js"></script>
+<script src="overlay.js"></script>
+<script>
+const C = Overlay.init();
+const P = C.P;
+const LAB = Overlay.labels(P);
+
+const FX = ['fade','slide','up','zoom'].includes(P.get('fx')) ? P.get('fx') : 'slide';
+if (FX !== 'fade') document.body.classList.add('fx-' + FX);
+if (P.get('tick') === 'off') document.body.classList.add('notick');
+
+const LIMIT = Math.min(parseInt(P.get('limit') || '100', 10) || 100, 500);
+const HOLD  = Math.max(2, parseInt(P.get('hold') || '5', 10)) * 1000;
+const FIELDS = (P.get('show') || 'rank,points,elims,games').split(',').filter(Boolean);
+
+// Feste Auswahl, sonst automatisch alle mit hinterlegtem Bild.
+const LISTE = (P.get('q') || '').split(',').map(s => s.trim().toLowerCase()).filter(Boolean);
+const IDS = new Set((P.get('ids') || '').split(',').map(s => s.trim()).filter(Boolean));
+// Standard: ein Banner je Team. Mit each=player kommt jeder einzeln.
+const JEDER = P.get('each') === 'player';
+
+const shell = document.getElementById('shell');
+let eintraege = [];
+let pos = 0;
+
+async function laden() {
+  if (!C.event || !C.window) return;
+  try {
+    const r = await fetch(C.server + '/api/cup-leaderboard?event=' + encodeURIComponent(C.event) +
+      '&window=' + encodeURIComponent(C.window) + '&limit=' + LIMIT);
+    const d = await r.json();
+
+    const gewaehlt = IDS.size > 0 || LISTE.length > 0;
+    const passt = p => gewaehlt
+      ? (IDS.has(p.id) || LISTE.some(n => p.name.toLowerCase().includes(n)))
+      : !!p.img;
+
+    const neu = [];
+    for (const e of d.entries || []) {
+      const treffer = e.players.filter(passt);
+      if (!treffer.length) continue;
+
+      const bauen = (ich) => {
+        const andere = e.players.filter(x => x !== ich);
+        return { eintrag: e, ich, mate: andere.find(x => x.img) || null,
+                 andere: andere.map(x => x.name) };
+      };
+      // Standard: ein Durchlauf pro Team. Der Partner steht ohnehin schon
+      // mit auf dem Banner - er darf nicht nochmal einzeln drankommen.
+      // Bei Solo-Cups hat ein Team nur einen Spieler, dann ist es dasselbe.
+      if (JEDER) for (const p of treffer) neu.push(bauen(p));
+      else neu.push(bauen(treffer[0]));
+    }
+    eintraege = neu;
+    if (pos >= eintraege.length) pos = 0;
+  } catch { /* alte Daten weiterzeigen */ }
+}
+
+async function zeige(x) {
+  await Overlay.setzeStil(C, x.ich, C);
+
+  const a = Overlay.setzeBild(document.getElementById('pimg'),
+    document.getElementById('imgbox'), x.ich.img ? C.server + x.ich.img : null,
+    C.imgMode !== 'off');
+  const b = Overlay.setzeBild(document.getElementById('pimg2'),
+    document.getElementById('imgbox2'), (C.partner && x.mate) ? C.server + x.mate.img : null,
+    C.imgMode !== 'off');
+  document.body.classList.toggle('has-img', a);
+  document.body.classList.toggle('has-img2', a && b);
+
+  const logo = document.getElementById('logo');
+  if (C.logos && x.ich.logo) { logo.src = C.server + x.ich.logo; logo.style.display = ''; }
+  else logo.style.display = 'none';
+
+  document.getElementById('pname').textContent = x.ich.name;
+  document.getElementById('psub').textContent =
+    x.andere.length ? 'mit ' + x.andere.join(', ') : '';
+
+  Overlay.baueStats(document.getElementById('stats'), FIELDS, LAB);
+  Overlay.schreibeStats(document.getElementById('stats'), FIELDS, x.eintrag);
+}
+
+let tickAnim = null;
+function starteTick() {
+  const t = document.getElementById('tick');
+  if (tickAnim) tickAnim.cancel();
+  t.style.width = '0';
+  tickAnim = t.animate([{ width: '0%' }, { width: '100%' }],
+                       { duration: HOLD, easing: 'linear', fill: 'forwards' });
+}
+
+async function wechsel() {
+  if (!eintraege.length) {
+    document.getElementById('pname').textContent = 'Keine Spieler gefunden';
+    document.getElementById('psub').textContent = (LISTE.length || IDS.size)
+      ? 'Auswahl pruefen'
+      : 'Fuer keinen Spieler im Cup ist ein Bild hinterlegt';
+    shell.classList.remove('weg', 'rein');
+    return;
+  }
+
+  const dauer = parseFloat(getComputedStyle(document.documentElement)
+    .getPropertyValue('--speed')) * 1000 || 0;
+
+  shell.classList.add('weg');
+  await new Promise(r => setTimeout(r, dauer));
+
+  await zeige(eintraege[pos % eintraege.length]);
+  pos = (pos + 1) % eintraege.length;
+
+  // Ohne Uebergang auf die Startposition, dann sichtbar einblenden.
+  shell.classList.remove('weg');
+  shell.classList.add('rein');
+  void shell.offsetWidth;
+  shell.classList.remove('rein');
+
+  starteTick();
+}
+
+(async function () {
+  await Promise.all([laden(), Overlay.ladeCfg(C.server)]);
+  await wechsel();
+  setInterval(wechsel, HOLD);
+  setInterval(function () { laden(); Overlay.ladeCfg(C.server); }, C.every);
+})();
+</script>
+</body>
+</html>

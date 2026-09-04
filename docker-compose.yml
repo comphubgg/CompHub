@@ -1,0 +1,15 @@
+version: '3.8'
+services:
+  scraper:
+    build: .
+    image: streamer-dashboard-scraper:latest
+    volumes:
+      - ./:/app
+    env_file:
+      - .env.local
+    restart: unless-stopped
+    environment:
+      # Run once by default; set CRON_INTERVAL (in seconds) to run periodically
+      - CRON_INTERVAL=86400
+      # Optionally override scraper args: e.g. --region EU --pageSize 50 --top 10000
+      - SCRAPER_ARGS=--headless --region EU --pageSize 50 --top 10000

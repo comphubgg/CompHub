@@ -1,0 +1,172 @@
+/* Gemeinsames Aussehen aller Overlays.
+   Alles laeuft ueber Variablen, die aus der URL gesetzt werden -
+   dadurch laesst sich die Optik ohne Code aendern. */
+
+:root {
+  --accent: #a855f7;
+  --accent2: #6366f1;
+  --bg: #12101c;
+  --bg2: #1c1830;
+  --text: #ffffff;
+  --muted: #b6aee0;
+  --radius: 14px;
+  --cut: 22px;          /* Staerke der Schraege bei den Formen */
+  --pad: 14px;
+  --gap: 18px;
+  --font: 'Segoe UI', system-ui, sans-serif;
+  --label: 11px;
+  --value: 30px;
+  --name: 20px;
+  --speed: .45s;
+  --imgsize: 62px;
+  --imgzoom: 1;         /* Bildausschnitt: groesser = naeher dran */
+  --imgx: 0px;
+  --imgy: 0px;
+  --imgzoom2: 1;        /* dasselbe fuer den Duo-Partner */
+  --imgx2: 0px;
+  --imgy2: 0px;
+  --imggap: -6px;       /* Abstand der Figuren, negativ = ueberlappend */
+  --logosize: 26px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+html, body { background: transparent; overflow: hidden; }
+body { font-family: var(--font); color: var(--text); }
+
+/* Schatten muss auf den Rahmen: clip-path wuerde box-shadow abschneiden. */
+#shell {
+  display: inline-block;
+  position: relative;
+  filter: drop-shadow(0 10px 22px rgba(0,0,0,.5));
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity var(--speed) ease, transform var(--speed) ease;
+}
+#shell.show { opacity: 1; transform: none; }
+
+#card {
+  display: flex;
+  align-items: center;
+  gap: var(--gap);
+  padding: var(--pad) calc(var(--pad) * 1.6);
+  background: linear-gradient(115deg, var(--bg) 0%, var(--bg2) 100%);
+  position: relative;
+}
+
+/* --- Formen-Vorlagen ---------------------------------------------- */
+.s-round  { border-radius: var(--radius); }
+.s-slant  { clip-path: polygon(0 0, 100% 0, calc(100% - var(--cut)) 100%, 0 100%); }
+.s-slantl { clip-path: polygon(var(--cut) 0, 100% 0, 100% 100%, 0 100%); }
+.s-both   { clip-path: polygon(var(--cut) 0, 100% 0, calc(100% - var(--cut)) 100%, 0 100%); }
+.s-arrow  { clip-path: polygon(0 0, calc(100% - var(--cut)) 0, 100% 50%,
+                               calc(100% - var(--cut)) 100%, 0 100%); }
+.s-tag    { clip-path: polygon(var(--cut) 0, 100% 0, 100% 100%, var(--cut) 100%, 0 50%); }
+.s-notch  { clip-path: polygon(0 0, calc(100% - var(--cut)) 0, 100% var(--cut),
+                               100% 100%, 0 100%); }
+.s-bevel  { clip-path: polygon(var(--cut) 0, 100% 0, 100% calc(100% - var(--cut)),
+                               calc(100% - var(--cut)) 100%, 0 100%, 0 var(--cut)); }
+
+/* Akzentkante links */
+#bar {
+  position: absolute;
+  left: 0; top: 0; bottom: 0;
+  width: 5px;
+  background: linear-gradient(180deg, var(--accent), var(--accent2));
+}
+.s-slantl #bar, .s-both #bar, .s-tag #bar { display: none; }
+
+/* --- Freigestellte Spielerbilder ----------------------------------- */
+/* Liegen bewusst AUSSERHALB von #card, sonst wuerde clip-path sie
+   abschneiden. Der Rahmen begrenzt den sichtbaren Ausschnitt. */
+#imgbox, #imgbox2 {
+  display: none;
+  position: absolute;
+  bottom: 0;
+  width: calc(var(--imgsize) * 1.05);
+  height: calc(var(--imgsize) * 1.55);
+  overflow: hidden;
+  pointer-events: none;
+}
+#imgbox  { left: 0; z-index: 2; }
+#imgbox2 { left: calc(var(--imgsize) * .95 + var(--imggap)); z-index: 1; }
+#imgbox.on, #imgbox2.on { display: block; }
+
+#pimg, #pimg2 {
+  position: absolute;
+  left: 50%;
+  bottom: 0;
+  height: calc(var(--imgsize) * 1.55 * var(--imgzoom));
+  width: auto;
+  max-width: none;
+  transform: translateX(calc(-50% + var(--imgx))) translateY(var(--imgy));
+  filter: drop-shadow(0 6px 12px rgba(0,0,0,.6));
+}
+#pimg2 {
+  height: calc(var(--imgsize) * 1.55 * var(--imgzoom2));
+  transform: translateX(calc(-50% + var(--imgx2))) translateY(var(--imgy2));
+}
+
+body.has-img #card  { padding-left: calc(var(--imgsize) * 1.15); }
+body.has-img #shell { margin-top: calc(var(--imgsize) * .55); }
+body.has-img #bar   { display: none; }
+
+/* Zwei Klassen, damit diese Regel die allgemeine has-img-Regel sicher
+   schlaegt - unabhaengig von der Reihenfolge im Stylesheet. */
+body.has-img.has-img2 #card {
+  padding-left: calc(var(--imgsize) * 2.05 + var(--imggap));
+}
+
+/* kompakt: Bild bleibt auf Balkenhoehe und ragt nicht heraus */
+body.img-inline #imgbox, body.img-inline #imgbox2 { height: 100%; }
+body.img-inline.has-img #shell { margin-top: 0; }
+body.img-none #imgbox, body.img-none #imgbox2 { display: none !important; }
+
+/* --- Texte --------------------------------------------------------- */
+.who { min-width: 0; }
+.namezeile { display: flex; align-items: center; gap: 9px; }
+.name {
+  font-size: var(--name);
+  font-weight: 800;
+  letter-spacing: .5px;
+  white-space: nowrap;
+  text-shadow: 0 0 18px color-mix(in srgb, var(--accent) 55%, transparent);
+}
+/* Kein uppercase: hier stehen Spielernamen, die sonst entstellt werden. */
+.sub {
+  font-size: calc(var(--label) * 1.15);
+  color: var(--muted);
+  letter-spacing: .3px;
+  margin-top: 3px;
+  white-space: nowrap;
+}
+.orglogo {
+  height: var(--logosize);
+  width: auto;
+  max-width: calc(var(--logosize) * 2.4);
+  object-fit: contain;
+  flex: none;
+}
+
+/* --- Werte --------------------------------------------------------- */
+.stats { display: flex; gap: var(--gap); margin-left: auto; }
+.stat { text-align: center; min-width: 58px; }
+.stat .l {
+  font-size: var(--label);
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.stat .v {
+  font-size: var(--value);
+  font-weight: 800;
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.stat.hl .v { color: var(--accent); }
+
+@keyframes pop {
+  0%   { transform: scale(1); }
+  35%  { transform: scale(1.22); filter: brightness(1.5); }
+  100% { transform: scale(1); }
+}
+.bump { animation: pop var(--speed) ease; }

@@ -1,0 +1,4041 @@
+{
+  "generatedAt": "2026-06-28T20:17:47.371Z",
+  "candidates": [
+    {
+      "file": "app/admin/socials/page.tsx",
+      "text": "Socials Dashboard"
+    },
+    {
+      "file": "app/admin/socials/page.tsx",
+      "text": "← Zurück zur Seite"
+    },
+    {
+      "file": "app/admin/socials/page.tsx",
+      "text": "Logout"
+    },
+    {
+      "file": "app/admin/socials/page.tsx",
+      "text": "Verbinde hier deine Social-Accounts (grob simuliert). Diese Handles werden auf der Hauptseite zur Auswahl angeboten."
+    },
+    {
+      "file": "app/admin/socials/page.tsx",
+      "text": "Plattform"
+    },
+    {
+      "file": "app/admin/socials/page.tsx",
+      "text": "{p}"
+    },
+    {
+      "file": "app/admin/socials/page.tsx",
+      "text": "Connect"
+    },
+    {
+      "file": "app/admin/socials/page.tsx",
+      "text": "Welche Socials oben anzeigen?"
+    },
+    {
+      "file": "app/admin/socials/page.tsx",
+      "text": "Connected"
+    },
+    {
+      "file": "app/admin/socials/page.tsx",
+      "text": "{Object.keys(connected).length === 0 &&"
+    },
+    {
+      "file": "app/admin/socials/page.tsx",
+      "text": "Keine verbundenen Accounts"
+    },
+    {
+      "file": "app/admin/socials/page.tsx",
+      "text": "{k}"
+    },
+    {
+      "file": "app/admin/socials/page.tsx",
+      "text": ": @{v}"
+    },
+    {
+      "file": "app/admin/socials/page.tsx",
+      "text": "Copy"
+    },
+    {
+      "file": "app/admin/socials/page.tsx",
+      "text": "Disconnect"
+    },
+    {
+      "file": "app/admin/socials/page.tsx",
+      "text": "Hinweis: Diese Demo speichert lokale Handles. Eine echte OAuth-Integration erfordert Backend-Routen."
+    },
+    {
+      "file": "app/admin/socials/page.tsx",
+      "text": "Profil Bio (angezeigt rechts oben)"
+    },
+    {
+      "file": "app/admin/socials/page.tsx",
+      "text": "Save Bio"
+    },
+    {
+      "file": "app/admin/socials/page.tsx",
+      "text": "Clear"
+    },
+    {
+      "file": "app/admin/socials/page.tsx",
+      "text": "use client"
+    },
+    {
+      "file": "app/admin/socials/page.tsx",
+      "text": "Failed to load connected accounts"
+    },
+    {
+      "file": "app/admin/socials/page.tsx",
+      "text": "Profile bio saved locally"
+    },
+    {
+      "file": "app/admin/socials/page.tsx",
+      "text": "streamer_dashboard_auth=; path=/; max-age=0"
+    },
+    {
+      "file": "app/admin/socials/page.tsx",
+      "text": "p-4 min-h-screen bg-zinc-950 text-white"
+    },
+    {
+      "file": "app/admin/socials/page.tsx",
+      "text": "flex items-center justify-between mb-3"
+    },
+    {
+      "file": "app/admin/socials/page.tsx",
+      "text": "text-2xl font-bold"
+    },
+    {
+      "file": "app/admin/socials/page.tsx",
+      "text": "flex items-center gap-2"
+    },
+    {
+      "file": "app/admin/socials/page.tsx",
+      "text": "/\" className="
+    },
+    {
+      "file": "app/admin/socials/page.tsx",
+      "text": "text-sm text-zinc-400 mb-4"
+    },
+    {
+      "file": "app/admin/socials/page.tsx",
+      "text": "block text-xs text-zinc-400 mb-1"
+    },
+    {
+      "file": "app/admin/socials/page.tsx",
+      "text": "Plattform wählen"
+    },
+    {
+      "file": "app/admin/socials/page.tsx",
+      "text": "bg-zinc-900 border border-zinc-800 px-2 py-1 rounded mr-2"
+    },
+    {
+      "file": "app/admin/socials/page.tsx",
+      "text": "handle (ohne @)"
+    },
+    {
+      "file": "app/admin/socials/page.tsx",
+      "text": "Social handle"
+    },
+    {
+      "file": "app/admin/socials/page.tsx",
+      "text": "bg-purple-600 px-3 py-1 rounded"
+    },
+    {
+      "file": "app/admin/socials/page.tsx",
+      "text": "text-sm font-bold mb-2"
+    },
+    {
+      "file": "app/admin/socials/page.tsx",
+      "text": "flex gap-3 flex-wrap"
+    },
+    {
+      "file": "app/admin/socials/page.tsx",
+      "text": "flex flex-wrap gap-2"
+    },
+    {
+      "file": "app/admin/socials/page.tsx",
+      "text": "text-[12px] bg-zinc-800 px-2 py-1 rounded"
+    },
+    {
+      "file": "app/admin/socials/page.tsx",
+      "text": "text-[12px] bg-red-600 px-2 py-1 rounded"
+    },
+    {
+      "file": "app/admin/socials/page.tsx",
+      "text": "text-xs text-zinc-500"
+    },
+    {
+      "file": "app/admin/socials/page.tsx",
+      "text": "Kurze Bio, die rechts oben angezeigt wird"
+    },
+    {
+      "file": "app/admin/socials/page.tsx",
+      "text": "mt-2 flex gap-2"
+    },
+    {
+      "file": "app/admin/socials/page.tsx",
+      "text": "'); localStorage.removeItem("
+    },
+    {
+      "file": "app/admin/socials/page.tsx",
+      "text": "bg-zinc-800 px-3 py-1 rounded"
+    },
+    {
+      "file": "app/api/auth/discord/authorize/route.ts",
+      "text": "Discord OAuth ist nicht konfiguriert."
+    },
+    {
+      "file": "app/api/auth/discord/authorize/route.ts",
+      "text": "identify email"
+    },
+    {
+      "file": "app/api/auth/discord/callback/route.ts",
+      "text": "Ungültige Discord-Authentifizierung."
+    },
+    {
+      "file": "app/api/auth/discord/callback/route.ts",
+      "text": "Discord OAuth ist nicht konfiguriert."
+    },
+    {
+      "file": "app/api/auth/discord/callback/route.ts",
+      "text": "Bearer ${accessToken}"
+    },
+    {
+      "file": "app/api/auth/discord/callback/route.ts",
+      "text": "Discord user info request failed"
+    },
+    {
+      "file": "app/api/auth/discord/callback/route.ts",
+      "text": "Discord-Benutzer konnte nicht ermittelt werden."
+    },
+    {
+      "file": "app/api/auth/discord/callback/route.ts",
+      "text": "Discord callback error:"
+    },
+    {
+      "file": "app/api/auth/discord/callback/route.ts",
+      "text": "Unbekannter Fehler"
+    },
+    {
+      "file": "app/api/auth/discord/callback/route.ts",
+      "text": "Discord-Authentifizierung fehlgeschlagen: ${message}"
+    },
+    {
+      "file": "app/api/auth/twitch/authorize/route.ts",
+      "text": "Twitch OAuth ist nicht konfiguriert."
+    },
+    {
+      "file": "app/api/auth/twitch/callback/route.ts",
+      "text": "Twitch token exchange failed"
+    },
+    {
+      "file": "app/api/auth/twitch/callback/route.ts",
+      "text": "Ungültige Twitch-Authentifizierung."
+    },
+    {
+      "file": "app/api/auth/twitch/callback/route.ts",
+      "text": "Twitch OAuth ist nicht konfiguriert."
+    },
+    {
+      "file": "app/api/auth/twitch/callback/route.ts",
+      "text": "Bearer ${accessToken}"
+    },
+    {
+      "file": "app/api/auth/twitch/callback/route.ts",
+      "text": "Twitch user info request failed"
+    },
+    {
+      "file": "app/api/auth/twitch/callback/route.ts",
+      "text": "Twitch-Benutzer konnte nicht ermittelt werden."
+    },
+    {
+      "file": "app/api/auth/twitch/callback/route.ts",
+      "text": "Twitch-Authentifizierung fehlgeschlagen."
+    },
+    {
+      "file": "app/api/cup-leaderboard/route.ts",
+      "text": "([\\s\\S]*?)"
+    },
+    {
+      "file": "app/api/cup-leaderboard/route.ts",
+      "text": "column_${i + 1}"
+    },
+    {
+      "file": "app/api/cup-leaderboard/route.ts",
+      "text": "Missing url parameter"
+    },
+    {
+      "file": "app/api/cup-leaderboard/route.ts",
+      "text": "Invalid URL"
+    },
+    {
+      "file": "app/api/cup-leaderboard/route.ts",
+      "text": "URL must be a Fortnite competitive leaderboard page"
+    },
+    {
+      "file": "app/api/cup-leaderboard/route.ts",
+      "text": "Unable to find leaderboard table in remote page"
+    },
+    {
+      "file": "app/api/cup-leaderboard/route.ts",
+      "text": "Failed to fetch or parse remote leaderboard"
+    },
+    {
+      "file": "app/api/live-status/route.ts",
+      "text": "⚠️ Twitch API credentials not configured"
+    },
+    {
+      "file": "app/api/live-status/route.ts",
+      "text": "Bearer ${accessToken}"
+    },
+    {
+      "file": "app/api/live-status/route.ts",
+      "text": "Twitch API error: ${response.status}"
+    },
+    {
+      "file": "app/api/live-status/route.ts",
+      "text": "Error fetching stream data:"
+    },
+    {
+      "file": "app/api/live-status/route.ts",
+      "text": "Error in live status route:"
+    },
+    {
+      "file": "app/api/notes/route.ts",
+      "text": "Failed to read notes"
+    },
+    {
+      "file": "app/api/notes/route.ts",
+      "text": "Failed to create note"
+    },
+    {
+      "file": "app/api/notes/route.ts",
+      "text": "Failed to update note"
+    },
+    {
+      "file": "app/api/notes/route.ts",
+      "text": "Failed to delete note"
+    },
+    {
+      "file": "app/api/players/route.ts",
+      "text": "EU', twitter:"
+    },
+    {
+      "file": "app/api/players/route.ts",
+      "text": "Error reading players:"
+    },
+    {
+      "file": "app/api/players/route.ts",
+      "text": "Failed to read players"
+    },
+    {
+      "file": "app/api/players/route.ts",
+      "text": "Name and region required"
+    },
+    {
+      "file": "app/api/players/route.ts",
+      "text": "Duo requires two players"
+    },
+    {
+      "file": "app/api/players/route.ts",
+      "text": "Duo already exists"
+    },
+    {
+      "file": "app/api/players/route.ts",
+      "text": "Player already exists"
+    },
+    {
+      "file": "app/api/players/route.ts",
+      "text": "Error adding player:"
+    },
+    {
+      "file": "app/api/players/route.ts",
+      "text": "Failed to add player"
+    },
+    {
+      "file": "app/api/players/route.ts",
+      "text": "Name required"
+    },
+    {
+      "file": "app/api/players/route.ts",
+      "text": "Error deleting player:"
+    },
+    {
+      "file": "app/api/players/route.ts",
+      "text": "Failed to delete player"
+    },
+    {
+      "file": "app/api/players/route.ts",
+      "text": "oldName and region required"
+    },
+    {
+      "file": "app/api/players/route.ts",
+      "text": "Player not found"
+    },
+    {
+      "file": "app/api/players/route.ts",
+      "text": "Error updating player:"
+    },
+    {
+      "file": "app/api/players/route.ts",
+      "text": "Failed to update player"
+    },
+    {
+      "file": "app/api/search/route.ts",
+      "text": "Missing Twitch API credentials"
+    },
+    {
+      "file": "app/api/search/route.ts",
+      "text": "API credentials not configured"
+    },
+    {
+      "file": "app/api/search/route.ts",
+      "text": "Bearer ${accessToken}"
+    },
+    {
+      "file": "app/api/search/route.ts",
+      "text": "Search API error:"
+    },
+    {
+      "file": "app/api/search/route.ts",
+      "text": "Streams API error:"
+    },
+    {
+      "file": "app/api/search/route.ts",
+      "text": "Search error:"
+    },
+    {
+      "file": "app/api/stats/route.ts",
+      "text": "Missing TRACKER_API_KEY"
+    },
+    {
+      "file": "app/api/stats/route.ts",
+      "text": "API key not configured"
+    },
+    {
+      "file": "app/api/streamers/route.ts",
+      "text": "Error reading streamers:"
+    },
+    {
+      "file": "app/api/streamers/route.ts",
+      "text": "Failed to read streamers"
+    },
+    {
+      "file": "app/api/streamers/route.ts",
+      "text": "EU' && region !=="
+    },
+    {
+      "file": "app/api/streamers/route.ts",
+      "text": "Twitch, Twitter and region required"
+    },
+    {
+      "file": "app/api/streamers/route.ts",
+      "text": "EU' |"
+    },
+    {
+      "file": "app/api/streamers/route.ts",
+      "text": "Streamer already exists"
+    },
+    {
+      "file": "app/api/streamers/route.ts",
+      "text": "Error adding streamer:"
+    },
+    {
+      "file": "app/api/streamers/route.ts",
+      "text": "Failed to add streamer"
+    },
+    {
+      "file": "app/api/streamers/route.ts",
+      "text": "Twitch and region required"
+    },
+    {
+      "file": "app/api/streamers/route.ts",
+      "text": "Streamer not found"
+    },
+    {
+      "file": "app/api/streamers/route.ts",
+      "text": "Error deleting streamer:"
+    },
+    {
+      "file": "app/api/streamers/route.ts",
+      "text": "Failed to delete streamer"
+    },
+    {
+      "file": "app/api/streamers/route.ts",
+      "text": "Error updating streamer:"
+    },
+    {
+      "file": "app/api/streamers/route.ts",
+      "text": "Failed to update streamer"
+    },
+    {
+      "file": "app/api/tournaments/route.ts",
+      "text": "= startDate && now"
+    },
+    {
+      "file": "app/api/tournaments/route.ts",
+      "text": "Error loading persisted tournaments:"
+    },
+    {
+      "file": "app/api/tournaments/route.ts",
+      "text": "Error persisting tournaments:"
+    },
+    {
+      "file": "app/api/tournaments/route.ts",
+      "text": "Unknown Tournament"
+    },
+    {
+      "file": "app/api/tournaments/route.ts",
+      "text": "Solo Cash Cup"
+    },
+    {
+      "file": "app/api/tournaments/route.ts",
+      "text": "Cash Cup"
+    },
+    {
+      "file": "app/api/tournaments/route.ts",
+      "text": "Reload Elite Series"
+    },
+    {
+      "file": "app/api/tournaments/route.ts",
+      "text": "Reload Elite"
+    },
+    {
+      "file": "app/api/tournaments/route.ts",
+      "text": "Round 1"
+    },
+    {
+      "file": "app/api/tournaments/route.ts",
+      "text": "FNCS Heat"
+    },
+    {
+      "file": "app/api/tournaments/route.ts",
+      "text": "Heat 1"
+    },
+    {
+      "file": "app/api/tournaments/route.ts",
+      "text": "CITO_API_KEY is not set. Returning no tournaments."
+    },
+    {
+      "file": "app/api/tournaments/route.ts",
+      "text": "CitoAPI response error"
+    },
+    {
+      "file": "app/api/tournaments/route.ts",
+      "text": "CitoAPI fetch error"
+    },
+    {
+      "file": "app/api/tournaments/route.ts",
+      "text": "Imported Tournament"
+    },
+    {
+      "file": "app/api/tournaments/route.ts",
+      "text": "Error fetching tournaments:"
+    },
+    {
+      "file": "app/api/tournaments/route.ts",
+      "text": "Failed to fetch tournaments"
+    },
+    {
+      "file": "app/api/tournaments/route.ts",
+      "text": "Imported Event"
+    },
+    {
+      "file": "app/api/tournaments/route.ts",
+      "text": "Missing required fields"
+    },
+    {
+      "file": "app/api/tournaments/route.ts",
+      "text": "Error adding tournament:"
+    },
+    {
+      "file": "app/api/tournaments/route.ts",
+      "text": "Failed to add tournament"
+    },
+    {
+      "file": "app/api/tournaments/route.ts",
+      "text": "Missing tournament id"
+    },
+    {
+      "file": "app/api/tournaments/route.ts",
+      "text": "Error updating tournament:"
+    },
+    {
+      "file": "app/api/tournaments/route.ts",
+      "text": "Failed to update tournament"
+    },
+    {
+      "file": "app/api/tournaments/route.ts",
+      "text": "Error deleting tournament:"
+    },
+    {
+      "file": "app/api/tournaments/route.ts",
+      "text": "Failed to delete tournament"
+    },
+    {
+      "file": "app/api/tracker/route.ts",
+      "text": "playerName required"
+    },
+    {
+      "file": "app/api/tracker/route.ts",
+      "text": "API error: ${response.status}"
+    },
+    {
+      "file": "app/api/tracker/route.ts",
+      "text": "Tracker API error:"
+    },
+    {
+      "file": "app/api/tracker/route.ts",
+      "text": "Failed to fetch tracker data"
+    },
+    {
+      "file": "app/api/twitch/route.ts",
+      "text": "No usernames provided"
+    },
+    {
+      "file": "app/api/twitch/route.ts",
+      "text": "⚠️ Twitch API credentials not configured"
+    },
+    {
+      "file": "app/api/twitch/route.ts",
+      "text": "Bearer ${TWITCH_ACCESS_TOKEN}"
+    },
+    {
+      "file": "app/api/twitch/route.ts",
+      "text": "Twitch API chunk error:"
+    },
+    {
+      "file": "app/api/twitch/route.ts",
+      "text": "Error in twitch route:"
+    },
+    {
+      "file": "app/api/twitch/route.ts",
+      "text": "Internal server error"
+    },
+    {
+      "file": "app/auth/denied/page.tsx",
+      "text": "Twitch Tool Dashboard"
+    },
+    {
+      "file": "app/auth/denied/page.tsx",
+      "text": "Zugriff verweigert"
+    },
+    {
+      "file": "app/auth/denied/page.tsx",
+      "text": "Kontaktiere den Owner:"
+    },
+    {
+      "file": "app/auth/denied/page.tsx",
+      "text": "Discord:"
+    },
+    {
+      "file": "app/auth/denied/page.tsx",
+      "text": "juanitofnbr"
+    },
+    {
+      "file": "app/auth/denied/page.tsx",
+      "text": "Twitter:"
+    },
+    {
+      "file": "app/auth/denied/page.tsx",
+      "text": "@juanitofnbr"
+    },
+    {
+      "file": "app/auth/denied/page.tsx",
+      "text": "dashboard.streamer"
+    },
+    {
+      "file": "app/auth/denied/page.tsx",
+      "text": "LIVE"
+    },
+    {
+      "file": "app/auth/denied/page.tsx",
+      "text": "Tool Info"
+    },
+    {
+      "file": "app/auth/denied/page.tsx",
+      "text": "Nur für autorisierte Streamer"
+    },
+    {
+      "file": "app/auth/denied/page.tsx",
+      "text": "• Eigene Tierlists & Favoritenverwaltung"
+    },
+    {
+      "file": "app/auth/denied/page.tsx",
+      "text": "• Voll integrierte Profi-Spieler (NA &amp; EU)"
+    },
+    {
+      "file": "app/auth/denied/page.tsx",
+      "text": "• Eigene Streamer hinzufügen (manuell auswählbar)"
+    },
+    {
+      "file": "app/auth/denied/page.tsx",
+      "text": "• Übersicht aller Turniere und Leaderboards"
+    },
+    {
+      "file": "app/auth/denied/page.tsx",
+      "text": "• Weitere Features geplant: erweiterte Stats, Alerts und Integrationen"
+    },
+    {
+      "file": "app/auth/denied/page.tsx",
+      "text": "Erneut versuchen"
+    },
+    {
+      "file": "app/auth/denied/page.tsx",
+      "text": "min-h-screen bg-slate-950 text-white px-6 py-10"
+    },
+    {
+      "file": "app/auth/denied/page.tsx",
+      "text": "space-y-6 lg:w-1/2"
+    },
+    {
+      "file": "app/auth/denied/page.tsx",
+      "text": "flex items-center gap-4"
+    },
+    {
+      "file": "app/auth/denied/page.tsx",
+      "text": "text-3xl font-semibold"
+    },
+    {
+      "file": "app/auth/denied/page.tsx",
+      "text": "mt-2 text-sm text-slate-400"
+    },
+    {
+      "file": "app/auth/denied/page.tsx",
+      "text": "text-xl font-semibold text-red-300"
+    },
+    {
+      "file": "app/auth/denied/page.tsx",
+      "text": "rounded-3xl bg-slate-950/90 p-4 text-sm text-slate-300"
+    },
+    {
+      "file": "app/auth/denied/page.tsx",
+      "text": "font-semibold text-slate-100"
+    },
+    {
+      "file": "app/auth/denied/page.tsx",
+      "text": "font-medium text-white"
+    },
+    {
+      "file": "app/auth/denied/page.tsx",
+      "text": "text-blue-400 hover:text-blue-300"
+    },
+    {
+      "file": "app/auth/denied/page.tsx",
+      "text": "relative grid gap-6"
+    },
+    {
+      "file": "app/auth/denied/page.tsx",
+      "text": "h-44 rounded-3xl bg-slate-800/80 p-4"
+    },
+    {
+      "file": "app/auth/denied/page.tsx",
+      "text": "text-sm uppercase tracking-[0.35em] text-slate-500"
+    },
+    {
+      "file": "app/auth/denied/page.tsx",
+      "text": "mt-4 text-3xl font-semibold text-white"
+    },
+    {
+      "file": "app/auth/denied/page.tsx",
+      "text": "mt-4 text-slate-300"
+    },
+    {
+      "file": "app/auth/denied/page.tsx",
+      "text": "mt-4 space-y-2 text-left text-slate-300"
+    },
+    {
+      "file": "app/auth/denied/page.tsx",
+      "text": "mt-10 flex justify-center"
+    },
+    {
+      "file": "app/auth/success/page.tsx",
+      "text": "Login erfolgreich"
+    },
+    {
+      "file": "app/auth/success/page.tsx",
+      "text": "Du wirst jetzt zurück zum Tool geleitet."
+    },
+    {
+      "file": "app/auth/success/page.tsx",
+      "text": "use client"
+    },
+    {
+      "file": "app/auth/success/page.tsx",
+      "text": "h-10 w-10"
+    },
+    {
+      "file": "app/auth/success/page.tsx",
+      "text": "0 0 128 128"
+    },
+    {
+      "file": "app/auth/success/page.tsx",
+      "text": "mt-6 text-3xl font-semibold text-white"
+    },
+    {
+      "file": "app/auth/success/page.tsx",
+      "text": "mt-4 text-slate-400"
+    },
+    {
+      "file": "app/components/AuthGate.tsx",
+      "text": "{t(\"loading\", \"Lädt...\")}"
+    },
+    {
+      "file": "app/components/AuthGate.tsx",
+      "text": "{children}"
+    },
+    {
+      "file": "app/components/AuthGate.tsx",
+      "text": "DE"
+    },
+    {
+      "file": "app/components/AuthGate.tsx",
+      "text": "EN"
+    },
+    {
+      "file": "app/components/AuthGate.tsx",
+      "text": "{t(\"whatThisIs\", \"Was hier steckt\")}"
+    },
+    {
+      "file": "app/components/AuthGate.tsx",
+      "text": "{t(\"descriptionIntro\", \"Dieses Tool zeigt dir kompakt die wichtigsten Streaming- und Turnierdaten.\")}"
+    },
+    {
+      "file": "app/components/AuthGate.tsx",
+      "text": "• Live-Stream Hub: Multyview oder solo mit EU/NA Pros."
+    },
+    {
+      "file": "app/components/AuthGate.tsx",
+      "text": "• Custom Integration: Eigene Streamer hinzufügen."
+    },
+    {
+      "file": "app/components/AuthGate.tsx",
+      "text": "•Tournament Tracker: Aktuelle Turniere & Live-Events."
+    },
+    {
+      "file": "app/components/AuthGate.tsx",
+      "text": "• Tierlist Workshop: Erstelle deine eigenen Tierlists."
+    },
+    {
+      "file": "app/components/AuthGate.tsx",
+      "text": "{t(\"noAccess\", \"Kein Zugriff?\")}"
+    },
+    {
+      "file": "app/components/AuthGate.tsx",
+      "text": "{t(\"contact\", \"Wenn du glaubst, dass du Zugang bekommen solltest, melde dich bitte direkt bei mir.\")}"
+    },
+    {
+      "file": "app/components/AuthGate.tsx",
+      "text": "Kontakt"
+    },
+    {
+      "file": "app/components/AuthGate.tsx",
+      "text": "Discord:"
+    },
+    {
+      "file": "app/components/AuthGate.tsx",
+      "text": "juanitofnbr"
+    },
+    {
+      "file": "app/components/AuthGate.tsx",
+      "text": "Twitter:"
+    },
+    {
+      "file": "app/components/AuthGate.tsx",
+      "text": "@juanitofnbr"
+    },
+    {
+      "file": "app/components/AuthGate.tsx",
+      "text": "Hinweis: Der Login ist auf ausgewählte Benutzer beschränkt. Nur wenn ich dich freigeschaltet habe, kannst du das Dashboard nutzen."
+    },
+    {
+      "file": "app/components/AuthGate.tsx",
+      "text": "{t(\"retry\", \"Erneut versuchen\")}"
+    },
+    {
+      "file": "app/components/AuthGate.tsx",
+      "text": "use client"
+    },
+    {
+      "file": "app/components/AuthGate.tsx",
+      "text": "Überprüfe Login..."
+    },
+    {
+      "file": "app/components/AuthGate.tsx",
+      "text": "Bitte melde dich mit deinem Discord-Konto an."
+    },
+    {
+      "file": "app/components/AuthGate.tsx",
+      "text": "streamer_dashboard_auth=; path=/; max-age=0"
+    },
+    {
+      "file": "app/components/AuthGate.tsx",
+      "text": ", \"Lädt..."
+    },
+    {
+      "file": "app/components/AuthGate.tsx",
+      "text": "relative min-h-screen"
+    },
+    {
+      "file": "app/components/AuthGate.tsx",
+      "text": "pointer-events-none absolute inset-0 opacity-60"
+    },
+    {
+      "file": "app/components/AuthGate.tsx",
+      "text": "absolute inset-0 z-20 flex items-center justify-center p-4"
+    },
+    {
+      "file": "app/components/AuthGate.tsx",
+      "text": "relative min-h-screen overflow-hidden"
+    },
+    {
+      "file": "app/components/AuthGate.tsx",
+      "text": "absolute right-6 top-6 flex items-center gap-2 z-30"
+    },
+    {
+      "file": "app/components/AuthGate.tsx",
+      "text": "de\" ?"
+    },
+    {
+      "file": "app/components/AuthGate.tsx",
+      "text": "en\" ?"
+    },
+    {
+      "file": "app/components/AuthGate.tsx",
+      "text": "0 0 128 128"
+    },
+    {
+      "file": "app/components/AuthGate.tsx",
+      "text": "h-12 w-12"
+    },
+    {
+      "file": "app/components/AuthGate.tsx",
+      "text": "grid gap-6 lg:grid-cols-2"
+    },
+    {
+      "file": "app/components/AuthGate.tsx",
+      "text": "text-3xl font-semibold text-white"
+    },
+    {
+      "file": "app/components/AuthGate.tsx",
+      "text": "Was hier steckt"
+    },
+    {
+      "file": "app/components/AuthGate.tsx",
+      "text": "space-y-3 text-slate-300"
+    },
+    {
+      "file": "app/components/AuthGate.tsx",
+      "text": "text-2xl font-semibold text-white"
+    },
+    {
+      "file": "app/components/AuthGate.tsx",
+      "text": "Kein Zugriff?"
+    },
+    {
+      "file": "app/components/AuthGate.tsx",
+      "text": "rounded-3xl bg-slate-900/80 p-4 text-sm text-slate-300"
+    },
+    {
+      "file": "app/components/AuthGate.tsx",
+      "text": "font-semibold text-white"
+    },
+    {
+      "file": "app/components/AuthGate.tsx",
+      "text": "font-medium text-purple-300"
+    },
+    {
+      "file": "app/components/AuthGate.tsx",
+      "text": "text-blue-400 hover:text-blue-300"
+    },
+    {
+      "file": "app/components/AuthGate.tsx",
+      "text": "fixed bottom-6 left-1/2 z-50 -translate-x-1/2"
+    },
+    {
+      "file": "app/components/AuthGate.tsx",
+      "text": "Erneut versuchen"
+    },
+    {
+      "file": "app/components/DataEditor.tsx",
+      "text": "Promise"
+    },
+    {
+      "file": "app/components/DataEditor.tsx",
+      "text": "{title}"
+    },
+    {
+      "file": "app/components/DataEditor.tsx",
+      "text": "{field.label}"
+    },
+    {
+      "file": "app/components/DataEditor.tsx",
+      "text": "{field.type === 'text' ? ("
+    },
+    {
+      "file": "app/components/DataEditor.tsx",
+      "text": ") : field.type === 'select' ? ("
+    },
+    {
+      "file": "app/components/DataEditor.tsx",
+      "text": "Select..."
+    },
+    {
+      "file": "app/components/DataEditor.tsx",
+      "text": "{opt}"
+    },
+    {
+      "file": "app/components/DataEditor.tsx",
+      "text": ") : null}"
+    },
+    {
+      "file": "app/components/DataEditor.tsx",
+      "text": "{error}"
+    },
+    {
+      "file": "app/components/DataEditor.tsx",
+      "text": "Cancel"
+    },
+    {
+      "file": "app/components/DataEditor.tsx",
+      "text": "{isSaving ? 'Saving...' : 'Save'}"
+    },
+    {
+      "file": "app/components/DataEditor.tsx",
+      "text": "use client"
+    },
+    {
+      "file": "app/components/DataEditor.tsx",
+      "text": "${field.label} is required"
+    },
+    {
+      "file": "app/components/DataEditor.tsx",
+      "text": "Failed to save"
+    },
+    {
+      "file": "app/components/DataEditor.tsx",
+      "text": "bg-white rounded-lg shadow-xl p-6 max-w-md w-full mx-4"
+    },
+    {
+      "file": "app/components/DataEditor.tsx",
+      "text": "text-2xl font-bold mb-4"
+    },
+    {
+      "file": "app/components/DataEditor.tsx",
+      "text": "block text-sm font-medium text-gray-700 mb-1"
+    },
+    {
+      "file": "app/components/DataEditor.tsx",
+      "text": "flex gap-2 pt-4"
+    },
+    {
+      "file": "app/components/DemoPanel.tsx",
+      "text": "{demoNotification}"
+    },
+    {
+      "file": "app/components/DemoPanel.tsx",
+      "text": "🎬 Demo"
+    },
+    {
+      "file": "app/components/DemoPanel.tsx",
+      "text": "🎬 Demo Features"
+    },
+    {
+      "file": "app/components/DemoPanel.tsx",
+      "text": "{/* Notification Demos */}"
+    },
+    {
+      "file": "app/components/DemoPanel.tsx",
+      "text": "🔔 Notifications"
+    },
+    {
+      "file": "app/components/DemoPanel.tsx",
+      "text": "✅ Notifications aktivieren"
+    },
+    {
+      "file": "app/components/DemoPanel.tsx",
+      "text": "🔴 vadeal live (1.2k)"
+    },
+    {
+      "file": "app/components/DemoPanel.tsx",
+      "text": "🔴 skyfnrr live (856)"
+    },
+    {
+      "file": "app/components/DemoPanel.tsx",
+      "text": "🔴 praxfnr_ live (2.1k)"
+    },
+    {
+      "file": "app/components/DemoPanel.tsx",
+      "text": "{/* Layout Demo */}"
+    },
+    {
+      "file": "app/components/DemoPanel.tsx",
+      "text": "📐 Layout Preset"
+    },
+    {
+      "file": "app/components/DemoPanel.tsx",
+      "text": "50/50 Split"
+    },
+    {
+      "file": "app/components/DemoPanel.tsx",
+      "text": "Groß/Klein (75/25)"
+    },
+    {
+      "file": "app/components/DemoPanel.tsx",
+      "text": "Sehr Groß (90/10)"
+    },
+    {
+      "file": "app/components/DemoPanel.tsx",
+      "text": "Tipp:"
+    },
+    {
+      "file": "app/components/DemoPanel.tsx",
+      "text": "Im Multiview siehst du einen Balken zwischen den Streams - zieh ihn, um die Größe zu ändern!"
+    },
+    {
+      "file": "app/components/DemoPanel.tsx",
+      "text": "{/* Info */}"
+    },
+    {
+      "file": "app/components/DemoPanel.tsx",
+      "text": "Streamer mit ➕ hinzufügen"
+    },
+    {
+      "file": "app/components/DemoPanel.tsx",
+      "text": "Streamer mit ✕ entfernen"
+    },
+    {
+      "file": "app/components/DemoPanel.tsx",
+      "text": "Kleine Streams = klickbar"
+    },
+    {
+      "file": "app/components/DemoPanel.tsx",
+      "text": "{/* Close Button */}"
+    },
+    {
+      "file": "app/components/DemoPanel.tsx",
+      "text": "Schließen"
+    },
+    {
+      "file": "app/components/DemoPanel.tsx",
+      "text": "use client"
+    },
+    {
+      "file": "app/components/DemoPanel.tsx",
+      "text": "🔴 ${streamer} ist live!"
+    },
+    {
+      "file": "app/components/DemoPanel.tsx",
+      "text": "${viewers.toLocaleString()} Zuschauer"
+    },
+    {
+      "file": "app/components/DemoPanel.tsx",
+      "text": "Dein Browser unterstützt keine Notifications"
+    },
+    {
+      "file": "app/components/DemoPanel.tsx",
+      "text": "✅ Notifications aktiviert!"
+    },
+    {
+      "file": "app/components/DemoPanel.tsx",
+      "text": "Demo Streamer"
+    },
+    {
+      "file": "app/components/DemoPanel.tsx",
+      "text": "✅ Notifications sind bereits aktiviert!"
+    },
+    {
+      "file": "app/components/DemoPanel.tsx",
+      "text": "fixed bottom-4 right-4 z-50"
+    },
+    {
+      "file": "app/components/DemoPanel.tsx",
+      "text": "h-2.5 w-2.5 rounded-full bg-red-500 animate-pulse"
+    },
+    {
+      "file": "app/components/DemoPanel.tsx",
+      "text": "Demo Panel"
+    },
+    {
+      "file": "app/components/DemoPanel.tsx",
+      "text": "text-white text-xs font-bold mb-3 uppercase tracking-wider"
+    },
+    {
+      "file": "app/components/DemoPanel.tsx",
+      "text": "space-y-2 mb-4 pb-4 border-b border-zinc-700"
+    },
+    {
+      "file": "app/components/DemoPanel.tsx",
+      "text": "mt-2 text-[10px] text-zinc-500 bg-zinc-800/50 p-2 rounded"
+    },
+    {
+      "file": "app/components/DemoPanel.tsx",
+      "text": "text-xs text-zinc-500 space-y-1"
+    },
+    {
+      "file": "app/components/DemoPanel.tsx",
+      "text": "flex items-center gap-1"
+    },
+    {
+      "file": "app/components/DeniedModal.tsx",
+      "text": "Was hier steckt"
+    },
+    {
+      "file": "app/components/DeniedModal.tsx",
+      "text": "• Match-Statistiken in Echtzeit"
+    },
+    {
+      "file": "app/components/DeniedModal.tsx",
+      "text": "• Spielerübersicht und Leaderboards"
+    },
+    {
+      "file": "app/components/DeniedModal.tsx",
+      "text": "• Live-Stream-Status und Twitch-Daten"
+    },
+    {
+      "file": "app/components/DeniedModal.tsx",
+      "text": "• Eigene Tierlists &amp; Favoritenverwaltung"
+    },
+    {
+      "file": "app/components/DeniedModal.tsx",
+      "text": "• Voll integrierte Profi-Spieler (NA &amp; EU)"
+    },
+    {
+      "file": "app/components/DeniedModal.tsx",
+      "text": "• Eigene Streamer hinzufügen (manuell auswählbar)"
+    },
+    {
+      "file": "app/components/DeniedModal.tsx",
+      "text": "• Übersicht aller Turniere und Leaderboards"
+    },
+    {
+      "file": "app/components/DeniedModal.tsx",
+      "text": "Kein Zugriff?"
+    },
+    {
+      "file": "app/components/DeniedModal.tsx",
+      "text": "Kontakt"
+    },
+    {
+      "file": "app/components/DeniedModal.tsx",
+      "text": "Discord:"
+    },
+    {
+      "file": "app/components/DeniedModal.tsx",
+      "text": "juanitofnbr"
+    },
+    {
+      "file": "app/components/DeniedModal.tsx",
+      "text": "Twitter:"
+    },
+    {
+      "file": "app/components/DeniedModal.tsx",
+      "text": "@juanitofnbr"
+    },
+    {
+      "file": "app/components/DeniedModal.tsx",
+      "text": "Hinweis: Der Login ist auf ausgewählte Benutzer beschränkt. Nur wenn ich dich freigeschaltet habe, kannst du das Dashboard nutzen."
+    },
+    {
+      "file": "app/components/DeniedModal.tsx",
+      "text": "Erneut versuchen"
+    },
+    {
+      "file": "app/components/DeniedModal.tsx",
+      "text": "use client"
+    },
+    {
+      "file": "app/components/DeniedModal.tsx",
+      "text": "0 0 128 128"
+    },
+    {
+      "file": "app/components/DeniedModal.tsx",
+      "text": "h-12 w-12"
+    },
+    {
+      "file": "app/components/DeniedModal.tsx",
+      "text": "grid gap-6 lg:grid-cols-2"
+    },
+    {
+      "file": "app/components/DeniedModal.tsx",
+      "text": "text-3xl font-semibold text-white"
+    },
+    {
+      "file": "app/components/DeniedModal.tsx",
+      "text": "mt-4 space-y-2 text-left text-slate-300"
+    },
+    {
+      "file": "app/components/DeniedModal.tsx",
+      "text": "text-2xl font-semibold text-white"
+    },
+    {
+      "file": "app/components/DeniedModal.tsx",
+      "text": "rounded-3xl bg-slate-900/80 p-4 text-sm text-slate-300"
+    },
+    {
+      "file": "app/components/DeniedModal.tsx",
+      "text": "font-semibold text-white"
+    },
+    {
+      "file": "app/components/DeniedModal.tsx",
+      "text": "font-medium text-purple-300"
+    },
+    {
+      "file": "app/components/DeniedModal.tsx",
+      "text": "text-blue-400 hover:text-blue-300"
+    },
+    {
+      "file": "app/components/DeniedModal.tsx",
+      "text": "fixed bottom-6 left-1/2 z-50 -translate-x-1/2"
+    },
+    {
+      "file": "app/components/DeniedModal.tsx",
+      "text": "Erneut versuchen - Discord Login"
+    },
+    {
+      "file": "app/components/EditModal.tsx",
+      "text": "Promise"
+    },
+    {
+      "file": "app/components/EditModal.tsx",
+      "text": "{title}"
+    },
+    {
+      "file": "app/components/EditModal.tsx",
+      "text": "{field.label}"
+    },
+    {
+      "file": "app/components/EditModal.tsx",
+      "text": "{error && ("
+    },
+    {
+      "file": "app/components/EditModal.tsx",
+      "text": "{error}"
+    },
+    {
+      "file": "app/components/EditModal.tsx",
+      "text": "Cancel"
+    },
+    {
+      "file": "app/components/EditModal.tsx",
+      "text": "{isSaving ? 'Saving...' : 'Save'}"
+    },
+    {
+      "file": "app/components/EditModal.tsx",
+      "text": "use client"
+    },
+    {
+      "file": "app/components/EditModal.tsx",
+      "text": "Error saving"
+    },
+    {
+      "file": "app/components/EditModal.tsx",
+      "text": "text-xl font-bold text-white mb-4"
+    },
+    {
+      "file": "app/components/EditModal.tsx",
+      "text": "space-y-3 mb-4"
+    },
+    {
+      "file": "app/components/EditModal.tsx",
+      "text": "block text-sm font-medium text-zinc-300 mb-1"
+    },
+    {
+      "file": "app/components/EditModal.tsx",
+      "text": "flex gap-2"
+    },
+    {
+      "file": "app/components/LanguageProvider.tsx",
+      "text": "{children}"
+    },
+    {
+      "file": "app/components/LanguageProvider.tsx",
+      "text": "use client"
+    },
+    {
+      "file": "app/components/LanguageProvider.tsx",
+      "text": "de\" |"
+    },
+    {
+      "file": "app/components/LanguageProvider.tsx",
+      "text": "Erneut versuchen"
+    },
+    {
+      "file": "app/components/LanguageProvider.tsx",
+      "text": "Was hier steckt"
+    },
+    {
+      "file": "app/components/LanguageProvider.tsx",
+      "text": "Kein Zugriff?"
+    },
+    {
+      "file": "app/components/LanguageProvider.tsx",
+      "text": "Bitte melde dich mit deinem Discord-Konto an."
+    },
+    {
+      "file": "app/components/LanguageProvider.tsx",
+      "text": "Try again"
+    },
+    {
+      "file": "app/components/LanguageProvider.tsx",
+      "text": "What this does"
+    },
+    {
+      "file": "app/components/LanguageProvider.tsx",
+      "text": "No access?"
+    },
+    {
+      "file": "app/components/LanguageProvider.tsx",
+      "text": "Please sign in with your Discord account."
+    },
+    {
+      "file": "app/components/LanguageProvider.tsx",
+      "text": "en\") return"
+    },
+    {
+      "file": "app/components/LanguageProvider.tsx",
+      "text": "en\" ?"
+    },
+    {
+      "file": "app/components/LanguageProvider.tsx",
+      "text": "useI18n must be used within LanguageProvider"
+    },
+    {
+      "file": "app/components/MultiviewDashboard.tsx",
+      "text": "{/* Header */}"
+    },
+    {
+      "file": "app/components/MultiviewDashboard.tsx",
+      "text": "Live Status"
+    },
+    {
+      "file": "app/components/MultiviewDashboard.tsx",
+      "text": "{liveCount} online"
+    },
+    {
+      "file": "app/components/MultiviewDashboard.tsx",
+      "text": "{/* Tabs */}"
+    },
+    {
+      "file": "app/components/MultiviewDashboard.tsx",
+      "text": "{tab === 'all' ? 'Alle' : tab === 'eu' ? 'EU' : 'NA'}"
+    },
+    {
+      "file": "app/components/MultiviewDashboard.tsx",
+      "text": "{/* Streamer Grid - COMPACT */}"
+    },
+    {
+      "file": "app/components/MultiviewDashboard.tsx",
+      "text": "{streamer.twitch}"
+    },
+    {
+      "file": "app/components/MultiviewDashboard.tsx",
+      "text": "1000 ? `${(streamer.viewers / 1000).toFixed(1)}k` : streamer.viewers}"
+    },
+    {
+      "file": "app/components/MultiviewDashboard.tsx",
+      "text": "Status wird aktualisiert... ⏳"
+    },
+    {
+      "file": "app/components/MultiviewDashboard.tsx",
+      "text": "use client"
+    },
+    {
+      "file": "app/components/MultiviewDashboard.tsx",
+      "text": "EU' |"
+    },
+    {
+      "file": "app/components/MultiviewDashboard.tsx",
+      "text": "eu' |"
+    },
+    {
+      "file": "app/components/MultiviewDashboard.tsx",
+      "text": "Failed to load streamers:"
+    },
+    {
+      "file": "app/components/MultiviewDashboard.tsx",
+      "text": "API error: ${response.status}"
+    },
+    {
+      "file": "app/components/MultiviewDashboard.tsx",
+      "text": "Failed to fetch statuses:"
+    },
+    {
+      "file": "app/components/MultiviewDashboard.tsx",
+      "text": "flex items-center justify-between mb-3"
+    },
+    {
+      "file": "app/components/MultiviewDashboard.tsx",
+      "text": "flex items-center gap-2"
+    },
+    {
+      "file": "app/components/MultiviewDashboard.tsx",
+      "text": "text-sm font-bold text-white"
+    },
+    {
+      "file": "app/components/MultiviewDashboard.tsx",
+      "text": "flex gap-2 mb-3 border-b border-zinc-800/50"
+    },
+    {
+      "file": "app/components/MultiviewDashboard.tsx",
+      "text": "border-purple-500 text-purple-400"
+    },
+    {
+      "file": "app/components/MultiviewDashboard.tsx",
+      "text": "border-transparent text-zinc-400 hover:text-zinc-300"
+    },
+    {
+      "file": "app/components/MultiviewDashboard.tsx",
+      "text": "eu' ?"
+    },
+    {
+      "file": "app/components/MultiviewDashboard.tsx",
+      "text": "absolute top-1 right-1"
+    },
+    {
+      "file": "app/components/MultiviewDashboard.tsx",
+      "text": "h-1.5 w-1.5 rounded-full bg-red-500 animate-pulse"
+    },
+    {
+      "file": "app/components/MultiviewDashboard.tsx",
+      "text": "text-xs text-emerald-400 font-semibold"
+    },
+    {
+      "file": "app/components/MultiviewDashboard.tsx",
+      "text": "${(streamer.viewers / 1000).toFixed(1)}k"
+    },
+    {
+      "file": "app/components/MultiviewDashboard.tsx",
+      "text": "text-center py-4 text-zinc-500 text-xs"
+    },
+    {
+      "file": "app/components/NotificationBell.tsx",
+      "text": "{/* Notification Bell - HUD - Clickable */}"
+    },
+    {
+      "file": "app/components/NotificationBell.tsx",
+      "text": "{/* Bell Icon - Normal or Muted */}"
+    },
+    {
+      "file": "app/components/NotificationBell.tsx",
+      "text": "{notificationsEnabled ? '🔔' : '🔕'}"
+    },
+    {
+      "file": "app/components/NotificationBell.tsx",
+      "text": "🔴 Streamer live!"
+    },
+    {
+      "file": "app/components/NotificationBell.tsx",
+      "text": "use client"
+    },
+    {
+      "file": "app/components/NotificationBell.tsx",
+      "text": "fixed bottom-4 left-4 z-50"
+    },
+    {
+      "file": "app/components/NotificationBell.tsx",
+      "text": "opacity-60 hover:opacity-100"
+    },
+    {
+      "file": "app/components/NotificationBell.tsx",
+      "text": "Notifications an (klick zum deaktivieren)"
+    },
+    {
+      "file": "app/components/NotificationBell.tsx",
+      "text": "Notifications aus (klick zum aktivieren)"
+    },
+    {
+      "file": "app/components/NotificationBell.tsx",
+      "text": "relative text-2xl"
+    },
+    {
+      "file": "app/components/NotificationBell.tsx",
+      "text": "🔔' :"
+    },
+    {
+      "file": "app/components/QuickEditItem.tsx",
+      "text": "Promise"
+    },
+    {
+      "file": "app/components/QuickEditItem.tsx",
+      "text": "{isSaving ? 'Saving...' : '✓ Save'}"
+    },
+    {
+      "file": "app/components/QuickEditItem.tsx",
+      "text": "✕ Cancel"
+    },
+    {
+      "file": "app/components/QuickEditItem.tsx",
+      "text": "{label}"
+    },
+    {
+      "file": "app/components/QuickEditItem.tsx",
+      "text": "{field.name}:"
+    },
+    {
+      "file": "app/components/QuickEditItem.tsx",
+      "text": "{field.value}"
+    },
+    {
+      "file": "app/components/QuickEditItem.tsx",
+      "text": "✎ Edit"
+    },
+    {
+      "file": "app/components/QuickEditItem.tsx",
+      "text": "{isDeleting ? '...' : '🗑 Delete'}"
+    },
+    {
+      "file": "app/components/QuickEditItem.tsx",
+      "text": "use client"
+    },
+    {
+      "file": "app/components/QuickEditItem.tsx",
+      "text": "Delete ${label}?"
+    },
+    {
+      "file": "app/components/QuickEditItem.tsx",
+      "text": "bg-zinc-900 border border-green-800/50 rounded p-3 space-y-2"
+    },
+    {
+      "file": "app/components/QuickEditItem.tsx",
+      "text": "flex gap-2"
+    },
+    {
+      "file": "app/components/QuickEditItem.tsx",
+      "text": "✓ Save"
+    },
+    {
+      "file": "app/components/QuickEditItem.tsx",
+      "text": "font-semibold text-zinc-200"
+    },
+    {
+      "file": "app/components/QuickEditItem.tsx",
+      "text": "text-xs text-zinc-500 space-y-1"
+    },
+    {
+      "file": "app/components/QuickEditItem.tsx",
+      "text": "font-medium text-zinc-400"
+    },
+    {
+      "file": "app/components/QuickEditItem.tsx",
+      "text": "🗑 Delete"
+    },
+    {
+      "file": "app/layout.tsx",
+      "text": "{children}"
+    },
+    {
+      "file": "app/layout.tsx",
+      "text": "Create Next App"
+    },
+    {
+      "file": "app/layout.tsx",
+      "text": "Generated by create next app"
+    },
+    {
+      "file": "app/layout.tsx",
+      "text": "min-h-full flex flex-col"
+    },
+    {
+      "file": "app/lib/dataManager.ts",
+      "text": "(filename: string): Promise"
+    },
+    {
+      "file": "app/lib/dataManager.ts",
+      "text": "(filename: string, data: T): Promise"
+    },
+    {
+      "file": "app/lib/dataManager.ts",
+      "text": "Error reading ${filename}:"
+    },
+    {
+      "file": "app/lib/dataManager.ts",
+      "text": "Failed to read ${filename}"
+    },
+    {
+      "file": "app/lib/dataManager.ts",
+      "text": "✓ Data saved: ${filename}"
+    },
+    {
+      "file": "app/lib/dataManager.ts",
+      "text": "Error writing ${filename}:"
+    },
+    {
+      "file": "app/lib/dataManager.ts",
+      "text": "Failed to write ${filename}"
+    },
+    {
+      "file": "app/lib/dataManager.ts",
+      "text": "${arrayField} is not an array in ${filename}"
+    },
+    {
+      "file": "app/lib/twitchAuth.ts",
+      "text": "Twitch token exchange failed"
+    },
+    {
+      "file": "app/lib/twitchAuth.ts",
+      "text": "Bearer ${accessToken}"
+    },
+    {
+      "file": "app/lib/twitchAuth.ts",
+      "text": "Twitch user info request failed"
+    },
+    {
+      "file": "app/live-leaderboard/page.tsx",
+      "text": "Live Finals Leaderboard"
+    },
+    {
+      "file": "app/live-leaderboard/page.tsx",
+      "text": "This page appears when an active live finals cup is running. If no live final is available, this view will show the current status and invite you back once the event starts."
+    },
+    {
+      "file": "app/live-leaderboard/page.tsx",
+      "text": "← Back to Dashboard"
+    },
+    {
+      "file": "app/live-leaderboard/page.tsx",
+      "text": "View Tournaments"
+    },
+    {
+      "file": "app/live-leaderboard/page.tsx",
+      "text": "{loading ? ("
+    },
+    {
+      "file": "app/live-leaderboard/page.tsx",
+      "text": "Lade Cup-Leaderboard..."
+    },
+    {
+      "file": "app/live-leaderboard/page.tsx",
+      "text": ") : error ? ("
+    },
+    {
+      "file": "app/live-leaderboard/page.tsx",
+      "text": "{error}"
+    },
+    {
+      "file": "app/live-leaderboard/page.tsx",
+      "text": ") : leaderboard ? ("
+    },
+    {
+      "file": "app/live-leaderboard/page.tsx",
+      "text": "Reload Elite Series NAC"
+    },
+    {
+      "file": "app/live-leaderboard/page.tsx",
+      "text": "Cup Live Leaderboard"
+    },
+    {
+      "file": "app/live-leaderboard/page.tsx",
+      "text": "Aktuelle Rangliste des aktiven Cups im NAC-Server."
+    },
+    {
+      "file": "app/live-leaderboard/page.tsx",
+      "text": "LIVE NOW"
+    },
+    {
+      "file": "app/live-leaderboard/page.tsx",
+      "text": "Leaderboard"
+    },
+    {
+      "file": "app/live-leaderboard/page.tsx",
+      "text": "Echtzeit-Update aus der Fortnite-Leaderboard-Seite."
+    },
+    {
+      "file": "app/live-leaderboard/page.tsx",
+      "text": "Aktualisieren"
+    },
+    {
+      "file": "app/live-leaderboard/page.tsx",
+      "text": "{col}"
+    },
+    {
+      "file": "app/live-leaderboard/page.tsx",
+      "text": "{row[col] || '-'}"
+    },
+    {
+      "file": "app/live-leaderboard/page.tsx",
+      "text": "Kein Cup-Leaderboard gefunden"
+    },
+    {
+      "file": "app/live-leaderboard/page.tsx",
+      "text": "Die Cup-Daten konnten nicht geladen werden. Entweder ist das Leaderboard momentan nicht verfügbar oder die Seite ist für externe Abfragen gesperrt."
+    },
+    {
+      "file": "app/live-leaderboard/page.tsx",
+      "text": "use client"
+    },
+    {
+      "file": "app/live-leaderboard/page.tsx",
+      "text": "Server responded ${response.status}"
+    },
+    {
+      "file": "app/live-leaderboard/page.tsx",
+      "text": "Unable to parse leaderboard"
+    },
+    {
+      "file": "app/live-leaderboard/page.tsx",
+      "text": "Cup leaderboard error:"
+    },
+    {
+      "file": "app/live-leaderboard/page.tsx",
+      "text": "Unable to load cup leaderboard"
+    },
+    {
+      "file": "app/live-leaderboard/page.tsx",
+      "text": "min-h-screen bg-zinc-950 text-white p-6 font-sans"
+    },
+    {
+      "file": "app/live-leaderboard/page.tsx",
+      "text": "flex items-center gap-3 mb-3"
+    },
+    {
+      "file": "app/live-leaderboard/page.tsx",
+      "text": "text-4xl font-black tracking-widest text-zinc-100 uppercase"
+    },
+    {
+      "file": "app/live-leaderboard/page.tsx",
+      "text": "max-w-3xl text-zinc-400"
+    },
+    {
+      "file": "app/live-leaderboard/page.tsx",
+      "text": "flex flex-wrap gap-2"
+    },
+    {
+      "file": "app/live-leaderboard/page.tsx",
+      "text": "rounded-3xl border border-cyan-800 bg-cyan-950/30 p-6"
+    },
+    {
+      "file": "app/live-leaderboard/page.tsx",
+      "text": "text-xs uppercase tracking-[0.3em] text-cyan-300/80"
+    },
+    {
+      "file": "app/live-leaderboard/page.tsx",
+      "text": "mt-2 text-3xl font-bold text-white"
+    },
+    {
+      "file": "app/live-leaderboard/page.tsx",
+      "text": "mt-1 text-sm text-zinc-300"
+    },
+    {
+      "file": "app/live-leaderboard/page.tsx",
+      "text": "rounded-3xl border border-zinc-800 bg-zinc-900/90 p-6"
+    },
+    {
+      "file": "app/live-leaderboard/page.tsx",
+      "text": "mb-5 flex items-center justify-between gap-4"
+    },
+    {
+      "file": "app/live-leaderboard/page.tsx",
+      "text": "text-lg font-semibold text-white"
+    },
+    {
+      "file": "app/live-leaderboard/page.tsx",
+      "text": "text-sm text-zinc-400"
+    },
+    {
+      "file": "app/live-leaderboard/page.tsx",
+      "text": "repeat(${leaderboard.columns.length}, minmax(0, 1fr))"
+    },
+    {
+      "file": "app/live-leaderboard/page.tsx",
+      "text": "text-2xl font-semibold text-white mb-3"
+    },
+    {
+      "file": "app/live-leaderboard/page.tsx",
+      "text": "max-w-2xl mx-auto text-sm text-zinc-400"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "{/* Header */}"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "✍️ Note Editor"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "← Back"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "{/* Editor */}"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "{/* Title */}"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "Title"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "{/* Formatting Toolbar */}"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "H"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "📷 Image"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "🎬 Video"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "{/* Content Editor */}"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "Content"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "💡 Tip: You can paste images directly from clipboard!"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "0 && ("
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "📷 Images ({images.length})"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "🎬 Videos ({videos.length})"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "📊 Mermaid Diagrams"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "Add"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "{d.code.substring(0, 50)}..."
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "Remove"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "{/* Actions */}"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "💾 Save"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "✕ Cancel"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "📝 Patch Notes"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "Manage multimedia patch notes"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "➕ New Note"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "Loading..."
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": ") : notes.length === 0 ? ("
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "No notes yet"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "Create your first patch note to get started"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "Create First Note"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "{note.title}"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "Updated {new Date(note.updatedAt).toLocaleDateString()}"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "{note.content}"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "0 &&"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "📷 {note.images.length} image{note.images.length !== 1 ? 's' : ''}"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "🎬 {note.videos.length} video{note.videos.length !== 1 ? 's' : ''}"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "📊 {note.diagrams.length} diagram{note.diagrams.length !== 1 ? 's' : ''}"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "🗑️ Delete"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "use client"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "Failed to load notes:"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "Failed to save note:"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "Please enter a title"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "Delete this note?"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "Failed to delete note:"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "Please enter Mermaid diagram code"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "max-w-5xl mx-auto"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "flex items-center justify-between mb-8"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "block text-sm font-semibold text-white mb-3"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "Patch notes title..."
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "# ',"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "Write your content here... Paste images directly!"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "text-xs text-slate-400 mt-2"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "grid grid-cols-2 md:grid-cols-3 gap-4"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "relative group"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "Screenshot ${idx + 1}"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "w-full h-40 object-cover rounded-xl border border-white/20"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "grid grid-cols-2 gap-4"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "block text-sm font-semibold text-white"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "flex gap-2"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "graph TD; A-->B; B-->C;"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "text-xs text-slate-300 truncate"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "text-red-400 hover:text-red-300 text-sm ml-2"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "flex gap-3 pt-4"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "max-w-6xl mx-auto"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "flex items-center justify-between mb-12"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "text-slate-400 text-sm mt-2"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "flex gap-3"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "text-center py-20"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "text-7xl mb-6"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "text-3xl font-bold text-white mb-3"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "text-slate-400 mb-8"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "grid gap-4"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "flex items-start justify-between"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "flex-1 min-w-0"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "text-sm text-slate-400 mt-2"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "text-slate-300 mt-4 line-clamp-2"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "flex gap-4 mt-4 text-xs text-slate-400"
+    },
+    {
+      "file": "app/notes/page.tsx",
+      "text": "s' :"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "Lade Dashboard-Infrastruktur..."
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "STREAMER MULTIVIEW HUB"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "🎮 Tournaments"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "{showLiveFinalsLeaderboard && ("
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "🏁 Live Finals Leaderboard"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "📊 Tier List"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "opens socials dashboard */}"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "{verifiedUser && ("
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "{(verifiedUser || '?').charAt(0).toUpperCase()}"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "{/* center socials icons */}"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "@{handle}"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "0 && ("
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "⭐ Favoriten ({favoriteStreamers.length})"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "{isLive ? ("
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "{twitchName}"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "Meine Ordner"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "{renamingFolderId === f.id ? ("
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "📁 {f.name}"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "({f.streamers?.length || 0})"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "{getFolderLiveCount(f)}"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "Erstellen"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "{currentFolder && ("
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "Streamer in \"{currentFolder.name}\""
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "🔴 Live"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "Streamer hinzufügen"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "{streamerSearchQuery && ("
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "Online"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "Offline"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "{s.twitch}"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "{draggedStreamer?.twitch === s.twitch &&"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "(ziehen...)"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "{s.twitter && ("
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "𝕏: {s.twitter}"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "{multiviewMode && !isHidden && ("
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "{isInGrid ? '✕' : '➕'}"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "{favoriteStreamers.includes(s.twitch) ? '⭐' : '☆'}"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "{isHidden ? '👁️‍🗨️' : '👁️'}"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "{!showFolderPanel && ("
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "{showChat ? '💬 Chat aus' : '💬 Chat an'}"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "{multiviewMode ? '🖥️ Multiview' : '👤 Single'}"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "{currentHost && ("
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "{activeStreamerTwitch}"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "{editingTwitter === activeStreamerTwitch ? ("
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "Save"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "Cancel"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "@{activeTwitter}"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "Support / Promo"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "Kein Stream ausgewählt"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "Keine Streams aktiv. Klicke links auf einen Streamer!"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "Mute"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "{showChat && ("
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "💬 Chat: {activeStreamerTwitch || 'Keiner'}"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "{currentHost && activeStreamerTwitch ? ("
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "Kein Chat geladen"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "use client"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "Fortnite Pros EU"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "Fortnite Pros NA"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "API responded with status ${response.status}"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "LIVE ("
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "[Live Status] ${twitchName}: offline (not found)"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "[Live Status Error] ${twitchName}:"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "Failed to load live status:"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "'} ${tournament.round ??"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "Unable to determine live finals status:"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "🔴 ${streamerName} ist live!"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "[Auto-switch] ${currentName} not live -> ${nextStream}"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "Ad switch error:"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "[Live Status Init] Setting up live status for folder:"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "[Live Status] Checking live status for all streamers..."
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "[Live Status Error] ${streamer.twitch}:"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "[Live Status] Refreshing all streamers..."
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "Failed to load streamers"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "Failed to load streamers from API:"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "✅ Gespeicherte Session wiederhergestellt"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "Fehler beim Laden des Layouts:"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "Error loading folders:"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "Failed to load connected accounts:"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "Failed to load socials display settings:"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "Fehler beim Laden der Stats:"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "min-h-screen bg-zinc-950 text-zinc-500 p-6 font-sans"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "Fullscreen fehlgeschlagen"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "streamer_dashboard_auth=; path=/; max-age=0"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "Dein Browser unterstützt keine Benachrichtigungen"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "✅ Session gespeichert:"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "✅ Komplette Session wiederhergestellt:"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "Du musst mindestens einen Ordner behalten!"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "[Multiview] Entfernt: ${twitchName}"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "${twitchName} ist offline. Trotzdem hinzufügen?"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "[Multiview] Hinzugefügt: ${twitchName}"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "Failed to save streamer customization:"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "Search error:"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "flex items-center gap-3"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "text-lg font-black tracking-widest text-zinc-100 uppercase"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "flex items-center gap-2 self-end sm:self-auto"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "relative ml-3"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "relative inline-flex items-center"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "h-full w-full object-cover"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "text-sm font-bold text-zinc-200"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "absolute left-1/2 transform -translate-x-1/2 top-0 mt-2"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "h-4 w-4"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "hidden sm:inline"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "grid grid-cols-1 xl:grid-cols-4 gap-6 items-start"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "block xl:col-span-1"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "Ordnerliste ausblenden"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "Ordnerliste anzeigen"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "border-t border-zinc-800 pt-4"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "flex flex-col gap-1.5"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "bg-yellow-900/40 border-yellow-600 shadow-md"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "bg-red-950/30 border-red-600/50 hover:border-red-500"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "bg-zinc-900/50 border-zinc-800/50 hover:border-zinc-700"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "flex items-center gap-1.5"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "h-2 w-2 rounded-full bg-red-500 animate-pulse"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "h-2 w-2 rounded-full bg-zinc-700"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "flex items-center justify-between mb-3"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "text-xs font-bold uppercase tracking-widest text-zinc-500"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "bg-purple-600 text-white shadow-md shadow-purple-600/10"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "Ordnername bearbeiten"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "text-[10px] opacity-60 ml-2"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "h-1.5 w-1.5 rounded-full bg-red-500"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "text-purple-200 hover:text-white"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "text-zinc-500 hover:text-amber-400"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "Ordner \"${f.name}\" wirklich löschen?"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "text-zinc-500 hover:text-red-400"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "mt-3 flex gap-2"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "+ Neuer Ordner Name..."
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "border-t border-zinc-900 pt-4"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "flex gap-2 items-center"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "bg-red-600 text-white"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "bg-zinc-800 text-zinc-400 hover:bg-zinc-700"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "Auto-Sort: Live Streamer oben"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "Status aktualisieren"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "1. Twitch Name (z.B. vadeal)"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "2. Twitter Handle (optional)"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "relative mb-3"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "🔍 Streamer suchen..."
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "flex flex-col gap-1.5 max-h-[350px] overflow-y-auto pr-1"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "opacity-50 bg-purple-900/30 border-purple-500"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "bg-zinc-900/80 border-zinc-700 shadow-md"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "bg-zinc-950/30 border-zinc-900/50 hover:border-zinc-800"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "h-2.5 w-2.5 rounded-full bg-red-500 animate-pulse"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "text-[8px] bg-red-600 text-white px-1.5 rounded font-bold"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "h-1.5 w-1.5 rounded-full bg-purple-500 animate-pulse"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "text-white font-bold"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "text-[9px] text-amber-400 font-bold"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "text-[9px] font-normal tracking-normal text-sky-500"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "bg-red-900/70 hover:bg-red-800 text-red-200"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "bg-purple-900/70 hover:bg-purple-800 text-purple-200"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "Aus Multiview entfernen"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "In Multiview hinzufügen"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "✕' :"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "⭐' :"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "p-1 hover:bg-zinc-800 rounded text-xs"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "flex justify-end gap-2 pr-20 mb-4"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "Chat ein/ausblenden"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "💬 Chat aus"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "💬 Chat an"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "bg-purple-600 border-purple-500 text-white"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "Zwischen Single und Multiview wechseln"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "🖥️ Multiview"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "👤 Single"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "relative w-full aspect-video max-h-[560px] bg-black"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "absolute inset-0 z-40 bg-transparent pointer-events-none"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "Twitch stream ${activeStreamerTwitch}"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "w-full h-full relative z-0"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "flex items-center gap-4"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "flex items-center gap-2 text-purple-400 font-bold"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "flex items-center gap-2"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "Twitter handle bearbeiten"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "text-[10px] bg-green-600 px-2 py-1 rounded"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "text-[10px] bg-zinc-800 px-2 py-1 rounded"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "noopener noreferrer"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "Edit Twitter"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "text-zinc-400 hover:text-zinc-200"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "text-center text-zinc-500 text-xs italic py-10"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 w-full"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "border-purple-500 shadow-lg shadow-purple-500/20"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "relative bg-black aspect-video"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "absolute bottom-2 right-2 z-50"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "Twitch stream ${twitch}"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "w-full h-full"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "flex-1 min-h-0 overflow-hidden bg-black"
+    },
+    {
+      "file": "app/page.tsx",
+      "text": "Twitch chat für ${activeStreamerTwitch}"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "TIER LIST"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "{!showMenu && currentList && ("
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "• {currentList.name}"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "{!showMenu && ("
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "+ Spieler/Duo"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "Menu"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "Reset"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "Back"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "{showMenu ? ("
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "+ Neue Liste"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "0 ? ("
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "{list.name}"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "X"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "{list.teams.length} Teams"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "Keine Listen vorhanden"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "Neue Tier List"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "Typ:"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "Solo"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "Duo"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "Erstellen"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "Abbrechen"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": ") : currentList ? ("
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "{showAddPlayer && ("
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "{currentList.type === 'duo' ? 'Neues Duo hinzufügen' : 'Neuen Spieler hinzufügen'}"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "{currentList.type === 'duo' ? ("
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "Region:"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "NAC (🇺🇸)"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "EU (🇪🇺)"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "Hinzufügen"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "{tier}"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "Ziehe einen Eintrag direkt an eine neue Stelle"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "{cleanupDisplayName(p.name)}"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "{p.region}"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "Unverteilt"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "{filteredTeams.length === 0 && searchQuery === '' && ("
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "Alle Spieler verteilt"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": ") : null}"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "use client"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": ", 'B"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": ", 'E"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "Failed to load players:"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "Failed to load tier lists:"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "EU' :"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "Tier List wirklich leeren?"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "up' |"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "Error deleting duo:"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "Error deleting player:"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "Error adding player:"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "Fehler beim Hinzufügen des Spielers"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "Error adding duo:"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "Fehler beim Hinzufügen des Duos"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "min-h-screen bg-black text-white p-6 font-sans flex flex-col"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "flex items-center gap-3"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "text-xl font-black tracking-widest uppercase"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "text-xs text-zinc-400"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "flex gap-2"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "flex-1 flex flex-col"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "flex items-start justify-between mb-3"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "text-center text-zinc-400"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "text-lg font-bold mb-4"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "Name eingeben..."
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "text-xs font-bold mb-2 block"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "bg-blue-600 text-white"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "bg-zinc-700 text-zinc-400 hover:bg-zinc-600"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "Neues Duo hinzufügen"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "Neuen Spieler hinzufügen"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "Spieler 1..."
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "Spieler 2..."
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "Region für neues Duo"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "Spieler Name..."
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "Region für neuen Spieler"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "flex-1 flex gap-6 overflow-hidden"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "flex border-b border-zinc-800 last:border-b-0 mb-2"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "bg-yellow-900 border-yellow-600 ring-2 ring-yellow-500"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "bg-zinc-800 border-zinc-700 hover:bg-zinc-700"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "w-full flex items-start justify-between gap-2"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "text-[14px] font-bold flex flex-col gap-1 text-white"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "flex items-center gap-2"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "EU' ?"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "Eine Position nach oben"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "Eine Position nach unten"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "Aus Ranking entfernen"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "font-bold mb-3 text-sm uppercase tracking-widest"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "Spieler suchen..."
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "flex-1 overflow-y-auto space-y-1 max-h-96"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "w-full flex items-start justify-between gap-1"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "Spieler löschen"
+    },
+    {
+      "file": "app/tierlist/page.tsx",
+      "text": "text-center text-zinc-500 text-xs italic py-4"
+    },
+    {
+      "file": "app/tierlist/playerTwitterMap.ts",
+      "text": "ENC Roz"
+    },
+    {
+      "file": "app/tierlist/playerTwitterMap.ts",
+      "text": "King Novatism"
+    },
+    {
+      "file": "app/tierlist/playerTwitterMap.ts",
+      "text": "xp42 louiemont"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "{/* Header */}"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "All Tournaments"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "Import ICS"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "🧹 Clear Cups"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "← Back"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "0 && ("
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "Importiere ICS…"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "{importProgress}/{importTotal} ({Math.round((importProgress / importTotal) * 100)}%)"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "{storedIcsContent && ("
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "🔄 Import stored ICS"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "⬇️ Download ICS"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "Track All Tournaments, see tournament schedules, and follow the competitive circuit."
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "{/* Category Filter */}"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "{/* Region Filter */}"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "Region:"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "Loading tournaments..."
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": ") : sortedTournaments.length === 0 ? ("
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "No tournaments found"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "{/* Image */}"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "{tournament.status === 'completed' ? '✓ Done' : '🔴 Live'}"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "{getCountdownLabel(tournament) || 'Upcoming'}"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": ") : null}"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "{/* Content */}"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "{tournament.name}"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "{tournament.region}"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "{getTypeLabel(tournament.type)}"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "{tournament.round} • {tournament.category}"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "📅 {formatDate(tournament.date)} 🕐 {getDisplayTime(tournament)}"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "{tournament.winner && ("
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "🏆 Winner: {tournament.winner}"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "{tournament.leaderboardUrl && (tournament.status === 'live' || tournament.status === 'completed') && ("
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "📋 View Leaderboard"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "{/* Modal Header */}"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "Edit Tournament"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "{/* Modal Content */}"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "{/* Image Gallery */}"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "Select Tournament Banner"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "{image.name}"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "{selectedImage === image.url && ("
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "{/* Form */}"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "Tournament Name"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "Category"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "Round"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "Date"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "Start Time"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "End Time"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "{icsError && ("
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "{icsError}"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "Save Tournament"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "Cancel"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "use client"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "EU' |"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "EU' as"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "Failed to fetch tournaments"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "Error fetching tournaments:"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "Cash Cup"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "Console Cash Cup"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "Console Victory Solo"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "Solo CC Finals"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "Solo Ranked Cup"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "Duo Ranked Cup"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "Duos Ranked Cup (Reload)"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "/tournaments/Duos Ranked Cup (Reload).png"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "Division 1 Opens"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "Division 1 Final"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "Division 2"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "Division 3"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "Division 4"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "Division 5"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "FNCS Major"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "Major 2 Play-In"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "Last Chance Major"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "Fortnite Championship"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "Performance Eval"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "Reload Elite"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "Mobile Victory Cup"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "/tournaments/mobil victory cup.png"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "Mobile Cups"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "/tournaments/mobile cups.jpg"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "Mongraal Cup"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "Touch-Only Test Cup"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "🏆 FNCS"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "📊 Performance"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "🏅 Ranked Cups"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "💰 Cash Cup"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "♻️ Reload"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "EU') || upper.includes("
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": ")) return"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "BR') || upper.includes("
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "OC')) return"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "ME') || upper.includes("
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": ") || upper.includes("
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "${formatTime(start)} - ${formatTime(end)}"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "In ${hours}h ${minutes}m"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "In ${minutes}m"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "Starting soon"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "victory cup"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "battle royale"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "cash cup"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "division 1"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "day 1"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "day 2"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "division 2"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "division 3"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "division 4"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "division 5"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "/tournaments/duo ranked cup.png"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "major 2"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "last chance"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "/tournaments/Mobile Series.jpg"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "touch only"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "touch-only test cup"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "EU') || regionText.includes("
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "BR') || regionText.includes("
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "OC') || regionText.includes("
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": ") || regionText.includes("
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "ME') || regionText.includes("
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "') +"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "ICS import request failed"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "' :"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "ICS-Import wurde abgebrochen."
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "Failed to import ICS file:"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "Import failed for all events in the ICS file."
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "Error parsing ICS file:"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "Fehler beim Verarbeiten der ICS-Datei."
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "Keine gespeicherte ICS-Datei im Tool verfügbar."
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "Error importing stored ICS file:"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "Fehler beim Laden der gespeicherten ICS-Datei."
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "Bitte alle Felder ausfüllen und ein Bild auswählen!"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "Failed to save tournament"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "Error saving tournament:"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "Fehler beim Speichern des Turnaments"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "Turnier wirklich löschen?"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "Failed to delete tournament"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "Error deleting tournament:"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "Fehler beim Löschen des Turnaments"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "Failed to clear tournaments"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "Error clearing tournaments:"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "Fehler beim Löschen aller Cups"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "linear-gradient(135deg, #1a1a1a 0%, #2a2a2a 100%)"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "min-h-screen bg-zinc-950 text-white p-6 font-sans"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "flex items-center justify-between mb-4"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "flex items-center gap-3"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "text-4xl font-black tracking-widest text-zinc-100 uppercase"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "flex flex-col items-end gap-3 w-full"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "flex flex-wrap items-center justify-end gap-2"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "bg-zinc-700 text-zinc-400 cursor-not-allowed"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "bg-zinc-800 hover:bg-zinc-700"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "ICS-Datei auswählen"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "flex flex-col items-end gap-2 text-right"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "text-xs text-zinc-400 max-w-xs"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "Geladene Datei: ${icsFileName}"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "w-full max-w-xs"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "flex items-center justify-between text-xs text-zinc-400 mt-1"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "flex flex-wrap justify-end gap-2"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "text-zinc-400 text-sm"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "mb-8 flex gap-2 flex-wrap"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "bg-emerald-600 text-white"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "bg-zinc-800 text-zinc-300 hover:bg-zinc-700"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "💰 Cash Cups"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "♻️ Reload Elite"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "mb-8 flex gap-2 flex-wrap border-t border-zinc-800 pt-4"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "text-xs font-bold text-zinc-400 py-1.5"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": ", 'NAC"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": ", 'ASIA"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "bg-blue-600 text-white"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "All Regions"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "EU' &&"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "BR' &&"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "ME' &&"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "text-center py-12 text-zinc-400"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "grayscale opacity-40"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "w-full h-full object-cover"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "bg-red-600/80 animate-pulse"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "✓ Done"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "🔴 Live"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "font-bold text-lg mb-2"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "flex flex-wrap gap-2 text-xs mb-3"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "bg-zinc-800 px-2 py-0.5 rounded"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "text-sm text-zinc-400 space-y-1 mb-3"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "text-sm text-purple-400 font-semibold"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "flex flex-col gap-3 mt-4"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "flex justify-end"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "Edit tournament"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "text-2xl font-bold text-white"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "p-6 space-y-6"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "block text-sm font-bold text-zinc-300 mb-3"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "border-purple-500 shadow-lg shadow-purple-500/50"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "border-zinc-700 hover:border-zinc-600"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "w-full h-24 object-cover"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "text-xs text-zinc-300 text-center py-1 bg-zinc-800"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "text-white text-2xl"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "grid grid-cols-1 md:grid-cols-2 gap-4"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "text-sm text-red-400 bg-red-900/30 p-3 rounded"
+    },
+    {
+      "file": "app/tournaments/page.tsx",
+      "text": "flex gap-2"
+    }
+  ]
+}

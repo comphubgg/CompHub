@@ -1,0 +1,96 @@
+# Die Daten von selbst erneuern.
+#
+# Der Nutzer wollte keinen Knopf zum Aktualisieren, sondern dass sich alles
+# planmaessig selbst holt. Genau das macht dieser Ablauf: er laeuft stuendlich,
+# holt die neuen Spieltage und Replays, und legt die Ergebnisse zurueck ins
+# Repository. Wer die .exe benutzt, bekommt sie beim naechsten Start.
+#
+# Warum stuendlich und nicht oefter: Replays leben bei Epic einunddreissig
+# Tage, Leaderboards aendern sich waehrend eines Cups im Minutentakt. Einmal
+# je Stunde trifft beides, ohne Epics Schnittstelle zu belaesten.
+#
+# Was hier NICHT passiert: das Bauen der .exe. Ein Programm von 354 MB je
+# Datenaenderung neu zu bauen waere Unfug - der Code aendert sich selten, die
+# Daten staendig. Deshalb sind es zwei getrennte Ablaeufe.
+
+name: Daten erneuern
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '15 * * * *'   # jede Stunde, funfzehn nach
+
+# Der Ablauf schreibt ins Repository - ohne diese Zeile darf er das nicht.
+permissions:
+  contents: write
+
+jobs:
+  erneuern:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Abhängigkeiten
+        run: npm ci --omit=optional
+
+      - name: Zugangsdaten
+        # Die Schluessel stehen als Secrets im Repository, nicht im Code.
+        # Fehlt einer, laeuft der Schritt trotzdem - die Aufgaben, die ihn
+        # brauchen, melden das selbst und die uebrigen arbeiten weiter.
+        run: |
+          {
+            echo "EPIC_DEVICE_ID=${{ secrets.EPIC_DEVICE_ID }}"
+            echo "EPIC_ACCOUNT_ID=${{ secrets.EPIC_ACCOUNT_ID }}"
+            echo "EPIC_SECRET=${{ secrets.EPIC_SECRET }}"
+            echo "TWITCH_CLIENT_ID=${{ secrets.TWITCH_CLIENT_ID }}"
+            echo "TWITCH_CLIENT_SECRET=${{ secrets.TWITCH_CLIENT_SECRET }}"
+          } > .env.local
+
+      - name: Spieltage holen
+        continue-on-error: true
+        run: node scripts/epic-spieltage-holen.mjs
+
+      - name: Platzierungen holen
+        continue-on-error: true
+        run: node scripts/platzierungen-holen.mjs
+
+      - name: Werte der Szene holen
+        continue-on-error: true
+        run: node scripts/szene-stats-holen.mjs
+
+      - name: Weltrangliste holen
+        continue-on-error: true
+        run: node scripts/power-rankings-holen.mjs
+
+      - name: Replays holen
+        continue-on-error: true
+        run: node scripts/replays-holen.mjs --frisch 2
+
+      - name: Replays auswerten
+        continue-on-error: true
+        run: node scripts/replays-aggregieren.mjs
+
+      - name: Zugangsdaten wieder weg
+        # Sie duerfen unter keinen Umstaenden mit ins Repository.
+        if: always()
+        run: rm -f .env.local
+
+      - name: Zurücklegen
+        run: |
+          git config user.name "CompHub"
+          git config user.email "noreply@comphub.gg"
+          # Nur was gebraucht wird. Die rohen Replays sind ueber die
+          # .gitignore ohnehin draussen; hier steht es noch einmal, damit
+          # es beim Lesen nicht uebersehen wird.
+          git add data/
+          # Nichts Neues ist kein Fehler - dann endet der Lauf still.
+          git diff --staged --quiet && exit 0
+          git commit -m "Daten erneuert $(date -u '+%Y-%m-%d %H:%M')"
+          git push

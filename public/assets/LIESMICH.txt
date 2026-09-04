@@ -1,0 +1,15 @@
+Bildvorrat fuer Beitraege
+=========================
+
+turniere/<Turnier>/   Alles zu einem Turnier: Logos, Siegergrafiken,
+                      Hintergruende, Screenshots vom Stream.
+                      Beispiel: turniere/EWC 2026/winner.png
+
+spieler/<Name>/       Alles zu einem einzelnen Profi.
+                      Beispiel: spieler/Peterbot/portrait.png
+
+Direkt hier im Ordner liegen die Vorlagen, auf denen die Turniergrafik
+zeichnet - TEAM STATS.jpg und fncs-logo.png. Die bitte nicht verschieben.
+
+Hochladen geht auch ueber /admin/assets; dort ist gleich zu sehen, was
+schon da ist. Erlaubt sind png, jpg, webp, gif und svg bis 20 MB.

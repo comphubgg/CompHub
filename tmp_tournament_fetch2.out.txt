@@ -1,0 +1,510 @@
+﻿JS URL: https://nobleprac.com/main.461b1e37fda750b46557.js
+
+=== tournaments.nobleprac.com URLs ===
+match: https://tournaments.nobleprac.com\
+RVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PRO
+---
+match: https://tournaments.nobleprac.com\
+RVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PRO
+---
+match: https://tournaments.nobleprac.com\
+RVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PRO
+---
+match: https://tournaments.nobleprac.com\
+RVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PRO
+---
+match: https://tournaments.nobleprac.com\
+RVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PRO
+---
+match: https://tournaments.nobleprac.com\
+RVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PRO
+---
+match: https://tournaments.nobleprac.com\
+RVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PRO
+---
+match: https://tournaments.nobleprac.com\
+RVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PRO
+---
+match: https://tournaments.nobleprac.com\
+RVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PRO
+---
+match: https://tournaments.nobleprac.com\
+RVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PRO
+---
+match: https://tournaments.nobleprac.com\
+RVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PRO
+---
+match: https://tournaments.nobleprac.com\
+RVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PRO
+---
+match: https://tournaments.nobleprac.com\
+RVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PRO
+---
+match: https://tournaments.nobleprac.com\
+RVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PRO
+---
+match: https://tournaments.nobleprac.com\
+RVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PRO
+---
+match: https://tournaments.nobleprac.com\
+RVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PRO
+---
+match: https://tournaments.nobleprac.com\
+RVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PRO
+---
+match: https://tournaments.nobleprac.com\
+RVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PRO
+---
+match: https://tournaments.nobleprac.com\
+RVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PRO
+---
+match: https://tournaments.nobleprac.com\
+RVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PRO
+---
+match: https://tournaments.nobleprac.com\
+RVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PRO
+---
+match: https://tournaments.nobleprac.com\
+RVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PRO
+---
+match: https://tournaments.nobleprac.com\
+RVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PRO
+---
+match: https://tournaments.nobleprac.com\
+RVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PRO
+---
+match: https://tournaments.nobleprac.com\
+RVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PRO
+---
+match: https://tournaments.nobleprac.com\
+RVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PRO
+---
+match: https://tournaments.nobleprac.com\
+RVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PRO
+---
+match: https://tournaments.nobleprac.com\
+RVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PRO
+---
+match: https://tournaments.nobleprac.com\
+RVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PRO
+---
+match: https://tournaments.nobleprac.com\
+RVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PRO
+---
+match: https://tournaments.nobleprac.com\
+RVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PRO
+---
+match: https://tournaments.nobleprac.com\
+RVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PRO
+---
+match: https://tournaments.nobleprac.com\
+RVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PRO
+---
+match: https://tournaments.nobleprac.com\
+RVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PRO
+---
+match: https://tournaments.nobleprac.com\
+RVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PRO
+---
+match: https://tournaments.nobleprac.com\
+RVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PRO
+---
+match: https://tournaments.nobleprac.com\
+RVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PRO
+---
+match: https://tournaments.nobleprac.com\
+RVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PRO
+---
+match: https://tournaments.nobleprac.com\
+RVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PRO
+---
+match: https://tournaments.nobleprac.com\
+RVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PRO
+---
+match: https://tournaments.nobleprac.com\
+RVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PRO
+---
+match: https://tournaments.nobleprac.com\
+RVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PRO
+---
+match: https://tournaments.nobleprac.com\
+RVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PRO
+---
+match: https://tournaments.nobleprac.com\
+RVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PRO
+---
+
+=== map.nobleprac.com URLs ===
+match: https://map.nobleprac.com\
+_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PROD_SESSION_SERVER_URL\":\"https://map.nobleprac.com\",\"REACT_APP_DEV_TICKETS_SERVER_URL\":\"http://localhost:2400\",\"REACT_APP_PRO
+---
+match: https://map.nobleprac.com\
+_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PROD_SESSION_SERVER_URL\":\"https://map.nobleprac.com\",\"REACT_APP_DEV_TICKETS_SERVER_URL\":\"http://localhost:2400\",\"REACT_APP_PRO
+---
+match: https://map.nobleprac.com\
+_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PROD_SESSION_SERVER_URL\":\"https://map.nobleprac.com\",\"REACT_APP_DEV_TICKETS_SERVER_URL\":\"http://localhost:2400\",\"REACT_APP_PRO
+---
+match: https://map.nobleprac.com\
+_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PROD_SESSION_SERVER_URL\":\"https://map.nobleprac.com\",\"REACT_APP_DEV_TICKETS_SERVER_URL\":\"http://localhost:2400\",\"REACT_APP_PRO
+---
+match: https://map.nobleprac.com\
+_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PROD_SESSION_SERVER_URL\":\"https://map.nobleprac.com\",\"REACT_APP_DEV_TICKETS_SERVER_URL\":\"http://localhost:2400\",\"REACT_APP_PRO
+---
+match: https://map.nobleprac.com\
+_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PROD_SESSION_SERVER_URL\":\"https://map.nobleprac.com\",\"REACT_APP_DEV_TICKETS_SERVER_URL\":\"http://localhost:2400\",\"REACT_APP_PRO
+---
+match: https://map.nobleprac.com\
+_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PROD_SESSION_SERVER_URL\":\"https://map.nobleprac.com\",\"REACT_APP_DEV_TICKETS_SERVER_URL\":\"http://localhost:2400\",\"REACT_APP_PRO
+---
+match: https://map.nobleprac.com\
+_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PROD_SESSION_SERVER_URL\":\"https://map.nobleprac.com\",\"REACT_APP_DEV_TICKETS_SERVER_URL\":\"http://localhost:2400\",\"REACT_APP_PRO
+---
+match: https://map.nobleprac.com\
+_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PROD_SESSION_SERVER_URL\":\"https://map.nobleprac.com\",\"REACT_APP_DEV_TICKETS_SERVER_URL\":\"http://localhost:2400\",\"REACT_APP_PRO
+---
+match: https://map.nobleprac.com\
+_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PROD_SESSION_SERVER_URL\":\"https://map.nobleprac.com\",\"REACT_APP_DEV_TICKETS_SERVER_URL\":\"http://localhost:2400\",\"REACT_APP_PRO
+---
+match: https://map.nobleprac.com\
+_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PROD_SESSION_SERVER_URL\":\"https://map.nobleprac.com\",\"REACT_APP_DEV_TICKETS_SERVER_URL\":\"http://localhost:2400\",\"REACT_APP_PRO
+---
+match: https://map.nobleprac.com\
+_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PROD_SESSION_SERVER_URL\":\"https://map.nobleprac.com\",\"REACT_APP_DEV_TICKETS_SERVER_URL\":\"http://localhost:2400\",\"REACT_APP_PRO
+---
+match: https://map.nobleprac.com\
+_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PROD_SESSION_SERVER_URL\":\"https://map.nobleprac.com\",\"REACT_APP_DEV_TICKETS_SERVER_URL\":\"http://localhost:2400\",\"REACT_APP_PRO
+---
+match: https://map.nobleprac.com\
+_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PROD_SESSION_SERVER_URL\":\"https://map.nobleprac.com\",\"REACT_APP_DEV_TICKETS_SERVER_URL\":\"http://localhost:2400\",\"REACT_APP_PRO
+---
+match: https://map.nobleprac.com\
+_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PROD_SESSION_SERVER_URL\":\"https://map.nobleprac.com\",\"REACT_APP_DEV_TICKETS_SERVER_URL\":\"http://localhost:2400\",\"REACT_APP_PRO
+---
+match: https://map.nobleprac.com\
+_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PROD_SESSION_SERVER_URL\":\"https://map.nobleprac.com\",\"REACT_APP_DEV_TICKETS_SERVER_URL\":\"http://localhost:2400\",\"REACT_APP_PRO
+---
+match: https://map.nobleprac.com\
+_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PROD_SESSION_SERVER_URL\":\"https://map.nobleprac.com\",\"REACT_APP_DEV_TICKETS_SERVER_URL\":\"http://localhost:2400\",\"REACT_APP_PRO
+---
+match: https://map.nobleprac.com\
+_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PROD_SESSION_SERVER_URL\":\"https://map.nobleprac.com\",\"REACT_APP_DEV_TICKETS_SERVER_URL\":\"http://localhost:2400\",\"REACT_APP_PRO
+---
+match: https://map.nobleprac.com\
+_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PROD_SESSION_SERVER_URL\":\"https://map.nobleprac.com\",\"REACT_APP_DEV_TICKETS_SERVER_URL\":\"http://localhost:2400\",\"REACT_APP_PRO
+---
+match: https://map.nobleprac.com\
+_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PROD_SESSION_SERVER_URL\":\"https://map.nobleprac.com\",\"REACT_APP_DEV_TICKETS_SERVER_URL\":\"http://localhost:2400\",\"REACT_APP_PRO
+---
+match: https://map.nobleprac.com\
+_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PROD_SESSION_SERVER_URL\":\"https://map.nobleprac.com\",\"REACT_APP_DEV_TICKETS_SERVER_URL\":\"http://localhost:2400\",\"REACT_APP_PRO
+---
+match: https://map.nobleprac.com\
+_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PROD_SESSION_SERVER_URL\":\"https://map.nobleprac.com\",\"REACT_APP_DEV_TICKETS_SERVER_URL\":\"http://localhost:2400\",\"REACT_APP_PRO
+---
+match: https://map.nobleprac.com\
+_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PROD_SESSION_SERVER_URL\":\"https://map.nobleprac.com\",\"REACT_APP_DEV_TICKETS_SERVER_URL\":\"http://localhost:2400\",\"REACT_APP_PRO
+---
+match: https://map.nobleprac.com\
+_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PROD_SESSION_SERVER_URL\":\"https://map.nobleprac.com\",\"REACT_APP_DEV_TICKETS_SERVER_URL\":\"http://localhost:2400\",\"REACT_APP_PRO
+---
+match: https://map.nobleprac.com\
+_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PROD_SESSION_SERVER_URL\":\"https://map.nobleprac.com\",\"REACT_APP_DEV_TICKETS_SERVER_URL\":\"http://localhost:2400\",\"REACT_APP_PRO
+---
+match: https://map.nobleprac.com\
+_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PROD_SESSION_SERVER_URL\":\"https://map.nobleprac.com\",\"REACT_APP_DEV_TICKETS_SERVER_URL\":\"http://localhost:2400\",\"REACT_APP_PRO
+---
+match: https://map.nobleprac.com\
+_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PROD_SESSION_SERVER_URL\":\"https://map.nobleprac.com\",\"REACT_APP_DEV_TICKETS_SERVER_URL\":\"http://localhost:2400\",\"REACT_APP_PRO
+---
+match: https://map.nobleprac.com\
+_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PROD_SESSION_SERVER_URL\":\"https://map.nobleprac.com\",\"REACT_APP_DEV_TICKETS_SERVER_URL\":\"http://localhost:2400\",\"REACT_APP_PRO
+---
+match: https://map.nobleprac.com\
+_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PROD_SESSION_SERVER_URL\":\"https://map.nobleprac.com\",\"REACT_APP_DEV_TICKETS_SERVER_URL\":\"http://localhost:2400\",\"REACT_APP_PRO
+---
+match: https://map.nobleprac.com\
+_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PROD_SESSION_SERVER_URL\":\"https://map.nobleprac.com\",\"REACT_APP_DEV_TICKETS_SERVER_URL\":\"http://localhost:2400\",\"REACT_APP_PRO
+---
+match: https://map.nobleprac.com\
+_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PROD_SESSION_SERVER_URL\":\"https://map.nobleprac.com\",\"REACT_APP_DEV_TICKETS_SERVER_URL\":\"http://localhost:2400\",\"REACT_APP_PRO
+---
+match: https://map.nobleprac.com\
+_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PROD_SESSION_SERVER_URL\":\"https://map.nobleprac.com\",\"REACT_APP_DEV_TICKETS_SERVER_URL\":\"http://localhost:2400\",\"REACT_APP_PRO
+---
+match: https://map.nobleprac.com\
+_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PROD_SESSION_SERVER_URL\":\"https://map.nobleprac.com\",\"REACT_APP_DEV_TICKETS_SERVER_URL\":\"http://localhost:2400\",\"REACT_APP_PRO
+---
+match: https://map.nobleprac.com\
+_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PROD_SESSION_SERVER_URL\":\"https://map.nobleprac.com\",\"REACT_APP_DEV_TICKETS_SERVER_URL\":\"http://localhost:2400\",\"REACT_APP_PRO
+---
+match: https://map.nobleprac.com\
+_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PROD_SESSION_SERVER_URL\":\"https://map.nobleprac.com\",\"REACT_APP_DEV_TICKETS_SERVER_URL\":\"http://localhost:2400\",\"REACT_APP_PRO
+---
+match: https://map.nobleprac.com\
+_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PROD_SESSION_SERVER_URL\":\"https://map.nobleprac.com\",\"REACT_APP_DEV_TICKETS_SERVER_URL\":\"http://localhost:2400\",\"REACT_APP_PRO
+---
+match: https://map.nobleprac.com\
+_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PROD_SESSION_SERVER_URL\":\"https://map.nobleprac.com\",\"REACT_APP_DEV_TICKETS_SERVER_URL\":\"http://localhost:2400\",\"REACT_APP_PRO
+---
+match: https://map.nobleprac.com\
+_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PROD_SESSION_SERVER_URL\":\"https://map.nobleprac.com\",\"REACT_APP_DEV_TICKETS_SERVER_URL\":\"http://localhost:2400\",\"REACT_APP_PRO
+---
+match: https://map.nobleprac.com\
+_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PROD_SESSION_SERVER_URL\":\"https://map.nobleprac.com\",\"REACT_APP_DEV_TICKETS_SERVER_URL\":\"http://localhost:2400\",\"REACT_APP_PRO
+---
+match: https://map.nobleprac.com\
+_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PROD_SESSION_SERVER_URL\":\"https://map.nobleprac.com\",\"REACT_APP_DEV_TICKETS_SERVER_URL\":\"http://localhost:2400\",\"REACT_APP_PRO
+---
+match: https://map.nobleprac.com\
+_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PROD_SESSION_SERVER_URL\":\"https://map.nobleprac.com\",\"REACT_APP_DEV_TICKETS_SERVER_URL\":\"http://localhost:2400\",\"REACT_APP_PRO
+---
+match: https://map.nobleprac.com\
+_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PROD_SESSION_SERVER_URL\":\"https://map.nobleprac.com\",\"REACT_APP_DEV_TICKETS_SERVER_URL\":\"http://localhost:2400\",\"REACT_APP_PRO
+---
+match: https://map.nobleprac.com\
+_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PROD_SESSION_SERVER_URL\":\"https://map.nobleprac.com\",\"REACT_APP_DEV_TICKETS_SERVER_URL\":\"http://localhost:2400\",\"REACT_APP_PRO
+---
+match: https://map.nobleprac.com\
+_SERVER_URL\":\"http://localhost:4000\",\"REACT_APP_PROD_SESSION_SERVER_URL\":\"https://map.nobleprac.com\",\"REACT_APP_DEV_TICKETS_SERVER_URL\":\"http://localhost:2400\",\"REACT_APP_PRO
+---
+match: https://map.nobleprac.com\
+H_API_ROUTE = \"\".concat(TWITCH_SERVER_URL, \"/api\");\nconst WAYPOINT_URL = \"https://map.nobleprac.com\";\nconst errorMessage = err => {\n  var _err$response;\n  return err === null |
+---
+
+=== env vars ===
+match: REACT_APP_PROD_TOURNAMENT_SERVER_URL
+eprac.com\",\"REACT_APP_DEV_TOURNAMENT_SERVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"
+---
+match: REACT_APP_PROD_TOURNAMENT_SERVER_URL
+eprac.com\",\"REACT_APP_DEV_TOURNAMENT_SERVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"
+---
+match: REACT_APP_PROD_TOURNAMENT_SERVER_URL
+eprac.com\",\"REACT_APP_DEV_TOURNAMENT_SERVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"
+---
+match: REACT_APP_PROD_TOURNAMENT_SERVER_URL
+eprac.com\",\"REACT_APP_DEV_TOURNAMENT_SERVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"
+---
+match: REACT_APP_PROD_TOURNAMENT_SERVER_URL
+eprac.com\",\"REACT_APP_DEV_TOURNAMENT_SERVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"
+---
+match: REACT_APP_PROD_TOURNAMENT_SERVER_URL
+eprac.com\",\"REACT_APP_DEV_TOURNAMENT_SERVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"
+---
+match: REACT_APP_PROD_TOURNAMENT_SERVER_URL
+eprac.com\",\"REACT_APP_DEV_TOURNAMENT_SERVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"
+---
+match: REACT_APP_PROD_TOURNAMENT_SERVER_URL
+eprac.com\",\"REACT_APP_DEV_TOURNAMENT_SERVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"
+---
+match: REACT_APP_PROD_TOURNAMENT_SERVER_URL
+eprac.com\",\"REACT_APP_DEV_TOURNAMENT_SERVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"
+---
+match: REACT_APP_PROD_TOURNAMENT_SERVER_URL
+eprac.com\",\"REACT_APP_DEV_TOURNAMENT_SERVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"
+---
+match: REACT_APP_PROD_TOURNAMENT_SERVER_URL
+eprac.com\",\"REACT_APP_DEV_TOURNAMENT_SERVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"
+---
+match: REACT_APP_PROD_TOURNAMENT_SERVER_URL
+ost:8500\",\"REACT_APP_PROD_GAMES_WEBSOCKET\":\"wss://ws-games.nobleprac.com\"}.REACT_APP_PROD_TOURNAMENT_SERVER_URL;\nconst SESSION_SERVER_URL = {\"REACT_APP_DEV_CLIENT_URL\":\"http://localhost:3
+---
+match: REACT_APP_PROD_TOURNAMENT_SERVER_URL
+eprac.com\",\"REACT_APP_DEV_TOURNAMENT_SERVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"
+---
+match: REACT_APP_PROD_TOURNAMENT_SERVER_URL
+eprac.com\",\"REACT_APP_DEV_TOURNAMENT_SERVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"
+---
+match: REACT_APP_PROD_TOURNAMENT_SERVER_URL
+eprac.com\",\"REACT_APP_DEV_TOURNAMENT_SERVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"
+---
+match: REACT_APP_PROD_TOURNAMENT_SERVER_URL
+eprac.com\",\"REACT_APP_DEV_TOURNAMENT_SERVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"
+---
+match: REACT_APP_PROD_TOURNAMENT_SERVER_URL
+eprac.com\",\"REACT_APP_DEV_TOURNAMENT_SERVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"
+---
+match: REACT_APP_PROD_TOURNAMENT_SERVER_URL
+eprac.com\",\"REACT_APP_DEV_TOURNAMENT_SERVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"
+---
+match: REACT_APP_PROD_TOURNAMENT_SERVER_URL
+eprac.com\",\"REACT_APP_DEV_TOURNAMENT_SERVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"
+---
+match: REACT_APP_PROD_TOURNAMENT_SERVER_URL
+eprac.com\",\"REACT_APP_DEV_TOURNAMENT_SERVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"
+---
+match: REACT_APP_PROD_TOURNAMENT_SERVER_URL
+eprac.com\",\"REACT_APP_DEV_TOURNAMENT_SERVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"
+---
+match: REACT_APP_PROD_TOURNAMENT_SERVER_URL
+eprac.com\",\"REACT_APP_DEV_TOURNAMENT_SERVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"
+---
+match: REACT_APP_PROD_TOURNAMENT_SERVER_URL
+eprac.com\",\"REACT_APP_DEV_TOURNAMENT_SERVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"
+---
+match: REACT_APP_PROD_TOURNAMENT_SERVER_URL
+eprac.com\",\"REACT_APP_DEV_TOURNAMENT_SERVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"
+---
+match: REACT_APP_PROD_TOURNAMENT_SERVER_URL
+eprac.com\",\"REACT_APP_DEV_TOURNAMENT_SERVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"
+---
+match: REACT_APP_PROD_TOURNAMENT_SERVER_URL
+eprac.com\",\"REACT_APP_DEV_TOURNAMENT_SERVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"
+---
+match: REACT_APP_PROD_TOURNAMENT_SERVER_URL
+eprac.com\",\"REACT_APP_DEV_TOURNAMENT_SERVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"
+---
+match: REACT_APP_PROD_TOURNAMENT_SERVER_URL
+eprac.com\",\"REACT_APP_DEV_TOURNAMENT_SERVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"
+---
+match: REACT_APP_PROD_TOURNAMENT_SERVER_URL
+eprac.com\",\"REACT_APP_DEV_TOURNAMENT_SERVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"
+---
+match: REACT_APP_PROD_TOURNAMENT_SERVER_URL
+eprac.com\",\"REACT_APP_DEV_TOURNAMENT_SERVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"
+---
+match: REACT_APP_PROD_TOURNAMENT_SERVER_URL
+eprac.com\",\"REACT_APP_DEV_TOURNAMENT_SERVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"
+---
+match: REACT_APP_PROD_TOURNAMENT_SERVER_URL
+eprac.com\",\"REACT_APP_DEV_TOURNAMENT_SERVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"
+---
+match: REACT_APP_PROD_TOURNAMENT_SERVER_URL
+eprac.com\",\"REACT_APP_DEV_TOURNAMENT_SERVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"
+---
+match: REACT_APP_PROD_TOURNAMENT_SERVER_URL
+eprac.com\",\"REACT_APP_DEV_TOURNAMENT_SERVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"
+---
+match: REACT_APP_PROD_TOURNAMENT_SERVER_URL
+eprac.com\",\"REACT_APP_DEV_TOURNAMENT_SERVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"
+---
+match: REACT_APP_PROD_TOURNAMENT_SERVER_URL
+eprac.com\",\"REACT_APP_DEV_TOURNAMENT_SERVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"
+---
+match: REACT_APP_PROD_TOURNAMENT_SERVER_URL
+eprac.com\",\"REACT_APP_DEV_TOURNAMENT_SERVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"
+---
+match: REACT_APP_PROD_TOURNAMENT_SERVER_URL
+eprac.com\",\"REACT_APP_DEV_TOURNAMENT_SERVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"
+---
+match: REACT_APP_PROD_TOURNAMENT_SERVER_URL
+eprac.com\",\"REACT_APP_DEV_TOURNAMENT_SERVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"
+---
+match: REACT_APP_PROD_TOURNAMENT_SERVER_URL
+eprac.com\",\"REACT_APP_DEV_TOURNAMENT_SERVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"
+---
+match: REACT_APP_PROD_TOURNAMENT_SERVER_URL
+eprac.com\",\"REACT_APP_DEV_TOURNAMENT_SERVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"
+---
+match: REACT_APP_PROD_TOURNAMENT_SERVER_URL
+eprac.com\",\"REACT_APP_DEV_TOURNAMENT_SERVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"
+---
+match: REACT_APP_PROD_TOURNAMENT_SERVER_URL
+eprac.com\",\"REACT_APP_DEV_TOURNAMENT_SERVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"
+---
+match: REACT_APP_PROD_TOURNAMENT_SERVER_URL
+eprac.com\",\"REACT_APP_DEV_TOURNAMENT_SERVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"
+---
+match: REACT_APP_PROD_TOURNAMENT_SERVER_URL
+eprac.com\",\"REACT_APP_DEV_TOURNAMENT_SERVER_URL\":\"http://localhost:5200\",\"REACT_APP_PROD_TOURNAMENT_SERVER_URL\":\"https://tournaments.nobleprac.com\",\"REACT_APP_DEV_SESSION_SERVER_URL\":\"
+---
+
+=== tournaments routes ===
+match: "/tournaments\"
+eateElement(react_router_dom__WEBPACK_IMPORTED_MODULE_28__.Route, {\n    path: \"/tournaments\",\n    element: /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().create
+---
+match: "/tournaments/:id\"
+eateElement(react_router_dom__WEBPACK_IMPORTED_MODULE_28__.Route, {\n    path: \"/tournaments/:id\",\n    element: /*#__PURE__*/react__WEBPACK_IMPORTED_MODULE_0___default().create
+---
+match: "/tournaments?guildId=\"
+ncat(_utils_constants__WEBPACK_IMPORTED_MODULE_0__.SCRIM_TOURNAMENT_API_ROUTE, \"/tournaments?guildId=\").concat(guildId)).then(res => res.data).catch(err => {\n    console.log(err);\n
+---
+match: "/tournaments\"
+"\".concat(_utils_constants__WEBPACK_IMPORTED_MODULE_0__.TOURNAMENT_API_ROUTE, \"/tournaments\")).then(res => res.data).catch(err => {\n    console.log(err);\n    return {\n  
+---
+match: "/tournaments/usernameUpdate?accountId=\"
+"\".concat(_utils_constants__WEBPACK_IMPORTED_MODULE_0__.TOURNAMENT_API_ROUTE, \"/tournaments/usernameUpdate?accountId=\").concat(accountId, \"&username=\").concat(username)).then(res => res.data).catc
+---
+match: "/tournaments\"
+).createElement(react_router_dom__WEBPACK_IMPORTED_MODULE_4__.Link, {\n    to: \"/tournaments\",\n    className: \"hover:text-[var(--yellow)] transition-colors duration-300\"\
+---
+match: "/tournaments\"
+).createElement(react_router_dom__WEBPACK_IMPORTED_MODULE_3__.Link, {\n    to: \"/tournaments\",\n    className: \"text-white/80 hover:text-white transition-colors duration-30
+---
+match: "/tournaments\"
+).createElement(react_router_dom__WEBPACK_IMPORTED_MODULE_3__.Link, {\n    to: \"/tournaments\",\n    className: \"text-white/80 hover:text-white hover:bg-white/5 transition-c
+---
+match: "/tournaments/\"
+react__WEBPACK_IMPORTED_MODULE_0___default().createElement(\"a\", {\n    href: \"/tournaments/\".concat(id, \"?window=\").concat(window.windowId, \"&region=\").concat(region),\
+---
+match: "/tournaments/\"
+ter_dom__WEBPACK_IMPORTED_MODULE_4__.Link, {\n    key: tournament.id,\n    to: \"/tournaments/\".concat(tournament.id),\n    className: \"\".concat(tournament.tournamentCover |
+---
+match: "/tournaments\"
+gion);\n      if (res !== null && res !== void 0 && res.error) return navigate(\"/tournaments\");\n      setSelectedRegion(res === null || res === void 0 || (_res$tournamentDa
+---
+match: "/tournaments/\"
+void 0 ? void 0 : _tournamentData$selec.code)) {\n      window.location.href = \"/tournaments/\".concat(id, \"?region=\").concat(selectedRegion);\n    }\n  }, [selectedRegion])
+---
+match: "/tournaments\"
+.createElement(react_router_dom__WEBPACK_IMPORTED_MODULE_18__.Link, {\n    to: \"/tournaments\",\n    className: \"flex items-center text-white/70 hover:text-white mr-4 transi
+---
+
+=== api routes ===
+match: "/api\"
+.REACT_APP_PROD_GAMES_WEBSOCKET;\nconst AUTH_API_ROUTE = \"\".concat(AUTH_URL, \"/api\");\nconst TOURNAMENT_API_ROUTE = \"\".concat(TOURNAMENT_SERVER_URL, \"/api\");\n
+---
+match: "/api\"
+L, \"/api\");\nconst TOURNAMENT_API_ROUTE = \"\".concat(TOURNAMENT_SERVER_URL, \"/api\");\nconst SESSION_API_ROUTE = \"\".concat(SESSION_SERVER_URL, \"/api\");\nconst 
+---
+match: "/api\"
+VER_URL, \"/api\");\nconst SESSION_API_ROUTE = \"\".concat(SESSION_SERVER_URL, \"/api\");\nconst TICKETS_API_ROUTE = \"\".concat(TICKETS_SERVER_URL, \"/api\");\nconst 
+---
+match: "/api\"
+VER_URL, \"/api\");\nconst TICKETS_API_ROUTE = \"\".concat(TICKETS_SERVER_URL, \"/api\");\nconst SCRIM_TOURNAMENT_API_ROUTE = \"\".concat(SCRIM_TOURNAMENT_SERVER_URL, 
+---
+match: "/api\"
+;\nconst SCRIM_TOURNAMENT_API_ROUTE = \"\".concat(SCRIM_TOURNAMENT_SERVER_URL, \"/api\");\nconst GAMES_API_ROUTE = \"\".concat(GAMES_SERVER_URL, \"/api\");\nconst TWIT
+---
+match: "/api\"
+_SERVER_URL, \"/api\");\nconst GAMES_API_ROUTE = \"\".concat(GAMES_SERVER_URL, \"/api\");\nconst TWITCH_API_ROUTE = \"\".concat(TWITCH_SERVER_URL, \"/api\");\nconst WA
+---
+match: "/api\"
+ERVER_URL, \"/api\");\nconst TWITCH_API_ROUTE = \"\".concat(TWITCH_SERVER_URL, \"/api\");\nconst WAYPOINT_URL = \"https://map.nobleprac.com\";\nconst errorMessage = er
+---
+
+=== fetch calls ===
+match: fetch(request)
+alsSupported ? withCredentials : undefined\n    });\n\n    let response = await fetch(request);\n\n    const isStreamResponse = supportsResponseStream && (responseType === 's
+---
+match: fetch(url, await createRequestInit(request)
+rams.set(\"_routes\", targetRoutes.join(\",\"));\n    }\n  }\n  let res = await fetch(url, await createRequestInit(request));\n  if (res.status === 404 && !res.headers.has(\"X-Remix-Response\")) {\n    t
+---
+match: fetch(url, { signal })
+.clear();\n    return;\n  }\n  let serverPatches;\n  try {\n    let res = await fetch(url, { signal });\n    if (!res.ok) {\n      throw new Error(`${res.status} ${res.statusText}`);
+---
+match: fetch(key, currentRouteId, options.action || action, {\n          preventScrollReset: options.preventScrollReset,\n          formData,\n          body,\n          formMethod: options.method || method,\n          formEncType: options.encType || encType,\n          flushSync: options.flushSync\n        })
+    let key = options.fetcherKey || getUniqueFetcherId();\n        await router.fetch(key, currentRouteId, options.action || action, {\n          preventScrollReset: options.preventScrollReset,\n          formData,\n          body,\n          formMethod: options.method || method,\n          formEncType: options.encType || encType,\n          flushSync: options.flushSync\n        });\n      } else {\n        await router.navigate(options.action || action, {\n  
+---
+match: fetch(fetcherKey, routeId, href2, opts)
+iant(routeId, \"No routeId available for fetcher.load()\");\n      await router.fetch(fetcherKey, routeId, href2, opts);\n    },\n    [fetcherKey, routeId, router]\n  );\n  let submitImpl = useSubmit
+---
+match: fetch()
+tion\");\n    },\n    navigate() {\n      throw msg(\"navigate\");\n    },\n    fetch() {\n      throw msg(\"fetch\");\n    },\n    revalidate() {\n      throw msg(\"r
+---
+match: fetch(\"https://fortnite-api.com/v2/cosmetics/br/\".concat(character.name)
+ async () => {\n      try {\n        var _data$data;\n        const res = await fetch(\"https://fortnite-api.com/v2/cosmetics/br/\".concat(character.name));\n        const data = await res.json();\n        let icon = data === null || 
+---
+match: fetch(mapData.mapWithPOI)
+[squareDraw]);\n  (0,react__WEBPACK_IMPORTED_MODULE_0__.useEffect)(() => {\n    fetch(mapData.mapWithPOI).then(res => {\n      if (!res.ok) return;\n      return res.blob();\n    }).the
+---
+match: fetch(mapData.mapWithPOI)
+polygonDraw]);\n  (0,react__WEBPACK_IMPORTED_MODULE_0__.useEffect)(() => {\n    fetch(mapData.mapWithPOI).then(res => {\n      if (!res.ok) return;\n      return res.blob();\n    }).the
+---
+match: fetch(mapLinks.withPOINames)
+[squareDraw]);\n  (0,react__WEBPACK_IMPORTED_MODULE_0__.useEffect)(() => {\n    fetch(mapLinks.withPOINames).then(res => {\n      if (!res.ok) return;\n      return res.blob();\n    }).the
+---
+
+=== axios calls ===
+
+Done
+

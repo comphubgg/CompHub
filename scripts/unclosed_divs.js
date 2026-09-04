@@ -1,0 +1,4 @@
+const fs=require('fs');const s=fs.readFileSync('app/admin/maps/page.tsx','utf8');const lines=s.split('\n');let stack=[];for(let i=0,idx=0;i<s.length;i++){ if(s.startsWith('<div', i)){ const m=s.slice(i).match(/^<div\b[^>]*>/); if(m){ const isSelf=/\/\s*>$/.test(m[0]); const lineNum = s.slice(0,i).split('\n').length; if(!isSelf) stack.push({line:lineNum,tagStart:i}); i+=m[0].length-1; continue; } }
+ if(s.startsWith('</div>', i)){ const lineNum = s.slice(0,i).split('\n').length; if(stack.length===0){ console.log('Extra closing at',lineNum); } else { stack.pop(); } i+=6-1; continue; }
+}
+if(stack.length) console.log('Unclosed divs count',stack.length, 'top 20:', stack.slice(-20).map(x=>x.line)); else console.log('No unclosed divs');
