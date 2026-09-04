@@ -8,7 +8,9 @@
 
 $ErrorActionPreference = 'SilentlyContinue'
 
-$Projekt = 'C:\Users\jumik\Desktop\streamer-dashboard'
+# Der Projektordner ist die Ebene ueber diesem Skript - fest eingetragene
+# Pfade wuerden auf einem zweiten Rechner ins Leere zeigen.
+$Projekt = Split-Path -Parent $PSScriptRoot
 $Port    = 3100
 
 Write-Host 'Alten Server beenden ...'

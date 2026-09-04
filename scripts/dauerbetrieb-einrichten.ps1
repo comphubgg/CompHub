@@ -23,7 +23,7 @@ if (-not $p.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)) {
     exit 1
 }
 
-$Skript = 'C:\Users\jumik\Desktop\streamer-dashboard\scripts\dauerbetrieb.ps1'
+$Skript = Join-Path $PSScriptRoot 'dauerbetrieb.ps1'
 if (-not (Test-Path $Skript)) {
     Write-Host "  Nicht gefunden: $Skript" -ForegroundColor Red
     exit 1
