@@ -1,16 +1,12 @@
 @echo off
-REM CompHub aktualisieren - einfach doppelklicken.
+REM CompHub auf diesem Rechner anhalten - einfach doppelklicken.
 REM
-REM Das ist der einzige Knopf, den ein Update braucht: Daten sichern, neuen
-REM Stand holen, Daten zuruecklegen, bauen, Server und Tunnel neu starten und
-REM am Ende nachmessen, ob die Seite draussen wirklich antwortet.
-REM
-REM Windows fragt einmal nach Administratorrechten. Sie werden gebraucht, weil
-REM der laufende Webserver unter dem Systemkonto gestartet wurde - ohne sie
-REM liesse er sich nicht abloesen, und es liefe weiter der alte Stand.
+REM Fuer den PC, sobald der Laptop die Seite traegt. Schaltet den Waechter ab
+REM und beendet Webserver und Tunnel. Geloescht wird nichts - zurueckholen
+REM laesst sich alles mit "dauerbetrieb-einrichten.bat".
 
 setlocal
-set "SKRIPT=%~dp0scripts\aktualisieren.ps1"
+set "SKRIPT=%~dp0scripts\hier-stoppen.ps1"
 
 if not exist "%SKRIPT%" (
     echo.
@@ -28,6 +24,7 @@ if %errorlevel%==0 (
 ) else (
     echo.
     echo   Windows fragt gleich nach Administratorrechten.
+    echo   Ohne sie laesst sich der Waechter nicht abschalten.
     echo.
     powershell -NoProfile -ExecutionPolicy Bypass -Command "Start-Process -FilePath powershell -Verb RunAs -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-NoExit','-File','%SKRIPT%'"
 )
