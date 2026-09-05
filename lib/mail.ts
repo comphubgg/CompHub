@@ -1,4 +1,6 @@
 import nodemailer, { type Transporter } from 'nodemailer';
+import fs from 'fs';
+import path from 'path';
 
 /*
  * Mail verschicken.
@@ -93,22 +95,54 @@ export function betreiberAdresse(): string {
  * dunkler Kasten, eine Ueberschrift, ein Absatz, ein Knopf - mehr traegt
  * ueberall.
  */
-function bauHtml(b: Brief): string {
+/*
+ * Das Zeichen im Kopf der Mail.
+ *
+ * Es hing als Verweis auf thecomphub.com und blieb deshalb leer: die Datei
+ * ist zwar erreichbar (geprueft, 200), aber Postfaecher laden entfernte
+ * Bilder standardmaessig nicht - bei einem unbekannten Absender schon gar
+ * nicht. Im Posteingang stand also ein leerer Rahmen, wo das Logo sein
+ * sollte.
+ *
+ * Deshalb reist es jetzt als eingebetteter Anhang mit und wird ueber
+ * "cid:" angesprochen. Das zeigt jedes Programm ohne Rueckfrage, weil
+ * nichts nachgeladen werden muss.
+ *
+ * Genommen wird die 96-Pixel-Fassung: sie wiegt 5,6 KB statt 195, und
+ * angezeigt werden ohnehin 34 Pixel - auf einem feinen Bildschirm also
+ * knapp das Dreifache und damit scharf.
+ */
+const ZEICHEN_DATEI = 'public/social/comphub-profilbild-dunkel-probe-96.png';
+const ZEICHEN_ID = 'comphub-zeichen';
+
+/** Das Zeichen als Anhang - oder nichts, wenn die Datei fehlt. */
+function zeichenAnhang(): { filename: string; path: string; cid: string;
+  contentDisposition: 'inline' } | null {
+  try {
+    const pfad = path.join(process.cwd(), ZEICHEN_DATEI);
+    if (!fs.existsSync(pfad)) return null;
+    return {
+      filename: 'comphub.png', path: pfad, cid: ZEICHEN_ID,
+      contentDisposition: 'inline',
+    };
+  } catch { return null; }
+}
+
+function bauHtml(b: Brief, mitZeichen: boolean): string {
   /*
-   * Der Banner mit dem Zeichen.
+   * Der Kopf der Mail.
    *
-   * Als Bild von der eigenen Seite, nicht als Anhang: Postfaecher zeigen
-   * Anhaenge nicht im Text an, und ein eingebettetes Bild blaeht jede Mail um
-   * hunderte Kilobyte auf. Wer die Bilder gesperrt hat, sieht den Alternativtext
-   * - deshalb steht der Name darunter auch als Schrift.
+   * Der Name steht daneben als Schrift und nicht als Teil des Bildes: faellt
+   * das Zeichen doch einmal aus, steht dort immer noch "COMPHUB" statt eines
+   * leeren Kastens.
    */
   const banner = `
     <tr><td style="padding:0;">
       <div style="background:#0b0b0e;border-bottom:1px solid #18181b;
                   padding:22px 32px;text-align:left;">
-        <img src="https://thecomphub.com/social/comphub-profilbild-dunkel.png"
-             width="34" height="34" alt=""
-             style="vertical-align:middle;border-radius:8px;" />
+        ${mitZeichen ? `<img src="cid:${ZEICHEN_ID}"
+             width="34" height="34" alt="CompHub"
+             style="vertical-align:middle;border-radius:8px;" />` : ''}
         <span style="vertical-align:middle;margin-left:10px;font-size:17px;
                      font-weight:800;letter-spacing:-0.5px;">
           <span style="color:#0ea5e9;">COMP</span><span style="color:#f4f4f5;">HUB</span>
@@ -197,6 +231,7 @@ function bauHtml(b: Brief): string {
  */
 export async function sendeMail(b: Brief): Promise<boolean> {
   if (!versandDa()) return false;
+  const zeichen = zeichenAnhang();
   try {
     await hole().sendMail({
       from: process.env.MAIL_VON || process.env.MAIL_USER,
@@ -204,8 +239,16 @@ export async function sendeMail(b: Brief): Promise<boolean> {
       to: b.an,
       subject: b.betreff,
       text: b.knopf ? `${b.text}\n\n${b.knopf.titel}: ${b.knopf.ziel}` : b.text,
-      html: bauHtml(b),
-      attachments: b.anhaenge?.map((a) => ({ filename: a.name, path: a.pfad })),
+      html: bauHtml(b, Boolean(zeichen)),
+      /*
+       * Das Zeichen zuerst, dann die mitgeschickten Bilder. Der Anhang des
+       * Zeichens traegt eine Content-Id und wird deshalb im Text angezeigt
+       * statt unten als Datei angehaengt.
+       */
+      attachments: [
+        ...(zeichen ? [zeichen] : []),
+        ...(b.anhaenge?.map((a) => ({ filename: a.name, path: a.pfad })) ?? []),
+      ],
     });
     return true;
   } catch (e) {
