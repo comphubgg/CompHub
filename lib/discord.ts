@@ -62,6 +62,15 @@ const BEKANNTE_KANAELE: Record<string, string> = {
 
 const DATEI = path.join(DATEN_ORT, 'discord-kanaele.json');
 
+/**
+ * Der Status der letzten Anfrage.
+ *
+ * Nur dafuer da, "gibt es nicht" (404) von "geht gerade nicht" zu
+ * unterscheiden. Beim ersten legen wir einen neuen Kanal an, beim zweiten
+ * waere das ein zweiter Kanal neben einem, der noch existiert.
+ */
+let letzterStatus = 0;
+
 interface Eintrag {
   /** Der Kanal dieses VIPs. */
   kanal: string;
@@ -90,12 +99,30 @@ async function schreibe(a: Ablage): Promise<void> {
   await fs.writeFile(DATEI, JSON.stringify(a, null, 1), 'utf8');
 }
 
+/**
+ * Die Kennung des Bots selbst - einmal geholt und gemerkt.
+ *
+ * Gebraucht, um einem neu angelegten Kanal gleich das Recht mitzugeben,
+ * dort zu schreiben. Ohne das erbt der Kanal die Regeln seiner Kategorie,
+ * und die sperrt bei privaten Kanaelen alle aus, die nicht ausdruecklich
+ * genannt sind - auch den Bot, der ihn gerade selbst angelegt hat.
+ */
+let eigeneId: string | null = null;
+
+async function werBinIch(): Promise<string | null> {
+  if (eigeneId) return eigeneId;
+  const ich = await ruf('/users/@me', 'GET');
+  eigeneId = typeof ich?.id === 'string' ? ich.id : null;
+  return eigeneId;
+}
+
 /** Ein Aufruf an Discord. Gibt die Antwort zurueck oder null. */
 async function ruf(
   weg: string, art: 'GET' | 'POST' | 'DELETE', koerper?: unknown,
 ): Promise<Record<string, unknown> | null> {
   const token = process.env.DISCORD_BOT_TOKEN;
   if (!token) return null;
+  letzterStatus = 0;
   try {
     const r = await fetch(`${API}${weg}`, {
       method: art,
@@ -105,6 +132,7 @@ async function ruf(
       },
       ...(koerper ? { body: JSON.stringify(koerper) } : {}),
     });
+    letzterStatus = r.status;
     // 204 kommt beim Loeschen und hat keinen Inhalt.
     if (r.status === 204) return {};
     const j = await r.json().catch(() => null);
@@ -130,7 +158,26 @@ async function ruf(
 async function kanalFuer(name: string, ablage: Ablage): Promise<string | null> {
   const schluessel = name.toLowerCase();
   const vorhanden = ablage[schluessel]?.kanal ?? BEKANNTE_KANAELE[schluessel];
-  if (vorhanden) return vorhanden;
+
+  /*
+   * Gibt es den gemerkten Kanal ueberhaupt noch?
+   *
+   * Der Betreiber loescht Kanaele von Hand - das ist sein gutes Recht, und
+   * hier stand danach eine Kennung, hinter der nichts mehr liegt. Der
+   * Schluessel wurde dann erzeugt, ging aber ins Leere, und die Meldung
+   * sprach von fehlenden Rechten. Also nachsehen, und wenn er weg ist,
+   * einen neuen anlegen.
+   *
+   * Nur wenn Discord ausdruecklich "gibt es nicht" sagt. Bei einem
+   * Netzausfall oder einer Sperre bliebe der Kanal sonst bestehen und wir
+   * legten daneben einen zweiten an.
+   */
+  if (vorhanden) {
+    const da = await ruf(`/channels/${vorhanden}`, 'GET');
+    if (da) return vorhanden;
+    if (letzterStatus !== 404) return vorhanden;
+    delete ablage[schluessel];
+  }
 
   /*
    * Der Kanalname.
@@ -152,10 +199,33 @@ async function kanalFuer(name: string, ablage: Ablage): Promise<string | null> {
     .join('')
     .replace(/[^a-z0-9-]+/g, '-')
     .replace(/^-+|-+$/g, '')}-key`;
+  /*
+   * Der Bot traegt sich selbst als berechtigt ein.
+   *
+   * Die Kategorie sperrt @everyone aus - so soll es auch sein, die Kanaele
+   * sind privat. Ein neu angelegter Kanal erbt diese Regel, und damit sperrt
+   * er auch den Bot aus: er darf ihn anlegen, aber nicht hineinschreiben.
+   * Genau das ist passiert.
+   *
+   * Beim Anlegen darf man Regeln mitgeben, ohne "Rollen verwalten" zu
+   * besitzen - solange man die Rechte selbst hat. Der Bot hat sie serverweit,
+   * also traegt er sie hier fuer sich ein: ansehen, schreiben, aufraeumen und
+   * den Verlauf lesen.
+   */
+  const ich = await werBinIch();
   const neu = await ruf(`/guilds/${SERVER}/channels`, 'POST', {
     name: kanalname,
     type: 0,                 // Textkanal
     parent_id: KATEGORIE,
+    ...(ich ? {
+      permission_overwrites: [{
+        id: ich,
+        type: 1,             // 1 = ein Mitglied, hier der Bot selbst
+        // 1024 ansehen + 2048 schreiben + 8192 verwalten + 65536 Verlauf
+        allow: '76800',
+        deny: '0',
+      }],
+    } : {}),
   });
   const id = typeof neu?.id === 'string' ? neu.id : null;
   if (!id) return null;
