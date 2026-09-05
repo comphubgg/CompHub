@@ -21,10 +21,35 @@ function kuerzel(land: string | undefined | null) {
   return land && /^[A-Za-z]{2}$/.test(land) ? land.toLowerCase() : null;
 }
 
+/*
+ * Welche Flaggen wirklich als Datei vorliegen.
+ *
+ * Der Pfad wurde vorher blind aus dem Laenderkuerzel gebaut. Zu Uruguay,
+ * Panama, Kuba und "en" gibt es aber keine Datei - im Browser standen
+ * deshalb 404er und an der Stelle ein leeres Feld. Wo die Datei fehlt,
+ * steht jetzt der Globus: das ist zwar nicht die Herkunft, aber es sieht
+ * nicht kaputt aus und behauptet nichts Falsches.
+ *
+ * Kommt eine Flagge dazu, gehoert ihr Kuerzel hier hinein. Die Liste einmal
+ * neu erzeugen:
+ *   ls public/flags/*.png | xargs -n1 basename | sed 's/.png//'
+ */
+const VORHANDEN = new Set([
+  'ae',, 'al',, 'ar',, 'at',, 'au',, 'ba',, 'be',, 'bg',
+  'bh',, 'br',, 'by',, 'ca',, 'ch',, 'cn',, 'co',, 'cz',
+  'de',, 'dk',, 'ee',, 'eg',, 'es',, 'fi',, 'flag-GLOBE',, 'fr',
+  'gb',, 'gr',, 'hr',, 'hu',, 'ie',, 'il',, 'in',, 'ir',
+  'is',, 'it',, 'jp',, 'kr',, 'kw',, 'lb',, 'lt',, 'lv',
+  'mc',, 'md',, 'mk',, 'mx',, 'ng',, 'nl',, 'no',, 'nz',
+  'om',, 'pe',, 'pl',, 'pt',, 'ro',, 'rs',, 'ru',, 'sa',
+  'se',, 'si',, 'sk',, 'sy',, 'tr',, 'ua',, 'us',, 've',
+  'ye',
+]);
+
 /** Der Bildpfad zu einem Land - oder der Globus. */
 export function flaggenPfad(land: string | undefined | null) {
   const k = kuerzel(land);
-  return k ? `/flags/${k}.png` : GLOBUS;
+  return k && VORHANDEN.has(k) ? `/flags/${k}.png` : GLOBUS;
 }
 
 export default function TeamFlagge({ laender, groesse = 26 }: {

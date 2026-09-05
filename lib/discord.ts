@@ -153,18 +153,21 @@ async function kanalFuer(name: string, ablage: Ablage): Promise<string | null> {
  * ein kurzer Moment ohne Schluessel harmloser ist als einer mit zweien. Wer
  * zwei sieht, probiert den falschen.
  *
- * Zurueck kommt, ob es geklappt hat. Der Aufrufer entscheidet, ob er das
+ * Zurueck kommt, ob es geklappt hat. Der Grund ist ein kurzes Kennwort und
+ * kein Satz: die Oberflaeche laeuft auf Englisch und Deutsch, und ein hier
+ * fertig formulierter deutscher Satz stand dort mitten im englischen Text.
+ * Der Aufrufer entscheidet, ob er das
  * dem Admin sagt - der Schluessel selbst ist zu diesem Zeitpunkt schon
  * erzeugt und gespeichert.
  */
 export async function schickeSchluessel(
   name: string, schluessel: string,
 ): Promise<{ ok: boolean; grund?: string }> {
-  if (!discordDa()) return { ok: false, grund: 'kein Bot-Token hinterlegt' };
+  if (!discordDa()) return { ok: false, grund: 'kein-token' };
 
   const ablage = await lies();
   const kanal = await kanalFuer(name, ablage);
-  if (!kanal) return { ok: false, grund: 'kein Kanal - siehe Serverausgabe' };
+  if (!kanal) return { ok: false, grund: 'kein-kanal' };
 
   const alt = ablage[name.toLowerCase()]?.nachricht;
   if (alt) await ruf(`/channels/${kanal}/messages/${alt}`, 'DELETE');
@@ -189,7 +192,7 @@ export async function schickeSchluessel(
   });
 
   const id = typeof gesendet?.id === 'string' ? gesendet.id : null;
-  if (!id) return { ok: false, grund: 'Nachricht nicht angekommen' };
+  if (!id) return { ok: false, grund: 'abgelehnt' };
 
   ablage[name.toLowerCase()] = { kanal, nachricht: id };
   await schreibe(ablage);

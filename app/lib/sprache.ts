@@ -1585,6 +1585,13 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Verstanden': 'Got it',
   'Profil': 'Profile',
   'Schnellzugriff': 'Quick access',
+  'Discord: kein Bot-Token auf diesem Rechner hinterlegt.':
+    'Discord: no bot token configured on this machine.',
+  'Discord: der Kanal ließ sich nicht finden oder anlegen.':
+    'Discord: the channel could not be found or created.',
+  'Discord hat die Nachricht abgelehnt — meist fehlt dem Bot im Kanal das Recht, dort zu schreiben.':
+    'Discord rejected the message — usually the bot lacks permission to '
+    + 'write in that channel.',
   'Ändern': 'Change',
   'Neuen Schlüssel setzen': 'Set new key',
   'freiwillig — eigener Schlüssel': 'optional — your own key',

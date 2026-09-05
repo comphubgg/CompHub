@@ -429,7 +429,14 @@ function VipZugaenge() {
               ? 'text-emerald-400/80' : 'text-amber-400/80'}`}>
               {discord === 'gesendet'
                 ? <T>In den Discord-Kanal des VIPs gelegt — der alte Schlüssel dort ist weg.</T>
-                : `Discord: ${discord}`}
+                : discord === 'nicht gesendet: kein-token'
+                  ? <T>Discord: kein Bot-Token auf diesem Rechner hinterlegt.</T>
+                  : discord === 'nicht gesendet: kein-kanal'
+                    ? <T>Discord: der Kanal ließ sich nicht finden oder anlegen.</T>
+                    : discord === 'nicht gesendet: abgelehnt'
+                      ? <T>Discord hat die Nachricht abgelehnt — meist fehlt dem Bot
+                          im Kanal das Recht, dort zu schreiben.</T>
+                      : discord}
             </p>
           )}
 
