@@ -9,6 +9,9 @@ import { zugangNach, rechteVon } from '@/lib/vipZugaenge';
 import { verankereProfi } from '@/lib/profiVerankern';
 import { DATEN_ORT } from '@/lib/datenOrt';
 import { schickeSchluessel, discordDa } from '@/lib/discord';
+import {
+  neuerSchluessel, praefixTaugt, schluesselTaugt, schonVergeben,
+} from '@/lib/zugangsSchluessel';
 
 // VIP-Zugaenge anlegen und verwalten.
 //
@@ -57,6 +60,8 @@ interface Zugang {
   rechte?: string[];
   epicId?: string;
   vipBis?: number;
+  /** Darf dieser VIP seinen Schluessel selbst wechseln? Siehe lib/vipZugaenge.ts. */
+  darfSchluessel?: boolean;
 }
 
 async function istAdmin(): Promise<boolean> {
@@ -86,23 +91,14 @@ async function schreibe(daten: { users: Zugang[] }) {
   await fs.writeFile(DATEI, JSON.stringify(daten, null, 2), 'utf8');
 }
 
-/**
- * Ein Schluessel, den man vorlesen kann.
+/*
+ * Das Erzeugen und Pruefen von Schluesseln steht in lib/zugangsSchluessel.ts.
  *
- * Ohne die Zeichen, die sich beim Abtippen verwechseln lassen - kein I, l,
- * 1, O oder 0. Ein Zugang, den jemand am Telefon durchgibt, soll nicht an
- * einem falsch gelesenen Zeichen scheitern.
+ * Es gibt inzwischen drei Wege zu einem Schluessel - erzeugen, von Hand
+ * setzen, und der VIP selbst - und alle drei muessen dieselben Regeln
+ * haben. Stuenden sie in den Routen, waere in einer Woche der eine Weg
+ * strenger als der andere, und der laxere entschiede, was moeglich ist.
  */
-function neuerSchluessel(): string {
-  const vorrat = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
-  const roh = crypto.randomBytes(12);
-  let s = '';
-  for (let i = 0; i < 12; i += 1) {
-    s += vorrat[roh[i] % vorrat.length];
-    if (i === 3 || i === 7) s += '-';
-  }
-  return s;
-}
 
 export async function GET(request: Request) {
   if (!await istAdmin()) {
@@ -130,6 +126,7 @@ export async function GET(request: Request) {
       rechte: u.rechte ?? [],
       epicId: u.epicId ?? null,
       vipBis: u.vipBis ?? null,
+      darfSchluessel: Boolean(u.darfSchluessel),
       // Ein Zugangskonto ist immer VIP - das ist sein Zweck. Eine Frist
       // schraenkt das nur zusaetzlich ein.
       vip: u.vipBis === undefined || u.vipBis === 0 || u.vipBis > Date.now(),
@@ -155,7 +152,39 @@ export async function POST(request: Request) {
   const i = daten.users.findIndex(
     (u) => u.username.toLowerCase() === name.toLowerCase());
 
-  const schluessel = neuerSchluessel();
+  /*
+   * Drei Moeglichkeiten, und sie schliessen einander aus.
+   *
+   *   schluessel  - von Hand gesetzt, gilt genau so wie eingetippt
+   *   praefix     - die ersten Zeichen selbst gewaehlt, der Rest zufaellig
+   *   nichts      - wie bisher, zwoelf zufaellige Zeichen
+   *
+   * Der Vergleich beim Anmelden geht Zeichen fuer Zeichen, deshalb bleibt
+   * ein selbst gesetzter Schluessel unangetastet - auch in der
+   * Gross- und Kleinschreibung.
+   */
+  const vorgabe = String(koerper.schluessel ?? '').trim();
+  const praefix = String(koerper.praefix ?? '').trim();
+
+  if (vorgabe) {
+    const einwand = schluesselTaugt(vorgabe);
+    if (einwand) return NextResponse.json({ fehler: einwand }, { status: 400 });
+    if (schonVergeben(vorgabe, daten.users, name)) {
+      return NextResponse.json(
+        { fehler: 'Diesen Schlüssel hat schon jemand anderes.' }, { status: 409 });
+    }
+  } else if (praefix) {
+    const einwand = praefixTaugt(praefix);
+    if (einwand) return NextResponse.json({ fehler: einwand }, { status: 400 });
+  }
+
+  let schluessel = vorgabe || neuerSchluessel(praefix);
+  // Bei einem selbst gewaehlten Anfang kann der Zufall theoretisch auf einen
+  // vorhandenen treffen. Dann eben noch einmal.
+  for (let versuch = 0; !vorgabe && schonVergeben(schluessel, daten.users, name)
+    && versuch < 5; versuch += 1) {
+    schluessel = neuerSchluessel(praefix);
+  }
 
   if (i >= 0) {
     // Es gibt ihn schon - dann nur, wenn ausdruecklich ein neuer Schluessel
@@ -238,6 +267,18 @@ export async function PUT(request: Request) {
       .map((x) => String(x)).slice(0, 20);
   } else if (roh !== 'manager') {
     delete daten.users[i].rechte;
+  }
+
+  /*
+   * Darf dieser Zugang seinen Schluessel selbst aendern?
+   *
+   * Nur der Admin setzt das, und nur hier - im Selbstbedienungsweg wird es
+   * ausschliesslich gelesen. Sonst koennte sich jemand das Recht, das er
+   * gerade ausuebt, im selben Zug selbst verlaengern.
+   */
+  if (typeof koerper.darfSchluessel === 'boolean') {
+    if (koerper.darfSchluessel) daten.users[i].darfSchluessel = true;
+    else delete daten.users[i].darfSchluessel;
   }
 
   if (typeof koerper.epicId === 'string') {

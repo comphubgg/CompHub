@@ -26,6 +26,15 @@ export interface Zugang {
   rechte?: string[];
   epicId?: string;
   vipBis?: number;
+  /*
+   * Darf dieser VIP seinen Schluessel selbst aendern?
+   *
+   * Standardmaessig nicht - ein Zugang ist etwas, das der Betreiber vergibt.
+   * Wer aber seinen Schluessel oeffentlich vertippt hat oder ihn regelmaessig
+   * wechseln will, muss dafuer nicht jedes Mal fragen. Der Betreiber hakt
+   * das je Zugang einzeln an.
+   */
+  darfSchluessel?: boolean;
 }
 
 export async function alleZugaenge(): Promise<Zugang[]> {

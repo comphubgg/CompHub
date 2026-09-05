@@ -111,6 +111,18 @@ export default function AdminDashboardPage() {
   const [meldung, setMeldung] = useState('');
   const [fehler, setFehler] = useState('');
   const [schluesselOffen, setSchluesselOffen] = useState(false);
+
+  /*
+   * Den eigenen Schluessel selbst wechseln - wenn der Admin es erlaubt hat.
+   *
+   * Ob das erlaubt ist, entscheidet der Server; hier wird nur gefragt. Ein
+   * ausgeblendeter Knopf schuetzt nichts, deshalb prueft die Schnittstelle
+   * das Recht noch einmal, wenn es darauf ankommt.
+   */
+  const [darfWechseln, setDarfWechseln] = useState(false);
+  const [wechselOffen, setWechselOffen] = useState(false);
+  const [eigenerWunsch, setEigenerWunsch] = useState('');
+  const [wechselStand, setWechselStand] = useState('');
   const [accessKey, setAccessKey] = useState('');
   const [istAdmin, setIstAdmin] = useState(false);
   const [rolle, setRolle] = useState<string | null>(null);
@@ -193,6 +205,42 @@ export default function AdminDashboardPage() {
       }, 700);
       return neu;
     });
+  };
+
+  useEffect(() => {
+    void Promise.resolve().then(async () => {
+      try {
+        const j = await (await fetch('/api/vip-schluessel')).json();
+        setDarfWechseln(Boolean(j?.darf));
+      } catch { /* dann eben ohne den Knopf */ }
+    });
+  }, []);
+
+  /**
+   * Einen neuen Schluessel setzen - leer heisst: einen zufaelligen.
+   *
+   * Der neue steht danach sofort im Kasten darueber, damit man ihn nicht
+   * erst suchen muss. Wo Discord eingerichtet ist, liegt er zugleich im
+   * eigenen Kanal.
+   */
+  const schluesselWechseln = async () => {
+    setWechselStand(t('speichert …'));
+    try {
+      const r = await fetch('/api/vip-schluessel', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(eigenerWunsch.trim()
+          ? { schluessel: eigenerWunsch.trim() } : {}),
+      });
+      const j = await r.json();
+      if (!r.ok) { setWechselStand(t(j?.fehler ?? 'Das ging nicht.')); return; }
+      setAccessKey(j.schluessel);
+      setSchluesselOffen(true);
+      setEigenerWunsch('');
+      setWechselOffen(false);
+      setWechselStand(j.discord === 'gesendet'
+        ? t('Neuer Schlüssel — er liegt auch in deinem Discord-Kanal.')
+        : t('Neuer Schlüssel gesetzt.'));
+    } catch (e) { setWechselStand((e as Error).message); }
   };
 
   const schluesselKopieren = async () => {
@@ -338,7 +386,51 @@ export default function AdminDashboardPage() {
                              disabled:cursor-not-allowed disabled:opacity-30">
                   <T>Kopieren</T>
                 </button>
+                {darfWechseln && (
+                  <button type="button" onClick={() => setWechselOffen((v) => !v)}
+                    className="rounded-lg border border-zinc-800 px-3 py-2 text-sm
+                               text-slate-300 transition hover:border-sky-500">
+                    <T>Ändern</T>
+                  </button>
+                )}
               </div>
+
+              {/*
+                * Der Wechsel - nur fuer die, die es duerfen.
+                *
+                * Das Feld darf leer bleiben: dann kommt ein zufaelliger
+                * Schluessel, und das ist der Normalfall. Wer einen bestimmten
+                * will, tippt ihn hin.
+                */}
+              {darfWechseln && wechselOffen && (
+                <div className="mt-3 rounded-lg border border-zinc-800
+                                bg-zinc-900/40 p-3">
+                  <p className="text-[11px] leading-relaxed text-slate-500">
+                    <T>Der alte Schlüssel gilt danach nicht mehr. Leer lassen
+                    für einen zufälligen — oder einen eigenen eintippen, dann
+                    gilt er genau so, mit Groß- und Kleinschreibung.</T>
+                  </p>
+                  <div className="mt-2 flex flex-wrap gap-2">
+                    <input value={eigenerWunsch}
+                      onChange={(e) => setEigenerWunsch(e.target.value)}
+                      placeholder={t('freiwillig — eigener Schlüssel')}
+                      className="min-w-0 flex-1 rounded-lg border border-zinc-800
+                                 bg-zinc-950 px-3 py-2 font-mono text-sm
+                                 text-slate-100 outline-none
+                                 placeholder:text-slate-600 focus:border-sky-500" />
+                    <button type="button" onClick={() => void schluesselWechseln()}
+                      className="rounded-lg bg-sky-500 px-4 py-2 text-sm
+                                 font-semibold text-white transition
+                                 hover:bg-sky-400">
+                      <T>Neuen Schlüssel setzen</T>
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {wechselStand && (
+                <p className="mt-2 text-xs text-slate-400">{wechselStand}</p>
+              )}
             </section>
             )}
 

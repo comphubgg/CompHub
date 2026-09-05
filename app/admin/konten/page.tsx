@@ -30,6 +30,8 @@ import { BEREICHE } from '@/lib/rechte';
  */
 interface Konto {
   art?: 'konto' | 'schluessel';
+  /** Nur bei Zugaengen: darf er den Schluessel selbst wechseln? */
+  darfSchluessel?: boolean;
   /** Nur bei Zugaengen: der Schluessel selbst. */
   schluessel?: string;
   /** Nur bei Zugaengen: stillgelegt oder nicht. */
@@ -241,18 +243,36 @@ function VipZugaenge() {
    */
   const [discord, setDiscord] = useState<string | null>(null);
 
+  /*
+   * Wie der Schluessel aussehen soll.
+   *
+   * Leer heisst wie bisher: zwoelf zufaellige Zeichen. Ein Anfang bestimmt
+   * die ersten Zeichen und laesst den Rest zufaellig - "AMAR-K7P2-QW9X".
+   * Eine vollstaendige Vorgabe gilt genau so, wie sie dasteht.
+   *
+   * Beides zugleich ergaebe keinen Sinn, deshalb schliesst das Formular das
+   * jeweils andere Feld aus, sobald in einem etwas steht.
+   */
+  const [praefix, setPraefix] = useState('');
+  const [vorgabe, setVorgabe] = useState('');
+
   async function anlegen(neuerSchluessel = false) {
     setFehler(''); setDiscord(null);
     try {
       const r = await fetch('/api/admin/vip-zugaenge', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: name.trim(), neuerSchluessel }),
+        body: JSON.stringify({
+          name: name.trim(),
+          neuerSchluessel,
+          ...(vorgabe.trim() ? { schluessel: vorgabe.trim() }
+            : praefix.trim() ? { praefix: praefix.trim() } : {}),
+        }),
       });
       const j = await r.json();
       if (!r.ok) { setFehler(t(j?.fehler ?? 'nicht gespeichert')); return; }
       setFrisch({ name: j.name, schluessel: j.schluessel });
       setDiscord(j.discord ?? null);
-      setName('');
+      setName(''); setPraefix(''); setVorgabe('');
       await holen();
     } catch (e) { setFehler((e as Error).message); }
   }
@@ -333,6 +353,40 @@ function VipZugaenge() {
               <T>anlegen</T>
             </button>
           </div>
+
+          {/*
+            * Den Schluessel mitbestimmen - freiwillig.
+            *
+            * Beide Felder duerfen leer bleiben, dann ist alles wie vorher.
+            * Sie stehen unter dem Namen und nicht daneben, damit das
+            * Uebliche - Name eintippen, anlegen - der kurze Weg bleibt.
+            */}
+          <div className="mt-2 grid gap-2 sm:grid-cols-2">
+            <label className="block">
+              <span className="mb-1 block text-[10px] uppercase tracking-wider
+                               text-slate-600">
+                <T>Anfang des Schlüssels</T> <T>— freiwillig</T>
+              </span>
+              <input value={praefix} disabled={Boolean(vorgabe.trim())}
+                onChange={(e) => setPraefix(e.target.value)}
+                placeholder="AMAR"
+                className={`${feld} disabled:opacity-40`} />
+            </label>
+            <label className="block">
+              <span className="mb-1 block text-[10px] uppercase tracking-wider
+                               text-slate-600">
+                <T>Ganzer Schlüssel von Hand</T> <T>— freiwillig</T>
+              </span>
+              <input value={vorgabe} disabled={Boolean(praefix.trim())}
+                onChange={(e) => setVorgabe(e.target.value)}
+                placeholder={t('gilt genau so, wie du ihn tippst')}
+                className={`${feld} font-mono disabled:opacity-40`} />
+            </label>
+          </div>
+          <p className="mt-1 text-[10px] text-slate-600">
+            <T>Beim Anmelden wird Zeichen für Zeichen verglichen — Groß- und
+            Kleinschreibung zählt also mit.</T>
+          </p>
 
           {fehler && (
             <p className="mt-3 rounded-lg border border-rose-900/60 bg-rose-950/30
@@ -501,6 +555,27 @@ export default function KontenSeite() {
 
   /** Wessen Schluessel gerade offen liegt - immer nur einer. */
   const [offenerSchluessel, setOffenerSchluessel] = useState<string | null>(null);
+
+  /**
+   * Darf dieser Zugang seinen Schluessel selbst wechseln?
+   *
+   * Eigener Aufruf und nicht in setzen() mit hinein: der schickt Rolle,
+   * Rechte und VIP-Frist zusammen, und ein Haken soll nicht nebenbei eine
+   * Rolle mitverstellen, die der Admin gerade gar nicht angefasst hat.
+   */
+  async function schluesselRecht(k: Konto, darf: boolean) {
+    setStand(t('speichert …'));
+    try {
+      const r = await fetch('/api/admin/vip-zugaenge', {
+        method: 'PUT', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: k.name, darfSchluessel: darf }),
+      });
+      if (!r.ok) { setStand(t('nicht gespeichert')); return; }
+      await holen();
+      setStand(t('gespeichert'));
+      setTimeout(() => setStand(''), 2000);
+    } catch (e) { setStand((e as Error).message); }
+  }
 
   async function setzen(k: Konto, rolle: 'admin' | 'manager' | 'pro' | null,
     vipTage: number | null, bereiche?: string[], epicId?: string) {
@@ -716,6 +791,21 @@ ${k.name}`)) return;
                     title={k.gesperrt.grund || undefined}>
                     <T>gesperrt</T>
                   </span>
+                )}
+                {/*
+                  * Der Haken fuer den Selbstwechsel - nur bei Zugaengen.
+                  *
+                  * Ein Konto meldet sich mit Adresse und Passwort an und hat
+                  * gar keinen Schluessel; dort waere der Haken sinnlos.
+                  */}
+                {k.art === 'schluessel' && (
+                  <label className="flex items-center gap-1.5 text-[10px]
+                                    text-slate-500">
+                    <input type="checkbox" checked={Boolean(k.darfSchluessel)}
+                      onChange={(e) => void schluesselRecht(k, e.target.checked)}
+                      className="h-3 w-3 accent-sky-500" />
+                    <T>Darf den Schlüssel selbst wechseln</T>
+                  </label>
                 )}
                 {!k.bestaetigt && k.art !== 'schluessel' && (
                   <button onClick={() => void bestaetigen(k, true)}

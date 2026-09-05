@@ -1585,6 +1585,23 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Verstanden': 'Got it',
   'Profil': 'Profile',
   'Schnellzugriff': 'Quick access',
+  'Ändern': 'Change',
+  'Neuen Schlüssel setzen': 'Set new key',
+  'freiwillig — eigener Schlüssel': 'optional — your own key',
+  'Der alte Schlüssel gilt danach nicht mehr. Leer lassen für einen zufälligen — oder einen eigenen eintippen, dann gilt er genau so, mit Groß- und Kleinschreibung.':
+    'The old key stops working afterwards. Leave empty for a random one — '
+    + 'or type your own, which is then used exactly as written, upper and lower '
+    + 'case included.',
+  'Neuer Schlüssel — er liegt auch in deinem Discord-Kanal.':
+    'New key — it is in your Discord channel too.',
+  'Neuer Schlüssel gesetzt.': 'New key set.',
+  'Anfang des Schlüssels': 'Start of the key',
+  'Ganzer Schlüssel von Hand': 'Whole key by hand',
+  '— freiwillig': '— optional',
+  'gilt genau so, wie du ihn tippst': 'used exactly as you type it',
+  'Beim Anmelden wird Zeichen für Zeichen verglichen — Groß- und Kleinschreibung zählt also mit.':
+    'Signing in compares character by character, so upper and lower case matter.',
+  'Darf den Schlüssel selbst wechseln': 'May change their own key',
   'In den Discord-Kanal des VIPs gelegt — der alte Schlüssel dort ist weg.':
     'Posted to the VIP’s Discord channel — the old key there is gone.',
   'Dieses Konto ist gesperrt. Eine neue Anmeldung mit derselben Adresse ist nicht möglich — wende dich an den Betreiber.':
