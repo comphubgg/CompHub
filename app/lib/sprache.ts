@@ -560,6 +560,10 @@ const AUF_ENGLISCH: Record<string, string> = {
   ['Die Mail ist unterwegs.']: 'The mail is on its way.',
   ['Der Versand klemmt gerade. Versuch es in ein paar Minuten noch einmal.']:
     'Sending is stuck right now. Try again in a few minutes.',
+  ['Adresse bestätigt']: 'Address confirmed',
+  ['Adresse nicht bestätigt']: 'Address not confirmed',
+  ['Bestätigungsmail schicken']: 'Send confirmation mail',
+  ['Deine Adresse ist schon bestätigt.']: 'Your address is already confirmed.',
   'Neue Gruppe': 'New group',
   'verlassen': 'leave',
   'Verlassen': 'Leave',

@@ -157,7 +157,34 @@ export default function KontoSeite() {
    * Browser, und ein Server weiss davon nichts. Wer das hier waehrend des
    * Zeichnens laese, bekaeme eine Abweichung gemeldet.
    */
+  /*
+   * Die Adresse nachtraeglich bestaetigen.
+   *
+   * Die Mail geht bei der Registrierung raus, aber sie haelt nichts auf - wer
+   * sie im Spam hat oder loescht, kann das Werkzeug trotzdem benutzen. Dann
+   * fehlt ihm nur der Haken, und ohne einen Knopf hier bliebe das fuer immer
+   * so. Deshalb einer, gleich neben dem Hinweis.
+   */
+  const [bestaetigungLaeuft, setBestaetigungLaeuft] = useState(false);
+  const [bestaetigungHinweis, setBestaetigungHinweis] = useState('');
+
   const [chatAmRand, setChatAmRand] = useState<boolean | null>(null);
+  /** Die Bestaetigungsmail noch einmal anfordern. */
+  async function bestaetigungAnfordern() {
+    setBestaetigungLaeuft(true); setBestaetigungHinweis('');
+    try {
+      const r = await fetch('/api/konto', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ was: 'bestaetigung-neu' }),
+      });
+      const j = await r.json();
+      setBestaetigungHinweis(t(j?.hinweis
+        ?? (j?.schon ? 'Deine Adresse ist schon bestätigt.' : 'Das ging nicht.')));
+    } catch {
+      setBestaetigungHinweis(t('Keine Verbindung zum Server.'));
+    } finally { setBestaetigungLaeuft(false); }
+  }
+
   useEffect(() => {
     setChatAmRand(liesChatHud());
     const beiAenderung = (e: Event) => setChatAmRand((e as CustomEvent).detail !== false);
@@ -639,10 +666,37 @@ export default function KontoSeite() {
             <h1 className="truncate text-2xl font-bold">{daten.name}</h1>
             <p className="truncate text-xs text-slate-500">
               {daten.email}
-              {!daten.bestaetigt && (
-                <span className="ml-2 text-amber-500/80"><T>nicht bestätigt</T></span>
+              {daten.bestaetigt && (
+                /* Der Haken - dieselbe Auszeichnung wie im Posteingang. */
+                <span title={t('Adresse bestätigt')}
+                  className="ml-1.5 inline-block align-text-bottom text-sky-400">
+                  <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="currentColor"
+                    aria-hidden>
+                    <path d="M12 2l2.4 1.8 3-.3 1 2.8 2.6 1.5-.9 2.9.9 2.9-2.6 1.5-1 2.8-3-.3L12 22l-2.4-1.8-3 .3-1-2.8L3 16.2l.9-2.9L3 10.4l2.6-1.5 1-2.8 3 .3L12 2z" opacity=".25" />
+                    <path d="M10.6 15.4l-2.9-2.9 1.3-1.3 1.6 1.6 4-4 1.3 1.3-5.3 5.3z" />
+                  </svg>
+                </span>
               )}
             </p>
+            {!daten.bestaetigt && (
+              <div className="mt-1 flex flex-wrap items-center gap-2">
+                <span className="text-[11px] text-amber-500/80">
+                  <T>Adresse nicht bestätigt</T>
+                </span>
+                <button type="button" onClick={() => void bestaetigungAnfordern()}
+                  disabled={bestaetigungLaeuft}
+                  className="rounded-lg border border-sky-500/60 px-2.5 py-1
+                             text-[11px] text-sky-300 transition
+                             hover:bg-sky-500/10 disabled:opacity-50">
+                  {bestaetigungLaeuft
+                    ? <T>wird gesendet …</T>
+                    : <T>Bestätigungsmail schicken</T>}
+                </button>
+                {bestaetigungHinweis && (
+                  <span className="text-[11px] text-slate-400">{bestaetigungHinweis}</span>
+                )}
+              </div>
+            )}
           </div>
           <Link href="/" className="ml-auto text-xs text-slate-500 transition
                                     hover:text-sky-400">
