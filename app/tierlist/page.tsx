@@ -144,6 +144,25 @@ export default function TierListPage() {
     setSpielerProfile(j.profile ?? {});
   }, [spielerProfile]);
 
+  /*
+   * Welcher Turniername zu welchem Konto gehoert.
+   *
+   * Dieselbe Auskunft, die das Zusammenlegen von Dubletten benutzt - hier
+   * fuer den Anzeigenamen. Zum Grund siehe anzeigeVon weiter unten: der
+   * gepflegte Name hing bisher daran, dass der Turniername zufaellig in der
+   * kurzen Namensliste des Profils steht. Diese Liste kennt dagegen alle
+   * Namen, unter denen ein Konto je angetreten ist.
+   */
+  const [kontoNachName, setKontoNachName] = useState<Record<string, string>>({});
+  useEffect(() => {
+    void Promise.resolve().then(async () => {
+      try {
+        const j = await (await fetch('/api/spieler-namen?nachName=1')).json();
+        setKontoNachName(j?.nachName ?? {});
+      } catch { /* ohne bleibt es bei der kurzen Liste im Profil */ }
+    });
+  }, []);
+
   /**
    * Der gepflegte Anzeigename zu einem Turniernamen, falls es einen gibt.
    *
@@ -153,6 +172,8 @@ export default function TierListPage() {
   const anzeigeVon = useCallback((name: string): string | undefined => {
     const schluessel = String(name ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
     if (!schluessel) return undefined;
+
+    // 1. Das gepflegte Profil selbst. Was dort steht, gilt.
     for (const pr of Object.values(spielerProfile)) {
       if (!pr.anzeige) continue;
       const kandidaten = [...(pr.namen ?? []), pr.name ?? '', pr.anzeige ?? ''];
@@ -160,8 +181,45 @@ export default function TierListPage() {
         return pr.anzeige;
       }
     }
+
+    /*
+     * 2. Ueber das Konto - genau wie bei der Flagge.
+     *
+     * Hier endete die Suche vorher, und das war zu kurz gegriffen: die
+     * Namensliste eines Profils enthaelt meist genau einen Namen, naemlich
+     * den, unter dem der Spieler beim Anlegen antrat. Tritt er beim naechsten
+     * Turnier unter einem anderen an - und das tun sie staendig -, findet ihn
+     * der Vergleich nicht mehr, und auf der Karte steht wieder der rohe Name,
+     * obwohl der Betreiber ihn laengst umbenannt hat.
+     *
+     * Die Kontoliste kennt dagegen jeden Namen, unter dem ein Konto je
+     * angetreten ist. Ueber sie faellt "hvk pixie 67" mit "HAVOK Pixie"
+     * zusammen, und der gepflegte Name greift auch dort.
+     *
+     * Mehrdeutige Namen liefert die Schnittstelle gar nicht erst aus - sie
+     * bleiben beim rohen Namen, statt einen falschen zu bekommen.
+     */
+    /*
+     * Achtung, zwei verschiedene Schluessel.
+     *
+     * Der Laender-Index entsteht mit der schlichten Vereinfachung (klein,
+     * nur Buchstaben und Ziffern) - dort passt derselbe Handgriff wie oben.
+     * Der Konto-Index dagegen wird mit namensSchluessel gebildet: Orgtag und
+     * Startnummer fallen weg, Fremdalphabet-Zwillinge werden zurueckgefuehrt.
+     * "hvk pixie 67" und "HAVOK Pixie" ergeben damit beide "pixie" - und
+     * genau darum geht es hier.
+     *
+     * Mit dem falschen Schluessel gesucht findet der Index nichts, und der
+     * gepflegte Name bliebe wieder aus. Nachgemessen: so fand "hvk pixie 67"
+     * nichts, mit dem richtigen Schluessel dagegen "Pixie".
+     */
+    const konto = kontoNachName[namensSchluessel(name)];
+    if (konto) {
+      const pr = spielerProfile[konto];
+      if (pr?.anzeige) return pr.anzeige;
+    }
     return undefined;
-  }, [spielerProfile]);
+  }, [spielerProfile, kontoNachName]);
 
   /**
    * Die Flagge zu einem Namen.
