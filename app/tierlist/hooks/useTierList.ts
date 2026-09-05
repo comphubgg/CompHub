@@ -281,10 +281,71 @@ export function useTierList(listId: string, mode: 'solo' | 'duo') {
     }));
   };
 
+  /*
+   * Dasselbe ueber den Namen statt ueber die Eintrags-Id.
+   *
+   * Die Kachel kennt nur den Namen, den sie anzeigt - die Id liegt eine
+   * Ebene hoeher. Der Admin-Weg nimmt ebenfalls den Namen, damit beide
+   * dieselbe Form haben und sich in der Oberflaeche austauschen lassen.
+   *
+   * Geaendert wird ausschliesslich der eigene Stand: diese Funktion fasst
+   * nur die Liste im Browser an. Die gepflegten Profile, die fuer alle
+   * gelten, schreibt weiterhin nur der Admin fort.
+   */
+  const passt = (n: unknown, gesucht: string) =>
+    String(n ?? '').trim().toLowerCase() === gesucht;
+
+  const umbenennenNachName = (rohName: string, neu: string, welcher?: 1 | 2) => {
+    const gesucht = String(rohName ?? '').trim().toLowerCase();
+    const sauber = String(neu ?? '').trim();
+    if (!gesucht || !sauber) return;
+    setListState((prev) => ({
+      ...prev,
+      entries: prev.entries.map((e: any) => {
+        if (e.isDuo) {
+          const feld = welcher === 2 ? 'player2' : 'player1';
+          if (!passt(e.data?.[feld]?.name, gesucht)) return e;
+          return { ...e, data: { ...e.data,
+            [feld]: { ...e.data[feld], name: sauber } } };
+        }
+        if (!passt(e.data?.name, gesucht)) return e;
+        return { ...e, data: { ...e.data, name: sauber } };
+      }),
+      updatedAt: Date.now(),
+    }));
+  };
+
+  /** Die Flagge eines eigenen Eintrags - ebenfalls nur im eigenen Stand. */
+  const landNachName = (rohName: string, land: string) => {
+    const gesucht = String(rohName ?? '').trim().toLowerCase();
+    if (!gesucht) return;
+    const code = String(land ?? '').trim();
+    setListState((prev) => ({
+      ...prev,
+      entries: prev.entries.map((e: any) => {
+        if (e.isDuo) {
+          let d = e.data;
+          if (passt(d?.player1?.name, gesucht)) {
+            d = { ...d, player1: { ...d.player1, countryCode: code } };
+          }
+          if (passt(d?.player2?.name, gesucht)) {
+            d = { ...d, player2: { ...d.player2, countryCode: code } };
+          }
+          return d === e.data ? e : { ...e, data: d };
+        }
+        if (!passt(e.data?.name, gesucht)) return e;
+        return { ...e, data: { ...e.data, countryCode: code } };
+      }),
+      updatedAt: Date.now(),
+    }));
+  };
+
   return {
     entries,
     tierLabels,
     renameEntry,
+    umbenennenNachName,
+    landNachName,
     listName: listState.listName,
     setTierLabel,
     moveToTier,

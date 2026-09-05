@@ -1104,10 +1104,10 @@ export default function TierListPage() {
             isAdmin={isAdmin}
             currentUser={currentUser}
             onDeletePlayer={isAdmin ? handleDeleteEntry : undefined}
-            onRename={isAdmin ? nameSetzen : undefined}
+            onRename={isAdmin ? nameSetzen : tierListState.umbenennenNachName}
             landVon={landVon}
             anzeigeVon={anzeigeVon}
-            onLand={isAdmin ? landSetzen : undefined}
+            onLand={isAdmin ? landSetzen : tierListState.landNachName}
             disableLabelEdit={isGuest}
           />
         </div>
@@ -1131,10 +1131,10 @@ export default function TierListPage() {
           existingEntries={tierListState.entries}
           isAdmin={isAdmin}
           currentUser={currentUser}
-          onRenameEntry={isAdmin ? nameSetzen : undefined}
+          onRenameEntry={isAdmin ? nameSetzen : tierListState.umbenennenNachName}
           landVon={landVon}
           anzeigeVon={anzeigeVon}
-          onLand={isAdmin ? landSetzen : undefined}
+          onLand={isAdmin ? landSetzen : tierListState.landNachName}
           onDeleteEntry={isAdmin ? handleDeleteEntry : undefined}
           createDisabled={previewMode}
         />

@@ -145,7 +145,22 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
    * aufklappt. Wer etwas aendern will, tut es an einer Stelle: in der Liste
    * daneben, aus der die Kacheln kommen.
    */
-  const bearbeitbar = variant === 'pool' && isAdmin && !disabled;
+  /*
+   * Wer darf hier etwas aendern?
+   *
+   * Der Admin ueberall - und darueber hinaus jeder an dem, was er selbst
+   * angelegt hat. Der Betreiber: "dann soll ich den aber auch als normaler
+   * VIP anpassen koennen, aber nur die, die ich selber erstellt habe."
+   *
+   * Der Unterschied liegt nicht im Knopf, sondern darin, was er bewirkt:
+   * beim Admin wandert die Aenderung in die gepflegten Profile und gilt fuer
+   * alle, bei allen anderen nur in ihren eigenen Stand. Verdrahtet ist das
+   * in app/tierlist/page.tsx.
+   */
+  const eigener = Boolean(currentUser
+    && (entry.localOnly
+      || entry.data.createdBy?.trim().toLowerCase() === currentUser));
+  const bearbeitbar = variant === 'pool' && (isAdmin || eigener) && !disabled;
 
   let player1Country: string | undefined;
   let player2Country: string | undefined;
@@ -253,10 +268,7 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
     ? (anzeigeVon?.(player2Name) || ohneBeiwerk(player2Name)) : player2Name;
   const cardClass = `${variant === 'pool' ? 'pool-duo-card' : 'duo-card'} ${isDuoEntry ? '' : 'solo-entry'}`;
 
-  const isOwner = Boolean(
-    currentUser &&
-    (entry.localOnly || entry.data.createdBy?.trim().toLowerCase() === currentUser)
-  );
+  const isOwner = eigener;
   
   const regionText = displayRegion || 'Unknown';
   const regionClass = String(regionText).toLowerCase();
