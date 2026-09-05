@@ -1103,7 +1103,15 @@ export default function TierListPage() {
             onReturnToPool={tierListState.removeEntry}
             isAdmin={isAdmin}
             currentUser={currentUser}
-            onDeletePlayer={isAdmin ? handleDeleteEntry : undefined}
+            /*
+             * Auch fuer Nicht-Admins - handleDeleteEntry prueft selbst, wem
+             * der Eintrag gehoert, und wer ihn nicht angelegt hat, kommt
+             * dort ohnehin nicht durch. Vorher war das x auf der Kachel zwar
+             * zu sehen, tat aber nichts: die Kachel zeigt es, sobald jemand
+             * bearbeiten darf, der Handgriff dahinter kam aber nur beim
+             * Admin an. Ein Knopf, der nichts tut, ist schlimmer als keiner.
+             */
+            onDeletePlayer={handleDeleteEntry}
             onRename={isAdmin ? nameSetzen : tierListState.umbenennenNachName}
             landVon={landVon}
             anzeigeVon={anzeigeVon}
@@ -1135,7 +1143,7 @@ export default function TierListPage() {
           landVon={landVon}
           anzeigeVon={anzeigeVon}
           onLand={isAdmin ? landSetzen : tierListState.landNachName}
-          onDeleteEntry={isAdmin ? handleDeleteEntry : undefined}
+          onDeleteEntry={handleDeleteEntry}
           createDisabled={previewMode}
         />
       </div>
