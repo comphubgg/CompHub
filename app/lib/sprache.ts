@@ -1871,6 +1871,29 @@ const AUF_ENGLISCH: Record<string, string> = {
   'passt': 'fine',
   'wo keine Form ist, eine anlegen': 'where there is no shape, create one',
   'neue Formen angelegt': 'new shapes created',
+
+  // Die einzelnen Runden eines Spieltags.
+  'Runden anzeigen': 'show rounds',
+  'zuklappen': 'collapse',
+  ['Zu diesem Spieltag liefert Epic keine einzelnen Runden.']:
+    'Epic reports no individual rounds for this match day.',
+  'Match-ID kopieren': 'Copy Match ID',
+  'Lebenszeit': 'Time alive',
+  'Tagesplatz': 'Day rank',
+  'Lobby': 'Lobby',
+  'alle anzeigen': 'show all',
+  ['An diesem Spieltag laufen viele Lobbys gleichzeitig. Jede Kachel '
+    + 'ist deshalb eine eigene Lobby und keine gemeinsame Runde — '
+    + 'geordnet nach dem Zeitpunkt, an dem sie zu Ende war.']:
+    'Many lobbies run at the same time on this match day. Each tile is '
+    + 'one lobby of its own, not a shared round — ordered by the moment '
+    + 'it ended.',
+  ['Die Werte gelten je Team, so wie Epic sie meldet. Punkte einer '
+    + 'einzelnen Runde gibt Epic nicht heraus — sie stehen nur als '
+    + 'Tagessumme in der Bestenliste.']:
+    'Values are per team, the way Epic reports them. Epic does not '
+    + 'publish the points of a single round — they only exist as the day '
+    + 'total in the leaderboard.',
 };
 
 /**

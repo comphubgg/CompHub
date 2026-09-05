@@ -33,6 +33,32 @@ interface Fenster {
   qualifiziert?: number;
   matchCap?: number;
 }
+/**
+ * Eine Zeile in der Aufstellung einer Runde - so liefert sie
+ * /api/cup-matches.
+ */
+interface SpielZeile {
+  platz: number | null;
+  /** Der Platz am Ende des ganzen Spieltags, zum Wiedererkennen. */
+  tagesPlatz: number;
+  teamId: string | null;
+  spieler: Array<{ id: string; name: string }>;
+  elims: number;
+  wins: number;
+  timeAlive: number;
+  damage: number;
+}
+
+/** Eine einzelne Runde des Spieltags. */
+interface Spiel {
+  id: string;
+  nummer: number;
+  ende: string | null;
+  laengsteLebenszeit: number;
+  sieger: string[];
+  teams: SpielZeile[];
+}
+
 /** Ein Platz in einer Bestenliste. */
 interface StatPlatz { rank: number; spieler: string[]; ids: string[]; wert: number }
 
@@ -203,6 +229,26 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
    * Fenster-Kennung; zurueckholen laesst es sich jederzeit.
    */
   const [ohneKarte, setOhneKarte] = useState<string[]>([]);
+
+  /*
+   * Die einzelnen Runden des Spieltags.
+   *
+   * Der Betreiber wollte "Matches, dass man da draufdruecken kann, dann
+   * sieht man, welcher Platz welcher Spieler in welchem Game wurde - plus
+   * man kann die Match ID kopieren". Genau das steht hier.
+   *
+   * Geladen wird erst auf Verlangen: dafuer muss die ganze Bestenliste
+   * geholt werden, weil Epic die Rundenlisten an die Teams haengt und nicht
+   * an die Runden. Das jedes Mal beim Oeffnen einer Eventseite zu tun,
+   * waere Arbeit fuer nichts.
+   */
+  const [spiele, setSpiele] = useState<Spiel[] | null>(null);
+  const [spieleAn, setSpieleAn] = useState(false);
+  const [spieleLaedt, setSpieleLaedt] = useState(false);
+  const [offenesSpiel, setOffenesSpiel] = useState<string | null>(null);
+  /** An einem Qualifikationstag sind es hunderte - erst einmal nur die ersten. */
+  const [alleSpiele, setAlleSpiele] = useState(false);
+  const [kopiert, setKopiert] = useState<string | null>(null);
 
   /** Was es zu gewinnen gibt - aus Epics Auszahlungstabelle. */
   const [preise, setPreise] = useState<{
@@ -686,6 +732,53 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
       ?? tage.find((f) => f.status === 'vorbei')
       ?? tage[0]);
   }, [tage]);
+
+  /*
+   * Beim Wechsel des Spieltags alles Alte wegwerfen.
+   *
+   * Sonst stuenden nach einem Klick auf einen anderen Tag noch die Runden
+   * des vorigen da - und zwar ohne dass etwas darauf hinweist.
+   */
+  useEffect(() => {
+    setSpiele(null); setOffenesSpiel(null); setKopiert(null); setAlleSpiele(false);
+  }, [fenster]);
+
+  useEffect(() => {
+    if (!spieleAn || !fenster || spiele) return;
+    let weg = false;
+    setSpieleLaedt(true);
+    fetch(`/api/cup-matches?event=${encodeURIComponent(fenster.eventId)}`
+      + `&window=${encodeURIComponent(fenster.windowId)}&limit=500`)
+      .then((r) => r.json())
+      .then((j) => { if (!weg) setSpiele(j?.spiele ?? []); })
+      .catch(() => { if (!weg) setSpiele([]); })
+      .finally(() => { if (!weg) setSpieleLaedt(false); });
+    return () => { weg = true; };
+  }, [spieleAn, fenster, spiele]);
+
+  /*
+   * Ist das ein einzelner Spielraum oder ein ganzer Qualifikationstag?
+   *
+   * In einem Finale spielen alle in derselben Lobby: sechs Spiele heissen
+   * sechs Sitzungen, und "Runde 3" meint fuer jeden dasselbe Spiel. An einem
+   * Qualifikationstag laufen dagegen hunderte Lobbys nebeneinander - dort
+   * sind es hundertachtundvierzig Sitzungen, obwohl jedes Team elf Spiele
+   * hat. Dann ist eine Kachel eine Lobby und keine gemeinsame Runde, und sie
+   * darf auch nicht so heissen.
+   *
+   * Erkennbar ist das an der Zahl: mehr Sitzungen als Spiele je Team heisst
+   * mehrere Lobbys.
+   */
+  const eineLobby = useMemo(
+    () => !!spiele && gespielteRunden > 0 && spiele.length <= gespielteRunden + 1,
+    [spiele, gespielteRunden]);
+
+  /** Die Match-Id in die Zwischenablage - mit sichtbarer Rueckmeldung. */
+  const idKopieren = useCallback((id: string) => {
+    void navigator.clipboard.writeText(id)
+      .then(() => { setKopiert(id); setTimeout(() => setKopiert(null), 1500); })
+      .catch(() => setKopiert(null));
+  }, []);
 
   // ---- Leaderboard ---------------------------------------------------
   const laden = useCallback(async (f: Fenster) => {
@@ -1455,6 +1548,214 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
             </p>
           )}
         </section>
+
+        {/*
+          * Die einzelnen Runden.
+          *
+          * Die Bestenliste beantwortet "wie stand das Team am Ende des
+          * Tages". Diese Liste beantwortet die andere Frage: "wer wurde in
+          * diesem einen Spiel welcher". Beides nebeneinander ist genau der
+          * Blick, den man beim Auswerten braucht.
+          */}
+        {fenster && fenster.status !== 'kommt' && (
+          <section className="mt-4 rounded-xl border border-zinc-800 bg-zinc-950/60">
+            <header className="flex flex-wrap items-center justify-between gap-3
+                               border-b border-zinc-800 px-4 py-3">
+              {/* Bewusst ohne Uebersetzung: "Matches" heisst in beiden
+                  Sprachen so, und die Tabelle uebersetzt es kleingeschrieben
+                  als Kennzahl ("matches played") - das ergaebe hier eine
+                  kleingeschriebene Ueberschrift. */}
+              <h2 className="text-sm font-semibold text-slate-100">Matches</h2>
+              <div className="flex items-center gap-3">
+                {spiele && spiele.length > 0 && (
+                  <span className="text-xs text-slate-500">
+                    {spiele.length} <T>Runden</T>
+                  </span>
+                )}
+                <button onClick={() => setSpieleAn((a) => !a)}
+                  className="rounded-lg border border-zinc-800 px-3 py-1 text-xs
+                             text-slate-300 transition hover:border-sky-500
+                             hover:text-sky-400">
+                  {spieleAn ? <T>zuklappen</T> : <T>Runden anzeigen</T>}
+                </button>
+              </div>
+            </header>
+
+            {spieleAn && (
+              <div className="p-3">
+                {spieleLaedt && !spiele && (
+                  <div className="space-y-1">
+                    {[...Array(3)].map((unbenutzt, i) =>
+                      <div key={i} className="h-14 animate-pulse rounded bg-zinc-900/60" />)}
+                  </div>
+                )}
+
+                {spiele && !spiele.length && (
+                  <p className="p-4 text-center text-sm text-slate-500">
+                    <T>Zu diesem Spieltag liefert Epic keine einzelnen Runden.</T>
+                  </p>
+                )}
+
+                {spiele && spiele.length > 0 && !eineLobby && (
+                  <p className="mb-2 text-[11px] leading-relaxed text-slate-500">
+                    <T>An diesem Spieltag laufen viele Lobbys gleichzeitig. Jede
+                    Kachel ist deshalb eine eigene Lobby und keine gemeinsame
+                    Runde — geordnet nach dem Zeitpunkt, an dem sie zu Ende
+                    war.</T>
+                  </p>
+                )}
+
+                {spiele && spiele.length > 0 && (
+                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    {(alleSpiele ? spiele : spiele.slice(0, 60)).map((sp) => (
+                      <div key={sp.id}
+                        className={`rounded-lg border transition ${sp.id === offenesSpiel
+                          ? 'border-sky-600 bg-sky-950/20'
+                          : 'border-zinc-800 bg-zinc-950/60 hover:border-zinc-700'}`}>
+                        <button
+                          onClick={() => setOffenesSpiel(
+                            sp.id === offenesSpiel ? null : sp.id)}
+                          className="w-full px-3 py-2 text-left">
+                          <div className="flex items-baseline justify-between gap-2">
+                            <span className="text-xs font-semibold text-slate-200">
+                              {eineLobby
+                                ? <><T>Runde</T> {sp.nummer}</>
+                                : <T>Lobby</T>}
+                            </span>
+                            <span className="text-[11px] text-slate-500">
+                              {sp.ende ? new Date(sp.ende).toLocaleTimeString(ort,
+                                { hour: '2-digit', minute: '2-digit' }) : '—'}
+                            </span>
+                          </div>
+                          {sp.sieger.length > 0 && (
+                            <div className="mt-0.5 truncate text-[11px] text-amber-400">
+                              🏆 {sp.sieger.map((n, k) => namenVon({
+                                name: n,
+                                id: sp.teams.find((x) => x.platz === 1)
+                                  ?.spieler[k]?.id ?? '',
+                              })).join('  +  ')}
+                            </div>
+                          )}
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {spiele && spiele.length > 60 && !alleSpiele && (
+                  <button onClick={() => setAlleSpiele(true)}
+                    className="mt-2 w-full rounded-lg border border-zinc-800 px-3 py-2
+                               text-xs text-slate-400 transition hover:border-sky-500
+                               hover:text-sky-400">
+                    <T>alle anzeigen</T> ({spiele.length})
+                  </button>
+                )}
+
+                {/* Die Aufstellung der geoeffneten Runde, in voller Breite -
+                    bei achtundvierzig Teams ist eine Spalte zu schmal. */}
+                {(() => {
+                  const sp = (spiele ?? []).find((x) => x.id === offenesSpiel);
+                  if (!sp) return null;
+                  const mitSchaden = sp.teams.some((t) => t.damage > 0);
+                  return (
+                    <div className="mt-3 rounded-lg border border-zinc-800
+                                    bg-zinc-950/80">
+                      <div className="flex flex-wrap items-center justify-between gap-3
+                                      border-b border-zinc-800 px-3 py-2">
+                        <span className="text-xs font-semibold text-slate-200">
+                          {eineLobby ? <><T>Runde</T> {sp.nummer}</> : <T>Lobby</T>}
+                          <span className="ml-2 font-normal text-slate-500">
+                            {sp.ende ? new Date(sp.ende).toLocaleString(ort) : ''}
+                          </span>
+                        </span>
+                        <div className="flex items-center gap-2">
+                          {/* Die Sitzungskennung von Epic - anderswo heisst
+                              sie Match ID. Sie ist zum Weiterreichen da,
+                              deshalb ein Knopf statt einer Zeile zum
+                              Markieren. */}
+                          <code className="rounded bg-zinc-900 px-2 py-1 text-[10px]
+                                           text-slate-400">{sp.id}</code>
+                          <button onClick={() => idKopieren(sp.id)}
+                            className="rounded-lg border border-zinc-800 px-2.5 py-1
+                                       text-[11px] text-slate-300 transition
+                                       hover:border-sky-500 hover:text-sky-400">
+                            {kopiert === sp.id ? <T>kopiert</T> : <T>Match-ID kopieren</T>}
+                          </button>
+                        </div>
+                      </div>
+
+                      <div className="max-h-96 overflow-auto">
+                        <table className="w-full text-sm">
+                          <thead className="sticky top-0 bg-zinc-950">
+                            <tr className="border-b border-zinc-800 text-[11px]
+                                           uppercase tracking-wider text-slate-500">
+                              <th className="px-3 py-2 text-right font-medium">#</th>
+                              <th className="px-3 py-2 text-left font-medium">Team</th>
+                              <th className="px-3 py-2 text-right font-medium">
+                                <T>Elims</T>
+                              </th>
+                              {mitSchaden && (
+                                <th className="px-3 py-2 text-right font-medium">
+                                  <T>Schaden</T>
+                                </th>
+                              )}
+                              <th className="px-3 py-2 text-right font-medium">
+                                <T>Lebenszeit</T>
+                              </th>
+                              <th className="px-3 py-2 text-right font-medium">
+                                <T>Tagesplatz</T>
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {sp.teams.map((t, i) => (
+                              <tr key={`${t.teamId ?? i}`}
+                                className="border-b border-zinc-900/70 last:border-0">
+                                <td className="px-3 py-1.5 text-right tabular-nums
+                                               text-slate-400">
+                                  {t.platz ?? '—'}
+                                </td>
+                                <td className="px-3 py-1.5 text-slate-200">
+                                  {t.spieler.map(namenVon).join('  +  ')}
+                                </td>
+                                <td className="px-3 py-1.5 text-right tabular-nums
+                                               text-slate-300">
+                                  {t.elims}
+                                </td>
+                                {mitSchaden && (
+                                  <td className="px-3 py-1.5 text-right tabular-nums
+                                                 text-slate-300">
+                                    {t.damage.toLocaleString(ort)}
+                                  </td>
+                                )}
+                                <td className="px-3 py-1.5 text-right tabular-nums
+                                               text-slate-400">
+                                  {Math.floor(t.timeAlive / 60)}:
+                                  {String(t.timeAlive % 60).padStart(2, '0')}
+                                </td>
+                                <td className="px-3 py-1.5 text-right tabular-nums
+                                               text-slate-600">
+                                  {t.tagesPlatz}
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+
+                      <p className="border-t border-zinc-900 px-3 py-2 text-[11px]
+                                    text-slate-600">
+                        <T>Die Werte gelten je Team, so wie Epic sie meldet. Punkte
+                        einer einzelnen Runde gibt Epic nicht heraus — sie stehen
+                        nur als Tagessumme in der Bestenliste.</T>
+                      </p>
+                    </div>
+                  );
+                })()}
+              </div>
+            )}
+          </section>
+        )}
 
         {/* Turnierstatistik - nur unter einem Finale */}
         {statistik.length > 0 && (
