@@ -21,16 +21,27 @@ import { DATEN_ORT } from './datenOrt';
  *   Anmeldungen  - jedes Mal, wenn sich jemand anmeldet, mit Zeitpunkt.
  *   Zuletzt hier - bei jedem Seitenaufruf aufgefrischt.
  *
- * "Gerade online" ist daraus abgeleitet und heisst genau: in den letzten
- * fuenf Minuten war eine Seite offen. Mehr kann niemand wissen - ein
- * geschlossener Reiter meldet sich nicht ab. Die Oberflaeche schreibt das
- * deshalb auch so hin.
+ * "Gerade da" ist daraus abgeleitet: jeder offene Reiter meldet sich jede
+ * Minute, und wer sich zwei Minuten lang nicht gemeldet hat, gilt als weg.
+ * Damit stimmt beides - eine im Hintergrund offene Seite bleibt gruen, ein
+ * geschlossener Browser wird binnen zwei Minuten rot. Ein Abmelden wirkt
+ * sofort.
  */
 
 const DATEI = path.join(DATEN_ORT, 'anwesenheit.json');
 
-/** Wie lange jemand nach dem letzten Aufruf als "da" gilt. */
-export const NOCH_DA_MS = 5 * 60_000;
+/**
+ * Wie lange jemand nach dem letzten Lebenszeichen als "da" gilt.
+ *
+ * Zwei Minuten, weil jeder offene Reiter sich jede Minute meldet. Ein
+ * verpasster Schlag - ein kurzer Netzhaenger - wirft damit niemanden
+ * heraus, ein geschlossener Browser dagegen schon nach zwei Minuten.
+ *
+ * Vorher standen hier fuenf Minuten ohne Puls dahinter. Das war in beide
+ * Richtungen falsch: wer stundenlang offen hatte, galt als weg, und wer
+ * sich gerade abgemeldet hatte, stand noch minutenlang gruen da.
+ */
+export const NOCH_DA_MS = 2 * 60_000;
 
 export interface Anwesend {
   /** Der angezeigte Name. */
@@ -45,6 +56,8 @@ export interface Anwesend {
   ersteAnmeldung?: number;
   /** Wie oft sich dieser Zugang seither angemeldet hat. */
   anmeldungen?: number;
+  /** Wann zuletzt abgemeldet - danach gilt er nicht mehr als da. */
+  abgemeldet?: number;
 }
 
 type Ablage = Record<string, Anwesend>;
@@ -117,6 +130,22 @@ export async function merkeAnmeldung(
   planeSchreiben();
 }
 
+/**
+ * Jemand hat sich abgemeldet.
+ *
+ * Der Zeitpunkt wird zurueckgesetzt, nicht der Eintrag geloescht: "zuletzt
+ * hier" und die Zahl der Anmeldungen sollen stehen bleiben. Nur der gruene
+ * Punkt geht sofort aus, statt noch zwei Minuten nachzuleuchten.
+ */
+export async function merkeAbmeldung(kennung: string): Promise<void> {
+  if (!kennung) return;
+  const a = await lies();
+  const e = a[kennung];
+  if (!e) return;
+  a[kennung] = { ...e, zuletzt: e.zuletzt, abgemeldet: Date.now() };
+  planeSchreiben();
+}
+
 /** Alle Bekannten, zuletzt Gesehene zuerst. */
 export async function alleAnwesend(): Promise<Array<Anwesend & {
   kennung: string; online: boolean;
@@ -125,7 +154,15 @@ export async function alleAnwesend(): Promise<Array<Anwesend & {
   const jetzt = Date.now();
   return Object.entries(a)
     .map(([kennung, e]) => ({
-      ...e, kennung, online: jetzt - (e.zuletzt ?? 0) < NOCH_DA_MS,
+      ...e,
+      kennung,
+      /*
+       * Da ist, wer sich zuletzt innerhalb der Schwelle gemeldet hat - und
+       * sich seither nicht abgemeldet hat. Ohne die zweite Bedingung
+       * leuchtete der Punkt nach einem Abmelden noch nach.
+       */
+      online: jetzt - (e.zuletzt ?? 0) < NOCH_DA_MS
+        && !(e.abgemeldet && e.abgemeldet >= (e.zuletzt ?? 0)),
     }))
     .sort((x, y) => (y.zuletzt ?? 0) - (x.zuletzt ?? 0));
 }

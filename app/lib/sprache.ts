@@ -1585,6 +1585,13 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Verstanden': 'Got it',
   'Profil': 'Profile',
   'Schnellzugriff': 'Quick access',
+  'gerade da': 'here right now',
+  'nicht mehr da': 'not here any more',
+  'Jede offene Seite meldet sich einmal pro Minute. Wer zwei Minuten lang nichts von sich hören lässt, gilt als weg — ein geschlossener Browser wird also binnen zwei Minuten rot. Wer sich abmeldet, verschwindet sofort.':
+    'Every open page checks in once a minute. Anyone silent for two minutes '
+    + 'counts as gone — so a closed browser turns red within two minutes. '
+    + 'Signing out takes effect immediately.',
+  'Karte bauen': 'Create a map',
   'Live': 'Live',
   'Wer gerade da ist und wann sich wer angemeldet hat':
     'Who is here right now and when each person signed in',

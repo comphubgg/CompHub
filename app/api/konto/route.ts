@@ -8,7 +8,7 @@ import {
 } from '@/lib/konten';
 import { sendeMail, versandDa } from '@/lib/mail';
 import { ueberHttps } from '@/lib/vipCookie';
-import { merkeAnmeldung as merkeAnwesenheit } from '@/lib/anwesenheit';
+import { merkeAnmeldung as merkeAnwesenheit, merkeAbmeldung } from '@/lib/anwesenheit';
 
 // Registrieren, anmelden, abmelden - und wer gerade angemeldet ist.
 //
@@ -146,6 +146,11 @@ export async function POST(request: Request) {
 
   /* ------------------------------------------------------------ abmelden */
   if (was === 'abmelden') {
+    // Auch hier sofort aus der Anwesenheitsliste - sonst leuchtete der
+    // gruene Punkt noch zwei Minuten weiter.
+    const wer = kontoAus((await cookies()).get(COOKIE)?.value);
+    if (wer) await merkeAbmeldung(wer);
+
     const antwort = NextResponse.json({ ok: true });
     antwort.cookies.set(COOKIE, '', { path: '/', maxAge: 0 });
     return antwort;

@@ -847,6 +847,47 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
             className="text-xs text-slate-400 transition hover:text-sky-400">
             <T>← Alle Events</T>
           </Link>
+
+          {/*
+            * Der Weg zur Karte - direkt von hier, nur fuer den Admin.
+            *
+            * Vorher fuehrte er ueber das Dashboard, dort "Karten", und dann
+            * musste das Turnier aus einer Liste herausgesucht werden, das man
+            * gerade vor sich hatte. Der Betreiber: "dann geht's fuer mich ein
+            * bisschen einfacher."
+            *
+            * Der Kartenbau versteht event und window als Adresse und stellt
+            * sich damit selbst ein - dieselbe Adresse, die das Angebot weiter
+            * unten benutzt, nur ohne die Bedingung, dass es ein Finale sein
+            * muss. Als Admin will man auch fuer einen Practice-Tag eine Karte
+            * bauen koennen.
+            */}
+          {istAdmin && fenster?.eventId && fenster?.windowId && (
+            <Link
+              href={`/karten?event=${encodeURIComponent(fenster.eventId)}`
+                + `&window=${encodeURIComponent(fenster.windowId)}`}
+              prefetch={false}
+              title={t('Karte bauen')}
+              aria-label={t('Karte bauen')}
+              /*
+               * Klein und rund, oben rechts.
+               *
+               * Der Betreiber wollte "so eine Art Plus-Button, eine kleine"
+               * an genau dieser Stelle - kein breiter Knopf, der neben dem
+               * Turniernamen mitreden will. Was er tut, steht im Mouseover.
+               */
+              className="group absolute right-4 top-5 grid h-9 w-9 place-items-center
+                         rounded-full border border-zinc-700 bg-zinc-950/80
+                         text-slate-400 transition hover:border-sky-500
+                         hover:text-sky-400">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+                aria-hidden>
+                <path d="M12 5v14M5 12h14" />
+              </svg>
+            </Link>
+          )}
+
           <h1 className="mt-2 text-2xl font-bold text-slate-50">
             {cup?.titel ?? id}
           </h1>

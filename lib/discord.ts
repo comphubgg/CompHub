@@ -112,14 +112,26 @@ let eigeneId: string | null = null;
 async function werBinIch(): Promise<string | null> {
   if (eigeneId) return eigeneId;
   const ich = await ruf('/users/@me', 'GET');
-  eigeneId = typeof ich?.id === 'string' ? ich.id : null;
+  eigeneId = idAus(ich);
   return eigeneId;
+}
+
+/**
+ * Die Id aus einer Antwort - oder null.
+ *
+ * ruf() liefert je nach Weg ein Objekt oder eine Liste (die Rollen etwa
+ * kommen als Liste). Diese eine Stelle erspart es, das an jeder Verwendung
+ * auseinanderzuhalten.
+ */
+function idAus(antwort: Record<string, unknown> | unknown[] | null): string | null {
+  if (!antwort || Array.isArray(antwort)) return null;
+  return typeof antwort.id === 'string' ? antwort.id : null;
 }
 
 /** Ein Aufruf an Discord. Gibt die Antwort zurueck oder null. */
 async function ruf(
   weg: string, art: 'GET' | 'POST' | 'DELETE', koerper?: unknown,
-): Promise<Record<string, unknown> | null> {
+): Promise<Record<string, unknown> | unknown[] | null> {
   const token = process.env.DISCORD_BOT_TOKEN;
   if (!token) return null;
   letzterStatus = 0;
@@ -141,11 +153,58 @@ async function ruf(
         JSON.stringify(j).slice(0, 200));
       return null;
     }
-    return j as Record<string, unknown>;
+    return j as Record<string, unknown> | unknown[];
   } catch (e) {
     console.error('[discord] nicht erreichbar:', (e as Error).message);
     return null;
   }
+}
+
+/**
+ * Eine eigene Rolle je VIP.
+ *
+ * Der Betreiber will die Kanaele privat halten und trotzdem vorbereitet
+ * sein: "eine passende Rolle fuer jeden, und wenn der User mal auf den
+ * Discord kommt, kann er die Rolle bekommen und es sich jederzeit
+ * ansehen."
+ *
+ * Die Rolle traegt keinerlei Rechte auf Serverebene (permissions "0") - sie
+ * ist reine Zugehoerigkeit. Was sie darf, entscheidet allein die Regel im
+ * Kanal. So kann eine vergebene Rolle nirgendwo sonst etwas aufmachen.
+ *
+ * Zum Anlegen braucht der Bot "Rollen verwalten". Hat er es nicht, kommt
+ * null zurueck, und der Kanal entsteht trotzdem - nur eben ohne die Rolle.
+ * Ein Zugangsschluessel darf nicht daran scheitern, dass eine Rolle fehlt.
+ */
+/**
+ * Die Rolle des Betreibers - damit er seine eigenen Kanaele sieht.
+ *
+ * Gesucht wird nach einer Rolle mit Administratorrecht. Ueber den Namen zu
+ * gehen waere geraten: er heisst auf jedem Server anders. Das Recht dagegen
+ * ist eindeutig - Bit 3.
+ */
+async function adminRolleId(): Promise<string | null> {
+  const rollen = await ruf(`/guilds/${SERVER}/roles`, 'GET');
+  if (!Array.isArray(rollen)) return null;
+  const ADMIN = 1n << 3n;
+  const treffer = (rollen as Array<{ id: string; permissions: string; managed?: boolean }>)
+    .find((r) => !r.managed && (BigInt(r.permissions || '0') & ADMIN) === ADMIN);
+  return treffer?.id ?? null;
+}
+
+async function rolleFuer(name: string): Promise<string | null> {
+  const vorhandene = await ruf(`/guilds/${SERVER}/roles`, 'GET');
+  if (Array.isArray(vorhandene)) {
+    const schon = (vorhandene as Array<{ id: string; name: string }>)
+      .find((r) => r.name.toLowerCase() === name.toLowerCase());
+    if (schon) return schon.id;
+  }
+  const neu = await ruf(`/guilds/${SERVER}/roles`, 'POST', {
+    name,
+    permissions: '0',
+    mentionable: true,
+  });
+  return idAus(neu);
 }
 
 /**
@@ -213,21 +272,38 @@ async function kanalFuer(name: string, ablage: Ablage): Promise<string | null> {
    * den Verlauf lesen.
    */
   const ich = await werBinIch();
+  const eigeneRolle = await rolleFuer(schluessel);
+
+  /*
+   * Die Regeln des neuen Kanals - ausdruecklich, nicht geerbt.
+   *
+   * @everyone wird gesperrt: der Kanal ist privat, und wer ihn sehen darf,
+   * steht darunter einzeln. Sich auf die Kategorie zu verlassen waere
+   * bruechig - wer sie einmal umstellt, macht damit unbemerkt alle
+   * Schluesselkanaele auf.
+   *
+   * Dazu drei, die hineinduerfen: der Bot (sonst kann er nicht schreiben),
+   * die Rolle des VIPs (die er bekommt, sobald er auf den Server kommt) und
+   * die Adminrolle, damit der Betreiber selbst hineinsieht.
+   */
+  const regeln: Array<Record<string, string | number>> = [
+    // 1024 = Kanal ansehen. Fuer alle gesperrt.
+    { id: SERVER, type: 0, allow: '0', deny: '1024' },
+  ];
+  // 1024 ansehen + 2048 schreiben + 8192 verwalten + 65536 Verlauf
+  if (ich) regeln.push({ id: ich, type: 1, allow: '76800', deny: '0' });
+  // Der VIP darf lesen, nicht schreiben - der Kanal ist eine Ablage, kein Chat.
+  if (eigeneRolle) regeln.push({ id: eigeneRolle, type: 0, allow: '66560', deny: '0' });
+  const adminRolle = await adminRolleId();
+  if (adminRolle) regeln.push({ id: adminRolle, type: 0, allow: '76800', deny: '0' });
+
   const neu = await ruf(`/guilds/${SERVER}/channels`, 'POST', {
     name: kanalname,
     type: 0,                 // Textkanal
     parent_id: KATEGORIE,
-    ...(ich ? {
-      permission_overwrites: [{
-        id: ich,
-        type: 1,             // 1 = ein Mitglied, hier der Bot selbst
-        // 1024 ansehen + 2048 schreiben + 8192 verwalten + 65536 Verlauf
-        allow: '76800',
-        deny: '0',
-      }],
-    } : {}),
+    permission_overwrites: regeln,
   });
-  const id = typeof neu?.id === 'string' ? neu.id : null;
+  const id = idAus(neu);
   if (!id) return null;
 
   ablage[schluessel] = { kanal: id };
@@ -270,9 +346,18 @@ export async function schickeSchluessel(
   const gesendet = await ruf(`/channels/${kanal}/messages`, 'POST', {
     content: [
       `**Your CompHub access key**`,
-      '```',
-      schluessel,
-      '```',
+      /*
+       * Verdeckt, bis man draufklickt.
+       *
+       * Discord zeigt Text zwischen zwei senkrechten Strichen erst nach
+       * einem Klick - genau das, was der Betreiber wollte: "so eine Art
+       * Auge zum Aufklappen, falls man gerade am Streamen ist und
+       * durchschaltet." Ein offen liegender Schluessel im Kanal ist
+       * genau einen Szenenwechsel von der Oeffentlichkeit entfernt.
+       */
+      `||\`${schluessel}\`||`,
+      '',
+      '_Click the grey bar to reveal the key._',
       `Sign in at https://thecomphub.com/login/vip with the name \`${name}\`.`,
       '',
       '_This message is replaced whenever a new key is generated — the key '
@@ -280,7 +365,7 @@ export async function schickeSchluessel(
     ].join('\n'),
   });
 
-  const id = typeof gesendet?.id === 'string' ? gesendet.id : null;
+  const id = idAus(gesendet);
   if (!id) return { ok: false, grund: 'abgelehnt' };
 
   ablage[name.toLowerCase()] = { kanal, nachricht: id };

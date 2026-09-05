@@ -90,8 +90,10 @@ export default function LivePage() {
     <li key={p.kennung}
       className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border
                  border-zinc-900 bg-zinc-950/40 px-3 py-2.5">
+      {/* Gruen heisst da, rot heisst weg - grau sah aus wie "unbekannt". */}
       <span className={`h-2 w-2 shrink-0 rounded-full ${p.online
-        ? 'bg-emerald-400' : 'bg-zinc-700'}`} aria-hidden />
+        ? 'bg-emerald-400' : 'bg-rose-500'}`}
+        title={p.online ? t('gerade da') : t('nicht mehr da')} aria-hidden />
       <span className="text-sm font-medium text-slate-200">{p.name}</span>
       <span className="rounded-full border border-zinc-800 px-2 py-0.5
                        text-[9px] uppercase tracking-wider text-slate-600">
@@ -161,9 +163,10 @@ export default function LivePage() {
                 </p>
               )}
               <p className="mt-2 text-[11px] text-slate-600">
-                <T>„Gerade da“ heißt: in den letzten fünf Minuten war eine Seite
-                offen. Wer den Tab schließt, meldet sich nicht ab — mehr lässt
-                sich darüber nicht sagen.</T>
+                <T>Jede offene Seite meldet sich einmal pro Minute. Wer zwei
+                Minuten lang nichts von sich hören lässt, gilt als weg — ein
+                geschlossener Browser wird also binnen zwei Minuten rot. Wer
+                sich abmeldet, verschwindet sofort.</T>
               </p>
             </section>
 

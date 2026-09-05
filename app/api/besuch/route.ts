@@ -46,7 +46,7 @@ async function istBetreiber(laden: Awaited<ReturnType<typeof cookies>>): Promise
   return (await nachId(id))?.rolle === 'admin';
 }
 
-export async function POST() {
+export async function POST(request: Request) {
   try {
     const laden = await cookies();
 
@@ -70,6 +70,17 @@ export async function POST() {
         const k = await nachId(id);
         if (k) void merkeAufruf(k.id, k.name || k.email, 'konto');
       }
+    }
+
+    /*
+     * Ein Lebenszeichen zaehlt keinen Besuch.
+     *
+     * Jeder offene Reiter meldet sich jede Minute, damit "gerade da"
+     * stimmt. Wuerde das mitgezaehlt, haette eine einzige den ganzen Tag
+     * offene Seite die Besuchszahlen um tausend Aufrufe aufgeblaeht.
+     */
+    if (new URL(request.url).searchParams.get('puls') === '1') {
+      return new NextResponse(null, { status: 204 });
     }
 
     if (await istBetreiber(laden)) return new NextResponse(null, { status: 204 });

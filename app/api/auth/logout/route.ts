@@ -1,4 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
+import { kontoAus } from '@/lib/konten';
+import { vipAus } from '@/lib/vipCookie';
+import { merkeAbmeldung } from '@/lib/anwesenheit';
 
 /*
  * Bei jeder Anfrage neu ausfuehren.
@@ -13,7 +16,19 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 
-export function GET(request: NextRequest) {
+export async function GET(request: NextRequest) {
+  /*
+   * Sofort aus der Anwesenheitsliste heraus.
+   *
+   * Ohne das leuchtete der gruene Punkt noch zwei Minuten weiter - so lange
+   * gilt das letzte Lebenszeichen. Wer sich abmeldet, sagt aber ausdruecklich
+   * Bescheid; darauf noch zu warten waere schlicht falsch.
+   */
+  const vip = vipAus(request.cookies.get('streamer_dashboard_auth')?.value);
+  if (vip) await merkeAbmeldung(`vip:${vip.toLowerCase()}`);
+  const konto = kontoAus(request.cookies.get('streamer_dashboard_konto')?.value);
+  if (konto) await merkeAbmeldung(konto);
+
   /*
    * Wohin nach dem Abmelden.
    *
