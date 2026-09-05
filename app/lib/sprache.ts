@@ -1831,6 +1831,46 @@ const AUF_ENGLISCH: Record<string, string> = {
 
   // Die gemeinsame Kontoliste.
   'Schlüssel': 'Key',
+
+  // Spieler aus einem eingefuegten Kartenbild lesen.
+  'Spieler aus dem Bild lesen': 'Read players from the image',
+  'Texterkennung wird geladen …': 'Loading text recognition …',
+  'Bild wird gelesen': 'Reading image',
+  ['Namen werden im Archiv gesucht …']:
+    'Looking the names up in the archive …',
+  ['In dem Bild war kein Text zu lesen.']:
+    'No text could be read in that image.',
+  ['Kein gelesener Name passte zu einem Konto im Archiv.']:
+    'None of the names read matched an account in the archive.',
+  ['Die Texterkennung ließ sich nicht laden — dafür braucht der '
+    + 'Browser einmalig eine Internetverbindung.']:
+    'Text recognition could not be loaded — the browser needs an '
+    + 'internet connection once for that.',
+  'Spieler im Bild gefunden': 'players found in the image',
+  'gelesen als': 'read as',
+  ['zusammenstehende Namen zu einem Team verbinden']:
+    'join names standing together into one team',
+  ['auf die Form setzen, in der sie stehen']:
+    'place them on the shape they stand in',
+  'verwerfen': 'discard',
+  ['Aus dem Bild kommen nur Namen — keine Formen, kein Hintergrund. Wo '
+    + 'die Erkennung etwas anderes gelesen hat, steht es in '
+    + 'Anführungszeichen daneben; was zu keinem Konto im Archiv passt, '
+    + 'erscheint gar nicht erst. Ein Klick nimmt einen Namen aus der '
+    + 'Auswahl.']:
+    'Only names come out of the image — no shapes, no background. Where '
+    + 'the recognition read something else, it stands next to it in '
+    + 'quotes; anything that matches no account in the archive never '
+    + 'appears at all. One click takes a name out of the selection.',
+  ['Diese Spieler stehen schon in der Liste.']:
+    'Those players are already in the list.',
+  'Teams aus dem Bild übernommen': 'teams taken from the image',
+  'davon auf eine Form gesetzt': 'of them placed on a shape',
+  'zurücknehmen': 'take back',
+  'Zurückgenommen.': 'Taken back.',
+  'passt': 'fine',
+  'wo keine Form ist, eine anlegen': 'where there is no shape, create one',
+  'neue Formen angelegt': 'new shapes created',
 };
 
 /**

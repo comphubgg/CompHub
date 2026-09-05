@@ -19,6 +19,7 @@ import { useT } from '@/app/components/SprachProvider';
 import { kartenTitel } from '@/lib/rundenName';
 import { istGrossesTurnier } from '@/lib/turnierArt';
 import { speichereLeinwand } from '@/app/lib/bildSpeichern';
+import { leseWoerter } from './bildLesen';
 type Form = 'rechteck' | 'polygon';
 interface Punkt { x: number; y: number }
 interface Spot {
@@ -26,6 +27,29 @@ interface Spot {
   /** Selbst gewaehlte Farbe. Ohne Angabe faerbt sich die Form nach Belegung. */
   farbe?: string;
 }
+/**
+ * Ein Spieler, den die Texterkennung in einer eingefuegten Vorlage gefunden
+ * hat - und der sich im Archiv wiederfinden liess.
+ *
+ * Was hier steht, ist noch kein Team auf der Karte, sondern ein Vorschlag.
+ * Uebernommen wird erst, was der Betreiber in der Vorschau stehen laesst.
+ */
+interface Fund {
+  /** Der Rohtext der Erkennung - er bleibt sichtbar, damit man prueft. */
+  roh: string;
+  name: string;
+  land: string;
+  epicId: string;
+  /** Wie gut Rohtext und Archivname zusammenpassen, 0 bis 1. */
+  guete: number;
+  /** Fundstelle in Kartenprozent. */
+  x: number;
+  y: number;
+  /** Erkennungsguete und Namensguete zusammen - entscheidet bei Doppelten. */
+  wert: number;
+  nehmen: boolean;
+}
+
 interface KartenTeam {
   id: string; spieler: string[]; farbe: string;
   /** Epic-Konto-IDs in derselben Reihenfolge wie die Namen. */
@@ -597,6 +621,29 @@ export default function KartenSeite(
   }>>([]);
 
   /** Suchtext in der Teamliste - bei fuenfzig Duos findet man sonst nichts. */
+  /*
+   * Spieler aus der eingefuegten Vorlage lesen.
+   *
+   * Der Betreiber: "wenn ich dir dieses Bild hochlade, dann darf es nur die
+   * Spieler uebernehmen, nicht mal die Formen, nicht der Hintergrund, nur die
+   * Spieler. Und wo sie eigentlich sind, so plus minus."
+   *
+   * Deshalb dieser Zwischenschritt. Die Erkennung liefert Vorschlaege, die
+   * als Fahnen auf der Karte liegen, und erst ein Druck auf "Uebernehmen"
+   * traegt sie ein. Solange nichts uebernommen ist, hat sich an der Karte
+   * nichts geaendert - und was uebernommen wurde, laesst sich in einem Zug
+   * zuruecknehmen.
+   */
+  const [lesen, setLesen] = useState('');
+  const [funde, setFunde] = useState<Fund[] | null>(null);
+  const [alsTeams, setAlsTeams] = useState(true);
+  const [aufFormen, setAufFormen] = useState(true);
+  const [formenAnlegen, setFormenAnlegen] = useState(false);
+  const [ruecknahme, setRuecknahme] =
+    useState<{
+      spots: Spot[]; teamIds: string[]; anzahl: number; neueFormen: number;
+    } | null>(null);
+
   const [teamSuche, setTeamSuche] = useState('');
   const [entwurf, setEntwurf] = useState('');
 
@@ -1421,6 +1468,211 @@ export default function KartenSeite(
     setEigenesTeam('');
     setStatus(`${namen.join(' & ')} ${uebs('aufgenommen')}`);
   }, [eigenesTeam, teams, uebs]);
+
+  /**
+   * Die Vorlage lesen und die gefundenen Spieler vorschlagen.
+   *
+   * Drei Schritte: Texterkennung im Browser, Abgleich der Rohtexte mit dem
+   * Archiv, und daraus eine Vorschlagsliste. Was zu keinem Konto passt,
+   * faellt weg - lieber eine Luecke als ein erfundener Name auf einer Karte,
+   * die er anschliessend postet.
+   */
+  const bildLesen = useCallback(async () => {
+    if (!pause || lesen) return;
+    setFunde(null);
+    setRuecknahme(null);
+    setLesen(uebs('Texterkennung wird geladen …'));
+    try {
+      const roh = await leseWoerter(pause, (anteil, was) => {
+        setLesen(was === 'laden'
+          ? uebs('Texterkennung wird geladen …')
+          : uebs('Bild wird gelesen') + ' ' + Math.round(anteil * 100) + ' %');
+      });
+      if (!roh.length) {
+        setLesen('');
+        setStatus(uebs('In dem Bild war kein Text zu lesen.'));
+        return;
+      }
+
+      setLesen(uebs('Namen werden im Archiv gesucht …'));
+      const antwort = await fetch('/api/karten/namen', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ woerter: [...new Set(roh.map((r) => r.text))] }),
+      });
+      const ergebnis = await antwort.json() as {
+        treffer?: Array<{ roh: string; name: string; land: string;
+                          epicId: string; guete: number }>;
+      };
+      const zumNamen = new Map((ergebnis.treffer ?? []).map((t) => [t.roh, t]));
+
+      /*
+       * Je Konto nur der beste Fund.
+       *
+       * Ein Name steht auf so einer Karte gern doppelt - einmal als Zeile,
+       * einmal als einzelnes Wort, manchmal auch in einer Legende am Rand.
+       * Es zaehlt der Fund, bei dem Erkennung und Namensabgleich zusammen am
+       * ueberzeugendsten sind; seine Stelle ist dann auch die, die auf der
+       * Karte markiert wird.
+       *
+       * Wer schon in der Teamliste steht, wird gar nicht erst vorgeschlagen.
+       */
+      const schonDa = new Set(teams.flatMap((t) => t.ids ?? []).filter(Boolean));
+      const beste = new Map<string, Fund>();
+      for (const r of roh) {
+        const treffer = zumNamen.get(r.text);
+        if (!treffer || schonDa.has(treffer.epicId)) continue;
+        const wert = treffer.guete * 0.75 + (r.guete / 100) * 0.25
+          + (r.ganzeZeile ? 0.02 : 0);
+        const alt = beste.get(treffer.epicId);
+        if (alt && alt.wert >= wert) continue;
+        beste.set(treffer.epicId, {
+          ...treffer, x: r.x, y: r.y, wert, nehmen: true,
+        });
+      }
+
+      const liste = [...beste.values()].sort((a, b) => a.y - b.y || a.x - b.x);
+      setFunde(liste.length ? liste : null);
+      setLesen('');
+      setStatus(liste.length
+        ? liste.length + ' ' + uebs('Spieler im Bild gefunden')
+        : uebs('Kein gelesener Name passte zu einem Konto im Archiv.'));
+    } catch {
+      setLesen('');
+      setStatus(uebs('Die Texterkennung ließ sich nicht laden — dafür braucht '
+        + 'der Browser einmalig eine Internetverbindung.'));
+    }
+  }, [pause, lesen, teams, uebs]);
+
+  /**
+   * Die angehakten Funde uebernehmen.
+   *
+   * Gruppiert wird ueber die Formen: was in derselben Form steht, ist ein
+   * Team. Das ist genauer als jedes Abstandsmass, weil die Formen ja genau
+   * dort liegen, wo auf der Vorlage ein Landepunkt ist. Nur was in keiner
+   * Form liegt, wird nach Naehe zusammengefasst.
+   *
+   * Belegte Formen bleiben belegt. Die Zuordnungen, die er von Hand gemacht
+   * hat, ueberschreibt hier nichts - ein Fund, dessen Form schon jemandem
+   * gehoert, landet in der Teamliste und wartet dort auf ihn.
+   */
+  const fundeUebernehmen = useCallback(() => {
+    const gewaehlte = (funde ?? []).filter((f) => f.nehmen);
+    if (!gewaehlte.length) return;
+
+    const proTeam = alsTeams ? (teams[0]?.spieler.length || 2) : 1;
+
+    /*
+     * Zuerst nach Naehe gruppieren, dann erst die Form dazu suchen.
+     *
+     * Auf der Vorlage stehen die beiden Namen eines Duos untereinander -
+     * das ist die Aussage des Bildes, und sie gilt unabhaengig davon, wie
+     * seine eigenen Formen dort geschnitten sind. Andersherum sortiert riss
+     * eine Formkante regelmaessig mitten durch ein Duo, und aus zwei Namen
+     * wurden zwei Solos.
+     *
+     * Von oben nach unten durchgegangen, damit die Gruppierung nicht davon
+     * abhaengt, in welcher Reihenfolge die Erkennung etwas gefunden hat.
+     */
+    const gruppen: Fund[][] = [];
+    for (const f of [...gewaehlte].sort((a, b) => a.y - b.y || a.x - b.x)) {
+      const passend = proTeam > 1
+        ? gruppen.find((g) => g.length < proTeam
+          && g.some((a) => Math.hypot(a.x - f.x, a.y - f.y) <= 5))
+        : undefined;
+      if (passend) passend.push(f); else gruppen.push([f]);
+    }
+
+    const neue: KartenTeam[] = [];
+    const dazu = new Map<string, string[]>();
+    const frischeFormen: Spot[] = [];
+    const jetzt = Date.now().toString(36);
+
+    gruppen.forEach((g, i) => {
+      const ids = g.map((f) => f.epicId);
+      const id = kontoSchluessel(ids) ?? `bild-${jetzt}-${i}`;
+      if (teams.some((t) => t.id === id) || neue.some((t) => t.id === id)) return;
+      neue.push({
+        id,
+        spieler: g.map((f) => f.name),
+        ids,
+        farbe: FARBEN[(teams.length + i) % FARBEN.length],
+      });
+      if (!aufFormen) return;
+
+      /*
+       * Die Form zur Gruppe.
+       *
+       * Zuerst die, in der die Mitte der Gruppe liegt; sonst die, in der
+       * wenigstens einer der Namen steht. Bei einem Duo, das genau auf einer
+       * Kante sitzt, trifft die Mitte sonst daneben.
+       */
+      const mx = g.reduce((a, f) => a + f.x, 0) / g.length;
+      const my = g.reduce((a, f) => a + f.y, 0) / g.length;
+      const form = spots.find((sp) => imPolygon({ x: mx, y: my }, sp.punkte))
+        ?? spots.find((sp) => g.some((f) => imPolygon({ x: f.x, y: f.y }, sp.punkte)));
+
+      if (form) {
+        // Was schon belegt ist, bleibt belegt - seine Verteilung fasst hier
+        // nichts an. Das Team steht dann in der Liste und wartet dort.
+        if (form.teams.length || dazu.has(form.id)) return;
+        dazu.set(form.id, [id]);
+        return;
+      }
+
+      /*
+       * Keine Form an dieser Stelle.
+       *
+       * Auf Wunsch entsteht eine: die Vorlage hat dort einen Landepunkt, den
+       * seine Karte noch nicht kennt. Sie ist bewusst klein und liegt mittig
+       * unter den Namen - eine Form, die er verschieben und in Groesse
+       * ziehen kann, so wie jede selbst gezeichnete.
+       */
+      if (!formenAnlegen) return;
+      frischeFormen.push({
+        id: `bildform-${jetzt}-${i}`,
+        form: 'rechteck',
+        punkte: rechteckPunkte(
+          { x: Math.max(0, mx - 3), y: Math.max(0, my - 2.4) },
+          { x: Math.min(100, mx + 3), y: Math.min(100, my + 2.4) }),
+        teams: [id],
+      });
+    });
+
+    if (!neue.length) {
+      setStatus(uebs('Diese Spieler stehen schon in der Liste.'));
+      return;
+    }
+
+    setRuecknahme({
+      spots, teamIds: neue.map((t) => t.id),
+      anzahl: [...dazu.values()].reduce((a, b) => a + b.length, 0)
+        + frischeFormen.length,
+      neueFormen: frischeFormen.length,
+    });
+    inhaltVomNutzer.current = true;
+    if (frischeFormen.length) formenVomNutzer.current = true;
+    setTeams((alt) => [...alt, ...neue]);
+    if (dazu.size || frischeFormen.length) {
+      setSpots((alt) => [
+        ...alt.map((sp) => (dazu.has(sp.id)
+          ? { ...sp, teams: [...sp.teams, ...(dazu.get(sp.id) ?? [])] } : sp)),
+        ...frischeFormen,
+      ]);
+    }
+    setFunde(null);
+    setStatus(neue.length + ' ' + uebs('Teams aus dem Bild übernommen'));
+  }, [funde, alsTeams, aufFormen, formenAnlegen, spots, teams, uebs]);
+
+  /** Alles aus dem letzten Bild wieder herausnehmen. */
+  const leseZuruecknehmen = useCallback(() => {
+    if (!ruecknahme) return;
+    const weg = new Set(ruecknahme.teamIds);
+    setSpots(ruecknahme.spots);
+    setTeams((alt) => alt.filter((t) => !weg.has(t.id)));
+    setRuecknahme(null);
+    setStatus(uebs('Zurückgenommen.'));
+  }, [ruecknahme, uebs]);
 
   /**
    * Die Teamliste, gefiltert nach dem Suchtext.
@@ -2689,6 +2941,25 @@ ${name}
         );
       })}
 
+      {/*
+        * Die Funde aus der Vorlage, bevor etwas uebernommen ist.
+        *
+        * Sie liegen genau da, wo der Name im eingefuegten Bild stand. Damit
+        * ist vor dem Uebernehmen zu sehen, ob "plus minus dort" auch wirklich
+        * dort heisst - und was abgewaehlt ist, steht durchgestrichen da,
+        * statt einfach zu verschwinden.
+        */}
+      {funde?.map((f) => (
+        <span key={f.epicId} style={{ left: `${f.x}%`, top: `${f.y}%`,
+                                      transform: `translate(-50%, -50%) scale(${1 / zoom})` }}
+          className={`pointer-events-none absolute z-20 whitespace-nowrap rounded
+                      px-1 py-0.5 text-[9px] font-semibold shadow ${f.nehmen
+            ? 'bg-sky-500/90 text-white'
+            : 'bg-zinc-900/85 text-slate-500 line-through'}`}>
+          {kuerze(f.name)}
+        </span>
+      ))}
+
       </div>{/* Ende der Zoom-Ebene - die Leiste unten bleibt an ihrem Platz */}
 
       {/* Werkzeugleiste rechts in der Karte. Die Leiste liegt ueber der
@@ -3126,6 +3397,20 @@ ${name}
                         <T>Vorlage weg</T>
                       </button>
                     </div>
+                    {/*
+                      * Nur die Spieler aus dem Bild holen.
+                      *
+                      * Die Vorlage dient zum Abpausen der Formen; die Namen
+                      * darauf abzutippen war der Rest der Arbeit. Der Knopf
+                      * nimmt ihn ab, ohne etwas an der Karte zu aendern -
+                      * was er findet, kommt erst als Vorschlag.
+                      */}
+                    <button onClick={() => void bildLesen()} disabled={Boolean(lesen)}
+                      className="rounded-lg border border-sky-800 bg-sky-950/40 px-2 py-1
+                                 text-[11px] text-sky-300 transition hover:border-sky-500
+                                 disabled:opacity-50">
+                      {lesen || uebs('Spieler aus dem Bild lesen')}
+                    </button>
                     <span className="text-center text-[10px] text-slate-500">
                       <T>Vorlage liegt darunter — zeichne deine Formen darüber.</T>
                     </span>
@@ -3133,6 +3418,126 @@ ${name}
                 )}
               </div>
             )}
+          </div>
+        )}
+
+        {/*
+          * Was im Bild gefunden wurde - zum Durchsehen.
+          *
+          * Bewusst als eigener Streifen und nicht als Fenster: die Karte
+          * bleibt daneben sichtbar, und dort liegen die Fahnen an ihren
+          * Fundstellen. Anklicken nimmt einen Namen aus der Auswahl, ohne
+          * dass die Reihenfolge springt.
+          */}
+        {istAdmin && funde && (
+          <div className="mb-3 rounded-xl border border-sky-900/60 bg-sky-950/20 p-3">
+            <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+              <span className="text-sm font-medium text-sky-200">
+                {funde.length} <T>Spieler im Bild gefunden</T>
+              </span>
+              <label className="flex items-center gap-1.5 text-xs text-slate-400">
+                <input type="checkbox" checked={alsTeams} className="accent-sky-500"
+                  onChange={(e) => setAlsTeams(e.target.checked)} />
+                <T>zusammenstehende Namen zu einem Team verbinden</T>
+              </label>
+              <label className="flex items-center gap-1.5 text-xs text-slate-400">
+                <input type="checkbox" checked={aufFormen} className="accent-sky-500"
+                  onChange={(e) => setAufFormen(e.target.checked)} />
+                <T>auf die Form setzen, in der sie stehen</T>
+              </label>
+              {/*
+                * Fehlende Formen anlegen.
+                *
+                * Wenn die Vorlage an einer Stelle einen Landepunkt hat, den
+                * seine Karte nicht kennt, entsteht dort eine kleine Form. Das
+                * ist bewusst abschaltbar und standardmaessig aus: eine Form
+                * zu viel faellt beim Verteilen sofort auf, eine zu wenig
+                * nicht.
+                */}
+              <label className="flex items-center gap-1.5 text-xs text-slate-400">
+                <input type="checkbox" checked={formenAnlegen} className="accent-sky-500"
+                  disabled={!aufFormen}
+                  onChange={(e) => setFormenAnlegen(e.target.checked)} />
+                <T>wo keine Form ist, eine anlegen</T>
+              </label>
+              <div className="ml-auto flex gap-2">
+                <button onClick={() => setFunde(null)}
+                  className="rounded-lg border border-zinc-700 px-3 py-1.5 text-xs
+                             text-slate-400 transition hover:border-zinc-600">
+                  <T>verwerfen</T>
+                </button>
+                <button onClick={fundeUebernehmen}
+                  disabled={!funde.some((f) => f.nehmen)}
+                  className="rounded-lg bg-sky-500 px-3 py-1.5 text-xs font-medium
+                             text-white transition hover:bg-sky-400
+                             disabled:opacity-40">
+                  <T>Übernehmen</T>
+                </button>
+              </div>
+            </div>
+
+            <ul className="mt-2.5 flex flex-wrap gap-1.5">
+              {funde.map((f, i) => (
+                <li key={f.epicId}>
+                  <button type="button"
+                    onClick={() => setFunde((alt) => (alt ?? []).map((x, k) =>
+                      (k === i ? { ...x, nehmen: !x.nehmen } : x)))}
+                    title={uebs('gelesen als') + ': ' + f.roh}
+                    className={`flex items-center gap-1.5 rounded-lg border px-2 py-1
+                                text-xs transition ${f.nehmen
+                      ? 'border-sky-700 bg-sky-950/50 text-slate-100'
+                      : 'border-zinc-800 text-slate-600 line-through'}`}>
+                    <TeamFlagge groesse={16} laender={[f.land || undefined]} />
+                    <span>{f.name}</span>
+                    {f.guete < 1 && (
+                      <span className="text-[10px] text-slate-500">
+                        „{f.roh}“
+                      </span>
+                    )}
+                  </button>
+                </li>
+              ))}
+            </ul>
+
+            <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
+              <T>Aus dem Bild kommen nur Namen — keine Formen, kein Hintergrund.
+              Wo die Erkennung etwas anderes gelesen hat, steht es in
+              Anführungszeichen daneben; was zu keinem Konto im Archiv passt,
+              erscheint gar nicht erst. Ein Klick nimmt einen Namen aus der
+              Auswahl.</T>
+            </p>
+          </div>
+        )}
+
+        {/*
+          * Nach dem Uebernehmen: ein Weg zurueck.
+          *
+          * Eine falsch gesetzte Zuordnung faellt kaum auf und laesst sich von
+          * Hand nur muehsam suchen. Solange die Karte nicht neu geladen ist,
+          * stellt dieser Knopf den Stand von vorher wieder her.
+          */}
+        {istAdmin && !funde && ruecknahme && (
+          <div className="mb-3 flex flex-wrap items-center gap-3 rounded-xl border
+                          border-emerald-900/60 bg-emerald-950/20 px-3 py-2">
+            <span className="text-xs text-emerald-300">
+              {ruecknahme.teamIds.length} <T>Teams aus dem Bild übernommen</T>
+              {ruecknahme.anzahl > 0 && (
+                <>{', '}{ruecknahme.anzahl} <T>davon auf eine Form gesetzt</T></>
+              )}
+              {ruecknahme.neueFormen > 0 && (
+                <>{' · '}{ruecknahme.neueFormen} <T>neue Formen angelegt</T></>
+              )}
+            </span>
+            <button onClick={leseZuruecknehmen}
+              className="rounded-lg border border-zinc-700 px-3 py-1 text-xs
+                         text-slate-400 transition hover:border-rose-600
+                         hover:text-rose-400">
+              <T>zurücknehmen</T>
+            </button>
+            <button onClick={() => setRuecknahme(null)}
+              className="text-xs text-slate-600 transition hover:text-slate-400">
+              <T>passt</T>
+            </button>
           </div>
         )}
 
