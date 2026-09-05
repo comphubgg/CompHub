@@ -1585,6 +1585,12 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Verstanden': 'Got it',
   'Profil': 'Profile',
   'Schnellzugriff': 'Quick access',
+  'Team von Hand': 'Team by hand',
+  'Sky & Scroll': 'Sky & Scroll',
+  'Zwei Namen mit &, Komma oder Schrägstrich trennen. Ein einzelner Name ergibt ein Solo.':
+    'Separate two names with &, a comma or a slash. A single name makes a solo.',
+  'Dieses Team steht schon in der Liste.': 'That team is already in the list.',
+  'aufgenommen': 'added',
   'Etwas kaputt, fehlt oder besser zu machen? Schreib es dem Betreiber':
     'Something broken, missing or worth improving? Tell the operator',
   'gerade da': 'here right now',

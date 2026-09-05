@@ -560,6 +560,25 @@ export default function KartenSeite(
   /** Im Stift-Modus eingestellte Laender, je Spieler des Teams. */
   const [landEntwurf, setLandEntwurf] = useState<string[]>([]);
   const [bearbeite, setBearbeite] = useState<string | null>(null);
+  /*
+   * Ein Team von Hand eintragen.
+   *
+   * Nicht jede Karte entsteht aus einer Bestenliste. Bei einem Cup, den Epic
+   * noch nicht ausgewertet hat, oder bei einer Runde, die der Betreiber
+   * selbst zusammenstellt, gab es bisher keinen Weg, ein Duo aufzunehmen -
+   * die Liste kam ausschliesslich vom Server.
+   *
+   * Getippt wird mit Namen, nicht mit Konto-Ids: "Sky & Scroll" fuer ein Duo,
+   * ein einzelner Name fuer ein Solo. Trennen darf man mit "&", Komma oder
+   * Schraegstrich - je nachdem, wie es gerade aus einer Nachricht kopiert
+   * wurde.
+   *
+   * Das Team landet in der Liste und sonst nirgends. Auf eine Form zieht es
+   * der Betreiber selbst; automatisch etwas zu verteilen ist hier
+   * ausdruecklich nicht erwuenscht.
+   */
+  const [eigenesTeam, setEigenesTeam] = useState('');
+
   /** Suchtext in der Teamliste - bei fuenfzig Duos findet man sonst nichts. */
   const [teamSuche, setTeamSuche] = useState('');
   const [entwurf, setEntwurf] = useState('');
@@ -1290,6 +1309,40 @@ export default function KartenSeite(
    * die Teamliste holt sich selbst. So muss niemand erst eine Karte anlegen,
    * damit sich jemand eintragen kann.
    */
+
+  /**
+   * Ein von Hand eingetipptes Team aufnehmen.
+   *
+   * Doppelte werden abgewiesen - zwei gleiche Duos in der Liste sind beim
+   * Verteilen eine Falle, weil man nicht sieht, welches man gerade zieht.
+   */
+  const teamEintragen = useCallback(() => {
+    const namen = eigenesTeam
+      .split(/[&,/]|\s+\+\s+/)
+      .map((x) => x.trim())
+      .filter(Boolean)
+      .slice(0, 4);
+    if (!namen.length) return;
+
+    const schluessel = namen.map((n) => n.toLowerCase()).sort().join('|');
+    const schon = teams.some((t) => t.spieler
+      .map((n) => n.toLowerCase()).sort().join('|') === schluessel);
+    if (schon) {
+      setStatus(uebs('Dieses Team steht schon in der Liste.'));
+      return;
+    }
+
+    setTeams((alt) => [...alt, {
+      // Ohne Epic-Konto gibt es keinen stabilen Schluessel - dann eben ein
+      // eigener. Er unterscheidet sich sichtbar, damit man spaeter erkennt,
+      // welche Teams von Hand kamen.
+      id: `hand-${Date.now().toString(36)}-${alt.length}`,
+      spieler: namen,
+      farbe: FARBEN[alt.length % FARBEN.length],
+    }]);
+    setEigenesTeam('');
+    setStatus(`${namen.join(' & ')} ${uebs('aufgenommen')}`);
+  }, [eigenesTeam, teams, uebs]);
 
   /**
    * Die Teamliste, gefiltert nach dem Suchtext.
@@ -2875,6 +2928,28 @@ ${name}
               className="self-end rounded-lg bg-zinc-800 px-4 py-2 text-sm font-medium
                          text-slate-100 transition hover:bg-zinc-700 disabled:opacity-40">
               {laedtTeams ? 'lädt…' : 'Teams laden'}
+            </button>
+
+            {/*
+              * Von Hand dazu - neben "Teams laden", weil es dieselbe Frage
+              * beantwortet: wer steht auf dieser Karte.
+              */}
+            <label className="text-xs text-slate-400">
+              <T>Team von Hand</T>
+              <input value={eigenesTeam}
+                onChange={(e) => setEigenesTeam(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') teamEintragen(); }}
+                placeholder={uebs('Sky & Scroll')}
+                title={uebs('Zwei Namen mit &, Komma oder Schrägstrich trennen. '
+                  + 'Ein einzelner Name ergibt ein Solo.')}
+                className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2
+                           text-sm text-slate-100 outline-none placeholder:text-slate-600
+                           focus:border-sky-500" />
+            </label>
+            <button onClick={teamEintragen} disabled={!eigenesTeam.trim()}
+              className="self-end rounded-lg bg-zinc-800 px-4 py-2 text-sm font-medium
+                         text-slate-100 transition hover:bg-zinc-700 disabled:opacity-40">
+              <T>hinzufügen</T>
             </button>
             <label className="text-xs text-slate-400">
               Kartenbild
