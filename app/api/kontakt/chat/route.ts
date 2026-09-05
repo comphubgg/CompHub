@@ -116,6 +116,7 @@ function fuerAnsicht(
     /* Fuer die Sortierung beim Betreiber - VIPs stehen oben. */
     vonVip: Boolean(absender?.vip) || absender?.rolle === 'pro',
     vonRolle: absender?.rolle ?? null,
+    vonBestaetigt: Boolean(absender?.bestaetigt),
     // Die Adresse braucht nur der Betreiber, um notfalls doch zu mailen.
     vonEmail: admin ? m.vonEmail : '',
     teilnehmer,
@@ -146,7 +147,11 @@ function fuerAnsicht(
 }
 
 /** Was ueber ein Konto im Chat gebraucht wird. */
-interface KontoKurz { name: string; vip: boolean; rolle: string | null }
+interface KontoKurz {
+  name: string; vip: boolean; rolle: string | null;
+  /** Adresse bestaetigt - der blaue Haken. */
+  bestaetigt: boolean;
+}
 
 /**
  * Konto-Id zu Name und Rang, einmal je Anfrage.
@@ -163,6 +168,7 @@ async function namensBuch(): Promise<Map<string, KontoKurz>> {
       name: k.name || k.id,
       vip: Boolean(k.vip),
       rolle: k.rolle ?? null,
+      bestaetigt: Boolean(k.bestaetigt),
     });
   }
 
@@ -173,6 +179,9 @@ async function namensBuch(): Promise<Map<string, KontoKurz>> {
       name: z.username,
       vip: true,
       rolle: rechteVon(z).rolle ?? null,
+      // Ein VIP-Zugang wurde vom Betreiber von Hand angelegt - eine Adresse
+      // zu bestaetigen gibt es dort nicht, und noetig ist es auch nicht.
+      bestaetigt: true,
     });
   }
 

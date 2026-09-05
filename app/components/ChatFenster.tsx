@@ -32,7 +32,7 @@ interface Teilnehmer { id: string; name: string }
 interface Gespraech {
   id: string; zeit: number; thema: string; eigenesThema: string;
   erledigt: boolean; vonName: string; vonEmail: string;
-  vonVip: boolean; vonRolle: string | null;
+  vonVip: boolean; vonRolle: string | null; vonBestaetigt: boolean;
   teilnehmer: Teilnehmer[]; gruppe: boolean; darfVerlassen: boolean;
   darfSchreiben: boolean;
   verlauf: Nachricht[]; zuletzt: number; ungelesen: number;
@@ -270,6 +270,9 @@ export default function ChatFenster({ alsSeite = false }: { alsSeite?: boolean }
     .sort((a, b) => {
       if ((a.ungelesen > 0) !== (b.ungelesen > 0)) return a.ungelesen > 0 ? -1 : 1;
       if (a.vonVip !== b.vonVip) return a.vonVip ? -1 : 1;
+      // Wer seine Adresse bestaetigt hat, ist erreichbar - eine Antwort dorthin
+      // kommt an. Das ist der ganze Vorzug des Hakens.
+      if (a.vonBestaetigt !== b.vonBestaetigt) return a.vonBestaetigt ? -1 : 1;
       return b.zuletzt - a.zuletzt;
     });
 
@@ -761,6 +764,14 @@ export default function ChatFenster({ alsSeite = false }: { alsSeite?: boolean }
                         )}
                         {/* Woran man den Rang sieht, ohne ihn nachschlagen zu
                             muessen. */}
+                        {/* Der blaue Haken: die Adresse ist bestaetigt. */}
+                        {admin && g.vonBestaetigt && (
+                          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5 shrink-0 text-sky-400"
+                            fill="currentColor" aria-hidden>
+                            <path d="M12 2l2.4 1.8 3-.3 1 2.8 2.6 1.5-.9 2.9.9 2.9-2.6 1.5-1 2.8-3-.3L12 22l-2.4-1.8-3 .3-1-2.8L3 16.2l.9-2.9L3 10.4l2.6-1.5 1-2.8 3 .3L12 2z" opacity=".25" />
+                            <path d="M10.6 15.4l-2.9-2.9 1.3-1.3 1.6 1.6 4-4 1.3 1.3-5.3 5.3z" />
+                          </svg>
+                        )}
                         {admin && g.vonVip && (
                           <span className="shrink-0 rounded border
                                            border-amber-500/50 bg-amber-500/10

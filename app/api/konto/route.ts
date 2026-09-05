@@ -4,7 +4,9 @@ import {
   aendern, anlegen, emailTaugt, ipGesperrt, kontoAus, loesche, merkeAnmeldung, nachName,
   merkeIp, nachEmail, nachId, oeffentlich, passwortStimmt, passwortTaugt,
   setzePasswort, SITZUNG_TAGE, sitzungFuer, vipBestaetigen,
+  neuerBestaetigungsschluessel, eroeffneRuecksetzung, setzePasswortMitSchluessel,
 } from '@/lib/konten';
+import { sendeMail } from '@/lib/mail';
 import { ueberHttps } from '@/lib/vipCookie';
 
 // Registrieren, anmelden, abmelden - und wer gerade angemeldet ist.
@@ -29,6 +31,39 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 const COOKIE = 'streamer_dashboard_konto';
+
+/**
+ * Unter welcher Adresse das Werkzeug gerade erreicht wurde.
+ *
+ * Fuer die Links in den Mails. Fest eingetragen waere falsch: derselbe Server
+ * antwortet unter thecomphub.com, unter localhost und auf dem Laptop, und ein
+ * Link, der ins Leere fuehrt, ist schlimmer als gar keine Mail.
+ */
+function wurzel(request: Request): string {
+  const host = request.headers.get('x-forwarded-host')
+    || request.headers.get('host') || 'thecomphub.com';
+  const daheim = /^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/i.test(host);
+  const schema = request.headers.get('x-forwarded-proto')?.split(',')[0].trim()
+    || (daheim ? 'http' : 'https');
+  return `${schema}://${host}`;
+}
+
+/** Die Mail, mit der jemand seine Adresse bestaetigt. */
+async function schickeBestaetigung(
+  request: Request, an: string, name: string, schluessel: string,
+): Promise<boolean> {
+  return sendeMail({
+    an,
+    betreff: 'Bestätige deine Adresse',
+    text: `Hallo ${name || 'du'},\n\nein Klick, und dein Konto trägt den Haken. `
+      + 'Der bringt dir keinen anderen Zugang, aber deine Meldungen im Support '
+      + 'landen weiter oben — und wir wissen, dass wir dich erreichen können.',
+    knopf: {
+      titel: 'Adresse bestätigen',
+      ziel: `${wurzel(request)}/api/konto/bestaetigen?schluessel=${schluessel}`,
+    },
+  });
+}
 
 /**
  * Der Anschluss der Anfrage.
@@ -126,14 +161,94 @@ export async function POST(request: Request) {
       return NextResponse.json({ fehler: ergebnis.fehler }, { status: 409 });
     }
 
+    /*
+     * Die Bestaetigung geht raus, aber sie haelt nichts auf.
+     *
+     * Wer sich registriert, ist angemeldet und kann sofort loslegen - auch
+     * wenn die Mail im Spam landet oder der Versand gerade klemmt. Der Haken
+     * ist eine Auszeichnung, keine Schranke.
+     */
+    let hinweis: string | null = null;
+    if (!ergebnis.konto.bestaetigt && ergebnis.konto.bestaetigung) {
+      const ging = await schickeBestaetigung(
+        request, ergebnis.konto.email, ergebnis.konto.name,
+        ergebnis.konto.bestaetigung);
+      hinweis = ging
+        ? 'Wir haben dir eine Mail geschickt — ein Klick darin, und du hast den Haken.'
+        : 'Die Bestätigungsmail ging gerade nicht raus. Du kannst sie später '
+          + 'unter „Mein Konto" erneut anfordern.';
+    }
+
     const antwort = NextResponse.json({
-      ok: true, konto: oeffentlich(ergebnis.konto),
-      // Ehrlich gesagt, was noch fehlt: ohne Versanddienst kann niemand eine
-      // Bestaetigungsmail bekommen. Das Konto funktioniert trotzdem.
-      hinweis: ergebnis.konto.bestaetigt ? null
-        : 'Die Adresse ist noch nicht bestätigt — der Versand ist noch nicht '
-          + 'eingerichtet. Das Konto lässt sich trotzdem benutzen.',
+      ok: true, konto: oeffentlich(ergebnis.konto), hinweis,
     });
+    await setzeSitzung(antwort, ergebnis.konto.id);
+    return antwort;
+  }
+
+  /* --------------------------------------------- Bestaetigung noch einmal */
+  if (was === 'bestaetigung-neu') {
+    const id = kontoAus((await cookies()).get(COOKIE)?.value);
+    if (!id) return NextResponse.json({ fehler: 'nicht angemeldet' }, { status: 401 });
+    const konto = await nachId(id);
+    if (!konto) return NextResponse.json({ fehler: 'nicht gefunden' }, { status: 404 });
+    if (konto.bestaetigt) return NextResponse.json({ ok: true, schon: true });
+
+    const schluessel = await neuerBestaetigungsschluessel(id);
+    if (!schluessel) return NextResponse.json({ ok: true, schon: true });
+    const ging = await schickeBestaetigung(
+      request, konto.email, konto.name, schluessel);
+    return NextResponse.json({
+      ok: ging,
+      hinweis: ging
+        ? 'Die Mail ist unterwegs.'
+        : 'Der Versand klemmt gerade. Versuch es in ein paar Minuten noch einmal.',
+    });
+  }
+
+  /* ------------------------------------------------ Passwort zuruecksetzen */
+  if (was === 'reset-anfordern') {
+    const wen = String(koerper.email ?? '').trim();
+    const konto = wen.includes('@') ? await nachEmail(wen) : await nachName(wen);
+
+    /*
+     * Immer dieselbe Antwort, ob es das Konto gibt oder nicht.
+     *
+     * Anders als beim Anmelden - dort ist "kein Konto" eine Hilfe, hier waere
+     * es eine Auskunft an jeden, der Adressen durchprobiert. Wer sein eigenes
+     * Konto sucht, bekommt die Mail; wer fremde sucht, erfaehrt nichts.
+     */
+    if (konto) {
+      const schluessel = await eroeffneRuecksetzung(konto.id);
+      if (schluessel) {
+        await sendeMail({
+          an: konto.email,
+          betreff: 'Neues Passwort setzen',
+          text: `Hallo ${konto.name || 'du'},\n\njemand - hoffentlich du - möchte `
+            + 'das Passwort für dieses Konto neu setzen. Der Link gilt eine Stunde.\n\n'
+            + 'Warst du das nicht, brauchst du nichts zu tun. Ohne den Link '
+            + 'ändert sich nichts.',
+          knopf: {
+            titel: 'Neues Passwort setzen',
+            ziel: `${wurzel(request)}/passwort?schluessel=${schluessel}`,
+          },
+        });
+      }
+    }
+    return NextResponse.json({
+      ok: true,
+      hinweis: 'Wenn es zu dieser Angabe ein Konto gibt, ist die Mail unterwegs.',
+    });
+  }
+
+  if (was === 'reset-setzen') {
+    const schluessel = String(koerper.schluessel ?? '').trim();
+    const passwort = String(koerper.passwort ?? '');
+    const ergebnis = await setzePasswortMitSchluessel(schluessel, passwort);
+    if ('fehler' in ergebnis) {
+      return NextResponse.json({ fehler: ergebnis.fehler }, { status: 400 });
+    }
+    const antwort = NextResponse.json({ ok: true, konto: oeffentlich(ergebnis.konto) });
     await setzeSitzung(antwort, ergebnis.konto.id);
     return antwort;
   }

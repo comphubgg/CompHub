@@ -195,6 +195,17 @@ export default function Anmelden() {
             </button>
           </div>
 
+          {/* Der Weg zurueck, wenn das Passwort weg ist. Steht beim Anmelden
+              und nicht beim Registrieren - dort gibt es noch keins. */}
+          {reiter === 'anmelden' && (
+            <div className="text-right">
+              <Link href="/passwort"
+                className="text-[11px] text-slate-500 transition hover:text-sky-400">
+                <T>Passwort vergessen?</T>
+              </Link>
+            </div>
+          )}
+
           {fehler && (
             <p className="rounded-lg border border-rose-900/60 bg-rose-950/30 px-4
                           py-2.5 text-xs text-rose-300">{fehler}</p>

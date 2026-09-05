@@ -538,6 +538,28 @@ const AUF_ENGLISCH: Record<string, string> = {
     'Nobody here goes by that name. Try your email address instead.',
   'Chatarchiv': 'Chat archive',
   ['Alle Gespräche, auch die abgeschlossenen']: 'Every conversation, closed ones included',
+  /* Bestaetigung und Passwort zuruecksetzen. */
+  'Passwort vergessen?': 'Forgot your password?',
+  'Passwort vergessen': 'Forgot your password',
+  'Neues Passwort setzen': 'Set a new password',
+  'Link schicken': 'Send link',
+  ['Wähl ein neues Passwort. Danach bist du gleich angemeldet.']:
+    'Choose a new password. You will be signed in right afterwards.',
+  ['Gib deine E-Mail-Adresse oder deinen Namen an — wir schicken dir einen Link. Er gilt eine Stunde.']:
+    'Enter your email address or your name — we will send you a link. It is valid for one hour.',
+  ['Wenn es zu dieser Angabe ein Konto gibt, ist die Mail unterwegs.']:
+    'If there is an account for this, the mail is on its way.',
+  ['Dieser Link gilt nicht mehr. Fordere einen neuen an.']:
+    'This link is no longer valid. Request a new one.',
+  ['Dieser Link ist abgelaufen. Fordere einen neuen an.']:
+    'This link has expired. Request a new one.',
+  ['Wir haben dir eine Mail geschickt — ein Klick darin, und du hast den Haken.']:
+    'We sent you a mail — one click in it and you have the check mark.',
+  ['Die Bestätigungsmail ging gerade nicht raus. Du kannst sie später unter „Mein Konto“ erneut anfordern.']:
+    'The confirmation mail did not go out just now. You can request it again under “My account”.',
+  ['Die Mail ist unterwegs.']: 'The mail is on its way.',
+  ['Der Versand klemmt gerade. Versuch es in ein paar Minuten noch einmal.']:
+    'Sending is stuck right now. Try again in a few minutes.',
   'Neue Gruppe': 'New group',
   'verlassen': 'leave',
   'Verlassen': 'Leave',

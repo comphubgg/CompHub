@@ -51,6 +51,14 @@ export interface Konto {
   bestaetigt: boolean;
   /** Der offene Bestaetigungsschluessel, solange sie es nicht ist. */
   bestaetigung?: string;
+  /*
+   * Ein offener Weg, das Passwort neu zu setzen.
+   *
+   * Mit Ablauf: ein Schluessel, der ewig gilt, ist ein zweites Passwort in
+   * einem Postfach, auf das irgendwann jemand anders Zugriff hat. Eine Stunde
+   * reicht, um eine Mail zu lesen.
+   */
+  zuruecksetzung?: { schluessel: string; bis: number };
   /** Das eigene Epic-Konto - dann zeigt das Profil die eigenen Werte. */
   epicId?: string;
   /**
@@ -548,4 +556,82 @@ export function oeffentlich(k: Konto) {
     bild: k.bild ?? null,
     angelegt: k.angelegt,
   };
+}
+
+
+/* ------------------------------------------------ Bestaetigen und Zuruecksetzen */
+
+/**
+ * Eine Adresse ueber den Schluessel aus der Mail bestaetigen.
+ *
+ * Der Schluessel verfaellt dabei: er hat genau eine Aufgabe, und ein
+ * gebrauchter Schluessel, der weiter gilt, ist einer zu viel.
+ */
+export async function bestaetigeMitSchluessel(schluessel: string): Promise<Konto | null> {
+  const k = schluessel.trim();
+  if (!k) return null;
+  const liste = await lies();
+  const konto = liste.find((x) => x.bestaetigung === k);
+  if (!konto) return null;
+  konto.bestaetigt = true;
+  delete konto.bestaetigung;
+  await schreibe(liste);
+  return konto;
+}
+
+/** Einen frischen Bestaetigungsschluessel - etwa, wenn die Mail nicht ankam. */
+export async function neuerBestaetigungsschluessel(id: string): Promise<string | null> {
+  const liste = await lies();
+  const konto = liste.find((x) => x.id === id);
+  if (!konto || konto.bestaetigt) return null;
+  konto.bestaetigung = crypto.randomBytes(24).toString('hex');
+  await schreibe(liste);
+  return konto.bestaetigung;
+}
+
+/** Wie lange ein Weg zum Zuruecksetzen gilt. */
+const RUECKSETZ_DAUER_MS = 60 * 60 * 1000;
+
+/** Einen Weg zum Zuruecksetzen eroeffnen. */
+export async function eroeffneRuecksetzung(id: string): Promise<string | null> {
+  const liste = await lies();
+  const konto = liste.find((x) => x.id === id);
+  if (!konto) return null;
+  const schluessel = crypto.randomBytes(24).toString('hex');
+  konto.zuruecksetzung = { schluessel, bis: Date.now() + RUECKSETZ_DAUER_MS };
+  await schreibe(liste);
+  return schluessel;
+}
+
+/**
+ * Das Passwort ueber einen Schluessel neu setzen.
+ *
+ * Wer den Schluessel aus der Mail hat, hat Zugriff auf das Postfach - damit
+ * ist die Adresse nebenbei bestaetigt. Ein zweiter Weg dafuer waere
+ * ueberfluessig.
+ */
+export async function setzePasswortMitSchluessel(
+  schluessel: string, passwort: string,
+): Promise<{ konto: Konto } | { fehler: string }> {
+  const grund = passwortTaugt(passwort);
+  if (grund) return { fehler: grund };
+
+  const k = schluessel.trim();
+  const liste = await lies();
+  const konto = liste.find((x) => x.zuruecksetzung?.schluessel === k);
+  if (!konto || !konto.zuruecksetzung) {
+    return { fehler: 'Dieser Link gilt nicht mehr. Fordere einen neuen an.' };
+  }
+  if (konto.zuruecksetzung.bis < Date.now()) {
+    delete konto.zuruecksetzung;
+    await schreibe(liste);
+    return { fehler: 'Dieser Link ist abgelaufen. Fordere einen neuen an.' };
+  }
+
+  konto.passwort = neuesPasswort(passwort);
+  konto.bestaetigt = true;
+  delete konto.bestaetigung;
+  delete konto.zuruecksetzung;
+  await schreibe(liste);
+  return { konto };
 }
