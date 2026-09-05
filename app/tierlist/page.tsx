@@ -361,6 +361,21 @@ export default function TierListPage() {
           return {
             ...cloudList,
             entries: [...filteredCloudEntries, ...localOnlyEntries],
+            /*
+             * Selbst vergebene Stufennamen ueberleben das Zusammenfuehren.
+             *
+             * Vorher gewann hier immer die offizielle Liste, und wer seine
+             * Stufen umbenannt hatte, fand beim naechsten Laden wieder
+             * S A B C D E F vor. Wer nie etwas umbenannt hat, bekommt
+             * weiterhin die offiziellen Namen - also die des Admins.
+             */
+            ...((localList as { eigeneStufen?: boolean; tierLabels?: unknown })
+              ?.eigeneStufen
+              ? {
+                tierLabels: (localList as { tierLabels?: unknown }).tierLabels,
+                eigeneStufen: true,
+              }
+              : {}),
           };
         });
 
@@ -1089,7 +1104,11 @@ export default function TierListPage() {
           </div>
           <TierList
             entries={filteredEntries}
-            tierLabels={isGuest ? TIER_LABELS_DEFAULT : tierListState.tierLabels}
+            // Auch Gaeste sehen die offiziellen Stufennamen. Vorher stand
+            // hier fuer sie fest S A B C D E F - benannte der Admin eine
+            // Stufe um, sah das ausser ihm niemand. Aendern darf ein Gast
+            // sie weiterhin nicht, dafuer sorgt disableLabelEdit.
+            tierLabels={tierListState.tierLabels}
             draggedId={draggedId}
             dragOverId={dragOverId}
             dragOverTier={dragOverTier}
@@ -1144,7 +1163,11 @@ export default function TierListPage() {
           anzeigeVon={anzeigeVon}
           onLand={isAdmin ? landSetzen : tierListState.landNachName}
           onDeleteEntry={handleDeleteEntry}
-          createDisabled={previewMode}
+          // Ohne Anmeldung nichts anlegen: ein Gast kann seinen Stand
+          // ohnehin nicht behalten - die Liste haengt am Konto. Was er
+          // anlegt, waere beim naechsten Aufruf weg, und das sieht nach
+          // einem Fehler aus.
+          createDisabled={previewMode || isGuest}
         />
       </div>
     </div>

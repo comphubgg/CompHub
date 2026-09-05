@@ -13,6 +13,13 @@ interface TierListStateData {
   tierLabels: Record<TierKey, string>;
   entries: TierListEntry[];
   updatedAt: number;
+  /*
+   * Hat der Betrachter die Stufennamen selbst gesetzt?
+   *
+   * Dann ueberschreibt die offizielle Liste sie beim Laden nicht mehr. Wer
+   * nie etwas umbenannt hat, bekommt weiterhin die Namen des Admins.
+   */
+  eigeneStufen?: boolean;
 }
 
 const createDefaultList = (listId: string): TierListStateData => ({
@@ -66,6 +73,7 @@ export function useTierList(listId: string, mode: 'solo' | 'duo') {
           listId: existing.listId,
           listName: existing.listName || 'Tierlist',
           tierLabels: existing.tierLabels || { ...TIER_LABELS_DEFAULT },
+          eigeneStufen: Boolean((existing as { eigeneStufen?: boolean }).eigeneStufen),
           /*
            * Hier faellt dieselbe Person zusammen, egal woher die Liste kam.
            *
@@ -112,9 +120,19 @@ export function useTierList(listId: string, mode: 'solo' | 'duo') {
   const entries = listState.entries;
   const tierLabels = listState.tierLabels;
 
+  /*
+   * Eine Stufe umbenennen.
+   *
+   * Dabei wird vermerkt, dass die Namen von Hand gesetzt wurden
+   * ("eigeneStufen"). Ohne diesen Vermerk ueberschrieb die offizielle Liste
+   * sie beim naechsten Laden - der Betreiber: "wenn die Seite neu laedt, ist
+   * es wieder S A B C D E F". Beim Admin macht der Vermerk keinen
+   * Unterschied, seine Namen sind ja die offiziellen.
+   */
   const setTierLabel = (tier: TierKey, label: string) => {
     setListState(prev => ({
       ...prev,
+      eigeneStufen: true,
       tierLabels: {
         ...prev.tierLabels,
         [tier]: label,

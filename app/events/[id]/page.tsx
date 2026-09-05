@@ -848,46 +848,6 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
             <T>← Alle Events</T>
           </Link>
 
-          {/*
-            * Der Weg zur Karte - direkt von hier, nur fuer den Admin.
-            *
-            * Vorher fuehrte er ueber das Dashboard, dort "Karten", und dann
-            * musste das Turnier aus einer Liste herausgesucht werden, das man
-            * gerade vor sich hatte. Der Betreiber: "dann geht's fuer mich ein
-            * bisschen einfacher."
-            *
-            * Der Kartenbau versteht event und window als Adresse und stellt
-            * sich damit selbst ein - dieselbe Adresse, die das Angebot weiter
-            * unten benutzt, nur ohne die Bedingung, dass es ein Finale sein
-            * muss. Als Admin will man auch fuer einen Practice-Tag eine Karte
-            * bauen koennen.
-            */}
-          {istAdmin && fenster?.eventId && fenster?.windowId && (
-            <Link
-              href={`/karten?event=${encodeURIComponent(fenster.eventId)}`
-                + `&window=${encodeURIComponent(fenster.windowId)}`}
-              prefetch={false}
-              title={t('Karte bauen')}
-              aria-label={t('Karte bauen')}
-              /*
-               * Klein und rund, oben rechts.
-               *
-               * Der Betreiber wollte "so eine Art Plus-Button, eine kleine"
-               * an genau dieser Stelle - kein breiter Knopf, der neben dem
-               * Turniernamen mitreden will. Was er tut, steht im Mouseover.
-               */
-              className="group absolute right-4 top-5 grid h-9 w-9 place-items-center
-                         rounded-full border border-zinc-700 bg-zinc-950/80
-                         text-slate-400 transition hover:border-sky-500
-                         hover:text-sky-400">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-                stroke="currentColor" strokeWidth="2" strokeLinecap="round"
-                aria-hidden>
-                <path d="M12 5v14M5 12h14" />
-              </svg>
-            </Link>
-          )}
-
           <h1 className="mt-2 text-2xl font-bold text-slate-50">
             {cup?.titel ?? id}
           </h1>
@@ -933,8 +893,20 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
             Uhrzeit und Spielzahl auf einen Blick, und genau das soll sie. Der
             stoerende weisse Rollbalken darunter war nie die Kachel, sondern der
             Balken selbst - der ist jetzt grau (siehe globals.css). */}
+        {/*
+          * Der Weg zur Karte - auf Hoehe der Spieltage, ganz rechts.
+          *
+          * Ausdruecklich hier und nicht oben beim Turniernamen: "auf dieser
+          * Linie, wo auch der Tag steht, aber ganz rechts". Er gehoert zum
+          * gewaehlten Spieltag, und genau der steht in dieser Reihe.
+          *
+          * Klein und rund, mit "Karte bauen" im Mouseover. Der Kartenbau
+          * stellt sich ueber event und window selbst ein - anders als frueher
+          * muss das Turnier nicht mehr aus einer Liste herausgesucht werden.
+          */}
         {tage.length > 0 && (
-          <div className="mb-5 flex gap-2 overflow-x-auto pb-1">
+          <div className="mb-5 flex items-stretch gap-2">
+            <div className="flex flex-1 gap-2 overflow-x-auto pb-1">
             {tage.map((f, i) => {
               const aktiv = fenster?.windowId === f.windowId;
               return (
@@ -970,6 +942,26 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                 </button>
               );
             })}
+            </div>
+
+            {istAdmin && fenster?.eventId && fenster?.windowId && (
+              <Link
+                href={`/karten?event=${encodeURIComponent(fenster.eventId)}`
+                  + `&window=${encodeURIComponent(fenster.windowId)}`}
+                prefetch={false}
+                title={t('Karte bauen')}
+                aria-label={t('Karte bauen')}
+                className="grid h-9 w-9 shrink-0 self-center place-items-center
+                           rounded-full border border-zinc-700 bg-zinc-950/80
+                           text-slate-400 transition hover:border-sky-500
+                           hover:text-sky-400">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+                  aria-hidden>
+                  <path d="M12 5v14M5 12h14" />
+                </svg>
+              </Link>
+            )}
           </div>
         )}
 
