@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { rueckwegVon } from '@/lib/oeffentlicheAdresse';
+import { holeDienst } from '@/lib/dienstZugaenge';
 
 // Der Weg zu Google.
 //
@@ -22,19 +23,29 @@ import { rueckwegVon } from '@/lib/oeffentlicheAdresse';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-const CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
+/*
+ * Zugangsdaten wie bei Twitch und Discord.
+ *
+ * Hier stand die Client-Id direkt aus process.env, und zwar auf Modulebene.
+ * Das hatte zwei Folgen: was der Betreiber unter "Anmeldedienste" eintrug,
+ * wurde bei Google stillschweigend ignoriert, und eine Aenderung an
+ * .env.local wirkte erst nach einem Neustart. Die anderen beiden Dienste
+ * fragen laengst holeDienst(); Google zog nach.
+ */
 
 export function weiterleitung(req: NextRequest) {
   return rueckwegVon(req, '/api/auth/google/callback');
 }
 
 export async function GET(req: NextRequest) {
-  if (!CLIENT_ID || /^(REDACTED|your_)/i.test(CLIENT_ID)) {
+  const { id: CLIENT_ID } = await holeDienst('google');
+  if (!CLIENT_ID) {
     return NextResponse.json({
       error: 'Google ist nicht eingerichtet.',
       hinweis: 'In .env.local fehlen GOOGLE_CLIENT_ID und GOOGLE_CLIENT_SECRET. '
         + 'Beide entstehen in der Google Cloud Console unter '
-        + '"APIs und Dienste → Anmeldedaten → OAuth-Client-ID erstellen".',
+        + '"APIs und Dienste → Anmeldedaten → OAuth-Client-ID erstellen" '
+        + '— oder im Werkzeug unter Admin → Anmeldedienste.',
     }, { status: 503 });
   }
 

@@ -5,7 +5,8 @@ import {
   verknuepfe,
 } from '@/lib/konten';
 import { ueberHttps } from '@/lib/vipCookie';
-import { wurzelVon, rueckwegVon } from '@/lib/oeffentlicheAdresse';
+import { rueckwegVon } from '@/lib/oeffentlicheAdresse';
+import { holeDienst } from '@/lib/dienstZugaenge';
 
 // Der Rueckweg von Google.
 //
@@ -21,8 +22,7 @@ import { wurzelVon, rueckwegVon } from '@/lib/oeffentlicheAdresse';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-const CLIENT_ID = process.env.GOOGLE_CLIENT_ID || '';
-const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET || '';
+// Zugangsdaten aus derselben Quelle wie beim Hinweg - siehe dort.
 const COOKIE = 'streamer_dashboard_konto';
 
 function weiterleitung(req: NextRequest) {
@@ -78,6 +78,7 @@ export async function GET(req: NextRequest) {
   }
 
   try {
+    const { id: CLIENT_ID, secret: CLIENT_SECRET } = await holeDienst('google');
     const tokenAntwort = await fetch('https://oauth2.googleapis.com/token', {
       method: 'POST',
       headers: { 'Content-Type': 'application/x-www-form-urlencoded' },

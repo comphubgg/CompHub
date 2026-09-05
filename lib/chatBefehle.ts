@@ -1,4 +1,4 @@
-import { alleKonten } from './konten';
+import { alleChatNutzer, loeseNamenAuf, type ChatNutzer } from './chatNutzer';
 import {
   alle, aendere, lege, setzeTeilnehmer, type Meldung,
 } from './kontakt';
@@ -56,18 +56,25 @@ const HILFE = [
   '  /new <name> ...   new conversation with one or more people',
 ].join('\n');
 
-/** Ein Konto anhand von Name oder Adresse finden. */
-async function sucheKonten(begriff: string) {
-  const k = begriff.trim().toLowerCase();
-  const liste = await alleKonten();
+/**
+ * Jemanden anhand des Namens finden.
+ *
+ * Dieselbe Liste, die auch das Vorschlagsfenster ueber dem Schreibfeld
+ * benutzt - Konten und alte Zugangsschluessel zusammen. Frueher waren es
+ * zwei verschiedene, und was vorgeschlagen wurde, liess sich anschliessend
+ * nicht hinzufuegen.
+ */
+async function sucheKonten(begriff: string): Promise<ChatNutzer[]> {
+  const k = begriff.trim().replace(/^@+/, '').toLowerCase();
+  const liste = await alleChatNutzer();
   if (!k) return liste.slice(0, 20);
-  return liste.filter((x) => String(x.name ?? '').toLowerCase().includes(k));
+  return liste.filter((x) => x.name.toLowerCase().includes(k));
 }
 
-/** Wie ein Konto in einer Liste dasteht. */
+/** Wie jemand in einer Liste dasteht. */
 function zeile(k: { name?: string | null; rolle?: string | null }) {
-  // Adressen stehen hier bewusst nicht: alleKonten() gibt sie nicht heraus,
-  // und im Chat sucht man ohnehin nach dem Namen, den man kennt.
+  // Adressen stehen hier bewusst nicht: die Liste gibt sie nicht heraus, und
+  // im Chat sucht man ohnehin nach dem Namen, den man kennt.
   const rolle = k.rolle ? ` (${k.rolle})` : '';
   return `  ${k.name || '—'}${rolle}`;
 }
@@ -112,14 +119,18 @@ export async function fuehreAus(
     return { hinweis: [kopf, '', ...treffer.slice(0, 40).map(zeile)].join('\n') };
   }
 
-  if (befehl === 'wer') {
+  // Die Hilfe nennt /who, gehandhabt wurde bisher nur /wer - wer der Liste
+  // folgte, bekam "I do not know". Beide gelten.
+  if (['wer', 'who'].includes(befehl)) {
     const m = (await alle()).find((x) => x.id === gespraechId);
     if (!m) return { hinweis: 'That conversation no longer exists.' };
-    const konten = await alleKonten();
-    const namen = (m.teilnehmer ?? [])
-      .map((id) => konten.find((k) => k.id === id))
-      .filter(Boolean)
-      .map((k) => `  ${k!.name || k!.id}`);
+    const leute = await alleChatNutzer();
+    const namen = (m.teilnehmer ?? []).map((id) => {
+      // Auch die alten Zugaenge nachschlagen - sonst stand dort eine nackte
+      // Kennung "vip:gulli" statt eines Namens.
+      const k = leute.find((x) => x.id === id);
+      return `  ${k?.name || id}`;
+    });
     return {
       hinweis: [
         `Started by: ${m.vonName || '—'}`,
@@ -193,29 +204,6 @@ async function teilnehmerAendern(
     ].join('\n'),
     neuLaden: true,
   };
-}
-
-/** Namen zu Konten aufloesen und sagen, was nicht ging. */
-async function loeseNamenAuf(argument: string) {
-  const teile = argument.split(/[,\s]+/).map((x) => x.trim()).filter(Boolean);
-  const konten = await alleKonten();
-  const gefunden: Array<{ id: string; name?: string | null }> = [];
-  const meldungen: string[] = [];
-
-  for (const t of teile) {
-    const k = t.toLowerCase();
-    const genau = konten.filter((x) => String(x.name ?? '').toLowerCase() === k);
-    const treffer = genau.length ? genau : konten.filter((x) =>
-      String(x.name ?? '').toLowerCase().includes(k));
-
-    if (!treffer.length) { meldungen.push(`No account matches "${t}".`); continue; }
-    if (treffer.length > 1) {
-      meldungen.push(`"${t}" matches several: ${treffer.slice(0, 6).map((x) => x.name).join(', ')}`);
-      continue;
-    }
-    gefunden.push(treffer[0]);
-  }
-  return { gefunden, meldungen };
 }
 
 /** Ein neues Gespraech mit mehreren Leuten. */

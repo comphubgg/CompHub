@@ -52,6 +52,54 @@ export default function Anmelden() {
   const [passwortSichtbar, setPasswortSichtbar] = useState(false);
   const [dienste, setDienste] = useState<Dienste | null>(null);
 
+  /*
+   * Warum ein Anmeldedienst abgebrochen hat.
+   *
+   * Die drei Rueckwege schicken den Grund als "?fehler=..." mit - und diese
+   * Seite hat ihn bisher weggeworfen. Wer sich mit Google oder Discord
+   * anzumelden versuchte und scheiterte, landete deshalb auf einem
+   * unveraenderten Anmeldeformular und konnte nur raten. Genau so kam die
+   * Meldung "nur Twitch funktioniert" zustande: es gab schlicht nichts zu
+   * lesen.
+   *
+   * Gelesen wird aus window.location, nicht mit useSearchParams: das
+   * verlangt eine Suspense-Grenze um die halbe Seite, und dafuer ist ein
+   * Fehlerhinweis zu wenig Anlass.
+   */
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    const art = p.get('fehler');
+    if (!art) return;
+
+    const dienst = p.get('dienst');
+    const grund = p.get('grund');
+    const saetze: Record<string, string> = {
+      abgebrochen: 'Der Anmeldedienst hat abgebrochen. Meist fehlt dort der '
+        + 'Rückweg zu dieser Adresse.',
+      state: 'Der Anmeldevorgang war abgelaufen. Bitte noch einmal versuchen.',
+      token: 'Der Anmeldedienst hat den Code nicht angenommen. Client-ID, '
+        + 'Secret oder der eingetragene Rückweg passen nicht.',
+      profil: 'Der Anmeldedienst gab kein Profil heraus.',
+      email: 'Dieses Konto hat dort keine bestätigte Adresse — damit lässt '
+        + 'sich hier keines anlegen.',
+      keine: 'Der Anmeldedienst hat keine Adresse mitgeschickt.',
+      konto: 'Das Konto ließ sich nicht anlegen.',
+      unerwartet: 'Da ist etwas schiefgegangen.',
+    };
+
+    setFehler([
+      dienst ? `${dienst[0].toUpperCase()}${dienst.slice(1)}: ` : '',
+      t(saetze[art] ?? 'Die Anmeldung hat nicht geklappt.'),
+      // Der Wortlaut des Dienstes selbst, wenn er einen mitgeschickt hat -
+      // er benennt den Grund genauer als jede Umschreibung von hier.
+      grund ? ` (${grund})` : '',
+    ].join(''));
+
+    // Die Adresse wieder saubermachen, damit ein Neuladen nicht denselben
+    // Hinweis noch einmal aufwirft.
+    window.history.replaceState({}, '', '/anmelden');
+  }, [t]);
+
   useEffect(() => {
     void Promise.resolve().then(async () => {
       try {

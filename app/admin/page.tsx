@@ -27,6 +27,7 @@ import { useT } from '@/app/components/SprachProvider';
 import { useZugang } from '@/app/lib/zugang';
 import { bereichVonPfad } from '@/lib/rechte';
 import Nutzungszahlen from '@/app/components/Nutzungszahlen';
+import Fusszeile from '@/app/components/Fusszeile';
 type ProfileData = {
   displayName: string;
   avatarUrl: string | null;
@@ -432,6 +433,16 @@ export default function AdminDashboardPage() {
           */}
         {(istAdmin || rolle === 'admin' || zugang.admin) && <Nutzungszahlen />}
       </div>
+
+      {/*
+        * Dieselbe Fusszeile wie unter der Startseite.
+        *
+        * Ausdruecklich gewuenscht: "das, was Home ganz unten ist, soll auch
+        * unter Dashboard ganz unten sein." Sie steht ausserhalb des
+        * eingerueckten Kastens, damit sie ueber die volle Breite laeuft - wie
+        * drueben auch.
+        */}
+      <Fusszeile />
     </main>
   );
 }

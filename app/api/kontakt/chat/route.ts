@@ -8,6 +8,7 @@ import {
   ganzerVerlauf, ungelesen, letzteZeit, type Meldung,
 } from '@/lib/kontakt';
 import { fuehreAus } from '@/lib/chatBefehle';
+import { alleChatNutzer, nameNormal } from '@/lib/chatNutzer';
 
 /*
  * Das Gespraech zu einer Meldung.
@@ -205,36 +206,16 @@ export async function GET(request: Request) {
     const suche = (p.get('nutzer') ?? '').trim().toLowerCase();
 
     /*
-     * Beide Listen zusammen.
+     * Beide Listen zusammen - Konten und alte Zugangsschluessel.
      *
-     * Wer nur die Konten durchsuchte, fand die Haelfte nicht: die VIPs aus dem
-     * alten System stehen in einer eigenen Datei und haben keine Konto-Id. Der
-     * Betreiber suchte deshalb Leute, die es sehr wohl gab. Sie kommen mit der
-     * Kennung "vip:<name>" mit - dieselbe, unter der sie sich anmelden.
+     * Zusammengestellt wird das in lib/chatNutzer.ts, und zwar genau einmal:
+     * derselbe Vorrat beantwortet dieses Vorschlagsfenster und den Befehl
+     * "/add" darunter. Vorher waren es zwei Listen, und die kleinere kannte
+     * ausgerechnet die Leute nicht, die die groessere gerade vorgeschlagen
+     * hatte.
      */
-    const ausKonten = (await alleKonten()).map((k) => ({
-      id: k.id, name: k.name || k.id, rolle: k.rolle ?? null,
-    }));
-    // Abgeschaltete Zugaenge stehen nicht zur Auswahl - wer sich nicht
-    // anmelden kann, kann auch nichts lesen.
-    const ausVips = (await alleZugaenge())
-      .filter((z) => z.status !== 'disabled')
-      .map((z) => ({
-      id: `vip:${z.username}`,
-      name: z.username,
-      rolle: rechteVon(z).rolle ?? 'vip',
-    }));
-
-    // Wer beides hat, soll nicht doppelt dastehen - der Name entscheidet.
-    const gesehen = new Set(ausKonten.map((k) => k.name.toLowerCase()));
-    const alleNutzer = [
-      ...ausKonten,
-      ...ausVips.filter((v) => !gesehen.has(v.name.toLowerCase())),
-    ];
-
-    const gefunden = alleNutzer
-      .filter((k) => !suche || k.name.toLowerCase().includes(suche))
-      .sort((a, b) => a.name.localeCompare(b.name))
+    const gefunden = (await alleChatNutzer())
+      .filter((k) => !suche || k.name.toLowerCase().includes(nameNormal(suche)))
       .slice(0, 30);
     return NextResponse.json({ ok: true, nutzer: gefunden });
   }

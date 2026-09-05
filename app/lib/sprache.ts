@@ -1586,6 +1586,27 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Profil': 'Profile',
   'Schnellzugriff': 'Quick access',
 
+  // ----------------------------------------- Warum ein Anmeldedienst abbrach
+  'Der Anmeldedienst hat abgebrochen. Meist fehlt dort der Rückweg zu dieser Adresse.':
+    'The sign-in service aborted. Usually the callback URL for this address is '
+    + 'missing over there.',
+  'Der Anmeldevorgang war abgelaufen. Bitte noch einmal versuchen.':
+    'The sign-in attempt had expired. Please try again.',
+  'Der Anmeldedienst hat den Code nicht angenommen. Client-ID, Secret oder der eingetragene Rückweg passen nicht.':
+    'The sign-in service rejected the code. Client ID, secret or the registered '
+    + 'callback URL do not match.',
+  'Der Anmeldedienst gab kein Profil heraus.':
+    'The sign-in service returned no profile.',
+  'Dieses Konto hat dort keine bestätigte Adresse — damit lässt sich hier keines anlegen.':
+    'That account has no confirmed address there, so no account can be created here.',
+  'Der Anmeldedienst hat keine Adresse mitgeschickt.':
+    'The sign-in service sent no address along.',
+  'Das Konto ließ sich nicht anlegen.': 'The account could not be created.',
+  'Da ist etwas schiefgegangen.': 'Something went wrong.',
+  'Die Anmeldung hat nicht geklappt.': 'Signing in did not work.',
+  'Du bleibst auf diesem Gerät angemeldet, bis du das tust.':
+    'You stay signed in on this device until you do.',
+
   // ------------------------------------------------- Nutzungszahlen unten
   'Nutzung': 'Usage',
   'Tage': 'days',
