@@ -105,24 +105,30 @@ export async function POST(request: Request) {
    * antwortAn auf seine Adresse steht - ein Klick auf Antworten im Postfach
    * erreicht ihn, ohne dass jemand eine Adresse heraussuchen muss.
    */
+  /*
+   * Englisch, wie jede verschickte Mail - auch die an den Betreiber selbst.
+   * Zwei Sprachen im selben Postfach waeren nur Durcheinander.
+   */
   const themenName: Record<string, string> = {
     support: 'Support', report: 'Report', feedback: 'Feedback',
-    hilfe: 'Hilfe', idee: 'Idee', anderes: 'Anderes',
+    hilfe: 'Help', idee: 'Idea', anderes: 'Other',
   };
-  const betreff = m.eigenesThema || themenName[m.thema] || 'Meldung';
+  const betreff = m.eigenesThema || themenName[m.thema] || 'Message';
   void sendeMail({
     an: betreiberAdresse(),
     antwortAn: m.vonEmail || undefined,
-    betreff: `${betreff} — ${m.vonName || 'jemand'}`,
+    betreff: `${betreff} — ${m.vonName || 'someone'}`,
     etikett: themenName[m.thema] || m.thema,
-    text: 'Es ist eine neue Meldung über das Kontaktformular eingegangen.',
+    text: 'A new message came in through the contact form.',
     angaben: [
-      { was: 'Von', wert: m.vonName || '—' },
-      { was: 'Adresse', wert: m.vonEmail || '—' },
-      { was: 'Thema', wert: themenName[m.thema] || m.thema },
-      ...(m.eigenesThema ? [{ was: 'Betreff', wert: m.eigenesThema }] : []),
-      { was: 'Bilder', wert: m.bilder.length ? String(m.bilder.length) : 'keine' },
-      { was: 'Eingegangen', wert: new Date(m.zeit).toLocaleString('de-DE') },
+      { was: 'From', wert: m.vonName || '—' },
+      { was: 'Address', wert: m.vonEmail || '—' },
+      { was: 'Topic', wert: themenName[m.thema] || m.thema },
+      ...(m.eigenesThema ? [{ was: 'Subject', wert: m.eigenesThema }] : []),
+      { was: 'Images', wert: m.bilder.length ? String(m.bilder.length) : 'none' },
+      // Britisches Datumsformat statt des deutschen - dieselbe Ueberlegung
+      // wie beim Rest der Mail.
+      { was: 'Received', wert: new Date(m.zeit).toLocaleString('en-GB') },
     ],
     zitat: m.text,
     /*
@@ -133,7 +139,7 @@ export async function POST(request: Request) {
      * das, bei zwanzig nicht mehr.
      */
     knopf: {
-      titel: 'Im Werkzeug öffnen',
+      titel: 'Open in the tool',
       ziel: `https://thecomphub.com/nachrichten?gespraech=${m.id}`,
     },
     /*

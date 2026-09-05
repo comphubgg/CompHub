@@ -740,6 +740,27 @@ export default function KontoSeite() {
                 <T>Admin Tools</T>
               </button>
             )}
+
+            {/*
+              * Abmelden gehoert hierher, zu Socials, Chat, Account und
+              * Privacy.
+              *
+              * Vorher stand es ganz unten am Seitenende. Der Betreiber wollte
+              * es "dort, wo Social, Chat, Account, Privacy steht" - und das
+              * ist richtig: es ist eine Sache, die man mit seinem Konto tut,
+              * wie die anderen auch, und dort sucht man sie.
+              *
+              * Abgesetzt und in Rot, denn es ist kein Bereich zum Ansehen,
+              * sondern ein Griff mit Folgen - niemand soll ihn treffen, weil
+              * er eigentlich auf Privacy wollte.
+              */}
+            <button onClick={abmelden}
+              className="mt-2 rounded-lg border border-zinc-800 px-3 py-2
+                         text-left text-sm font-semibold text-slate-400
+                         transition hover:border-rose-500/60 hover:text-rose-400
+                         md:mt-6">
+              <T>Abmelden</T>
+            </button>
           </nav>
 
           <div>
@@ -1115,30 +1136,7 @@ export default function KontoSeite() {
           </div>
         </div>
 
-        {/* --------------------------------------------------- Abmelden */}
-        {/*
-          * Deutlich abgesetzt und weit unten.
-          *
-          * Vorher klebte hier ein winziges graues Woertchen dicht unter dem
-          * letzten Kasten - man las es entweder als Teil des Bereichs
-          * darueber oder gar nicht. Der Betreiber wollte "noch ein bisschen
-          * weiter unten, einen groesseren Abstand, nicht so unuebersichtlich".
-          *
-          * Also viel Luft davor, eine Trennlinie und ein richtiger Knopf in
-          * derselben Form wie die anderen auf der Seite - nur in Rot, weil er
-          * einen aus dem Konto wirft.
-          */}
-        <div className="mt-24 border-t border-zinc-900 pt-10 pb-4">
-          <button onClick={abmelden}
-            className="rounded-lg border border-zinc-800 px-4 py-2.5 text-sm
-                       text-slate-400 transition hover:border-rose-500/60
-                       hover:text-rose-400">
-            <T>Abmelden</T>
-          </button>
-          <p className="mt-2 text-xs text-slate-600">
-            <T>Du bleibst auf diesem Gerät angemeldet, bis du das tust.</T>
-          </p>
-        </div>
+
       </div>
     </main>
   );

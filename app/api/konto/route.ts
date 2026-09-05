@@ -48,18 +48,25 @@ function wurzel(request: Request): string {
   return `${schema}://${host}`;
 }
 
-/** Die Mail, mit der jemand seine Adresse bestaetigt. */
+/*
+ * Die Mail, mit der jemand seine Adresse bestaetigt.
+ *
+ * Englisch, wie jede verschickte Mail. Die Oberflaeche laesst sich zwischen
+ * Deutsch und Englisch umschalten, eine Mail im Postfach nicht - sie liegt
+ * dort fuer immer in der Sprache, in der sie geschrieben wurde. Die Szene
+ * schreibt englisch, und die Voreinstellung der Seite ist es auch.
+ */
 async function schickeBestaetigung(
   request: Request, an: string, name: string, schluessel: string,
 ): Promise<boolean> {
   return sendeMail({
     an,
-    betreff: 'Bestätige deine Adresse',
-    text: `Hallo ${name || 'du'},\n\nein Klick, und dein Konto trägt den Haken. `
-      + 'Der bringt dir keinen anderen Zugang, aber deine Meldungen im Support '
-      + 'landen weiter oben — und wir wissen, dass wir dich erreichen können.',
+    betreff: 'Confirm your address',
+    text: `Hi ${name || 'there'},\n\none click and your account gets the check. `
+      + 'It does not unlock anything extra, but your support messages move up '
+      + 'the list — and we know we can reach you.',
     knopf: {
-      titel: 'Adresse bestätigen',
+      titel: 'Confirm address',
       ziel: `${wurzel(request)}/api/konto/bestaetigen?schluessel=${schluessel}`,
     },
   });
@@ -234,13 +241,13 @@ export async function POST(request: Request) {
       if (schluessel) {
         await sendeMail({
           an: konto.email,
-          betreff: 'Neues Passwort setzen',
-          text: `Hallo ${konto.name || 'du'},\n\njemand - hoffentlich du - möchte `
-            + 'das Passwort für dieses Konto neu setzen. Der Link gilt eine Stunde.\n\n'
-            + 'Warst du das nicht, brauchst du nichts zu tun. Ohne den Link '
-            + 'ändert sich nichts.',
+          betreff: 'Set a new password',
+          text: `Hi ${konto.name || 'there'},\n\nsomeone — hopefully you — asked `
+            + 'to set a new password for this account. The link is valid for one hour.\n\n'
+            + 'If this was not you, there is nothing to do. Nothing changes '
+            + 'without the link.',
           knopf: {
-            titel: 'Neues Passwort setzen',
+            titel: 'Set new password',
             ziel: `${wurzel(request)}/passwort?schluessel=${schluessel}`,
           },
         });

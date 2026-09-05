@@ -212,10 +212,10 @@ function bauHtml(b: Brief, mitZeichen: boolean): string {
     ${knopf}
     <tr><td style="padding:24px 32px 28px 32px;border-top:1px solid #18181b;
                    color:#52525b;font-size:11px;line-height:1.6;">
-      Diese Nachricht kommt von CompHub. Antworten gehen an
+      This message is from CompHub. Replies go to
       ${process.env.MAIL_ANTWORT || 'help@thecomphub.com'}.<br>
-      Wenn du damit nichts anfangen kannst, ignorier sie einfach — dann hat
-      jemand deine Adresse falsch eingetippt.
+      If it means nothing to you, just ignore it — then someone mistyped
+      their address.
     </td></tr>
   </table>
 </body></html>`;
