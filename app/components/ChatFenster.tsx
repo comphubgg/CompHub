@@ -135,6 +135,18 @@ export default function ChatFenster({ alsSeite = false }: { alsSeite?: boolean }
    */
   const [filter, setFilter] = useState<string>('alle');
 
+  /*
+   * Offen oder erledigt.
+   *
+   * Zwei Fragen, zwei Filter: das Thema sagt, worum es geht, der Stand sagt,
+   * ob noch etwas zu tun ist. In einen Filter gepresst waere "Support" und
+   * "erledigt" ein Widerspruch, den man nicht zugleich waehlen koennte.
+   *
+   * Voreingestellt ist "alle" - wer ein geschlossenes Gespraech sucht, soll
+   * es sehen, ohne erst einen Schalter zu finden.
+   */
+  const [stand, setStand] = useState<'alle' | 'offen' | 'erledigt'>('alle');
+
   /** Austreten - mit Rueckfrage und Grund. */
   const [verlassenOffen, setVerlassenOffen] = useState(false);
   const [verlassenGrund, setVerlassenGrund] = useState('');
@@ -234,6 +246,8 @@ export default function ChatFenster({ alsSeite = false }: { alsSeite?: boolean }
    */
   const gezeigt = gespraeche
     .filter((g) => filter === 'alle' || g.thema === filter)
+    .filter((g) => stand === 'alle'
+      || (stand === 'offen' ? !g.erledigt : g.erledigt))
     .slice()
     .sort((a, b) => {
       if ((a.ungelesen > 0) !== (b.ungelesen > 0)) return a.ungelesen > 0 ? -1 : 1;
@@ -336,6 +350,24 @@ export default function ChatFenster({ alsSeite = false }: { alsSeite?: boolean }
       }
     } catch { /* dann eben nicht - der Knopf bleibt stehen */ }
     finally { setLegtAn(false); }
+  }
+
+  /**
+   * Ein Gespraech schliessen oder wieder aufmachen.
+   *
+   * Geht ueber denselben Weg wie der Befehl /close - eine zweite Schnittstelle
+   * fuer dieselbe Sache waeren zwei Stellen, an denen sich das Verhalten
+   * auseinanderentwickeln koennte.
+   */
+  async function standWechseln(warErledigt: boolean) {
+    if (!gewaehlt) return;
+    try {
+      await fetch('/api/kontakt/chat', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: gewaehlt, text: warErledigt ? '/open' : '/close' }),
+      });
+    } catch { /* dann eben nicht */ }
+    void holen(false);
   }
 
   /** Aus einer Gruppe austreten, mit Grund. */
@@ -477,6 +509,18 @@ export default function ChatFenster({ alsSeite = false }: { alsSeite?: boolean }
                     +
                   </button>
                 )}
+                {/* Ein Gespraech zumachen oder wieder aufmachen. Es gibt dafuer
+                    auch /close und /open, aber wer gerade liest, will nicht
+                    tippen muessen. */}
+                {aktuell && admin && (
+                  <button onClick={() => void standWechseln(aktuell.erledigt)}
+                    className={`rounded-lg border px-2.5 py-1 text-[11px]
+                      transition ${aktuell.erledigt
+                        ? 'border-zinc-700 text-slate-300 hover:border-sky-500 hover:text-sky-400'
+                        : 'border-emerald-600/60 text-emerald-400 hover:bg-emerald-500/10'}`}>
+                    {aktuell.erledigt ? <T>wieder öffnen</T> : <T>erledigt</T>}
+                  </button>
+                )}
                 {aktuell && aktuell.darfVerlassen && (
                   <button onClick={() => setVerlassenOffen(true)}
                     className="rounded-lg px-2 py-1 text-[11px] text-slate-500
@@ -605,6 +649,19 @@ export default function ChatFenster({ alsSeite = false }: { alsSeite?: boolean }
                     </button>
                   );
                 })}
+
+                {/* Offen oder erledigt - die zweite Frage. */}
+                <span className="mx-1 w-px self-stretch bg-zinc-800" />
+                {(['alle', 'offen', 'erledigt'] as const).map((w) => (
+                  <button key={w} type="button" onClick={() => setStand(w)}
+                    className={`rounded-full border px-2.5 py-1 text-[11px]
+                      transition ${stand === w
+                        ? 'border-sky-500 bg-sky-500/10 text-sky-300'
+                        : 'border-zinc-800 text-slate-500 hover:border-zinc-600'}`}>
+                    {w === 'alle' ? <T>alle</T>
+                      : w === 'offen' ? <T>offen</T> : <T>erledigt</T>}
+                  </button>
+                ))}
               </div>
             )}
 
@@ -622,7 +679,8 @@ export default function ChatFenster({ alsSeite = false }: { alsSeite?: boolean }
                                hover:bg-zinc-900/60">
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="truncate text-sm font-medium text-slate-200">
+                        <span className={`truncate text-sm font-medium
+                          ${g.erledigt ? 'text-slate-500 line-through' : 'text-slate-200'}`}>
                           {betreff(g)}
                         </span>
                         {admin && (

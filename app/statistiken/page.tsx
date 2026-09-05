@@ -2054,17 +2054,75 @@ export default function StatistikSeite() {
    * Schritt im Verlauf, und der Zurueck-Knopf braeuchte zehn Klicks, um die
    * Seite zu verlassen.
    */
+  /*
+   * Hat der Tiefenlink schon seine Chance gehabt?
+   *
+   * Der Merker steht hier oben, weil er beide Effekte betrifft. Ohne ihn
+   * lief es so: der Adress-Effekt kam als erster dran, sah "kein Profil
+   * offen" und loeschte ?spieler=PXMP aus der Adresse - eine Wimper, bevor
+   * der Effekt darunter sie lesen konnte. Neu laden landete deshalb immer
+   * wieder in der Liste, obwohl beide Haelften fuer sich richtig waren.
+   */
+  const ausAdresseGeholt = useRef(false);
+
+  /*
+   * Das Profil zumachen.
+   *
+   * Ueber den Verlauf, wenn es ueber den Verlauf aufgegangen ist: sonst
+   * bliebe der Schritt stehen, und ein Druck auf Zurueck oeffnete es gleich
+   * wieder. Wer direkt mit einem Link hereinkam, hat keinen Schritt hinter
+   * sich - dann wird schlicht geschlossen.
+   */
+  const profilSchliessen = useCallback(() => {
+    if (typeof window !== 'undefined' && window.history.state?.spieler) {
+      window.history.back();
+      return;
+    }
+    setOffen(null);
+  }, []);
+
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    // Solange der Tiefenlink noch nicht dran war, wird nichts geschrieben.
+    if (!ausAdresseGeholt.current) return;
+
     const p = new URLSearchParams(window.location.search);
     const ist = p.get('spieler');
     const soll = offen ? (offen.anzeige || offen.name) : null;
     if ((soll ?? null) === (ist ?? null)) return;
     if (soll) p.set('spieler', soll); else p.delete('spieler');
     const rest = p.toString();
-    window.history.replaceState(null, '',
-      window.location.pathname + (rest ? `?${rest}` : ''));
+    const adresse = window.location.pathname + (rest ? `?${rest}` : '');
+
+    /*
+     * Ein Profil zu oeffnen ist ein Schritt, den man zurueckgehen kann.
+     *
+     * Deshalb push statt replace, sobald eines aufgeht: der Zurueck-Knopf
+     * schliesst es dann wieder, statt die ganze Seite zu verlassen. Beim
+     * Wechsel von einem Profil zum naechsten und beim Schliessen wird
+     * ersetzt - sonst saeumten zehn angesehene Spieler den Weg zurueck.
+     */
+    if (!ist && soll) window.history.pushState({ spieler: soll }, '', adresse);
+    else window.history.replaceState(null, '', adresse);
   }, [offen]);
+
+  /*
+   * Der Zurueck-Knopf schliesst das Profil.
+   *
+   * Ohne das fuehrte er aus der Statistik heraus, obwohl auf dem Schirm nur
+   * ein Fenster darueber lag - und genau das erwartet niemand.
+   */
+  useEffect(() => {
+    const zurueck = () => {
+      const gesucht = new URLSearchParams(window.location.search).get('spieler');
+      if (!gesucht) { setOffen(null); return; }
+      const treffer = spieler.find((x) =>
+        x.epicId === gesucht || (x.anzeige || x.name) === gesucht);
+      if (treffer) oeffne(treffer);
+    };
+    window.addEventListener('popstate', zurueck);
+    return () => window.removeEventListener('popstate', zurueck);
+  }, [spieler, oeffne]);
 
   /*
    * Und zurueck: beim Aufruf mit ?spieler=... dieses Profil oeffnen.
@@ -2074,13 +2132,24 @@ export default function StatistikSeite() {
    * dreihundert eines Zeitraums, und ein weitergegebener Link soll auch
    * dann aufgehen, wenn der Betreffende gerade nicht darunter ist.
    */
-  const ausAdresseGeholt = useRef(false);
   useEffect(() => {
     if (ausAdresseGeholt.current || typeof window === 'undefined') return;
     const gesucht = new URLSearchParams(window.location.search).get('spieler');
     if (!gesucht) { ausAdresseGeholt.current = true; return; }
-    if (!spieler.length) return;
     ausAdresseGeholt.current = true;
+
+    /*
+     * Nicht auf die Liste warten, sondern gezielt suchen.
+     *
+     * Die Spielerliste wird erst geladen, wenn der Reiter "Players" offen
+     * ist - auf der Startansicht bleibt sie leer. Wer den Effekt darauf
+     * warten liess, wartete ewig: neu laden landete deshalb immer wieder in
+     * der Uebersicht, obwohl die Adresse stimmte.
+     *
+     * Der Reiter wird gleich mit umgestellt: hinter dem Profil soll die
+     * Liste liegen, aus der es kommt, nicht die Startansicht.
+     */
+    setBereich('spieler');
 
     const schluessel = (x: string) => String(x).trim().toLowerCase()
       .replace(/[^a-z0-9]/g, '');
@@ -2092,15 +2161,24 @@ export default function StatistikSeite() {
     void (async () => {
       let treffer = spieler.find(passt);
       if (!treffer) {
+        /*
+         * Ueber die Suche, nicht ueber die Bestenliste.
+         *
+         * Die Bestenliste filtert mit "q" den rohen Epic-Namen. Bei einem
+         * gepflegten Anzeigenamen ist das ein anderer: PXMP heisst dort
+         * "еlite рxmp", und die Suche nach "PXMP" ging ins Leere. Die
+         * Suchansicht kennt beide Namen und liefert dieselben Felder.
+         */
         try {
-          const p = new URLSearchParams({ saison, sort, limit: '50', q: gesucht });
-          const j = await (await fetch(`/api/szene-stats?${p}`)).json();
-          treffer = (j.spieler ?? []).find(passt);
+          const j = await (await fetch(
+            `/api/szene-stats?ansicht=suche&q=${encodeURIComponent(gesucht)}`)).json();
+          const liste: Spieler[] = j.spieler ?? [];
+          treffer = liste.find(passt) ?? liste[0];
         } catch { /* dann bleibt es bei der Liste */ }
       }
       if (treffer) oeffne(treffer);
     })();
-  }, [spieler, saison, sort, oeffne]);
+  }, [spieler, oeffne]);
 
   /** Im offenen Profil den Zeitraum wechseln. */
   const profilZeitraum = useCallback((zeitraum: string) => {
@@ -4051,7 +4129,7 @@ export default function StatistikSeite() {
       {/* ------------------------------------------------- Spielerseite */}
       {offen && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-black/80 p-3 sm:p-6"
-          onClick={(e) => { if (e.target === e.currentTarget) setOffen(null); }}>
+          onClick={(e) => { if (e.target === e.currentTarget) profilSchliessen(); }}>
           <div className="mx-auto w-full max-w-6xl overflow-hidden rounded-xl
                           border border-zinc-800 bg-zinc-950 shadow-2xl">
 
@@ -4127,11 +4205,11 @@ export default function StatistikSeite() {
                     steht weiter unten bei den Rekorden. Zweimal dieselbe
                     Aussage nebeneinander macht die Kopfzeile nur voller. */}
               </div>
-              <button onClick={() => setOffen(null)}
+              <button onClick={profilSchliessen}
                 className="rounded-md border border-zinc-800 px-3 py-1.5 text-xs
-                           text-slate-400 transition hover:border-rose-500/60
-                           hover:text-rose-400">
-                <T>Schließen</T>
+                           text-slate-400 transition hover:border-sky-500/60
+                           hover:text-sky-400">
+                ← <T>Zurück</T>
               </button>
             </div>
 
