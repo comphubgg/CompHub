@@ -10,6 +10,7 @@ import { useT } from '@/app/components/SprachProvider';
 import { useZugang } from '@/app/lib/zugang';
 import { BEREICHE as VERWALTUNGSBEREICHE, type Bereich as BereichRecht } from '@/lib/rechte';
 import { liesChatHud, setzeChatHud, CHAT_HUD_EREIGNIS } from '@/app/lib/chatHud';
+import ChatFenster from '@/app/components/ChatFenster';
 
 // Das eigene Konto.
 //
@@ -51,10 +52,19 @@ const SOCIALS = [
   { schluessel: 'discord', titel: 'Discord', vorsatz: '' },
 ];
 
-type Bereich = 'stats' | 'socials' | 'konto' | 'privat' | 'werkzeuge';
+type Bereich = 'stats' | 'socials' | 'chat' | 'konto' | 'privat' | 'werkzeuge';
 
 const BEREICHE: Array<{ wert: Bereich; titel: string }> = [
   { wert: 'socials', titel: 'Socials' },
+  /*
+   * Der Chat steht hier oben bei den anderen Bereichen.
+   *
+   * Vorher hing er unter "Account" hinter einem Knopf "Nachrichten
+   * oeffnen". Der Betreiber wollte ihn "wirklich dort, wo Socials,
+   * Account, Privacy steht" - und das ist richtig so: ein Gespraech ist
+   * ein eigener Ort, kein Anhaengsel der Kontodaten.
+   */
+  { wert: 'chat', titel: 'Chat' },
   { wert: 'konto', titel: 'Account' },
   { wert: 'privat', titel: 'Privacy' },
 ];
@@ -712,6 +722,13 @@ export default function KontoSeite() {
               </div>
             </section>
 
+
+          </div>
+        )}
+
+        {/* ------------------------------------------------------- Chat */}
+        {bereich === 'chat' && (
+          <div className="space-y-6">
             {/*
               * Das Chatsymbol am Rand an- und abschalten.
               *
@@ -752,6 +769,9 @@ export default function KontoSeite() {
               </div>
             </section>
 
+            {/* Und die Gespraeche gleich hier, statt hinter einem weiteren
+                Klick: der Reiter heisst Chat, also gehoert der Chat hinein. */}
+            <ChatFenster alsSeite />
           </div>
         )}
 
@@ -1052,3 +1072,4 @@ export default function KontoSeite() {
     </main>
   );
 }
+

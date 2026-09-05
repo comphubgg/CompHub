@@ -515,6 +515,19 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Symbol ausblenden': 'Hide icon',
   'Symbol einblenden': 'Show icon',
   'Nachrichten öffnen': 'Open messages',
+  /* Gruppen im Chat - siehe app/components/ChatFenster.tsx. */
+  'Neue Gruppe': 'New group',
+  'verlassen': 'leave',
+  'Verlassen': 'Leave',
+  'Gruppe anlegen': 'Create group',
+  'wird angelegt …': 'creating…',
+  ['eine Person — es wird ein Einzelgespräch']: 'one person — this will be a one-to-one chat',
+  ['ab zwei Personen wird es eine Gruppe']: 'from two people up it becomes a group',
+  ['Dieses Gespräch wirklich verlassen?']: 'Really leave this conversation?',
+  ['Du siehst es danach nicht mehr. Der Betreiber kann dich wieder hinzufügen.']:
+    'You will not see it afterwards. The operator can add you again.',
+  ['Grund (Spam, erledigt, …) — bleibt im Gespräch stehen']:
+    'Reason (spam, done, …) — stays in the conversation',
   ['Antwort schreiben — /hilfe zeigt die Befehle']:
     'Write a reply — /hilfe lists the commands',
   ['Bild anhängen (Strg+V geht auch)']: 'Attach an image (Ctrl+V works too)',

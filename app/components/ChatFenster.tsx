@@ -27,11 +27,16 @@ interface Nachricht {
   name: string; text: string; bilder: string[];
 }
 
+interface Teilnehmer { id: string; name: string }
+
 interface Gespraech {
   id: string; zeit: number; thema: string; eigenesThema: string;
   erledigt: boolean; vonName: string; vonEmail: string;
+  teilnehmer: Teilnehmer[]; gruppe: boolean; darfVerlassen: boolean;
   verlauf: Nachricht[]; zuletzt: number; ungelesen: number;
 }
+
+interface Nutzer { id: string; name: string; rolle: string | null }
 
 /** Wie oft nachgefragt wird - offen haeufiger als geschlossen. */
 const TAKT_ZU_MS = 30_000;
@@ -47,19 +52,20 @@ const TAKT_OFFEN_MS = 5_000;
  *
  * Die Farbe kommt aus dem Namen, nicht aus einer laufenden Nummer: derselbe
  * Mensch bekommt dadurch in jedem Gespraech dieselbe Farbe, auch wenn er dort
- * als Dritter statt als Erster auftaucht. Die Klassennamen stehen ausgeschrieben
+ * als Dritter statt als Erster auftaucht. Nur die Schriftfarbe, kein Kreis davor: der Betreiber fand das
+ * Profilbildartige stoerend, und der Name allein reicht. Die Klassennamen stehen ausgeschrieben
  * da, weil Tailwind sie sonst nicht findet - zusammengesetzte Namen fallen beim
  * Bauen heraus.
  */
 const FARBEN = [
-  { text: 'text-sky-300', grund: 'bg-sky-500/20', rand: 'border-sky-500/40' },
-  { text: 'text-emerald-300', grund: 'bg-emerald-500/20', rand: 'border-emerald-500/40' },
-  { text: 'text-amber-300', grund: 'bg-amber-500/20', rand: 'border-amber-500/40' },
-  { text: 'text-rose-300', grund: 'bg-rose-500/20', rand: 'border-rose-500/40' },
-  { text: 'text-violet-300', grund: 'bg-violet-500/20', rand: 'border-violet-500/40' },
-  { text: 'text-cyan-300', grund: 'bg-cyan-500/20', rand: 'border-cyan-500/40' },
-  { text: 'text-lime-300', grund: 'bg-lime-500/20', rand: 'border-lime-500/40' },
-  { text: 'text-orange-300', grund: 'bg-orange-500/20', rand: 'border-orange-500/40' },
+  'text-sky-300',
+  'text-emerald-300',
+  'text-amber-300',
+  'text-rose-300',
+  'text-violet-300',
+  'text-cyan-300',
+  'text-lime-300',
+  'text-orange-300',
 ];
 
 /** Der Betreiber hat immer dieselbe Farbe - er kommt in jedem Gespraech vor. */
@@ -71,14 +77,6 @@ function farbeFuer(name: string, vonBetreiber: boolean) {
   for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0;
   // Die erste Farbe gehoert dem Betreiber, die anderen werden verteilt.
   return FARBEN[1 + (h % (FARBEN.length - 1))];
-}
-
-/** Ein oder zwei Buchstaben fuer das Kreischen. */
-function kuerzel(name: string) {
-  const teile = String(name || '?').trim().split(/\s+/).filter(Boolean);
-  if (!teile.length) return '?';
-  if (teile.length === 1) return teile[0].slice(0, 2).toUpperCase();
-  return (teile[0][0] + teile[1][0]).toUpperCase();
 }
 
 const THEMENNAME: Record<string, string> = {
@@ -112,6 +110,24 @@ export default function ChatFenster({ alsSeite = false }: { alsSeite?: boolean }
   const [gross, setGross] = useState<string | null>(null);
   /** Antwort auf einen Befehl - nur fuer den Betreiber, nicht im Verlauf. */
   const [hinweis, setHinweis] = useState<string | null>(null);
+
+  /*
+   * Eine neue Gruppe zusammenstellen.
+   *
+   * Es gibt den Befehl /new, aber der setzt voraus, dass man die Namen
+   * auswendig weiss. Der Betreiber wollte suchen koennen: "dann werden sie
+   * mir angezeigt, wenn es da viele Leute gibt, und dann kann ich sie
+   * hinzufuegen."
+   */
+  const [neuOffen, setNeuOffen] = useState(false);
+  const [suche, setSuche] = useState('');
+  const [treffer, setTreffer] = useState<Nutzer[]>([]);
+  const [gewaehlteNutzer, setGewaehlteNutzer] = useState<Nutzer[]>([]);
+  const [legtAn, setLegtAn] = useState(false);
+
+  /** Austreten - mit Rueckfrage und Grund. */
+  const [verlassenOffen, setVerlassenOffen] = useState(false);
+  const [verlassenGrund, setVerlassenGrund] = useState('');
   const endeRef = useRef<HTMLDivElement | null>(null);
 
   /*
@@ -243,6 +259,65 @@ export default function ChatFenster({ alsSeite = false }: { alsSeite?: boolean }
     return () => window.removeEventListener('paste', rein);
   }, [offen, nimmDatei]);
 
+  /*
+   * Konten suchen, waehrend getippt wird.
+   *
+   * Mit kurzer Verzoegerung: bei jedem Tastendruck zu fragen waere ein
+   * Dutzend Anfragen fuer einen Namen. Ohne Suchbegriff kommen die letzten
+   * zwanzig - man will ja auch stoebern koennen.
+   */
+  useEffect(() => {
+    if (!neuOffen || !admin) return;
+    let lebt = true;
+    const uhr = setTimeout(() => {
+      void (async () => {
+        try {
+          const r = await fetch(`/api/kontakt/chat?nutzer=${encodeURIComponent(suche)}`);
+          if (!r.ok) return;
+          const j = await r.json();
+          if (lebt) setTreffer(j.nutzer ?? []);
+        } catch { /* dann bleibt die Liste, wie sie ist */ }
+      })();
+    }, 250);
+    return () => { lebt = false; clearTimeout(uhr); };
+  }, [neuOffen, admin, suche]);
+
+  /** Die zusammengestellte Gruppe anlegen und gleich hineingehen. */
+  async function gruppeAnlegen() {
+    if (!gewaehlteNutzer.length || legtAn) return;
+    setLegtAn(true);
+    try {
+      const r = await fetch('/api/kontakt/chat', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ neu: true, teilnehmer: gewaehlteNutzer.map((n) => n.id) }),
+      });
+      if (r.ok) {
+        const j = await r.json();
+        await holen(false);
+        setNeuOffen(false);
+        setGewaehlteNutzer([]);
+        setSuche('');
+        if (j.gespraech?.id) setGewaehlt(j.gespraech.id);
+      }
+    } catch { /* dann eben nicht - der Knopf bleibt stehen */ }
+    finally { setLegtAn(false); }
+  }
+
+  /** Aus einer Gruppe austreten, mit Grund. */
+  async function verlassen() {
+    if (!gewaehlt) return;
+    try {
+      await fetch('/api/kontakt/chat', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: gewaehlt, verlassen: true, grund: verlassenGrund }),
+      });
+    } catch { /* trotzdem schliessen - beim naechsten Laden steht der Stand */ }
+    setVerlassenOffen(false);
+    setVerlassenGrund('');
+    setGewaehlt(null);
+    void holen(false);
+  }
+
   async function senden() {
     const text = entwurf.trim();
     // Ein Bild allein ist auch eine Nachricht - dann steht eben kein Satz
@@ -346,11 +421,34 @@ export default function ChatFenster({ alsSeite = false }: { alsSeite?: boolean }
                 </h2>
                 {aktuell && (
                   <p className="truncate text-[11px] text-slate-500">
-                    {admin ? aktuell.vonName : t('CompHub')}
+                    {/* Bei einer Gruppe steht da, wer dabei ist - sonst nur
+                        die Gegenstelle. */}
+                    {aktuell.gruppe
+                      ? [aktuell.vonName, ...aktuell.teilnehmer.map((x) => x.name)]
+                        .filter(Boolean).join(', ')
+                      : (admin ? aktuell.vonName : t('CompHub'))}
                   </p>
                 )}
               </div>
               <div className="flex items-center gap-1">
+                {/* Eine neue Gruppe - nur der Betreiber macht die auf. */}
+                {admin && !aktuell && (
+                  <button onClick={() => { setNeuOffen((v) => !v); setSuche(''); }}
+                    title={t('Neue Gruppe')}
+                    className={`rounded-lg border px-2 py-1 text-sm transition
+                      ${neuOffen
+                        ? 'border-sky-500 bg-sky-500/10 text-sky-300'
+                        : 'border-zinc-700 text-slate-300 hover:border-sky-500'}`}>
+                    +
+                  </button>
+                )}
+                {aktuell && aktuell.darfVerlassen && (
+                  <button onClick={() => setVerlassenOffen(true)}
+                    className="rounded-lg px-2 py-1 text-[11px] text-slate-500
+                               transition hover:text-red-400">
+                    <T>verlassen</T>
+                  </button>
+                )}
                 {aktuell && (
                   <button onClick={() => setGewaehlt(null)}
                     className="rounded-lg px-2 py-1 text-xs text-slate-400
@@ -386,6 +484,72 @@ export default function ChatFenster({ alsSeite = false }: { alsSeite?: boolean }
                 )}
               </div>
             </div>
+
+            {/* Wen soll die neue Gruppe umfassen? */}
+            {!aktuell && neuOffen && (
+              <div className="border-b border-zinc-800 bg-zinc-900/40 p-3">
+                <input value={suche} autoFocus
+                  onChange={(e) => setSuche(e.target.value)}
+                  placeholder={t('Namen suchen …')}
+                  className="w-full rounded-lg border border-zinc-800 bg-zinc-950
+                             px-3 py-2 text-sm text-slate-100 outline-none
+                             placeholder:text-slate-600 focus:border-sky-500" />
+
+                {gewaehlteNutzer.length > 0 && (
+                  <div className="mt-2 flex flex-wrap gap-1.5">
+                    {gewaehlteNutzer.map((n) => (
+                      <button key={n.id} type="button"
+                        onClick={() => setGewaehlteNutzer((a) => a.filter((x) => x.id !== n.id))}
+                        className="rounded-full border border-sky-500/50 bg-sky-500/10
+                                   px-2.5 py-1 text-[11px] text-sky-300 transition
+                                   hover:border-red-500 hover:text-red-400">
+                        {n.name} ×
+                      </button>
+                    ))}
+                  </div>
+                )}
+
+                <div className="mt-2 max-h-44 overflow-y-auto rounded-lg border
+                                border-zinc-800">
+                  {treffer.length === 0 ? (
+                    <p className="p-3 text-[11px] text-slate-600">
+                      <T>Niemand gefunden.</T>
+                    </p>
+                  ) : treffer
+                    .filter((n) => !gewaehlteNutzer.some((g) => g.id === n.id))
+                    .map((n) => (
+                      <button key={n.id} type="button"
+                        onClick={() => setGewaehlteNutzer((a) => [...a, n])}
+                        className="flex w-full items-center justify-between gap-2
+                                   border-b border-zinc-900 px-3 py-2 text-left
+                                   text-xs text-slate-300 last:border-0
+                                   transition hover:bg-zinc-900">
+                        <span className="truncate">{n.name}</span>
+                        {n.rolle && (
+                          <span className="shrink-0 text-[10px] text-slate-600">
+                            {n.rolle}
+                          </span>
+                        )}
+                      </button>
+                    ))}
+                </div>
+
+                <div className="mt-2 flex items-center gap-2">
+                  <button onClick={() => void gruppeAnlegen()}
+                    disabled={!gewaehlteNutzer.length || legtAn}
+                    className="rounded-lg bg-sky-500 px-4 py-2 text-xs font-medium
+                               text-white transition hover:bg-sky-400
+                               disabled:opacity-40">
+                    {legtAn ? <T>wird angelegt …</T> : <T>Gruppe anlegen</T>}
+                  </button>
+                  <span className="text-[10px] text-slate-600">
+                    {gewaehlteNutzer.length === 1
+                      ? <T>eine Person — es wird ein Einzelgespräch</T>
+                      : <T>ab zwei Personen wird es eine Gruppe</T>}
+                  </span>
+                </div>
+              </div>
+            )}
 
             {/* Die Liste der Gespraeche */}
             {!aktuell && (
@@ -442,24 +606,14 @@ export default function ChatFenster({ alsSeite = false }: { alsSeite?: boolean }
                     const f = farbeFuer(name, vonBetreiber);
                     return (
                       <div key={n.id}
-                        className={`flex items-end gap-2
-                          ${eigen ? 'flex-row-reverse' : 'flex-row'}`}>
-                        {/* Das Kreischen mit den Anfangsbuchstaben. Es steht auf
-                            beiden Seiten: in einer Gruppe schreibt nicht nur
-                            einer von rechts. */}
-                        <span title={name}
-                          className={`grid h-7 w-7 shrink-0 place-items-center
-                            rounded-full border text-[10px] font-bold
-                            ${f.grund} ${f.rand} ${f.text}`}>
-                          {kuerzel(name)}
-                        </span>
+                        className={`flex ${eigen ? 'justify-end' : 'justify-start'}`}>
                         <div className={`max-w-[80%] rounded-2xl px-3.5 py-2.5
                           ${eigen
                             ? 'bg-sky-500/15 text-slate-100'
                             : 'bg-zinc-900 text-slate-200'}`}>
                           {/* Wer geschrieben hat - vorher stand dort nur die
                               Uhrzeit, und in einer Gruppe half die nicht weiter. */}
-                          <p className={`mb-0.5 text-[11px] font-semibold ${f.text}`}>
+                          <p className={`mb-0.5 text-[11px] font-semibold ${f}`}>
                             {name}
                           </p>
                           <p className="whitespace-pre-wrap text-sm leading-relaxed">
@@ -579,6 +733,47 @@ export default function ChatFenster({ alsSeite = false }: { alsSeite?: boolean }
                 </div>
               </>
             )}
+          </div>
+        </div>
+      )}
+
+      {/*
+        * Wirklich austreten?
+        *
+        * Mit Rueckfrage und Grund: wer aus einer Gruppe verschwindet, ohne
+        * etwas zu sagen, hinterlaesst bei den anderen ein Raetsel. Der Grund
+        * bleibt im Gespraech stehen - anders als die Befehle des Betreibers
+        * ist er eine Nachricht an die anderen.
+        */}
+      {verlassenOffen && (
+        <div className="fixed inset-0 z-[60] grid place-items-center bg-zinc-950/90 p-6">
+          <div className="w-full max-w-sm rounded-2xl border border-zinc-800
+                          bg-zinc-950 p-5">
+            <h3 className="text-sm font-semibold text-slate-100">
+              <T>Dieses Gespräch wirklich verlassen?</T>
+            </h3>
+            <p className="mt-1 text-xs leading-relaxed text-slate-500">
+              <T>Du siehst es danach nicht mehr. Der Betreiber kann dich wieder
+              hinzufügen.</T>
+            </p>
+            <textarea value={verlassenGrund} rows={3} maxLength={500}
+              onChange={(e) => setVerlassenGrund(e.target.value)}
+              placeholder={t('Grund (Spam, erledigt, …) — bleibt im Gespräch stehen')}
+              className="mt-3 w-full resize-none rounded-lg border border-zinc-800
+                         bg-zinc-950 px-3 py-2 text-sm text-slate-100 outline-none
+                         placeholder:text-slate-600 focus:border-sky-500" />
+            <div className="mt-3 flex justify-end gap-2">
+              <button onClick={() => { setVerlassenOffen(false); setVerlassenGrund(''); }}
+                className="rounded-lg border border-zinc-700 px-4 py-2 text-xs
+                           text-slate-300 transition hover:border-zinc-500">
+                <T>Abbrechen</T>
+              </button>
+              <button onClick={() => void verlassen()}
+                className="rounded-lg border border-red-500/60 px-4 py-2 text-xs
+                           text-red-400 transition hover:bg-red-500/10">
+                <T>Verlassen</T>
+              </button>
+            </div>
           </div>
         </div>
       )}
