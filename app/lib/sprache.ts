@@ -516,6 +516,14 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Symbol einblenden': 'Show icon',
   'Nachrichten öffnen': 'Open messages',
   /* Gruppen im Chat - siehe app/components/ChatFenster.tsx. */
+  /* Fusszeile und Kontaktformular. */
+  'Feedback': 'Feedback',
+  ['Wie es sich anfühlt']: 'How it feels to use',
+  ['Formular im Werkzeug →']: 'Form inside the tool →',
+  ['Nicht mit Epic Games verbunden. Alle Marken gehören ihren Inhabern.']:
+    'Not affiliated with Epic Games. All trademarks belong to their owners.',
+  ['Statistiken, Turniere und Streams der kompetitiven Fortnite-Szene — an einem Ort, aus einem Archiv.']:
+    'Stats, tournaments and streams from competitive Fortnite — in one place, from one archive.',
   'Neue Gruppe': 'New group',
   'verlassen': 'leave',
   'Verlassen': 'Leave',

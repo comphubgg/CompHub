@@ -84,11 +84,12 @@ async function werFragt(): Promise<Wer | null> {
  * zweiunddreissig Zeichen sagt niemandem etwas.
  */
 function fuerAnsicht(
-  m: Meldung, admin: boolean, ich: string, namen: Map<string, string>,
+  m: Meldung, admin: boolean, ich: string, namen: Map<string, KontoKurz>,
 ) {
   const teilnehmer = (m.teilnehmer ?? []).map((id) => ({
-    id, name: namen.get(id) || id,
+    id, name: namen.get(id)?.name || id,
   }));
+  const absender = namen.get(m.vonId);
   return {
     id: m.id,
     zeit: m.zeit,
@@ -96,6 +97,9 @@ function fuerAnsicht(
     eigenesThema: m.eigenesThema,
     erledigt: m.erledigt,
     vonName: m.vonName,
+    /* Fuer die Sortierung beim Betreiber - VIPs stehen oben. */
+    vonVip: Boolean(absender?.vip) || absender?.rolle === 'pro',
+    vonRolle: absender?.rolle ?? null,
     // Die Adresse braucht nur der Betreiber, um notfalls doch zu mailen.
     vonEmail: admin ? m.vonEmail : '',
     teilnehmer,
@@ -116,10 +120,23 @@ function fuerAnsicht(
   };
 }
 
-/** Konto-Id zu Name, einmal je Anfrage. */
-async function namensBuch(): Promise<Map<string, string>> {
+/** Was ueber ein Konto im Chat gebraucht wird. */
+interface KontoKurz { name: string; vip: boolean; rolle: string | null }
+
+/**
+ * Konto-Id zu Name und Rang, einmal je Anfrage.
+ *
+ * Der Rang kommt mit, weil der Betreiber seine Liste danach ordnen wollte:
+ * "alle VIPs kommen immer nach oben, alle anderen sind unten". Ohne ihn
+ * muesste die Oberflaeche fuer jedes Gespraech einzeln nachfragen.
+ */
+async function namensBuch(): Promise<Map<string, KontoKurz>> {
   const konten = await alleKonten();
-  return new Map(konten.map((k) => [k.id, k.name || k.id]));
+  return new Map(konten.map((k) => [k.id, {
+    name: k.name || k.id,
+    vip: Boolean(k.vip),
+    rolle: k.rolle ?? null,
+  }]));
 }
 
 export async function GET(request: Request) {
@@ -185,8 +202,8 @@ export async function POST(request: Request) {
     const [erster, ...weitere] = ids;
     const titel = String(k.titel ?? '').trim().slice(0, 120)
       || (ids.length > 1
-        ? `Group: ${ids.map((i) => namen.get(i) ?? i).join(', ')}`
-        : `Message to ${namen.get(erster) ?? erster}`);
+        ? `Group: ${ids.map((i) => namen.get(i)?.name ?? i).join(', ')}`
+        : `Message to ${namen.get(erster)?.name ?? erster}`);
 
     /*
      * Der erste Gewaehlte ist der Absender, die anderen kommen dazu.
@@ -202,7 +219,7 @@ export async function POST(request: Request) {
       text: String(k.text ?? '').trim() || 'CompHub started this conversation.',
       bilder: [],
       vonId: erster,
-      vonName: namen.get(erster) ?? '',
+      vonName: namen.get(erster)?.name ?? '',
       vonEmail: '',
     });
     if (weitere.length) await setzeTeilnehmer(m.id, weitere);

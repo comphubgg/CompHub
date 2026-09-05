@@ -25,6 +25,7 @@ interface Meldung {
 const THEMENFARBE: Record<string, string> = {
   support: 'border-sky-500/50 bg-sky-500/10 text-sky-400',
   report: 'border-red-500/50 bg-red-500/10 text-red-400',
+  feedback: 'border-violet-500/50 bg-violet-500/10 text-violet-400',
   hilfe: 'border-amber-500/50 bg-amber-500/10 text-amber-400',
   idee: 'border-emerald-500/50 bg-emerald-500/10 text-emerald-400',
   anderes: 'border-zinc-700 bg-zinc-800/40 text-slate-400',

@@ -32,6 +32,7 @@ interface Teilnehmer { id: string; name: string }
 interface Gespraech {
   id: string; zeit: number; thema: string; eigenesThema: string;
   erledigt: boolean; vonName: string; vonEmail: string;
+  vonVip: boolean; vonRolle: string | null;
   teilnehmer: Teilnehmer[]; gruppe: boolean; darfVerlassen: boolean;
   verlauf: Nachricht[]; zuletzt: number; ungelesen: number;
 }
@@ -80,7 +81,7 @@ function farbeFuer(name: string, vonBetreiber: boolean) {
 }
 
 const THEMENNAME: Record<string, string> = {
-  support: 'Support', report: 'Report', hilfe: 'Hilfe',
+  support: 'Support', report: 'Report', feedback: 'Feedback', hilfe: 'Hilfe',
   idee: 'Idee', anderes: 'Anderes',
 };
 
@@ -124,6 +125,15 @@ export default function ChatFenster({ alsSeite = false }: { alsSeite?: boolean }
   const [treffer, setTreffer] = useState<Nutzer[]>([]);
   const [gewaehlteNutzer, setGewaehlteNutzer] = useState<Nutzer[]>([]);
   const [legtAn, setLegtAn] = useState(false);
+
+  /*
+   * Wonach die Liste gefiltert wird.
+   *
+   * Nur fuer den Betreiber: bei ihm laufen alle Meldungen zusammen, und wer
+   * gerade Fehlerberichte abarbeitet, will nicht zwischen Lob und Ideen
+   * suchen. Wer nur seine eigenen zwei Gespraeche hat, braucht das nicht.
+   */
+  const [filter, setFilter] = useState<string>('alle');
 
   /** Austreten - mit Rueckfrage und Grund. */
   const [verlassenOffen, setVerlassenOffen] = useState(false);
@@ -210,6 +220,31 @@ export default function ChatFenster({ alsSeite = false }: { alsSeite?: boolean }
   }, [offen, holen]);
 
   const aktuell = gespraeche.find((g) => g.id === gewaehlt) ?? null;
+
+  /*
+   * Was in der Liste steht, und in welcher Reihenfolge.
+   *
+   * VIPs zuerst - so wollte es der Betreiber: "alle VIPs kommen immer nach
+   * oben, alle anderen sind unten." Innerhalb der beiden Gruppen zaehlt, wo
+   * zuletzt etwas geschah; wer gerade schreibt, soll nicht nach unten
+   * rutschen, nur weil er kein VIP ist.
+   *
+   * Ungelesenes schlaegt beides: eine unbeantwortete Frage soll nicht
+   * deshalb untergehen, weil sie von jemandem ohne Rang kam.
+   */
+  const gezeigt = gespraeche
+    .filter((g) => filter === 'alle' || g.thema === filter)
+    .slice()
+    .sort((a, b) => {
+      if ((a.ungelesen > 0) !== (b.ungelesen > 0)) return a.ungelesen > 0 ? -1 : 1;
+      if (a.vonVip !== b.vonVip) return a.vonVip ? -1 : 1;
+      return b.zuletzt - a.zuletzt;
+    });
+
+  /** Wie viele Gespraeche auf ein Thema entfallen - fuer die Zahl am Filter. */
+  const zahlJeThema = (thema: string) => (thema === 'alle'
+    ? gespraeche.length
+    : gespraeche.filter((g) => g.thema === thema).length);
 
   // Ans Ende springen, sobald ein Gespraech offen ist oder etwas dazukommt.
   useEffect(() => {
@@ -551,14 +586,36 @@ export default function ChatFenster({ alsSeite = false }: { alsSeite?: boolean }
               </div>
             )}
 
+            {/* Wonach gefiltert wird - nur beim Betreiber, und nur wenn es
+                ueberhaupt etwas zu sortieren gibt. */}
+            {!aktuell && admin && gespraeche.length > 1 && (
+              <div className="flex flex-wrap gap-1.5 border-b border-zinc-800
+                              px-3 py-2">
+                {['alle', ...Object.keys(THEMENNAME)].map((th) => {
+                  const zahl = zahlJeThema(th);
+                  if (th !== 'alle' && zahl === 0) return null;
+                  return (
+                    <button key={th} type="button" onClick={() => setFilter(th)}
+                      className={`rounded-full border px-2.5 py-1 text-[11px]
+                        transition ${filter === th
+                          ? 'border-sky-500 bg-sky-500/10 text-sky-300'
+                          : 'border-zinc-800 text-slate-500 hover:border-zinc-600'}`}>
+                      {th === 'alle' ? <T>Alle</T> : <T>{THEMENNAME[th]}</T>}
+                      <span className="ml-1.5 text-slate-600">{zahl}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
             {/* Die Liste der Gespraeche */}
             {!aktuell && (
               <div className="flex-1 overflow-y-auto">
-                {gespraeche.length === 0 ? (
+                {gezeigt.length === 0 ? (
                   <p className="p-8 text-center text-sm text-slate-500">
                     <T>Noch keine Nachrichten.</T>
                   </p>
-                ) : gespraeche.map((g) => (
+                ) : gezeigt.map((g) => (
                   <button key={g.id} onClick={() => void oeffne(g.id)}
                     className="flex w-full items-start gap-3 border-b
                                border-zinc-900 px-4 py-3 text-left transition
@@ -571,6 +628,16 @@ export default function ChatFenster({ alsSeite = false }: { alsSeite?: boolean }
                         {admin && (
                           <span className="truncate text-[11px] text-slate-500">
                             · {g.vonName}
+                          </span>
+                        )}
+                        {/* Woran man den Rang sieht, ohne ihn nachschlagen zu
+                            muessen. */}
+                        {admin && g.vonVip && (
+                          <span className="shrink-0 rounded border
+                                           border-amber-500/50 bg-amber-500/10
+                                           px-1.5 text-[9px] font-bold uppercase
+                                           tracking-wider text-amber-400">
+                            {g.vonRolle === 'pro' ? 'Pro' : 'VIP'}
                           </span>
                         )}
                       </div>

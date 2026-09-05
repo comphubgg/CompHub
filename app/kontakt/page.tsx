@@ -21,6 +21,7 @@ import { useZugang } from '@/app/lib/zugang';
 const THEMEN = [
   { schluessel: 'support', titel: 'Support', was: 'Etwas geht nicht' },
   { schluessel: 'report', titel: 'Report', was: 'Jemand oder etwas melden' },
+  { schluessel: 'feedback', titel: 'Feedback', was: 'Wie es sich anfühlt' },
   { schluessel: 'hilfe', titel: 'Hilfe', was: 'Ich komme nicht weiter' },
   { schluessel: 'idee', titel: 'Idee', was: 'Ein Vorschlag' },
   { schluessel: 'anderes', titel: 'Anderes', was: 'Betreff selbst schreiben' },

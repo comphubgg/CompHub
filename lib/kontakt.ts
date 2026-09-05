@@ -20,7 +20,7 @@ const DATEI = path.join(DATEN_ORT, 'kontakt.json');
 const BILDER = path.join(DATEN_ORT, 'kontakt-bilder');
 
 /** Worum es geht. "anderes" traegt seinen Betreff selbst. */
-export const THEMEN = ['support', 'report', 'hilfe', 'idee', 'anderes'] as const;
+export const THEMEN = ['support', 'report', 'feedback', 'hilfe', 'idee', 'anderes'] as const;
 export type Thema = typeof THEMEN[number];
 
 export interface Meldung {
