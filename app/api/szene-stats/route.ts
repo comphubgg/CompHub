@@ -4,7 +4,7 @@ import path from 'path';
 import {
   auswahl, bildFuer, gesamtSummen, heimatRegionen, liesVerzeichnis, SAISON_NAMEN,
   saisonName, startseite, summen, tagesbeste, verlauf, epicVerlauf,
-  epicTurniere, istGrossesTurnier, istFinaleTag,
+  istGrossesTurnier, istFinaleTag,
 } from '@/lib/szeneStats';
 import { DATEN_ORT } from '@/lib/datenOrt';
 
@@ -387,18 +387,6 @@ export async function GET(request: Request) {
                     && (!region || e.region === region));
 
       /*
-       * Dazu die Spieltage, die nur Epic kennt.
-       *
-       * Die Szene-Quelle veroeffentlicht ihre Einzelwerte erst ein bis zwei
-       * Tage nach dem Cup. Bis dahin fehlte das Turnier hier vollstaendig -
-       * ein Finale, das gestern gelaufen ist, stand nicht in der Statistik.
-       * Epic fuehrt das Fenster sofort, und Platz, Punkte und Matches sind
-       * echte Werte. Sie tragen "nurEpic", damit die Kachel dazuschreiben
-       * kann, was noch fehlt.
-       */
-      const nurEpic = await epicTurniere({ saison, region });
-
-      /*
        * Nur die grossen Finale - so wollte es der Betreiber.
        *
        * "unter der Statistik page ... sollen nur Finale kommen plus nur
@@ -410,8 +398,24 @@ export async function GET(request: Request) {
        * Mit "?alle=1" kommt trotzdem die volle Liste - die Daten sind ja
        * da, sie stehen nur nicht im Weg.
        */
+      /*
+       * Was keine Statistik hat, wird nicht aufgelistet.
+       *
+       * Die Epic-Spieltage kamen dazu, damit ein gestern gelaufenes Finale
+       * nicht fehlt. Gemessen an der laufenden Liste tragen sie aber keine
+       * Einzelwerte: von zwoelf geprueften lieferten zwoelf null Spieler,
+       * waehrend zwoelf aus der Szene-Quelle alle rund hundert lieferten.
+       * Eine Kachel, die sich anklicken laesst und dann leer ist, ist keine
+       * Auskunft, sondern eine Sackgasse - der Betreiber dazu: "dann liest
+       * Du auch nur die auf, ueber die Du auch Statistik hast, sonst musst
+       * Du ihn ja nicht mal auflisten."
+       *
+       * Sie verschwinden damit nicht aus dem Werkzeug: Platz und Punkte
+       * stehen unter Events, und darauf weist die Statistikseite oben auch
+       * hin, solange ein Cup laeuft.
+       */
       const ohneFilter = p.get('alle') === '1';
-      const gross = [...gefiltert, ...nurEpic].filter((t) => {
+      const gross = gefiltert.filter((t) => {
         if (ohneFilter) return true;
         if (!istGrossesTurnier(t.name)) return false;
         return istFinaleTag(t.name,
