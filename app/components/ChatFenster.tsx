@@ -146,7 +146,15 @@ export default function ChatFenster({ alsSeite = false }: { alsSeite?: boolean }
    * Voreingestellt ist "alle" - wer ein geschlossenes Gespraech sucht, soll
    * es sehen, ohne erst einen Schalter zu finden.
    */
-  const [stand, setStand] = useState<'alle' | 'offen' | 'erledigt'>('alle');
+  /*
+   * Am Rand nur Laufendes, im Archiv alles.
+   *
+   * Das schwebende Fenster ist fuer das, was gerade ansteht - ein
+   * abgeschlossenes Gespraech dort waere nur eine Zeile, die im Weg steht.
+   * Wer eines sucht, geht ins Archiv unter /nachrichten und sucht bewusst.
+   */
+  const [stand, setStand] = useState<'alle' | 'offen' | 'erledigt'>(
+    alsSeite ? 'alle' : 'offen');
 
   /*
    * Namen vorschlagen, waehrend getippt wird.

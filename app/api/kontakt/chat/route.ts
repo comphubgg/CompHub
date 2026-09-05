@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { kontoAus, nachId, alleKonten } from '@/lib/konten';
 import { istBetreiber, vipAus } from '@/lib/vipCookie';
-import { zugangNach, rechteVon } from '@/lib/vipZugaenge';
+import { zugangNach, rechteVon, alleZugaenge } from '@/lib/vipZugaenge';
 import {
   alle, sichtbarFuer, antworte, markiereGelesen, lege, setzeTeilnehmer, aendere,
   ganzerVerlauf, ungelesen, letzteZeit, type Meldung,
@@ -64,12 +64,28 @@ async function werFragt(): Promise<Wer | null> {
     }
   }
 
+  /*
+   * Der alte VIP-Weg.
+   *
+   * Es gibt zwei getrennte Nutzerlisten: die Konten (konten.json) und die
+   * VIP-Zugaenge (vip-users.json) aus der Zeit davor. Hier kamen bisher nur
+   * Betreiber und Admins durch - ein gewoehnlicher VIP hatte gar keinen Chat,
+   * obwohl er im Werkzeug angemeldet war. Jetzt kommt jeder gueltige Zugang
+   * herein; die Kennung "vip:<name>" haelt ihn von den Konten getrennt.
+   */
   const vipWert = laden.get('streamer_dashboard_auth')?.value;
   if (vipWert) {
     if (istBetreiber(vipWert)) return { id: 'betreiber', name: 'CompHub', admin: true };
     const name = vipAus(vipWert);
-    if (name && rechteVon(await zugangNach(name)).rolle === 'admin') {
-      return { id: `vip:${name}`, name, admin: true };
+    if (name) {
+      const zugang = await zugangNach(name);
+      if (zugang) {
+        return {
+          id: `vip:${name}`,
+          name,
+          admin: rechteVon(zugang).rolle === 'admin',
+        };
+      }
     }
   }
 
@@ -140,12 +156,27 @@ interface KontoKurz { name: string; vip: boolean; rolle: string | null }
  * muesste die Oberflaeche fuer jedes Gespraech einzeln nachfragen.
  */
 async function namensBuch(): Promise<Map<string, KontoKurz>> {
-  const konten = await alleKonten();
-  return new Map(konten.map((k) => [k.id, {
-    name: k.name || k.id,
-    vip: Boolean(k.vip),
-    rolle: k.rolle ?? null,
-  }]));
+  const buch = new Map<string, KontoKurz>();
+
+  for (const k of await alleKonten()) {
+    buch.set(k.id, {
+      name: k.name || k.id,
+      vip: Boolean(k.vip),
+      rolle: k.rolle ?? null,
+    });
+  }
+
+  // Und die Zugaenge aus dem alten System, unter derselben Kennung, mit der
+  // sie im Gespraech stehen.
+  for (const z of await alleZugaenge()) {
+    buch.set(`vip:${z.username}`, {
+      name: z.username,
+      vip: true,
+      rolle: rechteVon(z).rolle ?? null,
+    });
+  }
+
+  return buch;
 }
 
 export async function GET(request: Request) {
@@ -163,10 +194,39 @@ export async function GET(request: Request) {
   if (p.has('nutzer')) {
     if (!wer.admin) return NextResponse.json({ fehler: 'nicht erlaubt' }, { status: 403 });
     const suche = (p.get('nutzer') ?? '').trim().toLowerCase();
-    const gefunden = (await alleKonten())
-      .filter((k) => !suche || String(k.name ?? '').toLowerCase().includes(suche))
-      .slice(0, 30)
-      .map((k) => ({ id: k.id, name: k.name || k.id, rolle: k.rolle ?? null }));
+
+    /*
+     * Beide Listen zusammen.
+     *
+     * Wer nur die Konten durchsuchte, fand die Haelfte nicht: die VIPs aus dem
+     * alten System stehen in einer eigenen Datei und haben keine Konto-Id. Der
+     * Betreiber suchte deshalb Leute, die es sehr wohl gab. Sie kommen mit der
+     * Kennung "vip:<name>" mit - dieselbe, unter der sie sich anmelden.
+     */
+    const ausKonten = (await alleKonten()).map((k) => ({
+      id: k.id, name: k.name || k.id, rolle: k.rolle ?? null,
+    }));
+    // Abgeschaltete Zugaenge stehen nicht zur Auswahl - wer sich nicht
+    // anmelden kann, kann auch nichts lesen.
+    const ausVips = (await alleZugaenge())
+      .filter((z) => z.status !== 'disabled')
+      .map((z) => ({
+      id: `vip:${z.username}`,
+      name: z.username,
+      rolle: rechteVon(z).rolle ?? 'vip',
+    }));
+
+    // Wer beides hat, soll nicht doppelt dastehen - der Name entscheidet.
+    const gesehen = new Set(ausKonten.map((k) => k.name.toLowerCase()));
+    const alleNutzer = [
+      ...ausKonten,
+      ...ausVips.filter((v) => !gesehen.has(v.name.toLowerCase())),
+    ];
+
+    const gefunden = alleNutzer
+      .filter((k) => !suche || k.name.toLowerCase().includes(suche))
+      .sort((a, b) => a.name.localeCompare(b.name))
+      .slice(0, 30);
     return NextResponse.json({ ok: true, nutzer: gefunden });
   }
 

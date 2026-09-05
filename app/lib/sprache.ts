@@ -536,6 +536,8 @@ const AUF_ENGLISCH: Record<string, string> = {
   ['Dieses Gespräch ist offen — schreib einfach.']: 'This conversation is open — just write.',
   ['Diesen Namen kennt niemand hier. Versuch es mit deiner E-Mail-Adresse.']:
     'Nobody here goes by that name. Try your email address instead.',
+  'Chatarchiv': 'Chat archive',
+  ['Alle Gespräche, auch die abgeschlossenen']: 'Every conversation, closed ones included',
   'Neue Gruppe': 'New group',
   'verlassen': 'leave',
   'Verlassen': 'Leave',

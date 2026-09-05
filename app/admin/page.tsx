@@ -50,6 +50,15 @@ const ZIELE: Ziel[] = [
   { href: '/events', titel: 'Events', text: 'Cups und Leaderboards' },
   { href: '/tierlist', titel: 'Tierlist', text: 'Spieler einsortieren' },
   { href: '/overlays', titel: 'Overlays', text: 'Einblendungen für den Stream' },
+  /*
+   * Das Chatarchiv gehoert hierher und nicht in das schwebende Fenster.
+   *
+   * Dort steht, was gerade laeuft; wer ein abgeschlossenes Gespraech sucht,
+   * sucht es bewusst und nicht im Vorbeigehen. Und es steht im
+   * Schnellzugriff, nicht bei den Adminwerkzeugen: jeder hat Gespraeche,
+   * nur eben die eigenen.
+   */
+  { href: '/nachrichten', titel: 'Chatarchiv', text: 'Alle Gespräche, auch die abgeschlossenen' },
 ];
 
 /**
