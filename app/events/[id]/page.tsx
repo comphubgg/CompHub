@@ -248,6 +248,35 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
   const [offenesSpiel, setOffenesSpiel] = useState<string | null>(null);
   /** An einem Qualifikationstag sind es hunderte - erst einmal nur die ersten. */
   const [alleSpiele, setAlleSpiele] = useState(false);
+
+  /*
+   * Was gerade zu sehen ist.
+   *
+   * Vorher stand alles untereinander: Bestenliste, Runden und
+   * Turnierstatistik auf einer sehr langen Seite. Der Betreiber wollte es
+   * wie bei der Quelle, die er sonst benutzt - eine Leiste, in der man
+   * auswaehlt, statt alles gleichzeitig zu sehen.
+   */
+  const [reiter, setReiter] =
+    useState<'liste' | 'runden' | 'spieler' | 'teams'>('liste');
+
+  /*
+   * Werte je einzelnem Spieler.
+   *
+   * Kommen aus den Replays, nicht aus dem Leaderboard - Epic zaehlt dort je
+   * Team, und bei einem Duo waere nicht zu erkennen, wer die Elims geholt
+   * hat. Auch das wird erst auf Verlangen geladen.
+   */
+  const [spielerWerte, setSpielerWerte] = useState<{
+    vorhanden: boolean; runden: number;
+    spieler: Array<{
+      epicId: string; name: string; land: string; spiele: number;
+      kills: number; knocks: number; tode: number; umgehauen: number;
+      platz: number | null; partner: string[];
+    }>;
+  } | null>(null);
+  const [spielerLaedt, setSpielerLaedt] = useState(false);
+  const [spielerSuche, setSpielerSuche] = useState('');
   const [kopiert, setKopiert] = useState<string | null>(null);
 
   /** Was es zu gewinnen gibt - aus Epics Auszahlungstabelle. */
@@ -741,6 +770,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
    */
   useEffect(() => {
     setSpiele(null); setOffenesSpiel(null); setKopiert(null); setAlleSpiele(false);
+    setSpielerWerte(null);
   }, [fenster]);
 
   useEffect(() => {
@@ -772,6 +802,18 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
   const eineLobby = useMemo(
     () => !!spiele && gespielteRunden > 0 && spiele.length <= gespielteRunden + 1,
     [spiele, gespielteRunden]);
+
+  useEffect(() => {
+    if (reiter !== 'spieler' || !fenster || spielerWerte) return;
+    let weg = false;
+    setSpielerLaedt(true);
+    fetch(`/api/cup-spieler?window=${encodeURIComponent(fenster.windowId)}`)
+      .then((r) => r.json())
+      .then((j) => { if (!weg) setSpielerWerte(j?.error ? null : j); })
+      .catch(() => { if (!weg) setSpielerWerte(null); })
+      .finally(() => { if (!weg) setSpielerLaedt(false); });
+    return () => { weg = true; };
+  }, [reiter, fenster, spielerWerte]);
 
   /** Die Match-Id in die Zwischenablage - mit sichtbarer Rueckmeldung. */
   const idKopieren = useCallback((id: string) => {
@@ -1215,23 +1257,23 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                     className="flex items-center justify-between rounded-lg border
                                border-zinc-800 bg-zinc-950/60 px-3 py-2">
                     <span className="text-xs text-slate-400">
-                      {/* Eine Stufe gilt fuer alle Plaetze bis zu ihrer
-                          Schwelle: unter "5" und ueber "7" steht nichts, also
-                          bekommt der Sechste dasselbe wie der Siebte. */}
-                      {g.art === 'rank'
-                        ? <><T>Platz</T>{' '}{(g.plaetze ?? 1) > 1
-                          ? `${g.von}–${g.schwelle}` : g.schwelle}</>
+                      {/*
+                        * "Top 7" statt "Platz 6-7".
+                        *
+                        * Eine Stufe gilt fuer alle Plaetze bis zu ihrer
+                        * Schwelle - der Sechste bekommt dasselbe wie der
+                        * Siebte. Geschrieben wird trotzdem nur die Schwelle,
+                        * so wie Epic sie ankuendigt und wie es jeder liest.
+                        * Die Spanne steckt in der Summe oben, nicht in der
+                        * Zeile.
+                        */}
+                      {g.art === 'rank' ? <>Top {g.schwelle}</>
                         : g.art === 'percentile'
                           ? <><T>beste</T> {(g.schwelle * 100).toFixed(0)} %</>
                           : <>{g.schwelle.toLocaleString(ort)} <T>Punkte</T></>}
                     </span>
                     <span className="text-sm font-semibold text-emerald-400">
                       {g.betrag.toLocaleString(ort)} {preise.waehrung ?? 'USD'}
-                      {(g.plaetze ?? 1) > 1 && (
-                        <span className="ml-1 text-[11px] font-normal text-slate-500">
-                          × {g.plaetze}
-                        </span>
-                      )}
                     </span>
                   </div>
                 ))}
@@ -1268,7 +1310,34 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
             stand, war nachweislich falsch, und eine falsche Angabe ist
             schlechter als gar keine. */}
 
+        {/*
+          * Die Auswahlleiste.
+          *
+          * Ein Reiter, der nichts zu zeigen hat, bleibt trotzdem stehen und
+          * sagt es beim Anklicken. Ihn zu verstecken hiesse, dass die Leiste
+          * je nach Spieltag anders aussieht - und dass man sich fragt, ob es
+          * die Ansicht ueberhaupt gibt.
+          */}
+        <div className="mb-3 flex flex-wrap items-center gap-1 overflow-x-auto
+                        rounded-xl border border-zinc-800 bg-zinc-900/40 px-2 py-1.5">
+          {([
+            ['liste', 'Leaderboard'],
+            ['runden', 'Matches'],
+            ['spieler', 'Spieler-Stats'],
+            ['teams', 'Team-Stats'],
+          ] as const).map(([id, name]) => (
+            <button key={id} onClick={() => setReiter(id)}
+              className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                reiter === id
+                  ? 'bg-sky-500/10 text-sky-400'
+                  : 'text-slate-400 hover:text-slate-200'}`}>
+              {name === 'Matches' ? 'Matches' : <T>{name}</T>}
+            </button>
+          ))}
+        </div>
+
         {/* Leaderboard */}
+        {reiter === 'liste' && (
         <section className="rounded-xl border border-zinc-800 bg-zinc-950/60">
           <header className="flex flex-wrap items-center justify-between gap-3 border-b
                              border-zinc-800 px-4 py-3">
@@ -1548,6 +1617,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
             </p>
           )}
         </section>
+        )}
 
         {/*
           * Die einzelnen Runden.
@@ -1557,8 +1627,15 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
           * diesem einen Spiel welcher". Beides nebeneinander ist genau der
           * Blick, den man beim Auswerten braucht.
           */}
-        {fenster && fenster.status !== 'kommt' && (
-          <section className="mt-4 rounded-xl border border-zinc-800 bg-zinc-950/60">
+        {reiter === 'runden' && (!fenster || fenster.status === 'kommt') && (
+          <p className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-8
+                        text-center text-sm text-slate-500">
+            <T>Dieser Spieltag hat noch nicht stattgefunden.</T>
+          </p>
+        )}
+
+        {reiter === 'runden' && fenster && fenster.status !== 'kommt' && (
+          <section className="rounded-xl border border-zinc-800 bg-zinc-950/60">
             <header className="flex flex-wrap items-center justify-between gap-3
                                border-b border-zinc-800 px-4 py-3">
               {/* Bewusst ohne Uebersetzung: "Matches" heisst in beiden
@@ -1757,9 +1834,136 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
           </section>
         )}
 
+        {/*
+          * Werte je einzelnem Spieler.
+          *
+          * Das ist die Ansicht, die aus dem Leaderboard grundsaetzlich nicht
+          * zu bauen ist: Epic zaehlt je Team. Hier steht, wer von einem Duo
+          * die Elims geholt hat - gezaehlt aus den Replays, die das Werkzeug
+          * ohnehin einsammelt.
+          */}
+        {reiter === 'spieler' && (
+          <section className="rounded-xl border border-zinc-800 bg-zinc-950/60">
+            <header className="flex flex-wrap items-center justify-between gap-3
+                               border-b border-zinc-800 px-4 py-3">
+              <h2 className="text-sm font-semibold text-slate-100">
+                <T>Spieler-Stats</T>
+              </h2>
+              <div className="flex items-center gap-3">
+                <input value={spielerSuche}
+                  onChange={(e) => setSpielerSuche(e.target.value)}
+                  placeholder={t('Spieler suchen …')}
+                  className="w-52 rounded-lg border border-zinc-800 bg-zinc-900/80 px-3
+                             py-1.5 text-xs text-slate-100 outline-none
+                             focus:border-sky-500" />
+                {spielerWerte?.vorhanden && (
+                  <span className="text-xs text-slate-500">
+                    {spielerWerte.spieler.length} <T>Spieler</T>
+                    {' · '}{spielerWerte.runden} <T>Runden</T>
+                  </span>
+                )}
+              </div>
+            </header>
+
+            {spielerLaedt && !spielerWerte && (
+              <div className="space-y-1 p-4">
+                {[...Array(8)].map((unbenutzt, i) =>
+                  <div key={i} className="h-8 animate-pulse rounded bg-zinc-900/60" />)}
+              </div>
+            )}
+
+            {spielerWerte && !spielerWerte.vorhanden && (
+              <p className="p-8 text-center text-sm leading-relaxed text-slate-500">
+                <T>Zu diesem Spieltag sind noch keine Replays ausgewertet. Erst
+                daraus lässt sich zählen, wer von einem Duo welche Elim geholt
+                hat — Epic liefert die Werte nur je Team. Die Replays werden
+                planmäßig eingesammelt und stehen meist am Tag danach
+                bereit.</T>
+              </p>
+            )}
+
+            {spielerWerte?.vorhanden && (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-zinc-800 text-[11px] uppercase
+                                   tracking-wider text-slate-500">
+                      <th className="px-4 py-2 text-right font-medium">#</th>
+                      <th className="px-3 py-2 text-left font-medium"><T>Spieler</T></th>
+                      <th className="px-3 py-2 text-right font-medium"><T>Elims</T></th>
+                      <th className="px-3 py-2 text-right font-medium"><T>Knocks</T></th>
+                      <th className="px-3 py-2 text-right font-medium"><T>Tode</T></th>
+                      <th className="px-3 py-2 text-right font-medium"><T>Ø je Runde</T></th>
+                      <th className="px-4 py-2 text-right font-medium"><T>Runden</T></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {spielerWerte.spieler
+                      .filter((sp) => {
+                        const q = spielerSuche.trim().toLowerCase();
+                        if (!q) return true;
+                        return sp.name.toLowerCase().includes(q)
+                          || sp.partner.some((x) => x.toLowerCase().includes(q));
+                      })
+                      .map((sp, i) => (
+                        <tr key={sp.epicId}
+                          className="border-b border-zinc-900/70 last:border-0">
+                          <td className="px-4 py-1.5 text-right tabular-nums
+                                         text-slate-500">{i + 1}</td>
+                          <td className="px-3 py-1.5">
+                            <span className="flex items-center gap-2">
+                              {sp.land && (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={`/flags/${sp.land.toLowerCase()}.png`} alt=""
+                                  className="h-3.5 w-5 rounded-[2px] object-cover" />
+                              )}
+                              <span className="text-slate-200">{sp.name}</span>
+                              {sp.partner.length > 0 && (
+                                <span className="text-[11px] text-slate-600">
+                                  <T>mit</T> {sp.partner.join(', ')}
+                                  {sp.platz ? ` · #${sp.platz}` : ''}
+                                </span>
+                              )}
+                            </span>
+                          </td>
+                          <td className="px-3 py-1.5 text-right tabular-nums
+                                         font-semibold text-slate-100">{sp.kills}</td>
+                          <td className="px-3 py-1.5 text-right tabular-nums
+                                         text-slate-400">{sp.knocks}</td>
+                          <td className="px-3 py-1.5 text-right tabular-nums
+                                         text-slate-500">{sp.tode}</td>
+                          <td className="px-3 py-1.5 text-right tabular-nums
+                                         text-slate-400">
+                            {sp.spiele ? (sp.kills / sp.spiele).toFixed(2) : '—'}
+                          </td>
+                          <td className="px-4 py-1.5 text-right tabular-nums
+                                         text-slate-500">{sp.spiele}</td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+                <p className="border-t border-zinc-900 px-4 py-2 text-[11px]
+                              text-slate-600">
+                  <T>Aus den Replays dieses Spieltags gezählt, je Spieler. Ein Knock
+                  ist das Umhauen, eine Elim das endgültige Ausschalten — beides
+                  zusammen zu zählen ergäbe fast doppelt so viele Elims, wie das
+                  Turnier kennt.</T>
+                </p>
+              </div>
+            )}
+          </section>
+        )}
+
+        {reiter === 'teams' && !statistik.length && (
+          <p className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-8
+                        text-center text-sm text-slate-500">
+            <T>Zu diesem Spieltag liegen noch keine Teamwerte vor.</T>
+          </p>
+        )}
+
         {/* Turnierstatistik - nur unter einem Finale */}
-        {statistik.length > 0 && (
-          <section className="mt-6">
+        {reiter === 'teams' && statistik.length > 0 && (
+          <section>
             <div className="mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
               <h2 className="text-sm font-semibold text-slate-100">
                 <T>Turnierstatistik</T>

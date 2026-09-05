@@ -1882,6 +1882,30 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Tagesplatz': 'Day rank',
   'Lobby': 'Lobby',
   'alle anzeigen': 'show all',
+  'Spieler-Stats': 'Player Stats',
+  'Team-Stats': 'Team Stats',
+  ['Dieser Spieltag hat noch nicht stattgefunden.']:
+    'This match day has not taken place yet.',
+  ['Zu diesem Spieltag liegen noch keine Teamwerte vor.']:
+    'No team stats for this match day yet.',
+  'Tode': 'Deaths',
+  'Ø je Runde': 'per round',
+  'mit': 'with',
+  ['Zu diesem Spieltag sind noch keine Replays ausgewertet. Erst '
+    + 'daraus lässt sich zählen, wer von einem Duo welche Elim geholt hat '
+    + '— Epic liefert die Werte nur je Team. Die Replays werden planmäßig '
+    + 'eingesammelt und stehen meist am Tag danach bereit.']:
+    'No replays have been analysed for this match day yet. Only they '
+    + 'can tell which of a duo got which elim — Epic reports the values '
+    + 'per team only. Replays are collected on a schedule and are usually '
+    + 'ready the next day.',
+  ['Aus den Replays dieses Spieltags gezählt, je Spieler. Ein Knock '
+    + 'ist das Umhauen, eine Elim das endgültige Ausschalten — beides '
+    + 'zusammen zu zählen ergäbe fast doppelt so viele Elims, wie das '
+    + 'Turnier kennt.']:
+    'Counted from this match day’s replays, per player. A knock is '
+    + 'going down, an elim is being taken out for good — counting both '
+    + 'together would give almost twice the elims the tournament knows.',
   ['An diesem Spieltag laufen viele Lobbys gleichzeitig. Jede Kachel '
     + 'ist deshalb eine eigene Lobby und keine gemeinsame Runde — '
     + 'geordnet nach dem Zeitpunkt, an dem sie zu Ende war.']:
