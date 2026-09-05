@@ -81,7 +81,16 @@ export async function POST(request: Request) {
     bilder: Array.isArray(k.bilder) ? k.bilder : [],
     vonId: konto.id,
     vonName: konto.name ?? '',
-    vonEmail: konto.email ?? '',
+    /*
+     * Die angegebene Adresse geht vor.
+     *
+     * Sie ist freiwillig und darf von der des Kontos abweichen - wer aus
+     * einem gemeinsam genutzten Konto schreibt, will die Antwort woanders.
+     * Und die alten VIP-Zugaenge haben gar keine, dort ist sie die einzige.
+     */
+    vonEmail: /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(k.email ?? '').trim())
+      ? String(k.email).trim()
+      : (konto.email ?? ''),
   });
 
   /*

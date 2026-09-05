@@ -43,6 +43,28 @@ export default function KontaktSeite() {
   const [fehler, setFehler] = useState('');
   const [gesendet, setGesendet] = useState(false);
 
+  /*
+   * Die Adresse fuer eine Rueckfrage.
+   *
+   * Vorgeschlagen wird die des Kontos, aber sie ist zu aendern: nicht jeder
+   * liest dort mit, und die alten VIP-Zugaenge haben ueberhaupt keine
+   * hinterlegt - bei denen stand im Posteingang bisher ein Strich, und der
+   * Betreiber konnte nur im Werkzeug antworten.
+   *
+   * Freiwillig. Wer nichts angibt, bekommt die Antwort im Gespraech; das
+   * funktioniert weiterhin und ist fuer viele der bequemere Weg.
+   */
+  const [antwortMail, setAntwortMail] = useState('');
+
+  useEffect(() => {
+    void (async () => {
+      try {
+        const j = await (await fetch('/api/konto')).json();
+        if (j?.konto?.email) setAntwortMail(j.konto.email);
+      } catch { /* dann bleibt das Feld leer */ }
+    })();
+  }, []);
+
   /**
    * Ein Bild aufnehmen - aus der Dateiwahl oder aus der Zwischenablage.
    *
@@ -85,7 +107,7 @@ export default function KontaktSeite() {
     try {
       const r = await fetch('/api/kontakt', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ thema, eigenesThema, text, bilder }),
+        body: JSON.stringify({ thema, eigenesThema, text, bilder, email: antwortMail }),
       });
       const j = await r.json();
       if (!r.ok) { setFehler(t(j?.fehler || 'Das ging nicht.')); return; }
@@ -193,6 +215,15 @@ export default function KontaktSeite() {
               className={`${FELD} mt-1`} />
           </label>
         )}
+
+        <label className="mb-4 block text-xs text-slate-500">
+          <T>E-Mail für Rückfragen</T>{' '}
+          <span className="text-slate-600"><T>(freiwillig)</T></span>
+          <input value={antwortMail} type="email" inputMode="email"
+            onChange={(e) => setAntwortMail(e.target.value)}
+            placeholder={t('damit dich eine Antwort auch per Mail erreicht')}
+            className={`${FELD} mt-1`} />
+        </label>
 
         <label className="mb-4 block text-xs text-slate-500">
           <T>Beschreibung</T>
