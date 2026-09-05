@@ -3,6 +3,7 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import crypto from 'crypto';
 import { DATEN_ORT } from '@/lib/datenOrt';
+import { kontoAus, nachId } from '@/lib/konten';
 
 const PROFILE_FILE = path.join(DATEN_ORT, 'streamer-profiles.json');
 const VIP_USERS_FILE = path.join(DATEN_ORT, 'vip-users.json');
@@ -105,24 +106,76 @@ function buildDefaultProfile(username: string): ProfileData {
   };
 }
 
+/**
+ * Wer angemeldet ist - ueber den alten VIP-Weg oder ueber ein Konto.
+ *
+ * Das Dashboard kannte lange nur den VIP-Schluessel. Wer sich gewoehnlich
+ * registriert hatte und von Hand VIP bekam, lief hier in ein 401 und sah
+ * daraufhin ein halbes Dashboard - der Betreiber: "wieso haben wir so zwei
+ * verschiedene Dashboards". Es waren nie zwei Seiten, sondern eine Seite und
+ * zwei Anmeldewege, von denen sie nur einen kannte.
+ *
+ * Der Schluessel, unter dem das Profil abgelegt wird, unterscheidet die
+ * beiden: ein Konto bekommt "konto:<id>". Damit koennen ein alter VIP-Name
+ * und ein Kontoname gleich lauten, ohne sich das Profil zu teilen.
+ */
+async function werIstDa(request: NextRequest): Promise<{
+  schluessel: string; anzeige: string; vip: boolean; accessKey: string | null;
+} | null> {
+  const vipName = getCurrentUser(request);
+  if (vipName) {
+    const vipMap = await getVipMapping();
+    return {
+      schluessel: vipName,
+      anzeige: vipName,
+      vip: Boolean(vipMap[vipName]),
+      accessKey: await getVipAccessKey(vipName),
+    };
+  }
+
+  const id = kontoAus(request.cookies.get('streamer_dashboard_konto')?.value);
+  if (!id) return null;
+  const konto = await nachId(id);
+  if (!konto || konto.gesperrt) return null;
+
+  /*
+   * Einen Zugriffsschluessel gibt es hier nicht.
+   *
+   * Er gehoert zum alten VIP-Weg, bei dem man sich mit Name und Schluessel
+   * anmeldete. Ein Konto hat ein Passwort; einen zweiten Schluessel daneben
+   * zu erfinden waere ein Geheimnis mehr, das jemand verlieren kann.
+   */
+  const vip = Boolean(konto.vipBis && new Date(konto.vipBis).getTime() > Date.now())
+    || Boolean(konto.rolle);
+  return {
+    schluessel: `konto:${konto.id}`,
+    anzeige: konto.name || konto.email || konto.id,
+    vip,
+    accessKey: null,
+  };
+}
+
 export async function GET(request: NextRequest) {
-  const username = getCurrentUser(request);
-  if (!username) {
+  const wer = await werIstDa(request);
+  if (!wer) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
   const profiles = (await readJsonFile<ProfilesFile>(PROFILE_FILE)) || {};
-  const profile = profiles[username] || buildDefaultProfile(username);
-  const vipMap = await getVipMapping();
-  const accessKey = await getVipAccessKey(username);
-  return NextResponse.json({ profile, accountStatus: vipMap[username] ? 'VIP User' : 'Normal User', accessKey });
+  const profile = profiles[wer.schluessel] || buildDefaultProfile(wer.anzeige);
+  return NextResponse.json({
+    profile,
+    accountStatus: wer.vip ? 'VIP User' : 'Normal User',
+    accessKey: wer.accessKey,
+  });
 }
 
 export async function POST(request: NextRequest) {
-  const username = getCurrentUser(request);
-  if (!username) {
+  const wer = await werIstDa(request);
+  if (!wer) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
+  const username = wer.anzeige;
 
   try {
     const body = await request.json();
@@ -140,7 +193,7 @@ export async function POST(request: NextRequest) {
       socials: { twitch: String(profile.socials?.twitch || '').trim() },
     };
 
-    existingProfiles[username] = savedProfile;
+    existingProfiles[wer.schluessel] = savedProfile;
     await writeJsonFile(PROFILE_FILE, existingProfiles);
 
     return NextResponse.json({ success: true, profile: savedProfile });

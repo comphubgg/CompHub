@@ -296,7 +296,15 @@ export default function AdminDashboardPage() {
               </p>
             </section>
 
-            {/* Zugangsschluessel */}
+            {/*
+              * Der Zugangsschluessel - nur, wo es einen gibt.
+              *
+              * Er gehoert zum alten VIP-Weg, bei dem man sich mit Name und
+              * Schluessel anmeldete. Wer ein Konto hat, meldet sich mit einem
+              * Passwort an und braucht ihn nicht; ein leeres Kaestchen mit
+              * ausgegrauten Knoepfen sah dagegen aus, als fehle etwas.
+              */}
+            {accessKey && (
             <section className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
               <h2 className="text-sm font-semibold text-slate-100"><T>Zugangsschlüssel</T></h2>
               <div className="mt-3 flex flex-wrap items-center gap-3">
@@ -321,6 +329,7 @@ export default function AdminDashboardPage() {
                 </button>
               </div>
             </section>
+            )}
 
             {/* Schnellzugriff */}
             <section className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
