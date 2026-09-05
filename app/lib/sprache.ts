@@ -1585,6 +1585,9 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Verstanden': 'Got it',
   'Profil': 'Profile',
   'Schnellzugriff': 'Quick access',
+  'In dieser Saison gibt es noch keine weiteren Spieltage — die Quelle liefert sie ein bis zwei Tage nach jedem Cup.':
+    'No further match days in this season yet — the source publishes them '
+    + 'one to two days after each cup.',
   'Der Name braucht drei bis vierundzwanzig Zeichen.':
     'The name needs three to twenty-four characters.',
   'Im Namen darf kein Leerzeichen stehen.': 'The name cannot contain a space.',

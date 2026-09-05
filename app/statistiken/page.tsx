@@ -1491,6 +1491,14 @@ export default function StatistikSeite() {
    * Weg. Nichts wird verworfen, nur nicht angezeigt.
    */
   const [nurGrosse, setNurGrosse] = useState(true);
+  /*
+   * Wie viele Spieltage es so und so gaebe.
+   *
+   * Damit laesst sich sagen, wenn der Schalter gerade nichts bewirkt - in
+   * einer frisch angefangenen Saison ist das der Normalfall, und ohne einen
+   * Hinweis haelt man ihn dann fuer kaputt.
+   */
+  const [turnierZahlen, setTurnierZahlen] = useState<{ alle: number; grosse: number } | null>(null);
   // Regionenseite
   const [regionFeld, setRegionFeld] = useState<Spieler[]>([]);
   const [regionLaedt, setRegionLaedt] = useState(false);
@@ -1804,7 +1812,7 @@ export default function StatistikSeite() {
       .then(() => fetch(`/api/szene-stats?ansicht=turniere&saison=${saison}`
         + (nurGrosse ? '' : '&alle=1')))
       .then((r) => r.json())
-      .then((j) => setTurniere(j.turniere ?? []))
+      .then((j) => { setTurniere(j.turniere ?? []); setTurnierZahlen(j.zahlen ?? null); })
       .catch(() => setTurniere([]));
   }, [bereich, saison, nurGrosse]);
 
@@ -1891,7 +1899,7 @@ export default function StatistikSeite() {
     fetch(`/api/szene-stats?ansicht=turniere&saison=${saison}`
         + (nurGrosse ? '' : '&alle=1'))
       .then((r) => r.json())
-      .then((j) => setTurniere(j.turniere ?? []))
+      .then((j) => { setTurniere(j.turniere ?? []); setTurnierZahlen(j.zahlen ?? null); })
       .catch(() => {});
   }, [bereich, saison, nurGrosse]);
 
@@ -3228,6 +3236,21 @@ export default function StatistikSeite() {
                       : 'border-zinc-800 text-slate-400 hover:border-zinc-700'}`}>
                     {nurGrosse ? <T>nur große Finale</T> : <T>alle Spieltage</T>}
                   </button>
+
+                  {/*
+                    * Wenn der Schalter nichts bewirkt, gehoert das dagesagt.
+                    *
+                    * In einer frisch angefangenen Saison sind die wenigen
+                    * vorhandenen Turniere ohnehin alle grosse Finale - der
+                    * Schalter aendert dann nichts, und wer das sieht, haelt
+                    * ihn fuer kaputt.
+                    */}
+                  {turnierZahlen && turnierZahlen.alle === turnierZahlen.grosse && (
+                    <span className="text-[11px] text-slate-500">
+                      <T>In dieser Saison gibt es noch keine weiteren Spieltage —
+                      die Quelle liefert sie ein bis zwei Tage nach jedem Cup.</T>
+                    </span>
+                  )}
 
                   <div className="flex gap-1 rounded-lg border border-zinc-800 p-1">
                     <button onClick={() => setTafel(true)}

@@ -430,7 +430,30 @@ export async function GET(request: Request) {
       for (const t of zusammen) {
         turniere.push({ ...t, bild: await bildFuer(t.name), saisonName: saisonName(t.season) });
       }
-      return NextResponse.json({ success: true, quelle: QUELLE, turniere });
+
+      /*
+       * Wie viele es so und so waeren.
+       *
+       * Der Schalter "alle Spieltage" bringt in einer frisch angefangenen
+       * Saison nichts: die Szene-Quelle veroeffentlicht ihre Einzelwerte ein
+       * bis zwei Tage nach einem Cup, und bis dahin sind die wenigen
+       * vorhandenen Turniere ohnehin alle grosse Finale. Gemessen: in S40
+       * werden aus 46 Turnieren 118, in S41 aus 69 124 - in der laufenden
+       * S42 aus 13 dagegen 13.
+       *
+       * Wer den Schalter umlegt und nichts passieren sieht, haelt ihn fuer
+       * kaputt. Deshalb kommen beide Zahlen mit heraus, und die Oberflaeche
+       * kann sagen, dass es gerade nichts weiter gibt.
+       */
+      const zahlen = {
+        alle: gefiltert.length,
+        grosse: gefiltert.filter((t) => istGrossesTurnier(t.name)
+          && istFinaleTag(t.name,
+            'istFinale' in t ? (t as { istFinale?: boolean }).istFinale : undefined,
+            (t as { windowId?: string }).windowId)).length,
+      };
+
+      return NextResponse.json({ success: true, quelle: QUELLE, turniere, zahlen });
     }
 
     if (!saison && !region && !event && !events.length && !spieler) {
