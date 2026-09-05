@@ -207,7 +207,13 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
   /** Was es zu gewinnen gibt - aus Epics Auszahlungstabelle. */
   const [preise, setPreise] = useState<{
     vorhanden: boolean; waehrung: string | null; gesamt: number | null;
-    geld: Array<{ art: string; schwelle: number; betrag: number }>;
+    /*
+     * Jede Stufe deckt eine Spanne von Plaetzen ab, nicht einen einzelnen.
+     * "von" ist der erste, "schwelle" der letzte - siehe mitPlaetzen in
+     * app/api/cup-preise.
+     */
+    geld: Array<{ art: string; schwelle: number; betrag: number;
+      von?: number; plaetze?: number }>;
     gegenstaende: Array<{ art: string; schwelle: number; name: string }>;
     /** Wahr, wenn die Zahlen aus der gepflegten Datei stammen, nicht von Epic. */
     gepflegt?: boolean; quelle?: string | null; proPerson?: boolean;
@@ -1091,16 +1097,18 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
             <>
             <div className="mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
               <h2 className="text-sm font-semibold text-slate-100"><T>Preisgeld</T></h2>
+              {/* Die Summe ueber alle Plaetze, nicht ueber die Zeilen der
+                  Tabelle - eine Stufe wie "Platz 21-40" wird zwanzigmal
+                  ausgezahlt. Und der Zusatz gehoert genau einmal daneben:
+                  "je Region" und "je Person" nebeneinander widersprachen
+                  sich. */}
               {preise.gesamt !== null && (
                 <span className="text-sm font-bold text-emerald-400">
                   {preise.gesamt.toLocaleString(ort)} {preise.waehrung ?? 'USD'}
                   <span className="ml-1 text-[11px] font-normal text-slate-500">
-                    <T>je Region</T>
+                    {preise.proPerson ? <T>je Person</T> : <T>je Region</T>}
                   </span>
                 </span>
-              )}
-              {preise.proPerson && (
-                <span className="text-[11px] text-slate-500"><T>je Person</T></span>
               )}
             </div>
             {preise.erlaeuterung && (
@@ -1114,13 +1122,23 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                     className="flex items-center justify-between rounded-lg border
                                border-zinc-800 bg-zinc-950/60 px-3 py-2">
                     <span className="text-xs text-slate-400">
-                      {g.art === 'rank' ? <><T>Platz</T> {g.schwelle}</>
+                      {/* Eine Stufe gilt fuer alle Plaetze bis zu ihrer
+                          Schwelle: unter "5" und ueber "7" steht nichts, also
+                          bekommt der Sechste dasselbe wie der Siebte. */}
+                      {g.art === 'rank'
+                        ? <><T>Platz</T>{' '}{(g.plaetze ?? 1) > 1
+                          ? `${g.von}–${g.schwelle}` : g.schwelle}</>
                         : g.art === 'percentile'
                           ? <><T>beste</T> {(g.schwelle * 100).toFixed(0)} %</>
                           : <>{g.schwelle.toLocaleString(ort)} <T>Punkte</T></>}
                     </span>
                     <span className="text-sm font-semibold text-emerald-400">
                       {g.betrag.toLocaleString(ort)} {preise.waehrung ?? 'USD'}
+                      {(g.plaetze ?? 1) > 1 && (
+                        <span className="ml-1 text-[11px] font-normal text-slate-500">
+                          × {g.plaetze}
+                        </span>
+                      )}
                     </span>
                   </div>
                 ))}

@@ -160,6 +160,43 @@ interface Gepflegt {
   stufen_anzahl?: number;
 }
 
+interface Zahlung { art: string; schwelle: number; betrag: number }
+
+/**
+ * Aus den Schwellen die Plaetze machen, die sie wirklich meinen.
+ *
+ * Epics Tabelle nennt je Stufe nur eine Zahl: 1, 2, 3, 4, 5, 7, 10, 20, 40.
+ * Das sind keine neun Preise, sondern neun Spannen. Wer Siebter wird,
+ * bekommt 250 - und der Sechste bekommt dasselbe, weil zwischen der Stufe
+ * "5" und der Stufe "7" nichts anderes steht. Genauso teilen sich der Achte
+ * bis Zehnte die 200, der Elfte bis Zwanzigste die 150 und der
+ * Einundzwanzigste bis Vierzigste die 100.
+ *
+ * Ohne diese Rechnung stimmte zweierlei nicht. In der Liste stand "Platz 7"
+ * ueber einem Betrag, den auch der Sechste bekommt - eine Zeile, die man
+ * falsch liest. Und die Summe darueber addierte neun Betraege statt
+ * vierzig: beim FNCS Divisional Cup 5.950 statt 9.850 Dollar. Der Betreiber
+ * hat genau das bemerkt.
+ *
+ * Nur Platzierungen lassen sich so aufspannen. Punkte- und Prozentstufen
+ * beschreiben keine Plaetze und bleiben unangetastet.
+ */
+function mitPlaetzen<T extends Zahlung>(geld: T[]) {
+  let vorige = 0;
+  return geld.map((z) => {
+    if (z.art !== 'rank') return { ...z, von: z.schwelle, plaetze: 1 };
+    const von = vorige + 1;
+    const plaetze = Math.max(1, z.schwelle - vorige);
+    vorige = z.schwelle;
+    return { ...z, von, plaetze };
+  });
+}
+
+/** Was ein Spieltag ausschuettet - jede Spanne mit allen ihren Plaetzen. */
+function summeUeberPlaetze(geld: Array<Zahlung & { plaetze: number }>) {
+  return geld.reduce((s, x) => s + x.betrag * x.plaetze, 0);
+}
+
 /** Die Turnierkennung ohne Season und Region - wie in der Kartenablage. */
 function turnierKern(eventId: string): string {
   return (eventId ?? '')
@@ -222,6 +259,18 @@ export async function GET(request: Request) {
       && g.region.toUpperCase() === region
       && (!g.nurFinale || istFinale));
     if (!treffer) return null;
+
+    /*
+     * Die Stufen tragen in der Datei den Schluessel "ab". Gemeint ist die
+     * letzte Platzierung der Spanne, genau wie bei Epic - "ab: 7" heisst
+     * "Platz 6 und 7", nicht "ab Platz 7". Der Name stammt aus der ersten
+     * Fassung und bleibt, damit die gepflegte Datei nicht angefasst werden
+     * muss; gerechnet wird nach der Bedeutung.
+     */
+    const platzStufen = mitPlaetzen((treffer.stufen ?? []).map((s) => ({
+      art: 'rank', schwelle: s.ab, betrag: s.betrag,
+    })));
+
     return NextResponse.json({
       vorhanden: true, window: window_, region,
       waehrung: treffer.waehrung ?? 'USD',
@@ -237,18 +286,18 @@ export async function GET(request: Request) {
        * dieselbe Zahl mal zwei, mal drei.
        */
       geld: treffer.art === 'platz'
-        ? (treffer.stufen ?? []).map((s) => ({ art: 'rank', schwelle: s.ab,
-          betrag: s.betrag }))
+        ? platzStufen
         : Array.from({ length: Math.max(1, treffer.stufen_anzahl ?? 3) },
           (unbenutzt, i) => ({
             art: 'value',
             schwelle: (treffer.jePunkte ?? 100) * (i + 1),
             betrag: (treffer.betrag ?? 0) * (i + 1),
+            von: (treffer.jePunkte ?? 100) * (i + 1),
+            plaetze: 1,
           })),
       gegenstaende: [], wertung,
       // Bei Punktezahlungen laesst sich nichts aufaddieren - siehe unten.
-      gesamt: treffer.art === 'platz'
-        ? (treffer.stufen ?? []).reduce((s, x) => s + x.betrag, 0) : null,
+      gesamt: treffer.art === 'platz' ? summeUeberPlaetze(platzStufen) : null,
     });
   }
 
@@ -291,18 +340,20 @@ export async function GET(request: Request) {
   geld.sort((a, b) => a.schwelle - b.schwelle);
   gegenstaende.sort((a, b) => a.schwelle - b.schwelle);
 
+  const gespannt = mitPlaetzen(geld);
+
   /*
    * Die Gesamtsumme nur bei Platzierungen, und nur wenn jede Stufe eine
    * eigene Schwelle hat. Bei "100 Punkte: 100 $" bekaeme jeder, der die
    * Punkte schafft, den Betrag - da liesse sich nichts aufaddieren, ohne die
    * Teilnehmerzahl zu kennen. Eine erfundene Summe waere schlimmer als keine.
    */
-  const nurRang = geld.filter((x) => x.art === 'rank');
-  const gesamt = nurRang.length && nurRang.length === geld.length
-    ? nurRang.reduce((s, x) => s + x.betrag, 0) : null;
+  const nurRang = gespannt.filter((x) => x.art === 'rank');
+  const gesamt = nurRang.length && nurRang.length === gespannt.length
+    ? summeUeberPlaetze(nurRang) : null;
 
   return NextResponse.json({
     vorhanden: true, window: window_, region, waehrung,
-    geld, gegenstaende, gesamt, wertung,
+    geld: gespannt, gegenstaende, gesamt, wertung,
   });
 }
