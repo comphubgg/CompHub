@@ -1,7 +1,7 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import { DATEN_ORT } from './datenOrt';
-import { lege, antworte, alle } from './kontakt';
+import { lege, antworte, alle, markiereGelesen } from './kontakt';
 import { vergleichbar, kernname, ohneZierrat } from './homoglyph';
 
 /*
@@ -340,13 +340,28 @@ export async function begruesse(konto: {
     const m = await lege({
       thema: 'anderes',
       eigenesThema: 'Welcome',
-      text: 'Account confirmed.',
+      text: 'Account created and address confirmed.',
       bilder: [],
       vonId: konto.id,
       vonName: konto.name || konto.email,
       vonEmail: konto.email,
     });
     await antworte({ id: m.id, von: 'betreiber', name: BOT_NAME, text: WILLKOMMEN });
+
+    /*
+     * Fuer den Betreiber gleich als gelesen abhaken.
+     *
+     * Sonst zaehlte jede Begruessung als ungelesene Meldung, und am
+     * Chatsymbol am Bildschirmrand stuende nach zehn Anmeldungen eine Zehn -
+     * fuer zehn Gespraeche, die niemand eroeffnet hat und in denen nichts
+     * steht, was jemand beantworten muesste. Die Zahl dort soll etwas
+     * bedeuten; sonst sieht man irgendwann gar nicht mehr hin.
+     *
+     * Das Gespraech selbst bleibt vollstaendig im Archiv: wer nachsehen
+     * will, wer wann begruesst wurde, findet es unter /nachrichten. Und
+     * sobald der Betreffende dort etwas schreibt, zaehlt das ganz normal.
+     */
+    await markiereGelesen(m.id, 'betreiber');
     return true;
   } catch {
     // Eine ausgebliebene Begruessung ist aergerlich, aber kein Grund, die
