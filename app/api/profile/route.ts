@@ -12,6 +12,15 @@ const AUTH_COOKIE_SECRET = process.env.AUTH_COOKIE_SECRET || process.env.DISCORD
 type ProfileData = {
   displayName: string;
   avatarUrl: string | null;
+  /*
+   * Eine Adresse fuer Rueckfragen - freiwillig.
+   *
+   * Ein Zugangsschluessel kommt ohne Adresse aus, das ist sein Vorteil.
+   * Wer aber erreichbar sein will, ohne sich ein zweites Mal als Konto
+   * anzumelden, kann hier eine hinterlegen. Sie dient ausschliesslich
+   * dazu, dass der Betreiber antworten kann.
+   */
+  email?: string;
   twitchChatEnabled: boolean;
   /**
    * Nur noch der Twitch-Kanal.
@@ -189,6 +198,13 @@ export async function POST(request: NextRequest) {
     const savedProfile: ProfileData = {
       displayName: profile.displayName.trim() || username,
       avatarUrl: profile.avatarUrl ? String(profile.avatarUrl).trim() : null,
+      /*
+       * Nur uebernehmen, wenn es wie eine Adresse aussieht - sonst leer.
+       * Eine halbe Adresse waere schlimmer als keine: der Betreiber
+       * schriebe ins Leere und wuesste nicht, warum niemand antwortet.
+       */
+      email: /^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(String(profile.email ?? '').trim())
+        ? String(profile.email).trim() : '',
       twitchChatEnabled: Boolean(profile.twitchChatEnabled),
       socials: { twitch: String(profile.socials?.twitch || '').trim() },
     };

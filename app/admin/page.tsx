@@ -34,6 +34,8 @@ type ProfileData = {
   twitchChatEnabled: boolean;
   /** Nur noch der Twitch-Kanal, und der allein wegen des Chats. */
   socials: { twitch: string };
+  /** Freiwillige Adresse fuer Rueckfragen - siehe app/api/profile. */
+  email?: string;
 };
 
 const DEFAULT_PROFILE: ProfileData = {
@@ -41,6 +43,7 @@ const DEFAULT_PROFILE: ProfileData = {
   avatarUrl: null,
   twitchChatEnabled: true,
   socials: { twitch: '' },
+  email: '',
 };
 
 interface Ziel { href: string; titel: string; text: string }
@@ -247,6 +250,40 @@ export default function AdminDashboardPage() {
     } catch (e) { setWechselStand((e as Error).message); }
   };
 
+  /**
+   * Ein Profilbild waehlen.
+   *
+   * Dasselbe Verfahren wie unter "Account": im Browser auf 256 Pixel
+   * verkleinert, quadratisch aus der Mitte. Ohne das landete ein Handyfoto
+   * mit vier Megabyte in der Profildatei - angezeigt wird es ohnehin als
+   * Kreis von sechsunddreissig Pixeln.
+   *
+   * Dass es das hier bisher nicht gab, war schlicht eine Luecke: wer ueber
+   * einen Zugangsschluessel hereinkommt, sieht dieses Dashboard und nicht
+   * die Kontoseite - und hatte damit keine Moeglichkeit, sein Bild zu
+   * setzen, obwohl die Schnittstelle es laengst speichern konnte.
+   */
+  const bildWaehlen = (datei: File) => {
+    const leser = new FileReader();
+    leser.onload = () => {
+      const roh = new Image();
+      roh.onload = () => {
+        const K = 256;
+        const flaeche = document.createElement('canvas');
+        flaeche.width = K; flaeche.height = K;
+        const stift = flaeche.getContext('2d');
+        if (!stift) return;
+        const kante = Math.min(roh.width, roh.height);
+        stift.drawImage(roh,
+          (roh.width - kante) / 2, (roh.height - kante) / 2, kante, kante,
+          0, 0, K, K);
+        aendere({ avatarUrl: flaeche.toDataURL('image/webp', 0.85) });
+      };
+      roh.src = String(leser.result);
+    };
+    leser.readAsDataURL(datei);
+  };
+
   const schluesselKopieren = async () => {
     if (!accessKey) return;
     try {
@@ -321,6 +358,51 @@ export default function AdminDashboardPage() {
             {/* Profil */}
             <section className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
               <h2 className="text-sm font-semibold text-slate-100"><T>Profil</T></h2>
+              {/*
+                * Bild und Adresse - beides gab es hier bisher nicht.
+                *
+                * Der Betreiber: "die VIPs koennen einfach ihr Profilbild
+                * nicht switchen, genauso wie E-Mail hinzufuegen" - weil sie
+                * dieses Dashboard sehen und nicht die Kontoseite, auf der
+                * beides steht.
+                */}
+              <div className="mt-3 flex flex-wrap items-center gap-4">
+                <span className="grid h-16 w-16 place-items-center overflow-hidden
+                                 rounded-full border border-zinc-800 bg-zinc-900
+                                 text-xl font-semibold uppercase text-slate-300">
+                  {profile.avatarUrl
+                    // eslint-disable-next-line @next/next/no-img-element
+                    ? <img src={profile.avatarUrl} alt=""
+                        className="h-full w-full object-cover" />
+                    : (profile.displayName || '?').trim().charAt(0)}
+                </span>
+                <div>
+                  <label className="inline-block cursor-pointer rounded-lg border
+                                    border-zinc-800 px-3 py-2 text-sm text-slate-300
+                                    transition hover:border-sky-500">
+                    <T>Bild wählen</T>
+                    <input type="file" accept="image/*" className="hidden"
+                      onChange={(e) => {
+                        const d = e.target.files?.[0];
+                        if (d) bildWaehlen(d);
+                        e.target.value = '';
+                      }} />
+                  </label>
+                  {profile.avatarUrl && (
+                    <button type="button"
+                      onClick={() => aendere({ avatarUrl: null })}
+                      className="ml-2 text-xs text-slate-500 transition
+                                 hover:text-rose-400">
+                      <T>entfernen</T>
+                    </button>
+                  )}
+                  <p className="mt-1 text-[11px] text-slate-600">
+                    <T>Wird auf 256 Pixel verkleinert und quadratisch
+                    zugeschnitten.</T>
+                  </p>
+                </div>
+              </div>
+
               <div className="mt-3 grid gap-3 sm:grid-cols-2">
                 {/* Der Anzeigename gehoert zum Konto und steht fest. Ein Feld
                     dafuer taeuschte eine Wahl vor, die es nicht gibt. */}
@@ -342,6 +424,19 @@ export default function AdminDashboardPage() {
                       socials: { ...profile.socials, twitch: e.target.value.trim() },
                     })}
                     placeholder="kanalname"
+                    className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-900/80
+                               px-3 py-2 text-sm text-slate-100 outline-none
+                               placeholder:text-slate-600 focus:border-sky-500" />
+                </label>
+
+                <label className="block sm:col-span-2">
+                  <span className="text-xs text-slate-500">
+                    <T>E-Mail für Rückfragen</T>{' '}
+                    <span className="text-slate-600"><T>— freiwillig</T></span>
+                  </span>
+                  <input value={profile.email ?? ''} type="email" inputMode="email"
+                    onChange={(e) => aendere({ email: e.target.value })}
+                    placeholder={t('damit dich eine Antwort auch per Mail erreicht')}
                     className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-900/80
                                px-3 py-2 text-sm text-slate-100 outline-none
                                placeholder:text-slate-600 focus:border-sky-500" />
