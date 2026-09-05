@@ -42,6 +42,14 @@ export default function Anmelden() {
   const [fehler, setFehler] = useState('');
   const [hinweis, setHinweis] = useState('');
   const [laeuft, setLaeuft] = useState(false);
+  /*
+   * Das Passwort sichtbar machen.
+   *
+   * Wer auf einem Telefon ein langes Passwort eintippt, vertippt sich - und
+   * sieht dann nur "Passwort stimmt nicht", ohne zu wissen, wo. Ein Auge
+   * daneben kostet nichts und erspart den dritten Versuch.
+   */
+  const [passwortSichtbar, setPasswortSichtbar] = useState(false);
   const [dienste, setDienste] = useState<Dienste | null>(null);
 
   useEffect(() => {
@@ -141,16 +149,51 @@ export default function Anmelden() {
               placeholder={t('Anzeigename')} autoComplete="nickname"
               className={feld} />
           )}
+          {/*
+            * Beim Anmelden geht beides: Adresse oder Name.
+            *
+            * Deshalb hier kein type="email" - der Browser wiese einen Namen
+            * sonst als ungueltig zurueck, bevor der Server ihn ueberhaupt zu
+            * sehen bekaeme. Beim Registrieren bleibt es bei der Adresse, denn
+            * dort entsteht das Konto.
+            */}
           <input value={email} onChange={(e) => setEmail(e.target.value)}
-            type="email" required placeholder={t('E-Mail-Adresse')}
-            autoComplete="email" className={feld} />
-          <input value={passwort} onChange={(e) => setPasswort(e.target.value)}
-            type="password" required
+            type={reiter === 'registrieren' ? 'email' : 'text'} required
             placeholder={reiter === 'registrieren'
-              ? t('Passwort — mindestens acht Zeichen') : t('Passwort')}
-            autoComplete={reiter === 'registrieren'
-              ? 'new-password' : 'current-password'}
+              ? t('E-Mail-Adresse') : t('E-Mail-Adresse oder Name')}
+            autoComplete={reiter === 'registrieren' ? 'email' : 'username'}
             className={feld} />
+
+          <div className="relative">
+            <input value={passwort} onChange={(e) => setPasswort(e.target.value)}
+              type={passwortSichtbar ? 'text' : 'password'} required
+              placeholder={reiter === 'registrieren'
+                ? t('Passwort — mindestens acht Zeichen') : t('Passwort')}
+              autoComplete={reiter === 'registrieren'
+                ? 'new-password' : 'current-password'}
+              className={`${feld} pr-12`} />
+            <button type="button"
+              onClick={() => setPasswortSichtbar((v) => !v)}
+              aria-label={passwortSichtbar ? t('Passwort verbergen') : t('Passwort anzeigen')}
+              title={passwortSichtbar ? t('Passwort verbergen') : t('Passwort anzeigen')}
+              className="absolute right-3 top-1/2 -translate-y-1/2 rounded-md p-1.5
+                         text-slate-500 transition hover:text-sky-400">
+              {passwortSichtbar ? (
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none"
+                  stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
+                  <path d="M3 3l18 18M10.6 10.6a2 2 0 0 0 2.8 2.8" />
+                  <path d="M6.7 6.7C4.6 8 3 10 2 12c2 4 6 7 10 7 1.7 0 3.3-.5 4.7-1.3
+                           M9.9 5.2A9.8 9.8 0 0 1 12 5c4 0 8 3 10 7-.7 1.4-1.7 2.7-2.8 3.8" />
+                </svg>
+              ) : (
+                <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none"
+                  stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
+                  <path d="M2 12s4-7 10-7 10 7 10 7-4 7-10 7-10-7-10-7z" />
+                  <circle cx="12" cy="12" r="2.6" />
+                </svg>
+              )}
+            </button>
+          </div>
 
           {fehler && (
             <p className="rounded-lg border border-rose-900/60 bg-rose-950/30 px-4

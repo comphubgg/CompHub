@@ -524,6 +524,18 @@ const AUF_ENGLISCH: Record<string, string> = {
     'Not affiliated with Epic Games. All trademarks belong to their owners.',
   ['Statistiken, Turniere und Streams der kompetitiven Fortnite-Szene — an einem Ort, aus einem Archiv.']:
     'Stats, tournaments and streams from competitive Fortnite — in one place, from one archive.',
+  /* Anmeldung und abgeschlossene Gespraeche. */
+  ['E-Mail-Adresse oder Name']: 'Email address or name',
+  'Passwort anzeigen': 'Show password',
+  'Passwort verbergen': 'Hide password',
+  'Anfrage senden': 'Send request',
+  ['Warum soll es wieder geöffnet werden?']: 'Why should it be reopened?',
+  ['Dieses Gespräch ist abgeschlossen. Du kannst es nachlesen und eine Anfrage stellen, es wieder zu öffnen.']:
+    'This conversation is closed. You can read it and ask for it to be reopened.',
+  ['Dieses Gespräch ist abgeschlossen.']: 'This conversation is closed.',
+  ['Dieses Gespräch ist offen — schreib einfach.']: 'This conversation is open — just write.',
+  ['Diesen Namen kennt niemand hier. Versuch es mit deiner E-Mail-Adresse.']:
+    'Nobody here goes by that name. Try your email address instead.',
   'Neue Gruppe': 'New group',
   'verlassen': 'leave',
   'Verlassen': 'Leave',

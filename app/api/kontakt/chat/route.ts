@@ -4,7 +4,7 @@ import { kontoAus, nachId, alleKonten } from '@/lib/konten';
 import { istBetreiber, vipAus } from '@/lib/vipCookie';
 import { zugangNach, rechteVon } from '@/lib/vipZugaenge';
 import {
-  alle, sichtbarFuer, antworte, markiereGelesen, lege, setzeTeilnehmer,
+  alle, sichtbarFuer, antworte, markiereGelesen, lege, setzeTeilnehmer, aendere,
   ganzerVerlauf, ungelesen, letzteZeit, type Meldung,
 } from '@/lib/kontakt';
 import { fuehreAus } from '@/lib/chatBefehle';
@@ -114,6 +114,15 @@ function fuerAnsicht(
      * Gespraech mehr.
      */
     darfVerlassen: !admin && (m.teilnehmer ?? []).includes(ich),
+    /*
+     * Schreiben darf nur, solange offen ist.
+     *
+     * Ein geschlossenes Gespraech ist abgelegt, nicht geloescht: der Verlauf
+     * bleibt lesbar - auch fuer den, der es begonnen hat -, aber niemand
+     * schreibt mehr hinein. Wer doch noch etwas braucht, stellt eine Anfrage;
+     * darueber entscheidet der Betreiber, nicht der Fragende.
+     */
+    darfSchreiben: admin || !m.erledigt,
     verlauf: ganzerVerlauf(m),
     zuletzt: letzteZeit(m),
     ungelesen: ungelesen(m, admin ? 'betreiber' : 'nutzer'),
@@ -279,6 +288,33 @@ export async function POST(request: Request) {
   const text = String(k.text ?? '').trim();
   if (!text) {
     return NextResponse.json({ fehler: 'Bitte schreib etwas.' }, { status: 400 });
+  }
+
+  /*
+   * Eine Anfrage, ein geschlossenes Gespraech wieder aufzumachen.
+   *
+   * Sie geht auch dann durch, wenn sonst niemand mehr schreiben darf - das
+   * ist ihr Sinn. Geoeffnet wird dabei nichts: der Betreiber sieht sie als
+   * ungelesene Nachricht und entscheidet selbst.
+   */
+  if (k.anfrage === true && !wer.admin) {
+    if (!meldung.erledigt) {
+      return NextResponse.json(
+        { fehler: 'Dieses Gespräch ist offen — schreib einfach.' }, { status: 400 });
+    }
+    await antworte({
+      id, von: 'nutzer', name: wer.name,
+      text: `Request to reopen: ${text}`,
+    });
+    // antworte() setzt erledigt zurueck - hier soll es geschlossen bleiben,
+    // bis der Betreiber entscheidet.
+    await aendere(id, { erledigt: true });
+    return NextResponse.json({ ok: true, anfrage: true });
+  }
+
+  if (!wer.admin && meldung.erledigt) {
+    return NextResponse.json(
+      { fehler: 'Dieses Gespräch ist abgeschlossen.' }, { status: 403 });
   }
 
   /*

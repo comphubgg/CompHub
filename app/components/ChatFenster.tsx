@@ -34,6 +34,7 @@ interface Gespraech {
   erledigt: boolean; vonName: string; vonEmail: string;
   vonVip: boolean; vonRolle: string | null;
   teilnehmer: Teilnehmer[]; gruppe: boolean; darfVerlassen: boolean;
+  darfSchreiben: boolean;
   verlauf: Nachricht[]; zuletzt: number; ungelesen: number;
 }
 
@@ -146,6 +147,15 @@ export default function ChatFenster({ alsSeite = false }: { alsSeite?: boolean }
    * es sehen, ohne erst einen Schalter zu finden.
    */
   const [stand, setStand] = useState<'alle' | 'offen' | 'erledigt'>('alle');
+
+  /*
+   * Namen vorschlagen, waehrend getippt wird.
+   *
+   * Wer jemanden dazuholen will, weiss den Namen selten auf den Buchstaben
+   * genau. Ein "@ju" oder "/add ju" zeigt deshalb, wer mit ju anfaengt - so
+   * wie man es aus jedem anderen Chat kennt.
+   */
+  const [vorschlaege, setVorschlaege] = useState<Nutzer[]>([]);
 
   /** Austreten - mit Rueckfrage und Grund. */
   const [verlassenOffen, setVerlassenOffen] = useState(false);
@@ -383,6 +393,59 @@ export default function ChatFenster({ alsSeite = false }: { alsSeite?: boolean }
     setVerlassenGrund('');
     setGewaehlt(null);
     void holen(false);
+  }
+
+  /*
+   * Was gerade angefangen wurde: "@ju" oder "/add ju" am Ende des Entwurfs.
+   *
+   * Nur am Ende - mitten im Satz waere jedes @ ein Vorschlagsfenster, und
+   * eine Mailadresse enthaelt eins.
+   */
+  const angefangen = (() => {
+    const t = entwurf;
+    const m = /(?:^|\s)@([\p{L}\p{N}_.-]{1,24})$/u.exec(t)
+      || /^\/(?:add|remove|new|neu|raus)\s+(?:[^\s]+\s+)*([\p{L}\p{N}_.-]{1,24})$/u.exec(t);
+    return m ? m[1] : null;
+  })();
+
+  useEffect(() => {
+    if (!admin || !angefangen) { setVorschlaege([]); return; }
+    let lebt = true;
+    const uhr = setTimeout(() => {
+      void (async () => {
+        try {
+          const r = await fetch(
+            `/api/kontakt/chat?nutzer=${encodeURIComponent(angefangen)}`);
+          if (!r.ok) return;
+          const j = await r.json();
+          if (lebt) setVorschlaege((j.nutzer ?? []).slice(0, 6));
+        } catch { /* dann eben keine Vorschlaege */ }
+      })();
+    }, 200);
+    return () => { lebt = false; clearTimeout(uhr); };
+  }, [admin, angefangen]);
+
+  /** Einen Vorschlag uebernehmen - das angefangene Wort wird ersetzt. */
+  function uebernimmVorschlag(name: string) {
+    if (!angefangen) return;
+    const bis = entwurf.length - angefangen.length;
+    setEntwurf(entwurf.slice(0, bis) + name + ' ');
+    setVorschlaege([]);
+  }
+
+  /** Eine Anfrage stellen, ein abgeschlossenes Gespraech wieder aufzumachen. */
+  async function anfrageSenden() {
+    const text = entwurf.trim();
+    if (!text || !gewaehlt || sendet) return;
+    setSendet(true);
+    try {
+      const r = await fetch('/api/kontakt/chat', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: gewaehlt, anfrage: true, text }),
+      });
+      if (r.ok) { setEntwurf(''); setHinweis(null); void holen(false); }
+    } catch { /* stehen lassen, damit nichts verlorengeht */ }
+    finally { setSendet(false); }
   }
 
   async function senden() {
@@ -772,6 +835,23 @@ export default function ChatFenster({ alsSeite = false }: { alsSeite?: boolean }
                 </div>
 
                 <div className="border-t border-zinc-800 p-3">
+                  {/*
+                    * Ein abgeschlossenes Gespraech nimmt nichts mehr an.
+                    *
+                    * Der Verlauf bleibt lesbar - abgelegt, nicht geloescht.
+                    * Wer doch noch etwas braucht, stellt eine Anfrage; darueber
+                    * entscheidet der Betreiber.
+                    */}
+                  {!aktuell.darfSchreiben && (
+                    <p className="mb-2 rounded-lg border border-zinc-800
+                                  bg-zinc-900/60 px-3 py-2 text-[11px]
+                                  leading-relaxed text-slate-500">
+                      <T>Dieses Gespräch ist abgeschlossen. Du kannst es
+                      nachlesen und eine Anfrage stellen, es wieder zu
+                      öffnen.</T>
+                    </p>
+                  )}
+
                   {/* Die Antwort auf einen Befehl. Verschwindet beim naechsten
                       Absenden von selbst. */}
                   {hinweis && (
@@ -810,8 +890,30 @@ export default function ChatFenster({ alsSeite = false }: { alsSeite?: boolean }
                     </div>
                   )}
 
+                  {/* Wer passt zum angefangenen Namen. */}
+                  {vorschlaege.length > 0 && (
+                    <div className="mb-2 overflow-hidden rounded-lg border
+                                    border-zinc-800">
+                      {vorschlaege.map((n) => (
+                        <button key={n.id} type="button"
+                          onClick={() => uebernimmVorschlag(n.name)}
+                          className="flex w-full items-center justify-between gap-2
+                                     border-b border-zinc-900 px-3 py-1.5 text-left
+                                     text-xs text-slate-300 last:border-0
+                                     transition hover:bg-zinc-900">
+                          <span className="truncate">{n.name}</span>
+                          {n.rolle && (
+                            <span className="shrink-0 text-[10px] text-slate-600">
+                              {n.rolle}
+                            </span>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
                   <div className="flex items-end gap-2">
-                    {anhaenge.length < 4 && (
+                    {aktuell.darfSchreiben && anhaenge.length < 4 && (
                       <label title={t('Bild anhängen (Strg+V geht auch)')}
                         className="cursor-pointer rounded-xl border border-zinc-800
                                    px-3 py-2.5 text-slate-400 transition
@@ -835,24 +937,31 @@ export default function ChatFenster({ alsSeite = false }: { alsSeite?: boolean }
                         // Enter schickt, Umschalt+Enter macht einen Absatz -
                         // so wie in jedem anderen Chat auch.
                         if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault(); void senden();
+                          e.preventDefault();
+                          if (aktuell.darfSchreiben) void senden();
+                          else void anfrageSenden();
                         }
                       }}
                       rows={2}
-                      placeholder={admin
-                        ? t('Antwort schreiben — /hilfe zeigt die Befehle')
-                        : t('Antwort schreiben …')}
+                      placeholder={!aktuell.darfSchreiben
+                        ? t('Warum soll es wieder geöffnet werden?')
+                        : admin
+                          ? t('Antwort schreiben — /hilfe zeigt die Befehle')
+                          : t('Antwort schreiben …')}
                       className="flex-1 resize-none rounded-xl border
                                  border-zinc-800 bg-zinc-950 px-3 py-2 text-sm
                                  text-slate-100 outline-none
                                  placeholder:text-slate-600
                                  focus:border-sky-500" />
-                    <button onClick={() => void senden()}
+                    <button
+                      onClick={() => (aktuell.darfSchreiben
+                        ? void senden() : void anfrageSenden())}
                       disabled={sendet || (!entwurf.trim() && anhaenge.length === 0)}
                       className="rounded-xl bg-sky-500 px-4 py-2.5 text-sm
                                  font-medium text-white transition
                                  hover:bg-sky-400 disabled:opacity-40">
-                      {sendet ? <T>sendet …</T> : <T>Senden</T>}
+                      {sendet ? <T>sendet …</T>
+                        : aktuell.darfSchreiben ? <T>Senden</T> : <T>Anfrage senden</T>}
                     </button>
                   </div>
                 </div>

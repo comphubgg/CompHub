@@ -225,6 +225,21 @@ export async function nachId(id: string): Promise<Konto | null> {
   return (await lies()).find((k) => k.id === id) ?? null;
 }
 
+/**
+ * Ein Konto ueber den Anzeigenamen.
+ *
+ * Namen muessen nicht eindeutig sein - deshalb wird nur zurueckgegeben, was
+ * eindeutig ist. Zwei Leute mit demselben Namen anzumelden hiesse raten, und
+ * beim Anmelden wird nicht geraten.
+ */
+export async function nachName(name: string): Promise<Konto | null> {
+  const k = name.trim().toLowerCase();
+  if (!k) return null;
+  const treffer = (await lies()).filter(
+    (x) => String(x.name ?? '').trim().toLowerCase() === k);
+  return treffer.length === 1 ? treffer[0] : null;
+}
+
 export async function nachEmail(email: string): Promise<Konto | null> {
   const gesucht = email.trim().toLowerCase();
   return (await lies()).find((k) => k.email === gesucht) ?? null;

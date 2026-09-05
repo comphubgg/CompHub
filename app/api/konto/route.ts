@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import {
-  aendern, anlegen, emailTaugt, ipGesperrt, kontoAus, loesche, merkeAnmeldung,
+  aendern, anlegen, emailTaugt, ipGesperrt, kontoAus, loesche, merkeAnmeldung, nachName,
   merkeIp, nachEmail, nachId, oeffentlich, passwortStimmt, passwortTaugt,
   setzePasswort, SITZUNG_TAGE, sitzungFuer, vipBestaetigen,
 } from '@/lib/konten';
@@ -143,14 +143,26 @@ export async function POST(request: Request) {
     const email = String(koerper.email ?? '').trim();
     const passwort = String(koerper.passwort ?? '');
 
-    const konto = await nachEmail(email);
+    /*
+     * Adresse oder Name - beides geht.
+     *
+     * Wer sich ein Konto anlegt, merkt sich seinen Namen; die Adresse tippt
+     * er seltener. Ein Eingabefeld, das nur eines von beidem annimmt, sperrt
+     * ihn aus, obwohl er alles richtig gemacht hat. Ein Klammeraffe im Text
+     * entscheidet, wonach gesucht wird.
+     */
+    const konto = email.includes('@')
+      ? await nachEmail(email)
+      : (await nachName(email)) ?? await nachEmail(email);
     if (!konto) {
       // Ausdruecklich benannt statt verschleiert: der Nutzer wollte, dass
       // klar dasteht, wenn es kein Konto gibt. Das verraet zwar, welche
       // Adressen registriert sind - fuer ein Werkzeug dieser Groesse ist
       // die verstaendliche Meldung das Wichtigere.
       return NextResponse.json({
-        fehler: 'Zu dieser Adresse gibt es kein Konto. Bitte erst registrieren.',
+        fehler: email.includes('@')
+          ? 'Zu dieser Adresse gibt es kein Konto. Bitte erst registrieren.'
+          : 'Diesen Namen kennt niemand hier. Versuch es mit deiner E-Mail-Adresse.',
         keinKonto: true,
       }, { status: 404 });
     }
