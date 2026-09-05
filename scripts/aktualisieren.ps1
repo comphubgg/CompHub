@@ -175,6 +175,23 @@ Start-Sleep -Seconds 12
 
 # --------------------------------------------------------- 6. Nachmessen
 
+# Fehlt hier etwas, das nur von Hand herueberkommt?
+#
+# .env.local traegt die Schluessel fuer Twitch, Google, Epic und den
+# Mailversand. Sie steht bewusst nicht im Verzeichnis, kommt also auch nicht
+# mit einem Update mit. Ohne sie laeuft das Werkzeug, verschickt aber keine
+# Mail - und der Nutzer sieht nur "Versand klemmt", ohne zu erfahren, warum.
+$envDatei = Join-Path $Projekt '.env.local'
+if (-not (Test-Path $envDatei)) {
+    Sag '.env.local fehlt - ohne sie verschickt dieser Rechner keine Mail.' 'Yellow'
+    Sag 'Vom PC herueberkopieren: C:UsersjumikDesktopstreamer-dashboard.env.local' 'Yellow'
+} elseif (-not (Select-String -Path $envDatei -Pattern '^MAIL_PASS=' -Quiet)) {
+    Sag '.env.local ist da, aber ohne Mail-Angaben (MAIL_PASS fehlt).' 'Yellow'
+    Sag 'Die Datei vom PC ist neuer - noch einmal herueberkopieren.' 'Yellow'
+} else {
+    Sag '.env.local mit Mailversand vorhanden.'
+}
+
 Kopf '6. Nachmessen'
 
 $web = WerLauscht $Port

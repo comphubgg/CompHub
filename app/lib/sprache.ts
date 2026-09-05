@@ -567,6 +567,8 @@ const AUF_ENGLISCH: Record<string, string> = {
   ['E-Mail für Rückfragen']: 'Email for follow-up questions',
   '(freiwillig)': '(optional)',
   ['damit dich eine Antwort auch per Mail erreicht']: 'so a reply can reach you by mail too',
+  ['Auf diesem Rechner ist kein Mailversand eingerichtet — es fehlt die Datei .env.local.']:
+    'No mail sending is set up on this machine — the file .env.local is missing.',
   'Neue Gruppe': 'New group',
   'verlassen': 'leave',
   'Verlassen': 'Leave',

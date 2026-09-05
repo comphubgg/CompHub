@@ -6,7 +6,7 @@ import {
   setzePasswort, SITZUNG_TAGE, sitzungFuer, vipBestaetigen,
   neuerBestaetigungsschluessel, eroeffneRuecksetzung, setzePasswortMitSchluessel,
 } from '@/lib/konten';
-import { sendeMail } from '@/lib/mail';
+import { sendeMail, versandDa } from '@/lib/mail';
 import { ueberHttps } from '@/lib/vipCookie';
 
 // Registrieren, anmelden, abmelden - und wer gerade angemeldet ist.
@@ -198,11 +198,22 @@ export async function POST(request: Request) {
     if (!schluessel) return NextResponse.json({ ok: true, schon: true });
     const ging = await schickeBestaetigung(
       request, konto.email, konto.name, schluessel);
+    /*
+     * Zwei Gruende, zwei Meldungen.
+     *
+     * "Klemmt gerade" ist die Auskunft fuer eine Stoerung, die von selbst
+     * vorbeigeht. Ist der Versand auf diesem Rechner gar nicht eingerichtet,
+     * geht sie nie vorbei - und wer das nicht weiss, versucht es stundenlang.
+     * Das ist genau so passiert, als der Laptop die Seite uebernahm und die
+     * .env.local dort noch fehlte.
+     */
     return NextResponse.json({
       ok: ging,
       hinweis: ging
         ? 'Die Mail ist unterwegs.'
-        : 'Der Versand klemmt gerade. Versuch es in ein paar Minuten noch einmal.',
+        : versandDa()
+          ? 'Der Versand klemmt gerade. Versuch es in ein paar Minuten noch einmal.'
+          : 'Auf diesem Rechner ist kein Mailversand eingerichtet — es fehlt die Datei .env.local.',
     });
   }
 
