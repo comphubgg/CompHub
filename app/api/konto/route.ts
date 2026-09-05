@@ -293,9 +293,18 @@ export async function POST(request: Request) {
       }, { status: 404 });
     }
     if (!konto.passwort) {
+      /*
+       * Ein Konto ohne Passwort - angelegt ueber Twitch, Google oder Discord.
+       *
+       * "Bitte darueber anmelden" allein war eine Sackgasse: wer den Dienst
+       * nicht mehr hat oder nicht mehr weiss, welcher es war, kam nirgends
+       * hin. Deshalb steht jetzt der zweite Weg dabei - ueber "Passwort
+       * vergessen" laesst sich eines setzen, und danach geht beides.
+       */
       return NextResponse.json({
-        fehler: 'Dieses Konto wurde über einen Anmeldedienst angelegt. '
-          + 'Bitte darüber anmelden.',
+        fehler: 'Dieses Konto wurde über einen Anmeldedienst angelegt — melde dich '
+          + 'darüber an, oder setz dir über „Passwort vergessen“ eines.',
+        keinPasswort: true,
       }, { status: 400 });
     }
     if (!passwortStimmt(passwort, konto.passwort)) {

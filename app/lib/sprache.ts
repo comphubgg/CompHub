@@ -569,6 +569,10 @@ const AUF_ENGLISCH: Record<string, string> = {
   ['damit dich eine Antwort auch per Mail erreicht']: 'so a reply can reach you by mail too',
   ['Auf diesem Rechner ist kein Mailversand eingerichtet — es fehlt die Datei .env.local.']:
     'No mail sending is set up on this machine — the file .env.local is missing.',
+  ['Zu dieser Adresse gibt es schon ein Konto. Bitte anmelden.']:
+    'There is already an account for this address. Please sign in.',
+  ['Dieses Konto wurde über einen Anmeldedienst angelegt — melde dich darüber an, oder setz dir über „Passwort vergessen“ eines.']:
+    'This account was created through a sign-in service — sign in that way, or set yourself a password via “Forgot your password”.',
   'Neue Gruppe': 'New group',
   'verlassen': 'leave',
   'Verlassen': 'Leave',
