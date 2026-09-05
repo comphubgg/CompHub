@@ -1585,6 +1585,12 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Verstanden': 'Got it',
   'Profil': 'Profile',
   'Schnellzugriff': 'Quick access',
+  'Der Name braucht drei bis vierundzwanzig Zeichen.':
+    'The name needs three to twenty-four characters.',
+  'Im Namen darf kein Leerzeichen stehen.': 'The name cannot contain a space.',
+  'Erlaubt sind Buchstaben, Ziffern, Punkt, Bindestrich und Unterstrich. Umlaute gehen, Sonderzeichen wie @ oder / nicht.':
+    'Letters, digits, dot, hyphen and underscore are allowed. Accents and '
+    + 'umlauts are fine; symbols like @ or / are not.',
   'Discord: kein Bot-Token auf diesem Rechner hinterlegt.':
     'Discord: no bot token configured on this machine.',
   'Discord: der Kanal ließ sich nicht finden oder anlegen.':

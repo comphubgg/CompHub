@@ -142,10 +142,34 @@ export async function POST(request: Request) {
   const koerper = await request.json().catch(() => ({}));
   const name = String(koerper.name ?? '').trim();
 
-  if (!/^[a-zA-Z0-9_.-]{3,24}$/.test(name)) {
+  /*
+   * Der Name - und eine Meldung, die sagt, was wirklich fehlt.
+   *
+   * Vorher galt hier "a-z" und die Meldung lautete "drei bis
+   * vierundzwanzig Zeichen, ohne Leerzeichen". Wer "hoerman" mit Umlaut
+   * eintippte, bekam also einen Satz, der auf seinen Namen gar nicht
+   * zutraf: sechs Zeichen, kein Leerzeichen - und trotzdem abgelehnt. Man
+   * sucht dann an der falschen Stelle.
+   *
+   * Umlaute gehen jetzt, und ueberhaupt Buchstaben aus anderen Schriften:
+   * die Szene heisst nicht durchgehend englisch. Gesperrt bleiben nur
+   * Leerzeichen (beim Kopieren nicht von einem Umbruch zu unterscheiden)
+   * und Zeichen, die in einer Adresse etwas bedeuten.
+   */
+  if (name.length < 3 || name.length > 24) {
     return NextResponse.json(
-      { fehler: 'Drei bis vierundzwanzig Zeichen, ohne Leerzeichen.' },
+      { fehler: 'Der Name braucht drei bis vierundzwanzig Zeichen.' },
       { status: 400 });
+  }
+  if (/\s/.test(name)) {
+    return NextResponse.json(
+      { fehler: 'Im Namen darf kein Leerzeichen stehen.' }, { status: 400 });
+  }
+  if (!/^[\p{L}\p{N}_.-]+$/u.test(name)) {
+    return NextResponse.json({
+      fehler: 'Erlaubt sind Buchstaben, Ziffern, Punkt, Bindestrich und '
+        + 'Unterstrich. Umlaute gehen, Sonderzeichen wie @ oder / nicht.',
+    }, { status: 400 });
   }
 
   const daten = await lies();

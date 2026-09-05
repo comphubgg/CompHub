@@ -132,7 +132,26 @@ async function kanalFuer(name: string, ablage: Ablage): Promise<string | null> {
   const vorhanden = ablage[schluessel]?.kanal ?? BEKANNTE_KANAELE[schluessel];
   if (vorhanden) return vorhanden;
 
-  const kanalname = `${schluessel.replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '')}-key`;
+  /*
+   * Der Kanalname.
+   *
+   * Discord nimmt in Kanalnamen keine Grossbuchstaben und keine Leerzeichen.
+   * Umlaute nimmt es zwar, aber sie sehen in einer Kanalliste unruhig aus und
+   * lassen sich schlecht tippen - deshalb werden sie ausgeschrieben:
+   * "hörman" wird zu "hoerman-key" und nicht zu "h-rman-key", was beim
+   * blossen Wegwerfen unbekannter Zeichen herauskaeme.
+   */
+  const UMLAUTE: Record<string, string> = {
+    'ä': 'ae', 'ö': 'oe', 'ü': 'ue', 'ß': 'ss',
+    'å': 'a', 'æ': 'ae', 'ø': 'oe', 'é': 'e', 'è': 'e', 'ê': 'e',
+    'á': 'a', 'à': 'a', 'â': 'a', 'í': 'i', 'ì': 'i', 'ó': 'o', 'ò': 'o',
+    'ô': 'o', 'ú': 'u', 'ù': 'u', 'ñ': 'n', 'ç': 'c',
+  };
+  const kanalname = `${[...schluessel]
+    .map((z) => UMLAUTE[z] ?? z)
+    .join('')
+    .replace(/[^a-z0-9-]+/g, '-')
+    .replace(/^-+|-+$/g, '')}-key`;
   const neu = await ruf(`/guilds/${SERVER}/channels`, 'POST', {
     name: kanalname,
     type: 0,                 // Textkanal
