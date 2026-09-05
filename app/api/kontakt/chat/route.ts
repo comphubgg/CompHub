@@ -9,6 +9,7 @@ import {
 } from '@/lib/kontakt';
 import { fuehreAus } from '@/lib/chatBefehle';
 import { alleChatNutzer, nameNormal } from '@/lib/chatNutzer';
+import { antworteWennMoeglich } from '@/lib/hilfsbot';
 
 /*
  * Das Gespraech zu einer Meldung.
@@ -406,9 +407,28 @@ export async function POST(request: Request) {
   });
   if (!m) return NextResponse.json({ fehler: 'nicht gefunden' }, { status: 404 });
 
+  /*
+   * Der Bot sieht nach, ob er etwas dazu weiss.
+   *
+   * Nur bei Nachrichten von Nutzern: schreibt der Betreiber selbst, ist die
+   * Frage bereits beantwortet, und eine Bot-Antwort daneben waere albern.
+   *
+   * Weiss er nichts, schreibt er nichts - die Frage bleibt dann unbeantwortet
+   * stehen, wo der Betreiber sie sieht. Das ist Absicht: eine erfundene
+   * Auskunft ueber ein Turnier waere schlimmer als gar keine.
+   */
+  let mitBot = m;
+  if (!wer.admin) {
+    const half = await antworteWennMoeglich(id, text);
+    if (half) {
+      const frisch = (await alle()).find((x) => x.id === id);
+      if (frisch) mitBot = frisch;
+    }
+  }
+
   return NextResponse.json({
     ok: true,
-    gespraech: fuerAnsicht(m, wer.admin, wer.id, await namensBuch()),
+    gespraech: fuerAnsicht(mitBot, wer.admin, wer.id, await namensBuch()),
   });
 }
 
