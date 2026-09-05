@@ -526,6 +526,7 @@ export default function KontenSeite() {
           name: string; schluessel: string; aktiv: boolean; angelegt: string;
           rolle: 'admin' | 'manager' | 'pro' | null; rechte: string[];
           epicId: string | null; vipBis: number | null; vip: boolean;
+          darfSchluessel?: boolean;
         }) => ({
           art: 'schluessel' as const,
           id: x.name,
@@ -537,6 +538,17 @@ export default function KontenSeite() {
           epicId: x.epicId,
           vip: x.vip,
           vipBis: x.vipBis,
+          /*
+           * Beim Zusammenfuehren fiel dieses Feld heraus.
+           *
+           * Der Haken speicherte also richtig - der Server schrieb ihn, die
+           * Liste holte ihn auch -, aber beim Umbauen in die gemeinsame
+           * Zeile ging er verloren. Angezeigt wurde damit immer "aus", egal
+           * was gespeichert war. So etwas ist schlimmer als ein Knopf, der
+           * gar nicht funktioniert: man klickt, es passiert scheinbar
+           * nichts, und man klickt wieder.
+           */
+          darfSchluessel: Boolean(x.darfSchluessel),
           // Ein stillgelegter Zugang ist das Gegenstueck zur Sperre.
           gesperrt: x.aktiv ? null : { seit: 0, grund: '' },
           ips: [],
