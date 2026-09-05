@@ -219,14 +219,21 @@ export async function antwortAuf(text: string): Promise<string | null> {
     if (gesucht.length >= 2) {
       const treffer = await sucheSpieler(gesucht);
       if (treffer.length === 1) {
-        return `Yes — "${treffer[0]}" is in the archive. You can open the profile `
-          + 'under Statistics: https://thecomphub.com/statistiken';
+        return `Yes — ${treffer[0].name} is in the archive:\n${treffer[0].link}`;
       }
       if (treffer.length > 1) {
-        return `Yes, ${treffer.length} names match "${imArchiv[1].trim()}": `
-          + `${treffer.slice(0, 8).join(', ')}`
-          + `${treffer.length > 8 ? ' …' : ''}. Statistics has all of them: `
-          + 'https://thecomphub.com/statistiken';
+        /*
+         * Jeder Treffer auf einer eigenen Zeile mit seinem eigenen Link.
+         *
+         * In einem Fliesstext waeren acht Namen mit acht Adressen dazwischen
+         * nicht mehr zu lesen, und genau eine davon will man antippen.
+         */
+        return [
+          `Yes — ${treffer.length} players match "${imArchiv[1].trim()}":`,
+          '',
+          ...treffer.slice(0, 8).map((x) => `${x.name}\n${x.link}`),
+          ...(treffer.length > 8 ? ['', `… and ${treffer.length - 8} more.`] : []),
+        ].join('\n');
       }
       return `I cannot find "${imArchiv[1].trim()}" in the archive. That can mean `
         + 'two things: the player is really not in it, or the name is written '
@@ -252,44 +259,66 @@ export async function antwortAuf(text: string): Promise<string | null> {
  *      "AURA shxrk 19ǃ" ist damit "shxrk".
  *   2. Ein genauer Treffer schlaegt einen enthaltenen. Wer "shxrk" eingibt,
  *      bekommt shxrk und nicht neun entfernte Verwandte.
- *   3. Gezeigt wird der Name, der wirklich gepasst hat. Weicht der heutige
- *      Name davon ab, steht er dahinter - so bleibt nachvollziehbar, warum
- *      der Treffer ein Treffer ist.
+ *   3. Genannt wird der heutige Name, und dazu der Weg direkt auf sein
+ *      Profil. Frueher stand dort "alter Name (now: heutiger Name)" und ein
+ *      Verweis auf die Statistikseite im Ganzen - der Betreiber musste den
+ *      Spieler dort also noch einmal von Hand suchen, und der Zusatz in
+ *      Klammern half ihm dabei kein bisschen.
  */
-async function sucheSpieler(gesucht: string): Promise<string[]> {
+interface Treffer { name: string; link: string }
+
+async function sucheSpieler(gesucht: string): Promise<Treffer[]> {
   const alleNamen = await spielerNamen();
-  const genau: string[] = [];
-  const enthalten: string[] = [];
+  const genau: Treffer[] = [];
+  const enthalten: Treffer[] = [];
+  const schonDa = new Set<string>();
 
   for (const eintrag of Object.values(alleNamen)) {
-    const heute = eintrag.haupt ? ohneZierrat(eintrag.haupt) : '';
     const kandidaten = [...new Set([
       ...(eintrag.namen ?? []), eintrag.haupt ?? '', eintrag.schluessel ?? '',
     ].filter(Boolean))];
 
-    let besterGenau = '';
-    let besterTeil = '';
+    let genauGetroffen = false;
+    let getroffen = false;
     for (const n of kandidaten) {
       const kern = schlicht(kernname(n));
       const voll = schlicht(n);
-      if (kern === gesucht || voll === gesucht) { besterGenau = n; break; }
-      if (!besterTeil && (kern.includes(gesucht) || voll.includes(gesucht))) besterTeil = n;
+      if (kern === gesucht || voll === gesucht) { genauGetroffen = true; getroffen = true; break; }
+      if (kern.includes(gesucht) || voll.includes(gesucht)) getroffen = true;
     }
+    if (!getroffen) continue;
 
-    const gefunden = besterGenau || besterTeil;
-    if (!gefunden) continue;
+    /*
+     * Angezeigt und verlinkt wird der heutige Name.
+     *
+     * Die Statistikseite loest "?spieler=" ueber ihre Suche auf und kennt
+     * dort den gepflegten Anzeigenamen - das ist derselbe, der hier als
+     * "haupt" steht. Ein alter Turniername wuerde dort ins Leere laufen.
+     */
+    const voll = ohneZierrat(eintrag.haupt || kandidaten[0]);
+    /*
+     * Der Kernname, nicht der volle Turniername.
+     *
+     * Aus "BIG vic0" wird "vic0", aus "bugha 6" wird "bugha" - Orgtag und
+     * Startnummer gehoeren nicht zum Menschen. Nachgeprueft: die Suche der
+     * Statistikseite loest beide Formen auf denselben Spieler auf, die
+     * kuerzere liest sich nur besser.
+     */
+    const heute = kernname(voll) || voll;
+    if (!heute || schonDa.has(heute.toLowerCase())) continue;
+    schonDa.add(heute.toLowerCase());
 
-    const zeige = ohneZierrat(gefunden);
-    const text = heute && schlicht(heute) !== schlicht(zeige)
-      ? `${zeige} (now: ${heute})` : zeige;
-    (besterGenau ? genau : enthalten).push(text);
+    const eintragung: Treffer = {
+      name: heute,
+      link: `https://thecomphub.com/statistiken?spieler=${encodeURIComponent(heute)}`,
+    };
+    (genauGetroffen ? genau : enthalten).push(eintragung);
 
     if (genau.length >= 12) break;
   }
 
   // Genaue Treffer zuerst; die entfernteren nur, wenn sonst nichts da ist.
-  return genau.length ? [...new Set(genau)].slice(0, 12)
-    : [...new Set(enthalten)].slice(0, 12);
+  return (genau.length ? genau : enthalten).slice(0, 12);
 }
 
 /* ──────────────────────────────────────────────────────────── Das Schreiben */
