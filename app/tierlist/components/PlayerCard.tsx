@@ -5,6 +5,7 @@ import { createPortal } from 'react-dom';
 import { FlaggenWahl } from './FlaggenWahl';
 import { TierListEntry } from '../types';
 import { getPrimaryRegion, isDuo, cleanPlayerName } from '../utils/helpers';
+import { kernname, ohneZierrat } from '@/lib/homoglyph';
 
 import { useT } from '@/app/components/SprachProvider';
 interface PlayerCardProps {
@@ -221,16 +222,35 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
     && land1.toLowerCase() === land2.toLowerCase());
 
   /*
-   * Was auf der Kachel steht - der gepflegte Name, sonst der aus dem Spiel.
+   * Was auf der Kachel steht - in drei Stufen.
+   *
+   *   1. Der gepflegte Name, wenn es einen gibt. Er gilt immer.
+   *   2. Sonst der Kernname: Orgtag, Startnummer und angehaengtes Zierwerk
+   *      fallen weg. Aus "GEN ritualx 9ǃ" wird "ritualx", aus
+   *      "housen xavifnw" wird "xavifnw".
+   *   3. Sonst der Name, wie er aus dem Spiel kam.
+   *
+   * Stufe zwei ist neu. Vorher stand dort der rohe Turniername, obwohl das
+   * Werkzeug den Kern laengst berechnet - er steht in spieler-namen.json als
+   * "schluessel" und dient dem Wiedererkennen. Auf der Kachel las man
+   * trotzdem "GEN RITUALX 9ǃ".
+   *
+   * Was Stufe zwei nicht kann: aus "ritualx" ein "ritual" machen oder aus
+   * "CO2P7" ein "Cooper". Das steht in keiner Quelle und waere geraten -
+   * dafuer gibt es den Stift auf der Kachel und das Player Center.
    *
    * "player1Name" bleibt daneben stehen und wird nicht ersetzt: an ihm
    * haengen Flagge, Rangliste und das Zusammenlegen von Dubletten. Wer den
    * Anzeigenamen zum Schluessel machte, verloere all das beim ersten
    * Umbenennen.
    */
-  const anzeige1 = anzeigeVon?.(player1Name) || player1Name;
+  const ohneBeiwerk = (n: string) => {
+    const kern = ohneZierrat(kernname(n)).trim();
+    return kern || n;
+  };
+  const anzeige1 = anzeigeVon?.(player1Name) || ohneBeiwerk(player1Name);
   const anzeige2 = player2Name
-    ? (anzeigeVon?.(player2Name) || player2Name) : player2Name;
+    ? (anzeigeVon?.(player2Name) || ohneBeiwerk(player2Name)) : player2Name;
   const cardClass = `${variant === 'pool' ? 'pool-duo-card' : 'duo-card'} ${isDuoEntry ? '' : 'solo-entry'}`;
 
   const isOwner = Boolean(
