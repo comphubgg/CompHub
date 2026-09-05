@@ -1585,6 +1585,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Verstanden': 'Got it',
   'Profil': 'Profile',
   'Schnellzugriff': 'Quick access',
+  'Aus der Liste nehmen': 'Remove from the list',
   'Team von Hand': 'Team by hand',
   'Sky & Scroll': 'Sky & Scroll',
   'Zwei Namen mit &, Komma oder Schrägstrich trennen. Ein einzelner Name ergibt ein Solo.':

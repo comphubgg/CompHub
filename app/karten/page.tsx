@@ -579,6 +579,23 @@ export default function KartenSeite(
    */
   const [eigenesTeam, setEigenesTeam] = useState('');
 
+  /*
+   * Vorschlaege beim Tippen - mit Flagge.
+   *
+   * Der Betreiber: "wenn ich Sky eingebe, dann wird Sky angezeigt, plus die
+   * Flagge, und dann soll das gleich so uebernommen werden." Darum geht es:
+   * den Namen so uebernehmen, wie er im Archiv steht, statt ihn abzutippen
+   * und sich dabei zu vertippen.
+   *
+   * Gesucht wird ueber dieselbe Suche, die auch die Statistikseite benutzt.
+   * Sie kennt den gepflegten Anzeigenamen ebenso wie die Turniernamen und
+   * liefert Land und Epic-Konto gleich mit - damit bekommt ein von Hand
+   * eingetragenes Team seine Flagge, ohne dass jemand ein Kuerzel sucht.
+   */
+  const [vorschlaege, setVorschlaege] = useState<Array<{
+    name: string; land: string; epicId: string;
+  }>>([]);
+
   /** Suchtext in der Teamliste - bei fuenfzig Duos findet man sonst nichts. */
   const [teamSuche, setTeamSuche] = useState('');
   const [entwurf, setEntwurf] = useState('');
@@ -1310,6 +1327,53 @@ export default function KartenSeite(
    * damit sich jemand eintragen kann.
    */
 
+  /*
+   * Gesucht wird nur das letzte Namensstueck.
+   *
+   * Wer "Sky & Scr" tippt, meint den zweiten Namen - der erste steht schon.
+   * Ohne das suchte die Abfrage nach der ganzen Zeile und faende nichts.
+   */
+  const angefangen = (() => {
+    const stuecke = eigenesTeam.split(/[&,/]/);
+    return (stuecke[stuecke.length - 1] ?? '').trim();
+  })();
+
+  useEffect(() => {
+    if (angefangen.length < 2) { setVorschlaege([]); return; }
+    let lebt = true;
+    const uhr = setTimeout(() => {
+      void (async () => {
+        try {
+          const antwort = await fetch(
+            '/api/szene-stats?ansicht=suche&q=' + encodeURIComponent(angefangen));
+          const j = await antwort.json();
+          if (!lebt) return;
+          const liste = (j.spieler ?? []).slice(0, 6).map((sp: {
+            anzeige?: string; name?: string; land?: string; epicId?: string;
+          }) => ({
+            name: sp.anzeige || sp.name || '',
+            land: sp.land ?? '',
+            epicId: sp.epicId ?? '',
+          })).filter((x: { name: string }) => x.name);
+          setVorschlaege(liste);
+        } catch { /* dann eben ohne Vorschlaege */ }
+      })();
+    }, 250);
+    return () => { lebt = false; clearTimeout(uhr); };
+  }, [angefangen]);
+
+  /** Einen Vorschlag uebernehmen - das angefangene Stueck wird ersetzt. */
+  const vorschlagNehmen = useCallback((name: string) => {
+    setEigenesTeam((alt) => {
+      const stuecke = alt.split(/([&,/])/);
+      for (let i = stuecke.length - 1; i >= 0; i -= 1) {
+        if (!/^[&,/]$/.test(stuecke[i])) { stuecke[i] = ' ' + name; break; }
+      }
+      return stuecke.join('').replace(/^\s+/, '');
+    });
+    setVorschlaege([]);
+  }, []);
+
   /**
    * Ein von Hand eingetipptes Team aufnehmen.
    *
@@ -1332,12 +1396,26 @@ export default function KartenSeite(
       return;
     }
 
+    /*
+     * Die Epic-Konten dazuholen, wenn der Name eindeutig getroffen wurde.
+     *
+     * Damit bekommt das Team seine Flagge und laesst sich spaeter mit
+     * Turnierdaten verbinden - genau wie ein geladenes. Findet sich nichts,
+     * bleibt es beim blossen Namen; eine Zuordnung wird nicht geraten.
+     */
+    const ids = namen.map((n) => {
+      const treffer = vorschlaege.find((v) =>
+        v.name.toLowerCase() === n.toLowerCase());
+      return treffer?.epicId ?? '';
+    });
+
     setTeams((alt) => [...alt, {
       // Ohne Epic-Konto gibt es keinen stabilen Schluessel - dann eben ein
       // eigener. Er unterscheidet sich sichtbar, damit man spaeter erkennt,
       // welche Teams von Hand kamen.
-      id: `hand-${Date.now().toString(36)}-${alt.length}`,
+      id: kontoSchluessel(ids) ?? `hand-${Date.now().toString(36)}-${alt.length}`,
       spieler: namen,
+      ...(ids.some(Boolean) ? { ids } : {}),
       farbe: FARBEN[alt.length % FARBEN.length],
     }]);
     setEigenesTeam('');
@@ -2934,7 +3012,7 @@ ${name}
               * Von Hand dazu - neben "Teams laden", weil es dieselbe Frage
               * beantwortet: wer steht auf dieser Karte.
               */}
-            <label className="text-xs text-slate-400">
+            <label className="relative text-xs text-slate-400">
               <T>Team von Hand</T>
               <input value={eigenesTeam}
                 onChange={(e) => setEigenesTeam(e.target.value)}
@@ -2945,6 +3023,32 @@ ${name}
                 className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2
                            text-sm text-slate-100 outline-none placeholder:text-slate-600
                            focus:border-sky-500" />
+            
+              {/*
+                * Die Vorschlaege, mit Flagge.
+                *
+                * Sie liegen ueber allem darunter - sonst verschoebe sich beim
+                * Tippen die ganze Leiste, und der Knopf daneben waere ein
+                * bewegliches Ziel.
+                */}
+              {vorschlaege.length > 0 && (
+                <ul className="absolute z-30 mt-1 w-56 overflow-hidden rounded-lg
+                               border border-zinc-800 bg-zinc-950 shadow-lg
+                               shadow-black/50">
+                  {vorschlaege.map((v) => (
+                    <li key={v.epicId || v.name}>
+                      <button type="button"
+                        onClick={() => vorschlagNehmen(v.name)}
+                        className="flex w-full items-center gap-2 px-3 py-2 text-left
+                                   text-sm text-slate-200 transition
+                                   hover:bg-zinc-900">
+                        <TeamFlagge groesse={18} laender={[v.land || undefined]} />
+                        <span className="truncate">{v.name}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </label>
             <button onClick={teamEintragen} disabled={!eigenesTeam.trim()}
               className="self-end rounded-lg bg-zinc-800 px-4 py-2 text-sm font-medium
@@ -3564,6 +3668,40 @@ ${name}
                                 stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
                                 <path d="M13.5 3.5 16.5 6.5 7 16H4v-3z" />
                               </svg>
+                            </button>
+                          )}
+                          {/*
+                            * Ein Team wieder aus der Liste nehmen.
+                            *
+                            * Gebraucht, seit sich Teams von Hand eintragen
+                            * lassen: wer sich vertippt, soll den Eintrag
+                            * loswerden, ohne die ganze Liste neu zu laden.
+                            * Es hilft auch bei geladenen Teams - nicht jedes
+                            * Duo aus einer Bestenliste gehoert auf die Karte.
+                            *
+                            * Steht es schon auf einer Form, wird es dort
+                            * ebenfalls entfernt. Sonst bliebe auf der Karte
+                            * eine Kennung stehen, zu der es kein Team mehr
+                            * gibt - und die Form saehe belegt aus, ohne
+                            * jemanden zu zeigen.
+                            */}
+                          {istAdmin && (
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setTeams((alt) => alt.filter((x) => x.id !== t.id));
+                                setSpots((alt) => alt.map((sp) => (
+                                  (sp.teams ?? []).includes(t.id)
+                                    ? { ...sp, teams: sp.teams.filter((id) => id !== t.id) }
+                                    : sp)));
+                              }}
+                              title={uebs('Aus der Liste nehmen')}
+                              className="shrink-0 text-slate-600 transition
+                                         hover:text-rose-400">
+                                <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none"
+                                  stroke="currentColor" strokeWidth="1.7" strokeLinecap="round">
+                                  <path d="M5 5l10 10M15 5L5 15" />
+                                </svg>
                             </button>
                           )}
                         </>
