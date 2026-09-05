@@ -11,6 +11,7 @@ import { useZugang } from '@/app/lib/zugang';
 import { BEREICHE as VERWALTUNGSBEREICHE, type Bereich as BereichRecht } from '@/lib/rechte';
 import { liesChatHud, setzeChatHud, CHAT_HUD_EREIGNIS } from '@/app/lib/chatHud';
 import ChatFenster from '@/app/components/ChatFenster';
+import Fusszeile from '@/app/components/Fusszeile';
 
 // Das eigene Konto.
 //
@@ -1138,6 +1139,15 @@ export default function KontoSeite() {
 
 
       </div>
+
+      {/*
+        * Dieselbe Fusszeile wie unter der Startseite und dem Dashboard.
+        *
+        * Sie steht ausserhalb des eingerueckten Kastens, damit sie ueber die
+        * volle Breite laeuft - und sie schliesst die Seite ab, die sonst
+        * unter dem Speichern-Knopf einfach in Schwarz auslief.
+        */}
+      <Fusszeile />
     </main>
   );
 }
