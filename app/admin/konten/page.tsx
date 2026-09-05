@@ -231,8 +231,18 @@ function VipZugaenge() {
     return () => { weg = true; };
   }, [offen, holen]);
 
+  /*
+   * Ob der Schluessel es nach Discord geschafft hat.
+   *
+   * Steht als eigene Zeile daneben und nicht als Fehler: der Schluessel gilt
+   * in jedem Fall, auch wenn Discord gerade nicht erreichbar war. Nur weiss
+   * der Betreiber dann, dass er ihn diesmal von Hand weitergeben muss -
+   * ohne diese Zeile haette er es angenommen und der VIP haette gewartet.
+   */
+  const [discord, setDiscord] = useState<string | null>(null);
+
   async function anlegen(neuerSchluessel = false) {
-    setFehler('');
+    setFehler(''); setDiscord(null);
     try {
       const r = await fetch('/api/admin/vip-zugaenge', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -241,6 +251,7 @@ function VipZugaenge() {
       const j = await r.json();
       if (!r.ok) { setFehler(t(j?.fehler ?? 'nicht gespeichert')); return; }
       setFrisch({ name: j.name, schluessel: j.schluessel });
+      setDiscord(j.discord ?? null);
       setName('');
       await holen();
     } catch (e) { setFehler((e as Error).message); }
@@ -264,7 +275,7 @@ function VipZugaenge() {
    * dann nicht mehr. Kein neuer Zugang, kein zweiter Eintrag.
    */
   async function erneuern(n: string) {
-    setFehler('');
+    setFehler(''); setDiscord(null);
     try {
       const r = await fetch('/api/admin/vip-zugaenge', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -272,6 +283,7 @@ function VipZugaenge() {
       });
       const j = await r.json();
       if (!r.ok) { setFehler(t(j?.fehler ?? 'nicht gespeichert')); return; }
+      setDiscord(j.discord ?? null);
       await holen();
       setZeigt(n);
     } catch (e) { setFehler((e as Error).message); }
@@ -349,6 +361,22 @@ function VipZugaenge() {
                 <T>notiert, ausblenden</T>
               </button>
             </div>
+          )}
+
+          {/*
+            * Was Discord daraus gemacht hat.
+            *
+            * Gruen, wenn der Schluessel im Kanal des VIPs liegt - dann muss
+            * niemand mehr etwas weitergeben. Bernstein, wenn nicht: der
+            * Schluessel gilt trotzdem, er muss diesmal nur von Hand hin.
+            */}
+          {discord && (
+            <p className={`mt-2 text-[11px] ${discord === 'gesendet'
+              ? 'text-emerald-400/80' : 'text-amber-400/80'}`}>
+              {discord === 'gesendet'
+                ? <T>In den Discord-Kanal des VIPs gelegt — der alte Schlüssel dort ist weg.</T>
+                : `Discord: ${discord}`}
+            </p>
           )}
 
           {liste.length > 0 && (

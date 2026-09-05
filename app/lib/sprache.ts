@@ -1585,6 +1585,8 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Verstanden': 'Got it',
   'Profil': 'Profile',
   'Schnellzugriff': 'Quick access',
+  'In den Discord-Kanal des VIPs gelegt — der alte Schlüssel dort ist weg.':
+    'Posted to the VIP’s Discord channel — the old key there is gone.',
   'Dieses Konto ist gesperrt. Eine neue Anmeldung mit derselben Adresse ist nicht möglich — wende dich an den Betreiber.':
     'This account is blocked. Signing up again with the same address is not '
     + 'possible — please contact the operator.',

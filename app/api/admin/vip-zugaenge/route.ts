@@ -8,6 +8,7 @@ import { istBetreiber, vipAus } from '@/lib/vipCookie';
 import { zugangNach, rechteVon } from '@/lib/vipZugaenge';
 import { verankereProfi } from '@/lib/profiVerankern';
 import { DATEN_ORT } from '@/lib/datenOrt';
+import { schickeSchluessel, discordDa } from '@/lib/discord';
 
 // VIP-Zugaenge anlegen und verwalten.
 //
@@ -177,11 +178,33 @@ export async function POST(request: Request) {
   await schreibe(daten);
 
   /*
+   * Und ab damit nach Discord.
+   *
+   * Der Betreiber fuehrt fuer jeden VIP einen eigenen Kanal. Dort soll immer
+   * genau ein Schluessel stehen, naemlich der gueltige - die vorherige
+   * Nachricht wird deshalb geloescht. Einen neuen VIP legt der Bot samt
+   * Kanal an.
+   *
+   * Bewusst nach dem Speichern und ohne die Antwort davon abhaengig zu
+   * machen: der Schluessel ist zu diesem Zeitpunkt erzeugt und gilt. Ginge
+   * das Werkzeug daran kaputt, dass Discord gerade nicht erreichbar ist,
+   * waere das der schlechtere Handel. Was schiefging, steht als Hinweis
+   * daneben, damit es nicht unbemerkt bleibt.
+   */
+  const discord = await schickeSchluessel(name, schluessel);
+
+  /*
    * Der Schluessel geht genau hier heraus, ein einziges Mal. Die Oberflaeche
    * zeigt ihn dem Admin zum Weitergeben; danach ist er nur noch in der
    * Datei.
    */
-  return NextResponse.json({ ok: true, name, schluessel });
+  return NextResponse.json({
+    ok: true,
+    name,
+    schluessel,
+    discord: discord.ok ? 'gesendet'
+      : discordDa() ? `nicht gesendet: ${discord.grund}` : null,
+  });
 }
 
 /**
