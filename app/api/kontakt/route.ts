@@ -4,6 +4,7 @@ import { kontoAus, nachId } from '@/lib/konten';
 import { istBetreiber, vipAus } from '@/lib/vipCookie';
 import { zugangNach, rechteVon } from '@/lib/vipZugaenge';
 import { alle, lege, aendere, entferne } from '@/lib/kontakt';
+import { sendeMail, betreiberAdresse } from '@/lib/mail';
 
 /*
  * Das Kontaktformular.
@@ -81,6 +82,39 @@ export async function POST(request: Request) {
     vonId: konto.id,
     vonName: konto.name ?? '',
     vonEmail: konto.email ?? '',
+  });
+
+  /*
+   * Der Betreiber bekommt Bescheid.
+   *
+   * Die Meldung liegt im Werkzeug und bleibt dort - das war und ist richtig,
+   * die Bilder gehoeren zum Vorgang. Aber wer nicht taeglich hineinsieht,
+   * bemerkt sie tagelang nicht. Deshalb eine Mail mit allem Wesentlichen:
+   * Thema, Absender, Text. Antworten geht direkt an den Absender, weil
+   * antwortAn auf seine Adresse steht - ein Klick auf Antworten im Postfach
+   * erreicht ihn, ohne dass jemand eine Adresse heraussuchen muss.
+   */
+  const themenName: Record<string, string> = {
+    support: 'Support', report: 'Report', feedback: 'Feedback',
+    hilfe: 'Hilfe', idee: 'Idee', anderes: 'Anderes',
+  };
+  const betreff = m.eigenesThema || themenName[m.thema] || 'Meldung';
+  void sendeMail({
+    an: betreiberAdresse(),
+    antwortAn: m.vonEmail || undefined,
+    betreff: `${betreff} — ${m.vonName || 'jemand'}`,
+    etikett: themenName[m.thema] || m.thema,
+    text: 'Es ist eine neue Meldung über das Kontaktformular eingegangen.',
+    angaben: [
+      { was: 'Von', wert: m.vonName || '—' },
+      { was: 'Adresse', wert: m.vonEmail || '—' },
+      { was: 'Thema', wert: themenName[m.thema] || m.thema },
+      ...(m.eigenesThema ? [{ was: 'Betreff', wert: m.eigenesThema }] : []),
+      { was: 'Bilder', wert: m.bilder.length ? String(m.bilder.length) : 'keine' },
+      { was: 'Eingegangen', wert: new Date(m.zeit).toLocaleString('de-DE') },
+    ],
+    zitat: m.text,
+    knopf: { titel: 'Im Werkzeug öffnen', ziel: 'https://thecomphub.com/nachrichten' },
   });
 
   return NextResponse.json({ ok: true, id: m.id, bilder: m.bilder.length });

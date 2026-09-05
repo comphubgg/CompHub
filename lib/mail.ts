@@ -48,6 +48,31 @@ export interface Brief {
   text: string;
   /** Ein Knopf am Ende - Beschriftung und Ziel. */
   knopf?: { titel: string; ziel: string };
+  /*
+   * Angaben als Tabelle - Absender, Thema, Zeitpunkt.
+   *
+   * Fuer Meldungen aus dem Werkzeug: wer sie im Postfach sieht, soll auf einen
+   * Blick wissen, worum es geht und von wem, ohne den Fliesstext zu lesen.
+   */
+  angaben?: Array<{ was: string; wert: string }>;
+  /** Ein Etikett oben, etwa das Thema einer Meldung. */
+  etikett?: string;
+  /** Der eigentliche Text der Meldung, abgesetzt vom Rest. */
+  zitat?: string;
+  /** Absender fuer die Antwort - ueberschreibt MAIL_ANTWORT. */
+  antwortAn?: string;
+}
+
+/**
+ * Wohin Meldungen aus dem Werkzeug gehen.
+ *
+ * Direkt ans Postfach und nicht ueber help@thecomphub.com: eine Mail, die
+ * unterwegs weitergeleitet wird, verliert ihren Nachweis beim Absender und
+ * landet bei Gmail regelmaessig im Spam. Der Umweg brachte hier nichts - der
+ * Betreiber liest ohnehin dasselbe Postfach.
+ */
+export function betreiberAdresse(): string {
+  return process.env.MAIL_BETREIBER || process.env.MAIL_USER || '';
 }
 
 /**
@@ -59,6 +84,60 @@ export interface Brief {
  * ueberall.
  */
 function bauHtml(b: Brief): string {
+  /*
+   * Der Banner mit dem Zeichen.
+   *
+   * Als Bild von der eigenen Seite, nicht als Anhang: Postfaecher zeigen
+   * Anhaenge nicht im Text an, und ein eingebettetes Bild blaeht jede Mail um
+   * hunderte Kilobyte auf. Wer die Bilder gesperrt hat, sieht den Alternativtext
+   * - deshalb steht der Name darunter auch als Schrift.
+   */
+  const banner = `
+    <tr><td style="padding:0;">
+      <div style="background:#0b0b0e;border-bottom:1px solid #18181b;
+                  padding:22px 32px;text-align:left;">
+        <img src="https://thecomphub.com/social/comphub-profilbild-dunkel.png"
+             width="34" height="34" alt=""
+             style="vertical-align:middle;border-radius:8px;" />
+        <span style="vertical-align:middle;margin-left:10px;font-size:17px;
+                     font-weight:800;letter-spacing:-0.5px;">
+          <span style="color:#0ea5e9;">COMP</span><span style="color:#f4f4f5;">HUB</span>
+        </span>
+      </div>
+    </td></tr>`;
+
+  const etikett = b.etikett ? `
+    <tr><td style="padding:22px 32px 0 32px;">
+      <span style="display:inline-block;background:rgba(14,165,233,0.14);
+                   border:1px solid rgba(14,165,233,0.4);color:#7dd3fc;
+                   font-size:11px;font-weight:700;letter-spacing:1px;
+                   text-transform:uppercase;padding:5px 11px;border-radius:999px;">
+        ${b.etikett}</span>
+    </td></tr>` : '';
+
+  const angaben = b.angaben?.length ? `
+    <tr><td style="padding:18px 32px 0 32px;">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0"
+             width="100%" style="border:1px solid #27272a;border-radius:12px;
+                                 overflow:hidden;">
+        ${b.angaben.map((z, i) => `
+          <tr style="background:${i % 2 ? '#0e0e12' : '#111116'};">
+            <td style="padding:10px 14px;color:#71717a;font-size:12px;
+                       width:34%;white-space:nowrap;">${z.was}</td>
+            <td style="padding:10px 14px;color:#e4e4e7;font-size:13px;
+                       font-weight:600;">${z.wert}</td>
+          </tr>`).join('')}
+      </table>
+    </td></tr>` : '';
+
+  const zitat = b.zitat ? `
+    <tr><td style="padding:18px 32px 0 32px;">
+      <div style="border-left:3px solid #0ea5e9;background:#0e0e12;
+                  padding:14px 16px;border-radius:0 10px 10px 0;
+                  color:#d4d4d8;font-size:14px;line-height:1.7;
+                  white-space:pre-wrap;">${b.zitat}</div>
+    </td></tr>` : '';
+
   const knopf = b.knopf ? `
     <tr><td style="padding:24px 32px 8px 32px;">
       <a href="${b.knopf.ziel}"
@@ -78,15 +157,14 @@ function bauHtml(b: Brief): string {
   <table role="presentation" cellpadding="0" cellspacing="0" border="0"
          style="max-width:520px;margin:0 auto;background:#0c0c0f;
                 border:1px solid #27272a;border-radius:16px;">
-    <tr><td style="padding:28px 32px 0 32px;">
-      <span style="font-size:18px;font-weight:800;letter-spacing:-0.5px;">
-        <span style="color:#0ea5e9;">COMP</span><span style="color:#f4f4f5;">HUB</span>
-      </span>
-    </td></tr>
-    <tr><td style="padding:20px 32px 0 32px;color:#e4e4e7;font-size:15px;
-                   font-weight:600;">${b.betreff}</td></tr>
+    ${banner}
+    ${etikett}
+    <tr><td style="padding:18px 32px 0 32px;color:#f4f4f5;font-size:17px;
+                   font-weight:700;line-height:1.4;">${b.betreff}</td></tr>
     <tr><td style="padding:10px 32px 0 32px;color:#a1a1aa;font-size:14px;
                    line-height:1.7;">${b.text.replace(/\n/g, '<br>')}</td></tr>
+    ${angaben}
+    ${zitat}
     ${knopf}
     <tr><td style="padding:24px 32px 28px 32px;border-top:1px solid #18181b;
                    color:#52525b;font-size:11px;line-height:1.6;">
@@ -112,7 +190,7 @@ export async function sendeMail(b: Brief): Promise<boolean> {
   try {
     await hole().sendMail({
       from: process.env.MAIL_VON || process.env.MAIL_USER,
-      replyTo: process.env.MAIL_ANTWORT || undefined,
+      replyTo: b.antwortAn || process.env.MAIL_ANTWORT || undefined,
       to: b.an,
       subject: b.betreff,
       text: b.knopf ? `${b.text}\n\n${b.knopf.titel}: ${b.knopf.ziel}` : b.text,
