@@ -302,6 +302,23 @@ export default function ChatFenster({ alsSeite = false }: { alsSeite?: boolean }
   }, [gespraeche]);
 
   /*
+   * Aus der Adresse heraus ein bestimmtes Gespraech oeffnen.
+   *
+   * Der Knopf in der Benachrichtigung fuehrt auf /nachrichten?gespraech=<id>.
+   * Wer aus dem Postfach kommt, hat eine bestimmte Meldung vor Augen und
+   * soll sie nicht in einer Liste wiederfinden muessen.
+   */
+  const ausAdresse = useRef(false);
+  useEffect(() => {
+    if (ausAdresse.current || !alsSeite || typeof window === 'undefined') return;
+    const gesucht = new URLSearchParams(window.location.search).get('gespraech');
+    if (!gesucht) { ausAdresse.current = true; return; }
+    if (!gespraeche.length) return;
+    ausAdresse.current = true;
+    if (gespraeche.some((g) => g.id === gesucht)) void oeffne(gesucht);
+  }, [alsSeite, gespraeche, oeffne]);
+
+  /*
    * Ein Bild aufnehmen - aus der Dateiwahl oder aus der Zwischenablage.
    *
    * Strg+V ist der Weg, den die meisten nehmen: Bildschirmausschnitt machen,

@@ -61,6 +61,16 @@ export interface Brief {
   zitat?: string;
   /** Absender fuer die Antwort - ueberschreibt MAIL_ANTWORT. */
   antwortAn?: string;
+  /*
+   * Dateien, die mitgehen.
+   *
+   * Bei einer Meldung sind das die Bildschirmausschnitte. Sie stehen bewusst
+   * als Anhang und nicht im Text: im Text muessten sie von einer Adresse
+   * geladen werden, die nur Angemeldete sehen duerfen - dort erschiene beim
+   * Betreiber ein leerer Rahmen. Als Anhang liegen sie im Postfach und sind
+   * mit einem Klick da.
+   */
+  anhaenge?: Array<{ name: string; pfad: string }>;
 }
 
 /**
@@ -195,6 +205,7 @@ export async function sendeMail(b: Brief): Promise<boolean> {
       subject: b.betreff,
       text: b.knopf ? `${b.text}\n\n${b.knopf.titel}: ${b.knopf.ziel}` : b.text,
       html: bauHtml(b),
+      attachments: b.anhaenge?.map((a) => ({ filename: a.name, path: a.pfad })),
     });
     return true;
   } catch (e) {

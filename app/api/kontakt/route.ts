@@ -1,4 +1,6 @@
 import { NextResponse } from 'next/server';
+import path from 'path';
+import { DATEN_ORT } from '@/lib/datenOrt';
 import { cookies } from 'next/headers';
 import { kontoAus, nachId } from '@/lib/konten';
 import { istBetreiber, vipAus } from '@/lib/vipCookie';
@@ -123,7 +125,28 @@ export async function POST(request: Request) {
       { was: 'Eingegangen', wert: new Date(m.zeit).toLocaleString('de-DE') },
     ],
     zitat: m.text,
-    knopf: { titel: 'Im Werkzeug öffnen', ziel: 'https://thecomphub.com/nachrichten' },
+    /*
+     * Der Knopf fuehrt in genau dieses Gespraech, nicht in die Liste.
+     *
+     * Wer aus dem Postfach kommt, hat eine bestimmte Meldung vor Augen. In
+     * einer Liste muesste er sie erst wiederfinden - bei zwei Meldungen geht
+     * das, bei zwanzig nicht mehr.
+     */
+    knopf: {
+      titel: 'Im Werkzeug öffnen',
+      ziel: `https://thecomphub.com/nachrichten?gespraech=${m.id}`,
+    },
+    /*
+     * Die Bildschirmausschnitte gehen mit.
+     *
+     * Als Anhang und nicht im Text: im Text muessten sie von einer Adresse
+     * geladen werden, die nur der Betreiber sehen darf - im Postfach erschiene
+     * dort ein leerer Rahmen. Im Anhang liegen sie und sind mit einem Klick da.
+     */
+    anhaenge: m.bilder.map((b, i) => ({
+      name: `bild-${i + 1}${b.slice(b.lastIndexOf('.'))}`,
+      pfad: path.join(DATEN_ORT, 'kontakt-bilder', b),
+    })),
   });
 
   return NextResponse.json({ ok: true, id: m.id, bilder: m.bilder.length });
