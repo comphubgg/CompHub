@@ -10,6 +10,7 @@ import Sprachschalter from './components/Sprachschalter';
 import ChatFenster from "@/app/components/ChatFenster";
 import PreviewTour from './components/PreviewTour';
 import RouteTransitionLoader from './components/RouteTransitionLoader';
+import Besuchszaehler from './components/Besuchszaehler';
 import SektionSperre from './components/SektionSperre';
 import SperrSeite from './components/SperrSeite';
 import { sperreFuerAufruf, sektionsLage } from '@/lib/sektionen-server';
@@ -173,6 +174,13 @@ export default async function RootLayout({
           {/* Das Gespraech mit dem Betreiber. Links am Rand, damit es dem
               Sprachschalter unten rechts nicht in die Quere kommt. */}
           <ChatFenster />
+          {/*
+            * Zaehlt, dass diese Seite geoeffnet wurde - sichtbar ist davon
+            * nichts. Steht hier im Rahmen, damit auch die Wechsel ohne
+            * Neuladen erfasst werden; ausgewertet wird das unten im
+            * Dashboard.
+            */}
+          <Besuchszaehler />
         </SprachProvider>
       </body>
     </html>

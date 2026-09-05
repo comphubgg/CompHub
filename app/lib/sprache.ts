@@ -1585,6 +1585,37 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Verstanden': 'Got it',
   'Profil': 'Profile',
   'Schnellzugriff': 'Quick access',
+
+  // ------------------------------------------------- Nutzungszahlen unten
+  'Nutzung': 'Usage',
+  'Tage': 'days',
+  'Konten insgesamt': 'Accounts in total',
+  'VIP-Konten': 'VIP accounts',
+  'VIP-Zugangsschlüssel': 'VIP access keys',
+  'Die Zahlen ließen sich nicht laden.': 'The figures could not be loaded.',
+  'Besucher': 'Visitors',
+  'Browser, die an dem Tag da waren': 'Browsers that were here that day',
+  'Seitenaufrufe': 'Page views',
+  'Jede geöffnete Seite einzeln': 'Every opened page counted on its own',
+  'Neue Konten': 'New accounts',
+  'An dem Tag registriert': 'Registered that day',
+  'VIP vergeben': 'VIP granted',
+  'Konten und Zugangsschlüssel zusammen': 'Accounts and access keys together',
+  'im Zeitraum': 'in this period',
+  'Höchstwert': 'Peak',
+  'wurde damals noch nicht gezählt': 'was not being counted back then',
+  'Dafür liegt noch nichts vor — die Zählung beginnt jetzt.':
+    'Nothing on record for this yet — counting starts now.',
+  'Schraffiert: davor wurde das nicht festgehalten. Erfasst seit':
+    'Hatched: not recorded before that. Tracked since',
+  'Davon zum ersten Mal hier': 'First time here among them',
+  'Bei Konten wird die Vergabe erst ab jetzt festgehalten; ältere Balken zeigen nur die Zugangsschlüssel.':
+    'For accounts, the grant is only recorded from now on; older bars show '
+    + 'access keys only.',
+  'Gezählt werden Browser, nicht Menschen: wer Handy und Rechner benutzt, zählt zweimal, wer seine Daten löscht, gilt danach als neu. Deine eigenen Aufrufe als Admin zählen nicht mit.':
+    'Browsers are counted, not people: anyone using a phone and a computer '
+    + 'counts twice, and anyone who clears their data counts as new afterwards. '
+    + 'Your own visits as an admin are not counted.',
   'Admin-Werkzeuge': 'Admin tools',
   'Twitch-Kanal': 'Twitch channel',
   'Anzeigen': 'Show',

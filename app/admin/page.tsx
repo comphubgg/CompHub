@@ -26,6 +26,7 @@ import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import { useZugang } from '@/app/lib/zugang';
 import { bereichVonPfad } from '@/lib/rechte';
+import Nutzungszahlen from '@/app/components/Nutzungszahlen';
 type ProfileData = {
   displayName: string;
   avatarUrl: string | null;
@@ -419,6 +420,17 @@ export default function AdminDashboardPage() {
             )}
           </section>
         </div>
+
+        {/*
+          * Ganz unten: was im Werkzeug los ist.
+          *
+          * Ausdruecklich hier und nicht bei den Admin-Werkzeugen - das sind
+          * keine Werkzeuge, sondern etwas zum Ansehen, und es soll beim
+          * Herunterscrollen von selbst auftauchen. Ueber die ganze Breite,
+          * weil dreissig Balken in einer 380 Pixel breiten Spalte nicht mehr
+          * zu unterscheiden waeren.
+          */}
+        {(istAdmin || rolle === 'admin' || zugang.admin) && <Nutzungszahlen />}
       </div>
     </main>
   );

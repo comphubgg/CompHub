@@ -117,6 +117,20 @@ export interface Konto {
    * Ende.
    */
   vipBis?: number;
+  /*
+   * Wann VIP vergeben wurde - ein Zeitstempel je Vergabe.
+   *
+   * `vipBis` sagt, bis wann es gilt, nicht seit wann. Fuer die Auswertung im
+   * Dashboard ("wie viele haben an diesem Tag VIP bekommen?") ist aber genau
+   * der Zeitpunkt der Vergabe gefragt, und der stand nirgends. Rueckwirkend
+   * laesst er sich nicht herstellen - deshalb faengt diese Liste bei den
+   * bestehenden Konten leer an und fuellt sich ab der naechsten Vergabe.
+   *
+   * Eine Liste und kein einzelner Wert, weil VIP verlaengert und erneut
+   * vergeben wird; ein einzelner Wert wuerde die frueheren Vergaben
+   * ueberschreiben und die Auswertung still verfaelschen.
+   */
+  vipVergaben?: number[];
   /** Eigene Socials, vom Nutzer selbst gepflegt. */
   socials?: Record<string, string>;
   /** Pfad zum selbst hochgeladenen Bild. */
@@ -403,6 +417,9 @@ export async function alleKonten() {
     bannerVorlagen: k.bannerVorlagen ?? [],
     vip: istVip(k),
     vipBis: k.vipBis ?? null,
+    // Wann VIP vergeben wurde - fuer die Nutzungszahlen im Dashboard. Die
+    // Kontoverwaltung selbst braucht die Liste nicht und zeigt sie nicht an.
+    vipVergaben: k.vipVergaben ?? [],
     gesperrt: k.gesperrt ?? null,
     ips: (k.ips ?? []).slice(0, 3),
     dienste: Object.keys(k.dienste ?? {}),
@@ -443,9 +460,23 @@ export async function setzeRechte(
     delete liste[i].rechte;
   }
 
+  /*
+   * Den Zeitpunkt festhalten, aber nur bei einer echten Vergabe.
+   *
+   * Wer VIP wegnimmt, vergibt keines; und wer den Bereich eines Managers
+   * anhakt, ohne am VIP zu ruehren, ebenso wenig. Sonst stuende im Diagramm
+   * jede Speicherung als neue Vergabe.
+   */
+  const warVip = istVip(liste[i]);
+
   if (vipTage === null) delete liste[i].vipBis;
   else if (vipTage === 0) liste[i].vipBis = 0;                 // ohne Ende
   else liste[i].vipBis = Date.now() + vipTage * 86_400_000;
+
+  if (!warVip && istVip(liste[i])) {
+    // Gekappt, damit ein einzelnes Konto die Datei nicht vollschreibt.
+    liste[i].vipVergaben = [...(liste[i].vipVergaben ?? []), Date.now()].slice(-50);
+  }
 
   await schreibe(liste);
   return liste[i];
