@@ -3,6 +3,7 @@ import { cookies } from 'next/headers';
 import { zaehleAufruf, BESUCH_COOKIE } from '@/lib/besuche';
 import { kontoAus, nachId } from '@/lib/konten';
 import { vipAus } from '@/lib/vipCookie';
+import { merkeAufruf } from '@/lib/anwesenheit';
 
 /*
  * Die Meldung "hier ist jemand".
@@ -48,6 +49,29 @@ async function istBetreiber(laden: Awaited<ReturnType<typeof cookies>>): Promise
 export async function POST() {
   try {
     const laden = await cookies();
+
+    /*
+     * Wer angemeldet ist, wird namentlich vermerkt.
+     *
+     * Getrennt vom Zaehler darueber: der zaehlt Browser und nennt bewusst
+     * keine Namen. Hier geht es um die Angemeldeten, und die sind
+     * namentlich bekannt, weil sie sich mit Namen angemeldet haben. Daraus
+     * entsteht die Liste "wer ist gerade da" in den Adminwerkzeugen.
+     *
+     * Auch fuer den Betreiber selbst - er will ja sehen, dass es geht, und
+     * bei den Besuchszahlen bleibt er weiterhin aussen vor.
+     */
+    const vip = vipAus(laden.get(VIP_COOKIE)?.value);
+    if (vip) {
+      void merkeAufruf(`vip:${vip.toLowerCase()}`, vip, 'vip');
+    } else {
+      const id = kontoAus(laden.get(KONTO_COOKIE)?.value);
+      if (id) {
+        const k = await nachId(id);
+        if (k) void merkeAufruf(k.id, k.name || k.email, 'konto');
+      }
+    }
+
     if (await istBetreiber(laden)) return new NextResponse(null, { status: 204 });
 
     const neuesCookie = await zaehleAufruf(laden.get(BESUCH_COOKIE)?.value);

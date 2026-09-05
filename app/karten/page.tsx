@@ -1224,7 +1224,7 @@ export default function KartenSeite(
       setTeams(liste);
       setStatus(liste.length
         ? `${liste.length} Teams geladen${woher}`
-        : 'Noch keine Ergebnisse');
+        : uebs('Noch keine Ergebnisse'));
     } catch (e) {
       setStatus((e as Error).message);
     } finally { setLaedtTeams(false); }

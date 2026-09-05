@@ -8,6 +8,7 @@ import {
 } from '@/lib/konten';
 import { sendeMail, versandDa } from '@/lib/mail';
 import { ueberHttps } from '@/lib/vipCookie';
+import { merkeAnmeldung as merkeAnwesenheit } from '@/lib/anwesenheit';
 
 // Registrieren, anmelden, abmelden - und wer gerade angemeldet ist.
 //
@@ -323,6 +324,8 @@ export async function POST(request: Request) {
     }
 
     await merkeAnmeldung(konto.id);
+    // Und fuer die Liste "wer war wann da" in den Adminwerkzeugen.
+    void merkeAnwesenheit(konto.id, konto.name || konto.email, 'konto');
     await merkeIp(konto.id, anschluss(request));
     const antwort = NextResponse.json({ ok: true, konto: oeffentlich(konto) });
     await setzeSitzung(antwort, konto.id, request);

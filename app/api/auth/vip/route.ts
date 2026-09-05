@@ -4,6 +4,7 @@ import path from 'path';
 import crypto from 'crypto';
 import { ueberHttps } from '@/lib/vipCookie';
 import { DATEN_ORT } from '@/lib/datenOrt';
+import { merkeAnmeldung as merkeAnwesenheit } from '@/lib/anwesenheit';
 
 /*
  * Bei jeder Anfrage neu ausfuehren.
@@ -52,6 +53,9 @@ export async function POST(request: NextRequest) {
     if (!user || user.accessKey !== accessKey || user.status !== 'active') {
       return NextResponse.json({ error: 'Invalid username or access key' }, { status: 401 });
     }
+
+    // Fuer die Liste "wer war wann da" in den Adminwerkzeugen.
+    void merkeAnwesenheit(`vip:${user.username.toLowerCase()}`, user.username, 'vip');
 
     const cookieValue = makeSessionCookieValue(user.username);
     const response = NextResponse.json({ success: true, user: user.username });

@@ -79,6 +79,10 @@ const ZIELE: Ziel[] = [
  * Kontoverwaltung: die ist nicht vergebbar.
  */
 const NUR_ADMIN: Ziel[] = [
+  // Wer gerade da ist und wer sich wann angemeldet hat. Nur Angemeldete und
+  // nur mit Namen - die Besuchszahlen unten zaehlen dagegen Browser.
+  { href: '/admin/live', titel: 'Live',
+    text: 'Wer gerade da ist und wann sich wer angemeldet hat' },
   { href: '/admin/konten', titel: 'Konten', text: 'Rollen und VIP vergeben' },
   // Wer Bereiche zumachen darf, koennte sich damit selbst den Weg zurueck
   // verbauen - deshalb nur der Admin, so wie bei den Konten.

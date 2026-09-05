@@ -709,7 +709,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
       // haeufigste Nachfrage zu dieser Seite.
       setStand(d.entries?.length
         ? `${t('Stand')} ${new Date(d.updated).toLocaleTimeString(ort)}`
-        : 'Noch keine Ergebnisse');
+        : t('Noch keine Ergebnisse'));
     } catch (e) { setStand(t('Fehler') + ': ' + (e as Error).message); setTabelle([]); }
     finally { setLaedt(false); }
   }, []);

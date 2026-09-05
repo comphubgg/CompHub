@@ -1585,6 +1585,30 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Verstanden': 'Got it',
   'Profil': 'Profile',
   'Schnellzugriff': 'Quick access',
+  'Live': 'Live',
+  'Wer gerade da ist und wann sich wer angemeldet hat':
+    'Who is here right now and when each person signed in',
+  'Wer gerade da ist und wer sich wann angemeldet hat.':
+    'Who is here right now, and when each person signed in.',
+  'zu den Admin-Werkzeugen': 'to the admin tools',
+  'Gerade da': 'Here right now',
+  'Gerade niemand.': 'Nobody right now.',
+  'Zuletzt hier': 'Last seen',
+  'zuletzt hier': 'last seen',
+  'angemeldet': 'signed in',
+  'vor': '',
+  'Min.': 'min ago',
+  'Std.': 'h ago',
+  'Tagen': 'days ago',
+  'Noch niemand aufgezeichnet. Die Liste füllt sich, sobald sich jemand anmeldet oder eine Seite öffnet — rückwirkend gibt es nichts, vorher wurde das nicht festgehalten.':
+    'Nobody recorded yet. The list fills up as soon as someone signs in or '
+    + 'opens a page — there is nothing retroactive, this was not recorded '
+    + 'before.',
+  '„Gerade da“ heißt: in den letzten fünf Minuten war eine Seite offen. Wer den Tab schließt, meldet sich nicht ab — mehr lässt sich darüber nicht sagen.':
+    '“Here right now” means a page was open in the last five '
+    + 'minutes. Closing a tab does not sign anyone out — nothing more can '
+    + 'honestly be said about it.',
+  'Noch keine Ergebnisse': 'No results yet',
   'In dieser Saison gibt es noch keine weiteren Spieltage — die Quelle liefert sie ein bis zwei Tage nach jedem Cup.':
     'No further match days in this season yet — the source publishes them '
     + 'one to two days after each cup.',
@@ -1835,7 +1859,6 @@ const AUF_DEUTSCH: Record<string, string> = {
   'Skip': 'Überspringen',
   'Next': 'Weiter',
   'Back': 'Zurück',
-  'Live': 'Live',
   'Try again': 'Erneut versuchen',
   'What this does': 'Was das Werkzeug macht',
   'No access?': 'Kein Zugang?',
@@ -1858,7 +1881,6 @@ const AUF_DEUTSCH: Record<string, string> = {
   'No chat loaded': 'Kein Chat geladen',
   'No stream selected': 'Kein Stream gewählt',
   'Looking for streamers...': 'Suche nach Streamern …',
-  'Offline': 'Offline',
   'LIVE': 'LIVE',
   'Live!': 'Live!',
   'Dashboard tour': 'Rundgang',
