@@ -184,12 +184,24 @@ Start-Sleep -Seconds 12
 $envDatei = Join-Path $Projekt '.env.local'
 if (-not (Test-Path $envDatei)) {
     Sag '.env.local fehlt - ohne sie verschickt dieser Rechner keine Mail.' 'Yellow'
-    Sag 'Vom PC herueberkopieren: C:UsersjumikDesktopstreamer-dashboard.env.local' 'Yellow'
+    Sag 'Sie kommt nicht mit dem Update - sie steht bewusst nicht im Verzeichnis.' 'Yellow'
+    Sag 'Vom PC herueberkopieren, diese Datei:' 'Yellow'
+    Sag '  C:\Users\jumik\Desktop\streamer-dashboard\.env.local' 'Yellow'
+    Sag ('  hierhin: ' + $envDatei) 'Yellow'
 } elseif (-not (Select-String -Path $envDatei -Pattern '^MAIL_PASS=' -Quiet)) {
     Sag '.env.local ist da, aber ohne Mail-Angaben (MAIL_PASS fehlt).' 'Yellow'
     Sag 'Die Datei vom PC ist neuer - noch einmal herueberkopieren.' 'Yellow'
 } else {
     Sag '.env.local mit Mailversand vorhanden.'
+    # Seit die Zugangsschluessel nach Discord wandern, haengt daran noch etwas:
+    # ohne den Bot-Token erzeugt dieser Rechner Schluessel, legt sie aber in
+    # keinen Kanal. Das faellt sonst erst auf, wenn ein VIP wartet.
+    if (-not (Select-String -Path $envDatei -Pattern '^DISCORD_BOT_TOKEN=' -Quiet)) {
+        Sag 'Aber ohne DISCORD_BOT_TOKEN - neue Zugangsschluessel landen dann' 'Yellow'
+        Sag 'in keinem Discord-Kanal. Die Zeile vom PC uebernehmen.' 'Yellow'
+    } else {
+        Sag 'Discord-Bot eingerichtet.'
+    }
 }
 
 Kopf '6. Nachmessen'
