@@ -53,7 +53,10 @@ export default function VIPLoginForm() {
         return;
       }
 
-      window.location.href = '/admin';
+      // Nach /vip, nicht nach /admin: wer mit einem Zugangsschluessel
+      // hereinkommt, ist kein Administrator und soll auch nicht so
+      // adressiert werden. Dieselbe Seite, die passende Adresse.
+      window.location.href = '/vip';
     } catch {
       setFehler(t('Anmeldung fehlgeschlagen. Bitte die Verbindung prüfen.'));
     } finally {

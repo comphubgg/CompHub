@@ -1585,6 +1585,8 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Verstanden': 'Got it',
   'Profil': 'Profile',
   'Schnellzugriff': 'Quick access',
+  'Etwas kaputt, fehlt oder besser zu machen? Schreib es dem Betreiber':
+    'Something broken, missing or worth improving? Tell the operator',
   'gerade da': 'here right now',
   'nicht mehr da': 'not here any more',
   'Jede offene Seite meldet sich einmal pro Minute. Wer zwei Minuten lang nichts von sich hören lässt, gilt als weg — ein geschlossener Browser wird also binnen zwei Minuten rot. Wer sich abmeldet, verschwindet sofort.':

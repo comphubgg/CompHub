@@ -64,6 +64,16 @@ const ZIELE: Ziel[] = [
    * nur eben die eigenen.
    */
   { href: '/nachrichten', titel: 'Chatarchiv', text: 'Alle Gespräche, auch die abgeschlossenen' },
+  /*
+   * Das Kontaktformular.
+   *
+   * Es stand nur auf der Kontoseite - und die sieht nicht, wer sich mit
+   * einem Zugangsschluessel anmeldet. Der Betreiber: "ein Kontaktformular
+   * haben die auch keins." Genau hier gehoert es hin: neben dem Chatarchiv,
+   * denn beides fuehrt in dieselbe Unterhaltung.
+   */
+  { href: '/kontakt', titel: 'Kontakt',
+    text: 'Etwas kaputt, fehlt oder besser zu machen? Schreib es dem Betreiber' },
 ];
 
 /**

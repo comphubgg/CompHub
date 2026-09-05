@@ -376,7 +376,7 @@ export default function MainHeader({ sektionenAnfang }: {
                  * Verwaltung das Dashboard. Sonst liefe der Klick auf
                  * /konto und von dort direkt weiter zur Anmeldung.
                  */
-                href={kontoName ? '/konto' : '/admin'}
+                href={kontoName ? '/konto' : '/vip'}
                 prefetch={false}
                 title={anzeige}
                 aria-label={`${t('Mein Konto')} — ${anzeige}`}
