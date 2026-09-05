@@ -47,6 +47,16 @@ export default function MainHeader({ sektionenAnfang }: {
         sektionen: navItems.map((n) => ({
           schluessel: n.schluessel, pfad: n.href, titel: n.label })) }
     : undefined);
+  /*
+   * Ist das Menue auf dem Handy offen?
+   *
+   * Auf dem Telefon passten die sieben Bereiche nicht in eine Zeile und
+   * brachen auf drei um - die Leiste war damit vierhundert Pixel hoch, also
+   * die halbe Bildhoehe, bevor der Inhalt ueberhaupt anfing. Ab jetzt liegen
+   * sie hinter einem Knopf und klappen bei Bedarf auf.
+   */
+  const [menueOffen, setMenueOffen] = useState(false);
+
   const [profileName, setProfileName] = useState<string | null>(null);
   const [authStatus, setAuthStatus] = useState<'unknown' | 'loading' | 'authorized' | 'unauthorized'>('unknown');
   /** Das eigene CompHub-Konto - unabhaengig vom alten VIP-Zugang. */
@@ -186,30 +196,44 @@ export default function MainHeader({ sektionenAnfang }: {
   const angemeldet = Boolean(kontoName || profileName);
   const anzeige = kontoName || profileName || '';
 
+  /*
+   * Ein Seitenwechsel schliesst das Menue.
+   *
+   * Ohne das bliebe es offen ueber der neuen Seite stehen - man haette
+   * angetippt, was man wollte, saehe aber weiter nur die Liste.
+   */
+  useEffect(() => { setMenueOffen(false); }, [pathname]);
+
   return (
     <header className="sticky top-0 z-50 w-full border-b border-zinc-800 bg-zinc-950/95 backdrop-blur-xl">
-      <div className="flex w-full flex-wrap items-center gap-2 px-4 py-2">
-        <div className="flex items-center gap-3">
+      <div className="flex w-full flex-wrap items-center gap-2 px-3 py-2 sm:px-4">
+        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
           <div className="flex items-center justify-center rounded-lg border border-zinc-800 bg-slate-900/90 p-1 shadow-sm shadow-black/20">
             <img
               src="/logos/CompHub-Logo.png"
               alt="Logo"
-              className="h-11 w-11 rounded-lg object-cover"
+              className="h-9 w-9 rounded-lg object-cover sm:h-11 sm:w-11"
             />
           </div>
-          <div>
+          <div className="min-w-0">
             <p className="text-sm font-semibold text-slate-100">CompHub</p>
-            <p className="text-xs text-slate-500">Fortnite Competitive</p>
+            {/* Der Untertitel kostet auf dem Handy nur Breite, die der
+                Anmeldeknopf daneben braucht. */}
+            <p className="hidden text-xs text-slate-500 sm:block">Fortnite Competitive</p>
           </div>
         </div>
-        <div className="flex flex-1 items-center justify-end gap-3">
+        <div className="flex flex-1 items-center justify-end gap-2 sm:gap-3">
           {isPreviewMode && isTourMode ? (
             <div className="rounded-full border border-slate-700 bg-slate-900/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-sky-300">
               <T>Preview tour active</T>
             </div>
           ) : (
             <>
-              <nav className="flex flex-wrap items-center gap-2">
+              {/*
+                * Ab Tablet die Leiste, darunter der Knopf weiter unten.
+                * Am Desktop aendert sich damit nichts.
+                */}
+              <nav className="hidden flex-wrap items-center gap-2 lg:flex">
                 {navItems.map((item) => {
                   /*
                    * Was ausgeblendet ist, steht hier nicht.
@@ -268,6 +292,29 @@ export default function MainHeader({ sektionenAnfang }: {
           )}
 
           <div className="flex items-center gap-2">
+            {/*
+              * Der Menueknopf - nur auf schmalen Bildschirmen.
+              *
+              * Er steht links neben Konto und Anmeldung, weil man ihn dort
+              * mit dem Daumen erreicht, ohne das Telefon umzugreifen.
+              */}
+            {!(isPreviewMode && isTourMode) && (
+              <button type="button" onClick={() => setMenueOffen((o) => !o)}
+                aria-expanded={menueOffen}
+                aria-label={t('Menü')}
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-lg
+                           border border-zinc-800 text-slate-300 transition
+                           hover:border-sky-500 hover:text-sky-400 lg:hidden">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+                  aria-hidden>
+                  {menueOffen
+                    ? <><path d="M6 6l12 12" /><path d="M18 6L6 18" /></>
+                    : <><path d="M4 7h16" /><path d="M4 12h16" /><path d="M4 17h16" /></>}
+                </svg>
+              </button>
+            )}
+
             {/*
               * Die Verwaltung bleibt ein eigener Knopf und erscheint nur dem
               * Admin. Frueher stand hier fuer jeden VIP sein Name und fuehrte
@@ -347,8 +394,11 @@ export default function MainHeader({ sektionenAnfang }: {
               <Link
                 href="/anmelden"
                 prefetch={false}
-                className="rounded-full bg-sky-500 px-4 py-2 text-sm font-semibold
-                           text-white transition hover:bg-sky-400"
+                /* whitespace-nowrap: auf dem Handy brach "Sign in" mitten
+                   entzwei und der Knopf wurde zu einem hohen Kreis. */
+                className="whitespace-nowrap rounded-full bg-sky-500 px-3 py-2
+                           text-sm font-semibold text-white transition
+                           hover:bg-sky-400 sm:px-4"
               >
                 <T>Sign in</T>
               </Link>
@@ -356,6 +406,48 @@ export default function MainHeader({ sektionenAnfang }: {
           </div>
         </div>
       </div>
+
+      {/*
+        * Die Bereiche als Liste - nur auf dem Handy, nur wenn aufgeklappt.
+        *
+        * Eine Liste und kein Raster: sieben Eintraege nebeneinander waeren
+        * wieder das Gedraenge, das hier gerade beseitigt wurde. Jede Zeile
+        * ist so hoch, dass sie sich mit dem Daumen treffen laesst.
+        */}
+      {menueOffen && !(isPreviewMode && isTourMode) && (
+        <nav className="border-t border-zinc-800 bg-zinc-950 px-3 py-2 lg:hidden">
+          {navItems.map((item) => {
+            const zustand = sektionen.laedt
+              ? 'online' : zustandFuer(sektionen, item.schluessel);
+            if (zustand === 'offline' && !sektionen.admin) return null;
+            const eigen = sektionen.admin
+              ? sektionen.staende[item.schluessel]?.zustand ?? 'online'
+              : 'online';
+
+            const params = new URLSearchParams();
+            if (isPreviewMode) params.set('preview', '1');
+            if (isTourMode) params.set('tour', '1');
+            const href = params.toString()
+              ? `${item.href}?${params.toString()}` : item.href;
+
+            return (
+              <Link key={item.href} href={href} prefetch={false}
+                onClick={() => setMenueOffen(false)}
+                className={`flex items-center gap-2 rounded-lg px-3 py-3 text-base
+                            transition ${pathname === item.href
+                    ? 'bg-slate-800 text-slate-100'
+                    : 'text-slate-300 active:bg-slate-900'}`}>
+                <T>{item.label}</T>
+                {eigen !== 'online' && (
+                  <span aria-hidden
+                    className={`h-1.5 w-1.5 rounded-full ${eigen === 'standby'
+                      ? 'bg-amber-400' : 'bg-rose-500'}`} />
+                )}
+              </Link>
+            );
+          })}
+        </nav>
+      )}
 
       {/*
         * Die Nachricht zum VIP-Geschenk - genau einmal.

@@ -233,30 +233,39 @@ export default function PowerRankingsTable() {
         </p>
       ) : (
         <>
+          {/*
+            * Schmalere Polster auf dem Handy.
+            *
+            * Mit den urspruenglichen zwanzig Pixeln je Seite war die Tabelle
+            * 416 Pixel breit - auf einem 375 Pixel breiten Telefon lag die
+            * Spalte mit der Wertung damit ausserhalb des Bildes. Und eine
+            * Rangliste ohne Wertung beantwortet genau die Frage nicht, wegen
+            * der man sie aufschlaegt. Das overflow-x bleibt als Netz.
+            */}
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-zinc-800 text-[11px] uppercase
                                tracking-wider text-slate-500">
-                  <th className="w-20 px-5 py-3 text-right font-medium"><T>Platz</T></th>
-                  <th className="w-28 px-3 py-3 text-left font-medium"><T>Veränderung</T></th>
-                  <th className="px-3 py-3 text-left font-medium"><T>Spieler</T></th>
-                  <th className="px-5 py-3 text-right font-medium"><T>PR-Wertung</T></th>
+                  <th className="w-14 px-2 py-3 text-right font-medium sm:w-20 sm:px-5"><T>Platz</T></th>
+                  <th className="w-20 px-2 py-3 text-left font-medium sm:w-28 sm:px-3"><T>Veränderung</T></th>
+                  <th className="px-2 py-3 text-left font-medium sm:px-3"><T>Spieler</T></th>
+                  <th className="px-2 py-3 text-right font-medium sm:px-5"><T>PR-Wertung</T></th>
                 </tr>
               </thead>
               <tbody>
                 {spieler.map((s) => (
                   <tr key={`${s.rank}-${s.name}`}
                     className="border-b border-zinc-900 transition hover:bg-zinc-900/60">
-                    <td className={`px-5 py-2.5 text-right text-base font-bold tabular-nums ${
+                    <td className={`px-2 py-2.5 text-right text-base font-bold tabular-nums sm:px-5 ${
                       s.rank <= 3 ? 'text-amber-400' : 'text-sky-400'}`}>
                       {zahl(s.rank)}
                     </td>
-                    <td className="px-3 py-2.5">
+                    <td className="px-2 py-2.5 sm:px-3">
                       <Veraenderung platz={s.deltaPlatz} />
                     </td>
-                    <td className="px-3 py-2.5">
-                      <div className="flex items-center gap-3">
+                    <td className="px-2 py-2.5 sm:px-3">
+                      <div className="flex items-center gap-2 sm:gap-3">
                         {/* Wo Epic keine Herkunft fuehrt, steht die Weltkugel. */}
                         <TeamFlagge groesse={26} laender={[s.land || undefined]} />
                         {/* Angehaengte Zierzeichen fallen weg, wie ueberall
@@ -268,8 +277,8 @@ export default function PowerRankingsTable() {
                         </span>
                       </div>
                     </td>
-                    <td className="px-5 py-2.5 text-right font-semibold tabular-nums
-                                   text-slate-100">
+                    <td className="px-2 py-2.5 text-right font-semibold tabular-nums
+                                   text-slate-100 sm:px-5">
                       {zahl(s.wertung)}
                     </td>
                   </tr>

@@ -415,7 +415,12 @@ export default function AdminDashboardPage() {
               <iframe title={`Twitch-Chat ${twitch}`}
                 src={`https://www.twitch.tv/embed/${encodeURIComponent(twitch)}`
                    + `/chat?parent=${currentHost}&darkpopout`}
-                className="h-[560px] w-full rounded-b-xl bg-black xl:h-[calc(100vh-230px)]" />
+                /* Auf dem Handy kuerzer: in voller Hoehe war der Chat ein
+                   halbmeterhoher schwarzer Block zwischen den Werkzeugen
+                   und den Zahlen darunter, an dem man erst einmal
+                   vorbeiscrollen musste. */
+                className="h-[320px] w-full rounded-b-xl bg-black
+                           sm:h-[560px] xl:h-[calc(100vh-230px)]" />
             ) : (
               <p className="p-8 text-center text-sm text-slate-500"><T>Chat wird geladen …</T></p>
             )}

@@ -1113,3 +1113,77 @@ button,input,select,textarea{transition:var(--transition)}
 .kachel-bearbeiten .flaggenwahl-hinterher{z-index:110}
 .kachel-bearbeiten .flaggenwahl-knopf{border:1px solid #27272a;background:#09090b}
 .kachel-bearbeiten .flaggenwahl-knopf:hover{border-color:#38bdf8}
+
+/* ══════════════════════════════════════════════════════════════════════
+   Auf dem Handy
+
+   In dieser Datei stand keine einzige Regel fuer schmale Bildschirme. Die
+   Folge war drastisch: der Spielervorrat rechts ist auf 340 Pixel
+   festgenagelt, auf einem 375 Pixel breiten Telefon blieben fuer die
+   Stufen daneben rund fuenfunddreissig - man sah sieben farbige Striche
+   und sonst nichts. Die Tierlist war auf dem Telefon nicht benutzbar,
+   nicht einmal zum Ansehen.
+
+   Deshalb untereinander statt nebeneinander: erst die Stufen, darunter der
+   Vorrat. Beide ueber die volle Breite, beide mit eigener Hoehe statt in
+   einem Fenster, das exakt so hoch ist wie der Bildschirm - auf einem
+   Telefon scrollt man ohnehin die Seite und nicht zwei Kaesten darin.
+
+   Am Rechner aendert sich dadurch nichts: alles hier steht hinter
+   max-width 900px.
+   ══════════════════════════════════════════════════════════════════════ */
+
+@media (max-width: 900px) {
+  .tierlist-page .page-wrapper {
+    flex-direction: column;
+    /* Keine feste Hoehe mehr - sonst muesste man in zwei ineinander
+       liegenden Kaesten scrollen, und auf einem Telefon trifft man den
+       falschen. */
+    height: auto;
+    overflow: visible;
+  }
+
+  .tierlist-page .tierlist-panel {
+    padding: 12px;
+    border-right: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+    overflow-y: visible;
+  }
+
+  .tierlist-page .sidebar,
+  .tierlist-page .page-wrapper .sidebar {
+    width: 100%;
+    min-width: 0;
+    height: auto;
+    border-left: none;
+    overflow: visible;
+  }
+
+  /*
+   * Der Spielervorrat braucht eine eigene Hoehe.
+   *
+   * Er steht auf "flex: 1 1 0" und holte sich seine Hoehe damit aus dem
+   * Kasten darum - der ist hier aber nicht mehr bildschirmhoch, sondern
+   * "auto". Ergebnis waere eine Liste von null Pixeln: die Spieler waeren
+   * schlicht verschwunden. Also eine feste Mindesthoehe mit eigenem
+   * Scrollbalken.
+   */
+  .tierlist-page .sidebar-card.sidebar-pool {
+    flex: 0 0 auto;
+    min-height: 45vh;
+    max-height: 60vh;
+    overflow-y: auto;
+  }
+
+  /* Die Beschriftung der Stufe: schmaler, damit fuer die Spieler daneben
+     etwas uebrig bleibt. */
+  .tierlist-page .tier-label {
+    width: 56px;
+    min-width: 56px;
+    font-size: var(--stufen-schrift, 15px);
+  }
+
+  .tierlist-page .tier-row {
+    min-height: 64px;
+  }
+}

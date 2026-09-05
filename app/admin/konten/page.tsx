@@ -709,21 +709,40 @@ ${k.name}`)) return;
                   * erscheint erst auf Klick. Den Namen ein zweites Mal
                   * hinzuschreiben half niemandem.
                   */}
-                {k.art === 'schluessel' ? (
-                  <button type="button"
-                    onClick={() => setOffenerSchluessel(
-                      offenerSchluessel === k.name ? null : k.name)}
-                    className="ml-auto font-mono text-[10px] text-slate-700
-                               transition hover:text-sky-400">
-                    {offenerSchluessel === k.name
-                      ? k.schluessel
-                      : <T>Schlüssel zeigen</T>}
-                  </button>
-                ) : (
-                  <code className="ml-auto font-mono text-[10px] text-slate-700">
-                    {k.id}
-                  </code>
-                )}
+                {/*
+                  * Darunter, wann es angelegt wurde.
+                  *
+                  * Ausdruecklich gewuenscht: "da, wo die Account-ID steht,
+                  * darunter created at". Es beantwortet die Frage, die man
+                  * beim Durchsehen einer Kontoliste am haeufigsten hat -
+                  * ist das ein alter Hase oder von gestern.
+                  */}
+                <div className="ml-auto text-right">
+                  {k.art === 'schluessel' ? (
+                    <button type="button"
+                      onClick={() => setOffenerSchluessel(
+                        offenerSchluessel === k.name ? null : k.name)}
+                      className="block font-mono text-[10px] text-slate-700
+                                 transition hover:text-sky-400">
+                      {offenerSchluessel === k.name
+                        ? k.schluessel
+                        : <T>Schlüssel zeigen</T>}
+                    </button>
+                  ) : (
+                    <code className="block font-mono text-[10px] text-slate-700">
+                      {k.id}
+                    </code>
+                  )}
+                  {k.angelegt && !Number.isNaN(new Date(k.angelegt).getTime()) && (
+                    <span className="mt-0.5 block text-[10px] text-slate-600">
+                      <T>erstellt</T>{' '}
+                      {new Date(k.angelegt).toLocaleDateString('de-DE')}
+                      {' · '}
+                      {new Date(k.angelegt).toLocaleTimeString('de-DE', {
+                        hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  )}
+                </div>
               </div>
 
               <div className="grid gap-3 sm:grid-cols-2">

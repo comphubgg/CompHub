@@ -1585,6 +1585,10 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Verstanden': 'Got it',
   'Profil': 'Profile',
   'Schnellzugriff': 'Quick access',
+  'Ordner': 'Folders',
+  'Ordner ausblenden': 'Hide folders',
+  'Menü': 'Menu',
+  'erstellt': 'created',
 
   // ----------------------------------------- Warum ein Anmeldedienst abbrach
   'Der Anmeldedienst hat abgebrochen. Meist fehlt dort der Rückweg zu dieser Adresse.':

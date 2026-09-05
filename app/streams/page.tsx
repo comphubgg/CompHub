@@ -88,6 +88,20 @@ export default function Home() {
    */
   const [eigeneWahl, setEigeneWahl] = useState<boolean>(false);
   const [showFolderPanel, setShowFolderPanel] = useState<boolean>(true);
+  /*
+   * Die Ordnerliste auf dem Handy.
+   *
+   * Auf schmalen Bildschirmen stehen die beiden Spalten untereinander, und
+   * die Ordnerliste ist die obere - man scrollte also an Ordnern, Suchfeld
+   * und Streamerliste vorbei, bevor der erste Stream auftauchte. Wer die
+   * Seite auf dem Telefon oeffnete, sah von den Streams schlicht nichts.
+   *
+   * Deshalb ein zweiter Schalter, der nur unterhalb von lg greift: die
+   * Streams stehen oben, die Ordner klappen auf Wunsch darueber auf. Der
+   * gespeicherte Zustand von showFolderPanel bleibt davon unberuehrt - sonst
+   * haette ein Blick aufs Handy die Ansicht am Rechner umgestellt.
+   */
+  const [ordnerAufHandy, setOrdnerAufHandy] = useState(false);
   const [stats, setStats] = useState<any>(null);
   const [loadingStats, setLoadingStats] = useState(false);
   const [currentHost, setCurrentHost] = useState<string>('');
@@ -1497,7 +1511,9 @@ loadDashboardData().then(loadedFolders => {
       )}
 <div className={`flex-1 grid grid-cols-1 gap-2 items-stretch min-h-0 ${showFolderPanel ? 'lg:grid-cols-[450px_minmax(0,1fr)]' : 'lg:grid-cols-1'}`}>
         
-        <div data-tour="sidebar" className={`${showFolderPanel ? 'block' : 'hidden'} relative flex flex-col gap-6 bg-zinc-900/30 p-4 rounded-xl border border-zinc-900 transition-all duration-300`}>
+        <div data-tour="sidebar" className={`${showFolderPanel
+          ? (ordnerAufHandy ? 'block' : 'hidden lg:block')
+          : 'hidden'} relative flex flex-col gap-6 bg-zinc-900/30 p-4 rounded-xl border border-zinc-900 transition-all duration-300`}>
           <button
             onClick={toggleFolderPanel}
             className="absolute top-5 right-3 z-10 flex h-8 w-8 items-center justify-center rounded-2xl border border-zinc-700 bg-zinc-950/95 shadow-sm shadow-black/20 transition hover:bg-zinc-900"
@@ -1891,6 +1907,29 @@ loadDashboardData().then(loadedFolders => {
               </div>
             )}
             <div className="flex flex-wrap items-center justify-end gap-2">
+              {/*
+                * Nur auf dem Handy: die Ordner ein- und ausblenden.
+                *
+                * Steht links in der Reihe, damit er nicht zwischen den
+                * Ansichtsknoepfen rechts untergeht - er ist hier der
+                * haeufigste Griff.
+                */}
+              {showFolderPanel && (
+                <button type="button" onClick={() => setOrdnerAufHandy((o) => !o)}
+                  aria-expanded={ordnerAufHandy}
+                  className="mr-auto flex items-center gap-2 rounded-lg border
+                             border-zinc-800 bg-zinc-900/80 px-3 py-2 text-sm
+                             text-slate-200 transition hover:border-sky-500
+                             lg:hidden">
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none"
+                    stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+                    strokeLinejoin="round" aria-hidden>
+                    <path d="M3 7a2 2 0 0 1 2-2h3.9l1.7 2H19a2 2 0 0 1 2 2v8a2 2
+                             0 0 1-2 2H5a2 2 0 0 1-2-2V7z" />
+                  </svg>
+                  {ordnerAufHandy ? <T>Ordner ausblenden</T> : <T>Ordner</T>}
+                </button>
+              )}
               {!showFolderPanel && (
                 <button
                   onClick={toggleFolderPanel}

@@ -448,25 +448,37 @@ function Duellzeile({ titel, links, rechts, nachkomma = 0, einheit = '' }: {
   const linksVorn = links > rechts;
   const rechtsVorn = rechts > links;
   return (
-    <div className="flex items-center gap-3 py-1.5">
-      <span className={`w-20 shrink-0 text-right text-xs font-semibold tabular-nums
+    /*
+      * Auf dem Handy steht die Beschriftung ueber der Zeile.
+      *
+      * Nebeneinander belegten die beiden Zahlen und das Wort in der Mitte
+      * schon 304 Pixel; auf einem 375 Pixel breiten Telefon blieb fuer die
+      * beiden Balken nichts uebrig, und die standen dann als Striche von
+      * null Breite da. Ein Vergleich ohne Balken vergleicht nichts.
+      */
+    <div className="flex flex-wrap items-center gap-2 py-1.5 sm:flex-nowrap sm:gap-3">
+      <span className={`order-2 w-14 shrink-0 text-right text-xs font-semibold
+                        tabular-nums sm:order-none sm:w-20
                         ${linksVorn ? 'text-sky-400' : 'text-slate-400'}`}>
         {zahl(links, nachkomma, sprache)}{einheit}
       </span>
       {/* Die Bahn bleibt sichtbar, damit man erkennt, wie weit ein Balken
           von voll entfernt ist. */}
-      <span className="flex min-w-0 flex-1 justify-end overflow-hidden rounded-full
-                       bg-zinc-900">
+      <span className="order-3 flex min-w-0 flex-1 justify-end overflow-hidden
+                       rounded-full bg-zinc-900 sm:order-none">
         <span className={`h-1.5 rounded-full ${linksVorn ? 'bg-sky-400' : 'bg-zinc-600'}`}
           style={{ width: `${anteilLinks}%` }} />
       </span>
-      <span className="w-36 shrink-0 text-center text-[10px] font-semibold uppercase
-                       tracking-[0.12em] text-slate-500"><T>{titel}</T></span>
-      <span className="flex min-w-0 flex-1 overflow-hidden rounded-full bg-zinc-900">
+      <span className="order-1 w-full shrink-0 text-center text-[10px] font-semibold
+                       uppercase tracking-[0.12em] text-slate-500
+                       sm:order-none sm:w-36"><T>{titel}</T></span>
+      <span className="order-4 flex min-w-0 flex-1 overflow-hidden rounded-full
+                       bg-zinc-900 sm:order-none">
         <span className={`h-1.5 rounded-full ${rechtsVorn ? 'bg-sky-400' : 'bg-zinc-600'}`}
           style={{ width: `${anteilRechts}%` }} />
       </span>
-      <span className={`w-20 shrink-0 text-xs font-semibold tabular-nums
+      <span className={`order-5 w-14 shrink-0 text-xs font-semibold tabular-nums
+                        sm:order-none sm:w-20
                         ${rechtsVorn ? 'text-sky-400' : 'text-slate-400'}`}>
         {zahl(rechts, nachkomma, sprache)}{einheit}
       </span>
@@ -2496,11 +2508,21 @@ export default function StatistikSeite() {
               )}
             </div>
 
-            <div className="flex gap-1 lg:hidden">
+            {/*
+              * Die Reiter duerfen umbrechen.
+              *
+              * In einer Zeile waren sie 454 Pixel breit - und weil eine Seite
+              * nicht schmaler wird als ihr breitestes Stueck, zoomte das
+              * Telefon die ganze Seite heraus, bis sie hineinpasste. Schrift,
+              * Bilder, Tabellen: alles wurde kleiner, und genau das war das
+              * "man erkennt nichts". Als Admin kommen noch Reiter dazu, dann
+              * war es noch schlimmer.
+              */}
+            <div className="flex flex-wrap gap-1 lg:hidden">
               {[...BEREICHE, ...(zugang.vip ? VIP_BEREICHE : []),
               ...(istAdmin ? ADMIN_BEREICHE : [])].map(([wert, titel]) => (
                 <button key={wert} onClick={() => wechsleBereich(wert)}
-                  className={`rounded-lg border px-2.5 py-1.5 text-xs transition ${
+                  className={`shrink-0 rounded-lg border px-2.5 py-1.5 text-xs transition ${
                     bereich === wert
                       ? 'border-sky-500 bg-sky-500/10 text-sky-400'
                       : 'border-zinc-800 text-slate-400'}`}>
@@ -3302,6 +3324,12 @@ export default function StatistikSeite() {
                 ) : (
                   <div className="overflow-hidden rounded-xl border border-zinc-800
                                   bg-zinc-950/60">
+                    {/* Der scrollende Kasten fehlte hier als einziger. Mit dem
+                        overflow-hidden darum lagen Matches und Datum auf einem
+                        Telefon ausserhalb des Bildes und waren nicht mehr
+                        erreichbar - die Tabelle weiter unten macht es laengst
+                        so. */}
+                    <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="border-b border-zinc-800 text-[10px] uppercase
@@ -3343,6 +3371,7 @@ export default function StatistikSeite() {
                         ))}
                       </tbody>
                     </table>
+                    </div>
                   </div>
                 )}
               </>
