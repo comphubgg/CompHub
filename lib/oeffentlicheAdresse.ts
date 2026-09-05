@@ -24,6 +24,29 @@ import type { NextRequest } from 'next/server';
  * NEXT_PUBLIC_BASE_URL bleibt trotzdem stehen und wird weiter gebraucht: fuer
  * die Sitemap, robots.txt und die Vorschaubilder gehoert die eine, feste
  * oeffentliche Adresse hin - dort waere "je nachdem, wer fragt" falsch.
+ *
+ * ------------------------------------------------- Ein Haken kam dazu: www
+ *
+ * Die Seite ist unter zwei Namen erreichbar, thecomphub.com und
+ * www.thecomphub.com. Beide liefern denselben Inhalt aus, und keiner leitet
+ * auf den anderen um. Aus der Anfrage entstand damit je nach Einstieg ein
+ * anderer Rueckweg - und beim Anbieter war nur der ohne www eingetragen.
+ *
+ * Fuer den Betreiber sah das aus wie "Discord und Google gehen einfach
+ * nicht", und zwar unabhaengig davon, wie oft er die Zugangsdaten prueft:
+ * die waren immer richtig. Gemessen an der laufenden Seite:
+ *
+ *   von thecomphub.com      -> redirect_uri=https://thecomphub.com/...
+ *   von www.thecomphub.com  -> redirect_uri=https://www.thecomphub.com/...
+ *
+ * Deshalb entscheidet fuer die Anmeldedienste ab jetzt die eine feste
+ * Adresse aus NEXT_PUBLIC_BASE_URL, sobald die Anfrage nicht vom eigenen
+ * Rechner kommt. Damit geht immer derselbe Rueckweg hinaus, ganz gleich
+ * unter welchem Namen jemand hereingekommen ist - und beim Anbieter genuegt
+ * ein einziger Eintrag.
+ *
+ * Wichtig dabei: Hinweg und Rueckweg muessen denselben Wert benutzen. Beide
+ * holen ihn hier, also stimmen sie zwangslaeufig ueberein.
  */
 
 /**
@@ -51,7 +74,32 @@ export function wurzelVon(req: NextRequest): string {
   return `${schema}://${host}`;
 }
 
+/**
+ * Die eine feste oeffentliche Adresse - oder nichts, wenn keine gesetzt ist.
+ *
+ * Ohne Schraegstrich am Ende, damit sich ein Pfad anhaengen laesst.
+ */
+function festeAdresse(): string | null {
+  const roh = (process.env.NEXT_PUBLIC_BASE_URL || '').trim().replace(/\/+$/, '');
+  if (!roh || /localhost|127\.0\.0\.1/i.test(roh)) return null;
+  return roh;
+}
+
+/**
+ * Die Adresse, die den Anmeldediensten genannt wird.
+ *
+ * Daheim die Anfrage selbst - sonst liefe die Entwicklung ins Leere. Auf der
+ * Domain die feste Adresse, damit www und die nackte Domain denselben
+ * Rueckweg erzeugen.
+ */
+export function dienstWurzel(req: NextRequest): string {
+  const aus = wurzelVon(req);
+  const daheim = /^https?:\/\/(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/i.test(aus);
+  if (daheim) return aus;
+  return festeAdresse() ?? aus;
+}
+
 /** Der Rueckweg eines Anmeldedienstes, etwa `/api/auth/google/callback`. */
 export function rueckwegVon(req: NextRequest, pfad: string): string {
-  return `${wurzelVon(req)}${pfad}`;
+  return `${dienstWurzel(req)}${pfad}`;
 }

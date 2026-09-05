@@ -7,7 +7,7 @@ import {
 import { ergaenzeAusDienst } from '@/lib/kontoErgaenzen';
 import { ueberHttps } from '@/lib/vipCookie';
 import { holeDienst } from '@/lib/dienstZugaenge';
-import { wurzelVon } from '@/lib/oeffentlicheAdresse';
+import { dienstWurzel } from '@/lib/oeffentlicheAdresse';
 
 // Der Rueckweg von Twitch.
 //
@@ -33,8 +33,17 @@ export const runtime = 'nodejs';
 
 const COOKIE = 'streamer_dashboard_konto';
 
+/*
+ * Der Rueckweg fuer den Tausch des Codes.
+ *
+ * Er muss Zeichen fuer Zeichen derselbe sein wie der beim Hinweg genannte -
+ * die Dienste pruefen das. Deshalb dieselbe Quelle wie dort: dienstWurzel,
+ * also die feste oeffentliche Adresse. Aus wurzelVon(req) entstuende hier
+ * "www.thecomphub.com", wenn jemand ueber www hereingekommen ist, und der
+ * Tausch scheiterte mit "invalid request".
+ */
 function wurzel(req: NextRequest) {
-  return wurzelVon(req);
+  return dienstWurzel(req);
 }
 
 function weiterleitung(req: NextRequest) {
