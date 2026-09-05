@@ -289,7 +289,25 @@ export async function anlegen(neu: {
   if (!emailTaugt(email)) return { fehler: 'Diese E-Mail-Adresse sieht nicht gültig aus.' };
 
   const liste = await lies();
-  if (liste.some((k) => k.email === email)) {
+  const vorhanden = liste.find((k) => k.email === email);
+  if (vorhanden) {
+    /*
+     * Ein gesperrtes Konto bekommt einen eigenen Satz.
+     *
+     * Sonst stand hier "es gibt schon ein Konto, bitte anmelden" - und das
+     * Anmelden scheiterte anschliessend an der Sperre. Wer gesperrt ist,
+     * lief also im Kreis, ohne zu erfahren, warum. Und der Betreiber sah
+     * dieselbe Meldung und hielt sie fuer die Folge eines geloeschten
+     * Kontos, obwohl Loeschen die Adresse sehr wohl freigibt: geprueft,
+     * anlegen - loeschen - erneut anlegen geht ohne Umweg.
+     *
+     * Dass die Adresse belegt ist, verraet die alte Meldung ohnehin; hier
+     * kommt also nichts hinzu, was nicht schon dastuende.
+     */
+    if (vorhanden.gesperrt) {
+      return { fehler: 'Dieses Konto ist gesperrt. Eine neue Anmeldung mit '
+        + 'derselben Adresse ist nicht möglich — wende dich an den Betreiber.' };
+    }
     return { fehler: 'Zu dieser Adresse gibt es schon ein Konto. Bitte anmelden.' };
   }
 

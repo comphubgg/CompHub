@@ -1585,6 +1585,9 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Verstanden': 'Got it',
   'Profil': 'Profile',
   'Schnellzugriff': 'Quick access',
+  'Dieses Konto ist gesperrt. Eine neue Anmeldung mit derselben Adresse ist nicht möglich — wende dich an den Betreiber.':
+    'This account is blocked. Signing up again with the same address is not '
+    + 'possible — please contact the operator.',
   'Ordner': 'Folders',
   'Ordner ausblenden': 'Hide folders',
   'Menü': 'Menu',
