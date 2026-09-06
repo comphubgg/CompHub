@@ -1169,9 +1169,21 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
   }, [seitenZahl, seiteJetzt]);
 
   /** Ein Cup, in dem jeder allein antritt - dann zaehlt man Spieler, nicht Teams. */
-  const soloCup = useMemo(
-    () => tabelle.length > 0 && tabelle.every((e) => e.players.length === 1),
-    [tabelle]);
+  /*
+   * Ist das ein Solo-Cup?
+   *
+   * Am sichersten an der Bestenliste: steht dort ueberall genau ein Spieler,
+   * ist es einer. Solange sie noch nicht geladen ist - und beim ersten
+   * Aufruf ist sie das nie -, half das aber nicht: dann stand bei einem
+   * Solo-Cup weiterhin "Team-Stats" da, mitsamt einem zweiten, leeren
+   * Reiter. Deshalb zusaetzlich der Name des Cups; "Solo Victory Cup" sagt
+   * es ja bereits.
+   */
+  const soloCup = useMemo(() => {
+    if (tabelle.length > 0) return tabelle.every((e) => e.players.length === 1);
+    const woran = `${cup?.titel ?? ''} ${cup?.untertitel ?? ''} ${id}`.toLowerCase();
+    return /solo/.test(woran);
+  }, [tabelle, cup, id]);
 
   /*
    * Bei einem Solo-Cup gibt es den Reiter "Spieler-Stats" aus den Replays
@@ -2441,21 +2453,14 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                 {soloCup ? <T>Spieler-Stats</T> : <T>Turnierstatistik</T>}
               </h2>
               {/*
-                * Bei einem laufenden Cup gehoert dazugesagt, dass es ein
-                * Zwischenstand ist - und nach welcher Runde.
+                * Hier stand ein roter Balken "Stand nach Runde 3".
+                *
+                * Der Betreiber hat ihn abgeraeumt: dass ein laufender Cup
+                * noch nicht fertig ist, weiss ohnehin jeder, der ihn
+                * anschaut - und die Rundenzahl war bei einem Open-Cup, in
+                * dem jede Lobby anders weit ist, ohnehin nur die des
+                * Spitzenreiters.
                 */}
-              {laeuftGerade && (
-                <span className="inline-flex items-center gap-1.5 rounded-full
-                                 border border-rose-500/50 bg-rose-500/10 px-2.5
-                                 py-0.5 text-[10px] font-semibold uppercase
-                                 tracking-wider text-rose-300">
-                  <span aria-hidden
-                    className="h-1.5 w-1.5 animate-pulse rounded-full bg-rose-500" />
-                  {gespielteRunden > 0
-                    ? t('Stand nach Runde {n}').replace('{n}', String(gespielteRunden))
-                    : t('läuft gerade')}
-                </span>
-              )}
               <span className="text-[11px] text-slate-500">
                 <T>Werte je</T> {soloCup ? t('Spieler (Einzahl)') : 'Duo'}<T>, direkt von Epic — nur was dieses Turnier mitschickt</T>
               </span>

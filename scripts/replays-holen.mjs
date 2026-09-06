@@ -29,7 +29,77 @@ import {
   matchPfad, replayVorhanden, schreibeMatch, schreibeZustand, warte,
 } from '../lib/replayKern.mjs';
 
-const BASIS = process.env.WERKZEUG_URL || 'http://localhost:3000';
+/*
+ * Wo antwortet das Werkzeug?
+ *
+ * Hier stand fest "localhost:3000". Das ging still schief, sobald der Server
+ * woanders lief: `next dev` weicht auf 3001 aus, und die fertige Anwendung
+ * sucht sich den ersten freien Port. Der Lauf fragte dann ins Leere, bekam
+ * keinen Cup-Katalog - und brach mit dem nackten "fetch failed" ab, an dem
+ * niemand erkennen konnte, dass es am Port lag.
+ *
+ * Jetzt wird gesucht: erst die ueblichen Ports, dann alles, was auf diesem
+ * Rechner im Bereich 3000 bis 3999 wirklich horcht. WERKZEUG_URL schlaegt
+ * das - wird aber ebenfalls geprueft, statt blind genommen zu werden.
+ */
+const PORTS = [3000, 3001, 3002, 3003, 3004, 3005, 3211];
+
+/** Welche Ports auf diesem Rechner ueberhaupt jemand offen hat. */
+async function offenePorts() {
+  try {
+    const { execSync } = await import('child_process');
+    const roh = execSync('netstat -an -p TCP', { encoding: 'utf8', timeout: 8000 });
+    const gefunden = new Set();
+    for (const zeile of roh.split(/\r?\n/)) {
+      if (!/LISTENING|ABH/i.test(zeile)) continue;
+      const m = /:(\d{4,5})\s/.exec(zeile);
+      const p = m ? Number(m[1]) : 0;
+      if (p >= 3000 && p <= 3999) gefunden.add(p);
+    }
+    return [...gefunden].sort((a, b) => a - b);
+  } catch {
+    return [];
+  }
+}
+
+/** Antwortet dort der Cup-Katalog des Werkzeugs? */
+async function katalogDa(url) {
+  try {
+    const r = await fetch(`${url}/api/cup-catalog`,
+      { signal: AbortSignal.timeout(5000) });
+    if (!r.ok) return false;
+    const j = await r.json();
+    return Array.isArray(j?.cups) && j.cups.length > 0;
+  } catch {
+    return false;
+  }
+}
+
+async function findeBasis() {
+  if (process.env.WERKZEUG_URL) {
+    if (await katalogDa(process.env.WERKZEUG_URL)) return process.env.WERKZEUG_URL;
+    console.log(`WERKZEUG_URL=${process.env.WERKZEUG_URL} antwortet nicht `
+      + '- es wird selbst gesucht.');
+  }
+
+  const kandidaten = [...new Set([...PORTS, ...await offenePorts()])];
+  for (const port of kandidaten) {
+    const url = `http://localhost:${port}`;
+    if (await katalogDa(url)) {
+      if (port !== 3000) console.log(`Werkzeug antwortet auf Port ${port}.`);
+      return url;
+    }
+  }
+
+  throw new Error(
+    'Das Werkzeug antwortet auf keinem Port (geprueft: '
+    + kandidaten.join(', ') + ').\n'
+    + '  Ohne den Cup-Katalog ist nicht zu erfahren, welche Spieltage es gibt\n'
+    + '  - es wurde nichts geholt. Starte das Werkzeug (laptop-start.bat oder\n'
+    + '  streamer-dashboard.bat) und fuehre diesen Lauf danach noch einmal aus.');
+}
+
+let BASIS = process.env.WERKZEUG_URL || 'http://localhost:3000';
 const MAX_LADEN = Math.max(1, Number(process.env.MAX_REPLAY_DOWNLOADS) || 3);
 const MAX_LESEN = Math.max(1, Number(process.env.MAX_REPLAY_PARSERS) || 2);
 const SPEICHER = process.env.REPLAY_STORAGE || 'local';
@@ -118,6 +188,20 @@ function replayRegel(cup) {
   if (/performance/.test(t)) return 'alles';
   if (/fncs/.test(t) || /elite\s*series/.test(t)) return 'alles';
 
+  /*
+   * Victory Cups vollstaendig, nicht nur die Endrunde.
+   *
+   * Der Betreiber: "Es sind ja nicht nur drei Games beim Solo-Cup, sondern
+   * es hat mehrere gegeben, weil es ein Open Cup ist, kein Final. Es hat
+   * jeden einzelnen Drecksmatch zu durchsuchen."
+   *
+   * Das kostet: die Endrunde eines Solo Victory Cup EU sind 119 Matches und
+   * vier Megabyte; eine offene Runde desselben Cups hat ein Vielfaches
+   * davon. Heruntergeladen wird je Match ein Replay von rund drei Megabyte,
+   * gespeichert bleiben nur die ausgewerteten Zahlen.
+   */
+  if (/victory/.test(t)) return 'alles';
+
   // Ranked Cups fallen ganz weg. Dort spielt die halbe Welt um Ranglisten-
   // punkte, nicht um einen Titel; die Replays davon waeren reine Menge.
   if (/ranked/.test(t) || /ranked/.test(id)) return 'nichts';
@@ -150,6 +234,7 @@ function endrunden(liste) {
 
 /** Welche Turnierfenster kommen ueberhaupt infrage? */
 async function offeneFenster() {
+  BASIS = await findeBasis();
   const antwort = await fetch(`${BASIS}/api/cup-catalog`);
   if (!antwort.ok) throw new Error(`Cup-Katalog HTTP ${antwort.status}`);
   const katalog = await antwort.json();
@@ -261,7 +346,8 @@ async function main() {
   if (SPEICHER !== 'local') {
     console.log(`REPLAY_STORAGE=${SPEICHER} ist noch nicht gebaut - es wird lokal abgelegt.`);
   }
-  console.log(`Schleusen: ${MAX_LADEN} Downloads, ${MAX_LESEN} Auswertungen`);
+  // Nicht "Schleusen": das las sich wie eine Anzahl gefundener Matches.
+  console.log(`Gleichzeitig: ${MAX_LADEN} Downloads, ${MAX_LESEN} Auswertungen`);
 
   const { fenster, zuAlt, uebersprungen: nichtWuerdig } = await offeneFenster();
   const ziel = nurFenster.length
