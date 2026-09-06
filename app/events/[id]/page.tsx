@@ -1666,13 +1666,17 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                                 Globus - eine leere Stelle sah nach Fehler aus. */}
                             <TeamFlagge groesse={26}
                               laender={e.players.map(landVon)} />
-                            <div className="flex -space-x-2">
-                              {e.players.filter((p) => p.img).slice(0, 2).map((p) => (
-                                <img key={p.id} src={p.img!} alt="" loading="lazy"
-                                  className="h-7 w-7 rounded-full border border-zinc-800
-                                             object-cover object-top" />
-                              ))}
-                            </div>
+                            {/*
+                              * Hier standen die Profilbilder der Spieler.
+                              *
+                              * Sie sind auf Wunsch des Betreibers entfallen.
+                              * Sie hingen an einer Zuordnung ueber den
+                              * Dateinamen und lagen deshalb regelmaessig
+                              * daneben; und wo kein Foto vorlag, blieb die
+                              * Zeile leer - die Liste sah dadurch von Zeile
+                              * zu Zeile anders aus. Flagge und Teamlogo
+                              * bleiben, die stimmen.
+                              */}
                             <span className="truncate text-slate-200">
                               {e.players.map(namenVon).join('  +  ')}
                             </span>
