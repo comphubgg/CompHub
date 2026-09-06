@@ -1882,6 +1882,27 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Tagesplatz': 'Day rank',
   'Lobby': 'Lobby',
   'alle anzeigen': 'show all',
+  'In welchen Ordner?': 'Into which folder?',
+  'Neuer Ordner …': 'New folder …',
+  'Zu einem Multiview-Ordner hinzufügen': 'Add to a multiview folder',
+  'Konnte nicht gespeichert werden.': 'Could not be saved.',
+  ['Das Plus legt einen Stream in einen Ordner der Multiview — '
+    + 'dieselben Ordner wie auf der Startseite. Beim nächsten Aufruf der '
+    + 'Multiview liegen sie dort nebeneinander.']:
+    'The plus puts a stream into a multiview folder — the same folders '
+    + 'as on the start page. Next time you open the multiview they sit '
+    + 'there side by side.',
+  'Der Replay-Sammler lief zuletzt': 'The replay collector last ran',
+  ['Zu diesem Spieltag sind noch keine Replays ausgewertet. Erst '
+    + 'daraus lässt sich zählen, wer von einem Duo welche Elim geholt hat '
+    + '— Epic liefert die Werte nur je Team.']:
+    'No replays have been analysed for this match day yet. Only they '
+    + 'can tell which of a duo got which elim — Epic reports the values '
+    + 'per team only.',
+  ['Die Replays werden planmäßig eingesammelt und stehen meist am Tag '
+    + 'danach bereit.']:
+    'Replays are collected on a schedule and are usually ready the next '
+    + 'day.',
   'hinterlegte Kanäle': 'channels on file',
   'Kanal suchen': 'find channel',
   'Zuschauer': 'viewers',

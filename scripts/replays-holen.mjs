@@ -330,6 +330,35 @@ async function main() {
 
   console.log(`\nFertig: ${fertig} neu ausgewertet, ${uebersprungen} lagen schon vor, `
     + `${ohne} ohne Replay, ${fehler} fehlgeschlagen`);
+
+  await protokoll({
+    ok: true, fenster: ziel.length, neu: fertig, lagenVor: uebersprungen,
+    ohneReplay: ohne, fehlgeschlagen: fehler, basis: BASIS,
+  });
 }
 
-main().catch((e) => { console.error('Fehlgeschlagen:', e.message); process.exit(1); });
+/*
+ * Was dieser Lauf getan hat, in einer Datei.
+ *
+ * Ein Sammler, der still nichts tut, ist schlimmer als einer, der abbricht:
+ * in der Oberflaeche stand "noch keine Replays ausgewertet, die kommen
+ * planmaessig" - und das stimmte eben nicht, sie kamen nie, weil der Lauf
+ * auf dem falschen Port ins Leere fragte. Seit es dieses Protokoll gibt,
+ * kann die Oberflaeche sagen, wann zuletzt gesammelt wurde und woran es lag.
+ */
+async function protokoll(daten) {
+  try {
+    const ort = path.join(process.cwd(), 'data', 'replays', '_lauf.json');
+    await fs.writeFile(ort, JSON.stringify({
+      zeitpunkt: new Date().toISOString(),
+      art: nurLive ? 'live' : frischStunden > 0 ? `frisch ${frischStunden}h` : 'voll',
+      ...daten,
+    }, null, 2), 'utf8');
+  } catch { /* dann eben ohne Protokoll */ }
+}
+
+main().catch(async (e) => {
+  console.error('Fehlgeschlagen:', e.message);
+  await protokoll({ ok: false, fehler: e.message });
+  process.exit(1);
+});

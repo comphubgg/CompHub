@@ -274,6 +274,25 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     { isLive: boolean; viewers: number }> | null>(null);
   const [liveLaedt, setLiveLaedt] = useState(false);
 
+  /*
+   * Die Ordner der Multiview.
+   *
+   * Es sind dieselben, die auf der Startseite die Streams nebeneinander
+   * legen (/api/dashboard). Wer hier auf das Plus drueckt, legt den Stream
+   * genau dort ab - und findet ihn beim naechsten Aufruf der Multiview
+   * wieder, ohne ihn noch einmal zu suchen.
+   */
+  const [ordner, setOrdner] = useState<Array<{
+    id: string; name: string; streamers: Array<{ twitch: string; twitter: string }>;
+  }> | null>(null);
+  /** Zu welchem Kanal steht die Ordnerauswahl gerade offen? */
+  const [ordnerFuer, setOrdnerFuer] = useState<string | null>(null);
+  const [neuerOrdner, setNeuerOrdner] = useState('');
+  const [ordnerStand, setOrdnerStand] = useState('');
+
+  /** Der Titel am Plus - einmal uebersetzt statt in jeder Kachel. */
+  const uebsOrdner = t('Zu einem Multiview-Ordner hinzufügen');
+
   /** Twitch-Kanaele je Spieler im Bearbeiten-Fenster. */
   const [twitchEntwurf, setTwitchEntwurf] = useState<string[]>([]);
   const [twitchVorschlag, setTwitchVorschlag] = useState<Record<number, Array<{
@@ -291,6 +310,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
    */
   const [spielerWerte, setSpielerWerte] = useState<{
     vorhanden: boolean; runden: number;
+    /** Wann der Replay-Sammler zuletzt lief - siehe app/api/cup-spieler. */
+    lauf?: { zeitpunkt?: string; art?: string; ok?: boolean; fehler?: string } | null;
     spieler: Array<{
       epicId: string; name: string; land: string; spiele: number;
       kills: number; knocks: number; tode: number; umgehauen: number;
@@ -743,6 +764,30 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
   const namenVon = useCallback(
     (sp: Spieler): string => profilVon(sp)?.anzeige || sp.name, [profilVon]);
 
+  /*
+   * Partner und Tagesplatz notfalls aus der Bestenliste.
+   *
+   * Das Aggregat der Replays kennt die Aufstellung nur, wenn Epics
+   * Bestenliste zu diesem Spieltag schon gespiegelt ist - bei einem Cup von
+   * gestern Abend ist sie das oft noch nicht, und dann stuende neben jedem
+   * Namen weder Partner noch Platz. Die Bestenliste liegt in dieser Ansicht
+   * aber ohnehin geladen vor; sie fuellt die Luecke, ohne eine einzige
+   * zusaetzliche Abfrage.
+   */
+  const teamAusListe = useMemo(() => {
+    const karte = new Map<string, { platz: number; partner: string[] }>();
+    for (const e of tabelle) {
+      for (const sp of e.players) {
+        if (!sp.id) continue;
+        karte.set(sp.id, {
+          platz: e.rank,
+          partner: e.players.filter((x) => x.id !== sp.id).map(namenVon),
+        });
+      }
+    }
+    return karte;
+  }, [tabelle, namenVon]);
+
   function flaggenOeffnen(e: Eintrag) {
     setFlaggenTeam(e);
     setFlaggenSuche(''); setFlaggenStand('');
@@ -903,6 +948,55 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
       .finally(() => { if (!weg) setLiveLaedt(false); });
     return () => { weg = true; };
   }, [reiter, mitTwitch, live]);
+
+  useEffect(() => {
+    if (reiter !== 'streams' || ordner) return;
+    let weg = false;
+    fetch('/api/dashboard').then((r) => r.json())
+      .then((j) => { if (!weg) setOrdner(j?.folders ?? []); })
+      .catch(() => { if (!weg) setOrdner([]); });
+    return () => { weg = true; };
+  }, [reiter, ordner]);
+
+  /**
+   * Einen Kanal in einen Ordner legen.
+   *
+   * Die Schnittstelle nimmt immer die ganze Liste entgegen, also wird sie
+   * hier vollstaendig zurueckgeschrieben - mit genau einer Aenderung. Ein
+   * Kanal, der schon drin ist, wird nicht doppelt eingetragen.
+   */
+  const inOrdner = useCallback(async (kanal: string, ziel: string, name?: string) => {
+    const liste = ordner ?? [];
+    const eintrag = { twitch: kanal.toLowerCase(), twitter: kanal.toLowerCase() };
+
+    const neu = ziel === 'neu'
+      ? [...liste, {
+        id: `ordner-${Date.now().toString(36)}`,
+        name: (name ?? '').trim() || 'Neuer Ordner',
+        streamers: [eintrag],
+      }]
+      : liste.map((o) => (o.id === ziel && !o.streamers.some((x) =>
+        x.twitch.toLowerCase() === eintrag.twitch)
+        ? { ...o, streamers: [...o.streamers, eintrag] } : o));
+
+    setOrdnerStand(t('speichert …'));
+    try {
+      const r = await fetch('/api/dashboard', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ folders: neu }),
+      });
+      if (!r.ok) throw new Error(String(r.status));
+      const j = await r.json();
+      setOrdner(j?.data?.folders ?? neu);
+      const wohin = ziel === 'neu'
+        ? ((name ?? '').trim() || 'Neuer Ordner')
+        : (liste.find((o) => o.id === ziel)?.name ?? '');
+      setOrdnerStand(`${kanal} → ${wohin}`);
+      setOrdnerFuer(null); setNeuerOrdner('');
+    } catch {
+      setOrdnerStand(t('Konnte nicht gespeichert werden.'));
+    }
+  }, [ordner, t]);
 
   /** Die Match-Id in die Zwischenablage - mit sichtbarer Rueckmeldung. */
   const idKopieren = useCallback((id: string) => {
@@ -1975,13 +2069,37 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
             )}
 
             {spielerWerte && !spielerWerte.vorhanden && (
-              <p className="p-8 text-center text-sm leading-relaxed text-slate-500">
-                <T>Zu diesem Spieltag sind noch keine Replays ausgewertet. Erst
-                daraus lässt sich zählen, wer von einem Duo welche Elim geholt
-                hat — Epic liefert die Werte nur je Team. Die Replays werden
-                planmäßig eingesammelt und stehen meist am Tag danach
-                bereit.</T>
-              </p>
+              <div className="p-8 text-center text-sm leading-relaxed text-slate-500">
+                <p>
+                  <T>Zu diesem Spieltag sind noch keine Replays ausgewertet. Erst
+                  daraus lässt sich zählen, wer von einem Duo welche Elim geholt
+                  hat — Epic liefert die Werte nur je Team.</T>
+                </p>
+                {/*
+                  * Wann der Sammler zuletzt lief.
+                  *
+                  * Ohne das riet die Seite zum Warten, auch wenn gar nichts
+                  * mehr kam - der Sammler war stehengeblieben, und niemand
+                  * konnte es sehen. Die Match-Ids stehen ja im Reiter
+                  * daneben, das Replay dazu ist trotzdem nicht geholt.
+                  */}
+                {spielerWerte.lauf ? (
+                  <p className={`mt-2 text-[11px] ${spielerWerte.lauf.ok
+                    ? 'text-slate-600' : 'text-amber-500'}`}>
+                    <T>Der Replay-Sammler lief zuletzt</T>{' '}
+                    {spielerWerte.lauf.zeitpunkt
+                      ? new Date(spielerWerte.lauf.zeitpunkt).toLocaleString(ort)
+                      : '—'}
+                    {spielerWerte.lauf.ok === false && spielerWerte.lauf.fehler
+                      ? ` — ${spielerWerte.lauf.fehler}` : ''}
+                  </p>
+                ) : (
+                  <p className="mt-2 text-[11px] text-slate-600">
+                    <T>Die Replays werden planmäßig eingesammelt und stehen
+                    meist am Tag danach bereit.</T>
+                  </p>
+                )}
+              </div>
             )}
 
             {spielerWerte?.vorhanden && (
@@ -2007,7 +2125,12 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                         return sp.name.toLowerCase().includes(q)
                           || sp.partner.some((x) => x.toLowerCase().includes(q));
                       })
-                      .map((sp, i) => (
+                      .map((sp0, i) => {
+                        const aus = teamAusListe.get(sp0.epicId);
+                        const sp = sp0.platz === null && aus
+                          ? { ...sp0, platz: aus.platz, partner: aus.partner }
+                          : sp0;
+                        return (
                         <tr key={sp.epicId}
                           className="border-b border-zinc-900/70 last:border-0">
                           <td className="px-4 py-1.5 text-right tabular-nums
@@ -2041,7 +2164,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                           <td className="px-4 py-1.5 text-right tabular-nums
                                          text-slate-500">{sp.spiele}</td>
                         </tr>
-                      ))}
+                        );
+                      })}
                   </tbody>
                 </table>
                 <p className="border-t border-zinc-900 px-4 py-2 text-[11px]
@@ -2106,7 +2230,77 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                           (live[b.kanal.toLowerCase()]?.viewers ?? 0)
                           - (live[a.kanal.toLowerCase()]?.viewers ?? 0))
                         .map((x) => (
-                          <li key={x.kanal}>
+                          <li key={x.kanal} className="relative">
+                            {/*
+                              * Das Plus.
+                              *
+                              * Es legt den Stream in einen Ordner der
+                              * Multiview - deshalb sitzt es auf der Kachel
+                              * und nicht daneben: der Griff und das Ziel
+                              * gehoeren zusammen.
+                              */}
+                            <button type="button"
+                              onClick={() => { setOrdnerStand('');
+                                setOrdnerFuer(ordnerFuer === x.kanal ? null : x.kanal); }}
+                              title={uebsOrdner}
+                              className="absolute right-2 top-2 z-10 grid h-6 w-6
+                                         place-items-center rounded-full border
+                                         border-zinc-700 bg-zinc-950 text-sm
+                                         text-slate-400 transition
+                                         hover:border-purple-500 hover:text-purple-300">
+                              +
+                            </button>
+
+                            {ordnerFuer === x.kanal && (
+                              <div className="absolute right-2 top-9 z-20 w-56 overflow-hidden
+                                              rounded-lg border border-zinc-700 bg-zinc-950
+                                              shadow-lg shadow-black/60">
+                                <p className="border-b border-zinc-800 px-3 py-1.5
+                                              text-[10px] uppercase tracking-wider
+                                              text-slate-500">
+                                  <T>In welchen Ordner?</T>
+                                </p>
+                                <ul className="max-h-40 overflow-y-auto">
+                                  {(ordner ?? []).map((o) => (
+                                    <li key={o.id}>
+                                      <button type="button"
+                                        onClick={() => void inOrdner(x.kanal, o.id)}
+                                        className="flex w-full items-center justify-between
+                                                   gap-2 px-3 py-1.5 text-left text-xs
+                                                   text-slate-300 transition
+                                                   hover:bg-zinc-900">
+                                        <span className="truncate">{o.name}</span>
+                                        <span className="shrink-0 text-[10px] text-slate-600">
+                                          {o.streamers.length}
+                                        </span>
+                                      </button>
+                                    </li>
+                                  ))}
+                                </ul>
+                                <div className="flex items-center gap-1 border-t
+                                                border-zinc-800 p-2">
+                                  <input value={neuerOrdner}
+                                    onChange={(ev) => setNeuerOrdner(ev.target.value)}
+                                    onKeyDown={(ev) => { if (ev.key === 'Enter') {
+                                      void inOrdner(x.kanal, 'neu', neuerOrdner); } }}
+                                    placeholder={t('Neuer Ordner …')}
+                                    className="min-w-0 flex-1 rounded border border-zinc-800
+                                               bg-zinc-900 px-2 py-1 text-[11px]
+                                               text-slate-100 outline-none
+                                               focus:border-purple-600" />
+                                  <button type="button"
+                                    disabled={!neuerOrdner.trim()}
+                                    onClick={() => void inOrdner(x.kanal, 'neu', neuerOrdner)}
+                                    className="rounded border border-zinc-700 px-2 py-1
+                                               text-[11px] text-slate-300 transition
+                                               hover:border-purple-500
+                                               disabled:opacity-40">
+                                    +
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+
                             <a href={`https://twitch.tv/${x.kanal}`}
                               target="_blank" rel="noreferrer"
                               className="flex items-center gap-3 rounded-lg border
@@ -2147,7 +2341,17 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                   );
                 })()}
 
+                {ordnerStand && (
+                  <p className="mt-3 text-[11px] text-emerald-400">{ordnerStand}</p>
+                )}
+
                 <p className="mt-3 text-[11px] leading-relaxed text-slate-600">
+                  <T>Das Plus legt einen Stream in einen Ordner der Multiview —
+                  dieselben Ordner wie auf der Startseite. Beim nächsten Aufruf
+                  der Multiview liegen sie dort nebeneinander.</T>
+                </p>
+
+                <p className="mt-1 text-[11px] leading-relaxed text-slate-600">
                   <T>Gezeigt werden nur Spieler, zu denen ein Twitch-Kanal
                   hinterlegt ist. Weitere trägst du nach, indem du im
                   Leaderboard ein Team aufklappst und doppelt auf die Flaggen

@@ -83,10 +83,22 @@ async function laender(): Promise<Map<string, string>> {
   return karte;
 }
 
-const LEER = {
-  vorhanden: false, spieler: [], runden: 0,
-  hinweis: 'Zu diesem Spieltag liegen noch keine ausgewerteten Replays.',
-};
+/**
+ * Wann der Sammler zuletzt gelaufen ist - und ob er durchkam.
+ *
+ * scripts/replays-holen.mjs legt das nach jedem Lauf ab. Ohne diese Angabe
+ * stand in der Oberflaeche nur "noch keine Replays, die kommen planmaessig".
+ * Das war einmal schlicht falsch: der Lauf fragte auf dem falschen Port ins
+ * Leere und holte tagelang nichts, waehrend die Oberflaeche zum Warten riet.
+ */
+async function letzterLauf() {
+  try {
+    return JSON.parse(await fs.readFile(
+      path.join(ABLAGE, '_lauf.json'), 'utf8')) as {
+        zeitpunkt?: string; art?: string; ok?: boolean; fehler?: string;
+      };
+  } catch { return null; }
+}
 
 export async function GET(request: Request) {
   const p = new URL(request.url).searchParams;
@@ -102,9 +114,15 @@ export async function GET(request: Request) {
     agg = JSON.parse(await fs.readFile(
       path.join(ABLAGE, saison, fenster, '_aggregat.json'), 'utf8')) as Aggregat;
   } catch {
-    return NextResponse.json(LEER);
+    return NextResponse.json({
+      vorhanden: false, spieler: [], runden: 0, lauf: await letzterLauf(),
+    });
   }
-  if (!agg.spieler?.length) return NextResponse.json(LEER);
+  if (!agg.spieler?.length) {
+    return NextResponse.json({
+      vorhanden: false, spieler: [], runden: 0, lauf: await letzterLauf(),
+    });
+  }
 
   const [anzeige, land] = await Promise.all([namen(), laender()]);
 
