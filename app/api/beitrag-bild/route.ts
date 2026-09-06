@@ -39,19 +39,49 @@ const PROFILE = path.join(DATEN_ORT, 'spieler-profile.json');
  * Konto-Id, und die gilt hier genauso.
  */
 async function anzeigeNamen(): Promise<Map<string, string>> {
+  const karte = new Map<string, string>();
+
+  /*
+   * Von hinten nach vorn, damit das Wichtigere das Schwaechere ueberschreibt.
+   *
+   * Zuletzt gilt immer der gepflegte Anzeigename. Davor die offene
+   * Spielerliste der Szene-Quelle, die den Profinamen fuehrt ("HIGGS"), und
+   * ganz zuerst der Hauptname aus dem eigenen Verzeichnis.
+   *
+   * Warum diese Kette noetig ist: unter dem Bild stand "XSET BatmnBugha",
+   * wo "Higgs" gemeint war. Beides sind Turniernamen desselben Kontos, und
+   * ohne gepflegtes Profil griff der zuletzt abgelegte - also ein
+   * beliebiger. Der Betreiber dazu: "Wenn ich einen Namen als Admin anpasse,
+   * dann heisst der immer so."
+   */
+  try {
+    const roh = JSON.parse(await fs.readFile(
+      path.join(DATEN_ORT, 'spieler-namen.json'), 'utf8')) as
+      Record<string, { haupt?: string; namen?: string[] }>;
+    for (const [id, e] of Object.entries(roh)) {
+      const name = e.haupt || e.namen?.[0];
+      if (/^[0-9a-f]{32}$/.test(id) && name) karte.set(id, name);
+    }
+  } catch { /* kein Verzeichnis */ }
+
+  try {
+    const roh = JSON.parse(await fs.readFile(
+      path.join(DATEN_ORT, 'szene-quelle', 'spielerliste.json'), 'utf8')) as
+      Array<{ ID?: string; NAME?: string }>;
+    for (const p of roh) if (p.ID && p.NAME) karte.set(p.ID, p.NAME);
+  } catch { /* keine Kopie da */ }
+
   try {
     const roh = JSON.parse(await fs.readFile(PROFILE, 'utf8')) as
       Record<string, { id?: string; anzeige?: string; name?: string }>;
-    const karte = new Map<string, string>();
     for (const [schluessel, p] of Object.entries(roh)) {
       const id = p.id || schluessel;
       const name = p.anzeige || p.name;
       if (/^[0-9a-f]{32}$/.test(id) && name) karte.set(id, name);
     }
-    return karte;
-  } catch {
-    return new Map();
-  }
+  } catch { /* noch keine Profile */ }
+
+  return karte;
 }
 
 /** Die Breite steht fest, die Hoehe richtet sich nach dem Raster. */

@@ -1173,11 +1173,33 @@ export default function TweetSeite() {
    * umzuformulieren hiesse, eine fremde Aussage zu veraendern, und das waere
    * schlimmer als eine woertliche Kopie.
    */
-  const EMOJI_TAUSCH: Record<string, string> = {
-    '🔥': '💥', '🏆': '👑', '🎯': '🎪', '💪': '🦾', '👀': '🔎',
-    '⚡': '✨', '😳': '😮', '🤯': '😵‍💫', '💀': '☠️', '🚀': '🛫',
-    '❤️': '🧡', '😂': '🤣', '🙌': '🙏', '📈': '📊', '🥇': '🏅',
-  };
+  /*
+   * Emojis nur innerhalb ihrer Bedeutung tauschen.
+   *
+   * Hier stand vorher eine flache Liste, und darin wurde die Zielscheibe zum
+   * Zirkuszelt. Der Betreiber hat das zu Recht abgeraeumt: "Bei
+   * Eliminierungen soll nicht einfach ein Zirkuszelt kommen. Es soll wirklich
+   * sinnvoll sein."
+   *
+   * Deshalb Gruppen statt Paare. Getauscht wird reihum innerhalb einer
+   * Gruppe, und jede Gruppe meint eine Sache: Sieg, Abschuss, Wucht, Staunen.
+   * Was in keiner Gruppe steht, bleibt unangetastet - ein Emoji, dessen
+   * Bedeutung nicht sicher ist, wird lieber gar nicht angefasst.
+   */
+  const EMOJI_GRUPPEN: string[][] = [
+    ['🏆', '👑', '🥇', '🏅'],          // Sieg und Titel
+    ['🎯', '⚔️', '🔫', '💀'],          // Abschuesse
+    ['🔥', '💥', '⚡'],                // Wucht
+    ['😳', '😮', '🤯'],               // Staunen
+    ['📈', '📊', '🚀'],               // aufwaerts
+    ['💪', '🦾'],                    // Staerke
+    ['🙌', '👏'],                    // Applaus
+    ['❤️', '🧡', '💜'],              // Zuneigung
+    ['😂', '🤣'],                    // Lachen
+  ];
+
+  const EMOJI_TAUSCH: Record<string, string> = Object.fromEntries(
+    EMOJI_GRUPPEN.flatMap((g) => g.map((z, i) => [z, g[(i + 1) % g.length]])));
 
   function textVariieren(roh: string): string {
     return [...roh]
@@ -1189,6 +1211,91 @@ export default function TweetSeite() {
       // Punkte - dieselbe Aussage, andere Schreibweise.
       .replace(/\s--\s/g, ' — ')
       .replace(/\.{3,}/g, '…');
+  }
+
+  /**
+   * Aus einem uebernommenen Beitrag die Spieler herauslesen.
+   *
+   * Der Betreiber: "Du siehst ja diese Namen ... da ist kein Bild generiert.
+   * Du sollst einfach die Namen durchlesen, und wozu Du Bilder findest,
+   * machst Du ein gutes Bild."
+   *
+   * Zwei Wege, beide ohne zu raten:
+   *
+   *   - "@venofn" ist ein X-Konto. Steht es in einem gepflegten Profil, ist
+   *     der Spieler damit eindeutig bestimmt - kein Vergleich noetig.
+   *   - Ein blosses Wort geht durch den Namensabgleich des Archivs. Hier
+   *     zaehlt nur ein sehr sicherer Treffer: in einem Satz stehen auch
+   *     Woerter wie "final" oder "clutch", und ein halbwegs aehnlicher Name
+   *     waere ein fremdes Gesicht im Bild.
+   *
+   * Die Reihenfolge folgt dem Text: wer zuerst genannt wird, steht im Bild
+   * vorn. Das ist in solchen Beitraegen fast immer der Wichtigste.
+   */
+  /*
+   * Woerter, die nie ein Spieler sind.
+   *
+   * Im Archiv steht zu fast jedem Begriff irgendein Konto - "FNCS" traf ein
+   * Konto mit ueber hundert Matches und haette ein fremdes Gesicht ins Bild
+   * gesetzt. Turnier- und Alltagswoerter kommen deshalb gar nicht erst in
+   * den Abgleich. Ein Spieler, der wirklich so heisst, steht in solchen
+   * Beitraegen ohnehin als @-Konto oder neben seinem Duopartner.
+   */
+  const KEINE_SPIELER = new Set([
+    'fncs', 'ewc', 'cup', 'cash', 'final', 'finals', 'division', 'div',
+    'solo', 'solos', 'duo', 'duos', 'trio', 'trios', 'squad', 'squads',
+    'open', 'round', 'week', 'day', 'season', 'qualifier', 'quali',
+    'elim', 'elims', 'kill', 'kills', 'point', 'points', 'top', 'win',
+    'wins', 'winner', 'winners', 'victory', 'royale', 'champion',
+    'region', 'europe', 'chapter', 'game', 'games', 'match', 'matches',
+    'recap', 'standings', 'leaderboard', 'live', 'stream', 'twitch',
+    'clutch', 'best', 'the', 'and', 'with', 'from', 'for', 'this',
+    'that', 'huge', 'run', 'take', 'takes', 'nice', 'good', 'great',
+    'first', 'second', 'third', 'place', 'placed', 'team', 'teams',
+    'grand', 'series', 'practice', 'reload', 'ranked', 'performance',
+  ]);
+
+  async function spielerAusText(text: string) {
+    const handles = text.match(/@[A-Za-z0-9_]{2,15}/g) ?? [];
+    const woerter = text.split(/[^\p{L}\p{N}_-]+/u)
+      .map((w) => w.trim())
+      .filter((w) => w.length >= 3 && /\p{L}/u.test(w))
+      .filter((w) => !KEINE_SPIELER.has(w.toLowerCase()));
+    const alle = [...new Set([...handles, ...woerter])].slice(0, 150);
+    if (!alle.length) return;
+
+    try {
+      const j = await (await fetch('/api/karten/namen', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ woerter: alle }),
+      })).json() as {
+        treffer?: Array<{
+          roh: string; epicId: string; guete: number; matches: number;
+        }>;
+      };
+
+      /*
+       * Ein blosses Wort muss zu einem Konto passen, das wirklich spielt.
+       *
+       * Im Archiv steht auch ein Konto namens "b e s t _ 1" mit acht Matches
+       * und eines namens "FTW CLUTCHあーる" mit vieren. Beide treffen die
+       * Woerter "best" und "clutch" genau - und beide gehoeren nicht in ein
+       * Bild ueber ein Finale. Die Zahl der Turniermatches trennt sie
+       * zuverlaessig von den Gemeinten: die stehen bei vierhundert bis
+       * achthundert.
+       *
+       * Ein @-Konto braucht diese Huerde nicht. Es ist eine gepflegte
+       * Zuordnung und damit ohnehin eindeutig.
+       */
+      const gut = (j.treffer ?? []).filter((x) =>
+        x.roh.startsWith('@') || (x.guete >= 0.9 && x.matches >= 100));
+      const nachStelle = gut
+        .map((x) => ({ ...x, wo: text.indexOf(x.roh) }))
+        .sort((a, b) => (a.wo < 0 ? 1e9 : a.wo) - (b.wo < 0 ? 1e9 : b.wo));
+
+      const ids = [...new Set(nachStelle.map((x) => x.epicId))].slice(0, 12);
+      if (ids.length) setEigenIds(ids);
+    } catch { /* dann bleibt das Bild leer */ }
   }
 
   async function quelleHolen() {
@@ -1203,6 +1310,8 @@ export default function TweetSeite() {
       // Der Text geht gleich in den Editor - genau das ist der Zweck. Nur
       // nicht Zeichen fuer Zeichen: siehe textVariieren.
       setEigenerText(textVariieren(j.text ?? ''));
+      // Und die Spieler daraus ins Bild - siehe spielerAusText.
+      void spielerAusText(j.text ?? '');
     } catch (e) {
       setQuellFehler((e as Error).message);
     } finally { setQuellLaedt(false); }

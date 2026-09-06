@@ -32,7 +32,9 @@ import { DATEN_ORT } from '@/lib/datenOrt';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-interface Profil { id?: string; name: string; land?: string; anzeige?: string }
+interface Profil {
+  id?: string; name: string; land?: string; anzeige?: string; x?: string;
+}
 
 /**
  * Buchstaben zusammenlegen, die eine Texterkennung verwechselt.
@@ -103,6 +105,29 @@ function abstand(a: string, b: string, grenze: number): number {
     vorige = zeile;
   }
   return vorige[b.length];
+}
+
+/**
+ * X-Konto zu Spieler.
+ *
+ * In uebernommenen Beitraegen stehen Spieler oft nur als "@venofn". Das ist
+ * kein Name, den ein Namensvergleich finden koennte - aber es ist eine
+ * eindeutige Angabe, sobald das Konto in einem gepflegten Profil steht.
+ * Damit wird aus einem fremden Beitrag eine Liste echter Spieler, ohne dass
+ * irgendetwas geraten wird.
+ */
+async function liesXKonten(): Promise<Map<string, string>> {
+  const karte = new Map<string, string>();
+  try {
+    const roh = JSON.parse(await fs.readFile(
+      path.join(DATEN_ORT, 'spieler-profile.json'), 'utf8')) as Record<string, Profil>;
+    for (const [schluessel, pr] of Object.entries(roh)) {
+      const id = pr.id || (/^[0-9a-f]{32}$/i.test(schluessel) ? schluessel : '');
+      const x = (pr.x ?? '').trim().toLowerCase().replace(/^@/, '');
+      if (id && x) karte.set(x, id);
+    }
+  } catch { /* noch keine Profile */ }
+  return karte;
 }
 
 async function liesProfile(): Promise<Map<string, Profil>> {
@@ -190,6 +215,8 @@ export async function POST(request: Request) {
     }
 
     const liste = await namensSpeicher();
+    const xKonten = await liesXKonten();
+    const nachId = new Map(liste.map((e) => [e.epicId, e]));
 
     /*
      * Zuerst der genaue Weg.
@@ -216,9 +243,31 @@ export async function POST(request: Request) {
 
     const treffer: Array<{
       roh: string; name: string; land: string; epicId: string; guete: number;
+      /** Wie oft dieses Konto im Archiv angetreten ist. */
+      matches: number;
     }> = [];
 
     for (const roh of woerter) {
+      /*
+       * Ein @-Konto zuerst.
+       *
+       * Es ist die sicherste Angabe von allen: kein Vergleich, kein
+       * Spielraum, sondern eine gepflegte Zuordnung. Erst wenn dazu nichts
+       * steht, wird ueber den Namen gesucht.
+       */
+      const alsKonto = /^@/.test(roh.trim())
+        ? xKonten.get(roh.trim().toLowerCase().replace(/^@/, '')) : undefined;
+      if (alsKonto) {
+        const e = nachId.get(alsKonto);
+        if (e) {
+          treffer.push({
+            roh, name: e.anzeige, land: e.land, epicId: e.epicId, guete: 1,
+            matches: e.matches,
+          });
+          continue;
+        }
+      }
+
       const suchschluessel = gefaltet(namensSchluessel(roh));
       if (suchschluessel.length < 3) continue;
 
@@ -266,6 +315,7 @@ export async function POST(request: Request) {
         land: bester.land,
         epicId: bester.epicId,
         guete: Math.round(besteGuete * 100) / 100,
+        matches: bester.matches,
       });
     }
 
