@@ -778,7 +778,15 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     let weg = false;
     setSpieleLaedt(true);
     fetch(`/api/cup-matches?event=${encodeURIComponent(fenster.eventId)}`
-      + `&window=${encodeURIComponent(fenster.windowId)}&limit=500`)
+      /*
+       * Die ganze Bestenliste, nicht nur die Spitze.
+       *
+       * In einer Qualifikation verteilt sich eine einzelne Lobby ueber das
+       * gesamte Feld - in einer Runde standen Teams auf Tagesplatz 4 und auf
+       * Tagesplatz 492 nebeneinander. Mit einer Obergrenze von fuenfhundert
+       * fehlte deshalb die halbe Lobby, ohne dass etwas darauf hinwies.
+       */
+      + `&window=${encodeURIComponent(fenster.windowId)}&limit=${MAX_PLAETZE}`)
       .then((r) => r.json())
       .then((j) => { if (!weg) setSpiele(j?.spiele ?? []); })
       .catch(() => { if (!weg) setSpiele([]); })
@@ -1704,9 +1712,13 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                                 { hour: '2-digit', minute: '2-digit' }) : '—'}
                             </span>
                           </div>
+                          {/* Ohne Pokal davor: das Emoji wird je nach System
+                              als buntes Bild gezeichnet und passt nicht zu
+                              einer Textzeile. Gelb genuegt, um den Sieger
+                              kenntlich zu machen. */}
                           {sp.sieger.length > 0 && (
                             <div className="mt-0.5 truncate text-[11px] text-amber-400">
-                              🏆 {sp.sieger.map((n, k) => namenVon({
+                              {sp.sieger.map((n, k) => namenVon({
                                 name: n,
                                 id: sp.teams.find((x) => x.platz === 1)
                                   ?.spieler[k]?.id ?? '',
@@ -1786,7 +1798,13 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                           </thead>
                           <tbody>
                             {sp.teams.map((t, i) => (
-                              <tr key={`${t.teamId ?? i}`}
+                              // Zwei Zeilen koennen dieselbe Team-Id tragen:
+                              // in einer Qualifikation spielt ein Konto an
+                              // einem Tag in mehreren Lobbys, und Epic
+                              // vergibt die Id je Team, nicht je Sitzung.
+                              // Ohne den Zusatz warf React Zeilen weg und
+                              // brachte die Reihenfolge durcheinander.
+                              <tr key={`${t.teamId ?? 'x'}-${i}`}
                                 className="border-b border-zinc-900/70 last:border-0">
                                 <td className="px-3 py-1.5 text-right tabular-nums
                                                text-slate-400">

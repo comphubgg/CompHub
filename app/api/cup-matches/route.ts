@@ -43,7 +43,10 @@ export async function GET(request: Request) {
   const p = new URL(request.url).searchParams;
   const event = p.get('event');
   const window_ = p.get('window');
-  const limit = Math.min(parseInt(p.get('limit') ?? '500', 10) || 500, 1000);
+  // Bis zum ganzen Feld: eine Lobby einer Qualifikation zieht sich durch
+  // die gesamte Bestenliste, und eine halbe Aufstellung waere schlimmer
+  // als gar keine.
+  const limit = Math.min(parseInt(p.get('limit') ?? '500', 10) || 500, 10_000);
 
   if (!event || !window_) {
     return NextResponse.json({ error: 'event und window sind noetig' }, { status: 400 });

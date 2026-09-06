@@ -933,6 +933,19 @@ export default function TweetSeite() {
   const [laedt, setLaedt] = useState(false);
   const [fehler, setFehler] = useState('');
   const [vorlage, setVorlage] = useState<Vorlage>('rueckblick');
+
+  /*
+   * Der Kasten zum Uebernehmen fremder Beitraege - zugeklappt.
+   *
+   * Er stand ganz oben und nahm bei jedem Aufruf Platz weg, obwohl er nur
+   * gebraucht wird, wenn wirklich ein fremder Beitrag uebernommen werden
+   * soll. Der Betreiber wollte ihn nur sehen, wenn er auch darin arbeitet.
+   *
+   * Offen ist er deshalb genau dann, wenn ein eigener Beitrag entsteht -
+   * dort gehoert ein uebernommener Text hin - oder wenn schon einer geholt
+   * wurde. Sonst bleibt eine Zeile stehen, die ihn mit einem Klick oeffnet.
+   */
+  const [importOffen, setImportOffen] = useState(false);
   const [anzahl, setAnzahl] = useState(7);
   const [gewaehlteListen, setGewaehlteListen] = useState<string[]>([]);
   const [profile, setProfile] = useState<Record<string, Profil>>({});
@@ -1147,6 +1160,37 @@ export default function TweetSeite() {
   /** Selbst hochgeladene Bilder - bleiben im Browser, nichts wird gesendet. */
   const [eigeneBilder, setEigeneBilder] = useState<string[]>([]);
 
+  /*
+   * Einen uebernommenen Text nicht eins zu eins stehen lassen.
+   *
+   * Der Betreiber: "wenn ich eine URL einfuege, soll das nicht eins zu eins
+   * kopiert sein, sondern ein paar Emojis angepasst oder so - einfach dass
+   * es nicht ganz genau gleich aussieht."
+   *
+   * Angefasst wird deshalb nur Beiwerk: Emojis werden gegen gleichbedeutende
+   * getauscht, Interpunktion beruhigt. Woerter, Namen und Zahlen bleiben
+   * Zeichen fuer Zeichen stehen - an einem uebernommenen Text etwas
+   * umzuformulieren hiesse, eine fremde Aussage zu veraendern, und das waere
+   * schlimmer als eine woertliche Kopie.
+   */
+  const EMOJI_TAUSCH: Record<string, string> = {
+    '🔥': '💥', '🏆': '👑', '🎯': '🎪', '💪': '🦾', '👀': '🔎',
+    '⚡': '✨', '😳': '😮', '🤯': '😵‍💫', '💀': '☠️', '🚀': '🛫',
+    '❤️': '🧡', '😂': '🤣', '🙌': '🙏', '📈': '📊', '🥇': '🏅',
+  };
+
+  function textVariieren(roh: string): string {
+    return [...roh]
+      .map((z) => EMOJI_TAUSCH[z] ?? z)
+      .join('')
+      // Drei Ausrufezeichen sind eine Handschrift, kein Inhalt.
+      .replace(/([!?])\1{1,}/g, '$1')
+      // Gedankenstrich statt Doppelbindestrich, einfache statt dreifacher
+      // Punkte - dieselbe Aussage, andere Schreibweise.
+      .replace(/\s--\s/g, ' — ')
+      .replace(/\.{3,}/g, '…');
+  }
+
   async function quelleHolen() {
     const link = quellLink.trim();
     if (!link) return;
@@ -1156,8 +1200,9 @@ export default function TweetSeite() {
       const j = await r.json();
       if (!r.ok) { setQuellFehler(j?.error ?? `Fehler ${r.status}`); return; }
       setQuelle(j);
-      // Der Text geht gleich in den Editor - genau das ist der Zweck.
-      setEigenerText(j.text ?? '');
+      // Der Text geht gleich in den Editor - genau das ist der Zweck. Nur
+      // nicht Zeichen fuer Zeichen: siehe textVariieren.
+      setEigenerText(textVariieren(j.text ?? ''));
     } catch (e) {
       setQuellFehler((e as Error).message);
     } finally { setQuellLaedt(false); }
@@ -2851,15 +2896,43 @@ export default function TweetSeite() {
       return eigeneWahl.map((x) => x.epicId).slice(0, 10);
     }
 
+    /*
+     * Je Team eine Gruppe, mit senkrechtem Strich verbunden.
+     *
+     * /api/beitrag-bild entscheidet daraus, wer ins Bild kommt: aus jedem
+     * Team hoechstens einer, und zwar der, von dem ein Foto vorliegt. Das
+     * kann nur dort entschieden werden - hier ist nicht bekannt, zu wem es
+     * ein Foto gibt.
+     */
     const raus: string[] = [];
-    const dazu = (id?: string) => {
-      if (id && /^[0-9a-f]{32}$/i.test(id) && !raus.includes(id)) raus.push(id);
+    const drin = new Set<string>();
+    const gruppe = (ids?: Array<string | undefined>) => {
+      const echte = (ids ?? []).filter((id): id is string =>
+        Boolean(id) && /^[0-9a-f]{32}$/i.test(id!) && !drin.has(id!));
+      if (!echte.length) return;
+      for (const id of echte) drin.add(id);
+      raus.push(echte.join('|'));
     };
 
+    /*
+     * Aus jedem Duo nur einer.
+     *
+     * Vorher wurden die Konten Team fuer Team angehaengt - also beide
+     * Spieler eines Duos hintereinander. Bei neun Bildern blieben davon
+     * viereinhalb Teams uebrig, und im Bild standen zweimal dieselben zwei
+     * Gesichter nebeneinander. Der Betreiber wollte es andersherum: "von
+     * jedem einer, damit jeder sicher mal drin ist."
+     *
+     * Deshalb zwei Durchgaenge. Erst von jedem Team der erste Spieler, in
+     * der Reihenfolge der Liste; danach erst die Partner. Weil das Bild
+     * vorne anfaengt und ueberspringt, wer kein Foto hat, steht damit auf
+     * neun Plaetzen auch neun verschiedene Teams - und die Partner fuellen
+     * nur auf, wenn es sonst nicht reicht.
+     */
     const erste = aktiveListen.find((b) => gewaehlteListen.includes(b.schluessel))
       ?? aktiveListen[0];
-    if (erste) for (const pl of erste.plaetze) pl.ids?.forEach(dazu);
-    if (raus.length < 12) for (const e of eintraege) e.players.forEach((x) => dazu(x.id));
+    if (erste) for (const pl of erste.plaetze) gruppe(pl.ids);
+    if (raus.length < 12) for (const e of eintraege) gruppe(e.players.map((x) => x.id));
 
     return raus.slice(0, 20);
   }, [aktiveListen, gewaehlteListen, eintraege, vorlage, eigeneWahl]);
@@ -2883,7 +2956,8 @@ export default function TweetSeite() {
       }
       setMosaikLaedt(true); setMosaikFehler('');
       try {
-        const r = await fetch(`/api/beitrag-bild?ids=${mosaikIds.join(',')}`
+        const r = await fetch(
+          `/api/beitrag-bild?ids=${encodeURIComponent(mosaikIds.join(','))}`
           + `&anzahl=${mosaikAnzahl}`, { cache: 'no-store' });
         if (!r.ok) {
           const j = await r.json().catch(() => null);
@@ -3762,10 +3836,21 @@ export default function TweetSeite() {
 
             {/* Fremden Beitrag uebernehmen und eigene Bilder dazulegen. */}
             <div className="mb-4 rounded-xl border border-zinc-800 bg-zinc-900/40 p-3">
-              <h2 className="mb-2 text-sm font-semibold text-slate-100">
-                <T>Beitrag übernehmen</T>
-              </h2>
-              <div className="flex flex-wrap items-center gap-2">
+              <button type="button"
+                onClick={() => setImportOffen((a) => !a)}
+                className="flex w-full items-center justify-between gap-2 text-left">
+                <h2 className="text-sm font-semibold text-slate-100">
+                  <T>Beitrag übernehmen</T>
+                </h2>
+                <span className="text-[11px] text-slate-500">
+                  {importOffen || vorlage === 'eigene' || quelle
+                    ? '−' : '+'}
+                </span>
+              </button>
+
+              {(importOffen || vorlage === 'eigene' || quelle) && (
+              <>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
                 <input value={quellLink}
                   onChange={(e) => setQuellLink(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') void quelleHolen(); }}
@@ -3790,6 +3875,13 @@ export default function TweetSeite() {
               {quellFehler && (
                 <p className="mt-2 text-[11px] text-amber-500">{quellFehler}</p>
               )}
+
+              <p className="mt-2 text-[11px] text-slate-600">
+                <T>Ein übernommener Text wird nicht Zeichen für Zeichen
+                eingesetzt: Emojis werden gegen gleichbedeutende getauscht und
+                die Zeichensetzung beruhigt. Wörter, Namen und Zahlen bleiben
+                stehen.</T>
+              </p>
 
               {quelle && (
                 <div className="mt-2 text-[11px] text-slate-500">
@@ -3832,6 +3924,9 @@ export default function TweetSeite() {
                   ))}
                 </div>
               ) : null}
+
+              </>
+              )}
 
               {/*
                 * Dieselbe Bildsprache mit den eigenen Spielern.

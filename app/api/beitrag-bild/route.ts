@@ -136,8 +136,17 @@ export async function GET(request: Request) {
 
 async function baueMosaik(request: Request) {
   const p = new URL(request.url).searchParams;
-  const gewuenscht = (p.get('ids') ?? '').split(',')
-    .map((x) => x.trim()).filter(Boolean);
+  /*
+   * Konten, wahlweise nach Teams gruppiert.
+   *
+   * "a,b,c" sind drei einzelne Konten. "a|b,c|d" sind zwei Duos - und dann
+   * gilt: aus jedem Duo hoechstens einer, bevor ueberhaupt ein zweiter
+   * Spieler desselben Teams infrage kommt. Ohne das standen bei neun Bildern
+   * viereinhalb Teams nebeneinander, jeweils zweimal dieselben Gesichter.
+   */
+  const gruppen = (p.get('ids') ?? '').split(',')
+    .map((x) => x.split('|').map((y) => y.trim()).filter(Boolean))
+    .filter((g) => g.length);
 
   /*
    * Wie viele Streifen.
@@ -150,12 +159,30 @@ async function baueMosaik(request: Request) {
   const zahl = Number.isFinite(wunschZahl)
     ? Math.min(MAX, Math.max(MIN, Math.round(wunschZahl))) : MAX;
 
-  if (!gewuenscht.length) {
+  if (!gruppen.length) {
     return NextResponse.json({ error: 'keine Konto-Ids' }, { status: 400 });
   }
 
   const karte = await verzeichnis();
   const namen = await anzeigeNamen();
+
+  /*
+   * Erst von jedem Team einer - und zwar der, von dem es ein Foto gibt.
+   *
+   * Deshalb wird hier und nicht beim Aufrufer sortiert: nur hier ist
+   * bekannt, wer ueberhaupt ein echtes Foto hat. Steht vom Erstgenannten
+   * keines zur Verfuegung, rueckt sein Partner fuer das Team nach, statt
+   * dass das Team ganz herausfaellt. Erst wenn danach noch Platz ist,
+   * kommen die uebrigen Spieler dazu.
+   */
+  const hatFoto = (id: string) => {
+    const e = karte.get(id);
+    return Boolean(e?.echtesFoto && e.datei);
+  };
+  const gewuenscht = [
+    ...gruppen.map((g) => g.find(hatFoto) ?? g[0]),
+    ...gruppen.flat(),
+  ];
 
   /*
    * Die Reihenfolge der Liste bleibt erhalten - Platz eins steht links.

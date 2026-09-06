@@ -1882,6 +1882,12 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Tagesplatz': 'Day rank',
   'Lobby': 'Lobby',
   'alle anzeigen': 'show all',
+  ['Ein übernommener Text wird nicht Zeichen für Zeichen eingesetzt: '
+    + 'Emojis werden gegen gleichbedeutende getauscht und die '
+    + 'Zeichensetzung beruhigt. Wörter, Namen und Zahlen bleiben stehen.']:
+    'An imported text is not inserted character for character: emojis '
+    + 'are swapped for equivalent ones and the punctuation is calmed '
+    + 'down. Words, names and numbers stay as they are.',
   'Spieler-Stats': 'Player Stats',
   'Team-Stats': 'Team Stats',
   ['Dieser Spieltag hat noch nicht stattgefunden.']:
