@@ -1882,6 +1882,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Tagesplatz': 'Day rank',
   'Lobby': 'Lobby',
   'alle anzeigen': 'show all',
+  'Spieler (Einzahl)': 'Player',
   'In welchen Ordner?': 'Into which folder?',
   'Neuer Ordner …': 'New folder …',
   'Zu einem Multiview-Ordner hinzufügen': 'Add to a multiview folder',

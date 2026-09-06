@@ -59,8 +59,19 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const event = searchParams.get('event');
   const window_ = searchParams.get('window');
-  const limit = Math.min(parseInt(searchParams.get('limit') ?? '100', 10) || 100, 500);
+  const limit = Math.min(parseInt(searchParams.get('limit') ?? '100', 10) || 100, 10_000);
   const proListe = Math.min(parseInt(searchParams.get('top') ?? '5', 10) || 5, 25);
+
+  /*
+   * Eine einzelne Kennzahl in voller Laenge.
+   *
+   * Die Uebersicht zeigt je Kennzahl fuenf Plaetze; wer eine davon oeffnet,
+   * will das ganze Feld sehen. Alle fuenfzehn Kennzahlen in voller Laenge
+   * mitzuschicken waeren bei einem grossen Cup mehrere Megabyte bei jedem
+   * Aufruf der Eventseite - fuer eine Liste, die meistens niemand oeffnet.
+   * Deshalb wird genau die eine nachgeladen, wenn sie gebraucht wird.
+   */
+  const nurListe = (searchParams.get('liste') ?? '').trim();
 
   if (!event || !window_) {
     return NextResponse.json({ error: 'event und window sind noetig' }, { status: 400 });
@@ -71,7 +82,8 @@ export async function GET(request: Request) {
       () => holeTop(event, window_, limit));
     const eintraege = daten.entries;
 
-    const bestenlisten = KATEGORIEN.map((k) => {
+    const bestenlisten = KATEGORIEN.filter((k) =>
+      !nurListe || k.schluessel === nurListe).map((k) => {
       const mitWert = eintraege.filter((e) => {
         const v = k.wert(e);
         return Number.isFinite(v) && v > 0;

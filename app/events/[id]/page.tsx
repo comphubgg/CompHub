@@ -381,6 +381,38 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
   /** Welche Kennzahl in voller Laenge offen ist. */
   const [offeneListe, setOffeneListe] = useState<Bestenliste | null>(null);
   const [listenTiefe, setListenTiefe] = useState(50);
+  /** Suchfeld der geoeffneten Kennzahl - bei tausenden Zeilen unverzichtbar. */
+  const [listenSuche, setListenSuche] = useState('');
+  const [listeLaedt, setListeLaedt] = useState(false);
+
+  /**
+   * Eine Kennzahl oeffnen und dabei das ganze Feld nachladen.
+   *
+   * In der Uebersicht steckt je Kennzahl nur die Spitze - alle fuenfzehn in
+   * voller Laenge mitzuschicken waeren bei einem grossen Cup mehrere
+   * Megabyte bei jedem Aufruf. Beim Oeffnen wird deshalb genau diese eine
+   * nachgeholt. Vorher standen dort hundert Zeilen, auch wenn "Alle"
+   * gewaehlt war, und bei einem Cup mit zehntausend Teilnehmern sah das aus
+   * wie ein Fehler.
+   */
+  const listeOeffnen = useCallback((b: Bestenliste) => {
+    setOffeneListe(b); setListenTiefe(50); setListenSuche('');
+    if (!fenster) return;
+    setListeLaedt(true);
+    fetch(`/api/cup-stats?event=${encodeURIComponent(fenster.eventId)}`
+      + `&window=${encodeURIComponent(fenster.windowId)}`
+      + `&liste=${encodeURIComponent(b.schluessel)}&limit=10000&top=5`)
+      .then((r) => r.json())
+      .then((d) => {
+        const voll = (d.bestenlisten ?? [])[0];
+        if (voll?.alle?.length) {
+          setOffeneListe((jetzt) => (jetzt && jetzt.schluessel === b.schluessel
+            ? { ...jetzt, alle: voll.alle } : jetzt));
+        }
+      })
+      .catch(() => { /* dann bleibt die kurze Liste stehen */ })
+      .finally(() => setListeLaedt(false));
+  }, [fenster]);
   const [laedt, setLaedt] = useState(false);
   const [suche, setSuche] = useState('');
   /**
@@ -1141,6 +1173,16 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     () => tabelle.length > 0 && tabelle.every((e) => e.players.length === 1),
     [tabelle]);
 
+  /*
+   * Bei einem Solo-Cup gibt es den Reiter "Spieler-Stats" aus den Replays
+   * nicht - dort sind die Kacheln bereits Spielerwerte. Wer von einem
+   * Duo-Cup kommt und dort auf diesem Reiter stand, landete sonst auf einer
+   * leeren Seite ohne Knopf zurueck.
+   */
+  useEffect(() => {
+    if (soloCup && reiter === 'spieler') setReiter('teams');
+  }, [soloCup, reiter]);
+
   if (fehler) {
     return (
       <main className="flex-1 bg-zinc-950 px-4 py-10 text-slate-200">
@@ -1503,14 +1545,36 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
           */}
         <div className="mb-3 flex flex-wrap items-center gap-1 overflow-x-auto
                         rounded-xl border border-zinc-800 bg-zinc-900/40 px-2 py-1.5">
-          {([
-            ['liste', 'Leaderboard'],
-            ['runden', 'Matches'],
-            ['spieler', 'Spieler-Stats'],
-            ['teams', 'Team-Stats'],
-            ['streams', 'Streams'],
-          ] as const).map(([id, name]) => (
-            <button key={id} onClick={() => setReiter(id)}
+          {/*
+            * Bei einem Solo-Cup gibt es keine Teams.
+            *
+            * Epics Bestenliste ist dort schon je Spieler - die Kacheln unter
+            * "Team-Stats" sind also in Wahrheit Spielerwerte. Sie deshalb
+            * "Team-Stats" zu nennen und daneben eine zweite, magere
+            * Spielerliste zu stellen, war doppelt falsch. Der Betreiber:
+            * "Bei einem Solo Victory Cup gibt es keine Team-Stats, da gibt
+            * es nur Player Stats. Die Team-Stats kannst du optisch lassen,
+            * wie sie sind, einfach auf Player Stats machen."
+            *
+            * Bei Duos bleibt beides: die Kacheln zeigen das Team, die Liste
+            * aus den Replays zeigt, wer davon die Elims geholt hat.
+            */}
+          {(soloCup
+            ? [
+              ['liste', 'Leaderboard'],
+              ['runden', 'Matches'],
+              ['teams', 'Spieler-Stats'],
+              ['streams', 'Streams'],
+            ]
+            : [
+              ['liste', 'Leaderboard'],
+              ['runden', 'Matches'],
+              ['spieler', 'Spieler-Stats'],
+              ['teams', 'Team-Stats'],
+              ['streams', 'Streams'],
+            ]).map(([id, name]) => (
+            <button key={id}
+              onClick={() => setReiter(id as typeof reiter)}
               className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
                 reiter === id
                   ? 'bg-sky-500/10 text-sky-400'
@@ -2038,7 +2102,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
           * die Elims geholt hat - gezaehlt aus den Replays, die das Werkzeug
           * ohnehin einsammelt.
           */}
-        {reiter === 'spieler' && (
+        {reiter === 'spieler' && !soloCup && (
           <section className="rounded-xl border border-zinc-800 bg-zinc-950/60">
             <header className="flex flex-wrap items-center justify-between gap-3
                                border-b border-zinc-800 px-4 py-3">
@@ -2374,7 +2438,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
           <section>
             <div className="mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
               <h2 className="text-sm font-semibold text-slate-100">
-                <T>Turnierstatistik</T>
+                {soloCup ? <T>Spieler-Stats</T> : <T>Turnierstatistik</T>}
               </h2>
               {/*
                 * Bei einem laufenden Cup gehoert dazugesagt, dass es ein
@@ -2393,7 +2457,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                 </span>
               )}
               <span className="text-[11px] text-slate-500">
-                <T>Werte je</T> {soloCup ? t('Spieler') : 'Duo'}<T>, direkt von Epic — nur was dieses Turnier mitschickt</T>
+                <T>Werte je</T> {soloCup ? t('Spieler (Einzahl)') : 'Duo'}<T>, direkt von Epic — nur was dieses Turnier mitschickt</T>
               </span>
             </div>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
@@ -2408,7 +2472,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                         dieselbe Sortierung, nur ungekuerzt. */}
                     {b.alle.length > b.plaetze.length && (
                       <button type="button"
-                        onClick={() => { setOffeneListe(b); setListenTiefe(50); }}
+                        onClick={() => listeOeffnen(b)}
                         title={`${t('Alle anzeigen')} (${b.alle.length})`}
                         className="ml-auto rounded border border-zinc-700 px-1.5
                                    text-[11px] leading-4 text-slate-400 transition
@@ -2474,8 +2538,16 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                 </h3>
                 <span className="text-xs text-slate-500">
                   {offeneListe.alle.length.toLocaleString(ort)}
-                  {' '}{soloCup ? 'Spieler' : 'Teams'}
+                  {' '}{soloCup ? <T>Spieler</T> : <T>Teams</T>}
+                  {listeLaedt ? ' …' : ''}
                 </span>
+
+                <input value={listenSuche}
+                  onChange={(e) => setListenSuche(e.target.value)}
+                  placeholder={t('Spieler suchen …')}
+                  className="w-44 rounded-lg border border-zinc-800 bg-zinc-900/80 px-3
+                             py-1 text-xs text-slate-100 outline-none
+                             focus:border-sky-500" />
 
                 <div className="ml-auto flex items-center gap-1">
                   {([50, 100, 0] as const).map((n) => (
@@ -2484,7 +2556,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                         listenTiefe === n
                           ? 'border-sky-500 bg-sky-500/10 text-sky-400'
                           : 'border-zinc-800 text-slate-400 hover:border-zinc-600'}`}>
-                      {n === 0 ? 'Alle' : `Top ${n}`}
+                      {n === 0 ? <T>Alle</T> : `Top ${n}`}
                     </button>
                   ))}
                   <button type="button" onClick={() => setOffeneListe(null)}
@@ -2497,7 +2569,19 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
               </header>
 
               <ol className="divide-y divide-zinc-900 overflow-y-auto">
-                {(listenTiefe ? offeneListe.alle.slice(0, listenTiefe) : offeneListe.alle)
+                {/*
+                  * Wird gesucht, gilt die Tiefe nicht.
+                  *
+                  * Wer einen Namen eintippt, meint das ganze Feld - sonst
+                  * faende er ihn nur, wenn er zufaellig unter den ersten
+                  * fuenfzig steht.
+                  */}
+                {(listenSuche.trim()
+                  ? offeneListe.alle.filter((pl) => pl.spieler.some((n, k) =>
+                    namenVon({ name: n, id: pl.ids?.[k] ?? '' }).toLowerCase()
+                      .includes(listenSuche.trim().toLowerCase())
+                    || n.toLowerCase().includes(listenSuche.trim().toLowerCase())))
+                  : listenTiefe ? offeneListe.alle.slice(0, listenTiefe) : offeneListe.alle)
                   .map((pl, i) => (
                     <li key={`${pl.rank}-${i}`} className="flex items-center gap-2.5 px-4 py-2">
                       <span className={`w-8 shrink-0 text-right text-xs font-bold tabular-nums ${

@@ -1490,7 +1490,17 @@ export default function StatistikSeite() {
    * trotzdem: die uebrigen Cups liegen im Archiv, sie stehen nur nicht im
    * Weg. Nichts wird verworfen, nur nicht angezeigt.
    */
-  const [nurGrosse, setNurGrosse] = useState(true);
+  /*
+   * Der Schalter dazu ist entfallen.
+   *
+   * Er stand als "alle Spieltage" in der Leiste, und der Betreiber hat ihn
+   * abgeraeumt: "Genauso wie den Filter all match days - weil das
+   * funktioniert ja nicht richtig." Gemeint war nicht, dass er nichts tut,
+   * sondern dass die Liste dahinter niemanden interessiert: gefragt sind
+   * die grossen Finale, und die stehen ohnehin da. Die uebrigen Cups
+   * bleiben im Archiv, sie werden nur nicht angeboten.
+   */
+  const nurGrosse = true;
   /*
    * Wie viele Spieltage es so und so gaebe.
    *
@@ -1498,7 +1508,6 @@ export default function StatistikSeite() {
    * einer frisch angefangenen Saison ist das der Normalfall, und ohne einen
    * Hinweis haelt man ihn dann fuer kaputt.
    */
-  const [turnierZahlen, setTurnierZahlen] = useState<{ alle: number; grosse: number } | null>(null);
   // Regionenseite
   const [regionFeld, setRegionFeld] = useState<Spieler[]>([]);
   const [regionLaedt, setRegionLaedt] = useState(false);
@@ -1812,7 +1821,7 @@ export default function StatistikSeite() {
       .then(() => fetch(`/api/szene-stats?ansicht=turniere&saison=${saison}`
         + (nurGrosse ? '' : '&alle=1')))
       .then((r) => r.json())
-      .then((j) => { setTurniere(j.turniere ?? []); setTurnierZahlen(j.zahlen ?? null); })
+      .then((j) => setTurniere(j.turniere ?? []))
       .catch(() => setTurniere([]));
   }, [bereich, saison, nurGrosse]);
 
@@ -1899,7 +1908,7 @@ export default function StatistikSeite() {
     fetch(`/api/szene-stats?ansicht=turniere&saison=${saison}`
         + (nurGrosse ? '' : '&alle=1'))
       .then((r) => r.json())
-      .then((j) => { setTurniere(j.turniere ?? []); setTurnierZahlen(j.zahlen ?? null); })
+      .then((j) => setTurniere(j.turniere ?? []))
       .catch(() => {});
   }, [bereich, saison, nurGrosse]);
 
@@ -3221,36 +3230,6 @@ export default function StatistikSeite() {
                       : 'border-zinc-800 text-slate-400 hover:border-zinc-700'}`}>
                     <T>Alle</T>
                   </button>
-                  {/*
-                    * Voreingestellt stehen hier nur die grossen Finale.
-                    * Wer alles sehen will, schaltet um - weggeworfen wird
-                    * nichts.
-                    */}
-                  <button onClick={() => setNurGrosse((v) => !v)}
-                    title={t(nurGrosse
-                      ? 'Zeigt Performance Cups, Division-1-Finale, FNCS Grand Finals und EWC'
-                      : 'Zeigt jeden Spieltag, auch Cash Cups und Division 2 bis 5')}
-                    className={`ml-auto rounded-lg border px-2.5 py-1.5 text-xs
-                                transition ${nurGrosse
-                      ? 'border-sky-500 bg-sky-500/10 text-sky-400'
-                      : 'border-zinc-800 text-slate-400 hover:border-zinc-700'}`}>
-                    {nurGrosse ? <T>nur große Finale</T> : <T>alle Spieltage</T>}
-                  </button>
-
-                  {/*
-                    * Wenn der Schalter nichts bewirkt, gehoert das dagesagt.
-                    *
-                    * In einer frisch angefangenen Saison sind die wenigen
-                    * vorhandenen Turniere ohnehin alle grosse Finale - der
-                    * Schalter aendert dann nichts, und wer das sieht, haelt
-                    * ihn fuer kaputt.
-                    */}
-                  {turnierZahlen && turnierZahlen.alle === turnierZahlen.grosse && (
-                    <span className="text-[11px] text-slate-500">
-                      <T>In dieser Saison gibt es noch keine weiteren Spieltage —
-                      die Quelle liefert sie ein bis zwei Tage nach jedem Cup.</T>
-                    </span>
-                  )}
 
                   <div className="flex gap-1 rounded-lg border border-zinc-800 p-1">
                     <button onClick={() => setTafel(true)}
@@ -3262,38 +3241,6 @@ export default function StatistikSeite() {
                   </div>
                 </div>
 
-                {/*
-                  * Was noch fehlt, und warum.
-                  *
-                  * Ohne diesen Hinweis fehlte ein Finale von gestern Abend
-                  * einfach - ohne Erklaerung, obwohl es auf der Eventseite
-                  * laengst stand. Der Grund liegt nicht hier, sondern an der
-                  * Quelle: Epic fuehrt das Fenster sofort, die Einzelwerte
-                  * kommen ein bis zwei Tage spaeter nach.
-                  */}
-                {(() => {
-                  const bekannt = new Set(turniere.map((x) => x.windowId));
-                  const fehlend = laufende.filter((f) => !bekannt.has(f.windowId)
-                    && (!region || f.region === region));
-                  if (!fehlend.length) return null;
-                  const namen = [...new Set(fehlend.map((f) => f.titel))];
-                  const laeuftNoch = fehlend.some((f) => f.live);
-                  return (
-                    <p className="mb-3 rounded-xl border border-sky-500/40 bg-sky-500/5
-                                  px-4 py-3 text-xs leading-relaxed text-slate-300">
-                      <span className="font-semibold text-sky-400">
-                        {namen.join(' · ')}
-                      </span>
-                      {' — '}
-                      {laeuftNoch
-                        ? t('läuft gerade. Die Einzelwerte kommen erst, wenn der Cup '
-                          + 'zu Ende ist — Platz und Punkte stehen so lange unter Events.')
-                        : t('ist zu Ende, die Einzelwerte fehlen aber noch. Die Quelle '
-                          + 'veröffentlicht sie ein bis zwei Tage später; danach steht '
-                          + 'der Cup hier von selbst.')}
-                    </p>
-                  );
-                })()}
 
                 {!gefiltert.length ? (
                   <p className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-8
