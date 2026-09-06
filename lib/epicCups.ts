@@ -1097,18 +1097,37 @@ async function bildListe(unterordner: string) {
  * Namensverzeichnis steht. Ueber sie ist die Zuordnung eindeutig, und sie
  * bleibt es auch, wenn er sich naechste Woche wieder umbenennt.
  */
-async function bilderNachKonto(): Promise<Map<string, string>> {
+async function bilderNachKonto(): Promise<{
+  nach: Map<string, string>; platzhalter: Set<string>;
+}> {
   const nach = new Map<string, string>();
+  const platzhalter = new Set<string>();
   try {
     const roh = await fs.readFile(path.join(DATEN_ORT, 'spielerbilder.json'), 'utf8');
     const liste = JSON.parse(roh);
     for (const e of (Array.isArray(liste) ? liste : Object.values(liste ?? {}))) {
       const id = (e as { epicId?: string })?.epicId;
       const datei = (e as { datei?: string })?.datei;
-      if (id && datei) nach.set(String(id), String(datei));
+      const echt = (e as { echtesFoto?: boolean })?.echtesFoto;
+      if (!datei) continue;
+      /*
+       * Wer kein echtes Foto hat, bekommt gar keins.
+       *
+       * 121 der 433 Eintraege zeigen auf eine graue Silhouette - eine
+       * einzige Datei, unter 121 Namen abgelegt (alle 2036 Byte, alle
+       * derselbe Inhalt). Sie stammt aus der Szene-Quelle und stand
+       * ueberall dort, wo dieser kein Bild vorlag.
+       *
+       * In der Bestenliste ergab das schwarze Kreise neben den Namen, und
+       * daneben, bei allen uebrigen, gar keinen Kreis: zwei verschiedene
+       * Anblicke fuer denselben Sachverhalt. Die Statistikseite laesst die
+       * Silhouette laengst weg; hier fehlte dieselbe Regel.
+       */
+      if (!echt) { platzhalter.add(String(datei).toLowerCase()); continue; }
+      if (id) nach.set(String(id), String(datei));
     }
   } catch { /* dann bleibt es beim Namensvergleich */ }
-  return nach;
+  return { nach, platzhalter };
 }
 
 let bildCache: { players: Array<{file:string;key:string}>;
@@ -1126,10 +1145,14 @@ export async function bilder() {
    * vierhundert davon vorliegen. Derselbe Ordner, den auch das
    * Beitrags-Werkzeug fuellt; ein zweiter waere ein zweiter Ort zum Pflegen.
    */
+  const { nach, platzhalter } = await bilderNachKonto();
   bildCache = {
-    players: await bildListe('spielerbilder'),
+    // Auch der Weg ueber den Dateinamen darf nicht an der Silhouette
+    // landen: sie liegt unter 121 Spielernamen im selben Ordner.
+    players: (await bildListe('spielerbilder'))
+      .filter((p) => !platzhalter.has(p.file.toLowerCase())),
     logos: await bildListe('logos'),
-    nachKonto: await bilderNachKonto(),
+    nachKonto: nach,
     bis: Date.now() + 10_000,
   };
   return bildCache;
