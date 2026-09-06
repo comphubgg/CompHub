@@ -89,6 +89,8 @@ interface Profil {
   /* Beim Setzen einer Flagge muessen diese Angaben mitgeschickt werden,
      sonst schreibt der Speichervorgang sie weg. */
   x?: string; region?: string; anzeige?: string;
+  /** Twitch-Kanal, von Hand gepflegt - siehe app/api/spieler-profile. */
+  twitch?: string;
 }
 interface Match {
   placement?: number; elims?: number; timeAlive?: number; endTime?: string;
@@ -258,7 +260,27 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
    * auswaehlt, statt alles gleichzeitig zu sehen.
    */
   const [reiter, setReiter] =
-    useState<'liste' | 'runden' | 'spieler' | 'teams'>('liste');
+    useState<'liste' | 'runden' | 'spieler' | 'teams' | 'streams'>('liste');
+
+  /*
+   * Wer aus diesem Cup gerade sendet.
+   *
+   * Gefragt wird nur nach Kanaelen, die im Spielerprofil stehen - geraten
+   * wird keiner. Aus einem Turniernamen den passenden Twitch-Kanal zu
+   * erschliessen geht regelmaessig daneben, und ein fremder Stream unter
+   * dem Namen eines Profis waere ein Fehler, den niemand bemerkt.
+   */
+  const [live, setLive] = useState<Record<string,
+    { isLive: boolean; viewers: number }> | null>(null);
+  const [liveLaedt, setLiveLaedt] = useState(false);
+
+  /** Twitch-Kanaele je Spieler im Bearbeiten-Fenster. */
+  const [twitchEntwurf, setTwitchEntwurf] = useState<string[]>([]);
+  const [twitchVorschlag, setTwitchVorschlag] = useState<Record<number, Array<{
+    login: string; name: string; live: boolean; bild: string; spiel: string;
+  }>>>({});
+  /** Was Twitch zur Suche gemeldet hat - meist nichts, sonst ein Grund. */
+  const [twitchHinweis, setTwitchHinweis] = useState('');
 
   /*
    * Werte je einzelnem Spieler.
@@ -725,6 +747,25 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     setFlaggenTeam(e);
     setFlaggenSuche(''); setFlaggenStand('');
     setFlaggenEntwurf(e.players.map((sp) => profilVon(sp)?.land ?? ''));
+    setTwitchEntwurf(e.players.map((sp) => profilVon(sp)?.twitch ?? ''));
+    setTwitchVorschlag({});
+  }
+
+  /**
+   * Twitch-Kanaele zu einem Namen vorschlagen lassen.
+   *
+   * Gesucht wird mit dem Namen, unter dem der Spieler bekannt ist. Was
+   * zurueckkommt, ist ein Vorschlag und nichts weiter - erst ein Klick
+   * traegt ihn ein.
+   */
+  async function twitchSuchen(k: number, begriff: string) {
+    if (begriff.trim().length < 2) return;
+    try {
+      const j = await (await fetch(
+        `/api/twitch-suche?q=${encodeURIComponent(begriff.trim())}`)).json();
+      setTwitchVorschlag((a) => ({ ...a, [k]: j.kanaele ?? [] }));
+      setTwitchHinweis(j.hinweis ?? '');
+    } catch { /* dann eben ohne Vorschlag */ }
   }
 
   /**
@@ -740,11 +781,14 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
       const sp = flaggenTeam.players[k];
       const vorher = profilVon(sp);
       const land = (flaggenEntwurf[k] ?? '').trim().toUpperCase();
-      if ((vorher?.land ?? '') === land) continue;
+      const twitch = (twitchEntwurf[k] ?? '').trim();
+      // Nur schreiben, wenn sich wirklich etwas geaendert hat - sonst
+      // schriebe jedes Oeffnen des Fensters die Datei neu.
+      if ((vorher?.land ?? '') === land && (vorher?.twitch ?? '') === twitch) continue;
       await fetch('/api/spieler-profile', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          id: sp.id || undefined, name: sp.name, land,
+          id: sp.id || undefined, name: sp.name, land, twitch,
           x: vorher?.x ?? '', region: vorher?.region ?? '',
           anzeige: vorher?.anzeige ?? '',
         }),
@@ -770,7 +814,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
    */
   useEffect(() => {
     setSpiele(null); setOffenesSpiel(null); setKopiert(null); setAlleSpiele(false);
-    setSpielerWerte(null);
+    setSpielerWerte(null); setLive(null);
   }, [fenster]);
 
   useEffect(() => {
@@ -822,6 +866,43 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
       .finally(() => { if (!weg) setSpielerLaedt(false); });
     return () => { weg = true; };
   }, [reiter, fenster, spielerWerte]);
+
+  /*
+   * Zu jedem Team dieses Spieltags der gepflegte Twitch-Kanal.
+   *
+   * Wer keinen hinterlegt hat, kommt hier nicht vor - und taucht deshalb
+   * auch in der Streamliste nicht auf. Das ist gewollt: lieber eine kurze,
+   * richtige Liste als eine lange mit falschen Kanaelen.
+   */
+  const mitTwitch = useMemo(() => {
+    const raus: Array<{
+      kanal: string; name: string; rang: number; punkte: number;
+    }> = [];
+    for (const e of tabelle) {
+      for (const sp of e.players) {
+        const kanal = profilVon(sp)?.twitch?.trim();
+        if (!kanal) continue;
+        if (raus.some((x) => x.kanal.toLowerCase() === kanal.toLowerCase())) continue;
+        raus.push({ kanal, name: namenVon(sp), rang: e.rank, punkte: e.points });
+      }
+    }
+    return raus;
+  }, [tabelle, profilVon, namenVon]);
+
+  useEffect(() => {
+    if (reiter !== 'streams' || !mitTwitch.length || live) return;
+    let weg = false;
+    setLiveLaedt(true);
+    fetch('/api/live-status', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ usernames: mitTwitch.map((x) => x.kanal) }),
+    })
+      .then((r) => r.json())
+      .then((j) => { if (!weg) setLive(j ?? {}); })
+      .catch(() => { if (!weg) setLive({}); })
+      .finally(() => { if (!weg) setLiveLaedt(false); });
+    return () => { weg = true; };
+  }, [reiter, mitTwitch, live]);
 
   /** Die Match-Id in die Zwischenablage - mit sichtbarer Rueckmeldung. */
   const idKopieren = useCallback((id: string) => {
@@ -1333,13 +1414,15 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
             ['runden', 'Matches'],
             ['spieler', 'Spieler-Stats'],
             ['teams', 'Team-Stats'],
+            ['streams', 'Streams'],
           ] as const).map(([id, name]) => (
             <button key={id} onClick={() => setReiter(id)}
               className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
                 reiter === id
                   ? 'bg-sky-500/10 text-sky-400'
                   : 'text-slate-400 hover:text-slate-200'}`}>
-              {name === 'Matches' ? 'Matches' : <T>{name}</T>}
+              {name === 'Matches' || name === 'Streams'
+                ? name : <T>{name}</T>}
             </button>
           ))}
         </div>
@@ -1448,12 +1531,13 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                               <div
                                 onDoubleClick={istAdmin ? () => flaggenOeffnen(e) : undefined}
                                 title={istAdmin
-                                  ? 'Doppelklick: Flaggen dieses Duos setzen' : undefined}
+                                  ? 'Doppelklick: Flaggen und Twitch-Kanal dieses Duos'
+                                  : undefined}
                                 className={istAdmin ? 'cursor-pointer' : undefined}>
                                 {istAdmin && (
                                   <p className="mb-1.5 text-[10px] uppercase tracking-wider
                                                 text-slate-600">
-                                    <T>Doppelklick setzt die Flaggen</T>
+                                    <T>Doppelklick: Flaggen und Twitch</T>
                                   </p>
                                 )}
                                 {e.players.map((p) => (
@@ -1972,6 +2056,108 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
           </section>
         )}
 
+        {/*
+          * Wer aus diesem Cup gerade sendet.
+          *
+          * Nur hinterlegte Kanaele, nur echte Live-Zustaende von Twitch.
+          * Wer keinen Kanal gepflegt hat, fehlt - und die Zeile darunter
+          * sagt, wie viele das sind, damit die Luecke nicht wie ein Fehler
+          * aussieht.
+          */}
+        {reiter === 'streams' && (
+          <section className="rounded-xl border border-zinc-800 bg-zinc-950/60">
+            <header className="flex flex-wrap items-center justify-between gap-3
+                               border-b border-zinc-800 px-4 py-3">
+              <h2 className="text-sm font-semibold text-slate-100">Streams</h2>
+              <span className="text-xs text-slate-500">
+                {mitTwitch.length} <T>hinterlegte Kanäle</T>
+              </span>
+            </header>
+
+            {!mitTwitch.length ? (
+              <p className="p-8 text-center text-sm leading-relaxed text-slate-500">
+                <T>Zu keinem Spieler dieses Spieltags ist ein Twitch-Kanal
+                hinterlegt. Klapp im Leaderboard ein Team auf und klick doppelt
+                auf die Flaggen — dort schlägt Twitch passende Kanäle vor.
+                Geraten wird keiner: „Sky“ gibt es auf Twitch hundertmal.</T>
+              </p>
+            ) : (
+              <div className="p-3">
+                {liveLaedt && !live && (
+                  <p className="p-4 text-center text-sm text-slate-500">
+                    <T>Wird geladen …</T>
+                  </p>
+                )}
+
+                {live && (() => {
+                  const sendet = mitTwitch.filter((x) =>
+                    live[x.kanal.toLowerCase()]?.isLive);
+                  if (!sendet.length) {
+                    return (
+                      <p className="p-4 text-center text-sm text-slate-500">
+                        <T>Gerade sendet niemand von ihnen.</T>
+                      </p>
+                    );
+                  }
+                  return (
+                    <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                      {sendet
+                        .sort((a, b) =>
+                          (live[b.kanal.toLowerCase()]?.viewers ?? 0)
+                          - (live[a.kanal.toLowerCase()]?.viewers ?? 0))
+                        .map((x) => (
+                          <li key={x.kanal}>
+                            <a href={`https://twitch.tv/${x.kanal}`}
+                              target="_blank" rel="noreferrer"
+                              className="flex items-center gap-3 rounded-lg border
+                                         border-zinc-800 bg-zinc-950/60 px-3 py-2.5
+                                         transition hover:border-purple-600">
+                              <span aria-hidden
+                                className="h-2 w-2 shrink-0 animate-pulse rounded-full
+                                           bg-rose-500" />
+                              <span className="min-w-0 flex-1">
+                                <span className="block truncate text-sm text-slate-100">
+                                  {x.name}
+                                </span>
+                                <span className="block truncate text-[11px] text-slate-500">
+                                  twitch.tv/{x.kanal}
+                                </span>
+                              </span>
+                              <span className="shrink-0 text-right">
+                                <span className="block text-[11px] text-slate-400">
+                                  #{x.rang}
+                                </span>
+                                {/* Die Zuschauerzahl kommt nur ueber Twitchs
+                                    Schnittstelle. Faellt die aus, wird der
+                                    Live-Zustand von der oeffentlichen Seite
+                                    gelesen - dort steht keine Zahl, und dann
+                                    steht hier auch keine statt einer Null. */}
+                                {(live[x.kanal.toLowerCase()]?.viewers ?? 0) > 0 && (
+                                  <span className="block text-[11px] text-slate-600">
+                                    {(live[x.kanal.toLowerCase()]?.viewers ?? 0)
+                                      .toLocaleString(ort)}{' '}
+                                    <T>Zuschauer</T>
+                                  </span>
+                                )}
+                              </span>
+                            </a>
+                          </li>
+                        ))}
+                    </ul>
+                  );
+                })()}
+
+                <p className="mt-3 text-[11px] leading-relaxed text-slate-600">
+                  <T>Gezeigt werden nur Spieler, zu denen ein Twitch-Kanal
+                  hinterlegt ist. Weitere trägst du nach, indem du im
+                  Leaderboard ein Team aufklappst und doppelt auf die Flaggen
+                  klickst.</T>
+                </p>
+              </div>
+            )}
+          </section>
+        )}
+
         {reiter === 'teams' && !statistik.length && (
           <p className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-8
                         text-center text-sm text-slate-500">
@@ -2154,7 +2340,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                        p-5 shadow-2xl">
             <div className="mb-3 flex items-center justify-between gap-3">
               <h3 className="text-sm font-semibold text-slate-100">
-                Flaggen setzen
+                <T>Flaggen und Twitch</T>
                 <span className="ml-2 text-[11px] font-normal text-slate-500">
                   {flaggenTeam.players.map(namenVon).join('  +  ')}
                 </span>
@@ -2200,6 +2386,67 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                         </button>
                       )}
                     </div>
+                    {/*
+                      * Der Twitch-Kanal.
+                      *
+                      * Steht hier, weil dieses Fenster ohnehin das ist, in
+                      * dem der Betreiber einen Spieler pflegt. Der Knopf
+                      * daneben fragt Twitchs eigene Kanalsuche - damit ist
+                      * der richtige Kanal in zwei Klicks eingetragen, statt
+                      * ihn abzutippen.
+                      */}
+                    <div className="mb-2 flex flex-wrap items-center gap-2">
+                      <span className="text-[11px] text-slate-500">twitch.tv/</span>
+                      <input value={twitchEntwurf[k] ?? ''}
+                        onChange={(ev) => setTwitchEntwurf((a) => a.map((v, i) =>
+                          (i === k ? ev.target.value : v)))}
+                        placeholder="—"
+                        className="w-40 rounded-lg border border-zinc-800 bg-zinc-950
+                                   px-2 py-1 text-sm text-slate-100 outline-none
+                                   focus:border-purple-600" />
+                      <button type="button"
+                        onClick={() => void twitchSuchen(k, sp.name)}
+                        className="rounded-lg border border-zinc-700 px-2 py-1
+                                   text-[11px] text-slate-400 transition
+                                   hover:border-purple-500 hover:text-purple-300">
+                        <T>Kanal suchen</T>
+                      </button>
+                      {(twitchEntwurf[k] ?? '') && (
+                        <button onClick={() => setTwitchEntwurf((a) =>
+                          a.map((v, i) => (i === k ? '' : v)))}
+                          className="text-[11px] text-slate-500 hover:text-rose-400">
+                          <T>leeren</T>
+                        </button>
+                      )}
+                    </div>
+                    {twitchHinweis && !(twitchVorschlag[k] ?? []).length && (
+                      <p className="mb-2 text-[11px] text-amber-500">{twitchHinweis}</p>
+                    )}
+                    {(twitchVorschlag[k] ?? []).length > 0 && (
+                      <div className="mb-2 flex flex-wrap gap-1.5">
+                        {(twitchVorschlag[k] ?? []).map((v) => (
+                          <button key={v.login} type="button"
+                            onClick={() => setTwitchEntwurf((a) => a.map((w, i) =>
+                              (i === k ? v.login : w)))}
+                            title={v.spiel || undefined}
+                            className="flex items-center gap-1.5 rounded-lg border
+                                       border-zinc-800 px-2 py-1 text-[11px]
+                                       text-slate-300 transition
+                                       hover:border-purple-500">
+                            {v.bild && (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={v.bild} alt=""
+                                className="h-5 w-5 rounded-full object-cover" />
+                            )}
+                            <span>{v.name}</span>
+                            {v.live && (
+                              <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
                     <div className="flex max-h-28 flex-wrap gap-1 overflow-y-auto">
                       {liste.map((f) => (
                         <button key={f} title={f.toUpperCase()}

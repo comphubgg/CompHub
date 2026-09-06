@@ -1882,6 +1882,26 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Tagesplatz': 'Day rank',
   'Lobby': 'Lobby',
   'alle anzeigen': 'show all',
+  'hinterlegte Kanäle': 'channels on file',
+  'Kanal suchen': 'find channel',
+  'Zuschauer': 'viewers',
+  ['Gerade sendet niemand von ihnen.']:
+    'None of them is streaming right now.',
+  ['Zu keinem Spieler dieses Spieltags ist ein Twitch-Kanal '
+    + 'hinterlegt. Klapp im Leaderboard ein Team auf und klick doppelt auf '
+    + 'die Flaggen — dort schlägt Twitch passende Kanäle vor. Geraten wird '
+    + 'keiner: „Sky“ gibt es auf Twitch hundertmal.']:
+    'No Twitch channel is on file for any player of this match day. Expand '
+    + 'a team in the leaderboard and double-click the flags — Twitch '
+    + 'suggests matching channels there. None is guessed: there are a '
+    + 'hundred “Sky” channels on Twitch.',
+  ['Gezeigt werden nur Spieler, zu denen ein Twitch-Kanal hinterlegt '
+    + 'ist. Weitere trägst du nach, indem du im Leaderboard ein Team '
+    + 'aufklappst und doppelt auf die Flaggen klickst.']:
+    'Only players with a Twitch channel on file are shown. Add more by '
+    + 'expanding a team in the leaderboard and double-clicking the flags.',
+  'Flaggen und Twitch': 'Flags and Twitch',
+  'Doppelklick: Flaggen und Twitch': 'Double-click: flags and Twitch',
   ['Ein übernommener Text wird nicht Zeichen für Zeichen eingesetzt: '
     + 'Emojis werden gegen gleichbedeutende getauscht und die '
     + 'Zeichensetzung beruhigt. Wörter, Namen und Zahlen bleiben stehen.']:

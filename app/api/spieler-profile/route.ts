@@ -33,6 +33,16 @@ export interface SpielerProfil {
   land?: string;
   /** Konto auf X, ohne das @. */
   x?: string;
+  /**
+   * Twitch-Kanal, ohne die Adresse davor.
+   *
+   * Nur von Hand gepflegt und nie geraten: aus einem Turniernamen den
+   * passenden Twitch-Kanal zu erschliessen geht regelmaessig daneben, und
+   * ein fremder Kanal unter dem Namen eines Profis waere ein Fehler, den
+   * niemand bemerkt. Das Werkzeug schlaegt Kanaele vor, uebernommen wird
+   * nur, was der Betreiber bestaetigt.
+   */
+  twitch?: string;
   /** Wettkampfregion. Nur noetig, wo das Land nicht eindeutig ist (NAC/NAW). */
   region?: string;
   /** Selbst gesetzter Anzeigename - schlaegt jeden automatischen Vorschlag. */
@@ -86,6 +96,10 @@ export async function POST(request: Request) {
   const profile = await lies();
   const land = (eingang.land ?? '').trim().toUpperCase();
   const x = (eingang.x ?? '').trim().replace(/^@/, '');
+  // Auch eine ganze Adresse darf hinein - daraus wird der blosse Kanalname.
+  const twitch = (eingang.twitch ?? '').trim()
+    .replace(/^https?:\/\/(www\.)?twitch\.tv\//i, '')
+    .replace(/^@/, '').replace(/\/.*$/, '');
   const region = (eingang.region ?? '').trim().toUpperCase();
   const anzeige = (eingang.anzeige ?? '').trim();
 
@@ -100,6 +114,7 @@ export async function POST(request: Request) {
   const gesetzt = {
     land: eingang.land !== undefined,
     x: eingang.x !== undefined,
+    twitch: eingang.twitch !== undefined,
     region: eingang.region !== undefined,
     anzeige: eingang.anzeige !== undefined,
   };
@@ -142,6 +157,7 @@ export async function POST(request: Request) {
    */
   const bleibt = uebernimm('land', land, gesetzt.land, alter?.land).land
     || uebernimm('x', x, gesetzt.x, alter?.x).x
+    || uebernimm('twitch', twitch, gesetzt.twitch, alter?.twitch).twitch
     || uebernimm('region', region, gesetzt.region, alter?.region).region
     || uebernimm('anzeige', anzeige, gesetzt.anzeige, alter?.anzeige).anzeige;
 
@@ -162,6 +178,7 @@ export async function POST(request: Request) {
        */
       ...uebernimm('land', land, gesetzt.land, alter?.land),
       ...uebernimm('x', x, gesetzt.x, alter?.x),
+      ...uebernimm('twitch', twitch, gesetzt.twitch, alter?.twitch),
       ...uebernimm('region', region, gesetzt.region, alter?.region),
       ...uebernimm('anzeige', anzeige, gesetzt.anzeige, alter?.anzeige),
     };
