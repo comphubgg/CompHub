@@ -1,0 +1,389 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Standings</title>
+<style>
+/*
+ * Das Standings-Overlay.
+ *
+ * Zwei Dinge unterscheiden es vom alten Leaderboard:
+ *
+ * 1. Die Adresse traegt nur eine Kennung. Alle Einstellungen stehen auf dem
+ *    Server und werden im Takt nachgeholt - wer im Dashboard etwas aendert,
+ *    sieht es in OBS, ohne die Browserquelle anzufassen.
+ * 2. Es passt sich an. Die Spalte fuer die Punkte waechst mit der laengsten
+ *    Zahl, und der Teamname schrumpft, wenn der Platz eng wird, statt
+ *    abgeschnitten zu werden.
+ *
+ * Kein Rahmen, kein Hintergrund ausserhalb der Karte: OBS legt das Overlay
+ * ueber das Spiel, und alles, was nicht Karte ist, muss durchsichtig sein.
+ */
+
+:root {
+  --grund: 0 0 0;
+  --deckkraft: 0.72;
+  --schrift: 16px;
+  --breite: 420px;
+  --akzent: #f5c542;
+  --text: #ffffff;
+  --leise: rgba(255, 255, 255, 0.55);
+  --zeile: rgba(255, 255, 255, 0.05);
+  --rand: rgba(255, 255, 255, 0.09);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  background: transparent;
+  overflow: hidden;
+  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+/*
+ * Die Karte sitzt oben links und waechst nach Bedarf.
+ *
+ * Nicht auf die volle Fensterbreite: in OBS ist die Quelle oft groesser als
+ * das Overlay, und ein Kasten, der die ganze Quelle fuellt, laesst sich nicht
+ * mehr sauber positionieren.
+ */
+#karte {
+  /*
+   * So breit wie eingestellt - aber nie schmaler, als die Zahlen brauchen.
+   *
+   * "min-content" ist hier der Kern: es ist die Breite, unter der eine
+   * Spalte umbrechen oder abgeschnitten wuerde. Steht auf Platz eins die
+   * 1100 statt der 1, waechst die Karte von allein mit, statt die Ziffern
+   * zusammenzuquetschen. Wer sie in OBS schmaler zieht, verliert zuerst
+   * den Teamnamen - der bekommt drei Punkte -, nie die Zahlen.
+   */
+  width: var(--breite);
+  min-width: min-content;
+  max-width: 100vw;
+  background: rgb(var(--grund) / var(--deckkraft));
+  border: 1px solid var(--rand);
+  border-radius: 10px;
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(-6px);
+  transition: opacity .45s ease, transform .45s ease;
+}
+#karte.da { opacity: 1; transform: none; }
+
+/* ------------------------------------------------------------- Kopfzeile */
+
+#kopf {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 1.4em;
+  padding: 0.7em 1em 0.55em;
+  font-size: calc(var(--schrift) * 0.62);
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--leise);
+  font-weight: 700;
+  white-space: nowrap;
+}
+#titel { color: var(--text); }
+#kopfrechts { color: var(--leise); }
+
+/* ---------------------------------------------------------------- Zeilen */
+
+table { border-collapse: collapse; width: 100%; }
+
+td {
+  padding: 0.42em 0.5em;
+  font-size: var(--schrift);
+  line-height: 1.25;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+  vertical-align: middle;
+}
+tr { background: transparent; }
+tr:nth-child(odd) { background: var(--zeile); }
+
+/*
+ * Der Platz.
+ *
+ * Die Spalte ist so breit wie ihre laengste Zahl - bei "1100" also breiter
+ * als bei "5". Genau das wollte der Betreiber: nichts zusammengequetscht,
+ * sondern die Breite passt sich an. Ein festes "width" waere das Gegenteil.
+ */
+td.platz {
+  width: 1%;
+  padding-left: 1em;
+  text-align: right;
+  font-weight: 800;
+  color: var(--leise);
+}
+tr.gold td.platz { color: var(--akzent); }
+
+td.bild { width: 1%; padding-right: 0; }
+td.bild img {
+  display: block;
+  height: calc(var(--schrift) * 1.5);
+  width: calc(var(--schrift) * 1.5);
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: top;
+}
+
+/*
+ * Der Teamname ist das Einzige, was schrumpfen darf.
+ *
+ * Wird das Overlay schmaler gezogen, sollen Platz und Punkte vollstaendig
+ * lesbar bleiben - sie sind der Inhalt. Der Name bekommt den Rest und wird
+ * am Ende mit drei Punkten gekuerzt, statt die Zahlen aus dem Bild zu
+ * schieben.
+ */
+td.team {
+  /*
+   * Eine Obergrenze, kein "fuell alles".
+   *
+   * Mit width:100% zog die Tabelle die Karte auf die volle Fensterbreite -
+   * in OBS ist die Quelle oft viel breiter als das Overlay, und dann stand
+   * ein Balken quer ueber dem Bild. Mit einer Obergrenze bleibt die Karte
+   * so breit, wie ihr Inhalt sie braucht, waechst aber mit, wenn ein Name
+   * oder eine vierstellige Zahl mehr Platz verlangt.
+   */
+  max-width: 22em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-weight: 600;
+}
+tr.gold td.team { color: var(--akzent); }
+
+td.punkte {
+  width: 1%;
+  padding-right: 1em;
+  text-align: right;
+  font-weight: 800;
+}
+tr.gold td.punkte { color: var(--akzent); }
+
+/* Eine Punktzahl, die sich gerade geaendert hat, blinkt einmal auf. */
+@keyframes stups {
+  0%   { color: var(--akzent); transform: translateY(-2px); }
+  100% { color: inherit; transform: none; }
+}
+td.punkte b { display: inline-block; font-weight: inherit; }
+td.punkte b.neu { animation: stups .9s ease-out; }
+
+#hinweis {
+  padding: 1em;
+  font-size: calc(var(--schrift) * 0.8);
+  color: var(--leise);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #karte, td.punkte b { transition: none !important; animation: none !important; }
+}
+</style>
+</head>
+<body>
+
+<div id="karte">
+  <div id="kopf">
+    <span id="titel">STANDINGS</span>
+    <span id="kopfrechts">POINTS</span>
+  </div>
+  <table><tbody id="zeilen"></tbody></table>
+  <div id="hinweis" hidden></div>
+</div>
+
+<script>
+(function () {
+  'use strict';
+
+  const P = new URLSearchParams(location.search);
+  const ID = P.get('id') || '';
+  const SERVER = P.get('server') || location.origin;
+
+  /*
+   * Die Voreinstellungen.
+   *
+   * Sie stehen hier und nicht auf dem Server: ein Overlay, dessen Kennung
+   * verlorengeht, soll trotzdem etwas Sinnvolles zeigen statt einer leeren
+   * Flaeche.
+   */
+  const STANDARD = {
+    event: '', window: '',
+    titel: 'STANDINGS',
+    /** Von welchem bis zu welchem Platz. */
+    von: 1, bis: 5,
+    /** Wie oft die Zahlen geholt werden, in Sekunden. */
+    takt: 15,
+    /** Grundfarbe als "R G B" und wie deckend sie ist. */
+    grund: '0 0 0', deckkraft: 0.72,
+    akzent: '#f5c542',
+    schrift: 16,
+    breite: 420,
+    /** Fotos vor dem Namen? */
+    bilder: false,
+    /** Wie viele Plaetze golden sind - 0, 1 oder 3. */
+    gold: 1,
+    /** Ein- und Ausblenden: 0 heisst dauerhaft sichtbar. */
+    pausiert: 0,
+    sichtbar: 15,
+  };
+
+  let cfg = Object.assign({}, STANDARD);
+  let stand = -1;
+  let letzterTakt = 0;
+  let zahlenUhr = null;
+  const vorher = new Map();
+
+  const $ = (id) => document.getElementById(id);
+
+  // ------------------------------------------------------- Einstellungen
+
+  function anwenden(neu) {
+    cfg = Object.assign({}, STANDARD, neu || {});
+    const s = document.documentElement.style;
+    s.setProperty('--grund', String(cfg.grund));
+    s.setProperty('--deckkraft', String(cfg.deckkraft));
+    s.setProperty('--akzent', String(cfg.akzent));
+    s.setProperty('--schrift', cfg.schrift + 'px');
+    s.setProperty('--breite', cfg.breite + 'px');
+    $('titel').textContent = String(cfg.titel || 'STANDINGS');
+
+    // Der Takt darf sich aendern, ohne dass die Seite neu geladen wird.
+    if (cfg.takt !== letzterTakt) {
+      letzterTakt = cfg.takt;
+      if (zahlenUhr) clearInterval(zahlenUhr);
+      zahlenUhr = setInterval(zahlenHolen, Math.max(3, cfg.takt) * 1000);
+    }
+    blendtakt();
+    zahlenHolen();
+  }
+
+  async function configHolen() {
+    if (!ID) { anwenden(null); return; }
+    try {
+      const r = await fetch(SERVER + '/api/overlay-config?id=' + encodeURIComponent(ID),
+        { cache: 'no-store' });
+      if (!r.ok) return;
+      const j = await r.json();
+      // Nur neu zeichnen, wenn sich wirklich etwas geaendert hat.
+      if (j.stand === stand) return;
+      stand = j.stand;
+      anwenden(j.config);
+    } catch (e) { /* Netz weg: beim naechsten Takt wieder */ }
+  }
+
+  // -------------------------------------------------------------- Zahlen
+
+  function meldung(text) {
+    $('zeilen').innerHTML = '';
+    const h = $('hinweis');
+    h.textContent = text;
+    h.hidden = false;
+    $('karte').classList.add('da');
+  }
+
+  function zeichnen(eintraege) {
+    $('hinweis').hidden = true;
+    const tb = $('zeilen');
+    tb.innerHTML = '';
+
+    for (const e of eintraege) {
+      const tr = document.createElement('tr');
+      if (cfg.gold > 0 && e.rank <= cfg.gold) tr.className = 'gold';
+
+      const platz = document.createElement('td');
+      platz.className = 'platz';
+      platz.textContent = e.rank;
+      tr.appendChild(platz);
+
+      if (cfg.bilder) {
+        const td = document.createElement('td');
+        td.className = 'bild';
+        const mit = (e.players || []).find((p) => p.img);
+        if (mit) {
+          const img = document.createElement('img');
+          img.src = mit.img;
+          img.alt = '';
+          td.appendChild(img);
+        }
+        tr.appendChild(td);
+      }
+
+      const team = document.createElement('td');
+      team.className = 'team';
+      team.textContent = (e.players || []).map((p) => p.name).join(' & ');
+      tr.appendChild(team);
+
+      const punkte = document.createElement('td');
+      punkte.className = 'punkte';
+      const b = document.createElement('b');
+      b.textContent = e.points;
+      if (vorher.get(e.rank) !== undefined && vorher.get(e.rank) !== e.points) {
+        b.className = 'neu';
+      }
+      vorher.set(e.rank, e.points);
+      punkte.appendChild(b);
+      tr.appendChild(punkte);
+
+      tb.appendChild(tr);
+    }
+    $('karte').classList.add('da');
+  }
+
+  async function zahlenHolen() {
+    if (!cfg.event || !cfg.window) {
+      return meldung('Pick a cup in the dashboard');
+    }
+    try {
+      const u = SERVER + '/api/cup-leaderboard?event=' + encodeURIComponent(cfg.event)
+        + '&window=' + encodeURIComponent(cfg.window)
+        + '&limit=' + Math.max(1, cfg.bis);
+      const d = await (await fetch(u, { cache: 'no-store' })).json();
+      const alle = (d.entries || [])
+        .filter((e) => e.rank >= cfg.von && e.rank <= cfg.bis);
+      if (!alle.length) return meldung('No standings yet');
+      zeichnen(alle);
+    } catch (e) {
+      meldung('Server not reachable');
+    }
+  }
+
+  // ------------------------------------------------- Ein- und Ausblenden
+
+  let blendUhr = null;
+
+  /*
+   * Der Wechsel zwischen sichtbar und verborgen.
+   *
+   * Der Betreiber wollte es genau so: "jede fuenf Minuten fuenf Minuten lang
+   * wird's nicht angezeigt, dann wird's fuer zehn Sekunden eingeblendet".
+   * Steht die Pause auf null, bleibt die Karte einfach stehen.
+   */
+  function blendtakt() {
+    if (blendUhr) { clearTimeout(blendUhr); blendUhr = null; }
+    const karte = $('karte');
+    if (!cfg.pausiert) { karte.style.display = ''; return; }
+
+    const zeigen = () => {
+      karte.style.display = '';
+      zahlenHolen();
+      blendUhr = setTimeout(verstecken, Math.max(2, cfg.sichtbar) * 1000);
+    };
+    const verstecken = () => {
+      karte.style.display = 'none';
+      blendUhr = setTimeout(zeigen, Math.max(5, cfg.pausiert) * 1000);
+    };
+    zeigen();
+  }
+
+  // ------------------------------------------------------------- Anlauf
+
+  configHolen();
+  // Alle fuenf Sekunden nachsehen, ob im Dashboard etwas geaendert wurde.
+  setInterval(configHolen, 5000);
+})();
+</script>
+</body>
+</html>

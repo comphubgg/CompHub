@@ -126,12 +126,31 @@ const MAX = 10;
  * bleibt in der Hintergrundfarbe. Eine krumme Aufteilung waere das
  * kleinere Uebel gegenueber einem gestauchten Gesicht.
  */
-function raster(n: number): { spalten: number; reihen: number } {
-  if (n <= 5) return { spalten: n, reihen: 1 };
-  if (n === 6) return { spalten: 3, reihen: 2 };
-  if (n === 9) return { spalten: 3, reihen: 3 };
-  if (n === 10) return { spalten: 5, reihen: 2 };
-  return { spalten: 4, reihen: 2 };
+/**
+ * Ein Raster, das restlos aufgeht.
+ *
+ * Der Betreiber: "Bei der Bildgenerierung sollen nicht solche grauen Bilder
+ * kommen, nur Spieler mit Bildern." Genau das entstand, wenn die Zahl der
+ * Fotos nicht in das feste Raster passte - bei sieben Fotos stand ein
+ * Viererraster mit zwei Reihen da, und die achte Kachel blieb leer.
+ *
+ * Deshalb wird die Aufteilung jetzt aus der Zahl der Fotos gerechnet: die
+ * meisten Spalten bis fuenf, durch die sich die Zahl restlos teilen laesst.
+ * Geht keine auf - sieben ist eine Primzahl -, bleibt lieber ein Foto
+ * draussen, als dass ein Loch stehenbleibt. Welches, sagt die Antwort
+ * mit.
+ */
+function raster(n: number): { spalten: number; reihen: number; nutze: number } {
+  for (let m = n; m >= 1; m -= 1) {
+    if (m <= 5) return { spalten: m, reihen: 1, nutze: m };
+    // Breit vor hoch: fuenf nebeneinander liest sich besser als zwei.
+    for (let spalten = 5; spalten >= 2; spalten -= 1) {
+      if (m % spalten === 0) {
+        return { spalten, reihen: m / spalten, nutze: m };
+      }
+    }
+  }
+  return { spalten: 1, reihen: 1, nutze: Math.min(1, n) };
 }
 
 interface Eintrag {
@@ -280,7 +299,10 @@ async function baueMosaik(request: Request) {
    * also ohnehin in der Mitte. Genau dort zu schneiden trifft es zuverlaessig
    * - bei allen fuenf, ohne Ausreisser.
    */
-  const { spalten, reihen } = raster(gewaehlt.length);
+  const { spalten, reihen, nutze } = raster(gewaehlt.length);
+  // Was das Raster nicht fuellt, faellt hinten weg - und wird unten benannt.
+  const zuviel = gewaehlt.slice(nutze);
+  gewaehlt.length = nutze;
 
   /*
    * Die Kachelgroesse.
@@ -346,7 +368,10 @@ async function baueMosaik(request: Request) {
         gewaehlt.map((e) => namen.get(e.epicId) || e.name).join(' · ')),
       // Was nicht mitkonnte - die Oberflaeche zeigt es als Hinweis unter
       // dem fertigen Bild, statt es stillschweigend wegzulassen.
-      'X-Uebersprungen': encodeURIComponent(uebersprungen.join(', ')),
+      'X-Uebersprungen': encodeURIComponent([
+        ...uebersprungen,
+        ...zuviel.map((e) => namen.get(e.epicId) || e.name),
+      ].join(', ')),
       'Cache-Control': 'no-store',
     },
   });
