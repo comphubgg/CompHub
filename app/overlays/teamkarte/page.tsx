@@ -810,7 +810,11 @@ export default function OverlaySeite() {
               <label className="block text-[11px] text-slate-500">
                 <T>Höhe</T>
                 <span className="ml-2 tabular-nums text-slate-300">{hoehe} px</span>
-                <input type="range" min={70} max={180} value={hoehe}
+                {/* Ab achtundvierzig statt erst ab siebzig: seit alle
+                    Groessen am Massstab der Hoehe haengen, bleibt auch ein
+                    flaches Banner lesbar - vorher wurde dort der Name
+                    abgeschnitten, und der Regler durfte gar nicht so weit. */}
+                <input type="range" min={48} max={220} value={hoehe}
                   onChange={(e) => setHoehe(Number(e.target.value))}
                   className="mt-1 w-full accent-sky-500" />
               </label>

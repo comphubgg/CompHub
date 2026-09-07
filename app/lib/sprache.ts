@@ -270,6 +270,15 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Blättern bis Platz': 'Page up to rank',
   'Sekunden je Seite': 'Seconds per page',
   'Seiten': 'Pages',
+  // Der Melde-Knopf unten rechts.
+  'Melden': 'Report',
+  'Fehler melden': 'Report a problem',
+  'Einen Fehler auf dieser Seite melden': 'Report a problem on this page',
+  'Was stimmt hier nicht?': 'What is wrong here?',
+  'Danke — die Meldung ist raus.': 'Thanks — your report is on its way.',
+  'Geht an den Betreiber, mit deinem Konto.':
+    'Goes to the operator, with your account.',
+  'Wird gesendet …': 'Sending …',
   'Gestern, heute und morgen läuft kein passender Cup. Die Auswahl füllt sich von selbst, sobald einer ansteht — das Overlay in OBS musst du dafür nicht anfassen.':
     'No matching cup yesterday, today or tomorrow. The list fills itself as soon as one comes up — you do not have to touch the overlay in OBS.',
   // Die Overlay-Seiten.

@@ -8,6 +8,7 @@ import { SPRACH_COOKIE } from './lib/sprache';
 import type { Sprache } from './lib/sprache';
 import Sprachschalter from './components/Sprachschalter';
 import NeuerStand from './components/NeuerStand';
+import Melden from './components/Melden';
 import ChatFenster from "@/app/components/ChatFenster";
 import PreviewTour from './components/PreviewTour';
 import RouteTransitionLoader from './components/RouteTransitionLoader';
@@ -186,6 +187,9 @@ export default async function RootLayout({
               Rahmen, damit er auf jeder Seite erscheint - ein Tab, der einen
               Turniertag lang offen liegt, soll das erfahren. */}
           <NeuerStand />
+          {/* Der Melde-Knopf. Nur fuer angemeldete Konten; er schickt die
+              Meldung samt Seite an den Betreiber. */}
+          <Melden />
           {/* Das Gespraech mit dem Betreiber. Links am Rand, damit es dem
               Sprachschalter unten rechts nicht in die Quere kommt. */}
           <ChatFenster />
