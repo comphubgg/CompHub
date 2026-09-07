@@ -125,8 +125,38 @@ function ort(name: string): string {
  * Ueber COMPHUB_ABLAGE umschaltbar, damit derselbe Stand auf dem eigenen
  * Rechner mit Dateien und in der Cloud mit einer Datenbank laufen kann - ohne
  * zwei Zweige und ohne dass jemand vor dem Aufspielen etwas umstellen muss.
+ *
+ * Der Ordner bleibt die Voreinstellung. Auf "supabase" umzustellen ist eine
+ * bewusste Entscheidung und soll nie versehentlich geschehen - schon gar
+ * nicht dadurch, dass zufaellig ein Schluessel in der Umgebung steht.
+ *
+ * Geladen wird der andere Speicher traege, erst wenn er gebraucht wird: so
+ * zieht ein Rechner, der mit Dateien laeuft, den Supabase-Teil gar nicht
+ * erst herein.
  */
-export const speicher: Speicher = ordnerSpeicher;
+let gewaehlt: Speicher | null = null;
+
+export const speicher: Speicher = {
+  lies: (n) => waehle().lies(n),
+  schreib: (n, d) => waehle().schreib(n, d),
+  loesche: (n) => waehle().loesche(n),
+  liste: (o) => waehle().liste(o),
+  angaben: (n) => waehle().angaben(n),
+};
+
+function waehle(): Speicher {
+  if (gewaehlt) return gewaehlt;
+  if ((process.env.COMPHUB_ABLAGE || '').toLowerCase() === 'supabase') {
+    // Erst hier hereingeholt - siehe oben.
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { supabaseSpeicher } = require('@/lib/ablageSupabase') as
+      { supabaseSpeicher: Speicher };
+    gewaehlt = supabaseSpeicher;
+  } else {
+    gewaehlt = ordnerSpeicher;
+  }
+  return gewaehlt;
+}
 
 /* -------------------------------------------------- Bequeme Kurzformen */
 

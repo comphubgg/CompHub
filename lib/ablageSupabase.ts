@@ -1,0 +1,226 @@
+/*
+ * Derselbe Speicher, nur in Supabase.
+ *
+ * Er erfuellt genau das, was lib/ablage.ts beschreibt - lesen, schreiben,
+ * auflisten, loeschen, Angaben. Fuer die aufrufenden Stellen im Werkzeug
+ * aendert sich damit nichts; sie kennen weiterhin nur Namen wie
+ * "konten.json" oder "replays/s39/w1/_aggregat.json".
+ *
+ * Zwei Orte, ein Speicher
+ * -----------------------
+ * Die Daten von CompHub zerfallen in zwei sehr verschiedene Sorten, und sie
+ * an denselben Ort zu legen waere fuer eine von beiden falsch:
+ *
+ *   - Kleine Staende, die bei fast jeder Anfrage gebraucht werden: Konten,
+ *     Karten, Tierlists, Prognosen. Zusammen wenige Megabyte. Die gehoeren in
+ *     die Tabelle - eine Zeile zu holen ist schneller und billiger als eine
+ *     Datei, und Postgres kann darin spaeter auch suchen.
+ *   - Grosses und Unfoermiges: Kartenbilder, Bildschirmausschnitte aus
+ *     Meldungen, die Replay-Aggregate mit gut fuenf Megabyte je Spieltag, die
+ *     zwischengespeicherten Epic-Spieltage. Hunderte Megabyte, selten
+ *     gelesen. Die gehoeren in den Objektspeicher, wo Groesse nichts kostet
+ *     ausser Platz - und wo sie die 500 MB der Datenbank nicht auffressen.
+ *
+ * Welcher Name wohin geht, entscheidet eine Liste von Ordnern weiter unten,
+ * nicht die Groesse. Eine Groessenregel klingt eleganter, hat aber einen
+ * Haken: beim Lesen weiss man die Groesse noch nicht und muesste an beiden
+ * Orten nachsehen. Eine feste Zuordnung ist an jeder Stelle vorhersagbar.
+ */
+
+import type { Speicher } from '@/lib/ablage';
+
+const TABELLE = 'ablage';
+const EIMER = 'comphub';
+
+/**
+ * Diese Ordner liegen im Objektspeicher, alles andere in der Tabelle.
+ *
+ * Es sind genau die, die gross werden: Bilder, Replay-Aggregate und die
+ * Zwischenspeicher, die sich aus Epic jederzeit neu holen lassen.
+ */
+const IM_OBJEKTSPEICHER = [
+  'replays/',
+  'kartenbilder/',
+  'kontakt-bilder/',
+  'admin-maps/',
+  'epic-spieltage/',
+  'szene-stats/',
+  'szene-quelle/',
+  'tournament-leaderboards/',
+  '_sicherung/',
+];
+
+function alsObjekt(name: string): boolean {
+  return IM_OBJEKTSPEICHER.some((p) => name.startsWith(p));
+}
+
+function zugang() {
+  const url = (process.env.SUPABASE_URL || process.env.STORAGE_URL || '')
+    .replace(/\/+$/, '');
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
+    || process.env.STORAGE_SERVICE_ROLE_KEY || '';
+  if (!url || !key) {
+    throw new Error(
+      'Supabase ist nicht eingerichtet - SUPABASE_URL und '
+      + 'SUPABASE_SERVICE_ROLE_KEY fehlen in der Umgebung.');
+  }
+  return { url, kopf: { apikey: key, Authorization: `Bearer ${key}` } };
+}
+
+/* ------------------------------------------------------------- Tabelle */
+
+async function tabelleLies(name: string): Promise<Buffer | null> {
+  const { url, kopf } = zugang();
+  const r = await fetch(
+    `${url}/rest/v1/${TABELLE}?name=eq.${encodeURIComponent(name)}&select=wert`,
+    { headers: kopf, cache: 'no-store' });
+  if (!r.ok) return null;
+  const zeilen = await r.json() as Array<{ wert: unknown }>;
+  if (!zeilen.length) return null;
+  return Buffer.from(JSON.stringify(zeilen[0].wert), 'utf8');
+}
+
+async function tabelleSchreib(name: string, daten: Buffer): Promise<void> {
+  const { url, kopf } = zugang();
+  /*
+   * Der Inhalt kommt als Text herein und muss als echtes JSON in die Spalte.
+   * Ist er kein gueltiges JSON, waere das ein Fehler im Aufrufer - dann soll
+   * es auffallen und nicht als Zeichenkette abgelegt werden.
+   */
+  const wert = JSON.parse(daten.toString('utf8')) as unknown;
+  const r = await fetch(`${url}/rest/v1/${TABELLE}`, {
+    method: 'POST',
+    headers: {
+      ...kopf,
+      'Content-Type': 'application/json',
+      // Gibt es den Namen schon, wird die Zeile ersetzt statt abgelehnt.
+      Prefer: 'resolution=merge-duplicates,return=minimal',
+    },
+    body: JSON.stringify({ name, wert }),
+  });
+  if (!r.ok) throw new Error(`Ablage schreiben (${name}): ${r.status} ${await r.text()}`);
+}
+
+async function tabelleLoesche(name: string): Promise<void> {
+  const { url, kopf } = zugang();
+  await fetch(`${url}/rest/v1/${TABELLE}?name=eq.${encodeURIComponent(name)}`,
+    { method: 'DELETE', headers: kopf });
+}
+
+async function tabelleListe(ordner: string): Promise<string[]> {
+  const { url, kopf } = zugang();
+  const praefix = ordner ? `${ordner.replace(/\/+$/, '')}/` : '';
+  const r = await fetch(
+    `${url}/rest/v1/${TABELLE}?name=like.${encodeURIComponent(praefix + '*')}&select=name`,
+    { headers: kopf, cache: 'no-store' });
+  if (!r.ok) return [];
+  const zeilen = await r.json() as Array<{ name: string }>;
+  /*
+   * Nur eine Ebene, wie readdir es tut. Aus "replays/s39/w1/_aggregat.json"
+   * wird unter "replays" also "s39" - und jeder Ordnername nur einmal.
+   */
+  const raus = new Set<string>();
+  for (const z of zeilen) {
+    const rest = z.name.slice(praefix.length);
+    if (!rest) continue;
+    raus.add(rest.split('/')[0]);
+  }
+  return [...raus];
+}
+
+async function tabelleAngaben(name: string) {
+  const { url, kopf } = zugang();
+  const r = await fetch(
+    `${url}/rest/v1/${TABELLE}?name=eq.${encodeURIComponent(name)}&select=geaendert,wert`,
+    { headers: kopf, cache: 'no-store' });
+  if (!r.ok) return null;
+  const zeilen = await r.json() as Array<{ geaendert: string; wert: unknown }>;
+  if (!zeilen.length) return null;
+  return {
+    groesse: Buffer.byteLength(JSON.stringify(zeilen[0].wert), 'utf8'),
+    geaendert: new Date(zeilen[0].geaendert),
+  };
+}
+
+/* ------------------------------------------------------ Objektspeicher */
+
+async function objektLies(name: string): Promise<Buffer | null> {
+  const { url, kopf } = zugang();
+  const r = await fetch(`${url}/storage/v1/object/${EIMER}/${name}`,
+    { headers: kopf, cache: 'no-store' });
+  if (!r.ok) return null;
+  return Buffer.from(await r.arrayBuffer());
+}
+
+async function objektSchreib(name: string, daten: Buffer): Promise<void> {
+  const { url, kopf } = zugang();
+  const r = await fetch(`${url}/storage/v1/object/${EIMER}/${name}`, {
+    method: 'POST',
+    headers: {
+      ...kopf,
+      'Content-Type': name.endsWith('.json')
+        ? 'application/json' : 'application/octet-stream',
+      // Ohne dieses Kopffeld lehnt Supabase eine vorhandene Datei ab.
+      'x-upsert': 'true',
+    },
+    body: new Uint8Array(daten),
+  });
+  if (!r.ok) throw new Error(`Objekt schreiben (${name}): ${r.status} ${await r.text()}`);
+}
+
+async function objektLoesche(name: string): Promise<void> {
+  const { url, kopf } = zugang();
+  await fetch(`${url}/storage/v1/object/${EIMER}/${name}`,
+    { method: 'DELETE', headers: kopf });
+}
+
+async function objektListe(ordner: string): Promise<string[]> {
+  const { url, kopf } = zugang();
+  const raus: string[] = [];
+  /*
+   * Supabase gibt hoechstens hundert Eintraege je Anfrage heraus. Ein
+   * Spieltag mit hundertsechzig Runden waere damit abgeschnitten - und eine
+   * halbe Liste ist schlimmer als gar keine.
+   */
+  const PRO_SEITE = 100;
+  for (let versatz = 0; ; versatz += PRO_SEITE) {
+    const r = await fetch(`${url}/storage/v1/object/list/${EIMER}`, {
+      method: 'POST',
+      headers: { ...kopf, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        prefix: ordner ? `${ordner.replace(/\/+$/, '')}/` : '',
+        limit: PRO_SEITE,
+        offset: versatz,
+      }),
+    });
+    if (!r.ok) break;
+    const teil = await r.json() as Array<{ name: string }>;
+    for (const e of teil) raus.push(e.name);
+    if (teil.length < PRO_SEITE) break;
+  }
+  return raus;
+}
+
+async function objektAngaben(name: string) {
+  const { url, kopf } = zugang();
+  const r = await fetch(`${url}/storage/v1/object/info/${EIMER}/${name}`,
+    { headers: kopf, cache: 'no-store' });
+  if (!r.ok) return null;
+  const j = await r.json() as { size?: number; updated_at?: string };
+  return {
+    groesse: Number(j.size ?? 0),
+    geaendert: new Date(j.updated_at ?? Date.now()),
+  };
+}
+
+/* ---------------------------------------------------------- Der Speicher */
+
+export const supabaseSpeicher: Speicher = {
+  lies: (name) => (alsObjekt(name) ? objektLies(name) : tabelleLies(name)),
+  schreib: (name, daten) =>
+    (alsObjekt(name) ? objektSchreib(name, daten) : tabelleSchreib(name, daten)),
+  loesche: (name) => (alsObjekt(name) ? objektLoesche(name) : tabelleLoesche(name)),
+  liste: (ordner) => (alsObjekt(`${ordner.replace(/\/+$/, '')}/`)
+    ? objektListe(ordner) : tabelleListe(ordner)),
+  angaben: (name) => (alsObjekt(name) ? objektAngaben(name) : tabelleAngaben(name)),
+};
