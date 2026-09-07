@@ -159,8 +159,19 @@ async function liesProfile(): Promise<Map<string, Profil>> {
 
 export async function GET(request: Request) {
   const p = new URL(request.url).searchParams;
-  const saison = p.get('saison') ?? undefined;
-  const region = p.get('region') ?? undefined;
+  /*
+   * "alle" heisst hier: kein Filter.
+   *
+   * Die Oberflaeche bietet unter Saison und Region ein "alle" an und schickt
+   * genau dieses Wort mit. Hier wurde es bis jetzt als Saisonkennung
+   * genommen - und weil keine Saison "alle" heisst, kam eine leere Antwort
+   * zurueck. Im Profil stand dann "In diesem Zeitraum ist dieser Spieler
+   * nicht angetreten", obwohl gerade ueber alles gefragt worden war.
+   */
+  const ohneFilter = (x: string | null) =>
+    (!x || x === 'alle' || x === 'all' ? undefined : x);
+  const saison = ohneFilter(p.get('saison'));
+  const region = ohneFilter(p.get('region'));
   const event = p.get('event') ?? undefined;
   // Mehrere Spieltage auf einmal - fuer die Summe einer Turnierreihe.
   const events = (p.get('events') ?? '').split(',').map((x) => x.trim()).filter(Boolean);
@@ -722,14 +733,40 @@ export async function GET(request: Request) {
         }
         saisonBilder[kennung] = gefunden;
       }
+      /*
+       * Auch ohne Zeile im Archiv der Quelle ein Profil.
+       *
+       * Die Quelle veroeffentlicht je Spieltag nur die besten hundert, und
+       * fuer die laufende Saison bisher ueberhaupt nur die Finals. Wer
+       * ausserhalb stand, hatte damit keinen Eintrag - und das Profil
+       * meldete "In diesem Zeitraum ist dieser Spieler nicht angetreten",
+       * obwohl Epic zehn Spieltage von ihm fuehrt.
+       *
+       * Der Ersatzeintrag traegt ausschliesslich, was Epic wirklich hergibt:
+       * wie viele Spieltage und wie viele Matches. Schaden, Material und
+       * Bauteile kennt Epic nicht, und die Eliminierungen dort gelten fuers
+       * ganze Team - sie stehen deshalb gar nicht darin, statt als Null zu
+       * erscheinen. "nurEpic" sagt der Oberflaeche, woran sie ist.
+       */
+      const szeneNamen = await liesSzeneSpieler();
+      const grundlage = eintrag ?? (epicZeilen.length ? {
+        epicId: spieler,
+        name: szeneNamen.get(spieler)?.name ?? spieler.slice(0, 8),
+        namen: [] as string[],
+        regionen: [...new Set(epicZeilen.map((z) => z.region))],
+        events: epicZeilen.length,
+        matches: epicZeilen.reduce((a, z) => a + (z.matches ?? 0), 0),
+        nurEpic: true,
+      } : null);
+
       return NextResponse.json({
         success: true, quelle: QUELLE,
-        spieler: eintrag ? {
-          ...eintrag,
+        spieler: grundlage ? {
+          ...grundlage,
           anzeige: pr?.anzeige || pr?.name
-            || (await liesSzeneSpieler()).get(spieler)?.name || eintrag.name,
+            || szeneNamen.get(spieler)?.name || grundlage.name,
           gepflegt: Boolean(pr?.anzeige || pr?.name),
-          land: pr?.land || (await liesSzeneSpieler()).get(spieler)?.land || null,
+          land: pr?.land || szeneNamen.get(spieler)?.land || null,
           x: pr?.x ?? null,
           bild: (await liesBilder()).get(spieler)?.pfad ?? null,
           heimat: (await heimatRegionen()).get(spieler) ?? '',

@@ -4417,7 +4417,12 @@ export default function StatistikSeite() {
                   wartete auf etwas, das nie kommt. */}
               {profilLaedt ? (
                 <p className="text-xs text-slate-600"><T>Wird geladen …</T></p>
-              ) : !verlauf.length ? (
+              ) : !verlauf.length && !epicZeilen.length ? (
+                /* Auch die Spieltage zaehlen, zu denen bisher nur Epic etwas
+                   hat. Vorher stand hier "nicht angetreten", obwohl zehn
+                   Epic-Spieltage vorlagen - die Quelle veroeffentlicht in
+                   der laufenden Saison nur die Finals und dort nur die
+                   besten hundert. */
                 <p className="py-6 text-center text-xs text-slate-600">
                   <T>In diesem Zeitraum ist dieser Spieler nicht angetreten.</T>
                 </p>
