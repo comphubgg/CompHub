@@ -84,7 +84,23 @@ interface Turnier {
 }
 
 /** Ein Spieltag samt einem seiner besten Spieler - eine Kachel des Wechslers. */
-interface Kachel { turnier: Turnier; spitze: Spieler; platz?: number }
+interface Kachel {
+  turnier: Turnier;
+  spitze: Spieler;
+  platz?: number;
+  /**
+   * Wie der Spieltag fuer ihn ausging - aus Epics gespiegelter Bestenliste.
+   *
+   * Der Betreiber zur Startkachel: "die Ranks nicht da, die Points nicht da,
+   * wo das das Wichtigste ist eigentlich. Und dass zumindest immer die
+   * Teammates da sind."
+   */
+  stand?: {
+    platz: number;
+    punkte: number;
+    mitspieler: Array<{ epicId: string; name: string; land: string | null }>;
+  } | null;
+}
 
 interface Liste {
   /** Nur bei der Quotenliste: wie viele Matches jemand haben muss. */
@@ -1486,6 +1502,14 @@ export default function StatistikSeite() {
   // Startansicht - mehrere Spieltage, die im Takt durchwechseln
   const [kacheln, setKacheln] = useState<Kachel[]>([]);
   const [kachelNr, setKachelNr] = useState(0);
+  /*
+   * Der Wechsel haelt an, solange die Maus auf der Karte liegt.
+   *
+   * Sie wechselt alle zehn Sekunden den Spieler. Wer auf einen Namen klicken
+   * wollte, hatte zweimal schon einen anderen unter dem Zeiger - und landete
+   * beim Falschen. Beim Ueberfahren steht sie jetzt still.
+   */
+  const [kachelHalt, setKachelHalt] = useState(false);
   const [listen, setListen] = useState<Liste[]>([]);
   const [profile, setProfile] = useState<Profilgruppe[]>([]);
   const [profilNr, setProfilNr] = useState(0);
@@ -1616,7 +1640,15 @@ export default function StatistikSeite() {
     ['eliminations', 'Eliminierungen'],
     ['damageDealt', 'Schaden'],
     ['quote', 'Schadensverhältnis'],
-    ['matchesPlayed', 'Matches'],
+    /*
+     * "Anzahl Matches" statt "Matches".
+     *
+     * Der Schluessel "Matches" ist in der Wortliste als Kennzahl belegt und
+     * uebersetzt kleingeschrieben ("matches played"). In dieser Knopfreihe
+     * stand deshalb "matches" zwischen lauter grossgeschriebenen Kennzahlen
+     * und sah aus wie kein Knopf.
+     */
+    ['matchesPlayed', 'Anzahl Matches'],
     ['builds', 'Bauteile'],
     ['mats', 'Material'],
   ] as const;
@@ -1772,11 +1804,11 @@ export default function StatistikSeite() {
    * Namen. Gezeigt wird nur, wozu es auch Zahlen gibt.
    */
   useEffect(() => {
-    if (kacheln.length < 2 || bereich !== 'start') return;
+    if (kacheln.length < 2 || bereich !== 'start' || kachelHalt) return;
     const uhr = window.setInterval(
       () => setKachelNr((n) => (n + 1) % kacheln.length), 10_000);
     return () => window.clearInterval(uhr);
-  }, [kacheln.length, bereich]);
+  }, [kacheln.length, bereich, kachelHalt]);
 
   /* Die Profilkarten wandern regionweise weiter, die Duelle einzeln - beide
      im selben Zehn-Sekunden-Takt wie der Aufmacher. */
@@ -2762,7 +2794,9 @@ export default function StatistikSeite() {
                         <div key={kachelNr} className="h-full bg-sky-500 animate-fuellen" />
                       </div>
 
-                      <div className="grid lg:grid-cols-[260px_1fr]">
+                      <div className="grid lg:grid-cols-[260px_1fr]"
+                        onMouseEnter={() => setKachelHalt(true)}
+                        onMouseLeave={() => setKachelHalt(false)}>
                         {/* Der Spieler links, wie im Vorbild */}
                         {/* Das Bild fuellt die Karte ueber die volle Hoehe.
                             Mit self-start endete es dort, wo sein Verhaeltnis
@@ -2843,6 +2877,25 @@ export default function StatistikSeite() {
                                     <T>{t}</T>
                                   </span>
                                 ))}
+                              {/*
+                                * Mit wem er angetreten ist.
+                                *
+                                * Der Betreiber: "dass zumindest immer die
+                                * Teammates da sind." Epic gibt sie zu jedem
+                                * Spieltag heraus; auf der Kachel fehlten sie
+                                * als einzige Angabe, die einen Duo-Spieltag
+                                * ueberhaupt erklaert.
+                                */}
+                              {k.stand?.mitspieler.map((m) => (
+                                <span key={m.epicId}
+                                  className="flex items-center gap-1.5 rounded border
+                                             border-zinc-800 bg-zinc-900/60 px-2 py-0.5
+                                             text-[11px] text-slate-300">
+                                  <TeamFlagge groesse={12}
+                                    laender={[m.land ?? undefined]} />
+                                  {grossName(m.name)}
+                                </span>
+                              ))}
                             </div>
                           </div>
 
@@ -2852,10 +2905,25 @@ export default function StatistikSeite() {
                                 das Rating; hier steht die Schadensquote, die
                                 ihm am naechsten kommt und sich nachrechnen
                                 laesst. */}
+                            {/*
+                              * Platz und Punkte zuerst.
+                              *
+                              * Der Betreiber: "die Ranks nicht da, die Points
+                              * nicht da, wo das das Wichtigste ist
+                              * eigentlich." Sie entscheiden den Spieltag;
+                              * Schadensquote und Kopftreffer sind das, was
+                              * danach kommt. Beide stehen in derselben
+                              * gespiegelten Bestenliste, aus der auch die
+                              * Turniertabelle im Profil ihren Platz nimmt.
+                              */}
                             {([
-                              ['Schadensquote', zahl(k.spitze.quote, 2, sprache)],
+                              ['Platz', k.stand ? `${k.stand.platz}.` : '—'],
+                              ['Punkte', k.stand
+                                ? zahl(k.stand.punkte, 0, sprache) : '—'],
                               ['Eliminierungen', zahl(k.spitze.elims, 0, sprache)],
                               ['Schaden', zahl(k.spitze.damage, 0, sprache)],
+                              ['Schadensquote', zahl(k.spitze.quote, 2, sprache)],
+                              ['Material', zahl(k.spitze.mats, 0, sprache)],
                               ['Kopftreffer', zahl(k.spitze.headshots, 0, sprache)],
                               ['Treffer', zahl(k.spitze.hits, 0, sprache)],
                               ['Bauteile', zahl(k.spitze.builds, 0, sprache)],
@@ -4062,7 +4130,7 @@ export default function StatistikSeite() {
                                   </span>
                                 </div>
                                 <DoppelLinie
-                                  beschriftung={`${kurveName} je Spieltag`}
+                                  beschriftung={`${t(kurveName)} ${t('je Spieltag')}`}
                                   links={lz.map((z) => kurveWert(z.werte))}
                                   rechts={rz.map((z) => kurveWert(z.werte))}
                                   marken={[
@@ -4722,13 +4790,17 @@ export default function StatistikSeite() {
                             px-7">
               {([['uebersicht', 'Übersicht'], ['leistung', 'Leistung'],
                  ['werte', 'Alle Werte'],
-                 ['turniere', 'Turniere']] as Array<[SpielerReiter, string]>).map(([w, t]) => (
+                 ['turniere', 'Turniere']] as Array<[SpielerReiter, string]>)
+                .map(([w, titel]) => (
+                // "titel" statt "t": der Uebersetzer heisst hier ebenfalls t,
+                // und ihn in einer Schleife zu beschatten ist eine Falle fuer
+                // die naechste Zeile, die ihn drinnen braucht.
                 <button key={w} onClick={() => setSpielerReiter(w)}
                   className={`-mb-px border-b-2 py-3 text-xs font-semibold uppercase
                               tracking-[0.12em] transition ${spielerReiter === w
                     ? 'border-sky-500 text-sky-400'
                     : 'border-transparent text-slate-500 hover:text-slate-300'}`}>
-                  <T>{t}</T>
+                  <T>{titel}</T>
                 </button>
               ))}
 
@@ -4970,7 +5042,8 @@ export default function StatistikSeite() {
                         </span>
                       </div>
                       <div className="rounded-lg border border-zinc-800 bg-zinc-900/30 p-4">
-                        <Verlaufslinie beschriftung={`${kurveName} je Spieltag`}
+                        <Verlaufslinie
+                          beschriftung={`${t(kurveName)} ${t('je Spieltag')}`}
                           werte={[...verlauf].reverse().map((z) => kurveWert(z.werte))}
                           marken={[...verlauf].reverse().map((z) =>
                             `${turnierName(z.event)} · ${z.region}`)} />
@@ -5026,23 +5099,32 @@ export default function StatistikSeite() {
                     const besterSchaden = verlauf.length
                       ? Math.max(...verlauf.map((z) => z.werte.damageDealt)) : 0;
 
+                    /*
+                      * Die Unterzeilen laufen durch die Uebersetzung.
+                      *
+                      * Sie wurden unten roh ausgegeben, und deshalb stand im
+                      * englischen Werkzeug unter lauter englischen
+                      * Ueberschriften "Siege in den Grand Finals" und
+                      * "Eliminierungen an einem Tag".
+                      */
                     const zeilen: Array<[string, string, string]> = [];
                     if (fncs && fncs.titel > 0) zeilen.push(
-                      ['FNCS-Titel', String(fncs.titel), 'Siege in den Grand Finals']);
+                      ['FNCS-Titel', String(fncs.titel), t('Siege in den Grand Finals')]);
                     if (finals.length) zeilen.push(
-                      ['Grand Finals', String(finals.length), 'erreichte Endrunden']);
+                      ['Grand Finals', String(finals.length), t('erreichte Endrunden')]);
                     const topZehn = finals.filter((x) => x.platz <= 10).length;
                     if (topZehn) zeilen.push(
-                      ['Top 10 im Finale', String(topZehn), 'von ' + finals.length + ' Endrunden']);
+                      ['Top 10 im Finale', String(topZehn),
+                        t('von {n} Endrunden').replace('{n}', String(finals.length))]);
                     if (besteElims) zeilen.push(
-                      ['Bester Spieltag', String(besteElims), 'Eliminierungen an einem Tag']);
+                      ['Bester Spieltag', String(besteElims), t('Eliminierungen an einem Tag')]);
                     if (besterSchaden) zeilen.push(
                       ['Höchster Schaden', zahl(Math.round(besterSchaden), 0, sprache),
-                        'an einem Spieltag']);
+                        t('an einem Spieltag')]);
                     const meisteMatches = verlauf.length
                       ? Math.max(...verlauf.map((z) => z.werte.matchesPlayed)) : 0;
                     if (meisteMatches) zeilen.push(
-                      ['Längster Spieltag', String(meisteMatches), 'Matches an einem Tag']);
+                      ['Längster Spieltag', String(meisteMatches), t('Matches an einem Tag')]);
                     if (!zeilen.length) return null;
 
                     return (
@@ -5179,8 +5261,8 @@ export default function StatistikSeite() {
                               {kapitelName(saisonNamen[sn] ?? sn)}
                             </p>
                             <p className="mt-0.5 text-[11px] text-slate-500">
-                              {zeilen.length} {zeilen.length === 1
-                                ? 'Spieltag' : 'Spieltage'}
+                              {zeilen.length}{' '}
+                              {t(zeilen.length === 1 ? 'Spieltag' : 'Spieltage')}
                               {' · '}{regionen.join(' · ')}
                             </p>
                           </div>
@@ -5195,7 +5277,8 @@ export default function StatistikSeite() {
               {(offen.namen?.length ?? 0) > 1 && (
                 <p className="mt-7 border-t border-zinc-900 pt-4 text-[11px] text-slate-600">
                   <T>Trat an als</T> {offen.namen.slice(0, 6).map((n) => grossName(n)).join(' · ')}
-                  {offen.namen.length > 6 && ` und ${offen.namen.length - 6} weiteren`}
+                  {offen.namen.length > 6 && ' ' + t('und {n} weiteren')
+                    .replace('{n}', String(offen.namen.length - 6))}
                 </p>
               )}
             </div>

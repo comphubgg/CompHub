@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useSprache } from '@/app/components/SprachProvider';
+import { ortVon } from '@/app/lib/ort';
 import Link from 'next/link';
 import T from '@/app/components/T';
 import VipSlider from '@/app/components/VipSlider';
@@ -99,6 +101,7 @@ const BEREICHE = [
 ];
 
 export default function Startseite() {
+  const { sprache } = useSprache();
   const [stand, setStand] = useState<Stand | null>(null);
 
   useEffect(() => {
@@ -121,7 +124,10 @@ export default function Startseite() {
     });
   }, []);
 
-  const zahl = (n: number | null) => (n === null ? '—' : n.toLocaleString('de-DE'));
+  // Die Zahlen folgen der eingestellten Sprache. Vorher stand hier fest
+  // 'de-DE', und auf Englisch las man "37.004 matches processed".
+  const ort = ortVon(sprache);
+  const zahl = (n: number | null) => (n === null ? '—' : n.toLocaleString(ort));
 
   return (
     <main className="min-h-screen bg-zinc-950 text-slate-100">

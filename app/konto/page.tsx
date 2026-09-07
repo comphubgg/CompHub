@@ -129,10 +129,10 @@ function turnierName(roh: string) {
  * Der Unterschied zwischen "null" und "nicht uebermittelt" faellt sonst
  * unter den Tisch, und eine Null sieht aus wie eine Messung.
  */
-function zahlOderStrich(wert: unknown, runden = false) {
+function zahlOderStrich(wert: unknown, runden = false, ort = 'de-DE') {
   if (typeof wert !== 'number' || Number.isNaN(wert)) return '—';
   const z = runden ? Math.round(wert) : wert;
-  return z.toLocaleString('de-DE');
+  return z.toLocaleString(ort);
 }
 
 /** Welches Feld im Verlauf zu welcher Kachel gehoert. */

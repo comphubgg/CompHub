@@ -651,6 +651,8 @@ export async function startseite(saison?: string, wieViele = 25, jeTag = 3) {
     spitze: SpielerSumme;
     /** Der wievielte dieses Spieltags - eins ist der Beste. */
     platz: number;
+    /** Platz, Punkte und Mitspieler dieses Spieltags - siehe unten. */
+    stand: { platz: number; punkte: number; mitspieler: string[] } | null;
   }> = [];
   /*
    * Erst sammeln, dann mischen.
@@ -675,6 +677,15 @@ export async function startseite(saison?: string, wieViele = 25, jeTag = 3) {
     turnier: ArchivEintrag & { bild: string | null };
     spitze: SpielerSumme;
     platz: number;
+    /**
+     * Wie der Spieltag fuer ihn ausging.
+     *
+     * Der Betreiber zur Startkachel: "die Ranks nicht da, die Points nicht
+     * da, wo das das Wichtigste ist eigentlich." Beides steht in derselben
+     * gespiegelten Bestenliste, aus der auch die Turniertabelle im Profil
+     * ihren Platz nimmt - es wurde hier nur nie mitgenommen.
+     */
+    stand: { platz: number; punkte: number; mitspieler: string[] } | null;
   }>> = [];
 
   for (const t of juengste) {
@@ -684,8 +695,12 @@ export async function startseite(saison?: string, wieViele = 25, jeTag = 3) {
     const besten = [...feld].sort((a, b) => b.elims - a.elims).slice(0, jeTag);
     if (!besten.length) continue;
     const bild = await bildFuer(t.name);
+    const plaetze = await platzKarte(t.season, t.windowId);
     jeSpieltag.push(besten.map((spitze, i) => ({
-      turnier: { ...t, bild }, spitze, platz: i + 1,
+      turnier: { ...t, bild },
+      spitze,
+      platz: i + 1,
+      stand: plaetze?.get(spitze.epicId) ?? null,
     })));
   }
 

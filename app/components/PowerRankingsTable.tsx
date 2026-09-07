@@ -20,7 +20,8 @@ import TeamFlagge from '@/components/TeamFlagge';
 import { ohneZierrat } from '@/lib/homoglyph';
 
 import T from '@/app/components/T';
-import { useT } from '@/app/components/SprachProvider';
+import { useSprache } from '@/app/components/SprachProvider';
+import { ortVon } from '@/app/lib/ort';
 interface Spieler {
   rank: number;
   id: string;
@@ -49,8 +50,17 @@ interface Antwort {
 /** Mehr als hundert Zeilen auf einer Seite werden unuebersichtlich. */
 const ZEILEN_PRO_SEITE = [50, 100] as const;
 
-function zahl(n: number) {
-  return n.toLocaleString('de-DE');
+/*
+ * Die Zahlen folgen der eingestellten Sprache.
+ *
+ * Vorher stand hier fest 'de-DE'. Im englischen Werkzeug las man deshalb
+ * "10.000 Players", und der Wertungspunkt "39.240" sah aus wie 39,24 - eine
+ * falsche Zahl, kein Schoenheitsfehler. Die Funktion steht ausserhalb der
+ * Komponente und bekommt das Format deshalb als Parameter, so wie der
+ * Uebersetzer daneben.
+ */
+function zahl(n: number, ort = 'de-DE') {
+  return n.toLocaleString(ort);
 }
 
 /**
@@ -119,13 +129,14 @@ function Veraenderung({ platz }: { platz: number }) {
       <span className={hoch ? 'text-emerald-400' : 'text-rose-400'}>
         <Winkel hoch={hoch} />
       </span>
-      {zahl(Math.abs(platz))}
+      {Math.abs(platz)}
     </span>
   );
 }
 
 export default function PowerRankingsTable() {
-  const t = useT();
+  const { t, sprache } = useSprache();
+  const ort = ortVon(sprache);
   const [suche, setSuche] = useState('');
   const [proSeite, setProSeite] = useState<number>(ZEILEN_PRO_SEITE[0]);
   const [seite, setSeite] = useState(1);
@@ -187,10 +198,10 @@ export default function PowerRankingsTable() {
           <h2 className="text-base font-semibold text-slate-100"><T>Globale Bestenliste</T></h2>
           <p className="mt-0.5 text-xs text-slate-500">
             {daten
-              ? `${zahl(daten.total)} ${t('Spieler')}`
+              ? `${zahl(daten.total, ort)} ${t('Spieler')}`
               : t('Wird geladen …')}
             {daten && daten.matched !== daten.total
-              ? ` · ${zahl(daten.matched)} ${t('Treffer')}` : ''}
+              ? ` · ${zahl(daten.matched, ort)} ${t('Treffer')}` : ''}
             {!!daten?.fetchedAt
               && ` · ${t('Stand')} ${seitWann(daten.fetchedAt, t)}`}
           </p>
@@ -259,7 +270,7 @@ export default function PowerRankingsTable() {
                     className="border-b border-zinc-900 transition hover:bg-zinc-900/60">
                     <td className={`px-2 py-2.5 text-right text-base font-bold tabular-nums sm:px-5 ${
                       s.rank <= 3 ? 'text-amber-400' : 'text-sky-400'}`}>
-                      {zahl(s.rank)}
+                      {zahl(s.rank, ort)}
                     </td>
                     <td className="px-2 py-2.5 sm:px-3">
                       <Veraenderung platz={s.deltaPlatz} />
@@ -279,7 +290,7 @@ export default function PowerRankingsTable() {
                     </td>
                     <td className="px-2 py-2.5 text-right font-semibold tabular-nums
                                    text-slate-100 sm:px-5">
-                      {zahl(s.wertung)}
+                      {zahl(s.wertung, ort)}
                     </td>
                   </tr>
                 ))}
@@ -292,9 +303,9 @@ export default function PowerRankingsTable() {
               className="flex flex-wrap items-center justify-between gap-3
                          border-t border-zinc-900 px-4 py-3">
               <span className="text-xs text-slate-500">
-                <T>Platz</T> {zahl((seiteJetzt - 1) * proSeite + 1)} <T>bis</T>{' '}
-                {zahl(Math.min(seiteJetzt * proSeite, daten?.matched ?? 0))} <T>von</T>{' '}
-                {zahl(daten?.matched ?? 0)}
+                <T>Platz</T> {zahl((seiteJetzt - 1) * proSeite + 1, ort)} <T>bis</T>{' '}
+                {zahl(Math.min(seiteJetzt * proSeite, daten?.matched ?? 0), ort)} <T>von</T>{' '}
+                {zahl(daten?.matched ?? 0, ort)}
               </span>
 
               <div className="flex flex-wrap items-center gap-1">

@@ -248,6 +248,50 @@ const AUF_ENGLISCH: Record<string, string> = {
     'Lower case searches the name, upper case filters by country: DE,FR,GB',
   'Alle Saisons': 'All time',
   'keine Matches': 'no matches',
+  'Anzahl Matches': 'Matches',
+
+  // Nachgetragen nach der Durchsicht: Texte, die durch die Uebersetzung
+  // liefen, aber in dieser Tabelle fehlten - sie standen deshalb auf
+  // Englisch als deutsches Wort da.
+  'Siege in den Grand Finals': 'wins in Grand Finals',
+  'erreichte Endrunden': 'Grand Finals reached',
+  'von {n} Endrunden': 'of {n} Grand Finals',
+  'Eliminierungen an einem Tag': 'eliminations in one day',
+  'an einem Spieltag': 'in one match day',
+  'Matches an einem Tag': 'matches in one day',
+  'und {n} weiteren': 'and {n} more',
+  'aus Turnierkarte': 'from tournament map',
+  ['Der Spieler verschwindet aus Listen, Suche und Bildern. Seine Werte im '
+    + 'Archiv bleiben erhalten.']:
+    'The player disappears from lists, search and images. The values in the '
+    + 'archive are kept.',
+  ['Ein Name genügt — keine E-Mail, keine Bestätigung. Der Schlüssel wird '
+    + 'erzeugt und erscheint genau einmal. Angemeldet wird sich damit unter '
+    + '„VIP“ auf der Anmeldeseite.']:
+    'A name is enough — no email, no confirmation. The key is generated and '
+    + 'shown exactly once. It is used to sign in under “VIP” on the sign-in '
+    + 'page.',
+  ['Epic gibt Eliminierungen nur je Team heraus, und zu diesem Spieltag liegt '
+    + 'kein ausgewertetes Replay vor.']:
+    'Epic hands out eliminations per team only, and there is no processed '
+    + 'replay for this match day.',
+  'Finale ohne Karte': 'Final without a map',
+  ['Hier stehen keine privaten Daten — keine Adressen, keine Social-Konten. '
+    + 'Wer etwas beantragt, nennt dir seine Konto-Id; die sieht er bei sich '
+    + 'selbst unter „Account“.']:
+    'No private data is kept here — no addresses, no social accounts. Whoever '
+    + 'applies tells you their account ID; they can see it themselves under '
+    + '“Account”.',
+  'Karte öffnen': 'Open map',
+  'Nicht erlaubt.': 'Not allowed.',
+  'von selbst gesichert': 'saved automatically',
+  ['Zu diesem Spieltag hat die Szene-Quelle noch nichts veröffentlicht. Epics '
+    + 'Bestenliste führt Schaden, Material und Bauteile nicht, und im Replay '
+    + 'stehen sie ebenfalls nicht.']:
+    'The scene source has not published anything for this match day yet. '
+    + 'Epic’s leaderboard does not carry damage, materials or builds, and '
+    + 'they are not in the replay either.',
+  'zur Anmeldung': 'to the sign-in page',
 
   // Der Matches-Bereich einer Eventseite.
   'Beendet': 'Finished',

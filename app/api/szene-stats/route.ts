@@ -276,7 +276,28 @@ export async function GET(request: Request) {
         ...(daten ? {
           saison: daten.saison,
           kacheln: (() => {
-            const alle = daten.kacheln.map((k) => ({ ...k, spitze: schmuecken(k.spitze) }));
+            /*
+             * Die Mitspieler bekommen ihre Namen.
+             *
+             * Im Abzug stehen nur Konto-Ids. Auf der Kachel soll neben dem
+             * Spieler stehen, mit wem er angetreten ist - dieselbe Kette wie
+             * ueberall: gepflegtes Profil, sonst die Szeneliste, sonst der
+             * Turniername.
+             */
+            const nameZu = (id: string) => gepflegt.get(id)?.anzeige
+              || gepflegt.get(id)?.name || szene.get(id)?.name || id.slice(0, 8);
+            const alle = daten.kacheln.map((k) => ({
+              ...k,
+              spitze: schmuecken(k.spitze),
+              stand: k.stand ? {
+                platz: k.stand.platz,
+                punkte: k.stand.punkte,
+                mitspieler: k.stand.mitspieler.map((id) => ({
+                  epicId: id, name: nameZu(id),
+                  land: gepflegt.get(id)?.land || szene.get(id)?.land || null,
+                })),
+              } : null,
+            }));
             // Nur wer ein Foto hat: eine Karte, deren halbe Flaeche eine
             // graue Silhouette ist, taugt nicht als Aufmacher. Gibt es noch
             // gar keine Fotos, wird nicht gefiltert - lieber Silhouetten als

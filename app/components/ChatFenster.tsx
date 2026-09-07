@@ -636,7 +636,7 @@ export default function ChatFenster({ alsSeite = false }: { alsSeite?: boolean }
                 {!alsSeite && (
                 <button
                   onClick={() => { setzeChatHud(false); setOffen(false); }}
-                  title={t('Symbol am Rand ausblenden — zurück unter „Mein Konto"')}
+                  title={t('Symbol am Rand ausblenden — zurück unter „Mein Konto“')}
                   className="rounded-lg px-2 py-1 text-[11px] text-slate-500
                              transition hover:text-sky-400">
                   <T>ausblenden</T>
