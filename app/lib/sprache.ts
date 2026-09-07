@@ -248,6 +248,8 @@ const AUF_ENGLISCH: Record<string, string> = {
     'Lower case searches the name, upper case filters by country: DE,FR,GB',
   'Alle Saisons': 'All time',
   'keine Matches': 'no matches',
+  'Ranked': 'Ranked',
+  'Stufe': 'Tier',
   ['Mehrere Twitch-Streams nebeneinander, in eigenen Ordnern.']:
     'Several Twitch streams side by side, in folders of your own.',
   'Diese Ansicht gehört zum VIP-Zugang.': 'This view is part of VIP access.',
@@ -2188,6 +2190,11 @@ const AUF_DEUTSCH: Record<string, string> = {
   'Updating…': 'Wird erneuert …',
   'Will load once…': 'Wird einmal geladen …',
   'idle': 'ruht',
+
+  // Epics Rangstufen - sie stehen englisch in den Daten.
+  'Silver I': 'Silber I', 'Silver II': 'Silber II', 'Silver III': 'Silber III',
+  'Platinum I': 'Platin I', 'Platinum II': 'Platin II', 'Platinum III': 'Platin III',
+  'Diamond I': 'Diamant I', 'Diamond II': 'Diamant II', 'Diamond III': 'Diamant III',
 };
 
 /**

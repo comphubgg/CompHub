@@ -1050,12 +1050,19 @@ const HABANERO =
 
 // Die 18 Stufen von "delmar-competitive"; die 22er-Tracks nutzen dieselbe
 // Reihenfolge und haengen oben nur weitere Unreal-Stufen an.
+/*
+ * Die Rangstufen, wie Epic sie im Spiel nennt.
+ *
+ * Auf Englisch, weil das Werkzeug in dieser Sprache steht und die Namen
+ * ueber die Wortliste ins Deutsche gehen - nicht umgekehrt. Frueher standen
+ * hier die deutschen Namen, und die englische Ansicht zeigte "Diamant III".
+ */
 const DIVISIONEN = [
   'Bronze I','Bronze II','Bronze III',
-  'Silber I','Silber II','Silber III',
+  'Silver I','Silver II','Silver III',
   'Gold I','Gold II','Gold III',
-  'Platin I','Platin II','Platin III',
-  'Diamant I','Diamant II','Diamant III',
+  'Platinum I','Platinum II','Platinum III',
+  'Diamond I','Diamond II','Diamond III',
   'Elite','Champion','Unreal',
 ];
 

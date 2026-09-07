@@ -109,6 +109,56 @@ interface Liste {
   plaetze: Spieler[];
 }
 
+/**
+ * Eine Rangstufe aus Epics eigenem Ranked-System.
+ *
+ * Anders als die Turnierdaten laesst es sich fuer jeden Spieler abrufen -
+ * die Schnittstelle dafuer lag fertig im Werkzeug und wurde von niemandem
+ * gerufen. Gezeigt wird nur der aktuelle Stand je Spielart, nicht die ganze
+ * Geschichte seit 2023.
+ */
+interface RangStufe {
+  trackguid: string;
+  rankingType: string;
+  /** Die Stufe als Zahl - der Name dazu haengt an der Zahl der Stufen. */
+  division: number;
+  /** Nur an der Spitze vergibt Epic eine Platzziffer. */
+  ranking: number | null;
+  aktualisiert: string | null;
+  gespielt: boolean;
+  /** Wie viele Stufen diese Rangsaison hat - aus der Trackliste. */
+  stufen?: number;
+}
+
+/**
+ * Wie die Spielart heisst.
+ *
+ * Epic vergibt seinen Rangsaisons interne Namen - "RadiantToothpick-solo-
+ * ranked", "ranked-blastberry-combined", "delmar-competitive". Was sich
+ * daraus sicher ablesen laesst, steht hier; alles andere bleibt stehen, wie
+ * Epic es nennt. Eine huebschere Bezeichnung waere geraten.
+ */
+function rangArt(typ: string): string {
+  const k = typ.toLowerCase();
+  if (k.includes('-solo-')) return 'Solo';
+  if (k.includes('-duos-')) return 'Duos';
+  if (k.includes('-trios-')) return 'Trios';
+  if (k.includes('competitive')) return 'Competitive';
+  if (k.includes('-br-') || k.endsWith('-br')) return 'Battle Royale';
+  if (k.includes('-zb-') || k.endsWith('-zb')) return 'Zero Build';
+  // Bleibt Epics Deckname uebrig, wird er wenigstens lesbar gemacht:
+  // "ranked-blastberry-combined" wird zu "Blastberry".
+  const rest = typ
+    .replace(/ranked/gi, ' ')
+    .replace(/combined/gi, ' ')
+    .replace(/[-_]+/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return rest
+    ? rest.replace(/\b\w/g, (z) => z.toUpperCase())
+    : typ;
+}
+
 interface Perzentile {
   elims: number; damage: number; headshots: number; mats: number; builds: number;
   timeAlive: number; reboots: number; quote: number; genauigkeit: number;
@@ -1758,6 +1808,8 @@ export default function StatistikSeite() {
   const [epicZeilen, setEpicZeilen] = useState<VerlaufZeile[]>([]);
   /** Welche Marke gerade aufgeklappt ist. */
   const [marke, setMarke] = useState<'fncs' | 'tage' | null>(null);
+  /** Epics Ranked-Stufen des offenen Spielers - der aktuelle Stand je Art. */
+  const [ranked, setRanked] = useState<RangStufe[] | null>(null);
 
   /* -------------------------------------------------- Grunddaten einmalig */
   useEffect(() => {
@@ -2414,6 +2466,52 @@ export default function StatistikSeite() {
   }, [spieler, oeffne]);
 
   /** Im offenen Profil den Zeitraum wechseln. */
+  /*
+   * Epics Ranked-Stufen zum offenen Spieler.
+   *
+   * Eine eigene Abfrage, weil sie eine andere Quelle hat als alles andere im
+   * Profil - Epics Rangdienst statt der Turnierdaten. Sie darf ruhig ein paar
+   * hundert Millisekunden brauchen; kommt nichts zurueck, steht die Zeile
+   * einfach nicht da.
+   *
+   * Die Antwort enthaelt jede Rangsaison seit 2023. Behalten wird je Spielart
+   * nur die zuletzt gespielte - alles andere ist Geschichte und gehoert nicht
+   * in einen Kopf, der den heutigen Stand zeigen soll.
+   */
+  useEffect(() => {
+    if (!offen?.epicId) { setRanked(null); return; }
+    let weg = false;
+    setRanked(null);
+    Promise.all([
+      fetch(`/api/cup-ranked?ids=${encodeURIComponent(offen.epicId)}`)
+        .then((r) => r.json()),
+      fetch('/api/cup-ranked?tracks=1').then((r) => r.json()),
+    ])
+      .then(([j, tj]) => {
+        if (weg) return;
+        /*
+         * Nur die Rangsaisons, die gerade laufen.
+         *
+         * Die Antwort enthaelt jede Saison seit 2023 - ein Rang aus dem Jahr
+         * 2023 im Kopf eines Profils waere kein Stand, sondern eine
+         * Erinnerung. Welche gerade laufen, sagt Epic in derselben
+         * Schnittstelle; von dort kommt auch die Zahl der Stufen.
+         */
+        const aktiv = new Map<string, number>();
+        for (const tr of (tj?.tracks ?? []) as Array<
+          { trackguid: string; divisionCount?: number }>) {
+          aktiv.set(tr.trackguid, tr.divisionCount ?? 0);
+        }
+        const alle: RangStufe[] = j?.spieler?.[0]?.ranks ?? [];
+        setRanked(alle
+          .filter((r) => r.gespielt && aktiv.has(r.trackguid))
+          .map((r) => ({ ...r, stufen: aktiv.get(r.trackguid) }))
+          .sort((a, b) => (b.aktualisiert ?? '').localeCompare(a.aktualisiert ?? '')));
+      })
+      .catch(() => { if (!weg) setRanked(null); });
+    return () => { weg = true; };
+  }, [offen?.epicId]);
+
   const profilZeitraum = useCallback((zeitraum: string) => {
     setProfilSaison(zeitraum);
     if (offen) void profilLaden(offen, zeitraum);
@@ -4724,6 +4822,60 @@ export default function StatistikSeite() {
                       + ` · ${zahl(offen.matches, 0, sprache)} ${t('Matches')}`
                     : t('Werte werden geladen …')}
                 </p>
+
+                {/*
+                  * Epics eigenes Ranked-System.
+                  *
+                  * Die einzige Angabe im Profil, die nicht aus einem Turnier
+                  * stammt - und die einzige, die es zu jedem Spieler gibt,
+                  * auch zu einem, der nie in einem Cup stand. Die
+                  * Schnittstelle dafuer lag fertig im Werkzeug und wurde von
+                  * niemandem gerufen.
+                  */}
+                {ranked && ranked.length > 0 && (
+                  <div className="mt-3 space-y-1">
+                    <p className="text-center text-[10px] font-semibold uppercase
+                                  tracking-[0.16em] text-slate-600">
+                      <T>Ranked</T>
+                    </p>
+                    {/*
+                      * Stufe als Zahl, nicht als Name.
+                      *
+                      * Epics laufende Rangsaisons haben unterschiedlich viele
+                      * Stufen - achtzehn, zweiundzwanzig, einhundertundeine.
+                      * Ein Name wie "Diamant III" passt nur zur ersten; auf
+                      * die anderen uebertragen waere er geraten. Die Zahl
+                      * stimmt immer, und wie viele es insgesamt sind, steht
+                      * daneben.
+                      */}
+                    {ranked.slice(0, 4).map((r) => (
+                      <div key={r.trackguid}
+                        className="flex items-baseline justify-between gap-2 rounded-lg
+                                   border border-zinc-800 bg-zinc-900/40 px-2.5 py-1.5">
+                        <span className="truncate text-[10px] uppercase tracking-wider
+                                         text-slate-500">
+                          {rangArt(r.rankingType)}
+                        </span>
+                        {r.ranking !== null ? (
+                          <span className="whitespace-nowrap text-[11px] font-semibold
+                                           tabular-nums text-amber-400">
+                            #{zahl(r.ranking, 0, sprache)}
+                          </span>
+                        ) : (
+                          <span className="whitespace-nowrap text-[11px] font-semibold
+                                           text-slate-300">
+                            <T>Stufe</T> {r.division}
+                            {r.stufen ? (
+                              <span className="font-normal text-slate-600">
+                                {' / '}{r.stufen}
+                              </span>
+                            ) : null}
+                          </span>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
               </div>
 
               {/* Die Kennzahlen des ganzen Zeitraums, nicht die eines Cups.
