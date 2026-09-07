@@ -22,6 +22,7 @@ import TeamFlagge from '@/components/TeamFlagge';
 import { ohneZierrat } from '@/lib/homoglyph';
 
 import T from '@/app/components/T';
+import { regionFarbe } from '@/lib/regionFarbe';
 import { useSprache, useT } from '@/app/components/SprachProvider';
 import { useZugang } from '@/app/lib/zugang';
 /**
@@ -365,8 +366,8 @@ function datumText(ms?: number, sprache: 'de' | 'en' = 'de') {
 /** Das Kuerzel der Region als kleine Marke - wie im Vorbild. */
 function RegionMarke({ region }: { region: string }) {
   return (
-    <span className="shrink-0 rounded bg-zinc-800/80 px-1.5 py-0.5 text-[9px]
-                     font-semibold tracking-wider text-slate-400">
+    <span className={`shrink-0 rounded border px-1.5 py-0.5 text-[9px]
+                      font-semibold tracking-wider ${regionFarbe(region).marke}`}>
       {region}
     </span>
   );
@@ -982,7 +983,8 @@ function TurnierListe({ wer, zeilen, farbe }: {
               </span>
               <span className="min-w-0 flex-1 truncate text-[11px] text-slate-300">
                 {turnierName(z.event)}
-                <span className="ml-1.5 text-[10px] text-slate-600">{z.region}</span>
+                <span className={`ml-1.5 text-[10px] font-semibold
+                                  ${regionFarbe(z.region).schrift}`}>{z.region}</span>
               </span>
               <span className="shrink-0 text-[11px] tabular-nums text-slate-500">
                 {zahl(Math.round(z.werte.damageDealt), 0, sprache)}
@@ -1083,8 +1085,12 @@ function VerlaufTabelle({ zeilen, fuss }: {
                     ob die Zahlen fehlen. */}
               </td>
               <td className="px-2 py-2 text-center">
-                <span className="rounded bg-zinc-900 px-1.5 py-0.5 text-[10px]
-                                 font-semibold tracking-wider text-slate-400">
+                {/* Farbe je Region - siehe lib/regionFarbe. Sieben Regionen
+                    lassen sich in einer langen Liste sonst nur lesen, nicht
+                    ueberfliegen. */}
+                <span className={`rounded border px-1.5 py-0.5 text-[10px]
+                                  font-semibold tracking-wider
+                                  ${regionFarbe(z.region).marke}`}>
                   {z.region}
                 </span>
               </td>
@@ -1742,8 +1748,18 @@ export default function StatistikSeite() {
     const q = text.trim();
     if (q.length < 2) { wohin([]); return; }
     try {
-      const r = await fetch(`/api/szene-stats?saison=${saison}`
-        + `&q=${encodeURIComponent(q)}&limit=8`);
+      /*
+       * Die eigene Suche des Archivs, nicht die gefilterte Saisonliste.
+       *
+       * Vorher wurde die Liste der gewaehlten Saison durchsucht. In einer
+       * frisch angefangenen Saison steht dort fast niemand - "Vico"
+       * eingetippt fand deshalb keinen Vico, obwohl er im Archiv steht.
+       * "ansicht=suche" sucht ueber das ganze Archiv und ausserdem in allen
+       * Namen, unter denen ein Konto je angetreten ist; deshalb fand der
+       * Turniername ihn und der gepflegte nicht.
+       */
+      const r = await fetch('/api/szene-stats?ansicht=suche'
+        + `&q=${encodeURIComponent(q)}`);
       const j = await r.json();
       wohin(j.spieler ?? []);
     } catch { wohin([]); }
@@ -3216,9 +3232,9 @@ export default function StatistikSeite() {
                                placeholder:text-slate-600 focus:border-sky-500" />
                   {regionen.map((r) => (
                     <button key={r} onClick={() => setRegion(r)}
-                      className={`rounded-lg border px-2.5 py-1.5 text-xs transition ${region === r
-                        ? 'border-sky-500 bg-sky-500/10 text-sky-400'
-                        : 'border-zinc-800 text-slate-400 hover:border-zinc-700'}`}>
+                      className={`rounded-lg border px-2.5 py-1.5 text-xs transition ${
+                        region === r ? regionFarbe(r).marke
+                          : `border-zinc-800 hover:border-zinc-700 ${regionFarbe(r).schrift}`}`}>
                       {r}
                     </button>
                   ))}
@@ -3312,11 +3328,36 @@ export default function StatistikSeite() {
                         </tr>
                       </thead>
                       <tbody>
-                        {gefiltert.map((t) => (
+                        {gefiltert.map((t) => {
+                          const art = turnierArt(t.name);
+                          return (
                           <tr key={t.region + t.datei} onClick={() => setCup(t)}
                             className="cursor-pointer border-b border-zinc-900 transition
                                        hover:bg-zinc-900/60">
                             <td className="px-4 py-2.5 text-slate-200">
+                              {/*
+                                * Auch in der Liste das Bild des Turniers.
+                                *
+                                * In den Kacheln stand es immer, in der Liste
+                                * nicht - und der Betreiber erkennt einen Cup
+                                * schneller am Bild als am Namen. Klein und
+                                * vorangestellt, damit die Zeile eine Zeile
+                                * bleibt.
+                                */}
+                              <span className="flex items-center gap-2.5">
+                                {t.bild ? (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img src={t.bild} alt="" loading="lazy"
+                                    className="h-7 w-12 shrink-0 rounded object-cover" />
+                                ) : (
+                                  <span className={`flex h-7 w-12 shrink-0 items-center
+                                                    justify-center rounded bg-gradient-to-br
+                                                    ${art.farbe} text-[8px] font-black
+                                                    tracking-wide text-white/90`}>
+                                    {art.wort}
+                                  </span>
+                                )}
+                                <span className="min-w-0">
                               {t.name}
                               {t.nurEpic && (
                                 <span className="ml-2 rounded border
@@ -3326,6 +3367,8 @@ export default function StatistikSeite() {
                                   <T>nur Epic</T>
                                 </span>
                               )}
+                                </span>
+                              </span>
                             </td>
                             <td className="px-3 py-2.5"><RegionMarke region={t.region} /></td>
                             <td className="px-3 py-2.5 text-right tabular-nums text-slate-400">
@@ -3338,7 +3381,8 @@ export default function StatistikSeite() {
                               {datumText(t.datum, sprache)}
                             </td>
                           </tr>
-                        ))}
+                          );
+                        })}
                       </tbody>
                     </table>
                     </div>
@@ -3355,9 +3399,8 @@ export default function StatistikSeite() {
                 {regionen.map((r) => (
                   <button key={r} onClick={() => setRegion(r)}
                     className={`rounded-lg border px-3 py-1.5 text-xs transition ${
-                      regionAktiv === r
-                        ? 'border-sky-500 bg-sky-500/10 text-sky-400'
-                        : 'border-zinc-800 text-slate-400 hover:border-zinc-700'}`}>
+                      regionAktiv === r ? regionFarbe(r).marke
+                        : `border-zinc-800 hover:border-zinc-700 ${regionFarbe(r).schrift}`}`}>
                     {r}
                   </button>
                 ))}
@@ -3918,9 +3961,9 @@ export default function StatistikSeite() {
                 </button>
                 {regionen.map((r) => (
                   <button key={r} onClick={() => setRegion(r)}
-                    className={`rounded-lg border px-3 py-1.5 text-xs transition ${region === r
-                      ? 'border-sky-500 bg-sky-500/10 text-sky-400'
-                      : 'border-zinc-800 text-slate-400 hover:border-zinc-700'}`}>
+                    className={`rounded-lg border px-3 py-1.5 text-xs transition ${
+                      region === r ? regionFarbe(r).marke
+                        : `border-zinc-800 hover:border-zinc-700 ${regionFarbe(r).schrift}`}`}>
                     {r}
                   </button>
                 ))}
