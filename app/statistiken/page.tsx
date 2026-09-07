@@ -22,7 +22,7 @@ import TeamFlagge from '@/components/TeamFlagge';
 import { ohneZierrat } from '@/lib/homoglyph';
 
 import T from '@/app/components/T';
-import { regionFarbe } from '@/lib/regionFarbe';
+import { regionFarbe, REGIONEN_REIHE } from '@/lib/regionFarbe';
 import { useSprache, useT } from '@/app/components/SprachProvider';
 import { useZugang } from '@/app/lib/zugang';
 /**
@@ -1626,6 +1626,16 @@ export default function StatistikSeite() {
   // Die Galerie aller Spieler mit Foto
   const [galerie, setGalerie] = useState<Spieler[]>([]);
   const [galerieSuche, setGalerieSuche] = useState('');
+  /*
+   * Die Fotoliste nach Region.
+   *
+   * Sie liess sich bisher nur nach Laendern durchsuchen ("DE,FR") oder nach
+   * Namen. Der Betreiber wollte die Wettkampfregionen: "Wenn ich EU in die
+   * Suchleiste eingebe, sollten eigentlich auch EU-Spieler kommen." Ein
+   * Land ist nicht dasselbe wie eine Region - ein Deutscher kann in NAC
+   * antreten -, deshalb eine eigene Reihe statt einer Umdeutung der Suche.
+   */
+  const [galerieRegion, setGalerieRegion] = useState('alle');
   /** In der Bilderansicht: mit Foto, ohne Foto oder alle. */
   const [galerieFilter, setGalerieFilter] = useState<'mit' | 'ohne' | 'alle'>('mit');
   /** Wie viele Karten in der Bilderansicht gerade gezeigt werden. */
@@ -4032,11 +4042,16 @@ export default function StatistikSeite() {
               : [];
             const q = eingabe.toLowerCase();
 
-            const zeigen = !eingabe ? grundmenge
+            // Die Region gilt zuerst, danach erst Land oder Name.
+            const nachRegion = galerieRegion === 'alle' ? grundmenge
+              : grundmenge.filter((sp) =>
+                (sp.heimat ?? '').toUpperCase() === galerieRegion);
+
+            const zeigen = !eingabe ? nachRegion
               : nachLand
-                ? grundmenge.filter((sp) =>
+                ? nachRegion.filter((sp) =>
                   laender.includes((sp.land ?? '').toLowerCase()))
-                : grundmenge.filter((sp) => sp.anzeige.toLowerCase().includes(q));
+                : nachRegion.filter((sp) => sp.anzeige.toLowerCase().includes(q));
             return (
               <>
                 <div className="mb-3 flex flex-wrap items-center gap-3">
@@ -4060,6 +4075,24 @@ export default function StatistikSeite() {
                       </button>
                     ))}
                   </div>
+                  {/* Die Regionen, in denen wirklich gespielt wird - mit
+                      ihren Farben, damit die Reihe nicht grau in grau ist. */}
+                  <div className="flex flex-wrap items-center gap-1">
+                    {['alle', ...REGIONEN_REIHE].map((r) => (
+                      <button key={r}
+                        onClick={() => { setGalerieRegion(r); setGalerieMenge(400); }}
+                        className={`rounded border px-2 py-0.5 text-[11px] transition ${
+                          galerieRegion === r
+                            ? (r === 'alle'
+                              ? 'border-sky-500 bg-sky-500/10 text-sky-400'
+                              : regionFarbe(r).marke)
+                            : `border-zinc-800 hover:border-zinc-700 ${
+                              r === 'alle' ? 'text-slate-400' : regionFarbe(r).schrift}`}`}>
+                        {r === 'alle' ? <T>alle</T> : r}
+                      </button>
+                    ))}
+                  </div>
+
                   <p className="text-[11px] text-slate-600">
                     {nachLand
                       ? <><T>Länder</T>{' '}{laender.map((x) => x.toUpperCase()).join(', ')}</>
