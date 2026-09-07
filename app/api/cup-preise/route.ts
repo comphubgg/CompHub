@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server';
 import { promises as fs } from 'fs';
 import path from 'path';
-import { getToken, verwirfToken, EVENTS, EpicLoginNoetig } from '@/lib/epicCups';
+import { EpicLoginNoetig } from '@/lib/epicCups';
+import {
+  holeKatalog, wertungVon, type EpicKatalog,
+} from '@/lib/cupWertung';
 import { DATEN_ORT } from '@/lib/datenOrt';
 
 // Was es in einem Cup zu gewinnen gibt.
@@ -36,103 +39,6 @@ interface RohRang {
 }
 interface RohGruppe {
   scoringType?: string; ranks?: RohRang[];
-}
-
-/** Ein Zwischenspeicher - die Tabellen aendern sich waehrend eines Cups nicht. */
-interface RohStufe { keyValue?: number; pointsEarned?: number; multiplicative?: boolean }
-interface RohRegel { trackedStat?: string; matchRule?: string; rewardTiers?: RohStufe[] }
-interface RohTemplate { eventTemplateId?: string; scoringRules?: RohRegel[] }
-interface RohFenster { eventWindowId?: string; eventTemplateId?: string }
-interface RohEreignis { eventWindows?: RohFenster[] }
-interface Epic {
-  payoutTables?: Record<string, RohGruppe[]>;
-  templates?: RohTemplate[];
-  events?: RohEreignis[];
-  /** Regelsaetze unter ihrem Namen. */
-  scoringRuleSets?: Record<string, RohRegel[]>;
-  /** "Fortnite:<eventId>:<windowId>" -> Name des Regelsatzes. */
-  scoreLocationScoringRuleSets?: Record<string, string>;
-}
-
-const merker = new Map<string, { bis: number; daten: Epic }>();
-const HALTBAR = 10 * 60_000;
-
-async function tabellen(region: string) {
-  const gemerkt = merker.get(region);
-  if (gemerkt && Date.now() < gemerkt.bis) return gemerkt.daten;
-
-  // Wie ueberall bei Epic: ein 401 heisst nicht, dass die Anmeldung weg ist,
-  // sondern dass das gemerkte Token nicht mehr gilt. Einmal neu holen und
-  // noch einmal fragen.
-  const hole = async () => {
-    const { token, accountId } = await getToken();
-    return fetch(
-      `${EVENTS}/api/v1/events/Fortnite/download/${accountId}`
-      + `?region=${encodeURIComponent(region)}&platform=Windows`
-      + `&teamAccountIds=${accountId}`,
-      { headers: { Authorization: token } });
-  };
-  let antwort = await hole();
-  if (antwort.status === 401) { verwirfToken(); antwort = await hole(); }
-  if (!antwort.ok) throw new Error(`Epic HTTP ${antwort.status}`);
-  const daten = await antwort.json() as Epic;
-  merker.set(region, { bis: Date.now() + HALTBAR, daten });
-  return daten;
-}
-
-/**
- * Wie in diesem Spieltag gepunktet wird.
- *
- * Epic legt die Regeln je Vorlage ab, und jedes Fenster nennt seine Vorlage.
- * Uebersetzt werden nur die Bezeichnungen der gezaehlten Groessen - die
- * Zahlen bleiben, wie sie sind.
- */
-function wertungVon(d: Epic, windowId: string, eventId: string) {
-  /*
-   * Epic legt die Regeln an zwei Stellen ab.
-   *
-   * Manche Vorlagen tragen sie unmittelbar; bei den meisten Cups steht in
-   * der Vorlage jedoch nichts, und der Weg fuehrt ueber eine Zuordnung:
-   * "Fortnite:<eventId>:<windowId>" nennt den Namen eines Regelsatzes, und
-   * unter diesem Namen stehen die Regeln. Beide Wege werden probiert.
-   */
-  const schluessel = `Fortnite:${eventId}:${windowId}`;
-  const satzName = (d.scoreLocationScoringRuleSets ?? {})[schluessel]
-    ?? Object.entries(d.scoreLocationScoringRuleSets ?? {})
-      .find(([k]) => k.endsWith(`:${windowId}`))?.[1];
-  const ueberNamen = satzName
-    ? (d.scoringRuleSets ?? {})[satzName] : undefined;
-
-  const fenster = (d.events ?? [])
-    .flatMap((e) => e.eventWindows ?? [])
-    .find((w) => w.eventWindowId === windowId);
-  const vorlage = (d.templates ?? [])
-    .find((t) => t.eventTemplateId === fenster?.eventTemplateId);
-  const regeln = (ueberNamen?.length ? ueberNamen : vorlage?.scoringRules) ?? [];
-  if (!regeln.length) return [];
-
-  const NAME: Record<string, string> = {
-    PLACEMENT_STAT_INDEX: 'Placement',
-    TEAM_ELIMS_STAT_INDEX: 'Elimination',
-    VICTORY_ROYALE_STAT: 'Victory Royale',
-    MATCH_PLAYED_STAT: 'Match played',
-  };
-
-  return regeln.flatMap((r) => {
-    const name = NAME[r.trackedStat ?? ''] ?? (r.trackedStat ?? '');
-    return (r.rewardTiers ?? []).map((st) => ({
-      was: name,
-      // "lte" heisst "Platz 1 bis N", "gte" heisst "ab N" - bei den
-      // Eliminierungen also "je Elimination".
-      schwelle: st.keyValue ?? 0,
-      regel: r.matchRule ?? '',
-      punkte: st.pointsEarned ?? 0,
-      jeStueck: Boolean(st.multiplicative),
-    }));
-  // Regeln ohne Punkte sagen nichts. Beim Performance Cup steht dort
-  // "Elimination -> +0", weil dort nur Siege zaehlen; eine Zeile mit einer
-  // Null waere nur Beiwerk.
-  }).filter((x) => x.punkte > 0);
 }
 
 /** Aus "AthenaGlider:glider_season_41reload" wird "Glider Season 41 Reload". */
@@ -229,9 +135,9 @@ export async function GET(request: Request) {
     return NextResponse.json({ error: 'window ist noetig' }, { status: 400 });
   }
 
-  let epic: Epic;
+  let epic: EpicKatalog;
   try {
-    epic = await tabellen(region);
+    epic = await holeKatalog(region);
   } catch (e) {
     const login = e instanceof EpicLoginNoetig;
     return NextResponse.json(

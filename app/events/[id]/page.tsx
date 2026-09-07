@@ -48,6 +48,10 @@ interface SpielZeile {
   wins: number;
   timeAlive: number;
   damage: number;
+  /** Wann dieses Team ausgeschieden ist. */
+  ende?: string | null;
+  /** Aus Epics Punktetabelle gerechnet - null, wenn es keine gibt. */
+  punkte?: number | null;
 }
 
 /** Eine einzelne Runde des Spieltags. */
@@ -62,6 +66,26 @@ interface Spiel {
   vollstaendig?: boolean;
   /** Wie viele Plaetze bis zum hoechsten gesehenen fehlen. */
   fehlend?: number;
+  /** Laeuft diese Lobby gerade noch? */
+  live?: boolean;
+  /** Beginn der Runde - hergeleitet aus Endzeit minus Lebenszeit. */
+  beginn?: string | null;
+  /** Dauer in Sekunden, zum Zeitpunkt der Antwort. */
+  dauer?: number | null;
+  /** Der hoechste vergebene Platz - so gross war die Lobby. */
+  lobby?: number | null;
+  /** Wie viele Teams noch im Spiel sind. */
+  verbleibend?: number;
+  /** Wie viele Teams wir zu dieser Runde ueberhaupt sehen. */
+  gesehen?: number;
+}
+
+/** "18m 13s" - so steht die Dauer auch beim Vorbild. */
+function dauerText(sekunden: number): string {
+  const s = Math.max(0, Math.floor(sekunden));
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m ${String(s % 60).padStart(2, '0')}s`;
+  return `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m`;
 }
 
 /** Ein Platz in einer Bestenliste. */
@@ -255,6 +279,16 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
   const [offenesSpiel, setOffenesSpiel] = useState<string | null>(null);
   /** An einem Qualifikationstag sind es hunderte - erst einmal nur die ersten. */
   const [alleSpiele, setAlleSpiele] = useState(false);
+  /** Alle Lobbys, nur die laufenden oder nur die beendeten. */
+  const [spielFilter, setSpielFilter] = useState<'alle' | 'live' | 'fertig'>('alle');
+  /*
+   * Ein Sekundentakt fuer die laufenden Lobbys.
+   *
+   * Die Dauer wird nicht aus der Antwort uebernommen, sondern aus dem
+   * hergeleiteten Beginn gerechnet - sonst stuende dort eine Zahl, die beim
+   * Laden der Seite stimmte und danach stehenblieb.
+   */
+  const [jetzt, setJetzt] = useState(() => Date.now());
 
   /*
    * Was gerade zu sehen ist.
@@ -924,6 +958,35 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
       .finally(() => { if (!weg) setSpieleLaedt(false); });
     return () => { weg = true; };
   }, [spieleAn, fenster, spiele, tabelle.length]);
+
+  /** Wie viele Lobbys gerade laufen. */
+  const laufende = useMemo(
+    () => (spiele ?? []).filter((x) => x.live).length, [spiele]);
+
+  /*
+   * Die Uhr laeuft nur, solange sie gebraucht wird.
+   *
+   * Ein Sekundentakt ueber der ganzen Seite waere Unfug; er laeuft deshalb
+   * nur, wenn der Matches-Bereich offen ist und wirklich eine Lobby laeuft.
+   */
+  useEffect(() => {
+    if (!spieleAn || !laufende) return;
+    const uhr = setInterval(() => setJetzt(Date.now()), 1000);
+    return () => clearInterval(uhr);
+  }, [spieleAn, laufende]);
+
+  /*
+   * Und alle sechzig Sekunden die Zahlen selbst nachholen.
+   *
+   * Die Dauer laeuft von allein weiter, aber wie viele Teams noch im Spiel
+   * sind, weiss nur Epic. Die Schnittstelle merkt sich ihre Antwort ohnehin
+   * eine Minute - oefter zu fragen brächte nichts.
+   */
+  useEffect(() => {
+    if (!spieleAn || !laufende || !fenster) return;
+    const uhr = setInterval(() => setSpiele(null), 60_000);
+    return () => clearInterval(uhr);
+  }, [spieleAn, laufende, fenster]);
 
   /*
    * Ist das ein einzelner Spielraum oder ein ganzer Qualifikationstag?
@@ -1911,7 +1974,35 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
           </p>
         )}
 
-        {reiter === 'runden' && fenster && fenster.status !== 'kommt' && (
+        {reiter === 'runden' && fenster && fenster.status !== 'kommt' && (() => {
+          /*
+           * Der Matches-Bereich.
+           *
+           * Vorbild ist die Ansicht, die der Betreiber kennt: eine laufende
+           * Lobby nennt oben die Uhrzeit ihres Beginns samt Datum, darunter
+           * wie lange sie schon laeuft, und daneben, wie viele Teams noch im
+           * Spiel sind. Ein Klick oeffnet die Aufstellung - alle, die bisher
+           * ausgeschieden sind, mit Platz, Punkten, Eliminierungen und
+           * Spielzeit.
+           *
+           * Alle drei Groessen stehen so nicht in Epics Antwort; sie werden
+           * in /api/cup-matches aus Epics eigenen Zahlen hergeleitet, und
+           * die Herleitung steht dort beschrieben.
+           */
+          const gefiltert = (spiele ?? []).filter((x) =>
+            spielFilter === 'alle' ? true
+              : spielFilter === 'live' ? x.live : !x.live);
+          const gezeigt = alleSpiele ? gefiltert : gefiltert.slice(0, 60);
+
+          /** Wie lange eine Runde laeuft - laufend aus dem Beginn gerechnet. */
+          const dauerVon = (sp: Spiel) => {
+            if (sp.live && sp.beginn) {
+              return Math.max(0, (jetzt - Date.parse(sp.beginn)) / 1000);
+            }
+            return sp.dauer ?? sp.laengsteLebenszeit;
+          };
+
+          return (
           <section className="rounded-xl border border-zinc-800 bg-zinc-950/60">
             <header className="flex flex-wrap items-center justify-between gap-3
                                border-b border-zinc-800 px-4 py-3">
@@ -1920,11 +2011,38 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                   als Kennzahl ("matches played") - das ergaebe hier eine
                   kleingeschriebene Ueberschrift. */}
               <h2 className="text-sm font-semibold text-slate-100">Matches</h2>
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-3">
+                {/* Der Filter, den der Betreiber wollte: laufend oder nicht. */}
                 {spiele && spiele.length > 0 && (
-                  <span className="text-xs text-slate-500">
-                    {spiele.length} <T>Runden</T>
-                  </span>
+                  <div className="flex gap-1 rounded-lg border border-zinc-800
+                                  bg-zinc-900/60 p-1">
+                    {([
+                      ['alle', t('Alle'), spiele.length],
+                      ['live', t('Live'), laufende],
+                      ['fertig', t('Beendet'), spiele.length - laufende],
+                    ] as const).map(([wert, titel, zahl]) => (
+                      <button key={wert}
+                        onClick={() => { setSpielFilter(wert); setAlleSpiele(false); }}
+                        disabled={zahl === 0}
+                        className={`flex items-center gap-1.5 rounded-md px-2.5 py-1
+                                    text-xs font-medium transition
+                                    disabled:cursor-not-allowed disabled:opacity-40 ${
+                          spielFilter === wert ? 'bg-sky-500 text-white'
+                                               : 'text-slate-400 hover:text-slate-200'}`}>
+                        {wert === 'live' && zahl > 0 && (
+                          <span className="relative flex h-1.5 w-1.5">
+                            <span className="absolute inline-flex h-full w-full
+                                             animate-ping rounded-full bg-rose-500
+                                             opacity-75" />
+                            <span className="relative inline-flex h-1.5 w-1.5
+                                             rounded-full bg-rose-500" />
+                          </span>
+                        )}
+                        {titel}
+                        <span className="tabular-nums opacity-60">{zahl}</span>
+                      </button>
+                    ))}
+                  </div>
                 )}
                 <button onClick={() => setSpieleAn((a) => !a)}
                   className="rounded-lg border border-zinc-800 px-3 py-1 text-xs
@@ -1965,53 +2083,107 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                   </p>
                 )}
 
-                {spiele && spiele.length > 0 && (
+                {spiele && spiele.length > 0 && !gefiltert.length && (
+                  <p className="p-4 text-center text-sm text-slate-500">
+                    <T>Gerade läuft keine Lobby.</T>
+                  </p>
+                )}
+
+                {gezeigt.length > 0 && (
                   <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                    {(alleSpiele ? spiele : spiele.slice(0, 60)).map((sp) => (
-                      <div key={sp.id}
-                        className={`rounded-lg border transition ${sp.id === offenesSpiel
+                    {gezeigt.map((sp) => (
+                      <button key={sp.id}
+                        onClick={() => setOffenesSpiel(
+                          sp.id === offenesSpiel ? null : sp.id)}
+                        className={`rounded-lg border px-3 py-2.5 text-left
+                                    transition ${sp.id === offenesSpiel
                           ? 'border-sky-600 bg-sky-950/20'
-                          : 'border-zinc-800 bg-zinc-950/60 hover:border-zinc-700'}`}>
-                        <button
-                          onClick={() => setOffenesSpiel(
-                            sp.id === offenesSpiel ? null : sp.id)}
-                          className="w-full px-3 py-2 text-left">
-                          <div className="flex items-baseline justify-between gap-2">
-                            <span className="text-xs font-semibold text-slate-200">
-                              {eineLobby
-                                ? <><T>Runde</T> {sp.nummer}</>
+                          : sp.live
+                            ? 'border-rose-900/60 bg-zinc-900/40 hover:border-rose-700'
+                            : 'border-zinc-800 bg-zinc-950/60 hover:border-zinc-700'}`}>
+                        {/* Erste Zeile: was es ist, und wann es anfing. */}
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="flex items-center gap-1.5">
+                            {sp.live && (
+                              <span className="relative flex h-2 w-2">
+                                <span className="absolute inline-flex h-full w-full
+                                                 animate-ping rounded-full bg-rose-500
+                                                 opacity-75" />
+                                <span className="relative inline-flex h-2 w-2
+                                                 rounded-full bg-rose-500" />
+                              </span>
+                            )}
+                            <span className={`text-xs font-semibold uppercase
+                                              tracking-wide ${sp.live
+                              ? 'text-rose-400' : 'text-slate-300'}`}>
+                              {sp.live ? <T>Live-Match</T>
+                                : eineLobby ? <><T>Runde</T> {sp.nummer}</>
                                 : <T>Lobby</T>}
                             </span>
-                            <span className="text-[11px] text-slate-500">
-                              {sp.ende ? new Date(sp.ende).toLocaleTimeString(ort,
-                                { hour: '2-digit', minute: '2-digit' }) : '—'}
+                          </span>
+                          <span className="text-right">
+                            <span className="block text-xs font-semibold
+                                             tabular-nums text-slate-200">
+                              {(sp.live ? sp.beginn : sp.ende)
+                                ? new Date((sp.live ? sp.beginn : sp.ende)!)
+                                  .toLocaleTimeString(ort,
+                                    { hour: '2-digit', minute: '2-digit' })
+                                : '—'}
                             </span>
-                          </div>
-                          {/* Ohne Pokal davor: das Emoji wird je nach System
-                              als buntes Bild gezeichnet und passt nicht zu
-                              einer Textzeile. Gelb genuegt, um den Sieger
-                              kenntlich zu machen. */}
-                          {sp.sieger.length > 0 && (
-                            <div className="mt-0.5 truncate text-[11px] text-amber-400">
+                            <span className="block text-[10px] text-slate-600">
+                              {(sp.live ? sp.beginn : sp.ende)
+                                ? new Date((sp.live ? sp.beginn : sp.ende)!)
+                                  .toLocaleDateString(ort,
+                                    { day: 'numeric', month: 'short' })
+                                : ''}
+                            </span>
+                          </span>
+                        </div>
+
+                        {/* Zweite Zeile: wie lange sie laeuft. */}
+                        <p className="mt-0.5 text-[11px] text-slate-500">
+                          <T>Dauer</T> {dauerText(dauerVon(sp))}
+                        </p>
+
+                        {/* Dritte Zeile: wer noch drin ist - oder wer gewann. */}
+                        <div className="mt-2 border-t border-zinc-800/80 pt-2">
+                          {sp.live ? (
+                            <span className="flex items-center justify-between gap-2
+                                             text-[11px]">
+                              <span className="text-slate-400">
+                                <T>Teams noch im Spiel</T>
+                              </span>
+                              <span className="font-semibold tabular-nums
+                                               text-amber-400">
+                                {sp.verbleibend ?? 0}
+                                <span className="text-slate-600"> / {sp.lobby ?? '—'}</span>
+                              </span>
+                            </span>
+                          ) : sp.sieger.length > 0 ? (
+                            <span className="block truncate text-[11px] text-amber-400">
                               {sp.sieger.map((n, k) => namenVon({
                                 name: n,
                                 id: sp.teams.find((x) => x.platz === 1)
                                   ?.spieler[k]?.id ?? '',
                               })).join('  +  ')}
-                            </div>
+                            </span>
+                          ) : (
+                            <span className="text-[11px] text-slate-600">
+                              {sp.gesehen ?? sp.teams.length} <T>Teams</T>
+                            </span>
                           )}
-                        </button>
-                      </div>
+                        </div>
+                      </button>
                     ))}
                   </div>
                 )}
 
-                {spiele && spiele.length > 60 && !alleSpiele && (
+                {gefiltert.length > 60 && !alleSpiele && (
                   <button onClick={() => setAlleSpiele(true)}
                     className="mt-2 w-full rounded-lg border border-zinc-800 px-3 py-2
                                text-xs text-slate-400 transition hover:border-sky-500
                                hover:text-sky-400">
-                    <T>alle anzeigen</T> ({spiele.length})
+                    <T>alle anzeigen</T> ({gefiltert.length})
                   </button>
                 )}
 
@@ -2020,17 +2192,41 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                 {(() => {
                   const sp = (spiele ?? []).find((x) => x.id === offenesSpiel);
                   if (!sp) return null;
+                  const mitPunkten = sp.teams.some((t) => typeof t.punkte === 'number');
                   const mitSchaden = sp.teams.some((t) => t.damage > 0);
                   return (
                     <div className="mt-3 rounded-lg border border-zinc-800
                                     bg-zinc-950/80">
                       <div className="flex flex-wrap items-center justify-between gap-3
                                       border-b border-zinc-800 px-3 py-2">
-                        <span className="text-xs font-semibold text-slate-200">
-                          {eineLobby ? <><T>Runde</T> {sp.nummer}</> : <T>Lobby</T>}
-                          <span className="ml-2 font-normal text-slate-500">
-                            {sp.ende ? new Date(sp.ende).toLocaleString(ort) : ''}
+                        <span className="flex flex-wrap items-baseline gap-2">
+                          {sp.live && (
+                            <span className="flex items-center gap-1.5 text-xs
+                                             font-semibold uppercase text-rose-400">
+                              <span className="relative flex h-2 w-2">
+                                <span className="absolute inline-flex h-full w-full
+                                                 animate-ping rounded-full bg-rose-500
+                                                 opacity-75" />
+                                <span className="relative inline-flex h-2 w-2
+                                                 rounded-full bg-rose-500" />
+                              </span>
+                              Live {dauerText(dauerVon(sp))}
+                            </span>
+                          )}
+                          <span className="text-xs font-semibold text-slate-200">
+                            {eineLobby ? <><T>Runde</T> {sp.nummer}</> : <T>Lobby</T>}
                           </span>
+                          <span className="text-[11px] text-slate-500">
+                            {sp.beginn
+                              ? new Date(sp.beginn).toLocaleString(ort)
+                              : sp.ende ? new Date(sp.ende).toLocaleString(ort) : ''}
+                          </span>
+                          {sp.live && (
+                            <span className="text-[11px] text-amber-400">
+                              {sp.verbleibend ?? 0} / {sp.lobby ?? '—'}{' '}
+                              <T>Teams noch im Spiel</T>
+                            </span>
+                          )}
                         </span>
                         <div className="flex items-center gap-2">
                           {/* Die Sitzungskennung von Epic - anderswo heisst
@@ -2049,33 +2245,39 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                       </div>
 
                       {/*
-                        * Unvollstaendig heisst: gar keine Liste.
+                        * Fehlende Plaetze stehen ueber der Tabelle, nicht
+                        * statt ihrer.
                         *
-                        * Epics Bestenliste gibt hoechstens zehntausend
-                        * Plaetze heraus; in einer grossen Qualifikation
-                        * fehlen deshalb einzelne Lobby-Mitglieder, und dann
-                        * folgt auf Platz 2 der Platz 5. Der Betreiber will
-                        * in dem Fall lieber nur die Match-Id sehen - eine
-                        * halbe Aufstellung liest sich wie eine ganze.
+                        * Frueher blieb die Aufstellung ganz verborgen, sobald
+                        * ein Platz fehlte - gemessen betraf das
+                        * vierundneunzig von sechsundneunzig beendeten Lobbys,
+                        * und der Betreiber sah nie eine. Der Grundsatz bleibt
+                        * trotzdem gewahrt: ein Ausschnitt darf nur dann
+                        * dastehen, wenn danebensteht, dass es einer ist.
                         */}
-                      {sp.vollstaendig === false ? (
-                        <p className="px-3 py-6 text-center text-sm leading-relaxed
-                                      text-slate-500">
-                          <T>Von dieser Lobby fehlen</T> {sp.fehlend ?? 0}{' '}
-                          <T>Plätze — Epic gibt aus der Bestenliste nur die
-                          ersten zehntausend heraus, und in dieser Runde
-                          standen Spieler dahinter. Eine halbe Aufstellung
-                          zeigt das Werkzeug nicht; die Match-ID oben ist
-                          vollständig.</T>
+                      {sp.fehlend ? (
+                        <p className="border-b border-zinc-900 px-3 py-2 text-[11px]
+                                      leading-relaxed text-amber-500/80">
+                          <T>Von dieser Lobby fehlen</T> {sp.fehlend}{' '}
+                          <T>Plätze — Epic gibt aus der Bestenliste nur die ersten
+                          zehntausend heraus. Die Match-ID oben ist vollständig.</T>
                         </p>
-                      ) : (
+                      ) : null}
+
                       <div className="max-h-96 overflow-auto">
                         <table className="w-full text-sm">
                           <thead className="sticky top-0 bg-zinc-950">
                             <tr className="border-b border-zinc-800 text-[11px]
                                            uppercase tracking-wider text-slate-500">
-                              <th className="px-3 py-2 text-right font-medium">#</th>
+                              <th className="px-3 py-2 text-right font-medium">
+                                <T>Platz</T>
+                              </th>
                               <th className="px-3 py-2 text-left font-medium">Team</th>
+                              {mitPunkten && (
+                                <th className="px-3 py-2 text-right font-medium">
+                                  <T>Punkte</T>
+                                </th>
+                              )}
                               <th className="px-3 py-2 text-right font-medium">
                                 <T>Elims</T>
                               </th>
@@ -2085,7 +2287,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                                 </th>
                               )}
                               <th className="px-3 py-2 text-right font-medium">
-                                <T>Lebenszeit</T>
+                                <T>Spielzeit</T>
                               </th>
                               <th className="px-3 py-2 text-right font-medium">
                                 <T>Tagesplatz</T>
@@ -2102,13 +2304,20 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                               // brachte die Reihenfolge durcheinander.
                               <tr key={`${t.teamId ?? 'x'}-${i}`}
                                 className="border-b border-zinc-900/70 last:border-0">
-                                <td className="px-3 py-1.5 text-right tabular-nums
-                                               text-slate-400">
+                                <td className={`px-3 py-1.5 text-right font-semibold
+                                                tabular-nums ${t.platz === 1
+                                  ? 'text-amber-400' : 'text-slate-400'}`}>
                                   {t.platz ?? '—'}
                                 </td>
                                 <td className="px-3 py-1.5 text-slate-200">
                                   {t.spieler.map(namenVon).join('  +  ')}
                                 </td>
+                                {mitPunkten && (
+                                  <td className="px-3 py-1.5 text-right font-semibold
+                                                 tabular-nums text-sky-400">
+                                    {t.punkte ?? '—'}
+                                  </td>
+                                )}
                                 <td className="px-3 py-1.5 text-right tabular-nums
                                                text-slate-300">
                                   {t.elims}
@@ -2133,13 +2342,19 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                           </tbody>
                         </table>
                       </div>
-                      )}
 
                       <p className="border-t border-zinc-900 px-3 py-2 text-[11px]
                                     text-slate-600">
-                        <T>Die Werte gelten je Team, so wie Epic sie meldet. Punkte
-                        einer einzelnen Runde gibt Epic nicht heraus — sie stehen
-                        nur als Tagessumme in der Bestenliste.</T>
+                        {mitPunkten ? (
+                          <T>Die Werte gelten je Team, so wie Epic sie meldet. Die
+                          Punkte einer Runde nennt Epic nicht — sie sind aus Platz,
+                          Eliminierungen und Epics eigener Punktetabelle dieses
+                          Spieltags gerechnet.</T>
+                        ) : (
+                          <T>Die Werte gelten je Team, so wie Epic sie meldet. Punkte
+                          einer einzelnen Runde gibt Epic nicht heraus — sie stehen
+                          nur als Tagessumme in der Bestenliste.</T>
+                        )}
                       </p>
                     </div>
                   );
@@ -2147,7 +2362,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
               </div>
             )}
           </section>
-        )}
+          );
+        })()}
 
         {/*
           * Werte je einzelnem Spieler.

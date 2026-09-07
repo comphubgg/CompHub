@@ -248,6 +248,24 @@ const AUF_ENGLISCH: Record<string, string> = {
     'Lower case searches the name, upper case filters by country: DE,FR,GB',
   'Alle Saisons': 'All time',
   'keine Matches': 'no matches',
+
+  // Der Matches-Bereich einer Eventseite.
+  'Beendet': 'Finished',
+  'Live-Match': 'Live match',
+  'Dauer': 'Duration',
+  'Teams noch im Spiel': 'Teams remaining',
+  'Gerade läuft keine Lobby.': 'No lobby is running right now.',
+  'Spielzeit': 'Time played',
+  ['Plätze — Epic gibt aus der Bestenliste nur die ersten zehntausend heraus. '
+    + 'Die Match-ID oben ist vollständig.']:
+    'places — Epic hands out only the first ten thousand of a leaderboard. '
+    + 'The match ID above is complete.',
+  ['Die Werte gelten je Team, so wie Epic sie meldet. Die Punkte einer Runde '
+    + 'nennt Epic nicht — sie sind aus Platz, Eliminierungen und Epics eigener '
+    + 'Punktetabelle dieses Spieltags gerechnet.']:
+    'Values are per team, the way Epic reports them. Epic does not publish the '
+    + 'points of a single round — these are calculated from placement, '
+    + 'eliminations and the scoring table Epic publishes for this match day.',
   'ohne Datum': 'without a date',
   'Läuft gerade': 'Running now',
   'filtern — z. B. fncs, solo, reload': 'filter — e.g. fncs, solo, reload',
