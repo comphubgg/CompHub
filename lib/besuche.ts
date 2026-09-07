@@ -1,6 +1,4 @@
-import { promises as fs } from 'fs';
-import path from 'path';
-import { DATEN_ORT } from './datenOrt';
+import { liesJson, schreibJson } from './ablage';
 
 /*
  * Wie oft das Werkzeug aufgerufen wird.
@@ -32,7 +30,15 @@ import { DATEN_ORT } from './datenOrt';
  * Dienst zu sehen bekommt.
  */
 
-const DATEI = path.join(DATEN_ORT, 'besuche.json');
+/*
+ * Der Name in der Ablage - kein Pfad mehr.
+ *
+ * Wo dieser Name landet, entscheidet lib/ablage.ts: heute eine Datei im
+ * Datenordner, spaeter eine Zeile in der Datenbank. Diese Datei hier ist die
+ * erste, die umgehaengt wurde; sie eignet sich dafuer, weil sie bei jedem
+ * Seitenaufruf gelesen und geschrieben wird - ein Fehler faellt sofort auf.
+ */
+const NAME = 'besuche.json';
 
 /** Das Cookie mit erstem und letztem Besuch, durch einen Punkt getrennt. */
 export const BESUCH_COOKIE = 'comphub_besuch';
@@ -71,12 +77,8 @@ export function tagVon(d: Date = new Date()): string {
 
 async function lies(): Promise<Stand> {
   if (stand) return stand;
-  try {
-    const roh = JSON.parse(await fs.readFile(DATEI, 'utf8')) as Stand;
-    stand = roh && typeof roh === 'object' ? roh : {};
-  } catch {
-    stand = {};
-  }
+  const roh = await liesJson<Stand>(NAME, {});
+  stand = roh && typeof roh === 'object' ? roh : {};
   return stand;
 }
 
@@ -87,8 +89,7 @@ function planeSchreiben(): void {
     void (async () => {
       if (!stand) return;
       try {
-        await fs.mkdir(path.dirname(DATEI), { recursive: true });
-        await fs.writeFile(DATEI, JSON.stringify(stand, null, 1), 'utf8');
+        await schreibJson(NAME, stand);
       } catch { /* eine verlorene Zahl ist kein Grund, eine Seite scheitern zu lassen */ }
     })();
   }, SAMMELZEIT_MS);
