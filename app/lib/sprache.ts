@@ -249,6 +249,10 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Alle Saisons': 'All time',
   'keine Matches': 'no matches',
 
+  'Match läuft': 'Match live',
+  'Runden ausgewertet': 'rounds processed',
+  'Match beendet': 'Match ended',
+  'Sieger': 'Winners',
   // Die Overlay-Seiten.
   // Diese fuenf standen schon weiter unten; beim Aufraeumen der
   // Doppelten sind sie mit herausgefallen und stehen deshalb hier.

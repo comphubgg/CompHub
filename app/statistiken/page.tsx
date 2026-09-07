@@ -146,17 +146,19 @@ function rangArt(typ: string): string {
   if (k.includes('competitive')) return 'Competitive';
   if (k.includes('-br-') || k.endsWith('-br')) return 'Battle Royale';
   if (k.includes('-zb-') || k.endsWith('-zb')) return 'Zero Build';
-  // Bleibt Epics Deckname uebrig, wird er wenigstens lesbar gemacht:
-  // "ranked-blastberry-combined" wird zu "Blastberry".
-  const rest = typ
-    .replace(/ranked/gi, ' ')
-    .replace(/combined/gi, ' ')
-    .replace(/[-_]+/g, ' ')
-    .replace(/\s+/g, ' ')
-    .trim();
-  return rest
-    ? rest.replace(/\b\w/g, (z) => z.toUpperCase())
-    : typ;
+  if (k.includes('reload')) return 'Reload';
+  if (k.includes('-og-') || k.endsWith('-og')) return 'OG';
+  /*
+   * Bleibt Epics Deckname uebrig, faellt die Zeile weg.
+   *
+   * Epic benennt seine Rangsaisons intern nach Zufallsworten -
+   * "ranked-blastberry-combined", "ranked-squareclub",
+   * "RadiantToothpick-solo-ranked". Kurz stand "Blastberry" im Profil, und
+   * der Betreiber fragte zu Recht, was das sein soll: es ist gar nichts, es
+   * ist Epics Aktenzeichen. Lieber eine Zeile weniger als eine, die niemand
+   * einordnen kann.
+   */
+  return '';
 }
 
 interface Perzentile {
@@ -1691,14 +1693,13 @@ export default function StatistikSeite() {
     ['damageDealt', 'Schaden'],
     ['quote', 'Schadensverhältnis'],
     /*
-     * "Anzahl Matches" statt "Matches".
+     * Die Matchzahl steht hier nicht mehr zur Wahl.
      *
-     * Der Schluessel "Matches" ist in der Wortliste als Kennzahl belegt und
-     * uebersetzt kleingeschrieben ("matches played"). In dieser Knopfreihe
-     * stand deshalb "matches" zwischen lauter grossgeschriebenen Kennzahlen
-     * und sah aus wie kein Knopf.
+     * Der Betreiber: "Es ist obvious, dass jeder seine maximalen Matches
+     * ausgespielt hat oder halt weniger. Also dieser Filter ist unnoetig."
+     * Er hat recht - eine Kurve, die an jedem Spieltag zwischen sechs und
+     * elf steht, sagt ueber einen Spieler nichts.
      */
-    ['matchesPlayed', 'Anzahl Matches'],
     ['builds', 'Bauteile'],
     ['mats', 'Material'],
   ] as const;
@@ -1710,7 +1711,6 @@ export default function StatistikSeite() {
       case 'damageDealt': return Math.round(w.damageDealt ?? 0);
       case 'quote': return w.damageTakenFromPlayers > 0
         ? Math.round((w.damageDealt / w.damageTakenFromPlayers) * 100) / 100 : 0;
-      case 'matchesPlayed': return w.matchesPlayed ?? 0;
       case 'builds': return (w.woodBuildsPlaced ?? 0) + (w.stoneBuildsPlaced ?? 0)
         + (w.metalBuildsPlaced ?? 0);
       case 'mats': return (w.woodFarmed ?? 0) + (w.stoneFarmed ?? 0)
@@ -4832,7 +4832,7 @@ export default function StatistikSeite() {
                   * Schnittstelle dafuer lag fertig im Werkzeug und wurde von
                   * niemandem gerufen.
                   */}
-                {ranked && ranked.length > 0 && (
+                {ranked && ranked.some((r) => rangArt(r.rankingType)) && (
                   <div className="mt-3 space-y-1">
                     <p className="text-center text-[10px] font-semibold uppercase
                                   tracking-[0.16em] text-slate-600">
@@ -4848,7 +4848,7 @@ export default function StatistikSeite() {
                       * stimmt immer, und wie viele es insgesamt sind, steht
                       * daneben.
                       */}
-                    {ranked.slice(0, 4).map((r) => (
+                    {ranked.filter((r) => rangArt(r.rankingType)).slice(0, 4).map((r) => (
                       <div key={r.trackguid}
                         className="flex items-baseline justify-between gap-2 rounded-lg
                                    border border-zinc-800 bg-zinc-900/40 px-2.5 py-1.5">

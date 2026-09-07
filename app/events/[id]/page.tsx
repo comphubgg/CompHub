@@ -349,6 +349,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
    */
   const [spielerWerte, setSpielerWerte] = useState<{
     vorhanden: boolean; runden: number;
+    /** Wie viele Runden dieser Spieltag insgesamt hat. */
+    rundenGesamt?: number | null;
     /** Wann der Replay-Sammler zuletzt lief - siehe app/api/cup-spieler. */
     lauf?: { zeitpunkt?: string; art?: string; ok?: boolean; fehler?: string } | null;
     spieler: Array<{
@@ -2019,207 +2021,23 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
               : spielFilter === 'live' ? x.live : !x.live);
           const gezeigt = alleSpiele ? gefiltert : gefiltert.slice(0, 60);
 
-          /** Wie lange eine Runde laeuft - laufend aus dem Beginn gerechnet. */
-          const dauerVon = (sp: Spiel) => {
-            if (sp.live && sp.beginn) {
-              return Math.max(0, (jetzt - Date.parse(sp.beginn)) / 1000);
-            }
-            return sp.dauer ?? sp.laengsteLebenszeit;
-          };
-
-          return (
-          <section className="rounded-xl border border-zinc-800 bg-zinc-950/60">
-            <header className="flex flex-wrap items-center justify-between gap-3
-                               border-b border-zinc-800 px-4 py-3">
-              {/* Bewusst ohne Uebersetzung: "Matches" heisst in beiden
-                  Sprachen so, und die Tabelle uebersetzt es kleingeschrieben
-                  als Kennzahl ("matches played") - das ergaebe hier eine
-                  kleingeschriebene Ueberschrift. */}
-              <h2 className="text-sm font-semibold text-slate-100">Matches</h2>
-              <div className="flex flex-wrap items-center gap-3">
-                {/* Der Filter, den der Betreiber wollte: laufend oder nicht. */}
-                {spiele && spiele.length > 0 && (
-                  <div className="flex gap-1 rounded-lg border border-zinc-800
-                                  bg-zinc-900/60 p-1">
-                    {([
-                      ['alle', t('Alle'), spiele.length],
-                      ['live', t('Live'), laufende],
-                      ['fertig', t('Beendet'), spiele.length - laufende],
-                    ] as const).map(([wert, titel, zahl]) => (
-                      <button key={wert}
-                        onClick={() => { setSpielFilter(wert); setAlleSpiele(false); }}
-                        disabled={zahl === 0}
-                        className={`flex items-center gap-1.5 rounded-md px-2.5 py-1
-                                    text-xs font-medium transition
-                                    disabled:cursor-not-allowed disabled:opacity-40 ${
-                          spielFilter === wert ? 'bg-sky-500 text-white'
-                                               : 'text-slate-400 hover:text-slate-200'}`}>
-                        {wert === 'live' && zahl > 0 && (
-                          <span className="relative flex h-1.5 w-1.5">
-                            <span className="absolute inline-flex h-full w-full
-                                             animate-ping rounded-full bg-rose-500
-                                             opacity-75" />
-                            <span className="relative inline-flex h-1.5 w-1.5
-                                             rounded-full bg-rose-500" />
-                          </span>
-                        )}
-                        {titel}
-                        <span className="tabular-nums opacity-60">{zahl}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-                <button onClick={() => setSpieleAn((a) => !a)}
-                  className="rounded-lg border border-zinc-800 px-3 py-1 text-xs
-                             text-slate-300 transition hover:border-sky-500
-                             hover:text-sky-400">
-                  {spieleAn ? <T>zuklappen</T> : <T>Runden anzeigen</T>}
-                </button>
-              </div>
-            </header>
-
-            {spieleAn && (
-              <div className="p-3">
-                {spieleLaedt && !spiele && (
-                  <div className="space-y-1">
-                    {[...Array(3)].map((unbenutzt, i) =>
-                      <div key={i} className="h-14 animate-pulse rounded bg-zinc-900/60" />)}
-                    {/* Bei einer Qualifikation mit zehntausend Teilnehmern
-                        dauert das ein bis zwei Minuten - ohne diesen Satz
-                        sieht es aus, als haenge es. */}
-                    <p className="pt-2 text-center text-[11px] text-slate-600">
-                      <T>Bei einem großen Cup dauert das ein bis zwei Minuten.</T>
-                    </p>
-                  </div>
-                )}
-
-                {spiele && !spiele.length && (
-                  <p className="p-4 text-center text-sm text-slate-500">
-                    <T>Zu diesem Spieltag liefert Epic keine einzelnen Runden.</T>
-                  </p>
-                )}
-
-                {spiele && spiele.length > 0 && !eineLobby && (
-                  <p className="mb-2 text-[11px] leading-relaxed text-slate-500">
-                    <T>An diesem Spieltag laufen viele Lobbys gleichzeitig. Jede
-                    Kachel ist deshalb eine eigene Lobby und keine gemeinsame
-                    Runde — geordnet nach dem Zeitpunkt, an dem sie zu Ende
-                    war.</T>
-                  </p>
-                )}
-
-                {spiele && spiele.length > 0 && !gefiltert.length && (
-                  <p className="p-4 text-center text-sm text-slate-500">
-                    <T>Gerade läuft keine Lobby.</T>
-                  </p>
-                )}
-
-                {gezeigt.length > 0 && (
-                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                    {gezeigt.map((sp) => (
-                      <button key={sp.id}
-                        onClick={() => setOffenesSpiel(
-                          sp.id === offenesSpiel ? null : sp.id)}
-                        className={`rounded-lg border px-3 py-2.5 text-left
-                                    transition ${sp.id === offenesSpiel
-                          ? 'border-sky-600 bg-sky-950/20'
-                          : sp.live
-                            ? 'border-rose-900/60 bg-zinc-900/40 hover:border-rose-700'
-                            : 'border-zinc-800 bg-zinc-950/60 hover:border-zinc-700'}`}>
-                        {/* Erste Zeile: was es ist, und wann es anfing. */}
-                        <div className="flex items-start justify-between gap-2">
-                          <span className="flex items-center gap-1.5">
-                            {sp.live && (
-                              <span className="relative flex h-2 w-2">
-                                <span className="absolute inline-flex h-full w-full
-                                                 animate-ping rounded-full bg-rose-500
-                                                 opacity-75" />
-                                <span className="relative inline-flex h-2 w-2
-                                                 rounded-full bg-rose-500" />
-                              </span>
-                            )}
-                            <span className={`text-xs font-semibold uppercase
-                                              tracking-wide ${sp.live
-                              ? 'text-rose-400' : 'text-slate-300'}`}>
-                              {sp.live ? <T>Live-Match</T>
-                                : eineLobby ? <><T>Runde</T> {sp.nummer}</>
-                                : <T>Lobby</T>}
-                            </span>
-                          </span>
-                          <span className="text-right">
-                            <span className="block text-xs font-semibold
-                                             tabular-nums text-slate-200">
-                              {(sp.live ? sp.beginn : sp.ende)
-                                ? new Date((sp.live ? sp.beginn : sp.ende)!)
-                                  .toLocaleTimeString(ort,
-                                    { hour: '2-digit', minute: '2-digit' })
-                                : '—'}
-                            </span>
-                            <span className="block text-[10px] text-slate-600">
-                              {(sp.live ? sp.beginn : sp.ende)
-                                ? new Date((sp.live ? sp.beginn : sp.ende)!)
-                                  .toLocaleDateString(ort,
-                                    { day: 'numeric', month: 'short' })
-                                : ''}
-                            </span>
-                          </span>
-                        </div>
-
-                        {/* Zweite Zeile: wie lange sie laeuft. */}
-                        <p className="mt-0.5 text-[11px] text-slate-500">
-                          <T>Dauer</T> {dauerText(dauerVon(sp))}
-                        </p>
-
-                        {/* Dritte Zeile: wer noch drin ist - oder wer gewann. */}
-                        <div className="mt-2 border-t border-zinc-800/80 pt-2">
-                          {sp.live ? (
-                            <span className="flex items-center justify-between gap-2
-                                             text-[11px]">
-                              <span className="text-slate-400">
-                                <T>Teams noch im Spiel</T>
-                              </span>
-                              <span className="font-semibold tabular-nums
-                                               text-amber-400">
-                                {sp.verbleibend ?? 0}
-                                <span className="text-slate-600"> / {sp.lobby ?? '—'}</span>
-                              </span>
-                            </span>
-                          ) : sp.sieger.length > 0 ? (
-                            <span className="block truncate text-[11px] text-amber-400">
-                              {sp.sieger.map((n, k) => namenVon({
-                                name: n,
-                                id: sp.teams.find((x) => x.platz === 1)
-                                  ?.spieler[k]?.id ?? '',
-                              })).join('  +  ')}
-                            </span>
-                          ) : (
-                            <span className="text-[11px] text-slate-600">
-                              {sp.gesehen ?? sp.teams.length} <T>Teams</T>
-                            </span>
-                          )}
-                        </div>
-                      </button>
-                    ))}
-                  </div>
-                )}
-
-                {gefiltert.length > 60 && !alleSpiele && (
-                  <button onClick={() => setAlleSpiele(true)}
-                    className="mt-2 w-full rounded-lg border border-zinc-800 px-3 py-2
-                               text-xs text-slate-400 transition hover:border-sky-500
-                               hover:text-sky-400">
-                    <T>alle anzeigen</T> ({gefiltert.length})
-                  </button>
-                )}
-
-                {/* Die Aufstellung der geoeffneten Runde, in voller Breite -
-                    bei achtundvierzig Teams ist eine Spalte zu schmal. */}
-                {(() => {
-                  const sp = (spiele ?? []).find((x) => x.id === offenesSpiel);
-                  if (!sp) return null;
-                  const mitPunkten = sp.teams.some((t) => typeof t.punkte === 'number');
-                  const mitSchaden = sp.teams.some((t) => t.damage > 0);
-                  return (
+          /*
+           * Die Aufstellung einer Runde.
+           *
+           * Sie stand frueher unter dem ganzen Raster: wer auf die dritte
+           * Kachel klickte, musste an neunundfuenfzig weiteren vorbeiscrollen,
+           * um sie zu sehen. Der Betreiber: "dass ich sozusagen immer nach
+           * unten scrollen muss, um das Leaderboard zu sehen von der Runde."
+           *
+           * Jetzt wird sie im Raster selbst ausgegeben, unmittelbar hinter der
+           * geoeffneten Kachel und ueber die volle Breite. Wie viele Spalten
+           * das Raster gerade hat, muss dafuer niemand wissen: eine Zelle, die
+           * alle Spalten ueberspannt, rutscht von selbst in die naechste Reihe.
+           */
+          const aufstellung = (sp: Spiel) => {
+            const mitPunkten = sp.teams.some((t) => typeof t.punkte === 'number');
+            const mitSchaden = sp.teams.some((t) => t.damage > 0);
+            return (
                     <div className="mt-3 rounded-lg border border-zinc-800
                                     bg-zinc-950/80">
                       <div className="flex flex-wrap items-center justify-between gap-3
@@ -2239,7 +2057,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                             </span>
                           )}
                           <span className="text-xs font-semibold text-slate-200">
-                            {eineLobby ? <><T>Runde</T> {sp.nummer}</> : <T>Lobby</T>}
+                            {eineLobby ? <><T>Runde</T> {sp.nummer}</>
+                              : sp.live ? <T>Match läuft</T> : <T>Match beendet</T>}
                           </span>
                           <span className="text-[11px] text-slate-500">
                             {sp.beginn
@@ -2382,8 +2201,228 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                         )}
                       </p>
                     </div>
-                  );
-                })()}
+            );
+          };
+
+          /** Wie lange eine Runde laeuft - laufend aus dem Beginn gerechnet. */
+          const dauerVon = (sp: Spiel) => {
+            if (sp.live && sp.beginn) {
+              return Math.max(0, (jetzt - Date.parse(sp.beginn)) / 1000);
+            }
+            return sp.dauer ?? sp.laengsteLebenszeit;
+          };
+
+          return (
+          <section className="rounded-xl border border-zinc-800 bg-zinc-950/60">
+            <header className="flex flex-wrap items-center justify-between gap-3
+                               border-b border-zinc-800 px-4 py-3">
+              {/* Bewusst ohne Uebersetzung: "Matches" heisst in beiden
+                  Sprachen so, und die Tabelle uebersetzt es kleingeschrieben
+                  als Kennzahl ("matches played") - das ergaebe hier eine
+                  kleingeschriebene Ueberschrift. */}
+              <h2 className="text-sm font-semibold text-slate-100">Matches</h2>
+              <div className="flex flex-wrap items-center gap-3">
+                {/* Der Filter, den der Betreiber wollte: laufend oder nicht. */}
+                {spiele && spiele.length > 0 && (
+                  <div className="flex gap-1 rounded-lg border border-zinc-800
+                                  bg-zinc-900/60 p-1">
+                    {([
+                      ['alle', t('Alle'), spiele.length],
+                      ['live', t('Live'), laufende],
+                      ['fertig', t('Beendet'), spiele.length - laufende],
+                    ] as const).map(([wert, titel, zahl]) => (
+                      <button key={wert}
+                        onClick={() => { setSpielFilter(wert); setAlleSpiele(false); }}
+                        disabled={zahl === 0}
+                        className={`flex items-center gap-1.5 rounded-md px-2.5 py-1
+                                    text-xs font-medium transition
+                                    disabled:cursor-not-allowed disabled:opacity-40 ${
+                          spielFilter === wert ? 'bg-sky-500 text-white'
+                                               : 'text-slate-400 hover:text-slate-200'}`}>
+                        {wert === 'live' && zahl > 0 && (
+                          <span className="relative flex h-1.5 w-1.5">
+                            <span className="absolute inline-flex h-full w-full
+                                             animate-ping rounded-full bg-rose-500
+                                             opacity-75" />
+                            <span className="relative inline-flex h-1.5 w-1.5
+                                             rounded-full bg-rose-500" />
+                          </span>
+                        )}
+                        {titel}
+                        <span className="tabular-nums opacity-60">{zahl}</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                <button onClick={() => setSpieleAn((a) => !a)}
+                  className="rounded-lg border border-zinc-800 px-3 py-1 text-xs
+                             text-slate-300 transition hover:border-sky-500
+                             hover:text-sky-400">
+                  {spieleAn ? <T>zuklappen</T> : <T>Runden anzeigen</T>}
+                </button>
+              </div>
+            </header>
+
+            {spieleAn && (
+              <div className="p-3">
+                {spieleLaedt && !spiele && (
+                  <div className="space-y-1">
+                    {[...Array(3)].map((unbenutzt, i) =>
+                      <div key={i} className="h-14 animate-pulse rounded bg-zinc-900/60" />)}
+                    {/* Bei einer Qualifikation mit zehntausend Teilnehmern
+                        dauert das ein bis zwei Minuten - ohne diesen Satz
+                        sieht es aus, als haenge es. */}
+                    <p className="pt-2 text-center text-[11px] text-slate-600">
+                      <T>Bei einem großen Cup dauert das ein bis zwei Minuten.</T>
+                    </p>
+                  </div>
+                )}
+
+                {spiele && !spiele.length && (
+                  <p className="p-4 text-center text-sm text-slate-500">
+                    <T>Zu diesem Spieltag liefert Epic keine einzelnen Runden.</T>
+                  </p>
+                )}
+
+                {spiele && spiele.length > 0 && !eineLobby && (
+                  <p className="mb-2 text-[11px] leading-relaxed text-slate-500">
+                    <T>An diesem Spieltag laufen viele Lobbys gleichzeitig. Jede
+                    Kachel ist deshalb eine eigene Lobby und keine gemeinsame
+                    Runde — geordnet nach dem Zeitpunkt, an dem sie zu Ende
+                    war.</T>
+                  </p>
+                )}
+
+                {spiele && spiele.length > 0 && !gefiltert.length && (
+                  <p className="p-4 text-center text-sm text-slate-500">
+                    <T>Gerade läuft keine Lobby.</T>
+                  </p>
+                )}
+
+                {gezeigt.length > 0 && (
+                  <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                    {gezeigt.map((sp) => (
+                      <Fragment key={sp.id}>
+                      <button
+                        onClick={() => setOffenesSpiel(
+                          sp.id === offenesSpiel ? null : sp.id)}
+                        className={`rounded-lg border px-3 py-2.5 text-left
+                                    transition ${sp.id === offenesSpiel
+                          ? 'border-sky-600 bg-sky-950/20'
+                          : sp.live
+                            ? 'border-rose-900/60 bg-zinc-900/40 hover:border-rose-700'
+                            : 'border-zinc-800 bg-zinc-950/60 hover:border-zinc-700'}`}>
+                        {/* Erste Zeile: was es ist, und wann es anfing. */}
+                        <div className="flex items-start justify-between gap-2">
+                          <span className="flex items-center gap-1.5">
+                            {sp.live && (
+                              <span className="relative flex h-2 w-2">
+                                <span className="absolute inline-flex h-full w-full
+                                                 animate-ping rounded-full bg-rose-500
+                                                 opacity-75" />
+                                <span className="relative inline-flex h-2 w-2
+                                                 rounded-full bg-rose-500" />
+                              </span>
+                            )}
+                            {/*
+                              * "Match ended" statt "Lobby".
+                              *
+                              * Der Betreiber: "Es soll nie Lobby heissen. Es
+                              * soll eigentlich wie bei Fortnite Tracker sein -
+                              * match ended oder match live." Bei einem Finale,
+                              * in dem alle in derselben Lobby spielen, bleibt
+                              * die Rundennummer davor: dort meint "Runde 3"
+                              * fuer jeden dasselbe Spiel.
+                              */}
+                            <span className={`text-xs font-semibold uppercase
+                                              tracking-wide ${sp.live
+                              ? 'text-rose-400' : 'text-slate-300'}`}>
+                              {sp.live ? <T>Match läuft</T>
+                                : eineLobby ? <><T>Runde</T> {sp.nummer}</>
+                                : <T>Match beendet</T>}
+                            </span>
+                          </span>
+                          <span className="text-right">
+                            <span className="block text-xs font-semibold
+                                             tabular-nums text-slate-200">
+                              {(sp.live ? sp.beginn : sp.ende)
+                                ? new Date((sp.live ? sp.beginn : sp.ende)!)
+                                  .toLocaleTimeString(ort,
+                                    { hour: '2-digit', minute: '2-digit' })
+                                : '—'}
+                            </span>
+                            <span className="block text-[10px] text-slate-600">
+                              {(sp.live ? sp.beginn : sp.ende)
+                                ? new Date((sp.live ? sp.beginn : sp.ende)!)
+                                  .toLocaleDateString(ort,
+                                    { day: 'numeric', month: 'short' })
+                                : ''}
+                            </span>
+                          </span>
+                        </div>
+
+                        {/* Zweite Zeile: wie lange sie laeuft. */}
+                        <p className="mt-0.5 text-[11px] text-slate-500">
+                          <T>Dauer</T> {dauerText(dauerVon(sp))}
+                        </p>
+
+                        {/* Dritte Zeile: wer noch drin ist - oder wer gewann. */}
+                        <div className="mt-2 border-t border-zinc-800/80 pt-2">
+                          {sp.live ? (
+                            <span className="flex items-center justify-between gap-2
+                                             text-[11px]">
+                              <span className="text-slate-400">
+                                <T>Teams noch im Spiel</T>
+                              </span>
+                              <span className="font-semibold tabular-nums
+                                               text-amber-400">
+                                {sp.verbleibend ?? 0}
+                                <span className="text-slate-600"> / {sp.lobby ?? '—'}</span>
+                              </span>
+                            </span>
+                          ) : sp.sieger.length > 0 ? (
+                            /* Wie beim Vorbild: ein Pokal, das Wort "Winners"
+                               und dahinter das Duo. */
+                            <span className="flex items-baseline gap-1.5
+                                             text-[11px] text-amber-400">
+                              <span className="not-italic">🏆</span>
+                              <span className="shrink-0 text-slate-500">
+                                <T>Sieger</T>:
+                              </span>
+                              <span className="min-w-0 truncate">
+                                {sp.sieger.map((n, k) => namenVon({
+                                  name: n,
+                                  id: sp.teams.find((x) => x.platz === 1)
+                                    ?.spieler[k]?.id ?? '',
+                                })).join(', ')}
+                              </span>
+                            </span>
+                          ) : (
+                            <span className="text-[11px] text-slate-600">
+                              {sp.gesehen ?? sp.teams.length} <T>Teams</T>
+                            </span>
+                          )}
+                        </div>
+                      </button>
+                      {sp.id === offenesSpiel && (
+                        <div className="sm:col-span-2 lg:col-span-3">
+                          {aufstellung(sp)}
+                        </div>
+                      )}
+                      </Fragment>
+                    ))}
+                  </div>
+                )}
+
+                {gefiltert.length > 60 && !alleSpiele && (
+                  <button onClick={() => setAlleSpiele(true)}
+                    className="mt-2 w-full rounded-lg border border-zinc-800 px-3 py-2
+                               text-xs text-slate-400 transition hover:border-sky-500
+                               hover:text-sky-400">
+                    <T>alle anzeigen</T> ({gefiltert.length})
+                  </button>
+                )}
+
               </div>
             )}
           </section>
@@ -2415,7 +2454,25 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                 {spielerWerte?.vorhanden && (
                   <span className="text-xs text-slate-500">
                     {spielerWerte.spieler.length} <T>Spieler</T>
-                    {' · '}{spielerWerte.runden} <T>Runden</T>
+                    {' · '}
+                    {/*
+                      * Wie viele Runden ausgewertet sind - und wie viele es
+                      * gibt.
+                      *
+                      * Der Betreiber sah "46 Rounds" und einen Spitzenreiter
+                      * mit fuenf Eliminierungen und hielt die Zahlen fuer
+                      * falsch. Sie waren nicht falsch, sie waren
+                      * unvollstaendig - und das stand nirgends.
+                      */}
+                    {spielerWerte.rundenGesamt
+                      && spielerWerte.rundenGesamt > spielerWerte.runden ? (
+                      <span className="text-amber-500/90">
+                        {spielerWerte.runden} <T>von</T>{' '}
+                        {spielerWerte.rundenGesamt} <T>Runden ausgewertet</T>
+                      </span>
+                    ) : (
+                      <>{spielerWerte.runden} <T>Runden</T></>
+                    )}
                   </span>
                 )}
               </div>

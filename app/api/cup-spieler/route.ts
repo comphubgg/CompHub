@@ -127,6 +127,37 @@ export async function GET(request: Request) {
   const [anzeige, land] = await Promise.all([namen(), laender()]);
 
   /*
+   * Wer in keiner Liste steht, wird bei Epic erfragt.
+   *
+   * In der Spielertabelle standen reihenweise Zeichenfolgen wie "7f2842f4"
+   * und "with 8c4999ae" - die ersten acht Zeichen einer Konto-Id. Das
+   * Replay kennt nur Ids; Namen kommen aus dem Verzeichnis, und wer dort
+   * fehlt, blieb eine Zahlenreihe. Epics eigener Kontodienst nennt den
+   * aktuellen Anzeigenamen, und genau dafuer ist er da.
+   *
+   * Gefragt wird in einem Zug fuer alle Offenen und nur fuer die, die
+   * wirklich in der Tabelle landen - bei einer Qualifikation mit
+   * fuenfzehnhundert Spielern waeren fuenfzehn Abfragen zu viel.
+   */
+  const offen = [...new Set([
+    ...(agg.spieler ?? []).map((x) => x.epicId),
+    ...(agg.teams ?? []).flatMap((t) => t.spieler ?? []),
+  ])].filter((id) => id && !anzeige.has(id));
+
+  if (offen.length) {
+    try {
+      const { getToken, loeseNamenAuf } = await import('@/lib/epicCups');
+      const { token } = await getToken();
+      const aufgeloest = await loeseNamenAuf(offen, token);
+      for (const [id, name] of Object.entries(aufgeloest)) {
+        // Was Epic nicht kennt, kommt als gekuerzte Id zurueck - die haben
+        // wir schon, und sie soll nicht als Name durchgehen.
+        if (name && name !== id.slice(0, 8)) anzeige.set(id, name);
+      }
+    } catch { /* ohne Epic-Anmeldung bleibt die gekuerzte Id stehen */ }
+  }
+
+  /*
    * Zu jedem Spieler sein Team.
    *
    * Der Tracker schreibt unter jeden Namen das Team - das ist beim Lesen
@@ -161,9 +192,30 @@ export async function GET(request: Request) {
     };
   }).sort((a, b) => b.kills - a.kills || b.knocks - a.knocks);
 
+  /*
+   * Wie viele Runden es ueberhaupt gab - nicht nur, wie viele ausgewertet
+   * sind.
+   *
+   * Der Betreiber sah "543 Players · 46 Rounds" und einen Spitzenreiter mit
+   * fuenf Eliminierungen und hielt die Zahlen fuer falsch. Sie waren nicht
+   * falsch, sie waren unvollstaendig: zu dem Zeitpunkt lagen 46 von deutlich
+   * mehr Runden ausgewertet vor, und das stand nirgends. Eine Teilmenge, die
+   * sich als Ganzes ausgibt, ist schlimmer als eine fehlende Zahl - deshalb
+   * steht jetzt beides da.
+   */
+  let ausRunden: number | null = null;
+  try {
+    const z = JSON.parse(await fs.readFile(
+      path.join(DATEN_ORT, 'replays', saison, fenster, '_zustand.json'), 'utf8')) as
+      { matches?: Record<string, { stand?: string }> };
+    ausRunden = Object.keys(z.matches ?? {}).length || null;
+  } catch { /* ohne Zustand bleibt es bei der ausgewerteten Zahl */ }
+
   return NextResponse.json({
     vorhanden: true,
     runden: agg.matches ?? 0,
+    /** Wie viele Runden dieser Spieltag insgesamt hat. */
+    rundenGesamt: ausRunden,
     gerechnet: agg.gerechnet ?? null,
     spieler,
     hinweis: 'Counted from the replays of this match day, per player.',
