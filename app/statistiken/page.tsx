@@ -364,6 +364,19 @@ function datumText(ms?: number, sprache: 'de' | 'en' = 'de') {
 }
 
 /** Das Kuerzel der Region als kleine Marke - wie im Vorbild. */
+/**
+ * Gold fuer den Sieger, Blau fuers Podest.
+ *
+ * Stand zweimal im Quelltext, einmal je Tabelle. Jetzt einmal, damit die
+ * Endtabelle eines Spieltags dieselben Farben zeigt wie der Verlauf eines
+ * Spielers - ein Erster soll ueberall gleich aussehen.
+ */
+function platzFarbe(p: number | null) {
+  if (p === null) return 'text-slate-700';
+  if (p === 1) return 'text-amber-400';
+  return p <= 3 ? 'text-sky-400' : 'text-slate-300';
+}
+
 function RegionMarke({ region }: { region: string }) {
   return (
     <span className={`shrink-0 rounded border px-1.5 py-0.5 text-[9px]
@@ -1047,9 +1060,6 @@ function VerlaufTabelle({ zeilen, fuss }: {
   const quote = (w: VerlaufZeile['werte']) =>
     w.damageTakenFromPlayers > 0 ? w.damageDealt / w.damageTakenFromPlayers : 0;
 
-  const platzFarbe = (p: number | null) => (p === null ? 'text-slate-700'
-    : p === 1 ? 'text-amber-400' : p <= 3 ? 'text-sky-400' : 'text-slate-300');
-
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-xs">
@@ -1534,6 +1544,22 @@ export default function StatistikSeite() {
   const [cupNr, setCupNr] = useState(0);
   const [cupLaedt, setCupLaedt] = useState(false);
   /** Welche Kennzahl in voller Laenge offen ist. */
+  /*
+   * Die Endtabelle des Spieltags.
+   *
+   * Der Betreiber: "Unter den Statistiken soll es mir doch einmal genauso
+   * breit wie die ganze Seite ein Leaderboard des Cups anzeigen." Genau das
+   * - Platz, Team, Punkte, Matches -, gelesen aus der gespiegelten
+   * Bestenliste, ohne Epic dafuer zu fragen.
+   */
+  const [spieltagTabelle, setSpieltagTabelle] = useState<{
+    platz: number; punkte: number; matches: number | null; elims: number | null;
+    spieler: Array<{ epicId: string; name: string; land: string }>;
+  }[] | null>(null);
+  const [tabelleLaedt, setTabelleLaedt] = useState(false);
+  const [tabelleSuche, setTabelleSuche] = useState('');
+  const [tabelleTiefe, setTabelleTiefe] = useState(50);
+
   const [volleListe, setVolleListe] = useState<{
     /** Der Kennzahlname - wird uebersetzt. */
     titel: string;
@@ -1744,6 +1770,20 @@ export default function StatistikSeite() {
    * auch die Zahlen stammen. Wer in dieser Saison nicht angetreten ist,
    * taucht nicht auf; dafuer meint jede Zahl dasselbe.
    */
+  useEffect(() => {
+    if (!cup?.windowId) { setSpieltagTabelle(null); return; }
+    let weg = false;
+    setSpieltagTabelle(null); setTabelleSuche(''); setTabelleTiefe(50);
+    setTabelleLaedt(true);
+    fetch(`/api/spieltag-tabelle?window=${encodeURIComponent(cup.windowId)}`
+      + `&saison=${encodeURIComponent(cup.season ?? '')}`)
+      .then((r) => r.json())
+      .then((j) => { if (!weg) setSpieltagTabelle(j?.teams ?? []); })
+      .catch(() => { if (!weg) setSpieltagTabelle([]); })
+      .finally(() => { if (!weg) setTabelleLaedt(false); });
+    return () => { weg = true; };
+  }, [cup]);
+
   const suchen = useCallback(async (text: string, wohin: (t: Spieler[]) => void) => {
     const q = text.trim();
     if (q.length < 2) { wohin([]); return; }
@@ -3212,6 +3252,119 @@ export default function StatistikSeite() {
                       </div>
                     ))}
                   </div>
+
+                  {/*
+                    * Die Endtabelle, ueber die ganze Breite.
+                    *
+                    * Die Kacheln darueber beantworten "wer hatte die meisten
+                    * Elims". Diese Tabelle beantwortet die eigentliche Frage
+                    * eines Turniers: wer hat gewonnen. Bei siebenhundert
+                    * Teams gehoert ein Suchfeld dazu, sonst scrollt man.
+                    */}
+                  {(tabelleLaedt || (spieltagTabelle?.length ?? 0) > 0) && (
+                    <section className="mt-6">
+                      <div className="mb-2 flex flex-wrap items-center gap-3">
+                        <p className="text-[10px] font-semibold uppercase
+                                      tracking-[0.18em] text-slate-500">
+                          <T>Endstand des Spieltags</T>
+                        </p>
+                        {spieltagTabelle && (
+                          <span className="text-[11px] text-slate-600">
+                            {zahl(spieltagTabelle.length, 0, sprache)}{' '}
+                            <T>Teams</T>
+                          </span>
+                        )}
+                        <input value={tabelleSuche}
+                          onChange={(e) => setTabelleSuche(e.target.value)}
+                          placeholder={t('Spieler suchen …')}
+                          className="ml-auto w-48 rounded-lg border border-zinc-800
+                                     bg-zinc-900/80 px-3 py-1 text-xs text-slate-100
+                                     outline-none focus:border-sky-500" />
+                      </div>
+
+                      {tabelleLaedt && !spieltagTabelle ? (
+                        <div className="h-40 animate-pulse rounded-xl bg-zinc-900/60" />
+                      ) : (
+                        <div className="overflow-hidden rounded-xl border border-zinc-800
+                                        bg-zinc-950/60">
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                              <thead>
+                                <tr className="border-b border-zinc-800 text-[10px]
+                                               uppercase tracking-wider text-slate-500">
+                                  <th className="px-4 py-2.5 text-right font-medium">#</th>
+                                  <th className="px-3 py-2.5 text-left font-medium">Team</th>
+                                  <th className="px-3 py-2.5 text-right font-medium">
+                                    <T>Punkte</T>
+                                  </th>
+                                  <th className="px-3 py-2.5 text-right font-medium">
+                                    <T>Elims</T>
+                                  </th>
+                                  <th className="px-4 py-2.5 text-right font-medium">
+                                    <T>Matches</T>
+                                  </th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {(() => {
+                                  const q = tabelleSuche.trim().toLowerCase();
+                                  const gefunden = (spieltagTabelle ?? []).filter((r) =>
+                                    !q || r.spieler.some((sp) =>
+                                      sp.name.toLowerCase().includes(q)));
+                                  // Beim Suchen zaehlt das ganze Feld, nicht
+                                  // die ersten fuenfzig.
+                                  const zeigen = q ? gefunden
+                                    : gefunden.slice(0, tabelleTiefe);
+                                  return zeigen.map((r) => (
+                                    <tr key={`${r.platz}-${r.spieler[0]?.epicId ?? ''}`}
+                                      className="border-b border-zinc-900/70 last:border-0">
+                                      <td className={`px-4 py-2 text-right font-bold
+                                                      tabular-nums ${platzFarbe(r.platz)}`}>
+                                        {r.platz}
+                                      </td>
+                                      <td className="px-3 py-2 text-slate-200">
+                                        <span className="flex items-center gap-2">
+                                          <TeamFlagge groesse={18}
+                                            laender={r.spieler.map((sp) =>
+                                              sp.land || undefined)} />
+                                          <span className="truncate">
+                                            {r.spieler.map((sp) => sp.name).join('  +  ')}
+                                          </span>
+                                        </span>
+                                      </td>
+                                      <td className="px-3 py-2 text-right font-semibold
+                                                     tabular-nums text-slate-100">
+                                        {zahl(r.punkte, 0, sprache)}
+                                      </td>
+                                      <td className="px-3 py-2 text-right tabular-nums
+                                                     text-slate-400">
+                                        {r.elims !== null ? zahl(r.elims, 0, sprache) : '—'}
+                                      </td>
+                                      <td className="px-4 py-2 text-right tabular-nums
+                                                     text-slate-500">
+                                        {r.matches !== null ? r.matches : '—'}
+                                      </td>
+                                    </tr>
+                                  ));
+                                })()}
+                              </tbody>
+                            </table>
+                          </div>
+
+                          {!tabelleSuche.trim()
+                            && (spieltagTabelle?.length ?? 0) > tabelleTiefe && (
+                            <button onClick={() => setTabelleTiefe(1e9)}
+                              className="w-full border-t border-zinc-900 px-4 py-2
+                                         text-xs text-slate-400 transition
+                                         hover:text-sky-400">
+                              <T>alle anzeigen</T>{' '}
+                              ({zahl(spieltagTabelle?.length ?? 0, 0, sprache)})
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </section>
+                  )}
                 </>
               )}
             </>

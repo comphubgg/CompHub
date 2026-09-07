@@ -56,18 +56,23 @@ async function json(url) {
 async function main() {
   const katalog = await json(`${BASIS}/api/cup-catalog`);
 
-  // Was die Quelle schon hat, braucht Epic nicht beizusteuern: dort stehen
-  // die Einzelwerte, hier nur Platz und Mitspieler.
-  const verzeichnis = JSON.parse(
-    await fs.readFile(path.join(ARCHIV, 'index.json'), 'utf8'));
-  const imArchiv = new Set(verzeichnis.map((e) => e.windowId));
-
+  /*
+   * Frueher wurde uebersprungen, was die Szene-Quelle schon hat.
+   *
+   * Das ging von einer falschen Annahme aus: die Quelle fuehrt je Spieltag
+   * die Einzelwerte der besten hundert, aber keine Endtabelle. Wer den
+   * Endstand eines Finales sehen wollte - siebenhundert Teams mit Platz und
+   * Punkten -, fand deshalb ausgerechnet bei den wichtigsten Spieltagen
+   * nichts, weil sie in der Quelle standen.
+   *
+   * Jetzt wird jeder abgeschlossene Spieltag gespiegelt. Die beiden Ablagen
+   * halten Verschiedenes, und beides wird gebraucht.
+   */
   const offen = [];
   for (const cup of katalog.cups ?? []) {
     for (const fenster of Object.values(cup.regionen ?? {})) {
       for (const w of fenster) {
         if (w.status !== 'vorbei') continue;
-        if (imArchiv.has(w.windowId)) continue;
         const season = saisonAus(w.windowId, cup.id);
         if (!season) continue;
         offen.push({ ...w, season, titel: cup.titel, cupId: cup.id });
