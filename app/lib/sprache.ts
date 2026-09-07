@@ -270,6 +270,10 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Blättern bis Platz': 'Page up to rank',
   'Sekunden je Seite': 'Seconds per page',
   'Seiten': 'Pages',
+  // Die Anordnung der Qual-Linie.
+  'Anordnung': 'Layout',
+  'Zwei Zeilen': 'Two rows',
+  'Eine dünne Zeile': 'One thin row',
   // Der Melde-Knopf unten rechts.
   'Melden': 'Report',
   'Fehler melden': 'Report a problem',

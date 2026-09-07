@@ -26,6 +26,15 @@ const STANDARD = {
   akzent: '#38bdf8',
   schrift: 18,
   pausiert: 0, sichtbar: 15,
+  /**
+   * Wie die Teile stehen.
+   *
+   * "zwei" ist das bisherige Bild: die Schaetzung gross oben, darunter klein
+   * der Live-Wert. "eine" legt alles nebeneinander in eine flache Leiste, mit
+   * duennen senkrechten Linien dazwischen - so, wie der Betreiber es
+   * beschrieben hat.
+   */
+  anordnung: 'zwei' as 'zwei' | 'eine',
 };
 
 type Config = typeof STANDARD;
@@ -138,6 +147,12 @@ export default function QualSeite() {
               <T>Aussehen</T>
             </h2>
             <div className="grid gap-4 sm:grid-cols-2">
+              <Wahlreihe titel="Anordnung" wert={cfg.anordnung}
+                optionen={[
+                  { wert: 'zwei', titel: 'Zwei Zeilen' },
+                  { wert: 'eine', titel: 'Eine dünne Zeile' },
+                ]}
+                setzen={(w) => setz('anordnung', w)} />
               <Wahlreihe titel="Grundfarbe" wert={cfg.grund} optionen={GRUENDE}
                 setzen={(w) => setz('grund', w)} />
               <Wahlreihe titel="Akzent" wert={cfg.akzent} optionen={AKZENTE}

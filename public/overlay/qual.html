@@ -79,12 +79,70 @@ html, body {
   color: var(--leise);
 }
 #unten b { color: var(--akzent); font-weight: 800; }
-#unten .strich { color: var(--rand); }
+
+/*
+ * Der Trenner ist eine gezeichnete Linie, kein Schriftzeichen.
+ *
+ * Vorher stand dort ein senkrechter Strich aus der Schrift. Der ist so hoch,
+ * wie die Schrift ihn zeichnet, sitzt auf der Grundlinie und wird bei jeder
+ * Schriftgroesse anders lang - der Betreiber wollte aber "einen langen
+ * geraden Strich von oben nach unten". Ein Element mit einer Kante von einem
+ * Pixel ist genau das: immer gleich duenn, und so hoch, wie man es sagt.
+ */
+.strich {
+  display: inline-block;
+  width: 1px;
+  height: 1.15em;
+  background: currentColor;
+  opacity: 0.28;
+  /* Die Grundlinie interessiert hier nicht - der Strich soll mittig zur
+     Zeile stehen, nicht auf ihr sitzen. */
+  align-self: center;
+}
 
 #hinweis {
   font-size: calc(var(--schrift) * 0.7);
   color: var(--leise);
   white-space: nowrap;
+}
+
+/*
+ * Anordnung "eine Zeile".
+ *
+ * Der Betreiber wollte es als zweite Moeglichkeit so: "ein richtig duenner
+ * Strich, wo steht QUAL 365, dann ein langer gerader Strich von oben nach
+ * unten, dann LIVE QUAL, dann noch mal ein Strich, dann TOP - dass es so
+ * ganz duenn ist, aber alles nebeneinander."
+ *
+ * Also nicht zwei Zeilen uebereinander, sondern eine flache Leiste. Die
+ * Schaetzung bleibt die groesste Zahl, faellt aber kleiner aus als im
+ * zweizeiligen Bild - sonst waere die Leiste so hoch wie vorher und haette
+ * nichts gewonnen. Zwischen den Teilen steht dieselbe gezeichnete Linie wie
+ * innerhalb der unteren Zeile, damit es ein Muster ist und kein Zufall.
+ */
+#karte.eine {
+  display: flex;
+  align-items: center;
+  gap: 0.75em;
+  padding: 0.4em 0.85em;
+}
+#karte.eine #oben {
+  font-size: calc(var(--schrift) * 1.15);
+  align-items: center;
+}
+#karte.eine #unten {
+  margin-top: 0;
+  align-items: center;
+  /* Der Trenner zwischen den beiden Bloecken - dieselbe Linie, nur als
+     Kante des Kastens statt als eigenes Element. */
+  border-left: 1px solid var(--rand);
+  padding-left: 0.75em;
+  align-self: stretch;
+}
+/* Ist die Schaetzung nicht da, braucht es auch keinen Trenner davor. */
+#karte.eine #oben[hidden] + #unten {
+  border-left: 0;
+  padding-left: 0;
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -102,7 +160,7 @@ html, body {
   </div>
   <div id="unten" hidden>
     <span>Live qual · <b id="live">—</b> pts</span>
-    <span class="strich">|</span>
+    <span class="strich" aria-hidden="true"></span>
     <span id="top">TOP —</span>
   </div>
   <div id="hinweis" hidden></div>
@@ -123,6 +181,8 @@ html, body {
     akzent: '#38bdf8',
     schrift: 16,
     pausiert: 0, sichtbar: 15,
+    /** "zwei" = zwei Zeilen uebereinander, "eine" = eine flache Leiste. */
+    anordnung: 'zwei',
   };
 
   const $ = (id) => document.getElementById(id);
@@ -188,6 +248,7 @@ html, body {
       s.setProperty('--deckkraft', String(cfg.deckkraft));
       s.setProperty('--akzent', String(cfg.akzent));
       s.setProperty('--schrift', cfg.schrift + 'px');
+      $('karte').classList.toggle('eine', cfg.anordnung === 'eine');
 
       if (uhr) clearInterval(uhr);
       uhr = setInterval(holen, Math.max(5, cfg.takt) * 1000);
