@@ -90,7 +90,7 @@ export function useOverlays(typ: string) {
         body: JSON.stringify({ ...eintrag, typ }),
       });
       const j = await r.json();
-      if (!r.ok) { setFehler(j?.error ?? 'nicht gespeichert'); return null; }
+      if (!r.ok) { setFehler(j?.error ?? 'Could not save'); return null; }
       await laden();
       return j.id as string;
     } catch (e) {

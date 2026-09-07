@@ -4,6 +4,8 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { randomBytes } from 'crypto';
 import { kontoAus, nachId } from '@/lib/konten';
+import { istBetreiber, vipAus } from '@/lib/vipCookie';
+import { zugangNach } from '@/lib/vipZugaenge';
 import { DATEN_ORT } from '@/lib/datenOrt';
 
 // Die Einstellungen eines Overlays - unter einer Adresse, die sich nie aendert.
@@ -65,11 +67,37 @@ async function schreibe(alles: Record<string, OverlayEintrag>): Promise<void> {
 
 /** Wer fragt gerade - oder null. */
 async function wer(): Promise<string | null> {
-  const roh = (await cookies()).get('streamer_dashboard_konto')?.value;
-  const id = kontoAus(roh);
-  if (!id) return null;
-  const konto = await nachId(id);
-  return konto ? id : null;
+  const laden = await cookies();
+
+  // 1. Das gewoehnliche CompHub-Konto.
+  const id = kontoAus(laden.get('streamer_dashboard_konto')?.value);
+  if (id) {
+    const konto = await nachId(id);
+    if (konto) return id;
+  }
+
+  /*
+   * 2. Der alte VIP-Weg.
+   *
+   * Ohne ihn stand der Betreiber vor seinem eigenen Werkzeug: die
+   * Overlay-Seite laesst ihn herein, denn die Sperre dort fragt useZugang,
+   * und das kennt beide Wege. Diese Schnittstelle kannte nur den einen -
+   * also erschien die Seite vollstaendig, und beim Klick auf "Create" kam
+   * "nicht angemeldet". Ein Werkzeug, das einen hereinlaesst und dann sagt,
+   * man sei nicht angemeldet, ist schlicht kaputt.
+   *
+   * Die Kennung muss dabei bestaendig sein, sonst gehoerten die gespeicherten
+   * Overlays beim naechsten Anmelden niemandem mehr. Der Betreiber bekommt
+   * deshalb "betreiber", ein VIP seinen Namen mit Vorsatz.
+   */
+  const vipWert = laden.get('streamer_dashboard_auth')?.value;
+  if (vipWert) {
+    if (istBetreiber(vipWert)) return 'betreiber';
+    const name = vipAus(vipWert);
+    if (name && await zugangNach(name)) return `vip:${name}`;
+  }
+
+  return null;
 }
 
 export async function GET(request: Request) {
@@ -80,7 +108,7 @@ export async function GET(request: Request) {
   if (id) {
     const e = alles[id];
     if (!e) {
-      return NextResponse.json({ error: 'unbekannt' }, { status: 404 });
+      return NextResponse.json({ error: 'Unknown overlay' }, { status: 404 });
     }
     /*
      * Oeffentlich, aber ohne den Besitzer.
@@ -108,13 +136,13 @@ export async function GET(request: Request) {
     });
   }
 
-  return NextResponse.json({ error: 'id oder meine=1 sind noetig' }, { status: 400 });
+  return NextResponse.json({ error: 'id or meine=1 is required' }, { status: 400 });
 }
 
 export async function POST(request: Request) {
   const ich = await wer();
   if (!ich) {
-    return NextResponse.json({ error: 'nicht angemeldet' }, { status: 401 });
+    return NextResponse.json({ error: 'Not signed in' }, { status: 401 });
   }
 
   const koerper = await request.json().catch(() => ({}));
@@ -123,9 +151,9 @@ export async function POST(request: Request) {
   // ------------------------------------------------------------ Entfernen
   if (koerper.loeschen && typeof koerper.id === 'string') {
     const e = alles[koerper.id];
-    if (!e) return NextResponse.json({ error: 'unbekannt' }, { status: 404 });
+    if (!e) return NextResponse.json({ error: 'Unknown overlay' }, { status: 404 });
     if (e.besitzer !== ich) {
-      return NextResponse.json({ error: 'nicht deins' }, { status: 403 });
+      return NextResponse.json({ error: 'Not yours' }, { status: 403 });
     }
     delete alles[koerper.id];
     await schreibe(alles);
@@ -133,7 +161,7 @@ export async function POST(request: Request) {
   }
 
   const typ = String(koerper.typ ?? '').trim();
-  if (!typ) return NextResponse.json({ error: 'typ ist noetig' }, { status: 400 });
+  if (!typ) return NextResponse.json({ error: 'A type is required' }, { status: 400 });
   const name = String(koerper.name ?? '').trim().slice(0, 60) || typ;
   const config = (koerper.config && typeof koerper.config === 'object')
     ? koerper.config as Record<string, unknown> : {};
@@ -142,7 +170,7 @@ export async function POST(request: Request) {
   if (typeof koerper.id === 'string' && alles[koerper.id]) {
     const e = alles[koerper.id];
     if (e.besitzer !== ich) {
-      return NextResponse.json({ error: 'nicht deins' }, { status: 403 });
+      return NextResponse.json({ error: 'Not yours' }, { status: 403 });
     }
     e.typ = typ;
     e.name = name;
@@ -157,7 +185,7 @@ export async function POST(request: Request) {
   const meine = Object.values(alles).filter((e) => e.besitzer === ich);
   if (meine.length >= HOECHSTENS) {
     return NextResponse.json({
-      error: `Mehr als ${HOECHSTENS} Overlays gehen nicht.`,
+      error: `No more than ${HOECHSTENS} overlays.`,
     }, { status: 400 });
   }
 
