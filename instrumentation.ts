@@ -30,7 +30,7 @@ export async function register() {
   // Dateien noch die Moeglichkeit, ein Skript zu starten.
   if (process.env.NEXT_RUNTIME !== 'nodejs') return;
 
-  const { LISTE, erneuereImHintergrund, istAlt, lies, TERMIN_STUNDE } =
+  const { LISTE, erneuereImHintergrund, istAlt, lies, TERMIN_STUNDEN } =
     await import('./lib/powerRankings');
 
   /** Beim Start nachsehen, ob der letzte Termin verpasst wurde. */
@@ -188,19 +188,49 @@ export async function register() {
    */
   const naechsterTermin = () => {
     const ziel = new Date();
-    ziel.setHours(TERMIN_STUNDE, 0, 0, 0);
+    ziel.setHours(TERMIN_STUNDEN[0], 0, 0, 0);
     if (ziel.getTime() <= Date.now()) ziel.setDate(ziel.getDate() + 1);
     const warten = ziel.getTime() - Date.now();
 
     setTimeout(() => {
-      erneuereImHintergrund(LISTE);
       void szeneStatsHolen();
       void replaysHolen();
       naechsterTermin();
     }, warten).unref?.();
 
+    console.log('Naechster Nachtlauf: ' + ziel.toLocaleString('de-DE'));
+  };
+
+  /*
+   * Die Rangliste dreimal taeglich.
+   *
+   * Nicht wegen der Wertung - die schreibt Epic in Abstaenden fort, dafuer
+   * genuegte einmal. Es geht um die Namen: Profis benennen sich im Spiel um,
+   * wann sie wollen, und in der Ranglistendatei steht zu keinem Eintrag eine
+   * Konto-Id, ueber die sich ein Name nachtraeglich richtigstellen liesse.
+   * Einen billigeren Weg als den ganzen Abruf gibt es deshalb nicht.
+   *
+   * Der Betreiber wollte das ausdruecklich im Hintergrund, ohne dass die
+   * Seite anders aussieht - die Zeile "Stand von vor drei Tagen" bleibt, sie
+   * wird nur oefter jung.
+   */
+  const naechsteRangliste = () => {
+    const jetzt = Date.now();
+    const kommende = TERMIN_STUNDEN.map((h) => {
+      const d = new Date();
+      d.setHours(h, 0, 0, 0);
+      if (d.getTime() <= jetzt) d.setDate(d.getDate() + 1);
+      return d.getTime();
+    });
+    const ziel = Math.min(...kommende);
+
+    setTimeout(() => {
+      erneuereImHintergrund(LISTE);
+      naechsteRangliste();
+    }, ziel - jetzt).unref?.();
+
     console.log('Power Rankings: naechste Erneuerung '
-      + ziel.toLocaleString('de-DE'));
+      + new Date(ziel).toLocaleString('de-DE'));
   };
 
   /**
@@ -230,6 +260,7 @@ export async function register() {
 
   await nachsehen();
   naechsterTermin();
+  naechsteRangliste();
   naechsterReplayTermin();
 
   /*

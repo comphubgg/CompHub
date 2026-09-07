@@ -64,23 +64,44 @@ export async function schreib(stand: PrStand) {
 }
 
 /**
- * Ist der Stand aelter als der heutige Termin?
+ * Wann die Rangliste geholt wird.
  *
- * Epic schreibt die Wertung in Abstaenden fort, nicht laufend. Einmal
- * taeglich genuegt deshalb - festgelegt auf ein Uhr nachts, wo niemand
- * zusieht. Geprueft wird nicht "aelter als 24 Stunden", sondern "vor dem
- * letzten Ein-Uhr-Termin geholt": sonst verschoebe sich der Zeitpunkt mit
- * jedem Lauf um ein paar Minuten nach hinten.
+ * Epic schreibt die Wertung in Abstaenden fort, nicht laufend - fuer die
+ * Zahlen genuegte einmal taeglich. Die Namen sind der Grund fuer die drei
+ * Termine: Profis benennen sich im Spiel um, wann sie wollen, und in dieser
+ * Datei steht zu keinem Eintrag eine Konto-Id, ueber die sich ein Name
+ * nachtraeglich richtigstellen liesse. Es gibt also keinen billigeren Weg
+ * als den ganzen Abruf.
+ *
+ * Der Betreiber dazu: "Mach es so im Hintergrund, ohne dass man es checkt,
+ * jeden Tag zwei-, dreimal die Usernamen updaten, falls Leute ihren
+ * Username ingame aendern."
+ *
+ * Geprueft wird nicht "aelter als acht Stunden", sondern "vor dem letzten
+ * Termin geholt": sonst verschoebe sich der Zeitpunkt mit jedem Lauf um ein
+ * paar Minuten nach hinten.
  */
-export const TERMIN_STUNDE = 1;
+export const TERMIN_STUNDEN = [1, 9, 17];
+
+/** Der zuletzt faellige Termin - notfalls der letzte von gestern. */
+export function letzterTermin(jetzt = new Date()): number {
+  const kandidaten = TERMIN_STUNDEN.map((h) => {
+    const d = new Date(jetzt);
+    d.setHours(h, 0, 0, 0);
+    return d.getTime();
+  }).filter((z) => z <= jetzt.getTime());
+
+  if (kandidaten.length) return Math.max(...kandidaten);
+
+  const gestern = new Date(jetzt);
+  gestern.setDate(gestern.getDate() - 1);
+  gestern.setHours(TERMIN_STUNDEN[TERMIN_STUNDEN.length - 1], 0, 0, 0);
+  return gestern.getTime();
+}
 
 export function istAlt(stand: PrStand | null) {
   if (!stand?.geholt) return true;
-  const termin = new Date();
-  termin.setHours(TERMIN_STUNDE, 0, 0, 0);
-  // Vor dem heutigen Termin? Dann zaehlt der von gestern.
-  if (Date.now() < termin.getTime()) termin.setDate(termin.getDate() - 1);
-  return stand.geholt < termin.getTime();
+  return stand.geholt < letzterTermin();
 }
 
 /**
