@@ -463,7 +463,24 @@ export default function OverlaySeite() {
 
   /* ------------------------------------------------------------ Bild */
 
-  if (!zugang.laedt && !zugang.vip) {
+  /*
+   * Solange die Auskunft laeuft, wird nichts gezeigt.
+   *
+   * Vorher stand hier nur die Sperre fuer Nicht-VIPs. Beim ersten Rendern -
+   * auf dem Server, und dort ist zugang.laedt immer wahr - griff sie nicht,
+   * und im ausgelieferten HTML stand der vollstaendige Builder. Ein Gast bekam
+   * also das VIP-Werkzeug zugeschickt, bevor der Browser es wieder wegnahm.
+   */
+  if (zugang.laedt) {
+    return (
+      <main className="grid min-h-screen place-items-center bg-zinc-950 px-4
+                       text-center text-slate-500">
+        <p className="text-sm"><T>Wird geladen …</T></p>
+      </main>
+    );
+  }
+
+  if (!zugang.vip) {
     return (
       <main className="grid min-h-screen place-items-center bg-zinc-950 px-4
                        text-center text-slate-100">

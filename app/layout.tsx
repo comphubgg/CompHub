@@ -152,9 +152,19 @@ export default async function RootLayout({
             Umschalter selbst -, damit ein Klick unten rechts die ganze
             Oberflaeche umstellt und nicht nur einen Teil. */}
         <SprachProvider anfang={sprache}>
+          {/*
+            * Die Kopfzeile steht ausserhalb der Wartegrenze.
+            *
+            * Vorher lag alles in einer einzigen <Suspense>-Grenze: Kopfzeile,
+            * Sperre und Inhalt. Wartete irgendein Kind irgendwo auf Daten,
+            * verschwand die ganze Seite hinter dem Ladeschleier - samt
+            * Navigation, also ohne Ausweg. Auf der Overlay-Seite blieb sie
+            * dabei dauerhaft stehen. Jetzt kostet ein haengender Abruf nur
+            * den Inhaltsbereich, und man kann jederzeit woandershin.
+            */}
+          <MainHeader sektionenAnfang={lage} />
+          <PreviewTour />
           <Suspense fallback={<RouteTransitionLoader />}>
-            <MainHeader sektionenAnfang={lage} />
-            <PreviewTour />
             {/*
               * Die Sperre liegt zwischen Kopfzeile und Inhalt - die Leiste
               * bleibt also stehen, und wer vor einer zugesperrten Tuer

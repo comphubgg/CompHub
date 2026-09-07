@@ -116,6 +116,15 @@ const ADMIN_ZIELE: Ziel[] = [
   { href: '/admin/replays', titel: 'Replays', text: 'Turnier-Replays nachsehen' },
   { href: '/admin/spieler', titel: 'Player Center', text: 'Flaggen und @-Konten pflegen' },
   { href: '/admin/assets', titel: 'Bildvorrat', text: 'Logos und Grafiken ablegen' },
+  /*
+   * Der Posteingang.
+   *
+   * Er stand in lib/rechte.ts als vergebbarer Bereich, fehlte hier aber in
+   * der Kachelliste - weder der Admin noch ein Manager mit dem Recht
+   * "Kontakt" kam ueber die Oberflaeche dorthin. Wer die Adresse nicht
+   * auswendig wusste, las die Meldungen aus dem Kontaktformular nie.
+   */
+  { href: '/admin/kontakt', titel: 'Kontakt', text: 'Meldungen aus dem Formular lesen' },
 ];
 
 export default function AdminDashboardPage() {

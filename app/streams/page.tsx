@@ -1507,7 +1507,16 @@ loadDashboardData().then(loadedFolders => {
       <div className="flex items-center justify-between gap-3">
         <div>
           <h1 className="text-xl font-semibold text-white"><T>Streamer Dashboard</T></h1>
-          <p className="text-sm text-slate-400">Use the login page to start a preview tour; editing is locked unless authenticated.</p>
+          {/*
+            * Hier stand ein vierter Hinweis darauf, dass man nicht angemeldet
+            * ist - neben dem Gastmodus-Kasten, dem Satz unter den Ordnern und
+            * dem Satz ueber der Spielerliste. Vier Formulierungen fuer
+            * dieselbe Sache, alle gleichzeitig zu sehen. Geblieben ist der
+            * Kasten weiter unten, der neben dem gesperrten Knopf steht.
+            */}
+          <p className="text-sm text-slate-400">
+            <T>Mehrere Twitch-Streams nebeneinander, in eigenen Ordnern.</T>
+          </p>
         </div>
       </div>
       {previewMode && (

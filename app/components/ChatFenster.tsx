@@ -211,11 +211,21 @@ export default function ChatFenster({ alsSeite = false }: { alsSeite?: boolean }
   // laufen hat, soll auch keinen Knopf sehen - dafuer braucht es die Liste.
   useEffect(() => { void holen(false); }, [holen]);
 
+  /*
+   * Der Takt laeuft nur, wenn ueberhaupt jemand angemeldet ist.
+   *
+   * Die erste Abfrage oben klaert das: antwortet sie mit 401, steht "darf"
+   * auf falsch. Vorher fragte der Takt trotzdem alle paar Sekunden weiter,
+   * bekam jedes Mal wieder 401 und fuellte damit die Browserkonsole jedes
+   * Besuchers - nach wenigen Minuten standen dort ueber hundert rote
+   * Zeilen, die echte Fehler zudeckten.
+   */
   useEffect(() => {
+    if (!darf) return;
     const uhr = setInterval(() => { void holen(!offen); },
       offen ? TAKT_OFFEN_MS : TAKT_ZU_MS);
     return () => clearInterval(uhr);
-  }, [offen, holen]);
+  }, [offen, holen, darf]);
 
   /*
    * Die offene Leitung.

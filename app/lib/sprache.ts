@@ -248,6 +248,8 @@ const AUF_ENGLISCH: Record<string, string> = {
     'Lower case searches the name, upper case filters by country: DE,FR,GB',
   'Alle Saisons': 'All time',
   'keine Matches': 'no matches',
+  ['Mehrere Twitch-Streams nebeneinander, in eigenen Ordnern.']:
+    'Several Twitch streams side by side, in folders of your own.',
   'Diese Ansicht gehört zum VIP-Zugang.': 'This view is part of VIP access.',
   'Anzahl Matches': 'Matches',
 
