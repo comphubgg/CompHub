@@ -266,9 +266,18 @@ async function main() {
     const ziel = `${dateiSchreibweise(u.name)}${endung}`;
     await fs.copyFile(path.join(quelle, u.datei), path.join(BILDER, ziel));
 
-    // Den Platzhalter dieses Kontos ablosen, falls einer da war.
+    /*
+     * Den Platzhalter dieses Kontos abloesen, falls einer da war.
+     *
+     * Verglichen wird ohne Ruecksicht auf Gross- und Kleinschreibung. Unter
+     * Windows ist "VICO.jpg" dieselbe Datei wie "vico.jpg": das Kopieren
+     * schreibt in die vorhandene Datei, und ein anschliessendes Loeschen des
+     * "alten" Namens loescht genau das eben geschriebene Foto wieder. So
+     * sind einmal einundfuenfzig Bilder verschwunden - kopiert und im
+     * selben Durchgang geloescht.
+     */
     const alt = nachId.get(u.epicId);
-    if (alt && alt.datei !== ziel) {
+    if (alt && alt.datei.toLowerCase() !== ziel.toLowerCase()) {
       try { await fs.unlink(path.join(BILDER, alt.datei)); } catch { /* schon weg */ }
     }
 
