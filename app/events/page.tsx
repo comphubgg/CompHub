@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 
 import T from '@/app/components/T';
+import { regionFarbe } from '@/lib/regionFarbe';
 import { useSprache } from '@/app/components/SprachProvider';
 import { useZugang } from '@/app/lib/zugang';
 import type { Sprache } from '@/app/lib/sprache';
@@ -396,7 +397,10 @@ export default function EventsPage() {
                             className="flex w-full items-center justify-between gap-2 border-b
                                        border-zinc-900 px-3 py-2 text-left text-xs transition
                                        last:border-0 hover:bg-zinc-900">
-                            <span className="flex items-center gap-2 text-slate-200">
+                            {/* Der Name in der Farbe seiner Region - dieselbe
+                                wie in der Statistik und auf der Eventseite. */}
+                            <span className={`flex items-center gap-2 font-medium
+                                              ${regionFarbe(r).schrift}`}>
                               {live && <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />}
                               {REGION_TEXT[r] ?? r}
                             </span>

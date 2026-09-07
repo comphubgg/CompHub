@@ -1,9 +1,13 @@
 /*
  * Eine Farbe je Wettkampfregion.
  *
- * Der Betreiber wollte die Regionen auf einen Blick unterscheiden koennen:
- * "EU blau, NAC rot, Asia gelb, NA West oder Brasilien gruen, OCE dunkelblau
- * - so ein bisschen, dass es zu den Flaggen passt."
+ * Der Betreiber hat sie einzeln festgelegt: "EU blau, NAC rot, NA West
+ * orange, Brasilien gruen, Asien gelb, Ozeanien dunkelblau, Middle East
+ * blau."
+ *
+ * Drei davon sind blau, und das ist so gewollt. Damit sie sich trotzdem
+ * unterscheiden lassen, liegen sie weit auseinander: EU im hellen Himmelblau,
+ * Middle East im satten Blau, Ozeanien im dunklen Indigo.
  *
  * Sieben Regionen, sieben Farben - und zwar ueberall dieselbe. Eine Marke,
  * die auf der Statistikseite blau und auf der Eventseite grau ist, hilft
@@ -31,8 +35,8 @@ const FARBEN: Record<string, RegionFarbe> = {
     schrift: 'text-rose-300',
   },
   NAW: {
-    marke: 'border-teal-500/40 bg-teal-500/10 text-teal-300',
-    schrift: 'text-teal-300',
+    marke: 'border-orange-500/40 bg-orange-500/10 text-orange-300',
+    schrift: 'text-orange-300',
   },
   BR: {
     marke: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300',
@@ -43,8 +47,8 @@ const FARBEN: Record<string, RegionFarbe> = {
     schrift: 'text-amber-300',
   },
   ME: {
-    marke: 'border-orange-500/40 bg-orange-500/10 text-orange-300',
-    schrift: 'text-orange-300',
+    marke: 'border-blue-500/40 bg-blue-500/10 text-blue-300',
+    schrift: 'text-blue-300',
   },
   OCE: {
     marke: 'border-indigo-500/40 bg-indigo-500/10 text-indigo-300',

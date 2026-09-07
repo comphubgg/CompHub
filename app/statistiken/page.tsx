@@ -1871,6 +1871,7 @@ export default function StatistikSeite() {
     try {
       const r = await fetch(`/api/szene-stats?spieler=${sp.epicId}&saison=${saison}`);
       const j = await r.json();
+      // Ebenfalls nur die Zeilen der Quelle - siehe oben.
       wohin(j.verlauf ?? []);
     } catch { wohin([]); }
   }, [saison]);
@@ -1901,6 +1902,16 @@ export default function StatistikSeite() {
           + `&saison=${saison}`);
         const j = await r.json();
         if (weg) return;
+        /*
+         * Nur die Zeilen der Quelle, nicht die von Epic.
+         *
+         * Der Vergleich stellt Werte gegenueber - Schaden, Material,
+         * Bauteile. Epic kennt davon nichts; seine Spieltage traegen kein
+         * einziges Wertefeld. Sie hier mitzunehmen hiesse, lauter Nullen in
+         * die Kurve zu zeichnen, als haette der Spieler an dem Tag nichts
+         * getan. (Der Versuch ist gemacht worden und hat die Seite auf der
+         * Stelle zerlegt: z.werte war schlicht nicht da.)
+         */
         setzeVerlauf(j.verlauf ?? []);
         if (j.spieler) {
           setzeWer({ ...sp, ...j.spieler });

@@ -11,6 +11,7 @@ import TeamFlagge, { flaggenPfad } from '@/components/TeamFlagge';
 import { namensSchluessel } from '@/lib/homoglyph';
 
 import T from '@/app/components/T';
+import { regionFarbe } from '@/lib/regionFarbe';
 import { useT, useSprache } from '@/app/components/SprachProvider';
 import { kartenTitel } from '@/lib/rundenName';
 /**
@@ -1258,10 +1259,12 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
         {cup && Object.keys(cup.regionen).length > 1 && (
           <div className="mb-4 flex flex-wrap gap-1.5">
             {Object.keys(cup.regionen).map((r) => (
+              // Jede Region in ihrer Farbe - dieselbe wie in der Statistik.
               <button key={r} onClick={() => setRegion(r)}
-                className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
-                  region === r ? 'bg-sky-500 text-white'
-                               : 'border border-zinc-800 bg-zinc-900/60 text-slate-400 hover:text-slate-200'}`}>
+                className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
+                  region === r ? regionFarbe(r).marke
+                    : `border-zinc-800 bg-zinc-900/60 hover:brightness-125 ${
+                      regionFarbe(r).schrift}`}`}>
                 {REGION_TEXT[r] ?? r}
               </button>
             ))}
