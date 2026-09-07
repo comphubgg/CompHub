@@ -194,13 +194,10 @@ td.punkte b.neu { animation: stups .9s ease-out; }
   <div id="hinweis" hidden></div>
 </div>
 
+<script src="konfig.js"></script>
 <script>
 (function () {
   'use strict';
-
-  const P = new URLSearchParams(location.search);
-  const ID = P.get('id') || '';
-  const SERVER = P.get('server') || location.origin;
 
   /*
    * Die Voreinstellungen.
@@ -212,6 +209,7 @@ td.punkte b.neu { animation: stups .9s ease-out; }
   const STANDARD = {
     event: '', window: '',
     titel: 'STANDINGS',
+    kopfrechts: 'POINTS',
     /** Von welchem bis zu welchem Platz. */
     von: 1, bis: 5,
     /** Wie oft die Zahlen geholt werden, in Sekunden. */
@@ -230,51 +228,12 @@ td.punkte b.neu { animation: stups .9s ease-out; }
     sichtbar: 15,
   };
 
-  let cfg = Object.assign({}, STANDARD);
-  let stand = -1;
-  let letzterTakt = 0;
-  let zahlenUhr = null;
-  const vorher = new Map();
-
   const $ = (id) => document.getElementById(id);
-
-  // ------------------------------------------------------- Einstellungen
-
-  function anwenden(neu) {
-    cfg = Object.assign({}, STANDARD, neu || {});
-    const s = document.documentElement.style;
-    s.setProperty('--grund', String(cfg.grund));
-    s.setProperty('--deckkraft', String(cfg.deckkraft));
-    s.setProperty('--akzent', String(cfg.akzent));
-    s.setProperty('--schrift', cfg.schrift + 'px');
-    s.setProperty('--breite', cfg.breite + 'px');
-    $('titel').textContent = String(cfg.titel || 'STANDINGS');
-
-    // Der Takt darf sich aendern, ohne dass die Seite neu geladen wird.
-    if (cfg.takt !== letzterTakt) {
-      letzterTakt = cfg.takt;
-      if (zahlenUhr) clearInterval(zahlenUhr);
-      zahlenUhr = setInterval(zahlenHolen, Math.max(3, cfg.takt) * 1000);
-    }
-    blendtakt();
-    zahlenHolen();
-  }
-
-  async function configHolen() {
-    if (!ID) { anwenden(null); return; }
-    try {
-      const r = await fetch(SERVER + '/api/overlay-config?id=' + encodeURIComponent(ID),
-        { cache: 'no-store' });
-      if (!r.ok) return;
-      const j = await r.json();
-      // Nur neu zeichnen, wenn sich wirklich etwas geaendert hat.
-      if (j.stand === stand) return;
-      stand = j.stand;
-      anwenden(j.config);
-    } catch (e) { /* Netz weg: beim naechsten Takt wieder */ }
-  }
-
-  // -------------------------------------------------------------- Zahlen
+  let cfg = STANDARD;
+  let server = location.origin;
+  let uhr = null;
+  let blendAus = null;
+  const vorher = new Map();
 
   function meldung(text) {
     $('zeilen').innerHTML = '';
@@ -298,6 +257,12 @@ td.punkte b.neu { animation: stups .9s ease-out; }
       platz.textContent = e.rank;
       tr.appendChild(platz);
 
+      /*
+       * Fotos nur, wo es welche gibt.
+       *
+       * Eine graue Silhouette neben einem echten Gesicht sieht schlechter
+       * aus als gar kein Bild - dieselbe Regel wie bei der Bildgenerierung.
+       */
       if (cfg.bilder) {
         const td = document.createElement('td');
         td.className = 'bild';
@@ -320,6 +285,7 @@ td.punkte b.neu { animation: stups .9s ease-out; }
       punkte.className = 'punkte';
       const b = document.createElement('b');
       b.textContent = e.points;
+      // Eine Zahl, die sich gerade geaendert hat, blinkt einmal auf.
       if (vorher.get(e.rank) !== undefined && vorher.get(e.rank) !== e.points) {
         b.className = 'neu';
       }
@@ -332,12 +298,12 @@ td.punkte b.neu { animation: stups .9s ease-out; }
     $('karte').classList.add('da');
   }
 
-  async function zahlenHolen() {
+  async function holen() {
     if (!cfg.event || !cfg.window) {
       return meldung('Pick a cup in the dashboard');
     }
     try {
-      const u = SERVER + '/api/cup-leaderboard?event=' + encodeURIComponent(cfg.event)
+      const u = server + '/api/cup-leaderboard?event=' + encodeURIComponent(cfg.event)
         + '&window=' + encodeURIComponent(cfg.window)
         + '&limit=' + Math.max(1, cfg.bis);
       const d = await (await fetch(u, { cache: 'no-store' })).json();
@@ -350,39 +316,28 @@ td.punkte b.neu { animation: stups .9s ease-out; }
     }
   }
 
-  // ------------------------------------------------- Ein- und Ausblenden
+  OverlayKonfig.starte({
+    standard: STANDARD,
+    anwenden(neu, wo) {
+      cfg = neu;
+      server = wo;
+      const s = document.documentElement.style;
+      s.setProperty('--grund', String(cfg.grund));
+      s.setProperty('--deckkraft', String(cfg.deckkraft));
+      s.setProperty('--akzent', String(cfg.akzent));
+      s.setProperty('--schrift', cfg.schrift + 'px');
+      s.setProperty('--breite', cfg.breite + 'px');
+      $('titel').textContent = String(cfg.titel || 'STANDINGS');
+      $('kopfrechts').textContent = String(cfg.kopfrechts || 'POINTS');
 
-  let blendUhr = null;
+      if (uhr) clearInterval(uhr);
+      uhr = setInterval(holen, Math.max(3, cfg.takt) * 1000);
 
-  /*
-   * Der Wechsel zwischen sichtbar und verborgen.
-   *
-   * Der Betreiber wollte es genau so: "jede fuenf Minuten fuenf Minuten lang
-   * wird's nicht angezeigt, dann wird's fuer zehn Sekunden eingeblendet".
-   * Steht die Pause auf null, bleibt die Karte einfach stehen.
-   */
-  function blendtakt() {
-    if (blendUhr) { clearTimeout(blendUhr); blendUhr = null; }
-    const karte = $('karte');
-    if (!cfg.pausiert) { karte.style.display = ''; return; }
-
-    const zeigen = () => {
-      karte.style.display = '';
-      zahlenHolen();
-      blendUhr = setTimeout(verstecken, Math.max(2, cfg.sichtbar) * 1000);
-    };
-    const verstecken = () => {
-      karte.style.display = 'none';
-      blendUhr = setTimeout(zeigen, Math.max(5, cfg.pausiert) * 1000);
-    };
-    zeigen();
-  }
-
-  // ------------------------------------------------------------- Anlauf
-
-  configHolen();
-  // Alle fuenf Sekunden nachsehen, ob im Dashboard etwas geaendert wurde.
-  setInterval(configHolen, 5000);
+      if (blendAus) blendAus();
+      blendAus = OverlayKonfig.blenden(
+        $('karte'), cfg.pausiert, cfg.sichtbar, holen);
+    },
+  });
 })();
 </script>
 </body>

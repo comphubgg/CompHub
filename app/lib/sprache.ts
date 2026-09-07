@@ -248,6 +248,88 @@ const AUF_ENGLISCH: Record<string, string> = {
     'Lower case searches the name, upper case filters by country: DE,FR,GB',
   'Alle Saisons': 'All time',
   'keine Matches': 'no matches',
+
+  // Die Overlay-Seiten.
+  // Diese fuenf standen schon weiter unten; beim Aufraeumen der
+  // Doppelten sind sie mit herausgefallen und stehen deshalb hier.
+  'Überschrift': 'Headline',
+  'Akzent': 'Accent',
+  'Aktualisierung': 'Refresh',
+  'Aussehen': 'Look',
+  'Übernehmen': 'Apply',
+  'Team card': 'Team card',
+  'Standings': 'Standings',
+  'Qual line': 'Qual line',
+  'Cup — nur was gerade läuft': 'Cup — only what is running now',
+  ['Gerade läuft kein Cup. Die Auswahl füllt sich von selbst, sobald einer '
+    + 'beginnt — das Overlay in OBS musst du dafür nicht anfassen.']:
+    'No cup is running. The list fills itself as soon as one starts — you do '
+    + 'not have to touch the overlay in OBS for that.',
+  'auch die übrigen laufenden Cups': 'also the other running cups',
+  ['Die Adresse in OBS bleibt immer dieselbe. Was du hier umstellst, ist im '
+    + 'Stream nach wenigen Sekunden zu sehen — ohne die Browserquelle '
+    + 'anzufassen.']:
+    'The address in OBS never changes. What you set here shows up in the '
+    + 'stream within seconds — without touching the browser source.',
+  'Was gezeigt wird': 'What is shown',
+  'Ein- und ausblenden': 'Show and hide',
+  ['Steht die Pause auf null, bleibt das Overlay dauerhaft stehen.']:
+    'With the pause at zero the overlay stays up permanently.',
+  'Pause': 'Pause',
+  'Dann sichtbar für': 'Then visible for',
+  'Alle {p} verborgen, dann {s} zu sehen.': 'Hidden for {p}, then shown for {s}.',
+  'Rechts in der Kopfzeile': 'Right in the header',
+  'Bis Platz': 'To rank',
+  'Grundfarbe': 'Background',
+  'Deckkraft': 'Opacity',
+  'Schriftgröße': 'Font size',
+  'Breite': 'Width',
+  'Golden hervorheben': 'Gold highlight',
+  'nur Platz 1': 'rank 1 only',
+  'Top 3': 'Top 3',
+  'Fotos vor dem Namen': 'Photos before the name',
+  ['Die Karte ist so breit wie eingestellt, wächst aber mit, wenn die Zahlen '
+    + 'mehr Platz brauchen — bei Platz 1100 rutscht nichts zusammen. Ziehst du '
+    + 'sie in OBS schmaler, verliert zuerst der Teamname Zeichen, nie die '
+    + 'Zahlen.']:
+    'The card is as wide as you set it, but grows when the numbers need more '
+    + 'room — nothing gets squeezed at rank 1100. Drag it narrower in OBS and '
+    + 'the team name loses characters first, never the numbers.',
+  'Name im Dashboard': 'Name in the dashboard',
+  'Anlegen': 'Create',
+  ['Nicht übernommen — im Stream steht noch der vorige Stand.']:
+    'Not applied — the stream still shows the previous state.',
+  ['Erst anlegen — dann steht hier die Vorschau, genau so wie sie im Stream '
+    + 'aussieht.']:
+    'Create it first — the preview then shows exactly what the stream shows.',
+  'Meine Standings': 'My standings',
+  'Meine Qual lines': 'My qual lines',
+  ['Noch keins angelegt. Links einstellen und speichern.']:
+    'None yet. Set it up on the left and save.',
+  'Adresse kopieren': 'Copy address',
+  ['Die vordersten Plätze des laufenden Spieltags — als Einblendung für '
+    + 'deinen Stream.']:
+    'The leading ranks of the running match day — as an overlay for your '
+    + 'stream.',
+  ['Wie viele Punkte es zum Weiterkommen braucht — geschätzt aus früheren '
+    + 'Ausgaben desselben Cups, daneben der Stand von jetzt.']:
+    'How many points it takes to advance — estimated from earlier editions of '
+    + 'the same cup, with the current standing next to it.',
+  'Wie viele kommen weiter': 'How many advance',
+  ['Steht als Rangschwelle in Epics Auszahlungstabelle — bei einem '
+    + 'Divisional-Finale etwa Top 50.']:
+    'It is the rank threshold in Epic\u2019s payout table — Top 50 for a '
+    + 'divisional final, for instance.',
+  'Wort davor': 'Word in front',
+  'Schwarz': 'Black',
+  'Anthrazit': 'Charcoal',
+  'Grau': 'Grey',
+  'Nachtblau': 'Night blue',
+  'Gold': 'Gold',
+  'Blau': 'Blue',
+  'Grün': 'Green',
+  'Rot': 'Red',
+  'Weiß': 'White',
   'Ranked': 'Ranked',
   'Stufe': 'Tier',
   ['Mehrere Twitch-Streams nebeneinander, in eigenen Ordnern.']:
@@ -435,7 +517,6 @@ const AUF_ENGLISCH: Record<string, string> = {
   // Die Beitragsvorlage ohne Cup.
   'Own list': 'Own list',
   'Freier Titel, Spieler von Hand': 'Free title, players by hand',
-  'Überschrift': 'Headline',
   'z. B. „Who is the most UNDERRATED player right now?“ oder „EU“':
     'e.g. “Who is the most UNDERRATED player right now?” or “EU”',
   'Nummeriert (1., 2., 3.) — sonst Punkte':
@@ -1071,7 +1152,6 @@ const AUF_ENGLISCH: Record<string, string> = {
     'How many teams are loaded. For a finals map only those who advanced count.',
 
   // Overlay-Einstellungen
-  'Akzent': 'Accent',
   'Zweitfarbe': 'Secondary colour',
   'Hintergrund': 'Background',
   'Verlauf nach': 'Gradient to',
@@ -1083,7 +1163,6 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Größe': 'Size',
   'Animationen': 'Animations',
   'Org-Logos zeigen': 'Show org logos',
-  'Aktualisierung': 'Refresh',
   'Abgerundet': 'Rounded',
   'Schräg rechts — die Zacke': 'Slanted right — the notch',
   'Schräg links': 'Slanted left',
@@ -1229,7 +1308,6 @@ const AUF_ENGLISCH: Record<string, string> = {
   ['Spieler dieses Spieltags laden']:
     'Load the players of this match day',
   'Niemand gefunden.': 'Nobody found.',
-  'Aussehen': 'Look',
   'Wie deckend die Mitte ist': 'How solid the middle is',
   'Höhe': 'Height',
   ['Adresse kopiert — in OBS als Browser-Quelle einfügen.']:
@@ -1603,7 +1681,6 @@ const AUF_ENGLISCH: Record<string, string> = {
   'kein Cup passt zur Suche': 'no cup matches the search',
   'suchen — Name, Datum, Art': 'search — name, date, type',
   '× · zurücksetzen': '× · reset',
-  'Übernehmen': 'Apply',
   '— auswählen —': '— select —',
   '← Zurück': '← Back',
 

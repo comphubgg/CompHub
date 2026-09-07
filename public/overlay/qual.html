@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Qual line</title>
+<style>
+/*
+ * Die Qualifikationslinie.
+ *
+ * Zwei Zahlen, die waehrend eines Cups jeden interessieren: wie viele Punkte
+ * es voraussichtlich braucht, und wie viele es gerade tatsaechlich sind.
+ *
+ * Beide stehen so in der Antwort von /api/qualifikation und werden nicht
+ * geraten: die Schaetzung ist der Schnitt derselben Runde aus frueheren
+ * Ausgaben desselben Cups, der Live-Wert die Punktzahl, die gerade auf dem
+ * Qualifikationsplatz steht. Wo es keine frueheren Ausgaben gibt, faellt die
+ * Schaetzung weg statt eine Zahl zu erfinden.
+ */
+
+:root {
+  --grund: 0 0 0;
+  --deckkraft: 0.72;
+  --schrift: 16px;
+  --akzent: #38bdf8;
+  --text: #ffffff;
+  --leise: rgba(255, 255, 255, 0.55);
+  --rand: rgba(255, 255, 255, 0.09);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  background: transparent;
+  overflow: hidden;
+  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+#karte {
+  width: max-content;
+  min-width: min-content;
+  max-width: 100vw;
+  background: rgb(var(--grund) / var(--deckkraft));
+  border: 1px solid var(--rand);
+  border-radius: 10px;
+  padding: 0.55em 0.95em 0.5em;
+  opacity: 0;
+  transition: opacity .45s ease;
+}
+#karte.da { opacity: 1; }
+
+/* Die grosse Zeile: die Schaetzung. */
+#oben {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4em;
+  white-space: nowrap;
+  font-size: calc(var(--schrift) * 1.35);
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  color: var(--text);
+  line-height: 1.1;
+}
+#oben .wort { color: var(--leise); font-size: calc(var(--schrift) * 0.82); }
+#oben .einheit { color: var(--leise); font-size: calc(var(--schrift) * 0.62);
+                 font-weight: 700; letter-spacing: 0.1em; }
+
+/* Die kleine Zeile: der Live-Wert und wie viele weiterkommen. */
+#unten {
+  margin-top: 0.25em;
+  display: flex;
+  align-items: baseline;
+  gap: 0.5em;
+  white-space: nowrap;
+  font-size: calc(var(--schrift) * 0.6);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--leise);
+}
+#unten b { color: var(--akzent); font-weight: 800; }
+#unten .strich { color: var(--rand); }
+
+#hinweis {
+  font-size: calc(var(--schrift) * 0.7);
+  color: var(--leise);
+  white-space: nowrap;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #karte { transition: none !important; }
+}
+</style>
+</head>
+<body>
+
+<div id="karte">
+  <div id="oben" hidden>
+    <span class="wort" id="wort">QUAL ~</span>
+    <span id="schaetzung">—</span>
+    <span class="einheit">PTS</span>
+  </div>
+  <div id="unten" hidden>
+    <span>Live qual · <b id="live">—</b> pts</span>
+    <span class="strich">|</span>
+    <span id="top">TOP —</span>
+  </div>
+  <div id="hinweis" hidden></div>
+</div>
+
+<script src="konfig.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  const STANDARD = {
+    event: '', window: '',
+    /** Wie viele weiterkommen - Epics Rangschwelle. */
+    schwelle: 50,
+    wort: 'QUAL ~',
+    takt: 15,
+    grund: '0 0 0', deckkraft: 0.72,
+    akzent: '#38bdf8',
+    schrift: 16,
+    pausiert: 0, sichtbar: 15,
+  };
+
+  const $ = (id) => document.getElementById(id);
+  let cfg = STANDARD;
+  let server = location.origin;
+  let uhr = null;
+  let blendAus = null;
+
+  function meldung(text) {
+    $('oben').hidden = true;
+    $('unten').hidden = true;
+    const h = $('hinweis');
+    h.textContent = text;
+    h.hidden = false;
+    $('karte').classList.add('da');
+  }
+
+  async function holen() {
+    if (!cfg.event || !cfg.window) return meldung('Pick a cup in the dashboard');
+    try {
+      const u = server + '/api/qualifikation?event=' + encodeURIComponent(cfg.event)
+        + '&window=' + encodeURIComponent(cfg.window)
+        + '&schwelle=' + encodeURIComponent(cfg.schwelle);
+      const d = await (await fetch(u, { cache: 'no-store' })).json();
+
+      if (!d || (!d.schnitt && !d.tatsaechlich)) {
+        return meldung(d && d.hinweis ? d.hinweis : 'No qualification data');
+      }
+
+      $('hinweis').hidden = true;
+      $('wort').textContent = String(cfg.wort || 'QUAL ~');
+
+      // Die Schaetzung nur, wenn es fruehere Ausgaben gibt.
+      if (d.schnitt) {
+        $('schaetzung').textContent = d.schnitt;
+        $('oben').hidden = false;
+      } else {
+        $('oben').hidden = true;
+      }
+
+      // Der Live-Wert nur, wenn gerade wirklich jemand auf dem Platz steht.
+      if (d.tatsaechlich) {
+        $('live').textContent = d.tatsaechlich;
+        $('top').textContent = 'TOP ' + (d.schwelle || cfg.schwelle);
+        $('unten').hidden = false;
+      } else {
+        $('unten').hidden = true;
+      }
+
+      $('karte').classList.add('da');
+    } catch (e) {
+      meldung('Server not reachable');
+    }
+  }
+
+  OverlayKonfig.starte({
+    standard: STANDARD,
+    anwenden(neu, wo) {
+      cfg = neu;
+      server = wo;
+      const s = document.documentElement.style;
+      s.setProperty('--grund', String(cfg.grund));
+      s.setProperty('--deckkraft', String(cfg.deckkraft));
+      s.setProperty('--akzent', String(cfg.akzent));
+      s.setProperty('--schrift', cfg.schrift + 'px');
+
+      if (uhr) clearInterval(uhr);
+      uhr = setInterval(holen, Math.max(5, cfg.takt) * 1000);
+
+      if (blendAus) blendAus();
+      blendAus = OverlayKonfig.blenden(
+        $('karte'), cfg.pausiert, cfg.sichtbar, holen);
+    },
+  });
+})();
+</script>
+</body>
+</html>
