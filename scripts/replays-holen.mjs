@@ -11,11 +11,21 @@
 //   node scripts/replays-holen.mjs --neu          -> auch schon Ausgewertetes
 //   node scripts/replays-holen.mjs --frisch 48    -> nur die letzten 48 Stunden
 //   node scripts/replays-holen.mjs --live         -> nur, was gerade laeuft
+//   node scripts/replays-holen.mjs --wiederholen  -> nur die Fehlversuche
+//   node scripts/replays-holen.mjs --wiederholen --hoechstens 400
+//
+// --wiederholen geht die schon angelegten Fenster durch und fasst genau die
+// Matches noch einmal an, die nicht fertig geworden sind - fehlgeschlagene,
+// haengengebliebene und nie begonnene. Es fragt dafuer weder den Cup-Katalog
+// noch Epics Bestenliste; es steht alles im Zustand des Fensters. Damit
+// laesst sich nachholen, was ein abgebrochener Lauf liegengelassen hat,
+// ohne dafuer jedes Turnier von vorn abzuklopfen.
 //
 // Einstellbar ueber die Umgebung:
 //
 //   MAX_REPLAY_DOWNLOADS  gleichzeitige Downloads      (Standard 3)
 //   MAX_REPLAY_PARSERS    gleichzeitige Auswertungen   (Standard 2)
+//   MAX_REPLAY_CHECKS     gleichzeitige Verfuegbarkeitsfragen (Standard 8)
 //   REPLAY_STORAGE        local                        (Standard local)
 //
 // Jeder Schritt merkt sich seinen Zustand je Match. Schlaegt ein Download
@@ -25,8 +35,9 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import {
-  FRIST_TAGE, ZUSTAND, ladeMatch, leseMatch, liesZustand, matchIds,
+  ABLAGE, FRIST_TAGE, ZUSTAND, ladeMatch, leseMatch, liesZustand, matchIds,
   matchPfad, replayVorhanden, schreibeMatch, schreibeZustand, warte,
+  zustandAusOrdner,
 } from '../lib/replayKern.mjs';
 
 /*
@@ -102,6 +113,7 @@ async function findeBasis() {
 let BASIS = process.env.WERKZEUG_URL || 'http://localhost:3000';
 const MAX_LADEN = Math.max(1, Number(process.env.MAX_REPLAY_DOWNLOADS) || 3);
 const MAX_LESEN = Math.max(1, Number(process.env.MAX_REPLAY_PARSERS) || 2);
+const MAX_PRUEFEN = Math.max(1, Number(process.env.MAX_REPLAY_CHECKS) || 8);
 const SPEICHER = process.env.REPLAY_STORAGE || 'local';
 
 const argumente = process.argv.slice(2);
@@ -130,8 +142,28 @@ const nurLive = argumente.includes('--live');
  */
 const frischIdx = argumente.indexOf('--frisch');
 const frischStunden = frischIdx >= 0 ? Number(argumente[frischIdx + 1]) : 0;
+/**
+ * Nur die Fehlversuche noch einmal anfassen.
+ *
+ * Im Archiv lagen 1892 Matches eines einzigen Spieltags als FAILED, alle mit
+ * demselben nackten "fetch failed" - und die Replays dazu gab es bei Epic
+ * noch. Sie warteten trotzdem auf den naechsten vollen Durchgang, der sich
+ * erst durch zwanzig andere Fenster arbeiten muss.
+ *
+ * Dieser Lauf tut nur das eine: die vorhandenen Zustaende durchsehen und
+ * genau die offenen Matches nachholen.
+ */
+const nurWiederholen = argumente.includes('--wiederholen');
+
+/** Wie viele Matches ein Durchgang hoechstens anfasst - 0 heisst alle. */
+const hoechstensIdx = argumente.indexOf('--hoechstens');
+const hoechstens = hoechstensIdx >= 0
+  ? Math.max(0, Number(argumente[hoechstensIdx + 1]) || 0) : 0;
+
 const nurFenster = argumente.filter((a, i) =>
-  !a.startsWith('--') && !(frischIdx >= 0 && i === frischIdx + 1));
+  !a.startsWith('--')
+  && !(frischIdx >= 0 && i === frischIdx + 1)
+  && !(hoechstensIdx >= 0 && i === hoechstensIdx + 1));
 
 /**
  * Eine Schleuse.
@@ -144,15 +176,45 @@ function schleuse(groesse) {
   let frei = groesse;
   const warteschlange = [];
   return async (arbeit) => {
-    if (frei <= 0) await new Promise((r) => warteschlange.push(r));
-    frei--;
+    /*
+     * Der Platz wird uebergeben, nicht neu vergeben.
+     *
+     * Vorher stand hier `if (frei <= 0) await …; frei--;`. Zwischen dem
+     * Wecken eines Wartenden und seinem `frei--` liegt ein Zug der
+     * Ereignisschleife, und wer in dieser Luecke ankam, sah den Platz noch
+     * als frei an. Beide gingen durch, und die Schleuse liess von da an
+     * dauerhaft einen mehr hindurch, als sie sollte.
+     *
+     * Jetzt zaehlt nur herunter, wer wirklich einen freien Platz vorfindet;
+     * wer wartet, bekommt beim Aufwecken den Platz des Fertigen direkt in
+     * die Hand. Zwischen Pruefung und Zaehlen liegt kein `await` - dazwischen
+     * kann also niemand dazwischenkommen.
+     */
+    if (frei > 0) frei--;
+    else await new Promise((r) => warteschlange.push(r));
     try { return await arbeit(); }
-    finally { frei++; warteschlange.shift()?.(); }
+    finally {
+      const naechster = warteschlange.shift();
+      if (naechster) naechster(); else frei++;
+    }
   };
 }
 
 const ladeSchleuse = schleuse(MAX_LADEN);
 const leseSchleuse = schleuse(MAX_LESEN);
+/*
+ * Auch das Nachfragen braucht eine Schleuse.
+ *
+ * Der Download war von Anfang an begrenzt, die Frage "gibt es dieses Replay
+ * ueberhaupt noch?" nicht - und sie steht am Anfang jedes Matches. Bei einem
+ * Fenster mit 4441 Matches gingen damit 4441 Anfragen gleichzeitig zu Epic
+ * hinaus, weil `Promise.all` sie alle auf einmal startet. Dabei bleibt kein
+ * Verbindungsspeicher uebrig; genau daher kommen die 1892 Fehlversuche mit
+ * dem nackten "fetch failed", waehrend die Replays selbst bei Epic noch
+ * liegen. Die Anfrage ist billiger als ein Download, deshalb ein groesseres
+ * Fenster - aber eben eines.
+ */
+const pruefSchleuse = schleuse(MAX_PRUEFEN);
 
 /**
  * Welche Cups es wert sind, ihre Replays zu holen.
@@ -307,7 +369,7 @@ async function verarbeite(f, matchId, zustand) {
 
   try {
     setze(ZUSTAND.PRUEFT);
-    const { vorhanden, metadaten } = await replayVorhanden(matchId);
+    const { vorhanden, metadaten } = await pruefSchleuse(() => replayVorhanden(matchId));
     if (!vorhanden) {
       // Kein Fehler: Epic hat es nach einem Monat weggeraeumt.
       setze(ZUSTAND.NICHT_VORHANDEN);
@@ -342,12 +404,162 @@ async function verarbeite(f, matchId, zustand) {
   }
 }
 
+/**
+ * Verlorene Verwaltungsdateien wiederherstellen.
+ *
+ * Im Archiv lagen zwei Fenster mit 290 und 604 fertigen Auswertungen, aber
+ * ohne _zustand.json. Die Uebersicht ueberging sie stillschweigend, und ein
+ * Lauf haette dieselben neunhundert Matches noch einmal geholt - Epic
+ * gegenueber unhoeflich und fuer nichts. Die Auswertungen selbst tragen
+ * alles Noetige; daraus laesst sich der Zustand ohne eine einzige Abfrage
+ * zurueckschreiben.
+ */
+async function repariereZustaende() {
+  let saisons = [];
+  try { saisons = await fs.readdir(ABLAGE); } catch { return 0; }
+  let geheilt = 0;
+
+  for (const season of saisons) {
+    let liste = [];
+    try { liste = await fs.readdir(path.join(ABLAGE, season)); } catch { continue; }
+    for (const windowId of liste) {
+      const vorhanden = await liesZustand(season, windowId);
+      if (Object.keys(vorhanden.matches ?? {}).length) continue;
+      const erschlossen = await zustandAusOrdner(season, windowId, true);
+      if (!erschlossen) continue;
+      await schreibeZustand(season, windowId, erschlossen);
+      geheilt++;
+      console.log(`  ${windowId}: Zustand aus `
+        + `${Object.keys(erschlossen.matches).length} Auswertungen wiederhergestellt`);
+    }
+  }
+  return geheilt;
+}
+
+/**
+ * Nur nachholen, was liegengeblieben ist.
+ *
+ * Weder Cup-Katalog noch Bestenliste werden dafuer gebraucht: was offen ist,
+ * steht im Zustand des Fensters. Damit laeuft dieser Durchgang auch dann,
+ * wenn das Werkzeug selbst gerade nicht antwortet - und er arbeitet sich
+ * durch die Fehlversuche, ohne sich vorher durch zwanzig fertige Turniere
+ * zu graben.
+ */
+async function wiederholen() {
+  const geheilt = await repariereZustaende();
+  if (geheilt) console.log(`${geheilt} Verwaltungsdatei(en) wiederhergestellt.
+`);
+
+  const grenze = Date.now() - FRIST_TAGE * 864e5;
+  const arbeit = [];
+  let ausserhalb = 0;
+
+  let saisons = [];
+  try { saisons = await fs.readdir(ABLAGE); } catch { /* nichts da */ }
+  for (const season of saisons) {
+    let liste = [];
+    try { liste = await fs.readdir(path.join(ABLAGE, season)); } catch { continue; }
+    for (const windowId of liste) {
+      const zustand = await liesZustand(season, windowId);
+      const offen = Object.entries(zustand.matches ?? {})
+        // Fertig ist fertig, und was Epic nicht mehr hat, bekommt es nicht
+        // zurueck. Alles andere - fehlgeschlagen, haengengeblieben, nie
+        // begonnen - wird noch einmal angefasst.
+        .filter(([, m]) => m.stand !== ZUSTAND.FERTIG
+          && m.stand !== ZUSTAND.NICHT_VORHANDEN)
+        .map(([id]) => id);
+      if (!offen.length) continue;
+      // Ausserhalb der Frist gibt es das Replay nicht mehr. Danach zu fragen
+      // waere eine Abfrage fuer eine Antwort, die schon feststeht.
+      if ((zustand.datum ?? 0) && zustand.datum < grenze) {
+        ausserhalb += offen.length; continue;
+      }
+      arbeit.push({ season, windowId, zustand, offen });
+    }
+  }
+
+  // Das aelteste zuerst: dessen Frist laeuft als naechstes ab.
+  arbeit.sort((a, b) => (a.zustand.datum ?? 0) - (b.zustand.datum ?? 0));
+
+  const gesamt = arbeit.reduce((a, x) => a + x.offen.length, 0);
+  console.log(`${arbeit.length} Fenster mit ${gesamt} offenen Matches`
+    + (ausserhalb ? `, ${ausserhalb} ausserhalb der Frist (${FRIST_TAGE} Tage)` : ''));
+  if (hoechstens) console.log(`Dieser Durchgang fasst hoechstens ${hoechstens} an.`);
+  if (!gesamt) {
+    await protokoll({ ok: true, fenster: 0, neu: 0, ohneReplay: 0, fehlgeschlagen: 0 });
+    return;
+  }
+
+  let angefasst = 0; let fertig = 0; let ohne = 0; let fehler = 0;
+
+  for (const f of arbeit) {
+    if (hoechstens && angefasst >= hoechstens) break;
+    const dran = hoechstens ? f.offen.slice(0, hoechstens - angefasst) : f.offen;
+    angefasst += dran.length;
+
+    console.log(`
+${f.season} ${(f.zustand.region ?? '?').padEnd(4)} `
+      + `${f.zustand.titel ?? f.windowId}`);
+    console.log(`  ${dran.length} von ${f.offen.length} offenen`);
+
+    const ziel = {
+      season: f.season, windowId: f.windowId, eventId: f.zustand.eventId,
+      region: f.zustand.region, titel: f.zustand.titel,
+    };
+
+    let getan = 0; let seitSicherung = 0;
+    const ergebnisse = await Promise.all(dran.map(async (id) => {
+      const r = await verarbeite(ziel, id, f.zustand);
+      getan += 1; seitSicherung += 1;
+      if (getan % 50 === 0 || getan === dran.length) {
+        console.log(`    ${getan}/${dran.length} ...`);
+      }
+      if (seitSicherung >= 200) {
+        seitSicherung = 0;
+        await schreibeZustand(f.season, f.windowId, f.zustand);
+      }
+      return r;
+    }));
+    for (const r of ergebnisse) {
+      if (r === 'fertig') fertig++;
+      else if (r === 'nicht_vorhanden') ohne++;
+      else fehler++;
+    }
+    await schreibeZustand(f.season, f.windowId, f.zustand);
+    await warte(500);
+  }
+
+  console.log(`
+Fertig: ${fertig} nachgeholt, ${ohne} ohne Replay, `
+    + `${fehler} wieder fehlgeschlagen`);
+  await protokoll({
+    ok: true, fenster: arbeit.length, neu: fertig,
+    ohneReplay: ohne, fehlgeschlagen: fehler,
+  });
+}
+
 async function main() {
   if (SPEICHER !== 'local') {
     console.log(`REPLAY_STORAGE=${SPEICHER} ist noch nicht gebaut - es wird lokal abgelegt.`);
   }
   // Nicht "Schleusen": das las sich wie eine Anzahl gefundener Matches.
-  console.log(`Gleichzeitig: ${MAX_LADEN} Downloads, ${MAX_LESEN} Auswertungen`);
+  console.log(`Gleichzeitig: ${MAX_LADEN} Downloads, ${MAX_LESEN} Auswertungen, `
+    + `${MAX_PRUEFEN} Abfragen`);
+
+  if (nurWiederholen) { await wiederholen(); return; }
+
+  /*
+   * Vor allem anderen die verlorenen Verwaltungsdateien wiederherstellen.
+   *
+   * Ohne sie sieht ein Lauf ein Fenster als voellig unbearbeitet an und
+   * laedt neunhundert Replays ein zweites Mal - obwohl die Auswertungen
+   * daneben liegen. Der volle Durchgang macht das mit; der stuendliche und
+   * der Live-Lauf nicht, sie sollen kurz bleiben.
+   */
+  if (!nurLive && frischStunden <= 0) {
+    const geheilt = await repariereZustaende();
+    if (geheilt) console.log(`${geheilt} Verwaltungsdatei(en) wiederhergestellt.`);
+  }
 
   const { fenster, zuAlt, uebersprungen: nichtWuerdig } = await offeneFenster();
   const ziel = nurFenster.length
@@ -462,7 +674,9 @@ async function protokoll(daten) {
     const ort = path.join(process.cwd(), 'data', 'replays', '_lauf.json');
     await fs.writeFile(ort, JSON.stringify({
       zeitpunkt: new Date().toISOString(),
-      art: nurLive ? 'live' : frischStunden > 0 ? `frisch ${frischStunden}h` : 'voll',
+      art: nurWiederholen ? 'wiederholen'
+        : nurLive ? 'live'
+        : frischStunden > 0 ? `frisch ${frischStunden}h` : 'voll',
       ...daten,
     }, null, 2), 'utf8');
   } catch { /* dann eben ohne Protokoll */ }

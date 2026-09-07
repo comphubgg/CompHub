@@ -59,21 +59,63 @@ interface MatchZustand {
 interface Fensterzustand {
   season: string; windowId: string; eventId?: string; region?: string;
   titel?: string; datum?: number;
+  /** Aus den abgelegten Auswertungen erschlossen, nicht vom Sammler geführt. */
+  erschlossen?: boolean;
   matches: Record<string, MatchZustand>;
 }
 
-async function liesFenster(season: string, windowId: string) {
+/**
+ * Der Zustand eines Fensters - notfalls aus den Dateien erschlossen.
+ *
+ * Zwei Fenster im Archiv haben ihre _zustand.json verloren, aber 290 und 604
+ * fertige Auswertungen liegen daneben. Bisher hiess das: die Uebersicht
+ * ueberging sie vollstaendig. Knapp neunhundert ausgewertete Matches waren
+ * nirgends zu sehen, obwohl ihre Zahlen laengst in den Statistiken stehen -
+ * die Aggregation liest die Dateien und nicht den Zustand.
+ *
+ * Eine Liste, die stillschweigend Eintraege weglaesst, ist schlimmer als
+ * gar keine. Deshalb wird jetzt erschlossen, was dasteht, und die Zeile
+ * sagt dazu, dass sie erschlossen ist.
+ */
+async function liesFenster(season: string, windowId: string, tief = false) {
   try {
     return JSON.parse(await fs.readFile(
       path.join(ABLAGE, season, windowId, '_zustand.json'), 'utf8')) as Fensterzustand;
   } catch {
-    return null;
+    const kern = await import('@/lib/replayKern.mjs');
+    return (await kern.zustandAusOrdner(season, windowId, tief)) as Fensterzustand | null;
   }
+}
+
+/**
+ * Welche Runde eines Cups dieses Fenster ist.
+ *
+ * Ohne diese Angabe standen in der Uebersicht drei Zeilen "OCE Solo Victory
+ * Cup 5.9.2026" untereinander und sahen aus wie derselbe Eintrag dreimal.
+ * Es sind Runde eins, Runde zwei und die Wiederholung - das steht in der
+ * Fensterkennung und musste nur herausgeholt werden.
+ */
+function rundeName(windowId: string, region?: string) {
+  let rest = windowId.replace(/^S\d+_/i, '');
+  if (region) rest = rest.replace(new RegExp(`_${region}$`, 'i'), '');
+  const teile = rest.split('_').slice(1);
+  if (!teile.length) return '';
+  return teile.join(' ')
+    // "Event1Round2" hat drei Fugen: zwischen Kleinbuchstabe und Grossbuchstabe,
+    // zwischen Buchstabe und Ziffer und zwischen Ziffer und Buchstabe. Alle
+    // drei braucht es, sonst steht dort "Event 1Round 2".
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/([A-Za-z])(\d)/g, '$1 $2')
+    .replace(/(\d)([A-Za-z])/g, '$1 $2')
+    .replace(/\s+/g, ' ')
+    .trim();
 }
 
 /** Alle Fenster, die schon einmal angefasst wurden. */
 async function alleFenster() {
-  const raus: Array<Fensterzustand & { zaehler: Record<string, number> }> = [];
+  const raus: Array<Fensterzustand & {
+    zaehler: Record<string, number>; gesamt: number; runde: string;
+  }> = [];
   let saisons: string[] = [];
   try { saisons = await fs.readdir(ABLAGE); } catch { return raus; }
 
@@ -87,7 +129,11 @@ async function alleFenster() {
       for (const m of Object.values(z.matches ?? {})) {
         zaehler[m.stand] = (zaehler[m.stand] ?? 0) + 1;
       }
-      raus.push({ ...z, matches: {}, zaehler });
+      raus.push({
+        ...z, matches: {}, zaehler,
+        gesamt: Object.keys(z.matches ?? {}).length,
+        runde: rundeName(z.windowId ?? windowId, z.region),
+      });
     }
   }
   raus.sort((a, b) => (b.datum ?? 0) - (a.datum ?? 0));
@@ -100,11 +146,14 @@ export async function GET(request: Request) {
   const fenster = p.get('fenster');
   if (fenster) {
     const season = p.get('saison') ?? /^(S\d+)_/i.exec(fenster)?.[1]?.toUpperCase() ?? '';
-    const z = await liesFenster(season, fenster);
+    // Beim Oeffnen wird tief erschlossen: hier will jemand die einzelnen
+    // Matches sehen, und dafuer lohnt es, die Dateien wirklich zu lesen.
+    const z = await liesFenster(season, fenster, true);
     if (!z) return NextResponse.json({ error: 'unbekanntes Fenster' }, { status: 404 });
     return NextResponse.json({
       success: true,
-      fenster: { ...z, matches: undefined },
+      fenster: { ...z, matches: undefined,
+        runde: rundeName(z.windowId ?? fenster, z.region) },
       matches: Object.entries(z.matches ?? {})
         .map(([matchId, m]) => ({ matchId, ...m }))
         .sort((a, b) => (a.zeitpunkt ?? '').localeCompare(b.zeitpunkt ?? '')),

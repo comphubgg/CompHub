@@ -18,6 +18,12 @@ import { useT } from '@/app/components/SprachProvider';
 interface Fenster {
   season: string; windowId: string; region?: string; titel?: string;
   datum?: number; zaehler: Record<string, number>;
+  /** Wieviele Matches das Fenster überhaupt kennt. */
+  gesamt?: number;
+  /** "Event 1 Round 2" - sonst sehen drei Runden aus wie derselbe Eintrag. */
+  runde?: string;
+  /** Aus den abgelegten Auswertungen erschlossen, nicht vom Sammler geführt. */
+  erschlossen?: boolean;
 }
 
 interface Match {
@@ -61,6 +67,10 @@ function Marke({ stand }: { stand: string }) {
 }
 
 const zahl = (n: number) => n.toLocaleString('de-DE');
+
+/** Die Zustände, bei denen noch etwas zu holen ist. */
+const OFFEN = ['FAILED', 'DOWNLOADING', 'PENDING', 'RETRYING',
+  'CHECKING', 'AVAILABLE', 'DOWNLOADED', 'PARSING'];
 
 export default function ReplayVerwaltung() {
   const t = useT();
@@ -291,8 +301,42 @@ export default function ReplayVerwaltung() {
 
         {/* -------------------------------------------------- Die Fenster */}
         <section>
-          <h2 className="mb-3 text-xs font-semibold uppercase tracking-[0.18em]
-                         text-slate-500"><T>Eingesammelte Turniere</T></h2>
+          <div className="mb-3 flex flex-wrap items-baseline gap-x-4 gap-y-1">
+            <h2 className="text-xs font-semibold uppercase tracking-[0.18em]
+                           text-slate-500"><T>Eingesammelte Turniere</T></h2>
+            {/*
+              * Die Summe ueber alles - sonst muss man neunzig Zeilen
+              * zusammenzaehlen, um zu wissen, ob noch etwas offen ist.
+              */}
+            {fenster.length > 0 && (() => {
+              const summe: Record<string, number> = {};
+              for (const f of fenster) {
+                for (const [stand, n] of Object.entries(f.zaehler)) {
+                  summe[stand] = (summe[stand] ?? 0) + n;
+                }
+              }
+              const offen = OFFEN.reduce((a, k) => a + (summe[k] ?? 0), 0);
+              return (
+                <span className="flex flex-wrap items-center gap-x-3 gap-y-1
+                                 text-[11px] text-slate-500">
+                  <span>{zahl(fenster.length)} <T>Spieltage</T></span>
+                  <span className="text-emerald-400">
+                    {zahl(summe.PARSED ?? 0)} <T>ausgewertet</T>
+                  </span>
+                  {offen > 0 && (
+                    <span className="text-rose-400">
+                      {zahl(offen)} <T>noch offen</T>
+                    </span>
+                  )}
+                  {summe.NOT_AVAILABLE ? (
+                    <span>{zahl(summe.NOT_AVAILABLE)} <T>ohne Replay</T></span>
+                  ) : null}
+                </span>
+              );
+            })()}
+          </div>
+          {/* Offene Matches holt der planmaessige Lauf von selbst nach -
+              er fasst genau die noch einmal an, die nicht fertig wurden. */}
 
           {!fenster.length ? (
             <p className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-5
@@ -316,18 +360,48 @@ export default function ReplayVerwaltung() {
                     <span className="text-sm font-semibold text-slate-200">
                       {f.titel ?? f.windowId}
                     </span>
+                    {/* Welche Runde. Ohne sie standen drei Zeilen "OCE Solo
+                        Victory Cup 5.9.2026" untereinander und sahen aus wie
+                        derselbe Eintrag dreimal. */}
+                    {f.runde && (
+                      <span className="rounded border border-zinc-800 px-1.5 py-0.5
+                                       text-[10px] text-slate-500">
+                        {f.runde}
+                      </span>
+                    )}
                     <span className="text-[11px] text-slate-600">
                       {f.datum ? new Date(f.datum).toLocaleDateString('de-DE') : ''}
                     </span>
+                    {f.erschlossen && (
+                      <span className="rounded border border-amber-600/40
+                                       bg-amber-500/10 px-1.5 py-0.5 text-[10px]
+                                       text-amber-400"
+                        title={t('Die Verwaltungsdatei fehlt — dieser Stand ist aus den abgelegten Auswertungen erschlossen. Der nächste volle Lauf schreibt sie neu.')}>
+                        <T>erschlossen</T>
+                      </span>
+                    )}
                     <span className="ml-auto flex flex-wrap items-center gap-2">
-                      {Object.entries(f.zaehler).map(([stand, n]) => (
-                        <span key={stand} className="flex items-center gap-1.5">
-                          <Marke stand={stand} />
-                          <span className="text-xs tabular-nums text-slate-400">
-                            {n}
-                          </span>
+                      {Object.entries(f.zaehler).length ? (
+                        Object.entries(f.zaehler)
+                          // Erst was fertig ist, dann was offen blieb -
+                          // sonst wechselt die Reihenfolge von Zeile zu Zeile.
+                          .sort((a, b) => a[0].localeCompare(b[0]))
+                          .map(([stand, n]) => (
+                            <span key={stand} className="flex items-center gap-1.5">
+                              <Marke stand={stand} />
+                              <span className="text-xs tabular-nums text-slate-400">
+                                {n}
+                              </span>
+                            </span>
+                          ))
+                      ) : (
+                        /* Kein leerer Platz mehr: null Matches ist eine
+                           Antwort und sieht sonst aus wie ein Fehler. */
+                        <span className="text-[11px] text-slate-600"
+                          title={t('Epic hat zu diesem Spieltag keine Match-Kennungen herausgegeben.')}>
+                          <T>keine Matches</T>
                         </span>
-                      ))}
+                      )}
                     </span>
                   </button>
 

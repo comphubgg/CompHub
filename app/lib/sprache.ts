@@ -247,6 +247,20 @@ const AUF_ENGLISCH: Record<string, string> = {
     + 'DE,FR,GB']:
     'Lower case searches the name, upper case filters by country: DE,FR,GB',
   'Alle Saisons': 'All time',
+  'keine Matches': 'no matches',
+  'ausgewertet': 'parsed',
+  'erschlossen': 'reconstructed',
+  'noch offen': 'still open',
+  'ohne Replay': 'without replay',
+  'Epic hat zu diesem Spieltag keine Match-Kennungen herausgegeben.':
+    'Epic released no match IDs for this match day.',
+  'Die Verwaltungsdatei fehlt — dieser Stand ist aus den abgelegten Auswertungen erschlossen. Der nächste volle Lauf schreibt sie neu.':
+    'The state file is missing — this is reconstructed from the stored results. The next full run writes it again.',
+  'alle Saisons': 'all time',
+  'Bestenlisten über alle Saisons': 'Season stats leaders — all time',
+  'Alle Zahlen aus allen Saisons': 'All numbers from every season',
+  'über alle Saisons': 'across all seasons',
+  'über {n} Spieltage': 'over {n} match days',
   'Nur': 'Only',
   'hinterlegt': 'linked',
   'ändern': 'change',

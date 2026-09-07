@@ -467,7 +467,18 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: true, quelle: QUELLE, turniere, zahlen });
     }
 
-    if (!saison && !region && !event && !events.length && !spieler) {
+    /*
+     * Ohne jede Frage kommt die Auswahl selbst zurueck - welche Saisons und
+     * welche Regionen es gibt. Genau das holt die Statistikseite beim ersten
+     * Laden.
+     *
+     * Frueher genuegte dafuer, dass Saison und Region leer waren. Seit die
+     * Oberflaeche oben ein "Alle Saisons" anbietet, ist eine leere Saison
+     * aber eine echte Frage ueber das ganze Archiv - und sie bekam die
+     * Auswahlliste statt der Spieler zurueck. Jetzt entscheidet, ob
+     * ueberhaupt etwas gefragt wurde.
+     */
+    if (![...p.keys()].length) {
       return NextResponse.json({ success: true, quelle: QUELLE, ...(await auswahl()) });
     }
 

@@ -147,6 +147,24 @@ export async function register() {
    */
   const replaysHolen = async (nurFrisch = false) => {
     await starte('replays-holen.mjs', nurFrisch ? ['--frisch', '48'] : []);
+
+    /*
+     * Danach die Fehlversuche nachholen.
+     *
+     * Im Archiv lagen 1892 Matches eines einzigen Spieltags als FAILED, alle
+     * mit demselben nackten "fetch failed" - und die Replays dazu gab es bei
+     * Epic noch. Der volle Durchgang haette sie mitgenommen, aber erst
+     * nachdem er sich durch zwanzig andere Fenster gearbeitet hat, und
+     * jeder Abbruch warf ihn wieder an den Anfang.
+     *
+     * Dieser Durchgang tut nur das eine und braucht dafuer weder Katalog
+     * noch Bestenliste. Er ist gedeckelt, damit er den Takt nicht sprengt:
+     * ein paar hundert je Stunde arbeiten einen Rueckstand von zweitausend
+     * in einer Nacht ab, ohne dass je ein Lauf stundenlang blockiert.
+     */
+    await starte('replays-holen.mjs',
+      ['--wiederholen', '--hoechstens', nurFrisch ? '300' : '1500']);
+
     setTimeout(() => { void starte('replays-aggregieren.mjs'); },
       (nurFrisch ? 8 : 45) * 60_000).unref?.();
   };

@@ -2444,9 +2444,18 @@ export default function StatistikSeite() {
     return erste === letzte ? erste : `${erste} ${t('bis')} ${letzte}`;
   }, [saisons, t]);
 
+  /*
+   * "Alle Saisons" ist eine echte Wahl, keine leere.
+   *
+   * Der Betreiber wollte den Filter "all" auch hier oben haben - und zwar
+   * durchgehend: die Bestenlisten, die Turnierliste, die Regionalansicht und
+   * der Vergleich richten sich alle nach dieser einen Auswahl.
+   */
+  const alleSaisons = saison === 'alle';
   const saisonTitel = useMemo(
-    () => saisons.find((x) => x.kennung === saison)?.name ?? saison,
-    [saisons, saison]);
+    () => (saison === 'alle' ? t('alle Saisons')
+      : saisons.find((x) => x.kennung === saison)?.name ?? saison),
+    [saisons, saison, t]);
 
   /* ------------------------------------------------ Region im Profil */
 
@@ -2579,6 +2588,7 @@ export default function StatistikSeite() {
             <select value={saison} onChange={(e) => setSaison(e.target.value)}
               className="rounded-lg border border-zinc-800 bg-zinc-900/80 px-3 py-1.5
                          text-sm text-slate-200 outline-none focus:border-sky-500">
+              <option value="alle">{t('Alle Saisons')}</option>
               {saisons.map((s) => (
                 <option key={s.kennung} value={s.kennung}>{s.name}</option>
               ))}
@@ -2835,7 +2845,8 @@ export default function StatistikSeite() {
 
               <p className="mb-2 text-[10px] font-semibold uppercase
                             tracking-[0.18em] text-slate-500">
-                <T>Bestenlisten der Saison</T> {saisonTitel}
+                {alleSaisons ? t('Bestenlisten über alle Saisons')
+                  : `${t('Bestenlisten der Saison')} ${saisonTitel}`}
               </p>
               <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                 {listen.map((l) => (
@@ -3642,7 +3653,9 @@ export default function StatistikSeite() {
               ) : !regionFeld.length ? (
                 <p className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-8
                               text-center text-sm text-slate-500">
-                  Für {regionAktiv} liegen in {saisonTitel} <T>keine Einzelwerte vor.</T>
+                  Für {regionAktiv} liegen {alleSaisons ? t('über alle Saisons')
+                    : `${t('in der Saison')} ${saisonTitel}`}{' '}
+                  <T>keine Einzelwerte vor.</T>
                 </p>
               ) : (
                 <>
@@ -3704,7 +3717,8 @@ export default function StatistikSeite() {
                   {/* Die Saison als Ganzes */}
                   <p className="mb-2 text-[10px] font-semibold uppercase
                                 tracking-[0.18em] text-slate-500">
-                    <T>Saison</T> {saisonTitel} — {regionAktiv}
+                    {alleSaisons ? t('alle Saisons')
+                      : `${t('Saison')} ${saisonTitel}`} — {regionAktiv}
                   </p>
                   <div className="mb-7 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
                     {listenAus(regionFeld).map((l) => (
@@ -3872,7 +3886,8 @@ export default function StatistikSeite() {
                       trefferRechts, setTrefferRechts, setVglVerlaufRechts, true)}
                   </div>
                   <p className="mt-3 text-[11px] text-slate-600">
-                    <T>Alle Zahlen aus der Saison</T> {saisonTitel}<T>. Oben umschalten vergleicht dieselben beiden in einer anderen Saison.</T>
+                    {alleSaisons ? t('Alle Zahlen aus allen Saisons')
+                      : `${t('Alle Zahlen aus der Saison')} ${saisonTitel}`}<T>. Oben umschalten vergleicht dieselben beiden in einer anderen Saison.</T>
                   </p>
                 </div>
 
@@ -3887,7 +3902,9 @@ export default function StatistikSeite() {
                           {fehlen.map((x) => grossName(x.anzeige, x.gepflegt))
                             .join(` ${t('und')} `)}
                           {fehlen.length > 1 ? ` ${t('sind')} ` : ` ${t('ist')} `}
-                          <T>in der Saison</T> {saisonTitel} <T>nicht angetreten.</T>
+                          {alleSaisons ? t('über alle Saisons')
+                            : `${t('in der Saison')} ${saisonTitel}`}{' '}
+                          <T>nicht angetreten.</T>
                         </p>
                       );
                     })()}
@@ -3898,7 +3915,8 @@ export default function StatistikSeite() {
                 ) : vglLinks && vglRechts ? (
                   <div className="space-y-5">
                     <DuellTafel links={vglLinks} rechts={vglRechts}
-                      zeitraum={t('Saison {n}').replace('{n}', saisonTitel)}
+                      zeitraum={alleSaisons ? t('alle Saisons')
+                        : t('Saison {n}').replace('{n}', saisonTitel)}
                       aufKlick={oeffne} gross />
 
                     <section className="rounded-xl border border-zinc-800
@@ -4759,7 +4777,8 @@ export default function StatistikSeite() {
                       <p className="text-[10px] font-semibold uppercase
                                     tracking-[0.18em] text-slate-500"><T>Werte</T></p>
                       <span className="ml-auto text-[10px] text-slate-600">
-                        über {zahl(offen.events, 0, sprache)} <T>Spieltage</T>
+                        {t('über {n} Spieltage')
+                          .replace('{n}', zahl(offen.events, 0, sprache))}
                       </span>
                     </div>
                     <div className="grid gap-x-8 rounded-lg border border-zinc-800
@@ -5159,7 +5178,7 @@ export default function StatistikSeite() {
                     <div className="min-w-0 flex-1">
                       <p className="text-sm font-bold uppercase tracking-[0.16em]
                                     text-slate-100">
-                        {marke === 'fncs' ? 'FNCS-Siege' : 'Tagesbester'}
+                        {marke === 'fncs' ? t('FNCS-Siege') : t('Tagesbester')}
                       </p>
                       <p className="mt-1 flex items-center gap-2 text-xs
                                     text-slate-500">
