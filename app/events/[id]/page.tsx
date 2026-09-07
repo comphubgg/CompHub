@@ -1263,8 +1263,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
               <button key={r} onClick={() => setRegion(r)}
                 className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition ${
                   region === r ? regionFarbe(r).marke
-                    : `border-zinc-800 bg-zinc-900/60 hover:brightness-125 ${
-                      regionFarbe(r).schrift}`}`}>
+                    : `bg-zinc-900/60 hover:brightness-125 ${regionFarbe(r).ruhig}`}`}>
                 {REGION_TEXT[r] ?? r}
               </button>
             ))}

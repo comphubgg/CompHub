@@ -377,10 +377,22 @@ function platzFarbe(p: number | null) {
   return p <= 3 ? 'text-sky-400' : 'text-slate-300';
 }
 
+/*
+ * Die Regionsmarke bleibt schlicht.
+ *
+ * Sie war kurz farbig, und der Betreiber hat es wieder abgeraeumt: in den
+ * Bestenlisten stehen fuenfzehn davon untereinander, und fuenfzehn bunte
+ * Kaestchen lesen sich schlechter als fuenfzehn graue. "Wenn's so farblich
+ * ist, sieht das scheisse aus - macht das wieder schwarz, so wie es ganz am
+ * Anfang war."
+ *
+ * Die Farben bleiben dort, wo sie etwas leisten: in den Filterreihen, wo
+ * eine Region gewaehlt wird und sieben Knoepfe nebeneinanderstehen.
+ */
 function RegionMarke({ region }: { region: string }) {
   return (
-    <span className={`shrink-0 rounded border px-1.5 py-0.5 text-[9px]
-                      font-semibold tracking-wider ${regionFarbe(region).marke}`}>
+    <span className="shrink-0 rounded bg-zinc-800/80 px-1.5 py-0.5 text-[9px]
+                     font-semibold tracking-wider text-slate-400">
       {region}
     </span>
   );
@@ -996,8 +1008,7 @@ function TurnierListe({ wer, zeilen, farbe }: {
               </span>
               <span className="min-w-0 flex-1 truncate text-[11px] text-slate-300">
                 {turnierName(z.event)}
-                <span className={`ml-1.5 text-[10px] font-semibold
-                                  ${regionFarbe(z.region).schrift}`}>{z.region}</span>
+                <span className="ml-1.5 text-[10px] text-slate-600">{z.region}</span>
               </span>
               <span className="shrink-0 text-[11px] tabular-nums text-slate-500">
                 {zahl(Math.round(z.werte.damageDealt), 0, sprache)}
@@ -1095,12 +1106,8 @@ function VerlaufTabelle({ zeilen, fuss }: {
                     ob die Zahlen fehlen. */}
               </td>
               <td className="px-2 py-2 text-center">
-                {/* Farbe je Region - siehe lib/regionFarbe. Sieben Regionen
-                    lassen sich in einer langen Liste sonst nur lesen, nicht
-                    ueberfliegen. */}
-                <span className={`rounded border px-1.5 py-0.5 text-[10px]
-                                  font-semibold tracking-wider
-                                  ${regionFarbe(z.region).marke}`}>
+                <span className="rounded bg-zinc-900 px-1.5 py-0.5 text-[10px]
+                                 font-semibold tracking-wider text-slate-400">
                   {z.region}
                 </span>
               </td>
@@ -3458,7 +3465,7 @@ export default function StatistikSeite() {
                     <button key={r} onClick={() => setRegion(r)}
                       className={`rounded-lg border px-2.5 py-1.5 text-xs transition ${
                         region === r ? regionFarbe(r).marke
-                          : `border-zinc-800 hover:border-zinc-700 ${regionFarbe(r).schrift}`}`}>
+                          : `${regionFarbe(r).ruhig} hover:brightness-125`}`}>
                       {r}
                     </button>
                   ))}
@@ -3624,7 +3631,7 @@ export default function StatistikSeite() {
                   <button key={r} onClick={() => setRegion(r)}
                     className={`rounded-lg border px-3 py-1.5 text-xs transition ${
                       regionAktiv === r ? regionFarbe(r).marke
-                        : `border-zinc-800 hover:border-zinc-700 ${regionFarbe(r).schrift}`}`}>
+                        : `${regionFarbe(r).ruhig} hover:brightness-125`}`}>
                     {r}
                   </button>
                 ))}
@@ -4097,8 +4104,9 @@ export default function StatistikSeite() {
                             ? (r === 'alle'
                               ? 'border-sky-500 bg-sky-500/10 text-sky-400'
                               : regionFarbe(r).marke)
-                            : `border-zinc-800 hover:border-zinc-700 ${
-                              r === 'alle' ? 'text-slate-400' : regionFarbe(r).schrift}`}`}>
+                            : `hover:brightness-125 ${
+                              r === 'alle' ? 'border-zinc-800 text-slate-400'
+                                : regionFarbe(r).ruhig}`}`}>
                         {r === 'alle' ? <T>alle</T> : r}
                       </button>
                     ))}
@@ -4211,7 +4219,7 @@ export default function StatistikSeite() {
                   <button key={r} onClick={() => setRegion(r)}
                     className={`rounded-lg border px-3 py-1.5 text-xs transition ${
                       region === r ? regionFarbe(r).marke
-                        : `border-zinc-800 hover:border-zinc-700 ${regionFarbe(r).schrift}`}`}>
+                        : `${regionFarbe(r).ruhig} hover:brightness-125`}`}>
                     {r}
                   </button>
                 ))}
