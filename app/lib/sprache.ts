@@ -1442,6 +1442,7 @@ const AUF_ENGLISCH: Record<string, string> = {
     'Offer a map for this match day again',
   // Beitrag uebernehmen (Admin-Werkzeug).
   'Beitrag übernehmen': 'Import a post',
+  'Übernehmen & eigene Bilder': 'Import & own images',
   'Text holen': 'Fetch text',
   'holt …': 'fetching …',
   'Eigenes Bild': 'Own image',
@@ -1979,6 +1980,23 @@ const AUF_ENGLISCH: Record<string, string> = {
     'Values are per team, the way Epic reports them. Epic does not '
     + 'publish the points of a single round — they only exist as the day '
     + 'total in the leaderboard.',
+
+  // Beitragsseite des Admins, nach dem Umbau in drei Schritte.
+  'Was soll es werden?': 'What should it be?',
+  'Cup & Spieltag': 'Cup & match day',
+  'Ein roter Punkt heißt: läuft gerade.': 'A red dot means: running right now.',
+  'Ein Name, eine Kennzahl oder eine Platzzahl — Enter drückt ab.':
+    'A name, a stat or a number of places — Enter fires it.',
+  'ältere Spieltage anzeigen': 'show older match days',
+  'Für diesen Spieltag liegen keine Einzelwerte vor':
+    'No per-player values exist for this match day',
+  'Spitzenwert je Kennzahl': 'Top value per stat',
+  'Alle Werte eines Spielers': 'Every value of one player',
+  'Einzelwerte von': 'Per-player values from',
+  'Kennzahlen im Beitrag': 'Stats in the post',
+  'weitere Kennzahlen': 'more stats',
+  'filtern …': 'filter …',
+  'keine': 'none',
 };
 
 /**

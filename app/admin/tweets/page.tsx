@@ -597,111 +597,31 @@ function deuteAuswahl(eingabe: string): Auswahl | null {
 }
 
 
-/** Die Ordner der Beitragsseite - jeder buendelt seine eigenen Vorlagen. */
-type Ordner = 'competitive' | 'live' | 'playerstats' | 'news' | 'updates'
-  /* Ohne Cup: freier Titel, Spieler von Hand. */
-  | 'eigene';
-
-const ORDNER: Array<{
-  wert: Ordner; titel: string; hinweis: string; symbol: string;
-  /** Welche Vorlagen gehoeren hierher? */
-  vorlagen: Vorlage[];
-  /** Nur laufende Cups zur Auswahl anbieten? */
-  nurLive?: boolean;
-  /** Auf Einzelwerte umschalten? */
-  ebene?: 'team' | 'spieler';
-}> = [
-  {
-    wert: 'competitive', titel: 'Competitive', symbol: '🏆',
-    hinweis: 'FNCS, Cash Cups und Finals — Endstand und Qualifikation',
-    vorlagen: ['endstand', 'qualifiziert', 'rueckblick', 'spieler'],
-    ebene: 'team',
-  },
-  {
-    wert: 'live', titel: 'Live-Cup', symbol: '🔴',
-    hinweis: 'Nur was gerade läuft — alle Vorlagen, Team- und Einzelwerte',
-    // Waehrend eines Cups will man alles zeigen koennen, nicht nur den Stand.
-    vorlagen: ['endstand', 'qualifiziert', 'rueckblick', 'spieler'],
-    nurLive: true,
-  },
-  {
-    wert: 'playerstats', titel: 'Player Stats', symbol: '📊',
-    hinweis: 'Einzelwerte je Spieler aus dem letzten Spieltag',
-    vorlagen: ['rueckblick', 'spieler'],
-    ebene: 'spieler',
-  },
-  {
-    /*
-     * Der einzige Ordner mit einer Vorlage, aber ohne Turnier.
-     *
-     * Fuer alles, was zu keinem einzelnen Cup gehoert - Saison- oder
-     * Kapitelwerte, eine Frage an die Szene, eine Liste, die der Betreiber
-     * selbst zusammenstellt.
-     */
-    wert: 'eigene', titel: 'Own list', symbol: '📝',
-    hinweis: 'Ohne Cup — freier Titel, Spieler von Hand ausgewählt',
-    vorlagen: ['eigene'],
-  },
-];
-
-/**
- * Vorschlaege fuer den News-Ordner. Sie werden aus echten Turnierdaten
- * gebaut - bei jedem Klick eine andere Variante, damit nicht immer derselbe
- * Text erscheint. Was sich nicht belegen laesst, taucht gar nicht erst auf.
- */
-const NEWS_ARTEN: Array<{ art: string; titel: string }> = [
-  { art: 'ankuendigung', titel: 'Cup-Ankündigung' },
-  { art: 'qualifiziert', titel: 'Sieger des Spieltags' },
-  { art: 'rennen',       titel: 'Rennen um die Qualifikation' },
-  { art: 'highlight',    titel: 'Stats-Highlights' },
-];
-
-/** Geruest fuer Beitraege ueber die eigene Seite - hier gibt es keine Daten. */
-const UPDATE_BAUSTEINE: Array<{ titel: string; text: string }> = [
-  {
-    titel: 'Neue Funktion',
-    text: `Neu auf ${MARKE.seite}:
-
-[Was ist neu]
-
-Schau vorbei: ${MARKE.seite}`,
-  },
-  {
-    titel: 'Turnierkarte veröffentlicht',
-    text: `Drop-Karte für [Turnier] ist online.
-
-Wer wo landet, auf einen Blick: ${MARKE.seite}/events`,
-  },
-  {
-    titel: 'Wartung',
-    text: `Kurze Wartung auf ${MARKE.seite} am [Datum].
-
-[Was betroffen ist]`,
-  },
-];
-
 /**
  * Die Vorlagen, die zur Wahl stehen.
  *
- * Es waren sieben; drei sind gegangen, weil sie dasselbe noch einmal taten:
+ * Eine Reihe Knoepfe, mehr nicht. Vorher standen hier drei Reihen
+ * uebereinander - Ordner, Vorlage und daneben noch Team- oder Einzelwerte -,
+ * und dieselbe Entscheidung liess sich an drei Stellen treffen. Wer auf
+ * "Player Stats" ging und einen Namen tippte, bekam trotzdem das Duo: der
+ * Ordner sagte das eine, die Vorlage das andere.
  *
- *   Top-Liste    - eine Kennzahl mit mehreren Plaetzen. Genau das macht
- *                  Standings auch, nur besser.
- *   Player Card  - alle Werte eines Spielers, wie Team Spotlight fuer ein Team.
- *   Auswahl      - nie von Hand gewaehlt: sie schaltet sich selbst ein, sobald
- *                  im Kurzbefehl-Feld etwas steht. Als Knopf war sie ein
- *                  Angebot, das ins Leere fuehrte.
+ * Jetzt sagt die Vorlage alles. "Player Card" heisst Einzelwerte, "Team
+ * Spotlight" heisst Teamwerte, und die Umschaltung daneben gibt es nur noch
+ * dort, wo sie wirklich eine Frage ist: beim Stats Recap.
  *
- * "auswahl" bleibt im Typ und im Textbau erhalten - nur aus dieser Liste ist
- * sie heraus. Der Kurzbefehl funktioniert unveraendert.
+ * "Qualified" ist gegangen. Sie zaehlte die Herkunft der vordersten Plaetze
+ * nach Laendern und Regionen - ein Beitrag, den der Betreiber nie schrieb.
+ * "auswahl" und "bestenliste" bleiben im Typ und im Textbau erhalten: sie
+ * schalten sich ueber das Kurzbefehl-Feld selbst ein.
  */
 const VORLAGEN: Array<{ wert: Vorlage; titel: string; hinweis: string }> = [
-  { wert: 'rueckblick',   titel: 'Stats Recap',   hinweis: 'Spitzenwert je Kennzahl' },
-  { wert: 'endstand',     titel: 'Standings',     hinweis: 'Die vordersten Plätze' },
-  { wert: 'qualifiziert', titel: 'Qualified',     hinweis: 'Top-N samt Länderverteilung' },
+  { wert: 'endstand',     titel: 'Standings',      hinweis: 'Die vordersten Plätze' },
+  { wert: 'rueckblick',   titel: 'Stats Recap',    hinweis: 'Spitzenwert je Kennzahl' },
   { wert: 'spieler',      titel: 'Team Spotlight', hinweis: 'Alle Werte eines Teams' },
+  { wert: 'spielerkarte', titel: 'Player Card',    hinweis: 'Alle Werte eines Spielers' },
   // Die einzige Vorlage, die keinen Cup braucht.
-  { wert: 'eigene',       titel: 'Own list',      hinweis: 'Freier Titel, Spieler von Hand' },
+  { wert: 'eigene',       titel: 'Own list',       hinweis: 'Freier Titel, Spieler von Hand' },
 ];
 
 interface Profil {
@@ -722,27 +642,6 @@ const REGIONEN: Array<{ code: string; flagge: string }> = [
   { code: 'ME',   flagge: 'sa' },
   { code: 'OCE',  flagge: 'au' },
 ];
-
-/**
- * Von welchem Land in welche Region. Bei den USA ist die Zuordnung nicht
- * eindeutig - NA Central und NA West teilen sich das Land. Deshalb faellt
- * die Voreinstellung auf NAC, und im Spielerprofil laesst sie sich je
- * Spieler ueberschreiben.
- */
-const LAND_REGION: Record<string, string> = {
-  DE:'EU', AT:'EU', CH:'EU', FR:'EU', GB:'EU', IE:'EU', NL:'EU', BE:'EU', LU:'EU',
-  ES:'EU', PT:'EU', IT:'EU', DK:'EU', SE:'EU', NO:'EU', FI:'EU', IS:'EU', PL:'EU',
-  CZ:'EU', SK:'EU', HU:'EU', RO:'EU', BG:'EU', GR:'EU', HR:'EU', RS:'EU', SI:'EU',
-  UA:'EU', RU:'EU', LT:'EU', LV:'EU', EE:'EU', MT:'EU', CY:'EU', AL:'EU', MK:'EU',
-  BA:'EU', ME:'EU', MD:'EU', BY:'EU', MC:'EU', TR:'EU',
-  US:'NAC', CA:'NAC', MX:'NAC',
-  BR:'BR', AR:'BR', CL:'BR', CO:'BR', PE:'BR', UY:'BR', VE:'BR', EC:'BR', BO:'BR', PY:'BR',
-  JP:'ASIA', KR:'ASIA', CN:'ASIA', TW:'ASIA', HK:'ASIA', SG:'ASIA', TH:'ASIA',
-  VN:'ASIA', PH:'ASIA', ID:'ASIA', MY:'ASIA', IN:'ASIA',
-  AU:'OCE', NZ:'OCE',
-  SA:'ME', AE:'ME', QA:'ME', KW:'ME', BH:'ME', OM:'ME', IL:'ME', JO:'ME',
-  LB:'ME', EG:'ME', IQ:'ME', IR:'ME', SY:'ME', YE:'ME',
-};
 
 /**
  * Fuer den Beitragstext: das Flaggenzeichen zum Laenderkuerzel. Windows stellt
@@ -817,7 +716,7 @@ function deuteBefehl(eingabe: string, listen: Bestenliste[]) {
 
   // Eine Zahl irgendwo im Befehl gibt die Anzahl vor.
   const zahl = text.match(/\b(\d{1,2})\b/);
-  const anzahl = zahl ? Math.max(1, Math.min(25, +zahl[1])) : null;
+  const anzahl = zahl ? Math.max(1, Math.min(50, +zahl[1])) : null;
 
   // Zuerst nach Kennzahlen suchen: "top 5 mats farmed" nennt beides, gemeint
   // ist dann die Kennzahl mit fuenf Plaetzen und nicht der Endstand.
@@ -854,13 +753,41 @@ function deuteBefehl(eingabe: string, listen: Bestenliste[]) {
   }
 
   // Keine Kennzahl erkannt - dann entscheiden die Schlagworte.
-  if (/\b(quali|qualif|region|land|country)/.test(text)) {
-    return { vorlage: 'qualifiziert' as const, anzahl: anzahl ?? 7, listen: null };
-  }
   if (/\b(top|standing|endstand|platz|rank)/.test(text)) {
     return { vorlage: 'endstand' as const, anzahl: anzahl ?? 5, listen: null };
   }
   return null;
+}
+
+/**
+ * Ein nummerierter Abschnitt der Seite.
+ *
+ * Vorher stand alles gleichzeitig da: eine Reihe Ordner, darunter Cup,
+ * Spieltag und Plaetze, daneben das Kurzbefehl-Feld und eine zweite freie
+ * Zeile, danach noch einmal Vorlagen und die Umschaltung zwischen Team- und
+ * Einzelwerten. Sieben Reihen Bedienelemente, bevor der erste Buchstabe im
+ * Beitrag stand - und keine davon sagte, was zuerst dran ist.
+ *
+ * Drei nummerierte Bloecke sagen es: erst was es werden soll, dann welcher
+ * Cup, dann der Feinschliff.
+ */
+function Schritt({ nr, titel, hinweis, children }: {
+  nr: number; titel: string; hinweis?: string; children: React.ReactNode;
+}) {
+  return (
+    <section className="mb-3 rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
+      <div className="mb-3 flex flex-wrap items-baseline gap-2">
+        <span className="flex h-5 w-5 shrink-0 items-center justify-center
+                         rounded-full bg-sky-500/15 text-[11px] font-bold
+                         text-sky-400">
+          {nr}
+        </span>
+        <h2 className="text-sm font-semibold text-slate-100">{titel}</h2>
+        {hinweis && <span className="text-xs text-slate-500">{hinweis}</span>}
+      </div>
+      {children}
+    </section>
+  );
 }
 
 /**
@@ -932,7 +859,7 @@ export default function TweetSeite() {
   const [eintraege, setEintraege] = useState<Eintrag[]>([]);
   const [laedt, setLaedt] = useState(false);
   const [fehler, setFehler] = useState('');
-  const [vorlage, setVorlage] = useState<Vorlage>('rueckblick');
+  const [vorlage, setVorlage] = useState<Vorlage>('endstand');
 
   /*
    * Der Kasten zum Uebernehmen fremder Beitraege - zugeklappt.
@@ -947,6 +874,23 @@ export default function TweetSeite() {
    */
   const [importOffen, setImportOffen] = useState(false);
   const [anzahl, setAnzahl] = useState(7);
+  /*
+   * Was im Feld steht, solange getippt wird.
+   *
+   * Frueher rechnete jeder Tastendruck sofort um und schob das Ergebnis in
+   * die Grenzen drei bis fuenfundzwanzig. Wer "10" tippen wollte, hatte nach
+   * der Eins bereits eine gueltige Zahl stehen; die Null danach machte
+   * daraus zehn - aber ein Tastendruck zu frueh, und aus der Eins wurde die
+   * Drei. Getippte "50" landete bei fuenfundzwanzig. Jetzt bleibt die
+   * Eingabe stehen, wie sie kommt, und wird erst beim Verlassen des Feldes
+   * zurechtgerueckt.
+   */
+  const [anzahlRoh, setAnzahlRoh] = useState('7');
+  /** Auch die aelteren Spieltage zeigen, nicht nur die letzten zwoelf. */
+  const [alleSpieltage, setAlleSpieltage] = useState(false);
+  /** Kennzahlen filtern und aufklappen - es sind schnell dreissig. */
+  const [listenSuche, setListenSuche] = useState('');
+  const [alleListen, setAlleListen] = useState(false);
   const [gewaehlteListen, setGewaehlteListen] = useState<string[]>([]);
   const [profile, setProfile] = useState<Record<string, Profil>>({});
   const [pflegeName, setPflegeName] = useState<string | null>(null);
@@ -1007,7 +951,6 @@ export default function TweetSeite() {
   const [mosaikLaedt, setMosaikLaedt] = useState(false);
   const [mosaikFehler, setMosaikFehler] = useState('');
   const [mosaikKopiert, setMosaikKopiert] = useState(false);
-  const [beschreibung, setBeschreibung] = useState('');
   /** Selbst geschriebener Text. Solange null, gilt der aus der Vorlage. */
   const [eigenerText, setEigenerText] = useState<string | null>(null);
 
@@ -1334,16 +1277,9 @@ export default function TweetSeite() {
   const [befehlSuche, setBefehlSuche] = useState('');
   /** Team-Summen von Epic oder Einzelwerte aus der Szene-Quelle. */
   const [ebene, setEbene] = useState<'team' | 'spieler'>('team');
-  const [ordner, setOrdner] = useState<Ordner>('competitive');
-  const [freierText, setFreierText] = useState('');
-  /** Welche Variante wurde je Art zuletzt gezeigt? */
-  const [vorschlagNr, setVorschlagNr] = useState<Record<string, number>>({});
-  const [laedtVorschlag, setLaedtVorschlag] = useState<string | null>(null);
-  const [vorschlagHinweis, setVorschlagHinweis] = useState('');
   const [spielerDaten, setSpielerDaten] = useState<SpielerDaten | null>(null);
   /** Konto-ID auf bekannte Namen - loest Turnier-Tarnnamen auf. */
   const [namen, setNamen] = useState<Record<string, NamensEintrag>>({});
-  const [zaehlung, setZaehlung] = useState<'land' | 'region'>('land');
   const [befehl, setBefehl] = useState('');
   const [befehlEcho, setBefehlEcho] = useState('');
 
@@ -1429,16 +1365,6 @@ export default function TweetSeite() {
       }).catch(() => {});
   }, []);
 
-  const aktiverOrdner = ORDNER.find((o) => o.wert === ordner)!;
-
-  // Beim Ordnerwechsel Vorlage und Ebene passend setzen.
-  useEffect(() => {
-    const o = ORDNER.find((x) => x.wert === ordner);
-    if (!o) return;
-    if (o.ebene) setEbene(o.ebene);
-    if (o.vorlagen.length) setVorlage((v) => (o.vorlagen.includes(v) ? v : o.vorlagen[0]));
-  }, [ordner]);
-
   const cup = cups.find((c) => c.id === cupId);
   const fenster = useMemo(() => {
     if (!cup) return [];
@@ -1446,6 +1372,23 @@ export default function TweetSeite() {
       liste.map((f) => ({ ...f, region })));
   }, [cup]);
   const aktuellesFenster = fenster.find((f) => f.windowId === fensterId);
+
+  /**
+   * Welche Spieltage in der Liste stehen.
+   *
+   * Eine FNCS-Saison bringt sieben Regionen mal ein Dutzend Termine mit; die
+   * Liste war laenger als der Bildschirm. Gezeigt werden deshalb die
+   * laufenden und die zwoelf zuletzt gelaufenen - und daneben steht, wie
+   * viele noch dahinter liegen. Gekuerzt wird sichtbar, nie stillschweigend.
+   */
+  const spieltage = useMemo(() => {
+    const live = fenster.filter((f) => f.status === 'live')
+      .sort((a, b) => b.begin - a.begin);
+    const vorbei = fenster.filter((f) => f.status === 'vorbei')
+      .sort((a, b) => b.begin - a.begin);
+    const gezeigt = alleSpieltage ? vorbei : vorbei.slice(0, 12);
+    return { liste: [...live, ...gezeigt], mehr: vorbei.length - gezeigt.length };
+  }, [fenster, alleSpieltage]);
 
   /**
    * Was zur Auswahl steht. Ueber ein Turnier, das noch nicht begonnen hat,
@@ -1458,14 +1401,15 @@ export default function TweetSeite() {
     const gelaufen = (c: Cup) => !laeuft(c)
       && Object.values(c.regionen).some((l) => l.some((f) => f.status === 'vorbei'));
 
+    // Die laufenden zuerst. Einen eigenen Filter dafuer gibt es nicht
+    // mehr: sie stehen oben und tragen einen roten Punkt, und damit ist die
+    // Frage "laeuft das gerade?" beantwortet, ohne einen Knopf dafuer.
     const live = cups.filter(laeuft);
-    if (aktiverOrdner.nurLive) return { live, vorbei: [] as Cup[] };
-
     const vorbei = cups.filter(gelaufen)
       // Zuletzt gelaufene zuerst - danach sucht man am haeufigsten.
       .sort((a, b) => (b.letzterStart ?? 0) - (a.letzterStart ?? 0));
     return { live, vorbei };
-  }, [cups, aktiverOrdner]);
+  }, [cups]);
 
   /** Wann lief dieser Cup zuletzt? Fuer die Beschriftung in der Liste. */
   const wann = (c: Cup) => {
@@ -1729,7 +1673,14 @@ export default function TweetSeite() {
    * verschwindet dort, und es gilt immer die Spielerebene - unabhaengig
    * davon, was eine Vorlage sonst vorgibt.
    */
-  const ebeneEffektiv: 'team' | 'spieler' = soloCup ? 'spieler' : ebene;
+  const ebeneEffektiv: 'team' | 'spieler' = soloCup ? 'spieler'
+    // Und sonst entscheidet die Vorlage. Eine Spielerkarte mit Teamsummen
+    // waere falsch beschriftet, ein Team Spotlight mit Einzelwerten
+    // unvollstaendig. Nur beim Stats Recap ist es wirklich eine Frage -
+    // dort steht die Umschaltung.
+    : vorlage === 'spielerkarte' ? 'spieler'
+    : vorlage === 'spieler' ? 'team'
+    : ebene;
 
   /** Was gerade gilt: Teamwerte von Epic oder Einzelwerte. */
   // Gemerkt statt bei jedem Rendern neu: an dieser Liste haengen inzwischen
@@ -2239,10 +2190,6 @@ export default function TweetSeite() {
         { b: 'top 20', e: 'Endstand, die besten zwanzig' },
         { b: 'standings', e: 'Endstand in voller Länge' },
         { b: 'endstand', e: 'dasselbe auf Deutsch getippt' },
-        { b: 'qualified', e: 'Herkunft der Qualifizierten, nach Ländern' },
-        { b: 'quali 10', e: 'dasselbe für die besten zehn' },
-        { b: 'region', e: 'Herkunft nach Wettkampfregionen' },
-        { b: 'country', e: 'Herkunft nach Ländern' },
         { b: 'rank 3', e: 'Endstand ab dem dritten Platz gezählt' },
       ],
     });
@@ -2326,11 +2273,8 @@ export default function TweetSeite() {
     if (vorlage === 'eigene') {
       const NL = '\n';
       const kopfZeile = eigenerKopf.trim();
-      const nachsatz = beschreibung.trim();
-
       if (!eigeneWahl.length) {
-        return [kopfZeile, nachsatz].filter(Boolean).join(NL + NL)
-          || 'Titel schreiben und rechts Spieler auswählen.';
+        return kopfZeile || 'Titel schreiben und rechts Spieler auswählen.';
       }
 
       const zeilen = eigeneWahl.map((sp, i) => {
@@ -2340,14 +2284,22 @@ export default function TweetSeite() {
         return `${marke} ${mitFlagge(sp.anzeige, sp.epicId)}`.replace(/\s+/g, ' ');
       });
 
-      return [kopfZeile, nachsatz, zeilen.join(NL)]
-        .filter(Boolean).join(NL + NL);
+      return [kopfZeile, zeilen.join(NL)].filter(Boolean).join(NL + NL);
     }
 
     if (!stats) return '';
     const kopf = `${cupName}${tagName ? ` — ${tagName}` : ''}`;
     const NL = '\n';
-    const zusatz = beschreibung.trim() ? NL + beschreibung.trim() : '';
+    /*
+     * Die freie Zusatzzeile ist gegangen.
+     *
+     * Sie stand als eigenes Feld ueber dem Beitrag ("Eigene Zeile im Beitrag
+     * (optional)") und tat nichts, was sich nicht im Textfeld darunter
+     * genauso tippen liesse - dort, wo der fertige Beitrag ohnehin steht und
+     * sich frei bearbeiten laesst. Die Stelle bleibt, damit die Vorlagen
+     * unveraendert bauen.
+     */
+    const zusatz = '';
 
     if (vorlage === 'spielerkarte') {
       if (!karteSpieler) {
@@ -2466,50 +2418,6 @@ export default function TweetSeite() {
       return `${kopf} — Stats Recap${zusatz}${NL}${NL}${zeilen.join(NL)}`;
     }
 
-    if (vorlage === 'qualifiziert') {
-      // Jeder Spieler zaehlt einzeln: in einem Duo koennen zwei Laender
-      // stecken, eine Zaehlung je Team wuerde eines davon verschlucken.
-      const top = eintraege.slice(0, anzahl);
-      const zaehler: Record<string, number> = {};
-      let ohne = 0;
-      for (const e of top) {
-        for (const sp of e.players) {
-          const pr = findeProfil(sp.name, sp.id);
-          // Dasselbe Land wie ueberall sonst: gepflegtes Profil zuerst,
-          // sonst die Szene-Quelle. Sonst zaehlte diese Statistik nur die
-          // von Hand gepflegten Spieler und meldete alle uebrigen als
-          // "ohne Angabe", obwohl ihr Land bekannt ist.
-          const land = landFuer(sp.name, sp.id);
-          const schluessel = zaehlung === 'region'
-            ? (pr?.region ?? (land ? LAND_REGION[land.toUpperCase()] : undefined))
-            : land;
-          if (schluessel) zaehler[schluessel] = (zaehler[schluessel] ?? 0) + 1;
-          else ohne++;
-        }
-      }
-
-      let zeilen: string[];
-      if (zaehlung === 'region') {
-        // Alle Wettkampfregionen mit Treffern, danach der Rest als eine Zeile.
-        zeilen = REGIONEN
-          .filter((r) => zaehler[r.code])
-          .sort((a, b) => zaehler[b.code] - zaehler[a.code])
-          .map((r) => `${flagge(r.flagge)} ${r.code}: ${zaehler[r.code]}`);
-        const uebrig = Object.entries(zaehler)
-          .filter(([k]) => !REGIONEN.some((r) => r.code === k))
-          .reduce((a, [, n]) => a + n, 0);
-        zeilen.push(`Other regions: ${uebrig + ohne}`);
-      } else {
-        zeilen = Object.entries(zaehler)
-          .sort((a, b) => b[1] - a[1])
-          .map(([l, n]) => `${flagge(l)} ${l}: ${n}`);
-        if (ohne) zeilen.push(`Unassigned: ${ohne}`);
-      }
-
-      return `Top ${anzahl} after ${stats.spiele} games — ${kopf}${zusatz}`
-        + NL + NL + zeilen.join(NL);
-    }
-
     if (vorlage === 'auswahl') {
       if (!auswahl) {
         return `${kopf}${zusatz}${NL}${NL}`
@@ -2602,23 +2510,41 @@ export default function TweetSeite() {
     return `${kopf} — Standings after ${stats.spiele} games${zusatz}`
       + NL + NL + zeilen.join(NL);
   }, [stats, eintraege, vorlage, anzahl, gewaehlteListen, cupName, tagName,
-      mitKonto, mitFlagge, beschreibung, spotlight, aktiveListen,
-      profile, zaehlung, karteSpieler, karteWerte, tabellenSpalten, auswahl,
+      mitKonto, mitFlagge, spotlight, aktiveListen,
+      profile, karteSpieler, karteWerte, tabellenSpalten, auswahl,
       auswahlHilfe,
       // Die eigene Liste - ohne diese drei bliebe der Text stehen, waehrend
       // rechts schon jemand angeklickt ist.
       eigenerKopf, eigeneWahl, eigeneNummern]);
 
-  // In Ordnern ohne Vorlage zaehlt allein der frei geschriebene Text.
-  const ohneVorlage = aktiverOrdner.vorlagen.length === 0;
   /*
-   * Dieser Ordner braucht keinen Cup.
+   * Die eigene Liste braucht keinen Cup.
    *
    * Ohne diese Ausnahme bliebe der ganze Bereich verborgen, solange keine
    * Turnierwerte geladen sind - und genau das ist hier ja der Punkt.
    */
-  const ohneCup = aktiverOrdner.wert === 'eigene';
-  const text = ohneVorlage ? freierText : (eigenerText ?? vorlagenText);
+  const ohneCup = vorlage === 'eigene';
+  const text = eigenerText ?? vorlagenText;
+
+  /**
+   * Welche Kennzahlen in der Auswahl stehen.
+   *
+   * Ein Spieltag bringt bis zu dreissig mit, und alle dreissig standen als
+   * Kachelfeld auf der Seite. Gezeigt werden jetzt die ersten acht - dazu
+   * alles, was schon angehakt ist, damit eine getroffene Wahl nicht hinter
+   * dem Deckel verschwindet. Der Rest kommt ueber das Suchfeld oder den
+   * Knopf darunter.
+   */
+  const listenAnsicht = useMemo(() => {
+    const q = listenSuche.trim().toLowerCase();
+    const passend = q
+      ? aktiveListen.filter((b) => b.titel.toLowerCase().includes(q))
+      : aktiveListen;
+    if (alleListen || q) return { liste: passend, mehr: 0 };
+    const liste = passend.filter((b, i) => i < 8
+      || gewaehlteListen.includes(b.schluessel));
+    return { liste, mehr: passend.length - liste.length };
+  }, [aktiveListen, listenSuche, alleListen, gewaehlteListen]);
 
   // Wechselt die Vorlage oder die Auswahl, gilt wieder der Vorschlag.
   useEffect(() => { setEigenerText(null); },
@@ -2923,31 +2849,6 @@ export default function TweetSeite() {
 
   const zeichnenRef = useRef<(() => void) | null>(null);
   useEffect(() => { zeichnenRef.current = zeichnen; zeichnen(); }, [zeichnen]);
-
-  /**
-   * Einen Vorschlag aus echten Turnierdaten holen. Jeder Klick zaehlt eine
-   * Variante weiter, damit nicht zweimal derselbe Text erscheint.
-   */
-  async function vorschlagHolen(art: string) {
-    setLaedtVorschlag(art);
-    setVorschlagHinweis('');
-    const nr = (vorschlagNr[art] ?? -1) + 1;
-    try {
-      const r = await fetch(`/api/beitrag-vorschlag?art=${art}&nr=${nr}`);
-      const j = await r.json();
-      if (j.text) {
-        setFreierText(j.text);
-        // Am Ende der Varianten wieder von vorne beginnen.
-        setVorschlagNr((alt) => ({ ...alt, [art]: j.varianten ? nr % j.varianten : 0 }));
-      } else {
-        setVorschlagHinweis(j.hinweis ?? 'Dazu liegen gerade keine Daten vor.');
-      }
-    } catch {
-      setVorschlagHinweis(t('Vorschlag nicht abrufbar.'));
-    } finally {
-      setLaedtVorschlag(null);
-    }
-  }
 
   /** Alle Spieler der angezeigten Plaetze, ohne Doppelte. */
   const spielerListe = useMemo(() => {
@@ -3302,315 +3203,249 @@ export default function TweetSeite() {
           </button>
         </div>
 
-        {/* Ordner - gliedert die Beitragsarten */}
-        <div className="mb-4 flex flex-wrap items-center gap-2">
-          <div className="flex flex-wrap gap-1 rounded-xl border border-zinc-800
-                          bg-zinc-900/60 p-1">
-            {ORDNER.map((o) => (
-              <button key={o.wert} onClick={() => {
-                  setOrdner(o.wert);
-                  /*
-                   * Gleich eine Vorlage nehmen, die es hier gibt.
-                   *
-                   * Sonst bliebe die aus dem vorigen Ordner ausgewaehlt
-                   * stehen, obwohl sie hier nicht angeboten wird - und der
-                   * Beitragstext bliebe leer, ohne dass man sieht, warum.
-                   */
-                  if (o.vorlagen.length && !o.vorlagen.includes(vorlage)) {
-                    setVorlage(o.vorlagen[0]);
-                  }
-                }}
-                className={`flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs
-                            font-medium transition ${
-                  ordner === o.wert ? 'bg-sky-500 text-white'
-                                    : 'text-slate-400 hover:text-slate-200'}`}>
-                <span className="not-italic">{o.symbol}</span>{o.titel}
-              </button>
-            ))}
+        {/* ------------------------------------------ Schritt 1: Vorlage */}
+        <Schritt nr={1} titel={t('Was soll es werden?')}>
+          <div className="flex flex-wrap gap-1.5">
+            {VORLAGEN.map((v) => {
+              // Beim Solo-Cup gibt es kein Team, das man beleuchten koennte.
+              if (v.wert === 'spieler' && soloCup) return null;
+              /* Die Spielerkarte braucht Einzelwerte. Liegen zu diesem
+                 Spieltag keine vor, bleibt der Knopf stehen - grau, mit dem
+                 Grund im Mouseover. Ein verschwundener Knopf wirft die Frage
+                 auf, wo er hin ist. */
+              const gesperrt = v.wert === 'spielerkarte'
+                && !!stats && !spielerListen.length;
+              return (
+                <button key={v.wert} onClick={() => setVorlage(v.wert)}
+                  disabled={gesperrt}
+                  title={gesperrt
+                    ? t('Für diesen Spieltag liegen keine Einzelwerte vor')
+                    : t(v.hinweis)}
+                  className={`rounded-lg border px-4 py-2 text-xs font-medium
+                              transition disabled:cursor-not-allowed
+                              disabled:opacity-40 ${
+                    vorlage === v.wert
+                      ? 'border-sky-500 bg-sky-500 text-white'
+                      : 'border-zinc-800 text-slate-400 hover:border-zinc-700 '
+                        + 'hover:text-slate-200'}`}>
+                  {v.titel}
+                </button>
+              );
+            })}
           </div>
-          <span className="text-xs text-slate-500">
-            <T>{aktiverOrdner.hinweis}</T></span>
-        </div>
+          <p className="mt-2 text-xs text-slate-500">
+            <T>{VORLAGEN.find((v) => v.wert === vorlage)?.hinweis ?? ''}</T>
+          </p>
+        </Schritt>
 
-        {/* Auswahl - in den freien Ordnern nicht noetig, und in der
-            eigenen Liste erst recht nicht: die haengt an keinem Turnier. */}
-        {!ohneVorlage && !ohneCup && (
-        <div className="mb-4 grid gap-3 rounded-xl border border-zinc-800 bg-zinc-900/40 p-4
-                        sm:grid-cols-2 lg:grid-cols-4">
-          <label className="text-xs text-slate-400">
-            Cup
-            <select value={cupId} onChange={(e) => { setCupId(e.target.value); setFensterId(''); }}
-              className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2
-                         text-sm text-slate-100 outline-none focus:border-sky-500">
-              <option value="">{t('— auswählen —')}</option>
-              {sichtbareCups.live.length > 0 && (
-                <optgroup label="Läuft gerade">
-                  {sichtbareCups.live.map((c) => (
-                    <option key={c.id} value={c.id}>{c.titel}</option>
-                  ))}
-                </optgroup>
+        {/* --------------------------------- Schritt 2: Cup, Spieltag, Plätze
+            Die eigene Liste haengt an keinem Turnier - dort entfaellt der
+            ganze Schritt, statt leer und ausgegraut dazustehen. */}
+        {!ohneCup && (
+        <Schritt nr={2} titel={t('Cup & Spieltag')}
+          hinweis={t('Ein roter Punkt heißt: läuft gerade.')}>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+            <label className="text-xs text-slate-400">
+              Cup
+              <select value={cupId}
+                onChange={(e) => {
+                  setCupId(e.target.value); setFensterId('');
+                  setAlleSpieltage(false);
+                }}
+                className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950
+                           px-3 py-2 text-sm text-slate-100 outline-none
+                           focus:border-sky-500">
+                <option value="">{t('— auswählen —')}</option>
+                {sichtbareCups.live.map((c) => (
+                  <option key={c.id} value={c.id}>🔴 {c.titel}</option>
+                ))}
+                {sichtbareCups.vorbei.map((c) => (
+                  <option key={c.id} value={c.id}>{c.titel} · {wann(c)}</option>
+                ))}
+              </select>
+            </label>
+
+            <label className="text-xs text-slate-400">
+              <T>Spieltag</T>
+              <select value={fensterId} onChange={(e) => setFensterId(e.target.value)}
+                disabled={!fenster.length}
+                className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950
+                           px-3 py-2 text-sm text-slate-100 outline-none
+                           focus:border-sky-500 disabled:opacity-40">
+                <option value="">{t('— auswählen —')}</option>
+                {spieltage.liste.map((f) => (
+                  <option key={f.windowId} value={f.windowId}>
+                    {f.status === 'live' ? '🔴 ' : ''}{f.region}
+                    {' · '}
+                    {new Date(f.begin).toLocaleDateString('de-DE',
+                      { day: '2-digit', month: '2-digit' })}
+                    {f.istFinale ? ' · Finale' : ''}
+                  </option>
+                ))}
+              </select>
+              {spieltage.mehr > 0 && (
+                <button type="button" onClick={() => setAlleSpieltage(true)}
+                  className="mt-1 text-[11px] text-slate-500 underline
+                             decoration-dotted underline-offset-2
+                             hover:text-sky-400">
+                  {spieltage.mehr} <T>ältere Spieltage anzeigen</T>
+                </button>
               )}
-              {sichtbareCups.vorbei.length > 0 && (
-                <optgroup label="Gelaufen">
-                  {sichtbareCups.vorbei.map((c) => (
-                    <option key={c.id} value={c.id}>{c.titel} · {wann(c)}</option>
-                  ))}
-                </optgroup>
-              )}
-            </select>
-          </label>
-          <label className="text-xs text-slate-400">
-            <T>Spieltag</T>
-            <select value={fensterId} onChange={(e) => setFensterId(e.target.value)}
-              disabled={!fenster.length}
-              className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2
-                         text-sm text-slate-100 outline-none focus:border-sky-500
-                         disabled:opacity-40">
-              <option value="">{t('— auswählen —')}</option>
-              {/* Auch hier nur, was laeuft oder gelaufen ist - ueber einen
-                  Spieltag, der noch bevorsteht, gibt es nichts zu berichten. */}
-              {fenster.filter((f) => f.status === 'live').length > 0 && (
-                <optgroup label="Läuft gerade">
-                  {fenster.filter((f) => f.status === 'live').map((f) => (
-                    <option key={f.windowId} value={f.windowId}>
-                      {f.region} · {new Date(f.begin).toLocaleDateString('de-DE',
-                        { day: '2-digit', month: '2-digit' })}
-                      {f.istFinale ? ' · Finale' : ''}
-                    </option>
-                  ))}
-                </optgroup>
-              )}
-              {fenster.filter((f) => f.status === 'vorbei').length > 0 && (
-                <optgroup label="Gelaufen">
-                  {fenster.filter((f) => f.status === 'vorbei')
-                    .sort((a, b) => b.begin - a.begin).map((f) => (
-                    <option key={f.windowId} value={f.windowId}>
-                      {f.region} · {new Date(f.begin).toLocaleDateString('de-DE',
-                        { day: '2-digit', month: '2-digit' })}
-                      {f.istFinale ? ' · Finale' : ''}
-                    </option>
-                  ))}
-                </optgroup>
-              )}
-            </select>
-          </label>
-          <label className="text-xs text-slate-400">
-            <T>Plätze im Beitrag</T>
-            <input type="number" min={3} max={25} value={anzahl}
-              onChange={(e) => setAnzahl(Math.max(3, Math.min(25, +e.target.value || 7)))}
-              className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2
-                         text-sm text-slate-100 outline-none focus:border-sky-500" />
-          </label>
-          <button onClick={laden} disabled={!fensterId || laedt}
-            className="self-end rounded-lg bg-sky-500 px-4 py-2 text-sm font-medium text-white
-                       transition hover:bg-sky-400 disabled:opacity-40">
-            {t(laedt ? 'lädt…' : 'Daten laden')}
-          </button>
-        </div>
+            </label>
+
+            {/* Frei eintippen, eins bis fünfzig. Zurechtgerueckt wird erst
+                beim Verlassen des Feldes - sonst frisst der Deckel die Zahl,
+                waehrend sie noch getippt wird. */}
+            <label className="text-xs text-slate-400">
+              <T>Plätze im Beitrag</T>
+              <input type="number" min={1} max={50} value={anzahlRoh}
+                onChange={(e) => {
+                  setAnzahlRoh(e.target.value);
+                  const n = Math.round(+e.target.value);
+                  if (n >= 1 && n <= 50) setAnzahl(n);
+                }}
+                onBlur={() => {
+                  const n = Math.max(1, Math.min(50,
+                    Math.round(+anzahlRoh) || anzahl));
+                  setAnzahl(n); setAnzahlRoh(String(n));
+                }}
+                className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950
+                           px-3 py-2 text-sm text-slate-100 outline-none
+                           focus:border-sky-500" />
+              <span className="mt-1 block text-[11px] text-slate-600">1–50</span>
+            </label>
+
+            <button onClick={laden} disabled={!fensterId || laedt}
+              className="mt-1 h-[38px] self-start rounded-lg bg-sky-500 px-4
+                         text-sm font-medium text-white transition
+                         hover:bg-sky-400 disabled:opacity-40 sm:mt-5">
+              {t(laedt ? 'lädt…' : 'Daten laden')}
+            </button>
+          </div>
+        </Schritt>
         )}
 
-
+        {/* ---------------------------------------- Schritt 3: Kurzbefehl */}
         {stats && (
-          <div className="mb-4 grid gap-3 sm:grid-cols-2">
-            <label className="block text-xs text-slate-400">
-              <T>Kurzbefehl — Enter drückt ab</T>
-              <input value={befehl}
-                onChange={(e) => setBefehl(e.target.value)}
-                onKeyDown={(e) => {
-                  if (e.key !== 'Enter') return;
+        <Schritt nr={3} titel={t('Kurzbefehl')}
+          hinweis={t('Ein Name, eine Kennzahl oder eine Platzzahl — Enter drückt ab.')}>
+          <input value={befehl}
+            onChange={(e) => setBefehl(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key !== 'Enter') return;
 
-                  // Ein Name geht vor: wer genau einen Teilnehmer tippt,
-                  // meint ihn und keine Kennzahl, die zufällig dieselben
-                  // Buchstaben enthält.
-                  //
-                  // Welche Ebene gerade eingestellt ist, entscheidet dabei,
-                  // was herauskommt: bei Team Stats das ganze Duo samt Partner,
-                  // bei Player Stats der einzelne Spieler.
-                  if (ebeneEffektiv === 'team') {
-                    const t = findeTeam(befehl);
-                    if (t.treffer.length === 1) {
-                      setSpotlight(t.treffer[0].rank);
-                      setVorlage('spieler');
-                      // Alle Kennzahlen an, sonst bliebe die Karte leer.
-                      setGewaehlteListen(aktiveListen.map((b) => b.schluessel));
-                      setBefehlEcho(`${t.namen[0]} — alle Werte`);
-                      setBefehl('');
-                      return;
-                    }
-                    if (t.treffer.length > 1) {
-                      setBefehlEcho(`mehrdeutig: ${t.namen.slice(0, 3).join(' / ')}`);
-                      return;
-                    }
-                  } else {
-                    const sp = findeTeilnehmer(befehl);
-                    if (sp.treffer.length === 1) {
-                      setKarteSpieler(sp.treffer[0]);
-                      setVorlage('spielerkarte');
-                      setBefehlEcho(`${kurzName(sp.treffer[0].name)} — alle Werte`);
-                      setBefehl('');
-                      return;
-                    }
-                    if (sp.treffer.length > 1) {
-                      // Lieber nachfragen als den Falschen nehmen.
-                      setBefehlEcho(`mehrdeutig: ${sp.namen.slice(0, 4)
-                        .map(kurzName).join(', ')}`);
-                      return;
-                    }
-                  }
-
-                  // Eine Frage ans Feld geht vor der Kennzahlsuche: "all
-                  // winners" nennt zwar das Wort "wins", gemeint ist aber
-                  // die Liste der Sieger und nicht die Kennzahl.
-                  const a = deuteAuswahl(befehl);
-                  if (a) {
-                    setAuswahl(a);
-                    setVorlage('auswahl');
-                    setEbene('team');
-                    const n = eintraege.filter((x) => a.passt(x, auswahlHilfe)).length;
-                    setBefehlEcho(`${a.titel} — ${n} Team${n === 1 ? '' : 's'}`);
-                    setBefehl('');
-                    return;
-                  }
-
-                  const d = deuteBefehl(befehl, aktiveListen);
-                  if (!d) {
-                    setBefehlEcho(spielerDaten && !einzelwerte.length
-                      ? 'nicht verstanden — zu diesem Spieltag gibt es keine Einzelwerte'
-                      : 'nicht verstanden');
-                    return;
-                  }
-                  setVorlage(d.vorlage);
-                  setAnzahl(d.anzahl);
-                  if (d.listen) setGewaehlteListen(d.listen);
-                  setBefehlEcho(
-                    d.listen
-                      ? `${d.listen.length} Kennzahl${d.listen.length > 1 ? 'en' : ''} gesetzt`
-                      : `${VORLAGEN.find((v) => v.wert === d.vorlage)?.titel}, ${d.anzahl} Plätze`);
+              /*
+               * Ein Name geht vor: wer genau einen Teilnehmer tippt, meint
+               * ihn und keine Kennzahl, die zufällig dieselben Buchstaben
+               * enthält.
+               *
+               * Welche Ebene gerade gilt, entscheidet dabei, was herauskommt
+               * - und die haengt seit dem Umbau an der Vorlage. Auf "Player
+               * Card" kommt der einzelne Spieler, auf "Team Spotlight" das
+               * Duo samt Partner. Vorher konnte beides gleichzeitig
+               * eingestellt sein, und dann gewann das Team.
+               */
+              if (ebeneEffektiv === 'team') {
+                const t = findeTeam(befehl);
+                if (t.treffer.length === 1) {
+                  setSpotlight(t.treffer[0].rank);
+                  setVorlage('spieler');
+                  // Alle Kennzahlen an, sonst bliebe die Karte leer.
+                  setGewaehlteListen(aktiveListen.map((b) => b.schluessel));
+                  setBefehlEcho(`${t.namen[0]} — alle Werte`);
                   setBefehl('');
-                }}
-                placeholder="top 5 · damage · elims 10 · mats · shxrk"
-                className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2
-                           font-mono text-sm text-slate-100 outline-none focus:border-sky-500" />
-              {befehlEcho && (
-                <span className="mt-1 block text-[11px] text-sky-400">{befehlEcho}</span>
-              )}
-              {/* Was das Feld versteht. Ohne diese Zeile muss man raten. */}
-              <span className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[11px]
-                               text-slate-600">
-                {AUSWAHLBEFEHLE.map((b) => (
-                  <button key={b.beispiel} type="button" title={b.erklaerung}
-                    onClick={() => setBefehl(b.beispiel)}
-                    className="font-mono text-slate-500 underline decoration-dotted
-                               underline-offset-2 hover:text-sky-400">
-                    {b.beispiel}
-                  </button>
-                ))}
-                <span>· dazu Kennzahlen wie <span className="font-mono">damage</span>,
-                  <T>Plätze wie</T> <span className="font-mono">top 5</span> <T>und jeder Name</T></span>
-              </span>
-            </label>
-            <label className="block text-xs text-slate-400">
-              Eigene Zeile im Beitrag (optional)
-              <input value={beschreibung} onChange={(e) => setBeschreibung(e.target.value)}
-                placeholder="z. B. What a run from the EU squads"
-                className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2
-                           text-sm text-slate-100 outline-none focus:border-sky-500" />
-            </label>
-          </div>
+                  return;
+                }
+                if (t.treffer.length > 1) {
+                  setBefehlEcho(`mehrdeutig: ${t.namen.slice(0, 3).join(' / ')}`);
+                  return;
+                }
+              } else {
+                const sp = findeTeilnehmer(befehl);
+                if (sp.treffer.length === 1) {
+                  setKarteSpieler(sp.treffer[0]);
+                  setVorlage('spielerkarte');
+                  setBefehlEcho(`${kurzName(sp.treffer[0].name)} — alle Werte`);
+                  setBefehl('');
+                  return;
+                }
+                if (sp.treffer.length > 1) {
+                  // Lieber nachfragen als den Falschen nehmen.
+                  setBefehlEcho(`mehrdeutig: ${sp.namen.slice(0, 4)
+                    .map(kurzName).join(', ')}`);
+                  return;
+                }
+              }
+
+              // Eine Frage ans Feld geht vor der Kennzahlsuche: "all
+              // winners" nennt zwar das Wort "wins", gemeint ist aber
+              // die Liste der Sieger und nicht die Kennzahl.
+              const a = deuteAuswahl(befehl);
+              if (a) {
+                setAuswahl(a);
+                setVorlage('auswahl');
+                setEbene('team');
+                const n = eintraege.filter((x) => a.passt(x, auswahlHilfe)).length;
+                setBefehlEcho(`${a.titel} — ${n} Team${n === 1 ? '' : 's'}`);
+                setBefehl('');
+                return;
+              }
+
+              const d = deuteBefehl(befehl, aktiveListen);
+              if (!d) {
+                setBefehlEcho(spielerDaten && !einzelwerte.length
+                  ? 'nicht verstanden — zu diesem Spieltag gibt es keine Einzelwerte'
+                  : 'nicht verstanden');
+                return;
+              }
+              setVorlage(d.vorlage);
+              setAnzahl(d.anzahl);
+              setAnzahlRoh(String(d.anzahl));
+              if (d.listen) setGewaehlteListen(d.listen);
+              setBefehlEcho(
+                d.listen
+                  ? `${d.listen.length} Kennzahl${d.listen.length > 1 ? 'en' : ''} gesetzt`
+                  : `${VORLAGEN.find((v) => v.wert === d.vorlage)?.titel ?? d.vorlage}, `
+                    + `${d.anzahl} Plätze`);
+              setBefehl('');
+            }}
+            placeholder="top 5 · damage · elims 10 · mats · shxrk"
+            className="w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2
+                       font-mono text-sm text-slate-100 outline-none
+                       focus:border-sky-500" />
+          {befehlEcho && (
+            <span className="mt-1 block text-[11px] text-sky-400">{befehlEcho}</span>
+          )}
+          {/* Was das Feld versteht. Ohne diese Zeile muss man raten. */}
+          <span className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1 text-[11px]
+                           text-slate-600">
+            {AUSWAHLBEFEHLE.map((b) => (
+              <button key={b.beispiel} type="button" title={b.erklaerung}
+                onClick={() => setBefehl(b.beispiel)}
+                className="font-mono text-slate-500 underline decoration-dotted
+                           underline-offset-2 hover:text-sky-400">
+                {b.beispiel}
+              </button>
+            ))}
+          </span>
+        </Schritt>
         )}
 
         {fehler && <p className="mb-4 text-sm text-rose-400">{fehler}</p>}
 
-        {ohneVorlage && (
-          <div className="grid gap-4 lg:grid-cols-[320px_1fr]">
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-3">
-              <h2 className="mb-2 text-sm font-semibold text-slate-100">
-                {ordner === 'news' ? 'Vorschläge' : 'Bausteine'}
-              </h2>
-              <p className="mb-2 text-[11px] text-slate-500">
-                {ordner === 'news'
-                  ? 'Aus echten Turnierdaten gebaut. Jeder Klick zeigt einen '
-                    + 'anderen Cup — nichts davon ist erfunden.'
-                  : 'Gerüst für Beiträge über die eigene Seite. Was in eckigen '
-                    + 'Klammern steht, trägst du ein.'}
-              </p>
-              <div className="space-y-1">
-                {ordner === 'news' ? NEWS_ARTEN.map((n) => (
-                  <button key={n.art} onClick={() => vorschlagHolen(n.art)}
-                    disabled={laedtVorschlag === n.art}
-                    className="flex w-full items-center justify-between gap-2 rounded-lg
-                               border border-zinc-800 px-2.5 py-1.5 text-left text-xs
-                               text-slate-300 transition hover:border-sky-700
-                               hover:text-sky-200 disabled:opacity-50">
-                    {n.titel}
-                    <span className="text-[10px] text-slate-600">
-                      {laedtVorschlag === n.art ? '…' : (vorschlagNr[n.art] ?? 0) + 1}
-                    </span>
-                  </button>
-                )) : UPDATE_BAUSTEINE.map((b) => (
-                  <button key={b.titel} onClick={() => setFreierText(b.text)}
-                    className="w-full rounded-lg border border-zinc-800 px-2.5 py-1.5
-                               text-left text-xs text-slate-300 transition
-                               hover:border-sky-700 hover:text-sky-200">
-                    {b.titel}
-                  </button>
-                ))}
-              </div>
-              {ordner === 'news' && vorschlagHinweis && (
-                <p className="mt-2 text-[11px] text-amber-400">{vorschlagHinweis}</p>
-              )}
-            </div>
-
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-3">
-              <div className="mb-2 flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-slate-100">Beitrag</h2>
-                <button onClick={kopieren}
-                  className="rounded-lg bg-sky-500 px-3 py-1 text-xs font-medium text-white
-                             transition hover:bg-sky-400">
-                  {kopiert ? 'kopiert' : 'kopieren'}
-                </button>
-              </div>
-              <textarea value={freierText} rows={14}
-                onChange={(e) => setFreierText(e.target.value)}
-                placeholder={t('Beitrag schreiben oder links einen Baustein wählen…')}
-                className="w-full resize-none rounded-lg border border-zinc-800 bg-zinc-950
-                           p-3 font-mono text-xs leading-relaxed text-slate-200
-                           outline-none focus:border-sky-500" />
-              <p className="mt-2 text-[11px] text-slate-500">
-                {freierText.length} Zeichen. Bilder fügst du beim Posten selbst hinzu —
-                Aufnahmen aus Streams kann diese Seite nicht erstellen.
-              </p>
-            </div>
-          </div>
-        )}
-
-        {(stats || ohneCup) && !ohneVorlage && (
+        {(stats || ohneCup) && (
           <>
             <div className="mb-4 flex flex-wrap items-center gap-2">
-              <div className="flex gap-1 rounded-lg border border-zinc-800 bg-zinc-900/60 p-1">
-                {VORLAGEN.filter((v) => aktiverOrdner.vorlagen.includes(v.wert)).map((v) => (
-                  <button key={v.wert} onClick={() => setVorlage(v.wert)} title={v.hinweis}
-                    className={`rounded-md px-3.5 py-1.5 text-xs font-medium transition ${
-                      vorlage === v.wert ? 'bg-sky-500 text-white'
-                                         : 'text-slate-400 hover:text-slate-200'}`}>
-                    {v.titel}
-                  </button>
-                ))}
-              </div>
-              {/* Bei einem Solo-Cup gibt es nichts umzuschalten: kein Team,
-                  also nur eine Ebene. Statt zweier Knoepfe, von denen einer
-                  ohne Sinn waere, steht dort schlicht "Stats".
-
-                  Bei der eigenen Liste gibt es gar keine Ebene - dort
-                  stehen einzelne Spieler, die niemand einem Team
-                  zuordnet. */}
-              {ohneCup ? null : soloCup ? (
-                <span className="rounded-lg border border-zinc-800 bg-zinc-900/60
-                                 px-3 py-1.5 text-xs font-medium text-slate-300"
-                  title={t('Solo-Cup — jeder Eintrag ist ein Spieler')}>
-                  Stats
-                </span>
-              ) : (
+              {/*
+                * Team- oder Einzelwerte.
+                *
+                * Nur beim Stats Recap ist das noch eine Frage: das Team
+                * Spotlight zeigt immer ein Team, die Player Card immer einen
+                * Spieler, und beim Solo-Cup gibt es ohnehin nur Spieler. Die
+                * Umschaltung stand frueher unabhaengig von der Vorlage da und
+                * konnte ihr widersprechen.
+                */}
+              {!ohneCup && !soloCup && vorlage === 'rueckblick' && (
                 <div className="flex gap-1 rounded-lg border border-zinc-800 bg-zinc-900/60 p-1">
                   <button onClick={() => setEbene('team')}
                     title={t('Werte je Team, direkt von Epic')}
@@ -3632,17 +3467,16 @@ export default function TweetSeite() {
                   </button>
                 </div>
               )}
-              <span className="text-xs text-slate-500">
-                {VORLAGEN.find((v) => v.wert === vorlage)?.hinweis}
-                {ebeneEffektiv === 'spieler' && einzelQuelle && (
-                  <> · Einzelwerte von {einzelQuelle}</>
-                )}
-              </span>
+              {ebeneEffektiv === 'spieler' && einzelQuelle && (
+                <span className="text-xs text-slate-500">
+                  <T>Einzelwerte von</T> {einzelQuelle}
+                </span>
+              )}
 
-              {/* Warum Player Stats gesperrt ist, gehoert sichtbar hin.
+              {/* Warum die Einzelwerte fehlen, gehoert sichtbar hin.
                   Im Mouseover einer ausgegrauten Schaltflaeche findet es
                   niemand - dort steht nur ein durchgestrichener Zeiger. */}
-              {!spielerListen.length && !ohneCup && (
+              {!spielerListen.length && !ohneCup && !!stats && (
                 <span className="text-xs text-amber-500/80">
                   Player Stats gesperrt: Einzelwerte kommen von
                   {' '}{spielerDaten?.quelle ?? 'eucompetitive.com'}, und dort
@@ -3835,25 +3669,6 @@ export default function TweetSeite() {
               </div>
             )}
 
-            {vorlage === 'qualifiziert' && (
-              <div className="mb-4 flex flex-wrap items-center gap-2">
-                <div className="flex gap-1 rounded-lg border border-zinc-800 bg-zinc-900/60 p-1">
-                  {([['land', 'Nach Ländern'], ['region', 'Nach Regionen']] as const)
-                    .map(([w, l]) => (
-                    <button key={w} onClick={() => setZaehlung(w)}
-                      className={`rounded-md px-3 py-1.5 text-xs font-medium transition ${
-                        zaehlung === w ? 'bg-sky-500 text-white'
-                                       : 'text-slate-400 hover:text-slate-200'}`}>
-                      {l}
-                    </button>
-                  ))}
-                </div>
-                <span className="text-xs text-slate-500">
-                  Gezählt wird jeder Spieler einzeln — ein Duo kann zwei Länder haben.
-                </span>
-              </div>
-            )}
-
             {vorlage === 'spielerkarte' && (
               <div className="mb-4 rounded-xl border border-zinc-800 bg-zinc-900/40 p-3">
                 <p className="mb-2 text-xs text-slate-400">
@@ -3918,12 +3733,37 @@ export default function TweetSeite() {
 
             {(vorlage === 'rueckblick' || vorlage === 'spieler') && (
               <div className="mb-4 rounded-xl border border-zinc-800 bg-zinc-900/40 p-3">
-                <p className="mb-2 text-xs text-slate-400">
-                  Kennzahlen im Beitrag — nur was dieser Cup wirklich liefert
-                  ({aktiveListen.length} verfügbar):
-                </p>
+                <div className="mb-2 flex flex-wrap items-center gap-2">
+                  <p className="text-xs text-slate-400">
+                    <T>Kennzahlen im Beitrag</T>
+                    <span className="ml-1.5 tabular-nums text-slate-600">
+                      {gewaehlteListen.length}/{aktiveListen.length}
+                    </span>
+                  </p>
+                  <button type="button"
+                    onClick={() => setGewaehlteListen(
+                      aktiveListen.map((b) => b.schluessel))}
+                    className="rounded-md border border-zinc-800 px-2 py-0.5
+                               text-[11px] text-slate-400 transition
+                               hover:border-sky-500/60 hover:text-sky-400">
+                    <T>alle</T>
+                  </button>
+                  <button type="button" onClick={() => setGewaehlteListen([])}
+                    className="rounded-md border border-zinc-800 px-2 py-0.5
+                               text-[11px] text-slate-400 transition
+                               hover:border-rose-500/60 hover:text-rose-400">
+                    <T>keine</T>
+                  </button>
+                  <input value={listenSuche}
+                    onChange={(e) => setListenSuche(e.target.value)}
+                    placeholder={t('filtern …')}
+                    className="ml-auto w-40 rounded-lg border border-zinc-800
+                               bg-zinc-950 px-2.5 py-1 text-[11px] text-slate-100
+                               outline-none placeholder:text-slate-600
+                               focus:border-sky-500" />
+                </div>
                 <div className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-                  {aktiveListen.map((b) => {
+                  {listenAnsicht.liste.map((b) => {
                     const an = gewaehlteListen.includes(b.schluessel);
                     return (
                       <button key={b.schluessel}
@@ -3940,6 +3780,21 @@ export default function TweetSeite() {
                     );
                   })}
                 </div>
+                {/* Gekuerzt wird sichtbar. Was hinter dem Deckel liegt,
+                    steht als Zahl dabei - nicht stillschweigend weg. */}
+                {listenAnsicht.mehr > 0 && (
+                  <button type="button" onClick={() => setAlleListen(true)}
+                    className="mt-2 text-[11px] text-slate-500 underline
+                               decoration-dotted underline-offset-2
+                               hover:text-sky-400">
+                    +{listenAnsicht.mehr} <T>weitere Kennzahlen</T>
+                  </button>
+                )}
+                {!listenAnsicht.liste.length && (
+                  <p className="py-3 text-center text-[11px] text-slate-600">
+                    <T>nichts gefunden</T>
+                  </p>
+                )}
               </div>
             )}
 
@@ -3949,7 +3804,7 @@ export default function TweetSeite() {
                 onClick={() => setImportOffen((a) => !a)}
                 className="flex w-full items-center justify-between gap-2 text-left">
                 <h2 className="text-sm font-semibold text-slate-100">
-                  <T>Beitrag übernehmen</T>
+                  <T>Übernehmen & eigene Bilder</T>
                 </h2>
                 <span className="text-[11px] text-slate-500">
                   {importOffen || vorlage === 'eigene' || quelle
@@ -4033,9 +3888,6 @@ export default function TweetSeite() {
                   ))}
                 </div>
               ) : null}
-
-              </>
-              )}
 
               {/*
                 * Dieselbe Bildsprache mit den eigenen Spielern.
@@ -4198,6 +4050,10 @@ export default function TweetSeite() {
                 </div>
               </div>
 
+              </>
+              )}
+            </div>
+
               <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-3">
                 <div className="mb-2 flex items-center justify-between">
                   <h2 className="text-sm font-semibold text-slate-100">Text</h2>
@@ -4355,7 +4211,6 @@ export default function TweetSeite() {
                   <p className="mt-2 text-[11px] text-amber-400/90">{mosaikFehler}</p>
                 )}
               </div>
-            </div>
 
             {/* Zwei Werkzeuge, die selten gebraucht werden.
 
