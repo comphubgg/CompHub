@@ -1560,6 +1560,56 @@ export default function StatistikSeite() {
   const [tabelleSuche, setTabelleSuche] = useState('');
   const [tabelleTiefe, setTabelleTiefe] = useState(50);
 
+  /*
+   * Welche Kennzahl die Kurve zeigt.
+   *
+   * Sie stand fest auf den Eliminierungen. Der Betreiber wollte auswaehlen
+   * koennen, worum es geht - "um Damage, Ratio, um das und das". Dieselbe
+   * Auswahl gilt fuer die Kurve im Profil und fuer die Doppelkurve im
+   * Vergleich; zwei getrennte Schalter dafuer waeren zwei zu viel.
+   */
+  const KURVEN = [
+    ['eliminations', 'Eliminierungen'],
+    ['damageDealt', 'Schaden'],
+    ['quote', 'Schadensverhältnis'],
+    ['matchesPlayed', 'Matches'],
+    ['builds', 'Bauteile'],
+    ['mats', 'Material'],
+  ] as const;
+  type KurvenFeld = (typeof KURVEN)[number][0];
+  const [kurve, setKurve] = useState<KurvenFeld>('eliminations');
+
+  const kurveWert = useCallback((w: VerlaufZeile['werte']) => {
+    switch (kurve) {
+      case 'damageDealt': return Math.round(w.damageDealt ?? 0);
+      case 'quote': return w.damageTakenFromPlayers > 0
+        ? Math.round((w.damageDealt / w.damageTakenFromPlayers) * 100) / 100 : 0;
+      case 'matchesPlayed': return w.matchesPlayed ?? 0;
+      case 'builds': return (w.woodBuildsPlaced ?? 0) + (w.stoneBuildsPlaced ?? 0)
+        + (w.metalBuildsPlaced ?? 0);
+      case 'mats': return (w.woodFarmed ?? 0) + (w.stoneFarmed ?? 0)
+        + (w.metalFarmed ?? 0);
+      default: return w.eliminations ?? 0;
+    }
+  }, [kurve]);
+
+  const kurveName = KURVEN.find((k) => k[0] === kurve)?.[1] ?? 'Eliminierungen';
+
+  /** Die Knopfreihe zur Auswahl - einmal geschrieben, zweimal benutzt. */
+  const kurvenWahl = (
+    <div className="flex flex-wrap items-center gap-1">
+      {KURVEN.map(([feld, name]) => (
+        <button key={feld} onClick={() => setKurve(feld)}
+          className={`rounded border px-2 py-0.5 text-[10px] transition ${
+            kurve === feld
+              ? 'border-sky-500 bg-sky-500/10 text-sky-400'
+              : 'border-zinc-800 text-slate-500 hover:border-zinc-700'}`}>
+          <T>{name}</T>
+        </button>
+      ))}
+    </div>
+  );
+
   const [volleListe, setVolleListe] = useState<{
     /** Der Kennzahlname - wird uebersetzt. */
     titel: string;
@@ -3920,16 +3970,17 @@ export default function StatistikSeite() {
                                                 gap-3">
                                   <p className="text-[10px] font-semibold uppercase
                                                 tracking-[0.18em] text-slate-500">
-                                    <T>Eliminierungen je Spieltag</T>
+                                    <T>{kurveName}</T> <T>je Spieltag</T>
                                   </p>
+                                  {kurvenWahl}
                                   <span className="text-[10px] text-slate-600">
                                     {lz.length} <T>gegen</T> {rz.length} <T>Spieltage, ältester links</T>
                                   </span>
                                 </div>
                                 <DoppelLinie
-                                  beschriftung="Eliminierungen je Spieltag"
-                                  links={lz.map((z) => z.werte.eliminations)}
-                                  rechts={rz.map((z) => z.werte.eliminations)}
+                                  beschriftung={`${kurveName} je Spieltag`}
+                                  links={lz.map((z) => kurveWert(z.werte))}
+                                  rechts={rz.map((z) => kurveWert(z.werte))}
                                   marken={[
                             lz.map((z) => `${turnierName(z.event)} · ${z.region}`),
                             rz.map((z) => `${turnierName(z.event)} · ${z.region}`)]}
@@ -4770,8 +4821,11 @@ export default function StatistikSeite() {
                               <div className="mt-4 space-y-2">
                                 {teile.map((t) => (
                                   <div key={t[0]} className="flex items-center gap-3">
+                                    {/* Auch diese Beschriftungen gehoeren
+                                        uebersetzt - sie standen als einzige
+                                        deutsch in der englischen Ansicht. */}
                                     <span className="w-28 shrink-0 text-[11px]
-                                                     text-slate-500">{t[0]}</span>
+                                                     text-slate-500"><T>{t[0]}</T></span>
                                     <span className="min-w-0 flex-1">
                                       <Balken wert={t[1]} klein />
                                     </span>
@@ -4794,20 +4848,21 @@ export default function StatistikSeite() {
                       <div className="mb-3 flex flex-wrap items-baseline gap-3">
                         <p className="text-[10px] font-semibold uppercase
                                       tracking-[0.18em] text-slate-500">
-                          <T>Eliminierungen je Spieltag</T>
+                          <T>{kurveName}</T> <T>je Spieltag</T>
                         </p>
                         <span className="text-[11px] text-slate-500">
-                          <T>höchstens</T> {Math.max(...verlauf.map((z) => z.werte.eliminations))}
-                          {', mindestens '}
-                          {Math.min(...verlauf.map((z) => z.werte.eliminations))}
+                          <T>höchstens</T> {Math.max(...verlauf.map((z) => kurveWert(z.werte)))}
+                          {', '}<T>mindestens</T>{' '}
+                          {Math.min(...verlauf.map((z) => kurveWert(z.werte)))}
                         </span>
+                        {kurvenWahl}
                         <span className="ml-auto text-[10px] text-slate-600">
                           {verlauf.length} <T>Spieltage, ältester links</T>
                         </span>
                       </div>
                       <div className="rounded-lg border border-zinc-800 bg-zinc-900/30 p-4">
-                        <Verlaufslinie beschriftung="Eliminierungen je Spieltag"
-                          werte={[...verlauf].reverse().map((z) => z.werte.eliminations)}
+                        <Verlaufslinie beschriftung={`${kurveName} je Spieltag`}
+                          werte={[...verlauf].reverse().map((z) => kurveWert(z.werte))}
                           marken={[...verlauf].reverse().map((z) =>
                             `${turnierName(z.event)} · ${z.region}`)} />
                       </div>

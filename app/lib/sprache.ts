@@ -1882,6 +1882,8 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Tagesplatz': 'Day rank',
   'Lobby': 'Lobby',
   'alle anzeigen': 'show all',
+  'je Spieltag': 'per match day',
+  'Schadensverhältnis': 'Damage ratio',
   'Endstand des Spieltags': 'Final standings of the match day',
   ['Bei einem großen Cup dauert das ein bis zwei Minuten.']:
     'On a large cup this takes a minute or two.',
