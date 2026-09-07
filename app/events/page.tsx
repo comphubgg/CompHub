@@ -86,11 +86,20 @@ const ART_TEXT: Record<string, string> = {
 
 type Modus = 'aktuell' | 'standard' | 'vorbei' | 'alle';
 
-const MODI: Array<{ wert: Modus; titel: string; hinweis: string }> = [
+/*
+ * Die Filterleiste.
+ *
+ * Sie hing bisher vollstaendig am VIP-Zugang: ein gewoehnlicher Besucher sah
+ * zweihundertzweiundsiebzig Turniere und ein Suchfeld, sonst nichts. Filtern
+ * koennen soll jeder; was den VIPs bleibt, ist die Ansicht "Alle" - dort
+ * stehen auch Ranked, Mobile und Skin-Cups, und das ist die Ansicht, die aus
+ * der Liste ein Werkzeug macht.
+ */
+const MODI: Array<{ wert: Modus; titel: string; hinweis: string; nurVip?: boolean }> = [
   { wert: 'aktuell',  titel: 'Aktuell & kommend', hinweis: 'Was gerade läuft und als Nächstes ansteht' },
   { wert: 'standard', titel: 'Standard',          hinweis: 'Reload, Cash Cups, Finals, Opens und Division Cups — auch vergangene' },
   { wert: 'vorbei',   titel: 'Vergangen',         hinweis: 'Was schon gelaufen ist, aus dem eigenen Archiv' },
-  { wert: 'alle',     titel: 'Alle',              hinweis: 'Jedes Turnier — auch Ranked, Mobile und Skin-Cups' },
+  { wert: 'alle',     titel: 'Alle',              hinweis: 'Jedes Turnier — auch Ranked, Mobile und Skin-Cups', nurVip: true },
 ];
 
 /*
@@ -238,30 +247,33 @@ export default function EventsPage() {
             Bedienleiste. Die Suche gilt auch fuer Besucher ohne Zugang: sie
             aendert keine Ansicht, sie findet nur. */}
         <div className="mb-5 flex flex-wrap items-center gap-2">
-          {zugang.vip && (
-            <>
-              <div className="flex gap-1 rounded-lg border border-zinc-800
-                              bg-zinc-900/60 p-1">
-                {MODI.map((m) => (
-                  <button key={m.wert} onClick={() => setModus(m.wert)}
-                    title={t(m.hinweis)}
-                    className={`rounded-md px-3.5 py-1.5 text-xs font-medium transition ${
-                      modus === m.wert
-                        ? 'bg-sky-500 text-white'
-                        : 'text-slate-400 hover:text-slate-200'}`}>
-                    <T>{m.titel}</T>
-                  </button>
-                ))}
-              </div>
-              <span className="text-xs text-slate-500">
-                {suchtGerade
-                  ? `${zeigeCups.length} ${t('Treffer im ganzen Bestand')}`
-                  : t(MODI.find((m) => m.wert === modus)?.hinweis ?? '')}
-                {!suchtGerade && modus !== 'alle' && ausgeblendet > 0
-                  && ` · ${t('{n} weitere unter „Alle“').replace('{n}', String(ausgeblendet))}`}
-              </span>
-            </>
-          )}
+          <div className="flex gap-1 rounded-lg border border-zinc-800
+                          bg-zinc-900/60 p-1">
+            {MODI.map((m) => {
+              const gesperrt = Boolean(m.nurVip) && !zugang.vip;
+              return (
+                <button key={m.wert} onClick={() => setModus(m.wert)}
+                  disabled={gesperrt}
+                  title={gesperrt
+                    ? t('Diese Ansicht gehört zum VIP-Zugang.')
+                    : t(m.hinweis)}
+                  className={`rounded-md px-3.5 py-1.5 text-xs font-medium transition
+                              disabled:cursor-not-allowed disabled:opacity-40 ${
+                    modus === m.wert
+                      ? 'bg-sky-500 text-white'
+                      : 'text-slate-400 hover:text-slate-200'}`}>
+                  <T>{m.titel}</T>
+                </button>
+              );
+            })}
+          </div>
+          <span className="text-xs text-slate-500">
+            {suchtGerade
+              ? `${zeigeCups.length} ${t('Treffer im ganzen Bestand')}`
+              : t(MODI.find((m) => m.wert === modus)?.hinweis ?? '')}
+            {!suchtGerade && modus !== 'alle' && ausgeblendet > 0 && zugang.vip
+              && ` · ${t('{n} weitere unter „Alle“').replace('{n}', String(ausgeblendet))}`}
+          </span>
 
           {/* Rechts aussen, auf derselben Zeile wie die Filter. */}
           <div className="ml-auto flex items-center gap-2">

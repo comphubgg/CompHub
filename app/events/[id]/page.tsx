@@ -1754,6 +1754,31 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                             <span className="truncate text-slate-200">
                               {e.players.map(namenVon).join('  +  ')}
                             </span>
+                            {/*
+                              * Der Twitch-Kanal, wo einer gepflegt ist.
+                              *
+                              * Der Betreiber wollte die Socials unter Events
+                              * sehen. Die Kanaele liegen im Werkzeug ohnehin -
+                              * die Streams-Seite fuehrt sie samt Zuschauerzahl.
+                              * Der Verweis geht auf die eigene Streams-Seite und
+                              * nicht zu Twitch: dort laeuft der Stream in seiner
+                              * Wand, so wie er es wollte.
+                              */}
+                            {e.players.map((p) => {
+                              const kanal = profilVon(p)?.twitch;
+                              if (!kanal) return null;
+                              return (
+                                <a key={`tw-${p.id}`}
+                                  href={`/streams?kanal=${encodeURIComponent(kanal)}`}
+                                  onClick={(ev) => ev.stopPropagation()}
+                                  title={`twitch.tv/${kanal}`}
+                                  className="ml-1 shrink-0 rounded px-1 py-0.5 text-[10px]
+                                             font-semibold text-purple-300/80 transition
+                                             hover:bg-purple-500/15 hover:text-purple-300">
+                                  ▶
+                                </a>
+                              );
+                            })}
                             {e.players.find((p) => p.logo) && (
                               <img src={e.players.find((p) => p.logo)!.logo!} alt=""
                                 className="ml-1 h-4 w-auto max-w-10 object-contain opacity-80" />

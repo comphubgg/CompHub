@@ -248,6 +248,7 @@ const AUF_ENGLISCH: Record<string, string> = {
     'Lower case searches the name, upper case filters by country: DE,FR,GB',
   'Alle Saisons': 'All time',
   'keine Matches': 'no matches',
+  'Diese Ansicht gehört zum VIP-Zugang.': 'This view is part of VIP access.',
   'Anzahl Matches': 'Matches',
 
   // Nachgetragen nach der Durchsicht: Texte, die durch die Uebersetzung
