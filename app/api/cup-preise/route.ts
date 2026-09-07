@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { promises as fs } from 'fs';
 import path from 'path';
-import { getToken, EVENTS, EpicLoginNoetig } from '@/lib/epicCups';
+import { getToken, verwirfToken, EVENTS, EpicLoginNoetig } from '@/lib/epicCups';
 import { DATEN_ORT } from '@/lib/datenOrt';
 
 // Was es in einem Cup zu gewinnen gibt.
@@ -61,12 +61,19 @@ async function tabellen(region: string) {
   const gemerkt = merker.get(region);
   if (gemerkt && Date.now() < gemerkt.bis) return gemerkt.daten;
 
-  const { token, accountId } = await getToken();
-  const antwort = await fetch(
-    `${EVENTS}/api/v1/events/Fortnite/download/${accountId}`
-    + `?region=${encodeURIComponent(region)}&platform=Windows`
-    + `&teamAccountIds=${accountId}`,
-    { headers: { Authorization: token } });
+  // Wie ueberall bei Epic: ein 401 heisst nicht, dass die Anmeldung weg ist,
+  // sondern dass das gemerkte Token nicht mehr gilt. Einmal neu holen und
+  // noch einmal fragen.
+  const hole = async () => {
+    const { token, accountId } = await getToken();
+    return fetch(
+      `${EVENTS}/api/v1/events/Fortnite/download/${accountId}`
+      + `?region=${encodeURIComponent(region)}&platform=Windows`
+      + `&teamAccountIds=${accountId}`,
+      { headers: { Authorization: token } });
+  };
+  let antwort = await hole();
+  if (antwort.status === 401) { verwirfToken(); antwort = await hole(); }
   if (!antwort.ok) throw new Error(`Epic HTTP ${antwort.status}`);
   const daten = await antwort.json() as Epic;
   merker.set(region, { bis: Date.now() + HALTBAR, daten });

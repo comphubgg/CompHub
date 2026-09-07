@@ -128,14 +128,57 @@ export class EpicLoginNoetig extends Error {
 
 // ---------------------------------------------------------------- HTTP
 
-async function req<T = unknown>(url: string, opts: RequestInit = {}): Promise<T> {
+/**
+ * Eine Anfrage an Epic - und bei 401 genau ein zweiter Versuch.
+ *
+ * Anlass: im Beitrags-Werkzeug stand nach einem Klick auf "Daten laden" ein
+ * roter Block mit "HTTP 401 ... errors.com.epicgames.common.unauthorized"
+ * samt vollstaendiger Adresse. Die Zugangsdaten waren in Ordnung - mit einem
+ * frisch geholten Token antwortete dieselbe Adresse sofort mit 200. Im
+ * Speicher lag also ein Token, das Epic nicht mehr gelten liess, und es
+ * blieb dort bis zum Ablauf seiner gerechneten Frist: bis zu zwei Stunden,
+ * in denen jeder Abruf scheiterte.
+ *
+ * Warum Epic ein Token vor der Zeit verwirft, laesst sich von aussen nicht
+ * feststellen - ein Gegenversuch zeigte, dass ein zweites Token das erste
+ * nicht abloest. Die Antwort darauf muss deshalb die Anfrage selbst geben:
+ * einmal neu anmelden und noch einmal fragen. Nur einmal, und nur wenn
+ * ueberhaupt mit einem Zugang gefragt wurde - sonst liefe die Anmeldung
+ * selbst in eine Schleife.
+ */
+async function req<T = unknown>(
+  url: string, opts: RequestInit = {}, nochmal = true,
+): Promise<T> {
   const res = await fetch(url, { ...opts, cache: 'no-store' });
   const text = await res.text();
   let body: unknown;
   try { body = JSON.parse(text); } catch { body = text; }
   if (!res.ok) {
+    const mit = (opts.headers as Record<string, string> | undefined)?.Authorization;
+    if (res.status === 401 && nochmal && mit?.toLowerCase().startsWith('bearer')) {
+      verwirfToken();
+      const { token } = await getToken();
+      return req<T>(url, {
+        ...opts,
+        headers: { ...(opts.headers as Record<string, string>), Authorization: token },
+      }, false);
+    }
     const b = body as { errorMessage?: string; errorCode?: string };
     const msg = b?.errorMessage || b?.errorCode || String(text).slice(0, 300);
+    /*
+     * Ein 401, der auch den zweiten Versuch ueberlebt, gehoert in einem Satz
+     * auf den Bildschirm - nicht als Rohtext.
+     *
+     * Vorher stand im Beitrags-Werkzeug ein roter Block mit der vollen
+     * Adresse, und in der Adresse steht die eigene Konto-Id. Fuer die
+     * Fehlersuche bleibt sie im Server-Protokoll.
+     */
+    if (res.status === 401) {
+      console.warn(`Epic antwortete 401 bei ${url}`);
+      throw new Error('Epic hat die Anmeldung abgelehnt (401). Der Zugang wurde '
+        + 'bereits einmal erneuert. Bleibt es dabei, einmal "npm run epic-login" '
+        + 'ausführen.');
+    }
     throw new Error(`HTTP ${res.status} bei ${url} -> ${msg}`);
   }
   return body as T;
@@ -172,6 +215,15 @@ export async function istEingerichtet(): Promise<boolean> {
 // kurz vor Ablauf erneuern spart Anfragen an Epic.
 let tokenCache: { token: string; accountId: string; displayName?: string } | null = null;
 let tokenBis = 0;
+
+/**
+ * Den gemerkten Zugang wegwerfen.
+ *
+ * Nach einem 401 ist er nichts mehr wert; ohne dieses Wegwerfen bliebe er
+ * bis zum Ende seiner gerechneten Frist im Speicher und jede Anfrage
+ * scheiterte weiter.
+ */
+export function verwirfToken() { tokenCache = null; tokenBis = 0; }
 
 export async function getToken() {
   if (tokenCache && Date.now() < tokenBis) return tokenCache;
