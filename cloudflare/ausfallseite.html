@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="robots" content="noindex">
-<title>CompHub is catching its breath</title>
+<title>CompHub is offline</title>
 <style>
   :root {
     --grund: #08090c;
@@ -73,6 +73,36 @@
     50%      { opacity: .62; transform: translateX(-50%) scaleX(1.1); }
   }
 
+  /*
+   * Das Kreuz am Logo.
+   *
+   * Der Betreiber wollte "so eine Art X ueber unserem Logo, rechts oben dran,
+   * dass es offline ist". Es sitzt in der Ecke wie ein Statuszeichen, nicht
+   * mitten auf dem Zeichen - das Logo soll erkennbar bleiben, das Kreuz sagt
+   * nur, in welchem Zustand es gerade ist.
+   *
+   * Rot ist hier die einzige Ausnahme vom Blau der Seite: es ist die Farbe
+   * des Zustands, nicht der Marke.
+   */
+  .zeichen .kreuz {
+    position: absolute;
+    top: -14px; right: -16px;
+    width: 54px; height: 54px;
+    display: grid; place-items: center;
+    border-radius: 50%;
+    background: #1a0f14;
+    border: 2px solid #f43f5e;
+    box-shadow: 0 6px 20px rgba(244, 63, 94, .35);
+    /* Es haengt am Logo und schwebt deshalb mit - eigene Bewegung nur als
+       ruhiges Pochen, damit das Auge dort landet. */
+    animation: pochen 2.6s ease-in-out infinite;
+  }
+  .zeichen .kreuz svg { width: 26px; height: 26px; display: block; }
+  @keyframes pochen {
+    0%, 100% { transform: scale(1); }
+    50%      { transform: scale(1.08); }
+  }
+
   /* --------------------------------------------------------- Der Text */
 
   .marke {
@@ -129,11 +159,19 @@
 
   footer {
     margin-top: 26px;
-    font-size: 11px; color: #4d5561; letter-spacing: .04em;
+    font-size: 12px; color: #6b7484; letter-spacing: .02em;
   }
+  footer a {
+    color: var(--akzent-hell);
+    text-decoration: none;
+    border-bottom: 1px solid rgba(56, 189, 248, .35);
+  }
+  footer a:hover { border-bottom-color: var(--akzent-hell); }
+  footer .trenner { margin: 0 .5em; color: #3d4551; }
 
   @media (prefers-reduced-motion: reduce) {
-    .zeichen, .zeichen img, .zeichen::after, .punkt { animation: none; }
+    .zeichen, .zeichen img, .zeichen::after,
+    .zeichen .kreuz, .punkt { animation: none; }
   }
 </style>
 </head>
@@ -141,14 +179,19 @@
 <main>
   <div class="zeichen">
     <img src="data:image/png;base64,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" alt="CompHub">
+    <span class="kreuz" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#f43f5e"
+           stroke-width="3.4" stroke-linecap="round">
+        <path d="M5 5 L19 19 M19 5 L5 19"></path>
+      </svg>
+    </span>
   </div>
 
   <p class="marke">CompHub</p>
-  <h1>We're catching our breath</h1>
+  <h1>Our servers are down</h1>
   <p class="satz">
-    The server behind CompHub is not answering right now. Nothing is lost —
-    stats, tournaments and your tier lists are all still there. Sorry for the
-    interruption.
+    Please be patient — we are working on it. Nothing is lost: stats,
+    tournaments and your tier lists are all still there.
   </p>
 
   <div class="kasten">
@@ -157,7 +200,10 @@
     <button id="jetzt" type="button">Try now</button>
   </div>
 
-  <footer>Fortnite Competitive · thecomphub.com</footer>
+  <footer>
+    Anything else? <a href="mailto:help@thecomphub.com">help@thecomphub.com</a>
+    <span class="trenner">·</span> Fortnite Competitive
+  </footer>
 </main>
 
 <script>
