@@ -7,6 +7,30 @@ import {
   istGrossesTurnier, istFinaleTag,
 } from '@/lib/szeneStats';
 import { DATEN_ORT } from '@/lib/datenOrt';
+import { getToken, loeseNamenAuf } from '@/lib/epicCups';
+
+/**
+ * Das Namensverzeichnis - Konto-Id auf die Namen, unter denen jemand
+ * schon angetreten ist.
+ *
+ * Es stand in dieser Kette bisher nicht drin, obwohl es die groesste
+ * Sammlung im Werkzeug ist. Ein Mitspieler, den die Szene-Quelle nicht
+ * fuehrt, erschien deshalb als "0C54DF68" - die ersten acht Zeichen seiner
+ * Konto-Id.
+ */
+async function liesNamensverzeichnis(): Promise<Map<string, string>> {
+  const karte = new Map<string, string>();
+  try {
+    const roh = JSON.parse(await fs.readFile(
+      path.join(DATEN_ORT, 'spieler-namen.json'), 'utf8')) as
+      Record<string, { haupt?: string; namen?: string[] }>;
+    for (const [id, e] of Object.entries(roh)) {
+      const n = e.haupt || e.namen?.[0];
+      if (n) karte.set(id, n);
+    }
+  } catch { /* noch kein Verzeichnis */ }
+  return karte;
+}
 
 // Die Einzelwerte aus dem eigenen Archiv, zusammengerechnet.
 //
@@ -683,18 +707,46 @@ export async function GET(request: Request) {
        * Profil, sonst die Szeneliste, sonst der Turniername.
        */
       const namensQuelle = await liesSzeneSpieler();
+      const namensListe = await liesNamensverzeichnis();
       const nameZu = new Map<string, { name: string; land: string | null }>();
+      /** Wer nirgends steht - fuer den lohnt die Nachfrage bei Epic. */
+      const namenlos: string[] = [];
       for (const z of [...rohZeilen, ...rohEpic]) {
         for (const id of z.mitspieler) {
           if (nameZu.has(id)) continue;
           const pr2 = (await liesProfile()).get(id);
           const sz2 = namensQuelle.get(id);
           const ausArchiv = alle.find((x) => x.epicId === id)?.name;
+          const gefunden = pr2?.anzeige || pr2?.name || sz2?.name || ausArchiv
+            || namensListe.get(id);
+          if (!gefunden) namenlos.push(id);
           nameZu.set(id, {
-            name: pr2?.anzeige || pr2?.name || sz2?.name || ausArchiv || id.slice(0, 8),
+            name: gefunden || id.slice(0, 8),
             land: pr2?.land || sz2?.land || null,
           });
         }
+      }
+
+      /*
+       * Und wer dann immer noch keinen Namen hat, wird bei Epic erfragt.
+       *
+       * In einem offenen Duos-Cup steht neben einem Profi irgendein Konto,
+       * das keine unserer Listen kennt - im Profil stand dort dann
+       * "0C54DF68". Epics Kontodienst nennt den aktuellen Anzeigenamen, und
+       * genau dafuer ist er da; abgefragt werden alle offenen Ids in einem
+       * Zug, und die Antwort haelt der Prozess vor. Bleibt die Antwort aus,
+       * steht wieder die gekuerzte Id da - erfunden wird nichts.
+       */
+      if (namenlos.length) {
+        try {
+          const { token } = await getToken();
+          const aufgeloest = await loeseNamenAuf(namenlos, token);
+          for (const [id, name] of Object.entries(aufgeloest)) {
+            if (!name || name === id.slice(0, 8)) continue;
+            const vorher = nameZu.get(id);
+            nameZu.set(id, { name, land: vorher?.land ?? null });
+          }
+        } catch { /* ohne Epic-Anmeldung bleibt die gekuerzte Id stehen */ }
       }
       const zeilen = rohZeilen.map((z) => ({
         ...z,

@@ -158,6 +158,8 @@ interface VerlaufZeile {
    * Konto und schliesst damit genau diese Luecke.
    */
   replayElims?: number;
+  /** Ebenfalls aus dem Replay - steht im Mouseover neben den Elims. */
+  replayKnocks?: number;
   /** Aus Epics Bestenliste - fehlt, wo Epic das Fenster nicht mehr vorhaelt. */
   platz: number | null;
   punkte: number | null;
@@ -1071,6 +1073,11 @@ function VerlaufTabelle({ zeilen, fuss }: {
   const quote = (w: VerlaufZeile['werte']) =>
     w.damageTakenFromPlayers > 0 ? w.damageDealt / w.damageTakenFromPlayers : 0;
 
+  /** Warum eine Spalte leer bleibt - einmal geschrieben, viermal verwendet. */
+  const ohneWert = t('Zu diesem Spieltag hat die Szene-Quelle noch nichts '
+    + 'veröffentlicht. Epics Bestenliste führt Schaden, Material und Bauteile '
+    + 'nicht, und im Replay stehen sie ebenfalls nicht.');
+
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-xs">
@@ -1080,6 +1087,11 @@ function VerlaufTabelle({ zeilen, fuss }: {
             <th className="px-2 py-2 text-left font-medium"><T>Turnier</T></th>
             <th className="px-2 py-2 text-center font-medium"><T>Region</T></th>
             <th className="px-2 py-2 text-center font-medium"><T>Platz</T></th>
+            {/* Die Punkte standen bisher nirgends, obwohl Epic sie zu jedem
+                Spieltag herausgibt - und sie sind es, die den Cup
+                entscheiden. Gerade in den Zeilen, in denen sonst nur Striche
+                stehen, ist das der eine Wert, den es wirklich gibt. */}
+            <th className="px-2 py-2 text-right font-medium"><T>Punkte</T></th>
             <th className="px-2 py-2 text-right font-medium"><T>Matches</T></th>
             <th className="px-2 py-2 text-right font-medium"><T>Elims</T></th>
             <th className="px-2 py-2 text-right font-medium"><T>Schaden</T></th>
@@ -1117,6 +1129,11 @@ function VerlaufTabelle({ zeilen, fuss }: {
                               ${platzFarbe(z.platz)}`}>
                 {z.platz !== null ? `${z.platz}.` : '—'}
               </td>
+              <td className="px-2 py-2 text-right font-semibold tabular-nums
+                             text-slate-300">
+                {z.punkte !== null ? zahl(z.punkte, 0, sprache)
+                  : <span className="text-slate-700">—</span>}
+              </td>
               <td className="px-2 py-2 text-right tabular-nums text-slate-500">
                 {z.werte.matchesPlayed || '—'}
               </td>
@@ -1140,29 +1157,49 @@ function VerlaufTabelle({ zeilen, fuss }: {
                       title={t('Aus dem eigenen Replay dieses Spieltags '
                         + 'gezählt — Epic gibt Eliminierungen nur je Team '
                         + 'heraus. Schaden, Material und Bauteile stehen im '
-                        + 'Replay nicht.')}
+                        + 'Replay nicht.')
+                        + (typeof z.replayKnocks === 'number'
+                          ? ` · ${z.replayKnocks} ${t('Knocks')}` : '')}
                       className="cursor-help underline decoration-dotted
                                  underline-offset-2 decoration-sky-400/50">
                       {z.replayElims}
                     </span>
-                  ) : <span className="text-slate-700">—</span>}
+                  ) : (
+                    <span className="cursor-help text-slate-700"
+                      title={t('Epic gibt Eliminierungen nur je Team heraus, und '
+                        + 'zu diesem Spieltag liegt kein ausgewertetes Replay vor.')}>
+                      —
+                    </span>
+                  )}
               </td>
+              {/*
+                * Schaden, Quote, Material und Bauteile.
+                *
+                * Die gibt es zu einem reinen Epic-Spieltag nicht: Epics
+                * Bestenliste fuehrt sie nicht, und im Replay stehen sie
+                * ebenfalls nicht - dort sind nur Eliminierungen, Knocks,
+                * Waffe und Zeitpunkt zu holen. Statt eines nackten Strichs
+                * sagt das Feld jetzt im Mouseover, warum es leer ist.
+                * Geraten wird nichts.
+                */}
               <td className="px-2 py-2 text-right tabular-nums text-slate-400">
-                {z.nurEpic ? <span className="text-slate-700">—</span>
+                {z.nurEpic
+                  ? <span className="cursor-help text-slate-700" title={ohneWert}>—</span>
                   : zahl(Math.round(z.werte.damageDealt), 0, sprache)}
               </td>
               <td className="px-2 py-2 text-right tabular-nums text-slate-400">
-                {z.nurEpic ? <span className="text-slate-700">—</span>
+                {z.nurEpic
+                  ? <span className="cursor-help text-slate-700" title={ohneWert}>—</span>
                   : zahl(quote(z.werte), 2, sprache)}
               </td>
               <td className="px-2 py-2 text-right tabular-nums text-slate-400">
                 {z.nurEpic || !mats(z.werte)
-                  ? <span className="text-slate-700">—</span>
+                  ? <span className="cursor-help text-slate-700" title={ohneWert}>—</span>
                   : zahl(mats(z.werte), 0, sprache)}
               </td>
               <td className="px-2 py-2 text-right tabular-nums text-slate-400">
                 {z.nurEpic || !builds(z.werte)
-                  ? <span className="text-slate-700">—</span>
+                  ? <span className="cursor-help text-slate-700" title={ohneWert}>—</span>
                   : zahl(builds(z.werte), 0, sprache)}
               </td>
               <td className="px-2 py-2">
@@ -2150,7 +2187,7 @@ export default function StatistikSeite() {
         titel: string; windowId: string; region: string; season: string;
         datum: number | null; platz: number; punkte: number; matches: number;
         mitspieler: Mitspieler[];
-        replayElims?: number;
+        replayElims?: number; replayKnocks?: number;
       }) => ({
         event: z.titel || z.windowId,
         windowId: z.windowId, region: z.region, season: z.season,
@@ -2163,6 +2200,7 @@ export default function StatistikSeite() {
         platz: z.platz, punkte: z.punkte, mitspieler: z.mitspieler,
         nurEpic: true,
         replayElims: z.replayElims,
+        replayKnocks: z.replayKnocks,
       })));
       // Wer im gewaehlten Zeitraum nicht angetreten ist, bekommt Nullen -
       // nicht die Zahlen des vorigen Zeitraums. Sonst stand im Kopf "0

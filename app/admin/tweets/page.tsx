@@ -12,7 +12,7 @@ import { MARKE } from '@/lib/marke';
 import { kernname, namensSchluessel } from '@/lib/homoglyph';
 
 import T from '@/app/components/T';
-import { useT } from '@/app/components/SprachProvider';
+import { useSprache } from '@/app/components/SprachProvider';
 import { speichereAdresse, speichereLeinwand } from '@/app/lib/bildSpeichern';
 interface Fenster {
   status: string; begin: number;
@@ -850,7 +850,7 @@ function Fenster({ offen, schliessen, titel, children }: {
 }
 
 export default function TweetSeite() {
-  const t = useT();
+  const { t, sprache } = useSprache();
   const [istAdmin, setIstAdmin] = useState<boolean | null>(null);
   const [cups, setCups] = useState<Cup[]>([]);
   const [cupId, setCupId] = useState('');
@@ -888,6 +888,8 @@ export default function TweetSeite() {
   const [anzahlRoh, setAnzahlRoh] = useState('7');
   /** Auch die aelteren Spieltage zeigen, nicht nur die letzten zwoelf. */
   const [alleSpieltage, setAlleSpieltage] = useState(false);
+  /** Filter fuer die Cup-Liste - sie wird schnell zwanzig Zeilen lang. */
+  const [cupSuche, setCupSuche] = useState('');
   /** Kennzahlen filtern und aufklappen - es sind schnell dreissig. */
   const [listenSuche, setListenSuche] = useState('');
   const [alleListen, setAlleListen] = useState(false);
@@ -1410,6 +1412,50 @@ export default function TweetSeite() {
       .sort((a, b) => (b.letzterStart ?? 0) - (a.letzterStart ?? 0));
     return { live, vorbei };
   }, [cups]);
+
+  /**
+   * Die Cup-Liste, nach Monat gebuendelt.
+   *
+   * Sie stand als eine einzige Reihe von zwanzig Zeilen da - "Duos Reload
+   * Ranked Cup (Zero Build)", "Duos Reload Ranked Cup (Battle Royale)",
+   * "Solo Reload Ranked Cup (Battle Royale)" untereinander, unterschieden
+   * nur durch ein Datum am Ende. Der Betreiber dazu, unmissverstaendlich:
+   * "Ich seh das gar nicht uebersichtlich. Gar nicht."
+   *
+   * Jetzt: die laufenden oben in einer eigenen Gruppe, alles andere nach
+   * Monat getrennt, und darueber ein Feld zum Filtern. Der Monat kommt aus
+   * dem Datum des Cups, nicht aus einer Liste von Namen - so stimmt er auch
+   * im naechsten Jahr.
+   */
+  const cupGruppen = useMemo(() => {
+    const q = cupSuche.trim().toLowerCase();
+    const passt = (c: Cup) => !q || c.titel.toLowerCase().includes(q);
+
+    const live = sichtbareCups.live.filter(passt);
+    const monate = new Map<string, { titel: string; cups: Cup[] }>();
+    for (const c of sichtbareCups.vorbei.filter(passt)) {
+      const zeiten = Object.values(c.regionen).flat().map((f) => f.begin);
+      const wann = zeiten.length ? new Date(Math.max(...zeiten)) : null;
+      const schluessel = wann
+        ? `${wann.getFullYear()}-${String(wann.getMonth()).padStart(2, '0')}`
+        : 'ohne';
+      const titel = wann
+        ? wann.toLocaleDateString(sprache === 'en' ? 'en-GB' : 'de-DE',
+          { month: 'long', year: 'numeric' })
+        : t('ohne Datum');
+      if (!monate.has(schluessel)) monate.set(schluessel, { titel, cups: [] });
+      monate.get(schluessel)!.cups.push(c);
+    }
+    return {
+      live,
+      // Die Cups sind schon nach Datum sortiert; der Schluessel jahr-monat
+      // sortiert absteigend genau so.
+      monate: [...monate.entries()].sort((a, b) => b[0].localeCompare(a[0]))
+        .map(([, v]) => v),
+      treffer: live.length
+        + [...monate.values()].reduce((a, v) => a + v.cups.length, 0),
+    };
+  }, [sichtbareCups, cupSuche, sprache, t]);
 
   /** Wann lief dieser Cup zuletzt? Fuer die Beschriftung in der Liste. */
   const wann = (c: Cup) => {
@@ -3247,22 +3293,44 @@ export default function TweetSeite() {
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             <label className="text-xs text-slate-400">
               Cup
+              <input value={cupSuche}
+                onChange={(e) => setCupSuche(e.target.value)}
+                placeholder={t('filtern — z. B. fncs, solo, reload')}
+                spellCheck={false}
+                className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950
+                           px-3 py-1.5 text-xs text-slate-100 outline-none
+                           placeholder:text-slate-600 focus:border-sky-500" />
               <select value={cupId}
                 onChange={(e) => {
                   setCupId(e.target.value); setFensterId('');
                   setAlleSpieltage(false);
                 }}
-                className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950
+                className="mt-1.5 w-full rounded-lg border border-zinc-800 bg-zinc-950
                            px-3 py-2 text-sm text-slate-100 outline-none
                            focus:border-sky-500">
                 <option value="">{t('— auswählen —')}</option>
-                {sichtbareCups.live.map((c) => (
-                  <option key={c.id} value={c.id}>🔴 {c.titel}</option>
-                ))}
-                {sichtbareCups.vorbei.map((c) => (
-                  <option key={c.id} value={c.id}>{c.titel} · {wann(c)}</option>
+                {cupGruppen.live.length > 0 && (
+                  <optgroup label={t('Läuft gerade')}>
+                    {cupGruppen.live.map((c) => (
+                      <option key={c.id} value={c.id}>🔴 {c.titel}</option>
+                    ))}
+                  </optgroup>
+                )}
+                {cupGruppen.monate.map((m) => (
+                  <optgroup key={m.titel} label={m.titel}>
+                    {m.cups.map((c) => (
+                      <option key={c.id} value={c.id}>{wann(c)} · {c.titel}</option>
+                    ))}
+                  </optgroup>
                 ))}
               </select>
+              {/* Wieviel der Filter uebrig laesst - sonst sieht eine leere
+                  Liste aus wie ein Fehler. */}
+              {cupSuche.trim() && (
+                <span className="mt-1 block text-[11px] text-slate-600">
+                  {cupGruppen.treffer} <T>Treffer</T>
+                </span>
+              )}
             </label>
 
             <label className="text-xs text-slate-400">
