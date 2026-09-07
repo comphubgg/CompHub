@@ -261,6 +261,17 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Heute läuft kein passender Cup.': 'No matching cup is running today.',
   'nur heute zeigen': 'show today only',
   'frühere Spieltage zeigen': 'show earlier match days',
+  'Heute und morgen läuft kein passender Cup.':
+    'No matching cup is running today or tomorrow.',
+  'Cup — gestern, heute und morgen': 'Cup — yesterday, today and tomorrow',
+  'auch die übrigen Cups dieser Tage': 'other cups on these days too',
+  // Das Blättern im Standings-Overlay.
+  'Durch die Plätze blättern': 'Page through the ranks',
+  'Blättern bis Platz': 'Page up to rank',
+  'Sekunden je Seite': 'Seconds per page',
+  'Seiten': 'Pages',
+  'Gestern, heute und morgen läuft kein passender Cup. Die Auswahl füllt sich von selbst, sobald einer ansteht — das Overlay in OBS musst du dafür nicht anfassen.':
+    'No matching cup yesterday, today or tomorrow. The list fills itself as soon as one comes up — you do not have to touch the overlay in OBS.',
   // Die Overlay-Seiten.
   // Diese fuenf standen schon weiter unten; beim Aufraeumen der
   // Doppelten sind sie mit herausgefallen und stehen deshalb hier.
@@ -1001,6 +1012,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'heute': 'today',
   'gestern': 'yesterday',
   'läuft': 'live',
+  'morgen': 'tomorrow',
   'beendet': 'finished',
   '{n} weitere unter „Alle“': '{n} more under “All”',
   'Alle {n} anzeigen': 'Show all {n}',

@@ -87,6 +87,11 @@ html, body {
   white-space: nowrap;
 }
 #titel { color: var(--text); }
+#spanne {
+  color: var(--akzent);
+  font-variant-numeric: tabular-nums;
+  margin-left: .6em;
+}
 #kopfrechts { color: var(--leise); }
 
 /* ---------------------------------------------------------------- Zeilen */
@@ -188,6 +193,8 @@ td.punkte b.neu { animation: stups .9s ease-out; }
 <div id="karte">
   <div id="kopf">
     <span id="titel">STANDINGS</span>
+    <!-- Beim Blaettern steht hier, welche Plaetze gerade zu sehen sind. -->
+    <span id="spanne" hidden></span>
     <span id="kopfrechts">POINTS</span>
   </div>
   <table><tbody id="zeilen"></tbody></table>
@@ -226,14 +233,82 @@ td.punkte b.neu { animation: stups .9s ease-out; }
     /** Ein- und Ausblenden: 0 heisst dauerhaft sichtbar. */
     pausiert: 0,
     sichtbar: 15,
+    /*
+     * Blaettern statt einer langen Liste.
+     *
+     * Der Betreiber: "Ich kann aus den Standings auch ein Overlay machen,
+     * indem ich Top fuenf anzeige, aber es dann mehrere Seiten gibt - Seite
+     * eins Top fuenf, Seite zwei fuenf bis zehn, Seite drei zehn bis fuenfzehn
+     * und so weiter."
+     *
+     * "seitenBis" ist der letzte Platz, bis zu dem geblaettert wird; null
+     * heisst: nicht blaettern, es bleibt bei von/bis. Wie viele Zeilen eine
+     * Seite hat, steht schon da - es ist die Spanne von/bis.
+     */
+    seitenBis: 0,
+    /** Sekunden je Seite. */
+    seitenTakt: 8,
   };
 
   const $ = (id) => document.getElementById(id);
   let cfg = STANDARD;
   let server = location.origin;
   let uhr = null;
+  let seitenUhr = null;
   let blendAus = null;
   const vorher = new Map();
+  /** Die zuletzt geholten Zeilen - daraus werden die Seiten geschnitten. */
+  let bestand = [];
+  /** Die laufende Seite, von null an gezaehlt. */
+  let seite = 0;
+
+  /** Wie viele Zeilen eine Seite hat. */
+  function seitenGroesse() {
+    return Math.max(1, (Number(cfg.bis) || 1) - (Number(cfg.von) || 1) + 1);
+  }
+
+  /** Der letzte Platz, der ueberhaupt geholt werden muss. */
+  function letzterPlatz() {
+    return Math.max(Number(cfg.bis) || 1, Number(cfg.seitenBis) || 0);
+  }
+
+  /** Wie viele Seiten es gibt. Ohne Blaettern genau eine. */
+  function seitenZahl() {
+    const bis = Number(cfg.seitenBis) || 0;
+    if (bis <= (Number(cfg.bis) || 1)) return 1;
+    const spanne = bis - (Number(cfg.von) || 1) + 1;
+    return Math.max(1, Math.ceil(spanne / seitenGroesse()));
+  }
+
+  /**
+   * Welche Plaetze gerade zu sehen sind.
+   *
+   * Ohne Blaettern ist das schlicht von/bis. Mit Blaettern wandert das
+   * Fenster in Schritten seiner eigenen Groesse nach unten, bis der letzte
+   * Platz erreicht ist, und faengt dann wieder oben an.
+   */
+  function spanne() {
+    const von = Number(cfg.von) || 1;
+    if (seitenZahl() <= 1) return { von, bis: Number(cfg.bis) || von };
+    const g = seitenGroesse();
+    const a = von + seite * g;
+    return { von: a, bis: Math.min(a + g - 1, letzterPlatz()) };
+  }
+
+  /** Die aktuelle Seite aus dem Bestand zeichnen. */
+  function seiteZeigen() {
+    const { von, bis } = spanne();
+    const teil = bestand.filter((e) => e.rank >= von && e.rank <= bis);
+    const anzeige = $('spanne');
+    if (seitenZahl() > 1) {
+      anzeige.textContent = von + '–' + bis;
+      anzeige.hidden = false;
+    } else {
+      anzeige.hidden = true;
+    }
+    if (!teil.length) return meldung('No standings yet');
+    zeichnen(teil);
+  }
 
   function meldung(text) {
     $('zeilen').innerHTML = '';
@@ -303,14 +378,19 @@ td.punkte b.neu { animation: stups .9s ease-out; }
       return meldung('Pick a cup in the dashboard');
     }
     try {
+      /*
+       * Geholt wird bis zum letzten Platz, der irgendwann gezeigt wird -
+       * einmal, nicht je Seite. Sonst laege bei zehn Seiten alle acht
+       * Sekunden eine Abfrage an, obwohl sich die Tabelle in der Zeit kaum
+       * bewegt.
+       */
       const u = server + '/api/cup-leaderboard?event=' + encodeURIComponent(cfg.event)
         + '&window=' + encodeURIComponent(cfg.window)
-        + '&limit=' + Math.max(1, cfg.bis);
+        + '&limit=' + Math.max(1, letzterPlatz());
       const d = await (await fetch(u, { cache: 'no-store' })).json();
-      const alle = (d.entries || [])
-        .filter((e) => e.rank >= cfg.von && e.rank <= cfg.bis);
-      if (!alle.length) return meldung('No standings yet');
-      zeichnen(alle);
+      bestand = (d.entries || []);
+      if (!bestand.length) return meldung('No standings yet');
+      seiteZeigen();
     } catch (e) {
       meldung('Server not reachable');
     }
@@ -332,6 +412,21 @@ td.punkte b.neu { animation: stups .9s ease-out; }
 
       if (uhr) clearInterval(uhr);
       uhr = setInterval(holen, Math.max(3, cfg.takt) * 1000);
+
+      /*
+       * Die Seitenuhr laeuft getrennt von der Abfrage: geblaettert wird aus
+       * dem, was schon da ist. Beim Umstellen faengt sie wieder bei der
+       * ersten Seite an, damit man im Dashboard sieht, was man eingestellt
+       * hat, statt mitten in einer Runde zu landen.
+       */
+      if (seitenUhr) clearInterval(seitenUhr);
+      seite = 0;
+      if (seitenZahl() > 1) {
+        seitenUhr = setInterval(function () {
+          seite = (seite + 1) % seitenZahl();
+          if (bestand.length) seiteZeigen();
+        }, Math.max(3, Number(cfg.seitenTakt) || 8) * 1000);
+      }
 
       if (blendAus) blendAus();
       blendAus = OverlayKonfig.blenden(

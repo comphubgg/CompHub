@@ -34,6 +34,9 @@ const STANDARD = {
   gold: 1,
   pausiert: 0,
   sichtbar: 15,
+  /** Blättern: bis zu welchem Platz, und wie lange eine Seite steht. */
+  seitenBis: 0,
+  seitenTakt: 8,
 };
 
 type Config = typeof STANDARD;
@@ -183,6 +186,56 @@ export default function StandingsSeite() {
                   <T>Top</T> {n}
                 </button>
               ))}
+            </div>
+
+            {/*
+              * Blaettern.
+              *
+              * "Ich kann aus den Standings auch ein Overlay machen, indem ich
+              * Top fuenf anzeige, aber es dann mehrere Seiten gibt - Seite
+              * eins Top fuenf, Seite zwei fuenf bis zehn, Seite drei zehn bis
+              * fuenfzehn und so weiter."
+              *
+              * Wie gross eine Seite ist, steht schon oben: es ist die Spanne
+              * von/bis. Hier kommt nur dazu, wie weit geblaettert wird - und
+              * wie lange eine Seite steht.
+              */}
+            <div className="mt-4 border-t border-zinc-800 pt-3">
+              <label className="flex items-center gap-2 text-xs text-slate-300">
+                <input type="checkbox" checked={cfg.seitenBis > 0}
+                  onChange={(e) => setz('seitenBis', e.target.checked
+                    ? Math.max(cfg.bis * 2, 20) : 0)}
+                  className="accent-sky-500" />
+                <T>Durch die Plätze blättern</T>
+              </label>
+
+              {cfg.seitenBis > 0 && (
+                <>
+                  <div className="mt-3 grid gap-4 sm:grid-cols-2">
+                    <Regler titel="Blättern bis Platz" wert={cfg.seitenBis}
+                      von={Math.max(2, cfg.bis + 1)} bis={200}
+                      setzen={(n) => setz('seitenBis', n)} />
+                    <Regler titel="Sekunden je Seite" wert={cfg.seitenTakt}
+                      von={3} bis={60} einheit="s"
+                      setzen={(n) => setz('seitenTakt', n)} />
+                  </div>
+                  <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
+                    <T>Seiten</T>:{' '}
+                    {(() => {
+                      const gross = Math.max(1, cfg.bis - cfg.von + 1);
+                      const zahl = Math.max(1,
+                        Math.ceil((cfg.seitenBis - cfg.von + 1) / gross));
+                      const teile: string[] = [];
+                      for (let i = 0; i < Math.min(zahl, 4); i += 1) {
+                        const a = cfg.von + i * gross;
+                        teile.push(`${a}–${Math.min(a + gross - 1, cfg.seitenBis)}`);
+                      }
+                      return `${teile.join(' · ')}${zahl > 4 ? ' …' : ''}`
+                        + ` (${zahl})`;
+                    })()}
+                  </p>
+                </>
+              )}
             </div>
           </section>
 

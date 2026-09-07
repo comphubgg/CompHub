@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import { ARTEN, overlayAdresse, type OverlayEintrag } from './OverlayGeruest';
+import { overlayCupErlaubt, overlayZeitraum } from '@/lib/overlayCups';
 
 /*
  * Die Bausteine, die sich alle Overlay-Seiten teilen: die Cup-Auswahl, die
@@ -20,25 +21,25 @@ interface Cup {
   regionen: Record<string, Fenster[]>;
 }
 
-/**
- * Welche Cups zur Auswahl stehen.
+/*
+ * Welche Cups zur Auswahl stehen, steht in lib/overlayCups.ts - dieselbe
+ * Regel wie auf der Team-Karte. Hier war frueher eine zweite, etwas andere
+ * Fassung; sie liess unter anderem jeden globalen Cup durch.
  *
- * Der Betreiber: "Es wird nur als Option ausgewaehlt, die Cups, die heute an
- * diesem Tag live sind" - und inhaltlich nur Division 1, die Performance Cups
- * und die globalen Cups, jeweils Finals und Opens. Alles andere waere fuer
- * ein Stream-Overlay Beiwerk.
- *
- * Der Schalter darunter hebt die inhaltliche Einschraenkung auf, nicht die
- * zeitliche: laeuft ausnahmsweise etwas anderes, an dem er dransein will,
- * soll er nicht vor einer leeren Liste stehen.
+ * Was der Schalter darunter aufhebt, ist nur die inhaltliche Einschraenkung.
+ * Der Zeitraum bleibt: gestern, heute, morgen.
  */
-function passt(cup: Cup): boolean {
-  const t = (cup.titel ?? '').toLowerCase();
-  if (/division/.test(t)) return /division\s*1\b/.test(t);
-  if (/performance/.test(t)) return true;
-  if (cup.global) return true;
-  if (/fncs/.test(t)) return true;
-  return false;
+
+/** Wie eine Zeile beschriftet wird - "läuft", "gestern", "morgen". */
+function zeitwort(status: string, begin: number): string {
+  if (status === 'live') return 'läuft';
+  const tag = new Date(begin); tag.setHours(0, 0, 0, 0);
+  const heute = new Date(); heute.setHours(0, 0, 0, 0);
+  const abstand = Math.round((tag.getTime() - heute.getTime()) / 86_400_000);
+  if (abstand === 0) return 'heute';
+  if (abstand === -1) return 'gestern';
+  if (abstand === 1) return 'morgen';
+  return '';
 }
 
 export function CupWahl({ event, window: fenster, onWahl }: {
@@ -50,38 +51,53 @@ export function CupWahl({ event, window: fenster, onWahl }: {
   const [alle, setAlle] = useState(false);
 
   useEffect(() => {
-    fetch('/api/cup-catalog')
+    // "alle", damit auch der gestrige Spieltag mitkommt: die Voreinstellung
+    // "aktuell" gibt nur Laufendes und Kommendes heraus.
+    fetch('/api/cup-catalog?modus=alle')
       .then((r) => r.json())
       .then((j) => setCups(j.cups ?? []))
       .catch(() => setCups([]));
   }, []);
 
-  /** Jedes laufende Fenster als eigene Zeile - Cup, Region, Runde. */
+  /*
+   * Jedes Fenster von gestern, heute und morgen als eigene Zeile.
+   *
+   * Frueher stand hier "nur was gerade laeuft". Der Betreiber: "Cup only when
+   * it's running now - das kannst du entfernen. Wenn der Cup heute oder
+   * gestern war, soll er trotzdem angezeigt werden." Eine Tabelle ist nach
+   * dem Cup genauso interessant wie waehrenddessen, und zwischen zwei Runden
+   * laeuft gerade gar nichts - dann stand die Liste leer da.
+   */
   const laufend = useMemo(() => {
+    const { von, bis } = overlayZeitraum(true);
     const raus: Array<{
       eventId: string; windowId: string; region: string;
-      titel: string; istFinale: boolean; cup: Cup;
+      titel: string; istFinale: boolean; wann: string; live: boolean; begin: number;
     }> = [];
     for (const c of cups ?? []) {
-      if (!alle && !passt(c)) continue;
+      if (!alle && !overlayCupErlaubt(c.titel)) continue;
       for (const liste of Object.values(c.regionen ?? {})) {
         for (const w of liste) {
-          if (w.status !== 'live') continue;
+          if (w.begin < von || w.begin > bis) continue;
           raus.push({
             eventId: w.eventId, windowId: w.windowId, region: w.region,
-            titel: c.titel, istFinale: w.istFinale, cup: c,
+            titel: c.titel, istFinale: w.istFinale,
+            wann: zeitwort(w.status, w.begin), live: w.status === 'live',
+            begin: w.begin,
           });
         }
       }
     }
-    return raus.sort((a, b) => a.titel.localeCompare(b.titel)
-      || a.region.localeCompare(b.region));
+    // Laufendes zuerst, dann das Neueste - so steht oben, was man braucht.
+    return raus.sort((a, b) => Number(b.live) - Number(a.live)
+      || b.begin - a.begin
+      || a.titel.localeCompare(b.titel));
   }, [cups, alle]);
 
   return (
     <div>
       <label className="text-xs text-slate-400">
-        <T>Cup — nur was gerade läuft</T>
+        <T>Cup — gestern, heute und morgen</T>
         <select value={fenster}
           onChange={(e) => {
             const w = laufend.find((x) => x.windowId === e.target.value);
@@ -94,7 +110,9 @@ export function CupWahl({ event, window: fenster, onWahl }: {
           <option value="">{t('— auswählen —')}</option>
           {laufend.map((w) => (
             <option key={w.windowId} value={w.windowId}>
-              🔴 {w.titel} · {w.region}{w.istFinale ? ' · Finale' : ''}
+              {w.live ? '🔴 ' : ''}{w.titel} · {w.region}
+              {w.istFinale ? ' · Finale' : ''}
+              {w.wann ? ` · ${t(w.wann)}` : ''}
             </option>
           ))}
         </select>
@@ -108,8 +126,9 @@ export function CupWahl({ event, window: fenster, onWahl }: {
         */}
       {cups && !laufend.length && (
         <p className="mt-1.5 text-[11px] leading-relaxed text-amber-500/80">
-          <T>Gerade läuft kein Cup. Die Auswahl füllt sich von selbst, sobald
-          einer beginnt — das Overlay in OBS musst du dafür nicht anfassen.</T>
+          <T>Gestern, heute und morgen läuft kein passender Cup. Die Auswahl
+          füllt sich von selbst, sobald einer ansteht — das Overlay in OBS
+          musst du dafür nicht anfassen.</T>
         </p>
       )}
 
@@ -117,7 +136,7 @@ export function CupWahl({ event, window: fenster, onWahl }: {
         <input type="checkbox" checked={alle}
           onChange={(e) => setAlle(e.target.checked)}
           className="accent-sky-500" />
-        <T>auch die übrigen laufenden Cups</T>
+        <T>auch die übrigen Cups dieser Tage</T>
       </label>
       {event && (
         <p className="mt-1 truncate font-mono text-[10px] text-slate-700">

@@ -32,6 +32,20 @@
     --akzent: #38bdf8;
     --klar: .92;
     --hoehe: 108px;
+    /*
+     * Der Massstab der Schrift.
+     *
+     * Alle Groessen im Banner haengen daran. Vorher standen Schriftgroessen
+     * fest in Punkten: wurde die Hoehe kleiner gestellt, blieb die Schrift so
+     * gross wie zuvor, passte nicht mehr in die Zeile und wurde oben und
+     * unten abgeschnitten. Der Betreiber hat genau das beanstandet: "dass der
+     * Name einfach ausgegrenzt wird, wenn ich die Hoehe kleiner mache. Dann
+     * soll einfach alles kleiner werden - aber nicht so klein, dass man es
+     * nicht mehr lesen kann, sondern alles soll drauf Platz haben."
+     *
+     * Gesetzt wird der Wert unten aus der Hoehe, mit einer Untergrenze.
+     */
+    --skala: 1;
     /* Wie weit die Fotos vom Text abruecken - ueber ?abstand= regelbar. */
     --abstand: 18px;
   }
@@ -55,7 +69,7 @@
     display: inline-flex; align-items: stretch;
     height: var(--hoehe);
     overflow: hidden;
-    border-radius: 10px;
+    border-radius: calc(10px * var(--skala));
     opacity: 0; transform: translateY(6px);
     transition: opacity .35s ease, transform .35s ease;
   }
@@ -92,27 +106,33 @@
     min-width: 0;
     display: flex; flex-direction: column;
     align-items: center; justify-content: center;
-    gap: 4px;
-    padding: 8px var(--abstand);
+    gap: calc(4px * var(--skala));
+    padding: calc(8px * var(--skala)) var(--abstand);
     background: color-mix(in srgb, var(--grund) calc(var(--klar) * 100%), transparent);
   }
 
   .namen {
-    font-size: 21px; font-weight: 800; letter-spacing: .04em;
+    font-size: calc(21px * var(--skala));
+    font-weight: 800; letter-spacing: .04em;
     color: var(--schrift); text-transform: uppercase;
     white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     max-width: 100%;
   }
-  .namen .und { color: var(--leise); font-weight: 600; margin: 0 6px; }
+  .namen .und {
+    color: var(--leise); font-weight: 600;
+    margin: 0 calc(6px * var(--skala));
+  }
 
-  .werte { display: flex; gap: 18px; }
+  .werte { display: flex; gap: calc(18px * var(--skala)); }
   .spalte { display: flex; flex-direction: column; align-items: center; gap: 1px; }
   .spalte .l {
-    font-size: 10px; font-weight: 700; letter-spacing: .16em;
+    font-size: calc(10px * var(--skala));
+    font-weight: 700; letter-spacing: .16em;
     color: var(--leise); text-transform: uppercase;
   }
   .spalte .v {
-    font-size: 19px; font-weight: 800; color: var(--schrift);
+    font-size: calc(19px * var(--skala));
+    font-weight: 800; color: var(--schrift);
     font-variant-numeric: tabular-nums;
   }
   /* Die Platzierung ist die Zahl, auf die alle sehen. */
@@ -125,7 +145,8 @@
 
   #hinweis {
     display: none;
-    font-size: 12px; color: var(--leise); padding: 0 8px; text-align: center;
+    font-size: calc(12px * var(--skala));
+    color: var(--leise); padding: 0 8px; text-align: center;
   }
   #banner.leerlauf .werte { display: none; }
   #banner.leerlauf #hinweis { display: block; }
@@ -219,7 +240,23 @@ if (P.get('abstand')) {
   document.documentElement.style.setProperty('--abstand', a + 'px');
 }
 if (P.get('hoehe')) {
-  document.documentElement.style.setProperty('--hoehe', parseInt(P.get('hoehe'), 10) + 'px');
+  /*
+   * Die Hoehe zieht die ganze Karte mit, nicht nur ihren Rahmen.
+   *
+   * Achtundhundert Punkte sind der Entwurf, an dem alle Groessen gemessen
+   * sind. Wer auf siebzig stellt, bekommt alles bei 0,65 - Namen, Zahlen,
+   * Beschriftungen, Abstaende. Nach unten ist bei 0,55 Schluss: darunter
+   * waere die Beschriftung "TOP" nur noch ein Strich, und lesbar bleiben
+   * soll es. Wird es dadurch breiter als die Hoehe hergibt, waechst das
+   * Banner in die Breite - es ist "inline-flex" und richtet sich nach seinem
+   * Inhalt.
+   */
+  const h = parseInt(P.get('hoehe'), 10);
+  if (h > 0) {
+    document.documentElement.style.setProperty('--hoehe', h + 'px');
+    const skala = Math.max(0.55, Math.min(2, h / 108));
+    document.documentElement.style.setProperty('--skala', String(Math.round(skala * 100) / 100));
+  }
 }
 
 const banner = document.getElementById('banner');

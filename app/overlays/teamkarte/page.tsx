@@ -19,6 +19,7 @@ import Link from 'next/link';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import OverlayGeruest from '../OverlayGeruest';
+import { overlayCupErlaubt, overlayZeitraum } from '@/lib/overlayCups';
 import { rundenName } from '@/lib/rundenName';
 
 interface Fenster {
@@ -39,29 +40,6 @@ const VORLAGEN = [
 
 const REGIONEN = ['EU', 'NAC', 'NAW', 'BR', 'ASIA', 'ME', 'OCE'];
 
-/** Was der Katalog zu einem Spielfenster weiss. */
-interface KatalogEintrag { titel: string; art: string; kleineDivision: boolean }
-
-/*
- * Welche Cups ueberhaupt zur Wahl stehen.
- *
- * Der Betreiber hat den Kreis selbst gezogen: "man kann nur die Division eins
- * machen, Finals und Opens, Performance Cups Finals und Opens und irgendwelche
- * Global Cups Finals und Opens." Alles andere - Cash Cups, Reload, Victory,
- * Ranked, Skin-Cups - baut er nicht als Banner, und in der Liste stand es
- * trotzdem zu Dutzenden.
- *
- * "championship" ist dabei Epics Sammelbecken fuer FNCS, Majors, den Global
- * Championship und die Performance Evaluation; "division" sind die
- * Divisionsligen, von denen nur die erste zaehlt. Finals und Opens sind keine
- * eigenen Arten, sondern Runden desselben Cups - sie kommen damit von selbst
- * beide mit.
- */
-function cupErlaubt(e: KatalogEintrag | undefined): boolean {
-  if (!e) return false;
-  if (e.art === 'division') return !e.kleineDivision;
-  return e.art === 'championship';
-}
 
 /**
  * Der Name, wie er im Banner stehen soll - derselbe Vorschlag wie dort.
@@ -182,24 +160,18 @@ export default function OverlaySeite() {
    * derselben Stelle wie auf den Event- und Kartenseiten, damit ueberall
    * dasselbe steht.
    */
-  const [katalog, setKatalog] = useState<Record<string, KatalogEintrag>>({});
+  const [katalog, setKatalog] = useState<Record<string, string>>({});
   useEffect(() => {
     fetch('/api/cup-catalog?modus=alle')
       .then((r) => r.json())
       .then((d: { cups?: Array<{
-        titel?: string; art?: string;
+        titel?: string;
         regionen?: Record<string, Array<{ windowId: string }>>;
       }> }) => {
-        const karte: Record<string, KatalogEintrag> = {};
+        const karte: Record<string, string> = {};
         for (const c of d.cups ?? []) {
-          const eintrag: KatalogEintrag = {
-            titel: c.titel ?? '',
-            art: c.art ?? 'sonstige',
-            // Epic fuehrt Division 1 bis 5. Nur die erste ist gemeint.
-            kleineDivision: /division\s*[2-9]/i.test(c.titel ?? ''),
-          };
           for (const liste of Object.values(c.regionen ?? {})) {
-            for (const w of liste ?? []) karte[w.windowId] = eintrag;
+            for (const w of liste ?? []) karte[w.windowId] = c.titel ?? '';
           }
         }
         setKatalog(karte);
@@ -208,7 +180,7 @@ export default function OverlaySeite() {
   }, []);
 
   const lesbarerName = useCallback((w: Fenster) => {
-    const cupName = (katalog[w.windowId]?.titel ?? '').split('·')[0].trim();
+    const cupName = (katalog[w.windowId] ?? '').split('·')[0].trim();
     const runde = rundenName(w.windowId, /Final/i.test(w.windowId), t);
     if (cupName) return [cupName, runde].filter(Boolean).join(' · ');
     // Kennt der Katalog den Spieltag nicht, wenigstens die Kennung entzerren.
@@ -260,34 +232,34 @@ export default function OverlaySeite() {
    * Aber das ist wie viel zu unuebersichtlich."
    */
   const auswahl = useMemo(() => {
-    const tagesAnfang = new Date();
-    tagesAnfang.setHours(0, 0, 0, 0);
-    const tagesEnde = new Date();
-    tagesEnde.setHours(23, 59, 59, 999);
     const q = cupSuche.trim().toLowerCase();
+    const { von, bis } = overlayZeitraum();
 
+    /*
+     * Nur die Cups, die der Betreiber wirklich baut - und nur die von heute
+     * und morgen.
+     *
+     * Welche Cups das sind, steht in lib/overlayCups.ts, zusammen mit seinem
+     * Wortlaut. Hier bleibt nur die Anwendung: erst die Art, dann der
+     * Zeitraum, dann die Suche.
+     */
     const infrage = fenster
-      .filter((w) => w.begin <= tagesEnde.getTime())
-      .filter((w) => cupErlaubt(katalog[w.windowId]))
+      .filter((w) => overlayCupErlaubt(katalog[w.windowId]))
       .filter((w) => !q || lesbarerName(w).toLowerCase().includes(q)
         || w.name.toLowerCase().includes(q))
       .sort((a, b) => (a.status === 'live' ? 0 : 1) - (b.status === 'live' ? 0 : 1)
         || b.begin - a.begin);
 
+    const jetzt = infrage.filter((w) => w.begin >= von && w.begin <= bis);
     /*
-     * Standardmaessig nur der heutige Tag.
-     *
-     * "Es wird nur als Option ausgewaehlt, die Cups, die heute an diesem Tag
-     * live sind." Ein Banner entsteht waehrend des Turniers, nicht drei Wochen
-     * spaeter. Der Weg zurueck bleibt trotzdem offen: wer ein Banner fuer den
-     * gestrigen Final braucht, klappt auf oder sucht - dann faellt die
-     * Tagesgrenze weg.
+     * Der Weg zurueck bleibt offen: wer ein Banner fuer den gestrigen Final
+     * braucht, klappt auf oder sucht. Dann faellt die Tagesgrenze weg - die
+     * Art des Cups bleibt aber auch dann gefiltert.
      */
-    const heute = infrage.filter((w) => w.begin >= tagesAnfang.getTime());
     return {
       alle: infrage,
-      heute,
-      zeig: q || alleZeigen ? infrage : heute,
+      heute: jetzt,
+      zeig: q || alleZeigen ? infrage : jetzt,
     };
   }, [fenster, cupSuche, alleZeigen, lesbarerName, katalog]);
 
@@ -612,7 +584,7 @@ export default function OverlaySeite() {
                   <p className="py-3 text-center text-xs text-slate-600">
                     {alleZeigen || cupSuche
                       ? <T>Kein Spieltag gefunden.</T>
-                      : <T>Heute läuft kein passender Cup.</T>}
+                      : <T>Heute und morgen läuft kein passender Cup.</T>}
                   </p>
                 )}
               </div>
