@@ -1882,6 +1882,16 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Tagesplatz': 'Day rank',
   'Lobby': 'Lobby',
   'alle anzeigen': 'show all',
+  ['Bei einem großen Cup dauert das ein bis zwei Minuten.']:
+    'On a large cup this takes a minute or two.',
+  'Von dieser Lobby fehlen': 'This lobby is missing',
+  ['Plätze — Epic gibt aus der Bestenliste nur die ersten zehntausend '
+    + 'heraus, und in dieser Runde standen Spieler dahinter. Eine halbe '
+    + 'Aufstellung zeigt das Werkzeug nicht; die Match-ID oben ist '
+    + 'vollständig.']:
+    'places — Epic only hands out the first ten thousand of the '
+    + 'leaderboard, and this round had players beyond that. The tool does '
+    + 'not show half a roster; the Match ID above is complete.',
   'Spieler (Einzahl)': 'Player',
   'In welchen Ordner?': 'Into which folder?',
   'Neuer Ordner …': 'New folder …',

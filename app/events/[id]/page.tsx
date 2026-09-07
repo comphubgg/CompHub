@@ -57,6 +57,10 @@ interface Spiel {
   laengsteLebenszeit: number;
   sieger: string[];
   teams: SpielZeile[];
+  /** Laufen die Platznummern lueckenlos von eins durch? */
+  vollstaendig?: boolean;
+  /** Wie viele Plaetze bis zum hoechsten gesehenen fehlen. */
+  fehlend?: number;
 }
 
 /** Ein Platz in einer Bestenliste. */
@@ -898,22 +902,27 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     if (!spieleAn || !fenster || spiele) return;
     let weg = false;
     setSpieleLaedt(true);
+    if (!tabelle.length) return;
     fetch(`/api/cup-matches?event=${encodeURIComponent(fenster.eventId)}`
       /*
-       * Die ganze Bestenliste, nicht nur die Spitze.
+       * So viel wie das Feld hergibt, nicht mehr.
        *
-       * In einer Qualifikation verteilt sich eine einzelne Lobby ueber das
-       * gesamte Feld - in einer Runde standen Teams auf Tagesplatz 4 und auf
-       * Tagesplatz 492 nebeneinander. Mit einer Obergrenze von fuenfhundert
-       * fehlte deshalb die halbe Lobby, ohne dass etwas darauf hinwies.
+       * Eine einzelne Lobby verteilt sich ueber die ganze Bestenliste - in
+       * einer Runde standen Teams auf Tagesplatz 4 und auf 574 nebeneinander.
+       * Mit einer festen Obergrenze fehlte deshalb die halbe Lobby.
+       *
+       * Wie gross das Feld ist, steht hier aber schon: die Bestenliste ist
+       * geladen. Danach richtet sich die Anfrage, statt bei jedem kleinen
+       * Finale zehntausend Plaetze zu verlangen.
        */
-      + `&window=${encodeURIComponent(fenster.windowId)}&limit=${MAX_PLAETZE}`)
+      + `&window=${encodeURIComponent(fenster.windowId)}`
+      + `&limit=${Math.min(MAX_PLAETZE, Math.max(500, tabelle.length))}`)
       .then((r) => r.json())
       .then((j) => { if (!weg) setSpiele(j?.spiele ?? []); })
       .catch(() => { if (!weg) setSpiele([]); })
       .finally(() => { if (!weg) setSpieleLaedt(false); });
     return () => { weg = true; };
-  }, [spieleAn, fenster, spiele]);
+  }, [spieleAn, fenster, spiele, tabelle.length]);
 
   /*
    * Ist das ein einzelner Spielraum oder ein ganzer Qualifikationstag?
@@ -1930,6 +1939,12 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                   <div className="space-y-1">
                     {[...Array(3)].map((unbenutzt, i) =>
                       <div key={i} className="h-14 animate-pulse rounded bg-zinc-900/60" />)}
+                    {/* Bei einer Qualifikation mit zehntausend Teilnehmern
+                        dauert das ein bis zwei Minuten - ohne diesen Satz
+                        sieht es aus, als haenge es. */}
+                    <p className="pt-2 text-center text-[11px] text-slate-600">
+                      <T>Bei einem großen Cup dauert das ein bis zwei Minuten.</T>
+                    </p>
                   </div>
                 )}
 
@@ -2031,6 +2046,27 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                         </div>
                       </div>
 
+                      {/*
+                        * Unvollstaendig heisst: gar keine Liste.
+                        *
+                        * Epics Bestenliste gibt hoechstens zehntausend
+                        * Plaetze heraus; in einer grossen Qualifikation
+                        * fehlen deshalb einzelne Lobby-Mitglieder, und dann
+                        * folgt auf Platz 2 der Platz 5. Der Betreiber will
+                        * in dem Fall lieber nur die Match-Id sehen - eine
+                        * halbe Aufstellung liest sich wie eine ganze.
+                        */}
+                      {sp.vollstaendig === false ? (
+                        <p className="px-3 py-6 text-center text-sm leading-relaxed
+                                      text-slate-500">
+                          <T>Von dieser Lobby fehlen</T> {sp.fehlend ?? 0}{' '}
+                          <T>Plätze — Epic gibt aus der Bestenliste nur die
+                          ersten zehntausend heraus, und in dieser Runde
+                          standen Spieler dahinter. Eine halbe Aufstellung
+                          zeigt das Werkzeug nicht; die Match-ID oben ist
+                          vollständig.</T>
+                        </p>
+                      ) : (
                       <div className="max-h-96 overflow-auto">
                         <table className="w-full text-sm">
                           <thead className="sticky top-0 bg-zinc-950">
@@ -2095,6 +2131,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                           </tbody>
                         </table>
                       </div>
+                      )}
 
                       <p className="border-t border-zinc-900 px-3 py-2 text-[11px]
                                     text-slate-600">
@@ -2381,8 +2418,12 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                               </div>
                             )}
 
-                            <a href={`https://twitch.tv/${x.kanal}`}
-                              target="_blank" rel="noreferrer"
+                            {/*
+                              * Auf die eigene Streamerseite, nicht nach
+                              * Twitch hinaus. Dort laeuft der Stream im
+                              * Werkzeug, mit Chat und den Ordnern daneben.
+                              */}
+                            <a href={`/streams?kanal=${encodeURIComponent(x.kanal)}`}
                               className="flex items-center gap-3 rounded-lg border
                                          border-zinc-800 bg-zinc-950/60 px-3 py-2.5
                                          transition hover:border-purple-600">

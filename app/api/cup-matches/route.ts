@@ -91,9 +91,37 @@ export async function GET(request: Request) {
           (a.platz ?? 9999) - (b.platz ?? 9999) || a.tagesPlatz - b.tagesPlatz),
       }))
       .sort((a, b) => (a.ende ?? '').localeCompare(b.ende ?? ''))
-      .map((s, i) => ({
+      .map((s, i) => {
+        /*
+         * Ist diese Aufstellung vollstaendig?
+         *
+         * Epics Bestenliste gibt hoechstens zehntausend Plaetze heraus. In
+         * einer Qualifikation mit mehr Teilnehmern fehlen deshalb genau die
+         * Lobby-Mitglieder, die weiter hinten stehen - und dann steht eine
+         * Liste da, in der auf Platz 2 der Platz 5 folgt.
+         *
+         * Der Betreiber dazu: "Wenn Du schon eine Lobby erstellst mit einer
+         * Liste, dann jeden Spieler von eins bis hundert. Wenn Du mal nicht
+         * alle hast, dann schreibst Du nur die Match-ID hin."
+         *
+         * Erkennbar ist es an den Platznummern: sie muessen von eins an
+         * lueckenlos durchlaufen. Fehlt eine, ist die Aufstellung
+         * unvollstaendig - und das wird hier gesagt, statt sie zu zeigen.
+         */
+        const plaetze = s.teams
+          .map((x) => x.platz)
+          .filter((n): n is number => typeof n === 'number');
+        const hoechster = plaetze.length ? Math.max(...plaetze) : 0;
+        const vollstaendig = plaetze.length > 0
+          && plaetze.length === hoechster
+          && new Set(plaetze).size === plaetze.length;
+
+        return {
         ...s,
         nummer: i + 1,
+        vollstaendig,
+        /** Wie viele Plaetze bis zum hoechsten gesehenen fehlen. */
+        fehlend: Math.max(0, hoechster - plaetze.length),
         /*
          * Die laengste Lebenszeit dieser Runde.
          *
@@ -104,7 +132,8 @@ export async function GET(request: Request) {
          */
         laengsteLebenszeit: s.teams.reduce((a, t) => Math.max(a, t.timeAlive), 0),
         sieger: s.teams.find((t) => t.platz === 1)?.spieler.map((x) => x.name) ?? [],
-      }));
+        };
+      });
 
     return NextResponse.json({
       spiele,

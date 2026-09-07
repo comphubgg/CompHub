@@ -397,10 +397,35 @@ async function main() {
     console.log(`  ${ids.length} Matches, ${offen.length} offen`);
     uebersprungen += ids.length - offen.length;
 
-    // Die Matches eines Fensters laufen nebeneinander; die Schleusen
-    // begrenzen, wie viele davon wirklich gleichzeitig arbeiten.
-    const ergebnisse = await Promise.all(
-      offen.map((id) => verarbeite(f, id, zustand)));
+    /*
+     * Die Matches eines Fensters laufen nebeneinander; die Schleusen
+     * begrenzen, wie viele davon wirklich gleichzeitig arbeiten.
+     *
+     * Zwei Dinge waehrenddessen, beide wegen der grossen Fenster: eine
+     * offene Runde eines Reload Duos Victory Cup hat viertausend Matches,
+     * und die brauchen ihre Zeit.
+     *
+     *   - Alle fuenfzig fertigen Matches eine Zeile. Vorher kam bis zum
+     *     Ende des Fensters kein einziges Zeichen, und ein Lauf, der eine
+     *     Stunde arbeitet, sah aus wie einer, der haengt.
+     *   - Alle zweihundert wird der Zustand geschrieben. Vorher stand er
+     *     erst am Ende in der Datei - wer den Lauf vorher abbrach, verlor
+     *     jeden einzelnen Download.
+     */
+    let getan = 0;
+    let seitSicherung = 0;
+    const ergebnisse = await Promise.all(offen.map(async (id) => {
+      const r = await verarbeite(f, id, zustand);
+      getan += 1; seitSicherung += 1;
+      if (getan % 50 === 0 || getan === offen.length) {
+        console.log(`    ${getan}/${offen.length} ...`);
+      }
+      if (seitSicherung >= 200) {
+        seitSicherung = 0;
+        await schreibeZustand(f.season, f.windowId, zustand);
+      }
+      return r;
+    }));
     for (const r of ergebnisse) {
       if (r === 'fertig') fertig++;
       else if (r === 'nicht_vorhanden') ohne++;

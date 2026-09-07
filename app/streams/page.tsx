@@ -230,6 +230,21 @@ export default function Home() {
   const [windowSize, setWindowSize] = useState({ width: 0, height: 0 });
   const searchParams = useSearchParams();
   const previewMode = searchParams.get('preview') === '1';
+  /*
+   * Ein Kanal aus der Adresse.
+   *
+   * Von der Eventseite fuehrt jeder laufende Stream hierher - auf die eigene
+   * Streamerseite mit Chat und Ordnern, nicht nach Twitch hinaus. Der
+   * Betreiber: "Ich soll eigentlich auf meine Streamer-Seite gehen und den
+   * Streamer oeffnen, nicht auf Twitch direkt."
+   *
+   * Was in der Adresse steht, gilt vor dem zuletzt gemerkten Kanal.
+   */
+  const kanalAusUrl = (searchParams.get('kanal') ?? '').trim().toLowerCase();
+
+  useEffect(() => {
+    if (kanalAusUrl) setActiveStreamerTwitch(kanalAusUrl);
+  }, [kanalAusUrl]);
   const tourMode = searchParams.get('tour') === '1';
   const [tourOpen, setTourOpen] = useState<boolean>(tourMode);
   const [tourStep, setTourStep] = useState<number>(0);
@@ -803,7 +818,12 @@ loadDashboardData().then(loadedFolders => {
           if (config.showChat !== undefined) setShowChat(config.showChat);
           
           // Aktive Auswahl
-          if (config.activeStreamerTwitch !== undefined && !removedStreamers.has(config.activeStreamerTwitch)) setActiveStreamerTwitch(config.activeStreamerTwitch);
+          // Ein Kanal aus der Adresse geht vor dem gemerkten.
+          if (!kanalAusUrl
+            && config.activeStreamerTwitch !== undefined
+            && !removedStreamers.has(config.activeStreamerTwitch)) {
+            setActiveStreamerTwitch(config.activeStreamerTwitch);
+          }
           if (config.activeFolderId !== undefined) setActiveFolderId(config.activeFolderId);
           
           // Streamer & Ordner
