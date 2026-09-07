@@ -7,6 +7,7 @@ import SprachProvider from './components/SprachProvider';
 import { SPRACH_COOKIE } from './lib/sprache';
 import type { Sprache } from './lib/sprache';
 import Sprachschalter from './components/Sprachschalter';
+import NeuerStand from './components/NeuerStand';
 import ChatFenster from "@/app/components/ChatFenster";
 import PreviewTour from './components/PreviewTour';
 import RouteTransitionLoader from './components/RouteTransitionLoader';
@@ -181,6 +182,10 @@ export default async function RootLayout({
               : <SektionSperre>{children}</SektionSperre>}
           </Suspense>
           <Sprachschalter />
+          {/* Der Hinweis, dass eine neue Fassung bereitsteht. Er steht im
+              Rahmen, damit er auf jeder Seite erscheint - ein Tab, der einen
+              Turniertag lang offen liegt, soll das erfahren. */}
+          <NeuerStand />
           {/* Das Gespraech mit dem Betreiber. Links am Rand, damit es dem
               Sprachschalter unten rechts nicht in die Quere kommt. */}
           <ChatFenster />

@@ -18,7 +18,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
-import { useZugang } from '@/app/lib/zugang';
+import OverlayGeruest from '../OverlayGeruest';
 import { rundenName } from '@/lib/rundenName';
 
 interface Fenster {
@@ -38,6 +38,30 @@ const VORLAGEN = [
 ];
 
 const REGIONEN = ['EU', 'NAC', 'NAW', 'BR', 'ASIA', 'ME', 'OCE'];
+
+/** Was der Katalog zu einem Spielfenster weiss. */
+interface KatalogEintrag { titel: string; art: string; kleineDivision: boolean }
+
+/*
+ * Welche Cups ueberhaupt zur Wahl stehen.
+ *
+ * Der Betreiber hat den Kreis selbst gezogen: "man kann nur die Division eins
+ * machen, Finals und Opens, Performance Cups Finals und Opens und irgendwelche
+ * Global Cups Finals und Opens." Alles andere - Cash Cups, Reload, Victory,
+ * Ranked, Skin-Cups - baut er nicht als Banner, und in der Liste stand es
+ * trotzdem zu Dutzenden.
+ *
+ * "championship" ist dabei Epics Sammelbecken fuer FNCS, Majors, den Global
+ * Championship und die Performance Evaluation; "division" sind die
+ * Divisionsligen, von denen nur die erste zaehlt. Finals und Opens sind keine
+ * eigenen Arten, sondern Runden desselben Cups - sie kommen damit von selbst
+ * beide mit.
+ */
+function cupErlaubt(e: KatalogEintrag | undefined): boolean {
+  if (!e) return false;
+  if (e.art === 'division') return !e.kleineDivision;
+  return e.art === 'championship';
+}
 
 /**
  * Der Name, wie er im Banner stehen soll - derselbe Vorschlag wie dort.
@@ -71,7 +95,6 @@ function Schritt({ nummer, titel, children }: {
 
 export default function OverlaySeite() {
   const t = useT();
-  const zugang = useZugang();
 
   const [region, setRegion] = useState('EU');
   const [fenster, setFenster] = useState<Fenster[]>([]);
@@ -159,16 +182,24 @@ export default function OverlaySeite() {
    * derselben Stelle wie auf den Event- und Kartenseiten, damit ueberall
    * dasselbe steht.
    */
-  const [katalog, setKatalog] = useState<Record<string, string>>({});
+  const [katalog, setKatalog] = useState<Record<string, KatalogEintrag>>({});
   useEffect(() => {
     fetch('/api/cup-catalog?modus=alle')
       .then((r) => r.json())
-      .then((d) => {
-        const karte: Record<string, string> = {};
+      .then((d: { cups?: Array<{
+        titel?: string; art?: string;
+        regionen?: Record<string, Array<{ windowId: string }>>;
+      }> }) => {
+        const karte: Record<string, KatalogEintrag> = {};
         for (const c of d.cups ?? []) {
-          for (const liste of Object.values(c.regionen ?? {}) as Array<
-            Array<{ windowId: string }>>) {
-            for (const w of liste ?? []) karte[w.windowId] = c.titel;
+          const eintrag: KatalogEintrag = {
+            titel: c.titel ?? '',
+            art: c.art ?? 'sonstige',
+            // Epic fuehrt Division 1 bis 5. Nur die erste ist gemeint.
+            kleineDivision: /division\s*[2-9]/i.test(c.titel ?? ''),
+          };
+          for (const liste of Object.values(c.regionen ?? {})) {
+            for (const w of liste ?? []) karte[w.windowId] = eintrag;
           }
         }
         setKatalog(karte);
@@ -177,7 +208,7 @@ export default function OverlaySeite() {
   }, []);
 
   const lesbarerName = useCallback((w: Fenster) => {
-    const cupName = (katalog[w.windowId] ?? '').split('·')[0].trim();
+    const cupName = (katalog[w.windowId]?.titel ?? '').split('·')[0].trim();
     const runde = rundenName(w.windowId, /Final/i.test(w.windowId), t);
     if (cupName) return [cupName, runde].filter(Boolean).join(' · ');
     // Kennt der Katalog den Spieltag nicht, wenigstens die Kennung entzerren.
@@ -203,9 +234,15 @@ export default function OverlaySeite() {
         setLoginNoetig(false);
         const liste: Fenster[] = d.windows ?? [];
         setFenster(liste);
-        const live = liste.find((w) => w.status === 'live');
-        const erste = live ?? liste[0];
-        setCup(erste ? `${erste.eventId}|${erste.windowId}` : '');
+        /*
+         * Vorgewaehlt wird nichts mehr.
+         *
+         * Frueher stand hier der erste laufende Spieltag - und das war
+         * irgendeiner, oft ein Ranked-Fenster, das gar nicht zur Wahl gehoert.
+         * Welcher passt, entscheidet die gefilterte Liste; sie waehlt weiter
+         * unten selbst den ersten aus, sobald der Katalog da ist.
+         */
+        setCup('');
       } catch (e) {
         if (!weg) setLadeFehler((e as Error).message);
       }
@@ -223,17 +260,49 @@ export default function OverlaySeite() {
    * Aber das ist wie viel zu unuebersichtlich."
    */
   const auswahl = useMemo(() => {
+    const tagesAnfang = new Date();
+    tagesAnfang.setHours(0, 0, 0, 0);
     const tagesEnde = new Date();
     tagesEnde.setHours(23, 59, 59, 999);
     const q = cupSuche.trim().toLowerCase();
-    const liste = fenster
+
+    const infrage = fenster
       .filter((w) => w.begin <= tagesEnde.getTime())
+      .filter((w) => cupErlaubt(katalog[w.windowId]))
       .filter((w) => !q || lesbarerName(w).toLowerCase().includes(q)
         || w.name.toLowerCase().includes(q))
       .sort((a, b) => (a.status === 'live' ? 0 : 1) - (b.status === 'live' ? 0 : 1)
         || b.begin - a.begin);
-    return { alle: liste, zeig: q || alleZeigen ? liste : liste.slice(0, 8) };
-  }, [fenster, cupSuche, alleZeigen, lesbarerName]);
+
+    /*
+     * Standardmaessig nur der heutige Tag.
+     *
+     * "Es wird nur als Option ausgewaehlt, die Cups, die heute an diesem Tag
+     * live sind." Ein Banner entsteht waehrend des Turniers, nicht drei Wochen
+     * spaeter. Der Weg zurueck bleibt trotzdem offen: wer ein Banner fuer den
+     * gestrigen Final braucht, klappt auf oder sucht - dann faellt die
+     * Tagesgrenze weg.
+     */
+    const heute = infrage.filter((w) => w.begin >= tagesAnfang.getTime());
+    return {
+      alle: infrage,
+      heute,
+      zeig: q || alleZeigen ? infrage : heute,
+    };
+  }, [fenster, cupSuche, alleZeigen, lesbarerName, katalog]);
+
+  /*
+   * Der erste passende Spieltag, sobald die Liste steht.
+   *
+   * Erst mit dem Katalog laesst sich sagen, welches Fenster ueberhaupt ein
+   * Division-1-, Performance- oder Global-Cup ist. Deshalb faellt die Wahl
+   * hier und nicht schon beim Laden der Fenster.
+   */
+  useEffect(() => {
+    if (cup) return;
+    const erster = auswahl.zeig[0] ?? auswahl.alle[0];
+    if (erster) setCup(`${erster.eventId}|${erster.windowId}`);
+  }, [cup, auswahl]);
 
   /* -------------------------------------------------------- Spieler */
 
@@ -464,72 +533,25 @@ export default function OverlaySeite() {
   /* ------------------------------------------------------------ Bild */
 
   /*
-   * Solange die Auskunft laeuft, wird nichts gezeigt.
+   * Warteschleife und VIP-Sperre stehen jetzt im gemeinsamen Geruest.
    *
-   * Vorher stand hier nur die Sperre fuer Nicht-VIPs. Beim ersten Rendern -
-   * auf dem Server, und dort ist zugang.laedt immer wahr - griff sie nicht,
-   * und im ausgelieferten HTML stand der vollstaendige Builder. Ein Gast bekam
-   * also das VIP-Werkzeug zugeschickt, bevor der Browser es wieder wegnahm.
+   * Sie standen hier eigenstaendig - Wort fuer Wort dasselbe wie auf den
+   * beiden anderen Overlay-Seiten. Beim naechsten Satz wuerde eine der drei
+   * Fassungen abweichen, ohne dass es jemandem auffaellt. OverlayGeruest
+   * entscheidet das an einer Stelle und zeichnet dazu die Leiste links.
    */
-  if (zugang.laedt) {
-    return (
-      <main className="grid min-h-screen place-items-center bg-zinc-950 px-4
-                       text-center text-slate-500">
-        <p className="text-sm"><T>Wird geladen …</T></p>
-      </main>
-    );
-  }
-
-  if (!zugang.vip) {
-    return (
-      <main className="grid min-h-screen place-items-center bg-zinc-950 px-4
-                       text-center text-slate-100">
-        <div className="max-w-md">
-          <h1 className="text-xl font-bold"><T>Nur für VIPs</T></h1>
-          <p className="mt-3 text-sm leading-relaxed text-slate-500">
-            <T>Die Overlays sind Teil des VIP-Zugangs. Er wird vergeben, nicht
-            freigeschaltet — mit einem gewöhnlichen Konto sind sie nicht
-            zugänglich.</T>
-          </p>
-          <Link href="/anmelden"
-            className="mt-6 inline-block rounded-lg bg-sky-500 px-5 py-2.5
-                       text-sm font-semibold text-white transition
-                       hover:bg-sky-400">
-            <T>Zur Anmeldung</T>
-          </Link>
-        </div>
-      </main>
-    );
-  }
 
   const feld = 'w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 '
     + 'text-sm text-slate-100 outline-none placeholder:text-slate-600 '
     + 'focus:border-sky-500';
 
   return (
-    <main className="flex-1 bg-zinc-950 px-4 py-6 text-slate-200">
-      <div className="mx-auto max-w-[1500px]">
+    <OverlayGeruest aktiv="teamkarte">
+      <div>
         <h1 className="text-xl font-semibold text-slate-100"><T>Team card</T></h1>
-        <p className="mt-1 text-sm text-slate-500">
+        <p className="mb-5 mt-1 text-sm text-slate-500">
           <T>Ein Banner für deinen Stream — Cup wählen, Duo wählen, fertig.</T>
         </p>
-
-        {/* Der Weg zu den anderen Overlays. Die eigentliche Leiste steht in
-            OverlayGeruest; diese Seite bekommt sie beim naechsten Umbau, der
-            mit dem Betreiber zusammen ansteht. */}
-        <nav className="mb-5 mt-3 flex flex-wrap gap-1">
-          {[['/overlays/teamkarte', 'Team card'],
-            ['/overlays/standings', 'Standings'],
-            ['/overlays/qual', 'Qual line']].map(([pfad, titel]) => (
-            <Link key={pfad} href={pfad}
-              className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
-                pfad === '/overlays/teamkarte'
-                  ? 'bg-zinc-900 text-sky-400'
-                  : 'text-slate-400 hover:bg-zinc-900/60 hover:text-slate-200'}`}>
-              {titel}
-            </Link>
-          ))}
-        </nav>
 
         {/* Die Vorschau bekommt die breitere Spalte.
             Vorher waren es 380 Punkte, und das Banner musste darin waagerecht
@@ -588,16 +610,19 @@ export default function OverlaySeite() {
                 })}
                 {!auswahl.zeig.length && !ladeFehler && (
                   <p className="py-3 text-center text-xs text-slate-600">
-                    <T>Kein Spieltag gefunden.</T>
+                    {alleZeigen || cupSuche
+                      ? <T>Kein Spieltag gefunden.</T>
+                      : <T>Heute läuft kein passender Cup.</T>}
                   </p>
                 )}
               </div>
 
-              {!cupSuche && auswahl.alle.length > 8 && (
+              {!cupSuche && auswahl.alle.length > auswahl.heute.length && (
                 <button onClick={() => setAlleZeigen((v) => !v)}
                   className="mt-2 text-[11px] text-slate-500 underline hover:text-slate-300">
-                  {alleZeigen ? <T>weniger zeigen</T>
-                    : <>{auswahl.alle.length - 8} <T>weitere zeigen</T></>}
+                  {alleZeigen ? <T>nur heute zeigen</T>
+                    : <><T>frühere Spieltage zeigen</T>
+                      {' '}({auswahl.alle.length - auswahl.heute.length})</>}
                 </button>
               )}
             </Schritt>
@@ -1014,6 +1039,6 @@ export default function OverlaySeite() {
           </div>
         </div>
       </div>
-    </main>
+    </OverlayGeruest>
   );
 }

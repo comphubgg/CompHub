@@ -253,6 +253,14 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Runden ausgewertet': 'rounds processed',
   'Match beendet': 'Match ended',
   'Sieger': 'Winners',
+  // Der Hinweis unten rechts, wenn eine neue Fassung bereitsteht.
+  'Diese Seite wurde aktualisiert. Bitte neu laden.':
+    'This page got updated. Please reload.',
+  'Neu laden': 'Reload',
+  // Die Cupwahl der Team-Karte.
+  'Heute läuft kein passender Cup.': 'No matching cup is running today.',
+  'nur heute zeigen': 'show today only',
+  'frühere Spieltage zeigen': 'show earlier match days',
   // Die Overlay-Seiten.
   // Diese fuenf standen schon weiter unten; beim Aufraeumen der
   // Doppelten sind sie mit herausgefallen und stehen deshalb hier.
