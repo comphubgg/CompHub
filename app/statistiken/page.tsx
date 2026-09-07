@@ -5214,7 +5214,7 @@ export default function StatistikSeite() {
                         {fncs.titel > 0 && (
                           <span className="rounded bg-amber-500/10 px-2 py-0.5 text-[11px]
                                            font-semibold text-amber-400">
-                            {fncs.titel} Titel
+                            {t('{n} Titel').replace('{n}', String(fncs.titel))}
                           </span>
                         )}
                         <span className="ml-auto text-[10px] text-slate-600">
