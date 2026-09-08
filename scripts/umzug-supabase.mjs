@@ -18,6 +18,13 @@
  *   node scripts/umzug-supabase.mjs             wirklich uebertragen
  *   node scripts/umzug-supabase.mjs --nur konten.json,tierlists.json
  *   node scripts/umzug-supabase.mjs --ohne replays,epic-spieltage
+ *   node scripts/umzug-supabase.mjs --herunterladen --nur szene-stats
+ *   node scripts/umzug-supabase.mjs --neuer-als 180
+ *
+ * Die Gegenrichtung, "--herunterladen", holt den Stand aus Supabase auf die
+ * Platte. Gebraucht wird sie dort, wo die Nachtlaeufe kuenftig laufen: eine
+ * GitHub-Aktion faengt mit einem leeren Ordner an. Ohne den vorherigen Stand
+ * wuerde sie jedes Mal alles neu holen, statt nur das Neue.
  *
  * Ohne Angabe werden die kleinen Staende uebertragen - das sind die, die sich
  * nicht wiederherstellen lassen. Die grossen Zwischenspeicher (Replays,
@@ -78,11 +85,22 @@ const KOPF = { apikey: KEY, Authorization: `Bearer ${KEY}` };
 
 const argumente = process.argv.slice(2);
 const probe = argumente.includes('--probe');
+const herunter = argumente.includes('--herunterladen');
 
 function wert(name) {
   const i = argumente.indexOf(name);
   return i >= 0 ? (argumente[i + 1] || '') : '';
 }
+
+/*
+ * Nur was sich zuletzt geaendert hat.
+ *
+ * Fuer die stuendliche Erneuerung: die Skripte schreiben je Lauf eine Handvoll
+ * Dateien neu, alles andere liegt unveraendert da. Jedes Mal hundertvierzig
+ * Megabyte hochzuladen waere nicht nur langsam - es wuerde das kostenlose
+ * Kontingent von Supabase in wenigen Tagen aufbrauchen.
+ */
+const neuerAls = Number(wert('--neuer-als') || 0);
 
 const nur = wert('--nur').split(',').map((s) => s.trim()).filter(Boolean);
 const ohne = (wert('--ohne') || STANDARDMAESSIG_OHNE.join(','))
@@ -113,8 +131,31 @@ function sammle(ordner = '', raus = []) {
 function gewuenscht(name) {
   if (name.startsWith('.')) return false;               // .umgezogen und Aehnliches
   if (name.endsWith('.neu')) return false;              // halbfertige Schreibvorgaenge
+  /*
+   * Von den Replays kommt nur das Ausgewertete mit.
+   *
+   * Die rohen Runden sind Gigabytes, Epic loescht sie nach einunddreissig
+   * Tagen, und die Seite liest sie nie - sie liest das Aggregat und den
+   * Zustand. Diese Regel steht hier und nicht im Aufruf, damit niemand sie
+   * versehentlich weglassen kann: ein Lauf, der die rohen Replays hochlaedt,
+   * fuellt das kostenlose Kontingent in einem Zug.
+   */
+  if (name.startsWith('replays/')
+      && !name.endsWith('_aggregat.json')
+      && !name.endsWith('_zustand.json')) return false;
   if (nur.length) return nur.some((n) => name === n || name.startsWith(`${n}/`));
   return !ohne.some((o) => name === o || name.startsWith(`${o}/`));
+}
+
+/** Wurde die Datei in den letzten Minuten angefasst? Ohne Angabe: immer ja. */
+function frischGenug(name) {
+  if (!neuerAls) return true;
+  try {
+    const alter = Date.now() - fs.statSync(path.join(DATEN, name)).mtimeMs;
+    return alter <= neuerAls * 60_000;
+  } catch {
+    return false;
+  }
 }
 
 function alsObjekt(name) {
@@ -196,13 +237,107 @@ async function pruefe(name, roh, wo) {
 
 /* ---------------------------------------------------------------- Lauf */
 
+/* ------------------------------------------------------- Gegenrichtung */
+
+/** Alle Namen in der Tabelle, seitenweise geholt. */
+async function tabellenNamen() {
+  const raus = [];
+  const PRO_SEITE = 1000;
+  for (let von = 0; ; von += PRO_SEITE) {
+    const r = await fetch(`${URL_}/rest/v1/${TABELLE}?select=name`, {
+      headers: { ...KOPF, Range: `${von}-${von + PRO_SEITE - 1}` },
+    });
+    if (!r.ok) break;
+    const teil = await r.json();
+    for (const z of teil) raus.push(z.name);
+    if (teil.length < PRO_SEITE) break;
+  }
+  return raus;
+}
+
+/** Alle Namen im Objektspeicher, Ordner fuer Ordner. */
+async function objektNamen() {
+  const raus = [];
+  async function tiefer(praefix) {
+    for (let versatz = 0; ; versatz += 100) {
+      const r = await fetch(`${URL_}/storage/v1/object/list/${EIMER}`, {
+        method: 'POST',
+        headers: { ...KOPF, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prefix: praefix, limit: 100, offset: versatz }),
+      });
+      if (!r.ok) return;
+      const teil = await r.json();
+      for (const e of teil) {
+        // Supabase meldet Ordner ohne "id" - daran sind sie zu erkennen.
+        if (e.id === null || e.id === undefined) await tiefer(praefix + e.name + '/');
+        else raus.push(praefix + e.name);
+      }
+      if (teil.length < 100) return;
+    }
+  }
+  await tiefer('');
+  return raus;
+}
+
+async function holen() {
+  const namen = [...await tabellenNamen(), ...await objektNamen()]
+    .filter(gewuenscht).sort();
+  console.log(`  Zu holen: ${namen.length}`);
+  console.log('');
+
+  let ok = 0;
+  let schief = 0;
+  for (const [i, name] of namen.entries()) {
+    process.stdout.write(
+      `\r  ${String(i + 1).padStart(5)}/${namen.length}  ${name.slice(0, 50).padEnd(50)}`);
+    try {
+      let roh;
+      if (alsObjekt(name)) {
+        const r = await fetch(`${URL_}/storage/v1/object/${EIMER}/${name}`,
+          { headers: KOPF });
+        if (!r.ok) throw new Error(String(r.status));
+        roh = Buffer.from(await r.arrayBuffer());
+      } else {
+        const r = await fetch(
+          `${URL_}/rest/v1/${TABELLE}?name=eq.${encodeURIComponent(name)}&select=wert`,
+          { headers: KOPF });
+        if (!r.ok) throw new Error(String(r.status));
+        const zeilen = await r.json();
+        if (!zeilen.length) throw new Error('leer');
+        roh = Buffer.from(zeilen[0].wert, 'utf8');
+      }
+      const ziel = path.join(DATEN, name);
+      fs.mkdirSync(path.dirname(ziel), { recursive: true });
+      fs.writeFileSync(ziel, roh);
+      ok += 1;
+    } catch (e) {
+      schief += 1;
+      if (schief <= 10) console.log(`\n    - ${name}: ${e.message}`);
+    }
+  }
+  console.log('\n');
+  console.log(`  Geholt      : ${ok}`);
+  console.log(`  Gescheitert : ${schief}`);
+  console.log('');
+  process.exit(schief ? 1 : 0);
+}
+
 async function los() {
   if (!URL_ || !KEY) {
     console.error('SUPABASE_URL oder der Schluessel fehlen in .env.local.');
     process.exit(1);
   }
 
-  const alle = sammle().filter(gewuenscht).sort();
+  if (herunter) {
+    console.log('');
+    console.log(`  Projekt   : ${URL_.replace(/https:\/\/([a-z0-9]{4})[a-z0-9]*/, 'https://$1…')}`);
+    console.log('  Richtung  : Supabase -> Platte');
+    console.log(`  Nur       : ${nur.join(', ') || '(alles)'}`);
+    console.log('');
+    return holen();
+  }
+
+  const alle = sammle().filter(gewuenscht).filter(frischGenug).sort();
   const bytes = alle.reduce(
     (s, n) => s + fs.statSync(path.join(DATEN, n)).size, 0);
 
@@ -211,6 +346,7 @@ async function los() {
   console.log(`  Dateien   : ${alle.length}`);
   console.log(`  Umfang    : ${(bytes / 1024 / 1024).toFixed(1)} MB`);
   console.log(`  Ausgelassen: ${ohne.join(', ') || '(nichts)'}`);
+  if (neuerAls) console.log(`  Nur juenger als: ${neuerAls} Minuten`);
   console.log('');
 
   if (probe) {

@@ -1,17 +1,32 @@
-# Die Daten von selbst erneuern.
+# Die Daten von selbst erneuern - und zwar dort, wo die Seite sie liest.
 #
 # Der Nutzer wollte keinen Knopf zum Aktualisieren, sondern dass sich alles
-# planmaessig selbst holt. Genau das macht dieser Ablauf: er laeuft stuendlich,
-# holt die neuen Spieltage und Replays, und legt die Ergebnisse zurueck ins
-# Repository. Wer die .exe benutzt, bekommt sie beim naechsten Start.
+# planmaessig selbst holt. Dieser Ablauf tut das seit jeher; nur landete das
+# Ergebnis bisher im Repository - und weil `data/` in der .gitignore steht,
+# fand `git add data/` nie etwas. Jeder Lauf endete still bei "nichts Neues",
+# und im Repository gibt es bis heute keinen einzigen Commit "Daten erneuert".
+# Die Erneuerung lief also, ohne je etwas zu erneuern.
 #
-# Warum stuendlich und nicht oefter: Replays leben bei Epic einunddreissig
-# Tage, Leaderboards aendern sich waehrend eines Cups im Minutentakt. Einmal
-# je Stunde trifft beides, ohne Epics Schnittstelle zu belaesten.
+# Seit dem Umzug gibt es ohnehin einen besseren Ort: Supabase. Von dort liest
+# die Seite, egal ob sie auf seinem Rechner oder bei Vercel laeuft. Also legt
+# der Ablauf sein Ergebnis jetzt dorthin.
 #
-# Was hier NICHT passiert: das Bauen der .exe. Ein Programm von 354 MB je
-# Datenaenderung neu zu bauen waere Unfug - der Code aendert sich selten, die
-# Daten staendig. Deshalb sind es zwei getrennte Ablaeufe.
+# Warum ueberhaupt hier und nicht im Webserver: bisher liefen die Nachtlaeufe
+# in instrumentation.node.ts, also in einem Vorgang, der durchlaufen muss. Bei
+# Vercel gibt es den nicht - dort startet je Anfrage etwas und schlaeft danach
+# wieder ein. GitHub Actions ist der passende Ort, und fuer oeffentliche Repos
+# kostenlos und ohne Minutengrenze.
+#
+# Der Weg je Lauf:
+#
+#   1. Den Datenordner aus dem Zwischenspeicher holen. Die Skripte arbeiten
+#      alle nachtragend - sie holen nur, was ihnen fehlt -, und dafuer muessen
+#      sie wissen, was schon da ist. Beim ersten Mal oder wenn der
+#      Zwischenspeicher abgelaufen ist, kommt der Stand aus Supabase.
+#   2. Die Skripte laufen lassen, unveraendert, so wie auf seinem Rechner.
+#   3. Nur die Dateien nach Supabase schreiben, die dieser Lauf angefasst hat -
+#      geprueft, Zeichen fuer Zeichen. Alles hochzuladen waere nicht nur
+#      langsam, es wuerde das kostenlose Kontingent in Tagen aufbrauchen.
 
 name: Daten erneuern
 
@@ -20,14 +35,16 @@ on:
   schedule:
     - cron: '15 * * * *'   # jede Stunde, funfzehn nach
 
-# Der Ablauf schreibt ins Repository - ohne diese Zeile darf er das nicht.
-permissions:
-  contents: write
-
 jobs:
   erneuern:
     runs-on: ubuntu-latest
-    timeout-minutes: 50
+    timeout-minutes: 90
+
+    # Zwei Laeufe gleichzeitig wuerden einander dieselben Zeilen
+    # ueberschreiben - und der zweite haette den aelteren Stand.
+    concurrency:
+      group: daten-erneuern
+      cancel-in-progress: false
 
     steps:
       - uses: actions/checkout@v4
@@ -41,17 +58,27 @@ jobs:
         run: npm ci --omit=optional
 
       - name: Zugangsdaten
-        # Die Schluessel stehen als Secrets im Repository, nicht im Code.
-        # Fehlt einer, laeuft der Schritt trotzdem - die Aufgaben, die ihn
-        # brauchen, melden das selbst und die uebrigen arbeiten weiter.
+        # Ein einziges Geheimnis mit dem Inhalt von .env.local - so kann beim
+        # Einrichten kein einzelner Schluessel vergessen werden. Ausgegeben
+        # wird davon nichts.
+        run: printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
+
+      - name: Datenordner aus dem Zwischenspeicher
+        id: zwischenspeicher
+        uses: actions/cache@v4
+        with:
+          path: data
+          key: comphub-daten-${{ github.run_id }}
+          restore-keys: comphub-daten-
+
+      - name: Stand aus Supabase holen
+        # Nur wenn der Zwischenspeicher nichts hergab. GitHub wirft ihn nach
+        # sieben Tagen ohne Zugriff weg; dann faengt der Lauf sonst bei null an
+        # und wuerde alles neu von Epic holen.
+        if: steps.zwischenspeicher.outputs.cache-matched-key == ''
         run: |
-          {
-            echo "EPIC_DEVICE_ID=${{ secrets.EPIC_DEVICE_ID }}"
-            echo "EPIC_ACCOUNT_ID=${{ secrets.EPIC_ACCOUNT_ID }}"
-            echo "EPIC_SECRET=${{ secrets.EPIC_SECRET }}"
-            echo "TWITCH_CLIENT_ID=${{ secrets.TWITCH_CLIENT_ID }}"
-            echo "TWITCH_CLIENT_SECRET=${{ secrets.TWITCH_CLIENT_SECRET }}"
-          } > .env.local
+          node scripts/umzug-supabase.mjs --herunterladen \
+            --ohne replays,_sicherung
 
       - name: Spieltage holen
         continue-on-error: true
@@ -78,19 +105,27 @@ jobs:
         run: node scripts/replays-aggregieren.mjs
 
       - name: Zugangsdaten wieder weg
-        # Sie duerfen unter keinen Umstaenden mit ins Repository.
+        # Sie duerfen unter keinen Umstaenden in den Zwischenspeicher oder
+        # sonst irgendwohin geraten.
         if: always()
         run: rm -f .env.local
 
-      - name: Zurücklegen
+      - name: Ergebnis nach Supabase
+        # "--neuer-als 120" nimmt nur, was dieser Lauf geschrieben hat. Die
+        # Zeitspanne ist grosszuegiger als die Laufzeit, damit auch ein langer
+        # Lauf nichts verliert.
+        #
+        # Die rohen Replays bleiben draussen: das sind Gigabytes, sie leben bei
+        # Epic nur einunddreissig Tage, und gebraucht wird von ihnen ohnehin
+        # nur das ausgewertete Ergebnis.
         run: |
-          git config user.name "CompHub"
-          git config user.email "noreply@comphub.gg"
-          # Nur was gebraucht wird. Die rohen Replays sind ueber die
-          # .gitignore ohnehin draussen; hier steht es noch einmal, damit
-          # es beim Lesen nicht uebersehen wird.
-          git add data/
-          # Nichts Neues ist kein Fehler - dann endet der Lauf still.
-          git diff --staged --quiet && exit 0
-          git commit -m "Daten erneuert $(date -u '+%Y-%m-%d %H:%M')"
-          git push
+          node scripts/umzug-supabase.mjs --neuer-als 120 \
+            --ohne replays,_sicherung
+
+      - name: Ausgewertete Replays nach Supabase
+        # Die Aggregate liegen unter replays/, sind aber das Einzige daraus,
+        # was die Seite braucht - deshalb hier eigens und ohne die rohen.
+        continue-on-error: true
+        run: |
+          node scripts/umzug-supabase.mjs --neuer-als 120 --nur replays \
+            2>&1 | tail -20
