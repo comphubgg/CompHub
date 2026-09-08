@@ -269,7 +269,62 @@ export async function getToken() {
 
 const nameCache = new Map<string, string>();
 
+/*
+ * Aufgeloeste Namen ueberdauern den Vorgang.
+ *
+ * Der Zwischenspeicher oben lebt im laufenden Vorgang. Auf einem eigenen
+ * Server genuegt das: er laeuft wochenlang, und nach dem ersten Cup kennt er
+ * die Namen. Bei Vercel endet der Vorgang nach der Antwort, der naechste
+ * Besucher faengt bei null an - und jede Bestenliste loest wieder
+ * fuenfhundert Konten bei Epic auf. Epic hat darauf so geantwortet, wie es
+ * sich gehoert:
+ *
+ *   HTTP 429 - Operation access is limited by throttling policy,
+ *   please try again in 499 second(s)
+ *
+ * Auf der Seite stand daraufhin statt der Bestenliste diese Meldung. Deshalb
+ * liegen die Namen jetzt zusaetzlich in der Ablage, und zwar an derselben
+ * Stelle, die es dafuer schon gibt. Sie aendern sich selten, und wenn doch,
+ * wird der neue Name beim naechsten Auflosen ueberschrieben.
+ */
+const NAMEN_ABLAGE = 'epic-namen.json';
+
+/** Wurde die Datei in diesem Vorgang schon gelesen? */
+let namenGeladen = false;
+/** Steht etwas Neues zum Schreiben an? */
+let namenSchmutzig = false;
+
+async function namenLaden(): Promise<void> {
+  if (namenGeladen) return;
+  namenGeladen = true;
+  try {
+    const { liesJson } = await import('@/lib/ablage');
+    const gespeichert = await liesJson<Record<string, string>>(NAMEN_ABLAGE, {});
+    for (const [id, name] of Object.entries(gespeichert)) {
+      if (!nameCache.has(id)) nameCache.set(id, name);
+    }
+  } catch { /* ohne Vorrat wird eben neu aufgeloest */ }
+}
+
+/**
+ * Zurueckschreiben - beilaeufig, nicht im Weg der Antwort.
+ *
+ * Ein Besucher soll nicht darauf warten, dass fuenfhundert Namen abgelegt
+ * werden. Schlaegt es fehl, ist auch das kein Grund, die Bestenliste nicht
+ * auszuliefern: dann wird beim naechsten Mal wieder aufgeloest.
+ */
+async function namenSichern(): Promise<void> {
+  if (!namenSchmutzig) return;
+  namenSchmutzig = false;
+  try {
+    const { schreibJson } = await import('@/lib/ablage');
+    await schreibJson(NAMEN_ABLAGE, Object.fromEntries(nameCache));
+  } catch { /* beim naechsten Mal wieder */ }
+}
+
 export async function loeseNamenAuf(ids: string[], token: string) {
+  await namenLaden();
+
   const out: Record<string, string> = {};
   const fehlend: string[] = [];
   for (const id of new Set(ids)) {
@@ -295,11 +350,22 @@ export async function loeseNamenAuf(ids: string[], token: string) {
         if (ext) name = ext.externalDisplayName || ext.authIds?.[0]?.id;
       }
       name = name || acc.id.slice(0, 8);
+      /*
+       * Eine gekuerzte Id ist kein Name.
+       *
+       * Sie entsteht, wenn Epic zu einem Konto nichts herausgibt - etwa weil
+       * es geloescht wurde. Waere sie im Vorrat, staende sie dort fuer immer,
+       * auch wenn Epic den Namen spaeter wieder kennt.
+       */
+      if (name !== acc.id.slice(0, 8)) namenSchmutzig = true;
       nameCache.set(acc.id, name);
       out[acc.id] = name;
     }
   }
   for (const id of fehlend) if (!out[id]) out[id] = id.slice(0, 8);
+
+  // Beilaeufig ablegen, ohne die Antwort aufzuhalten.
+  void namenSichern();
   return out;
 }
 

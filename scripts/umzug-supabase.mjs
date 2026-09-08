@@ -45,9 +45,7 @@ const TABELLE = 'ablage';
 
 /** Diese Ordner gehen in den Objektspeicher - muss zu lib/ablageSupabase.ts passen. */
 const IM_OBJEKTSPEICHER = [
-  'replays/', 'kartenbilder/', 'kontakt-bilder/', 'admin-maps/',
-  'epic-spieltage/', 'szene-stats/', 'szene-quelle/',
-  'tournament-leaderboards/', '_sicherung/',
+  'replays/', 'kartenbilder/', 'kontakt-bilder/', 'admin-maps/', '_sicherung/',
 ];
 
 /**

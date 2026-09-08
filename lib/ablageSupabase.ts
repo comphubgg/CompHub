@@ -39,14 +39,25 @@ const EIMER = 'comphub';
  * Zwischenspeicher, die sich aus Epic jederzeit neu holen lassen.
  */
 const IM_OBJEKTSPEICHER = [
+  /*
+   * Nur noch Bilder und Replays.
+   *
+   * Anfangs lagen auch die Statistik-Ordner hier - sie sind gross, und der
+   * Objektspeicher schien der richtige Ort. Beim ersten Messen bei Vercel
+   * brauchte die Startseite eine Minute und dreiundfuenfzig Sekunden: die
+   * Szene-Statistik liest neunhundert Dateien nacheinander, und der
+   * Objektspeicher kann nur einzeln antworten. Die Tabelle kann einen ganzen
+   * Ordner in einer Abfrage herausgeben - siehe der Vorgriff weiter unten -,
+   * und damit wird aus neunhundert Anfragen etwa ein Zehntel davon.
+   *
+   * Hier bleibt, was wirklich unfoermig ist: Bilder, die ohnehin einzeln
+   * abgerufen werden, und die Replay-Auswertungen mit gut fuenf Megabyte je
+   * Spieltag, die eine Zeile in der Datenbank sprengen wuerden.
+   */
   'replays/',
   'kartenbilder/',
   'kontakt-bilder/',
   'admin-maps/',
-  'epic-spieltage/',
-  'szene-stats/',
-  'szene-quelle/',
-  'tournament-leaderboards/',
   '_sicherung/',
 ];
 
@@ -69,7 +80,69 @@ function zugang() {
 
 /* ------------------------------------------------------------- Tabelle */
 
+/*
+ * Der Vorgriff: wer eine Datei aus einem Ordner will, bekommt den Ordner.
+ *
+ * Auf der Platte ist es billig, neunhundert Dateien nacheinander zu oeffnen -
+ * das tut lib/szeneStats.ts, eine Schleife ueber alle Spieltage. Ueber HTTP
+ * sind daraus neunhundert Anfragen geworden, und bei Vercel lief die Antwort
+ * in die Zeitgrenze: die Startseite zeigte Striche statt Zahlen, die
+ * Regionen-Seite blieb leer, und /api/spieler-center endete mit "An error
+ * occurred with your deployment".
+ *
+ * Statt jede Zeile einzeln zu holen, wird beim ersten Zugriff der ganze
+ * Ordner in einem Zug geholt und gemerkt. Aus neunhundert Anfragen werden
+ * damit siebzig - je Region und Saison eine -, und der Rest kommt aus dem
+ * Gedaechtnis.
+ *
+ * Zwei Grenzen halten das im Rahmen:
+ *   - Nur Ordner. Eine Datei direkt in der Wurzel (konten.json) wird einzeln
+ *     geholt; dort gibt es nichts vorzugreifen.
+ *   - Hoechstens dreihundert Zeilen. Ein groesserer Ordner faellt auf den
+ *     Einzelweg zurueck, statt eine Antwort von vielen Megabyte anzufordern.
+ */
+const VORGRIFF_HOECHSTENS = 300;
+/** Wie lange ein geholter Ordner gilt. Kurz genug, dass Neues bald da ist. */
+const VORGRIFF_HALTBAR_MS = 60_000;
+
+const ordnerCache = new Map<string, { stand: Map<string, string>; bis: number }>();
+
+/** Der Ordner eines Namens, mit Schraegstrich - oder null in der Wurzel. */
+function ordnerVon(name: string): string | null {
+  const i = name.lastIndexOf('/');
+  return i < 0 ? null : name.slice(0, i + 1);
+}
+
+async function holeOrdner(praefix: string): Promise<Map<string, string> | null> {
+  const gemerkt = ordnerCache.get(praefix);
+  if (gemerkt && Date.now() < gemerkt.bis) return gemerkt.stand;
+
+  const { url, kopf } = zugang();
+  const r = await fetch(
+    `${url}/rest/v1/${TABELLE}?name=like.${encodeURIComponent(praefix + '*')}`
+    + `&select=name,wert&limit=${VORGRIFF_HOECHSTENS + 1}`,
+    { headers: kopf, cache: 'no-store' });
+  if (!r.ok) return null;
+  const zeilen = await r.json() as Array<{ name: string; wert: string }>;
+  // Zu gross: dann lieber einzeln, und den Ordner nicht merken.
+  if (zeilen.length > VORGRIFF_HOECHSTENS) return null;
+
+  const stand = new Map<string, string>();
+  for (const z of zeilen) stand.set(z.name, z.wert);
+  ordnerCache.set(praefix, { stand, bis: Date.now() + VORGRIFF_HALTBAR_MS });
+  return stand;
+}
+
 async function tabelleLies(name: string): Promise<Buffer | null> {
+  const praefix = ordnerVon(name);
+  if (praefix) {
+    const ordner = await holeOrdner(praefix);
+    if (ordner) {
+      const wert = ordner.get(name);
+      return wert === undefined ? null : Buffer.from(wert, 'utf8');
+    }
+  }
+
   const { url, kopf } = zugang();
   const r = await fetch(
     `${url}/rest/v1/${TABELLE}?name=eq.${encodeURIComponent(name)}&select=wert`,
@@ -113,12 +186,17 @@ async function tabelleSchreib(name: string, daten: Buffer): Promise<void> {
     body: JSON.stringify({ name, wert }),
   });
   if (!r.ok) throw new Error(`Ablage schreiben (${name}): ${r.status} ${await r.text()}`);
+  // Was gerade geschrieben wurde, darf nicht aus dem Vorgriff kommen.
+  const praefix = ordnerVon(name);
+  if (praefix) ordnerCache.delete(praefix);
 }
 
 async function tabelleLoesche(name: string): Promise<void> {
   const { url, kopf } = zugang();
   await fetch(`${url}/rest/v1/${TABELLE}?name=eq.${encodeURIComponent(name)}`,
     { method: 'DELETE', headers: kopf });
+  const praefix = ordnerVon(name);
+  if (praefix) ordnerCache.delete(praefix);
 }
 
 async function tabelleListe(ordner: string): Promise<string[]> {

@@ -23,6 +23,17 @@ import { DATEN_ORT } from '@/lib/datenOrt';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
+/*
+ * Diese Auskunft rechnet ueber alle Spieltage und braucht dafuer Zeit.
+ *
+ * Auf einem eigenen Server faellt das nicht auf. Bei Vercel endet eine
+ * Funktion nach zehn Sekunden, wenn nichts anderes dasteht - und dann kommt
+ * beim Besucher "An error occurred with your deployment" an statt der
+ * Startseitenzahlen. Sechzig Sekunden sind die Obergrenze des kostenlosen
+ * Tarifs; gebraucht werden sie nur beim ersten Aufruf, danach antwortet der
+ * Zwischenspeicher.
+ */
+export const maxDuration = 60;
 
 const PROFILE = path.join(DATEN_ORT, 'spieler-profile.json');
 const BILDER = path.join(DATEN_ORT, 'spielerbilder.json');
