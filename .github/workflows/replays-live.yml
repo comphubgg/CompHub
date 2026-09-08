@@ -96,12 +96,18 @@ jobs:
         continue-on-error: true
         run: node scripts/replays-aggregieren.mjs
 
-      - name: Zugangsdaten wieder weg
-        if: always()
-        run: rm -f .env.local
-
       - name: Ergebnis nach Supabase
         if: steps.pruefung.outputs.weiter == 'ja'
         # Nur das Ausgewertete und nur, was dieser Lauf angefasst hat. Die
         # rohen Runden bleiben ohnehin draussen, dafuer sorgt das Skript.
         run: node scripts/umzug-supabase.mjs --neuer-als 30 --nur replays
+
+      # Die Zugangsdaten ganz zum Schluss, nicht vorher.
+      #
+      # Sie standen bisher VOR dem Hochladen - und weil das Skript sie aus
+      # .env.local liest, scheiterte jeder Lauf genau an dieser Stelle.
+      # Sichtbar war das nur an der Bilanz der Aktion: Schritt eins bis zehn
+      # gruen, Schritt elf rot, und zwar sechs Laeufe hintereinander.
+      - name: Zugangsdaten wieder weg
+        if: always()
+        run: rm -f .env.local

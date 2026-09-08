@@ -131,12 +131,6 @@ jobs:
           node scripts/antworten-vorrechnen.mjs http://localhost:3000
           kill $SERVER || true
 
-      - name: Zugangsdaten wieder weg
-        # Sie duerfen unter keinen Umstaenden in den Zwischenspeicher oder
-        # sonst irgendwohin geraten.
-        if: always()
-        run: rm -f .env.local
-
       - name: Ergebnis nach Supabase
         # "--neuer-als 120" nimmt nur, was dieser Lauf geschrieben hat. Die
         # Zeitspanne ist grosszuegiger als die Laufzeit, damit auch ein langer
@@ -156,3 +150,10 @@ jobs:
         run: |
           node scripts/umzug-supabase.mjs --neuer-als 120 --nur replays \
             2>&1 | tail -20
+
+      # Zum Schluss, nicht vorher: das Hochladen liest die Zugangsdaten aus
+      # .env.local. Standen sie hier oben, scheiterte jeder Lauf am
+      # Hochladen - und die Erneuerung erneuerte wieder einmal nichts.
+      - name: Zugangsdaten wieder weg
+        if: always()
+        run: rm -f .env.local
