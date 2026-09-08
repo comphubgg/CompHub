@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { werFragt, kennungFuerAblage } from '@/lib/werFragt';
 import { createClient } from '@supabase/supabase-js';
 import fs from '@/lib/ablageFs';
 import path from 'path';
@@ -7,7 +8,28 @@ import { DATEN_ORT } from '@/lib/datenOrt';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
+/*
+ * Wo die Tierlist eines Kontos liegt.
+ *
+ * Frueher stand hier eine einzige Datei fuer alle: "tierlists.json". Wer die
+ * Seite aufrief - angemeldet oder nicht -, sah denselben Stand und konnte ihn
+ * ueberschreiben. Beim Umzug fiel auf, dass daraus acht Eintraege
+ * verschwunden waren, weil jemand beim Ausprobieren geraeumt hatte.
+ *
+ * Der Betreiber hat die Regel danach klar gezogen: Tierlist-Eintraege sollen
+ * "nie" gespeichert werden, "wenn dann nur auf deren Accounts, aber NIE fuer
+ * jeden - egal ob Admin oder nicht Admin". Also je Konto eine eigene, und ohne
+ * Konto wird nichts abgelegt.
+ *
+ * Die alte gemeinsame Datei bleibt liegen. Sie ist der Stand des Betreibers
+ * und wird beim ersten Lesen einmalig in seine eigene uebernommen - geloescht
+ * wird sie nicht, sie ist die Sicherung dieses Uebergangs.
+ */
 const TIERLISTS_FILE = path.join(DATEN_ORT, 'tierlists.json');
+
+function tierlistDatei(wer: string): string {
+  return path.join(DATEN_ORT, 'tierlisten', `${kennungFuerAblage(wer)}.json`);
+}
 const IS_VERCEL = Boolean(process.env.VERCEL || process.env.NEXT_PUBLIC_VERCEL_ENV);
 /*
  * Ob die Datei auf der Platte benutzt werden darf.
@@ -63,14 +85,9 @@ async function ensureDataDir() {
   }
 }
 
-async function readTierlistsFile() {
-  if (!USE_DISK_FALLBACK) {
-    return { lists: [], currentListId: null };
-  }
-
+async function leseDatei(datei: string) {
   try {
-    await ensureDataDir();
-    const raw = await fs.readFile(TIERLISTS_FILE, 'utf-8');
+    const raw = await fs.readFile(datei, 'utf-8');
     const parsed = JSON.parse(raw || '{}');
     return {
       lists: Array.isArray(parsed.lists) ? parsed.lists : [],
@@ -81,10 +98,31 @@ async function readTierlistsFile() {
   }
 }
 
-async function writeTierlistsFile(lists: any[], currentListId: string | null) {
-  if (!USE_DISK_FALLBACK) return;
-  await ensureDataDir();
-  await fs.writeFile(TIERLISTS_FILE, JSON.stringify({ lists, currentListId }, null, 2), 'utf-8');
+/**
+ * Die Tierlist dieses Kontos.
+ *
+ * Hat es noch keine, wird beim Betreiber einmalig der alte gemeinsame Stand
+ * uebernommen - das ist seine Arbeit aus tausend Eintraegen, und sie soll
+ * beim Umstellen nicht verschwinden. Alle anderen fangen leer an; die alte
+ * Liste war nie ihre.
+ */
+async function readTierlistsFile(wer: string) {
+  const eigen = await leseDatei(tierlistDatei(wer));
+  if (eigen.lists.length) return eigen;
+
+  if (wer === 'betreiber') {
+    const alt = await leseDatei(TIERLISTS_FILE);
+    if (alt.lists.length) return alt;
+  }
+  return { lists: [], currentListId: null };
+}
+
+async function writeTierlistsFile(
+  wer: string, lists: any[], currentListId: string | null,
+) {
+  const datei = tierlistDatei(wer);
+  await fs.mkdir(path.dirname(datei), { recursive: true });
+  await fs.writeFile(datei, JSON.stringify({ lists, currentListId }, null, 2), 'utf-8');
 }
 
 function isSupabaseMissingCurrentListIdColumn(error: any) {
@@ -124,11 +162,11 @@ let memoryCache: { lists: any[]; currentListId: string | null } = {
   currentListId: null,
 };
 
-async function getTierlistsFromSupabase() {
+async function getTierlistsFromSupabase(wer: string) {
   const client = getSupabaseClient();
   if (!client) {
     if (USE_DISK_FALLBACK) {
-      const diskData = await readTierlistsFile();
+      const diskData = await readTierlistsFile(wer);
       return diskData.lists.length > 0 ? diskData : memoryCache;
     }
 
@@ -145,7 +183,7 @@ async function getTierlistsFromSupabase() {
     if (error && error.code !== 'PGRST116') {
       console.error('Supabase error reading tierlists:', error);
       if (USE_DISK_FALLBACK) {
-        const diskData = await readTierlistsFile();
+        const diskData = await readTierlistsFile(wer);
         return diskData.lists.length > 0 ? diskData : memoryCache;
       }
       throw error;
@@ -157,14 +195,14 @@ async function getTierlistsFromSupabase() {
         currentListId: data.currentListId || null,
       };
       if (USE_DISK_FALLBACK) {
-        await writeTierlistsFile(result.lists, result.currentListId);
+        await writeTierlistsFile(wer, result.lists, result.currentListId);
       }
       memoryCache = result;
       return result;
     }
 
     if (USE_DISK_FALLBACK) {
-      const diskData = await readTierlistsFile();
+      const diskData = await readTierlistsFile(wer);
       return diskData.lists.length > 0 ? diskData : memoryCache;
     }
 
@@ -172,19 +210,21 @@ async function getTierlistsFromSupabase() {
   } catch (error) {
     console.error('Error reading from Supabase:', error);
     if (USE_DISK_FALLBACK) {
-      const diskData = await readTierlistsFile();
+      const diskData = await readTierlistsFile(wer);
       return diskData.lists.length > 0 ? diskData : memoryCache;
     }
     throw error;
   }
 }
 
-async function saveTierlistsToSupabase(lists: any[], currentListId: string | null) {
+async function saveTierlistsToSupabase(
+  wer: string, lists: any[], currentListId: string | null,
+) {
   const client = getSupabaseClient();
   if (!client) {
     if (USE_DISK_FALLBACK) {
       memoryCache = { lists, currentListId };
-      await writeTierlistsFile(lists, currentListId);
+      await writeTierlistsFile(wer, lists, currentListId);
       return;
     }
     throw new Error('Supabase storage is not configured in this environment');
@@ -212,18 +252,18 @@ async function saveTierlistsToSupabase(lists: any[], currentListId: string | nul
     if (error) {
       console.error('Supabase error saving tierlists:', error);
       if (USE_DISK_FALLBACK) {
-        await writeTierlistsFile(lists, currentListId);
+        await writeTierlistsFile(wer, lists, currentListId);
       }
       throw error;
     }
 
     if (USE_DISK_FALLBACK) {
-      await writeTierlistsFile(lists, currentListId);
+      await writeTierlistsFile(wer, lists, currentListId);
     }
   } catch (error) {
     console.error('Error saving to Supabase:', error);
     if (USE_DISK_FALLBACK) {
-      await writeTierlistsFile(lists, currentListId);
+      await writeTierlistsFile(wer, lists, currentListId);
     }
     throw error;
   }
@@ -231,9 +271,20 @@ async function saveTierlistsToSupabase(lists: any[], currentListId: string | nul
   memoryCache = { lists, currentListId };
 }
 
+/*
+ * Die Tierlist des Anfragenden - und nur seine.
+ *
+ * Wer nicht angemeldet ist, bekommt eine leere Liste. Nicht die eines
+ * anderen, und schon gar nicht eine gemeinsame: eine Tierlist ist die
+ * Einschaetzung eines Menschen, kein Bestand der Seite.
+ */
 export async function GET() {
   try {
-    const data = await getTierlistsFromSupabase();
+    const wer = await werFragt();
+    if (!wer) {
+      return NextResponse.json({ success: true, lists: [], currentListId: null });
+    }
+    const data = await getTierlistsFromSupabase(wer);
     return NextResponse.json({
       success: true,
       lists: data.lists || [],
@@ -293,20 +344,38 @@ function wirktWieVersehen(neu: any[], alt: any[]): string | null {
   return null;
 }
 
+/*
+ * Gespeichert wird nur auf ein Konto.
+ *
+ * Vorher schrieb dieser Weg eine gemeinsame Datei, und zwar ohne jede
+ * Anmeldung: jeder Aufruf konnte den Stand aller ueberschreiben. Genau so
+ * sind acht Eintraege verschwunden. Der Betreiber hat die Regel danach klar
+ * gezogen - "nie fuer jeden, egal ob Admin oder nicht Admin".
+ *
+ * Ohne Konto wird deshalb nichts abgelegt, und zwar mit einer klaren Absage
+ * statt eines stillen Nichtstuns: wer speichert, soll erfahren, dass es nicht
+ * gespeichert wurde.
+ */
 export async function POST(request: NextRequest) {
   try {
+    const wer = await werFragt();
+    if (!wer) {
+      return NextResponse.json(
+        { success: false, error: 'Sign in to save your tier list.' },
+        { status: 401 });
+    }
     const body = await request.json();
     const lists = Array.isArray(body?.lists) ? body.lists : [];
     const currentListId = body?.currentListId ?? null;
 
-    const bisher = await getTierlistsFromSupabase();
+    const bisher = await getTierlistsFromSupabase(wer);
     const einwand = wirktWieVersehen(lists, (bisher as any)?.lists ?? []);
     if (einwand) {
       console.warn('tierlists POST abgelehnt:', einwand);
       return NextResponse.json({ success: false, error: einwand }, { status: 409 });
     }
 
-    await saveTierlistsToSupabase(lists, currentListId);
+    await saveTierlistsToSupabase(wer, lists, currentListId);
 
     return NextResponse.json({
       success: true,
