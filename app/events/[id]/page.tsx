@@ -5,7 +5,7 @@
 // Bewusst schlank gehalten - keine Power Rankings, keine Match-Listen,
 // keine Streams.
 
-import { Fragment, use, useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, use, useCallback, useEffect, useDeferredValue, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import TeamFlagge, { flaggenPfad } from '@/components/TeamFlagge';
 import { namensSchluessel } from '@/lib/homoglyph';
@@ -188,23 +188,47 @@ const MAX_PLAETZE = 10_000;
  * decken ab, was jemand beim Oeffnen sieht und was er als Erstes durchblaettert;
  * der Rest kommt nach, ohne dass er darauf wartet.
  */
-const ERSTE_PLAETZE = 500;
+/**
+ * Wie die Bestenliste geholt wird: in Stuecken, nicht am Stueck.
+ *
+ * Epic gibt hundert Plaetze je Seite und hoechstens hundert Seiten heraus -
+ * die zehntausend, die der Betreiber sehen will. Alles auf einmal zu
+ * verlangen geht nicht: gemessen ueber hundert Sekunden, und jede Zeitgrenze
+ * eines kostenlosen Tarifs liegt darunter. Die Anfrage kam schlicht nie an,
+ * und in der Tabelle blieben die ersten fuenfhundert stehen.
+ *
+ * Deshalb Stueck fuer Stueck. Die ersten fuenf Seiten stehen nach wenigen
+ * Sekunden da; danach kommen Zehnerpakete dazu, jedes wenige Sekunden, und
+ * die Liste waechst waehrend des Lesens weiter bis ans Ende des Feldes.
+ * Teuer ist dabei nicht das Blaettern, sondern das Aufloesen der Namen - und
+ * die sind ab dem zweiten Paket zum grossen Teil schon gemerkt.
+ */
+const ERSTE_SEITEN = 5;
+const STUECK_SEITEN = 10;
 
 /**
- * Die Stufen, in denen die Bestenliste tiefer wird.
+ * Wie viele Runden zuerst gezeichnet werden und wie viele danach je Schritt
+ * dazukommen.
  *
- * Gemessen an einem offenen Cup mit hundert Seiten: fuenfhundert Plaetze in
- * drei Sekunden, dreitausend in drei weiteren, fuenftausend in sechs. Teuer
- * ist dabei nicht das Blaettern bei Epic, sondern das Aufloesen der Namen -
- * und die sind nach der ersten Stufe schon gemerkt, weshalb jede weitere
- * Stufe nur noch das Neue kostet.
- *
- * Deshalb nicht ein einziger grosser Abruf, sondern mehrere: nach jeder
- * Stufe steht eine tiefere Tabelle da. Bricht eine ab, bleibt die vorige
- * stehen - schlimmstenfalls ist die Liste kuerzer, nie leer. Wie viele
- * Plaetze gerade geladen sind, steht neben der Ueberschrift.
+ * Eine Runde ist eine Kachel mit Uhrzeit, Dauer und Siegern. Bei einer
+ * Qualifikation sind es mehrere hundert; alle auf einmal zu zeichnen legt
+ * die Seite fuer einen Moment lahm. Dreissig stehen sofort da, der Rest
+ * kommt in Schritten nach, ohne dass jemand etwas anklicken muss.
  */
-const STUFEN = [2_000, 5_000, MAX_PLAETZE];
+const ERSTE_SPIELE = 30;
+const NACHSCHUB_SPIELE = 30;
+
+/**
+ * Bis hierher waechst die Liste von allein weiter, danach beim Scrollen.
+ *
+ * Eine offene Runde eines Victory Cups hat ueber zwanzigtausend Lobbys -
+ * gemessen an einem echten Spieltag. Sie alle zu zeichnen waeren
+ * hunderttausende Elemente im Dokument; der Browser wird dabei zaeh, und
+ * angesehen hat sie ohnehin niemand. Dreihundert fuellen mehrere
+ * Bildschirmhoehen, alles Weitere kommt nach, sobald jemand tatsaechlich
+ * dorthin scrollt. Angeklickt werden muss dafuer nach wie vor nichts.
+ */
+const SPIELE_VON_ALLEIN = 300;
 
 /**
  * Wie eine Stufe der Auszahlungstabelle heisst.
@@ -320,11 +344,24 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
    * waere Arbeit fuer nichts.
    */
   const [spiele, setSpiele] = useState<Spiel[] | null>(null);
-  const [spieleAn, setSpieleAn] = useState(false);
   const [spieleLaedt, setSpieleLaedt] = useState(false);
   const [offenesSpiel, setOffenesSpiel] = useState<string | null>(null);
-  /** An einem Qualifikationstag sind es hunderte - erst einmal nur die ersten. */
-  const [alleSpiele, setAlleSpiele] = useState(false);
+  /**
+   * Wie viele Runden gerade gezeigt werden.
+   *
+   * An einem Qualifikationstag sind es hunderte. Frueher standen sechzig da
+   * und darunter ein Knopf "alle anzeigen" - der Betreiber wollte keinen
+   * Knopf, sondern dass die Liste von allein weiterwaechst. Sie tut das
+   * jetzt in kleinen Schritten, damit das Zeichnen die Seite nicht
+   * blockiert, waehrend man schon liest.
+   */
+  const [sichtbareSpiele, setSichtbareSpiele] = useState(ERSTE_SPIELE);
+  /** Wie gross die Bestenliste war, als die Runden geholt wurden. */
+  const [spieleBasis, setSpieleBasis] = useState(0);
+  /** Suche innerhalb der Runden - Sieger oder irgendein Mitspieler. */
+  const [spielSuche, setSpielSuche] = useState('');
+  /** Der Fuss der Rundenliste - daran haengt das Nachladen beim Scrollen. */
+  const mehrRef = useRef<HTMLParagraphElement | null>(null);
   /** Alle Lobbys, nur die laufenden oder nur die beendeten. */
   const [spielFilter, setSpielFilter] = useState<'alle' | 'live' | 'fertig'>('alle');
   /*
@@ -989,15 +1026,31 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
    * des vorigen da - und zwar ohne dass etwas darauf hinweist.
    */
   useEffect(() => {
-    setSpiele(null); setOffenesSpiel(null); setKopiert(null); setAlleSpiele(false);
+    setSpiele(null); setOffenesSpiel(null); setKopiert(null);
+    setSichtbareSpiele(ERSTE_SPIELE); setSpielSuche(''); setSpieleBasis(0);
     setSpielerWerte(null); setLive(null);
   }, [fenster]);
 
+  /*
+   * Die Runden werden geholt, sobald der Bereich offen ist - ohne Knopf.
+   *
+   * Vorher stand dort "Runden anzeigen" und man musste erst klicken. Der
+   * Betreiber: "bei den Matches soll ich nicht immer Kollaps oder Show
+   * Rounds machen, sondern es wird von alleine gezeigt."
+   *
+   * Geholt wird zweimal. Zuerst mit der Bestenliste, die gerade dasteht -
+   * das sind die ersten Seiten, und die Runden sind damit in wenigen
+   * Sekunden sichtbar. Sobald die Bestenliste fertig vertieft ist, noch
+   * einmal mit dem vollen Feld: eine einzelne Lobby verteilt sich ueber die
+   * ganze Liste, und erst dann ist sie vollstaendig.
+   */
   useEffect(() => {
-    if (!spieleAn || !fenster || spiele) return;
+    if (reiter !== 'runden' || !fenster || !tabelle.length) return;
+    // Schon geholt, und der Unterbau ist seither nicht groesser geworden.
+    if (spiele && (vertieft || tabelle.length <= spieleBasis)) return;
     let weg = false;
     setSpieleLaedt(true);
-    if (!tabelle.length) return;
+    setSpieleBasis(tabelle.length);
     fetch(`/api/cup-matches?event=${encodeURIComponent(fenster.eventId)}`
       /*
        * So viel wie das Feld hergibt, nicht mehr.
@@ -1017,11 +1070,79 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
       .catch(() => { if (!weg) setSpiele([]); })
       .finally(() => { if (!weg) setSpieleLaedt(false); });
     return () => { weg = true; };
-  }, [spieleAn, fenster, spiele, tabelle.length]);
+  }, [reiter, fenster, spiele, tabelle.length, vertieft, spieleBasis]);
 
   /** Wie viele Lobbys gerade laufen. */
   const laufende = useMemo(
     () => (spiele ?? []).filter((x) => x.live).length, [spiele]);
+
+  /*
+   * Welche Runden gezeigt werden - Filter und Suche zusammen.
+   *
+   * Das stand frueher mitten in der Ausgabe. Es gehoert hierher, weil das
+   * Nachwachsen der Liste wissen muss, wie viele es ueberhaupt sind.
+   *
+   * Gesucht wird im Sieger und in jedem Mitspieler jeder Runde: der
+   * Betreiber will nachsehen koennen, in welchen Lobbys ein bestimmter Name
+   * vorkam, und die Frage faengt fast immer beim Sieger an.
+   */
+  const spielSucheTraege = useDeferredValue(spielSuche);
+  const spieleGefiltert = useMemo(() => {
+    const q = spielSucheTraege.trim().toLowerCase();
+    return (spiele ?? []).filter((x) => {
+      if (spielFilter === 'live' && !x.live) return false;
+      if (spielFilter === 'fertig' && x.live) return false;
+      if (!q) return true;
+      if ((x.sieger ?? []).some((n) => n.toLowerCase().includes(q))) return true;
+      return x.teams.some((tm) => tm.spieler.some((p) =>
+        p.name.toLowerCase().includes(q)));
+    });
+  }, [spiele, spielFilter, spielSucheTraege]);
+
+  /*
+   * Die Liste waechst von allein weiter.
+   *
+   * Ein Schritt je Zeichnung, mit einer kurzen Pause dazwischen: so bleibt
+   * die Seite bedienbar, waehrend hinten weiter aufgefuellt wird. Ohne die
+   * Pause waere es ein einziger grosser Zeichenvorgang und damit genau das,
+   * was vermieden werden soll.
+   */
+  useEffect(() => {
+    if (reiter !== 'runden') return undefined;
+    const ziel = Math.min(spieleGefiltert.length, SPIELE_VON_ALLEIN);
+    if (sichtbareSpiele >= ziel) return undefined;
+    const uhr = setTimeout(
+      () => setSichtbareSpiele((n) => n + NACHSCHUB_SPIELE), 120);
+    return () => clearTimeout(uhr);
+  }, [reiter, sichtbareSpiele, spieleGefiltert.length]);
+
+  /*
+   * Und darueber hinaus, sobald das Ende der Liste in Sicht kommt.
+   *
+   * Der Fuss der Liste wird beobachtet; taucht er auf, kommen weitere
+   * Runden dazu. Der Vorlauf von sechshundert Pixeln sorgt dafuer, dass
+   * schon nachgelegt ist, bevor man unten ankommt - man scrollt also
+   * durch, ohne je auf etwas zu warten oder etwas anzuklicken.
+   */
+  useEffect(() => {
+    if (reiter !== 'runden') return undefined;
+    const fuss = mehrRef.current;
+    if (!fuss) return undefined;
+    const beobachter = new IntersectionObserver(
+      (eintraege) => {
+        if (eintraege.some((e) => e.isIntersecting)) {
+          setSichtbareSpiele((n) => n + NACHSCHUB_SPIELE * 2);
+        }
+      },
+      { rootMargin: '600px' });
+    beobachter.observe(fuss);
+    return () => beobachter.disconnect();
+  }, [reiter, sichtbareSpiele, spieleGefiltert.length]);
+
+  // Ein neuer Filter oder ein neuer Suchbegriff faengt wieder vorn an.
+  useEffect(() => {
+    setSichtbareSpiele(ERSTE_SPIELE);
+  }, [spielFilter, spielSucheTraege]);
 
   /*
    * Die Uhr laeuft nur, solange sie gebraucht wird.
@@ -1030,10 +1151,10 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
    * nur, wenn der Matches-Bereich offen ist und wirklich eine Lobby laeuft.
    */
   useEffect(() => {
-    if (!spieleAn || !laufende) return;
+    if (reiter !== 'runden' || !laufende) return;
     const uhr = setInterval(() => setJetzt(Date.now()), 1000);
     return () => clearInterval(uhr);
-  }, [spieleAn, laufende]);
+  }, [reiter, laufende]);
 
   /*
    * Und alle sechzig Sekunden die Zahlen selbst nachholen.
@@ -1043,10 +1164,10 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
    * eine Minute - oefter zu fragen brächte nichts.
    */
   useEffect(() => {
-    if (!spieleAn || !laufende || !fenster) return;
-    const uhr = setInterval(() => setSpiele(null), 60_000);
+    if (reiter !== 'runden' || !laufende || !fenster) return;
+    const uhr = setInterval(() => { setSpiele(null); setSpieleBasis(0); }, 60_000);
     return () => clearInterval(uhr);
-  }, [spieleAn, laufende, fenster]);
+  }, [reiter, laufende, fenster]);
 
   /*
    * Ist das ein einzelner Spielraum oder ein ganzer Qualifikationstag?
@@ -1201,12 +1322,12 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
      * Jede Stufe ersetzt die Tabelle, sobald sie da ist. Bricht eine ab,
      * bleibt die vorige stehen.
      */
-    const holen = async (grenze: number) => {
+    const holeStueck = async (von: number, seiten: number) => {
       const r = await fetch(`/api/cup-leaderboard?event=${encodeURIComponent(f.eventId)}`
-        + `&window=${encodeURIComponent(f.windowId)}&limit=${grenze}`);
+        + `&window=${encodeURIComponent(f.windowId)}&von=${von}&seiten=${seiten}`);
       const d = await r.json();
       if (!r.ok) throw new Error(d.error ?? 'nicht ladbar');
-      return d as { entries?: Eintrag[]; updated?: string };
+      return d as { entries?: Eintrag[]; updated?: string; totalPages?: number };
     };
 
     /*
@@ -1223,39 +1344,49 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     const nochMeins = () => laufNr.current === meiner;
 
     try {
-      const erste = await holen(ERSTE_PLAETZE);
+      const erste = await holeStueck(0, ERSTE_SEITEN);
       if (!nochMeins()) return;
-      setTabelle(erste.entries ?? []);
+      const anfang = erste.entries ?? [];
+      setTabelle(anfang);
       // Ohne die Zahl - die steht daneben, mit dem passenden Wort. Zweimal
       // dieselbe Groesse, einmal gerundet und einmal genau, war die
       // haeufigste Nachfrage zu dieser Seite.
-      setStand(erste.entries?.length
+      setStand(anfang.length
         ? `${t('Stand')} ${new Date(erste.updated ?? Date.now()).toLocaleTimeString(ort)}`
         : t('Noch keine Ergebnisse'));
       setLaedt(false);
 
       /*
-       * Die tieferen Stufen, ohne dass jemand darauf wartet.
+       * Der Rest des Feldes, ohne dass jemand darauf wartet.
        *
-       * Kam weniger zurueck als angefordert, ist das Feld zu Ende - dann
-       * hoert es hier auf, statt dieselbe Liste noch dreimal zu holen.
+       * Gezaehlt wird in Seiten, nicht in Plaetzen: wie viele Eintraege auf
+       * eine Seite gehen, entscheidet Epic, und bei einem kleinen Finale ist
+       * die erste Seite schon die letzte. Schluss ist, wenn Epic keine
+       * weitere Seite mehr nennt oder die zehntausend voll sind - mehr gibt
+       * es dort nicht.
        */
-      if ((erste.entries?.length ?? 0) >= ERSTE_PLAETZE) {
+      const seitenGesamt = erste.totalPages ?? 0;
+      if (anfang.length && seitenGesamt > ERSTE_SEITEN) {
         void (async () => {
-          let bisher = erste.entries?.length ?? 0;
-          for (const stufe of STUFEN) {
-            if (stufe <= bisher || !nochMeins()) break;
-            setVertieft(true);
+          setVertieft(true);
+          let alle = anfang;
+          let von = ERSTE_SEITEN;
+          let ende = seitenGesamt;
+
+          while (von < ende && alle.length < MAX_PLAETZE && nochMeins()) {
+            let stueck;
             try {
-              const tiefer = await holen(stufe);
-              if (!nochMeins()) return;
-              const zahl = tiefer.entries?.length ?? 0;
-              if (zahl > bisher) { setTabelle(tiefer.entries ?? []); bisher = zahl; }
-              // Weniger als verlangt heisst: mehr gibt Epic nicht her.
-              if (zahl < stufe) break;
+              stueck = await holeStueck(von, STUECK_SEITEN);
             } catch {
-              break; // dann bleibt es bei der letzten Stufe, die ankam
+              break; // dann bleibt stehen, was bis hierher angekommen ist
             }
+            if (!nochMeins()) return;
+            const neu = stueck.entries ?? [];
+            if (!neu.length) break;
+            alle = alle.concat(neu);
+            setTabelle(alle);
+            if (stueck.totalPages) ende = stueck.totalPages;
+            von += STUECK_SEITEN;
           }
           if (nochMeins()) setVertieft(false);
         })();
@@ -1295,8 +1426,24 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     return () => clearInterval(t);
   }, [fenster, laden, tabelle.length]);
 
+  /*
+   * Getippt wird sofort, gefiltert eine Spur spaeter.
+   *
+   * Bei zehntausend Zeilen kostet jeder Tastendruck einen vollstaendigen
+   * Durchlauf durch das ganze Feld. React arbeitet den zuerst ab und zeichnet
+   * das Eingabefeld erst danach neu - der Betreiber sah seinen eigenen Text
+   * dadurch erst nach rund zehn Sekunden.
+   *
+   * useDeferredValue dreht die Reihenfolge um: das Eingabefeld haengt am
+   * sofortigen Wert und steht ohne Verzoegerung da, die Tabelle am
+   * nachlaufenden. Solange beide auseinanderliegen, wird gerade gefiltert -
+   * daran haengt der Kringel neben dem Feld.
+   */
+  const sucheTraege = useDeferredValue(suche);
+  const suchtGerade = suche !== sucheTraege;
+
   const gefiltert = useMemo(() => {
-    const q = suche.trim().toLowerCase();
+    const q = sucheTraege.trim().toLowerCase();
     if (!q) return tabelle;
     /*
      * Gesucht wird in beiden Namen.
@@ -1308,7 +1455,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     return tabelle.filter((e) => e.players.some((p) =>
       p.name.toLowerCase().includes(q)
       || namenVon(p).toLowerCase().includes(q)));
-  }, [tabelle, suche, namenVon]);
+  }, [tabelle, sucheTraege, namenVon]);
 
   /**
    * Seitenweise blaettern statt endlos nachladen.
@@ -1631,12 +1778,22 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
         {preise?.vorhanden
           && (preise.geld.length > 0 || preise.gegenstaende.length > 0) && (
           <section className="mb-5 rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
-            {/* Zwei Reiter wie beim Vorbild: was es gibt, und wie gepunktet
-                wird. Sie erscheinen nur, wenn beide Seiten etwas zu zeigen
-                haben - ein leerer Reiter ist ein Versprechen ohne Inhalt. */}
-            {(preise.wertung?.length ?? 0) > 0 && preise.geld.length > 0 && (
+            {/*
+              * Zwei Reiter: was es gibt, und wie gepunktet wird.
+              *
+              * Bisher erschienen sie nur bei Preisgeld. Bei einem Skin-Cup
+              * gibt es kein Geld, sondern Gegenstaende - dort blieben die
+              * Punkte deshalb unsichtbar, obwohl es sie gibt. Der Betreiber:
+              * "weil man will ja die Points auch sehen." Jetzt zaehlt jede
+              * Art von Preis, nicht nur die mit Waehrung.
+              *
+              * Ein leerer Reiter entsteht dabei nicht: beide Seiten muessen
+              * etwas zu zeigen haben.
+              */}
+            {(preise.wertung?.length ?? 0) > 0
+              && (preise.geld.length > 0 || preise.gegenstaende.length > 0) && (
               <div className="mb-3 inline-flex gap-1 rounded-lg border border-zinc-800 p-1">
-                {([['preis', 'Preisgeld'], ['wertung', 'Wertung']] as const)
+                {([['preis', 'Preispool'], ['wertung', 'Punkte']] as const)
                   .map(([wert, name]) => (
                     <button key={wert} onClick={() => setPreisReiter(wert)}
                       className={`rounded px-3 py-1 text-xs transition ${
@@ -1667,7 +1824,12 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
             ) : (
             <>
             <div className="mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-              <h2 className="text-sm font-semibold text-slate-100"><T>Preisgeld</T></h2>
+              {/* "Preisgeld" nur, wenn es welches gibt. Ein Skin-Cup zahlt
+                  nichts aus; dort stuende sonst eine Ueberschrift ueber
+                  einem leeren Bereich. */}
+              <h2 className="text-sm font-semibold text-slate-100">
+                {preise.geld.length > 0 ? <T>Preisgeld</T> : <T>Preispool</T>}
+              </h2>
               {/* Die Summe ueber alle Plaetze, nicht ueber die Zeilen der
                   Tabelle - eine Stufe wie "Platz 21-40" wird zwanzigmal
                   ausgezahlt. Und der Zusatz gehoert genau einmal daneben:
@@ -1717,32 +1879,52 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
             )}
 
             {preise.gegenstaende.length > 0 && (
-              <div className="mt-3">
-                <h3 className="mb-1.5 text-[11px] uppercase tracking-wider text-slate-500">
-                  <T>Gegenstände</T>
-                </h3>
-                <div className="flex flex-wrap gap-1.5">
+              <div className={preise.geld.length > 0 ? 'mt-3' : ''}>
+                {/* Die Ueberschrift nur, wenn darueber schon Geld steht -
+                    sonst ist sie eine zweite Ueberschrift ueber demselben. */}
+                {preise.geld.length > 0 && (
+                  <h3 className="mb-1.5 text-[11px] uppercase tracking-wider
+                                 text-slate-500">
+                    <T>Gegenstände</T>
+                  </h3>
+                )}
+                {/*
+                  * Kacheln statt einer Zeile aus Pillen.
+                  *
+                  * Bei einem Skin-Cup gewinnt man keinen Betrag, sondern
+                  * genau diese Gegenstaende - und was man gewinnt, erkennt
+                  * man am Bild, nicht am Namen. Das Bild war achtundzwanzig
+                  * Pixel gross und damit ein Fleck. Der Betreiber: "dass man
+                  * dieses Profilbild, also der Skin, 'n bisschen erkennt".
+                  *
+                  * Zwei je Reihe, das Bild links und gross, rechts daneben
+                  * Stufe, Name und Art untereinander - dasselbe Raster wie
+                  * die Preisgeld-Kacheln darueber, damit beides zusammen
+                  * eine Flaeche bleibt.
+                  */}
+                <div className="grid gap-2 sm:grid-cols-2">
                   {preise.gegenstaende.map((g) => (
-                    <span key={`${g.art}-${g.schwelle}-${g.name}`}
-                      className="flex items-center gap-2 rounded-lg border
-                                 border-zinc-800 bg-zinc-950/60 py-1 pl-1 pr-2.5
-                                 text-[11px] text-slate-300">
-                      {/* Das Bild des Gegenstands, wenn es eines gibt. Epic
-                          zeigt an derselben Stelle beides; ein Name allein
-                          sagt bei einem Skin wenig. */}
+                    <div key={`${g.art}-${g.schwelle}-${g.name}`}
+                      className="flex items-center gap-3 rounded-lg border
+                                 border-zinc-800 bg-zinc-950/60 p-2">
                       {g.bild && (
-                        <img src={g.bild} alt="" width={28} height={28} loading="lazy"
-                          className="h-7 w-7 shrink-0 rounded object-cover"
+                        <img src={g.bild} alt="" width={56} height={56} loading="lazy"
+                          className="h-14 w-14 shrink-0 rounded-md bg-zinc-900/80
+                                     object-contain"
                           onError={(e) => { e.currentTarget.style.display = 'none'; }} />
                       )}
-                      <span className="font-semibold text-slate-200">
-                        {schwellenText(g.art, g.schwelle)}
-                      </span>
-                      <span className="text-slate-300">{g.name}</span>
-                      {g.sorte && (
-                        <span className="text-slate-600">{g.sorte}</span>
-                      )}
-                    </span>
+                      <div className="min-w-0">
+                        <div className="text-xs font-semibold text-sky-400">
+                          {schwellenText(g.art, g.schwelle)}
+                        </div>
+                        <div className="truncate text-sm font-medium text-slate-200">
+                          {g.name}
+                        </div>
+                        {g.sorte && (
+                          <div className="text-[11px] text-slate-500">{g.sorte}</div>
+                        )}
+                      </div>
+                    </div>
                   ))}
                 </div>
               </div>
@@ -1816,11 +1998,22 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                              border-zinc-800 px-4 py-3">
             <h2 className="text-sm font-semibold text-slate-100"><T>Leaderboard</T></h2>
             <div className="flex items-center gap-3">
-              <input value={suche}
-                onChange={(e) => { setSuche(e.target.value); setSeite(1); }}
-                placeholder={t('Spieler suchen …')}
-                className="w-52 rounded-lg border border-zinc-800 bg-zinc-900/80 px-3 py-1.5
-                           text-xs text-slate-100 outline-none focus:border-sky-500" />
+              <div className="relative">
+                <input value={suche}
+                  onChange={(e) => { setSuche(e.target.value); setSeite(1); }}
+                  placeholder={t('Spieler suchen …')}
+                  className="w-52 rounded-lg border border-zinc-800 bg-zinc-900/80 px-3 py-1.5
+                             pr-8 text-xs text-slate-100 outline-none focus:border-sky-500" />
+                {/* Der Kringel steht im Feld, nicht daneben: das Feld selbst
+                    darf nicht springen, waehrend gesucht wird. */}
+                {suchtGerade && (
+                  <span className="pointer-events-none absolute right-2.5 top-1/2
+                                   -translate-y-1/2">
+                    <span className="block h-3 w-3 animate-spin rounded-full
+                                     border border-slate-600 border-t-sky-400" />
+                  </span>
+                )}
+              </div>
               {/* Wie viele Zeilen je Seite - mehr als hundert gibt es nicht. */}
               <label className="flex items-center gap-1.5 text-xs text-slate-500">
                 <T>Zeilen</T>
@@ -2134,8 +2327,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                 * geladen wird, ist die richtige Auskunft "noch nicht
                 * gefunden" - und nicht "gibt es nicht".
                 */}
-              {suche
-                ? `${t('Kein Treffer für')} „${suche}“${vertieft
+              {sucheTraege
+                ? `${t('Kein Treffer für')} „${sucheTraege}“${vertieft
                     ? ' — ' + t('die Liste wird noch tiefer geladen …') : '.'}`
                 : stand || t('Keine Daten.')}
             </p>
@@ -2173,10 +2366,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
            * in /api/cup-matches aus Epics eigenen Zahlen hergeleitet, und
            * die Herleitung steht dort beschrieben.
            */
-          const gefiltert = (spiele ?? []).filter((x) =>
-            spielFilter === 'alle' ? true
-              : spielFilter === 'live' ? x.live : !x.live);
-          const gezeigt = alleSpiele ? gefiltert : gefiltert.slice(0, 60);
+          const gefiltert = spieleGefiltert;
+          const gezeigt = gefiltert.slice(0, sichtbareSpiele);
 
           /*
            * Die Aufstellung einer Runde.
@@ -2389,7 +2580,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                       ['fertig', t('Beendet'), spiele.length - laufende],
                     ] as const).map(([wert, titel, zahl]) => (
                       <button key={wert}
-                        onClick={() => { setSpielFilter(wert); setAlleSpiele(false); }}
+                        onClick={() => setSpielFilter(wert)}
                         disabled={zahl === 0}
                         className={`flex items-center gap-1.5 rounded-md px-2.5 py-1
                                     text-xs font-medium transition
@@ -2411,16 +2602,28 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                     ))}
                   </div>
                 )}
-                <button onClick={() => setSpieleAn((a) => !a)}
-                  className="rounded-lg border border-zinc-800 px-3 py-1 text-xs
-                             text-slate-300 transition hover:border-sky-500
-                             hover:text-sky-400">
-                  {spieleAn ? <T>zuklappen</T> : <T>Runden anzeigen</T>}
-                </button>
+                {/* Suche in den Runden. Sie steht dort, wo im Leaderboard
+                    dasselbe Feld steht, und verhaelt sich genauso: der Text
+                    erscheint sofort, gefiltert wird eine Spur spaeter. */}
+                <div className="relative">
+                  <input value={spielSuche}
+                    onChange={(e) => setSpielSuche(e.target.value)}
+                    placeholder={t('Sieger oder Spieler suchen …')}
+                    className="w-52 rounded-lg border border-zinc-800 bg-zinc-900/80
+                               px-3 py-1.5 pr-8 text-xs text-slate-100 outline-none
+                               focus:border-sky-500" />
+                  {spielSuche !== spielSucheTraege && (
+                    <span className="pointer-events-none absolute right-2.5 top-1/2
+                                     -translate-y-1/2">
+                      <span className="block h-3 w-3 animate-spin rounded-full
+                                       border border-slate-600 border-t-sky-400" />
+                    </span>
+                  )}
+                </div>
               </div>
             </header>
 
-            {spieleAn && (
+            {(
               <div className="p-3">
                 {spieleLaedt && !spiele && (
                   <div className="space-y-1">
@@ -2571,13 +2774,17 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                   </div>
                 )}
 
-                {gefiltert.length > 60 && !alleSpiele && (
-                  <button onClick={() => setAlleSpiele(true)}
-                    className="mt-2 w-full rounded-lg border border-zinc-800 px-3 py-2
-                               text-xs text-slate-400 transition hover:border-sky-500
-                               hover:text-sky-400">
-                    <T>alle anzeigen</T> ({gefiltert.length})
-                  </button>
+                {/* Kein Knopf mehr, nur die Auskunft, dass noch etwas
+                    kommt - angeklickt werden muss dafuer nichts. */}
+                {gezeigt.length < gefiltert.length && (
+                  <p ref={mehrRef}
+                    className="mt-2 flex items-center justify-center gap-2 py-2
+                               text-[11px] text-slate-500">
+                    <span className="block h-3 w-3 animate-spin rounded-full
+                                     border border-slate-700 border-t-sky-400" />
+                    {gezeigt.length.toLocaleString(ort)} <T>von</T>{' '}
+                    {gefiltert.length.toLocaleString(ort)}
+                  </p>
                 )}
 
               </div>

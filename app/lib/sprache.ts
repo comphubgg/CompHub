@@ -1839,6 +1839,8 @@ const AUF_ENGLISCH: Record<string, string> = {
     + 'minutes. Closing a tab does not sign anyone out — nothing more can '
     + 'honestly be said about it.',
   'Noch keine Ergebnisse': 'No results yet',
+  'Preispool': 'Prize Pool',
+  'Sieger oder Spieler suchen …': 'Search winner or player …',
   'lädt weitere …': 'loading more …',
   'Kein Treffer für': 'No match for',
   'die Liste wird noch tiefer geladen …': 'the list is still loading further down …',

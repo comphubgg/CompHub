@@ -583,6 +583,56 @@ export async function holeTop(eventId: string, windowId: string, limit = 100) {
   return { ...first, entries: out.slice(0, limit) };
 }
 
+/**
+ * Ein Stueck der Bestenliste - von Seite X an, so viele Seiten.
+ *
+ * holeTop faengt immer bei Seite null an. Wer zehntausend Plaetze will,
+ * bezahlt damit jedes Mal auch die ersten neuntausend noch einmal: hundert
+ * Seiten in einem Zug, gemessen ueber hundert Sekunden. Das passt in keine
+ * Zeitgrenze, die ein kostenloser Tarif hergibt, und die Anfrage kam
+ * schlicht nie an.
+ *
+ * Hier wird stattdessen ein Ausschnitt geholt. Die Seite haengt die Stuecke
+ * aneinander, und weil jedes einzelne klein ist, steht nach wenigen
+ * Sekunden das erste da und die Liste waechst danach weiter - bis zu den
+ * zehntausend, die Epic ueberhaupt herausgibt.
+ */
+export async function holeBereich(
+  eventId: string, windowId: string, vonSeite: number, seiten: number,
+) {
+  const bis = vonSeite + Math.max(1, seiten);
+  const raus: Awaited<ReturnType<typeof holeSeite>>['entries'] = [];
+  let totalPages = 0;
+  let updated = '';
+  let liveSessions: unknown = null;
+
+  for (let p = vonSeite; p < bis; p += SEITEN_GLEICHZEITIG) {
+    const ende = Math.min(p + SEITEN_GLEICHZEITIG, bis);
+    const gruppe = [];
+    for (let i = p; i < ende; i++) {
+      // Ueber das Ende hinaus wird nicht gefragt - Epic antwortet dort mit
+      // einer leeren Seite, und das waere eine Abfrage fuer nichts.
+      if (totalPages && i >= totalPages) break;
+      gruppe.push(holeSeite(eventId, windowId, i));
+    }
+    if (!gruppe.length) break;
+
+    for (const seite of await Promise.all(gruppe)) {
+      totalPages = seite.totalPages;
+      updated = seite.updated;
+      liveSessions = seite.liveSessions;
+      raus.push(...seite.entries);
+    }
+    if (totalPages && ende >= totalPages) break;
+  }
+
+  raus.sort((a, b) => a.rank - b.rank);
+  return {
+    eventId, windowId, page: vonSeite, totalPages, updated, liveSessions,
+    entries: raus,
+  };
+}
+
 // Merkt sich, auf welcher Seite ein Spieler zuletzt stand.
 const seitenHinweis = new Map<string, number>();
 

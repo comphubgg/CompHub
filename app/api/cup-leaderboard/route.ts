@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
 import {
-  gecacht, holeTop, findeSpieler, ergaenzeBilder, EpicLoginNoetig,
+  gecacht, holeTop, holeBereich, findeSpieler, ergaenzeBilder, EpicLoginNoetig,
 } from '@/lib/epicCups';
 
 // Live-Leaderboard eines Cups.
 //   ?event=…&window=…            -> Top-Liste
 //   &limit=100                    -> wie viele Plaetze
+//   &von=5&seiten=10              -> nur dieser Ausschnitt (Seiten 5 bis 14)
 //   &q=name1,name2                -> nur diese Spieler (Namenssuche)
 //   &ids=abc,def                  -> nur diese Account-IDs (eindeutig)
 //
@@ -51,6 +52,23 @@ export async function GET(request: Request) {
     if (namen.length || ids.length) {
       const key = `find|${event}|${window_}|${namen.join(',').toLowerCase()}|${ids.join(',')}`;
       const daten = await gecacht(key, TTL, () => findeSpieler(event, window_, namen, ids));
+      return NextResponse.json(await ergaenzeBilder(daten));
+    }
+
+    /*
+     * Ein Ausschnitt statt der ganzen Liste.
+     *
+     * Damit holt die Seite die Bestenliste in Stuecken und haengt sie
+     * aneinander, statt zehntausend Plaetze in einer einzigen Anfrage zu
+     * verlangen, die ohnehin in der Zeitgrenze endet.
+     */
+    const von = parseInt(searchParams.get('von') ?? '', 10);
+    if (Number.isFinite(von) && von >= 0) {
+      const seiten = Math.min(
+        Math.max(parseInt(searchParams.get('seiten') ?? '10', 10) || 10, 1), 25);
+      const key = `bereich|${event}|${window_}|${von}|${seiten}`;
+      const daten = await gecacht(key, TTL,
+        () => holeBereich(event, window_, von, seiten));
       return NextResponse.json(await ergaenzeBilder(daten));
     }
 
