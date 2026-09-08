@@ -270,6 +270,17 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Blättern bis Platz': 'Page up to rank',
   'Sekunden je Seite': 'Seconds per page',
   'Seiten': 'Pages',
+  // Der Abschnitt "Meine Overlays".
+  'Meine Overlays': 'My overlays',
+  'Umbenennen': 'Rename',
+  'Kopiert': 'Copied',
+  'Noch nichts angelegt.': 'Nothing saved yet.',
+  'Nicht gespeichert.': 'Not saved.',
+  '— keiner —': '— none —',
+  'Cup': 'Cup',
+  'Alles, was du angelegt hast — über alle Arten hinweg. Hier lässt sich umbenennen, der Cup wechseln und löschen. Wie es aussieht, stellst du auf der Seite der jeweiligen Art ein.':
+    'Everything you have set up, across all kinds. Rename, switch the cup or '
+    + 'delete here. How it looks is set on the page of the kind itself.',
   // Die Rangliste, waehrend sie geholt wird.
   'Die Rangliste wird gerade geholt — zehntausend Plätze in hundert Schritten. Das dauert einige Minuten; lade die Seite danach neu.':
     'The ranking is being fetched — ten thousand places in a hundred steps. That takes a few minutes; reload the page afterwards.',

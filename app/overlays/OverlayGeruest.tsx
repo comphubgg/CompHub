@@ -5,6 +5,7 @@ import Link from 'next/link';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import { useZugang } from '@/app/lib/zugang';
+import MeineOverlays from './MeineOverlays';
 
 /*
  * Das gemeinsame Geruest der Overlay-Seiten.
@@ -176,6 +177,13 @@ export default function OverlayGeruest({ aktiv, children }: {
             ist im Stream nach wenigen Sekunden zu sehen — ohne die
             Browserquelle anzufassen.</T>
           </p>
+
+          {/*
+            * Ein eigener Abschnitt mit mehr Luft darueber - so wollte es der
+            * Betreiber. Er steht auf jeder Overlay-Seite gleich, denn was
+            * jemand angelegt hat, gehoert nicht zu einer Art, sondern zu ihm.
+            */}
+          <MeineOverlays />
         </aside>
 
         <div className="min-w-0 flex-1">{children}</div>
