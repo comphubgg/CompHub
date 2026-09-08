@@ -104,9 +104,27 @@ async function katalogDa(url, frist = 5000) {
 
 async function findeBasis() {
   if (process.env.WERKZEUG_URL) {
-    if (await katalogDa(process.env.WERKZEUG_URL, 30_000)) return process.env.WERKZEUG_URL;
-    console.log(`WERKZEUG_URL=${process.env.WERKZEUG_URL} antwortet nicht `
-      + '- es wird selbst gesucht.');
+    /*
+     * Bei einer gesetzten Adresse wird nachgefasst, nicht aufgegeben.
+     *
+     * Gemessen an der eigenen Seite: der erste Aufruf nach einer neuen
+     * Auslieferung lief ueber zwei Minuten ins Leere, der zweite brauchte
+     * zehn Sekunden, der dritte anderthalb. Das ist der Kaltstart - die
+     * Antwort wird anschliessend fuenf Minuten lang gemerkt.
+     *
+     * Auf einem Laeufer bei GitHub gibt es keinen Ausweichweg: schlaegt die
+     * Pruefung fehl, sucht das Skript auf localhost, findet dort nichts und
+     * endet mit "es wurde nichts geholt" - unbemerkt, weil es dabei null
+     * zurueckgibt. Ein einzelner Versuch ist dafuer zu wenig.
+     */
+    for (const versuch of [1, 2, 3]) {
+      if (await katalogDa(process.env.WERKZEUG_URL, 60_000)) {
+        return process.env.WERKZEUG_URL;
+      }
+      console.log(`WERKZEUG_URL=${process.env.WERKZEUG_URL} antwortet nicht `
+        + `(Versuch ${versuch} von 3).`);
+    }
+    console.log('Es wird selbst gesucht.');
   }
 
   const kandidaten = [...new Set([...PORTS, ...await offenePorts()])];
