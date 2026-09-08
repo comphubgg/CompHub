@@ -181,6 +181,14 @@ function dauer(sek: number) {
 /** Wie viele Plaetze hoechstens geholt werden. Darueber wird die Tabelle
  *  unbrauchbar, und Epic gibt ohnehin nicht mehr Seiten heraus. */
 const MAX_PLAETZE = 10_000;
+/**
+ * Wie viele Plaetze zuerst geholt werden.
+ *
+ * Fuenfhundert sind fuenf Seiten bei Epic und in wenigen Sekunden da. Sie
+ * decken ab, was jemand beim Oeffnen sieht und was er als Erstes durchblaettert;
+ * der Rest kommt nach, ohne dass er darauf wartet.
+ */
+const ERSTE_PLAETZE = 500;
 
 /** Wie viele Zeilen je Schritt im Dokument stehen. */
 /**
@@ -1129,20 +1137,59 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
       setLaedt(false);
       return;
     }
-    try {
-      const r = await fetch(`/api/cup-leaderboard?event=${encodeURIComponent(f.eventId)}` +
-        `&window=${encodeURIComponent(f.windowId)}&limit=${MAX_PLAETZE}`);
+    /*
+     * Erst der Anfang, dann der Rest.
+     *
+     * Vorher holte diese Seite beim Oeffnen alle zehntausend Plaetze. Das
+     * sind bei Epic hundert Seiten und zwanzigtausend aufzuloesende Namen -
+     * gemessen hundertvierunddreissig Sekunden, in denen nichts dastand und
+     * man nicht einmal den Reiter wechseln konnte. Angezeigt werden davon
+     * fuenfzig.
+     *
+     * Deshalb zwei Schritte: zuerst fuenfhundert Plaetze, das ist in ein paar
+     * Sekunden da und deckt alles ab, was jemand als Erstes ansieht. Danach
+     * laeuft der volle Abruf im Hintergrund weiter und tauscht die Tabelle
+     * aus, sobald er fertig ist - wer bis dahin blaettert oder sucht,
+     * arbeitet schon mit den ersten fuenfhundert.
+     */
+    const holen = async (grenze: number) => {
+      const r = await fetch(`/api/cup-leaderboard?event=${encodeURIComponent(f.eventId)}`
+        + `&window=${encodeURIComponent(f.windowId)}&limit=${grenze}`);
       const d = await r.json();
       if (!r.ok) throw new Error(d.error ?? 'nicht ladbar');
-      setTabelle(d.entries ?? []);
+      return d as { entries?: Eintrag[]; updated?: string };
+    };
+
+    try {
+      const erste = await holen(ERSTE_PLAETZE);
+      setTabelle(erste.entries ?? []);
       // Ohne die Zahl - die steht daneben, mit dem passenden Wort. Zweimal
       // dieselbe Groesse, einmal gerundet und einmal genau, war die
       // haeufigste Nachfrage zu dieser Seite.
-      setStand(d.entries?.length
-        ? `${t('Stand')} ${new Date(d.updated).toLocaleTimeString(ort)}`
+      setStand(erste.entries?.length
+        ? `${t('Stand')} ${new Date(erste.updated ?? Date.now()).toLocaleTimeString(ort)}`
         : t('Noch keine Ergebnisse'));
-    } catch (e) { setStand(t('Fehler') + ': ' + (e as Error).message); setTabelle([]); }
-    finally { setLaedt(false); }
+      setLaedt(false);
+
+      /*
+       * Der Rest, ohne dass jemand darauf wartet.
+       *
+       * Kam weniger als eine volle erste Seite zurueck, gibt es auch keinen
+       * Rest - dann bleibt es dabei, statt einen zweiten Abruf zu starten,
+       * der dasselbe noch einmal holt.
+       */
+      if ((erste.entries?.length ?? 0) >= ERSTE_PLAETZE) {
+        void holen(MAX_PLAETZE)
+          .then((alle) => {
+            if (alle.entries?.length) setTabelle(alle.entries);
+          })
+          .catch(() => { /* dann bleibt es bei den ersten fuenfhundert */ });
+      }
+    } catch (e) {
+      setStand(t('Fehler') + ': ' + (e as Error).message);
+      setTabelle([]);
+      setLaedt(false);
+    }
   }, []);
 
   /*
