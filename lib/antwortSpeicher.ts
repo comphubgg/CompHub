@@ -37,6 +37,20 @@ const ORDNER = 'antworten';
 /** Wie lange eine Antwort als frisch gilt. Die Daten kommen stuendlich. */
 const FRISCH_MS = 90 * 60_000;
 
+/**
+ * Kurze Frist fuer alles, was sich waehrend eines Cups aendert.
+ *
+ * Neunzig Minuten passen zur stuendlichen Erneuerung, aber nicht zu den
+ * Replays: die werden waehrend eines laufenden Cups alle zehn Minuten neu
+ * ausgewertet und hochgeladen. Mit der langen Frist haette die Seite den
+ * frischen Stand bis zu anderthalb Stunden lang nicht angesehen - das
+ * Auswerten waere gelaufen und trotzdem unsichtbar geblieben.
+ *
+ * Langsamer wird davon nichts: eine abgelaufene Antwort wird weiterhin
+ * sofort ausgeliefert und nur im Hintergrund erneuert.
+ */
+export const FRISCH_LIVE_MS = 5 * 60_000;
+
 interface Ablage<T> {
   /** Wann gerechnet wurde. */
   zeit: number;
@@ -80,13 +94,14 @@ function nameVon(schluessel: string): string {
 export async function fertigeAntwort<T>(
   schluessel: string,
   rechne: () => Promise<T>,
+  frischMs: number = FRISCH_MS,
 ): Promise<T> {
   const name = nameVon(schluessel);
   const abgelegt = await liesJson<Ablage<T> | null>(name, null);
   const jetzt = Date.now();
 
   if (abgelegt && typeof abgelegt.zeit === 'number') {
-    if (jetzt - abgelegt.zeit < FRISCH_MS) return abgelegt.wert;
+    if (jetzt - abgelegt.zeit < frischMs) return abgelegt.wert;
 
     // Zu alt: trotzdem ausliefern, im Hintergrund erneuern.
     if (!laufend.has(schluessel)) {

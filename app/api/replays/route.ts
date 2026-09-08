@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { fertigeAntwort } from '@/lib/antwortSpeicher';
+import { fertigeAntwort, FRISCH_LIVE_MS } from '@/lib/antwortSpeicher';
 import fs from '@/lib/ablageFs';
 import path from 'path';
 import { istAdminAnfrage } from '@/lib/adminPruefung';
@@ -165,7 +165,10 @@ export async function GET(request: Request) {
           const antwort = await berechne(request);
           if (!antwort.ok) throw new Error(`Antwort ${antwort.status}`);
           return await antwort.json() as unknown;
-        });
+        },
+        // Waehrend eines Cups werden die Replays alle zehn Minuten neu
+        // ausgewertet. Mit der langen Frist waere davon nichts zu sehen.
+        FRISCH_LIVE_MS);
       return NextResponse.json(wert, {
         headers: { 'Cache-Control': 'public, max-age=60, stale-while-revalidate=3600' },
       });
