@@ -65,7 +65,6 @@ export default function StandingsSeite() {
   const [name, setName] = useState('Standings');
   const [cfg, setCfg] = useState<Config>(STANDARD);
   const [gespeichert, setGespeichert] = useState(false);
-  const [vorschauNr, setVorschauNr] = useState(0);
 
   const setz = <K extends keyof Config>(k: K, v: Config[K]) =>
     setCfg((alt) => ({ ...alt, [k]: v }));
@@ -88,8 +87,6 @@ export default function StandingsSeite() {
       setId(neueId);
       setGespeichert(true);
       setTimeout(() => setGespeichert(false), 2000);
-      // Die Vorschau neu laden, damit man das Ergebnis sofort sieht.
-      setVorschauNr((n) => n + 1);
     }
   }
 
@@ -99,9 +96,17 @@ export default function StandingsSeite() {
    * Nicht ein nachgebautes Abbild: ein Nachbau weicht mit der Zeit ab, und
    * dann sieht man hier etwas anderes als im Stream.
    */
+  /*
+   * Die Vorschau folgt den Reglern, nicht dem gespeicherten Stand.
+   *
+   * Die eingestellten Werte reisen in der Adresse mit; das Overlay nimmt sie
+   * und fragt gar nicht erst beim Server nach. Was in OBS laeuft, aendert
+   * sich dadurch nicht - dort steht nur die Kennung, und die zeigt weiterhin
+   * auf den gespeicherten Stand, bis auf Speichern gedrueckt wird.
+   */
   const vorschau = useMemo(
-    () => (id ? `${overlayAdresse('standings', id)}&t=${vorschauNr}` : ''),
-    [id, vorschauNr]);
+    () => `/overlay/standings.html?vorschau=${encodeURIComponent(JSON.stringify(cfg))}`,
+    [cfg]);
 
   // Ungespeicherte Aenderungen sollen sichtbar sein, sonst klickt man
   // "Adresse kopieren" und wundert sich, dass nichts anders aussieht.

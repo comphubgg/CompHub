@@ -20,6 +20,30 @@
   function starte({ standard, anwenden }) {
     const P = new URLSearchParams(location.search);
     const id = P.get('id') || '';
+
+    /*
+     * Die Vorschau im Dashboard.
+     *
+     * Sie zeigte bisher denselben gespeicherten Stand wie OBS - wer einen
+     * Regler bewegte, sah davon nichts, bis er gespeichert hatte. Der
+     * Betreiber wollte es umgekehrt: "die Previews sollen live updated
+     * werden, und erst wenn ich Apply druecke, soll's auf OBS uebernommen
+     * werden."
+     *
+     * Deshalb dieser Weg: steht in der Adresse ein "vorschau", gilt genau
+     * das, was darin steht, und es wird nicht beim Server nachgefragt. Das
+     * Overlay in OBS traegt diesen Parameter nie - es kennt nur seine
+     * Kennung und bleibt damit unberuehrt, solange nicht gespeichert wird.
+     */
+    const vorschau = P.get('vorschau');
+    if (vorschau) {
+      try {
+        anwenden(Object.assign({}, standard, JSON.parse(vorschau)), server0());
+      } catch (e) {
+        anwenden(Object.assign({}, standard), server0());
+      }
+      return;
+    }
     /*
      * Wo der Server steht.
      *
@@ -27,7 +51,7 @@
      * genuegt der eigene Ursprung. Nur wer die Datei von der Platte oeffnet,
      * braucht die Angabe - dafuer bleibt der Parameter.
      */
-    const server = P.get('server') || location.origin;
+    const server = server0();
 
     let stand = -1;
     let laeuft = false;
@@ -69,6 +93,12 @@
    * Gibt eine Funktion zurueck, die den vorigen Takt abraeumt - sonst liefen
    * nach der dritten Aenderung drei Uhren nebeneinander.
    */
+  /** Wo der Server steht - fuer beide Zweige derselbe Weg. */
+  function server0() {
+    const P = new URLSearchParams(location.search);
+    return P.get('server') || location.origin;
+  }
+
   function blenden(element, pausiertSek, sichtbarSek, beimZeigen) {
     let uhr = null;
     const abraeumen = () => { if (uhr) { clearTimeout(uhr); uhr = null; } };

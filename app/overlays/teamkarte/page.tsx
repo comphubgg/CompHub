@@ -18,7 +18,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
-import OverlayGeruest from '../OverlayGeruest';
+import OverlayGeruest, { useOverlays } from '../OverlayGeruest';
 import { overlayCupErlaubt, overlayZeitraum } from '@/lib/overlayCups';
 import { rundenName } from '@/lib/rundenName';
 
@@ -106,7 +106,40 @@ export default function OverlaySeite() {
     ids: string[]; namen: string[];
     vorlage: string; klar: number; hoehe: number; abstand?: number;
   }
-  const [gespeicherte, setGespeicherte] = useState<Gespeichert[]>([]);
+  /*
+   * Vorlagen liegen dort, wo auch Standings und Qual line liegen.
+   *
+   * Vorher gingen sie ueber /api/konto in das CompHub-Konto. Wer sich - wie
+   * der Betreiber - ueber den alten VIP-Weg anmeldet, hat kein solches
+   * Konto: das Speichern lief ins Leere, und nach dem Neuladen war die
+   * Vorlage weg. Er hat genau das bemerkt: "unter My Standings ist es
+   * gespeichert, aber unter Teamcards nicht."
+   *
+   * /api/overlay-config kennt beide Anmeldewege und ist derselbe Ort, an dem
+   * die anderen Overlays liegen. Damit ist es an einer Stelle richtig statt
+   * an zweien verschieden.
+   */
+  const {
+    liste: vorlagenRoh, speichern: vorlageSpeichern, entfernen: vorlageEntfernen,
+  } = useOverlays('teamkarte');
+
+  const gespeicherte: Gespeichert[] = useMemo(
+    () => (vorlagenRoh ?? []).map((o) => {
+      const c = o.config as Partial<Gespeichert>;
+      return {
+        id: o.id,
+        titel: o.name,
+        region: c.region ?? 'EU',
+        ids: c.ids ?? [],
+        namen: c.namen ?? [],
+        vorlage: c.vorlage ?? 'nacht',
+        klar: c.klar ?? 92,
+        hoehe: c.hoehe ?? 108,
+        abstand: c.abstand,
+      };
+    }),
+    [vorlagenRoh]);
+
   const [neuerTitel, setNeuerTitel] = useState('');
 
   const [vorlage, setVorlage] = useState('nacht');
@@ -377,21 +410,6 @@ export default function OverlaySeite() {
       namensVorschlag(zwei[1]?.name ?? ''),
     ]);
   };
-
-  useEffect(() => {
-    fetch('/api/konto', { cache: 'no-store' })
-      .then((r) => r.json())
-      .then((j) => setGespeicherte(j?.konto?.bannerVorlagen ?? []))
-      .catch(() => {});
-  }, []);
-
-  const schreibeVorlagen = useCallback((liste: Gespeichert[]) => {
-    setGespeicherte(liste);
-    void fetch('/api/konto', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ was: 'aendern', bannerVorlagen: liste }),
-    }).catch(() => {});
-  }, []);
 
   /* ---------------------------------------------------------- Adresse */
 
@@ -874,14 +892,15 @@ export default function OverlaySeite() {
                 <button
                   disabled={!neuerTitel.trim() || !duo.length}
                   onClick={() => {
-                    schreibeVorlagen([{
-                      id: `v${Date.now().toString(36)}`,
-                      titel: neuerTitel.trim(),
-                      region,
-                      ids: duo.map((sp) => sp.id).filter(Boolean),
-                      namen: [namen[0], namen[1]],
-                      vorlage, klar, hoehe,
-                    }, ...gespeicherte].slice(0, 20));
+                    void vorlageSpeichern({
+                      name: neuerTitel.trim(),
+                      config: {
+                        region,
+                        ids: duo.map((sp) => sp.id).filter(Boolean),
+                        namen: [namen[0], namen[1]],
+                        vorlage, klar, hoehe, abstand,
+                      },
+                    });
                     setNeuerTitel('');
                   }}
                   className="shrink-0 rounded-lg bg-sky-500 px-4 text-sm font-medium
@@ -912,14 +931,14 @@ export default function OverlaySeite() {
                         setDuo(v.ids.map((id, i) => ({ id, name: v.namen[i] ?? '' })));
                         setNamen([v.namen[0] ?? '', v.namen[1] ?? '']);
                         setVorlage(v.vorlage); setKlar(v.klar); setHoehe(v.hoehe);
+                        if (typeof v.abstand === 'number') setAbstand(v.abstand);
                       }}
                       className="shrink-0 text-[11px] text-slate-400 underline
                                  hover:text-slate-200">
                       <T>laden</T>
                     </button>
                     <button
-                      onClick={() => schreibeVorlagen(
-                        gespeicherte.filter((x) => x.id !== v.id))}
+                      onClick={() => void vorlageEntfernen(v.id)}
                       title={t('Vorlage löschen')}
                       className="shrink-0 text-slate-600 transition hover:text-rose-400">
                       ×

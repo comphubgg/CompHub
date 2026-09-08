@@ -62,7 +62,6 @@ export default function QualSeite() {
   const [name, setName] = useState('Qual line');
   const [cfg, setCfg] = useState<Config>(STANDARD);
   const [gespeichert, setGespeichert] = useState(false);
-  const [vorschauNr, setVorschauNr] = useState(0);
   const [schmutzig, setSchmutzig] = useState(false);
 
   const setz = <K extends keyof Config>(k: K, v: Config[K]) =>
@@ -86,13 +85,14 @@ export default function QualSeite() {
       setId(neueId);
       setGespeichert(true);
       setTimeout(() => setGespeichert(false), 2000);
-      setVorschauNr((n) => n + 1);
     }
   }
 
+  /* Siehe Standings: die Vorschau zeigt die Regler, OBS den gespeicherten
+     Stand. */
   const vorschau = useMemo(
-    () => (id ? `${overlayAdresse('qual', id)}&t=${vorschauNr}` : ''),
-    [id, vorschauNr]);
+    () => `/overlay/qual.html?vorschau=${encodeURIComponent(JSON.stringify(cfg))}`,
+    [cfg]);
 
   useEffect(() => { setSchmutzig(true); }, [cfg, name]);
   useEffect(() => { setSchmutzig(false); }, [id]);
