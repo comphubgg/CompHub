@@ -113,7 +113,24 @@ function ordnerVon(name: string): string | null {
   return i < 0 ? null : name.slice(0, i + 1);
 }
 
+/*
+ * Ordner, die nie im Ganzen geholt werden.
+ *
+ * Der Vorgriff lohnt sich, wo viele kleine Dateien nacheinander gelesen
+ * werden - die Szene-Statistik etwa, dreizehn Dateien je Region und Saison.
+ * Bei den fertigen Antworten ist es umgekehrt: jede einzelne ist eine ganze
+ * Serverantwort, zusammen zweiunddreissig Megabyte, und gebraucht wird immer
+ * genau eine.
+ *
+ * Ohne diese Ausnahme holte die Startseite bei jedem Aufruf alle
+ * hunderteinundzwanzig - gemessen elf Sekunden fuer eine Auskunft, die
+ * vierhundertsechsundsechzig Zeichen lang ist. Der Vorgriff, der das Warten
+ * beenden sollte, war damit selbst die Ursache.
+ */
+const NIE_VORGREIFEN = ['antworten/'];
+
 async function holeOrdner(praefix: string): Promise<Map<string, string> | null> {
+  if (NIE_VORGREIFEN.some((p) => praefix.startsWith(p))) return null;
   const gemerkt = ordnerCache.get(praefix);
   if (gemerkt && Date.now() < gemerkt.bis) return gemerkt.stand;
 
