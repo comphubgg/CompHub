@@ -44,9 +44,16 @@ function wege(saisons) {
     // Die Startseite holt von hier die Zahl der ausgewerteten Matches.
     '/api/replays',
   ];
-  for (const s of saisons) {
+  /*
+   * "alle" ist eine echte Wahl in der Oberflaeche, keine leere Angabe - und
+   * die teuerste von allen, weil sie ueber jede Saison geht. Sie gehoert
+   * deshalb zuerst auf die Liste.
+   */
+  for (const s of [...saisons, 'alle']) {
     raus.push(`/api/szene-stats?ansicht=start&saison=${encodeURIComponent(s)}`);
     raus.push(`/api/szene-stats?ansicht=turniere&saison=${encodeURIComponent(s)}`);
+    // Die Spieler-Ansicht fragt mit limit=300 - zuerst ohne Region.
+    raus.push(`/api/szene-stats?saison=${encodeURIComponent(s)}&sort=elims&limit=300`);
   }
   for (const r of REGIONEN) {
     raus.push(`/api/szene-stats?region=${r}&sort=elims&limit=80`);
@@ -59,6 +66,8 @@ function wege(saisons) {
      */
     for (const sa of [...saisons, 'alle']) {
       raus.push(`/api/szene-stats?saison=${encodeURIComponent(sa)}&region=${r}&sort=elims&limit=500`);
+      // und dieselbe Ansicht mit einer gewaehlten Region.
+      raus.push(`/api/szene-stats?saison=${encodeURIComponent(sa)}&sort=elims&limit=300&region=${r}`);
     }
   }
   return raus;

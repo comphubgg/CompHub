@@ -1902,6 +1902,21 @@ export default function StatistikSeite() {
   }, [bereich, power.length]);
 
   /* -------------------------------------------------------- Spielerliste */
+  /*
+   * Holen mit Frist.
+   *
+   * Der Betreiber: "Das geht noch viel zu lange, mach da auch die
+   * Ladeanimation, max 7 Sekunden." Sieben Sekunden sind reichlich fuer eine
+   * Antwort, die vorgerechnet in der Ablage liegt - und die Grenze, ab der
+   * Warten in Aergernis umschlaegt. Laeuft sie ab, bricht der Abruf ab, die
+   * Ladeanzeige verschwindet, und es steht da, was da ist.
+   */
+  const FRIST_MS = 7000;
+  const holeMitFrist = useCallback(async (weg: string) => {
+    const r = await fetch(weg, { signal: AbortSignal.timeout(FRIST_MS) });
+    return r.json();
+  }, []);
+
   const holeSpieler = useCallback(async () => {
     if (!saison) return;
     setLaedt(true); setFehler('');
@@ -1909,14 +1924,14 @@ export default function StatistikSeite() {
       const p = new URLSearchParams({ saison, sort, limit: '300' });
       if (region) p.set('region', region);
       if (suche.trim()) p.set('q', suche.trim());
-      const j = await (await fetch(`/api/szene-stats?${p}`)).json();
+      const j = await holeMitFrist(`/api/szene-stats?${p}`);
       if (!j.success) throw new Error(j.error ?? 'nicht ladbar');
       setSpieler(j.spieler ?? []);
       setGesamt(j.gesamt ?? 0);
     } catch (e) {
       setFehler((e as Error).message); setSpieler([]);
     } finally { setLaedt(false); }
-  }, [saison, region, sort, suche]);
+  }, [saison, region, sort, suche, holeMitFrist]);
 
   useEffect(() => {
     if (bereich !== 'spieler') return;
@@ -4470,9 +4485,23 @@ export default function StatistikSeite() {
                 <p className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-8
                               text-center text-sm text-rose-400">{fehler}</p>
               ) : laedt && !spieler.length ? (
-                <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
-                  {[...Array(12)].map((_, i) =>
-                    <div key={i} className="h-64 animate-pulse rounded-xl bg-zinc-900/60" />)}
+                /*
+                 * Waehrend geholt wird: die Platzhalter, und darueber derselbe
+                 * drehende Ring wie auf der Startseite. Die pulsenden Kacheln
+                 * allein waren zu leise - auf dem dunklen Grund sah es aus, als
+                 * stehe da einfach nichts. Der Betreiber wollte hier dieselbe
+                 * Ladeanzeige.
+                 */
+                <div className="relative">
+                  <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+                    {[...Array(12)].map((_, i) =>
+                      <div key={i} className="h-64 animate-pulse rounded-xl bg-zinc-900/60" />)}
+                  </div>
+                  <div className="absolute inset-0 grid place-items-start justify-center
+                                  bg-zinc-950/40 pt-24 backdrop-blur-[1px]">
+                    <span className="h-8 w-8 animate-spin rounded-full border-2
+                                     border-zinc-700 border-t-sky-500" />
+                  </div>
                 </div>
               ) : !gezeigteSpieler.length ? (
                 <p className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-8
