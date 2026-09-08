@@ -190,6 +190,28 @@ const MAX_PLAETZE = 10_000;
  */
 const ERSTE_PLAETZE = 500;
 
+/**
+ * Wie eine Stufe der Auszahlungstabelle heisst.
+ *
+ * Epic kennt drei Arten, und sie bedeuten voellig Verschiedenes:
+ *
+ *   rank        die Platzierung   -> "Top #500"
+ *   value       erspielte Punkte  -> "8 Points"
+ *   percentile  der obere Anteil  -> "Top 5 %"
+ *
+ * Hier stand fuer alle drei dasselbe: eine Raute und die Zahl. Bei einem
+ * Skin-Cup, wo es den Gegenstand fuer acht Punkte gibt, las sich das als
+ * "Platz 8" - der Betreiber hat darauf hingewiesen: "da steht Hashtag acht
+ * bei mir, nicht acht Points, das macht schon einen grossen Unterschied."
+ * Es ist auch keine Kleinigkeit: die eine Angabe ist fuer fast jeden
+ * erreichbar, die andere fuer acht Teams weltweit.
+ */
+function schwellenText(art: string, schwelle: number): string {
+  if (art === 'percentile') return `Top ${(schwelle * 100).toFixed(0)} %`;
+  if (art === 'value') return `${schwelle} Points`;
+  return `Top #${schwelle}`;
+}
+
 /** Wie viele Zeilen je Schritt im Dokument stehen. */
 /**
  * Wie viele Zeilen auf eine Seite duerfen.
@@ -381,7 +403,10 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
      */
     geld: Array<{ art: string; schwelle: number; betrag: number;
       von?: number; plaetze?: number }>;
-    gegenstaende: Array<{ art: string; schwelle: number; name: string }>;
+    gegenstaende: Array<{
+      art: string; schwelle: number; name: string;
+      kennung?: string; bild?: string | null; sorte?: string | null;
+    }>;
     /** Wahr, wenn die Zahlen aus der gepflegten Datei stammen, nicht von Epic. */
     gepflegt?: boolean; quelle?: string | null; proPerson?: boolean;
     erlaeuterung?: string | null;
@@ -1648,11 +1673,24 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                 <div className="flex flex-wrap gap-1.5">
                   {preise.gegenstaende.map((g) => (
                     <span key={`${g.art}-${g.schwelle}-${g.name}`}
-                      className="rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5
-                                 py-1 text-[11px] text-slate-300">
-                      {g.art === 'percentile'
-                        ? `${(g.schwelle * 100).toFixed(0)} %` : `#${g.schwelle}`}
-                      <span className="ml-1.5 text-slate-500">{g.name}</span>
+                      className="flex items-center gap-2 rounded-lg border
+                                 border-zinc-800 bg-zinc-950/60 py-1 pl-1 pr-2.5
+                                 text-[11px] text-slate-300">
+                      {/* Das Bild des Gegenstands, wenn es eines gibt. Epic
+                          zeigt an derselben Stelle beides; ein Name allein
+                          sagt bei einem Skin wenig. */}
+                      {g.bild && (
+                        <img src={g.bild} alt="" width={28} height={28} loading="lazy"
+                          className="h-7 w-7 shrink-0 rounded object-cover"
+                          onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                      )}
+                      <span className="font-semibold text-slate-200">
+                        {schwellenText(g.art, g.schwelle)}
+                      </span>
+                      <span className="text-slate-300">{g.name}</span>
+                      {g.sorte && (
+                        <span className="text-slate-600">{g.sorte}</span>
+                      )}
                     </span>
                   ))}
                 </div>

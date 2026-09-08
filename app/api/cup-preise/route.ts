@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { holeGegenstaende } from '@/lib/gegenstaende';
 import fs from '@/lib/ablageFs';
 import path from 'path';
 import { EpicLoginNoetig } from '@/lib/epicCups';
@@ -225,7 +226,10 @@ export async function GET(request: Request) {
   }
 
   const geld: Array<{ art: string; schwelle: number; betrag: number }> = [];
-  const gegenstaende: Array<{ art: string; schwelle: number; name: string }> = [];
+  const gegenstaende: Array<{
+    art: string; schwelle: number; name: string;
+    kennung?: string; bild?: string | null; sorte?: string | null;
+  }> = [];
   let waehrung: string | null = null;
 
   for (const g of gruppen) {
@@ -237,8 +241,18 @@ export async function GET(request: Request) {
           geld.push({ art: g.scoringType ?? 'rank', schwelle: r.threshold,
             betrag: p.quantity });
         } else if (p.rewardType === 'game' && p.value) {
-          gegenstaende.push({ art: g.scoringType ?? 'rank', schwelle: r.threshold,
-            name: gegenstandName(p.value) });
+          /*
+           * Die rohe Kennung wandert mit.
+           *
+           * Aus ihr wird der Name gemacht ("AthenaEmoji:emoji_megaman8bit" ->
+           * "Megaman8bit"), aber sie ist auch das Einzige, womit sich das Bild
+           * des Gegenstands finden laesst. Ohne sie stuende in der Anzeige ein
+           * Name ohne Bild, und Epic zeigt an derselben Stelle beides.
+           */
+          gegenstaende.push({
+            art: g.scoringType ?? 'rank', schwelle: r.threshold,
+            name: gegenstandName(p.value), kennung: p.value,
+          });
         }
       }
     }
@@ -252,6 +266,25 @@ export async function GET(request: Request) {
 
   geld.sort((a, b) => a.schwelle - b.schwelle);
   gegenstaende.sort((a, b) => a.schwelle - b.schwelle);
+
+  /*
+   * Die Gegenstaende bekommen ihren richtigen Namen und ihr Bild.
+   *
+   * Aus "Character Dunebriefshift" wird "Mega Man X", und daneben steht das
+   * Bild - so wie Epic es selbst zeigt. Was sich nicht nachschlagen laesst,
+   * behaelt den entzierten Decknamen; erfunden wird nichts.
+   */
+  try {
+    const bekannt = await holeGegenstaende(
+      gegenstaende.map((g) => g.kennung ?? '').filter(Boolean));
+    for (const g of gegenstaende) {
+      const gefunden = g.kennung ? bekannt.get(g.kennung) : undefined;
+      if (!gefunden) continue;
+      g.name = gefunden.name;
+      g.bild = gefunden.bild;
+      g.sorte = gefunden.art;
+    }
+  } catch { /* dann bleiben die Decknamen stehen */ }
 
   const gespannt = mitPlaetzen(geld);
 
