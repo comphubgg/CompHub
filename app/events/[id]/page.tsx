@@ -903,16 +903,39 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
    * Gesucht wird zuerst ueber die Epic-Konto-Id, denn Namen sind nicht
    * eindeutig. Erst wenn dort nichts steht, zaehlen die beobachteten Namen.
    */
-  const profilVon = useCallback((sp: Spieler): Profil | undefined => {
-    if (sp.id && profile[sp.id]) return profile[sp.id];
-    const schluessel = namensSchluessel(sp.name);
+  /**
+   * Die gepflegten Namen einmal nachschlagbar machen.
+   *
+   * Vorher suchte profilVon je Spieler linear durch alle Profile und
+   * normalisierte dabei jeden dort hinterlegten Namen neu. Das ist bei
+   * einem einzelnen Spieler unauffaellig und bei einer vollen Bestenliste
+   * verheerend: die Suche ruft namenVon fuer zwanzigtausend Spieler auf,
+   * mal der Zahl der Profile mal deren Namen - gemessen dreieinhalb bis
+   * vier Sekunden Blockade je Tastendruck, obwohl das Filtern selbst
+   * Millisekunden braucht. Der Betreiber hat es als "es laedt sehr, sehr
+   * lange, bis es das macht, zu lange, dafuer dass nur Text eingegeben
+   * wird" beschrieben.
+   *
+   * Die Zuordnung haengt aber gar nicht am Spieler, sondern nur an den
+   * Profilen. Sie wird deshalb einmal gebaut und danach in einem Schritt
+   * abgefragt. Die Reihenfolge bleibt dieselbe: der erste Treffer gewinnt,
+   * ein spaeteres Profil ueberschreibt einen schon belegten Namen nicht.
+   */
+  const profilNachName = useMemo(() => {
+    const karte = new Map<string, Profil>();
     for (const pr of Object.values(profile)) {
-      if ((pr.namen ?? [pr.name ?? '']).some((n) => namensSchluessel(n) === schluessel)) {
-        return pr;
+      for (const n of (pr.namen ?? [pr.name ?? ''])) {
+        const k = namensSchluessel(n);
+        if (k && !karte.has(k)) karte.set(k, pr);
       }
     }
-    return undefined;
+    return karte;
   }, [profile]);
+
+  const profilVon = useCallback((sp: Spieler): Profil | undefined => {
+    if (sp.id && profile[sp.id]) return profile[sp.id];
+    return profilNachName.get(namensSchluessel(sp.name));
+  }, [profile, profilNachName]);
 
   const landVon = useCallback(
     (sp: Spieler): string | undefined => profilVon(sp)?.land, [profilVon]);
@@ -942,9 +965,29 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
    * aber ohnehin geladen vor; sie fuellt die Luecke, ohne eine einzige
    * zusaetzliche Abfrage.
    */
+  /*
+   * Fuer alles, was ueber das ganze Feld laeuft, eine nachlaufende Tabelle.
+   *
+   * Die Bestenliste kommt in Paketen herein; jedes davon setzt tabelle neu.
+   * Haengt eine Berechnung ueber zwanzigtausend Spieler direkt daran, wird
+   * sie zehnmal ausgefuehrt, und zwar vorrangig - waehrenddessen nimmt die
+   * Seite keinen Klick und keinen Tastendruck an. Genau das hat der
+   * Betreiber gemeldet: "es hat immer noch ein ziemlich grosses Delay, bis
+   * ich zum Beispiel den Text anklicken kann."
+   *
+   * Mit dem nachlaufenden Wert bleibt die Bedienung vorn: React zeichnet
+   * erst das, was jemand gerade anfasst, und arbeitet diese Karten danach
+   * ab.
+   */
+  const tabelleTraege = useDeferredValue(tabelle);
+
   const teamAusListe = useMemo(() => {
     const karte = new Map<string, { platz: number; partner: string[] }>();
-    for (const e of tabelle) {
+    // Gebraucht wird sie nur unter "Spieler-Stats". Sie trotzdem bei jedem
+    // Paket ueber das ganze Feld zu bauen, ist Arbeit fuer einen Reiter,
+    // den niemand offen hat.
+    if (reiter !== 'spieler') return karte;
+    for (const e of tabelleTraege) {
       for (const sp of e.players) {
         if (!sp.id) continue;
         karte.set(sp.id, {
@@ -954,7 +997,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
       }
     }
     return karte;
-  }, [tabelle, namenVon]);
+  }, [reiter, tabelleTraege, namenVon]);
 
   function flaggenOeffnen(e: Eintrag) {
     setFlaggenTeam(e);
@@ -1209,16 +1252,29 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     const raus: Array<{
       kanal: string; name: string; rang: number; punkte: number;
     }> = [];
-    for (const e of tabelle) {
+    // Wie oben: nur unter "Streams" gebraucht.
+    if (reiter !== 'streams') return raus;
+    /*
+     * Doppelte ueber eine Menge aussortieren, nicht ueber die Liste selbst.
+     *
+     * Vorher stand hier ein raus.some(...) je Spieler - also ein Durchlauf
+     * durch alles schon Gefundene, zwanzigtausendmal. Das waechst im
+     * Quadrat und war bei einem vollen Feld die teuerste Stelle der ganzen
+     * Seite. Eine Menge beantwortet dieselbe Frage in einem Schritt.
+     */
+    const gesehen = new Set<string>();
+    for (const e of tabelleTraege) {
       for (const sp of e.players) {
         const kanal = profilVon(sp)?.twitch?.trim();
         if (!kanal) continue;
-        if (raus.some((x) => x.kanal.toLowerCase() === kanal.toLowerCase())) continue;
+        const schluessel = kanal.toLowerCase();
+        if (gesehen.has(schluessel)) continue;
+        gesehen.add(schluessel);
         raus.push({ kanal, name: namenVon(sp), rang: e.rank, punkte: e.points });
       }
     }
     return raus;
-  }, [tabelle, profilVon, namenVon]);
+  }, [reiter, tabelleTraege, profilVon, namenVon]);
 
   useEffect(() => {
     if (reiter !== 'streams' || !mitTwitch.length || live) return;
@@ -1998,22 +2054,14 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                              border-zinc-800 px-4 py-3">
             <h2 className="text-sm font-semibold text-slate-100"><T>Leaderboard</T></h2>
             <div className="flex items-center gap-3">
-              <div className="relative">
-                <input value={suche}
-                  onChange={(e) => { setSuche(e.target.value); setSeite(1); }}
-                  placeholder={t('Spieler suchen …')}
-                  className="w-52 rounded-lg border border-zinc-800 bg-zinc-900/80 px-3 py-1.5
-                             pr-8 text-xs text-slate-100 outline-none focus:border-sky-500" />
-                {/* Der Kringel steht im Feld, nicht daneben: das Feld selbst
-                    darf nicht springen, waehrend gesucht wird. */}
-                {suchtGerade && (
-                  <span className="pointer-events-none absolute right-2.5 top-1/2
-                                   -translate-y-1/2">
-                    <span className="block h-3 w-3 animate-spin rounded-full
-                                     border border-slate-600 border-t-sky-400" />
-                  </span>
-                )}
-              </div>
+              {/* Ohne Ladezeichen im Feld. Der Betreiber wollte es gross
+                  auf der Bestenliste sehen, nicht klein an der Eingabe -
+                  dort verdeckt es beim Tippen ohnehin den Cursor. */}
+              <input value={suche}
+                onChange={(e) => { setSuche(e.target.value); setSeite(1); }}
+                placeholder={t('Spieler suchen …')}
+                className="w-52 rounded-lg border border-zinc-800 bg-zinc-900/80 px-3 py-1.5
+                           text-xs text-slate-100 outline-none focus:border-sky-500" />
               {/* Wie viele Zeilen je Seite - mehr als hundert gibt es nicht. */}
               <label className="flex items-center gap-1.5 text-xs text-slate-500">
                 <T>Zeilen</T>
@@ -2032,20 +2080,36 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                   <> · {tabelle.length.toLocaleString(ort)}{' '}
                     {soloCup ? <T>Spieler</T> : <T>Teams</T>}</>
                 )}
-                {/*
-                  * Solange tiefer geladen wird, gehoert das dazugesagt.
-                  *
-                  * Sonst sieht eine Liste, die gerade erst bei fuenfhundert
-                  * steht, genauso aus wie eine fertige - und wer jemanden
-                  * auf Platz dreitausend sucht, haelt ihn faelschlich fuer
-                  * gar nicht dabei.
-                  */}
-                {vertieft && (
-                  <> · <span className="text-slate-400"><T>lädt weitere …</T></span></>
-                )}
               </span>
             </div>
           </header>
+
+          {/*
+            * Das Ladezeichen der Bestenliste.
+            *
+            * Es stand klein im Suchfeld; der Betreiber wollte es gross an
+            * der Liste sehen. Hier ist es auch die ehrlichere Stelle: es
+            * gilt der Tabelle darunter, nicht der Eingabe. Es liegt als
+            * Band ueber der Tabelle statt als Schleier darauf - die
+            * Bestenliste soll waehrenddessen lesbar bleiben.
+            */}
+          {!laedt && (vertieft || suchtGerade) && (
+            <div className="flex items-center justify-center gap-3 border-b
+                            border-zinc-800/70 bg-zinc-900/40 px-4 py-2.5">
+              <span className="block h-5 w-5 shrink-0 animate-spin rounded-full
+                               border-2 border-zinc-700 border-t-sky-400" />
+              <span className="text-xs text-slate-400">
+                {suchtGerade ? <T>Wird durchsucht …</T> : (
+                  <>
+                    <T>lädt weitere …</T>{' '}
+                    <span className="tabular-nums text-slate-500">
+                      {tabelle.length.toLocaleString(ort)}
+                    </span>
+                  </>
+                )}
+              </span>
+            </div>
+          )}
 
           {laedt ? (
             <div className="space-y-1 p-4">
