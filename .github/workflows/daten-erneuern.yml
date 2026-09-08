@@ -96,7 +96,13 @@ jobs:
         continue-on-error: true
         run: node scripts/power-rankings-holen.mjs
 
+      # Dasselbe wie im Live-Ablauf: ohne diese Adresse sucht das Skript das
+      # Werkzeug auf localhost, findet dort nichts und holt nichts. Der Bau
+      # der Anwendung kommt in diesem Ablauf erst spaeter, ein eigener Server
+      # steht hier also ohnehin nicht zur Verfuegung.
       - name: Replays holen
+        env:
+          WERKZEUG_URL: https://www.thecomphub.com
         continue-on-error: true
         run: node scripts/replays-holen.mjs --frisch 2
 

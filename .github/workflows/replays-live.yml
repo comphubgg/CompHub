@@ -89,6 +89,14 @@ jobs:
       - name: Laufende Runden holen
         if: steps.pruefung.outputs.weiter == 'ja'
         continue-on-error: true
+        # Woher der Cup-Katalog kommt.
+        #
+        # Das Skript sucht das Werkzeug sonst auf den eigenen Ports - auf
+        # einem Laptop richtig, auf einem Laeufer bei GitHub laeuft dort
+        # nichts. Ohne diese Zeile brach es nach null Sekunden ab, und weil
+        # es dabei null zurueckgibt, sah der Schritt gruen aus.
+        env:
+          WERKZEUG_URL: https://www.thecomphub.com
         run: node scripts/replays-holen.mjs --live
 
       - name: Auswerten

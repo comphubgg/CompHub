@@ -73,11 +73,27 @@ async function offenePorts() {
   }
 }
 
-/** Antwortet dort der Cup-Katalog des Werkzeugs? */
-async function katalogDa(url) {
+/**
+ * Antwortet dort der Cup-Katalog des Werkzeugs?
+ *
+ * Die Frist ist zweigeteilt. Beim Absuchen der eigenen Ports muss sie kurz
+ * sein - dort wird siebenmal angeklopft, und hinter einem geschlossenen Port
+ * steckt niemand, auf den sich warten liesse. Eine ausdruecklich gesetzte
+ * Adresse ist etwas anderes: sie zeigt auf einen richtigen Server, und der
+ * braucht fuer den vollstaendigen Katalog gemessen sieben Sekunden, wenn er
+ * gerade erst hochgefahren ist.
+ *
+ * Mit den alten fuenf Sekunden fuer beides fiel WERKZEUG_URL jedes Mal
+ * durch, das Skript suchte danach vergeblich auf localhost und endete mit
+ * "es wurde nichts geholt" - und zwar mit Rueckgabewert null, also
+ * unbemerkt. In der stuendlichen Aktion hiess das: Replays wurden nie
+ * geholt, und auf der Seite stand waehrend jedes Cups, es seien noch keine
+ * Matches ausgewertet worden.
+ */
+async function katalogDa(url, frist = 5000) {
   try {
     const r = await fetch(`${url}/api/cup-catalog`,
-      { signal: AbortSignal.timeout(5000) });
+      { signal: AbortSignal.timeout(frist) });
     if (!r.ok) return false;
     const j = await r.json();
     return Array.isArray(j?.cups) && j.cups.length > 0;
@@ -88,7 +104,7 @@ async function katalogDa(url) {
 
 async function findeBasis() {
   if (process.env.WERKZEUG_URL) {
-    if (await katalogDa(process.env.WERKZEUG_URL)) return process.env.WERKZEUG_URL;
+    if (await katalogDa(process.env.WERKZEUG_URL, 30_000)) return process.env.WERKZEUG_URL;
     console.log(`WERKZEUG_URL=${process.env.WERKZEUG_URL} antwortet nicht `
       + '- es wird selbst gesucht.');
   }
