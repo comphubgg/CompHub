@@ -235,12 +235,14 @@ export default function PowerRankingsTable() {
         </div>
       ) : daten?.holt ? (
         <p className="p-8 text-center text-sm text-slate-400">
-          Die Rangliste wird gerade geholt — zehntausend Plätze in hundert
-          Schritten. Das dauert einige Minuten; lade die Seite danach neu.
+          <T>Die Rangliste wird gerade geholt — zehntausend Plätze in hundert
+          Schritten. Das dauert einige Minuten; lade die Seite danach neu.</T>
         </p>
       ) : !spieler.length ? (
         <p className="p-8 text-center text-sm text-slate-500">
-          {suche ? `Kein Spieler gefunden für „${suche}“.` : 'Keine Daten.'}
+          {suche
+            ? <>{t('Kein Spieler gefunden für')} „{suche}“.</>
+            : <T>Keine Daten.</T>}
         </p>
       ) : (
         <>

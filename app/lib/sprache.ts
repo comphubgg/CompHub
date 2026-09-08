@@ -270,6 +270,10 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Blättern bis Platz': 'Page up to rank',
   'Sekunden je Seite': 'Seconds per page',
   'Seiten': 'Pages',
+  // Die Rangliste, waehrend sie geholt wird.
+  'Die Rangliste wird gerade geholt — zehntausend Plätze in hundert Schritten. Das dauert einige Minuten; lade die Seite danach neu.':
+    'The ranking is being fetched — ten thousand places in a hundred steps. That takes a few minutes; reload the page afterwards.',
+  'Kein Spieler gefunden für': 'No player found for',
   // Die Anordnung der Qual-Linie.
   'Anordnung': 'Layout',
   'Zwei Zeilen': 'Two rows',
