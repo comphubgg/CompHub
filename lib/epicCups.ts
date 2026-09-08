@@ -10,7 +10,7 @@
 // den Website-Scraping ueberspringt, weshalb dort oft der Esports-Team-Tag
 // statt des echten Duo-Partners landet.
 
-import { promises as fs } from 'fs';
+import fs from '@/lib/ablageFs';
 import path from 'path';
 import { DATEN_ORT } from './datenOrt';
 

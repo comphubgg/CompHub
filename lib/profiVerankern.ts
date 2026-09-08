@@ -1,4 +1,4 @@
-import { promises as fs } from 'fs';
+import fs from '@/lib/ablageFs';
 import path from 'path';
 import { gesamtSummen } from '@/lib/szeneStats';
 import { DATEN_ORT } from './datenOrt';

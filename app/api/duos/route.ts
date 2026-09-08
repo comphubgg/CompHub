@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { promises as fs } from 'fs';
+import fs from '@/lib/ablageFs';
 import path from 'path';
 import { getSupabaseServerClient, hasSupabaseConfig, isSupabaseFallbackError } from '@/lib/supabaseServer';
 import { DATEN_ORT } from '@/lib/datenOrt';

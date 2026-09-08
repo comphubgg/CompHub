@@ -13,7 +13,7 @@
 // und unterbleibt. Stattdessen liest ein Skript die Seite so, wie sie jedem
 // Besucher angezeigt wird (siehe scripts/power-rankings-holen.mjs).
 
-import { promises as fs } from 'fs';
+import fs from '@/lib/ablageFs';
 import path from 'path';
 import { DATEN_ORT } from './datenOrt';
 

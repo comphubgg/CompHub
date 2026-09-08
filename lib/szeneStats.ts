@@ -16,7 +16,7 @@
 //
 // Was hier gerechnet wird, laesst sich dagegen aus den Dateien nachrechnen.
 
-import { promises as fs } from 'fs';
+import fs from '@/lib/ablageFs';
 import path from 'path';
 import { replayWert } from '@/lib/replayWerte';
 import { DATEN_ORT } from './datenOrt';

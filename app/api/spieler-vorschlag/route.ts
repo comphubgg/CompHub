@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { promises as fs } from 'fs';
+import fs from '@/lib/ablageFs';
 import path from 'path';
 import { heimatRegionen } from '@/lib/szeneStats';
 import { DATEN_ORT } from '@/lib/datenOrt';

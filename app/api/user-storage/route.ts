@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import path from 'path';
-import { promises as fs } from 'fs';
+import fs from '@/lib/ablageFs';
 import { DATEN_ORT } from '@/lib/datenOrt';
 
 const STORAGE_DIR = path.join(DATEN_ORT, 'user-storage');

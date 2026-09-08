@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { promises as fs } from 'fs';
+import fs from '@/lib/ablageFs';
 import path from 'path';
 import { cookies } from 'next/headers';
 import { kontoAus, nachId } from '@/lib/konten';

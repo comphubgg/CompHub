@@ -113,9 +113,23 @@ export async function mkdir(p: string, o?: { recursive?: boolean }): Promise<und
   return undefined;
 }
 
+/** Ein Eintrag, wie ihn readdir mit withFileTypes liefert. */
+export interface Eintrag {
+  name: string;
+  isDirectory(): boolean;
+  isFile(): boolean;
+}
+
+/*
+ * Wieder zwei Formen wie beim echten fs: ohne Angabe kommen Namen, mit
+ * withFileTypes kommen Eintraege. Ohne diese Trennung im Typ muesste jede
+ * Fundstelle eine Umwandlung dazuschreiben.
+ */
+export function readdir(p: string, o?: { withFileTypes?: false }): Promise<string[]>;
+export function readdir(p: string, o: { withFileTypes: true }): Promise<Eintrag[]>;
 export async function readdir(
   p: string, o?: { withFileTypes?: boolean },
-): Promise<string[] | Array<{ name: string; isDirectory(): boolean; isFile(): boolean }>> {
+): Promise<string[] | Eintrag[]> {
   const name = nameVon(p);
   if (name === null) return echtesFs.readdir(p, o as never) as never;
   const eintraege = await speicher.liste(name);

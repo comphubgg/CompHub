@@ -1,6 +1,7 @@
 import nodemailer, { type Transporter } from 'nodemailer';
 import fs from 'fs';
 import path from 'path';
+import ablage from '@/lib/ablageFs';
 
 /*
  * Mail verschicken.
@@ -245,9 +246,27 @@ export async function sendeMail(b: Brief): Promise<boolean> {
        * Zeichens traegt eine Content-Id und wird deshalb im Text angezeigt
        * statt unten als Datei angehaengt.
        */
+      /*
+       * Die Anhaenge werden gelesen, nicht als Pfad weitergereicht.
+       *
+       * Nodemailer wuerde bei "path" selbst zur Platte greifen. Sobald die
+       * Bilder nicht mehr dort liegen, sondern in der Ablage, findet es
+       * nichts - und eine Meldung waere ohne ihre Bildschirmausschnitte
+       * unterwegs, ohne dass jemand es merkt. Deshalb hier gelesen, ueber
+       * denselben Weg wie alles andere.
+       *
+       * Ein Anhang, der sich nicht lesen laesst, faellt weg und haelt die
+       * Mail nicht auf: eine Meldung ohne Bild ist besser als keine Meldung.
+       */
       attachments: [
         ...(zeichen ? [zeichen] : []),
-        ...(b.anhaenge?.map((a) => ({ filename: a.name, path: a.pfad })) ?? []),
+        ...(await Promise.all((b.anhaenge ?? []).map(async (a) => {
+          try {
+            return { filename: a.name, content: await ablage.readFile(a.pfad) };
+          } catch {
+            return null;
+          }
+        }))).filter((a): a is { filename: string; content: Buffer } => a !== null),
       ],
     });
     return true;

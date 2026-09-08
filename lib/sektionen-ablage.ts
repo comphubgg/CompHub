@@ -1,4 +1,4 @@
-import { promises as fs } from 'fs';
+import fs from '@/lib/ablageFs';
 import path from 'path';
 import {
   HINWEISE, SEKTIONEN, STANDARD, type Staende,
