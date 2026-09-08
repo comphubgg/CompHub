@@ -41,6 +41,8 @@ function wege(saisons) {
     '/api/szene-stats?ansicht=turniere',
     '/api/spieler-center',
     '/api/spieler-laender',
+    // Die Startseite holt von hier die Zahl der ausgewerteten Matches.
+    '/api/replays',
   ];
   for (const s of saisons) {
     raus.push(`/api/szene-stats?ansicht=start&saison=${encodeURIComponent(s)}`);
@@ -49,6 +51,15 @@ function wege(saisons) {
   for (const r of REGIONEN) {
     raus.push(`/api/szene-stats?region=${r}&sort=elims&limit=80`);
     raus.push(`/api/szene-stats?region=${r}&sort=elims&limit=60`);
+    /*
+     * Die Regionen-Ansicht der Statistikseite fragt je Saison und Region mit
+     * limit=500. Ohne diese hier rechnete Vercel beim ersten Besucher live -
+     * und genau dort sah der Betreiber keine Bilder: sie kamen einfach noch
+     * nicht, weil die Antwort noch unterwegs war.
+     */
+    for (const sa of [...saisons, 'alle']) {
+      raus.push(`/api/szene-stats?saison=${encodeURIComponent(sa)}&region=${r}&sort=elims&limit=500`);
+    }
   }
   return raus;
 }

@@ -103,13 +103,35 @@ const BEREICHE = [
 export default function Startseite() {
   const { sprache } = useSprache();
   const [stand, setStand] = useState<Stand | null>(null);
+  /**
+   * Wird noch geholt?
+   *
+   * Solange das laeuft, liegt ein Schleier ueber den Zahlen. Vorher standen
+   * dort Striche, und niemand konnte unterscheiden, ob gerade geladen wird
+   * oder ob es nichts zu zeigen gibt.
+   */
+  const [laedt, setLaedt] = useState(true);
 
   useEffect(() => {
     void Promise.resolve().then(async () => {
       try {
+        /*
+         * Nach zehn Sekunden ist Schluss.
+         *
+         * Der Betreiber: "Das soll auch maximal zehn Sekunden gehen." Er hat
+         * recht - eine Zahl, auf die man laenger wartet, ist keine Auskunft
+         * mehr. Bleibt eine Antwort aus, steht dort ein Strich, und die Seite
+         * ist trotzdem fertig; die Zahlen sind Beiwerk, nicht der Inhalt.
+         *
+         * Im Regelfall greift die Frist nie: die Antworten liegen fertig in
+         * der Ablage und kommen in Bruchteilen einer Sekunde.
+         */
+        const frist = AbortSignal.timeout(10_000);
         const [archiv, replays] = await Promise.all([
-          fetch('/api/szene-stats').then((r) => r.json()).catch(() => null),
-          fetch('/api/replays').then((r) => r.json()).catch(() => null),
+          fetch('/api/szene-stats', { signal: frist })
+            .then((r) => r.json()).catch(() => null),
+          fetch('/api/replays', { signal: frist })
+            .then((r) => r.json()).catch(() => null),
         ]);
         setStand({
           saisons: archiv?.saisons?.length ?? 0,
@@ -121,6 +143,7 @@ export default function Startseite() {
               n + (f.zaehler?.PARSED ?? 0), 0) || null,
         });
       } catch { /* dann bleiben die Zahlen aus */ }
+      finally { setLaedt(false); }
     });
   }, []);
 
@@ -179,9 +202,21 @@ export default function Startseite() {
 
         {/* --------------------------------------------------- Die Zahlen */}
         <div className="relative mx-auto mt-20 max-w-4xl">
-          <div className="grid grid-cols-2 divide-zinc-800 rounded-2xl border
+          {/*
+            * Waehrend geholt wird, liegt ein Schleier darueber - so wie beim
+            * Seitenwechsel auch. Der Betreiber wollte es genau so: "sone Art
+            * Loading Screen, und Hintergrund so transparent."
+            */}
+          {laedt && (
+            <div className="absolute inset-0 z-10 grid place-items-center
+                            rounded-2xl bg-zinc-950/60 backdrop-blur-[2px]">
+              <span className="h-7 w-7 animate-spin rounded-full border-2
+                               border-zinc-700 border-t-sky-500" />
+            </div>
+          )}
+          <div className={`grid grid-cols-2 divide-zinc-800 rounded-2xl border
                           border-zinc-800 bg-zinc-900/30 sm:grid-cols-4
-                          sm:divide-x">
+                          sm:divide-x ${laedt ? 'opacity-40' : ''}`}>
             {([
               [zahl(stand?.spieltage ?? null), 'Spieltage im Archiv'],
               [zahl(stand?.saisons ?? null), 'Saisons erfasst'],

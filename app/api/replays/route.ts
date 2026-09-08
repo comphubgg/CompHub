@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { fertigeAntwort } from '@/lib/antwortSpeicher';
 import fs from '@/lib/ablageFs';
 import path from 'path';
 import { istAdminAnfrage } from '@/lib/adminPruefung';
@@ -23,6 +24,13 @@ import { DATEN_ORT } from '@/lib/datenOrt';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
+/*
+ * Diese Uebersicht zaehlt jeden Spieltag und jede Runde durch. Auf der Platte
+ * dauert das nichts; ueber die Ablage waren es bei Vercel gemessene
+ * vierundzwanzig Sekunden - und daran hing die Startseite, denn sie holt von
+ * hier die Zahl der ausgewerteten Matches.
+ */
+export const maxDuration = 60;
 
 const ABLAGE = path.join(DATEN_ORT, 'replays');
 const NAMEN_DATEI = path.join(DATEN_ORT, 'spieler-namen.json');
@@ -140,7 +148,35 @@ async function alleFenster() {
   return raus;
 }
 
+/*
+ * Die Uebersicht wird hoechstens einmal je Stunde gezaehlt.
+ *
+ * Nur die Uebersicht: ein einzelnes Fenster ("?fenster=") erschliesst
+ * absichtlich tief und gehoert jemandem, der gerade hinsieht - das bleibt
+ * frisch. Und alles, was eine Anmeldung braucht, geht ohnehin nicht durch
+ * diesen Weg.
+ */
 export async function GET(request: Request) {
+  const url = new URL(request.url);
+  if (![...url.searchParams.keys()].length) {
+    try {
+      const wert = await fertigeAntwort('replays|uebersicht',
+        async () => {
+          const antwort = await berechne(request);
+          if (!antwort.ok) throw new Error(`Antwort ${antwort.status}`);
+          return await antwort.json() as unknown;
+        });
+      return NextResponse.json(wert, {
+        headers: { 'Cache-Control': 'public, max-age=60, stale-while-revalidate=3600' },
+      });
+    } catch {
+      return berechne(request);
+    }
+  }
+  return berechne(request);
+}
+
+async function berechne(request: Request) {
   const p = new URL(request.url).searchParams;
 
   const fenster = p.get('fenster');
