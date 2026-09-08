@@ -302,6 +302,17 @@ function endrunden(liste) {
     const m = /round\s*_?(\d+)/i.exec(w.windowId ?? '');
     return m ? Number(m[1]) : null;
   };
+  /*
+   * Ein einziges Fenster ist immer die Endrunde.
+   *
+   * Cups ohne Vorrunde - Mobile Cups und die meisten Skin-Cups - haben je
+   * Region genau ein Fenster. Es traegt kein "istFinale", keine Rundenzahl
+   * und kein "Final" im Namen, faellt also durch jede der drei Pruefungen
+   * unten und wurde als "uebersprungen" gezaehlt. Damit war fuer diese Cups
+   * nie ein Replay zu holen, obwohl dieses eine Fenster der ganze Cup ist.
+   */
+  if (liste.length === 1) return new Set(liste.map((w) => w.windowId));
+
   const runden = liste.map(rundeVon).filter((n) => n !== null);
   const hoechste = runden.length ? Math.max(...runden) : 0;
 
@@ -313,7 +324,21 @@ function endrunden(liste) {
 /** Welche Turnierfenster kommen ueberhaupt infrage? */
 async function offeneFenster() {
   BASIS = await findeBasis();
-  const antwort = await fetch(`${BASIS}/api/cup-catalog`);
+  /*
+   * Der volle Katalog, nicht die Voreinstellung.
+   *
+   * Ohne "modus=alle" antwortet die Schnittstelle mit den Standard-Cups -
+   * dreizehn Stueck, ohne Mobile, ohne Skin-Cups, ohne Ranked. Genau darin
+   * lag der Grund, warum waehrend des laufenden "Override Series: Mega Man
+   * Mobile Cup" nichts geholt wurde: der Cup stand gar nicht in der Liste,
+   * die dieses Skript zu sehen bekam.
+   *
+   * Dass hier der volle Katalog hingehoert, steht schon in den Regeln
+   * darueber: replayRegel wirft niedrige Divisionen und Ranked Cups eigens
+   * hinaus. Gegen die verkuerzte Liste waren diese Regeln wirkungslos - was
+   * sie aussortieren sollten, war nie darin.
+   */
+  const antwort = await fetch(`${BASIS}/api/cup-catalog?modus=alle`);
   if (!antwort.ok) throw new Error(`Cup-Katalog HTTP ${antwort.status}`);
   const katalog = await antwort.json();
 
