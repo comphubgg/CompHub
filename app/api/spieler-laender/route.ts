@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { fertigeAntwort } from '@/lib/antwortSpeicher';
 import fs from '@/lib/ablageFs';
 import path from 'path';
 import { DATEN_ORT } from '@/lib/datenOrt';
@@ -117,7 +118,35 @@ async function nachNamen(nachId: Record<string, string>, rohe: RohSpieler[]) {
   return raus;
 }
 
+/*
+ * Auch hier wird hoechstens einmal je Stunde gerechnet.
+ *
+ * Diese Auskunft geht ueber alle Spieltage; bei Vercel gemessen brauchte sie
+ * neunzehn Sekunden. Wie bei /api/szene-stats liegt das Ergebnis deshalb
+ * fertig in der Ablage - siehe lib/antwortSpeicher.ts. Vorgerechnet wird es
+ * von der stuendlichen GitHub-Aktion, dort wo die Dateien ohnehin liegen.
+ */
 export async function GET(request: Request) {
+  const url = new URL(request.url);
+  const schluessel = 'laender|' + ([...url.searchParams.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([k, v]) => `${k}=${v}`)
+    .join('|') || 'standard');
+  try {
+    const wert = await fertigeAntwort(schluessel, async () => {
+      const antwort = await berechne(request);
+      if (!antwort.ok) throw new Error(`Antwort ${antwort.status}`);
+      return await antwort.json() as unknown;
+    });
+    return NextResponse.json(wert, {
+      headers: { 'Cache-Control': 'public, max-age=60, stale-while-revalidate=3600' },
+    });
+  } catch {
+    return berechne(request);
+  }
+}
+
+async function berechne(request: Request) {
   const mitNamen = new URL(request.url).searchParams.get('namen') === '1';
 
   if (karte && Date.now() < bis && !mitNamen) {

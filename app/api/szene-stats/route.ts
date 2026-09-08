@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { fertigeAntwort } from '@/lib/antwortSpeicher';
 import fs from '@/lib/ablageFs';
 import path from 'path';
 import {
@@ -192,7 +193,57 @@ async function liesProfile(): Promise<Map<string, Profil>> {
   return karte;
 }
 
+/*
+ * Gerechnet wird hoechstens einmal je Stunde, nicht je Besucher.
+ *
+ * Diese Auskunft geht ueber neunhundert Spieltage. Auf einem eigenen Server
+ * faellt das kaum auf; bei Vercel faengt jede Anfrage von vorn an, und die
+ * Startseite brauchte eine Minute dreiundfuenfzig. Der Betreiber dazu: "Es
+ * geht viel zu lange, viel, viel, viel zu lange."
+ *
+ * Schneller lesen waere die falsche Antwort gewesen. Richtig ist, nicht bei
+ * jedem Aufruf zu rechnen: die Zahlen aendern sich, wenn neue Spieltage
+ * dazukommen - also stuendlich. Das Ergebnis liegt deshalb fertig in der
+ * Ablage; siehe lib/antwortSpeicher.ts, dort steht auch, warum eine zu alte
+ * Antwort trotzdem sofort ausgeliefert und nur im Hintergrund erneuert wird.
+ *
+ * Der Schluessel ist die vollstaendige Abfrage, nach Namen sortiert - zwei
+ * Aufrufe mit denselben Angaben in anderer Reihenfolge sind dieselbe Frage.
+ */
 export async function GET(request: Request) {
+  const url = new URL(request.url);
+  const ansicht = url.searchParams.get('ansicht') ?? '';
+
+  /*
+   * Die Suche wird nicht aufgehoben.
+   *
+   * Sie ist billig - sie geht ueber das Verzeichnis, nicht ueber alle
+   * Spieltage - und ihre Schluessel sind unbegrenzt: jeder getippte
+   * Buchstabe waere eine eigene Zeile in der Ablage.
+   */
+  if (ansicht === 'suche') return berechne(request);
+
+  const schluessel = 'szene|' + ([...url.searchParams.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([k, v]) => `${k}=${v}`)
+    .join('|') || 'standard');
+
+  try {
+    const wert = await fertigeAntwort(schluessel, async () => {
+      const antwort = await berechne(request);
+      if (!antwort.ok) throw new Error(`Antwort ${antwort.status}`);
+      return await antwort.json() as unknown;
+    });
+    return NextResponse.json(wert, {
+      headers: { 'Cache-Control': 'public, max-age=60, stale-while-revalidate=3600' },
+    });
+  } catch {
+    // Fehler werden nicht aufgehoben - dann eben ohne Ablage antworten.
+    return berechne(request);
+  }
+}
+
+async function berechne(request: Request) {
   const p = new URL(request.url).searchParams;
   /*
    * "alle" heisst hier: kein Filter.

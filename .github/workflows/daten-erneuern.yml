@@ -104,6 +104,33 @@ jobs:
         continue-on-error: true
         run: node scripts/replays-aggregieren.mjs
 
+      # ------------------------------------------------- Antworten vorrechnen
+      #
+      # Die Startseite und die Statistikseite rechnen ueber neunhundert
+      # Spieltage. Hier liegen die Dateien auf der Platte des Laufrechners -
+      # das dauert Sekunden. Bei Vercel kaemen dieselben Dateien ueber das
+      # Netz, und dort waren es erst eine Minute dreiundfuenfzig, nach dem
+      # Umbau auf die Tabelle immer noch drei Minuten.
+      #
+      # Also wird hier gerechnet und nur das Ergebnis hochgeladen. Vercel
+      # liest danach eine einzige Zeile: gemessen 0,8 Sekunden statt 113.
+      - name: Anwendung bauen
+        continue-on-error: true
+        run: npm run build
+
+      - name: Antworten vorrechnen
+        continue-on-error: true
+        run: |
+          npx next start -p 3000 &
+          SERVER=$!
+          # Warten, bis er antwortet - hoechstens eine Minute.
+          for _ in $(seq 1 30); do
+            curl -sf http://localhost:3000/api/stand >/dev/null && break
+            sleep 2
+          done
+          node scripts/antworten-vorrechnen.mjs http://localhost:3000
+          kill $SERVER || true
+
       - name: Zugangsdaten wieder weg
         # Sie duerfen unter keinen Umstaenden in den Zwischenspeicher oder
         # sonst irgendwohin geraten.
