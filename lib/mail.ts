@@ -44,6 +44,19 @@ function hole() {
   return versender;
 }
 
+/**
+ * Nur nachsehen, ob der Weg nach draussen offen ist.
+ *
+ * Baut die Verbindung auf und meldet sich an - verschickt aber nichts.
+ * Gebraucht wird das seit dem Umzug: ein serverloser Dienst darf nicht
+ * selbstverstaendlich auf Port 465 nach draussen, und ob er darf, faellt
+ * sonst erst auf, wenn jemand sein Passwort zuruecksetzen will und die Mail
+ * ausbleibt.
+ */
+export async function pruefeVerbindung(): Promise<void> {
+  await hole().verify();
+}
+
 export interface Brief {
   an: string;
   betreff: string;

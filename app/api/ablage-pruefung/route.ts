@@ -36,7 +36,28 @@ const PROBEN = [
   'tierlists.json',
 ];
 
-export async function GET() {
+/**
+ * Kommt der Mailversand von hier aus durch?
+ *
+ * Geprueft wird mit "verify" - das baut die Verbindung auf und meldet sich an,
+ * verschickt aber nichts. Genau das ist die Frage: ein serverloser Dienst darf
+ * nicht selbstverstaendlich nach draussen auf Port 465, und ob er darf, sieht
+ * man erst, wenn es jemand versucht. Ein Testbrief waere dafuer der falsche
+ * Weg - er landete in einem echten Postfach.
+ */
+async function mailPruefen() {
+  const { versandDa, pruefeVerbindung } = await import('@/lib/mail');
+  if (!versandDa()) return { eingerichtet: false, verbindung: null, fehler: null };
+  try {
+    await pruefeVerbindung();
+    return { eingerichtet: true, verbindung: true, fehler: null };
+  } catch (e) {
+    return { eingerichtet: true, verbindung: false, fehler: (e as Error).message };
+  }
+}
+
+export async function GET(request: Request) {
+  const mitMail = new URL(request.url).searchParams.has('mail');
   const gewaehlt = (process.env.COMPHUB_ABLAGE || '(nicht gesetzt)').toLowerCase();
   const beginn = Date.now();
 
@@ -56,6 +77,7 @@ export async function GET() {
 
   return NextResponse.json({
     speicher: gewaehlt,
+    ...(mitMail ? { mail: await mailPruefen() } : {}),
     /*
      * Der Ordner steht nur zur Einordnung dabei. Bei Vercel ist er
      * bedeutungslos - dort dient er allein als Bezugspunkt, um aus einem

@@ -1,0 +1,107 @@
+# Replays waehrend eines laufenden Cups.
+#
+# Was hier ersetzt wird: bis zum Umzug lief im Webserver selbst eine Uhr, die
+# alle fuenf Minuten nachsah, ob gerade ein Cup laeuft, und dann die frischen
+# Runden holte und auswertete (instrumentation.node.ts, LIVE_TAKT). Bei Vercel
+# gibt es diese Uhr nicht mehr - dort startet je Anfrage etwas und schlaeft
+# danach wieder ein.
+#
+# Ohne diesen Ablauf haetten die Matches waehrend eines Cups bis zu einer
+# Stunde Rueckstand, weil die grosse Erneuerung nur stuendlich laeuft. Fuer
+# eine Seite, auf der jemand waehrend des Turniers nachsieht, wer noch lebt,
+# ist das zu lang.
+#
+# Deshalb ein eigener, schlanker Ablauf alle zehn Minuten. Er tut fast immer
+# gar nichts: der erste Schritt fragt die eigene Seite, ob ueberhaupt ein Cup
+# laeuft, und bricht sonst sofort ab. Das kostet ein paar Sekunden statt
+# mehrerer Minuten - und die Minuten sind zwar frei, Epics Schnittstelle aber
+# nicht endlos geduldig.
+
+name: Replays live
+
+on:
+  workflow_dispatch:
+  schedule:
+    # Alle zehn Minuten. Feiner lohnt nicht: eine Runde dauert rund zwanzig
+    # Minuten, und GitHub haelt geplante Laeufe ohnehin nicht auf die Sekunde
+    # ein.
+    - cron: '*/10 * * * *'
+
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    # Nie zwei gleichzeitig - der zweite haette denselben Stand zweimal.
+    # Und wenn der Naechste schon wartet, ist der Vorige ohnehin ueberholt.
+    concurrency:
+      group: replays-live
+      cancel-in-progress: true
+
+    steps:
+      - name: Laeuft ueberhaupt ein Cup?
+        id: pruefung
+        run: |
+          # Der Katalog nennt die Zahl der laufenden Cups. Antwortet die Seite
+          # nicht, wird lieber gearbeitet als geschlafen - ein verpasster Lauf
+          # faellt mehr ins Gewicht als ein ueberfluessiger.
+          ANTWORT=$(curl -sf --max-time 30 \
+            'https://www.thecomphub.com/api/cup-catalog?modus=aktuell' || echo '')
+          if [ -z "$ANTWORT" ]; then
+            echo "weiter=ja" >> "$GITHUB_OUTPUT"
+            echo "Seite antwortet nicht - wird trotzdem versucht."
+            exit 0
+          fi
+          LIVE=$(printf '%s' "$ANTWORT" | node -e \
+            'let d="";process.stdin.on("data",c=>d+=c).on("end",()=>{try{console.log(JSON.parse(d).live??0)}catch{console.log(1)}})')
+          echo "Laufende Cups: $LIVE"
+          if [ "$LIVE" -gt 0 ]; then echo "weiter=ja" >> "$GITHUB_OUTPUT";
+          else echo "weiter=nein" >> "$GITHUB_OUTPUT"; fi
+
+      - uses: actions/checkout@v4
+        if: steps.pruefung.outputs.weiter == 'ja'
+
+      - uses: actions/setup-node@v4
+        if: steps.pruefung.outputs.weiter == 'ja'
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Abhängigkeiten
+        if: steps.pruefung.outputs.weiter == 'ja'
+        run: npm ci --omit=optional
+
+      - name: Zugangsdaten
+        if: steps.pruefung.outputs.weiter == 'ja'
+        run: printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
+
+      - name: Datenordner aus dem Zwischenspeicher
+        if: steps.pruefung.outputs.weiter == 'ja'
+        id: zwischenspeicher
+        uses: actions/cache@v4
+        with:
+          # Derselbe Zwischenspeicher wie beim stuendlichen Ablauf: die
+          # Replay-Skripte muessen wissen, welche Runden sie schon haben.
+          path: data
+          key: comphub-daten-${{ github.run_id }}
+          restore-keys: comphub-daten-
+
+      - name: Laufende Runden holen
+        if: steps.pruefung.outputs.weiter == 'ja'
+        continue-on-error: true
+        run: node scripts/replays-holen.mjs --live
+
+      - name: Auswerten
+        if: steps.pruefung.outputs.weiter == 'ja'
+        continue-on-error: true
+        run: node scripts/replays-aggregieren.mjs
+
+      - name: Zugangsdaten wieder weg
+        if: always()
+        run: rm -f .env.local
+
+      - name: Ergebnis nach Supabase
+        if: steps.pruefung.outputs.weiter == 'ja'
+        # Nur das Ausgewertete und nur, was dieser Lauf angefasst hat. Die
+        # rohen Runden bleiben ohnehin draussen, dafuer sorgt das Skript.
+        run: node scripts/umzug-supabase.mjs --neuer-als 30 --nur replays
