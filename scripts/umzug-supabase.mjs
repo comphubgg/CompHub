@@ -133,9 +133,10 @@ function alsObjekt(name) {
  * meldet die Pruefung einen Verlust, den es nicht gibt.
  */
 async function schreibTabelle(name, roh) {
-  let wertJson;
+  const text = roh.toString('utf8');
   try {
-    wertJson = JSON.parse(roh.toString('utf8'));
+    // Nur pruefen, ob es ueberhaupt JSON ist - abgelegt wird der Text selbst.
+    JSON.parse(text);
   } catch {
     await schreibObjekt(name, roh);
     return 'objekt';
@@ -147,7 +148,7 @@ async function schreibTabelle(name, roh) {
       'Content-Type': 'application/json',
       Prefer: 'resolution=merge-duplicates,return=minimal',
     },
-    body: JSON.stringify({ name, wert: wertJson }),
+    body: JSON.stringify({ name, wert: text }),
   });
   if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
   return 'tabelle';
@@ -183,27 +184,14 @@ async function pruefe(name, roh, wo) {
   const zeilen = await r.json();
   if (!zeilen.length) return 'nicht angekommen';
   /*
-   * Verglichen wird der Inhalt, nicht der Text.
+   * Zeichen fuer Zeichen verglichen.
    *
-   * Postgres speichert jsonb ohne Leerzeichen und mit sortierten Schluesseln;
-   * ein Zeichenvergleich wuerde deshalb bei jeder Datei anschlagen, obwohl
-   * inhaltlich alles stimmt. Zwei Werte gelten als gleich, wenn ihre
-   * normalisierte Form gleich ist.
+   * Frueher musste hier normalisiert werden, weil die Spalte jsonb war und
+   * Postgres die Schluessel umsortierte. Seit dort Text steht, ist der
+   * strenge Vergleich moeglich - und der ist der einzige, der wirklich
+   * belegt, dass nichts verlorengegangen ist.
    */
-  const a = JSON.stringify(sortiere(JSON.parse(roh.toString('utf8'))));
-  const b = JSON.stringify(sortiere(zeilen[0].wert));
-  return a === b ? null : 'Inhalt weicht ab';
-}
-
-/** Schluessel sortieren, damit die Reihenfolge nicht ueber gleich entscheidet. */
-function sortiere(x) {
-  if (Array.isArray(x)) return x.map(sortiere);
-  if (x && typeof x === 'object') {
-    const raus = {};
-    for (const k of Object.keys(x).sort()) raus[k] = sortiere(x[k]);
-    return raus;
-  }
-  return x;
+  return zeilen[0].wert === roh.toString('utf8') ? null : 'Inhalt weicht ab';
 }
 
 /* ---------------------------------------------------------------- Lauf */

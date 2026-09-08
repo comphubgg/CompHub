@@ -9,17 +9,31 @@
 -- waere ein zweiter Umbau obendrauf, mit eigenen Fehlern, und er wuerde
 -- nichts bringen, was das Werkzeug heute braucht. Die Tabelle bildet ab, was
 -- es gibt: ein Name, ein Stand, ein Zeitpunkt. Wer spaeter einzelne Felder
--- abfragen will, kann das in Postgres jederzeit tun - jsonb ist dafuer
--- gebaut und indizierbar.
+-- abfragen will, kann den Stand in der Abfrage nach jsonb wandeln
+-- ("wert::jsonb") - dafuer muss er nicht so gespeichert sein.
 
 create table if not exists public.ablage (
   -- Derselbe Name wie bisher der Pfad im Datenordner: "konten.json",
   -- "power-rankings/eu.json". Damit bleibt jede Fundstelle im Code lesbar
   -- und der Umzug nachvollziehbar.
   name       text primary key,
-  wert       jsonb not null,
+  -- Text, nicht jsonb.
+  --
+  -- jsonb waere naheliegend, sortiert aber die Schluessel eines Objekts um
+  -- und wirft Leerzeichen weg. Der Inhalt bleibt derselbe, die Datei kommt
+  -- aber anders heraus, als sie hineingegangen ist. Bei Daten, von denen der
+  -- Betreiber gesagt hat "dass Du nix verlierst", ist Byte fuer Byte das
+  -- richtige Mass - und nichts im Werkzeug fragt in SQL nach einzelnen
+  -- Feldern, der Vorteil von jsonb waere hier also ungenutzt geblieben.
+  wert       text not null,
   geaendert  timestamptz not null default now()
 );
+
+-- Fuer eine Tabelle, die es schon mit jsonb gibt: einmal umstellen.
+-- Die vorhandenen Zeilen werden danach vom Umzugsskript ohnehin neu
+-- geschrieben, diesmal im Urzustand.
+alter table public.ablage
+  alter column wert type text using wert::text;
 
 -- Auflisten geschieht ueber den Anfang des Namens ("replays/s39/%"). Ohne
 -- diesen Index geht Postgres dafuer durch die ganze Tabelle; mit ihm springt

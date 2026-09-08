@@ -75,19 +75,33 @@ async function tabelleLies(name: string): Promise<Buffer | null> {
     `${url}/rest/v1/${TABELLE}?name=eq.${encodeURIComponent(name)}&select=wert`,
     { headers: kopf, cache: 'no-store' });
   if (!r.ok) return null;
-  const zeilen = await r.json() as Array<{ wert: unknown }>;
+  const zeilen = await r.json() as Array<{ wert: string }>;
   if (!zeilen.length) return null;
-  return Buffer.from(JSON.stringify(zeilen[0].wert), 'utf8');
+  return Buffer.from(zeilen[0].wert, 'utf8');
 }
 
 async function tabelleSchreib(name: string, daten: Buffer): Promise<void> {
   const { url, kopf } = zugang();
   /*
-   * Der Inhalt kommt als Text herein und muss als echtes JSON in die Spalte.
-   * Ist er kein gueltiges JSON, waere das ein Fehler im Aufrufer - dann soll
-   * es auffallen und nicht als Zeichenkette abgelegt werden.
+   * Abgelegt wird der Text, Zeichen fuer Zeichen.
+   *
+   * Zuerst stand hier eine jsonb-Spalte, und das war ein Fehler: Postgres
+   * sortiert in jsonb die Schluessel eines Objekts um und wirft Leerzeichen
+   * weg. Der Inhalt bleibt derselbe - nachgemessen an einer Tierlist mit
+   * tausendzehn Eintraegen, gleiche Laenge, gleiche Zahl, inhaltlich
+   * identisch -, aber aus
+   *
+   *     listId, listName, tierLabels, entries, updatedAt
+   * wurde
+   *     listId, entries, listName, updatedAt, tierLabels
+   *
+   * Das ist kein Verlust, aber es ist eine stille Aenderung an seinen Daten,
+   * und es hiesse, sechsundfuenfzig Module darauf zu pruefen, ob eines von
+   * ihnen die Reihenfolge von Schluesseln braucht. Als Text kommt heraus,
+   * was hineingegangen ist - und das laesst sich Byte fuer Byte belegen
+   * statt nur "nach dem Sortieren gleich".
    */
-  const wert = JSON.parse(daten.toString('utf8')) as unknown;
+  const wert = daten.toString('utf8');
   const r = await fetch(`${url}/rest/v1/${TABELLE}`, {
     method: 'POST',
     headers: {
@@ -134,10 +148,10 @@ async function tabelleAngaben(name: string) {
     `${url}/rest/v1/${TABELLE}?name=eq.${encodeURIComponent(name)}&select=geaendert,wert`,
     { headers: kopf, cache: 'no-store' });
   if (!r.ok) return null;
-  const zeilen = await r.json() as Array<{ geaendert: string; wert: unknown }>;
+  const zeilen = await r.json() as Array<{ geaendert: string; wert: string }>;
   if (!zeilen.length) return null;
   return {
-    groesse: Buffer.byteLength(JSON.stringify(zeilen[0].wert), 'utf8'),
+    groesse: Buffer.byteLength(zeilen[0].wert, 'utf8'),
     geaendert: new Date(zeilen[0].geaendert),
   };
 }

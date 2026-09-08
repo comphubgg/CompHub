@@ -1,5 +1,5 @@
 import crypto from 'crypto';
-import { promises as fs } from 'fs';
+import fs from '@/lib/ablageFs';
 import path from 'path';
 import { DATEN_ORT } from './datenOrt';
 
