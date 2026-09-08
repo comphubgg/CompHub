@@ -38,6 +38,8 @@ function wege(saisons) {
   const raus = [
     '/api/szene-stats?ansicht=start',
     '/api/szene-stats?ansicht=bilder',
+    // Der Vorrat, in dem die Kopfzeilensuche sucht.
+    '/api/szene-stats?ansicht=suchindex',
     '/api/szene-stats?ansicht=turniere',
     '/api/spieler-center',
     '/api/spieler-laender',

@@ -210,9 +210,82 @@ async function liesProfile(): Promise<Map<string, Profil>> {
  * Der Schluessel ist die vollstaendige Abfrage, nach Namen sortiert - zwei
  * Aufrufe mit denselben Angaben in anderer Reihenfolge sind dieselbe Frage.
  */
+/*
+ * Der Vorrat, in dem gesucht wird.
+ *
+ * Die Suche in der Kopfzeile ging bisher bei jedem Tastendruck ueber das
+ * ganze Archiv: gesamtSummen() rechnet jeden Spieler ueber jeden Spieltag
+ * zusammen. Auf der Platte war das traege, bei Vercel unbrauchbar - gemessen
+ * zweiundvierzig bis sechzig Sekunden, und jede zweite Anfrage endete im
+ * Zeitfehler. Der Betreiber: "ich kann in Tournaments keinen Spieler suchen."
+ *
+ * Gesucht wird jetzt in einem fertigen Vorrat. Er entsteht einmal je Stunde
+ * mit allen anderen Antworten, und die Suche filtert ihn nur noch - das ist
+ * eine Zeile lesen statt neunhundert Dateien rechnen.
+ *
+ * Aufgehoben wird er zusaetzlich im laufenden Vorgang: wer tippt, stellt
+ * mehrere Anfragen hintereinander, und zwei Megabyte je Tastendruck neu zu
+ * holen und auszupacken waere unnoetig.
+ */
+interface SuchEintrag {
+  epicId: string;
+  name: string;
+  namen: string[];
+  anzeige: string;
+  gepflegt: boolean;
+  land: string | null;
+  x: string | null;
+  bild: string | null;
+  echtesFoto: boolean;
+  heimat: string;
+  matches: number;
+  [k: string]: unknown;
+}
+
+let suchVorrat: { stand: SuchEintrag[]; bis: number } | null = null;
+
+async function holeSuchIndex(): Promise<SuchEintrag[]> {
+  if (suchVorrat && Date.now() < suchVorrat.bis) return suchVorrat.stand;
+
+  const stand = await fertigeAntwort('szene|suchindex', async () => {
+    const gepflegt = await liesProfile();
+    const szene = await liesSzeneSpieler();
+    const bildZu = await liesBilder();
+    const heimat = await heimatRegionen();
+    return (await gesamtSummen()).map((x) => {
+      const pr = gepflegt.get(x.epicId);
+      const sz = szene.get(x.epicId);
+      return {
+        ...x,
+        anzeige: pr?.anzeige || pr?.name || sz?.name || x.name,
+        gepflegt: Boolean(pr?.anzeige || pr?.name),
+        land: pr?.land || sz?.land || null,
+        x: pr?.x ?? null,
+        bild: bildZu.get(x.epicId)?.pfad ?? null,
+        echtesFoto: bildZu.get(x.epicId)?.echt ?? false,
+        heimat: heimat.get(x.epicId) ?? '',
+      };
+    }) as SuchEintrag[];
+  });
+
+  // Fuenf Minuten im Vorgang - laenger lohnt nicht, kuerzer hilft nicht.
+  suchVorrat = { stand, bis: Date.now() + 5 * 60_000 };
+  return stand;
+}
+
 export async function GET(request: Request) {
   const url = new URL(request.url);
   const ansicht = url.searchParams.get('ansicht') ?? '';
+
+  /*
+   * Der Vorrat selbst wird nur vorgerechnet, nie ausgeliefert - er ist zwei
+   * Megabyte gross und fuer niemanden ausser der Suche von Nutzen. Die
+   * stuendliche Aktion ruft ihn auf, damit er bereitliegt.
+   */
+  if (ansicht === 'suchindex') {
+    const stand = await holeSuchIndex();
+    return NextResponse.json({ success: true, eintraege: stand.length });
+  }
 
   /*
    * Die Suche wird nicht aufgehoben.
@@ -407,36 +480,14 @@ async function berechne(request: Request) {
       if (q.length < 2) {
         return NextResponse.json({ success: true, quelle: QUELLE, spieler: [] });
       }
-      const gepflegt = await liesProfile();
-      const szene = await liesSzeneSpieler();
-      const bildZu = await liesBilder();
-      const heimat = await heimatRegionen();
-
-      const treffer = (await gesamtSummen())
-        .map((x) => {
-          const pr = gepflegt.get(x.epicId);
-          const sz = szene.get(x.epicId);
-          const anzeige = pr?.anzeige || pr?.name || sz?.name || x.name;
-          return { x, anzeige, pr, sz };
-        })
-        .filter(({ x, anzeige }) =>
-          anzeige.toLowerCase().includes(q)
-          || x.namen.some((n) => n.toLowerCase().includes(q)))
+      const treffer = (await holeSuchIndex())
+        .filter((e) => e.anzeige.toLowerCase().includes(q)
+          || e.namen.some((n) => n.toLowerCase().includes(q)))
         // Wer mehr gespielt hat, steht oben: bei "twi" ist der gesuchte
         // Spieler der mit Hunderten Matches, nicht ein gleichnamiges Konto
         // mit dreien.
-        .sort((a, b) => b.x.matches - a.x.matches)
-        .slice(0, 8)
-        .map(({ x, anzeige, pr, sz }) => ({
-          ...x,
-          anzeige,
-          gepflegt: Boolean(pr?.anzeige || pr?.name),
-          land: pr?.land || sz?.land || null,
-          x: pr?.x ?? null,
-          bild: bildZu.get(x.epicId)?.pfad ?? null,
-          echtesFoto: bildZu.get(x.epicId)?.echt ?? false,
-          heimat: heimat.get(x.epicId) ?? '',
-        }));
+        .sort((a, b) => b.matches - a.matches)
+        .slice(0, 8);
 
       return NextResponse.json({ success: true, quelle: QUELLE, spieler: treffer });
     }
