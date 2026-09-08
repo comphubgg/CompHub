@@ -14,6 +14,21 @@ import {
 
 const TTL = 45_000;
 
+/*
+ * Wie lange die Anfrage laufen darf.
+ *
+ * Ohne diese Zeile gilt Vercels Vorgabe von zehn Sekunden. Ein tiefer Abruf
+ * ist damit nicht zu schaffen - fuenftausend Plaetze sind fuenfzig Seiten bei
+ * Epic und dazu zehntausend aufzuloesende Namen. Die Folge war nicht etwa
+ * eine langsame Tabelle, sondern gar keine: die Anfrage wurde mitten im
+ * Abruf abgeschnitten, und in der Anzeige blieb es bei den ersten
+ * fuenfhundert Plaetzen. Wer dann jemanden auf Platz zweitausend suchte,
+ * fand ihn nie.
+ *
+ * Sechzig Sekunden sind das Hoechste, was der kostenlose Tarif hergibt.
+ */
+export const maxDuration = 60;
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const event = searchParams.get('event');

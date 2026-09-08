@@ -5,7 +5,7 @@
 // Bewusst schlank gehalten - keine Power Rankings, keine Match-Listen,
 // keine Streams.
 
-import { Fragment, use, useCallback, useEffect, useMemo, useState } from 'react';
+import { Fragment, use, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import TeamFlagge, { flaggenPfad } from '@/components/TeamFlagge';
 import { namensSchluessel } from '@/lib/homoglyph';
@@ -189,6 +189,22 @@ const MAX_PLAETZE = 10_000;
  * der Rest kommt nach, ohne dass er darauf wartet.
  */
 const ERSTE_PLAETZE = 500;
+
+/**
+ * Die Stufen, in denen die Bestenliste tiefer wird.
+ *
+ * Gemessen an einem offenen Cup mit hundert Seiten: fuenfhundert Plaetze in
+ * drei Sekunden, dreitausend in drei weiteren, fuenftausend in sechs. Teuer
+ * ist dabei nicht das Blaettern bei Epic, sondern das Aufloesen der Namen -
+ * und die sind nach der ersten Stufe schon gemerkt, weshalb jede weitere
+ * Stufe nur noch das Neue kostet.
+ *
+ * Deshalb nicht ein einziger grosser Abruf, sondern mehrere: nach jeder
+ * Stufe steht eine tiefere Tabelle da. Bricht eine ab, bleibt die vorige
+ * stehen - schlimmstenfalls ist die Liste kuerzer, nie leer. Wie viele
+ * Plaetze gerade geladen sind, steht neben der Ueberschrift.
+ */
+const STUFEN = [2_000, 5_000, MAX_PLAETZE];
 
 /**
  * Wie eine Stufe der Auszahlungstabelle heisst.
@@ -489,6 +505,15 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
   }, [fenster]);
   const [laedt, setLaedt] = useState(false);
   const [suche, setSuche] = useState('');
+  /** Laeuft gerade eine tiefere Stufe der Bestenliste? */
+  const [vertieft, setVertieft] = useState(false);
+  /*
+   * Laufende Nummer des Ladevorgangs.
+   *
+   * Sie entscheidet, wessen Ergebnis noch geschrieben werden darf - siehe
+   * die Erklaerung im Ladevorgang selbst.
+   */
+  const laufNr = useRef(0);
   /**
    * Die gepflegten Spielerprofile.
    *
@@ -1163,19 +1188,18 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
       return;
     }
     /*
-     * Erst der Anfang, dann der Rest.
+     * Erst der Anfang, dann Stufe um Stufe tiefer.
      *
-     * Vorher holte diese Seite beim Oeffnen alle zehntausend Plaetze. Das
-     * sind bei Epic hundert Seiten und zwanzigtausend aufzuloesende Namen -
-     * gemessen hundertvierunddreissig Sekunden, in denen nichts dastand und
-     * man nicht einmal den Reiter wechseln konnte. Angezeigt werden davon
-     * fuenfzig.
+     * Vorher holte diese Seite beim Oeffnen alle zehntausend Plaetze auf
+     * einmal. Das sind bei Epic hundert Seiten und zwanzigtausend
+     * aufzuloesende Namen; die Anfrage lief in Vercels Zeitgrenze und kam
+     * gar nicht an. Angezeigt blieben die ersten fuenfhundert - und weil im
+     * Geladenen gesucht wird, war jeder Spieler dahinter unauffindbar.
      *
-     * Deshalb zwei Schritte: zuerst fuenfhundert Plaetze, das ist in ein paar
-     * Sekunden da und deckt alles ab, was jemand als Erstes ansieht. Danach
-     * laeuft der volle Abruf im Hintergrund weiter und tauscht die Tabelle
-     * aus, sobald er fertig ist - wer bis dahin blaettert oder sucht,
-     * arbeitet schon mit den ersten fuenfhundert.
+     * Jetzt wird gestaffelt geladen: fuenfhundert stehen nach wenigen
+     * Sekunden da, danach werden es zweitausend, fuenftausend, zehntausend.
+     * Jede Stufe ersetzt die Tabelle, sobald sie da ist. Bricht eine ab,
+     * bleibt die vorige stehen.
      */
     const holen = async (grenze: number) => {
       const r = await fetch(`/api/cup-leaderboard?event=${encodeURIComponent(f.eventId)}`
@@ -1185,8 +1209,22 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
       return d as { entries?: Eintrag[]; updated?: string };
     };
 
+    /*
+     * Wer gerade laedt, darf schreiben - und nur der.
+     *
+     * Die Bestenliste wird waehrend eines laufenden Cups im Minutentakt
+     * nachgefasst, und ein Spieltagwechsel startet sie ohnehin neu. Ohne
+     * diese Marke koennte eine langsame tiefe Stufe eines alten Aufrufs
+     * die frische Tabelle eines neuen ueberschreiben - sichtbar als
+     * Bestenliste des falschen Tages.
+     */
+    laufNr.current += 1;
+    const meiner = laufNr.current;
+    const nochMeins = () => laufNr.current === meiner;
+
     try {
       const erste = await holen(ERSTE_PLAETZE);
+      if (!nochMeins()) return;
       setTabelle(erste.entries ?? []);
       // Ohne die Zahl - die steht daneben, mit dem passenden Wort. Zweimal
       // dieselbe Groesse, einmal gerundet und einmal genau, war die
@@ -1197,20 +1235,33 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
       setLaedt(false);
 
       /*
-       * Der Rest, ohne dass jemand darauf wartet.
+       * Die tieferen Stufen, ohne dass jemand darauf wartet.
        *
-       * Kam weniger als eine volle erste Seite zurueck, gibt es auch keinen
-       * Rest - dann bleibt es dabei, statt einen zweiten Abruf zu starten,
-       * der dasselbe noch einmal holt.
+       * Kam weniger zurueck als angefordert, ist das Feld zu Ende - dann
+       * hoert es hier auf, statt dieselbe Liste noch dreimal zu holen.
        */
       if ((erste.entries?.length ?? 0) >= ERSTE_PLAETZE) {
-        void holen(MAX_PLAETZE)
-          .then((alle) => {
-            if (alle.entries?.length) setTabelle(alle.entries);
-          })
-          .catch(() => { /* dann bleibt es bei den ersten fuenfhundert */ });
+        void (async () => {
+          let bisher = erste.entries?.length ?? 0;
+          for (const stufe of STUFEN) {
+            if (stufe <= bisher || !nochMeins()) break;
+            setVertieft(true);
+            try {
+              const tiefer = await holen(stufe);
+              if (!nochMeins()) return;
+              const zahl = tiefer.entries?.length ?? 0;
+              if (zahl > bisher) { setTabelle(tiefer.entries ?? []); bisher = zahl; }
+              // Weniger als verlangt heisst: mehr gibt Epic nicht her.
+              if (zahl < stufe) break;
+            } catch {
+              break; // dann bleibt es bei der letzten Stufe, die ankam
+            }
+          }
+          if (nochMeins()) setVertieft(false);
+        })();
       }
     } catch (e) {
+      if (!nochMeins()) return;
       setStand(t('Fehler') + ': ' + (e as Error).message);
       setTabelle([]);
       setLaedt(false);
@@ -1788,6 +1839,17 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                   <> · {tabelle.length.toLocaleString(ort)}{' '}
                     {soloCup ? <T>Spieler</T> : <T>Teams</T>}</>
                 )}
+                {/*
+                  * Solange tiefer geladen wird, gehoert das dazugesagt.
+                  *
+                  * Sonst sieht eine Liste, die gerade erst bei fuenfhundert
+                  * steht, genauso aus wie eine fertige - und wer jemanden
+                  * auf Platz dreitausend sucht, haelt ihn faelschlich fuer
+                  * gar nicht dabei.
+                  */}
+                {vertieft && (
+                  <> · <span className="text-slate-400"><T>lädt weitere …</T></span></>
+                )}
               </span>
             </div>
           </header>
@@ -2065,7 +2127,17 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
             </div>
           ) : (
             <p className="p-8 text-center text-sm text-slate-500">
-              {suche ? `Kein Team gefunden für „${suche}“.` : stand || 'Keine Daten.'}
+              {/*
+                * Kein Treffer heisst nicht immer "nicht dabei".
+                *
+                * Gesucht wird in dem, was geladen ist. Solange noch tiefer
+                * geladen wird, ist die richtige Auskunft "noch nicht
+                * gefunden" - und nicht "gibt es nicht".
+                */}
+              {suche
+                ? `${t('Kein Treffer für')} „${suche}“${vertieft
+                    ? ' — ' + t('die Liste wird noch tiefer geladen …') : '.'}`
+                : stand || t('Keine Daten.')}
             </p>
           )}
         </section>

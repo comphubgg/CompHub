@@ -1839,6 +1839,9 @@ const AUF_ENGLISCH: Record<string, string> = {
     + 'minutes. Closing a tab does not sign anyone out — nothing more can '
     + 'honestly be said about it.',
   'Noch keine Ergebnisse': 'No results yet',
+  'lädt weitere …': 'loading more …',
+  'Kein Treffer für': 'No match for',
+  'die Liste wird noch tiefer geladen …': 'the list is still loading further down …',
   'In dieser Saison gibt es noch keine weiteren Spieltage — die Quelle liefert sie ein bis zwei Tage nach jedem Cup.':
     'No further match days in this season yet — the source publishes them '
     + 'one to two days after each cup.',

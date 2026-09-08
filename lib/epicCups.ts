@@ -332,16 +332,38 @@ export async function loeseNamenAuf(ids: string[], token: string) {
     if (c) out[id] = c; else fehlend.push(id);
   }
 
-  for (let i = 0; i < fehlend.length; i += 100) {
-    const chunk = fehlend.slice(i, i + 100);
+  /*
+   * Die fehlenden Namen in Gruppen nebeneinander holen, nicht nacheinander.
+   *
+   * Epic nimmt hundert Konten je Abfrage. Bei einem offenen Cup mit
+   * fuenftausend Teams sind das zehntausend Konten und damit hundert
+   * Abfragen - im Gaensemarsch gemessen neunundfuenfzig Sekunden fuer ein
+   * Fenster, das noch nie abgerufen wurde. Genau daran ist der tiefe Abruf
+   * der Bestenliste bisher in Vercels Zeitgrenze gelaufen.
+   *
+   * Vier gleichzeitig ist dieselbe Groessenordnung, in der nebenan schon
+   * die Leaderboard-Seiten geholt werden (sechs). Mehr waere reizvoll,
+   * bringt aber nur eine 429 von Epic ein - und dann steht die Seite ganz.
+   */
+  const GLEICHZEITIG = 4;
+
+  const holeGruppe = async (chunk: string[]) => {
     const qs = chunk.map((id) => `accountId=${id}`).join('&');
-    const accs = await req<Array<{
+    return req<Array<{
       id: string; displayName?: string;
       externalAuths?: Record<string, { externalDisplayName?: string;
                                        authIds?: Array<{ id: string }> }>;
     }>>(`${ACCOUNT}/account/api/public/account?${qs}`, {
       headers: { Authorization: token },
     });
+  };
+
+  const bloecke: string[][] = [];
+  for (let i = 0; i < fehlend.length; i += 100) bloecke.push(fehlend.slice(i, i + 100));
+
+  for (let i = 0; i < bloecke.length; i += GLEICHZEITIG) {
+    const gruppe = bloecke.slice(i, i + GLEICHZEITIG).map(holeGruppe);
+    const accs = (await Promise.all(gruppe)).flat();
     for (const acc of accs) {
       // Konsolen-Accounts haben teils keinen Epic-Namen -> externalAuths.
       let name = acc.displayName;
