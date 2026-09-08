@@ -30,6 +30,32 @@ export async function register() {
   // Dateien noch die Moeglichkeit, ein Skript zu starten. Der Node-Teil liegt
   // deshalb in einer eigenen Datei und wird erst hier geholt.
   if (process.env.NEXT_RUNTIME !== 'nodejs') return;
+
+  /*
+   * Und nicht dort, wo der Vorgang nach der Antwort wieder einschlaeft.
+   *
+   * Alles hier drin sind Zeitgeber: um ein Uhr die Rangliste, stuendlich die
+   * Replays, alle fuenf Minuten der laufende Cup. Das setzt einen Server
+   * voraus, der durchlaeuft. Bei Vercel startet je Anfrage eine Umgebung und
+   * endet mit ihr - ein Zeitgeber auf eine Stunde liefe dort nie ab, waehrend
+   * jeder Kaltstart erneut versuchte, Kindprozesse zu starten, die es dort
+   * gar nicht geben kann. Das kostet bei jeder ersten Anfrage Zeit und
+   * schreibt Fehler ins Protokoll, ohne je etwas auszurichten.
+   *
+   * Wo die Seite so laeuft, erledigt die stuendliche GitHub-Aktion dieselbe
+   * Arbeit - siehe .github/workflows/daten-erneuern.yml. Auf einem eigenen
+   * Rechner bleibt alles wie bisher.
+   *
+   * COMPHUB_KEIN_HINTERGRUND schaltet es auch von Hand ab, etwa wenn zwei
+   * Fassungen nebeneinander laufen und nur eine die Nachtlaeufe machen soll.
+   */
+  if (process.env.VERCEL || process.env.COMPHUB_KEIN_HINTERGRUND) {
+    console.log(
+      'Hintergrundlaeufe aus - hier laeuft kein durchgehender Vorgang. '
+      + 'Die Daten erneuert die stuendliche GitHub-Aktion.');
+    return;
+  }
+
   const { starteHintergrund } = await import('./instrumentation.node');
   await starteHintergrund();
 }

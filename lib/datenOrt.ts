@@ -75,6 +75,20 @@ function ziehUm(von: string, nach: string) {
 
 function bestimmeOrt(): string {
   /*
+   * Liegen die Daten gar nicht auf der Platte, gibt es nichts zu suchen.
+   *
+   * Mit COMPHUB_ABLAGE=supabase liest und schreibt das Werkzeug ueber die
+   * Ablage; dieser Pfad dient dann nur noch als Bezugspunkt, um aus einem
+   * Pfad einen Namen zu machen. Die Schreibprobe unten waere trotzdem
+   * gelaufen - bei Vercel bei jedem Kaltstart, auf einem Dateisystem, das
+   * ohnehin schreibgeschuetzt ist. Das kostet Zeit und schreibt Fehler ins
+   * Protokoll, ohne dass jemand etwas davon hat.
+   */
+  if ((process.env.COMPHUB_ABLAGE || '').toLowerCase() === 'supabase') {
+    return process.env.COMPHUB_DATEN || PAKET;
+  }
+
+  /*
    * Ein ausdruecklich gesetzter Ort geht vor - damit laesst sich der
    * Datenordner auf eine andere Platte legen, ohne das Programm anzufassen.
    * Sonst der mitgelieferte, solange sich dort schreiben laesst; erst wenn

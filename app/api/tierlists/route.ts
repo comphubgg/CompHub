@@ -17,7 +17,9 @@ const IS_VERCEL = Boolean(process.env.VERCEL || process.env.NEXT_PUBLIC_VERCEL_E
  * ist allein, ob eine beschreibbare Platte da ist; auf Vercel ist sie es
  * nicht.
  */
-const USE_DISK_FALLBACK = !IS_VERCEL;
+/* Wie in app/api/players/route.ts: der Rueckweg ueber die Ablage gilt
+   ueberall, auch bei Vercel - dort liest sie aus Supabase. */
+const USE_DISK_FALLBACK = true;
 
 function getSupabaseClient() {
   const url = process.env.SUPABASE_URL || process.env.STORAGE_SUPABASE_URL || process.env.STORAGE_URL;

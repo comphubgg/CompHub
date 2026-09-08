@@ -15,7 +15,21 @@ const IS_VERCEL = Boolean(process.env.VERCEL || process.env.NEXT_PUBLIC_VERCEL_E
  * ist allein, ob eine beschreibbare Platte da ist; auf Vercel ist sie es
  * nicht.
  */
-const USE_DISK_FALLBACK = !IS_VERCEL;
+/*
+ * Der Rueckweg gilt immer.
+ *
+ * Frueher hiess es hier "!IS_VERCEL": auf dem eigenen Rechner darf auf die
+ * Platte zurueckgefallen werden, bei Vercel nicht, denn dort gibt es keine.
+ * Das stimmt seit dem Umzug nicht mehr. Gelesen wird ueber die Ablage, und
+ * die antwortet an beiden Orten - auf dem Rechner aus dem Datenordner, bei
+ * Vercel aus Supabase.
+ *
+ * Ohne diese Aenderung antwortete /api/players bei Vercel mit "Could not
+ * find the table 'public.players'": die eigenen Tabellen, die dieser Weg
+ * einmal erwartete, hat der Betreiber nie angelegt. Statt eines Fehlers
+ * kommt jetzt dasselbe heraus wie auf seinem Rechner.
+ */
+const USE_DISK_FALLBACK = true;
 
 interface PlayerInfo {
   region: string;
