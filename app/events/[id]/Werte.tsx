@@ -39,10 +39,12 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import T from '@/app/components/T';
 import { useT, useSprache } from '@/app/components/SprachProvider';
 import { ortVon } from '@/app/lib/ort';
+import { namensSchluessel, gefaltet } from '@/lib/homoglyph';
 
 interface Spieler { id: string; name: string; img?: string | null }
 
 interface Runde {
+  sessionId?: string;
   placement?: number;
   elims?: number;
   endTime?: string;
@@ -126,6 +128,16 @@ export default function Werte({
   const ort = ortVon(sprache);
 
   const [einzel, setEinzel] = useState<Einzelwerte[] | null>(null);
+  /**
+   * Die Werte aus den Replays, die auf diesem Rechner lagen.
+   *
+   * Je Konto und Sitzung. Sie sind die einzige Quelle fuer Schaden in
+   * Cups, die die Szene-Quelle nicht abdeckt - Division 2 bis 5, Reload,
+   * Ranked, Skin-Cups. Es sind allerdings immer nur die eigenen: fuer alle
+   * anderen Spieler eines Matches enthaelt ein Replay diese Felder nicht.
+   */
+  const [ausReplay, setAusReplay] =
+    useState<Record<string, Record<string, Record<string, number | null>>>>({});
   const [suche, setSuche] = useState('');
   const [gewaehlt, setGewaehlt] = useState('');
   const [zuletzt, setZuletzt] = useState<string[]>([]);
@@ -158,19 +170,37 @@ export default function Werte({
     return () => { weg = true; };
   }, [windowId]);
 
+  /* Einmal je Seitenaufruf - die Datei aendert sich nur, wenn jemand das
+     Skript laufen laesst. */
+  useEffect(() => {
+    let weg = false;
+    fetch('/api/eigene-werte')
+      .then((r) => r.json())
+      .then((j) => { if (!weg) setAusReplay(j?.konten ?? {}); })
+      .catch(() => { if (!weg) setAusReplay({}); });
+    return () => { weg = true; };
+  }, []);
+
   const team = useMemo(() => {
-    const k = gewaehlt.trim().toLowerCase();
-    if (!k) return null;
-    return teams.find((e) => e.players.some((p) => p.name.toLowerCase() === k))
-      ?? teams.find((e) => e.players.some((p) => p.name.toLowerCase().includes(k)))
+    const roh = gewaehlt.trim().toLowerCase();
+    if (!roh) return null;
+    const k = gefaltet(namensSchluessel(gewaehlt));
+    return teams.find((e) => e.players.some((p) => p.name.toLowerCase() === roh))
+      ?? teams.find((e) => e.players.some(
+        (p) => k.length > 0 && gefaltet(namensSchluessel(p.name)) === k))
+      ?? teams.find((e) => e.players.some((p) => p.name.toLowerCase().includes(roh)))
       ?? null;
   }, [gewaehlt, teams]);
 
   /** Der gewaehlte Spieler steht links, sein Mitspieler rechts. */
   const [ich, mate] = useMemo(() => {
     if (!team) return [null, null] as const;
-    const k = gewaehlt.trim().toLowerCase();
-    const a = team.players.find((p) => p.name.toLowerCase().includes(k)) ?? team.players[0];
+    const roh = gewaehlt.trim().toLowerCase();
+    const k = gefaltet(namensSchluessel(gewaehlt));
+    const a = team.players.find((p) => p.name.toLowerCase().includes(roh))
+      ?? team.players.find((p) => k.length > 0
+        && gefaltet(namensSchluessel(p.name)) === k)
+      ?? team.players[0];
     const b = team.players.find((p) => p !== a) ?? null;
     return [a, b] as const;
   }, [team, gewaehlt]);
@@ -180,14 +210,67 @@ export default function Werte({
     return einzel.find((x) => x.epicId.toLowerCase() === p.id.toLowerCase()) ?? null;
   }, [einzel]);
 
+  /**
+   * Die eigenen Replay-Werte dieses Spielers, aufaddiert ueber die Runden
+   * dieses Spieltags.
+   *
+   * Zugeordnet wird ueber die Sitzungskennung: sie steht sowohl an Epics
+   * Runde als auch am ausgelesenen Replay. Gezaehlt wird nur, was zu diesem
+   * Spieltag gehoert - ein Konto hat Werte aus vielen Cups.
+   */
+  const eigenesVon = useCallback((p: Spieler | null) => {
+    if (!p || !team) return null;
+    const jeSitzung = ausReplay[p.id.toLowerCase()];
+    if (!jeSitzung) return null;
+    const summe: Record<string, number> = {};
+    let treffer = 0;
+    for (const m of team.matches) {
+      const w = m.sessionId ? jeSitzung[m.sessionId.toLowerCase()] : undefined;
+      if (!w) continue;
+      treffer += 1;
+      for (const [k, v] of Object.entries(w)) {
+        if (typeof v === 'number') summe[k] = (summe[k] ?? 0) + v;
+      }
+    }
+    if (!treffer) return null;
+    /*
+     * Die Trefferquote ist ein Anteil und darf nicht addiert werden.
+     * Gemittelt ueber die Runden ist sie das, was sie sein soll.
+     */
+    if (typeof summe.trefferquote === 'number') {
+      summe.trefferquote /= treffer;
+    }
+    return { werte: summe, runden: treffer };
+  }, [team, ausReplay]);
+
+  /*
+   * Die Suche findet auch Namen mit Sonderzeichen.
+   *
+   * "juanito 11ǃ" traegt ein Zeichen, das wie ein Ausrufezeichen aussieht
+   * und keines ist; andere Namen mischen kyrillische Buchstaben unter die
+   * lateinischen. Ein blosses includes auf dem Rohnamen findet davon nichts.
+   * namensSchluessel faltet beide Seiten auf dieselbe Schreibweise - genau
+   * dafuer gibt es die Funktion schon im Werkzeug -, und gefaltet nimmt
+   * zusaetzlich die Ziffernschreibweise mit ("vic0" und "vico").
+   *
+   * Gezeigt wird alles, was passt, nicht die ersten acht: der Betreiber
+   * sucht nach einem Namen und will alle sehen, die ihn tragen.
+   */
   const vorschlaege = useMemo(() => {
-    const k = suche.trim().toLowerCase();
-    if (!k) return [];
+    const roh = suche.trim().toLowerCase();
+    if (!roh) return [];
+    const k = gefaltet(namensSchluessel(suche));
     const raus: Spieler[] = [];
+    const gesehen = new Set<string>();
     for (const e of teams) {
       for (const p of e.players) {
-        if (p.name.toLowerCase().includes(k)) raus.push(p);
-        if (raus.length >= 8) return raus;
+        if (gesehen.has(p.id)) continue;
+        const passt = p.name.toLowerCase().includes(roh)
+          || (k.length > 0 && gefaltet(namensSchluessel(p.name)).includes(k));
+        if (!passt) continue;
+        gesehen.add(p.id);
+        raus.push(p);
+        if (raus.length >= 60) return raus;
       }
     }
     return raus;
@@ -218,6 +301,29 @@ export default function Werte({
 
   const meine = werteVon(ich);
   const seine = werteVon(mate);
+  const meinReplay = eigenesVon(ich);
+  const seinReplay = eigenesVon(mate);
+
+  /**
+   * Ein Wert aus der Szene-Quelle - und wenn sie diesen Cup nicht abdeckt,
+   * aus dem eigenen Replay.
+   *
+   * Die Szene-Quelle hat den Vorrang: sie kennt jeden Spieler, das Replay
+   * nur den, der es aufgezeichnet hat. Umgekehrt deckt sie laengst nicht
+   * jeden Cup ab - in Division 2 bis 5, Reload, Ranked und den Skin-Cups
+   * ist das Replay die einzige Quelle, die es gibt.
+   */
+  const ausBeiden = (
+    szene: number | null | undefined,
+    replay: number | null | undefined,
+  ): number | null => {
+    if (typeof szene === 'number') return szene;
+    if (typeof replay === 'number') return replay;
+    return null;
+  };
+
+  const r1 = meinReplay?.werte ?? {};
+  const r2 = seinReplay?.werte ?? {};
 
   /*
    * Die Zeilen der Tabelle.
@@ -229,21 +335,49 @@ export default function Werte({
   const zeilen: Array<{
     name: string; a: number | null; b: number | null;
     einheit?: string; nk?: number; kleinerIstBesser?: boolean;
-  }> = (meine || seine) ? [
-    { name: 'Schaden an Spielern', a: meine?.damage ?? null, b: seine?.damage ?? null },
-    { name: 'Schaden erhalten', a: meine?.damageTaken ?? null, b: seine?.damageTaken ?? null, kleinerIstBesser: true },
-    { name: 'Schadensverhältnis', a: meine?.quote ?? null, b: seine?.quote ?? null, nk: 2 },
-    { name: 'Trefferquote', a: meine?.genauigkeit ?? null, b: seine?.genauigkeit ?? null, einheit: '%', nk: 1 },
+  }> = (meine || seine || meinReplay || seinReplay) ? [
+    { name: 'Schaden an Spielern',
+      a: ausBeiden(meine?.damage, r1.schadenAnSpieler),
+      b: ausBeiden(seine?.damage, r2.schadenAnSpieler) },
+    { name: 'Schaden erhalten',
+      a: ausBeiden(meine?.damageTaken, r1.schadenErhalten),
+      b: ausBeiden(seine?.damageTaken, r2.schadenErhalten), kleinerIstBesser: true },
+    { name: 'Schadensverhältnis',
+      a: ausBeiden(meine?.quote,
+        r1.schadenErhalten ? r1.schadenAnSpieler / r1.schadenErhalten : null),
+      b: ausBeiden(seine?.quote,
+        r2.schadenErhalten ? r2.schadenAnSpieler / r2.schadenErhalten : null), nk: 2 },
+    { name: 'Trefferquote',
+      a: ausBeiden(meine?.genauigkeit,
+        typeof r1.trefferquote === 'number' ? r1.trefferquote * 100 : null),
+      b: ausBeiden(seine?.genauigkeit,
+        typeof r2.trefferquote === 'number' ? r2.trefferquote * 100 : null),
+      einheit: '%', nk: 1 },
     { name: 'Kopftreffer', a: meine?.headshots ?? null, b: seine?.headshots ?? null },
     { name: 'Treffer', a: meine?.hits ?? null, b: seine?.hits ?? null },
     { name: 'Schüsse', a: meine?.shots ?? null, b: seine?.shots ?? null },
+    { name: 'Schaden an Bauten',
+      a: r1.schadenAnBauten ?? null, b: r2.schadenAnBauten ?? null },
     { name: 'Geheilt', a: meine?.heals ?? null, b: seine?.heals ?? null },
-    { name: 'Material gefarmt', a: meine?.mats ?? null, b: seine?.mats ?? null },
+    { name: 'Material gefarmt',
+      a: ausBeiden(meine?.mats, r1.matsGefarmt),
+      b: ausBeiden(seine?.mats, r2.matsGefarmt) },
+    { name: 'Material verbaut', a: r1.matsVerbaut ?? null, b: r2.matsVerbaut ?? null },
     { name: 'Bauteile gesetzt', a: meine?.builds ?? null, b: seine?.builds ?? null },
-    { name: 'Assists', a: meine?.assists ?? null, b: seine?.assists ?? null },
+    { name: 'Assists',
+      a: ausBeiden(meine?.assists, r1.assists),
+      b: ausBeiden(seine?.assists, r2.assists) },
+    { name: 'Wiederbelebungen',
+      a: ausBeiden(meine?.reboots, r1.wiederbelebt),
+      b: ausBeiden(seine?.reboots, r2.wiederbelebt) },
     { name: 'Sturmschaden', a: meine?.stormDamage ?? null, b: seine?.stormDamage ?? null, kleinerIstBesser: true },
-    { name: 'Strecke', a: meine?.distanzGesamt ?? null, b: seine?.distanzGesamt ?? null, einheit: 'km', nk: 1 },
-  ] : [];
+    { name: 'Strecke',
+      a: ausBeiden(meine?.distanzGesamt,
+        typeof r1.streckeMeter === 'number' ? r1.streckeMeter / 1000 : null),
+      b: ausBeiden(seine?.distanzGesamt,
+        typeof r2.streckeMeter === 'number' ? r2.streckeMeter / 1000 : null),
+      einheit: 'km', nk: 1 },
+  ].filter((z) => z.a !== null || z.b !== null) : [];
 
   return (
     <section className="rounded-xl border border-zinc-800 bg-zinc-950/60">
@@ -415,13 +549,14 @@ export default function Werte({
               </div>
             </div>
 
-            {einzel !== null && einzel.length === 0 && (
+            {einzel !== null && einzel.length === 0 && !meinReplay && !seinReplay && (
               <p className="mt-3 rounded-xl border border-zinc-800 bg-zinc-900/30 p-3
                             text-[11px] leading-relaxed text-slate-500">
                 <T>Schaden, Trefferquote und Material veröffentlicht Epic nicht.
-                Sie kommen aus einer Szene-Quelle, die ein bis zwei Tage später
-                erscheint und nicht jeden Cup abdeckt — alles darüber steht
-                trotzdem, es kommt aus Epics Bestenliste.</T>
+                Für diesen Cup liegen sie auch nicht aus der Szene-Quelle vor.
+                Deine eigenen Werte bekommst du trotzdem: einmal
+                meine-werte-holen.bat starten — dann liest das Werkzeug die
+                Replays, die Fortnite auf deinem Rechner ablegt.</T>
               </p>
             )}
           </div>

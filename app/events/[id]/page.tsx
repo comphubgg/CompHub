@@ -144,6 +144,8 @@ interface Profil {
   twitch?: string;
 }
 interface Match {
+  /** Epics Sitzungskennung - dieselbe, die als "Match ID" angezeigt wird. */
+  sessionId?: string;
   placement?: number; elims?: number; timeAlive?: number; endTime?: string;
 }
 interface Eintrag {

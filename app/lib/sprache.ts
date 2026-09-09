@@ -1839,6 +1839,10 @@ const AUF_ENGLISCH: Record<string, string> = {
     + 'minutes. Closing a tab does not sign anyone out — nothing more can '
     + 'honestly be said about it.',
   'Noch keine Ergebnisse': 'No results yet',
+  'Schaden an Bauten':
+    'Damage To Structures',
+  'Schaden, Trefferquote und Material veröffentlicht Epic nicht. Für diesen Cup liegen sie auch nicht aus der Szene-Quelle vor. Deine eigenen Werte bekommst du trotzdem: einmal meine-werte-holen.bat starten — dann liest das Werkzeug die Replays, die Fortnite auf deinem Rechner ablegt.':
+    'Epic does not publish damage, accuracy or materials, and the scene source has nothing for this cup either. You can still get your own: run meine-werte-holen.bat once — the tool then reads the replays Fortnite stores on your PC.',
   'Rang': 'Rank',
   'geladen': 'loaded',
   'Kennzahl': 'Stat',
