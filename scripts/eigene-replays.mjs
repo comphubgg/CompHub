@@ -133,7 +133,7 @@ async function main() {
   const merk = await liesMerkzettel();
   await fs.mkdir(ZIEL, { recursive: true });
 
-  const { ReplayAnalysis } = require('fortnite-replay-analysis');
+  const { leseReplay } = await import('../lib/replayLeser.mjs');
 
   let neu = 0; let uebersprungen = 0; let ohneWerte = 0; let keinTurnier = 0;
   let schief = 0;
@@ -153,8 +153,8 @@ async function main() {
     process.stdout.write(`\r  ${String(i + 1).padStart(4)}/${dateien.length}  ${d.slice(0, 46).padEnd(46)}`);
 
     try {
-      const e = await ReplayAnalysis(voll, { bot: false, sort: true });
-      const spiel = e.rawReplayData?.GameData ?? {};
+      const e = await leseReplay(voll);
+      const spiel = e.GameData ?? {};
       const playlist = spiel.CurrentPlaylist ?? null;
 
       if (!auchPubs && !istTurnier(playlist)) {
@@ -163,8 +163,8 @@ async function main() {
         continue;
       }
 
-      const stats = werteAus(e.rawReplayData?.Stats);
-      const eigen = (e.rawReplayData?.PlayerData ?? []).find((p) => p.IsReplayOwner);
+      const stats = werteAus(e.Stats);
+      const eigen = (e.PlayerData ?? []).find((p) => p.IsReplayOwner);
       if (!stats || !eigen?.EpicId || !spiel.GameSessionId) {
         merk.dateien[d] = marke;
         ohneWerte += 1;
