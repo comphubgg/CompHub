@@ -335,6 +335,7 @@ export default function Werte({
   const zeilen: Array<{
     name: string; a: number | null; b: number | null;
     einheit?: string; nk?: number; kleinerIstBesser?: boolean;
+    alsText?: (w: number) => string;
   }> = (meine || seine || meinReplay || seinReplay) ? [
     { name: 'Schaden an Spielern',
       a: ausBeiden(meine?.damage, r1.schadenAnSpieler),
@@ -367,9 +368,18 @@ export default function Werte({
     { name: 'Assists',
       a: ausBeiden(meine?.assists, r1.assists),
       b: ausBeiden(seine?.assists, r2.assists) },
-    { name: 'Wiederbelebungen',
+    /*
+     * Wiederbelebungen gibt es nur, wo jemand wiederbeleben kann.
+     *
+     * In einem Solo-Cup ist die Zeile immer null und sagt nichts - der
+     * Betreiber: "Du kannst nicht revived werden." Sie steht deshalb nur,
+     * wenn es einen Mitspieler gibt.
+     */
+    ...(mate ? [{
+      name: 'Wiederbelebungen',
       a: ausBeiden(meine?.reboots, r1.wiederbelebt),
-      b: ausBeiden(seine?.reboots, r2.wiederbelebt) },
+      b: ausBeiden(seine?.reboots, r2.wiederbelebt),
+    }] : []),
     { name: 'Sturmschaden', a: meine?.stormDamage ?? null, b: seine?.stormDamage ?? null, kleinerIstBesser: true },
     { name: 'Strecke',
       a: ausBeiden(meine?.distanzGesamt,
@@ -378,6 +388,28 @@ export default function Werte({
         typeof r2.streckeMeter === 'number' ? r2.streckeMeter / 1000 : null),
       einheit: 'km', nk: 1 },
   ].filter((z) => z.a !== null || z.b !== null) : [];
+
+  /*
+   * Team-Werte und Einzelwerte in einer Liste.
+   *
+   * Die Team-Werte gelten fuer beide - bei einem Duo zaehlt Epic sie nicht
+   * je Spieler. Sie stehen deshalb nur in der ersten Spalte; die zweite
+   * bleibt leer statt dieselbe Zahl zweimal zu behaupten.
+   */
+  const alleZeilen = team ? [
+    { name: 'Eliminierungen', a: team.elims, b: null as number | null },
+    { name: 'Runden', a: team.games, b: null as number | null },
+    { name: 'Siege', a: team.wins, b: null as number | null },
+    { name: 'Ø Platz', a: team.avgPlace, b: null as number | null, nk: 2,
+      kleinerIstBesser: true },
+    { name: 'Lebenszeit', a: team.timeAlive, b: null as number | null,
+      alsText: (w: number) => dauer(w) },
+    ...zeilen,
+  ] as Array<{
+    name: string; a: number | null; b: number | null;
+    einheit?: string; nk?: number; kleinerIstBesser?: boolean;
+    alsText?: (w: number) => string;
+  }> : [];
 
   return (
     <section className="rounded-xl border border-zinc-800 bg-zinc-950/60">
@@ -430,134 +462,111 @@ export default function Werte({
         )}
 
         {team && (
-          <div>
-            <div>
-              <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
-                {/*
-                  * Bei einem Solo-Cup gibt es keinen Mitspieler.
-                  *
-                  * Dann steht auch keine zweite Spalte da und kein Strich, wo
-                  * einer stehen koennte: dass jemand allein gespielt hat,
-                  * sieht man am Cup, und ein leerer Platz sagt nichts.
-                  */}
-                <div className={`mb-3 grid gap-3 ${mate ? 'grid-cols-2' : 'grid-cols-1'}`}>
-                  {(mate ? [ich, mate] : [ich]).map((p, k) => (
-                    <div key={k} className="flex flex-col items-center gap-1.5">
-                      {p?.img && (
-                        /*
-                          * Hochkant und vollstaendig.
-                          *
-                          * Rund und beschnitten war es vorher - damit fehlte
-                          * bei jedem Bild der Rand, und Spielerfotos sind
-                          * genau dort selten leer. Der Betreiber wollte "das
-                          * ganze Bild" sehen: also ein stehendes Rechteck und
-                          * object-contain, das nichts abschneidet.
-                          */
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={p.img} alt=""
-                          className="h-24 w-[4.5rem] rounded-md bg-zinc-900/60
-                                     object-contain" />
-                      )}
-                      <span className={`text-center text-sm font-semibold ${
-                        k === 0 ? 'text-sky-300' : 'text-rose-300'}`}>
-                        {p?.name ?? '—'}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-
-                <div className="flex flex-wrap items-baseline justify-between gap-2
-                                border-t border-zinc-800 pt-3">
-                  <span className="text-lg font-bold text-slate-100">
-                    <T>Rang</T> #{zahl(team.rank)}
-                    <span className="ml-2 text-xs font-normal text-slate-500"
-                      title={`${zahl(teams.length)} ${t('geladen')}`}>
-                      <T>Top</T> {zahl((team.rank / Math.max(1, teams.length)) * 100, 1)} %
+          /*
+            * Bezeichnungen links, Werte darunter - wie im Vorbild.
+            *
+            * Vorher standen die Team-Werte in einem eigenen, versetzten Block
+            * ueber der Tabelle. Das las sich als zwei Listen, die nichts
+            * miteinander zu tun haben. Jetzt steht alles in derselben Spalte
+            * untereinander: eine Zeile je Kennzahl, links ihr Name, rechts
+            * der Wert - und bei einem Duo eine zweite Spalte daneben.
+            *
+            * Schmaler als die volle Breite: eine Liste aus zwanzig kurzen
+            * Zahlen ueber tausend Pixel zu ziehen macht sie nicht lesbarer.
+            */
+          <div className="mx-auto max-w-3xl">
+            {/* Kopf: Name, Rang, Punkte und ihre Herkunft. */}
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
+              <div className="mb-3 flex flex-wrap items-center gap-4">
+                {(mate ? [ich, mate] : [ich]).map((p, k) => (
+                  <span key={k} className="flex items-center gap-2">
+                    {p?.img && (
+                      // eslint-disable-next-line @next/next/no-img-element
+                      <img src={p.img} alt=""
+                        className="h-10 w-8 rounded bg-zinc-900/60 object-contain" />
+                    )}
+                    <span className={`text-sm font-semibold ${
+                      k === 0 ? 'text-sky-300' : 'text-rose-300'}`}>
+                      {p?.name ?? '—'}
                     </span>
                   </span>
-                  <span className="text-lg font-bold text-sky-400">
-                    {zahl(team.points)} <T>Punkte</T>
+                ))}
+              </div>
+
+              <div className="flex flex-wrap items-baseline justify-between gap-2
+                              border-t border-zinc-800 pt-3">
+                <span className="text-lg font-bold text-slate-100">
+                  <T>Rang</T> #{zahl(team.rank)}
+                  <span className="ml-2 text-xs font-normal text-slate-500"
+                    title={`${zahl(teams.length)} ${t('geladen')}`}>
+                    <T>Top</T> {zahl((team.rank / Math.max(1, teams.length)) * 100, 1)} %
                   </span>
-                </div>
+                </span>
+                <span className="text-lg font-bold text-sky-400">
+                  {zahl(team.points)} <T>Punkte</T>
+                </span>
+              </div>
 
-                {punkte && (
-                  <div className="mt-2 space-y-1 text-xs">
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Placement</span>
-                      <span className="tabular-nums text-slate-300">
-                        {zahl(punkte.ausPlatz)} <T>Punkte</T>
-                      </span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span className="text-slate-500">Elimination</span>
-                      <span className="tabular-nums text-slate-300">
-                        {zahl(punkte.ausElims)} <T>Punkte</T>
-                      </span>
-                    </div>
+              {punkte && (
+                <div className="mt-2 space-y-1 text-xs">
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Placement</span>
+                    <span className="tabular-nums text-slate-300">
+                      {zahl(punkte.ausPlatz)} <T>Punkte</T>
+                    </span>
                   </div>
-                )}
-              </div>
-
-              <div className="mt-3 overflow-hidden rounded-xl border border-zinc-800">
-                {/* Team-Werte: die gibt es je Team, nicht je Spieler. */}
-                <div className="grid grid-cols-2 gap-x-3 gap-y-1 bg-zinc-900/40 px-3 py-2
-                                text-xs">
-                  {([
-                    ['Eliminierungen', zahl(team.elims)],
-                    ['Runden', zahl(team.games)],
-                    ['Siege', zahl(team.wins)],
-                    ['Ø Platz', zahl(team.avgPlace, 2)],
-                    ['Lebenszeit', dauer(team.timeAlive)],
-                  ] as Array<[string, string]>).map(([n, w]) => (
-                    <div key={n} className="flex justify-between gap-2">
-                      <span className="text-slate-500"><T>{n}</T></span>
-                      <span className="tabular-nums text-slate-300">{w}</span>
-                    </div>
-                  ))}
+                  <div className="flex justify-between">
+                    <span className="text-slate-500">Elimination</span>
+                    <span className="tabular-nums text-slate-300">
+                      {zahl(punkte.ausElims)} <T>Punkte</T>
+                    </span>
+                  </div>
                 </div>
+              )}
+            </div>
 
-                {zeilen.length > 0 && (
-                  <>
-                    <div className={`grid gap-2 border-y border-zinc-800 bg-zinc-900/50
-                                     px-3 py-2 text-[10px] uppercase tracking-wider
-                                     text-slate-500 ${mate
-                        ? 'grid-cols-[1fr_auto_1fr]' : 'grid-cols-[1fr_auto]'}`}>
-                      <span className="truncate text-right">{ich?.name}</span>
-                      <span className="w-36 text-center"><T>Kennzahl</T></span>
-                      {mate && <span className="truncate">{mate.name}</span>}
-                    </div>
-                    {zeilen.map((z) => {
-                      const { a, b } = z;
-                      const aBesser = a !== null && b !== null
-                        && (z.kleinerIstBesser ? a < b : a > b);
-                      const bBesser = a !== null && b !== null
-                        && (z.kleinerIstBesser ? b < a : b > a);
-                      const zeig = (w: number | null) => (w === null
-                        ? '—' : `${zahl(w, z.nk ?? 0)}${z.einheit ? ` ${z.einheit}` : ''}`);
-                      return (
-                        <div key={z.name}
-                          className={`grid items-center gap-2 border-b border-zinc-900/70
-                                      px-3 py-1.5 last:border-0 ${mate
-                            ? 'grid-cols-[1fr_auto_1fr]' : 'grid-cols-[1fr_auto]'}`}>
-                          <span className={`text-right text-sm font-semibold tabular-nums ${
-                            aBesser ? 'text-sky-300' : 'text-slate-400'}`}>
-                            {zeig(a)}{aBesser && <span className="ml-1 text-[10px]">▲</span>}
-                          </span>
-                          <span className="w-36 text-center text-[11px] text-slate-500">
-                            <T>{z.name}</T>
-                          </span>
-                          {mate && (
-                            <span className={`text-sm font-semibold tabular-nums ${
-                              bBesser ? 'text-rose-300' : 'text-slate-400'}`}>
-                              {zeig(b)}{bBesser && <span className="ml-1 text-[10px]">▲</span>}
-                            </span>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </>
+            {/* Eine Liste, eine Zeile je Kennzahl. */}
+            <div className="mt-3 overflow-hidden rounded-xl border border-zinc-800">
+              <div className={`grid gap-2 border-b border-zinc-800 bg-zinc-900/50 px-4
+                               py-2 text-[10px] uppercase tracking-wider text-slate-500
+                               ${mate ? 'grid-cols-[1fr_7rem_7rem]' : 'grid-cols-[1fr_9rem]'}`}>
+                <span><T>Kennzahl</T></span>
+                <span className="truncate text-right text-sky-400/80">{ich?.name}</span>
+                {mate && (
+                  <span className="truncate text-right text-rose-400/80">{mate.name}</span>
                 )}
               </div>
+
+              {alleZeilen.map((z) => {
+                const { a: wa, b: wb } = z;
+                const aBesser = wa !== null && wb !== null
+                  && (z.kleinerIstBesser ? wa < wb : wa > wb);
+                const bBesser = wa !== null && wb !== null
+                  && (z.kleinerIstBesser ? wb < wa : wb > wa);
+                const zeig = (w: number | null) => {
+                  if (w === null) return '—';
+                  if (z.alsText) return z.alsText(w);
+                  return `${zahl(w, z.nk ?? 0)}${z.einheit ? ` ${z.einheit}` : ''}`;
+                };
+                return (
+                  <div key={z.name}
+                    className={`grid items-center gap-2 border-b border-zinc-900/70 px-4
+                                py-1.5 last:border-0 ${mate
+                      ? 'grid-cols-[1fr_7rem_7rem]' : 'grid-cols-[1fr_9rem]'}`}>
+                    <span className="text-[11px] text-slate-500"><T>{z.name}</T></span>
+                    <span className={`text-right text-sm font-semibold tabular-nums ${
+                      aBesser ? 'text-sky-300' : 'text-slate-300'}`}>
+                      {zeig(wa)}
+                    </span>
+                    {mate && (
+                      <span className={`text-right text-sm font-semibold tabular-nums ${
+                        bBesser ? 'text-rose-300' : 'text-slate-400'}`}>
+                        {zeig(wb)}
+                      </span>
+                    )}
+                  </div>
+                );
+              })}
             </div>
 
             {einzel !== null && einzel.length === 0 && !meinReplay && !seinReplay && (
