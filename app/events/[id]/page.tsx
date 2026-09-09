@@ -1300,20 +1300,26 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     adresseVerbraucht.current = true;
 
     /*
-     * Sonst der Reihe nach: was laeuft, was als Naechstes kommt, was zuletzt
-     * gelaufen ist.
+     * Sonst der Reihe nach: was laeuft, was zuletzt gelaufen ist, was als
+     * Naechstes kommt.
      *
-     * Der mittlere Schritt fehlte, und der letzte war falsch herum. "find"
-     * liefert den ERSTEN passenden Eintrag, und die Spieltage stehen in
-     * zeitlicher Reihenfolge - bei einem Cup mit drei Tagen, von denen zwei
-     * vorbei sind, landete man deshalb immer auf Tag 1. Genau das hat der
-     * Betreiber gemeldet: auf der Kachel stand "in 2 Tagen", geoeffnet wurde
-     * Tag 1.
+     * "find" liefert den ERSTEN passenden Eintrag, und die Spieltage stehen
+     * in zeitlicher Reihenfolge - deshalb wird fuer den letzten gelaufenen
+     * von hinten gesucht. Frueher stand hier der erste, und man landete bei
+     * einem Cup mit vier Tagen immer auf Tag 1.
+     *
+     * Ein kommender Spieltag steht bewusst hinten an: er hat noch keine
+     * Bestenliste, und dann ist die ganze Seite leer. Bei den
+     * Division-Practice-Cups liegt der naechste Tag eine Woche in der
+     * Zukunft - dort war nichts zu sehen, obwohl drei Tage gespielt sind.
+     * Wer einen bestimmten Tag meint, kommt ohnehin ueber die Kachel: die
+     * gibt ihn in der Adresse mit, und der Wunsch steht oben vor dieser
+     * Regel.
      */
     setFenster(
       tage.find((f) => f.status === 'live')
-      ?? tage.find((f) => f.status === 'kommt')
       ?? [...tage].reverse().find((f) => f.status === 'vorbei')
+      ?? tage.find((f) => f.status === 'kommt')
       ?? tage[0]);
   }, [tage, ausAdresse.fenster]);
 

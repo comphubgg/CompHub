@@ -26,9 +26,9 @@
  *
  * ------------------------------------------------------------ Die Anzeige
  *
- * Nachgebaut nach dem Vorbild, das der Betreiber danebengehalten hat: oben
- * beide Namen mit Bild, darunter Rang und die Aufteilung der Punkte, rechts
- * der Verlauf ueber die Runden, darunter die Kennzahlen mit Pfeil.
+ * Oben beide Namen mit Bild, darunter Rang und die Aufteilung der Punkte,
+ * darunter die Kennzahlen mit Pfeil - ueber die ganze Breite. Ein Diagramm
+ * stand hier einmal daneben; der Betreiber wollte den Platz fuer die Zahlen.
  *
  * Kein "gegeneinander" - es ist ein Team. Der Pfeil sagt nur, wer bei
  * dieser Kennzahl vorn liegt. Ein Bild steht nur da, wo eines gepflegt ist;
@@ -113,65 +113,6 @@ function dauer(sekunden: number): string {
   return `${m}m ${String(s % 60).padStart(2, '0')}s`;
 }
 
-/**
- * Der Verlauf der Punkte ueber die Runden.
- *
- * Zwei Flaechen uebereinander: unten die Punkte aus Eliminierungen, darueber
- * die aus Platzierungen. So ist zu sehen, woher das Ergebnis kam - genau das
- * zeigt auch das Vorbild.
- */
-function Verlauf({ platz, elim, ort }: {
-  platz: number[]; elim: number[]; ort: string;
-}) {
-  const n = platz.length;
-  if (n < 2) return null;
-  const B = 640; const H = 170;
-  const links = 10; const unten = 24;
-  const hoechster = Math.max(...platz, 1);
-  const x = (i: number) => links + (i / (n - 1)) * (B - links - 10);
-  const y = (w: number) => H - unten - (w / hoechster) * (H - unten - 14);
-
-  const flaeche = (oben: number[], unter: number[]) => {
-    const hin = oben.map((w, i) => `${x(i)},${y(w)}`).join(' L ');
-    const zurueck = unter.map((w, i) => [x(i), y(w)] as const).reverse()
-      .map(([a, b]) => `${a},${b}`).join(' L ');
-    return `M ${hin} L ${zurueck} Z`;
-  };
-  const linie = (w: number[]) =>
-    w.map((v, i) => `${i ? 'L' : 'M'} ${x(i)},${y(v)}`).join(' ');
-
-  const boden = platz.map(() => 0);
-  const mitte = Math.floor(n / 2);
-
-  return (
-    <svg viewBox={`0 0 ${B} ${H}`} className="h-44 w-full" role="img"
-      aria-label="Punkteverlauf">
-      <line x1={links} y1={H - unten} x2={B - 10} y2={H - unten}
-        stroke="#3f3f46" strokeWidth="1" />
-
-      {/* Platzierungspunkte: die obere, groessere Flaeche. */}
-      <path d={flaeche(platz, elim)} fill="rgba(14,165,233,0.25)" />
-      <path d={linie(platz)} fill="none" stroke="#38bdf8" strokeWidth="1.5" />
-
-      {/* Eliminierungspunkte darunter. */}
-      <path d={flaeche(elim, boden)} fill="rgba(148,163,184,0.22)" />
-      <path d={linie(elim)} fill="none" stroke="#cbd5e1" strokeWidth="1.5" />
-
-      <text x={x(mitte)} y={y(platz[mitte]) - 7} fill="#7dd3fc" fontSize="11">
-        Placement
-      </text>
-      <text x={x(mitte)} y={y(elim[mitte]) - 7} fill="#e2e8f0" fontSize="11">
-        Elimination
-      </text>
-
-      {platz.map((unbenutzt, i) => (
-        <text key={i} x={x(i)} y={H - 8} fill="#71717a" fontSize="10"
-          textAnchor="middle">{(i + 1).toLocaleString(ort)}</text>
-      ))}
-    </svg>
-  );
-}
-
 export default function Werte({
   windowId, teams, wertung,
 }: {
@@ -252,20 +193,22 @@ export default function Werte({
     return raus;
   }, [suche, teams]);
 
-  /** Die Punkte je Runde, aufsummiert und getrennt nach Herkunft. */
-  const verlauf = useMemo(() => {
+  /**
+   * Woher die Punkte kamen: aus Platzierungen oder aus Eliminierungen.
+   *
+   * Aufaddiert ueber alle Runden. Der Verlauf je Runde stand hier einmal als
+   * Diagramm daneben - der Betreiber wollte die Flaeche lieber breit fuer die
+   * Zahlen, also bleibt nur die Aufteilung.
+   */
+  const punkte = useMemo(() => {
     if (!team || !wertung.length) return null;
-    const platz: number[] = []; const elim: number[] = [];
-    let sp = 0; let se = 0;
-    const runden = [...team.matches].sort(
-      (a, b) => (a.endTime ?? '').localeCompare(b.endTime ?? ''));
-    for (const m of runden) {
+    let ausPlatz = 0; let ausElims = 0;
+    for (const m of team.matches) {
       const p = punkteJeRunde(wertung, m.placement ?? null, m.elims ?? 0);
       if (!p) continue;
-      sp += p.ausPlatz; se += p.ausElims;
-      platz.push(sp + se); elim.push(se);
+      ausPlatz += p.ausPlatz; ausElims += p.ausElims;
     }
-    return platz.length ? { platz, elim, ausPlatz: sp, ausElims: se } : null;
+    return { ausPlatz, ausElims };
   }, [team, wertung]);
 
   const zahl = (w: number, nk = 0) =>
@@ -332,7 +275,8 @@ export default function Werte({
                     {/* Bild nur, wo eines gepflegt ist - kein grauer Platzhalter. */}
                     {p.img && (
                       // eslint-disable-next-line @next/next/no-img-element
-                      <img src={p.img} alt="" className="h-6 w-6 rounded-full object-cover" />
+                      <img src={p.img} alt=""
+                        className="h-8 w-6 shrink-0 rounded object-contain" />
                     )}
                     {p.name}
                   </button>
@@ -352,17 +296,26 @@ export default function Werte({
         )}
 
         {team && (
-          <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.05fr)]">
-            {/* --------------------------------------------- Links: die Zahlen */}
+          <div>
             <div>
               <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
                 <div className="mb-3 grid grid-cols-2 gap-3">
                   {[ich, mate].map((p, k) => (
                     <div key={k} className="flex flex-col items-center gap-1.5">
                       {p?.img && (
+                        /*
+                          * Hochkant und vollstaendig.
+                          *
+                          * Rund und beschnitten war es vorher - damit fehlte
+                          * bei jedem Bild der Rand, und Spielerfotos sind
+                          * genau dort selten leer. Der Betreiber wollte "das
+                          * ganze Bild" sehen: also ein stehendes Rechteck und
+                          * object-contain, das nichts abschneidet.
+                          */
                         // eslint-disable-next-line @next/next/no-img-element
                         <img src={p.img} alt=""
-                          className="h-12 w-12 rounded-full object-cover" />
+                          className="h-24 w-[4.5rem] rounded-md bg-zinc-900/60
+                                     object-contain" />
                       )}
                       <span className={`text-center text-sm font-semibold ${
                         k === 0 ? 'text-sky-300' : 'text-rose-300'}`}>
@@ -386,18 +339,18 @@ export default function Werte({
                   </span>
                 </div>
 
-                {verlauf && (
+                {punkte && (
                   <div className="mt-2 space-y-1 text-xs">
                     <div className="flex justify-between">
                       <span className="text-slate-500">Placement</span>
                       <span className="tabular-nums text-slate-300">
-                        {zahl(verlauf.ausPlatz)} <T>Punkte</T>
+                        {zahl(punkte.ausPlatz)} <T>Punkte</T>
                       </span>
                     </div>
                     <div className="flex justify-between">
                       <span className="text-slate-500">Elimination</span>
                       <span className="tabular-nums text-slate-300">
-                        {zahl(verlauf.ausElims)} <T>Punkte</T>
+                        {zahl(punkte.ausElims)} <T>Punkte</T>
                       </span>
                     </div>
                   </div>
@@ -462,32 +415,15 @@ export default function Werte({
               </div>
             </div>
 
-            {/* ------------------------------------------ Rechts: der Verlauf */}
-            <div>
-              <div className="rounded-xl border border-zinc-800 bg-zinc-900/30 p-3">
-                {verlauf ? (
-                  <>
-                    <Verlauf platz={verlauf.platz} elim={verlauf.elim} ort={ort} />
-                    <p className="text-center text-[10px] text-slate-600"><T>Runde</T></p>
-                  </>
-                ) : (
-                  <p className="py-12 text-center text-xs leading-relaxed text-slate-600">
-                    <T>Zu diesem Spieltag veröffentlicht Epic keine Punktetabelle —
-                    ohne sie lässt sich der Verlauf nicht aufteilen.</T>
-                  </p>
-                )}
-              </div>
-
-              {einzel !== null && einzel.length === 0 && (
-                <p className="mt-3 rounded-xl border border-zinc-800 bg-zinc-900/30 p-3
-                              text-[11px] leading-relaxed text-slate-500">
-                  <T>Schaden, Trefferquote und Material veröffentlicht Epic nicht.
-                  Sie kommen aus einer Szene-Quelle, die ein bis zwei Tage später
-                  erscheint und nicht jeden Cup abdeckt — alles darüber steht
-                  trotzdem, es kommt aus Epics Bestenliste.</T>
-                </p>
-              )}
-            </div>
+            {einzel !== null && einzel.length === 0 && (
+              <p className="mt-3 rounded-xl border border-zinc-800 bg-zinc-900/30 p-3
+                            text-[11px] leading-relaxed text-slate-500">
+                <T>Schaden, Trefferquote und Material veröffentlicht Epic nicht.
+                Sie kommen aus einer Szene-Quelle, die ein bis zwei Tage später
+                erscheint und nicht jeden Cup abdeckt — alles darüber steht
+                trotzdem, es kommt aus Epics Bestenliste.</T>
+              </p>
+            )}
           </div>
         )}
       </div>
