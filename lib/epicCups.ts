@@ -1377,17 +1377,31 @@ export async function bilder() {
 
 export async function ergaenzeBilder<T extends { entries: CupEintrag[] }>(daten: T): Promise<T> {
   const b = await bilder();
-  const finde = (liste: Array<{file:string;key:string}>, name: string, ordner: string) => {
-    const n = name.toLowerCase();
-    const hit = liste.find((p) => n.includes(p.key));
-    return hit ? `/${ordner}/${encodeURIComponent(hit.file)}` : null;
-  };
   /*
-   * Die Konto-Id geht vor dem Namen.
+   * Ein Teamzeichen ueber den Namen - aber nur als ganzes Wort.
    *
-   * Der Name ist nur der Rueckfall fuer Konten, zu denen im Verzeichnis noch
-   * nichts steht - er trifft, solange jemand heisst wie seine Bilddatei, und
-   * daneben, sobald er unter einem Turniernamen antritt.
+   * Ein blosses includes traf zu viel: "nfr" steckt auch in "nfrost".
+   * Verglichen werden deshalb die durch Leerzeichen getrennten Teile des
+   * Namens, und ein Teil muss dem Schluessel entsprechen.
+   */
+  const findeLogo = (name: string) => {
+    const teile = name.toLowerCase().split(/[\s_.\-]+/).filter(Boolean);
+    const hit = b.logos.find((l) => teile.includes(l.key));
+    return hit ? `/logos/${encodeURIComponent(hit.file)}` : null;
+  };
+
+  /*
+   * Das Spielerfoto haengt allein an der Konto-Id.
+   *
+   * Der Namensvergleich, der hier einmal als Rueckfall stand, hat genau das
+   * angerichtet, was der Betreiber verboten hatte: er suchte den Schluessel
+   * IM Namen, und damit bekamen "NFR vico", "Big vico GHG", "vicoking baeae"
+   * und "Mini Vicotryona" allesamt das Foto von VicO. Sieben verschiedene
+   * Menschen, ein Gesicht.
+   *
+   * Er kostet auch nichts: von 433 echten Fotos im Verzeichnis tragen 433
+   * eine Konto-Id. Der Rueckfall konnte also nie ein richtiges Bild
+   * beisteuern, sondern nur falsche.
    */
   return {
     ...daten,
@@ -1397,10 +1411,8 @@ export async function ergaenzeBilder<T extends { entries: CupEintrag[] }>(daten:
         const ausKonto = p.id ? b.nachKonto.get(String(p.id)) : undefined;
         return {
           ...p,
-          img: ausKonto
-            ? `/spielerbilder/${encodeURIComponent(ausKonto)}`
-            : finde(b.players, p.name, 'spielerbilder'),
-          logo: finde(b.logos, p.name, 'logos'),
+          img: ausKonto ? `/spielerbilder/${encodeURIComponent(ausKonto)}` : null,
+          logo: findeLogo(p.name),
         };
       }),
     })),

@@ -433,8 +433,15 @@ export default function Werte({
           <div>
             <div>
               <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
-                <div className="mb-3 grid grid-cols-2 gap-3">
-                  {[ich, mate].map((p, k) => (
+                {/*
+                  * Bei einem Solo-Cup gibt es keinen Mitspieler.
+                  *
+                  * Dann steht auch keine zweite Spalte da und kein Strich, wo
+                  * einer stehen koennte: dass jemand allein gespielt hat,
+                  * sieht man am Cup, und ein leerer Platz sagt nichts.
+                  */}
+                <div className={`mb-3 grid gap-3 ${mate ? 'grid-cols-2' : 'grid-cols-1'}`}>
+                  {(mate ? [ich, mate] : [ich]).map((p, k) => (
                     <div key={k} className="flex flex-col items-center gap-1.5">
                       {p?.img && (
                         /*
@@ -511,12 +518,13 @@ export default function Werte({
 
                 {zeilen.length > 0 && (
                   <>
-                    <div className="grid grid-cols-[1fr_auto_1fr] gap-2 border-y
-                                    border-zinc-800 bg-zinc-900/50 px-3 py-2 text-[10px]
-                                    uppercase tracking-wider text-slate-500">
+                    <div className={`grid gap-2 border-y border-zinc-800 bg-zinc-900/50
+                                     px-3 py-2 text-[10px] uppercase tracking-wider
+                                     text-slate-500 ${mate
+                        ? 'grid-cols-[1fr_auto_1fr]' : 'grid-cols-[1fr_auto]'}`}>
                       <span className="truncate text-right">{ich?.name}</span>
                       <span className="w-36 text-center"><T>Kennzahl</T></span>
-                      <span className="truncate">{mate?.name ?? ''}</span>
+                      {mate && <span className="truncate">{mate.name}</span>}
                     </div>
                     {zeilen.map((z) => {
                       const { a, b } = z;
@@ -528,8 +536,9 @@ export default function Werte({
                         ? '—' : `${zahl(w, z.nk ?? 0)}${z.einheit ? ` ${z.einheit}` : ''}`);
                       return (
                         <div key={z.name}
-                          className="grid grid-cols-[1fr_auto_1fr] items-center gap-2
-                                     border-b border-zinc-900/70 px-3 py-1.5 last:border-0">
+                          className={`grid items-center gap-2 border-b border-zinc-900/70
+                                      px-3 py-1.5 last:border-0 ${mate
+                            ? 'grid-cols-[1fr_auto_1fr]' : 'grid-cols-[1fr_auto]'}`}>
                           <span className={`text-right text-sm font-semibold tabular-nums ${
                             aBesser ? 'text-sky-300' : 'text-slate-400'}`}>
                             {zeig(a)}{aBesser && <span className="ml-1 text-[10px]">▲</span>}
@@ -537,10 +546,12 @@ export default function Werte({
                           <span className="w-36 text-center text-[11px] text-slate-500">
                             <T>{z.name}</T>
                           </span>
-                          <span className={`text-sm font-semibold tabular-nums ${
-                            bBesser ? 'text-rose-300' : 'text-slate-400'}`}>
-                            {zeig(b)}{bBesser && <span className="ml-1 text-[10px]">▲</span>}
-                          </span>
+                          {mate && (
+                            <span className={`text-sm font-semibold tabular-nums ${
+                              bBesser ? 'text-rose-300' : 'text-slate-400'}`}>
+                              {zeig(b)}{bBesser && <span className="ml-1 text-[10px]">▲</span>}
+                            </span>
+                          )}
                         </div>
                       );
                     })}
