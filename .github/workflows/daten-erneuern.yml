@@ -63,9 +63,21 @@ jobs:
         # wird davon nichts.
         run: printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
 
+      # Holen und Sichern getrennt, nicht als ein Schritt.
+      #
+      # actions/cache sichert erst am Ende des Auftrags - und nur, wenn der
+      # Auftrag durchgelaufen ist. Genau daran hing der Ablauf fest: der
+      # Schritt "Stand aus Supabase holen" laeuft nur bei leerem
+      # Zwischenspeicher, er scheiterte, der Auftrag scheiterte, also wurde
+      # nie ein Zwischenspeicher geschrieben - und beim naechsten Lauf war
+      # er wieder leer. Stunde um Stunde dieselbe Fehlermail.
+      #
+      # Mit "save" und "if: always()" wird gesichert, was dieser Lauf
+      # zusammengetragen hat, auch wenn spaeter etwas schiefgeht. Der
+      # naechste Lauf faengt dann nicht wieder bei null an.
       - name: Datenordner aus dem Zwischenspeicher
         id: zwischenspeicher
-        uses: actions/cache@v4
+        uses: actions/cache/restore@v4
         with:
           path: data
           key: comphub-daten-${{ github.run_id }}
@@ -156,6 +168,14 @@ jobs:
         run: |
           node scripts/umzug-supabase.mjs --neuer-als 120 --nur replays \
             2>&1 | tail -20
+
+      - name: Datenordner sichern
+        # Auch nach einem Fehlschlag - siehe oben.
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: data
+          key: comphub-daten-${{ github.run_id }}
 
       # Zum Schluss, nicht vorher: das Hochladen liest die Zugangsdaten aus
       # .env.local. Standen sie hier oben, scheiterte jeder Lauf am

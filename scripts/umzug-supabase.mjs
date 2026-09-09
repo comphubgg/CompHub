@@ -100,6 +100,14 @@ function wert(name) {
  */
 const neuerAls = Number(wert('--neuer-als') || 0);
 
+/**
+ * Holen, aber nichts auf die Platte schreiben.
+ *
+ * Zum Nachsehen, welche Dateien sich nicht holen lassen, ohne dabei den
+ * eigenen Datenordner zu ueberschreiben - was beim Suchen nach genau
+ * diesem Fehler sonst der erste Schritt waere.
+ */
+const trocken = argumente.includes('--trocken');
 const nur = wert('--nur').split(',').map((s) => s.trim()).filter(Boolean);
 const ohne = (wert('--ohne') || STANDARDMAESSIG_OHNE.join(','))
   .split(',').map((s) => s.trim()).filter(Boolean);
@@ -277,20 +285,61 @@ async function objektNamen() {
   return raus;
 }
 
+/**
+ * Wie viele Dateien gleichzeitig geholt werden.
+ *
+ * Nacheinander waren es bei viertausenddreihundert Dateien gemessene
+ * achthundertzweiundachtzig Sekunden - fast eine Viertelstunde, in der der
+ * stuendliche Ablauf nichts anderes tut. Zehn nebeneinander sind ein
+ * Bruchteil davon und noch weit davon entfernt, Supabase zu belasten.
+ */
+const HOLEN_GLEICHZEITIG = 10;
+
+/**
+ * Ab welchem Anteil misslungener Dateien der Lauf als gescheitert gilt.
+ *
+ * Vorher genuegte eine einzige. Genau das ist passiert: drei von
+ * viertausenddreihundert liessen sich nicht holen, und der ganze
+ * stuendliche Ablauf brach ab - Stunde um Stunde, mit einer Fehlermail je
+ * Lauf und ohne dass die Seite je frische Daten bekam. Drei fehlende
+ * Dateien sind ein Hinweis; sie sind kein Grund, die Erneuerung ausfallen
+ * zu lassen. Bei einem echten Ausfall - falscher Schluessel, Supabase
+ * nicht erreichbar - misslingt praktisch alles, und dann greift die Grenze.
+ */
+const NOCH_HINNEHMBAR = 0.05;
+
 async function holen() {
-  const namen = [...await tabellenNamen(), ...await objektNamen()]
-    .filter(gewuenscht).sort();
+  /*
+   * Woher eine Datei kommt, wird gemerkt statt geraten.
+   *
+   * Frueher entschied allein der Namensanfang darueber, ob in der Tabelle
+   * oder im Objektspeicher gesucht wird. Dateien, die im Eimer liegen, aber
+   * unter keinem der bekannten Praefixe - bekannte-ohne-foto.txt,
+   * fehlende-bilder.txt, szene-quelle/grands.json -, wurden deshalb in der
+   * Tabelle gesucht, wo sie nicht stehen, und meldeten "leer".
+   */
+  const inTabelle = new Set(await tabellenNamen());
+  const imEimer = new Set(await objektNamen());
+  const namen = [...new Set([...inTabelle, ...imEimer])].filter(gewuenscht).sort();
+
+  const quelleVon = (name) => {
+    if (alsObjekt(name)) return 'objekt';
+    if (inTabelle.has(name)) return 'tabelle';
+    return imEimer.has(name) ? 'objekt' : 'tabelle';
+  };
+
   console.log(`  Zu holen: ${namen.length}`);
   console.log('');
 
   let ok = 0;
   let schief = 0;
-  for (const [i, name] of namen.entries()) {
-    process.stdout.write(
-      `\r  ${String(i + 1).padStart(5)}/${namen.length}  ${name.slice(0, 50).padEnd(50)}`);
+  let fertig = 0;
+  const fehler = [];
+
+  const eine = async (name) => {
     try {
       let roh;
-      if (alsObjekt(name)) {
+      if (quelleVon(name) === 'objekt') {
         const r = await fetch(`${URL_}/storage/v1/object/${EIMER}/${name}`,
           { headers: KOPF });
         if (!r.ok) throw new Error(String(r.status));
@@ -304,19 +353,43 @@ async function holen() {
         if (!zeilen.length) throw new Error('leer');
         roh = Buffer.from(zeilen[0].wert, 'utf8');
       }
-      const ziel = path.join(DATEN, name);
-      fs.mkdirSync(path.dirname(ziel), { recursive: true });
-      fs.writeFileSync(ziel, roh);
+      if (!trocken) {
+        const ziel = path.join(DATEN, name);
+        fs.mkdirSync(path.dirname(ziel), { recursive: true });
+        fs.writeFileSync(ziel, roh);
+      }
       ok += 1;
     } catch (e) {
       schief += 1;
-      if (schief <= 10) console.log(`\n    - ${name}: ${e.message}`);
+      fehler.push(`${name}: ${e.message}`);
     }
+    fertig += 1;
+    if (fertig % 100 === 0 || fertig === namen.length) {
+      process.stdout.write(`\r  ${String(fertig).padStart(5)}/${namen.length}`);
+    }
+  };
+
+  for (let i = 0; i < namen.length; i += HOLEN_GLEICHZEITIG) {
+    await Promise.all(namen.slice(i, i + HOLEN_GLEICHZEITIG).map(eine));
   }
+
   console.log('\n');
   console.log(`  Geholt      : ${ok}`);
   console.log(`  Gescheitert : ${schief}`);
+  if (fehler.length) {
+    console.log('');
+    for (const f of fehler.slice(0, 25)) console.log(`    - ${f}`);
+    if (fehler.length > 25) console.log(`    … und ${fehler.length - 25} weitere`);
+  }
   console.log('');
+
+  const anteil = namen.length ? schief / namen.length : 0;
+  if (schief && anteil <= NOCH_HINNEHMBAR) {
+    console.log(`  ${schief} Datei(en) fehlen - das ist unter der Grenze von `
+      + `${Math.round(NOCH_HINNEHMBAR * 100)} %. Der Lauf geht weiter.`);
+    console.log('');
+    process.exit(0);
+  }
   process.exit(schief ? 1 : 0);
 }
 
