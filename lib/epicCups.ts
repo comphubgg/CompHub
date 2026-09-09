@@ -530,7 +530,27 @@ function formeEintrag(e: RohEintrag, namen: Record<string, string>): CupEintrag 
   };
 }
 
+/**
+ * Wie lange eine geholte Leaderboard-Seite wiederverwendet wird.
+ *
+ * Sie wird mehrfach gebraucht: die Bestenliste holt sie beim Blaettern, und
+ * /api/cup-matches braucht anschliessend dieselben Seiten noch einmal, weil
+ * Epic die Rundenlisten an die Teams haengt. Ohne diesen Speicher waren das
+ * zweihundert Abfragen bei Epic statt hundert - und der Matches-Bereich
+ * fing bei null an, obwohl die Seite alles schon geholt hatte.
+ *
+ * Eine Minute ist der richtige Rahmen: waehrend eines laufenden Cups
+ * schreibt Epic seine Bestenliste nach jeder Runde fort, und die Runden
+ * dauern rund zwanzig Minuten.
+ */
+const SEITE_TTL = 60_000;
+
 export async function holeSeite(eventId: string, windowId: string, page = 0) {
+  return gecacht(`seite|${eventId}|${windowId}|${page}`, SEITE_TTL,
+    () => holeSeiteRoh(eventId, windowId, page));
+}
+
+async function holeSeiteRoh(eventId: string, windowId: string, page = 0) {
   const { token, accountId } = await getToken();
   const url = `${EVENTS}/api/v1/leaderboards/Fortnite/${encodeURIComponent(eventId)}` +
     `/${encodeURIComponent(windowId)}/${accountId}?page=${page}&rank=0&teamAccountIds=`;
@@ -1393,7 +1413,31 @@ export async function ergaenzeBilder<T extends { entries: CupEintrag[] }>(daten:
 // Overlays oder Zuschauer daran haengen.
 const cache = new Map<string, { data: unknown; bis: number; pending?: Promise<unknown> }>();
 
+/**
+ * Wie viele Antworten hoechstens liegen bleiben.
+ *
+ * Seit auch die einzelnen Leaderboard-Seiten hier landen, sind es je
+ * Spieltag bis zu hundert Eintraege. Ohne Obergrenze waechst die Ablage mit
+ * jedem angesehenen Cup weiter, und nichts raeumt je auf. Ist die Grenze
+ * erreicht, fliegt zuerst alles Abgelaufene hinaus; reicht das nicht, das
+ * Aelteste.
+ */
+const HOECHSTENS = 600;
+
+function aufraeumen() {
+  if (cache.size <= HOECHSTENS) return;
+  const jetzt = Date.now();
+  for (const [k, v] of cache) if (!v.pending && v.bis <= jetzt) cache.delete(k);
+  // Immer noch zu viele: die aeltesten zuerst. Eine Map merkt sich die
+  // Einfuegereihenfolge, der erste Schluessel ist also der aelteste.
+  for (const k of cache.keys()) {
+    if (cache.size <= HOECHSTENS) break;
+    if (!cache.get(k)?.pending) cache.delete(k);
+  }
+}
+
 export async function gecacht<T>(key: string, ttl: number, hole: () => Promise<T>): Promise<T> {
+  aufraeumen();
   const hit = cache.get(key);
   if (hit && hit.bis > Date.now()) return hit.data as T;
   if (hit?.pending) return hit.pending as Promise<T>;

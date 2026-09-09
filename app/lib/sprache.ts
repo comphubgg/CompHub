@@ -1839,6 +1839,8 @@ const AUF_ENGLISCH: Record<string, string> = {
     + 'minutes. Closing a tab does not sign anyone out — nothing more can '
     + 'honestly be said about it.',
   'Noch keine Ergebnisse': 'No results yet',
+  'Hier stehen nur die Teams dieser Lobby, die im Tagesranking unter den ersten zehntausend liegen — weiter hinten platzierte gibt Epic nicht heraus. Die Match-ID oben ist vollständig.':
+    'Only the teams of this lobby that rank inside the day’s first ten thousand places are listed — Epic does not hand out those placed further down. The match ID above is complete.',
   'Wird durchsucht …': 'Searching …',
   'Preispool': 'Prize Pool',
   'Sieger oder Spieler suchen …': 'Search winner or player …',

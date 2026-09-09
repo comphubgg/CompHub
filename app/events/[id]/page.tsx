@@ -358,6 +358,13 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
   const [sichtbareSpiele, setSichtbareSpiele] = useState(ERSTE_SPIELE);
   /** Wie gross die Bestenliste war, als die Runden geholt wurden. */
   const [spieleBasis, setSpieleBasis] = useState(0);
+  /**
+   * Stiess die Bestenliste an ihre Grenze, als die Runden gebaut wurden?
+   *
+   * Dann fehlen in jeder Aufstellung die Teams, die im Tagesranking hinter
+   * den zehntausend liegen - auch dort, wo keine Luecke zu sehen ist.
+   */
+  const [spieleFeldGrenze, setSpieleFeldGrenze] = useState(false);
   /** Suche innerhalb der Runden - Sieger oder irgendein Mitspieler. */
   const [spielSuche, setSpielSuche] = useState('');
   /** Der Fuss der Rundenliste - daran haengt das Nachladen beim Scrollen. */
@@ -1071,6 +1078,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
   useEffect(() => {
     setSpiele(null); setOffenesSpiel(null); setKopiert(null);
     setSichtbareSpiele(ERSTE_SPIELE); setSpielSuche(''); setSpieleBasis(0);
+    setSpieleFeldGrenze(false);
     setSpielerWerte(null); setLive(null);
   }, [fenster]);
 
@@ -1109,7 +1117,11 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
       + `&window=${encodeURIComponent(fenster.windowId)}`
       + `&limit=${Math.min(MAX_PLAETZE, Math.max(500, tabelle.length))}`)
       .then((r) => r.json())
-      .then((j) => { if (!weg) setSpiele(j?.spiele ?? []); })
+      .then((j) => {
+        if (weg) return;
+        setSpiele(j?.spiele ?? []);
+        setSpieleFeldGrenze(Boolean(j?.feldGrenze));
+      })
       .catch(() => { if (!weg) setSpiele([]); })
       .finally(() => { if (!weg) setSpieleLaedt(false); });
     return () => { weg = true; };
@@ -2161,30 +2173,17 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                               {e.players.map(namenVon).join('  +  ')}
                             </span>
                             {/*
-                              * Der Twitch-Kanal, wo einer gepflegt ist.
+                              * Hier stand einmal ein Play-Zeichen je Spieler
+                              * mit hinterlegtem Twitch-Kanal.
                               *
-                              * Der Betreiber wollte die Socials unter Events
-                              * sehen. Die Kanaele liegen im Werkzeug ohnehin -
-                              * die Streams-Seite fuehrt sie samt Zuschauerzahl.
-                              * Der Verweis geht auf die eigene Streams-Seite und
-                              * nicht zu Twitch: dort laeuft der Stream in seiner
-                              * Wand, so wie er es wollte.
+                              * Es ist wieder weg. Der Betreiber: "Im
+                              * Leaderboard muss dieses Twitch-Zeichen, dieses
+                              * Play-Zeichen, nicht sein" - die Bestenliste ist
+                              * eine Tabelle mit Zahlen, und wer gerade sendet,
+                              * gehoert unter Streams. Dort steht es ohnehin,
+                              * und zwar richtig: mit der Frage an Twitch, wer
+                              * in diesem Moment live ist.
                               */}
-                            {e.players.map((p) => {
-                              const kanal = profilVon(p)?.twitch;
-                              if (!kanal) return null;
-                              return (
-                                <a key={`tw-${p.id}`}
-                                  href={`/streams?kanal=${encodeURIComponent(kanal)}`}
-                                  onClick={(ev) => ev.stopPropagation()}
-                                  title={`twitch.tv/${kanal}`}
-                                  className="ml-1 shrink-0 rounded px-1 py-0.5 text-[10px]
-                                             font-semibold text-purple-300/80 transition
-                                             hover:bg-purple-500/15 hover:text-purple-300">
-                                  ▶
-                                </a>
-                              );
-                            })}
                             {e.players.find((p) => p.logo) && (
                               <img src={e.players.find((p) => p.logo)!.logo!} alt=""
                                 className="ml-1 h-4 w-auto max-w-10 object-contain opacity-80" />
@@ -2517,6 +2516,25 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                           <T>Von dieser Lobby fehlen</T> {sp.fehlend}{' '}
                           <T>Plätze — Epic gibt aus der Bestenliste nur die ersten
                           zehntausend heraus. Die Match-ID oben ist vollständig.</T>
+                        </p>
+                      ) : spieleFeldGrenze && !sp.live ? (
+                        /*
+                         * Eine Aufstellung, die glatt endet, ist deshalb noch
+                         * nicht vollstaendig.
+                         *
+                         * Sie wird aus den Teams der Bestenliste gebaut, und
+                         * die reicht nur bis Platz zehntausend. Wer in seiner
+                         * Lobby Neunter wurde, am Tag aber Zwoelftausendster
+                         * ist, steht in keiner Zeile - und weil dann kein
+                         * Platz uebersprungen wird, sah es bisher aus wie
+                         * eine geschlossene Liste. Genau das hat der
+                         * Betreiber gemeldet.
+                         */
+                        <p className="border-b border-zinc-900 px-3 py-2 text-[11px]
+                                      leading-relaxed text-amber-500/80">
+                          <T>Hier stehen nur die Teams dieser Lobby, die im Tagesranking
+                          unter den ersten zehntausend liegen — weiter hinten platzierte
+                          gibt Epic nicht heraus. Die Match-ID oben ist vollständig.</T>
                         </p>
                       ) : null}
 

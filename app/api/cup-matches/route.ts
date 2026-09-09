@@ -229,9 +229,30 @@ export async function GET(request: Request) {
       // gerade beendete Runde, nicht die von vor zwei Stunden.
       .sort((a, b) => (b.ende ?? '').localeCompare(a.ende ?? ''));
 
+    /*
+     * Reichte die Bestenliste ueberhaupt bis ans Ende des Feldes?
+     *
+     * Eine Lobby wird aus den Teams gebaut, die in der Bestenliste stehen.
+     * Epic gibt daraus hoechstens zehntausend Plaetze heraus; wer im
+     * Tagesranking dahinter liegt, kommt in keiner Aufstellung vor - auch
+     * dann nicht, wenn er in seiner Lobby Dritter wurde.
+     *
+     * Bisher fiel das nur auf, wenn dadurch eine Luecke entstand ("auf
+     * Platz 2 folgt Platz 7"). Endet eine Aufstellung dagegen glatt bei
+     * acht, sieht sie vollstaendig aus und ist es nicht: die Plaetze
+     * danach fehlen geschlossen. Der Betreiber hat genau das gemeldet -
+     * "im Bild zwei wird nicht mal gesagt, dass da Stats fehlen".
+     *
+     * Kam die Bestenliste an ihre Grenze, gilt das fuer jede Aufstellung
+     * dieses Spieltags, und die Anzeige sagt es dazu.
+     */
+    const feldGrenze = daten.entries.length >= limit;
+
     return NextResponse.json({
       spiele,
       teams: daten.entries.length,
+      /** Stiess die Bestenliste an ihre Grenze? Dann fehlen Plaetze unten. */
+      feldGrenze,
       /** Steht eine Punktetabelle zur Verfuegung? */
       mitPunkten: wertung.length > 0,
       hinweis: 'Values are per team, the way Epic reports them.',
