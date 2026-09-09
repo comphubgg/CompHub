@@ -2753,11 +2753,36 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                         * dastehen, wenn danebensteht, dass es einer ist.
                         */}
                       {sp.fehlend ? (
+                        /*
+                         * Warum ein Platz fehlt, haengt vom Cup ab.
+                         *
+                         * Bei einer Qualifikation liegt es an der Grenze der
+                         * Bestenliste: sie reicht bis Platz zehntausend, wer
+                         * dahinter steht, kommt in keiner Zeile vor.
+                         *
+                         * Bei einem Finale gilt das nicht - dort ist das
+                         * ganze Feld geladen. Nachgemessen an einem
+                         * Reload-Duos-Finale: 297 von 297 Teams da, und
+                         * trotzdem fehlen neun Plaetze in sieben von
+                         * fuenfundvierzig Lobbys, weil Epic zu sieben Teams
+                         * je eine Runde ueberhaupt nicht eingetragen hat -
+                         * sie stehen mit zwei von drei Spielen in der
+                         * Bestenliste. Das ist eine Luecke in der Quelle,
+                         * und sie so zu benennen ist das Einzige, was
+                         * ehrlich ist. Sie der Zehntausend-Grenze
+                         * zuzuschreiben waere schlicht falsch.
+                         */
                         <p className="border-b border-zinc-900 px-3 py-2 text-[11px]
                                       leading-relaxed text-amber-500/80">
                           <T>Von dieser Lobby fehlen</T> {sp.fehlend}{' '}
-                          <T>Plätze — Epic gibt aus der Bestenliste nur die ersten
-                          zehntausend heraus. Die Match-ID oben ist vollständig.</T>
+                          {spieleFeldGrenze ? (
+                            <T>Plätze — Epic gibt aus der Bestenliste nur die ersten
+                            zehntausend heraus. Die Match-ID oben ist vollständig.</T>
+                          ) : (
+                            <T>Plätze — zu ihnen hat Epic keinen Eintrag geliefert,
+                            obwohl das ganze Feld geladen ist. Die Match-ID oben ist
+                            vollständig.</T>
+                          )}
                         </p>
                       ) : spieleFeldGrenze && !sp.live ? (
                         /*

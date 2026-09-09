@@ -406,11 +406,18 @@ export default function EventsPage() {
                         return (
                           <button key={r}
                             onClick={() => router.push(`/events/${c.id}?region=${r}`)}
-                            className="flex w-full items-center justify-between gap-2 border-b
-                                       border-zinc-900 px-3 py-2 text-left text-xs transition
-                                       last:border-0 hover:bg-zinc-900">
-                            {/* Der Name in der Farbe seiner Region - dieselbe
-                                wie in der Statistik und auf der Eventseite. */}
+                            className="group flex w-full items-center justify-between gap-2
+                                       border-b border-zinc-900 px-3 py-2 text-left text-xs
+                                       transition last:border-0 hover:bg-zinc-900">
+                            {/*
+                              * Der Name neutral, die Farbe seiner Region erst
+                              * unter dem Mauszeiger.
+                              *
+                              * Sieben Zeilen gleichzeitig in sieben Farben
+                              * sagten nichts aus. Der Mauszeiger liegt dabei
+                              * ueber der ganzen Zeile, nicht ueber dem Wort -
+                              * dafuer traegt der Knopf oben "group".
+                              */}
                             <span className={`flex items-center gap-2 font-medium
                                               ${regionFarbe(r).schrift}`}>
                               {live && <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />}

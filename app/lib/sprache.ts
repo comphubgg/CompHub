@@ -1839,6 +1839,8 @@ const AUF_ENGLISCH: Record<string, string> = {
     + 'minutes. Closing a tab does not sign anyone out — nothing more can '
     + 'honestly be said about it.',
   'Noch keine Ergebnisse': 'No results yet',
+  'Plätze — zu ihnen hat Epic keinen Eintrag geliefert, obwohl das ganze Feld geladen ist. Die Match-ID oben ist vollständig.':
+    'places — Epic delivered no record for them, even though the whole field is loaded. The match ID above is complete.',
   'von dieser Lobby im Leaderboard': 'of this lobby in the leaderboard',
   'Weitere Matches werden geladen …': 'Loading more matches …',
   'Hier stehen nur die Teams dieser Lobby, die im Tagesranking unter den ersten zehntausend liegen — weiter hinten platzierte gibt Epic nicht heraus. Die Match-ID oben ist vollständig.':
