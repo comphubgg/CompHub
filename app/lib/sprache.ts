@@ -1839,6 +1839,11 @@ const AUF_ENGLISCH: Record<string, string> = {
     + 'minutes. Closing a tab does not sign anyone out — nothing more can '
     + 'honestly be said about it.',
   'Noch keine Ergebnisse': 'No results yet',
+  'Rang': 'Rank',
+  'geladen': 'loaded',
+  'Kennzahl': 'Stat',
+  'Zu diesem Spieltag veröffentlicht Epic keine Punktetabelle — ohne sie lässt sich der Verlauf nicht aufteilen.': 'Epic publishes no scoring table for this match day — without it the points cannot be split up.',
+  'Schaden, Trefferquote und Material veröffentlicht Epic nicht. Sie kommen aus einer Szene-Quelle, die ein bis zwei Tage später erscheint und nicht jeden Cup abdeckt — alles darüber steht trotzdem, es kommt aus Epics Bestenliste.': 'Epic does not publish damage, accuracy or materials. They come from a scene source that appears one to two days later and does not cover every cup — everything above it is there regardless, from Epic’s leaderboard.',
   'Deine Werte': 'Your Stats',
   'Konto auswählen': 'Select an account',
   'kein Mitspieler': 'no team-mate',

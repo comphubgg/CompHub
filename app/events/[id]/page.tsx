@@ -2393,7 +2393,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
         </div>
 
         {reiter === 'werte' && (
-          <Werte windowId={fenster?.windowId ?? null} teams={tabelle} />
+          <Werte windowId={fenster?.windowId ?? null} teams={tabelle}
+            wertung={preise?.wertung ?? []} />
         )}
 
         {/* Leaderboard */}
