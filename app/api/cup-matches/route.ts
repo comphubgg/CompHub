@@ -1,5 +1,10 @@
+import path from 'path';
 import { NextResponse } from 'next/server';
-import { gecacht, holeTop, EpicLoginNoetig, type CupEintrag } from '@/lib/epicCups';
+import fs from '@/lib/ablageFs';
+import { DATEN_ORT } from '@/lib/datenOrt';
+import {
+  gecacht, holeTop, getToken, loeseNamenAuf, EpicLoginNoetig, type CupEintrag,
+} from '@/lib/epicCups';
 import {
   holeKatalog, punkteFuerRunde, regionAus, wertungVon, type WertungsRegel,
 } from '@/lib/cupWertung';
@@ -55,9 +60,44 @@ interface Zeile {
   ende: string | null;
   /** Aus Epics Punktetabelle gerechnet - null, wenn es keine gibt. */
   punkte: number | null;
+  /** Aus dem Replay nachgetragen, weil Epic dieses Match nicht fuehrt. */
+  ausReplay?: boolean;
 }
 
 interface Runde { ende: string | null; beginne: number[]; teams: Zeile[] }
+
+/**
+ * Wer laut Replay in welcher Lobby war.
+ *
+ * Epic traegt gelegentlich einzelne Matches eines Teams gar nicht in seine
+ * Bestenliste ein. Weil eine Aufstellung genau aus dieser Bestenliste gebaut
+ * wird, fehlt das Team dann in seiner Lobby - nachgemessen an einem
+ * Reload-Duos-Finale: neun Plaetze in sieben von fuenfundvierzig Lobbys,
+ * obwohl das ganze Feld mit 297 von 297 Teams geladen war.
+ *
+ * Im Server-Replay derselben Runde sind sie da. Die Auswertung legt deshalb
+ * je Match die beteiligten Konten neben die uebrigen Werte - allerdings nur
+ * fuer Finals, weil dieselbe Angabe ueber alle offenen Runden hinweg 128 MB
+ * kosten wuerde und dort ohnehin die Zehntausend-Grenze der Bestenliste
+ * regiert.
+ *
+ * Fehlt die Datei, aendert sich nichts: dann bleibt es bei dem, was Epic
+ * hergibt.
+ */
+async function lobbyBesetzung(
+  windowId: string,
+): Promise<Record<string, string[]>> {
+  const saison = /^(S\d+)_/i.exec(windowId)?.[1]?.toUpperCase() ?? '';
+  if (!saison) return {};
+  try {
+    const roh = await fs.readFile(
+      path.join(DATEN_ORT, 'replays', saison, windowId, '_aggregat.json'), 'utf8');
+    const agg = JSON.parse(roh) as { lobbys?: Record<string, string[]> };
+    return agg.lobbys ?? {};
+  } catch {
+    return {};
+  }
+}
 
 export async function GET(request: Request) {
   const p = new URL(request.url).searchParams;
@@ -89,6 +129,19 @@ export async function GET(request: Request) {
     } catch { /* ohne Tabelle keine Rundenpunkte */ }
 
     const runden = new Map<string, Runde>();
+    /*
+     * Zu jedem Konto sein Eintrag in der Bestenliste.
+     *
+     * Damit bekommt ein Team, das aus dem Replay nachgetragen wird, seinen
+     * richtigen Namen, seinen Mitspieler und seinen Tagesplatz - alles aus
+     * Epics eigenen Daten. Erfunden wird nichts; das Replay sagt nur, DASS
+     * es in dieser Lobby war.
+     */
+    const nachKonto = new Map<string, CupEintrag>();
+    for (const e of daten.entries as CupEintrag[]) {
+      for (const sp of e.players) if (sp.id) nachKonto.set(sp.id, e);
+    }
+
     for (const e of daten.entries as CupEintrag[]) {
       for (const m of e.matches) {
         if (!m.sessionId) continue;
@@ -113,6 +166,100 @@ export async function GET(request: Request) {
           punkte: punkteFuerRunde(wertung, platz, m.elims ?? 0),
         });
         runden.set(m.sessionId, r);
+      }
+    }
+
+    /*
+     * Die Teams nachtragen, die Epic zu dieser Runde nicht gefuehrt hat.
+     *
+     * Sie bekommen keinen Platz - der laesst sich aus dem Replay nicht
+     * gewinnen. Nachgemessen: ordnet man die Teams nach ihrem
+     * Todeszeitpunkt, ergibt das in null von sieben Lobbys die echten
+     * Plaetze; wer im Sturm stirbt oder ueberlebt, taucht in den
+     * Ereignissen gar nicht auf. Ein Platz waere also geraten - der Name
+     * dagegen ist belegt.
+     */
+    const besetzung = await lobbyBesetzung(window_);
+    let nachgetragen = 0;
+
+    /*
+     * Die Namen der Konten, die Epic nicht in seiner Bestenliste fuehrt.
+     *
+     * Erst sammeln, dann in einem Zug aufloesen: Epic nimmt hundert Konten
+     * je Abfrage, und einzeln nachzufragen waere je Lobby eine eigene
+     * Runde bei einer Schnittstelle, die ohnehin ungern viel gefragt wird.
+     */
+    const namenNach = new Map<string, string>();
+    const offen = new Set<string>();
+    for (const [sitzung, konten] of Object.entries(besetzung)) {
+      const r = runden.get(sitzung);
+      if (!r) continue;
+      const da = new Set<string>();
+      for (const t of r.teams) for (const sp of t.spieler) da.add(sp.id);
+      for (const k of konten) if (!da.has(k) && !nachKonto.has(k)) offen.add(k);
+    }
+    if (offen.size) {
+      try {
+        const { token } = await getToken();
+        const namen = await loeseNamenAuf([...offen], token);
+        for (const [id, name] of Object.entries(namen)) namenNach.set(id, name);
+      } catch { /* ohne Namen bleibt die gekuerzte Kennung */ }
+    }
+    for (const [sitzung, konten] of Object.entries(besetzung)) {
+      const r = runden.get(sitzung);
+      if (!r) continue;
+      const schonDa = new Set<string>();
+      for (const t of r.teams) for (const sp of t.spieler) schonDa.add(sp.id);
+
+      const neueTeams = new Set<CupEintrag>();
+      /*
+       * Konten, die Epic ueberhaupt nicht fuehrt.
+       *
+       * Sie sind der haeufigere Fall: nachgemessen an einem
+       * Reload-Duos-Finale stehen von den Konten, die in einer
+       * Lobby fehlen, null in der Bestenliste - auch nicht mit null
+       * Punkten. Ihr Name laesst sich aber unmittelbar bei Epic
+       * nachschlagen, und das ist derselbe Weg, ueber den jeder andere
+       * Name dieser Seite kommt.
+       */
+      const unbekannt: string[] = [];
+      for (const konto of konten) {
+        if (schonDa.has(konto)) continue;
+        const eintrag = nachKonto.get(konto);
+        if (eintrag) neueTeams.add(eintrag);
+        else unbekannt.push(konto);
+      }
+      for (const e of neueTeams) {
+        r.teams.push({
+          platz: null,
+          tagesPlatz: e.rank,
+          teamId: e.teamId,
+          spieler: e.players.map((sp) => ({ id: sp.id, name: sp.name })),
+          elims: 0, wins: 0, timeAlive: 0, damage: 0,
+          ende: null, punkte: null,
+          ausReplay: true,
+        });
+        nachgetragen += 1;
+      }
+      for (const konto of unbekannt) {
+        /*
+         * Einzeln, nicht als Duo.
+         *
+         * Wer mit wem zusammenspielte, sagt weder das Replay noch die
+         * Bestenliste - beide kennen diese Konten nicht als Team. Zwei
+         * Namen zu einem Duo zusammenzuziehen, weil sie zufaellig in
+         * derselben Lobby fehlen, waere geraten.
+         */
+        r.teams.push({
+          platz: null,
+          tagesPlatz: 0,
+          teamId: null,
+          spieler: [{ id: konto, name: namenNach.get(konto) ?? konto.slice(0, 8) }],
+          elims: 0, wins: 0, timeAlive: 0, damage: 0,
+          ende: null, punkte: null,
+          ausReplay: true,
+        });
+        nachgetragen += 1;
       }
     }
 
@@ -253,6 +400,8 @@ export async function GET(request: Request) {
       teams: daten.entries.length,
       /** Stiess die Bestenliste an ihre Grenze? Dann fehlen Plaetze unten. */
       feldGrenze,
+      /** Wie viele Teams aus den Replays nachgetragen wurden. */
+      nachgetragen,
       /** Steht eine Punktetabelle zur Verfuegung? */
       mitPunkten: wertung.length > 0,
       hinweis: 'Values are per team, the way Epic reports them.',

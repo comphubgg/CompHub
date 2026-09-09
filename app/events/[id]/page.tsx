@@ -55,6 +55,8 @@ interface SpielZeile {
   ende?: string | null;
   /** Aus Epics Punktetabelle gerechnet - null, wenn es keine gibt. */
   punkte?: number | null;
+  /** Aus dem Replay nachgetragen - Epic fuehrt dieses Match nicht. */
+  ausReplay?: boolean;
 }
 
 /** Eine einzelne Runde des Spieltags. */
@@ -489,6 +491,20 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
   const [cup, setCup] = useState<Cup | null>(null);
   const [fehler, setFehler] = useState<string | null>(null);
   const [region, setRegion] = useState<string>('');
+  /*
+   * Was in der Adresse steht, wenn die Seite geoeffnet wird.
+   *
+   * Einmal beim Aufbau gelesen und danach nicht mehr: wer auf der Seite
+   * selbst eine andere Region oder einen anderen Spieltag waehlt, soll nicht
+   * gleich wieder auf den Wunsch aus der Adresse zurueckgeworfen werden.
+   */
+  const [ausAdresse] = useState(() => {
+    if (typeof window === 'undefined') return { region: '', fenster: '' };
+    const p = new URLSearchParams(window.location.search);
+    return { region: p.get('region') ?? '', fenster: p.get('fenster') ?? '' };
+  });
+  /** Der Wunsch aus der Adresse gilt genau einmal. */
+  const adresseVerbraucht = useRef(false);
   const [fenster, setFenster] = useState<Fenster | null>(null);
 
   const [tabelle, setTabelle] = useState<Eintrag[]>([]);
@@ -785,9 +801,22 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
         }
         setCup(c);
         const regionen = Object.keys(c.regionen);
-        // Region mit laufendem Fenster bevorzugen, sonst die erste.
-        const mitLive = regionen.find((r2) => c.regionen[r2].some((f) => f.status === 'live'));
-        setRegion(mitLive ?? regionen[0] ?? '');
+        /*
+         * Zuerst die Region aus der Adresse.
+         *
+         * Sie wurde bisher gar nicht gelesen: ein Klick auf "Europe" in einer
+         * Cup-Kachel schickte zwar "?region=EU" mit, die Seite suchte sich
+         * aber trotzdem selbst eine aus - meist die mit einem laufenden
+         * Fenster, also eine ganz andere.
+         */
+        const gewuenscht = ausAdresse.region.trim().toUpperCase();
+        if (gewuenscht && regionen.includes(gewuenscht)) {
+          setRegion(gewuenscht);
+        } else {
+          // Sonst die Region mit laufendem Fenster, sonst die erste.
+          const mitLive = regionen.find((r2) => c.regionen[r2].some((f) => f.status === 'live'));
+          setRegion(mitLive ?? regionen[0] ?? '');
+        }
       } catch (e) { if (!weg) setFehler((e as Error).message); }
     })();
     return () => { weg = true; };
@@ -1239,10 +1268,37 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
 
   useEffect(() => {
     if (!tage.length) { setFenster(null); return; }
-    setFenster(tage.find((f) => f.status === 'live')
-      ?? tage.find((f) => f.status === 'vorbei')
+
+    /*
+     * Der Spieltag aus der Adresse, wenn es ihn hier gibt - aber nur einmal.
+     */
+    if (!adresseVerbraucht.current && ausAdresse.fenster) {
+      const gewuenscht = tage.find((f) => f.windowId === ausAdresse.fenster);
+      if (gewuenscht) {
+        adresseVerbraucht.current = true;
+        setFenster(gewuenscht);
+        return;
+      }
+    }
+    adresseVerbraucht.current = true;
+
+    /*
+     * Sonst der Reihe nach: was laeuft, was als Naechstes kommt, was zuletzt
+     * gelaufen ist.
+     *
+     * Der mittlere Schritt fehlte, und der letzte war falsch herum. "find"
+     * liefert den ERSTEN passenden Eintrag, und die Spieltage stehen in
+     * zeitlicher Reihenfolge - bei einem Cup mit drei Tagen, von denen zwei
+     * vorbei sind, landete man deshalb immer auf Tag 1. Genau das hat der
+     * Betreiber gemeldet: auf der Kachel stand "in 2 Tagen", geoeffnet wurde
+     * Tag 1.
+     */
+    setFenster(
+      tage.find((f) => f.status === 'live')
+      ?? tage.find((f) => f.status === 'kommt')
+      ?? [...tage].reverse().find((f) => f.status === 'vorbei')
       ?? tage[0]);
-  }, [tage]);
+  }, [tage, ausAdresse.fenster]);
 
   /*
    * Beim Wechsel des Spieltags alles Alte wegwerfen.
@@ -2852,6 +2908,22 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                                 </td>
                                 <td className="px-3 py-1.5 text-slate-200">
                                   {t.spieler.map(namenVon).join('  +  ')}
+                                  {/*
+                                    * Aus dem Replay nachgetragen.
+                                    *
+                                    * Dieses Team war nachweislich in der
+                                    * Lobby, Epic fuehrt sein Match aber
+                                    * nicht. Welchen Platz es belegte, sagt
+                                    * das Replay nicht - deshalb steht dort
+                                    * ein Strich und hier der Grund.
+                                    */}
+                                  {t.ausReplay && (
+                                    <span className="ml-2 rounded border
+                                                     border-sky-800/70 px-1.5 py-0.5
+                                                     text-[10px] text-sky-400/90">
+                                      <T>aus dem Replay</T>
+                                    </span>
+                                  )}
                                 </td>
                                 {mitPunkten && (
                                   <td className="px-3 py-1.5 text-right font-semibold

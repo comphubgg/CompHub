@@ -405,7 +405,21 @@ export default function EventsPage() {
                         const naechstes = liste.find((x) => x.status === 'kommt');
                         return (
                           <button key={r}
-                            onClick={() => router.push(`/events/${c.id}?region=${r}`)}
+                            /*
+                              * Mitgeben, welchen Spieltag diese Zeile meint.
+                              *
+                              * Auf der Zeile steht "in 2 Tagen" oder "laeuft" -
+                              * und genau dorthin will man, wenn man sie
+                              * anklickt. Ohne diese Angabe suchte sich die
+                              * Cup-Seite selbst einen aus und landete beim
+                              * ersten bereits gelaufenen; der Betreiber kam
+                              * also immer auf Tag 1 statt auf den Tag, der auf
+                              * der Kachel stand.
+                              */
+                            onClick={() => router.push(`/events/${c.id}?region=${r}`
+                              + (live ?? naechstes
+                                ? `&fenster=${encodeURIComponent((live ?? naechstes)!.windowId)}`
+                                : ''))}
                             className="group flex w-full items-center justify-between gap-2
                                        border-b border-zinc-900 px-3 py-2 text-left text-xs
                                        transition last:border-0 hover:bg-zinc-900">

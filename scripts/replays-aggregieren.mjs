@@ -29,6 +29,19 @@ import path from 'path';
 import { ABLAGE, PARSER_VERSION } from '../lib/replayKern.mjs';
 
 const neu = process.argv.slice(2).includes('--neu');
+
+/**
+ * Fassung dessen, was hier herausgeschrieben wird.
+ *
+ * Getrennt von PARSER_VERSION: die Replays werden nicht neu ausgewertet,
+ * es wird nur mehr aus dem bereits Ausgewerteten abgelegt. Wird hier etwas
+ * ergaenzt, zaehlt diese Zahl hoch, und die betroffenen Aggregate rechnen
+ * sich beim naechsten Lauf von selbst nach.
+ *
+ * 2 - je Match die beteiligten Konten ("lobbys"), damit sich Luecken in der
+ *     Aufstellung eines Finales benennen lassen.
+ */
+const AGGREGAT_FASSUNG = 2;
 const PLATZIERUNGEN = path.join(process.cwd(), 'data', 'platzierungen');
 const EPIC_SPIELTAGE = path.join(process.cwd(), 'data', 'epic-spieltage');
 
@@ -99,6 +112,39 @@ async function fensterRechnen(season, windowId) {
   if (!dateien.length) return null;
 
   const spieler = new Map();
+  /*
+   * Wer in welcher Lobby war.
+   *
+   * Die einzelnen Match-Dateien bleiben auf der Platte - sie sind zu gross,
+   * um sie in die gemeinsame Ablage zu schieben. Diese eine Zuordnung passt
+   * aber hinein und schliesst eine Luecke, die sonst nicht zu schliessen
+   * ist: Epic traegt gelegentlich einzelne Matches eines Teams gar nicht in
+   * seine Bestenliste ein, und dann fehlt das Team in der Aufstellung seiner
+   * Lobby, ohne dass irgendetwas darauf hinweist. Nachgemessen an einem
+   * Reload-Duos-Finale: neun Plaetze in sieben von fuenfundvierzig Lobbys.
+   * Im Replay sind sie da.
+   *
+   * Der Schluessel ist die Match-Kennung - dieselbe, die Epic als
+   * Sitzungskennung fuehrt und die im Werkzeug als "Match ID" steht.
+   */
+  const lobbys = {};
+  /*
+   * Nur bei ueberschaubaren Fenstern - also bei Finals.
+   *
+   * Ueber alle Fenster gemessen kosten diese Zuordnungen 128 MB, also
+   * siebzehn Prozent der gesamten Aggregate, und fast alles davon entfaellt
+   * auf offene Runden mit hunderten Lobbys. Dort nuetzen sie am wenigsten:
+   * die Aufstellung einer offenen Runde ist ohnehin durch die
+   * Zehntausend-Grenze der Bestenliste begrenzt, und daran aendern die
+   * Konten aus dem Replay nichts.
+   *
+   * Gebraucht werden sie im Finale. Dort ist das ganze Feld geladen, eine
+   * Luecke ist deshalb wirklich eine Luecke in Epics Daten - und genau die
+   * laesst sich damit benennen. Ein Finale hat rund fuenfundvierzig Lobbys,
+   * eine offene Runde ein Vielfaches davon.
+   */
+  const kleinesFeld = dateien.length <= 200;
+
   let elimsGesamt = 0;
   let titel = null; let region = null; let eventId = null;
   let frueheste = null; let spaeteste = null;
@@ -121,6 +167,9 @@ async function fensterRechnen(season, windowId) {
     for (const konto of m.konten ?? []) {
       if (!spieler.has(konto)) spieler.set(konto, leer());
       spieler.get(konto).matches++;
+    }
+    if (kleinesFeld && m.matchId && (m.konten ?? []).length) {
+      lobbys[m.matchId] = m.konten;
     }
 
     for (const e of m.elims ?? []) {
@@ -164,6 +213,9 @@ async function fensterRechnen(season, windowId) {
       .sort((a, b) => b.kills - a.kills),
     teams: teams ? teamWerte : null,
     teamQuelle: teams ? 'Epic-Bestenliste' : null,
+    /** Je Match die Konten, die im Replay vorkamen - siehe oben. */
+    lobbys,
+    aggregatFassung: AGGREGAT_FASSUNG,
   };
 }
 
@@ -188,7 +240,25 @@ async function main() {
             .filter((d) => d.endsWith('.json') && !d.startsWith('_')).length;
           // Neu rechnen, wenn Matches dazugekommen sind oder der Auswerter
           // eine andere Fassung hat.
-          if (alt.matches === dateien && alt.parserVersion === PARSER_VERSION) {
+          /*
+           * Neu gerechnet wird auch, wenn dieses Skript etwas Neues kann.
+           *
+           * Die Fassung des Aggregats haengt nicht am Auswerter: die
+           * Replays selbst sind unveraendert, nur wird jetzt mehr aus ihnen
+           * herausgeschrieben. PARSER_VERSION dafuer hochzuzaehlen wuerde
+           * jedes Replay noch einmal durch den Auswerter schicken - fuer
+           * nichts.
+           *
+           * Die Fassung gilt nur dort, wo die neue Angabe ueberhaupt
+           * entsteht: bei Fenstern bis zweihundert Matches. Sonst wuerden
+           * auch alle grossen Aggregate neu geschrieben und muessten neu
+           * hochgeladen werden, obwohl sich an ihnen nichts aendert.
+           */
+          const fassungFehlt = dateien <= 200
+            && alt.aggregatFassung !== AGGREGAT_FASSUNG;
+          if (alt.matches === dateien
+              && alt.parserVersion === PARSER_VERSION
+              && !fassungFehlt) {
             uebersprungen++; continue;
           }
         } catch { /* noch keins da */ }
