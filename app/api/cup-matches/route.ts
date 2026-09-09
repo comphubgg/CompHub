@@ -62,6 +62,8 @@ interface Zeile {
   punkte: number | null;
   /** Aus dem Replay nachgetragen, weil Epic dieses Match nicht fuehrt. */
   ausReplay?: boolean;
+  /** Werte aus dem eigenen Replay - nur fuer den, der es aufgezeichnet hat. */
+  eigen?: EigeneWerte | null;
 }
 
 interface Runde { ende: string | null; beginne: number[]; teams: Zeile[] }
@@ -84,6 +86,73 @@ interface Runde { ende: string | null; beginne: number[]; teams: Zeile[] }
  * Fehlt die Datei, aendert sich nichts: dann bleibt es bei dem, was Epic
  * hergibt.
  */
+/**
+ * Was aus einem eigenen Replay je Match herausgeloest wurde.
+ *
+ * Siehe scripts/eigene-replays.mjs. Diese Werte gibt es nur fuer die
+ * Person, die das Replay aufgezeichnet hat - Epic veroeffentlicht sie
+ * nirgends, und in einem Server-Replay stehen sie ebenfalls nicht. Wer sie
+ * sehen will, laesst einmal meine-werte-holen.bat laufen.
+ */
+interface EigeneWerte {
+  elims: number | null;
+  assists: number | null;
+  trefferquote: number | null;
+  schadenWaffen: number | null;
+  schadenSonst: number | null;
+  schadenAnSpieler: number | null;
+  schadenErhalten: number | null;
+  schadenAnBauten: number | null;
+  matsGefarmt: number | null;
+  matsVerbaut: number | null;
+  streckeMeter: number | null;
+  wiederbelebt: number | null;
+}
+
+interface EigenesMatch {
+  sitzung: string;
+  konto: string;
+  name: string | null;
+  werte: EigeneWerte;
+}
+
+/**
+ * Alle eigenen Werte, die auf diesem Stand vorliegen.
+ *
+ * Geordnet nach Match und Konto, damit sie beim Zusammensetzen einer
+ * Aufstellung ohne Suchen danebengelegt werden koennen. Fehlt der Ordner,
+ * fehlen eben die Werte - alles andere steht trotzdem da.
+ */
+async function eigeneWerte(): Promise<Map<string, Map<string, EigeneWerte>>> {
+  const raus = new Map<string, Map<string, EigeneWerte>>();
+  const wurzel = path.join(DATEN_ORT, 'eigene-matches');
+  let konten: string[];
+  try {
+    konten = await fs.readdir(wurzel);
+  } catch {
+    return raus;
+  }
+  for (const konto of konten) {
+    if (konto.startsWith('_')) continue;
+    let dateien: string[];
+    try {
+      dateien = await fs.readdir(path.join(wurzel, konto));
+    } catch { continue; }
+    for (const d of dateien) {
+      if (!d.endsWith('.json') || d.startsWith('_')) continue;
+      try {
+        const m = JSON.parse(
+          await fs.readFile(path.join(wurzel, konto, d), 'utf8')) as EigenesMatch;
+        if (!m?.sitzung || !m?.werte) continue;
+        const sitzung = m.sitzung.toLowerCase();
+        if (!raus.has(sitzung)) raus.set(sitzung, new Map());
+        raus.get(sitzung)!.set((m.konto ?? konto).toLowerCase(), m.werte);
+      } catch { /* eine kaputte Datei haelt den Rest nicht auf */ }
+    }
+  }
+  return raus;
+}
+
 interface ReplayTeam {
   platz: number | null;
   spieler: Array<{ id: string; name: string | null }>;
@@ -356,6 +425,28 @@ export async function GET(request: Request) {
       }
     }
 
+    /*
+     * Und die eigenen Werte danebenlegen, wo es welche gibt.
+     *
+     * Sie haengen an Match und Konto. Betroffen ist immer nur die Zeile
+     * des eigenen Teams; alle anderen bleiben, wie Epic sie liefert - fuer
+     * sie existieren diese Zahlen schlicht nicht.
+     */
+    const eigene = await eigeneWerte();
+    let mitEigenen = 0;
+    if (eigene.size) {
+      for (const [sitzung, r] of runden) {
+        const jeKonto = eigene.get(sitzung.toLowerCase());
+        if (!jeKonto) continue;
+        for (const t of r.teams) {
+          for (const sp of t.spieler) {
+            const w = jeKonto.get(kennung(sp.id));
+            if (w) { t.eigen = w; mitEigenen += 1; break; }
+          }
+        }
+      }
+    }
+
     const jetzt = Date.now();
 
     /*
@@ -497,6 +588,8 @@ export async function GET(request: Request) {
       nachgetragen,
       /** Wie viele Plaetze aus dem Replay stammen statt aus der Bestenliste. */
       plaetzeAusReplay,
+      /** Zu wie vielen Zeilen eigene Replay-Werte vorliegen. */
+      mitEigenen,
       /** Steht eine Punktetabelle zur Verfuegung? */
       mitPunkten: wertung.length > 0,
       hinweis: 'Values are per team, the way Epic reports them.',

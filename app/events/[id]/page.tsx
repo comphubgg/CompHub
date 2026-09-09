@@ -57,6 +57,22 @@ interface SpielZeile {
   punkte?: number | null;
   /** Aus dem Replay nachgetragen - Epic fuehrt dieses Match nicht. */
   ausReplay?: boolean;
+  /**
+   * Werte aus dem eigenen Replay.
+   *
+   * Es gibt sie nur fuer die Person, die das Replay aufgezeichnet hat -
+   * Epic veroeffentlicht Schaden, Trefferquote und Material zu einem
+   * Turniermatch nirgends, und in einem Server-Replay stehen sie auch
+   * nicht. Wer sie sehen will, laesst meine-werte-holen.bat laufen.
+   */
+  eigen?: {
+    elims: number | null; assists: number | null; trefferquote: number | null;
+    schadenWaffen: number | null; schadenSonst: number | null;
+    schadenAnSpieler: number | null; schadenErhalten: number | null;
+    schadenAnBauten: number | null; matsGefarmt: number | null;
+    matsVerbaut: number | null; streckeMeter: number | null;
+    wiederbelebt: number | null;
+  } | null;
 }
 
 /** Eine einzelne Runde des Spieltags. */
@@ -2899,8 +2915,12 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                               // vergibt die Id je Team, nicht je Sitzung.
                               // Ohne den Zusatz warf React Zeilen weg und
                               // brachte die Reihenfolge durcheinander.
-                              <tr key={`${t.teamId ?? 'x'}-${i}`}
-                                className="border-b border-zinc-900/70 last:border-0">
+                              //
+                              // Die Klammer darum gibt es, weil zu einer
+                              // Zeile eine zweite gehoeren kann: die mit den
+                              // Werten aus dem eigenen Replay.
+                              <Fragment key={`${t.teamId ?? 'x'}-${i}-gruppe`}>
+                              <tr className="border-b border-zinc-900/70 last:border-0">
                                 <td className={`px-3 py-1.5 text-right font-semibold
                                                 tabular-nums ${t.platz === 1
                                   ? 'text-amber-400' : 'text-slate-400'}`}>
@@ -2951,6 +2971,62 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                                   {t.tagesPlatz}
                                 </td>
                               </tr>
+                              {/*
+                                * Die eigenen Werte, wo es welche gibt.
+                                *
+                                * Sie stehen unter der Zeile, nicht in
+                                * eigenen Spalten: es gibt sie nur fuer ein
+                                * Team der Lobby, und zwoelf leere Spalten
+                                * fuer alle anderen waeren das Gegenteil
+                                * von Uebersicht.
+                                */}
+                              {t.eigen && (
+                                <tr key={`${t.teamId ?? 'x'}-${i}-eigen`}
+                                  className="border-b border-zinc-900/70 last:border-0
+                                             bg-sky-950/20">
+                                  <td colSpan={9} className="px-3 py-2">
+                                    <div className="mb-1 text-[10px] uppercase
+                                                    tracking-wider text-sky-500/80">
+                                      <T>aus deinem eigenen Replay</T>
+                                    </div>
+                                    <div className="grid gap-x-4 gap-y-1 text-[11px]
+                                                    sm:grid-cols-3 lg:grid-cols-4">
+                                      {([
+                                        ['Schaden an Spielern', t.eigen.schadenAnSpieler],
+                                        ['Schaden erhalten', t.eigen.schadenErhalten],
+                                        ['Schaden an Bauten', t.eigen.schadenAnBauten],
+                                        ['Trefferquote', t.eigen.trefferquote === null
+                                          ? null
+                                          : `${(t.eigen.trefferquote * 100).toFixed(1)} %`],
+                                        ['Waffenschaden', t.eigen.schadenWaffen],
+                                        ['Sonstiger Schaden', t.eigen.schadenSonst],
+                                        ['Material gefarmt', t.eigen.matsGefarmt],
+                                        ['Material verbaut', t.eigen.matsVerbaut],
+                                        ['Strecke', t.eigen.streckeMeter === null
+                                          ? null : `${t.eigen.streckeMeter.toLocaleString(ort)} m`],
+                                        ['Assists', t.eigen.assists],
+                                        ['Wiederbelebt', t.eigen.wiederbelebt],
+                                      ] as Array<[string, number | string | null]>)
+                                        .filter(([, v]) => v !== null && v !== undefined)
+                                        .map(([name, wert]) => (
+                                          <div key={name}
+                                            className="flex items-baseline justify-between
+                                                       gap-2 border-b border-zinc-900/60 pb-0.5">
+                                            <span className="text-slate-500">
+                                              <T>{name}</T>
+                                            </span>
+                                            <span className="font-semibold tabular-nums
+                                                             text-slate-200">
+                                              {typeof wert === 'number'
+                                                ? wert.toLocaleString(ort) : wert}
+                                            </span>
+                                          </div>
+                                        ))}
+                                    </div>
+                                  </td>
+                                </tr>
+                              )}
+                            </Fragment>
                             ))}
                           </tbody>
                         </table>
