@@ -40,8 +40,10 @@ const neu = process.argv.slice(2).includes('--neu');
  *
  * 2 - je Match die beteiligten Konten ("lobbys"), damit sich Luecken in der
  *     Aufstellung eines Finales benennen lassen.
+ * 3 - dort, wo das Replay tief gelesen wurde, statt der blossen Konten die
+ *     ganze Aufstellung mit echter Platzierung.
  */
-const AGGREGAT_FASSUNG = 2;
+const AGGREGAT_FASSUNG = 3;
 const PLATZIERUNGEN = path.join(process.cwd(), 'data', 'platzierungen');
 const EPIC_SPIELTAGE = path.join(process.cwd(), 'data', 'epic-spieltage');
 
@@ -168,8 +170,27 @@ async function fensterRechnen(season, windowId) {
       if (!spieler.has(konto)) spieler.set(konto, leer());
       spieler.get(konto).matches++;
     }
-    if (kleinesFeld && m.matchId && (m.konten ?? []).length) {
-      lobbys[m.matchId] = m.konten;
+    if (kleinesFeld && m.matchId) {
+      /*
+       * Die Aufstellung, so genau wie sie vorliegt.
+       *
+       * Erste Wahl ist die tiefe Auswertung: sie nennt Teams mit echter
+       * Platzierung, abgelesen aus dem Replay. Wo sie fehlt - alte
+       * Auswertungen, oder ein Replay, das sich nicht tief lesen liess -
+       * bleibt es bei den beteiligten Konten. Damit laesst sich immerhin
+       * noch sagen, WER in der Lobby war, wenn auch nicht auf welchem
+       * Platz.
+       */
+      if (m.lobby?.teams?.length) {
+        lobbys[m.matchId] = {
+          teams: m.lobby.teams.map((t) => ({
+            platz: t.platz ?? null,
+            spieler: (t.spieler ?? []).map((p) => ({ id: p.id, name: p.name })),
+          })),
+        };
+      } else if ((m.konten ?? []).length) {
+        lobbys[m.matchId] = { konten: m.konten };
+      }
     }
 
     for (const e of m.elims ?? []) {

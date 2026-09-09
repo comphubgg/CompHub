@@ -35,8 +35,8 @@
 import { promises as fs } from 'fs';
 import path from 'path';
 import {
-  ABLAGE, FRIST_TAGE, ZUSTAND, ladeMatch, leseMatch, liesZustand, matchIds,
-  matchPfad, replayVorhanden, schreibeMatch, schreibeZustand, warte,
+  ABLAGE, FRIST_TAGE, ZUSTAND, ladeMatch, leseMatch, leseMatchTief, liesZustand,
+  matchIds, matchPfad, replayVorhanden, schreibeMatch, schreibeZustand, warte,
   zustandAusOrdner,
 } from '../lib/replayKern.mjs';
 
@@ -375,6 +375,14 @@ async function offeneFenster() {
 
     for (const liste of Object.values(cup.regionen ?? {})) {
       const finals = regel === 'nurFinals' ? endrunden(liste) : null;
+      /*
+       * Welche Fenster dieser Region die Endrunde sind.
+       *
+       * Auch dort, wo die Regel "alles" lautet und deshalb nicht gefiltert
+       * wird, muss das bekannt sein: die tiefe Auswertung des Replays
+       * gehoert an die Endrunde, nicht an jede offene Runde.
+       */
+      const endrundeHier = endrunden(liste);
       for (const w of liste) {
         // Im Live-Lauf genau umgekehrt: nur, was gerade laeuft.
         if (nurLive ? w.status !== 'live' : w.status !== 'vorbei') continue;
@@ -391,6 +399,8 @@ async function offeneFenster() {
           season: m[1].toUpperCase(), windowId: w.windowId,
           eventId: w.eventId, region: w.region,
           titel: cup.titel, datum: ende,
+          /** Endrunde? Nur dort wird das Replay tief gelesen. */
+          istEndrunde: endrundeHier.has(w.windowId),
         };
         // Aelter als die Frist: Epic hat das Replay nicht mehr. Das ist kein
         // Fehler, sondern der Normalfall - es wird nur gezaehlt, damit
@@ -443,13 +453,44 @@ async function verarbeite(f, matchId, zustand) {
     setze(ZUSTAND.WERTET_AUS);
     const daten = await leseSchleuse(() => leseMatch(matchId, puffer));
 
+    /*
+     * Bei einem Finale zusaetzlich die Lobby aus dem Replay lesen.
+     *
+     * Der C#-Leser gibt die vollstaendige Aufstellung mit echter
+     * Platzierung - nachgemessen zwanzig Teams, Plaetze eins bis zwanzig,
+     * lueckenlos. Genau das fehlt in Epics Bestenliste immer wieder: dort
+     * sind einzelne Matches eines Teams gar nicht eingetragen, und die
+     * Aufstellung hatte dann Loecher, die sich anders nicht schliessen
+     * liessen.
+     *
+     * Nur bei Finals, und aus zwei Gruenden. Es kostet: statt achthundert
+     * Kilobyte werden einundsechzig Megabyte geladen, und die Auswertung
+     * dauert rund vier Sekunden statt zwei Millisekunden - bei einer
+     * offenen Runde mit hunderten Lobbys waere das stundenlang. Und es
+     * nuetzt dort am wenigsten: eine offene Runde zeigt ohnehin nur, was
+     * in den ersten zehntausend Plaetzen der Bestenliste steht.
+     *
+     * Schlaegt es fehl, bleibt alles beim Alten. Die Ereignisse sind
+     * bereits gelesen; die Lobby ist eine Zugabe, kein Fundament.
+     */
+    let lobby = null;
+    if (f.istEndrunde) {
+      try {
+        lobby = await leseSchleuse(() => leseMatchTief(matchId));
+      } catch (e) {
+        console.log(`\n  Lobby aus dem Replay nicht lesbar (${matchId}): ${e.message}`);
+      }
+    }
+
     await schreibeMatch(f.season, f.windowId, {
       ...daten,
+      lobby,
       eventId: f.eventId, windowId: f.windowId,
       region: f.region, season: f.season, titel: f.titel,
     });
     setze(ZUSTAND.FERTIG, {
       elims: daten.elims.length, konten: daten.konten.length,
+      lobbyTeams: lobby?.teams?.length ?? 0,
       parserVersion: daten.parserVersion,
       // Nur der Ort, nicht die Datei selbst - so wie gewuenscht.
       pfad: path.relative(process.cwd(), matchPfad(f.season, f.windowId, matchId)),

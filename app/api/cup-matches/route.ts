@@ -84,15 +84,29 @@ interface Runde { ende: string | null; beginne: number[]; teams: Zeile[] }
  * Fehlt die Datei, aendert sich nichts: dann bleibt es bei dem, was Epic
  * hergibt.
  */
+interface ReplayTeam {
+  platz: number | null;
+  spieler: Array<{ id: string; name: string | null }>;
+}
+/**
+ * Was im Aggregat je Match steht.
+ *
+ * Zwei Fassungen nebeneinander: "teams" stammt aus der tiefen Auswertung
+ * und nennt die Platzierung, "konten" ist der aeltere Stand und nennt nur,
+ * wer dabei war. Aeltere Fenster werden nicht neu geholt - Epic haelt
+ * Replays einunddreissig Tage -, also muss beides gelesen werden koennen.
+ */
+type Besetzung = { teams?: ReplayTeam[]; konten?: string[] } | string[];
+
 async function lobbyBesetzung(
   windowId: string,
-): Promise<Record<string, string[]>> {
+): Promise<Record<string, Besetzung>> {
   const saison = /^(S\d+)_/i.exec(windowId)?.[1]?.toUpperCase() ?? '';
   if (!saison) return {};
   try {
     const roh = await fs.readFile(
       path.join(DATEN_ORT, 'replays', saison, windowId, '_aggregat.json'), 'utf8');
-    const agg = JSON.parse(roh) as { lobbys?: Record<string, string[]> };
+    const agg = JSON.parse(roh) as { lobbys?: Record<string, Besetzung> };
     return agg.lobbys ?? {};
   } catch {
     return {};
@@ -181,6 +195,8 @@ export async function GET(request: Request) {
      */
     const besetzung = await lobbyBesetzung(window_);
     let nachgetragen = 0;
+    /** Wie viele Plaetze aus dem Replay stammen statt aus der Bestenliste. */
+    let plaetzeAusReplay = 0;
 
     /*
      * Die Namen der Konten, die Epic nicht in seiner Bestenliste fuehrt.
@@ -189,14 +205,23 @@ export async function GET(request: Request) {
      * je Abfrage, und einzeln nachzufragen waere je Lobby eine eigene
      * Runde bei einer Schnittstelle, die ohnehin ungern viel gefragt wird.
      */
+    /** Die blossen Konten einer Besetzung - egal in welcher Fassung. */
+    const kontenVon = (b: Besetzung): string[] => {
+      if (Array.isArray(b)) return b;
+      if (b.teams?.length) {
+        return b.teams.flatMap((t) => t.spieler.map((p) => p.id));
+      }
+      return b.konten ?? [];
+    };
+
     const namenNach = new Map<string, string>();
     const offen = new Set<string>();
-    for (const [sitzung, konten] of Object.entries(besetzung)) {
+    for (const [sitzung, b] of Object.entries(besetzung)) {
       const r = runden.get(sitzung);
       if (!r) continue;
       const da = new Set<string>();
       for (const t of r.teams) for (const sp of t.spieler) da.add(sp.id);
-      for (const k of konten) if (!da.has(k) && !nachKonto.has(k)) offen.add(k);
+      for (const k of kontenVon(b)) if (!da.has(k) && !nachKonto.has(k)) offen.add(k);
     }
     if (offen.size) {
       try {
@@ -205,9 +230,40 @@ export async function GET(request: Request) {
         for (const [id, name] of Object.entries(namen)) namenNach.set(id, name);
       } catch { /* ohne Namen bleibt die gekuerzte Kennung */ }
     }
-    for (const [sitzung, konten] of Object.entries(besetzung)) {
+    for (const [sitzung, b] of Object.entries(besetzung)) {
       const r = runden.get(sitzung);
       if (!r) continue;
+
+      /*
+       * Wo das Replay die Platzierung kennt, gilt sie.
+       *
+       * Sie ist abgelesen, nicht abgeleitet - der C#-Leser gibt die
+       * vollstaendige Aufstellung eines Matches heraus, nachgemessen
+       * zwanzig Teams mit den Plaetzen eins bis zwanzig, lueckenlos. Epics
+       * Bestenliste hat an derselben Stelle Loecher, weil sie einzelne
+       * Matches eines Teams nicht fuehrt.
+       *
+       * Getroffen werden die Teams ueber die Konto-Kennung; wo Epic schon
+       * einen Platz nennt, bleibt er stehen, damit sich beide Quellen nicht
+       * gegenseitig ueberschreiben.
+       */
+      const ausReplay = !Array.isArray(b) ? (b.teams ?? []) : [];
+      const platzFuer = new Map<string, number>();
+      for (const t of ausReplay) {
+        if (t.platz === null || t.platz === undefined) continue;
+        for (const p of t.spieler) platzFuer.set(p.id, t.platz);
+      }
+      if (platzFuer.size) {
+        for (const t of r.teams) {
+          if (t.platz !== null && t.platz !== undefined) continue;
+          for (const sp of t.spieler) {
+            const p = platzFuer.get(sp.id);
+            if (p !== undefined) { t.platz = p; plaetzeAusReplay += 1; break; }
+          }
+        }
+      }
+
+      const konten = kontenVon(b);
       const schonDa = new Set<string>();
       for (const t of r.teams) for (const sp of t.spieler) schonDa.add(sp.id);
 
@@ -230,8 +286,11 @@ export async function GET(request: Request) {
         else unbekannt.push(konto);
       }
       for (const e of neueTeams) {
+        const p = e.players.map((sp) => platzFuer.get(sp.id))
+          .find((x) => x !== undefined) ?? null;
+        if (p !== null) plaetzeAusReplay += 1;
         r.teams.push({
-          platz: null,
+          platz: p,
           tagesPlatz: e.rank,
           teamId: e.teamId,
           spieler: e.players.map((sp) => ({ id: sp.id, name: sp.name })),
@@ -250,11 +309,18 @@ export async function GET(request: Request) {
          * Namen zu einem Duo zusammenzuziehen, weil sie zufaellig in
          * derselben Lobby fehlen, waere geraten.
          */
+        const p = platzFuer.get(konto) ?? null;
+        if (p !== null) plaetzeAusReplay += 1;
         r.teams.push({
-          platz: null,
+          platz: p,
           tagesPlatz: 0,
           teamId: null,
-          spieler: [{ id: konto, name: namenNach.get(konto) ?? konto.slice(0, 8) }],
+          spieler: [{
+            id: konto,
+            name: namenNach.get(konto)
+              ?? ausReplay.flatMap((t) => t.spieler).find((x) => x.id === konto)?.name
+              ?? konto.slice(0, 8),
+          }],
           elims: 0, wins: 0, timeAlive: 0, damage: 0,
           ende: null, punkte: null,
           ausReplay: true,
@@ -402,6 +468,8 @@ export async function GET(request: Request) {
       feldGrenze,
       /** Wie viele Teams aus den Replays nachgetragen wurden. */
       nachgetragen,
+      /** Wie viele Plaetze aus dem Replay stammen statt aus der Bestenliste. */
+      plaetzeAusReplay,
       /** Steht eine Punktetabelle zur Verfuegung? */
       mitPunkten: wertung.length > 0,
       hinweis: 'Values are per team, the way Epic reports them.',
