@@ -8,7 +8,7 @@ import { istBetreiber, vipAus } from '@/lib/vipCookie';
 import { zugangNach, rechteVon } from '@/lib/vipZugaenge';
 import { verankereProfi } from '@/lib/profiVerankern';
 import { DATEN_ORT } from '@/lib/datenOrt';
-import { schickeSchluessel, discordDa } from '@/lib/discord';
+import { schickeSchluessel, loescheZugang, discordDa } from '@/lib/discord';
 import {
   neuerSchluessel, praefixTaugt, schluesselTaugt, schonVergeben,
 } from '@/lib/zugangsSchluessel';
@@ -141,6 +141,15 @@ export async function POST(request: Request) {
 
   const koerper = await request.json().catch(() => ({}));
   const name = String(koerper.name ?? '').trim();
+  /*
+   * Fuer wen dieser Zugang die Overlays verwaltet.
+   *
+   * Steht hier ein Name, entsteht ein Manager-Zugang: mehrere Leute teilen
+   * ihn sich und betreuen damit die Overlays eines Streamers. Der Zugang
+   * bekommt seinen eigenen Discord-Kanal in einer eigenen Kategorie und
+   * eine eigene Rolle, und er darf nur an die Overlays - nichts sonst.
+   */
+  const verwaltet = String(koerper.verwaltet ?? '').trim();
 
   /*
    * Der Name - und eine Meldung, die sagt, was wirklich fehlt.
@@ -173,6 +182,24 @@ export async function POST(request: Request) {
   }
 
   const daten = await lies();
+
+  /*
+   * Ein Manager braucht jemanden, den es gibt.
+   *
+   * Sonst entstuende ein Zugang, der auf eine leere Ablage zeigt - er
+   * koennte sich anmelden und saehe nichts, ohne dass irgendwo stuende,
+   * warum.
+   */
+  if (verwaltet) {
+    const wen = verwaltet.toLowerCase();
+    const da = wen === 'betreiber'
+      || daten.users.some((u) => u.username.toLowerCase() === wen);
+    if (!da) {
+      return NextResponse.json(
+        { fehler: `Für "${verwaltet}" gibt es keinen Zugang.` }, { status: 400 });
+    }
+  }
+
   const i = daten.users.findIndex(
     (u) => u.username.toLowerCase() === name.toLowerCase());
 
@@ -225,6 +252,24 @@ export async function POST(request: Request) {
       accessKey: schluessel,
       status: 'active',
       createdAt: new Date().toISOString(),
+      /*
+       * Ein Manager kommt fertig eingerichtet zur Welt.
+       *
+       * Rolle "manager", das Recht auf die Overlays und der Name dessen,
+       * fuer den er arbeitet. Ohne das muesste der Betreiber nach jedem
+       * Anlegen noch dreimal klicken, und bis dahin waere der Zugang ein
+       * Konto ohne Zweck.
+       *
+       * Den eigenen Schluessel darf er nicht wechseln: mehrere Leute teilen
+       * ihn sich, und einer koennte damit die anderen aussperren. Das bleibt
+       * beim Betreiber.
+       */
+      ...(verwaltet ? {
+        rolle: 'manager' as const,
+        rechte: ['overlays'],
+        verwaltet,
+        darfSchluessel: false,
+      } : {}),
     });
   }
 
@@ -244,7 +289,8 @@ export async function POST(request: Request) {
    * waere das der schlechtere Handel. Was schiefging, steht als Hinweis
    * daneben, damit es nicht unbemerkt bleibt.
    */
-  const discord = await schickeSchluessel(name, schluessel);
+  const discord = await schickeSchluessel(
+    verwaltet || name, schluessel, verwaltet ? 'manager' : 'vip');
 
   /*
    * Der Schluessel geht genau hier heraus, ein einziges Mal. Die Oberflaeche
@@ -371,5 +417,19 @@ export async function DELETE(request: Request) {
   }
 
   await schreibe({ users: uebrig });
-  return NextResponse.json({ ok: true });
+
+  /*
+   * Und in Discord ebenfalls aufraeumen.
+   *
+   * Sonst bleiben Kanal und Rolle stehen, und wer denselben Namen spaeter
+   * wieder anlegt, bekommt einen zweiten Kanal daneben. Genau das ist dem
+   * Betreiber passiert.
+   */
+  const discord = await loescheZugang(name);
+
+  return NextResponse.json({
+    ok: true,
+    discord: discord.ok ? 'aufgeraeumt'
+      : discordDa() ? `nicht aufgeraeumt: ${discord.grund}` : null,
+  });
 }

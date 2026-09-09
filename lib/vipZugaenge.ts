@@ -35,6 +35,20 @@ export interface Zugang {
    * das je Zugang einzeln an.
    */
   darfSchluessel?: boolean;
+  /**
+   * Fuer wen dieser Zugang die Overlays verwaltet.
+   *
+   * Ein Manager-Zugang gehoert nicht einer Person, sondern einem Streamer:
+   * mehrere Leute teilen sich "groupay-manager" und betreuen damit die
+   * Overlays von "groupay". Steht hier ein Name, arbeitet dieser Zugang auf
+   * dessen Ablage - er sieht dessen gespeicherte Overlays, kann Spieler
+   * darin tauschen und neue anlegen, und alles Angelegte gehoert weiterhin
+   * dem Streamer.
+   *
+   * Der Manager kann seinen eigenen Schluessel nicht wechseln; das bleibt
+   * beim Betreiber. Sonst haette einer von mehreren die anderen ausgesperrt.
+   */
+  verwaltet?: string;
 }
 
 export async function alleZugaenge(): Promise<Zugang[]> {

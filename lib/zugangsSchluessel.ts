@@ -29,11 +29,18 @@ export const MAX_LAENGE = 40;
 /**
  * Ein zufaelliger Schluessel, wahlweise mit selbst gewaehltem Anfang.
  *
- * Ohne Vorgabe wie bisher: zwoelf Zeichen in drei Blocken. Mit Vorgabe
- * steht sie vorn, der Rest bleibt zufaellig - "AMAR-K7P2-QW9X" ist damit
- * moeglich, ohne dass der Schluessel dadurch ratbar wird: die acht
- * zufaelligen Zeichen sind immer noch mehr als eine Billion
- * Moeglichkeiten.
+ * Acht zufaellige Zeichen in zwei Blocken. Mit Vorgabe steht sie vorn:
+ * "AMAR-K7P2-QW9X" bleibt damit moeglich.
+ *
+ * Frueher waren es ohne Vorgabe zwoelf Zeichen in drei Blocken. Der
+ * Betreiber wollte sie kuerzer - "also achtstellig, zwei mal vier, nicht
+ * drei mal vier" -, und das ist auch vertretbar: aus einem Vorrat von
+ * einunddreissig Zeichen sind acht Stellen rund achthundertfuenfzig
+ * Milliarden Moeglichkeiten. Wer raten will, braucht bei einer Anfrage je
+ * Sekunde im Mittel dreizehntausend Jahre.
+ *
+ * Schon vergebene Schluessel bleiben unberuehrt - sie sind laenger und
+ * werden weiterhin angenommen; geaendert wird nur, was neu entsteht.
  */
 export function neuerSchluessel(praefix = ''): string {
   const anfang = praefix.trim().toUpperCase();
@@ -44,12 +51,9 @@ export function neuerSchluessel(praefix = ''): string {
     return s;
   };
 
-  if (!anfang) {
-    const z = zufall(12);
-    return `${z.slice(0, 4)}-${z.slice(4, 8)}-${z.slice(8)}`;
-  }
   const z = zufall(8);
-  return `${anfang}-${z.slice(0, 4)}-${z.slice(4)}`;
+  const kern = `${z.slice(0, 4)}-${z.slice(4)}`;
+  return anfang ? `${anfang}-${kern}` : kern;
 }
 
 /**

@@ -94,7 +94,29 @@ async function wer(): Promise<string | null> {
   if (vipWert) {
     if (istBetreiber(vipWert)) return 'betreiber';
     const name = vipAus(vipWert);
-    if (name && await zugangNach(name)) return `vip:${name}`;
+    if (name) {
+      const zugang = await zugangNach(name);
+      if (zugang) {
+        /*
+         * Ein Manager arbeitet auf der Ablage seines Streamers.
+         *
+         * Nicht auf einer eigenen: die Overlays gehoeren dem Streamer, und
+         * mehrere Manager teilen sich denselben Zugang. Gaebe die
+         * Schnittstelle hier den Manager-Namen zurueck, haette jeder
+         * Manager-Zugang seine eigene, leere Sammlung - und der Streamer
+         * saehe von der Arbeit seiner Manager nichts.
+         *
+         * Geprueft wird gegen den Streamer-Zugang: wurde der geloescht,
+         * verwaltet der Manager nichts mehr und bekommt auch nichts.
+         */
+        const fuer = (zugang.verwaltet ?? '').trim();
+        if (fuer) {
+          if (fuer.toLowerCase() === 'betreiber') return 'betreiber';
+          return await zugangNach(fuer) ? `vip:${fuer}` : null;
+        }
+        return `vip:${name}`;
+      }
+    }
   }
 
   return null;
