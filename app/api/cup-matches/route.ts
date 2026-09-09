@@ -98,6 +98,17 @@ interface ReplayTeam {
  */
 type Besetzung = { teams?: ReplayTeam[]; konten?: string[] } | string[];
 
+/**
+ * Konto-Kennungen vergleichbar machen.
+ *
+ * Epics Bestenliste schreibt sie klein, der C#-Leser des Replays gross.
+ * Ohne diese Angleichung trifft nichts aufeinander: jedes Team des Replays
+ * gilt dann als unbekannt und wird noch einmal angelegt - gemessen sechzig
+ * Zeilen in einer Lobby mit zwanzig Teams, und siebzehnhundert
+ * "nachgetragene" Teams in einem Fenster, das genau neun vermisste.
+ */
+const kennung = (id: string | null | undefined) => (id ?? '').toLowerCase();
+
 async function lobbyBesetzung(
   windowId: string,
 ): Promise<Record<string, Besetzung>> {
@@ -153,7 +164,7 @@ export async function GET(request: Request) {
      */
     const nachKonto = new Map<string, CupEintrag>();
     for (const e of daten.entries as CupEintrag[]) {
-      for (const sp of e.players) if (sp.id) nachKonto.set(sp.id, e);
+      for (const sp of e.players) if (sp.id) nachKonto.set(kennung(sp.id), e);
     }
 
     for (const e of daten.entries as CupEintrag[]) {
@@ -209,9 +220,9 @@ export async function GET(request: Request) {
     const kontenVon = (b: Besetzung): string[] => {
       if (Array.isArray(b)) return b;
       if (b.teams?.length) {
-        return b.teams.flatMap((t) => t.spieler.map((p) => p.id));
+        return b.teams.flatMap((t) => t.spieler.map((p) => kennung(p.id)));
       }
-      return b.konten ?? [];
+      return (b.konten ?? []).map(kennung);
     };
 
     const namenNach = new Map<string, string>();
@@ -220,7 +231,7 @@ export async function GET(request: Request) {
       const r = runden.get(sitzung);
       if (!r) continue;
       const da = new Set<string>();
-      for (const t of r.teams) for (const sp of t.spieler) da.add(sp.id);
+      for (const t of r.teams) for (const sp of t.spieler) da.add(kennung(sp.id));
       for (const k of kontenVon(b)) if (!da.has(k) && !nachKonto.has(k)) offen.add(k);
     }
     if (offen.size) {
@@ -251,13 +262,13 @@ export async function GET(request: Request) {
       const platzFuer = new Map<string, number>();
       for (const t of ausReplay) {
         if (t.platz === null || t.platz === undefined) continue;
-        for (const p of t.spieler) platzFuer.set(p.id, t.platz);
+        for (const p of t.spieler) platzFuer.set(kennung(p.id), t.platz);
       }
       if (platzFuer.size) {
         for (const t of r.teams) {
           if (t.platz !== null && t.platz !== undefined) continue;
           for (const sp of t.spieler) {
-            const p = platzFuer.get(sp.id);
+            const p = platzFuer.get(kennung(sp.id));
             if (p !== undefined) { t.platz = p; plaetzeAusReplay += 1; break; }
           }
         }
@@ -265,7 +276,7 @@ export async function GET(request: Request) {
 
       const konten = kontenVon(b);
       const schonDa = new Set<string>();
-      for (const t of r.teams) for (const sp of t.spieler) schonDa.add(sp.id);
+      for (const t of r.teams) for (const sp of t.spieler) schonDa.add(kennung(sp.id));
 
       const neueTeams = new Set<CupEintrag>();
       /*
@@ -286,7 +297,7 @@ export async function GET(request: Request) {
         else unbekannt.push(konto);
       }
       for (const e of neueTeams) {
-        const p = e.players.map((sp) => platzFuer.get(sp.id))
+        const p = e.players.map((sp) => platzFuer.get(kennung(sp.id)))
           .find((x) => x !== undefined) ?? null;
         if (p !== null) plaetzeAusReplay += 1;
         r.teams.push({
@@ -300,27 +311,43 @@ export async function GET(request: Request) {
         });
         nachgetragen += 1;
       }
-      for (const konto of unbekannt) {
-        /*
-         * Einzeln, nicht als Duo.
-         *
-         * Wer mit wem zusammenspielte, sagt weder das Replay noch die
-         * Bestenliste - beide kennen diese Konten nicht als Team. Zwei
-         * Namen zu einem Duo zusammenzuziehen, weil sie zufaellig in
-         * derselben Lobby fehlen, waere geraten.
-         */
-        const p = platzFuer.get(konto) ?? null;
-        if (p !== null) plaetzeAusReplay += 1;
+      /*
+       * Als Team, so wie das Replay sie gruppiert.
+       *
+       * Frueher stand hier je Konto eine eigene Zeile, weil weder Epic noch
+       * die Ereignisse verraten, wer mit wem spielte - ein Duo erschien
+       * dann zweimal mit demselben Platz. Die tiefe Auswertung des Replays
+       * gruppiert die Spieler aber selbst; das ist abgelesen und nicht
+       * geraten, also wird es genommen.
+       */
+      const offenNoch = new Set(unbekannt);
+      for (const t of ausReplay) {
+        const seine = t.spieler.filter((p) => offenNoch.has(kennung(p.id)));
+        if (!seine.length) continue;
+        for (const p of seine) offenNoch.delete(kennung(p.id));
+        if (t.platz !== null && t.platz !== undefined) plaetzeAusReplay += 1;
         r.teams.push({
-          platz: p,
+          platz: t.platz ?? null,
           tagesPlatz: 0,
           teamId: null,
-          spieler: [{
-            id: konto,
-            name: namenNach.get(konto)
-              ?? ausReplay.flatMap((t) => t.spieler).find((x) => x.id === konto)?.name
-              ?? konto.slice(0, 8),
-          }],
+          spieler: seine.map((p) => ({
+            id: kennung(p.id),
+            name: p.name ?? namenNach.get(kennung(p.id)) ?? kennung(p.id).slice(0, 8),
+          })),
+          elims: 0, wins: 0, timeAlive: 0, damage: 0,
+          ende: null, punkte: null,
+          ausReplay: true,
+        });
+        nachgetragen += 1;
+      }
+      // Was das Replay nicht gruppiert hat - aeltere Auswertungen ohne
+      // Aufstellung -, bleibt einzeln stehen. Ein Platz steht dort nicht.
+      for (const konto of offenNoch) {
+        r.teams.push({
+          platz: platzFuer.get(konto) ?? null,
+          tagesPlatz: 0,
+          teamId: null,
+          spieler: [{ id: konto, name: namenNach.get(konto) ?? konto.slice(0, 8) }],
           elims: 0, wins: 0, timeAlive: 0, damage: 0,
           ende: null, punkte: null,
           ausReplay: true,

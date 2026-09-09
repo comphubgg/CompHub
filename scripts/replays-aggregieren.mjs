@@ -277,9 +277,29 @@ async function main() {
            */
           const fassungFehlt = dateien <= 200
             && alt.aggregatFassung !== AGGREGAT_FASSUNG;
+
+          /*
+           * Und neu rechnen, wenn eine Match-Datei juenger ist als das
+           * Aggregat.
+           *
+           * Die Zahl der Matches allein genuegt nicht: wird ein Fenster
+           * spaeter noch einmal tief gelesen, bleiben es dieselben
+           * Dateien, nur mit mehr Inhalt. Genau das ist passiert - das
+           * Aggregat trug bereits die neue Fassung, waehrend die
+           * Aufstellungen noch gar nicht geschrieben waren, und blieb
+           * danach stehen.
+           */
+          const standAgg = await fs.stat(ziel).then((x) => x.mtimeMs, () => 0);
+          let juenger = false;
+          for (const d of await fs.readdir(ordner)) {
+            if (!d.endsWith('.json') || d.startsWith('_')) continue;
+            const st = await fs.stat(path.join(ordner, d)).catch(() => null);
+            if (st && st.mtimeMs > standAgg) { juenger = true; break; }
+          }
+
           if (alt.matches === dateien
               && alt.parserVersion === PARSER_VERSION
-              && !fassungFehlt) {
+              && !fassungFehlt && !juenger) {
             uebersprungen++; continue;
           }
         } catch { /* noch keins da */ }
