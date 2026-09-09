@@ -1839,6 +1839,16 @@ const AUF_ENGLISCH: Record<string, string> = {
     + 'minutes. Closing a tab does not sign anyone out — nothing more can '
     + 'honestly be said about it.',
   'Noch keine Ergebnisse': 'No results yet',
+  'Deine Werte': 'Your Stats',
+  'Konto auswählen': 'Select an account',
+  'kein Mitspieler': 'no team-mate',
+  'Schaden an Spielern': 'Damage To Players',
+  'Bauteile gesetzt': 'Builds Placed',
+  'Lebenszeit je Runde': 'Avg Time Alive',
+  'Zeit im Sturm': 'Time in Storm',
+  'Zu diesem Spieltag liegen keine Einzelwerte vor. Schaden, Trefferquote und Material veröffentlicht Epic nicht — sie kommen aus einer Szene-Quelle, die ein bis zwei Tage später erscheint und nicht jeden Cup abdeckt.': 'No individual stats for this match day. Epic does not publish damage, accuracy or materials — they come from a scene source that appears one to two days later and does not cover every cup.',
+  'Wähle oben dein Konto — dann stehen hier deine Werte und die deines Mitspielers nebeneinander.': 'Pick your account above — then your stats and your team-mate’s appear side by side.',
+  'Diese Einzelwerte veröffentlicht Epic nicht. Sie stammen aus der Szene-Quelle, die dieses Werkzeug spiegelt.': 'Epic does not publish these individual stats. They come from the scene source this tool mirrors.',
   'aus dem Replay': 'from the replay',
   'Plätze — zu ihnen hat Epic keinen Eintrag geliefert, obwohl das ganze Feld geladen ist. Die Match-ID oben ist vollständig.':
     'places — Epic delivered no record for them, even though the whole field is loaded. The match ID above is complete.',
