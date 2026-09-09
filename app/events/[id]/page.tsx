@@ -5,7 +5,10 @@
 // Bewusst schlank gehalten - keine Power Rankings, keine Match-Listen,
 // keine Streams.
 
-import { Fragment, use, useCallback, useEffect, useDeferredValue, useMemo, useRef, useState } from 'react';
+import {
+  Fragment, memo, use, useCallback, useEffect, useDeferredValue, useMemo,
+  useRef, useState, type Dispatch, type SetStateAction,
+} from 'react';
 import Link from 'next/link';
 import TeamFlagge, { flaggenPfad } from '@/components/TeamFlagge';
 import { namensSchluessel } from '@/lib/homoglyph';
@@ -131,6 +134,150 @@ interface Eintrag {
   players: Spieler[]; matches: Match[];
 }
 
+/**
+ * Eine Kachel der Rundenliste - bewusst ein eigenes, gemerktes Bauteil.
+ *
+ * Ein Spieltag hat ueber zwanzigtausend davon. Standen sie unmittelbar in
+ * der Ausgabe, liess jede Zustandsaenderung React alle noch einmal
+ * durchgehen: das Oeffnen einer Lobby brauchte gemessen 1.667
+ * Millisekunden, und waehrend die Liste weiterwuchs, geschah das alle
+ * hundertzwanzig Millisekunden erneut. Genau daran scheiterten Klicks auf
+ * die unteren Kacheln - der Betreiber: "ich konnte irgendwie nicht darauf
+ * druecken unten."
+ *
+ * Mit memo prueft React nur noch, ob sich die Angaben dieser einen Kachel
+ * geaendert haben, und ueberspringt sie sonst. Deshalb bekommt sie nur
+ * Werte, die sich nicht bei jedem Durchlauf neu ergeben: "offen" statt der
+ * geoeffneten Kennung, die fertige Dauer statt der Uhr, und mit "oeffnen"
+ * die Zustandsfunktion selbst, die ueber die ganze Lebensdauer dieselbe
+ * bleibt.
+ */
+const SpielKachel = memo(function SpielKachel({
+  sp, offen, eineLobby, ort, dauer, namenVon, oeffnen,
+}: {
+  sp: Spiel;
+  offen: boolean;
+  eineLobby: boolean;
+  ort: string;
+  dauer: number;
+  namenVon: (spieler: Spieler) => string;
+  oeffnen: Dispatch<SetStateAction<string | null>>;
+}) {
+  return (
+    <button
+      onClick={() => oeffnen((v) => (v === sp.id ? null : sp.id))}
+      className={`rounded-lg border px-3 py-2.5 text-left
+                  transition ${offen
+        ? 'border-sky-600 bg-sky-950/20'
+        : sp.live
+          ? 'border-rose-900/60 bg-zinc-900/40 hover:border-rose-700'
+          : 'border-zinc-800 bg-zinc-950/60 hover:border-zinc-700'}`}>
+      {/* Erste Zeile: was es ist, und wann es anfing. */}
+      <div className="flex items-start justify-between gap-2">
+        <span className="flex items-center gap-1.5">
+          {sp.live && (
+            <span className="relative flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full
+                               animate-ping rounded-full bg-rose-500
+                               opacity-75" />
+              <span className="relative inline-flex h-2 w-2
+                               rounded-full bg-rose-500" />
+            </span>
+          )}
+          {/*
+            * "Match ended" statt "Lobby".
+            *
+            * Der Betreiber: "Es soll nie Lobby heissen. Es
+            * soll eigentlich wie bei Fortnite Tracker sein -
+            * match ended oder match live." Bei einem Finale,
+            * in dem alle in derselben Lobby spielen, bleibt
+            * die Rundennummer davor: dort meint "Runde 3"
+            * fuer jeden dasselbe Spiel.
+            */}
+          <span className={`text-xs font-semibold uppercase
+                            tracking-wide ${sp.live
+            ? 'text-rose-400' : 'text-slate-300'}`}>
+            {sp.live ? <T>Match läuft</T>
+              : eineLobby ? <><T>Runde</T> {sp.nummer}</>
+              : <T>Match beendet</T>}
+          </span>
+        </span>
+        <span className="text-right">
+          <span className="block text-xs font-semibold
+                           tabular-nums text-slate-200">
+            {(sp.live ? sp.beginn : sp.ende)
+              ? new Date((sp.live ? sp.beginn : sp.ende)!)
+                .toLocaleTimeString(ort,
+                  { hour: '2-digit', minute: '2-digit' })
+              : '—'}
+          </span>
+          <span className="block text-[10px] text-slate-600">
+            {(sp.live ? sp.beginn : sp.ende)
+              ? new Date((sp.live ? sp.beginn : sp.ende)!)
+                .toLocaleDateString(ort,
+                  { day: 'numeric', month: 'short' })
+              : ''}
+          </span>
+        </span>
+      </div>
+
+      {/* Zweite Zeile: wie lange sie laeuft. */}
+      <p className="mt-0.5 text-[11px] text-slate-500">
+        <T>Dauer</T> {dauerText(dauer)}
+      </p>
+
+      {/* Dritte Zeile: wer noch drin ist - oder wer gewann. */}
+      <div className="mt-2 border-t border-zinc-800/80 pt-2">
+        {sp.live ? (
+          <span className="flex items-center justify-between gap-2
+                           text-[11px]">
+            <span className="text-slate-400">
+              <T>Teams noch im Spiel</T>
+            </span>
+            <span className="font-semibold tabular-nums
+                             text-amber-400">
+              {sp.verbleibend ?? 0}
+              <span className="text-slate-600"> / {sp.lobby ?? '—'}</span>
+            </span>
+          </span>
+        ) : sp.sieger.length > 0 ? (
+          /* Wie beim Vorbild: ein Pokal, das Wort "Winners"
+             und dahinter das Duo. */
+          <span className="flex items-baseline gap-1.5
+                           text-[11px] text-amber-400">
+            <span className="not-italic">🏆</span>
+            <span className="shrink-0 text-slate-500">
+              <T>Sieger</T>:
+            </span>
+            <span className="min-w-0 truncate">
+              {sp.sieger.map((n, k) => namenVon({
+                name: n,
+                id: sp.teams.find((x) => x.platz === 1)
+                  ?.spieler[k]?.id ?? '',
+              })).join(', ')}
+            </span>
+          </span>
+        ) : (
+          /*
+           * Kein Sieger heisst nicht "kein Sieger".
+           *
+           * Hier stand nur eine Zahl - "1 Teams" -, und der Betreiber
+           * fragte zu Recht: wieso nur eins? Der Grund ist immer derselbe:
+           * die Aufstellung entsteht aus der Bestenliste, und die reicht
+           * bis Platz zehntausend. Wer diese Lobby gewonnen hat, liegt am
+           * Tag weiter hinten und kommt in keiner Zeile vor. Das gehoert
+           * dazugesagt statt einer nackten Zahl.
+           */
+          <span className="text-[11px] text-slate-600">
+            {sp.gesehen ?? sp.teams.length}{' '}
+            <T>von dieser Lobby im Leaderboard</T>
+          </span>
+        )}
+      </div>
+    </button>
+  );
+});
+
 const REGION_TEXT: Record<string, string> = {
   GLOBAL: 'Alle Regionen', EU: 'Europe', NAC: 'NA Central', NAW: 'NA West',
   BR: 'Brazil', ASIA: 'Asia', ME: 'Middle East', OCE: 'Oceania',
@@ -216,19 +363,47 @@ const STUECK_SEITEN = 10;
  * kommt in Schritten nach, ohne dass jemand etwas anklicken muss.
  */
 const ERSTE_SPIELE = 30;
-const NACHSCHUB_SPIELE = 30;
 
 /**
- * Bis hierher waechst die Liste von allein weiter, danach beim Scrollen.
+ * Wie schnell die Rundenliste weiterwaechst - bis zum Ende, ohne Deckel.
  *
- * Eine offene Runde eines Victory Cups hat ueber zwanzigtausend Lobbys -
- * gemessen an einem echten Spieltag. Sie alle zu zeichnen waeren
- * hunderttausende Elemente im Dokument; der Browser wird dabei zaeh, und
- * angesehen hat sie ohnehin niemand. Dreihundert fuellen mehrere
- * Bildschirmhoehen, alles Weitere kommt nach, sobald jemand tatsaechlich
- * dorthin scrollt. Angeklickt werden muss dafuer nach wie vor nichts.
+ * Hier stand einmal eine Obergrenze von dreihundert: darueber hinaus wuchs
+ * die Liste nur noch beim Scrollen, aus Sorge, zwanzigtausend Kacheln
+ * koennten den Browser belasten. Der Betreiber hat das zurueckgewiesen -
+ * "wieso bleibt es nur so wenig? Es soll alle laden, alle
+ * zwanzigtausendsechshundertzweiundvierzig". Die Entscheidung gehoert ihm,
+ * die Grenze ist deshalb weg.
+ *
+ * Geblieben ist die Schrittweite. Fuenfzig Kacheln alle hundertzwanzig
+ * Millisekunden sind rund vierhundert je Sekunde: ein voller Spieltag steht
+ * damit in etwa einer Minute vollstaendig da, und dazwischen bleibt die
+ * Seite bedienbar, weil zwischen den Schritten gezeichnet werden kann.
+ *
+ * Wer scrollt, wartet nicht auf diesen Takt: das Ende der Liste zieht beim
+ * Erscheinen sofort einen groesseren Schwung nach.
  */
-const SPIELE_VON_ALLEIN = 300;
+const SPIELE_SCHRITT = 50;
+const SPIELE_TAKT = 120;
+const SPIELE_SPRUNG = 400;
+
+/**
+ * Wie gross ein Schritt ist - er waechst mit der Liste mit.
+ *
+ * Mit fester Schrittweite wird das Fuellen immer langsamer, statt gleich
+ * schnell zu bleiben: jeder Schritt laesst React die gesamte bisherige
+ * Liste noch einmal durchgehen, und die ist beim zehntausendsten Eintrag
+ * eben zehntausend lang. Gemessen mit festen fuenfzig: von 5.930 auf 8.180
+ * in vierzig Sekunden - hochgerechnet ueber vier Minuten fuer einen
+ * Spieltag, mit fallender Tendenz.
+ *
+ * Ein Schritt von rund einem Drittel des schon Gezeigten haelt die Zahl der
+ * Durchlaeufe klein und damit die Gesamtzeit kurz. Nach oben ist er
+ * gedeckelt, damit am Ende nicht ein einziger Sprung ueber Tausende von
+ * Kacheln entsteht, der die Seite fuer einen Moment stehen laesst.
+ */
+function naechsterSchritt(gezeigt: number): number {
+  return Math.min(Math.max(SPIELE_SCHRITT, Math.round(gezeigt * 0.35)), 1_200);
+}
 
 /**
  * Wie eine Stufe der Auszahlungstabelle heisst.
@@ -368,7 +543,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
   /** Suche innerhalb der Runden - Sieger oder irgendein Mitspieler. */
   const [spielSuche, setSpielSuche] = useState('');
   /** Der Fuss der Rundenliste - daran haengt das Nachladen beim Scrollen. */
-  const mehrRef = useRef<HTMLParagraphElement | null>(null);
+  const mehrRef = useRef<HTMLDivElement | null>(null);
   /** Alle Lobbys, nur die laufenden oder nur die beendeten. */
   const [spielFilter, setSpielFilter] = useState<'alle' | 'live' | 'fertig'>('alle');
   /*
@@ -1142,17 +1317,69 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
    * vorkam, und die Frage faengt fast immer beim Sieger an.
    */
   const spielSucheTraege = useDeferredValue(spielSuche);
+
+  /*
+   * Der durchsuchbare Text einer Runde - einmal gebaut, danach nachgeschlagen.
+   *
+   * Vorher verglich die Suche bei jedem Tastendruck jeden Namen einzeln:
+   * zwanzigtausend Runden mal bis zu fuenfzig Teams mal zwei Spieler, jeder
+   * davon mit einem frischen toLowerCase. Das sind rund zwei Millionen
+   * Zeichenketten je Buchstabe - gemessen zwei bis vier Sekunden, sobald ein
+   * Spieltag vollstaendig geladen war.
+   *
+   * Der Text aendert sich aber nicht, waehrend jemand tippt. Er wird deshalb
+   * je Runde einmal zusammengesetzt und gemerkt; danach kostet ein
+   * Tastendruck einen einzigen Vergleich je Runde.
+   */
+  const suchIndex = useRef<{ quelle: Spiel[] | null; karte: Map<string, string> }>(
+    { quelle: null, karte: new Map() });
+
+  const suchtextVon = useCallback((x: Spiel): string => {
+    // Neue Runden - alles Gemerkte gehoert zur alten Liste.
+    if (suchIndex.current.quelle !== spiele) {
+      suchIndex.current = { quelle: spiele, karte: new Map() };
+    }
+    const karte = suchIndex.current.karte;
+    const da = karte.get(x.id);
+    if (da !== undefined) return da;
+    const teile: string[] = [...(x.sieger ?? [])];
+    for (const tm of x.teams) for (const p of tm.spieler) teile.push(p.name);
+    const wert = teile.join(' ').toLowerCase();
+    karte.set(x.id, wert);
+    return wert;
+  }, [spiele]);
+
+  /*
+   * Und der Text wird schon vorbereitet, bevor jemand tippt.
+   *
+   * In Haeppchen mit Pausen dazwischen, damit die Seite waehrenddessen
+   * bedienbar bleibt. Wer erst spaeter sucht, wartet dann auf gar nichts
+   * mehr; wer sofort tippt, baut den Rest eben beim Suchen mit auf.
+   */
+  useEffect(() => {
+    if (reiter !== 'runden' || !spiele?.length) return undefined;
+    let i = 0;
+    let uhr: ReturnType<typeof setTimeout>;
+    let weg = false;
+    const schritt = () => {
+      if (weg) return;
+      const bis = Math.min(i + 500, spiele.length);
+      for (; i < bis; i += 1) suchtextVon(spiele[i]);
+      if (i < spiele.length) uhr = setTimeout(schritt, 60);
+    };
+    uhr = setTimeout(schritt, 500);
+    return () => { weg = true; clearTimeout(uhr); };
+  }, [reiter, spiele, suchtextVon]);
+
   const spieleGefiltert = useMemo(() => {
     const q = spielSucheTraege.trim().toLowerCase();
     return (spiele ?? []).filter((x) => {
       if (spielFilter === 'live' && !x.live) return false;
       if (spielFilter === 'fertig' && x.live) return false;
       if (!q) return true;
-      if ((x.sieger ?? []).some((n) => n.toLowerCase().includes(q))) return true;
-      return x.teams.some((tm) => tm.spieler.some((p) =>
-        p.name.toLowerCase().includes(q)));
+      return suchtextVon(x).includes(q);
     });
-  }, [spiele, spielFilter, spielSucheTraege]);
+  }, [spiele, spielFilter, spielSucheTraege, suchtextVon]);
 
   /*
    * Die Liste waechst von allein weiter.
@@ -1164,10 +1391,9 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
    */
   useEffect(() => {
     if (reiter !== 'runden') return undefined;
-    const ziel = Math.min(spieleGefiltert.length, SPIELE_VON_ALLEIN);
-    if (sichtbareSpiele >= ziel) return undefined;
+    if (sichtbareSpiele >= spieleGefiltert.length) return undefined;
     const uhr = setTimeout(
-      () => setSichtbareSpiele((n) => n + NACHSCHUB_SPIELE), 120);
+      () => setSichtbareSpiele((n) => n + naechsterSchritt(n)), SPIELE_TAKT);
     return () => clearTimeout(uhr);
   }, [reiter, sichtbareSpiele, spieleGefiltert.length]);
 
@@ -1186,7 +1412,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     const beobachter = new IntersectionObserver(
       (eintraege) => {
         if (eintraege.some((e) => e.isIntersecting)) {
-          setSichtbareSpiele((n) => n + NACHSCHUB_SPIELE * 2);
+          setSichtbareSpiele((n) => n + SPIELE_SPRUNG);
         }
       },
       { rootMargin: '600px' });
@@ -1194,10 +1420,26 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     return () => beobachter.disconnect();
   }, [reiter, sichtbareSpiele, spieleGefiltert.length]);
 
-  // Ein neuer Filter oder ein neuer Suchbegriff faengt wieder vorn an.
-  useEffect(() => {
+  /*
+   * Ein neuer Filter oder Suchbegriff faengt wieder vorn an - noch waehrend
+   * gezeichnet wird, nicht erst danach.
+   *
+   * Als das ein Effekt war, lief die Reihenfolge falsch herum: erst wurde
+   * mit der alten, moeglicherweise zwanzigtausend Eintraege langen Anzahl
+   * gezeichnet, und erst hinterher auf dreissig zurueckgesetzt. Der teure
+   * Durchlauf fand also jedes Mal statt - gemessen zwei bis vier Sekunden
+   * je Tastendruck, solange die Liste vollstaendig geladen war.
+   *
+   * Ein Zustandswechsel waehrend des Zeichnens ist genau fuer diesen Fall
+   * vorgesehen: React verwirft den angefangenen Durchlauf und beginnt ihn
+   * sofort mit dem neuen Wert neu, ohne den teuren dazwischen auszugeben.
+   */
+  const [suchStand, setSuchStand] = useState('');
+  const suchMarke = `${spielFilter}|${spielSucheTraege}`;
+  if (suchStand !== suchMarke) {
+    setSuchStand(suchMarke);
     setSichtbareSpiele(ERSTE_SPIELE);
-  }, [spielFilter, spielSucheTraege]);
+  }
 
   /*
    * Die Uhr laeuft nur, solange sie gebraucht wird.
@@ -2745,107 +2987,9 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                   <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                     {gezeigt.map((sp) => (
                       <Fragment key={sp.id}>
-                      <button
-                        onClick={() => setOffenesSpiel(
-                          sp.id === offenesSpiel ? null : sp.id)}
-                        className={`rounded-lg border px-3 py-2.5 text-left
-                                    transition ${sp.id === offenesSpiel
-                          ? 'border-sky-600 bg-sky-950/20'
-                          : sp.live
-                            ? 'border-rose-900/60 bg-zinc-900/40 hover:border-rose-700'
-                            : 'border-zinc-800 bg-zinc-950/60 hover:border-zinc-700'}`}>
-                        {/* Erste Zeile: was es ist, und wann es anfing. */}
-                        <div className="flex items-start justify-between gap-2">
-                          <span className="flex items-center gap-1.5">
-                            {sp.live && (
-                              <span className="relative flex h-2 w-2">
-                                <span className="absolute inline-flex h-full w-full
-                                                 animate-ping rounded-full bg-rose-500
-                                                 opacity-75" />
-                                <span className="relative inline-flex h-2 w-2
-                                                 rounded-full bg-rose-500" />
-                              </span>
-                            )}
-                            {/*
-                              * "Match ended" statt "Lobby".
-                              *
-                              * Der Betreiber: "Es soll nie Lobby heissen. Es
-                              * soll eigentlich wie bei Fortnite Tracker sein -
-                              * match ended oder match live." Bei einem Finale,
-                              * in dem alle in derselben Lobby spielen, bleibt
-                              * die Rundennummer davor: dort meint "Runde 3"
-                              * fuer jeden dasselbe Spiel.
-                              */}
-                            <span className={`text-xs font-semibold uppercase
-                                              tracking-wide ${sp.live
-                              ? 'text-rose-400' : 'text-slate-300'}`}>
-                              {sp.live ? <T>Match läuft</T>
-                                : eineLobby ? <><T>Runde</T> {sp.nummer}</>
-                                : <T>Match beendet</T>}
-                            </span>
-                          </span>
-                          <span className="text-right">
-                            <span className="block text-xs font-semibold
-                                             tabular-nums text-slate-200">
-                              {(sp.live ? sp.beginn : sp.ende)
-                                ? new Date((sp.live ? sp.beginn : sp.ende)!)
-                                  .toLocaleTimeString(ort,
-                                    { hour: '2-digit', minute: '2-digit' })
-                                : '—'}
-                            </span>
-                            <span className="block text-[10px] text-slate-600">
-                              {(sp.live ? sp.beginn : sp.ende)
-                                ? new Date((sp.live ? sp.beginn : sp.ende)!)
-                                  .toLocaleDateString(ort,
-                                    { day: 'numeric', month: 'short' })
-                                : ''}
-                            </span>
-                          </span>
-                        </div>
-
-                        {/* Zweite Zeile: wie lange sie laeuft. */}
-                        <p className="mt-0.5 text-[11px] text-slate-500">
-                          <T>Dauer</T> {dauerText(dauerVon(sp))}
-                        </p>
-
-                        {/* Dritte Zeile: wer noch drin ist - oder wer gewann. */}
-                        <div className="mt-2 border-t border-zinc-800/80 pt-2">
-                          {sp.live ? (
-                            <span className="flex items-center justify-between gap-2
-                                             text-[11px]">
-                              <span className="text-slate-400">
-                                <T>Teams noch im Spiel</T>
-                              </span>
-                              <span className="font-semibold tabular-nums
-                                               text-amber-400">
-                                {sp.verbleibend ?? 0}
-                                <span className="text-slate-600"> / {sp.lobby ?? '—'}</span>
-                              </span>
-                            </span>
-                          ) : sp.sieger.length > 0 ? (
-                            /* Wie beim Vorbild: ein Pokal, das Wort "Winners"
-                               und dahinter das Duo. */
-                            <span className="flex items-baseline gap-1.5
-                                             text-[11px] text-amber-400">
-                              <span className="not-italic">🏆</span>
-                              <span className="shrink-0 text-slate-500">
-                                <T>Sieger</T>:
-                              </span>
-                              <span className="min-w-0 truncate">
-                                {sp.sieger.map((n, k) => namenVon({
-                                  name: n,
-                                  id: sp.teams.find((x) => x.platz === 1)
-                                    ?.spieler[k]?.id ?? '',
-                                })).join(', ')}
-                              </span>
-                            </span>
-                          ) : (
-                            <span className="text-[11px] text-slate-600">
-                              {sp.gesehen ?? sp.teams.length} <T>Teams</T>
-                            </span>
-                          )}
-                        </div>
-                      </button>
+                      <SpielKachel sp={sp} offen={sp.id === offenesSpiel}
+                        eineLobby={eineLobby} ort={ort} dauer={dauerVon(sp)}
+                        namenVon={namenVon} oeffnen={setOffenesSpiel} />
                       {sp.id === offenesSpiel && (
                         <div className="sm:col-span-2 lg:col-span-3">
                           {aufstellung(sp)}
@@ -2856,17 +3000,36 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                   </div>
                 )}
 
-                {/* Kein Knopf mehr, nur die Auskunft, dass noch etwas
-                    kommt - angeklickt werden muss dafuer nichts. */}
+                {/*
+                  * Der Fuss der Liste: Kringel, Text und ein Balken.
+                  *
+                  * Kein Knopf - angeklickt werden muss nichts. Der Balken
+                  * zeigt, wie weit es ist; ohne ihn sieht ein Stand von
+                  * tausend bei zwanzigtausend genauso aus wie einer von
+                  * neunzehntausend. An diesem Absatz haengt ausserdem das
+                  * Nachladen beim Scrollen.
+                  */}
                 {gezeigt.length < gefiltert.length && (
-                  <p ref={mehrRef}
-                    className="mt-2 flex items-center justify-center gap-2 py-2
-                               text-[11px] text-slate-500">
-                    <span className="block h-3 w-3 animate-spin rounded-full
-                                     border border-slate-700 border-t-sky-400" />
-                    {gezeigt.length.toLocaleString(ort)} <T>von</T>{' '}
-                    {gefiltert.length.toLocaleString(ort)}
-                  </p>
+                  <div ref={mehrRef} className="mt-3 px-1 pb-1">
+                    <div className="flex items-center justify-center gap-2
+                                    text-[11px] text-slate-400">
+                      <span className="block h-3.5 w-3.5 shrink-0 animate-spin
+                                       rounded-full border-2 border-zinc-700
+                                       border-t-sky-400" />
+                      <T>Weitere Matches werden geladen …</T>
+                      <span className="tabular-nums text-slate-500">
+                        {gezeigt.length.toLocaleString(ort)} <T>von</T>{' '}
+                        {gefiltert.length.toLocaleString(ort)}
+                      </span>
+                    </div>
+                    <div className="mt-2 h-1 w-full overflow-hidden rounded-full
+                                    bg-zinc-800">
+                      <div className="h-full rounded-full bg-sky-500 transition-all
+                                      duration-200"
+                        style={{ width: `${Math.min(100, Math.round(
+                          (gezeigt.length / Math.max(1, gefiltert.length)) * 100))}%` }} />
+                    </div>
+                  </div>
                 )}
 
               </div>
