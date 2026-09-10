@@ -30,8 +30,6 @@ const STANDARD = {
   zusatz: '',
   // Weiss als Vorgabe - so wollte es der Betreiber. Farbe ist die Ausnahme.
   farbe1: '#ffffff', farbe2: '#ffffff',
-  /** Hoehe der Bilder in Vielfachen der Schriftgroesse. */
-  bild: 2.1,
   /** Feste Breite in Pixeln - 0 heisst: so breit wie der Inhalt. */
   breite: 0,
   /** 1 oder 2 - gegen unscharfe Einblendungen in OBS. */
@@ -256,7 +254,7 @@ export default function OffspawnSeite() {
                         {/* eslint-disable-next-line @next/next/no-img-element */}
                         <img src={cfg[pk === 'punkte1' ? 'bild1' : 'bild2'] as string}
                           alt=""
-                          className="h-8 w-8 rounded-full object-cover" />
+                          className="h-8 w-8 rounded-sm object-cover" />
                         <button type="button"
                           onClick={() => setz(
                             pk === 'punkte1' ? 'bild1' : 'bild2', '')}
@@ -344,8 +342,16 @@ export default function OffspawnSeite() {
                 setzen={(w) => setz('grund', w)} />
               <Regler titel="Schriftgröße" wert={cfg.schrift} von={14} bis={80}
                 einheit="px" setzen={(n) => setz('schrift', n)} />
-              <Regler titel="Größe der Bilder" wert={cfg.bild} von={0} bis={4}
-                schritt={0.1} setzen={(n) => setz('bild', n)} />
+              {/*
+                * Kein Regler mehr fuer die Bildgroesse.
+                *
+                * Das Foto fuellt den Kasten von oben bis unten und ist immer
+                * quadratisch - der Betreiber hat zweimal genau das verlangt:
+                * "es soll das ganze Kaestchen sein, nicht so klein" und dann
+                * "es ist immer noch nicht das ganze komplett ausgefuellt ...
+                * dass es komplett rundherum ist." Ein Regler daneben koennte
+                * das nur wieder kaputtmachen.
+                */}
               {/*
                 * Null heisst: so breit wie der Inhalt. Alles darueber zieht
                 * den Kasten auf - der Betreiber wollte ihn breiter ziehen
