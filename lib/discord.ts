@@ -326,6 +326,29 @@ async function kanalFuer(
   }
 
   /*
+   * Steht der Kanal vielleicht schon da, nur ohne Eintrag bei uns?
+   *
+   * Genau das ist passiert: der Zugang "hörman" hatte laengst seinen
+   * #hoerman-key, aber in der Ablage stand nichts dazu - und so entstand
+   * daneben ein zweiter Kanal mit demselben Namen. Der Betreiber: "es kann
+   * nicht sein, dass es zwei davon hat."
+   *
+   * Deshalb vor dem Anlegen immer erst in der Kanalliste nachsehen. Der
+   * gefundene wird uebernommen und gemerkt; angelegt wird nur, was es
+   * wirklich noch nicht gibt.
+   */
+  const wunschname = kanalname(name, art);
+  const schonDa = (await alleKanaele())
+    .find((k) => k.type === 0 && k.name === wunschname);
+  if (schonDa) {
+    // Die gemerkte Schluesselnachricht bleibt, falls es eine gab - nur der
+    // Kanal wird richtiggestellt.
+    ablage[schluessel] = { ...(ablage[schluessel] ?? {}), kanal: schonDa.id };
+    await schreibe(ablage);
+    return schonDa.id;
+  }
+
+  /*
    * Der Kanalname.
    *
    * Discord nimmt in Kanalnamen keine Grossbuchstaben und keine Leerzeichen.
@@ -334,7 +357,7 @@ async function kanalFuer(
    * "hörman" wird zu "hoerman-key" und nicht zu "h-rman-key", was beim
    * blossen Wegwerfen unbekannter Zeichen herauskaeme.
    */
-  const kanalname_ = kanalname(name, art);
+  const kanalname_ = wunschname;
   /*
    * Der Bot traegt sich selbst als berechtigt ein.
    *
@@ -516,7 +539,7 @@ export function knoepfeMoeglich(): boolean {
 
 export async function schickeSchluessel(
   name: string, schluessel: string, art: KanalArt = 'vip',
-  darfWechseln = false,
+  darfWechseln = false, darfEigenen = false,
 ): Promise<{ ok: boolean; grund?: string }> {
   if (!discordDa()) return { ok: false, grund: 'kein-token' };
 
@@ -573,13 +596,30 @@ export async function schickeSchluessel(
     ...(knoepfeMoeglich() && darfWechseln ? {
       components: [{
         type: 1,
-        components: [{
-          type: 2,
-          style: 1,
-          label: 'Generate a new key',
-          emoji: { name: '🔑' },
-          custom_id: `schluessel:${name.toLowerCase()}`,
-        }],
+        components: [
+          {
+            type: 2,
+            style: 1,
+            label: 'Generate a new key',
+            emoji: { name: '🔑' },
+            custom_id: `schluessel:${name.toLowerCase()}`,
+          },
+          /*
+           * Der eigene Schluessel - nur fuer die, die es duerfen.
+           *
+           * Welche VIPs ihren Schluessel selbst bestimmen duerfen, hakt der
+           * Betreiber im Werkzeug an; der Knopf hier zeigt genau diesen
+           * Haken. Gedrueckt oeffnet er ein Eingabefenster, das nur der
+           * Druckende sieht - der Schluessel geht also nie durch den Kanal.
+           */
+          ...(darfEigenen ? [{
+            type: 2,
+            style: 2,
+            label: 'Set my own key',
+            emoji: { name: '✏️' },
+            custom_id: `eigenerschluessel:${name.toLowerCase()}`,
+          }] : []),
+        ],
       }],
     } : {}),
   });
@@ -1073,6 +1113,17 @@ export async function richteServerEin(
 
   await schreibe(ablage);
 
+  /*
+   * Das Ticket-Panel im Support-Kanal.
+   *
+   * Zum Schluss, weil es den Kanal voraussetzt, den der Aufbau eben erst an
+   * seinen Platz geschoben hat.
+   */
+  const panel = await ticketPanel();
+  schritte.push(panel.ok
+    ? { text: 'Ticket-Panel steht', wert: '#support' }
+    : { text: 'Ticket-Panel blieb aus', wert: panel.grund });
+
   if (!knoepfeMoeglich()) {
     schritte.push({
       text: 'Ohne DISCORD_PUBLIC_KEY gibt es keine Knöpfe — weder für Deutsch '
@@ -1194,7 +1245,9 @@ export async function schluesselAufraeumen(): Promise<AufbauBericht> {
      * er zum Beispiel grade keinen Access hat auf seinen Account, dann kann
      * er's ueber den Discord machen". Ein Manager-Zugang bekommt ihn nie.
      */
-    const hin = await schickeSchluessel(ziel, z.accessKey, art, art === 'vip');
+    const hin = await schickeSchluessel(
+      ziel, z.accessKey, art, art === 'vip',
+      art === 'vip' && Boolean(z.darfSchluessel));
     if (hin.ok) {
       schritte.push({
         text: 'Schlüssel neu geschrieben',
@@ -1223,6 +1276,39 @@ export async function schluesselAufraeumen(): Promise<AufbauBericht> {
     erwartet.add(kanalname(fuer || z.username, fuer ? 'manager' : 'vip'));
   }
 
+  /*
+   * Und Dopplungen.
+   *
+   * Zwei Kanaele mit demselben Namen sind immer ein Fehler - Discord laesst
+   * sie zu, aber niemand weiss dann, in welchem der gueltige Schluessel
+   * steht. Behalten wird der, auf den unsere Ablage zeigt; gibt es keinen
+   * solchen, der aelteste, weil dort die Leute schon drin sind.
+   */
+  const ablageJetzt = await lies();
+  const gemerkt = new Set(Object.values(ablageJetzt).map((e) => e.kanal));
+  const nachNamen = new Map<string, RoherKanal[]>();
+  for (const k of await alleKanaele()) {
+    if (k.type !== 0) continue;
+    if (!nachNamen.has(k.name)) nachNamen.set(k.name, []);
+    nachNamen.get(k.name)!.push(k);
+  }
+  for (const [name, gleiche] of nachNamen) {
+    if (gleiche.length < 2) continue;
+    if (!name.endsWith('-key') && !name.endsWith('-manager-keys')) continue;
+    // Discord vergibt Kennungen aufsteigend - die kleinste ist die aelteste.
+    const sortiert = [...gleiche].sort((a, b) => (a.id < b.id ? -1 : 1));
+    const behalten = sortiert.find((k) => gemerkt.has(k.id)) ?? sortiert[0];
+    for (const k of sortiert) {
+      if (k.id === behalten.id) continue;
+      const weg = await ruf(`/channels/${k.id}`, 'DELETE');
+      if (weg || letzterStatus === 404) {
+        schritte.push({ text: 'Doppelter Kanal entfernt', wert: `#${k.name}` });
+      } else {
+        fehler.push({ text: 'Doppelter Kanal blieb stehen', wert: `#${k.name}` });
+      }
+    }
+  }
+
   for (const k of await alleKanaele()) {
     if (k.type !== 0) continue;
     const istSchluesselkanal = k.name.endsWith('-key')
@@ -1245,4 +1331,223 @@ export async function schluesselAufraeumen(): Promise<AufbauBericht> {
   }
 
   return { ok: fehler.length === 0, schritte, fehler };
+}
+
+/* ====================================================================== *
+ *  Support - Tickets im eigenen Bot
+ * ====================================================================== */
+
+/*
+ * Warum ein eigenes Ticketsystem.
+ *
+ * Der Betreiber hatte ein fremdes Bot-Werkzeug dafuer und wollte es lieber
+ * selbst haben: "Du kannst auch ueber meinen Bot in den Support Creator
+ * Ticket System einbauen ... dann sieht's ein bisschen geiler aus, alles von
+ * mir persoenlich, nicht von 'nem anderen Bot." Und es soll ausdruecklich
+ * auch den VIP-Managern offenstehen.
+ *
+ * Es laeuft ueber dieselbe Interaktions-Adresse wie die uebrigen Knoepfe -
+ * kein zweiter Bot, kein dauerhaft laufendes Programm, keine Kosten.
+ */
+
+/** Wie ein Ticketkanal heisst. Ein Kanal je Person, nicht je Anliegen. */
+function ticketName(nutzer: string): string {
+  const rein = [...nutzer.toLowerCase()]
+    .map((z) => UMLAUTE[z] ?? z)
+    .join('')
+    .replace(/[^a-z0-9-]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+    .slice(0, 20);
+  return `ticket-${rein || 'support'}`;
+}
+
+/**
+ * Das Panel im Support-Kanal.
+ *
+ * Eine Nachricht mit einem Knopf, mehr nicht. Sie wird bei jedem Aufbau
+ * ersetzt, damit dort nie zwei stehen.
+ */
+export async function ticketPanel(): Promise<{ ok: boolean; grund?: string }> {
+  if (!discordDa()) return { ok: false, grund: 'kein-token' };
+  const kanaele = await alleKanaele();
+  const support = kanaele.find((k) => k.type === 0 && gleich(k.name, 'support'));
+  if (!support) return { ok: false, grund: 'kein-kanal' };
+
+  const ablage = await lies();
+  const alt = ablage['ticket:panel']?.nachricht;
+  if (alt) await ruf(`/channels/${support.id}/messages/${alt}`, 'DELETE');
+
+  const gesendet = await ruf(`/channels/${support.id}/messages`, 'POST', {
+    embeds: [{
+      title: 'Support',
+      description: [
+        'Something broken, a number missing, an overlay that should look '
+        + 'different, a page only for you — ask for anything here.',
+        '',
+        'Press the button and you get your own private channel. Only you and '
+        + 'Juanito can see it. Not everything is possible and nothing is '
+        + 'instant, but you always get a straight yes or no.',
+      ].join('\n'),
+      color: FARBE,
+    }],
+    ...(knoepfeMoeglich() ? {
+      components: [{
+        type: 1,
+        components: [{
+          type: 2, style: 1, label: 'Open a ticket',
+          emoji: { name: '💬' },
+          custom_id: 'ticket:auf',
+        }],
+      }],
+    } : {}),
+  });
+
+  const id = idAus(gesendet);
+  if (!id) return { ok: false, grund: 'abgelehnt' };
+  ablage['ticket:panel'] = { kanal: support.id, nachricht: id };
+  await schreibe(ablage);
+  return { ok: true };
+}
+
+/**
+ * Ein Ticket aufmachen - oder das vorhandene nennen.
+ *
+ * Ein Kanal je Person: wer zweimal drueckt, bekommt keinen zweiten, sondern
+ * den Hinweis auf seinen offenen. Sonst haette der Betreiber nach einer Woche
+ * dreissig Kanaele fuer dieselben drei Leute.
+ */
+export async function ticketOeffnen(
+  nutzerId: string, nutzerName: string,
+): Promise<{ ok: boolean; kanal?: string; schonDa?: boolean; grund?: string }> {
+  if (!discordDa()) return { ok: false, grund: 'kein-token' };
+
+  const name = ticketName(nutzerName);
+  const kanaele = await alleKanaele();
+  const schon = kanaele.find((k) => k.type === 0 && k.name === name);
+  if (schon) return { ok: true, kanal: schon.id, schonDa: true };
+
+  const support = kanaele.find((k) => k.type === 0 && gleich(k.name, 'support'));
+  const kategorie = support?.parent_id ?? await kategorieFuer('Support');
+
+  const ich = await werBinIch();
+  const adminRolle = await adminRolleId();
+  const regeln: Array<Record<string, string | number>> = [
+    { id: SERVER, type: 0, allow: '0', deny: '1024' },
+    // 1024 ansehen + 2048 schreiben + 65536 Verlauf - der Ticketkanal ist
+    // ein Gespraech, kein Aushang.
+    { id: nutzerId, type: 1, allow: '68608', deny: '0' },
+  ];
+  if (ich) regeln.push({ id: ich, type: 1, allow: VOLLZUGRIFF, deny: '0' });
+  if (adminRolle) {
+    regeln.push({ id: adminRolle, type: 0, allow: VOLLZUGRIFF, deny: '0' });
+  }
+
+  const neu = await ruf(`/guilds/${SERVER}/channels`, 'POST', {
+    name,
+    type: 0,
+    ...(kategorie ? { parent_id: kategorie } : {}),
+    topic: `Support — ${nutzerName}`,
+    permission_overwrites: regeln,
+  });
+  const id = idAus(neu);
+  if (!id) return { ok: false, grund: 'abgelehnt' };
+
+  await ruf(`/channels/${id}/messages`, 'POST', {
+    content: `<@${nutzerId}>`,
+    embeds: [{
+      title: 'How can I help?',
+      description: [
+        'Write what you need — a screenshot helps more than a description.',
+        '',
+        'Useful things to mention: which page, which cup, and what you '
+        + 'expected to see instead.',
+        '',
+        'Press **Close** when you are done.',
+      ].join('\n'),
+      color: FARBE,
+    }],
+    ...(knoepfeMoeglich() ? {
+      components: [{
+        type: 1,
+        components: [{
+          type: 2, style: 4, label: 'Close', custom_id: 'ticket:zu',
+        }],
+      }],
+    } : {}),
+  });
+
+  return { ok: true, kanal: id };
+}
+
+/**
+ * Ein Ticket schliessen.
+ *
+ * Vorher wandert der Verlauf als Textdatei in den Archivkanal - ein
+ * geschlossenes Ticket soll nachlesbar bleiben, ohne dass der Kanal stehen
+ * bleibt.
+ *
+ * Ob im Verlauf etwas steht, haengt an einer Einstellung, die nicht hier
+ * getroffen wird: ohne die Berechtigung "Message Content" gibt Discord einem
+ * Bot den Text fremder Nachrichten nicht heraus, und das Archiv enthaelt dann
+ * nur Absender und Zeit. Das steht dann auch so in der Datei, statt eine
+ * leere Aufzeichnung als vollstaendig auszugeben.
+ */
+export async function ticketSchliessen(
+  kanal: string,
+): Promise<{ ok: boolean; grund?: string }> {
+  if (!discordDa()) return { ok: false, grund: 'kein-token' };
+
+  const wer = await ruf(`/channels/${kanal}`, 'GET');
+  const name = (wer && !Array.isArray(wer) && typeof wer.name === 'string')
+    ? wer.name : 'ticket';
+  if (!name.startsWith('ticket-')) return { ok: false, grund: 'kein-ticket' };
+
+  const roh = await ruf(`/channels/${kanal}/messages?limit=100`, 'GET');
+  const zeilen: string[] = [`# ${name}`, ''];
+  let leer = 0;
+  if (Array.isArray(roh)) {
+    const nachrichten = [...roh as Array<{
+      content?: string; timestamp?: string;
+      author?: { username?: string; bot?: boolean };
+    }>].reverse();
+    for (const m of nachrichten) {
+      const wann = (m.timestamp ?? '').slice(0, 19).replace('T', ' ');
+      const text = (m.content ?? '').trim();
+      if (!text) leer += 1;
+      zeilen.push(`[${wann}] ${m.author?.username ?? '?'}: ${text || '(—)'}`);
+    }
+  }
+  if (leer) {
+    zeilen.push('');
+    zeilen.push(`(${leer} Nachricht(en) ohne Text — dem Bot fehlt die `
+      + 'Berechtigung "Message Content".)');
+  }
+
+  const archiv = (await alleKanaele())
+    .find((k) => k.type === 0 && gleich(k.name, 'transkriptionen'));
+  if (archiv) {
+    /*
+     * Als Datei, nicht als Nachricht.
+     *
+     * Ein langes Gespraech sprengt sonst die zweitausend Zeichen, die eine
+     * Discord-Nachricht fasst - und eine abgeschnittene Aufzeichnung ist
+     * schlimmer als keine.
+     */
+    const form = new FormData();
+    form.append('payload_json', JSON.stringify({
+      content: `Ticket geschlossen: **${name}**`,
+    }));
+    form.append('files[0]', new Blob([zeilen.join('\n')], { type: 'text/plain' }),
+      `${name}.txt`);
+    const token = process.env.DISCORD_BOT_TOKEN;
+    await fetch(`${API}/channels/${archiv.id}/messages`, {
+      method: 'POST',
+      headers: { Authorization: `Bot ${token}` },
+      body: form,
+    }).catch(() => null);
+  }
+
+  const weg = await ruf(`/channels/${kanal}`, 'DELETE');
+  if (!weg && letzterStatus !== 404) return { ok: false, grund: 'nicht geloescht' };
+  return { ok: true };
 }

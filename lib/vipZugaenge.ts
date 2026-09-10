@@ -1,7 +1,9 @@
 import fs from '@/lib/ablageFs';
 import path from 'path';
 import { DATEN_ORT } from './datenOrt';
-import { neuerSchluessel, schonVergeben } from './zugangsSchluessel';
+import {
+  neuerSchluessel, schluesselTaugt, schonVergeben,
+} from './zugangsSchluessel';
 
 /*
  * Die selbst vergebenen Zugaenge - Name und Schluessel statt Adresse und
@@ -177,6 +179,45 @@ export async function wechsleSchluessel(
   alle[i] = { ...z, accessKey: frisch, status: 'active' };
   await schreibeZugaenge(alle);
   return { ok: true, schluessel: frisch };
+}
+
+/**
+ * Einen selbst gewaehlten Schluessel setzen.
+ *
+ * Denselben Weg wie wechsleSchluessel, nur mit einem Wert statt mit Zufall -
+ * und mit denselben Pruefungen, die auch das Werkzeug anwendet. Der Betreiber
+ * wollte das von Discord aus moeglich machen: "wenn Sie auf own Key druecken,
+ * dann koennen Sie selber einen eingeben."
+ *
+ * Wer darf, entscheidet der Haken am Zugang - bei diesem Weg auch dann, wenn
+ * er aus Discord kommt. Anders als beim blossen Erneuern ist das hier kein
+ * Notausgang, sondern eine Wahl, und die hat der Betreiber sich vorbehalten.
+ */
+export async function setzeSchluessel(
+  name: string, wert: string,
+): Promise<{ ok: boolean; schluessel?: string; grund?: string }> {
+  const gesucht = name.trim().toLowerCase();
+  const neu = wert.trim();
+  if (!gesucht) return { ok: false, grund: 'kein Name' };
+
+  const alle = await alleZugaenge();
+  const i = alle.findIndex((z) => z.username.toLowerCase() === gesucht);
+  if (i < 0) return { ok: false, grund: 'nicht gefunden' };
+
+  const z = alle[i];
+  if (z.status !== 'active') return { ok: false, grund: 'stillgelegt' };
+  if ((z.verwaltet ?? '').trim()) return { ok: false, grund: 'manager' };
+  if (!z.darfSchluessel) return { ok: false, grund: 'nicht erlaubt' };
+
+  const einwand = schluesselTaugt(neu);
+  if (einwand) return { ok: false, grund: einwand };
+  if (schonVergeben(neu, alle, z.username)) {
+    return { ok: false, grund: 'vergeben' };
+  }
+
+  alle[i] = { ...z, accessKey: neu };
+  await schreibeZugaenge(alle);
+  return { ok: true, schluessel: neu };
 }
 
 /**

@@ -330,9 +330,11 @@ export async function POST(request: Request) {
    * Leute teilen ihn sich, und einer koennte damit die anderen mitten im
    * Stream aussperren.
    */
+  const fertig = daten.users.find(
+    (u) => u.username.toLowerCase() === name.toLowerCase());
   const discord = await schickeSchluessel(
     verwaltet || name, schluessel, verwaltet ? 'manager' : 'vip',
-    !verwaltet);
+    !verwaltet, !verwaltet && Boolean(fertig?.darfSchluessel));
 
   /*
    * Der Schluessel geht genau hier heraus, ein einziges Mal. Die Oberflaeche
@@ -452,7 +454,8 @@ export async function PUT(request: Request) {
    */
   if (rechtVorher !== rechtNachher && !(daten.users[i].verwaltet ?? '').trim()) {
     await schickeSchluessel(
-      daten.users[i].username, daten.users[i].accessKey, 'vip', true);
+      daten.users[i].username, daten.users[i].accessKey, 'vip', true,
+      rechtNachher);
   }
 
   return NextResponse.json({ ok: true });
