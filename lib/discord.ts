@@ -1350,6 +1350,34 @@ export async function schluesselAufraeumen(): Promise<AufbauBericht> {
  * kein zweiter Bot, kein dauerhaft laufendes Programm, keine Kosten.
  */
 
+/**
+ * Wofuer jemand Hilfe braucht.
+ *
+ * Der Betreiber wollte, dass man vorher sagt, worum es geht: "wo man
+ * entscheiden kann, was fuer Support Sie brauchen." Das spart die erste
+ * Rueckfrage und sortiert die Kanaele - an "ticket-marc" sieht man nicht, ob
+ * es brennt oder ob jemand eine Idee hat.
+ *
+ * Der Wert ist die Kennung, die im Knopfdruck zurueckkommt; er darf sich
+ * deshalb nicht mehr aendern.
+ */
+export const TICKET_ARTEN: Array<{
+  wert: string; titel: string; was: string; emoji: string;
+}> = [
+  { wert: 'kaputt', emoji: '🐛', titel: 'Something is broken',
+    was: 'A page does not load, a button does nothing, an overlay is blank.' },
+  { wert: 'zahlen', emoji: '📊', titel: 'Wrong or missing numbers',
+    was: 'A stat looks wrong, a cup is missing, a player is not found.' },
+  { wert: 'overlay', emoji: '🖼️', titel: 'Overlay or stream graphics',
+    was: 'It should look different, show something else, or fit your layout.' },
+  { wert: 'zugang', emoji: '🔑', titel: 'Access or key',
+    was: 'You cannot sign in, or you need a key for a manager.' },
+  { wert: 'wunsch', emoji: '✨', titel: 'Something new',
+    was: 'A page only for you, a feature, an idea. Ask for anything.' },
+  { wert: 'sonst', emoji: '💬', titel: 'Something else',
+    was: 'Anything that does not fit above.' },
+];
+
 /** Wie ein Ticketkanal heisst. Ein Kanal je Person, nicht je Anliegen. */
 function ticketName(nutzer: string): string {
   const rein = [...nutzer.toLowerCase()]
@@ -1381,12 +1409,13 @@ export async function ticketPanel(): Promise<{ ok: boolean; grund?: string }> {
     embeds: [{
       title: 'Support',
       description: [
-        'Something broken, a number missing, an overlay that should look '
-        + 'different, a page only for you — ask for anything here.',
+        'Pick what you need below and you get your own private channel. Only '
+        + 'you and Juanito can see it.',
         '',
-        'Press the button and you get your own private channel. Only you and '
-        + 'Juanito can see it. Not everything is possible and nothing is '
-        + 'instant, but you always get a straight yes or no.',
+        ...TICKET_ARTEN.map((a) => `${a.emoji} **${a.titel}** — ${a.was}`),
+        '',
+        'Not everything is possible and nothing is instant, but you always get '
+        + 'a straight yes or no.',
       ].join('\n'),
       color: FARBE,
     }],
@@ -1394,9 +1423,23 @@ export async function ticketPanel(): Promise<{ ok: boolean; grund?: string }> {
       components: [{
         type: 1,
         components: [{
-          type: 2, style: 1, label: 'Open a ticket',
-          emoji: { name: '💬' },
-          custom_id: 'ticket:auf',
+          /*
+           * Eine Auswahlliste statt eines Knopfes.
+           *
+           * Ein Knopf haette dieselbe Frage im Kanal noch einmal gestellt.
+           * So steht die Antwort schon fest, bevor der Kanal entsteht.
+           */
+          type: 3,
+          custom_id: 'ticket:art',
+          placeholder: 'What do you need?',
+          min_values: 1,
+          max_values: 1,
+          options: TICKET_ARTEN.map((a) => ({
+            label: a.titel,
+            value: a.wert,
+            description: a.was.slice(0, 100),
+            emoji: { name: a.emoji },
+          })),
         }],
       }],
     } : {}),
@@ -1417,7 +1460,7 @@ export async function ticketPanel(): Promise<{ ok: boolean; grund?: string }> {
  * dreissig Kanaele fuer dieselben drei Leute.
  */
 export async function ticketOeffnen(
-  nutzerId: string, nutzerName: string,
+  nutzerId: string, nutzerName: string, art = 'sonst',
 ): Promise<{ ok: boolean; kanal?: string; schonDa?: boolean; grund?: string }> {
   if (!discordDa()) return { ok: false, grund: 'kein-token' };
 
@@ -1442,11 +1485,14 @@ export async function ticketOeffnen(
     regeln.push({ id: adminRolle, type: 0, allow: VOLLZUGRIFF, deny: '0' });
   }
 
+  const gewaehlt = TICKET_ARTEN.find((a) => a.wert === art);
+
   const neu = await ruf(`/guilds/${SERVER}/channels`, 'POST', {
     name,
     type: 0,
     ...(kategorie ? { parent_id: kategorie } : {}),
-    topic: `Support — ${nutzerName}`,
+    topic: `Support — ${nutzerName} — ${
+      TICKET_ARTEN.find((a) => a.wert === art)?.titel ?? 'Something else'}`,
     permission_overwrites: regeln,
   });
   const id = idAus(neu);
@@ -1455,7 +1501,7 @@ export async function ticketOeffnen(
   await ruf(`/channels/${id}/messages`, 'POST', {
     content: `<@${nutzerId}>`,
     embeds: [{
-      title: 'How can I help?',
+      title: gewaehlt ? `${gewaehlt.emoji} ${gewaehlt.titel}` : 'How can I help?',
       description: [
         'Write what you need — a screenshot helps more than a description.',
         '',

@@ -133,6 +133,8 @@ export async function POST(request: NextRequest) {
        * einzelnen Felder. Wir haben genau ein Feld, also genuegt das erste.
        */
       components?: Array<{ components?: Array<{ custom_id?: string; value?: string }> }>;
+      /** Was in einer Auswahlliste angeklickt wurde. */
+      values?: string[];
     };
   };
   try {
@@ -151,9 +153,10 @@ export async function POST(request: NextRequest) {
   const nutzer = d.member?.user ?? d.user;
 
   /* ------------------------------------------------------- Tickets */
-  if (id === 'ticket:auf') {
+  if (id === 'ticket:auf' || id === 'ticket:art') {
     if (!nutzer?.id) return nurFuerIhn('I could not tell who pressed that.');
     const wer = nutzer.global_name || nutzer.username || nutzer.id;
+    const art = String(d.data?.values?.[0] ?? 'sonst');
 
     /*
      * Erst antworten, dann den Kanal bauen.
@@ -172,7 +175,7 @@ export async function POST(request: NextRequest) {
             body: JSON.stringify({ content: text }),
           });
       };
-      const erg = await ticketOeffnen(nutzer.id as string, wer);
+      const erg = await ticketOeffnen(nutzer.id as string, wer, art);
       await melde(erg.ok && erg.kanal
         ? (erg.schonDa
           ? `You already have a ticket open: <#${erg.kanal}>`
