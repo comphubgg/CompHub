@@ -223,11 +223,20 @@ function rahmen(p: Punkt[]) {
  * darueber.
  */
 function schriftgroesse(breite: number, hoehe: number, zeichen: number) {
-  const nachHoehe = hoehe * 0.6;
-  // Gemischte Schreibweise braucht gut die halbe Hoehe an Breite je Zeichen.
-  // 0,92 heisst: die Zeile darf 92 Prozent der Formbreite einnehmen.
-  const nachBreite = (breite * 0.92) / Math.max(zeichen * 0.52, 1);
-  return Math.max(0.5, Math.min(nachHoehe, nachBreite, 2.4));
+  /*
+   * Groesser als frueher.
+   *
+   * Der Betreiber hat seine Karte neben die des Vorbilds gehalten: "die
+   * Schrift ist mir zu klein." Dort stehen die Namen deutlich groesser, und
+   * genau das entscheidet, ob man sie im Beitrag auf dem Telefon noch lesen
+   * kann. Die Form gibt weiterhin die Grenze vor - ein Name laeuft nie
+   * darueber hinaus -, sie darf sie nur weiter ausschoepfen: siebzig statt
+   * sechzig Prozent der Hoehe, sechsundneunzig statt zweiundneunzig der
+   * Breite, und die Obergrenze steigt von 2,4 auf 3,2.
+   */
+  const nachHoehe = hoehe * 0.7;
+  const nachBreite = (breite * 0.96) / Math.max(zeichen * 0.52, 1);
+  return Math.max(0.6, Math.min(nachHoehe, nachBreite, 3.2));
 }
 
 /**
@@ -2644,19 +2653,31 @@ ${name}
      * Vor dem Zeichen unten rechts, damit das Logo darueber liegt und nicht
      * durchscheint.
      */
+    /*
+     * Gross und fett, dafuer weniger davon.
+     *
+     * Der erste Versuch war zu klein und lag nur in der Mitte - der
+     * Betreiber: "sonst grosse, fette Watermarks machen, dafuer ein bisschen
+     * weniger." Das Muster reicht jetzt sicher ueber den Rand hinaus, damit
+     * es auch in den Ecken steht.
+     */
     g.save();
-    g.globalAlpha = 0.055;
+    g.globalAlpha = 0.075;
     g.fillStyle = '#ffffff';
-    const wz = Math.round(G * 0.028);
-    g.font = `700 ${wz}px Segoe UI, system-ui, sans-serif`;
+    const wz = Math.round(G * 0.055);
+    g.font = `800 ${wz}px Segoe UI, system-ui, sans-serif`;
     g.textAlign = 'center';
     g.textBaseline = 'middle';
     g.translate(G / 2, G / 2);
     g.rotate(-Math.PI / 9);
-    const schritt = wz * 9;
-    for (let y = -G; y < G; y += schritt * 0.75) {
-      for (let x = -G; x < G; x += schritt) {
-        g.fillText('thecomphub.com', x, y);
+    const breiteWz = g.measureText('thecomphub.com').width;
+    const schrittX = breiteWz * 1.5;
+    const schrittY = wz * 5.5;
+    for (let y = -G; y < G; y += schrittY) {
+      // Jede zweite Reihe versetzt - sonst entstehen sichtbare Spalten.
+      const versatz = (Math.round(y / schrittY) % 2) * (schrittX / 2);
+      for (let x = -G - schrittX; x < G + schrittX; x += schrittX) {
+        g.fillText('thecomphub.com', x + versatz, y);
       }
     }
     g.restore();
@@ -2742,7 +2763,7 @@ ${name}
      * sind nicht so intensiv. Es soll mehr clean aussehen." Eine umkaempfte
      * Stelle soll ins Auge springen, eine gewoehnliche nicht.
      */
-    if (belegt >= 2) return { fuellung: 'rgba(228,30,30,0.46)', rand: 'rgb(255,64,64)' };
+    if (belegt >= 2) return { fuellung: 'rgba(232,16,16,0.62)', rand: 'rgb(255,32,32)' };
     if (belegt === 1) return { fuellung: 'rgba(0,0,0,0.34)', rand: 'rgba(0,0,0,0.82)' };
     return { fuellung: 'rgba(0,0,0,0.12)', rand: 'rgba(0,0,0,0.6)' };
   }
@@ -2891,13 +2912,25 @@ ${name}
         */}
       <div aria-hidden
         className="pointer-events-none absolute inset-0 overflow-hidden">
-        <div className="absolute -inset-1/4 flex flex-wrap content-center
-                        justify-center gap-x-10 gap-y-6 opacity-[0.055]"
-          style={{ transform: 'rotate(-20deg)' }}>
-          {Array.from({ length: 96 }, (_, i) => (
+        {/*
+          * Gross, fett, und ueber den Rand hinaus.
+          *
+          * Der erste Versuch stand klein in der Mitte und liess die Ecken
+          * frei. Die Flaeche ist jetzt in jede Richtung um die halbe
+          * Kartenbreite groesser als die Karte, damit auch nach der Drehung
+          * ueberall etwas steht.
+          */}
+        <div className="absolute -inset-1/2 grid content-center justify-center
+                        gap-x-14 gap-y-16 opacity-[0.075]"
+          style={{
+            transform: 'rotate(-20deg)',
+            gridTemplateColumns: 'repeat(4, max-content)',
+          }}>
+          {Array.from({ length: 32 }, (_, i) => (
             <span key={i}
-              className="whitespace-nowrap text-[11px] font-bold tracking-wider
-                         text-white">
+              className="whitespace-nowrap text-lg font-extrabold tracking-wide
+                         text-white"
+              style={{ transform: i % 8 >= 4 ? 'translateX(50%)' : undefined }}>
               thecomphub.com
             </span>
           ))}
