@@ -211,7 +211,7 @@ function VipZugaenge() {
   const t = useT();
   const [liste, setListe] = useState<Array<{
     name: string; schluessel: string; aktiv: boolean; angelegt: string;
-    verwaltet?: string | null;
+    verwaltet?: string | null; mods?: string[];
   }>>([]);
   /** Wessen Schluessel gerade offen liegt - einer zur Zeit. */
   const [zeigt, setZeigt] = useState<string | null>(null);
@@ -278,6 +278,17 @@ function VipZugaenge() {
    */
   const [art, setArt] = useState<'vip' | 'manager'>('vip');
   /**
+   * Die Namen, die diesen Manager-Zugang benutzen duerfen.
+   *
+   * Ein Textfeld und keine Reihe von Einzelfeldern: der Betreiber tippt drei
+   * bis fuenf Namen am Stueck ab, so wie sie ihm der Streamer schickt.
+   * Getrennt wird nach Komma, Semikolon oder Zeile - was er eben tippt.
+   */
+  const [mods, setMods] = useState('');
+  /** Bei welchem Zugang die Namensliste gerade offen steht. */
+  const [namenOffen, setNamenOffen] = useState<string | null>(null);
+  const [namenText, setNamenText] = useState('');
+  /**
    * Der Aufbau des Discord-Servers.
    *
    * null heisst "noch nicht angestossen". Sonst steht hier, was der Bot
@@ -314,14 +325,14 @@ function VipZugaenge() {
           ...(vorgabe.trim() ? { schluessel: vorgabe.trim() }
             : praefix.trim() ? { praefix: praefix.trim() } : {}),
           ...(art === 'manager' && verwaltet.trim()
-            ? { verwaltet: verwaltet.trim() } : {}),
+            ? { verwaltet: verwaltet.trim(), mods } : {}),
         }),
       });
       const j = await r.json();
       if (!r.ok) { setFehler(t(j?.fehler ?? 'nicht gespeichert')); return; }
       setFrisch({ name: j.name, schluessel: j.schluessel });
       setDiscord(j.discord ?? null);
-      setName(''); setPraefix(''); setVorgabe(''); setVerwaltet('');
+      setName(''); setPraefix(''); setVorgabe(''); setVerwaltet(''); setMods('');
       await holen();
     } catch (e) { setFehler((e as Error).message); }
   }
@@ -413,6 +424,58 @@ function VipZugaenge() {
       const r = await fetch('/api/admin/discord-aufbau', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ altesLoeschen: true }),
+      });
+      const j = await r.json().catch(() => ({}));
+      setAufbau({
+        laeuft: false,
+        schritte: Array.isArray(j?.schritte) ? j.schritte : [],
+        fehler: Array.isArray(j?.fehler) ? j.fehler
+          : [{ text: j?.fehler ?? 'Der Aufbau ließ sich nicht ausführen.' }],
+      });
+    } catch (e) {
+      setAufbau({
+        laeuft: false, schritte: [], fehler: [{ text: (e as Error).message }],
+      });
+    }
+  }
+
+  /** Die Namensliste eines Manager-Zugangs speichern. */
+  async function namenSpeichern(n: string) {
+    setFehler('');
+    const r = await fetch('/api/admin/vip-zugaenge', {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: n, mods: namenText }),
+    });
+    if (!r.ok) {
+      const j = await r.json().catch(() => ({}));
+      setFehler(t(j?.fehler ?? 'nicht gespeichert'));
+      return;
+    }
+    setNamenOffen(null);
+    await holen();
+  }
+
+  /**
+   * Alle Schluesselnachrichten in Discord neu schreiben.
+   *
+   * Nicht neu erzeugen - nur neu hinschreiben, vom Bot. Der Betreiber hatte
+   * in einigen Kanaelen selbst getippt, und was von Hand kam, kann der Bot
+   * spaeter nicht ersetzen.
+   */
+  async function schluesselNeu() {
+    const sicher = window.confirm(
+      `${t('Schlüssel neu schreiben')}
+
+`
+      + t('Räumt jeden Schlüsselkanal leer und schreibt den gültigen Schlüssel '
+        + 'neu hinein — vom Bot, mit Knopf darunter. Die Schlüssel selbst '
+        + 'bleiben unverändert, niemand wird ausgesperrt.'));
+    if (!sicher) return;
+    setAufbau({ laeuft: true, schritte: [], fehler: [] });
+    try {
+      const r = await fetch('/api/admin/discord-aufbau', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ was: 'schluessel' }),
       });
       const j = await r.json().catch(() => ({}));
       setAufbau({
@@ -533,6 +596,33 @@ function VipZugaenge() {
           )}
 
           {/*
+            * Wer diesen Zugang benutzen darf.
+            *
+            * Kein Beiwerk: Schluessel und Zugangsname sind fuer alle gleich,
+            * der Name ist die einzige Unterscheidung - und damit die einzige
+            * Stelle, an der sich ein einzelner Mod wieder aussperren laesst,
+            * ohne den anderen mitten im Stream den Schluessel zu wechseln.
+            */}
+          {art === 'manager' && (
+            <label className="mt-3 block">
+              <span className="mb-1 block text-[10px] uppercase tracking-wider
+                               text-slate-600">
+                <T>Wer sich damit anmelden darf</T>
+              </span>
+              <textarea value={mods} onChange={(e) => setMods(e.target.value)}
+                rows={2}
+                placeholder={t('Namen, durch Komma oder Zeile getrennt')}
+                className={`${feld} resize-y`} />
+              <span className="mt-1 block text-[10px] leading-relaxed text-slate-600">
+                <T>Beim Anmelden gibt jeder nach Name und Schlüssel noch seinen
+                eigenen Namen an. Steht er nicht hier, kommt er nicht hinein —
+                auch mit richtigem Schlüssel nicht. So sperrst du einen
+                Einzelnen aus, ohne den anderen den Schlüssel zu wechseln.</T>
+              </span>
+            </label>
+          )}
+
+          {/*
             * Den Schluessel mitbestimmen - freiwillig.
             *
             * Beide Felder duerfen leer bleiben, dann ist alles wie vorher.
@@ -646,6 +736,17 @@ function VipZugaenge() {
                       <T>Manager für</T> {z.verwaltet}
                     </span>
                   )}
+                  {z.verwaltet && (
+                    <button
+                      onClick={() => {
+                        setNamenOffen(namenOffen === z.name ? null : z.name);
+                        setNamenText((z.mods ?? []).join(', '));
+                      }}
+                      className="text-[11px] text-slate-500 transition
+                                 hover:text-sky-400">
+                      <T>Namen</T> ({(z.mods ?? []).length})
+                    </button>
+                  )}
                   <button
                     onClick={() => setZeigt(zeigt === z.name ? null : z.name)}
                     className="ml-auto text-[11px] text-slate-500 transition
@@ -692,6 +793,37 @@ function VipZugaenge() {
                       {z.schluessel}
                     </code>
                   )}
+
+                  {/*
+                    * Die Namensliste - offen nur bei einem Zugang.
+                    *
+                    * Leer heisst: niemand kommt hinein. Das steht auch so
+                    * da, damit es nicht wie ein vergessenes Feld aussieht.
+                    */}
+                  {namenOffen === z.name && (
+                    <div className="w-full">
+                      <textarea value={namenText} rows={2}
+                        onChange={(e) => setNamenText(e.target.value)}
+                        placeholder={t('Namen, durch Komma oder Zeile getrennt')}
+                        className={`${feld} resize-y`} />
+                      <div className="mt-1.5 flex items-center gap-3">
+                        <button onClick={() => namenSpeichern(z.name)}
+                          className="rounded-lg bg-sky-500 px-3 py-1 text-[11px]
+                                     font-medium text-white hover:bg-sky-400">
+                          <T>Übernehmen</T>
+                        </button>
+                        <button onClick={() => setNamenOffen(null)}
+                          className="text-[11px] text-slate-500 hover:text-slate-300">
+                          <T>Abbrechen</T>
+                        </button>
+                        {!namenText.trim() && (
+                          <span className="text-[10px] text-amber-500/80">
+                            <T>Ohne Namen kommt niemand hinein.</T>
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </li>
               ))}
             </ul>
@@ -719,6 +851,14 @@ function VipZugaenge() {
                            disabled:cursor-not-allowed disabled:opacity-40">
                 {aufbau?.laeuft
                   ? <T>wird eingerichtet …</T> : <T>Server einrichten</T>}
+              </button>
+              <button onClick={() => schluesselNeu()}
+                disabled={aufbau?.laeuft}
+                className="rounded-lg border border-zinc-800 px-3 py-1.5
+                           text-[11px] text-slate-300 transition
+                           hover:border-sky-500 hover:text-sky-300
+                           disabled:cursor-not-allowed disabled:opacity-40">
+                <T>Schlüssel neu schreiben</T>
               </button>
             </div>
             <p className="mt-2 text-[10px] leading-relaxed text-slate-600">

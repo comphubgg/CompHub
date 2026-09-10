@@ -3,7 +3,9 @@ import { cookies } from 'next/headers';
 import { kontoAus, nachId } from '@/lib/konten';
 import { istBetreiber, vipAus } from '@/lib/vipCookie';
 import { zugangNach, rechteVon } from '@/lib/vipZugaenge';
-import { richteServerEin, discordDa, knoepfeMoeglich } from '@/lib/discord';
+import {
+  richteServerEin, schluesselAufraeumen, discordDa, knoepfeMoeglich,
+} from '@/lib/discord';
 
 /*
  * Den Discord-Server einrichten - auf Knopfdruck aus dem Adminwerkzeug.
@@ -74,6 +76,16 @@ export async function POST(request: Request) {
    */
   const altesLoeschen = koerper.altesLoeschen !== false;
 
-  const bericht = await richteServerEin({ altesLoeschen });
+  /*
+   * Zwei Arbeiten hinter derselben Tuer.
+   *
+   * "aufbau" richtet den Server ein - Kategorien, Kanaele, Rechte, Aushaenge.
+   * "schluessel" fasst nur die Schluesselkanaele an und schreibt den
+   * gueltigen Schluessel neu hinein. Getrennt, weil das zweite oefter
+   * gebraucht wird und nichts am Aufbau aendern soll.
+   */
+  const bericht = koerper.was === 'schluessel'
+    ? await schluesselAufraeumen()
+    : await richteServerEin({ altesLoeschen });
   return NextResponse.json(bericht, { status: bericht.ok ? 200 : 207 });
 }

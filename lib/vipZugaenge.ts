@@ -50,6 +50,26 @@ export interface Zugang {
    * beim Betreiber. Sonst haette einer von mehreren die anderen ausgesperrt.
    */
   verwaltet?: string;
+  /**
+   * Wer diesen Manager-Zugang benutzen darf - namentlich.
+   *
+   * Schluessel und Zugangsname sind fuer alle gleich; verschieden ist nur der
+   * Name, den jeder beim Anmelden angibt. Diese Liste sagt, welche Namen es
+   * gibt. Der Betreiber wollte das ausdruecklich als Sperre und nicht bloss
+   * als Beschriftung: "wenn ich den Namen loesche und er trotzdem Access Key
+   * und den Zugangsnamen richtig hat, dann geht's nicht, weil sein Name ist
+   * nicht registriert."
+   *
+   * Damit laesst sich ein einzelner Mod aussperren, ohne den Schluessel zu
+   * wechseln - und ohne die anderen mitten im Stream mit auszusperren. Genau
+   * das war der Grund, warum ein gemeinsamer Schluessel ueberhaupt in Frage
+   * kam.
+   *
+   * Eine leere Liste heisst: noch niemand eingetragen, also kommt auch
+   * niemand hinein. Das ist die sichere Seite - ein Zugang, der jeden
+   * hereinlaesst, solange keine Namen dastehen, waere eine Falle.
+   */
+  mods?: string[];
 }
 
 export async function alleZugaenge(): Promise<Zugang[]> {
@@ -121,7 +141,7 @@ export function rechteVon(z: Zugang | null): {
  * die Rechtepruefung weg: dort steht der Betreiber selbst davor.
  */
 export async function wechsleSchluessel(
-  name: string, { ausDemWerkzeug = false } = {},
+  name: string, { ausDemWerkzeug = false, ausDiscord = false } = {},
 ): Promise<{ ok: boolean; schluessel?: string; grund?: string }> {
   const gesucht = name.trim().toLowerCase();
   if (!gesucht) return { ok: false, grund: 'kein Name' };
@@ -134,7 +154,16 @@ export async function wechsleSchluessel(
   if (!ausDemWerkzeug) {
     if (z.status !== 'active') return { ok: false, grund: 'stillgelegt' };
     if ((z.verwaltet ?? '').trim()) return { ok: false, grund: 'manager' };
-    if (!z.darfSchluessel) return { ok: false, grund: 'nicht erlaubt' };
+    /*
+     * Aus Discord darf jeder VIP, im Werkzeug nur der mit dem Haken.
+     *
+     * Das klingt widerspruechlich, ist aber der Sinn der Sache: der Knopf
+     * steht im privaten Kanal genau dieses VIPs, und er ist der Weg zurueck,
+     * wenn der Zugang selbst nicht mehr geht - "wenn er zum Beispiel grade
+     * keinen Access hat auf seinen Account, dann kann er's ueber den Discord
+     * machen". Wer schon angemeldet ist, braucht ihn nicht.
+     */
+    if (!ausDiscord && !z.darfSchluessel) return { ok: false, grund: 'nicht erlaubt' };
   }
 
   // Ein doppelter Schluessel waere ein halber fremder Zugang - siehe

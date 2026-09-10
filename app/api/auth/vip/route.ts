@@ -84,14 +84,37 @@ export async function POST(request: NextRequest) {
      */
     const verwaltet = String(user.verwaltet ?? '').trim();
     const schild = modName(mod);
-    if (verwaltet && !schild) {
-      return NextResponse.json({
-        modNoetig: true,
-        fuer: verwaltet,
-        // Nur, wenn ueberhaupt etwas geschickt wurde - sonst ist es der erste
-        // Versuch und keine Beanstandung.
-        fehlerhaft: Boolean(String(mod ?? '').trim()),
-      });
+    if (verwaltet) {
+      /*
+       * Der Name muss eingetragen sein.
+       *
+       * Er ist keine Beschriftung, sondern die eigentliche Sperre: Schluessel
+       * und Zugangsname sind fuer alle gleich, verschieden ist nur der Name.
+       * Wer nicht in der Liste steht, kommt nicht hinein - "wenn ich den
+       * Namen loesche und er trotzdem Access Key und den Zugangsnamen richtig
+       * hat, dann geht's nicht".
+       *
+       * Verglichen wird ohne Ruecksicht auf Gross- und Kleinschreibung: der
+       * Name wird getippt, nicht kopiert.
+       */
+      const erlaubt: string[] = Array.isArray(user.mods) ? user.mods : [];
+      const passt = erlaubt.find(
+        (m: string) => String(m).trim().toLowerCase() === schild.toLowerCase());
+
+      if (!schild || !passt) {
+        return NextResponse.json({
+          modNoetig: true,
+          fuer: verwaltet,
+          /*
+           * Zwei verschiedene Antworten, aber dieselbe Form.
+           *
+           * "unbekannt" heisst: der Name steht nicht in der Liste. Ob der
+           * Zugang ueberhaupt Namen hat, verraten wir nicht - sonst liesse
+           * sich die Liste durch Ausprobieren abfragen.
+           */
+          fehlerhaft: Boolean(String(mod ?? '').trim()),
+        });
+      }
     }
 
     // Fuer die Liste "wer war wann da" in den Adminwerkzeugen.
@@ -126,7 +149,7 @@ export async function POST(request: NextRequest) {
      * sonst haengt an seiner Sitzung noch der Name des Managers, der vorher
      * an demselben Rechner sass.
      */
-    if (schild) {
+    if (schild && verwaltet) {
       response.cookies.set(MOD_COOKIE, schild, {
         httpOnly: false,
         secure: isProduction,

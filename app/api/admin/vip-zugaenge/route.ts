@@ -7,6 +7,7 @@ import { kontoAus, nachId } from '@/lib/konten';
 import { istBetreiber, vipAus } from '@/lib/vipCookie';
 import { zugangNach, rechteVon } from '@/lib/vipZugaenge';
 import { verankereProfi } from '@/lib/profiVerankern';
+import { modName } from '@/lib/modName';
 import { DATEN_ORT } from '@/lib/datenOrt';
 import { schickeSchluessel, loescheZugang, discordDa } from '@/lib/discord';
 import {
@@ -64,6 +65,31 @@ interface Zugang {
   darfSchluessel?: boolean;
   /** Fuer wen dieser Zugang die Overlays verwaltet. Siehe lib/vipZugaenge.ts. */
   verwaltet?: string;
+  /** Welche Namen diesen Manager-Zugang benutzen duerfen. Siehe lib/vipZugaenge.ts. */
+  mods?: string[];
+}
+
+/**
+ * Eine Namensliste aus dem, was die Oberflaeche schickt.
+ *
+ * Sie kommt als Text - Komma, Semikolon oder Zeilenumbruch, wie es sich beim
+ * Tippen ergibt. Doppelte fliegen raus, ohne Ruecksicht auf Gross- und
+ * Kleinschreibung: "Marc" und "marc" sind derselbe Mensch, und zwei Eintraege
+ * dafuer waeren nur eine Gelegenheit, den falschen zu loeschen.
+ */
+function namensListe(roh: unknown): string[] {
+  const stuecke = Array.isArray(roh)
+    ? roh.map((x) => String(x))
+    : String(roh ?? '').split(/[,;\n]+/);
+  const raus: string[] = [];
+  for (const s of stuecke) {
+    const name = modName(s);
+    if (!name) continue;
+    if (raus.some((x) => x.toLowerCase() === name.toLowerCase())) continue;
+    raus.push(name);
+    if (raus.length >= 30) break;
+  }
+  return raus;
 }
 
 async function istAdmin(): Promise<boolean> {
@@ -131,6 +157,8 @@ export async function GET(request: Request) {
       darfSchluessel: Boolean(u.darfSchluessel),
       // Wessen Overlays dieser Zugang betreut - bei einem Manager.
       verwaltet: u.verwaltet ?? null,
+      // Und wer ihn benutzen darf.
+      mods: u.mods ?? [],
       // Ein Zugangskonto ist immer VIP - das ist sein Zweck. Eine Frist
       // schraenkt das nur zusaetzlich ein.
       vip: u.vipBis === undefined || u.vipBis === 0 || u.vipBis > Date.now(),
@@ -273,6 +301,7 @@ export async function POST(request: Request) {
         rechte: ['overlays'],
         verwaltet,
         darfSchluessel: false,
+        mods: namensListe(koerper.mods),
       } : {}),
     });
   }
@@ -296,15 +325,14 @@ export async function POST(request: Request) {
   /*
    * Bekommt die Nachricht einen Knopf zum Selbstwechseln?
    *
-   * Nur, wenn dieser Zugang das Recht hat. Ein Manager-Zugang nie: mehrere
+   * Jeder VIP - der Kanal ist privat, und der Knopf ist der Weg zurueck,
+   * wenn der Zugang selbst nicht mehr geht. Ein Manager-Zugang nie: mehrere
    * Leute teilen ihn sich, und einer koennte damit die anderen mitten im
    * Stream aussperren.
    */
-  const fertig = daten.users.find(
-    (u) => u.username.toLowerCase() === name.toLowerCase());
   const discord = await schickeSchluessel(
     verwaltet || name, schluessel, verwaltet ? 'manager' : 'vip',
-    !verwaltet && Boolean(fertig?.darfSchluessel));
+    !verwaltet);
 
   /*
    * Der Schluessel geht genau hier heraus, ein einziges Mal. Die Oberflaeche
@@ -360,6 +388,18 @@ export async function PUT(request: Request) {
    * ausschliesslich gelesen. Sonst koennte sich jemand das Recht, das er
    * gerade ausuebt, im selben Zug selbst verlaengern.
    */
+  /*
+   * Die Namensliste eines Manager-Zugangs.
+   *
+   * Sie wird nur angefasst, wenn wirklich etwas geschickt wurde - sonst
+   * loeschte ein Klick auf "Rolle setzen" nebenbei alle Namen.
+   */
+  if (koerper.mods !== undefined) {
+    const liste = namensListe(koerper.mods);
+    if (liste.length) daten.users[i].mods = liste;
+    else delete daten.users[i].mods;
+  }
+
   const rechtVorher = Boolean(daten.users[i].darfSchluessel);
   if (typeof koerper.darfSchluessel === 'boolean') {
     if (koerper.darfSchluessel) daten.users[i].darfSchluessel = true;
@@ -412,7 +452,7 @@ export async function PUT(request: Request) {
    */
   if (rechtVorher !== rechtNachher && !(daten.users[i].verwaltet ?? '').trim()) {
     await schickeSchluessel(
-      daten.users[i].username, daten.users[i].accessKey, 'vip', rechtNachher);
+      daten.users[i].username, daten.users[i].accessKey, 'vip', true);
   }
 
   return NextResponse.json({ ok: true });
@@ -442,6 +482,15 @@ export async function DELETE(request: Request) {
     .trim().toLowerCase();
 
   const daten = await lies();
+  /*
+   * Erst nachsehen, was da geloescht wird - danach steht es nicht mehr drin.
+   *
+   * Bei einem Manager-Zugang liegt der Kanal nicht unter seinem eigenen
+   * Namen, sondern unter dem des Streamers: "groupay-managers" wohnt in
+   * "#groupay-manager-keys". Ohne diesen Blick suchte das Aufraeumen einen
+   * Kanal "#groupay-managers-key", fand nichts und liess den echten stehen.
+   */
+  const weg = daten.users.find((u) => u.username.toLowerCase() === name);
   const uebrig = daten.users.filter((u) => u.username.toLowerCase() !== name);
   if (uebrig.length === daten.users.length) {
     return NextResponse.json({ fehler: 'nicht gefunden' }, { status: 404 });
@@ -456,7 +505,10 @@ export async function DELETE(request: Request) {
    * wieder anlegt, bekommt einen zweiten Kanal daneben. Genau das ist dem
    * Betreiber passiert.
    */
-  const discord = await loescheZugang(name);
+  const fuer = (weg?.verwaltet ?? '').trim();
+  const discord = fuer
+    ? await loescheZugang(fuer, 'manager')
+    : await loescheZugang(name);
 
   return NextResponse.json({
     ok: true,

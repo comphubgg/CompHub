@@ -1901,6 +1901,36 @@ const AUF_ENGLISCH: Record<string, string> = {
     + 'minutes. Closing a tab does not sign anyone out — nothing more can '
     + 'honestly be said about it.',
   'Noch keine Ergebnisse': 'No results yet',
+  'Wer sich damit anmelden darf':
+    'Who may sign in with it',
+  'Namen, durch Komma oder Zeile getrennt':
+    'names, separated by comma or line',
+  'Beim Anmelden gibt jeder nach Name und Schlüssel noch seinen eigenen Namen an. Steht er nicht hier, kommt er nicht hinein — auch mit richtigem Schlüssel nicht. So sperrst du einen Einzelnen aus, ohne den anderen den Schlüssel zu wechseln.':
+    'When signing in, each person gives their own name after the access name and key. If it is not listed here, they do not get in — not even with the right key. That is how you lock out one person without changing the key for everyone else.',
+  'Namen':
+    'Names',
+  'Ohne Namen kommt niemand hinein.':
+    'Without names nobody gets in.',
+  'Schlüssel neu schreiben':
+    'Rewrite keys',
+  'Räumt jeden Schlüsselkanal leer und schreibt den gültigen Schlüssel neu hinein — vom Bot, mit Knopf darunter. Die Schlüssel selbst bleiben unverändert, niemand wird ausgesperrt.':
+    'Clears every key channel and writes the valid key into it again — from the bot, with the button below. The keys themselves stay unchanged, nobody is locked out.',
+  'Dieser Name ist für diesen Zugang nicht eingetragen.':
+    'That name is not registered for this access.',
+  'Mehrere Leute teilen ihn sich. Gib den Namen an, unter dem du eingetragen bist — er steht danach neben jedem Overlay, das du anlegst oder änderst.':
+    'Several people share it. Give the name you are registered under — it then shows next to every overlay you create or change.',
+  'Schlüssel neu geschrieben':
+    'Key rewritten',
+  'Schlüssel blieb aus':
+    'Key did not go out',
+  'Kein Kanal':
+    'No channel',
+  'Support geöffnet für':
+    'Support opened for',
+  'Rolle angelegt':
+    'Role created',
+  'Rollen für die Leitfäden gefunden':
+    'Roles for the guides found',
   'VIP-Manager':
     'VIP manager',
   'Der Zugang heißt dann':

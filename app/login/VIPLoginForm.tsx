@@ -71,8 +71,13 @@ export default function VIPLoginForm() {
        */
       if (daten?.modNoetig) {
         setFuer(String(daten.fuer ?? ''));
+        /*
+         * Ein Name, der nicht durchkommt, bekommt einen Satz - aber keinen,
+         * der verraet, welche Namen es gibt. "Nicht eingetragen" gilt fuer
+         * einen Vertipper genauso wie fuer jemanden, der nie eingetragen war.
+         */
         if (daten.fehlerhaft) {
-          setFehler(t('Zwei bis vierundzwanzig Zeichen, keine Sonderzeichen.'));
+          setFehler(t('Dieser Name ist für diesen Zugang nicht eingetragen.'));
         }
         return;
       }
@@ -131,8 +136,9 @@ export default function VIPLoginForm() {
           <p className="text-[11px] leading-relaxed text-sky-200/80">
             <T>Dieser Zugang betreut die Overlays von</T>{' '}
             <span className="font-semibold text-sky-100">{fuer}</span>.{' '}
-            <T>Mehrere Leute teilen ihn sich — sag kurz, wer du bist, damit
-            neben jedem Overlay steht, wer es angelegt oder geändert hat.</T>
+            <T>Mehrere Leute teilen ihn sich. Gib den Namen an, unter dem du
+            eingetragen bist — er steht danach neben jedem Overlay, das du
+            anlegst oder änderst.</T>
           </p>
           <input
             value={mod}

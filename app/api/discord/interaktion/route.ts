@@ -159,7 +159,7 @@ export async function POST(request: NextRequest) {
           });
       };
 
-      const erg = await wechsleSchluessel(name);
+      const erg = await wechsleSchluessel(name, { ausDiscord: true });
       if (!erg.ok || !erg.schluessel) {
         await melde(
           erg.grund === 'nicht erlaubt'

@@ -552,7 +552,7 @@ export async function schickeSchluessel(
      * sich, und einer koennte damit die anderen mitten im Stream
      * aussperren.
      */
-    ...(darfWechseln && knoepfeMoeglich() ? {
+    ...(knoepfeMoeglich() && darfWechseln ? {
       components: [{
         type: 1,
         components: [{
@@ -743,7 +743,11 @@ function spracheKnopf(schluessel: string) {
       components: [{
         type: 2,
         style: 2,
-        label: 'Auf Deutsch lesen',
+        // Englisch beschriftet, obwohl er auf Deutsch umschaltet - so wie
+        // ein Sprachwahlknopf ueberall: er nennt das Ziel in der Sprache der
+        // Seite. Der Betreiber: "einfach auf Deutsch lesen, auf Englisch
+        // geschrieben."
+        label: 'Read in German',
         custom_id: `sprache:de:${schluessel}`,
       }],
     }],
@@ -927,6 +931,34 @@ export async function richteServerEin(
     fehler.push({ text: 'Die Support-Kategorie ließ sich nicht anlegen.' });
   }
 
+  /*
+   * Der Support steht auch den Managern offen.
+   *
+   * Bisher sah ihn nur die Rolle "VIP STREAMER" - ein Manager stand davor wie
+   * vor einer verschlossenen Tuer, obwohl er derjenige ist, der waehrend des
+   * Streams etwas braucht. Der Betreiber: "dann supporte das auch einmal fuer
+   * die Manager geben."
+   *
+   * Ansehen und Verlauf lesen; ob geschrieben werden darf, bleibt wie es ist -
+   * die Tickets laufen ueber den Knopf im Kanal, nicht ueber Zurufe.
+   */
+  const supportRollen = await zugangsRollen();
+  if (support) {
+    const kanal = kanaele.find((k) => k.type === 0 && gleich(k.name, 'support'));
+    if (kanal) {
+      let dazu = 0;
+      for (const rolle of [...supportRollen.vip, ...supportRollen.manager]) {
+        const ok = await ruf(`/channels/${kanal.id}/permissions/${rolle}`, 'PUT', {
+          type: 0, allow: LESEN, deny: '0',
+        });
+        if (ok) dazu += 1;
+      }
+      if (dazu) {
+        schritte.push({ text: 'Support geöffnet für', wert: `${dazu} Rollen` });
+      }
+    }
+  }
+
   if (support) {
     for (const name of ['support', 'transkriptionen']) {
       const k = kanaele.find((x) => x.type === 0 && gleich(x.name, name));
@@ -1061,4 +1093,107 @@ export async function gemerkterKanal(
   const schluessel = art === 'manager' ? `manager:${klein}` : klein;
   return ablage[schluessel]?.kanal
     ?? (art === 'vip' ? BEKANNTE_KANAELE[klein] ?? null : null);
+}
+
+/**
+ * Alle Schluesselkanaele in Ordnung bringen.
+ *
+ * Der Betreiber hat die Schluessel eine Zeit lang selbst in die Kanaele
+ * geschrieben, bevor es den Bot gab: "es gibt noch ein paar Kanaele, wo ich
+ * es noch reingeschrieben habe als normaler User. Es soll immer der Bot drin
+ * sein." Von Hand geschriebene Nachrichten kann der Bot spaeter nicht
+ * ersetzen - er weiss nichts von ihnen -, und so standen in manchen Kanaelen
+ * zwei Schluessel untereinander.
+ *
+ * Dieser Weg raeumt jeden Kanal leer und schreibt den gueltigen Schluessel
+ * neu hinein, vom Bot, mit dem Knopf darunter. Der Schluessel selbst bleibt
+ * derselbe - "neu aufschreiben", nicht "neu erzeugen"; ein neuer Schluessel
+ * haette jeden VIP mitten im Betrieb ausgesperrt.
+ *
+ * Nebenbei werden die Rechte im Kanal richtiggestellt. Die alten Kanaele
+ * gaben der Rolle nur "Kanal ansehen" und nicht "Verlauf lesen" - wer
+ * hineinsah, fand den Kanal leer, weil die Schluesselnachricht vor seinem
+ * Besuch geschrieben wurde. Genau das war der Grund, warum ueberhaupt jemand
+ * anfing, Schluessel von Hand nachzureichen.
+ */
+export async function schluesselAufraeumen(): Promise<AufbauBericht> {
+  const schritte: AufbauZeile[] = [];
+  const fehler: AufbauZeile[] = [];
+  if (!discordDa()) {
+    return {
+      ok: false, schritte, fehler: [{ text: 'Kein Bot-Token hinterlegt.' }],
+    };
+  }
+
+  const ich = await werBinIch();
+  const adminRolle = await adminRolleId();
+  const rollen = await rollenListe();
+  const nackt = (x: string) => x.toLowerCase().replace(/[^a-z0-9]+/g, '');
+  const nachNackt = new Map<string, string>();
+  for (const [n, id] of rollen) {
+    if (!nachNackt.has(nackt(n))) nachNackt.set(nackt(n), id);
+  }
+
+  for (const z of await alleZugaenge()) {
+    const fuer = (z.verwaltet ?? '').trim();
+    const art: KanalArt = fuer ? 'manager' : 'vip';
+    const ziel = fuer || z.username;
+
+    const ablage = await lies();
+    const kanal = await kanalFuer(ziel, ablage, art);
+    if (!kanal) {
+      fehler.push({ text: 'Kein Kanal', wert: z.username });
+      continue;
+    }
+
+    /*
+     * Die Rechte neu setzen - ausdruecklich und vollstaendig.
+     *
+     * Ansehen allein genuegt nicht: ohne "Verlauf lesen" (65536) sieht der
+     * VIP einen leeren Kanal. Schreiben darf er nicht, der Kanal ist eine
+     * Ablage.
+     */
+    const rollenName = art === 'manager'
+      ? `${ziel.toLowerCase()} manager` : ziel.toLowerCase();
+    const eigene = rollen.get(rollenName) ?? nachNackt.get(nackt(rollenName));
+    const regeln: Array<Record<string, string | number>> = [
+      { id: SERVER, type: 0, allow: '0', deny: '1024' },
+    ];
+    if (ich) regeln.push({ id: ich, type: 1, allow: VOLLZUGRIFF, deny: '0' });
+    if (eigene) regeln.push({ id: eigene, type: 0, allow: LESEN, deny: '2048' });
+    if (adminRolle) {
+      regeln.push({ id: adminRolle, type: 0, allow: VOLLZUGRIFF, deny: '0' });
+    }
+    await ruf(`/channels/${kanal}`, 'PATCH', { permission_overwrites: regeln });
+
+    const weg = await leerRaeumen(kanal);
+
+    /*
+     * Und der Schluessel neu.
+     *
+     * Der Knopf darunter steht jedem VIP zu, nicht nur denen mit dem Recht
+     * im Werkzeug: der Kanal ist privat, und genau dafuer ist er da - "wenn
+     * er zum Beispiel grade keinen Access hat auf seinen Account, dann kann
+     * er's ueber den Discord machen". Ein Manager-Zugang bekommt ihn nie.
+     */
+    const hin = await schickeSchluessel(ziel, z.accessKey, art, art === 'vip');
+    if (hin.ok) {
+      schritte.push({
+        text: 'Schlüssel neu geschrieben',
+        wert: `${z.username}${weg ? ` (${weg} alte entfernt)` : ''}`,
+      });
+    } else {
+      fehler.push({ text: 'Schlüssel blieb aus', wert: `${z.username} — ${hin.grund}` });
+    }
+  }
+
+  if (!knoepfeMoeglich()) {
+    schritte.push({
+      text: 'Ohne DISCORD_PUBLIC_KEY gibt es keine Knöpfe — weder für Deutsch '
+        + 'noch für den Schlüsselwechsel. Sie erscheinen, sobald der Schlüssel '
+        + 'hinterlegt und die Interactions-URL eingetragen ist.',
+    });
+  }
+
+  return { ok: fehler.length === 0, schritte, fehler };
 }
