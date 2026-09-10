@@ -278,17 +278,6 @@ function VipZugaenge() {
    */
   const [art, setArt] = useState<'vip' | 'manager'>('vip');
   /**
-   * Die Namen, die diesen Manager-Zugang benutzen duerfen.
-   *
-   * Ein Textfeld und keine Reihe von Einzelfeldern: der Betreiber tippt drei
-   * bis fuenf Namen am Stueck ab, so wie sie ihm der Streamer schickt.
-   * Getrennt wird nach Komma, Semikolon oder Zeile - was er eben tippt.
-   */
-  const [mods, setMods] = useState('');
-  /** Bei welchem Zugang die Namensliste gerade offen steht. */
-  const [namenOffen, setNamenOffen] = useState<string | null>(null);
-  const [namenText, setNamenText] = useState('');
-  /**
    * Der Aufbau des Discord-Servers.
    *
    * null heisst "noch nicht angestossen". Sonst steht hier, was der Bot
@@ -325,14 +314,14 @@ function VipZugaenge() {
           ...(vorgabe.trim() ? { schluessel: vorgabe.trim() }
             : praefix.trim() ? { praefix: praefix.trim() } : {}),
           ...(art === 'manager' && verwaltet.trim()
-            ? { verwaltet: verwaltet.trim(), mods } : {}),
+            ? { verwaltet: verwaltet.trim() } : {}),
         }),
       });
       const j = await r.json();
       if (!r.ok) { setFehler(t(j?.fehler ?? 'nicht gespeichert')); return; }
       setFrisch({ name: j.name, schluessel: j.schluessel });
       setDiscord(j.discord ?? null);
-      setName(''); setPraefix(''); setVorgabe(''); setVerwaltet(''); setMods('');
+      setName(''); setPraefix(''); setVorgabe(''); setVerwaltet('');
       await holen();
     } catch (e) { setFehler((e as Error).message); }
   }
@@ -437,22 +426,6 @@ function VipZugaenge() {
         laeuft: false, schritte: [], fehler: [{ text: (e as Error).message }],
       });
     }
-  }
-
-  /** Die Namensliste eines Manager-Zugangs speichern. */
-  async function namenSpeichern(n: string) {
-    setFehler('');
-    const r = await fetch('/api/admin/vip-zugaenge', {
-      method: 'PUT', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ name: n, mods: namenText }),
-    });
-    if (!r.ok) {
-      const j = await r.json().catch(() => ({}));
-      setFehler(t(j?.fehler ?? 'nicht gespeichert'));
-      return;
-    }
-    setNamenOffen(null);
-    await holen();
   }
 
   /**
@@ -595,32 +568,6 @@ function VipZugaenge() {
             </p>
           )}
 
-          {/*
-            * Wer diesen Zugang benutzen darf.
-            *
-            * Kein Beiwerk: Schluessel und Zugangsname sind fuer alle gleich,
-            * der Name ist die einzige Unterscheidung - und damit die einzige
-            * Stelle, an der sich ein einzelner Mod wieder aussperren laesst,
-            * ohne den anderen mitten im Stream den Schluessel zu wechseln.
-            */}
-          {art === 'manager' && (
-            <label className="mt-3 block">
-              <span className="mb-1 block text-[10px] uppercase tracking-wider
-                               text-slate-600">
-                <T>Wer sich damit anmelden darf</T>
-              </span>
-              <textarea value={mods} onChange={(e) => setMods(e.target.value)}
-                rows={2}
-                placeholder={t('Namen, durch Komma oder Zeile getrennt')}
-                className={`${feld} resize-y`} />
-              <span className="mt-1 block text-[10px] leading-relaxed text-slate-600">
-                <T>Beim Anmelden gibt jeder nach Name und Schlüssel noch seinen
-                eigenen Namen an. Steht er nicht hier, kommt er nicht hinein —
-                auch mit richtigem Schlüssel nicht. So sperrst du einen
-                Einzelnen aus, ohne den anderen den Schlüssel zu wechseln.</T>
-              </span>
-            </label>
-          )}
 
           {/*
             * Den Schluessel mitbestimmen - freiwillig.
@@ -736,17 +683,6 @@ function VipZugaenge() {
                       <T>Manager für</T> {z.verwaltet}
                     </span>
                   )}
-                  {z.verwaltet && (
-                    <button
-                      onClick={() => {
-                        setNamenOffen(namenOffen === z.name ? null : z.name);
-                        setNamenText((z.mods ?? []).join(', '));
-                      }}
-                      className="text-[11px] text-slate-500 transition
-                                 hover:text-sky-400">
-                      <T>Namen</T> ({(z.mods ?? []).length})
-                    </button>
-                  )}
                   <button
                     onClick={() => setZeigt(zeigt === z.name ? null : z.name)}
                     className="ml-auto text-[11px] text-slate-500 transition
@@ -794,36 +730,6 @@ function VipZugaenge() {
                     </code>
                   )}
 
-                  {/*
-                    * Die Namensliste - offen nur bei einem Zugang.
-                    *
-                    * Leer heisst: niemand kommt hinein. Das steht auch so
-                    * da, damit es nicht wie ein vergessenes Feld aussieht.
-                    */}
-                  {namenOffen === z.name && (
-                    <div className="w-full">
-                      <textarea value={namenText} rows={2}
-                        onChange={(e) => setNamenText(e.target.value)}
-                        placeholder={t('Namen, durch Komma oder Zeile getrennt')}
-                        className={`${feld} resize-y`} />
-                      <div className="mt-1.5 flex items-center gap-3">
-                        <button onClick={() => namenSpeichern(z.name)}
-                          className="rounded-lg bg-sky-500 px-3 py-1 text-[11px]
-                                     font-medium text-white hover:bg-sky-400">
-                          <T>Übernehmen</T>
-                        </button>
-                        <button onClick={() => setNamenOffen(null)}
-                          className="text-[11px] text-slate-500 hover:text-slate-300">
-                          <T>Abbrechen</T>
-                        </button>
-                        {!namenText.trim() && (
-                          <span className="text-[10px] text-amber-500/80">
-                            <T>Ohne Namen kommt niemand hinein.</T>
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  )}
                 </li>
               ))}
             </ul>

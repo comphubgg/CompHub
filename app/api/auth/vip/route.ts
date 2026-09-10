@@ -74,48 +74,20 @@ export async function POST(request: NextRequest) {
     }
 
     /*
-     * Bei einem Manager-Zugang fehlt noch ein Schritt.
+     * Ein Manager-Zugang meldet sich an wie jeder andere.
      *
-     * Name und Schluessel stimmen - aber sie stimmen fuer alle, die sich
-     * diesen Zugang teilen. Bevor das Cookie gesetzt wird, sagt die
-     * Schnittstelle deshalb: "wer bist du?" Erst mit dem Schild geht es
-     * weiter. Absichtlich hier und nicht davor: wer den Schluessel nicht hat,
-     * soll auch nicht erfahren, dass es sich um einen Manager-Zugang handelt.
+     * Hier stand einmal ein zweiter Schritt: nach Name und Schluessel noch
+     * der eigene Name, abgeglichen mit einer Liste. Der Betreiber hat das
+     * wieder abbestellt - "ein bisschen uebertrieben viel Sicherheit ...
+     * mach einfach Access Key plus <streamer>-managers als User, dann kann
+     * man sich einloggen. Dann hat jeder den gleichen Login."
+     *
+     * Der Name laesst sich weiterhin freiwillig mitschicken; steht er da,
+     * erscheint er neben den Overlays, die damit angelegt werden. Er ist nur
+     * keine Bedingung mehr.
      */
     const verwaltet = String(user.verwaltet ?? '').trim();
     const schild = modName(mod);
-    if (verwaltet) {
-      /*
-       * Der Name muss eingetragen sein.
-       *
-       * Er ist keine Beschriftung, sondern die eigentliche Sperre: Schluessel
-       * und Zugangsname sind fuer alle gleich, verschieden ist nur der Name.
-       * Wer nicht in der Liste steht, kommt nicht hinein - "wenn ich den
-       * Namen loesche und er trotzdem Access Key und den Zugangsnamen richtig
-       * hat, dann geht's nicht".
-       *
-       * Verglichen wird ohne Ruecksicht auf Gross- und Kleinschreibung: der
-       * Name wird getippt, nicht kopiert.
-       */
-      const erlaubt: string[] = Array.isArray(user.mods) ? user.mods : [];
-      const passt = erlaubt.find(
-        (m: string) => String(m).trim().toLowerCase() === schild.toLowerCase());
-
-      if (!schild || !passt) {
-        return NextResponse.json({
-          modNoetig: true,
-          fuer: verwaltet,
-          /*
-           * Zwei verschiedene Antworten, aber dieselbe Form.
-           *
-           * "unbekannt" heisst: der Name steht nicht in der Liste. Ob der
-           * Zugang ueberhaupt Namen hat, verraten wir nicht - sonst liesse
-           * sich die Liste durch Ausprobieren abfragen.
-           */
-          fehlerhaft: Boolean(String(mod ?? '').trim()),
-        });
-      }
-    }
 
     // Fuer die Liste "wer war wann da" in den Adminwerkzeugen.
     void merkeAnwesenheit(`vip:${user.username.toLowerCase()}`, user.username, 'vip');

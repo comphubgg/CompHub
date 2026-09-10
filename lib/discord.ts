@@ -539,7 +539,7 @@ export function knoepfeMoeglich(): boolean {
 
 export async function schickeSchluessel(
   name: string, schluessel: string, art: KanalArt = 'vip',
-  darfWechseln = false, darfEigenen = false,
+  darfWechseln = false, darfEigenen = false, anmeldename = '',
 ): Promise<{ ok: boolean; grund?: string }> {
   if (!discordDa()) return { ok: false, grund: 'kein-token' };
 
@@ -584,7 +584,16 @@ export async function schickeSchluessel(
       `||\`${schluessel}\`||`,
       '',
       '_Click the grey bar to reveal the key._',
-      `Sign in at https://thecomphub.com/login/vip with the name \`${name}\`.`,
+      /*
+       * Der Name, mit dem man sich anmeldet - nicht der des Kanals.
+       *
+       * Bei einem Manager-Zugang sind das zwei verschiedene Dinge: der
+       * Kanal heisst nach dem Streamer ("gripey"), angemeldet wird sich
+       * aber mit dem Zugang ("gripey-managers"). Hier stand der
+       * Kanalname, und damit ein Name, mit dem niemand hineinkam.
+       */
+      `Sign in at https://www.thecomphub.com/anmelden/vip with the name \`${
+        anmeldename || name}\`.`,
       '',
       '_This message is replaced whenever a new key is generated — the key '
       + 'above is always the valid one._',
@@ -1335,7 +1344,7 @@ export async function schluesselAufraeumen(): Promise<AufbauBericht> {
      */
     const hin = await schickeSchluessel(
       ziel, z.accessKey, art, art === 'vip',
-      art === 'vip' && Boolean(z.darfSchluessel));
+      art === 'vip' && Boolean(z.darfSchluessel), z.username);
     if (hin.ok) {
       schritte.push({
         text: 'Schlüssel neu geschrieben',

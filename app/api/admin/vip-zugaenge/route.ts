@@ -334,7 +334,7 @@ export async function POST(request: Request) {
     (u) => u.username.toLowerCase() === name.toLowerCase());
   const discord = await schickeSchluessel(
     verwaltet || name, schluessel, verwaltet ? 'manager' : 'vip',
-    !verwaltet, !verwaltet && Boolean(fertig?.darfSchluessel));
+    !verwaltet, !verwaltet && Boolean(fertig?.darfSchluessel), name);
 
   /*
    * Der Schluessel geht genau hier heraus, ein einziges Mal. Die Oberflaeche

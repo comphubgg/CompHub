@@ -63,25 +63,6 @@ export default function VIPLoginForm() {
         return;
       }
 
-      /*
-       * Der Zugang stimmt, aber es fehlt noch das Namensschild.
-       *
-       * Dann steht hier kein Fehler, sondern eine Frage: das Feld erscheint,
-       * die beiden ausgefuellten bleiben stehen.
-       */
-      if (daten?.modNoetig) {
-        setFuer(String(daten.fuer ?? ''));
-        /*
-         * Ein Name, der nicht durchkommt, bekommt einen Satz - aber keinen,
-         * der verraet, welche Namen es gibt. "Nicht eingetragen" gilt fuer
-         * einen Vertipper genauso wie fuer jemanden, der nie eingetragen war.
-         */
-        if (daten.fehlerhaft) {
-          setFehler(t('Dieser Name ist für diesen Zugang nicht eingetragen.'));
-        }
-        return;
-      }
-
       // Nach /vip, nicht nach /admin: wer mit einem Zugangsschluessel
       // hereinkommt, ist kein Administrator und soll auch nicht so
       // adressiert werden. Dieselbe Seite, die passende Adresse.
