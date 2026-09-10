@@ -1901,6 +1901,28 @@ const AUF_ENGLISCH: Record<string, string> = {
     + 'minutes. Closing a tab does not sign anyone out — nothing more can '
     + 'honestly be said about it.',
   'Noch keine Ergebnisse': 'No results yet',
+  'Offspawn':
+    'Offspawn',
+  'Zwei Teams und ein Stand, von Hand gepflegt':
+    'Two teams and a score, kept by hand',
+  'Zwei Teams, ein Stand von Hand. Epic weiß davon nichts — was hier steht, steht im Stream.':
+    'Two teams, a score by hand. Epic knows nothing about it; what stands here stands on stream.',
+  'Der Stand':
+    'The score',
+  'Teamname':
+    'team name',
+  'Zeile darunter':
+    'Line below',
+  'zum Beispiel „Game 1 / 4“':
+    'for example "Game 1 / 4"',
+  'Überschrift zeigen':
+    'Show headline',
+  'Farbe links':
+    'Colour left',
+  'Farbe rechts':
+    'Colour right',
+  'Violett':
+    'Purple',
   'Beitrag zu diesem Spieltag':
     'Post for this match day',
   'Vergangene Cups':

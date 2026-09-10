@@ -62,6 +62,15 @@ export const ARTEN: Array<{
     datei: 'timer.html',
     was: 'Countdown bis zum Start des Spieltags',
   },
+  /*
+   * Der Offspawn-Stand. Er holt als einziger nichts von Epic - was dort
+   * steht, gibt der Betreiber selbst ein.
+   */
+  {
+    schluessel: 'offspawn', pfad: '/overlays/offspawn', titel: 'Offspawn',
+    datei: 'offspawn.html',
+    was: 'Zwei Teams und ein Stand, von Hand gepflegt',
+  },
   {
     schluessel: 'qual', pfad: '/overlays/qual', titel: 'Qual line',
     datei: 'qual.html',
