@@ -39,7 +39,28 @@ html, body {
   overflow: hidden;
   font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
   -webkit-font-smoothing: antialiased;
+  /*
+   * Schrift so genau zeichnen, wie es geht.
+   *
+   * Macht aus einer unscharfen Einblendung keine scharfe - dafuer sorgt der
+   * Massstab unten -, aber es kostet nichts und hilft bei kleinen Groessen.
+   */
+  text-rendering: geometricPrecision;
 }
+
+/*
+ * Der Massstab gegen die Unschaerfe.
+ *
+ * In OBS ist eine Browserquelle ein Bild in genau der Groesse, die dort
+ * eingetragen ist. Wer sie danach in der Szene groesser zieht, vergroessert
+ * ein fertiges Bild - und genau so sah es beim Betreiber aus: "das ist sehr,
+ * sehr unscharf."
+ *
+ * Mit zwei wird alles doppelt so gross gezeichnet. Traegt man die Quelle dann
+ * ebenfalls doppelt so gross ein und zieht sie in der Szene auf die Haelfte,
+ * entsteht kein einziges hochgerechnetes Pixel mehr.
+ */
+#karte { zoom: var(--massstab, 1); }
 
 #karte {
   /*
@@ -213,6 +234,8 @@ html, body {
     bild: 2.1,
     /** Feste Breite in Pixeln - 0 heisst: so breit wie der Inhalt. */
     breite: 0,
+    /** 1 oder 2 - siehe "Der Massstab gegen die Unschaerfe" oben. */
+    massstab: 1,
     /** Die Farbe des Balkens unter dem Stand. */
     balken: '#f97316',
     /** Bilder je Seite - eines je Duo, so wollte es der Betreiber. */
@@ -236,6 +259,7 @@ html, body {
       s.setProperty('--bild', (Number(cfg.bild) || 2.1) + 'em');
       s.setProperty('--breite',
         Number(cfg.breite) > 0 ? Number(cfg.breite) + 'px' : 'max-content');
+      s.setProperty('--massstab', String(Number(cfg.massstab) || 1));
 
       for (const [id, pfad] of [['f1', cfg.bild1], ['f2', cfg.bild2]]) {
         const el = $(id);

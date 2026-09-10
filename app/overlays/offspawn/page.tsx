@@ -34,6 +34,8 @@ const STANDARD = {
   bild: 2.1,
   /** Feste Breite in Pixeln - 0 heisst: so breit wie der Inhalt. */
   breite: 0,
+  /** 1 oder 2 - gegen unscharfe Einblendungen in OBS. */
+  massstab: 1,
   /** Die Farbe des Balkens unter dem Stand. */
   balken: '#f97316',
   /** Ein Bild je Seite - eines je Duo. */
@@ -351,6 +353,12 @@ export default function OffspawnSeite() {
                 */}
               <Regler titel="Breite" wert={cfg.breite} von={0} bis={1200}
                 schritt={10} einheit="px" setzen={(n) => setz('breite', n)} />
+              <Wahlreihe titel="Schärfe" wert={cfg.massstab}
+                optionen={[
+                  { wert: 1, titel: 'Normal' },
+                  { wert: 2, titel: 'Doppelt (schärfer)' },
+                ]}
+                setzen={(w) => setz('massstab', w)} />
               <Regler titel="Wie deckend der Grund ist" wert={cfg.deckkraft}
                 von={0} bis={1} schritt={0.02}
                 setzen={(n) => setz('deckkraft', n)} />
@@ -393,6 +401,29 @@ export default function OffspawnSeite() {
                 className="h-28 w-full border-0" />
             </div>
 
+            {/*
+              * Warum es in OBS unscharf aussieht - und was dagegen hilft.
+              *
+              * Eine Browserquelle ist dort ein Bild in genau der Groesse, die
+              * eingetragen ist; wer sie in der Szene groesser zieht,
+              * vergroessert ein fertiges Bild. Drei Zeilen sagen, wie man das
+              * vermeidet.
+              */}
+            {cfg.massstab === 2 && (
+              <p className="mb-3 text-[11px] leading-relaxed text-sky-400/80">
+                <T>Trag die Browser-Quelle in OBS mit der doppelten Breite und
+                Höhe ein und zieh sie in der Szene auf 50 % — dann wird nichts
+                hochgerechnet und alles ist scharf.</T>
+              </p>
+            )}
+            {cfg.massstab !== 2 && (
+              <p className="mb-3 text-[11px] leading-relaxed text-slate-500">
+                <T>Unscharf in OBS? Zieh die Quelle in der Szene nie größer,
+                als sie eingetragen ist. Mit „Schärfe: Doppelt“ wird alles
+                doppelt so groß gezeichnet — Quelle doppelt so groß eintragen,
+                in der Szene auf 50 %.</T>
+              </p>
+            )}
             {id && (
               <input readOnly value={overlayAdresse('offspawn', id)}
                 onFocus={(e) => e.currentTarget.select()}
