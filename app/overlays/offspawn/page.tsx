@@ -92,7 +92,7 @@ export default function OffspawnSeite() {
    */
   const [suche, setSuche] = useState<{ seite: 1 | 2; text: string } | null>(null);
   const [funde, setFunde] = useState<Array<{
-    epicId: string; anzeige: string; bild: string | null;
+    epicId: string; anzeige: string; bild: string | null; echtesFoto?: boolean;
   }>>([]);
   useEffect(() => {
     const q = (suche?.text ?? '').trim();
@@ -100,7 +100,20 @@ export default function OffspawnSeite() {
     const stift = window.setTimeout(() => {
       fetch(`/api/szene-stats?ansicht=suche&q=${encodeURIComponent(q)}`)
         .then((r) => r.json())
-        .then((j) => setFunde(Array.isArray(j?.spieler) ? j.spieler.slice(0, 8) : []))
+        .then((j) => setFunde(
+          /*
+           * Wer ein Foto hat, steht oben.
+           *
+           * Hier wird nach einem Gesicht gesucht, nicht nach einer
+           * Statistik: "einen Spieler suchen, der Bilder hat, dass da
+           * reinkommt". Wer keines hat, faellt nicht raus - er laesst sich
+           * weiterhin waehlen, dann kommt eben nur der Name - steht aber
+           * hinten und ist als solcher gekennzeichnet.
+           */
+          (Array.isArray(j?.spieler) ? j.spieler : [])
+            .slice(0, 8)
+            .sort((a: { bild: string | null }, b: { bild: string | null }) =>
+              Number(Boolean(b.bild)) - Number(Boolean(a.bild)))))
         .catch(() => setFunde([]));
     }, 300);
     return () => window.clearTimeout(stift);
@@ -236,11 +249,21 @@ export default function OffspawnSeite() {
                               {f.bild
                                 // eslint-disable-next-line @next/next/no-img-element
                                 ? <img src={f.bild} alt=""
-                                  className="h-6 w-6 shrink-0 rounded-full
+                                  className="h-7 w-7 shrink-0 rounded-sm
                                              object-cover" />
-                                : <span className="h-6 w-6 shrink-0 rounded-full
+                                : <span className="h-7 w-7 shrink-0 rounded-sm
                                                    bg-zinc-800" />}
-                              <span className="min-w-0 truncate">{f.anzeige}</span>
+                              <span className="min-w-0 flex-1 truncate">
+                                {f.anzeige}
+                              </span>
+                              {/* Damit niemand einen Spieler ohne Foto
+                                  waehlt und sich dann wundert. */}
+                              {!f.bild && (
+                                <span className="shrink-0 text-[10px]
+                                                 text-slate-600">
+                                  <T>kein Foto</T>
+                                </span>
+                              )}
                             </button>
                           ))}
                         </div>
