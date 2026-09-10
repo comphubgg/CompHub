@@ -90,38 +90,40 @@ const WILLKOMMEN: Beitrag = {
       + 'will always get a straight yes or no.',
     ].join('\n'),
     de: [
-      'CompHub ist ein Werkzeug für kompetitives Fortnite: Leaderboards '
-      + 'laufender Cups, Matchverlauf mit Match-IDs, Preispools, Spieler- und '
-      + 'Teamstatistiken, Power Rankings, ein Multiview für mehrere Streams '
-      + 'gleichzeitig — und Overlays, die direkt in OBS laufen.',
+      'CompHub ist ein Werkzeug für kompetitives Fortnite. Leaderboards '
+      + 'von laufenden Cups, der komplette Matchverlauf samt Match-IDs, '
+      + 'Preispools, Spieler- und Teamstatistiken, Power Rankings und ein '
+      + 'Multiview für mehrere Streams gleichzeitig. Dazu Overlays, die du '
+      + 'direkt in OBS einbinden kannst.',
       '',
-      '**Webseite** — https://thecomphub.com',
+      '**Webseite:** https://thecomphub.com',
       '',
       '__Für wen dieser Server ist__',
       'Er ist der Maschinenraum für die Streamer und Creator, die CompHub '
-      + 'benutzen. Jeder mit Zugang hat hier seinen eigenen, privaten Kanal. '
-      + 'Darin steht genau eine Nachricht: der Schlüssel, der gerade gilt.',
+      + 'benutzen. Jeder mit Zugang hat hier seinen eigenen privaten Kanal, '
+      + 'und darin steht genau eine Nachricht: der Schlüssel, der gerade '
+      + 'gilt.',
       '',
       '__So meldest du dich an__',
       '1. Öffne https://www.thecomphub.com/anmelden/vip',
-      '2. Tippe den **Namen** deines Zugangs (der Kanal ist danach benannt) '
-      + 'und den **Schlüssel** aus deinem Kanal.',
-      '3. Das ist alles — keine E-Mail, kein Passwort. Verglichen wird Zeichen '
-      + 'für Zeichen, Groß- und Kleinschreibung zählt also mit.',
+      '2. Tippe den Namen deines Zugangs ein. Der Kanal hier ist danach '
+      + 'benannt. Dazu den Schlüssel, der in diesem Kanal steht.',
+      '3. Mehr braucht es nicht, keine E-Mail und kein Passwort. Achte '
+      + 'auf Groß- und Kleinschreibung, die zählt mit.',
       '',
       '__Dein Schlüssel__',
-      'Behandle ihn wie ein Passwort. Er ist das Einzige zwischen deinem Namen '
-      + 'und deinen Overlays. Sobald ein neuer erzeugt wird, verschwindet die '
-      + 'alte Nachricht in deinem Kanal und eine neue nimmt ihren Platz ein — '
-      + 'was dort steht, ist immer der gültige Schlüssel. Er liegt hinter '
-      + 'einem grauen Balken; zum Aufdecken draufklicken. So bleibt er beim '
-      + 'Streamen aus dem Bild.',
+      'Behandle ihn wie ein Passwort. Er ist das Einzige, was zwischen '
+      + 'deinem Namen und deinen Overlays steht. Sobald ein neuer erzeugt '
+      + 'wird, verschwindet die alte Nachricht und eine neue nimmt ihren '
+      + 'Platz ein. Was hier steht, gilt. Der Schlüssel liegt hinter einem '
+      + 'grauen Balken, zum Aufdecken klickst du einfach drauf. So bleibt '
+      + 'er beim Streamen aus dem Bild.',
       '',
       '__Du brauchst etwas?__',
-      'Eröffne ein Ticket im Support-Kanal. Alles ist erlaubt: ein Fehler, '
-      + 'eine fehlende Zahl, ein Overlay, das anders aussehen soll, eine Seite '
-      + 'nur für dich. Nicht alles geht und nichts geht sofort, aber du '
-      + 'bekommst immer ein klares Ja oder Nein.',
+      'Mach ein Ticket im Support auf. Alles ist erlaubt: ein Fehler, '
+      + 'eine fehlende Zahl, ein Overlay, das anders aussehen soll, eine '
+      + 'Seite nur für dich. Nicht alles ist möglich und nichts geht '
+      + 'sofort, aber du bekommst immer eine klare Antwort.',
     ].join('\n'),
   },
 };
@@ -132,7 +134,7 @@ const VIP_LEITFADEN: Beitrag = {
   thema: 'What a VIP access can do on thecomphub.com',
   titel: {
     en: 'VIP guide — what your access can do',
-    de: 'VIP-Leitfaden — was dein Zugang kann',
+    de: 'Was du mit deinem Zugang machen kannst',
   },
   text: {
     en: [
@@ -182,51 +184,58 @@ const VIP_LEITFADEN: Beitrag = {
       + 'else — not your tierlist, not your account. Ask for it in support.',
     ].join('\n'),
     de: [
-      'Melde dich unter https://www.thecomphub.com/anmelden/vip mit deinem Namen und '
-      + 'dem Schlüssel aus deinem Kanal an. Alles hier ist danach ein Klick '
-      + 'entfernt.',
+      'Melde dich unter https://www.thecomphub.com/anmelden/vip mit '
+      + 'deinem Namen und dem Schlüssel aus deinem Kanal an. Alles Folgende '
+      + 'ist danach einen Klick entfernt.',
       '',
-      '**Overlays** — Browserquellen für OBS',
-      'Drei Arten: eine **Team-Karte** (deine Einteilung, Form für Form), '
-      + '**Standings** (eine laufende Tabelle, die sich durch die Plätze '
-      + 'blättert) und **Qualification** (wer durch ist und wer wackelt). '
-      + 'Eine bauen, die URL kopieren, in OBS als *Browserquelle* einfügen — '
-      + 'fertig. Sie lädt sich von selbst alle paar Sekunden nach; du musst '
-      + 'die URL also nie wieder tauschen, auch nicht, wenn du das Overlay '
-      + 'mitten im Stream änderst. Deine gespeicherten Overlays stehen unter '
-      + '„My Overlays": umbenennen, Cup wechseln, URL kopieren, löschen.',
+      '**Overlays für OBS**',
+      'Es gibt drei Arten. Die Team-Karte zeigt deine Einteilung, Form '
+      + 'für Form. Die Standings sind eine laufende Tabelle, die sich durch '
+      + 'die vorderen Plätze blättert. Die Qualification zeigt, wer durch '
+      + 'ist und wer noch wackelt. Du baust eine, kopierst die URL und '
+      + 'fügst sie in OBS als Browserquelle ein, fertig. Sie lädt sich alle '
+      + 'paar Sekunden von selbst nach. Du musst die URL also nie wieder '
+      + 'tauschen, auch dann nicht, wenn du das Overlay mitten im Stream '
+      + 'änderst. Unter „My Overlays“ findest du alles wieder: umbenennen, '
+      + 'Cup wechseln, URL kopieren, löschen.',
       '',
-      '**Events** — jeder Cup, jede Region',
-      'Leaderboard mit bis zu zehntausend Plätzen, die vollständige Matchliste '
-      + 'mit der **Match-ID** jeder Runde, Preispool und Punkte, Spieler- und '
+      '**Events**',
+      'Jeder Cup und jede Region. Das Leaderboard reicht bis zu '
+      + 'zehntausend Plätze, die Matchliste zeigt jede Runde mit ihrer '
+      + 'Match-ID, dazu Preispool, Punkte sowie Spieler- und '
       + 'Teamstatistiken. Tag wählen, Region wählen, Namen suchen.',
       '',
-      '**Multiview** — mehrere Streams nebeneinander, samt Chats.',
+      '**Multiview**',
+      'Mehrere Streams nebeneinander, samt Chats.',
       '',
-      '**Rankings** — die weltweite Bestenliste, nach Region und Saison.',
+      '**Rankings**',
+      'Die weltweite Bestenliste, nach Region und Saison.',
       '',
-      '**Tierlist** — Spieler einsortieren. Deine ist privat: sie gehört '
-      + 'deinem Zugang, und niemand sonst sieht sie, auch kein Admin.',
+      '**Tierlist**',
+      'Spieler einsortieren. Deine ist privat, sie gehört deinem Zugang '
+      + 'und niemand sonst sieht sie, auch kein Admin.',
       '',
-      '**Kontakt & Chatarchiv** — schreib dem Betreiber direkt aus dem '
-      + 'Werkzeug; jedes Gespräch bleibt danach lesbar.',
+      '**Kontakt und Chatarchiv**',
+      'Schreib dem Betreiber direkt aus dem Werkzeug. Jedes Gespräch '
+      + 'bleibt danach lesbar.',
       '',
       '__Was du anfragen kannst__',
-      'Alles. Eine Zahl, die fehlt, ein Cup, der in die Liste gehört, ein '
-      + 'Overlay in deinen Farben, eine Statistikseite nur für dich, etwas, '
-      + 'das sich für alle ändern soll. Juanito baut das auf Anfrage — er gibt '
-      + 'sein Bestes, es braucht einfach seine Zeit, und wo etwas wirklich '
-      + 'nicht geht, bekommst du ein klares Nein statt einer Notlösung.',
+      'Alles. Eine Zahl, die fehlt. Einen Cup, der in die Liste gehört. '
+      + 'Ein Overlay in deinen Farben. Eine Statistikseite nur für dich. '
+      + 'Etwas, das sich für alle ändern soll. Juanito baut das auf '
+      + 'Anfrage, er gibt sein Bestes und es braucht seine Zeit. Wo etwas '
+      + 'wirklich nicht geht, bekommst du ein klares Nein statt einer '
+      + 'Notlösung.',
       '',
       '__Dein Schlüssel__',
-      'Eine Nachricht in deinem Kanal, immer die gültige. Wenn du das Recht '
-      + 'hast, ihn selbst zu wechseln, steht ein Knopf darunter. Wenn nicht, '
-      + 'frag im Support, dann bekommst du einen neuen.',
+      'In deinem Kanal steht immer nur der gültige. Wenn du das Recht '
+      + 'hast, ihn selbst zu wechseln, findest du einen Knopf darunter. '
+      + 'Wenn nicht, frag im Support, dann bekommst du einen neuen.',
       '',
       '__Manager__',
-      'Wenn mehrere Leute dir im Stream bei den Overlays helfen, kannst du '
-      + 'einen gemeinsamen **Manager-Zugang** bekommen. Der kommt an deine '
-      + 'Overlays und an nichts anderes — nicht an deine Tierlist, nicht an '
+      'Wenn dir mehrere Leute im Stream bei den Overlays helfen, kannst '
+      + 'du einen gemeinsamen Manager-Zugang bekommen. Der kommt an deine '
+      + 'Overlays und an nichts anderes, weder an deine Tierlist noch an '
       + 'dein Konto. Frag im Support danach.',
     ].join('\n'),
   },
@@ -238,7 +247,7 @@ const MANAGER_LEITFADEN: Beitrag = {
   thema: 'What a VIP manager does — and what not',
   titel: {
     en: 'Manager guide — your job in one page',
-    de: 'Manager-Leitfaden — deine Aufgabe auf einer Seite',
+    de: 'Deine Aufgabe als Manager',
   },
   text: {
     en: [
@@ -285,52 +294,56 @@ const MANAGER_LEITFADEN: Beitrag = {
       + 'answer if it cannot.',
     ].join('\n'),
     de: [
-      'Du hast einen **Manager-Zugang**. Er gehört nicht dir, er gehört einem '
-      + 'Streamer: mehrere Leute teilen sich einen Zugang und betreuen damit '
-      + 'dessen Overlays.',
+      'Du hast einen Manager-Zugang. Er gehört nicht dir, sondern einem '
+      + 'Streamer. Mehrere Leute teilen sich einen Zugang und betreuen '
+      + 'damit dessen Overlays.',
       '',
       '__Anmelden__',
-      'Dieselbe Tür wie bei allen: https://www.thecomphub.com/anmelden/vip mit dem '
-      + 'Managernamen und dem Schlüssel aus diesem Kanal. Du landest auf dem '
-      + 'Dashboard, und unter Overlays stehen die gespeicherten Overlays des '
-      + 'Streamers — nicht deine, seine. Genau das ist der Sinn.',
+      'Dieselbe Tür wie bei allen: '
+      + 'https://www.thecomphub.com/anmelden/vip mit dem Managernamen und '
+      + 'dem Schlüssel aus diesem Kanal. Danach gibst du noch deinen '
+      + 'eigenen Namen an, damit man sieht, wer was gemacht hat. Steht dein '
+      + 'Name nicht in der Liste, kommst du nicht hinein, auch mit dem '
+      + 'richtigen Schlüssel nicht. Auf dem Dashboard findest du unter '
+      + 'Overlays die gespeicherten Overlays des Streamers, nicht deine '
+      + 'eigenen. Genau das ist der Sinn.',
       '',
       '__Was du tust__',
       '• Spieler in ein Overlay aufnehmen und wieder herausnehmen.',
       '• Ein neues Overlay für den laufenden Cup anlegen.',
-      '• Eines umbenennen, auf einen anderen Cup stellen, die URL kopieren, '
-      + 'löschen.',
-      '• Gib jedem Overlay, das du anlegst, einen **Titel** und ein **Datum**. '
-      + 'Unter dem Titel steht dann der Cup samt Cup-Datum, damit jeder auf '
-      + 'einen Blick sieht, welches Overlay zu welchem Tag gehört.',
+      '• Eines umbenennen, auf einen anderen Cup stellen, die URL '
+      + 'kopieren oder löschen.',
+      '• Jedem neuen Overlay einen Titel und ein Datum geben. Darunter '
+      + 'steht dann der Cup samt Cup-Datum, damit jeder auf einen Blick '
+      + 'sieht, welches Overlay zu welchem Tag gehört.',
       '',
       '__Warum du ihm nichts schicken musst__',
       'Ein Overlay, das in OBS schon läuft, übernimmt deine Änderung von '
       + 'selbst, innerhalb von etwa fünf Sekunden. Keine neue URL, kein '
-      + 'Neuladen, keine Nachricht in seine DMs — du änderst, es ändert sich '
-      + 'im Stream. Nur bei einem ganz neuen Overlay muss die URL einmal '
-      + 'hinüber.',
+      + 'Neuladen, keine Nachricht in seine DMs. Du änderst es, und im '
+      + 'Stream ändert es sich mit. Nur bei einem ganz neuen Overlay muss '
+      + 'die URL einmal hinüber.',
       '',
       '__Was du nicht kannst__',
-      '• Nichts außerhalb der Overlays. Keine Tierlist, keine '
-      + 'Kontoeinstellungen, keine Adminwerkzeuge — der Zugang reicht da '
+      '• Nichts ausserhalb der Overlays. Keine Tierlist, keine '
+      + 'Kontoeinstellungen, keine Adminwerkzeuge. Der Zugang reicht da '
       + 'nicht hin.',
-      '• Du kannst diesen Schlüssel nicht wechseln. Mehrere teilen ihn sich, '
-      + 'und ein neuer würde die anderen mitten im Stream aussperren. Muss er '
-      + 'gewechselt werden, macht Juanito das, und der neue erscheint in '
-      + 'diesem Kanal.',
+      '• Du kannst diesen Schlüssel nicht wechseln. Mehrere teilen ihn '
+      + 'sich, und ein neuer würde die anderen mitten im Stream aussperren. '
+      + 'Muss er gewechselt werden, macht Juanito das, und der neue '
+      + 'erscheint in diesem Kanal.',
       '',
       '__Hausregeln__',
       'Alles, was du speicherst, gehört dem Streamer und bleibt für ihn '
       + 'sichtbar. Lösche kein Overlay, das gerade läuft, solange er nicht '
-      + 'darum gebeten hat. Im Zweifel baue ein neues daneben — das kostet '
-      + 'nichts.',
+      + 'darum gebeten hat. Im Zweifel baust du ein neues daneben, das '
+      + 'kostet nichts.',
       '',
-      '__Du kommst nicht weiter, oder etwas fehlt?__',
-      'Eröffne ein Ticket im Support-Kanal. Anfragen sind willkommen: eine '
-      + 'Spalte, die fehlt, ein Overlay, das anders aussehen soll, egal was. '
-      + 'Es wird gebaut, wenn es sich bauen lässt, und du bekommst eine klare '
-      + 'Antwort, wenn nicht.',
+      '__Du kommst nicht weiter?__',
+      'Mach ein Ticket im Manager-Support auf. Anfragen sind willkommen: '
+      + 'eine Spalte, die fehlt, ein Overlay, das anders aussehen soll, '
+      + 'egal was. Es wird gebaut, wenn es sich bauen lässt, und du '
+      + 'bekommst eine klare Antwort, wenn nicht.',
     ].join('\n'),
   },
 };

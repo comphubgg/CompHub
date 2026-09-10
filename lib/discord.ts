@@ -549,8 +549,19 @@ export async function schickeSchluessel(
 
   const merkschluessel = art === 'manager'
     ? `manager:${name.toLowerCase()}` : name.toLowerCase();
-  const alt = ablage[merkschluessel]?.nachricht;
-  if (alt) await ruf(`/channels/${kanal}/messages/${alt}`, 'DELETE');
+
+  /*
+   * Alles weg, was nicht angepinnt ist - nicht nur die gemerkte Nachricht.
+   *
+   * Vorher wurde genau eine Kennung geloescht, und wenn die nicht mehr
+   * stimmte, stand die neue Nachricht neben der alten. Der Betreiber hat
+   * genau das gesehen, als er einem VIP das Recht auf den eigenen
+   * Schluessel gab: "dann kommt diese Nachricht zweimal ... es soll immer
+   * maximal einer von diesen Dings haben."
+   *
+   * Der angepinnte Leitfaden oben im Kanal bleibt dabei stehen.
+   */
+  await leerRaeumen(kanal, 20, true);
 
   /*
    * Der Text bleibt knapp und englisch, wie alles, was nach aussen geht.
@@ -839,11 +850,22 @@ async function anpinnen(kanal: string, nachricht: string): Promise<void> {
  * kurze Pause, weil Discord beim Entfernen alter Nachrichten streng
  * begrenzt.
  */
-async function leerRaeumen(kanal: string, hoechstens = 50): Promise<number> {
+async function leerRaeumen(
+  kanal: string, hoechstens = 50, angepinnteBehalten = false,
+): Promise<number> {
   const n = await ruf(`/channels/${kanal}/messages?limit=${hoechstens}`, 'GET');
   if (!Array.isArray(n)) return 0;
   let weg = 0;
-  for (const m of n as Array<{ id: string }>) {
+  for (const m of n as Array<{ id: string; pinned?: boolean }>) {
+    /*
+     * Angepinntes bleibt, wo es gewuenscht ist.
+     *
+     * In einem Schluesselkanal steht der Leitfaden angepinnt oben; nur die
+     * Schluesselnachricht darunter soll weichen. In den Aushangkanaelen ist
+     * es umgekehrt - dort ist die angepinnte Nachricht genau die, die
+     * ersetzt wird.
+     */
+    if (angepinnteBehalten && m.pinned) continue;
     const ok = await ruf(`/channels/${kanal}/messages/${m.id}`, 'DELETE');
     if (ok || letzterStatus === 404) weg += 1;
     await new Promise((r) => setTimeout(r, 350));
@@ -1300,7 +1322,8 @@ export async function schluesselAufraeumen(): Promise<AufbauBericht> {
     }
     await ruf(`/channels/${kanal}`, 'PATCH', { permission_overwrites: regeln });
 
-    const weg = await leerRaeumen(kanal);
+    // Angepinntes bleibt stehen: der Leitfaden oben im Kanal soll nicht mitgehen.
+    const weg = await leerRaeumen(kanal, 50, true);
 
     /*
      * Und der Schluessel neu.
