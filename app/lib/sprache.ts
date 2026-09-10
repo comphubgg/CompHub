@@ -1901,6 +1901,12 @@ const AUF_ENGLISCH: Record<string, string> = {
     + 'minutes. Closing a tab does not sign anyone out — nothing more can '
     + 'honestly be said about it.',
   'Noch keine Ergebnisse': 'No results yet',
+  'Cup — nach Wichtigkeit geordnet':
+    'Cup — sorted by importance',
+  'mehr — auch Ranked, Reload, Mobile und Arenas':
+    'more — including Ranked, Reload, Mobile and Arenas',
+  'In diesen Tagen läuft kein passender Cup. Die Auswahl füllt sich von selbst, sobald einer ansteht — das Overlay in OBS musst du dafür nicht anfassen.':
+    'No matching cup in these days. The list fills itself as soon as one comes up — you do not have to touch the overlay in OBS for that.',
   'Discord einrichten':
     'Set up Discord',
   'Legt die Kategorien, Kanäle und Berechtigungen an und stellt die Aushänge neu. Vorhandene Nachrichten im Willkommenskanal werden dabei entfernt.':

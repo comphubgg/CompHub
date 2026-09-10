@@ -84,3 +84,62 @@ export function overlayZeitraum(abGestern = false): { von: number; bis: number }
   bis.setHours(23, 59, 59, 999);
   return { von: von.getTime(), bis: bis.getTime() };
 }
+
+/**
+ * Wie wichtig dieser Cup ist - kleiner heisst weiter oben.
+ *
+ * Der Betreiber wollte die Auswahl nach Wichtigkeit geordnet, nicht nach
+ * Datum und schon gar nicht alphabetisch: "da sieht man alle Cups, die nach
+ * Wichtigkeit sortiert sind. Also einfach die, wo ich dir gesagt hab." Die
+ * Reihenfolge ist seine: die grossen Finals zuerst, dann Division 1, dann die
+ * Solo-FNCS, dann die Performance Cups, dann Cash und Victory.
+ *
+ * Alles, was gar nicht in die Auswahl gehoert und nur ueber "mehr" sichtbar
+ * wird, bekommt den letzten Rang - es steht dann zwar da, aber unten.
+ */
+export function overlayCupRang(titel: string | undefined | null): number {
+  const s = String(titel ?? '').trim();
+  if (!s) return 99;
+  if (/grand\s*finals?|\bglobals?\b/i.test(s)) return 0;
+  if (/division\s*1\b/i.test(s)) return 1;
+  if (/fncs.*\bsolos?\b/i.test(s)) return 2;
+  if (/performance/i.test(s)) return 3;
+  if (/(cash|victory)\s*cup/i.test(s)) return 4;
+  if (overlayCupErlaubt(s)) return 5;
+  return 9;
+}
+
+/**
+ * Wie weit vorn eine Region steht.
+ *
+ * Europa zuerst - dort spielt der Betreiber, dort spielen die Leute, die er
+ * streamt. Danach Nordamerika, dann der Rest. Eine unbekannte Region landet
+ * hinten, statt die Ordnung durcheinanderzubringen.
+ */
+const REGION_RANG: Record<string, number> = {
+  EU: 0, NAC: 1, NAW: 2, NA: 2, BR: 3, ASIA: 4, ME: 5, OCE: 6,
+};
+
+export function overlayRegionRang(region: string | undefined | null): number {
+  return REGION_RANG[String(region ?? '').trim().toUpperCase()] ?? 8;
+}
+
+/**
+ * Der weite Zeitraum fuer die Overlay-Seite.
+ *
+ * overlayZeitraum() deckt gestern bis morgen ab - genug, um waehrend eines
+ * Spieltags zu arbeiten, aber zu wenig fuer das, was der Betreiber wollte:
+ * "wenn diese irgendwie live sind oder in der Zukunft kommen oder gewesen
+ * sind, sollte die trotzdem zu sehen sein." Also eine Woche zurueck und zwei
+ * Wochen nach vorn. Weiter nicht: Epic kuendigt Spieltage Monate im Voraus
+ * an, und eine Liste mit achtzig kommenden Fenstern ist keine Auswahl mehr.
+ */
+export function overlayZeitraumWeit(): { von: number; bis: number } {
+  const von = new Date();
+  von.setHours(0, 0, 0, 0);
+  von.setDate(von.getDate() - 7);
+  const bis = new Date();
+  bis.setDate(bis.getDate() + 14);
+  bis.setHours(23, 59, 59, 999);
+  return { von: von.getTime(), bis: bis.getTime() };
+}

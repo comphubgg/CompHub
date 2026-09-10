@@ -4,7 +4,9 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import { ARTEN, overlayAdresse, type OverlayEintrag } from './OverlayGeruest';
-import { overlayCupErlaubt, overlayZeitraum } from '@/lib/overlayCups';
+import {
+  overlayCupErlaubt, overlayCupRang, overlayRegionRang, overlayZeitraumWeit,
+} from '@/lib/overlayCups';
 
 /*
  * Alle eigenen Overlays an einer Stelle.
@@ -62,12 +64,17 @@ export default function MeineOverlays() {
 
   /*
    * Zur Wahl stehen dieselben Cups wie ueberall in den Overlays - Division 1,
-   * die grossen Finals, Solo-FNCS, Cash und Victory Cups, Performance - und
-   * nur von gestern bis morgen. Die Regel steht in lib/overlayCups.ts.
+   * die grossen Finals, Solo-FNCS, Cash und Victory Cups, Performance. Die
+   * Regel steht in lib/overlayCups.ts, der Zeitraum reicht eine Woche zurueck
+   * und zwei nach vorn: ein gespeichertes Overlay wird oft Tage vor dem
+   * Spieltag auf den naechsten Cup gestellt.
    */
   const cupWahl = useMemo(() => {
-    const { von, bis } = overlayZeitraum(true);
-    const raus: Array<{ wert: string; titel: string; live: boolean }> = [];
+    const { von, bis } = overlayZeitraumWeit();
+    const raus: Array<{
+      wert: string; titel: string; live: boolean;
+      rang: number; region: number; begin: number;
+    }> = [];
     for (const c of cups ?? []) {
       if (!overlayCupErlaubt(c.titel)) continue;
       for (const fenster of Object.values(c.regionen ?? {})) {
@@ -77,11 +84,22 @@ export default function MeineOverlays() {
             wert: `${w.eventId}|${w.windowId}`,
             titel: `${c.titel} · ${w.region}${w.istFinale ? ' · Finale' : ''}`,
             live: w.status === 'live',
+            rang: overlayCupRang(c.titel),
+            region: overlayRegionRang(w.region),
+            begin: w.begin,
           });
         }
       }
     }
+    /*
+     * Laufendes zuerst, dann nach Wichtigkeit - wie in der Cup-Auswahl.
+     * Alphabetisch waere hier ein Arena-Testcup vor den Grand Finals gelandet.
+     */
+    const jetzt = Date.now();
     return raus.sort((a, b) => Number(b.live) - Number(a.live)
+      || a.rang - b.rang
+      || a.region - b.region
+      || Math.abs(a.begin - jetzt) - Math.abs(b.begin - jetzt)
       || a.titel.localeCompare(b.titel));
   }, [cups]);
 

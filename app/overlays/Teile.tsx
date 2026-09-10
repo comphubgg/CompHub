@@ -4,7 +4,9 @@ import { useEffect, useMemo, useState } from 'react';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import { ARTEN, overlayAdresse, type OverlayEintrag } from './OverlayGeruest';
-import { overlayCupErlaubt, overlayZeitraum } from '@/lib/overlayCups';
+import {
+  overlayCupErlaubt, overlayCupRang, overlayRegionRang, overlayZeitraumWeit,
+} from '@/lib/overlayCups';
 
 /*
  * Die Bausteine, die sich alle Overlay-Seiten teilen: die Cup-Auswahl, die
@@ -69,7 +71,15 @@ export function CupWahl({ event, window: fenster, onWahl }: {
    * laeuft gerade gar nichts - dann stand die Liste leer da.
    */
   const laufend = useMemo(() => {
-    const { von, bis } = overlayZeitraum(true);
+    /*
+     * Eine Woche zurueck, zwei nach vorn - nicht nur gestern bis morgen.
+     *
+     * Der Betreiber: "wenn diese irgendwie live sind oder in der Zukunft
+     * kommen oder gewesen sind, sollte die trotzdem zu sehen sein." Ein
+     * Overlay entsteht oft Tage vor dem Spieltag, und die Tabelle eines Cups
+     * von letzter Woche will er auch noch zeigen koennen.
+     */
+    const { von, bis } = overlayZeitraumWeit();
     const raus: Array<{
       eventId: string; windowId: string; region: string;
       titel: string; istFinale: boolean; wann: string; live: boolean; begin: number;
@@ -88,16 +98,28 @@ export function CupWahl({ event, window: fenster, onWahl }: {
         }
       }
     }
-    // Laufendes zuerst, dann das Neueste - so steht oben, was man braucht.
+    /*
+     * Laufendes zuerst, dann nach Wichtigkeit.
+     *
+     * Vorher stand hier "dann das Neueste" - und damit lag ein Arena Test Cup
+     * von heute ueber den Grand Finals von morgen. Der Betreiber wollte es
+     * nach Wichtigkeit: die grossen Finals, Division 1, Solo-FNCS,
+     * Performance, Cash und Victory; Europa vor dem Rest. Das Datum
+     * entscheidet erst, wenn zwei Fenster gleich wichtig sind, und dann der
+     * naehere zuerst.
+     */
+    const jetzt = Date.now();
     return raus.sort((a, b) => Number(b.live) - Number(a.live)
-      || b.begin - a.begin
+      || overlayCupRang(a.titel) - overlayCupRang(b.titel)
+      || overlayRegionRang(a.region) - overlayRegionRang(b.region)
+      || Math.abs(a.begin - jetzt) - Math.abs(b.begin - jetzt)
       || a.titel.localeCompare(b.titel));
   }, [cups, alle]);
 
   return (
     <div>
       <label className="text-xs text-slate-400">
-        <T>Cup — gestern, heute und morgen</T>
+        <T>Cup — nach Wichtigkeit geordnet</T>
         <select value={fenster}
           onChange={(e) => {
             const w = laufend.find((x) => x.windowId === e.target.value);
@@ -126,9 +148,9 @@ export function CupWahl({ event, window: fenster, onWahl }: {
         */}
       {cups && !laufend.length && (
         <p className="mt-1.5 text-[11px] leading-relaxed text-amber-500/80">
-          <T>Gestern, heute und morgen läuft kein passender Cup. Die Auswahl
-          füllt sich von selbst, sobald einer ansteht — das Overlay in OBS
-          musst du dafür nicht anfassen.</T>
+          <T>In diesen Tagen läuft kein passender Cup. Die Auswahl füllt sich
+          von selbst, sobald einer ansteht — das Overlay in OBS musst du dafür
+          nicht anfassen.</T>
         </p>
       )}
 
@@ -136,7 +158,7 @@ export function CupWahl({ event, window: fenster, onWahl }: {
         <input type="checkbox" checked={alle}
           onChange={(e) => setAlle(e.target.checked)}
           className="accent-sky-500" />
-        <T>auch die übrigen Cups dieser Tage</T>
+        <T>mehr — auch Ranked, Reload, Mobile und Arenas</T>
       </label>
       {event && (
         <p className="mt-1 truncate font-mono text-[10px] text-slate-700">
