@@ -129,13 +129,18 @@ export default function Startansicht({ onWeiter }: {
         }
       }
     }
+    /*
+     * Was laeuft zuerst, danach nach Datum - der naechste Termin oben.
+     *
+     * Die Wichtigkeit des Cups entscheidet erst, wenn zwei zur selben Zeit
+     * anfangen. Der Betreiber wollte die Liste zeitlich geordnet, damit sie
+     * sich lesen laesst wie ein Kalender.
+     */
     const jetzt = Date.now();
     return raus.sort((a, b) => Number(b.live) - Number(a.live)
-      || Number(b.heute) - Number(a.heute)
+      || Math.abs(a.begin - jetzt) - Math.abs(b.begin - jetzt)
       || overlayRegionRang(a.region) - overlayRegionRang(b.region)
-      || Number(b.erlaubt) - Number(a.erlaubt)
-      || overlayCupRang(a.titel) - overlayCupRang(b.titel)
-      || Math.abs(a.begin - jetzt) - Math.abs(b.begin - jetzt));
+      || overlayCupRang(a.titel) - overlayCupRang(b.titel));
   }, [cups]);
 
   /*
@@ -237,8 +242,22 @@ export default function Startansicht({ onWeiter }: {
                     {k.live && (
                       <span className="h-2 w-2 shrink-0 rounded-full bg-rose-500" />
                     )}
-                    <span className="truncate text-sm font-semibold text-slate-100">
+                    <span className="min-w-0 truncate text-sm font-semibold
+                                     text-slate-100">
                       {k.titel}
+                    </span>
+                    {/*
+                      * Das Datum steht rechts aussen und grau.
+                      *
+                      * So laeuft es in allen Kacheln auf einer Linie und die
+                      * Liste liest sich wie ein Kalender - der Betreiber:
+                      * "es soll ganz rechts am Rand ueberall noch das Datum
+                      * stehen, das ist ein bisschen uebersichtlicher."
+                      */}
+                    <span className="ml-auto shrink-0 text-[11px] tabular-nums
+                                     text-slate-500">
+                      {new Date(k.begin).toLocaleDateString('de-DE',
+                        { day: '2-digit', month: '2-digit' })}
                     </span>
                   </span>
                   <span className="mt-1 block text-[11px] text-slate-500">

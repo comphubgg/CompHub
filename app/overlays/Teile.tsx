@@ -46,9 +46,18 @@ function zeitwort(status: string, begin: number): string {
   return '';
 }
 
-export function CupWahl({ event, window: fenster, onWahl }: {
+export function CupWahl({ event, window: fenster, onWahl, nurKommende = false }: {
   event: string; window: string;
   onWahl: (event: string, window: string, titel: string) => void;
+  /**
+   * Nur Spieltage, die noch nicht angefangen haben.
+   *
+   * Fuer den Countdown: auf einen Spieltag von gestern laesst sich nicht
+   * zaehlen. Der Betreiber wollte das gar nicht erst anbieten - "man soll
+   * keine vergangenen Cups auswaehlen koennen" - statt hinterher zu
+   * erklaeren, warum die Vorschau leer bleibt.
+   */
+  nurKommende?: boolean;
 }) {
   const t = useT();
   const zugang = useZugang();
@@ -94,6 +103,7 @@ export function CupWahl({ event, window: fenster, onWahl }: {
       for (const liste of Object.values(c.regionen ?? {})) {
         for (const w of liste) {
           if (w.begin < von || w.begin > bis) continue;
+          if (nurKommende && w.begin <= Date.now()) continue;
           if (nurLaufende
             && !managerDarfCup(w.begin, w.region, w.status === 'live')) continue;
           raus.push({
@@ -115,13 +125,21 @@ export function CupWahl({ event, window: fenster, onWahl }: {
      * entscheidet erst, wenn zwei Fenster gleich wichtig sind, und dann der
      * naehere zuerst.
      */
+    /*
+     * Nach Datum, nicht nach Cup.
+     *
+     * Vorher stand die Wichtigkeit vorn, und damit lagen die Spieltage
+     * derselben Woche wild durcheinander. Der Betreiber wollte es zeitlich:
+     * "es soll nicht nach Division Cup sortieren, sondern nach Datum." Was
+     * laeuft, bleibt trotzdem ganz oben - das ist die Zeile, die er waehrend
+     * eines Streams braucht.
+     */
     const jetzt = Date.now();
     return raus.sort((a, b) => Number(b.live) - Number(a.live)
-      || overlayCupRang(a.titel) - overlayCupRang(b.titel)
-      || overlayRegionRang(a.region) - overlayRegionRang(b.region)
       || Math.abs(a.begin - jetzt) - Math.abs(b.begin - jetzt)
+      || overlayRegionRang(a.region) - overlayRegionRang(b.region)
       || a.titel.localeCompare(b.titel));
-  }, [cups, alle, nurLaufende]);
+  }, [cups, alle, nurLaufende, nurKommende]);
 
   /*
    * Kommt der Cup schon aus der Adresse?
@@ -149,7 +167,7 @@ export function CupWahl({ event, window: fenster, onWahl }: {
   return (
     <div>
       <label className="text-xs text-slate-400">
-        <T>Cup — nach Wichtigkeit geordnet</T>
+        <T>Cup — nach Datum geordnet</T>
         <select value={fenster}
           onChange={(e) => {
             const w = laufend.find((x) => x.windowId === e.target.value);
@@ -164,7 +182,10 @@ export function CupWahl({ event, window: fenster, onWahl }: {
             <option key={w.windowId} value={w.windowId}>
               {w.live ? '🔴 ' : ''}{w.titel} · {w.region}
               {w.istFinale ? ' · Finale' : ''}
-              {w.wann ? ` · ${t(w.wann)}` : ''}
+              {' — '}
+              {new Date(w.begin).toLocaleDateString('de-DE',
+                { day: '2-digit', month: '2-digit' })}
+              {w.wann ? ` (${t(w.wann)})` : ''}
             </option>
           ))}
         </select>

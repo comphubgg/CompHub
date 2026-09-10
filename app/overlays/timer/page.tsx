@@ -207,7 +207,7 @@ export default function TimerSeite() {
               <T>Worauf gewartet wird</T>
             </h2>
             <div className="grid gap-3 sm:grid-cols-2">
-              <CupWahl event={cfg.event} window={cfg.window}
+              <CupWahl event={cfg.event} window={cfg.window} nurKommende
                 onWahl={(e, w) => {
                   setCfg((alt) => ({ ...alt, event: e, window: w }));
                   setSchmutzig(true);
@@ -315,13 +315,6 @@ export default function TimerSeite() {
               <iframe key={vorschau} src={vorschau} title="Vorschau"
                 className="h-32 w-full border-0" />
             </div>
-            {cfg.beginn > 0 && cfg.beginn < Date.now() && (
-              <p className="mb-3 text-[11px] leading-relaxed text-amber-500/90">
-                <T>Dieser Spieltag hat schon angefangen — deshalb bleibt die
-                Vorschau leer. Genau so verhält sich der Timer auch im Stream:
-                er verschwindet, sobald der Cup läuft.</T>
-              </p>
-            )}
             {id && (
               <input readOnly value={overlayAdresse('timer', id)}
                 onFocus={(e) => e.currentTarget.select()}
