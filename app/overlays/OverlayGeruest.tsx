@@ -53,6 +53,15 @@ export const ARTEN: Array<{
     datei: 'standings.html',
     was: 'Die vordersten Plätze des laufenden Spieltags',
   },
+  /*
+   * Der Countdown - der Betreiber wollte ihn in der Leiste sehen: "links
+   * daneben fehlt zum Beispiel ein Timer von einem Cup."
+   */
+  {
+    schluessel: 'timer', pfad: '/overlays/timer', titel: 'Cup timer',
+    datei: 'timer.html',
+    was: 'Countdown bis zum Start des Spieltags',
+  },
   {
     schluessel: 'qual', pfad: '/overlays/qual', titel: 'Qual line',
     datei: 'qual.html',

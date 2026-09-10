@@ -54,25 +54,75 @@ function namensVorschlag(roh: string): string {
   return n || String(roh || '');
 }
 
-function Schritt({ nummer, titel, children }: {
-  nummer: number; titel: string; children: React.ReactNode;
+/**
+ * Ein Schritt im Baukasten - immer nur einer offen.
+ *
+ * Der Betreiber wollte es ausdruecklich nacheinander: "dass man nicht auf
+ * alles auf einmal anfangen kann, sondern Schritt fuer Schritt." Vorher
+ * standen alle drei Bloecke gleichzeitig offen da, und man konnte beim
+ * Aussehen anfangen, bevor ueberhaupt ein Cup gewaehlt war.
+ *
+ * Ein geschlossener Schritt zeigt in einer Zeile, was darin steht - so
+ * bleibt sichtbar, was man schon entschieden hat, ohne dass alles offen ist.
+ * Gesperrt ist, was ohne den vorigen Schritt keinen Sinn ergibt; er laesst
+ * sich dann nicht anklicken.
+ */
+function Schritt({
+  nummer, titel, offen, gesperrt = false, zusammenfassung = '',
+  onOeffnen, weiter, children,
+}: {
+  nummer: number; titel: string; offen: boolean; gesperrt?: boolean;
+  zusammenfassung?: string; onOeffnen: () => void; weiter?: () => void;
+  children: React.ReactNode;
 }) {
   return (
-    <section className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
-      <h2 className="mb-3 flex items-center gap-2 text-sm font-semibold text-slate-100">
-        <span className="flex h-5 w-5 items-center justify-center rounded-full
-                         bg-sky-500 text-[11px] font-bold text-white">
+    <section className={`rounded-xl border bg-zinc-900/40 p-4 transition
+      ${offen ? 'border-sky-500/40' : 'border-zinc-800'}
+      ${gesperrt ? 'opacity-50' : ''}`}>
+      <button type="button"
+        onClick={() => { if (!gesperrt) onOeffnen(); }}
+        disabled={gesperrt}
+        className={`flex w-full items-center gap-2 text-left text-sm
+                    font-semibold text-slate-100
+                    ${gesperrt ? 'cursor-not-allowed' : ''}`}>
+        <span className={`flex h-5 w-5 shrink-0 items-center justify-center
+                          rounded-full text-[11px] font-bold text-white
+                          ${offen ? 'bg-sky-500' : 'bg-zinc-700'}`}>
           {nummer}
         </span>
         <T>{titel}</T>
-      </h2>
-      {children}
+        {!offen && zusammenfassung && (
+          <span className="ml-2 min-w-0 truncate text-[11px] font-normal
+                           text-slate-500">
+            {zusammenfassung}
+          </span>
+        )}
+        <span className="ml-auto text-slate-600">{offen ? '−' : '+'}</span>
+      </button>
+
+      {offen && <div className="mt-3">{children}</div>}
+
+      {offen && weiter && (
+        <button type="button" onClick={weiter}
+          className="mt-4 rounded-lg bg-sky-500 px-4 py-2 text-sm font-semibold
+                     text-white transition hover:bg-sky-400">
+          <T>Weiter</T>
+        </button>
+      )}
     </section>
   );
 }
 
 export default function OverlaySeite() {
   const t = useT();
+
+  /*
+   * Welcher Schritt gerade offen ist.
+   *
+   * Beginnt bei eins. Weiter geht es ueber den Knopf am Ende eines Schritts
+   * oder durch Anklicken einer Ueberschrift.
+   */
+  const [schritt, setSchritt] = useState(1);
 
   const [region, setRegion] = useState('EU');
   const [fenster, setFenster] = useState<Fenster[]>([]);
@@ -550,7 +600,13 @@ export default function OverlaySeite() {
         <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(560px,44%)]">
           <div className="space-y-4">
 
-            <Schritt nummer={1} titel="Cup und Spieltag">
+            <Schritt nummer={1} titel="Cup und Spieltag"
+              offen={schritt === 1}
+              onOeffnen={() => setSchritt(1)}
+              zusammenfassung={cup
+                ? `${fenster.find((f) => f.windowId === cup)?.name ?? ''} · ${region}`
+                : ''}
+              weiter={cup ? () => setSchritt(2) : undefined}>
               <div className="mb-3 flex flex-wrap gap-1">
                 {REGIONEN.map((r) => (
                   <button key={r} onClick={() => setRegion(r)}
@@ -617,7 +673,13 @@ export default function OverlaySeite() {
               )}
             </Schritt>
 
-            <Schritt nummer={2} titel="Duo">
+            <Schritt nummer={2} titel="Duo"
+              offen={schritt === 2}
+              gesperrt={!cup}
+              onOeffnen={() => setSchritt(2)}
+              zusammenfassung={duo.length
+                ? duo.map((p) => p.name).join(' · ') : ''}
+              weiter={duo.length ? () => setSchritt(3) : undefined}>
               <>
                   {/* Die Suche steht sofort da - man soll jeden suchen koennen,
                       ohne vorher irgendetwas zu laden. Sie geht durch die ganze Bestenliste und braucht
@@ -787,7 +849,10 @@ export default function OverlaySeite() {
               )}
             </Schritt>
 
-            <Schritt nummer={3} titel="Aussehen">
+            <Schritt nummer={3} titel="Aussehen"
+              offen={schritt === 3}
+              gesperrt={!cup}
+              onOeffnen={() => setSchritt(3)}>
               <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-5">
                 {VORLAGEN.map((v) => (
                   <button key={v.id} onClick={() => setVorlage(v.id)}

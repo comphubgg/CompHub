@@ -1,0 +1,221 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Cup timer</title>
+<style>
+/*
+ * Der Countdown bis zum Start eines Cups.
+ *
+ * Der Betreiber wollte ihn ausdruecklich als eigene Einblendung: "wenn einer
+ * heute ist, dann gibt's eine Cup Timeline. Kann ich draufdruecken, Overlay
+ * erstellen, nachher kommt ein Timer fuer den aktuellen Cup. Sobald der live
+ * ist, ist der Timer auf null und der Timer wird wie geloescht."
+ *
+ * Genau so verhaelt er sich: er zaehlt herunter, und in dem Moment, in dem
+ * der Spieltag beginnt, verschwindet er von selbst. Nichts bleibt als
+ * "00:00" im Bild stehen.
+ */
+
+:root {
+  --grund: 0 0 0;
+  --deckkraft: 0.72;
+  --schrift: 34px;
+  --akzent: #38bdf8;
+  --rand: rgba(255, 255, 255, 0.09);
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  background: transparent;
+  overflow: hidden;
+  font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+
+#karte {
+  width: max-content;
+  max-width: 100vw;
+  background: rgb(var(--grund) / var(--deckkraft));
+  border: 1px solid var(--rand);
+  border-radius: 10px;
+  padding: 0.5em 0.85em;
+  color: #fff;
+  font-size: var(--schrift);
+  opacity: 0;
+  transition: opacity 0.35s ease;
+}
+#karte.da { opacity: 1; }
+
+#wort {
+  display: block;
+  font-size: 0.34em;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--akzent);
+}
+
+#zeit {
+  display: block;
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: 0.01em;
+}
+
+#cup {
+  display: block;
+  margin-top: 0.12em;
+  font-size: 0.3em;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.82);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #karte { transition: none !important; }
+}
+</style>
+</head>
+<body>
+
+<div id="karte">
+  <span id="wort">STARTS IN</span>
+  <span id="zeit">—</span>
+  <span id="cup" hidden></span>
+</div>
+
+<script src="konfig.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  const STANDARD = {
+    event: '', window: '',
+    /** Wann der Spieltag beginnt, in Millisekunden. Kommt aus dem Werkzeug. */
+    beginn: 0,
+    /** Wie der Cup heisst - nur zur Anzeige. */
+    cup: '',
+    wort: 'STARTS IN',
+    cupZeigen: true,
+    grund: '0 0 0', deckkraft: 0.72,
+    akzent: '#38bdf8',
+    schrift: 34,
+    /*
+     * Wie lange vorher er ueberhaupt erscheint.
+     *
+     * Null heisst: immer. Sonst bleibt er verborgen, bis es so weit ist -
+     * ein Countdown ueber neun Stunden ist keine Information, sondern eine
+     * Uhr im Bild.
+     */
+    abStunden: 12,
+  };
+
+  const $ = (id) => document.getElementById(id);
+  let cfg = STANDARD;
+  let server = location.origin;
+  let uhr = null;
+  let katalogUhr = null;
+  let beginn = 0;
+
+  /** Aus Sekunden "1:02:07" oder "4:31" machen. */
+  function alsZeit(sek) {
+    const s = Math.max(0, Math.floor(sek));
+    const st = Math.floor(s / 3600);
+    const mi = Math.floor((s % 3600) / 60);
+    const se = s % 60;
+    const zwei = (n) => String(n).padStart(2, '0');
+    return st > 0 ? st + ':' + zwei(mi) + ':' + zwei(se) : mi + ':' + zwei(se);
+  }
+
+  function zeichne() {
+    if (!beginn) {
+      $('karte').classList.remove('da');
+      return;
+    }
+    const uebrig = (beginn - Date.now()) / 1000;
+
+    /*
+     * Vorbei heisst weg.
+     *
+     * Nicht "00:00" stehen lassen: sobald der Cup laeuft, ist der Countdown
+     * falsch, und ein falscher Wert im Bild ist schlimmer als keiner.
+     */
+    if (uebrig <= 0) {
+      $('karte').classList.remove('da');
+      return;
+    }
+
+    // Zu frueh ist auch nichts. Erst ab der eingestellten Vorlaufzeit.
+    const grenze = Math.max(0, Number(cfg.abStunden) || 0) * 3600;
+    if (grenze && uebrig > grenze) {
+      $('karte').classList.remove('da');
+      return;
+    }
+
+    $('zeit').textContent = alsZeit(uebrig);
+    $('wort').textContent = String(cfg.wort || 'STARTS IN');
+    const c = $('cup');
+    if (cfg.cupZeigen && cfg.cup) {
+      c.textContent = String(cfg.cup);
+      c.hidden = false;
+    } else {
+      c.hidden = true;
+    }
+    $('karte').classList.add('da');
+  }
+
+  /*
+   * Die Startzeit nachschaerfen.
+   *
+   * Sie steht in der Einstellung, weil das Werkzeug sie beim Anlegen kennt -
+   * so laeuft der Countdown auch dann, wenn gerade keine Verbindung steht.
+   * Epic verschiebt Spieltage aber gelegentlich; deshalb wird sie einmal pro
+   * Minute mit dem Katalog verglichen und still berichtigt.
+   */
+  async function katalog() {
+    if (!cfg.window) return;
+    try {
+      const d = await (await fetch(server + '/api/cup-catalog?modus=alle',
+        { cache: 'no-store' })).json();
+      for (const c of d.cups || []) {
+        for (const liste of Object.values(c.regionen || {})) {
+          for (const w of liste) {
+            if (w.windowId === cfg.window && w.begin) {
+              beginn = Number(w.begin);
+              if (!cfg.cup) $('cup').textContent = c.titel;
+              return;
+            }
+          }
+        }
+      }
+    } catch (e) { /* dann bleibt die gespeicherte Zeit stehen */ }
+  }
+
+  OverlayKonfig.starte({
+    standard: STANDARD,
+    anwenden(neu, wo) {
+      cfg = neu;
+      server = wo;
+      beginn = Number(cfg.beginn) || 0;
+
+      const s = document.documentElement.style;
+      s.setProperty('--grund', String(cfg.grund));
+      s.setProperty('--deckkraft', String(cfg.deckkraft));
+      s.setProperty('--akzent', String(cfg.akzent));
+      s.setProperty('--schrift', cfg.schrift + 'px');
+
+      if (uhr) clearInterval(uhr);
+      uhr = setInterval(zeichne, 1000);
+      zeichne();
+
+      if (katalogUhr) clearInterval(katalogUhr);
+      katalogUhr = setInterval(katalog, 60000);
+      void katalog();
+    },
+  });
+})();
+</script>
+</body>
+</html>

@@ -1901,6 +1901,28 @@ const AUF_ENGLISCH: Record<string, string> = {
     + 'minutes. Closing a tab does not sign anyone out — nothing more can '
     + 'honestly be said about it.',
   'Noch keine Ergebnisse': 'No results yet',
+  'Cup timer':
+    'Cup timer',
+  'Countdown bis zum Start des Spieltags':
+    'Countdown to the start of the match day',
+  'Ein Countdown bis zum Start des Spieltags. Sobald der Cup läuft, verschwindet er von selbst.':
+    'A countdown to the start of the match day. As soon as the cup is live it disappears on its own.',
+  'Worauf gewartet wird':
+    'What it waits for',
+  'Erst sichtbar ab':
+    'Only visible from',
+  'Cup-Name darunter':
+    'Cup name below',
+  'Null Stunden heißt: immer sichtbar. Sonst bleibt der Timer verborgen, bis es so weit ist — ein Countdown über zwei Tage ist keine Information, sondern eine Uhr im Bild.':
+    'Zero hours means always visible. Otherwise the timer stays hidden until it is close: a countdown over two days is not information, it is a clock on screen.',
+  'Start':
+    'Start',
+  'läuft schon oder ist vorbei':
+    'already running or over',
+  'Ja':
+    'Yes',
+  'Nein':
+    'No',
   'Deine Overlays':
     'Your overlays',
   'Neues Overlay':
