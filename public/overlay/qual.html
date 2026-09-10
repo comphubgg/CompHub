@@ -43,6 +43,14 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 
+/*
+ * Verborgen heisst verborgen.
+ *
+ * Ein eigenes "display" an einem Element schlaegt sonst das Attribut hidden,
+ * und ein leerer Kasten bleibt als Strich im Bild stehen.
+ */
+[hidden] { display: none !important; }
+
 html, body {
   background: transparent;
   overflow: hidden;

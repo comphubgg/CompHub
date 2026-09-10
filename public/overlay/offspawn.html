@@ -52,6 +52,15 @@ html, body {
 }
 #karte.da { opacity: 1; }
 
+/*
+ * Verborgen heisst verborgen.
+ *
+ * Ein eigenes "display" schlaegt das Attribut hidden - der Balken unter dem
+ * Stand blieb deshalb als kurzer Strich stehen, auch wenn gar kein Text
+ * darin stand. Diese Zeile stellt das fuer alle drei Stellen richtig.
+ */
+[hidden] { display: none !important; }
+
 #kopf {
   display: block;
   text-align: center;
@@ -79,12 +88,20 @@ html, body {
  * Also eines links, eines rechts, jeweils in der Farbe der Seite eingefasst.
  */
 .foto {
-  width: 1.15em;
-  height: 1.15em;
-  border-radius: 50%;
+  /*
+   * Hochkant und eckig, wie auf der Team-Karte.
+   *
+   * Rund war der erste Versuch; der Betreiber wollte es anders: "mach die
+   * Bilder nicht so rund, die sollen so sein wie bei den Teamcards, also ein
+   * komplettes Quadrat." Ein leicht gebrochener Rand bleibt, damit es nicht
+   * wie ein ausgeschnittenes Stueck Bildschirm aussieht.
+   */
+  width: 1.05em;
+  height: 1.3em;
+  border-radius: 0.1em;
   object-fit: cover;
   object-position: center 18%;
-  border: 0.06em solid currentColor;
+  border: 0.05em solid currentColor;
   flex: 0 0 auto;
 }
 #f1 { color: var(--links); }
