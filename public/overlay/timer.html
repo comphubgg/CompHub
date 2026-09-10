@@ -127,6 +127,15 @@ html, body {
      * Uhr im Bild.
      */
     abStunden: 12,
+    /*
+     * Immer zeigen, egal wie weit der Spieltag weg ist.
+     *
+     * Nur die Vorschau im Werkzeug setzt das. Dort soll man sehen, was man
+     * gerade einstellt - auch bei einem Cup in drei Tagen, wo der Timer im
+     * Stream noch verborgen bliebe. Der Betreiber: "das Preview muss immer
+     * da sein."
+     */
+    immer: false,
   };
 
   const $ = (id) => document.getElementById(id);
@@ -174,13 +183,27 @@ html, body {
      * falsch, und ein falscher Wert im Bild ist schlimmer als keiner.
      */
     if (uebrig <= 0) {
-      $('karte').classList.remove('da');
+      if (!cfg.immer) {
+        $('karte').classList.remove('da');
+        return;
+      }
+      /*
+       * In der Vorschau bleibt stattdessen stehen, dass er laeuft.
+       *
+       * Ein leerer Kasten sieht dort aus wie ein Fehler; im Stream ist genau
+       * das aber richtig, deshalb nur hier.
+       */
+      $('zeit').textContent = 'LIVE';
+      $('wort').textContent = String(cfg.wort || 'STARTS IN');
+      const cl = $('cup');
+      if (cfg.cupZeigen && cfg.cup) { cl.textContent = String(cfg.cup); cl.hidden = false; }
+      $('karte').classList.add('da');
       return;
     }
 
     // Zu frueh ist auch nichts. Erst ab der eingestellten Vorlaufzeit.
     const grenze = Math.max(0, Number(cfg.abStunden) || 0) * 3600;
-    if (grenze && uebrig > grenze) {
+    if (grenze && uebrig > grenze && !cfg.immer) {
       $('karte').classList.remove('da');
       return;
     }

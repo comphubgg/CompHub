@@ -154,7 +154,10 @@ export default function TimerSeite() {
    * timer."
    */
   const vorschau = useMemo(
-    () => `/overlay/timer.html?vorschau=${encodeURIComponent(JSON.stringify(cfg))}`,
+    () => '/overlay/timer.html?vorschau='
+      // "immer": in der Vorschau bleibt der Timer sichtbar, auch wenn der
+      // Spieltag noch Tage weg ist oder schon laeuft. Im Stream nicht.
+      + encodeURIComponent(JSON.stringify({ ...cfg, immer: true })),
     [cfg]);
 
   async function sichern() {

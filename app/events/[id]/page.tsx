@@ -599,7 +599,27 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
    * auswaehlt, statt alles gleichzeitig zu sehen.
    */
   const [reiter, setReiter] =
-    useState<'liste' | 'runden' | 'spieler' | 'teams' | 'streams' | 'werte'>('liste');
+    useState<'liste' | 'runden' | 'spieler' | 'teams' | 'streams' | 'werte'
+      | 'about'>('liste');
+
+  /*
+   * Wer bei diesem Spieltag mitspielen darf.
+   *
+   * Steht in Epics Ereignisdaten, aber als Kennungen; /api/cup-quali
+   * uebersetzt sie. Geholt wird erst, wenn der Reiter offen ist - die meisten
+   * schauen ihn nie an, und die Anfrage geht zu Epic.
+   */
+  const [quali, setQuali] = useState<Array<{ art: string; text: string }> | null>(null);
+  useEffect(() => {
+    if (reiter !== 'about' || quali || !fenster) return;
+    const p = new URLSearchParams({
+      event: fenster.eventId, window: fenster.windowId,
+    });
+    fetch(`/api/cup-quali?${p.toString()}`, { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((j) => setQuali(Array.isArray(j?.zeilen) ? j.zeilen : []))
+      .catch(() => setQuali([]));
+  }, [reiter, quali, fenster]);
 
   /*
    * Wer aus diesem Cup gerade sendet.
@@ -2389,6 +2409,22 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
             * Mitspieler. Der Betreiber wollte dafuer ausdruecklich "eine Art
             * kleinen Abstand".
             */}
+          {/*
+            * Die Teilnahmebedingungen.
+            *
+            * Sie gehoeren zum Cup und nicht zu einem Spieler, stehen also bei
+            * den uebrigen Reitern - der Betreiber wollte unter Events sehen,
+            * "wie man sich qualifizieren kann".
+            */}
+          <button
+            onClick={() => setReiter('about')}
+            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+              reiter === 'about'
+                ? 'bg-sky-500/10 text-sky-400'
+                : 'text-slate-400 hover:text-slate-200'}`}>
+            About
+          </button>
+
           <span className="mx-1 h-5 w-px shrink-0 self-center bg-zinc-800" />
           <button
             onClick={() => setReiter('werte')}
@@ -2403,6 +2439,48 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
         {reiter === 'werte' && (
           <Werte windowId={fenster?.windowId ?? null} teams={tabelle}
             wertung={preise?.wertung ?? []} />
+        )}
+
+        {/* ------------------------------------------------- About */}
+        {reiter === 'about' && (
+          <section className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
+            <h2 className="text-sm font-semibold text-slate-100">
+              <T>Wer mitspielen darf</T>
+            </h2>
+            <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
+              <T>Direkt aus Epics Turnierdaten für genau diesen Spieltag —
+              nichts davon ist geschätzt.</T>
+            </p>
+
+            {!quali && (
+              <p className="mt-4 text-sm text-slate-600"><T>Wird geladen …</T></p>
+            )}
+            {quali && !quali.length && (
+              <p className="mt-4 text-sm leading-relaxed text-slate-500">
+                <T>Zu diesem Spieltag nennt Epic keine Bedingungen.</T>
+              </p>
+            )}
+
+            {quali && quali.length > 0 && (
+              <ul className="mt-4 space-y-2">
+                {quali.map((z) => (
+                  <li key={z.text} className="flex gap-2 text-sm leading-relaxed">
+                    {/*
+                      * Ein Zeichen statt einer Farbe allein: was mitmachen
+                      * laesst, was aussperrt, und was bloss eine Regel ist.
+                      */}
+                    <span className={`shrink-0 font-bold ${
+                      z.art === 'dabei' ? 'text-emerald-400'
+                        : z.art === 'gesperrt' ? 'text-rose-400' : 'text-slate-600'}`}>
+                      {z.art === 'dabei' ? '✓' : z.art === 'gesperrt' ? '✕' : '·'}
+                    </span>
+                    <span className={z.art === 'sonst'
+                      ? 'text-slate-400' : 'text-slate-200'}>{z.text}</span>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </section>
         )}
 
         {/* Leaderboard */}
