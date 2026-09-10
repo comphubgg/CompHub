@@ -66,8 +66,10 @@ function wann(status: string, begin: number): string {
  *   "Team card" ist, will eine Team-Karte. Der Betreiber: "wenn ich auf Team
  *   cards bin, ist obvious, dass ich Team cards will."
  */
-export default function Startansicht({ onWeiter }: {
+export default function Startansicht({ onWeiter, art }: {
   onWeiter: (eventId: string, windowId: string) => void;
+  /** Welche Art diese Seite zeigt - danach wird die Liste gefiltert. */
+  art: string;
 }) {
   const t = useT();
   const zugang = useZugang();
@@ -177,7 +179,7 @@ export default function Startansicht({ onWeiter }: {
           )}
         </div>
 
-        {!neu && <MeineOverlays />}
+        {!neu && <MeineOverlays nurArt={art} />}
       </section>
 
       {/* ------------------------------------------------ Schritt 2 */}

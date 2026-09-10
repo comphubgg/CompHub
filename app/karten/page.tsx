@@ -2570,7 +2570,15 @@ ${name}
         const px = schriftgroesse(r.breite, r.hoehe, s.name.length) / 100 * G;
         g.font = `600 ${px}px Segoe UI, system-ui, sans-serif`;
         const y = (r.oben + r.hoehe / 2) / 100 * G;
-        g.strokeStyle = 'rgba(0,0,0,0.9)'; g.lineWidth = px * 0.22;
+        /*
+         * Ein duennerer Rand um die Schrift.
+         *
+         * Zweiundzwanzig Prozent der Schriftgroesse liessen die Namen wie
+         * ausgeschnitten wirken; zwoelf genuegen, damit sie ueber jedem
+         * Untergrund stehen, ohne die Karte zuzukleben.
+         */
+        g.strokeStyle = 'rgba(0,0,0,0.72)'; g.lineWidth = px * 0.12;
+        g.lineJoin = 'round';
         g.strokeText(s.name, mx, y);
         g.fillStyle = 'rgba(255,255,255,0.78)';
         g.fillText(s.name, mx, y);
@@ -2608,7 +2616,9 @@ ${name}
           const y = mitte + (j - (zeilen.length - 1) / 2) * px * 1.05;
           // Gemischte Schreibweise wie auf dem Bildschirm - Grossbuchstaben
           // brauchen mehr Platz und liefen bei engen Formen heraus.
-          g.strokeStyle = 'rgba(0,0,0,1)'; g.lineWidth = px * 0.24;
+          // Derselbe duennere Rand wie oben - siehe dort.
+          g.strokeStyle = 'rgba(0,0,0,0.78)'; g.lineWidth = px * 0.13;
+          g.lineJoin = 'round';
           g.strokeText(zeile, zx, y);
           g.fillStyle = '#ffffff';
           g.fillText(zeile, zx, y);
@@ -2622,6 +2632,35 @@ ${name}
     // Dort standen Kartentitel und Seitenname. Auf einem Bild, das geteilt
     // wird, lenkt beides von der Karte ab - der Titel steht ohnehin im
     // Beitrag daneben. Geblieben ist allein das Zeichen unten rechts.
+    /*
+     * Das Wasserzeichen ueber die ganze Karte.
+     *
+     * Der Betreiber hat es beim Vorbild gesehen und wollte es auch: "die
+     * ganz leichte Wassermarkierung - bei mir soll halt einfach thecomphub
+     * .com ueberall stehen, so ganz wasserlastig." Es liegt schraeg und sehr
+     * blass darueber; wer die Karte weiterverwendet, traegt die Herkunft mit,
+     * ohne dass sie beim Lesen stoert.
+     *
+     * Vor dem Zeichen unten rechts, damit das Logo darueber liegt und nicht
+     * durchscheint.
+     */
+    g.save();
+    g.globalAlpha = 0.055;
+    g.fillStyle = '#ffffff';
+    const wz = Math.round(G * 0.028);
+    g.font = `700 ${wz}px Segoe UI, system-ui, sans-serif`;
+    g.textAlign = 'center';
+    g.textBaseline = 'middle';
+    g.translate(G / 2, G / 2);
+    g.rotate(-Math.PI / 9);
+    const schritt = wz * 9;
+    for (let y = -G; y < G; y += schritt * 0.75) {
+      for (let x = -G; x < G; x += schritt) {
+        g.fillText('thecomphub.com', x, y);
+      }
+    }
+    g.restore();
+
     const logo = await new Promise<HTMLImageElement | null>((fertig) => {
       const b = new Image();
       b.onload = () => fertig(b);
@@ -2645,6 +2684,23 @@ ${name}
       g.shadowBlur = 12;
       g.globalAlpha = 0.95;
       g.drawImage(logo, G - rand - breite, G - rand - hoehe, breite, hoehe);
+      g.restore();
+
+      /*
+       * Und die Adresse darunter.
+       *
+       * Klein und deckend, direkt unter dem Zeichen - so wie auf dem
+       * Vorbild, nur unten rechts statt oben.
+       */
+      g.save();
+      g.shadowColor = 'rgba(0,0,0,0.6)';
+      g.shadowBlur = 8;
+      g.fillStyle = 'rgba(255,255,255,0.85)';
+      const ap = Math.round(G * 0.019);
+      g.font = `600 ${ap}px Segoe UI, system-ui, sans-serif`;
+      g.textAlign = 'right';
+      g.textBaseline = 'bottom';
+      g.fillText('thecomphub.com', G - rand, G - Math.round(rand * 0.35));
       g.restore();
     }
 
@@ -2678,9 +2734,17 @@ ${name}
     // waren auf orangem Untergrund kaum vom Boden zu unterscheiden. Der Rand
     // ist jetzt deckend, die Fuellung etwas dichter.
     const belegt = s.teams?.length ?? 0;
-    if (belegt >= 2) return { fuellung: 'rgba(220,38,38,0.34)', rand: 'rgb(248,60,60)' };
-    if (belegt === 1) return { fuellung: 'rgba(0,0,0,0.42)', rand: 'rgba(0,0,0,0.95)' };
-    return { fuellung: 'rgba(0,0,0,0.14)', rand: 'rgba(0,0,0,0.75)' };
+    /*
+     * Das Rot kraeftiger, das Schwarz zurueckhaltender.
+     *
+     * Der Betreiber hat die Karte neben die des Vorbilds gehalten: "das Rot
+     * ist ein bisschen intensiver, die schwarzen Umrandungen bei den Namen
+     * sind nicht so intensiv. Es soll mehr clean aussehen." Eine umkaempfte
+     * Stelle soll ins Auge springen, eine gewoehnliche nicht.
+     */
+    if (belegt >= 2) return { fuellung: 'rgba(228,30,30,0.46)', rand: 'rgb(255,64,64)' };
+    if (belegt === 1) return { fuellung: 'rgba(0,0,0,0.34)', rand: 'rgba(0,0,0,0.82)' };
+    return { fuellung: 'rgba(0,0,0,0.12)', rand: 'rgba(0,0,0,0.6)' };
   }
 
   /**

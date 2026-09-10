@@ -221,7 +221,7 @@ export default function OverlayGeruest({ aktiv, children }: {
             * Auf der Startseite steht die Liste gross in der Mitte - hier
             * waere sie zweimal dasselbe.
             */}
-          {imBaukasten && <MeineOverlays />}
+          {imBaukasten && <MeineOverlays nurArt={aktiv} />}
         </aside>
 
         <div className="min-w-0 flex-1">
@@ -235,7 +235,7 @@ export default function OverlayGeruest({ aktiv, children }: {
               {children}
             </>
           ) : (
-            <Startansicht onWeiter={(e, w) => {
+            <Startansicht art={aktiv} onWeiter={(e, w) => {
               /*
                * In den Baukasten, ohne die Seite zu wechseln.
                *

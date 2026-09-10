@@ -35,7 +35,15 @@ interface Cup {
   regionen?: Record<string, Fenster[]>;
 }
 
-export default function MeineOverlays() {
+/**
+ * Die eigenen Overlays.
+ *
+ * @param nurArt Wenn gesetzt, nur die dieser Art. Der Betreiber wollte das
+ *   getrennt: "jedes gespeicherte Overlay soll nur in seiner passenden
+ *   Sektion sein - eine Player Card soll man nicht unter Cup timer sehen."
+ *   Auf jeder Overlay-Seite steht deshalb nur, was dorthin gehoert.
+ */
+export default function MeineOverlays({ nurArt = '' }: { nurArt?: string }) {
   const t = useT();
   const zugang = useZugang();
   const [liste, setListe] = useState<OverlayEintrag[] | null>(null);
@@ -51,11 +59,12 @@ export default function MeineOverlays() {
     try {
       const j = await (await fetch('/api/overlay-config?meine=1',
         { cache: 'no-store' })).json();
-      setListe(j.overlays ?? []);
+      const alle: OverlayEintrag[] = j.overlays ?? [];
+      setListe(nurArt ? alle.filter((o) => o.typ === nurArt) : alle);
     } catch {
       setListe([]);
     }
-  }, []);
+  }, [nurArt]);
 
   useEffect(() => { void laden(); }, [laden]);
 

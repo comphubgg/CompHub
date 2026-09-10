@@ -973,16 +973,67 @@ loadDashboardData().then(loadedFolders => {
    * ergibt sich genau die Anordnung der Vorlagen: 2 -> 2, 3 -> 2+1,
    * 4 -> 2+2, 5 -> 3+2, 6 -> 3+3, 7 -> 3+3+1.
    */
+  /*
+   * Wie gross die Flaeche ist, auf der die Kacheln liegen.
+   *
+   * Ohne dieses Mass war die Spaltenzahl die Wurzel aus der Anzahl - ein
+   * Quadrat also, egal wie breit das Fenster ist. Auf einem breiten
+   * Bildschirm mit ausgeblendetem Chat und geschlossener Ordnerleiste blieb
+   * links und rechts Platz liegen, waehrend die Kacheln unnoetig klein
+   * waren. Der Betreiber: "wenn man beides ausblendet, hat es noch mehr
+   * Platz, dann koennen in einer Reihe fuenf bis sechs sein."
+   */
+  const kachelFlaeche = useRef<HTMLDivElement | null>(null);
+  const [flaeche, setFlaeche] = useState({ breite: 0, hoehe: 0 });
+  useEffect(() => {
+    const el = kachelFlaeche.current;
+    if (!el || typeof ResizeObserver === 'undefined') return undefined;
+    const beobachter = new ResizeObserver(() => {
+      setFlaeche({ breite: el.clientWidth, hoehe: el.clientHeight });
+    });
+    beobachter.observe(el);
+    setFlaeche({ breite: el.clientWidth, hoehe: el.clientHeight });
+    return () => beobachter.disconnect();
+  }, [mehrfach]);
+
+  /**
+   * Die Reihen der Kachelansicht.
+   *
+   * Gesucht ist die Spaltenzahl, bei der eine einzelne Kachel am groessten
+   * wird - bei sechzehn zu neun und dem Platz, der wirklich da ist. Dafuer
+   * werden alle Spaltenzahlen durchgerechnet: je Zahl ergibt sich eine
+   * Reihenzahl, daraus eine Kachelbreite (begrenzt durch die Hoehe), und die
+   * groesste gewinnt.
+   *
+   * Eine Obergrenze gibt es nicht. Wer zwanzig Streams offen hat, bekommt
+   * zwanzig - sie werden eben kleiner, so wie beim Vorbild.
+   */
   const kachelReihen = useMemo(() => {
     const n = kachelnGezeigt.length;
     if (!n) return { spalten: 1, reihen: [] as Streamer[][] };
-    const spalten = Math.ceil(Math.sqrt(n));
+
+    const breite = flaeche.breite || 1600;
+    const hoehe = flaeche.hoehe || 900;
+    const luecke = 12;
+
+    let spalten = Math.ceil(Math.sqrt(n));
+    let beste = 0;
+    for (let k = 1; k <= n; k += 1) {
+      const reihenZahl = Math.ceil(n / k);
+      const kw = (breite - (k - 1) * luecke) / k;
+      const kh = (hoehe - (reihenZahl - 1) * luecke) / reihenZahl;
+      if (kw <= 0 || kh <= 0) continue;
+      // Sechzehn zu neun: was zuerst ausgeht, bestimmt die Groesse.
+      const wirklich = Math.min(kw, (kh * 16) / 9);
+      if (wirklich > beste) { beste = wirklich; spalten = k; }
+    }
+
     const reihen: Streamer[][] = [];
     for (let i = 0; i < n; i += spalten) {
       reihen.push(kachelnGezeigt.slice(i, i + spalten));
     }
     return { spalten, reihen };
-  }, [kachelnGezeigt]);
+  }, [kachelnGezeigt, flaeche]);
   const currentDashboardUser = verifiedUser?.trim().toLowerCase() || '';
   const twitchChatUsername = activeStreamerTwitch?.trim().toLowerCase() || '';
   const canShowTwitchChat = Boolean(showChat && currentHost && activeStreamerTwitch);
@@ -2049,8 +2100,9 @@ loadDashboardData().then(loadedFolders => {
                      * Reihe. Sonst wuerde der einzelne Stream unten so breit
                      * wie die drei darueber zusammen.
                      */
-                    <div className="flex h-full w-full flex-col justify-center gap-3
-                                    overflow-y-auto bg-zinc-950 p-3">
+                    <div ref={kachelFlaeche}
+                      className="flex h-full w-full flex-col justify-center gap-3
+                                 overflow-y-auto bg-zinc-950 p-3">
                       {kachelReihen.reihen.map((reihe, r) => (
                         <div key={r} className="flex justify-center gap-3">
                           {reihe.map((st) => {
