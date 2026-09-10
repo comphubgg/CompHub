@@ -1004,8 +1004,15 @@ export async function richteServerEin(
   if (support) {
     const kanal = kanaele.find((k) => k.type === 0 && gleich(k.name, 'support'));
     if (kanal) {
+      /*
+       * Nur die VIP-Rollen.
+       *
+       * Die Manager haben ihren eigenen Kanal mit ihren eigenen Anliegen -
+       * was dort besprochen wird, geht die Streamer nichts an, und
+       * umgekehrt. Wer beides ist, traegt beide Rollen und sieht beides.
+       */
       let dazu = 0;
-      for (const rolle of [...supportRollen.vip, ...supportRollen.manager]) {
+      for (const rolle of supportRollen.vip) {
         const ok = await ruf(`/channels/${kanal.id}/permissions/${rolle}`, 'PUT', {
           type: 0, allow: LESEN, deny: '0',
         });
@@ -1123,6 +1130,35 @@ export async function richteServerEin(
   schritte.push(panel.ok
     ? { text: 'Ticket-Panel steht', wert: '#support' }
     : { text: 'Ticket-Panel blieb aus', wert: panel.grund });
+
+  /*
+   * Und der Support fuer die Manager - eigener Kanal, eigene Liste.
+   *
+   * Nur fuer die Managerrollen sichtbar: was dort besprochen wird, geht die
+   * Streamer nichts an, und umgekehrt.
+   */
+  kanaele = await alleKanaele();
+  const mSupport = await infoKanal(
+    'manager-support', 'Support for VIP managers', support, kanaele,
+    'manager', rollen.manager);
+  if (mSupport) {
+    /*
+     * Hier darf geschrieben werden - anders als in den Aushaengen. Das
+     * Ticket entsteht zwar in einem eigenen Kanal, aber wer nur kurz etwas
+     * fragen will, soll nicht vor einem stummen Kanal stehen.
+     */
+    for (const rolle of rollen.manager) {
+      await ruf(`/channels/${mSupport}/permissions/${rolle}`, 'PUT', {
+        type: 0, allow: LESEN, deny: '0',
+      });
+    }
+    const mPanel = await ticketPanel('manager-support', true);
+    schritte.push(mPanel.ok
+      ? { text: 'Ticket-Panel steht', wert: '#manager-support' }
+      : { text: 'Ticket-Panel blieb aus', wert: mPanel.grund });
+  } else {
+    fehler.push({ text: 'Kanal ließ sich nicht anlegen', wert: '#manager-support' });
+  }
 
   if (!knoepfeMoeglich()) {
     schritte.push({
@@ -1361,9 +1397,18 @@ export async function schluesselAufraeumen(): Promise<AufbauBericht> {
  * Der Wert ist die Kennung, die im Knopfdruck zurueckkommt; er darf sich
  * deshalb nicht mehr aendern.
  */
-export const TICKET_ARTEN: Array<{
+export interface TicketArt {
   wert: string; titel: string; was: string; emoji: string;
-}> = [
+}
+
+/**
+ * Die Anliegen eines VIPs.
+ *
+ * Ein Streamer fragt nach anderen Dingen als jemand, der waehrend des Streams
+ * seine Overlays betreut - der Betreiber wollte das getrennt: "natuerlich gibt
+ * es da nicht die gleichen Sachen wie fuer die VIPs."
+ */
+export const TICKET_ARTEN: TicketArt[] = [
   { wert: 'kaputt', emoji: '🐛', titel: 'Something is broken',
     was: 'A page does not load, a button does nothing, an overlay is blank.' },
   { wert: 'zahlen', emoji: '📊', titel: 'Wrong or missing numbers',
@@ -1378,15 +1423,44 @@ export const TICKET_ARTEN: Array<{
     was: 'Anything that does not fit above.' },
 ];
 
+/**
+ * Die Anliegen eines VIP-Managers.
+ *
+ * Enger gefasst, weil sein Zugang enger ist: er kommt an die Overlays eines
+ * Streamers und sonst nichts. Was er dort erlebt - ein Overlay, das im Stream
+ * nicht nachzieht, ein Spieler, der sich nicht einfuegen laesst, ein Name, der
+ * nicht eingetragen ist -, steht hier und nirgends sonst.
+ */
+export const TICKET_ARTEN_MANAGER: TicketArt[] = [
+  { wert: 'obs', emoji: '📺', titel: 'Overlay does not update on stream',
+    was: 'You changed something and OBS still shows the old state.' },
+  { wert: 'spieler', emoji: '👥', titel: 'A player is missing',
+    was: 'Someone cannot be added, or the wrong duo shows up.' },
+  { wert: 'anmelden', emoji: '🔑', titel: 'Cannot sign in',
+    was: 'Your name is not registered, or the key does not work.' },
+  { wert: 'aussehen', emoji: '🖼️', titel: 'Overlay should look different',
+    was: 'Other columns, other colours, another layout for the stream.' },
+  { wert: 'wunsch', emoji: '✨', titel: 'Idea for the tool',
+    was: 'Something that would make your work during a stream easier.' },
+  { wert: 'sonst', emoji: '💬', titel: 'Something else',
+    was: 'Anything that does not fit above.' },
+];
+
 /** Wie ein Ticketkanal heisst. Ein Kanal je Person, nicht je Anliegen. */
-function ticketName(nutzer: string): string {
+function ticketName(nutzer: string, fuerManager = false): string {
   const rein = [...nutzer.toLowerCase()]
     .map((z) => UMLAUTE[z] ?? z)
     .join('')
     .replace(/[^a-z0-9-]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 20);
-  return `ticket-${rein || 'support'}`;
+  /*
+   * Zwei Vorsilben, damit dieselbe Person beides offen haben kann.
+   *
+   * Wer als Streamer eine kaputte Seite meldet und zugleich als Manager ein
+   * Overlay bespricht, soll dafuer nicht denselben Kanal benutzen muessen.
+   */
+  return `${fuerManager ? 'mticket' : 'ticket'}-${rein || 'support'}`;
 }
 
 /**
@@ -1395,24 +1469,33 @@ function ticketName(nutzer: string): string {
  * Eine Nachricht mit einem Knopf, mehr nicht. Sie wird bei jedem Aufbau
  * ersetzt, damit dort nie zwei stehen.
  */
-export async function ticketPanel(): Promise<{ ok: boolean; grund?: string }> {
+export async function ticketPanel(
+  kanalName = 'support', fuerManager = false,
+): Promise<{ ok: boolean; grund?: string }> {
   if (!discordDa()) return { ok: false, grund: 'kein-token' };
   const kanaele = await alleKanaele();
-  const support = kanaele.find((k) => k.type === 0 && gleich(k.name, 'support'));
+  const support = kanaele.find((k) => k.type === 0 && gleich(k.name, kanalName));
   if (!support) return { ok: false, grund: 'kein-kanal' };
 
+  const arten = fuerManager ? TICKET_ARTEN_MANAGER : TICKET_ARTEN;
+  const merk = fuerManager ? 'ticket:panel:manager' : 'ticket:panel';
+
   const ablage = await lies();
-  const alt = ablage['ticket:panel']?.nachricht;
+  const alt = ablage[merk]?.nachricht;
   if (alt) await ruf(`/channels/${support.id}/messages/${alt}`, 'DELETE');
 
   const gesendet = await ruf(`/channels/${support.id}/messages`, 'POST', {
     embeds: [{
-      title: 'Support',
+      title: fuerManager ? 'Manager support' : 'Support',
       description: [
-        'Pick what you need below and you get your own private channel. Only '
-        + 'you and Juanito can see it.',
+        fuerManager
+          ? 'Something in the way while you are looking after a stream? Pick '
+            + 'it below and you get your own private channel. Only you and '
+            + 'Juanito can see it.'
+          : 'Pick what you need below and you get your own private channel. '
+            + 'Only you and Juanito can see it.',
         '',
-        ...TICKET_ARTEN.map((a) => `${a.emoji} **${a.titel}** — ${a.was}`),
+        ...arten.map((a) => `${a.emoji} **${a.titel}** — ${a.was}`),
         '',
         'Not everything is possible and nothing is instant, but you always get '
         + 'a straight yes or no.',
@@ -1430,11 +1513,11 @@ export async function ticketPanel(): Promise<{ ok: boolean; grund?: string }> {
            * So steht die Antwort schon fest, bevor der Kanal entsteht.
            */
           type: 3,
-          custom_id: 'ticket:art',
+          custom_id: fuerManager ? 'ticket:art:manager' : 'ticket:art',
           placeholder: 'What do you need?',
           min_values: 1,
           max_values: 1,
-          options: TICKET_ARTEN.map((a) => ({
+          options: arten.map((a) => ({
             label: a.titel,
             value: a.wert,
             description: a.was.slice(0, 100),
@@ -1447,7 +1530,7 @@ export async function ticketPanel(): Promise<{ ok: boolean; grund?: string }> {
 
   const id = idAus(gesendet);
   if (!id) return { ok: false, grund: 'abgelehnt' };
-  ablage['ticket:panel'] = { kanal: support.id, nachricht: id };
+  ablage[merk] = { kanal: support.id, nachricht: id };
   await schreibe(ablage);
   return { ok: true };
 }
@@ -1460,16 +1543,17 @@ export async function ticketPanel(): Promise<{ ok: boolean; grund?: string }> {
  * dreissig Kanaele fuer dieselben drei Leute.
  */
 export async function ticketOeffnen(
-  nutzerId: string, nutzerName: string, art = 'sonst',
+  nutzerId: string, nutzerName: string, art = 'sonst', fuerManager = false,
 ): Promise<{ ok: boolean; kanal?: string; schonDa?: boolean; grund?: string }> {
   if (!discordDa()) return { ok: false, grund: 'kein-token' };
 
-  const name = ticketName(nutzerName);
+  const name = ticketName(nutzerName, fuerManager);
   const kanaele = await alleKanaele();
   const schon = kanaele.find((k) => k.type === 0 && k.name === name);
   if (schon) return { ok: true, kanal: schon.id, schonDa: true };
 
-  const support = kanaele.find((k) => k.type === 0 && gleich(k.name, 'support'));
+  const support = kanaele.find((k) => k.type === 0
+    && gleich(k.name, fuerManager ? 'manager-support' : 'support'));
   const kategorie = support?.parent_id ?? await kategorieFuer('Support');
 
   const ich = await werBinIch();
@@ -1485,7 +1569,8 @@ export async function ticketOeffnen(
     regeln.push({ id: adminRolle, type: 0, allow: VOLLZUGRIFF, deny: '0' });
   }
 
-  const gewaehlt = TICKET_ARTEN.find((a) => a.wert === art);
+  const gewaehlt = (fuerManager ? TICKET_ARTEN_MANAGER : TICKET_ARTEN)
+    .find((a) => a.wert === art);
 
   const neu = await ruf(`/guilds/${SERVER}/channels`, 'POST', {
     name,
@@ -1546,7 +1631,9 @@ export async function ticketSchliessen(
   const wer = await ruf(`/channels/${kanal}`, 'GET');
   const name = (wer && !Array.isArray(wer) && typeof wer.name === 'string')
     ? wer.name : 'ticket';
-  if (!name.startsWith('ticket-')) return { ok: false, grund: 'kein-ticket' };
+  if (!name.startsWith('ticket-') && !name.startsWith('mticket-')) {
+    return { ok: false, grund: 'kein-ticket' };
+  }
 
   const roh = await ruf(`/channels/${kanal}/messages?limit=100`, 'GET');
   const zeilen: string[] = [`# ${name}`, ''];

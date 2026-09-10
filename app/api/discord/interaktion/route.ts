@@ -153,10 +153,13 @@ export async function POST(request: NextRequest) {
   const nutzer = d.member?.user ?? d.user;
 
   /* ------------------------------------------------------- Tickets */
-  if (id === 'ticket:auf' || id === 'ticket:art') {
+  if (id === 'ticket:auf' || id.startsWith('ticket:art')) {
     if (!nutzer?.id) return nurFuerIhn('I could not tell who pressed that.');
     const wer = nutzer.global_name || nutzer.username || nutzer.id;
     const art = String(d.data?.values?.[0] ?? 'sonst');
+    // Aus welchem Panel der Druck kam - die beiden fuehren zu verschiedenen
+    // Kanaelen und verschiedenen Listen.
+    const fuerManager = id.endsWith(':manager');
 
     /*
      * Erst antworten, dann den Kanal bauen.
@@ -175,7 +178,8 @@ export async function POST(request: NextRequest) {
             body: JSON.stringify({ content: text }),
           });
       };
-      const erg = await ticketOeffnen(nutzer.id as string, wer, art);
+      const erg = await ticketOeffnen(
+        nutzer.id as string, wer, art, fuerManager);
       await melde(erg.ok && erg.kanal
         ? (erg.schonDa
           ? `You already have a ticket open: <#${erg.kanal}>`
