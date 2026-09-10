@@ -97,6 +97,16 @@ const NUR_ADMIN: Ziel[] = [
   { href: '/admin/live', titel: 'Live',
     text: 'Wer gerade da ist und wann sich wer angemeldet hat' },
   { href: '/admin/konten', titel: 'Konten', text: 'Rollen und VIP vergeben' },
+  /*
+   * Der Kontowechsel als eigene Seite.
+   *
+   * Er steckte in der Zugangsliste unter "Konten", zwischen Schluesseln,
+   * Rollen und Fristen - und war dort nicht zu finden. Der Betreiber wollte
+   * eine eigene: "kann ich einfach den User anklicken und dann switche ich
+   * automatisch."
+   */
+  { href: '/admin/wechseln', titel: 'Konto wechseln',
+    text: 'Sehen, was ein VIP oder Manager sieht' },
   // Wer Bereiche zumachen darf, koennte sich damit selbst den Weg zurueck
   // verbauen - deshalb nur der Admin, so wie bei den Konten.
   { href: '/admin/sektionen', titel: 'Sections',
@@ -126,6 +136,16 @@ const ADMIN_ZIELE: Ziel[] = [
    */
   { href: '/admin/kontakt', titel: 'Kontakt', text: 'Meldungen aus dem Formular lesen' },
 ];
+
+/**
+ * Wie viele Kacheln auf eine Seite passen.
+ *
+ * Drei Spalten mal vier Zeilen. Kommt eine dazu, entsteht eine zweite Seite,
+ * statt dass die Uebersicht nach unten wegwaechst - der Betreiber wollte das
+ * so: "falls jetzt weitere in der Zukunft hinzugefuegt werden, machst Du
+ * oben rechts eine Art Balken, go to next page."
+ */
+const JE_SEITE = 12;
 
 export default function AdminDashboardPage() {
   const t = useT();
@@ -314,6 +334,25 @@ export default function AdminDashboardPage() {
   };
 
   const twitch = profile.socials.twitch.trim();
+
+  /*
+   * Welche Werkzeuge dieses Konto ueberhaupt sieht.
+   *
+   * Nur die Bereiche, die es pflegen darf: ein Manager sieht seine drei
+   * Kacheln, nicht alle mit den gesperrten daneben. Einmal gerechnet, damit
+   * die Seitenzahl unten dieselbe Liste meint wie die Anzeige.
+   */
+  const werkzeuge = [
+    ...ADMIN_ZIELE.filter((z) => {
+      const b = bereichVonPfad(z.href);
+      if (!b) return true;
+      if (istAdmin || rolle === 'admin' || zugang.admin) return true;
+      return eigeneRechte.includes(b) || zugang.darfBereich(b);
+    }),
+    ...((istAdmin || rolle === 'admin' || zugang.admin) ? NUR_ADMIN : []),
+  ];
+  const werkzeugSeiten = Math.max(1, Math.ceil(werkzeuge.length / JE_SEITE));
+  const [werkzeugSeite, setWerkzeugSeite] = useState(0);
 
   /** Eine Kachel - fuer beide Blocke dieselbe Form. */
   const Kachel = ({ z }: { z: Ziel }) => (
@@ -569,24 +608,32 @@ export default function AdminDashboardPage() {
                   <span className="text-xs text-slate-500">
                     <T>sichtbar nur für dich</T>
                   </span>
+
+                  {/*
+                    * Der Seitenwechsel - nur, wenn es eine zweite Seite gibt.
+                    *
+                    * Klein und rechts oben, damit er nicht wie ein Werkzeug
+                    * aussieht. Steht da nichts, gibt es auch nichts zu
+                    * blaettern.
+                    */}
+                  {werkzeugSeiten > 1 && (
+                    <span className="ml-auto flex items-center gap-1">
+                      {Array.from({ length: werkzeugSeiten }, (_, i) => (
+                        <button key={i} onClick={() => setWerkzeugSeite(i)}
+                          className={`h-6 w-6 rounded-md text-[11px] font-semibold
+                                      transition ${i === werkzeugSeite
+                            ? 'bg-sky-500 text-white'
+                            : 'text-slate-500 hover:bg-zinc-900 hover:text-slate-200'}`}>
+                          {i + 1}
+                        </button>
+                      ))}
+                    </span>
+                  )}
                 </div>
                 <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                  {/*
-                    * Nur die Bereiche, die dieses Konto pflegen darf. Ein
-                    * Manager sieht seine drei Kacheln, nicht alle sechs mit
-                    * fuenf gesperrten daneben.
-                    */}
-                  {ADMIN_ZIELE
-                    .filter((z) => {
-                      const b = bereichVonPfad(z.href);
-                      if (!b) return true;
-                      if (istAdmin || rolle === 'admin' || zugang.admin) return true;
-                      // Ein Manager sieht genau seine angehakten Bereiche.
-                      return eigeneRechte.includes(b) || zugang.darfBereich(b);
-                    })
+                  {werkzeuge
+                    .slice(werkzeugSeite * JE_SEITE, (werkzeugSeite + 1) * JE_SEITE)
                     .map((z) => <Kachel key={z.href} z={z} />)}
-                  {(istAdmin || rolle === 'admin' || zugang.admin)
-                    && NUR_ADMIN.map((z) => <Kachel key={z.href} z={z} />)}
                 </div>
               </section>
             )}

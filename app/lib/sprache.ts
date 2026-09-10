@@ -1901,6 +1901,22 @@ const AUF_ENGLISCH: Record<string, string> = {
     + 'minutes. Closing a tab does not sign anyone out — nothing more can '
     + 'honestly be said about it.',
   'Noch keine Ergebnisse': 'No results yet',
+  'Konto wechseln':
+    'Switch account',
+  'Sehen, was ein VIP oder Manager sieht':
+    'See what a VIP or manager sees',
+  'In einen Zugang wechseln':
+    'Switch into an access',
+  'zurück zu den Admin-Werkzeugen':
+    'back to the admin tools',
+  'Ein Klick, und du siehst, was dieser Zugang sieht — seine Overlays, seine Rechte. Zurück geht es nur über eine neue Anmeldung; ein Cookie, das deine Adminrechte heimlich mitführt, wäre ein zweiter Schlüssel zur Verwaltung.':
+    'One click and you see what this access sees: its overlays, its rights. Getting back needs a fresh sign-in; a cookie quietly carrying your admin rights along would be a second key to the administration.',
+  'Namen suchen':
+    'search names',
+  'Nur für Admins.':
+    'Admins only.',
+  'stillgelegt':
+    'suspended',
   'Wer mitspielen darf':
     'Who may take part',
   'Direkt aus Epics Turnierdaten für genau diesen Spieltag — nichts davon ist geschätzt.':
