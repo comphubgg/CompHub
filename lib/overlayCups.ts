@@ -86,6 +86,48 @@ export function overlayZeitraum(abGestern = false): { von: number; bis: number }
 }
 
 /**
+ * Wie lange vor dem Start ein Manager einen Spieltag waehlen darf.
+ *
+ * Ein Manager-Zugang betreut die Overlays eines Streamers waehrend des
+ * Streams. Dort soll er den Cup umstellen koennen - aber nur den, um den es
+ * gerade geht. Der Betreiber hat die Fenster selbst gezogen: "als VIP Manager
+ * kannst Du nur die Cups auswaehlen, die gerade heute sind, live sind. Also
+ * so fuenfzehn Minuten vor Cup-Start fuer Europa-Cups und bis zu zwei Stunden
+ * vor Cup-Start fuer alle anderen Regionen."
+ *
+ * Europa ist enger, weil er dort selbst dabei ist und die Zeiten kennt; bei
+ * den anderen Regionen laeuft die Vorbereitung frueher, oft aus einer anderen
+ * Zeitzone heraus.
+ *
+ * Was schon laeuft oder heute gelaufen ist, bleibt waehlbar - ein Overlay
+ * entsteht auch mal nach der ersten Runde.
+ */
+const MANAGER_VORLAUF_MS: Record<string, number> = {
+  EU: 15 * 60 * 1000,
+};
+const MANAGER_VORLAUF_SONST_MS = 2 * 60 * 60 * 1000;
+
+/**
+ * Darf ein Manager diesen Spieltag gerade waehlen?
+ *
+ * @param begin  Beginn des Spieltags in Millisekunden.
+ * @param region Die Region des Spieltags.
+ * @param live   Laeuft er gerade?
+ */
+export function managerDarfCup(
+  begin: number, region: string, live: boolean,
+): boolean {
+  if (live) return true;
+  const jetzt = Date.now();
+  // Was heute schon gelaufen ist, bleibt den Tag ueber waehlbar.
+  const tagesbeginn = new Date(); tagesbeginn.setHours(0, 0, 0, 0);
+  if (begin < jetzt) return begin >= tagesbeginn.getTime();
+  const vorlauf = MANAGER_VORLAUF_MS[String(region).toUpperCase()]
+    ?? MANAGER_VORLAUF_SONST_MS;
+  return begin - jetzt <= vorlauf;
+}
+
+/**
  * Wie wichtig dieser Cup ist - kleiner heisst weiter oben.
  *
  * Der Betreiber wollte die Auswahl nach Wichtigkeit geordnet, nicht nach

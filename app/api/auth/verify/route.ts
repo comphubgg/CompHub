@@ -77,5 +77,12 @@ export async function GET(req: NextRequest) {
     rechte: betreiber ? [] : darf.rechte,
     vip: betreiber ? true : darf.vip,
     epicId: darf.epicId,
+    /*
+     * Fuer wen dieser Zugang die Overlays betreut - leer bei allen anderen.
+     *
+     * Die Oberflaeche braucht das: ein Manager darf den Cup eines Overlays
+     * nur waehrend des Spieltags umstellen, ein VIP jederzeit.
+     */
+    verwaltet: (eintrag?.verwaltet ?? '').trim() || null,
   });
 }

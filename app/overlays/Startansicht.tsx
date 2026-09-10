@@ -4,8 +4,10 @@ import { useEffect, useMemo, useState } from 'react';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import MeineOverlays from './MeineOverlays';
+import { useZugang } from '@/app/lib/zugang';
 import {
-  overlayCupErlaubt, overlayCupRang, overlayRegionRang, overlayZeitraumWeit,
+  managerDarfCup, overlayCupErlaubt, overlayCupRang, overlayRegionRang,
+  overlayZeitraumWeit,
 } from '@/lib/overlayCups';
 
 /*
@@ -68,6 +70,15 @@ export default function Startansicht({ onWeiter }: {
   onWeiter: (eventId: string, windowId: string) => void;
 }) {
   const t = useT();
+  const zugang = useZugang();
+  /*
+   * Ist das ein Manager-Zugang?
+   *
+   * Dann steht nur zur Wahl, was gerade laeuft oder gleich anfaengt. Alles
+   * andere waere waehrend eines Streams ein Fehlgriff mit Folgen: das Overlay
+   * zeigte auf einmal ein Turnier von naechster Woche.
+   */
+  const nurLaufende = Boolean(zugang.verwaltet);
   const [cups, setCups] = useState<Cup[] | null>(null);
   const [neu, setNeu] = useState(false);
   /*
@@ -134,11 +145,12 @@ export default function Startansicht({ onWeiter }: {
    * erste Ansicht kurz bleibt: sechs Kacheln statt sechzig.
    */
   const kacheln = useMemo(() => alleKacheln.filter((k) => {
+    if (nurLaufende && !managerDarfCup(k.begin, k.region, k.live)) return false;
     if (k.live) return true;
     if (stufe === 0) return k.heute && k.erlaubt && k.region === 'EU';
     if (stufe === 1) return k.heute && k.erlaubt;
     return true;
-  }), [alleKacheln, stufe]);
+  }), [alleKacheln, stufe, nurLaufende]);
 
   const nochDa = alleKacheln.length - kacheln.length;
 
@@ -189,7 +201,22 @@ export default function Startansicht({ onWeiter }: {
           {!cups && (
             <p className="text-sm text-slate-600"><T>Wird geladen …</T></p>
           )}
-          {cups && !kacheln.length && (
+          {nurLaufende && (
+            <p className="mb-3 text-[11px] leading-relaxed text-sky-400/80">
+              <T>Als Manager wählst du den Spieltag, um den es gerade geht:
+              was läuft, was heute schon lief, und was gleich anfängt — in
+              Europa ab 15 Minuten vorher, in den anderen Regionen ab zwei
+              Stunden vorher.</T>
+            </p>
+          )}
+
+          {cups && !kacheln.length && nurLaufende && (
+            <p className="text-sm leading-relaxed text-amber-500/80">
+              <T>Gerade läuft kein Spieltag und keiner fängt gleich an. Sobald
+              einer ansteht, erscheint er hier von selbst.</T>
+            </p>
+          )}
+          {cups && !kacheln.length && !nurLaufende && (
             <p className="text-sm leading-relaxed text-amber-500/80">
               <T>Gerade läuft kein Cup. Mit „mehr anzeigen“ siehst du auch die
               übrigen Regionen, die kommenden Tage sowie Ranked, Reload, Mobile

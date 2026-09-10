@@ -38,6 +38,16 @@ export interface Zugang {
   pro: boolean;
   /** Die angehakten Bereiche eines Managers. */
   rechte: string[];
+  /**
+   * Fuer wen dieser Zugang die Overlays betreut - sonst leer.
+   *
+   * Ein Manager-Zugang gehoert einem Streamer. Er darf alles, was ein VIP
+   * an dessen Overlays darf - neu anlegen, umbauen, Duos tauschen -, nur den
+   * Cup nicht frei waehlen: das geht erst kurz vor dem Spieltag. So kann
+   * waehrend eines Streams niemand versehentlich auf ein Turnier von
+   * naechster Woche umstellen.
+   */
+  verwaltet: string;
   name: string;
   /** Darf dieses Konto in diesen Verwaltungsbereich? */
   darfBereich: (b: Bereich) => boolean;
@@ -45,7 +55,8 @@ export interface Zugang {
 
 const ANFANG: Zugang = {
   laedt: true, gast: true, nutzer: false, vip: false, admin: false,
-  manager: false, pro: false, rechte: [], name: '', darfBereich: () => false,
+  manager: false, pro: false, rechte: [], verwaltet: '', name: '',
+  darfBereich: () => false,
 };
 
 /** Wie oft nachgefragt wird. */
@@ -60,6 +71,7 @@ export function useZugang(): Zugang {
     let rolle: 'admin' | 'manager' | 'pro' | null = null;
     let rechte: string[] = [];
     let vipKonto = false;
+    let verwaltet = '';
     /** Ein Zugang, dessen VIP-Frist abgelaufen ist. */
     let vipZugangOhneRecht = false;
 
@@ -93,6 +105,7 @@ export function useZugang(): Zugang {
           if (!rolle && j?.rolle) rolle = j.rolle;
           if (!rechte.length && Array.isArray(j?.rechte)) rechte = j.rechte;
           if (j?.vip === false) vipZugangOhneRecht = true;
+          if (j?.verwaltet) verwaltet = String(j.verwaltet);
         }
       }
     } catch { /* ohne Auskunft gilt: kein VIP */ }
@@ -132,6 +145,7 @@ export function useZugang(): Zugang {
       manager: rolle === 'manager',
       pro: rolle === 'pro',
       rechte,
+      verwaltet,
       name: kontoName || vipName,
       darfBereich: (b) => (admin ? true : darf(rolle, rechte, b)),
     });

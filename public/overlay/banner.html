@@ -115,7 +115,15 @@
     font-size: calc(21px * var(--skala));
     font-weight: 800; letter-spacing: .04em;
     color: var(--schrift); text-transform: uppercase;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+    /*
+     * Namen werden kleiner, nicht abgeschnitten.
+     *
+     * Hier stand "text-overflow: ellipsis", und damit hiess ein Duo im Stream
+     * "VICO & MALIB…". Der Betreiber: solche Nutzer sollen "niemals Punkt
+     * Punkt am Ende haben". Die Schrift schrumpft jetzt so weit, bis der
+     * ganze Name hineinpasst - siehe namenEinpassen() weiter unten.
+     */
+    white-space: nowrap;
     max-width: 100%;
   }
   .namen .und {
@@ -370,6 +378,33 @@ async function fotoNachName(spieler, eingetragen) {
  * und kommt wieder herein. Ohne, beim ersten Mal und beim Nachladen, wird
  * direkt gezeichnet - sonst blinkte das Banner alle dreissig Sekunden.
  */
+/**
+ * Die Namen so weit verkleinern, bis sie ganz hineinpassen.
+ *
+ * Der Kasten ist so breit wie sein Inhalt, aber nicht breiter als das Bild.
+ * Wer "malibucaaa" heisst, sprengt ihn - und vorher wurde dann abgeschnitten,
+ * mit drei Punkten am Ende. Der Betreiber will das nie sehen: lieber eine
+ * Nummer kleiner als ein halber Name.
+ *
+ * Gerechnet wird in Schritten von einem Pixel, hoechstens zwanzig davon, und
+ * nie unter die Haelfte der eingestellten Groesse - sonst wuerde aus einem
+ * langen Namen ein unlesbarer.
+ */
+function namenEinpassen() {
+  const el = document.getElementById('namen');
+  if (!el) return;
+  el.style.fontSize = '';
+  const voll = parseFloat(getComputedStyle(el).fontSize) || 21;
+  let groesse = voll;
+  let schutz = 0;
+  while (el.scrollWidth > el.clientWidth + 1
+    && groesse > voll * 0.5 && schutz < 20) {
+    groesse -= 1;
+    schutz += 1;
+    el.style.fontSize = groesse + 'px';
+  }
+}
+
 async function zeichne(sanft) {
   const d = letzteAntwort;
   if (!d) return;
@@ -383,6 +418,7 @@ async function zeichne(sanft) {
     ? eintraege.find(x => (x.players || []).some(p => ids.includes(p.id)))
     : eintraege[0];
 
+
   if (sanft) {
     banner.classList.add('wechsel');
     await new Promise(f => setTimeout(f, 260));
@@ -390,6 +426,7 @@ async function zeichne(sanft) {
 
   if (!e) {
     document.getElementById('namen').textContent = g1 || SUCHE || 'Duo';
+    namenEinpassen();
     document.getElementById('hinweis').textContent = 'not in the leaderboard yet';
     banner.classList.add('leerlauf', 'da');
     banner.classList.remove('wechsel');
@@ -409,6 +446,7 @@ async function zeichne(sanft) {
   document.getElementById('namen').innerHTML = n2
     ? n1 + '<span class="und">&amp;</span>' + n2
     : n1;
+  namenEinpassen();
 
   const [f1, f2] = await Promise.all([
     fotoNachName(liste[0], g1),
@@ -428,6 +466,7 @@ async function tick() {
   const alle = TEAMS.length ? TEAMS.flat() : IDS;
   if (!EVENT || !FENSTER || (!alle.length && !SUCHE)) {
     document.getElementById('namen').textContent = 'Not set up';
+    namenEinpassen();
     document.getElementById('hinweis').textContent = 'Pick a cup and players in the configurator';
     banner.classList.add('leerlauf', 'da');
     return;

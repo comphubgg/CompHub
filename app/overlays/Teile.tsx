@@ -4,8 +4,10 @@ import { useEffect, useMemo, useState } from 'react';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import { ARTEN, overlayAdresse, type OverlayEintrag } from './OverlayGeruest';
+import { useZugang } from '@/app/lib/zugang';
 import {
-  overlayCupErlaubt, overlayCupRang, overlayRegionRang, overlayZeitraumWeit,
+  managerDarfCup, overlayCupErlaubt, overlayCupRang, overlayRegionRang,
+  overlayZeitraumWeit,
 } from '@/lib/overlayCups';
 
 /*
@@ -49,6 +51,9 @@ export function CupWahl({ event, window: fenster, onWahl }: {
   onWahl: (event: string, window: string, titel: string) => void;
 }) {
   const t = useT();
+  const zugang = useZugang();
+  // Ein Manager waehlt nur, was gerade dran ist - siehe managerDarfCup().
+  const nurLaufende = Boolean(zugang.verwaltet);
   const [cups, setCups] = useState<Cup[] | null>(null);
   const [alle, setAlle] = useState(false);
 
@@ -89,6 +94,8 @@ export function CupWahl({ event, window: fenster, onWahl }: {
       for (const liste of Object.values(c.regionen ?? {})) {
         for (const w of liste) {
           if (w.begin < von || w.begin > bis) continue;
+          if (nurLaufende
+            && !managerDarfCup(w.begin, w.region, w.status === 'live')) continue;
           raus.push({
             eventId: w.eventId, windowId: w.windowId, region: w.region,
             titel: c.titel, istFinale: w.istFinale,
@@ -114,7 +121,7 @@ export function CupWahl({ event, window: fenster, onWahl }: {
       || overlayRegionRang(a.region) - overlayRegionRang(b.region)
       || Math.abs(a.begin - jetzt) - Math.abs(b.begin - jetzt)
       || a.titel.localeCompare(b.titel));
-  }, [cups, alle]);
+  }, [cups, alle, nurLaufende]);
 
   /*
    * Kommt der Cup schon aus der Adresse?
