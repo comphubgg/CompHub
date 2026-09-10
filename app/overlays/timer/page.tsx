@@ -106,6 +106,21 @@ export default function TimerSeite() {
 
   useEffect(() => { setSchmutzig(false); }, [id]);
 
+  /*
+   * Die Vorschau zeigt denselben Countdown, der spaeter in OBS laeuft.
+   *
+   * Sie folgt den Reglern und nicht dem gespeicherten Stand - man soll sehen,
+   * was man gerade einstellt. Dieselbe Datei, derselbe Zaehler; nur die
+   * Einstellung kommt aus der Adresse statt vom Server.
+   *
+   * Der Betreiber hatte gemerkt, dass sie hier als Einzige fehlte: "bei
+   * Standings sehe ich eine Preview, bei Qual line auch, aber nicht beim Cup
+   * timer."
+   */
+  const vorschau = useMemo(
+    () => `/overlay/timer.html?vorschau=${encodeURIComponent(JSON.stringify(cfg))}`,
+    [cfg]);
+
   async function sichern() {
     const neu = await speichern({ id: id ?? undefined, name, config: cfg });
     if (!neu) return;
@@ -238,6 +253,31 @@ export default function TimerSeite() {
             {id && schmutzig && (
               <p className="mb-2 text-[11px] text-amber-500/90">
                 <T>Nicht übernommen — im Stream steht noch der vorige Stand.</T>
+              </p>
+            )}
+            {/*
+              * Die Vorschau liegt auf einem Schachbrett - ein Overlay ist
+              * durchsichtig, und auf schwarzem Grund sieht man nicht, wie
+              * viel davon durchscheint.
+              */}
+            <div className="mb-3 overflow-hidden rounded-lg border border-zinc-800"
+              style={{
+                backgroundImage:
+                  'linear-gradient(45deg,#27272a 25%,transparent 25%),'
+                  + 'linear-gradient(-45deg,#27272a 25%,transparent 25%),'
+                  + 'linear-gradient(45deg,transparent 75%,#27272a 75%),'
+                  + 'linear-gradient(-45deg,transparent 75%,#27272a 75%)',
+                backgroundSize: '16px 16px',
+                backgroundPosition: '0 0,0 8px,8px -8px,-8px 0',
+              }}>
+              <iframe key={vorschau} src={vorschau} title="Vorschau"
+                className="h-32 w-full border-0" />
+            </div>
+            {cfg.beginn > 0 && cfg.beginn < Date.now() && (
+              <p className="mb-3 text-[11px] leading-relaxed text-amber-500/90">
+                <T>Dieser Spieltag hat schon angefangen — deshalb bleibt die
+                Vorschau leer. Genau so verhält sich der Timer auch im Stream:
+                er verschwindet, sobald der Cup läuft.</T>
               </p>
             )}
             {id && (

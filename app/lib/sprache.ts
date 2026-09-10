@@ -1901,6 +1901,20 @@ const AUF_ENGLISCH: Record<string, string> = {
     + 'minutes. Closing a tab does not sign anyone out — nothing more can '
     + 'honestly be said about it.',
   'Noch keine Ergebnisse': 'No results yet',
+  'Neu':
+    'New',
+  'Wie deckend der Grund ist':
+    'How solid the background is',
+  'Die Adresse in OBS bleibt immer dieselbe. Was du hier umstellst, ist im Stream nach wenigen Sekunden zu sehen — ohne die Browserquelle anzufassen.':
+    'The address in OBS never changes. What you set here shows up in the stream within seconds, without touching the browser source.',
+  'Die vordersten Plätze des laufenden Spieltags — als Einblendung für deinen Stream.':
+    'The top places of the running match day, as an overlay for your stream.',
+  'Erst anlegen — dann steht hier die Vorschau, genau so wie sie im Stream aussieht.':
+    'Create it first, then the preview appears here exactly as it looks on stream.',
+  'Dieser Spieltag hat schon angefangen — deshalb bleibt die Vorschau leer. Genau so verhält sich der Timer auch im Stream: er verschwindet, sobald der Cup läuft.':
+    'This match day has already started, which is why the preview stays empty. The timer behaves the same way on stream: it disappears once the cup is running.',
+  'Steht als Rangschwelle in Epics Auszahlungstabelle — bei einem Divisional-Finale etwa Top 50.':
+    'It is the rank threshold in Epics payout table, for a divisional final about top 50.',
   'Speichern und in OBS einbauen':
     'Save and add it in OBS',
   'Name, zum Beispiel „Peterbot & Pxxo“':
