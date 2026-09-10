@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import { ARTEN, overlayAdresse, type OverlayEintrag } from './OverlayGeruest';
+import { useZugang } from '@/app/lib/zugang';
 import {
   overlayCupErlaubt, overlayCupRang, overlayRegionRang, overlayZeitraumWeit,
 } from '@/lib/overlayCups';
@@ -36,6 +37,7 @@ interface Cup {
 
 export default function MeineOverlays() {
   const t = useT();
+  const zugang = useZugang();
   const [liste, setListe] = useState<OverlayEintrag[] | null>(null);
   const [cups, setCups] = useState<Cup[] | null>(null);
   const [offen, setOffen] = useState<string | null>(null);
@@ -198,7 +200,17 @@ export default function MeineOverlays() {
      * Abschnitt, keine Fortsetzung der Leiste darueber.
      */
     <section className="mt-12 border-t border-zinc-800 pt-8">
-      <h2 className="text-sm font-semibold text-slate-100"><T>Meine Overlays</T></h2>
+      {/*
+        * Bei einem Manager gehoeren sie nicht ihm.
+        *
+        * "Meine Overlays" waere dort schlicht falsch: es sind die des
+        * Streamers, den er betreut. Der Betreiber wollte den Namen dort
+        * sehen - "nicht my overlays, sondern groupay overlays".
+        */}
+      <h2 className="text-sm font-semibold text-slate-100">
+        {zugang.verwaltet
+          ? `${zugang.verwaltet} Overlays` : <T>Meine Overlays</T>}
+      </h2>
       <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
         <T>Alles, was du angelegt hast — über alle Arten hinweg. Hier lässt
         sich umbenennen, der Cup wechseln und löschen. Wie es aussieht,

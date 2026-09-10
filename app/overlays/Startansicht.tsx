@@ -165,7 +165,8 @@ export default function Startansicht({ onWeiter }: {
       <section>
         <div className="mb-4 flex flex-wrap items-center gap-3">
           <h1 className="text-lg font-bold text-slate-100">
-            <T>Deine Overlays</T>
+            {zugang.verwaltet
+              ? `${zugang.verwaltet} Overlays` : <T>Deine Overlays</T>}
           </h1>
           {!neu && (
             <button onClick={() => setNeu(true)}

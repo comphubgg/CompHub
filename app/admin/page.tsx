@@ -151,6 +151,15 @@ export default function AdminDashboardPage() {
   const t = useT();
   const [profile, setProfile] = useState<ProfileData>(DEFAULT_PROFILE);
   const [accountStatus, setAccountStatus] = useState('');
+  /**
+   * Fuer wen dieser Zugang die Overlays betreut - sonst leer.
+   *
+   * Ein Manager-Zugang gehoert nicht einer Person: mehrere teilen ihn sich.
+   * Ein Profilbild, eine Adresse oder ein Twitch-Chat waeren dort nicht
+   * "seine", sondern die aller - deshalb faellt beides weg, und die Overlays
+   * heissen nach dem Streamer statt "meine".
+   */
+  const [verwaltet, setVerwaltet] = useState('');
   const [currentHost, setCurrentHost] = useState('');
   const [laedt, setLaedt] = useState(true);
   const [speichert, setSpeichert] = useState(false);
@@ -185,6 +194,7 @@ export default function AdminDashboardPage() {
         setProfile(geladen);
         letzteFassung.current = JSON.stringify(geladen);
         setAccountStatus(json.accountStatus || 'Normal User');
+        setVerwaltet(String(json.verwaltet ?? ''));
         setAccessKey(json.accessKey || '');
       })
       .catch(() => {})
@@ -424,7 +434,15 @@ export default function AdminDashboardPage() {
                 * dieses Dashboard sehen und nicht die Kontoseite, auf der
                 * beides steht.
                 */}
-              <div className="mt-3 flex flex-wrap items-center gap-4">
+              {/*
+                * Ein Manager hat kein eigenes Bild.
+                *
+                * Der Zugang gehoert mehreren; ein Bild waere nicht seines,
+                * sondern das aller, die ihn benutzen. Dasselbe gilt fuer eine
+                * Adresse und den Twitch-Chat weiter unten.
+                */}
+              <div className={`mt-3 flex-wrap items-center gap-4
+                ${verwaltet ? 'hidden' : 'flex'}`}>
                 <span className="grid h-16 w-16 place-items-center overflow-hidden
                                  rounded-full border border-zinc-800 bg-zinc-900
                                  text-xl font-semibold uppercase text-slate-300">
@@ -473,7 +491,7 @@ export default function AdminDashboardPage() {
                     {laedt ? '…' : (profile.displayName || '—')}
                   </p>
                 </div>
-                <label className="block">
+                <label className={verwaltet ? 'hidden' : 'block'}>
                   <span className="text-xs text-slate-500">
                     <T>Twitch-Kanal</T> <span className="text-slate-600"><T>— für den Chat unten</T></span>
                   </span>
@@ -487,7 +505,7 @@ export default function AdminDashboardPage() {
                                placeholder:text-slate-600 focus:border-sky-500" />
                 </label>
 
-                <label className="block sm:col-span-2">
+                <label className={verwaltet ? 'hidden' : 'block sm:col-span-2'}>
                   <span className="text-xs text-slate-500">
                     <T>E-Mail für Rückfragen</T>{' '}
                     <span className="text-slate-600"><T>— freiwillig</T></span>
@@ -601,7 +619,7 @@ export default function AdminDashboardPage() {
 
             {/* Admin-Werkzeuge - eigener Block, nur fuer den Admin */}
             {(istAdmin || rolle === 'admin' || rolle === 'manager'
-              || zugang.admin || zugang.manager) && (
+              || zugang.admin || zugang.manager) && !verwaltet && (
               <section className="rounded-xl border border-sky-500/25 bg-zinc-950/60 p-4">
                 <div className="flex items-baseline gap-2">
                   <h2 className="text-sm font-semibold text-slate-100"><T>Admin-Werkzeuge</T></h2>
@@ -639,8 +657,15 @@ export default function AdminDashboardPage() {
             )}
           </div>
 
-          {/* Der Chat bleibt: er ist der einzige Teil dieser Seite, den man
-              waehrend des Sendens tatsaechlich offen hat. */}
+          {/*
+            * Der Chat bleibt: er ist der einzige Teil dieser Seite, den man
+            * waehrend des Sendens tatsaechlich offen hat.
+            *
+            * Fuer einen Manager nicht - er sendet nicht selbst, und der Kanal
+            * waere der eines anderen. Der Betreiber wollte ihn dort weg
+            * haben.
+            */}
+          {!verwaltet && (
           <section className="rounded-xl border border-zinc-800 bg-zinc-950/60">
             <header className="flex items-center justify-between gap-3 border-b
                                border-zinc-800 px-4 py-2.5">
@@ -682,6 +707,7 @@ export default function AdminDashboardPage() {
               <p className="p-8 text-center text-sm text-slate-500"><T>Chat wird geladen …</T></p>
             )}
           </section>
+          )}
         </div>
 
         {/*

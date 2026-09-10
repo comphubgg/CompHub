@@ -4,6 +4,7 @@ import path from 'path';
 import crypto from 'crypto';
 import { DATEN_ORT } from '@/lib/datenOrt';
 import { kontoAus, nachId } from '@/lib/konten';
+import { zugangNach } from '@/lib/vipZugaenge';
 
 const PROFILE_FILE = path.join(DATEN_ORT, 'streamer-profiles.json');
 const VIP_USERS_FILE = path.join(DATEN_ORT, 'vip-users.json');
@@ -130,15 +131,25 @@ function buildDefaultProfile(username: string): ProfileData {
  */
 async function werIstDa(request: NextRequest): Promise<{
   schluessel: string; anzeige: string; vip: boolean; accessKey: string | null;
+  verwaltet?: string;
 } | null> {
   const vipName = getCurrentUser(request);
   if (vipName) {
     const vipMap = await getVipMapping();
+    /*
+     * Fuer wen dieser Zugang die Overlays betreut.
+     *
+     * Steht dort ein Name, ist es ein Manager-Zugang, und das Dashboard soll
+     * das auch sagen - der Betreiber: "fuer die Manager soll da nicht stehen
+     * VIP User, sondern zum Beispiel groupay User Manager."
+     */
+    const zugang = await zugangNach(vipName);
     return {
       schluessel: vipName,
       anzeige: vipName,
       vip: Boolean(vipMap[vipName]),
       accessKey: await getVipAccessKey(vipName),
+      verwaltet: (zugang?.verwaltet ?? '').trim() || undefined,
     };
   }
 
@@ -174,7 +185,16 @@ export async function GET(request: NextRequest) {
   const profile = profiles[wer.schluessel] || buildDefaultProfile(wer.anzeige);
   return NextResponse.json({
     profile,
-    accountStatus: wer.vip ? 'VIP User' : 'Normal User',
+    accountStatus: wer.verwaltet
+      ? `${wer.verwaltet} User Manager`
+      : wer.vip ? 'VIP User' : 'Normal User',
+    /*
+     * Wessen Overlays dieser Zugang betreut - das Dashboard richtet sich
+     * danach: kein Profilbild, keine Adresse, kein Twitch-Chat, keine
+     * Werkzeugkacheln. Ein Manager teilt sich den Zugang mit anderen; was er
+     * dort einstellte, gaelte fuer alle.
+     */
+    verwaltet: wer.verwaltet ?? null,
     accessKey: wer.accessKey,
   });
 }
