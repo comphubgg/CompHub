@@ -266,6 +266,18 @@ function VipZugaenge() {
    * Overlays - nichts sonst.
    */
   const [verwaltet, setVerwaltet] = useState('');
+  /**
+   * Der Aufbau des Discord-Servers.
+   *
+   * null heisst "noch nicht angestossen". Sonst steht hier, was der Bot
+   * getan hat - Zeile fuer Zeile, damit nachlesbar bleibt, was er angefasst
+   * hat, statt nur "fertig" zu melden.
+   */
+  const [aufbau, setAufbau] = useState<{
+    laeuft: boolean;
+    schritte: Array<{ text: string; wert?: string }>;
+    fehler: Array<{ text: string; wert?: string }>;
+  } | null>(null);
 
   async function anlegen(neuerSchluessel = false) {
     setFehler(''); setDiscord(null);
@@ -352,6 +364,43 @@ function VipZugaenge() {
       // dem ersten Abruf fest.
       window.location.href = '/';
     } catch (e) { setFehler((e as Error).message); }
+  }
+
+  /**
+   * Kategorien, Kanaele, Rechte und die Aushaenge in Discord herstellen.
+   *
+   * Beliebig oft anstossbar: der Aufbau legt nichts doppelt an, setzt die
+   * Berechtigungen neu und ersetzt seine eigenen Texte. Gefragt wird
+   * vorher, weil dabei die vorhandenen Nachrichten im Willkommenskanal
+   * verschwinden - genau so bestellt, aber kein Fehlklick wert.
+   */
+  async function discordAufbauen() {
+    const sicher = window.confirm(
+      `${t('Discord einrichten')}
+
+`
+      + t('Legt die Kategorien, Kanäle und Berechtigungen an und stellt die '
+        + 'Aushänge neu. Vorhandene Nachrichten im Willkommenskanal werden '
+        + 'dabei entfernt.'));
+    if (!sicher) return;
+    setAufbau({ laeuft: true, schritte: [], fehler: [] });
+    try {
+      const r = await fetch('/api/admin/discord-aufbau', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ altesLoeschen: true }),
+      });
+      const j = await r.json().catch(() => ({}));
+      setAufbau({
+        laeuft: false,
+        schritte: Array.isArray(j?.schritte) ? j.schritte : [],
+        fehler: Array.isArray(j?.fehler) ? j.fehler
+          : [{ text: j?.fehler ?? 'Der Aufbau ließ sich nicht ausführen.' }],
+      });
+    } catch (e) {
+      setAufbau({
+        laeuft: false, schritte: [], fehler: [{ text: (e as Error).message }],
+      });
+    }
   }
 
   async function umschalten(n: string, aktiv: boolean) {
@@ -588,6 +637,61 @@ function VipZugaenge() {
               ))}
             </ul>
           )}
+
+          {/*
+            * Der Discord-Server.
+            *
+            * Steht unter der Zugangsliste, weil es dieselbe Sache ist: jeder
+            * Zugang hat dort seinen Kanal. Der Knopf richtet den Rest ein -
+            * Support-Kategorie, Willkommenstext, die beiden Leitfaeden - und
+            * ist beliebig oft drueckbar.
+            */}
+          <div className="mt-6 border-t border-zinc-900 pt-4">
+            <div className="flex flex-wrap items-center gap-3">
+              <span className="text-[11px] font-semibold uppercase
+                               tracking-[0.16em] text-slate-500">
+                <T>Discord</T>
+              </span>
+              <button onClick={() => discordAufbauen()}
+                disabled={aufbau?.laeuft}
+                className="rounded-lg border border-zinc-800 px-3 py-1.5
+                           text-[11px] text-slate-300 transition
+                           hover:border-sky-500 hover:text-sky-300
+                           disabled:cursor-not-allowed disabled:opacity-40">
+                {aufbau?.laeuft
+                  ? <T>wird eingerichtet …</T> : <T>Server einrichten</T>}
+              </button>
+            </div>
+            <p className="mt-2 text-[10px] leading-relaxed text-slate-600">
+              <T>Legt die Support-Kategorie an, schiebt den vorhandenen
+              Support-Kanal hinein und stellt drei schreibgeschützte Aushänge
+              auf: Willkommen, VIP-Leitfaden und Manager-Leitfaden — auf
+              Englisch, mit einem Knopf für die deutsche Fassung. Die
+              Schlüsselkanäle bleiben unberührt.</T>
+            </p>
+
+            {aufbau && !aufbau.laeuft && (
+              <ul className="mt-3 space-y-1">
+                {aufbau.schritte.map((z) => (
+                  <li key={z.text + (z.wert ?? '')}
+                    className="text-[11px] text-emerald-400/80">
+                    <T>{z.text}</T>{z.wert ? ` — ${z.wert}` : ''}
+                  </li>
+                ))}
+                {aufbau.fehler.map((z) => (
+                  <li key={z.text + (z.wert ?? '')}
+                    className="text-[11px] text-amber-400/80">
+                    <T>{z.text}</T>{z.wert ? ` — ${z.wert}` : ''}
+                  </li>
+                ))}
+                {!aufbau.schritte.length && !aufbau.fehler.length && (
+                  <li className="text-[11px] text-slate-600">
+                    <T>Nichts zu tun.</T>
+                  </li>
+                )}
+              </ul>
+            )}
+          </div>
         </div>
       )}
     </section>

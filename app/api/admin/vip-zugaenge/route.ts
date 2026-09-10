@@ -293,8 +293,18 @@ export async function POST(request: Request) {
    * waere das der schlechtere Handel. Was schiefging, steht als Hinweis
    * daneben, damit es nicht unbemerkt bleibt.
    */
+  /*
+   * Bekommt die Nachricht einen Knopf zum Selbstwechseln?
+   *
+   * Nur, wenn dieser Zugang das Recht hat. Ein Manager-Zugang nie: mehrere
+   * Leute teilen ihn sich, und einer koennte damit die anderen mitten im
+   * Stream aussperren.
+   */
+  const fertig = daten.users.find(
+    (u) => u.username.toLowerCase() === name.toLowerCase());
   const discord = await schickeSchluessel(
-    verwaltet || name, schluessel, verwaltet ? 'manager' : 'vip');
+    verwaltet || name, schluessel, verwaltet ? 'manager' : 'vip',
+    !verwaltet && Boolean(fertig?.darfSchluessel));
 
   /*
    * Der Schluessel geht genau hier heraus, ein einziges Mal. Die Oberflaeche
@@ -350,10 +360,12 @@ export async function PUT(request: Request) {
    * ausschliesslich gelesen. Sonst koennte sich jemand das Recht, das er
    * gerade ausuebt, im selben Zug selbst verlaengern.
    */
+  const rechtVorher = Boolean(daten.users[i].darfSchluessel);
   if (typeof koerper.darfSchluessel === 'boolean') {
     if (koerper.darfSchluessel) daten.users[i].darfSchluessel = true;
     else delete daten.users[i].darfSchluessel;
   }
+  const rechtNachher = Boolean(daten.users[i].darfSchluessel);
 
   if (typeof koerper.epicId === 'string') {
     const epic = koerper.epicId.trim().toLowerCase();
@@ -388,6 +400,21 @@ export async function PUT(request: Request) {
   }
 
   await schreibe(daten);
+
+  /*
+   * Hat sich das Wechselrecht geaendert, muss die Nachricht in Discord
+   * nachziehen.
+   *
+   * Darunter steht der Knopf "Generate a new key" - oder eben nicht. Bliebe
+   * die alte Nachricht stehen, haette ein Zugang einen Knopf, der ihm
+   * verweigert wird, oder keinen, obwohl er duerfte. Der Schluessel selbst
+   * bleibt dabei derselbe; es wird nur neu geschrieben.
+   */
+  if (rechtVorher !== rechtNachher && !(daten.users[i].verwaltet ?? '').trim()) {
+    await schickeSchluessel(
+      daten.users[i].username, daten.users[i].accessKey, 'vip', rechtNachher);
+  }
+
   return NextResponse.json({ ok: true });
 }
 

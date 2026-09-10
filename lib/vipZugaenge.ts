@@ -1,6 +1,7 @@
 import fs from '@/lib/ablageFs';
 import path from 'path';
 import { DATEN_ORT } from './datenOrt';
+import { neuerSchluessel, schonVergeben } from './zugangsSchluessel';
 
 /*
  * Die selbst vergebenen Zugaenge - Name und Schluessel statt Adresse und
@@ -102,4 +103,60 @@ export function rechteVon(z: Zugang | null): {
     vip,
     epicId: z.epicId ?? null,
   };
+}
+
+/**
+ * Einen neuen Schluessel fuer einen vorhandenen Zugang.
+ *
+ * Steht hier und nicht in einer Route, weil es zwei Wege dorthin gibt: den
+ * Knopf im Adminwerkzeug und den Knopf unter der Schluesselnachricht in
+ * Discord. Der Betreiber wollte das ausdruecklich beidseitig - "da kann man
+ * es auch ueber Discord, aber das wird dann auch im Tool direkt angepasst."
+ * Lagen die Regeln zweimal herum, waere in einer Woche der eine Weg
+ * strenger als der andere.
+ *
+ * Wer darf: ein gueltiger Zugang, dem der Betreiber das Recht gegeben hat
+ * (darfSchluessel). Ein Manager-Zugang nie - mehrere Leute teilen ihn sich,
+ * und einer koennte damit die anderen aussperren. Mit "ausDemWerkzeug" faellt
+ * die Rechtepruefung weg: dort steht der Betreiber selbst davor.
+ */
+export async function wechsleSchluessel(
+  name: string, { ausDemWerkzeug = false } = {},
+): Promise<{ ok: boolean; schluessel?: string; grund?: string }> {
+  const gesucht = name.trim().toLowerCase();
+  if (!gesucht) return { ok: false, grund: 'kein Name' };
+
+  const alle = await alleZugaenge();
+  const i = alle.findIndex((z) => z.username.toLowerCase() === gesucht);
+  if (i < 0) return { ok: false, grund: 'nicht gefunden' };
+
+  const z = alle[i];
+  if (!ausDemWerkzeug) {
+    if (z.status !== 'active') return { ok: false, grund: 'stillgelegt' };
+    if ((z.verwaltet ?? '').trim()) return { ok: false, grund: 'manager' };
+    if (!z.darfSchluessel) return { ok: false, grund: 'nicht erlaubt' };
+  }
+
+  // Ein doppelter Schluessel waere ein halber fremder Zugang - siehe
+  // lib/zugangsSchluessel.ts. Deshalb im Zweifel noch einmal wuerfeln.
+  let frisch = neuerSchluessel();
+  for (let versuch = 0; schonVergeben(frisch, alle, z.username) && versuch < 5;
+    versuch += 1) {
+    frisch = neuerSchluessel();
+  }
+
+  alle[i] = { ...z, accessKey: frisch, status: 'active' };
+  await schreibeZugaenge(alle);
+  return { ok: true, schluessel: frisch };
+}
+
+/**
+ * Die Zugangsdatei zurueckschreiben.
+ *
+ * Bewusst knapp und ohne eigene Pruefungen: wer hier schreibt, hat die Liste
+ * gerade selbst gelesen und geaendert.
+ */
+export async function schreibeZugaenge(users: Zugang[]): Promise<void> {
+  await fs.mkdir(path.dirname(DATEI), { recursive: true });
+  await fs.writeFile(DATEI, JSON.stringify({ users }, null, 2), 'utf8');
 }

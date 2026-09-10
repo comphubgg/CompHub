@@ -81,14 +81,16 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Geht direkt an den Betreiber.': 'Goes straight to the operator.',
   'Angekommen': 'Received',
   ['Danke — die Meldung liegt jetzt beim Betreiber. Auf Antwort wartest du an der Adresse deines Kontos.']:
-    'Thanks — your message is with the operator now. A reply will reach the address on your account.',
+    'Thanks — your message is with the operator now. A reply will reach the '
+    + 'address on your account.',
   'Noch etwas schreiben': 'Write something else',
   'Zum Schreiben brauchst du ein Konto — damit wir dir antworten können.':
     'You need an account to write — so we can reply to you.',
   'Etwas geht nicht, fehlt oder ließe sich besser machen? Schreib es hier auf.':
     'Something broken, missing, or worth improving? Write it down here.',
   ['Etwas geht nicht, fehlt oder ließe sich besser machen? Schreib es dem Betreiber — mit Screenshot, wenn du magst.']:
-    'Something broken, missing, or worth improving? Tell the operator — with a screenshot if you like.',
+    'Something broken, missing, or worth improving? Tell the operator — '
+    + 'with a screenshot if you like.',
   'Schreiben': 'Write',
   'Notiz für dich': 'Note to self',
   'wieder öffnen': 'reopen',
@@ -120,11 +122,15 @@ const AUF_ENGLISCH: Record<string, string> = {
   'von oben': 'from above',
   'Sekunden je Duo': 'Seconds per duo',
   ['Noch keins dazugenommen — das Banner zeigt nur das Duo von oben. Nimm weitere dazu, dann wechselt es der Reihe nach durch.']:
-    'None added yet — the banner only shows the duo from above. Add more and it cycles through them.',
+    'None added yet — the banner only shows the duo from above. Add more '
+    + 'and it cycles through them.',
   ['läuft gerade. Die Einzelwerte kommen erst, wenn der Cup zu Ende ist — Platz und Punkte stehen so lange unter Events.']:
-    'is running right now. The detailed stats only arrive once the cup has ended — placement and points are under Events until then.',
+    'is running right now. The detailed stats only arrive once the cup has '
+    + 'ended — placement and points are under Events until then.',
   ['ist zu Ende, die Einzelwerte fehlen aber noch. Die Quelle veröffentlicht sie ein bis zwei Tage später; danach steht der Cup hier von selbst.']:
-    'has ended, but the detailed stats are still missing. The source publishes them one to two days later; after that the cup shows up here on its own.',
+    'has ended, but the detailed stats are still missing. The source '
+    + 'publishes them one to two days later; after that the cup shows up here '
+    + 'on its own.',
   'Das Bild ließ sich nicht auslesen.': 'The image could not be read.',
   'Abbrechen': 'Cancel',
   'Schließen': 'Close',
@@ -283,7 +289,8 @@ const AUF_ENGLISCH: Record<string, string> = {
     + 'delete here. How it looks is set on the page of the kind itself.',
   // Die Rangliste, waehrend sie geholt wird.
   'Die Rangliste wird gerade geholt — zehntausend Plätze in hundert Schritten. Das dauert einige Minuten; lade die Seite danach neu.':
-    'The ranking is being fetched — ten thousand places in a hundred steps. That takes a few minutes; reload the page afterwards.',
+    'The ranking is being fetched — ten thousand places in a hundred steps. '
+    + 'That takes a few minutes; reload the page afterwards.',
   'Kein Spieler gefunden für': 'No player found for',
   // Die Anordnung der Qual-Linie.
   'Anordnung': 'Layout',
@@ -299,7 +306,8 @@ const AUF_ENGLISCH: Record<string, string> = {
     'Goes to the operator, with your account.',
   'Wird gesendet …': 'Sending …',
   'Gestern, heute und morgen läuft kein passender Cup. Die Auswahl füllt sich von selbst, sobald einer ansteht — das Overlay in OBS musst du dafür nicht anfassen.':
-    'No matching cup yesterday, today or tomorrow. The list fills itself as soon as one comes up — you do not have to touch the overlay in OBS.',
+    'No matching cup yesterday, today or tomorrow. The list fills itself as '
+    + 'soon as one comes up — you do not have to touch the overlay in OBS.',
   // Die Overlay-Seiten.
   // Diese fuenf standen schon weiter unten; beim Aufraeumen der
   // Doppelten sind sie mit herausgefallen und stehen deshalb hier.
@@ -458,7 +466,8 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Epic hat zu diesem Spieltag keine Match-Kennungen herausgegeben.':
     'Epic released no match IDs for this match day.',
   'Die Verwaltungsdatei fehlt — dieser Stand ist aus den abgelegten Auswertungen erschlossen. Der nächste volle Lauf schreibt sie neu.':
-    'The state file is missing — this is reconstructed from the stored results. The next full run writes it again.',
+    'The state file is missing — this is reconstructed from the stored '
+    + 'results. The next full run writes it again.',
   'alle Saisons': 'all time',
   'Bestenlisten über alle Saisons': 'Season stats leaders — all time',
   'Alle Zahlen aus allen Saisons': 'All numbers from every season',
@@ -665,12 +674,14 @@ const AUF_ENGLISCH: Record<string, string> = {
   ['Diesen Zugang endgültig entfernen? Er kann sich dann nicht mehr anmelden.']:
     'Remove this access for good? They will no longer be able to sign in.',
   ['Ein Name genügt — keine E-Mail, keine Bestätigung. Der Schlüssel wird erzeugt und erscheint genau einmal. Angemeldet wird sich damit unter „VIP“ auf der Anmeldeseite.']:
-    'A name is enough — no email, no confirmation. The key is generated and shown exactly once. It is used under “VIP” on the sign-in page.',
+    'A name is enough — no email, no confirmation. The key is generated and '
+    + 'shown exactly once. It is used under “VIP” on the sign-in page.',
 
   // VIP-Zugaenge
   'VIP-Zugang anlegen': 'Create a VIP access',
   ['Ein Name genügt — keine E-Mail, keine Bestätigung. Der Schlüssel wird erzeugt und erscheint genau einmal. Angemeldet wird sich damit unter „VIP" auf der Anmeldeseite.']:
-    'A name is enough — no email, no confirmation. The key is generated and shown exactly once. It is used under "VIP" on the sign-in page.',
+    'A name is enough — no email, no confirmation. The key is generated and '
+    + 'shown exactly once. It is used under "VIP" on the sign-in page.',
   'anlegen': 'create',
   'Schlüssel für': 'Key for',
   'er erscheint nur dieses eine Mal.': 'it appears this one time only.',
@@ -703,7 +714,8 @@ const AUF_ENGLISCH: Record<string, string> = {
   // VIP-Geschenk
   'Du hast VIP bekommen': 'You have been given VIP',
   ['Overlays, eigene Ordner, Turnierfilter und der Vergleich sind jetzt frei.']:
-    'Overlays, your own folders, tournament filters and the comparison are now unlocked.',
+    'Overlays, your own folders, tournament filters and the comparison are '
+    + 'now unlocked.',
   'Alles klar': 'Got it',
 
   // Sperren
@@ -739,7 +751,8 @@ const AUF_ENGLISCH: Record<string, string> = {
   ['Nicht mit Epic Games verbunden. Alle Marken gehören ihren Inhabern.']:
     'Not affiliated with Epic Games. All trademarks belong to their owners.',
   ['Statistiken, Turniere und Streams der kompetitiven Fortnite-Szene — an einem Ort, aus einem Archiv.']:
-    'Stats, tournaments and streams from competitive Fortnite — in one place, from one archive.',
+    'Stats, tournaments and streams from competitive Fortnite — in one '
+    + 'place, from one archive.',
   /* Anmeldung und abgeschlossene Gespraeche. */
   ['E-Mail-Adresse oder Name']: 'Email address or name',
   'Passwort anzeigen': 'Show password',
@@ -762,7 +775,8 @@ const AUF_ENGLISCH: Record<string, string> = {
   ['Wähl ein neues Passwort. Danach bist du gleich angemeldet.']:
     'Choose a new password. You will be signed in right afterwards.',
   ['Gib deine E-Mail-Adresse oder deinen Namen an — wir schicken dir einen Link. Er gilt eine Stunde.']:
-    'Enter your email address or your name — we will send you a link. It is valid for one hour.',
+    'Enter your email address or your name — we will send you a link. It is '
+    + 'valid for one hour.',
   ['Wenn es zu dieser Angabe ein Konto gibt, ist die Mail unterwegs.']:
     'If there is an account for this, the mail is on its way.',
   ['Dieser Link gilt nicht mehr. Fordere einen neuen an.']:
@@ -772,7 +786,8 @@ const AUF_ENGLISCH: Record<string, string> = {
   ['Wir haben dir eine Mail geschickt — ein Klick darin, und du hast den Haken.']:
     'We sent you a mail — one click in it and you have the check mark.',
   ['Die Bestätigungsmail ging gerade nicht raus. Du kannst sie später unter „Mein Konto“ erneut anfordern.']:
-    'The confirmation mail did not go out just now. You can request it again under “My account”.',
+    'The confirmation mail did not go out just now. You can request it '
+    + 'again under “My account”.',
   ['Die Mail ist unterwegs.']: 'The mail is on its way.',
   ['Der Versand klemmt gerade. Versuch es in ein paar Minuten noch einmal.']:
     'Sending is stuck right now. Try again in a few minutes.',
@@ -788,7 +803,8 @@ const AUF_ENGLISCH: Record<string, string> = {
   ['Zu dieser Adresse gibt es schon ein Konto. Bitte anmelden.']:
     'There is already an account for this address. Please sign in.',
   ['Dieses Konto wurde über einen Anmeldedienst angelegt — melde dich darüber an, oder setz dir über „Passwort vergessen“ eines.']:
-    'This account was created through a sign-in service — sign in that way, or set yourself a password via “Forgot your password”.',
+    'This account was created through a sign-in service — sign in that way, '
+    + 'or set yourself a password via “Forgot your password”.',
   'Neue Gruppe': 'New group',
   'verlassen': 'leave',
   'Verlassen': 'Leave',
@@ -807,7 +823,8 @@ const AUF_ENGLISCH: Record<string, string> = {
   ['Alle Gespräche mit dem Betreiber — auch die älteren.']:
     'Every conversation with the operator — older ones included.',
   ['Das Chatsymbol am linken Bildschirmrand. Ausgeblendet bleiben deine Nachrichten erhalten — du siehst nur den Knopf nicht mehr.']:
-    'The chat icon on the left edge of the screen. Hidden, your messages stay — you just no longer see the button.',
+    'The chat icon on the left edge of the screen. Hidden, your messages '
+    + 'stay — you just no longer see the button.',
   ['Symbol am Rand ausblenden — zurück unter „Mein Konto“']:
     'Hide the icon on the edge — bring it back under “My account”',
   'Antwort schreiben …': 'Write a reply…',
@@ -832,7 +849,9 @@ const AUF_ENGLISCH: Record<string, string> = {
   'nicht gefunden': 'not found',
   'unbekannte Anfrage': 'unknown request',
   ['Hier stehen keine privaten Daten — keine Adressen, keine Social-Konten. Wer etwas beantragt, nennt dir seine Konto-Id; die sieht er bei sich selbst unter „Account“.']:
-    'No private data here — no addresses, no social accounts. Anyone requesting something tells you their account id; they see it under “Account” themselves.',
+    'No private data here — no addresses, no social accounts. Anyone '
+    + 'requesting something tells you their account id; they see it under '
+    + '“Account” themselves.',
   'Rollen und VIP vergeben': 'Grant roles and VIP',
 
   // Kontoverwaltung
@@ -840,7 +859,9 @@ const AUF_ENGLISCH: Record<string, string> = {
   'angelegt': 'registered',
   'zur Verwaltung': 'to the admin area',
   ['Hier stehen keine privaten Daten — keine Adressen, keine Social-Konten. Wer etwas beantragt, nennt dir seine Konto-Id; die sieht er bei sich selbst unter „Account".']:
-    'No private data here — no addresses, no social accounts. Anyone requesting something tells you their account id; they see it under "Account" themselves.',
+    'No private data here — no addresses, no social accounts. Anyone '
+    + 'requesting something tells you their account id; they see it under '
+    + '"Account" themselves.',
   'Nach Name oder Konto-Id suchen …': 'Search by name or account id …',
   'Kein Konto passt zur Suche.': 'No account matches that search.',
   'Noch hat sich niemand registriert.': 'Nobody has registered yet.',
@@ -859,14 +880,16 @@ const AUF_ENGLISCH: Record<string, string> = {
   'läuft bis': 'runs until',
   'Meine Konto-Id': 'My account id',
   ['Die nennst du, wenn du VIP oder andere Rechte anfragst. Sie verrät nichts über dich — sie benennt nur dein Konto.']:
-    'Give this when you request VIP or other rights. It reveals nothing about you — it just names your account.',
+    'Give this when you request VIP or other rights. It reveals nothing '
+    + 'about you — it just names your account.',
   'Werte werden geholt …': 'Fetching the values …',
 
   // Ladeanzeige und Einzelwerte
   ['Die Zahlen kommen gleich — der Rest der Seite steht schon.']:
     'The numbers are on their way — the rest of the page is already here.',
   ['Epic gibt nur Teamwerte heraus. Die Zahlen je Spieler stehen im Archiv — dieser Spieltag liegt dort nicht.']:
-    'Epic only hands out team values. The per-player numbers live in the archive — this session is not in it.',
+    'Epic only hands out team values. The per-player numbers live in the '
+    + 'archive — this session is not in it.',
   'Wert': 'Stat',
   'Eliminations': 'Eliminations',
   'Damage': 'Damage',
@@ -880,13 +903,16 @@ const AUF_ENGLISCH: Record<string, string> = {
   // Suche bei Epic
   'Direkt bei Epic suchen': 'Search Epic directly',
   ['Das Archiv kennt nur die Profiszene. Wer dort fehlt, steht trotzdem im Leaderboard seines Cups — such ihn hier. Ein Cup zur Zeit, weil Epic die Bestenlisten je Turnier führt.']:
-    'The archive only knows the pro scene. Anyone missing there is still in the leaderboard of their cup — search for them here. One cup at a time, because Epic keeps leaderboards per tournament.',
+    'The archive only knows the pro scene. Anyone missing there is still in '
+    + 'the leaderboard of their cup — search for them here. One cup at a '
+    + 'time, because Epic keeps leaderboards per tournament.',
   'Nicht im Archiv — such ihn unten direkt bei Epic.': 'Not in the archive — search Epic directly below.',
   '— Cup wählen —': '— pick a cup —',
   'Im Cup suchen': 'Search this cup',
   'sucht …': 'searching …',
   ['Epic lässt keinen Direktabruf zu — die Bestenliste wird Seite für Seite durchsucht. Das dauert einen Moment.']:
-    'Epic allows no direct lookup — the leaderboard is searched page by page. This takes a moment.',
+    'Epic allows no direct lookup — the leaderboard is searched page by '
+    + 'page. This takes a moment.',
   'Dieser Spieler war in diesem Cup nicht dabei.': 'This player did not take part in this cup.',
   ['Nicht gefunden — der Cup ist zu groß, um ihn ganz zu durchsuchen.']:
     'Not found — this cup is too large to search all the way through.',
@@ -897,34 +923,44 @@ const AUF_ENGLISCH: Record<string, string> = {
   'VIP-Zugang': 'VIP access',
   'Wie man VIP wird': 'How to become a VIP',
   ['Der VIP-Zugang schaltet die Overlays frei, eigene Ordner auf der Streamseite, die Filter im Turnierkalender und den Vergleich in den Statistiken. Er wird vergeben, nicht gekauft.']:
-    'VIP access unlocks the overlays, your own folders on the streams page, the filters in the tournament calendar and the comparison in the statistics. It is granted, not bought.',
+    'VIP access unlocks the overlays, your own folders on the streams page, '
+    + 'the filters in the tournament calendar and the comparison in the '
+    + 'statistics. It is granted, not bought.',
   'Reichweite': 'Reach',
   ['Du solltest auf Twitch, X oder YouTube ein Publikum haben — wie groß, entscheide ich im Einzelfall.']:
-    'You should have an audience on Twitch, X or YouTube — how big is something I decide case by case.',
+    'You should have an audience on Twitch, X or YouTube — how big is '
+    + 'something I decide case by case.',
   'Sichtbarkeit': 'Visibility',
   ['Zeig CompHub bei deinen Zuschauern. Ein Overlay im Stream oder ein Beitrag reicht schon.']:
-    'Show CompHub to your viewers. An overlay in your stream or one post is enough.',
+    'Show CompHub to your viewers. An overlay in your stream or one post is '
+    + 'enough.',
   'Anfrage': 'Request',
   ['Schreib mir persönlich auf X. Ich antworte selbst, es gibt kein Formular und keine Warteliste.']:
-    'Write to me personally on X. I answer myself — there is no form and no waiting list.',
+    'Write to me personally on X. I answer myself — there is no form and no '
+    + 'waiting list.',
   'Zugang anfragen': 'Request access',
 
   // Konto als VIP
   'Verwaltung': 'Admin',
   ['Dein Name kommt aus dem VIP-Zugang und wird dort vergeben — hier lässt er sich nicht ändern. Das Profilbild schon.']:
-    'Your name comes from VIP access and is assigned there — it cannot be changed here. The profile picture can.',
+    'Your name comes from VIP access and is assigned there — it cannot be '
+    + 'changed here. The profile picture can.',
   ['Du bist über den VIP-Schlüssel angemeldet, hast aber kein CompHub-Konto. Werte ansehen geht, Speichern noch nicht — dafür legst du dir eines an, mit derselben Adresse.']:
-    'You are signed in with the VIP key but have no CompHub account. Viewing works, saving does not yet — create one with the same address for that.',
+    'You are signed in with the VIP key but have no CompHub account. '
+    + 'Viewing works, saving does not yet — create one with the same address '
+    + 'for that.',
   ['Diese Seite ist dem Adminkonto vorbehalten.']:
     'This page is reserved for the admin account.',
 
   // Zugangsstufen
   'Nur für VIPs': 'VIPs only',
   ['Die Overlays sind Teil des VIP-Zugangs. Er wird vergeben, nicht freigeschaltet — mit einem gewöhnlichen Konto sind sie nicht zugänglich.']:
-    'The overlays are part of VIP access. It is granted, not unlocked — an ordinary account cannot reach them.',
+    'The overlays are part of VIP access. It is granted, not unlocked — an '
+    + 'ordinary account cannot reach them.',
   'Zur Anmeldung': 'To the sign-in page',
   ['Eigene Ordner anlegen gehört zum VIP-Zugang. Spieler hinzufügen kannst du mit deinem Konto trotzdem.']:
-    'Creating your own folders is part of VIP access. You can still add players with your account.',
+    'Creating your own folders is part of VIP access. You can still add '
+    + 'players with your account.',
   'Ordner anlegen geht nur angemeldet.': 'Creating folders requires signing in.',
   ['Bei mehreren gewählten Ordnern lässt sich nichts hinzufügen.']:
     'Nothing can be added while several folders are selected.',
@@ -958,7 +994,9 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Passwort setzen': 'Set a password',
   'Zum Ändern muss das bisherige Passwort stimmen.': 'Changing it requires your current password.',
   ['Dieses Konto wurde über einen Anmeldedienst angelegt und hat noch kein Passwort. Du bist über den Dienst ausgewiesen, deshalb kannst du hier eines setzen — danach geht beides.']:
-    'This account was created through a sign-in service and has no password yet. You are identified through that service, so you can set one here — afterwards both ways work.',
+    'This account was created through a sign-in service and has no password '
+    + 'yet. You are identified through that service, so you can set one here '
+    + '— afterwards both ways work.',
   'bisheriges Passwort': 'current password',
   'neues Passwort — mindestens acht Zeichen': 'new password — at least eight characters',
   'Passwort speichern': 'Save password',
@@ -999,7 +1037,8 @@ const AUF_ENGLISCH: Record<string, string> = {
   // Konto und VIP-Zugang
   'VIP': 'VIP',
   ['Der VIP-Zugang ist etwas anderes als ein CompHub-Konto: er wird vergeben, nicht angelegt. Wer keinen Schlüssel hat, registriert sich links.']:
-    'VIP access is not the same as a CompHub account: it is granted, not created. Without a key, register on the left.',
+    'VIP access is not the same as a CompHub account: it is granted, not '
+    + 'created. Without a key, register on the left.',
 
   // Kachelansicht der Streams
   'Multi view': 'Multi view',
@@ -1250,7 +1289,8 @@ const AUF_ENGLISCH: Record<string, string> = {
   'In .env.local fehlen die Zugangsdaten': 'Credentials are missing in .env.local',
   'zur Startseite': 'to the home page',
   ['Ohne Konto ist alles zu sehen. Angemeldet bleiben deine Streamwände, Ordner und Tierlists erhalten.']:
-    'Everything is visible without an account. Signed in, your stream walls, folders and tier lists are kept.',
+    'Everything is visible without an account. Signed in, your stream '
+    + 'walls, folders and tier lists are kept.',
   'Mein Konto': 'My account',
   'abmelden': 'sign out',
   'Konto': 'Account',
@@ -1259,10 +1299,13 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Mein Epic-Konto': 'My Epic account',
   '32 Zeichen aus 0-9 und a-f': '32 characters from 0-9 and a-f',
   ['Trägst du deine Epic-Konto-Id ein, stehen hier deine eigenen Werte aus dem Turnierarchiv — dieselben wie in jedem Spielerprofil. Über die Statistikseite findest du sie, indem du dich dort suchst.']:
-    'Enter your Epic account ID and your own figures from the tournament archive appear here — the same ones as in any player profile. Find it by searching for yourself on the statistics page.',
+    'Enter your Epic account ID and your own figures from the tournament '
+    + 'archive appear here — the same ones as in any player profile. Find it '
+    + 'by searching for yourself on the statistics page.',
   'Statistiken, Turniere und Streams an einem Ort.': 'Stats, tournaments and streams in one place.',
   ['Zehn Saisons, sieben Regionen — vom Chapter-5-Archiv bis zum Spieltag von gestern.']:
-    'Ten seasons, seven regions — from the Chapter 5 archive to yesterday’s matches.',
+    'Ten seasons, seven regions — from the Chapter 5 archive to yesterday’s '
+    + 'matches.',
   'Mit Umschalt anklicken, um mehrere zu verbinden': 'Shift-click to combine several',
   'verbunden': 'combined',
 
@@ -1281,33 +1324,45 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Sechs Bereiche, eine Datengrundlage.': 'Six areas, one set of data.',
   'öffnen': 'open',
   ['Jeder Spieler, jeder Spieltag, jede Kennzahl — Schaden, Material, Bauteile, Trefferquote. Mit Verlauf über alle Chapter.']:
-    'Every player, every match day, every metric — damage, materials, builds, accuracy. With a history across all chapters.',
+    'Every player, every match day, every metric — damage, materials, '
+    + 'builds, accuracy. With a history across all chapters.',
   ['Der komplette Kalender aller Regionen: was läuft, was kommt, was vorbei ist — mit Endstand und Qualifikation.']:
-    'The full calendar for every region: what is live, what is next, what is over — with standings and qualification.',
+    'The full calendar for every region: what is live, what is next, what '
+    + 'is over — with standings and qualification.',
   ['Epics weltweite Power Rankings, täglich erneuert, mit dem Unterschied zur Vorwoche.']:
-    'Epic’s global Power Rankings, refreshed daily, with the change from last week.',
+    'Epic’s global Power Rankings, refreshed daily, with the change from '
+    + 'last week.',
   ['Eigene Tierlists bauen und teilen — Spieler ziehen, Stufen benennen, als Bild speichern.']:
-    'Build and share your own tier lists — drag players, name the tiers, save as an image.',
+    'Build and share your own tier lists — drag players, name the tiers, '
+    + 'save as an image.',
   ['Mehrere Twitch-Streams nebeneinander, in eigenen Ordnern, mit Live-Anzeige und gemeinsamem Chat.']:
-    'Several Twitch streams side by side, in your own folders, with live status and a shared chat.',
+    'Several Twitch streams side by side, in your own folders, with live '
+    + 'status and a shared chat.',
   ['Einblendungen für den eigenen Stream — aus denselben Turnierdaten gespeist, ohne Abtippen.']:
-    'Overlays for your own stream — fed from the same tournament data, with no retyping.',
+    'Overlays for your own stream — fed from the same tournament data, with '
+    + 'no retyping.',
   'Woher die Zahlen kommen': 'Where the numbers come from',
   ['Turnierkalender, Bestenlisten, Platzierungen und Mitspieler — direkt aus der offiziellen Schnittstelle.']:
-    'Tournament calendar, leaderboards, placements and teammates — straight from the official API.',
+    'Tournament calendar, leaderboards, placements and teammates — straight '
+    + 'from the official API.',
   ['Die Einzelwerte je Spieler: Schaden, Material, Bauteile, Treffer. Ohne sie gäbe es diese Tiefe nicht.']:
-    'The per-player values: damage, materials, builds, hits. Without them this depth would not exist.',
+    'The per-player values: damage, materials, builds, hits. Without them '
+    + 'this depth would not exist.',
   ['Eliminierungen, Knocks und Waffe je Match — selbst ausgewertet, aus Epics eigenen Server-Replays.']:
-    'Eliminations, knocks and weapon per match — processed by us, from Epic’s own server replays.',
+    'Eliminations, knocks and weapon per match — processed by us, from '
+    + 'Epic’s own server replays.',
   ['Fehlt eine Zahl bei der Quelle, bleibt sie hier leer — statt geschätzt zu werden.']:
-    'If a figure is missing at the source it stays empty here — rather than being estimated.',
+    'If a figure is missing at the source it stays empty here — rather than '
+    + 'being estimated.',
   'Mit Konto mehr': 'More with an account',
   ['Ohne Anmeldung ist alles zu sehen. Angemeldet bleiben deine Streamwände, Ordner und Tierlists erhalten — auf jedem Gerät.']:
-    'Everything is visible without signing in. Signed in, your stream walls, folders and tier lists are kept — on every device.',
+    'Everything is visible without signing in. Signed in, your stream '
+    + 'walls, folders and tier lists are kept — on every device.',
   'Loslegen': 'Get started',
   'Mit Twitch anmelden': 'Sign in with Twitch',
   ['Nicht mit Epic Games verbunden. Turnierdaten von Epic Games und eucompetitive.com.']:
-    'Not affiliated with Epic Games. Tournament data from Epic Games and eucompetitive.com.',
+    'Not affiliated with Epic Games. Tournament data from Epic Games and '
+    + 'eucompetitive.com.',
 
   // Player Center, zweite Runde
   'mit Foto': 'with photo',
@@ -1342,7 +1397,8 @@ const AUF_ENGLISCH: Record<string, string> = {
     'Not there — this player does not appear in this match day.',
   'Meine Vorlagen': 'My presets',
   ['Gespeichert werden Duo und Aussehen — nicht der Cup. Die Adresse zeigt immer auf den aktuellen Spieltag deiner Region.']:
-    'What gets saved is the duo and the look — not the cup. The address always points at the current match day of your region.',
+    'What gets saved is the duo and the look — not the cup. The address '
+    + 'always points at the current match day of your region.',
   'Name der Vorlage': 'Preset name',
   'Adresse': 'Address',
   'laden': 'load',
@@ -1368,7 +1424,8 @@ const AUF_ENGLISCH: Record<string, string> = {
     'Please select the text and copy it with Ctrl+C.',
   'Bestenliste als zweites Overlay': 'Leaderboard as a second overlay',
   ['Die ganze Tabelle des Spieltags — als eigene Browser-Quelle, die du in OBS ein- und ausblendest.']:
-    'The full table of the match day — as its own browser source that you show and hide in OBS.',
+    'The full table of the match day — as its own browser source that you '
+    + 'show and hide in OBS.',
   'Nacht': 'Night',
   'Kohle': 'Charcoal',
   'Eis': 'Ice',
@@ -1379,13 +1436,16 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Spieler nachschlagen': 'Look up a player',
   'zuletzt': 'recent',
   ['Tipp einen Spielernamen und wähle ihn aus der Liste — danach stehen seine Werte aus dem Turnierarchiv da. Wen du einmal gewählt hast, findest du unter dem Feld wieder.']:
-    'Type a player name and pick it from the list — then their values from the tournament archive show up. Whoever you picked once, you find again below the field.',
+    'Type a player name and pick it from the list — then their values from '
+    + 'the tournament archive show up. Whoever you picked once, you find '
+    + 'again below the field.',
   'Platzierung': 'Placement',
   'Mein Turnierweg': 'My tournament run',
   ['Dein eigenes Abschneiden, Runde für Runde — aus Epics Bestenliste.']:
     "How you did, round by round — straight from Epic's leaderboard.",
   ['Sobald der Betreiber dir dein Epic-Konto zugewiesen hat, steht hier dein eigener Turnierweg.']:
-    'Once the operator has assigned your Epic account, your own tournament run shows up here.',
+    'Once the operator has assigned your Epic account, your own tournament '
+    + 'run shows up here.',
   '— Turnier wählen —': '— pick a tournament —',
   ['Wähle ein Turnier — danach steht hier jede Runde, in der du angetreten bist.']:
     'Pick a tournament — then every round you played shows up here.',
@@ -1407,9 +1467,11 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Spiel für Spiel': 'Match by match',
   'Spiel': 'Match',
   ['Zu diesem Cup führt Epic nur Platz, Punkte und Spiele — Schaden, Material und Heilung bleiben dort leer.']:
-    'For this cup Epic only reports rank, points and matches — damage, materials and healing stay empty there.',
+    'For this cup Epic only reports rank, points and matches — damage, '
+    + 'materials and healing stay empty there.',
   ['Epic bucht je Duo, nicht je Person — diese Zahlen gelten für euch beide zusammen.']:
-    'Epic records per duo, not per person — these numbers cover both of you together.',
+    'Epic records per duo, not per person — these numbers cover both of you '
+    + 'together.',
   ['In diesem Turnier steht dein Konto in keiner Runde.']:
     'Your account does not appear in any round of this tournament.',
 
@@ -1839,6 +1901,53 @@ const AUF_ENGLISCH: Record<string, string> = {
     + 'minutes. Closing a tab does not sign anyone out — nothing more can '
     + 'honestly be said about it.',
   'Noch keine Ergebnisse': 'No results yet',
+  'Discord einrichten':
+    'Set up Discord',
+  'Legt die Kategorien, Kanäle und Berechtigungen an und stellt die Aushänge neu. Vorhandene Nachrichten im Willkommenskanal werden dabei entfernt.':
+    'Creates the categories, channels and permissions and puts the notices '
+    + 'up again. Existing messages in the welcome channel are removed in the '
+    + 'process.',
+  'Der Aufbau ließ sich nicht ausführen.':
+    'The setup could not be run.',
+  'wird eingerichtet …':
+    'setting up …',
+  'Server einrichten':
+    'Set up server',
+  'Legt die Support-Kategorie an, schiebt den vorhandenen Support-Kanal hinein und stellt drei schreibgeschützte Aushänge auf: Willkommen, VIP-Leitfaden und Manager-Leitfaden — auf Englisch, mit einem Knopf für die deutsche Fassung. Die Schlüsselkanäle bleiben unberührt.':
+    'Creates the Support category, moves the existing support channel into '
+    + 'it and puts up three read-only notices: welcome, VIP guide and manager '
+    + 'guide — in English, with a button for the German version. The key '
+    + 'channels are left untouched.',
+  'Nichts zu tun.':
+    'Nothing to do.',
+  'Kategorie umbenannt':
+    'Category renamed',
+  'Kategorie angelegt':
+    'Category created',
+  'Die Support-Kategorie ließ sich nicht anlegen.':
+    'The Support category could not be created.',
+  'Kanal liegt jetzt unter "Support"':
+    'Channel now sits under "Support"',
+  'Kanal ließ sich nicht verschieben':
+    'Channel could not be moved',
+  'Kategorie für die Aushänge bereit.':
+    'Category for the notices is ready.',
+  'Kanal ließ sich nicht anlegen':
+    'Channel could not be created',
+  'Alte Nachrichten entfernt':
+    'Old messages removed',
+  'Der Text wurde abgelehnt':
+    'The text was rejected',
+  'Aushang steht':
+    'Notice is up',
+  'Kein Bot-Token hinterlegt.':
+    'No bot token stored.',
+  'Die Kanalliste kam nicht.':
+    'The channel list did not arrive.',
+  'Ohne DISCORD_PUBLIC_KEY gibt es keine Knöpfe — weder für Deutsch noch für den Schlüsselwechsel. Sie erscheinen, sobald der Schlüssel hinterlegt und die Interactions-URL eingetragen ist.':
+    'Without DISCORD_PUBLIC_KEY there are no buttons — neither for German '
+    + 'nor for changing the key. They appear as soon as the key is stored and '
+    + 'the interactions URL is entered.',
   'In diesen Zugang wechseln':
     'Switch into this access',
   'Zum Zurückkehren musst du dich neu anmelden.':
@@ -1860,11 +1969,16 @@ const AUF_ENGLISCH: Record<string, string> = {
   'leer lassen für einen normalen VIP-Zugang':
     'leave empty for a normal VIP access',
   'Steht hier ein Name, wird daraus ein Manager-Zugang: mehrere Leute teilen ihn sich, sehen und bearbeiten die Overlays dieses Streamers und sonst nichts. Sein Schlüssel landet in Discord unter „Manager Access Keys“, in einem Kanal je Streamer.':
-    'With a name here this becomes a manager access: several people share it, see and edit that streamer’s overlays and nothing else. Its key goes to Discord under “Manager Access Keys”, one channel per streamer.',
+    'With a name here this becomes a manager access: several people share '
+    + 'it, see and edit that streamer’s overlays and nothing else. Its key '
+    + 'goes to Discord under “Manager Access Keys”, one channel per streamer.',
   'Schaden an Bauten':
     'Damage To Structures',
   'Schaden, Trefferquote und Material veröffentlicht Epic nicht. Für diesen Cup liegen sie auch nicht aus der Szene-Quelle vor. Deine eigenen Werte bekommst du trotzdem: einmal meine-werte-holen.bat starten — dann liest das Werkzeug die Replays, die Fortnite auf deinem Rechner ablegt.':
-    'Epic does not publish damage, accuracy or materials, and the scene source has nothing for this cup either. You can still get your own: run meine-werte-holen.bat once — the tool then reads the replays Fortnite stores on your PC.',
+    'Epic does not publish damage, accuracy or materials, and the scene '
+    + 'source has nothing for this cup either. You can still get your own: '
+    + 'run meine-werte-holen.bat once — the tool then reads the replays '
+    + 'Fortnite stores on your PC.',
   'Rang': 'Rank',
   'geladen': 'loaded',
   'Kennzahl': 'Stat',
@@ -1882,11 +1996,14 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Diese Einzelwerte veröffentlicht Epic nicht. Sie stammen aus der Szene-Quelle, die dieses Werkzeug spiegelt.': 'Epic does not publish these individual stats. They come from the scene source this tool mirrors.',
   'aus dem Replay': 'from the replay',
   'Plätze — zu ihnen hat Epic keinen Eintrag geliefert, obwohl das ganze Feld geladen ist. Die Match-ID oben ist vollständig.':
-    'places — Epic delivered no record for them, even though the whole field is loaded. The match ID above is complete.',
+    'places — Epic delivered no record for them, even though the whole '
+    + 'field is loaded. The match ID above is complete.',
   'von dieser Lobby im Leaderboard': 'of this lobby in the leaderboard',
   'Weitere Matches werden geladen …': 'Loading more matches …',
   'Hier stehen nur die Teams dieser Lobby, die im Tagesranking unter den ersten zehntausend liegen — weiter hinten platzierte gibt Epic nicht heraus. Die Match-ID oben ist vollständig.':
-    'Only the teams of this lobby that rank inside the day’s first ten thousand places are listed — Epic does not hand out those placed further down. The match ID above is complete.',
+    'Only the teams of this lobby that rank inside the day’s first ten '
+    + 'thousand places are listed — Epic does not hand out those placed '
+    + 'further down. The match ID above is complete.',
   'Wird durchsucht …': 'Searching …',
   'Preispool': 'Prize Pool',
   'Sieger oder Spieler suchen …': 'Search winner or player …',
@@ -1948,7 +2065,8 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Der Anmeldedienst gab kein Profil heraus.':
     'The sign-in service returned no profile.',
   'Dieses Konto hat dort keine bestätigte Adresse — damit lässt sich hier keines anlegen.':
-    'That account has no confirmed address there, so no account can be created here.',
+    'That account has no confirmed address there, so no account can be '
+    + 'created here.',
   'Der Anmeldedienst hat keine Adresse mitgeschickt.':
     'The sign-in service sent no address along.',
   'Das Konto ließ sich nicht anlegen.': 'The account could not be created.',
@@ -2275,7 +2393,8 @@ const AUF_ENGLISCH: Record<string, string> = {
 const AUF_DEUTSCH: Record<string, string> = {
   'Close': 'Schließen',
   ['Guest mode active: editing is disabled. Log in to manage your own folders.']:
-    'Gastmodus: Bearbeiten ist gesperrt. Melde dich an, um eigene Ordner zu verwalten.',
+    'Gastmodus: Bearbeiten ist gesperrt. Melde dich an, um eigene Ordner zu '
+    + 'verwalten.',
   'Sign in': 'Anmelden',
   ['Note: Login is restricted to selected users. You can use the dashboard '
     + 'only if I have enabled your access.']:
@@ -2288,7 +2407,8 @@ const AUF_DEUTSCH: Record<string, string> = {
   'Reset': 'Zurücksetzen',
   'Twitter:': 'Twitter:',
   ['Note: Login is restricted to selected users. You can use the dashboard only if you have been granted access.']:
-    'Hinweis: Die Anmeldung ist auf ausgewählte Nutzer beschränkt. Das Dashboard lässt sich nur mit freigeschaltetem Zugang benutzen.',
+    'Hinweis: Die Anmeldung ist auf ausgewählte Nutzer beschränkt. Das '
+    + 'Dashboard lässt sich nur mit freigeschaltetem Zugang benutzen.',
   '• Add custom streamers (manually selectable)': '• Eigene Streamer hinzufügen (frei wählbar)',
   '• Fully integrated pro players (NA & EU)': '• Profispieler vollständig eingebunden (NA und EU)',
   '• Live stream status and Twitch data': '• Live-Status und Twitch-Daten',

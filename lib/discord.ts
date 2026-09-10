@@ -1,6 +1,7 @@
 import fs from '@/lib/ablageFs';
 import path from 'path';
 import { DATEN_ORT } from './datenOrt';
+import { BEITRAEGE, FARBE, type Sprache } from './discordTexte';
 
 /*
  * Zugangsschluessel nach Discord schicken.
@@ -130,7 +131,8 @@ function idAus(antwort: Record<string, unknown> | unknown[] | null): string | nu
 
 /** Ein Aufruf an Discord. Gibt die Antwort zurueck oder null. */
 async function ruf(
-  weg: string, art: 'GET' | 'POST' | 'DELETE', koerper?: unknown,
+  weg: string, art: 'GET' | 'POST' | 'DELETE' | 'PATCH' | 'PUT',
+  koerper?: unknown,
 ): Promise<Record<string, unknown> | unknown[] | null> {
   const token = process.env.DISCORD_BOT_TOKEN;
   if (!token) return null;
@@ -377,6 +379,24 @@ async function kanalFuer(
 
   ablage[schluessel] = { kanal: id };
   await schreibe(ablage);
+
+  /*
+   * Der passende Leitfaden kommt gleich mit hinein.
+   *
+   * Der eigene Kanal ist der eine Ort, den jeder Zugang mit Sicherheit
+   * sieht - die Aushaenge in der Willkommensecke sieht er nur, wenn er
+   * ueberhaupt auf den Server kommt. Also steht die Anleitung dort, wo auch
+   * der Schluessel steht, und zwar einmal: nur beim Anlegen des Kanals, nicht
+   * bei jedem neuen Schluessel.
+   */
+  const leitfaden = art === 'manager' ? 'manager-guide' : 'vip-guide';
+  const hinein = await ruf(`/channels/${id}/messages`, 'POST', {
+    embeds: [alsEinbettung(leitfaden, 'en')],
+    ...spracheKnopf(leitfaden),
+  });
+  const hid = idAus(hinein);
+  if (hid) await anpinnen(id, hid);
+
   return id;
 }
 
@@ -451,8 +471,22 @@ export async function loescheZugang(
     : { ok: true };
 }
 
+/**
+ * Kann Discord ueberhaupt Knopfdruecke bei uns abliefern?
+ *
+ * Ein Knopf unter einer Nachricht ist nur so lange ein Knopf, wie es eine
+ * Stelle gibt, die den Druck beantwortet - Discord schickt ihn an die
+ * "Interactions Endpoint URL" der Anwendung und prueft unsere Antwort mit
+ * dem oeffentlichen Schluessel. Fehlt der, sagte jeder Knopf nur
+ * "interaction failed". Dann lieber keinen zeigen.
+ */
+export function knoepfeMoeglich(): boolean {
+  return Boolean(process.env.DISCORD_PUBLIC_KEY);
+}
+
 export async function schickeSchluessel(
   name: string, schluessel: string, art: KanalArt = 'vip',
+  darfWechseln = false,
 ): Promise<{ ok: boolean; grund?: string }> {
   if (!discordDa()) return { ok: false, grund: 'kein-token' };
 
@@ -491,12 +525,398 @@ export async function schickeSchluessel(
       '_This message is replaced whenever a new key is generated — the key '
       + 'above is always the valid one._',
     ].join('\n'),
+    /*
+     * Das Panel darunter.
+     *
+     * Der Betreiber wollte den Wechsel auch von Discord aus: "mach eine
+     * Art Panel fuer Discord, dass man im Discord sozusagen den Access
+     * Key switchen kann ... aber das wird dann auch im Tool direkt
+     * angepasst." Genau das tut der Knopf: er geht denselben Weg wie der
+     * im Werkzeug, und danach steht hier wieder eine einzige Nachricht
+     * mit dem einen gueltigen Schluessel.
+     *
+     * Er erscheint nur, wenn dieser Zugang seinen Schluessel selbst
+     * wechseln darf. Ein Manager-Zugang darf es nie: mehrere teilen ihn
+     * sich, und einer koennte damit die anderen mitten im Stream
+     * aussperren.
+     */
+    ...(darfWechseln && knoepfeMoeglich() ? {
+      components: [{
+        type: 1,
+        components: [{
+          type: 2,
+          style: 1,
+          label: 'Generate a new key',
+          emoji: { name: '🔑' },
+          custom_id: `schluessel:${name.toLowerCase()}`,
+        }],
+      }],
+    } : {}),
   });
 
   const id = idAus(gesendet);
   if (!id) return { ok: false, grund: 'abgelehnt' };
 
-  ablage[name.toLowerCase()] = { kanal, nachricht: id };
+  /*
+   * Gemerkt wird unter demselben Schluessel, unter dem der Kanal steht.
+   *
+   * Hier stand der blosse Name - und damit schrieb eine Manager-Nachricht
+   * ihren Eintrag ueber den des Streamers: der VIP-Kanal von "amar" zeigte
+   * danach auf den Manager-Kanal, und die naechste Schluesselnachricht fuer
+   * Amar selbst waere im falschen Kanal gelandet.
+   */
+  ablage[merkschluessel] = { kanal, nachricht: id };
   await schreibe(ablage);
   return { ok: true };
+}
+
+/* ====================================================================== *
+ *  Der Server selbst - Kategorien, Kanaele, Berechtigungen, Beitraege
+ * ====================================================================== */
+
+/**
+ * Was ein Informationskanal erlaubt.
+ *
+ * Lesen ja, schreiben nein: die drei Kanaele sind Aushaenge und kein Chat.
+ * Gefragt wird im Support, nicht unter dem Willkommenstext - sonst steht die
+ * Anleitung nach einer Woche zwischen dreissig Rueckfragen.
+ *
+ *   66560 = Kanal ansehen (1024) + Verlauf lesen (65536)
+ *   gesperrt: schreiben (2048) und die drei Wege, einen Thread aufzumachen
+ *             (2^35 + 2^36 + 2^38) - sonst ginge der Chat eben daneben auf.
+ */
+const LESEN = '66560';
+const NICHT_SCHREIBEN = String(2048 + 2 ** 35 + 2 ** 36 + 2 ** 38);
+
+/** Alles, was der Bot und der Betreiber in einem Kanal brauchen. */
+const VOLLZUGRIFF = '76800';
+
+interface RoherKanal {
+  id: string;
+  name: string;
+  type: number;
+  parent_id?: string | null;
+  topic?: string | null;
+}
+
+/** Die Kanalliste des Servers - einmal je Aufbau geholt. */
+async function alleKanaele(): Promise<RoherKanal[]> {
+  const k = await ruf(`/guilds/${SERVER}/channels`, 'GET');
+  return Array.isArray(k) ? (k as RoherKanal[]) : [];
+}
+
+const gleich = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
+
+/**
+ * Die Nachricht zu einem Beitrag - als Einbettung, nicht als blosser Text.
+ *
+ * Ein Text darf bei Discord zweitausend Zeichen haben, eine Einbettung
+ * viertausend. Die Leitfaeden liegen darueber, und sie in zwei Nachrichten zu
+ * zerlegen hiesse, beim naechsten Aufbau zwei Nachrichten zu ersetzen und
+ * eine davon irgendwann zu vergessen.
+ */
+function alsEinbettung(schluessel: string, sprache: Sprache) {
+  const b = BEITRAEGE[schluessel];
+  return {
+    title: b.titel[sprache],
+    description: b.text[sprache],
+    color: FARBE,
+  };
+}
+
+/**
+ * Der Knopf, der dieselbe Nachricht auf Deutsch zeigt.
+ *
+ * Nur fuer den, der drueckt. Discord kann eine Nachricht auf Klick nicht
+ * umschreiben, ohne sie fuer alle zu aendern - und der englische Text ist
+ * der Hauptext, "Englisch ist so das Wichtigste".
+ */
+function spracheKnopf(schluessel: string) {
+  if (!knoepfeMoeglich()) return {};
+  return {
+    components: [{
+      type: 1,
+      components: [{
+        type: 2,
+        style: 2,
+        label: 'Auf Deutsch lesen',
+        custom_id: `sprache:de:${schluessel}`,
+      }],
+    }],
+  };
+}
+
+/**
+ * Eine Nachricht anpinnen - und die Notiz darueber wieder wegnehmen.
+ *
+ * Discord schreibt beim Anpinnen von selbst eine Systemzeile in den Kanal
+ * ("CompHub pinned a message"). In einem Kanal, in dem genau ein Aushang
+ * stehen soll, ist das die Haelfte des Inhalts. Sie traegt den Typ 6 und
+ * laesst sich wie jede andere Nachricht loeschen.
+ */
+async function anpinnen(kanal: string, nachricht: string): Promise<void> {
+  const ok = await ruf(`/channels/${kanal}/pins/${nachricht}`, 'PUT');
+  if (!ok) return;
+  const neueste = await ruf(`/channels/${kanal}/messages?limit=3`, 'GET');
+  if (!Array.isArray(neueste)) return;
+  for (const m of neueste as Array<{ id: string; type: number }>) {
+    if (m.type === 6) await ruf(`/channels/${kanal}/messages/${m.id}`, 'DELETE');
+  }
+}
+
+/**
+ * Alle Nachrichten aus einem Kanal entfernen.
+ *
+ * Einzeln und nicht im Bund: der Sammelweg von Discord nimmt nur
+ * Nachrichten, die juenger als vierzehn Tage sind, und die alten
+ * Willkommensnachrichten sind das nicht. Zwischen den Loeschungen eine
+ * kurze Pause, weil Discord beim Entfernen alter Nachrichten streng
+ * begrenzt.
+ */
+async function leerRaeumen(kanal: string, hoechstens = 50): Promise<number> {
+  const n = await ruf(`/channels/${kanal}/messages?limit=${hoechstens}`, 'GET');
+  if (!Array.isArray(n)) return 0;
+  let weg = 0;
+  for (const m of n as Array<{ id: string }>) {
+    const ok = await ruf(`/channels/${kanal}/messages/${m.id}`, 'DELETE');
+    if (ok || letzterStatus === 404) weg += 1;
+    await new Promise((r) => setTimeout(r, 350));
+  }
+  return weg;
+}
+
+/**
+ * Einen Informationskanal anlegen oder zurechtruecken.
+ *
+ * Die Regeln werden bei jedem Aufbau neu gesetzt, auch bei einem Kanal, den
+ * es schon gab. Das ist Absicht: wer einmal von Hand etwas aufgemacht hat,
+ * soll es beim naechsten Aufbau wieder zu haben - sonst ist der Aufbau eine
+ * Empfehlung und keine Festlegung.
+ */
+async function infoKanal(
+  name: string, thema: string, kategorie: string | null, vorhandene: RoherKanal[],
+): Promise<string | null> {
+  const ich = await werBinIch();
+  const adminRolle = await adminRolleId();
+  const regeln: Array<Record<string, string | number>> = [
+    { id: SERVER, type: 0, allow: LESEN, deny: NICHT_SCHREIBEN },
+  ];
+  if (ich) regeln.push({ id: ich, type: 1, allow: VOLLZUGRIFF, deny: '0' });
+  if (adminRolle) {
+    regeln.push({ id: adminRolle, type: 0, allow: VOLLZUGRIFF, deny: '0' });
+  }
+
+  const schon = vorhandene.find((k) => k.type === 0 && gleich(k.name, name));
+  if (schon) {
+    await ruf(`/channels/${schon.id}`, 'PATCH', {
+      topic: thema,
+      ...(kategorie ? { parent_id: kategorie } : {}),
+      permission_overwrites: regeln,
+    });
+    return schon.id;
+  }
+
+  const neu = await ruf(`/guilds/${SERVER}/channels`, 'POST', {
+    name,
+    type: 0,
+    topic: thema,
+    ...(kategorie ? { parent_id: kategorie } : {}),
+    permission_overwrites: regeln,
+  });
+  return idAus(neu);
+}
+
+/**
+ * Eine Zeile des Berichts.
+ *
+ * Getrennt in festen Satz und veraenderlichen Teil, weil die Oberflaeche
+ * zweisprachig laeuft: "text" geht durch die Uebersetzung, "wert" ist ein
+ * Kanalname oder eine Zahl und bleibt, wie er ist. Stuende hier ein fertiger
+ * Satz mit eingesetztem Namen, waere er in der englischen Ansicht deutsch.
+ */
+export interface AufbauZeile { text: string; wert?: string }
+
+export interface AufbauBericht {
+  ok: boolean;
+  /** Was getan wurde - Zeile fuer Zeile, damit der Admin es nachlesen kann. */
+  schritte: AufbauZeile[];
+  /** Was nicht ging. Leer heisst: alles ging. */
+  fehler: AufbauZeile[];
+}
+
+/**
+ * Den Discord-Server einrichten.
+ *
+ * Der Betreiber wollte das nicht erklaert, sondern getan bekommen: "Du
+ * kannst das ja selber alles erstellen im Discord. Mach das vielleicht auch.
+ * Du erstellst eine Welcome Post, loescht die aktuelle Welcome Post. Du
+ * erstellst 'n Support ... Du erstellst alle neue Kategorien. Du machst
+ * alles simpel, nicht zu viel Neues."
+ *
+ * Darum ist dieser Weg beliebig oft gangbar und veraendert nie mehr als
+ * noetig: vorhandene Kategorien werden benutzt, nicht ersetzt; die
+ * Schluesselkanaele und die privaten Notizen des Betreibers bleiben
+ * unberuehrt. Was entsteht, ist eine Kategorie fuer den Support und drei
+ * Aushaenge - Willkommen, VIP-Leitfaden, Manager-Leitfaden -, jeder
+ * schreibgeschuetzt und jeder mit einem Knopf fuer die deutsche Fassung.
+ */
+export async function richteServerEin(
+  { altesLoeschen = true }: { altesLoeschen?: boolean } = {},
+): Promise<AufbauBericht> {
+  const schritte: AufbauZeile[] = [];
+  const fehler: AufbauZeile[] = [];
+  if (!discordDa()) {
+    return {
+      ok: false, schritte, fehler: [{ text: 'Kein Bot-Token hinterlegt.' }],
+    };
+  }
+
+  let kanaele = await alleKanaele();
+  if (!kanaele.length) {
+    return {
+      ok: false, schritte, fehler: [{ text: 'Die Kanalliste kam nicht.' }],
+    };
+  }
+  const kategorien = () => kanaele.filter((k) => k.type === 4);
+
+  /* ------------------------------------------------------------ Support
+   *
+   * Er hat den Kanal schon - "das hab ich eigentlich schon, kannst Du
+   * eigentlich in die passive Kategorie da machen". Also keine zweite
+   * Support-Ecke daneben, sondern eine Kategorie, in die der vorhandene
+   * Kanal einzieht. Gab es eine Ticket-Kategorie, wird sie dazu umbenannt:
+   * zwei Kategorien fuer dieselbe Sache waeren genau das "zu viel Neues",
+   * das er nicht wollte.
+   */
+  let support = kategorien().find((k) => gleich(k.name, 'Support'))?.id ?? null;
+  if (!support) {
+    const tickets = kategorien().find((k) => gleich(k.name, 'tickets'));
+    if (tickets) {
+      const ok = await ruf(`/channels/${tickets.id}`, 'PATCH', { name: 'Support' });
+      if (ok) {
+        support = tickets.id;
+        schritte.push({ text: 'Kategorie umbenannt', wert: 'tickets → Support' });
+      }
+    }
+  }
+  if (!support) {
+    support = await kategorieFuer('Support');
+    if (support) schritte.push({ text: 'Kategorie angelegt', wert: 'Support' });
+  }
+  if (!support) {
+    fehler.push({ text: 'Die Support-Kategorie ließ sich nicht anlegen.' });
+  }
+
+  if (support) {
+    for (const name of ['support', 'transkriptionen']) {
+      const k = kanaele.find((x) => x.type === 0 && gleich(x.name, name));
+      if (!k || k.parent_id === support) continue;
+      const ok = await ruf(`/channels/${k.id}`, 'PATCH', { parent_id: support });
+      if (ok) {
+        schritte.push({
+          text: 'Kanal liegt jetzt unter "Support"', wert: `#${k.name}`,
+        });
+      } else {
+        fehler.push({ text: 'Kanal ließ sich nicht verschieben', wert: `#${k.name}` });
+      }
+    }
+  }
+
+  /* ------------------------------------------------------- Die Aushaenge
+   *
+   * Sie kommen in die Kategorie, in der der Willkommenskanal schon liegt.
+   * Eine eigene dafuer anzulegen hiesse, zwei Ecken fuer dasselbe zu haben.
+   */
+  const wk = kanaele.find((k) => k.type === 0 && gleich(k.name, 'welcome'));
+  let info = wk?.parent_id ?? null;
+  if (!info) {
+    info = kategorien().find((k) => gleich(k.name, 'welcome'))?.id
+      ?? await kategorieFuer('Welcome');
+    if (info) schritte.push({ text: 'Kategorie für die Aushänge bereit.' });
+  }
+
+  const ablage = await lies();
+
+  for (const schluessel of Object.keys(BEITRAEGE)) {
+    const b = BEITRAEGE[schluessel];
+    kanaele = await alleKanaele();
+    const kanal = await infoKanal(b.kanal, b.thema, info, kanaele);
+    if (!kanal) {
+      fehler.push({ text: 'Kanal ließ sich nicht anlegen', wert: `#${b.kanal}` });
+      continue;
+    }
+
+    /*
+     * Das Alte weg, dann das Neue.
+     *
+     * Beim Willkommenskanal ist das ausdruecklich gewuenscht ("loescht die
+     * aktuelle Welcome Post"); bei den beiden Leitfaeden sind die
+     * Nachrichten ohnehin unsere eigenen aus einem frueheren Aufbau. Wer
+     * den Aufbau ohne Loeschen laufen laesst, bekommt den neuen Text
+     * darunter gestellt und raeumt selbst auf.
+     */
+    if (altesLoeschen) {
+      const weg = await leerRaeumen(kanal);
+      if (weg) {
+        schritte.push({
+          text: 'Alte Nachrichten entfernt', wert: `#${b.kanal} (${weg})`,
+        });
+      }
+    }
+
+    const gesendet = await ruf(`/channels/${kanal}/messages`, 'POST', {
+      embeds: [alsEinbettung(schluessel, 'en')],
+      ...spracheKnopf(schluessel),
+    });
+    const id = idAus(gesendet);
+    if (!id) {
+      fehler.push({ text: 'Der Text wurde abgelehnt', wert: `#${b.kanal}` });
+      continue;
+    }
+    // Angepinnt, damit er auch in einem Jahr oben steht.
+    await anpinnen(kanal, id);
+    ablage[`post:${schluessel}`] = { kanal, nachricht: id };
+    schritte.push({ text: 'Aushang steht', wert: `#${b.kanal}` });
+  }
+
+  await schreibe(ablage);
+
+  if (!knoepfeMoeglich()) {
+    schritte.push({
+      text: 'Ohne DISCORD_PUBLIC_KEY gibt es keine Knöpfe — weder für Deutsch '
+        + 'noch für den Schlüsselwechsel. Sie erscheinen, sobald der Schlüssel '
+        + 'hinterlegt und die Interactions-URL eingetragen ist.',
+    });
+  }
+
+  return { ok: fehler.length === 0, schritte, fehler };
+}
+
+/**
+ * Den deutschen Text zu einem Beitrag - fuer den Knopf unter der Nachricht.
+ *
+ * Liegt hier und nicht in der Route, damit die Route nichts ueber den Aufbau
+ * der Texte wissen muss.
+ */
+export function beitragEinbettung(schluessel: string, sprache: Sprache) {
+  if (!BEITRAEGE[schluessel]) return null;
+  return alsEinbettung(schluessel, sprache);
+}
+
+/**
+ * Welcher Kanal zu diesem Zugang gehoert - soweit wir es gemerkt haben.
+ *
+ * Gebraucht von der Knopf-Route: sie muss wissen, ob ein Druck wirklich aus
+ * dem Kanal kam, zu dem der Knopf gehoert. Angelegt wird hier nichts - wer
+ * keinen Kanal hat, bekommt null.
+ */
+export async function gemerkterKanal(
+  name: string, art: KanalArt = 'vip',
+): Promise<string | null> {
+  const klein = name.trim().toLowerCase();
+  if (!klein) return null;
+  const ablage = await lies();
+  const schluessel = art === 'manager' ? `manager:${klein}` : klein;
+  return ablage[schluessel]?.kanal
+    ?? (art === 'vip' ? BEKANNTE_KANAELE[klein] ?? null : null);
 }
