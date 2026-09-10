@@ -70,10 +70,19 @@ export default function MeineOverlays() {
    * Spieltag auf den naechsten Cup gestellt.
    */
   const cupWahl = useMemo(() => {
-    const { von, bis } = overlayZeitraumWeit();
+    /*
+     * Zwei Tage zurueck, der Rest nach vorn.
+     *
+     * Der Betreiber wollte vergangene Spieltage waehlen koennen, aber nicht
+     * beliebig weit: "maximal zwei Tage vergangen, und die sollen dann eher
+     * unten sein." Ein Overlay auf einen Cup von letzter Woche zu stellen
+     * hat keinen Zweck - die Tabelle steht dann fest.
+     */
+    const { bis } = overlayZeitraumWeit();
+    const von = Date.now() - 2 * 86_400_000;
     const raus: Array<{
       wert: string; titel: string; live: boolean;
-      rang: number; region: number; begin: number;
+      rang: number; region: number; begin: number; vorbei: boolean;
     }> = [];
     for (const c of cups ?? []) {
       if (!overlayCupErlaubt(c.titel)) continue;
@@ -87,6 +96,7 @@ export default function MeineOverlays() {
             rang: overlayCupRang(c.titel),
             region: overlayRegionRang(w.region),
             begin: w.begin,
+            vorbei: w.begin < Date.now(),
           });
         }
       }
@@ -95,11 +105,18 @@ export default function MeineOverlays() {
      * Laufendes zuerst, dann nach Wichtigkeit - wie in der Cup-Auswahl.
      * Alphabetisch waere hier ein Arena-Testcup vor den Grand Finals gelandet.
      */
+    /*
+     * Laufendes oben, Vergangenes unten, dazwischen nach Datum.
+     *
+     * Was schon gelaufen ist, braucht man selten - es steht deshalb hinter
+     * allem, was noch kommt, statt sich zwischen die kommenden Spieltage zu
+     * mischen.
+     */
     const jetzt = Date.now();
     return raus.sort((a, b) => Number(b.live) - Number(a.live)
-      || a.rang - b.rang
-      || a.region - b.region
+      || Number(a.vorbei) - Number(b.vorbei)
       || Math.abs(a.begin - jetzt) - Math.abs(b.begin - jetzt)
+      || a.region - b.region
       || a.titel.localeCompare(b.titel));
   }, [cups]);
 
@@ -314,6 +331,10 @@ export default function MeineOverlays() {
                   {cupWahl.map((c) => (
                     <option key={c.wert} value={c.wert}>
                       {c.live ? '🔴 ' : ''}{c.titel}
+                      {' — '}
+                      {new Date(c.begin).toLocaleDateString('de-DE',
+                        { day: '2-digit', month: '2-digit' })}
+                      {c.vorbei ? ` (${t('vorbei')})` : ''}
                     </option>
                   ))}
                 </select>

@@ -109,8 +109,15 @@
      * laenger war als der andere, sass der Text sichtbar rechts der Mitte.
      * Der Betreiber: "das soll sich mittig zentrieren."
      */
+    /*
+     * Sie nimmt den Platz zwischen den Fotos ein, laesst sich aber nicht
+     * unter ihren Inhalt druecken. Vorher stand hier "min-width: 0", und bei
+     * grossen Fotos wurde der Text zusammengequetscht, bis von "171" nur
+     * noch eine Null zu sehen war. Passt es dann nicht, wird alles kleiner -
+     * siehe passeGroesseAn() im Skript.
+     */
     flex: 1 1 auto;
-    min-width: 0;
+    min-width: max-content;
     text-align: center;
     display: flex; flex-direction: column;
     align-items: center; justify-content: center;
@@ -233,6 +240,21 @@ const WECHSEL = Math.max(3, parseInt(P.get('wechsel') || '8', 10)) * 1000;
 /** Anzeigenamen je Duo: "n1+n2;n3+n4" - sonst gelten n1/n2 fuer das erste. */
 const TEAMNAMEN = (P.get('namen') || '').split(';').map(t => t.split(','));
 let teamNr = 0;
+
+/*
+ * Der zuletzt gefundene Eintrag je Duo.
+ *
+ * Waehrend Epic die Bestenliste neu aufbaut, kommt fuer ein paar Sekunden
+ * eine Antwort ohne diesen Spieler zurueck. Vorher schrieb das Banner dann
+ * "not in the leaderboard yet" mitten in den Stream, obwohl er laengst
+ * gespielt hatte - der Betreiber hat genau das gesehen: "wahrscheinlich weil
+ * es ein Leaderboard-Update gab. Fix das, es soll immer gehen."
+ *
+ * Also wird der letzte gueltige Stand behalten und weiter gezeigt. Eine Zahl,
+ * die eine Minute alt ist, ist im Stream allemal besser als ein Kasten, der
+ * behauptet, es gebe den Spieler nicht.
+ */
+const letzterTreffer = new Map();
 let letzteAntwort = null;
 const SUCHE = (P.get('q') || '').trim();
 const FELDER = (P.get('felder') || 'rank,points,games,elims').split(',').filter(Boolean);
@@ -399,6 +421,32 @@ async function fotoNachName(spieler, eingetragen) {
  * nie unter die Haelfte der eingestellten Groesse - sonst wuerde aus einem
  * langen Namen ein unlesbarer.
  */
+/**
+ * Das ganze Banner so weit verkleinern, bis es ins Bild passt.
+ *
+ * Fotos, Schrift, Abstaende haengen alle am Massstab --skala. Wird eines
+ * davon zu gross - grosse Fotos, ein langer Name, breite Zahlen -, schrumpft
+ * nicht ein Teil, sondern alles gleichmaessig. Der Betreiber: "das kann nicht
+ * einfach so zusammengequetscht sein, weil die Bilder zu gross sind. Und wenn,
+ * dann muss sich alles anpassen, nicht nur die Bilder."
+ *
+ * Untergrenze ist die Haelfte: darunter waere es lesbar nicht mehr gemeint.
+ */
+function passeGroesseAn() {
+  const el = document.getElementById('banner');
+  if (!el) return;
+  const wurzel = document.documentElement.style;
+  let skala = 1;
+  wurzel.setProperty('--skala', '1');
+  let schutz = 0;
+  while (el.scrollWidth > document.documentElement.clientWidth
+    && skala > 0.5 && schutz < 25) {
+    skala -= 0.04;
+    schutz += 1;
+    wurzel.setProperty('--skala', skala.toFixed(2));
+  }
+}
+
 function namenEinpassen() {
   const el = document.getElementById('namen');
   if (!el) return;
@@ -454,6 +502,20 @@ async function zeichne(sanft) {
     }));
   }
 
+  /*
+   * Nichts gefunden? Dann der letzte Stand, falls es einen gibt.
+   *
+   * Nur wenn die Antwort ueberhaupt Eintraege hatte - eine leere Antwort
+   * heisst "der Spieltag hat noch nicht angefangen", und dort ist der Hinweis
+   * richtig.
+   */
+  const merker = klein.join(',') || String(SUCHE || '');
+  if (e) {
+    letzterTreffer.set(merker, e);
+  } else if (letzterTreffer.has(merker)) {
+    e = letzterTreffer.get(merker);
+  }
+
 
   if (sanft) {
     banner.classList.add('wechsel');
@@ -482,6 +544,7 @@ async function zeichne(sanft) {
   document.getElementById('namen').innerHTML = n2
     ? n1 + '<span class="und">&amp;</span>' + n2
     : n1;
+  passeGroesseAn();
   namenEinpassen();
 
   const [f1, f2] = await Promise.all([
