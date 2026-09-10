@@ -1901,6 +1901,10 @@ const AUF_ENGLISCH: Record<string, string> = {
     + 'minutes. Closing a tab does not sign anyone out — nothing more can '
     + 'honestly be said about it.',
   'Noch keine Ergebnisse': 'No results yet',
+  'Untereinander':
+    'Stacked',
+  'Eine Zeile':
+    'One line',
   'Bearbeiten':
     'Edit',
   'Als Manager wählst du den Spieltag, um den es gerade geht: was läuft, was heute schon lief, und was gleich anfängt — in Europa ab 15 Minuten vorher, in den anderen Regionen ab zwei Stunden vorher.':

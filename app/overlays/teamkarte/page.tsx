@@ -603,7 +603,18 @@ export default function OverlaySeite() {
      * wer nur ein Duo zeigt, bekommt genau dieselbe Adresse wie bisher.
      */
     if (weitere.length && ids.length) {
-      const alle = [{ ids, namen }, ...weitere];
+      /*
+       * Das Duo von oben steht nur einmal in der Reihe.
+       *
+       * Die Liste "mehrere Duos" traegt das gerade bearbeitete als ersten
+       * Eintrag mit ("von oben"). Wurde es zusaetzlich vorangestellt, kam es
+       * zweimal hintereinander ins Bild - genau das hat der Betreiber
+       * gesehen: "dann tut es das Team zweimal hintereinander anzeigen."
+       */
+      const schluessel = ids.join(',').toLowerCase();
+      const ohneDoppel = weitere.filter(
+        (w) => w.ids.join(',').toLowerCase() !== schluessel);
+      const alle = [{ ids, namen }, ...ohneDoppel];
       p.set('teams', alle.map((w) => w.ids.join(',')).join(';'));
       p.set('namen', alle.map((w) => `${w.namen[0] ?? ''},${w.namen[1] ?? ''}`).join(';'));
       p.set('wechsel', String(wechsel));

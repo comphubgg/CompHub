@@ -32,6 +32,8 @@ const STANDARD = {
   akzent: '#38bdf8',
   schrift: 34,
   abStunden: 12,
+  /** "zwei" = untereinander, "eine" = alles in einer Zeile. */
+  anordnung: 'zwei' as 'zwei' | 'eine',
 };
 
 type Config = typeof STANDARD;
@@ -91,7 +93,22 @@ export default function TimerSeite() {
     for (const c of cups ?? []) {
       for (const l of Object.values(c.regionen ?? {})) {
         const w = l.find((x) => x.windowId === cfg.window);
-        if (w) return { begin: w.begin, titel: c.titel, region: w.region };
+        if (w) {
+          /*
+           * Die Runde gehoert dazu.
+           *
+           * "Performance Evaluation Cup · EU" allein sagt nicht, auf welchen
+           * der drei Spieltage der Countdown zeigt - der Betreiber stand vor
+           * einer Zahl und wusste nicht, ob sie zum Anfang der naechsten
+           * Runde gehoert oder zum Ende der laufenden. Epic nummeriert die
+           * Fenster in der Kennung, und genau die steht hier.
+           */
+          const runde = /round\s*(\d+)/i.exec(w.windowId)?.[1];
+          return {
+            begin: w.begin, region: w.region,
+            titel: runde ? `${c.titel} · Round ${runde}` : c.titel,
+          };
+        }
       }
     }
     return null;
@@ -220,6 +237,12 @@ export default function TimerSeite() {
               <Wahlreihe titel="Cup-Name darunter" wert={cfg.cupZeigen ? 1 : 0}
                 optionen={[{ wert: 1, titel: 'Ja' }, { wert: 0, titel: 'Nein' }]}
                 setzen={(w) => setz('cupZeigen', w === 1)} />
+              <Wahlreihe titel="Anordnung" wert={cfg.anordnung}
+                optionen={[
+                  { wert: 'zwei' as const, titel: 'Untereinander' },
+                  { wert: 'eine' as const, titel: 'Eine Zeile' },
+                ]}
+                setzen={(w) => setz('anordnung', w)} />
             </div>
             <p className="mt-2 text-[11px] leading-relaxed text-slate-600">
               <T>Null Stunden heißt: immer sichtbar. Sonst bleibt der Timer

@@ -34,6 +34,15 @@ html, body {
   -webkit-font-smoothing: antialiased;
 }
 
+#karte.eine {
+  display: flex;
+  align-items: baseline;
+  gap: 0.4em;
+}
+#karte.eine #wort { font-size: 0.4em; }
+#karte.eine #zeit { font-size: 0.8em; }
+#karte.eine #cup { margin-top: 0; font-size: 0.34em; }
+
 #karte {
   width: max-content;
   max-width: 100vw;
@@ -103,6 +112,14 @@ html, body {
     akzent: '#38bdf8',
     schrift: 34,
     /*
+     * "zwei" = Ueberschrift ueber der Zeit, "eine" = alles nebeneinander.
+     *
+     * Der Betreiber wollte beides haben koennen, so wie bei der Qual-Linie:
+     * "ob das Overlay zum Beispiel nur eine Linie ist, sodass nicht alles
+     * untereinander steht, sondern nebeneinander."
+     */
+    anordnung: 'zwei',
+    /*
      * Wie lange vorher er ueberhaupt erscheint.
      *
      * Null heisst: immer. Sonst bleibt er verborgen, bis es so weit ist -
@@ -119,14 +136,28 @@ html, body {
   let katalogUhr = null;
   let beginn = 0;
 
-  /** Aus Sekunden "1:02:07" oder "4:31" machen. */
+  /**
+   * Aus Sekunden eine lesbare Zeit machen.
+   *
+   *   4:31            unter einer Stunde
+   *   1:02:07         unter einem Tag
+   *   2d 10:11:10     darueber
+   *
+   * Der Betreiber wollte die Tage getrennt: "wenn ich einen Cup nehme, der
+   * erst in zwei Tagen ist, dann ist der Timer zwei Tage, zehn Stunden, elf
+   * Minuten" - und nicht achtundfuenfzig Stunden am Stueck, die niemand im
+   * Kopf umrechnet.
+   */
   function alsZeit(sek) {
     const s = Math.max(0, Math.floor(sek));
-    const st = Math.floor(s / 3600);
+    const zwei = (n) => String(n).padStart(2, '0');
+    const tage = Math.floor(s / 86400);
+    const st = Math.floor((s % 86400) / 3600);
     const mi = Math.floor((s % 3600) / 60);
     const se = s % 60;
-    const zwei = (n) => String(n).padStart(2, '0');
-    return st > 0 ? st + ':' + zwei(mi) + ':' + zwei(se) : mi + ':' + zwei(se);
+    if (tage > 0) return tage + 'd ' + zwei(st) + ':' + zwei(mi) + ':' + zwei(se);
+    if (st > 0) return st + ':' + zwei(mi) + ':' + zwei(se);
+    return mi + ':' + zwei(se);
   }
 
   function zeichne() {
@@ -205,6 +236,7 @@ html, body {
       s.setProperty('--deckkraft', String(cfg.deckkraft));
       s.setProperty('--akzent', String(cfg.akzent));
       s.setProperty('--schrift', cfg.schrift + 'px');
+      $('karte').classList.toggle('eine', cfg.anordnung === 'eine');
 
       if (uhr) clearInterval(uhr);
       uhr = setInterval(zeichne, 1000);

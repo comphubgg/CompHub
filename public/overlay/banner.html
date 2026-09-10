@@ -102,8 +102,16 @@
   .foto.leer { display: none; }
 
   .mitte {
-    flex: 0 1 auto;
+    /*
+     * Die Mitte nimmt den Platz zwischen den Fotos und zentriert darin.
+     *
+     * Vorher richtete sie sich allein nach ihrem Inhalt, und sobald ein Name
+     * laenger war als der andere, sass der Text sichtbar rechts der Mitte.
+     * Der Betreiber: "das soll sich mittig zentrieren."
+     */
+    flex: 1 1 auto;
     min-width: 0;
+    text-align: center;
     display: flex; flex-direction: column;
     align-items: center; justify-content: center;
     gap: calc(4px * var(--skala));
@@ -112,6 +120,7 @@
   }
 
   .namen {
+    width: 100%;
     font-size: calc(21px * var(--skala));
     font-weight: 800; letter-spacing: .04em;
     color: var(--schrift); text-transform: uppercase;
