@@ -4,6 +4,7 @@ import fs from '@/lib/ablageFs';
 import path from 'path';
 import { gesamtSummen, heimatRegionen } from '@/lib/szeneStats';
 import { DATEN_ORT } from '@/lib/datenOrt';
+import { namensSchluessel } from '@/lib/homoglyph';
 
 // Alles, was das Player Center ueber einen Spieler wissen muss - an einer
 // Stelle.
@@ -45,16 +46,36 @@ interface Profil {
   land?: string; x?: string; region?: string; anzeige?: string;
 }
 
-async function liesProfile(): Promise<Map<string, Profil>> {
-  const karte = new Map<string, Profil>();
+async function liesProfile(): Promise<{
+  nachId: Map<string, Profil>; nachName: Map<string, Profil>;
+}> {
+  const nachId = new Map<string, Profil>();
+  /*
+   * Und dieselben Profile noch einmal ueber den Namen.
+   *
+   * Wer im Beitragswerkzeug ein @-Konto eintraegt, kennt oft keine
+   * Konto-Id - dann liegt das Profil unter einem Namensschluessel. Hier
+   * stand vorher "if (id)", und damit fiel genau dieser Fall unter den
+   * Tisch: der Betreiber trug ein Konto nach dem anderen ein, und im Player
+   * Center blieb die Spalte leer.
+   */
+  const nachName = new Map<string, Profil>();
   try {
     const roh = JSON.parse(await fs.readFile(PROFILE, 'utf8')) as Record<string, Profil>;
     for (const [schluessel, p] of Object.entries(roh)) {
       const id = p.id || (/^[0-9a-f]{32}$/i.test(schluessel) ? schluessel : '');
-      if (id) karte.set(id, p);
+      if (id) nachId.set(id, p);
+      else nachName.set(schluessel, p);
+      // Auch frueher benutzte Namen zeigen auf dasselbe Profil.
+      for (const n of p.namen ?? []) {
+        const k = namensSchluessel(n);
+        if (k && !nachName.has(k)) nachName.set(k, p);
+      }
+      const eigen = namensSchluessel(p.name ?? '');
+      if (eigen && !nachName.has(eigen)) nachName.set(eigen, p);
     }
   } catch { /* noch keine gepflegt */ }
-  return karte;
+  return { nachId, nachName };
 }
 
 /** Nur echte Fotos - die geteilte Silhouette ist keins. */
@@ -127,7 +148,15 @@ async function berechne(request: Request) {
   const spieler = alle
     .filter((s) => s.matches >= mindestens)
     .map((s) => {
-      const pr = profile.get(s.epicId);
+      /*
+       * Erst ueber die Konto-Id, dann ueber den Namen.
+       *
+       * Die Id ist eindeutig und geht vor. Ein Profil, das nur unter einem
+       * Namen gepflegt wurde - so entsteht es im Beitragswerkzeug, wenn die
+       * Id unbekannt ist -, wuerde sonst nie hier ankommen.
+       */
+      const pr = profile.nachId.get(s.epicId)
+        ?? profile.nachName.get(namensSchluessel(s.name ?? ''));
       const region = heimat.get(s.epicId) ?? s.regionen[0] ?? '';
       return {
         epicId: s.epicId,

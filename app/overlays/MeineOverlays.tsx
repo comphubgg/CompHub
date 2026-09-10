@@ -43,6 +43,8 @@ export default function MeineOverlays() {
   const [offen, setOffen] = useState<string | null>(null);
   const [name, setName] = useState('');
   const [kopiert, setKopiert] = useState<string | null>(null);
+  /** Bei welchem Overlay die Cup-Liste gerade offen steht. */
+  const [cupOffen, setCupOffen] = useState<string | null>(null);
   const [meldung, setMeldung] = useState('');
 
   const laden = useCallback(async () => {
@@ -329,27 +331,98 @@ export default function MeineOverlays() {
                 */}
               <div className="mt-2 flex flex-wrap items-center gap-2">
                 <span className="text-[11px] text-slate-600"><T>Cup</T></span>
-                <select
-                  value={`${(o.config as { event?: string }).event ?? ''}`
-                    + `|${(o.config as { window?: string }).window ?? ''}`}
-                  onChange={(e) => {
-                    const [event, fenster] = e.target.value.split('|');
-                    void aendern(o, o.name, { event, window: fenster });
-                  }}
-                  className="min-w-0 flex-1 rounded-lg border border-zinc-800
-                             bg-zinc-950 px-2 py-1 text-[11px] text-slate-300
-                             outline-none focus:border-sky-500">
-                  <option value="|">{t('— keiner —')}</option>
-                  {cupWahl.map((c) => (
-                    <option key={c.wert} value={c.wert}>
-                      {c.live ? '🔴 ' : ''}{c.titel}
-                      {' — '}
-                      {new Date(c.begin).toLocaleDateString('de-DE',
-                        { day: '2-digit', month: '2-digit' })}
-                      {c.vorbei ? ` (${t('vorbei')})` : ''}
-                    </option>
-                  ))}
-                </select>
+                {/*
+                  * Eine eigene Liste statt eines Auswahlfelds.
+                  *
+                  * Ein natives <select> kann keine Spalte rechts fuehren und
+                  * keine Zwischenueberschrift setzen - der Betreiber wollte
+                  * beides: "das Datum ganz rechts", und die vergangenen Cups
+                  * unter einer eigenen fetten Ueberschrift ganz unten.
+                  */}
+                <div className="relative min-w-0 flex-1">
+                  <button type="button"
+                    onClick={() => setCupOffen(cupOffen === o.id ? null : o.id)}
+                    className="flex w-full items-center gap-2 rounded-lg border
+                               border-zinc-800 bg-zinc-950 px-2 py-1 text-left
+                               text-[11px] text-slate-300 transition
+                               hover:border-zinc-700">
+                    <span className="min-w-0 flex-1 truncate">
+                      {cupVon(o) || t('— keiner —')}
+                    </span>
+                    <span className="shrink-0 text-slate-600">▾</span>
+                  </button>
+
+                  {cupOffen === o.id && (
+                    <div className="absolute left-0 right-0 z-20 mt-1 max-h-72
+                                    overflow-y-auto rounded-lg border
+                                    border-zinc-700 bg-zinc-950 py-1 shadow-xl">
+                      <button type="button"
+                        onClick={() => {
+                          void aendern(o, o.name, { event: '', window: '' });
+                          setCupOffen(null);
+                        }}
+                        className="flex w-full items-center px-3 py-1.5
+                                   text-left text-[11px] text-slate-500
+                                   hover:bg-zinc-900">
+                        {t('— keiner —')}
+                      </button>
+
+                      {cupWahl.filter((c) => !c.vorbei).map((c) => (
+                        <button key={c.wert} type="button"
+                          onClick={() => {
+                            const [event, fenster] = c.wert.split('|');
+                            void aendern(o, o.name, { event, window: fenster });
+                            setCupOffen(null);
+                          }}
+                          className="flex w-full items-center gap-2 px-3 py-1.5
+                                     text-left text-[11px] text-slate-300
+                                     hover:bg-zinc-900">
+                          {c.live && (
+                            <span className="h-1.5 w-1.5 shrink-0 rounded-full
+                                             bg-rose-500" />
+                          )}
+                          <span className="min-w-0 flex-1 truncate">{c.titel}</span>
+                          <span className="shrink-0 tabular-nums text-slate-600">
+                            {new Date(c.begin).toLocaleDateString('de-DE',
+                              { day: '2-digit', month: '2-digit' })}
+                          </span>
+                        </button>
+                      ))}
+
+                      {/*
+                        * Die vergangenen, unter einer eigenen Ueberschrift.
+                        *
+                        * Sie stehen ganz unten, weil man sie selten braucht -
+                        * aber sie stehen da, denn eine Tabelle von gestern
+                        * will man im Stream auch mal zeigen.
+                        */}
+                      {cupWahl.some((c) => c.vorbei) && (
+                        <p className="mt-1 border-t border-zinc-800 px-3 pb-1
+                                      pt-2 text-[10px] font-bold uppercase
+                                      tracking-wider text-slate-500">
+                          <T>Vergangene Cups</T>
+                        </p>
+                      )}
+                      {cupWahl.filter((c) => c.vorbei).map((c) => (
+                        <button key={c.wert} type="button"
+                          onClick={() => {
+                            const [event, fenster] = c.wert.split('|');
+                            void aendern(o, o.name, { event, window: fenster });
+                            setCupOffen(null);
+                          }}
+                          className="flex w-full items-center gap-2 px-3 py-1.5
+                                     text-left text-[11px] text-slate-500
+                                     hover:bg-zinc-900">
+                          <span className="min-w-0 flex-1 truncate">{c.titel}</span>
+                          <span className="shrink-0 tabular-nums text-slate-600">
+                            {new Date(c.begin).toLocaleDateString('de-DE',
+                              { day: '2-digit', month: '2-digit' })}
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 {cupVon(o) && (
                   <span className="text-[11px] text-slate-600">{cupVon(o)}</span>
                 )}

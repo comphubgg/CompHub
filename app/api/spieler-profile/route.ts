@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { wirfWeg } from '@/lib/antwortSpeicher';
 import fs from '@/lib/ablageFs';
 import path from 'path';
 import { namensSchluessel } from '@/lib/homoglyph';
@@ -189,6 +190,16 @@ export async function POST(request: Request) {
   if (alter && alterSchluessel) delete profile[alterSchluessel];
 
   await schreib(profile);
+  /*
+   * Die vorgerechneten Antworten des Player Center wegwerfen.
+   *
+   * Sie halten neunzig Minuten. Wer hier ein @-Konto eintraegt, will es
+   * danach sehen und nicht nach der naechsten Frist - der Betreiber hat ein
+   * Konto nach dem anderen gepflegt, und im Player Center blieb die Spalte
+   * leer. Schlaegt das Wegwerfen fehl, ist das kein Grund, das Speichern
+   * scheitern zu lassen.
+   */
+  void wirfWeg('center|');
   return NextResponse.json({ ok: true, schluessel, profile: profile[schluessel] ?? null });
 }
 
@@ -202,5 +213,15 @@ export async function DELETE(request: Request) {
   const profile = await lies();
   delete profile[schluessel];
   await schreib(profile);
+  /*
+   * Die vorgerechneten Antworten des Player Center wegwerfen.
+   *
+   * Sie halten neunzig Minuten. Wer hier ein @-Konto eintraegt, will es
+   * danach sehen und nicht nach der naechsten Frist - der Betreiber hat ein
+   * Konto nach dem anderen gepflegt, und im Player Center blieb die Spalte
+   * leer. Schlaegt das Wegwerfen fehl, ist das kein Grund, das Speichern
+   * scheitern zu lassen.
+   */
+  void wirfWeg('center|');
   return NextResponse.json({ ok: true });
 }

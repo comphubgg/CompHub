@@ -15,7 +15,6 @@ import { namensSchluessel } from '@/lib/homoglyph';
 
 import T from '@/app/components/T';
 import { regionFarbe } from '@/lib/regionFarbe';
-import Werte from './Werte';
 import { useT, useSprache } from '@/app/components/SprachProvider';
 import { kartenTitel } from '@/lib/rundenName';
 /**
@@ -599,7 +598,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
    * auswaehlt, statt alles gleichzeitig zu sehen.
    */
   const [reiter, setReiter] =
-    useState<'liste' | 'runden' | 'spieler' | 'teams' | 'streams' | 'werte'
+    useState<'liste' | 'runden' | 'spieler' | 'teams' | 'streams'
       | 'about'>('liste');
 
   /*
@@ -2401,45 +2400,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
             </button>
           ))}
 
-          {/*
-            * Die eigenen Werte stehen etwas abgesetzt.
-            *
-            * Sie beantworten eine andere Frage als die Reiter davor: dort
-            * geht es um den Cup, hier um einen einzelnen Spieler und seinen
-            * Mitspieler. Der Betreiber wollte dafuer ausdruecklich "eine Art
-            * kleinen Abstand".
-            */}
-          {/*
-            * Die Teilnahmebedingungen.
-            *
-            * Sie gehoeren zum Cup und nicht zu einem Spieler, stehen also bei
-            * den uebrigen Reitern - der Betreiber wollte unter Events sehen,
-            * "wie man sich qualifizieren kann".
-            */}
-          <button
-            onClick={() => setReiter('about')}
-            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
-              reiter === 'about'
-                ? 'bg-sky-500/10 text-sky-400'
-                : 'text-slate-400 hover:text-slate-200'}`}>
-            About
-          </button>
-
-          <span className="mx-1 h-5 w-px shrink-0 self-center bg-zinc-800" />
-          <button
-            onClick={() => setReiter('werte')}
-            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
-              reiter === 'werte'
-                ? 'bg-sky-500/10 text-sky-400'
-                : 'text-slate-400 hover:text-slate-200'}`}>
-            <T>Deine Werte</T>
-          </button>
         </div>
 
-        {reiter === 'werte' && (
-          <Werte windowId={fenster?.windowId ?? null} teams={tabelle}
-            wertung={preise?.wertung ?? []} />
-        )}
 
         {/* ------------------------------------------------- About */}
         {reiter === 'about' && (

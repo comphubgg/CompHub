@@ -29,7 +29,7 @@
  * die wichtigsten Antworten vor.
  */
 
-import { liesJson, schreibJson } from '@/lib/ablage';
+import { liesJson, schreibJson, speicher } from '@/lib/ablage';
 
 /** Wo die fertigen Antworten liegen. */
 const ORDNER = 'antworten';
@@ -82,6 +82,33 @@ function nameVon(schluessel: string): string {
     .replace(/[^a-zA-Z0-9_.=-]+/g, '_')
     .slice(0, 120);
   return `${ORDNER}/${sauber}.json`;
+}
+
+/**
+ * Vorgerechnete Antworten wegwerfen, die mit diesem Anfang beginnen.
+ *
+ * Gebraucht, wenn sich die Grundlage geaendert hat und nicht auf die
+ * naechste Frist gewartet werden kann: wer im Werkzeug ein @-Konto eintraegt,
+ * will es danach sehen und nicht in neunzig Minuten. Der Betreiber hat genau
+ * das erlebt - "ich hab so viele eingefuegt, und im Player Center steht es
+ * nicht."
+ *
+ * Faellt das Loeschen aus, ist das kein Grund zu scheitern: dann steht die
+ * alte Antwort eben noch eine Weile. Deshalb wird hier nichts geworfen.
+ */
+export async function wirfWeg(anfang: string): Promise<number> {
+  const rein = anfang.replace(/[^a-zA-Z0-9_.=-]+/g, '_');
+  let weg = 0;
+  try {
+    for (const datei of await speicher.liste(ORDNER)) {
+      if (!datei.startsWith(rein)) continue;
+      try {
+        await speicher.loesche(`${ORDNER}/${datei}`);
+        weg += 1;
+      } catch { /* schon weg, oder gerade in Benutzung */ }
+    }
+  } catch { /* noch kein Ordner - dann gibt es auch nichts zu werfen */ }
+  return weg;
 }
 
 /**

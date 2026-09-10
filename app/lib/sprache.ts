@@ -1901,6 +1901,8 @@ const AUF_ENGLISCH: Record<string, string> = {
     + 'minutes. Closing a tab does not sign anyone out — nothing more can '
     + 'honestly be said about it.',
   'Noch keine Ergebnisse': 'No results yet',
+  'Vergangene Cups':
+    'Past cups',
   'vorbei':
     'over',
   'Konto wechseln':
