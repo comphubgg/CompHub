@@ -65,6 +65,40 @@ async function schreib(profile: Record<string, SpielerProfil>) {
   await fs.writeFile(DATEI, JSON.stringify(profile, null, 2), 'utf8');
 }
 
+/**
+ * Einen einzelnen Eintrag schreiben, ohne fremde zu verlieren.
+ *
+ * Die ganze Datei wird gelesen, geaendert und zurueckgeschrieben. Wer zwei
+ * Spieler kurz nacheinander pflegt, kann dabei den ersten wieder verlieren:
+ * die zweite Anfrage hat die Datei gelesen, bevor die erste sie geschrieben
+ * hat, und ueberschreibt sie danach mit ihrem aelteren Stand. Der Betreiber
+ * hat genau das erlebt - von vier gepflegten Spielern standen hinterher zwei
+ * da, und er hat sich zu Recht geaergert.
+ *
+ * Deshalb wird nach dem Schreiben nachgesehen, ob der eigene Eintrag
+ * wirklich dasteht. Fehlt er, wird frisch gelesen, die eigene Aenderung
+ * daraufgesetzt und noch einmal geschrieben - bis zu dreimal. Das schliesst
+ * das Fenster nicht mathematisch, aber es macht aus einem verlorenen
+ * Eintrag einen sehr unwahrscheinlichen.
+ */
+async function schreibSicher(
+  schluessel: string,
+  aendere: (profile: Record<string, SpielerProfil>) => void,
+): Promise<Record<string, SpielerProfil>> {
+  let profile = await lies();
+  for (let versuch = 0; versuch < 3; versuch += 1) {
+    aendere(profile);
+    await schreib(profile);
+    const nachher = await lies();
+    const soll = JSON.stringify(profile[schluessel] ?? null);
+    if (JSON.stringify(nachher[schluessel] ?? null) === soll) return nachher;
+    // Jemand war schneller - seinen Stand nehmen und die eigene Aenderung
+    // erneut daraufsetzen.
+    profile = nachher;
+  }
+  return profile;
+}
+
 export async function GET() {
   return NextResponse.json({ profile: await lies() });
 }
@@ -189,7 +223,17 @@ export async function POST(request: Request) {
   // weiter jeden Namensvetter ein.
   if (alter && alterSchluessel) delete profile[alterSchluessel];
 
-  await schreib(profile);
+  /*
+   * Die eigene Aenderung festhalten, damit sie sich wiederholen laesst.
+   *
+   * schreibSicher() liest notfalls neu und setzt genau diese beiden Schritte
+   * noch einmal darauf - siehe dort.
+   */
+  const meinEintrag = profile[schluessel];
+  await schreibSicher(schluessel, (p) => {
+    p[schluessel] = meinEintrag;
+    if (alter && alterSchluessel) delete p[alterSchluessel];
+  });
   /*
    * Die vorgerechneten Antworten des Player Center wegwerfen.
    *

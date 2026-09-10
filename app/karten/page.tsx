@@ -2876,6 +2876,34 @@ ${name}
           className="pointer-events-none absolute inset-0 h-full w-full object-cover" />
       )}
 
+      {/*
+        * Das Wasserzeichen - auch in der Ansicht, nicht erst im Bild.
+        *
+        * Der Betreiber: "im Edit-Menue oder auch als normaler User in der
+        * Preview soll mein Logo nicht dort sein, aber dieses Wasserzeichen,
+        * ganz leicht im Hintergrund, thecomphub.com, das soll trotzdem
+        * ueberall sein." Das Zeichen unten rechts bleibt dem
+        * heruntergeladenen Bild vorbehalten; wer die Karte im Werkzeug
+        * ansieht, braucht es nicht.
+        *
+        * Als Muster in einer eigenen Ebene ueber der Karte und unter den
+        * Formen - so verdeckt es nichts und laesst sich nicht wegschneiden.
+        */}
+      <div aria-hidden
+        className="pointer-events-none absolute inset-0 overflow-hidden">
+        <div className="absolute -inset-1/4 flex flex-wrap content-center
+                        justify-center gap-x-10 gap-y-6 opacity-[0.055]"
+          style={{ transform: 'rotate(-20deg)' }}>
+          {Array.from({ length: 96 }, (_, i) => (
+            <span key={i}
+              className="whitespace-nowrap text-[11px] font-bold tracking-wider
+                         text-white">
+              thecomphub.com
+            </span>
+          ))}
+        </div>
+      </div>
+
       <svg viewBox="0 0 100 100" preserveAspectRatio="none"
         className="pointer-events-none absolute inset-0 h-full w-full">
         {spots.map((s) => {
