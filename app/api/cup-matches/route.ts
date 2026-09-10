@@ -43,6 +43,53 @@ export const runtime = 'nodejs';
 
 const TTL = 60_000;
 
+/**
+ * Wie lange eine Antwort gilt, solange eine Runde laeuft.
+ *
+ * Waehrend eines Spieltags will der Betreiber die Match-ID und den Stand
+ * frueh sehen: "wenn Du die Delay-Zeit fixen koenntest, bis ein Livecup
+ * angezeigt wird ... dass man schneller die Match ID ansehen kann." Eine
+ * Minute war dafuer zu lang - der Tracker stand regelmaessig vorn.
+ *
+ * Fuenfzehn Sekunden. Kuerzer waere Unfug: Epic aktualisiert die Bestenliste
+ * selbst nicht schneller, und jede Anfrage kostet dort mehrere Seiten.
+ */
+const TTL_LIVE = 15_000;
+
+/**
+ * Der beste bekannte Stand je Runde.
+ *
+ * Die Zahl der verbleibenden Teams darf nur fallen. Sie kam aber aus
+ * verschiedenen Abfragen, und eine aeltere Antwort machte aus vierzig wieder
+ * einundvierzig - der Betreiber: "und wenn ich dann meine Seite reloade, ist
+ * auf einmal wieder Top einundvierzig. Das kann ja nicht sein."
+ *
+ * Deshalb wird der niedrigste je gesehene Platz je Runde gemerkt und nie
+ * wieder nach oben gelassen. Der Vorrat lebt im laufenden Vorgang; startet
+ * er neu, faengt die Zahl beim aktuellen Stand an - schlimmer als vorher
+ * wird es dadurch nie.
+ */
+const bestenStand = new Map<string, number>();
+
+/** Den niedrigsten je gesehenen Platz einer Runde - und nie wieder hoeher. */
+function merkeStand(runde: string, jetzt: number): number {
+  const alt = bestenStand.get(runde);
+  const wert = alt === undefined ? jetzt : Math.min(alt, jetzt);
+  bestenStand.set(runde, wert);
+  /*
+   * Der Vorrat waechst mit jeder Runde. Bei zweihundert Eintraegen fliegt
+   * die Haelfte heraus - eine Runde von gestern interessiert niemanden mehr.
+   */
+  if (bestenStand.size > 200) {
+    const raus = [...bestenStand.keys()].slice(0, 100);
+    for (const k of raus) bestenStand.delete(k);
+  }
+  return wert;
+}
+
+/** Wann zu diesem Spieltag zuletzt eine laufende Runde gesehen wurde. */
+const zuletztLive = new Map<string, number>();
+
 /** Solange nach der letzten Ausscheidung gilt eine Lobby als laufend. */
 const LIVE_FENSTER = 20 * 60_000;
 
@@ -207,7 +254,16 @@ export async function GET(request: Request) {
   }
 
   try {
-    const daten = await gecacht(`matches|${event}|${window_}|${limit}`, TTL,
+    /*
+     * Laeuft gerade etwas, gilt die kurze Frist.
+     *
+     * Ob etwas laeuft, weiss man erst nach dem Rechnen - deshalb wird die
+     * vorige Antwort befragt: stand dort eine laufende Runde, ist die
+     * naechste Antwort schnell wieder faellig.
+     */
+    const vorher = zuletztLive.get(`${event}|${window_}`);
+    const frist = vorher && Date.now() - vorher < 30 * 60_000 ? TTL_LIVE : TTL;
+    const daten = await gecacht(`matches|${event}|${window_}|${limit}`, frist,
       () => holeTop(event, window_, limit));
 
     /*
@@ -545,8 +601,14 @@ export async function GET(request: Request) {
             : null,
           /** Der hoechste vergebene Platz - so gross war die Lobby. */
           lobby: hoechster || null,
-          /** Wie viele Teams noch im Spiel sind. */
-          verbleibend: live ? Math.max(0, niedrigster - 1) : 0,
+          /**
+           * Wie viele Teams noch im Spiel sind.
+           *
+           * Nur abwaerts: eine aeltere Antwort darf die Zahl nicht wieder
+           * anheben. Siehe bestenStand oben.
+           */
+          verbleibend: live
+            ? Math.max(0, merkeStand(s.id, niedrigster) - 1) : 0,
           /** Wie viele Teams wir zu dieser Runde ueberhaupt sehen. */
           gesehen: s.teams.length,
           vollstaendig,
@@ -559,6 +621,17 @@ export async function GET(request: Request) {
       // Das Juengste zuerst: wer nachsieht, sucht die laufende oder die
       // gerade beendete Runde, nicht die von vor zwei Stunden.
       .sort((a, b) => (b.ende ?? '').localeCompare(a.ende ?? ''));
+
+    /*
+     * Merken, dass hier gerade gespielt wird.
+     *
+     * Danach richtet sich die Frist der naechsten Antwort: waehrend eines
+     * Spieltags soll sie nach fuenfzehn Sekunden wieder faellig sein, sonst
+     * nach einer Minute.
+     */
+    if (spiele.some((x) => x.live)) {
+      zuletztLive.set(`${event}|${window_}`, Date.now());
+    }
 
     /*
      * Reichte die Bestenliste ueberhaupt bis ans Ende des Feldes?

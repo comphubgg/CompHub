@@ -890,6 +890,29 @@ export default function TweetSeite() {
   const [alleSpieltage, setAlleSpieltage] = useState(false);
   /** Filter fuer die Cup-Liste - sie wird schnell zwanzig Zeilen lang. */
   const [cupSuche, setCupSuche] = useState('');
+
+  /*
+   * Cup und Spieltag aus der Adresse uebernehmen.
+   *
+   * Vom Plus-Knopf in der Turnieransicht: dort steht der Cup schon fest, und
+   * ihn hier ein zweites Mal zu suchen war der Weg, den der Betreiber
+   * beanstandet hat - "ich muss den Cup eingeben, dann den 23.10. auswaehlen,
+   * dann unter Matchday gehen und das richtige Datum. Geht das noch
+   * komplizierter?"
+   *
+   * Einmal, sobald die Cups geladen sind. Danach nicht mehr, sonst spraenge
+   * die Auswahl bei jedem Wechsel zurueck.
+   */
+  const [ausAdresse, setAusAdresse] = useState(false);
+  useEffect(() => {
+    if (ausAdresse || !cups.length) return;
+    const p = new URLSearchParams(window.location.search);
+    const cup = p.get('cup');
+    const fenster = p.get('fenster');
+    if (cup) setCupId(cup);
+    if (fenster) setFensterId(fenster);
+    setAusAdresse(true);
+  }, [cups, ausAdresse]);
   /** Kennzahlen filtern und aufklappen - es sind schnell dreissig. */
   const [listenSuche, setListenSuche] = useState('');
   const [alleListen, setAlleListen] = useState(false);

@@ -2400,6 +2400,43 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
             </button>
           ))}
 
+          {/*
+            * Die Teilnahmebedingungen.
+            *
+            * Sie gehoeren zum Cup und nicht zu einem Spieler, stehen also bei
+            * den uebrigen Reitern - der Betreiber wollte unter Events sehen,
+            * "wie man sich qualifizieren kann".
+            */}
+          <button
+            onClick={() => setReiter('about')}
+            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+              reiter === 'about'
+                ? 'bg-sky-500/10 text-sky-400'
+                : 'text-slate-400 hover:text-slate-200'}`}>
+            About
+          </button>
+
+          {/*
+            * Der kurze Weg in das Beitragswerkzeug.
+            *
+            * Nur fuer den Admin, ganz rechts in der Leiste, und er nimmt Cup
+            * und Spieltag mit. Der Betreiber hat den Umweg beanstandet: "ich
+            * muss den Cup eingeben, dann den 23.10. auswaehlen, dann unter
+            * Matchday gehen und das richtige Datum. Geht das noch
+            * komplizierter?"
+            */}
+          {istAdmin && fenster?.eventId && fenster?.windowId && (
+            <a
+              href={`/admin/tweets?cup=${encodeURIComponent(fenster.eventId)}`
+                + `&fenster=${encodeURIComponent(fenster.windowId)}`}
+              title={t('Beitrag zu diesem Spieltag')}
+              className="ml-auto grid h-7 w-7 shrink-0 place-items-center
+                         rounded-md text-base font-bold text-sky-400
+                         transition hover:bg-sky-500/10">
+              +
+            </a>
+          )}
+
         </div>
 
 
