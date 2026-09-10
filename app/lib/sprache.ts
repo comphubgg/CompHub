@@ -1901,6 +1901,26 @@ const AUF_ENGLISCH: Record<string, string> = {
     + 'minutes. Closing a tab does not sign anyone out — nothing more can '
     + 'honestly be said about it.',
   'Noch keine Ergebnisse': 'No results yet',
+  'Speichern und in OBS einbauen':
+    'Save and add it in OBS',
+  'Name, zum Beispiel „Peterbot & Pxxo“':
+    'Name, for example "Peterbot & Pxxo"',
+  'Gespeichert werden Duo und Aussehen, nicht der Spieltag. Die Adresse zeigt immer auf den laufenden Spieltag deiner Region, also steht sie beim nächsten Turnier noch richtig.':
+    'What gets saved is the duo and the look, not the match day. The address always points at the running match day of your region, so it still works at the next tournament.',
+  'Gespeichert als':
+    'Saved as',
+  'du findest es oben unter „Deine Overlays“.':
+    'you find it above under "Your overlays".',
+  'Die Adresse für OBS':
+    'The address for OBS',
+  'In OBS unten bei „Quellen“ auf + drücken.':
+    'In OBS, press + under "Sources".',
+  '„Browser“ wählen und einen Namen vergeben.':
+    'Choose "Browser" and give it a name.',
+  'Die Adresse oben in das Feld „URL“ einfügen, Breite und Höhe nach Geschmack, OK.':
+    'Paste the address above into the "URL" field, set width and height to taste, OK.',
+  'Diese Adresse bleibt gültig. Änderst du hier später etwas und speicherst, ist es im Stream nach wenigen Sekunden zu sehen — die Browser-Quelle musst du nicht anfassen.':
+    'This address stays valid. If you change something here later and save, it shows up on stream within seconds; you do not have to touch the browser source.',
   'mehr anzeigen':
     'show more',
   'weniger':

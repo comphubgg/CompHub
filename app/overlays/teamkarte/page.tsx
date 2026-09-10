@@ -14,7 +14,7 @@
  * steht unten, damit sie den Weg nicht verstellt.
  */
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
@@ -140,6 +140,8 @@ export default function OverlaySeite() {
   /** Ergebnis der Turniersuche - null heisst "es wurde nicht gesucht". */
   const [funde, setFunde] = useState<Team[] | null>(null);
   const [suchLaeuft, setSuchLaeuft] = useState(false);
+  /** Zaehlt die Suchlaeufe - siehe sucheImTurnier(). */
+  const laufRef = useRef(0);
   const [suchInfo, setSuchInfo] = useState('');
   const [namen, setNamen] = useState<[string, string]>(['', '']);
 
@@ -191,6 +193,8 @@ export default function OverlaySeite() {
     [vorlagenRoh]);
 
   const [neuerTitel, setNeuerTitel] = useState('');
+  /** Ob das Overlay in diesem Durchgang schon gespeichert wurde. */
+  const [abgelegt, setAbgelegt] = useState<string | null>(null);
 
   const [vorlage, setVorlage] = useState('nacht');
   const [klar, setKlar] = useState(92);
@@ -411,6 +415,15 @@ export default function OverlaySeite() {
   const sucheImTurnier = useCallback(async () => {
     const q = teamSuche.trim();
     if (q.length < 2 || !eventId || !windowId) return;
+    /*
+     * Welcher Durchgang das ist.
+     *
+     * Getippt wird schneller, als die Bestenliste antwortet. Ohne diese Zahl
+     * ueberschriebe die Antwort auf "pet" die auf "peterbot", und im Feld
+     * staende ein Ergebnis, das nicht zur Eingabe passt.
+     */
+    const meiner = laufRef.current + 1;
+    laufRef.current = meiner;
     setSuchLaeuft(true);
     setSuchInfo('');
     setFunde(null);
@@ -440,17 +453,32 @@ export default function OverlaySeite() {
           nachPlatz.set(e.rank, { rank: e.rank, spieler: e.players ?? [] });
         }
       }
+      if (laufRef.current !== meiner) return;
       const liste = [...nachPlatz.values()].sort((a, b) => a.rank - b.rank);
       setFunde(liste);
       setSuchInfo(liste.length
         ? ''
         : t('Nicht dabei — dieser Spieler steht in diesem Spieltag nicht in der Liste.'));
     } catch (e) {
-      setSuchInfo((e as Error).message);
+      if (laufRef.current === meiner) setSuchInfo((e as Error).message);
     } finally {
-      setSuchLaeuft(false);
+      if (laufRef.current === meiner) setSuchLaeuft(false);
     }
   }, [teamSuche, eventId, windowId, t]);
+
+  /*
+   * Beim Tippen suchen, nicht auf Knopfdruck.
+   *
+   * Der Betreiber: "ich soll nicht immer auf search druecken muessen, sondern
+   * das soll direkt kommen." Eine kurze Pause bleibt trotzdem stehen - die
+   * Suche geht durch die ganze Bestenliste, und bei jedem Tastendruck loszu-
+   * laufen hiesse, acht Abfragen fuer ein Wort.
+   */
+  useEffect(() => {
+    if (teamSuche.trim().length < 2 || !eventId || !windowId) return undefined;
+    const stift = window.setTimeout(() => { void sucheImTurnier(); }, 350);
+    return () => window.clearTimeout(stift);
+  }, [teamSuche, eventId, windowId, sucheImTurnier]);
 
   const waehleTeam = (tm: Team) => {
     const zwei = tm.spieler.slice(0, 2);
@@ -681,23 +709,19 @@ export default function OverlaySeite() {
                 ? duo.map((p) => p.name).join(' · ') : ''}
               weiter={duo.length ? () => setSchritt(3) : undefined}>
               <>
-                  {/* Die Suche steht sofort da - man soll jeden suchen koennen,
-                      ohne vorher irgendetwas zu laden. Sie geht durch die ganze Bestenliste und braucht
-                      ein paar Sekunden - deshalb ein Knopf, nicht jeder
-                      Tastendruck. */}
+                  {/* Die Suche steht sofort da und laeuft beim Tippen los -
+                      nach einer kurzen Pause, damit nicht jeder Tastendruck
+                      die ganze Bestenliste abfragt. */}
                   <div className="mb-2 flex gap-2">
                     <input value={teamSuche}
-                      onChange={(e) => { setTeamSuche(e.target.value); setFunde(null); }}
-                      onKeyDown={(e) => { if (e.key === 'Enter') void sucheImTurnier(); }}
+                      onChange={(e) => setTeamSuche(e.target.value)}
                       placeholder={t('Spieler suchen — auch Platz 12 000')}
-                      className={feld} />
-                    <button onClick={() => void sucheImTurnier()}
-                      disabled={suchLaeuft || teamSuche.trim().length < 2}
-                      className="shrink-0 rounded-lg border border-zinc-700 px-4 text-sm
-                                 text-slate-300 transition hover:border-sky-500
-                                 disabled:opacity-40">
-                      {suchLaeuft ? <T>sucht …</T> : <T>Suchen</T>}
-                    </button>
+                      className={feld} autoFocus />
+                    {suchLaeuft && (
+                      <span className="shrink-0 self-center text-[11px] text-slate-500">
+                        <T>sucht …</T>
+                      </span>
+                    )}
                   </div>
                   {suchInfo && (
                     <p className="mb-2 text-[11px] text-amber-300">{suchInfo}</p>
@@ -853,16 +877,7 @@ export default function OverlaySeite() {
               offen={schritt === 3}
               gesperrt={!cup}
               onOeffnen={() => setSchritt(3)}
-              weiterText="Fertig"
-              /*
-               * Der letzte Schritt fuehrt zurueck zur Liste.
-               *
-               * Dort steht das fertige Overlay mit seiner Adresse - der
-               * Betreiber: "dann bin ich eigentlich fertig, und dann komm ich
-               * dahin, wo ich meine sehe, kann den auswaehlen und die URL
-               * kopieren."
-               */
-              weiter={() => { window.location.href = window.location.pathname; }}>
+              weiter={() => setSchritt(4)}>
               <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-5">
                 {VORLAGEN.map((v) => (
                   <button key={v.id} onClick={() => setVorlage(v.id)}
@@ -911,6 +926,113 @@ export default function OverlaySeite() {
                   onChange={(e) => setHoehe(Number(e.target.value))}
                   className="mt-1 w-full accent-sky-500" />
               </label>
+            </Schritt>
+
+            {/*
+              * Schritt vier: ablegen und in OBS einbauen.
+              *
+              * Hier stand vorher nichts - das Speichern lag in einem Kasten
+              * rechts, den ich auf Zuruf entfernt habe, und damit war es ganz
+              * weg: der Betreiber drueckte "Fertig" und hatte kein Overlay.
+              * Es gehoert an das Ende des Weges, zusammen mit der Adresse und
+              * dem, was man damit in OBS tut.
+              */}
+            <Schritt nummer={4} titel="Speichern und in OBS einbauen"
+              offen={schritt === 4}
+              gesperrt={!cup || !duo.length}
+              onOeffnen={() => setSchritt(4)}>
+              <div className="flex flex-wrap gap-2">
+                <input value={neuerTitel}
+                  onChange={(e) => setNeuerTitel(e.target.value)}
+                  placeholder={t('Name, zum Beispiel „Peterbot & Pxxo“')}
+                  className={`${feld} min-w-0 flex-1`} />
+                <button
+                  onClick={async () => {
+                    const titel = neuerTitel.trim()
+                      || namen.filter(Boolean).join(' & ')
+                      || duo.map((p) => p.name).join(' & ')
+                      || t('Team card');
+                    const neu = await vorlageSpeichern({
+                      name: titel,
+                      config: {
+                        region,
+                        ids: duo.map((p) => p.id),
+                        namen: namen.filter(Boolean),
+                        vorlage, klar, hoehe, abstand,
+                      },
+                    });
+                    if (neu) {
+                      setAbgelegt(titel);
+                      setNeuerTitel('');
+                    }
+                  }}
+                  disabled={!duo.length}
+                  className="shrink-0 rounded-lg bg-sky-500 px-5 py-2 text-sm
+                             font-semibold text-white transition
+                             hover:bg-sky-400 disabled:cursor-not-allowed
+                             disabled:opacity-40">
+                  <T>Speichern</T>
+                </button>
+              </div>
+              <p className="mt-1.5 text-[11px] leading-relaxed text-slate-500">
+                <T>Gespeichert werden Duo und Aussehen, nicht der Spieltag. Die
+                Adresse zeigt immer auf den laufenden Spieltag deiner Region,
+                also steht sie beim nächsten Turnier noch richtig.</T>
+              </p>
+              {abgelegt && (
+                <p className="mt-2 text-[11px] text-emerald-400">
+                  <T>Gespeichert als</T> „{abgelegt}“ — <T>du findest es oben
+                  unter „Deine Overlays“.</T>
+                </p>
+              )}
+
+              {/* ------------------------------------------- Die Adresse */}
+              <div className="mt-5">
+                <p className="mb-1.5 text-xs font-semibold text-slate-300">
+                  <T>Die Adresse für OBS</T>
+                </p>
+                <div className="flex gap-2">
+                  <input readOnly value={bannerUrl}
+                    onFocus={(e) => e.currentTarget.select()}
+                    className={`${feld} font-mono text-[10px]`} />
+                  <button onClick={() => void kopiere(bannerUrl)}
+                    className="shrink-0 rounded-lg bg-sky-500 px-4 text-sm
+                               font-medium text-white transition
+                               hover:bg-sky-400">
+                    <T>Kopieren</T>
+                  </button>
+                </div>
+                {kopiert && (
+                  <p className="mt-2 text-[11px] text-emerald-400">{kopiert}</p>
+                )}
+
+                {/*
+                  * Die drei Handgriffe in OBS.
+                  *
+                  * Ohne Bilder, wie gewuenscht - drei Zeilen genuegen, und sie
+                  * altern nicht mit jeder neuen OBS-Fassung.
+                  */}
+                <ol className="mt-4 space-y-1.5 text-[11px] leading-relaxed
+                               text-slate-400">
+                  <li>1. <T>In OBS unten bei „Quellen“ auf + drücken.</T></li>
+                  <li>2. <T>„Browser“ wählen und einen Namen vergeben.</T></li>
+                  <li>3. <T>Die Adresse oben in das Feld „URL“ einfügen,
+                    Breite und Höhe nach Geschmack, OK.</T></li>
+                </ol>
+                <p className="mt-2 text-[11px] leading-relaxed text-slate-600">
+                  <T>Diese Adresse bleibt gültig. Änderst du hier später etwas
+                  und speicherst, ist es im Stream nach wenigen Sekunden zu
+                  sehen — die Browser-Quelle musst du nicht anfassen.</T>
+                </p>
+              </div>
+
+              <button
+                onClick={() => { window.location.href = window.location.pathname; }}
+                className="mt-5 rounded-lg border border-zinc-800 px-4 py-2
+                           text-sm text-slate-300 transition
+                           hover:border-sky-500 hover:text-sky-300">
+                <T>Fertig</T>
+              </button>
             </Schritt>
           </div>
 
