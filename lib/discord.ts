@@ -1126,6 +1126,35 @@ export async function richteServerEin(
    * Zum Schluss, weil es den Kanal voraussetzt, den der Aufbau eben erst an
    * seinen Platz geschoben hat.
    */
+  /*
+   * Die Interaktions-Adresse eintragen - falls sie noch fehlt.
+   *
+   * Ohne sie liefert Discord jeden Knopfdruck an einen dauerhaft verbundenen
+   * Bot aus, findet keinen und meldet nach drei Sekunden "die Anwendung hat
+   * nicht rechtzeitig reagiert". Genau davor stand der Betreiber, und er
+   * schloss daraus, der Bot muesse rund um die Uhr laufen - was gerade nicht
+   * noetig ist, sobald diese Adresse steht.
+   *
+   * Sie laesst sich mit dem Bot-Token selbst setzen; das Portal ist dafuer
+   * nicht noetig. Discord prueft sie beim Setzen mit einem unterschriebenen
+   * Anklopfversuch - geht es durch, funktioniert sie auch.
+   */
+  if (knoepfeMoeglich()) {
+    const wo = process.env.WERKZEUG_URL || 'https://www.thecomphub.com';
+    const ziel = `${wo.replace(/\/+$/, '')}/api/discord/interaktion`;
+    const jetzt = await ruf('/applications/@me', 'GET');
+    const gesetzt = (jetzt && !Array.isArray(jetzt))
+      ? String(jetzt.interactions_endpoint_url ?? '') : '';
+    if (gesetzt !== ziel) {
+      const ok = await ruf('/applications/@me', 'PATCH', {
+        interactions_endpoint_url: ziel,
+      });
+      schritte.push(ok
+        ? { text: 'Interaktions-Adresse eingetragen', wert: ziel }
+        : { text: 'Interaktions-Adresse abgelehnt', wert: ziel });
+    }
+  }
+
   const panel = await ticketPanel();
   schritte.push(panel.ok
     ? { text: 'Ticket-Panel steht', wert: '#support' }
