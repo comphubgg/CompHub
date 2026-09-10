@@ -211,6 +211,7 @@ function VipZugaenge() {
   const t = useT();
   const [liste, setListe] = useState<Array<{
     name: string; schluessel: string; aktiv: boolean; angelegt: string;
+    verwaltet?: string | null;
   }>>([]);
   /** Wessen Schluessel gerade offen liegt - einer zur Zeit. */
   const [zeigt, setZeigt] = useState<string | null>(null);
@@ -255,6 +256,16 @@ function VipZugaenge() {
    */
   const [praefix, setPraefix] = useState('');
   const [vorgabe, setVorgabe] = useState('');
+  /**
+   * Fuer wen dieser Zugang die Overlays verwaltet.
+   *
+   * Bleibt es leer, entsteht ein gewoehnlicher VIP-Zugang. Steht ein Name
+   * darin, entsteht ein Manager-Zugang: mehrere Leute teilen ihn sich und
+   * betreuen damit die Overlays dieses Streamers. Er bekommt seinen eigenen
+   * Discord-Kanal in der Kategorie "Manager Access Keys" und darf nur an die
+   * Overlays - nichts sonst.
+   */
+  const [verwaltet, setVerwaltet] = useState('');
 
   async function anlegen(neuerSchluessel = false) {
     setFehler(''); setDiscord(null);
@@ -266,13 +277,14 @@ function VipZugaenge() {
           neuerSchluessel,
           ...(vorgabe.trim() ? { schluessel: vorgabe.trim() }
             : praefix.trim() ? { praefix: praefix.trim() } : {}),
+          ...(verwaltet.trim() ? { verwaltet: verwaltet.trim() } : {}),
         }),
       });
       const j = await r.json();
       if (!r.ok) { setFehler(t(j?.fehler ?? 'nicht gespeichert')); return; }
       setFrisch({ name: j.name, schluessel: j.schluessel });
       setDiscord(j.discord ?? null);
-      setName(''); setPraefix(''); setVorgabe('');
+      setName(''); setPraefix(''); setVorgabe(''); setVerwaltet('');
       await holen();
     } catch (e) { setFehler((e as Error).message); }
   }
@@ -306,6 +318,39 @@ function VipZugaenge() {
       setDiscord(j.discord ?? null);
       await holen();
       setZeigt(n);
+    } catch (e) { setFehler((e as Error).message); }
+  }
+
+  /**
+   * In diesen Zugang wechseln.
+   *
+   * Danach ist die Sitzung dieser Zugang - mit seiner Ansicht, seinen
+   * Overlays, seinen Rechten. Der Betreiber wollte das, um zu sehen, was ein
+   * VIP oder ein Manager tatsaechlich vor sich hat, ohne dessen Schluessel zu
+   * kennen.
+   *
+   * Zurueck geht es nur ueber eine neue Anmeldung. Deshalb wird vorher
+   * gefragt: ein Fehlklick wuerde sonst mitten in der Verwaltung die eigene
+   * Sitzung tauschen.
+   */
+  async function wechseln(n: string) {
+    const sicher = window.confirm(
+      `${t('In diesen Zugang wechseln')}: ${n}
+
+`
+      + t('Zum Zurückkehren musst du dich neu anmelden.'));
+    if (!sicher) return;
+    setFehler('');
+    try {
+      const r = await fetch('/api/admin/konto-wechsel', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name: n }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) { setFehler(t(j?.fehler ?? 'Wechsel nicht möglich')); return; }
+      // Ganz neu laden, nicht nur umrouten: jede Seite haelt die Rechte aus
+      // dem ersten Abruf fest.
+      window.location.href = '/';
     } catch (e) { setFehler((e as Error).message); }
   }
 
@@ -388,6 +433,32 @@ function VipZugaenge() {
             Kleinschreibung zählt also mit.</T>
           </p>
 
+          {/*
+            * Manager-Zugang: fuer wen er arbeitet.
+            *
+            * Ein eigenes Feld und keine Auswahlliste, weil hier auch
+            * "betreiber" stehen darf und die Liste der Zugaenge lang wird.
+            * Was drinsteht, muss es geben - die Schnittstelle weist einen
+            * unbekannten Namen ab, statt einen Zugang anzulegen, der ins
+            * Leere zeigt.
+            */}
+          <label className="mt-3 block">
+            <span className="mb-1 block text-[10px] uppercase tracking-wider
+                             text-slate-600">
+              <T>Verwaltet die Overlays von</T> <T>— freiwillig</T>
+            </span>
+            <input value={verwaltet}
+              onChange={(e) => setVerwaltet(e.target.value)}
+              placeholder={t('leer lassen für einen normalen VIP-Zugang')}
+              className={feld} />
+            <span className="mt-1 block text-[10px] leading-relaxed text-slate-600">
+              <T>Steht hier ein Name, wird daraus ein Manager-Zugang: mehrere
+              Leute teilen ihn sich, sehen und bearbeiten die Overlays dieses
+              Streamers und sonst nichts. Sein Schlüssel landet in Discord unter
+              „Manager Access Keys“, in einem Kanal je Streamer.</T>
+            </span>
+          </label>
+
           {fehler && (
             <p className="mt-3 rounded-lg border border-rose-900/60 bg-rose-950/30
                           px-4 py-2.5 text-xs text-rose-300">{fehler}</p>
@@ -453,6 +524,20 @@ function VipZugaenge() {
                   <span className="text-[10px] text-slate-700">
                     {new Date(z.angelegt).toLocaleDateString('de-DE')}
                   </span>
+                  {/*
+                    * Ein Manager-Zugang traegt, fuer wen er arbeitet.
+                    *
+                    * Ohne das sehen in der Liste zwei Namen gleich aus, und
+                    * man wuesste nicht, welcher Zugang fremde Overlays
+                    * betreut und welcher eigene hat.
+                    */}
+                  {z.verwaltet && (
+                    <span className="rounded border border-sky-500/30
+                                     bg-sky-500/10 px-1.5 py-0.5 text-[10px]
+                                     text-sky-300/90">
+                      <T>Manager für</T> {z.verwaltet}
+                    </span>
+                  )}
                   <button
                     onClick={() => setZeigt(zeigt === z.name ? null : z.name)}
                     className="ml-auto text-[11px] text-slate-500 transition
@@ -469,6 +554,18 @@ function VipZugaenge() {
                                hover:text-amber-400">
                     <T>neuer Schlüssel</T>
                   </button>
+                  {/*
+                    * Hineinsehen - nur bei einem Zugang, der auch gilt.
+                    * In einen stillgelegten zu wechseln hiesse, sich selbst
+                    * auszusperren: das Cookie waere sofort ungueltig.
+                    */}
+                  {z.aktiv && (
+                    <button onClick={() => wechseln(z.name)}
+                      className="text-[11px] text-slate-500 transition
+                                 hover:text-sky-400">
+                      <T>hineinsehen</T>
+                    </button>
+                  )}
                   <button onClick={() => entfernen(z.name)}
                     className="text-[11px] text-slate-600 transition
                                hover:text-rose-400">

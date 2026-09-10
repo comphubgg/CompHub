@@ -1839,6 +1839,28 @@ const AUF_ENGLISCH: Record<string, string> = {
     + 'minutes. Closing a tab does not sign anyone out — nothing more can '
     + 'honestly be said about it.',
   'Noch keine Ergebnisse': 'No results yet',
+  'In diesen Zugang wechseln':
+    'Switch into this access',
+  'Zum Zurückkehren musst du dich neu anmelden.':
+    'To get back you will have to sign in again.',
+  'Wechsel nicht möglich':
+    'Cannot switch',
+  'Manager für':
+    'Manager for',
+  'hineinsehen':
+    'view as',
+  'In die Betreiberkennung lässt sich nicht wechseln.':
+    'You cannot switch into the owner account.',
+  'Für diesen Namen gibt es keinen Zugang.':
+    'There is no access with that name.',
+  'Dieser Zugang ist stillgelegt.':
+    'This access is suspended.',
+  'Verwaltet die Overlays von':
+    'Manages the overlays of',
+  'leer lassen für einen normalen VIP-Zugang':
+    'leave empty for a normal VIP access',
+  'Steht hier ein Name, wird daraus ein Manager-Zugang: mehrere Leute teilen ihn sich, sehen und bearbeiten die Overlays dieses Streamers und sonst nichts. Sein Schlüssel landet in Discord unter „Manager Access Keys“, in einem Kanal je Streamer.':
+    'With a name here this becomes a manager access: several people share it, see and edit that streamer’s overlays and nothing else. Its key goes to Discord under “Manager Access Keys”, one channel per streamer.',
   'Schaden an Bauten':
     'Damage To Structures',
   'Schaden, Trefferquote und Material veröffentlicht Epic nicht. Für diesen Cup liegen sie auch nicht aus der Szene-Quelle vor. Deine eigenen Werte bekommst du trotzdem: einmal meine-werte-holen.bat starten — dann liest das Werkzeug die Replays, die Fortnite auf deinem Rechner ablegt.':

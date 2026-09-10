@@ -62,6 +62,8 @@ interface Zugang {
   vipBis?: number;
   /** Darf dieser VIP seinen Schluessel selbst wechseln? Siehe lib/vipZugaenge.ts. */
   darfSchluessel?: boolean;
+  /** Fuer wen dieser Zugang die Overlays verwaltet. Siehe lib/vipZugaenge.ts. */
+  verwaltet?: string;
 }
 
 async function istAdmin(): Promise<boolean> {
@@ -127,6 +129,8 @@ export async function GET(request: Request) {
       epicId: u.epicId ?? null,
       vipBis: u.vipBis ?? null,
       darfSchluessel: Boolean(u.darfSchluessel),
+      // Wessen Overlays dieser Zugang betreut - bei einem Manager.
+      verwaltet: u.verwaltet ?? null,
       // Ein Zugangskonto ist immer VIP - das ist sein Zweck. Eine Frist
       // schraenkt das nur zusaetzlich ein.
       vip: u.vipBis === undefined || u.vipBis === 0 || u.vipBis > Date.now(),
@@ -196,7 +200,7 @@ export async function POST(request: Request) {
       || daten.users.some((u) => u.username.toLowerCase() === wen);
     if (!da) {
       return NextResponse.json(
-        { fehler: `Für "${verwaltet}" gibt es keinen Zugang.` }, { status: 400 });
+        { fehler: 'Für diesen Namen gibt es keinen Zugang.' }, { status: 400 });
     }
   }
 
