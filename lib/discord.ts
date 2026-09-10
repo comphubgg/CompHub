@@ -240,6 +240,35 @@ async function kategorieFuer(name: string): Promise<string | null> {
   return idAus(neu);
 }
 
+/**
+ * Wie der Schluesselkanal zu einem Zugang heisst.
+ *
+ * Discord nimmt in Kanalnamen keine Grossbuchstaben und keine Leerzeichen.
+ * Umlaute nimmt es zwar, aber sie sehen in einer Kanalliste unruhig aus und
+ * lassen sich schlecht tippen - deshalb werden sie ausgeschrieben: "hörman"
+ * wird zu "hoerman-key" und nicht zu "h-rman-key", was beim blossen Wegwerfen
+ * unbekannter Zeichen herauskaeme.
+ *
+ * Steht hier fuer sich, weil zwei Stellen ihn brauchen: das Anlegen und das
+ * Aufraeumen verwaister Kanaele - und die beiden muessen sich auf dasselbe
+ * Ergebnis verlassen koennen.
+ */
+const UMLAUTE: Record<string, string> = {
+  'ä': 'ae', 'ö': 'oe', 'ü': 'ue', 'ß': 'ss',
+  'å': 'a', 'æ': 'ae', 'ø': 'oe', 'é': 'e', 'è': 'e', 'ê': 'e',
+  'á': 'a', 'à': 'a', 'â': 'a', 'í': 'i', 'ì': 'i', 'ó': 'o', 'ò': 'o',
+  'ô': 'o', 'ú': 'u', 'ù': 'u', 'ñ': 'n', 'ç': 'c',
+};
+
+function kanalname(name: string, art: KanalArt): string {
+  const rein = [...name.toLowerCase()]
+    .map((z) => UMLAUTE[z] ?? z)
+    .join('')
+    .replace(/[^a-z0-9-]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+  return art === 'manager' ? `${rein}-manager-keys` : `${rein}-key`;
+}
+
 async function rolleFuer(name: string): Promise<string | null> {
   const vorhandene = await ruf(`/guilds/${SERVER}/roles`, 'GET');
   if (Array.isArray(vorhandene)) {
@@ -305,18 +334,7 @@ async function kanalFuer(
    * "hörman" wird zu "hoerman-key" und nicht zu "h-rman-key", was beim
    * blossen Wegwerfen unbekannter Zeichen herauskaeme.
    */
-  const UMLAUTE: Record<string, string> = {
-    'ä': 'ae', 'ö': 'oe', 'ü': 'ue', 'ß': 'ss',
-    'å': 'a', 'æ': 'ae', 'ø': 'oe', 'é': 'e', 'è': 'e', 'ê': 'e',
-    'á': 'a', 'à': 'a', 'â': 'a', 'í': 'i', 'ì': 'i', 'ó': 'o', 'ò': 'o',
-    'ô': 'o', 'ú': 'u', 'ù': 'u', 'ñ': 'n', 'ç': 'c',
-  };
-  const rein = [...name.toLowerCase()]
-    .map((z) => UMLAUTE[z] ?? z)
-    .join('')
-    .replace(/[^a-z0-9-]+/g, '-')
-    .replace(/^-+|-+$/g, '');
-  const kanalname = art === 'manager' ? `${rein}-manager-keys` : `${rein}-key`;
+  const kanalname_ = kanalname(name, art);
   /*
    * Der Bot traegt sich selbst als berechtigt ein.
    *
@@ -370,7 +388,7 @@ async function kanalFuer(
     : KATEGORIE;
 
   const neu = await ruf(`/guilds/${SERVER}/channels`, 'POST', {
-    name: kanalname,
+    name: kanalname_,
     type: 0,                 // Textkanal
     parent_id: eltern,
     permission_overwrites: regeln,
@@ -1184,6 +1202,37 @@ export async function schluesselAufraeumen(): Promise<AufbauBericht> {
       });
     } else {
       fehler.push({ text: 'Schlüssel blieb aus', wert: `${z.username} — ${hin.grund}` });
+    }
+  }
+
+  /*
+   * Und die Kanaele, zu denen es keinen Zugang mehr gibt.
+   *
+   * Sie stammen aus der Zeit, in der das Loeschen den Kanal noch stehen
+   * liess. Der Betreiber hat sie ausdruecklich freigegeben: "wenn es diese
+   * Nutzer nicht mehr gibt, diese VIPs, dann kannst Du auch deren Channel
+   * loeschen."
+   *
+   * Angefasst wird nur, was eindeutig ein Schluesselkanal ist - "<name>-key"
+   * oder "<name>-manager-keys" - und wozu kein Zugang mehr gehoert. Alles
+   * andere auf dem Server bleibt unberuehrt, auch wenn es leer aussieht.
+   */
+  const erwartet = new Set<string>();
+  for (const z of await alleZugaenge()) {
+    const fuer = (z.verwaltet ?? '').trim();
+    erwartet.add(kanalname(fuer || z.username, fuer ? 'manager' : 'vip'));
+  }
+
+  for (const k of await alleKanaele()) {
+    if (k.type !== 0) continue;
+    const istSchluesselkanal = k.name.endsWith('-key')
+      || k.name.endsWith('-manager-keys');
+    if (!istSchluesselkanal || erwartet.has(k.name)) continue;
+    const weg = await ruf(`/channels/${k.id}`, 'DELETE');
+    if (weg || letzterStatus === 404) {
+      schritte.push({ text: 'Verwaister Kanal entfernt', wert: `#${k.name}` });
+    } else {
+      fehler.push({ text: 'Verwaister Kanal blieb stehen', wert: `#${k.name}` });
     }
   }
 

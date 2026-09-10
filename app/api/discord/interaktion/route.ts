@@ -61,6 +61,26 @@ function unterschriftStimmt(roh: string, signatur: string, zeit: string): boolea
   }
 }
 
+/**
+ * Ist der Endpunkt bereit?
+ *
+ * Ein Aufruf ohne Unterschrift wird - richtigerweise - immer abgewiesen, auch
+ * wenn alles eingerichtet ist. Damit laesst sich von aussen nicht
+ * unterscheiden, ob der oeffentliche Schluessel fehlt oder ob bloss niemand
+ * unterschrieben hat. Genau diese Frage beantwortet dieser Weg, und sonst
+ * keine: er sagt ja oder nein und nennt den Schluessel nicht.
+ *
+ * Im Browser aufrufbar: https://www.thecomphub.com/api/discord/interaktion
+ */
+export async function GET() {
+  return NextResponse.json({
+    bereit: Boolean(process.env.DISCORD_PUBLIC_KEY),
+    hinweis: process.env.DISCORD_PUBLIC_KEY
+      ? 'Der öffentliche Schlüssel liegt vor. Discord kann die Adresse jetzt prüfen.'
+      : 'DISCORD_PUBLIC_KEY fehlt in dieser Umgebung — Discord wird die Adresse abweisen.',
+  });
+}
+
 /** Eine Antwort, die nur der sieht, der gedrueckt hat. */
 const nurFuerIhn = (text: string) => NextResponse.json({
   type: 4, data: { content: text, flags: 64 },
