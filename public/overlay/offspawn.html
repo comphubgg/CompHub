@@ -23,8 +23,11 @@
   --grund: 0 0 0;
   --deckkraft: 0.72;
   --schrift: 30px;
-  --links: #38bdf8;
-  --rechts: #f43f5e;
+  --links: #ffffff;
+  --rechts: #ffffff;
+  /* Hoehe der Bilder, und die Breite des Kastens (0 = nach Inhalt). */
+  --bild: 2.1em;
+  --breite: auto;
   --text: #ffffff;
   --rand: rgba(255, 255, 255, 0.09);
 }
@@ -39,7 +42,14 @@ html, body {
 }
 
 #karte {
-  width: max-content;
+  /*
+   * Breite nach Inhalt - oder fest, wenn eine eingestellt ist.
+   *
+   * Der Betreiber wollte sie ziehen koennen: "ich moechte das breiter ziehen
+   * oder so." Bei fester Breite bleibt der Inhalt mittig.
+   */
+  width: var(--breite);
+  min-width: max-content;
   max-width: 100vw;
   background: rgb(var(--grund) / var(--deckkraft));
   border: 1px solid var(--rand);
@@ -96,9 +106,17 @@ html, body {
    * komplettes Quadrat." Ein leicht gebrochener Rand bleibt, damit es nicht
    * wie ein ausgeschnittenes Stueck Bildschirm aussieht.
    */
-  width: 1.05em;
-  height: 1.3em;
-  border-radius: 0.1em;
+  /*
+   * So gross wie der Kasten hergibt.
+   *
+   * Der erste Versuch war ein Daumennagel neben dem Namen - der Betreiber:
+   * "es soll das ganze Kaestchen sein, nicht so klein." Es reicht jetzt vom
+   * oberen bis zum unteren Rand des Inhalts und laesst sich zusaetzlich
+   * ueber einen Regler stellen.
+   */
+  width: calc(var(--bild) * 0.8);
+  height: var(--bild);
+  border-radius: 0.08em;
   object-fit: cover;
   object-position: center 18%;
   border: 0.05em solid currentColor;
@@ -184,7 +202,17 @@ html, body {
     punkte1: 0, punkte2: 0,
     /** Die frei geschriebene Zeile darunter, etwa "Game 1 / 4". */
     zusatz: '',
-    farbe1: '#38bdf8', farbe2: '#f43f5e',
+    /*
+     * Weiss als Vorgabe.
+     *
+     * Der Betreiber: "mach als Standard alles weiss, beide Teams, deren
+     * Namen soll weiss sein." Wer Farbe will, waehlt sie.
+     */
+    farbe1: '#ffffff', farbe2: '#ffffff',
+    /** Hoehe der Bilder in Vielfachen der Schriftgroesse. */
+    bild: 2.1,
+    /** Feste Breite in Pixeln - 0 heisst: so breit wie der Inhalt. */
+    breite: 0,
     /** Die Farbe des Balkens unter dem Stand. */
     balken: '#f97316',
     /** Bilder je Seite - eines je Duo, so wollte es der Betreiber. */
@@ -205,6 +233,9 @@ html, body {
       s.setProperty('--rechts', String(cfg.farbe2));
       s.setProperty('--schrift', cfg.schrift + 'px');
       s.setProperty('--balken', String(cfg.balken || '#f97316'));
+      s.setProperty('--bild', (Number(cfg.bild) || 2.1) + 'em');
+      s.setProperty('--breite',
+        Number(cfg.breite) > 0 ? Number(cfg.breite) + 'px' : 'max-content');
 
       for (const [id, pfad] of [['f1', cfg.bild1], ['f2', cfg.bild2]]) {
         const el = $(id);

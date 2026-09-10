@@ -28,7 +28,12 @@ const STANDARD = {
   name1: 'TEAM 1', name2: 'TEAM 2',
   punkte1: 0, punkte2: 0,
   zusatz: '',
-  farbe1: '#38bdf8', farbe2: '#f43f5e',
+  // Weiss als Vorgabe - so wollte es der Betreiber. Farbe ist die Ausnahme.
+  farbe1: '#ffffff', farbe2: '#ffffff',
+  /** Hoehe der Bilder in Vielfachen der Schriftgroesse. */
+  bild: 2.1,
+  /** Feste Breite in Pixeln - 0 heisst: so breit wie der Inhalt. */
+  breite: 0,
   /** Die Farbe des Balkens unter dem Stand. */
   balken: '#f97316',
   /** Ein Bild je Seite - eines je Duo. */
@@ -56,12 +61,12 @@ const BALKEN: Array<{ wert: string; titel: string }> = [
 ];
 
 const FARBEN: Array<{ wert: string; titel: string }> = [
+  { wert: '#ffffff', titel: 'Weiß' },
   { wert: '#38bdf8', titel: 'Blau' },
   { wert: '#f43f5e', titel: 'Rot' },
   { wert: '#f5c542', titel: 'Gold' },
   { wert: '#34d399', titel: 'Grün' },
   { wert: '#a78bfa', titel: 'Violett' },
-  { wert: '#ffffff', titel: 'Weiß' },
 ];
 
 export default function OffspawnSeite() {
@@ -337,6 +342,15 @@ export default function OffspawnSeite() {
                 setzen={(w) => setz('grund', w)} />
               <Regler titel="Schriftgröße" wert={cfg.schrift} von={14} bis={80}
                 einheit="px" setzen={(n) => setz('schrift', n)} />
+              <Regler titel="Größe der Bilder" wert={cfg.bild} von={0} bis={4}
+                schritt={0.1} setzen={(n) => setz('bild', n)} />
+              {/*
+                * Null heisst: so breit wie der Inhalt. Alles darueber zieht
+                * den Kasten auf - der Betreiber wollte ihn breiter ziehen
+                * koennen.
+                */}
+              <Regler titel="Breite" wert={cfg.breite} von={0} bis={1200}
+                schritt={10} einheit="px" setzen={(n) => setz('breite', n)} />
               <Regler titel="Wie deckend der Grund ist" wert={cfg.deckkraft}
                 von={0} bis={1} schritt={0.02}
                 setzen={(n) => setz('deckkraft', n)} />
