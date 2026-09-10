@@ -28,6 +28,14 @@ export interface OverlayEintrag {
   stand: number;
   geaendert: string;
   config: Record<string, unknown>;
+  /*
+   * Wer es angelegt und wer es zuletzt angefasst hat.
+   *
+   * Nur bei einem Manager-Zugang gefuellt, den sich mehrere teilen. Sonst
+   * leer - dort ist ohnehin klar, wer es war.
+   */
+  angelegtVon?: string | null;
+  geaendertVon?: string | null;
 }
 
 /** Die Arten, die es gibt - dieselbe Reihenfolge wie in der Leiste. */

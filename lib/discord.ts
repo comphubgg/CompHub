@@ -1,7 +1,8 @@
 import fs from '@/lib/ablageFs';
 import path from 'path';
 import { DATEN_ORT } from './datenOrt';
-import { BEITRAEGE, FARBE, type Sprache } from './discordTexte';
+import { BEITRAEGE, FARBE, type Sprache, type Sichtbar } from './discordTexte';
+import { alleZugaenge } from './vipZugaenge';
 
 /*
  * Zugangsschluessel nach Discord schicken.
@@ -389,6 +390,17 @@ async function kanalFuer(
    * der Schluessel steht, und zwar einmal: nur beim Anlegen des Kanals, nicht
    * bei jedem neuen Schluessel.
    */
+  /*
+   * Die frische Rolle darf auch den passenden Leitfaden sehen.
+   *
+   * Sonst stuende ein neuer VIP vor einem gesperrten #vip-guide, bis der
+   * Aufbau das naechste Mal laeuft - und ein Kanal, der beim ersten Blick
+   * nicht da ist, wird nie wieder gesucht.
+   */
+  if (eigeneRolle) {
+    await leitfadenFreigeben(eigeneRolle, art === 'manager' ? 'manager' : 'vip');
+  }
+
   const leitfaden = art === 'manager' ? 'manager-guide' : 'vip-guide';
   const hinein = await ruf(`/channels/${id}/messages`, 'POST', {
     embeds: [alsEinbettung(leitfaden, 'en')],
@@ -599,6 +611,98 @@ interface RoherKanal {
   topic?: string | null;
 }
 
+/**
+ * Alle Rollen des Servers, klein geschrieben: Name -> Kennung.
+ *
+ * Ueber den Namen und nicht ueber gemerkte Kennungen, weil die Rollen zu
+ * verschiedenen Zeiten entstanden sind - ein Teil von Hand, ein Teil von
+ * rolleFuer(). Gemeinsam haben sie nur, wie sie heissen.
+ */
+async function rollenListe(): Promise<Map<string, string>> {
+  const roh = await ruf(`/guilds/${SERVER}/roles`, 'GET');
+  const raus = new Map<string, string>();
+  if (!Array.isArray(roh)) return raus;
+  for (const r of roh as Array<{ id: string; name: string; managed?: boolean }>) {
+    if (!r.managed) raus.set(r.name.toLowerCase(), r.id);
+  }
+  return raus;
+}
+
+/**
+ * Welche Rollen zu den VIPs gehoeren und welche zu den Managern.
+ *
+ * Der Betreiber wollte die Leitfaeden getrennt sichtbar: "beim VIP Guide kann
+ * der Kanal gesperrt sein, viel nur VIPs ... bei Manager Guide fuer nur
+ * Manager." Also muss der Aufbau wissen, welche Rolle wofuer steht.
+ *
+ * Die Zuordnung kommt aus der Zugangsdatei, nicht aus den Rollennamen allein:
+ * dort steht, welcher Zugang ein Manager ist. Dazu die beiden Sammelrollen,
+ * die der Betreiber von Hand vergeben kann, ohne fuer jeden einen eigenen
+ * Zugang anzulegen.
+ */
+async function zugangsRollen(): Promise<{ vip: string[]; manager: string[] }> {
+  const rollen = await rollenListe();
+  const vip: string[] = [];
+  const manager: string[] = [];
+  /*
+   * Der Rollenname muss nicht Zeichen fuer Zeichen dem Zugang entsprechen.
+   *
+   * Der Zugang heisst "aussie-antics", die Rolle auf dem Server "AussieAntics"
+   * - von Hand angelegt, lange bevor es die Zugaenge gab. Ein strenger
+   * Vergleich haette diesen VIP vor einem gesperrten #vip-guide stehen lassen.
+   * Verglichen wird deshalb ohne Bindestriche, Punkte und Leerzeichen.
+   */
+  const nackt = (x: string) => x.toLowerCase().replace(/[^a-z0-9]+/g, '');
+  const nachNackt = new Map<string, string>();
+  for (const [n, id] of rollen) {
+    if (!nachNackt.has(nackt(n))) nachNackt.set(nackt(n), id);
+  }
+
+  const nimm = (liste: string[], name: string) => {
+    const id = rollen.get(name) ?? nachNackt.get(nackt(name));
+    if (id && !liste.includes(id)) liste.push(id);
+  };
+
+  nimm(vip, 'vip streamer');
+  nimm(manager, 'vip manager');
+
+  for (const z of await alleZugaenge()) {
+    const fuer = (z.verwaltet ?? '').trim();
+    if (fuer) nimm(manager, `${fuer.toLowerCase()} manager`);
+    else nimm(vip, z.username.toLowerCase());
+  }
+
+  /*
+   * Und jede Rolle, die auf " manager" endet.
+   *
+   * Ein Sicherheitsnetz: wer die Rolle von Hand angelegt oder umbenannt hat,
+   * soll den Leitfaden trotzdem sehen. Andersherum waere es schlimmer - ein
+   * Manager, der vor einem gesperrten Kanal steht, fragt nach.
+   */
+  for (const [name, id] of rollen) {
+    if (name.endsWith(' manager') && !manager.includes(id)) manager.push(id);
+  }
+
+  return { vip, manager };
+}
+
+/**
+ * Einer Rolle den passenden Leitfaden zeigen.
+ *
+ * Ein einzelner Eintrag im Kanal, kein Neusetzen aller Regeln: die uebrigen
+ * Rollen, die dort schon stehen, sollen bleiben.
+ */
+async function leitfadenFreigeben(rolle: string, sichtbar: Sichtbar): Promise<void> {
+  const beitrag = Object.values(BEITRAEGE).find((b) => b.sichtbar === sichtbar);
+  if (!beitrag) return;
+  const kanaele = await alleKanaele();
+  const k = kanaele.find((x) => x.type === 0 && gleich(x.name, beitrag.kanal));
+  if (!k) return;
+  await ruf(`/channels/${k.id}/permissions/${rolle}`, 'PUT', {
+    type: 0, allow: LESEN, deny: NICHT_SCHREIBEN,
+  });
+}
+
 /** Die Kanalliste des Servers - einmal je Aufbau geholt. */
 async function alleKanaele(): Promise<RoherKanal[]> {
   const k = await ruf(`/guilds/${SERVER}/channels`, 'GET');
@@ -695,12 +799,28 @@ async function leerRaeumen(kanal: string, hoechstens = 50): Promise<number> {
  */
 async function infoKanal(
   name: string, thema: string, kategorie: string | null, vorhandene: RoherKanal[],
+  sichtbar: Sichtbar = 'alle', darfSehen: string[] = [],
 ): Promise<string | null> {
   const ich = await werBinIch();
   const adminRolle = await adminRolleId();
+  /*
+   * Wer den Kanal sehen darf.
+   *
+   * Bei "alle" sieht @everyone ihn und darf nur nicht schreiben. Sonst ist er
+   * fuer @everyone ganz zu (1024 gesperrt), und die genannten Rollen bekommen
+   * das Ansehen einzeln - schreiben duerfen auch sie nicht, ein Aushang ist
+   * kein Chat.
+   */
   const regeln: Array<Record<string, string | number>> = [
-    { id: SERVER, type: 0, allow: LESEN, deny: NICHT_SCHREIBEN },
+    sichtbar === 'alle'
+      ? { id: SERVER, type: 0, allow: LESEN, deny: NICHT_SCHREIBEN }
+      : { id: SERVER, type: 0, allow: '0', deny: String(1024 + Number(NICHT_SCHREIBEN)) },
   ];
+  if (sichtbar !== 'alle') {
+    for (const rolle of darfSehen) {
+      regeln.push({ id: rolle, type: 0, allow: LESEN, deny: NICHT_SCHREIBEN });
+    }
+  }
   if (ich) regeln.push({ id: ich, type: 1, allow: VOLLZUGRIFF, deny: '0' });
   if (adminRolle) {
     regeln.push({ id: adminRolle, type: 0, allow: VOLLZUGRIFF, deny: '0' });
@@ -835,12 +955,34 @@ export async function richteServerEin(
     if (info) schritte.push({ text: 'Kategorie für die Aushänge bereit.' });
   }
 
+  /*
+   * Die beiden Sammelrollen, damit es sie ueberhaupt gibt.
+   *
+   * "VIP STREAMER" hatte der Betreiber schon; das Gegenstueck fuer die
+   * Manager fehlte. Beide tragen keinerlei Rechte auf Serverebene - was sie
+   * duerfen, entscheidet allein die Regel im Kanal.
+   */
+  const vorherVipManager = (await rollenListe()).has('vip manager');
+  await rolleFuer('VIP MANAGER');
+  if (!vorherVipManager) {
+    schritte.push({ text: 'Rolle angelegt', wert: 'VIP MANAGER' });
+  }
+
+  const rollen = await zugangsRollen();
+  schritte.push({
+    text: 'Rollen für die Leitfäden gefunden',
+    wert: `${rollen.vip.length} VIP, ${rollen.manager.length} Manager`,
+  });
+
   const ablage = await lies();
 
   for (const schluessel of Object.keys(BEITRAEGE)) {
     const b = BEITRAEGE[schluessel];
     kanaele = await alleKanaele();
-    const kanal = await infoKanal(b.kanal, b.thema, info, kanaele);
+    const kanal = await infoKanal(
+      b.kanal, b.thema, info, kanaele, b.sichtbar,
+      b.sichtbar === 'vip' ? rollen.vip
+        : b.sichtbar === 'manager' ? rollen.manager : []);
     if (!kanal) {
       fehler.push({ text: 'Kanal ließ sich nicht anlegen', wert: `#${b.kanal}` });
       continue;

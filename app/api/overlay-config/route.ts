@@ -7,6 +7,7 @@ import { kontoAus, nachId } from '@/lib/konten';
 import { istBetreiber, vipAus } from '@/lib/vipCookie';
 import { zugangNach } from '@/lib/vipZugaenge';
 import { DATEN_ORT } from '@/lib/datenOrt';
+import { modName } from '@/lib/modName';
 
 // Die Einstellungen eines Overlays - unter einer Adresse, die sich nie aendert.
 //
@@ -50,6 +51,30 @@ export interface OverlayEintrag {
   stand: number;
   geaendert: string;
   config: Record<string, unknown>;
+  /*
+   * Wer es angelegt und wer es zuletzt angefasst hat.
+   *
+   * Nur bei einem Manager-Zugang gefuellt. Der gehoert nicht einer Person -
+   * mehrere teilen sich Name und Schluessel -, und der Streamer wollte
+   * trotzdem sehen, "wer was erstellt hat, wer was geaendert hat". Beim
+   * Anmelden gibt jeder deshalb seinen eigenen Namen an; der steht hier.
+   *
+   * Ein Schild, keine Beweisfuehrung: wer den Schluessel hat, kann jeden
+   * Namen eintippen. Fuer den Zweck - "wen frage ich, warum das Overlay
+   * anders aussieht" - genuegt das.
+   */
+  angelegtVon?: string;
+  geaendertVon?: string;
+}
+
+/**
+ * Das Namensschild aus dem Cookie - oder nichts.
+ *
+ * Leer bei jedem gewoehnlichen Zugang: dort ist ohnehin klar, wer es war.
+ */
+async function schild(): Promise<string> {
+  const laden = await cookies();
+  return modName(laden.get('streamer_dashboard_mod')?.value);
 }
 
 async function lies(): Promise<Record<string, OverlayEintrag>> {
@@ -154,6 +179,8 @@ export async function GET(request: Request) {
         .map((e) => ({
           id: e.id, typ: e.typ, name: e.name, stand: e.stand,
           geaendert: e.geaendert, config: e.config,
+          angelegtVon: e.angelegtVon ?? null,
+          geaendertVon: e.geaendertVon ?? null,
         })),
     });
   }
@@ -199,6 +226,8 @@ export async function POST(request: Request) {
     e.config = config;
     e.stand += 1;
     e.geaendert = new Date().toISOString();
+    const wers = await schild();
+    if (wers) e.geaendertVon = wers;
     await schreibe(alles);
     return NextResponse.json({ id: e.id, stand: e.stand });
   }
@@ -211,6 +240,8 @@ export async function POST(request: Request) {
     }, { status: 400 });
   }
 
+  const wer_es_war = await schild();
+
   // Zwoelf Zeichen aus dem Zufallsgenerator: kurz genug fuer eine Adresse,
   // lang genug, dass niemand fremde Overlays durchprobiert.
   const neu: OverlayEintrag = {
@@ -221,6 +252,8 @@ export async function POST(request: Request) {
     stand: 1,
     geaendert: new Date().toISOString(),
     config,
+    // Einmal lesen, nicht zweimal - und nur setzen, wenn wirklich eines da ist.
+    ...(wer_es_war ? { angelegtVon: wer_es_war, geaendertVon: wer_es_war } : {}),
   };
   alles[neu.id] = neu;
   await schreibe(alles);

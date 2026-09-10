@@ -267,6 +267,17 @@ function VipZugaenge() {
    */
   const [verwaltet, setVerwaltet] = useState('');
   /**
+   * Welcher Reiter offen ist - VIP oder VIP-Manager.
+   *
+   * Der Betreiber wollte das ausdruecklich getrennt: "wenn ich VIP druecke,
+   * soll ich zwischen VIP erstellen oder VIP Manager erstellen switchen
+   * koennen. Also es gibt so zwei Tabs im VIP Tab. Also nicht auf einer
+   * Seite." Die beiden Faelle brauchen verschiedene Angaben - beim Manager
+   * zaehlt, fuer wen er arbeitet, und der Name ergibt sich daraus -, und
+   * nebeneinander sah das aus wie ein Feld, das man auch leer lassen kann.
+   */
+  const [art, setArt] = useState<'vip' | 'manager'>('vip');
+  /**
    * Der Aufbau des Discord-Servers.
    *
    * null heisst "noch nicht angestossen". Sonst steht hier, was der Bot
@@ -279,17 +290,31 @@ function VipZugaenge() {
     fehler: Array<{ text: string; wert?: string }>;
   } | null>(null);
 
+  /**
+   * Wie der Zugang eines Managers heisst.
+   *
+   * Aus dem Streamer abgeleitet und nicht von Hand getippt: der Betreiber
+   * nannte das Muster selbst - "der VIP User, zum Beispiel Groupay, und dann
+   * Manager, also Groupay Managers mit Mehrzahl". Zwei Felder, die
+   * voneinander abhaengen, waeren zwei Gelegenheiten, sich zu vertippen.
+   */
+  const managerName = `${verwaltet.trim().toLowerCase()}-managers`;
+  const zuName = art === 'manager' ? managerName : name.trim();
+  const bereit = art === 'manager'
+    ? verwaltet.trim().length >= 2 : name.trim().length >= 3;
+
   async function anlegen(neuerSchluessel = false) {
     setFehler(''); setDiscord(null);
     try {
       const r = await fetch('/api/admin/vip-zugaenge', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          name: name.trim(),
+          name: zuName,
           neuerSchluessel,
           ...(vorgabe.trim() ? { schluessel: vorgabe.trim() }
             : praefix.trim() ? { praefix: praefix.trim() } : {}),
-          ...(verwaltet.trim() ? { verwaltet: verwaltet.trim() } : {}),
+          ...(art === 'manager' && verwaltet.trim()
+            ? { verwaltet: verwaltet.trim() } : {}),
         }),
       });
       const j = await r.json();
@@ -428,25 +453,84 @@ function VipZugaenge() {
 
       {offen && (
         <div className="mt-4">
+          {/*
+            * Zwei Reiter, zwei Arten von Zugang.
+            *
+            * Sie sehen aus wie die Reiter, die anderswo im Werkzeug stehen -
+            * ein neuer Sonderentwurf waere hier nur eine weitere Form, die
+            * man lernen muss.
+            */}
+          <div className="mb-3 flex gap-1 rounded-lg border border-zinc-800
+                          bg-zinc-950/60 p-1">
+            {(['vip', 'manager'] as const).map((w) => (
+              <button key={w} onClick={() => { setArt(w); setFehler(''); }}
+                className={`flex-1 rounded-md px-3 py-1.5 text-[11px]
+                            font-semibold transition ${art === w
+                  ? 'bg-sky-500 text-white'
+                  : 'text-slate-400 hover:text-slate-200'}`}>
+                {w === 'vip' ? <T>VIP</T> : <T>VIP-Manager</T>}
+              </button>
+            ))}
+          </div>
+
           <p className="mb-3 text-[11px] leading-relaxed text-slate-600">
-            <T>Ein Name genügt — keine E-Mail, keine Bestätigung. Der
-            Schlüssel wird erzeugt und erscheint genau einmal. Angemeldet wird
-            sich damit unter „VIP&ldquo; auf der Anmeldeseite.</T>
+            {art === 'vip'
+              ? <T>Ein Name genügt — keine E-Mail, keine Bestätigung. Der
+                Schlüssel wird erzeugt und erscheint genau einmal. Angemeldet
+                wird sich damit unter „VIP&ldquo; auf der Anmeldeseite.</T>
+              : <T>Ein Zugang, den sich mehrere Leute teilen: sie betreuen
+                damit die Overlays eines Streamers und sonst nichts. Der Name
+                ergibt sich aus dem Streamer, der Schlüssel landet in Discord
+                unter „Manager Access Keys&ldquo;. Beim Anmelden gibt jeder
+                zusätzlich seinen eigenen Namen an — so steht neben jedem
+                Overlay, wer es angelegt hat.</T>}
           </p>
 
           <div className="flex flex-wrap gap-2">
-            <input value={name} onChange={(e) => setName(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') void anlegen(); }}
-              placeholder={t('Benutzername')}
-              autoComplete="new-password" name="vip-neu"
-              className={`${feld} flex-1`} />
-            <button onClick={() => anlegen()} disabled={name.trim().length < 3}
+            {art === 'vip' ? (
+              <input value={name} onChange={(e) => setName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') void anlegen(); }}
+                placeholder={t('Benutzername')}
+                autoComplete="new-password" name="vip-neu"
+                className={`${feld} flex-1`} />
+            ) : (
+              <input value={verwaltet}
+                onChange={(e) => setVerwaltet(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') void anlegen(); }}
+                placeholder={t('Streamer, dessen Overlays betreut werden')}
+                list="vip-zugaenge"
+                autoComplete="off" name="vip-verwaltet"
+                className={`${feld} flex-1`} />
+            )}
+            <button onClick={() => anlegen()} disabled={!bereit}
               className="rounded-lg bg-sky-500 px-5 text-sm font-semibold
                          text-white transition hover:bg-sky-400
                          disabled:cursor-not-allowed disabled:opacity-40">
               <T>anlegen</T>
             </button>
           </div>
+
+          {/*
+            * Die vorhandenen Zugaenge als Vorschlag.
+            *
+            * Kein Auswahlfeld, weil hier auch "betreiber" stehen darf und die
+            * Liste lang wird; ein Vorschlag beim Tippen genuegt. Manager
+            * stehen nicht darin - ein Manager verwaltet keinen Manager.
+            */}
+          <datalist id="vip-zugaenge">
+            {liste.filter((z) => !z.verwaltet).map((z) => (
+              <option key={z.name} value={z.name} />
+            ))}
+            <option value="betreiber" />
+          </datalist>
+
+          {art === 'manager' && verwaltet.trim() && (
+            <p className="mt-1.5 text-[11px] text-slate-500">
+              <T>Der Zugang heißt dann</T>{' '}
+              <code className="rounded bg-zinc-950 px-1.5 py-0.5 font-mono
+                               text-sky-300">{managerName}</code>
+            </p>
+          )}
 
           {/*
             * Den Schluessel mitbestimmen - freiwillig.
@@ -482,31 +566,6 @@ function VipZugaenge() {
             Kleinschreibung zählt also mit.</T>
           </p>
 
-          {/*
-            * Manager-Zugang: fuer wen er arbeitet.
-            *
-            * Ein eigenes Feld und keine Auswahlliste, weil hier auch
-            * "betreiber" stehen darf und die Liste der Zugaenge lang wird.
-            * Was drinsteht, muss es geben - die Schnittstelle weist einen
-            * unbekannten Namen ab, statt einen Zugang anzulegen, der ins
-            * Leere zeigt.
-            */}
-          <label className="mt-3 block">
-            <span className="mb-1 block text-[10px] uppercase tracking-wider
-                             text-slate-600">
-              <T>Verwaltet die Overlays von</T> <T>— freiwillig</T>
-            </span>
-            <input value={verwaltet}
-              onChange={(e) => setVerwaltet(e.target.value)}
-              placeholder={t('leer lassen für einen normalen VIP-Zugang')}
-              className={feld} />
-            <span className="mt-1 block text-[10px] leading-relaxed text-slate-600">
-              <T>Steht hier ein Name, wird daraus ein Manager-Zugang: mehrere
-              Leute teilen ihn sich, sehen und bearbeiten die Overlays dieses
-              Streamers und sonst nichts. Sein Schlüssel landet in Discord unter
-              „Manager Access Keys“, in einem Kanal je Streamer.</T>
-            </span>
-          </label>
 
           {fehler && (
             <p className="mt-3 rounded-lg border border-rose-900/60 bg-rose-950/30

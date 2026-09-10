@@ -32,10 +32,21 @@ const ANBIETER = [
     pfad: '/api/auth/google/authorize', logo: '/icons/google.svg' },
 ];
 
-export default function Anmelden() {
+/**
+ * Die Anmeldeseite.
+ *
+ * @param start Welcher Reiter offen ist, wenn die Seite aufgeht. Die Adresse
+ *   /anmelden/vip fuehrt geradewegs zum VIP-Zugang: der Link steht in Discord
+ *   in jedem Schluesselkanal, und wer ihm folgt, will nicht erst einen Reiter
+ *   suchen. Der Betreiber hatte genau das bemerkt - er landete auf dem
+ *   E-Mail-Formular statt beim VIP-Zugang.
+ */
+export default function Anmelden({ start = 'anmelden' }: {
+  start?: 'anmelden' | 'registrieren' | 'vip';
+} = {}) {
   const t = useT();
   const router = useRouter();
-  const [reiter, setReiter] = useState<'anmelden' | 'registrieren' | 'vip'>('anmelden');
+  const [reiter, setReiter] = useState<'anmelden' | 'registrieren' | 'vip'>(start);
   const [email, setEmail] = useState('');
   const [passwort, setPasswort] = useState('');
   const [name, setName] = useState('');

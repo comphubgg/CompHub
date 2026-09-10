@@ -222,7 +222,21 @@ export default function MeineOverlays() {
                                outline-none" />
                 ) : (
                   <span className="min-w-0 flex-1 truncate text-sm font-semibold
-                                   text-slate-100">{o.name}</span>
+                                   text-slate-100">
+                    {o.name}
+                    {/*
+                      * Wer es zuletzt angefasst hat.
+                      *
+                      * Steht nur da, wenn ein Manager-Zugang am Werk war -
+                      * bei einem Zugang, den nur eine Person hat, waere es
+                      * eine Zeile, die immer denselben Namen zeigt.
+                      */}
+                    {(o.geaendertVon || o.angelegtVon) && (
+                      <span className="ml-2 font-normal text-[11px] text-slate-500">
+                        <T>von</T> {o.geaendertVon || o.angelegtVon}
+                      </span>
+                    )}
+                  </span>
                 )}
 
                 {offen === o.id ? (

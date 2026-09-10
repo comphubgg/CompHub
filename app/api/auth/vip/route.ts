@@ -5,6 +5,7 @@ import crypto from 'crypto';
 import { ueberHttps } from '@/lib/vipCookie';
 import { DATEN_ORT } from '@/lib/datenOrt';
 import { merkeAnmeldung as merkeAnwesenheit } from '@/lib/anwesenheit';
+import { modName } from '@/lib/modName';
 
 /*
  * Bei jeder Anfrage neu ausfuehren.
@@ -20,6 +21,24 @@ export const runtime = 'nodejs';
 
 
 const VIP_USERS_FILE = path.join(DATEN_ORT, 'vip-users.json');
+
+/**
+ * Das Namensschild eines Managers.
+ *
+ * Ein Manager-Zugang gehoert nicht einer Person: mehrere teilen sich Name und
+ * Schluessel. Damit der Streamer trotzdem sieht, wer ein Overlay angelegt oder
+ * geaendert hat, gibt jeder beim Anmelden zusaetzlich seinen eigenen Namen an
+ * - der Wunsch des Betreibers: "dass der VIP weiss, wer was erstellt hat, wer
+ * was geaendert hat ... Access Key und so bleibt gleich."
+ *
+ * Es ist ausdruecklich ein Schild und keine Anmeldung. Wer den Schluessel hat,
+ * kann jeden Namen eintippen - unterschrieben oder nicht, das aendert nichts
+ * daran. Deshalb wird er nur auf eine vernuenftige Form geprueft und nicht
+ * verschluesselt; er steht als gewoehnliches Cookie da, damit die Oberflaeche
+ * ihn anzeigen kann.
+ */
+const MOD_COOKIE = 'streamer_dashboard_mod';
+
 const AUTH_COOKIE_SECRET = process.env.AUTH_COOKIE_SECRET || process.env.DISCORD_CLIENT_SECRET || process.env.TWITCH_CLIENT_SECRET || 'streamer-dashboard-secret';
 
 async function readVipUsers() {
@@ -40,7 +59,7 @@ function makeSessionCookieValue(username: string) {
 
 export async function POST(request: NextRequest) {
   try {
-    const { username, accessKey } = await request.json();
+    const { username, accessKey, mod } = await request.json();
 
     if (!username || !accessKey) {
       return NextResponse.json({ error: 'Missing credentials' }, { status: 400 });
@@ -52,6 +71,27 @@ export async function POST(request: NextRequest) {
 
     if (!user || user.accessKey !== accessKey || user.status !== 'active') {
       return NextResponse.json({ error: 'Invalid username or access key' }, { status: 401 });
+    }
+
+    /*
+     * Bei einem Manager-Zugang fehlt noch ein Schritt.
+     *
+     * Name und Schluessel stimmen - aber sie stimmen fuer alle, die sich
+     * diesen Zugang teilen. Bevor das Cookie gesetzt wird, sagt die
+     * Schnittstelle deshalb: "wer bist du?" Erst mit dem Schild geht es
+     * weiter. Absichtlich hier und nicht davor: wer den Schluessel nicht hat,
+     * soll auch nicht erfahren, dass es sich um einen Manager-Zugang handelt.
+     */
+    const verwaltet = String(user.verwaltet ?? '').trim();
+    const schild = modName(mod);
+    if (verwaltet && !schild) {
+      return NextResponse.json({
+        modNoetig: true,
+        fuer: verwaltet,
+        // Nur, wenn ueberhaupt etwas geschickt wurde - sonst ist es der erste
+        // Versuch und keine Beanstandung.
+        fehlerhaft: Boolean(String(mod ?? '').trim()),
+      });
     }
 
     // Fuer die Liste "wer war wann da" in den Adminwerkzeugen.
@@ -79,6 +119,24 @@ export async function POST(request: NextRequest) {
       path: '/',
       maxAge: 60 * 60 * 24 * 30,
     });
+    /*
+     * Das Schild - oder weg damit.
+     *
+     * Weg auch dann, wenn sich hier gerade ein gewoehnlicher VIP anmeldet:
+     * sonst haengt an seiner Sitzung noch der Name des Managers, der vorher
+     * an demselben Rechner sass.
+     */
+    if (schild) {
+      response.cookies.set(MOD_COOKIE, schild, {
+        httpOnly: false,
+        secure: isProduction,
+        sameSite: 'lax',
+        path: '/',
+        maxAge: 60 * 60 * 24 * 30,
+      });
+    } else {
+      response.cookies.delete(MOD_COOKIE);
+    }
     return response;
   } catch (error) {
     return NextResponse.json({ error: 'Login failed' }, { status: 500 });

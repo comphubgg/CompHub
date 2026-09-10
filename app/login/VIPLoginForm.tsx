@@ -24,6 +24,16 @@ export default function VIPLoginForm() {
   const [fehler, setFehler] = useState('');
   const [hilfeZeigen, setHilfeZeigen] = useState(false);
   const [laeuft, setLaeuft] = useState(false);
+  /*
+   * Der zweite Schritt bei einem Manager-Zugang.
+   *
+   * Mehrere Leute teilen sich Name und Schluessel. Damit der Streamer sieht,
+   * wer ein Overlay angelegt oder geaendert hat, sagt jeder zusaetzlich, wer
+   * er ist. "fuer" ist der Streamer, dessen Overlays dieser Zugang betreut -
+   * er steht im Text darueber, damit niemand im falschen Konto landet.
+   */
+  const [fuer, setFuer] = useState('');
+  const [mod, setMod] = useState('');
 
   const feld = 'w-full rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-2.5 '
     + 'text-sm text-slate-100 outline-none placeholder:text-slate-600 '
@@ -40,7 +50,7 @@ export default function VIPLoginForm() {
         method: 'POST',
         credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, accessKey }),
+        body: JSON.stringify({ username, accessKey, ...(mod ? { mod } : {}) }),
       });
 
       const daten = await antwort.json();
@@ -50,6 +60,20 @@ export default function VIPLoginForm() {
         // Nur bei falschem Schluessel den Weg zur Wiederherstellung zeigen -
         // bei einem Serverfehler waere der Hinweis irrefuehrend.
         setHilfeZeigen(antwort.status === 401);
+        return;
+      }
+
+      /*
+       * Der Zugang stimmt, aber es fehlt noch das Namensschild.
+       *
+       * Dann steht hier kein Fehler, sondern eine Frage: das Feld erscheint,
+       * die beiden ausgefuellten bleiben stehen.
+       */
+      if (daten?.modNoetig) {
+        setFuer(String(daten.fuer ?? ''));
+        if (daten.fehlerhaft) {
+          setFehler(t('Zwei bis vierundzwanzig Zeichen, keine Sonderzeichen.'));
+        }
         return;
       }
 
@@ -95,6 +119,33 @@ export default function VIPLoginForm() {
         </button>
       </div>
 
+      {/*
+        * Das Namensschild - erst, wenn der Zugang stimmt.
+        *
+        * Es ist keine zweite Anmeldung: wer den Schluessel hat, kommt ohnehin
+        * hinein. Es beantwortet nur die Frage, die der Streamer sonst stellen
+        * muesste - wer war das?
+        */}
+      {fuer && (
+        <div className="rounded-lg border border-sky-900/60 bg-sky-950/20 px-4 py-3">
+          <p className="text-[11px] leading-relaxed text-sky-200/80">
+            <T>Dieser Zugang betreut die Overlays von</T>{' '}
+            <span className="font-semibold text-sky-100">{fuer}</span>.{' '}
+            <T>Mehrere Leute teilen ihn sich — sag kurz, wer du bist, damit
+            neben jedem Overlay steht, wer es angelegt oder geändert hat.</T>
+          </p>
+          <input
+            value={mod}
+            onChange={(e) => setMod(e.target.value)}
+            placeholder={t('Dein Name')}
+            autoComplete="nickname"
+            autoFocus
+            className={`${feld} mt-2`}
+            required
+          />
+        </div>
+      )}
+
       {fehler && (
         <div className="rounded-lg border border-rose-900/60 bg-rose-950/30 px-4
                         py-2.5 text-xs text-rose-300">
@@ -122,7 +173,8 @@ export default function VIPLoginForm() {
                    text-white transition hover:bg-sky-400
                    disabled:cursor-not-allowed disabled:opacity-40"
       >
-        {laeuft ? <T>einen Moment …</T> : <T>Anmelden</T>}
+        {laeuft ? <T>einen Moment …</T>
+          : fuer ? <T>Weiter</T> : <T>Anmelden</T>}
       </button>
     </form>
   );

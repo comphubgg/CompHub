@@ -21,9 +21,20 @@
 
 export type Sprache = 'en' | 'de';
 
+/**
+ * Wer den Kanal sehen darf.
+ *
+ * Der Betreiber wollte die Leitfaeden getrennt: "beim VIP Guide kann der
+ * Kanal gesperrt sein, viel nur VIPs. Und dann bei Manager Guide kann der
+ * Account gesperrt sein fuer nur Manager. Welcome fuer jeden."
+ */
+export type Sichtbar = 'alle' | 'vip' | 'manager';
+
 export interface Beitrag {
   /** Kanalname ohne #. */
   kanal: string;
+  /** Wer ihn sehen darf. */
+  sichtbar: Sichtbar;
   /** Worum es in dem Kanal geht - steht in der Kanalbeschreibung. */
   thema: string;
   /** Die Ueberschrift der Nachricht, je Sprache. */
@@ -37,6 +48,7 @@ export const FARBE = 0x0ea5e9;
 
 const WILLKOMMEN: Beitrag = {
   kanal: 'welcome',
+  sichtbar: 'alle',
   thema: 'What CompHub is and how to get started',
   titel: {
     en: 'Welcome to CompHub',
@@ -57,7 +69,7 @@ const WILLKOMMEN: Beitrag = {
       + 'holds exactly one message: the access key that is currently valid.',
       '',
       '__How to sign in__',
-      '1. Open https://thecomphub.com/login/vip',
+      '1. Open https://www.thecomphub.com/anmelden/vip',
       '2. Type the **name** of your access (the channel is named after it) '
       + 'and the **key** from your channel.',
       '3. That is it — no e-mail, no password. The key is compared character '
@@ -91,7 +103,7 @@ const WILLKOMMEN: Beitrag = {
       + 'Darin steht genau eine Nachricht: der Schlüssel, der gerade gilt.',
       '',
       '__So meldest du dich an__',
-      '1. Öffne https://thecomphub.com/login/vip',
+      '1. Öffne https://www.thecomphub.com/anmelden/vip',
       '2. Tippe den **Namen** deines Zugangs (der Kanal ist danach benannt) '
       + 'und den **Schlüssel** aus deinem Kanal.',
       '3. Das ist alles — keine E-Mail, kein Passwort. Verglichen wird Zeichen '
@@ -116,6 +128,7 @@ const WILLKOMMEN: Beitrag = {
 
 const VIP_LEITFADEN: Beitrag = {
   kanal: 'vip-guide',
+  sichtbar: 'vip',
   thema: 'What a VIP access can do on thecomphub.com',
   titel: {
     en: 'VIP guide — what your access can do',
@@ -123,7 +136,7 @@ const VIP_LEITFADEN: Beitrag = {
   },
   text: {
     en: [
-      'Sign in at https://thecomphub.com/login/vip with your name and the key '
+      'Sign in at https://www.thecomphub.com/anmelden/vip with your name and the key '
       + 'from your channel. Everything below is then one click away.',
       '',
       '**Overlays** — browser sources for OBS',
@@ -169,7 +182,7 @@ const VIP_LEITFADEN: Beitrag = {
       + 'else — not your tierlist, not your account. Ask for it in support.',
     ].join('\n'),
     de: [
-      'Melde dich unter https://thecomphub.com/login/vip mit deinem Namen und '
+      'Melde dich unter https://www.thecomphub.com/anmelden/vip mit deinem Namen und '
       + 'dem Schlüssel aus deinem Kanal an. Alles hier ist danach ein Klick '
       + 'entfernt.',
       '',
@@ -221,6 +234,7 @@ const VIP_LEITFADEN: Beitrag = {
 
 const MANAGER_LEITFADEN: Beitrag = {
   kanal: 'manager-guide',
+  sichtbar: 'manager',
   thema: 'What a VIP manager does — and what not',
   titel: {
     en: 'Manager guide — your job in one page',
@@ -233,7 +247,7 @@ const MANAGER_LEITFADEN: Beitrag = {
       + 'streamer\'s overlays.',
       '',
       '__Signing in__',
-      'Same door as everyone else: https://thecomphub.com/login/vip with the '
+      'Same door as everyone else: https://www.thecomphub.com/anmelden/vip with the '
       + 'manager name and the key from this channel. You land on the '
       + 'dashboard, and under Overlays you see the streamer\'s saved overlays '
       + '— not your own, his. That is the point.',
@@ -276,7 +290,7 @@ const MANAGER_LEITFADEN: Beitrag = {
       + 'dessen Overlays.',
       '',
       '__Anmelden__',
-      'Dieselbe Tür wie bei allen: https://thecomphub.com/login/vip mit dem '
+      'Dieselbe Tür wie bei allen: https://www.thecomphub.com/anmelden/vip mit dem '
       + 'Managernamen und dem Schlüssel aus diesem Kanal. Du landest auf dem '
       + 'Dashboard, und unter Overlays stehen die gespeicherten Overlays des '
       + 'Streamers — nicht deine, seine. Genau das ist der Sinn.',

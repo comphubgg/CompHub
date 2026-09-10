@@ -1901,6 +1901,22 @@ const AUF_ENGLISCH: Record<string, string> = {
     + 'minutes. Closing a tab does not sign anyone out — nothing more can '
     + 'honestly be said about it.',
   'Noch keine Ergebnisse': 'No results yet',
+  'VIP-Manager':
+    'VIP manager',
+  'Der Zugang heißt dann':
+    'The access will then be called',
+  'Ein Zugang, den sich mehrere Leute teilen: sie betreuen damit die Overlays eines Streamers und sonst nichts. Der Name ergibt sich aus dem Streamer, der Schlüssel landet in Discord unter „Manager Access Keys“. Beim Anmelden gibt jeder zusätzlich seinen eigenen Namen an — so steht neben jedem Overlay, wer es angelegt hat.':
+    'An access several people share: they look after one streamer’s overlays and nothing else. The name follows from the streamer, the key lands in Discord under “Manager Access Keys”. When signing in, each person also gives their own name — so every overlay says who created it.',
+  'Streamer, dessen Overlays betreut werden':
+    'streamer whose overlays are looked after',
+  'Dieser Zugang betreut die Overlays von':
+    'This access looks after the overlays of',
+  'Mehrere Leute teilen ihn sich — sag kurz, wer du bist, damit neben jedem Overlay steht, wer es angelegt oder geändert hat.':
+    'Several people share it — say who you are, so every overlay shows who created or changed it.',
+  'Dein Name':
+    'Your name',
+  'Zwei bis vierundzwanzig Zeichen, keine Sonderzeichen.':
+    'Two to twenty-four characters, no special characters.',
   'Cup — nach Wichtigkeit geordnet':
     'Cup — sorted by importance',
   'mehr — auch Ranked, Reload, Mobile und Arenas':
