@@ -281,16 +281,6 @@ export default function OffspawnSeite() {
                 ))}
             </div>
 
-            <label className="mt-4 block">
-              <span className="text-xs text-slate-400">
-                <T>Zeile darunter</T>{' '}
-                <span className="text-slate-600"><T>— freiwillig</T></span>
-              </span>
-              <input value={cfg.zusatz}
-                onChange={(e) => setz('zusatz', e.target.value)}
-                placeholder={t('zum Beispiel „Game 1 / 4“')}
-                className={`${feld} mt-1`} />
-            </label>
 
             <div className="mt-3 grid gap-3 sm:grid-cols-2">
               <label className="block">
@@ -305,6 +295,34 @@ export default function OffspawnSeite() {
             </div>
           </section>
 
+          {/*
+            * Der eigene Text - ein eigener Kasten.
+            *
+            * Er stand als kleine Zeile unter dem Stand und hiess "Line
+            * below"; der Betreiber hat ihn zweimal gesucht und nicht
+            * gefunden. Er heisst jetzt, wonach er sucht, steht fuer sich und
+            * traegt die Farbe seines Balkens gleich daneben.
+            */}
+          <section className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
+            <h2 className="mb-1 text-sm font-semibold text-slate-100">
+              <T>Eigener Text</T>
+            </h2>
+            <p className="mb-3 text-[11px] leading-relaxed text-slate-500">
+              <T>Steht als Balken unter dem Stand. Bleibt das Feld leer, ist
+              dort auch nichts.</T>
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              <label className="block">
+                <input value={cfg.zusatz}
+                  onChange={(e) => setz('zusatz', e.target.value)}
+                  placeholder={t('zum Beispiel „Game 1 / 4“')}
+                  className={feld} />
+              </label>
+              <Wahlreihe titel="Farbe des Balkens" wert={cfg.balken}
+                optionen={BALKEN} setzen={(w) => setz('balken', w)} />
+            </div>
+          </section>
+
           {/* ----------------------------------------------- Aussehen */}
           <section className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
             <h2 className="mb-3 text-sm font-semibold text-slate-100">
@@ -315,8 +333,6 @@ export default function OffspawnSeite() {
                 setzen={(w) => setz('farbe1', w)} />
               <Wahlreihe titel="Farbe rechts" wert={cfg.farbe2} optionen={FARBEN}
                 setzen={(w) => setz('farbe2', w)} />
-              <Wahlreihe titel="Farbe des Balkens" wert={cfg.balken}
-                optionen={BALKEN} setzen={(w) => setz('balken', w)} />
               <Wahlreihe titel="Grundfarbe" wert={cfg.grund} optionen={GRUENDE}
                 setzen={(w) => setz('grund', w)} />
               <Regler titel="Schriftgröße" wert={cfg.schrift} von={14} bis={80}

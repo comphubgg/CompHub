@@ -1901,6 +1901,10 @@ const AUF_ENGLISCH: Record<string, string> = {
     + 'minutes. Closing a tab does not sign anyone out — nothing more can '
     + 'honestly be said about it.',
   'Noch keine Ergebnisse': 'No results yet',
+  'Eigener Text':
+    'Custom text',
+  'Steht als Balken unter dem Stand. Bleibt das Feld leer, ist dort auch nichts.':
+    'Shows as a bar under the score. Leave it empty and there is nothing there.',
   'Spieler suchen — für Name und Bild':
     'search a player — for name and photo',
   'Bild entfernen':
