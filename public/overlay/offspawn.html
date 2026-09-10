@@ -71,6 +71,25 @@ html, body {
   white-space: nowrap;
 }
 
+/*
+ * Ein Foto je Seite.
+ *
+ * Der Betreiber wollte die Duos erkennbar haben, aber nicht vier Gesichter:
+ * "dann tut's nur einem jeweils vom Duo das Bild anzeigen, links rechts."
+ * Also eines links, eines rechts, jeweils in der Farbe der Seite eingefasst.
+ */
+.foto {
+  width: 1.15em;
+  height: 1.15em;
+  border-radius: 50%;
+  object-fit: cover;
+  object-position: center 18%;
+  border: 0.06em solid currentColor;
+  flex: 0 0 auto;
+}
+#f1 { color: var(--links); }
+#f2 { color: var(--rechts); }
+
 .name {
   font-weight: 800;
   letter-spacing: 0.02em;
@@ -91,14 +110,30 @@ html, body {
   font-weight: 700;
 }
 
+/*
+ * Die frei geschriebene Zeile - als Balken, nicht als Fussnote.
+ *
+ * Der Betreiber hat ein Bild geschickt: "GAME: 4 / 4", weiss auf einem
+ * kraeftigen Balken. Genau so sitzt sie jetzt unter dem Stand, in einer
+ * eigenen Farbe, die sich einstellen laesst.
+ */
+#zusatzBalken {
+  display: flex;
+  justify-content: center;
+  margin-top: 0.2em;
+}
 #zusatz {
-  display: block;
-  margin-top: 0.12em;
+  display: inline-block;
+  background: var(--balken);
+  padding: 0.12em 0.55em;
+  border-radius: 0.12em;
   text-align: center;
-  font-size: 0.28em;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  color: rgba(255, 255, 255, 0.75);
+  font-size: 0.3em;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #ffffff;
+  text-shadow: 0 0.06em 0.12em rgba(0, 0, 0, 0.45);
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -111,11 +146,13 @@ html, body {
 <div id="karte">
   <span id="kopf" hidden>OFFSPAWN</span>
   <span id="zeile">
+    <img class="foto" id="f1" alt="" hidden>
     <span class="name" id="n1">TEAM 1</span>
     <span id="stand"><span id="p1">0</span><span class="teiler">:</span><span id="p2">0</span></span>
     <span class="name" id="n2">TEAM 2</span>
+    <img class="foto" id="f2" alt="" hidden>
   </span>
-  <span id="zusatz" hidden></span>
+  <span id="zusatzBalken" hidden><span id="zusatz"></span></span>
 </div>
 
 <script src="konfig.js"></script>
@@ -131,6 +168,10 @@ html, body {
     /** Die frei geschriebene Zeile darunter, etwa "Game 1 / 4". */
     zusatz: '',
     farbe1: '#38bdf8', farbe2: '#f43f5e',
+    /** Die Farbe des Balkens unter dem Stand. */
+    balken: '#f97316',
+    /** Bilder je Seite - eines je Duo, so wollte es der Betreiber. */
+    bild1: '', bild2: '',
     grund: '0 0 0', deckkraft: 0.72,
     schrift: 30,
   };
@@ -146,6 +187,13 @@ html, body {
       s.setProperty('--links', String(cfg.farbe1));
       s.setProperty('--rechts', String(cfg.farbe2));
       s.setProperty('--schrift', cfg.schrift + 'px');
+      s.setProperty('--balken', String(cfg.balken || '#f97316'));
+
+      for (const [id, pfad] of [['f1', cfg.bild1], ['f2', cfg.bild2]]) {
+        const el = $(id);
+        if (pfad) { el.src = String(pfad); el.hidden = false; }
+        else { el.removeAttribute('src'); el.hidden = true; }
+      }
 
       $('n1').textContent = String(cfg.name1 || 'TEAM 1');
       $('n2').textContent = String(cfg.name2 || 'TEAM 2');
@@ -156,10 +204,9 @@ html, body {
       k.textContent = String(cfg.kopf || 'OFFSPAWN');
       k.hidden = !cfg.kopfZeigen;
 
-      const z = $('zusatz');
       const text = String(cfg.zusatz || '').trim();
-      z.textContent = text;
-      z.hidden = !text;
+      $('zusatz').textContent = text;
+      $('zusatzBalken').hidden = !text;
 
       $('karte').classList.add('da');
     },

@@ -1901,6 +1901,14 @@ const AUF_ENGLISCH: Record<string, string> = {
     + 'minutes. Closing a tab does not sign anyone out — nothing more can '
     + 'honestly be said about it.',
   'Noch keine Ergebnisse': 'No results yet',
+  'Spieler suchen — für Name und Bild':
+    'search a player — for name and photo',
+  'Bild entfernen':
+    'remove photo',
+  'Farbe des Balkens':
+    'Bar colour',
+  'Orange':
+    'Orange',
   'Offspawn':
     'Offspawn',
   'Zwei Teams und ein Stand, von Hand gepflegt':

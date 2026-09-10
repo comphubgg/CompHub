@@ -29,6 +29,10 @@ const STANDARD = {
   punkte1: 0, punkte2: 0,
   zusatz: '',
   farbe1: '#38bdf8', farbe2: '#f43f5e',
+  /** Die Farbe des Balkens unter dem Stand. */
+  balken: '#f97316',
+  /** Ein Bild je Seite - eines je Duo. */
+  bild1: '', bild2: '',
   grund: '0 0 0', deckkraft: 0.72,
   schrift: 30,
 };
@@ -40,6 +44,15 @@ const GRUENDE: Array<{ wert: string; titel: string }> = [
   { wert: '24 24 27', titel: 'Anthrazit' },
   { wert: '63 63 70', titel: 'Grau' },
   { wert: '12 20 38', titel: 'Nachtblau' },
+];
+
+const BALKEN: Array<{ wert: string; titel: string }> = [
+  { wert: '#f97316', titel: 'Orange' },
+  { wert: '#22c55e', titel: 'Grün' },
+  { wert: '#38bdf8', titel: 'Blau' },
+  { wert: '#f43f5e', titel: 'Rot' },
+  { wert: '#a78bfa', titel: 'Violett' },
+  { wert: '#3f3f46', titel: 'Grau' },
 ];
 
 const FARBEN: Array<{ wert: string; titel: string }> = [
@@ -60,6 +73,45 @@ export default function OffspawnSeite() {
   const [cfg, setCfg] = useState<Config>(STANDARD);
   const [gespeichert, setGespeichert] = useState(false);
   const [schmutzig, setSchmutzig] = useState(false);
+
+  /*
+   * Die Spielersuche im Archiv.
+   *
+   * Ein Offspawn haengt an keinem Cup - es gibt also keine Bestenliste, in
+   * der man suchen koennte. Gesucht wird deshalb im gepflegten Verzeichnis,
+   * dort, wo auch die Fotos liegen. Der Betreiber wollte genau das: "stell
+   * ein, dass ich ein Team auswaehlen kann, dass ich auch Profilbilder habe."
+   *
+   * Beim Tippen, mit einer kurzen Pause - und je Seite getrennt, damit links
+   * und rechts unabhaengig voneinander bleiben.
+   */
+  const [suche, setSuche] = useState<{ seite: 1 | 2; text: string } | null>(null);
+  const [funde, setFunde] = useState<Array<{
+    epicId: string; anzeige: string; bild: string | null;
+  }>>([]);
+  useEffect(() => {
+    const q = (suche?.text ?? '').trim();
+    if (q.length < 2) { setFunde([]); return undefined; }
+    const stift = window.setTimeout(() => {
+      fetch(`/api/szene-stats?ansicht=suche&q=${encodeURIComponent(q)}`)
+        .then((r) => r.json())
+        .then((j) => setFunde(Array.isArray(j?.spieler) ? j.spieler.slice(0, 8) : []))
+        .catch(() => setFunde([]));
+    }, 300);
+    return () => window.clearTimeout(stift);
+  }, [suche]);
+
+  /** Einen Fund auf eine Seite legen - Name und Bild zusammen. */
+  function uebernimm(seite: 1 | 2, f: { anzeige: string; bild: string | null }) {
+    setCfg((alt) => ({
+      ...alt,
+      [seite === 1 ? 'name1' : 'name2']: f.anzeige.toUpperCase(),
+      [seite === 1 ? 'bild1' : 'bild2']: f.bild ?? '',
+    }));
+    setSchmutzig(true);
+    setSuche(null);
+    setFunde([]);
+  }
 
   const setz = <K extends keyof Config>(k: K, v: Config[K]) => {
     setCfg((alt) => ({ ...alt, [k]: v }));
@@ -149,6 +201,64 @@ export default function OffspawnSeite() {
                       placeholder={t('Teamname')}
                       className={`${feld} text-center font-semibold`}
                       style={{ color: cfg[fk] as string }} />
+
+                    {/*
+                      * Spieler suchen - fuer den Namen und das Bild.
+                      *
+                      * Ein Offspawn haengt an keinem Cup; gesucht wird
+                      * deshalb im Verzeichnis, nicht in einer Bestenliste.
+                      */}
+                    <div className="relative mt-2">
+                      <input
+                        value={suche?.seite === (pk === 'punkte1' ? 1 : 2)
+                          ? suche.text : ''}
+                        onChange={(e) => setSuche({
+                          seite: pk === 'punkte1' ? 1 : 2, text: e.target.value,
+                        })}
+                        placeholder={t('Spieler suchen — für Name und Bild')}
+                        className={`${feld} text-xs`} />
+                      {suche?.seite === (pk === 'punkte1' ? 1 : 2)
+                        && funde.length > 0 && (
+                        <div className="absolute left-0 right-0 z-20 mt-1
+                                        overflow-hidden rounded-lg border
+                                        border-zinc-700 bg-zinc-950 shadow-xl">
+                          {funde.map((f) => (
+                            <button key={f.epicId} type="button"
+                              onClick={() => uebernimm(pk === 'punkte1' ? 1 : 2, f)}
+                              className="flex w-full items-center gap-2 px-2 py-1.5
+                                         text-left text-xs text-slate-300
+                                         hover:bg-zinc-900">
+                              {f.bild
+                                // eslint-disable-next-line @next/next/no-img-element
+                                ? <img src={f.bild} alt=""
+                                  className="h-6 w-6 shrink-0 rounded-full
+                                             object-cover" />
+                                : <span className="h-6 w-6 shrink-0 rounded-full
+                                                   bg-zinc-800" />}
+                              <span className="min-w-0 truncate">{f.anzeige}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Was gerade als Bild dransteht - und ein Weg, es
+                        wieder loszuwerden. */}
+                    {(cfg[pk === 'punkte1' ? 'bild1' : 'bild2'] as string) && (
+                      <div className="mt-2 flex items-center justify-center gap-2">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={cfg[pk === 'punkte1' ? 'bild1' : 'bild2'] as string}
+                          alt=""
+                          className="h-8 w-8 rounded-full object-cover" />
+                        <button type="button"
+                          onClick={() => setz(
+                            pk === 'punkte1' ? 'bild1' : 'bild2', '')}
+                          className="text-[11px] text-slate-500 transition
+                                     hover:text-rose-400">
+                          <T>Bild entfernen</T>
+                        </button>
+                      </div>
+                    )}
                     <div className="mt-3 flex items-center justify-center gap-3">
                       <button onClick={() => zaehle(pk, -1)}
                         className="h-11 w-11 rounded-lg border border-zinc-800
@@ -205,6 +315,8 @@ export default function OffspawnSeite() {
                 setzen={(w) => setz('farbe1', w)} />
               <Wahlreihe titel="Farbe rechts" wert={cfg.farbe2} optionen={FARBEN}
                 setzen={(w) => setz('farbe2', w)} />
+              <Wahlreihe titel="Farbe des Balkens" wert={cfg.balken}
+                optionen={BALKEN} setzen={(w) => setz('balken', w)} />
               <Wahlreihe titel="Grundfarbe" wert={cfg.grund} optionen={GRUENDE}
                 setzen={(w) => setz('grund', w)} />
               <Regler titel="Schriftgröße" wert={cfg.schrift} von={14} bis={80}
