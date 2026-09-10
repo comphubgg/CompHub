@@ -6,6 +6,7 @@ import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import { useZugang } from '@/app/lib/zugang';
 import MeineOverlays from './MeineOverlays';
+import Startansicht from './Startansicht';
 
 /*
  * Das gemeinsame Geruest der Overlay-Seiten.
@@ -125,6 +126,22 @@ export default function OverlayGeruest({ aktiv, children }: {
 }) {
   const t = useT();
   const zugang = useZugang();
+  /*
+   * Baukasten oder Startseite?
+   *
+   * Wer die Seite blank aufruft, soll zuerst sehen, was er schon hat - so
+   * wollte es der Betreiber: "wenn man draufkommt, sieht man alle seine
+   * gespeicherten." In den Baukasten fuehrt der Knopf "Neues Overlay", der
+   * einen Cup mitgibt, oder eine Adresse, die schon einen traegt.
+   *
+   * Entschieden wird an der Adresse und nicht an einem Zustand: ein neu
+   * geladenes Fenster landet dann dort, wo es vorher stand.
+   */
+  const [imBaukasten, setImBaukasten] = useState(false);
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    setImBaukasten(Boolean(p.get('bauen') || p.get('fenster') || p.get('id')));
+  }, []);
 
   if (zugang.laedt) {
     return (
@@ -191,10 +208,25 @@ export default function OverlayGeruest({ aktiv, children }: {
             * Betreiber. Er steht auf jeder Overlay-Seite gleich, denn was
             * jemand angelegt hat, gehoert nicht zu einer Art, sondern zu ihm.
             */}
-          <MeineOverlays />
+          {/*
+            * Auf der Startseite steht die Liste gross in der Mitte - hier
+            * waere sie zweimal dasselbe.
+            */}
+          {imBaukasten && <MeineOverlays />}
         </aside>
 
-        <div className="min-w-0 flex-1">{children}</div>
+        <div className="min-w-0 flex-1">
+          {imBaukasten ? (
+            <>
+              <button onClick={() => { window.location.href = window.location.pathname; }}
+                className="mb-4 text-[11px] text-slate-500 transition
+                           hover:text-sky-400">
+                ← <T>zurück zu deinen Overlays</T>
+              </button>
+              {children}
+            </>
+          ) : <Startansicht />}
+        </div>
       </div>
     </main>
   );

@@ -116,6 +116,29 @@ export function CupWahl({ event, window: fenster, onWahl }: {
       || a.titel.localeCompare(b.titel));
   }, [cups, alle]);
 
+  /*
+   * Kommt der Cup schon aus der Adresse?
+   *
+   * Die Startseite schickt ihn mit: /overlays/standings?event=…&fenster=…
+   * Ohne diesen Griff muesste man ihn im Baukasten ein zweites Mal suchen,
+   * und das war genau der Weg, den der Betreiber loswerden wollte.
+   *
+   * Nur einmal und nur, solange nichts gewaehlt ist - sonst spraenge die
+   * Auswahl bei jeder Aenderung wieder zurueck.
+   */
+  const [ausAdresse, setAusAdresse] = useState(false);
+  useEffect(() => {
+    if (ausAdresse || fenster || !laufend.length) return;
+    const p = new URLSearchParams(window.location.search);
+    const w = p.get('fenster');
+    if (!w) return;
+    const treffer = laufend.find((x) => x.windowId === w);
+    if (treffer) {
+      onWahl(treffer.eventId, treffer.windowId, `${treffer.titel} · ${treffer.region}`);
+      setAusAdresse(true);
+    }
+  }, [laufend, fenster, ausAdresse, onWahl]);
+
   return (
     <div>
       <label className="text-xs text-slate-400">

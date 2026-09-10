@@ -1901,6 +1901,30 @@ const AUF_ENGLISCH: Record<string, string> = {
     + 'minutes. Closing a tab does not sign anyone out — nothing more can '
     + 'honestly be said about it.',
   'Noch keine Ergebnisse': 'No results yet',
+  'Deine Overlays':
+    'Your overlays',
+  'Neues Overlay':
+    'New overlay',
+  'Für welchen Cup?':
+    'Which cup?',
+  'Welche Art?':
+    'Which kind?',
+  'andere Cups anzeigen':
+    'show other cups',
+  'nur die üblichen':
+    'only the usual ones',
+  'sonstiger Cup':
+    'other cup',
+  'zurück zu deinen Overlays':
+    'back to your overlays',
+  'In diesen Tagen läuft kein passender Cup. Mit „andere Cups anzeigen“ siehst du auch Ranked, Reload, Mobile und Arenas.':
+    'No matching cup in these days. With "show other cups" you also see Ranked, Reload, Mobile and Arenas.',
+  'Zwei Spieler nebeneinander, mit Foto und Werten':
+    'Two players side by side, with photo and numbers',
+  'Die vordersten Plätze des laufenden Spieltags':
+    'The top places of the running day',
+  'Wie viele Punkte es zum Weiterkommen braucht':
+    'How many points it takes to get through',
   'Wer sich damit anmelden darf':
     'Who may sign in with it',
   'Namen, durch Komma oder Zeile getrennt':
