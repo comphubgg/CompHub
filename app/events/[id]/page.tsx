@@ -1370,12 +1370,37 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
    * einmal mit dem vollen Feld: eine einzelne Lobby verteilt sich ueber die
    * ganze Liste, und erst dann ist sie vollstaendig.
    */
+  /**
+   * Wie oft schon still nachgeladen wurde.
+   *
+   * Hier stand "setSpiele(null)", und damit verschwand waehrend eines
+   * laufenden Cups jede Minute die ganze Liste: erst leer, dann Ladezeichen,
+   * dann wieder da. Der Betreiber wollte das nicht sehen - "die Seite soll
+   * nicht immer reloaden, die Spieler sollen einfach hinzugefuegt werden,
+   * nicht so neuladen. Das Nachladen wie im Hintergrund, aber nicht, dass
+   * man optisch sieht, was war."
+   *
+   * Der Zaehler stoesst den Abruf an, ohne etwas wegzuwerfen. Was da ist,
+   * bleibt stehen, bis die neue Antwort es ersetzt.
+   */
+  const [nachladen, setNachladen] = useState(0);
+  /** Welcher Stand des Zaehlers zuletzt geholt wurde. */
+  const zuletztNachgeladen = useRef(0);
+
   useEffect(() => {
     if (reiter !== 'runden' || !fenster || !tabelle.length) return;
-    // Schon geholt, und der Unterbau ist seither nicht groesser geworden.
-    if (spiele && (vertieft || tabelle.length <= spieleBasis)) return;
+    /*
+     * Schon geholt, und der Unterbau ist seither nicht groesser geworden.
+     *
+     * Ein stilles Nachladen (nachladen) geht trotzdem durch - dort ist der
+     * Unterbau derselbe, aber der Stand hat sich geaendert.
+     */
+    const stillesLaden = nachladen !== zuletztNachgeladen.current;
+    if (spiele && !stillesLaden && (vertieft || tabelle.length <= spieleBasis)) return;
+    zuletztNachgeladen.current = nachladen;
     let weg = false;
-    setSpieleLaedt(true);
+    // Beim stillen Nachladen kein Ladezeichen: die Liste steht ja da.
+    if (!stillesLaden) setSpieleLaedt(true);
     setSpieleBasis(tabelle.length);
     fetch(`/api/cup-matches?event=${encodeURIComponent(fenster.eventId)}`
       /*
@@ -1397,10 +1422,16 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
         setSpiele(j?.spiele ?? []);
         setSpieleFeldGrenze(Boolean(j?.feldGrenze));
       })
-      .catch(() => { if (!weg) setSpiele([]); })
+      /*
+       * Bei einem Fehler bleibt stehen, was da ist.
+       *
+       * Vorher wurde die Liste geleert - eine kurze Stoerung sah dann aus
+       * wie "keine Runden", mitten im Stream.
+       */
+      .catch(() => { if (!weg && !spiele) setSpiele([]); })
       .finally(() => { if (!weg) setSpieleLaedt(false); });
     return () => { weg = true; };
-  }, [reiter, fenster, spiele, tabelle.length, vertieft, spieleBasis]);
+  }, [reiter, fenster, spiele, tabelle.length, vertieft, spieleBasis, nachladen]);
 
   /** Wie viele Lobbys gerade laufen. */
   const laufende = useMemo(
@@ -1562,7 +1593,14 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
    */
   useEffect(() => {
     if (reiter !== 'runden' || !laufende || !fenster) return;
-    const uhr = setInterval(() => { setSpiele(null); setSpieleBasis(0); }, 60_000);
+    /*
+     * Waehrend eines Spieltags haeufiger.
+     *
+     * Die Schnittstelle gibt eine laufende Runde jetzt nach fuenfzehn
+     * Sekunden neu heraus; alle zwanzig zu fragen holt das ab, ohne sie zu
+     * ueberrennen.
+     */
+    const uhr = setInterval(() => setNachladen((n) => n + 1), 20_000);
     return () => clearInterval(uhr);
   }, [reiter, laufende, fenster]);
 
