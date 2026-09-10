@@ -2465,8 +2465,14 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
             */}
           {istAdmin && fenster?.eventId && fenster?.windowId && (
             <a
-              href={`/admin/tweets?cup=${encodeURIComponent(fenster.eventId)}`
-                + `&fenster=${encodeURIComponent(fenster.windowId)}`}
+              /*
+               * Nur der Spieltag - er ist eindeutig.
+               *
+               * Die Kennung des Ereignisses hilft dort nicht weiter: die
+               * Auswahlliste im Beitragswerkzeug fuehrt die Kennung der
+               * Cup-Gruppe, und die ist eine andere.
+               */
+              href={`/admin/tweets?fenster=${encodeURIComponent(fenster.windowId)}`}
               title={t('Beitrag zu diesem Spieltag')}
               className="ml-auto grid h-7 w-7 shrink-0 place-items-center
                          rounded-md text-base font-bold text-sky-400

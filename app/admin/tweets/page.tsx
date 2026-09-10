@@ -906,11 +906,30 @@ export default function TweetSeite() {
   const [ausAdresse, setAusAdresse] = useState(false);
   useEffect(() => {
     if (ausAdresse || !cups.length) return;
-    const p = new URLSearchParams(window.location.search);
-    const cup = p.get('cup');
-    const fenster = p.get('fenster');
-    if (cup) setCupId(cup);
-    if (fenster) setFensterId(fenster);
+    const wunsch = new URLSearchParams(window.location.search).get('fenster');
+    if (!wunsch) { setAusAdresse(true); return; }
+
+    /*
+     * Den Cup ueber den Spieltag finden, nicht ueber eine Kennung.
+     *
+     * Der Plus-Knopf in der Turnieransicht kennt die Epic-Kennung des
+     * Ereignisses; die Auswahlliste hier fuehrt aber die Kennung der
+     * Cup-Gruppe, und die beiden sind verschieden. Beim ersten Versuch stand
+     * deshalb wieder "— auswaehlen —" da, obwohl der Cup mitgeschickt wurde.
+     *
+     * Der Spieltag ist eindeutig: es gibt genau einen Cup, in dem er liegt.
+     */
+    for (const c of cups) {
+      for (const liste of Object.values(c.regionen ?? {})) {
+        if (!liste.some((f) => f.windowId === wunsch)) continue;
+        setCupId(c.id);
+        // Alle Spieltage zeigen, damit der gesuchte sicher in der Liste steht.
+        setAlleSpieltage(true);
+        setFensterId(wunsch);
+        setAusAdresse(true);
+        return;
+      }
+    }
     setAusAdresse(true);
   }, [cups, ausAdresse]);
   /** Kennzahlen filtern und aufklappen - es sind schnell dreissig. */
