@@ -1901,6 +1901,14 @@ const AUF_ENGLISCH: Record<string, string> = {
     + 'minutes. Closing a tab does not sign anyone out — nothing more can '
     + 'honestly be said about it.',
   'Noch keine Ergebnisse': 'No results yet',
+  'mehr anzeigen':
+    'show more',
+  'weniger':
+    'show less',
+  'Fertig':
+    'Done',
+  'Gerade läuft kein Cup. Mit „mehr anzeigen“ siehst du auch die übrigen Regionen, die kommenden Tage sowie Ranked, Reload, Mobile und Arenas.':
+    'No cup is running right now. With "show more" you also see the other regions, the coming days, and Ranked, Reload, Mobile and Arenas.',
   'Cup timer':
     'Cup timer',
   'Countdown bis zum Start des Spieltags':

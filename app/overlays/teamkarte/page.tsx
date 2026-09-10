@@ -69,11 +69,11 @@ function namensVorschlag(roh: string): string {
  */
 function Schritt({
   nummer, titel, offen, gesperrt = false, zusammenfassung = '',
-  onOeffnen, weiter, children,
+  onOeffnen, weiter, weiterText = 'Weiter', children,
 }: {
   nummer: number; titel: string; offen: boolean; gesperrt?: boolean;
   zusammenfassung?: string; onOeffnen: () => void; weiter?: () => void;
-  children: React.ReactNode;
+  weiterText?: string; children: React.ReactNode;
 }) {
   return (
     <section className={`rounded-xl border bg-zinc-900/40 p-4 transition
@@ -106,7 +106,7 @@ function Schritt({
         <button type="button" onClick={weiter}
           className="mt-4 rounded-lg bg-sky-500 px-4 py-2 text-sm font-semibold
                      text-white transition hover:bg-sky-400">
-          <T>Weiter</T>
+          <T>{weiterText}</T>
         </button>
       )}
     </section>
@@ -852,7 +852,17 @@ export default function OverlaySeite() {
             <Schritt nummer={3} titel="Aussehen"
               offen={schritt === 3}
               gesperrt={!cup}
-              onOeffnen={() => setSchritt(3)}>
+              onOeffnen={() => setSchritt(3)}
+              weiterText="Fertig"
+              /*
+               * Der letzte Schritt fuehrt zurueck zur Liste.
+               *
+               * Dort steht das fertige Overlay mit seiner Adresse - der
+               * Betreiber: "dann bin ich eigentlich fertig, und dann komm ich
+               * dahin, wo ich meine sehe, kann den auswaehlen und die URL
+               * kopieren."
+               */
+              weiter={() => { window.location.href = window.location.pathname; }}>
               <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-5">
                 {VORLAGEN.map((v) => (
                   <button key={v.id} onClick={() => setVorlage(v.id)}
@@ -941,161 +951,7 @@ export default function OverlaySeite() {
               )}
             </section>
 
-            {/* Gespeicherte Vorlagen. Ohne Spieltag - siehe oben. */}
-            <section className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
-              <h2 className="mb-1 text-sm font-semibold text-slate-100">
-                <T>Meine Vorlagen</T>
-              </h2>
-              <p className="mb-3 text-[11px] leading-relaxed text-slate-500">
-                <T>Gespeichert werden Duo und Aussehen — nicht der Cup. Die
-                Adresse zeigt immer auf den aktuellen Spieltag deiner Region.</T>
-              </p>
 
-              <div className="mb-3 flex gap-2">
-                <input value={neuerTitel} onChange={(e) => setNeuerTitel(e.target.value)}
-                  placeholder={t('Name der Vorlage')} className={feld} />
-                <button
-                  disabled={!neuerTitel.trim() || !duo.length}
-                  onClick={() => {
-                    void vorlageSpeichern({
-                      name: neuerTitel.trim(),
-                      config: {
-                        region,
-                        ids: duo.map((sp) => sp.id).filter(Boolean),
-                        namen: [namen[0], namen[1]],
-                        vorlage, klar, hoehe, abstand,
-                      },
-                    });
-                    setNeuerTitel('');
-                  }}
-                  className="shrink-0 rounded-lg bg-sky-500 px-4 text-sm font-medium
-                             text-white transition hover:bg-sky-400 disabled:opacity-40">
-                  <T>Speichern</T>
-                </button>
-              </div>
-
-              <div className="space-y-1">
-                {gespeicherte.map((v) => (
-                  <div key={v.id}
-                    className="flex items-center gap-2 rounded-lg border border-zinc-800
-                               px-3 py-2 text-[13px]">
-                    <span className="min-w-0 flex-1 truncate text-slate-200">
-                      {v.titel}
-                      <span className="ml-2 text-[11px] text-slate-600">
-                        {v.namen.filter(Boolean).join(' + ')} · {v.region}
-                      </span>
-                    </span>
-                    <button onClick={() => void kopiere(baueUrl(true, v))}
-                      className="shrink-0 text-[11px] text-sky-400 underline
-                                 hover:text-sky-300">
-                      <T>Adresse</T>
-                    </button>
-                    <button
-                      onClick={() => {
-                        setRegion(v.region);
-                        setDuo(v.ids.map((id, i) => ({ id, name: v.namen[i] ?? '' })));
-                        setNamen([v.namen[0] ?? '', v.namen[1] ?? '']);
-                        setVorlage(v.vorlage); setKlar(v.klar); setHoehe(v.hoehe);
-                        if (typeof v.abstand === 'number') setAbstand(v.abstand);
-                      }}
-                      className="shrink-0 text-[11px] text-slate-400 underline
-                                 hover:text-slate-200">
-                      <T>laden</T>
-                    </button>
-                    <button
-                      onClick={() => void vorlageEntfernen(v.id)}
-                      title={t('Vorlage löschen')}
-                      className="shrink-0 text-slate-600 transition hover:text-rose-400">
-                      ×
-                    </button>
-                  </div>
-                ))}
-                {!gespeicherte.length && (
-                  <p className="py-2 text-[11px] text-slate-600">
-                    <T>Noch nichts gespeichert.</T>
-                  </p>
-                )}
-              </div>
-            </section>
-
-            {/* Die ausfuehrliche Bestenliste ist ein eigenes Overlay - eine
-                zweite Browser-Quelle in OBS, die man ein- und ausblendet. */}
-            <details className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
-              <summary className="cursor-pointer text-sm font-semibold text-slate-100">
-                <T>Bestenliste als zweites Overlay</T>
-              </summary>
-              <p className="mb-3 mt-2 text-[11px] leading-relaxed text-slate-500">
-                <T>Die ganze Tabelle des Spieltags — als eigene Browser-Quelle,
-                die du in OBS ein- und ausblendest.</T>
-              </p>
-              <div className="mb-3 grid grid-cols-2 gap-2 sm:grid-cols-4">
-                {([['text', 'Schrift'], ['bg', 'Hintergrund'],
-                  ['bg2', 'Zweiter Hintergrund'], ['accent', 'Akzent']] as const)
-                  .map(([schluessel, titel]) => (
-                    <label key={schluessel}
-                      className="flex items-center gap-2 rounded-lg border
-                                 border-zinc-800 px-2 py-1.5 text-[11px] text-slate-400">
-                      <input type="color"
-                        value={blFarben[schluessel as keyof typeof blFarben]}
-                        onChange={(e) => setBlFarben((a) => ({
-                          ...a, [schluessel]: e.target.value,
-                        }))}
-                        className="h-6 w-6 shrink-0 cursor-pointer rounded border-0
-                                   bg-transparent p-0" />
-                      <span className="truncate"><T>{titel}</T></span>
-                    </label>
-                  ))}
-              </div>
-
-              <div className="mb-3 flex flex-wrap items-center gap-3">
-                <label className="flex items-center gap-2 text-[11px] text-slate-500">
-                  <T>Von Platz</T>
-                  <input type="number" min={1} max={50} value={blVon}
-                    onChange={(e) => {
-                      const v = Math.min(50, Math.max(1, Number(e.target.value) || 1));
-                      setBlVon(v);
-                      if (v > blBis) setBlBis(v);
-                    }}
-                    className={`${feld} w-16 text-center`} />
-                </label>
-                <label className="flex items-center gap-2 text-[11px] text-slate-500">
-                  <T>bis</T>
-                  <input type="number" min={1} max={50} value={blBis}
-                    onChange={(e) => {
-                      const v = Math.min(50, Math.max(1, Number(e.target.value) || 1));
-                      setBlBis(v);
-                      if (v < blVon) setBlVon(v);
-                    }}
-                    className={`${feld} w-16 text-center`} />
-                </label>
-                <button
-                  onClick={() => { setBlFarben({ ...BL_STANDARD }); setBlVon(1); setBlBis(10); }}
-                  className="text-[11px] text-slate-500 underline transition
-                             hover:text-sky-400">
-                  <T>zurücksetzen</T>
-                </button>
-              </div>
-
-              {/* Dieselbe Vorschau wie oben, nur fuer das zweite Overlay. */}
-              <div className="mb-3 overflow-hidden rounded-lg border border-zinc-800"
-                style={{ background:
-                  'repeating-conic-gradient(#27272a 0% 25%, #18181b 0% 50%) 50%/16px 16px' }}>
-                <iframe key={bestenlisteUrl} src={bestenlisteUrl} title="Vorschau"
-                  scrolling="no" className="block w-full border-0"
-                  style={{ height: Math.min(520, 64 + (blBis - blVon + 1) * 30) }} />
-              </div>
-
-              <div className="flex gap-2">
-                <input readOnly value={bestenlisteUrl}
-                  onFocus={(e) => e.currentTarget.select()}
-                  className={`${feld} font-mono text-[10px]`} />
-                <button onClick={() => void kopiere(bestenlisteUrl)}
-                  className="shrink-0 rounded-lg border border-zinc-700 px-4 text-sm
-                             text-slate-300 transition hover:border-sky-500">
-                  <T>Kopieren</T>
-                </button>
-              </div>
-            </details>
           </div>
         </div>
       </div>

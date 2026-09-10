@@ -234,7 +234,23 @@ export default function OverlayGeruest({ aktiv, children }: {
               </button>
               {children}
             </>
-          ) : <Startansicht />}
+          ) : (
+            <Startansicht onWeiter={(e, w) => {
+              /*
+               * In den Baukasten, ohne die Seite zu wechseln.
+               *
+               * Ein router.push auf dieselbe Adresse zeichnet nichts neu -
+               * der Betreiber drueckte auf die Art und es passierte nichts.
+               * Deshalb wandert der Cup von Hand in die Adresse (damit ein
+               * Neuladen dort landet) und der Baukasten wird direkt
+               * aufgeschlagen.
+               */
+              const p = new URLSearchParams({ event: e, fenster: w, bauen: '1' });
+              window.history.replaceState(
+                null, '', `${window.location.pathname}?${p.toString()}`);
+              setImBaukasten(true);
+            }} />
+          )}
         </div>
       </div>
     </main>
