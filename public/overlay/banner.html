@@ -414,9 +414,36 @@ async function zeichne(sanft) {
   /* Den Eintrag zu genau diesen Konten suchen - bei mehreren Duos liegen
      alle in derselben Antwort, und der erste waere der falsche. */
   const eintraege = d.entries || [];
-  const e = ids.length
-    ? eintraege.find(x => (x.players || []).some(p => ids.includes(p.id)))
+  /*
+   * Konto-Ids ohne Ruecksicht auf Gross- und Kleinschreibung vergleichen.
+   *
+   * Epic gibt dieselbe Id an verschiedenen Stellen verschieden geschrieben
+   * heraus; steht in der Adresse die eine und in der Antwort die andere
+   * Schreibweise, findet ein strenger Vergleich nichts - und im Banner stand
+   * "not in the leaderboard yet", obwohl das Duo in derselben Liste auf Platz
+   * 135 zu sehen war. Derselbe Fehler hatte schon einmal ganze Lobbys
+   * auseinandergerissen.
+   */
+  const klein = ids.map(x => String(x).toLowerCase());
+  const [gn1, gn2] = [g1, g2].map(x => String(x || '').trim().toLowerCase());
+  let e = ids.length
+    ? eintraege.find(x => (x.players || [])
+        .some(p => klein.includes(String(p.id || '').toLowerCase())))
     : eintraege[0];
+
+  /*
+   * Und wenn die Id nichts findet, der Name.
+   *
+   * Nur als Rueckfall: die Id ist eindeutig, ein Name ist es nicht. Aber ein
+   * Eintrag, den man in der Suche gesehen hat, soll im Banner nicht fehlen,
+   * bloss weil eine Kennung nicht zusammenpasst.
+   */
+  if (!e && (gn1 || gn2)) {
+    e = eintraege.find(x => (x.players || []).some(p => {
+      const n = String(p.name || '').trim().toLowerCase();
+      return (gn1 && n.includes(gn1)) || (gn2 && n.includes(gn2));
+    }));
+  }
 
 
   if (sanft) {

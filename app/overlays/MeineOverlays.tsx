@@ -253,6 +253,22 @@ export default function MeineOverlays() {
                   </>
                 ) : (
                   <>
+                    {/*
+                      * Bearbeiten heisst: mit diesem Overlay in den Baukasten.
+                      *
+                      * Bisher gab es hier nur Umbenennen, Cup wechseln und
+                      * Loeschen - wer das Aussehen aendern oder einen Spieler
+                      * herausnehmen wollte, musste ein neues anlegen. Der
+                      * Betreiber wollte beides koennen, als VIP wie als
+                      * Manager: "man soll das ganze optische Aussehen aendern
+                      * koennen, Spieler removen und so weiter."
+                      */}
+                    <a href={`${ARTEN.find((a) => a.schluessel === o.typ)?.pfad
+                      ?? '/overlays'}?id=${encodeURIComponent(o.id)}&bauen=1`}
+                      className="text-[11px] font-medium text-sky-400
+                                 underline hover:text-sky-300">
+                      <T>Bearbeiten</T>
+                    </a>
                     <button onClick={() => { setOffen(o.id); setName(o.name); }}
                       className="text-[11px] text-slate-400 underline
                                  hover:text-slate-200">

@@ -97,6 +97,25 @@ export default function QualSeite() {
   useEffect(() => { setSchmutzig(true); }, [cfg, name]);
   useEffect(() => { setSchmutzig(false); }, [id]);
 
+  /*
+   * Ein Overlay, das aus der Liste heraus bearbeitet wird.
+   *
+   * Die Adresse traegt dann seine Kennung. Einmal geladen, danach nicht mehr -
+   * sonst spraengen die Regler bei jeder Aenderung auf den gespeicherten Stand
+   * zurueck.
+   */
+  const [ausAdresseGeladen, setAusAdresseGeladen] = useState(false);
+  useEffect(() => {
+    if (ausAdresseGeladen || !liste) return;
+    const wunsch = new URLSearchParams(window.location.search).get('id');
+    if (!wunsch) return;
+    const o = liste.find((x) => x.id === wunsch);
+    if (o) waehlen(o);
+    setAusAdresseGeladen(true);
+    // laden() haengt an setState-Funktionen und aendert sich nicht.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [liste, ausAdresseGeladen]);
+
   return (
     <OverlayGeruest aktiv="qual">
       <div className="mb-5">

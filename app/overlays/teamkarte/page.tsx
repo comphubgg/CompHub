@@ -195,6 +195,15 @@ export default function OverlaySeite() {
   const [neuerTitel, setNeuerTitel] = useState('');
   /** Ob das Overlay in diesem Durchgang schon gespeichert wurde. */
   const [abgelegt, setAbgelegt] = useState<string | null>(null);
+  /**
+   * Die Kennung des Overlays, das gerade bearbeitet wird.
+   *
+   * Kommt aus der Adresse, wenn man in der Liste auf "Bearbeiten" geht. Ist
+   * sie gesetzt, aendert "Speichern" dieses Overlay, statt ein zweites daneben
+   * anzulegen.
+   */
+  const [bearbeiteId, setBearbeiteId] = useState<string | null>(null);
+  const [ausAdresseGeladen, setAusAdresseGeladen] = useState(false);
 
   const [vorlage, setVorlage] = useState('nacht');
   const [klar, setKlar] = useState(92);
@@ -359,9 +368,49 @@ export default function OverlaySeite() {
    */
   useEffect(() => {
     if (cup) return;
+    /*
+     * Kommt der Spieltag aus der Adresse?
+     *
+     * Die Startansicht schickt ihn mit. Ohne diesen Griff stand hier der
+     * erste Cup der Liste statt des gewaehlten - der Betreiber sah in der
+     * eingeklappten Ueberschrift nur "· EU" und im Banner einen Spieltag,
+     * den er gar nicht ausgesucht hatte.
+     */
+    const p = new URLSearchParams(window.location.search);
+    const wunsch = p.get('fenster');
+    if (wunsch) {
+      const treffer = auswahl.alle.find((f) => f.windowId === wunsch);
+      if (treffer) { setCup(`${treffer.eventId}|${treffer.windowId}`); return; }
+    }
     const erster = auswahl.zeig[0] ?? auswahl.alle[0];
     if (erster) setCup(`${erster.eventId}|${erster.windowId}`);
   }, [cup, auswahl]);
+
+  /*
+   * Ein gespeichertes Overlay zum Bearbeiten holen.
+   *
+   * Einmal, sobald die Liste da ist. Danach nicht mehr - sonst spraengen die
+   * Regler bei jeder Aenderung auf den gespeicherten Stand zurueck.
+   */
+  useEffect(() => {
+    if (ausAdresseGeladen || !vorlagenRoh) return;
+    const wunsch = new URLSearchParams(window.location.search).get('id');
+    if (!wunsch) { setAusAdresseGeladen(true); return; }
+    const o = gespeicherte.find((x) => x.id === wunsch);
+    if (o) {
+      setBearbeiteId(o.id);
+      setNeuerTitel(o.titel);
+      setRegion(o.region);
+      setDuo(o.ids.map((id, i) => ({ id, name: o.namen[i] ?? '' })));
+      setNamen([o.namen[0] ?? '', o.namen[1] ?? '']);
+      setVorlage(o.vorlage);
+      setKlar(o.klar);
+      setHoehe(o.hoehe);
+      if (o.abstand !== undefined) setAbstand(o.abstand);
+      setSchritt(4);
+    }
+    setAusAdresseGeladen(true);
+  }, [vorlagenRoh, gespeicherte, ausAdresseGeladen]);
 
   /* -------------------------------------------------------- Spieler */
 
@@ -953,6 +1002,7 @@ export default function OverlaySeite() {
                       || duo.map((p) => p.name).join(' & ')
                       || t('Team card');
                     const neu = await vorlageSpeichern({
+                      ...(bearbeiteId ? { id: bearbeiteId } : {}),
                       name: titel,
                       config: {
                         region,
@@ -963,7 +1013,7 @@ export default function OverlaySeite() {
                     });
                     if (neu) {
                       setAbgelegt(titel);
-                      setNeuerTitel('');
+                      setBearbeiteId(neu);
                     }
                   }}
                   disabled={!duo.length}
@@ -971,7 +1021,7 @@ export default function OverlaySeite() {
                              font-semibold text-white transition
                              hover:bg-sky-400 disabled:cursor-not-allowed
                              disabled:opacity-40">
-                  <T>Speichern</T>
+                  {bearbeiteId ? <T>Übernehmen</T> : <T>Speichern</T>}
                 </button>
               </div>
               <p className="mt-1.5 text-[11px] leading-relaxed text-slate-500">
