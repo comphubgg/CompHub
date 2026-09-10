@@ -201,6 +201,31 @@ export default function MeineOverlays({ nurArt = '' }: { nurArt?: string }) {
     return treffer ? treffer.titel : c.window;
   };
 
+  /**
+   * Cup und Cup-Datum, wie sie unter dem Titel stehen sollen.
+   *
+   * Der Betreiber wollte beides zusammen: "man sieht unten dran vom Titel
+   * deren Cup, also mit Datum vom Cup plus der Name des Cups" - damit auf
+   * einen Blick klar ist, welches Overlay zu welchem Spieltag gehoert, wenn
+   * mehrere untereinander stehen.
+   */
+  const cupZeile = (o: OverlayEintrag): string => {
+    const c = o.config as { event?: string; window?: string };
+    if (!c.window) return '';
+    const treffer = cupWahl.find((x) => x.wert === `${c.event}|${c.window}`);
+    if (!treffer) return c.window;
+    const datum = new Date(treffer.begin).toLocaleDateString('de-DE',
+      { day: '2-digit', month: '2-digit', year: '2-digit' });
+    return `${treffer.titel} · ${datum}`;
+  };
+
+  /** Wann dieses Overlay zuletzt angefasst wurde - kurz und lesbar. */
+  const standVon = (o: OverlayEintrag): string => {
+    if (!o.geaendert) return '';
+    return new Date(o.geaendert).toLocaleDateString('de-DE',
+      { day: '2-digit', month: '2-digit' });
+  };
+
   if (!liste) {
     return <div className="mt-10 h-24 animate-pulse rounded-xl bg-zinc-900/60" />;
   }
@@ -328,10 +353,24 @@ export default function MeineOverlays({ nurArt = '' }: { nurArt?: string }) {
                 )}
               </div>
 
-              {/* Wer drin steht - nur wo es etwas zu zeigen gibt. */}
-              {wer(o) && (
-                <p className="mt-1.5 truncate text-[11px] text-slate-500">{wer(o)}</p>
-              )}
+              {/*
+                * Unter dem Titel: der Cup mit seinem Datum, und wer drin
+                * steht. Rechts, wann das Overlay zuletzt angefasst wurde -
+                * bei mehreren nebeneinander ist das die Zeile, die sagt,
+                * welches gerade gilt.
+                */}
+              <div className="mt-1.5 flex items-baseline gap-2">
+                <p className="min-w-0 flex-1 truncate text-[11px] text-slate-500">
+                  {cupZeile(o)}
+                  {cupZeile(o) && wer(o) ? ' · ' : ''}
+                  {wer(o)}
+                </p>
+                {standVon(o) && (
+                  <span className="shrink-0 text-[10px] tabular-nums text-slate-600">
+                    {standVon(o)}
+                  </span>
+                )}
+              </div>
 
               {/*
                 * Der Cup. Das ist die einzige Einstellung, die hier

@@ -3055,7 +3055,19 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                             </tr>
                           </thead>
                           <tbody>
-                            {sp.teams.map((t, i) => (
+                            {/*
+                              * Wird gesucht, steht nur die gesuchte Zeile da.
+                              *
+                              * Der Betreiber: "wenn's ist, dann tut's nur die
+                              * anzeigen." Ohne Suche bleibt die ganze Lobby,
+                              * so wie bisher.
+                              */}
+                            {(spielSucheTraege.trim()
+                              ? sp.teams.filter((t) => t.spieler.some((p) => p.name
+                                .toLowerCase()
+                                .includes(spielSucheTraege.trim().toLowerCase())))
+                              : sp.teams
+                            ).map((t, i) => (
                               // Zwei Zeilen koennen dieselbe Team-Id tragen:
                               // in einer Qualifikation spielt ein Konto an
                               // einem Tag in mehreren Lobbys, und Epic
