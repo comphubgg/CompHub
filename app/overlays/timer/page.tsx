@@ -6,7 +6,7 @@ import { useT } from '@/app/components/SprachProvider';
 import OverlayGeruest, {
   overlayAdresse, useOverlays, type OverlayEintrag,
 } from '../OverlayGeruest';
-import { CupWahl, MeineListe, Regler, Wahlreihe } from '../Teile';
+import { CupWahl, MeineListe, Regler, Vorschau, Wahlreihe } from '../Teile';
 
 /*
  * Den Countdown bis zum Cup einstellen.
@@ -202,6 +202,8 @@ export default function TimerSeite() {
         </p>
       </div>
 
+      <Vorschau src={vorschau} hoehe={220} />
+
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="space-y-4">
 
@@ -300,24 +302,6 @@ export default function TimerSeite() {
                 <T>Nicht übernommen — im Stream steht noch der vorige Stand.</T>
               </p>
             )}
-            {/*
-              * Die Vorschau liegt auf einem Schachbrett - ein Overlay ist
-              * durchsichtig, und auf schwarzem Grund sieht man nicht, wie
-              * viel davon durchscheint.
-              */}
-            <div className="mb-3 overflow-hidden rounded-lg border border-zinc-800"
-              style={{
-                backgroundImage:
-                  'linear-gradient(45deg,#27272a 25%,transparent 25%),'
-                  + 'linear-gradient(-45deg,#27272a 25%,transparent 25%),'
-                  + 'linear-gradient(45deg,transparent 75%,#27272a 75%),'
-                  + 'linear-gradient(-45deg,transparent 75%,#27272a 75%)',
-                backgroundSize: '16px 16px',
-                backgroundPosition: '0 0,0 8px,8px -8px,-8px 0',
-              }}>
-              <iframe key={vorschau} src={vorschau} title="Vorschau"
-                className="h-32 w-full border-0" />
-            </div>
             {id && (
               <input readOnly value={overlayAdresse('timer', id)}
                 onFocus={(e) => e.currentTarget.select()}

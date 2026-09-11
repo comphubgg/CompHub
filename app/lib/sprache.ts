@@ -1921,6 +1921,8 @@ const AUF_ENGLISCH: Record<string, string> = {
     'One line of text, written freely, with a bar or without',
   'Schriftart':
     'Font',
+  'So groß wie im Stream (1920 × 1080). Escape zum Verlassen.':
+    'As large as on stream (1920 × 1080). Escape to leave.',
   'Schriftfarbe':
     'Font colour',
   'Keiner':

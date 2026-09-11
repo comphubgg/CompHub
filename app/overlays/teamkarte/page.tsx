@@ -19,6 +19,7 @@ import Link from 'next/link';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import OverlayGeruest, { useOverlays } from '../OverlayGeruest';
+import { Vorschau } from '../Teile';
 import { overlayCupErlaubt, overlayZeitraum } from '@/lib/overlayCups';
 import { rundenName } from '@/lib/rundenName';
 
@@ -1103,21 +1104,11 @@ export default function OverlaySeite() {
               <h2 className="mb-3 text-sm font-semibold text-slate-100">
                 <T>Vorschau</T>
               </h2>
-              {/* Ein karierter Grund zeigt, was im Stream durchsichtig bleibt. */}
-              <div className="overflow-hidden rounded-lg p-3"
-                style={{
-                  backgroundImage:
-                    'repeating-conic-gradient(#27272a 0% 25%, #18181b 0% 50%)',
-                  backgroundSize: '16px 16px',
-                }}>
-                {/* Das Banner ist nur so breit wie sein Inhalt und sitzt in
-                    der Vorschau mittig - so sieht man es ganz, ohne zu
-                    schieben. */}
-                <iframe key={bannerUrl} src={bannerUrl} title="Vorschau"
-                  scrolling="no"
-                  className="block w-full border-0"
-                  style={{ height: hoehe + 8 }} />
-              </div>
+              {/* Das Banner ist nur so breit wie sein Inhalt und sitzt in
+                  der Vorschau mittig - so sieht man es ganz, ohne zu
+                  schieben. Die Spalte klebt schon; die Vorschau selbst
+                  muss es nicht. */}
+              <Vorschau src={bannerUrl} hoehe={hoehe + 16} klebt={false} />
 
               <div className="mt-3 flex gap-2">
                 <input readOnly value={bannerUrl}

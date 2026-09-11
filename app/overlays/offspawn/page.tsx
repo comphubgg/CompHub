@@ -6,7 +6,7 @@ import { useT } from '@/app/components/SprachProvider';
 import OverlayGeruest, {
   overlayAdresse, useOverlays, type OverlayEintrag,
 } from '../OverlayGeruest';
-import { MeineListe, Regler, Wahlreihe } from '../Teile';
+import { MeineListe, Regler, Vorschau, Wahlreihe } from '../Teile';
 
 /*
  * Den Offspawn-Stand einstellen.
@@ -187,6 +187,8 @@ export default function OffspawnSeite() {
           steht, steht im Stream.</T>
         </p>
       </div>
+
+      <Vorschau src={vorschau} hoehe={220} />
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
         <div className="space-y-4">
@@ -384,20 +386,6 @@ export default function OffspawnSeite() {
                 <T>Nicht übernommen — im Stream steht noch der vorige Stand.</T>
               </p>
             )}
-
-            <div className="mb-3 overflow-hidden rounded-lg border border-zinc-800"
-              style={{
-                backgroundImage:
-                  'linear-gradient(45deg,#27272a 25%,transparent 25%),'
-                  + 'linear-gradient(-45deg,#27272a 25%,transparent 25%),'
-                  + 'linear-gradient(45deg,transparent 75%,#27272a 75%),'
-                  + 'linear-gradient(-45deg,transparent 75%,#27272a 75%)',
-                backgroundSize: '16px 16px',
-                backgroundPosition: '0 0,0 8px,8px -8px,-8px 0',
-              }}>
-              <iframe key={vorschau} src={vorschau} title="Vorschau"
-                className="h-28 w-full border-0" />
-            </div>
 
             {/*
               * Warum es in OBS unscharf aussieht - und was dagegen hilft.

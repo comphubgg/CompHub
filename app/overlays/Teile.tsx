@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import { ARTEN, overlayAdresse, type OverlayEintrag } from './OverlayGeruest';
@@ -260,6 +260,180 @@ export function Wahlreihe<W extends string | number>({ titel, wert, optionen, se
           </button>
         ))}
       </div>
+    </div>
+  );
+}
+
+/*
+ * Das Schachbrett hinter jeder Vorschau.
+ *
+ * Ein Overlay ist durchsichtig; auf schwarzem Grund sieht man nicht, wie
+ * viel davon durchscheint.
+ */
+const KARO: React.CSSProperties = {
+  backgroundImage:
+    'linear-gradient(45deg,#27272a 25%,transparent 25%),'
+    + 'linear-gradient(-45deg,#27272a 25%,transparent 25%),'
+    + 'linear-gradient(45deg,transparent 75%,#27272a 75%),'
+    + 'linear-gradient(-45deg,transparent 75%,#27272a 75%)',
+  backgroundSize: '16px 16px',
+  backgroundPosition: '0 0,0 8px,8px -8px,-8px 0',
+};
+
+/** Die Buehne im Vollbild: so gross wie ein Stream. */
+const BUEHNE = { breite: 1920, hoehe: 1080 };
+
+/**
+ * Die Vorschau - gross, und auf Wunsch bildschirmfuellend.
+ *
+ * Der Betreiber: "mach die Preview groesser, und mach, dass man Fullscreen
+ * machen kann und auch wieder leaven kann." Sie war ein schmaler Streifen in
+ * der rechten Spalte, in dem ein Offspawn mit Fotos schon nicht mehr ganz
+ * Platz hatte.
+ *
+ * Jetzt liegt sie ueber der ganzen Breite und klebt beim Scrollen unter der
+ * Kopfzeile fest - wer unten an einem Regler dreht, sieht oben, was er tut.
+ *
+ * Das Vollbild ist eine Buehne von 1920 x 1080, auf den Bildschirm
+ * eingepasst: auf einem 1080p-Monitor ist das Overlay dann genau so gross
+ * wie in OBS. Eine ehrliche Vorschau, keine aufgeblasene. Verlassen mit dem
+ * Knopf oder mit Escape.
+ *
+ * @param klebt Ob die Vorschau beim Scrollen oben stehen bleibt. Aus, wo
+ *   sie ohnehin in einer klebenden Spalte sitzt.
+ */
+export function Vorschau({ src, hoehe = 220, klebt = true, leer }: {
+  src: string | null;
+  hoehe?: number;
+  klebt?: boolean;
+  leer?: React.ReactNode;
+}) {
+  const [voll, setVoll] = useState(false);
+  const schliessen = useCallback(() => setVoll(false), []);
+
+  /*
+   * Wie hoch die Kopfzeile ist.
+   *
+   * Sie klebt selbst oben; die Vorschau muss darunter anhalten und nicht
+   * dahinter verschwinden. Ihre Hoehe steht nirgends fest - sie wird
+   * gemessen.
+   */
+  const [oben, setOben] = useState(0);
+  useEffect(() => {
+    if (!klebt) return undefined;
+    const kopf = document.querySelector('header');
+    const messen = () => setOben(
+      kopf ? Math.round(kopf.getBoundingClientRect().height) : 0);
+    messen();
+    window.addEventListener('resize', messen);
+    return () => window.removeEventListener('resize', messen);
+  }, [klebt]);
+
+  return (
+    <>
+      <div
+        className={klebt
+          ? 'sticky z-30 mb-5 bg-zinc-950 pb-3 pt-2'
+          : 'mb-3'}
+        style={klebt ? { top: oben } : undefined}>
+        <div className="relative overflow-hidden rounded-xl border border-zinc-800"
+          style={{ ...KARO, height: hoehe }}>
+          {src ? (
+            <iframe key={src} src={src} title="Vorschau" scrolling="no"
+              className="block h-full w-full border-0" />
+          ) : (
+            <div className="grid h-full place-items-center px-4 text-center
+                            text-[11px] text-slate-500">
+              {leer}
+            </div>
+          )}
+          {/* Unten rechts: Overlays sitzen oben links, da kommt nichts
+              in die Quere. */}
+          {src && (
+            <button type="button" onClick={() => setVoll(true)}
+              className="absolute bottom-2 right-2 rounded-lg border border-zinc-700
+                         bg-zinc-950/85 px-3 py-1.5 text-[11px] font-medium
+                         text-slate-300 backdrop-blur transition
+                         hover:border-sky-500 hover:text-sky-400">
+              ⛶ <T>Vollbild</T>
+            </button>
+          )}
+        </div>
+      </div>
+      {voll && src && <VollbildVorschau src={src} schliessen={schliessen} />}
+    </>
+  );
+}
+
+/** Die bildschirmfuellende Vorschau - siehe Vorschau. */
+function VollbildVorschau({ src, schliessen }: {
+  src: string; schliessen: () => void;
+}) {
+  const rahmen = useRef<HTMLDivElement>(null);
+  const [mass, setMass] = useState(1);
+
+  useEffect(() => {
+    const passen = () => setMass(Math.min(
+      window.innerWidth / BUEHNE.breite, window.innerHeight / BUEHNE.hoehe));
+    passen();
+    window.addEventListener('resize', passen);
+
+    /*
+     * Echtes Vollbild, wenn der Browser es erlaubt.
+     *
+     * Erlaubt er es nicht, bleibt die feste Flaeche ueber der Seite - das
+     * sieht fast gleich aus. Verlaesst jemand das Vollbild ueber Escape,
+     * meldet der Browser das, und die Flaeche geht mit zu.
+     */
+    const el = rahmen.current;
+    el?.requestFullscreen?.().catch(() => {});
+    const beiWechsel = () => { if (!document.fullscreenElement) schliessen(); };
+    document.addEventListener('fullscreenchange', beiWechsel);
+    const beiTaste = (e: KeyboardEvent) => { if (e.key === 'Escape') schliessen(); };
+    window.addEventListener('keydown', beiTaste);
+
+    return () => {
+      window.removeEventListener('resize', passen);
+      document.removeEventListener('fullscreenchange', beiWechsel);
+      window.removeEventListener('keydown', beiTaste);
+      if (document.fullscreenElement) document.exitFullscreen?.().catch(() => {});
+    };
+  }, [schliessen]);
+
+  /* Erst aus dem Vollbild, dann zu - sonst bleibt der Bildschirm schwarz. */
+  function verlassen() {
+    if (document.fullscreenElement) {
+      document.exitFullscreen?.().catch(() => {}).finally(schliessen);
+    } else {
+      schliessen();
+    }
+  }
+
+  // Ueber allem, auch ueber dem Sprachschalter unten rechts (z-100).
+  return (
+    <div ref={rahmen} className="fixed inset-0 z-[200] bg-black">
+      <div className="absolute left-1/2 top-1/2 overflow-hidden"
+        style={{
+          ...KARO,
+          width: BUEHNE.breite, height: BUEHNE.hoehe,
+          transform: `translate(-50%, -50%) scale(${mass})`,
+        }}>
+        <iframe src={src} title="Vorschau" scrolling="no"
+          className="block border-0"
+          style={{ width: BUEHNE.breite, height: BUEHNE.hoehe }} />
+      </div>
+      <button type="button" onClick={verlassen}
+        className="absolute right-4 top-4 z-10 rounded-lg border border-zinc-700
+                   bg-zinc-950/85 px-4 py-2 text-sm font-medium text-slate-200
+                   backdrop-blur transition hover:border-sky-500
+                   hover:text-sky-400">
+        ✕ <T>Vollbild verlassen</T>
+      </button>
+      <p className="absolute bottom-4 left-1/2 z-10 -translate-x-1/2 whitespace-nowrap
+                    rounded-lg bg-zinc-950/70 px-3 py-1.5 text-[11px]
+                    text-slate-400 backdrop-blur">
+        <T>So groß wie im Stream (1920 × 1080). Escape zum Verlassen.</T>
+      </p>
     </div>
   );
 }

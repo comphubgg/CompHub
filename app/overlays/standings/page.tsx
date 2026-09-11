@@ -6,7 +6,7 @@ import { useT } from '@/app/components/SprachProvider';
 import OverlayGeruest, {
   overlayAdresse, useOverlays, type OverlayEintrag,
 } from '../OverlayGeruest';
-import { CupWahl, MeineListe, Regler, Wahlreihe } from '../Teile';
+import { CupWahl, MeineListe, Regler, Vorschau, Wahlreihe } from '../Teile';
 
 /*
  * Das Standings-Overlay einstellen.
@@ -142,6 +142,10 @@ export default function StandingsSeite() {
           für deinen Stream.</T>
         </p>
       </div>
+
+      <Vorschau src={vorschau || null} hoehe={320}
+        leer={<T>Erst anlegen — dann steht hier die Vorschau, genau so wie
+          sie im Stream aussieht.</T>} />
 
       <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
 
@@ -359,33 +363,6 @@ export default function StandingsSeite() {
                 <T>Nicht übernommen — im Stream steht noch der vorige Stand.</T>
               </p>
             )}
-
-            {/*
-              * Die Vorschau liegt auf einem Schachbrett.
-              *
-              * Ein Overlay ist durchsichtig; auf schwarzem Grund sieht man
-              * nicht, wie viel davon durchscheint.
-              */}
-            <div className="overflow-hidden rounded-lg border border-zinc-800"
-              style={{
-                backgroundImage:
-                  'linear-gradient(45deg,#27272a 25%,transparent 25%),'
-                  + 'linear-gradient(-45deg,#27272a 25%,transparent 25%),'
-                  + 'linear-gradient(45deg,transparent 75%,#27272a 75%),'
-                  + 'linear-gradient(-45deg,transparent 75%,#27272a 75%)',
-                backgroundSize: '16px 16px',
-                backgroundPosition: '0 0,0 8px,8px -8px,-8px 0',
-              }}>
-              {vorschau ? (
-                <iframe key={vorschau} src={vorschau} title="Vorschau"
-                  className="h-64 w-full border-0" />
-              ) : (
-                <p className="px-4 py-10 text-center text-[11px] text-slate-500">
-                  <T>Erst anlegen — dann steht hier die Vorschau, genau so wie
-                  sie im Stream aussieht.</T>
-                </p>
-              )}
-            </div>
           </section>
 
           <section className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
