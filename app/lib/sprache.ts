@@ -1925,6 +1925,10 @@ const AUF_ENGLISCH: Record<string, string> = {
     'As large as on stream (1920 × 1080). Escape to leave.',
   'Schriftfarbe':
     'Font colour',
+  'Cup, Region oder Datum suchen …':
+    'search a cup, region or date …',
+  'Nichts gefunden für':
+    'Nothing found for',
   'Keiner':
     'None',
   'Unscharf in OBS? Zieh die Quelle in der Szene nie größer, als sie eingetragen ist — stell lieber hier die Schriftgröße höher.':

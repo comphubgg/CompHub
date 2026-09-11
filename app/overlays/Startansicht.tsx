@@ -104,6 +104,16 @@ export default function Startansicht({ onWeiter, art }: {
    */
   const [stufe, setStufe] = useState(0);
   const [gewaehlt, setGewaehlt] = useState<Wahl | null>(null);
+  /*
+   * Die Suche in der Cup-Liste.
+   *
+   * Ganz aufgeklappt sind es an einem Cup-Tag sechzig Kacheln und mehr; wer
+   * einen bestimmten sucht, will ihn tippen, nicht scrollen. Der Betreiber:
+   * "wenn ich hier dann alle eingeblendet hab, soll mittig eine Suchliste
+   * kommen." Sobald etwas drinsteht, wird alles durchsucht, nicht nur die
+   * gerade offene Stufe.
+   */
+  const [suche, setSuche] = useState('');
 
   useEffect(() => {
     fetch('/api/cup-catalog?modus=alle')
@@ -159,15 +169,38 @@ export default function Startansicht({ onWeiter, art }: {
    * Laufendes immer. Danach oeffnet jede Stufe einen Ring weiter, damit die
    * erste Ansicht kurz bleibt: sechs Kacheln statt sechzig.
    */
-  const kacheln = useMemo(() => alleKacheln.filter((k) => {
-    if (nurLaufende && !managerDarfCup(k.begin, k.region, k.live)) return false;
-    if (k.live) return true;
-    if (stufe === 0) return k.heute && k.erlaubt && k.region === 'EU';
-    if (stufe === 1) return k.heute && k.erlaubt;
-    return true;
-  }), [alleKacheln, stufe, nurLaufende]);
+  const kacheln = useMemo(() => {
+    const woerter = suche.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    return alleKacheln.filter((k) => {
+      if (nurLaufende && !managerDarfCup(k.begin, k.region, k.live)) return false;
+      /*
+       * Mit Suchtext zaehlt nur der Treffer - jedes getippte Wort muss ein
+       * Wort anfangen, in Name, Region, "Finals", Datum oder "heute". So
+       * findet "reload eu" die Reload-Cups in Europa und "11.09." alles von
+       * diesem Tag.
+       *
+       * Wortanfang, nicht Teilstueck: "eu" steckt auch in "heute", und die
+       * erste Fassung zeigte damit fuer "reload eu" jede Region an.
+       */
+      if (woerter.length) {
+        const zeit = wann(k.live ? 'live' : '', k.begin);
+        const imText = [
+          k.titel, k.region, k.istFinale ? 'finals finale' : '',
+          new Date(k.begin).toLocaleDateString('de-DE',
+            { day: '2-digit', month: '2-digit' }),
+          zeit, t(zeit),
+        ].join(' ').toLowerCase().split(/[^\p{L}\p{N}.]+/u).filter(Boolean);
+        return woerter.every((w) => imText.some((x) => x.startsWith(w)));
+      }
+      if (k.live) return true;
+      if (stufe === 0) return k.heute && k.erlaubt && k.region === 'EU';
+      if (stufe === 1) return k.heute && k.erlaubt;
+      return true;
+    });
+  }, [alleKacheln, stufe, nurLaufende, suche, t]);
 
   const nochDa = alleKacheln.length - kacheln.length;
+  const sucht = suche.trim().length > 0;
 
   return (
     <div className="flex flex-col gap-8">
@@ -198,14 +231,14 @@ export default function Startansicht({ onWeiter, art }: {
                            text-slate-400">
               <T>Für welchen Cup?</T>
             </h2>
-            {nochDa > 0 && (
+            {nochDa > 0 && !sucht && (
               <button onClick={() => setStufe((v) => Math.min(2, v + 1))}
                 className="ml-auto text-[11px] text-slate-500 transition
                            hover:text-sky-400">
                 <T>mehr anzeigen</T> ({nochDa})
               </button>
             )}
-            {stufe > 0 && (
+            {stufe > 0 && !sucht && (
               <button onClick={() => setStufe(0)}
                 className={`text-[11px] text-slate-600 transition
                            hover:text-slate-300 ${nochDa > 0 ? '' : 'ml-auto'}`}>
@@ -213,6 +246,18 @@ export default function Startansicht({ onWeiter, art }: {
               </button>
             )}
           </div>
+
+          {/* Die Suche - mittig, so wollte es der Betreiber. */}
+          {cups && cups.length > 0 && (
+            <div className="mb-4 flex justify-center">
+              <input value={suche} onChange={(e) => setSuche(e.target.value)}
+                placeholder={t('Cup, Region oder Datum suchen …')}
+                className="w-full max-w-md rounded-lg border border-zinc-800
+                           bg-zinc-950 px-4 py-2.5 text-center text-sm
+                           text-slate-100 outline-none
+                           placeholder:text-slate-600 focus:border-sky-500" />
+            </div>
+          )}
 
           {!cups && (
             <p className="text-sm text-slate-600"><T>Wird geladen …</T></p>
@@ -226,13 +271,18 @@ export default function Startansicht({ onWeiter, art }: {
             </p>
           )}
 
-          {cups && !kacheln.length && nurLaufende && (
+          {cups && !kacheln.length && sucht && (
+            <p className="text-sm leading-relaxed text-amber-500/80">
+              <T>Nichts gefunden für</T> &quot;{suche.trim()}&quot;
+            </p>
+          )}
+          {cups && !kacheln.length && !sucht && nurLaufende && (
             <p className="text-sm leading-relaxed text-amber-500/80">
               <T>Gerade läuft kein Spieltag und keiner fängt gleich an. Sobald
               einer ansteht, erscheint er hier von selbst.</T>
             </p>
           )}
-          {cups && !kacheln.length && !nurLaufende && (
+          {cups && !kacheln.length && !sucht && !nurLaufende && (
             <p className="text-sm leading-relaxed text-amber-500/80">
               <T>Gerade läuft kein Cup. Mit „mehr anzeigen“ siehst du auch die
               übrigen Regionen, die kommenden Tage sowie Ranked, Reload, Mobile
