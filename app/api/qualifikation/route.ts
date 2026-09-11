@@ -110,13 +110,39 @@ export async function GET(request: Request) {
    * Durchschnitt frueherer Ausgaben fuer einen abgeschlossenen Cup die
    * schlechtere Auskunft ist - "ist ja nicht immer das Gleiche".
    */
+  /*
+   * Und waehrend er laeuft, steht dort der Stand von jetzt.
+   *
+   * Der Betreiber hatte die Bestenliste neben der Zahl: "Platz 300 steht
+   * aktuell auf 435, und bei Qualifying stehen 408. Das musst du live
+   * updaten." Die 408 waren der Schnitt frueherer Ausgaben - fuer einen
+   * laufenden Spieltag die schlechtere Auskunft, wenn die eigene Liste
+   * schon sagt, was Platz 300 gerade kostet. Waehrend des Spieltags wird
+   * die Liste deshalb alle fuenfzehn Sekunden neu geholt, im selben Takt
+   * wie die laufende Runde.
+   *
+   * Ob er laeuft, wird hier an Beginn und Ende gemessen und nicht am
+   * gespeicherten Zustand: der Katalog ist fuenf Minuten alt, und in den
+   * ersten Minuten eines Cups stuende dort noch "kommt".
+   */
+  const jetzt = Date.now();
+  const laeuft = dieser.begin <= jetzt
+    && (typeof dieser.end === 'number' ? jetzt <= dieser.end : dieser.status === 'live');
+  const vorbei = !laeuft && (dieser.status === 'vorbei'
+    || (typeof dieser.end === 'number' && jetzt > dieser.end));
   let tatsaechlich: number | null = null;
-  if (dieser.status === 'vorbei') {
+  if (vorbei || laeuft) {
     try {
-      const board = await gecacht(`qualIst|${dieser.eventId}|${dieser.windowId}|${schwelle}`,
-        30 * 60_000, () => holeTop(dieser.eventId, dieser.windowId, schwelle));
+      const board = await gecacht(
+        `qualIst|${dieser.eventId}|${dieser.windowId}|${schwelle}|${laeuft ? 'live' : 'fertig'}`,
+        laeuft ? 15_000 : 30 * 60_000,
+        () => holeTop(dieser.eventId, dieser.windowId, schwelle));
       const treffer = board.entries.find((e) => e.rank === schwelle);
-      if (treffer && typeof treffer.points === 'number') tatsaechlich = treffer.points;
+      // Null Punkte auf dem Platz heisst: noch nichts gespielt, oder Epic
+      // fuehrt fuer diesen Cup keine Punkte. Beides ist keine Auskunft.
+      if (treffer && typeof treffer.points === 'number' && treffer.points > 0) {
+        tatsaechlich = treffer.points;
+      }
     } catch { /* dann bleibt es beim Schnitt aus frueheren Ausgaben */ }
   }
 
@@ -139,7 +165,7 @@ export async function GET(request: Request) {
   if (!frueher.length) {
     // Ohne Vorgeschichte bleibt trotzdem, was dieser Spieltag gekostet hat.
     return NextResponse.json({
-      vorhanden: tatsaechlich !== null, schwelle, tatsaechlich,
+      vorhanden: tatsaechlich !== null, schwelle, tatsaechlich, laeuft,
       hinweis: tatsaechlich === null
         ? 'Von diesem Cup ist noch keine frühere Ausgabe gelaufen.' : null,
       ausgaben: [], schnitt: null,
@@ -172,9 +198,10 @@ export async function GET(request: Request) {
 
   return NextResponse.json({
     vorhanden: schnitt !== null || tatsaechlich !== null,
-    /* Was dieser Spieltag tatsaechlich gekostet hat - nur wenn er vorbei
-       ist. Steht das hier, ist der Schnitt nur noch Beiwerk. */
-    tatsaechlich,
+    /* Was dieser Spieltag tatsaechlich kostet - waehrend er laeuft der
+       Stand von jetzt, danach das Ergebnis. Steht das hier, ist der Schnitt
+       nur noch Beiwerk. "laeuft" sagt, welches von beiden es ist. */
+    tatsaechlich, laeuft,
     schwelle, region, ausgaben, schnitt,
     /* Wahr, wenn die Schwelle aus dem Finalfeld gezaehlt wurde statt aus
        Epics Auszahlungstabelle zu stammen - das gehoert dazugesagt. */

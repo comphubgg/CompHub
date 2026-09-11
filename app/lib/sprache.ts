@@ -1929,6 +1929,8 @@ const AUF_ENGLISCH: Record<string, string> = {
     'search a cup, region or date …',
   'Nichts gefunden für':
     'Nothing found for',
+  'gerade':
+    'right now',
   'Twitch-Name eingeben, Enter — kommt in die Multiview':
     'type a Twitch name, press Enter — it joins the multiview',
   'Wird gesucht …':

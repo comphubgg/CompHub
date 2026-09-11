@@ -246,6 +246,8 @@ html, body {
       }
 
       // Der Live-Wert nur, wenn gerade wirklich jemand auf dem Platz steht.
+      // Waehrend des Spieltags ist das der Stand von jetzt, alle fuenfzehn
+      // Sekunden frisch - danach das Ergebnis.
       if (d.tatsaechlich) {
         $('live').textContent = d.tatsaechlich;
         $('top').textContent = 'TOP ' + (d.schwelle || cfg.schwelle);

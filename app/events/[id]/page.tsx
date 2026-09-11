@@ -710,8 +710,10 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
    */
   const [qual, setQual] = useState<{
     schnitt: number | null; grundlage: number; schwelle?: number;
-    /** Was dieser Spieltag wirklich gekostet hat - nur wenn er vorbei ist. */
+    /** Was dieser Spieltag kostet - waehrend er laeuft der Stand von jetzt. */
     tatsaechlich?: number | null;
+    /** Wahr, solange der Spieltag laeuft - dann ist "tatsaechlich" ein Zwischenstand. */
+    laeuft?: boolean;
     /** Wahr, wenn die Schwelle aus dem Finalfeld gezaehlt wurde. */
     hergeleitet?: boolean;
     ausgaben: Array<{ windowId: string; datum: number; punkte: number | null }>;
@@ -728,15 +730,30 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
      * der naechsten Runde antritt, ist der Kreis, der weitergekommen ist.
      * Die Schnittstelle zaehlt das selbst, wenn keine Schwelle mitkommt.
      */
-    const holen = fenster
-      ? fetch(`/api/qualifikation?window=${encodeURIComponent(fenster.windowId)}`
-        + `&region=${encodeURIComponent(fenster.region)}`
-        + (fenster.qualifiziert ? `&schwelle=${fenster.qualifiziert}` : ''))
-        .then((r) => r.json())
-        .then((j) => (j?.vorhanden ? j : null))
-      : Promise.resolve(null);
-    holen.then((v) => { if (!weg) setQual(v); }).catch(() => {});
-    return () => { weg = true; };
+    if (!fenster) { setQual(null); return undefined; }
+    let uhr: number | undefined;
+    /*
+     * Solange der Spieltag laeuft, alle zwanzig Sekunden neu.
+     *
+     * Die Schnittstelle sagt mit "laeuft", ob ihre Zahl ein Zwischenstand
+     * ist - dann wird sie im Takt der Bestenliste nachgeholt, auf jedem
+     * Reiter, statt beim ersten Stand stehenzubleiben. Der Betreiber: "das
+     * musst du live updaten und genauer updaten."
+     */
+    const holen = () => fetch(
+      `/api/qualifikation?window=${encodeURIComponent(fenster.windowId)}`
+      + `&region=${encodeURIComponent(fenster.region)}`
+      + (fenster.qualifiziert ? `&schwelle=${fenster.qualifiziert}` : ''),
+      { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((j) => {
+        if (weg) return;
+        setQual(j?.vorhanden ? j : null);
+        if (j?.laeuft) uhr = window.setTimeout(holen, 20_000);
+      })
+      .catch(() => {});
+    holen();
+    return () => { weg = true; if (uhr) window.clearTimeout(uhr); };
   }, [fenster]);
 
   /** Welcher Reiter im Preis-Block offen ist. */
@@ -2196,6 +2213,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                    */
                   + (typeof qual?.tatsaechlich === 'number'
                     ? ` · ${qual.tatsaechlich.toLocaleString(ort)} ${t('Punkte')}`
+                      + (qual.laeuft ? ` (${t('gerade')})` : '')
                     : qual?.schnitt
                       ? ` · ${t('etwa')} ${qual.schnitt.toLocaleString(ort)} ${t('Punkte')}`
                       : '')]
