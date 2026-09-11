@@ -4,6 +4,42 @@ import {
   schreibeArchiv, leseArchiv, archivCups, EpicLoginNoetig,
   type CupArt, type CupGruppe,
 } from '@/lib/epicCups';
+import { fertigeAntwort, FRISCH_LIVE_MS } from '@/lib/antwortSpeicher';
+
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+export const maxDuration = 60;
+
+/*
+ * Laufend, kommt, vorbei - vom Stand jetzt.
+ *
+ * Der Katalog wird abgelegt und bis zu einige Minuten alt ausgeliefert.
+ * Seine Zustaende wurden aber beim Rechnen bestimmt; ein Cup, der seither
+ * angefangen hat, stuende noch als "kommt" da. Beginn und Ende stehen an
+ * jedem Fenster - daraus laesst sich der Zustand jederzeit neu ablesen,
+ * ohne irgendetwas zu holen.
+ */
+function zustaendeJetzt(cups: CupGruppe[]): CupGruppe[] {
+  const jetzt = Date.now();
+  return cups.map((c) => {
+    let live = false; let vorbei = false; let naechster: number | null = null;
+    const regionen: CupGruppe['regionen'] = {};
+    for (const [r, liste] of Object.entries(c.regionen ?? {})) {
+      regionen[r] = liste.map((w) => {
+        if (typeof w.end !== 'number') return w;
+        const status: typeof w.status =
+          jetzt >= w.begin && jetzt <= w.end ? 'live' : jetzt < w.begin ? 'kommt' : 'vorbei';
+        return status === w.status ? w : { ...w, status };
+      });
+      for (const w of regionen[r]) {
+        if (w.status === 'live') live = true;
+        if (w.status === 'vorbei') vorbei = true;
+        if (w.status === 'kommt' && (naechster === null || w.begin < naechster)) naechster = w.begin;
+      }
+    }
+    return { ...c, regionen, live, vorbei, naechsterStart: live ? c.naechsterStart : naechster };
+  });
+}
 
 // Alle Cups, je Turnier ueber die Regionen zusammengefasst - mit Titel,
 // Kachelbild und Farbe von Epic.
@@ -30,8 +66,20 @@ export async function GET(request: Request) {
     .map((s) => s.trim()).filter(Boolean) as CupArt[];
 
   try {
-    const alle = await gecacht(`catalog|${regionen.join(',')}`, 5 * 60_000,
-      () => cupsGruppiert(regionen));
+    /*
+     * Erst der Arbeitsspeicher, dann die Ablage, erst zuletzt Epic.
+     *
+     * Bei Vercel faengt jede neue Instanz mit leerem Speicher an - und holte
+     * dann den ganzen Katalog von Epic: sieben Regionen, ein paar Megabyte,
+     * gemessen sechzehn Sekunden. Der Betreiber: "braucht jetzt wirklich
+     * fuenf Jahre, um ueberhaupt die Cups zu laden." Jetzt liegt der fertige
+     * Katalog in der Ablage; eine kalte Instanz liest ihn dort in einem
+     * Zug und erneuert ihn im Hintergrund, wenn er aelter als fuenf Minuten
+     * ist. Gewartet wird nur noch, wenn wirklich gar nichts da ist.
+     */
+    const schluessel = `catalog|${regionen.join(',')}`;
+    const alle = zustaendeJetzt(await gecacht(schluessel, 60_000,
+      () => fertigeAntwort(schluessel, () => cupsGruppiert(regionen), FRISCH_LIVE_MS)));
 
     // Jeden Durchlauf mitschreiben, damit die Vergangenheit waechst.
     // Epic selbst haelt vergangene Cups nur wenige Tage vor.

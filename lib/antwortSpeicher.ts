@@ -29,7 +29,22 @@
  * die wichtigsten Antworten vor.
  */
 
+import { after } from 'next/server';
 import { liesJson, schreibJson, speicher } from '@/lib/ablage';
+
+/*
+ * Etwas nach der Antwort erledigen - und zwar wirklich.
+ *
+ * Bei Vercel wird eine Funktion nach der Antwort eingefroren; ein einfach
+ * losgelassenes Promise kommt dann nie ans Ende, und die abgelaufene
+ * Antwort bliebe fuer immer alt. "after" aus Next haelt die Funktion so
+ * lange am Leben, bis die Arbeit getan ist. Ausserhalb einer Anfrage - etwa
+ * in einem Skript - gibt es das nicht; dann laeuft es wie bisher los.
+ */
+function nachDerAntwort(arbeit: () => Promise<void>): void {
+  try { after(arbeit); }
+  catch { void arbeit(); }
+}
 
 /** Wo die fertigen Antworten liegen. */
 const ORDNER = 'antworten';
@@ -133,13 +148,13 @@ export async function fertigeAntwort<T>(
     // Zu alt: trotzdem ausliefern, im Hintergrund erneuern.
     if (!laufend.has(schluessel)) {
       laufend.add(schluessel);
-      void (async () => {
+      nachDerAntwort(async () => {
         try {
           const wert = await rechne();
           await schreibJson(name, { zeit: Date.now(), wert });
         } catch { /* dann bleibt der alte Stand stehen */ }
         finally { laufend.delete(schluessel); }
-      })();
+      });
     }
     return abgelegt.wert;
   }
