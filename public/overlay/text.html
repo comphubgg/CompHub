@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Custom text</title>
+<link rel="stylesheet" href="/fonts/fonts.css">
+<style>
+/*
+ * Der eigene Text.
+ *
+ * Eine Zeile, frei geschrieben - "GAME: 4 / 4", "BO3", "LAST GAME", was
+ * gerade gebraucht wird. Er sass zuerst als Balken unter dem Offspawn-Stand;
+ * der Betreiber wollte ihn dort nicht: "dieser Custom Text kommt bei Offspawn
+ * raus, das gibt's nicht, fertig, weg. Und dann machst du das als
+ * Extra-Overlay."
+ *
+ * Und er hat gesagt, was es braucht und was nicht: "Bar Color, kannst aber
+ * auch sagen keine Bar Color, dann den Text, Schriftart und Schriftfarbe
+ * natuerlich. Und mehr braucht es dann eigentlich nicht." Genau das steht
+ * hier - dazu nur die Schriftgroesse, ohne die man die Quelle in OBS ziehen
+ * muesste, und das macht sie unscharf.
+ */
+
+@font-face {
+  font-family: 'Anton';
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url('/fonts/anton-latin.woff2') format('woff2');
+}
+
+:root {
+  --farbe: #ffffff;
+  --balken: transparent;
+  --schrift: 32px;
+  --familie: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+  --gewicht: 800;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  background: transparent;
+  overflow: hidden;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: geometricPrecision;
+}
+
+#text {
+  display: inline-block;
+  max-width: 100vw;
+  font-family: var(--familie);
+  font-weight: var(--gewicht);
+  font-size: var(--schrift);
+  line-height: 1.15;
+  letter-spacing: 0.04em;
+  color: var(--farbe);
+  white-space: nowrap;
+  /*
+   * Ohne Balken steht die Schrift direkt auf dem Spiel - ein weicher
+   * Schatten haelt sie auch auf hellem Grund lesbar.
+   */
+  text-shadow: 0 0.04em 0.18em rgba(0, 0, 0, 0.55);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+#text.da { opacity: 1; }
+
+/* Mit Balken: die Farbe dahinter, der Schatten weg. */
+#text.balken {
+  background: var(--balken);
+  padding: 0.22em 0.65em;
+  border-radius: 0.14em;
+  text-shadow: 0 0.05em 0.1em rgba(0, 0, 0, 0.35);
+}
+
+[hidden] { display: none !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  #text { transition: none !important; }
+}
+</style>
+</head>
+<body>
+
+<span id="text" hidden></span>
+
+<script src="konfig.js"></script>
+<script>
+(function () {
+  'use strict';
+
+  /*
+   * Die Schriftarten, die es gibt.
+   *
+   * Alle liegen auf dem eigenen Server oder kommen vom System - nichts, was
+   * einen Schluessel oder Geld braucht. Anton ist die fette, schmale
+   * Esports-Schrift; sie ist von Haus aus fett und bekommt deshalb kein
+   * zusaetzliches Gewicht.
+   */
+  const SCHRIFTARTEN = {
+    standard: { familie: "'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif", gewicht: 800 },
+    anton: { familie: "'Anton', 'Arial Black', sans-serif", gewicht: 400 },
+    roboto: { familie: "'Roboto', 'Segoe UI', sans-serif", gewicht: 700 },
+    mono: { familie: "'Roboto Mono', 'Consolas', monospace", gewicht: 700 },
+  };
+
+  const STANDARD = {
+    text: '',
+    /** Die Farbe des Balkens - leer heisst: kein Balken. */
+    balken: '#f97316',
+    schriftart: 'standard',
+    farbe: '#ffffff',
+    schrift: 32,
+  };
+
+  OverlayKonfig.starte({
+    standard: STANDARD,
+    anwenden(cfg) {
+      const s = document.documentElement.style;
+      const art = SCHRIFTARTEN[cfg.schriftart] || SCHRIFTARTEN.standard;
+      s.setProperty('--familie', art.familie);
+      s.setProperty('--gewicht', String(art.gewicht));
+      s.setProperty('--farbe', String(cfg.farbe || '#ffffff'));
+      s.setProperty('--schrift', (Number(cfg.schrift) || 32) + 'px');
+
+      const el = document.getElementById('text');
+      const text = String(cfg.text || '').trim();
+      el.textContent = text;
+      el.hidden = !text;
+
+      const balken = String(cfg.balken || '').trim();
+      el.classList.toggle('balken', Boolean(balken));
+      s.setProperty('--balken', balken || 'transparent');
+
+      el.classList.add('da');
+    },
+  });
+})();
+</script>
+</body>
+</html>

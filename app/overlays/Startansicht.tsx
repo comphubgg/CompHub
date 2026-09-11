@@ -9,6 +9,7 @@ import {
   managerDarfCup, overlayCupErlaubt, overlayCupRang, overlayRegionRang,
   overlayZeitraumWeit,
 } from '@/lib/overlayCups';
+import { ARTEN } from './OverlayGeruest';
 
 /*
  * Die Startseite der Overlays.
@@ -81,6 +82,13 @@ export default function Startansicht({ onWeiter, art }: {
    * zeigte auf einmal ein Turnier von naechster Woche.
    */
   const nurLaufende = Boolean(zugang.verwaltet);
+  /*
+   * Braucht diese Art einen Cup?
+   *
+   * Offspawn und der eigene Text hoeren nicht auf Epic - dort gibt es
+   * nichts zu waehlen, und "Neues Overlay" fuehrt sofort in den Baukasten.
+   */
+  const ohneCup = Boolean(ARTEN.find((a) => a.schluessel === art)?.ohneCup);
   const [cups, setCups] = useState<Cup[] | null>(null);
   const [neu, setNeu] = useState(false);
   /*
@@ -171,7 +179,7 @@ export default function Startansicht({ onWeiter, art }: {
               ? `${zugang.verwaltet} Overlays` : <T>Deine Overlays</T>}
           </h1>
           {!neu && (
-            <button onClick={() => setNeu(true)}
+            <button onClick={() => (ohneCup ? onWeiter('', '') : setNeu(true))}
               className="ml-auto rounded-lg bg-sky-500 px-4 py-2 text-sm
                          font-semibold text-white transition hover:bg-sky-400">
               <T>Neues Overlay</T>

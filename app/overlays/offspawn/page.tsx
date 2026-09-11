@@ -27,15 +27,12 @@ const STANDARD = {
   kopfZeigen: true,
   name1: 'TEAM 1', name2: 'TEAM 2',
   punkte1: 0, punkte2: 0,
-  zusatz: '',
   // Weiss als Vorgabe - so wollte es der Betreiber. Farbe ist die Ausnahme.
   farbe1: '#ffffff', farbe2: '#ffffff',
   /** Feste Breite in Pixeln - 0 heisst: so breit wie der Inhalt. */
   breite: 0,
   /** 1 oder 2 - gegen unscharfe Einblendungen in OBS. */
   massstab: 1,
-  /** Die Farbe des Balkens unter dem Stand. */
-  balken: '#f97316',
   /** Ein Bild je Seite - eines je Duo. */
   bild1: '', bild2: '',
   grund: '0 0 0', deckkraft: 0.72,
@@ -49,15 +46,6 @@ const GRUENDE: Array<{ wert: string; titel: string }> = [
   { wert: '24 24 27', titel: 'Anthrazit' },
   { wert: '63 63 70', titel: 'Grau' },
   { wert: '12 20 38', titel: 'Nachtblau' },
-];
-
-const BALKEN: Array<{ wert: string; titel: string }> = [
-  { wert: '#f97316', titel: 'Orange' },
-  { wert: '#22c55e', titel: 'Grün' },
-  { wert: '#38bdf8', titel: 'Blau' },
-  { wert: '#f43f5e', titel: 'Rot' },
-  { wert: '#a78bfa', titel: 'Violett' },
-  { wert: '#3f3f46', titel: 'Grau' },
 ];
 
 const FARBEN: Array<{ wert: string; titel: string }> = [
@@ -324,32 +312,13 @@ export default function OffspawnSeite() {
           </section>
 
           {/*
-            * Der eigene Text - ein eigener Kasten.
+            * Kein eigener Text mehr an dieser Stelle.
             *
-            * Er stand als kleine Zeile unter dem Stand und hiess "Line
-            * below"; der Betreiber hat ihn zweimal gesucht und nicht
-            * gefunden. Er heisst jetzt, wonach er sucht, steht fuer sich und
-            * traegt die Farbe seines Balkens gleich daneben.
+            * Er war ein Balken unter dem Stand; der Betreiber wollte ihn
+            * hier nicht: "dieser Custom Text kommt bei Offspawn raus, das
+            * gibt's nicht, fertig, weg." Er ist jetzt ein eigenes Overlay
+            * unter /overlays/text.
             */}
-          <section className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
-            <h2 className="mb-1 text-sm font-semibold text-slate-100">
-              <T>Eigener Text</T>
-            </h2>
-            <p className="mb-3 text-[11px] leading-relaxed text-slate-500">
-              <T>Steht als Balken unter dem Stand. Bleibt das Feld leer, ist
-              dort auch nichts.</T>
-            </p>
-            <div className="grid gap-3 sm:grid-cols-2">
-              <label className="block">
-                <input value={cfg.zusatz}
-                  onChange={(e) => setz('zusatz', e.target.value)}
-                  placeholder={t('zum Beispiel „Game 1 / 4“')}
-                  className={feld} />
-              </label>
-              <Wahlreihe titel="Farbe des Balkens" wert={cfg.balken}
-                optionen={BALKEN} setzen={(w) => setz('balken', w)} />
-            </div>
-          </section>
 
           {/* ----------------------------------------------- Aussehen */}
           <section className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">

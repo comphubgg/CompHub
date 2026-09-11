@@ -1915,8 +1915,18 @@ const AUF_ENGLISCH: Record<string, string> = {
     'Photo size',
   'Eigener Text':
     'Custom text',
-  'Steht als Balken unter dem Stand. Bleibt das Feld leer, ist dort auch nichts.':
-    'Shows as a bar under the score. Leave it empty and there is nothing there.',
+  'Eine Zeile, frei geschrieben — mit Balken oder ohne. Was hier steht, steht im Stream.':
+    'One line, written freely — with a bar or without. What stands here stands on stream.',
+  'Eine Zeile Text, frei geschrieben, mit Balken oder ohne':
+    'One line of text, written freely, with a bar or without',
+  'Schriftart':
+    'Font',
+  'Schriftfarbe':
+    'Font colour',
+  'Keiner':
+    'None',
+  'Unscharf in OBS? Zieh die Quelle in der Szene nie größer, als sie eingetragen ist — stell lieber hier die Schriftgröße höher.':
+    'Blurry in OBS? Never scale the source up in the scene beyond the size it is entered at — raise the font size here instead.',
   'Spieler suchen — für Name und Bild':
     'search a player — for name and photo',
   'Bild entfernen':

@@ -42,6 +42,14 @@ export interface OverlayEintrag {
 /** Die Arten, die es gibt - dieselbe Reihenfolge wie in der Leiste. */
 export const ARTEN: Array<{
   schluessel: string; pfad: string; titel: string; datei: string; was: string;
+  /**
+   * Braucht diese Art keinen Cup?
+   *
+   * Dann fuehrt "Neues Overlay" direkt in den Baukasten. Der Betreiber zum
+   * Offspawn: "muss man kein Cup auswaehlen" - und fuer den eigenen Text
+   * gibt es erst recht keinen.
+   */
+  ohneCup?: boolean;
 }> = [
   {
     schluessel: 'teamkarte', pfad: '/overlays/teamkarte', titel: 'Team card',
@@ -70,6 +78,18 @@ export const ARTEN: Array<{
     schluessel: 'offspawn', pfad: '/overlays/offspawn', titel: 'Offspawn',
     datei: 'offspawn.html',
     was: 'Zwei Teams und ein Stand, von Hand gepflegt',
+    ohneCup: true,
+  },
+  /*
+   * Der eigene Text. Er war ein Balken unter dem Offspawn-Stand; der
+   * Betreiber wollte ihn fuer sich: "das gibt's dann einfach als Overlay,
+   * einfach selber."
+   */
+  {
+    schluessel: 'text', pfad: '/overlays/text', titel: 'Custom text',
+    datei: 'text.html',
+    was: 'Eine Zeile Text, frei geschrieben, mit Balken oder ohne',
+    ohneCup: true,
   },
   {
     schluessel: 'qual', pfad: '/overlays/qual', titel: 'Qual line',
@@ -254,7 +274,11 @@ export default function OverlayGeruest({ aktiv, children }: {
                * Neuladen dort landet) und der Baukasten wird direkt
                * aufgeschlagen.
                */
-              const p = new URLSearchParams({ event: e, fenster: w, bauen: '1' });
+              // Ohne Cup bleiben event und fenster weg - die Adresse traegt
+              // dann nur "bauen".
+              const p = new URLSearchParams({ bauen: '1' });
+              if (e) p.set('event', e);
+              if (w) p.set('fenster', w);
               window.history.replaceState(
                 null, '', `${window.location.pathname}?${p.toString()}`);
               setImBaukasten(true);

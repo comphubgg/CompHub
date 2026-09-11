@@ -7,7 +7,7 @@
 /*
  * Der Offspawn-Stand.
  *
- * Zwei Namen, dazwischen der Stand, darunter eine frei geschriebene Zeile.
+ * Zwei Namen, dazwischen der Stand, aussen je ein Foto.
  * Der Betreiber wollte das ausdruecklich von Hand pflegen koennen: "der
  * Spieler muss das manuell eingeben im Tool. Es steht Offspawn zwei zu sechs
  * ... nachher kann er das im Tool eingeben und in OBS wird das direkt
@@ -29,7 +29,6 @@
   --breite: max-content;
   --text: #ffffff;
   --rand: rgba(255, 255, 255, 0.09);
-  --balken: #f97316;
   --massstab: 1;
 }
 
@@ -110,9 +109,8 @@ html, body {
 /*
  * Verborgen heisst verborgen.
  *
- * Ein eigenes "display" schlaegt das Attribut hidden - der Balken unter dem
- * Stand blieb deshalb als kurzer Strich stehen, auch wenn gar kein Text
- * darin stand. Diese Zeile stellt das fuer alle Stellen richtig.
+ * Ein eigenes "display" schlaegt das Attribut hidden - ohne diese Zeile
+ * blieb schon einmal ein leerer Kasten als kurzer Strich stehen.
  */
 [hidden] { display: none !important; }
 
@@ -198,32 +196,6 @@ html, body {
   font-weight: 700;
 }
 
-/*
- * Die frei geschriebene Zeile - als Balken, nicht als Fussnote.
- *
- * Der Betreiber hat ein Bild geschickt: "GAME: 4 / 4", weiss auf einem
- * kraeftigen Balken. Genau so sitzt sie jetzt unter dem Stand, in einer
- * eigenen Farbe, die sich einstellen laesst.
- */
-#zusatzBalken {
-  display: flex;
-  justify-content: center;
-  margin-top: 0.2em;
-}
-#zusatz {
-  display: inline-block;
-  background: var(--balken);
-  padding: 0.12em 0.55em;
-  border-radius: 0.12em;
-  text-align: center;
-  font-size: 0.3em;
-  font-weight: 800;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: #ffffff;
-  text-shadow: 0 0.06em 0.12em rgba(0, 0, 0, 0.45);
-}
-
 @media (prefers-reduced-motion: reduce) {
   #karte { transition: none !important; }
 }
@@ -240,7 +212,6 @@ html, body {
       <span id="stand"><span id="p1">0</span><span class="teiler">:</span><span id="p2">0</span></span>
       <span class="name" id="n2">TEAM 2</span>
     </span>
-    <span id="zusatzBalken" hidden><span id="zusatz"></span></span>
   </div>
   <span class="fotoRahmen" id="r2" hidden><img class="foto" id="f2" alt=""></span>
 </div>
@@ -255,8 +226,6 @@ html, body {
     kopfZeigen: true,
     name1: 'TEAM 1', name2: 'TEAM 2',
     punkte1: 0, punkte2: 0,
-    /** Die frei geschriebene Zeile darunter, etwa "Game 1 / 4". */
-    zusatz: '',
     /*
      * Weiss als Vorgabe.
      *
@@ -268,8 +237,6 @@ html, body {
     breite: 0,
     /** 1 oder 2 - siehe "Der Massstab gegen die Unschaerfe" oben. */
     massstab: 1,
-    /** Die Farbe des Balkens unter dem Stand. */
-    balken: '#f97316',
     /** Bilder je Seite - eines je Duo, so wollte es der Betreiber. */
     bild1: '', bild2: '',
     grund: '0 0 0', deckkraft: 0.72,
@@ -322,7 +289,6 @@ html, body {
       s.setProperty('--links', String(cfg.farbe1));
       s.setProperty('--rechts', String(cfg.farbe2));
       s.setProperty('--schrift', cfg.schrift + 'px');
-      s.setProperty('--balken', String(cfg.balken || '#f97316'));
       s.setProperty('--breite',
         Number(cfg.breite) > 0 ? Number(cfg.breite) + 'px' : 'max-content');
       s.setProperty('--massstab', String(Number(cfg.massstab) || 1));
@@ -342,10 +308,6 @@ html, body {
       const k = $('kopf');
       k.textContent = String(cfg.kopf || 'OFFSPAWN');
       k.hidden = !cfg.kopfZeigen;
-
-      const text = String(cfg.zusatz || '').trim();
-      $('zusatz').textContent = text;
-      $('zusatzBalken').hidden = !text;
 
       quadratisch();
       requestAnimationFrame(quadratisch);
