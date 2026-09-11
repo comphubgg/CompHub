@@ -1002,9 +1002,11 @@ loadDashboardData().then(loadedFolders => {
    * zuerst. Wenn niemand live ist, die Top fuenf nach Followern. Und wenn
    * man doch jemand anderen meint, geht man auf Show more."
    *
-   * Geholt wird mit kurzer Pause nach dem Tippen; eine Antwort auf eine
-   * aeltere Eingabe wird verworfen, sonst ueberholt "oki" das spaetere
-   * "okis".
+   * Geholt wird bei jedem Buchstaben, ohne Pause - der Betreiber wollte
+   * sehen, wie die Liste beim Tippen kleiner wird, "auch wenn ich keine
+   * Pause mache, sondern durchgehend druecke". Die vorige Anfrage wird
+   * dabei abgebrochen, und die vorige Liste bleibt stehen, bis die neue da
+   * ist - sonst flackerte sie bei jedem Buchstaben leer.
    */
   interface KanalFund {
     login: string; name: string; live: boolean;
@@ -1017,21 +1019,19 @@ loadDashboardData().then(loadedFolders => {
   useEffect(() => {
     const q = kachelSuche.trim();
     setKanalMehr(false);
-    if (q.length < 2) { setKanalFunde([]); setKanalSucheLaeuft(false); return undefined; }
-    let veraltet = false;
+    if (!q) { setKanalFunde([]); setKanalSucheLaeuft(false); return undefined; }
+    const abbruch = new AbortController();
     setKanalSucheLaeuft(true);
-    const stift = window.setTimeout(() => {
-      fetch(`/api/kanal-suche?q=${encodeURIComponent(q)}`)
-        .then((r) => r.json())
-        .then((j) => {
-          if (veraltet) return;
-          setKanalFunde(Array.isArray(j?.kanaele) ? j.kanaele : []);
-          setKanalListeOffen(true);
-        })
-        .catch(() => { if (!veraltet) setKanalFunde([]); })
-        .finally(() => { if (!veraltet) setKanalSucheLaeuft(false); });
-    }, 300);
-    return () => { veraltet = true; window.clearTimeout(stift); };
+    fetch(`/api/kanal-suche?q=${encodeURIComponent(q)}`, { signal: abbruch.signal })
+      .then((r) => r.json())
+      .then((j) => {
+        if (abbruch.signal.aborted) return;
+        setKanalFunde(Array.isArray(j?.kanaele) ? j.kanaele : []);
+        setKanalListeOffen(true);
+        setKanalSucheLaeuft(false);
+      })
+      .catch(() => { if (!abbruch.signal.aborted) { setKanalFunde([]); setKanalSucheLaeuft(false); } });
+    return () => abbruch.abort();
   }, [kachelSuche]);
 
   /*
@@ -2181,7 +2181,7 @@ loadDashboardData().then(loadedFolders => {
                       * Feld nicht den Fokus - sonst waere sie beim Klick
                       * schon zu, bevor der Klick ankommt.
                       */}
-                    {kanalListeOffen && kachelSuche.trim().length >= 2 && (
+                    {kanalListeOffen && kachelSuche.trim().length >= 1 && (
                       <div
                         onMouseDown={(e) => e.preventDefault()}
                         className="absolute left-0 right-0 top-full z-40 mt-2

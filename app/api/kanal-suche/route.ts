@@ -19,8 +19,11 @@ import {
  * Streams zusammen, und je Kanal eine nach der Follower-Zahl. Zahlen, die
  * Twitch nicht liefert, bleiben null und werden nicht angezeigt.
  *
- * Kurz zwischengespeichert: wer "oki", "okis", "okisf" tippt, soll nicht
- * fuer jede Taste ein Dutzend Twitch-Anfragen ausloesen.
+ * Kurz zwischengespeichert: wer "oki", "okis", "okisf" tippt und wieder
+ * loescht, soll nicht fuer jede Taste ein Dutzend Twitch-Anfragen
+ * ausloesen. Gesucht wird ab dem ersten Buchstaben, weil die Liste beim
+ * Tippen mitgehen soll; das Kontingent der App (800 Punkte je Minute)
+ * traegt das - ein Buchstabe kostet hoechstens vierzehn Anfragen.
  */
 
 export const dynamic = 'force-dynamic';
@@ -43,7 +46,8 @@ const speicher = new Map<string, { bis: number; kanaele: Kanal[] }>();
 
 export async function GET(request: Request) {
   const q = (new URL(request.url).searchParams.get('q') ?? '').trim().toLowerCase();
-  if (q.length < 2) return NextResponse.json({ kanaele: [] });
+  // Schon ab dem ersten Buchstaben - die Liste soll beim Tippen mitgehen.
+  if (q.length < 1) return NextResponse.json({ kanaele: [] });
 
   const alt = speicher.get(q);
   if (alt && alt.bis > Date.now()) return NextResponse.json({ kanaele: alt.kanaele });
