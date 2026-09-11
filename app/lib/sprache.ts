@@ -1929,6 +1929,8 @@ const AUF_ENGLISCH: Record<string, string> = {
     'search a cup, region or date …',
   'Nichts gefunden für':
     'Nothing found for',
+  'Twitch-Name eingeben, Enter — kommt in die Multiview':
+    'type a Twitch name, press Enter — it joins the multiview',
   'Keiner':
     'None',
   'Unscharf in OBS? Zieh die Quelle in der Szene nie größer, als sie eingetragen ist — stell lieber hier die Schriftgröße höher.':

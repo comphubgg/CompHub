@@ -10,6 +10,7 @@ import { normalizeLiveStatusUsername, shouldLoadLiveStatus } from '@/app/lib/liv
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import { useZugang } from '@/app/lib/zugang';
+import Kachel from './Kachel';
 interface Streamer {
   twitch: string;
   twitter: string;
@@ -121,7 +122,6 @@ export default function Home() {
   const [searchingTwitch, setSearchingTwitch] = useState(false);
   const [searchSortBy, setSearchSortBy] = useState<'followers' | 'live'>('followers');
   const [searchLiveOnly, setSearchLiveOnly] = useState(false);
-  const [lastAdCheck, setLastAdCheck] = useState(0);
   const [hiddenStreamers, setHiddenStreamers] = useState<string[]>([]);
   const [hiddenStats, setHiddenStats] = useState<string[]>([]);
   const [renamingFolderId, setRenamingFolderId] = useState<string | null>(null);
@@ -578,45 +578,17 @@ const response = await fetch(getApiUrl(`/api/search?q=${encodeURIComponent(twitc
     };
   }, [isMounted, isGuest, loadAllLiveStatus]);
 
-  // Auto-skip ads / ad-break fallback
-  // Vollständige Ad-Erkennung über Twitch-Embeds ist in Browsern nicht zuverlässig möglich,
-  // da der eingebettete Player aus Sicherheitsgründen nicht vollständig ausgelesen werden kann.
-  // Daher wechseln wir bestmöglich auf einen anderen live Streamer, wenn der aktuelle Stream
-  // gerade nicht mehr live ist oder der Player in einen Ad-/Break-Zustand geraten ist.
-  useEffect(() => {
-    const checkForAds = setInterval(() => {
-      try {
-        if (!activeStreamerTwitch) return;
-
-        const currentName = activeStreamerTwitch.toLowerCase();
-        const currentIsLive = liveStatusMap[currentName] === true;
-
-        if (!currentIsLive && Date.now() - lastAdCheck > 3000) {
-          const allAvailableStreamers = folders.flatMap(folder =>
-            folder.streamers.map(streamer => streamer.twitch.toLowerCase())
-          );
-
-          const onlineStreams = allAvailableStreamers.filter(
-            streamer => streamer !== currentName && liveStatusMap[streamer] === true
-          );
-
-          if (onlineStreams.length > 0) {
-            const nextStream = onlineStreams[0];
-            setActiveStreamerTwitch(nextStream);
-            localStorage.setItem('multihub_last_streamer', nextStream);
-            setLastAdCheck(Date.now());
-            console.log(`[Auto-switch] ${currentName} not live -> ${nextStream}`);
-          }
-        }
-      } catch (e) {
-        console.error('Ad switch error:', e);
-      }
-    }, 2000);
-
-    return () => clearInterval(checkForAds);
-  }, [activeStreamerTwitch, folders, lastAdCheck, liveStatusMap]);
-
-
+  /*
+   * Kein Springen mehr auf einen anderen Stream.
+   *
+   * Hier stand ein "Auto-Switch": sobald der aktive Stream nicht mehr als
+   * live galt, sprang die Ansicht alle zwei Sekunden auf irgendeinen
+   * anderen, der sendet. Gedacht war das gegen Werbung, erkennen laesst
+   * sich die im eingebetteten Player aber nicht - und der Betreiber wollte
+   * das Verhalten nicht: "wenn Leute nicht live sind, heisst es nicht,
+   * dass man automatisch zu einem geht, wo live ist." Ein Stream, der
+   * nicht sendet, zeigt jetzt das, was Twitch zeigt: dass er offline ist.
+   */
 
   // Auto-Update Live Status nur bei Bedarf und ohne Massen-Search-Requests beim Start
   useEffect(() => {
@@ -924,10 +896,18 @@ loadDashboardData().then(loadedFolders => {
       folders.forEach((f) => (f.streamers || []).forEach((st) => {
         if (st.twitch && !alleStreamer.has(st.twitch)) alleStreamer.set(st.twitch, st);
       }));
+      /*
+       * Wer in keinem Ordner steht, kommt trotzdem herein.
+       *
+       * Die Suche ueber der Kachelansicht nimmt jeden Twitch-Namen - der
+       * Betreiber: "da kann ich Spieler suchen, die nicht in meinen
+       * Ordnern sind, und wenn ich Enter druecke, kommen die in die
+       * Multiview." Ein solcher Name hat keinen Ordnereintrag; er wird
+       * hier zu einem Streamer ohne Twitter.
+       */
       const gewaehlt = kachelWahl
-        .map((name) => alleStreamer.get(name))
-        .filter((st): st is Streamer => Boolean(st)
-          && !hiddenStreamers.includes((st as Streamer).twitch));
+        .map((name) => alleStreamer.get(name) ?? { twitch: name, twitter: '' })
+        .filter((st) => !hiddenStreamers.includes(st.twitch));
       // Auch eine leere Auswahl gilt - dann bleibt die Ansicht leer und
       // sagt das darunter, statt heimlich alles zurueckzuholen.
       return gewaehlt;
@@ -983,6 +963,62 @@ loadDashboardData().then(loadedFolders => {
    * waren. Der Betreiber: "wenn man beides ausblendet, hat es noch mehr
    * Platz, dann koennen in einer Reihe fuenf bis sechs sein."
    */
+  /*
+   * Welche Player gebaut sind.
+   *
+   * In der Kachelansicht die Kacheln. In der Einzelansicht der aktive
+   * Stream - und dazu die von Hand gewaehlten Kacheln, verborgen, damit
+   * sie beim Wechsel zurueck nicht neu anlaufen. Der Betreiber: "die ganze
+   * Zeit weiterlaufen, auch bei Multiview, da laeuft jeder einzelne
+   * Stream." Ohne eigene Auswahl bleibt es beim einen: dann waeren es alle
+   * Sendenden des Ordners, und die wechseln ohnehin.
+   */
+  const spielerPool = useMemo(() => {
+    if (mehrfach) return kachelnGezeigt;
+    const liste: Streamer[] = [];
+    if (activeStreamerTwitch) liste.push({ twitch: activeStreamerTwitch, twitter: '' });
+    if (eigeneWahl) {
+      kachelnGezeigt.forEach((st) => {
+        if (st.twitch !== activeStreamerTwitch) liste.push(st);
+      });
+    }
+    return liste;
+  }, [mehrfach, kachelnGezeigt, activeStreamerTwitch, eigeneWahl]);
+
+  /*
+   * Die Suche ueber der Kachelansicht.
+   *
+   * Ein Twitch-Name, Enter, drin - ob er sendet oder nicht. Auch eine
+   * ganze Adresse wie twitch.tv/name geht; Twitch-Namen bestehen aus
+   * Buchstaben, Ziffern und Unterstrich.
+   */
+  const [kachelSuche, setKachelSuche] = useState('');
+  const kachelHinzufuegen = (eingabe: string) => {
+    const name = eingabe.trim().toLowerCase()
+      .replace(/^(https?:\/\/)?(www\.)?twitch\.tv\//, '')
+      .replace(/[/?#].*$/, '')
+      .replace(/^@/, '');
+    if (!/^[a-z0-9_]{3,25}$/.test(name)) return false;
+    /*
+     * Was gerade zu sehen ist, bleibt.
+     *
+     * Ohne eigene Auswahl zeigt die Ansicht alle Sendenden des Ordners;
+     * der erste getippte Name schreibt diese Kacheln fest und haengt sich
+     * an - sonst verschwaenden drei laufende Streams, weil ein vierter
+     * dazukommt.
+     */
+    const bisher = kachelnGezeigt.map((k) => k.twitch);
+    setEigeneWahl(true);
+    setKachelWahl((alt) => {
+      const grundlage = alt.length ? alt : bisher;
+      const neu = grundlage.includes(name) ? grundlage : [...grundlage, name];
+      localStorage.setItem('multihub_kachel_wahl', JSON.stringify(neu));
+      return neu;
+    });
+    setKachelSuche('');
+    return true;
+  };
+
   const kachelFlaeche = useRef<HTMLDivElement | null>(null);
   const [flaeche, setFlaeche] = useState({ breite: 0, hoehe: 0 });
   useEffect(() => {
@@ -2032,6 +2068,37 @@ loadDashboardData().then(loadedFolders => {
                   </svg>
                 </button>
               )}
+              {/*
+                * Die Suche - mittig, nur in der Kachelansicht.
+                *
+                * Der Betreiber: "wenn ich im Multiview-Modus bin, aber nur
+                * im Multiview-Modus, soll hier mittig eine Art Suchleiste
+                * kommen." Sie nimmt den Platz zwischen Titel und Knoepfen.
+                */}
+              {mehrfach && (
+                <form
+                  onSubmit={(e) => { e.preventDefault(); kachelHinzufuegen(kachelSuche); }}
+                  className="order-first flex w-full justify-center sm:order-none
+                             sm:w-auto sm:flex-1">
+                  <input
+                    value={kachelSuche}
+                    onChange={(e) => setKachelSuche(e.target.value)}
+                    // Enter ausdruecklich - die Seite hat eigene Tastengriffe,
+                    // und das Absenden soll nicht von ihnen abhaengen.
+                    onKeyDown={(e) => {
+                      if (e.key !== 'Enter') return;
+                      e.preventDefault();
+                      kachelHinzufuegen(kachelSuche);
+                    }}
+                    placeholder={t('Twitch-Name eingeben, Enter — kommt in die Multiview')}
+                    spellCheck={false}
+                    className="w-full max-w-sm rounded-full border border-zinc-800
+                               bg-zinc-900/80 px-4 py-1.5 text-center text-sm
+                               text-slate-100 outline-none
+                               placeholder:text-slate-600 focus:border-sky-500"
+                  />
+                </form>
+              )}
               <button
                 onClick={mehrfachUmschalten}
                 className={`flex items-center gap-2 text-[11px] border px-3 py-1.5
@@ -2070,175 +2137,161 @@ loadDashboardData().then(loadedFolders => {
           <div className={`grid grid-cols-1 gap-4 items-stretch min-h-0 h-full ${showChat ? 'md:grid-cols-[1fr_420px]' : 'md:grid-cols-1'}`} data-stream-container>
             <div className="order-1 md:order-1 flex-1 h-full min-w-0 min-h-0">
               <div data-tour="preview" className="flex flex-col flex-1 h-full transition-all bg-zinc-950 rounded-3xl overflow-hidden min-h-0">
-                  {mehrfach && !kachelReihen.reihen.length ? (
-                    <div className="flex h-full w-full flex-col items-center
-                                    justify-center gap-3 bg-zinc-950 p-6 text-center">
-                      <p className="text-xs text-slate-500">
-                        <T>Keine Kachel ausgewählt. Mit dem Plus in der
-                           Streamerliste welche hinzufügen.</T>
-                      </p>
-                      <button
-                        type="button"
-                        onClick={kachelWahlLeeren}
-                        className="rounded-full border border-zinc-700 px-3 py-1.5
-                                   text-[11px] font-semibold uppercase
-                                   tracking-[0.14em] text-slate-300 transition
-                                   hover:border-sky-500 hover:text-sky-400"
-                      >
-                        <T>Wieder alle laufenden zeigen</T>
-                      </button>
-                    </div>
-                  ) : mehrfach && kachelReihen.reihen.length && currentHost ? (
-                    /*
-                     * Die Kachelansicht. Jede Reihe ist fuer sich mittig
-                     * gesetzt: eine unvollstaendige letzte Reihe steht damit
-                     * in der Mitte statt links angeschlagen - so, wie die
-                     * Streams auf den Vorlagen liegen.
-                     *
-                     * Die Breite einer Kachel richtet sich nach der
-                     * Spaltenzahl der vollen Reihen, nicht nach der eigenen
-                     * Reihe. Sonst wuerde der einzelne Stream unten so breit
-                     * wie die drei darueber zusammen.
-                     */
-                    <div ref={kachelFlaeche}
-                      className="flex h-full w-full flex-col justify-center gap-3
-                                 overflow-y-auto bg-zinc-950 p-3">
-                      {kachelReihen.reihen.map((reihe, r) => (
-                        <div key={r} className="flex justify-center gap-3">
-                          {reihe.map((st) => {
-                            const aktiv = st.twitch === activeStreamerTwitch;
-                            return (
-                              <div
-                                key={`${st.twitch}#${kachelNeu[st.twitch] ?? 0}`}
-                                style={{
-                                  flex: `0 0 calc((100% - ${(kachelReihen.spalten - 1) * 12}px)`
-                                    + ` / ${kachelReihen.spalten})`,
-                                }}
-                                className={`relative overflow-hidden rounded-xl border
-                                            transition ${aktiv
-                                  ? 'border-sky-500'
-                                  : 'border-zinc-800 hover:border-zinc-600'}`}
-                              >
-                                <div className="aspect-video w-full">
-                                  <iframe
-                                    title={`Twitch stream ${st.twitch}`}
-                                    src={`https://player.twitch.tv/?channel=${st.twitch}`
-                                      + `&parent=${currentHost}&autoplay=true`
-                                      + `&muted=${aktiv ? 'false' : 'true'}`
-                                      + `&volume=${aktiv ? streamVolume : 0}`}
-                                    allow="autoplay; fullscreen"
-                                    className="h-full w-full"
-                                    allowFullScreen
-                                  ></iframe>
-                                </div>
-                                {/*
-                                  * Die Leiste unter dem Player. Der Player
-                                  * selbst faengt Klicks ab, deshalb liegen
-                                  * die Bedienelemente darunter und nicht
-                                  * darauf.
-                                  *
-                                  * Alle Zeichen in Grau: die Farbe traegt
-                                  * schon der Rahmen der aktiven Kachel, ein
-                                  * zweites farbiges Signal daneben waere
-                                  * Laerm.
-                                  */}
-                                <div className={`flex w-full items-center gap-1
-                                                 px-2 py-1 ${aktiv
-                                  ? 'bg-zinc-900' : 'bg-zinc-900/80'}`}>
-                                  <button
-                                    type="button"
-                                    onClick={() => setActiveStreamerTwitch(st.twitch)}
-                                    title={aktiv
-                                      ? t('Dieser Stream hat den Ton')
-                                      : t('Ton auf diesen Stream legen')}
-                                    className="shrink-0 rounded p-1 text-slate-400
-                                               transition hover:bg-zinc-800
-                                               hover:text-slate-100"
-                                  >
-                                    <svg viewBox="0 0 20 20" className="h-[15px] w-[15px]"
-                                      fill="none" stroke="currentColor" strokeWidth="1.6"
-                                      strokeLinecap="round" strokeLinejoin="round">
-                                      <path d="M4 7.5h2.5L10 4.5v11L6.5 12.5H4z" />
-                                      {aktiv
-                                        ? <><path d="M13 7.5a3.5 3.5 0 0 1 0 5" />
-                                            <path d="M15.2 5.3a6.5 6.5 0 0 1 0 9.4" /></>
-                                        : <><line x1="13" y1="7.5" x2="17" y2="12.5" />
-                                            <line x1="17" y1="7.5" x2="13" y2="12.5" /></>}
-                                    </svg>
-                                  </button>
-
-                                  <button
-                                    type="button"
-                                    onClick={() => setActiveStreamerTwitch(st.twitch)}
-                                    className="min-w-0 flex-1 truncate text-left
-                                               text-[11px] font-semibold text-slate-300
-                                               transition hover:text-slate-100"
-                                  >
-                                    {st.twitch}
-                                  </button>
-
-                                  <button
-                                    type="button"
-                                    onClick={() => kachelNeuLaden(st.twitch)}
-                                    title={t('Diesen Stream neu laden')}
-                                    className="shrink-0 rounded p-1 text-slate-500
-                                               transition hover:bg-zinc-800
-                                               hover:text-slate-100"
-                                  >
-                                    <svg viewBox="0 0 20 20" className="h-[14px] w-[14px]"
-                                      fill="none" stroke="currentColor" strokeWidth="1.6"
-                                      strokeLinecap="round" strokeLinejoin="round">
-                                      <path d="M16 10a6 6 0 1 1-1.8-4.3" />
-                                      <polyline points="16 3 16 6.2 12.8 6.2" />
-                                    </svg>
-                                  </button>
-
-                                  <button
-                                    type="button"
-                                    onClick={() => kachelEntfernen(
-                                      st.twitch, kachelnGezeigt.map((k) => k.twitch))}
-                                    title={t('Diese Kachel entfernen')}
-                                    className="shrink-0 rounded p-1 text-slate-500
-                                               transition hover:bg-zinc-800
-                                               hover:text-slate-100"
-                                  >
-                                    <svg viewBox="0 0 20 20" className="h-[14px] w-[14px]"
-                                      fill="none" stroke="currentColor" strokeWidth="1.6"
-                                      strokeLinecap="round" strokeLinejoin="round">
-                                      <line x1="5.5" y1="5.5" x2="14.5" y2="14.5" />
-                                      <line x1="14.5" y1="5.5" x2="5.5" y2="14.5" />
-                                    </svg>
-                                  </button>
-                                </div>
-                              </div>
-                            );
-                          })}
+                  {/*
+                    * Eine Flaeche fuer beide Ansichten.
+                    *
+                    * Einzel- und Kachelansicht waren zwei getrennte Zweige;
+                    * beim Umschalten baute React jeden Player neu. Jetzt ist
+                    * es eine Liste, die nur anders angeordnet wird: in der
+                    * Kachelansicht als umbrechende Reihe, in der
+                    * Einzelansicht mit einer sichtbaren und den uebrigen
+                    * verborgenen Kacheln. Die Player bleiben dieselben
+                    * Elemente und laufen durch.
+                    */}
+                  {!spielerPool.length ? (
+                    mehrfach ? (
+                      <div className="flex h-full w-full flex-col items-center
+                                      justify-center gap-3 bg-zinc-950 p-6 text-center">
+                        <p className="text-xs text-slate-500">
+                          <T>Keine Kachel ausgewählt. Mit dem Plus in der
+                             Streamerliste welche hinzufügen.</T>
+                        </p>
+                        <button
+                          type="button"
+                          onClick={kachelWahlLeeren}
+                          className="rounded-full border border-zinc-700 px-3 py-1.5
+                                     text-[11px] font-semibold uppercase
+                                     tracking-[0.14em] text-slate-300 transition
+                                     hover:border-sky-500 hover:text-sky-400"
+                        >
+                          <T>Wieder alle laufenden zeigen</T>
+                        </button>
+                      </div>
+                    ) : (
+                      <div className={`flex flex-col w-full h-full min-h-0 ${showFolderPanel ? 'bg-zinc-950 rounded-lg overflow-hidden border border-zinc-800/80' : 'overflow-hidden'}`}>
+                        <div className="relative w-full h-full min-h-0 bg-zinc-950 flex items-center justify-center text-zinc-500 text-xs italic mx-auto">
+                          <T>No stream selected</T>
                         </div>
-                      ))}
-                    </div>
-                  ) : activeStreamerTwitch ? (
-                    <div className="flex flex-col w-full h-full min-h-0 bg-zinc-950 overflow-hidden">
-                      <div className="relative w-full overflow-hidden flex-1 flex h-full" style={{ padding: 0, minHeight: 0 }}>
-                        {currentHost && (
-                          <div className="w-full h-full overflow-hidden">
-                            <iframe
-                              title={`Twitch stream ${activeStreamerTwitch}`}
-                              src={`https://player.twitch.tv/?channel=${activeStreamerTwitch}&parent=${currentHost}&muted=false&autoplay=true&volume=${streamVolume}`}
-                              allow="autoplay; fullscreen"
-                              className="w-full h-full"
-                              allowFullScreen
-                            ></iframe>
+                      </div>
+                    )
+                  ) : currentHost ? (
+                    <div ref={kachelFlaeche}
+                      className={mehrfach
+                        ? 'flex h-full w-full flex-wrap content-center justify-center gap-3 overflow-y-auto bg-zinc-950 p-3'
+                        : 'h-full w-full bg-zinc-950'}>
+                      {spielerPool.map((st) => {
+                        const aktiv = st.twitch === activeStreamerTwitch;
+                        const sichtbar = mehrfach || aktiv;
+                        return (
+                          <div
+                            key={`${st.twitch}#${kachelNeu[st.twitch] ?? 0}`}
+                            hidden={!sichtbar}
+                            style={mehrfach ? {
+                              flex: `0 0 calc((100% - ${(kachelReihen.spalten - 1) * 12}px)`
+                                + ` / ${kachelReihen.spalten})`,
+                            } : { height: '100%', width: '100%' }}
+                            className={mehrfach
+                              ? `relative overflow-hidden rounded-xl border transition ${aktiv
+                                ? 'border-sky-500'
+                                : 'border-zinc-800 hover:border-zinc-600'}`
+                              : 'overflow-hidden'}
+                          >
+                            <div className={mehrfach ? 'aspect-video w-full' : 'h-full w-full'}>
+                              <Kachel kanal={st.twitch} parent={currentHost}
+                                ton={aktiv} lautstaerke={streamVolume} />
+                            </div>
+                            {/*
+                              * Die Leiste unter dem Player - nur in der
+                              * Kachelansicht. Der Player selbst faengt Klicks
+                              * ab, deshalb liegen die Bedienelemente darunter
+                              * und nicht darauf.
+                              *
+                              * Alle Zeichen in Grau: die Farbe traegt schon
+                              * der Rahmen der aktiven Kachel, ein zweites
+                              * farbiges Signal daneben waere Laerm.
+                              */}
+                            {mehrfach && (
+                              <div className={`flex w-full items-center gap-1
+                                               px-2 py-1 ${aktiv
+                                ? 'bg-zinc-900' : 'bg-zinc-900/80'}`}>
+                                <button
+                                  type="button"
+                                  onClick={() => setActiveStreamerTwitch(st.twitch)}
+                                  title={aktiv
+                                    ? t('Dieser Stream hat den Ton')
+                                    : t('Ton auf diesen Stream legen')}
+                                  className="shrink-0 rounded p-1 text-slate-400
+                                             transition hover:bg-zinc-800
+                                             hover:text-slate-100"
+                                >
+                                  <svg viewBox="0 0 20 20" className="h-[15px] w-[15px]"
+                                    fill="none" stroke="currentColor" strokeWidth="1.6"
+                                    strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M4 7.5h2.5L10 4.5v11L6.5 12.5H4z" />
+                                    {aktiv
+                                      ? <><path d="M13 7.5a3.5 3.5 0 0 1 0 5" />
+                                          <path d="M15.2 5.3a6.5 6.5 0 0 1 0 9.4" /></>
+                                      : <><line x1="13" y1="7.5" x2="17" y2="12.5" />
+                                          <line x1="17" y1="7.5" x2="13" y2="12.5" /></>}
+                                  </svg>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => setActiveStreamerTwitch(st.twitch)}
+                                  className="min-w-0 flex-1 truncate text-left
+                                             text-[11px] font-semibold text-slate-300
+                                             transition hover:text-slate-100"
+                                >
+                                  {st.twitch}
+                                  {liveStatusMap[st.twitch.toLowerCase()] === false && (
+                                    <span className="ml-2 text-[10px] font-normal
+                                                     uppercase tracking-wider
+                                                     text-slate-500">
+                                      offline
+                                    </span>
+                                  )}
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => kachelNeuLaden(st.twitch)}
+                                  title={t('Diesen Stream neu laden')}
+                                  className="shrink-0 rounded p-1 text-slate-500
+                                             transition hover:bg-zinc-800
+                                             hover:text-slate-100"
+                                >
+                                  <svg viewBox="0 0 20 20" className="h-[14px] w-[14px]"
+                                    fill="none" stroke="currentColor" strokeWidth="1.6"
+                                    strokeLinecap="round" strokeLinejoin="round">
+                                    <path d="M16 10a6 6 0 1 1-1.8-4.3" />
+                                    <polyline points="16 3 16 6.2 12.8 6.2" />
+                                  </svg>
+                                </button>
+
+                                <button
+                                  type="button"
+                                  onClick={() => kachelEntfernen(
+                                    st.twitch, kachelnGezeigt.map((k) => k.twitch))}
+                                  title={t('Diese Kachel entfernen')}
+                                  className="shrink-0 rounded p-1 text-slate-500
+                                             transition hover:bg-zinc-800
+                                             hover:text-slate-100"
+                                >
+                                  <svg viewBox="0 0 20 20" className="h-[14px] w-[14px]"
+                                    fill="none" stroke="currentColor" strokeWidth="1.6"
+                                    strokeLinecap="round" strokeLinejoin="round">
+                                    <line x1="5.5" y1="5.5" x2="14.5" y2="14.5" />
+                                    <line x1="14.5" y1="5.5" x2="5.5" y2="14.5" />
+                                  </svg>
+                                </button>
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </div>
+                        );
+                      })}
                     </div>
-                  ) : (
-                    <div className={`flex flex-col w-full h-full min-h-0 ${showFolderPanel ? 'bg-zinc-950 rounded-lg overflow-hidden border border-zinc-800/80' : 'overflow-hidden'}`}>
-                      <div className="relative w-full h-full min-h-0 bg-zinc-950 flex items-center justify-center text-zinc-500 text-xs italic mx-auto">
-                        <T>No stream selected</T>
-                      </div>
-                    </div>
-                  )}
+                  ) : null}
                 </div>
               </div>
 
