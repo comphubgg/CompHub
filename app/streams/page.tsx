@@ -993,6 +993,65 @@ loadDashboardData().then(loadedFolders => {
    * Buchstaben, Ziffern und Unterstrich.
    */
   const [kachelSuche, setKachelSuche] = useState('');
+
+  /*
+   * Die Vorschlaege unter dem Suchfeld.
+   *
+   * Der Betreiber: "am besten kommt noch eine Liste darunter von den
+   * Streamern, die gerade live sind ... die mit den meisten Zuschauern
+   * zuerst. Wenn niemand live ist, die Top fuenf nach Followern. Und wenn
+   * man doch jemand anderen meint, geht man auf Show more."
+   *
+   * Geholt wird mit kurzer Pause nach dem Tippen; eine Antwort auf eine
+   * aeltere Eingabe wird verworfen, sonst ueberholt "oki" das spaetere
+   * "okis".
+   */
+  interface KanalFund {
+    login: string; name: string; live: boolean;
+    zuschauer: number | null; follower: number | null; spiel: string; bild: string;
+  }
+  const [kanalFunde, setKanalFunde] = useState<KanalFund[]>([]);
+  const [kanalSucheLaeuft, setKanalSucheLaeuft] = useState(false);
+  const [kanalMehr, setKanalMehr] = useState(false);
+  const [kanalListeOffen, setKanalListeOffen] = useState(false);
+  useEffect(() => {
+    const q = kachelSuche.trim();
+    setKanalMehr(false);
+    if (q.length < 2) { setKanalFunde([]); setKanalSucheLaeuft(false); return undefined; }
+    let veraltet = false;
+    setKanalSucheLaeuft(true);
+    const stift = window.setTimeout(() => {
+      fetch(`/api/kanal-suche?q=${encodeURIComponent(q)}`)
+        .then((r) => r.json())
+        .then((j) => {
+          if (veraltet) return;
+          setKanalFunde(Array.isArray(j?.kanaele) ? j.kanaele : []);
+          setKanalListeOffen(true);
+        })
+        .catch(() => { if (!veraltet) setKanalFunde([]); })
+        .finally(() => { if (!veraltet) setKanalSucheLaeuft(false); });
+    }, 300);
+    return () => { veraltet = true; window.clearTimeout(stift); };
+  }, [kachelSuche]);
+
+  /*
+   * Was von den Funden zuerst zu sehen ist.
+   *
+   * Die Sendenden, wenn es welche gibt - sonst die fuenf mit den meisten
+   * Followern. Alles Uebrige hinter "mehr anzeigen".
+   */
+  const kanalErste = useMemo(() => {
+    const live = kanalFunde.filter((k) => k.live);
+    return live.length ? live : kanalFunde.slice(0, 5);
+  }, [kanalFunde]);
+  const kanalGezeigt = kanalMehr ? kanalFunde : kanalErste;
+  const kanalRest = kanalFunde.length - kanalErste.length;
+
+  /** Zahlen wie Twitch sie schreibt: 1.2K, 107K. */
+  const kurz = (n: number) => new Intl.NumberFormat('en', {
+    notation: 'compact', maximumFractionDigits: 1,
+  }).format(n);
+
   const kachelHinzufuegen = (eingabe: string) => {
     const name = eingabe.trim().toLowerCase()
       .replace(/^(https?:\/\/)?(www\.)?twitch\.tv\//, '')
@@ -1016,7 +1075,23 @@ loadDashboardData().then(loadedFolders => {
       return neu;
     });
     setKachelSuche('');
+    setKanalFunde([]);
+    setKanalListeOffen(false);
     return true;
+  };
+
+  /*
+   * Enter: der genaue Treffer, sonst der erste, sonst das Getippte.
+   *
+   * Wer "okis" tippt und "okisfn" ganz oben sieht, meint den; wer den
+   * exakten Namen tippt, meint den, auch wenn ein groesserer Kanal
+   * daruebersteht.
+   */
+  const kachelAusSuche = () => {
+    const q = kachelSuche.trim().toLowerCase();
+    const genau = kanalFunde.find((k) => k.login === q);
+    const erster = kanalGezeigt[0];
+    kachelHinzufuegen(genau?.login ?? erster?.login ?? kachelSuche);
   };
 
   const kachelFlaeche = useRef<HTMLDivElement | null>(null);
@@ -2077,26 +2152,103 @@ loadDashboardData().then(loadedFolders => {
                 */}
               {mehrfach && (
                 <form
-                  onSubmit={(e) => { e.preventDefault(); kachelHinzufuegen(kachelSuche); }}
+                  onSubmit={(e) => { e.preventDefault(); kachelAusSuche(); }}
                   className="order-first flex w-full justify-center sm:order-none
                              sm:w-auto sm:flex-1">
-                  <input
-                    value={kachelSuche}
-                    onChange={(e) => setKachelSuche(e.target.value)}
-                    // Enter ausdruecklich - die Seite hat eigene Tastengriffe,
-                    // und das Absenden soll nicht von ihnen abhaengen.
-                    onKeyDown={(e) => {
-                      if (e.key !== 'Enter') return;
-                      e.preventDefault();
-                      kachelHinzufuegen(kachelSuche);
-                    }}
-                    placeholder={t('Twitch-Name eingeben, Enter — kommt in die Multiview')}
-                    spellCheck={false}
-                    className="w-full max-w-sm rounded-full border border-zinc-800
-                               bg-zinc-900/80 px-4 py-1.5 text-center text-sm
-                               text-slate-100 outline-none
-                               placeholder:text-slate-600 focus:border-sky-500"
-                  />
+                  <div className="relative w-full max-w-sm">
+                    <input
+                      value={kachelSuche}
+                      onChange={(e) => setKachelSuche(e.target.value)}
+                      onFocus={() => setKanalListeOffen(true)}
+                      onBlur={() => setKanalListeOffen(false)}
+                      // Enter ausdruecklich - die Seite hat eigene Tastengriffe,
+                      // und das Absenden soll nicht von ihnen abhaengen.
+                      onKeyDown={(e) => {
+                        if (e.key === 'Escape') { setKanalListeOffen(false); return; }
+                        if (e.key !== 'Enter') return;
+                        e.preventDefault();
+                        kachelAusSuche();
+                      }}
+                      placeholder={t('Twitch-Name eingeben, Enter — kommt in die Multiview')}
+                      spellCheck={false}
+                      className="w-full rounded-full border border-zinc-800
+                                 bg-zinc-900/80 px-4 py-1.5 text-center text-sm
+                                 text-slate-100 outline-none
+                                 placeholder:text-slate-600 focus:border-sky-500"
+                    />
+                    {/*
+                      * Die Liste darunter. Ein Druck auf die Liste nimmt dem
+                      * Feld nicht den Fokus - sonst waere sie beim Klick
+                      * schon zu, bevor der Klick ankommt.
+                      */}
+                    {kanalListeOffen && kachelSuche.trim().length >= 2 && (
+                      <div
+                        onMouseDown={(e) => e.preventDefault()}
+                        className="absolute left-0 right-0 top-full z-40 mt-2
+                                   overflow-hidden rounded-xl border border-zinc-700
+                                   bg-zinc-950 shadow-2xl">
+                        {kanalSucheLaeuft && !kanalFunde.length && (
+                          <p className="px-3 py-3 text-center text-xs text-slate-500">
+                            <T>Wird gesucht …</T>
+                          </p>
+                        )}
+                        {!kanalSucheLaeuft && !kanalFunde.length && (
+                          <p className="px-3 py-3 text-center text-xs text-slate-500">
+                            <T>Kein Kanal gefunden</T> — <T>Enter nimmt den Namen trotzdem</T>
+                          </p>
+                        )}
+                        {kanalGezeigt.map((k) => (
+                          <button key={k.login} type="button"
+                            onClick={() => kachelHinzufuegen(k.login)}
+                            className="flex w-full items-center gap-3 px-3 py-2 text-left
+                                       transition hover:bg-zinc-900">
+                            {k.bild
+                              // eslint-disable-next-line @next/next/no-img-element
+                              ? <img src={k.bild} alt=""
+                                className="h-8 w-8 shrink-0 rounded-full object-cover" />
+                              : <span className="h-8 w-8 shrink-0 rounded-full bg-zinc-800" />}
+                            <span className="min-w-0 flex-1">
+                              <span className="flex items-center gap-2">
+                                <span className="truncate text-sm font-semibold text-slate-100">
+                                  {k.name}
+                                </span>
+                                {k.live
+                                  ? <span className="flex shrink-0 items-center gap-1 text-[11px]
+                                                     font-semibold text-rose-400">
+                                      <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />
+                                      LIVE
+                                      {k.zuschauer !== null && (
+                                        <span className="font-normal text-slate-400">
+                                          · {kurz(k.zuschauer)} <T>Zuschauer</T>
+                                        </span>
+                                      )}
+                                    </span>
+                                  : <span className="shrink-0 text-[11px] uppercase
+                                                     tracking-wider text-slate-600">
+                                      <T>offline</T>
+                                    </span>}
+                              </span>
+                              <span className="block truncate text-[11px] text-slate-500">
+                                {k.follower !== null && (
+                                  <>{kurz(k.follower)} <T>Follower</T></>
+                                )}
+                                {k.follower !== null && k.spiel ? ' · ' : ''}
+                                {k.spiel}
+                              </span>
+                            </span>
+                          </button>
+                        ))}
+                        {kanalRest > 0 && !kanalMehr && (
+                          <button type="button" onClick={() => setKanalMehr(true)}
+                            className="w-full border-t border-zinc-800 px-3 py-2 text-center
+                                       text-[11px] text-slate-500 transition
+                                       hover:text-sky-400">
+                            <T>mehr anzeigen</T> ({kanalRest})
+                          </button>
+                        )}
+                      </div>
+                    )}
+                  </div>
                 </form>
               )}
               <button
