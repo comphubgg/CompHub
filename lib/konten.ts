@@ -557,6 +557,47 @@ export async function ipGesperrt(ip: string): Promise<boolean> {
   return (await lies()).some((k) => k.gesperrt && (k.ips ?? []).includes(ip));
 }
 
+/**
+ * Wie viele Konten dieser Anschluss in der letzten Stunde angelegt hat.
+ *
+ * Gegen das Anlegen am laufenden Band: in der Kontenliste standen
+ * reihenweise Namen wie "bFfUCCaXNzmgOPGthhKKiLuZ", alle unbestaetigt,
+ * alle paar Stunden eines - das legt kein Mensch an. Drei je Anschluss und
+ * Stunde reichen jedem, der es ehrlich meint.
+ */
+export async function kontenVonAnschlussLetzteStunde(ip: string): Promise<number> {
+  if (!ip) return 0;
+  const seit = Date.now() - 60 * 60_000;
+  return (await lies()).filter((k) => (k.ips ?? []).includes(ip)
+    && k.angelegt && Date.parse(k.angelegt) >= seit).length;
+}
+
+/**
+ * Unbestaetigte Konten, die aelter als sieben Tage sind, entfernen.
+ *
+ * Wer seine Adresse in einer Woche nicht bestaetigt, war es meistens nie -
+ * die Kontenliste soll nicht mit Zufallsnamen vollaufen. Konten mit
+ * verknuepftem Anmeldedienst, mit VIP oder mit einer Rolle bleiben in
+ * jedem Fall stehen; die sind bestaetigt oder vom Betreiber gewollt.
+ *
+ * @returns Wie viele entfernt wurden.
+ */
+export async function raeumeUnbestaetigte(tage = 7): Promise<number> {
+  const liste = await lies();
+  const grenze = Date.now() - tage * 24 * 60 * 60_000;
+  const bleibt = liste.filter((k) => k.bestaetigt
+    || Boolean(k.dienste && Object.keys(k.dienste).length)
+    || k.vipBis !== undefined
+    || Boolean(k.rolle)
+    // Wer sich seit dem Anlegen noch einmal angemeldet hat, ist ein Mensch,
+    // der die Mail bloss nicht angeklickt hat - der bleibt.
+    || Boolean(k.zuletzt)
+    || !k.angelegt || Date.parse(k.angelegt) >= grenze);
+  const weg = liste.length - bleibt.length;
+  if (weg > 0) await schreibe(bleibt);
+  return weg;
+}
+
 /** Den Anschluss mitschreiben - hoechstens fuenf, das Neueste zuerst. */
 export async function merkeIp(id: string, ip: string) {
   if (!ip) return;

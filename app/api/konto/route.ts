@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import {
   aendern, anlegen, emailTaugt, ipGesperrt, kontoAus, loesche, merkeAnmeldung, nachName,
+  kontenVonAnschlussLetzteStunde, raeumeUnbestaetigte,
   merkeIp, nachEmail, nachId, oeffentlich, passwortStimmt, passwortTaugt,
   setzePasswort, SITZUNG_TAGE, sitzungFuer, vipBestaetigen,
   neuerBestaetigungsschluessel, eroeffneRuecksetzung, setzePasswortMitSchluessel,
@@ -162,6 +163,40 @@ export async function POST(request: Request) {
     const passwort = String(koerper.passwort ?? '');
     const name = String(koerper.name ?? '').trim();
 
+    /*
+     * Drei Huerden gegen Konten am laufenden Band.
+     *
+     * In der Kontenliste standen Zufallsnamen wie "bFfUCCaXNzmgOPGthhKKiLuZ",
+     * unbestaetigt, alle paar Stunden eines - Anmelde-Bots, die jedes
+     * Formular im Netz abklappern. Der Betreiber: "sag mir, ist das normal,
+     * oder sollte ich eine hoehere Sicherheitsstufe machen?"
+     *
+     * Was hier steht, kostet nichts und braucht keinen Dienst:
+     *
+     *   1. Ein Feld, das kein Mensch sieht. Die Seite legt es unsichtbar an;
+     *      ein Bot fuellt alles aus, was er findet. Steht etwas drin, tun wir
+     *      so, als haette es geklappt - und legen nichts an.
+     *   2. Eine Mindestzeit. Das Formular traegt, wann es aufging; wer es in
+     *      unter drei Sekunden abschickt, hat es nicht gelesen.
+     *   3. Drei Konten je Anschluss und Stunde.
+     *
+     * Was hier nicht steht: Telefonnummern. Die zu pruefen kostet je SMS
+     * Geld, und das Werkzeug soll nichts kosten.
+     */
+    if (String(koerper.website ?? '').trim()) {
+      return NextResponse.json({ ok: true, hinweis: null });
+    }
+    const aufgegangen = Number(koerper.seit);
+    if (Number.isFinite(aufgegangen) && Date.now() - aufgegangen < 3000) {
+      return NextResponse.json(
+        { fehler: 'Das ging zu schnell. Bitte noch einmal.' }, { status: 429 });
+    }
+    if (await kontenVonAnschlussLetzteStunde(anschluss(request)) >= 3) {
+      return NextResponse.json(
+        { fehler: 'Von diesem Anschluss wurden gerade schon mehrere Konten angelegt. Bitte später noch einmal.' },
+        { status: 429 });
+    }
+
     if (!emailTaugt(email)) {
       return NextResponse.json(
         { fehler: 'Diese E-Mail-Adresse sieht nicht gültig aus.' }, { status: 400 });
@@ -191,6 +226,11 @@ export async function POST(request: Request) {
         : 'Die Bestätigungsmail ging gerade nicht raus. Du kannst sie später '
           + 'unter „Mein Konto" erneut anfordern.';
     }
+
+    // Den Anschluss gleich mitschreiben - fuer die Huerde oben.
+    await merkeIp(ergebnis.konto.id, anschluss(request));
+    // Und bei der Gelegenheit alte, nie bestaetigte Konten wegraeumen.
+    void raeumeUnbestaetigte().catch(() => {});
 
     const antwort = NextResponse.json({
       ok: true, konto: oeffentlich(ergebnis.konto), hinweis,

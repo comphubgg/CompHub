@@ -1951,6 +1951,10 @@ const AUF_ENGLISCH: Record<string, string> = {
     'now',
   'Sitzungen':
     'sessions',
+  'Das ging zu schnell. Bitte noch einmal.':
+    'That was too fast. Please try again.',
+  'Von diesem Anschluss wurden gerade schon mehrere Konten angelegt. Bitte später noch einmal.':
+    'Several accounts were just created from this connection. Please try again later.',
   'Die übrigen Listen (Schaden, Treffer, Material) nur aus Finals — dazu haben die Replays keine Werte.':
     'The other lists (damage, hits, materials) come from finals only — the replays hold no such values.',
   'Twitch-Name eingeben, Enter — kommt in die Multiview':

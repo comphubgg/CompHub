@@ -125,6 +125,15 @@ export default function Anmelden({ start = 'anmelden' }: {
     });
   }, [router]);
 
+  /*
+   * Zwei stille Angaben gegen Anmelde-Bots - siehe app/api/konto.
+   *
+   * "website" ist ein Feld, das kein Mensch sieht und deshalb leer bleibt;
+   * "seit" ist der Zeitpunkt, an dem das Formular aufging.
+   */
+  const [website, setWebsite] = useState('');
+  const [seit] = useState(() => Date.now());
+
   async function abschicken(e: React.FormEvent) {
     e.preventDefault();
     setLaeuft(true); setFehler(''); setHinweis('');
@@ -133,7 +142,7 @@ export default function Anmelden({ start = 'anmelden' }: {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           was: reiter, email, passwort,
-          ...(reiter === 'registrieren' ? { name } : {}),
+          ...(reiter === 'registrieren' ? { name, website, seit } : {}),
         }),
       });
       const j = await r.json();
@@ -207,6 +216,13 @@ export default function Anmelden({ start = 'anmelden' }: {
             <input value={name} onChange={(e) => setName(e.target.value)}
               placeholder={t('Anzeigename')} autoComplete="nickname"
               className={feld} />
+          )}
+          {/* Der Honigtopf: unsichtbar, ohne Tab-Reihenfolge, ohne Ausfuellhilfe.
+              Ein Mensch sieht ihn nie; ein Bot fuellt ihn. */}
+          {reiter === 'registrieren' && (
+            <input value={website} onChange={(e) => setWebsite(e.target.value)}
+              name="website" tabIndex={-1} autoComplete="off" aria-hidden
+              className="absolute -left-[9999px] h-0 w-0 opacity-0" />
           )}
           {/*
             * Beim Anmelden geht beides: Adresse oder Name.
