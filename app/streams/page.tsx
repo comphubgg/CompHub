@@ -23,6 +23,51 @@ interface Folder {
   streamers: Streamer[];
 }
 
+/*
+ * Was ein Konto selbst hinzugefuegt hat.
+ *
+ * Die Ordner des Admins sind die Grundlage fuer alle. Was ein VIP darueber
+ * hinaus eintraegt, gehoert nur ihm - der Betreiber: "wenn der Admin jemand
+ * hinzufuegt, dann fuer jeden; wenn ein anderer mit Rechten hinzufuegt,
+ * dann nur fuer den Account, der es hinzugefuegt hat, fuer immer, ausser er
+ * loescht es manuell."
+ *
+ * Deshalb wird nicht mehr die ganze Ordnerliste je Konto abgelegt (damit
+ * kam eine Aenderung des Admins bei niemandem mehr an), sondern nur der
+ * Unterschied: eigene Ordner, und je Admin-Ordner die eigenen Streamer.
+ */
+interface EigeneErgaenzungen {
+  ordner: Folder[];
+  zusatz: Record<string, Streamer[]>;
+}
+
+/** Grundlage und Eigenes zusammenlegen - Eigenes hinten, Doppeltes weg. */
+function zusammenfuehren(basis: Folder[], eigene: EigeneErgaenzungen | null): Folder[] {
+  if (!eigene) return basis;
+  const raus = basis.map((f) => {
+    const extra = (eigene.zusatz?.[f.id] ?? []).filter(
+      (e) => e.twitch && !f.streamers.some((b) => b.twitch === e.twitch));
+    return extra.length ? { ...f, streamers: [...f.streamers, ...extra] } : f;
+  });
+  for (const o of eigene.ordner ?? []) {
+    if (!raus.some((f) => f.id === o.id)) raus.push(o);
+  }
+  return raus;
+}
+
+/** Aus dem Stand im Werkzeug zurueckrechnen, was davon eigen ist. */
+function eigenesDaraus(stand: Folder[], basis: Folder[]): EigeneErgaenzungen {
+  const zusatz: Record<string, Streamer[]> = {};
+  const ordner: Folder[] = [];
+  for (const f of stand) {
+    const b = basis.find((x) => x.id === f.id);
+    if (!b) { ordner.push(f); continue; }
+    const extra = f.streamers.filter((st) => !b.streamers.some((x) => x.twitch === st.twitch));
+    if (extra.length) zusatz[f.id] = extra;
+  }
+  return { ordner, zusatz };
+}
+
 interface Tournament {
   id: string;
   name: string;
@@ -133,6 +178,22 @@ export default function Home() {
   const [verifiedUser, setVerifiedUser] = useState<string | null>(null);
   const [authorized, setAuthorized] = useState<boolean>(false);
   const [isAdmin, setIsAdmin] = useState<boolean>(false);
+  /*
+   * Dieselben Werte noch einmal als Ref.
+   *
+   * persistFolders hatte "authorized" und "isAdmin" in der Klammer
+   * eingefroren: beim Aufbau der Seite sind beide falsch, und die Funktion
+   * behielt das - ein hinzugefuegter Streamer wurde deshalb nie
+   * gespeichert. Der Betreiber: "wenn ich die Seite schliesse und wieder
+   * oeffne, ist der Streamer nicht mehr im Ordner." Eine Ref hat immer
+   * den Stand von jetzt.
+   */
+  const authorizedRef = useRef(false);
+  const isAdminRef = useRef(false);
+  useEffect(() => { authorizedRef.current = authorized; }, [authorized]);
+  useEffect(() => { isAdminRef.current = isAdmin; }, [isAdmin]);
+  /** Die Ordner des Admins, wie sie vom Server kamen - die Grundlage. */
+  const serverBasis = useRef<Folder[]>([]);
   const zugang = useZugang();
   /*
    * Drei Stufen statt zwei.
@@ -297,7 +358,8 @@ export default function Home() {
 
     const saveDashboard = async () => {
       try {
-        if (isAdmin) {
+        if (isAdminRef.current) {
+          // Der Admin schreibt die Grundlage - fuer alle.
           const response = await fetch('/api/dashboard', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -306,9 +368,13 @@ export default function Home() {
           if (!response.ok) {
             const errorText = await response.text();
             console.error('Failed to save dashboard:', response.status, errorText);
+          } else {
+            serverBasis.current = normalizedFolders;
           }
-        } else if (authorized) {
-          await saveUserStorageCloud('multihub_folders', normalizedFolders);
+        } else if (authorizedRef.current) {
+          // Alle anderen schreiben nur, was ueber die Grundlage hinausgeht.
+          await saveUserStorageCloud('multihub_eigene',
+            eigenesDaraus(normalizedFolders, serverBasis.current));
         }
       } catch (error) {
         console.error('Failed to save dashboard:', error);
@@ -643,25 +709,41 @@ const response = await fetch(getApiUrl(`/api/search?q=${encodeURIComponent(twitc
     }
   }, []);
 
-  const loadDashboardData = useCallback(async () => {
-    if (isAdmin) {
-      const serverFolders = await loadDashboardFromServer();
+  /*
+   * Erst die Grundlage vom Server, dann das Eigene dazu.
+   *
+   * Wer angemeldet ist, wird der Funktion mitgegeben statt aus dem Zustand
+   * gelesen: beim Aufbau der Seite lief das Laden, bevor die Anmeldung
+   * geprueft war, und nahm deshalb immer den Weg fuer Gaeste - die eigenen
+   * Eintraege wurden nie gelesen.
+   */
+  const loadDashboardData = useCallback(async (wer: { authorized: boolean; isAdmin: boolean }) => {
+    const serverFolders = await loadDashboardFromServer();
+    serverBasis.current = serverFolders;
+    if (wer.isAdmin || !wer.authorized) {
       setFolders(serverFolders);
       return serverFolders;
     }
 
-    if (authorized) {
-      const userFolders = await loadUserStorageCloud<Folder[]>('multihub_folders');
-      if (Array.isArray(userFolders) && userFolders.length > 0) {
-        setFolders(userFolders);
-        return userFolders;
+    let eigene = await loadUserStorageCloud<EigeneErgaenzungen>('multihub_eigene');
+    if (!eigene) {
+      /*
+       * Der alte Stand: eine ganze Ordnerliste je Konto.
+       *
+       * Daraus wird einmal der Unterschied zur Grundlage gebildet und so
+       * abgelegt, wie es jetzt gilt - was jemand frueher hinzugefuegt hat,
+       * bleibt ihm erhalten.
+       */
+      const alt = await loadUserStorageCloud<Folder[]>('multihub_folders');
+      if (Array.isArray(alt) && alt.length) {
+        eigene = eigenesDaraus(alt, serverFolders);
+        await saveUserStorageCloud('multihub_eigene', eigene);
       }
     }
-
-    const serverFolders = await loadDashboardFromServer();
-    setFolders(serverFolders);
-    return serverFolders;
-  }, [authorized, isAdmin, loadDashboardFromServer]);
+    const zusammen = zusammenfuehren(serverFolders, eigene);
+    setFolders(zusammen);
+    return zusammen;
+  }, [loadDashboardFromServer]);
 
   // Prüft alle Streamer und wählt beim ersten gefundenen Live-Stream automatisch seinen Ordner + Stream aus
   const selectFirstLiveStreamerIfAny = useCallback(async (foldersToCheck?: Folder[]) => {
@@ -701,8 +783,33 @@ const response = await fetch(getApiUrl(`/api/search?q=${encodeURIComponent(twitc
       setCurrentHost(window.location.hostname);
     }
 
-    // Lade Dashboard-Daten vom Server
-loadDashboardData().then(loadedFolders => {
+    /*
+     * Erst wissen, wer da ist - dann laden.
+     *
+     * Vorher liefen beide gleichzeitig los, und das Laden gewann immer:
+     * es sah einen Gast und las nur die Grundlage.
+     */
+    const werIstDa = async (): Promise<{ authorized: boolean; isAdmin: boolean }> => {
+      try {
+        const res = await fetch('/api/auth/verify');
+        if (!res.ok) return { authorized: false, isAdmin: false };
+        const j = await res.json();
+        if (j?.authorized && j.user) {
+          const login = String(j.user).trim().toLowerCase();
+          setVerifiedUser(login);
+          return { authorized: true, isAdmin: login === 'admin-juanito' };
+        }
+      } catch { /* dann ist es ein Gast */ }
+      return { authorized: false, isAdmin: false };
+    };
+
+    werIstDa().then((wer) => {
+      setAuthorized(wer.authorized);
+      setIsAdmin(wer.isAdmin);
+      authorizedRef.current = wer.authorized;
+      isAdminRef.current = wer.isAdmin;
+      return loadDashboardData(wer);
+    }).then(loadedFolders => {
       // WICHTIG: Setze Ordner-ID Fallback
       const initialFolders = loadedFolders.map(f => ({
         ...f,
@@ -823,29 +930,6 @@ loadDashboardData().then(loadedFolders => {
       setFolders(DEFAULT_FOLDERS);
       setIsMounted(true);
     });
-    // check server auth for verified user
-    (async () => {
-      try {
-        const res = await fetch('/api/auth/verify');
-        if (!res.ok) {
-          setAuthorized(false);
-          return;
-        }
-        const j = await res.json();
-        if (j?.authorized && j.user) {
-          const login = String(j.user).trim().toLowerCase();
-          setVerifiedUser(login);
-          setAuthorized(true);
-          setIsAdmin(login === 'admin-juanito');
-        } else {
-          setAuthorized(false);
-          setIsAdmin(false);
-        }
-      } catch (e) {
-        setAuthorized(false);
-      }
-    })();
-
   }, [loadDashboardFromServer]);
 
   const currentStreamerObj = folders.flatMap(f => f.streamers).find(s => s.twitch === activeStreamerTwitch);
