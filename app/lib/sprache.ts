@@ -1951,6 +1951,20 @@ const AUF_ENGLISCH: Record<string, string> = {
     'now',
   'Sitzungen':
     'sessions',
+  'Spieltagen':
+    'match days',
+  'Preisgeld nur, wo eine Preisgeldtabelle gepflegt ist':
+    'Earnings only where a prize money table is maintained',
+  'Gezählt nach Saisons: Chapter 7 Season 1 bis 4 (die erste Saison beginnt Ende November des Vorjahres). Das Archiv kennt zu älteren Spieltagen kein Datum.':
+    'Counted by seasons: Chapter 7 Season 1 to 4 (the first season starts in late November of the previous year). The archive has no dates for older match days.',
+  'in diesem Jahr':
+    'this year',
+  'Meistes Preisgeld':
+    'Most earnings',
+  'Verdienst':
+    'Earnings',
+  'Abgeleitet aus Platz beziehungsweise Punkten und der gepflegten Preisgeldtabelle, je Person':
+    'Derived from placement or points and the maintained prize money table, per player',
   'Klicken zum Umschalten':
     'Click to switch',
   'Nur für dich sichtbar':

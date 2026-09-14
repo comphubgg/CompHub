@@ -42,7 +42,10 @@ function nachRegionReihe(regionen: string[]): string[] {
   return [...regionen].sort((a, b) => rang(a) - rang(b));
 }
 
-type Bereich = 'start' | 'turniere' | 'regional' | 'spieler' | 'vergleich' | 'bilder';
+type Bereich = 'start' | 'turniere' | 'regional' | 'spieler' | 'jahr' | 'vergleich' | 'bilder';
+
+/** Das Jahr der Jahresansicht - siehe JAHR_SAISONS in lib/szeneStats. */
+const JAHR = 2026;
 
 /**
  * Wer einen Bereich sehen darf - vom Betreiber je Bereich schaltbar.
@@ -53,7 +56,7 @@ type Bereich = 'start' | 'turniere' | 'regional' | 'spieler' | 'vergleich' | 'bi
  */
 type Sichtbar = 'alle' | 'vip' | 'admin';
 const SICHTBAR_STANDARD: Record<Bereich, Sichtbar> = {
-  start: 'alle', turniere: 'alle', regional: 'alle', spieler: 'alle',
+  start: 'alle', turniere: 'alle', regional: 'alle', spieler: 'alle', jahr: 'alle',
   vergleich: 'vip', bilder: 'admin',
 };
 const SICHTBAR_REIHE: Sichtbar[] = ['alle', 'vip', 'admin'];
@@ -233,6 +236,12 @@ interface VerlaufZeile {
    */
   nurEpic?: boolean;
   /**
+   * Preisgeld je Person zu diesem Spieltag - abgeleitet aus Platz oder
+   * Punkten und der gepflegten Tabelle (lib/preisgeld). null, wo keine
+   * Regel gepflegt ist.
+   */
+  verdienst?: number | null;
+  /**
    * Eigene Eliminierungen aus dem ausgewerteten Replay.
    *
    * Nur bei Epic-Zeilen von Belang: dort ist die Spalte sonst leer, weil
@@ -253,6 +262,7 @@ const BEREICHE: Array<[Bereich, string]> = [
   ['turniere', 'Turniere'],
   ['regional', 'Regionen'],
   ['spieler', 'Spieler'],
+  ['jahr', String(JAHR)],
 ];
 
 /**
@@ -294,6 +304,7 @@ function Zeichen({ art }: { art: Bereich }) {
     regional: 'M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11z M12 10.5a1.5 1.5 0 1 0 0-3'
       + 'a1.5 1.5 0 0 0 0 3z',
     spieler: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M4 21a8 8 0 0 1 16 0',
+    jahr: 'M4 5h16v15H4z M4 9h16 M8 3v4 M16 3v4 M8 13h2 M14 13h2 M8 17h2 M14 17h2',
     bilder: 'M3 5h18v14H3z M3 16l5-5 4 4 3-3 6 6',
     vergleich: 'M12 3v18 M7 8l-4 4 4 4 M17 8l4 4-4 4',
   };
@@ -1174,6 +1185,16 @@ function VerlaufTabelle({ zeilen, fuss }: {
                 entscheiden. Gerade in den Zeilen, in denen sonst nur Striche
                 stehen, ist das der eine Wert, den es wirklich gibt. */}
             <th className="px-2 py-2 text-right font-medium"><T>Punkte</T></th>
+            {/* Preisgeld, wo eine Tabelle gepflegt ist - der Betreiber:
+                "bei einem Performance Cup Final sind die Points eigentlich
+                Earnings; mach Points und daneben Earnings." Abgeleitet, und
+                die Spalte erscheint nur, wenn es zu einer Zeile etwas gibt. */}
+            {zeilen.some((z) => typeof z.verdienst === 'number') && (
+              <th className="px-2 py-2 text-right font-medium"
+                title={t('Abgeleitet aus Platz beziehungsweise Punkten und der gepflegten Preisgeldtabelle, je Person')}>
+                <T>Verdienst</T>
+              </th>
+            )}
             <th className="px-2 py-2 text-right font-medium"><T>Matches</T></th>
             <th className="px-2 py-2 text-right font-medium"><T>Elims</T></th>
             <th className="px-2 py-2 text-right font-medium"><T>Schaden</T></th>
@@ -1216,6 +1237,14 @@ function VerlaufTabelle({ zeilen, fuss }: {
                 {z.punkte !== null ? zahl(z.punkte, 0, sprache)
                   : <span className="text-slate-700">—</span>}
               </td>
+              {zeilen.some((x) => typeof x.verdienst === 'number') && (
+                <td className="px-2 py-2 text-right font-semibold tabular-nums
+                               text-emerald-400">
+                  {typeof z.verdienst === 'number'
+                    ? `$${zahl(z.verdienst, 0, sprache)}`
+                    : <span className="text-slate-700">—</span>}
+                </td>
+              )}
               <td className="px-2 py-2 text-right tabular-nums text-slate-500">
                 {z.werte.matchesPlayed || '—'}
               </td>
@@ -1607,6 +1636,18 @@ export default function StatistikSeite() {
 
   // Ob der Nutzer bearbeiten darf
   const [istAdmin, setIstAdmin] = useState(false);
+
+  /* ------------------------------------------------------------- Das Jahr */
+  interface JahrListe {
+    feld: string; titel: string; nachkomma: number; einheit: string | null;
+    mindestMatches: number | null; plaetze: Spieler[]; spieltageMitRegel?: number;
+  }
+  const [jahr, setJahr] = useState<{
+    jahr: number; saisons: string[]; spieltage: number; regionen: string[];
+    listen: JahrListe[];
+  } | null>(null);
+  const [jahrRegion, setJahrRegion] = useState('');
+  const [jahrLaedt, setJahrLaedt] = useState(false);
   const [sichtbar, setSichtbar] = useState<Record<Bereich, Sichtbar>>(SICHTBAR_STANDARD);
   const zugang = useZugang();
   const [pflegeName, setPflegeName] = useState('');
@@ -1696,6 +1737,8 @@ export default function StatistikSeite() {
    */
   const [spieltagTabelle, setSpieltagTabelle] = useState<{
     platz: number; punkte: number; matches: number | null; elims: number | null;
+    /** Preisgeld je Person, abgeleitet - siehe lib/preisgeld. */
+    verdienst?: number | null;
     spieler: Array<{ epicId: string; name: string; land: string }>;
   }[] | null>(null);
   const [tabelleLaedt, setTabelleLaedt] = useState(false);
@@ -1861,6 +1904,19 @@ export default function StatistikSeite() {
       .then((j) => { if (j?.bereiche) setSichtbar({ ...SICHTBAR_STANDARD, ...j.bereiche }); })
       .catch(() => { /* dann gilt der Standard */ });
   }, []);
+
+  useEffect(() => {
+    if (bereich !== 'jahr') return;
+    let weg = false;
+    setJahrLaedt(true);
+    fetch(`/api/szene-stats?ansicht=jahr&jahr=${JAHR}`
+      + (jahrRegion ? `&region=${encodeURIComponent(jahrRegion)}` : ''))
+      .then((r) => r.json())
+      .then((j) => { if (!weg && j?.listen) setJahr(j); })
+      .catch(() => { /* dann bleibt die Ansicht leer */ })
+      .finally(() => { if (!weg) setJahrLaedt(false); });
+    return () => { weg = true; };
+  }, [bereich, jahrRegion]);
 
   /** Die Bereiche, die dieser Besucher sehen darf. */
   const sichtbareBereiche = useMemo(() => {
@@ -3711,6 +3767,12 @@ export default function StatistikSeite() {
                                   <th className="px-3 py-2.5 text-right font-medium">
                                     <T>Punkte</T>
                                   </th>
+                                  {(spieltagTabelle ?? []).some((r) => typeof r.verdienst === 'number') && (
+                                    <th className="px-3 py-2.5 text-right font-medium"
+                                      title={t('Abgeleitet aus Platz beziehungsweise Punkten und der gepflegten Preisgeldtabelle, je Person')}>
+                                      <T>Verdienst</T>
+                                    </th>
+                                  )}
                                   <th className="px-3 py-2.5 text-right font-medium">
                                     <T>Elims</T>
                                   </th>
@@ -3750,6 +3812,13 @@ export default function StatistikSeite() {
                                                      tabular-nums text-slate-100">
                                         {zahl(r.punkte, 0, sprache)}
                                       </td>
+                                      {(spieltagTabelle ?? []).some((x) => typeof x.verdienst === 'number') && (
+                                        <td className="px-3 py-2 text-right font-semibold
+                                                       tabular-nums text-emerald-400">
+                                          {typeof r.verdienst === 'number'
+                                            ? `$${zahl(r.verdienst, 0, sprache)}` : '—'}
+                                        </td>
+                                      )}
                                       <td className="px-3 py-2 text-right tabular-nums
                                                      text-slate-400">
                                         {r.elims !== null ? zahl(r.elims, 0, sprache) : '—'}
@@ -3960,6 +4029,132 @@ export default function StatistikSeite() {
           })()}
 
           {/* -------------------------------------------------- Regionen */}
+          {/* ------------------------------------------------ Das Jahr */}
+          {bereich === 'jahr' && (
+            <div>
+              <div className="mb-4 flex flex-wrap items-center gap-3">
+                <h2 className="text-lg font-semibold text-slate-100">
+                  {JAHR}
+                </h2>
+                {jahr && (
+                  <span className="text-[11px] text-slate-500">
+                    {jahr.saisons.map((k) => saisons.find((x) => x.kennung === k)?.name ?? k).join(' · ')}
+                    {' · '}{zahl(jahr.spieltage, 0, sprache)} <T>Spieltage</T>
+                  </span>
+                )}
+                {/* Region - dieselben Marken wie in der Spielerliste. */}
+                <div className="ml-auto flex flex-wrap gap-1">
+                  {['', ...nachRegionReihe(jahr?.regionen ?? [])].map((r) => (
+                    <button key={r || 'alle'} onClick={() => setJahrRegion(r)}
+                      className={`rounded-md border px-2.5 py-1 text-xs font-semibold transition ${
+                        jahrRegion === r
+                          ? (r ? regionFarbe(r).marke : 'border-sky-500 bg-sky-500/10 text-sky-400')
+                          : `hover:brightness-125 ${r ? regionFarbe(r).ruhig : 'border-zinc-800 text-slate-400'}`}`}>
+                      {r || t('alle')}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {/* Was gezaehlt ist - ohne Datum im Archiv nach Saisons, siehe
+                  JAHR_SAISONS. Das steht hier, damit niemand ein Kalenderjahr
+                  vermutet, wo ein Kapitel gemeint ist. */}
+              <p className="mb-5 text-[11px] leading-snug text-slate-600">
+                <T>Gezählt nach Saisons: Chapter 7 Season 1 bis 4 (die erste Saison beginnt Ende November des Vorjahres). Das Archiv kennt zu älteren Spieltagen kein Datum.</T>
+                {' '}<T>Preisgeld nur, wo eine Preisgeldtabelle gepflegt ist</T>
+                {jahr?.listen[0]?.spieltageMitRegel !== undefined && (
+                  <> ({zahl(jahr.listen[0].spieltageMitRegel ?? 0, 0, sprache)} <T>von</T>{' '}
+                    {zahl(jahr.spieltage, 0, sprache)} <T>Spieltagen</T>)</>
+                )}.
+              </p>
+
+              {jahrLaedt && !jahr ? (
+                <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
+                  {[...Array(6)].map((_, i) =>
+                    <div key={i} className="aspect-[3/4] animate-pulse rounded-xl bg-zinc-900/60" />)}
+                </div>
+              ) : jahr && (
+                <div className="space-y-8">
+                  {jahr.listen.filter((l) => l.plaetze.length).map((l) => (
+                    <section key={l.feld}>
+                      <div className="mb-3 flex items-center gap-2">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.18em]
+                                      text-slate-500">
+                          <T>{l.titel}</T> <T>in diesem Jahr</T>
+                          {l.mindestMatches ? <> · <T>ab</T> {l.mindestMatches} <T>Matches</T></> : null}
+                        </p>
+                        {l.plaetze.length > 6 && (
+                          <button onClick={() => {
+                            setVolleListe({
+                              titel: l.titel, zusatz: String(JAHR) + (jahrRegion ? ` · ${jahrRegion}` : ''),
+                              zeilen: l.plaetze, feld: l.feld as keyof Spieler,
+                              nachkomma: l.nachkomma, einheit: l.einheit ?? '',
+                            });
+                            setListenTiefe(50);
+                          }}
+                            title={t('Alle {n} anzeigen').replace('{n}', String(l.plaetze.length))}
+                            className="rounded border border-zinc-700 px-1.5 text-[11px]
+                                       leading-4 text-slate-400 transition hover:border-sky-500
+                                       hover:text-sky-400">
+                            +
+                          </button>
+                        )}
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
+                        {l.plaetze.slice(0, 6).map((sp, i) => (
+                          <button key={sp.epicId} onClick={() => oeffne(sp)}
+                            className="group relative aspect-[3/4] overflow-hidden rounded-xl
+                                       border border-zinc-800 bg-zinc-900 text-left
+                                       transition hover:border-sky-500">
+                            {sp.bild ? (
+                              /* eslint-disable-next-line @next/next/no-img-element */
+                              <img src={sp.bild} alt="" loading="lazy"
+                                className="absolute inset-0 h-full w-full object-cover
+                                           object-top transition duration-300
+                                           group-hover:scale-105" />
+                            ) : (
+                              <span className="absolute inset-0 flex items-center justify-center
+                                               text-4xl text-zinc-800">?</span>
+                            )}
+                            <span className={`absolute left-2 top-2 rounded bg-black/70 px-1.5
+                                              py-0.5 text-[10px] font-bold tabular-nums ${
+                                              i === 0 ? 'text-amber-400' : 'text-slate-300'}`}>
+                              {i + 1}
+                            </span>
+                            <span className="absolute right-2 top-2">
+                              <RegionMarke region={sp.heimat || sp.regionen?.[0] || ''} />
+                            </span>
+                            <span className="absolute bottom-0 w-full bg-gradient-to-t
+                                             from-black/95 via-black/70 to-transparent px-3
+                                             pb-2.5 pt-10">
+                              <span className="flex items-center gap-1.5">
+                                <TeamFlagge groesse={16} laender={[sp.land ?? undefined]} />
+                                <span className="min-w-0 truncate text-sm font-bold uppercase
+                                                 tracking-wide text-slate-50">
+                                  {grossName(sp.anzeige, sp.gepflegt)}
+                                </span>
+                              </span>
+                              <span className="mt-1.5 flex items-baseline justify-between
+                                               rounded-lg bg-black/45 px-2 py-1.5
+                                               backdrop-blur-sm">
+                                <span className="text-[9px] font-semibold uppercase text-slate-400">
+                                  <T>{l.titel}</T>
+                                </span>
+                                <span className="text-[15px] font-bold tabular-nums text-sky-400">
+                                  {zahl(Number(sp[l.feld as keyof Spieler] ?? 0), l.nachkomma, sprache)}
+                                  {l.einheit ?? ''}
+                                </span>
+                              </span>
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </section>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {bereich === 'regional' && (
             <>
               <div className="mb-4 flex flex-wrap items-center gap-1.5">

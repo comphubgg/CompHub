@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { verdienst } from '@/lib/preisgeld';
 import fs from '@/lib/ablageFs';
 import path from 'path';
 import { DATEN_ORT } from '@/lib/datenOrt';
@@ -93,20 +94,40 @@ export async function GET(request: Request) {
   }
 
   const namen = await namensKarte();
-  const teams = daten.teams
+  /*
+   * Und das Preisgeld je Platz, wo eine Regel gepflegt ist - siehe
+   * lib/preisgeld. Abgeleitet aus Platz beziehungsweise Punkten und der
+   * gepflegten Tabelle; je Person. Wo keine Regel steht, bleibt es leer.
+   */
+  const region = (daten as { region?: string }).region
+    ?? /_(EU|NAC|NAW|BR|ASIA|ME|OCE)$/i.exec(fenster)?.[1]?.toUpperCase() ?? '';
+  const eventId = (daten as { eventId?: string }).eventId;
+  const istFinale = (daten as { istFinale?: boolean }).istFinale;
+  const titel = (daten as { titel?: string; name?: string });
+  let waehrung: string | null = null;
+  const teams = await Promise.all(daten.teams
     .slice()
     .sort((a, b) => a.platz - b.platz)
-    .map((t) => ({
-      platz: t.platz,
-      punkte: t.punkte,
-      matches: t.matches ?? null,
-      elims: t.teamElims ?? null,
-      spieler: (t.spieler ?? []).map((id) => ({
-        epicId: id,
-        name: namen.get(id)?.name ?? id.slice(0, 8),
-        land: namen.get(id)?.land ?? '',
-      })),
+    .map(async (t) => {
+      const geld = await verdienst({
+        windowId: fenster, eventId, region, name: titel.titel ?? titel.name,
+        platz: t.platz, punkte: t.punkte, istFinale,
+      });
+      if (geld) waehrung = geld.waehrung;
+      return {
+        platz: t.platz,
+        punkte: t.punkte,
+        matches: t.matches ?? null,
+        elims: t.teamElims ?? null,
+        verdienst: geld ? geld.betrag : null,
+        spieler: (t.spieler ?? []).map((id) => ({
+          epicId: id,
+          name: namen.get(id)?.name ?? id.slice(0, 8),
+          land: namen.get(id)?.land ?? '',
+        })),
+      };
     }));
 
-  return NextResponse.json({ vorhanden: true, teams });
+  return NextResponse.json({ vorhanden: true, teams, waehrung, verdienstQuelle: waehrung
+    ? 'Abgeleitet aus Platz beziehungsweise Punkten und der gepflegten Preisgeldtabelle, je Person.' : null });
 }

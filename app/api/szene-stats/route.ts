@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server';
 import { ohneDateien } from '@/lib/antwortSpeicher';
+import { verdienst } from '@/lib/preisgeld';
 import { fertigeAntwort } from '@/lib/antwortSpeicher';
 import fs from '@/lib/ablageFs';
 import path from 'path';
 import {
   auswahl, bildFuer, gesamtSummen, heimatRegionen, liesVerzeichnis, SAISON_NAMEN,
   saisonName, startseite, summen, tagesbeste, verlauf, epicVerlauf,
-  istGrossesTurnier, istFinaleTag, aktenSchreiben,
+  istGrossesTurnier, istFinaleTag, aktenSchreiben, jahresListen, type SpielerSumme,
 } from '@/lib/szeneStats';
 import { DATEN_ORT } from '@/lib/datenOrt';
 import { getToken, loeseNamenAuf } from '@/lib/epicCups';
@@ -296,6 +297,8 @@ export async function GET(request: Request) {
    * Buchstabe waere eine eigene Zeile in der Ablage.
    */
   if (ansicht === 'suche') return berechne(request);
+  // Das Schreiben der Akten ist eine Arbeit, keine Antwort - nie aufheben.
+  if (ansicht === 'akten') return berechne(request);
   /*
    * Ein einzelner Spieltag wird auch nicht aufgehoben.
    *
@@ -373,6 +376,41 @@ async function berechne(request: Request) {
       }
       const ergebnis = await aktenSchreiben();
       return NextResponse.json({ success: true, ...ergebnis });
+    }
+
+    /*
+     * Das Jahr - ueber alle Saisons, mit Preisgeld. Ueber die Ablage der
+     * fertigen Antworten (siehe GET unten), gerechnet vom stuendlichen Lauf.
+     */
+    if (p.get('ansicht') === 'jahr') {
+      const jahr = Number(p.get('jahr')) || new Date().getUTCFullYear();
+      const daten = await jahresListen(jahr, region);
+      const gepflegt = await liesProfile();
+      const bildZu = await liesBilder();
+      const heimat = await heimatRegionen();
+      const szene = await liesSzeneSpieler();
+      const schlank = (s: SpielerSumme & { verdienst?: number }) => ({
+        epicId: s.epicId,
+        name: s.name,
+        anzeige: gepflegt.get(s.epicId)?.anzeige || gepflegt.get(s.epicId)?.name
+          || szene.get(s.epicId)?.name || s.name,
+        gepflegt: Boolean(gepflegt.get(s.epicId)?.anzeige || gepflegt.get(s.epicId)?.name),
+        land: gepflegt.get(s.epicId)?.land || szene.get(s.epicId)?.land || null,
+        bild: bildZu.get(s.epicId)?.pfad ?? null,
+        echtesFoto: bildZu.get(s.epicId)?.echt ?? false,
+        heimat: heimat.get(s.epicId) ?? s.regionen[0] ?? '',
+        regionen: s.regionen, namen: s.namen.slice(0, 3),
+        events: s.events, matches: s.matches,
+        elims: s.elims, damage: s.damage, quote: s.quote, hits: s.hits,
+        headshots: s.headshots, builds: s.builds,
+        elimsProMatch: s.elimsProMatch, damageProMatch: s.damageProMatch,
+        genauigkeit: s.genauigkeit,
+        ...(typeof s.verdienst === 'number' ? { verdienst: s.verdienst } : {}),
+      });
+      return NextResponse.json({
+        success: true, quelle: QUELLE, ...daten,
+        listen: daten.listen.map((l) => ({ ...l, plaetze: l.plaetze.map(schlank) })),
+      });
     }
 
     if (p.get('ansicht') === 'start') {
@@ -505,7 +543,25 @@ async function berechne(request: Request) {
                 for (const x of l.plaetze) if (!x.name && namen[x.epicId]) x.name = namen[x.epicId];
               } catch { /* dann bleibt die Kennung - besser als ein erfundener Name */ }
             }
-            return { ...l, plaetze: l.plaetze.map((x) => schmuecken(x)) };
+            /*
+             * Schlank: vierhundert Plaetze je Liste mit allen dreissig
+             * Werten waren zwei Megabyte je Seitenaufruf. Die Liste
+             * braucht Name, Flagge, Bild, Heimat und die Kennzahlen, die
+             * sie zeigt - der Rest kommt beim Oeffnen des Profils.
+             */
+            const schlank = (x: Record<string, unknown> | null) => {
+              if (!x) return null;
+              const raus: Record<string, unknown> = {};
+              for (const k of ['epicId', 'name', 'anzeige', 'gepflegt', 'land', 'x', 'bild',
+                'echtesFoto', 'heimat', 'regionen', 'jeRegion', 'events', 'matches',
+                'elims', 'damage', 'quote', 'hits', 'headshots', 'builds',
+                'elimsProMatch', 'damageProMatch', 'genauigkeit']) {
+                if (x[k] !== undefined) raus[k] = x[k];
+              }
+              raus.namen = Array.isArray(x.namen) ? (x.namen as string[]).slice(0, 3) : [];
+              return raus;
+            };
+            return { ...l, plaetze: l.plaetze.map((x) => schlank(schmuecken(x))) };
           })),
         } : {}),
       });
@@ -943,23 +999,36 @@ async function berechne(request: Request) {
           }
         } catch { /* ohne Epic-Anmeldung bleibt die gekuerzte Id stehen */ }
       }
-      const zeilen = rohZeilen.map((z) => ({
+      /*
+       * Dazu das Preisgeld je Spieltag, wo eine Regel gepflegt ist - siehe
+       * lib/preisgeld. Abgeleitet aus Platz beziehungsweise Punkten; wo
+       * keine Regel steht, bleibt es null.
+       */
+      const zeilen = await Promise.all(rohZeilen.map(async (z) => ({
         ...z,
+        verdienst: (await verdienst({
+          windowId: z.windowId, region: z.region, name: z.event,
+          platz: z.platz, punkte: z.punkte,
+        }))?.betrag ?? null,
         mitspieler: z.mitspieler.map((id) => ({
           epicId: id,
           name: nameZu.get(id)?.name ?? id.slice(0, 8),
           land: nameZu.get(id)?.land ?? null,
         })),
-      }));
+      })));
 
-      const epicZeilen = rohEpic.map((z) => ({
+      const epicZeilen = await Promise.all(rohEpic.map(async (z) => ({
         ...z,
+        verdienst: (await verdienst({
+          windowId: z.windowId, region: z.region, name: z.titel,
+          platz: z.platz, punkte: z.punkte,
+        }))?.betrag ?? null,
         mitspieler: z.mitspieler.map((id) => ({
           epicId: id,
           name: nameZu.get(id)?.name ?? id.slice(0, 8),
           land: nameZu.get(id)?.land ?? null,
         })),
-      }));
+      })));
 
       /**
        * Ein Bild je Saison fuer die Bannerzeile ueber der Turnierliste.

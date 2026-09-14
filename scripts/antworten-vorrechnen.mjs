@@ -40,6 +40,8 @@ function wege(saisons) {
     // davon lebt jedes Profil bei Vercel.
     '/api/szene-stats?ansicht=akten',
     '/api/szene-stats?ansicht=start',
+    // Das Jahr - ueber alle Saisons, mit Preisgeld.
+    `/api/szene-stats?ansicht=jahr&jahr=${new Date().getUTCFullYear()}`,
     '/api/szene-stats?ansicht=bilder',
     // Der Vorrat, in dem die Kopfzeilensuche sucht.
     '/api/szene-stats?ansicht=suchindex',
@@ -61,6 +63,7 @@ function wege(saisons) {
     raus.push(`/api/szene-stats?saison=${encodeURIComponent(s)}&sort=elims&limit=300`);
   }
   for (const r of REGIONEN) {
+    raus.push(`/api/szene-stats?ansicht=jahr&jahr=${new Date().getUTCFullYear()}&region=${r}`);
     raus.push(`/api/szene-stats?region=${r}&sort=elims&limit=80`);
     raus.push(`/api/szene-stats?region=${r}&sort=elims&limit=60`);
     /*

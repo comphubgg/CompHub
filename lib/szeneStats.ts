@@ -23,6 +23,7 @@ import type { ReplayWert } from '@/lib/replayWerte';
 import { liesJson, schreibJson } from '@/lib/ablage';
 import { fertigeAntwort, ohneDateien } from '@/lib/antwortSpeicher';
 import { istGrossesTurnier as grossesTurnier } from '@/lib/turnierArt';
+import { verdienst } from '@/lib/preisgeld';
 import { DATEN_ORT } from './datenOrt';
 
 const ABLAGE = path.join(DATEN_ORT, 'szene-stats');
@@ -240,6 +241,8 @@ function leereSumme(epicId: string, name: string): SpielerSumme {
 export interface Filter {
   saison?: string;
   region?: string;
+  /** Nur diese Saisons - fuer ein Jahr, das aus mehreren besteht. */
+  saisons?: string[];
   /** Nur dieser eine Spieltag (windowId oder Dateiname ohne .json). */
   event?: string;
   /** Mehrere Spieltage zusammen - fuer die Summe einer Turnierreihe. */
@@ -257,6 +260,7 @@ export async function summen(filter: Filter = {}) {
   const eintraege = (await liesVerzeichnis()).filter((e) =>
     (!filter.saison || e.season === filter.saison)
     && (!filter.region || e.region === filter.region)
+    && (!filter.saisons?.length || filter.saisons.includes(e.season))
     && (!filter.event || e.windowId === filter.event
         || e.datei === `${filter.event}.json`)
     && (!filter.events?.length
@@ -1024,6 +1028,95 @@ export async function startseite(saison?: string, wieViele = 25, jeTag = 3) {
   const grundlage = { jeSpieler: true, spieltage: nachweis };
 
   return { kacheln, listen, saison: dieSaison, grundlage };
+}
+
+/* ------------------------------------------------------------ Das Jahr */
+
+/**
+ * Die Bestenlisten eines Kalenderjahres - ueber alle Saisons hinweg.
+ *
+ * Der Betreiber: "unter Statistics zum Beispiel Year 2026 - Statistiken von
+ * allen Cups insgesamt von jedem Spieler: Most earnings this year, Most
+ * eliminations, Most damage, Most headshots ..." Gerechnet wird aus dem
+ * Archiv der Szene-Quelle (Finals) und, fuer das Preisgeld, aus Platz und
+ * Punkten je Spieltag mit der gepflegten Tabelle (lib/preisgeld).
+ *
+ * Was es nicht gibt, steht nicht da: Clutches, Schaden je Spieler aus
+ * Opens - dazu liefert keine Quelle Zahlen.
+ */
+/**
+ * Welche Saisons zu einem Jahr gehoeren.
+ *
+ * Das Archiv kennt zu aelteren Spieltagen kein Datum - "datum" ist dort der
+ * Tag, an dem die Quelle die Datei erzeugt hat, und der liegt fuer alles
+ * vor Juli 2026 auf demselben Spiegelungstag. Ein Kalenderjahr laesst sich
+ * daraus nicht schneiden. Gezaehlt wird deshalb nach Saisons: ein Kapitel
+ * beginnt Ende November oder Anfang Dezember des Vorjahres und laeuft bis
+ * in den November - das Jahr 2026 sind Chapter 7 Season 1 bis 4. Die Seite
+ * sagt das dazu.
+ */
+export const JAHR_SAISONS: Record<number, string[]> = {
+  2024: ['S30', 'S31'],
+  2025: ['S33', 'S34', 'S36', 'S37'],
+  2026: ['S39', 'S40', 'S41', 'S42'],
+};
+
+export async function jahresListen(jahr: number, region?: string) {
+  const saisons = JAHR_SAISONS[jahr] ?? [];
+  const { spieler: feld, spieltage } = await summen({ saisons, region });
+  const eintraege = (await liesVerzeichnis()).filter((e) =>
+    (!region || e.region === region) && saisons.includes(e.season));
+
+  // Preisgeld je Konto: Platz und Punkte je Spieltag aus Epics Bestenliste,
+  // bewertet mit der gepflegten Tabelle.
+  const geld = new Map<string, number>();
+  let mitRegel = 0;
+  for (const e of eintraege) {
+    const karte = await platzKarte(e.season, e.windowId);
+    if (!karte) continue;
+    let dieserTag = false;
+    for (const [id, p] of karte) {
+      const v = await verdienst({
+        windowId: e.windowId, eventId: e.eventId, region: e.region, name: e.name,
+        platz: p.platz, punkte: p.punkte,
+      });
+      if (!v) break; // keine Regel fuer diesen Spieltag - alle Konten gleich
+      dieserTag = true;
+      geld.set(id, (geld.get(id) ?? 0) + v.betrag);
+    }
+    if (dieserTag) mitRegel += 1;
+  }
+
+  const listen = KENNZAHLEN.map((k) => ({
+    feld: String(k.feld), titel: k.titel, nachkomma: k.nachkomma ?? 0,
+    einheit: k.einheit ?? null,
+    mindestMatches: k.feld === 'quote' ? 10 : null,
+    plaetze: [...feld]
+      .filter((s) => (k.feld === 'quote' ? s.matches >= 10 : true))
+      .sort((a, b) => Number(b[k.feld]) - Number(a[k.feld]))
+      .slice(0, LISTEN_LAENGE),
+  }));
+  const namen = new Map(feld.map((s) => [s.epicId, s]));
+  const verdienstListe = {
+    feld: 'verdienst', titel: 'Meistes Preisgeld', nachkomma: 0, einheit: ' $',
+    mindestMatches: null,
+    plaetze: [...geld.entries()]
+      .filter(([, betrag]) => betrag > 0)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, LISTEN_LAENGE)
+      .map(([id, betrag]) => ({
+        ...(namen.get(id) ?? leereSumme(id, '')),
+        verdienst: betrag,
+      })),
+    /** Wie viele der Spieltage ueberhaupt eine Preisgeldregel haben. */
+    spieltageMitRegel: mitRegel,
+  };
+
+  return {
+    jahr, region: region ?? null, spieltage, saisons,
+    listen: [verdienstListe, ...listen],
+    regionen: [...new Set(eintraege.map((e) => e.region))].sort(),
+  };
 }
 
 /* --------------------------------------------------------- Heimatregion */
