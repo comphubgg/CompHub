@@ -89,6 +89,77 @@ async function fensterKarte(
   return karte;
 }
 
+/* ------------------------------------------ Alle Spieltage einer Saison */
+
+/** Ein ausgewerteter Spieltag mit allen Konten - fuer die Saisonlisten. */
+export interface AggregatTag {
+  season: string; windowId: string; eventId: string; region: string;
+  titel: string; datum: number | null;
+  /** Wie viele Matches ausgewertet sind ... */
+  ausgewertet: number;
+  /** ... und wie viele der Spieltag insgesamt hatte, soweit bekannt. */
+  gesamt: number | null;
+  spieler: AggregatKonto[];
+}
+
+const saisonMerker = new Map<string, { tage: AggregatTag[]; bis: number }>();
+
+/**
+ * Alle ausgewerteten Spieltage einer Saison, mit den Werten je Konto.
+ *
+ * Fuer die Liste "Meiste Eliminierungen": die Szene-Quelle kennt nur
+ * Finals, die eigenen Replays kennen jeden Spieltag, den der Sammler
+ * eingesammelt hat - Opens eingeschlossen. Der Betreiber: "da hast du
+ * mindestens die Eliminierungen, die hast du."
+ *
+ * Gelesen wird je Fenster das Aggregat und, fuer die Zahl aller Matches,
+ * der Zustand des Sammlers; acht Fenster nebeneinander, damit hundert
+ * Fenster aus der Ablage nicht hundertmal nacheinander warten. Zehn Minuten
+ * gemerkt - die Saisonlisten werden ohnehin nur alle anderthalb Stunden neu
+ * gerechnet.
+ */
+export async function aggregateSaison(season: string): Promise<AggregatTag[]> {
+  const gemerkt = saisonMerker.get(season);
+  if (gemerkt && Date.now() < gemerkt.bis) return gemerkt.tage;
+
+  let fenster: string[] = [];
+  try { fenster = await fs.readdir(path.join(ABLAGE, season)); } catch { fenster = []; }
+
+  const tage: AggregatTag[] = [];
+  const GLEICHZEITIG = 8;
+  for (let i = 0; i < fenster.length; i += GLEICHZEITIG) {
+    const gruppe = fenster.slice(i, i + GLEICHZEITIG);
+    const ergebnisse = await Promise.all(gruppe.map(async (w) => {
+      try {
+        const roh = JSON.parse(await fs.readFile(
+          path.join(ABLAGE, season, w, '_aggregat.json'), 'utf8')) as Aggregat & {
+            eventId?: string; region?: string; titel?: string; von?: number;
+          };
+        if (!Array.isArray(roh.spieler) || !roh.spieler.length) return null;
+        let gesamt: number | null = null;
+        try {
+          const z = JSON.parse(await fs.readFile(
+            path.join(ABLAGE, season, w, '_zustand.json'), 'utf8')) as {
+              matches?: Record<string, unknown>; datum?: number;
+            };
+          if (z.matches && typeof z.matches === 'object') gesamt = Object.keys(z.matches).length;
+        } catch { /* ohne Zustand bleibt die Gesamtzahl unbekannt */ }
+        return {
+          season, windowId: w,
+          eventId: roh.eventId ?? '', region: roh.region ?? '',
+          titel: roh.titel ?? w, datum: typeof roh.von === 'number' ? roh.von : null,
+          ausgewertet: roh.matches ?? 0, gesamt,
+          spieler: roh.spieler.filter((k) => k.epicId),
+        } as AggregatTag;
+      } catch { return null; }
+    }));
+    for (const t of ergebnisse) if (t) tage.push(t);
+  }
+
+  saisonMerker.set(season, { tage, bis: Date.now() + HALTBAR });
+  return tage;
+}
+
 /**
  * Was die Replays zu diesem Spieler an diesem Spieltag zaehlen.
  *

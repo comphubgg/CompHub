@@ -18,7 +18,9 @@
 
 import fs from '@/lib/ablageFs';
 import path from 'path';
-import { replayWert } from '@/lib/replayWerte';
+import { replayWert, aggregateSaison } from '@/lib/replayWerte';
+import { liesJson } from '@/lib/ablage';
+import { istGrossesTurnier as grossesTurnier } from '@/lib/turnierArt';
 import { DATEN_ORT } from './datenOrt';
 
 const ABLAGE = path.join(DATEN_ORT, 'szene-stats');
@@ -763,27 +765,90 @@ export async function startseite(saison?: string, wieViele = 25, jeTag = 3) {
   }));
 
   /*
-   * Die Grundlage der Listen - zum Nachpruefen.
+   * Die Eliminierungen ueber alle ausgewerteten Spieltage - je Spieler.
    *
-   * Der Betreiber wollte auf der Seite sehen, was gezaehlt ist: "mach
-   * irgendwie eine Art in den Tools, dass ich wirklich sehe, dass es
-   * stimmt." Also steht dabei, welche Spieltage in die Saisonlisten
-   * eingehen - Name, Region, Datum -, und woher die Zahlen kommen: aus
-   * den Replay-Auswertungen, je Spieler, und die gibt es nur fuer Finals.
+   * Die Szene-Quelle kennt nur Finals. Die eigenen Replays kennen jeden
+   * Spieltag, den der Sammler eingesammelt hat, Opens eingeschlossen, und
+   * zaehlen darin je Konto, wer wen ausgeschaltet hat - keine Teamzahl.
+   * Der Betreiber: "die sollten auch von gestern Duo Victory Cash da sein,
+   * von den Performance- und Division-Cups; da hast du mindestens die
+   * Eliminierungen." Genau die kommen hier zusammen:
+   *
+   *   * jeder eigene ausgewertete Spieltag, der zaehlt (grosse Turniere
+   *     sowie Victory- und Cash-Cups; Division 2 bis 5 und Skin-Cups nicht),
+   *   * dazu die Finals der Szene-Quelle, soweit die eigenen Replays sie
+   *     nicht abdecken - zweimal zaehlen darf ein Tag nicht.
+   *
+   * Nur diese eine Liste. Schaden, Treffer, Material kennen die eigenen
+   * Replays nicht; dort bleibt es bei den Finals der Szene-Quelle.
    */
-  const saisonTage = alle
-    .filter((e) => e.season === juengste[0].season)
-    .sort((a, b) => (b.datum ?? 0) - (a.datum ?? 0));
-  const grundlage = {
-    quelle: 'replays' as const,
-    jeSpieler: true,
-    spieltage: saisonTage.map((e) => ({
-      name: e.name, region: e.region, datum: e.datum ?? null,
-      spieler: e.spieler, matches: e.matches,
-    })),
-  };
+  const dieSaison = juengste[0].season;
+  const zaehlt = (titel: string) =>
+    grossesTurnier(titel) || /victory cup|cash cup/i.test(titel ?? '');
+  const eigene = (await aggregateSaison(dieSaison)).filter((t) => zaehlt(t.titel));
+  const eigeneFenster = new Set(eigene.map((t) => t.windowId));
 
-  return { kacheln, listen, saison: juengste[0].season, grundlage };
+  const elimSumme = new Map<string, SpielerSumme>();
+  const regionZaehler = new Map<string, Map<string, number>>();
+  const zaehle = (id: string, elims: number, matches: number, region: string) => {
+    let s = elimSumme.get(id);
+    if (!s) { s = leereSumme(id, ''); elimSumme.set(id, s); }
+    s.elims += elims; s.matches += matches; s.events += 1;
+    const z = regionZaehler.get(id) ?? new Map<string, number>();
+    z.set(region, (z.get(region) ?? 0) + 1);
+    regionZaehler.set(id, z);
+  };
+  for (const t of eigene) {
+    for (const k of t.spieler) zaehle(k.epicId, k.kills ?? 0, k.matches ?? 0, t.region);
+  }
+
+  type Nachweis = {
+    name: string; region: string; datum: number | null;
+    quelle: 'eigene' | 'szene'; ausgewertet: number | null; gesamt: number | null;
+  };
+  const nachweis: Nachweis[] = eigene.map((t) => ({
+    name: t.titel, region: t.region, datum: t.datum,
+    quelle: 'eigene', ausgewertet: t.ausgewertet, gesamt: t.gesamt,
+  }));
+
+  const szeneTage = alle.filter((e) => e.season === dieSaison && !eigeneFenster.has(e.windowId));
+  for (const e of szeneTage) {
+    const { spieler: feld } = await summen({ saison: dieSaison, region: e.region, event: e.windowId });
+    for (const s of feld) zaehle(s.epicId, s.elims, s.matches, e.region);
+    nachweis.push({
+      name: e.name, region: e.region, datum: e.datum ?? null,
+      quelle: 'szene', ausgewertet: e.matches, gesamt: null,
+    });
+  }
+
+  const elimsListe = listen.find((l) => l.feld === 'elims');
+  if (elimsListe && elimSumme.size) {
+    const plaetze = [...elimSumme.values()]
+      .sort((a, b) => b.elims - a.elims || b.matches - a.matches)
+      .slice(0, 60);
+    const archivNamen = new Map(saisonFeld.map((s) => [s.epicId, s.name]));
+    const gespeichert = await liesJson<Record<string, string>>('epic-namen.json', {});
+    for (const s of plaetze) {
+      s.name = archivNamen.get(s.epicId) ?? gespeichert[s.epicId] ?? '';
+      s.namen = s.name ? [s.name] : [];
+      s.regionen = [...(regionZaehler.get(s.epicId) ?? new Map<string, number>()).entries()]
+        .sort((a, b) => b[1] - a[1]).map(([r]) => r);
+      s.elimsProMatch = s.matches ? s.elims / s.matches : 0;
+    }
+    elimsListe.plaetze = plaetze;
+  }
+
+  /*
+   * Die Grundlage - zum Nachpruefen auf der Seite.
+   *
+   * Der Betreiber: "mach irgendwie eine Art in den Tools, dass ich wirklich
+   * sehe, dass es stimmt." Also steht je Spieltag dabei, woher er kommt
+   * und wie viele seiner Matches ausgewertet sind.
+   */
+  nachweis.sort((a, b) => (b.datum ?? 0) - (a.datum ?? 0));
+  const grundlage = { jeSpieler: true, spieltage: nachweis };
+
+  return { kacheln, listen, saison: dieSaison, grundlage };
 }
 
 /* --------------------------------------------------------- Heimatregion */

@@ -302,7 +302,7 @@ export async function GET(request: Request) {
     .join('|') || 'standard')
     // Die Startansicht traegt seit dem Nachweis ein neues Feld; die alte
     // abgelegte Antwort hat es nicht und bleibt unter ihrem Schluessel liegen.
-    + (ansicht === 'start' ? '|nachweis=1' : '');
+    + (ansicht === 'start' ? '|nachweis=2' : '');
 
   try {
     const wert = await fertigeAntwort(schluessel, async () => {
@@ -454,8 +454,24 @@ async function berechne(request: Request) {
             });
             return einmalig.slice(0, 15);
           })(),
-          listen: daten.listen.map((l) => ({
-            ...l, plaetze: l.plaetze.map((x) => schmuecken(x)),
+          listen: await Promise.all(daten.listen.map(async (l) => {
+            /*
+             * Namen nachschlagen, die noch fehlen.
+             *
+             * Die Elims-Liste kommt zum Teil aus den eigenen Replays und
+             * kennt dort nur Konto-Kennungen; wer nie in einem Finale
+             * stand, hat im Archiv keinen Namen. Epic liefert ihn, und
+             * der Speicher merkt ihn sich fuer das naechste Mal.
+             */
+            const ohneName = l.plaetze.filter((x) => !x.name).map((x) => x.epicId);
+            if (ohneName.length) {
+              try {
+                const { token } = await getToken();
+                const namen = await loeseNamenAuf(ohneName, token);
+                for (const x of l.plaetze) if (!x.name && namen[x.epicId]) x.name = namen[x.epicId];
+              } catch { /* dann bleibt die Kennung - besser als ein erfundener Name */ }
+            }
+            return { ...l, plaetze: l.plaetze.map((x) => schmuecken(x)) };
           })),
         } : {}),
       });

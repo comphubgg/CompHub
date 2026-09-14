@@ -1937,8 +1937,12 @@ const AUF_ENGLISCH: Record<string, string> = {
     'This address stays the same. Whatever you change and apply here shows up on stream within seconds.',
   'Erst speichern — dann bekommst du eine Adresse, die bei jeder späteren Änderung gleich bleibt.':
     'Save first — then you get an address that stays the same through every later change.',
-  'je Spieler, aus Replays, nur Finals':
-    'per player, from replays, finals only',
+  'je Spieler, aus Replays, Opens und Finals':
+    'per player, from replays, opens and finals',
+  'Szene-Quelle':
+    'scene source',
+  'Die übrigen Listen (Schaden, Treffer, Material) nur aus Finals — dazu haben die Replays keine Werte.':
+    'The other lists (damage, hits, materials) come from finals only — the replays hold no such values.',
   'Twitch-Name eingeben, Enter — kommt in die Multiview':
     'type a Twitch name, press Enter — it joins the multiview',
   'Wird gesucht …':

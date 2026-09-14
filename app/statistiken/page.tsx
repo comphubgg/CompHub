@@ -1565,9 +1565,9 @@ export default function StatistikSeite() {
   const [listen, setListen] = useState<Liste[]>([]);
   /** Welche Spieltage in den Saisonlisten stecken - siehe Nachweis unten. */
   const [grundlage, setGrundlage] = useState<{
-    quelle: string; jeSpieler: boolean;
+    jeSpieler: boolean;
     spieltage: Array<{ name: string; region: string; datum: number | null;
-      spieler: number; matches: number }>;
+      quelle: 'eigene' | 'szene'; ausgewertet: number | null; gesamt: number | null }>;
   } | null>(null);
   const [grundlageOffen, setGrundlageOffen] = useState(false);
   const [profile, setProfile] = useState<Profilgruppe[]>([]);
@@ -2758,7 +2758,7 @@ export default function StatistikSeite() {
                     className="text-left text-[10px] leading-snug text-slate-500
                                transition hover:text-sky-400">
                     {grundlage.spieltage.length} <T>Spieltage gezählt</T>
-                    {' · '}<T>je Spieler, aus Replays, nur Finals</T>
+                    {' · '}<T>je Spieler, aus Replays, Opens und Finals</T>
                     {' '}{grundlageOffen ? '▴' : '▾'}
                   </button>
                   {grundlageOffen && (
@@ -2771,10 +2771,26 @@ export default function StatistikSeite() {
                           {s.datum ? ` · ${new Date(s.datum).toLocaleDateString(
                             sprache === 'de' ? 'de-DE' : 'en-GB',
                             { day: '2-digit', month: '2-digit' })}` : ''}
+                          {/* Wie viele Matches des Tages wirklich drin sind -
+                              ein halb ausgewerteter Tag soll als solcher
+                              erkennbar sein. */}
+                          {s.quelle === 'eigene' && s.ausgewertet !== null && (
+                            <span className="text-slate-600">
+                              {' · '}{s.ausgewertet}{s.gesamt ? `/${s.gesamt}` : ''}
+                              {' '}<T>Matches</T>
+                            </span>
+                          )}
+                          {s.quelle === 'szene' && (
+                            <span className="text-slate-600"> · <T>Szene-Quelle</T></span>
+                          )}
                         </li>
                       ))}
                     </ul>
                   )}
+                  <p className="mt-1 text-[10px] leading-snug text-slate-600">
+                    <T>Die übrigen Listen (Schaden, Treffer, Material) nur aus
+                    Finals — dazu haben die Replays keine Werte.</T>
+                  </p>
                 </div>
               )}
               <div>
