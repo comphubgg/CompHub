@@ -762,7 +762,28 @@ export async function startseite(saison?: string, wieViele = 25, jeTag = 3) {
       .slice(0, 60),
   }));
 
-  return { kacheln, listen, saison: juengste[0].season };
+  /*
+   * Die Grundlage der Listen - zum Nachpruefen.
+   *
+   * Der Betreiber wollte auf der Seite sehen, was gezaehlt ist: "mach
+   * irgendwie eine Art in den Tools, dass ich wirklich sehe, dass es
+   * stimmt." Also steht dabei, welche Spieltage in die Saisonlisten
+   * eingehen - Name, Region, Datum -, und woher die Zahlen kommen: aus
+   * den Replay-Auswertungen, je Spieler, und die gibt es nur fuer Finals.
+   */
+  const saisonTage = alle
+    .filter((e) => e.season === juengste[0].season)
+    .sort((a, b) => (b.datum ?? 0) - (a.datum ?? 0));
+  const grundlage = {
+    quelle: 'replays' as const,
+    jeSpieler: true,
+    spieltage: saisonTage.map((e) => ({
+      name: e.name, region: e.region, datum: e.datum ?? null,
+      spieler: e.spieler, matches: e.matches,
+    })),
+  };
+
+  return { kacheln, listen, saison: juengste[0].season, grundlage };
 }
 
 /* --------------------------------------------------------- Heimatregion */

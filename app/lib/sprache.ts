@@ -1931,6 +1931,10 @@ const AUF_ENGLISCH: Record<string, string> = {
     'Nothing found for',
   'gerade':
     'right now',
+  'Spieltage gezählt':
+    'match days counted',
+  'je Spieler, aus Replays, nur Finals':
+    'per player, from replays, finals only',
   'Twitch-Name eingeben, Enter — kommt in die Multiview':
     'type a Twitch name, press Enter — it joins the multiview',
   'Wird gesucht …':

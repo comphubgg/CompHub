@@ -1563,6 +1563,13 @@ export default function StatistikSeite() {
    */
   const [kachelHalt, setKachelHalt] = useState(false);
   const [listen, setListen] = useState<Liste[]>([]);
+  /** Welche Spieltage in den Saisonlisten stecken - siehe Nachweis unten. */
+  const [grundlage, setGrundlage] = useState<{
+    quelle: string; jeSpieler: boolean;
+    spieltage: Array<{ name: string; region: string; datum: number | null;
+      spieler: number; matches: number }>;
+  } | null>(null);
+  const [grundlageOffen, setGrundlageOffen] = useState(false);
   const [profile, setProfile] = useState<Profilgruppe[]>([]);
   const [profilNr, setProfilNr] = useState(0);
   const [duelle, setDuelle] = useState<Duell[]>([]);
@@ -1841,6 +1848,7 @@ export default function StatistikSeite() {
         setKacheln(j.kacheln ?? []);
         setKachelNr(0);
         setListen(j.listen ?? []);
+        setGrundlage(j.grundlage ?? null);
         setProfile(j.profile ?? []);
         setDuelle(j.duelle ?? []);
         setProfilNr(0); setDuellNr(0);
@@ -2738,6 +2746,37 @@ export default function StatistikSeite() {
               <p className="mb-2 px-3 text-[10px] text-slate-600">
                 {saisonTitel} <T>· alle Regionen</T>
               </p>
+              {/*
+                * Der Nachweis: was gezaehlt ist, steht dabei und laesst
+                * sich aufklappen. Je Spieler, aus Replays, nur Finals -
+                * der Betreiber wollte auf der Seite sehen, dass es stimmt.
+                */}
+              {grundlage && (
+                <div className="mb-2 px-3">
+                  <button type="button"
+                    onClick={() => setGrundlageOffen((o) => !o)}
+                    className="text-left text-[10px] leading-snug text-slate-500
+                               transition hover:text-sky-400">
+                    {grundlage.spieltage.length} <T>Spieltage gezählt</T>
+                    {' · '}<T>je Spieler, aus Replays, nur Finals</T>
+                    {' '}{grundlageOffen ? '▴' : '▾'}
+                  </button>
+                  {grundlageOffen && (
+                    <ul className="mt-1 max-h-72 space-y-0.5 overflow-y-auto
+                                   border-l border-zinc-800 pl-2">
+                      {grundlage.spieltage.map((s, i) => (
+                        <li key={i} className="text-[10px] leading-snug text-slate-500">
+                          <span className="text-slate-400">{s.region}</span>
+                          {' · '}{s.name}
+                          {s.datum ? ` · ${new Date(s.datum).toLocaleDateString(
+                            sprache === 'de' ? 'de-DE' : 'en-GB',
+                            { day: '2-digit', month: '2-digit' })}` : ''}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
               <div>
                 {seitenliste.plaetze.slice(0, 15).map((sp, i) => (
                   <button key={sp.epicId} onClick={() => oeffne(sp)}

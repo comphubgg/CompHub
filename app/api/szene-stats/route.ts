@@ -299,7 +299,10 @@ export async function GET(request: Request) {
   const schluessel = 'szene|' + ([...url.searchParams.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([k, v]) => `${k}=${v}`)
-    .join('|') || 'standard');
+    .join('|') || 'standard')
+    // Die Startansicht traegt seit dem Nachweis ein neues Feld; die alte
+    // abgelegte Antwort hat es nicht und bleibt unter ihrem Schluessel liegen.
+    + (ansicht === 'start' ? '|nachweis=1' : '');
 
   try {
     const wert = await fertigeAntwort(schluessel, async () => {
@@ -410,6 +413,7 @@ async function berechne(request: Request) {
         duelle: duelle.slice(0, 15),
         ...(daten ? {
           saison: daten.saison,
+          grundlage: daten.grundlage,
           kacheln: (() => {
             /*
              * Die Mitspieler bekommen ihre Namen.
