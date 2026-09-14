@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { liesJson } from '@/lib/ablage';
 import { fertigeAntwort, FRISCH_LIVE_MS } from '@/lib/antwortSpeicher';
 import fs from '@/lib/ablageFs';
 import path from 'path';
@@ -199,6 +200,23 @@ async function berechne(request: Request) {
     });
   }
 
+  /*
+   * Der Live-Stand des Sammlers - fuer den Admin, der zusehen will.
+   *
+   * Zwei Protokolle: die Schleife (replays/_live-lauf.json) mit ihren
+   * Durchgaengen und der letzte Sammler-Lauf (replays/_lauf.json) mit den
+   * angefassten Fenstern. Beides schreibt der Laufrechner und laedt es mit
+   * hoch; hier wird es nur gelesen.
+   */
+  if (p.get('live')) {
+    const [schleife, lauf] = await Promise.all([
+      liesJson<Record<string, unknown> | null>('replays/_live-lauf.json', null),
+      liesJson<Record<string, unknown> | null>('replays/_lauf.json', null),
+    ]);
+    return NextResponse.json({ success: true, schleife, lauf, jetzt: Date.now() },
+      { headers: { 'Cache-Control': 'no-store' } });
+  }
+
   const match = p.get('match');
   if (match) {
     if (!/^[0-9a-f]{32}$/i.test(match)) {
@@ -258,16 +276,28 @@ export async function POST(request: Request) {
 
     const begonnen = Date.now();
     const daten = await kern.werteMatchAus(matchId);
+    /*
+     * Dazu die Aufstellung mit Platz - wo der Leser laeuft (auf dem eigenen
+     * Rechner und dem Laufrechner; bei Vercel gibt es die Binaerdatei
+     * nicht). Der Betreiber will sehen, welches Team gewonnen hat.
+     */
+    let lobby: unknown = null;
+    if ((process.env.COMPHUB_ABLAGE || '').toLowerCase() !== 'supabase') {
+      try { lobby = await kern.leseMatchTief(matchId); } catch { lobby = null; }
+    }
     return NextResponse.json({
       success: true, gefunden: true, stand: kern.ZUSTAND.FERTIG,
       dauerMs: Date.now() - begonnen,
+      lobby,
       metadaten: {
         zeitpunkt: metadaten.Timestamp ?? null,
         laengeMs: metadaten.LengthInMS ?? null,
         karte: metadaten.FriendlyName ?? null,
       },
-      namen: await namenFuer(daten.konten ?? []),
-      match: daten,
+      namen: await namenFuer([...(daten.konten ?? []),
+        ...(((lobby as { teams?: Array<{ spieler: Array<{ id: string }> }> } | null)?.teams ?? [])
+          .flatMap((t) => t.spieler.map((p) => p.id)))]),
+      match: { ...daten, lobby },
     });
   } catch (e) {
     return NextResponse.json({

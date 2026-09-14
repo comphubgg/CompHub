@@ -43,6 +43,23 @@ interface Auswertung {
   zeitpunkt?: string | null; fortnite?: string | null; bytes?: number;
   konten: string[]; elims: Elim[]; parserVersion: string;
   ereignisArten?: Record<string, number>;
+  /** Die Aufstellung mit Platz - aus der tiefen Auswertung, wo sie lief. */
+  lobby?: {
+    teams?: Array<{ platz: number | null; spieler: Array<{ id: string; name: string | null }> }>;
+  } | null;
+}
+
+/** Der Live-Stand des Sammlers - siehe /api/replays?live=1. */
+interface LiveStand {
+  schleife?: {
+    zeit?: string; durchgaenge?: number; beendet?: boolean;
+    verlauf?: Array<{ zeit: string; live: number | null; dauerS: number;
+      sammeln: number; auswerten: number; hochladen: number }>;
+  } | null;
+  lauf?: { zeitpunkt?: string; art?: string; fenster?: number; neu?: number;
+    lagenVor?: number; ohneReplay?: number; fehlgeschlagen?: number;
+    angefasst?: string[] } | null;
+  jetzt?: number;
 }
 
 /** Die Zustaende aus der Pipeline, mit ihrer Farbe. */
@@ -99,6 +116,32 @@ export default function ReplayVerwaltung() {
       .then((r) => r.json())
       .then((d) => setFenster(d?.fenster ?? []))
       .catch(() => setFenster([]));
+  }, []);
+
+  /*
+   * Zusehen, wie gesammelt wird.
+   *
+   * Der Betreiber: "gibt es eine Funktion, das wirklich live mitzusehen?"
+   * Alle zehn Sekunden der Stand der Schleife und des letzten Laufs; die
+   * Fensterliste wird mitgeholt, damit die Zahlen wachsen, waehrend man
+   * hinsieht.
+   */
+  const [live, setLive] = useState<LiveStand | null>(null);
+  useEffect(() => {
+    let weg = false;
+    const holen = async () => {
+      try {
+        const r = await fetch('/api/replays?live=1', { cache: 'no-store' });
+        const d = await r.json();
+        if (!weg) setLive(d);
+        const r2 = await fetch('/api/replays', { cache: 'no-store' });
+        const d2 = await r2.json();
+        if (!weg && d2?.fenster) setFenster(d2.fenster);
+      } catch { /* dann beim naechsten Mal */ }
+    };
+    void holen();
+    const takt = setInterval(holen, 10_000);
+    return () => { weg = true; clearInterval(takt); };
   }, []);
 
   const fensterOeffnen = useCallback(async (f: Fenster) => {
@@ -235,8 +278,50 @@ export default function ReplayVerwaltung() {
                   const a = ergebnis.match!;
                   const tabelle = jeSpieler(a);
                   const kills = a.elims.filter((e) => !e.knock).length;
+                  const killsVon = new Map(tabelle.map((z) => [z.epicId, z.kills]));
+                  const teams = (a.lobby?.teams ?? []).map((t) => ({
+                    ...t,
+                    kills: t.spieler.reduce((sum, p) => sum + (killsVon.get(p.id) ?? killsVon.get(p.id.toLowerCase()) ?? 0), 0),
+                  }));
                   return (
                     <>
+                      {/* Die Aufstellung: welches Team welchen Platz hat -
+                          der Betreiber will das zuerst sehen, nicht Solo-Zahlen. */}
+                      {teams.length > 0 && (
+                        <div className="mb-5 max-h-[26rem] overflow-y-auto rounded-lg
+                                        border border-zinc-800">
+                          <table className="w-full text-xs">
+                            <thead className="sticky top-0 bg-zinc-900">
+                              <tr className="text-[10px] uppercase tracking-wider text-slate-500">
+                                <th className="px-3 py-2 text-right font-medium"><T>Platz</T></th>
+                                <th className="px-3 py-2 text-left font-medium">Team</th>
+                                <th className="px-3 py-2 text-right font-medium"><T>Kills</T></th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {teams.map((t, i) => (
+                                <tr key={i} className="border-t border-zinc-900">
+                                  <td className={`px-3 py-1.5 text-right font-bold tabular-nums ${
+                                    t.platz === 1 ? 'text-amber-400' : 'text-slate-300'}`}>
+                                    {t.platz ?? '—'}
+                                  </td>
+                                  <td className="px-3 py-1.5 text-slate-300">
+                                    {t.spieler.map((p) => name(p.id) !== p.id.slice(0, 8) ? name(p.id) : (p.name ?? name(p.id))).join('  +  ')}
+                                  </td>
+                                  <td className="px-3 py-1.5 text-right font-semibold tabular-nums text-sky-400">
+                                    {t.kills}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                      {teams.length === 0 && (
+                        <p className="mb-4 text-[11px] text-slate-500">
+                          <T>Ohne Aufstellung: die Plätze stehen nur in der tiefen Auswertung, und die läuft nur dort, wo der Leser liegt (eigener Rechner, Laufrechner), nicht auf der Webseite.</T>
+                        </p>
+                      )}
                       <div className="mb-5 grid grid-cols-2 gap-4 sm:grid-cols-4">
                         {([
                           ['Spieler gefunden', zahl(a.konten.length)],
@@ -300,7 +385,40 @@ export default function ReplayVerwaltung() {
         )}
 
         {/* -------------------------------------------------- Die Fenster */}
-        <section>
+        {/* Der Sammler, live */}
+          {live && (() => {
+            const jetzt = live.jetzt ?? Date.now();
+            const letzte = live.schleife?.verlauf?.[live.schleife.verlauf.length - 1];
+            const vorS = letzte ? Math.round((jetzt - Date.parse(letzte.zeit)) / 1000) : null;
+            const aktiv = vorS !== null && vorS < 180 && !live.schleife?.beendet;
+            return (
+              <div className="mb-4 flex flex-wrap items-center gap-x-5 gap-y-2 rounded-xl
+                              border border-zinc-800 bg-zinc-950/60 px-4 py-3 text-xs">
+                <span className="flex items-center gap-2 font-semibold text-slate-200">
+                  <span className={`h-2 w-2 rounded-full ${aktiv ? 'animate-pulse bg-emerald-400' : 'bg-zinc-600'}`} />
+                  {aktiv ? <T>Sammler läuft</T> : <T>Sammler wartet</T>}
+                </span>
+                {letzte && (
+                  <span className="text-slate-500">
+                    <T>letzter Durchgang</T> {vorS !== null ? `${vorS < 60 ? `${vorS} s` : `${Math.round(vorS / 60)} min`} ` : ''}
+                    <T>her</T> · {live.schleife?.durchgaenge ?? 0} <T>Durchgänge</T>
+                    · {letzte.live ?? '?'} <T>laufende Cups</T>
+                  </span>
+                )}
+                {live.lauf && (
+                  <span className="text-slate-500">
+                    <T>zuletzt</T>: {live.lauf.fenster ?? 0} <T>Fenster</T>, {live.lauf.neu ?? 0} <T>neu ausgewertet</T>
+                    {live.lauf.angefasst?.length ? ` · ${live.lauf.angefasst.map((w) => w.replace(/^S\d+_/, '')).join(', ')}` : ''}
+                  </span>
+                )}
+                {!letzte && !live.lauf && <span className="text-slate-600"><T>noch kein Protokoll</T></span>}
+                <span className="ml-auto text-[10px] uppercase tracking-[0.14em] text-slate-600">
+                  <T>alle 10 Sekunden</T>
+                </span>
+              </div>
+            );
+          })()}
+          <section>
           <div className="mb-3 flex flex-wrap items-baseline gap-x-4 gap-y-1">
             <h2 className="text-xs font-semibold uppercase tracking-[0.18em]
                            text-slate-500"><T>Eingesammelte Turniere</T></h2>

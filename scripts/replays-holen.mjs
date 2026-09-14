@@ -491,8 +491,12 @@ async function verarbeite(f, matchId, zustand) {
     setze(ZUSTAND.PRUEFT);
     const { vorhanden, metadaten } = await pruefSchleuse(() => replayVorhanden(matchId));
     if (!vorhanden) {
-      // Kein Fehler: Epic hat es nach einem Monat weggeraeumt.
-      setze(ZUSTAND.NICHT_VORHANDEN);
+      // Kein Fehler: entweder noch nicht abgelegt (dann wird spaeter noch
+      // einmal gefragt, siehe oben) oder nach einem Monat weggeraeumt.
+      // "erstmals" merkt sich, seit wann es fehlt.
+      setze(ZUSTAND.NICHT_VORHANDEN, {
+        erstmals: zustand.matches[matchId]?.erstmals ?? new Date().toISOString(),
+      });
       return 'nicht_vorhanden';
     }
     setze(ZUSTAND.VORHANDEN, { zeitpunkt: metadaten.Timestamp ?? null });
@@ -524,8 +528,17 @@ async function verarbeite(f, matchId, zustand) {
      * Schlaegt es fehl, bleibt alles beim Alten. Die Ereignisse sind
      * bereits gelesen; die Lobby ist eine Zugabe, kein Fundament.
      */
+    /*
+     * Jetzt auch in den Opens, nicht nur im Finale.
+     *
+     * Der Betreiber will im Replay sehen, welches Team welchen Platz hat -
+     * das steht nur in der tiefen Auswertung. Die Grenze liegt bei
+     * fuenfhundert Matches je Fenster: ein Reload-Open mit viertausend
+     * Lobbys bleibt bei den Ereignissen, sonst zoege sich ein Cup ueber
+     * Stunden (vier Sekunden und einundsechzig Megabyte je Match).
+     */
     let lobby = null;
-    if (f.istEndrunde) {
+    if (f.istEndrunde || (f.matchAnzahl ?? 0) <= 500) {
       try {
         lobby = await leseSchleuse(() => leseMatchTief(matchId));
       } catch (e) {
@@ -617,7 +630,8 @@ async function wiederholen() {
         // zurueck. Alles andere - fehlgeschlagen, haengengeblieben, nie
         // begonnen - wird noch einmal angefasst.
         .filter(([, m]) => m.stand !== ZUSTAND.FERTIG
-          && m.stand !== ZUSTAND.NICHT_VORHANDEN)
+          && (m.stand !== ZUSTAND.NICHT_VORHANDEN
+            || Date.now() - (Date.parse(m.erstmals ?? m.zuletzt ?? '') || 0) < 24 * 3600_000))
         .map(([id]) => id);
       if (!offen.length) continue;
       // Ausserhalb der Frist gibt es das Replay nicht mehr. Danach zu fragen
@@ -768,10 +782,27 @@ ${f.season} ${f.region.padEnd(4)} ${f.titel}`);
       const m = zustand.matches[id];
       if (neu) return true;
       if (!m) return true;
-      // Nicht vorhanden bleibt nicht vorhanden (Epic legt es nicht
-      // nachtraeglich wieder hin). Alles andere - auch ein fehlgeschlagener
-      // Versuch - wird noch einmal angefasst.
-      if (m.stand === ZUSTAND.NICHT_VORHANDEN) return false;
+      /*
+       * "Nicht vorhanden" ist erst nach einem Tag endgueltig.
+       *
+       * Epic legt das Replay ein paar Minuten nach dem Match ab - der
+       * Live-Sammler fragt aber, sobald die Kennung in der Bestenliste
+       * steht, also oft davor. Die Antwort war dann "nicht da", und das
+       * blieb fuer immer stehen: ein Division-1-Open von heute zeigte 134
+       * "NOT_AVAILABLE" neben 30 ausgewerteten, obwohl die Replays laengst
+       * bei Epic lagen. Der Betreiber: "den Status akzeptiere ich nicht
+       * mehr." Jetzt wird ein junges "nicht da" wieder gefragt; nach
+       * einem Tag ohne Replay ist es wirklich keins.
+       */
+      if (m.stand === ZUSTAND.NICHT_VORHANDEN) {
+        const zuletzt = Date.parse(m.zuletzt ?? '') || 0;
+        const erstmals = Date.parse(m.erstmals ?? '') || zuletzt;
+        // Und nicht jede Minute: alle zehn Minuten genuegt - Epic braucht
+        // ohnehin ein paar Minuten, und tausend Nachfragen je Durchgang
+        // waeren Epic gegenueber unhoeflich.
+        return Date.now() - erstmals < 24 * 3600_000
+          && Date.now() - zuletzt > 10 * 60_000;
+      }
       if (m.stand !== ZUSTAND.FERTIG) return true;
       // Fertig - und die Datei liegt hier: fertig.
       if (existsSync(matchPfad(f.season, f.windowId, id))) return false;
@@ -789,6 +820,7 @@ ${f.season} ${f.region.padEnd(4)} ${f.titel}`);
     console.log(`\n${f.season} ${f.region.padEnd(4)} ${f.titel}`);
     console.log(`  ${ids.length} Matches, ${offen.length} offen`);
     uebersprungen += ids.length - offen.length;
+    f.matchAnzahl = ids.length;
 
     /*
      * Die Matches eines Fensters laufen nebeneinander; die Schleusen

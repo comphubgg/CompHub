@@ -1951,6 +1951,28 @@ const AUF_ENGLISCH: Record<string, string> = {
     'now',
   'Sitzungen':
     'sessions',
+  'Ohne Aufstellung: die Plätze stehen nur in der tiefen Auswertung, und die läuft nur dort, wo der Leser liegt (eigener Rechner, Laufrechner), nicht auf der Webseite.':
+    'No lineup: placements only come from the deep parse, which runs only where the reader is installed (your machine, the runner), not on the website.',
+  'alle 10 Sekunden':
+    'every 10 seconds',
+  'noch kein Protokoll':
+    'no log yet',
+  'neu ausgewertet':
+    'newly parsed',
+  'Fenster':
+    'windows',
+  'laufende Cups':
+    'live cups',
+  'Durchgänge':
+    'passes',
+  'her':
+    'ago',
+  'letzter Durchgang':
+    'last pass',
+  'Sammler wartet':
+    'Collector idle',
+  'Sammler läuft':
+    'Collector running',
   'Ganzes Jahr':
     'Whole year',
   'Die Zahl sind die Finals (Szene-Quelle und eigene Replays), nur Heimatregion. Darunter, getrennt: was in den Opens dazukam.':

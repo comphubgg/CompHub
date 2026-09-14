@@ -1909,6 +1909,15 @@ export default function StatistikSeite() {
   const wechsleBereich = useCallback((w: Bereich) => {
     setBereich(w);
     setKopfSuche(''); setGalerieSuche(''); setKopfOffen(false);
+    /*
+     * Ein Bereich links schliesst ein offenes Profil und eine offene Liste.
+     * Der Betreiber: "wenn ich im Spielerprofil bin und auf Overview will,
+     * soll das gehen - nicht erst Zurueck druecken."
+     */
+    setOffen(null); setVolleListe(null);
+    if (typeof window !== 'undefined' && window.history.state?.spieler) {
+      window.history.replaceState(null, '', window.location.pathname);
+    }
   }, []);
   const [offen, setOffen] = useState<Spieler | null>(null);
   const [verlauf, setVerlauf] = useState<VerlaufZeile[]>([]);

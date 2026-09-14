@@ -10,6 +10,7 @@ import {
   useRef, useState, type Dispatch, type SetStateAction,
 } from 'react';
 import Link from 'next/link';
+import { useSearchParams } from 'next/navigation';
 import TeamFlagge, { flaggenPfad } from '@/components/TeamFlagge';
 import { namensSchluessel } from '@/lib/homoglyph';
 
@@ -516,11 +517,20 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
    * selbst eine andere Region oder einen anderen Spieltag waehlt, soll nicht
    * gleich wieder auf den Wunsch aus der Adresse zurueckgeworfen werden.
    */
-  const [ausAdresse] = useState(() => {
-    if (typeof window === 'undefined') return { region: '', fenster: '' };
-    const p = new URLSearchParams(window.location.search);
-    return { region: p.get('region') ?? '', fenster: p.get('fenster') ?? '' };
-  });
+  /*
+   * Die Adresse ueber den Router lesen, nicht ueber window.location.
+   *
+   * Bei einem Klick in der Cup-Liste wechselt Next die Seite, bevor die
+   * Adresszeile umgestellt ist - window.location zeigte hier also noch
+   * "/events", ohne Region, und die Seite suchte sich selbst eine aus: die
+   * mit dem laufenden Fenster. Der Betreiber: "wenn ich Europa druecke,
+   * kommt Europa, egal ob in Brasilien ein Cup live ist."
+   */
+  const suchParameter = useSearchParams();
+  const [ausAdresse] = useState(() => ({
+    region: suchParameter?.get('region') ?? '',
+    fenster: suchParameter?.get('fenster') ?? '',
+  }));
   /** Der Wunsch aus der Adresse gilt genau einmal. */
   const adresseVerbraucht = useRef(false);
   const [fenster, setFenster] = useState<Fenster | null>(null);
