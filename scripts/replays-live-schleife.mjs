@@ -15,9 +15,11 @@
 // nach seinem Ende in der Ablage - das ist die Grenze, die Epic setzt: das
 // Replay liegt erst dann auf dem Server.
 //
-// Ende: wenn drei Nachfragen hintereinander keinen laufenden Cup mehr
-// nennen, oder nach der Hoechstdauer (GitHub erlaubt sechs Stunden je
-// Auftrag; der naechste geplante Lauf wartet in der Schlange und uebernimmt).
+// Ende: wenn fuenf Nachfragen hintereinander keinen laufenden Cup mehr
+// nennen - die letzten Replays eines Cups liegen erst ein paar Minuten nach
+// seinem Ende bei Epic -, oder nach der Hoechstdauer (GitHub erlaubt sechs
+// Stunden je Auftrag; der naechste geplante Lauf wartet in der Schlange und
+// uebernimmt).
 //
 //   node scripts/replays-live-schleife.mjs [--minuten 330] [--takt 60]
 
@@ -59,6 +61,16 @@ function schritt(name, args) {
   return r.status ?? -1;
 }
 
+/** Welche Fenster der letzte Sammler-Lauf angefasst hat - aus seinem Protokoll. */
+function angefassteFenster() {
+  try {
+    const p = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'data', 'replays', '_lauf.json'), 'utf8'));
+    return Array.isArray(p.angefasst) ? p.angefasst : [];
+  } catch {
+    return [];
+  }
+}
+
 function protokoll(daten) {
   try {
     fs.mkdirSync(path.dirname(PROTOKOLL), { recursive: true });
@@ -82,18 +94,24 @@ async function main() {
     const live = await laufendeCups();
     if (live === 0) {
       ohneCup += 1;
-      console.log(`Kein laufender Cup (${ohneCup}/3).`);
-      if (ohneCup >= 3) break;
-      await warte(TAKT_S * 1000);
-      continue;
+      console.log(`Kein laufender Cup (${ohneCup}/5).`);
+      if (ohneCup >= 5) break;
+    } else {
+      ohneCup = 0;
     }
-    ohneCup = 0;
     durchgang += 1;
     const t0 = Date.now();
     console.log(`\n=== Durchgang ${durchgang} - ${new Date().toISOString()} - laufende Cups: ${live ?? 'unbekannt'}`);
 
     const sammeln = schritt('replays-holen.mjs', ['--live']);
-    const auswerten = schritt('replays-aggregieren.mjs', []);
+    /*
+     * Nur die Fenster neu rechnen, die der Sammler gerade angefasst hat.
+     * Alle dreihundert Fenster der Saison jede Minute durchzusehen hiesse,
+     * jede Minute siebenhundert Megabyte Aggregate zu lesen.
+     */
+    const angefasst = angefassteFenster();
+    const auswerten = angefasst.length
+      ? schritt('replays-aggregieren.mjs', angefasst) : 0;
     const hochladen = schritt('umzug-supabase.mjs', ['--neuer-als', '5', '--nur', 'replays']);
 
     verlauf.push({

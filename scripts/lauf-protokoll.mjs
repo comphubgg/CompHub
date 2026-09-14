@@ -48,6 +48,9 @@ const inhalt = live
     bau: ende('/tmp/bau.log'),
     server: ende('/tmp/server.log'),
     vorrechnen: ende('/tmp/vorrechnen.log'),
+    platzierungen: ende('/tmp/platzierungen.log', 12),
+    replays: ende('/tmp/replays.log', 40),
+    aggregieren: ende('/tmp/aggregieren.log', 12),
   };
 
 fs.writeFileSync(ziel, JSON.stringify(inhalt, null, 1));

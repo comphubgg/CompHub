@@ -19,6 +19,7 @@
  *   node scripts/umzug-supabase.mjs --nur konten.json,tierlists.json
  *   node scripts/umzug-supabase.mjs --ohne replays,epic-spieltage
  *   node scripts/umzug-supabase.mjs --herunterladen --nur szene-stats
+ *   node scripts/umzug-supabase.mjs --herunterladen --nur replays --nur-geaenderte
  *   node scripts/umzug-supabase.mjs --neuer-als 180
  *
  * Die Gegenrichtung, "--herunterladen", holt den Stand aus Supabase auf die
@@ -39,7 +40,8 @@ import process from 'node:process';
 /* --------------------------------------------------------- Einstellungen */
 
 const PROJEKT = path.resolve(import.meta.dirname, '..');
-const DATEN = path.join(PROJEKT, 'data');
+// Derselbe Datenordner wie ueberall sonst - siehe lib/datenOrt.ts.
+const DATEN = process.env.COMPHUB_DATEN || path.join(PROJEKT, 'data');
 const EIMER = 'comphub';
 const TABELLE = 'ablage';
 
@@ -109,6 +111,20 @@ const neuerAls = Number(wert('--neuer-als') || 0);
  */
 const trocken = argumente.includes('--trocken');
 const nur = wert('--nur').split(',').map((s) => s.trim()).filter(Boolean);
+
+/**
+ * Beim Holen nur, was sich unterscheidet.
+ *
+ * Die ausgewerteten Replays sind zusammen siebenhundert Megabyte. Der
+ * Live-Sammler holte sie sich alle zehn Minuten komplett - in zwei Laeufen
+ * anderthalb Gigabyte, bei einem kostenlosen Kontingent von fuenf Gigabyte
+ * Datenverkehr im Monat. Der Objektspeicher nennt zu jeder Datei ihre
+ * Groesse; stimmt sie mit der Datei auf der Platte ueberein, wird sie nicht
+ * noch einmal geholt. Ein Aggregat, das sich aendert, aendert auch seine
+ * Groesse - dass zwei verschiedene Staende auf das Byte gleich gross sind,
+ * ist bei diesen Dateien nicht zu erwarten.
+ */
+const nurGeaenderte = argumente.includes('--nur-geaenderte');
 const ohne = (wert('--ohne') || STANDARDMAESSIG_OHNE.join(','))
   .split(',').map((s) => s.trim()).filter(Boolean);
 
@@ -249,12 +265,22 @@ async function pruefe(name, roh, wo) {
 
 /* ------------------------------------------------------- Gegenrichtung */
 
-/** Alle Namen in der Tabelle, seitenweise geholt. */
-async function tabellenNamen() {
+/**
+ * Alle Namen in der Tabelle, seitenweise geholt.
+ *
+ * Mit "--nur" werden nur die passenden Namen abgefragt statt aller: die
+ * Tabelle traegt tausende Zeilen, und wer eine einzige Datei holen will,
+ * muss nicht erst alle Namen lesen.
+ */
+async function tabellenNamen(praefixe = []) {
   const raus = [];
   const PRO_SEITE = 1000;
+  const filter = praefixe.length
+    ? praefixe.map((p) => `name.eq.${p},name.like.${p}/*`).join(',')
+    : '';
+  const abfrage = filter ? `&or=(${encodeURIComponent(filter)})` : '';
   for (let von = 0; ; von += PRO_SEITE) {
-    const r = await fetch(`${URL_}/rest/v1/${TABELLE}?select=name`, {
+    const r = await fetch(`${URL_}/rest/v1/${TABELLE}?select=name${abfrage}`, {
       headers: { ...KOPF, Range: `${von}-${von + PRO_SEITE - 1}` },
     });
     if (!r.ok) break;
@@ -265,9 +291,24 @@ async function tabellenNamen() {
   return raus;
 }
 
-/** Alle Namen im Objektspeicher, Ordner fuer Ordner. */
-async function objektNamen() {
-  const raus = [];
+/**
+ * Alle Namen im Objektspeicher, Ordner fuer Ordner - mit ihrer Groesse.
+ *
+ * Mit "--nur" wird nur unterhalb der genannten Ordner gesucht. Ohne diese
+ * Einschraenkung lief die Suche jedes Mal durch den ganzen Eimer, auch durch
+ * die Bilderordner, obwohl ein einzelnes Fenster gesucht war.
+ *
+ * @returns Map von Name auf { groesse, zeit } - Groesse in Bytes (null,
+ *   wenn unbekannt) und Zeitpunkt der letzten Aenderung dort.
+ */
+function angaben(e) {
+  const groesse = Number(e.metadata?.size ?? e.metadata?.contentLength);
+  const zeit = Date.parse(e.updated_at ?? e.metadata?.lastModified ?? '') || null;
+  return { groesse: Number.isFinite(groesse) ? groesse : null, zeit };
+}
+
+async function objektNamen(praefixe = []) {
+  const raus = new Map();
   async function tiefer(praefix) {
     for (let versatz = 0; ; versatz += 100) {
       const r = await fetch(`${URL_}/storage/v1/object/list/${EIMER}`, {
@@ -280,12 +321,32 @@ async function objektNamen() {
       for (const e of teil) {
         // Supabase meldet Ordner ohne "id" - daran sind sie zu erkennen.
         if (e.id === null || e.id === undefined) await tiefer(praefix + e.name + '/');
-        else raus.push(praefix + e.name);
+        else raus.set(praefix + e.name, angaben(e));
       }
       if (teil.length < 100) return;
     }
   }
-  await tiefer('');
+  if (!praefixe.length) { await tiefer(''); return raus; }
+  for (const p of praefixe) {
+    // Ein Ordner - oder eine einzelne Datei, die direkt in einem Ordner liegt.
+    await tiefer(`${p}/`);
+    const schnitt = p.lastIndexOf('/');
+    if (schnitt > 0 && !raus.has(p)) {
+      const drin = new Map();
+      const ordner = p.slice(0, schnitt + 1);
+      const r = await fetch(`${URL_}/storage/v1/object/list/${EIMER}`, {
+        method: 'POST',
+        headers: { ...KOPF, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prefix: ordner, limit: 100, offset: 0, search: p.slice(schnitt + 1) }),
+      });
+      if (r.ok) {
+        for (const e of await r.json()) {
+          if (e.id !== null && e.id !== undefined && ordner + e.name === p) drin.set(p, angaben(e));
+        }
+      }
+      for (const [k, v] of drin) raus.set(k, v);
+    }
+  }
   return raus;
 }
 
@@ -322,8 +383,9 @@ async function holen() {
    * fehlende-bilder.txt, szene-quelle/grands.json -, wurden deshalb in der
    * Tabelle gesucht, wo sie nicht stehen, und meldeten "leer".
    */
-  const inTabelle = new Set(await tabellenNamen());
-  const imEimer = new Set(await objektNamen());
+  const inTabelle = new Set(await tabellenNamen(nur));
+  const groessen = await objektNamen(nur);
+  const imEimer = new Set(groessen.keys());
   const namen = [...new Set([...inTabelle, ...imEimer])].filter(gewuenscht).sort();
 
   const quelleVon = (name) => {
@@ -338,11 +400,21 @@ async function holen() {
   let ok = 0;
   let schief = 0;
   let fertig = 0;
+  let unveraendert = 0;
   const fehler = [];
 
   const eine = async (name) => {
     try {
       let roh;
+      if (nurGeaenderte && quelleVon(name) === 'objekt') {
+        const dort = groessen.get(name)?.groesse ?? null;
+        let hier = null;
+        try { hier = fs.statSync(path.join(DATEN, name)).size; } catch { hier = null; }
+        if (dort !== null && hier === dort) {
+          unveraendert += 1; fertig += 1;
+          return;
+        }
+      }
       if (quelleVon(name) === 'objekt') {
         const r = await fetch(`${URL_}/storage/v1/object/${EIMER}/${name}`,
           { headers: KOPF });
@@ -361,6 +433,14 @@ async function holen() {
         const ziel = path.join(DATEN, name);
         fs.mkdirSync(path.dirname(ziel), { recursive: true });
         fs.writeFileSync(ziel, roh);
+        /*
+         * Die Datei traegt den Zeitpunkt aus der Ablage, nicht den des
+         * Holens. Sonst saehe "--neuer-als" sie als frisch an und luede
+         * sie gleich wieder hoch - unveraendert, aber mit Pruefung, also
+         * zweimal ihre Groesse an Datenverkehr fuer nichts.
+         */
+        const zeit = groessen.get(name)?.zeit;
+        if (zeit) { try { fs.utimesSync(ziel, new Date(zeit), new Date(zeit)); } catch { /* egal */ } }
       }
       ok += 1;
     } catch (e) {
@@ -379,6 +459,7 @@ async function holen() {
 
   console.log('\n');
   console.log(`  Geholt      : ${ok}`);
+  if (nurGeaenderte) console.log(`  Unveraendert: ${unveraendert}`);
   console.log(`  Gescheitert : ${schief}`);
   if (fehler.length) {
     console.log('');

@@ -30,7 +30,8 @@ on:
 jobs:
   live:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    # Die Schleife sammelt bis zu 330 Minuten, solange ein Cup laeuft.
+    timeout-minutes: 350
 
     # Nie zwei gleichzeitig - der zweite haette denselben Stand zweimal.
     # Und wenn der Naechste schon wartet, ist der Vorige ohnehin ueberholt.
@@ -84,11 +85,19 @@ jobs:
         id: zwischenspeicher
         uses: actions/cache@v4
         with:
-          # Derselbe Zwischenspeicher wie beim stuendlichen Ablauf: die
-          # Replay-Skripte muessen wissen, welche Runden sie schon haben.
+          # Ein eigener Zwischenspeicher, getrennt vom stuendlichen Ablauf.
+          #
+          # Vorher teilten sich beide denselben Namen, und jeder Lauf nahm
+          # den juengsten Stand - den des jeweils anderen. Ein stuendlicher
+          # Lauf, der neunzig Minuten arbeitete, sicherte am Ende einen
+          # Stand ohne alles, was der Live-Sammler in diesen neunzig Minuten
+          # geholt hatte; der naechste Live-Lauf fing damit an und rechnete
+          # Aggregate mit einem Bruchteil der Matches. Jetzt hat jeder
+          # Ablauf seine eigene Kette, und was beide gemeinsam brauchen,
+          # kommt aus Supabase.
           path: data
-          key: comphub-daten-${{ github.run_id }}
-          restore-keys: comphub-daten-
+          key: comphub-live-${{ github.run_id }}
+          restore-keys: comphub-live-
 
       # Was der Zwischenspeicher nicht hergibt, kommt aus Supabase.
       #
@@ -100,7 +109,13 @@ jobs:
       # der Reload Duos Victory Cup lief, waren alle vierundvierzig in unter
       # einer Minute durch und sammelten nichts; die Wiederherstellung des
       # Zwischenspeichers dauerte null Sekunden, der Ordner war also leer.
-      - name: Anmeldung und Stand aus Supabase
+      #
+      # Den Stand je Fenster holt sich der Sammler selbst, und zwar nur fuer
+      # die Fenster, die er anfasst, und nur, wenn er ihn nicht schon hat.
+      # Vorher wurden hier alle Aggregate der Saison geholt - siebenhundert
+      # Megabyte, alle zehn Minuten, bei fuenf Gigabyte Datenverkehr im
+      # Monat, die Supabase kostenlos hergibt.
+      - name: Anmeldung aus Supabase
         if: steps.pruefung.outputs.weiter == 'ja'
         continue-on-error: true
         run: |
@@ -108,7 +123,6 @@ jobs:
             echo "Keine Epic-Anmeldung im Zwischenspeicher - wird geholt."
             node scripts/umzug-supabase.mjs --herunterladen --nur epic-auth.json 2>&1 | tail -3
           fi
-          node scripts/umzug-supabase.mjs --herunterladen --nur replays 2>&1 | tail -3
 
       # Sammeln, auswerten, hochladen - in einer Schleife, solange ein Cup
       # laeuft. Ein Match ist damit ein bis drei Minuten nach seinem Ende in

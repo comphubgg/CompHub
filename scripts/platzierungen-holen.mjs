@@ -41,6 +41,22 @@ async function hole(eventId, windowId) {
   return daten.entries ?? [];
 }
 
+/*
+ * Fehlschlaege merken.
+ *
+ * Epic haelt alte Bestenlisten nicht ewig vor. Ein Spieltag, der einmal
+ * nicht zu holen war, wurde trotzdem jede Stunde wieder versucht - zwei
+ * Versuche mit Pausen je Spieltag, bei dreihundert solchen Spieltagen
+ * zwanzig Minuten und dreiundvierzig Sekunden je Lauf, Stunde um Stunde,
+ * mit immer demselben Ergebnis. Jetzt steht in _fehlend.json, wann ein
+ * Spieltag zuletzt vergeblich versucht wurde; er kommt erst nach sieben
+ * Tagen wieder dran. Junge Spieltage (unter drei Tagen) sind davon
+ * ausgenommen: dort kann die Bestenliste schlicht noch nicht fertig sein.
+ */
+const FEHLEND = path.join(ABLAGE, '_fehlend.json');
+const WIEDER_NACH_MS = 7 * 864e5;
+const JUNG_MS = 3 * 864e5;
+
 async function main() {
   const verzeichnis = JSON.parse(
     await fs.readFile(path.join(ARCHIV, 'index.json'), 'utf8'));
@@ -48,8 +64,17 @@ async function main() {
     ? verzeichnis.filter((e) => saisons.includes(e.season))
     : verzeichnis;
 
+  let fehlend = {};
+  try { fehlend = JSON.parse(await fs.readFile(FEHLEND, 'utf8')); } catch { fehlend = {}; }
+  const merkeFehlend = async () => {
+    try {
+      await fs.mkdir(ABLAGE, { recursive: true });
+      await fs.writeFile(FEHLEND, JSON.stringify(fehlend, null, 1), 'utf8');
+    } catch { /* dann eben ohne Gedaechtnis */ }
+  };
+
   console.log(`${ziel.length} Spieltage zu pruefen.`);
-  let geholt = 0; let vorhanden = 0; let leer = 0; const fehler = [];
+  let geholt = 0; let vorhanden = 0; let leer = 0; let ausgesetzt = 0; const fehler = [];
 
   for (const e of ziel) {
     const ordner = path.join(ABLAGE, e.season);
@@ -57,6 +82,12 @@ async function main() {
 
     if (!neu) {
       try { await fs.access(datei); vorhanden++; continue; } catch { /* fehlt */ }
+      const zuletzt = Date.parse(fehlend[e.windowId] ?? '') || 0;
+      const wann = typeof e.datum === 'number' ? e.datum : (Date.parse(e.datum ?? e.date ?? '') || 0);
+      const alter = Date.now() - wann;
+      if (zuletzt && Date.now() - zuletzt < WIEDER_NACH_MS && alter > JUNG_MS) {
+        ausgesetzt++; continue;
+      }
     }
 
     let eintraege;
@@ -71,12 +102,21 @@ async function main() {
         eintraege = await hole(e.eventId, e.windowId);
       } catch (err2) {
         fehler.push(`${e.windowId}: ${err2.message}`);
+        fehlend[e.windowId] = new Date().toISOString();
+        await merkeFehlend();
         await warte(400);
         continue;
       }
     }
 
-    if (!eintraege.length) { leer++; await warte(400); continue; }
+    if (!eintraege.length) {
+      leer++;
+      fehlend[e.windowId] = new Date().toISOString();
+      await merkeFehlend();
+      await warte(400);
+      continue;
+    }
+    delete fehlend[e.windowId];
 
     const teams = eintraege.map((x) => ({
       platz: x.rank,
@@ -98,8 +138,10 @@ async function main() {
     await warte(400);
   }
 
+  await merkeFehlend();
   console.log(`Fertig: ${geholt} neu, ${vorhanden} lagen schon vor, `
-    + `${leer} ohne Eintraege, ${fehler.length} Fehler.`);
+    + `${leer} ohne Eintraege, ${fehler.length} Fehler, `
+    + `${ausgesetzt} ausgesetzt (zuletzt vergeblich, kommen spaeter wieder dran).`);
   if (fehler.length) {
     console.log('Nicht erreichbar (Epic haelt alte Fenster nicht ewig vor):');
     for (const f of fehler.slice(0, 15)) console.log('  ' + f);

@@ -10,6 +10,22 @@
 //
 //   node scripts/replays-aggregieren.mjs           -> alles Noetige
 //   node scripts/replays-aggregieren.mjs --neu     -> alles noch einmal
+//   node scripts/replays-aggregieren.mjs S42_Foo_EU S42_Bar_NAC -> nur diese
+//
+// ------------------------------------------------- Zwei Sammler, ein Stand
+//
+// Die Replays werden an zwei Orten eingesammelt: vom Live-Sammler waehrend
+// eines Cups und vom stuendlichen Lauf danach - jeder mit seinem eigenen
+// Ordner voller Match-Dateien. Gemeinsam haben sie nur das Aggregat in der
+// Ablage. Rechnete jeder sein Aggregat allein aus seinen Dateien, ueberschrieb
+// der eine das des anderen: so stand zu einem Division-1-Spieltag ein
+// Aggregat mit 28 Matches in der Ablage, waehrend der Zustand daneben 84
+// ausgewertete nannte - die uebrigen 56 lagen beim anderen Sammler.
+//
+// Deshalb traegt jedes Aggregat jetzt die Kennungen der Matches, die darin
+// stecken. Wer Matches hat, die noch nicht drin sind, rechnet sie dazu -
+// alle Werte sind Summen, Minima oder Maxima, das geht ohne die anderen
+// Dateien. Und ein Aggregat wird nie durch eines mit weniger Matches ersetzt.
 //
 // -------------------------------------------------------------- Ehrlichkeit
 //
@@ -28,7 +44,10 @@ import { promises as fs } from 'fs';
 import path from 'path';
 import { ABLAGE, PARSER_VERSION } from '../lib/replayKern.mjs';
 
-const neu = process.argv.slice(2).includes('--neu');
+const argumente = process.argv.slice(2);
+const neu = argumente.includes('--neu');
+/** Nur diese Fenster - fuer den Live-Sammler, der nicht jede Minute alle prueft. */
+const nurFenster = argumente.filter((a) => !a.startsWith('--'));
 
 /**
  * Fassung dessen, was hier herausgeschrieben wird.
@@ -42,8 +61,10 @@ const neu = process.argv.slice(2).includes('--neu');
  *     Aufstellung eines Finales benennen lassen.
  * 3 - dort, wo das Replay tief gelesen wurde, statt der blossen Konten die
  *     ganze Aufstellung mit echter Platzierung.
+ * 4 - die Kennungen der enthaltenen Matches ("matchIds"), damit sich ein
+ *     Aggregat um Matches ergaenzen laesst, die anderswo liegen.
  */
-const AGGREGAT_FASSUNG = 3;
+const AGGREGAT_FASSUNG = 4;
 const PLATZIERUNGEN = path.join(process.cwd(), 'data', 'platzierungen');
 const EPIC_SPIELTAGE = path.join(process.cwd(), 'data', 'epic-spieltage');
 
@@ -107,13 +128,31 @@ function zaehle(satz, elim, rolle) {
   }
 }
 
-async function fensterRechnen(season, windowId) {
+/**
+ * Ein Fenster rechnen - ganz oder als Ergaenzung eines vorhandenen Aggregats.
+ *
+ * @param basis  Ein vorhandenes Aggregat mit "matchIds", auf dem aufgebaut
+ *               wird; dann werden nur die Dateien gerechnet, die dort noch
+ *               fehlen. Ohne Basis wird alles aus den Dateien gerechnet.
+ * @param nurDiese  Wenn angegeben: nur diese Dateien (Name mit .json).
+ */
+async function fensterRechnen(season, windowId, basis = null, nurDiese = null) {
   const ordner = path.join(ABLAGE, season, windowId);
-  const dateien = (await fs.readdir(ordner))
+  const alleDateien = (await fs.readdir(ordner))
     .filter((d) => d.endsWith('.json') && !d.startsWith('_'));
-  if (!dateien.length) return null;
+  const enthalten = new Set(basis?.matchIds ?? []);
+  const dateien = (nurDiese ?? alleDateien)
+    .filter((d) => !enthalten.has(d.replace(/\.json$/, '')));
+  if (!dateien.length && !basis) return null;
 
   const spieler = new Map();
+  if (basis) {
+    for (const s of basis.spieler ?? []) {
+      const { epicId, ...rest } = s;
+      spieler.set(epicId, { ...leer(), ...rest });
+    }
+  }
+  const matchIds = new Set(enthalten);
   /*
    * Wer in welcher Lobby war.
    *
@@ -129,7 +168,7 @@ async function fensterRechnen(season, windowId) {
    * Der Schluessel ist die Match-Kennung - dieselbe, die Epic als
    * Sitzungskennung fuehrt und die im Werkzeug als "Match ID" steht.
    */
-  const lobbys = {};
+  const lobbys = { ...(basis?.lobbys ?? {}) };
   /*
    * Nur bei ueberschaubaren Fenstern - also bei Finals.
    *
@@ -145,11 +184,12 @@ async function fensterRechnen(season, windowId) {
    * laesst sich damit benennen. Ein Finale hat rund fuenfundvierzig Lobbys,
    * eine offene Runde ein Vielfaches davon.
    */
-  const kleinesFeld = dateien.length <= 200;
+  const kleinesFeld = enthalten.size + dateien.length <= 200;
 
-  let elimsGesamt = 0;
-  let titel = null; let region = null; let eventId = null;
-  let frueheste = null; let spaeteste = null;
+  let elimsGesamt = basis?.elims ?? 0;
+  let titel = basis?.titel ?? null; let region = basis?.region ?? null;
+  let eventId = basis?.eventId ?? null;
+  let frueheste = basis?.von ?? null; let spaeteste = basis?.bis ?? null;
 
   for (const datei of dateien) {
     /*
@@ -170,6 +210,7 @@ async function fensterRechnen(season, windowId) {
       continue;
     }
     titel ??= m.titel; region ??= m.region; eventId ??= m.eventId;
+    matchIds.add(m.matchId ?? datei.replace(/\.json$/, ''));
     if (m.zeitpunkt) {
       const t = Date.parse(m.zeitpunkt);
       if (Number.isFinite(t)) {
@@ -240,7 +281,7 @@ async function fensterRechnen(season, windowId) {
   return {
     season, windowId, eventId, region, titel,
     von: frueheste, bis: spaeteste,
-    matches: dateien.length,
+    matches: matchIds.size,
     elims: elimsGesamt,
     parserVersion: PARSER_VERSION,
     gerechnet: new Date().toISOString(),
@@ -252,12 +293,14 @@ async function fensterRechnen(season, windowId) {
     teamQuelle: teams ? 'Epic-Bestenliste' : null,
     /** Je Match die Konten, die im Replay vorkamen - siehe oben. */
     lobbys,
+    /** Welche Matches darin stecken - siehe ganz oben. */
+    matchIds: [...matchIds].sort(),
     aggregatFassung: AGGREGAT_FASSUNG,
   };
 }
 
 async function main() {
-  let gerechnet = 0; let uebersprungen = 0;
+  let gerechnet = 0; let ergaenzt = 0; let uebersprungen = 0; let belassen = 0;
 
   let saisons = [];
   try { saisons = await fs.readdir(ABLAGE); } catch { console.log('Noch keine Replays.'); return; }
@@ -267,58 +310,85 @@ async function main() {
     try { fenster = await fs.readdir(path.join(ABLAGE, season)); } catch { continue; }
 
     for (const windowId of fenster) {
+      if (nurFenster.length && !nurFenster.includes(windowId)) continue;
       const ordner = path.join(ABLAGE, season, windowId);
       const ziel = path.join(ordner, '_aggregat.json');
 
+      let dateien;
+      try {
+        dateien = (await fs.readdir(ordner))
+          .filter((d) => d.endsWith('.json') && !d.startsWith('_'));
+      } catch { continue; }
+
+      let alt = null;
       if (!neu) {
-        try {
-          const alt = JSON.parse(await fs.readFile(ziel, 'utf8'));
-          const dateien = (await fs.readdir(ordner))
-            .filter((d) => d.endsWith('.json') && !d.startsWith('_')).length;
-          // Neu rechnen, wenn Matches dazugekommen sind oder der Auswerter
-          // eine andere Fassung hat.
-          /*
-           * Neu gerechnet wird auch, wenn dieses Skript etwas Neues kann.
-           *
-           * Die Fassung des Aggregats haengt nicht am Auswerter: die
-           * Replays selbst sind unveraendert, nur wird jetzt mehr aus ihnen
-           * herausgeschrieben. PARSER_VERSION dafuer hochzuzaehlen wuerde
-           * jedes Replay noch einmal durch den Auswerter schicken - fuer
-           * nichts.
-           *
-           * Die Fassung gilt nur dort, wo die neue Angabe ueberhaupt
-           * entsteht: bei Fenstern bis zweihundert Matches. Sonst wuerden
-           * auch alle grossen Aggregate neu geschrieben und muessten neu
-           * hochgeladen werden, obwohl sich an ihnen nichts aendert.
-           */
-          const fassungFehlt = dateien <= 200
-            && alt.aggregatFassung !== AGGREGAT_FASSUNG;
+        try { alt = JSON.parse(await fs.readFile(ziel, 'utf8')); } catch { alt = null; }
+      }
 
-          /*
-           * Und neu rechnen, wenn eine Match-Datei juenger ist als das
-           * Aggregat.
-           *
-           * Die Zahl der Matches allein genuegt nicht: wird ein Fenster
-           * spaeter noch einmal tief gelesen, bleiben es dieselben
-           * Dateien, nur mit mehr Inhalt. Genau das ist passiert - das
-           * Aggregat trug bereits die neue Fassung, waehrend die
-           * Aufstellungen noch gar nicht geschrieben waren, und blieb
-           * danach stehen.
-           */
-          const standAgg = await fs.stat(ziel).then((x) => x.mtimeMs, () => 0);
-          let juenger = false;
-          for (const d of await fs.readdir(ordner)) {
-            if (!d.endsWith('.json') || d.startsWith('_')) continue;
-            const st = await fs.stat(path.join(ordner, d)).catch(() => null);
-            if (st && st.mtimeMs > standAgg) { juenger = true; break; }
-          }
+      /*
+       * Drei Wege, je nachdem, was schon da ist:
+       *
+       *   - kein Aggregat, oder "--neu": alles aus den Dateien rechnen.
+       *   - ein Aggregat mit Kennungen und derselben Auswerter-Fassung:
+       *     nur dazurechnen, was hier liegt und dort fehlt.
+       *   - ein aelteres Aggregat ohne Kennungen: nur ganz neu rechnen, und
+       *     nur, wenn hier mindestens so viele Matches liegen, wie es
+       *     traegt. Sonst bleibt es stehen - lieber ein vollstaendiges
+       *     altes als ein lueckenhaftes neues.
+       */
+      if (alt && Array.isArray(alt.matchIds) && alt.parserVersion === PARSER_VERSION) {
+        const enthalten = new Set(alt.matchIds);
+        const fehlend = dateien.filter((d) => !enthalten.has(d.replace(/\.json$/, '')));
 
-          if (alt.matches === dateien
-              && alt.parserVersion === PARSER_VERSION
-              && !fassungFehlt && !juenger) {
-            uebersprungen++; continue;
-          }
-        } catch { /* noch keins da */ }
+        /*
+         * Enthaltene Dateien, die juenger sind als das Aggregat: ein
+         * spaeter tief gelesenes Finale. Dann tragen sie mehr Inhalt bei
+         * gleicher Kennung - das Aggregat wird ganz neu gerechnet, sofern
+         * alle enthaltenen Matches hier liegen; sonst bleibt es dabei.
+         */
+        const standAgg = await fs.stat(ziel).then((x) => x.mtimeMs, () => 0);
+        let juenger = false;
+        for (const d of dateien) {
+          if (!enthalten.has(d.replace(/\.json$/, ''))) continue;
+          const st = await fs.stat(path.join(ordner, d)).catch(() => null);
+          if (st && st.mtimeMs > standAgg) { juenger = true; break; }
+        }
+        const alleHier = alt.matchIds.every((id) => dateien.includes(`${id}.json`));
+
+        if (!fehlend.length && !(juenger && alleHier)) { uebersprungen++; continue; }
+
+        const werte = juenger && alleHier
+          ? await fensterRechnen(season, windowId)
+          : await fensterRechnen(season, windowId, alt, fehlend);
+        if (!werte) continue;
+        await fs.writeFile(ziel, JSON.stringify(werte), 'utf8');
+        if (juenger && alleHier) gerechnet++; else ergaenzt++;
+        console.log(`${season} ${String(werte.region).padEnd(4)} ${werte.titel ?? windowId}`
+          + ` - ${werte.matches} Matches (${fehlend.length} dazu), ${werte.spieler.length} Konten,`
+          + ` ${werte.elims} Eliminierungen`);
+        continue;
+      }
+
+      if (alt) {
+        if (dateien.length < (alt.matches ?? 0)) {
+          belassen++;
+          console.log(`${season} ${windowId}: Aggregat traegt ${alt.matches} Matches, `
+            + `hier liegen ${dateien.length} - bleibt, wie es ist.`);
+          continue;
+        }
+        const standAgg = await fs.stat(ziel).then((x) => x.mtimeMs, () => 0);
+        let juenger = false;
+        for (const d of dateien) {
+          const st = await fs.stat(path.join(ordner, d)).catch(() => null);
+          if (st && st.mtimeMs > standAgg) { juenger = true; break; }
+        }
+        const fassungFehlt = dateien.length <= 200
+          && alt.aggregatFassung !== AGGREGAT_FASSUNG;
+        if (alt.matches === dateien.length
+            && alt.parserVersion === PARSER_VERSION
+            && !fassungFehlt && !juenger) {
+          uebersprungen++; continue;
+        }
       }
 
       const werte = await fensterRechnen(season, windowId);
@@ -331,7 +401,8 @@ async function main() {
         + (werte.teams ? `, ${werte.teams.length} Teams` : ', keine Aufstellung'));
     }
   }
-  console.log(`\nFertig: ${gerechnet} gerechnet, ${uebersprungen} unveraendert`);
+  console.log(`\nFertig: ${gerechnet} gerechnet, ${ergaenzt} ergaenzt, `
+    + `${uebersprungen} unveraendert, ${belassen} belassen`);
 }
 
 main().catch((e) => { console.error('Fehlgeschlagen:', e.message); process.exit(1); });

@@ -32,12 +32,13 @@
 // fehl, wird beim naechsten Lauf genau dieser Download wiederholt - nicht
 // das Turnier von vorn.
 
-import { promises as fs } from 'fs';
+import { promises as fs, existsSync, readFileSync } from 'fs';
 import path from 'path';
+import { spawnSync } from 'child_process';
 import {
-  ABLAGE, FRIST_TAGE, ZUSTAND, ladeMatch, leseMatch, leseMatchTief, liesZustand,
-  matchIds, matchPfad, replayVorhanden, schreibeMatch, schreibeZustand, warte,
-  zustandAusOrdner,
+  ABLAGE, FRIST_TAGE, ZUSTAND, fensterPfad, ladeMatch, leseMatch, leseMatchTief,
+  liesZustand, matchIds, matchPfad, replayVorhanden, schreibeMatch, schreibeZustand,
+  warte, zustandAusOrdner,
 } from '../lib/replayKern.mjs';
 
 /*
@@ -427,6 +428,56 @@ async function offeneFenster() {
   return { fenster, zuAlt, uebersprungen };
 }
 
+/*
+ * ------------------------------------------------ Zwei Sammler, ein Stand
+ *
+ * Gesammelt wird an zwei Orten: im Live-Lauf waehrend eines Cups und im
+ * stuendlichen Lauf danach. Jeder hat seinen eigenen Ordner mit
+ * Match-Dateien; gemeinsam ist ihnen nur, was in der Ablage liegt - der
+ * Zustand je Fenster und das Aggregat.
+ *
+ * Zwei Dinge folgen daraus:
+ *
+ *   - Fehlt der Zustand eines Fensters hier, wird er aus der Ablage geholt,
+ *     bevor irgendetwas angefasst wird. Sonst hielte dieser Lauf das Fenster
+ *     fuer unberuehrt und holte viertausend Matches ein zweites Mal.
+ *   - "Ausgewertet" im Zustand heisst nicht, dass die Datei hier liegt. Sie
+ *     kann beim anderen Sammler liegen - dann ist sie im Aggregat, und das
+ *     genuegt. Steht sie aber weder hier noch im Aggregat, ist sie verloren
+ *     und wird noch einmal geholt.
+ */
+
+/** Den Zustand eines Fensters aus der Ablage holen, wenn er hier fehlt. */
+async function zustandNachholen(f) {
+  const ordner = fensterPfad(f.season, f.windowId);
+  if (existsSync(path.join(ordner, '_zustand.json'))) return;
+  const r = spawnSync(process.execPath, [
+    path.join('scripts', 'umzug-supabase.mjs'), '--herunterladen', '--nur-geaenderte',
+    '--nur', `replays/${f.season}/${f.windowId}`,
+  ], { encoding: 'utf8', env: process.env });
+  if (r.status === 0 && existsSync(path.join(ordner, '_zustand.json'))) {
+    console.log(`  Zustand aus der Ablage geholt (${f.windowId})`);
+  }
+}
+
+/**
+ * Welche Matches das Aggregat schon enthaelt - oder null, wenn es keines
+ * gibt. Ein Aggregat ohne Kennungen (aeltere Fassung) zaehlt als
+ * "enthaelt alles, was der Zustand als ausgewertet fuehrt".
+ */
+function imAggregatSync(f) {
+  try {
+    const roh = JSON.parse(readFileSync(
+      path.join(fensterPfad(f.season, f.windowId), '_aggregat.json'), 'utf8'));
+    return {
+      enthalten: Array.isArray(roh.matchIds) ? new Set(roh.matchIds) : 'alle',
+      matches: Number(roh.matches) || 0,
+    };
+  } catch {
+    return null;
+  }
+}
+
 /** Ein einzelnes Match durch die Kette schicken. */
 async function verarbeite(f, matchId, zustand) {
   const setze = (stand, zusatz = {}) => {
@@ -685,7 +736,9 @@ async function main() {
 
   let fertig = 0; let uebersprungen = 0; let ohne = 0; let fehler = 0;
 
+  const angefasst = [];
   for (const f of ziel) {
+    await zustandNachholen(f);
     const zustand = await liesZustand(f.season, f.windowId);
     zustand.season = f.season; zustand.windowId = f.windowId;
     zustand.eventId = f.eventId; zustand.region = f.region;
@@ -696,14 +749,42 @@ async function main() {
     try { ids = await matchIds(f.eventId, f.windowId); }
     catch (e) { console.warn(`  ${f.windowId}: Bestenliste - ${e.message}`); continue; }
 
+    /*
+     * Ein Aggregat aelterer Fassung, das schon alle Matches der Bestenliste
+     * traegt, ist fertig - und laesst sich nicht ergaenzen. Dann gibt es
+     * hier nichts mehr zu holen, auch wenn der Zustand daneben Luecken hat.
+     */
+    const agg = imAggregatSync(f);
+    if (!neu && agg && agg.enthalten === 'alle' && agg.matches >= ids.length) {
+      console.log(`
+${f.season} ${f.region.padEnd(4)} ${f.titel}`);
+      console.log(`  Aggregat traegt schon alle ${agg.matches} Matches - nichts zu tun.`);
+      uebersprungen += ids.length;
+      continue;
+    }
+    const enthalten = agg?.enthalten ?? null;
+    let verloren = 0;
     const offen = ids.filter((id) => {
       const m = zustand.matches[id];
       if (neu) return true;
-      // Fertig ist fertig; nicht vorhanden bleibt nicht vorhanden (Epic
-      // legt es nicht nachtraeglich wieder hin). Alles andere - auch ein
-      // fehlgeschlagener Versuch - wird noch einmal angefasst.
-      return !m || (m.stand !== ZUSTAND.FERTIG && m.stand !== ZUSTAND.NICHT_VORHANDEN);
+      if (!m) return true;
+      // Nicht vorhanden bleibt nicht vorhanden (Epic legt es nicht
+      // nachtraeglich wieder hin). Alles andere - auch ein fehlgeschlagener
+      // Versuch - wird noch einmal angefasst.
+      if (m.stand === ZUSTAND.NICHT_VORHANDEN) return false;
+      if (m.stand !== ZUSTAND.FERTIG) return true;
+      // Fertig - und die Datei liegt hier: fertig.
+      if (existsSync(matchPfad(f.season, f.windowId, id))) return false;
+      // Fertig, aber die Datei liegt woanders: nur fertig, wenn sie im
+      // Aggregat steckt. Sonst ist sie verloren - noch einmal holen.
+      if (enthalten === 'alle' || (enthalten && enthalten.has(id))) return false;
+      verloren += 1;
+      return true;
     });
+    if (verloren) {
+      console.log(`  ${verloren} als ausgewertet gefuehrt, aber weder hier noch im Aggregat - werden neu geholt`);
+    }
+    angefasst.push(f.windowId);
 
     console.log(`\n${f.season} ${f.region.padEnd(4)} ${f.titel}`);
     console.log(`  ${ids.length} Matches, ${offen.length} offen`);
@@ -757,6 +838,9 @@ async function main() {
   await protokoll({
     ok: true, fenster: ziel.length, neu: fertig, lagenVor: uebersprungen,
     ohneReplay: ohne, fehlgeschlagen: fehler, basis: BASIS,
+    // Welche Fenster dieser Lauf angefasst hat - der Live-Sammler rechnet
+    // danach nur diese neu, statt jede Minute alle.
+    angefasst,
   });
 }
 

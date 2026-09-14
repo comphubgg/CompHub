@@ -54,8 +54,12 @@ jobs:
           node-version: '22'
           cache: npm
 
+      # Mit den optionalen Paketen: darin steckt der native Uebersetzer von
+      # Next (@next/swc-linux-x64-gnu). Ohne ihn scheiterte "Anwendung bauen"
+      # nach zehn Sekunden, "continue-on-error" verschluckte es, und seit dem
+      # 8. September kam aus diesem Ablauf keine einzige fertige Antwort mehr.
       - name: Abhängigkeiten
-        run: npm ci --omit=optional
+        run: npm ci
 
       - name: Zugangsdaten
         # Ein einziges Geheimnis mit dem Inhalt von .env.local - so kann beim
@@ -92,6 +96,21 @@ jobs:
           node scripts/umzug-supabase.mjs --herunterladen \
             --ohne replays,_sicherung
 
+      # Die ausgewerteten Replays, aber nur, was sich geaendert hat.
+      #
+      # Der Live-Sammler legt waehrend eines Cups Aggregate ab, die dieser
+      # Lauf nicht hat - und die Startseite, die hier vorgerechnet wird,
+      # zaehlt daraus die Eliminierungen. Ohne diesen Schritt fehlten ihr
+      # die juengsten Spieltage, und der Sammler unten hielte jedes dieser
+      # Fenster fuer unberuehrt. Beim ersten Mal sind das siebenhundert
+      # Megabyte, danach nur noch die Fenster, die sich bewegt haben.
+      - name: Ausgewertete Replays aus Supabase
+        continue-on-error: true
+        timeout-minutes: 15
+        run: |
+          node scripts/umzug-supabase.mjs --herunterladen --nur replays \
+            --nur-geaenderte 2>&1 | tail -6
+
       - name: Spieltage holen
         continue-on-error: true
         run: node scripts/epic-spieltage-holen.mjs
@@ -104,9 +123,10 @@ jobs:
       # und Punkten ein Strich.
       - name: Platzierungen holen
         continue-on-error: true
+        timeout-minutes: 12
         env:
           WERKZEUG_URL: https://www.thecomphub.com
-        run: node scripts/platzierungen-holen.mjs
+        run: node scripts/platzierungen-holen.mjs 2>&1 | tee /tmp/platzierungen.log | tail -20
 
       - name: Werte der Szene holen
         continue-on-error: true
@@ -120,19 +140,26 @@ jobs:
       # Werkzeug auf localhost, findet dort nichts und holt nichts. Der Bau
       # der Anwendung kommt in diesem Ablauf erst spaeter, ein eigener Server
       # steht hier also ohnehin nicht zur Verfuegung.
+      # Mit Zeitgrenze: dieser Schritt lief zuletzt in jeder Stunde bis in
+      # die Grenze des ganzen Auftrags (neunundsechzig Minuten), und alles
+      # danach - Bauen, Vorrechnen, Hochladen - kam nie an die Reihe. Was
+      # in dreissig Minuten nicht geholt ist, holt der naechste Lauf; der
+      # Stand je Fenster wird alle zweihundert Matches gesichert.
       - name: Replays holen
         env:
           WERKZEUG_URL: https://www.thecomphub.com
         continue-on-error: true
+        timeout-minutes: 30
         # Zweiundsiebzig Stunden statt zwei: was der Live-Sammler waehrend
         # eines Cups verpasst hat, wird so binnen drei Tagen nachgeholt -
         # Epic haelt die Replays einunddreissig Tage vor. Schon Ausgewertetes
         # kostet dabei nichts, der Stand je Fenster kennt es.
-        run: node scripts/replays-holen.mjs --frisch 72
+        run: node scripts/replays-holen.mjs --frisch 72 2>&1 | tee /tmp/replays.log | grep -v ' \.\.\.$' | tail -40
 
       - name: Replays auswerten
         continue-on-error: true
-        run: node scripts/replays-aggregieren.mjs
+        timeout-minutes: 10
+        run: node scripts/replays-aggregieren.mjs 2>&1 | tee /tmp/aggregieren.log | tail -20
 
       # ------------------------------------------------- Antworten vorrechnen
       #
@@ -154,6 +181,7 @@ jobs:
       - name: Anwendung bauen
         id: bau
         continue-on-error: true
+        timeout-minutes: 15
         env:
           NODE_OPTIONS: --max-old-space-size=6144
         run: |
@@ -166,6 +194,7 @@ jobs:
 
       - name: Antworten vorrechnen
         continue-on-error: true
+        timeout-minutes: 20
         env:
           BAU_CODE: ${{ steps.bau.outputs.code }}
         run: |
