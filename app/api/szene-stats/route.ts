@@ -901,11 +901,13 @@ async function berechne(request: Request) {
        * Sie kommen als Konto-Ids aus Epics Bestenliste; die Namen holt
        * dieselbe Zuordnung, die auch die Turnierliste benutzt.
        */
+      const profileFuerSiege = await liesProfile();
+      const szeneFuerSiege = await liesSzeneSpieler();
       const fncsSiege = await Promise.all(fncsSiegeRoh.map(async (x) => {
         const ids: string[] = (x as { mitspieler?: string[] }).mitspieler ?? [];
         const namen = await Promise.all(ids.map(async (id) => {
-          const pr2 = (await liesProfile()).get(id);
-          const sz2 = (await liesSzeneSpieler()).get(id);
+          const pr2 = profileFuerSiege.get(id);
+          const sz2 = szeneFuerSiege.get(id);
           return {
             epicId: id,
             name: pr2?.anzeige || pr2?.name || sz2?.name || id.slice(0, 8),
@@ -959,13 +961,22 @@ async function berechne(request: Request) {
        */
       const namensQuelle = await liesSzeneSpieler();
       const namensListe = await liesNamensverzeichnis();
+      /*
+       * Einmal laden, nicht je Mitspieler.
+       *
+       * Hier stand "(await liesProfile()).get(id)" in der Schleife ueber alle
+       * Mitspieler aller Spieltage - und liesProfile fragt jedes Mal nach,
+       * ob sich die Datei geaendert hat. Bei Vercel ist das eine Abfrage
+       * an Supabase je Aufruf: hundert Mitspieler, zwanzig Sekunden.
+       */
+      const gepflegteProfile = await liesProfile();
       const nameZu = new Map<string, { name: string; land: string | null }>();
       /** Wer nirgends steht - fuer den lohnt die Nachfrage bei Epic. */
       const namenlos: string[] = [];
       for (const z of [...rohZeilen, ...rohEpic]) {
         for (const id of z.mitspieler) {
           if (nameZu.has(id)) continue;
-          const pr2 = (await liesProfile()).get(id);
+          const pr2 = gepflegteProfile.get(id);
           const sz2 = namensQuelle.get(id);
           const ausArchiv = alle.find((x) => x.epicId === id)?.name;
           const gefunden = pr2?.anzeige || pr2?.name || sz2?.name || ausArchiv
