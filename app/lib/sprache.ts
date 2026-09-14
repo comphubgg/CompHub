@@ -1933,6 +1933,10 @@ const AUF_ENGLISCH: Record<string, string> = {
     'right now',
   'Spieltage gezählt':
     'match days counted',
+  'Diese Adresse bleibt gleich. Was du hier änderst und übernimmst, ist im Stream nach wenigen Sekunden zu sehen.':
+    'This address stays the same. Whatever you change and apply here shows up on stream within seconds.',
+  'Erst speichern — dann bekommst du eine Adresse, die bei jeder späteren Änderung gleich bleibt.':
+    'Save first — then you get an address that stays the same through every later change.',
   'je Spieler, aus Replays, nur Finals':
     'per player, from replays, finals only',
   'Twitch-Name eingeben, Enter — kommt in die Multiview':

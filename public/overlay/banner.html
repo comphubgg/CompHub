@@ -190,6 +190,70 @@
 
 <script src="vorlagen.js"></script>
 <script>
+/*
+ * Eine Adresse, die bleibt.
+ *
+ * Die Team-Karte trug bisher alle Einstellungen in der Adresse selbst - und
+ * jede Aenderung im Werkzeug ergab eine neue Adresse, die wieder in OBS
+ * gehoert haette. Der Betreiber: "es soll eine Adresse geben; wenn ich es
+ * editiere, wird das automatisch auch updated."
+ *
+ * Deshalb kann die Adresse jetzt nur eine Kennung tragen (?id=TnyExM-FRaVy),
+ * so wie bei den anderen Overlays. Dann holt sich dieses Stueck die
+ * gespeicherte Einstellung vom Server, geht auf die vollstaendige Adresse
+ * und sieht alle fuenf Sekunden nach, ob sich der Stand geaendert hat -
+ * dann geht es auf die neue. Die Kennung wird dabei als "overlay"
+ * mitgefuehrt, damit sie nicht mit den Konto-Kennungen des Duos ("id")
+ * durcheinandergeraet.
+ *
+ * Unterscheiden laesst sich beides sicher: Konto-Kennungen sind 32
+ * Hexziffern, eine Overlay-Kennung ist es nie.
+ */
+(function () {
+  const P0 = new URLSearchParams(location.search);
+  const id = P0.get('id') || '';
+  const istKonto = (x) => /^[0-9a-f]{32}$/i.test(x.trim());
+  const kennung = P0.get('overlay')
+    || (id && !id.split(',').every(istKonto) ? id : '');
+  if (!kennung) return;
+  window.__overlayKennung = kennung;
+  const server = P0.get('server') || location.origin;
+  let stand = P0.get('stand') || '';
+
+  /* Fuer aeltere Vorlagen ohne abgelegte Adresse: aus den Feldern bauen. */
+  function adresseAus(cfg) {
+    if (cfg.adresse) return cfg.adresse;
+    const p = new URLSearchParams();
+    p.set('server', server);
+    if (cfg.region) p.set('auto', String(cfg.region));
+    if (Array.isArray(cfg.ids) && cfg.ids.length) p.set('id', cfg.ids.join(','));
+    if (cfg.namen && cfg.namen[0]) p.set('n1', cfg.namen[0]);
+    if (cfg.namen && cfg.namen[1]) p.set('n2', cfg.namen[1]);
+    if (cfg.vorlage) p.set('vorlage', String(cfg.vorlage));
+    if (cfg.klar !== undefined) p.set('klar', String(cfg.klar));
+    if (cfg.hoehe !== undefined) p.set('hoehe', String(cfg.hoehe));
+    if (cfg.abstand !== undefined) p.set('abstand', String(cfg.abstand));
+    return location.pathname + '?' + p.toString();
+  }
+
+  async function nachsehen() {
+    try {
+      const r = await fetch(server + '/api/overlay-config?id=' + encodeURIComponent(kennung),
+        { cache: 'no-store' });
+      if (!r.ok) return;
+      const j = await r.json();
+      if (!j || !j.config) return;
+      if (String(j.stand) === stand) return;
+      const u = new URL(adresseAus(j.config), location.href);
+      u.searchParams.set('overlay', kennung);
+      u.searchParams.set('stand', String(j.stand));
+      location.replace(u.toString());
+    } catch (e) { /* Netz weg - naechstes Mal wieder */ }
+  }
+  nachsehen();
+  setInterval(nachsehen, 5000);
+})();
+
 const P = new URLSearchParams(location.search);
 const SERVER = P.get('server') || '';
 let EVENT = P.get('event') || '';
@@ -219,7 +283,11 @@ async function findeSpieltag() {
     autoBis = Date.now() + 300000;
   } catch { autoBis = Date.now() + 60000; }
 }
-const IDS = (P.get('id') || '').split(',').map(s => s.trim()).filter(Boolean);
+// Solange nur die Kennung da ist, gibt es noch kein Duo - gleich kommt die
+// vollstaendige Adresse.
+const IDS = (window.__overlayKennung && !P.get('overlay'))
+  ? []
+  : (P.get('id') || '').split(',').map(s => s.trim()).filter(Boolean);
 
 /*
  * Mehrere Duos in einer Quelle.

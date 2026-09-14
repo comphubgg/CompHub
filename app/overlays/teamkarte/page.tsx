@@ -18,7 +18,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
-import OverlayGeruest, { useOverlays } from '../OverlayGeruest';
+import OverlayGeruest, { overlayAdresse, useOverlays } from '../OverlayGeruest';
 import { Vorschau } from '../Teile';
 import { overlayCupErlaubt, overlayZeitraum } from '@/lib/overlayCups';
 import { rundenName } from '@/lib/rundenName';
@@ -158,6 +158,9 @@ export default function OverlaySeite() {
     id: string; titel: string; region: string;
     ids: string[]; namen: string[];
     vorlage: string; klar: number; hoehe: number; abstand?: number;
+    /** Mehrere Duos und ihr Wechseltakt - seit die Adresse fest ist. */
+    weitere?: Array<{ ids: string[]; namen: [string, string]; etikett: string }>;
+    wechsel?: number;
   }
   /*
    * Vorlagen liegen dort, wo auch Standings und Qual line liegen.
@@ -189,6 +192,8 @@ export default function OverlaySeite() {
         klar: c.klar ?? 92,
         hoehe: c.hoehe ?? 108,
         abstand: c.abstand,
+        weitere: c.weitere,
+        wechsel: c.wechsel,
       };
     }),
     [vorlagenRoh]);
@@ -408,6 +413,8 @@ export default function OverlaySeite() {
       setKlar(o.klar);
       setHoehe(o.hoehe);
       if (o.abstand !== undefined) setAbstand(o.abstand);
+      if (Array.isArray(o.weitere)) setWeitere(o.weitere);
+      if (typeof o.wechsel === 'number') setWechsel(o.wechsel);
       setSchritt(4);
     }
     setAusAdresseGeladen(true);
@@ -631,6 +638,32 @@ export default function OverlaySeite() {
     return `${basis}/overlay/banner.html?${p.toString()}`;
   }, [basis, eventId, windowId, duo, namen, vorlage, klar, hoehe, abstand,
     weitere, wechsel]);
+
+  /*
+   * Die Adresse, die abgelegt wird.
+   *
+   * Dieselbe wie oben, nur ohne festen Spieltag: "auto" mit der Region, damit
+   * sie naechste Woche noch stimmt. Sie steht in der gespeicherten
+   * Einstellung; die Adresse in OBS traegt nur die Kennung und bleibt
+   * gleich, was auch immer hier umgestellt wird.
+   */
+  const adresseFuerAblage = useMemo(() => {
+    const u = new URL(bannerUrl, 'https://x');
+    u.searchParams.delete('event');
+    u.searchParams.delete('window');
+    u.searchParams.set('auto', region);
+    return basis ? `${basis}${u.pathname}?${u.searchParams.toString()}` : '';
+  }, [bannerUrl, basis, region]);
+
+  /**
+   * Die Adresse fuer OBS: nach dem Speichern nur noch die Kennung.
+   *
+   * Der Betreiber: "es soll eine Adresse geben; wenn ich es editiere, wird
+   * das automatisch auch updated." Vor dem Speichern steht die vollstaendige
+   * Adresse da - sie taugt zum Ausprobieren, aendert sich aber mit jedem
+   * Regler.
+   */
+  const obsAdresse = bearbeiteId ? overlayAdresse('teamkarte', bearbeiteId) : bannerUrl;
 
   const bestenlisteUrl = useMemo(() => {
     const p = new URLSearchParams();
@@ -1021,6 +1054,10 @@ export default function OverlaySeite() {
                         ids: duo.map((p) => p.id),
                         namen: namen.filter(Boolean),
                         vorlage, klar, hoehe, abstand,
+                        // Mehrere Duos und der Wechseltakt gehoeren dazu,
+                        // sonst zeigt die feste Adresse nur das erste.
+                        weitere, wechsel,
+                        adresse: adresseFuerAblage,
                       },
                     });
                     if (neu) {
@@ -1054,16 +1091,24 @@ export default function OverlaySeite() {
                   <T>Die Adresse für OBS</T>
                 </p>
                 <div className="flex gap-2">
-                  <input readOnly value={bannerUrl}
+                  <input readOnly value={obsAdresse}
                     onFocus={(e) => e.currentTarget.select()}
                     className={`${feld} font-mono text-[10px]`} />
-                  <button onClick={() => void kopiere(bannerUrl)}
+                  <button onClick={() => void kopiere(obsAdresse)}
                     className="shrink-0 rounded-lg bg-sky-500 px-4 text-sm
                                font-medium text-white transition
                                hover:bg-sky-400">
                     <T>Kopieren</T>
                   </button>
                 </div>
+                <p className="mt-1.5 text-[11px] leading-relaxed text-slate-500">
+                  {bearbeiteId
+                    ? <T>Diese Adresse bleibt gleich. Was du hier änderst und
+                        übernimmst, ist im Stream nach wenigen Sekunden zu
+                        sehen.</T>
+                    : <T>Erst speichern — dann bekommst du eine Adresse, die
+                        bei jeder späteren Änderung gleich bleibt.</T>}
+                </p>
                 {kopiert && (
                   <p className="mt-2 text-[11px] text-emerald-400">{kopiert}</p>
                 )}
@@ -1111,10 +1156,10 @@ export default function OverlaySeite() {
               <Vorschau src={bannerUrl} hoehe={hoehe + 16} klebt={false} />
 
               <div className="mt-3 flex gap-2">
-                <input readOnly value={bannerUrl}
+                <input readOnly value={obsAdresse}
                   onFocus={(e) => e.currentTarget.select()}
                   className={`${feld} font-mono text-[10px]`} />
-                <button onClick={() => void kopiere(bannerUrl)}
+                <button onClick={() => void kopiere(obsAdresse)}
                   className="shrink-0 rounded-lg bg-sky-500 px-4 text-sm font-medium
                              text-white transition hover:bg-sky-400">
                   <T>Kopieren</T>
