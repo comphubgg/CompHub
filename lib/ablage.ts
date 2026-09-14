@@ -74,7 +74,19 @@ export const ordnerSpeicher: Speicher = {
      */
     const vorlaeufig = `${ziel}.${process.pid}.neu`;
     await fs.writeFile(vorlaeufig, daten);
-    await fs.rename(vorlaeufig, ziel);
+    /*
+     * Auf Windows schlaegt das Umbenennen gelegentlich mit EPERM fehl, wenn
+     * gerade etwas anderes die Zieldatei haelt (Virenscanner, ein Lesen
+     * nebenan). Ein paar kurze Wiederholungen genuegen; erst danach ist es
+     * ein Fehler.
+     */
+    for (let versuch = 0; ; versuch += 1) {
+      try { await fs.rename(vorlaeufig, ziel); break; } catch (e) {
+        const code = (e as NodeJS.ErrnoException).code;
+        if (versuch >= 5 || (code !== 'EPERM' && code !== 'EBUSY' && code !== 'EACCES')) throw e;
+        await new Promise((r) => setTimeout(r, 50 * (versuch + 1)));
+      }
+    }
   },
 
   async loesche(name) {
