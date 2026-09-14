@@ -1945,6 +1945,12 @@ const AUF_ENGLISCH: Record<string, string> = {
     'Not in the leaderboard yet. Pre-select from the directory — the values arrive as soon as they play.',
   'vormerken':
     'pre-select',
+  'Noch kein Verlauf — er beginnt mit der nächsten Sitzung.':
+    'No history yet — it starts with the next session.',
+  'jetzt':
+    'now',
+  'Sitzungen':
+    'sessions',
   'Die übrigen Listen (Schaden, Treffer, Material) nur aus Finals — dazu haben die Replays keine Werte.':
     'The other lists (damage, hits, materials) come from finals only — the replays hold no such values.',
   'Twitch-Name eingeben, Enter — kommt in die Multiview':
