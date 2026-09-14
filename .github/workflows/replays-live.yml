@@ -34,9 +34,13 @@ jobs:
 
     # Nie zwei gleichzeitig - der zweite haette denselben Stand zweimal.
     # Und wenn der Naechste schon wartet, ist der Vorige ohnehin ueberholt.
+    # Nie zwei gleichzeitig - aber einen laufenden auch nicht abwuergen:
+    # der naechste wartet, bis dieser fertig ist. Vorher wurde ein Lauf, der
+    # laenger als zehn Minuten sammelte, vom naechsten abgebrochen - und das
+    # Hochladen am Ende kam nie.
     concurrency:
       group: replays-live
-      cancel-in-progress: true
+      cancel-in-progress: false
 
     steps:
       - name: Laeuft ueberhaupt ein Cup?
@@ -86,6 +90,26 @@ jobs:
           key: comphub-daten-${{ github.run_id }}
           restore-keys: comphub-daten-
 
+      # Was der Zwischenspeicher nicht hergibt, kommt aus Supabase.
+      #
+      # Der Sammler braucht die Epic-Anmeldung (data/epic-auth.json) und den
+      # Stand je Fenster (welche Matches schon ausgewertet sind). Fehlt die
+      # Anmeldung, scheitert die Bestenliste jedes laufenden Fensters mit
+      # einer Warnung, und der Lauf endet nach drei Sekunden mit "Fertig: 0"
+      # - gruen. Genau so sahen die Laeufe aus: am Donnerstagabend, waehrend
+      # der Reload Duos Victory Cup lief, waren alle vierundvierzig in unter
+      # einer Minute durch und sammelten nichts; die Wiederherstellung des
+      # Zwischenspeichers dauerte null Sekunden, der Ordner war also leer.
+      - name: Anmeldung und Stand aus Supabase
+        if: steps.pruefung.outputs.weiter == 'ja'
+        continue-on-error: true
+        run: |
+          if [ ! -f data/epic-auth.json ]; then
+            echo "Keine Epic-Anmeldung im Zwischenspeicher - wird geholt."
+            node scripts/umzug-supabase.mjs --herunterladen --nur epic-auth.json 2>&1 | tail -3
+          fi
+          node scripts/umzug-supabase.mjs --herunterladen --nur replays 2>&1 | tail -3
+
       - name: Laufende Runden holen
         if: steps.pruefung.outputs.weiter == 'ja'
         continue-on-error: true
@@ -97,7 +121,15 @@ jobs:
         # es dabei null zurueckgibt, sah der Schritt gruen aus.
         env:
           WERKZEUG_URL: https://www.thecomphub.com
-        run: node scripts/replays-holen.mjs --live
+        run: |
+          set +e
+          node scripts/replays-holen.mjs --live > /tmp/sammler.log 2>&1
+          CODE=$?
+          tail -n 40 /tmp/sammler.log
+          # Das Protokoll dorthin, wo es mit hochgeladen wird.
+          mkdir -p data/replays
+          CODE=$CODE node scripts/lauf-protokoll.mjs --live
+          exit $CODE
 
       - name: Auswerten
         if: steps.pruefung.outputs.weiter == 'ja'

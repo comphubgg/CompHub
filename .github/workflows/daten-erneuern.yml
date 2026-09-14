@@ -116,7 +116,11 @@ jobs:
         env:
           WERKZEUG_URL: https://www.thecomphub.com
         continue-on-error: true
-        run: node scripts/replays-holen.mjs --frisch 2
+        # Zweiundsiebzig Stunden statt zwei: was der Live-Sammler waehrend
+        # eines Cups verpasst hat, wird so binnen drei Tagen nachgeholt -
+        # Epic haelt die Replays einunddreissig Tage vor. Schon Ausgewertetes
+        # kostet dabei nichts, der Stand je Fenster kennt es.
+        run: node scripts/replays-holen.mjs --frisch 72
 
       - name: Replays auswerten
         continue-on-error: true
