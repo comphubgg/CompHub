@@ -132,22 +132,45 @@ jobs:
       #
       # Also wird hier gerechnet und nur das Ergebnis hochgeladen. Vercel
       # liest danach eine einzige Zeile: gemessen 0,8 Sekunden statt 113.
+      # Der Bau und das Vorrechnen schreiben ein Protokoll nach
+      # data/antworten/_lauf.json, das mit hochgeladen wird. Grund: seit dem
+      # 8. September legte dieser Lauf keine Antworten mehr ab - der Bau
+      # dauerte zwoelf Sekunden, das Vorrechnen genau die sechzig Sekunden
+      # der Warteschleife - und "continue-on-error" verschluckte den Fehler.
+      # Ohne Zugang zu den Protokollen von GitHub war nicht zu sehen, warum.
+      # Jetzt steht es dort, wo das Werkzeug es lesen kann.
       - name: Anwendung bauen
+        id: bau
         continue-on-error: true
-        run: npm run build
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
+        run: |
+          set +e
+          npm run build > /tmp/bau.log 2>&1
+          CODE=$?
+          echo "code=$CODE" >> "$GITHUB_OUTPUT"
+          tail -n 40 /tmp/bau.log
+          exit $CODE
 
       - name: Antworten vorrechnen
         continue-on-error: true
+        env:
+          BAU_CODE: ${{ steps.bau.outputs.code }}
         run: |
-          npx next start -p 3000 &
+          set +e
+          npx next start -p 3000 > /tmp/server.log 2>&1 &
           SERVER=$!
+          BEREIT=nein
           # Warten, bis er antwortet - hoechstens eine Minute.
           for _ in $(seq 1 30); do
-            curl -sf http://localhost:3000/api/stand >/dev/null && break
+            curl -sf http://localhost:3000/api/stand >/dev/null && { BEREIT=ja; break; }
             sleep 2
           done
-          node scripts/antworten-vorrechnen.mjs http://localhost:3000
+          node scripts/antworten-vorrechnen.mjs http://localhost:3000 > /tmp/vorrechnen.log 2>&1
+          tail -n 30 /tmp/vorrechnen.log
           kill $SERVER || true
+          mkdir -p data/antworten
+          BEREIT=$BEREIT node scripts/lauf-protokoll.mjs
 
       - name: Ergebnis nach Supabase
         # "--neuer-als 120" nimmt nur, was dieser Lauf geschrieben hat. Die
