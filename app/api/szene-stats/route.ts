@@ -555,7 +555,8 @@ async function berechne(request: Request) {
               for (const k of ['epicId', 'name', 'anzeige', 'gepflegt', 'land', 'x', 'bild',
                 'echtesFoto', 'heimat', 'regionen', 'jeRegion', 'events', 'matches',
                 'elims', 'damage', 'quote', 'hits', 'headshots', 'builds',
-                'elimsProMatch', 'damageProMatch', 'genauigkeit']) {
+                'elimsProMatch', 'damageProMatch', 'genauigkeit',
+                'finalsElims', 'opensElims', 'finals', 'opens']) {
                 if (x[k] !== undefined) raus[k] = x[k];
               }
               raus.namen = Array.isArray(x.namen) ? (x.namen as string[]).slice(0, 3) : [];
@@ -1019,7 +1020,7 @@ async function berechne(request: Request) {
         ...z,
         verdienst: (await verdienst({
           windowId: z.windowId, region: z.region, name: z.event,
-          platz: z.platz, punkte: z.punkte,
+          platz: z.platz, punkte: z.punkte, epicId: spieler,
         }))?.betrag ?? null,
         mitspieler: z.mitspieler.map((id) => ({
           epicId: id,
@@ -1032,7 +1033,7 @@ async function berechne(request: Request) {
         ...z,
         verdienst: (await verdienst({
           windowId: z.windowId, region: z.region, name: z.titel,
-          platz: z.platz, punkte: z.punkte,
+          platz: z.platz, punkte: z.punkte, epicId: spieler,
         }))?.betrag ?? null,
         mitspieler: z.mitspieler.map((id) => ({
           epicId: id,

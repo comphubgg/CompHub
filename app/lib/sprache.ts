@@ -1951,6 +1951,12 @@ const AUF_ENGLISCH: Record<string, string> = {
     'now',
   'Sitzungen':
     'sessions',
+  'Je Spieler aus den eigenen Replays und den Finals der Szene-Quelle, nur Heimatregion. Neben der Zahl: Finals · Opens.':
+    'Per player from our own replays and the finals of the scene source, home region only. Next to the number: Finals · Opens.',
+  'Opens':
+    'Opens',
+  'Finals':
+    'Finals',
   'Spieltagen':
     'match days',
   'Preisgeld nur, wo eine Preisgeldtabelle gepflegt ist':

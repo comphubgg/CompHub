@@ -51,6 +51,54 @@ export function turnierKern(kennung: string): string {
 
 export interface Verdienst { betrag: number; waehrung: string }
 
+/*
+ * ------------------------------------------------------------ LAN-Events
+ *
+ * Reload Elite Series Championship, FNCS Summit: dort gibt es Epics
+ * Bestenliste nur mit Turnierkonten, die nicht zu den Spielern gehoeren, und
+ * die Szene-Quelle fuehrt keine Platzierung. Das Preisgeld steht deshalb je
+ * Konto in data/lan-preisgelder.json - aus veroeffentlichten Tabellen
+ * (Esports Charts, Esports Earnings), per Namen den Konten des LAN-Spieltags
+ * im Archiv zugeordnet; die Datei nennt die Quelle. Der Betreiber: "du musst
+ * bei Most Earnings auch LAN-Events hinzufuegen, sonst waere jemand anders
+ * erster Platz."
+ */
+export interface LanEintrag {
+  kennung: string; name: string; season: string; fenster: string;
+  quelle?: string; waehrung?: string;
+  spieler: Array<{ epicId: string; name?: string; platz: number; betrag: number }>;
+}
+
+let lan: { liste: LanEintrag[]; bis: number } | null = null;
+
+export async function lanEintraege(): Promise<LanEintrag[]> {
+  if (lan && Date.now() < lan.bis) return lan.liste;
+  const roh = await liesJson<{ eintraege?: LanEintrag[] } | null>('lan-preisgelder.json', null);
+  const liste = Array.isArray(roh?.eintraege) ? roh.eintraege : [];
+  lan = { liste, bis: Date.now() + 10 * 60_000 };
+  return liste;
+}
+
+/** Das LAN-Preisgeld eines Kontos an einem Spieltag - oder null. */
+export async function lanVerdienst(windowId: string, epicId: string): Promise<Verdienst | null> {
+  for (const e of await lanEintraege()) {
+    if (e.fenster !== windowId) continue;
+    const s = e.spieler.find((x) => x.epicId === epicId);
+    if (s) return { betrag: s.betrag, waehrung: e.waehrung ?? 'USD' };
+  }
+  return null;
+}
+
+/** Alle LAN-Betraege je Konto fuer die genannten Saisons - fuer die Jahresliste. */
+export async function lanSummen(saisons: string[]): Promise<Map<string, number>> {
+  const summe = new Map<string, number>();
+  for (const e of await lanEintraege()) {
+    if (!saisons.includes(e.season)) continue;
+    for (const s of e.spieler) summe.set(s.epicId, (summe.get(s.epicId) ?? 0) + s.betrag);
+  }
+  return summe;
+}
+
 /**
  * Der Betrag zu einem Platz oder einer Punktzahl - oder null, wenn dazu
  * keine Regel gepflegt ist.
@@ -58,7 +106,13 @@ export interface Verdienst { betrag: number; waehrung: string }
 export async function verdienst(angaben: {
   windowId: string; eventId?: string; region: string; name?: string;
   platz: number | null; punkte: number | null; istFinale?: boolean;
+  /** Fuer LAN-Events: dort haengt der Betrag am Konto, nicht am Platz. */
+  epicId?: string;
 }): Promise<Verdienst | null> {
+  if (angaben.epicId) {
+    const lanGeld = await lanVerdienst(angaben.windowId, angaben.epicId);
+    if (lanGeld) return lanGeld;
+  }
   const kern = turnierKern(angaben.eventId || angaben.windowId);
   if (!kern) return null;
   // Ohne Epics Kennzeichen sagt es der Name - oder die Fensterkennung:

@@ -96,6 +96,20 @@ jobs:
           node scripts/umzug-supabase.mjs --herunterladen \
             --ohne replays,_sicherung
 
+      # Die kleinen Staende jede Stunde: Fotos, gepflegte Profile, Namen,
+      # Preisgelder. Sie aendern sich auf der Seite (der Betreiber pflegt
+      # Fotos und Profile dort), und der Zwischenspeicher hier kennt davon
+      # sonst nur den Stand vom ersten Tag. Genau so kam eine Startansicht
+      # ohne ein einziges Bild in die Ablage: der Laufrechner hatte keine
+      # spielerbilder.json. Alles Grosse bleibt draussen.
+      - name: Kleine Staende aus Supabase
+        continue-on-error: true
+        timeout-minutes: 5
+        run: |
+          node scripts/umzug-supabase.mjs --herunterladen \
+            --ohne replays,_sicherung,szene-stats,epic-spieltage,platzierungen,akten,antworten,anwesenheit,tournament-leaderboards,kartenbilder,kontakt-bilder,admin-maps \
+            2>&1 | tail -4
+
       # Die ausgewerteten Replays, aber nur, was sich geaendert hat.
       #
       # Der Live-Sammler legt waehrend eines Cups Aggregate ab, die dieser

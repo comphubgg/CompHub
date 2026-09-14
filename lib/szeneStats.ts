@@ -22,8 +22,8 @@ import { replayWert, replayKarte, aggregateSaison } from '@/lib/replayWerte';
 import type { ReplayWert } from '@/lib/replayWerte';
 import { liesJson, schreibJson } from '@/lib/ablage';
 import { fertigeAntwort, ohneDateien } from '@/lib/antwortSpeicher';
-import { istGrossesTurnier as grossesTurnier } from '@/lib/turnierArt';
-import { verdienst } from '@/lib/preisgeld';
+import { istGrossesTurnier as grossesTurnier, istFinaleTag } from '@/lib/turnierArt';
+import { verdienst, lanSummen } from '@/lib/preisgeld';
 import { DATEN_ORT } from './datenOrt';
 
 const ABLAGE = path.join(DATEN_ORT, 'szene-stats');
@@ -128,6 +128,8 @@ interface Datei extends ArchivEintrag { players: RohSpieler[] }
 /** Was ein Spieler ueber alle gewaehlten Spieltage zusammen erreicht hat. */
 export interface SpielerSumme {
   epicId: string;
+  /** Nur in der Elims-Liste der Startansicht: Finals und Opens getrennt. */
+  finalsElims?: number; opensElims?: number; finals?: number; opens?: number;
   /** Der zuletzt gesehene Name - Pros wechseln ihre Schreibweise staendig. */
   name: string;
   /** Alle Namen, unter denen dieses Konto angetreten ist. */
@@ -954,17 +956,31 @@ export async function startseite(saison?: string, wieViele = 25, jeTag = 3) {
    * die mit den meisten Eliminierungen. Die uebrigen Regionen stehen
    * daneben in "jeRegion", damit die Seite sie zeigen kann.
    */
-  type RegionSumme = { elims: number; matches: number; events: number };
+  /*
+   * Finals und Opens getrennt gezaehlt, damit die Zahl nachvollziehbar ist:
+   * der Betreiber sah 372 und sagte "erster Platz hat 85 Kills" - die 85
+   * sind die Finals allein. Beides steht jetzt nebeneinander.
+   */
+  type RegionSumme = {
+    elims: number; matches: number; events: number;
+    finalsElims: number; opensElims: number; finals: number; opens: number;
+  };
   const jeRegion = new Map<string, Map<string, RegionSumme>>();
-  const zaehle = (id: string, elims: number, matches: number, region: string) => {
+  const zaehle = (id: string, elims: number, matches: number, region: string, finale: boolean) => {
     const z = jeRegion.get(id) ?? new Map<string, RegionSumme>();
-    const r = z.get(region) ?? { elims: 0, matches: 0, events: 0 };
+    const r = z.get(region) ?? {
+      elims: 0, matches: 0, events: 0, finalsElims: 0, opensElims: 0, finals: 0, opens: 0,
+    };
     r.elims += elims; r.matches += matches; r.events += 1;
+    if (finale) { r.finalsElims += elims; r.finals += 1; } else { r.opensElims += elims; r.opens += 1; }
     z.set(region, r);
     jeRegion.set(id, z);
   };
   for (const t of eigene) {
-    for (const k of t.spieler) zaehle(k.epicId, k.kills ?? 0, k.matches ?? 0, t.region);
+    // Der Titel des Aggregats ist der Cupname ("FNCS Division 1 Practice");
+    // ob es das Finale war, sagt die Fensterkennung ("…Week1Final_OCE").
+    const finale = istFinaleTag(t.titel, undefined, t.windowId) || /final/i.test(t.windowId);
+    for (const k of t.spieler) zaehle(k.epicId, k.kills ?? 0, k.matches ?? 0, t.region, finale);
   }
 
   type Nachweis = {
@@ -979,7 +995,7 @@ export async function startseite(saison?: string, wieViele = 25, jeTag = 3) {
   const szeneTage = alle.filter((e) => e.season === dieSaison && !eigeneFenster.has(e.windowId));
   for (const e of szeneTage) {
     const { spieler: feld } = await summen({ saison: dieSaison, region: e.region, event: e.windowId });
-    for (const s of feld) zaehle(s.epicId, s.elims, s.matches, e.region);
+    for (const s of feld) zaehle(s.epicId, s.elims, s.matches, e.region, true);
     nachweis.push({
       name: e.name, region: e.region, datum: e.datum ?? null,
       quelle: 'szene', ausgewertet: e.matches, gesamt: null,
@@ -1002,6 +1018,8 @@ export async function startseite(saison?: string, wieViele = 25, jeTag = 3) {
         ? [archivHeimat, z.get(archivHeimat)!] : regionen[0];
       const s = leereSumme(id, '');
       s.elims = daheim.elims; s.matches = daheim.matches; s.events = daheim.events;
+      s.finalsElims = daheim.finalsElims; s.opensElims = daheim.opensElims;
+      s.finals = daheim.finals; s.opens = daheim.opens;
       s.name = archivNamen.get(id) ?? gespeichert[id] ?? '';
       s.namen = s.name ? [s.name] : [];
       s.regionen = regionen.map(([r]) => r);
@@ -1086,6 +1104,15 @@ export async function jahresListen(jahr: number, region?: string) {
     }
     if (dieserTag) mitRegel += 1;
   }
+  // Dazu die LAN-Events - je Konto, aus der gepflegten Datei.
+  let lanTage = 0;
+  for (const [id, betrag] of await lanSummen(saisons)) {
+    if (region && (feld.find((s) => s.epicId === id)?.regionen ?? []).indexOf(region) === -1) continue;
+    geld.set(id, (geld.get(id) ?? 0) + betrag);
+  }
+  lanTage = (await lanSummen(saisons)).size ? eintraege.filter((e) =>
+    ['Escargo_Day4', 'Bratwurst_Finals_Day3'].includes(e.windowId)).length : 0;
+  mitRegel += lanTage;
 
   const listen = KENNZAHLEN.map((k) => ({
     feld: String(k.feld), titel: k.titel, nachkomma: k.nachkomma ?? 0,

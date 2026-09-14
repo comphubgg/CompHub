@@ -64,6 +64,8 @@ type SpielerReiter = 'uebersicht' | 'leistung' | 'werte' | 'turniere';
 
 interface Spieler {
   epicId: string; name: string; anzeige: string; namen: string[];
+  /** Nur in der Elims-Liste der Startansicht: Finals und Opens getrennt. */
+  finalsElims?: number; opensElims?: number; finals?: number; opens?: number;
   land: string | null; x: string | null; regionen: string[];
   /** Die Region, in der dieses Konto am haeufigsten gespielt hat. */
   heimat: string;
@@ -1560,8 +1562,10 @@ function ListenKarte({ liste, aufVoll, aufSpieler }: {
 }
 
 /** Eine Zeile in einer Bestenliste. */
-function Platz({ nr, s, wert, aufKlick }: {
+function Platz({ nr, s, wert, aufKlick, zusatz }: {
   nr: number; s: Spieler; wert: string; aufKlick?: () => void;
+  /** Eine kleine Zeile unter dem Namen - etwa "Finals 79 · Opens 293". */
+  zusatz?: string;
 }) {
   return (
     <button onClick={aufKlick} disabled={!aufKlick}
@@ -1570,8 +1574,13 @@ function Platz({ nr, s, wert, aufKlick }: {
       <span className={`w-4 shrink-0 text-[11px] font-bold tabular-nums ${
         nr === 1 ? 'text-amber-400' : 'text-slate-600'}`}>{nr}</span>
       <TeamFlagge groesse={18} laender={[s.land ?? undefined]} />
-      <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-slate-200">
-        {grossName(s.anzeige, s.gepflegt)}
+      <span className="min-w-0 flex-1">
+        <span className="block truncate text-[12px] font-medium text-slate-200">
+          {grossName(s.anzeige, s.gepflegt)}
+        </span>
+        {zusatz && (
+          <span className="block truncate text-[10px] tabular-nums text-slate-500">{zusatz}</span>
+        )}
       </span>
       <RegionMarke region={s.heimat || s.regionen[0] || ''} />
       <span className="shrink-0 text-[12px] font-bold tabular-nums text-sky-400">
@@ -1811,7 +1820,11 @@ export default function StatistikSeite() {
   const [listenTiefe, setListenTiefe] = useState(50);
   /** Die Suche in der vollen Liste - ab zweihundert Eintraegen. */
   const [listenSuche, setListenSuche] = useState('');
-  useEffect(() => { setListenSuche(''); }, [volleListe]);
+  const [listenRegion, setListenRegion] = useState('');
+  useEffect(() => {
+    setListenSuche(''); setListenRegion('');
+    if (volleListe && typeof window !== 'undefined') window.scrollTo({ top: 0 });
+  }, [volleListe]);
 
   /** Karten oder Zeilen - wie im Vorbild umschaltbar. */
   const [tafel, setTafel] = useState(true);
@@ -2926,7 +2939,7 @@ export default function StatistikSeite() {
         {/* ---------------------------------------------- rechter Inhalt */}
         <div className="min-w-0 flex-1">
           {/* Ist ein Profil offen, steht es hier anstelle des Inhalts. */}
-          {!offen && (<>
+          {!offen && !volleListe && (<>
 
           {/* Kopf mit Saison und Bereichen fuer schmale Schirme */}
           <div className="mb-5 flex flex-wrap items-center gap-3">
@@ -4931,6 +4944,95 @@ export default function StatistikSeite() {
           )}
           </>)}
 
+      {/*
+        * Eine Kennzahl in voller Laenge - hinter dem Pluszeichen.
+        *
+        * Als Seite, nicht als Fenster: der Betreiber wollte die Liste "wirklich
+        * als Page". Sie nimmt den Platz des Inhalts ein, die Bereiche links
+        * bleiben, Zurueck fuehrt zur Uebersicht. Mit Regionen, Suche und - bei
+        * den Eliminierungen - der Aufteilung in Finals und Opens, damit die
+        * Zahl nachvollziehbar ist.
+        */}
+      {volleListe && !offen && (() => {
+        const q = listenSuche.trim().toLowerCase();
+        const regionen = nachRegionReihe([...new Set(volleListe.zeilen
+          .map((sp) => sp.heimat || sp.regionen?.[0] || '').filter(Boolean))]);
+        const nummeriert = volleListe.zeilen.map((sp, i) => ({ sp, nr: i + 1 }));
+        const gefiltert = nummeriert
+          .filter(({ sp }) => !listenRegion || (sp.heimat || sp.regionen?.[0] || '') === listenRegion)
+          .filter(({ sp }) => !q || [sp.anzeige, sp.name, ...(sp.namen ?? [])]
+            .some((n) => (n ?? '').toLowerCase().includes(q)));
+        const zeigen = (listenTiefe && !q) ? gefiltert.slice(0, listenTiefe) : gefiltert;
+        const istElims = volleListe.feld === 'elims';
+        return (
+          <div className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950">
+            <header className="flex flex-wrap items-center gap-3 border-b border-zinc-800
+                               px-4 py-3">
+              <button onClick={() => setVolleListe(null)}
+                className="rounded-md border border-zinc-800 px-2.5 py-1 text-xs text-slate-400
+                           transition hover:border-sky-500 hover:text-sky-400">
+                ← <T>Zurück</T>
+              </button>
+              <h3 className="text-sm font-semibold text-slate-100">
+                <T>{volleListe.titel}</T>
+                {volleListe.zusatz && (
+                  <span className="ml-2 font-normal text-slate-500">{volleListe.zusatz}</span>
+                )}
+              </h3>
+              <span className="text-xs text-slate-500">
+                {zahl(gefiltert.length, 0, sprache)} <T>Spieler</T>
+              </span>
+              {volleListe.zeilen.length > 200 && (
+                <input value={listenSuche} onChange={(e) => setListenSuche(e.target.value)}
+                  placeholder={t('Spieler suchen …')} autoFocus
+                  className="mx-auto w-56 rounded-lg border border-zinc-800 bg-zinc-900/80
+                             px-3 py-1 text-xs text-slate-100 outline-none focus:border-sky-500" />
+              )}
+              <div className="ml-auto flex items-center gap-1">
+                {([50, 100, 0] as const).map((n) => (
+                  <button key={n} onClick={() => setListenTiefe(n)}
+                    className={`rounded-md border px-2.5 py-1 text-xs transition ${
+                      listenTiefe === n
+                        ? 'border-sky-500 bg-sky-500/10 text-sky-400'
+                        : 'border-zinc-800 text-slate-400 hover:border-zinc-600'}`}>
+                    {n === 0 ? t('Alle') : `Top ${n}`}
+                  </button>
+                ))}
+              </div>
+            </header>
+            {regionen.length > 1 && (
+              <div className="flex flex-wrap gap-1 border-b border-zinc-900 px-4 py-2">
+                {['', ...regionen].map((r) => (
+                  <button key={r || 'alle'} onClick={() => setListenRegion(r)}
+                    className={`rounded-md border px-2.5 py-1 text-xs font-semibold transition ${
+                      listenRegion === r
+                        ? (r ? regionFarbe(r).marke : 'border-sky-500 bg-sky-500/10 text-sky-400')
+                        : `hover:brightness-125 ${r ? regionFarbe(r).ruhig : 'border-zinc-800 text-slate-400'}`}`}>
+                    {r || t('alle')}
+                  </button>
+                ))}
+              </div>
+            )}
+            {istElims && (
+              <p className="border-b border-zinc-900 px-4 py-2 text-[11px] text-slate-500">
+                <T>Je Spieler aus den eigenen Replays und den Finals der Szene-Quelle, nur Heimatregion. Neben der Zahl: Finals · Opens.</T>
+              </p>
+            )}
+            <div className="divide-y divide-zinc-900">
+              {zeigen.map(({ sp, nr }) => (
+                <Platz key={sp.epicId} nr={nr} s={sp}
+                  wert={zahl(Number(sp[volleListe.feld]), volleListe.nachkomma, sprache)
+                        + volleListe.einheit}
+                  zusatz={istElims && (typeof sp.finalsElims === 'number' || typeof sp.opensElims === 'number')
+                    ? `${t('Finals')} ${zahl(sp.finalsElims ?? 0, 0, sprache)} (${sp.finals ?? 0}) · ${t('Opens')} ${zahl(sp.opensElims ?? 0, 0, sprache)} (${sp.opens ?? 0})`
+                    : undefined}
+                  aufKlick={() => oeffne(sp)} />
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* ------------------------------------------------- Spielerseite */}
       {offen && (
         /*
@@ -5960,74 +6062,6 @@ export default function StatistikSeite() {
         );
       })()}
 
-      {/* Eine Kennzahl in voller Laenge - hinter dem Pluszeichen */}
-      {volleListe && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/70
-                        p-4 sm:p-8"
-          onClick={(e) => { if (e.target === e.currentTarget) setVolleListe(null); }}>
-          <div className="flex max-h-full w-full max-w-2xl flex-col overflow-hidden
-                          rounded-xl border border-zinc-700 bg-zinc-950 shadow-2xl">
-            <header className="flex flex-wrap items-center gap-3 border-b border-zinc-800
-                               px-4 py-3">
-              <h3 className="text-sm font-semibold text-slate-100">
-                <T>{volleListe.titel}</T>
-                {volleListe.zusatz && (
-                  <span className="ml-2 font-normal text-slate-500">
-                    {volleListe.zusatz}
-                  </span>
-                )}
-              </h3>
-              <span className="text-xs text-slate-500">
-                {zahl(volleListe.zeilen.length, 0, sprache)} <T>Spieler</T>
-              </span>
-              {/* Ab zweihundert Eintraegen eine Suche, mittig - der Betreiber:
-                  "wenn du ueber zweihundert hast, mach eine Suchleiste oben
-                  mittig." */}
-              {volleListe.zeilen.length > 200 && (
-                <input value={listenSuche} onChange={(e) => setListenSuche(e.target.value)}
-                  placeholder={t('Spieler suchen …')} autoFocus
-                  className="mx-auto w-56 rounded-lg border border-zinc-800 bg-zinc-900/80
-                             px-3 py-1 text-xs text-slate-100 outline-none
-                             focus:border-sky-500" />
-              )}
-              <div className="ml-auto flex items-center gap-1">
-                {([50, 100, 0] as const).map((n) => (
-                  <button key={n} onClick={() => setListenTiefe(n)}
-                    className={`rounded-md border px-2.5 py-1 text-xs transition ${
-                      listenTiefe === n
-                        ? 'border-sky-500 bg-sky-500/10 text-sky-400'
-                        : 'border-zinc-800 text-slate-400 hover:border-zinc-600'}`}>
-                    {n === 0 ? t('Alle') : `Top ${n}`}
-                  </button>
-                ))}
-                <button onClick={() => setVolleListe(null)}
-                  className="ml-1 rounded-md border border-zinc-800 px-2.5 py-1 text-xs
-                             text-slate-400 transition hover:border-rose-500/60
-                             hover:text-rose-400">×</button>
-              </div>
-            </header>
-            <div className="divide-y divide-zinc-900 overflow-y-auto">
-              {(() => {
-                const q = listenSuche.trim().toLowerCase();
-                // Gesucht wird ueber die ganze Liste; der Platz bleibt der
-                // echte Platz, nicht die Stelle im Suchergebnis.
-                const nummeriert = volleListe.zeilen.map((sp, i) => ({ sp, nr: i + 1 }));
-                const gefunden = q
-                  ? nummeriert.filter(({ sp }) => [sp.anzeige, sp.name, ...(sp.namen ?? [])]
-                    .some((n) => (n ?? '').toLowerCase().includes(q)))
-                  : nummeriert;
-                return (listenTiefe && !q ? gefunden.slice(0, listenTiefe) : gefunden);
-              })()
-                .map(({ sp, nr }) => (
-                  <Platz key={sp.epicId} nr={nr} s={sp}
-                    wert={zahl(Number(sp[volleListe.feld]), volleListe.nachkomma, sprache)
-                          + volleListe.einheit}
-                    aufKlick={() => { setVolleListe(null); oeffne(sp); }} />
-                ))}
-            </div>
-          </div>
-        </div>
-      )}
 
 
 
