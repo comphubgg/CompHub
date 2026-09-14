@@ -60,12 +60,20 @@ const SICHTBAR_STANDARD: Record<Bereich, Sichtbar> = {
   vergleich: 'vip', bilder: 'admin',
 };
 const SICHTBAR_REIHE: Sichtbar[] = ['alle', 'vip', 'admin'];
-type SpielerReiter = 'uebersicht' | 'leistung' | 'werte' | 'turniere';
+type SpielerReiter = 'uebersicht' | 'leistung' | 'werte' | 'turniere' | 'verdienst';
+
+/** Ein LAN-Ergebnis mit Preisgeld - aus data/lan-preisgelder.json. */
+interface LanErgebnis {
+  kennung: string; name: string; season: string; platz: number; betrag: number; waehrung: string;
+}
 
 interface Spieler {
   epicId: string; name: string; anzeige: string; namen: string[];
   /** Nur in der Elims-Liste der Startansicht: Finals und Opens getrennt. */
   finalsElims?: number; opensElims?: number; finals?: number; opens?: number;
+  opensMatches?: number;
+  /** Nur in der Preisgeldliste des Jahres. */
+  verdienst?: number;
   land: string | null; x: string | null; regionen: string[];
   /** Die Region, in der dieses Konto am haeufigsten gespielt hat. */
   heimat: string;
@@ -1656,6 +1664,8 @@ export default function StatistikSeite() {
     listen: JahrListe[];
   } | null>(null);
   const [jahrRegion, setJahrRegion] = useState('');
+  /** 'alle' oder ein Jahr - der Betreiber wollte "All-Time, 2026, 25, 24". */
+  const [jahrWahl, setJahrWahl] = useState<string>(String(JAHR));
   const [jahrLaedt, setJahrLaedt] = useState(false);
   const [sichtbar, setSichtbar] = useState<Record<Bereich, Sichtbar>>(SICHTBAR_STANDARD);
   const zugang = useZugang();
@@ -1874,6 +1884,7 @@ export default function StatistikSeite() {
   const [fncs, setFncs] = useState<Fncs | null>(null);
   const [tagesbest, setTagesbest] = useState<Tagessieg[]>([]);
   const [fncsSiege, setFncsSiege] = useState<FncsSieg[]>([]);
+  const [lanErgebnisse, setLanErgebnisse] = useState<LanErgebnis[]>([]);
   const [rang, setRang] = useState<Rang | null>(null);
   /**
    * Welchen Zeitraum das offene Profil zeigt.
@@ -1922,14 +1933,14 @@ export default function StatistikSeite() {
     if (bereich !== 'jahr') return;
     let weg = false;
     setJahrLaedt(true);
-    fetch(`/api/szene-stats?ansicht=jahr&jahr=${JAHR}`
+    fetch(`/api/szene-stats?ansicht=jahr&jahr=${jahrWahl}`
       + (jahrRegion ? `&region=${encodeURIComponent(jahrRegion)}` : ''))
       .then((r) => r.json())
       .then((j) => { if (!weg && j?.listen) setJahr(j); })
       .catch(() => { /* dann bleibt die Ansicht leer */ })
       .finally(() => { if (!weg) setJahrLaedt(false); });
     return () => { weg = true; };
-  }, [bereich, jahrRegion]);
+  }, [bereich, jahrRegion, jahrWahl]);
 
   /** Die Bereiche, die dieser Besucher sehen darf. */
   const sichtbareBereiche = useMemo(() => {
@@ -2387,6 +2398,7 @@ export default function StatistikSeite() {
     setProfilLaedt(true);
     setVerlauf([]); setEpicZeilen([]);
     setPerzentile(null); setFncs(null); setTagesbest([]); setFncsSiege([]);
+    setLanErgebnisse([]);
     setRang(null);
 
     // Aus der Galerie kommt nur das Noetigste - Name, Flagge, Bild. Die
@@ -2401,6 +2413,7 @@ export default function StatistikSeite() {
       setFncs(j.fncs ?? null);
       setTagesbest(j.tagesbest ?? []);
       setFncsSiege(j.fncsSiege ?? []);
+      setLanErgebnisse(j.lan ?? []);
       setRang(j.rang ?? null);
       setSaisonBilder(j.saisonBilder ?? {});
       setSaisonNamen(j.saisonNamen ?? {});
@@ -2454,12 +2467,13 @@ export default function StatistikSeite() {
     }
   }, []);
 
-  const oeffne = useCallback((s: Spieler) => {
+  const oeffne = useCallback((s: Spieler, reiter: SpielerReiter = 'uebersicht') => {
     setOffen(s);
     // Die Seite faengt oben an - das Profil nimmt den ganzen Inhalt ein.
     if (typeof window !== 'undefined') window.scrollTo({ top: 0 });
     setPflegeName(s.anzeige); setPflegeLand(s.land ?? ''); setPflegeStand('');
-    setSpielerReiter('uebersicht');
+    // Aus der Preisgeldliste geht es direkt auf den Verdienst.
+    setSpielerReiter(reiter);
     setMarke(null); setEntfernenFrage(false); setAlleRegionen(false);
     // Ein frisch geoeffnetes Profil zeigt die ganze Laufbahn - das ist die
     // Frage, die man beim Aufschlagen eines Profils zuerst hat.
@@ -4046,9 +4060,17 @@ export default function StatistikSeite() {
           {bereich === 'jahr' && (
             <div>
               <div className="mb-4 flex flex-wrap items-center gap-3">
-                <h2 className="text-lg font-semibold text-slate-100">
-                  {JAHR}
-                </h2>
+                <div className="flex items-center gap-1">
+                  {[['alle', t('Alle Zeit')], ['2026', '2026'], ['2025', '2025'], ['2024', '2024']].map(([w, titel]) => (
+                    <button key={w} onClick={() => setJahrWahl(w)}
+                      className={`rounded-md border px-3 py-1.5 text-sm font-semibold transition ${
+                        jahrWahl === w
+                          ? 'border-sky-500 bg-sky-500/10 text-sky-400'
+                          : 'border-zinc-800 text-slate-400 hover:border-zinc-600'}`}>
+                      {titel}
+                    </button>
+                  ))}
+                </div>
                 {jahr && (
                   <span className="text-[11px] text-slate-500">
                     {jahr.saisons.map((k) => saisons.find((x) => x.kennung === k)?.name ?? k).join(' · ')}
@@ -4072,7 +4094,7 @@ export default function StatistikSeite() {
                   JAHR_SAISONS. Das steht hier, damit niemand ein Kalenderjahr
                   vermutet, wo ein Kapitel gemeint ist. */}
               <p className="mb-5 text-[11px] leading-snug text-slate-600">
-                <T>Gezählt nach Saisons: Chapter 7 Season 1 bis 4 (die erste Saison beginnt Ende November des Vorjahres). Das Archiv kennt zu älteren Spieltagen kein Datum.</T>
+                <T>Gezählt nach Saisons (ein Kapitel beginnt Ende November des Vorjahres): 2024 = Chapter 5 Season 3 und 4, 2025 = Chapter 6, 2026 = Chapter 7. Das Archiv kennt zu älteren Spieltagen kein Datum.</T>
                 {' '}<T>Preisgeld nur, wo eine Preisgeldtabelle gepflegt ist</T>
                 {jahr?.listen[0]?.spieltageMitRegel !== undefined && (
                   <> ({zahl(jahr.listen[0].spieltageMitRegel ?? 0, 0, sprache)} <T>von</T>{' '}
@@ -4098,7 +4120,7 @@ export default function StatistikSeite() {
                         {l.plaetze.length > 6 && (
                           <button onClick={() => {
                             setVolleListe({
-                              titel: l.titel, zusatz: String(JAHR) + (jahrRegion ? ` · ${jahrRegion}` : ''),
+                              titel: l.titel, zusatz: (jahrWahl === 'alle' ? t('Alle Zeit') : jahrWahl) + (jahrRegion ? ` · ${jahrRegion}` : ''),
                               zeilen: l.plaetze, feld: l.feld as keyof Spieler,
                               nachkomma: l.nachkomma, einheit: l.einheit ?? '',
                             });
@@ -4114,7 +4136,8 @@ export default function StatistikSeite() {
                       </div>
                       <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
                         {l.plaetze.slice(0, 6).map((sp, i) => (
-                          <button key={sp.epicId} onClick={() => oeffne(sp)}
+                          <button key={sp.epicId}
+                            onClick={() => oeffne(sp, l.feld === 'verdienst' ? 'verdienst' : 'uebersicht')}
                             className="group relative aspect-[3/4] overflow-hidden rounded-xl
                                        border border-zinc-800 bg-zinc-900 text-left
                                        transition hover:border-sky-500">
@@ -5015,7 +5038,7 @@ export default function StatistikSeite() {
             )}
             {istElims && (
               <p className="border-b border-zinc-900 px-4 py-2 text-[11px] text-slate-500">
-                <T>Je Spieler aus den eigenen Replays und den Finals der Szene-Quelle, nur Heimatregion. Neben der Zahl: Finals · Opens.</T>
+                <T>Die Zahl sind die Finals (Szene-Quelle und eigene Replays), nur Heimatregion. Darunter, getrennt: was in den Opens dazukam.</T>
               </p>
             )}
             <div className="divide-y divide-zinc-900">
@@ -5023,10 +5046,10 @@ export default function StatistikSeite() {
                 <Platz key={sp.epicId} nr={nr} s={sp}
                   wert={zahl(Number(sp[volleListe.feld]), volleListe.nachkomma, sprache)
                         + volleListe.einheit}
-                  zusatz={istElims && (typeof sp.finalsElims === 'number' || typeof sp.opensElims === 'number')
-                    ? `${t('Finals')} ${zahl(sp.finalsElims ?? 0, 0, sprache)} (${sp.finals ?? 0}) · ${t('Opens')} ${zahl(sp.opensElims ?? 0, 0, sprache)} (${sp.opens ?? 0})`
+                  zusatz={istElims && typeof sp.opensElims === 'number'
+                    ? `${t('Finals')} ${sp.finals ?? 0} · ${t('Opens')}: ${zahl(sp.opensElims ?? 0, 0, sprache)} ${t('Elims')} ${t('in')} ${sp.opens ?? 0} ${t('Spieltagen')}`
                     : undefined}
-                  aufKlick={() => oeffne(sp)} />
+                  aufKlick={() => oeffne(sp, volleListe.feld === 'verdienst' ? 'verdienst' : 'uebersicht')} />
               ))}
             </div>
           </div>
@@ -5069,7 +5092,7 @@ export default function StatistikSeite() {
                   keinen leeren Kasten. Ein Druck darauf oeffnet die Liste
                   dahinter. */}
               <div className="ml-auto flex flex-wrap items-stretch gap-2">
-                {(fncs?.titel ?? 0) > 0 && (
+                {((fncs?.titel ?? 0) > 0 || lanErgebnisse.some((l) => l.platz <= 3)) && (
                   <button onClick={() => setMarke('fncs')}
                     className="rounded-lg border border-amber-500/50 bg-amber-500/10
                                px-3 py-2 text-center transition
@@ -5308,10 +5331,16 @@ export default function StatistikSeite() {
                     `${zahl(offen.elimsProMatch, 2, sprache)} ${t('je Match')}`],
                   ['Schaden', zahl(offen.damage, 0, sprache),
                     `${zahl(offen.damageProMatch, 0, sprache)} ${t('je Match')}`],
-                  ['FNCS Grand Finals',
-                    fncs ? String(fncs.saisons.filter((x) => x.platz > 0).length) : '—',
-                    fncs && fncs.titel > 0
-                      ? t('{n} Titel').replace('{n}', String(fncs.titel)) : ''],
+                  /* Titel: FNCS-Siege aus der offenen Spielerliste plus LAN-Siege
+                     (Summit, Reload Elite Championship) - der Betreiber: "Vico hat
+                     andere Cups gewonnen, die Summit LAN zum Beispiel, das soll da
+                     drin sein." */
+                  ['Titel',
+                    String((fncs?.titel ?? 0) + lanErgebnisse.filter((l) => l.platz === 1).length),
+                    [fncs && fncs.titel > 0 ? `${fncs.titel} FNCS` : '',
+                      lanErgebnisse.filter((l) => l.platz === 1).length
+                        ? `${lanErgebnisse.filter((l) => l.platz === 1).length} LAN` : '']
+                      .filter(Boolean).join(' · ')],
                 ] as Array<[string, string, string]>).map(([l, v, unten], i) => (
                   // Schmal genug, dass die Reihe in einer Zeile bleibt: bricht
                   // sie um, steht die letzte Zahl allein neben einer leeren
@@ -5337,7 +5366,8 @@ export default function StatistikSeite() {
                             px-7">
               {([['uebersicht', 'Übersicht'], ['leistung', 'Leistung'],
                  ['werte', 'Alle Werte'],
-                 ['turniere', 'Turniere']] as Array<[SpielerReiter, string]>)
+                 ['turniere', 'Turniere'],
+                 ['verdienst', 'Verdienst']] as Array<[SpielerReiter, string]>)
                 .map(([w, titel]) => (
                 // "titel" statt "t": der Uebersetzer heisst hier ebenfalls t,
                 // und ihn in einer Schleife zu beschatten ist eine Falle fuer
@@ -5708,6 +5738,129 @@ export default function StatistikSeite() {
                     </p>
                   )}
                 </div>
+              ) : spielerReiter === 'verdienst' ? (
+                /*
+                 * Der Verdienst - jeder Spieltag mit Preisgeld, wann, wo, wie viel.
+                 * Der Betreiber: "eine Art Earnings-Seite im Spieler, wo ich
+                 * wirklich alles aufgelistet bekomme, wann, wo, welcher Cup."
+                 * Online-Cups aus Platz beziehungsweise Punkten und der
+                 * gepflegten Tabelle; LAN-Events je Konto aus der LAN-Datei.
+                 */
+                (() => {
+                  const zeilen = [...verlauf, ...epicZeilen]
+                    .filter((z) => typeof z.verdienst === 'number' && z.verdienst > 0)
+                    .sort((a, b) => (b.datum ?? 0) - (a.datum ?? 0));
+                  const lanOhneZeile = lanErgebnisse.filter((l) =>
+                    !zeilen.some((z) => z.season === l.season && (l.kennung.includes('reload')
+                      ? /escargo/i.test(z.windowId) : /bratwurst|summit/i.test(z.windowId))));
+                  const summe = zeilen.reduce((a, z) => a + (z.verdienst ?? 0), 0)
+                    + lanOhneZeile.reduce((a, l) => a + l.betrag, 0);
+                  const jeSaison = new Map<string, number>();
+                  for (const z of zeilen) jeSaison.set(z.season, (jeSaison.get(z.season) ?? 0) + (z.verdienst ?? 0));
+                  for (const l of lanOhneZeile) jeSaison.set(l.season, (jeSaison.get(l.season) ?? 0) + l.betrag);
+                  return (
+                    <div className="space-y-5">
+                      <div className="flex flex-wrap items-end gap-6 rounded-lg border
+                                      border-zinc-800 bg-zinc-900/30 p-5">
+                        <div>
+                          <p className="text-[10px] font-semibold uppercase tracking-[0.18em]
+                                        text-slate-500"><T>Verdienst</T> · {archivTitel}</p>
+                          <p className="mt-1 text-3xl font-bold tabular-nums text-emerald-400">
+                            ${zahl(summe, 0, sprache)}
+                          </p>
+                        </div>
+                        {[...jeSaison.entries()].sort((a, b) => b[0].localeCompare(a[0])).map(([k, v]) => (
+                          <div key={k}>
+                            <p className="text-[10px] uppercase tracking-[0.14em] text-slate-600">
+                              {saisons.find((x) => x.kennung === k)?.name ?? k}
+                            </p>
+                            <p className="text-sm font-semibold tabular-nums text-slate-200">
+                              ${zahl(v, 0, sprache)}
+                            </p>
+                          </div>
+                        ))}
+                      </div>
+                      {!zeilen.length && !lanOhneZeile.length ? (
+                        <p className="py-6 text-center text-xs text-slate-600">
+                          <T>Zu diesem Spieler ist kein Preisgeld hinterlegt. Preisgeld gibt es nur, wo eine Tabelle gepflegt ist (EU) oder ein LAN-Ergebnis vorliegt.</T>
+                        </p>
+                      ) : (
+                        <div className="overflow-x-auto rounded-lg border border-zinc-800">
+                          <table className="w-full text-xs">
+                            <thead>
+                              <tr className="border-b border-zinc-800 text-[10px] uppercase
+                                             tracking-wider text-slate-500">
+                                <th className="px-3 py-2 text-left font-medium"><T>Turnier</T></th>
+                                <th className="px-3 py-2 text-center font-medium"><T>Region</T></th>
+                                <th className="px-3 py-2 text-center font-medium"><T>Platz</T></th>
+                                <th className="px-3 py-2 text-right font-medium"><T>Punkte</T></th>
+                                <th className="px-3 py-2 text-right font-medium"><T>Verdienst</T></th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {lanOhneZeile.map((l) => (
+                                <tr key={l.kennung} className="border-b border-zinc-900">
+                                  <td className="px-3 py-2 text-slate-200">
+                                    {l.name}
+                                    <span className="ml-2 rounded bg-amber-500/15 px-1.5 py-0.5
+                                                     text-[9px] font-semibold uppercase text-amber-400">LAN</span>
+                                  </td>
+                                  <td className="px-3 py-2 text-center text-slate-500">
+                                    {saisons.find((x) => x.kennung === l.season)?.name ?? l.season}
+                                  </td>
+                                  <td className={`px-3 py-2 text-center font-bold tabular-nums ${platzFarbe(l.platz)}`}>
+                                    {l.platz}.
+                                  </td>
+                                  <td className="px-3 py-2 text-right text-slate-700">—</td>
+                                  <td className="px-3 py-2 text-right font-semibold tabular-nums text-emerald-400">
+                                    ${zahl(l.betrag, 0, sprache)}
+                                  </td>
+                                </tr>
+                              ))}
+                              {zeilen.map((z) => {
+                                const lan = lanErgebnisse.find((l) => l.season === z.season
+                                  && (l.kennung.includes('reload') ? /escargo/i.test(z.windowId) : /bratwurst|summit/i.test(z.windowId)));
+                                return (
+                                  <tr key={z.windowId + z.region} className="border-b border-zinc-900">
+                                    <td className="px-3 py-2 text-slate-200">
+                                      {lan ? lan.name : turnierName(z.event)}
+                                      {lan && (
+                                        <span className="ml-2 rounded bg-amber-500/15 px-1.5 py-0.5
+                                                         text-[9px] font-semibold uppercase text-amber-400">LAN</span>
+                                      )}
+                                      {z.datum ? (
+                                        <span className="ml-2 whitespace-nowrap text-[10px] tabular-nums text-slate-600">
+                                          {new Date(z.datum).toLocaleDateString(sprache === 'de' ? 'de-DE' : 'en-GB',
+                                            { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                                        </span>
+                                      ) : null}
+                                    </td>
+                                    <td className="px-3 py-2 text-center">
+                                      <span className="rounded bg-zinc-900 px-1.5 py-0.5 text-[10px]
+                                                       font-semibold tracking-wider text-slate-400">{z.region}</span>
+                                    </td>
+                                    <td className={`px-3 py-2 text-center font-bold tabular-nums ${platzFarbe(lan ? lan.platz : z.platz)}`}>
+                                      {lan ? `${lan.platz}.` : z.platz !== null ? `${z.platz}.` : '—'}
+                                    </td>
+                                    <td className="px-3 py-2 text-right tabular-nums text-slate-400">
+                                      {z.punkte !== null ? zahl(z.punkte, 0, sprache) : '—'}
+                                    </td>
+                                    <td className="px-3 py-2 text-right font-semibold tabular-nums text-emerald-400">
+                                      ${zahl(z.verdienst ?? 0, 0, sprache)}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                      <p className="text-[11px] leading-snug text-slate-600">
+                        <T>Online-Cups: abgeleitet aus Platz beziehungsweise Punkten und der gepflegten Preisgeldtabelle (nur EU gepflegt). LAN-Events: je Person aus veröffentlichten Tabellen (Esports Charts, Esports Earnings). Was hier fehlt, ist nicht hinterlegt, nicht null.</T>
+                      </p>
+                    </div>
+                  );
+                })()
               ) : spielerReiter === 'werte' ? (
                 <div className="grid gap-x-8 rounded-lg border border-zinc-800
                                 bg-zinc-900/30 p-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -5896,6 +6049,24 @@ export default function StatistikSeite() {
                               </tr>
                             </thead>
                             <tbody>
+                              {lanErgebnisse.map((l) => (
+                                <tr key={l.kennung} className="border-b border-zinc-900">
+                                  <td className="whitespace-nowrap px-2 py-2.5">
+                                    <span className="font-semibold text-slate-200">
+                                      {saisons.find((x) => x.kennung === l.season)?.name ?? l.season}
+                                    </span>
+                                    <span className={`ml-2 text-[10px] font-bold ${platzFarbe(l.platz)}`}>
+                                      {l.platz}.
+                                    </span>
+                                  </td>
+                                  <td className="px-2 py-2.5 text-slate-300" colSpan={5}>
+                                    {l.name}
+                                    <span className="ml-2 rounded bg-amber-500/15 px-1.5 py-0.5
+                                                     text-[9px] font-semibold uppercase text-amber-400">LAN</span>
+                                    <span className="ml-2 text-emerald-400">${zahl(l.betrag, 0, sprache)}</span>
+                                  </td>
+                                </tr>
+                              ))}
                               {fncsSiege.map((x) => {
                                 const strich = (
                                   <span className="text-slate-700">—</span>);

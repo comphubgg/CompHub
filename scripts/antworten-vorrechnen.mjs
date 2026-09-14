@@ -42,6 +42,9 @@ function wege(saisons) {
     '/api/szene-stats?ansicht=start',
     // Das Jahr - ueber alle Saisons, mit Preisgeld.
     `/api/szene-stats?ansicht=jahr&jahr=${new Date().getUTCFullYear()}`,
+    '/api/szene-stats?ansicht=jahr&jahr=alle',
+    '/api/szene-stats?ansicht=jahr&jahr=2025',
+    '/api/szene-stats?ansicht=jahr&jahr=2024',
     '/api/szene-stats?ansicht=bilder',
     // Der Vorrat, in dem die Kopfzeilensuche sucht.
     '/api/szene-stats?ansicht=suchindex',
@@ -79,6 +82,29 @@ function wege(saisons) {
     }
   }
   return raus;
+}
+
+/**
+ * Die Profile, die jemand als Erstes oeffnet: alle aus den Listen der
+ * Startansicht und die Preisgeldliste des Jahres.
+ *
+ * Ein Profil, das noch nicht in der Ablage liegt, braucht bei Vercel zehn
+ * bis dreissig Sekunden - der Betreiber: "die Spielerprofile laden noch
+ * immer viel zu lange." Hier, mit Dateien auf der Platte, sind es Sekunden
+ * je Profil; danach liest Vercel nur noch.
+ */
+async function profileDerListen() {
+  const ids = new Set();
+  try {
+    const start = await (await fetch(`${SERVER}/api/szene-stats?ansicht=start`)).json();
+    for (const l of start.listen ?? []) for (const p of l.plaetze ?? []) if (p.epicId) ids.add(p.epicId);
+    for (const g of start.profile ?? []) for (const p of g.spieler ?? []) if (p.epicId) ids.add(p.epicId);
+  } catch { /* dann ohne */ }
+  try {
+    const jahr = await (await fetch(`${SERVER}/api/szene-stats?ansicht=jahr&jahr=${new Date().getUTCFullYear()}`)).json();
+    for (const l of jahr.listen ?? []) for (const p of (l.plaetze ?? []).slice(0, 100)) if (p.epicId) ids.add(p.epicId);
+  } catch { /* dann ohne */ }
+  return [...ids].map((id) => `/api/szene-stats?spieler=${id}`);
 }
 
 /** Welche Saisons es gibt - fragen statt raten. */
@@ -132,6 +158,26 @@ async function los() {
       console.log(`  FEHLT ${zeit(Date.now() - start).padStart(7)}  ${' '.repeat(11)}${weg}  (${e.message})`);
     }
   }
+
+  /*
+   * Danach die Profile - nachdem die Listen liegen, aus denen sie kommen.
+   * Vier nebeneinander: einzeln waren es bei sechshundert Profilen eine
+   * Viertelstunde, so ein paar Minuten.
+   */
+  const profile = await profileDerListen();
+  console.log(`  Profile: ${profile.length}`);
+  let profileOk = 0;
+  for (let i = 0; i < profile.length; i += 4) {
+    await Promise.all(profile.slice(i, i + 4).map(async (weg) => {
+      try {
+        const r = await fetch(SERVER + weg, { signal: AbortSignal.timeout(120_000) });
+        await r.arrayBuffer();
+        if (r.ok) profileOk += 1; else schief += 1;
+      } catch { schief += 1; }
+    }));
+    if ((i + 4) % 100 === 0) console.log(`  ... ${Math.min(i + 4, profile.length)}/${profile.length} Profile`);
+  }
+  ok += profileOk;
 
   console.log('');
   console.log(`  Vorgerechnet: ${ok}   gescheitert: ${schief}`);

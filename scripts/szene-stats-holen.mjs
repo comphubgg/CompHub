@@ -29,7 +29,15 @@ import path from 'path';
 
 const BASIS = 'https://eucompetitive.com';
 const REGIONEN = ['EU', 'NAC', 'NAW', 'BR', 'ASIA', 'ME', 'OCE'];
-const SEASONS_STANDARD = ['S39', 'S40', 'S41', 'S42'];
+/*
+ * Alle Saisons, die die Quelle fuehrt - Chapter 5 Season 3 bis heute.
+ *
+ * Vorher nur Chapter 7: die aelteren lagen zwar auf der Platte, standen
+ * aber nicht im Verzeichnis, und die Jahresansicht kannte 2024 und 2025
+ * nicht. Der Betreiber: "such mir Stats von 2024, 2025 raus, so viel wie
+ * moeglich aus der Vergangenheit."
+ */
+const SEASONS_STANDARD = ['S30', 'S31', 'S33', 'S34', 'S36', 'S37', 'S39', 'S40', 'S41', 'S42'];
 const ABLAGE = path.join(process.cwd(), 'data', 'szene-stats');
 
 /** Ohne Browserkennung antwortet der Anbieter nicht zuverlaessig. */

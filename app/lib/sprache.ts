@@ -1951,6 +1951,18 @@ const AUF_ENGLISCH: Record<string, string> = {
     'now',
   'Sitzungen':
     'sessions',
+  'Die Zahl sind die Finals (Szene-Quelle und eigene Replays), nur Heimatregion. Darunter, getrennt: was in den Opens dazukam.':
+    'The number is the finals (scene source and our own replays), home region only. Below, separately: what was added in the opens.',
+  'Gezählt nach Saisons (ein Kapitel beginnt Ende November des Vorjahres): 2024 = Chapter 5 Season 3 und 4, 2025 = Chapter 6, 2026 = Chapter 7. Das Archiv kennt zu älteren Spieltagen kein Datum.':
+    'Counted by seasons (a chapter starts in late November of the previous year): 2024 = Chapter 5 Season 3 and 4, 2025 = Chapter 6, 2026 = Chapter 7. The archive has no dates for older match days.',
+  'Online-Cups: abgeleitet aus Platz beziehungsweise Punkten und der gepflegten Preisgeldtabelle (nur EU gepflegt). LAN-Events: je Person aus veröffentlichten Tabellen (Esports Charts, Esports Earnings). Was hier fehlt, ist nicht hinterlegt, nicht null.':
+    'Online cups: derived from placement or points and the maintained prize table (EU only). LAN events: per player from published tables (Esports Charts, Esports Earnings). Anything missing here is not recorded, not zero.',
+  'Zu diesem Spieler ist kein Preisgeld hinterlegt. Preisgeld gibt es nur, wo eine Tabelle gepflegt ist (EU) oder ein LAN-Ergebnis vorliegt.':
+    'No prize money is recorded for this player. Earnings exist only where a prize table is maintained (EU) or a LAN result is recorded.',
+  'in':
+    'in',
+  'Alle Zeit':
+    'All time',
   'Je Spieler aus den eigenen Replays und den Finals der Szene-Quelle, nur Heimatregion. Neben der Zahl: Finals · Opens.':
     'Per player from our own replays and the finals of the scene source, home region only. Next to the number: Finals · Opens.',
   'Opens':

@@ -23,7 +23,7 @@ import type { ReplayWert } from '@/lib/replayWerte';
 import { liesJson, schreibJson } from '@/lib/ablage';
 import { fertigeAntwort, ohneDateien } from '@/lib/antwortSpeicher';
 import { istGrossesTurnier as grossesTurnier, istFinaleTag } from '@/lib/turnierArt';
-import { verdienst, lanSummen } from '@/lib/preisgeld';
+import { verdienst, lanSummen, lanEintraege } from '@/lib/preisgeld';
 import { DATEN_ORT } from './datenOrt';
 
 const ABLAGE = path.join(DATEN_ORT, 'szene-stats');
@@ -130,6 +130,7 @@ export interface SpielerSumme {
   epicId: string;
   /** Nur in der Elims-Liste der Startansicht: Finals und Opens getrennt. */
   finalsElims?: number; opensElims?: number; finals?: number; opens?: number;
+  opensMatches?: number;
   /** Der zuletzt gesehene Name - Pros wechseln ihre Schreibweise staendig. */
   name: string;
   /** Alle Namen, unter denen dieses Konto angetreten ist. */
@@ -961,18 +962,33 @@ export async function startseite(saison?: string, wieViele = 25, jeTag = 3) {
    * der Betreiber sah 372 und sagte "erster Platz hat 85 Kills" - die 85
    * sind die Finals allein. Beides steht jetzt nebeneinander.
    */
+  /*
+   * Gezaehlt und sortiert wird nach den Finals. Die Opens stehen daneben.
+   *
+   * Der Betreiber, zweimal: "395 Kills in einer Season, das geht nicht -
+   * Curve sollte einer der ersten sein mit 85." Die 85 sind die Finals.
+   * Die Opens sind echt (eigene Replays, je Spieler), aber ein anderer
+   * Wettbewerb mit zehn Matches je Spieltag; sie stehen als Zusatz dabei,
+   * nicht in der Rangfolge.
+   */
   type RegionSumme = {
     elims: number; matches: number; events: number;
     finalsElims: number; opensElims: number; finals: number; opens: number;
+    opensMatches: number;
   };
   const jeRegion = new Map<string, Map<string, RegionSumme>>();
   const zaehle = (id: string, elims: number, matches: number, region: string, finale: boolean) => {
     const z = jeRegion.get(id) ?? new Map<string, RegionSumme>();
     const r = z.get(region) ?? {
       elims: 0, matches: 0, events: 0, finalsElims: 0, opensElims: 0, finals: 0, opens: 0,
+      opensMatches: 0,
     };
-    r.elims += elims; r.matches += matches; r.events += 1;
-    if (finale) { r.finalsElims += elims; r.finals += 1; } else { r.opensElims += elims; r.opens += 1; }
+    if (finale) {
+      r.elims += elims; r.matches += matches; r.events += 1;
+      r.finalsElims += elims; r.finals += 1;
+    } else {
+      r.opensElims += elims; r.opens += 1; r.opensMatches += matches;
+    }
     z.set(region, r);
     jeRegion.set(id, z);
   };
@@ -1012,14 +1028,15 @@ export async function startseite(saison?: string, wieViele = 25, jeTag = 3) {
     const heimatKarte = await heimatRegionen();
     const plaetze = [...jeRegion.entries()].map(([id, z]) => {
       const regionen = [...z.entries()]
-        .sort((a, b) => b[1].events - a[1].events || b[1].elims - a[1].elims);
+        .sort((a, b) => (b[1].events + b[1].opens) - (a[1].events + a[1].opens)
+          || b[1].elims - a[1].elims);
       const archivHeimat = heimatKarte.get(id);
       const [heimat, daheim] = (archivHeimat && z.has(archivHeimat))
         ? [archivHeimat, z.get(archivHeimat)!] : regionen[0];
       const s = leereSumme(id, '');
       s.elims = daheim.elims; s.matches = daheim.matches; s.events = daheim.events;
       s.finalsElims = daheim.finalsElims; s.opensElims = daheim.opensElims;
-      s.finals = daheim.finals; s.opens = daheim.opens;
+      s.finals = daheim.finals; s.opens = daheim.opens; s.opensMatches = daheim.opensMatches;
       s.name = archivNamen.get(id) ?? gespeichert[id] ?? '';
       s.namen = s.name ? [s.name] : [];
       s.regionen = regionen.map(([r]) => r);
@@ -1030,7 +1047,8 @@ export async function startseite(saison?: string, wieViele = 25, jeTag = 3) {
         jeRegion: Object.fromEntries(regionen),
       };
     })
-      .sort((a, b) => b.elims - a.elims || b.matches - a.matches)
+      .filter((s) => s.elims > 0 || (s.opensElims ?? 0) > 0)
+      .sort((a, b) => b.elims - a.elims || (b.opensElims ?? 0) - (a.opensElims ?? 0))
       .slice(0, LISTEN_LAENGE);
     elimsListe.plaetze = plaetze;
   }
@@ -1080,7 +1098,10 @@ export const JAHR_SAISONS: Record<number, string[]> = {
 };
 
 export async function jahresListen(jahr: number, region?: string) {
-  const saisons = JAHR_SAISONS[jahr] ?? [];
+  // 0 heisst: alle Saisons, die das Archiv hat.
+  const saisons = jahr === 0
+    ? [...new Set((await liesVerzeichnis()).map((e) => e.season))].sort()
+    : (JAHR_SAISONS[jahr] ?? []);
   const { spieler: feld, spieltage } = await summen({ saisons, region });
   const eintraege = (await liesVerzeichnis()).filter((e) =>
     (!region || e.region === region) && saisons.includes(e.season));
@@ -1144,6 +1165,16 @@ export async function jahresListen(jahr: number, region?: string) {
     listen: [verdienstListe, ...listen],
     regionen: [...new Set(eintraege.map((e) => e.region))].sort(),
   };
+}
+
+/** Die LAN-Ergebnisse eines Kontos - Platz und Preisgeld je LAN. */
+export async function lanErgebnisse(epicId: string) {
+  const raus: Array<{ kennung: string; name: string; season: string; platz: number; betrag: number; waehrung: string }> = [];
+  for (const e of await lanEintraege()) {
+    const s = e.spieler.find((x) => x.epicId === epicId);
+    if (s) raus.push({ kennung: e.kennung, name: e.name, season: e.season, platz: s.platz, betrag: s.betrag, waehrung: e.waehrung ?? 'USD' });
+  }
+  return raus.sort((a, b) => a.platz - b.platz);
 }
 
 /* --------------------------------------------------------- Heimatregion */

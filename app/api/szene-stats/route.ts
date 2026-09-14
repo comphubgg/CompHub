@@ -7,7 +7,7 @@ import path from 'path';
 import {
   auswahl, bildFuer, gesamtSummen, heimatRegionen, liesVerzeichnis, SAISON_NAMEN,
   saisonName, startseite, summen, tagesbeste, verlauf, epicVerlauf,
-  istGrossesTurnier, istFinaleTag, aktenSchreiben, jahresListen, type SpielerSumme,
+  istGrossesTurnier, istFinaleTag, aktenSchreiben, jahresListen, lanErgebnisse, type SpielerSumme,
 } from '@/lib/szeneStats';
 import { DATEN_ORT } from '@/lib/datenOrt';
 import { getToken, loeseNamenAuf } from '@/lib/epicCups';
@@ -383,7 +383,9 @@ async function berechne(request: Request) {
      * fertigen Antworten (siehe GET unten), gerechnet vom stuendlichen Lauf.
      */
     if (p.get('ansicht') === 'jahr') {
-      const jahr = Number(p.get('jahr')) || new Date().getUTCFullYear();
+      const jahrRoh = p.get('jahr') ?? '';
+      const jahr = jahrRoh === 'alle' || jahrRoh === 'all' ? 0
+        : (Number(jahrRoh) || new Date().getUTCFullYear());
       const daten = await jahresListen(jahr, region);
       const gepflegt = await liesProfile();
       const bildZu = await liesBilder();
@@ -556,7 +558,7 @@ async function berechne(request: Request) {
                 'echtesFoto', 'heimat', 'regionen', 'jeRegion', 'events', 'matches',
                 'elims', 'damage', 'quote', 'hits', 'headshots', 'builds',
                 'elimsProMatch', 'damageProMatch', 'genauigkeit',
-                'finalsElims', 'opensElims', 'finals', 'opens']) {
+                'finalsElims', 'opensElims', 'finals', 'opens', 'opensMatches']) {
                 if (x[k] !== undefined) raus[k] = x[k];
               }
               raus.namen = Array.isArray(x.namen) ? (x.namen as string[]).slice(0, 3) : [];
@@ -1119,6 +1121,8 @@ async function berechne(request: Request) {
         } : null,
         tagesbest,
         fncsSiege,
+        // LAN-Ergebnisse mit Preisgeld - Summit, Reload Elite Championship.
+        lan: await lanErgebnisse(spieler),
         saisonBilder,
         saisonNamen: Object.fromEntries(
           [...new Set([...zeilen, ...epicZeilen].map((z) => z.season))]
