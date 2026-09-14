@@ -2889,7 +2889,8 @@ export default function StatistikSeite() {
     <main className="min-h-screen bg-zinc-950 text-slate-100">
       {/* Ein Ladeschirm ueber allem, solange Profil, Jahr oder Liste geholt
           werden - nicht nur ein "Loading" in der Ecke. */}
-      {(profilLaedt || (jahrLaedt && !jahr) || (laedt && !spieler.length)) && (
+      {(profilLaedt || (jahrLaedt && !jahr)
+        || (bereich === 'spieler' && laedt && !spieler.length)) && (
         <LadeSchleier text={t('Wird geladen …')} />
       )}
       <div className="mx-auto flex max-w-[1600px] gap-5 px-4 py-6">
