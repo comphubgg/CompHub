@@ -96,8 +96,16 @@ jobs:
         continue-on-error: true
         run: node scripts/epic-spieltage-holen.mjs
 
+      # Auch hier die Adresse des Werkzeugs: das Skript holt die Bestenlisten
+      # ueber die eigene Schnittstelle, und ohne die Adresse fragt es auf
+      # localhost ins Leere - zwanzig Minuten lang, fuer jeden Spieltag ein
+      # Fehlschlag. In der Ablage lagen deshalb fuer die laufende Saison genau
+      # zwei Platzierungsdateien, und auf der Statistikseite stand bei Platz
+      # und Punkten ein Strich.
       - name: Platzierungen holen
         continue-on-error: true
+        env:
+          WERKZEUG_URL: https://www.thecomphub.com
         run: node scripts/platzierungen-holen.mjs
 
       - name: Werte der Szene holen

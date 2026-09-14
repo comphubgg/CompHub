@@ -784,8 +784,12 @@ export async function startseite(saison?: string, wieViele = 25, jeTag = 3) {
    * von den Performance- und Division-Cups; da hast du mindestens die
    * Eliminierungen." Genau die kommen hier zusammen:
    *
-   *   * jeder eigene ausgewertete Spieltag, der zaehlt (grosse Turniere
-   *     sowie Victory- und Cash-Cups; Division 2 bis 5 und Skin-Cups nicht),
+   *   * jeder eigene ausgewertete Spieltag eines grossen Turniers - Division
+   *     1, Performance Cup, FNCS-Finals und EWC, Opens wie Finals. Nicht die
+   *     Victory- und Cash-Cups: die standen kurz mit drin, und die Liste
+   *     lief auf ueber tausend Eliminierungen hinaus - der Betreiber: "pass
+   *     es wieder an, dass es nur von der Season ist und nur von Performance
+   *     Cups, Opens und Finals, und von Division Cups.
    *   * dazu die Finals der Szene-Quelle, soweit die eigenen Replays sie
    *     nicht abdecken - zweimal zaehlen darf ein Tag nicht.
    *
@@ -793,9 +797,7 @@ export async function startseite(saison?: string, wieViele = 25, jeTag = 3) {
    * Replays nicht; dort bleibt es bei den Finals der Szene-Quelle.
    */
   const dieSaison = juengste[0].season;
-  const zaehlt = (titel: string) =>
-    grossesTurnier(titel) || /victory cup|cash cup/i.test(titel ?? '');
-  const eigene = (await aggregateSaison(dieSaison)).filter((t) => zaehlt(t.titel));
+  const eigene = (await aggregateSaison(dieSaison)).filter((t) => grossesTurnier(t.titel));
   const eigeneFenster = new Set(eigene.map((t) => t.windowId));
 
   const elimSumme = new Map<string, SpielerSumme>();
