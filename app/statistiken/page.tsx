@@ -64,7 +64,8 @@ type SpielerReiter = 'uebersicht' | 'leistung' | 'werte' | 'turniere' | 'verdien
 
 /** Ein LAN-Ergebnis mit Preisgeld - aus data/lan-preisgelder.json. */
 interface LanErgebnis {
-  kennung: string; name: string; season: string; platz: number; betrag: number; waehrung: string;
+  kennung: string; name: string; season: string; fenster: string; ort: string | null;
+  platz: number; betrag: number; waehrung: string;
 }
 
 interface Spieler {
@@ -94,6 +95,8 @@ interface Spieler {
 interface Turnier {
   region: string; season: string; datei: string; windowId: string;
   name: string; spieler: number; matches: number; datum?: number;
+  /** Eine LAN - mit Namen und Ort, aus der LAN-Datei. */
+  lan?: { name: string | null; ort: string | null } | null;
   /** Epics eigene Grafik zum Cup, sofern eine passt. */
   bild?: string | null;
   /** "CH7 S3" statt "S41". */
@@ -251,6 +254,8 @@ interface VerlaufZeile {
    * Regel gepflegt ist.
    */
   verdienst?: number | null;
+  /** Eine LAN - Name und Ort aus der LAN-Datei. */
+  lan?: { name: string | null; ort: string | null } | null;
   /**
    * Eigene Eliminierungen aus dem ausgewerteten Replay.
    *
@@ -552,8 +557,28 @@ function saisonRang(kennung: string) {
  * Szene ausspricht - in der Tabelle daneben bleibt die kurze Form.
  */
 function kapitelName(kurz: string) {
-  const m = /^CH(\d+)\s*S(\d+)$/i.exec(kurz.trim());
+  const m = /^CH(?:APTER)?\s*(\d+)\s*S(?:EASON)?\s*(\d+)$/i.exec(kurz.trim());
   return m ? `CHAPTER ${m[1]} SEASON ${m[2]}` : kurz.toUpperCase();
+}
+
+/** Falls eine Kennung wie "S37" durchrutscht - nie nackt anzeigen. */
+const SAISON_NAMEN_KURZ: Record<string, string> = {
+  S30: 'Chapter 5 Season 3', S31: 'Chapter 5 Season 4', S33: 'Chapter 6 Season 1',
+  S34: 'Chapter 6 Season 2', S36: 'Chapter 6 Season 3', S37: 'Chapter 6 Season 4',
+  S39: 'Chapter 7 Season 1', S40: 'Chapter 7 Season 2', S41: 'Chapter 7 Season 3',
+  S42: 'Chapter 7 Season 4',
+};
+
+/** Der Ladeschleier ueber der ganzen Seite - mittig, wie der Betreiber ihn will. */
+function LadeSchleier({ text }: { text?: string }) {
+  return (
+    <div className="fixed inset-0 z-[80] flex flex-col items-center justify-center
+                    bg-zinc-950/70 backdrop-blur-[2px]" aria-live="polite">
+      <span className="h-12 w-12 animate-spin rounded-full border-[3px]
+                       border-zinc-800 border-t-sky-500" />
+      {text && <span className="mt-4 text-xs uppercase tracking-[0.2em] text-slate-500">{text}</span>}
+    </div>
+  );
 }
 
 /**
@@ -1219,6 +1244,12 @@ function VerlaufTabelle({ zeilen, fuss }: {
             <tr key={z.windowId + z.region} className="border-b border-zinc-900">
               <td className="px-2 py-2 text-slate-300">
                 {turnierName(z.event)}
+                {z.lan && (
+                  <span className="ml-2 rounded bg-amber-500/15 px-1.5 py-0.5 text-[9px]
+                                   font-semibold uppercase text-amber-400">
+                    LAN{z.lan.ort ? ` · ${z.lan.ort}` : ''}
+                  </span>
+                )}
                 {kurzDatum(z.datum) && (
                   <span className="ml-2 whitespace-nowrap text-[10px] tabular-nums
                                    text-slate-600">
@@ -1661,9 +1692,13 @@ export default function StatistikSeite() {
   }
   const [jahr, setJahr] = useState<{
     jahr: number; saisons: string[]; spieltage: number; regionen: string[];
+    saison?: string | null;
+    saisonenDesJahres?: Array<{ kennung: string; name: string }>;
     listen: JahrListe[];
   } | null>(null);
   const [jahrRegion, setJahrRegion] = useState('');
+  /** Innerhalb des Jahres eine einzelne Saison - leer heisst das ganze Jahr. */
+  const [jahrSaison, setJahrSaison] = useState('');
   /** 'alle' oder ein Jahr - der Betreiber wollte "All-Time, 2026, 25, 24". */
   const [jahrWahl, setJahrWahl] = useState<string>(String(JAHR));
   const [jahrLaedt, setJahrLaedt] = useState(false);
@@ -1934,13 +1969,15 @@ export default function StatistikSeite() {
     let weg = false;
     setJahrLaedt(true);
     fetch(`/api/szene-stats?ansicht=jahr&jahr=${jahrWahl}`
-      + (jahrRegion ? `&region=${encodeURIComponent(jahrRegion)}` : ''))
+      + (jahrRegion ? `&region=${encodeURIComponent(jahrRegion)}` : '')
+      + (jahrSaison ? `&saison=${encodeURIComponent(jahrSaison)}` : ''))
       .then((r) => r.json())
       .then((j) => { if (!weg && j?.listen) setJahr(j); })
       .catch(() => { /* dann bleibt die Ansicht leer */ })
       .finally(() => { if (!weg) setJahrLaedt(false); });
     return () => { weg = true; };
-  }, [bereich, jahrRegion, jahrWahl]);
+  }, [bereich, jahrRegion, jahrWahl, jahrSaison]);
+  useEffect(() => { setJahrSaison(''); }, [jahrWahl]);
 
   /** Die Bereiche, die dieser Besucher sehen darf. */
   const sichtbareBereiche = useMemo(() => {
@@ -2850,6 +2887,11 @@ export default function StatistikSeite() {
 
   return (
     <main className="min-h-screen bg-zinc-950 text-slate-100">
+      {/* Ein Ladeschirm ueber allem, solange Profil, Jahr oder Liste geholt
+          werden - nicht nur ein "Loading" in der Ecke. */}
+      {(profilLaedt || (jahrLaedt && !jahr) || (laedt && !spieler.length)) && (
+        <LadeSchleier text={t('Wird geladen …')} />
+      )}
       <div className="mx-auto flex max-w-[1600px] gap-5 px-4 py-6">
 
         {/* ---------------------------------------------- linke Leiste */}
@@ -3956,6 +3998,12 @@ export default function StatistikSeite() {
                             <div className="mb-2 flex flex-wrap gap-1">
                               <RegionMarke region={t.region} />
                               <RegionMarke region={t.saisonName ?? t.season} />
+                              {t.lan && (
+                                <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[9px]
+                                                 font-semibold uppercase tracking-wider text-amber-400">
+                                  LAN{t.lan.ort ? ` · ${t.lan.ort}` : ''}
+                                </span>
+                              )}
                             </div>
                             <p className="text-sm font-semibold leading-snug text-slate-100">
                               {t.name}
@@ -4073,8 +4121,7 @@ export default function StatistikSeite() {
                 </div>
                 {jahr && (
                   <span className="text-[11px] text-slate-500">
-                    {jahr.saisons.map((k) => saisons.find((x) => x.kennung === k)?.name ?? k).join(' · ')}
-                    {' · '}{zahl(jahr.spieltage, 0, sprache)} <T>Spieltage</T>
+                    {zahl(jahr.spieltage, 0, sprache)} <T>Spieltage</T>
                   </span>
                 )}
                 {/* Region - dieselben Marken wie in der Spielerliste. */}
@@ -4090,6 +4137,25 @@ export default function StatistikSeite() {
                   ))}
                 </div>
               </div>
+              {/* Die Saisons des Jahres - eine davon waehlen, oder das ganze Jahr. */}
+              {(jahr?.saisonenDesJahres?.length ?? 0) > 1 && (
+                <div className="mb-3 flex flex-wrap gap-1">
+                  <button onClick={() => setJahrSaison('')}
+                    className={`rounded-md border px-2.5 py-1 text-xs font-semibold transition ${
+                      !jahrSaison ? 'border-sky-500 bg-sky-500/10 text-sky-400'
+                        : 'border-zinc-800 text-slate-400 hover:border-zinc-600'}`}>
+                    {jahrWahl === 'alle' ? t('Alle Saisons') : t('Ganzes Jahr')}
+                  </button>
+                  {[...(jahr?.saisonenDesJahres ?? [])].reverse().map((x) => (
+                    <button key={x.kennung} onClick={() => setJahrSaison(x.kennung)}
+                      className={`rounded-md border px-2.5 py-1 text-xs font-semibold transition ${
+                        jahrSaison === x.kennung ? 'border-sky-500 bg-sky-500/10 text-sky-400'
+                          : 'border-zinc-800 text-slate-400 hover:border-zinc-600'}`}>
+                      {x.name}
+                    </button>
+                  ))}
+                </div>
+              )}
               {/* Was gezaehlt ist - ohne Datum im Archiv nach Saisons, siehe
                   JAHR_SAISONS. Das steht hier, damit niemand ein Kalenderjahr
                   vermutet, wo ein Kapitel gemeint ist. */}
@@ -4120,7 +4186,9 @@ export default function StatistikSeite() {
                         {l.plaetze.length > 6 && (
                           <button onClick={() => {
                             setVolleListe({
-                              titel: l.titel, zusatz: (jahrWahl === 'alle' ? t('Alle Zeit') : jahrWahl) + (jahrRegion ? ` · ${jahrRegion}` : ''),
+                              titel: l.titel,
+                              zusatz: (jahrSaison ? (jahr?.saisonenDesJahres?.find((x) => x.kennung === jahrSaison)?.name ?? jahrSaison)
+                                : jahrWahl === 'alle' ? t('Alle Zeit') : jahrWahl) + (jahrRegion ? ` · ${jahrRegion}` : ''),
                               zeilen: l.plaetze, feld: l.feld as keyof Spieler,
                               nachkomma: l.nachkomma, einheit: l.einheit ?? '',
                             });
@@ -5068,8 +5136,8 @@ export default function StatistikSeite() {
          * fuehrt zur Liste.
          */
         <div>
-          <div className="w-full overflow-hidden rounded-xl border border-zinc-800
-                          bg-zinc-950 shadow-2xl">
+          {/* Ohne Rahmen: es ist die Seite selbst, kein Kasten auf der Seite. */}
+          <div className="w-full">
 
             {/* Kopf */}
             <div className="flex flex-wrap items-center gap-3 px-7 pt-7">
@@ -5772,7 +5840,7 @@ export default function StatistikSeite() {
                         {[...jeSaison.entries()].sort((a, b) => b[0].localeCompare(a[0])).map(([k, v]) => (
                           <div key={k}>
                             <p className="text-[10px] uppercase tracking-[0.14em] text-slate-600">
-                              {saisons.find((x) => x.kennung === k)?.name ?? k}
+                              {saisons.find((x) => x.kennung === k)?.name ?? SAISON_NAMEN_KURZ[k] ?? k}
                             </p>
                             <p className="text-sm font-semibold tabular-nums text-slate-200">
                               ${zahl(v, 0, sprache)}
@@ -5794,6 +5862,7 @@ export default function StatistikSeite() {
                                 <th className="px-3 py-2 text-center font-medium"><T>Region</T></th>
                                 <th className="px-3 py-2 text-center font-medium"><T>Platz</T></th>
                                 <th className="px-3 py-2 text-right font-medium"><T>Punkte</T></th>
+                                <th className="px-3 py-2 text-left font-medium"><T>Mitspieler</T></th>
                                 <th className="px-3 py-2 text-right font-medium"><T>Verdienst</T></th>
                               </tr>
                             </thead>
@@ -5806,12 +5875,13 @@ export default function StatistikSeite() {
                                                      text-[9px] font-semibold uppercase text-amber-400">LAN</span>
                                   </td>
                                   <td className="px-3 py-2 text-center text-slate-500">
-                                    {saisons.find((x) => x.kennung === l.season)?.name ?? l.season}
+                                    {saisons.find((x) => x.kennung === l.season)?.name ?? SAISON_NAMEN_KURZ[l.season] ?? l.season}
                                   </td>
                                   <td className={`px-3 py-2 text-center font-bold tabular-nums ${platzFarbe(l.platz)}`}>
                                     {l.platz}.
                                   </td>
                                   <td className="px-3 py-2 text-right text-slate-700">—</td>
+                                  <td className="px-3 py-2 text-slate-700">—</td>
                                   <td className="px-3 py-2 text-right font-semibold tabular-nums text-emerald-400">
                                     ${zahl(l.betrag, 0, sprache)}
                                   </td>
@@ -5826,7 +5896,9 @@ export default function StatistikSeite() {
                                       {lan ? lan.name : turnierName(z.event)}
                                       {lan && (
                                         <span className="ml-2 rounded bg-amber-500/15 px-1.5 py-0.5
-                                                         text-[9px] font-semibold uppercase text-amber-400">LAN</span>
+                                                         text-[9px] font-semibold uppercase text-amber-400">
+                                          LAN{lan.ort ? ` · ${lan.ort}` : ''}
+                                        </span>
                                       )}
                                       {z.datum ? (
                                         <span className="ml-2 whitespace-nowrap text-[10px] tabular-nums text-slate-600">
@@ -5844,6 +5916,20 @@ export default function StatistikSeite() {
                                     </td>
                                     <td className="px-3 py-2 text-right tabular-nums text-slate-400">
                                       {z.punkte !== null ? zahl(z.punkte, 0, sprache) : '—'}
+                                    </td>
+                                    {/* Mit wem - der Betreiber: "wenn es Solo ist, ein Strich;
+                                        wenn es einen Mate hat, den Mate reinschreiben." */}
+                                    <td className="px-3 py-2">
+                                      {z.mitspieler?.length ? (
+                                        <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                          {z.mitspieler.map((m) => (
+                                            <span key={m.epicId} className="flex items-center gap-1">
+                                              <TeamFlagge groesse={13} laender={[m.land ?? undefined]} />
+                                              <span className="text-[11px] text-slate-300">{grossName(m.name)}</span>
+                                            </span>
+                                          ))}
+                                        </span>
+                                      ) : <span className="text-slate-700">—</span>}
                                     </td>
                                     <td className="px-3 py-2 text-right font-semibold tabular-nums text-emerald-400">
                                       ${zahl(z.verdienst ?? 0, 0, sprache)}
@@ -6053,7 +6139,7 @@ export default function StatistikSeite() {
                                 <tr key={l.kennung} className="border-b border-zinc-900">
                                   <td className="whitespace-nowrap px-2 py-2.5">
                                     <span className="font-semibold text-slate-200">
-                                      {saisons.find((x) => x.kennung === l.season)?.name ?? l.season}
+                                      {saisons.find((x) => x.kennung === l.season)?.name ?? SAISON_NAMEN_KURZ[l.season] ?? l.season}
                                     </span>
                                     <span className={`ml-2 text-[10px] font-bold ${platzFarbe(l.platz)}`}>
                                       {l.platz}.

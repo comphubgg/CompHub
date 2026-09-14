@@ -65,6 +65,8 @@ export interface Verdienst { betrag: number; waehrung: string }
  */
 export interface LanEintrag {
   kennung: string; name: string; season: string; fenster: string;
+  /** Wo die LAN stattfand - fuer die Marke in den Turnierlisten. */
+  ort?: string;
   quelle?: string; waehrung?: string;
   spieler: Array<{ epicId: string; name?: string; platz: number; betrag: number }>;
 }

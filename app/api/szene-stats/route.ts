@@ -1,12 +1,12 @@
 import { NextResponse } from 'next/server';
 import { ohneDateien } from '@/lib/antwortSpeicher';
-import { verdienst } from '@/lib/preisgeld';
+import { verdienst, lanEintraege } from '@/lib/preisgeld';
 import { fertigeAntwort } from '@/lib/antwortSpeicher';
 import fs from '@/lib/ablageFs';
 import path from 'path';
 import {
   auswahl, bildFuer, gesamtSummen, heimatRegionen, liesVerzeichnis, SAISON_NAMEN,
-  saisonName, startseite, summen, tagesbeste, verlauf, epicVerlauf,
+  saisonName, saisonKurz, startseite, summen, tagesbeste, verlauf, epicVerlauf,
   istGrossesTurnier, istFinaleTag, aktenSchreiben, jahresListen, lanErgebnisse, type SpielerSumme,
 } from '@/lib/szeneStats';
 import { DATEN_ORT } from '@/lib/datenOrt';
@@ -386,7 +386,7 @@ async function berechne(request: Request) {
       const jahrRoh = p.get('jahr') ?? '';
       const jahr = jahrRoh === 'alle' || jahrRoh === 'all' ? 0
         : (Number(jahrRoh) || new Date().getUTCFullYear());
-      const daten = await jahresListen(jahr, region);
+      const daten = await jahresListen(jahr, region, p.get('saison') ?? undefined);
       const gepflegt = await liesProfile();
       const bildZu = await liesBilder();
       const heimat = await heimatRegionen();
@@ -421,10 +421,19 @@ async function berechne(request: Request) {
       const bildZu = await liesBilder();
       const heimat = await heimatRegionen();
       const szene = await liesSzeneSpieler();
+      /*
+       * Der Name haengt am Konto, nicht an der Saison.
+       *
+       * In Chapter 7 Season 3 stand oben "AURORA FV" - der Name, unter dem
+       * das Konto damals antrat. Der Betreiber: "das ist Shark, das solltest
+       * du wissen, es geht ueber die Account-ID." Also gilt der juengste
+       * Name aus dem ganzen Archiv, wo kein gepflegter vorliegt.
+       */
+      const juengsteNamen = new Map((await gesamtSummen()).map((x) => [x.epicId, x.name]));
       const schmuecken = (s: { epicId: string; name: string } | null) => (s ? {
         ...s,
         anzeige: gepflegt.get(s.epicId)?.anzeige || gepflegt.get(s.epicId)?.name
-          || szene.get(s.epicId)?.name || s.name,
+          || szene.get(s.epicId)?.name || juengsteNamen.get(s.epicId) || s.name,
         gepflegt: Boolean(gepflegt.get(s.epicId)?.anzeige || gepflegt.get(s.epicId)?.name),
         land: gepflegt.get(s.epicId)?.land || szene.get(s.epicId)?.land || null,
         bild: bildZu.get(s.epicId)?.pfad ?? null,
@@ -710,7 +719,9 @@ async function berechne(request: Request) {
 
       const turniere = [];
       for (const t of zusammen) {
-        turniere.push({ ...t, bild: await bildFuer(t.name), saisonName: saisonName(t.season) });
+        const lanTag = (await lanEintraege()).find((l) => l.fenster.split('_')[0] === (t.windowId ?? '').split('_')[0]);
+        turniere.push({ ...t, bild: await bildFuer(t.name), saisonName: saisonName(t.season),
+          lan: lanTag ? { name: lanTag.name, ort: lanTag.ort ?? null } : null });
       }
 
       /*
@@ -858,7 +869,7 @@ async function berechne(request: Request) {
        * bleiben grundsaetzlich leer.
        */
       const kennungZu = new Map(Object.entries(SAISON_NAMEN)
-        .map(([k, name]) => [name.replace(/\s+/g, '').toUpperCase(), k]));
+        .map(([k]) => [saisonKurz(k).toUpperCase(), k]));
       const verzeichnis = await liesVerzeichnis();
 
       const fncsDetail = async (saisonLabel: string) => {
@@ -1018,8 +1029,17 @@ async function berechne(request: Request) {
        * lib/preisgeld. Abgeleitet aus Platz beziehungsweise Punkten; wo
        * keine Regel steht, bleibt es null.
        */
+      const lanDesSpielers = await lanErgebnisse(spieler);
       const zeilen = await Promise.all(rohZeilen.map(async (z) => ({
         ...z,
+        // Bei einer LAN kennt Epics Bestenliste nur Turnierkonten - der
+        // Platz kommt aus der LAN-Datei.
+        platz: z.platz ?? lanDesSpielers.find((l) => l.fenster === z.windowId)?.platz ?? null,
+        lan: (await lanEintraege()).find((l) => l.fenster === z.windowId
+          || l.fenster.replace(/_Day\d+$|_Finals_Day\d+$/i, '') === z.windowId.replace(/_Day\d+$|_Finals_Day\d+$/i, ''))
+          ? { name: (await lanEintraege()).find((l) => l.fenster.split('_')[0] === z.windowId.split('_')[0])?.name ?? null,
+              ort: (await lanEintraege()).find((l) => l.fenster.split('_')[0] === z.windowId.split('_')[0])?.ort ?? null }
+          : null,
         verdienst: (await verdienst({
           windowId: z.windowId, region: z.region, name: z.event,
           platz: z.platz, punkte: z.punkte, epicId: spieler,
@@ -1060,7 +1080,7 @@ async function berechne(request: Request) {
       const ORDNER = path.join(process.cwd(), 'public', 'saisonbilder');
       for (const kennung of new Set(
         [...zeilen, ...epicZeilen].map((z) => z.season))) {
-        const kurz = saisonName(kennung).replace(/\s+/g, '');
+        const kurz = saisonKurz(kennung);
         let gefunden: string | null = null;
         for (const stamm of [kennung, kurz]) {
           for (const endung of ['jpg', 'jpeg', 'png', 'webp']) {
@@ -1121,8 +1141,8 @@ async function berechne(request: Request) {
         } : null,
         tagesbest,
         fncsSiege,
-        // LAN-Ergebnisse mit Preisgeld - Summit, Reload Elite Championship.
-        lan: await lanErgebnisse(spieler),
+        // LAN-Ergebnisse mit Preisgeld - Summit, Reload Elite Championship, Globals.
+        lan: lanDesSpielers,
         saisonBilder,
         saisonNamen: Object.fromEntries(
           [...new Set([...zeilen, ...epicZeilen].map((z) => z.season))]

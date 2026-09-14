@@ -54,22 +54,31 @@ const ABLAGE = path.join(DATEN_ORT, 'szene-stats');
  *
  * S32, S35 und S38 fehlen - zu ihnen liefert die Quelle keine Dateien.
  */
+/*
+ * Ausgeschrieben, nicht "CH7 S4": der Betreiber will "immer Chapter und
+ * danach die Season" lesen - und nie eine nackte Kennung wie "S37".
+ */
 export const SAISON_NAMEN: Record<string, string> = {
-  S30: 'CH5 S3',
-  S31: 'CH5 S4',
-  S33: 'CH6 S1',
-  S34: 'CH6 S2',
-  S36: 'CH6 S3',
-  S37: 'CH6 S4',
-  S39: 'CH7 S1',
-  S40: 'CH7 S2',
-  S41: 'CH7 S3',
-  S42: 'CH7 S4',
+  S30: 'Chapter 5 Season 3',
+  S31: 'Chapter 5 Season 4',
+  S33: 'Chapter 6 Season 1',
+  S34: 'Chapter 6 Season 2',
+  S36: 'Chapter 6 Season 3',
+  S37: 'Chapter 6 Season 4',
+  S39: 'Chapter 7 Season 1',
+  S40: 'Chapter 7 Season 2',
+  S41: 'Chapter 7 Season 3',
+  S42: 'Chapter 7 Season 4',
 };
 
 /** Der Anzeigename einer Saison - unbekannte bleiben, wie sie sind. */
 export function saisonName(saison: string) {
   return SAISON_NAMEN[saison] ?? saison;
+}
+
+/** Die Kurzform "CH7S4" - fuer Dateinamen und Schluessel, nicht zum Lesen. */
+export function saisonKurz(saison: string) {
+  return saisonName(saison).replace(/Chapter\s*/i, 'CH').replace(/Season\s*/i, 'S').replace(/\s+/g, '');
 }
 
 /*
@@ -1097,11 +1106,15 @@ export const JAHR_SAISONS: Record<number, string[]> = {
   2026: ['S39', 'S40', 'S41', 'S42'],
 };
 
-export async function jahresListen(jahr: number, region?: string) {
+export async function jahresListen(jahr: number, region?: string, nurSaison?: string) {
   // 0 heisst: alle Saisons, die das Archiv hat.
-  const saisons = jahr === 0
+  const alleSaisons = jahr === 0
     ? [...new Set((await liesVerzeichnis()).map((e) => e.season))].sort()
     : (JAHR_SAISONS[jahr] ?? []);
+  // Innerhalb des Jahres eine einzelne Saison - der Betreiber: "wenn ich
+  // in 2026 reingehe und die Season auswaehle, kommen die Statistiken nur
+  // von dieser Season."
+  const saisons = nurSaison && alleSaisons.includes(nurSaison) ? [nurSaison] : alleSaisons;
   const { spieler: feld, spieltage } = await summen({ saisons, region });
   const eintraege = (await liesVerzeichnis()).filter((e) =>
     (!region || e.region === region) && saisons.includes(e.season));
@@ -1162,6 +1175,8 @@ export async function jahresListen(jahr: number, region?: string) {
 
   return {
     jahr, region: region ?? null, spieltage, saisons,
+    saison: saisons.length === 1 && alleSaisons.length > 1 ? saisons[0] : null,
+    saisonenDesJahres: alleSaisons.map((k) => ({ kennung: k, name: saisonName(k) })),
     listen: [verdienstListe, ...listen],
     regionen: [...new Set(eintraege.map((e) => e.region))].sort(),
   };
@@ -1169,10 +1184,10 @@ export async function jahresListen(jahr: number, region?: string) {
 
 /** Die LAN-Ergebnisse eines Kontos - Platz und Preisgeld je LAN. */
 export async function lanErgebnisse(epicId: string) {
-  const raus: Array<{ kennung: string; name: string; season: string; platz: number; betrag: number; waehrung: string }> = [];
+  const raus: Array<{ kennung: string; name: string; season: string; fenster: string; ort: string | null; platz: number; betrag: number; waehrung: string }> = [];
   for (const e of await lanEintraege()) {
     const s = e.spieler.find((x) => x.epicId === epicId);
-    if (s) raus.push({ kennung: e.kennung, name: e.name, season: e.season, platz: s.platz, betrag: s.betrag, waehrung: e.waehrung ?? 'USD' });
+    if (s) raus.push({ kennung: e.kennung, name: e.name, season: e.season, fenster: e.fenster, ort: e.ort ?? null, platz: s.platz, betrag: s.betrag, waehrung: e.waehrung ?? 'USD' });
   }
   return raus.sort((a, b) => a.platz - b.platz);
 }

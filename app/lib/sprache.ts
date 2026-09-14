@@ -1951,6 +1951,8 @@ const AUF_ENGLISCH: Record<string, string> = {
     'now',
   'Sitzungen':
     'sessions',
+  'Ganzes Jahr':
+    'Whole year',
   'Die Zahl sind die Finals (Szene-Quelle und eigene Replays), nur Heimatregion. Darunter, getrennt: was in den Opens dazukam.':
     'The number is the finals (scene source and our own replays), home region only. Below, separately: what was added in the opens.',
   'Gezählt nach Saisons (ein Kapitel beginnt Ende November des Vorjahres): 2024 = Chapter 5 Season 3 und 4, 2025 = Chapter 6, 2026 = Chapter 7. Das Archiv kennt zu älteren Spieltagen kein Datum.':
