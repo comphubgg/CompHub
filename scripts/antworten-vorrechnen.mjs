@@ -36,6 +36,9 @@ const REGIONEN = ['EU', 'NAC', 'NAW', 'BR', 'ASIA', 'ME', 'OCE'];
 
 function wege(saisons) {
   const raus = [
+    // Zuerst die Akten je Spieler und die Summen ueber das ganze Archiv -
+    // davon lebt jedes Profil bei Vercel.
+    '/api/szene-stats?ansicht=akten',
     '/api/szene-stats?ansicht=start',
     '/api/szene-stats?ansicht=bilder',
     // Der Vorrat, in dem die Kopfzeilensuche sucht.

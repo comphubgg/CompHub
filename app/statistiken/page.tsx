@@ -43,6 +43,20 @@ function nachRegionReihe(regionen: string[]): string[] {
 }
 
 type Bereich = 'start' | 'turniere' | 'regional' | 'spieler' | 'vergleich' | 'bilder';
+
+/**
+ * Wer einen Bereich sehen darf - vom Betreiber je Bereich schaltbar.
+ *
+ * Ein Schloss unten rechts: gruen heisst fuer alle, gelb nur fuer VIPs,
+ * rot nur fuer ihn selbst. Der Betreiber: "Wenn das Schloss gruen ist, ist
+ * es fuer jeden sichtbar; rot nur fuer mich; gelb nur fuer VIPs."
+ */
+type Sichtbar = 'alle' | 'vip' | 'admin';
+const SICHTBAR_STANDARD: Record<Bereich, Sichtbar> = {
+  start: 'alle', turniere: 'alle', regional: 'alle', spieler: 'alle',
+  vergleich: 'vip', bilder: 'admin',
+};
+const SICHTBAR_REIHE: Sichtbar[] = ['alle', 'vip', 'admin'];
 type SpielerReiter = 'uebersicht' | 'leistung' | 'werte' | 'turniere';
 
 interface Spieler {
@@ -1593,6 +1607,7 @@ export default function StatistikSeite() {
 
   // Ob der Nutzer bearbeiten darf
   const [istAdmin, setIstAdmin] = useState(false);
+  const [sichtbar, setSichtbar] = useState<Record<Bereich, Sichtbar>>(SICHTBAR_STANDARD);
   const zugang = useZugang();
   const [pflegeName, setPflegeName] = useState('');
   const [pflegeLand, setPflegeLand] = useState('');
@@ -1751,6 +1766,9 @@ export default function StatistikSeite() {
     zeilen: Spieler[];
     feld: keyof Spieler; nachkomma: number; einheit: string } | null>(null);
   const [listenTiefe, setListenTiefe] = useState(50);
+  /** Die Suche in der vollen Liste - ab zweihundert Eintraegen. */
+  const [listenSuche, setListenSuche] = useState('');
+  useEffect(() => { setListenSuche(''); }, [volleListe]);
 
   /** Karten oder Zeilen - wie im Vorbild umschaltbar. */
   const [tafel, setTafel] = useState(true);
@@ -1837,7 +1855,38 @@ export default function StatistikSeite() {
       .then((r) => (r.ok ? r.json() : null))
       .then((j) => setIstAdmin(j?.isAdmin === true))
       .catch(() => setIstAdmin(false));
+
+    fetch('/api/statistik-sichtbarkeit', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => { if (j?.bereiche) setSichtbar({ ...SICHTBAR_STANDARD, ...j.bereiche }); })
+      .catch(() => { /* dann gilt der Standard */ });
   }, []);
+
+  /** Die Bereiche, die dieser Besucher sehen darf. */
+  const sichtbareBereiche = useMemo(() => {
+    const alle: Array<[Bereich, string]> = [...BEREICHE, ...VIP_BEREICHE, ...ADMIN_BEREICHE];
+    return alle.filter(([w]) => {
+      const stufe = sichtbar[w] ?? 'alle';
+      if (istAdmin) return true;
+      if (stufe === 'alle') return true;
+      if (stufe === 'vip') return zugang.vip;
+      return false;
+    });
+  }, [sichtbar, istAdmin, zugang.vip]);
+
+  /** Das Schloss weiterdrehen: alle -> VIPs -> nur ich -> alle. */
+  const schlossDrehen = useCallback(async () => {
+    const jetzt = sichtbar[bereich] ?? 'alle';
+    const naechste = SICHTBAR_REIHE[(SICHTBAR_REIHE.indexOf(jetzt) + 1) % SICHTBAR_REIHE.length];
+    const neu = { ...sichtbar, [bereich]: naechste };
+    setSichtbar(neu);
+    try {
+      await fetch('/api/statistik-sichtbarkeit', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bereich, sichtbar: naechste }),
+      });
+    } catch { /* dann steht es beim naechsten Laden wieder wie vorher */ }
+  }, [sichtbar, bereich]);
 
   /* ----------------------------------------------------------- Startseite */
   useEffect(() => {
@@ -2338,6 +2387,8 @@ export default function StatistikSeite() {
 
   const oeffne = useCallback((s: Spieler) => {
     setOffen(s);
+    // Die Seite faengt oben an - das Profil nimmt den ganzen Inhalt ein.
+    if (typeof window !== 'undefined') window.scrollTo({ top: 0 });
     setPflegeName(s.anzeige); setPflegeLand(s.land ?? ''); setPflegeStand('');
     setSpielerReiter('uebersicht');
     setMarke(null); setEntfernenFrage(false); setAlleRegionen(false);
@@ -2721,8 +2772,7 @@ export default function StatistikSeite() {
         {/* ---------------------------------------------- linke Leiste */}
         <aside className="hidden w-56 shrink-0 lg:block">
           <nav className="space-y-0.5">
-            {[...BEREICHE, ...(zugang.vip ? VIP_BEREICHE : []),
-              ...(istAdmin ? ADMIN_BEREICHE : [])].map(([wert, titel]) => (
+            {sichtbareBereiche.map(([wert, titel]) => (
               <button key={wert} onClick={() => wechsleBereich(wert)}
                 className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5
                             text-sm transition ${bereich === wert
@@ -2819,6 +2869,8 @@ export default function StatistikSeite() {
 
         {/* ---------------------------------------------- rechter Inhalt */}
         <div className="min-w-0 flex-1">
+          {/* Ist ein Profil offen, steht es hier anstelle des Inhalts. */}
+          {!offen && (<>
 
           {/* Kopf mit Saison und Bereichen fuer schmale Schirme */}
           <div className="mb-5 flex flex-wrap items-center gap-3">
@@ -2918,8 +2970,7 @@ export default function StatistikSeite() {
               * war es noch schlimmer.
               */}
             <div className="flex flex-wrap gap-1 lg:hidden">
-              {[...BEREICHE, ...(zugang.vip ? VIP_BEREICHE : []),
-              ...(istAdmin ? ADMIN_BEREICHE : [])].map(([wert, titel]) => (
+              {sichtbareBereiche.map(([wert, titel]) => (
                 <button key={wert} onClick={() => wechsleBereich(wert)}
                   className={`shrink-0 rounded-lg border px-2.5 py-1.5 text-xs transition ${
                     bereich === wert
@@ -4566,50 +4617,55 @@ export default function StatistikSeite() {
                     : t('Keine Daten.')}
                 </p>
               ) : tafel ? (
-                /* Kartenraster wie im Vorbild: Bild, Regionsmarke darauf,
-                   darunter Flagge und Name, ganz unten drei Kennzahlen. */
+                /* Karten wie die Profilkarten der Startseite: Name und Werte
+                   liegen leicht durchscheinend auf dem Foto, nicht darunter.
+                   Der Betreiber: "pass Bild zwei an wie Bild drei, leicht
+                   transparent." */
                 <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
                   {gezeigteSpieler.map((sp) => (
                     <button key={sp.epicId} onClick={() => oeffne(sp)}
-                      className="group overflow-hidden rounded-xl border border-zinc-800
-                                 bg-zinc-950/60 text-left transition
-                                 hover:border-sky-500">
-                      <div className="relative aspect-[4/5] overflow-hidden bg-zinc-900">
-                        {sp.bild ? (
-                          /* eslint-disable-next-line @next/next/no-img-element */
-                          <img src={sp.bild} alt="" loading="lazy"
-                            className="h-full w-full object-cover object-top
-                                       transition group-hover:scale-105" />
-                        ) : (
-                          <div className="flex h-full items-center justify-center
-                                          text-3xl text-zinc-700">?</div>
-                        )}
-                        <span className="absolute bottom-2 left-2 rounded bg-black/70
-                                         px-1.5 py-0.5 text-[9px] font-semibold
-                                         tracking-wider text-slate-300">
-                          {sp.heimat || sp.regionen[0]}
+                      className="group relative aspect-[3/4] overflow-hidden rounded-xl
+                                 border border-zinc-800 bg-zinc-900 text-left
+                                 transition hover:border-sky-500">
+                      {sp.bild ? (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img src={sp.bild} alt="" loading="lazy"
+                          className="absolute inset-0 h-full w-full object-cover
+                                     object-top transition duration-300
+                                     group-hover:scale-105" />
+                      ) : (
+                        <span className="absolute inset-0 flex items-center justify-center
+                                         text-4xl text-zinc-800">?</span>
+                      )}
+                      <span className="absolute left-2 top-2">
+                        <RegionMarke region={sp.heimat || sp.regionen[0] || ''} />
+                      </span>
+                      <span className="absolute bottom-0 w-full bg-gradient-to-t
+                                       from-black/95 via-black/70 to-transparent px-3
+                                       pb-2.5 pt-10">
+                        <span className="flex items-center gap-1.5">
+                          <TeamFlagge groesse={16} laender={[sp.land ?? undefined]} />
+                          <span className="min-w-0 truncate text-sm font-bold uppercase
+                                           tracking-wide text-slate-50">
+                            {grossName(sp.anzeige, sp.gepflegt)}
+                          </span>
                         </span>
-                      </div>
-                      <div className="flex items-center gap-2 px-3 py-2.5">
-                        <TeamFlagge groesse={18} laender={[sp.land ?? undefined]} />
-                        <span className="min-w-0 flex-1 truncate text-sm font-bold
-                                         uppercase tracking-wide text-slate-100">
-                          {grossName(sp.anzeige, sp.gepflegt)}
+                        <span className="mt-1.5 flex divide-x divide-white/10 rounded-lg
+                                         bg-black/45 backdrop-blur-sm">
+                          {([['Quote', zahl(sp.quote, 2, sprache), true],
+                             ['Elims', kurzZahl(sp.elims, sprache), false],
+                             ['Schaden', kurzZahl(sp.damage, sprache), false]] as
+                            Array<[string, string, boolean]>).map(([l, v, farbig]) => (
+                              <span key={l} className="min-w-0 flex-1 px-1.5 py-1.5 text-center">
+                                <span className="block truncate text-[9px] font-semibold
+                                                 uppercase text-slate-400"><T>{l}</T></span>
+                                <span className={`mt-0.5 block truncate text-[13px] font-bold
+                                                  tabular-nums ${farbig
+                                  ? 'text-sky-400' : 'text-slate-100'}`}>{v}</span>
+                              </span>
+                            ))}
                         </span>
-                      </div>
-                      <div className="grid grid-cols-3 gap-px border-t border-zinc-800/60
-                                      bg-zinc-800/60">
-                        {([['Elims', zahl(sp.elims, 0, sprache)], ['Schaden', zahl(sp.damage, 0, sprache)],
-                           ['Quote', zahl(sp.quote, 2, sprache)]] as Array<[string, string]>)
-                          .map(([l, v]) => (
-                            <div key={l} className="bg-zinc-950 px-2 py-1.5">
-                              <p className="text-[8px] uppercase tracking-wider text-slate-600">
-                                <T>{l}</T>
-                              </p>
-                              <p className="text-xs font-bold tabular-nums text-sky-400">{v}</p>
-                            </div>
-                          ))}
-                      </div>
+                      </span>
                     </button>
                   ))}
                 </div>
@@ -4678,64 +4734,22 @@ export default function StatistikSeite() {
               )}
             </>
           )}
-        </div>
-      </div>
-
-      {/* Eine Kennzahl in voller Laenge - hinter dem Pluszeichen */}
-      {volleListe && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/70
-                        p-4 sm:p-8"
-          onClick={(e) => { if (e.target === e.currentTarget) setVolleListe(null); }}>
-          <div className="flex max-h-full w-full max-w-2xl flex-col overflow-hidden
-                          rounded-xl border border-zinc-700 bg-zinc-950 shadow-2xl">
-            <header className="flex flex-wrap items-center gap-3 border-b border-zinc-800
-                               px-4 py-3">
-              <h3 className="text-sm font-semibold text-slate-100">
-                <T>{volleListe.titel}</T>
-                {volleListe.zusatz && (
-                  <span className="ml-2 font-normal text-slate-500">
-                    {volleListe.zusatz}
-                  </span>
-                )}
-              </h3>
-              <span className="text-xs text-slate-500">
-                {zahl(volleListe.zeilen.length, 0, sprache)} <T>Spieler</T>
-              </span>
-              <div className="ml-auto flex items-center gap-1">
-                {([50, 100, 0] as const).map((n) => (
-                  <button key={n} onClick={() => setListenTiefe(n)}
-                    className={`rounded-md border px-2.5 py-1 text-xs transition ${
-                      listenTiefe === n
-                        ? 'border-sky-500 bg-sky-500/10 text-sky-400'
-                        : 'border-zinc-800 text-slate-400 hover:border-zinc-600'}`}>
-                    {n === 0 ? 'Alle' : `Top ${n}`}
-                  </button>
-                ))}
-                <button onClick={() => setVolleListe(null)}
-                  className="ml-1 rounded-md border border-zinc-800 px-2.5 py-1 text-xs
-                             text-slate-400 transition hover:border-rose-500/60
-                             hover:text-rose-400">×</button>
-              </div>
-            </header>
-            <div className="divide-y divide-zinc-900 overflow-y-auto">
-              {(listenTiefe ? volleListe.zeilen.slice(0, listenTiefe) : volleListe.zeilen)
-                .map((sp, i) => (
-                  <Platz key={sp.epicId} nr={i + 1} s={sp}
-                    wert={zahl(Number(sp[volleListe.feld]), volleListe.nachkomma, sprache)
-                          + volleListe.einheit}
-                    aufKlick={() => { setVolleListe(null); oeffne(sp); }} />
-                ))}
-            </div>
-          </div>
-        </div>
-      )}
+          </>)}
 
       {/* ------------------------------------------------- Spielerseite */}
       {offen && (
-        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/80 p-3 sm:p-6"
-          onClick={(e) => { if (e.target === e.currentTarget) profilSchliessen(); }}>
-          <div className="mx-auto w-full max-w-6xl overflow-hidden rounded-xl
-                          border border-zinc-800 bg-zinc-950 shadow-2xl">
+        /*
+         * Eine Seite, kein Fenster.
+         *
+         * Das Profil lag als Schicht ueber der Statistik, und dahinter lief
+         * die Liste weiter. Der Betreiber: "mach es wirklich als eine Page,
+         * nicht dass im Hintergrund noch der Rest ist." Jetzt nimmt es den
+         * Platz des Inhalts ein; die Bereiche links bleiben, und Zurueck
+         * fuehrt zur Liste.
+         */
+        <div>
+          <div className="w-full overflow-hidden rounded-xl border border-zinc-800
+                          bg-zinc-950 shadow-2xl">
 
             {/* Kopf */}
             <div className="flex flex-wrap items-center gap-3 px-7 pt-7">
@@ -5723,6 +5737,103 @@ export default function StatistikSeite() {
           </div>
         </div>
       )}
+        </div>
+      </div>
+
+      {/* Das Schloss - siehe Sichtbar oben. Nur der Betreiber sieht es. */}
+      {istAdmin && bereich !== 'start' && !offen && (() => {
+        const stufe = sichtbar[bereich] ?? 'alle';
+        const farbe = stufe === 'alle' ? 'border-emerald-500/60 text-emerald-400'
+          : stufe === 'vip' ? 'border-amber-500/60 text-amber-400'
+          : 'border-rose-500/60 text-rose-400';
+        const titel = stufe === 'alle' ? t('Für alle sichtbar')
+          : stufe === 'vip' ? t('Nur für VIPs sichtbar') : t('Nur für dich sichtbar');
+        return (
+          <button type="button" onClick={schlossDrehen} title={`${titel} · ${t('Klicken zum Umschalten')}`}
+            className={`fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-full
+                        border bg-zinc-950/90 px-3 py-2 text-xs shadow-xl backdrop-blur
+                        transition hover:brightness-125 ${farbe}`}>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <rect x="4" y="10" width="16" height="11" rx="2" />
+              {stufe === 'alle'
+                ? <path d="M8 10V7a4 4 0 0 1 7.5-2" />
+                : <path d="M8 10V7a4 4 0 0 1 8 0v3" />}
+            </svg>
+            <span>{titel}</span>
+          </button>
+        );
+      })()}
+
+      {/* Eine Kennzahl in voller Laenge - hinter dem Pluszeichen */}
+      {volleListe && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center bg-black/70
+                        p-4 sm:p-8"
+          onClick={(e) => { if (e.target === e.currentTarget) setVolleListe(null); }}>
+          <div className="flex max-h-full w-full max-w-2xl flex-col overflow-hidden
+                          rounded-xl border border-zinc-700 bg-zinc-950 shadow-2xl">
+            <header className="flex flex-wrap items-center gap-3 border-b border-zinc-800
+                               px-4 py-3">
+              <h3 className="text-sm font-semibold text-slate-100">
+                <T>{volleListe.titel}</T>
+                {volleListe.zusatz && (
+                  <span className="ml-2 font-normal text-slate-500">
+                    {volleListe.zusatz}
+                  </span>
+                )}
+              </h3>
+              <span className="text-xs text-slate-500">
+                {zahl(volleListe.zeilen.length, 0, sprache)} <T>Spieler</T>
+              </span>
+              {/* Ab zweihundert Eintraegen eine Suche, mittig - der Betreiber:
+                  "wenn du ueber zweihundert hast, mach eine Suchleiste oben
+                  mittig." */}
+              {volleListe.zeilen.length > 200 && (
+                <input value={listenSuche} onChange={(e) => setListenSuche(e.target.value)}
+                  placeholder={t('Spieler suchen …')} autoFocus
+                  className="mx-auto w-56 rounded-lg border border-zinc-800 bg-zinc-900/80
+                             px-3 py-1 text-xs text-slate-100 outline-none
+                             focus:border-sky-500" />
+              )}
+              <div className="ml-auto flex items-center gap-1">
+                {([50, 100, 0] as const).map((n) => (
+                  <button key={n} onClick={() => setListenTiefe(n)}
+                    className={`rounded-md border px-2.5 py-1 text-xs transition ${
+                      listenTiefe === n
+                        ? 'border-sky-500 bg-sky-500/10 text-sky-400'
+                        : 'border-zinc-800 text-slate-400 hover:border-zinc-600'}`}>
+                    {n === 0 ? t('Alle') : `Top ${n}`}
+                  </button>
+                ))}
+                <button onClick={() => setVolleListe(null)}
+                  className="ml-1 rounded-md border border-zinc-800 px-2.5 py-1 text-xs
+                             text-slate-400 transition hover:border-rose-500/60
+                             hover:text-rose-400">×</button>
+              </div>
+            </header>
+            <div className="divide-y divide-zinc-900 overflow-y-auto">
+              {(() => {
+                const q = listenSuche.trim().toLowerCase();
+                // Gesucht wird ueber die ganze Liste; der Platz bleibt der
+                // echte Platz, nicht die Stelle im Suchergebnis.
+                const nummeriert = volleListe.zeilen.map((sp, i) => ({ sp, nr: i + 1 }));
+                const gefunden = q
+                  ? nummeriert.filter(({ sp }) => [sp.anzeige, sp.name, ...(sp.namen ?? [])]
+                    .some((n) => (n ?? '').toLowerCase().includes(q)))
+                  : nummeriert;
+                return (listenTiefe && !q ? gefunden.slice(0, listenTiefe) : gefunden);
+              })()
+                .map(({ sp, nr }) => (
+                  <Platz key={sp.epicId} nr={nr} s={sp}
+                    wert={zahl(Number(sp[volleListe.feld]), volleListe.nachkomma, sprache)
+                          + volleListe.einheit}
+                    aufKlick={() => { setVolleListe(null); oeffne(sp); }} />
+                ))}
+            </div>
+          </div>
+        </div>
+      )}
+
 
 
     </main>

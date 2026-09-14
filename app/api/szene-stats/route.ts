@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
+import { ohneDateien } from '@/lib/antwortSpeicher';
 import { fertigeAntwort } from '@/lib/antwortSpeicher';
 import fs from '@/lib/ablageFs';
 import path from 'path';
 import {
   auswahl, bildFuer, gesamtSummen, heimatRegionen, liesVerzeichnis, SAISON_NAMEN,
   saisonName, startseite, summen, tagesbeste, verlauf, epicVerlauf,
-  istGrossesTurnier, istFinaleTag,
+  istGrossesTurnier, istFinaleTag, aktenSchreiben,
 } from '@/lib/szeneStats';
 import { DATEN_ORT } from '@/lib/datenOrt';
 import { getToken, loeseNamenAuf } from '@/lib/epicCups';
@@ -360,6 +361,20 @@ async function berechne(request: Request) {
   const suche = (p.get('q') ?? '').trim().toLowerCase();
 
   try {
+    /*
+     * Die Akten schreiben - fuer den stuendlichen Lauf, der auf Dateien
+     * arbeitet. Bei Vercel gibt es nichts zu schreiben; dort wuerde es
+     * nur Minuten kosten.
+     */
+    if (p.get('ansicht') === 'akten') {
+      if (ohneDateien()) {
+        return NextResponse.json({ error: 'Akten werden nur dort geschrieben, wo die Dateien liegen.' },
+          { status: 400 });
+      }
+      const ergebnis = await aktenSchreiben();
+      return NextResponse.json({ success: true, ...ergebnis });
+    }
+
     if (p.get('ansicht') === 'start') {
       const daten = await startseite(saison);
       const gepflegt = await liesProfile();
@@ -374,7 +389,9 @@ async function berechne(request: Request) {
         land: gepflegt.get(s.epicId)?.land || szene.get(s.epicId)?.land || null,
         bild: bildZu.get(s.epicId)?.pfad ?? null,
         echtesFoto: bildZu.get(s.epicId)?.echt ?? false,
-        heimat: heimat.get(s.epicId) ?? '',
+        // Wer im Archiv keine Heimat hat, behaelt die aus der Liste selbst
+        // (die Elims-Liste zaehlt sie je Saison aus).
+        heimat: heimat.get(s.epicId) ?? (s as { heimat?: string }).heimat ?? '',
       } : null);
 
       /**
@@ -678,7 +695,14 @@ async function berechne(request: Request) {
     }
 
     const filter = { saison, region, event, events: events.length ? events : undefined };
-    const { spieler: alle, spieltage } = await summen(filter);
+    /*
+     * Ohne jeden Filter ist das die Summe ueber das ganze Archiv - und die
+     * liegt fertig in der Ablage (siehe gesamtSummen). Ein Profil ueber
+     * "alle Saisons" las hier sonst bei Vercel neunhundert Dateien.
+     */
+    const { spieler: alle, spieltage } = (!saison && !region && !event && !events.length)
+      ? { spieler: await gesamtSummen(), spieltage: (await liesVerzeichnis()).length }
+      : await summen(filter);
 
     if (spieler) {
       const eintrag = alle.find((s) => s.epicId === spieler);

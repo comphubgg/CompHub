@@ -190,6 +190,14 @@ async function aggregateLesen(season: string): Promise<AggregatTag[]> {
  * Gibt nichts zurueck, wenn kein Replay ausgewertet ist oder der Spieler
  * darin nicht vorkommt.
  */
+/** Alle Konten eines Fensters auf einmal - fuer die Akten. */
+export async function replayKarte(
+  season: string, windowId: string,
+): Promise<Map<string, ReplayWert>> {
+  if (!season || !windowId) return new Map();
+  return fensterKarte(season, windowId);
+}
+
 export async function replayWert(
   season: string, windowId: string, epicId: string,
 ): Promise<ReplayWert | null> {

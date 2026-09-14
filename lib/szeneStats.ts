@@ -18,8 +18,10 @@
 
 import fs from '@/lib/ablageFs';
 import path from 'path';
-import { replayWert, aggregateSaison } from '@/lib/replayWerte';
-import { liesJson } from '@/lib/ablage';
+import { replayWert, replayKarte, aggregateSaison } from '@/lib/replayWerte';
+import type { ReplayWert } from '@/lib/replayWerte';
+import { liesJson, schreibJson } from '@/lib/ablage';
+import { fertigeAntwort, ohneDateien } from '@/lib/antwortSpeicher';
 import { istGrossesTurnier as grossesTurnier } from '@/lib/turnierArt';
 import { DATEN_ORT } from './datenOrt';
 
@@ -367,10 +369,23 @@ export async function liesVersteckt(): Promise<Set<string>> {
 
 export async function gesamtSummen(): Promise<SpielerSumme[]> {
   if (gesamtMerker && Date.now() < gesamtMerker.bis) return gesamtMerker.liste;
-  const { spieler } = await summen({});
+  /*
+   * Ueber die Ablage der fertigen Antworten.
+   *
+   * Das ist die Summe ueber das ganze Archiv - neunhundert Dateien. Auf dem
+   * Rechner des stuendlichen Laufs Sekunden, bei Vercel ueber das Netz
+   * Minuten: genau daran hing das Spielerprofil ("Loading ..." und nach
+   * sechzig Sekunden 504). Fuenfzig Minuten Frist, damit der stuendliche
+   * Lauf sie jedes Mal neu rechnet; Vercel liest sie nur.
+   */
+  const spieler = await fertigeAntwort('szene|gesamt',
+    async () => (await summen({})).spieler, ARCHIV_FRIST, false);
   gesamtMerker = { liste: spieler, bis: Date.now() + HALTBAR };
   return spieler;
 }
+
+/** Frist der Antworten ueber das ganze Archiv - siehe gesamtSummen. */
+const ARCHIV_FRIST = 50 * 60_000;
 
 /**
  * Wer war an einem Spieltag der Staerkste?
@@ -393,7 +408,15 @@ let tagesMerker: { karte: Map<string, Tagessieg[]>; bis: number } | null = null;
 
 export async function tagesbeste(): Promise<Map<string, Tagessieg[]>> {
   if (tagesMerker && Date.now() < tagesMerker.bis) return tagesMerker.karte;
+  // Ebenfalls ueber das ganze Archiv - siehe gesamtSummen.
+  const paare = await fertigeAntwort('szene|tagesbeste',
+    async () => [...(await tagesbesteRechnen()).entries()], ARCHIV_FRIST, false);
+  const karte = new Map<string, Tagessieg[]>(paare);
+  tagesMerker = { karte, bis: Date.now() + HALTBAR };
+  return karte;
+}
 
+async function tagesbesteRechnen(): Promise<Map<string, Tagessieg[]>> {
   const karte = new Map<string, Tagessieg[]>();
   for (const e of await liesVerzeichnis()) {
     const datei = await liesDatei(e);
@@ -420,8 +443,6 @@ export async function tagesbeste(): Promise<Map<string, Tagessieg[]>> {
       karte.set(p.epicId, liste);
     }
   }
-
-  tagesMerker = { karte, bis: Date.now() + HALTBAR };
   return karte;
 }
 
@@ -530,20 +551,134 @@ export async function platzierungenVorhanden(): Promise<number> {
   return n;
 }
 
+/** Eine Zeile im Verlauf eines Kontos - ein Spieltag. */
+export interface VerlaufZeile {
+  event: string; windowId: string; region: string; season: string;
+  werte: RohSpieler;
+  /** Wann der Spieltag lief - fuer die Sortierung. */
+  datum: number;
+  /** Aus Epics Bestenliste, wo vorhanden. */
+  platz: number | null; punkte: number | null; mitspieler: string[];
+}
+
+/*
+ * ------------------------------------------------------------ Die Akte
+ *
+ * Alles, was ein Profil ueber einen Spieler braucht, in einer Datei je
+ * Konto: seine Zeilen aus dem Archiv und die Spieltage, die nur Epic kennt.
+ *
+ * Warum: bei Vercel liegen die Dateien nicht auf der Platte. Ein Profil las
+ * dort fuer den Verlauf alle neunhundert Spieltage und fuer die Epic-Zeilen
+ * alle Epic-Spieltage - achtzig Megabyte -, und nach sechzig Sekunden kam
+ * ein 504. Der Betreiber: "die Spielerprofile laden bei mir nicht."
+ *
+ * Der stuendliche Lauf schreibt die Akten dort, wo die Dateien liegen, und
+ * laedt nur die hoch, die sich geaendert haben. Vercel liest dann eine
+ * einzige kleine Datei je Profil. Wo keine Akte liegt - ein Konto, das
+ * seit dem letzten Lauf neu dazukam -, wird wie bisher gerechnet.
+ */
+export interface Akte {
+  verlauf: VerlaufZeile[];
+  epic: EpicZeile[];
+  /** Wann die Akte geschrieben wurde. */
+  stand: number;
+}
+
+const AKTEN = 'akten';
+
+async function akteLesen(epicId: string): Promise<Akte | null> {
+  if (!/^[0-9a-f]{32}$/.test(epicId)) return null;
+  return liesJson<Akte | null>(`${AKTEN}/${epicId}.json`, null);
+}
+
+/**
+ * Die Akten aller Konten im Archiv schreiben - nur die, die sich geaendert
+ * haben. Gedacht fuer den stuendlichen Lauf auf einem Rechner mit Dateien.
+ */
+export async function aktenSchreiben(): Promise<{ konten: number; geschrieben: number }> {
+  const verzeichnis = await liesVerzeichnis();
+  const akten = new Map<string, Akte>();
+  const akte = (id: string) => {
+    let a = akten.get(id);
+    if (!a) { a = { verlauf: [], epic: [], stand: Date.now() }; akten.set(id, a); }
+    return a;
+  };
+
+  for (const e of verzeichnis) {
+    const datei = await liesDatei(e);
+    if (!datei) continue;
+    const karte = await platzKarte(e.season, e.windowId);
+    for (const p of datei.players) {
+      if (!p.epicId) continue;
+      const platz = karte?.get(p.epicId) ?? null;
+      akte(p.epicId).verlauf.push({
+        event: e.name, windowId: e.windowId, region: e.region, season: e.season,
+        werte: p, datum: e.datum ?? 0,
+        platz: platz?.platz ?? null, punkte: platz?.punkte ?? null,
+        mitspieler: platz?.mitspieler ?? [],
+      });
+    }
+  }
+
+  // Nur fuer Konten, die im Archiv stehen - die Epic-Spieltage fuehren in
+  // offenen Runden zehntausende Konten, fuer die es kein Profil gibt.
+  const imArchiv = new Set(verzeichnis.map((e) => e.windowId));
+  for (const tag of await liesEpicSpieltage()) {
+    if (imArchiv.has(tag.windowId)) continue;
+    let replays: Map<string, ReplayWert> | null = null;
+    for (const team of tag.teams) {
+      for (const id of team.spieler) {
+        const a = akten.get(id);
+        if (!a) continue;
+        replays ??= await replayKarte(tag.season, tag.windowId);
+        const w = replays.get(id);
+        a.epic.push({
+          event: tag.windowId, windowId: tag.windowId, region: tag.region,
+          season: tag.season, titel: tag.titel, datum: tag.datum,
+          platz: team.platz, punkte: team.punkte, matches: team.matches,
+          mitspieler: team.spieler.filter((x) => x !== id),
+          nurEpic: true,
+          ...(w ? { replayElims: w.elims, replayKnocks: w.knocks } : {}),
+        });
+      }
+    }
+  }
+
+  let geschrieben = 0;
+  for (const [id, a] of akten) {
+    a.verlauf.sort((x, y) => y.datum - x.datum);
+    a.epic.sort((x, y) => (y.datum ?? 0) - (x.datum ?? 0));
+    const alt = await akteLesen(id);
+    const gleich = alt
+      && JSON.stringify({ verlauf: alt.verlauf, epic: alt.epic })
+        === JSON.stringify({ verlauf: a.verlauf, epic: a.epic });
+    if (gleich) continue;
+    await schreibJson(`${AKTEN}/${id}.json`, a);
+    geschrieben += 1;
+  }
+  return { konten: akten.size, geschrieben };
+}
+
 /** Der Verlauf eines einzelnen Kontos, Spieltag fuer Spieltag. */
-export async function verlauf(epicId: string, filter: Filter = {}) {
+export async function verlauf(epicId: string, filter: Filter = {}): Promise<VerlaufZeile[]> {
+  /*
+   * Ohne Dateien auf der Platte aus der Akte - siehe oben. Fehlt sie,
+   * wird gerechnet wie bisher.
+   */
+  if (ohneDateien()) {
+    const akte = await akteLesen(epicId);
+    if (akte) {
+      return akte.verlauf.filter((z) =>
+        (!filter.saison || z.season === filter.saison)
+        && (!filter.region || z.region === filter.region));
+    }
+  }
+
   const eintraege = (await liesVerzeichnis()).filter((e) =>
     (!filter.saison || e.season === filter.saison)
     && (!filter.region || e.region === filter.region));
 
-  const zeilen: Array<{
-    event: string; windowId: string; region: string; season: string;
-    werte: RohSpieler;
-    /** Wann der Spieltag lief - fuer die Sortierung. */
-    datum: number;
-    /** Aus Epics Bestenliste, wo vorhanden. */
-    platz: number | null; punkte: number | null; mitspieler: string[];
-  }> = [];
+  const zeilen: VerlaufZeile[] = [];
 
   for (const e of eintraege) {
     const datei = await liesDatei(e);
@@ -570,6 +705,9 @@ export async function verlauf(epicId: string, filter: Filter = {}) {
 }
 
 /* ------------------------------------------------------------ Startseite */
+
+/** Wie viele Plaetze eine Bestenliste der Startansicht traegt. */
+const LISTEN_LAENGE = 400;
 
 /** Eine Bestenliste: Kennzahl, Titel, wie sie gerechnet wird. */
 export const KENNZAHLEN: Array<{
@@ -764,14 +902,15 @@ export async function startseite(saison?: string, wieViele = 25, jeTag = 3) {
       .filter((s) => (k.feld === 'quote' ? s.matches >= mindestMatches : true))
       .sort((a, b) => Number(b[k.feld]) - Number(a[k.feld]))
       /*
-       * Sechzig statt fuenfzehn.
+       * Vierhundert statt sechzig.
        *
        * Die Kachel zeigt weiterhin nur fuenf. Hinter dem Plus daneben soll
-       * aber die ganze Liste stehen - der Betreiber wollte "bis Top
-       * fünfzig sozusagen, also nicht nur Top fünf". Sechzig gibt ein wenig
-       * Luft, ohne die Antwort aufzublaehen.
+       * aber das ganze Feld stehen - der Betreiber: "in Europa alleine
+       * gibt's ja schon ueber hundert; sagen wir dreihundert spielen aktiv,
+       * dann solltest du sicher dreihundert haben." Vierhundert gibt Luft,
+       * ohne die Antwort aufzublaehen.
        */
-      .slice(0, 60),
+      .slice(0, LISTEN_LAENGE),
   }));
 
   /*
@@ -800,15 +939,25 @@ export async function startseite(saison?: string, wieViele = 25, jeTag = 3) {
   const eigene = (await aggregateSaison(dieSaison)).filter((t) => grossesTurnier(t.titel));
   const eigeneFenster = new Set(eigene.map((t) => t.windowId));
 
-  const elimSumme = new Map<string, SpielerSumme>();
-  const regionZaehler = new Map<string, Map<string, number>>();
+  /*
+   * Gezaehlt wird je Region, und in die Liste kommt die Heimatregion.
+   *
+   * Vorher wurden alle Regionen eines Spielers zusammengezaehlt: wer in NAC,
+   * NAW und ASIA antrat, stand mit 440 Eliminierungen oben - der Betreiber:
+   * "das kann gar nicht sein, es gab maximal zwoelf Cups." Je Region stimmt
+   * die Zahl; die Summe ueber Regionen ist ein anderer Wettbewerb. Heimat
+   * ist die Region mit den meisten gezaehlten Spieltagen; bei Gleichstand
+   * die mit den meisten Eliminierungen. Die uebrigen Regionen stehen
+   * daneben in "jeRegion", damit die Seite sie zeigen kann.
+   */
+  type RegionSumme = { elims: number; matches: number; events: number };
+  const jeRegion = new Map<string, Map<string, RegionSumme>>();
   const zaehle = (id: string, elims: number, matches: number, region: string) => {
-    let s = elimSumme.get(id);
-    if (!s) { s = leereSumme(id, ''); elimSumme.set(id, s); }
-    s.elims += elims; s.matches += matches; s.events += 1;
-    const z = regionZaehler.get(id) ?? new Map<string, number>();
-    z.set(region, (z.get(region) ?? 0) + 1);
-    regionZaehler.set(id, z);
+    const z = jeRegion.get(id) ?? new Map<string, RegionSumme>();
+    const r = z.get(region) ?? { elims: 0, matches: 0, events: 0 };
+    r.elims += elims; r.matches += matches; r.events += 1;
+    z.set(region, r);
+    jeRegion.set(id, z);
   };
   for (const t of eigene) {
     for (const k of t.spieler) zaehle(k.epicId, k.kills ?? 0, k.matches ?? 0, t.region);
@@ -834,19 +983,33 @@ export async function startseite(saison?: string, wieViele = 25, jeTag = 3) {
   }
 
   const elimsListe = listen.find((l) => l.feld === 'elims');
-  if (elimsListe && elimSumme.size) {
-    const plaetze = [...elimSumme.values()]
-      .sort((a, b) => b.elims - a.elims || b.matches - a.matches)
-      .slice(0, 60);
+  if (elimsListe && jeRegion.size) {
     const archivNamen = new Map(saisonFeld.map((s) => [s.epicId, s.name]));
     const gespeichert = await liesJson<Record<string, string>>('epic-namen.json', {});
-    for (const s of plaetze) {
-      s.name = archivNamen.get(s.epicId) ?? gespeichert[s.epicId] ?? '';
+    // Die Heimat ueber das ganze Archiv gilt vor der Zaehlung dieser
+    // Saison - wie ueberall sonst auf der Seite. Nur wer dort in dieser
+    // Saison gar nicht antrat, wird nach seiner meistgespielten gezaehlt.
+    const heimatKarte = await heimatRegionen();
+    const plaetze = [...jeRegion.entries()].map(([id, z]) => {
+      const regionen = [...z.entries()]
+        .sort((a, b) => b[1].events - a[1].events || b[1].elims - a[1].elims);
+      const archivHeimat = heimatKarte.get(id);
+      const [heimat, daheim] = (archivHeimat && z.has(archivHeimat))
+        ? [archivHeimat, z.get(archivHeimat)!] : regionen[0];
+      const s = leereSumme(id, '');
+      s.elims = daheim.elims; s.matches = daheim.matches; s.events = daheim.events;
+      s.name = archivNamen.get(id) ?? gespeichert[id] ?? '';
       s.namen = s.name ? [s.name] : [];
-      s.regionen = [...(regionZaehler.get(s.epicId) ?? new Map<string, number>()).entries()]
-        .sort((a, b) => b[1] - a[1]).map(([r]) => r);
+      s.regionen = regionen.map(([r]) => r);
       s.elimsProMatch = s.matches ? s.elims / s.matches : 0;
-    }
+      return {
+        ...s,
+        heimat,
+        jeRegion: Object.fromEntries(regionen),
+      };
+    })
+      .sort((a, b) => b.elims - a.elims || b.matches - a.matches)
+      .slice(0, LISTEN_LAENGE);
     elimsListe.plaetze = plaetze;
   }
 
@@ -879,7 +1042,15 @@ let heimatBis = 0;
 
 export async function heimatRegionen(): Promise<Map<string, string>> {
   if (heimat && Date.now() < heimatBis) return heimat;
+  // Ueber das ganze Archiv - siehe gesamtSummen.
+  const paare = await fertigeAntwort('szene|heimat',
+    async () => [...(await heimatRechnen()).entries()], ARCHIV_FRIST, false);
+  heimat = new Map(paare);
+  heimatBis = Date.now() + 10 * 60_000;
+  return heimat;
+}
 
+async function heimatRechnen(): Promise<Map<string, string>> {
   const zaehler = new Map<string, Map<string, number>>();
   for (const e of await liesVerzeichnis()) {
     const datei = await liesDatei(e);
@@ -920,9 +1091,6 @@ export async function heimatRegionen(): Promise<Map<string, string>> {
       if (r && /^[0-9a-f]{32}$/.test(id)) karte.set(id, r);
     }
   } catch { /* ohne Profile bleibt es bei der Zaehlung */ }
-
-  heimat = karte;
-  heimatBis = Date.now() + 10 * 60_000;
   return karte;
 }
 
@@ -1055,6 +1223,16 @@ export interface EpicZeile {
 export async function epicVerlauf(
   epicId: string, filter: Filter = {},
 ): Promise<EpicZeile[]> {
+  // Ohne Dateien auf der Platte aus der Akte - siehe dort.
+  if (ohneDateien()) {
+    const akte = await akteLesen(epicId);
+    if (akte) {
+      return akte.epic.filter((z) =>
+        (!filter.saison || z.season === filter.saison)
+        && (!filter.region || z.region === filter.region));
+    }
+  }
+
   // Was die Quelle inzwischen doch veroeffentlicht hat, gehoert nicht mehr
   // hierher - sonst stuende der Spieltag zweimal in der Liste, einmal mit
   // und einmal ohne Werte.

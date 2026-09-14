@@ -126,6 +126,11 @@ export async function wirfWeg(anfang: string): Promise<number> {
   return weg;
 }
 
+/** Laeuft dieser Server ohne die Dateien auf der Platte - also bei Vercel? */
+export function ohneDateien(): boolean {
+  return (process.env.COMPHUB_ABLAGE || '').toLowerCase() === 'supabase';
+}
+
 /**
  * Die fertige Antwort - oder sie ausrechnen und aufheben.
  *
@@ -137,6 +142,16 @@ export async function fertigeAntwort<T>(
   schluessel: string,
   rechne: () => Promise<T>,
   frischMs: number = FRISCH_MS,
+  /**
+   * Ob eine zu alte Antwort hier im Hintergrund neu gerechnet werden darf.
+   *
+   * Nein fuer alles, was ueber das ganze Archiv geht: bei Vercel kommen
+   * dafuer neunhundert Dateien ueber das Netz - das dauert Minuten, wird
+   * nach sechzig Sekunden abgebrochen und kostet jedes Mal fuenfzig Megabyte
+   * Datenverkehr fuer nichts. Solche Antworten rechnet der stuendliche Lauf
+   * dort, wo die Dateien liegen; hier wird dann nur gelesen.
+   */
+  hintergrund = true,
 ): Promise<T> {
   const name = nameVon(schluessel);
   const abgelegt = await liesJson<Ablage<T> | null>(name, null);
@@ -144,6 +159,7 @@ export async function fertigeAntwort<T>(
 
   if (abgelegt && typeof abgelegt.zeit === 'number') {
     if (jetzt - abgelegt.zeit < frischMs) return abgelegt.wert;
+    if (!hintergrund && ohneDateien()) return abgelegt.wert;
 
     // Zu alt: trotzdem ausliefern, im Hintergrund erneuern.
     if (!laufend.has(schluessel)) {

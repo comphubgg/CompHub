@@ -1951,6 +1951,14 @@ const AUF_ENGLISCH: Record<string, string> = {
     'now',
   'Sitzungen':
     'sessions',
+  'Klicken zum Umschalten':
+    'Click to switch',
+  'Nur für dich sichtbar':
+    'Visible to you only',
+  'Nur für VIPs sichtbar':
+    'Visible to VIPs only',
+  'Für alle sichtbar':
+    'Visible to everyone',
   'Das ging zu schnell. Bitte noch einmal.':
     'That was too fast. Please try again.',
   'Von diesem Anschluss wurden gerade schon mehrere Konten angelegt. Bitte später noch einmal.':
