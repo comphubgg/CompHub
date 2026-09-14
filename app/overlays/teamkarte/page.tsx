@@ -140,6 +140,19 @@ export default function OverlaySeite() {
   const [duo, setDuo] = useState<Spieler[]>([]);
   /** Ergebnis der Turniersuche - null heisst "es wurde nicht gesucht". */
   const [funde, setFunde] = useState<Team[] | null>(null);
+  /*
+   * Treffer aus dem Verzeichnis - zum Vormerken vor dem Cup.
+   *
+   * Vor dem Start ist die Bestenliste leer, und "Nicht dabei" war die
+   * einzige Antwort. Der Betreiber: "stell dir vor, in einer Stunde ist ein
+   * Cup und ich will einen Spieler hinzufuegen ... dann hab ich alles schon
+   * mal, und wenn die Stats kommen, laedt es einfach." Also stehen die
+   * Konten aus dem Verzeichnis hier zur Wahl; das Banner zeigt sie mit
+   * Nullen und fuellt sich, sobald sie in der Liste auftauchen.
+   */
+  const [verzeichnisFunde, setVerzeichnisFunde] = useState<Array<{
+    epicId: string; anzeige: string; bild: string | null;
+  }>>([]);
   const [suchLaeuft, setSuchLaeuft] = useState(false);
   /** Zaehlt die Suchlaeufe - siehe sucheImTurnier(). */
   const laufRef = useRef(0);
@@ -489,11 +502,17 @@ export default function OverlaySeite() {
     try {
       // 1. Konten zum gepflegten Namen.
       let ids: string[] = [];
+      let ausVerzeichnis: Array<{ epicId: string; anzeige: string; bild: string | null }> = [];
       try {
         const k = await (await fetch(
           `/api/szene-stats?ansicht=suche&q=${encodeURIComponent(q)}`)).json();
-        ids = (k?.spieler ?? []).map((x: { epicId: string }) => x.epicId)
-          .filter(Boolean).slice(0, 25);
+        ausVerzeichnis = (k?.spieler ?? [])
+          .filter((x: { epicId?: string }) => x.epicId)
+          .slice(0, 25)
+          .map((x: { epicId: string; anzeige?: string; bild?: string | null }) => ({
+            epicId: x.epicId, anzeige: x.anzeige ?? '', bild: x.bild ?? null,
+          }));
+        ids = ausVerzeichnis.map((x) => x.epicId);
       } catch { /* ohne Verzeichnis bleibt die Textsuche */ }
 
       const [ueberId, ueberText] = await Promise.all([
@@ -513,9 +532,12 @@ export default function OverlaySeite() {
       if (laufRef.current !== meiner) return;
       const liste = [...nachPlatz.values()].sort((a, b) => a.rank - b.rank);
       setFunde(liste);
+      setVerzeichnisFunde(liste.length ? [] : ausVerzeichnis.slice(0, 8));
       setSuchInfo(liste.length
         ? ''
-        : t('Nicht dabei — dieser Spieler steht in diesem Spieltag nicht in der Liste.'));
+        : ausVerzeichnis.length
+          ? t('Noch nicht in der Liste. Aus dem Verzeichnis vormerken — die Werte kommen, sobald er spielt.')
+          : t('Nicht dabei — dieser Spieler steht in diesem Spieltag nicht in der Liste.'));
     } catch (e) {
       if (laufRef.current === meiner) setSuchInfo((e as Error).message);
     } finally {
@@ -544,6 +566,32 @@ export default function OverlaySeite() {
       namensVorschlag(zwei[0]?.name ?? ''),
       namensVorschlag(zwei[1]?.name ?? ''),
     ]);
+  };
+
+  /**
+   * Einen Spieler aus dem Verzeichnis vormerken.
+   *
+   * Der erste Platz im Duo, der frei ist; sind beide belegt, ersetzt er den
+   * zweiten. Das Banner zeigt ihn ab jetzt mit "noch nicht in der Liste"
+   * und fuellt die Werte, sobald Epic ihn fuehrt.
+   */
+  const vormerken = (p: { epicId: string; anzeige: string; bild: string | null }) => {
+    const neu: Spieler = { id: p.epicId, name: p.anzeige, img: p.bild };
+    setDuo((alt) => {
+      if (alt.some((x) => x.id === neu.id)) return alt;
+      if (alt.length < 2) return [...alt, neu];
+      return [alt[0], neu];
+    });
+    setNamen((alt) => {
+      const naechster = duo.some((x) => x.id === neu.id) ? -1 : duo.length < 2 ? duo.length : 1;
+      if (naechster < 0) return alt;
+      const kopie: [string, string] = [alt[0] ?? '', alt[1] ?? ''];
+      kopie[naechster] = namensVorschlag(p.anzeige);
+      return kopie;
+    });
+    setTeamSuche('');
+    setVerzeichnisFunde([]);
+    setSuchInfo('');
   };
 
   /* ---------------------------------------------------------- Adresse */
@@ -867,7 +915,26 @@ export default function OverlaySeite() {
                         )}
                       </button>
                     ))}
-                    {!treffer.length && !suchLaeuft && (
+                    {/* Aus dem Verzeichnis, wenn die Bestenliste nichts hat -
+                        vor dem Cup, oder weil er noch nicht gespielt hat. */}
+                    {!treffer.length && verzeichnisFunde.map((p) => (
+                      <button key={p.epicId} type="button" onClick={() => vormerken(p)}
+                        className="flex w-full items-center gap-2 rounded-lg border
+                                   border-dashed border-zinc-700 px-3 py-2 text-left
+                                   text-[13px] text-slate-300 transition
+                                   hover:border-sky-700">
+                        {p.bild ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={p.bild} alt=""
+                            className="h-6 w-6 shrink-0 rounded object-cover" />
+                        ) : <span className="h-6 w-6 shrink-0 rounded bg-zinc-800" />}
+                        <span className="min-w-0 flex-1 truncate">{p.anzeige}</span>
+                        <span className="shrink-0 text-[10px] text-sky-400">
+                          <T>vormerken</T>
+                        </span>
+                      </button>
+                    ))}
+                    {!treffer.length && !verzeichnisFunde.length && !suchLaeuft && (
                       <p className="py-3 text-center text-xs text-slate-600">
                         <T>Namen eintippen und suchen.</T>
                       </p>

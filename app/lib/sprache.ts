@@ -1941,6 +1941,10 @@ const AUF_ENGLISCH: Record<string, string> = {
     'per player, from replays, opens and finals',
   'Szene-Quelle':
     'scene source',
+  'Noch nicht in der Liste. Aus dem Verzeichnis vormerken — die Werte kommen, sobald er spielt.':
+    'Not in the leaderboard yet. Pre-select from the directory — the values arrive as soon as they play.',
+  'vormerken':
+    'pre-select',
   'Die übrigen Listen (Schaden, Treffer, Material) nur aus Finals — dazu haben die Replays keine Werte.':
     'The other lists (damage, hits, materials) come from finals only — the replays hold no such values.',
   'Twitch-Name eingeben, Enter — kommt in die Multiview':
