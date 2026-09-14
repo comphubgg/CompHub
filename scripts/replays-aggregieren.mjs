@@ -152,7 +152,23 @@ async function fensterRechnen(season, windowId) {
   let frueheste = null; let spaeteste = null;
 
   for (const datei of dateien) {
-    const m = JSON.parse(await fs.readFile(path.join(ordner, datei), 'utf8'));
+    /*
+     * Eine unlesbare Match-Datei haelt das Fenster nicht auf.
+     *
+     * Ein abgebrochener Lauf laesst gelegentlich eine halb geschriebene
+     * Datei zurueck; vorher brach der ganze Lauf daran ab ("Unexpected
+     * non-whitespace character after JSON"), und kein einziges Fenster
+     * danach wurde mehr gerechnet. Jetzt wird sie uebersprungen, gezaehlt
+     * und beim naechsten Sammeln neu geholt.
+     */
+    let m;
+    try {
+      m = JSON.parse(await fs.readFile(path.join(ordner, datei), 'utf8'));
+    } catch (e) {
+      console.warn(`  ${datei}: unlesbar (${e.message.slice(0, 60)}) - uebersprungen`);
+      try { await fs.unlink(path.join(ordner, datei)); } catch { /* dann bleibt sie liegen */ }
+      continue;
+    }
     titel ??= m.titel; region ??= m.region; eventId ??= m.eventId;
     if (m.zeitpunkt) {
       const t = Date.parse(m.zeitpunkt);

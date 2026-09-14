@@ -148,7 +148,11 @@ function gewuenscht(name) {
    */
   if (name.startsWith('replays/')
       && !name.endsWith('_aggregat.json')
-      && !name.endsWith('_zustand.json')) return false;
+      && !name.endsWith('_zustand.json')
+      // Die beiden Protokolle des Sammlers sind winzig und das Einzige,
+      // woran sich von aussen ablesen laesst, ob er ueberhaupt laeuft.
+      && !name.endsWith('_lauf.json')
+      && !name.endsWith('_live-lauf.json')) return false;
   if (nur.length) return nur.some((n) => name === n || name.startsWith(`${n}/`));
   return !ohne.some((o) => name === o || name.startsWith(`${o}/`));
 }

@@ -110,37 +110,16 @@ jobs:
           fi
           node scripts/umzug-supabase.mjs --herunterladen --nur replays 2>&1 | tail -3
 
-      - name: Laufende Runden holen
+      # Sammeln, auswerten, hochladen - in einer Schleife, solange ein Cup
+      # laeuft. Ein Match ist damit ein bis drei Minuten nach seinem Ende in
+      # der Ablage statt zehn bis siebzehn. Das Protokoll der Schleife liegt
+      # unter data/replays/_live-lauf.json und wird mit hochgeladen.
+      - name: Sammeln, solange ein Cup laeuft
         if: steps.pruefung.outputs.weiter == 'ja'
         continue-on-error: true
-        # Woher der Cup-Katalog kommt.
-        #
-        # Das Skript sucht das Werkzeug sonst auf den eigenen Ports - auf
-        # einem Laptop richtig, auf einem Laeufer bei GitHub laeuft dort
-        # nichts. Ohne diese Zeile brach es nach null Sekunden ab, und weil
-        # es dabei null zurueckgibt, sah der Schritt gruen aus.
         env:
           WERKZEUG_URL: https://www.thecomphub.com
-        run: |
-          set +e
-          node scripts/replays-holen.mjs --live > /tmp/sammler.log 2>&1
-          CODE=$?
-          tail -n 40 /tmp/sammler.log
-          # Das Protokoll dorthin, wo es mit hochgeladen wird.
-          mkdir -p data/replays
-          CODE=$CODE node scripts/lauf-protokoll.mjs --live
-          exit $CODE
-
-      - name: Auswerten
-        if: steps.pruefung.outputs.weiter == 'ja'
-        continue-on-error: true
-        run: node scripts/replays-aggregieren.mjs
-
-      - name: Ergebnis nach Supabase
-        if: steps.pruefung.outputs.weiter == 'ja'
-        # Nur das Ausgewertete und nur, was dieser Lauf angefasst hat. Die
-        # rohen Runden bleiben ohnehin draussen, dafuer sorgt das Skript.
-        run: node scripts/umzug-supabase.mjs --neuer-als 30 --nur replays
+        run: node scripts/replays-live-schleife.mjs --minuten 330 --takt 60
 
       # Die Zugangsdaten ganz zum Schluss, nicht vorher.
       #
