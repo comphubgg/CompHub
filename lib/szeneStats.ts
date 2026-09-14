@@ -209,7 +209,17 @@ async function liesDatei(e: ArchivEintrag): Promise<Datei | null> {
   } catch {
     daten = null;
   }
-  dateiCache.set(schluessel, { daten, bis: Date.now() + HALTBAR });
+  /*
+   * Nur Gelungenes merken.
+   *
+   * Ein Fehlschlag - ein kurzer Aussetzer der Ablage - blieb zehn Minuten
+   * als "keine Datei" stehen, und jede Rechnung in dieser Zeit kam ohne
+   * diesen Spieltag heraus. Eine solche leere Antwort landete dann in der
+   * Ablage der fertigen Antworten und stand dort: "Zu diesem Spieltag
+   * liegen keine Einzelwerte vor", obwohl die Datei da war. Ein
+   * Fehlschlag wird jetzt beim naechsten Mal einfach noch einmal versucht.
+   */
+  if (daten) dateiCache.set(schluessel, { daten, bis: Date.now() + HALTBAR });
   return daten;
 }
 

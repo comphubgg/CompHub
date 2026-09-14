@@ -295,14 +295,31 @@ export async function GET(request: Request) {
    * Buchstabe waere eine eigene Zeile in der Ablage.
    */
   if (ansicht === 'suche') return berechne(request);
+  /*
+   * Ein einzelner Spieltag wird auch nicht aufgehoben.
+   *
+   * Er ist billig - eine Datei - und die Ablage hat ihm geschadet: eine
+   * leere Antwort aus einem Aussetzer blieb dort liegen, und auf der Seite
+   * stand "keine Einzelwerte", obwohl die Datei da war. Frisch gerechnet
+   * dauert er gut eine Sekunde.
+   */
+  if (url.searchParams.get('event')) return berechne(request);
 
   const schluessel = 'szene|' + ([...url.searchParams.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([k, v]) => `${k}=${v}`)
     .join('|') || 'standard')
-    // Die Startansicht traegt seit dem Nachweis ein neues Feld; die alte
-    // abgelegte Antwort hat es nicht und bleibt unter ihrem Schluessel liegen.
-    + (ansicht === 'start' ? '|nachweis=2' : '');
+    /*
+     * Kein eigener Schluessel fuer die neue Startansicht.
+     *
+     * Hier stand ein Zusatz, damit die alte abgelegte Antwort liegenbleibt
+     * und einmal frisch gerechnet wird. Frisch rechnen kann die Startansicht
+     * aber nur der Laufrechner der GitHub-Aktion, wo die Dateien liegen; auf
+     * dem Server braucht sie ueber das Netz mehr als zehn Minuten, und die
+     * Seite stand bis dahin leer. Unter dem alten Schluessel wird weiter die
+     * letzte fertige Antwort ausgeliefert, bis die Aktion die neue ablegt.
+     */
+    + '';
 
   try {
     const wert = await fertigeAntwort(schluessel, async () => {

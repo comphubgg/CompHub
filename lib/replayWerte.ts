@@ -1,6 +1,8 @@
 import fs from '@/lib/ablageFs';
 import path from 'path';
 import { DATEN_ORT } from './datenOrt';
+import { liesJson } from '@/lib/ablage';
+import { fertigeAntwort } from '@/lib/antwortSpeicher';
 
 /*
  * Die Einzelwerte aus den eigenen Replay-Auswertungen.
@@ -121,12 +123,42 @@ const saisonMerker = new Map<string, { tage: AggregatTag[]; bis: number }>();
 export async function aggregateSaison(season: string): Promise<AggregatTag[]> {
   const gemerkt = saisonMerker.get(season);
   if (gemerkt && Date.now() < gemerkt.bis) return gemerkt.tage;
+  /*
+   * Ueber die Ablage der fertigen Antworten, damit es ueber Instanzen hinweg
+   * haelt: eine frische Server-Instanz liest dann eine Datei statt hundert.
+   * Dreissig Minuten - die Replays werden alle zehn Minuten neu ausgewertet,
+   * und ein paar Minuten Verzug tun der Saisonliste nichts.
+   */
+  const tage = await fertigeAntwort(`replays|saison|${season}`,
+    () => aggregateLesen(season), 30 * 60_000);
+  saisonMerker.set(season, { tage, bis: Date.now() + HALTBAR });
+  return tage;
+}
+
+async function aggregateLesen(season: string): Promise<AggregatTag[]> {
 
   let fenster: string[] = [];
   try { fenster = await fs.readdir(path.join(ABLAGE, season)); } catch { fenster = []; }
 
+  /*
+   * Wie viele Matches ein Spieltag insgesamt hatte - aus der Uebersicht.
+   *
+   * Sie lag vorher in jeder Sammler-Datei einzeln; hundert Fenster hiessen
+   * hundert weitere Lesevorgaenge aus der Ablage, und auf dem Server lief
+   * die Startansicht damit in die Zeitgrenze. Die fertige Uebersicht der
+   * Replays traegt dieselbe Zahl je Fenster - ein einziger Lesevorgang.
+   */
+  const gesamtJe = new Map<string, number>();
+  try {
+    const u = await liesJson<{ wert?: { fenster?: Array<{ windowId: string; gesamt?: number }> } } | null>(
+      'antworten/replays_uebersicht.json', null);
+    for (const f of u?.wert?.fenster ?? []) {
+      if (typeof f.gesamt === 'number') gesamtJe.set(f.windowId, f.gesamt);
+    }
+  } catch { /* dann bleibt die Gesamtzahl unbekannt */ }
+
   const tage: AggregatTag[] = [];
-  const GLEICHZEITIG = 8;
+  const GLEICHZEITIG = 16;
   for (let i = 0; i < fenster.length; i += GLEICHZEITIG) {
     const gruppe = fenster.slice(i, i + GLEICHZEITIG);
     const ergebnisse = await Promise.all(gruppe.map(async (w) => {
@@ -136,14 +168,7 @@ export async function aggregateSaison(season: string): Promise<AggregatTag[]> {
             eventId?: string; region?: string; titel?: string; von?: number;
           };
         if (!Array.isArray(roh.spieler) || !roh.spieler.length) return null;
-        let gesamt: number | null = null;
-        try {
-          const z = JSON.parse(await fs.readFile(
-            path.join(ABLAGE, season, w, '_zustand.json'), 'utf8')) as {
-              matches?: Record<string, unknown>; datum?: number;
-            };
-          if (z.matches && typeof z.matches === 'object') gesamt = Object.keys(z.matches).length;
-        } catch { /* ohne Zustand bleibt die Gesamtzahl unbekannt */ }
+        const gesamt = gesamtJe.get(w) ?? null;
         return {
           season, windowId: w,
           eventId: roh.eventId ?? '', region: roh.region ?? '',
@@ -156,7 +181,6 @@ export async function aggregateSaison(season: string): Promise<AggregatTag[]> {
     for (const t of ergebnisse) if (t) tage.push(t);
   }
 
-  saisonMerker.set(season, { tage, bis: Date.now() + HALTBAR });
   return tage;
 }
 
