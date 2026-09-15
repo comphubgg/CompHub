@@ -391,7 +391,14 @@ async function berechne(request: Request) {
       const bildZu = await liesBilder();
       const heimat = await heimatRegionen();
       const szene = await liesSzeneSpieler();
-      const schlank = (s: SpielerSumme & { verdienst?: number }) => ({
+      /*
+       * So schlank wie moeglich: die Antwort war 1,1 Megabyte (sieben Listen
+       * zu vierhundert Plaetzen mit allen Werten), bei Vercel ueber zwei
+       * Sekunden je Klick - der Betreiber: "viel, viel zu lange." Jetzt je
+       * Liste zweihundert Plaetze, und je Platz nur, was die Karte und die
+       * Liste zeigen: Name, Flagge, Bild, Heimat und die eine Kennzahl.
+       */
+      const schlank = (feld: string) => (s: SpielerSumme & { verdienst?: number }) => ({
         epicId: s.epicId,
         name: s.name,
         anzeige: gepflegt.get(s.epicId)?.anzeige || gepflegt.get(s.epicId)?.name
@@ -399,19 +406,16 @@ async function berechne(request: Request) {
         gepflegt: Boolean(gepflegt.get(s.epicId)?.anzeige || gepflegt.get(s.epicId)?.name),
         land: gepflegt.get(s.epicId)?.land || szene.get(s.epicId)?.land || null,
         bild: bildZu.get(s.epicId)?.pfad ?? null,
-        echtesFoto: bildZu.get(s.epicId)?.echt ?? false,
         heimat: heimat.get(s.epicId) ?? s.regionen[0] ?? '',
-        regionen: s.regionen, namen: s.namen.slice(0, 3),
-        events: s.events, matches: s.matches,
-        elims: s.elims, damage: s.damage, quote: s.quote, hits: s.hits,
-        headshots: s.headshots, builds: s.builds,
-        elimsProMatch: s.elimsProMatch, damageProMatch: s.damageProMatch,
-        genauigkeit: s.genauigkeit,
-        ...(typeof s.verdienst === 'number' ? { verdienst: s.verdienst } : {}),
+        regionen: [heimat.get(s.epicId) ?? s.regionen[0] ?? ''],
+        namen: [], events: s.events, matches: s.matches,
+        [feld]: (s as unknown as Record<string, unknown>)[feld] ?? 0,
       });
       return NextResponse.json({
         success: true, quelle: QUELLE, ...daten,
-        listen: daten.listen.map((l) => ({ ...l, plaetze: l.plaetze.map(schlank) })),
+        listen: daten.listen.map((l) => ({
+          ...l, plaetze: l.plaetze.slice(0, 200).map(schlank(l.feld)),
+        })),
       });
     }
 

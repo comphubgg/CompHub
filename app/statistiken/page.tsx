@@ -1693,6 +1693,8 @@ export default function StatistikSeite() {
   /** 'alle' oder ein Jahr - der Betreiber wollte "All-Time, 2026, 25, 24". */
   const [jahrWahl, setJahrWahl] = useState<string>(String(JAHR));
   const [jahrLaedt, setJahrLaedt] = useState(false);
+  /** Schon geholte Jahresantworten, je Auswahl - beim Zurueckwechseln sofort da. */
+  const jahrMerker = useRef(new Map<string, NonNullable<typeof jahr>>());
   const [sichtbar, setSichtbar] = useState<Record<Bereich, Sichtbar>>(SICHTBAR_STANDARD);
   const zugang = useZugang();
   const [pflegeName, setPflegeName] = useState('');
@@ -1967,22 +1969,29 @@ export default function StatistikSeite() {
   useEffect(() => {
     if (bereich !== 'jahr') return;
     let weg = false;
-    // Sofort der Ladeschirm, auch beim Wechsel - der Betreiber: "damit ich
-    // nicht denke, ich habe gedrueckt und bin immer noch auf 2026." Und
-    // mindestens kurz sichtbar, damit er nicht nur flackert.
-    setJahrLaedt(true);
-    const seit = Date.now();
+    const schluessel = `${jahrWahl}|${jahrRegion}|${jahrSaison}`;
+    /*
+     * Was schon einmal geholt wurde, steht sofort - ohne Ladeschirm. Der
+     * Schirm kommt erst, wenn wirklich gewartet wird (nach einer Viertel-
+     * sekunde), und geht weg, sobald die Antwort da ist. Der Betreiber:
+     * "mach sie ganz kurz - wenn sie rein muss, wenn du etwas herunterladen
+     * musst, sonst nicht."
+     */
+    const gemerkt = jahrMerker.current.get(schluessel);
+    if (gemerkt) { setJahr(gemerkt); setJahrLaedt(false); return; }
+    const zeiger = setTimeout(() => { if (!weg) setJahrLaedt(true); }, 250);
     fetch(`/api/szene-stats?ansicht=jahr&jahr=${jahrWahl}`
       + (jahrRegion ? `&region=${encodeURIComponent(jahrRegion)}` : '')
       + (jahrSaison ? `&saison=${encodeURIComponent(jahrSaison)}` : ''))
       .then((r) => r.json())
-      .then((j) => { if (!weg && j?.listen) setJahr(j); })
+      .then((j) => {
+        if (weg || !j?.listen) return;
+        jahrMerker.current.set(schluessel, j);
+        setJahr(j);
+      })
       .catch(() => { /* dann bleibt die Ansicht leer */ })
-      .finally(() => {
-        const rest = Math.max(0, 600 - (Date.now() - seit));
-        setTimeout(() => { if (!weg) setJahrLaedt(false); }, rest);
-      });
-    return () => { weg = true; };
+      .finally(() => { clearTimeout(zeiger); if (!weg) setJahrLaedt(false); });
+    return () => { weg = true; clearTimeout(zeiger); };
   }, [bereich, jahrRegion, jahrWahl, jahrSaison]);
   useEffect(() => { setJahrSaison(''); }, [jahrWahl]);
 
@@ -2892,14 +2901,25 @@ export default function StatistikSeite() {
   /** Die laufende Bestenliste in der Leiste. */
   const seitenliste = useMemo(() => listen.find((l) => l.feld === 'elims'), [listen]);
 
+  /*
+   * Der Ladeschirm erst nach einer Viertelsekunde - und nur solange
+   * wirklich gewartet wird. Was aus dem Speicher kommt, zeigt keinen
+   * Schirm; was laenger dauert, zeigt ihn genau so lange, wie es dauert.
+   */
+  const wartet = profilLaedt || (bereich === 'jahr' && jahrLaedt)
+    || (bereich === 'spieler' && laedt && !spieler.length);
+  const [schirmSichtbar, setSchirmSichtbar] = useState(false);
+  useEffect(() => {
+    if (!wartet) { setSchirmSichtbar(false); return; }
+    const zeiger = setTimeout(() => setSchirmSichtbar(true), 250);
+    return () => clearTimeout(zeiger);
+  }, [wartet]);
+
   return (
     <main className="min-h-screen bg-zinc-950 text-slate-100">
       {/* Ein Ladeschirm ueber allem, solange Profil, Jahr oder Liste geholt
           werden - nicht nur ein "Loading" in der Ecke. */}
-      {(profilLaedt || (bereich === 'jahr' && jahrLaedt)
-        || (bereich === 'spieler' && laedt && !spieler.length)) && (
-        <LadeSchirm />
-      )}
+      {schirmSichtbar && <LadeSchirm />}
       <div className="mx-auto flex max-w-[1600px] gap-5 px-4 py-6">
 
         {/* ---------------------------------------------- linke Leiste */}
