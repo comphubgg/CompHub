@@ -125,9 +125,19 @@ jobs:
           node scripts/umzug-supabase.mjs --herunterladen --nur replays \
             --nur-geaenderte 2>&1 | tail -6
 
+      # Auch hier die Adresse des Werkzeugs. Ohne sie fragte das Skript auf
+      # localhost ins Leere und brach nach einer Sekunde mit ECONNREFUSED ab
+      # - Stunde um Stunde, unter "continue-on-error" unsichtbar. Genau
+      # deshalb tauchte ein Cup, der gerade zu Ende war, weder unter
+      # Turnieren noch in den Profilen auf: die Epic-Spieltage kamen nie.
+      # Gefunden ueber das Protokoll des Laufs, das der Betreiber mit einem
+      # GitHub-Token lesbar gemacht hat.
       - name: Spieltage holen
         continue-on-error: true
-        run: node scripts/epic-spieltage-holen.mjs
+        timeout-minutes: 15
+        env:
+          WERKZEUG_URL: https://www.thecomphub.com
+        run: node scripts/epic-spieltage-holen.mjs 2>&1 | tail -20
 
       # Auch hier die Adresse des Werkzeugs: das Skript holt die Bestenlisten
       # ueber die eigene Schnittstelle, und ohne die Adresse fragt es auf
