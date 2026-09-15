@@ -1,4 +1,5 @@
 "use client";
+import LadeSchirm from '@/app/components/LadeSchirm';
 import { t } from "@/app/lib/i18n";
 import { Suspense, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -64,7 +65,7 @@ function AuthSuccessContent() {
 
 export default function AuthSuccessPage() {
   return (
-    <Suspense fallback={<div className="min-h-screen bg-slate-950 text-white flex items-center justify-center px-4"><T>Loading…</T></div>}>
+    <Suspense fallback={<LadeSchirm />}>
       <AuthSuccessContent />
     </Suspense>
   );

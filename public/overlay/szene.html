@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>CompHub Scene</title>
+<style>
+  /* Eine Szene aus dem Studio: 1920 x 1080, durchsichtig, die Overlays an
+     ihrem Platz. In OBS als Browserquelle mit 1920 x 1080 anlegen. */
+  html, body { margin: 0; width: 1920px; height: 1080px; overflow: hidden; background: transparent; }
+  #buehne { position: relative; width: 1920px; height: 1080px; }
+  #buehne iframe { position: absolute; border: 0; background: transparent; }
+</style>
+</head>
+<body>
+<div id="buehne"></div>
+<script>
+  // Die Szene holt sich ihre Elemente selbst und sieht alle zehn Sekunden
+  // nach, ob sich im Studio etwas geaendert hat - dann baut sie sich neu
+  // auf. Die Adresse in OBS bleibt dieselbe.
+  (function () {
+    var p = new URLSearchParams(location.search);
+    var id = p.get('id');
+    var stand = null;
+    var buehne = document.getElementById('buehne');
+    var DATEI = { teamkarte: 'banner.html', standings: 'standings.html', timer: 'timer.html',
+                  offspawn: 'offspawn.html', text: 'text.html', qual: 'qual.html' };
+    function bauen(cfg) {
+      buehne.innerHTML = '';
+      (cfg.elemente || []).forEach(function (el) {
+        if (el.art === 'hilfe' || !el.overlayId || !DATEI[el.art]) return;
+        var f = document.createElement('iframe');
+        f.src = '/overlay/' + DATEI[el.art] + '?id=' + encodeURIComponent(el.overlayId);
+        f.style.left = el.x + 'px'; f.style.top = el.y + 'px';
+        f.style.width = el.w + 'px'; f.style.height = el.h + 'px';
+        f.setAttribute('allowtransparency', 'true');
+        buehne.appendChild(f);
+      });
+    }
+    function nachsehen() {
+      if (!id) return;
+      fetch('/api/overlay-config?id=' + encodeURIComponent(id), { cache: 'no-store' })
+        .then(function (r) { return r.ok ? r.json() : null; })
+        .then(function (j) {
+          if (!j || !j.config) return;
+          if (String(j.stand) === stand) return;
+          stand = String(j.stand);
+          bauen(j.config);
+        })
+        .catch(function () {});
+    }
+    nachsehen();
+    setInterval(nachsehen, 10000);
+  })();
+</script>
+</body>
+</html>

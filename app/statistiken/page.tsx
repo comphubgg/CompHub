@@ -22,6 +22,7 @@ import TeamFlagge from '@/components/TeamFlagge';
 import { ohneZierrat } from '@/lib/homoglyph';
 
 import T from '@/app/components/T';
+import LadeSchirm from '@/app/components/LadeSchirm';
 import { regionFarbe, REGIONEN_REIHE } from '@/lib/regionFarbe';
 import { useSprache, useT } from '@/app/components/SprachProvider';
 import { useZugang } from '@/app/lib/zugang';
@@ -569,17 +570,7 @@ const SAISON_NAMEN_KURZ: Record<string, string> = {
   S42: 'Chapter 7 Season 4',
 };
 
-/** Der Ladeschleier ueber der ganzen Seite - mittig, wie der Betreiber ihn will. */
-function LadeSchleier({ text }: { text?: string }) {
-  return (
-    <div className="fixed inset-0 z-[80] flex flex-col items-center justify-center
-                    bg-zinc-950/70 backdrop-blur-[2px]" aria-live="polite">
-      <span className="h-12 w-12 animate-spin rounded-full border-[3px]
-                       border-zinc-800 border-t-sky-500" />
-      {text && <span className="mt-4 text-xs uppercase tracking-[0.2em] text-slate-500">{text}</span>}
-    </div>
-  );
-}
+
 
 /**
  * Eine Zeile im Duell: links ein Wert, rechts ein Wert, dazwischen der Name.
@@ -2907,7 +2898,7 @@ export default function StatistikSeite() {
           werden - nicht nur ein "Loading" in der Ecke. */}
       {(profilLaedt || (bereich === 'jahr' && jahrLaedt)
         || (bereich === 'spieler' && laedt && !spieler.length)) && (
-        <LadeSchleier text={t('Wird geladen …')} />
+        <LadeSchirm />
       )}
       <div className="mx-auto flex max-w-[1600px] gap-5 px-4 py-6">
 

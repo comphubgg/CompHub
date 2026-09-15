@@ -1951,6 +1951,44 @@ const AUF_ENGLISCH: Record<string, string> = {
     'now',
   'Sitzungen':
     'sessions',
+  'Die Overlays sind Teil des VIP-Zugangs.':
+    'Overlays are part of VIP access.',
+  'Links oben die drei Striche: von dort kommen Team card, Standings, Cup timer, Offspawn, Custom text und Qual line auf das Bild. Ziehen zum Verschieben, die Ecke zum Vergrößern.':
+    'Top left, the three lines: from there Team card, Standings, Cup timer, Offspawn, Custom text and Qual line come onto the picture. Drag to move, the corner to resize.',
+  'Nach vorn':
+    'Bring to front',
+  'Einstellungen':
+    'Settings',
+  'Werbung':
+    'Ad',
+  'Gameplay':
+    'Gameplay',
+  'Cam':
+    'Cam',
+  'Nur hier sichtbar, nicht in OBS: wo Cam, Gameplay und Werbung liegen.':
+    'Only visible here, not in OBS: where cam, gameplay and ads sit.',
+  'Platzhalter':
+    'Placeholders',
+  'Noch keins gespeichert.':
+    'None saved yet.',
+  'Neues anlegen':
+    'Create new',
+  'Neue Szene':
+    'New scene',
+  'Meine Szenen':
+    'My scenes',
+  'Elemente':
+    'elements',
+  'OBS-Adresse':
+    'OBS address',
+  'Konnte nicht speichern':
+    'Could not save',
+  'Meine Szene':
+    'My scene',
+  'Name der Szene':
+    'Scene name',
+  'Studio':
+    'Studio',
   'Ohne Aufstellung: die Plätze stehen nur in der tiefen Auswertung, und die läuft nur dort, wo der Leser liegt (eigener Rechner, Laufrechner), nicht auf der Webseite.':
     'No lineup: placements only come from the deep parse, which runs only where the reader is installed (your machine, the runner), not on the website.',
   'alle 10 Sekunden':

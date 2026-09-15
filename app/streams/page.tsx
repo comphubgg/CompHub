@@ -1,4 +1,5 @@
 ﻿'use client';
+import LadeSchirm from '@/app/components/LadeSchirm';
 
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { useSearchParams, useRouter } from 'next/navigation';
@@ -1303,7 +1304,7 @@ const response = await fetch(getApiUrl(`/api/search?q=${encodeURIComponent(twitc
 
 
   if (!isMounted) {
-    return <div className="min-h-screen bg-zinc-950 text-zinc-500 p-6 font-sans"><T>Loading...</T></div>;
+    return <LadeSchirm />;
   }
 
   const toggleChatVisibility = () => {
