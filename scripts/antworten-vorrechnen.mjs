@@ -65,8 +65,22 @@ function wege(saisons) {
     // Die Spieler-Ansicht fragt mit limit=300 - zuerst ohne Region.
     raus.push(`/api/szene-stats?saison=${encodeURIComponent(s)}&sort=elims&limit=300`);
   }
+  /*
+   * Die Jahresansicht in allen Spielarten: je Jahr, je Region, je Saison
+   * des Jahres. Ohne das rechnete Vercel "2025 · NAC" beim ersten Klick
+   * ueber dreihundert Dateien - der Betreiber: "es ist noch laggy, bis ich
+   * 2025 sehe."
+   */
+  const JAHRE = { 2026: ['S39', 'S40', 'S41', 'S42'], 2025: ['S33', 'S34', 'S36', 'S37'], 2024: ['S30', 'S31'] };
+  for (const [jahr, sais] of Object.entries(JAHRE)) {
+    for (const sa of sais) raus.push(`/api/szene-stats?ansicht=jahr&jahr=${jahr}&saison=${sa}`);
+    for (const r of REGIONEN) {
+      raus.push(`/api/szene-stats?ansicht=jahr&jahr=${jahr}&region=${r}`);
+      for (const sa of sais) raus.push(`/api/szene-stats?ansicht=jahr&jahr=${jahr}&region=${r}&saison=${sa}`);
+    }
+  }
+  for (const r of REGIONEN) raus.push(`/api/szene-stats?ansicht=jahr&jahr=alle&region=${r}`);
   for (const r of REGIONEN) {
-    raus.push(`/api/szene-stats?ansicht=jahr&jahr=${new Date().getUTCFullYear()}&region=${r}`);
     raus.push(`/api/szene-stats?region=${r}&sort=elims&limit=80`);
     raus.push(`/api/szene-stats?region=${r}&sort=elims&limit=60`);
     /*

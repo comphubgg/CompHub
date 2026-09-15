@@ -1976,14 +1976,21 @@ export default function StatistikSeite() {
   useEffect(() => {
     if (bereich !== 'jahr') return;
     let weg = false;
+    // Sofort der Ladeschirm, auch beim Wechsel - der Betreiber: "damit ich
+    // nicht denke, ich habe gedrueckt und bin immer noch auf 2026." Und
+    // mindestens kurz sichtbar, damit er nicht nur flackert.
     setJahrLaedt(true);
+    const seit = Date.now();
     fetch(`/api/szene-stats?ansicht=jahr&jahr=${jahrWahl}`
       + (jahrRegion ? `&region=${encodeURIComponent(jahrRegion)}` : '')
       + (jahrSaison ? `&saison=${encodeURIComponent(jahrSaison)}` : ''))
       .then((r) => r.json())
       .then((j) => { if (!weg && j?.listen) setJahr(j); })
       .catch(() => { /* dann bleibt die Ansicht leer */ })
-      .finally(() => { if (!weg) setJahrLaedt(false); });
+      .finally(() => {
+        const rest = Math.max(0, 600 - (Date.now() - seit));
+        setTimeout(() => { if (!weg) setJahrLaedt(false); }, rest);
+      });
     return () => { weg = true; };
   }, [bereich, jahrRegion, jahrWahl, jahrSaison]);
   useEffect(() => { setJahrSaison(''); }, [jahrWahl]);
@@ -2898,7 +2905,7 @@ export default function StatistikSeite() {
     <main className="min-h-screen bg-zinc-950 text-slate-100">
       {/* Ein Ladeschirm ueber allem, solange Profil, Jahr oder Liste geholt
           werden - nicht nur ein "Loading" in der Ecke. */}
-      {(profilLaedt || (jahrLaedt && !jahr)
+      {(profilLaedt || (bereich === 'jahr' && jahrLaedt)
         || (bereich === 'spieler' && laedt && !spieler.length)) && (
         <LadeSchleier text={t('Wird geladen …')} />
       )}
