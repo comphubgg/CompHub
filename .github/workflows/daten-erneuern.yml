@@ -139,6 +139,17 @@ jobs:
           WERKZEUG_URL: https://www.thecomphub.com
         run: node scripts/epic-spieltage-holen.mjs 2>&1 | tail -20
 
+      # Alte Spieltage suchen, die Epics Liste nicht mehr nennt - je Lauf
+      # ein Stueck (1500 Abfragen, gut zehn Minuten), das Gedaechtnis liegt
+      # im Zwischenspeicher (_gesucht.json). Was gefunden wird, laedt der
+      # Schritt "Ergebnis nach Supabase" mit hoch. Siehe das Skript.
+      - name: Alte Spieltage suchen
+        continue-on-error: true
+        timeout-minutes: 15
+        env:
+          WERKZEUG_URL: https://www.thecomphub.com
+        run: node scripts/epic-fenster-suchen.mjs --hoechstens 1500 2>&1 | tail -15
+
       # Auch hier die Adresse des Werkzeugs: das Skript holt die Bestenlisten
       # ueber die eigene Schnittstelle, und ohne die Adresse fragt es auf
       # localhost ins Leere - zwanzig Minuten lang, fuer jeden Spieltag ein
