@@ -7,6 +7,99 @@ import Link from 'next/link';
 import T from '@/app/components/T';
 import VipSlider from '@/app/components/VipSlider';
 import Fusszeile from '@/app/components/Fusszeile';
+import TeamFlagge from '@/components/TeamFlagge';
+
+/** Ein Platz in der Preisgeldliste der Startseite. */
+interface Geldplatz {
+  epicId: string; anzeige: string; land: string | null; bild: string | null;
+  heimat: string; verdienst: number;
+}
+
+/**
+ * Die fuenf mit dem meisten Preisgeld dieses Jahres.
+ *
+ * Die Idee des Betreibers fuer die Startseite: "ein Abschnitt mit Most
+ * Earnings this year, Top 5, oben rechts View all, und dann kommt man auf
+ * die Earnings-Seite 2026." Nur Preisgeld, nichts anderes - das ist die
+ * Zahl, die jeder sofort versteht.
+ */
+function MeistesPreisgeld({ ort }: { ort: string }) {
+  const [daten, setDaten] = useState<{ jahr: number; plaetze: Geldplatz[]; spieltageMitRegel: number } | null>(null);
+  useEffect(() => {
+    const jahr = new Date().getUTCFullYear();
+    fetch(`/api/szene-stats?ansicht=jahr&jahr=${jahr}&kurz=1`, { signal: AbortSignal.timeout(10_000) })
+      .then((r) => r.json())
+      .then((j) => { if (j?.plaetze?.length) setDaten(j); })
+      .catch(() => { /* dann fehlt der Abschnitt - besser als leere Karten */ });
+  }, []);
+  if (!daten) return null;
+  return (
+    <section className="px-4 py-16">
+      <div className="mx-auto max-w-6xl">
+        <Abschnitt>
+          <div className="mb-6 flex items-end justify-between gap-4">
+            <div>
+              <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-sky-500">
+                <T>Preisgeld</T>
+              </p>
+              <h2 className="mt-1 text-2xl font-black tracking-tight sm:text-3xl">
+                <T>Meistes Preisgeld</T> {daten.jahr}
+              </h2>
+            </div>
+            <Link href="/statistiken?bereich=jahr"
+              className="shrink-0 rounded-lg border border-zinc-800 px-3 py-1.5 text-xs
+                         font-semibold text-slate-300 transition hover:border-sky-500
+                         hover:text-sky-400">
+              <T>Alle anzeigen</T> →
+            </Link>
+          </div>
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+            {daten.plaetze.map((sp, i) => (
+              <Link key={sp.epicId} href={`/statistiken?spieler=${encodeURIComponent(sp.anzeige)}`}
+                className="group relative aspect-[3/4] overflow-hidden rounded-xl border
+                           border-zinc-800 bg-zinc-900 transition hover:border-sky-500">
+                {sp.bild ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img src={sp.bild} alt="" loading="lazy"
+                    className="absolute inset-0 h-full w-full object-cover object-top
+                               transition duration-300 group-hover:scale-105" />
+                ) : (
+                  <span className="absolute inset-0 flex items-center justify-center text-4xl
+                                   text-zinc-800">?</span>
+                )}
+                <span className={`absolute left-2 top-2 rounded bg-black/70 px-1.5 py-0.5
+                                  text-[10px] font-bold tabular-nums ${
+                                  i === 0 ? 'text-amber-400' : 'text-slate-300'}`}>
+                  {i + 1}
+                </span>
+                {sp.heimat && (
+                  <span className="absolute right-2 top-2 rounded bg-black/70 px-1.5 py-0.5
+                                   text-[9px] font-semibold tracking-wider text-slate-300">
+                    {sp.heimat}
+                  </span>
+                )}
+                <span className="absolute bottom-0 w-full bg-gradient-to-t from-black/95
+                                 via-black/70 to-transparent px-3 pb-2.5 pt-10">
+                  <span className="flex items-center gap-1.5">
+                    <TeamFlagge groesse={16} laender={[sp.land ?? undefined]} />
+                    <span className="min-w-0 truncate text-sm font-bold uppercase tracking-wide
+                                     text-slate-50">{sp.anzeige}</span>
+                  </span>
+                  <span className="mt-1 block text-lg font-bold tabular-nums text-emerald-400">
+                    ${sp.verdienst.toLocaleString(ort)}
+                  </span>
+                </span>
+              </Link>
+            ))}
+          </div>
+          <p className="mt-3 text-[11px] text-slate-600">
+            <T>Online-Cups aus der gepflegten Preisgeldtabelle (EU) und LAN-Events aus veröffentlichten Tabellen, je Person.</T>
+          </p>
+        </Abschnitt>
+      </div>
+    </section>
+  );
+}
 
 // Die Startseite.
 //
@@ -276,6 +369,8 @@ export default function Startseite() {
           </div>
         </div>
       </section>
+
+      <MeistesPreisgeld ort={ort} />
 
       {/* ------------------------------------------------- Woher die Daten */}
       <section className="border-y border-zinc-900 bg-zinc-900/20 px-4 py-20">

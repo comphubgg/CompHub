@@ -18,6 +18,7 @@
 // Ebenso fehlen die Spielerfotos: das sind lizenzierte Pressebilder.
 
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
+import { useSearchParams } from 'next/navigation';
 import TeamFlagge from '@/components/TeamFlagge';
 import { ohneZierrat } from '@/lib/homoglyph';
 
@@ -1625,6 +1626,7 @@ export default function StatistikSeite() {
   // eingewickelter Text. Die Sprache selbst wird fuer das Datum gebraucht.
   const { sprache, t } = useSprache();
   const [bereich, setBereich] = useState<Bereich>('start');
+  const suchParameter = useSearchParams();
   const [saisons, setSaisons] = useState<Array<{ kennung: string; name: string }>>([]);
   const [regionen, setRegionen] = useState<string[]>([]);
 
@@ -1959,6 +1961,16 @@ export default function StatistikSeite() {
       .then((r) => (r.ok ? r.json() : null))
       .then((j) => setIstAdmin(j?.isAdmin === true))
       .catch(() => setIstAdmin(false));
+
+    /*
+     * "?bereich=jahr" aus der Startseite - direkt in den Bereich, ohne
+     * Umweg ueber die Uebersicht. Ueber den Router gelesen, nicht ueber
+     * window.location, das beim Seitenwechsel noch die alte Adresse traegt.
+     */
+    const gewuenscht = suchParameter?.get('bereich');
+    if (gewuenscht && ['turniere', 'regional', 'spieler', 'jahr', 'vergleich', 'bilder'].includes(gewuenscht)) {
+      setBereich(gewuenscht as Bereich);
+    }
 
     fetch('/api/statistik-sichtbarkeit', { cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : null))

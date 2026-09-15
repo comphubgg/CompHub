@@ -43,6 +43,8 @@ function wege(saisons) {
     // Das Jahr - ueber alle Saisons, mit Preisgeld.
     `/api/szene-stats?ansicht=jahr&jahr=${new Date().getUTCFullYear()}`,
     '/api/szene-stats?ansicht=jahr&jahr=alle',
+    // Die Startseite: die fuenf mit dem meisten Preisgeld dieses Jahres.
+    `/api/szene-stats?ansicht=jahr&jahr=${new Date().getUTCFullYear()}&kurz=1`,
     '/api/szene-stats?ansicht=jahr&jahr=2025',
     '/api/szene-stats?ansicht=jahr&jahr=2024',
     '/api/szene-stats?ansicht=bilder',

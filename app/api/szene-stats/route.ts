@@ -411,6 +411,18 @@ async function berechne(request: Request) {
         namen: [], events: s.events, matches: s.matches,
         [feld]: (s as unknown as Record<string, unknown>)[feld] ?? 0,
       });
+      /*
+       * "kurz": nur die fuenf mit dem meisten Preisgeld - fuer die
+       * Startseite. Ein paar Kilobyte statt einer Viertelmegabyte.
+       */
+      if (p.get('kurz')) {
+        const geld = daten.listen.find((l) => l.feld === 'verdienst');
+        return NextResponse.json({
+          success: true, jahr: daten.jahr, spieltage: daten.spieltage,
+          plaetze: (geld?.plaetze ?? []).slice(0, 5).map(schlank('verdienst')),
+          spieltageMitRegel: (geld as { spieltageMitRegel?: number } | undefined)?.spieltageMitRegel ?? 0,
+        });
+      }
       return NextResponse.json({
         success: true, quelle: QUELLE, ...daten,
         listen: daten.listen.map((l) => ({

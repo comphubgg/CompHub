@@ -1951,6 +1951,8 @@ const AUF_ENGLISCH: Record<string, string> = {
     'now',
   'Sitzungen':
     'sessions',
+  'Online-Cups aus der gepflegten Preisgeldtabelle (EU) und LAN-Events aus veröffentlichten Tabellen, je Person.':
+    'Online cups from the maintained prize table (EU) and LAN events from published tables, per player.',
   'Die Overlays sind Teil des VIP-Zugangs.':
     'Overlays are part of VIP access.',
   'Links oben die drei Striche: von dort kommen Team card, Standings, Cup timer, Offspawn, Custom text und Qual line auf das Bild. Ziehen zum Verschieben, die Ecke zum Vergrößern.':
