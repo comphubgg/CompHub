@@ -38,6 +38,9 @@ on:
 jobs:
   erneuern:
     runs-on: ubuntu-latest
+    # Schreiben ans Release (zweite Ablage) braucht contents: write.
+    permissions:
+      contents: write
     timeout-minutes: 90
 
     # Zwei Laeufe gleichzeitig wuerden einander dieselben Zeilen
@@ -277,6 +280,22 @@ jobs:
         run: |
           node scripts/umzug-supabase.mjs --neuer-als 120 --nur replays \
             2>&1 | tail -20
+
+      # Die zweite Ablage: dieselben Dateien als Anhaenge am Release "daten"
+      # des Projekts (siehe lib/ablageGithub.ts). Von dort liest die Seite die
+      # Antworten und Akten zuerst und alles andere, sobald Supabase nicht
+      # antwortet. Am 16.9.2026 war die Datenbank dort dreimal am Tag weg, und
+      # dieser Schritt hier war der einzige Weg, die Zahlen trotzdem zu zeigen.
+      # Das Manifest am Release sagt, was sich geaendert hat; ein Lauf laedt
+      # nur das hoch.
+      - name: Ergebnis ans GitHub-Release
+        if: always()
+        continue-on-error: true
+        timeout-minutes: 40
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          node scripts/ablage-github.mjs 2>&1 | tr '\r' '\n' | grep -v '^ *[0-9]*/[0-9]* ' | tail -12
 
       - name: Datenordner sichern
         # Auch nach einem Fehlschlag - siehe oben.

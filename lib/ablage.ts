@@ -163,7 +163,36 @@ function waehle(): Speicher {
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { supabaseSpeicher } = require('@/lib/ablageSupabase') as
       { supabaseSpeicher: Speicher };
-    gewaehlt = supabaseSpeicher;
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { githubLeser, amRelease, releaseZuerst } = require('@/lib/ablageGithub') as {
+      githubLeser: Pick<Speicher, 'lies'>;
+      amRelease: (n: string) => boolean; releaseZuerst: (n: string) => boolean;
+    };
+    /*
+     * Zwei Quellen fuers Lesen - siehe lib/ablageGithub. Einzeldateien
+     * (Antworten, Akten) zuerst vom Release, dann Supabase; ganze Ordner
+     * zuerst Supabase, und wenn das scheitert, vom Release. Geschrieben
+     * wird weiter nur bei Supabase.
+     */
+    gewaehlt = {
+      ...supabaseSpeicher,
+      lies: async (name) => {
+        if (releaseZuerst(name)) {
+          try {
+            const wert = await githubLeser.lies(name);
+            if (wert) return wert;
+          } catch { /* dann Supabase */ }
+          return supabaseSpeicher.lies(name);
+        }
+        if (amRelease(name)) {
+          try { return await supabaseSpeicher.lies(name); }
+          catch (e) {
+            try { return await githubLeser.lies(name); } catch { throw e; }
+          }
+        }
+        return supabaseSpeicher.lies(name);
+      },
+    };
   } else {
     gewaehlt = ordnerSpeicher;
   }
