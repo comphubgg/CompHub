@@ -1259,12 +1259,15 @@ export async function jahresListen(jahr: number, region?: string, nurSaison?: st
    * kennt (2019 bis 2023), und fuer 2024 die Spieltage vor Chapter 5
    * Season 3. Nach Kalenderjahr, weil diese Eintraege ein Datum haben.
    */
-  if (jahr > 0 && !nurSaison) {
+  // Bei "alle Zeit" (jahr 0) zaehlt die ganze Akte - sonst fehlte dort
+  // alles vor Chapter 5 Season 3, und der Betreiber sah Malibuca mit 340
+  // statt 1.070 Tausend.
+  if (!nurSaison) {
     const archiv = await liesVerdienstArchiv();
     const liveFenster = new Set([...eintraege, ...weitere].map((e) => e.windowId));
     for (const [id, liste] of Object.entries(archiv.konten)) {
       for (const e of liste) {
-        if (eintragJahr(e) !== jahr || liveFenster.has(e[0])) continue;
+        if ((jahr > 0 && eintragJahr(e) !== jahr) || liveFenster.has(e[0])) continue;
         if (region && e[1] !== region) continue;
         geld.set(id, (geld.get(id) ?? 0) + e[5]);
       }
