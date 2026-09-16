@@ -824,42 +824,62 @@ export const KENNZAHLEN: Array<{
  * Stichworte im Turniernamen: "Reload Elite Series 4 - Heat 3" traegt die
  * Grafik der Reload Elite Series Championship, jede FNCS-Woche die der
  * Division-Cups. Wo nichts passt, bleibt es beim Farbfeld.
+ *
+ * Gesucht wird die Grafik im Archiv ueber ein zweites Stichwort, nicht ueber
+ * einen festen Cupnamen: Epic nennt denselben Cup je nach Saison anders
+ * ("Performance Evaluation Cup", "Performance Cup", einmal nur "Fortnite"),
+ * und das Archiv auf dem Laufrechner ist ein anderes als das hier. Mit dem
+ * festen Namen kam so keine einzige Performance-Kachel zu ihrem Bild. Das
+ * Stichwort trifft den Cupnamen oder den Dateinamen der Grafik selbst
+ * ("discoverytile-performanceevaluation").
  */
-const BILD_STICHWORTE: Array<[RegExp, string]> = [
-  [/performance/i, 'Fortnite'],
-  [/escargo|reload elite/i, 'Reload Elite Series Championship'],
-  [/fncs.*(major|last ?chance|grand)/i, 'FNCS Global Championship Last Chance'],
-  [/fncs.*division|division/i, 'FNCS Division 1 Practice'],
-  [/shadow/i, 'Shadow Cup'],
-  [/victory/i, 'Solo Victory Cup'],
-  [/cash/i, 'Reload ZB Duos Cash Cup'],
-  [/ranked/i, 'Solo Ranked Cup (Battle Royale)'],
+const BILD_STICHWORTE: Array<[RegExp, RegExp]> = [
+  [/performance|perf ?eval/i, /performance/i],
+  [/escargo|reload elite/i, /reload elite series|reload-championship/i],
+  [/fncs.*(major|last ?chance|grand)|grand ?finals/i, /last chance|major|global championship/i],
+  [/fncs.*division|division/i, /division/i],
+  [/shadow/i, /shadow/i],
+  [/victory/i, /victory/i],
+  [/cash/i, /cash ?cup/i],
+  [/ranked/i, /ranked/i],
 ];
 
-let bildKatalog: Map<string, string> | null = null;
+let bildKatalog: Array<[string, string]> | null = null;
 let bildKatalogBis = 0;
 
-async function katalogBilder(): Promise<Map<string, string>> {
+/** Cupname und Grafik, je Cupname einmal - in der Reihenfolge des Archivs. */
+async function katalogBilder(): Promise<Array<[string, string]>> {
   if (bildKatalog && Date.now() < bildKatalogBis) return bildKatalog;
-  const karte = new Map<string, string>();
+  const liste: Array<[string, string]> = [];
+  const gesehen = new Set<string>();
   try {
     const arch = JSON.parse(await fs.readFile(
       path.join(DATEN_ORT, 'cup-archiv.json'), 'utf8')) as
       Array<{ titel: string; bild?: string }>;
-    for (const a of arch) if (a.bild && !karte.has(a.titel)) karte.set(a.titel, a.bild);
+    for (const a of arch) {
+      if (a.bild && !gesehen.has(a.titel)) { gesehen.add(a.titel); liste.push([a.titel, a.bild]); }
+    }
   } catch { /* kein Archiv */ }
-  bildKatalog = karte;
+  bildKatalog = liste;
   bildKatalogBis = Date.now() + 5 * 60_000;
-  return karte;
+  return liste;
 }
 
 export async function bildFuer(name: string): Promise<string | null> {
   const katalog = await katalogBilder();
-  for (const [muster, titel] of BILD_STICHWORTE) {
-    if (muster.test(name)) {
-      const b = katalog.get(titel);
-      if (b) return b;
-    }
+  // "Division 3" bekommt die Grafik der Division 3, nicht die der ersten.
+  const division = name.match(/division\s*(\d)/i);
+  if (division) {
+    const genau = katalog.find(([titel]) => new RegExp(`division\\s*${division[1]}\\b`, 'i').test(titel));
+    if (genau) return genau[1];
+  }
+  for (const [muster, suche] of BILD_STICHWORTE) {
+    if (!muster.test(name)) continue;
+    // Erst der Cupname, dann der Dateiname der Grafik.
+    const nachTitel = katalog.find(([titel]) => suche.test(titel));
+    if (nachTitel) return nachTitel[1];
+    const nachDatei = katalog.find(([, bild]) => suche.test(bild.replace(/[-_]/g, ' ')));
+    if (nachDatei) return nachDatei[1];
   }
   return null;
 }
