@@ -65,6 +65,20 @@ function alsObjekt(name: string): boolean {
   return IM_OBJEKTSPEICHER.some((p) => name.startsWith(p));
 }
 
+/*
+ * Fristen fuer jede Anfrage an Supabase.
+ *
+ * Ohne Frist wartet eine Anfrage, bis Vercel die Funktion abwuergt - und
+ * eine Seite, die beim Aufbau ein Konto oder einen VIP-Zugang liest, kam
+ * dann minutenlang nicht. Der Betreiber: "ich lade die Seite einfach zehn
+ * Minuten lang." Acht Sekunden fuers Lesen sind grosszuegig: eine gesunde
+ * Datenbank antwortet in Bruchteilen einer Sekunde. Danach ist es ein
+ * Fehler, und die Aufrufer wissen, was sie ohne die Datei tun.
+ */
+const LESEN_MS = 8_000;
+const SCHREIBEN_MS = 25_000;
+const frist = (ms: number) => AbortSignal.timeout(ms);
+
 function zugang() {
   const url = (process.env.SUPABASE_URL || process.env.STORAGE_URL || '')
     .replace(/\/+$/, '');
@@ -138,7 +152,7 @@ async function holeOrdner(praefix: string): Promise<Map<string, string> | null> 
   const r = await fetch(
     `${url}/rest/v1/${TABELLE}?name=like.${encodeURIComponent(praefix + '*')}`
     + `&select=name,wert&limit=${VORGRIFF_HOECHSTENS + 1}`,
-    { headers: kopf, cache: 'no-store' });
+    { headers: kopf, cache: 'no-store', signal: frist(LESEN_MS) });
   if (!r.ok) return null;
   const zeilen = await r.json() as Array<{ name: string; wert: string }>;
   // Zu gross: dann lieber einzeln, und den Ordner nicht merken.
@@ -181,7 +195,7 @@ async function tabelleLies(name: string): Promise<Buffer | null> {
   const { url, kopf } = zugang();
   const r = await fetch(
     `${url}/rest/v1/${TABELLE}?name=eq.${encodeURIComponent(name)}&select=wert`,
-    { headers: kopf, cache: 'no-store' });
+    { headers: kopf, cache: 'no-store', signal: frist(LESEN_MS) });
   serverFehler(r, name);
   if (!r.ok) return null;
   const zeilen = await r.json() as Array<{ wert: string }>;
@@ -213,6 +227,7 @@ async function tabelleSchreib(name: string, daten: Buffer): Promise<void> {
   const wert = daten.toString('utf8');
   const r = await fetch(`${url}/rest/v1/${TABELLE}`, {
     method: 'POST',
+    signal: frist(SCHREIBEN_MS),
     headers: {
       ...kopf,
       'Content-Type': 'application/json',
@@ -230,7 +245,7 @@ async function tabelleSchreib(name: string, daten: Buffer): Promise<void> {
 async function tabelleLoesche(name: string): Promise<void> {
   const { url, kopf } = zugang();
   await fetch(`${url}/rest/v1/${TABELLE}?name=eq.${encodeURIComponent(name)}`,
-    { method: 'DELETE', headers: kopf });
+    { method: 'DELETE', headers: kopf, signal: frist(SCHREIBEN_MS) });
   const praefix = ordnerVon(name);
   if (praefix) ordnerCache.delete(praefix);
 }
@@ -240,7 +255,7 @@ async function tabelleListe(ordner: string): Promise<string[]> {
   const praefix = ordner ? `${ordner.replace(/\/+$/, '')}/` : '';
   const r = await fetch(
     `${url}/rest/v1/${TABELLE}?name=like.${encodeURIComponent(praefix + '*')}&select=name`,
-    { headers: kopf, cache: 'no-store' });
+    { headers: kopf, cache: 'no-store', signal: frist(LESEN_MS) });
   if (!r.ok) return [];
   const zeilen = await r.json() as Array<{ name: string }>;
   /*
@@ -260,7 +275,7 @@ async function tabelleAngaben(name: string) {
   const { url, kopf } = zugang();
   const r = await fetch(
     `${url}/rest/v1/${TABELLE}?name=eq.${encodeURIComponent(name)}&select=geaendert,wert`,
-    { headers: kopf, cache: 'no-store' });
+    { headers: kopf, cache: 'no-store', signal: frist(LESEN_MS) });
   if (!r.ok) return null;
   const zeilen = await r.json() as Array<{ geaendert: string; wert: string }>;
   if (!zeilen.length) return null;
@@ -275,7 +290,7 @@ async function tabelleAngaben(name: string) {
 async function objektLies(name: string): Promise<Buffer | null> {
   const { url, kopf } = zugang();
   const r = await fetch(`${url}/storage/v1/object/${EIMER}/${name}`,
-    { headers: kopf, cache: 'no-store' });
+    { headers: kopf, cache: 'no-store', signal: frist(LESEN_MS) });
   serverFehler(r, name);
   if (!r.ok) return null;
   return Buffer.from(await r.arrayBuffer());
@@ -285,6 +300,7 @@ async function objektSchreib(name: string, daten: Buffer): Promise<void> {
   const { url, kopf } = zugang();
   const r = await fetch(`${url}/storage/v1/object/${EIMER}/${name}`, {
     method: 'POST',
+    signal: frist(SCHREIBEN_MS),
     headers: {
       ...kopf,
       'Content-Type': name.endsWith('.json')
@@ -300,7 +316,7 @@ async function objektSchreib(name: string, daten: Buffer): Promise<void> {
 async function objektLoesche(name: string): Promise<void> {
   const { url, kopf } = zugang();
   await fetch(`${url}/storage/v1/object/${EIMER}/${name}`,
-    { method: 'DELETE', headers: kopf });
+    { method: 'DELETE', headers: kopf, signal: frist(SCHREIBEN_MS) });
 }
 
 async function objektListe(ordner: string): Promise<string[]> {
@@ -315,6 +331,7 @@ async function objektListe(ordner: string): Promise<string[]> {
   for (let versatz = 0; ; versatz += PRO_SEITE) {
     const r = await fetch(`${url}/storage/v1/object/list/${EIMER}`, {
       method: 'POST',
+      signal: frist(LESEN_MS),
       headers: { ...kopf, 'Content-Type': 'application/json' },
       body: JSON.stringify({
         prefix: ordner ? `${ordner.replace(/\/+$/, '')}/` : '',
@@ -333,7 +350,7 @@ async function objektListe(ordner: string): Promise<string[]> {
 async function objektAngaben(name: string) {
   const { url, kopf } = zugang();
   const r = await fetch(`${url}/storage/v1/object/info/${EIMER}/${name}`,
-    { headers: kopf, cache: 'no-store' });
+    { headers: kopf, cache: 'no-store', signal: frist(LESEN_MS) });
   if (!r.ok) return null;
   const j = await r.json() as { size?: number; updated_at?: string };
   return {

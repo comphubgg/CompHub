@@ -4,7 +4,7 @@ import {
   schreibeArchiv, leseArchiv, archivCups, EpicLoginNoetig,
   type CupArt, type CupGruppe,
 } from '@/lib/epicCups';
-import { fertigeAntwort, FRISCH_LIVE_MS } from '@/lib/antwortSpeicher';
+import { AblageNichtErreichbar, fertigeAntwort, FRISCH_LIVE_MS } from '@/lib/antwortSpeicher';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -78,8 +78,17 @@ export async function GET(request: Request) {
      * ist. Gewartet wird nur noch, wenn wirklich gar nichts da ist.
      */
     const schluessel = `catalog|${regionen.join(',')}`;
-    const alle = zustaendeJetzt(await gecacht(schluessel, 60_000,
-      () => fertigeAntwort(schluessel, () => cupsGruppiert(regionen), FRISCH_LIVE_MS)));
+    const alle = zustaendeJetzt(await gecacht(schluessel, 60_000, async () => {
+      try {
+        return await fertigeAntwort(schluessel, () => cupsGruppiert(regionen), FRISCH_LIVE_MS);
+      } catch (e) {
+        // Die Ablage antwortet nicht - dann direkt von Epic, das ist hier
+        // ohnehin die Quelle. Vorher stand auf der Turnierseite eine
+        // Fehlerseite von Vercel statt der Liste.
+        if (e instanceof AblageNichtErreichbar) return cupsGruppiert(regionen);
+        throw e;
+      }
+    }));
 
     // Jeden Durchlauf mitschreiben, damit die Vergangenheit waechst.
     // Epic selbst haelt vergangene Cups nur wenige Tage vor.
@@ -152,7 +161,7 @@ export async function GET(request: Request) {
           tage: new Set(archiv.filter((e) => e.begin).map((e) => tag(e.begin))).size,
         };
       })(),
-    });
+    }, { headers: { 'Cache-Control': 'public, max-age=30, s-maxage=60, stale-while-revalidate=600' } });
   } catch (e) {
     const login = e instanceof EpicLoginNoetig;
     return NextResponse.json(

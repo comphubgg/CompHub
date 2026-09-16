@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import T from '@/app/components/T';
 
 /*
@@ -14,7 +15,21 @@ import T from '@/app/components/T';
  * Er liegt ueber dem Inhalt, nicht anstelle des Inhalts: was schon steht,
  * scheint durch, und was fehlt, kommt darunter dazu.
  */
+/*
+ * Erst nach einer knappen halben Sekunde sichtbar.
+ *
+ * Der Betreiber: "die Ladeanimation muss nicht jedes Mal kommen, wenn ich
+ * zwischen Sachen wechsle, sondern nur, wenn es etwas herunterlaedt." Ein
+ * Wechsel, der in 400 Millisekunden fertig ist, zeigt deshalb gar nichts
+ * mehr; nur was wirklich wartet, bekommt den Schirm.
+ */
 export default function LadeSchirm({ text }: { text?: string }) {
+  const [sichtbar, setSichtbar] = useState(false);
+  useEffect(() => {
+    const zeiger = setTimeout(() => setSichtbar(true), 400);
+    return () => clearTimeout(zeiger);
+  }, []);
+  if (!sichtbar) return null;
   return (
     <div className="fixed inset-0 z-[80] flex flex-col items-center justify-center
                     bg-zinc-950/70 backdrop-blur-[2px]" aria-live="polite" aria-busy="true">

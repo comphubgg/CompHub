@@ -22,7 +22,24 @@ import type { SperrAngaben } from '@/app/components/SperrSeite';
 const KONTO_COOKIE = 'streamer_dashboard_konto';
 const VIP_COOKIE = 'streamer_dashboard_auth';
 
+/*
+ * Ein Versprechen mit Frist: kommt die Antwort nicht rechtzeitig, gilt der
+ * Ersatzwert. Das Layout liest hier Konto und VIP-Zugang aus der Ablage -
+ * haengt die, darf die Seite trotzdem kommen. Wer dann als Nicht-Admin
+ * gilt, sieht fuer diesen Aufruf eben die oeffentliche Ansicht.
+ */
+async function mitFrist<T>(arbeit: Promise<T>, ms: number, ersatz: T): Promise<T> {
+  let zeiger: ReturnType<typeof setTimeout> | null = null;
+  const uhr = new Promise<T>((res) => { zeiger = setTimeout(() => res(ersatz), ms); });
+  try { return await Promise.race([arbeit.catch(() => ersatz), uhr]); }
+  finally { if (zeiger) clearTimeout(zeiger); }
+}
+
 async function istAdmin(): Promise<boolean> {
+  return mitFrist(istAdminRoh(), 2_500, false);
+}
+
+async function istAdminRoh(): Promise<boolean> {
   const laden = await cookies();
 
   const id = kontoAus(laden.get(KONTO_COOKIE)?.value);
