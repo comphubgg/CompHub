@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { ohneDateien } from '@/lib/antwortSpeicher';
 import { verdienst, lanEintraege } from '@/lib/preisgeld';
-import { fertigeAntwort, abgelegteAntwort } from '@/lib/antwortSpeicher';
+import { fertigeAntwort, abgelegteAntwort, CDN_FRIST } from '@/lib/antwortSpeicher';
 import fs from '@/lib/ablageFs';
 import path from 'path';
 import {
@@ -340,7 +340,7 @@ export async function GET(request: Request) {
     const fertig = await abgelegteAntwort<unknown>(schluessel);
     if (fertig) {
       return NextResponse.json(fertig, {
-        headers: { 'Cache-Control': 'public, max-age=60, stale-while-revalidate=3600' },
+        headers: { 'Cache-Control': CDN_FRIST },
       });
     }
     // Liegt nichts, wartet niemand eine Minute auf eine leere Liste.
@@ -355,7 +355,7 @@ export async function GET(request: Request) {
       return await antwort.json() as unknown;
     }, undefined, !archivWeit);
     return NextResponse.json(wert, {
-      headers: { 'Cache-Control': 'public, max-age=60, stale-while-revalidate=3600' },
+      headers: { 'Cache-Control': CDN_FRIST },
     });
   } catch {
     // Fehler werden nicht aufgehoben - dann eben ohne Ablage antworten.

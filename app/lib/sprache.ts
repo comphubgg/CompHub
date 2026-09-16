@@ -1951,6 +1951,8 @@ const AUF_ENGLISCH: Record<string, string> = {
     'now',
   'Sitzungen':
     'sessions',
+  'Die Zahlen sind gerade nicht erreichbar. Es wird gleich noch einmal versucht.':
+    'The numbers are not reachable right now. Trying again in a moment.',
   'aller Zeiten':
     'of all time',
   'Nur Finals':

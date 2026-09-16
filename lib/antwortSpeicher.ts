@@ -49,6 +49,20 @@ function nachDerAntwort(arbeit: () => Promise<void>): void {
 /** Wo die fertigen Antworten liegen. */
 const ORDNER = 'antworten';
 
+/*
+ * Was Vercels Rand mit einer fertigen Antwort tun darf.
+ *
+ * Fuenf Minuten liefert der Rand sie aus, ohne den Server zu fragen; einen
+ * Tag lang danach liefert er den alten Stand weiter und erneuert ihn im
+ * Hintergrund. Vorher stand hier nur max-age, und das gilt allein fuer den
+ * Browser des Besuchers: jeder Aufruf ging bis nach Supabase. Als die
+ * Datenbank dort lahmte, blieb die Startseite bei Nullen und die Statistik
+ * leer - obwohl sich die Zahlen nur stuendlich aendern. Mit dem Rand dazwischen
+ * kommt eine fertige Antwort in Bruchteilen einer Sekunde, auch wenn die
+ * Ablage gerade nicht antwortet.
+ */
+export const CDN_FRIST = 'public, max-age=60, s-maxage=300, stale-while-revalidate=86400';
+
 /** Wie lange eine Antwort als frisch gilt. Die Daten kommen stuendlich. */
 const FRISCH_MS = 90 * 60_000;
 

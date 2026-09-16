@@ -1698,6 +1698,9 @@ export default function StatistikSeite() {
   /** 'alle' oder ein Jahr - der Betreiber wollte "All-Time, 2026, 25, 24". */
   const [jahrWahl, setJahrWahl] = useState<string>(String(JAHR));
   const [jahrLaedt, setJahrLaedt] = useState(false);
+  /** Antwort ausgeblieben - dann steht ein Hinweis, und es wird neu versucht. */
+  const [jahrFehlt, setJahrFehlt] = useState(false);
+  const [jahrVersuch, setJahrVersuch] = useState(0);
   /** Schon geholte Jahresantworten, je Auswahl - beim Zurueckwechseln sofort da. */
   const jahrMerker = useRef(new Map<string, NonNullable<typeof jahr>>());
   const [sichtbar, setSichtbar] = useState<Record<Bereich, Sichtbar>>(SICHTBAR_STANDARD);
@@ -2010,19 +2013,33 @@ export default function StatistikSeite() {
     const gemerkt = jahrMerker.current.get(schluessel);
     if (gemerkt) { setJahr(gemerkt); setJahrLaedt(false); return; }
     const zeiger = setTimeout(() => { if (!weg) setJahrLaedt(true); }, 250);
+    /*
+     * Bleibt die Antwort aus (Ablage nicht erreichbar, Auswertung noch nicht
+     * vorgerechnet), steht kein leerer Bereich da, sondern ein Satz - und in
+     * zehn Sekunden wird es noch einmal versucht. Der Betreiber sah sonst
+     * "erst die Ladeanimation, dann einfach leer".
+     */
+    let nochmal: ReturnType<typeof setTimeout> | null = null;
+    setJahrFehlt(false);
     fetch(`/api/szene-stats?ansicht=jahr&jahr=${jahrWahl}`
       + (jahrRegion ? `&region=${encodeURIComponent(jahrRegion)}` : '')
-      + (jahrSaison ? `&saison=${encodeURIComponent(jahrSaison)}` : ''))
+      + (jahrSaison ? `&saison=${encodeURIComponent(jahrSaison)}` : ''),
+      { signal: AbortSignal.timeout(12_000) })
       .then((r) => r.json())
       .then((j) => {
-        if (weg || !j?.listen) return;
+        if (weg) return;
+        if (!j?.listen) throw new Error('keine Liste');
         jahrMerker.current.set(schluessel, j);
         setJahr(j);
       })
-      .catch(() => { /* dann bleibt die Ansicht leer */ })
+      .catch(() => {
+        if (weg) return;
+        setJahrFehlt(true);
+        nochmal = setTimeout(() => { if (!weg) setJahrVersuch((v) => v + 1); }, 10_000);
+      })
       .finally(() => { clearTimeout(zeiger); if (!weg) setJahrLaedt(false); });
-    return () => { weg = true; clearTimeout(zeiger); };
-  }, [bereich, jahrRegion, jahrWahl, jahrSaison]);
+    return () => { weg = true; clearTimeout(zeiger); if (nochmal) clearTimeout(nochmal); };
+  }, [bereich, jahrRegion, jahrWahl, jahrSaison, jahrVersuch]);
   useEffect(() => { setJahrSaison(''); }, [jahrWahl]);
 
   /** Die Bereiche, die dieser Besucher sehen darf. */
@@ -4246,6 +4263,11 @@ export default function StatistikSeite() {
 
               {jahrLaedt && !jahr ? (
                 <div className="h-64" />
+              ) : jahrFehlt && !jahr ? (
+                <p className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-8
+                              text-center text-sm text-slate-500">
+                  <T>Die Zahlen sind gerade nicht erreichbar. Es wird gleich noch einmal versucht.</T>
+                </p>
               ) : jahr && (
                 <div className="space-y-8">
                   {jahr.listen.filter((l) => l.plaetze.length).map((l) => (

@@ -138,9 +138,9 @@ function MeistesPreisgeld({ ort }: { ort: string }) {
 // liest.
 
 interface Stand {
-  saisons: number;
-  spieltage: number;
-  regionen: number;
+  saisons: number | null;
+  spieltage: number | null;
+  regionen: number | null;
   konten: number | null;
   replays: number | null;
 }
@@ -250,10 +250,11 @@ export default function Startseite() {
           fetch('/api/replays', { signal: frist })
             .then((r) => r.json()).catch(() => null),
         ]);
+        // Bleibt die Antwort aus, steht ein Strich - eine Null waere eine Behauptung.
         setStand({
-          saisons: archiv?.saisons?.length ?? 0,
-          spieltage: archiv?.spieltage ?? 0,
-          regionen: archiv?.regionen?.length ?? 0,
+          saisons: archiv?.saisons?.length ?? null,
+          spieltage: archiv?.spieltage ?? null,
+          regionen: archiv?.regionen?.length ?? null,
           konten: null,
           replays: (replays?.fenster ?? []).reduce(
             (n: number, f: { zaehler?: Record<string, number> }) =>

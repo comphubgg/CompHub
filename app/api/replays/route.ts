@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { liesJson } from '@/lib/ablage';
-import { fertigeAntwort, FRISCH_LIVE_MS } from '@/lib/antwortSpeicher';
+import { CDN_FRIST, fertigeAntwort, FRISCH_LIVE_MS } from '@/lib/antwortSpeicher';
 import fs from '@/lib/ablageFs';
 import path from 'path';
 import { istAdminAnfrage } from '@/lib/adminPruefung';
@@ -171,7 +171,7 @@ export async function GET(request: Request) {
         // ausgewertet. Mit der langen Frist waere davon nichts zu sehen.
         FRISCH_LIVE_MS);
       return NextResponse.json(wert, {
-        headers: { 'Cache-Control': 'public, max-age=60, stale-while-revalidate=3600' },
+        headers: { 'Cache-Control': CDN_FRIST },
       });
     } catch {
       return berechne(request);
