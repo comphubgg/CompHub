@@ -125,6 +125,16 @@ jobs:
           node scripts/umzug-supabase.mjs --herunterladen --nur replays \
             --nur-geaenderte 2>&1 | tail -6
 
+      # Epic-Spieltage, die nicht dieser Lauf geholt hat: der Betreiber-
+      # Rechner holt bekannte Fenster nach Kennung (epic-fenster-holen.mjs),
+      # etwa die Victory Cups fuer das Preisgeld. Nur, was sich unterscheidet.
+      - name: Epic-Spieltage aus Supabase
+        continue-on-error: true
+        timeout-minutes: 10
+        run: |
+          node scripts/umzug-supabase.mjs --herunterladen --nur epic-spieltage \
+            --nur-geaenderte 2>&1 | tail -4
+
       # Auch hier die Adresse des Werkzeugs. Ohne sie fragte das Skript auf
       # localhost ins Leere und brach nach einer Sekunde mit ECONNREFUSED ab
       # - Stunde um Stunde, unter "continue-on-error" unsichtbar. Genau
