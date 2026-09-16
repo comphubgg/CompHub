@@ -1243,7 +1243,9 @@ export async function jahresListen(jahr: number, region?: string, nurSaison?: st
   };
 
   return {
-    jahr, region: region ?? null, spieltage, saisons,
+    // Alle Spieltage, die fuers Preisgeld angesehen wurden - Archiv und
+    // Epic-Spieltage; die Seite sagt "N von M Spieltagen mit Tabelle".
+    jahr, region: region ?? null, spieltage: eintraege.length + weitere.length, saisons,
     saison: saisons.length === 1 && alleSaisons.length > 1 ? saisons[0] : null,
     saisonenDesJahres: alleSaisons.map((k) => ({ kennung: k, name: saisonName(k) })),
     listen: [verdienstListe, ...listen],
