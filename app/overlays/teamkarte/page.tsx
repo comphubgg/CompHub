@@ -1083,7 +1083,7 @@ export default function OverlaySeite() {
                     Groessen am Massstab der Hoehe haengen, bleibt auch ein
                     flaches Banner lesbar - vorher wurde dort der Name
                     abgeschnitten, und der Regler durfte gar nicht so weit. */}
-                <input type="range" min={48} max={220} value={hoehe}
+                <input type="range" min={32} max={220} value={hoehe}
                   onChange={(e) => setHoehe(Number(e.target.value))}
                   className="mt-1 w-full accent-sky-500" />
               </label>
