@@ -177,10 +177,22 @@ export async function fertigeAntwort<T>(
 
   // Gar nichts da - hier muss gewartet werden.
   const wert = await rechne();
+  /*
+   * Was der Server ohne Dateien rechnet, ist bei Archiv-Antworten leer
+   * oder halb - das darf nicht als fertige Antwort liegenbleiben, sonst
+   * ueberdeckt es den naechsten Stand des Laufrechners bis zur Frist.
+   */
+  if (!hintergrund && ohneDateien()) return wert;
   try {
     await schreibJson(name, { zeit: Date.now(), wert });
   } catch { /* ohne Ablage wird eben jedes Mal gerechnet */ }
   return wert;
+}
+
+/** Die abgelegte Antwort, wie sie ist - oder null, wenn keine liegt. */
+export async function abgelegteAntwort<T>(schluessel: string): Promise<T | null> {
+  const abgelegt = await liesJson<Ablage<T> | null>(nameVon(schluessel), null);
+  return abgelegt && typeof abgelegt.zeit === 'number' ? abgelegt.wert : null;
 }
 
 /**

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { ohneDateien } from '@/lib/antwortSpeicher';
 import { verdienst, lanEintraege } from '@/lib/preisgeld';
-import { fertigeAntwort } from '@/lib/antwortSpeicher';
+import { fertigeAntwort, abgelegteAntwort } from '@/lib/antwortSpeicher';
 import fs from '@/lib/ablageFs';
 import path from 'path';
 import {
@@ -325,12 +325,35 @@ export async function GET(request: Request) {
      */
     + '';
 
+  /*
+   * Die Jahres- und Saisonlisten gehen ueber das ganze Archiv. Auf dem
+   * Server ohne Dateien wird daraus nach fuenfzig Sekunden eine leere
+   * Liste - und die lag dann als "frische" Antwort in der Ablage, bis der
+   * naechste Lauf sie ueberschrieb. Genau so stand "2026" eine Minute lang
+   * auf dem Ladeschirm und zeigte danach nichts. Solche Antworten rechnet
+   * nur der Laufrechner; hier wird der letzte fertige Stand ausgeliefert,
+   * auch wenn er ein paar Stunden alt ist.
+   */
+  const archivWeit = ['jahr', 'start', 'bilder', 'suche'].includes(url.searchParams.get('ansicht') ?? '')
+    || url.searchParams.has('sort');
+  if (archivWeit && ohneDateien()) {
+    const fertig = await abgelegteAntwort<unknown>(schluessel);
+    if (fertig) {
+      return NextResponse.json(fertig, {
+        headers: { 'Cache-Control': 'public, max-age=60, stale-while-revalidate=3600' },
+      });
+    }
+    // Liegt nichts, wartet niemand eine Minute auf eine leere Liste.
+    return NextResponse.json(
+      { success: false, error: 'Diese Auswertung ist noch nicht vorgerechnet. Der stuendliche Lauf legt sie ab.' },
+      { status: 503, headers: { 'Retry-After': '600' } });
+  }
   try {
     const wert = await fertigeAntwort(schluessel, async () => {
       const antwort = await berechne(request);
       if (!antwort.ok) throw new Error(`Antwort ${antwort.status}`);
       return await antwort.json() as unknown;
-    });
+    }, undefined, !archivWeit);
     return NextResponse.json(wert, {
       headers: { 'Cache-Control': 'public, max-age=60, stale-while-revalidate=3600' },
     });
