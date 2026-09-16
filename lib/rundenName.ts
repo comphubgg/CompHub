@@ -29,6 +29,36 @@ export function rundenName(
 }
 
 /**
+ * Der Cup-Name aus Epics Fenster-Kennung - fuer Spieltage, zu denen keine
+ * Turnierliste mehr einen Titel nennt (2019 bis 2024).
+ *
+ * "S18_CashCup_EU_Event3" wird zu "Cash Cup", "S10_FNCS_Week1_EU_Event3"
+ * zu "FNCS", "S39_ReloadEliteSeries1Final_EU" zu "Reload Elite Series 1".
+ * Saison, Region und Rundenteile fallen weg, zusammengeschriebene Woerter
+ * werden getrennt, ein paar Kuerzel ausgeschrieben. Erfunden wird nichts:
+ * was uebrig bleibt, sind Epics eigene Worte.
+ */
+export function cupNameAusKennung(windowId: string): string {
+  let w = (windowId ?? '')
+    .replace(/^S\d+_/i, '')
+    .replace(/_(EU|NAC|NAW|NAE|BR|ASIA|ME|OCE)(?=_|$)/gi, '_')
+    .replace(/_?(?:Event|Week|Round|Day|Qual|Heat|Session|Group)\d+/gi, '_')
+    .replace(/_?(?:Finals?|GrandFinals?|Final|makegood|mg\d*|Official)(?=_|$)/gi, '_')
+    .replace(/_+/g, ' ')
+    .trim();
+  w = w
+    .replace(/([a-z])([A-Z])/g, '$1 $2')
+    .replace(/([A-Z]+)([A-Z][a-z])/g, '$1 $2')
+    .replace(/([A-Za-z])(\d)/g, '$1 $2')
+    .replace(/\bCC\b/g, 'Cash Cup')
+    .replace(/\bZB\b/g, 'Zero Build')
+    .replace(/\bDH\b/g, 'DreamHack')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return w;
+}
+
+/**
  * Wie eine Turnierkarte heissen soll: Cup und Runde, beides aus echten
  * Angaben. Der Cup-Titel traegt oft noch den Zeitraum hinter einem
  * Mittelpunkt - der gehoert nicht in die Ueberschrift.

@@ -25,6 +25,7 @@ import { fertigeAntwort, ohneDateien } from '@/lib/antwortSpeicher';
 import { istGrossesTurnier as grossesTurnier, istFinaleTag } from '@/lib/turnierArt';
 import { verdienst, lanSummen, lanEintraege } from '@/lib/preisgeld';
 import { liesVerdienstArchiv, eintragJahr } from '@/lib/verdienstArchiv';
+import { cupNameAusKennung, rundenName } from '@/lib/rundenName';
 import { DATEN_ORT } from './datenOrt';
 
 const ABLAGE = path.join(DATEN_ORT, 'szene-stats');
@@ -731,7 +732,8 @@ export async function aktenSchreiben(): Promise<{ konten: number; geschrieben: n
       if (da.has(windowId)) continue;
       a.epic.push({
         event: windowId, windowId, region, season: (windowId.match(/^(S\d+)_/)?.[1]) ?? '',
-        titel: windowId, datum: Date.parse(datum) || null,
+        titel: [cupNameAusKennung(windowId), rundenName(windowId, false)].filter(Boolean).join(' · ') || windowId,
+        datum: Date.parse(datum) || null,
         platz, punkte, matches: 0, mitspieler: [], nurEpic: true, verdienstArchiv: betrag,
       });
     }

@@ -45,6 +45,7 @@ function wege(saisons) {
     '/api/szene-stats?ansicht=jahr&jahr=alle',
     // Die Startseite: die fuenf mit dem meisten Preisgeld dieses Jahres.
     `/api/szene-stats?ansicht=jahr&jahr=${new Date().getUTCFullYear()}&kurz=1`,
+    '/api/szene-stats?ansicht=jahr&jahr=alle&kurz=1',
     '/api/szene-stats?ansicht=jahr&jahr=2025',
     '/api/szene-stats?ansicht=jahr&jahr=2024',
     // Die Jahre vor dem Archiv der Szene - nur Preisgeld, aus der Verdienst-Akte.

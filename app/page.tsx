@@ -24,14 +24,26 @@ interface Geldplatz {
  * Zahl, die jeder sofort versteht.
  */
 function MeistesPreisgeld({ ort }: { ort: string }) {
-  const [daten, setDaten] = useState<{ jahr: number; plaetze: Geldplatz[]; spieltageMitRegel: number } | null>(null);
+  type Antwort = { jahr: number; plaetze: Geldplatz[]; spieltageMitRegel: number };
+  const jahr = new Date().getUTCFullYear();
+  /*
+   * Zwei Listen, ein Umschalter: das Jahr und alle Zeit. Der Betreiber:
+   * "ein zweiter Block Most Earnings all time - das ist die Zahl, die alle
+   * vergleichen wollen." Beide kommen fertig gerechnet vom Laufrechner.
+   */
+  const [dieses, setDieses] = useState<Antwort | null>(null);
+  const [alle, setAlle] = useState<Antwort | null>(null);
+  const [wahl, setWahl] = useState<'jahr' | 'alle'>('jahr');
   useEffect(() => {
-    const jahr = new Date().getUTCFullYear();
-    fetch(`/api/szene-stats?ansicht=jahr&jahr=${jahr}&kurz=1`, { signal: AbortSignal.timeout(10_000) })
-      .then((r) => r.json())
-      .then((j) => { if (j?.plaetze?.length) setDaten(j); })
-      .catch(() => { /* dann fehlt der Abschnitt - besser als leere Karten */ });
-  }, []);
+    const hole = (adresse: string, setz: (a: Antwort) => void) =>
+      fetch(adresse, { signal: AbortSignal.timeout(10_000) })
+        .then((r) => r.json())
+        .then((j) => { if (j?.plaetze?.length) setz(j); })
+        .catch(() => { /* dann fehlt der Abschnitt - besser als leere Karten */ });
+    void hole(`/api/szene-stats?ansicht=jahr&jahr=${jahr}&kurz=1`, setDieses);
+    void hole('/api/szene-stats?ansicht=jahr&jahr=alle&kurz=1', setAlle);
+  }, [jahr]);
+  const daten = wahl === 'alle' ? (alle ?? dieses) : (dieses ?? alle);
   if (!daten) return null;
   return (
     <section className="px-4 py-16">
@@ -43,10 +55,22 @@ function MeistesPreisgeld({ ort }: { ort: string }) {
                 <T>Preisgeld</T>
               </p>
               <h2 className="mt-1 text-2xl font-black tracking-tight sm:text-3xl">
-                <T>Meistes Preisgeld</T> {daten.jahr}
+                <T>Meistes Preisgeld</T> {wahl === 'alle' ? <T>aller Zeiten</T> : jahr}
               </h2>
+              {alle && dieses && (
+                <div className="mt-2 flex gap-1.5">
+                  {([['jahr', String(jahr)], ['alle', 'Alle Zeit']] as const).map(([w, titel]) => (
+                    <button key={w} onClick={() => setWahl(w)}
+                      className={`rounded-lg px-3 py-1 text-xs font-semibold transition ${
+                        wahl === w ? 'bg-sky-500 text-white'
+                          : 'border border-zinc-800 text-slate-400 hover:border-sky-500 hover:text-slate-200'}`}>
+                      {w === 'alle' ? <T>Alle Zeit</T> : titel}
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
-            <Link href="/statistiken?bereich=jahr"
+            <Link href={wahl === 'alle' ? '/statistiken?bereich=jahr&jahr=alle' : '/statistiken?bereich=jahr'}
               className="shrink-0 rounded-lg border border-zinc-800 px-3 py-1.5 text-xs
                          font-semibold text-slate-300 transition hover:border-sky-500
                          hover:text-sky-400">

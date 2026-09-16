@@ -1976,6 +1976,8 @@ export default function StatistikSeite() {
     const gewuenscht = suchParameter?.get('bereich');
     if (gewuenscht && ['turniere', 'regional', 'spieler', 'jahr', 'vergleich', 'bilder'].includes(gewuenscht)) {
       setBereich(gewuenscht as Bereich);
+      const j = suchParameter?.get('jahr');
+      if (j === 'alle') setJahrWahl('alle');
     }
 
     /*

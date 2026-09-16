@@ -1951,6 +1951,8 @@ const AUF_ENGLISCH: Record<string, string> = {
     'now',
   'Sitzungen':
     'sessions',
+  'aller Zeiten':
+    'of all time',
   'Nur Finals':
     'Finals only',
   'Nur FNCS, Cash und Performance':
