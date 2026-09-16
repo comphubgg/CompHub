@@ -47,6 +47,12 @@ function wege(saisons) {
     `/api/szene-stats?ansicht=jahr&jahr=${new Date().getUTCFullYear()}&kurz=1`,
     '/api/szene-stats?ansicht=jahr&jahr=2025',
     '/api/szene-stats?ansicht=jahr&jahr=2024',
+    // Die Jahre vor dem Archiv der Szene - nur Preisgeld, aus der Verdienst-Akte.
+    '/api/szene-stats?ansicht=jahr&jahr=2023',
+    '/api/szene-stats?ansicht=jahr&jahr=2022',
+    '/api/szene-stats?ansicht=jahr&jahr=2021',
+    '/api/szene-stats?ansicht=jahr&jahr=2020',
+    '/api/szene-stats?ansicht=jahr&jahr=2019',
     '/api/szene-stats?ansicht=bilder',
     // Der Vorrat, in dem die Kopfzeilensuche sucht.
     '/api/szene-stats?ansicht=suchindex',

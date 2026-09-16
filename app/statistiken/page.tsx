@@ -4183,7 +4183,7 @@ export default function StatistikSeite() {
             <div>
               <div className="mb-4 flex flex-wrap items-center gap-3">
                 <div className="flex items-center gap-1">
-                  {[['alle', t('Alle Zeit')], ['2026', '2026'], ['2025', '2025'], ['2024', '2024']].map(([w, titel]) => (
+                  {[['alle', t('Alle Zeit')], ['2026', '2026'], ['2025', '2025'], ['2024', '2024'], ['2023', '2023'], ['2022', '2022'], ['2021', '2021'], ['2020', '2020'], ['2019', '2019']].map(([w, titel]) => (
                     <button key={w} onClick={() => setJahrWahl(w)}
                       className={`rounded-md border px-3 py-1.5 text-sm font-semibold transition ${
                         jahrWahl === w

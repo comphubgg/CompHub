@@ -61,6 +61,9 @@ const IM_OBJEKTSPEICHER = [
 const STANDARDMAESSIG_OHNE = [
   'replays', 'epic-spieltage', 'szene-stats', 'szene-quelle',
   'tournament-leaderboards', '_sicherung',
+  // Alte Bestenlisten (2019 bis Mitte 2024) bleiben auf dem Rechner; nach
+  // Supabase geht nur die kompakte Verdienst-Akte, die daraus entsteht.
+  'epic-spieltage-alt', '_quellen',
 ];
 
 /* -------------------------------------------------------------- Umgebung */

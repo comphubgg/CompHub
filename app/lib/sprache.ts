@@ -1951,6 +1951,10 @@ const AUF_ENGLISCH: Record<string, string> = {
     'now',
   'Sitzungen':
     'sessions',
+  'Nur Finals':
+    'Finals only',
+  'Nur FNCS, Cash und Performance':
+    'FNCS, Cash and Performance only',
   'Endstand des Finales über alle Tage':
     'Final standing across all days',
   'Abgeleitet aus Platz beziehungsweise Punkten und der Auszahlungstabelle des Turniers, je Person':

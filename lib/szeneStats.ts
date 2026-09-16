@@ -24,6 +24,7 @@ import { liesJson, schreibJson } from '@/lib/ablage';
 import { fertigeAntwort, ohneDateien } from '@/lib/antwortSpeicher';
 import { istGrossesTurnier as grossesTurnier, istFinaleTag } from '@/lib/turnierArt';
 import { verdienst, lanSummen, lanEintraege } from '@/lib/preisgeld';
+import { liesVerdienstArchiv, eintragJahr } from '@/lib/verdienstArchiv';
 import { DATEN_ORT } from './datenOrt';
 
 const ABLAGE = path.join(DATEN_ORT, 'szene-stats');
@@ -715,6 +716,27 @@ export async function aktenSchreiben(): Promise<{ konten: number; geschrieben: n
     }
   }
 
+  /*
+   * Dazu die alten Spieltage aus der Verdienst-Akte (2019 bis Mitte 2024):
+   * Epics Bestenlisten dazu liegen nur auf dem Betreiber-Rechner, das
+   * Ergebnis steht in data/verdienst-archiv.json. Was schon als Zeile da
+   * ist, kommt nicht doppelt.
+   */
+  const archiv = await liesVerdienstArchiv();
+  for (const [id, eintraege] of Object.entries(archiv.konten)) {
+    const a = akten.get(id);
+    if (!a) continue;
+    const da = new Set([...a.verlauf.map((z) => z.windowId), ...a.epic.map((z) => z.windowId)]);
+    for (const [windowId, region, datum, platz, punkte, betrag] of eintraege) {
+      if (da.has(windowId)) continue;
+      a.epic.push({
+        event: windowId, windowId, region, season: (windowId.match(/^(S\d+)_/)?.[1]) ?? '',
+        titel: windowId, datum: Date.parse(datum) || null,
+        platz, punkte, matches: 0, mitspieler: [], nurEpic: true, verdienstArchiv: betrag,
+      });
+    }
+  }
+
   let geschrieben = 0;
   for (const [id, a] of akten) {
     a.verlauf.sort((x, y) => y.datum - x.datum);
@@ -1170,7 +1192,10 @@ export async function jahresListen(jahr: number, region?: string, nurSaison?: st
   // in 2026 reingehe und die Season auswaehle, kommen die Statistiken nur
   // von dieser Season."
   const saisons = nurSaison && alleSaisons.includes(nurSaison) ? [nurSaison] : alleSaisons;
-  const { spieler: feld, spieltage } = await summen({ saisons, region });
+  // Ein Jahr ohne Saisons im Archiv (2019 bis 2023): keine Szene-Werte,
+  // nur das Preisgeld aus der Verdienst-Akte weiter unten.
+  const { spieler: feld, spieltage } = (jahr === 0 || alleSaisons.length)
+    ? await summen({ saisons, region }) : { spieler: [] as SpielerSumme[], spieltage: 0 };
   const eintraege = (await liesVerzeichnis()).filter((e) =>
     (!region || e.region === region) && saisons.includes(e.season));
 
@@ -1207,6 +1232,22 @@ export async function jahresListen(jahr: number, region?: string, nurSaison?: st
     }
     if (dieserTag) mitRegel += 1;
   }
+  /*
+   * Dazu die Verdienst-Akte: alle Jahre, die das Archiv der Szene nicht
+   * kennt (2019 bis 2023), und fuer 2024 die Spieltage vor Chapter 5
+   * Season 3. Nach Kalenderjahr, weil diese Eintraege ein Datum haben.
+   */
+  if (jahr > 0 && !nurSaison) {
+    const archiv = await liesVerdienstArchiv();
+    const liveFenster = new Set([...eintraege, ...weitere].map((e) => e.windowId));
+    for (const [id, liste] of Object.entries(archiv.konten)) {
+      for (const e of liste) {
+        if (eintragJahr(e) !== jahr || liveFenster.has(e[0])) continue;
+        if (region && e[1] !== region) continue;
+        geld.set(id, (geld.get(id) ?? 0) + e[5]);
+      }
+    }
+  }
   // Dazu die LAN-Events - je Konto, aus der gepflegten Datei.
   let lanTage = 0;
   for (const [id, betrag] of await lanSummen(saisons)) {
@@ -1227,6 +1268,11 @@ export async function jahresListen(jahr: number, region?: string, nurSaison?: st
       .slice(0, LISTEN_LAENGE),
   }));
   const namen = new Map(feld.map((s) => [s.epicId, s]));
+  // Alte Jahre haben keine Szene-Werte - Name, Land und Bild kommen dann
+  // aus der Gesamtsumme aller Zeiten.
+  if ([...geld.keys()].some((id) => !namen.has(id))) {
+    for (const s of await gesamtSummen()) if (!namen.has(s.epicId) && geld.has(s.epicId)) namen.set(s.epicId, s);
+  }
   const verdienstListe = {
     feld: 'verdienst', titel: 'Meistes Preisgeld', nachkomma: 0, einheit: ' $',
     mindestMatches: null,
@@ -1445,6 +1491,8 @@ export interface EpicZeile {
   mitspieler: string[];
   /** Immer true - die Anzeige erkennt daran, dass Werte fehlen muessen. */
   nurEpic: true;
+  /** Preisgeld aus der Verdienst-Akte (alte Spieltage) - je Person. */
+  verdienstArchiv?: number;
   /**
    * Eigene Eliminierungen aus dem Replay, wenn eines ausgewertet ist.
    *

@@ -16,9 +16,17 @@ import { promises as fs } from 'fs';
 import path from 'path';
 
 const BASIS = (process.env.WERKZEUG_URL || 'http://localhost:3000').replace(/\/+$/, '');
-const ABLAGE = path.join(process.cwd(), 'data', 'epic-spieltage');
-const datei = process.argv[2];
-if (!datei) { console.error('Aufruf: node scripts/epic-fenster-holen.mjs liste.json'); process.exit(1); }
+/*
+ * Wohin: "epic-spieltage" fuer die laufenden Saisons (wird nach Supabase
+ * geladen), "epic-spieltage-alt" fuer die Jahre davor - die bleiben auf
+ * dem Rechner, daraus rechnet scripts/verdienst-archiv.mjs die kompakte
+ * Verdienst-Akte. Tausende alte Bestenlisten haetten in der Datenbank
+ * keinen Platz (500 MB im Gratis-Plan).
+ */
+const zielIdx = process.argv.indexOf('--ziel');
+const ABLAGE = path.join(process.cwd(), 'data', zielIdx >= 0 ? process.argv[zielIdx + 1] : 'epic-spieltage');
+const datei = process.argv.slice(2).find((a) => a.endsWith('.json'));
+if (!datei) { console.error('Aufruf: node scripts/epic-fenster-holen.mjs liste.json [--ziel epic-spieltage-alt]'); process.exit(1); }
 
 const warte = (ms) => new Promise((r) => setTimeout(r, ms));
 
@@ -51,12 +59,23 @@ async function main() {
       .map((m) => Date.parse(m.endTime ?? '')).filter(Number.isFinite));
     const datum = zeiten.length ? Math.min(...zeiten)
       : (f.beginn ? Date.parse(f.beginn) : null);
-    const teams = eintraege.map((e) => ({
+    let teams = eintraege.map((e) => ({
       platz: e.rank, punkte: e.points ?? 0,
       matches: e.games ?? e.matches?.length ?? 0,
       teamElims: e.elims ?? 0,
       spieler: (e.players ?? []).map((p) => p.id).filter(Boolean),
     })).filter((t) => t.spieler.length);
+    /*
+     * Grosse Felder kuerzen: Preisgeld gibt es fuer die vorderen Plaetze
+     * oder fuer Siege (hundert Punkte). Der Rest des Feldes verdient hier
+     * nichts und wuerde nur die Datei aufblaehen - ein Victory Cup hat
+     * viertausend Teams.
+     */
+    let gekuerzt = false;
+    if (teams.length > 600) {
+      teams = teams.filter((t, i) => i < 500 || t.punkte >= 100);
+      gekuerzt = true;
+    }
     await fs.mkdir(path.dirname(ziel), { recursive: true });
     await fs.writeFile(ziel, JSON.stringify({
       eventId: f.eventId, windowId: f.windowId, region, season,
@@ -64,6 +83,7 @@ async function main() {
       istFinale: /final|round2/i.test(f.windowId),
       datum, geholt: new Date().toISOString(),
       quelle: 'gesucht',
+      ...(gekuerzt ? { gekuerzt: 'Only the first 500 teams and every team with at least 100 points (a Victory Royale) are kept; the rest of the field earns nothing here.' } : {}),
       teams,
     }, null, 1), 'utf8');
     geholt += 1;

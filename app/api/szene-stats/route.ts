@@ -1092,7 +1092,7 @@ async function berechne(request: Request) {
 
       const epicZeilen = await Promise.all(rohEpic.map(async (z) => ({
         ...z,
-        verdienst: (await verdienst({
+        verdienst: z.verdienstArchiv ?? (await verdienst({
           windowId: z.windowId, region: z.region, name: z.titel,
           platz: z.platz, punkte: z.punkte, epicId: spieler,
         }))?.betrag ?? null,

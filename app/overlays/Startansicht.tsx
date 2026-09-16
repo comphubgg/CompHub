@@ -115,6 +115,18 @@ export default function Startansicht({ onWeiter, art }: {
    * gerade offene Stufe.
    */
   const [suche, setSuche] = useState('');
+  /*
+   * Die Filter unter der Suche: Region, nur die wichtigen Cups, nur Finals.
+   *
+   * Der Betreiber: "mach in dieser Ansicht noch einen Filter fuer Europa,
+   * NAC und so, dass man Cups auch filtern kann." Ein gesetzter Filter wirkt
+   * wie die Suche - er zeigt alles Passende aus dem Zeitraum, nicht nur die
+   * gerade offene Stufe.
+   */
+  const [regionFilter, setRegionFilter] = useState('');
+  const [nurWichtige, setNurWichtige] = useState(false);
+  const [nurFinals, setNurFinals] = useState(false);
+  const REGIONEN = ['EU', 'NAC', 'NAW', 'BR', 'ASIA', 'ME', 'OCE'];
 
   useEffect(() => {
     fetch('/api/cup-catalog?modus=alle')
@@ -172,8 +184,12 @@ export default function Startansicht({ onWeiter, art }: {
    */
   const kacheln = useMemo(() => {
     const woerter = suche.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    const gefiltert = regionFilter || nurWichtige || nurFinals;
     return alleKacheln.filter((k) => {
       if (nurLaufende && !managerDarfCup(k.begin, k.region, k.live)) return false;
+      if (regionFilter && k.region !== regionFilter) return false;
+      if (nurWichtige && !k.erlaubt) return false;
+      if (nurFinals && !k.istFinale) return false;
       /*
        * Mit Suchtext zaehlt nur der Treffer - jedes getippte Wort muss ein
        * Wort anfangen, in Name, Region, "Finals", Datum oder "heute". So
@@ -193,15 +209,15 @@ export default function Startansicht({ onWeiter, art }: {
         ].join(' ').toLowerCase().split(/[^\p{L}\p{N}.]+/u).filter(Boolean);
         return woerter.every((w) => imText.some((x) => x.startsWith(w)));
       }
-      if (k.live) return true;
+      if (k.live || gefiltert) return true;
       if (stufe === 0) return k.heute && k.erlaubt && k.region === 'EU';
       if (stufe === 1) return k.heute && k.erlaubt;
       return true;
     });
-  }, [alleKacheln, stufe, nurLaufende, suche, t]);
+  }, [alleKacheln, stufe, nurLaufende, suche, t, regionFilter, nurWichtige, nurFinals]);
 
   const nochDa = alleKacheln.length - kacheln.length;
-  const sucht = suche.trim().length > 0;
+  const sucht = suche.trim().length > 0 || Boolean(regionFilter) || nurWichtige || nurFinals;
 
   return (
     <div className="flex flex-col gap-8">
@@ -257,6 +273,33 @@ export default function Startansicht({ onWeiter, art }: {
                            bg-zinc-950 px-4 py-2.5 text-center text-sm
                            text-slate-100 outline-none
                            placeholder:text-slate-600 focus:border-sky-500" />
+            </div>
+          )}
+          {/* Die Filter: Region, wichtige Cups, Finals - im Stil der Reiter daneben. */}
+          {cups && cups.length > 0 && (
+            <div className="mb-5 flex flex-wrap items-center justify-center gap-1.5">
+              {['', ...REGIONEN].map((r) => (
+                <button key={r || 'alle'} onClick={() => setRegionFilter(r)}
+                  className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                    regionFilter === r
+                      ? 'bg-sky-500 text-white'
+                      : 'border border-zinc-800 text-slate-400 hover:border-sky-500 hover:text-slate-200'}`}>
+                  {r || t('Alle Regionen')}
+                </button>
+              ))}
+              <span className="mx-1 h-5 w-px bg-zinc-800" />
+              <button onClick={() => setNurWichtige((v) => !v)}
+                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                  nurWichtige ? 'bg-sky-500 text-white'
+                    : 'border border-zinc-800 text-slate-400 hover:border-sky-500 hover:text-slate-200'}`}>
+                <T>Nur FNCS, Cash und Performance</T>
+              </button>
+              <button onClick={() => setNurFinals((v) => !v)}
+                className={`rounded-lg px-3 py-1.5 text-xs font-semibold transition ${
+                  nurFinals ? 'bg-sky-500 text-white'
+                    : 'border border-zinc-800 text-slate-400 hover:border-sky-500 hover:text-slate-200'}`}>
+                <T>Nur Finals</T>
+              </button>
             </div>
           )}
 
