@@ -17,7 +17,40 @@ import { DATEN_ORT } from './datenOrt';
 
 const DATEI = path.join(DATEN_ORT, 'sektionen.json');
 
+/*
+ * Zehn Sekunden Vorrat je Vorgang, und nie laenger als zweieinhalb Sekunden
+ * warten.
+ *
+ * Das Layout liest die Zustaende bei jedem Seitenaufruf zweimal (Sperre und
+ * Lage). Als Supabase nicht antwortete, waren das zweimal acht Sekunden
+ * Frist, bevor irgendeine Seite kam - der Betreiber lud "zehn Minuten".
+ * Die Datei aendert sich nur, wenn er im Admin-Bereich einen Bereich
+ * umschaltet; zehn Sekunden Verzug sind derselbe Takt, in dem die
+ * Kopfzeile ohnehin nachfragt. Kommt die Antwort nicht rechtzeitig, gilt
+ * der letzte bekannte Stand, und ohne einen solchen: alles online.
+ */
+let vorrat: { stand: Staende; bis: number } | null = null;
+const VORRAT_MS = 10_000;
+const FRIST_MS = 2_500;
+
 export async function liesStaende(): Promise<Staende> {
+  const jetzt = Date.now();
+  if (vorrat && vorrat.bis > jetzt) return vorrat.stand;
+  let zeiger: ReturnType<typeof setTimeout> | null = null;
+  const uhr = new Promise<Staende | null>((res) => { zeiger = setTimeout(() => res(null), FRIST_MS); });
+  try {
+    const stand = await Promise.race([liesStaendeRoh(), uhr]);
+    if (stand) { vorrat = { stand, bis: jetzt + VORRAT_MS }; return stand; }
+    if (vorrat) return vorrat.stand;
+    const raus: Staende = {};
+    for (const s of SEKTIONEN) raus[s.schluessel] = { ...STANDARD };
+    return raus;
+  } finally {
+    if (zeiger) clearTimeout(zeiger);
+  }
+}
+
+async function liesStaendeRoh(): Promise<Staende> {
   try {
     const roh = JSON.parse(await fs.readFile(DATEI, 'utf8')) as Staende;
     const raus: Staende = {};
@@ -44,6 +77,7 @@ export async function liesStaende(): Promise<Staende> {
 }
 
 export async function schreibeStaende(staende: Staende): Promise<void> {
+  vorrat = null;
   await fs.mkdir(path.dirname(DATEI), { recursive: true });
   await fs.writeFile(DATEI, JSON.stringify(staende, null, 2), 'utf8');
 }
