@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import { liesJson } from '@/lib/ablage';
-import { CDN_FRIST, fertigeAntwort, FRISCH_LIVE_MS } from '@/lib/antwortSpeicher';
+import { AblageNichtErreichbar, abgelegteAntwort, CDN_FRIST, fertigeAntwort, FRISCH_LIVE_MS, ohneDateien } from '@/lib/antwortSpeicher';
 import fs from '@/lib/ablageFs';
 import path from 'path';
 import { istAdminAnfrage } from '@/lib/adminPruefung';
@@ -160,6 +160,21 @@ async function alleFenster() {
 export async function GET(request: Request) {
   const url = new URL(request.url);
   if (![...url.searchParams.keys()].length) {
+    /*
+     * Ohne Dateien (Vercel) gibt es die Uebersicht nur fertig aus der
+     * Ablage: hier selbst gerechnet waere sie immer leer, und eine leere
+     * Uebersicht als frisch abzulegen hiesse, die Zahl auf der Startseite
+     * fuer eine Stunde auf einen Strich zu setzen.
+     */
+    if (ohneDateien()) {
+      try {
+        const fertig = await abgelegteAntwort<unknown>('replays|uebersicht');
+        if (fertig) return NextResponse.json(fertig, { headers: { 'Cache-Control': CDN_FRIST } });
+      } catch { /* nicht erreichbar - unten 503 */ }
+      return NextResponse.json(
+        { success: false, error: 'Die Uebersicht ist gerade nicht erreichbar.' },
+        { status: 503, headers: { 'Retry-After': '120', 'Cache-Control': 'no-store' } });
+    }
     try {
       const wert = await fertigeAntwort('replays|uebersicht',
         async () => {
@@ -173,7 +188,11 @@ export async function GET(request: Request) {
       return NextResponse.json(wert, {
         headers: { 'Cache-Control': CDN_FRIST },
       });
-    } catch {
+    } catch (e) {
+      if (e instanceof AblageNichtErreichbar) {
+        return NextResponse.json({ success: false, error: e.message },
+          { status: 503, headers: { 'Retry-After': '120', 'Cache-Control': 'no-store' } });
+      }
       return berechne(request);
     }
   }

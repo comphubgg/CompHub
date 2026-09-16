@@ -50,6 +50,28 @@ function nachDerAntwort(arbeit: () => Promise<void>): void {
 const ORDNER = 'antworten';
 
 /*
+ * Die Ablage antwortet gerade nicht.
+ *
+ * Auf dem Server ohne Dateien laesst sich dann nicht unterscheiden, ob eine
+ * Antwort fehlt oder nur nicht lesbar ist - und neu rechnen ergaebe dort
+ * ohnehin eine leere Antwort, die als frisch abgelegt wuerde. Die Routen
+ * antworten damit 503 und der Rand behaelt seinen letzten Stand.
+ */
+export class AblageNichtErreichbar extends Error {
+  constructor() { super('Die Ablage ist gerade nicht erreichbar.'); this.name = 'AblageNichtErreichbar'; }
+}
+
+/** Die abgelegte Zeile lesen - ohne Dateien wird ein Lesefehler zum Fehler. */
+async function liesAblage<T>(name: string): Promise<Ablage<T> | null> {
+  try {
+    return await liesJson<Ablage<T> | null>(name, null);
+  } catch (e) {
+    if (ohneDateien()) throw new AblageNichtErreichbar();
+    throw e;
+  }
+}
+
+/*
  * Was Vercels Rand mit einer fertigen Antwort tun darf.
  *
  * Fuenf Minuten liefert der Rand sie aus, ohne den Server zu fragen; einen
@@ -168,7 +190,7 @@ export async function fertigeAntwort<T>(
   hintergrund = true,
 ): Promise<T> {
   const name = nameVon(schluessel);
-  const abgelegt = await liesJson<Ablage<T> | null>(name, null);
+  const abgelegt = await liesAblage<T>(name);
   const jetzt = Date.now();
 
   if (abgelegt && typeof abgelegt.zeit === 'number') {
@@ -205,7 +227,7 @@ export async function fertigeAntwort<T>(
 
 /** Die abgelegte Antwort, wie sie ist - oder null, wenn keine liegt. */
 export async function abgelegteAntwort<T>(schluessel: string): Promise<T | null> {
-  const abgelegt = await liesJson<Ablage<T> | null>(nameVon(schluessel), null);
+  const abgelegt = await liesAblage<T>(nameVon(schluessel));
   return abgelegt && typeof abgelegt.zeit === 'number' ? abgelegt.wert : null;
 }
 

@@ -3176,6 +3176,35 @@ export default function StatistikSeite() {
                 </div>
               )}
             </div>
+            {/*
+             * Das Schloss - siehe Sichtbar oben. Nur der Betreiber sieht es:
+             * ein kleines Symbol ohne Text, gruen (alle), gelb (VIPs), rot
+             * (nur er). Der Betreiber: "nicht als HUD, wirklich nur ein
+             * Schlosszeichen, oben rechts". Ein Klick dreht es weiter.
+             */}
+            {istAdmin && bereich !== 'start' && (() => {
+              const stufe = sichtbar[bereich] ?? 'alle';
+              const farbe = stufe === 'alle' ? 'text-emerald-400 hover:bg-emerald-500/10'
+                : stufe === 'vip' ? 'text-amber-400 hover:bg-amber-500/10'
+                : 'text-rose-400 hover:bg-rose-500/10';
+              const titel = stufe === 'alle' ? t('Für alle sichtbar')
+                : stufe === 'vip' ? t('Nur für VIPs sichtbar') : t('Nur für dich sichtbar');
+              return (
+                <button type="button" onClick={schlossDrehen}
+                  title={`${titel} · ${t('Klicken zum Umschalten')}`} aria-label={titel}
+                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg
+                              transition ${farbe}`}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"
+                    stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+                    strokeLinejoin="round" aria-hidden>
+                    <rect x="4" y="10" width="16" height="11" rx="2" />
+                    {stufe === 'alle'
+                      ? <path d="M8 10V7a4 4 0 0 1 7.5-2" fill="none" />
+                      : <path d="M8 10V7a4 4 0 0 1 8 0v3" fill="none" />}
+                  </svg>
+                </button>
+              );
+            })()}
 
             {/*
               * Die Reiter duerfen umbrechen.
@@ -6389,30 +6418,6 @@ export default function StatistikSeite() {
         </div>
       </div>
 
-      {/* Das Schloss - siehe Sichtbar oben. Nur der Betreiber sieht es. */}
-      {istAdmin && bereich !== 'start' && !offen && (() => {
-        const stufe = sichtbar[bereich] ?? 'alle';
-        const farbe = stufe === 'alle' ? 'border-emerald-500/60 text-emerald-400'
-          : stufe === 'vip' ? 'border-amber-500/60 text-amber-400'
-          : 'border-rose-500/60 text-rose-400';
-        const titel = stufe === 'alle' ? t('Für alle sichtbar')
-          : stufe === 'vip' ? t('Nur für VIPs sichtbar') : t('Nur für dich sichtbar');
-        return (
-          <button type="button" onClick={schlossDrehen} title={`${titel} · ${t('Klicken zum Umschalten')}`}
-            className={`fixed bottom-5 right-5 z-40 flex items-center gap-2 rounded-full
-                        border bg-zinc-950/90 px-3 py-2 text-xs shadow-xl backdrop-blur
-                        transition hover:brightness-125 ${farbe}`}>
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-              <rect x="4" y="10" width="16" height="11" rx="2" />
-              {stufe === 'alle'
-                ? <path d="M8 10V7a4 4 0 0 1 7.5-2" />
-                : <path d="M8 10V7a4 4 0 0 1 8 0v3" />}
-            </svg>
-            <span>{titel}</span>
-          </button>
-        );
-      })()}
 
 
 

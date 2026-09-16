@@ -150,6 +150,24 @@ async function holeOrdner(praefix: string): Promise<Map<string, string> | null> 
   return stand;
 }
 
+/*
+ * Ein Fehler des Servers ist kein "nicht da".
+ *
+ * Bisher wurde jede Antwort ausser 200 zu null - und null heisst oben "die
+ * Datei gibt es nicht". Als die Datenbank ueberlastet war (504, 502, 429),
+ * hielt die Seite deshalb jede fertige Antwort fuer fehlend, rechnete sie
+ * ohne Dateien neu - leer - und legte die leere Antwort als frisch ab.
+ * Genau so stand auf der Startseite ein Strich bei den Matches, obwohl
+ * die Zahl in der Ablage lag. Ein 404 bleibt null; alles ab 500 und ein
+ * 429 wird zum Fehler, den die Aufrufer als "Ablage gerade nicht
+ * erreichbar" behandeln.
+ */
+function serverFehler(r: Response, name: string): void {
+  if (r.status >= 500 || r.status === 429 || r.status === 408) {
+    throw new Error(`Ablage nicht erreichbar (${r.status}) bei ${name}`);
+  }
+}
+
 async function tabelleLies(name: string): Promise<Buffer | null> {
   const praefix = ordnerVon(name);
   if (praefix) {
@@ -164,6 +182,7 @@ async function tabelleLies(name: string): Promise<Buffer | null> {
   const r = await fetch(
     `${url}/rest/v1/${TABELLE}?name=eq.${encodeURIComponent(name)}&select=wert`,
     { headers: kopf, cache: 'no-store' });
+  serverFehler(r, name);
   if (!r.ok) return null;
   const zeilen = await r.json() as Array<{ wert: string }>;
   if (!zeilen.length) return null;
@@ -257,6 +276,7 @@ async function objektLies(name: string): Promise<Buffer | null> {
   const { url, kopf } = zugang();
   const r = await fetch(`${url}/storage/v1/object/${EIMER}/${name}`,
     { headers: kopf, cache: 'no-store' });
+  serverFehler(r, name);
   if (!r.ok) return null;
   return Buffer.from(await r.arrayBuffer());
 }

@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { ohneDateien } from '@/lib/antwortSpeicher';
 import { verdienst, lanEintraege } from '@/lib/preisgeld';
-import { fertigeAntwort, abgelegteAntwort, CDN_FRIST } from '@/lib/antwortSpeicher';
+import { fertigeAntwort, abgelegteAntwort, AblageNichtErreichbar, CDN_FRIST } from '@/lib/antwortSpeicher';
 import fs from '@/lib/ablageFs';
 import path from 'path';
 import {
@@ -337,7 +337,9 @@ export async function GET(request: Request) {
   const archivWeit = ['jahr', 'start', 'bilder', 'suche'].includes(url.searchParams.get('ansicht') ?? '')
     || url.searchParams.has('sort');
   if (archivWeit && ohneDateien()) {
-    const fertig = await abgelegteAntwort<unknown>(schluessel);
+    let fertig: unknown = null;
+    try { fertig = await abgelegteAntwort<unknown>(schluessel); }
+    catch { /* nicht erreichbar - unten 503, der Rand behaelt den letzten Stand */ }
     if (fertig) {
       return NextResponse.json(fertig, {
         headers: { 'Cache-Control': CDN_FRIST },
@@ -357,8 +359,13 @@ export async function GET(request: Request) {
     return NextResponse.json(wert, {
       headers: { 'Cache-Control': CDN_FRIST },
     });
-  } catch {
-    // Fehler werden nicht aufgehoben - dann eben ohne Ablage antworten.
+  } catch (e) {
+    // Ablage nicht erreichbar: 503, nichts Leeres rechnen und nichts davon
+    // am Rand behalten. Andere Fehler: dann eben ohne Ablage antworten.
+    if (e instanceof AblageNichtErreichbar) {
+      return NextResponse.json({ success: false, error: e.message },
+        { status: 503, headers: { 'Retry-After': '120', 'Cache-Control': 'no-store' } });
+    }
     return berechne(request);
   }
 }
