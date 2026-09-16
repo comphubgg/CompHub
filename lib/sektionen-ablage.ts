@@ -30,21 +30,31 @@ const DATEI = path.join(DATEN_ORT, 'sektionen.json');
  * der letzte bekannte Stand, und ohne einen solchen: alles online.
  */
 let vorrat: { stand: Staende; bis: number } | null = null;
+/** Nach einer ausgebliebenen Antwort: so lange nicht noch einmal warten. */
+let pause = 0;
 const VORRAT_MS = 10_000;
-const FRIST_MS = 2_500;
+const PAUSE_MS = 5_000;
+const FRIST_MS = 1_500;
 
 export async function liesStaende(): Promise<Staende> {
   const jetzt = Date.now();
   if (vorrat && vorrat.bis > jetzt) return vorrat.stand;
-  let zeiger: ReturnType<typeof setTimeout> | null = null;
-  const uhr = new Promise<Staende | null>((res) => { zeiger = setTimeout(() => res(null), FRIST_MS); });
-  try {
-    const stand = await Promise.race([liesStaendeRoh(), uhr]);
-    if (stand) { vorrat = { stand, bis: jetzt + VORRAT_MS }; return stand; }
+  const ersatz = (): Staende => {
     if (vorrat) return vorrat.stand;
     const raus: Staende = {};
     for (const s of SEKTIONEN) raus[s.schluessel] = { ...STANDARD };
     return raus;
+  };
+  // Die zweite Frage kurz nach einer ausgebliebenen Antwort wartet nicht
+  // noch einmal - das Layout fragt je Aufruf zweimal.
+  if (pause > jetzt) return ersatz();
+  let zeiger: ReturnType<typeof setTimeout> | null = null;
+  const uhr = new Promise<Staende | null>((res) => { zeiger = setTimeout(() => res(null), FRIST_MS); });
+  try {
+    const stand = await Promise.race([liesStaendeRoh(), uhr]);
+    if (stand) { vorrat = { stand, bis: Date.now() + VORRAT_MS }; return stand; }
+    pause = Date.now() + PAUSE_MS;
+    return ersatz();
   } finally {
     if (zeiger) clearTimeout(zeiger);
   }
