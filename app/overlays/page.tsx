@@ -3,13 +3,12 @@
 import { redirect } from 'next/navigation';
 
 /*
- * Die Overlay-Seite hat jetzt drei Unterseiten.
+ * Die Overlay-Seite ist das Studio.
  *
- * Der Betreiber wollte jede Art fuer sich: "das Leaderboard ist eine eigene
- * Page, die Overlays ist eine eigene Page". Wer die alte Adresse aufruft,
- * landet auf der Team-Karte - das ist die Seite, die er bisher unter
- * /overlays hatte, und die Leiste links fuehrt von dort ueberallhin.
+ * Der Betreiber: "Es ist wirklich einfach ein OBS von der Ansicht - eine
+ * Preview vom Stream, links oben drei Striche." Die Seiten je Art gibt es
+ * weiter; das Studio oeffnet sie als Einstellungen zu einem Element.
  */
 export default function OverlaysSeite() {
-  redirect('/overlays/teamkarte');
+  redirect('/overlays/studio');
 }

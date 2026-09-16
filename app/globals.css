@@ -224,3 +224,15 @@ body {
  */
 .vip-bahn { scrollbar-width: none; -ms-overflow-style: none; }
 .vip-bahn::-webkit-scrollbar { display: none; }
+
+/*
+ * Eingebettet im Overlay-Studio: die Seite einer Overlay-Art steckt dort in
+ * einem Rahmen. Kopfzeile, Sprachschalter, Melde-Knopf und Gespraech
+ * gehoeren dann dem Studio, nicht dem Rahmen - sonst steht die Navigation
+ * zweimal uebereinander.
+ */
+html.eingebettet body > header,
+html.eingebettet body > .fixed,
+html.eingebettet body > button.fixed {
+  display: none !important;
+}

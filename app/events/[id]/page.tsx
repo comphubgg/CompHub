@@ -15,6 +15,7 @@ import TeamFlagge, { flaggenPfad } from '@/components/TeamFlagge';
 import { namensSchluessel } from '@/lib/homoglyph';
 
 import T from '@/app/components/T';
+import LadeSchirm from '@/app/components/LadeSchirm';
 import { regionFarbe } from '@/lib/regionFarbe';
 import { useT, useSprache } from '@/app/components/SprachProvider';
 import { kartenTitel } from '@/lib/rundenName';
@@ -2523,9 +2524,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
               nichts davon ist geschätzt.</T>
             </p>
 
-            {!quali && (
-              <p className="mt-4 text-sm text-slate-600"><T>Wird geladen …</T></p>
-            )}
+            {!quali && <LadeSchirm />}
             {quali && !quali.length && (
               <p className="mt-4 text-sm leading-relaxed text-slate-500">
                 <T>Zu diesem Spieltag nennt Epic keine Bedingungen.</T>
@@ -3599,11 +3598,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
               </p>
             ) : (
               <div className="p-3">
-                {liveLaedt && !live && (
-                  <p className="p-4 text-center text-sm text-slate-500">
-                    <T>Wird geladen …</T>
-                  </p>
-                )}
+                {liveLaedt && !live && <LadeSchirm />}
 
                 {live && (() => {
                   const sendet = mitTwitch.filter((x) =>

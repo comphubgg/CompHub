@@ -1951,6 +1951,28 @@ const AUF_ENGLISCH: Record<string, string> = {
     'now',
   'Sitzungen':
     'sessions',
+  'Abgeleitet aus Platz beziehungsweise Punkten und der Auszahlungstabelle des Turniers, je Person':
+    'Derived from placement or points and the tournament\'s payout table, per player',
+  'Epics Auszahlungstabelle je Spieltag und Region, angewendet auf Epics Bestenliste nach Platz; LAN-Events je Person aus veröffentlichten Tabellen.':
+    'Epic\'s payout table per match day and region, applied to Epic\'s own leaderboard by placement; LAN events per player from published tables.',
+  'Online-Cups: Epics Auszahlungstabelle je Spieltag und Region, angewendet auf Epics Bestenliste nach Platz; bei mehrtägigen Finals zählt der Endstand über alle Tage. LAN-Events: je Person aus veröffentlichten Tabellen. Was hier fehlt, ist nicht hinterlegt, nicht null.':
+    'Online cups: Epic\'s payout table per match day and region, applied to Epic\'s own leaderboard by placement; for multi-day finals the final standing across all days counts. LAN events: per player from published tables. Whatever is missing here has no table, it is not zero.',
+  'Preisgeld nur, wo eine Auszahlungstabelle vorliegt':
+    'Prize money only where a payout table exists',
+  'Einstellen, speichern, dann liegt es auf dem Bild.':
+    'Adjust, save, and it sits on the picture.',
+  'Szene löschen':
+    'Delete scene',
+  'Speichert von selbst':
+    'Saves by itself',
+  'Einrichten':
+    'Set up',
+  'Noch nicht eingerichtet':
+    'Not set up yet',
+  'Gespeicherte':
+    'Saved ones',
+  'Auf das Bild legen':
+    'Put on the picture',
   'Online-Cups aus der gepflegten Preisgeldtabelle (EU) und LAN-Events aus veröffentlichten Tabellen, je Person.':
     'Online cups from the maintained prize table (EU) and LAN events from published tables, per player.',
   'Die Overlays sind Teil des VIP-Zugangs.':

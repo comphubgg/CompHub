@@ -20,6 +20,7 @@ import TeamFlagge from '@/components/TeamFlagge';
 import { ohneZierrat } from '@/lib/homoglyph';
 
 import T from '@/app/components/T';
+import LadeSchirm from '@/app/components/LadeSchirm';
 import { useSprache } from '@/app/components/SprachProvider';
 import { ortVon } from '@/app/lib/ort';
 interface Spieler {
@@ -229,10 +230,7 @@ export default function PowerRankingsTable() {
       {fehler ? (
         <p className="p-8 text-center text-sm text-rose-400">{fehler}</p>
       ) : laedt && !spieler.length ? (
-        <div className="space-y-1.5 p-4">
-          {[...Array(12)].map((_, i) =>
-            <div key={i} className="h-11 animate-pulse rounded bg-zinc-900/60" />)}
-        </div>
+        <LadeSchirm />
       ) : daten?.holt ? (
         <p className="p-8 text-center text-sm text-slate-400">
           <T>Die Rangliste wird gerade geholt — zehntausend Plätze in hundert

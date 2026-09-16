@@ -1218,7 +1218,7 @@ function VerlaufTabelle({ zeilen, fuss }: {
                 die Spalte erscheint nur, wenn es zu einer Zeile etwas gibt. */}
             {zeilen.some((z) => typeof z.verdienst === 'number') && (
               <th className="px-2 py-2 text-right font-medium"
-                title={t('Abgeleitet aus Platz beziehungsweise Punkten und der gepflegten Preisgeldtabelle, je Person')}>
+                title={t('Abgeleitet aus Platz beziehungsweise Punkten und der Auszahlungstabelle des Turniers, je Person')}>
                 <T>Verdienst</T>
               </th>
             )}
@@ -1677,6 +1677,9 @@ export default function StatistikSeite() {
 
   // Ob der Nutzer bearbeiten darf
   const [istAdmin, setIstAdmin] = useState(false);
+  /** Ob die Adminfrage und die Schloesser schon beantwortet sind. */
+  const [adminBekannt, setAdminBekannt] = useState(false);
+  const [schloesserBekannt, setSchloesserBekannt] = useState(false);
 
   /* ------------------------------------------------------------- Das Jahr */
   interface JahrListe {
@@ -1960,7 +1963,8 @@ export default function StatistikSeite() {
     fetch('/api/auth/check-admin', { cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : null))
       .then((j) => setIstAdmin(j?.isAdmin === true))
-      .catch(() => setIstAdmin(false));
+      .catch(() => setIstAdmin(false))
+      .finally(() => setAdminBekannt(true));
 
     /*
      * "?bereich=jahr" aus der Startseite - direkt in den Bereich, ohne
@@ -1972,10 +1976,20 @@ export default function StatistikSeite() {
       setBereich(gewuenscht as Bereich);
     }
 
-    fetch('/api/statistik-sichtbarkeit', { cache: 'no-store' })
+    /*
+     * Die Schloesser - beim Aufruf und danach alle zehn Sekunden.
+     *
+     * Der Betreiber: "wenn ich als Admin auf 'visible for no one' druecke,
+     * soll das live auf der ganzen Webseite fuer jeden gelten." Also fragt
+     * jede offene Seite regelmaessig nach; die Antwort ist ein paar Byte.
+     */
+    const schloesserHolen = () => fetch('/api/statistik-sichtbarkeit', { cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : null))
-      .then((j) => { if (j?.bereiche) setSichtbar({ ...SICHTBAR_STANDARD, ...j.bereiche }); })
+      .then((j) => { if (j?.bereiche) { setSichtbar({ ...SICHTBAR_STANDARD, ...j.bereiche }); setSchloesserBekannt(true); } })
       .catch(() => { /* dann gilt der Standard */ });
+    void schloesserHolen();
+    const takt = setInterval(schloesserHolen, 10_000);
+    return () => clearInterval(takt);
   }, []);
 
   useEffect(() => {
@@ -2018,6 +2032,21 @@ export default function StatistikSeite() {
       return false;
     });
   }, [sichtbar, istAdmin, zugang.vip]);
+
+  /*
+   * Ein zugesperrter Bereich gibt es fuer diesen Besucher nicht.
+   *
+   * Kein Hinweis "diese Seite ist gesperrt" - der Betreiber: "man soll
+   * einfach rausgekriegt werden, und sie gibt es dann einfach nicht mehr
+   * als Ansicht." Wer gerade darin steht, landet in der Uebersicht - auch
+   * mitten im Lesen, sobald das Schloss gedreht wurde. Fuer den Admin
+   * existiert sie weiter.
+   */
+  useEffect(() => {
+    if (!schloesserBekannt || !adminBekannt || zugang.laedt) return;
+    if (bereich === 'start') return;
+    if (!sichtbareBereiche.some(([w]) => w === bereich)) setBereich('start');
+  }, [schloesserBekannt, adminBekannt, sichtbareBereiche, bereich, zugang.laedt]);
 
   /** Das Schloss weiterdrehen: alle -> VIPs -> nur ich -> alle. */
   const schlossDrehen = useCallback(async () => {
@@ -2919,7 +2948,10 @@ export default function StatistikSeite() {
    * Schirm; was laenger dauert, zeigt ihn genau so lange, wie es dauert.
    */
   const wartet = profilLaedt || (bereich === 'jahr' && jahrLaedt)
-    || (bereich === 'spieler' && laedt && !spieler.length);
+    || (bereich === 'spieler' && laedt && !spieler.length)
+    || (bereich === 'turniere' && cupLaedt && !cupFeld.length)
+    || (bereich === 'regional' && regionLaedt && !regionFeld.length)
+    || (tabelleLaedt && !spieltagTabelle);
   const [schirmSichtbar, setSchirmSichtbar] = useState(false);
   useEffect(() => {
     if (!wartet) { setSchirmSichtbar(false); return; }
@@ -3623,7 +3655,7 @@ export default function StatistikSeite() {
 
 
               {cupLaedt && !cupFeld.length ? (
-                <div className="h-64 animate-pulse rounded-xl bg-zinc-900/60" />
+                <div className="h-64" />
               ) : !cupFeld.length ? (
                 <p className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-8
                               text-center text-sm text-slate-500">
@@ -3862,7 +3894,7 @@ export default function StatistikSeite() {
                       </div>
 
                       {tabelleLaedt && !spieltagTabelle ? (
-                        <div className="h-40 animate-pulse rounded-xl bg-zinc-900/60" />
+                        <div className="h-40" />
                       ) : (
                         <div className="overflow-hidden rounded-xl border border-zinc-800
                                         bg-zinc-950/60">
@@ -3878,7 +3910,7 @@ export default function StatistikSeite() {
                                   </th>
                                   {(spieltagTabelle ?? []).some((r) => typeof r.verdienst === 'number') && (
                                     <th className="px-3 py-2.5 text-right font-medium"
-                                      title={t('Abgeleitet aus Platz beziehungsweise Punkten und der gepflegten Preisgeldtabelle, je Person')}>
+                                      title={t('Abgeleitet aus Platz beziehungsweise Punkten und der Auszahlungstabelle des Turniers, je Person')}>
                                       <T>Verdienst</T>
                                     </th>
                                   )}
@@ -4201,7 +4233,7 @@ export default function StatistikSeite() {
                   vermutet, wo ein Kapitel gemeint ist. */}
               <p className="mb-5 text-[11px] leading-snug text-slate-600">
                 <T>Gezählt nach Saisons (ein Kapitel beginnt Ende November des Vorjahres): 2024 = Chapter 5 Season 3 und 4, 2025 = Chapter 6, 2026 = Chapter 7. Das Archiv kennt zu älteren Spieltagen kein Datum.</T>
-                {' '}<T>Preisgeld nur, wo eine Preisgeldtabelle gepflegt ist</T>
+                {' '}<T>Preisgeld nur, wo eine Auszahlungstabelle vorliegt</T>
                 {jahr?.listen[0]?.spieltageMitRegel !== undefined && (
                   <> ({zahl(jahr.listen[0].spieltageMitRegel ?? 0, 0, sprache)} <T>von</T>{' '}
                     {zahl(jahr.spieltage, 0, sprache)} <T>Spieltagen</T>)</>
@@ -4209,10 +4241,7 @@ export default function StatistikSeite() {
               </p>
 
               {jahrLaedt && !jahr ? (
-                <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
-                  {[...Array(6)].map((_, i) =>
-                    <div key={i} className="aspect-[3/4] animate-pulse rounded-xl bg-zinc-900/60" />)}
-                </div>
+                <div className="h-64" />
               ) : jahr && (
                 <div className="space-y-8">
                   {jahr.listen.filter((l) => l.plaetze.length).map((l) => (
@@ -4313,7 +4342,7 @@ export default function StatistikSeite() {
               </div>
 
               {regionLaedt && !regionFeld.length ? (
-                <div className="h-64 animate-pulse rounded-xl bg-zinc-900/60" />
+                <div className="h-64" />
               ) : !regionFeld.length ? (
                 <p className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-8
                               text-center text-sm text-slate-500">
@@ -5982,7 +6011,7 @@ export default function StatistikSeite() {
                         </div>
                       )}
                       <p className="text-[11px] leading-snug text-slate-600">
-                        <T>Online-Cups: abgeleitet aus Platz beziehungsweise Punkten und der gepflegten Preisgeldtabelle (nur EU gepflegt). LAN-Events: je Person aus veröffentlichten Tabellen (Esports Charts, Esports Earnings). Was hier fehlt, ist nicht hinterlegt, nicht null.</T>
+                        <T>Online-Cups: Epics Auszahlungstabelle je Spieltag und Region, angewendet auf Epics Bestenliste nach Platz; bei mehrtägigen Finals zählt der Endstand über alle Tage. LAN-Events: je Person aus veröffentlichten Tabellen. Was hier fehlt, ist nicht hinterlegt, nicht null.</T>
                       </p>
                     </div>
                   );

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from 'react';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import MeineOverlays from './MeineOverlays';
+import LadeSchirm from '@/app/components/LadeSchirm';
 import { useZugang } from '@/app/lib/zugang';
 import {
   managerDarfCup, overlayCupErlaubt, overlayCupRang, overlayRegionRang,
@@ -259,9 +260,7 @@ export default function Startansicht({ onWeiter, art }: {
             </div>
           )}
 
-          {!cups && (
-            <p className="text-sm text-slate-600"><T>Wird geladen …</T></p>
-          )}
+          {!cups && <LadeSchirm />}
           {nurLaufende && (
             <p className="mb-3 text-[11px] leading-relaxed text-sky-400/80">
               <T>Als Manager wählst du den Spieltag, um den es gerade geht:

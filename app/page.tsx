@@ -93,7 +93,7 @@ function MeistesPreisgeld({ ort }: { ort: string }) {
             ))}
           </div>
           <p className="mt-3 text-[11px] text-slate-600">
-            <T>Online-Cups aus der gepflegten Preisgeldtabelle (EU) und LAN-Events aus veröffentlichten Tabellen, je Person.</T>
+            <T>Epics Auszahlungstabelle je Spieltag und Region, angewendet auf Epics Bestenliste nach Platz; LAN-Events je Person aus veröffentlichten Tabellen.</T>
           </p>
         </Abschnitt>
       </div>

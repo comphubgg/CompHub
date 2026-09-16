@@ -1,5 +1,6 @@
 import { liesJson } from '@/lib/ablage';
 import { istFinaleTag } from '@/lib/turnierArt';
+import { holeKatalog } from '@/lib/cupWertung';
 
 /*
  * Was ein Platz oder eine Punktzahl an Preisgeld bedeutet.
@@ -101,6 +102,134 @@ export async function lanSummen(saisons: string[]): Promise<Map<string, number>>
   return summe;
 }
 
+/*
+ * ------------------------------------------------------------ Tabellen
+ *
+ * Epics eigene Auszahlungstabelle je Spieltag - je Person und Platz, wie
+ * sie Epic zu jedem Turnierfenster veroeffentlicht (nachgelesen ueber
+ * fortnitetracker.com, das sie je Fenster aufhebt; Epics eigene Schnittstelle
+ * kennt nur die laufende Saison). Geholt von scripts/preisgeld-tabellen.mjs
+ * in data/preisgeld-tabellen.json: FNCS-Major-Finals je Region, Reload Elite
+ * Series, Solo Series, Division-1-Finals, Performance Cups, Duos Cash Cups,
+ * Victory Cups. Angewendet nach Platz auf Epics Bestenliste - kein Name.
+ *
+ * Der Betreiber: "ich weiss, wie viel der #1 hat, und es sind mehr als
+ * 271k, viel mehr." Die Grand Finals fehlten - 60.000 Dollar je Person fuer
+ * Platz eins in Europa standen nirgends.
+ */
+export interface Tabelle {
+  fenster: string; season: string; region: string;
+  /** Regulaerer Ausdruck auf die Fensterkennung - eine Tabelle je Familie. */
+  muster: string;
+  name?: string | null; beginn?: string | null;
+  tage: 'einzeln' | 'summe' | 'letzter';
+  /** platz: Betrag je Platzspanne ("bis"). punkte: Betrag ab Punktzahl. */
+  art: 'platz' | 'punkte' | string;
+  waehrung?: string;
+  stufen: Array<{ bis?: number; abPunkte?: number; schwelle?: number; betrag: number }>;
+}
+
+let tabellen: { liste: Array<Tabelle & { re: RegExp }>; bis: number } | null = null;
+
+async function liesTabellen() {
+  if (tabellen && Date.now() < tabellen.bis) return tabellen.liste;
+  const roh = await liesJson<{ eintraege?: Tabelle[] } | null>('preisgeld-tabellen.json', null);
+  const liste = (Array.isArray(roh?.eintraege) ? roh.eintraege : [])
+    .filter((t) => t.muster && Array.isArray(t.stufen))
+    .map((t) => ({ ...t, re: new RegExp(t.muster, 'i') }));
+  tabellen = { liste, bis: Date.now() + 10 * 60_000 };
+  tabelleJeFenster.clear();
+  return liste;
+}
+
+/** Je Fenster gemerkt - die Jahresliste fragt hunderttausendmal. */
+const tabelleJeFenster = new Map<string, Tabelle | null>();
+
+/**
+ * Die Tabelle der laufenden Saison direkt aus Epics Turnierkatalog.
+ *
+ * Epic liefert zu jedem laufenden Turnierfenster seine Auszahlungstabelle
+ * mit - dieselbe, die die gespeicherte Datei fuer aeltere Saisons haelt.
+ * So zaehlt ein Cup von heute Abend schon mit, ohne dass jemand eine
+ * Tabelle nachtraegt: die Daten erneuern sich selbst. Ohne Epic-Anmeldung
+ * (oder fuer alte Fenster) kommt hier nichts, und die Datei entscheidet.
+ */
+const katalogGescheitert = new Map<string, number>();
+
+async function ausEpicKatalog(windowId: string, region: string): Promise<Tabelle | null> {
+  // Ein gescheiterter Abruf wird zehn Minuten nicht wiederholt - die
+  // Jahresliste fragt sonst tausendmal gegen eine Wand.
+  if ((katalogGescheitert.get(region) ?? 0) > Date.now()) return null;
+  let katalog;
+  try { katalog = await holeKatalog(region); } catch {
+    katalogGescheitert.set(region, Date.now() + 10 * 60_000);
+    return null;
+  }
+  const alle = katalog.payoutTables ?? {};
+  const gruppen = alle[windowId]
+    ?? Object.entries(alle).find(([k]) => k.includes(windowId))?.[1];
+  if (!gruppen?.length) return null;
+  const season = (windowId.match(/^(S\d+)_/)?.[1]) ?? '';
+  for (const g of gruppen) {
+    const stufen: Tabelle['stufen'] = [];
+    for (const r of g.ranks ?? []) {
+      if (typeof r.threshold !== 'number') continue;
+      const betrag = (r.payouts ?? [])
+        .filter((z) => z.rewardType === 'ecomm' && typeof z.quantity === 'number')
+        .reduce((summe, z) => summe + (z.quantity ?? 0), 0);
+      if (betrag <= 0) continue;
+      if (g.scoringType === 'value') stufen.push({ abPunkte: r.threshold, betrag });
+      else if (g.scoringType === 'rank') stufen.push({ bis: r.threshold, betrag });
+    }
+    if (!stufen.length) continue;
+    return {
+      fenster: windowId, season, region: region.toUpperCase(), muster: '',
+      tage: 'einzeln', art: g.scoringType === 'value' ? 'punkte' : 'platz',
+      waehrung: 'USD', stufen,
+    };
+  }
+  return null;
+}
+
+/** Die Tabelle zu einem Spieltag - oder null. */
+export async function tabelleFuer(windowId: string, region?: string): Promise<Tabelle | null> {
+  const liste = await liesTabellen();
+  const schluessel = `${windowId}|${region ?? ''}`;
+  const gemerkt = tabelleJeFenster.get(schluessel);
+  if (gemerkt !== undefined) return gemerkt;
+  let gefunden: Tabelle | null = null;
+  // Erst die Tabelle genau dieses Fensters, dann die der Familie.
+  for (const t of liste) {
+    if (region && t.region !== region.toUpperCase()) continue;
+    if (t.fenster === windowId) { gefunden = t; break; }
+    if (!gefunden && t.re.test(windowId)) gefunden = t;
+  }
+  // Nichts in der Datei: die laufende Saison kennt Epic selbst.
+  if (!gefunden && region && /^S\d+_/.test(windowId)) gefunden = await ausEpicKatalog(windowId, region);
+  tabelleJeFenster.set(schluessel, gefunden);
+  return gefunden;
+}
+
+/** Der Betrag je Person aus einer Tabelle. */
+function ausTabelle(t: Tabelle, platz: number | null, punkte: number | null): Verdienst | null {
+  const waehrung = t.waehrung ?? 'USD';
+  if (t.art === 'platz') {
+    if (!platz || platz < 1) return null;
+    // "bis" ist der letzte Platz einer Spanne: bis 5 = 450, bis 7 = 375
+    // heisst Platz 6 und 7 bekommen 375.
+    const stufen = t.stufen.filter((s) => typeof s.bis === 'number').sort((a, b) => a.bis! - b.bis!);
+    const stufe = stufen.find((s) => platz <= s.bis!);
+    return { betrag: stufe ? stufe.betrag : 0, waehrung };
+  }
+  if (t.art === 'punkte') {
+    if (punkte === null || punkte < 0) return null;
+    const stufen = t.stufen.filter((s) => typeof s.abPunkte === 'number').sort((a, b) => b.abPunkte! - a.abPunkte!);
+    const stufe = stufen.find((s) => punkte >= s.abPunkte!);
+    return { betrag: stufe ? stufe.betrag : 0, waehrung };
+  }
+  return null;
+}
+
 /**
  * Der Betrag zu einem Platz oder einer Punktzahl - oder null, wenn dazu
  * keine Regel gepflegt ist.
@@ -115,6 +244,9 @@ export async function verdienst(angaben: {
     const lanGeld = await lanVerdienst(angaben.windowId, angaben.epicId);
     if (lanGeld) return lanGeld;
   }
+  // Erst die Tabellen aus Liquipedia, dann die von Hand gepflegte Regel.
+  const tabelle = await tabelleFuer(angaben.windowId, angaben.region);
+  if (tabelle) return ausTabelle(tabelle, angaben.platz, angaben.punkte);
   const kern = turnierKern(angaben.eventId || angaben.windowId);
   if (!kern) return null;
   // Ohne Epics Kennzeichen sagt es der Name - oder die Fensterkennung:

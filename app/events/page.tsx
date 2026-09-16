@@ -10,6 +10,7 @@ import T from '@/app/components/T';
 import { regionFarbe } from '@/lib/regionFarbe';
 import { useSprache } from '@/app/components/SprachProvider';
 import { useZugang } from '@/app/lib/zugang';
+import LadeSchirm from '@/app/components/LadeSchirm';
 import type { Sprache } from '@/app/lib/sprache';
 interface Fenster {
   status: 'live' | 'kommt' | 'vorbei';
@@ -302,12 +303,11 @@ export default function EventsPage() {
         )}
         {fehler && !loginNoetig && <p className="mb-4 text-sm text-rose-400">{fehler}</p>}
 
+        {/* Der Ladeschirm wie ueberall - keine grauen Platzhalterkarten.
+            Der Betreiber: "alle anderen Tabs sollen wirklich mit meiner neuen
+            Animation laden, nicht einfach wie im Screenshot." */}
         {laedt ? (
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {[...Array(8)].map((_, i) => (
-              <div key={i} className="h-52 animate-pulse rounded-xl border border-zinc-800 bg-zinc-900/50" />
-            ))}
-          </div>
+          <LadeSchirm />
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {zeigeCups.map((c) => {

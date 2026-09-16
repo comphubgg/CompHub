@@ -7,6 +7,7 @@ import { useT } from '@/app/components/SprachProvider';
 import { useZugang } from '@/app/lib/zugang';
 import MeineOverlays from './MeineOverlays';
 import Startansicht from './Startansicht';
+import LadeSchirm from '@/app/components/LadeSchirm';
 
 /*
  * Das gemeinsame Geruest der Overlay-Seiten.
@@ -140,6 +141,14 @@ export function useOverlays(typ: string) {
       const j = await r.json();
       if (!r.ok) { setFehler(j?.error ?? 'Could not save'); return null; }
       await laden();
+      /*
+       * Im Studio steckt diese Seite in einem Rahmen. Dort wartet die Buehne
+       * darauf, welches Overlay gerade gespeichert wurde - damit das Element
+       * auf dem Stream-Bild sofort dieses Overlay zeigt.
+       */
+      if (typeof window !== 'undefined' && window.parent !== window) {
+        window.parent.postMessage({ comphub: 'overlay-gespeichert', typ, id: j.id, name: eintrag.name }, window.location.origin);
+      }
       return j.id as string;
     } catch (e) {
       setFehler((e as Error).message);
@@ -176,19 +185,21 @@ export default function OverlayGeruest({ aktiv, children }: {
    * geladenes Fenster landet dann dort, wo es vorher stand.
    */
   const [imBaukasten, setImBaukasten] = useState(false);
+  /*
+   * Eingebettet im Studio: dieselbe Seite, nur ohne die Leiste links und
+   * ohne "zurueck" - drumherum ist dann die Buehne, nicht die Overlay-Seite.
+   */
+  const [eingebettet, setEingebettet] = useState(false);
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
     setImBaukasten(Boolean(p.get('bauen') || p.get('fenster') || p.get('id')));
+    const drin = Boolean(p.get('eingebettet'));
+    setEingebettet(drin);
+    // Kopfzeile und schwebende Knoepfe ausblenden - siehe globals.css.
+    document.documentElement.classList.toggle('eingebettet', drin);
   }, []);
 
-  if (zugang.laedt) {
-    return (
-      <main className="grid min-h-screen place-items-center bg-zinc-950 px-4
-                       text-center text-slate-500">
-        <p className="text-sm"><T>Wird geladen …</T></p>
-      </main>
-    );
-  }
+  if (zugang.laedt) return <LadeSchirm />;
 
   if (!zugang.vip) {
     return (
@@ -213,11 +224,11 @@ export default function OverlayGeruest({ aktiv, children }: {
   }
 
   return (
-    <main className="flex-1 bg-zinc-950 px-4 py-6 text-slate-200">
+    <main className={`flex-1 bg-zinc-950 text-slate-200 ${eingebettet ? 'px-4 py-4' : 'px-4 py-6'}`}>
       <div className="mx-auto flex max-w-[1500px] flex-col gap-6 lg:flex-row">
 
-        {/* Die Leiste. Sie steht auf jeder Overlay-Seite gleich. */}
-        <aside className="w-full shrink-0 lg:w-56">
+        {/* Die Leiste. Sie steht auf jeder Overlay-Seite gleich - nur im Studio nicht. */}
+        {!eingebettet && <aside className="w-full shrink-0 lg:w-56">
           <p className="mb-2 px-2 text-[10px] font-semibold uppercase
                         tracking-[0.18em] text-slate-600">
             <T>Overlays</T>
@@ -257,16 +268,18 @@ export default function OverlayGeruest({ aktiv, children }: {
             * waere sie zweimal dasselbe.
             */}
           {imBaukasten && <MeineOverlays nurArt={aktiv} />}
-        </aside>
+        </aside>}
 
         <div className="min-w-0 flex-1">
           {imBaukasten ? (
             <>
-              <button onClick={() => { window.location.href = window.location.pathname; }}
-                className="mb-4 text-[11px] text-slate-500 transition
-                           hover:text-sky-400">
-                ← <T>zurück zu deinen Overlays</T>
-              </button>
+              {!eingebettet && (
+                <button onClick={() => { window.location.href = window.location.pathname; }}
+                  className="mb-4 text-[11px] text-slate-500 transition
+                             hover:text-sky-400">
+                  ← <T>zurück zu deinen Overlays</T>
+                </button>
+              )}
               {children}
             </>
           ) : (
@@ -285,6 +298,7 @@ export default function OverlayGeruest({ aktiv, children }: {
               const p = new URLSearchParams({ bauen: '1' });
               if (e) p.set('event', e);
               if (w) p.set('fenster', w);
+              if (eingebettet) p.set('eingebettet', '1');
               window.history.replaceState(
                 null, '', `${window.location.pathname}?${p.toString()}`);
               setImBaukasten(true);

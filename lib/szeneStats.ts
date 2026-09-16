@@ -491,10 +491,65 @@ const platzCache = new Map<string, {
   karte: Map<string, Platzierung> | null; bis: number;
 }>();
 
-async function platzKarte(season: string, windowId: string) {
-  const schluessel = `${season}|${windowId}`;
+/**
+ * Mehrtaegige Finals: welcher Tag ist der letzte, und zaehlt sein Fenster
+ * nur den Tag?
+ *
+ * Gemessen an Major 1 2025 EU, Major 1 2026 EU, Major 2 2026 EU und der
+ * Solo Series 2026 EU: Epics Fenster "Final_Day2" fuehrt nur die Punkte
+ * des zweiten Tages. Vico und Malibuca standen dort auf Platz fuenf und
+ * waren Dritte des Finales - 246 plus 282 Punkte. Der Endstand ist die
+ * Summe beider Tage, und genau der gehoert in Profil und Preisgeld. Beim
+ * Major 3 2024 ("GrandFinalDay2") fuehrt Epics zweites Fenster dagegen
+ * schon die Gesamtwertung - dort bleibt es beim Fenster.
+ */
+function letzterTagEinesFinales(windowId: string): number | null {
+  const m = windowId.match(/(?:_Final_Day|SoloSeriesCupFinal_Day)(\d+)_/);
+  return m && Number(m[1]) >= 2 ? Number(m[1]) : null;
+}
+
+/** Der Endstand ueber alle Tage: Punkte je Team summiert, danach die Plaetze. */
+async function tagesSumme(season: string, windowId: string, tage: number) {
+  const summe = new Map<string, { spieler: string[]; punkte: number }>();
+  for (let t = 1; t <= tage; t++) {
+    const tag = await platzKarte(season, windowId.replace(/Day\d+/, `Day${t}`), true);
+    if (!tag) return null;
+    const gesehen = new Set<string>();
+    for (const [id, p] of tag) {
+      const team = [id, ...p.mitspieler].sort();
+      const k = team.join(',');
+      if (gesehen.has(k)) continue;
+      gesehen.add(k);
+      const e = summe.get(k) ?? { spieler: team, punkte: 0 };
+      e.punkte += p.punkte;
+      summe.set(k, e);
+    }
+  }
+  const liste = [...summe.values()].sort((a, b) => b.punkte - a.punkte);
+  const karte = new Map<string, Platzierung>();
+  let platz = 0;
+  liste.forEach((t, i) => {
+    if (i === 0 || t.punkte !== liste[i - 1].punkte) platz = i + 1;
+    for (const id of t.spieler) {
+      karte.set(id, { platz, punkte: t.punkte, mitspieler: t.spieler.filter((x) => x !== id) });
+    }
+  });
+  return karte;
+}
+
+async function platzKarte(season: string, windowId: string, nurDerTag = false): Promise<Map<string, Platzierung> | null> {
+  const schluessel = `${season}|${windowId}${nurDerTag ? '|tag' : ''}`;
   const gemerkt = platzCache.get(schluessel);
   if (gemerkt && Date.now() < gemerkt.bis) return gemerkt.karte;
+
+  const letzterTag = nurDerTag ? null : letzterTagEinesFinales(windowId);
+  if (letzterTag) {
+    const gesamt = await tagesSumme(season, windowId, letzterTag);
+    if (gesamt) {
+      platzCache.set(schluessel, { karte: gesamt, bis: Date.now() + HALTBAR });
+      return gesamt;
+    }
+  }
 
   let karte: Map<string, Platzierung> | null = null;
   try {
@@ -1119,11 +1174,25 @@ export async function jahresListen(jahr: number, region?: string, nurSaison?: st
   const eintraege = (await liesVerzeichnis()).filter((e) =>
     (!region || e.region === region) && saisons.includes(e.season));
 
-  // Preisgeld je Konto: Platz und Punkte je Spieltag aus Epics Bestenliste,
-  // bewertet mit der gepflegten Tabelle.
+  /*
+   * Preisgeld je Konto: Platz und Punkte je Spieltag aus Epics Bestenliste,
+   * bewertet mit Epics Auszahlungstabelle (lib/preisgeld).
+   *
+   * Nicht nur die Spieltage des Archivs - das Archiv fuehrt nur Finals.
+   * Victory Cups, Cash Cups und was Epic sonst noch bezahlt, liegen als
+   * Epic-Spieltage auf der Platte; auch sie zaehlen. Der Betreiber: "du
+   * sollst wirklich herausfinden, von wo welche Earnings kommen." Ein
+   * Fenster zaehlt einmal, auch wenn es in beiden Ablagen liegt.
+   */
+  const imArchiv = new Set(eintraege.map((e) => e.windowId));
+  const weitere = (await liesEpicSpieltage())
+    .filter((t) => !imArchiv.has(t.windowId) && saisons.includes(t.season)
+      && (!region || t.region === region))
+    .map((t) => ({ season: t.season, windowId: t.windowId, eventId: t.eventId,
+      region: t.region, name: t.titel }));
   const geld = new Map<string, number>();
   let mitRegel = 0;
-  for (const e of eintraege) {
+  for (const e of [...eintraege, ...weitere]) {
     const karte = await platzKarte(e.season, e.windowId);
     if (!karte) continue;
     let dieserTag = false;
@@ -1145,7 +1214,7 @@ export async function jahresListen(jahr: number, region?: string, nurSaison?: st
     geld.set(id, (geld.get(id) ?? 0) + betrag);
   }
   lanTage = (await lanSummen(saisons)).size ? eintraege.filter((e) =>
-    ['Escargo_Day4', 'Bratwurst_Finals_Day3'].includes(e.windowId)).length : 0;
+    ['Escargo_Day4', 'Bratwurst_Finals_Day3', 'Dinosauron_Day2', 'BambiRaptor_Day2'].includes(e.windowId)).length : 0;
   mitRegel += lanTage;
 
   const listen = KENNZAHLEN.map((k) => ({
