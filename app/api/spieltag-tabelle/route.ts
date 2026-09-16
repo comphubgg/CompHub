@@ -83,8 +83,45 @@ export async function GET(request: Request) {
   const saison = p.get('saison')
     ?? /^(S\d+)_/i.exec(fenster)?.[1]?.toUpperCase() ?? '';
 
-  const daten = await liesDatei('epic-spieltage', saison, fenster)
+  let daten = await liesDatei('epic-spieltage', saison, fenster)
     ?? await liesDatei('platzierungen', saison, fenster);
+
+  /*
+   * Der letzte Tag eines zweitaegigen Finales: Epics Fenster fuehrt nur
+   * diesen Tag, das Preisgeld haengt aber am Endstand ueber beide Tage
+   * (siehe lib/szeneStats, platzKarte). Deshalb steht hier der Endstand -
+   * die Summe der Tagesfenster, danach die Plaetze - und nicht der Tag.
+   */
+  let gesamt = false;
+  const letzterTag = fenster.match(/(?:_Final_Day|SoloSeriesCupFinal_Day)(\d+)_/);
+  if (daten?.teams?.length && letzterTag && Number(letzterTag[1]) >= 2) {
+    const summe = new Map<string, { spieler: string[]; punkte: number; matches: number; teamElims: number }>();
+    let vollstaendig = true;
+    for (let t = 1; t <= Number(letzterTag[1]); t++) {
+      const tagFenster = fenster.replace(/Day\d+/, `Day${t}`);
+      const tag = t === Number(letzterTag[1]) ? daten
+        : (await liesDatei('epic-spieltage', saison, tagFenster) ?? await liesDatei('platzierungen', saison, tagFenster));
+      if (!tag?.teams?.length) { vollstaendig = false; break; }
+      for (const team of tag.teams) {
+        const k = [...team.spieler].sort().join(',');
+        const e = summe.get(k) ?? { spieler: team.spieler, punkte: 0, matches: 0, teamElims: 0 };
+        e.punkte += team.punkte; e.matches += team.matches ?? 0; e.teamElims += team.teamElims ?? 0;
+        summe.set(k, e);
+      }
+    }
+    if (vollstaendig) {
+      const liste = [...summe.values()].sort((a, b) => b.punkte - a.punkte);
+      let platz = 0;
+      daten = {
+        ...daten,
+        teams: liste.map((t, i) => {
+          if (i === 0 || t.punkte !== liste[i - 1].punkte) platz = i + 1;
+          return { ...t, platz };
+        }),
+      };
+      gesamt = true;
+    }
+  }
 
   if (!daten?.teams?.length) {
     return NextResponse.json({
@@ -128,6 +165,9 @@ export async function GET(request: Request) {
       };
     }));
 
-  return NextResponse.json({ vorhanden: true, teams, waehrung, verdienstQuelle: waehrung
-    ? 'Abgeleitet aus Platz beziehungsweise Punkten und der gepflegten Preisgeldtabelle, je Person.' : null });
+  return NextResponse.json({
+    vorhanden: true, teams, waehrung, gesamt,
+    verdienstQuelle: waehrung
+      ? 'Abgeleitet aus Platz beziehungsweise Punkten und Epics Auszahlungstabelle, je Person.' : null,
+  });
 }

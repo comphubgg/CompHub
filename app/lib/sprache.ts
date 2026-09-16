@@ -1951,6 +1951,8 @@ const AUF_ENGLISCH: Record<string, string> = {
     'now',
   'Sitzungen':
     'sessions',
+  'Endstand des Finales über alle Tage':
+    'Final standing across all days',
   'Abgeleitet aus Platz beziehungsweise Punkten und der Auszahlungstabelle des Turniers, je Person':
     'Derived from placement or points and the tournament\'s payout table, per player',
   'Epics Auszahlungstabelle je Spieltag und Region, angewendet auf Epics Bestenliste nach Platz; LAN-Events je Person aus veröffentlichten Tabellen.':

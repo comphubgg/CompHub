@@ -1794,6 +1794,8 @@ export default function StatistikSeite() {
     spieler: Array<{ epicId: string; name: string; land: string }>;
   }[] | null>(null);
   const [tabelleLaedt, setTabelleLaedt] = useState(false);
+  /** Ob die Tabelle der Endstand ueber alle Tage eines Finales ist. */
+  const [tabelleGesamt, setTabelleGesamt] = useState(false);
   const [tabelleSuche, setTabelleSuche] = useState('');
   const [tabelleTiefe, setTabelleTiefe] = useState(50);
 
@@ -2212,7 +2214,7 @@ export default function StatistikSeite() {
     fetch(`/api/spieltag-tabelle?window=${encodeURIComponent(cup.windowId)}`
       + `&saison=${encodeURIComponent(cup.season ?? '')}`)
       .then((r) => r.json())
-      .then((j) => { if (!weg) setSpieltagTabelle(j?.teams ?? []); })
+      .then((j) => { if (!weg) { setSpieltagTabelle(j?.teams ?? []); setTabelleGesamt(Boolean(j?.gesamt)); } })
       .catch(() => { if (!weg) setSpieltagTabelle([]); })
       .finally(() => { if (!weg) setTabelleLaedt(false); });
     return () => { weg = true; };
@@ -3877,7 +3879,7 @@ export default function StatistikSeite() {
                       <div className="mb-2 flex flex-wrap items-center gap-3">
                         <p className="text-[10px] font-semibold uppercase
                                       tracking-[0.18em] text-slate-500">
-                          <T>Endstand des Spieltags</T>
+                          {tabelleGesamt ? <T>Endstand des Finales über alle Tage</T> : <T>Endstand des Spieltags</T>}
                         </p>
                         {spieltagTabelle && (
                           <span className="text-[11px] text-slate-600">
