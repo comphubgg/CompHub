@@ -545,12 +545,21 @@ function formeEintrag(e: RohEintrag, namen: Record<string, string>): CupEintrag 
  */
 const SEITE_TTL = 60_000;
 
-export async function holeSeite(eventId: string, windowId: string, page = 0) {
-  return gecacht(`seite|${eventId}|${windowId}|${page}`, SEITE_TTL,
-    () => holeSeiteRoh(eventId, windowId, page));
+/*
+ * ohneNamen: nur die Konto-Ids, keine Namensaufloesung.
+ *
+ * Die Namen holt Epic je hundert Konten in einer eigenen Abfrage, und dort
+ * sitzt die Drossel ("try again in 499 seconds"). Wer tausend alte
+ * Bestenlisten fuer die Verdienst-Akte holt (scripts/epic-fenster-holen),
+ * braucht nur die Ids - die Namen kennt das Werkzeug ohnehin je Konto. Ohne
+ * die Aufloesung faellt die Drossel weg und ein Fenster kommt in Sekunden.
+ */
+export async function holeSeite(eventId: string, windowId: string, page = 0, ohneNamen = false) {
+  return gecacht(`seite|${eventId}|${windowId}|${page}|${ohneNamen ? 'ids' : 'namen'}`, SEITE_TTL,
+    () => holeSeiteRoh(eventId, windowId, page, ohneNamen));
 }
 
-async function holeSeiteRoh(eventId: string, windowId: string, page = 0) {
+async function holeSeiteRoh(eventId: string, windowId: string, page = 0, ohneNamen = false) {
   const { token, accountId } = await getToken();
   const url = `${EVENTS}/api/v1/leaderboards/Fortnite/${encodeURIComponent(eventId)}` +
     `/${encodeURIComponent(windowId)}/${accountId}?page=${page}&rank=0&teamAccountIds=`;
@@ -559,7 +568,8 @@ async function holeSeiteRoh(eventId: string, windowId: string, page = 0) {
     url, { headers: { Authorization: token } });
 
   const entries = data.entries ?? [];
-  const namen = await loeseNamenAuf(entries.flatMap((e) => e.teamAccountIds ?? []), token);
+  const namen = ohneNamen ? {}
+    : await loeseNamenAuf(entries.flatMap((e) => e.teamAccountIds ?? []), token);
 
   return {
     eventId, windowId,
@@ -580,8 +590,8 @@ async function holeSeiteRoh(eventId: string, windowId: string, page = 0) {
  */
 const SEITEN_GLEICHZEITIG = 6;
 
-export async function holeTop(eventId: string, windowId: string, limit = 100) {
-  const first = await holeSeite(eventId, windowId, 0);
+export async function holeTop(eventId: string, windowId: string, limit = 100, ohneNamen = false) {
+  const first = await holeSeite(eventId, windowId, 0, ohneNamen);
   const out = [...first.entries];
   if (!out.length) return { ...first, entries: out };
 
@@ -592,7 +602,7 @@ export async function holeTop(eventId: string, windowId: string, limit = 100) {
   for (let p = 1; p < noetig; p += SEITEN_GLEICHZEITIG) {
     const bis = Math.min(p + SEITEN_GLEICHZEITIG, noetig);
     const gruppe = [];
-    for (let i = p; i < bis; i++) gruppe.push(holeSeite(eventId, windowId, i));
+    for (let i = p; i < bis; i++) gruppe.push(holeSeite(eventId, windowId, i, ohneNamen));
     for (const seite of await Promise.all(gruppe)) out.push(...seite.entries);
     if (out.length >= limit) break;
   }

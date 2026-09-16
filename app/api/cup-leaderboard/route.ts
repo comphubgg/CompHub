@@ -72,9 +72,11 @@ export async function GET(request: Request) {
       return NextResponse.json(await ergaenzeBilder(daten));
     }
 
-    const key = `top|${event}|${window_}|${limit}`;
-    const daten = await gecacht(key, TTL, () => holeTop(event, window_, limit));
-    return NextResponse.json(await ergaenzeBilder(daten));
+    // namen=0: nur Konto-Ids, keine Namensaufloesung bei Epic (siehe holeSeite).
+    const ohneNamen = searchParams.get('namen') === '0';
+    const key = `top|${event}|${window_}|${limit}|${ohneNamen ? 'ids' : 'namen'}`;
+    const daten = await gecacht(key, TTL, () => holeTop(event, window_, limit, ohneNamen));
+    return NextResponse.json(ohneNamen ? daten : await ergaenzeBilder(daten));
   } catch (e) {
     const login = e instanceof EpicLoginNoetig;
     return NextResponse.json(

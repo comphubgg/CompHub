@@ -127,7 +127,7 @@ async function main() {
   let mitGeld = 0; let ohneTabelle = 0; let unvollstaendig = 0;
   for (const [windowId] of karte) {
     if (/^(Escargo|Bratwurst|Dinosauron|BambiRaptor)/.test(windowId)) continue;
-    if (/(?:_Final_Day1_|CupFinal_Day1_|GrandFinalDay1_)/.test(windowId)) continue;
+    if (/(?:_Final_Day1_|CupFinal_Day1_|GrandFinalDay1_|_Day1$)/.test(windowId)) continue;
     const region = (windowId.match(/_(EU|NAC|NAW|BR|ASIA|ME|OCE)(?:_[A-Za-z0-9]+)?$/) ?? [])[1] ?? '';
     const t = tabelleFuer(tabellen, windowId, region);
     if (!t) { ohneTabelle += 1; continue; }
