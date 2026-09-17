@@ -113,6 +113,18 @@ jobs:
             --ohne replays,_sicherung,szene-stats,epic-spieltage,platzierungen,akten,antworten,anwesenheit,tournament-leaderboards,kartenbilder,kontakt-bilder,admin-maps \
             2>&1 | tail -4
 
+      # Die Verdienst-Akte und Epics Auszahlungstabellen entstehen nur auf dem
+      # Betreiber-Rechner (die alten Bestenlisten liegen nur dort) und kommen
+      # von dort ans Release. Antwortet Supabase nicht, rechnete dieser Lauf
+      # die Akten sonst mit dem Stand aus seinem Zwischenspeicher und lud sie
+      # hoch - die Profile fielen auf gestern zurueck. Das Release ist fuer
+      # diese Dateien die massgebliche Kopie.
+      - name: Verdienst-Akte und Tabellen vom Release
+        continue-on-error: true
+        timeout-minutes: 5
+        run: |
+          node scripts/ablage-github-holen.mjs verdienst-archiv.json preisgeld-tabellen.json lan-preisgelder.json             2>&1 | tail -5
+
       # Die ausgewerteten Replays, aber nur, was sich geaendert hat.
       #
       # Der Live-Sammler legt waehrend eines Cups Aggregate ab, die dieser
