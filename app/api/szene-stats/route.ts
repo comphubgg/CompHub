@@ -880,9 +880,14 @@ async function berechne(request: Request) {
        * Teilnahme. Daraus entsteht dieselbe Tafel, die das Vorbild unter
        * "FNCS" zeigt.
        */
-      const szeneListe = JSON.parse(await fs.readFile(
-        path.join(DATEN_ORT, 'szene-quelle', 'spielerliste.json'), 'utf8')) as
-        Array<Record<string, string | number>>;
+      // Fehlt die Kopie der Liste (Ablage gerade weg), bleibt die Tafel
+      // leer - das Profil selbst kommt trotzdem.
+      let szeneListe: Array<Record<string, string | number>> = [];
+      try {
+        szeneListe = JSON.parse(await fs.readFile(
+          path.join(DATEN_ORT, 'szene-quelle', 'spielerliste.json'), 'utf8')) as
+          Array<Record<string, string | number>>;
+      } catch { /* keine Kopie da */ }
       const eintragQuelle = szeneListe.find((x) => x.ID === spieler);
       const fncs = eintragQuelle ? {
         titel: Number(eintragQuelle.FNCS_WINS ?? 0),
