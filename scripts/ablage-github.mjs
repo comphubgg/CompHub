@@ -30,7 +30,15 @@ import path from 'node:path';
 const PROJEKT = process.cwd();
 const DATEN = path.join(PROJEKT, 'data');
 const REPO = process.env.COMPHUB_GITHUB_REPO || 'comphubgg/CompHub';
-const TAG = process.env.COMPHUB_GITHUB_TAG || 'daten';
+// Je Ordner ein Release - siehe lib/ablageGithub.ts, tagFuer.
+function tagFuer(name) {
+  if (/^akten\//.test(name)) return 'daten-akten';
+  if (/^(epic-spieltage|szene-quelle|power-rankings)\//.test(name)) return 'daten-spieltage';
+  if (/^platzierungen\//.test(name)) return 'daten-platzierungen';
+  if (/^szene-stats\//.test(name)) return 'daten-szene';
+  if (/^tournament-leaderboards\//.test(name)) return 'daten-leaderboards';
+  return 'daten';
+}
 const API = 'https://api.github.com';
 const GLEICHZEITIG = 4;
 
@@ -68,7 +76,10 @@ const KOPF = {
 
 // Dieselben Regeln wie lib/ablageGithub.ts - was ans Release gehoert.
 const AM_RELEASE = [
-  /^antworten\/(?!catalog_)/,
+  // Und nicht die Antwort je Spieler (szene_spieler=...): die rechnet die
+  // Seite in Sekunden aus der Akte, und ein Stand von gestern am Release
+  // wuerde zuerst ausgeliefert - mit den Zahlen von gestern.
+  /^antworten\/(?!catalog_|szene_spieler=|szene_ansicht=profil)/,
   /^akten\//,
   /^epic-spieltage\//,
   /^platzierungen\//,
@@ -117,13 +128,13 @@ async function api(pfad, init = {}, versuche = 3) {
   }
 }
 
-async function releaseHolen() {
-  let r = await api(`/repos/${REPO}/releases/tags/${TAG}`);
+async function releaseHolen(tag) {
+  let r = await api(`/repos/${REPO}/releases/tags/${tag}`);
   if (r.status === 404) {
     r = await api(`/repos/${REPO}/releases`, {
       method: 'POST',
       body: JSON.stringify({
-        tag_name: TAG, target_commitish: 'main', name: 'Daten der Seite', prerelease: true,
+        tag_name: tag, target_commitish: 'main', name: `Daten der Seite (${tag})`, prerelease: true,
         body: 'Second copy of the data the hourly run produces (answers, player files, match days). '
           + 'Read by the site when Supabase does not answer. Written by scripts/ablage-github.mjs. '
           + 'Not a software release.',
@@ -194,24 +205,33 @@ async function main() {
     }
   }
 
-  const release = await releaseHolen();
-  const vorhandene = await anhaenge(release.id);
-  const manifestAlt = vorhandene.get('manifest.json')
-    ? JSON.parse((await anhangLesen(vorhandene.get('manifest.json')))?.toString('utf8') || '{}') : {};
-  const manifest = { ...manifestAlt };
+  // Je Release: Anhaenge, Manifest, Aufgaben.
+  const releases = new Map();
+  const releaseFuer = async (tag) => {
+    if (releases.has(tag)) return releases.get(tag);
+    const release = await releaseHolen(tag);
+    const vorhandene = await anhaenge(release.id);
+    const manifestAlt = vorhandene.get('manifest.json')
+      ? JSON.parse((await anhangLesen(vorhandene.get('manifest.json')))?.toString('utf8') || '{}') : {};
+    const eintrag = { tag, release, vorhandene, manifestAlt, manifest: { ...manifestAlt }, fertig: 0 };
+    releases.set(tag, eintrag);
+    return eintrag;
+  };
 
-  // Was hochgeladen wird: Name des Anhangs -> Bytes.
+  // Was hochgeladen wird: Name des Anhangs -> Bytes, je Release.
   const aufgaben = [];
   for (const name of einzeln) {
     const daten = fs.readFileSync(path.join(DATEN, name));
     const anhang = anhangName(name);
     const summe = pruefsumme(daten);
-    if (manifestAlt[anhang]?.summe === summe && vorhandene.has(anhang)) continue;
-    aufgaben.push({ anhang, daten, summe });
+    const rel = await releaseFuer(tagFuer(name));
+    if (rel.manifestAlt[anhang]?.summe === summe && rel.vorhandene.has(anhang)) continue;
+    aufgaben.push({ rel, anhang, daten, summe });
   }
   for (const [anhang, dateien] of buendel) {
+    const rel = await releaseFuer('daten-akten');
     if (neuerAls && !dateien.some(([, name]) => frisch(name))) {
-      if (vorhandene.has(anhang)) continue;
+      if (rel.vorhandene.has(anhang)) continue;
     }
     const inhalt = {};
     for (const [id, name] of dateien.sort((a, b) => a[0].localeCompare(b[0]))) {
@@ -219,13 +239,13 @@ async function main() {
     }
     const daten = Buffer.from(JSON.stringify(inhalt), 'utf8');
     const summe = pruefsumme(daten);
-    if (manifestAlt[anhang]?.summe === summe && vorhandene.has(anhang)) continue;
-    aufgaben.push({ anhang, daten, summe });
+    if (rel.manifestAlt[anhang]?.summe === summe && rel.vorhandene.has(anhang)) continue;
+    aufgaben.push({ rel, anhang, daten, summe });
   }
 
   const umfang = aufgaben.reduce((s, a) => s + a.daten.length, 0);
   console.log('');
-  console.log(`  Release   : ${REPO} #${TAG} (${vorhandene.size} Anhaenge vorhanden)`);
+  for (const rel of releases.values()) console.log(`  Release   : ${REPO} #${rel.tag} (${rel.vorhandene.size} Anhaenge vorhanden)`);
   console.log(`  Dateien   : ${alle.length} passend, ${aufgaben.length} zu uebertragen`);
   console.log(`  Umfang    : ${(umfang / 1024 / 1024).toFixed(1)} MB`);
   if (nur.length) console.log(`  Nur       : ${nur.join(', ')}`);
@@ -244,8 +264,9 @@ async function main() {
     while (naechste < aufgaben.length) {
       const a = aufgaben[naechste++];
       try {
-        await hochladen(release.id, vorhandene, a.anhang, a.daten);
-        manifest[a.anhang] = { summe: a.summe, groesse: a.daten.length, zeit: new Date().toISOString() };
+        await hochladen(a.rel.release.id, a.rel.vorhandene, a.anhang, a.daten);
+        a.rel.manifest[a.anhang] = { summe: a.summe, groesse: a.daten.length, zeit: new Date().toISOString() };
+        a.rel.fertig += 1;
         fertig += 1;
       } catch (e) {
         schief += 1; fehler.push(`${a.anhang}: ${e.message}`);
@@ -255,10 +276,11 @@ async function main() {
   };
   await Promise.all(Array.from({ length: GLEICHZEITIG }, arbeiter));
 
-  if (fertig) {
+  for (const rel of releases.values()) {
+    if (!rel.fertig) continue;
     try {
-      await hochladen(release.id, vorhandene, 'manifest.json', Buffer.from(JSON.stringify(manifest), 'utf8'));
-    } catch (e) { fehler.push(`manifest.json: ${e.message}`); }
+      await hochladen(rel.release.id, rel.vorhandene, 'manifest.json', Buffer.from(JSON.stringify(rel.manifest), 'utf8'));
+    } catch (e) { fehler.push(`${rel.tag}/manifest.json: ${e.message}`); }
   }
   console.log('');
   console.log(`  Uebertragen : ${fertig}`);

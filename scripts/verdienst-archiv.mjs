@@ -130,7 +130,7 @@ async function main() {
     if (/(?:_Final_Day1_|CupFinal_Day1_|GrandFinalDay1_|_Day1$)/.test(windowId)) continue;
     const region = (windowId.match(/_(EU|NAC|NAW|BR|ASIA|ME|OCE)(?:_[A-Za-z0-9]+)?$/) ?? [])[1] ?? '';
     const t = tabelleFuer(tabellen, windowId, region);
-    if (!t) { ohneTabelle += 1; continue; }
+    if (!t) { ohneTabelle += 1; if (process.env.ZEIGE_FEHLENDE) console.error(`  ohne Tabelle: ${windowId}`); continue; }
     const stand = await endstand(karte, windowId, t.tage);
     if (!stand) { unvollstaendig += 1; continue; }
     const datum = stand.datum ? new Date(stand.datum).toISOString().slice(0, 10) : (t.beginn ?? '').slice(0, 10);

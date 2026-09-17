@@ -21,6 +21,10 @@
 // bleibt drin - sie begrenzt die Spanne darunter (Top 5 eines Reload-Heats
 // steigen auf und bekommen nichts, 6 bis 10 bekommen 250).
 //
+// Ein Eintrag darf eine eigene "quelle" tragen - fuer Fenster, zu denen
+// fortnitetracker.com keine Seite hat und die Regel von Epics Event-Seite
+// stammt (data/_quellen/epic_regeln_*.json).
+//
 // Dieses Skript fuehrt beliebig viele solcher Dateien zusammen:
 //
 //   node scripts/preisgeld-tabellen.mjs roh-eu.json roh-nac.json ...
@@ -70,7 +74,7 @@ function eintraegeAus(roh, exakt) {
     const tage = (sid.includes('cumulative') || sid.includes('floating')) && /_Day\d+(?:_|$)/.test(w) && !/GrandFinalDay/.test(w)
       ? 'summe' : (/GrandFinalDay2/.test(w) ? (/^S30_/.test(w) ? 'letzter' : 'summe') : 'einzeln');
     raus.push({
-      quelle: 'Epic payout table (via fortnitetracker.com)',
+      quelle: roh.quelle ?? 'Epic payout table (via fortnitetracker.com)',
       fenster: w, muster, season, region,
       name: roh.name ?? null, beginn: roh.begin ?? null, tage,
       art: t.t === 'rank' ? 'platz' : (t.t === 'value' ? 'punkte' : t.t),
