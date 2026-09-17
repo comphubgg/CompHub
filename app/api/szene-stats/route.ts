@@ -416,7 +416,8 @@ async function berechne(request: Request) {
       const jahrRoh = p.get('jahr') ?? '';
       const jahr = jahrRoh === 'alle' || jahrRoh === 'all' ? 0
         : (Number(jahrRoh) || new Date().getUTCFullYear());
-      const daten = await jahresListen(jahr, region, p.get('saison') ?? undefined);
+      const volleListe = p.get('liste') === 'verdienst';
+      const daten = await jahresListen(jahr, region, p.get('saison') ?? undefined, volleListe);
       const gepflegt = await liesProfile();
       const bildZu = await liesBilder();
       const heimat = await heimatRegionen();
@@ -451,6 +452,19 @@ async function berechne(request: Request) {
           success: true, jahr: daten.jahr, spieltage: daten.spieltage,
           plaetze: (geld?.plaetze ?? []).slice(0, 5).map(schlank('verdienst')),
           spieltageMitRegel: (geld as { spieltageMitRegel?: number } | undefined)?.spieltageMitRegel ?? 0,
+        });
+      }
+      /*
+       * "liste=verdienst": die ganze Preisgeldliste, jedes Konto mit Geld -
+       * fuer die Seite hinter dem Plus, hundert je Seite. Bei "alle Zeit"
+       * sind das ueber sechstausend Zeilen; deshalb eine eigene Antwort und
+       * nicht Teil der Jahresantwort.
+       */
+      if (volleListe) {
+        const geld = daten.listen.find((l) => l.feld === 'verdienst');
+        return NextResponse.json({
+          success: true, jahr: daten.jahr, region: daten.region, saison: daten.saison,
+          plaetze: (geld?.plaetze ?? []).map(schlank('verdienst')),
         });
       }
       return NextResponse.json({

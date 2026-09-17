@@ -54,6 +54,10 @@ function wege(saisons) {
     '/api/szene-stats?ansicht=jahr&jahr=2021',
     '/api/szene-stats?ansicht=jahr&jahr=2020',
     '/api/szene-stats?ansicht=jahr&jahr=2019',
+    // Die ganze Preisgeldliste je Jahr - hinter dem Plus, hundert je Seite.
+    '/api/szene-stats?ansicht=jahr&jahr=alle&liste=verdienst',
+    ...[2019, 2020, 2021, 2022, 2023, 2024, 2025, 2026]
+      .map((j) => `/api/szene-stats?ansicht=jahr&jahr=${j}&liste=verdienst`),
     '/api/szene-stats?ansicht=bilder',
     // Der Vorrat, in dem die Kopfzeilensuche sucht.
     '/api/szene-stats?ansicht=suchindex',

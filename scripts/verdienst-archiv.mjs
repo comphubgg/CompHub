@@ -140,7 +140,12 @@ async function main() {
       if (betrag <= 0) continue;
       for (const id of team.spieler) {
         if (!konten.has(id)) continue;
-        (archiv[id] ??= []).push([windowId, region, datum, team.platz, team.punkte ?? 0, betrag]);
+        // Dazu die Mitspieler - der Betreiber: "die Teammates sind ein
+        // bisschen schade, dass du die nicht ueberall hast."
+        const mitspieler = team.spieler.filter((x) => x !== id);
+        (archiv[id] ??= []).push(mitspieler.length
+          ? [windowId, region, datum, team.platz, team.punkte ?? 0, betrag, mitspieler]
+          : [windowId, region, datum, team.platz, team.punkte ?? 0, betrag]);
         einer = true;
       }
     }
@@ -149,7 +154,7 @@ async function main() {
   for (const liste of Object.values(archiv)) liste.sort((a, b) => a[2].localeCompare(b[2]));
 
   await fs.writeFile(ZIEL, JSON.stringify({
-    hinweis: 'Prize money per known account and match day, computed once from Epic\'s leaderboards (data/epic-spieltage-alt on the operator\'s machine) and Epic\'s payout tables (data/preisgeld-tabellen.json): [window, region, date, placement, points, amount per player in USD]. Two-day finals count by the final standing across both days; the first day never pays. LAN events are not here (data/lan-preisgelder.json). Built by scripts/verdienst-archiv.mjs.',
+    hinweis: 'Prize money per known account and match day, computed once from Epic\'s leaderboards (data/epic-spieltage-alt on the operator\'s machine) and Epic\'s payout tables (data/preisgeld-tabellen.json): [window, region, date, placement, points, amount per player in USD, teammates (account ids, only where there are any)]. Two-day finals count by the final standing across both days; the first day never pays. LAN events are not here (data/lan-preisgelder.json). Built by scripts/verdienst-archiv.mjs.',
     stand: new Date().toISOString(),
     fenster: mitGeld,
     konten: archiv,

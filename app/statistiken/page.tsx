@@ -1907,6 +1907,9 @@ export default function StatistikSeite() {
     zeilen: Spieler[];
     feld: keyof Spieler; nachkomma: number; einheit: string } | null>(null);
   const [listenTiefe, setListenTiefe] = useState(50);
+  /** Die Preisgeldliste blaettert: hundert je Seite, ab eins. */
+  const [listenSeite, setListenSeite] = useState(1);
+  const [listenLaedt, setListenLaedt] = useState(false);
   /** Die Suche in der vollen Liste - ab zweihundert Eintraegen. */
   const [listenSuche, setListenSuche] = useState('');
   const [listenRegion, setListenRegion] = useState('');
@@ -4372,15 +4375,33 @@ export default function StatistikSeite() {
                           {l.mindestMatches ? <> · <T>ab</T> {l.mindestMatches} <T>Matches</T></> : null}
                         </p>
                         {l.plaetze.length > 6 && (
-                          <button onClick={() => {
+                          <button onClick={async () => {
+                            const zusatz = (jahrSaison ? (jahr?.saisonenDesJahres?.find((x) => x.kennung === jahrSaison)?.name ?? jahrSaison)
+                              : jahrWahl === 'alle' ? t('Alle Zeit') : jahrWahl) + (jahrRegion ? ` · ${jahrRegion}` : '');
+                            let zeilen = l.plaetze;
+                            /*
+                             * Preisgeld: die ganze Liste, nicht nur die ersten
+                             * zweihundert - der Betreiber: "ich habe ja viel mehr
+                             * Leute in meinem Archiv." Kommt sie nicht, bleiben
+                             * die zweihundert.
+                             */
+                            if (l.feld === 'verdienst') {
+                              setListenLaedt(true);
+                              try {
+                                const p = new URLSearchParams({ ansicht: 'jahr', jahr: jahrWahl, liste: 'verdienst' });
+                                if (jahrRegion) p.set('region', jahrRegion);
+                                if (jahrSaison) p.set('saison', jahrSaison);
+                                const j = await (await fetch(`/api/szene-stats?${p}`)).json();
+                                if (Array.isArray(j.plaetze) && j.plaetze.length >= l.plaetze.length) zeilen = j.plaetze;
+                              } catch { /* dann die zweihundert */ }
+                              setListenLaedt(false);
+                            }
                             setVolleListe({
-                              titel: l.titel,
-                              zusatz: (jahrSaison ? (jahr?.saisonenDesJahres?.find((x) => x.kennung === jahrSaison)?.name ?? jahrSaison)
-                                : jahrWahl === 'alle' ? t('Alle Zeit') : jahrWahl) + (jahrRegion ? ` · ${jahrRegion}` : ''),
-                              zeilen: l.plaetze, feld: l.feld as keyof Spieler,
+                              titel: l.titel, zusatz, zeilen, feld: l.feld as keyof Spieler,
                               nachkomma: l.nachkomma, einheit: l.einheit ?? '',
                             });
                             setListenTiefe(50);
+                            setListenSeite(1);
                           }}
                             title={t('Alle {n} anzeigen').replace('{n}', String(l.plaetze.length))}
                             className="rounded border border-zinc-700 px-1.5 text-[11px]
@@ -5232,6 +5253,7 @@ export default function StatistikSeite() {
         * den Eliminierungen - der Aufteilung in Finals und Opens, damit die
         * Zahl nachvollziehbar ist.
         */}
+      {listenLaedt && <LadeSchirm text={t('Liste wird geladen …')} />}
       {volleListe && !offen && (() => {
         const q = listenSuche.trim().toLowerCase();
         const regionen = nachRegionReihe([...new Set(volleListe.zeilen
@@ -5241,9 +5263,14 @@ export default function StatistikSeite() {
           .filter(({ sp }) => !listenRegion || (sp.heimat || sp.regionen?.[0] || '') === listenRegion)
           .filter(({ sp }) => !q || [sp.anzeige, sp.name, ...(sp.namen ?? [])]
             .some((n) => (n ?? '').toLowerCase().includes(q)));
-        const zeigen = (listenTiefe && !q) ? gefiltert.slice(0, listenTiefe) : gefiltert;
         const istElims = volleListe.feld === 'elims';
         const istGeld = volleListe.feld === 'verdienst';
+        const JE_SEITE = 100;
+        const seiten = istGeld ? Math.max(1, Math.ceil(gefiltert.length / JE_SEITE)) : 1;
+        const seite = Math.min(listenSeite, seiten);
+        const zeigen = istGeld
+          ? (q ? gefiltert : gefiltert.slice((seite - 1) * JE_SEITE, seite * JE_SEITE))
+          : ((listenTiefe && !q) ? gefiltert.slice(0, listenTiefe) : gefiltert);
         return (
           <div className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950">
             <header className="flex flex-wrap items-center gap-3 border-b border-zinc-800
@@ -5262,28 +5289,55 @@ export default function StatistikSeite() {
               <span className="text-xs text-slate-500">
                 {zahl(gefiltert.length, 0, sprache)} <T>Spieler</T>
               </span>
-              {volleListe.zeilen.length > 200 && (
+              {volleListe.zeilen.length > 100 && (
                 <input value={listenSuche} onChange={(e) => setListenSuche(e.target.value)}
                   placeholder={t('Spieler suchen …')} autoFocus
                   className="mx-auto w-56 rounded-lg border border-zinc-800 bg-zinc-900/80
                              px-3 py-1 text-xs text-slate-100 outline-none focus:border-sky-500" />
               )}
-              <div className="ml-auto flex items-center gap-1">
-                {([50, 100, 0] as const).map((n) => (
-                  <button key={n} onClick={() => setListenTiefe(n)}
-                    className={`rounded-md border px-2.5 py-1 text-xs transition ${
-                      listenTiefe === n
-                        ? 'border-sky-500 bg-sky-500/10 text-sky-400'
-                        : 'border-zinc-800 text-slate-400 hover:border-zinc-600'}`}>
-                    {n === 0 ? t('Alle') : `Top ${n}`}
-                  </button>
-                ))}
-              </div>
+              {istGeld ? (
+                /* Blaettern: Seite 1, 2, 3 ... je hundert. */
+                seiten > 1 && !q && (
+                  <div className="ml-auto flex items-center gap-1">
+                    <button onClick={() => setListenSeite(Math.max(1, seite - 1))} disabled={seite <= 1}
+                      className="rounded-md border border-zinc-800 px-2.5 py-1 text-xs text-slate-400
+                                 transition hover:border-zinc-600 disabled:opacity-40">‹</button>
+                    {[...Array(seiten)].map((_, i) => i + 1)
+                      .filter((n) => n === 1 || n === seiten || Math.abs(n - seite) <= 2)
+                      .map((n, i, arr) => (
+                        <span key={n} className="flex items-center gap-1">
+                          {i > 0 && arr[i - 1] !== n - 1 && <span className="px-1 text-xs text-slate-600">…</span>}
+                          <button onClick={() => setListenSeite(n)}
+                            className={`rounded-md border px-2.5 py-1 text-xs transition ${
+                              seite === n ? 'border-sky-500 bg-sky-500/10 text-sky-400'
+                                : 'border-zinc-800 text-slate-400 hover:border-zinc-600'}`}>
+                            {n}
+                          </button>
+                        </span>
+                      ))}
+                    <button onClick={() => setListenSeite(Math.min(seiten, seite + 1))} disabled={seite >= seiten}
+                      className="rounded-md border border-zinc-800 px-2.5 py-1 text-xs text-slate-400
+                                 transition hover:border-zinc-600 disabled:opacity-40">›</button>
+                  </div>
+                )
+              ) : (
+                <div className="ml-auto flex items-center gap-1">
+                  {([50, 100, 0] as const).map((n) => (
+                    <button key={n} onClick={() => setListenTiefe(n)}
+                      className={`rounded-md border px-2.5 py-1 text-xs transition ${
+                        listenTiefe === n
+                          ? 'border-sky-500 bg-sky-500/10 text-sky-400'
+                          : 'border-zinc-800 text-slate-400 hover:border-zinc-600'}`}>
+                      {n === 0 ? t('Alle') : `Top ${n}`}
+                    </button>
+                  ))}
+                </div>
+              )}
             </header>
             {regionen.length > 1 && (
               <div className="flex flex-wrap gap-1 border-b border-zinc-900 px-4 py-2">
                 {['', ...regionen].map((r) => (
-                  <button key={r || 'alle'} onClick={() => setListenRegion(r)}
+                  <button key={r || 'alle'} onClick={() => { setListenRegion(r); setListenSeite(1); }}
                     className={`rounded-md border px-2.5 py-1 text-xs font-semibold transition ${
                       listenRegion === r
                         ? (r ? regionFarbe(r).marke : 'border-sky-500 bg-sky-500/10 text-sky-400')

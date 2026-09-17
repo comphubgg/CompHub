@@ -8,11 +8,11 @@ import { liesJson } from '@/lib/ablage';
  * Bestenlisten von Epic liegen nur auf seinem Rechner; was hier ankommt,
  * ist das einmal daraus Gerechnete (scripts/verdienst-archiv.mjs):
  *
- *   konten[epicId] = [[fenster, region, datum, platz, punkte, betrag], ...]
+ *   konten[epicId] = [[fenster, region, datum, platz, punkte, betrag, mitspieler?], ...]
  *
  * Betrag je Person in Dollar, nach Epics Auszahlungstabelle des Fensters.
  */
-export type ArchivEintrag = [string, string, string, number, number, number];
+export type ArchivEintrag = [string, string, string, number, number, number, string[]?];
 
 interface Archiv { stand?: string; fenster?: number; konten: Record<string, ArchivEintrag[]> }
 

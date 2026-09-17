@@ -784,13 +784,13 @@ export async function aktenSchreiben(): Promise<{ konten: number; geschrieben: n
     const a = akten.get(id);
     if (!a) continue;
     const da = new Set([...a.verlauf.map((z) => z.windowId), ...a.epic.map((z) => z.windowId)]);
-    for (const [windowId, region, datum, platz, punkte, betrag] of eintraege) {
+    for (const [windowId, region, datum, platz, punkte, betrag, mitspieler] of eintraege) {
       if (da.has(windowId)) continue;
       a.epic.push({
         event: windowId, windowId, region, season: saisonVonFenster(windowId, datum),
         titel: [cupNameAusKennung(windowId), rundenName(windowId, false)].filter(Boolean).join(' · ') || windowId,
         datum: Date.parse(datum) || null,
-        platz, punkte, matches: 0, mitspieler: [], nurEpic: true, verdienstArchiv: betrag,
+        platz, punkte, matches: 0, mitspieler: mitspieler ?? [], nurEpic: true, verdienstArchiv: betrag,
       });
     }
   }
@@ -1280,7 +1280,13 @@ export function jahrVonSaison(saison: string): number {
   return 0;
 }
 
-export async function jahresListen(jahr: number, region?: string, nurSaison?: string) {
+export async function jahresListen(jahr: number, region?: string, nurSaison?: string,
+  /**
+   * Die Preisgeldliste ungekuerzt - fuer die eigene Antwort "liste=verdienst".
+   * Der Betreiber: "mach bitte mehr als 200 Leute, ich habe ja viel mehr Leute
+   * in meinem Archiv" - bei "alle Zeit" sind es ueber sechstausend Konten.
+   */
+  volleVerdienstListe = false) {
   // 0 heisst: alle Saisons, die das Archiv hat.
   const alleSaisons = jahr === 0
     ? [...new Set((await liesVerzeichnis()).map((e) => e.season))].sort()
@@ -1386,7 +1392,7 @@ export async function jahresListen(jahr: number, region?: string, nurSaison?: st
   const geldPlaetze = [...geld.entries()]
     .filter(([, betrag]) => betrag > 0)
     .sort((a, b) => b[1] - a[1])
-    .slice(0, LISTEN_LAENGE);
+    .slice(0, volleVerdienstListe ? undefined : LISTEN_LAENGE);
   /*
    * Wer nur in der Verdienst-Akte steht (ein Spieler von 2019, den das
    * Archiv der Szene nie fuehrte), hat hier keinen Namen - in der Liste
@@ -1691,15 +1697,15 @@ export async function epicVerlauf(
    * fuer denselben Spieler.
    */
   const da = new Set([...imArchiv, ...zeilen.map((z) => z.windowId)]);
-  for (const [windowId, region, datum, platz, punkte, betrag] of await archivEintraege(epicId)) {
+  for (const [windowId, region, datum, platz, punkte, betrag, mitspieler] of await archivEintraege(epicId)) {
     if (da.has(windowId)) continue;
-    if (filter.saison && (windowId.match(/^(S\d+)_/)?.[1] ?? '') !== filter.saison) continue;
+    if (filter.saison && saisonVonFenster(windowId, datum) !== filter.saison) continue;
     if (filter.region && region !== filter.region) continue;
     zeilen.push({
       event: windowId, windowId, region, season: saisonVonFenster(windowId, datum),
       titel: [cupNameAusKennung(windowId), rundenName(windowId, false)].filter(Boolean).join(' · ') || windowId,
       datum: Date.parse(datum) || null,
-      platz, punkte, matches: 0, mitspieler: [], nurEpic: true, verdienstArchiv: betrag,
+      platz, punkte, matches: 0, mitspieler: mitspieler ?? [], nurEpic: true, verdienstArchiv: betrag,
     });
   }
 
