@@ -573,7 +573,7 @@ function kapitelVonSaison(kennung: string, name?: string): number {
   const m = /^Chapter (\d+)/.exec(name ?? '');
   if (m) return Number(m[1]);
   const n = Number((kennung.match(/^S(\d+)$/) ?? [])[1] ?? 0);
-  if (!n) return 0;
+  if (!n) return 1;
   if (n <= 10) return 1;
   if (n <= 18) return 2;
   if (n <= 22) return 3;
@@ -581,11 +581,6 @@ function kapitelVonSaison(kennung: string, name?: string): number {
   if (n <= 32) return 5;
   if (n <= 38) return 6;
   return 7;
-}
-
-/** Der Name einer Saison ohne ihr Kapitel - "Season 2", "Remix", "The Simpsons". */
-function saisonOhneKapitel(name: string): string {
-  return name.replace(/^Chapter \d+ /, '');
 }
 
 /** Falls eine Kennung wie "S37" durchrutscht - nie nackt anzeigen. */
@@ -6042,9 +6037,6 @@ export default function StatistikSeite() {
                   const jeKapitel = new Map<number, number>();
                   for (const [k, v] of jeSaison) jeKapitel.set(kapitelVon(k), (jeKapitel.get(kapitelVon(k)) ?? 0) + v);
                   const kapitelListe = [...jeKapitel.keys()].sort((a, b) => b - a);
-                  const saisonListe = [...jeSaison.keys()]
-                    .filter((k) => !verdienstKapitel || kapitelVon(k) === verdienstKapitel)
-                    .sort((a, b) => Number(b.slice(1)) - Number(a.slice(1)));
                   // Was die Tabelle zeigt: alles, ein Kapitel, eine Saison.
                   const passt = (k: string) => (verdienstSaison ? k === verdienstSaison
                     : verdienstKapitel ? kapitelVon(k) === verdienstKapitel : true);
@@ -6054,60 +6046,56 @@ export default function StatistikSeite() {
                     + lanGezeigt.reduce((a, l) => a + l.betrag, 0);
                   const wahlTitel = verdienstSaison ? nameVon(verdienstSaison)
                     : verdienstKapitel ? `Chapter ${verdienstKapitel}` : t('seit Chapter 1');
-                  const pille = (aktiv: boolean) => `rounded-md border px-3 py-1.5 text-xs font-semibold transition ${
-                    aktiv ? 'border-sky-500 bg-sky-500/10 text-sky-400' : 'border-zinc-800 text-slate-400 hover:border-zinc-600'}`;
+                  /*
+                   * Ein einziger Waehler, wie "Zeitraum" oben: alle Zeit, ein
+                   * ganzes Kapitel, eine Saison - je Kapitel eine Gruppe. Zwei
+                   * Reihen Pillen mit Betraegen waren dem Betreiber zu viel:
+                   * "viel zu unclean, viel zu unsortiert."
+                   */
+                  const wahlWert = verdienstSaison ? `s:${verdienstSaison}` : verdienstKapitel ? `k:${verdienstKapitel}` : '';
+                  const waehle = (wert: string) => {
+                    if (wert.startsWith('s:')) {
+                      const k = wert.slice(2); setVerdienstSaison(k); setVerdienstKapitel(kapitelVon(k));
+                    } else if (wert.startsWith('k:')) { setVerdienstKapitel(Number(wert.slice(2))); setVerdienstSaison(''); }
+                    else { setVerdienstKapitel(0); setVerdienstSaison(''); }
+                  };
+                  const saisonenVon = (k: number) => [...jeSaison.keys()]
+                    .filter((x) => kapitelVon(x) === k)
+                    .sort((a, b) => Number(b.slice(1)) - Number(a.slice(1)));
                   return (
                     <div className="space-y-5">
-                      <div className="rounded-lg border border-zinc-800 bg-zinc-900/30 p-5">
-                        <div className="flex flex-wrap items-end justify-between gap-6">
-                          <div>
-                            <p className="text-[10px] font-semibold uppercase tracking-[0.18em]
-                                          text-slate-500"><T>Verdienst</T> · {wahlTitel}</p>
-                            <p className="mt-1 text-3xl font-bold tabular-nums text-emerald-400">
-                              ${zahl(summe, 0, sprache)}
-                            </p>
-                          </div>
+                      <div className="flex flex-wrap items-end justify-between gap-6 rounded-lg
+                                      border border-zinc-800 bg-zinc-900/30 p-5">
+                        <div>
+                          <p className="text-[10px] font-semibold uppercase tracking-[0.18em]
+                                        text-slate-500"><T>Verdienst</T> · {wahlTitel}</p>
+                          <p className="mt-1 text-3xl font-bold tabular-nums text-emerald-400">
+                            ${zahl(summe, 0, sprache)}
+                          </p>
                           {(verdienstKapitel || verdienstSaison) ? (
-                            <div className="text-right">
-                              <p className="text-[10px] uppercase tracking-[0.14em] text-slate-600"><T>seit Chapter 1</T></p>
-                              <p className="text-sm font-semibold tabular-nums text-slate-300">${zahl(gesamt, 0, sprache)}</p>
-                            </div>
+                            <p className="mt-1 text-[11px] tabular-nums text-slate-500">
+                              <T>seit Chapter 1</T>: ${zahl(gesamt, 0, sprache)}
+                            </p>
                           ) : null}
                         </div>
-                        {/* Die Kapitel - eines waehlen, oder alle. */}
-                        <div className="mt-4 flex flex-wrap gap-1.5">
-                          <button onClick={() => { setVerdienstKapitel(0); setVerdienstSaison(''); }}
-                            className={pille(!verdienstKapitel)}>
-                            <T>Alle</T>
-                          </button>
-                          {kapitelListe.map((k) => (
-                            <button key={k} onClick={() => { setVerdienstKapitel(k); setVerdienstSaison(''); }}
-                              className={pille(verdienstKapitel === k)}>
-                              Chapter {k}
-                              <span className="ml-1.5 font-normal tabular-nums text-slate-500">
-                                ${zahl(jeKapitel.get(k) ?? 0, 0, sprache)}
-                              </span>
-                            </button>
-                          ))}
-                        </div>
-                        {/* Die Saisons des Kapitels. */}
-                        {verdienstKapitel > 0 && saisonListe.length > 0 && (
-                          <div className="mt-2 flex flex-wrap gap-1.5">
-                            <button onClick={() => setVerdienstSaison('')}
-                              className={pille(!verdienstSaison)}>
-                              <T>Ganzes Kapitel</T>
-                            </button>
-                            {saisonListe.map((k) => (
-                              <button key={k} onClick={() => setVerdienstSaison(k)}
-                                className={pille(verdienstSaison === k)}>
-                                {saisonOhneKapitel(nameVon(k))}
-                                <span className="ml-1.5 font-normal tabular-nums text-slate-500">
-                                  ${zahl(jeSaison.get(k) ?? 0, 0, sprache)}
-                                </span>
-                              </button>
+                        <label className="flex items-center gap-2">
+                          <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                            <T>Zeitraum</T>
+                          </span>
+                          <select value={wahlWert} onChange={(e) => waehle(e.target.value)}
+                            className="rounded-lg border border-zinc-800 bg-zinc-900/80 px-3
+                                       py-1.5 text-xs text-slate-100 outline-none focus:border-sky-500">
+                            <option value="">{t('seit Chapter 1')}</option>
+                            {kapitelListe.map((k) => (
+                              <optgroup key={k} label={`Chapter ${k}`}>
+                                <option value={`k:${k}`}>Chapter {k} · {t('ganzes Kapitel')}</option>
+                                {saisonenVon(k).map((x) => (
+                                  <option key={x} value={`s:${x}`}>{nameVon(x)}</option>
+                                ))}
+                              </optgroup>
                             ))}
-                          </div>
-                        )}
+                          </select>
+                        </label>
                       </div>
                       {!gezeigt.length && !lanGezeigt.length ? (
                         <p className="py-6 text-center text-xs text-slate-600">
