@@ -194,12 +194,22 @@ async function ladeAuth(): Promise<EpicAuth> {
     try { return JSON.parse(ausEnv) as EpicAuth; }
     catch { throw new EpicLoginNoetig('EPIC_DEVICE_AUTH ist kein gueltiges JSON'); }
   }
+  /*
+   * Den zuletzt gelesenen Zugang behalten. Bei Vercel liegt die Datei in
+   * der Ablage; antwortet die einen Moment nicht, hiess es sonst "Epic ist
+   * nicht eingerichtet", obwohl derselbe Vorgang den Zugang eben noch
+   * hatte. Ein Geraetezugang aendert sich nicht, er darf im Speicher bleiben.
+   */
   try {
-    return JSON.parse(await fs.readFile(AUTH_FILE, 'utf8')) as EpicAuth;
+    const a = JSON.parse(await fs.readFile(AUTH_FILE, 'utf8')) as EpicAuth;
+    authGemerkt = a;
+    return a;
   } catch {
+    if (authGemerkt) return authGemerkt;
     throw new EpicLoginNoetig();
   }
 }
+let authGemerkt: EpicAuth | null = null;
 
 export async function speichereAuth(a: EpicAuth): Promise<void> {
   await fs.mkdir(path.dirname(AUTH_FILE), { recursive: true });
@@ -207,7 +217,7 @@ export async function speichereAuth(a: EpicAuth): Promise<void> {
 }
 
 export async function istEingerichtet(): Promise<boolean> {
-  if (process.env.EPIC_DEVICE_AUTH) return true;
+  if (process.env.EPIC_DEVICE_AUTH || authGemerkt) return true;
   try { await fs.access(AUTH_FILE); return true; } catch { return false; }
 }
 
