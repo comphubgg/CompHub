@@ -163,14 +163,21 @@ async function anhangLesen(a) {
   return Buffer.from(await r.arrayBuffer());
 }
 
+/*
+ * Ersetzen ohne Luecke: erst die neue Fassung unter "<name>.neu" hochladen,
+ * dann die alte loeschen, dann die neue umbenennen. Vorher hiess es
+ * loeschen und danach hochladen - dazwischen fehlte der Anhang ein paar
+ * Sekunden, und die Seite zeigte "Zahlen gerade nicht erreichbar", waehrend
+ * die Jahreslisten neu hochkamen. Ein Rest ".neu" von einem abgebrochenen
+ * Lauf wird beim naechsten Mal ueberschrieben.
+ */
 async function hochladen(releaseId, vorhandene, name, daten) {
   const alt = vorhandene.get(name);
-  if (alt) {
-    const r = await api(`/repos/${REPO}/releases/assets/${alt.id}`, { method: 'DELETE' });
-    if (!r.ok && r.status !== 404) throw new Error(`loeschen ${name}: ${r.status}`);
-  }
+  const zwischenname = alt ? `${name}.neu` : name;
+  const rest = vorhandene.get(zwischenname);
+  if (rest) await api(`/repos/${REPO}/releases/assets/${rest.id}`, { method: 'DELETE' });
   const r = await api(
-    `https://uploads.github.com/repos/${REPO}/releases/${releaseId}/assets?name=${encodeURIComponent(name)}`,
+    `https://uploads.github.com/repos/${REPO}/releases/${releaseId}/assets?name=${encodeURIComponent(zwischenname)}`,
     {
       method: 'POST',
       headers: { 'Content-Type': name.endsWith('.json') ? 'application/json' : 'application/octet-stream',
@@ -178,7 +185,17 @@ async function hochladen(releaseId, vorhandene, name, daten) {
       body: daten,
     });
   if (!r.ok) throw new Error(`hochladen ${name}: ${r.status} ${(await r.text()).slice(0, 600)}`);
-  const neu = await r.json();
+  let neu = await r.json();
+  if (alt) {
+    const weg = await api(`/repos/${REPO}/releases/assets/${alt.id}`, { method: 'DELETE' });
+    if (!weg.ok && weg.status !== 404) throw new Error(`loeschen ${name}: ${weg.status}`);
+    const um = await api(`/repos/${REPO}/releases/assets/${neu.id}`, {
+      method: 'PATCH', body: JSON.stringify({ name }),
+    });
+    if (!um.ok) throw new Error(`umbenennen ${name}: ${um.status} ${(await um.text()).slice(0, 300)}`);
+    neu = await um.json();
+    vorhandene.delete(zwischenname);
+  }
   vorhandene.set(name, neu);
 }
 

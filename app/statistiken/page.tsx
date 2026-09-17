@@ -1593,28 +1593,56 @@ function ListenKarte({ liste, aufVoll, aufSpieler }: {
 }
 
 /** Eine Zeile in einer Bestenliste. */
-function Platz({ nr, s, wert, aufKlick, zusatz }: {
+function Platz({ nr, s, wert, aufKlick, zusatz, mitBild, anteil }: {
   nr: number; s: Spieler; wert: string; aufKlick?: () => void;
   /** Eine kleine Zeile unter dem Namen - etwa "Finals 79 · Opens 293". */
   zusatz?: string;
+  /**
+   * Das Profilbild statt der Flagge, und darunter ein Balken im Verhaeltnis
+   * zum Ersten - fuer die Preisgeldliste. Der Betreiber: "anstatt die Flagge
+   * machst du ein Profilbild, ein bisschen groesser, ... mit so einem geilen
+   * Balken und dem Namen."
+   */
+  mitBild?: boolean;
+  anteil?: number;
 }) {
   return (
     <button onClick={aufKlick} disabled={!aufKlick}
-      className={`flex w-full items-center gap-2 px-3 py-2 text-left transition
-                  ${aufKlick ? 'hover:bg-zinc-900/60' : ''}`}>
-      <span className={`w-4 shrink-0 text-[11px] font-bold tabular-nums ${
+      className={`flex w-full items-center gap-3 px-3 text-left transition
+                  ${mitBild ? 'py-2.5' : 'py-2'} ${aufKlick ? 'hover:bg-zinc-900/60' : ''}`}>
+      <span className={`w-5 shrink-0 text-[11px] font-bold tabular-nums ${
         nr === 1 ? 'text-amber-400' : 'text-slate-600'}`}>{nr}</span>
-      <TeamFlagge groesse={18} laender={[s.land ?? undefined]} />
+      {mitBild ? (
+        s.bild ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img src={s.bild} alt="" loading="lazy"
+            className="h-12 w-12 shrink-0 rounded-lg border border-zinc-800 object-cover object-top" />
+        ) : (
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg
+                           border border-zinc-800 bg-zinc-900 text-lg text-zinc-700">?</span>
+        )
+      ) : (
+        <TeamFlagge groesse={18} laender={[s.land ?? undefined]} />
+      )}
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[12px] font-medium text-slate-200">
-          {grossName(s.anzeige, s.gepflegt)}
+        <span className={`flex items-center gap-1.5 ${mitBild ? 'text-[13px]' : 'text-[12px]'}`}>
+          {mitBild && <TeamFlagge groesse={14} laender={[s.land ?? undefined]} />}
+          <span className="truncate font-medium text-slate-200">
+            {grossName(s.anzeige, s.gepflegt)}
+          </span>
         </span>
         {zusatz && (
           <span className="block truncate text-[10px] tabular-nums text-slate-500">{zusatz}</span>
         )}
+        {typeof anteil === 'number' && (
+          <span className="mt-1.5 block h-1.5 w-full overflow-hidden rounded-full bg-zinc-900">
+            <span className="block h-full rounded-full bg-gradient-to-r from-sky-500 to-sky-400"
+              style={{ width: `${Math.max(1, Math.min(100, anteil * 100))}%` }} />
+          </span>
+        )}
       </span>
       <RegionMarke region={s.heimat || s.regionen[0] || ''} />
-      <span className="shrink-0 text-[12px] font-bold tabular-nums text-sky-400">
+      <span className={`shrink-0 font-bold tabular-nums text-sky-400 ${mitBild ? 'text-[14px]' : 'text-[12px]'}`}>
         {wert}
       </span>
     </button>
@@ -4259,8 +4287,10 @@ export default function StatistikSeite() {
                   ))}
                 </div>
               </div>
-              {/* Die Saisons des Jahres - eine davon waehlen, oder das ganze Jahr. */}
-              {(jahr?.saisonenDesJahres?.length ?? 0) > 1 && (
+              {/* Die Saisons des Jahres - eine davon waehlen, oder das ganze Jahr.
+                  Nicht bei "Alle Zeit": der Betreiber - "All time ist All time
+                  seit Chapter 1, das sollen alle sein, alle Spieler." */}
+              {jahrWahl !== 'alle' && (jahr?.saisonenDesJahres?.length ?? 0) > 1 && (
                 <div className="mb-3 flex flex-wrap gap-1">
                   <button onClick={() => setJahrSaison('')}
                     className={`rounded-md border px-2.5 py-1 text-xs font-semibold transition ${
@@ -4282,7 +4312,9 @@ export default function StatistikSeite() {
                   JAHR_SAISONS. Das steht hier, damit niemand ein Kalenderjahr
                   vermutet, wo ein Kapitel gemeint ist. */}
               <p className="mb-5 text-[11px] leading-snug text-slate-600">
-                <T>Gezählt nach Saisons (ein Kapitel beginnt Ende November des Vorjahres): 2024 = Chapter 5 Season 3 und 4, 2025 = Chapter 6, 2026 = Chapter 7. Das Archiv kennt zu älteren Spieltagen kein Datum.</T>
+                {jahrWahl === 'alle'
+                  ? <T>Alle Spieltage seit Chapter 1.</T>
+                  : <T>Gezählt nach Saisons: ein Jahr sind die Saisons, die in ihm beginnen; ein Kapitel, das Ende November oder im Dezember anfängt, zählt zum Folgejahr.</T>}
                 {' '}<T>Preisgeld nur, wo eine Auszahlungstabelle vorliegt</T>
                 {jahr?.listen[0]?.spieltageMitRegel !== undefined && (
                   <> ({zahl(jahr.listen[0].spieltageMitRegel ?? 0, 0, sprache)} <T>von</T>{' '}
@@ -4304,7 +4336,10 @@ export default function StatistikSeite() {
                       <div className="mb-3 flex items-center gap-2">
                         <p className="text-[10px] font-semibold uppercase tracking-[0.18em]
                                       text-slate-500">
-                          <T>{l.titel}</T> <T>in diesem Jahr</T>
+                          <T>{l.titel}</T>{' '}
+                          {jahrSaison
+                            ? (jahr?.saisonenDesJahres?.find((x) => x.kennung === jahrSaison)?.name ?? jahrSaison)
+                            : jahrWahl === 'alle' ? <T>aller Zeiten</T> : <T>in diesem Jahr</T>}
                           {l.mindestMatches ? <> · <T>ab</T> {l.mindestMatches} <T>Matches</T></> : null}
                         </p>
                         {l.plaetze.length > 6 && (
@@ -5179,6 +5214,9 @@ export default function StatistikSeite() {
             .some((n) => (n ?? '').toLowerCase().includes(q)));
         const zeigen = (listenTiefe && !q) ? gefiltert.slice(0, listenTiefe) : gefiltert;
         const istElims = volleListe.feld === 'elims';
+        const istGeld = volleListe.feld === 'verdienst';
+        const hoechster = istGeld
+          ? Math.max(0, ...volleListe.zeilen.map((sp) => Number(sp.verdienst ?? 0))) : 0;
         return (
           <div className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950">
             <header className="flex flex-wrap items-center gap-3 border-b border-zinc-800
@@ -5236,6 +5274,8 @@ export default function StatistikSeite() {
             <div className="divide-y divide-zinc-900">
               {zeigen.map(({ sp, nr }) => (
                 <Platz key={sp.epicId} nr={nr} s={sp}
+                  mitBild={istGeld}
+                  anteil={istGeld && hoechster > 0 ? Number(sp.verdienst ?? 0) / hoechster : undefined}
                   wert={zahl(Number(sp[volleListe.feld]), volleListe.nachkomma, sprache)
                         + volleListe.einheit}
                   zusatz={istElims && typeof sp.opensElims === 'number'

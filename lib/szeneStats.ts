@@ -61,17 +61,58 @@ const ABLAGE = path.join(DATEN_ORT, 'szene-stats');
  * danach die Season" lesen - und nie eine nackte Kennung wie "S37".
  */
 export const SAISON_NAMEN: Record<string, string> = {
+  // Vor Chapter 1 Season X tragen Epics Fenster keine Saisonnummer
+  // (OnlineOpen_Week1_EU_Event2, ScallywagCup_EU_Event2); S8 und S9 sind
+  // hier die Saison nach dem Datum, siehe saisonVonFenster.
+  S8: 'Chapter 1 Season 8',
+  S9: 'Chapter 1 Season 9',
+  S10: 'Chapter 1 Season X',
+  S11: 'Chapter 2 Season 1',
+  S12: 'Chapter 2 Season 2',
+  S13: 'Chapter 2 Season 3',
+  S14: 'Chapter 2 Season 4',
+  S15: 'Chapter 2 Season 5',
+  S16: 'Chapter 2 Season 6',
+  S17: 'Chapter 2 Season 7',
+  S18: 'Chapter 2 Season 8',
+  S19: 'Chapter 3 Season 1',
+  S20: 'Chapter 3 Season 2',
+  S21: 'Chapter 3 Season 3',
+  S22: 'Chapter 3 Season 4',
+  S23: 'Chapter 4 Season 1',
+  S24: 'Chapter 4 Season 2',
+  S25: 'Chapter 4 Season 3',
+  S26: 'Chapter 4 Season 4',
+  S27: 'Chapter 4 Season OG',
+  S28: 'Chapter 5 Season 1',
+  S29: 'Chapter 5 Season 2',
   S30: 'Chapter 5 Season 3',
   S31: 'Chapter 5 Season 4',
+  S32: 'Chapter 2 Remix',
   S33: 'Chapter 6 Season 1',
   S34: 'Chapter 6 Season 2',
+  S35: 'Galactic Battle',
   S36: 'Chapter 6 Season 3',
   S37: 'Chapter 6 Season 4',
+  S38: 'The Simpsons',
   S39: 'Chapter 7 Season 1',
   S40: 'Chapter 7 Season 2',
   S41: 'Chapter 7 Season 3',
   S42: 'Chapter 7 Season 4',
 };
+
+/**
+ * Die Saison eines Fensters der Verdienst-Akte: aus der Kennung, und wo
+ * die keine traegt (2019 vor Season X), nach dem Datum - Chapter 1
+ * Season 8 lief bis zum 9. Mai 2019, Season 9 bis zum 1. August.
+ */
+export function saisonVonFenster(windowId: string, datum: string): string {
+  const m = windowId.match(/^(S\d+)_/);
+  if (m) return m[1];
+  if (datum < '2019-05-09') return 'S8';
+  if (datum < '2019-08-01') return 'S9';
+  return '';
+}
 
 /** Der Anzeigename einer Saison - unbekannte bleiben, wie sie sind. */
 export function saisonName(saison: string) {
@@ -1215,10 +1256,23 @@ export async function startseite(saison?: string, wieViele = 25, jeTag = 3) {
  * sagt das dazu.
  */
 export const JAHR_SAISONS: Record<number, string[]> = {
-  2024: ['S30', 'S31'],
-  2025: ['S33', 'S34', 'S36', 'S37'],
+  2019: ['S8', 'S9', 'S10', 'S11'],
+  2020: ['S12', 'S13', 'S14'],
+  2021: ['S15', 'S16', 'S17', 'S18'],
+  2022: ['S19', 'S20', 'S21', 'S22'],
+  2023: ['S23', 'S24', 'S25', 'S26', 'S27'],
+  2024: ['S28', 'S29', 'S30', 'S31', 'S32'],
+  2025: ['S33', 'S34', 'S35', 'S36', 'S37', 'S38'],
   2026: ['S39', 'S40', 'S41', 'S42'],
 };
+
+/** Das Jahr, zu dem eine Saison zaehlt - siehe JAHR_SAISONS. */
+export function jahrVonSaison(saison: string): number {
+  for (const [jahr, liste] of Object.entries(JAHR_SAISONS)) {
+    if (liste.includes(saison)) return Number(jahr);
+  }
+  return 0;
+}
 
 export async function jahresListen(jahr: number, region?: string, nurSaison?: string) {
   // 0 heisst: alle Saisons, die das Archiv hat.
@@ -1276,14 +1330,24 @@ export async function jahresListen(jahr: number, region?: string, nurSaison?: st
    */
   // Bei "alle Zeit" (jahr 0) zaehlt die ganze Akte - sonst fehlte dort
   // alles vor Chapter 5 Season 3, und der Betreiber sah Malibuca mit 340
-  // statt 1.070 Tausend.
-  if (!nurSaison) {
+  // statt 1.070 Tausend. Ein Jahr sind seine Saisons (JAHR_SAISONS), auch
+  // hier - nicht das Kalenderjahr, sonst zaehlte der Dezember eines
+  // Kapitelanfangs anders als die Saisonwahl darunter. Eine gewaehlte
+  // Saison nimmt genau ihre Fenster.
+  {
     const archiv = await liesVerdienstArchiv();
     const liveFenster = new Set([...eintraege, ...weitere].map((e) => e.windowId));
     for (const [id, liste] of Object.entries(archiv.konten)) {
       for (const e of liste) {
-        if ((jahr > 0 && eintragJahr(e) !== jahr) || liveFenster.has(e[0])) continue;
+        if (liveFenster.has(e[0])) continue;
         if (region && e[1] !== region) continue;
+        const saisonDesFensters = saisonVonFenster(e[0], e[2]);
+        if (saisons.length === 1 && alleSaisons.length > 1) {
+          if (saisonDesFensters !== saisons[0]) continue;
+        } else if (jahr > 0) {
+          const jahrDesFensters = jahrVonSaison(saisonDesFensters) || eintragJahr(e);
+          if (jahrDesFensters !== jahr) continue;
+        }
         geld.set(id, (geld.get(id) ?? 0) + e[5]);
       }
     }
