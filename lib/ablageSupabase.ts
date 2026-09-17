@@ -58,6 +58,8 @@ const IM_OBJEKTSPEICHER = [
   'kartenbilder/',
   'kontakt-bilder/',
   'admin-maps/',
+  // Die Fotos des Archivs (lib/galerie) - Bilder, einzeln abgerufen.
+  'galerie/',
   '_sicherung/',
 ];
 

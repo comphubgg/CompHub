@@ -110,7 +110,7 @@ jobs:
         timeout-minutes: 5
         run: |
           node scripts/umzug-supabase.mjs --herunterladen \
-            --ohne replays,_sicherung,szene-stats,epic-spieltage,platzierungen,akten,antworten,anwesenheit,tournament-leaderboards,kartenbilder,kontakt-bilder,admin-maps \
+            --ohne replays,_sicherung,szene-stats,epic-spieltage,platzierungen,akten,antworten,anwesenheit,tournament-leaderboards,kartenbilder,kontakt-bilder,admin-maps,galerie \
             2>&1 | tail -4
 
       # Die Verdienst-Akte und Epics Auszahlungstabellen entstehen nur auf dem

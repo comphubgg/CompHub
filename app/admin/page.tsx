@@ -126,6 +126,7 @@ const ADMIN_ZIELE: Ziel[] = [
   { href: '/admin/replays', titel: 'Replays', text: 'Turnier-Replays nachsehen' },
   { href: '/admin/spieler', titel: 'Player Center', text: 'Flaggen und @-Konten pflegen' },
   { href: '/admin/assets', titel: 'Bildvorrat', text: 'Logos und Grafiken ablegen' },
+  { href: '/admin/archiv', titel: 'Archiv', text: 'Fotos und Videos zu Events und Spielern' },
   /*
    * Der Posteingang.
    *

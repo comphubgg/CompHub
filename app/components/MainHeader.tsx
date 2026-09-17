@@ -24,6 +24,7 @@ const navItems = [
   { href: '/events', label: 'Events', schluessel: 'events' },
   { href: '/statistiken', label: 'Statistiken', schluessel: 'statistiken' },
   { href: '/prognosen', label: 'Prognosen', schluessel: 'prognosen' },
+  { href: '/archiv', label: 'Archiv', schluessel: 'archiv' },
   { href: '/tierlist', label: 'Tierlist', schluessel: 'tierlist' },
   { href: '/overlays', label: 'Overlays', schluessel: 'overlays' },
 ];

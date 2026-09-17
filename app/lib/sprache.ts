@@ -1951,6 +1951,88 @@ const AUF_ENGLISCH: Record<string, string> = {
     'now',
   'Sitzungen':
     'sessions',
+  'Archiv':
+    'Archive',
+  'Archiv pflegen':
+    'Manage archive',
+  'Fotos':
+    'photos',
+  'Videos':
+    'videos',
+  'Einträge':
+    'entries',
+  'Noch nichts im Archiv.':
+    'Nothing in the archive yet.',
+  'Das Archiv ist gerade nicht erreichbar. Es wird gleich noch einmal versucht.':
+    'The archive is not reachable right now. Trying again in a moment.',
+  'Das Archiv ist gerade nicht erreichbar.':
+    'The archive is not reachable right now.',
+  'Zu diesem Event liegt noch nichts vor.':
+    'Nothing here for this event yet.',
+  'Zurück zu den Events':
+    'Back to the events',
+  'Beitrag auf X öffnen':
+    'Open post on X',
+  'Video öffnen':
+    'Open video',
+  'Profile in der Statistik':
+    'Profiles in the statistics',
+  'Öffentliche Seite':
+    'Public page',
+  'Neues Event':
+    'New event',
+  'Name, z. B. FNCS Global Championship 2025':
+    'Name, e.g. FNCS Global Championship 2025',
+  'Ort, z. B. Lyon':
+    'Place, e.g. Lyon',
+  'Ort':
+    'Place',
+  'Beschreibung (optional)':
+    'Description (optional)',
+  'Name und Datum sind nötig.':
+    'Name and date are required.',
+  'nicht angelegt':
+    'not created',
+  'nicht hochgeladen':
+    'not uploaded',
+  'nicht entfernt':
+    'not removed',
+  'Erst ein Event anlegen.':
+    'Create an event first.',
+  'Event entfernen':
+    'Remove event',
+  'Spieler, die auf den nächsten Fotos und Videos zu sehen sind':
+    'Players seen on the next photos and videos',
+  'Fotos hierher ziehen oder auswählen':
+    'Drop photos here or choose them',
+  'JPG, PNG, WebP · bis 20 MB je Bild · mehrere auf einmal':
+    'JPG, PNG, WebP · up to 20 MB per image · several at once',
+  'Video anhängen':
+    'Attach video',
+  'Titel (optional)':
+    'Title (optional)',
+  'Hinzufügen':
+    'Add',
+  'Erkannt':
+    'Detected',
+  'YouTube, Twitch und TikTok werden eingebettet, X als Link.':
+    'YouTube, Twitch and TikTok are embedded, X as a link.',
+  'Noch keine Fotos oder Videos in diesem Event.':
+    'No photos or videos in this event yet.',
+  'In ein anderes Event verschieben':
+    'Move to another event',
+  'Spieler hinzufügen …':
+    'Add player …',
+  'Diesen Eintrag wirklich entfernen?':
+    'Really remove this entry?',
+  'Dieses Event wirklich entfernen?':
+    'Really remove this event?',
+  'Eine Adresse mit https:// ist nötig.':
+    'An address starting with https:// is required.',
+  'Wird hochgeladen':
+    'Uploading',
+  'Fotos und Videos zu Events und Spielern':
+    'Photos and videos of events and players',
   'Liste wird geladen …':
     'Loading list …',
   'ganzes Kapitel':

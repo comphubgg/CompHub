@@ -25,6 +25,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     ['', 1, 'weekly'],
     ['/statistiken', 0.9, 'daily'],
     ['/events', 0.8, 'daily'],
+    ['/archiv', 0.6, 'weekly'],
     ['/power-rankings', 0.8, 'daily'],
     ['/tierlist', 0.6, 'weekly'],
     ['/streams', 0.5, 'weekly'],
