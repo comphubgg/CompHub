@@ -5942,9 +5942,12 @@ export default function StatistikSeite() {
                   const zeilen = [...verlauf, ...epicZeilen]
                     .filter((z) => typeof z.verdienst === 'number' && z.verdienst > 0)
                     .sort((a, b) => (b.datum ?? 0) - (a.datum ?? 0));
+                  // Ein LAN steht entweder als Zeile mit Verdienst da (Epics Fenster
+                  // liegt im Archiv) oder kommt aus der LAN-Datei - nie beides.
+                  // Zugeordnet ueber das Fenster (Escargo, Bratwurst, BambiRaptor,
+                  // Dinosauron), nicht ueber Kuerzel im Namen.
                   const lanOhneZeile = lanErgebnisse.filter((l) =>
-                    !zeilen.some((z) => z.season === l.season && (l.kennung.includes('reload')
-                      ? /escargo/i.test(z.windowId) : /bratwurst|summit/i.test(z.windowId))));
+                    !zeilen.some((z) => z.windowId.split('_')[0] === (l.fenster ?? '').split('_')[0]));
                   const summe = zeilen.reduce((a, z) => a + (z.verdienst ?? 0), 0)
                     + lanOhneZeile.reduce((a, l) => a + l.betrag, 0);
                   const jeSaison = new Map<string, number>();

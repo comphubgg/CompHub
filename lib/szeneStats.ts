@@ -683,8 +683,17 @@ export async function aktenSchreiben(): Promise<{ konten: number; geschrieben: n
     const karte = await platzKarte(e.season, e.windowId);
     for (const p of datei.players) {
       if (!p.epicId) continue;
+      /*
+       * Ein LAN-Fenster (Globals, Summit, Reload Elite Championship) liegt
+       * im Archiv der Szene je Region einmal - derselbe Spieltag, dieselben
+       * Werte, siebenmal. In der Akte gehoert er einmal hinein, sonst zaehlt
+       * das Profil das Preisgeld doppelt (Vico: Globals 2024 zweimal 80.000).
+       */
+      const a = akte(p.epicId);
+      if (/^(Escargo|Bratwurst|Dinosauron|BambiRaptor|Acrocanthosaurus)/.test(e.windowId)
+          && a.verlauf.some((z) => z.windowId === e.windowId)) continue;
       const platz = karte?.get(p.epicId) ?? null;
-      akte(p.epicId).verlauf.push({
+      a.verlauf.push({
         event: e.name, windowId: e.windowId, region: e.region, season: e.season,
         werte: p, datum: e.datum ?? 0,
         platz: platz?.platz ?? null, punkte: platz?.punkte ?? null,
