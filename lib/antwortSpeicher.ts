@@ -190,7 +190,22 @@ export async function fertigeAntwort<T>(
   hintergrund = true,
 ): Promise<T> {
   const name = nameVon(schluessel);
-  const abgelegt = await liesAblage<T>(name);
+  /*
+   * Antwortet die Ablage nicht, wird eine billige Antwort trotzdem gerechnet
+   * - nur nicht aufgehoben. Das Profil eines Spielers kommt aus seiner Akte
+   * am Release und braucht Supabase gar nicht; am 17.9.2026 stand trotzdem
+   * "Die Ablage ist gerade nicht erreichbar", weil schon das Nachsehen nach
+   * einer fertigen Antwort scheiterte. Die Antworten ueber das ganze Archiv
+   * (hintergrund = false) bleiben beim 503: die rechnet der Server ohne
+   * Dateien nicht in vertretbarer Zeit.
+   */
+  let abgelegt: Ablage<T> | null;
+  try {
+    abgelegt = await liesAblage<T>(name);
+  } catch (e) {
+    if (e instanceof AblageNichtErreichbar && hintergrund) return rechne();
+    throw e;
+  }
   const jetzt = Date.now();
 
   if (abgelegt && typeof abgelegt.zeit === 'number') {

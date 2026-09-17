@@ -79,6 +79,36 @@ const LESEN_MS = 8_000;
 const SCHREIBEN_MS = 25_000;
 const frist = (ms: number) => AbortSignal.timeout(ms);
 
+/*
+ * Nach einem Aussetzer eine Minute lang nicht wieder anfragen.
+ *
+ * Acht Sekunden je Anfrage sind fuer eine Anfrage in Ordnung. Ein Profil
+ * liest aber fuenf, sechs Dateien nacheinander (Akte, gepflegte Profile,
+ * Bilder, Namen, Orgtags, LAN-Preisgelder) - war die Datenbank weg, wartete
+ * die Seite fuenfmal acht Sekunden, ehe sie beim Release nachsah. Der
+ * Betreiber: "ich lade die Seite einfach zehn Minuten lang." Deshalb: nach
+ * einer Frist oder einem Fehler ab 500 gilt Supabase eine Minute als weg,
+ * jede Anfrage scheitert sofort, und die Aufrufer gehen gleich zum Release.
+ * Danach wird es wieder versucht.
+ */
+const PAUSE_MS = 60_000;
+let gestoertBis = 0;
+
+async function anfrage(eingabe: string, init: RequestInit & { name?: string }): Promise<Response> {
+  if (Date.now() < gestoertBis) {
+    throw new Error(`Ablage nicht erreichbar (Pause nach Aussetzer) bei ${init.name ?? eingabe}`);
+  }
+  let r: Response;
+  try {
+    r = await anfrage(eingabe, init);
+  } catch (e) {
+    gestoertBis = Date.now() + PAUSE_MS;
+    throw e;
+  }
+  if (r.status >= 500 || r.status === 429 || r.status === 408) gestoertBis = Date.now() + PAUSE_MS;
+  return r;
+}
+
 function zugang() {
   const url = (process.env.SUPABASE_URL || process.env.STORAGE_URL || '')
     .replace(/\/+$/, '');
@@ -149,7 +179,7 @@ async function holeOrdner(praefix: string): Promise<Map<string, string> | null> 
   if (gemerkt && Date.now() < gemerkt.bis) return gemerkt.stand;
 
   const { url, kopf } = zugang();
-  const r = await fetch(
+  const r = await anfrage(
     `${url}/rest/v1/${TABELLE}?name=like.${encodeURIComponent(praefix + '*')}`
     + `&select=name,wert&limit=${VORGRIFF_HOECHSTENS + 1}`,
     { headers: kopf, cache: 'no-store', signal: frist(LESEN_MS) });
@@ -193,7 +223,7 @@ async function tabelleLies(name: string): Promise<Buffer | null> {
   }
 
   const { url, kopf } = zugang();
-  const r = await fetch(
+  const r = await anfrage(
     `${url}/rest/v1/${TABELLE}?name=eq.${encodeURIComponent(name)}&select=wert`,
     { headers: kopf, cache: 'no-store', signal: frist(LESEN_MS) });
   serverFehler(r, name);
@@ -225,7 +255,7 @@ async function tabelleSchreib(name: string, daten: Buffer): Promise<void> {
    * statt nur "nach dem Sortieren gleich".
    */
   const wert = daten.toString('utf8');
-  const r = await fetch(`${url}/rest/v1/${TABELLE}`, {
+  const r = await anfrage(`${url}/rest/v1/${TABELLE}`, {
     method: 'POST',
     signal: frist(SCHREIBEN_MS),
     headers: {
@@ -244,7 +274,7 @@ async function tabelleSchreib(name: string, daten: Buffer): Promise<void> {
 
 async function tabelleLoesche(name: string): Promise<void> {
   const { url, kopf } = zugang();
-  await fetch(`${url}/rest/v1/${TABELLE}?name=eq.${encodeURIComponent(name)}`,
+  await anfrage(`${url}/rest/v1/${TABELLE}?name=eq.${encodeURIComponent(name)}`,
     { method: 'DELETE', headers: kopf, signal: frist(SCHREIBEN_MS) });
   const praefix = ordnerVon(name);
   if (praefix) ordnerCache.delete(praefix);
@@ -253,7 +283,7 @@ async function tabelleLoesche(name: string): Promise<void> {
 async function tabelleListe(ordner: string): Promise<string[]> {
   const { url, kopf } = zugang();
   const praefix = ordner ? `${ordner.replace(/\/+$/, '')}/` : '';
-  const r = await fetch(
+  const r = await anfrage(
     `${url}/rest/v1/${TABELLE}?name=like.${encodeURIComponent(praefix + '*')}&select=name`,
     { headers: kopf, cache: 'no-store', signal: frist(LESEN_MS) });
   if (!r.ok) return [];
@@ -273,7 +303,7 @@ async function tabelleListe(ordner: string): Promise<string[]> {
 
 async function tabelleAngaben(name: string) {
   const { url, kopf } = zugang();
-  const r = await fetch(
+  const r = await anfrage(
     `${url}/rest/v1/${TABELLE}?name=eq.${encodeURIComponent(name)}&select=geaendert,wert`,
     { headers: kopf, cache: 'no-store', signal: frist(LESEN_MS) });
   if (!r.ok) return null;
@@ -289,7 +319,7 @@ async function tabelleAngaben(name: string) {
 
 async function objektLies(name: string): Promise<Buffer | null> {
   const { url, kopf } = zugang();
-  const r = await fetch(`${url}/storage/v1/object/${EIMER}/${name}`,
+  const r = await anfrage(`${url}/storage/v1/object/${EIMER}/${name}`,
     { headers: kopf, cache: 'no-store', signal: frist(LESEN_MS) });
   serverFehler(r, name);
   if (!r.ok) return null;
@@ -298,7 +328,7 @@ async function objektLies(name: string): Promise<Buffer | null> {
 
 async function objektSchreib(name: string, daten: Buffer): Promise<void> {
   const { url, kopf } = zugang();
-  const r = await fetch(`${url}/storage/v1/object/${EIMER}/${name}`, {
+  const r = await anfrage(`${url}/storage/v1/object/${EIMER}/${name}`, {
     method: 'POST',
     signal: frist(SCHREIBEN_MS),
     headers: {
@@ -315,7 +345,7 @@ async function objektSchreib(name: string, daten: Buffer): Promise<void> {
 
 async function objektLoesche(name: string): Promise<void> {
   const { url, kopf } = zugang();
-  await fetch(`${url}/storage/v1/object/${EIMER}/${name}`,
+  await anfrage(`${url}/storage/v1/object/${EIMER}/${name}`,
     { method: 'DELETE', headers: kopf, signal: frist(SCHREIBEN_MS) });
 }
 
@@ -329,7 +359,7 @@ async function objektListe(ordner: string): Promise<string[]> {
    */
   const PRO_SEITE = 100;
   for (let versatz = 0; ; versatz += PRO_SEITE) {
-    const r = await fetch(`${url}/storage/v1/object/list/${EIMER}`, {
+    const r = await anfrage(`${url}/storage/v1/object/list/${EIMER}`, {
       method: 'POST',
       signal: frist(LESEN_MS),
       headers: { ...kopf, 'Content-Type': 'application/json' },
@@ -349,7 +379,7 @@ async function objektListe(ordner: string): Promise<string[]> {
 
 async function objektAngaben(name: string) {
   const { url, kopf } = zugang();
-  const r = await fetch(`${url}/storage/v1/object/info/${EIMER}/${name}`,
+  const r = await anfrage(`${url}/storage/v1/object/info/${EIMER}/${name}`,
     { headers: kopf, cache: 'no-store', signal: frist(LESEN_MS) });
   if (!r.ok) return null;
   const j = await r.json() as { size?: number; updated_at?: string };
