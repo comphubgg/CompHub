@@ -1313,17 +1313,37 @@ export async function jahresListen(jahr: number, region?: string, nurSaison?: st
   if ([...geld.keys()].some((id) => !namen.has(id))) {
     for (const s of await gesamtSummen()) if (!namen.has(s.epicId) && geld.has(s.epicId)) namen.set(s.epicId, s);
   }
+  const geldPlaetze = [...geld.entries()]
+    .filter(([, betrag]) => betrag > 0)
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, LISTEN_LAENGE);
+  /*
+   * Wer nur in der Verdienst-Akte steht (ein Spieler von 2019, den das
+   * Archiv der Szene nie fuehrte), hat hier keinen Namen - in der Liste
+   * stand dann "User-4fff30c195". Die Namen kommen aus dem Vorrat
+   * (epic-namen.json) und sonst einmal von Epic; gerechnet wird diese
+   * Liste nur dort, wo die Dateien liegen, also darf das dauern.
+   */
+  const namenlos = geldPlaetze.map(([id]) => id).filter((id) => !namen.get(id)?.name);
+  const nachgeschlagen = new Map<string, string>();
+  if (namenlos.length && !ohneDateien()) {
+    try {
+      const { getToken, loeseNamenAuf } = await import('@/lib/epicCups');
+      const { token } = await getToken();
+      for (const [id, name] of Object.entries(await loeseNamenAuf(namenlos, token))) {
+        if (name && name !== id.slice(0, 8)) nachgeschlagen.set(id, name);
+      }
+    } catch { /* dann bleibt die gekuerzte Id stehen */ }
+  }
   const verdienstListe = {
     feld: 'verdienst', titel: 'Meistes Preisgeld', nachkomma: 0, einheit: ' $',
     mindestMatches: null,
-    plaetze: [...geld.entries()]
-      .filter(([, betrag]) => betrag > 0)
-      .sort((a, b) => b[1] - a[1])
-      .slice(0, LISTEN_LAENGE)
-      .map(([id, betrag]) => ({
-        ...(namen.get(id) ?? leereSumme(id, '')),
-        verdienst: betrag,
-      })),
+    plaetze: geldPlaetze
+      .map(([id, betrag]) => {
+        const s = namen.get(id) ?? leereSumme(id, '');
+        const name = s.name || nachgeschlagen.get(id) || '';
+        return { ...s, name, namen: s.namen?.length ? s.namen : (name ? [name] : []), verdienst: betrag };
+      }),
     /** Wie viele der Spieltage ueberhaupt eine Preisgeldregel haben. */
     spieltageMitRegel: mitRegel,
   };
