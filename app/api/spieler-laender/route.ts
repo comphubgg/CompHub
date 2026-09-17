@@ -3,6 +3,7 @@ import { fertigeAntwort } from '@/lib/antwortSpeicher';
 import fs from '@/lib/ablageFs';
 import path from 'path';
 import { DATEN_ORT } from '@/lib/datenOrt';
+import { heimatRegionen } from '@/lib/szeneStats';
 
 // Das Herkunftsland je Konto - so, wie es die Statistikseite schon zeigt.
 //
@@ -150,7 +151,9 @@ async function berechne(request: Request) {
   const mitNamen = new URL(request.url).searchParams.get('namen') === '1';
 
   if (karte && Date.now() < bis && !mitNamen) {
-    return NextResponse.json({ laender: karte, konten: Object.keys(karte).length });
+    let heimat: Record<string, string> = {};
+    try { heimat = Object.fromEntries(await heimatRegionen()); } catch { /* dann ohne */ }
+    return NextResponse.json({ laender: karte, heimat, konten: Object.keys(karte).length });
   }
 
   const raus: Record<string, string> = {};
@@ -169,8 +172,13 @@ async function berechne(request: Request) {
 
   karte = raus;
   bis = Date.now() + 10 * 60_000;
+  // Dazu die Heimatregion je Konto - die Prognoseseite zeigt bei einem
+  // LAN-Feld die Region, aus der ein Duo kommt.
+  let heimat: Record<string, string> = {};
+  try { heimat = Object.fromEntries(await heimatRegionen()); } catch { /* dann ohne */ }
   return NextResponse.json({
     laender: raus,
+    heimat,
     konten: Object.keys(raus).length,
     ...(mitNamen ? { nachName: await nachNamen(raus, rohe) } : {}),
   });

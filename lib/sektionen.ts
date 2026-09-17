@@ -44,6 +44,7 @@ export const SEKTIONEN: Sektion[] = [
   { schluessel: 'rankings', pfad: '/power-rankings', titel: 'Rankings' },
   { schluessel: 'events', pfad: '/events', titel: 'Events' },
   { schluessel: 'statistiken', pfad: '/statistiken', titel: 'Statistics' },
+  { schluessel: 'prognosen', pfad: '/prognosen', titel: 'Predictions' },
   { schluessel: 'tierlist', pfad: '/tierlist', titel: 'Tierlist' },
   { schluessel: 'overlays', pfad: '/overlays', titel: 'Overlays' },
 ];

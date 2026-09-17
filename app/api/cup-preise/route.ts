@@ -7,6 +7,7 @@ import {
   holeKatalog, wertungVon, type EpicKatalog,
 } from '@/lib/cupWertung';
 import { DATEN_ORT } from '@/lib/datenOrt';
+import { lanEintraege } from '@/lib/preisgeld';
 
 // Was es in einem Cup zu gewinnen gibt.
 //
@@ -218,6 +219,29 @@ export async function GET(request: Request) {
   if (!gruppen?.length) {
     const eigen = await ausDatei();
     if (eigen) return eigen;
+    /*
+     * Ein LAN: Epic fuehrt dort nur Turnierkonten und keine Tabelle. Was je
+     * Platz gezahlt wurde, steht in der gepflegten LAN-Datei je Spieler -
+     * daraus wird die Staffel je Platz, nichts weiter.
+     */
+    const lan = (await lanEintraege()).find((e) => e.fenster === window_);
+    if (lan) {
+      const jePlatz = new Map<number, number>();
+      for (const sp of lan.spieler) {
+        if (typeof sp.platz === 'number' && typeof sp.betrag === 'number' && !jePlatz.has(sp.platz)) {
+          jePlatz.set(sp.platz, sp.betrag);
+        }
+      }
+      const geld = [...jePlatz.entries()].sort((a, b) => a[0] - b[0])
+        .map(([platz, betrag]) => ({ art: 'rank', schwelle: platz, betrag, von: platz, plaetze: 1 }));
+      if (geld.length) {
+        return NextResponse.json({
+          vorhanden: true, window: window_, region, waehrung: lan.waehrung ?? 'USD',
+          proPerson: true, gepflegt: true, quelle: 'lan-preisgelder',
+          erlaeuterung: lan.name ?? null, geld, gegenstaende: [], wertung, gesamt: null,
+        });
+      }
+    }
     return NextResponse.json({
       vorhanden: false, window: window_, region,
       hinweis: 'Epic veroeffentlicht zu diesem Spieltag keine Auszahlungstabelle.',

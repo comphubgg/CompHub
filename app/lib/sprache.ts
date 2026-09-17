@@ -1951,6 +1951,42 @@ const AUF_ENGLISCH: Record<string, string> = {
     'now',
   'Sitzungen':
     'sessions',
+  'unbekannt':
+    'unknown',
+  'Bestenliste':
+    'Leaderboard',
+  'Nationalitäten':
+    'Nationalities',
+  'Es ist noch keine Prognose veröffentlicht.':
+    'No prediction has been published yet.',
+  'Zu diesem Cup liefert Epic noch keine Bestenliste.':
+    'Epic does not provide a leaderboard for this cup yet.',
+  'Zu diesem Cup ist noch kein Spieltag hinterlegt.':
+    'No match day is set for this cup yet.',
+  'Kein Team im Feld.':
+    'No team in the field.',
+  'Duo hinzufügen':
+    'Add a duo',
+  'Nur du siehst diesen Knopf.':
+    'Only you can see this button.',
+  'von Hand':
+    'added manually',
+  'Zu dieser Prognose ist noch keine Karte hinterlegt.':
+    'No map is attached to this prediction yet.',
+  'Die Reihenfolge ist noch nicht gesetzt.':
+    'The order has not been set yet.',
+  'Spieler ohne hinterlegtes Land':
+    'players without a country on file',
+  'Zu diesem Spieltag veröffentlicht Epic keine Auszahlungstabelle.':
+    'Epic does not publish a payout table for this match day.',
+  'Dieser Cup zahlt nach Punkten, nicht nach Platz.':
+    'This cup pays by points, not by placement.',
+  'Beträge je Spieler.':
+    'Amounts per player.',
+  'Leiste einklappen':
+    'Collapse sidebar',
+  'Leiste ausklappen':
+    'Expand sidebar',
   'Die Zahlen sind gerade nicht erreichbar. Es wird gleich noch einmal versucht.':
     'The numbers are not reachable right now. Trying again in a moment.',
   'aller Zeiten':

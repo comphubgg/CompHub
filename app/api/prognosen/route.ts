@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { istAdminAnfrage } from '@/lib/adminPruefung';
 import fs from '@/lib/ablageFs';
 import path from 'path';
 import { DATEN_ORT } from '@/lib/datenOrt';
@@ -121,6 +122,15 @@ export interface Prognose {
   spots?: Spot[];
   /** Welche Teams auf welcher Form stehen - Form-Kennung zu Team-Schluesseln. */
   aufSpot?: Record<string, string[]>;
+  /**
+   * Von Hand ergaenzte Teams - "Add a Duo" auf der Prognoseseite. Fuer einen
+   * Cup, der noch nicht gespielt ist, gibt es keine Bestenliste, aus der
+   * das Feld kaeme; wer sich qualifiziert hat, traegt der Betreiber ein.
+   */
+  manuell?: Array<{
+    key: string; namen: string[]; ids: string[];
+    herkunft: string[]; besterPlatz: number; region: string;
+  }>;
   geaendert: number;
   oeffentlich: boolean;
 }
@@ -152,6 +162,10 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
+  // Nur der Betreiber schreibt Prognosen - die Seite ist oeffentlich lesbar.
+  if (!await istAdminAnfrage(request)) {
+    return NextResponse.json({ error: 'nur fuer den Betreiber' }, { status: 403 });
+  }
   const eingang = await request.json() as Partial<Prognose>;
   if (!eingang.id || !eingang.titel) {
     return NextResponse.json({ error: 'id und titel fehlen' }, { status: 400 });
@@ -174,6 +188,7 @@ export async function POST(request: Request) {
     kartenTitel: eingang.kartenTitel,
     spots: eingang.spots,
     aufSpot: eingang.aufSpot,
+    manuell: eingang.manuell ?? [],
     geaendert: Date.now(),
     oeffentlich: eingang.oeffentlich ?? false,
   };
@@ -186,6 +201,9 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  if (!await istAdminAnfrage(request)) {
+    return NextResponse.json({ error: 'nur fuer den Betreiber' }, { status: 403 });
+  }
   const id = new URL(request.url).searchParams.get('id');
   if (!id) return NextResponse.json({ error: 'id fehlt' }, { status: 400 });
   const alle = await lies();
