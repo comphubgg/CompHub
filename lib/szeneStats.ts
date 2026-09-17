@@ -716,6 +716,16 @@ async function akteLesen(epicId: string): Promise<Akte | null> {
  * haben. Gedacht fuer den stuendlichen Lauf auf einem Rechner mit Dateien.
  */
 export async function aktenSchreiben(): Promise<{ konten: number; geschrieben: number }> {
+  /*
+   * Ohne die Verdienst-Akte keine Akten. Fehlt sie dem Laufrechner (die
+   * Ablage antwortete nicht, das Release war nicht erreichbar), entstuenden
+   * Akten ohne alles vor 2024 - und die gingen so ans Release. Der
+   * Betreiber sah dann Vico mit 689.500 statt 898.630. Lieber gar nicht
+   * schreiben als weniger.
+   */
+  if (!Object.keys((await liesVerdienstArchiv()).konten).length) {
+    throw new Error('Verdienst-Akte fehlt - keine Akten geschrieben.');
+  }
   const verzeichnis = await liesVerzeichnis();
   const akten = new Map<string, Akte>();
   const akte = (id: string) => {
@@ -1348,6 +1358,9 @@ export async function jahresListen(jahr: number, region?: string, nurSaison?: st
   // Saison nimmt genau ihre Fenster.
   {
     const archiv = await liesVerdienstArchiv();
+    // Ohne die Akte keine Jahresliste - sie waere falsch und laege dann als
+    // fertige Antwort am Release (siehe aktenSchreiben).
+    if (!Object.keys(archiv.konten).length) throw new Error('Verdienst-Akte fehlt - keine Jahresliste.');
     const liveFenster = new Set([...eintraege, ...weitere].map((e) => e.windowId));
     for (const [id, liste] of Object.entries(archiv.konten)) {
       for (const e of liste) {

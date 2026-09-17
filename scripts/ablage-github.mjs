@@ -11,6 +11,7 @@
 //   node scripts/ablage-github.mjs --nur antworten    nur ein Ordner (mehrfach moeglich)
 //   node scripts/ablage-github.mjs --neuer-als 120    nur Dateien der letzten 120 Minuten
 //   node scripts/ablage-github.mjs --probe            zeigen, nicht uebertragen
+//   node scripts/ablage-github.mjs --erzwingen        auch, was laut Manifest schon so liegt
 //
 // Geaendert heisst: die Pruefsumme weicht von der im Manifest ab, das als
 // eigener Anhang ("manifest.json") am Release liegt. Akten werden in 256
@@ -50,6 +51,8 @@ const werte = (name) => argumente.flatMap((a, i) => (a === name && argumente[i +
 const nur = werte('--nur');
 const neuerAls = Number(wert('--neuer-als') || 0);
 const probe = argumente.includes('--probe');
+// Auch hochladen, was laut Manifest schon so liegt - wenn das Manifest luegt.
+const erzwingen = argumente.includes('--erzwingen');
 
 function umgebung() {
   const raus = {};
@@ -242,8 +245,23 @@ async function main() {
     const anhang = anhangName(name);
     const summe = pruefsumme(daten);
     const rel = await releaseFuer(tagFuer(name));
-    if (rel.manifestAlt[anhang]?.summe === summe && rel.vorhandene.has(anhang)) continue;
-    aufgaben.push({ rel, anhang, daten, summe });
+    if (!erzwingen && rel.manifestAlt[anhang]?.summe === summe && rel.vorhandene.has(anhang)) continue;
+    /*
+     * Eine fertige Antwort nie mit einem aelteren Stand ueberschreiben.
+     *
+     * Der Laufrechner und der Betreiber-Rechner laden beide hoch. Am
+     * 17.9.2026 legte der Lauf eine Jahresliste vom Vortag ueber die
+     * frische - seine Berechnung war gescheitert, die alte Datei lag noch
+     * in seinem Zwischenspeicher. Jede Antwort traegt "zeit"; die steht
+     * jetzt im Manifest, und wer Aelteres bringt, darf nicht.
+     */
+    let inhaltZeit = 0;
+    if (/^antworten\//.test(name)) {
+      try { inhaltZeit = Number(JSON.parse(daten.toString('utf8'))?.zeit) || 0; } catch { /* keine Antwort */ }
+      const dort = Number(rel.manifestAlt[anhang]?.inhaltZeit) || 0;
+      if (!erzwingen && inhaltZeit && dort && inhaltZeit < dort && rel.vorhandene.has(anhang)) continue;
+    }
+    aufgaben.push({ rel, anhang, daten, summe, inhaltZeit });
   }
   for (const [anhang, dateien] of buendel) {
     const rel = await releaseFuer('daten-akten');
@@ -256,8 +274,8 @@ async function main() {
     }
     const daten = Buffer.from(JSON.stringify(inhalt), 'utf8');
     const summe = pruefsumme(daten);
-    if (rel.manifestAlt[anhang]?.summe === summe && rel.vorhandene.has(anhang)) continue;
-    aufgaben.push({ rel, anhang, daten, summe });
+    if (!erzwingen && rel.manifestAlt[anhang]?.summe === summe && rel.vorhandene.has(anhang)) continue;
+    aufgaben.push({ rel, anhang, daten, summe, inhaltZeit: 0 });
   }
 
   const umfang = aufgaben.reduce((s, a) => s + a.daten.length, 0);
@@ -282,7 +300,10 @@ async function main() {
       const a = aufgaben[naechste++];
       try {
         await hochladen(a.rel.release.id, a.rel.vorhandene, a.anhang, a.daten);
-        a.rel.manifest[a.anhang] = { summe: a.summe, groesse: a.daten.length, zeit: new Date().toISOString() };
+        a.rel.manifest[a.anhang] = {
+          summe: a.summe, groesse: a.daten.length, zeit: new Date().toISOString(),
+          ...(a.inhaltZeit ? { inhaltZeit: a.inhaltZeit } : {}),
+        };
         a.rel.fertig += 1;
         fertig += 1;
       } catch (e) {

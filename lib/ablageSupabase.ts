@@ -89,11 +89,12 @@ const frist = (ms: number) => AbortSignal.timeout(ms);
  * Bilder, Namen, Orgtags, LAN-Preisgelder) - war die Datenbank weg, wartete
  * die Seite fuenfmal acht Sekunden, ehe sie beim Release nachsah. Der
  * Betreiber: "ich lade die Seite einfach zehn Minuten lang." Deshalb: nach
- * einer Frist oder einem Fehler ab 500 gilt Supabase eine Minute als weg,
+ * einer Frist oder einem Fehler ab 500 gilt Supabase zehn Sekunden als weg
+ * (eine Minute war bei einer Stoerung, die kommt und geht, zu lang),
  * jede Anfrage scheitert sofort, und die Aufrufer gehen gleich zum Release.
  * Danach wird es wieder versucht.
  */
-const PAUSE_MS = 60_000;
+const PAUSE_MS = 10_000;
 let gestoertBis = 0;
 
 async function anfrage(eingabe: string, init: RequestInit & { name?: string }): Promise<Response> {
@@ -107,7 +108,7 @@ async function anfrage(eingabe: string, init: RequestInit & { name?: string }): 
     gestoertBis = Date.now() + PAUSE_MS;
     throw e;
   }
-  if (r.status >= 500 || r.status === 429 || r.status === 408) gestoertBis = Date.now() + PAUSE_MS;
+  if (r.status >= 500 || r.status === 429 || r.status === 408 || r.status === 401 || r.status === 403) gestoertBis = Date.now() + PAUSE_MS;
   return r;
 }
 
@@ -185,7 +186,7 @@ async function holeOrdner(praefix: string): Promise<Map<string, string> | null> 
     `${url}/rest/v1/${TABELLE}?name=like.${encodeURIComponent(praefix + '*')}`
     + `&select=name,wert&limit=${VORGRIFF_HOECHSTENS + 1}`,
     { headers: kopf, cache: 'no-store', signal: frist(LESEN_MS) });
-  if (!r.ok) return null;
+  if (!r.ok) { serverFehler(r, praefix); return null; }
   const zeilen = await r.json() as Array<{ name: string; wert: string }>;
   // Zu gross: dann lieber einzeln, und den Ordner nicht merken.
   if (zeilen.length > VORGRIFF_HOECHSTENS) return null;
@@ -211,6 +212,17 @@ async function holeOrdner(praefix: string): Promise<Map<string, string> | null> 
 function serverFehler(r: Response, name: string): void {
   if (r.status >= 500 || r.status === 429 || r.status === 408) {
     throw new Error(`Ablage nicht erreichbar (${r.status}) bei ${name}`);
+  }
+  /*
+   * Auch ein 401 oder 403 ist kein "nicht da". Am 17.9.2026 wies Supabase
+   * den Schluessel zeitweise ab ("JWT issued at future", ein Vorfall auf
+   * ihrer Seite) - und jede Datei galt als fehlend: die Tierlists waren
+   * leer, die Anmeldung scheiterte, und ein Schreiben danach haette leere
+   * Listen abgelegt. Der Schluessel ist derselbe wie eben; wird er
+   * abgewiesen, ist die Ablage weg, nicht die Datei.
+   */
+  if (r.status === 401 || r.status === 403) {
+    throw new Error(`Ablage weist den Schluessel ab (${r.status}) bei ${name}`);
   }
 }
 
@@ -308,7 +320,7 @@ async function tabelleAngaben(name: string) {
   const r = await anfrage(
     `${url}/rest/v1/${TABELLE}?name=eq.${encodeURIComponent(name)}&select=geaendert,wert`,
     { headers: kopf, cache: 'no-store', signal: frist(LESEN_MS) });
-  if (!r.ok) return null;
+  if (!r.ok) { serverFehler(r, name); return null; }
   const zeilen = await r.json() as Array<{ geaendert: string; wert: string }>;
   if (!zeilen.length) return null;
   return {
@@ -383,7 +395,7 @@ async function objektAngaben(name: string) {
   const { url, kopf } = zugang();
   const r = await anfrage(`${url}/storage/v1/object/info/${EIMER}/${name}`,
     { headers: kopf, cache: 'no-store', signal: frist(LESEN_MS) });
-  if (!r.ok) return null;
+  if (!r.ok) { serverFehler(r, name); return null; }
   const j = await r.json() as { size?: number; updated_at?: string };
   return {
     groesse: Number(j.size ?? 0),
