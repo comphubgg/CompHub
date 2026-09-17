@@ -77,6 +77,9 @@ const AM_RELEASE = [
   /^tournament-leaderboards\//,
   /^power-rankings\//,
   /^(verdienst-archiv|preisgeld-tabellen|preisgelder|lan-preisgelder|epic-namen|cup-archiv)\.json$/,
+  // Vom Betreiber gepflegt, von der Seite viel gelesen: als Rueckfall, wenn
+  // Supabase nicht antwortet. Gelesen wird zuerst die lebende Kopie dort.
+  /^(prognosen|turnier-karten|karten-vorlagen|spieler-profile|spielerbilder|spieler-namen|orgtags)\.json$/,
 ];
 const anhangName = (name) => name.replace(/\//g, '__').replace(/=/g, '-eq-');
 
