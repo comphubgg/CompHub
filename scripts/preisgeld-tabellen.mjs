@@ -64,15 +64,15 @@ function eintraegeAus(roh, exakt) {
     if (!stufen.some((s) => s.betrag > 0)) continue;
     const sid = String(t.sid ?? '').toLowerCase();
     /*
-     * Zweitaegige Finals: 2025/26 (_Final_Day2_) und 2023 (_GrandFinals_EU_Day2)
-     * zaehlen je Tag, der Endstand ist die Summe - Epics Geldtabelle haengt
-     * an der kumulierten Liste ("cumulative:" bzw. 2023 "floating:"). 2024
-     * (GrandFinalDay2): in Chapter 5 Season 3 (S30) traegt der zweite Tag
-     * schon die Summe, in Season 1 und 2 (S28, S29) zaehlt er nur den Tag -
-     * geprueft an Malibucas Punkten (S29: 208 + 333 = 541 bei FN Tracker).
+     * Zweitaegige Finals: 2025/26 (_Final_Day2_), 2024 (GrandFinalDay2) und
+     * 2023 (_GrandFinals_EU_Day2) zaehlen je Tag, der Endstand ist die
+     * Summe - Epics Geldtabelle haengt an der kumulierten Liste
+     * ("cumulative:" bzw. 2023 "floating:"). Geprueft an Malibucas Punkten
+     * bei FN Tracker: S29 208 + 333 = 541, S30 204 + 428 = 632 (hier stand
+     * einmal, S30 fuehre am zweiten Tag schon die Summe - das war falsch).
      */
     const tage = (sid.includes('cumulative') || sid.includes('floating')) && /_Day\d+(?:_|$)/.test(w) && !/GrandFinalDay/.test(w)
-      ? 'summe' : (/GrandFinalDay2/.test(w) ? (/^S30_/.test(w) ? 'letzter' : 'summe') : 'einzeln');
+      ? 'summe' : (/GrandFinalDay2/.test(w) ? 'summe' : 'einzeln');
     raus.push({
       quelle: roh.quelle ?? 'Epic payout table (via fortnitetracker.com)',
       fenster: w, muster, season, region,

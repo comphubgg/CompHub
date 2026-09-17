@@ -501,12 +501,18 @@ const platzCache = new Map<string, {
  * Solo Series 2026 EU: Epics Fenster "Final_Day2" fuehrt nur die Punkte
  * des zweiten Tages. Vico und Malibuca standen dort auf Platz fuenf und
  * waren Dritte des Finales - 246 plus 282 Punkte. Der Endstand ist die
- * Summe beider Tage, und genau der gehoert in Profil und Preisgeld. Beim
- * Major 3 2024 ("GrandFinalDay2") fuehrt Epics zweites Fenster dagegen
- * schon die Gesamtwertung - dort bleibt es beim Fenster.
+ * Summe beider Tage, und genau der gehoert in Profil und Preisgeld.
+ *
+ * Dasselbe gilt fuer 2024 ("GrandFinalDay2") und 2023 ("GrandFinals_EU_Day2"):
+ * hier stand einmal, Major 3 2024 fuehre am zweiten Tag schon die
+ * Gesamtwertung - das war falsch. Malibuca, Major 3 2024 EU: Tag 1 204
+ * Punkte (Platz 9), Tag 2 428 (Platz 3), Endstand 632 (Platz 4, 40.000);
+ * mit dem Fenster allein stand er auf Platz 3. Fuer Brasilien dasselbe:
+ * k1ng 309 plus 423 gleich 732, Erster. Geprueft an FN Tracker.
  */
 function letzterTagEinesFinales(windowId: string): number | null {
-  const m = windowId.match(/(?:_Final_Day|SoloSeriesCupFinal_Day)(\d+)_/);
+  const m = windowId.match(/(?:_Final_Day|SoloSeriesCupFinal_Day|GrandFinalDay)(\d+)_/)
+    ?? windowId.match(/_GrandFinals_[A-Z]+_Day(\d+)$/);
   return m && Number(m[1]) >= 2 ? Number(m[1]) : null;
 }
 
