@@ -281,6 +281,12 @@ jobs:
         # Die rohen Replays bleiben draussen: das sind Gigabytes, sie leben bei
         # Epic nur einunddreissig Tage, und gebraucht wird von ihnen ohnehin
         # nur das ausgewertete Ergebnis.
+        #
+        # Mit Frist: ist Supabase weg, bricht das Skript nach fuenf Fehlern
+        # ab - und spaetestens hier ist Schluss, damit der Lauf nicht in
+        # seine 90 Minuten laeuft und das Release leer ausgeht.
+        continue-on-error: true
+        timeout-minutes: 12
         run: |
           node scripts/umzug-supabase.mjs --neuer-als 120 \
             --ohne replays,_sicherung

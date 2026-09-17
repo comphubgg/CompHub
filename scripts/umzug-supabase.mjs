@@ -219,6 +219,7 @@ async function schreibTabelle(name, roh) {
       Prefer: 'resolution=merge-duplicates,return=minimal',
     },
     body: JSON.stringify({ name, wert: text }),
+    signal: AbortSignal.timeout(25_000),
   });
   if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
   return 'tabelle';
@@ -234,6 +235,7 @@ async function schreibObjekt(name, roh) {
       'x-upsert': 'true',
     },
     body: new Uint8Array(roh),
+    signal: AbortSignal.timeout(25_000),
   });
   if (!r.ok) throw new Error(`${r.status} ${await r.text()}`);
 }
@@ -520,6 +522,17 @@ async function los() {
   let ok = 0;
   let schief = 0;
   const fehler = [];
+  /*
+   * Antwortet Supabase nicht, ist nach ein paar Dateien Schluss.
+   *
+   * Am 17.9.2026 war die Datenbank den ganzen Tag weg; der stuendliche
+   * Lauf wartete trotzdem fuer jede der achthundert Dateien auf die Frist
+   * - 36 Minuten fuer nichts, und der ganze Auftrag lief in seine 90
+   * Minuten. Fuenf Fehler hintereinander heissen: sie ist weg, der Stand
+   * bleibt am Release, naechste Stunde wieder.
+   */
+  let hintereinander = 0;
+  let abgebrochen = false;
 
   for (const [i, name] of alle.entries()) {
     const roh = fs.readFileSync(path.join(DATEN, name));
@@ -532,10 +545,16 @@ async function los() {
       const abweichung = await pruefe(name, roh, wo);
       if (abweichung) { schief += 1; fehler.push(`${name}: ${abweichung}`); }
       else ok += 1;
+      hintereinander = 0;
     } catch (e) {
       schief += 1;
       fehler.push(`${name}: ${e.message}`);
+      hintereinander += 1;
+      if (hintereinander >= 5) { abgebrochen = true; break; }
     }
+  }
+  if (abgebrochen) {
+    console.log('\n\n  Supabase antwortet nicht - abgebrochen, der Stand bleibt am Release.');
   }
 
   console.log('\n');
