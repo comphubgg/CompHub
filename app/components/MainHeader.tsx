@@ -23,8 +23,9 @@ const navItems = [
   { href: '/power-rankings', label: 'Rankings', schluessel: 'rankings' },
   { href: '/events', label: 'Events', schluessel: 'events' },
   { href: '/statistiken', label: 'Statistiken', schluessel: 'statistiken' },
-  { href: '/prognosen', label: 'Prognosen', schluessel: 'prognosen' },
-  { href: '/archiv', label: 'Archiv', schluessel: 'archiv' },
+  // Prognosen und Archiv stehen bewusst nicht in der Leiste - der Betreiber:
+  // "Prediction und Archiv soll oben in der Taskleiste nicht sein." Das
+  // Archiv lebt im Spielerprofil, die Prognosen bleiben unter ihrer Adresse.
   { href: '/tierlist', label: 'Tierlist', schluessel: 'tierlist' },
   { href: '/overlays', label: 'Overlays', schluessel: 'overlays' },
 ];

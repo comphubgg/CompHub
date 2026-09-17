@@ -1,6 +1,7 @@
 'use client';
 // Das Archiv pflegen - Events anlegen, Fotos hochladen, Videos anhaengen,
-// Spieler zuordnen. Die oeffentliche Seite dazu ist /archiv.
+// Spieler zuordnen. Gezeigt wird das Ganze im Spielerprofil der Statistik
+// (Reiter "Spielerarchiv") - allgemeine Bilder oben, die Events darunter.
 //
 // So schlicht wie moeglich: links die Events, rechts das gewaehlte Event
 // mit einer Flaeche zum Hineinziehen der Fotos, einem Feld fuer eine
@@ -119,14 +120,17 @@ export default function ArchivVerwaltung() {
     try {
       const j = await (await fetch('/api/galerie', { cache: 'no-store' })).json() as Antwort;
       setDaten(j);
-      setEventId((alt) => (alt && j.events.some((e) => e.id === alt)) ? alt : (j.events[0]?.id ?? ''));
+      setEventId((alt) => (alt === 'allgemein' || (alt && j.events.some((e) => e.id === alt))) ? alt : (j.events[0]?.id ?? 'allgemein'));
     } catch { setMeldung(t('Das Archiv ist gerade nicht erreichbar.')); }
   }, [t]);
   useEffect(() => { void laden(); }, [laden]);
 
   const events = daten?.events ?? [];
   const event = events.find((e) => e.id === eventId) ?? null;
-  const eintraege = useMemo(() => (daten?.eintraege ?? []).filter((e) => e.eventId === eventId), [daten, eventId]);
+  /** "allgemein": die Bilder ohne Event - das allgemeine Archiv der Spieler. */
+  const allgemein = eventId === 'allgemein';
+  const eintraege = useMemo(() => (daten?.eintraege ?? [])
+    .filter((e) => (allgemein ? !e.eventId : e.eventId === eventId)), [daten, eventId, allgemein]);
   const angaben = daten?.spieler ?? {};
 
   const eventAnlegen = useCallback(async () => {
@@ -156,7 +160,8 @@ export default function ArchivVerwaltung() {
   }, [laden]);
 
   const hochladen = useCallback(async (dateien: FileList | File[]) => {
-    if (!eventId || !dateien.length) return;
+    if (!dateien.length) return;
+    if (allgemein && !vorabSpieler.length) { setMeldung(t('Für das allgemeine Archiv erst einen Spieler wählen.')); return; }
     setLaedtHoch(true); setMeldung('');
     const liste = Array.from(dateien);
     let n = 0; const fehler: string[] = [];
@@ -165,7 +170,7 @@ export default function ArchivVerwaltung() {
     for (const d of liste) {
       n += 1; setFortschritt(`${n} / ${liste.length} · ${d.name}`);
       const form = new FormData();
-      form.append('aktion', 'bild'); form.append('eventId', eventId);
+      form.append('aktion', 'bild'); form.append('eventId', allgemein ? '' : eventId);
       form.append('spieler', vorabSpieler.join(',')); form.append('dateien', d);
       try {
         const r = await fetch('/api/galerie', { method: 'POST', body: form });
@@ -180,9 +185,10 @@ export default function ArchivVerwaltung() {
   }, [eventId, vorabSpieler, laden, t]);
 
   const videoAnlegen = useCallback(async () => {
-    if (!eventId || !/^https?:\/\//.test(videoUrl.trim())) { setMeldung(t('Eine Adresse mit https:// ist nötig.')); return; }
+    if (!/^https?:\/\//.test(videoUrl.trim())) { setMeldung(t('Eine Adresse mit https:// ist nötig.')); return; }
+    if (allgemein && !vorabSpieler.length) { setMeldung(t('Für das allgemeine Archiv erst einen Spieler wählen.')); return; }
     const form = new FormData();
-    form.append('aktion', 'video'); form.append('eventId', eventId);
+    form.append('aktion', 'video'); form.append('eventId', allgemein ? '' : eventId);
     form.append('url', videoUrl.trim()); form.append('titel', videoTitel.trim());
     form.append('spieler', vorabSpieler.join(','));
     const r = await fetch('/api/galerie', { method: 'POST', body: form });
@@ -224,8 +230,8 @@ export default function ArchivVerwaltung() {
           <h1 className="text-2xl font-bold tracking-tight text-slate-50"><T>Archiv pflegen</T></h1>
         </div>
         <div className="flex items-center gap-2">
-          <Link href="/archiv" className="rounded-md border border-zinc-800 px-3 py-1.5 text-xs text-slate-400 transition hover:border-sky-500 hover:text-sky-400">
-            <T>Öffentliche Seite</T> ↗
+          <Link href="/statistiken" className="rounded-md border border-zinc-800 px-3 py-1.5 text-xs text-slate-400 transition hover:border-sky-500 hover:text-sky-400">
+            <T>Zu den Profilen</T> ↗
           </Link>
           <Link href="/admin" className="rounded-md border border-zinc-800 px-3 py-1.5 text-xs text-slate-400 transition hover:border-sky-500 hover:text-sky-400">
             ← Admin
@@ -240,6 +246,15 @@ export default function ArchivVerwaltung() {
         {/* ---------------------------------------------------- Events */}
         <aside className="w-full shrink-0 lg:w-72">
           <div className="space-y-2">
+            <button onClick={() => setEventId('allgemein')}
+              className={`w-full rounded-xl border p-3 text-left transition ${
+                allgemein ? 'border-sky-500 bg-sky-500/10' : 'border-zinc-800 bg-zinc-950/60 hover:border-zinc-600'}`}>
+              <span className="block text-sm font-bold text-slate-100"><T>Allgemeines Archiv</T></span>
+              <span className="block text-[11px] text-slate-500"><T>Bilder eines Spielers ohne Event</T></span>
+              <span className="block text-[11px] text-slate-600">
+                {(daten?.eintraege ?? []).filter((e) => !e.eventId).length} <T>Einträge</T>
+              </span>
+            </button>
             {events.map((ev) => (
               <button key={ev.id} onClick={() => setEventId(ev.id)}
                 className={`w-full rounded-xl border p-3 text-left transition ${
@@ -276,14 +291,14 @@ export default function ArchivVerwaltung() {
 
         {/* ---------------------------------------------------- Das Event */}
         <section className="min-w-0 flex-1">
-          {!event ? (
+          {!event && !allgemein ? (
             <p className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-8 text-center text-sm text-slate-500">
               <T>Erst ein Event anlegen.</T>
             </p>
           ) : (
             <div className="space-y-5">
               {/* Die Angaben des Events - speichern sich beim Verlassen des Felds. */}
-              <div className="flex flex-wrap items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-950/60 p-3">
+              {event && <div className="flex flex-wrap items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-950/60 p-3">
                 <Feld wert={event.name} aufAendern={(w) => eventAendern({ name: w })} klasse="w-64 font-bold" />
                 <Feld wert={event.ort} aufAendern={(w) => eventAendern({ ort: w })} platzhalter={t('Ort')} klasse="w-40" />
                 <Feld wert={event.datum} typ="date" aufAendern={(w) => eventAendern({ datum: w })} klasse="w-40" />
@@ -293,7 +308,7 @@ export default function ArchivVerwaltung() {
                     <T>Event entfernen</T>
                   </button>
                 )}
-              </div>
+              </div>}
 
               {/* Hochladen */}
               <div className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
@@ -356,6 +371,7 @@ export default function ArchivVerwaltung() {
                           <select value={e.eventId} onChange={(ev) => eintragAendern(e.id, { eventId: ev.target.value })}
                             title={t('In ein anderes Event verschieben')}
                             className="rounded-md border border-zinc-800 bg-zinc-900/80 px-2 py-1 text-[11px] text-slate-400">
+                            <option value="">{t('Allgemeines Archiv')}</option>
                             {events.map((ev) => <option key={ev.id} value={ev.id}>{ev.name}</option>)}
                           </select>
                           <button onClick={() => entfernen(e.id)} className="rounded-md border border-zinc-800 px-2 py-1 text-[11px] text-slate-500 hover:border-red-500 hover:text-red-400">

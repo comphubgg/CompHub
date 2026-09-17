@@ -24,6 +24,7 @@ import { ohneZierrat } from '@/lib/homoglyph';
 
 import T from '@/app/components/T';
 import LadeSchirm from '@/app/components/LadeSchirm';
+import SpielerArchiv from '@/app/components/SpielerArchiv';
 import { regionFarbe, REGIONEN_REIHE } from '@/lib/regionFarbe';
 import { useSprache, useT } from '@/app/components/SprachProvider';
 import { useZugang } from '@/app/lib/zugang';
@@ -62,7 +63,7 @@ const SICHTBAR_STANDARD: Record<Bereich, Sichtbar> = {
   vergleich: 'vip', bilder: 'admin',
 };
 const SICHTBAR_REIHE: Sichtbar[] = ['alle', 'vip', 'admin'];
-type SpielerReiter = 'uebersicht' | 'leistung' | 'werte' | 'turniere' | 'verdienst';
+type SpielerReiter = 'uebersicht' | 'leistung' | 'werte' | 'turniere' | 'verdienst' | 'archiv';
 
 /** Ein LAN-Ergebnis mit Preisgeld - aus data/lan-preisgelder.json. */
 interface LanErgebnis {
@@ -5701,7 +5702,8 @@ export default function StatistikSeite() {
               {([['uebersicht', 'Übersicht'], ['leistung', 'Leistung'],
                  ['werte', 'Alle Werte'],
                  ['turniere', 'Turniere'],
-                 ['verdienst', 'Verdienst']] as Array<[SpielerReiter, string]>)
+                 ['verdienst', 'Verdienst'],
+                 ['archiv', 'Spielerarchiv']] as Array<[SpielerReiter, string]>)
                 .map(([w, titel]) => (
                 // "titel" statt "t": der Uebersetzer heisst hier ebenfalls t,
                 // und ihn in einer Schleife zu beschatten ist eine Falle fuer
@@ -6294,6 +6296,12 @@ export default function StatistikSeite() {
                     </div>
                   );
                 })()
+              ) : spielerReiter === 'archiv' ? (
+                /* Das Archiv des Spielers - Fotos und Videos, allgemein und
+                   je Event. Der Betreiber wollte es genau hier, nicht als
+                   eigene Seite: "wenn ich auf Twi drauf gehe, steht dort
+                   Player Archiv." */
+                <SpielerArchiv epicId={offen.epicId} istAdmin={istAdmin} />
               ) : spielerReiter === 'werte' ? (
                 <div className="grid gap-x-8 rounded-lg border border-zinc-800
                                 bg-zinc-900/30 p-5 sm:grid-cols-2 lg:grid-cols-3">

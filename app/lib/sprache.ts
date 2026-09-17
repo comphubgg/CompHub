@@ -1951,6 +1951,30 @@ const AUF_ENGLISCH: Record<string, string> = {
     'now',
   'Sitzungen':
     'sessions',
+  'Zu den Profilen':
+    'To the profiles',
+  'Allgemeines Archiv':
+    'General archive',
+  'Bilder eines Spielers ohne Event':
+    'Pictures of a player without an event',
+  'Für das allgemeine Archiv erst einen Spieler wählen.':
+    'Choose a player first for the general archive.',
+  'Spielerarchiv':
+    'Player archive',
+  'Noch keine Bilder oder Videos zu diesem Spieler.':
+    'No pictures or videos of this player yet.',
+  'Bilder hinzufügen':
+    'Add pictures',
+  'Wohin':
+    'Where',
+  'Neues Event anlegen …':
+    'Create a new event …',
+  'Weitere Spieler auf den Bildern':
+    'Other players in the pictures',
+  'Foto':
+    'photo',
+  'Video':
+    'video',
   'Die Ablage antwortet gerade nicht. Die Konten sind da, nur gerade nicht lesbar.':
     'The storage is not responding right now. The accounts are there, just not readable at the moment.',
   'Noch einmal':

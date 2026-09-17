@@ -30,6 +30,12 @@ export interface GalerieEvent {
 
 export interface GalerieEintrag {
   id: string;
+  /**
+   * Das Event, zu dem das Bild gehoert - oder leer: dann ist es das
+   * allgemeine Archiv eines Spielers (mit der Trophaee, beim Signen bei
+   * der Org, am Setup). Der Betreiber: "oben ist Allgemein-Archiv, unten
+   * sind die spezifischen Events."
+   */
   eventId: string;
   art: 'bild' | 'video';
   /** Bei Bildern: der Name der Datei in der Ablage (galerie/<id>.jpg). */
