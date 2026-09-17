@@ -163,7 +163,7 @@ async function hochladen(releaseId, vorhandene, name, daten) {
                  'Content-Length': String(daten.length) },
       body: daten,
     });
-  if (!r.ok) throw new Error(`hochladen ${name}: ${r.status} ${(await r.text()).slice(0, 200)}`);
+  if (!r.ok) throw new Error(`hochladen ${name}: ${r.status} ${(await r.text()).slice(0, 600)}`);
   const neu = await r.json();
   vorhandene.set(name, neu);
 }
