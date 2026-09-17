@@ -563,6 +563,31 @@ function kapitelName(kurz: string) {
   return m ? `CHAPTER ${m[1]} SEASON ${m[2]}` : kurz.toUpperCase();
 }
 
+/**
+ * Das Kapitel einer Saison - aus dem Namen ("Chapter 6 Season 2"), und
+ * fuer die Saisons ohne Kapitel im Namen (Remix, Galactic Battle, The
+ * Simpsons) aus der Nummer: S28 bis S32 sind Chapter 5, S33 bis S38
+ * Chapter 6, ab S39 Chapter 7.
+ */
+function kapitelVonSaison(kennung: string, name?: string): number {
+  const m = /^Chapter (\d+)/.exec(name ?? '');
+  if (m) return Number(m[1]);
+  const n = Number((kennung.match(/^S(\d+)$/) ?? [])[1] ?? 0);
+  if (!n) return 0;
+  if (n <= 10) return 1;
+  if (n <= 18) return 2;
+  if (n <= 22) return 3;
+  if (n <= 27) return 4;
+  if (n <= 32) return 5;
+  if (n <= 38) return 6;
+  return 7;
+}
+
+/** Der Name einer Saison ohne ihr Kapitel - "Season 2", "Remix", "The Simpsons". */
+function saisonOhneKapitel(name: string): string {
+  return name.replace(/^Chapter \d+ /, '');
+}
+
 /** Falls eine Kennung wie "S37" durchrutscht - nie nackt anzeigen. */
 const SAISON_NAMEN_KURZ: Record<string, string> = {
   S30: 'Chapter 5 Season 3', S31: 'Chapter 5 Season 4', S33: 'Chapter 6 Season 1',
@@ -1962,6 +1987,14 @@ export default function StatistikSeite() {
    * fuer das ganze Archiv.
    */
   const [profilSaison, setProfilSaison] = useState<string>('alle');
+  /*
+   * Die Verdienst-Seite hat ihre eigene Wahl: ein Kapitel, darin eine
+   * Saison. Der Betreiber: "Filter machen, zum Beispiel Chapter 7 Season 4,
+   * nachher werden alle Cups ausgelistet, wo er was gewonnen hat" - statt
+   * sechsunddreissig Kaestchen nebeneinander.
+   */
+  const [verdienstKapitel, setVerdienstKapitel] = useState<number>(0);
+  const [verdienstSaison, setVerdienstSaison] = useState<string>('');
   const [saisonBilder, setSaisonBilder] = useState<Record<string, string | null>>({});
   const [saisonNamen, setSaisonNamen] = useState<Record<string, string>>({});
   /** Spieltage, zu denen nur Epic etwas hat - ohne Einzelwerte. */
@@ -2621,6 +2654,7 @@ export default function StatistikSeite() {
     // Ein frisch geoeffnetes Profil zeigt die ganze Laufbahn - das ist die
     // Frage, die man beim Aufschlagen eines Profils zuerst hat.
     setProfilSaison('alle');
+    setVerdienstKapitel(0); setVerdienstSaison('');
     void profilLaden(s, 'alle');
   }, [profilLaden]);
 
@@ -5635,7 +5669,19 @@ export default function StatistikSeite() {
                   Archiv gilt, findet die Antwort ohne zu suchen. */}
               <p className="mb-4 text-center text-[10px] tracking-[0.14em]
                             text-slate-700">
-                {spielerReiter === 'leistung'
+                {spielerReiter === 'verdienst' ? (() => {
+                  const mitGeld = [...verlauf, ...epicZeilen].filter((z) => (z.verdienst ?? 0) > 0);
+                  const codes = [...new Set([...mitGeld.map((z) => z.season), ...lanErgebnisse.map((l) => l.season)])]
+                    .filter((k) => /^S\d+$/.test(k))
+                    .sort((a, b) => Number(a.slice(1)) - Number(b.slice(1)));
+                  const nameVon = (k: string) => saisons.find((x) => x.kennung === k)?.name ?? saisonNamen[k] ?? SAISON_NAMEN_KURZ[k] ?? k;
+                  const spanne = codes.length
+                    ? (codes.length === 1 ? nameVon(codes[0]) : `${nameVon(codes[0])} ${t('bis')} ${nameVon(codes[codes.length - 1])}`)
+                    : '';
+                  const cups = mitGeld.length + lanErgebnisse.filter((l) =>
+                    !mitGeld.some((z) => z.windowId.split('_')[0] === (l.fenster ?? '').split('_')[0])).length;
+                  return `${spanne}${spanne ? ' · ' : ''}${zahl(cups, 0, sprache)} ${t(cups === 1 ? 'Cup mit Preisgeld' : 'Cups mit Preisgeld')}`;
+                })() : spielerReiter === 'leistung'
                   ? `${t('Vergleich über alle erfassten Spieltage')} · ${archivTitel}`
                   : `${profilSaison === 'alle' ? archivTitel
                     : (saisons.find((x) => x.kennung === profilSaison)?.name
@@ -5985,34 +6031,85 @@ export default function StatistikSeite() {
                   // Dinosauron), nicht ueber Kuerzel im Namen.
                   const lanOhneZeile = lanErgebnisse.filter((l) =>
                     !zeilen.some((z) => z.windowId.split('_')[0] === (l.fenster ?? '').split('_')[0]));
-                  const summe = zeilen.reduce((a, z) => a + (z.verdienst ?? 0), 0)
+                  const gesamt = zeilen.reduce((a, z) => a + (z.verdienst ?? 0), 0)
                     + lanOhneZeile.reduce((a, l) => a + l.betrag, 0);
+                  const nameVon = (k: string) => saisons.find((x) => x.kennung === k)?.name ?? saisonNamen[k] ?? SAISON_NAMEN_KURZ[k] ?? k;
+                  // Je Saison die Summe, je Kapitel die Summe - fuer die Wahl.
                   const jeSaison = new Map<string, number>();
                   for (const z of zeilen) jeSaison.set(z.season, (jeSaison.get(z.season) ?? 0) + (z.verdienst ?? 0));
                   for (const l of lanOhneZeile) jeSaison.set(l.season, (jeSaison.get(l.season) ?? 0) + l.betrag);
+                  const kapitelVon = (k: string) => kapitelVonSaison(k, nameVon(k));
+                  const jeKapitel = new Map<number, number>();
+                  for (const [k, v] of jeSaison) jeKapitel.set(kapitelVon(k), (jeKapitel.get(kapitelVon(k)) ?? 0) + v);
+                  const kapitelListe = [...jeKapitel.keys()].sort((a, b) => b - a);
+                  const saisonListe = [...jeSaison.keys()]
+                    .filter((k) => !verdienstKapitel || kapitelVon(k) === verdienstKapitel)
+                    .sort((a, b) => Number(b.slice(1)) - Number(a.slice(1)));
+                  // Was die Tabelle zeigt: alles, ein Kapitel, eine Saison.
+                  const passt = (k: string) => (verdienstSaison ? k === verdienstSaison
+                    : verdienstKapitel ? kapitelVon(k) === verdienstKapitel : true);
+                  const gezeigt = zeilen.filter((z) => passt(z.season));
+                  const lanGezeigt = lanOhneZeile.filter((l) => passt(l.season));
+                  const summe = gezeigt.reduce((a, z) => a + (z.verdienst ?? 0), 0)
+                    + lanGezeigt.reduce((a, l) => a + l.betrag, 0);
+                  const wahlTitel = verdienstSaison ? nameVon(verdienstSaison)
+                    : verdienstKapitel ? `Chapter ${verdienstKapitel}` : t('seit Chapter 1');
+                  const pille = (aktiv: boolean) => `rounded-md border px-3 py-1.5 text-xs font-semibold transition ${
+                    aktiv ? 'border-sky-500 bg-sky-500/10 text-sky-400' : 'border-zinc-800 text-slate-400 hover:border-zinc-600'}`;
                   return (
                     <div className="space-y-5">
-                      <div className="flex flex-wrap items-end gap-6 rounded-lg border
-                                      border-zinc-800 bg-zinc-900/30 p-5">
-                        <div>
-                          <p className="text-[10px] font-semibold uppercase tracking-[0.18em]
-                                        text-slate-500"><T>Verdienst</T> · {profilSaison === 'alle' ? t('seit Chapter 1') : archivTitel}</p>
-                          <p className="mt-1 text-3xl font-bold tabular-nums text-emerald-400">
-                            ${zahl(summe, 0, sprache)}
-                          </p>
-                        </div>
-                        {[...jeSaison.entries()].sort((a, b) => b[0].localeCompare(a[0])).map(([k, v]) => (
-                          <div key={k}>
-                            <p className="text-[10px] uppercase tracking-[0.14em] text-slate-600">
-                              {saisons.find((x) => x.kennung === k)?.name ?? saisonNamen[k] ?? SAISON_NAMEN_KURZ[k] ?? k}
-                            </p>
-                            <p className="text-sm font-semibold tabular-nums text-slate-200">
-                              ${zahl(v, 0, sprache)}
+                      <div className="rounded-lg border border-zinc-800 bg-zinc-900/30 p-5">
+                        <div className="flex flex-wrap items-end justify-between gap-6">
+                          <div>
+                            <p className="text-[10px] font-semibold uppercase tracking-[0.18em]
+                                          text-slate-500"><T>Verdienst</T> · {wahlTitel}</p>
+                            <p className="mt-1 text-3xl font-bold tabular-nums text-emerald-400">
+                              ${zahl(summe, 0, sprache)}
                             </p>
                           </div>
-                        ))}
+                          {(verdienstKapitel || verdienstSaison) ? (
+                            <div className="text-right">
+                              <p className="text-[10px] uppercase tracking-[0.14em] text-slate-600"><T>seit Chapter 1</T></p>
+                              <p className="text-sm font-semibold tabular-nums text-slate-300">${zahl(gesamt, 0, sprache)}</p>
+                            </div>
+                          ) : null}
+                        </div>
+                        {/* Die Kapitel - eines waehlen, oder alle. */}
+                        <div className="mt-4 flex flex-wrap gap-1.5">
+                          <button onClick={() => { setVerdienstKapitel(0); setVerdienstSaison(''); }}
+                            className={pille(!verdienstKapitel)}>
+                            <T>Alle</T>
+                          </button>
+                          {kapitelListe.map((k) => (
+                            <button key={k} onClick={() => { setVerdienstKapitel(k); setVerdienstSaison(''); }}
+                              className={pille(verdienstKapitel === k)}>
+                              Chapter {k}
+                              <span className="ml-1.5 font-normal tabular-nums text-slate-500">
+                                ${zahl(jeKapitel.get(k) ?? 0, 0, sprache)}
+                              </span>
+                            </button>
+                          ))}
+                        </div>
+                        {/* Die Saisons des Kapitels. */}
+                        {verdienstKapitel > 0 && saisonListe.length > 0 && (
+                          <div className="mt-2 flex flex-wrap gap-1.5">
+                            <button onClick={() => setVerdienstSaison('')}
+                              className={pille(!verdienstSaison)}>
+                              <T>Ganzes Kapitel</T>
+                            </button>
+                            {saisonListe.map((k) => (
+                              <button key={k} onClick={() => setVerdienstSaison(k)}
+                                className={pille(verdienstSaison === k)}>
+                                {saisonOhneKapitel(nameVon(k))}
+                                <span className="ml-1.5 font-normal tabular-nums text-slate-500">
+                                  ${zahl(jeSaison.get(k) ?? 0, 0, sprache)}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                      {!zeilen.length && !lanOhneZeile.length ? (
+                      {!gezeigt.length && !lanGezeigt.length ? (
                         <p className="py-6 text-center text-xs text-slate-600">
                           <T>Zu diesem Spieler ist kein Preisgeld hinterlegt. Preisgeld gibt es nur, wo eine Tabelle gepflegt ist (EU) oder ein LAN-Ergebnis vorliegt.</T>
                         </p>
@@ -6031,7 +6128,7 @@ export default function StatistikSeite() {
                               </tr>
                             </thead>
                             <tbody>
-                              {lanOhneZeile.map((l) => (
+                              {lanGezeigt.map((l) => (
                                 <tr key={l.kennung} className="border-b border-zinc-900">
                                   <td className="px-3 py-2 text-slate-200">
                                     {l.name}
@@ -6051,7 +6148,7 @@ export default function StatistikSeite() {
                                   </td>
                                 </tr>
                               ))}
-                              {zeilen.map((z) => {
+                              {gezeigt.map((z) => {
                                 const lan = lanErgebnisse.find((l) => l.season === z.season
                                   && (l.kennung.includes('reload') ? /escargo/i.test(z.windowId) : /bratwurst|summit/i.test(z.windowId)));
                                 return (

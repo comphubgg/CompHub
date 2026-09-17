@@ -1951,6 +1951,12 @@ const AUF_ENGLISCH: Record<string, string> = {
     'now',
   'Sitzungen':
     'sessions',
+  'Ganzes Kapitel':
+    'Whole chapter',
+  'Cup mit Preisgeld':
+    'cup with prize money',
+  'Cups mit Preisgeld':
+    'cups with prize money',
   'seit Chapter 1':
     'since Chapter 1',
   'Alle Spieltage seit Chapter 1.':

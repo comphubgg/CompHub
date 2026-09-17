@@ -787,7 +787,7 @@ export async function aktenSchreiben(): Promise<{ konten: number; geschrieben: n
     for (const [windowId, region, datum, platz, punkte, betrag] of eintraege) {
       if (da.has(windowId)) continue;
       a.epic.push({
-        event: windowId, windowId, region, season: (windowId.match(/^(S\d+)_/)?.[1]) ?? '',
+        event: windowId, windowId, region, season: saisonVonFenster(windowId, datum),
         titel: [cupNameAusKennung(windowId), rundenName(windowId, false)].filter(Boolean).join(' · ') || windowId,
         datum: Date.parse(datum) || null,
         platz, punkte, matches: 0, mitspieler: [], nurEpic: true, verdienstArchiv: betrag,
@@ -1696,7 +1696,7 @@ export async function epicVerlauf(
     if (filter.saison && (windowId.match(/^(S\d+)_/)?.[1] ?? '') !== filter.saison) continue;
     if (filter.region && region !== filter.region) continue;
     zeilen.push({
-      event: windowId, windowId, region, season: (windowId.match(/^(S\d+)_/)?.[1]) ?? '',
+      event: windowId, windowId, region, season: saisonVonFenster(windowId, datum),
       titel: [cupNameAusKennung(windowId), rundenName(windowId, false)].filter(Boolean).join(' · ') || windowId,
       datum: Date.parse(datum) || null,
       platz, punkte, matches: 0, mitspieler: [], nurEpic: true, verdienstArchiv: betrag,
