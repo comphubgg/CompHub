@@ -1593,56 +1593,49 @@ function ListenKarte({ liste, aufVoll, aufSpieler }: {
 }
 
 /** Eine Zeile in einer Bestenliste. */
-function Platz({ nr, s, wert, aufKlick, zusatz, mitBild, anteil }: {
+function Platz({ nr, s, wert, aufKlick, zusatz, mitBild }: {
   nr: number; s: Spieler; wert: string; aufKlick?: () => void;
   /** Eine kleine Zeile unter dem Namen - etwa "Finals 79 · Opens 293". */
   zusatz?: string;
   /**
-   * Das Profilbild statt der Flagge, und darunter ein Balken im Verhaeltnis
-   * zum Ersten - fuer die Preisgeldliste. Der Betreiber: "anstatt die Flagge
-   * machst du ein Profilbild, ein bisschen groesser, ... mit so einem geilen
-   * Balken und dem Namen."
+   * Das Profilbild statt der Flagge, alles eine Nummer groesser - fuer die
+   * Preisgeldliste. Der Betreiber: "anstatt die Flagge machst du ein
+   * Profilbild, ein bisschen groesser." Einen Balken gab es kurz, den
+   * wollte er nicht: "mach diese blauen Balken weg."
    */
   mitBild?: boolean;
-  anteil?: number;
 }) {
   return (
     <button onClick={aufKlick} disabled={!aufKlick}
-      className={`flex w-full items-center gap-3 px-3 text-left transition
-                  ${mitBild ? 'py-2.5' : 'py-2'} ${aufKlick ? 'hover:bg-zinc-900/60' : ''}`}>
-      <span className={`w-5 shrink-0 text-[11px] font-bold tabular-nums ${
+      className={`flex w-full items-center text-left transition
+                  ${mitBild ? 'gap-4 px-4 py-3' : 'gap-3 px-3 py-2'} ${aufKlick ? 'hover:bg-zinc-900/60' : ''}`}>
+      <span className={`shrink-0 font-bold tabular-nums ${mitBild ? 'w-7 text-sm' : 'w-5 text-[11px]'} ${
         nr === 1 ? 'text-amber-400' : 'text-slate-600'}`}>{nr}</span>
       {mitBild ? (
         s.bild ? (
           /* eslint-disable-next-line @next/next/no-img-element */
           <img src={s.bild} alt="" loading="lazy"
-            className="h-12 w-12 shrink-0 rounded-lg border border-zinc-800 object-cover object-top" />
+            className="h-16 w-16 shrink-0 rounded-lg border border-zinc-800 object-cover object-top" />
         ) : (
-          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-lg
-                           border border-zinc-800 bg-zinc-900 text-lg text-zinc-700">?</span>
+          <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg
+                           border border-zinc-800 bg-zinc-900 text-xl text-zinc-700">?</span>
         )
       ) : (
         <TeamFlagge groesse={18} laender={[s.land ?? undefined]} />
       )}
       <span className="min-w-0 flex-1">
-        <span className={`flex items-center gap-1.5 ${mitBild ? 'text-[13px]' : 'text-[12px]'}`}>
-          {mitBild && <TeamFlagge groesse={14} laender={[s.land ?? undefined]} />}
-          <span className="truncate font-medium text-slate-200">
+        <span className={`flex items-center gap-2 ${mitBild ? 'text-base' : 'text-[12px]'}`}>
+          {mitBild && <TeamFlagge groesse={18} laender={[s.land ?? undefined]} />}
+          <span className={`truncate text-slate-200 ${mitBild ? 'font-bold uppercase tracking-wide' : 'font-medium'}`}>
             {grossName(s.anzeige, s.gepflegt)}
           </span>
         </span>
         {zusatz && (
           <span className="block truncate text-[10px] tabular-nums text-slate-500">{zusatz}</span>
         )}
-        {typeof anteil === 'number' && (
-          <span className="mt-1.5 block h-1.5 w-full overflow-hidden rounded-full bg-zinc-900">
-            <span className="block h-full rounded-full bg-gradient-to-r from-sky-500 to-sky-400"
-              style={{ width: `${Math.max(1, Math.min(100, anteil * 100))}%` }} />
-          </span>
-        )}
       </span>
       <RegionMarke region={s.heimat || s.regionen[0] || ''} />
-      <span className={`shrink-0 font-bold tabular-nums text-sky-400 ${mitBild ? 'text-[14px]' : 'text-[12px]'}`}>
+      <span className={`shrink-0 font-bold tabular-nums text-sky-400 ${mitBild ? 'text-lg' : 'text-[12px]'}`}>
         {wert}
       </span>
     </button>
@@ -2569,6 +2562,7 @@ export default function StatistikSeite() {
         datum: number | null; platz: number; punkte: number; matches: number;
         mitspieler: Mitspieler[];
         replayElims?: number; replayKnocks?: number;
+        verdienst?: number | null;
       }) => ({
         event: z.titel || z.windowId,
         windowId: z.windowId, region: z.region, season: z.season,
@@ -2582,6 +2576,12 @@ export default function StatistikSeite() {
         nurEpic: true,
         replayElims: z.replayElims,
         replayKnocks: z.replayKnocks,
+        /*
+         * Das Preisgeld der Epic-Zeilen ging hier verloren - die Verdienst-
+         * Seite zaehlte nur die Zeilen der Szene-Quelle, und Queasy stand
+         * mit 398.688 $ da, waehrend die Jahresliste 1.328.840 $ sagte.
+         */
+        verdienst: typeof z.verdienst === 'number' ? z.verdienst : undefined,
       })));
       // Wer im gewaehlten Zeitraum nicht angetreten ist, bekommt Nullen -
       // nicht die Zahlen des vorigen Zeitraums. Sonst stand im Kopf "0
@@ -5215,8 +5215,6 @@ export default function StatistikSeite() {
         const zeigen = (listenTiefe && !q) ? gefiltert.slice(0, listenTiefe) : gefiltert;
         const istElims = volleListe.feld === 'elims';
         const istGeld = volleListe.feld === 'verdienst';
-        const hoechster = istGeld
-          ? Math.max(0, ...volleListe.zeilen.map((sp) => Number(sp.verdienst ?? 0))) : 0;
         return (
           <div className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950">
             <header className="flex flex-wrap items-center gap-3 border-b border-zinc-800
@@ -5275,7 +5273,6 @@ export default function StatistikSeite() {
               {zeigen.map(({ sp, nr }) => (
                 <Platz key={sp.epicId} nr={nr} s={sp}
                   mitBild={istGeld}
-                  anteil={istGeld && hoechster > 0 ? Number(sp.verdienst ?? 0) / hoechster : undefined}
                   wert={zahl(Number(sp[volleListe.feld]), volleListe.nachkomma, sprache)
                         + volleListe.einheit}
                   zusatz={istElims && typeof sp.opensElims === 'number'
@@ -5999,7 +5996,7 @@ export default function StatistikSeite() {
                                       border-zinc-800 bg-zinc-900/30 p-5">
                         <div>
                           <p className="text-[10px] font-semibold uppercase tracking-[0.18em]
-                                        text-slate-500"><T>Verdienst</T> · {archivTitel}</p>
+                                        text-slate-500"><T>Verdienst</T> · {profilSaison === 'alle' ? t('seit Chapter 1') : archivTitel}</p>
                           <p className="mt-1 text-3xl font-bold tabular-nums text-emerald-400">
                             ${zahl(summe, 0, sprache)}
                           </p>
@@ -6007,7 +6004,7 @@ export default function StatistikSeite() {
                         {[...jeSaison.entries()].sort((a, b) => b[0].localeCompare(a[0])).map(([k, v]) => (
                           <div key={k}>
                             <p className="text-[10px] uppercase tracking-[0.14em] text-slate-600">
-                              {saisons.find((x) => x.kennung === k)?.name ?? SAISON_NAMEN_KURZ[k] ?? k}
+                              {saisons.find((x) => x.kennung === k)?.name ?? saisonNamen[k] ?? SAISON_NAMEN_KURZ[k] ?? k}
                             </p>
                             <p className="text-sm font-semibold tabular-nums text-slate-200">
                               ${zahl(v, 0, sprache)}
@@ -6042,7 +6039,7 @@ export default function StatistikSeite() {
                                                      text-[9px] font-semibold uppercase text-amber-400">LAN</span>
                                   </td>
                                   <td className="px-3 py-2 text-center text-slate-500">
-                                    {saisons.find((x) => x.kennung === l.season)?.name ?? SAISON_NAMEN_KURZ[l.season] ?? l.season}
+                                    {saisons.find((x) => x.kennung === l.season)?.name ?? saisonNamen[l.season] ?? SAISON_NAMEN_KURZ[l.season] ?? l.season}
                                   </td>
                                   <td className={`px-3 py-2 text-center font-bold tabular-nums ${platzFarbe(l.platz)}`}>
                                     {l.platz}.
@@ -6306,7 +6303,7 @@ export default function StatistikSeite() {
                                 <tr key={l.kennung} className="border-b border-zinc-900">
                                   <td className="whitespace-nowrap px-2 py-2.5">
                                     <span className="font-semibold text-slate-200">
-                                      {saisons.find((x) => x.kennung === l.season)?.name ?? SAISON_NAMEN_KURZ[l.season] ?? l.season}
+                                      {saisons.find((x) => x.kennung === l.season)?.name ?? saisonNamen[l.season] ?? SAISON_NAMEN_KURZ[l.season] ?? l.season}
                                     </span>
                                     <span className={`ml-2 text-[10px] font-bold ${platzFarbe(l.platz)}`}>
                                       {l.platz}.

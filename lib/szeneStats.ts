@@ -832,6 +832,12 @@ export async function verlauf(epicId: string, filter: Filter = {}): Promise<Verl
   const zeilen: VerlaufZeile[] = [];
 
   for (const e of eintraege) {
+    // Ein LAN-Fenster liegt im Archiv je Region einmal - in den Verlauf
+    // gehoert es einmal, sonst zaehlt das Preisgeld doppelt (siehe
+    // aktenSchreiben; auf dem Betreiber-Rechner stand Queasy so bei
+    // 1,63 statt 1,33 Millionen).
+    if (/^(Escargo|Bratwurst|Dinosauron|BambiRaptor|Acrocanthosaurus)/.test(e.windowId)
+        && zeilen.some((z) => z.windowId === e.windowId)) continue;
     const datei = await liesDatei(e);
     if (!datei) continue;
     const p = datei.players.find((x) => x.epicId === epicId);

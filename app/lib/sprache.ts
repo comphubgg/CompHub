@@ -1951,6 +1951,8 @@ const AUF_ENGLISCH: Record<string, string> = {
     'now',
   'Sitzungen':
     'sessions',
+  'seit Chapter 1':
+    'since Chapter 1',
   'Alle Spieltage seit Chapter 1.':
     'All match days since Chapter 1.',
   'Gezählt nach Saisons: ein Jahr sind die Saisons, die in ihm beginnen; ein Kapitel, das Ende November oder im Dezember anfängt, zählt zum Folgejahr.':
