@@ -110,7 +110,11 @@ async function istAdmin(): Promise<boolean> {
 async function lies(): Promise<{ users: Zugang[] }> {
   try {
     return JSON.parse(await fs.readFile(DATEI, 'utf8'));
-  } catch {
+  } catch (e) {
+    // Nur "nicht da" heisst leer. Antwortet die Ablage nicht, fliegt der
+    // Fehler weiter - sonst hiesse es "0 Zugaenge", und ein Schreiben
+    // danach ueberschriebe die Liste mit einem einzigen Eintrag.
+    if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e;
     return { users: [] };
   }
 }

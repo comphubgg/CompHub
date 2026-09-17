@@ -78,7 +78,10 @@ export async function alleZugaenge(): Promise<Zugang[]> {
   try {
     const roh = JSON.parse(await fs.readFile(DATEI, 'utf8')) as { users?: Zugang[] };
     return Array.isArray(roh.users) ? roh.users : [];
-  } catch {
+  } catch (e) {
+    // Nur "nicht da" heisst leer - eine Ablage, die nicht antwortet, darf
+    // nie wie eine leere Liste aussehen (siehe lib/konten).
+    if ((e as NodeJS.ErrnoException).code !== 'ENOENT') throw e;
     return [];
   }
 }

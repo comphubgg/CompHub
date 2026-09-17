@@ -1951,6 +1951,10 @@ const AUF_ENGLISCH: Record<string, string> = {
     'now',
   'Sitzungen':
     'sessions',
+  'Die Ablage antwortet gerade nicht. Die Konten sind da, nur gerade nicht lesbar.':
+    'The storage is not responding right now. The accounts are there, just not readable at the moment.',
+  'Noch einmal':
+    'Try again',
   'Archiv':
     'Archive',
   'Archiv pflegen':

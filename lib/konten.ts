@@ -160,11 +160,18 @@ export interface Konto {
   zuletzt?: string;
 }
 
+/*
+ * Fehlt die Datei, gibt es keine Konten. Antwortet die Ablage nicht, ist
+ * das etwas anderes - dann fliegt der Fehler weiter. Vorher hiess beides
+ * "leer": die Verwaltung zeigte "0 registriert", und jedes Schreiben
+ * danach haette die Liste mit einem einzigen Konto ueberschrieben.
+ */
 async function lies(): Promise<Konto[]> {
   try {
     return JSON.parse(await fs.readFile(DATEI, 'utf8')) as Konto[];
-  } catch {
-    return [];
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException).code === 'ENOENT') return [];
+    throw e;
   }
 }
 

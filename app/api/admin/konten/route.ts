@@ -62,8 +62,13 @@ export async function GET() {
   if (!await istAdmin()) {
     return NextResponse.json({ fehler: 'nicht erlaubt' }, { status: 403 });
   }
-  const konten = await alleKonten();
-  return NextResponse.json({ ok: true, konten });
+  try {
+    const konten = await alleKonten();
+    return NextResponse.json({ ok: true, konten });
+  } catch {
+    return NextResponse.json({ ok: false, fehler: 'Die Ablage antwortet gerade nicht.' },
+      { status: 503, headers: { 'Cache-Control': 'no-store' } });
+  }
 }
 
 export async function POST(request: Request) {

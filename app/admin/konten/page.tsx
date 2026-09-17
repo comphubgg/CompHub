@@ -808,6 +808,8 @@ export default function KontenSeite() {
   const [konten, setKonten] = useState<Konto[]>([]);
   const [laedt, setLaedt] = useState(true);
   const [erlaubt, setErlaubt] = useState(true);
+  /** Die Ablage hat nicht geantwortet - das ist nicht "niemand registriert". */
+  const [nichtErreichbar, setNichtErreichbar] = useState(false);
   const [suche, setSuche] = useState('');
   const [stand, setStand] = useState('');
 
@@ -815,6 +817,8 @@ export default function KontenSeite() {
     try {
       const r = await fetch('/api/admin/konten', { cache: 'no-store' });
       if (r.status === 403) { setErlaubt(false); return; }
+      if (!r.ok) { setNichtErreichbar(true); return; }
+      setNichtErreichbar(false);
       const j = await r.json();
       const konten: Konto[] = (Array.isArray(j?.konten) ? j.konten : [])
         .map((k: Konto) => ({ ...k, art: 'konto' as const }));
@@ -866,7 +870,7 @@ export default function KontenSeite() {
       } catch { /* ohne Zugaenge nur die Konten */ }
 
       setKonten([...konten, ...zugaenge]);
-    } catch { setErlaubt(false); }
+    } catch { setNichtErreichbar(true); }
     finally { setLaedt(false); }
   }, []);
 
@@ -1070,7 +1074,13 @@ ${k.name}`)) return;
           placeholder={t('Nach Name oder Konto-Id suchen …')}
           className={`${feld} mb-4`} />
 
-        {!gefiltert.length && (
+        {nichtErreichbar && (
+          <p className="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">
+            <T>Die Ablage antwortet gerade nicht. Die Konten sind da, nur gerade nicht lesbar.</T>
+            {' '}<button onClick={() => void holen()} className="underline hover:text-amber-200"><T>Noch einmal</T></button>
+          </p>
+        )}
+        {!gefiltert.length && !nichtErreichbar && (
           <p className="py-10 text-center text-xs text-slate-600">
             {konten.length
               ? <T>Kein Konto passt zur Suche.</T>

@@ -524,15 +524,31 @@ function RegionMarke({ region }: { region: string }) {
  * Geaendert wird nur die Schreibweise fuer die Anzeige; gespeichert bleibt
  * der Name der Quelle.
  */
-function turnierName(roh: string) {
+/**
+ * Die Rundenworte in der Sprache der Seite.
+ *
+ * Die Akte traegt die Titel der alten Spieltage auf Deutsch ("Runde 2",
+ * "Tag 1", "Finale") - gebaut auf dem Laufrechner, ohne Sprache. In der
+ * englischen Ansicht stand deshalb "Trios Cash Cup · Event 5 · Runde 2".
+ */
+function rundenWorte(text: string, t: (s: string) => string) {
+  return text
+    .replace(/\bRunde (\d+)/g, (_, n) => `${t('Runde')} ${n}`)
+    .replace(/\bTag (\d+)/g, (_, n) => `${t('Tag')} ${n}`)
+    .replace(/\bFinale\b/g, () => t('Finale'));
+}
+
+function turnierName(roh: string, t?: (s: string) => string) {
   if (!roh) return roh;
-  let t = roh.replace(/^CH\d+S\d+/i, '').replace(/_/g, ' ');
-  t = t.replace(/([A-Za-z])(\d)/g, '$1 $2');
-  t = t.replace(/([a-z0-9])([A-Z])/g, '$1 $2');
-  t = t.replace(/(FNCS|LCL|ZB|BR)([A-Z])/g, '$1 $2');
-  if (!t.includes(' - ')) t = t.replace(/\s+(Day \d+)$/i, ' - $1');
-  t = t.replace(/\s{2,}/g, ' ').trim();
-  return t || roh;
+  if (t) roh = rundenWorte(roh, t);
+  let x = roh.replace(/^CH\d+S\d+/i, '').replace(/_/g, ' ');
+  x = x.replace(/([A-Za-z])(\d)/g, '$1 $2');
+  x = x.replace(/([a-z0-9])([A-Z])/g, '$1 $2');
+  x = x.replace(/(FNCS|LCL|ZB|BR)([A-Z])/g, '$1 $2');
+  // Titel aus der Akte sind schon mit " · " gegliedert - dort kein " - " davor.
+  if (!x.includes(' - ') && !x.includes(' · ')) x = x.replace(/\s+(Day \d+)$/i, ' - $1');
+  x = x.replace(/\s{2,}/g, ' ').trim();
+  return x || roh;
 }
 
 /**
@@ -581,6 +597,11 @@ function kapitelVonSaison(kennung: string, name?: string): number {
   if (n <= 32) return 5;
   if (n <= 38) return 6;
   return 7;
+}
+
+/** Der Name einer Saison ohne ihr Kapitel - "Season 2", "Remix", "The Simpsons". */
+function saisonOhneKapitel(name: string): string {
+  return name.replace(/^Chapter \d+ /, '');
 }
 
 /** Falls eine Kennung wie "S37" durchrutscht - nie nackt anzeigen. */
@@ -1993,6 +2014,7 @@ export default function StatistikSeite() {
    */
   const [verdienstKapitel, setVerdienstKapitel] = useState<number>(0);
   const [verdienstSaison, setVerdienstSaison] = useState<string>('');
+  const [zeitraumOffen, setZeitraumOffen] = useState(false);
   const [saisonBilder, setSaisonBilder] = useState<Record<string, string | null>>({});
   const [saisonNamen, setSaisonNamen] = useState<Record<string, string>>({});
   /** Spieltage, zu denen nur Epic etwas hat - ohne Einzelwerte. */
@@ -4861,8 +4883,8 @@ export default function StatistikSeite() {
                                   links={lz.map((z) => kurveWert(z.werte))}
                                   rechts={rz.map((z) => kurveWert(z.werte))}
                                   marken={[
-                            lz.map((z) => `${turnierName(z.event)} · ${z.region}`),
-                            rz.map((z) => `${turnierName(z.event)} · ${z.region}`)]}
+                            lz.map((z) => `${turnierName(z.event, t)} · ${z.region}`),
+                            rz.map((z) => `${turnierName(z.event, t)} · ${z.region}`)]}
                                   namen={[vglLinks.anzeige, vglRechts.anzeige]} />
                               </section>
                             );
@@ -5843,7 +5865,7 @@ export default function StatistikSeite() {
                             </span>
                             <div className="min-w-0 flex-1">
                               <p className="truncate text-sm text-slate-200">
-                                {turnierName(z.event)}
+                                {turnierName(z.event, t)}
                               </p>
                               <p className="mt-0.5 text-[11px] text-slate-500">
                                 {z.season} · {z.region} · {z.werte.matchesPlayed} <T>Matches</T>
@@ -5947,7 +5969,7 @@ export default function StatistikSeite() {
                           beschriftung={`${t(kurveName)} ${t('je Spieltag')}`}
                           werte={[...verlauf].reverse().map((z) => kurveWert(z.werte))}
                           marken={[...verlauf].reverse().map((z) =>
-                            `${turnierName(z.event)} · ${z.region}`)} />
+                            `${turnierName(z.event, t)} · ${z.region}`)} />
                       </div>
                     </section>
                   )}
@@ -6099,20 +6121,24 @@ export default function StatistikSeite() {
                   const summe = gezeigt.reduce((a, z) => a + (z.verdienst ?? 0), 0)
                     + lanGezeigt.reduce((a, l) => a + l.betrag, 0);
                   const wahlTitel = verdienstSaison ? nameVon(verdienstSaison)
-                    : verdienstKapitel ? `Chapter ${verdienstKapitel}` : t('seit Chapter 1');
+                    : verdienstKapitel ? `Chapter ${verdienstKapitel}` : t('Alle Zeit');
                   /*
-                   * Ein einziger Waehler, wie "Zeitraum" oben: alle Zeit, ein
-                   * ganzes Kapitel, eine Saison - je Kapitel eine Gruppe. Zwei
-                   * Reihen Pillen mit Betraegen waren dem Betreiber zu viel:
-                   * "viel zu unclean, viel zu unsortiert."
+                   * Ein einziger Waehler, wie "Zeitraum" oben - nur eigens
+                   * gebaut, weil in einem <select> die Gruppenzeile nicht
+                   * waehlbar ist. Der Betreiber: "ich kann auf dieses fett
+                   * gedruckte Chapter 7 druecken, dann tut es mir den ganzen
+                   * Chapter auswaehlen." Darunter, eingerueckt, die Saisons.
                    */
-                  const wahlWert = verdienstSaison ? `s:${verdienstSaison}` : verdienstKapitel ? `k:${verdienstKapitel}` : '';
                   const waehle = (wert: string) => {
                     if (wert.startsWith('s:')) {
                       const k = wert.slice(2); setVerdienstSaison(k); setVerdienstKapitel(kapitelVon(k));
                     } else if (wert.startsWith('k:')) { setVerdienstKapitel(Number(wert.slice(2))); setVerdienstSaison(''); }
                     else { setVerdienstKapitel(0); setVerdienstSaison(''); }
+                    setZeitraumOffen(false);
                   };
+                  const zeile = (aktiv: boolean, fett = false, eingerueckt = false) =>
+                    `block w-full px-3 py-1.5 text-left text-xs transition ${eingerueckt ? 'pl-7' : ''} ${fett ? 'font-bold' : ''} ${
+                      aktiv ? 'bg-sky-500/15 text-sky-400' : 'text-slate-200 hover:bg-zinc-900'}`;
                   const saisonenVon = (k: number) => [...jeSaison.keys()]
                     .filter((x) => kapitelVon(x) === k)
                     .sort((a, b) => Number(b.slice(1)) - Number(a.slice(1)));
@@ -6128,28 +6154,46 @@ export default function StatistikSeite() {
                           </p>
                           {(verdienstKapitel || verdienstSaison) ? (
                             <p className="mt-1 text-[11px] tabular-nums text-slate-500">
-                              <T>seit Chapter 1</T>: ${zahl(gesamt, 0, sprache)}
+                              <T>Alle Zeit</T>: ${zahl(gesamt, 0, sprache)}
                             </p>
                           ) : null}
                         </div>
-                        <label className="flex items-center gap-2">
+                        <div className="relative flex items-center gap-2">
                           <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
                             <T>Zeitraum</T>
                           </span>
-                          <select value={wahlWert} onChange={(e) => waehle(e.target.value)}
-                            className="rounded-lg border border-zinc-800 bg-zinc-900/80 px-3
-                                       py-1.5 text-xs text-slate-100 outline-none focus:border-sky-500">
-                            <option value="">{t('seit Chapter 1')}</option>
-                            {kapitelListe.map((k) => (
-                              <optgroup key={k} label={`Chapter ${k}`}>
-                                <option value={`k:${k}`}>Chapter {k} · {t('ganzes Kapitel')}</option>
-                                {saisonenVon(k).map((x) => (
-                                  <option key={x} value={`s:${x}`}>{nameVon(x)}</option>
+                          <button onClick={() => setZeitraumOffen((o) => !o)}
+                            className="flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900/80 px-3
+                                       py-1.5 text-xs text-slate-100 outline-none transition hover:border-zinc-600 focus:border-sky-500">
+                            {wahlTitel}
+                            <span className="text-slate-500">▾</span>
+                          </button>
+                          {zeitraumOffen && (
+                            <>
+                              <div className="fixed inset-0 z-20" onClick={() => setZeitraumOffen(false)} />
+                              <div className="absolute right-0 top-full z-30 mt-1 max-h-96 w-60 overflow-auto rounded-lg
+                                              border border-zinc-700 bg-zinc-950 py-1 shadow-2xl">
+                                <button onClick={() => waehle('')} className={zeile(!verdienstKapitel, true)}>
+                                  <T>Alle Zeit</T>
+                                </button>
+                                {kapitelListe.map((k) => (
+                                  <div key={k} className="mt-1 border-t border-zinc-900 pt-1">
+                                    <button onClick={() => waehle(`k:${k}`)}
+                                      className={zeile(verdienstKapitel === k && !verdienstSaison, true)}>
+                                      Chapter {k}
+                                    </button>
+                                    {saisonenVon(k).map((x) => (
+                                      <button key={x} onClick={() => waehle(`s:${x}`)}
+                                        className={zeile(verdienstSaison === x, false, true)}>
+                                        {saisonOhneKapitel(nameVon(x))}
+                                      </button>
+                                    ))}
+                                  </div>
                                 ))}
-                              </optgroup>
-                            ))}
-                          </select>
-                        </label>
+                              </div>
+                            </>
+                          )}
+                        </div>
                       </div>
                       {!gezeigt.length && !lanGezeigt.length ? (
                         <p className="py-6 text-center text-xs text-slate-600">
@@ -6196,7 +6240,7 @@ export default function StatistikSeite() {
                                 return (
                                   <tr key={z.windowId + z.region} className="border-b border-zinc-900">
                                     <td className="px-3 py-2 text-slate-200">
-                                      {lan ? lan.name : turnierName(z.event)}
+                                      {lan ? lan.name : turnierName(z.event, t)}
                                       {lan && (
                                         <span className="ml-2 rounded bg-amber-500/15 px-1.5 py-0.5
                                                          text-[9px] font-semibold uppercase text-amber-400">
@@ -6472,7 +6516,7 @@ export default function StatistikSeite() {
                                       </span>
                                     </td>
                                     <td className="px-2 py-2.5 text-slate-300">
-                                      {x.turnier ? turnierName(x.turnier) : strich}
+                                      {x.turnier ? turnierName(x.turnier, t) : strich}
                                     </td>
                                     <td className="px-2 py-2.5">
                                       {x.mitspieler?.length ? (

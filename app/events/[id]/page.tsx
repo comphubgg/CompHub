@@ -2003,7 +2003,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
   const soloCup = useMemo(() => {
     if (tabelle.length > 0) return tabelle.every((e) => e.players.length === 1);
     const woran = `${cup?.titel ?? ''} ${cup?.untertitel ?? ''} ${id}`.toLowerCase();
-    return /solo/.test(woran);
+    return /\bsolo/.test(woran);
   }, [tabelle, cup, id]);
 
   /*
