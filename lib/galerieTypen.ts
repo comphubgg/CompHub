@@ -22,8 +22,19 @@ export interface GalerieEvent {
   id: string;
   name: string;
   ort: string;
-  /** Als YYYY-MM-DD - fuer die Reihenfolge und die Anzeige. */
+  /** Der erste Tag, als YYYY-MM-DD - fuer die Reihenfolge und die Anzeige. */
   datum: string;
+  /**
+   * Der letzte Tag, wenn das Event laenger ging - eine LAN dauert zwei,
+   * drei Tage. Der Betreiber: "ein Datum muss nicht eintaegig sein."
+   */
+  bis?: string;
+  /**
+   * Der Cup auf der Seite (die Kennung aus dem Cup-Katalog, /events/<id>),
+   * zu dem dieses Event gehoert. Damit stehen die Bilder "unter Events,
+   * unter dem passenden Cup" - auf dessen Seite im Reiter Archiv.
+   */
+  cupId?: string;
   beschreibung?: string;
   erstellt: number;
 }
@@ -53,6 +64,24 @@ export interface GalerieEintrag {
 export interface Galerie {
   events: GalerieEvent[];
   eintraege: GalerieEintrag[];
+}
+
+/**
+ * Der Zeitraum eines Events als Text - "29. bis 31. Mai 2026", auf Englisch
+ * "29 to 31 May 2026"; ein Tag allein wie bisher.
+ */
+export function zeitraumText(ev: Pick<GalerieEvent, 'datum' | 'bis'>, sprache: string): string {
+  const ort = sprache === 'de' ? 'de-DE' : 'en-GB';
+  const tag = (s: string) => { const d = new Date(`${s}T12:00:00Z`); return Number.isNaN(d.getTime()) ? null : d; };
+  const von = tag(ev.datum);
+  if (!von) return ev.datum;
+  const lang: Intl.DateTimeFormatOptions = { day: 'numeric', month: 'long', year: 'numeric' };
+  const bis = ev.bis && ev.bis > ev.datum ? tag(ev.bis) : null;
+  if (!bis) return von.toLocaleDateString(ort, lang);
+  const f = new Intl.DateTimeFormat(ort, lang);
+  // formatRange kennt jeder aktuelle Browser; zur Sicherheit der lange Weg.
+  try { return f.formatRange(von, bis).replace(/\s?[–-]\s?/, sprache === 'de' ? ' bis ' : ' to '); } catch { /* unten */ }
+  return `${von.toLocaleDateString(ort, lang)} ${sprache === 'de' ? 'bis' : 'to'} ${bis.toLocaleDateString(ort, lang)}`;
 }
 
 /** Eine kurze, eindeutige Kennung - Zeit plus Zufall, nur Kleinbuchstaben und Ziffern. */

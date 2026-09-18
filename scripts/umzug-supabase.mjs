@@ -48,6 +48,9 @@ const TABELLE = 'ablage';
 /** Diese Ordner gehen in den Objektspeicher - muss zu lib/ablageSupabase.ts passen. */
 const IM_OBJEKTSPEICHER = [
   'replays/', 'kartenbilder/', 'kontakt-bilder/', 'admin-maps/', '_sicherung/',
+  // Die Fotos des Archivs (lib/galerie.ts) - das Verzeichnis galerie.json
+  // daneben bleibt in der Tabelle.
+  'galerie/',
 ];
 
 /**
@@ -82,7 +85,8 @@ function umgebungLesen() {
 const U = { ...umgebungLesen(), ...process.env };
 const URL_ = (U.SUPABASE_URL || U.STORAGE_URL || '').replace(/\/+$/, '');
 const KEY = U.SUPABASE_SERVICE_ROLE_KEY || U.STORAGE_SERVICE_ROLE_KEY || '';
-const KOPF = { apikey: KEY, Authorization: `Bearer ${KEY}` };
+// Neue Schluessel (sb_secret_…) nur als "apikey", alte JWT-Schluessel auch als Bearer.
+const KOPF = KEY.startsWith('sb_') ? { apikey: KEY } : { apikey: KEY, Authorization: `Bearer ${KEY}` };
 
 /* ------------------------------------------------------------ Argumente */
 

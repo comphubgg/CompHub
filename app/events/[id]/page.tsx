@@ -19,6 +19,7 @@ import LadeSchirm from '@/app/components/LadeSchirm';
 import { regionFarbe } from '@/lib/regionFarbe';
 import { useT, useSprache } from '@/app/components/SprachProvider';
 import { kartenTitel } from '@/lib/rundenName';
+import CupArchiv from '@/app/components/CupArchiv';
 /**
  * Regionen, fuer die von selbst eine Karte bereitsteht.
  *
@@ -610,7 +611,24 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
    */
   const [reiter, setReiter] =
     useState<'liste' | 'runden' | 'spieler' | 'teams' | 'streams'
-      | 'about'>('liste');
+      | 'about' | 'archiv'>('liste');
+
+  /*
+   * Das Archiv zu diesem Cup - Fotos und Videos vom Event (lib/galerie).
+   *
+   * Der Reiter erscheint, sobald etwas drin ist; der Admin sieht ihn immer,
+   * um dort hochzuladen. Gezaehlt wird gleich beim Aufbau, damit der Reiter
+   * nicht erst nach einem Klick auftaucht.
+   */
+  const [archivAnzahl, setArchivAnzahl] = useState(0);
+  useEffect(() => {
+    let weg = false;
+    fetch(`/api/galerie?cup=${encodeURIComponent(id)}`, { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((j) => { if (!weg) setArchivAnzahl(Array.isArray(j?.eintraege) ? j.eintraege.length : 0); })
+      .catch(() => { /* dann ohne Reiter, bis der Admin etwas hochlaedt */ });
+    return () => { weg = true; };
+  }, [id]);
 
   /*
    * Wer bei diesem Spieltag mitspielen darf.
@@ -2483,6 +2501,19 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
             About
           </button>
 
+          {/* Das Archiv des Events - Fotos und Videos, siehe CupArchiv. */}
+          {(archivAnzahl > 0 || istAdmin) && (
+            <button
+              onClick={() => setReiter('archiv')}
+              className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                reiter === 'archiv'
+                  ? 'bg-sky-500/10 text-sky-400'
+                  : 'text-slate-400 hover:text-slate-200'}`}>
+              <T>Archiv</T>
+              {archivAnzahl > 0 && <span className="ml-1.5 text-slate-500">{archivAnzahl}</span>}
+            </button>
+          )}
+
           {/*
             * Der kurze Weg in das Beitragswerkzeug.
             *
@@ -3752,6 +3783,20 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
             )}
           </section>
         )}
+
+        {/* ------------------------------------------------- Archiv */}
+        {reiter === 'archiv' && cup && (() => {
+          const fenster = Object.values(cup.regionen).flat();
+          const beginne = fenster.map((f) => f.begin).filter(Boolean);
+          const enden = fenster.map((f) => f.end ?? f.begin).filter(Boolean);
+          const tag = (ms: number) => new Date(ms).toISOString().slice(0, 10);
+          return (
+            <CupArchiv cupId={cup.id} cupName={cup.titel} istAdmin={istAdmin}
+              von={beginne.length ? tag(Math.min(...beginne)) : undefined}
+              bis={enden.length ? tag(Math.max(...enden)) : undefined}
+              aufAnzahl={setArchivAnzahl} />
+          );
+        })()}
 
         {reiter === 'teams' && !statistik.length && (
           <p className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-8

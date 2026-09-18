@@ -1951,6 +1951,26 @@ const AUF_ENGLISCH: Record<string, string> = {
     'now',
   'Sitzungen':
     'sessions',
+  'Bis (optional)':
+    'Until (optional)',
+  'Cup auf der Seite':
+    'Cup on the site',
+  'Cup suchen …':
+    'Search cup …',
+  'Kein Cup verknüpft':
+    'No cup linked',
+  'Noch keine Bilder oder Videos zu diesem Cup.':
+    'No pictures or videos of this cup yet.',
+  'Spieler auf den Bildern (optional)':
+    'Players in the pictures (optional)',
+  'Im Admin-Archiv bearbeiten':
+    'Edit in the admin archive',
+  'Zur Cup-Seite':
+    'To the cup page',
+  'YouTube, Twitch, X und TikTok spielen direkt hier ab.':
+    'YouTube, Twitch, X and TikTok play right here.',
+  'Von':
+    'From',
   'Zu den Profilen':
     'To the profiles',
   'Allgemeines Archiv':

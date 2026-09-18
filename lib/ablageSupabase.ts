@@ -122,7 +122,18 @@ function zugang() {
       'Supabase ist nicht eingerichtet - SUPABASE_URL und '
       + 'SUPABASE_SERVICE_ROLE_KEY fehlen in der Umgebung.');
   }
-  return { url, kopf: { apikey: key, Authorization: `Bearer ${key}` } };
+  return { url, kopf: schluesselKopf(key) };
+}
+
+/**
+ * Die Kopfzeilen fuer den Schluessel. Die neuen Schluessel (sb_secret_…)
+ * sind keine JWTs und gehoeren laut Supabase nur in "apikey", nicht als
+ * Bearer; die alten service_role-Schluessel brauchen beides.
+ */
+export function schluesselKopf(key: string): Record<string, string> {
+  return key.startsWith('sb_')
+    ? { apikey: key }
+    : { apikey: key, Authorization: `Bearer ${key}` };
 }
 
 /* ------------------------------------------------------------- Tabelle */

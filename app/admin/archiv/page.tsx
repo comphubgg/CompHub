@@ -5,23 +5,23 @@
 //
 // So schlicht wie moeglich: links die Events, rechts das gewaehlte Event
 // mit einer Flaeche zum Hineinziehen der Fotos, einem Feld fuer eine
-// Videoadresse und darunter alles, was schon drin ist. Spieler werden ueber
-// die Suche der Statistik zugeordnet - nach Namen, gespeichert wird die
-// Konto-Id. Jede Eingabe speichert sich selbst, einen Speichern-Knopf gibt
-// es nicht.
+// Videoadresse und darunter alles, was schon drin ist - Videos spielen
+// dort ab. Spieler werden ueber die Suche der Statistik zugeordnet - nach
+// Namen, gespeichert wird die Konto-Id (die Bausteine dafuer stehen in
+// ArchivTeile). Jede Eingabe speichert sich selbst, einen Speichern-Knopf
+// gibt es nicht.
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
-import TeamFlagge from '@/components/TeamFlagge';
+import { useSearchParams } from 'next/navigation';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import LadeSchirm from '@/app/components/LadeSchirm';
 import { videoArt, type GalerieEintrag, type GalerieEvent } from '@/lib/galerieTypen';
+import {
+  ArchivVideo, CupWahl, SpielerSuche as SpielerWahl, bildPfad, type SpielerAngabe,
+} from '@/app/components/ArchivTeile';
 
-interface SpielerAngabe { name: string; land: string | null; bild: string | null }
 interface Antwort { events: GalerieEvent[]; eintraege: GalerieEintrag[]; spieler: Record<string, SpielerAngabe> }
-interface Treffer { epicId: string; anzeige: string; land?: string | null; bild?: string | null }
-
-const bildPfad = (e: GalerieEintrag) => `/api/galerie?bild=${encodeURIComponent(e.datei ?? '')}`;
 
 /** Ein Feld, das sich beim Verlassen selbst speichert. */
 function Feld({ wert, aufAendern, platzhalter, klasse, typ }: {
@@ -39,68 +39,15 @@ function Feld({ wert, aufAendern, platzhalter, klasse, typ }: {
   );
 }
 
-/** Spieler suchen und zuordnen - nach Namen, gespeichert wird die Id. */
-function SpielerWahl({ gewaehlt, angaben, aufAendern, t }: {
-  gewaehlt: string[]; angaben: Record<string, SpielerAngabe>;
-  aufAendern: (ids: string[]) => void; t: (s: string) => string;
-}) {
-  const [suche, setSuche] = useState('');
-  const [treffer, setTreffer] = useState<Treffer[]>([]);
-  const [gefunden, setGefunden] = useState<Record<string, SpielerAngabe>>({});
-  useEffect(() => {
-    const q = suche.trim();
-    if (q.length < 2) { setTreffer([]); return; }
-    let weg = false;
-    const zeiger = setTimeout(async () => {
-      try {
-        const j = await (await fetch(`/api/szene-stats?ansicht=suche&q=${encodeURIComponent(q)}`)).json();
-        if (!weg) setTreffer(j.spieler ?? []);
-      } catch { if (!weg) setTreffer([]); }
-    }, 250);
-    return () => { weg = true; clearTimeout(zeiger); };
-  }, [suche]);
-  const name = (id: string) => angaben[id]?.name ?? gefunden[id]?.name ?? id.slice(0, 8);
-  const land = (id: string) => angaben[id]?.land ?? gefunden[id]?.land ?? null;
-  return (
-    <div className="flex flex-wrap items-center gap-1.5">
-      {gewaehlt.map((id) => (
-        <span key={id} className="flex items-center gap-1 rounded-full border border-zinc-700 bg-zinc-900 py-0.5 pl-1.5 pr-1 text-[11px] font-semibold uppercase tracking-wide text-slate-200">
-          <TeamFlagge groesse={12} laender={[land(id) ?? undefined]} />
-          {name(id)}
-          <button onClick={() => aufAendern(gewaehlt.filter((x) => x !== id))} title={t('Entfernen')}
-            className="ml-0.5 rounded-full px-1 text-slate-500 hover:text-red-400">✕</button>
-        </span>
-      ))}
-      <span className="relative">
-        <input value={suche} onChange={(e) => setSuche(e.target.value)} placeholder={t('Spieler hinzufügen …')}
-          className="w-40 rounded-lg border border-zinc-800 bg-zinc-900/80 px-2.5 py-1 text-xs text-slate-100 outline-none focus:border-sky-500" />
-        {treffer.length > 0 && (
-          <span className="absolute left-0 top-full z-20 mt-1 w-56 overflow-hidden rounded-lg border border-zinc-700 bg-zinc-950 shadow-xl">
-            {treffer.filter((x) => !gewaehlt.includes(x.epicId)).map((x) => (
-              <button key={x.epicId}
-                onClick={() => {
-                  setGefunden((g) => ({ ...g, [x.epicId]: { name: x.anzeige, land: x.land ?? null, bild: x.bild ?? null } }));
-                  aufAendern([...gewaehlt, x.epicId]); setSuche(''); setTreffer([]);
-                }}
-                className="flex w-full items-center gap-2 px-2.5 py-1.5 text-left text-xs text-slate-200 hover:bg-zinc-900">
-                <TeamFlagge groesse={13} laender={[x.land ?? undefined]} />
-                <span className="truncate font-semibold uppercase">{x.anzeige}</span>
-              </button>
-            ))}
-          </span>
-        )}
-      </span>
-    </div>
-  );
-}
-
 export default function ArchivVerwaltung() {
   const t = useT();
   const [istAdmin, setIstAdmin] = useState<boolean | null>(null);
   const [daten, setDaten] = useState<Antwort | null>(null);
-  const [eventId, setEventId] = useState('');
+  // Aus dem Profil oder der Cup-Seite kommt man mit ?event=<id> direkt zum Event.
+  const suchParameter = useSearchParams();
+  const [eventId, setEventId] = useState(() => suchParameter?.get('event') ?? '');
   const [neuOffen, setNeuOffen] = useState(false);
-  const [neu, setNeu] = useState({ name: '', ort: '', datum: '', beschreibung: '' });
+  const [neu, setNeu] = useState({ name: '', ort: '', datum: '', bis: '', cupId: '', beschreibung: '' });
   const [laedtHoch, setLaedtHoch] = useState(false);
   const [fortschritt, setFortschritt] = useState('');
   const [meldung, setMeldung] = useState('');
@@ -141,7 +88,7 @@ export default function ArchivVerwaltung() {
     const r = await fetch('/api/galerie', { method: 'POST', body: form });
     const j = await r.json();
     if (!r.ok) { setMeldung(j?.error ?? t('nicht angelegt')); return; }
-    setNeu({ name: '', ort: '', datum: '', beschreibung: '' }); setNeuOffen(false); setMeldung('');
+    setNeu({ name: '', ort: '', datum: '', bis: '', cupId: '', beschreibung: '' }); setNeuOffen(false); setMeldung('');
     await laden();
     setEventId(j.event.id);
   }, [neu, laden, t]);
@@ -277,8 +224,21 @@ export default function ArchivVerwaltung() {
                 className="w-full rounded-lg border border-zinc-800 bg-zinc-900/80 px-3 py-1.5 text-sm text-slate-100 outline-none focus:border-sky-500" />
               <input value={neu.ort} onChange={(e) => setNeu({ ...neu, ort: e.target.value })} placeholder={t('Ort, z. B. Lyon')}
                 className="w-full rounded-lg border border-zinc-800 bg-zinc-900/80 px-3 py-1.5 text-sm text-slate-100 outline-none focus:border-sky-500" />
-              <input type="date" value={neu.datum} onChange={(e) => setNeu({ ...neu, datum: e.target.value })}
-                className="w-full rounded-lg border border-zinc-800 bg-zinc-900/80 px-3 py-1.5 text-sm text-slate-100 outline-none focus:border-sky-500" />
+              <div className="flex items-center gap-2">
+                <span className="w-8 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500"><T>Von</T></span>
+                <input type="date" value={neu.datum} onChange={(e) => setNeu({ ...neu, datum: e.target.value })}
+                  className="w-full rounded-lg border border-zinc-800 bg-zinc-900/80 px-3 py-1.5 text-sm text-slate-100 outline-none focus:border-sky-500" />
+              </div>
+              <div className="flex items-center gap-2">
+                <span className="w-8 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500"><T>bis</T></span>
+                <input type="date" value={neu.bis} min={neu.datum || undefined} onChange={(e) => setNeu({ ...neu, bis: e.target.value })}
+                  title={t('Bis (optional)')}
+                  className="w-full rounded-lg border border-zinc-800 bg-zinc-900/80 px-3 py-1.5 text-sm text-slate-100 outline-none focus:border-sky-500" />
+              </div>
+              <div>
+                <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500"><T>Cup auf der Seite</T></p>
+                <CupWahl wert={neu.cupId} aufAendern={(cupId) => setNeu({ ...neu, cupId })} t={t} />
+              </div>
               <textarea value={neu.beschreibung} onChange={(e) => setNeu({ ...neu, beschreibung: e.target.value })} placeholder={t('Beschreibung (optional)')} rows={2}
                 className="w-full rounded-lg border border-zinc-800 bg-zinc-900/80 px-3 py-1.5 text-sm text-slate-100 outline-none focus:border-sky-500" />
               <button onClick={eventAnlegen}
@@ -302,7 +262,18 @@ export default function ArchivVerwaltung() {
                 <Feld wert={event.name} aufAendern={(w) => eventAendern({ name: w })} klasse="w-64 font-bold" />
                 <Feld wert={event.ort} aufAendern={(w) => eventAendern({ ort: w })} platzhalter={t('Ort')} klasse="w-40" />
                 <Feld wert={event.datum} typ="date" aufAendern={(w) => eventAendern({ datum: w })} klasse="w-40" />
+                <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500"><T>bis</T></span>
+                <Feld wert={event.bis ?? ''} typ="date" aufAendern={(w) => eventAendern({ bis: w })} klasse="w-40" />
                 <Feld wert={event.beschreibung ?? ''} aufAendern={(w) => eventAendern({ beschreibung: w })} platzhalter={t('Beschreibung (optional)')} klasse="min-w-[16rem] flex-1" />
+                <span className="flex items-center gap-2">
+                  <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500"><T>Cup auf der Seite</T></span>
+                  <CupWahl wert={event.cupId ?? ''} aufAendern={(cupId) => eventAendern({ cupId })} t={t} />
+                  {event.cupId && (
+                    <Link href={`/events/${encodeURIComponent(event.cupId)}`} className="text-xs text-sky-400 hover:underline">
+                      <T>Zur Cup-Seite</T> ↗
+                    </Link>
+                  )}
+                </span>
                 {!eintraege.length && (
                   <button onClick={eventEntfernen} className="ml-auto rounded-md border border-zinc-800 px-2.5 py-1 text-xs text-slate-500 hover:border-red-500 hover:text-red-400">
                     <T>Event entfernen</T>
@@ -341,7 +312,7 @@ export default function ArchivVerwaltung() {
                       <T>Hinzufügen</T>
                     </button>
                     <span className="text-[11px] text-slate-600">
-                      {videoUrl.trim() ? `${t('Erkannt')}: ${videoArt(videoUrl.trim()).art}` : t('YouTube, Twitch und TikTok werden eingebettet, X als Link.')}
+                      {videoUrl.trim() ? `${t('Erkannt')}: ${videoArt(videoUrl.trim()).art}` : t('YouTube, Twitch, X und TikTok spielen direkt hier ab.')}
                     </span>
                   </div>
                 </div>
@@ -358,11 +329,8 @@ export default function ArchivVerwaltung() {
                         /* eslint-disable-next-line @next/next/no-img-element */
                         <img src={bildPfad(e)} alt="" loading="lazy" className="aspect-[4/3] w-full object-cover" />
                       ) : (
-                        <div className="flex aspect-[4/3] w-full flex-col items-center justify-center gap-1 bg-zinc-900 text-slate-400">
-                          <span className="text-2xl">▶</span>
-                          <span className="text-[11px] uppercase tracking-wide">{videoArt(e.url ?? '').art}</span>
-                          <a href={e.url} target="_blank" rel="noreferrer" className="max-w-[90%] truncate text-[11px] text-sky-400 hover:underline">{e.url}</a>
-                        </div>
+                        /* Das Video spielt gleich hier - niemand muss auf einen Link. */
+                        <div className="p-2"><ArchivVideo e={e} t={t} /></div>
                       )}
                       <div className="space-y-2 p-3">
                         <Feld wert={e.titel ?? ''} aufAendern={(w) => eintragAendern(e.id, { titel: w })} platzhalter={t('Titel (optional)')} klasse="w-full" />

@@ -11,6 +11,7 @@ import {
 //   GET                       -> Events, Eintraege und die Spieler darauf
 //                                (Name, Flagge, Foto - aus den gepflegten Profilen)
 //   GET ?spieler=<id>         -> nur, worauf dieser Spieler zu sehen ist
+//   GET ?cup=<id>             -> nur die Events zu diesem Cup (Reiter Archiv der Cup-Seite)
 //   GET ?bild=<datei>         -> das Bild selbst
 //   POST (multipart)          -> aktion=event | bild | video (nur Admin)
 //   PATCH (JSON)              -> Titel, Spieler oder Event-Angaben aendern (nur Admin)
@@ -77,11 +78,19 @@ export async function GET(request: Request) {
   }
   const g = await liesGalerie();
   const wer = (p.get('spieler') ?? '').trim().toLowerCase();
-  const eintraege = wer ? g.eintraege.filter((e) => e.spieler.includes(wer)) : g.eintraege;
+  const cup = (p.get('cup') ?? '').trim();
+  let events = g.events;
+  let eintraege = g.eintraege;
+  if (cup) {
+    events = events.filter((ev) => ev.cupId === cup);
+    const ids = new Set(events.map((ev) => ev.id));
+    eintraege = eintraege.filter((e) => ids.has(e.eventId));
+  }
+  if (wer) eintraege = eintraege.filter((e) => e.spieler.includes(wer));
   const alle = [...new Set(eintraege.flatMap((e) => e.spieler))];
   return NextResponse.json({
     success: true,
-    events: [...g.events].sort((a, b) => b.datum.localeCompare(a.datum)),
+    events: [...events].sort((a, b) => b.datum.localeCompare(a.datum)),
     eintraege: [...eintraege].sort((a, b) => b.erstellt - a.erstellt),
     spieler: await spielerAngaben(alle),
   }, { headers: { 'Cache-Control': 'no-store' } });
@@ -98,8 +107,12 @@ export async function POST(request: Request) {
     const datum = sauber(form.get('datum'), 10);
     if (!name) return NextResponse.json({ error: 'Name fehlt' }, { status: 400 });
     if (!/^\d{4}-\d{2}-\d{2}$/.test(datum)) return NextResponse.json({ error: 'Datum als JJJJ-MM-TT' }, { status: 400 });
+    const bis = sauber(form.get('bis'), 10);
+    const cupId = sauber(form.get('cupId'), 120);
     const event: GalerieEvent = {
       id: neueId(), name, ort: sauber(form.get('ort'), 80), datum,
+      bis: /^\d{4}-\d{2}-\d{2}$/.test(bis) && bis > datum ? bis : undefined,
+      cupId: cupId || undefined,
       beschreibung: sauber(form.get('beschreibung'), 600) || undefined, erstellt: Date.now(),
     };
     g.events.push(event);
@@ -164,6 +177,11 @@ export async function PATCH(request: Request) {
     if (body.name !== undefined) ev.name = sauber(body.name, 80) || ev.name;
     if (body.ort !== undefined) ev.ort = sauber(body.ort, 80);
     if (body.datum !== undefined && /^\d{4}-\d{2}-\d{2}$/.test(String(body.datum))) ev.datum = String(body.datum);
+    if (body.bis !== undefined) {
+      const bis = sauber(body.bis, 10);
+      ev.bis = /^\d{4}-\d{2}-\d{2}$/.test(bis) && bis > ev.datum ? bis : undefined;
+    }
+    if (body.cupId !== undefined) ev.cupId = sauber(body.cupId, 120) || undefined;
     if (body.beschreibung !== undefined) ev.beschreibung = sauber(body.beschreibung, 600) || undefined;
     await schreibGalerie(g);
     return NextResponse.json({ success: true, event: ev });
