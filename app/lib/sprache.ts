@@ -1951,6 +1951,8 @@ const AUF_ENGLISCH: Record<string, string> = {
     'now',
   'Sitzungen':
     'sessions',
+  'Archiv zu diesem Cup anlegen':
+    'Create an archive for this cup',
   'Wieder öffentlich zeigen':
     'Show publicly again',
   'Noch keine Ergebnisse — der Spieltag hat noch nicht begonnen.':

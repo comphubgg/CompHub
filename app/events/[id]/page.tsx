@@ -2109,7 +2109,9 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
    */
   useEffect(() => {
     if (soloCup && reiter === 'spieler') setReiter('teams');
-  }, [soloCup, reiter]);
+    // Ranked Cups haben diese Reiter nicht - siehe die Leiste unten.
+    if (cup?.art === 'ranked' && ['spieler', 'teams', 'archiv'].includes(reiter)) setReiter('liste');
+  }, [soloCup, reiter, cup?.art]);
 
   if (fehler) {
     return (
@@ -2537,7 +2539,20 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
             * Bei Duos bleibt beides: die Kacheln zeigen das Team, die Liste
             * aus den Replays zeigt, wer davon die Elims geholt hat.
             */}
-          {(soloCup
+          {/*
+            * Ranked Cups haben keine Werte je Spieler: die Szene-Quelle
+            * fuehrt sie nicht, Epic liefert nur die Bestenliste. Ein
+            * Reiter "Spieler-Stats", hinter dem nichts steht, ist keiner -
+            * der Betreiber: "die Player Stats sind nicht da, die Team
+            * Stats sind nicht da." Also nur, was es dort gibt.
+            */}
+          {(cup?.art === 'ranked'
+            ? [
+              ['liste', 'Leaderboard'],
+              ['runden', 'Matches'],
+              ['streams', 'Streams'],
+            ]
+            : soloCup
             ? [
               ['liste', 'Leaderboard'],
               ['runden', 'Matches'],
@@ -2578,8 +2593,16 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
             About
           </button>
 
-          {/* Das Archiv des Events - Fotos und Videos, siehe CupArchiv. */}
-          {(archivAnzahl > 0 || istAdmin) && (
+          {/*
+            * Das Archiv des Events - Fotos und Videos, siehe CupArchiv.
+            *
+            * Nur, wenn etwas drin ist - auch fuer den Admin. Der Betreiber:
+            * "Archiv soll nur dann angezeigt werden, wenn ich als Admin ein
+            * Archiv eroeffne, was hochlade. Sonst gar nicht." Zum Anlegen
+            * fuehrt fuer ihn ein kleiner Verweis ins Archiv-Werkzeug; Ranked
+            * Cups bekommen keins.
+            */}
+          {archivAnzahl > 0 && cup?.art !== 'ranked' && (
             <button
               onClick={() => setReiter('archiv')}
               className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
@@ -2587,8 +2610,16 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                   ? 'bg-sky-500/10 text-sky-400'
                   : 'text-slate-400 hover:text-slate-200'}`}>
               <T>Archiv</T>
-              {archivAnzahl > 0 && <span className="ml-1.5 text-slate-500">{archivAnzahl}</span>}
+              <span className="ml-1.5 text-slate-500">{archivAnzahl}</span>
             </button>
+          )}
+          {istAdmin && archivAnzahl === 0 && cup?.art !== 'ranked' && (
+            <a href={`/admin/archive?event=${encodeURIComponent(id)}`}
+              title={t('Archiv zu diesem Cup anlegen')}
+              className="rounded-lg px-3 py-1.5 text-xs font-medium text-slate-600
+                         transition hover:text-slate-300">
+              <T>Archiv</T> +
+            </a>
           )}
 
           {/*

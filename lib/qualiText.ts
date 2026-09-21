@@ -61,6 +61,47 @@ export function tokenText(token: string): string {
   return t;
 }
 
+/*
+ * Die uebrigen Anforderungen, die Epic am Fenster fuehrt - lesbar.
+ *
+ * Bei den Ranked Cups standen sie roh auf der Seite: "eula:s42_rankedcup_rules",
+ * "adps:g-a81a33a3b9a7", "current Ranking:ranked-br-combined:0". Was sich
+ * nicht in einen Satz bringen laesst, bleibt weg - besser eine Zeile
+ * weniger als eine Kennung, die niemand versteht.
+ */
+const RANG_TRACKS: Record<string, string> = {
+  'ranked-br-combined': 'Ranked Battle Royale',
+  'ranked-br': 'Ranked Battle Royale',
+  'ranked-zb-combined': 'Ranked Zero Build',
+  'ranked-zb': 'Ranked Zero Build',
+  'ranked-blastberry-combined': 'Ranked Reload',
+  'ranked_blastberry_build': 'Ranked Reload',
+  'ranked_blastberry_nobuild': 'Ranked Reload Zero Build',
+  'ranked-blastberry-nobuild': 'Ranked Reload Zero Build',
+};
+const RANG_STUFEN_22 = [
+  'Bronze I', 'Bronze II', 'Bronze III', 'Silver I', 'Silver II', 'Silver III',
+  'Gold I', 'Gold II', 'Gold III', 'Platinum I', 'Platinum II', 'Platinum III',
+  'Diamond I', 'Diamond II', 'Diamond III', 'Elite I', 'Elite II', 'Elite III',
+  'Champion I', 'Champion II', 'Champion III', 'Unreal',
+];
+
+function anforderungText(s: string): string | null {
+  if (/2fa|mfa|twofactor/i.test(s)) return 'Two-factor authentication switched on';
+  if (/^eula:/i.test(s)) return 'Accepted the cup rules in game';
+  // Interne Kennungen ohne Bedeutung fuer Spieler.
+  if (/^adps:/i.test(s)) return null;
+  const rang = s.match(/^currentRanking:([^:]+):(\d+)$/i);
+  if (rang) {
+    const track = RANG_TRACKS[rang[1]] ?? rang[1];
+    const stufe = Number(rang[2]);
+    return stufe > 0 && RANG_STUFEN_22[stufe]
+      ? `${track}: at least ${RANG_STUFEN_22[stufe]} this season`
+      : `${track}: a current rank this season (any tier)`;
+  }
+  return s.replace(/([a-z])([A-Z])/g, '$1 $2');
+}
+
 interface RohesFenster {
   requireAllTokens?: string[];
   requireAnyTokens?: string[];
@@ -102,12 +143,8 @@ export function qualiZeilen(
    */
   for (const a of fenster?.additionalRequirements ?? []) {
     const s = String(a);
-    raus.push({
-      art: 'dabei',
-      text: /2fa|mfa|twofactor/i.test(s)
-        ? 'Two-factor authentication switched on'
-        : s.replace(/([a-z])([A-Z])/g, '$1 $2'),
-    });
+    const text = anforderungText(s);
+    if (text) raus.push({ art: 'dabei', text });
   }
 
   const jede = (fenster?.requireAnyTokens ?? []).map(tokenText).filter(Boolean);
