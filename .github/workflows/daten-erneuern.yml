@@ -285,11 +285,16 @@ jobs:
         # Mit Frist: ist Supabase weg, bricht das Skript nach fuenf Fehlern
         # ab - und spaetestens hier ist Schluss, damit der Lauf nicht in
         # seine 90 Minuten laeuft und das Release leer ausgeht.
+        #
+        # Die Akten bleiben draussen: achttausend Dateien, ein Viertel
+        # Gigabyte, jede Stunde neu geschrieben - sie liegen am Release, und
+        # die Seite liest sie dort zuerst. In der Datenbank waren sie die
+        # groesste Last am kostenlosen Kontingent (500 MB).
         continue-on-error: true
         timeout-minutes: 12
         run: |
           node scripts/umzug-supabase.mjs --neuer-als 120 \
-            --ohne replays,_sicherung
+            --ohne replays,_sicherung,akten
 
       - name: Ausgewertete Replays nach Supabase
         # Die Aggregate liegen unter replays/, sind aber das Einzige daraus,
