@@ -785,6 +785,50 @@ export async function turnierOptik(): Promise<Record<string, TurnierOptik>> {
 
 export const REGIONEN = ['EU', 'NAC', 'NAW', 'BR', 'ASIA', 'ME', 'OCE'] as const;
 
+/*
+ * Ein Cup, eine Kachel - auch in Nordamerika.
+ *
+ * Der Betreiber: "Wieso gibt es dann ein NAC Duo Reload Cup als Extra-Cup?
+ * Da kann ich einfach auf den Duo Reload Cup draufdruecken und NAC
+ * auswaehlen. Genauso wie mit NA West." Epic fuehrt seine NAC- und
+ * NAW-Cups fuer alle Nordamerikaner offen: das Ereignis nennt die
+ * Regionen NA, NAC, NAE, NAW zusammen, und es traegt eine eigene
+ * Anzeige-Kennung mit Anhang ("s42_ranked_duos_br_nac") und einen Titel
+ * mit Kennzeichen ("[NAC] Duos Reload Ranked Cup"). Nach der alten Regel
+ * "mehrere Regionen heisst weltweit" wurde daraus je eine eigene Kachel
+ * mit "GLOBAL" - neben der richtigen Kachel des Cups, die den Spieltag
+ * schon unter NAC fuehrte.
+ *
+ * Die Heimat eines Ereignisses steht am Ende seiner Kennung
+ * ("epicgames_S42_RankedCupDuos_NAC"). Traegt es eine, ist es ein
+ * Regionalcup und gehoert unter diese Region; weltweit ist nur, was keine
+ * traegt und trotzdem mehrere Regionen nennt (eine LAN).
+ */
+export function heimatRegion(kennung: string): string | null {
+  const m = kennung.match(/_(EU|NAC|NAE|NAW|BR|ASIA|ME|OCE)(?:v\d+)?(?:_mg\d*)?$/i);
+  if (!m) return null;
+  const r = m[1].toUpperCase();
+  return r === 'NAE' ? 'NAC' : r;
+}
+
+/**
+ * Die Anzeige-Kennung ohne den Regionsanhang von NAC und NAW - damit der
+ * NAC-Spieltag zur selben Kachel gehoert wie der von EU. "_br" bleibt: das
+ * ist Battle Royale, nicht Brasilien (Brasilien traegt keinen Anhang).
+ */
+export function gruppenId(displayDataId: string, heimat: string | null): string {
+  if (heimat && heimat !== 'BR') {
+    const anhang = `_${heimat.toLowerCase()}`;
+    if (displayDataId.toLowerCase().endsWith(anhang)) return displayDataId.slice(0, -anhang.length);
+  }
+  return displayDataId;
+}
+
+/** "[NAC] Duos Ranked Cup" -> "Duos Ranked Cup". */
+export function ohneRegionsKennzeichen(titel: string): string {
+  return titel.replace(/^\[(EU|NAC|NAE|NAW|BR|ASIA|ME|OCE)\]\s*/i, '');
+}
+
 export const REGION_TEXT: Record<string, string> = {
   EU: 'Europe', NAC: 'NA Central', NAW: 'NA West',
   BR: 'Brazil', ASIA: 'Asia', ME: 'Middle East', OCE: 'Oceania',
@@ -1043,13 +1087,16 @@ export async function cupsGruppiert(regionen: readonly string[] = REGIONEN) {
     }
 
     for (const ev of daten.events ?? []) {
-      const id = ev.displayDataId || ev.eventId;
-      const key = alsContentKey(id);
+      const anzeigeId = ev.displayDataId || ev.eventId;
+      const key = alsContentKey(anzeigeId);
       const o = optik[key];
+      // Siehe heimatRegion: der NAC-Cup gehoert zur Kachel des Cups, unter NAC.
+      const heimat = heimatRegion(ev.eventId);
+      const id = gruppenId(anzeigeId, heimat);
 
       let g = gruppen.get(id);
       if (!g) {
-        const ausEpic = o?.titel ?? '';
+        const ausEpic = ohneRegionsKennzeichen(o?.titel ?? '');
         const titel = titelBrauchbar(ausEpic, id)
           ? ausEpic
           : (nameAusFenstern((ev.eventWindows ?? []).map((w) => w.eventWindowId))
@@ -1061,10 +1108,10 @@ export async function cupsGruppiert(regionen: readonly string[] = REGIONEN) {
           bild: o?.bild,
           farbe: o?.farbe,
           art: bestimmeArt(id, titel, ev.metadata?.tournamentType as string | undefined),
-          // Ein Event, das selbst mehrere Regionen auffuehrt, hat ein
-          // gemeinsames Leaderboard - typisch fuer Launch- und Vor-Ort-Events.
+          // Ein Event, das selbst mehrere Regionen auffuehrt und keine
+          // Heimat traegt, hat ein gemeinsames Leaderboard - eine LAN.
           // Es waere falsch, dafuer eine Regionsauswahl anzubieten.
-          global: (ev.regions?.length ?? 0) > 1,
+          global: (ev.regions?.length ?? 0) > 1 && !heimat,
           regionen: {},
           naechsterStart: null,
           letzterStart: null,
@@ -1087,7 +1134,7 @@ export async function cupsGruppiert(regionen: readonly string[] = REGIONEN) {
           name: id,
           eventId: ev.eventId,
           windowId: w.eventWindowId,
-          region,
+          region: heimat ?? region,
           runde: w.round ?? 0,
           rundenTyp: (w.metadata?.RoundType as string) ?? undefined,
           // Finals tragen es im Namen oder im Zugangs-Token.
@@ -1106,7 +1153,7 @@ export async function cupsGruppiert(regionen: readonly string[] = REGIONEN) {
         // Globale Events kommen aus jeder Regionsabfrage identisch zurueck.
         // Sie landen unter einem Sammelschluessel, damit sie nicht faelschlich
         // als sieben getrennte Regionen erscheinen.
-        const schluessel = g.global ? 'GLOBAL' : region;
+        const schluessel = g.global ? 'GLOBAL' : (heimat ?? region);
         const liste = (g.regionen[schluessel] ??= []);
         if (!liste.some((x) => x.windowId === fenster.windowId)) liste.push(fenster);
 
@@ -1174,8 +1221,39 @@ export interface ArchivEintrag {
 }
 
 export async function leseArchiv(): Promise<ArchivEintrag[]> {
-  try { return JSON.parse(await fs.readFile(ARCHIV, 'utf8')) as ArchivEintrag[]; }
+  try { return bereinigeArchiv(JSON.parse(await fs.readFile(ARCHIV, 'utf8')) as ArchivEintrag[]); }
   catch { return []; }
+}
+
+/**
+ * Alte Archivzeilen auf die heutige Regel bringen - siehe heimatRegion.
+ *
+ * Bis zum 21.9.2026 landeten NAC- und NAW-Cups als eigene Kacheln unter
+ * "GLOBAL" ("[NAC] FNCS Division 1 Practice", Id "s42_division1_nac") -
+ * neben der Kachel, die denselben Spieltag laengst unter NAC fuehrte. Hier
+ * bekommen solche Zeilen ihre Region, die Kennung ohne Anhang und den
+ * Titel ohne Kennzeichen; was danach doppelt ist, faellt zusammen. Beim
+ * naechsten Schreiben steht das Archiv dann bereinigt auf der Platte, auf
+ * jedem Rechner, der es liest.
+ */
+function bereinigeArchiv(eintraege: ArchivEintrag[]): ArchivEintrag[] {
+  const nachSchluessel = new Map<string, ArchivEintrag>();
+  for (const e of eintraege) {
+    let z = e;
+    if (e.region === 'GLOBAL') {
+      const heimat = heimatRegion(e.windowId) ?? heimatRegion(e.eventId);
+      if (heimat) {
+        z = { ...e, region: heimat, global: false, id: gruppenId(e.id, heimat), titel: ohneRegionsKennzeichen(e.titel) };
+      }
+    }
+    const k = z.windowId + '|' + z.region;
+    const da = nachSchluessel.get(k);
+    // Bei zwei Zeilen fuer denselben Spieltag bleibt die vollstaendigere.
+    if (!da || ((z.raenge?.length ? 1 : 0) + (z.playlist ? 1 : 0)) > ((da.raenge?.length ? 1 : 0) + (da.playlist ? 1 : 0))) {
+      nachSchluessel.set(k, z);
+    }
+  }
+  return [...nachSchluessel.values()];
 }
 
 /**
@@ -1256,6 +1334,12 @@ export async function schreibeArchiv(cups: CupGruppe[]): Promise<number> {
   const nachSchluessel = new Map(vorhanden.map((e) => [e.windowId + '|' + e.region, e]));
   const jetzt = new Date().toISOString();
   let neu = 0;
+  // Hat das Bereinigen beim Lesen Zeilen zusammengelegt, gehoert der
+  // bereinigte Stand auf die Platte - auch ohne neuen Spieltag.
+  try {
+    const roh = JSON.parse(await fs.readFile(ARCHIV, 'utf8')) as unknown[];
+    if (Array.isArray(roh) && roh.length !== vorhanden.length) neu += 1;
+  } catch { /* keine Datei - dann ist ohnehin alles neu */ }
 
   for (const c of cups) {
     for (const [region, fenster] of Object.entries(c.regionen)) {
