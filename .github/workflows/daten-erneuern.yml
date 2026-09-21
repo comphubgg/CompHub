@@ -296,6 +296,9 @@ jobs:
           done
           node scripts/antworten-vorrechnen.mjs http://localhost:3000 > /tmp/vorrechnen.log 2>&1
           tail -n 30 /tmp/vorrechnen.log
+          # Die Zahlen des Tages nach #admin-zahlen - eine Nachricht je Tag,
+          # die jeder Lauf fortschreibt (scripts/admin-zahlen-discord.mjs).
+          node scripts/admin-zahlen-discord.mjs http://localhost:3000 2>&1 | tail -2
           kill $SERVER || true
           mkdir -p data/antworten
           BEREIT=$BEREIT node scripts/lauf-protokoll.mjs

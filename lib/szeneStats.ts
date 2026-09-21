@@ -1482,6 +1482,63 @@ export async function jahresListen(jahr: number, region?: string, nurSaison?: st
   };
 }
 
+/**
+ * Das Preisgeld eines Tages - fuer den Admin-Kanal (#admin-zahlen).
+ *
+ * Der Betreiber wollte dort "neue earnings an spezielle Spieler" sehen.
+ * Genommen werden Epics Spieltage, deren erstes Match nach "seit" endete,
+ * gerechnet wie in jahresListen: Endstand je Fenster (platzKarte) mit
+ * Epics Auszahlungstabelle (verdienst). Ohne Tabelle kein Betrag - dann
+ * steht der Spieltag nur in "spieltage", nicht in "mitTabelle".
+ */
+export async function tagesVerdienst(seit: number) {
+  const tage = (await liesEpicSpieltage()).filter((t) => (t.datum ?? 0) >= seit);
+  type Eintrag = { betrag: number; fenster: Array<{ windowId: string; titel: string; region: string; platz: number; betrag: number }> };
+  const geld = new Map<string, Eintrag>();
+  let mitTabelle = 0;
+  for (const t of tage) {
+    const karte = await platzKarte(t.season, t.windowId);
+    if (!karte) continue;
+    let einer = false;
+    for (const [id, p] of karte) {
+      const v = await verdienst({
+        windowId: t.windowId, eventId: t.eventId, region: t.region, name: t.titel,
+        platz: p.platz, punkte: p.punkte,
+      });
+      if (!v) break; // keine Regel fuer diesen Spieltag - alle Konten gleich
+      if (v.betrag <= 0) continue;
+      einer = true;
+      const e = geld.get(id) ?? { betrag: 0, fenster: [] };
+      e.betrag += v.betrag;
+      e.fenster.push({ windowId: t.windowId, titel: t.titel, region: t.region, platz: p.platz, betrag: v.betrag });
+      geld.set(id, e);
+    }
+    if (einer) mitTabelle += 1;
+  }
+  const namen = new Map((await gesamtSummen()).map((s) => [s.epicId, s.name]));
+  const spitze = [...geld.entries()].sort((a, b) => b[1].betrag - a[1].betrag).slice(0, 15);
+  const namenlos = spitze.map(([id]) => id).filter((id) => !namen.get(id));
+  if (namenlos.length && !ohneDateien()) {
+    try {
+      const { getToken, loeseNamenAuf } = await import('@/lib/epicCups');
+      const { token } = await getToken();
+      for (const [id, name] of Object.entries(await loeseNamenAuf(namenlos, token))) {
+        if (name && name !== id.slice(0, 8)) namen.set(id, name);
+      }
+    } catch { /* dann die gekuerzte Id */ }
+  }
+  return {
+    spieltage: tage.length,
+    mitTabelle,
+    konten: geld.size,
+    summe: [...geld.values()].reduce((a, e) => a + e.betrag, 0),
+    spieler: spitze.map(([id, e]) => ({
+      epicId: id, name: namen.get(id) || id.slice(0, 8), betrag: e.betrag,
+      fenster: e.fenster.sort((a, b) => b.betrag - a.betrag),
+    })),
+  };
+}
+
 /** Die LAN-Ergebnisse eines Kontos - Platz und Preisgeld je LAN. */
 export async function lanErgebnisse(epicId: string) {
   const raus: Array<{ kennung: string; name: string; season: string; fenster: string; ort: string | null; platz: number; betrag: number; waehrung: string }> = [];
