@@ -1951,6 +1951,10 @@ const AUF_ENGLISCH: Record<string, string> = {
     'now',
   'Sitzungen':
     'sessions',
+  'Noch keine Ergebnisse — der Spieltag hat noch nicht begonnen.':
+    'No results yet, this match day has not started.',
+  'Die Bestenliste ist gerade nicht erreichbar. Es wird gleich noch einmal versucht.':
+    'The leaderboard is not reachable right now. It will be retried in a moment.',
   'Meiste Team-Eliminierungen':
     'Most team eliminations',
   'Team-Eliminierungen aus Epics Bestenlisten: die Eliminierungen des ganzen Teams je Spieltag, für jedes Mitglied gezählt; erfasst sind je Spieltag die besten 500 Teams':

@@ -1834,6 +1834,20 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
       return;
     }
     /*
+     * Ein Spieltag, der noch nicht begonnen hat, hat keine Bestenliste.
+     *
+     * Bei Ranked Cups legt Epic die Liste einer Rangstufe erst mit dem
+     * Start an; vorher antwortet es mit "Event window not found", und
+     * genau das stand roh auf der Seite - mit Epics Adresse und Konto-Id.
+     * Der Betreiber: "?". Also gar nicht erst fragen.
+     */
+    if (f.status === 'kommt') {
+      setTabelle([]);
+      setStand(t('Noch keine Ergebnisse — der Spieltag hat noch nicht begonnen.'));
+      setLaedt(false);
+      return;
+    }
+    /*
      * Erst der Anfang, dann Stufe um Stufe tiefer.
      *
      * Vorher holte diese Seite beim Oeffnen alle zehntausend Plaetze auf
@@ -1918,7 +1932,18 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
       }
     } catch (e) {
       if (!nochMeins()) return;
-      setStand(t('Fehler') + ': ' + (e as Error).message);
+      const meldung = (e as Error).message || '';
+      /*
+       * Eine Liste, die Epic (noch) nicht kennt, ist kein Fehler der Seite:
+       * die Stufe eines Ranked Cups entsteht erst mit dem Start. Alles
+       * andere kurz und lesbar - die rohe Adresse gehoert in die Konsole.
+       */
+      if (/not found|404/i.test(meldung)) {
+        setStand(t('Noch keine Ergebnisse'));
+      } else {
+        console.error('Bestenliste:', meldung);
+        setStand(t('Die Bestenliste ist gerade nicht erreichbar. Es wird gleich noch einmal versucht.'));
+      }
       setTabelle([]);
       setLaedt(false);
     }
