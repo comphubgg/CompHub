@@ -1209,7 +1209,14 @@ export async function schreibeArchiv(cups: CupGruppe[]): Promise<number> {
     for (const [region, fenster] of Object.entries(c.regionen)) {
       for (const f of fenster) {
         const k = f.windowId + '|' + region;
-        if (nachSchluessel.has(k)) continue;
+        const da = nachSchluessel.get(k);
+        if (da) {
+          // Die Playlist nachtragen, wo sie noch fehlt - sie kam erst am
+          // 21.9.2026 ins Archiv, und ohne sie oeffnet ein Reload-Spieltag
+          // seine Karte auf Battle Royale.
+          if (f.playlist && !da.playlist) { da.playlist = f.playlist; neu++; }
+          continue;
+        }
         nachSchluessel.set(k, {
           id: c.id, titel: c.titel, untertitel: c.untertitel, bild: c.bild,
           art: c.art, global: c.global,
