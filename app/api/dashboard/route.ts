@@ -51,39 +51,38 @@ async function getFallbackDashboard(): Promise<DashboardData> {
 }
 
 /*
+ * Die Ordner sind die Wahrheit, streamers.json wird daraus abgeleitet.
+ *
  * Zwei Dateien fuehren dieselben Streamer: dashboard.json (die Ordner, die
- * die Seite zeigt) und streamers.json (die Listen je Region, die die Seite
- * beim Anlegen und Loeschen mitschreibt). Wer streamers.json direkt
- * ergaenzt - so kamen die fuenfzig EU-Pros des Betreibers hinein -, sah in
- * den Ordnern nichts davon: "wieso hat es immer noch nur 54". Deshalb
- * gehen fehlende Eintraege der Listen hier in ihren Ordner, hinten dran.
+ * die Seite zeigt und beim Speichern schreibt) und streamers.json (die
+ * Listen je Region, die Skripte lesen). Am 21.9.2026 stand hier kurz das
+ * Umgekehrte - fehlende Eintraege der Listen wurden beim Lesen in die
+ * Ordner gemischt. Folge: was der Betreiber im Dashboard loeschte, stand
+ * nach dem Neuladen wieder da, weil es in der Liste noch lag. Der
+ * Betreiber: "Ich habe jetzt ein paar Streamer rausgeloescht, die sollten
+ * dann fuer jeden geloescht sein." Jetzt gilt nur noch eine Richtung: beim
+ * Speichern der Ordner werden die Listen daraus neu geschrieben.
  */
 const ORDNER_JE_LISTE: Record<string, string> = { EU: 'fortnite-eu', NA: 'fortnite-na', streamer: 'streamer' };
 
-function mitListen(dashboard: DashboardData, listen: Record<string, StreamerData[]> | undefined): DashboardData {
-  if (!listen) return dashboard;
+async function listenAusOrdnern(dashboard: DashboardData): Promise<void> {
+  const alt = (await readJsonFile<{ streamers?: Record<string, StreamerData[]> }>(STREAMERS_FILE))?.streamers ?? {};
+  const neu: Record<string, StreamerData[]> = { ...alt };
   for (const [liste, ordnerId] of Object.entries(ORDNER_JE_LISTE)) {
     const ordner = dashboard.folders.find((f) => f.id === ordnerId);
-    if (!ordner || !Array.isArray(listen[liste])) continue;
-    const da = new Set(ordner.streamers.map((s) => s.twitch.trim().toLowerCase()));
-    for (const s of listen[liste]) {
-      const twitch = String(s.twitch || '').trim().toLowerCase();
-      if (!twitch || da.has(twitch)) continue;
-      ordner.streamers.push({ twitch, twitter: String(s.twitter || '').trim() || twitch });
-      da.add(twitch);
-    }
+    if (!ordner) continue;
+    neu[liste] = ordner.streamers.map((s) => ({ twitch: s.twitch, twitter: s.twitter }));
   }
-  return dashboard;
+  await fs.writeFile(STREAMERS_FILE, JSON.stringify({ streamers: neu }, null, 2));
 }
 
 async function getDashboardData(): Promise<DashboardData> {
   await ensureDataDir();
   const dashboardJson = await readJsonFile<DashboardData>(DASHBOARD_FILE);
-  const listen = await readJsonFile<{ streamers?: Record<string, StreamerData[]> }>(STREAMERS_FILE);
   if (dashboardJson && Array.isArray(dashboardJson.folders)) {
-    return mitListen(dashboardJson, listen?.streamers);
+    return dashboardJson;
   }
-  return mitListen(await getFallbackDashboard(), listen?.streamers);
+  return await getFallbackDashboard();
 }
 
 async function saveDashboardData(data: DashboardData): Promise<void> {
@@ -122,6 +121,8 @@ export async function POST(request: NextRequest) {
 
     const dashboard: DashboardData = { folders: sanitizedFolders };
     await saveDashboardData(dashboard);
+    // Die Listen je Region folgen den Ordnern - ein Fehler dort haelt das Speichern nicht auf.
+    try { await listenAusOrdnern(dashboard); } catch (e) { console.error('streamers.json nicht nachgezogen:', e); }
     return NextResponse.json({ success: true, data: dashboard });
   } catch (error) {
     console.error(t('error_saving_dashboard', 'Error saving dashboard:'), error);

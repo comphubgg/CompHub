@@ -64,16 +64,23 @@ async function einladung() {
 
 /*
  * Die Beschreibung - Discord zeigt sie im Profil des Bots unter "Bio"
- * (hoechstens 400 Zeichen). Englisch wie die Seite. Was der Bot tut, wo
- * die Seite ist, wie man in den Discord kommt.
+ * (hoechstens 400 Zeichen). Englisch wie die Seite. Fett und mit ganzen
+ * Adressen, damit Discord daraus blaue Verweise macht - der Betreiber
+ * wollte die Seite und den Discord herausstechen sehen, "blau, fett
+ * geschrieben", wie bei anderen Bots.
  */
+const X_KONTO = 'https://x.com/CompHub_gg';
+
 function beschreibung(link) {
   return [
-    'Official bot of CompHub, the home of Fortnite competitive: stats, tournaments, live leaderboards and rankings.',
-    `Website: ${SEITE.replace('https://www.', '')}`,
-    link ? `Discord: ${link.replace('https://', '')}` : null,
-    'I post updates, run Get Access for VIP and manager keys and keep the admin channels current.',
-  ].filter(Boolean).join('\n').slice(0, 400);
+    'Official CompHub bot. Fortnite competitive stats, tournaments, live leaderboards and rankings.',
+    '',
+    `**Website:** ${SEITE}`,
+    link ? `**Discord:** ${link}` : null,
+    `**X:** ${X_KONTO}`,
+    '',
+    'Posts updates, runs Get Access for VIP and manager keys.',
+  ].filter((z) => z !== null).join(String.fromCharCode(10)).slice(0, 400);
 }
 
 async function main() {
