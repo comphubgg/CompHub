@@ -2742,11 +2742,25 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
              * dem Platz, bleibt die Zelle leer; ohne Tabelle fehlt die Spalte.
              */
             const geldStufen = (preise?.geld ?? []).filter((g) => g.art === 'rank');
-            const preisFuer = (rank: number): number | null => {
+            /*
+             * Dazu die Zahlungen nach Punkten - Victory Cups, Cash Cups mit
+             * "100 Punkte: 100 $". Der Betreiber: "jemand mit einem Win hat
+             * hundertprozentig 100 Dollar, da kannst du bei den Earnings
+             * einmal 100 Dollar hinschreiben." Es zaehlt die hoechste
+             * erreichte Stufe, nicht die Summe aller: Epics Tabelle nennt
+             * bei 200 Punkten 200 $, nicht 100 plus 200.
+             */
+            const punkteStufen = (preise?.geld ?? [])
+              .filter((g) => g.art === 'value')
+              .sort((a, b) => a.schwelle - b.schwelle);
+            const preisFuer = (rank: number, punkte: number): number | null => {
               const g = geldStufen.find((s) => (s.von ?? s.schwelle) <= rank && rank <= s.schwelle);
-              return g ? g.betrag : null;
+              if (g) return g.betrag;
+              let nachPunkten: number | null = null;
+              for (const s of punkteStufen) if (punkte >= s.schwelle) nachPunkten = s.betrag;
+              return nachPunkten;
             };
-            const mitPreis = geldStufen.length > 0;
+            const mitPreis = geldStufen.length > 0 || punkteStufen.length > 0;
             const waehrung = preise?.waehrung ?? 'USD';
             return (
             <div className="overflow-x-auto">
@@ -2825,7 +2839,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                         </td>
                         <td className="px-4 py-2 text-right tabular-nums text-slate-400">{e.games}</td>
                         {mitPreis && (() => {
-                          const betrag = preisFuer(e.rank);
+                          const betrag = preisFuer(e.rank, e.points);
                           return (
                             <td className={`px-4 py-2 text-right font-semibold tabular-nums ${
                               betrag ? 'text-emerald-400' : 'text-slate-700'}`}>

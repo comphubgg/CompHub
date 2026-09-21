@@ -3949,23 +3949,33 @@ ${name}
                         <span className="shrink-0 rounded bg-zinc-800 px-1.5 py-0.5
                                          text-[10px] text-slate-400">versteckt</span>
                       )}
+                      {/*
+                        * Das rote Kreuz loescht - nach Rueckfrage mit dem Namen.
+                        *
+                        * Vorher blendete das Kreuz nur aus und ein graues
+                        * Muelleimer-Zeichen daneben loeschte. Der Betreiber
+                        * drueckte das Kreuz, die Karte blieb mit "versteckt"
+                        * in der Liste stehen: "wenn ich auf das rote X
+                        * druecke, steht einfach nichts. Es loescht es nicht."
+                        * Ein rotes Kreuz heisst ueberall auf der Seite "weg";
+                        * das Ausblenden ist jetzt das Auge daneben.
+                        */}
                       <button onClick={() => sichtbarkeit(k.id, !sichtbar)}
                         title={sichtbar
-                          ? 'Öffentlich ausblenden — die Karte bleibt erhalten'
-                          : 'Wieder öffentlich zeigen'}
-                        className={`shrink-0 rounded px-1.5 py-0.5 text-[11px] leading-none
+                          ? uebs('Öffentlich ausblenden — die Karte bleibt erhalten')
+                          : uebs('Wieder öffentlich zeigen')}
+                        className={`shrink-0 rounded px-1 py-0.5 text-[11px] leading-none
                                     transition ${sichtbar
-                          ? 'text-rose-400 hover:bg-rose-950 hover:text-rose-200'
+                          ? 'text-slate-600 hover:bg-zinc-800 hover:text-slate-300'
                           : 'text-emerald-400 hover:bg-emerald-950 hover:text-emerald-200'}`}>
-                        {sichtbar ? '×' : '↩'}
+                        {sichtbar ? '👁' : '↩'}
                       </button>
-                      {/* Endgueltig - im Unterschied zum Kreuz daneben. */}
                       <button onClick={() => karteLoeschen(k.id, k.titel)}
                         title={uebs('Endgültig löschen — Formen und Verteilung sind dann weg')}
-                        className="shrink-0 rounded px-1 py-0.5 text-[11px] leading-none
-                                   text-slate-600 transition hover:bg-rose-950
-                                   hover:text-rose-300">
-                        🗑
+                        className="shrink-0 rounded px-1.5 py-0.5 text-[11px] leading-none
+                                   text-rose-400 transition hover:bg-rose-950
+                                   hover:text-rose-200">
+                        ×
                       </button>
                     </div>
                   );

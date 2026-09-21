@@ -1951,6 +1951,8 @@ const AUF_ENGLISCH: Record<string, string> = {
     'now',
   'Sitzungen':
     'sessions',
+  'Wieder öffentlich zeigen':
+    'Show publicly again',
   'Noch keine Ergebnisse — der Spieltag hat noch nicht begonnen.':
     'No results yet, this match day has not started.',
   'Die Bestenliste ist gerade nicht erreichbar. Es wird gleich noch einmal versucht.':
