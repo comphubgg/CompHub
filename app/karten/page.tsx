@@ -17,6 +17,7 @@ import { gefaltet, kernname, namensSchluessel, ohneZierrat } from '@/lib/homogly
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import { kartenTitel } from '@/lib/rundenName';
+import { inselAusPlaylist } from '@/lib/inseln';
 import { istGrossesTurnier } from '@/lib/turnierArt';
 import { speichereLeinwand } from '@/app/lib/bildSpeichern';
 import { leseWoerter } from './bildLesen';
@@ -120,6 +121,8 @@ interface Fenster {
   /** Fehlt bei nachgetragenen Turnieren. */
   end?: number;
   eventId: string; windowId: string; region: string; istFinale: boolean;
+  /** Epics Playlist - darin bei Reload die Insel, siehe lib/inseln.ts. */
+  playlist?: string;
 }
 interface Cup {
   id: string; titel: string; art: string; global: boolean;
@@ -454,6 +457,17 @@ export default function KartenSeite(
   const [status, setStatus] = useState('');
   const [bildStand, setBildStand] = useState(0);   // erzwingt ein Neuladen
   const [bilder, setBilder] = useState<Kartenbild[]>([]);
+  /**
+   * Welche Insel welches Kartenbild bekommt (data/insel-bilder.json).
+   *
+   * Der Betreiber: "wenn ich auf diese Map druecke, soll ich nicht diese
+   * Ansicht von dieser Map bekommen, sondern die Reload-Map, die dazu
+   * gehoert." Epic nennt zu jedem Spieltag die Playlist und darin die
+   * Insel; die Zuordnung Insel -> Bild trifft der Betreiber einmal.
+   */
+  const [inseln, setInseln] = useState<Record<string, string>>({});
+  /** Fuer welchen Spieltag der Betreiber das Bild selbst gewaehlt hat - dort bleibt seine Wahl. */
+  const bildVonHandFuer = useRef('');
   /** Leer heisst: die oeffentliche Fortnite-Karte. */
   const [bildId, setBildId] = useState('');
   const [neuerTitel, setNeuerTitel] = useState('');
@@ -920,7 +934,7 @@ export default function KartenSeite(
     fetch('/api/spieler-profile').then((r) => r.json())
       .then((j) => setProfile(j.profile ?? {})).catch(() => {});
     fetch('/api/karten-bild').then((r) => r.json())
-      .then((d) => setBilder(d.karten ?? [])).catch(() => {});
+      .then((d) => { setBilder(d.karten ?? []); setInseln(d.inseln ?? {}); }).catch(() => {});
     fetch('/api/flaggen').then((r) => r.json())
       .then((j) => setFlaggen(j.flaggen ?? [])).catch(() => {});
     fetch('/api/turnier-karten').then((r) => r.json())
@@ -1087,6 +1101,41 @@ export default function KartenSeite(
     return Object.entries(cup.regionen).flatMap(([region, liste]) =>
       liste.map((f) => ({ ...f, region })));
   }, [cup]);
+
+  /*
+   * Das passende Kartenbild zum Spieltag - von selbst.
+   *
+   * Gibt es zu diesem Spieltag schon eine gespeicherte Karte, gilt deren
+   * Bild (die zuletzt geaenderte). Sonst entscheidet die Insel aus Epics
+   * Playlist: eine Reload-Insel bekommt ihr zugeordnetes Bild, Battle
+   * Royale die grosse Karte. Hat der Betreiber fuer diesen Spieltag selbst
+   * ein Bild gewaehlt, bleibt seine Wahl. Vorher stand beim Oeffnen eines
+   * Reload-Finales immer die Battle-Royale-Karte da.
+   */
+  useEffect(() => {
+    if (!fensterId || ausTurnier) return;
+    if (bildVonHandFuer.current === fensterId) return;
+    const f = fenster.find((x) => x.windowId === fensterId);
+    if (!f) return;
+    const karte = gespeicherte
+      .filter((k) => k.windowId === f.windowId && k.eventId === f.eventId)
+      .sort((a, b) => (b.geaendert ?? 0) - (a.geaendert ?? 0))[0];
+    let ziel: string | null;
+    if (karte) ziel = karte.bildId ?? '';
+    else {
+      const insel = inselAusPlaylist(f.playlist);
+      ziel = insel.art === 'br' ? (inseln.BR ?? '')
+        : insel.art === 'reload' && insel.schluessel ? (inseln[insel.schluessel] ?? null)
+          : null;
+    }
+    if (ziel === null || ziel === bildId) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setBildId(ziel); setBildStand(Date.now());
+    stelleWiederHerRef.current?.(f.windowId, ziel, gespeicherte, f);
+    // bildId absichtlich nicht in der Liste: der Effekt reagiert auf Spieltag
+    // und Zuordnung, nicht auf seine eigene Aenderung.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fensterId, inseln, gespeicherte, fenster, ausTurnier]);
 
   /**
    * Finaltage dieses Cups, zu denen es noch keine Karte gibt.
@@ -3455,6 +3504,8 @@ ${name}
               Kartenbild
               <select value={bildId}
                 onChange={(e) => {
+                  // Eine eigene Wahl fuer diesen Spieltag - die Insel schlaegt sie nicht mehr um.
+                  bildVonHandFuer.current = fensterId;
                   setBildId(e.target.value); setBildStand(Date.now());
                   // Zu jeder Insel gehoert eine eigene Zuordnung.
                   stelleWiederHer(fensterId, e.target.value, gespeicherte);
@@ -3468,6 +3519,40 @@ ${name}
                   <option key={b.id} value={b.id}>{b.titel}</option>
                 ))}
               </select>
+              {/*
+                * Die Insel dieses Spieltags laut Epic - und was ihr als Bild
+                * zugeordnet ist. Einmal zuordnen, dann steht bei jedem Cup
+                * dieser Insel das richtige Bild von selbst.
+                */}
+              {(() => {
+                const f = fenster.find((x) => x.windowId === fensterId);
+                const insel = inselAusPlaylist(f?.playlist);
+                if (insel.art !== 'reload' || !insel.schluessel) return null;
+                const schluessel = insel.schluessel;
+                return (
+                  <span className="mt-1 flex items-center gap-1.5 text-[11px] text-slate-400">
+                    <T>Reload-Insel</T>: <span className="font-semibold text-slate-200">{schluessel}</span>
+                    <span className="text-slate-600">→</span>
+                    <select value={inseln[schluessel] ?? ''}
+                      onChange={(e) => {
+                        const bild = e.target.value;
+                        setInseln((alt) => { const n = { ...alt }; if (bild) n[schluessel] = bild; else delete n[schluessel]; return n; });
+                        void fetch('/api/karten-bild', {
+                          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+                          body: JSON.stringify({ insel: schluessel, bildId: bild }),
+                        });
+                      }}
+                      title={uebs('Welches Kartenbild zu dieser Insel gehört')}
+                      className="rounded-md border border-zinc-800 bg-zinc-900 px-1.5 py-0.5
+                                 text-[11px] text-slate-200 outline-none focus:border-sky-500">
+                      <option value="">{uebs('Bild zuordnen …')}</option>
+                      {bilder.map((b) => (
+                        <option key={b.id} value={b.id}>{b.titel}</option>
+                      ))}
+                    </select>
+                  </span>
+                );
+              })()}
             </label>
             <div className="flex flex-col items-stretch justify-end gap-1">
               <button onClick={() => speichern()}
