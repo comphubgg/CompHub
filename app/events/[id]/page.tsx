@@ -39,7 +39,15 @@ interface Fenster {
   /** Wie viele Teams sich qualifizieren - aus Epics Auszahlungstabelle. */
   qualifiziert?: number;
   matchCap?: number;
+  /**
+   * Ranked Cups: je Rangstufe (Bronze bis Unreal) eine eigene Bestenliste,
+   * jede unter ihrer Kennung - siehe lib/epicCups, CupFensterDetail.raenge.
+   */
+  raenge?: Array<{ kennung: string; name: string }>;
 }
+
+/** Die Rangstufen in Epics Reihenfolge, so heissen sie im Spiel. */
+const RANG_STUFEN = ['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond', 'Elite', 'Champion', 'Unreal'];
 /**
  * Eine Zeile in der Aufstellung einer Runde - so liefert sie
  * /api/cup-matches.
@@ -824,6 +832,17 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
   }, [fenster]);
   const [laedt, setLaedt] = useState(false);
   const [suche, setSuche] = useState('');
+  /*
+   * Ranked Cups: welche Rangstufe die Bestenliste zeigt.
+   *
+   * Der Betreiber: "Der Unreal Cup hat nicht die gleichen Spieler wie der
+   * Bronze Cup" - ein Cup, acht Bestenlisten, und man soll waehlen koennen,
+   * welche man sieht. Voreingestellt ist Unreal, die Stufe der Profis; die
+   * Wahl bleibt beim Wechsel des Spieltags erhalten. Die Bestenliste des
+   * Fensters selbst ist bei Ranked Cups leer (alle mit null Punkten),
+   * deshalb geht jede Abfrage der Bestenliste ueber die Kennung der Stufe.
+   */
+  const [rang, setRang] = useState('Unreal');
   /** Laeuft gerade eine tiefere Stufe der Bestenliste? */
   const [vertieft, setVertieft] = useState(false);
   /*
@@ -1390,6 +1409,18 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
       ?? tage[0]);
   }, [tage, ausAdresse.fenster]);
 
+  /**
+   * Das Fenster, unter dessen Kennung die Bestenliste geholt wird: bei
+   * Ranked Cups die gewaehlte Rangstufe, sonst das Fenster selbst.
+   */
+  const lbFenster = useMemo<Fenster | null>(() => {
+    if (!fenster?.raenge?.length) return fenster;
+    const stufe = fenster.raenge.find((r) => r.name === rang)
+      ?? fenster.raenge[fenster.raenge.length - 1];
+    return { ...fenster, windowId: stufe.kennung };
+  }, [fenster, rang]);
+
+
   /*
    * Beim Wechsel des Spieltags alles Alte wegwerfen.
    *
@@ -1434,7 +1465,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
   const zuletztNachgeladen = useRef(0);
 
   useEffect(() => {
-    if (reiter !== 'runden' || !fenster || !tabelle.length) return;
+    if (reiter !== 'runden' || !lbFenster || !tabelle.length) return;
     /*
      * Schon geholt, und der Unterbau ist seither nicht groesser geworden.
      *
@@ -1448,7 +1479,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     // Beim stillen Nachladen kein Ladezeichen: die Liste steht ja da.
     if (!stillesLaden) setSpieleLaedt(true);
     setSpieleBasis(tabelle.length);
-    fetch(`/api/cup-matches?event=${encodeURIComponent(fenster.eventId)}`
+    fetch(`/api/cup-matches?event=${encodeURIComponent(lbFenster.eventId)}`
       /*
        * So viel wie das Feld hergibt, nicht mehr.
        *
@@ -1460,7 +1491,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
        * geladen. Danach richtet sich die Anfrage, statt bei jedem kleinen
        * Finale zehntausend Plaetze zu verlangen.
        */
-      + `&window=${encodeURIComponent(fenster.windowId)}`
+      + `&window=${encodeURIComponent(lbFenster.windowId)}`
       + `&limit=${Math.min(MAX_PLAETZE, Math.max(500, tabelle.length))}`)
       .then((r) => r.json())
       .then((j) => {
@@ -1477,7 +1508,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
       .catch(() => { if (!weg && !spiele) setSpiele([]); })
       .finally(() => { if (!weg) setSpieleLaedt(false); });
     return () => { weg = true; };
-  }, [reiter, fenster, spiele, tabelle.length, vertieft, spieleBasis, nachladen]);
+  }, [reiter, lbFenster, spiele, tabelle.length, vertieft, spieleBasis, nachladen]);
 
   /** Wie viele Lobbys gerade laufen. */
   const laufende = useMemo(
@@ -1902,23 +1933,23 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
    * mit Verspaetung.
    */
   useEffect(() => {
-    if (!laeuftGerade || !fenster) return undefined;
-    const uhr = setInterval(() => { void laden(fenster); }, 60_000);
+    if (!laeuftGerade || !lbFenster) return undefined;
+    const uhr = setInterval(() => { void laden(lbFenster); }, 60_000);
     return () => clearInterval(uhr);
-  }, [laeuftGerade, fenster, laden]);
+  }, [laeuftGerade, lbFenster, laden]);
 
-  useEffect(() => { if (fenster) laden(fenster); }, [fenster, laden]);
+  useEffect(() => { if (lbFenster) laden(lbFenster); }, [lbFenster, laden]);
 
   useEffect(() => {
-    if (!fenster || fenster.status !== 'live') return;
+    if (!lbFenster || lbFenster.status !== 'live') return;
     // Ein kleines Feld ist in einem Wimpernschlag geholt, zehntausend
     // Plaetze brauchen hundert Abfragen bei Epic. Deshalb wird ein grosses
     // Leaderboard seltener aufgefrischt, statt die Quelle im Minutentakt
     // mit hundert Anfragen zu belegen.
     const takt = tabelle.length > 1000 ? 180_000 : 45_000;
-    const t = setInterval(() => laden(fenster), takt);
+    const t = setInterval(() => laden(lbFenster), takt);
     return () => clearInterval(t);
-  }, [fenster, laden, tabelle.length]);
+  }, [lbFenster, laden, tabelle.length]);
 
   /*
    * Getippt wird sofort, gefiltert eine Spur spaeter.
@@ -1959,6 +1990,27 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
    */
   const [proSeite, setProSeite] = useState<number>(ZEILEN_PRO_SEITE[0]);
   const [seite, setSeite] = useState(1);
+
+  /*
+   * Ranked Cups: welche Stufe - wie im Spiel, wo dieselbe Liste ein Menue
+   * von Bronze bis Unreal hat. Nur die Stufen, die Epic zu diesem Spieltag
+   * fuehrt. Steht ueber der Bestenliste und ueber den Runden.
+   */
+  const rangWahl = fenster?.raenge?.length ? (
+    <label className="flex items-center gap-1.5 text-xs text-slate-500">
+      <T>Rang</T>
+      <select value={rang}
+        onChange={(e) => { setRang(e.target.value); setSeite(1); }}
+        className="rounded-lg border border-sky-500/60 bg-zinc-900/80 px-2 py-1
+                   text-xs font-semibold text-sky-300 outline-none focus:border-sky-500">
+        {[...fenster.raenge]
+          .sort((a, b) => RANG_STUFEN.indexOf(a.name) - RANG_STUFEN.indexOf(b.name))
+          .map((r) => (
+            <option key={r.kennung} value={r.name}>{t(r.name)}</option>
+          ))}
+      </select>
+    </label>
+  ) : null;
   // Zurueckgesetzt wird dort, wo Suche oder Spieltag wechseln - ein Effekt
   // dafuer wuerde nur ein zweites Zeichnen hinterherschicken.
 
@@ -2591,6 +2643,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                              border-zinc-800 px-4 py-3">
             <h2 className="text-sm font-semibold text-slate-100"><T>Leaderboard</T></h2>
             <div className="flex items-center gap-3">
+              {rangWahl}
               {/* Ohne Ladezeichen im Feld. Der Betreiber wollte es gross
                   auf der Bestenliste sehen, nicht klein an der Eingabe -
                   dort verdeckt es beim Tippen ohnehin den Cursor. */}
@@ -3322,6 +3375,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                   kleingeschriebene Ueberschrift. */}
               <h2 className="text-sm font-semibold text-slate-100">Matches</h2>
               <div className="flex flex-wrap items-center gap-3">
+                {/* Auch hier die Stufe - die Runden gehoeren zur gewaehlten Liste. */}
+                {rangWahl}
                 {/* Der Filter, den der Betreiber wollte: laufend oder nicht. */}
                 {spiele && spiele.length > 0 && (
                   <div className="flex gap-1 rounded-lg border border-zinc-800

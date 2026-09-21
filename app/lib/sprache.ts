@@ -3117,6 +3117,7 @@ const AUF_DEUTSCH: Record<string, string> = {
   'idle': 'ruht',
 
   // Epics Rangstufen - sie stehen englisch in den Daten.
+  'Silver': 'Silber', 'Platinum': 'Platin', 'Diamond': 'Diamant',
   'Silver I': 'Silber I', 'Silver II': 'Silber II', 'Silver III': 'Silber III',
   'Platinum I': 'Platin I', 'Platinum II': 'Platin II', 'Platinum III': 'Platin III',
   'Diamond I': 'Diamant I', 'Diamond II': 'Diamant II', 'Diamond III': 'Diamant III',

@@ -814,6 +814,49 @@ export interface CupFensterDetail extends CupFenster {
    * qualifizieren gibt - etwa in einem Finale.
    */
   qualifiziert?: number;
+  /**
+   * Die Bestenlisten je Rangstufe eines Ranked Cups.
+   *
+   * Ein Ranked Cup ist ein Fenster, aber acht Bestenlisten: Bronze bis
+   * Unreal spielen getrennt, und Epic fuehrt je Stufe eine eigene Liste.
+   * Die "eigentliche" Liste des Fensters (Lead_Default) ist dort leer -
+   * alle mit null Punkten. Die Stufen stehen in Epics
+   * resolvedWindowLocations als eigene Kennungen im Fensterformat, etwa
+   * "S42_RankedCupSolo_Event4_EU_1_unreal" (Gross- und Kleinschreibung
+   * genau so, Epic unterscheidet sie). Die Bestenliste einer Stufe holt
+   * dieselbe Abfrage wie sonst, nur mit dieser Kennung als Fenster.
+   */
+  raenge?: RangListe[];
+}
+
+/** Eine Rangstufe eines Ranked Cups und die Kennung ihrer Bestenliste. */
+export interface RangListe { kennung: string; name: string }
+
+/** Die Stufen in Epics Reihenfolge - so heissen sie im Spiel. */
+export const RANG_STUFEN = ['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond', 'Elite', 'Champion', 'Unreal'] as const;
+
+/**
+ * Aus Epics Ortsliste eines Fensters die Stufen lesen.
+ *
+ * Die Orte heissen "<Fenster>_<Runde>_<stufe>"; die Stufe steht am Ende,
+ * mal gross, mal klein geschrieben (Solo: "gold", Duos Reload: "Gold").
+ * Verglichen wird ohne Rueckicht auf die Schreibung, gemerkt wird die
+ * Kennung genau so, wie Epic sie nennt.
+ */
+export function rangListen(windowId: string, orte: string[] | undefined): RangListe[] | undefined {
+  if (!orte?.length) return undefined;
+  const raus: RangListe[] = [];
+  for (const ort of orte) {
+    const kennung = ort.split(':').pop() ?? '';
+    if (!kennung || kennung === windowId || !kennung.startsWith(windowId + '_')) continue;
+    const stufe = kennung.slice(kennung.lastIndexOf('_') + 1).toLowerCase();
+    const name = RANG_STUFEN.find((s) => s.toLowerCase() === stufe);
+    if (name) raus.push({ kennung, name });
+  }
+  if (!raus.length) return undefined;
+  raus.sort((a, b) => RANG_STUFEN.indexOf(a.name as typeof RANG_STUFEN[number])
+    - RANG_STUFEN.indexOf(b.name as typeof RANG_STUFEN[number]));
+  return raus;
 }
 
 /** Grobe Einteilung, damit die Uebersicht nicht von Randcups zugestellt wird. */
@@ -964,7 +1007,12 @@ async function rohEvents(region: string) {
   return req<{ events?: RohEvent[];
                templates?: Array<{ eventTemplateId: string; matchCap?: number; playlistId?: string }>;
                /* Je Fenster-Id eine Tabelle - dort steht die Rangschwelle. */
-               payoutTables?: Record<string, RohAuszahlung[]> }>(
+               payoutTables?: Record<string, RohAuszahlung[]>;
+               /*
+                * Je Fenster ("Fortnite:<event>:<fenster>") seine
+                * Bestenlisten - bei Ranked Cups eine je Rangstufe.
+                */
+               resolvedWindowLocations?: Record<string, string[]> }>(
     `${EVENTS}/api/v1/events/Fortnite/download/${accountId}` +
     `?region=${encodeURIComponent(region)}&platform=Windows&teamAccountIds=${accountId}`,
     { headers: { Authorization: token } });
@@ -1051,6 +1099,8 @@ export async function cupsGruppiert(regionen: readonly string[] = REGIONEN) {
           // Wie viele weiterkommen. Nichts, wenn Epic keine Schwelle fuehrt -
           // bei einem Finale gibt es keine.
           qualifiziert: rangSchwelle(daten.payoutTables?.[w.eventWindowId]) ?? undefined,
+          raenge: rangListen(w.eventWindowId,
+            daten.resolvedWindowLocations?.[`Fortnite:${ev.eventId}:${w.eventWindowId}`]),
         };
 
         // Globale Events kommen aus jeder Regionsabfrage identisch zurueck.
@@ -1118,6 +1168,8 @@ export interface ArchivEintrag {
   istFinale: boolean; matchCap?: number; qualifiziert?: number;
   /** Epics Playlist - siehe CupFensterDetail.playlist. */
   playlist?: string;
+  /** Die Bestenlisten je Rangstufe - siehe CupFensterDetail.raenge. */
+  raenge?: RangListe[];
   gesehen: string;
 }
 
@@ -1169,7 +1221,7 @@ export async function archivCups(
       // Die Runde steht im Archiv nicht; sie ergibt sich unten aus der
       // zeitlichen Reihenfolge, damit die Anzeige nicht leer bleibt.
       runde: 0, istFinale: e.istFinale, tokens: [], matchCap: e.matchCap,
-      qualifiziert: e.qualifiziert, playlist: e.playlist,
+      qualifiziert: e.qualifiziert, playlist: e.playlist, raenge: e.raenge,
     });
   }
 
@@ -1215,6 +1267,8 @@ export async function schreibeArchiv(cups: CupGruppe[]): Promise<number> {
           // 21.9.2026 ins Archiv, und ohne sie oeffnet ein Reload-Spieltag
           // seine Karte auf Battle Royale.
           if (f.playlist && !da.playlist) { da.playlist = f.playlist; neu++; }
+          // Ebenso die Rangstufen der Ranked Cups (seit dem 21.9.2026).
+          if (f.raenge?.length && !da.raenge?.length) { da.raenge = f.raenge; neu++; }
           continue;
         }
         nachSchluessel.set(k, {
@@ -1224,6 +1278,7 @@ export async function schreibeArchiv(cups: CupGruppe[]): Promise<number> {
           begin: f.begin, end: f.end,
           istFinale: f.istFinale, matchCap: f.matchCap,
           qualifiziert: f.qualifiziert, playlist: f.playlist,
+          ...(f.raenge?.length ? { raenge: f.raenge } : {}),
           gesehen: jetzt,
         });
         neu++;
