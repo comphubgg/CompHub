@@ -134,6 +134,8 @@ interface GespeicherteKarte {
   bildId?: string;
   /** Name des Kartenbildes - erscheint auf der Events-Seite am Knopf. */
   bildTitel?: string;
+  /** Das Bild kam von selbst aus Epics Insel, nicht vom Betreiber. */
+  bildAutomatisch?: boolean;
   /** Fuer welche Spiele des Spieltags diese Karte gilt, etwa "1-5". */
   spiele?: string;
   /** Turnier und Spieltag - darueber wird eine Karte wiedergefunden. */
@@ -1122,8 +1124,18 @@ export default function KartenSeite(
     const karte = gespeicherte
       .filter((k) => k.windowId === f.windowId && k.eventId === f.eventId)
       .sort((a, b) => (b.geaendert ?? 0) - (a.geaendert ?? 0))[0];
+    /*
+     * Eine gespeicherte Karte gilt - ausser ihr Bild kam von selbst, der
+     * Spieltag hat noch nicht begonnen und noch kein Team ist verteilt:
+     * dann folgt sie Epic, falls Epic die Insel noch wechselt. Der
+     * Betreiber: "du musst schon wissen, welche Map du benutzen musst."
+     * Was er selbst gewaehlt oder schon verteilt hat, bleibt.
+     */
+    const darfFolgen = karte?.bildAutomatisch
+      && f.begin > Date.now()
+      && !karte.spots.some((sp) => sp.teams?.length);
     let ziel: string | null;
-    if (karte) ziel = karte.bildId ?? '';
+    if (karte && !darfFolgen) ziel = karte.bildId ?? '';
     else {
       const insel = inselAusPlaylist(f.playlist);
       ziel = insel.art === 'br' ? (inseln.BR ?? '')
@@ -2352,6 +2364,7 @@ export default function KartenSeite(
         // Darueber findet die Events-Seite die Karte wieder.
         eventId: f?.eventId, windowId: f?.windowId, region: f?.region, bildId,
         bildTitel: bildName,
+        bildAutomatisch: bildVonHandFuer.current !== fensterId,
         spiele: spiele.trim() || undefined,
         oeffentlich: true,
       }),

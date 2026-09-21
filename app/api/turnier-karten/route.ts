@@ -56,6 +56,12 @@ export interface Turnierkarte {
   bildId?: string;
   /** Der Name des Kartenbildes, damit die Events-Seite ihn anzeigen kann. */
   bildTitel?: string;
+  /**
+   * Kam das Bild von selbst aus Epics Insel (lib/inseln), nicht vom
+   * Betreiber? Dann darf die Karte dem folgen, wenn Epic die Insel vor dem
+   * Spieltag noch wechselt - solange noch kein Team verteilt ist.
+   */
+  bildAutomatisch?: boolean;
   namenSichtbar: boolean;
   /** Gesperrt heisst: keine Aenderungen mehr, auch nicht als Admin. */
   gesperrt: boolean;
@@ -213,6 +219,7 @@ export async function POST(request: Request) {
     // mehr, auf welcher Insel sie liegt.
     bildId: eingang.bildId,
     bildTitel: eingang.bildTitel,
+    bildAutomatisch: eingang.bildAutomatisch ?? false,
     spiele: eingang.spiele,
     namenSichtbar: eingang.namenSichtbar ?? true,
     gesperrt: eingang.gesperrt ?? false,
