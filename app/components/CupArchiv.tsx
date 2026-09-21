@@ -202,7 +202,7 @@ export default function CupArchiv({ cupId, cupName, von, bis, istAdmin, aufAnzah
               <span>{[ev.ort, zeitraumText(ev, sprache)].filter(Boolean).join(' · ')}{ev.beschreibung ? ` · ${ev.beschreibung}` : ''}</span>
               <span className="text-slate-600">{drin.length}</span>
               {istAdmin && (
-                <Link href={`/admin/archiv?event=${encodeURIComponent(ev.id)}`}
+                <Link href={`/admin/archive?event=${encodeURIComponent(ev.id)}`}
                   className="text-xs text-slate-500 hover:text-sky-400 hover:underline">
                   <T>Im Admin-Archiv bearbeiten</T> ↗
                 </Link>

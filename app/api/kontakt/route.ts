@@ -140,7 +140,7 @@ export async function POST(request: Request) {
      */
     knopf: {
       titel: 'Open in the tool',
-      ziel: `https://thecomphub.com/nachrichten?gespraech=${m.id}`,
+      ziel: `https://thecomphub.com/messages?gespraech=${m.id}`,
     },
     /*
      * Die Bildschirmausschnitte gehen mit.

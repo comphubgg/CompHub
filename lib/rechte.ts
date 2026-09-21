@@ -10,19 +10,19 @@
 // Betreiber.
 
 export const BEREICHE = [
-  { schluessel: 'karten', pfad: '/karten', titel: 'Karten',
+  { schluessel: 'karten', pfad: '/maps', titel: 'Karten',
     was: 'Turnierkarten bauen und Landepunkte setzen' },
   { schluessel: 'tweets', pfad: '/admin/tweets', titel: 'Beiträge',
     was: 'Statistik-Posts erstellen' },
-  { schluessel: 'prognosen', pfad: '/admin/prognosen', titel: 'Prognosen',
+  { schluessel: 'prognosen', pfad: '/admin/predictions', titel: 'Prognosen',
     was: 'Vorhersagen zeichnen' },
   { schluessel: 'replays', pfad: '/admin/replays', titel: 'Replays',
     was: 'Turnier-Replays nachsehen und auswerten' },
-  { schluessel: 'spieler', pfad: '/admin/spieler', titel: 'Player Center',
+  { schluessel: 'spieler', pfad: '/admin/players', titel: 'Player Center',
     was: 'Flaggen, Namen und @-Konten pflegen' },
   { schluessel: 'assets', pfad: '/admin/assets', titel: 'Bildvorrat',
     was: 'Logos und Grafiken ablegen' },
-  { schluessel: 'kontakt', pfad: '/admin/kontakt', titel: 'Kontakt',
+  { schluessel: 'kontakt', pfad: '/admin/contact', titel: 'Kontakt',
     was: 'Meldungen aus dem Kontaktformular lesen' },
 ] as const;
 

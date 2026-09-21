@@ -64,7 +64,7 @@ export async function GET(req: NextRequest) {
     const grund = req.nextUrl.searchParams.get('error')
       || req.nextUrl.searchParams.get('error_description') || '';
     const anhang = grund ? `&grund=${encodeURIComponent(grund.slice(0, 200))}` : '';
-    return zurueck(req, `/anmelden?fehler=abgebrochen&dienst=google${anhang}`);
+    return zurueck(req, `/sign-in?fehler=abgebrochen&dienst=google${anhang}`);
   }
 
   /*
@@ -74,7 +74,7 @@ export async function GET(req: NextRequest) {
    */
   if (!state || !gemerkt || state.length !== gemerkt.length
       || !crypto.timingSafeEqual(Buffer.from(state), Buffer.from(gemerkt))) {
-    return zurueck(req, '/anmelden?fehler=state');
+    return zurueck(req, '/sign-in?fehler=state');
   }
 
   try {
@@ -90,18 +90,18 @@ export async function GET(req: NextRequest) {
         grant_type: 'authorization_code',
       }),
     });
-    if (!tokenAntwort.ok) return zurueck(req, '/anmelden?fehler=token');
+    if (!tokenAntwort.ok) return zurueck(req, '/sign-in?fehler=token');
     const token = await tokenAntwort.json() as { access_token?: string };
-    if (!token.access_token) return zurueck(req, '/anmelden?fehler=token');
+    if (!token.access_token) return zurueck(req, '/sign-in?fehler=token');
 
     const nutzerAntwort = await fetch(
       'https://www.googleapis.com/oauth2/v2/userinfo',
       { headers: { Authorization: `Bearer ${token.access_token}` } });
-    if (!nutzerAntwort.ok) return zurueck(req, '/anmelden?fehler=profil');
+    if (!nutzerAntwort.ok) return zurueck(req, '/sign-in?fehler=profil');
     const nutzer = await nutzerAntwort.json() as {
       id?: string; email?: string; name?: string; verified_email?: boolean;
     };
-    if (!nutzer.id || !nutzer.email) return zurueck(req, '/anmelden?fehler=profil');
+    if (!nutzer.id || !nutzer.email) return zurueck(req, '/sign-in?fehler=profil');
 
     // 1. Schon verknuepft?
     let konto = await nachDienst('google', nutzer.id);
@@ -119,12 +119,12 @@ export async function GET(req: NextRequest) {
         name: nutzer.name ?? nutzer.email.split('@')[0],
         dienst: { art: 'google', id: nutzer.id },
       });
-      if ('fehler' in ergebnis) return zurueck(req, '/anmelden?fehler=konto');
+      if ('fehler' in ergebnis) return zurueck(req, '/sign-in?fehler=konto');
       konto = ergebnis.konto;
     }
 
     await merkeAnmeldung(konto.id);
-    const antwort = zurueck(req, '/konto');
+    const antwort = zurueck(req, '/account');
     antwort.cookies.set(COOKIE, sitzungFuer(konto.id), {
       httpOnly: true, sameSite: 'lax', path: '/',
       secure: ueberHttps(req),
@@ -133,6 +133,6 @@ export async function GET(req: NextRequest) {
     antwort.cookies.set('google_oauth_state', '', { path: '/', maxAge: 0 });
     return antwort;
   } catch {
-    return zurueck(req, '/anmelden?fehler=unerwartet');
+    return zurueck(req, '/sign-in?fehler=unerwartet');
   }
 }

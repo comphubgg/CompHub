@@ -480,7 +480,7 @@ function KartenKnopf({ karte, aufVerstecken }: {
   const t = useT();
   return (
     <span className="relative inline-flex">
-    <a href={karte.href ?? `/karten?id=${encodeURIComponent(karte.id)}`}
+    <a href={karte.href ?? `/maps?id=${encodeURIComponent(karte.id)}`}
       className="mb-5 inline-flex items-center gap-2 rounded-xl border border-sky-500
                  bg-sky-950/40 px-4 py-2.5 text-sm font-medium text-sky-200
                  transition hover:border-sky-400 hover:bg-sky-900/50">
@@ -1096,7 +1096,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
       // "FNCS Division 1 Practice · Week 1 · Finals".
       bildTitel: kartenTitel(cup?.titel, { ...fenster, istFinale }, t)
         || t('Karte öffnen'),
-      href: `/karten?event=${encodeURIComponent(fenster.eventId)}`
+      href: `/maps?event=${encodeURIComponent(fenster.eventId)}`
         + `&window=${encodeURIComponent(fenster.windowId)}`,
     }];
   }, [kartenHier, fenster, tage, fensterNamen, cup, ohneKarte, t]);
@@ -2216,7 +2216,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
 
             {istAdmin && fenster?.eventId && fenster?.windowId && (
               <Link
-                href={`/karten?event=${encodeURIComponent(fenster.eventId)}`
+                href={`/maps?event=${encodeURIComponent(fenster.eventId)}`
                   + `&window=${encodeURIComponent(fenster.windowId)}`}
                 prefetch={false}
                 title={t('Karte bauen')}

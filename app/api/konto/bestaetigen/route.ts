@@ -84,7 +84,7 @@ function seite(gelungen: boolean): string {
     <div class="zeichen">${gelungen ? '&#10003;' : '&times;'}</div>
     <h1>${titel}</h1>
     <p>${text}</p>
-    ${gelungen ? '' : '<p><a href="/konto">Open CompHub</a></p>'}
+    ${gelungen ? '' : '<p><a href="/account">Open CompHub</a></p>'}
   </div>
 </body>
 </html>`;

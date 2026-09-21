@@ -64,7 +64,7 @@ function Inhalt() {
       const j = await r.json();
       if (!r.ok) { setFehler(t(j?.fehler ?? 'Das hat nicht geklappt.')); return; }
       // Angemeldet ist man danach schon - der Server hat die Sitzung gesetzt.
-      router.push('/konto');
+      router.push('/account');
       router.refresh();
     } catch {
       setFehler(t('Keine Verbindung zum Server.'));
@@ -127,7 +127,7 @@ function Inhalt() {
           </button>
         </form>
 
-        <Link href="/anmelden"
+        <Link href="/sign-in"
           className="mt-6 inline-block text-xs text-slate-500 transition
                      hover:text-sky-400">
           ← <T>zur Anmeldung</T>

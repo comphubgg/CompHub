@@ -19,7 +19,7 @@ export default function PowerRankingsPage() {
             <T>Power rankings preview is only available during the guided dashboard tour. Please log in to continue.</T>
           </p>
           <Link
-            href="/anmelden"
+            href="/sign-in"
             className="inline-flex items-center justify-center rounded-full bg-sky-500 px-6 py-3 text-sm font-semibold text-white hover:bg-sky-400"
           >
             <T>Go to VIP benefits</T>

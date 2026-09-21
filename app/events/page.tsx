@@ -92,15 +92,16 @@ type Modus = 'aktuell' | 'standard' | 'vorbei' | 'alle';
  *
  * Sie hing bisher vollstaendig am VIP-Zugang: ein gewoehnlicher Besucher sah
  * zweihundertzweiundsiebzig Turniere und ein Suchfeld, sonst nichts. Filtern
- * koennen soll jeder; was den VIPs bleibt, ist die Ansicht "Alle" - dort
- * stehen auch Ranked, Mobile und Skin-Cups, und das ist die Ansicht, die aus
- * der Liste ein Werkzeug macht.
+ * kann jeder - auch "Alle". Die Ansicht war eine Zeit lang den VIPs
+ * vorbehalten; der Betreiber: "All sollte ja eigentlich immer moeglich
+ * sein, einfach nicht sortiert." Nur die Voreinstellung bleibt "Aktuell &
+ * kommend".
  */
 const MODI: Array<{ wert: Modus; titel: string; hinweis: string; nurVip?: boolean }> = [
   { wert: 'aktuell',  titel: 'Aktuell & kommend', hinweis: 'Was gerade läuft und als Nächstes ansteht' },
   { wert: 'standard', titel: 'Standard',          hinweis: 'Reload, Cash Cups, Finals, Opens und Division Cups — auch vergangene' },
   { wert: 'vorbei',   titel: 'Vergangen',         hinweis: 'Was schon gelaufen ist, aus dem eigenen Archiv' },
-  { wert: 'alle',     titel: 'Alle',              hinweis: 'Jedes Turnier — auch Ranked, Mobile und Skin-Cups', nurVip: true },
+  { wert: 'alle',     titel: 'Alle',              hinweis: 'Jedes Turnier — auch Ranked, Mobile und Skin-Cups' },
 ];
 
 /*
@@ -151,12 +152,6 @@ export default function EventsPage() {
    */
   const [modus, setModus] = useState<Modus>('aktuell');
 
-  useEffect(() => {
-    if (zugang.laedt || zugang.vip || modus !== 'alle') return;
-    let weg = false;
-    void Promise.resolve().then(() => { if (!weg) setModus('aktuell'); });
-    return () => { weg = true; };
-  }, [zugang.laedt, zugang.vip, modus]);
   const [offen, setOffen] = useState<string | null>(null);
 
   /**
@@ -274,7 +269,7 @@ export default function EventsPage() {
             {suchtGerade
               ? `${zeigeCups.length} ${t('Treffer im ganzen Bestand')}`
               : t(MODI.find((m) => m.wert === modus)?.hinweis ?? '')}
-            {!suchtGerade && modus !== 'alle' && ausgeblendet > 0 && zugang.vip
+            {!suchtGerade && modus !== 'alle' && ausgeblendet > 0
               && ` · ${t('{n} weitere unter „Alle“').replace('{n}', String(ausgeblendet))}`}
           </span>
 
@@ -458,7 +453,7 @@ export default function EventsPage() {
         {!laedt && !cups.length && !fehler && (
           <p className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-6 text-center text-sm text-slate-500">
             <T>Keine Cups in dieser Auswahl.</T>
-            {modus !== 'alle' && zugang.vip && <>
+            {modus !== 'alle' && <>
               {' '}<T>Unter „Alle“ stehen auch Ranked-, Mobile- und Skin-Cups.</T>
             </>}
           </p>

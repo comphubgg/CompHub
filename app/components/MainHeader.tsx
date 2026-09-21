@@ -22,7 +22,7 @@ const navItems = [
   { href: '/streams', label: 'Streams', schluessel: 'streams' },
   { href: '/power-rankings', label: 'Rankings', schluessel: 'rankings' },
   { href: '/events', label: 'Events', schluessel: 'events' },
-  { href: '/statistiken', label: 'Statistiken', schluessel: 'statistiken' },
+  { href: '/statistics', label: 'Statistiken', schluessel: 'statistiken' },
   // Prognosen und Archiv stehen bewusst nicht in der Leiste - der Betreiber:
   // "Prediction und Archiv soll oben in der Taskleiste nicht sein." Das
   // Archiv lebt im Spielerprofil, die Prognosen bleiben unter ihrer Adresse.
@@ -379,7 +379,7 @@ export default function MainHeader({ sektionenAnfang }: {
                  * Verwaltung das Dashboard. Sonst liefe der Klick auf
                  * /konto und von dort direkt weiter zur Anmeldung.
                  */
-                href={kontoName ? '/konto' : '/vip'}
+                href={kontoName ? '/account' : '/vip'}
                 prefetch={false}
                 title={anzeige}
                 aria-label={`${t('Mein Konto')} — ${anzeige}`}
@@ -395,7 +395,7 @@ export default function MainHeader({ sektionenAnfang }: {
               </Link>
             ) : (
               <Link
-                href="/anmelden"
+                href="/sign-in"
                 prefetch={false}
                 /* whitespace-nowrap: auf dem Handy brach "Sign in" mitten
                    entzwei und der Knopf wurde zu einem hohen Kreis. */

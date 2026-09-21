@@ -68,7 +68,7 @@ export default function AuthDeniedPage() {
       </div>
       <div className="mt-10 flex justify-center">
         <a
-          href="/anmelden"
+          href="/sign-in"
           className="rounded-2xl border border-white/10 bg-white/5 px-5 py-3 text-sm font-semibold text-slate-100 transition hover:bg-white/10"
         >Return to VIP benefits</a>
       </div>

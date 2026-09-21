@@ -69,7 +69,7 @@ const WILLKOMMEN: Beitrag = {
       + 'holds exactly one message: the access key that is currently valid.',
       '',
       '__How to sign in__',
-      '1. Open https://www.thecomphub.com/anmelden/vip',
+      '1. Open https://www.thecomphub.com/sign-in/vip',
       '2. Type the **name** of your access (the channel is named after it) '
       + 'and the **key** from your channel.',
       '3. That is it — no e-mail, no password. The key is compared character '
@@ -105,7 +105,7 @@ const WILLKOMMEN: Beitrag = {
       + 'gilt.',
       '',
       '__So meldest du dich an__',
-      '1. Öffne https://www.thecomphub.com/anmelden/vip',
+      '1. Öffne https://www.thecomphub.com/sign-in/vip',
       '2. Tippe den Namen deines Zugangs ein. Der Kanal hier ist danach '
       + 'benannt. Dazu den Schlüssel, der in diesem Kanal steht.',
       '3. Mehr braucht es nicht, keine E-Mail und kein Passwort. Achte '
@@ -138,7 +138,7 @@ const VIP_LEITFADEN: Beitrag = {
   },
   text: {
     en: [
-      'Sign in at https://www.thecomphub.com/anmelden/vip with your name and the key '
+      'Sign in at https://www.thecomphub.com/sign-in/vip with your name and the key '
       + 'from your channel. Everything below is then one click away.',
       '',
       '**Overlays** — browser sources for OBS',
@@ -184,7 +184,7 @@ const VIP_LEITFADEN: Beitrag = {
       + 'else — not your tierlist, not your account. Ask for it in support.',
     ].join('\n'),
     de: [
-      'Melde dich unter https://www.thecomphub.com/anmelden/vip mit '
+      'Melde dich unter https://www.thecomphub.com/sign-in/vip mit '
       + 'deinem Namen und dem Schlüssel aus deinem Kanal an. Alles Folgende '
       + 'ist danach einen Klick entfernt.',
       '',
@@ -256,7 +256,7 @@ const MANAGER_LEITFADEN: Beitrag = {
       + 'streamer\'s overlays.',
       '',
       '__Signing in__',
-      'Same door as everyone else: https://www.thecomphub.com/anmelden/vip with the '
+      'Same door as everyone else: https://www.thecomphub.com/sign-in/vip with the '
       + 'manager name and the key from this channel. You land on the '
       + 'dashboard, and under Overlays you see the streamer\'s saved overlays '
       + '— not your own, his. That is the point.',
@@ -300,7 +300,7 @@ const MANAGER_LEITFADEN: Beitrag = {
       '',
       '__Anmelden__',
       'Dieselbe Tür wie bei allen: '
-      + 'https://www.thecomphub.com/anmelden/vip mit dem Managernamen und '
+      + 'https://www.thecomphub.com/sign-in/vip mit dem Managernamen und '
       + 'dem Schlüssel aus diesem Kanal. Danach gibst du noch deinen '
       + 'eigenen Namen an, damit man sieht, wer was gemacht hat. Steht dein '
       + 'Name nicht in der Liste, kommst du nicht hinein, auch mit dem '

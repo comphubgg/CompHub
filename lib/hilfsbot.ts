@@ -131,7 +131,7 @@ function schlicht(text: string): string {
 
 /** Wohin welches Stichwort fuehrt. */
 const WEGE: Array<{ woerter: string[]; titel: string; pfad: string; was: string }> = [
-  { woerter: ['stat', 'statistic', 'statistik'], titel: 'Statistics', pfad: '/statistiken',
+  { woerter: ['stat', 'statistic', 'statistik'], titel: 'Statistics', pfad: '/statistics',
     was: 'every match day, per player and per region' },
   { woerter: ['event', 'cup', 'tournament', 'turnier', 'leaderboard'],
     titel: 'Events', pfad: '/events', was: 'every cup with its leaderboard' },
@@ -144,9 +144,9 @@ const WEGE: Array<{ woerter: string[]; titel: string; pfad: string; was: string 
   { woerter: ['overlay'], titel: 'Overlays', pfad: '/overlays',
     was: 'graphics for your own stream' },
   { woerter: ['contact', 'kontakt', 'support', 'report', 'bug'],
-    titel: 'Contact', pfad: '/kontakt', was: 'the form that lands right here' },
+    titel: 'Contact', pfad: '/contact', was: 'the form that lands right here' },
   { woerter: ['account', 'konto', 'profile', 'password', 'passwort'],
-    titel: 'Account', pfad: '/konto', was: 'your own account and settings' },
+    titel: 'Account', pfad: '/account', was: 'your own account and settings' },
 ];
 
 /**
@@ -189,7 +189,7 @@ export async function antwortAuf(text: string): Promise<string | null> {
       const n = Object.keys(await spielerNamen()).length;
       return n
         ? `${n} players are in the archive. Statistics has them all: `
-          + 'https://thecomphub.com/statistiken'
+          + 'https://thecomphub.com/statistics'
         : null;
     }
   }
@@ -310,7 +310,7 @@ async function sucheSpieler(gesucht: string): Promise<Treffer[]> {
 
     const eintragung: Treffer = {
       name: heute,
-      link: `https://thecomphub.com/statistiken?spieler=${encodeURIComponent(heute)}`,
+      link: `https://thecomphub.com/statistics?spieler=${encodeURIComponent(heute)}`,
     };
     (genauGetroffen ? genau : enthalten).push(eintragung);
 

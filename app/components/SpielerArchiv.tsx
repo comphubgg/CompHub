@@ -253,7 +253,7 @@ export default function SpielerArchiv({ epicId, istAdmin }: { epicId: string; is
                       </Link>
                     )}
                     {istAdmin && (
-                      <Link href={`/admin/archiv?event=${encodeURIComponent(gewaehltesEvent.id)}`}
+                      <Link href={`/admin/archive?event=${encodeURIComponent(gewaehltesEvent.id)}`}
                         className="text-xs text-slate-500 hover:text-sky-400 hover:underline">
                         <T>Im Admin-Archiv bearbeiten</T> ↗
                       </Link>

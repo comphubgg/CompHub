@@ -212,7 +212,7 @@ export default function OverlayGeruest({ aktiv, children }: {
             freigeschaltet — mit einem gewöhnlichen Konto sind sie nicht
             zugänglich.</T>
           </p>
-          <Link href="/anmelden"
+          <Link href="/sign-in"
             className="mt-6 inline-block rounded-lg bg-sky-500 px-5 py-2.5
                        text-sm font-semibold text-white transition
                        hover:bg-sky-400">

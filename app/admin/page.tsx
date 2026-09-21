@@ -63,7 +63,7 @@ const ZIELE: Ziel[] = [
    * Schnellzugriff, nicht bei den Adminwerkzeugen: jeder hat Gespraeche,
    * nur eben die eigenen.
    */
-  { href: '/nachrichten', titel: 'Chatarchiv', text: 'Alle Gespräche, auch die abgeschlossenen' },
+  { href: '/messages', titel: 'Chatarchiv', text: 'Alle Gespräche, auch die abgeschlossenen' },
   /*
    * Das Kontaktformular.
    *
@@ -72,7 +72,7 @@ const ZIELE: Ziel[] = [
    * haben die auch keins." Genau hier gehoert es hin: neben dem Chatarchiv,
    * denn beides fuehrt in dieselbe Unterhaltung.
    */
-  { href: '/kontakt', titel: 'Kontakt',
+  { href: '/contact', titel: 'Kontakt',
     text: 'Etwas kaputt, fehlt oder besser zu machen? Schreib es dem Betreiber' },
 ];
 
@@ -96,7 +96,7 @@ const NUR_ADMIN: Ziel[] = [
   // nur mit Namen - die Besuchszahlen unten zaehlen dagegen Browser.
   { href: '/admin/live', titel: 'Live',
     text: 'Wer gerade da ist und wann sich wer angemeldet hat' },
-  { href: '/admin/konten', titel: 'Konten', text: 'Rollen und VIP vergeben' },
+  { href: '/admin/accounts', titel: 'Konten', text: 'Rollen und VIP vergeben' },
   /*
    * Der Kontowechsel als eigene Seite.
    *
@@ -105,28 +105,28 @@ const NUR_ADMIN: Ziel[] = [
    * eine eigene: "kann ich einfach den User anklicken und dann switche ich
    * automatisch."
    */
-  { href: '/admin/wechseln', titel: 'Konto wechseln',
+  { href: '/admin/switch', titel: 'Konto wechseln',
     text: 'Sehen, was ein VIP oder Manager sieht' },
   // Wer Bereiche zumachen darf, koennte sich damit selbst den Weg zurueck
   // verbauen - deshalb nur der Admin, so wie bei den Konten.
-  { href: '/admin/sektionen', titel: 'Sections',
+  { href: '/admin/sections', titel: 'Sections',
     text: 'Bereiche auf Standby oder Offline stellen' },
   // Wer auf der Startseite steht - eine Auswahl, keine Rechtevergabe.
   { href: '/admin/vips', titel: 'VIPs',
     text: 'Wer auf der Startseite gezeigt wird' },
   // Client-Id und Secret der Anmeldedienste - Geheimnisse, also nur Admin.
-  { href: '/admin/dienste', titel: 'Anmeldedienste',
+  { href: '/admin/services', titel: 'Anmeldedienste',
     text: 'Twitch, Discord und Google einrichten' },
 ];
 
 const ADMIN_ZIELE: Ziel[] = [
-  { href: '/karten', titel: 'Karten', text: 'Turnierkarten bauen' },
+  { href: '/maps', titel: 'Karten', text: 'Turnierkarten bauen' },
   { href: '/admin/tweets', titel: 'Beiträge', text: 'Statistik-Posts erstellen' },
-  { href: '/admin/prognosen', titel: 'Prognosen', text: 'Vorhersagen zeichnen' },
+  { href: '/admin/predictions', titel: 'Prognosen', text: 'Vorhersagen zeichnen' },
   { href: '/admin/replays', titel: 'Replays', text: 'Turnier-Replays nachsehen' },
-  { href: '/admin/spieler', titel: 'Player Center', text: 'Flaggen und @-Konten pflegen' },
+  { href: '/admin/players', titel: 'Player Center', text: 'Flaggen und @-Konten pflegen' },
   { href: '/admin/assets', titel: 'Bildvorrat', text: 'Logos und Grafiken ablegen' },
-  { href: '/admin/archiv', titel: 'Archiv', text: 'Fotos und Videos zu Events und Spielern' },
+  { href: '/admin/archive', titel: 'Archiv', text: 'Fotos und Videos zu Events und Spielern' },
   /*
    * Der Posteingang.
    *
@@ -135,7 +135,7 @@ const ADMIN_ZIELE: Ziel[] = [
    * "Kontakt" kam ueber die Oberflaeche dorthin. Wer die Adresse nicht
    * auswendig wusste, las die Meldungen aus dem Kontaktformular nie.
    */
-  { href: '/admin/kontakt', titel: 'Kontakt', text: 'Meldungen aus dem Formular lesen' },
+  { href: '/admin/contact', titel: 'Kontakt', text: 'Meldungen aus dem Formular lesen' },
 ];
 
 /**

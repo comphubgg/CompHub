@@ -2706,7 +2706,7 @@ export default function StatistikSeite() {
    * bin ich nicht mehr auf diesem Statistik-Tool."
    *
    * Deshalb wandert der Name in die Adresse - lesbar, nicht als Konto-Id:
-   * "/statistiken?spieler=MrSavage" sagt einem Menschen, worauf er klickt,
+   * "/statistics?spieler=MrSavage" sagt einem Menschen, worauf er klickt,
    * und laesst sich weitergeben. Geschrieben wird mit replaceState, nicht
    * mit push: sonst entstuende fuer jedes angesehene Profil ein eigener
    * Schritt im Verlauf, und der Zurueck-Knopf braeuchte zehn Klicks, um die

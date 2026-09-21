@@ -108,7 +108,7 @@ export default function Anmelden({ start = 'anmelden' }: {
 
     // Die Adresse wieder saubermachen, damit ein Neuladen nicht denselben
     // Hinweis noch einmal aufwirft.
-    window.history.replaceState({}, '', '/anmelden');
+    window.history.replaceState({}, '', '/sign-in');
   }, [t]);
 
   useEffect(() => {
@@ -120,7 +120,7 @@ export default function Anmelden({ start = 'anmelden' }: {
         ]);
         setDienste(d);
         // Wer schon angemeldet ist, hat hier nichts zu suchen.
-        if (ich?.angemeldet) router.replace('/konto');
+        if (ich?.angemeldet) router.replace('/account');
       } catch { /* dann eben ohne */ }
     });
   }, [router]);
@@ -164,7 +164,7 @@ export default function Anmelden({ start = 'anmelden' }: {
       if (j?.hinweis) setHinweis(j.hinweis);
       // Wer von einer gesperrten Adresse kam (/admin), kommt dorthin zurueck.
       const weiter = new URLSearchParams(window.location.search).get('weiter') ?? '';
-      router.push(/^\/[a-z0-9/_-]*$/i.test(weiter) && weiter.startsWith('/') && !weiter.startsWith('//') ? weiter : '/konto');
+      router.push(/^\/[a-z0-9/_-]*$/i.test(weiter) && weiter.startsWith('/') && !weiter.startsWith('//') ? weiter : '/account');
       router.refresh();
     } catch (err) {
       setFehler((err as Error).message);
@@ -276,7 +276,7 @@ export default function Anmelden({ start = 'anmelden' }: {
               und nicht beim Registrieren - dort gibt es noch keins. */}
           {reiter === 'anmelden' && (
             <div className="text-right">
-              <Link href="/passwort"
+              <Link href="/password"
                 className="text-[11px] text-slate-500 transition hover:text-sky-400">
                 <T>Passwort vergessen?</T>
               </Link>
@@ -320,7 +320,13 @@ export default function Anmelden({ start = 'anmelden' }: {
           */}
         <div className="flex flex-wrap justify-center gap-3">
           {ANBIETER.map((a) => {
-            const bereit = dienste?.dienste[a.schluessel] ?? false;
+            /*
+             * Solange die Auskunft noch unterwegs ist (oder ausbleibt), gilt
+             * der Dienst als eingerichtet: die drei Knoepfe standen sonst
+             * fuer eine Sekunde grau da - der Betreiber hielt Discord fuer
+             * "ausgegraut". Nur ein klares Nein der Auskunft graut aus.
+             */
+            const bereit = dienste ? dienste.dienste[a.schluessel] : true;
             const titel = reiter === 'registrieren'
               ? `${t('Registrieren mit')} ${a.titel}`
               : `${t('Anmelden mit')} ${a.titel}`;

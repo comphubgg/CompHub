@@ -71,7 +71,7 @@ function MeistesPreisgeld({ ort }: { ort: string }) {
                 </div>
               )}
             </div>
-            <Link href={wahl === 'alle' ? '/statistiken?bereich=jahr&jahr=alle' : '/statistiken?bereich=jahr'}
+            <Link href={wahl === 'alle' ? '/statistics?bereich=jahr&jahr=alle' : '/statistics?bereich=jahr'}
               className="shrink-0 rounded-lg border border-zinc-800 px-3 py-1.5 text-xs
                          font-semibold text-slate-300 transition hover:border-sky-500
                          hover:text-sky-400">
@@ -80,7 +80,7 @@ function MeistesPreisgeld({ ort }: { ort: string }) {
           </div>
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
             {daten.plaetze.map((sp, i) => (
-              <Link key={sp.epicId} href={`/statistiken?spieler=${encodeURIComponent(sp.anzeige)}`}
+              <Link key={sp.epicId} href={`/statistics?spieler=${encodeURIComponent(sp.anzeige)}`}
                 className="group relative aspect-[3/4] overflow-hidden rounded-xl border
                            border-zinc-800 bg-zinc-900 transition hover:border-sky-500">
                 {sp.bild ? (
@@ -187,7 +187,7 @@ function Abschnitt({ children, className = '' }: {
 /** Die Bereiche des Werkzeugs - dieselben wie in der Kopfzeile. */
 const BEREICHE = [
   {
-    href: '/statistiken', titel: 'Statistiken',
+    href: '/statistics', titel: 'Statistiken',
     text: 'Jeder Spieler, jeder Spieltag, jede Kennzahl — Schaden, Material, '
       + 'Bauteile, Trefferquote. Mit Verlauf über alle Chapter.',
   },
@@ -305,7 +305,7 @@ export default function Startseite() {
           </p>
 
           <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
-            <Link href="/statistiken"
+            <Link href="/statistics"
               className="rounded-xl bg-sky-500 px-6 py-3 text-sm font-semibold
                          text-white transition hover:bg-sky-400">
               <T>Statistiken ansehen</T>
@@ -452,12 +452,12 @@ export default function Startseite() {
               der Twitch-Knopf direkt zu Twitch, wo mangels Zugangsdaten nur
               "invalid client" stand. */}
           <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-            <Link href="/anmelden"
+            <Link href="/sign-in"
               className="rounded-xl bg-sky-500 px-6 py-3 text-sm font-semibold
                          text-white transition hover:bg-sky-400">
               <T>Konto anlegen</T>
             </Link>
-            <Link href="/anmelden"
+            <Link href="/sign-in"
               className="rounded-xl border border-zinc-800 px-6 py-3 text-sm
                          font-semibold text-slate-300 transition
                          hover:border-sky-500/60 hover:text-sky-400">

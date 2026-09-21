@@ -61,7 +61,7 @@ export async function middleware(request: NextRequest) {
   const pfad = request.nextUrl.pathname;
   if (pfad === '/admin' || pfad.startsWith('/admin/')) {
     if (!(await verwaltungErlaubt(request))) {
-      const ziel = new URL('/anmelden', request.url);
+      const ziel = new URL('/sign-in', request.url);
       ziel.searchParams.set('weiter', pfad);
       return NextResponse.redirect(ziel);
     }

@@ -85,9 +85,9 @@ const WERKZEUGE: Array<{
   ...VERWALTUNGSBEREICHE.map((b) => ({
     pfad: b.pfad, titel: b.titel, was: b.was, recht: b.schluessel,
   })),
-  { pfad: '/admin/konten', titel: 'Kontoverwaltung', nurAdmin: true,
+  { pfad: '/admin/accounts', titel: 'Kontoverwaltung', nurAdmin: true,
     was: 'Rollen vergeben, VIP befristen, Konten sperren' },
-  { pfad: '/admin/sektionen', titel: 'Sections', nurAdmin: true,
+  { pfad: '/admin/sections', titel: 'Sections', nurAdmin: true,
     was: 'Bereiche auf Standby oder Offline stellen' },
   { pfad: '/admin/vips', titel: 'VIPs', nurAdmin: true,
     was: 'Wer auf der Startseite gezeigt wird' },
@@ -276,7 +276,7 @@ export default function KontoSeite() {
            * hergibt: einem Namen. Nur wer auf keinem der beiden Wege
            * hereingekommen ist, wird zur Anmeldung geschickt.
            */
-          if (!zugang.vip) { router.replace('/anmelden'); return; }
+          if (!zugang.vip) { router.replace('/sign-in'); return; }
           setKonto(null);
           setName(zugang.name);
           return;
@@ -307,7 +307,7 @@ export default function KontoSeite() {
             })
             .catch(() => {});
         }
-      } catch { router.replace('/anmelden'); }
+      } catch { router.replace('/sign-in'); }
       finally { setLaedt(false); }
     });
   }, [router, zugang.laedt, zugang.vip, zugang.name]);
@@ -823,7 +823,7 @@ export default function KontoSeite() {
                     Schreib es dem Betreiber — mit Screenshot, wenn du magst.</T>
                   </p>
                 </div>
-                <Link href="/kontakt"
+                <Link href="/contact"
                   className="shrink-0 rounded-lg bg-sky-500 px-4 py-2 text-sm
                              font-medium text-white transition hover:bg-sky-400">
                   <T>Schreiben</T>
@@ -857,7 +857,7 @@ export default function KontoSeite() {
                   </p>
                 </div>
                 <div className="flex shrink-0 flex-wrap items-center gap-2">
-                <Link href="/nachrichten"
+                <Link href="/messages"
                   className="rounded-lg bg-sky-500 px-4 py-2 text-sm font-medium
                              text-white transition hover:bg-sky-400">
                   <T>Nachrichten öffnen</T>

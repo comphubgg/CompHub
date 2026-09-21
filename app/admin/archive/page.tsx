@@ -177,7 +177,7 @@ export default function ArchivVerwaltung() {
           <h1 className="text-2xl font-bold tracking-tight text-slate-50"><T>Archiv pflegen</T></h1>
         </div>
         <div className="flex items-center gap-2">
-          <Link href="/statistiken" className="rounded-md border border-zinc-800 px-3 py-1.5 text-xs text-slate-400 transition hover:border-sky-500 hover:text-sky-400">
+          <Link href="/statistics" className="rounded-md border border-zinc-800 px-3 py-1.5 text-xs text-slate-400 transition hover:border-sky-500 hover:text-sky-400">
             <T>Zu den Profilen</T> ↗
           </Link>
           <Link href="/admin" className="rounded-md border border-zinc-800 px-3 py-1.5 text-xs text-slate-400 transition hover:border-sky-500 hover:text-sky-400">

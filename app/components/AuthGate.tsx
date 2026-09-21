@@ -15,7 +15,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   const hasVerifiedAuth = useRef(false);
 
   useEffect(() => {
-    if (pathname.startsWith("/auth") || pathname === "/anmelden" || isPreview) {
+    if (pathname.startsWith("/auth") || pathname === "/sign-in" || isPreview) {
       return;
     }
 
@@ -84,7 +84,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   }, [pathname, isPreview, status]);
 
   useEffect(() => {
-    if (pathname === "/anmelden" && !isPreview) {
+    if (pathname === "/sign-in" && !isPreview) {
       let isActive = true;
 
       fetch("/api/auth/verify", { cache: "no-store" })
@@ -107,12 +107,12 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
   }, [pathname, router, isPreview]);
 
   useEffect(() => {
-    if (pathname !== "/anmelden" && status === "unauthorized" && !isPreview) {
-      router.replace("/anmelden");
+    if (pathname !== "/sign-in" && status === "unauthorized" && !isPreview) {
+      router.replace("/sign-in");
     }
   }, [status, pathname, router, isPreview]);
 
-  if (pathname.startsWith("/auth") || pathname === "/anmelden" || isPreview) {
+  if (pathname.startsWith("/auth") || pathname === "/sign-in" || isPreview) {
     return <>{children}</>;
   }
 
@@ -133,7 +133,7 @@ export default function AuthGate({ children }: { children: React.ReactNode }) {
           <h1 className="text-3xl font-semibold text-white mb-4">You are logged out</h1>
           <p className="text-slate-400 mb-6">Please sign in again with your VIP username and access key to access the dashboard.</p>
           <a
-            href="/anmelden"
+            href="/sign-in"
             className="inline-flex items-center justify-center rounded-full bg-slate-700 px-5 py-3 text-sm font-semibold text-white hover:bg-slate-600"
           >
             Login VIP

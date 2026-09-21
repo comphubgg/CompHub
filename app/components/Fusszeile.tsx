@@ -53,7 +53,7 @@ export default function Fusszeile() {
           </h3>
           <ul className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 text-xs sm:grid-cols-1">
             {([
-              ['/statistiken', 'Statistiken'],
+              ['/statistics', 'Statistiken'],
               ['/events', 'Events'],
               ['/power-rankings', 'Power Rankings'],
               ['/tierlist', 'Tierlist'],
@@ -128,7 +128,7 @@ export default function Fusszeile() {
               </a>
             </li>
             <li className="pt-1">
-              <Link href="/kontakt"
+              <Link href="/contact"
                 className="text-sky-500 transition hover:text-sky-400">
                 <T>Formular im Werkzeug →</T>
               </Link>

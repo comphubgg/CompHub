@@ -87,7 +87,7 @@ export async function GET(req: NextRequest) {
     const grund = req.nextUrl.searchParams.get('error')
       || req.nextUrl.searchParams.get('error_description') || '';
     const anhang = grund ? `&grund=${encodeURIComponent(grund.slice(0, 200))}` : '';
-    return zurueck(req, `/anmelden?fehler=abgebrochen&dienst=twitch${anhang}`);
+    return zurueck(req, `/sign-in?fehler=abgebrochen&dienst=twitch${anhang}`);
   }
 
   /*
@@ -97,7 +97,7 @@ export async function GET(req: NextRequest) {
    */
   if (!state || !gemerkt || state.length !== gemerkt.length
       || !crypto.timingSafeEqual(Buffer.from(state), Buffer.from(gemerkt))) {
-    return zurueck(req, '/anmelden?fehler=state');
+    return zurueck(req, '/sign-in?fehler=state');
   }
 
   try {
@@ -112,9 +112,9 @@ export async function GET(req: NextRequest) {
         redirect_uri: weiterleitung(req),
       }),
     });
-    if (!tokenAntwort.ok) return zurueck(req, '/anmelden?fehler=token');
+    if (!tokenAntwort.ok) return zurueck(req, '/sign-in?fehler=token');
     const token = await tokenAntwort.json() as { access_token?: string };
-    if (!token.access_token) return zurueck(req, '/anmelden?fehler=token');
+    if (!token.access_token) return zurueck(req, '/sign-in?fehler=token');
 
     // Twitch verlangt beides: den Schluessel der Anwendung und das Token.
     const nutzerAntwort = await fetch('https://api.twitch.tv/helix/users', {
@@ -123,17 +123,17 @@ export async function GET(req: NextRequest) {
         'Client-Id': CLIENT_ID,
       },
     });
-    if (!nutzerAntwort.ok) return zurueck(req, '/anmelden?fehler=profil');
+    if (!nutzerAntwort.ok) return zurueck(req, '/sign-in?fehler=profil');
     const daten = await nutzerAntwort.json() as {
       data?: Array<{ id?: string; login?: string; display_name?: string; email?: string;
         profile_image_url?: string }>;
     };
     const nutzer = daten.data?.[0];
-    if (!nutzer?.id) return zurueck(req, '/anmelden?fehler=profil');
+    if (!nutzer?.id) return zurueck(req, '/sign-in?fehler=profil');
 
     // Wer die Freigabe fuer die Adresse verweigert, kann kein Konto bekommen.
     // Das wird gesagt, statt eine Adresse zu erfinden.
-    if (!nutzer.email) return zurueck(req, '/anmelden?fehler=keine-email');
+    if (!nutzer.email) return zurueck(req, '/sign-in?fehler=keine-email');
 
     // 1. Schon verknuepft?
     let konto = await nachDienst('twitch', nutzer.id);
@@ -151,7 +151,7 @@ export async function GET(req: NextRequest) {
         name: nutzer.display_name || nutzer.login || nutzer.email.split('@')[0],
         dienst: { art: 'twitch', id: nutzer.id },
       });
-      if ('fehler' in ergebnis) return zurueck(req, '/anmelden?fehler=konto');
+      if ('fehler' in ergebnis) return zurueck(req, '/sign-in?fehler=konto');
       konto = ergebnis.konto;
     }
 
@@ -163,7 +163,7 @@ export async function GET(req: NextRequest) {
       name: nutzer.login || nutzer.display_name,
       bildUrl: nutzer.profile_image_url,
     });
-    const antwort = zurueck(req, '/konto');
+    const antwort = zurueck(req, '/account');
     antwort.cookies.set(COOKIE, sitzungFuer(konto.id), {
       httpOnly: true, sameSite: 'lax', path: '/',
       secure: ueberHttps(req),
@@ -172,6 +172,6 @@ export async function GET(req: NextRequest) {
     antwort.cookies.set('twitch_oauth_state', '', { path: '/', maxAge: 0 });
     return antwort;
   } catch {
-    return zurueck(req, '/anmelden?fehler=unerwartet');
+    return zurueck(req, '/sign-in?fehler=unerwartet');
   }
 }

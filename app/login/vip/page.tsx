@@ -8,5 +8,5 @@ import { redirect } from 'next/navigation';
  * auf das E-Mail-Formular.
  */
 export default function VIPLoginPage() {
-  redirect('/anmelden/vip');
+  redirect('/sign-in/vip');
 }

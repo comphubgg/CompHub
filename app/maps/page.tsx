@@ -3353,7 +3353,7 @@ ${name}
                   {geschwister.length} <T>Karten zu diesem Spieltag:</T>
                 </span>
                 {geschwister.map((k) => (
-                  <a key={k.id} href={`/karten?id=${encodeURIComponent(k.id)}`}
+                  <a key={k.id} href={`/maps?id=${encodeURIComponent(k.id)}`}
                     title={k.spiele ? `Gilt für ${k.spiele}` : undefined}
                     className={`rounded-lg border px-3 py-1.5 text-xs transition ${
                       k.id === offeneKarte.id
@@ -3877,7 +3877,7 @@ ${name}
                                text-emerald-200 hover:border-emerald-500">
                     <T>Eventseite öffnen</T>
                   </a>
-                  <a href={`/karten?id=${encodeURIComponent(veroeffentlicht.id)}`}
+                  <a href={`/maps?id=${encodeURIComponent(veroeffentlicht.id)}`}
                     target="_blank" rel="noreferrer"
                     className="rounded-lg border border-zinc-700 px-2 py-1
                                text-slate-300 hover:border-zinc-500">
@@ -3936,7 +3936,7 @@ ${name}
                                   text-xs transition ${k.titel === titel
                         ? 'border-sky-500 bg-sky-950/30'
                         : 'border-zinc-800 hover:border-zinc-700'}`}>
-                      <a href={`/karten?id=${encodeURIComponent(k.id)}`}
+                      <a href={`/maps?id=${encodeURIComponent(k.id)}`}
                         className="min-w-0 flex-1 truncate text-left text-slate-300
                                    hover:text-sky-400">
                         {k.titel}
@@ -3982,7 +3982,7 @@ ${name}
                   <div className="space-y-1">
                     {offeneFinals.map((f) => (
                       <a key={f.windowId}
-                        href={`/karten?event=${encodeURIComponent(f.eventId)}`
+                        href={`/maps?event=${encodeURIComponent(f.eventId)}`
                           + `&window=${encodeURIComponent(f.windowId)}`}
                         className="flex items-center gap-1 rounded-lg border border-dashed
                                    border-zinc-800 px-2 py-1.5 text-xs text-slate-400

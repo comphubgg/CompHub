@@ -23,7 +23,7 @@ export default function robots(): MetadataRoute.Robots {
     rules: {
       userAgent: '*',
       allow: '/',
-      disallow: ['/api/', '/admin', '/admin/', '/konto', '/anmelden'],
+      disallow: ['/api/', '/admin', '/admin/', '/account', '/sign-in'],
     },
     sitemap: `${wurzel()}/sitemap.xml`,
   };

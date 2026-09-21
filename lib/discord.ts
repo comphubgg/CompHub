@@ -592,7 +592,7 @@ export async function schickeSchluessel(
        * aber mit dem Zugang ("gripey-managers"). Hier stand der
        * Kanalname, und damit ein Name, mit dem niemand hineinkam.
        */
-      `Sign in at https://www.thecomphub.com/anmelden/vip with the name \`${
+      `Sign in at https://www.thecomphub.com/sign-in/vip with the name \`${
         anmeldename || name}\`.`,
       '',
       '_This message is replaced whenever a new key is generated — the key '
@@ -2117,7 +2117,7 @@ export async function zugangEntscheiden(
       description: [
         `Your access name is **${name}**.`,
         kanal ? `Your key is waiting in your private channel <#${kanal}> on the CompHub server.` : 'Your key is in your private channel on the CompHub server.',
-        'Sign in at https://www.thecomphub.com/anmelden/vip with the access name and the key.',
+        'Sign in at https://www.thecomphub.com/sign-in/vip with the access name and the key.',
       ].join('\n'),
       color: FARBE,
     }],
