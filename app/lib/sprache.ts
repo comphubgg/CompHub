@@ -1951,6 +1951,12 @@ const AUF_ENGLISCH: Record<string, string> = {
     'now',
   'Sitzungen':
     'sessions',
+  'Join our Discord':
+    'Join our Discord',
+  'Updates zu jedem neuen Feature, Support-Tickets, VIP- und Manager-Zugang per Knopfdruck, und die Community rund um Fortnite Competitive.':
+    'Updates on every new feature, support tickets, VIP and manager access at the press of a button, and the community around Fortnite competitive.',
+  'Discord öffnen':
+    'Open Discord',
   'Bis (optional)':
     'Until (optional)',
   'Cup auf der Seite':

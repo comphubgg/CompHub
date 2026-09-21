@@ -5,6 +5,7 @@ import { istBetreiber, vipAus } from '@/lib/vipCookie';
 import { zugangNach, rechteVon } from '@/lib/vipZugaenge';
 import {
   richteServerEin, schluesselAufraeumen, discordDa, knoepfeMoeglich,
+  richteUpdatesEin, richteZugangEin, type AufbauZeile,
 } from '@/lib/discord';
 
 /*
@@ -86,6 +87,14 @@ export async function POST(request: Request) {
    */
   const bericht = koerper.was === 'schluessel'
     ? await schluesselAufraeumen()
-    : await richteServerEin({ altesLoeschen });
+    : koerper.was === 'zugang'
+      // Nur die Update-Kanaele und Get-Access - ohne den ganzen Aufbau.
+      ? await (async () => {
+        const schritte: AufbauZeile[] = []; const fehler: AufbauZeile[] = [];
+        await richteUpdatesEin(schritte, fehler);
+        await richteZugangEin(schritte, fehler);
+        return { ok: fehler.length === 0, schritte, fehler };
+      })()
+      : await richteServerEin({ altesLoeschen });
   return NextResponse.json(bericht, { status: bericht.ok ? 200 : 207 });
 }

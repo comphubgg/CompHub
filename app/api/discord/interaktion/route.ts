@@ -6,6 +6,7 @@ import {
 import {
   beitragEinbettung, gemerkterKanal, schickeSchluessel,
   ticketOeffnen, ticketSchliessen,
+  zugangFormular, zugangAnfrage, zugangEntscheiden, darfEntscheiden,
 } from '@/lib/discord';
 
 /*
@@ -122,7 +123,7 @@ export async function POST(request: NextRequest) {
      * Direktnachricht unter "user" - unsere Knoepfe stehen nur in Kanaelen,
      * aber beides zu lesen kostet nichts.
      */
-    member?: { user?: { id?: string; username?: string; global_name?: string } };
+    member?: { user?: { id?: string; username?: string; global_name?: string }; roles?: string[] };
     user?: { id?: string; username?: string; global_name?: string };
     data?: {
       custom_id?: string;
@@ -151,6 +152,81 @@ export async function POST(request: NextRequest) {
 
   const id = String(d.data?.custom_id ?? '');
   const nutzer = d.member?.user ?? d.user;
+
+  /** Alle Felder eines abgeschickten Eingabefensters, nach custom_id. */
+  const felderAus = (): Record<string, string> => {
+    const raus: Record<string, string> = {};
+    for (const zeile of d.data?.components ?? []) {
+      for (const f of zeile.components ?? []) if (f.custom_id) raus[f.custom_id] = String(f.value ?? '');
+    }
+    return raus;
+  };
+  /** Die verzoegerte Antwort nachtragen - Discord gibt nur drei Sekunden. */
+  const melde = async (text: string) => {
+    if (!d.application_id || !d.token) return;
+    await fetch(
+      `https://discord.com/api/v10/webhooks/${d.application_id}/${d.token}/messages/@original`,
+      { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: text }) });
+  };
+
+  /* ---------------------------------------------------- Get Access */
+  // Der Knopf im Aushang: das Eingabefenster oeffnen.
+  if (id === 'zugang:anfragen:vip' || id === 'zugang:anfragen:manager') {
+    if (!nutzer?.id) return nurFuerIhn('I could not tell who pressed that.');
+    return NextResponse.json(zugangFormular(id.endsWith('manager') ? 'manager' : 'vip'));
+  }
+  // Das ausgefuellte Fenster: ablegen und dem Admin zeigen.
+  if (id.startsWith('zugang:formular:')) {
+    if (!nutzer?.id) return nurFuerIhn('I could not tell who sent that.');
+    const art = id.endsWith('manager') ? 'manager' : 'vip';
+    const felder = felderAus();
+    const wer = nutzer.global_name || nutzer.username || nutzer.id;
+    after(async () => {
+      const erg = await zugangAnfrage({ nutzerId: nutzer.id as string, nutzerName: wer, art, felder });
+      await melde(erg.ok
+        ? 'Thanks - your request is in. You get a direct message as soon as Juanito has decided.'
+        : erg.grund === 'schon-offen' ? 'You already have an open request. Please wait for the answer.'
+          : erg.grund === 'name' ? 'Please give a name with at least three letters or digits.'
+            : 'That did not work. Please write to Juanito directly.');
+    });
+    return NextResponse.json({ type: 5, data: { flags: 64 } });
+  }
+  // Accept - nur der Admin.
+  if (id.startsWith('zugang:ok:')) {
+    if (!(await darfEntscheiden(nutzer, d.member?.roles ?? []))) return nurFuerIhn('Only the admin can decide this.');
+    const anfrageId = id.slice('zugang:ok:'.length);
+    const von = nutzer?.global_name || nutzer?.username || 'admin';
+    after(async () => {
+      const erg = await zugangEntscheiden(anfrageId, true, von);
+      await melde(erg.text);
+    });
+    return NextResponse.json({ type: 5, data: { flags: 64 } });
+  }
+  // Decline - erst der Grund (Fenster), dann die Entscheidung.
+  if (id.startsWith('zugang:nein:')) {
+    if (!(await darfEntscheiden(nutzer, d.member?.roles ?? []))) return nurFuerIhn('Only the admin can decide this.');
+    const anfrageId = id.slice('zugang:nein:'.length);
+    if (d.type === 3) {
+      return NextResponse.json({
+        type: 9,
+        data: {
+          custom_id: `zugang:nein:${anfrageId}`,
+          title: 'Decline - why?',
+          components: [{
+            type: 1,
+            components: [{ type: 4, custom_id: 'grund', label: 'Reason (the person gets it as a DM)', style: 2, min_length: 3, max_length: 600, required: true }],
+          }],
+        },
+      });
+    }
+    const grund = felderAus().grund?.trim() || 'No reason given.';
+    const von = nutzer?.global_name || nutzer?.username || 'admin';
+    after(async () => {
+      const erg = await zugangEntscheiden(anfrageId, false, von, grund);
+      await melde(erg.text);
+    });
+    return NextResponse.json({ type: 5, data: { flags: 64 } });
+  }
 
   /* ------------------------------------------------------- Tickets */
   if (id === 'ticket:auf' || id.startsWith('ticket:art')) {

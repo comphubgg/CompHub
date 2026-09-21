@@ -1220,6 +1220,10 @@ export async function richteServerEin(
     fehler.push({ text: 'Kanal ließ sich nicht anlegen', wert: '#manager-support' });
   }
 
+  // Update-Kanaele und Get-Access - siehe unten.
+  await richteUpdatesEin(schritte, fehler);
+  await richteZugangEin(schritte, fehler);
+
   if (!knoepfeMoeglich()) {
     schritte.push({
       text: 'Ohne DISCORD_PUBLIC_KEY gibt es keine Knöpfe — weder für Deutsch '
@@ -1744,4 +1748,387 @@ export async function ticketSchliessen(
   const weg = await ruf(`/channels/${kanal}`, 'DELETE');
   if (!weg && letzterStatus !== 404) return { ok: false, grund: 'nicht geloescht' };
   return { ok: true };
+}
+
+/* ==================================================================== */
+/* ============================================ Updates und Zugang ==== */
+/* ==================================================================== */
+
+/*
+ * Der Betreiber will den Server zu einem offenen Community-Discord ausbauen:
+ *
+ *   - Update-Kanaele: "es gibt VIP Updates, es gibt Manager Updates und es
+ *     gibt fuer jeden Update ... ein kleiner Bericht, was updated wurde".
+ *   - Get Access: "wenn zum Beispiel ein VIP sich als VIP registrieren will,
+ *     kann er dort irgendwas druecken ... nachher muss er da Sachen
+ *     ausfuellen, wie seine Social Media, wieso er genau Access will ... das
+ *     wird in einen Admin-Channel geschickt ... und dann kann ich Decline
+ *     oder Accept nehmen." Bei Decline eine DM mit Grund, bei Accept
+ *     Schluessel, Konto, Kanal, Rolle und DM - alles von selbst.
+ *
+ * Ein Server genuegt: Sichtbarkeit regeln die Rollen, die Anfragen sieht
+ * nur der Admin. Nichts hier laeuft dauerhaft - jeder Knopf kommt als
+ * Anfrage ueber die Interactions-Adresse (app/api/discord/interaktion).
+ */
+
+const UPDATE_KANAELE = { alle: 'updates', vip: 'vip-updates', manager: 'manager-updates' } as const;
+export type UpdateZiel = keyof typeof UPDATE_KANAELE;
+export type UpdateArt = 'neu' | 'behoben' | 'geaendert';
+
+const ZUGANG_PANEL = 'get-access';
+const ZUGANG_ANFRAGEN = 'access-requests';
+
+/** Die Kanaele fuer Updates und Zugang anlegen - Teil des Server-Aufbaus. */
+export async function richteUpdatesEin(
+  schritte: AufbauZeile[], fehler: AufbauZeile[],
+): Promise<void> {
+  const kanaele = await alleKanaele();
+  const kategorie = await kategorieFuer('Updates');
+  const rollen = await zugangsRollen();
+  const plan: Array<[UpdateZiel, string, Sichtbar, string[]]> = [
+    ['alle', 'What is new on CompHub - for everyone', 'alle', []],
+    ['vip', 'Updates that only VIPs get', 'vip', rollen.vip],
+    ['manager', 'Updates for managers', 'manager', rollen.manager],
+  ];
+  for (const [ziel, thema, sichtbar, darf] of plan) {
+    const id = await infoKanal(UPDATE_KANAELE[ziel], thema, kategorie, kanaele, sichtbar, darf);
+    if (id) schritte.push({ text: 'Update-Kanal steht', wert: `#${UPDATE_KANAELE[ziel]}` });
+    else fehler.push({ text: 'Kanal ließ sich nicht anlegen', wert: `#${UPDATE_KANAELE[ziel]}` });
+  }
+}
+
+/**
+ * Ein Update in den passenden Kanal - Titel, Datum, kurz was es ist.
+ *
+ * Der Betreiber: "dann schreibst du mal der Bug, der Titel, Datum, nachher
+ * beschrieben, kurz, was es ist. Und schickst das an den Channel."
+ */
+export async function schickeUpdate(
+  { ziel, art, titel, text }: { ziel: UpdateZiel; art: UpdateArt; titel: string; text: string },
+): Promise<{ ok: boolean; grund?: string }> {
+  if (!discordDa()) return { ok: false, grund: 'kein-token' };
+  let kanaele = await alleKanaele();
+  let kanal = kanaele.find((k) => k.type === 0 && gleich(k.name, UPDATE_KANAELE[ziel]));
+  if (!kanal) {
+    await richteUpdatesEin([], []);
+    kanaele = await alleKanaele();
+    kanal = kanaele.find((k) => k.type === 0 && gleich(k.name, UPDATE_KANAELE[ziel]));
+  }
+  if (!kanal) return { ok: false, grund: 'kein-kanal' };
+  const vorsatz = art === 'neu' ? 'NEW' : art === 'behoben' ? 'FIXED' : 'CHANGED';
+  const gesendet = await ruf(`/channels/${kanal.id}/messages`, 'POST', {
+    embeds: [{
+      title: `${vorsatz} · ${titel}`.slice(0, 256),
+      description: text.slice(0, 4000),
+      color: FARBE,
+      footer: { text: new Date().toISOString().slice(0, 10) },
+    }],
+  });
+  return idAus(gesendet) ? { ok: true } : { ok: false, grund: 'abgelehnt' };
+}
+
+/* ------------------------------------------------------------ Zugang */
+
+export type ZugangArt = 'vip' | 'manager';
+
+export interface ZugangAnfrage {
+  id: string;
+  nutzerId: string;
+  nutzerName: string;
+  art: ZugangArt;
+  /** Der gewuenschte Zugangsname (ohne Leerzeichen). */
+  name: string;
+  socials: string;
+  grund: string;
+  /** Bei Managern: fuer welchen Streamer. */
+  streamer?: string;
+  kanal?: string;
+  nachricht?: string;
+  status: 'offen' | 'angenommen' | 'abgelehnt' | 'gescheitert';
+  zeit: string;
+  entschieden?: string;
+  von?: string;
+  ergebnis?: string;
+}
+
+const ANFRAGEN_DATEI = path.join(DATEN_ORT, 'discord-anfragen.json');
+
+async function liesAnfragen(): Promise<Record<string, ZugangAnfrage>> {
+  try { return JSON.parse(await fs.readFile(ANFRAGEN_DATEI, 'utf8')); } catch { return {}; }
+}
+async function schreibeAnfragen(a: Record<string, ZugangAnfrage>): Promise<void> {
+  await fs.mkdir(path.dirname(ANFRAGEN_DATEI), { recursive: true });
+  await fs.writeFile(ANFRAGEN_DATEI, JSON.stringify(a, null, 2));
+}
+
+/** Der Aushang mit dem Knopf und der private Kanal fuer die Anfragen. */
+export async function richteZugangEin(
+  schritte: AufbauZeile[], fehler: AufbauZeile[],
+): Promise<void> {
+  const kanaele = await alleKanaele();
+  const kategorie = await kategorieFuer('Access');
+  const panel = await infoKanal(ZUGANG_PANEL, 'Ask for VIP or manager access', kategorie, kanaele, 'alle', []);
+  const anfragen = await infoKanal(ZUGANG_ANFRAGEN, 'Access requests - only the admin sees this', kategorie, kanaele, 'manager', []);
+  if (!panel) { fehler.push({ text: 'Kanal ließ sich nicht anlegen', wert: `#${ZUGANG_PANEL}` }); return; }
+  if (!anfragen) fehler.push({ text: 'Kanal ließ sich nicht anlegen', wert: `#${ZUGANG_ANFRAGEN}` });
+
+  const ablage = await lies();
+  const alt = ablage['zugang:panel']?.nachricht;
+  if (alt) await ruf(`/channels/${panel}/messages/${alt}`, 'DELETE');
+  const gesendet = await ruf(`/channels/${panel}/messages`, 'POST', {
+    embeds: [{
+      title: 'Get access',
+      description: [
+        '**VIP access** is for pro players, streamers and creators: your own '
+        + 'private channel, overlays, and the VIP views on thecomphub.com.',
+        '**Manager access** is for people who run the overlays for a VIP.',
+        '',
+        'Press a button, fill in your socials and why you want access. Juanito '
+        + 'reads every request and you get a direct message with the answer - '
+        + 'accepted or declined, always with a reason.',
+      ].join('\n'),
+      color: FARBE,
+    }],
+    ...(knoepfeMoeglich() ? {
+      components: [{
+        type: 1,
+        components: [
+          { type: 2, style: 1, label: 'Get VIP access', custom_id: 'zugang:anfragen:vip' },
+          { type: 2, style: 2, label: 'Get manager access', custom_id: 'zugang:anfragen:manager' },
+        ],
+      }],
+    } : {}),
+  });
+  const id = idAus(gesendet);
+  if (!id) { fehler.push({ text: 'Der Text wurde abgelehnt', wert: `#${ZUGANG_PANEL}` }); return; }
+  ablage['zugang:panel'] = { kanal: panel, nachricht: id };
+  await schreibe(ablage);
+  schritte.push({ text: 'Get-Access-Aushang steht', wert: `#${ZUGANG_PANEL}` });
+}
+
+/** Das Eingabefenster nach dem Knopf. */
+export function zugangFormular(art: ZugangArt) {
+  const feld = (custom_id: string, label: string, style: 1 | 2, placeholder: string, required = true, max = 400) => ({
+    type: 1, components: [{ type: 4, custom_id, label, style, placeholder, required, max_length: max, min_length: required ? 2 : 0 }],
+  });
+  return {
+    type: 9,
+    data: {
+      custom_id: `zugang:formular:${art}`,
+      title: art === 'vip' ? 'VIP access' : 'Manager access',
+      components: [
+        feld('name', 'Your name (as it should appear)', 1, 'e.g. Malibuca', true, 24),
+        ...(art === 'manager' ? [feld('streamer', 'Streamer you manage', 1, 'the VIP name', true, 24)] : []),
+        feld('socials', 'Your socials (name or link, one per line)', 2, 'Twitch: ...\nX: ...\nTikTok: ...\nYouTube: ...'),
+        feld('grund', 'Why do you want access?', 2, 'A few sentences are enough.', true, 800),
+      ],
+    },
+  };
+}
+
+/** Den Wunschnamen in einen Zugangsnamen bringen - wie in der Verwaltung. */
+function zugangsName(roh: string): string {
+  const rein = roh.trim().replace(/\s+/g, '-').replace(/[^\p{L}\p{N}_.-]/gu, '');
+  return rein.slice(0, 24);
+}
+
+/**
+ * Eine Anfrage ablegen und dem Admin zeigen - mit Accept und Decline.
+ */
+export async function zugangAnfrage(
+  { nutzerId, nutzerName, art, felder }: {
+    nutzerId: string; nutzerName: string; art: ZugangArt; felder: Record<string, string>;
+  },
+): Promise<{ ok: boolean; grund?: string }> {
+  if (!discordDa()) return { ok: false, grund: 'kein-token' };
+  const name = zugangsName(felder.name ?? '');
+  if (name.length < 3) return { ok: false, grund: 'name' };
+
+  const kanaele = await alleKanaele();
+  let anfragenKanal = kanaele.find((k) => k.type === 0 && gleich(k.name, ZUGANG_ANFRAGEN))?.id ?? null;
+  if (!anfragenKanal) {
+    await richteZugangEin([], []);
+    anfragenKanal = (await alleKanaele()).find((k) => k.type === 0 && gleich(k.name, ZUGANG_ANFRAGEN))?.id ?? null;
+  }
+  if (!anfragenKanal) return { ok: false, grund: 'kein-kanal' };
+
+  const anfragen = await liesAnfragen();
+  // Eine offene Anfrage je Person und Art - kein Stapel derselben Bitte.
+  const offen = Object.values(anfragen).find((a) => a.nutzerId === nutzerId && a.art === art && a.status === 'offen');
+  if (offen) return { ok: false, grund: 'schon-offen' };
+
+  const id = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
+  const anfrage: ZugangAnfrage = {
+    id, nutzerId, nutzerName, art, name,
+    socials: (felder.socials ?? '').trim().slice(0, 800),
+    grund: (felder.grund ?? '').trim().slice(0, 1200),
+    ...(art === 'manager' ? { streamer: zugangsName(felder.streamer ?? '') } : {}),
+    status: 'offen', zeit: new Date().toISOString(),
+  };
+
+  const gesendet = await ruf(`/channels/${anfragenKanal}/messages`, 'POST', {
+    content: `New ${art === 'vip' ? 'VIP' : 'manager'} request from <@${nutzerId}>`,
+    embeds: [{
+      title: `${art === 'vip' ? 'VIP' : 'Manager'} access · ${name}`,
+      color: FARBE,
+      fields: [
+        { name: 'Discord', value: `<@${nutzerId}> (${nutzerName})`, inline: true },
+        { name: 'Access name', value: name, inline: true },
+        ...(anfrage.streamer ? [{ name: 'Manages', value: anfrage.streamer, inline: true }] : []),
+        { name: 'Socials', value: anfrage.socials || '—' },
+        { name: 'Why', value: anfrage.grund || '—' },
+      ],
+      footer: { text: `Request ${id}` },
+    }],
+    ...(knoepfeMoeglich() ? {
+      components: [{
+        type: 1,
+        components: [
+          { type: 2, style: 3, label: 'Accept', custom_id: `zugang:ok:${id}` },
+          { type: 2, style: 4, label: 'Decline', custom_id: `zugang:nein:${id}` },
+        ],
+      }],
+    } : {}),
+  });
+  const nachricht = idAus(gesendet);
+  if (!nachricht) return { ok: false, grund: 'abgelehnt' };
+  anfrage.kanal = anfragenKanal;
+  anfrage.nachricht = nachricht;
+  anfragen[id] = anfrage;
+  await schreibeAnfragen(anfragen);
+  return { ok: true };
+}
+
+/** Eine Direktnachricht - oder false, wenn die Person keine annimmt. */
+async function direktnachricht(nutzerId: string, inhalt: Record<string, unknown>): Promise<boolean> {
+  const dm = await ruf('/users/@me/channels', 'POST', { recipient_id: nutzerId });
+  const kanal = idAus(dm);
+  if (!kanal) return false;
+  return Boolean(idAus(await ruf(`/channels/${kanal}/messages`, 'POST', inhalt)));
+}
+
+/** Die Anfrage-Nachricht nach der Entscheidung ohne Knoepfe, mit Ergebnis. */
+async function anfrageAbschliessen(a: ZugangAnfrage, zeile: string): Promise<void> {
+  if (!a.kanal || !a.nachricht) return;
+  await ruf(`/channels/${a.kanal}/messages/${a.nachricht}`, 'PATCH', {
+    content: zeile,
+    components: [],
+  });
+}
+
+/**
+ * Annehmen: Zugang anlegen, Kanal und Rolle, Schluessel hinein, Rolle an
+ * die Person, Direktnachricht. Oder ablehnen: Direktnachricht mit Grund.
+ */
+export async function zugangEntscheiden(
+  id: string, angenommen: boolean, von: string, grund = '',
+): Promise<{ ok: boolean; text: string }> {
+  const anfragen = await liesAnfragen();
+  const a = anfragen[id];
+  if (!a) return { ok: false, text: 'This request no longer exists.' };
+  if (a.status !== 'offen') return { ok: false, text: `Already decided: ${a.status}.` };
+
+  if (!angenommen) {
+    a.status = 'abgelehnt'; a.entschieden = new Date().toISOString(); a.von = von; a.ergebnis = grund;
+    await schreibeAnfragen(anfragen);
+    const dm = await direktnachricht(a.nutzerId, {
+      embeds: [{
+        title: `Your ${a.art === 'vip' ? 'VIP' : 'manager'} request was declined`,
+        description: `**Reason:** ${grund}\n\nYou can ask again later in #${ZUGANG_PANEL}.`,
+        color: FARBE,
+      }],
+    });
+    await anfrageAbschliessen(a, `Declined by ${von} · ${grund}${dm ? '' : ' · (DM could not be delivered)'}`);
+    return { ok: true, text: dm ? 'Declined - the person got a DM with your reason.' : 'Declined - but the DM could not be delivered (closed DMs).' };
+  }
+
+  /* --------------------------------------------------------- Anlegen */
+  const { neuerSchluessel, schonVergeben } = await import('./zugangsSchluessel');
+  const { alleZugaenge: zugaenge, schreibeZugaenge } = await import('./vipZugaenge');
+  const users = await zugaenge();
+  const name = a.name;
+  const streamer = (a.streamer ?? '').trim();
+  if (users.some((u) => u.username.toLowerCase() === name.toLowerCase())) {
+    return { ok: false, text: `There is already an access named "${name}". Create it by hand in the admin panel or decline.` };
+  }
+  if (a.art === 'manager') {
+    const da = streamer && users.some((u) => u.username.toLowerCase() === streamer.toLowerCase());
+    if (!da) return { ok: false, text: `No VIP named "${streamer || '?'}" - a manager access needs an existing VIP. Decline or create the VIP first.` };
+  }
+  let schluessel = neuerSchluessel('');
+  for (let i = 0; schonVergeben(schluessel, users, name) && i < 5; i += 1) schluessel = neuerSchluessel('');
+  users.push({
+    username: name, accessKey: schluessel, status: 'active', createdAt: new Date().toISOString(),
+    ...(a.art === 'manager' ? { rolle: 'manager' as const, rechte: ['overlays'], verwaltet: streamer, darfSchluessel: false, mods: [name] } : {}),
+  });
+  await schreibeZugaenge(users);
+
+  const kanalArt: KanalArt = a.art === 'manager' ? 'manager' : 'vip';
+  const hin = await schickeSchluessel(a.art === 'manager' ? streamer : name, schluessel, kanalArt, a.art === 'vip', false, name);
+
+  // Rollen: die eigene des Zugangs und die Sammelrolle, sofern es sie gibt.
+  const rollen = await rollenListe();
+  const eigene = await rolleFuer(a.art === 'manager' ? `${streamer} manager` : name);
+  const sammel = rollen.get(a.art === 'manager' ? 'vip manager' : 'vip streamer') ?? null;
+  for (const r of [eigene, sammel]) {
+    if (r) await ruf(`/guilds/${SERVER}/members/${a.nutzerId}/roles/${r}`, 'PUT');
+  }
+
+  const kanal = await gemerkterKanal(a.art === 'manager' ? streamer : name, kanalArt);
+  a.status = 'angenommen'; a.entschieden = new Date().toISOString(); a.von = von;
+  a.ergebnis = hin.ok ? 'Schluessel im Kanal' : `Schluessel nicht gesendet: ${hin.grund}`;
+  await schreibeAnfragen(anfragen);
+
+  const dm = await direktnachricht(a.nutzerId, {
+    embeds: [{
+      title: `Welcome - your ${a.art === 'vip' ? 'VIP' : 'manager'} access is ready`,
+      description: [
+        `Your access name is **${name}**.`,
+        kanal ? `Your key is waiting in your private channel <#${kanal}> on the CompHub server.` : 'Your key is in your private channel on the CompHub server.',
+        'Sign in at https://www.thecomphub.com/anmelden/vip with the access name and the key.',
+      ].join('\n'),
+      color: FARBE,
+    }],
+  });
+  await anfrageAbschliessen(a, `Accepted by ${von} · access "${name}"${kanal ? ` · <#${kanal}>` : ''}${dm ? '' : ' · (DM could not be delivered)'}`);
+  return {
+    ok: true,
+    text: `Accepted - access "${name}" created${kanal ? `, key in <#${kanal}>` : ''}${dm ? ', DM sent.' : ', but the DM could not be delivered (closed DMs).'}`,
+  };
+}
+
+/** Darf diese Person Anfragen entscheiden? Admin-Rolle oder Betreiber-Konto. */
+export async function darfEntscheiden(nutzer: { id?: string; username?: string } | undefined, rollen: string[]): Promise<boolean> {
+  const admin = await adminRolleId();
+  if (admin && rollen.includes(admin)) return true;
+  const erlaubt = (process.env.ALLOWED_DISCORD_USERS ?? '').split(',').map((s) => s.trim().toLowerCase()).filter(Boolean);
+  const name = (nutzer?.username ?? '').toLowerCase();
+  return Boolean(name && erlaubt.includes(name));
+}
+
+/* ---------------------------------------------------------- Einladung */
+
+/**
+ * Der Einladungslink fuer "Join our Discord" auf der Seite.
+ *
+ * Eine dauerhafte Einladung in den Get-Access-Kanal, einmal angelegt und
+ * gemerkt. Ohne Bot-Token gibt es keinen Link - dann zeigt die Seite den
+ * Kasten nicht.
+ */
+export async function einladung(): Promise<string | null> {
+  if (!discordDa()) return null;
+  const ablage = await lies();
+  const gemerkt = ablage['einladung']?.nachricht;
+  if (gemerkt) return `https://discord.gg/${gemerkt}`;
+  const kanaele = await alleKanaele();
+  const ziel = kanaele.find((k) => k.type === 0 && gleich(k.name, ZUGANG_PANEL))
+    ?? kanaele.find((k) => k.type === 0 && /welcome|willkommen|general|allgemein/i.test(k.name))
+    ?? kanaele.find((k) => k.type === 0);
+  if (!ziel) return null;
+  const neu = await ruf(`/channels/${ziel.id}/invites`, 'POST', { max_age: 0, max_uses: 0, unique: false });
+  const code = neu && typeof (neu as Record<string, unknown>).code === 'string' ? String((neu as Record<string, unknown>).code) : null;
+  if (!code) return null;
+  ablage['einladung'] = { kanal: ziel.id, nachricht: code };
+  await schreibe(ablage);
+  return `https://discord.gg/${code}`;
 }

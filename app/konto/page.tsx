@@ -150,6 +150,15 @@ export default function KontoSeite() {
   const [konto, setKonto] = useState<Konto | null>(null);
   const [laedt, setLaedt] = useState(true);
   const [bereich, setBereich] = useState<Bereich>('konto');
+  /** Der Einladungslink zum Discord-Server - null, solange keiner da ist. */
+  const [discordLink, setDiscordLink] = useState<string | null>(null);
+  useEffect(() => {
+    let weg = false;
+    fetch('/api/discord/einladung').then((r) => r.json())
+      .then((j) => { if (!weg && typeof j?.url === 'string') setDiscordLink(j.url); })
+      .catch(() => { /* dann ohne Kasten */ });
+    return () => { weg = true; };
+  }, []);
 
   /*
    * Ob das Chatsymbol am Bildschirmrand steht.
@@ -769,6 +778,30 @@ export default function KontoSeite() {
         {/* ------------------------------------------------------ Stats */}
         {bereich === 'konto' && (
           <div className="space-y-6">
+            {/*
+              * Der Weg auf den Discord-Server.
+              *
+              * Der Betreiber: "join our Discord ... am besten im Dashboard,
+              * nicht auf der Taskleiste, sobald man sich registriert hat."
+              * Nur, wenn es einen Einladungslink gibt - ein leerer Kasten
+              * waere ein Versprechen ohne Tuer.
+              */}
+            {discordLink && (
+              <section className={kasten}>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h2 className={`${ueberschrift} mb-1`}><T>Join our Discord</T></h2>
+                    <p className="text-xs leading-relaxed text-slate-500">
+                      <T>Updates zu jedem neuen Feature, Support-Tickets, VIP- und Manager-Zugang per Knopfdruck, und die Community rund um Fortnite Competitive.</T>
+                    </p>
+                  </div>
+                  <a href={discordLink} target="_blank" rel="noreferrer"
+                    className="rounded-lg border border-sky-500 bg-sky-500/10 px-4 py-2 text-sm font-semibold text-sky-400 transition hover:bg-sky-500/20">
+                    <T>Discord öffnen</T> ↗
+                  </a>
+                </div>
+              </section>
+            )}
             {/* Zuerst das eigene Turnier: welcher Cup, welche Runde, welcher
                 Tag, welche Region - und der Weg hindurch. Die Suche nach
                 fremden Spielern steht bewusst darunter; wer seine eigenen
