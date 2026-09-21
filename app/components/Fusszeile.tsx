@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import T from '@/app/components/T';
+import { useDiscordEinladung } from '@/app/components/DiscordKnopf';
 
 /*
  * Die Fusszeile - unter der Startseite und unter dem Dashboard.
@@ -22,6 +23,7 @@ import T from '@/app/components/T';
  * nicht klein am Rand - er ist keine Fussnote, sondern eine Klarstellung.
  */
 export default function Fusszeile() {
+  const discordLink = useDiscordEinladung();
   return (
     <footer className="border-t border-zinc-900 bg-zinc-950/60 px-4 py-14">
       <div className="mx-auto grid max-w-5xl gap-10 sm:grid-cols-3">
@@ -98,6 +100,18 @@ export default function Fusszeile() {
                          6.1 0 1 0 5.3 6V9.1a8.2 8.2 0 0 0 4.7 1.5V7.3a4.8 4.8 0 0 1-3.5-1.5z" />
               </svg>
             </a>
+            {/* Der Server - nur, wenn es eine Einladung gibt (DiscordKnopf). */}
+            {discordLink && (
+              <a href={discordLink} target="_blank" rel="noreferrer"
+                aria-label="Discord"
+                className="grid h-9 w-9 place-items-center rounded-lg border
+                           border-zinc-800 text-slate-400 transition
+                           hover:border-sky-500 hover:text-sky-400">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+                  <path d="M20.3 4.4A19.8 19.8 0 0 0 15.4 3l-.6 1.2a18.3 18.3 0 0 0-5.6 0L8.6 3a19.7 19.7 0 0 0-4.9 1.5C.6 9.1-.2 13.6.2 18.1a19.9 19.9 0 0 0 6 3l1.3-2a12.8 12.8 0 0 1-2-1l.5-.4a14.2 14.2 0 0 0 12 0l.5.4a12.9 12.9 0 0 1-2 1l1.3 2a19.8 19.8 0 0 0 6-3c.5-5.2-.9-9.7-3.5-13.7ZM8.5 15.3c-1.2 0-2.1-1.1-2.1-2.4s.9-2.4 2.1-2.4 2.2 1.1 2.1 2.4c0 1.3-.9 2.4-2.1 2.4Zm7 0c-1.2 0-2.1-1.1-2.1-2.4s.9-2.4 2.1-2.4 2.2 1.1 2.1 2.4c0 1.3-.9 2.4-2.1 2.4Z" />
+                </svg>
+              </a>
+            )}
           </div>
 
           <ul className="mt-4 space-y-1.5 text-xs">
