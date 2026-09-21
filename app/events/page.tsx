@@ -140,20 +140,23 @@ export default function EventsPage() {
   // wichtigen Cups ueber die Zeit, oder wirklich jedes Turnier.
   const zugang = useZugang();
   /*
-   * Ohne VIP gibt es keine Filter - dann steht alles da, von Anfang an.
-   * Der Modus bleibt trotzdem im Zustand, weil die Abfrage ihn braucht;
-   * er wird nur nicht mehr umgestellt.
+   * Jeder faengt bei "Aktuell & kommend" an - auch ohne VIP.
+   *
+   * Frueher sprang die Seite ohne VIP von selbst auf "Alle", damit alles
+   * dastand. Der Betreiber: "wenn ich unter Events gehe, das Erste, was
+   * passiert, ist, ich komme automatisch unter All, egal ob registered oder
+   * nicht." Eine Ansicht, die zum VIP-Zugang gehoert, darf nicht die
+   * Voreinstellung fuer alle sein. Wer sie gewaehlt hatte und den Zugang
+   * verliert, faellt auf "Aktuell & kommend" zurueck.
    */
   const [modus, setModus] = useState<Modus>('aktuell');
 
   useEffect(() => {
-    if (zugang.laedt || zugang.vip) return;
-    // Einen Mikrotask spaeter, damit der Effekt nicht im selben Durchlauf
-    // Zustand setzt und eine zweite Zeichnung ausloest.
+    if (zugang.laedt || zugang.vip || modus !== 'alle') return;
     let weg = false;
-    void Promise.resolve().then(() => { if (!weg) setModus('alle'); });
+    void Promise.resolve().then(() => { if (!weg) setModus('aktuell'); });
     return () => { weg = true; };
-  }, [zugang.laedt, zugang.vip]);
+  }, [zugang.laedt, zugang.vip, modus]);
   const [offen, setOffen] = useState<string | null>(null);
 
   /**
@@ -238,10 +241,9 @@ export default function EventsPage() {
         </div>
 
         {/*
-          * Die Filterzeile gehoert zum VIP-Zugang. Ohne sie steht alles da -
-          * der Modus wird oben auf "alle" gestellt -, und ein Reiter, den
-          * man nicht umstellen darf, waere nur ein Hinweis auf etwas
-          * Fehlendes.
+          * Die Ansicht "Alle" gehoert zum VIP-Zugang; ohne ihn ist der
+          * Reiter da, aber gesperrt (mit Hinweis). Die drei anderen kann
+          * jeder umstellen.
           */}
         {/* Filter links, Suche rechts - in einer Zeile. Uebereinander sah
             es aus, als kaeme noch etwas; nebeneinander ist es eine
@@ -456,7 +458,7 @@ export default function EventsPage() {
         {!laedt && !cups.length && !fehler && (
           <p className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-6 text-center text-sm text-slate-500">
             <T>Keine Cups in dieser Auswahl.</T>
-            {modus !== 'alle' && <>
+            {modus !== 'alle' && zugang.vip && <>
               {' '}<T>Unter „Alle“ stehen auch Ranked-, Mobile- und Skin-Cups.</T>
             </>}
           </p>

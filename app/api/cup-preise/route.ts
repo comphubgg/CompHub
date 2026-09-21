@@ -7,7 +7,7 @@ import {
   holeKatalog, wertungVon, type EpicKatalog,
 } from '@/lib/cupWertung';
 import { DATEN_ORT } from '@/lib/datenOrt';
-import { lanEintraege } from '@/lib/preisgeld';
+import { lanEintraege, tabelleFuer } from '@/lib/preisgeld';
 
 // Was es in einem Cup zu gewinnen gibt.
 //
@@ -239,6 +239,31 @@ export async function GET(request: Request) {
           vorhanden: true, window: window_, region, waehrung: lan.waehrung ?? 'USD',
           proPerson: true, gepflegt: true, quelle: 'lan-preisgelder',
           erlaeuterung: lan.name ?? null, geld, gegenstaende: [], wertung, gesamt: null,
+        });
+      }
+    }
+    /*
+     * Ein vergangener Spieltag: Epic kennt nur die laufende Saison, die
+     * Tabelle von damals steht in preisgeld-tabellen.json (Epics
+     * Auszahlungstabelle je Fenster, nachgelesen ueber fortnitetracker -
+     * dieselbe, aus der die Verdienst-Akte rechnet). Damit steht auch bei
+     * einem Finale von vor drei Wochen neben jedem Platz, was er wert war.
+     * Jede Stufe nennt den letzten Platz ihrer Spanne ("bis").
+     */
+    const tabelle = await tabelleFuer(window_, region);
+    if (tabelle && tabelle.art === 'platz') {
+      let von = 1;
+      const geld: Array<{ art: string; schwelle: number; betrag: number; von: number; plaetze: number }> = [];
+      for (const st of [...tabelle.stufen].filter((x) => typeof x.bis === 'number').sort((a, b) => a.bis! - b.bis!)) {
+        if (st.betrag > 0) geld.push({ art: 'rank', schwelle: st.bis!, betrag: st.betrag, von, plaetze: st.bis! - von + 1 });
+        von = st.bis! + 1;
+      }
+      if (geld.length) {
+        return NextResponse.json({
+          vorhanden: true, window: window_, region, waehrung: tabelle.waehrung ?? 'USD',
+          proPerson: true, gepflegt: true, quelle: tabelle.fenster === window_ ? 'preisgeld-tabellen' : `preisgeld-tabellen (${tabelle.fenster})`,
+          erlaeuterung: tabelle.name ?? null, geld, gegenstaende: [], wertung,
+          gesamt: null,
         });
       }
     }

@@ -2653,7 +2653,24 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
               {[...Array(12)].map((_, i) =>
                 <div key={i} className="h-9 animate-pulse rounded bg-zinc-900/60" />)}
             </div>
-          ) : gefiltert.length ? (
+          ) : gefiltert.length ? (() => {
+            /*
+             * Was der Platz gerade wert ist.
+             *
+             * Der Betreiber: "waehrend einem Live-Cup, dass man neben den
+             * Placements sieht, wer wie viel gerade am Gewinn ist." Aus
+             * Epics Auszahlungstabelle (oben, "Preispool"): jede Stufe deckt
+             * die Plaetze von "von" bis "schwelle" ab. Steht kein Geld auf
+             * dem Platz, bleibt die Zelle leer; ohne Tabelle fehlt die Spalte.
+             */
+            const geldStufen = (preise?.geld ?? []).filter((g) => g.art === 'rank');
+            const preisFuer = (rank: number): number | null => {
+              const g = geldStufen.find((s) => (s.von ?? s.schwelle) <= rank && rank <= s.schwelle);
+              return g ? g.betrag : null;
+            };
+            const mitPreis = geldStufen.length > 0;
+            const waehrung = preise?.waehrung ?? 'USD';
+            return (
             <div className="overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
@@ -2666,6 +2683,11 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                     <th className="px-3 py-2 text-right font-medium"><T>Siege</T></th>
                     <th className="px-3 py-2 text-right font-medium"><T>Ø Platz</T></th>
                     <th className="px-4 py-2 text-right font-medium"><T>Spiele</T></th>
+                    {mitPreis && (
+                      <th className="px-4 py-2 text-right font-medium" title={preise?.proPerson ? t('je Person') : undefined}>
+                        <T>Verdienst</T>
+                      </th>
+                    )}
                   </tr>
                 </thead>
                 <tbody>
@@ -2724,12 +2746,21 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                           {schnitt(e.avgPlace, ort)}
                         </td>
                         <td className="px-4 py-2 text-right tabular-nums text-slate-400">{e.games}</td>
+                        {mitPreis && (() => {
+                          const betrag = preisFuer(e.rank);
+                          return (
+                            <td className={`px-4 py-2 text-right font-semibold tabular-nums ${
+                              betrag ? 'text-emerald-400' : 'text-slate-700'}`}>
+                              {betrag ? `${betrag.toLocaleString(ort)} ${waehrung}` : '—'}
+                            </td>
+                          );
+                        })()}
                       </tr>
 
                       {/* Team-Details - klappt unter der Zeile auf */}
                       {offen === e.rank && (
                         <tr className="border-b border-zinc-900 bg-zinc-950">
-                          <td colSpan={7} className="px-4 py-4">
+                          <td colSpan={mitPreis ? 8 : 7} className="px-4 py-4">
                             <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
                               <div
                                 onDoubleClick={istAdmin ? () => flaggenOeffnen(e) : undefined}
@@ -2906,7 +2937,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                 </div>
               )}
             </div>
-          ) : (
+            );
+          })() : (
             <p className="p-8 text-center text-sm text-slate-500">
               {/*
                 * Kein Treffer heisst nicht immer "nicht dabei".

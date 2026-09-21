@@ -47,10 +47,11 @@ export interface RegionFarbe {
   /**
    * Nur die Schriftfarbe, wo weder Rand noch Flaeche gewuenscht ist.
    *
-   * Gedacht fuer Zeilen innerhalb einer groesseren Flaeche - etwa die
-   * Regionen einer Cup-Kachel auf der Eventseite. Die Farbe haengt hier am
-   * Mauszeiger ueber der ganzen Zeile, nicht ueber dem Wort selbst; das
-   * umgebende Element braucht dafuer die Klasse "group".
+   * Gedacht fuer Zeilen innerhalb einer groesseren Flaeche - die Regionen
+   * einer Cup-Kachel auf der Eventseite. Dort ist sie bewusst ohne
+   * Regionsfarbe: sieben bunte Zeilen untereinander hat der Betreiber
+   * abgelehnt ("das triggert ein bisschen"). Neutral, unter der Maus nur
+   * heller; das umgebende Element traegt dafuer die Klasse "group".
    */
   schrift: string;
 }
@@ -59,37 +60,37 @@ const FARBEN: Record<string, RegionFarbe> = {
   EU: {
     marke: 'border-sky-500/40 bg-sky-500/10 text-sky-300',
     ruhig: 'border-zinc-800 text-slate-400 hover:border-sky-500/50 hover:text-sky-300',
-    schrift: 'text-slate-400 transition-colors group-hover:text-sky-300',
+    schrift: 'text-slate-300 transition-colors group-hover:text-slate-100',
   },
   NAC: {
     marke: 'border-rose-500/40 bg-rose-500/10 text-rose-300',
     ruhig: 'border-zinc-800 text-slate-400 hover:border-rose-500/50 hover:text-rose-300',
-    schrift: 'text-slate-400 transition-colors group-hover:text-rose-300',
+    schrift: 'text-slate-300 transition-colors group-hover:text-slate-100',
   },
   NAW: {
     marke: 'border-orange-500/40 bg-orange-500/10 text-orange-300',
     ruhig: 'border-zinc-800 text-slate-400 hover:border-orange-500/50 hover:text-orange-300',
-    schrift: 'text-slate-400 transition-colors group-hover:text-orange-300',
+    schrift: 'text-slate-300 transition-colors group-hover:text-slate-100',
   },
   BR: {
     marke: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300',
     ruhig: 'border-zinc-800 text-slate-400 hover:border-emerald-500/50 hover:text-emerald-300',
-    schrift: 'text-slate-400 transition-colors group-hover:text-emerald-300',
+    schrift: 'text-slate-300 transition-colors group-hover:text-slate-100',
   },
   ASIA: {
     marke: 'border-amber-500/40 bg-amber-500/10 text-amber-300',
     ruhig: 'border-zinc-800 text-slate-400 hover:border-amber-500/50 hover:text-amber-300',
-    schrift: 'text-slate-400 transition-colors group-hover:text-amber-300',
+    schrift: 'text-slate-300 transition-colors group-hover:text-slate-100',
   },
   ME: {
     marke: 'border-blue-500/40 bg-blue-500/10 text-blue-300',
     ruhig: 'border-zinc-800 text-slate-400 hover:border-blue-500/50 hover:text-blue-300',
-    schrift: 'text-slate-400 transition-colors group-hover:text-blue-300',
+    schrift: 'text-slate-300 transition-colors group-hover:text-slate-100',
   },
   OCE: {
     marke: 'border-indigo-500/40 bg-indigo-500/10 text-indigo-300',
     ruhig: 'border-zinc-800 text-slate-400 hover:border-indigo-500/50 hover:text-indigo-300',
-    schrift: 'text-slate-400 transition-colors group-hover:text-indigo-300',
+    schrift: 'text-slate-300 transition-colors group-hover:text-slate-100',
   },
 };
 
