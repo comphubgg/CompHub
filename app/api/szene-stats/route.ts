@@ -10,7 +10,7 @@ import {
   istGrossesTurnier, istFinaleTag, aktenSchreiben, jahresListen, lanErgebnisse, type SpielerSumme,
 } from '@/lib/szeneStats';
 import { DATEN_ORT } from '@/lib/datenOrt';
-import { getToken, loeseNamenAuf } from '@/lib/epicCups';
+import { getToken, loeseNamenAuf, gecacht } from '@/lib/epicCups';
 
 /**
  * Das Namensverzeichnis - Konto-Id auf die Namen, unter denen jemand
@@ -308,6 +308,29 @@ export async function GET(request: Request) {
    * dauert er gut eine Sekunde.
    */
   if (url.searchParams.get('event')) return berechne(request);
+
+  /*
+   * Die Antwort zu einem einzelnen Spieler wird beim Server ohne Dateien
+   * nur im Arbeitsspeicher gehalten, nicht in Supabase abgelegt.
+   *
+   * Sie ist billig - eine Akte vom Release, gemessen unter einer halben
+   * Sekunde - und sie waere sonst die groesste Last der Datenbank: je
+   * angesehenem Profil gut hundert Kilobyte, die nie wieder weggehen. Mit
+   * sechshundert Profilen waren das schon siebzig Megabyte, mit allen
+   * achttausend Spielern ein knappes Gigabyte - mehr als das kostenlose
+   * Kontingent. Der Laufrechner mit Dateien legt sie weiter ab, dort
+   * kosten sie nichts.
+   */
+  const nurSpieler = url.searchParams.has('spieler')
+    && [...url.searchParams.keys()].every((k) => k === 'spieler');
+  if (nurSpieler && ohneDateien()) {
+    const wert = await gecacht(`szene-profil|${url.searchParams.get('spieler')}`, 10 * 60_000, async () => {
+      const antwort = await berechne(request);
+      if (!antwort.ok) throw new Error(`Antwort ${antwort.status}`);
+      return await antwort.json() as unknown;
+    });
+    return NextResponse.json(wert, { headers: { 'Cache-Control': CDN_FRIST } });
+  }
 
   const schluessel = 'szene|' + ([...url.searchParams.entries()]
     .sort(([a], [b]) => a.localeCompare(b))

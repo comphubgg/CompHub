@@ -103,7 +103,15 @@ async function anfrage(eingabe: string, init: RequestInit & { name?: string }): 
   }
   let r: Response;
   try {
-    r = await anfrage(eingabe, init);
+    /*
+     * fetch, nicht anfrage: hier stand vier Tage lang ein Aufruf der
+     * eigenen Funktion. Jede Anfrage an Supabase lief damit in eine
+     * endlose Rekursion ("Maximum call stack size exceeded") - Anmeldung,
+     * Registrierung, VIP-Zugaenge, Bestenlisten, alles, was die Ablage
+     * liest, war auf der Seite kaputt, und es sah aus wie ein Ausfall bei
+     * Supabase. Der Fehler war hier.
+     */
+    r = await fetch(eingabe, init);
   } catch (e) {
     gestoertBis = Date.now() + PAUSE_MS;
     throw e;

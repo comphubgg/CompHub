@@ -162,7 +162,9 @@ export default function Anmelden({ start = 'anmelden' }: {
         return;
       }
       if (j?.hinweis) setHinweis(j.hinweis);
-      router.push('/konto');
+      // Wer von einer gesperrten Adresse kam (/admin), kommt dorthin zurueck.
+      const weiter = new URLSearchParams(window.location.search).get('weiter') ?? '';
+      router.push(/^\/[a-z0-9/_-]*$/i.test(weiter) && weiter.startsWith('/') && !weiter.startsWith('//') ? weiter : '/konto');
       router.refresh();
     } catch (err) {
       setFehler((err as Error).message);
