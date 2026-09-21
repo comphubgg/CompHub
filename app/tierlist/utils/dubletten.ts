@@ -134,9 +134,12 @@ export function ohneDubletten(
   const reihenfolge: string[] = [];
 
   for (const e of eintraege as any[]) {
-    // Eigene Eintraege eines Nutzers bleiben unberuehrt: die gehoeren ihm,
-    // und zwei Nutzer duerfen denselben Spieler getrennt fuehren.
-    const k = e?.localOnly ? `eigen:${e.id}` : gruppenSchluessel(e, konten);
+    /*
+     * Eigene Eintraege eines Nutzers werden nicht mit der offiziellen Liste
+     * zusammengelegt - die gehoeren ihm. Untereinander aber schon: derselbe
+     * Spieler zweimal in der eigenen Liste ist genauso eine Dublette.
+     */
+    const k = (e?.localOnly ? 'eigen:' : '') + gruppenSchluessel(e, konten);
     if (!gruppen.has(k)) { gruppen.set(k, []); reihenfolge.push(k); }
     gruppen.get(k)!.push(e);
   }
@@ -146,12 +149,22 @@ export function ohneDubletten(
     const gruppe = gruppen.get(k)!;
     if (gruppe.length === 1) { heraus.push(gruppe[0]); continue; }
 
-    // Zwei verschiedene Stufen fuer dieselbe Person: nicht unsere
-    // Entscheidung. Dann bleibt alles stehen, damit nichts verloren geht.
-    const stufen = new Set(gruppe.filter((e) => e.tier).map((e) => e.tier));
-    if (stufen.size > 1) { heraus.push(...gruppe); continue; }
-
-    heraus.push(mitFlaggenDerGruppe(gruppe.reduce(besserer), gruppe));
+    /*
+     * Auch bei zwei verschiedenen Stufen bleibt nur einer.
+     *
+     * Vorher blieben in diesem Fall beide stehen - und genau so stand ein
+     * Duo zweimal in der Liste, das der Betreiber dann von Hand entfernen
+     * musste: "hat Teams zweimal ... das darf nicht passieren." Es gewinnt
+     * der zuerst gesetzte (der weiter vorn steht); seine Stufe bleibt.
+     */
+    const gesetzt = gruppe.filter((e) => e.tier);
+    const kandidaten = gesetzt.length ? gesetzt : gruppe;
+    const behalten = kandidaten.reduce((a, b) => {
+      // Unter Gesetzten zaehlt die Reihenfolge, nicht die Stufe.
+      if (a.tier && b.tier && a.tier !== b.tier) return a;
+      return besserer(a, b);
+    });
+    heraus.push(mitFlaggenDerGruppe(behalten, gruppe));
   }
   return heraus as TierListEntry[];
 }

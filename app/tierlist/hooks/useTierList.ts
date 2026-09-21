@@ -144,6 +144,9 @@ export function useTierList(listId: string, mode: 'solo' | 'duo') {
     setListState(prev => ({
       ...prev,
       ...nextList,
+      // Jede Aenderung geht hier durch - so kann auch ein Hinzufuegen keine
+      // Dublette anlegen, nicht erst das naechste Laden sie wegraeumen.
+      ...(nextList.entries ? { entries: ohneDubletten(nextList.entries, konten.current) } : {}),
       updatedAt: Date.now(),
     }));
   };
