@@ -3,6 +3,7 @@ import fs from '@/lib/ablageFs';
 import path from 'path';
 import { DATEN_ORT } from '@/lib/datenOrt';
 import { istAdminAnfrage } from '@/lib/adminPruefung';
+import { inselAngaben, inselBild } from '@/lib/reloadKarten';
 
 // Eigene Kartenbilder. Fortnite hat nicht nur eine Karte: neben der grossen
 // Battle-Royale-Insel gibt es die kleineren Reload-Karten, die sich pro
@@ -56,6 +57,9 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const id = searchParams.get('id');
   const alsDatei = searchParams.get('datei');
+  const insel = (searchParams.get('insel') ?? '').trim();
+  // Eine Reload-Insel: Bild und Zuordnung von selbst - siehe inselSicherstellen.
+  if (insel) return NextResponse.json(await inselSicherstellen(insel));
   const karten = await lies();
 
   if (alsDatei) {
@@ -190,4 +194,46 @@ async function inselSetzen(inselRoh: unknown, bildRoh: unknown) {
   await fs.mkdir(path.dirname(INSELN_DATEI), { recursive: true });
   await fs.writeFile(INSELN_DATEI, JSON.stringify(inseln, null, 2));
   return NextResponse.json({ ok: true, inseln });
+}
+
+/*
+ * Das Kartenbild einer Reload-Insel von selbst besorgen.
+ *
+ * Der Betreiber: "ohne dass ich sie als PNG hochladen muss." Kommt ein
+ * Spieltag auf einer Insel, zu der noch kein Bild zugeordnet ist, holt die
+ * Seite hier Name und Karte aus den Spieldateien (lib/reloadKarten), legt
+ * das Bild als eigene Karte ab ("Reload - Nitemare Island") und merkt die
+ * Zuordnung. Beim naechsten Mal ist alles schon da. Jeder darf das
+ * ausloesen - es entsteht nichts, was nicht ohnehin im Spiel steht, und ein
+ * zweiter Aufruf derselben Insel aendert nichts mehr.
+ *
+ *   GET ?insel=SourSpawn -> { ok, bildId, titel, name, neu }
+ */
+async function inselSicherstellen(code: string) {
+  if (!/^[A-Za-z]{3,40}$/.test(code)) return { ok: false, grund: 'Insel unbekannt' };
+  const inseln = await liesInseln();
+  const karten = await lies();
+  const schon = inseln[code] && karten.find((k) => k.id === inseln[code]);
+  if (schon) return { ok: true, bildId: schon.id, titel: schon.titel, neu: false };
+
+  const angaben = await inselAngaben(code);
+  if (!angaben) return { ok: false, grund: 'Die Quelle kennt diese Insel nicht' };
+  const id = `reload-${angaben.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || code.toLowerCase()}`;
+  const titel = `Reload - ${angaben.name}`;
+
+  let eintrag = karten.find((k) => k.id === id);
+  if (!eintrag) {
+    const bild = await inselBild(angaben);
+    if (!bild) return { ok: false, grund: 'Kein Kartenbild in der Quelle' };
+    const dateiname = `${id}.png`;
+    await fs.mkdir(ORDNER, { recursive: true });
+    await fs.writeFile(path.join(ORDNER, dateiname), bild);
+    eintrag = { id, titel, datei: dateiname, hochgeladen: Date.now(), groesse: bild.length };
+    karten.push(eintrag);
+    await schreib(karten);
+  }
+  inseln[code] = eintrag.id;
+  await fs.mkdir(path.dirname(INSELN_DATEI), { recursive: true });
+  await fs.writeFile(INSELN_DATEI, JSON.stringify(inseln, null, 2));
+  return { ok: true, bildId: eintrag.id, titel: eintrag.titel, name: angaben.name, neu: true };
 }

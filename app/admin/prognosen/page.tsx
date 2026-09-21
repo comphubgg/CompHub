@@ -1010,10 +1010,24 @@ export default function PrognosenSeite() {
    * hat und die Prognose keine eigene Karte traegt. Battle Royale ist das
    * leere Bild (die grosse Karte), eine Reload-Insel ihr zugeordnetes.
    */
+  const inselnUnterwegs = useRef<Set<string>>(new Set());
   useEffect(() => {
     if (bildVonHand || eigeneKarte || !inselJetzt.schluessel) return;
     const ziel = inselJetzt.art === 'br' ? (inseln.BR ?? '') : (inseln[inselJetzt.schluessel] ?? null);
-    if (ziel === null) return;
+    if (ziel === null) {
+      // Ohne Bild: aus den Spieldateien holen - Name, Karte, Zuordnung.
+      const code = inselJetzt.schluessel;
+      if (inselJetzt.art === 'reload' && !inselnUnterwegs.current.has(code)) {
+        inselnUnterwegs.current.add(code);
+        void fetch(`/api/karten-bild?insel=${encodeURIComponent(code)}`).then((r) => r.json()).then(async (j) => {
+          if (!j?.ok || !j.bildId) return;
+          const liste = await fetch('/api/karten-bild').then((x) => x.json()).catch(() => null);
+          if (liste?.karten) setBilder(liste.karten);
+          setInseln((alt) => ({ ...alt, ...(liste?.inseln ?? {}), [code]: j.bildId }));
+        }).catch(() => { /* dann von Hand */ });
+      }
+      return;
+    }
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setBildId((alt) => (alt === ziel ? alt : ziel));
   }, [inselJetzt, inseln, bildVonHand, eigeneKarte]);

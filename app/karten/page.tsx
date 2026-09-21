@@ -1112,6 +1112,8 @@ export default function KartenSeite(
    * ein Bild gewaehlt, bleibt seine Wahl. Vorher stand beim Oeffnen eines
    * Reload-Finales immer die Battle-Royale-Karte da.
    */
+  /** Fuer welche Inseln das Bild gerade aus den Spieldateien geholt wird. */
+  const inselnUnterwegs = useRef<Set<string>>(new Set());
   useEffect(() => {
     if (!fensterId || ausTurnier) return;
     if (bildVonHandFuer.current === fensterId) return;
@@ -1127,6 +1129,21 @@ export default function KartenSeite(
       ziel = insel.art === 'br' ? (inseln.BR ?? '')
         : insel.art === 'reload' && insel.schluessel ? (inseln[insel.schluessel] ?? null)
           : null;
+      /*
+       * Eine Reload-Insel ohne Bild: das Bild kommt von selbst aus den
+       * Spieldateien (/api/karten-bild?insel=…), samt Name und Zuordnung.
+       * Bis es da ist, bleibt die Karte, wie sie ist - nicht Battle Royale.
+       */
+      if (ziel === null && insel.art === 'reload' && insel.schluessel && !inselnUnterwegs.current.has(insel.schluessel)) {
+        const code = insel.schluessel;
+        inselnUnterwegs.current.add(code);
+        void fetch(`/api/karten-bild?insel=${encodeURIComponent(code)}`).then((r) => r.json()).then(async (j) => {
+          if (!j?.ok || !j.bildId) return;
+          const liste = await fetch('/api/karten-bild').then((x) => x.json()).catch(() => null);
+          if (liste?.karten) setBilder(liste.karten);
+          setInseln((alt) => ({ ...alt, ...(liste?.inseln ?? {}), [code]: j.bildId }));
+        }).catch(() => { /* dann bleibt die Zuordnung von Hand */ });
+      }
     }
     if (ziel === null || ziel === bildId) return;
     // eslint-disable-next-line react-hooks/set-state-in-effect
