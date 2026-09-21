@@ -4084,17 +4084,28 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                   * faende er ihn nur, wenn er zufaellig unter den ersten
                   * fuenfzig steht.
                   */}
-                {(listenSuche.trim()
-                  ? offeneListe.alle.filter((pl) => pl.spieler.some((n, k) =>
-                    namenVon({ name: n, id: pl.ids?.[k] ?? '' }).toLowerCase()
-                      .includes(listenSuche.trim().toLowerCase())
-                    || n.toLowerCase().includes(listenSuche.trim().toLowerCase())))
-                  : listenTiefe ? offeneListe.alle.slice(0, listenTiefe) : offeneListe.alle)
-                  .map((pl, i) => (
-                    <li key={`${pl.rank}-${i}`} className="flex items-center gap-2.5 px-4 py-2">
+                {/*
+                  * Der Platz bleibt der Platz, auch gefiltert.
+                  *
+                  * Vorher zaehlte die Liste nach dem Filtern neu durch: wer
+                  * allein uebrig blieb, stand auf "1". Der Betreiber: "Der
+                  * Platz darf sich nicht aendern, nur weil er alleine in der
+                  * Liste ist." Gezaehlt wird deshalb vor dem Filtern.
+                  */}
+                {(() => {
+                  const mitPlatz = offeneListe.alle.map((pl, idx) => ({ pl, platz: idx + 1 }));
+                  const s = listenSuche.trim().toLowerCase();
+                  return s
+                    ? mitPlatz.filter(({ pl }) => pl.spieler.some((n, k) =>
+                      namenVon({ name: n, id: pl.ids?.[k] ?? '' }).toLowerCase().includes(s)
+                      || n.toLowerCase().includes(s)))
+                    : listenTiefe ? mitPlatz.slice(0, listenTiefe) : mitPlatz;
+                })()
+                  .map(({ pl, platz }) => (
+                    <li key={`${pl.rank}-${platz}`} className="flex items-center gap-2.5 px-4 py-2">
                       <span className={`w-8 shrink-0 text-right text-xs font-bold tabular-nums ${
-                        i === 0 ? 'text-amber-400' : 'text-slate-600'}`}>
-                        {i + 1}
+                        platz === 1 ? 'text-amber-400' : 'text-slate-600'}`}>
+                        {platz}
                       </span>
                       <TeamFlagge groesse={22}
                         laender={pl.spieler.map((n, k) =>
