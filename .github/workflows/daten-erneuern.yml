@@ -296,6 +296,13 @@ jobs:
           node scripts/umzug-supabase.mjs --neuer-als 120 \
             --ohne replays,_sicherung,akten
 
+      - name: Alte Profil-Antworten aus Supabase nehmen
+        # Reiner Zwischenspeicher (siehe scripts/antworten-aufraeumen.mjs),
+        # aelter als dreissig Tage. Nie die Daten des Betreibers.
+        continue-on-error: true
+        timeout-minutes: 3
+        run: node scripts/antworten-aufraeumen.mjs 2>&1 | tail -3
+
       - name: Ausgewertete Replays nach Supabase
         # Die Aggregate liegen unter replays/, sind aber das Einzige daraus,
         # was die Seite braucht - deshalb hier eigens und ohne die rohen.

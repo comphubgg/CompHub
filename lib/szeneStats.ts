@@ -16,6 +16,7 @@
 //
 // Was hier gerechnet wird, laesst sich dagegen aus den Dateien nachrechnen.
 
+import { JAHR_SAISONS, jahrVonSaison } from './saisonJahre';
 import fs from '@/lib/ablageFs';
 import path from 'path';
 import { replayWert, replayKarte, aggregateSaison } from '@/lib/replayWerte';
@@ -831,12 +832,14 @@ export async function verlauf(epicId: string, filter: Filter = {}): Promise<Verl
     if (akte) {
       return akte.verlauf.filter((z) =>
         (!filter.saison || z.season === filter.saison)
+        && (!filter.saisons?.length || filter.saisons.includes(z.season))
         && (!filter.region || z.region === filter.region));
     }
   }
 
   const eintraege = (await liesVerzeichnis()).filter((e) =>
     (!filter.saison || e.season === filter.saison)
+    && (!filter.saisons?.length || filter.saisons.includes(e.season))
     && (!filter.region || e.region === filter.region));
 
   const zeilen: VerlaufZeile[] = [];
@@ -1271,24 +1274,7 @@ export async function startseite(saison?: string, wieViele = 25, jeTag = 3) {
  * in den November - das Jahr 2026 sind Chapter 7 Season 1 bis 4. Die Seite
  * sagt das dazu.
  */
-export const JAHR_SAISONS: Record<number, string[]> = {
-  2019: ['S8', 'S9', 'S10', 'S11'],
-  2020: ['S12', 'S13', 'S14'],
-  2021: ['S15', 'S16', 'S17', 'S18'],
-  2022: ['S19', 'S20', 'S21', 'S22'],
-  2023: ['S23', 'S24', 'S25', 'S26', 'S27'],
-  2024: ['S28', 'S29', 'S30', 'S31', 'S32'],
-  2025: ['S33', 'S34', 'S35', 'S36', 'S37', 'S38'],
-  2026: ['S39', 'S40', 'S41', 'S42'],
-};
-
-/** Das Jahr, zu dem eine Saison zaehlt - siehe JAHR_SAISONS. */
-export function jahrVonSaison(saison: string): number {
-  for (const [jahr, liste] of Object.entries(JAHR_SAISONS)) {
-    if (liste.includes(saison)) return Number(jahr);
-  }
-  return 0;
-}
+export { JAHR_SAISONS, jahrVonSaison };
 
 export async function jahresListen(jahr: number, region?: string, nurSaison?: string,
   /**
@@ -1610,6 +1596,7 @@ export async function epicTurniere(filter: Filter = {}): Promise<Array<{
   for (const tag of await liesEpicSpieltage()) {
     if (imArchiv.has(tag.windowId)) continue;
     if (filter.saison && tag.season !== filter.saison) continue;
+    if (filter.saisons?.length && !filter.saisons.includes(tag.season)) continue;
     if (filter.region && tag.region !== filter.region) continue;
     raus.push({
       region: tag.region,
@@ -1663,6 +1650,7 @@ export async function epicVerlauf(
     if (akte) {
       return akte.epic.filter((z) =>
         (!filter.saison || z.season === filter.saison)
+        && (!filter.saisons?.length || filter.saisons.includes(z.season))
         && (!filter.region || z.region === filter.region));
     }
   }
@@ -1676,6 +1664,7 @@ export async function epicVerlauf(
   for (const tag of await liesEpicSpieltage()) {
     if (imArchiv.has(tag.windowId)) continue;
     if (filter.saison && tag.season !== filter.saison) continue;
+    if (filter.saisons?.length && !filter.saisons.includes(tag.season)) continue;
     if (filter.region && tag.region !== filter.region) continue;
 
     const team = tag.teams.find((t) => t.spieler.includes(epicId));
@@ -1713,6 +1702,7 @@ export async function epicVerlauf(
   for (const [windowId, region, datum, platz, punkte, betrag, mitspieler] of await archivEintraege(epicId)) {
     if (da.has(windowId)) continue;
     if (filter.saison && saisonVonFenster(windowId, datum) !== filter.saison) continue;
+    if (filter.saisons?.length && !filter.saisons.includes(saisonVonFenster(windowId, datum))) continue;
     if (filter.region && region !== filter.region) continue;
     zeilen.push({
       event: windowId, windowId, region, season: saisonVonFenster(windowId, datum),

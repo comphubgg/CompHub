@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import fs from '@/lib/ablageFs';
 import path from 'path';
 import { DATEN_ORT } from '@/lib/datenOrt';
+import { istAdminAnfrage } from '@/lib/adminPruefung';
 
 // Eigene Kartenbilder. Fortnite hat nicht nur eine Karte: neben der grossen
 // Battle-Royale-Insel gibt es die kleineren Reload-Karten, die sich pro
@@ -76,10 +77,13 @@ export async function GET(request: Request) {
   return NextResponse.json({
     karten: karten.sort((a, b) => a.titel.localeCompare(b.titel)),
     vorlagen: VORLAGEN,
+    // Welche Insel welches Bild bekommt - siehe unten.
+    inseln: await liesInseln(),
   });
 }
 
 export async function POST(request: Request) {
+  if (!(await istAdminAnfrage(request))) return NextResponse.json({ error: 'nur Admin' }, { status: 403 });
   const eingang = await request.formData();
   const datei = eingang.get('bild');
   const titel = String(eingang.get('titel') ?? '').trim() || 'Eigene Karte';
@@ -126,7 +130,11 @@ export async function POST(request: Request) {
  *   PATCH { id, titel }
  */
 export async function PATCH(request: Request) {
-  const { id, titel } = await request.json() as { id?: string; titel?: string };
+  if (!(await istAdminAnfrage(request))) return NextResponse.json({ error: 'nur Admin' }, { status: 403 });
+  const body = await request.json() as { id?: string; titel?: string; insel?: string; bildId?: string };
+  // Die Zuordnung Insel -> Bild (siehe unten) laeuft ueber dieselbe Tuer.
+  if (body.insel !== undefined) return inselSetzen(body.insel, body.bildId);
+  const { id, titel } = body;
   const name = (titel ?? '').trim();
   if (!id || !name) {
     return NextResponse.json({ error: 'id und titel sind noetig' }, { status: 400 });
@@ -142,6 +150,7 @@ export async function PATCH(request: Request) {
 }
 
 export async function DELETE(request: Request) {
+  if (!(await istAdminAnfrage(request))) return NextResponse.json({ error: 'nur Admin' }, { status: 403 });
   const id = new URL(request.url).searchParams.get('id');
   if (!id) return NextResponse.json({ error: 'id fehlt' }, { status: 400 });
 
@@ -152,4 +161,33 @@ export async function DELETE(request: Request) {
   }
   await schreib(karten.filter((x) => x.id !== id));
   return NextResponse.json({ ok: true });
+}
+
+
+/* ------------------------------------------------------------ Inseln */
+
+/*
+ * Welches Kartenbild zu welcher Insel gehoert - siehe lib/inseln.ts.
+ *
+ *   GET ?inseln=1                -> { inseln: { SourSpawn: '<bildId>', BR: '' } }
+ *   PATCH { insel, bildId }      -> Zuordnung setzen (nur Admin); leer loescht
+ *                                   (ueber das PATCH oben, das auch umbenennt)
+ */
+const INSELN_DATEI = path.join(DATEN_ORT, 'insel-bilder.json');
+
+async function liesInseln(): Promise<Record<string, string>> {
+  try { return JSON.parse(await fs.readFile(INSELN_DATEI, 'utf8')) as Record<string, string>; }
+  catch { return {}; }
+}
+
+async function inselSetzen(inselRoh: unknown, bildRoh: unknown) {
+  const body = { insel: inselRoh, bildId: bildRoh };
+  const insel = String(body.insel ?? '').trim();
+  if (!/^[A-Za-z]{2,40}$/.test(insel)) return NextResponse.json({ error: 'Insel fehlt' }, { status: 400 });
+  const bildId = String(body.bildId ?? '').trim();
+  const inseln = await liesInseln();
+  if (bildId) inseln[insel] = bildId; else delete inseln[insel];
+  await fs.mkdir(path.dirname(INSELN_DATEI), { recursive: true });
+  await fs.writeFile(INSELN_DATEI, JSON.stringify(inseln, null, 2));
+  return NextResponse.json({ ok: true, inseln });
 }

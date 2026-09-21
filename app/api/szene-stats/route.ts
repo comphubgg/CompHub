@@ -8,9 +8,10 @@ import {
   auswahl, bildFuer, gesamtSummen, heimatRegionen, liesVerzeichnis, SAISON_NAMEN,
   saisonName, saisonKurz, startseite, summen, tagesbeste, verlauf, epicVerlauf,
   istGrossesTurnier, istFinaleTag, aktenSchreiben, jahresListen, lanErgebnisse, type SpielerSumme,
+  JAHR_SAISONS,
 } from '@/lib/szeneStats';
 import { DATEN_ORT } from '@/lib/datenOrt';
-import { getToken, loeseNamenAuf, gecacht } from '@/lib/epicCups';
+import { getToken, loeseNamenAuf } from '@/lib/epicCups';
 
 /**
  * Das Namensverzeichnis - Konto-Id auf die Namen, unter denen jemand
@@ -310,28 +311,16 @@ export async function GET(request: Request) {
   if (url.searchParams.get('event')) return berechne(request);
 
   /*
-   * Die Antwort zu einem einzelnen Spieler wird beim Server ohne Dateien
-   * nur im Arbeitsspeicher gehalten, nicht in Supabase abgelegt.
+   * Die Antwort zu einem einzelnen Spieler wird wie jede andere abgelegt.
    *
-   * Sie ist billig - eine Akte vom Release, gemessen unter einer halben
-   * Sekunde - und sie waere sonst die groesste Last der Datenbank: je
-   * angesehenem Profil gut hundert Kilobyte, die nie wieder weggehen. Mit
-   * sechshundert Profilen waren das schon siebzig Megabyte, mit allen
-   * achttausend Spielern ein knappes Gigabyte - mehr als das kostenlose
-   * Kontingent. Der Laufrechner mit Dateien legt sie weiter ab, dort
-   * kosten sie nichts.
+   * Ein Versuch, sie beim Server ohne Dateien nur im Arbeitsspeicher zu
+   * halten (um die Datenbank klein zu halten), machte jeden kalten Aufruf
+   * zu einer Rechnung von zwanzig Sekunden - bei Vercel liegt jede der
+   * vielen Dateien eine Netzrunde entfernt. Der Betreiber: "die Ladezeit
+   * auf ein Profil von einem Pro ist viel zu lange." Also wieder die
+   * fertige Antwort zuerst; dass die Ablage nicht unbegrenzt waechst,
+   * erledigt der stuendliche Lauf (scripts/antworten-aufraeumen.mjs).
    */
-  const nurSpieler = url.searchParams.has('spieler')
-    && [...url.searchParams.keys()].every((k) => k === 'spieler');
-  if (nurSpieler && ohneDateien()) {
-    const wert = await gecacht(`szene-profil|${url.searchParams.get('spieler')}`, 10 * 60_000, async () => {
-      const antwort = await berechne(request);
-      if (!antwort.ok) throw new Error(`Antwort ${antwort.status}`);
-      return await antwort.json() as unknown;
-    });
-    return NextResponse.json(wert, { headers: { 'Cache-Control': CDN_FRIST } });
-  }
-
   const schluessel = 'szene|' + ([...url.searchParams.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([k, v]) => `${k}=${v}`)
@@ -407,6 +396,13 @@ async function berechne(request: Request) {
   const ohneFilter = (x: string | null) =>
     (!x || x === 'alle' || x === 'all' ? undefined : x);
   const saison = ohneFilter(p.get('saison'));
+  /*
+   * Ein Jahr als Zeitraum - die Saisons, die dazu zaehlen (JAHR_SAISONS).
+   * Der Betreiber: "macht auch Jahre, zum Beispiel eine zweite Period mit
+   * 2025, 24, 23 ..." Gilt fuer das Profil und seinen Verlauf.
+   */
+  const jahr = Number(p.get('jahr') ?? 0);
+  const saisons = !saison && JAHR_SAISONS[jahr] ? JAHR_SAISONS[jahr] : undefined;
   const region = ohneFilter(p.get('region'));
   const event = p.get('event') ?? undefined;
   // Mehrere Spieltage auf einmal - fuer die Summe einer Turnierreihe.
@@ -847,13 +843,13 @@ async function berechne(request: Request) {
       return NextResponse.json({ success: true, quelle: QUELLE, ...(await auswahl()) });
     }
 
-    const filter = { saison, region, event, events: events.length ? events : undefined };
+    const filter = { saison, saisons, region, event, events: events.length ? events : undefined };
     /*
      * Ohne jeden Filter ist das die Summe ueber das ganze Archiv - und die
      * liegt fertig in der Ablage (siehe gesamtSummen). Ein Profil ueber
      * "alle Saisons" las hier sonst bei Vercel neunhundert Dateien.
      */
-    const { spieler: alle, spieltage } = (!saison && !region && !event && !events.length)
+    const { spieler: alle, spieltage } = (!saison && !saisons && !region && !event && !events.length)
       ? { spieler: await gesamtSummen(), spieltage: (await liesVerzeichnis()).length }
       : await summen(filter);
 
@@ -1040,7 +1036,7 @@ async function berechne(request: Request) {
       const rangRegional = regional.findIndex((x) => x.epicId === spieler) + 1;
 
       const pr = (await liesProfile()).get(spieler);
-      const rohZeilen = await verlauf(spieler, { saison, region });
+      const rohZeilen = await verlauf(spieler, { saison, saisons, region });
 
       /**
        * Dazu die Spieltage, die nur Epic kennt.
@@ -1051,7 +1047,7 @@ async function berechne(request: Request) {
        * tragen kein einziges Werteld: Schaden, Material und Bauteile kennt
        * Epic nicht, und die Eliminierungen dort gelten fuers ganze Team.
        */
-      const rohEpic = await epicVerlauf(spieler, { saison, region });
+      const rohEpic = await epicVerlauf(spieler, { saison, saisons, region });
 
       /**
        * Die Mitspieler mit Namen und Flagge versehen.

@@ -18,12 +18,15 @@ import TeamFlagge from '@/components/TeamFlagge';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import { MARKE } from '@/lib/marke';
+import { inselAusPlaylist } from '@/lib/inseln';
 import { speichereLeinwand } from '@/app/lib/bildSpeichern';
 interface Fenster {
   status: string; begin: number;
   /** Fehlt bei nachgetragenen Turnieren. */
   end?: number;
   eventId: string; windowId: string; region: string; istFinale: boolean;
+  /** Epics Playlist - darin die Reload-Insel, siehe lib/inseln.ts. */
+  playlist?: string;
 }
 interface Cup {
   id: string; titel: string; art: string;
@@ -213,6 +216,18 @@ export default function PrognosenSeite() {
 
   /** Kartenansicht: welches Bild, welche Formen, wer steht wo. */
   const [bilder, setBilder] = useState<Kartenbild[]>([]);
+  /**
+   * Welche Insel welches Kartenbild bekommt (data/insel-bilder.json).
+   *
+   * Der Betreiber: "wenn ein Reload Cup ist, dass du auch die passende
+   * Reload Map anzeigst fuer die Finale, nicht eine komische Battle Royale
+   * Map." Epic nennt die Insel je Spieltag (Codename in der Playlist); das
+   * Bild dazu ordnet der Betreiber einmal je Insel zu, danach steht es bei
+   * jedem Cup dieser Insel von selbst.
+   */
+  const [inseln, setInseln] = useState<Record<string, string>>({});
+  /** Hat der Betreiber das Bild fuer diese Karte selbst gewaehlt? Dann bleibt es. */
+  const [bildVonHand, setBildVonHand] = useState(false);
   const [bildId, setBildId] = useState('');
   const [spots, setSpots] = useState<Spot[]>([]);
   /** Form-Kennung -> Team-Schluessel, die dort landen. */
@@ -357,7 +372,7 @@ export default function PrognosenSeite() {
     fetch('/api/prognosen').then((r) => r.json())
       .then((d) => setGespeicherte(d.prognosen ?? [])).catch(() => {});
     fetch('/api/karten-bild').then((r) => r.json())
-      .then((d) => setBilder(d.karten ?? [])).catch(() => {});
+      .then((d) => { setBilder(d.karten ?? []); setInseln(d.inseln ?? {}); }).catch(() => {});
     fetch('/api/flaggen').then((r) => r.json())
       .then((d) => setFlaggen(d.flaggen ?? [])).catch(() => {});
   }, []);
@@ -975,6 +990,42 @@ export default function PrognosenSeite() {
       }));
   }, [cup]);
 
+  /**
+   * Die Insel der gewaehlten Spieltage - aus Epics Playlist.
+   *
+   * Massgeblich ist der erste gewaehlte Spieltag; im Cup selbst spielen alle
+   * Spieltage einer Region dieselbe Insel.
+   */
+  const inselJetzt = useMemo(() => {
+    const fensterAlle = cup ? Object.values(cup.regionen).flat() : [];
+    const gewaehlt = quellen
+      .map((q) => fensterAlle.find((f) => f.windowId === q.windowId && f.region === q.region))
+      .filter((f): f is Fenster => Boolean(f));
+    const erstes = gewaehlt.find((f) => f.playlist) ?? fensterAlle.find((f) => f.playlist);
+    return inselAusPlaylist(erstes?.playlist);
+  }, [cup, quellen]);
+
+  /*
+   * Das passende Bild von selbst - solange der Betreiber keines gewaehlt
+   * hat und die Prognose keine eigene Karte traegt. Battle Royale ist das
+   * leere Bild (die grosse Karte), eine Reload-Insel ihr zugeordnetes.
+   */
+  useEffect(() => {
+    if (bildVonHand || eigeneKarte || !inselJetzt.schluessel) return;
+    const ziel = inselJetzt.art === 'br' ? (inseln.BR ?? '') : (inseln[inselJetzt.schluessel] ?? null);
+    if (ziel === null) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setBildId((alt) => (alt === ziel ? alt : ziel));
+  }, [inselJetzt, inseln, bildVonHand, eigeneKarte]);
+
+  async function inselZuordnen(insel: string, bild: string) {
+    setInseln((alt) => { const n = { ...alt }; if (bild) n[insel] = bild; else delete n[insel]; return n; });
+    await fetch('/api/karten-bild', {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ insel, bildId: bild }),
+    });
+  }
+
   function quelleAn(f: Fenster & { titel: string }) {
     setQuellen((alt) => {
       const drin = alt.find((q) => q.windowId === f.windowId && q.region === f.region);
@@ -1565,7 +1616,7 @@ export default function PrognosenSeite() {
                     </span>
                   )
                 ) : (
-                  <select value={bildId} onChange={(e) => setBildId(e.target.value)}
+                  <select value={bildId} onChange={(e) => { setBildVonHand(true); setBildId(e.target.value); }}
                     className="rounded-lg border border-zinc-800 bg-zinc-950 px-2 py-1
                                text-[11px] text-slate-200 outline-none focus:border-sky-500">
                     <option value="">Battle Royale</option>
@@ -1573,6 +1624,30 @@ export default function PrognosenSeite() {
                       <option key={b.id} value={b.id}>{b.titel}</option>
                     ))}
                   </select>
+                )}
+
+                {/*
+                  * Die Insel des Spieltags, von Epic - und was ihr als Bild
+                  * zugeordnet ist. Fehlt die Zuordnung, laesst sie sich hier
+                  * einmal setzen; sie speichert sich sofort.
+                  */}
+                {inselJetzt.art === 'reload' && inselJetzt.schluessel && (
+                  <span className="flex items-center gap-1.5 rounded-lg border border-zinc-800
+                                   bg-zinc-950 px-2 py-1 text-[11px] text-slate-300">
+                    <span className="text-slate-500"><T>Reload-Insel</T></span>
+                    <span className="font-semibold">{inselJetzt.schluessel}</span>
+                    <span className="text-slate-600">→</span>
+                    <select value={inseln[inselJetzt.schluessel] ?? ''}
+                      onChange={(e) => void inselZuordnen(inselJetzt.schluessel as string, e.target.value)}
+                      title={uebs('Welches Kartenbild zu dieser Insel gehört')}
+                      className="rounded-md border border-zinc-800 bg-zinc-900 px-1.5 py-0.5
+                                 text-[11px] text-slate-200 outline-none focus:border-sky-500">
+                      <option value="">{uebs('Bild zuordnen …')}</option>
+                      {bilder.map((b) => (
+                        <option key={b.id} value={b.id}>{b.titel}</option>
+                      ))}
+                    </select>
+                  </span>
                 )}
 
                 {/* Vergroessern. Das Mausrad tut dasselbe, aber nicht jeder

@@ -800,6 +800,14 @@ export interface CupFensterDetail extends CupFenster {
   tokens: string[];
   matchCap?: number;
   /**
+   * Epics Playlist dieses Spieltags, aus der Vorlage - etwa
+   * "Playlist_ShowdownTournament_RE_SourSpawnSolo_NPM". Darin steckt bei
+   * Reload-Cups der Codename der Insel (SourSpawn, PunchBerry, ...); siehe
+   * lib/inseln.ts. Damit steht zur Karte eines Reload-Finales die richtige
+   * Insel und nicht die Battle-Royale-Karte.
+   */
+  playlist?: string;
+  /**
    * Wie viele Teams sich aus diesem Fenster qualifizieren.
    *
    * Aus Epics Auszahlungstabelle, nicht geschaetzt. Fehlt, wo es nichts zu
@@ -954,7 +962,7 @@ function rangSchwelle(tabelle: RohAuszahlung[] | undefined): number | null {
 async function rohEvents(region: string) {
   const { token, accountId } = await getToken();
   return req<{ events?: RohEvent[];
-               templates?: Array<{ eventTemplateId: string; matchCap?: number }>;
+               templates?: Array<{ eventTemplateId: string; matchCap?: number; playlistId?: string }>;
                /* Je Fenster-Id eine Tabelle - dort steht die Rangschwelle. */
                payoutTables?: Record<string, RohAuszahlung[]> }>(
     `${EVENTS}/api/v1/events/Fortnite/download/${accountId}` +
@@ -980,8 +988,10 @@ export async function cupsGruppiert(regionen: readonly string[] = REGIONEN) {
 
     // Wie viele Matches zaehlen - steht in der Vorlage, nicht im Fenster.
     const caps = new Map<string, number>();
+    const playlists = new Map<string, string>();
     for (const t of daten.templates ?? []) {
       if (t.matchCap) caps.set(t.eventTemplateId, t.matchCap);
+      if (t.playlistId) playlists.set(t.eventTemplateId, t.playlistId);
     }
 
     for (const ev of daten.events ?? []) {
@@ -1037,6 +1047,7 @@ export async function cupsGruppiert(regionen: readonly string[] = REGIONEN) {
                      tokens.some((t) => /final/i.test(t)),
           tokens,
           matchCap: w.eventTemplateId ? caps.get(w.eventTemplateId) : undefined,
+          playlist: w.eventTemplateId ? playlists.get(w.eventTemplateId) : undefined,
           // Wie viele weiterkommen. Nichts, wenn Epic keine Schwelle fuehrt -
           // bei einem Finale gibt es keine.
           qualifiziert: rangSchwelle(daten.payoutTables?.[w.eventWindowId]) ?? undefined,
@@ -1105,6 +1116,8 @@ export interface ArchivEintrag {
    */
   end?: number;
   istFinale: boolean; matchCap?: number; qualifiziert?: number;
+  /** Epics Playlist - siehe CupFensterDetail.playlist. */
+  playlist?: string;
   gesehen: string;
 }
 
@@ -1156,7 +1169,7 @@ export async function archivCups(
       // Die Runde steht im Archiv nicht; sie ergibt sich unten aus der
       // zeitlichen Reihenfolge, damit die Anzeige nicht leer bleibt.
       runde: 0, istFinale: e.istFinale, tokens: [], matchCap: e.matchCap,
-      qualifiziert: e.qualifiziert,
+      qualifiziert: e.qualifiziert, playlist: e.playlist,
     });
   }
 
@@ -1203,7 +1216,7 @@ export async function schreibeArchiv(cups: CupGruppe[]): Promise<number> {
           eventId: f.eventId, windowId: f.windowId, region,
           begin: f.begin, end: f.end,
           istFinale: f.istFinale, matchCap: f.matchCap,
-          qualifiziert: f.qualifiziert,
+          qualifiziert: f.qualifiziert, playlist: f.playlist,
           gesehen: jetzt,
         });
         neu++;

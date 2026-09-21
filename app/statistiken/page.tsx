@@ -23,6 +23,7 @@ import TeamFlagge from '@/components/TeamFlagge';
 import { ohneZierrat } from '@/lib/homoglyph';
 
 import T from '@/app/components/T';
+import { JAHR_SAISONS, jahrVonSaison } from '@/lib/saisonJahre';
 import LadeSchirm from '@/app/components/LadeSchirm';
 import SpielerArchiv from '@/app/components/SpielerArchiv';
 import { regionFarbe, REGIONEN_REIHE } from '@/lib/regionFarbe';
@@ -2016,6 +2017,19 @@ export default function StatistikSeite() {
   const [verdienstKapitel, setVerdienstKapitel] = useState<number>(0);
   const [verdienstSaison, setVerdienstSaison] = useState<string>('');
   const [zeitraumOffen, setZeitraumOffen] = useState(false);
+  /** Bei der Verdienst-Wahl: ein ganzes Jahr statt Kapitel oder Saison. */
+  const [verdienstJahr, setVerdienstJahr] = useState<number>(0);
+  /** Wie viele Bilder und Videos das Archiv zu diesem Spieler hat - 0 heisst: kein Reiter. */
+  const [archivAnzahl, setArchivAnzahl] = useState(0);
+  useEffect(() => {
+    if (!offen?.epicId) { setArchivAnzahl(0); return; }
+    let weg = false;
+    fetch(`/api/galerie?spieler=${encodeURIComponent(offen.epicId)}`, { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((j) => { if (!weg) setArchivAnzahl(Array.isArray(j?.eintraege) ? j.eintraege.length : 0); })
+      .catch(() => { if (!weg) setArchivAnzahl(0); });
+    return () => { weg = true; };
+  }, [offen?.epicId]);
   const [saisonBilder, setSaisonBilder] = useState<Record<string, string | null>>({});
   const [saisonNamen, setSaisonNamen] = useState<Record<string, string>>({});
   /** Spieltage, zu denen nur Epic etwas hat - ohne Einzelwerte. */
@@ -2595,7 +2609,9 @@ export default function StatistikSeite() {
     // Werte und der Verlauf werden hier nachgeholt und daruebergelegt, damit
     // die Karte in beiden Faellen dasselbe zeigt.
     const p = new URLSearchParams({ spieler: s.epicId });
-    if (zeitraum !== 'alle') p.set('saison', zeitraum);
+    // "jahr:2024" ist ein ganzes Jahr, alles andere eine Saison.
+    if (zeitraum.startsWith('jahr:')) p.set('jahr', zeitraum.slice(5));
+    else if (zeitraum !== 'alle') p.set('saison', zeitraum);
     try {
       const j = await (await fetch(`/api/szene-stats?${p}`)).json();
       setVerlauf(j.verlauf ?? []);
@@ -5703,7 +5719,13 @@ export default function StatistikSeite() {
                  ['werte', 'Alle Werte'],
                  ['turniere', 'Turniere'],
                  ['verdienst', 'Verdienst'],
-                 ['archiv', 'Spielerarchiv']] as Array<[SpielerReiter, string]>)
+                 /*
+                  * Das Archiv nur, wenn es etwas gibt. Der Betreiber: "wenn
+                  * es keine Bilder, Videos zu einem Player gibt, dann muss
+                  * das Player Archiv auch nicht angezeigt werden, auch kein
+                  * leeres." Der Admin sieht es immer, zum Hochladen.
+                  */
+                 ...((archivAnzahl > 0 || istAdmin) ? [['archiv', 'Spielerarchiv']] : [])] as Array<[SpielerReiter, string]>)
                 .map(([w, titel]) => (
                 // "titel" statt "t": der Uebersetzer heisst hier ebenfalls t,
                 // und ihn in einer Schleife zu beschatten ist eine Falle fuer
@@ -5728,9 +5750,16 @@ export default function StatistikSeite() {
                              py-1.5 text-xs text-slate-100 outline-none
                              focus:border-sky-500">
                   <option value="alle">{t('Alle Saisons')}</option>
-                  {saisons.map((x) => (
-                    <option key={x.kennung} value={x.kennung}>{x.name}</option>
-                  ))}
+                  <optgroup label={t('Jahre')}>
+                    {Object.keys(JAHR_SAISONS).map(Number).sort((a, b) => b - a).map((j) => (
+                      <option key={j} value={`jahr:${j}`}>{j}</option>
+                    ))}
+                  </optgroup>
+                  <optgroup label={t('Saisons')}>
+                    {saisons.map((x) => (
+                      <option key={x.kennung} value={x.kennung}>{x.name}</option>
+                    ))}
+                  </optgroup>
                 </select>
               </label>
             </div>
@@ -6117,13 +6146,17 @@ export default function StatistikSeite() {
                   const kapitelListe = [...jeKapitel.keys()].sort((a, b) => b - a);
                   // Was die Tabelle zeigt: alles, ein Kapitel, eine Saison.
                   const passt = (k: string) => (verdienstSaison ? k === verdienstSaison
-                    : verdienstKapitel ? kapitelVon(k) === verdienstKapitel : true);
+                    : verdienstKapitel ? kapitelVon(k) === verdienstKapitel
+                      : verdienstJahr ? jahrVonSaison(k) === verdienstJahr : true);
                   const gezeigt = zeilen.filter((z) => passt(z.season));
                   const lanGezeigt = lanOhneZeile.filter((l) => passt(l.season));
                   const summe = gezeigt.reduce((a, z) => a + (z.verdienst ?? 0), 0)
                     + lanGezeigt.reduce((a, l) => a + l.betrag, 0);
                   const wahlTitel = verdienstSaison ? nameVon(verdienstSaison)
-                    : verdienstKapitel ? `Chapter ${verdienstKapitel}` : t('Alle Zeit');
+                    : verdienstKapitel ? `Chapter ${verdienstKapitel}`
+                      : verdienstJahr ? String(verdienstJahr) : t('Alle Zeit');
+                  // Die Jahre, in denen es Preisgeld gab - neueste zuerst.
+                  const jahre = [...new Set([...jeSaison.keys()].map(jahrVonSaison).filter(Boolean))].sort((a, b) => b - a);
                   /*
                    * Ein einziger Waehler, wie "Zeitraum" oben - nur eigens
                    * gebaut, weil in einem <select> die Gruppenzeile nicht
@@ -6132,9 +6165,11 @@ export default function StatistikSeite() {
                    * Chapter auswaehlen." Darunter, eingerueckt, die Saisons.
                    */
                   const waehle = (wert: string) => {
+                    setVerdienstJahr(0);
                     if (wert.startsWith('s:')) {
                       const k = wert.slice(2); setVerdienstSaison(k); setVerdienstKapitel(kapitelVon(k));
                     } else if (wert.startsWith('k:')) { setVerdienstKapitel(Number(wert.slice(2))); setVerdienstSaison(''); }
+                    else if (wert.startsWith('j:')) { setVerdienstKapitel(0); setVerdienstSaison(''); setVerdienstJahr(Number(wert.slice(2))); }
                     else { setVerdienstKapitel(0); setVerdienstSaison(''); }
                     setZeitraumOffen(false);
                   };
@@ -6154,7 +6189,7 @@ export default function StatistikSeite() {
                           <p className="mt-1 text-3xl font-bold tabular-nums text-emerald-400">
                             ${zahl(summe, 0, sprache)}
                           </p>
-                          {(verdienstKapitel || verdienstSaison) ? (
+                          {(verdienstKapitel || verdienstSaison || verdienstJahr) ? (
                             <p className="mt-1 text-[11px] tabular-nums text-slate-500">
                               <T>Alle Zeit</T>: ${zahl(gesamt, 0, sprache)}
                             </p>
@@ -6175,9 +6210,21 @@ export default function StatistikSeite() {
                               <div className="fixed inset-0 z-20" onClick={() => setZeitraumOffen(false)} />
                               <div className="absolute right-0 top-full z-30 mt-1 max-h-96 w-60 overflow-auto rounded-lg
                                               border border-zinc-700 bg-zinc-950 py-1 shadow-2xl">
-                                <button onClick={() => waehle('')} className={zeile(!verdienstKapitel, true)}>
+                                <button onClick={() => waehle('')} className={zeile(!verdienstKapitel && !verdienstJahr, true)}>
                                   <T>Alle Zeit</T>
                                 </button>
+                                {/* Die Jahre - "eine zweite Period mit 2025, 24, 23 ..." */}
+                                {jahre.length > 0 && (
+                                  <div className="mt-1 border-t border-zinc-900 pt-1">
+                                    <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-600"><T>Jahre</T></p>
+                                    {jahre.map((j) => (
+                                      <button key={j} onClick={() => waehle(`j:${j}`)}
+                                        className={zeile(verdienstJahr === j, true, true)}>
+                                        {j}
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
                                 {kapitelListe.map((k) => (
                                   <div key={k} className="mt-1 border-t border-zinc-900 pt-1">
                                     <button onClick={() => waehle(`k:${k}`)}

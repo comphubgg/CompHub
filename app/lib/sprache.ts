@@ -1951,6 +1951,14 @@ const AUF_ENGLISCH: Record<string, string> = {
     'now',
   'Sitzungen':
     'sessions',
+  'Jahre':
+    'Years',
+  'Reload-Insel':
+    'Reload island',
+  'Welches Kartenbild zu dieser Insel gehört':
+    'Which map image belongs to this island',
+  'Bild zuordnen …':
+    'Assign image …',
   'Join our Discord':
     'Join our Discord',
   'Updates zu jedem neuen Feature, Support-Tickets, VIP- und Manager-Zugang per Knopfdruck, und die Community rund um Fortnite Competitive.':
