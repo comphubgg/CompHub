@@ -1951,6 +1951,10 @@ const AUF_ENGLISCH: Record<string, string> = {
     'now',
   'Sitzungen':
     'sessions',
+  'Zugang im Discord anfragen':
+    'Request access on Discord',
+  'Drück im Discord unter Get Access auf den Knopf und füll das kurze Formular aus, oder schreib mir auf X. Ich antworte selbst, angenommen oder abgelehnt, immer mit Grund.':
+    'Press the button under Get Access on Discord and fill in the short form, or write to me on X. I answer myself, accepted or declined, always with a reason.',
   'Jahre':
     'Years',
   'Reload-Insel':

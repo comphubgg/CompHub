@@ -2116,6 +2116,9 @@ export async function darfEntscheiden(nutzer: { id?: string; username?: string }
  * Kasten nicht.
  */
 export async function einladung(): Promise<string | null> {
+  // Eine selbst gewaehlte Einladung (DISCORD_EINLADUNG) geht immer vor.
+  const eigene = (process.env.DISCORD_EINLADUNG ?? '').trim();
+  if (/^https?:\/\//.test(eigene)) return eigene;
   if (!discordDa()) return null;
   const ablage = await lies();
   const gemerkt = ablage['einladung']?.nachricht;

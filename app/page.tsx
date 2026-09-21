@@ -8,6 +8,7 @@ import T from '@/app/components/T';
 import VipSlider from '@/app/components/VipSlider';
 import Fusszeile from '@/app/components/Fusszeile';
 import TeamFlagge from '@/components/TeamFlagge';
+import DiscordKnopf from '@/app/components/DiscordKnopf';
 
 /** Ein Platz in der Preisgeldliste der Startseite. */
 interface Geldplatz {
@@ -315,6 +316,8 @@ export default function Startseite() {
                          hover:border-sky-500/60 hover:text-sky-400">
               <T>Streams öffnen</T>
             </Link>
+            {/* Der Weg auf den Server - Updates, Support, Zugang per Knopf. */}
+            <DiscordKnopf art="rand" />
           </div>
         </div>
 
@@ -498,8 +501,9 @@ export default function Startseite() {
                'Zeig CompHub bei deinen Zuschauern. Ein Overlay im Stream oder '
                + 'ein Beitrag reicht schon.'],
               ['Anfrage',
-               'Schreib mir persönlich auf X. Ich antworte selbst, es gibt kein '
-               + 'Formular und keine Warteliste.'],
+               'Drück im Discord unter Get Access auf den Knopf und füll das kurze '
+               + 'Formular aus, oder schreib mir auf X. Ich antworte selbst, '
+               + 'angenommen oder abgelehnt, immer mit Grund.'],
             ] as Array<[string, string]>).map(([titel, text], i) => (
               <div key={titel}
                 className="rounded-2xl border border-zinc-800 bg-zinc-950/60 p-5">
@@ -516,8 +520,10 @@ export default function Startseite() {
             ))}
           </div>
 
+          <div className="mt-8 flex flex-wrap items-center gap-3">
+          <DiscordKnopf art="rund" text="Zugang im Discord anfragen" />
           <a href="https://x.com/CompHub_gg" target="_blank" rel="noreferrer"
-            className="mt-8 inline-flex items-center gap-2 rounded-full
+            className="inline-flex items-center gap-2 rounded-full
                        bg-sky-500 px-5 py-2.5 text-sm font-semibold text-white
                        transition hover:bg-sky-400">
             <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"
@@ -527,6 +533,7 @@ export default function Startseite() {
             </svg>
             <T>Zugang anfragen</T>
           </a>
+          </div>
         </div>
       </section>
 
