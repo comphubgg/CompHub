@@ -41,7 +41,14 @@ jobs:
     # Schreiben ans Release (zweite Ablage) braucht contents: write.
     permissions:
       contents: write
-    timeout-minutes: 90
+    # Ein Lauf braucht gemessen gut neunzig Minuten (Replays holen 30,
+    # Antworten vorrechnen 13, Supabase 12, Release 15). Mit einer Frist von
+    # neunzig wurde am Ende jeder Lauf als "cancelled" abgebrochen - vierzig
+    # Laeufe hintereinander ohne einen einzigen Erfolg, und der
+    # Zwischenspeicher am Ende blieb jedes Mal ungesichert. Die Frist ist
+    # jetzt weit genug; ueberlappen koennen sich Laeufe wegen der
+    # Gruppe unten ohnehin nicht.
+    timeout-minutes: 170
 
     # Zwei Laeufe gleichzeitig wuerden einander dieselben Zeilen
     # ueberschreiben - und der zweite haette den aelteren Stand.
@@ -192,9 +199,19 @@ jobs:
         continue-on-error: true
         run: node scripts/szene-stats-holen.mjs
 
+      # Das Ranglisten-Skript liest Epics Seite in einem Browser. Der
+      # Browser fehlte auf dem Laufrechner - der Schritt endete nach null
+      # Sekunden, "continue-on-error" verschluckte es, und die Rangliste
+      # blieb seit dem 8. September stehen.
+      - name: Browser fuer die Weltrangliste
+        continue-on-error: true
+        timeout-minutes: 8
+        run: npx playwright install --with-deps chromium 2>&1 | tail -3
+
       - name: Weltrangliste holen
         continue-on-error: true
-        run: node scripts/power-rankings-holen.mjs
+        timeout-minutes: 25
+        run: node scripts/power-rankings-holen.mjs 2>&1 | tail -8
 
       # Dasselbe wie im Live-Ablauf: ohne diese Adresse sucht das Skript das
       # Werkzeug auf localhost, findet dort nichts und holt nichts. Der Bau

@@ -127,6 +127,8 @@ async function leseSeite(browser, region, nr) {
 
 async function main() {
   const browser = await chromium.launch({ headless: true });
+  /** Welche Dateien dieser Lauf neu geschrieben hat - die gehen in die Ablage. */
+  const geschrieben = [];
   try {
     for (const region of ZIEL) {
       const gesammelt = [];
@@ -134,10 +136,25 @@ async function main() {
 
       for (let nr = 1; nr <= seitenGrenze; nr++) {
         let zeilen = [];
-        try {
-          zeilen = await leseSeite(browser, region, nr);
-        } catch (e) {
-          console.error(`${region} Seite ${nr}: ${e.message}`);
+        /*
+         * Bis zu dreimal je Seite.
+         *
+         * Der erste Aufruf der Seite laeuft durch eine Kette von
+         * Weiterleitungen (Anmeldung, Region) und kam gelegentlich ohne
+         * Tabelle zurueck - der Lauf meldete dann "nur 0 Zeilen" und liess
+         * die alte Datei stehen. Der Betreiber: "wieso wurde die Power
+         * Ranking Page zuletzt vor dreizehn Tagen updated?" Ein zweiter
+         * Anlauf im frischen Tab genuegt in der Regel.
+         */
+        for (let versuch = 1; versuch <= 3 && !zeilen.some((z) => z.rank && z.name); versuch += 1) {
+          try {
+            zeilen = await leseSeite(browser, region, nr);
+          } catch (e) {
+            console.error(`${region} Seite ${nr} (Versuch ${versuch}): ${e.message}`);
+          }
+          if (!zeilen.some((z) => z.rank && z.name) && versuch < 3) {
+            await new Promise((r) => setTimeout(r, 4000 * versuch));
+          }
         }
 
         const brauchbar = zeilen.filter((z) => z.rank && z.name);
@@ -188,9 +205,34 @@ async function main() {
       // darauf, dass Epic das Abzeichen umgebaut hat.
       const offen = gesammelt.filter((z) => z.unklar).length;
       if (offen) console.warn(`${region}: bei ${offen} Zeilen war die Richtung unklar`);
+      geschrieben.push(`power-rankings/${region.toLowerCase()}.json`);
     }
   } finally {
     await browser.close();
+  }
+
+  /*
+   * Den frischen Stand gleich in die Ablage bringen.
+   *
+   * Die Seite bei Vercel liest aus Supabase, nicht von diesem Rechner. Bis
+   * hierher schrieb der Lauf nur die Datei auf die Platte - auf dem
+   * Betreiber-Rechner dreimal am Tag, ohne dass je etwas davon die Seite
+   * erreichte; dort blieb der Stand des Laufrechners stehen, und der kam
+   * wochenlang nicht durch. Mit Zugangsdaten in .env.local geht der Stand
+   * jetzt direkt hinterher.
+   */
+  if (geschrieben.length) {
+    try {
+      const { spawnSync } = await import('child_process');
+      const skript = path.join(process.cwd(), 'scripts', 'umzug-supabase.mjs');
+      const lauf = spawnSync(process.execPath, [skript, '--nur', geschrieben.join(',')], {
+        cwd: process.cwd(), encoding: 'utf8', timeout: 120_000,
+      });
+      const zeile = (lauf.stdout || '').split('\n').find((z) => /Uebertragen|fehlen/.test(z));
+      console.log(zeile ? `Ablage: ${zeile.trim()}` : `Ablage: ${lauf.status === 0 ? 'hochgeladen' : 'nicht hochgeladen'}`);
+    } catch (e) {
+      console.warn('Ablage: nicht hochgeladen -', e.message);
+    }
   }
 }
 
