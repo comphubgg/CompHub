@@ -5,7 +5,7 @@ import { istBetreiber, vipAus } from '@/lib/vipCookie';
 import { zugangNach, rechteVon } from '@/lib/vipZugaenge';
 import {
   richteServerEin, schluesselAufraeumen, discordDa, knoepfeMoeglich,
-  richteUpdatesEin, richteZugangEin, type AufbauZeile,
+  richteUpdatesEin, richteZugangEin, richteAdminEin, type AufbauZeile,
 } from '@/lib/discord';
 
 /*
@@ -93,6 +93,7 @@ export async function POST(request: Request) {
         const schritte: AufbauZeile[] = []; const fehler: AufbauZeile[] = [];
         await richteUpdatesEin(schritte, fehler);
         await richteZugangEin(schritte, fehler);
+        await richteAdminEin(schritte, fehler);
         return { ok: fehler.length === 0, schritte, fehler };
       })()
       : await richteServerEin({ altesLoeschen });

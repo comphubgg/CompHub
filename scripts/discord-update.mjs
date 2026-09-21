@@ -23,7 +23,11 @@ import process from 'node:process';
 
 const PROJEKT = path.resolve(import.meta.dirname, '..');
 const API = 'https://discord.com/api/v10';
-const KANAELE = { alle: 'updates', vip: 'vip-updates', manager: 'manager-updates' };
+const KANAELE = {
+  alle: 'updates', vip: 'vip-updates', manager: 'manager-updates',
+  // Der Admin-Bereich: nur Betreiber und Bot.
+  admin: 'admin-log', alarm: 'admin-alarm',
+};
 const FARBE = 0x0ea5e9;
 
 function umgebung() {
@@ -46,8 +50,8 @@ const titel = arg('--titel');
 const text = arg('--text').replace(/\\n/g, '\n');
 
 if (!TOKEN) { console.error('DISCORD_BOT_TOKEN fehlt in .env.local.'); process.exit(1); }
-if (!KANAELE[ziel]) { console.error('--ziel muss alle, vip oder manager sein.'); process.exit(1); }
-if (!['neu', 'behoben', 'geaendert'].includes(art)) { console.error('--art muss neu, behoben oder geaendert sein.'); process.exit(1); }
+if (!KANAELE[ziel]) { console.error('--ziel muss alle, vip, manager, admin oder alarm sein.'); process.exit(1); }
+if (!['neu', 'behoben', 'geaendert', 'erledigt', 'alarm', 'info'].includes(art)) { console.error('--art muss neu, behoben, geaendert, erledigt, alarm oder info sein.'); process.exit(1); }
 if (!titel || !text) { console.error('--titel und --text sind noetig.'); process.exit(1); }
 
 async function ruf(weg, methode = 'GET', koerper) {
@@ -83,13 +87,15 @@ async function kanalFinden() {
     || (ziel === 'manager' && r.name.toLowerCase().endsWith(' manager'))
   )).map((r) => r.id);
 
-  let kategorie = kanaele.find((k) => k.type === 4 && k.name.toLowerCase() === 'updates')?.id ?? null;
-  if (!kategorie) kategorie = (await ruf(`/guilds/${SERVER}/channels`, 'POST', { name: 'Updates', type: 4 })).id;
+  const istAdmin = ziel === 'admin' || ziel === 'alarm';
+  const kategorieName = istAdmin ? 'Admin' : 'Updates';
+  let kategorie = kanaele.find((k) => k.type === 4 && k.name.toLowerCase() === kategorieName.toLowerCase())?.id ?? null;
+  if (!kategorie) kategorie = (await ruf(`/guilds/${SERVER}/channels`, 'POST', { name: kategorieName, type: 4 })).id;
 
   const regeln = ziel === 'alle'
     ? [{ id: SERVER, type: 0, allow: LESEN, deny: NICHT_SCHREIBEN }]
     : [{ id: SERVER, type: 0, allow: '0', deny: String(1024 + Number(NICHT_SCHREIBEN)) },
-      ...sichtbar.map((id) => ({ id, type: 0, allow: LESEN, deny: NICHT_SCHREIBEN }))];
+      ...(istAdmin ? [] : sichtbar).map((id) => ({ id, type: 0, allow: LESEN, deny: NICHT_SCHREIBEN }))];
   regeln.push({ id: ich, type: 1, allow: VOLLZUGRIFF, deny: '0' });
   if (admin) regeln.push({ id: admin, type: 0, allow: VOLLZUGRIFF, deny: '0' });
 
@@ -102,13 +108,14 @@ async function kanalFinden() {
 }
 
 const kanal = await kanalFinden();
-const vorsatz = art === 'neu' ? 'NEW' : art === 'behoben' ? 'FIXED' : 'CHANGED';
+const vorsatz = { neu: 'NEW', behoben: 'FIXED', geaendert: 'CHANGED', erledigt: 'DONE', alarm: 'ALERT', info: 'INFO' }[art];
+const farbe = art === 'alarm' ? 0xef4444 : FARBE;
 await ruf(`/channels/${kanal}/messages`, 'POST', {
   embeds: [{
     title: `${vorsatz} · ${titel}`.slice(0, 256),
     description: text.slice(0, 4000),
-    color: FARBE,
-    footer: { text: new Date().toISOString().slice(0, 10) },
+    color: farbe,
+    footer: { text: new Date().toISOString().slice(0, 16).replace('T', ' ') + ' UTC' },
   }],
 });
 console.log(`  Update in #${KANAELE[ziel]} geschrieben: ${vorsatz} · ${titel}`);

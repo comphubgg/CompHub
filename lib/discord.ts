@@ -1220,9 +1220,10 @@ export async function richteServerEin(
     fehler.push({ text: 'Kanal ließ sich nicht anlegen', wert: '#manager-support' });
   }
 
-  // Update-Kanaele und Get-Access - siehe unten.
+  // Update-Kanaele, Get-Access und der Admin-Bereich - siehe unten.
   await richteUpdatesEin(schritte, fehler);
   await richteZugangEin(schritte, fehler);
+  await richteAdminEin(schritte, fehler);
 
   if (!knoepfeMoeglich()) {
     schritte.push({
@@ -1825,6 +1826,37 @@ export async function schickeUpdate(
     }],
   });
   return idAus(gesendet) ? { ok: true } : { ok: false, grund: 'abgelehnt' };
+}
+
+/* ------------------------------------------------------------- Admin */
+
+/*
+ * Der Admin-Bereich: nur der Betreiber (Admin-Rolle) und der Bot sehen ihn.
+ *
+ *   #admin-log       nach jeder Aufgabe ein Bericht - "egal wie unnoetig"
+ *   #admin-aufgaben  eine gepflegte Liste der offenen Aufgaben (eine
+ *                    Nachricht, die fortgeschrieben wird)
+ *   #admin-alarm     was von selbst schiefgeht: der stuendliche Lauf,
+ *                    veraltete Staende, die Ablage
+ */
+const ADMIN_KANAELE = { log: 'admin-log', aufgaben: 'admin-aufgaben', alarm: 'admin-alarm' } as const;
+
+export async function richteAdminEin(
+  schritte: AufbauZeile[], fehler: AufbauZeile[],
+): Promise<void> {
+  const kanaele = await alleKanaele();
+  const kategorie = await kategorieFuer('Admin');
+  const plan: Array<[keyof typeof ADMIN_KANAELE, string]> = [
+    ['log', 'Every task, every fix - the full log'],
+    ['aufgaben', 'Open tasks - one message, kept up to date'],
+    ['alarm', 'Alerts: hourly run, stale data, storage'],
+  ];
+  for (const [k, thema] of plan) {
+    // "manager" mit leerer Rollenliste heisst: nur Admin und Bot.
+    const id = await infoKanal(ADMIN_KANAELE[k], thema, kategorie, kanaele, 'manager', []);
+    if (id) schritte.push({ text: 'Admin-Kanal steht', wert: `#${ADMIN_KANAELE[k]}` });
+    else fehler.push({ text: 'Kanal ließ sich nicht anlegen', wert: `#${ADMIN_KANAELE[k]}` });
+  }
 }
 
 /* ------------------------------------------------------------ Zugang */
