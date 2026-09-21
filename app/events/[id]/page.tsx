@@ -802,6 +802,31 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
   const [listenSuche, setListenSuche] = useState('');
   const [listeLaedt, setListeLaedt] = useState(false);
 
+  /*
+   * Ranked Cups: welche Rangstufe die Bestenliste zeigt.
+   *
+   * Der Betreiber: "Der Unreal Cup hat nicht die gleichen Spieler wie der
+   * Bronze Cup" - ein Cup, acht Bestenlisten, und man soll waehlen koennen,
+   * welche man sieht. Voreingestellt ist Unreal, die Stufe der Profis; die
+   * Wahl bleibt beim Wechsel des Spieltags erhalten. Die Bestenliste des
+   * Fensters selbst ist bei Ranked Cups leer (alle mit null Punkten),
+   * deshalb geht jede Abfrage der Bestenliste ueber die Kennung der Stufe.
+   */
+  const [rang, setRang] = useState('Unreal');
+  /**
+   * Das Fenster, unter dessen Kennung die Bestenliste geholt wird: bei
+   * Ranked Cups die gewaehlte Rangstufe, sonst das Fenster selbst. Auch
+   * die Turnierstatistik und die Runden laufen darueber - der Betreiber:
+   * "Most Victory Royales 2? Top 14 hat schon 8 Wins." Die kamen aus
+   * Epics leerer Standardliste des Fensters, nicht aus der Rangstufe.
+   */
+  const lbFenster = useMemo<Fenster | null>(() => {
+    if (!fenster?.raenge?.length) return fenster;
+    const stufe = fenster.raenge.find((r) => r.name === rang)
+      ?? fenster.raenge[fenster.raenge.length - 1];
+    return { ...fenster, windowId: stufe.kennung };
+  }, [fenster, rang]);
+
   /**
    * Eine Kennzahl oeffnen und dabei das ganze Feld nachladen.
    *
@@ -814,10 +839,10 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
    */
   const listeOeffnen = useCallback((b: Bestenliste) => {
     setOffeneListe(b); setListenTiefe(50); setListenSuche('');
-    if (!fenster) return;
+    if (!lbFenster) return;
     setListeLaedt(true);
-    fetch(`/api/cup-stats?event=${encodeURIComponent(fenster.eventId)}`
-      + `&window=${encodeURIComponent(fenster.windowId)}`
+    fetch(`/api/cup-stats?event=${encodeURIComponent(lbFenster.eventId)}`
+      + `&window=${encodeURIComponent(lbFenster.windowId)}`
       + `&liste=${encodeURIComponent(b.schluessel)}&limit=10000&top=5`)
       .then((r) => r.json())
       .then((d) => {
@@ -829,20 +854,10 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
       })
       .catch(() => { /* dann bleibt die kurze Liste stehen */ })
       .finally(() => setListeLaedt(false));
-  }, [fenster]);
+  }, [lbFenster]);
   const [laedt, setLaedt] = useState(false);
   const [suche, setSuche] = useState('');
-  /*
-   * Ranked Cups: welche Rangstufe die Bestenliste zeigt.
-   *
-   * Der Betreiber: "Der Unreal Cup hat nicht die gleichen Spieler wie der
-   * Bronze Cup" - ein Cup, acht Bestenlisten, und man soll waehlen koennen,
-   * welche man sieht. Voreingestellt ist Unreal, die Stufe der Profis; die
-   * Wahl bleibt beim Wechsel des Spieltags erhalten. Die Bestenliste des
-   * Fensters selbst ist bei Ranked Cups leer (alle mit null Punkten),
-   * deshalb geht jede Abfrage der Bestenliste ueber die Kennung der Stufe.
-   */
-  const [rang, setRang] = useState('Unreal');
+
   /** Laeuft gerade eine tiefere Stufe der Bestenliste? */
   const [vertieft, setVertieft] = useState(false);
   /*
@@ -1193,15 +1208,15 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
    * verlassen kann.
    */
   useEffect(() => {
-    if (!fenster || !zeigeStatistik) { setStatistik([]); return; }
+    if (!lbFenster || !zeigeStatistik) { setStatistik([]); return; }
     let weg = false;
-    fetch(`/api/cup-stats?event=${encodeURIComponent(fenster.eventId)}`
-        + `&window=${encodeURIComponent(fenster.windowId)}&top=5`)
+    fetch(`/api/cup-stats?event=${encodeURIComponent(lbFenster.eventId)}`
+        + `&window=${encodeURIComponent(lbFenster.windowId)}&top=5`)
       .then((r) => r.json())
       .then((d) => { if (!weg) setStatistik(d.bestenlisten ?? []); })
       .catch(() => { if (!weg) setStatistik([]); });
     return () => { weg = true; };
-  }, [fenster, zeigeStatistik]);
+  }, [lbFenster, zeigeStatistik]);
 
   // Die Profile einmal holen - sie aendern sich waehrend eines Cups nicht.
   useEffect(() => {
@@ -1408,17 +1423,6 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
       ?? tage.find((f) => f.status === 'kommt')
       ?? tage[0]);
   }, [tage, ausAdresse.fenster]);
-
-  /**
-   * Das Fenster, unter dessen Kennung die Bestenliste geholt wird: bei
-   * Ranked Cups die gewaehlte Rangstufe, sonst das Fenster selbst.
-   */
-  const lbFenster = useMemo<Fenster | null>(() => {
-    if (!fenster?.raenge?.length) return fenster;
-    const stufe = fenster.raenge.find((r) => r.name === rang)
-      ?? fenster.raenge[fenster.raenge.length - 1];
-    return { ...fenster, windowId: stufe.kennung };
-  }, [fenster, rang]);
 
 
   /*
@@ -2110,7 +2114,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
   useEffect(() => {
     if (soloCup && reiter === 'spieler') setReiter('teams');
     // Ranked Cups haben diese Reiter nicht - siehe die Leiste unten.
-    if (cup?.art === 'ranked' && ['spieler', 'teams', 'archiv'].includes(reiter)) setReiter('liste');
+    if (cup?.art === 'ranked' && ['spieler', 'archiv'].includes(reiter)) setReiter('liste');
   }, [soloCup, reiter, cup?.art]);
 
   if (fehler) {
@@ -2550,6 +2554,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
             ? [
               ['liste', 'Leaderboard'],
               ['runden', 'Matches'],
+              ['teams', soloCup ? 'Spieler-Stats' : 'Team-Stats'],
               ['streams', 'Streams'],
             ]
             : soloCup
