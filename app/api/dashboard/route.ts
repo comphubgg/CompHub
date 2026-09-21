@@ -50,13 +50,40 @@ async function getFallbackDashboard(): Promise<DashboardData> {
   };
 }
 
+/*
+ * Zwei Dateien fuehren dieselben Streamer: dashboard.json (die Ordner, die
+ * die Seite zeigt) und streamers.json (die Listen je Region, die die Seite
+ * beim Anlegen und Loeschen mitschreibt). Wer streamers.json direkt
+ * ergaenzt - so kamen die fuenfzig EU-Pros des Betreibers hinein -, sah in
+ * den Ordnern nichts davon: "wieso hat es immer noch nur 54". Deshalb
+ * gehen fehlende Eintraege der Listen hier in ihren Ordner, hinten dran.
+ */
+const ORDNER_JE_LISTE: Record<string, string> = { EU: 'fortnite-eu', NA: 'fortnite-na', streamer: 'streamer' };
+
+function mitListen(dashboard: DashboardData, listen: Record<string, StreamerData[]> | undefined): DashboardData {
+  if (!listen) return dashboard;
+  for (const [liste, ordnerId] of Object.entries(ORDNER_JE_LISTE)) {
+    const ordner = dashboard.folders.find((f) => f.id === ordnerId);
+    if (!ordner || !Array.isArray(listen[liste])) continue;
+    const da = new Set(ordner.streamers.map((s) => s.twitch.trim().toLowerCase()));
+    for (const s of listen[liste]) {
+      const twitch = String(s.twitch || '').trim().toLowerCase();
+      if (!twitch || da.has(twitch)) continue;
+      ordner.streamers.push({ twitch, twitter: String(s.twitter || '').trim() || twitch });
+      da.add(twitch);
+    }
+  }
+  return dashboard;
+}
+
 async function getDashboardData(): Promise<DashboardData> {
   await ensureDataDir();
   const dashboardJson = await readJsonFile<DashboardData>(DASHBOARD_FILE);
+  const listen = await readJsonFile<{ streamers?: Record<string, StreamerData[]> }>(STREAMERS_FILE);
   if (dashboardJson && Array.isArray(dashboardJson.folders)) {
-    return dashboardJson;
+    return mitListen(dashboardJson, listen?.streamers);
   }
-  return await getFallbackDashboard();
+  return mitListen(await getFallbackDashboard(), listen?.streamers);
 }
 
 async function saveDashboardData(data: DashboardData): Promise<void> {
