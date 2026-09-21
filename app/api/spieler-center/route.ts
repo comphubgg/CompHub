@@ -64,9 +64,18 @@ async function liesProfile(): Promise<{
     const roh = JSON.parse(await fs.readFile(PROFILE, 'utf8')) as Record<string, Profil>;
     for (const [schluessel, p] of Object.entries(roh)) {
       const id = p.id || (/^[0-9a-f]{32}$/i.test(schluessel) ? schluessel : '');
-      if (id) nachId.set(id, p);
-      else nachName.set(schluessel, p);
-      // Auch frueher benutzte Namen zeigen auf dasselbe Profil.
+      /*
+       * Ein Profil mit Konto-Id gilt nur ueber die Id.
+       *
+       * Vorher standen auch seine Namen im Namensverzeichnis, und damit
+       * bekam ein fremdes Konto mit aehnlichem Namen das Profil des Profis
+       * (auf der Cup-Seite wurde "Batman Rax!!!!!!!!" so zu Rax). Der
+       * Betreiber: "Du darfst nicht irgendwelchen Leuten einfach die
+       * Pro-Rolle geben." Ueber den Namen findet nur noch, was ohne Id
+       * angelegt wurde - denn dort gibt es nichts anderes.
+       */
+      if (id) { nachId.set(id, p); continue; }
+      nachName.set(schluessel, p);
       for (const n of p.namen ?? []) {
         const k = namensSchluessel(n);
         if (k && !nachName.has(k)) nachName.set(k, p);

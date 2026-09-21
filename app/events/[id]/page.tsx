@@ -12,7 +12,6 @@ import {
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import TeamFlagge, { flaggenPfad } from '@/components/TeamFlagge';
-import { namensSchluessel } from '@/lib/homoglyph';
 
 import T from '@/app/components/T';
 import LadeSchirm from '@/app/components/LadeSchirm';
@@ -1233,38 +1232,20 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
    * eindeutig. Erst wenn dort nichts steht, zaehlen die beobachteten Namen.
    */
   /**
-   * Die gepflegten Namen einmal nachschlagbar machen.
+   * Ein Profil gilt nur ueber die Konto-Id.
    *
-   * Vorher suchte profilVon je Spieler linear durch alle Profile und
-   * normalisierte dabei jeden dort hinterlegten Namen neu. Das ist bei
-   * einem einzelnen Spieler unauffaellig und bei einer vollen Bestenliste
-   * verheerend: die Suche ruft namenVon fuer zwanzigtausend Spieler auf,
-   * mal der Zahl der Profile mal deren Namen - gemessen dreieinhalb bis
-   * vier Sekunden Blockade je Tastendruck, obwohl das Filtern selbst
-   * Millisekunden braucht. Der Betreiber hat es als "es laedt sehr, sehr
-   * lange, bis es das macht, zu lange, dafuer dass nur Text eingegeben
-   * wird" beschrieben.
-   *
-   * Die Zuordnung haengt aber gar nicht am Spieler, sondern nur an den
-   * Profilen. Sie wird deshalb einmal gebaut und danach in einem Schritt
-   * abgefragt. Die Reihenfolge bleibt dieselbe: der erste Treffer gewinnt,
-   * ein spaeteres Profil ueberschreibt einen schon belegten Namen nicht.
+   * Hier stand ein Rueckfall ueber den Namen: wer keinem Profil per Id
+   * zugeordnet war, bekam das Profil, dessen gepflegter Name zum
+   * Kernnamen passte. Damit wurde "Batman Rax!!!!!!!!" (Unreal, Platz 998)
+   * zum Profi Rax - Name, Flagge, Anzeige. Der Betreiber: "Du darfst nicht
+   * irgendwelchen Leuten einfach die Pro-Rolle geben." Jeder Eintrag der
+   * Bestenliste traegt seine Konto-Id; wer damit kein Profil hat, hat
+   * keins. Namen sind nicht eindeutig, Ids sind es.
    */
-  const profilNachName = useMemo(() => {
-    const karte = new Map<string, Profil>();
-    for (const pr of Object.values(profile)) {
-      for (const n of (pr.namen ?? [pr.name ?? ''])) {
-        const k = namensSchluessel(n);
-        if (k && !karte.has(k)) karte.set(k, pr);
-      }
-    }
-    return karte;
-  }, [profile]);
-
   const profilVon = useCallback((sp: Spieler): Profil | undefined => {
     if (sp.id && profile[sp.id]) return profile[sp.id];
-    return profilNachName.get(namensSchluessel(sp.name));
-  }, [profile, profilNachName]);
+    return undefined;
+  }, [profile]);
 
   const landVon = useCallback(
     (sp: Spieler): string | undefined => profilVon(sp)?.land, [profilVon]);
