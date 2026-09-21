@@ -91,6 +91,8 @@ export interface Prognose {
    * Schluessel des Teams - leer heisst: dieser Platz ist noch offen.
    */
   plaetze: Array<string | null>;
+  /** Der MVP der Prognose - ein Spielername, frei gewaehlt. */
+  mvp?: string;
 
   /**
    * Die Karten dieser Prognose, in der Reihenfolge der Runden.
@@ -189,6 +191,7 @@ export async function POST(request: Request) {
     spots: eingang.spots,
     aufSpot: eingang.aufSpot,
     manuell: eingang.manuell ?? [],
+    mvp: typeof eingang.mvp === 'string' ? eingang.mvp.slice(0, 80) : undefined,
     geaendert: Date.now(),
     oeffentlich: eingang.oeffentlich ?? false,
   };

@@ -137,6 +137,8 @@ interface TeamImFeld {
   herkunft: string[];
   /** Bester Platz ueber alle Quellen - dient als Vorschlagsreihenfolge. */
   besterPlatz: number;
+  /** Die Region des Spieltags, aus dem das Team kommt - fuer die Gruppen rechts. */
+  region: string;
 }
 
 interface Quelle {
@@ -172,6 +174,8 @@ interface Prognose {
   id: string; titel: string; cupId: string; cupTitel: string;
   gruppe?: string; qualiBis?: number;
   quellen: Quelle[]; plaetze: Array<string | null>;
+  /** Der MVP - ein Spielername, frei gewaehlt. */
+  mvp?: string;
   /** Die Karten dieser Prognose - Schnappschuesse, keine Verweise. */
   karten?: Array<{
     id: string; bildId: string; titel: string;
@@ -182,6 +186,17 @@ interface Prognose {
   spots?: Spot[]; aufSpot?: Record<string, string[]>;
   geaendert: number; oeffentlich: boolean;
 }
+
+/** "1st", "2nd", "3rd", "4th" ... "21st" - die Beschriftung der Plaetze. */
+function ordnung(n: number): string {
+  const rest10 = n % 10; const rest100 = n % 100;
+  const endung = rest100 >= 11 && rest100 <= 13 ? 'th'
+    : rest10 === 1 ? 'st' : rest10 === 2 ? 'nd' : rest10 === 3 ? 'rd' : 'th';
+  return `${n}${endung}`;
+}
+
+/** Die Regionen rechts in der Reihenfolge der Seite - Europa zuerst. */
+const REGION_REIHE = ['EU', 'NAC', 'NAW', 'BR', 'ASIA', 'OCE', 'ME'];
 
 /** Aus "[EWC2026] AURA shxrk 7" wird "Shxrk". */
 function kurz(name: string) {
@@ -212,6 +227,8 @@ export default function PrognosenSeite() {
   const [status, setStatus] = useState('');
 
   const [plaetze, setPlaetze] = useState<Array<string | null>>([]);
+  /** Der MVP der Prognose - ein Spielername aus dem Feld, wie im Vorbild. */
+  const [mvp, setMvp] = useState('');
   const [profile, setProfile] = useState<Record<string, Profil>>({});
 
   /** Kartenansicht: welches Bild, welche Formen, wer steht wo. */
@@ -1095,6 +1112,7 @@ export default function PrognosenSeite() {
           } else {
             gefunden.set(key, {
               key, namen, ids, herkunft: [herkunft], besterPlatz: e.rank,
+              region: q.region,
             });
           }
         }
@@ -1299,7 +1317,7 @@ export default function PrognosenSeite() {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         id, titel, cupId, cupTitel: cup.titel, gruppe: gruppe || undefined,
-        qualiBis, quellen, plaetze, oeffentlich: true,
+        qualiBis, quellen, plaetze, mvp: mvp || undefined, oeffentlich: true,
         // Jede Karte wandert als Kopie mit hinein - Bild, Formen und wer wo
         // steht. Ab jetzt gehoeren sie dieser Prognose.
         // Ohne das Merkzeichen "eigen" - das gilt nur in der Oberflaeche.
@@ -1382,6 +1400,7 @@ export default function PrognosenSeite() {
     setCupId(p.cupId); setTitel(p.titel); setGruppe(p.gruppe ?? '');
     setQualiBis(p.qualiBis ?? 0);
     setQuellen(p.quellen ?? []); setPlaetze(p.plaetze ?? []);
+    setMvp(p.mvp ?? '');
     setFeld([]);
 
     // Die Karten so wiederherstellen, wie sie gespeichert wurden. Eintraege
@@ -1590,9 +1609,16 @@ export default function PrognosenSeite() {
 
         {status && <p className="mb-3 text-xs text-slate-500">{status}</p>}
 
-        {/* Reihenfolge und Feld */}
+        {/*
+          * Reihenfolge und Feld - drei Spalten wie im Vorbild des Betreibers:
+          * links die Karte des Cups, in der Mitte die Plaetze in drei
+          * Spalten ("1st" bis "50th"), rechts schmal das Feld nach Regionen.
+          * "Mittig sehe ich die Plaetze, links am Rand die Map, die Spieler
+          * rechts am Rand, nach Region sortiert."
+          */}
         <div className="grid gap-4
-                        lg:grid-cols-[minmax(0,1fr)_minmax(380px,0.85fr)_250px]">
+                        lg:grid-cols-[minmax(0,1fr)_minmax(380px,0.85fr)_250px]
+                        2xl:grid-cols-[minmax(0,0.9fr)_minmax(640px,1.2fr)_260px]">
 
           {/* Kartenansicht: dieselben Formen wie im Karteneditor, hier nur zum
               Verteilen. Wer wo landet, hilft beim Aufstellen der Reihenfolge. */}
@@ -2139,12 +2165,15 @@ export default function PrognosenSeite() {
                 <button onClick={alleRaus} disabled={!plaetze.some(Boolean)}
                   className="rounded-lg border border-zinc-700 px-2 py-1 text-[11px]
                              text-slate-300 hover:border-rose-500 disabled:opacity-40">
-                  Leeren
+                  Reset
                 </button>
+                {/* Nur die Prognose, gross - wie der Knopf "Predictions" im Vorbild. */}
                 <button onClick={() => setVollbildListe((v) => !v)}
-                  className="rounded-lg border border-zinc-700 px-2 py-1 text-[11px]
-                             text-slate-300 hover:border-sky-500">
-                  {vollbildListe ? `✕ ${uebs('Schließen')}` : `⛶ ${uebs('Vollbild')}`}
+                  className={`rounded-lg border px-2 py-1 text-[11px] transition ${
+                    vollbildListe
+                      ? 'border-zinc-700 text-slate-300 hover:border-sky-500'
+                      : 'border-sky-500/60 text-sky-300 hover:bg-sky-500/10'}`}>
+                  {vollbildListe ? `✕ ${uebs('Schließen')}` : 'Predictions'}
                 </button>
                 {/* Karte und alle Plaetze in einem Bild - zum Posten. */}
                 <button onClick={alsSchnappschuss} disabled={!plaetze.length}
@@ -2181,8 +2210,8 @@ export default function PrognosenSeite() {
                * Zeilen enger.
                */
               <div className={vollbildListe
-                ? 'grid flex-1 content-start gap-2 md:grid-cols-2 2xl:grid-cols-3'
-                : 'grid gap-1 sm:grid-cols-2 2xl:grid-cols-3'}>
+                ? 'grid flex-1 content-start gap-2 md:grid-cols-2 xl:grid-cols-3'
+                : 'grid gap-1 sm:grid-cols-2 xl:grid-cols-3'}>
                 {plaetze.map((key, i) => {
                   const t = teamZu(key);
                   return (
@@ -2205,10 +2234,10 @@ export default function PrognosenSeite() {
                           ? 'border-amber-500/70 bg-amber-500/10'
                           : t ? 'cursor-grab border-zinc-700 bg-zinc-950/70'
                               : 'border-dashed border-zinc-800'}`}>
-                      <span className={`shrink-0 text-right text-sm font-bold tabular-nums ${
-                        vollbildListe ? 'w-9' : 'w-7'} ${
-                        qualiBis && i < qualiBis ? 'text-amber-300' : 'text-slate-500'}`}>
-                        #{i + 1}
+                      <span className={`shrink-0 text-right text-[11px] font-bold tabular-nums ${
+                        vollbildListe ? 'w-10' : 'w-8'} ${
+                        qualiBis && i < qualiBis ? 'text-amber-300' : 'text-slate-400'}`}>
+                        {ordnung(i + 1)}
                       </span>
                       {t ? (
                         <>
@@ -2229,11 +2258,36 @@ export default function PrognosenSeite() {
                             className="shrink-0 text-slate-600 hover:text-rose-400">×</button>
                         </>
                       ) : (
-                        <span className="text-slate-700">offen</span>
+                        <span className="text-slate-700">–</span>
                       )}
                     </div>
                   );
                 })}
+                {/*
+                  * Der MVP - unten in der Liste, wie im Vorbild. Ein Name aus
+                  * dem Feld; die Vorschlaege kommen aus den geladenen Teams.
+                  */}
+                {feld.length > 0 && (
+                  <div className={`flex items-center rounded-lg border border-amber-500/40
+                                   bg-amber-500/5 ${vollbildListe
+                    ? 'gap-3 px-3 py-2 text-[15px]' : 'gap-2 px-2 py-1 text-[12px]'}`}>
+                    <span className={`shrink-0 text-[11px] font-bold text-amber-300 ${
+                      vollbildListe ? 'w-10' : 'w-8'}`}>MVP</span>
+                    <input value={mvp} onChange={(e) => setMvp(e.target.value)}
+                      list="mvp-namen" placeholder={uebs('Spieler suchen …')}
+                      className="min-w-0 flex-1 bg-transparent text-slate-100 outline-none
+                                 placeholder:text-slate-600" />
+                    <datalist id="mvp-namen">
+                      {feld.flatMap((t) => t.namen.map((n, k) => ({
+                        n: findeProfil(n, t.ids[k])?.anzeige || n,
+                      }))).map((x) => <option key={x.n} value={x.n} />)}
+                    </datalist>
+                    {mvp && (
+                      <button onClick={() => setMvp('')} title={uebs('Leeren')}
+                        className="shrink-0 text-slate-600 hover:text-rose-400">×</button>
+                    )}
+                  </div>
+                )}
               </div>
             )}
 
@@ -2261,8 +2315,36 @@ export default function PrognosenSeite() {
                   {feld.length - offen.length}/{feld.length} <T>gesetzt</T>
                 </span>
               </div>
-              <div className="max-h-[520px] space-y-1 overflow-y-auto">
-                {offen.map((t) => (
+              {/*
+                * Nach Regionen, die groesste Gruppe zuerst.
+                *
+                * Der Betreiber: "nach Region sortiert, EU zuerst, dann NAC ...
+                * jedoch geht es nicht um die Regionen, sondern um die meisten
+                * Spieler in einer Region." Also: die Region mit den meisten
+                * Teams oben, bei Gleichstand die Reihenfolge der Seite.
+                */}
+              <div className="max-h-[560px] space-y-2 overflow-y-auto">
+                {(() => {
+                  const gruppen = new Map<string, TeamImFeld[]>();
+                  for (const t of offen) {
+                    const r = t.region || '?';
+                    if (!gruppen.has(r)) gruppen.set(r, []);
+                    gruppen.get(r)!.push(t);
+                  }
+                  const reihe = [...gruppen.entries()].sort((a, b) =>
+                    b[1].length - a[1].length
+                    || REGION_REIHE.indexOf(a[0]) - REGION_REIHE.indexOf(b[0]));
+                  return reihe.map(([region, teams]) => (
+                    <div key={region}>
+                      {gruppen.size > 1 && (
+                        <p className="mb-1 flex items-center gap-2 px-1 text-[10px]
+                                      font-semibold uppercase tracking-[0.14em]
+                                      text-slate-500">
+                          {region} <span className="text-slate-600">{teams.length}</span>
+                        </p>
+                      )}
+                      <div className="space-y-1">
+                {teams.map((t) => (
                   <button key={t.key} onClick={() => setzen(t.key)}
                     draggable
                     onDragStart={(e) => {
@@ -2283,8 +2365,10 @@ export default function PrognosenSeite() {
                         </span>
                       ))}
                     </span>
-                    <span className="shrink-0 text-[10px] text-slate-600">
-                      #{t.besterPlatz}
+                    {/* Die Region als kleine Marke, wie im Vorbild. */}
+                    <span className="shrink-0 rounded border border-sky-500/40 px-1 py-px
+                                     text-[9px] font-semibold uppercase text-sky-300">
+                      {t.region || '?'}
                     </span>
                     <span role="button" tabIndex={0}
                       onClick={(e) => { e.stopPropagation(); pflegeOeffnen(t); }}
@@ -2292,11 +2376,15 @@ export default function PrognosenSeite() {
                         if (e.key !== 'Enter') return;
                         e.stopPropagation(); pflegeOeffnen(t);
                       }}
-                      title={uebs('Flaggen dieses Teams von Hand setzen')}
+                      title={`${uebs('Flaggen dieses Teams von Hand setzen')} · #${t.besterPlatz}`}
                       className="shrink-0 cursor-pointer text-slate-600
                                  hover:text-amber-400">✎</span>
                   </button>
                 ))}
+                      </div>
+                    </div>
+                  ));
+                })()}
                 {!offen.length && feld.length > 0 && (
                   <p className="py-4 text-center text-[11px] text-slate-500">
                     Alle Teams sind gesetzt.

@@ -236,12 +236,23 @@ jobs:
         env:
           WERKZEUG_URL: https://www.thecomphub.com
         continue-on-error: true
-        timeout-minutes: 30
+        timeout-minutes: 31
         # Zweiundsiebzig Stunden statt zwei: was der Live-Sammler waehrend
         # eines Cups verpasst hat, wird so binnen drei Tagen nachgeholt -
         # Epic haelt die Replays einunddreissig Tage vor. Schon Ausgewertetes
         # kostet dabei nichts, der Stand je Fenster kennt es.
-        run: node scripts/replays-holen.mjs --frisch 72 2>&1 | tee /tmp/replays.log | grep -v ' \.\.\.$' | tail -40
+        #
+        # Zwei Gaenge in derselben halben Stunde: erst zwanzig Minuten das
+        # Frische, dann neun Minuten das Liegengebliebene aelterer Fenster
+        # (--wiederholen). Vorher lief nur der frische Gang, und ein grosser
+        # Skin-Cup, der aelter als drei Tage war, blieb mit tausenden offenen
+        # Matches fuer immer "still open" - der Betreiber: "5184 still open,
+        # wie lange geht das noch?" Beide enden sanft an ihrer Frist (SIGTERM),
+        # der Stand je Fenster ist alle zweihundert Matches gesichert.
+        run: |
+          timeout --signal=TERM 20m node scripts/replays-holen.mjs --frisch 72 2>&1 | tee /tmp/replays.log | grep -v ' \.\.\.$' | tail -25
+          timeout --signal=TERM 9m node scripts/replays-holen.mjs --wiederholen --hoechstens 400 2>&1 | tee -a /tmp/replays.log | grep -v ' \.\.\.$' | tail -15
+          true
 
       - name: Replays auswerten
         continue-on-error: true
