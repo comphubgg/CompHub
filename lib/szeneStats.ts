@@ -26,6 +26,7 @@ import { fertigeAntwort, ohneDateien } from '@/lib/antwortSpeicher';
 import { istGrossesTurnier as grossesTurnier, istFinaleTag } from '@/lib/turnierArt';
 import { verdienst, lanSummen, lanEintraege } from '@/lib/preisgeld';
 import { liesVerdienstArchiv, archivEintraege, eintragJahr } from '@/lib/verdienstArchiv';
+import { teamElimsListe } from '@/lib/elimsArchiv';
 import { cupNameAusKennung, rundenName } from '@/lib/rundenName';
 import { DATEN_ORT } from './datenOrt';
 
@@ -1348,6 +1349,9 @@ export async function jahresListen(jahr: number, region?: string, nurSaison?: st
     // fertige Antwort am Release (siehe aktenSchreiben).
     if (!Object.keys(archiv.konten).length) throw new Error('Verdienst-Akte fehlt - keine Jahresliste.');
     const liveFenster = new Set([...eintraege, ...weitere].map((e) => e.windowId));
+    // Welche Spieltage der Akte hier zaehlen - fuer "N von M Spieltagen mit
+    // Tabelle"; vorher stand bei 2020 "0 von 0", obwohl das Preisgeld da war.
+    const aktenFenster = new Set<string>();
     for (const [id, liste] of Object.entries(archiv.konten)) {
       for (const e of liste) {
         if (liveFenster.has(e[0])) continue;
@@ -1360,8 +1364,10 @@ export async function jahresListen(jahr: number, region?: string, nurSaison?: st
           if (jahrDesFensters !== jahr) continue;
         }
         geld.set(id, (geld.get(id) ?? 0) + e[5]);
+        aktenFenster.add(e[0]);
       }
     }
+    mitRegel += aktenFenster.size;
   }
   // Dazu die LAN-Events - je Konto, aus der gepflegten Datei.
   let lanTage = 0;
@@ -1383,10 +1389,26 @@ export async function jahresListen(jahr: number, region?: string, nurSaison?: st
       .slice(0, LISTEN_LAENGE),
   }));
   const namen = new Map(feld.map((s) => [s.epicId, s]));
+
+  /*
+   * Die Team-Eliminierungen aus Epics Bestenlisten - fuer jedes Jahr, vor
+   * allem aber fuer 2019 bis 2023, wo das Archiv der Szene nichts hat.
+   *
+   * Der Betreiber: "Team-elims statistics 2019 to 2023 from Epic
+   * leaderboards." Epic fuehrt je Team die Eliminierungen des ganzen
+   * Teams; jedes Mitglied zaehlt sie hier fuer sich. Fertig gerechnet in
+   * data/elims-archiv.json (scripts/elims-archiv.mjs), je Jahr, Saison und
+   * Region - dieselbe Wahl wie beim Preisgeld: eine Saison im Jahr nimmt
+   * genau ihre Liste, sonst das Jahr, bei "alle Zeit" die 0.
+   */
+  const elimsZeitraum = saisons.length === 1 && alleSaisons.length > 1 ? saisons[0] : jahr;
+  const teamElims = await teamElimsListe(elimsZeitraum, region);
+
   // Alte Jahre haben keine Szene-Werte - Name, Land und Bild kommen dann
   // aus der Gesamtsumme aller Zeiten.
-  if ([...geld.keys()].some((id) => !namen.has(id))) {
-    for (const s of await gesamtSummen()) if (!namen.has(s.epicId) && geld.has(s.epicId)) namen.set(s.epicId, s);
+  const gebraucht = new Set([...geld.keys(), ...teamElims.plaetze.map((p) => p.epicId)]);
+  if ([...gebraucht].some((id) => !namen.has(id))) {
+    for (const s of await gesamtSummen()) if (!namen.has(s.epicId) && gebraucht.has(s.epicId)) namen.set(s.epicId, s);
   }
   const geldPlaetze = [...geld.entries()]
     .filter(([, betrag]) => betrag > 0)
@@ -1399,7 +1421,8 @@ export async function jahresListen(jahr: number, region?: string, nurSaison?: st
    * (epic-namen.json) und sonst einmal von Epic; gerechnet wird diese
    * Liste nur dort, wo die Dateien liegen, also darf das dauern.
    */
-  const namenlos = geldPlaetze.map(([id]) => id).filter((id) => !namen.get(id)?.name);
+  const namenlos = [...new Set([...geldPlaetze.map(([id]) => id), ...teamElims.plaetze.map((p) => p.epicId)])]
+    .filter((id) => !namen.get(id)?.name);
   const nachgeschlagen = new Map<string, string>();
   if (namenlos.length && !ohneDateien()) {
     try {
@@ -1422,14 +1445,39 @@ export async function jahresListen(jahr: number, region?: string, nurSaison?: st
     /** Wie viele der Spieltage ueberhaupt eine Preisgeldregel haben. */
     spieltageMitRegel: mitRegel,
   };
+  /*
+   * Je Platz die Team-Eliminierungen, dazu Matches und Spieltage aus
+   * derselben Quelle - "events" und "matches" der Zeile meinen hier also
+   * Epics Bestenlisten, nicht das Archiv der Szene.
+   */
+  const teamElimsListeFertig = {
+    feld: 'teamElims', titel: 'Meiste Team-Eliminierungen', nachkomma: 0, einheit: null as string | null,
+    mindestMatches: null as number | null,
+    plaetze: teamElims.plaetze.map((p) => {
+      const s = namen.get(p.epicId) ?? leereSumme(p.epicId, '');
+      const name = s.name || nachgeschlagen.get(p.epicId) || '';
+      return {
+        ...s, name, namen: s.namen?.length ? s.namen : (name ? [name] : []),
+        // Ohne Szene-Werte keine Region - dann die aus Epics Listen.
+        regionen: s.regionen?.length ? s.regionen : (p.region ? [p.region] : []),
+        teamElims: p.teamElims, matches: p.matches, events: p.spieltage,
+      };
+    }),
+    /** Wie viele Spieltage von Epics Bestenlisten in dieser Liste stecken. */
+    spieltageEpic: teamElims.spieltage,
+  };
 
   return {
     // Alle Spieltage, die fuers Preisgeld angesehen wurden - Archiv und
     // Epic-Spieltage; die Seite sagt "N von M Spieltagen mit Tabelle".
-    jahr, region: region ?? null, spieltage: eintraege.length + weitere.length, saisons,
+    // Epics Bestenlisten decken alles ab, was hier gerechnet wird - ihre
+    // Zahl ist die ehrliche Zahl der Spieltage, wo das Archiv leer ist (2020:
+    // "0 Spieltage" neben 937 gezaehlten).
+    jahr, region: region ?? null,
+    spieltage: Math.max(eintraege.length + weitere.length, teamElims.spieltage), saisons,
     saison: saisons.length === 1 && alleSaisons.length > 1 ? saisons[0] : null,
     saisonenDesJahres: alleSaisons.map((k) => ({ kennung: k, name: saisonName(k) })),
-    listen: [verdienstListe, ...listen],
+    listen: [verdienstListe, teamElimsListeFertig, ...listen],
     regionen: [...new Set(eintraege.map((e) => e.region))].sort(),
   };
 }

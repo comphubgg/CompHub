@@ -130,7 +130,7 @@ jobs:
         continue-on-error: true
         timeout-minutes: 5
         run: |
-          node scripts/ablage-github-holen.mjs verdienst-archiv.json preisgeld-tabellen.json lan-preisgelder.json             2>&1 | tail -5
+          node scripts/ablage-github-holen.mjs verdienst-archiv.json elims-archiv.json elims-summen-alt.json preisgeld-tabellen.json lan-preisgelder.json 2>&1 | tail -6
 
       # Die ausgewerteten Replays, aber nur, was sich geaendert hat.
       #
@@ -181,6 +181,16 @@ jobs:
         env:
           WERKZEUG_URL: https://www.thecomphub.com
         run: node scripts/epic-fenster-suchen.mjs --hoechstens 1500 2>&1 | tail -15
+
+      # Die Team-Eliminierungen aus Epics Bestenlisten (Statistik, Jahre):
+      # die offenen Saisons aus den Spieltagen oben neu, das laufende Jahr
+      # und "alle Zeit" dazu aus den abgeschlossenen Summen vom Release
+      # (elims-summen-alt.json, gebaut auf dem Betreiber-Rechner). Die
+      # Jahre davor bleiben, wie sie sind. Siehe scripts/elims-archiv.mjs.
+      - name: Team-Eliminierungen ergaenzen
+        continue-on-error: true
+        timeout-minutes: 5
+        run: node --max-old-space-size=4096 scripts/elims-archiv.mjs --ergaenzen 2>&1 | tail -6
 
       # Auch hier die Adresse des Werkzeugs: das Skript holt die Bestenlisten
       # ueber die eigene Schnittstelle, und ohne die Adresse fragt es auf
@@ -311,7 +321,7 @@ jobs:
         timeout-minutes: 12
         run: |
           node scripts/umzug-supabase.mjs --neuer-als 120 \
-            --ohne replays,_sicherung,akten
+            --ohne replays,_sicherung,akten,elims-summen-alt.json
 
       - name: Alte Profil-Antworten aus Supabase nehmen
         # Reiner Zwischenspeicher (siehe scripts/antworten-aufraeumen.mjs),

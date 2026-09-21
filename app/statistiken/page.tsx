@@ -1749,6 +1749,8 @@ export default function StatistikSeite() {
   interface JahrListe {
     feld: string; titel: string; nachkomma: number; einheit: string | null;
     mindestMatches: number | null; plaetze: Spieler[]; spieltageMitRegel?: number;
+    /** Team-Eliminierungen: wie viele Spieltage von Epics Bestenlisten darin stecken. */
+    spieltageEpic?: number;
   }
   const [jahr, setJahr] = useState<{
     jahr: number; saisons: string[]; spieltage: number; regionen: string[];
@@ -4391,6 +4393,19 @@ export default function StatistikSeite() {
                   <> ({zahl(jahr.listen[0].spieltageMitRegel ?? 0, 0, sprache)} <T>von</T>{' '}
                     {zahl(jahr.spieltage, 0, sprache)} <T>Spieltagen</T>)</>
                 )}.
+                {/*
+                  * Was "Team-Eliminierungen" heisst - Epic fuehrt je Team,
+                  * nicht je Spieler, und nur die besten 500 Teams je
+                  * Spieltag. Das steht dabei, damit niemand die Zahl fuer
+                  * die eigenen Eliminierungen haelt.
+                  */}
+                {(() => {
+                  const te = jahr?.listen.find((l) => l.feld === 'teamElims');
+                  return te?.plaetze.length ? (
+                    <> <T>Team-Eliminierungen aus Epics Bestenlisten: die Eliminierungen des ganzen Teams je Spieltag, für jedes Mitglied gezählt; erfasst sind je Spieltag die besten 500 Teams</T>
+                      {te.spieltageEpic ? <> ({zahl(te.spieltageEpic, 0, sprache)} <T>Spieltage</T>)</> : null}.</>
+                  ) : null;
+                })()}
               </p>
 
               {jahrLaedt && !jahr ? (

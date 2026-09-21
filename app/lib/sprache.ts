@@ -1951,6 +1951,10 @@ const AUF_ENGLISCH: Record<string, string> = {
     'now',
   'Sitzungen':
     'sessions',
+  'Meiste Team-Eliminierungen':
+    'Most team eliminations',
+  'Team-Eliminierungen aus Epics Bestenlisten: die Eliminierungen des ganzen Teams je Spieltag, für jedes Mitglied gezählt; erfasst sind je Spieltag die besten 500 Teams':
+    'Team eliminations from Epic\'s leaderboards: the whole team\'s eliminations per match day, counted for every member; each match day covers the top 500 teams',
   'Zugang im Discord anfragen':
     'Request access on Discord',
   'Drück im Discord unter Get Access auf den Knopf und füll das kurze Formular aus, oder schreib mir auf X. Ich antworte selbst, angenommen oder abgelehnt, immer mit Grund.':

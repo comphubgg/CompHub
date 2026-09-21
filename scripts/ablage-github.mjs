@@ -90,7 +90,7 @@ const AM_RELEASE = [
   /^szene-quelle\//,
   /^tournament-leaderboards\//,
   /^power-rankings\//,
-  /^(verdienst-archiv|preisgeld-tabellen|preisgelder|lan-preisgelder|epic-namen|cup-archiv)\.json$/,
+  /^(verdienst-archiv|elims-archiv|elims-summen-alt|preisgeld-tabellen|preisgelder|lan-preisgelder|epic-namen|cup-archiv)\.json$/,
   // Vom Betreiber gepflegt, von der Seite viel gelesen: als Rueckfall, wenn
   // Supabase nicht antwortet. Gelesen wird zuerst die lebende Kopie dort.
   /^(prognosen|turnier-karten|karten-vorlagen|spieler-profile|spielerbilder|spieler-namen|orgtags|galerie)\.json$/,

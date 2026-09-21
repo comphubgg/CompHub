@@ -20,6 +20,8 @@
  *   node scripts/antworten-vorrechnen.mjs http://localhost:3100
  */
 
+import fs from 'node:fs';
+import path from 'node:path';
 import process from 'node:process';
 
 const SERVER = (process.argv[2] || 'http://localhost:3000').replace(/\/+$/, '');
@@ -33,6 +35,16 @@ const SERVER = (process.argv[2] || 'http://localhost:3000').replace(/\/+$/, '');
  * vollstaendig sein, sie soll nur das Haeufige abdecken.
  */
 const REGIONEN = ['EU', 'NAC', 'NAW', 'BR', 'ASIA', 'ME', 'OCE'];
+
+/** Welche Saisons zu welchem Jahr zaehlen - aus lib/saisonJahre.ts, damit es nur eine Liste gibt. */
+function jahrSaisons() {
+  const quelle = fs.readFileSync(path.join(process.cwd(), 'lib', 'saisonJahre.ts'), 'utf8');
+  const raus = {};
+  for (const m of quelle.matchAll(/(\d{4}):\s*\[([^\]]*)\]/g)) {
+    raus[m[1]] = [...m[2].matchAll(/'(S\d+)'/g)].map((x) => x[1]);
+  }
+  return raus;
+}
 
 function wege(saisons) {
   const raus = [
@@ -84,7 +96,15 @@ function wege(saisons) {
    * ueber dreihundert Dateien - der Betreiber: "es ist noch laggy, bis ich
    * 2025 sehe."
    */
-  const JAHRE = { 2026: ['S39', 'S40', 'S41', 'S42'], 2025: ['S33', 'S34', 'S36', 'S37'], 2024: ['S30', 'S31'] };
+  /*
+   * Alle Jahre und alle ihre Saisons (lib/saisonJahre.ts), nicht nur die
+   * mit Werten der Szene: seit den Team-Eliminierungen aus Epics
+   * Bestenlisten haben auch 2019 bis 2023 und die Saisons ohne Archiv
+   * (S28, S29, S32, S35, S38) etwas zu zeigen - und die Seite bietet jede
+   * Saison eines Jahres zur Wahl an. Was hier fehlt, meldet Vercel als
+   * "noch nicht vorgerechnet".
+   */
+  const JAHRE = jahrSaisons();
   for (const [jahr, sais] of Object.entries(JAHRE)) {
     for (const sa of sais) raus.push(`/api/szene-stats?ansicht=jahr&jahr=${jahr}&saison=${sa}`);
     for (const r of REGIONEN) {
