@@ -859,6 +859,19 @@ export interface CupFensterDetail extends CupFenster {
    */
   qualifiziert?: number;
   /**
+   * Welche Marken dieses Fenster an die Besten vergibt - und bis zu
+   * welchem Platz.
+   *
+   * Aus Epics Auszahlungstabelle: "Platz 1 bis 50 bekommen die Marke
+   * S42_FNCS_Division1Week4_Final_EU". Wer die Marke hat, darf in das
+   * Fenster, das sie verlangt (tokens). Damit laesst sich zu einem Finale
+   * ausrechnen, woher sein Feld kommt: die Fenster, die seine Marke
+   * vergeben, und dort die Plaetze bis zur Schwelle. Fuer die Prognosen
+   * gebaut - der Betreiber: "Die haben sich ja mit vorherigen Cups
+   * qualifiziert. Das musst du dann irgendwie herausfinden."
+   */
+  marken?: Marke[];
+  /**
    * Die Bestenlisten je Rangstufe eines Ranked Cups.
    *
    * Ein Ranked Cup ist ein Fenster, aber acht Bestenlisten: Bronze bis
@@ -875,6 +888,9 @@ export interface CupFensterDetail extends CupFenster {
 
 /** Eine Rangstufe eines Ranked Cups und die Kennung ihrer Bestenliste. */
 export interface RangListe { kennung: string; name: string }
+
+/** Eine Marke, die ein Fenster vergibt: an die Plaetze 1 bis "bis". */
+export interface Marke { token: string; bis: number }
 
 /** Die Stufen in Epics Reihenfolge - so heissen sie im Spiel. */
 export const RANG_STUFEN = ['Bronze', 'Silver', 'Gold', 'Platinum', 'Diamond', 'Elite', 'Champion', 'Unreal'] as const;
@@ -1046,6 +1062,74 @@ function rangSchwelle(tabelle: RohAuszahlung[] | undefined): number | null {
   return kleinste;
 }
 
+/**
+ * Alle Marken einer Auszahlungstabelle mit ihrer Rangschwelle.
+ *
+ * Anders als rangSchwelle, die nur die engste Huerde nennt, steht hier
+ * jede Marke einzeln: ein Fenster kann "Top 8 kommen ins Finale" und
+ * "Top 100 in die Heats" zugleich vergeben. Fuehrt eine Marke mehrere
+ * Zeilen (1 bis 8 mit Preisgeld, 9 bis 50 nur die Marke), zaehlt die
+ * weiteste. Teilnahmemarken (scoringType "value") bleiben aussen vor -
+ * sie sagen nichts ueber eine Qualifikation.
+ */
+function markenAus(tabelle: RohAuszahlung[] | undefined): Marke[] | undefined {
+  const bis = new Map<string, number>();
+  for (const gruppe of tabelle ?? []) {
+    if (gruppe.scoringType !== 'rank') continue;
+    for (const r of gruppe.ranks ?? []) {
+      const wert = r.threshold;
+      if (typeof wert !== 'number' || wert <= 0) continue;
+      for (const p of r.payouts ?? []) {
+        if (p.rewardType !== 'token' || !p.value) continue;
+        bis.set(p.value, Math.max(bis.get(p.value) ?? 0, wert));
+      }
+    }
+  }
+  if (!bis.size) return undefined;
+  return [...bis.entries()].map(([token, b]) => ({ token, bis: b }));
+}
+
+/**
+ * Welche Marken diese Konten tragen - Epics Antwort, je Konto die Liste.
+ *
+ * Der Weg, auf dem das Spiel prueft, ob jemand in ein Fenster darf. Epic
+ * beantwortet ihn fuer beliebige Konten, hoechstens sechzehn je Anfrage
+ * (mehr weist es als "maximum team size exceeded" ab). Damit steht fest,
+ * wer wirklich qualifiziert ist - nicht nur, wer laut Bestenliste
+ * qualifiziert sein muesste: eine Absage oder Sperre nimmt die Marke weg.
+ *
+ * Nur die Ids kommen zurueck, die Epic kennt; unbekannte fehlen.
+ */
+export async function holeMarken(ids: string[]): Promise<Map<string, string[]>> {
+  const raus = new Map<string, string[]>();
+  const eindeutig = [...new Set(ids.filter((id) => /^[0-9a-f]{32}$/i.test(id)))];
+  if (!eindeutig.length) return raus;
+  const { token } = await getToken();
+  const stuecke: string[][] = [];
+  for (let i = 0; i < eindeutig.length; i += 16) stuecke.push(eindeutig.slice(i, i + 16));
+  const GLEICHZEITIG = 10;
+  for (let i = 0; i < stuecke.length; i += GLEICHZEITIG) {
+    const antworten = await Promise.all(stuecke.slice(i, i + GLEICHZEITIG).map(async (st) => {
+      for (let versuch = 0; versuch < 3; versuch++) {
+        try {
+          return await req<{ accounts?: Array<{ accountId: string; tokens?: string[] }> }>(
+            `${EVENTS}/api/v1/players/Fortnite/tokens?teamAccountIds=${st.join(',')}`,
+            { headers: { Authorization: token }, signal: AbortSignal.timeout(20_000) });
+        } catch (e) {
+          // Ein Aussetzer kostet einen zweiten Versuch, kein Ergebnis.
+          if (versuch === 2) throw e;
+          await new Promise((r) => setTimeout(r, 800 * (versuch + 1)));
+        }
+      }
+      return { accounts: [] };
+    }));
+    for (const a of antworten) {
+      for (const k of a.accounts ?? []) raus.set(k.accountId, k.tokens ?? []);
+    }
+  }
+  return raus;
+}
+
 async function rohEvents(region: string) {
   const { token, accountId } = await getToken();
   return req<{ events?: RohEvent[];
@@ -1146,6 +1230,7 @@ export async function cupsGruppiert(regionen: readonly string[] = REGIONEN) {
           // Wie viele weiterkommen. Nichts, wenn Epic keine Schwelle fuehrt -
           // bei einem Finale gibt es keine.
           qualifiziert: rangSchwelle(daten.payoutTables?.[w.eventWindowId]) ?? undefined,
+          marken: markenAus(daten.payoutTables?.[w.eventWindowId]),
           raenge: rangListen(w.eventWindowId,
             daten.resolvedWindowLocations?.[`Fortnite:${ev.eventId}:${w.eventWindowId}`]),
         };
@@ -1217,6 +1302,15 @@ export interface ArchivEintrag {
   playlist?: string;
   /** Die Bestenlisten je Rangstufe - siehe CupFensterDetail.raenge. */
   raenge?: RangListe[];
+  /**
+   * Zugangsmarken und vergebene Marken - siehe CupFensterDetail.
+   *
+   * Im Archiv, weil Epic die Auszahlungstabellen mit dem Cup fallen
+   * laesst: das Finale eines Majors weiss dann nur noch das Archiv, wer
+   * dafuer wen qualifiziert hat.
+   */
+  tokens?: string[];
+  marken?: Marke[];
   gesehen: string;
 }
 
@@ -1249,7 +1343,9 @@ function bereinigeArchiv(eintraege: ArchivEintrag[]): ArchivEintrag[] {
     const k = z.windowId + '|' + z.region;
     const da = nachSchluessel.get(k);
     // Bei zwei Zeilen fuer denselben Spieltag bleibt die vollstaendigere.
-    if (!da || ((z.raenge?.length ? 1 : 0) + (z.playlist ? 1 : 0)) > ((da.raenge?.length ? 1 : 0) + (da.playlist ? 1 : 0))) {
+    const fuelle = (x: ArchivEintrag) =>
+      (x.raenge?.length ? 1 : 0) + (x.playlist ? 1 : 0) + (x.marken?.length ? 1 : 0);
+    if (!da || fuelle(z) > fuelle(da)) {
       nachSchluessel.set(k, z);
     }
   }
@@ -1298,8 +1394,9 @@ export async function archivCups(
       eventId: e.eventId, windowId: e.windowId, region: e.region,
       // Die Runde steht im Archiv nicht; sie ergibt sich unten aus der
       // zeitlichen Reihenfolge, damit die Anzeige nicht leer bleibt.
-      runde: 0, istFinale: e.istFinale, tokens: [], matchCap: e.matchCap,
+      runde: 0, istFinale: e.istFinale, tokens: e.tokens ?? [], matchCap: e.matchCap,
       qualifiziert: e.qualifiziert, playlist: e.playlist, raenge: e.raenge,
+      marken: e.marken,
     });
   }
 
@@ -1353,6 +1450,9 @@ export async function schreibeArchiv(cups: CupGruppe[]): Promise<number> {
           if (f.playlist && !da.playlist) { da.playlist = f.playlist; neu++; }
           // Ebenso die Rangstufen der Ranked Cups (seit dem 21.9.2026).
           if (f.raenge?.length && !da.raenge?.length) { da.raenge = f.raenge; neu++; }
+          // Und die Marken (seit dem 22.9.2026), solange Epic sie noch nennt.
+          if (f.marken?.length && !da.marken?.length) { da.marken = f.marken; neu++; }
+          if (f.tokens?.length && !da.tokens?.length) { da.tokens = f.tokens; neu++; }
           continue;
         }
         nachSchluessel.set(k, {
@@ -1363,6 +1463,8 @@ export async function schreibeArchiv(cups: CupGruppe[]): Promise<number> {
           istFinale: f.istFinale, matchCap: f.matchCap,
           qualifiziert: f.qualifiziert, playlist: f.playlist,
           ...(f.raenge?.length ? { raenge: f.raenge } : {}),
+          ...(f.tokens?.length ? { tokens: f.tokens } : {}),
+          ...(f.marken?.length ? { marken: f.marken } : {}),
           gesehen: jetzt,
         });
         neu++;
