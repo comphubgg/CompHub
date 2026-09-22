@@ -334,18 +334,23 @@ async function tabelleListe(ordner: string): Promise<string[]> {
   return [...raus];
 }
 
+/*
+ * Nur der Zeitstempel, nicht der Inhalt.
+ *
+ * Vorher kam hier "select=geaendert,wert" - die ganze Datei, nur um ihre
+ * Groesse zu nennen. Fuer eine Frage "hat sich etwas geaendert?" ist das
+ * genau der Datenverkehr, der das Kontingent aufbraucht. Die Groesse fragt
+ * niemand; sie steht auf null.
+ */
 async function tabelleAngaben(name: string) {
   const { url, kopf } = zugang();
   const r = await anfrage(
-    `${url}/rest/v1/${TABELLE}?name=eq.${encodeURIComponent(name)}&select=geaendert,wert`,
+    `${url}/rest/v1/${TABELLE}?name=eq.${encodeURIComponent(name)}&select=geaendert`,
     { headers: kopf, cache: 'no-store', signal: frist(LESEN_MS) });
   if (!r.ok) { serverFehler(r, name); return null; }
-  const zeilen = await r.json() as Array<{ geaendert: string; wert: string }>;
+  const zeilen = await r.json() as Array<{ geaendert: string }>;
   if (!zeilen.length) return null;
-  return {
-    groesse: Buffer.byteLength(zeilen[0].wert, 'utf8'),
-    geaendert: new Date(zeilen[0].geaendert),
-  };
+  return { groesse: 0, geaendert: new Date(zeilen[0].geaendert) };
 }
 
 /* ------------------------------------------------------ Objektspeicher */

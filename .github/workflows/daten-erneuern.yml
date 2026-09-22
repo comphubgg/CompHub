@@ -97,14 +97,22 @@ jobs:
           key: comphub-daten-${{ github.run_id }}
           restore-keys: comphub-daten-
 
-      - name: Stand aus Supabase holen
+      - name: Stand vom Release holen
         # Nur wenn der Zwischenspeicher nichts hergab. GitHub wirft ihn nach
         # sieben Tagen ohne Zugriff weg; dann faengt der Lauf sonst bei null an
         # und wuerde alles neu von Epic holen.
+        #
+        # Vom Release, nicht aus Supabase: seit dem 22.9.2026 liegt alles
+        # Gerechnete nur noch dort ("nur das Noetigste" in Supabase - das
+        # Kontingent dort war an genau solchen Abholungen aufgebraucht).
         if: steps.zwischenspeicher.outputs.cache-matched-key == ''
+        continue-on-error: true
+        timeout-minutes: 40
         run: |
-          node scripts/umzug-supabase.mjs --herunterladen \
-            --ohne replays,_sicherung
+          node scripts/ablage-github-holen.mjs --ordner epic-spieltage --ordner platzierungen \
+            --ordner szene-stats --ordner szene-quelle --ordner power-rankings \
+            --ordner tournament-leaderboards --ordner akten --ordner antworten --ordner replays \
+            2>&1 | tail -12
 
       # Die kleinen Staende jede Stunde: Fotos, gepflegte Profile, Namen,
       # Preisgelder. Sie aendern sich auf der Seite (der Betreiber pflegt
@@ -112,12 +120,14 @@ jobs:
       # sonst nur den Stand vom ersten Tag. Genau so kam eine Startansicht
       # ohne ein einziges Bild in die Ablage: der Laufrechner hatte keine
       # spielerbilder.json. Alles Grosse bleibt draussen.
-      - name: Kleine Staende aus Supabase
+      - name: Das Noetigste aus Supabase
+        # Genau die Liste aus scripts/umzug-supabase.mjs (NOETIGES) - was
+        # Nutzer und Betreiber auf der Seite schreiben. Sonst nichts.
         continue-on-error: true
         timeout-minutes: 5
         run: |
-          node scripts/umzug-supabase.mjs --herunterladen \
-            --ohne replays,_sicherung,szene-stats,epic-spieltage,platzierungen,akten,antworten,anwesenheit,tournament-leaderboards,kartenbilder,kontakt-bilder,admin-maps,galerie \
+          node scripts/umzug-supabase.mjs --herunterladen --noetiges \
+            --ohne kartenbilder,kontakt-bilder,admin-maps,galerie,eigene-matches \
             2>&1 | tail -4
 
       # Die Verdienst-Akte und Epics Auszahlungstabellen entstehen nur auf dem
@@ -140,22 +150,15 @@ jobs:
       # die juengsten Spieltage, und der Sammler unten hielte jedes dieser
       # Fenster fuer unberuehrt. Beim ersten Mal sind das siebenhundert
       # Megabyte, danach nur noch die Fenster, die sich bewegt haben.
-      - name: Ausgewertete Replays aus Supabase
+      # Die ausgewerteten Replays des Live-Sammlers (replays-live.yml) und
+      # die Epic-Spieltage, die der Betreiber-Rechner nach Kennung holt
+      # (epic-fenster-holen.mjs): beides kommt seit dem 22.9.2026 vom
+      # Release, nicht mehr aus Supabase. Nur, was sich unterscheidet.
+      - name: Replays und Spieltage vom Release
         continue-on-error: true
         timeout-minutes: 15
         run: |
-          node scripts/umzug-supabase.mjs --herunterladen --nur replays \
-            --nur-geaenderte 2>&1 | tail -6
-
-      # Epic-Spieltage, die nicht dieser Lauf geholt hat: der Betreiber-
-      # Rechner holt bekannte Fenster nach Kennung (epic-fenster-holen.mjs),
-      # etwa die Victory Cups fuer das Preisgeld. Nur, was sich unterscheidet.
-      - name: Epic-Spieltage aus Supabase
-        continue-on-error: true
-        timeout-minutes: 10
-        run: |
-          node scripts/umzug-supabase.mjs --herunterladen --nur epic-spieltage \
-            --nur-geaenderte 2>&1 | tail -4
+          node scripts/ablage-github-holen.mjs --ordner replays --ordner epic-spieltage 2>&1 | tail -4
 
       # Auch hier die Adresse des Werkzeugs. Ohne sie fragte das Skript auf
       # localhost ins Leere und brach nach einer Sekunde mit ECONNREFUSED ab
@@ -331,26 +334,18 @@ jobs:
         # Gigabyte, jede Stunde neu geschrieben - sie liegen am Release, und
         # die Seite liest sie dort zuerst. In der Datenbank waren sie die
         # groesste Last am kostenlosen Kontingent (500 MB).
+        #
+        # Seit dem 22.9.2026 nur noch das Noetigste (NOETIGES in
+        # scripts/umzug-supabase.mjs): was dieser Lauf davon anfasst - Namen,
+        # Fotos-Zuordnung, Cup-Archiv. Antworten, Akten, Spieltage, Replays
+        # gehen ausschliesslich ans Release. Supabase hatte das Projekt wegen
+        # aufgebrauchten Datenverkehrs gesperrt; der Betreiber: "dort soll
+        # immer nur das Noetigste ab jetzt sein."
         continue-on-error: true
-        timeout-minutes: 12
+        timeout-minutes: 6
         run: |
-          node scripts/umzug-supabase.mjs --neuer-als 120 \
-            --ohne replays,_sicherung,akten,elims-summen-alt.json
-
-      - name: Alte Profil-Antworten aus Supabase nehmen
-        # Reiner Zwischenspeicher (siehe scripts/antworten-aufraeumen.mjs),
-        # aelter als dreissig Tage. Nie die Daten des Betreibers.
-        continue-on-error: true
-        timeout-minutes: 3
-        run: node scripts/antworten-aufraeumen.mjs 2>&1 | tail -3
-
-      - name: Ausgewertete Replays nach Supabase
-        # Die Aggregate liegen unter replays/, sind aber das Einzige daraus,
-        # was die Seite braucht - deshalb hier eigens und ohne die rohen.
-        continue-on-error: true
-        run: |
-          node scripts/umzug-supabase.mjs --neuer-als 120 --nur replays \
-            2>&1 | tail -20
+          node scripts/umzug-supabase.mjs --neuer-als 120 --noetiges \
+            --ohne kartenbilder,kontakt-bilder,admin-maps,galerie,eigene-matches,antworten
 
       # Die zweite Ablage: dieselben Dateien als Anhaenge am Release "daten"
       # des Projekts (siehe lib/ablageGithub.ts). Von dort liest die Seite die
@@ -359,14 +354,20 @@ jobs:
       # dieser Schritt hier war der einzige Weg, die Zahlen trotzdem zu zeigen.
       # Das Manifest am Release sagt, was sich geaendert hat; ein Lauf laedt
       # nur das hoch.
+      #
+      # Mit sichtbarem Fortschritt statt "tail": bis zum 22.9.2026 lief der
+      # Schritt vierzig Minuten in die Zeitgrenze, und im Protokoll stand
+      # nichts - weil tail erst am Ende druckt. Das Skript drosselt sich
+      # jetzt selbst unter GitHubs Grenze und schreibt das Manifest
+      # zwischendurch; ein Abbruch verliert nichts mehr.
       - name: Ergebnis ans GitHub-Release
         if: always()
         continue-on-error: true
-        timeout-minutes: 40
+        timeout-minutes: 45
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          node scripts/ablage-github.mjs 2>&1 | tr '\r' '\n' | grep -v '^ *[0-9]*/[0-9]* ' | tail -12
+          node scripts/ablage-github.mjs 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -60
 
       - name: Datenordner sichern
         # Auch nach einem Fehlschlag - siehe oben.

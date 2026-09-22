@@ -112,7 +112,9 @@ async function main() {
     const angefasst = angefassteFenster();
     const auswerten = angefasst.length
       ? schritt('replays-aggregieren.mjs', angefasst) : 0;
-    const hochladen = schritt('umzug-supabase.mjs', ['--neuer-als', '5', '--nur', 'replays']);
+    // Ans Release, nicht mehr nach Supabase (seit dem 22.9.2026 - siehe
+    // lib/ablageGithub, nurRelease). Die Seite liest die Auswertung von dort.
+    const hochladen = schritt('ablage-github.mjs', ['--neuer-als', '5', '--nur', 'replays']);
 
     verlauf.push({
       zeit: new Date().toISOString(), live,
@@ -122,7 +124,7 @@ async function main() {
     protokoll({ art: 'schleife', durchgaenge: durchgang, verlauf: verlauf.slice(-30) });
 
     // Das Protokoll selbst mit hochladen, damit es aussen lesbar ist.
-    schritt('umzug-supabase.mjs', ['--neuer-als', '2', '--nur', 'replays/_live-lauf.json']);
+    schritt('ablage-github.mjs', ['--neuer-als', '2', '--nur', 'replays/_live-lauf.json']);
 
     const rest = TAKT_S * 1000 - (Date.now() - t0);
     if (rest > 0) await warte(rest);
@@ -131,7 +133,7 @@ async function main() {
   console.log(`\nSchleife beendet nach ${durchgang} Durchgaengen, `
     + `${Math.round((Date.now() - beginn) / 60_000)} Minuten.`);
   protokoll({ art: 'schleife', durchgaenge: durchgang, beendet: true, verlauf: verlauf.slice(-30) });
-  schritt('umzug-supabase.mjs', ['--neuer-als', '2', '--nur', 'replays/_live-lauf.json']);
+  schritt('ablage-github.mjs', ['--neuer-als', '2', '--nur', 'replays/_live-lauf.json']);
 }
 
 main().catch((e) => {

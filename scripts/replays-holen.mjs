@@ -451,9 +451,12 @@ async function offeneFenster() {
 async function zustandNachholen(f) {
   const ordner = fensterPfad(f.season, f.windowId);
   if (existsSync(path.join(ordner, '_zustand.json'))) return;
+  // Vom Release - seit dem 22.9.2026 liegen Zustand und Aggregat nur dort
+  // (siehe lib/ablageGithub, nurRelease), nicht mehr bei Supabase.
   const r = spawnSync(process.execPath, [
-    path.join('scripts', 'umzug-supabase.mjs'), '--herunterladen', '--nur-geaenderte',
-    '--nur', `replays/${f.season}/${f.windowId}`,
+    path.join('scripts', 'ablage-github-holen.mjs'),
+    `replays/${f.season}/${f.windowId}/_zustand.json`,
+    `replays/${f.season}/${f.windowId}/_aggregat.json`,
   ], { encoding: 'utf8', env: process.env });
   if (r.status === 0 && existsSync(path.join(ordner, '_zustand.json'))) {
     console.log(`  Zustand aus der Ablage geholt (${f.windowId})`);

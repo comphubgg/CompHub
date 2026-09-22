@@ -61,14 +61,70 @@ export class AblageNichtErreichbar extends Error {
   constructor() { super('Die Ablage ist gerade nicht erreichbar.'); this.name = 'AblageNichtErreichbar'; }
 }
 
+/*
+ * Der Vorrat dieses Vorgangs: je Antwort die zuletzt gelesene Zeile und
+ * wann sie aus der Ablage kam.
+ *
+ * Bis zum 22.9.2026 las die Seite jede Antwort bei jedem Aufruf neu aus der
+ * Ablage - den Cup-Katalog (fast ein Megabyte) jede Minute je Instanz. Das
+ * allein waren ueber ein Gigabyte am Tag, und Supabase sperrte das Projekt
+ * wegen aufgebrauchten Datenverkehrs. Jetzt bleibt eine Antwort im
+ * Speicher, solange sie nach ihrer eigenen Frist frisch ist; danach wird
+ * nur nachgefragt, ob die Ablage etwas Neueres hat - ein Zeitstempel, keine
+ * Datei - und erst dann geladen.
+ */
+const vorrat = new Map<string, { zeile: Ablage<unknown>; geholt: number }>();
+/** Wie oft hoechstens bei der Ablage nach einem neueren Stand gefragt wird. */
+const NACHFRAGE_MS = 60_000;
+const nachgefragt = new Map<string, number>();
+
+/*
+ * Antworten, die nur im Speicher leben: das Profil eines Spielers.
+ *
+ * Es entsteht in Sekunden aus seiner Akte am Release; es in Supabase
+ * abzulegen kostete bei jedem Profilbesuch einen Lesevorgang von hundert
+ * Kilobyte und mehr - fuer nichts, was der Speicher nicht auch kann.
+ */
+function nurImSpeicher(name: string): boolean {
+  return /^antworten\/szene_(spieler=|ansicht=profil)/.test(name);
+}
+
 /** Die abgelegte Zeile lesen - ohne Dateien wird ein Lesefehler zum Fehler. */
-async function liesAblage<T>(name: string): Promise<Ablage<T> | null> {
+async function liesAblage<T>(name: string, frischMs: number): Promise<Ablage<T> | null> {
+  const jetzt = Date.now();
+  const da = vorrat.get(name);
+  if (nurImSpeicher(name)) return (da?.zeile as Ablage<T> | undefined) ?? null;
+  // Frisch nach eigener Frist: gar nicht erst zur Ablage.
+  if (da && jetzt - da.zeile.zeit < frischMs) return da.zeile as Ablage<T>;
+  /*
+   * Zu alt - hat die Ablage inzwischen etwas Neueres? Nur der Zeitstempel,
+   * und den hoechstens einmal je Minute. Ist dort nichts Juengeres, bleibt
+   * der Stand aus dem Speicher (und wird oben im Hintergrund erneuert).
+   */
+  if (da && (nachgefragt.get(name) ?? 0) > jetzt - NACHFRAGE_MS) return da.zeile as Ablage<T>;
+  if (da) {
+    nachgefragt.set(name, jetzt);
+    try {
+      const angaben = await speicher.angaben(name);
+      if (angaben && angaben.geaendert.getTime() <= da.geholt) return da.zeile as Ablage<T>;
+    } catch { /* dann eben lesen */ }
+  }
   try {
-    return await liesJson<Ablage<T> | null>(name, null);
+    const zeile = await liesJson<Ablage<T> | null>(name, null);
+    if (zeile && typeof zeile.zeit === 'number') vorrat.set(name, { zeile, geholt: jetzt });
+    return zeile;
   } catch (e) {
+    if (da) return da.zeile as Ablage<T>;
     if (ohneDateien()) throw new AblageNichtErreichbar();
     throw e;
   }
+}
+
+/** Eine frisch gerechnete Antwort merken - und ablegen, wo das vorgesehen ist. */
+async function merkeAntwort(name: string, zeile: Ablage<unknown>): Promise<void> {
+  vorrat.set(name, { zeile, geholt: Date.now() });
+  if (nurImSpeicher(name)) return;
+  await schreibJson(name, zeile);
 }
 
 /*
@@ -150,6 +206,11 @@ function nameVon(schluessel: string): string {
 export async function wirfWeg(anfang: string): Promise<number> {
   const rein = anfang.replace(/[^a-zA-Z0-9_.=-]+/g, '_');
   let weg = 0;
+  // Auch aus dem Speicher dieses Vorgangs - sonst lebte die alte Antwort
+  // dort weiter, obwohl sie in der Ablage schon weg ist.
+  for (const name of [...vorrat.keys()]) {
+    if (name.startsWith(`${ORDNER}/${rein}`)) { vorrat.delete(name); weg += 1; }
+  }
   try {
     for (const datei of await speicher.liste(ORDNER)) {
       if (!datei.startsWith(rein)) continue;
@@ -201,7 +262,7 @@ export async function fertigeAntwort<T>(
    */
   let abgelegt: Ablage<T> | null;
   try {
-    abgelegt = await liesAblage<T>(name);
+    abgelegt = await liesAblage<T>(name, frischMs);
   } catch (e) {
     if (e instanceof AblageNichtErreichbar && hintergrund) return rechne();
     throw e;
@@ -218,7 +279,7 @@ export async function fertigeAntwort<T>(
       nachDerAntwort(async () => {
         try {
           const wert = await rechne();
-          await schreibJson(name, { zeit: Date.now(), wert });
+          await merkeAntwort(name, { zeit: Date.now(), wert });
         } catch { /* dann bleibt der alte Stand stehen */ }
         finally { laufend.delete(schluessel); }
       });
@@ -235,14 +296,14 @@ export async function fertigeAntwort<T>(
    */
   if (!hintergrund && ohneDateien()) return wert;
   try {
-    await schreibJson(name, { zeit: Date.now(), wert });
+    await merkeAntwort(name, { zeit: Date.now(), wert });
   } catch { /* ohne Ablage wird eben jedes Mal gerechnet */ }
   return wert;
 }
 
 /** Die abgelegte Antwort, wie sie ist - oder null, wenn keine liegt. */
 export async function abgelegteAntwort<T>(schluessel: string): Promise<T | null> {
-  const abgelegt = await liesAblage<T>(nameVon(schluessel));
+  const abgelegt = await liesAblage<T>(nameVon(schluessel), FRISCH_MS);
   return abgelegt && typeof abgelegt.zeit === 'number' ? abgelegt.wert : null;
 }
 

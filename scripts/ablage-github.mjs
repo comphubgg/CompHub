@@ -38,10 +38,28 @@ function tagFuer(name) {
   if (/^platzierungen\//.test(name)) return 'daten-platzierungen';
   if (/^szene-stats\//.test(name)) return 'daten-szene';
   if (/^tournament-leaderboards\//.test(name)) return 'daten-leaderboards';
+  if (/^replays\//.test(name)) return 'daten-replays';
   return 'daten';
 }
 const API = 'https://api.github.com';
 const GLEICHZEITIG = 4;
+/*
+ * Abstand zwischen zwei Anfragen, die etwas anlegen oder loeschen.
+ *
+ * GitHub laesst davon hoechstens achtzig je Minute zu; darueber kommt 403
+ * mit Wartezeit, und genau daran hing der Schritt seit dem 17.9.2026 vierzig
+ * Minuten fest, ohne fertig zu werden - kein einziger Anhang kam an, die
+ * Profile blieben beim Stand vom 17.9. Mit 750 Millisekunden Abstand sind
+ * es achtzig je Minute, unter der Grenze, und der Lauf kommt ans Ende.
+ */
+const ABSTAND_MS = 750;
+let naechsteAnfrage = 0;
+async function gedrosselt() {
+  const jetzt = Date.now();
+  const dran = Math.max(jetzt, naechsteAnfrage);
+  naechsteAnfrage = dran + ABSTAND_MS;
+  if (dran > jetzt) await new Promise((r) => setTimeout(r, dran - jetzt));
+}
 
 /* ------------------------------------------------------------ Aufruf */
 
@@ -90,7 +108,10 @@ const AM_RELEASE = [
   /^szene-quelle\//,
   /^tournament-leaderboards\//,
   /^power-rankings\//,
-  /^(verdienst-archiv|elims-archiv|elims-summen-alt|preisgeld-tabellen|preisgelder|lan-preisgelder|epic-namen|cup-archiv)\.json$/,
+  // Die ausgewerteten Replays - seit dem 22.9.2026 nur noch hier, nicht
+  // mehr bei Supabase (siehe lib/ablageGithub, nurRelease).
+  /^replays\//,
+  /^(verdienst-archiv|elims-archiv|elims-summen-alt|preisgeld-tabellen|preisgelder|lan-preisgelder|epic-namen|cup-archiv|prognose-felder)\.json$/,
   // Vom Betreiber gepflegt, von der Seite viel gelesen: als Rueckfall, wenn
   // Supabase nicht antwortet. Gelesen wird zuerst die lebende Kopie dort.
   /^(prognosen|turnier-karten|karten-vorlagen|spieler-profile|spielerbilder|spieler-namen|orgtags|galerie)\.json$/,
@@ -99,6 +120,9 @@ const anhangName = (name) => name.replace(/\//g, '__').replace(/=/g, '-eq-');
 
 function gewuenscht(name) {
   if (name.startsWith('.') || name.endsWith('.neu') || /\.\d+\.neu$/.test(name)) return false;
+  // Von den Replays nur die Auswertungen und Staende, nie die rohen Matches
+  // (siebzehntausend Dateien, die sich nie wieder aendern).
+  if (/^replays\//.test(name) && !/\/(_aggregat|_zustand)\.json$|^replays\/_[^/]+\.json$/.test(name)) return false;
   if (!AM_RELEASE.some((m) => m.test(name))) return false;
   if (nur.length && !nur.some((n) => name === n || name.startsWith(`${n}/`))) return false;
   return true;
@@ -116,6 +140,24 @@ function sammle(ordner = '', raus = []) {
 }
 
 const pruefsumme = (buf) => createHash('sha256').update(buf).digest('hex').slice(0, 24);
+
+/*
+ * Die Pruefsumme einer fertigen Antwort - ueber den Inhalt, nicht die Zeit.
+ *
+ * Jede Antwort traegt "zeit", wann sie gerechnet wurde. Der Lauf rechnet
+ * stuendlich achthundert davon neu, und fast alle kommen unveraendert
+ * heraus - nur die Zeit ist eine andere. Mit der Zeit in der Summe wurden
+ * sie alle jede Stunde hochgeladen (achthundert Anhaenge, je drei
+ * Anfragen), mit der Summe nur ueber den Inhalt bleibt es bei denen, die
+ * sich wirklich geaendert haben.
+ */
+function antwortSumme(daten) {
+  try {
+    const j = JSON.parse(daten.toString('utf8'));
+    if (j && typeof j === 'object' && 'wert' in j) return pruefsumme(Buffer.from(JSON.stringify(j.wert), 'utf8'));
+  } catch { /* keine Antwort im ueblichen Format */ }
+  return pruefsumme(daten);
+}
 
 /* ------------------------------------------------------------ GitHub */
 
@@ -178,7 +220,8 @@ async function hochladen(releaseId, vorhandene, name, daten) {
   const alt = vorhandene.get(name);
   const zwischenname = alt ? `${name}.neu` : name;
   const rest = vorhandene.get(zwischenname);
-  if (rest) await api(`/repos/${REPO}/releases/assets/${rest.id}`, { method: 'DELETE' });
+  if (rest) { await gedrosselt(); await api(`/repos/${REPO}/releases/assets/${rest.id}`, { method: 'DELETE' }); }
+  await gedrosselt();
   const r = await api(
     `https://uploads.github.com/repos/${REPO}/releases/${releaseId}/assets?name=${encodeURIComponent(zwischenname)}`,
     {
@@ -190,8 +233,10 @@ async function hochladen(releaseId, vorhandene, name, daten) {
   if (!r.ok) throw new Error(`hochladen ${name}: ${r.status} ${(await r.text()).slice(0, 600)}`);
   let neu = await r.json();
   if (alt) {
+    await gedrosselt();
     const weg = await api(`/repos/${REPO}/releases/assets/${alt.id}`, { method: 'DELETE' });
     if (!weg.ok && weg.status !== 404) throw new Error(`loeschen ${name}: ${weg.status}`);
+    await gedrosselt();
     const um = await api(`/repos/${REPO}/releases/assets/${neu.id}`, {
       method: 'PATCH', body: JSON.stringify({ name }),
     });
@@ -243,7 +288,7 @@ async function main() {
   for (const name of einzeln) {
     const daten = fs.readFileSync(path.join(DATEN, name));
     const anhang = anhangName(name);
-    const summe = pruefsumme(daten);
+    const summe = /^antworten\//.test(name) ? antwortSumme(daten) : pruefsumme(daten);
     const rel = await releaseFuer(tagFuer(name));
     if (!erzwingen && rel.manifestAlt[anhang]?.summe === summe && rel.vorhandene.has(anhang)) continue;
     /*
@@ -295,6 +340,21 @@ async function main() {
 
   let fertig = 0; let schief = 0; const fehler = [];
   let naechste = 0;
+  /*
+   * Das Manifest nicht erst ganz am Ende schreiben.
+   *
+   * Bricht der Lauf ab (Zeitgrenze des Auftrags), wusste das Manifest sonst
+   * nichts von den Anhaengen, die schon oben waren - der naechste Lauf lud
+   * sie alle noch einmal hoch und brach wieder ab. Alle vierzig Anhaenge
+   * je Release steht der Zwischenstand oben.
+   */
+  const manifestSchreiben = async (rel) => {
+    try {
+      await hochladen(rel.release.id, rel.vorhandene, 'manifest.json', Buffer.from(JSON.stringify(rel.manifest), 'utf8'));
+      rel.manifestStand = rel.fertig;
+    } catch (e) { fehler.push(`${rel.tag}/manifest.json: ${e.message}`); }
+  };
+  let manifestLaeuft = Promise.resolve();
   const arbeiter = async () => {
     while (naechste < aufgaben.length) {
       const a = aufgaben[naechste++];
@@ -306,6 +366,10 @@ async function main() {
         };
         a.rel.fertig += 1;
         fertig += 1;
+        if (a.rel.fertig - (a.rel.manifestStand ?? 0) >= 40) {
+          const rel = a.rel; rel.manifestStand = rel.fertig;
+          manifestLaeuft = manifestLaeuft.then(() => manifestSchreiben(rel));
+        }
       } catch (e) {
         schief += 1; fehler.push(`${a.anhang}: ${e.message}`);
       }
@@ -313,12 +377,11 @@ async function main() {
     }
   };
   await Promise.all(Array.from({ length: GLEICHZEITIG }, arbeiter));
+  await manifestLaeuft;
 
   for (const rel of releases.values()) {
-    if (!rel.fertig) continue;
-    try {
-      await hochladen(rel.release.id, rel.vorhandene, 'manifest.json', Buffer.from(JSON.stringify(rel.manifest), 'utf8'));
-    } catch (e) { fehler.push(`${rel.tag}/manifest.json: ${e.message}`); }
+    if (!rel.fertig || rel.fertig === rel.manifestStand) continue;
+    await manifestSchreiben(rel);
   }
   console.log('');
   console.log(`  Uebertragen : ${fertig}`);

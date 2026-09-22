@@ -123,6 +123,9 @@ jobs:
             echo "Keine Epic-Anmeldung im Zwischenspeicher - wird geholt."
             node scripts/umzug-supabase.mjs --herunterladen --nur epic-auth.json 2>&1 | tail -3
           fi
+          # Der Stand des laufenden Sammelns (welche Fenster, was ausgewertet)
+          # liegt seit dem 22.9.2026 am Release, nicht mehr bei Supabase.
+          node scripts/ablage-github-holen.mjs replays/_live-lauf.json replays/_lauf.json 2>&1 | tail -2
 
       # Sammeln, auswerten, hochladen - in einer Schleife, solange ein Cup
       # laeuft. Ein Match ist damit ein bis drei Minuten nach seinem Ende in

@@ -164,19 +164,22 @@ function waehle(): Speicher {
     const { supabaseSpeicher } = require('@/lib/ablageSupabase') as
       { supabaseSpeicher: Speicher };
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { githubLeser, amRelease, releaseZuerst } = require('@/lib/ablageGithub') as {
-      githubLeser: Pick<Speicher, 'lies'>;
+    const { githubLeser, amRelease, releaseZuerst, nurRelease } = require('@/lib/ablageGithub') as {
+      githubLeser: Pick<Speicher, 'lies' | 'liste'>;
       amRelease: (n: string) => boolean; releaseZuerst: (n: string) => boolean;
+      nurRelease: (n: string) => boolean;
     };
     /*
-     * Zwei Quellen fuers Lesen - siehe lib/ablageGithub. Einzeldateien
-     * (Antworten, Akten) zuerst vom Release, dann Supabase; ganze Ordner
-     * zuerst Supabase, und wenn das scheitert, vom Release. Geschrieben
-     * wird weiter nur bei Supabase.
+     * Zwei Quellen fuers Lesen - siehe lib/ablageGithub. Gerechnetes
+     * (Antworten, Akten, Spieltage, Replays) kommt nur vom Release: Supabase
+     * sieht es weder beim Lesen noch beim Schreiben - "nur das Noetigste".
+     * Vom Betreiber Gepflegtes, das auch am Release liegt, zuerst aus
+     * Supabase (die lebende Kopie), und wenn das scheitert, vom Release.
      */
     gewaehlt = {
       ...supabaseSpeicher,
       lies: async (name) => {
+        if (nurRelease(name)) return githubLeser.lies(name);
         if (releaseZuerst(name)) {
           try {
             const wert = await githubLeser.lies(name);
@@ -191,6 +194,20 @@ function waehle(): Speicher {
           }
         }
         return supabaseSpeicher.lies(name);
+      },
+      // Was nur am Release liegt, schreibt der Laufrechner. Die Seite legt
+      // davon nichts bei Supabase ab - sie rechnet es notfalls noch einmal.
+      schreib: async (name, daten) => {
+        if (nurRelease(name)) return;
+        return supabaseSpeicher.schreib(name, daten);
+      },
+      loesche: async (name) => {
+        if (nurRelease(name)) return;
+        return supabaseSpeicher.loesche(name);
+      },
+      liste: async (ordner) => {
+        if (nurRelease(ordner.replace(/\/+$/, '') + '/')) return githubLeser.liste(ordner);
+        return supabaseSpeicher.liste(ordner);
       },
     };
   } else {

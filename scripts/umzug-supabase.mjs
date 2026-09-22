@@ -117,7 +117,36 @@ const neuerAls = Number(wert('--neuer-als') || 0);
  * diesem Fehler sonst der erste Schritt waere.
  */
 const trocken = argumente.includes('--trocken');
-const nur = wert('--nur').split(',').map((s) => s.trim()).filter(Boolean);
+/*
+ * Nur das Noetigste - der Betreiber am 22.9.2026, nachdem Supabase das
+ * Projekt wegen aufgebrauchten Datenverkehrs gesperrt hatte: "dort soll
+ * immer nur das Noetigste ab jetzt sein." Das Noetigste ist, was Nutzer und
+ * Betreiber auf der Seite selbst schreiben und was sich nicht neu rechnen
+ * laesst. Alles Gerechnete (Antworten, Akten, Spieltage, Platzierungen,
+ * Werte der Szene, Replays) liegt nur am GitHub-Release.
+ *
+ *   node scripts/umzug-supabase.mjs --noetiges                 hoch
+ *   node scripts/umzug-supabase.mjs --herunterladen --noetiges  herunter
+ */
+export const NOETIGES = [
+  'konten.json', 'homepage-vips.json', 'dienst-zugaenge.json', 'tierlists.json',
+  'dashboard.json', 'streamers.json', 'streamer-profiles.json', 'overlays.json',
+  'turnier-karten.json', 'karten-vorlagen.json', 'karten-ausgeblendet.json',
+  'prognosen.json', 'predictions.json', 'spieler-profile.json', 'spielerbilder.json',
+  'spieler-namen.json', 'orgtags.json', 'socials.json', 'players.json', 'duos.json',
+  'galerie.json', 'kontakt.json', 'sektionen.json', 'notes.json', 'offene-aufgaben.json',
+  'anwesenheit.json', 'insel-bilder.json', 'tournaments.json', 'tournament-maps.json',
+  'tournamentLeaderboards.json', 'gegenstaende.json', 'besuche.json', 'epic-auth.json',
+  'epic-namen.json', 'preisgelder.json', 'lan-preisgelder.json', 'cup-archiv.json',
+  'bekannte-ohne-foto.txt', 'fehlende-bilder.txt',
+  'discord-kanaele.json', 'discord-anfragen.json',
+  // Ordner: Bilder des Archivs und der Karten, eigene Replay-Werte, Meldungen.
+  'galerie', 'kartenbilder', 'kontakt-bilder', 'admin-maps', 'eigene-matches', 'anwesenheit',
+  // Der Cup-Katalog: die Seite schreibt ihn selbst alle fuenf Minuten.
+  'antworten/catalog_EU_NAC_NAW_BR_ASIA_ME_OCE.json',
+];
+const noetiges = argumente.includes('--noetiges');
+const nur = (noetiges ? NOETIGES : wert('--nur').split(',')).map((s) => s.trim()).filter(Boolean);
 
 /**
  * Beim Holen nur, was sich unterscheidet.

@@ -44,12 +44,19 @@ export function tagFuer(name: string): string {
   if (/^platzierungen\//.test(name)) return 'daten-platzierungen';
   if (/^szene-stats\//.test(name)) return 'daten-szene';
   if (/^tournament-leaderboards\//.test(name)) return 'daten-leaderboards';
+  if (/^replays\//.test(name)) return 'daten-replays';
   return 'daten';
 }
 const basis = (tag: string) => `https://github.com/${REPO}/releases/download/${tag}/`;
 
-/** Wie lange eine Anfrage hoechstens dauern darf. */
-const LESEN_MS = 8_000;
+/**
+ * Wie lange eine Anfrage hoechstens dauern darf.
+ *
+ * Dreissig Sekunden, nicht acht: seit die Replay-Auswertungen hier liegen
+ * (bis fuenfzig Megabyte je Spieltag), braucht ein grosser Anhang laenger
+ * als eine kleine Antwort.
+ */
+const LESEN_MS = 30_000;
 
 /**
  * Was am Release liegt - alles, was der Laufrechner schreibt. Alles andere
@@ -69,7 +76,10 @@ const AM_RELEASE: Array<RegExp> = [
   /^szene-quelle\//,
   /^tournament-leaderboards\//,
   /^power-rankings\//,
-  /^(verdienst-archiv|elims-archiv|preisgeld-tabellen|preisgelder|lan-preisgelder|epic-namen|cup-archiv)\.json$/,
+  // Die ausgewerteten Replays (je Spieltag ein _aggregat.json, bis zu
+  // fuenfzig Megabyte): seit dem 22.9.2026 nur noch hier, siehe nurRelease.
+  /^replays\//,
+  /^(verdienst-archiv|elims-archiv|elims-summen-alt|preisgeld-tabellen|preisgelder|lan-preisgelder|epic-namen|cup-archiv|prognose-felder)\.json$/,
   // Vom Betreiber gepflegt, von der Seite viel gelesen: als Rueckfall, wenn
   // Supabase nicht antwortet. Gelesen wird zuerst die lebende Kopie dort.
   /^(prognosen|turnier-karten|karten-vorlagen|spieler-profile|spielerbilder|spieler-namen|orgtags|galerie)\.json$/,
@@ -77,6 +87,37 @@ const AM_RELEASE: Array<RegExp> = [
 
 export function amRelease(name: string): boolean {
   return AM_RELEASE.some((m) => m.test(name));
+}
+
+/*
+ * Was Supabase gar nicht mehr sieht - weder gelesen noch geschrieben.
+ *
+ * Am 22.9.2026 sperrte Supabase das Projekt: fuenf Gigabyte Datenverkehr im
+ * Monat, das kostenlose Kontingent, waren aufgebraucht. Verbraucht hatten
+ * sie nicht die Konten und Tierlists, sondern das Gerechnete: die
+ * Replay-Auswertungen (bis fuenfzig Megabyte je Spieltag, bei jedem Klick
+ * auf die Runden eines Cups), der Cup-Katalog (jede Minute je Instanz) und
+ * der stuendliche Lauf, der sich seinen ganzen Stand aus Supabase holte.
+ * Der Betreiber: "nur das Noetigste, dort soll immer nur das Noetigste ab
+ * jetzt sein." Das Noetigste ist, was Nutzer und Betreiber auf der Seite
+ * selbst schreiben. Alles, was ein Lauf ausrechnet, liegt nur noch am
+ * Release - GitHubs CDN kennt kein Kontingent.
+ */
+const NUR_RELEASE: Array<RegExp> = [
+  /^antworten\/(?!catalog_|szene_spieler=|szene_ansicht=profil)/,
+  /^akten\//,
+  /^epic-spieltage\//,
+  /^platzierungen\//,
+  /^szene-stats\//,
+  /^szene-quelle\//,
+  /^tournament-leaderboards\//,
+  /^power-rankings\//,
+  /^replays\//,
+  /^(verdienst-archiv|elims-archiv|elims-summen-alt|preisgeld-tabellen|prognose-felder)\.json$/,
+];
+
+export function nurRelease(name: string): boolean {
+  return NUR_RELEASE.some((m) => m.test(name));
 }
 
 /*
@@ -89,7 +130,8 @@ export function amRelease(name: string): boolean {
 const ZUERST: Array<RegExp> = [
   /^antworten\/(?!catalog_|szene_spieler=|szene_ansicht=profil)/,
   /^akten\//,
-  /^(verdienst-archiv|elims-archiv|preisgeld-tabellen|preisgelder|lan-preisgelder|epic-namen|cup-archiv)\.json$/,
+  /^replays\//,
+  /^(verdienst-archiv|elims-archiv|elims-summen-alt|preisgeld-tabellen|preisgelder|lan-preisgelder|epic-namen|cup-archiv|prognose-felder)\.json$/,
 ];
 
 export function releaseZuerst(name: string): boolean {
@@ -147,8 +189,47 @@ async function lies(name: string): Promise<Buffer | null> {
   return holeAnhang(anhangName(name), tagFuer(name));
 }
 
+/* ------------------------------------------------------------ Auflisten */
+
 /**
- * Der Leser fuer die Seite. Schreiben, Loeschen und Auflisten gibt es hier
- * nicht - das tut der Laufrechner ueber scripts/ablage-github.mjs.
+ * Das Manifest eines Releases: Anhangname -> Pruefsumme, Groesse, Zeit.
+ *
+ * Damit laesst sich ein Ordner auflisten, ohne GitHubs API zu fragen (die
+ * zaehlt Anfragen, das CDN nicht). Fuenf Minuten gemerkt - so oft aendert
+ * der Laufrechner ohnehin nichts.
  */
-export const githubLeser: Pick<Speicher, 'lies'> = { lies };
+const manifeste = new Map<string, { bis: number; namen: string[] }>();
+const MANIFEST_MS = 5 * 60_000;
+
+async function manifestNamen(tag: string): Promise<string[]> {
+  const da = manifeste.get(tag);
+  if (da && da.bis > Date.now()) return da.namen;
+  const r = await fetch(basis(tag) + 'manifest.json', {
+    redirect: 'follow', cache: 'no-store', signal: AbortSignal.timeout(LESEN_MS),
+  });
+  if (r.status === 404) { manifeste.set(tag, { bis: Date.now() + MANIFEST_MS, namen: [] }); return []; }
+  if (!r.ok) throw new Error(`GitHub-Ablage ${r.status} beim Manifest ${tag}`);
+  const roh = await r.json() as Record<string, unknown>;
+  const namen = Object.keys(roh).filter((k) => k !== 'manifest.json').map(ablageName);
+  manifeste.set(tag, { bis: Date.now() + MANIFEST_MS, namen });
+  return namen;
+}
+
+/** Die Namen direkt unterhalb eines Ordners - wie readdir, aus dem Manifest. */
+async function liste(ordner: string): Promise<string[]> {
+  const praefix = ordner.replace(/\/+$/, '') + '/';
+  const namen = await manifestNamen(tagFuer(praefix));
+  const raus = new Set<string>();
+  for (const n of namen) {
+    if (!n.startsWith(praefix)) continue;
+    const rest = n.slice(praefix.length);
+    if (rest) raus.add(rest.split('/')[0]);
+  }
+  return [...raus];
+}
+
+/**
+ * Der Leser fuer die Seite. Schreiben und Loeschen gibt es hier nicht -
+ * das tut der Laufrechner ueber scripts/ablage-github.mjs.
+ */
+export const githubLeser: Pick<Speicher, 'lies' | 'liste'> = { lies, liste };
