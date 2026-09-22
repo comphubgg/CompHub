@@ -1953,6 +1953,38 @@ const AUF_ENGLISCH: Record<string, string> = {
     'sessions',
   'Anderes Event wählen':
     'Pick another event',
+  'Something Big Is Coming':
+    'Something Big Is Coming',
+  'Scrims der Community-Server — Leaderboards, Sessions und Statistiken, direkt auf CompHub.':
+    'Community server scrims — leaderboards, sessions and statistics, right here on CompHub.',
+  'Zu den Turnieren':
+    'Back to the tournaments',
+  'Im Discord erfahren, wann es losgeht':
+    'Hear about the launch on Discord',
+  'Scrims':
+    'Scrims',
+  'Übungsrunden der Community-Server — Leaderboard, Sessions und Statistiken.':
+    'Practice rounds run by the community servers — leaderboard, sessions and statistics.',
+  'Alle Scrims':
+    'All scrims',
+  'Yunite ist noch nicht eingerichtet — es fehlt der Schlüssel der App.':
+    'Yunite is not set up yet — the app key is missing.',
+  'Noch hat kein Discord-Server die App freigeschaltet. Sobald einer es tut, stehen seine Scrims hier.':
+    'No Discord server has authorized the app yet. As soon as one does, its scrims appear here.',
+  'Der freigeschaltete Server hat kein Yunite-Premium — ohne das gibt Yunite seine Scrims nicht heraus.':
+    'The authorized server has no Yunite Premium — without it Yunite does not hand out its scrims.',
+  'Dieser Server hat noch keine Scrims veranstaltet.':
+    'This server has not run any scrims yet.',
+  'Yunite antwortet gerade nicht.':
+    'Yunite is not responding right now.',
+  'Zu diesem Scrim liegt noch keine Bestenliste vor.':
+    'There is no leaderboard for this scrim yet.',
+  'Noch keine Runde gespielt.':
+    'No round played yet.',
+  'nicht gewertet':
+    'not counted',
+  'wird gewertet':
+    'being counted',
   'Orte an':
     'Places on',
   'Orte aus':

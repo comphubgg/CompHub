@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { istAdminAnfrage } from '@/lib/adminPruefung';
 import {
   server, turniere, bestenliste, matches, yuniteDa,
   KeinPremium, NichtFreigegeben, YuniteFehlt,
@@ -10,9 +11,10 @@ import {
 //   GET /api/scrims?server=<guildId>         -> dessen Scrims und Turniere
 //   GET /api/scrims?server=…&turnier=<id>    -> Bestenliste und Runden
 //
-// Oeffentlich lesbar: was hier steht, zeigt die Seite ohnehin jedem
-// Besucher. Geschrieben wird nichts - Yunites Regeln verbieten, die Daten
-// dauerhaft abzulegen.
+// Vorerst nur fuer den Betreiber: die Seite dazu steht fuer Besucher hinter
+// einem Vorhang ("Something Big Is Coming"), und was dort nicht zu sehen
+// ist, soll auch ueber die Adresse nicht herauskommen. Geschrieben wird
+// nichts - Yunites Regeln verbieten, die Daten dauerhaft abzulegen.
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -36,6 +38,10 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const guildId = (searchParams.get('server') ?? '').trim();
   const turnierId = (searchParams.get('turnier') ?? '').trim();
+
+  if (!await istAdminAnfrage(request)) {
+    return NextResponse.json({ error: 'noch-nicht-offen' }, { status: 403 });
+  }
 
   if (!yuniteDa()) {
     return NextResponse.json({ eingerichtet: false, server: [] });

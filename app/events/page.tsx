@@ -5,6 +5,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 
 import T from '@/app/components/T';
 import { regionFarbe } from '@/lib/regionFarbe';
@@ -224,7 +225,8 @@ export default function EventsPage() {
     <main className="flex-1 bg-zinc-950 px-4 py-6 text-slate-200">
       <div className="mx-auto max-w-[1500px]">
 
-        <div className="mb-5">
+        <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+          <div>
           <h1 className="text-xl font-semibold text-slate-100"><T>Fortnite Events</T></h1>
           <p className="mt-1 text-sm text-slate-500">
             <T>Alle Cups mit Leaderboard — direkt von Epic.</T>
@@ -233,6 +235,22 @@ export default function EventsPage() {
                 {archiv.tage} <T>Tagen.</T></>
             )}
           </p>
+          </div>
+          {/*
+            * Umschalter zwischen Epics Turnieren und den Scrims der
+            * Community-Server (Yunite). Der Betreiber: "wenn man unter
+            * Events geht, kannst du so auswaehlen" - wie beim Vorbild.
+            */}
+          <div className="flex gap-1 rounded-lg border border-zinc-800 bg-zinc-900/60 p-1">
+            <span className="rounded-md bg-sky-500 px-3.5 py-1.5 text-xs font-medium text-white">
+              <T>Fortnite Events</T>
+            </span>
+            <Link href="/scrims"
+              className="rounded-md px-3.5 py-1.5 text-xs font-medium text-slate-400
+                         transition hover:text-slate-200">
+              <T>Scrims</T>
+            </Link>
+          </div>
         </div>
 
         {/*
