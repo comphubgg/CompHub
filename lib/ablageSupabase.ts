@@ -120,11 +120,23 @@ async function anfrage(eingabe: string, init: RequestInit & { name?: string }): 
   return r;
 }
 
+/*
+ * Adresse und Schluessel - und zwar beschnitten.
+ *
+ * Am 22.9.2026 trug der Betreiber sie unter Windows so ein:
+ *   echo https://…supabase.co | vercel env add SUPABASE_URL production
+ * Windows nimmt dabei das Leerzeichen vor dem Strich mit; Vercel warnte
+ * sogar ("Value ends with whitespace"), aber gespeichert wurde es trotzdem.
+ * Mit dem Leerzeichen ist die Adresse keine Adresse mehr: jede Anfrage
+ * scheiterte, die Seite meldete "Ablage antwortet nicht" - eine halbe Stunde
+ * Suche fuer ein unsichtbares Zeichen. Deshalb hier stumpf abgeschnitten,
+ * an beiden Enden, bei Adresse und Schluessel.
+ */
 function zugang() {
   const url = (process.env.SUPABASE_URL || process.env.STORAGE_URL || '')
-    .replace(/\/+$/, '');
-  const key = process.env.SUPABASE_SERVICE_ROLE_KEY
-    || process.env.STORAGE_SERVICE_ROLE_KEY || '';
+    .trim().replace(/\/+$/, '');
+  const key = (process.env.SUPABASE_SERVICE_ROLE_KEY
+    || process.env.STORAGE_SERVICE_ROLE_KEY || '').trim();
   if (!url || !key) {
     throw new Error(
       'Supabase ist nicht eingerichtet - SUPABASE_URL und '

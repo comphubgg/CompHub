@@ -136,7 +136,7 @@ async function ruf(
   weg: string, art: 'GET' | 'POST' | 'DELETE' | 'PATCH' | 'PUT',
   koerper?: unknown,
 ): Promise<Record<string, unknown> | unknown[] | null> {
-  const token = process.env.DISCORD_BOT_TOKEN;
+  const token = (process.env.DISCORD_BOT_TOKEN ?? '').trim();
   if (!token) return null;
   letzterStatus = 0;
   try {
@@ -1739,7 +1739,7 @@ export async function ticketSchliessen(
     }));
     form.append('files[0]', new Blob([zeilen.join('\n')], { type: 'text/plain' }),
       `${name}.txt`);
-    const token = process.env.DISCORD_BOT_TOKEN;
+    const token = (process.env.DISCORD_BOT_TOKEN ?? '').trim();
     await fetch(`${API}/channels/${archiv.id}/messages`, {
       method: 'POST',
       headers: { Authorization: `Bot ${token}` },
