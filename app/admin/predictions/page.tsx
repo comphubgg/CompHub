@@ -1,15 +1,24 @@
 'use client';
 
-// Prognosen: das Teilnehmerfeld eines Cups in eine Reihenfolge bringen.
+// Prognosen: das Teilnehmerfeld eines Finales in eine Reihenfolge bringen.
 //
-// Der Ablauf folgt dem, wie ein Finalfeld tatsaechlich entsteht: man waehlt
-// einen Cup, hakt die Spieltage an, aus denen die Teilnehmer kommen, und sagt
-// je Spieltag, wie weit die Qualifikation reichte ("die besten sieben").
-// Daraus entsteht die Liste der Teams - und die bringt man dann von Platz 1
-// abwaerts in die erwartete Reihenfolge.
+// Der Betreiber (22.9.2026): "du sollst das komplett neu machen. Fully neu.
+// Wie die Events-Tabs aussehen, da kann ich ein Event auswaehlen. Nur grosse
+// Events wie Division 1, Finals, maximal 100 Spieler, 50 Teams oder ein
+// grosses LAN-Event, mit Bild. Wenn ich da drauf druecke, laedt es mir kurz
+// alle Teams. Die haben sich ja mit vorherigen Cups qualifiziert. Das musst
+// du dann irgendwie herausfinden."
+//
+// Also: zuerst Kacheln der kommenden und laufenden grossen Finals (aus dem
+// Cup-Katalog, mit Epics Kachelbild), ein Klick laedt das Feld - und das
+// kommt aus Epics Marken: jedes Finale verlangt eine Zugangsmarke, die
+// Vorrunde vergibt sie bis zu einem Platz (lib/prognoseFeld). Dann Karte,
+// Plaetze und Teams wie im Vorbild des Betreibers. Eine Prognose fuer einen
+// vergangenen Cup gibt es nicht mehr: "was gibt es fuer Sinn, eine
+// Prediction fuer einen vergangenen Cup" - gespeicherte bleiben lesbar.
 //
 // Alle Namen und Platzierungen stammen aus Epics Turnierdaten. Erfunden wird
-// nichts: steht ein Spieltag noch aus, taucht er hier gar nicht erst auf.
+// nichts: nennt Epic die Qualifikation noch nicht, steht das so da.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { kernname, namensSchluessel } from '@/lib/homoglyph';
@@ -20,6 +29,8 @@ import { useT } from '@/app/components/SprachProvider';
 import { MARKE } from '@/lib/marke';
 import { inselAusPlaylist } from '@/lib/inseln';
 import { speichereLeinwand } from '@/app/lib/bildSpeichern';
+import { gruppenName } from '@/lib/fensterName';
+import type { FeldErgebnis, FeldHinweis } from '@/lib/prognoseFeld';
 interface Fenster {
   status: string; begin: number;
   /** Fehlt bei nachgetragenen Turnieren. */
@@ -27,11 +38,102 @@ interface Fenster {
   eventId: string; windowId: string; region: string; istFinale: boolean;
   /** Epics Playlist - darin die Reload-Insel, siehe lib/inseln.ts. */
   playlist?: string;
+  /** Die Zugangsmarken des Fensters und die Marken, die es vergibt. */
+  tokens?: string[];
+  marken?: Array<{ token: string; bis: number }>;
 }
 interface Cup {
   id: string; titel: string; art: string;
+  bild?: string; global: boolean;
   regionen: Record<string, Fenster[]>;
   live: boolean; vorbei: boolean;
+  naechsterStart: number | null;
+}
+
+/**
+ * Ein Finale, fuer das eine Prognose moeglich ist.
+ *
+ * Ein Finale kann mehrere Spieltage haben (Day 1, Day 2) - sie verlangen
+ * dieselbe Marke und sind hier eine Kachelzeile. "feld" ist die Zahl der
+ * Teams, die laut Epics Auszahlungstabellen die Marke bekommen; null, wenn
+ * Epic die Vergabe (noch) nicht nennt, etwa beim LAN.
+ */
+interface Finale {
+  cup: Cup; region: string; fenster: Fenster[]; name: string; tokens: string[];
+  feld: number | null; begin: number; live: boolean;
+  /** Wie viele der vergebenden Spieltage noch nicht gespielt sind. */
+  offen: number; naechsteVorrunde: number | null;
+}
+
+/** Marken, die keine Qualifikation bedeuten - dieselbe Regel wie lib/prognoseFeld. */
+const KEINE_QUALI = /^RegionLock_|^LANSpectator$|^fake_token$|^GroupIdentity_/i;
+const echteMarken = (t?: string[]) => (t ?? []).filter((x) => x && !KEINE_QUALI.test(x));
+
+/** Cups, die nie ein grosses Finale sind. */
+const KEINE_FINALS = new Set(['ranked', 'mobile', 'skin', 'sonstige']);
+
+/**
+ * Die grossen Finals, die noch bevorstehen oder gerade laufen.
+ *
+ * Gross heisst: ein Spieltag, in den man sich qualifizieren muss und der
+ * niemanden mehr weiterschickt, mit hoechstens hundert Qualifizierten -
+ * oder ein LAN mit einer Bestenliste fuer alle Regionen. Die Groesse des
+ * Feldes kommt aus den Auszahlungstabellen der Vorrunden ("Platz 1 bis 50
+ * bekommen die Marke"); Solo Victory Cups mit viertausend Qualifizierten
+ * fallen so heraus, Division-1-Finals mit fuenfzig bleiben.
+ */
+function finalsAus(cups: Cup[]): Finale[] {
+  // Wer vergibt welche Marke bis zu welchem Platz - ueber alle Cups.
+  const vergeber = new Map<string, Array<{ f: Fenster; bis: number }>>();
+  for (const c of cups) {
+    for (const [region, liste] of Object.entries(c.regionen)) {
+      for (const f of liste) {
+        for (const m of f.marken ?? []) {
+          if (m.bis > 0) (vergeber.get(m.token) ?? vergeber.set(m.token, []).get(m.token)!).push({ f: { ...f, region }, bis: m.bis });
+        }
+      }
+    }
+  }
+  const raus: Finale[] = [];
+  for (const c of cups) {
+    if (KEINE_FINALS.has(c.art) || /division\s*[2-9]/i.test(c.titel)) continue;
+    for (const [region, liste] of Object.entries(c.regionen)) {
+      const gruppen = new Map<string, Fenster[]>();
+      for (const f of liste) {
+        if (f.status === 'vorbei') continue;
+        // Von Hand nachgetragene Turniere (ohne Endzeit) haben bei Epic
+        // weder Bestenliste noch Qualifikation - der FNCS Global
+        // Championship stand sonst zweimal da, einmal aus dem Archiv und
+        // einmal von Epic. Es zaehlt Epics Fenster.
+        if (typeof f.end !== 'number') continue;
+        const tokens = echteMarken(f.tokens);
+        const vergibt = (f.marken ?? []).some((m) => m.bis > 0);
+        const istFinale = c.global || f.istFinale || (tokens.length > 0 && !vergibt);
+        if (!istFinale) continue;
+        const key = tokens.length ? tokens.slice().sort().join('|') : f.windowId;
+        (gruppen.get(key) ?? gruppen.set(key, []).get(key)!).push({ ...f, region });
+      }
+      for (const fenster of gruppen.values()) {
+        fenster.sort((a, b) => a.begin - b.begin);
+        const tokens = echteMarken(fenster[0].tokens);
+        const quellen = tokens.flatMap((t) => vergeber.get(t) ?? []);
+        const feld = quellen.length ? quellen.reduce((s, q) => s + q.bis, 0) : null;
+        const zuGross = feld !== null && feld > 100;
+        if (zuGross) continue;
+        if (feld === null && !c.global && !fenster[0].istFinale) continue;
+        const offen = quellen.filter((q) => q.f.status === 'kommt');
+        raus.push({
+          cup: c, region, fenster, tokens, feld,
+          name: gruppenName(fenster.map((f) => f.windowId)),
+          begin: fenster[0].begin,
+          live: fenster.some((f) => f.status === 'live'),
+          offen: offen.length,
+          naechsteVorrunde: offen.length ? Math.min(...offen.map((q) => q.f.begin)) : null,
+        });
+      }
+    }
+  }
+  return raus.sort((a, b) => a.begin - b.begin);
 }
 interface Eintrag {
   rank: number; points: number;
@@ -170,12 +272,20 @@ interface Karte {
   eigen: boolean;
 }
 
+/** Das Finale, fuer das eine Prognose gilt - so gespeichert, dass die Kachel es wiederfindet. */
+interface Ziel {
+  cupId: string; eventId: string; windowId: string; region: string; begin: number; name: string;
+}
+
 interface Prognose {
   id: string; titel: string; cupId: string; cupTitel: string;
   gruppe?: string; qualiBis?: number;
   quellen: Quelle[]; plaetze: Array<string | null>;
   /** Der MVP - ein Spielername, frei gewaehlt. */
   mvp?: string;
+  /** Das Feld, wie es beim Speichern stand - damit die Prognose auch dann lesbar bleibt, wenn Epic die Vorrunde nicht mehr liefert. */
+  feld?: TeamImFeld[];
+  ziel?: Ziel;
   /** Die Karten dieser Prognose - Schnappschuesse, keine Verweise. */
   karten?: Array<{
     id: string; bildId: string; titel: string;
@@ -212,9 +322,13 @@ export default function PrognosenSeite() {
   const uebs = useT();
   const [istAdmin, setIstAdmin] = useState<boolean | null>(null);
   const [cups, setCups] = useState<Cup[]>([]);
-  const [cupSuche, setCupSuche] = useState('');
-  const [cupOffen, setCupOffen] = useState(false);
+  const [cupsLaden, setCupsLaden] = useState(true);
   const [cupId, setCupId] = useState('');
+  /** Das gewaehlte Finale - solange keins gewaehlt ist, stehen die Kacheln. */
+  const [ziel, setZiel] = useState<Ziel | null>(null);
+  /** Was Epic zum Feld sagt - Herkunft, Pruefung, was noch fehlt. */
+  const [feldHinweise, setFeldHinweise] = useState<FeldHinweis[]>([]);
+  const [feldGeprueft, setFeldGeprueft] = useState(false);
   const [gruppe, setGruppe] = useState('');
   /** Bis zu welchem Platz gilt "weiter"? 0 blendet die Hervorhebung aus. */
   const [qualiBis, setQualiBis] = useState(0);
@@ -383,7 +497,8 @@ export default function PrognosenSeite() {
     fetch('/api/auth/check-admin').then((r) => r.json())
       .then((j) => setIstAdmin(j.isAdmin === true)).catch(() => setIstAdmin(false));
     fetch('/api/cup-catalog?modus=alle').then((r) => r.json())
-      .then((d) => setCups(d.cups ?? [])).catch(() => {});
+      .then((d) => setCups(d.cups ?? [])).catch(() => {})
+      .finally(() => setCupsLaden(false));
     fetch('/api/spieler-profile').then((r) => r.json())
       .then((j) => setProfile(j.profile ?? {})).catch(() => {});
     fetch('/api/prognosen').then((r) => r.json())
@@ -682,36 +797,13 @@ export default function PrognosenSeite() {
     setPflegt(null);
   }
 
-  /**
-   * Nur Cups, die laufen oder vorbei sind.
-   *
-   * Zu einem Turnier, das noch nicht begonnen hat, gibt es kein Teilnehmerfeld -
-   * eine Prognose darauf waere geraten, nicht aufgestellt.
-   */
-  const cupListe = useMemo(() => {
-    const aufbereitet = cups
-      .filter((c) => c.live || c.vorbei
-        || Object.values(c.regionen).flat().some((f) => f.status !== 'kommt'))
-      .map((c) => {
-        const alle = Object.values(c.regionen).flat();
-        const termine = alle.map((f) => f.begin).sort((a, b) => a - b);
-        const von = termine[0] ?? 0;
-        const bis = termine[termine.length - 1] ?? 0;
-        const laeuft = alle.some((f) => f.status === 'live');
-        const zeit = !von ? '' : von === bis ? tag(von) : `${tag(von)}–${tag(bis)}`;
-        return {
-          cup: c, laeuft, bis,
-          etikett: `${laeuft ? '● ' : ''}${c.titel}${zeit ? ` · ${zeit}` : ''}`,
-          heu: `${c.titel} ${c.id} ${c.art} ${zeit}`.toLowerCase(),
-        };
-      });
-    const q = cupSuche.trim().toLowerCase();
-    const gefiltert = q
-      ? aufbereitet.filter((x) => q.split(/\s+/).every((w) => x.heu.includes(w)))
-      : aufbereitet;
-    return gefiltert.sort((a, b) =>
-      (a.laeuft === b.laeuft ? b.bis - a.bis : a.laeuft ? -1 : 1));
-  }, [cups, cupSuche]);
+  /** Die grossen Finals, die noch kommen oder laufen - je Cup gesammelt fuer die Kacheln. */
+  const finals = useMemo(() => finalsAus(cups), [cups]);
+  const kacheln = useMemo(() => {
+    const jeCup = new Map<string, Finale[]>();
+    for (const f of finals) (jeCup.get(f.cup.id) ?? jeCup.set(f.cup.id, []).get(f.cup.id)!).push(f);
+    return [...jeCup.values()].sort((a, b) => a[0].begin - b[0].begin);
+  }, [finals]);
 
   /**
    * Die Namen eines Teams, so wie sie auf der Karte stehen.
@@ -990,22 +1082,6 @@ export default function PrognosenSeite() {
     || 'Battle Royale';
 
   const cup = cups.find((c) => c.id === cupId);
-  const gewaehlterCupText = cupListe.find((x) => x.cup.id === cupId)?.etikett
-    ?? cup?.titel ?? '';
-
-  /** Die Spieltage dieses Cups, die schon gelaufen sind oder gerade laufen. */
-  const spieltage = useMemo(() => {
-    if (!cup) return [] as Array<Fenster & { titel: string }>;
-    return Object.entries(cup.regionen)
-      .flatMap(([region, liste]) => liste.map((f) => ({ ...f, region })))
-      .filter((f) => f.status !== 'kommt')
-      .sort((a, b) => a.begin - b.begin)
-      .map((f, i) => ({
-        ...f,
-        titel: `${f.istFinale ? 'Finale' : `Tag ${i + 1}`} · ${tag(f.begin)}`
-          + (Object.keys(cup.regionen).length > 1 ? ` · ${f.region}` : ''),
-      }));
-  }, [cup]);
 
   /**
    * Die Insel der gewaehlten Spieltage - aus Epics Playlist.
@@ -1015,12 +1091,16 @@ export default function PrognosenSeite() {
    */
   const inselJetzt = useMemo(() => {
     const fensterAlle = cup ? Object.values(cup.regionen).flat() : [];
+    // Das Finale selbst zuerst: es wird auf seiner Insel gespielt, nicht auf
+    // der der Vorrunde.
+    const zielFenster = ziel ? fensterAlle.find((f) => f.windowId === ziel.windowId) : undefined;
     const gewaehlt = quellen
       .map((q) => fensterAlle.find((f) => f.windowId === q.windowId && f.region === q.region))
       .filter((f): f is Fenster => Boolean(f));
-    const erstes = gewaehlt.find((f) => f.playlist) ?? fensterAlle.find((f) => f.playlist);
+    const erstes = (zielFenster?.playlist ? zielFenster : undefined)
+      ?? gewaehlt.find((f) => f.playlist) ?? fensterAlle.find((f) => f.playlist);
     return inselAusPlaylist(erstes?.playlist);
-  }, [cup, quellen]);
+  }, [cup, quellen, ziel]);
 
   /*
    * Das passende Bild von selbst - solange der Betreiber keines gewaehlt
@@ -1057,36 +1137,83 @@ export default function PrognosenSeite() {
     });
   }
 
-  function quelleAn(f: Fenster & { titel: string }) {
-    setQuellen((alt) => {
-      const drin = alt.find((q) => q.windowId === f.windowId && q.region === f.region);
-      if (drin) return alt.filter((q) => q !== drin);
-      return [...alt, {
-        eventId: f.eventId, windowId: f.windowId, region: f.region,
-        titel: f.titel, topN: null,
-      }];
-    });
+  /**
+   * Das Feld eines Finales von Epic holen - siehe lib/prognoseFeld.
+   *
+   * Kommt mit den Quellen (welche Vorrunde bis zu welchem Platz), den Teams
+   * und dem, was noch fehlt. Ohne Erfinden: nennt Epic die Vergabe nicht,
+   * steht das als Hinweis da und das Feld bleibt leer.
+   */
+  const feldLaden = useCallback(async (z: Ziel, plaetzeBehalten = false) => {
+    setLaedt(true); setStatus(uebs('lädt das Feld …'));
+    try {
+      const r = await fetch(`/api/prognose-feld?event=${encodeURIComponent(z.eventId)}`
+        + `&window=${encodeURIComponent(z.windowId)}&region=${encodeURIComponent(z.region)}`,
+        { signal: AbortSignal.timeout(90_000) });
+      const d = await r.json() as FeldErgebnis & { error?: string };
+      if (!r.ok) throw new Error(d.error ?? 'nicht ladbar');
+      const liste: TeamImFeld[] = d.teams.map((t) => ({
+        key: t.key, namen: t.namen, ids: t.ids, herkunft: t.herkunft,
+        besterPlatz: t.besterPlatz, region: t.region,
+      }));
+      setFeld(liste);
+      setQuellen(d.quellen);
+      setFeldHinweise(d.hinweise ?? []);
+      setFeldGeprueft(Boolean(d.geprueft));
+      setPlaetze((alt) => (plaetzeBehalten && alt.length ? alt
+        : Array.from({ length: liste.length }, () => null)));
+      setStatus(liste.length ? `${liste.length} ${uebs('Teams im Feld')}` : '');
+    } catch (e) {
+      setStatus(uebs('Fehler') + ': ' + (e as Error).message);
+    } finally { setLaedt(false); }
+  }, [uebs]);
+
+  /**
+   * Ein Finale von der Kachel waehlen.
+   *
+   * Gibt es dazu schon eine gespeicherte Prognose, wird die geoeffnet -
+   * mit ihrem Feld und ihren Plaetzen. Sonst kommt das Feld frisch von Epic.
+   */
+  function zielWaehlen(fin: Finale) {
+    const f0 = fin.fenster[0];
+    const z: Ziel = {
+      cupId: fin.cup.id, eventId: f0.eventId, windowId: f0.windowId,
+      region: fin.region, begin: fin.begin, name: fin.name,
+    };
+    const grp = `${fin.region} ${fin.name}`.trim();
+    const gespeichert = gespeicherte.find((p) => p.id === kennung(fin.cup.id, grp));
+    if (gespeichert) { laden(gespeichert); return; }
+    setCupId(fin.cup.id); setZiel(z);
+    setTitel(`${fin.cup.titel}${fin.name ? ` · ${fin.name}` : ''}${fin.cup.global ? '' : ` · ${fin.region}`}`);
+    setGruppe(grp);
+    // Ein Finale hat einen Sieger - der leuchtet.
+    setQualiBis(1);
+    setMvp(''); setPlaetze([]); setAufSpot({});
+    setKarten([]); setKarteNr(0); setKartenTitel(''); setBenenntKarte(false);
+    setGewaehlteForm(null); setWerkzeug(null); setRohbau([]);
+    void feldLaden(z);
   }
 
-  function grenzeSetzen(windowId: string, region: string, wert: string) {
-    const n = parseInt(wert, 10);
-    setQuellen((alt) => alt.map((q) => (q.windowId === windowId && q.region === region
-      ? { ...q, topN: Number.isFinite(n) && n > 0 ? n : null } : q)));
+  /** Zurueck zu den Kacheln - was auf dem Schirm steht, ist gespeichert oder nicht. */
+  function zielAbwaehlen() {
+    setZiel(null); setCupId(''); setFeld([]); setPlaetze([]); setQuellen([]);
+    setFeldHinweise([]); setStatus('');
   }
 
   /**
-   * Das Feld aus den angehakten Spieltagen zusammentragen.
+   * Das Feld aus gespeicherten Quellen holen - fuer Prognosen von vor dem
+   * Umbau, die noch kein Feld mitgespeichert haben.
    *
    * Ein Team, das an mehreren Tagen dabei war, erscheint nur einmal - erkannt
    * ueber die Epic-Konto-Ids, nicht ueber den Namen: Pros treten oft unter
    * wechselnden Schreibweisen an.
    */
-  const feldHolen = useCallback(async () => {
-    if (!quellen.length) { setStatus(uebs('Erst Spieltage anhaken')); return; }
+  const feldAusQuellen = useCallback(async (quellenListe: Quelle[]) => {
+    if (!quellenListe.length) return;
     setLaedt(true); setStatus(uebs('lädt …'));
     const gefunden = new Map<string, TeamImFeld>();
     try {
-      for (const q of quellen) {
+      for (const q of quellenListe) {
         const r = await fetch(`/api/cup-leaderboard?event=${encodeURIComponent(q.eventId)}`
           + `&window=${encodeURIComponent(q.windowId)}&limit=${q.topN ?? 200}`);
         const d = await r.json();
@@ -1121,11 +1248,11 @@ export default function PrognosenSeite() {
       setFeld(liste);
       setPlaetze((alt) => (alt.length === liste.length
         ? alt : Array.from({ length: liste.length }, () => null)));
-      setStatus(`${liste.length} Teams im Feld`);
+      setStatus(`${liste.length} ${uebs('Teams im Feld')}`);
     } catch (e) {
       setStatus(uebs('Fehler') + ': ' + (e as Error).message);
     } finally { setLaedt(false); }
-  }, [quellen]);
+  }, [uebs]);
 
   /** Welche Teams sind noch nicht gesetzt? */
   const offen = useMemo(
@@ -1318,6 +1445,8 @@ export default function PrognosenSeite() {
       body: JSON.stringify({
         id, titel, cupId, cupTitel: cup.titel, gruppe: gruppe || undefined,
         qualiBis, quellen, plaetze, mvp: mvp || undefined, oeffentlich: true,
+        // Das Feld als Schnappschuss und das Finale, zu dem es gehoert.
+        feld, ziel: ziel ?? undefined,
         // Jede Karte wandert als Kopie mit hinein - Bild, Formen und wer wo
         // steht. Ab jetzt gehoeren sie dieser Prognose.
         // Ohne das Merkzeichen "eigen" - das gilt nur in der Oberflaeche.
@@ -1401,7 +1530,14 @@ export default function PrognosenSeite() {
     setQualiBis(p.qualiBis ?? 0);
     setQuellen(p.quellen ?? []); setPlaetze(p.plaetze ?? []);
     setMvp(p.mvp ?? '');
-    setFeld([]);
+    setZiel(p.ziel ?? null);
+    setFeldHinweise([]); setFeldGeprueft(false);
+    // Das gespeicherte Feld; aeltere Prognosen haben keins und holen es
+    // aus ihren Quellen.
+    setFeld(p.feld ?? []);
+    if (!p.feld?.length) {
+      if (p.ziel) void feldLaden(p.ziel, true); else void feldAusQuellen(p.quellen ?? []);
+    }
 
     // Die Karten so wiederherstellen, wie sie gespeichert wurden. Eintraege
     // aus der Zeit mit nur einer Karte werden dabei umgerechnet, damit sie
@@ -1418,7 +1554,34 @@ export default function PrognosenSeite() {
       }]);
     karteZeigen(liste, 0);
 
-    setStatus(uebs('Geladen — auf „Feld laden“ klicken, um die Teams zu holen'));
+    setStatus(uebs('Geladen'));
+  }
+
+  /** Ein Hinweis von lib/prognoseFeld als Satz - in der Sprache der Seite. */
+  function hinweisText(h: FeldHinweis): string {
+    switch (h.art) {
+      case 'vorrunde-offen':
+        return uebs('{fenster} ({region}) ist noch nicht gespielt — dort qualifizieren sich am {datum} noch {n} weitere.')
+          .replace('{fenster}', h.fenster).replace('{region}', h.region)
+          .replace('{datum}', tag(h.datum)).replace('{n}', String(h.n));
+      case 'liste-fehlt':
+        return uebs('Die Bestenliste von {fenster} ({region}) ist gerade nicht erreichbar.')
+          .replace('{fenster}', h.fenster).replace('{region}', h.region);
+      case 'weggelassen':
+        return uebs('{n} Teams aus der Bestenliste tragen die Marke nicht mehr (abgesagt oder ersetzt) und fehlen deshalb.')
+          .replace('{n}', String(h.n));
+      case 'marke-unvergeben':
+        return uebs('Epic hat die Marke noch an niemanden vergeben — das Feld kommt aus der Bestenliste.');
+      case 'pruefung-fehlgeschlagen':
+        return uebs('Die Prüfung der Marken bei Epic ist fehlgeschlagen — das Feld kommt aus der Bestenliste.');
+      case 'keine-vergabe':
+        return uebs('Epic nennt noch nicht, welche Runde die Marke {token} vergibt. Sobald das feststeht, steht das Feld hier von selbst.')
+          .replace('{token}', h.token);
+      case 'keine-quali':
+        return uebs('Epic führt zu dieser Runde keine Qualifikation.');
+      default:
+        return '';
+    }
   }
 
   if (istAdmin === false) {
@@ -1436,21 +1599,149 @@ export default function PrognosenSeite() {
     <main className="flex-1 bg-zinc-950 px-4 py-6 text-slate-200">
       <div className="mx-auto max-w-[1900px]">
 
-        <div className="mb-3">
-          <h1 className="text-xl font-semibold text-slate-100">Prognosen</h1>
-          <p className="mt-1 text-sm text-slate-500">
-            <T>Cup wählen, Spieltage anhaken, Feld laden — dann die Reihenfolge setzen.</T>
-            <T>Nur laufende und vergangene Cups, denn zu einem kommenden gibt es noch kein Teilnehmerfeld.</T>
-          </p>
+        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+          <div>
+            <h1 className="text-xl font-semibold text-slate-100">Predictions</h1>
+            <p className="mt-1 text-sm text-slate-500">
+              {cupId
+                ? <T>Teams von rechts auf die Plätze ziehen — oder klicken für den nächsten freien.</T>
+                : <T>Ein kommendes großes Finale wählen — das Feld kommt aus Epics Qualifikation.</T>}
+            </p>
+          </div>
+          {cupId && (
+            <button onClick={zielAbwaehlen}
+              className="rounded-lg border border-zinc-700 px-3 py-1.5 text-xs text-slate-300
+                         transition hover:border-sky-500 hover:text-sky-400">
+              ← <T>Anderes Event wählen</T>
+            </button>
+          )}
         </div>
 
-        {/* Reiter: alle Prognosen zu diesem Cup.
-            Eine je Gruppe und Karte - "Group A · Slurpush", "Finals · Stronghold".
-            Der Reiter ganz rechts legt eine weitere an. */}
-        {cupId && (
+        {/*
+          * Die Kacheln - wie im Events-Tab: Bild, Name, und darunter je
+          * Finale eine Zeile mit Region, Datum und Feld. Nur, was noch
+          * kommt oder gerade laeuft. Der Betreiber: "Nur grosse Events wie
+          * Division 1, Finals, maximal 100 Spieler, oder ein grosses
+          * LAN-Event, mit Bild."
+          */}
+        {!cupId && (
+          cupsLaden ? (
+            <p className="py-10 text-center text-sm text-slate-500"><T>lädt …</T></p>
+          ) : !kacheln.length ? (
+            <p className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-6 text-center
+                          text-sm text-slate-500">
+              <T>Gerade steht kein großes Finale an.</T>
+            </p>
+          ) : (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {kacheln.map((liste) => {
+                const c = liste[0].cup;
+                const live = liste.some((f) => f.live);
+                return (
+                  <article key={c.id}
+                    className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/40
+                               transition hover:border-zinc-700">
+                    <div className="relative h-32 w-full overflow-hidden bg-zinc-900">
+                      {c.bild ? (
+                        <img src={c.bild} alt="" loading="lazy" className="h-full w-full object-cover" />
+                      ) : (
+                        <div className="flex h-full w-full items-center justify-center
+                                        bg-gradient-to-br from-sky-700 to-sky-950 px-4">
+                          <span className="text-center text-sm font-bold uppercase tracking-wide text-white/80">
+                            {c.titel}
+                          </span>
+                        </div>
+                      )}
+                      <div className="absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/20 to-transparent" />
+                      <div className="absolute left-2 top-2 flex gap-1.5">
+                        {live ? (
+                          <span className="rounded bg-rose-600 px-2 py-0.5 text-[10px] font-bold
+                                           uppercase tracking-wider text-white">Live</span>
+                        ) : (
+                          <span className="rounded bg-sky-500/90 px-2 py-0.5 text-[10px] font-bold
+                                           uppercase tracking-wider text-white">
+                            {tag(liste[0].begin)}
+                          </span>
+                        )}
+                        {c.global && (
+                          <span className="rounded bg-black/70 px-2 py-0.5 text-[10px] font-semibold
+                                           uppercase tracking-wider text-slate-200">LAN</span>
+                        )}
+                      </div>
+                      <h3 className="absolute bottom-2 left-3 right-3 truncate text-sm font-semibold
+                                     text-slate-100">{c.titel}</h3>
+                    </div>
+                    <div className="divide-y divide-zinc-800/80">
+                      {liste.map((fin) => {
+                        const grp = `${fin.region} ${fin.name}`.trim();
+                        const da = gespeicherte.some((p) => p.id === kennung(c.id, grp));
+                        const feldText = fin.feld !== null
+                          ? `${fin.feld} ${uebs(fin.feld === 1 ? 'Team' : 'Teams')}`
+                          : fin.cup.global ? uebs('Feld laut Epic') : '';
+                        return (
+                          <button key={`${fin.region}|${fin.fenster[0].windowId}`}
+                            onClick={() => zielWaehlen(fin)}
+                            className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs
+                                       transition hover:bg-zinc-900">
+                            <span className="w-10 shrink-0 font-semibold text-sky-400">
+                              {c.global ? '' : fin.region}
+                            </span>
+                            <span className="min-w-0 flex-1">
+                              <span className="block truncate text-slate-200">
+                                {fin.name || uebs('Finale')}
+                                <span className="ml-1.5 text-slate-500">{tag(fin.begin)}</span>
+                              </span>
+                              <span className="block truncate text-[11px] text-slate-500">
+                                {feldText}
+                                {fin.offen > 0 && fin.naechsteVorrunde && (
+                                  <> · {uebs('Vorrunde am')} {tag(fin.naechsteVorrunde)}</>
+                                )}
+                              </span>
+                            </span>
+                            {da && (
+                              <span className="shrink-0 rounded border border-amber-500/50 px-1.5 py-px
+                                               text-[9px] font-semibold uppercase text-amber-300">
+                                <T>gespeichert</T>
+                              </span>
+                            )}
+                            {fin.live && !da && (
+                              <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-rose-500" />
+                            )}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </article>
+                );
+              })}
+            </div>
+          )
+        )}
+
+        {/* Gespeicherte Prognosen zu anderen Cups - auch vergangene bleiben lesbar. */}
+        {!cupId && gespeicherte.length > 0 && (
+          <div className="mt-6">
+            <h2 className="mb-2 text-sm font-semibold text-slate-100">
+              <T>Gespeicherte Prognosen</T> <span className="text-slate-500">({gespeicherte.length})</span>
+            </h2>
+            <div className="flex flex-wrap gap-1.5">
+              {gespeicherte.map((p) => (
+                <button key={p.id} onClick={() => laden(p)}
+                  className="rounded-lg border border-zinc-800 px-3 py-1.5 text-left text-[11px]
+                             text-slate-300 transition hover:border-sky-500">
+                  {p.titel}
+                  {p.ziel && <span className="ml-1.5 text-slate-500">{tag(p.ziel.begin)}</span>}
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Reiter: die Prognosen zu diesem Cup - eine je Finale und Region. */}
+        {cupId && gespeicherte.some((x) => x.cupId === cupId) && (
           <div className="mb-3 flex flex-wrap gap-1.5">
             {gespeicherte.filter((x) => x.cupId === cupId).map((x) => {
-              const aktiv = (x.gruppe ?? '') === gruppe && x.titel === titel;
+              const aktiv = (x.gruppe ?? '') === gruppe;
               return (
                 <button key={x.id} onClick={() => laden(x)}
                   className={`rounded-lg border px-3 py-1.5 text-[11px] font-semibold
@@ -1461,153 +1752,66 @@ export default function PrognosenSeite() {
                 </button>
               );
             })}
-            <button
-              onClick={() => {
-                setGruppe(''); setTitel('Prognose'); setQualiBis(0);
-                setPlaetze((alt) => alt.map(() => null)); setAufSpot({});
-                // Eine neue Prognose faengt wieder bei der Kartenauswahl an.
-                setKarten([]); setKarteNr(0);
-                setKartenTitel(''); setBenenntKarte(false);
-                setGewaehlteForm(null); setWerkzeug(null); setRohbau([]);
-              }}
-              title={uebs('Eine weitere Prognose zu diesem Cup anlegen')}
-              className="rounded-lg border border-dashed border-zinc-700 px-3 py-1.5
-                         text-[11px] text-slate-500 transition hover:border-sky-500
-                         hover:text-sky-400">
-              + neu
-            </button>
           </div>
         )}
 
-        {/* Auswahl */}
-        <div className="mb-3 grid gap-3 rounded-xl border border-zinc-800 bg-zinc-900/40
-                        p-3 sm:grid-cols-2 lg:grid-cols-5">
-          <label className="text-xs text-slate-400">
-            <T>Titel</T>
-            <input value={titel} onChange={(e) => setTitel(e.target.value)}
-              className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2
-                         text-sm text-slate-100 outline-none focus:border-sky-500" />
-          </label>
-
-          <div className="relative text-xs text-slate-400">
-            Cup <span className="text-slate-600">({cupListe.length})</span>
-            <input
-              value={cupOffen ? cupSuche : gewaehlterCupText}
-              onChange={(e) => { setCupSuche(e.target.value); setCupOffen(true); }}
-              onFocus={() => { setCupSuche(''); setCupOffen(true); }}
-              onBlur={() => setCupOffen(false)}
-              placeholder={uebs('suchen — Name, Datum, Art')}
-              className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2
-                         text-sm text-slate-100 outline-none placeholder:text-slate-600
-                         focus:border-sky-500" />
-            {cupOffen && (
-              <div className="absolute left-0 right-0 top-full z-40 mt-1 max-h-72
-                              overflow-y-auto rounded-lg border border-zinc-700
-                              bg-zinc-950 shadow-xl">
-                {cupListe.length ? cupListe.map((x) => (
-                  <button key={x.cup.id} type="button"
-                    onMouseDown={(ev) => {
-                      ev.preventDefault();
-                      setCupId(x.cup.id); setQuellen([]); setFeld([]); setPlaetze([]);
-                      setCupOffen(false);
-                    }}
-                    className={`block w-full border-b border-zinc-900 px-3 py-1.5 text-left
-                                text-[11px] last:border-0 hover:bg-zinc-900 ${
-                      cupId === x.cup.id ? 'text-sky-400' : 'text-slate-200'}`}>
-                    {x.etikett}
-                  </button>
-                )) : (
-                  <p className="px-3 py-2 text-[11px] text-slate-500">
-                    <T>kein Cup passt zur Suche</T>
-                  </p>
-                )}
+        {/*
+          * Die Leiste zum gewaehlten Finale: Bild, Name, Datum, woher das
+          * Feld kommt, und Speichern. Kein Suchfeld, keine Haken mehr - das
+          * Finale ist gewaehlt, der Rest kommt von Epic.
+          */}
+        {cupId && cup && (
+          <div className="mb-3 rounded-xl border border-zinc-800 bg-zinc-900/40 p-3">
+            <div className="flex flex-wrap items-center gap-3">
+              {cup.bild && (
+                <img src={cup.bild} alt="" className="h-12 w-20 shrink-0 rounded-lg object-cover" />
+              )}
+              <div className="min-w-0 flex-1">
+                <input value={titel} onChange={(e) => setTitel(e.target.value)}
+                  title={uebs('Titel')}
+                  className="w-full max-w-xl bg-transparent text-base font-semibold text-slate-100
+                             outline-none focus:text-sky-300" />
+                <p className="truncate text-xs text-slate-500">
+                  {ziel && <>{tag(ziel.begin)} · </>}
+                  {quellen.length
+                    ? quellen.map((q) => `${q.titel}${q.topN ? ` · Top ${q.topN}` : ''}`).join(' + ')
+                    : uebs('Feld laut Epic')}
+                  {feldGeprueft && <> · <T>Marken bei Epic bestätigt</T></>}
+                </p>
               </div>
+              <label className="text-[11px] text-slate-500">
+                <T>Weiter bis Platz</T>
+                <input value={qualiBis || ''} inputMode="numeric"
+                  onChange={(e) => {
+                    const n = parseInt(e.target.value, 10);
+                    setQualiBis(Number.isFinite(n) && n > 0 ? n : 0);
+                  }}
+                  className="ml-1.5 w-12 rounded border border-zinc-800 bg-zinc-950 px-1.5 py-1
+                             text-center text-xs text-slate-100 outline-none focus:border-amber-600" />
+              </label>
+              {ziel && (
+                <button onClick={() => feldLaden(ziel, true)} disabled={laedt}
+                  title={uebs('Das Feld noch einmal von Epic holen')}
+                  className="rounded-lg border border-zinc-700 px-3 py-2 text-xs text-slate-300
+                             transition hover:border-sky-500 disabled:opacity-40">
+                  {laedt ? uebs('lädt…') : uebs('Feld neu laden')}
+                </button>
+              )}
+              <button onClick={speichern} disabled={!cup || !feld.length}
+                className="rounded-lg bg-sky-500 px-4 py-2 text-sm font-medium text-white
+                           transition hover:bg-sky-400 disabled:opacity-40">
+                <T>Speichern</T>
+              </button>
+            </div>
+            {feldHinweise.length > 0 && (
+              <ul className="mt-2 space-y-0.5 text-[11px] text-amber-300/90">
+                {feldHinweise.map((h, i) => <li key={i}>{hinweisText(h)}</li>)}
+              </ul>
             )}
           </div>
-
-          <label className="text-xs text-slate-400">
-            <T>Weiter bis Platz</T>
-            <input value={qualiBis || ''} inputMode="numeric"
-              onChange={(e) => {
-                const n = parseInt(e.target.value, 10);
-                setQualiBis(Number.isFinite(n) && n > 0 ? n : 0);
-              }}
-              placeholder="z. B. 6 — beim Finale 1"
-              className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2
-                         text-sm text-slate-100 outline-none placeholder:text-slate-600
-                         focus:border-amber-600" />
-          </label>
-
-          <label className="text-xs text-slate-400">
-            <T>Gruppe oder Karte</T> <span className="text-slate-600">(<T>frei</T>)</span>
-            <input value={gruppe} onChange={(e) => setGruppe(e.target.value)}
-              placeholder="z. B. Group A · Slurpush"
-              className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2
-                         text-sm text-slate-100 outline-none placeholder:text-slate-600
-                         focus:border-sky-500" />
-          </label>
-
-          <div className="flex items-end gap-2">
-            <button onClick={feldHolen} disabled={!quellen.length || laedt}
-              className="flex-1 rounded-lg bg-sky-500 px-3 py-2 text-sm font-medium
-                         text-white transition hover:bg-sky-400 disabled:opacity-40">
-              {laedt ? uebs('lädt…') : uebs('Feld laden')}
-            </button>
-            <button onClick={speichern} disabled={!cup || !feld.length}
-              className="rounded-lg border border-zinc-700 px-3 py-2 text-sm text-slate-200
-                         transition hover:border-sky-500 disabled:opacity-40">
-              <T>Speichern</T>
-            </button>
-          </div>
-        </div>
-
-        {/* Spieltage */}
-        {cup && (
-          <div className="mb-3 rounded-xl border border-zinc-800 bg-zinc-900/40 p-3">
-            <p className="mb-2 text-xs text-slate-400">
-              Spieltage, aus denen das Feld kommt — mehrere sind erlaubt.
-              Die Zahl daneben begrenzt auf die Qualifizierten
-              („die besten 7“); leer heißt: alle.
-            </p>
-            <div className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-4">
-              {spieltage.map((f) => {
-                const q = quellen.find((x) => x.windowId === f.windowId && x.region === f.region);
-                return (
-                  <div key={`${f.windowId}|${f.region}`}
-                    className={`flex items-center gap-2 rounded-lg border px-2 py-1.5
-                                text-xs transition ${q
-                      ? 'border-sky-500 bg-sky-950/30' : 'border-zinc-800'}`}>
-                    <button onClick={() => quelleAn(f)}
-                      className="min-w-0 flex-1 truncate text-left text-slate-200">
-                      <span className={q ? 'text-sky-400' : 'text-slate-500'}>
-                        {q ? '☑' : '☐'}
-                      </span>{' '}
-                      {f.titel}
-                      {f.status === 'live' && (
-                        <span className="ml-1 text-[10px] text-rose-400">live</span>
-                      )}
-                    </button>
-                    {q && (
-                      <input value={q.topN ?? ''} inputMode="numeric"
-                        onChange={(e) => grenzeSetzen(f.windowId, f.region, e.target.value)}
-                        placeholder={uebs('alle')} title={uebs('Nur die besten N übernehmen')}
-                        className="w-14 shrink-0 rounded border border-zinc-700 bg-zinc-950
-                                   px-1.5 py-0.5 text-center text-[11px] text-slate-100
-                                   outline-none placeholder:text-slate-600" />
-                    )}
-                  </div>
-                );
-              })}
-              {!spieltage.length && (
-                <p className="text-xs text-slate-500">
-                  <T>Dieser Cup hat noch keinen gelaufenen Spieltag.</T>
-                </p>
-              )}
-            </div>
-          </div>
         )}
 
-        {status && <p className="mb-3 text-xs text-slate-500">{status}</p>}
+        {status && cupId && <p className="mb-3 text-xs text-slate-500">{status}</p>}
 
         {/*
           * Reihenfolge und Feld - drei Spalten wie im Vorbild des Betreibers:
@@ -1616,6 +1820,7 @@ export default function PrognosenSeite() {
           * "Mittig sehe ich die Plaetze, links am Rand die Map, die Spieler
           * rechts am Rand, nach Region sortiert."
           */}
+        {cupId && (
         <div className="grid gap-4
                         lg:grid-cols-[minmax(0,1fr)_minmax(380px,0.85fr)_250px]
                         2xl:grid-cols-[minmax(0,0.9fr)_minmax(640px,1.2fr)_260px]">
@@ -1776,7 +1981,7 @@ export default function PrognosenSeite() {
                     className={`rounded-lg border px-2 py-1 text-[11px] transition ${orteSichtbar
                       ? 'border-zinc-700 text-slate-300 hover:border-sky-500'
                       : 'border-sky-500 bg-sky-950/30 text-sky-400'}`}>
-                    {orteSichtbar ? 'Orte an' : 'Orte aus'}
+                    {orteSichtbar ? uebs('Orte an') : uebs('Orte aus')}
                   </button>
                 )}
                 <button onClick={() => setSpielerSichtbar((v) => !v)}
@@ -1784,7 +1989,7 @@ export default function PrognosenSeite() {
                   className={`rounded-lg border px-2 py-1 text-[11px] transition ${spielerSichtbar
                     ? 'border-zinc-700 text-slate-300 hover:border-sky-500'
                     : 'border-sky-500 bg-sky-950/30 text-sky-400'}`}>
-                  {spielerSichtbar ? 'Teams an' : 'Teams aus'}
+                  {spielerSichtbar ? uebs('Teams an') : uebs('Teams aus')}
                 </button>
                 <button onClick={() => setVollbildKarte((v) => !v)}
                   className="rounded-lg border border-zinc-700 px-2 py-1 text-[11px]
@@ -2193,7 +2398,7 @@ export default function PrognosenSeite() {
 
             {!plaetze.length ? (
               <p className="py-8 text-center text-xs text-slate-500">
-                <T>Spieltage anhaken und auf „Feld laden“ klicken.</T>
+                {laedt ? <T>lädt das Feld …</T> : <T>Noch kein Feld — siehe Hinweis oben.</T>}
               </p>
             ) : (
               /*
@@ -2479,6 +2684,7 @@ export default function PrognosenSeite() {
             )}
           </div>
         </div>
+        )}
       </div>
 
       {/* Stift-Fenster: Flaggen von Hand setzen.

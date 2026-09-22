@@ -1951,6 +1951,58 @@ const AUF_ENGLISCH: Record<string, string> = {
     'now',
   'Sitzungen':
     'sessions',
+  'Anderes Event wählen':
+    'Pick another event',
+  'Orte an':
+    'Places on',
+  'Orte aus':
+    'Places off',
+  'Teams an':
+    'Teams on',
+  'Teams aus':
+    'Teams off',
+  'Ein kommendes großes Finale wählen — das Feld kommt aus Epics Qualifikation.':
+    'Pick an upcoming big final — the field comes from Epic\'s qualification.',
+  'Teams von rechts auf die Plätze ziehen — oder klicken für den nächsten freien.':
+    'Drag teams from the right onto the placements — or click for the next free one.',
+  'Gerade steht kein großes Finale an.':
+    'No big final is coming up right now.',
+  'Feld laut Epic':
+    'Field per Epic',
+  'Vorrunde am':
+    'qualifier on',
+  'Gespeicherte Prognosen':
+    'Saved predictions',
+  'Marken bei Epic bestätigt':
+    'tokens confirmed by Epic',
+  'Feld neu laden':
+    'Reload field',
+  'Das Feld noch einmal von Epic holen':
+    'Fetch the field from Epic again',
+  'lädt das Feld …':
+    'loading the field …',
+  'Noch kein Feld — siehe Hinweis oben.':
+    'No field yet — see the note above.',
+  'Teams im Feld':
+    'teams in the field',
+  'Geladen':
+    'Loaded',
+  'Team':
+    'team',
+  '{fenster} ({region}) ist noch nicht gespielt — dort qualifizieren sich am {datum} noch {n} weitere.':
+    '{fenster} ({region}) has not been played yet — {n} more qualify there on {datum}.',
+  'Die Bestenliste von {fenster} ({region}) ist gerade nicht erreichbar.':
+    'The leaderboard of {fenster} ({region}) is not reachable right now.',
+  '{n} Teams aus der Bestenliste tragen die Marke nicht mehr (abgesagt oder ersetzt) und fehlen deshalb.':
+    '{n} teams from the leaderboard no longer hold the token (dropped out or replaced) and are left out.',
+  'Epic hat die Marke noch an niemanden vergeben — das Feld kommt aus der Bestenliste.':
+    'Epic has not handed the token to anyone yet — the field is taken from the leaderboard.',
+  'Die Prüfung der Marken bei Epic ist fehlgeschlagen — das Feld kommt aus der Bestenliste.':
+    'Checking the tokens at Epic failed — the field is taken from the leaderboard.',
+  'Epic nennt noch nicht, welche Runde die Marke {token} vergibt. Sobald das feststeht, steht das Feld hier von selbst.':
+    'Epic does not yet say which round hands out the token {token}. As soon as it does, the field appears here by itself.',
+  'Epic führt zu dieser Runde keine Qualifikation.':
+    'Epic lists no qualification for this round.',
   'Archiv zu diesem Cup anlegen':
     'Create an archive for this cup',
   'Wieder öffentlich zeigen':

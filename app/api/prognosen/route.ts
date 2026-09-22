@@ -133,8 +133,43 @@ export interface Prognose {
     key: string; namen: string[]; ids: string[];
     herkunft: string[]; besterPlatz: number; region: string;
   }>;
+  /**
+   * Das Feld als Schnappschuss - seit dem 22.9.2026.
+   *
+   * Vorher holte jede Ansicht das Feld frisch aus den Bestenlisten der
+   * Quellen. Seit das Feld aus Epics Marken kommt (lib/prognoseFeld), ist
+   * die Bestenliste nicht mehr die ganze Wahrheit: wer abgesagt hat, fehlt.
+   * Und ein LAN hat gar keine Quelle. Was beim Speichern im Feld stand,
+   * steht deshalb hier - so bleibt eine Prognose auch dann lesbar, wenn
+   * Epic die Vorrunde laengst nicht mehr liefert.
+   */
+  feld?: PrognoseTeam[];
+  /** Das Finale, fuer das die Prognose gilt. */
+  ziel?: {
+    cupId: string; eventId: string; windowId: string; region: string;
+    begin: number; name: string;
+  };
   geaendert: number;
   oeffentlich: boolean;
+}
+
+export interface PrognoseTeam {
+  key: string; namen: string[]; ids: string[];
+  herkunft: string[]; besterPlatz: number; region: string;
+}
+
+/** Ein Team, wie es von der Oberflaeche kommt - nur die bekannten Felder, alles als Text. */
+function teamSauber(t: unknown): PrognoseTeam | null {
+  if (!t || typeof t !== 'object') return null;
+  const o = t as Record<string, unknown>;
+  const texte = (v: unknown) => (Array.isArray(v) ? v.map((x) => String(x ?? '').slice(0, 80)) : []);
+  if (typeof o.key !== 'string' || !o.key) return null;
+  return {
+    key: o.key.slice(0, 200),
+    namen: texte(o.namen), ids: texte(o.ids), herkunft: texte(o.herkunft).slice(0, 12),
+    besterPlatz: Number(o.besterPlatz) || 0,
+    region: typeof o.region === 'string' ? o.region.slice(0, 8) : '',
+  };
 }
 
 async function lies(): Promise<Prognose[]> {
@@ -191,6 +226,19 @@ export async function POST(request: Request) {
     spots: eingang.spots,
     aufSpot: eingang.aufSpot,
     manuell: eingang.manuell ?? [],
+    feld: Array.isArray(eingang.feld)
+      ? eingang.feld.map(teamSauber).filter((t): t is PrognoseTeam => t !== null).slice(0, 200)
+      : undefined,
+    ziel: eingang.ziel && typeof eingang.ziel === 'object' && typeof eingang.ziel.windowId === 'string'
+      ? {
+        cupId: String(eingang.ziel.cupId ?? '').slice(0, 120),
+        eventId: String(eingang.ziel.eventId ?? '').slice(0, 160),
+        windowId: String(eingang.ziel.windowId).slice(0, 160),
+        region: String(eingang.ziel.region ?? '').slice(0, 8),
+        begin: Number(eingang.ziel.begin) || 0,
+        name: String(eingang.ziel.name ?? '').slice(0, 80),
+      }
+      : undefined,
     mvp: typeof eingang.mvp === 'string' ? eingang.mvp.slice(0, 80) : undefined,
     geaendert: Date.now(),
     oeffentlich: eingang.oeffentlich ?? false,

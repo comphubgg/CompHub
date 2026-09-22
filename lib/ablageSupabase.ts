@@ -243,6 +243,18 @@ function serverFehler(r: Response, name: string): void {
   if (r.status === 401 || r.status === 403) {
     throw new Error(`Ablage weist den Schluessel ab (${r.status}) bei ${name}`);
   }
+  /*
+   * Und ein 402 erst recht: so antwortet Supabase, wenn das kostenlose
+   * Kontingent aufgebraucht ist ("exceed_egress_quota"). Am 22.9.2026 war
+   * das einen ganzen Tag lang so - und weil 402 hier nicht stand, galt
+   * jede Datei als fehlend: die Startseite ohne Profile, die Karten ohne
+   * Bilder, die Anmeldung mit "Login failed" statt "Ablage antwortet
+   * nicht". Genau das darf nie wie "leer" aussehen. Alles, was nicht 200
+   * und nicht 404 ist, ist ein Ausfall.
+   */
+  if (r.status !== 404) {
+    throw new Error(`Ablage nicht erreichbar (${r.status}) bei ${name}`);
+  }
 }
 
 async function tabelleLies(name: string): Promise<Buffer | null> {

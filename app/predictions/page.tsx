@@ -36,6 +36,8 @@ interface Karte {
 interface Prognose {
   id: string; titel: string; cupId: string; cupTitel: string;
   gruppe?: string; quellen: Quelle[]; plaetze: Array<string | null>;
+  /** Das Feld beim Speichern - seit dem 22.9.2026 dabei, siehe app/api/prognosen. */
+  feld?: Team[];
   karten?: Karte[];
   bildId?: string; kartenTitel?: string; spots?: Spot[]; aufSpot?: Record<string, string[]>;
   /** Von Hand hinzugefuegte Teams - siehe "Add a Duo". */
@@ -156,7 +158,11 @@ export default function Prognosen() {
     setFeldLaedt(true); setFeldHinweis('');
     (async () => {
       const gefunden = new Map<string, Team>();
-      for (const q of prognose.quellen) {
+      // Das gespeicherte Feld zuerst - es ist der Stand, fuer den die
+      // Reihenfolge gemacht wurde. Aeltere Prognosen ohne Feld holen es
+      // wie bisher aus ihren Quellen.
+      for (const t of prognose.feld ?? []) gefunden.set(t.key, t);
+      for (const q of gefunden.size ? [] : prognose.quellen) {
         try {
           const r = await fetch(`/api/cup-leaderboard?event=${encodeURIComponent(q.eventId)}`
             + `&window=${encodeURIComponent(q.windowId)}&limit=${q.topN ?? 200}`,

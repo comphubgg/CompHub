@@ -717,6 +717,43 @@ async function akteLesen(epicId: string): Promise<Akte | null> {
  * Die Akten aller Konten im Archiv schreiben - nur die, die sich geaendert
  * haben. Gedacht fuer den stuendlichen Lauf auf einem Rechner mit Dateien.
  */
+/**
+ * Konten, die das Werkzeug kennt, ohne im Archiv der Szene zu stehen.
+ *
+ * Das eigene Epic-Konto des Betreibers etwa: es spielt Cups, steht aber in
+ * keiner Rangliste der Szene - und bekam deshalb keine Akte. Sein Profil
+ * las seine Spieltage stattdessen aus dem ganzen Ordner epic-spieltage;
+ * bei Vercel lief das am 22.9.2026 in die Zeitgrenze, seit das Gerechnete
+ * am Release liegt (vierhundert Abrufe statt einer Abfrage). Wer im
+ * Werkzeug ein Profil hat, bekommt eine Akte - dann liest sein Profil eine
+ * Datei wie jedes andere.
+ */
+async function bekannteKonten(): Promise<Set<string>> {
+  const raus = new Set<string>();
+  const dazu = (id: unknown) => {
+    if (typeof id === 'string' && /^[0-9a-f]{32}$/i.test(id)) raus.add(id.toLowerCase());
+  };
+  // Die angemeldeten Konten mit verknuepftem Epic-Konto.
+  const konten = await liesJson<Array<{ epicId?: string; epicAccountId?: string }>
+    | { konten?: Array<{ epicId?: string; epicAccountId?: string }> }>('konten.json', []);
+  for (const k of Array.isArray(konten) ? konten : (konten.konten ?? [])) {
+    dazu(k.epicId); dazu(k.epicAccountId);
+  }
+  /*
+   * Von Hand gepflegte Profile, die Spielerliste, die Fotozuordnung - und
+   * epic-namen.json: darin steht jedes Konto, dessen Namen das Werkzeug
+   * einmal aufgeloest hat, also jedes, das irgendwo im Werkzeug als Spieler
+   * auftaucht. Genau darueber kommt auch das eigene Konto des Betreibers
+   * herein.
+   */
+  for (const q of ['spieler-profile.json', 'players.json', 'spielerbilder.json', 'epic-namen.json']) {
+    const roh = await liesJson<Record<string, unknown> | { profile?: Record<string, unknown> }>(q, {});
+    const karte = (roh as { profile?: Record<string, unknown> }).profile ?? roh;
+    for (const id of Object.keys(karte ?? {})) dazu(id);
+  }
+  return raus;
+}
+
 export async function aktenSchreiben(): Promise<{ konten: number; geschrieben: number }> {
   /*
    * Ohne die Verdienst-Akte keine Akten. Fehlt sie dem Laufrechner (die
@@ -761,15 +798,19 @@ export async function aktenSchreiben(): Promise<{ konten: number; geschrieben: n
     }
   }
 
-  // Nur fuer Konten, die im Archiv stehen - die Epic-Spieltage fuehren in
-  // offenen Runden zehntausende Konten, fuer die es kein Profil gibt.
+  /*
+   * Nur fuer Konten, die im Archiv stehen oder die das Werkzeug sonst
+   * kennt - die Epic-Spieltage fuehren in offenen Runden dreihunderttausend
+   * Konten, fuer die es kein Profil gibt.
+   */
+  const bekannt = await bekannteKonten();
   const imArchiv = new Set(verzeichnis.map((e) => e.windowId));
   for (const tag of await liesEpicSpieltage()) {
     if (imArchiv.has(tag.windowId)) continue;
     let replays: Map<string, ReplayWert> | null = null;
     for (const team of tag.teams) {
       for (const id of team.spieler) {
-        const a = akten.get(id);
+        const a = akten.get(id) ?? (bekannt.has(id) ? akte(id) : null);
         if (!a) continue;
         replays ??= await replayKarte(tag.season, tag.windowId);
         const w = replays.get(id);
@@ -793,7 +834,7 @@ export async function aktenSchreiben(): Promise<{ konten: number; geschrieben: n
    */
   const archiv = await liesVerdienstArchiv();
   for (const [id, eintraege] of Object.entries(archiv.konten)) {
-    const a = akten.get(id);
+    const a = akten.get(id) ?? (bekannt.has(id) ? akte(id) : null);
     if (!a) continue;
     const da = new Set([...a.verlauf.map((z) => z.windowId), ...a.epic.map((z) => z.windowId)]);
     for (const [windowId, region, datum, platz, punkte, betrag, mitspieler] of eintraege) {
@@ -830,12 +871,10 @@ export async function verlauf(epicId: string, filter: Filter = {}): Promise<Verl
    */
   if (ohneDateien()) {
     const akte = await akteLesen(epicId);
-    if (akte) {
-      return akte.verlauf.filter((z) =>
-        (!filter.saison || z.season === filter.saison)
-        && (!filter.saisons?.length || filter.saisons.includes(z.season))
-        && (!filter.region || z.region === filter.region));
-    }
+    return (akte?.verlauf ?? []).filter((z) =>
+      (!filter.saison || z.season === filter.saison)
+      && (!filter.saisons?.length || filter.saisons.includes(z.season))
+      && (!filter.region || z.region === filter.region));
   }
 
   const eintraege = (await liesVerzeichnis()).filter((e) =>
@@ -1749,15 +1788,41 @@ export interface EpicZeile {
 export async function epicVerlauf(
   epicId: string, filter: Filter = {},
 ): Promise<EpicZeile[]> {
-  // Ohne Dateien auf der Platte aus der Akte - siehe dort.
+  /*
+   * Ohne Dateien auf der Platte aus der Akte - siehe dort.
+   *
+   * Und nur daraus: den ganzen Ordner epic-spieltage zu lesen, wenn eine
+   * Akte fehlt, kostete bei Vercel vierhundert Abrufe und lief in die
+   * Zeitgrenze (22.9.2026). Jedes Konto, das ein Profil im Werkzeug hat,
+   * bekommt eine Akte (siehe bekannteKonten); fehlt sie trotzdem, ist es
+   * ein Konto, zu dem das Werkzeug nichts fuehrt.
+   */
   if (ohneDateien()) {
     const akte = await akteLesen(epicId);
-    if (akte) {
-      return akte.epic.filter((z) =>
-        (!filter.saison || z.season === filter.saison)
-        && (!filter.saisons?.length || filter.saisons.includes(z.season))
-        && (!filter.region || z.region === filter.region));
+    const passt = (z: { season: string; region: string }) =>
+      (!filter.saison || z.season === filter.saison)
+      && (!filter.saisons?.length || filter.saisons.includes(z.season))
+      && (!filter.region || z.region === filter.region);
+    if (akte) return akte.epic.filter(passt);
+    /*
+     * Ohne Akte bleibt die Verdienst-Akte: sie fuehrt je Konto jeden
+     * bezahlten Spieltag und ist eine einzige Datei. Damit steht im Profil
+     * eines Kontos, das keine Akte hat, wenigstens jeder Spieltag mit
+     * Preisgeld - statt einer leeren Seite oder einer Zeitgrenze.
+     */
+    const raus: EpicZeile[] = [];
+    for (const [windowId, region, datum, platz, punkte, betrag, mitspieler] of await archivEintraege(epicId)) {
+      const season = saisonVonFenster(windowId, datum);
+      if (!passt({ season, region })) continue;
+      raus.push({
+        event: windowId, windowId, region, season,
+        titel: [cupNameAusKennung(windowId), rundenName(windowId, false)].filter(Boolean).join(' · ') || windowId,
+        datum: Date.parse(datum) || null,
+        platz, punkte, matches: 0, mitspieler: mitspieler ?? [], nurEpic: true, verdienstArchiv: betrag,
+      });
     }
+    raus.sort((a, b) => (b.datum ?? 0) - (a.datum ?? 0));
+    return raus;
   }
 
   // Was die Quelle inzwischen doch veroeffentlicht hat, gehoert nicht mehr
