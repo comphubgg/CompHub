@@ -10,17 +10,30 @@
  */
 import { useEffect, useState } from 'react';
 import T from '@/app/components/T';
+import { MARKE } from '@/lib/marke';
 
-let gemerkt: string | null | undefined;
+let gemerkt: string | undefined;
 
-export function useDiscordEinladung(): string | null {
-  const [url, setUrl] = useState<string | null>(gemerkt ?? null);
+/**
+ * Die Einladung - sofort die feste aus lib/marke, danach die des Servers,
+ * falls er eine andere nennt.
+ *
+ * Frueher gab es den Knopf erst, wenn die Antwort da war, und gar nicht,
+ * wenn sie leer kam. Am 22.9.2026 kam sie leer, weil die Ablage gesperrt
+ * war - und die Startseite hatte keinen Discord mehr. Der Betreiber: "wo
+ * ist das mit discord????????" Die Tuer steht jetzt immer.
+ */
+export function useDiscordEinladung(): string {
+  const [url, setUrl] = useState<string>(gemerkt ?? MARKE.discord);
   useEffect(() => {
     if (gemerkt !== undefined) return;
     let weg = false;
     fetch('/api/discord/einladung').then((r) => r.json())
-      .then((j) => { const u = typeof j?.url === 'string' ? j.url : null; gemerkt = u; if (!weg) setUrl(u); })
-      .catch(() => { gemerkt = null; });
+      .then((j) => {
+        const u = typeof j?.url === 'string' && /^https?:\/\//.test(j.url) ? j.url : MARKE.discord;
+        gemerkt = u; if (!weg) setUrl(u);
+      })
+      .catch(() => { gemerkt = MARKE.discord; });
     return () => { weg = true; };
   }, []);
   return url;
@@ -41,7 +54,6 @@ export default function DiscordKnopf({ art = 'rand', text = 'Join our Discord', 
   art?: 'voll' | 'rand' | 'rund'; text?: string; klasse?: string;
 }) {
   const url = useDiscordEinladung();
-  if (!url) return null;
   const form = art === 'voll'
     ? 'rounded-xl bg-[#5865F2] px-6 py-3 text-sm font-semibold text-white hover:bg-[#6a75f4]'
     : art === 'rund'

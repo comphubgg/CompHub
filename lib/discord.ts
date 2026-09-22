@@ -3,6 +3,7 @@ import path from 'path';
 import { DATEN_ORT } from './datenOrt';
 import { BEITRAEGE, FARBE, type Sprache, type Sichtbar } from './discordTexte';
 import { alleZugaenge } from './vipZugaenge';
+import { MARKE } from './marke';
 
 /*
  * Zugangsschluessel nach Discord schicken.
@@ -2151,19 +2152,35 @@ export async function einladung(): Promise<string | null> {
   // Eine selbst gewaehlte Einladung (DISCORD_EINLADUNG) geht immer vor.
   const eigene = (process.env.DISCORD_EINLADUNG ?? '').trim();
   if (/^https?:\/\//.test(eigene)) return eigene;
-  if (!discordDa()) return null;
-  const ablage = await lies();
-  const gemerkt = ablage['einladung']?.nachricht;
-  if (gemerkt) return `https://discord.gg/${gemerkt}`;
-  const kanaele = await alleKanaele();
-  const ziel = kanaele.find((k) => k.type === 0 && gleich(k.name, ZUGANG_PANEL))
-    ?? kanaele.find((k) => k.type === 0 && /welcome|willkommen|general|allgemein/i.test(k.name))
-    ?? kanaele.find((k) => k.type === 0);
-  if (!ziel) return null;
-  const neu = await ruf(`/channels/${ziel.id}/invites`, 'POST', { max_age: 0, max_uses: 0, unique: false });
-  const code = neu && typeof (neu as Record<string, unknown>).code === 'string' ? String((neu as Record<string, unknown>).code) : null;
-  if (!code) return null;
-  ablage['einladung'] = { kanal: ziel.id, nachricht: code };
-  await schreibe(ablage);
-  return `https://discord.gg/${code}`;
+  if (einladungGemerkt) return einladungGemerkt;
+  /*
+   * Die feste Einladung aus lib/marke ist der Boden: was auch immer mit
+   * der Ablage oder dem Bot ist, eine Tuer auf den Server gibt es immer.
+   * Alles Weitere kann sie nur bestaetigen, nicht wegnehmen.
+   */
+  try {
+    if (!discordDa()) return MARKE.discord;
+    const ablage = await lies();
+    const gemerkt = ablage['einladung']?.nachricht;
+    if (gemerkt) return (einladungGemerkt = `https://discord.gg/${gemerkt}`);
+    const kanaele = await alleKanaele();
+    const ziel = kanaele.find((k) => k.type === 0 && gleich(k.name, ZUGANG_PANEL))
+      ?? kanaele.find((k) => k.type === 0 && /welcome|willkommen|general|allgemein/i.test(k.name))
+      ?? kanaele.find((k) => k.type === 0);
+    if (!ziel) return MARKE.discord;
+    const neu = await ruf(`/channels/${ziel.id}/invites`, 'POST', { max_age: 0, max_uses: 0, unique: false });
+    const code = neu && typeof (neu as Record<string, unknown>).code === 'string' ? String((neu as Record<string, unknown>).code) : null;
+    if (!code) return MARKE.discord;
+    einladungGemerkt = `https://discord.gg/${code}`;
+    ablage['einladung'] = { kanal: ziel.id, nachricht: code };
+    // Laesst sich der Code nicht merken (Ablage weg), bleibt er im Speicher
+    // dieses Vorgangs - ein neuer Vorgang legt notfalls noch einen an,
+    // dauerhafte Einladungen kosten nichts.
+    try { await schreibe(ablage); } catch { /* siehe oben */ }
+    return einladungGemerkt;
+  } catch {
+    return MARKE.discord;
+  }
 }
+/** Die Einladung dieses Vorgangs - einmal geholt, dann gemerkt. */
+let einladungGemerkt: string | null = null;

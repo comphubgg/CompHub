@@ -15,6 +15,15 @@ export const MARKE = {
   /** Das eigene Konto auf X - die einzige Social des Werkzeugs. */
   x: 'CompHub_gg',
   /**
+   * Die dauerhafte Einladung auf den Discord-Server (laeuft nie ab, vom
+   * Bot einmal angelegt). Steht hier fest, damit der Knopf "Join our
+   * Discord" nicht von der Ablage abhaengt: am 22.9.2026 war Supabase
+   * gesperrt, der gemerkte Einladungscode damit unerreichbar - und der
+   * Knopf auf der Startseite verschwand. Der Betreiber: "wo ist das mit
+   * discord????????"
+   */
+  discord: 'https://discord.gg/8jQ3tf37sQ',
+  /**
    * Dasselbe Zeichen ohne Untergrund.
    *
    * Auf einer Karte soll die Marke nicht in einem schwarzen Kasten sitzen,
