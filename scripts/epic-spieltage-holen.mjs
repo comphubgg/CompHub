@@ -53,8 +53,25 @@ async function json(url) {
   return daten;
 }
 
+/*
+ * Wie weit zurueck geschaut wird.
+ *
+ * Anlass (23.9.2026): der Solo Victory Cup hatte am 21.9. seinen letzten
+ * Spieltag. Danach stand er nicht mehr unter "aktuell" - und genau von dort
+ * holte dieses Skript seine Liste. Die Bestenliste des letzten Tages wurde
+ * deshalb nie geholt: im Profil fehlte der Spieltag, und mit ihm das
+ * Preisgeld. Der Betreiber: "er hat gestern im Solo Victory Cash Cup auch
+ * 100 Euro gewonnen ... ich will wissen, wieso du die Stats noch nicht
+ * hast."
+ *
+ * Jetzt kommt die Liste aus dem ganzen Katalog, aber nur zwei Wochen
+ * zurueck: alles Aeltere liegt laengst als Datei, und Epic gibt es
+ * ohnehin nicht mehr heraus.
+ */
+const RUECKBLICK_MS = 14 * 24 * 60 * 60 * 1000;
+
 async function main() {
-  const katalog = await json(`${BASIS}/api/cup-catalog`);
+  const katalog = await json(`${BASIS}/api/cup-catalog?modus=alle`);
 
   /*
    * Frueher wurde uebersprungen, was die Szene-Quelle schon hat.
@@ -73,6 +90,7 @@ async function main() {
     for (const fenster of Object.values(cup.regionen ?? {})) {
       for (const w of fenster) {
         if (w.status !== 'vorbei') continue;
+        if (w.begin && Date.now() - w.begin > RUECKBLICK_MS) continue;
         const season = saisonAus(w.windowId, cup.id);
         if (!season) continue;
         offen.push({ ...w, season, titel: cup.titel, cupId: cup.id });
