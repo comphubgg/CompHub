@@ -223,6 +223,12 @@ interface Tagessieg {
 interface Rang {
   global: number; globalVon: number;
   regional: number | null; regionalVon: number; region: string;
+  /**
+   * Der Rang zaehlt ueber das ganze Archiv, nicht ueber den gewaehlten
+   * Zeitraum - er kommt aus der fertigen Gesamtliste. Steht oben ein
+   * Zeitraum, schreibt die Karte das dazu.
+   */
+  alleSaisons?: boolean;
 }
 
 interface Fncs {
@@ -3061,6 +3067,17 @@ export default function StatistikSeite() {
     return zusammen.sort((a, b) => (b.datum ?? 0) - (a.datum ?? 0));
   }, [verlauf, verlaufHeimat, epicZeilen, alleRegionen, heimatRegion]);
 
+  /**
+   * Der Zusatz an den beiden Raengen.
+   *
+   * Sie zaehlen ueber das ganze Archiv - die fertige Gesamtliste liegt
+   * dafuer bereit, waehrend ein Rang je Zeitraum siebenhundert Dateien
+   * kosten wuerde. Steht oben ein Zeitraum, gehoert das dazugeschrieben,
+   * sonst liest sich "#12 von 500" wie der Rang dieses Jahres.
+   */
+  const rangZusatz = (rang?.alleSaisons && profilSaison !== 'alle')
+    ? ` · ${t('alle Saisons')}` : '';
+
   /** Die laufende Bestenliste in der Leiste. */
   const seitenliste = useMemo(() => listen.find((l) => l.feld === 'elims'), [listen]);
 
@@ -5687,11 +5704,12 @@ export default function StatistikSeite() {
                     rang?.regional
                       ? t('von {n} in {region}')
                         .replace('{n}', zahl(rang.regionalVon, 0, sprache))
-                        .replace('{region}', rang.region)
+                        .replace('{region}', rang.region) + rangZusatz
                       : ''],
                   ['Globaler Rang', rang ? `#${rang.global}` : '—',
                     rang
                       ? t('von {n} Spielern').replace('{n}', zahl(rang.globalVon, 0, sprache))
+                        + rangZusatz
                       : ''],
                   ['Eliminierungen', zahl(offen.elims, 0, sprache),
                     `${zahl(offen.elimsProMatch, 2, sprache)} ${t('je Match')}`],

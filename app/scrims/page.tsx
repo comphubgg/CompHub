@@ -148,7 +148,8 @@ export default function ScrimsSeite() {
           <div className="relative">
             <div className="absolute inset-0 -z-10 animate-pulse rounded-full bg-sky-500/20 blur-3xl" />
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={MARKE.logoFrei} alt="" className="h-28 w-28 opacity-90" />
+            <img src={MARKE.logoFrei} alt=""
+              className="h-24 w-auto opacity-90 sm:h-28" />
           </div>
           <h1 className="mt-8 text-3xl font-bold tracking-tight text-slate-100 sm:text-5xl">
             <T>Something Big Is Coming</T>

@@ -1163,6 +1163,19 @@ export default function TierListPage() {
           anzeigeVon={anzeigeVon}
           onLand={isAdmin ? landSetzen : tierListState.landNachName}
           onDeleteEntry={handleDeleteEntry}
+          /*
+           * Warum nichts dasteht - statt "All players assigned".
+           *
+           * Die Tierlist haengt am Konto. Wer nicht angemeldet ist, sieht
+           * deshalb eine leere Liste, und das sah bisher aus wie ein
+           * Datenverlust ("Ich sehe einfach keinen einzigen Spieler in der
+           * Tierlist, das ist ein Disaster").
+           */
+          leerHinweis={tierListState.entries.length === 0
+            ? (isGuest
+              ? 'Melde dich an, um deine Tierlist zu sehen'
+              : 'Deine Tierlist ist noch leer - lege unten Spieler an')
+            : undefined}
           // Ohne Anmeldung nichts anlegen: ein Gast kann seinen Stand
           // ohnehin nicht behalten - die Liste haengt am Konto. Was er
           // anlegt, waere beim naechsten Aufruf weg, und das sieht nach

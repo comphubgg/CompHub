@@ -328,7 +328,31 @@ export async function summen(filter: Filter = {}) {
   const namen = new Map<string, Set<string>>();
   const regionen = new Map<string, Set<string>>();
 
+  /*
+   * Derselbe Spieltag liegt gelegentlich zweimal im Archiv.
+   *
+   * Die LANs sind international, und die Quelle legt sie unter beiden
+   * Regionen ab - BambiRaptor_Day1 und _Day2 unter EU und NAC,
+   * Dinosauron_Day1 und _Day2 ebenso. Nachgemessen: dieselben hundert
+   * Konten, dieselben Werte, Datei fuer Datei gleich.
+   *
+   * Gezaehlt wurden sie hier trotzdem beide. Wer an einer solchen LAN
+   * gespielt hat, stand in jeder Bestenliste mit doppelten Werten dieses
+   * Tages - waehrend sein Profil den Tag einmal fuehrt (verlauf() laesst
+   * die Dublette seit jeher aus). Genau das hat der Betreiber gesehen:
+   * "Die Liste in statistics mit Most Eliminations stimmen NICHT ueberein
+   * mit den Infos ... im Profil steht 79 Kills und in der Liste 81."
+   *
+   * Erkannt wird eine Dublette an Fenster und Dateiname zusammen; nur die
+   * erste zaehlt.
+   */
+  const gesehen = new Set<string>();
+
   for (const e of eintraege) {
+    const kennung = `${e.windowId}|${e.datei}`;
+    if (gesehen.has(kennung)) continue;
+    gesehen.add(kennung);
+
     const datei = await liesDatei(e);
     if (!datei) continue;
 
@@ -912,6 +936,71 @@ export async function verlauf(epicId: string, filter: Filter = {}): Promise<Verl
   // meist die aus der zuerst gelesenen Region.
   zeilen.sort((a, b) => b.datum - a.datum);
   return zeilen;
+}
+
+/**
+ * Dieselbe Summe, aber aus den Zeilen eines Kontos.
+ *
+ * Wofuer: ein Profil ueber einen Zeitraum (ein Jahr, eine Saison) liess
+ * summen() ueber alle Spieltage dieses Zeitraums laufen - bei Vercel
+ * siebenhundertfuenfundsiebzig Dateien ueber das Netz. Gemessen am
+ * 23.9.2026: nach sechzig Sekunden ein 504, und die Karte behielt die
+ * Zahlen des vorigen Zeitraums stehen. Es sah aus, als widerspraechen sich
+ * Liste und Profil.
+ *
+ * Die Zeilen liegen laengst vor - sie kommen aus der Akte des Kontos und
+ * stehen im Profil ohnehin untereinander. Aus ihnen gerechnet stimmt die
+ * Kopfzahl mit der Liste darunter immer ueberein, und zwar ohne eine
+ * einzige weitere Datei.
+ */
+export function summeAusVerlauf(
+  epicId: string, name: string, zeilen: VerlaufZeile[],
+): SpielerSumme {
+  const s = leereSumme(epicId, name);
+  const namen = new Set<string>();
+  const regionen = new Set<string>();
+
+  for (const z of zeilen) {
+    const p = z.werte;
+    if (!p) continue;
+    s.name = p.username || s.name;
+    s.events += 1;
+    s.matches += p.matchesPlayed || 0;
+    s.elims += p.eliminations || 0;
+    s.assists += p.assists || 0;
+    s.reboots += p.rebootsAndRevives || 0;
+    s.shots += p.shots || 0;
+    s.hits += p.hitsToPlayers || 0;
+    s.headshots += p.headshots || 0;
+    s.damage += p.damageDealt || 0;
+    s.damageTaken += p.damageTakenFromPlayers || 0;
+    s.heals += (p.healthHealed || 0) + (p.shieldHealed || 0);
+    s.stormDamage += p.stormDamage || 0;
+    s.fallDamage += p.fallDamage || 0;
+    s.mats += (p.woodFarmed || 0) + (p.stoneFarmed || 0) + (p.metalFarmed || 0);
+    s.builds += (p.woodBuildsPlaced || 0) + (p.stoneBuildsPlaced || 0)
+              + (p.metalBuildsPlaced || 0);
+    s.distanz += (p.distanceOnFoot || 0) + (p.distanceSkydiving || 0);
+    s.timeInStorm += p.timeInStorm || 0;
+    s.timeAlive += p.timeAlive || 0;
+    if (p.username) namen.add(p.username);
+    if (z.region) regionen.add(z.region);
+  }
+
+  s.namen = [...namen];
+  s.regionen = [...regionen];
+  s.quote = s.damageTaken > 0 ? +(s.damage / s.damageTaken).toFixed(2) : 0;
+  s.genauigkeit = s.shots > 0 ? +((s.hits / s.shots) * 100).toFixed(1) : 0;
+  s.elimsProMatch = s.matches > 0 ? +(s.elims / s.matches).toFixed(2) : 0;
+  s.damageProMatch = s.matches > 0 ? Math.round(s.damage / s.matches) : 0;
+  s.damage = Math.round(s.damage);
+  s.damageTaken = Math.round(s.damageTaken);
+  s.heals = Math.round(s.heals);
+  s.stormDamage = Math.round(s.stormDamage);
+  s.fallDamage = Math.round(s.fallDamage);
+  // Zentimeter in Kilometer - die Quelle zaehlt in Zentimetern.
+  s.distanz = +(s.distanz / 100_000).toFixed(1);
+  return s;
 }
 
 /* ------------------------------------------------------------ Startseite */

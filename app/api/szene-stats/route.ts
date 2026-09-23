@@ -8,7 +8,7 @@ import {
   auswahl, bildFuer, gesamtSummen, heimatRegionen, liesVerzeichnis, SAISON_NAMEN,
   saisonName, saisonKurz, startseite, summen, tagesbeste, verlauf, epicVerlauf,
   istGrossesTurnier, istFinaleTag, aktenSchreiben, jahresListen, lanErgebnisse, type SpielerSumme,
-  JAHR_SAISONS,
+  JAHR_SAISONS, summeAusVerlauf,
 } from '@/lib/szeneStats';
 import { DATEN_ORT } from '@/lib/datenOrt';
 import { getToken, loeseNamenAuf } from '@/lib/epicCups';
@@ -849,12 +849,40 @@ async function berechne(request: Request) {
      * liegt fertig in der Ablage (siehe gesamtSummen). Ein Profil ueber
      * "alle Saisons" las hier sonst bei Vercel neunhundert Dateien.
      */
-    const { spieler: alle, spieltage } = (!saison && !saisons && !region && !event && !events.length)
-      ? { spieler: await gesamtSummen(), spieltage: (await liesVerzeichnis()).length }
+    const ohneAuswahl = !saison && !saisons && !region && !event && !events.length;
+    /*
+     * Ein Profil ueber einen Zeitraum rechnet nicht mehr ueber das Archiv.
+     *
+     * Vorher lief hier summen({saisons}) - bei Vercel siebenhundert Dateien
+     * ueber das Netz, nach sechzig Sekunden ein 504 (nachgemessen am
+     * 23.9.2026 fuer "?spieler=...&jahr=2026"). Die Karte behielt dann die
+     * Zahlen des vorigen Zeitraums, und es sah aus, als widerspraechen sich
+     * Liste und Profil.
+     *
+     * Die Zahlen des Zeitraums entstehen jetzt aus den Zeilen des Kontos
+     * selbst (summeAusVerlauf, weiter unten) - genau aus den Spieltagen,
+     * die im Profil darunter stehen. Die Liste ueber das ganze Archiv
+     * (gesamtSummen) wird trotzdem geholt: aus ihr kommen die Raenge und
+     * die Namen der Mitspieler, und sie liegt fertig in der Ablage.
+     */
+    const { spieler: alle, spieltage } = (ohneAuswahl || spieler)
+      ? {
+        spieler: await gesamtSummen(),
+        spieltage: ohneAuswahl
+          ? (await liesVerzeichnis()).length
+          : (await liesVerzeichnis()).filter((e) =>
+            (!saison || e.season === saison)
+            && (!saisons?.length || saisons.includes(e.season))
+            && (!region || e.region === region)).length,
+      }
       : await summen(filter);
 
     if (spieler) {
-      const eintrag = alle.find((s) => s.epicId === spieler);
+      /*
+       * Ohne Auswahl steht die Summe fertig in der Liste; mit Auswahl wird
+       * sie aus den Zeilen gerechnet (siehe unten, sobald sie da sind).
+       */
+      let eintrag = ohneAuswahl ? alle.find((s) => s.epicId === spieler) : undefined;
 
       /**
        * Wo steht dieser Spieler im Feld?
@@ -1037,6 +1065,19 @@ async function berechne(request: Request) {
 
       const pr = (await liesProfile()).get(spieler);
       const rohZeilen = await verlauf(spieler, { saison, saisons, region });
+      /*
+       * Die Zahlen des gewaehlten Zeitraums - aus genau diesen Zeilen.
+       *
+       * Kein einziger Spieltag mehr als die Liste darunter zeigt, und kein
+       * Spieltag weniger. Wer im Zeitraum nicht angetreten ist, bekommt
+       * keine Summe; die Seite setzt dann Nullen.
+       */
+      if (!ohneAuswahl) {
+        eintrag = rohZeilen.length
+          ? summeAusVerlauf(spieler,
+            alle.find((s) => s.epicId === spieler)?.name ?? '', rohZeilen)
+          : undefined;
+      }
 
       /**
        * Dazu die Spieltage, die nur Epic kennt.
@@ -1222,6 +1263,12 @@ async function berechne(request: Request) {
           regional: rangRegional > 0 ? rangRegional : null,
           regionalVon: regional.length,
           region: meineRegion,
+          /*
+           * Der Rang zaehlt ueber das ganze Archiv, auch wenn oben ein
+           * Zeitraum gewaehlt ist - er kommt aus der fertigen Gesamtliste.
+           * Die Oberflaeche schreibt das dazu, statt es zu verschweigen.
+           */
+          alleSaisons: true,
         } : null,
         tagesbest,
         fncsSiege,

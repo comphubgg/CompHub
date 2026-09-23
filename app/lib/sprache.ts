@@ -1106,6 +1106,14 @@ const AUF_ENGLISCH: Record<string, string> = {
   ['Nicht gespeichert — beim nächsten Tippen versuche ich es erneut.']:
     'Not saved — I will try again on your next keystroke.',
 
+  // Tierlist - was dasteht, wenn nichts dasteht
+  'Kein Spieler gefunden': 'No players found',
+  'Alle Spieler sind eingestuft': 'All players assigned',
+  'Melde dich an, um deine Tierlist zu sehen':
+    'Sign in to see your tier list',
+  'Deine Tierlist ist noch leer - lege unten Spieler an':
+    'Your tier list is empty — add players below',
+
   // Statusmeldungen - erscheinen erst nach einer Aktion
   'Alle Spieler entfernt, Formen bleiben': 'All players removed, the shapes stay',
   'Beim Ablegen kam kein Team an': 'No team arrived on drop',

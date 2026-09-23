@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import T from '@/app/components/T';
 import { TierListEntry } from '../types';
 import { PlayerCard } from './PlayerCard';
 import { matchesSearch, getDisplayName } from '../utils/helpers';
@@ -26,6 +27,15 @@ interface PlayerPoolProps {
   anzeigeVon?: (name: string) => string | undefined;
   /** Die Herkunft festhalten - siehe PlayerCard. */
   onLand?: (name: string, land: string) => void;
+  /**
+   * Was dastehen soll, wenn ueberhaupt nichts da ist.
+   *
+   * "All players assigned" stimmt nur, wenn es Spieler gibt und alle auf
+   * einer Stufe stehen. Ist die Liste selbst leer - etwa weil niemand
+   * angemeldet ist und die Tierlist am Konto haengt -, war dieser Satz
+   * schlicht falsch und sah aus wie ein Fehler.
+   */
+  leerHinweis?: string;
   disabled?: boolean;
 }
 
@@ -49,6 +59,7 @@ export const PlayerPool: React.FC<PlayerPoolProps> = ({
   landVon,
   anzeigeVon,
   onLand,
+  leerHinweis,
   disabled = false,
 }) => {
   /*
@@ -68,7 +79,11 @@ export const PlayerPool: React.FC<PlayerPoolProps> = ({
     <>
       {filteredEntries.length === 0 ? (
         <div className="pool-empty">
-          {searchQuery ? 'No players found' : 'All players assigned'}
+          {searchQuery
+            ? <T>Kein Spieler gefunden</T>
+            : leerHinweis
+              ? <T>{leerHinweis}</T>
+              : <T>Alle Spieler sind eingestuft</T>}
         </div>
       ) : (
         filteredEntries.map(entry => (

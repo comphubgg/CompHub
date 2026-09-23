@@ -47,6 +47,8 @@ interface SidebarProps {
   anzeigeVon?: (name: string) => string | undefined;
   /** Die Herkunft festhalten - siehe PlayerCard. */
   onLand?: (name: string, land: string) => void;
+  /** Was dastehen soll, wenn die Liste selbst leer ist - siehe PlayerPool. */
+  leerHinweis?: string;
 
   // UI state
   createDisabled?: boolean;
@@ -79,6 +81,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   landVon,
   anzeigeVon,
   onLand,
+  leerHinweis,
   createDisabled = false,
 }) => {
   return (
@@ -112,6 +115,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             landVon={landVon}
             anzeigeVon={anzeigeVon}
             onLand={onLand}
+            leerHinweis={leerHinweis}
             disabled={createDisabled}
           />
         </div>
