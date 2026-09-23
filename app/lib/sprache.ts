@@ -1184,6 +1184,29 @@ const AUF_ENGLISCH: Record<string, string> = {
   // Die Uebersicht der Overlays - fruehr "Studio"
   'Overview': 'Overview',
 
+  // Freies Overlay: mehrere Fotos je Seite
+  'Foto hinzufügen — Spieler suchen': 'Add a photo — search a player',
+  'Foto entfernen': 'Remove photo',
+
+  // Globals: beide Tage als Knopf, Karte und Prognose
+  'Beide Tage': 'Both days',
+  'zusammen': 'combined',
+  'Sobald die Karte steht, ist sie hier zu sehen.': 'As soon as the map is ready, it shows up here.',
+  'Sobald die Prognose steht, ist sie hier zu sehen.': 'As soon as the prediction is ready, it shows up here.',
+  'Die Global Championship steht gerade nicht im Turnierkatalog.':
+    'The Global Championship is not in the tournament catalogue right now.',
+
+  // Karten-Werkzeug: Rueckgaengig, Papierkorb mit Rueckfrage
+  'Nichts mehr rückgängig zu machen': 'Nothing left to undo',
+  'Rückgängig gemacht': 'Undone',
+  'Diese Form löschen (Strg+Z holt sie zurück)': 'Delete this shape (Ctrl+Z brings it back)',
+  'Form gelöscht — Strg+Z holt sie zurück': 'Shape deleted — Ctrl+Z brings it back',
+  'Auf der Karte steht noch niemand': 'Nobody is on the map yet',
+  'Wirklich alle {n} Teams von der ganzen Karte nehmen? Die Formen bleiben.':
+    'Really remove all {n} teams from the whole map? The shapes stay.',
+  'Form geöffnet — ziehen verschiebt sie, die Punkte ändern sie. Der Papierkorb an der Karte löscht sie, Strg+Z holt sie zurück.':
+    'Shape open — drag to move it, the points reshape it. The bin on the map deletes it, Ctrl+Z brings it back.',
+
   // Tierlist - was dasteht, wenn nichts dasteht
   'Kein Spieler gefunden': 'No players found',
   'Alle Spieler sind eingestuft': 'All players assigned',

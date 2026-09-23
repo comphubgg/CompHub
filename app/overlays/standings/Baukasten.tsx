@@ -455,12 +455,16 @@ export default function StandingsBaukasten({ globals = false }: {
                 <T>CompHub-Zeichen in der Kopfzeile</T>
               </label>
 
-              <label className="flex items-center gap-2 self-end text-xs text-slate-400">
-                <input type="checkbox" checked={cfg.bilder}
-                  onChange={(e) => setz('bilder', e.target.checked)}
-                  className="accent-sky-500" />
-                <T>Fotos vor dem Namen</T>
-              </label>
+              {/* In der Globals-Fassung nicht: "Die Funktion Photos before
+                  the name soll weg. Das ist viel zu viel dann." */}
+              {!globals && (
+                <label className="flex items-center gap-2 self-end text-xs text-slate-400">
+                  <input type="checkbox" checked={cfg.bilder}
+                    onChange={(e) => setz('bilder', e.target.checked)}
+                    className="accent-sky-500" />
+                  <T>Fotos vor dem Namen</T>
+                </label>
+              )}
             </div>
             <p className="mt-3 text-[11px] leading-relaxed text-slate-600">
               <T>Die Karte ist so breit wie eingestellt, wächst aber mit, wenn

@@ -1255,7 +1255,27 @@ export async function startseite(saison?: string, wieViele = 25, jeTag = 3) {
    * Replays nicht; dort bleibt es bei den Finals der Szene-Quelle.
    */
   const dieSaison = juengste[0].season;
-  const eigene = (await aggregateSaison(dieSaison)).filter((t) => grossesTurnier(t.titel));
+  /*
+   * Welche Quelle bei einem Finale gilt.
+   *
+   * Bis zum 23.9.2026 galt bei jedem Finale die eigene Replay-Auswertung,
+   * und die Szene-Quelle nur, wo es keine gab. Das Profil und die
+   * Spielerkarten zaehlen aber aus der Szene-Quelle - und beide Zaehlungen
+   * weichen um ein, zwei Eliminierungen je Tag voneinander ab. Der
+   * Betreiber: "bei Darm steht im Profil 79 Kills und in der Liste 81, das
+   * kann auch nicht sein." Nachgerechnet: die sieben Finals der Saison
+   * ergeben in der Szene-Quelle 12+8+6+11+12+17+13 = 79, in den Replays 81.
+   *
+   * Jetzt gilt bei einem Finale, das die Szene-Quelle fuehrt, ihre Zahl -
+   * dieselbe wie auf der Karte und im Profil. Die eigenen Replays zaehlen
+   * die Opens und die Finals, die die Szene-Quelle nicht hat.
+   */
+  const szeneFenster = new Set(alle.filter((e) => e.season === dieSaison).map((e) => e.windowId));
+  const istFinalFenster = (t: { titel: string; windowId: string }) =>
+    istFinaleTag(t.titel, undefined, t.windowId) || /final/i.test(t.windowId);
+  const eigene = (await aggregateSaison(dieSaison))
+    .filter((t) => grossesTurnier(t.titel))
+    .filter((t) => !(istFinalFenster(t) && szeneFenster.has(t.windowId)));
   const eigeneFenster = new Set(eigene.map((t) => t.windowId));
 
   /*
@@ -1307,7 +1327,7 @@ export async function startseite(saison?: string, wieViele = 25, jeTag = 3) {
   for (const t of eigene) {
     // Der Titel des Aggregats ist der Cupname ("FNCS Division 1 Practice");
     // ob es das Finale war, sagt die Fensterkennung ("…Week1Final_OCE").
-    const finale = istFinaleTag(t.titel, undefined, t.windowId) || /final/i.test(t.windowId);
+    const finale = istFinalFenster(t);
     for (const k of t.spieler) zaehle(k.epicId, k.kills ?? 0, k.matches ?? 0, t.region, finale);
   }
 

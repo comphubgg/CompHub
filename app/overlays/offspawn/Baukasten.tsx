@@ -34,7 +34,9 @@ const STANDARD = {
   breite: 0,
   /** 1 oder 2 - gegen unscharfe Einblendungen in OBS. */
   massstab: 1,
-  /** Ein Bild je Seite - eines je Duo. */
+  /** Die Fotos je Seite - bis zu vier, fuer 2v2 und 4v4. */
+  bilder1: [] as string[], bilder2: [] as string[],
+  /** Die alte Form mit einem Bild je Seite - wird beim Bearbeiten uebernommen. */
   bild1: '', bild2: '',
   grund: '0 0 0', deckkraft: 0.72,
   schrift: 30,
@@ -125,14 +127,37 @@ export default function OffspawnBaukasten({ globals = false }: {
     return () => window.clearTimeout(stift);
   }, [suche]);
 
-  /** Einen Fund auf eine Seite legen - Name und Bild zusammen. */
-  function uebernimm(seite: 1 | 2, f: { anzeige: string; bild: string | null }) {
+  /*
+   * Die Fotos einer Seite - die neue Liste, sonst das eine alte Bild.
+   */
+  const fotosVon = (c: Config, seite: 1 | 2): string[] => {
+    const liste = seite === 1 ? c.bilder1 : c.bilder2;
+    const einzeln = seite === 1 ? c.bild1 : c.bild2;
+    return Array.isArray(liste) && liste.length ? liste : (einzeln ? [einzeln] : []);
+  };
+
+  /** Die Fotos einer Seite setzen - das alte Einzelbild faellt dabei weg. */
+  function setzeFotos(seite: 1 | 2, neu: string[]) {
     setCfg((alt) => ({
       ...alt,
-      [seite === 1 ? 'name1' : 'name2']: f.anzeige.toUpperCase(),
-      [seite === 1 ? 'bild1' : 'bild2']: f.bild ?? '',
+      [seite === 1 ? 'bilder1' : 'bilder2']: neu.slice(0, 4),
+      [seite === 1 ? 'bild1' : 'bild2']: '',
     }));
     setSchmutzig(true);
+  }
+
+  /**
+   * Das Foto eines Fundes auf eine Seite legen - nur das Foto.
+   *
+   * Vorher wurde dabei auch der Teamname ueberschrieben. Der Betreiber: "wenn
+   * ich Bild hochlade, tut es nicht den Teamnamen aendern ... sondern es
+   * bleibt so, wie ich es eigentlich eingegeben habe." Und es sind bis zu
+   * vier Fotos je Seite, fuer 2v2 und 4v4.
+   */
+  function uebernimm(seite: 1 | 2, f: { anzeige: string; bild: string | null }) {
+    if (!f.bild) return;
+    const bisher = fotosVon(cfg, seite);
+    if (!bisher.includes(f.bild)) setzeFotos(seite, [...bisher, f.bild]);
     setSuche(null);
     setFunde([]);
   }
@@ -241,7 +266,7 @@ export default function OffspawnBaukasten({ globals = false }: {
                         onChange={(e) => setSuche({
                           seite: pk === 'punkte1' ? 1 : 2, text: e.target.value,
                         })}
-                        placeholder={t('Spieler suchen — für Name und Bild')}
+                        placeholder={t('Foto hinzufügen — Spieler suchen')}
                         className={`${feld} text-xs`} />
                       {suche?.seite === (pk === 'punkte1' ? 1 : 2)
                         && funde.length > 0 && (
@@ -250,10 +275,12 @@ export default function OffspawnBaukasten({ globals = false }: {
                                         border-zinc-700 bg-zinc-950 shadow-xl">
                           {funde.map((f) => (
                             <button key={f.epicId} type="button"
+                              disabled={!f.bild}
                               onClick={() => uebernimm(pk === 'punkte1' ? 1 : 2, f)}
                               className="flex w-full items-center gap-2 px-2 py-1.5
                                          text-left text-xs text-slate-300
-                                         hover:bg-zinc-900">
+                                         hover:bg-zinc-900 disabled:cursor-not-allowed
+                                         disabled:opacity-50">
                               {f.bild
                                 // eslint-disable-next-line @next/next/no-img-element
                                 ? <img src={f.bild} alt=""
@@ -278,21 +305,32 @@ export default function OffspawnBaukasten({ globals = false }: {
                       )}
                     </div>
 
-                    {/* Was gerade als Bild dransteht - und ein Weg, es
-                        wieder loszuwerden. */}
-                    {(cfg[pk === 'punkte1' ? 'bild1' : 'bild2'] as string) && (
-                      <div className="mt-2 flex items-center justify-center gap-2">
-                        {/* eslint-disable-next-line @next/next/no-img-element */}
-                        <img src={cfg[pk === 'punkte1' ? 'bild1' : 'bild2'] as string}
-                          alt=""
-                          className="h-8 w-8 rounded-sm object-cover" />
-                        <button type="button"
-                          onClick={() => setz(
-                            pk === 'punkte1' ? 'bild1' : 'bild2', '')}
-                          className="text-[11px] text-slate-500 transition
-                                     hover:text-rose-400">
-                          <T>Bild entfernen</T>
-                        </button>
+                    {/* Die Fotos dieser Seite - jedes mit einem x zum
+                        Entfernen. Bis zu vier. */}
+                    {fotosVon(cfg, pk === 'punkte1' ? 1 : 2).length > 0 && (
+                      <div className="mt-2 flex flex-wrap items-center justify-center gap-1.5">
+                        {fotosVon(cfg, pk === 'punkte1' ? 1 : 2).map((pfad, i) => (
+                          <span key={`${pfad}-${i}`} className="relative">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={pfad} alt=""
+                              className="h-10 w-10 rounded-sm object-cover" />
+                            <button type="button"
+                              title={t('Foto entfernen')}
+                              onClick={() => {
+                                const seite = pk === 'punkte1' ? 1 : 2;
+                                setzeFotos(seite, fotosVon(cfg, seite).filter((_, k) => k !== i));
+                              }}
+                              className="absolute -right-1.5 -top-1.5 grid h-4 w-4 place-items-center
+                                         rounded-full bg-zinc-900 text-[10px] leading-none
+                                         text-slate-300 ring-1 ring-zinc-700 transition
+                                         hover:bg-rose-600 hover:text-white">
+                              ×
+                            </button>
+                          </span>
+                        ))}
+                        <span className="text-[10px] text-slate-600">
+                          {fotosVon(cfg, pk === 'punkte1' ? 1 : 2).length}/4
+                        </span>
                       </div>
                     )}
                     <div className="mt-3 flex items-center justify-center gap-3">

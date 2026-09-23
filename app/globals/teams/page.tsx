@@ -5,7 +5,6 @@ import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import LadeSchirm from '@/app/components/LadeSchirm';
 import GlobalsGeruest from '../GlobalsGeruest';
-import GlobalsTagWahl from '../GlobalsTage';
 import { GLOBALS_TAGE } from '@/lib/globalsCup';
 import { flaggenPfad } from '@/components/TeamFlagge';
 
@@ -50,7 +49,12 @@ function Flagge({ land, gross = false }: { land: string | null; gross?: boolean 
 
 export default function GlobalsTeams() {
   const t = useT();
-  const [fenster, setFenster] = useState(GLOBALS_TAGE[0].windowId);
+  /*
+   * Das Feld steht an beiden Tagen fest - dieselben fuenfzig Duos. Der
+   * Betreiber: "unter Teams muss es ja eigentlich kein Day 2 geben, das
+   * sind ja die gleichen Teams." Gelesen wird deshalb Day 1, ohne Wahl.
+   */
+  const fenster = GLOBALS_TAGE[0].windowId;
   const [teams, setTeams] = useState<Team[] | null>(null);
   const [fehler, setFehler] = useState('');
   const [zahlen, setZahlen] = useState({ zugeordnet: 0, spieler: 0 });
@@ -93,8 +97,7 @@ export default function GlobalsTeams() {
 
   return (
     <GlobalsGeruest aktiv="/globals/teams">
-      <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
-        <GlobalsTagWahl fenster={fenster} onTag={setFenster} />
+      <div className="mb-4 flex flex-wrap items-end justify-end gap-3">
         <input value={suche} onChange={(e) => setSuche(e.target.value)}
           placeholder={t('Spieler suchen')}
           className="w-full max-w-xs rounded-lg border border-zinc-800 bg-zinc-950

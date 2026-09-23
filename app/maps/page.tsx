@@ -276,16 +276,17 @@ function kuerze(name: string) {
 }
 
 /**
- * Den ersten Buchstaben gross schreiben - immer, ohne Schalter.
+ * Erster Buchstabe gross, der Rest klein - immer, ohne Schalter.
  *
- * Auf der Karte stehen Namen nebeneinander, die mal klein und mal gross
- * beginnen ("peterbot" neben "Nociff"). Das wirkt unruhig. Geaendert wird
- * ausschliesslich das erste Zeichen: der Rest bleibt so, wie der Spieler
- * sich schreibt, und ein Name, der mit einer Ziffer beginnt ("5aald"),
- * bleibt unangetastet.
+ * Auf der Karte stehen Namen nebeneinander, die mal ganz gross und mal ganz
+ * klein geschrieben sind ("CURVE" neben "flickzy"). Zuerst wurde hier nur das
+ * erste Zeichen angehoben und der Rest gelassen; das reichte dem Betreiber
+ * nicht: "Mach immer die Regel, erster Buchstabe gross, der Rest klein."
+ * Umgeschrieben wird nur die Anzeige - gespeichert bleibt der Name, wie er
+ * kam. Beginnt er mit einer Ziffer ("5aald"), bleibt die Ziffer vorn stehen.
  */
 function grossAnfang(name: string) {
-  return name ? name[0].toUpperCase() + name.slice(1) : name;
+  return name ? name[0].toUpperCase() + name.slice(1).toLowerCase() : name;
 }
 
 /* ---------------------------------------------------------------- Symbole */
@@ -526,6 +527,36 @@ export default function KartenSeite(
    * Umschalten darf keinen Schreibvorgang ausloesen.
    */
   const inhaltVomNutzer = useRef(false);
+
+  /*
+   * Strg+Z (auf dem Mac Cmd+Z).
+   *
+   * Der Betreiber: "wenn ich eine Form geloescht habe und Command-Z mache,
+   * dass sie sozusagen zurueckkommt. Genauso wie, wenn ich einen Spieler
+   * woanders hinzugefuegt habe." Vor jedem Eingriff wird der Stand der
+   * Formen gemerkt - samt der Teams darauf, denn die stehen in den Formen.
+   * Ein Zug mit der Maus ist dabei ein einziger Schritt, nicht jede
+   * Zwischenstellung: gemerkt wird beim Anfassen, nicht beim Bewegen.
+   */
+  const rueckgaengig = useRef<Spot[][]>([]);
+  const spotsJetzt = useRef<Spot[]>([]);
+  useEffect(() => { spotsJetzt.current = spots; }, [spots]);
+  const merke = useCallback(() => {
+    const stapel = rueckgaengig.current;
+    if (stapel[stapel.length - 1] !== spotsJetzt.current) stapel.push(spotsJetzt.current);
+    if (stapel.length > 60) stapel.shift();
+  }, []);
+
+  /*
+   * Welches Team gerade gezogen wird - als Rueckfall fuer das Ablegen.
+   *
+   * Der Betreiber bekam beim Ablegen "No team arrived on drop", obwohl er ein
+   * Team gezogen hatte. Die Kennung reist im Ziehen unter einer eigenen Art
+   * ("text/team"); manche Erweiterungen und der Weg ueber Windows streifen
+   * solche eigenen Arten unterwegs ab. Was hier beim Anfassen gemerkt wird,
+   * kann unterwegs nicht verlorengehen.
+   */
+  const gezogen = useRef<string | null>(null);
   /** Wann zuletzt von selbst gesichert wurde - fuer die ruhige Zeile. */
   const [selbstGesichert, setSelbstGesichert] = useState<number | null>(null);
   /**
@@ -702,6 +733,33 @@ export default function KartenSeite(
   const direkt = Boolean(linkKarte);
 
   const darfBauen = istAdmin && !gesperrt && (!ausTurnier || bearbeitenAn || direkt);
+
+  /* Strg+Z: den zuletzt gemerkten Stand zurueckholen - siehe rueckgaengig. */
+  useEffect(() => {
+    const taste = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey || e.metaKey) || e.shiftKey || e.altKey) return;
+      if (e.key.toLowerCase() !== 'z') return;
+      // In einem Eingabefeld gehoert Strg+Z dem Feld.
+      const ziel = e.target as HTMLElement | null;
+      if (ziel && (ziel.tagName === 'INPUT' || ziel.tagName === 'TEXTAREA'
+        || ziel.isContentEditable)) return;
+      if (!darfBauen) return;
+      e.preventDefault();
+      const vorher = rueckgaengig.current.pop();
+      if (!vorher) { setStatus(uebs('Nichts mehr rückgängig zu machen')); return; }
+      formenVomNutzer.current = true; inhaltVomNutzer.current = true;
+      setSpots(vorher);
+      if (gewaehltRef.current && !vorher.some((s) => s.id === gewaehltRef.current)) {
+        setGewaehlt(null); gewaehltRef.current = null;
+      }
+      setStatus(uebs('Rückgängig gemacht'));
+    };
+    window.addEventListener('keydown', taste);
+    return () => window.removeEventListener('keydown', taste);
+  }, [darfBauen, uebs]);
+
+  // Eine andere Karte, ein neuer Anfang: ihr Strg+Z gehoert nicht hierher.
+  useEffect(() => { rueckgaengig.current = []; }, [ausTurnier, fensterId]);
 
   /**
    * Das eigene Duo in der Teamliste - erkannt am verknuepften Epic-Konto.
@@ -2057,6 +2115,7 @@ export default function KartenSeite(
   function neuerSpot(punkte: Punkt[], form: Form) {
     // Bewusst ohne Beschriftung: der Ortsname steht schon auf der Karte, in
     // der Form soll nur stehen, wer dort landet.
+    merke();
     const id = `s${Date.now().toString(36)}`;
     formenVomNutzer.current = true; inhaltVomNutzer.current = true;
     setSpots((alt) => [...alt, { id, form, punkte, teams: [] }]);
@@ -2129,6 +2188,7 @@ export default function KartenSeite(
       : undefined;
 
     if (treffer && treffer.id === gewaehltRef.current) {
+      merke();
       greiftRef.current = { art: 'flaeche', start: p };
       return;
     }
@@ -2241,6 +2301,7 @@ export default function KartenSeite(
   /* ------------------------------------------------------ Teams zuordnen */
 
   function teamAufSpot(teamId: string, spotId: string) {
+    merke();
     inhaltVomNutzer.current = true;
     setSpots((alt) => alt.map((s) => {
       if (s.id === spotId) {
@@ -2252,6 +2313,7 @@ export default function KartenSeite(
   }
 
   function teamAbziehen(teamId: string) {
+    merke();
     inhaltVomNutzer.current = true;
     setSpots((alt) => alt.map((s) => ({ ...s, teams: s.teams.filter((t) => t !== teamId) })));
   }
@@ -2291,13 +2353,17 @@ export default function KartenSeite(
     // Ein Pro darf genau eine Kachel bewegen: seine eigene.
     if (!darfBauen) {
       if (!darfMichSetzen) return;
-      const meins = e.dataTransfer.getData('text/team');
+      const meins = e.dataTransfer.getData('text/team') || gezogen.current;
+      gezogen.current = null;
       if (!meins || meins !== meinTeam?.id) return;
       const ziel = [...spots].reverse().find((sp) => imPolygon(pos(e), sp.punkte));
       if (ziel) void michSetzen(ziel.id);
       return;
     }
-    const teamId = e.dataTransfer.getData('text/team');
+    // Zuerst, was das Ziehen mitbringt; fehlt es unterwegs, das beim
+    // Anfassen Gemerkte (siehe gezogen).
+    const teamId = e.dataTransfer.getData('text/team') || gezogen.current || '';
+    gezogen.current = null;
     if (!teamId) { setStatus(uebs('Beim Ablegen kam kein Team an')); return; }
     const p = pos(e);
     const ziel = [...spots].reverse().find((s) => imPolygon(p, s.punkte));
@@ -2312,12 +2378,14 @@ export default function KartenSeite(
 
   function alleSpielerLoeschen() {
     // Ausdruecklich nur die Zuordnungen. Die Formen bleiben stehen.
+    merke();
     inhaltVomNutzer.current = true;
     setSpots((alt) => alt.map((s) => ({ ...s, teams: [] })));
     setStatus(uebs('Alle Spieler entfernt, Formen bleiben'));
   }
 
   function spotLoeschen(id: string) {
+    merke();
     formenVomNutzer.current = true; inhaltVomNutzer.current = true;
     setSpots((alt) => alt.filter((s) => s.id !== id));
     if (gewaehlt === id) setGewaehlt(null);
@@ -2821,6 +2889,27 @@ ${name}
     ? rechteckPunkte(zieht.von, zieht.bis) : null;
   const gewaehlterSpot = spots.find((s) => s.id === gewaehlt) ?? null;
 
+  /** Der Papierkorb an der Karte - siehe dort. */
+  function muellEimer() {
+    if (!darfBauen) {
+      setStatus(gesperrt
+        ? uebs('Die Karte ist gesperrt — zum Verteilen erst das Schloss öffnen.')
+        : uebs('Nur Ansicht — zum Verteilen oben auf „Diese Karte bearbeiten“ klicken.'));
+      return;
+    }
+    if (gewaehlterSpot) {
+      spotLoeschen(gewaehlterSpot.id);
+      setStatus(uebs('Form gelöscht — Strg+Z holt sie zurück'));
+      return;
+    }
+    const belegt = spots.reduce((n, s) => n + s.teams.length, 0);
+    if (!belegt) { setStatus(uebs('Auf der Karte steht noch niemand')); return; }
+    const frage = uebs('Wirklich alle {n} Teams von der ganzen Karte nehmen? Die Formen bleiben.')
+      .replace('{n}', String(belegt));
+    if (!window.confirm(frage)) return;
+    alleSpielerLoeschen();
+  }
+
   function spotFarbe(s: Spot) {
     // Eine selbst gesetzte Farbe hat immer Vorrang, auch wenn Teams drin stehen.
     if (s.farbe) {
@@ -3046,6 +3135,7 @@ ${name}
         <button key={i} type="button"
           onMouseDown={(e) => {
             e.stopPropagation();
+            merke();
             greiftRef.current = {
               art: 'ecke', index: i,
               gegen: gewaehlterSpot.form === 'rechteck' && gewaehlterSpot.punkte.length === 4
@@ -3190,8 +3280,23 @@ ${name}
             <span className="my-1 h-px bg-zinc-700" />
             <Werkzeugknopf titel={gesperrt ? 'Karte entsperren' : 'Karte sperren'}
               kind={Ikone.schloss} aktiv={gesperrt} onClick={() => setGesperrt((v) => !v)} />
-            <Werkzeugknopf titel="Alle Spieler entfernen (Formen bleiben)" kind={Ikone.muell}
-              gefahr onClick={alleSpielerLoeschen} />
+            {/*
+              * Der Papierkorb tut, was gerade naheliegt.
+              *
+              * Ist eine Form offen, loescht er genau diese - der Betreiber:
+              * "wenn ich in der Form bin, gerade am Bearbeiten, und auf
+              * dieses Loeschzeichen druecke, dass es dann nicht All Players
+              * removed, sondern nur die Form removed". Sonst nimmt er alle
+              * Spieler von der Karte, aber erst nach einer Rueckfrage: "Das
+              * ist mir schon zehnmal passiert ... ich war schon fast fertig
+              * und ja, GG's." Und beides laesst sich mit Strg+Z zurueckholen.
+              */}
+            <Werkzeugknopf
+              titel={gewaehlterSpot && darfBauen
+                ? 'Diese Form löschen (Strg+Z holt sie zurück)'
+                : 'Alle Spieler entfernen (Formen bleiben)'}
+              kind={Ikone.muell}
+              gefahr onClick={muellEimer} />
             <Werkzeugknopf titel="Freie Form zeichnen" kind={Ikone.polygon}
               aktiv={werkzeug === 'polygon'}
               onClick={() => { setWerkzeug(werkzeug === 'polygon' ? null : 'polygon'); setRohbau([]); }} />
@@ -4027,46 +4132,20 @@ ${name}
             style={kartenHoehe ? { maxHeight: kartenHoehe } : undefined}>
 
             {/* Gewaehlte Form */}
+            {/*
+              * Die geoeffnete Form.
+              *
+              * Hier standen Beschriftung und Farbe. Der Betreiber brauchte
+              * beides nicht ("das kannst du eigentlich loeschen") - die Form
+              * faerbt sich nach Belegung, und der Ortsname steht auf der
+              * Karte. Geblieben ist, wer darin steht; geloescht wird die Form
+              * mit dem Papierkorb an der Karte.
+              */}
             {darfBauen && gewaehlterSpot && (
               <div className="rounded-xl border border-sky-800/60 bg-sky-950/20 p-3">
-                <div className="mb-2 flex items-center gap-2">
-                  <input
-                    value={gewaehlterSpot.name ?? ''}
-                    onChange={(e) => { formenVomNutzer.current = true; inhaltVomNutzer.current = true;
-                      setSpots((alt) => alt.map((s) =>
-                        s.id === gewaehlterSpot.id ? { ...s, name: e.target.value } : s)); }}
-                    placeholder="Beschriftung (optional)"
-                    className="w-full rounded border border-zinc-800 bg-zinc-950 px-2 py-1
-                               text-xs text-slate-100 outline-none focus:border-sky-500" />
-                  <button onClick={() => spotLoeschen(gewaehlterSpot.id)}
-                    className="shrink-0 rounded border border-rose-800/60 px-2 py-1 text-[11px]
-                               text-rose-300 hover:border-rose-600">
-                    <T>Form löschen</T>
-                  </button>
-                </div>
-
-                <div className="mb-2 flex items-center gap-2">
-                  <span className="text-[11px] text-slate-400"><T>Farbe</T></span>
-                  <input type="color" value={gewaehlterSpot.farbe ?? '#38bdf8'}
-                    onChange={(e) => { formenVomNutzer.current = true; inhaltVomNutzer.current = true;
-                      setSpots((alt) => alt.map((s) =>
-                        s.id === gewaehlterSpot.id ? { ...s, farbe: e.target.value } : s)); }}
-                    title={uebs('Eigene Farbe für diese Form')}
-                    className="h-6 w-10 cursor-pointer rounded border border-zinc-700
-                               bg-zinc-950 p-0.5" />
-                  {gewaehlterSpot.farbe && (
-                    <button
-                      onClick={() => { formenVomNutzer.current = true; inhaltVomNutzer.current = true;
-                        setSpots((alt) => alt.map((s) =>
-                          s.id === gewaehlterSpot.id ? { ...s, farbe: undefined } : s)); }}
-                      className="text-[11px] text-slate-400 underline hover:text-slate-200">
-                      <T>automatisch</T>
-                    </button>
-                  )}
-                  <span className="ml-auto text-[10px] text-slate-500">
-                    <T>ohne eigene Farbe: schwarz bei einem, rot bei zwei Teams</T>
-                  </span>
-                </div>
+                <p className="mb-2 text-[11px] leading-relaxed text-slate-400">
+                  <T>Form geöffnet — ziehen verschiebt sie, die Punkte ändern sie. Der Papierkorb an der Karte löscht sie, Strg+Z holt sie zurück.</T>
+                </p>
                 {gewaehlterSpot.teams.length ? (
                   <div className="flex flex-wrap gap-1">
                     {gewaehlterSpot.teams.map((tid) => {
@@ -4109,7 +4188,11 @@ ${name}
                   </div>
                   <div
                     draggable={darfMichSetzen || darfBauen}
-                    onDragStart={(e) => e.dataTransfer.setData('text/team', meinTeam.id)}
+                    onDragStart={(e) => {
+                      gezogen.current = meinTeam.id;
+                      e.dataTransfer.setData('text/team', meinTeam.id);
+                      e.dataTransfer.effectAllowed = 'move';
+                    }}
                     onClick={() => { if (!meinSpot) return;
                       setGewaehlt(meinSpot.id); gewaehltRef.current = meinSpot.id;
                       zeigeSpot(meinSpot); }}
@@ -4204,7 +4287,11 @@ ${name}
                   return (
                     <div key={t.id}
                       draggable={darfBauen && !inBearbeitung}
-                      onDragStart={(e) => e.dataTransfer.setData('text/team', t.id)}
+                      onDragStart={(e) => {
+                        gezogen.current = t.id;
+                        e.dataTransfer.setData('text/team', t.id);
+                        e.dataTransfer.effectAllowed = 'move';
+                      }}
                       onClick={() => {
                         // Ein Klick springt zur Form dieses Teams - dafuer muss
                         // niemand die Karte absuchen.

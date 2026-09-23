@@ -6,6 +6,8 @@ import T from '@/app/components/T';
 import LadeSchirm from '@/app/components/LadeSchirm';
 import GlobalsGeruest from '../GlobalsGeruest';
 import { GLOBALS_EVENT } from '@/lib/globalsCup';
+import { useZugang } from '@/app/lib/zugang';
+import PrognosenWerkzeug from '@/app/admin/predictions/Werkzeug';
 import { flaggenPfad } from '@/components/TeamFlagge';
 
 /*
@@ -50,7 +52,30 @@ function istGlobals(p: Prognose): boolean {
   return /global\s*championship|globals/i.test(`${p.titel} ${p.cupTitel ?? ''}`);
 }
 
+/*
+ * Wer hier baut und wer hier schaut.
+ *
+ * Der Admin bekommt das Prognose-Werkzeug selbst - fest auf die Globals
+ * gestellt, mit dem Feld aus der Teilnehmerliste und der Karte aus dem
+ * Karten-Werkzeug (siehe Werkzeug.tsx). Alle anderen sehen, was er getippt
+ * hat, und koennen nichts daran aendern.
+ */
 export default function GlobalsPredictions() {
+  const zugang = useZugang();
+  if (zugang.laedt) {
+    return <GlobalsGeruest aktiv="/globals/predictions"><LadeSchirm /></GlobalsGeruest>;
+  }
+  if (zugang.admin) {
+    return (
+      <GlobalsGeruest aktiv="/globals/predictions">
+        <PrognosenWerkzeug globals />
+      </GlobalsGeruest>
+    );
+  }
+  return <GlobalsTipp />;
+}
+
+function GlobalsTipp() {
   const [alle, setAlle] = useState<Prognose[] | null>(null);
   const [profile, setProfile] = useState<Record<string, Profil>>({});
   const [laender, setLaender] = useState<Record<string, string>>({});
@@ -99,15 +124,9 @@ export default function GlobalsPredictions() {
             <T>Noch keine Prognose für die Globals</T>
           </h2>
           <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-400">
-            <T>Die Reihenfolge legst du im Prognose-Werkzeug fest. Hier steht
-            danach, was du getippt hast — ausgedacht wird hier nichts.</T>
+            <T>Sobald die Prognose steht, ist sie hier zu sehen.</T>
           </p>
-          <Link href="/admin/predictions"
-            className="mt-4 inline-block rounded-lg border border-amber-500/40
-                       bg-amber-400/10 px-4 py-2 text-sm font-semibold
-                       text-amber-200 transition hover:bg-amber-400/20">
-            <T>Prognose anlegen</T>
-          </Link>
+          {/* Angelegt wird sie vom Betreiber - hier gibt es dafuer keinen Knopf. */}
         </div>
       ) : (
         <>

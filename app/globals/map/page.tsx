@@ -6,8 +6,10 @@ import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import LadeSchirm from '@/app/components/LadeSchirm';
 import GlobalsGeruest from '../GlobalsGeruest';
-import { GLOBALS_EVENT, GLOBALS_TAGE, tagTitel } from '@/lib/globalsCup';
+import { GLOBALS_EVENT, GLOBALS_TAGE } from '@/lib/globalsCup';
+import { useZugang } from '@/app/lib/zugang';
 import { rahmen, spanneBei, type Spot } from '@/lib/prognoseKarte';
+import { kernname } from '@/lib/homoglyph';
 
 /*
  * Eine Form der Turnierkarte.
@@ -40,10 +42,22 @@ interface Karte {
   teams?: KartenTeam[]; spots?: KartenSpot[];
 }
 
-/** Der Teamname, wie er auf der Karte steht - ohne Turniermarke. */
+/**
+ * Der Name, wie er auf der Karte steht.
+ *
+ * Ohne Turniermarke, und in derselben Schreibweise wie im Karten-Werkzeug:
+ * erster Buchstabe gross, der Rest klein - der Betreiber: "Mach immer die
+ * Regel, erster Buchstabe gross, der Rest klein."
+ */
 function kurz(name: string): string {
-  return String(name ?? '').replace(/\[[^\]]*\]\s*/g, '').trim();
+  // Wie im Karten-Werkzeug: Turniermarke und Orgtag fallen weg ("GodL Chap"
+  // wird "Chap"), dann die Schreibweise.
+  const n = kernname(String(name ?? '')).slice(0, 16);
+  return n ? n[0].toUpperCase() + n.slice(1).toLowerCase() : n;
 }
+
+/** Wie die Karte hier heisst - eine Karte fuer beide Tage. */
+const KARTEN_NAME = 'Global Championship (2026)';
 
 /**
  * Eine gespeicherte Karte zeichnen - dieselbe Darstellung wie in der
@@ -61,12 +75,18 @@ function KartenBild({ karte }: { karte: Karte }) {
     <div className="relative mx-auto aspect-square w-full max-w-[900px]
                     overflow-hidden rounded-xl border border-zinc-800"
       style={{ containerType: 'inline-size' }}>
-      {karte.bildId && (
-        // eslint-disable-next-line @next/next/no-img-element
-        <img alt={t('Karte')} draggable={false}
-          className="absolute inset-0 h-full w-full object-cover"
-          src={`/api/karten-bild?datei=1&id=${encodeURIComponent(karte.bildId)}`} />
-      )}
+      {/*
+        * Das Kartenbild. Ohne eigenes Bild ist es die Fortnite-Karte des
+        * Tages - dasselbe, was das Karten-Werkzeug zeigt. Hier stand vorher
+        * nur ein Bild, wenn die Karte ein eigenes hatte, und die Globals-Karte
+        * hat keins: die Formen lagen auf Schwarz.
+        */}
+      {/* eslint-disable-next-line @next/next/no-img-element */}
+      <img alt={t('Karte')} draggable={false}
+        className="absolute inset-0 h-full w-full object-cover"
+        src={karte.bildId
+          ? `/api/karten-bild?datei=1&id=${encodeURIComponent(karte.bildId)}`
+          : '/api/fortnite-map?bild=poi'} />
 
       <svg viewBox="0 0 100 100" preserveAspectRatio="none"
         className="pointer-events-none absolute inset-0 h-full w-full">
@@ -109,7 +129,7 @@ function KartenBild({ karte }: { karte: Karte }) {
               className="pointer-events-none absolute z-10 text-center leading-none">
               {texte.map((tx, z) => (
                 <p key={z} style={{ fontSize: `${schrift}cqw` }}
-                  className="whitespace-nowrap font-semibold uppercase text-white
+                  className="whitespace-nowrap font-semibold text-white
                              drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)]">
                   {tx}
                 </p>
@@ -123,6 +143,13 @@ function KartenBild({ karte }: { karte: Karte }) {
 }
 
 export default function GlobalsMap() {
+  /*
+   * Anlegen und bearbeiten darf nur der Admin. Der Betreiber: "ich hoffe,
+   * das geht nur fuer den Admin, dass er sie erstellen kann." Das
+   * Karten-Werkzeug laesst ohnehin nur ihn bauen - hier steht fuer alle
+   * anderen deshalb auch kein Knopf dorthin.
+   */
+  const zugang = useZugang();
   const [karten, setKarten] = useState<Karte[] | null>(null);
   const [offen, setOffen] = useState(0);
   const [fehler, setFehler] = useState('');
@@ -155,17 +182,25 @@ export default function GlobalsMap() {
           <h2 className="text-base font-semibold text-slate-100">
             <T>Noch keine Karte für die Globals</T>
           </h2>
-          <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-400">
-            <T>Die Karte entsteht im Karten-Werkzeug: Formen setzen, Teams
-            darauf ziehen. Hier wird nichts von selbst verteilt — wer wo
-            landet, entscheidest du.</T>
-          </p>
-          <Link href={neuAdresse}
-            className="mt-4 inline-block rounded-lg border border-amber-500/40
-                       bg-amber-400/10 px-4 py-2 text-sm font-semibold
-                       text-amber-200 transition hover:bg-amber-400/20">
-            <T>Karte anlegen</T>
-          </Link>
+          {zugang.admin ? (
+            <>
+              <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-400">
+                <T>Die Karte entsteht im Karten-Werkzeug: Formen setzen, Teams
+                darauf ziehen. Hier wird nichts von selbst verteilt — wer wo
+                landet, entscheidest du.</T>
+              </p>
+              <Link href={neuAdresse}
+                className="mt-4 inline-block rounded-lg border border-amber-500/40
+                           bg-amber-400/10 px-4 py-2 text-sm font-semibold
+                           text-amber-200 transition hover:bg-amber-400/20">
+                <T>Karte anlegen</T>
+              </Link>
+            </>
+          ) : (
+            <p className="mt-2 max-w-xl text-sm leading-relaxed text-slate-400">
+              <T>Sobald die Karte steht, ist sie hier zu sehen.</T>
+            </p>
+          )}
         </div>
       ) : (
         <>
@@ -176,18 +211,28 @@ export default function GlobalsMap() {
                   i === offen
                     ? 'border-amber-400/60 bg-amber-400/15 font-semibold text-amber-200'
                     : 'border-zinc-800 text-slate-300 hover:border-zinc-700'}`}>
-                {k.bildTitel || k.titel}
-                <span className="ml-2 text-[11px] text-slate-500">
-                  {k.windowId ? tagTitel(k.windowId) : ''}
-                </span>
+                {/*
+                  * Kein "Battle Royale · Day 1": die Karte ist fuer beide
+                  * Tage dieselbe. Der Betreiber wollte hier "Global
+                  * Championship (2026)" stehen haben, ohne Tag. Nur wenn es
+                  * mehrere Karten gibt, steht das Bild dahinter.
+                  */}
+                {KARTEN_NAME}
+                {karten.length > 1 && (
+                  <span className="ml-2 text-[11px] text-slate-500">
+                    {k.bildTitel || k.titel}
+                  </span>
+                )}
               </button>
             ))}
+{zugang.admin && (
             <Link href={`/maps?id=${encodeURIComponent((karten[offen] ?? karten[0]).id)}`}
               className="ml-auto rounded-lg border border-zinc-800 px-3 py-2
                          text-xs text-slate-400 transition
                          hover:border-amber-400/60 hover:text-amber-200">
               <T>Im Karten-Werkzeug öffnen</T>
             </Link>
+            )}
           </div>
 
           <KartenBild karte={karten[offen] ?? karten[0]} />

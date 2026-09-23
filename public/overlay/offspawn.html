@@ -191,6 +191,20 @@ html, body {
   position: relative;
   overflow: hidden;
 }
+/*
+ * Mehrere Fotos je Seite - fuer 2v2 und 4v4.
+ *
+ * Der Betreiber: "stell dir vor, es ist ein 2v2 oder 4 gegen 4. Da kann ich
+ * von mehreren Spielern das Bild hochladen." Jedes Foto bleibt ein eigenes
+ * Quadrat ueber die volle Hoehe; sie stehen dicht nebeneinander.
+ */
+.fotos {
+  flex: 0 0 auto;
+  align-self: stretch;
+  display: flex;
+}
+.fotos[hidden] { display: none; }
+
 .foto {
   position: absolute;
   inset: 0;
@@ -230,7 +244,7 @@ html, body {
 <body>
 
 <div id="karte">
-  <span class="fotoRahmen" id="r1" hidden><img class="foto" id="f1" alt=""></span>
+  <span class="fotos" id="g1" hidden></span>
   <div id="mitte">
     <span id="kopf" hidden>OFFSPAWN</span>
     <span id="zeile">
@@ -239,7 +253,7 @@ html, body {
       <span class="name" id="n2">TEAM 2</span>
     </span>
   </div>
-  <span class="fotoRahmen" id="r2" hidden><img class="foto" id="f2" alt=""></span>
+  <span class="fotos" id="g2" hidden></span>
 </div>
 
 <script src="konfig.js"></script>
@@ -263,7 +277,9 @@ html, body {
     breite: 0,
     /** 1 oder 2 - siehe "Der Massstab gegen die Unschaerfe" oben. */
     massstab: 1,
-    /** Bilder je Seite - eines je Duo, so wollte es der Betreiber. */
+    /** Bilder je Seite - bis zu vier, fuer 2v2 und 4v4. */
+    bilder1: [], bilder2: [],
+    /** Die alte Form mit einem Bild je Seite - gilt, solange bilder leer ist. */
     bild1: '', bild2: '',
     grund: '0 0 0', deckkraft: 0.72,
     schrift: 30,
@@ -321,11 +337,31 @@ html, body {
       s.setProperty('--ecken', (Number(cfg.ecken ?? 12)) + 'px');
       document.body.classList.toggle('globals', cfg.thema === 'globals');
 
-      // Der Rahmen wird versteckt, nicht das Bild darin: er traegt die Groesse.
-      for (const [rahmen, bild, pfad] of
-           [['r1', 'f1', cfg.bild1], ['r2', 'f2', cfg.bild2]]) {
-        if (pfad) { $(bild).src = String(pfad); $(rahmen).hidden = false; }
-        else { $(bild).removeAttribute('src'); $(rahmen).hidden = true; }
+      /*
+       * Die Fotos je Seite. Die neue Liste gilt; eine alte Einstellung mit
+       * einem einzigen Bild zeigt dieses eine weiter.
+       */
+      for (const [gruppe, liste, einzeln] of
+           [['g1', cfg.bilder1, cfg.bild1], ['g2', cfg.bilder2, cfg.bild2]]) {
+        const pfade = (Array.isArray(liste) && liste.length ? liste : (einzeln ? [einzeln] : []))
+          .filter(Boolean).slice(0, 4).map(String);
+        const ziel = $(gruppe);
+        // Nur neu bauen, was sich geaendert hat - sonst flackert es im Takt.
+        if (ziel.dataset.pfade !== pfade.join('|')) {
+          ziel.dataset.pfade = pfade.join('|');
+          ziel.textContent = '';
+          for (const pfad of pfade) {
+            const rahmen = document.createElement('span');
+            rahmen.className = 'fotoRahmen';
+            const bild = document.createElement('img');
+            bild.className = 'foto';
+            bild.alt = '';
+            bild.src = pfad;
+            rahmen.appendChild(bild);
+            ziel.appendChild(rahmen);
+          }
+        }
+        ziel.hidden = !pfade.length;
       }
 
       $('n1').textContent = String(cfg.name1 || 'TEAM 1');
