@@ -1169,6 +1169,10 @@ const AUF_ENGLISCH: Record<string, string> = {
     'Type a name — anyone with a photo shows up.',
   'Niemand mit Foto gefunden.': 'Nobody with a photo found.',
 
+  'Noch leer. Leg ein Overlay auf das Bild — ziehen verschiebt es, die Ecke zieht die Größe.':
+    'Empty so far. Put an overlay on the picture — drag to move it, the corner resizes it.',
+  'Overlay hinzufügen': 'Add overlay',
+
   // Scrims - das Beispiel, solange kein Server verbunden ist
   'Bis dahin steht hier ein Beispiel — so sieht die Seite aus, sobald ein Server verbunden ist. Keine dieser Zahlen ist echt.':
     'Until then this is an example — that is how the page looks once a server is connected. None of these numbers are real.',

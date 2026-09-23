@@ -505,11 +505,26 @@ export default function Studio() {
               );
             })}
 
+            {/*
+              * Das leere Bild sagt, was zu tun ist - und hat den Knopf dabei.
+              *
+              * Vorher stand hier nur ein Satz, der auf die drei Striche oben
+              * links verwies. Wer zum ersten Mal hier steht, sucht dort nicht;
+              * der Betreiber wollte es "viel uebersichtlicher und einfacher zu
+              * bedienen". Also steht der Weg dorthin genau da, wo man hinsieht.
+              */}
             {!szene.elemente.length && (
-              <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-                <p className="max-w-md text-center text-sm text-slate-600">
-                  <T>Links oben die drei Striche: von dort kommen Team card, Standings, Cup timer, Offspawn, Custom text und Qual line auf das Bild. Ziehen zum Verschieben, die Ecke zum Vergrößern.</T>
+              <div className="absolute inset-0 flex flex-col items-center
+                              justify-center gap-4 px-6">
+                <p className="max-w-md text-center text-sm text-slate-500">
+                  <T>Noch leer. Leg ein Overlay auf das Bild — ziehen verschiebt
+                  es, die Ecke zieht die Größe.</T>
                 </p>
+                <button type="button" onClick={() => setLeiste(true)}
+                  className="rounded-lg bg-sky-500 px-5 py-2.5 text-sm font-semibold
+                             text-white transition hover:bg-sky-400">
+                  + <T>Overlay hinzufügen</T>
+                </button>
               </div>
             )}
           </div>
