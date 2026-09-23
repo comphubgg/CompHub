@@ -76,7 +76,7 @@ export const ARTEN: Array<{
    * steht, gibt der Betreiber selbst ein.
    */
   {
-    schluessel: 'offspawn', pfad: '/overlays/offspawn', titel: 'Offspawn',
+    schluessel: 'offspawn', pfad: '/overlays/offspawn', titel: 'Custom overlay',
     datei: 'offspawn.html',
     was: 'Zwei Teams und ein Stand, von Hand gepflegt',
     ohneCup: true,

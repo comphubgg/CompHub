@@ -48,6 +48,14 @@
     --skala: 1;
     /* Wie weit die Fotos vom Text abruecken - ueber ?abstand= regelbar. */
     --abstand: 18px;
+    /*
+     * Ein Bild hinter der Mitte - nur Vorlagen, die eines mitbringen.
+     *
+     * "none" heisst: es bleibt bei der Farbe. Die FNCS-Vorlage setzt hier
+     * Epics Banner-Grafik ohne Logo und Schrift; die Folie darueber ist
+     * dieselbe Deckkraft wie sonst, damit der Name lesbar bleibt.
+     */
+    --bild: none;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; }
   html, body { background: transparent; }
@@ -123,7 +131,13 @@
     align-items: center; justify-content: center;
     gap: calc(4px * var(--skala));
     padding: calc(8px * var(--skala)) var(--abstand);
-    background: color-mix(in srgb, var(--grund) calc(var(--klar) * 100%), transparent);
+    background-color: color-mix(in srgb, var(--grund) calc(var(--klar) * 100%), transparent);
+    background-image:
+      linear-gradient(color-mix(in srgb, var(--grund) calc(var(--klar) * 100%), transparent),
+                      color-mix(in srgb, var(--grund) calc(var(--klar) * 100%), transparent)),
+      var(--bild);
+    background-size: cover;
+    background-position: center;
   }
 
   .namen {

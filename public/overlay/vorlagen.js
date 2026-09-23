@@ -57,6 +57,27 @@
         leise: '#5b6478', akzent: '#0284c7',
       },
     },
+    /*
+     * Die FNCS Global Championship 2026 (Antwerpen, 26. und 27. September).
+     *
+     * Der Hintergrund ist Epics eigene Banner-Grafik, aus der Logo und
+     * Schrift heraus sind (public/overlay/globals/fncs-breit.jpg, gebaut aus
+     * den Raendern des Banners). Darueber liegt dieselbe schwarze Folie, die
+     * der Deckkraft-Regler steuert - der Betreiber: "ein bisschen
+     * transparent, plus eine schwarze Folie darueber". Die Schrift wird
+     * golden, das Blau ist das des FNCS-Logos (#0e47de, aus dem Logo
+     * gelesen).
+     */
+    {
+      id: 'globals',
+      titel: 'FNCS Globals',
+      beschreibung: 'Kristall und Gold der Global Championship 2026',
+      werte: {
+        grund: '#05070f', grund2: '#0e47de', schrift: '#ffffff',
+        leise: '#ffd766', akzent: '#f5c542',
+        bild: "url('globals/fncs-breit.jpg')",
+      },
+    },
   ];
 
   function nach(id) {

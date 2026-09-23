@@ -48,6 +48,21 @@ const DEFAULT_PROFILE: ProfileData = {
 
 interface Ziel { href: string; titel: string; text: string }
 
+/*
+ * Die Werkzeuge des VIP-Blocks.
+ *
+ * Fuer die FNCS Global Championship 2026 gebaut: dieselben Overlay-Seiten
+ * wie sonst, nur mit dem Aussehen des Turniers (Thema "FNCS Globals").
+ */
+const VIP_ZIELE: Ziel[] = [
+  { href: '/overlays/standings', titel: 'Overlays (Globals 2026)',
+    text: 'Leaderboard im Aussehen der Global Championship' },
+  { href: '/overlays/teamkarte', titel: 'Spieler-Banner (Globals 2026)',
+    text: 'Zwei Spieler mit Foto, in den Farben des Turniers' },
+  { href: '/overlays/offspawn', titel: 'Custom overlay (Globals 2026)',
+    text: 'Freier Stand - 1v1s, 4v4s, alles mit eigenem Titel' },
+];
+
 /** Wohin jeder springt, der angemeldet ist. */
 const ZIELE: Ziel[] = [
   { href: '/', titel: 'Multiview', text: 'Streams nebeneinander' },
@@ -608,6 +623,38 @@ export default function AdminDashboardPage() {
                 <p className="mt-2 text-xs text-slate-400">{wechselStand}</p>
               )}
             </section>
+            )}
+
+            {/*
+              * Der VIP-Block - nur fuer die Streamer, die ihn bekommen haben.
+              *
+              * Der Betreiber vor den Globals 2026: "im Dashboard selber sieht
+              * er dann unter VIP, nur fuer ihn ... VIP in goldener Schrift,
+              * Overlays (Globals 2026)." Nicht in der Kopfzeile der Seite,
+              * nicht auf der Startseite - nur hier, und nur fuer ihn.
+              */}
+            {(zugang.admin || istAdmin || rolle === 'admin'
+              || eigeneRechte.includes('globals') || zugang.rechte.includes('globals')) && (
+              <section className="rounded-xl border border-amber-500/30
+                                  bg-gradient-to-br from-amber-500/[0.07] to-transparent p-4">
+                <div className="flex items-baseline gap-2">
+                  <h2 className="text-sm font-bold tracking-wide text-amber-300">VIP</h2>
+                  <span className="text-xs text-slate-500"><T>sichtbar nur für dich</T></span>
+                </div>
+                <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                  {VIP_ZIELE.map((z) => (
+                    <a key={z.href} href={z.href}
+                      className="group rounded-lg border border-amber-500/25 bg-zinc-950/60
+                                 p-3 transition hover:border-amber-400/60 hover:bg-amber-500/[0.06]">
+                      <p className="text-sm font-semibold text-amber-200
+                                    group-hover:text-amber-100">
+                        <T>{z.titel}</T>
+                      </p>
+                      <p className="mt-0.5 text-xs text-slate-500"><T>{z.text}</T></p>
+                    </a>
+                  ))}
+                </div>
+              </section>
             )}
 
             {/* Schnellzugriff */}

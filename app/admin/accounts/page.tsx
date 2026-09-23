@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
-import { BEREICHE } from '@/lib/rechte';
+import { BEREICHE, VIP_BEREICHE } from '@/lib/rechte';
 
 // Die Kontoverwaltung.
 //
@@ -1316,6 +1316,56 @@ ${k.name}`)) return;
                           <span className="min-w-0">
                             <span className={`block text-xs font-semibold ${an
                               ? 'text-sky-400' : 'text-slate-300'}`}>
+                              <T>{b.titel}</T>
+                            </span>
+                            <span className="block text-[10px] text-slate-600">
+                              <T>{b.was}</T>
+                            </span>
+                          </span>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/*
+                * Bereiche, die auch ein VIP bekommen kann.
+                *
+                * Fuer die Globals 2026 wollte der Betreiber einem Streamer
+                * die dafuer gebauten Overlays geben, ohne ihn zum Manager zu
+                * machen: "dann kann ich einstellen, welche Streamer von was
+                * Zugriff haben." Sichtbar ist das fuer den Streamer nur im
+                * Dashboard, nicht in der Kopfzeile der Seite.
+                */}
+              {(k.vip || k.rolle) && (
+                <div className="mt-3 rounded-lg border border-amber-500/25
+                                bg-amber-950/10 p-3">
+                  <p className="mb-2 text-[10px] uppercase tracking-wider text-amber-500/70">
+                    <T>VIP-Bereiche</T>
+                  </p>
+                  <div className="grid gap-1.5 sm:grid-cols-2">
+                    {VIP_BEREICHE.map((b) => {
+                      const an = k.rechte.includes(b.schluessel);
+                      return (
+                        <label key={b.schluessel}
+                          className={`flex cursor-pointer items-start gap-2 rounded-lg
+                                      px-2 py-1.5 transition ${an
+                            ? 'bg-amber-500/10' : 'hover:bg-zinc-900'}`}>
+                          <input type="checkbox" checked={an}
+                            onChange={() => {
+                              const neu = an
+                                ? k.rechte.filter((x) => x !== b.schluessel)
+                                : [...k.rechte, b.schluessel];
+                              setzen(k, k.rolle,
+                                k.vip ? (k.vipBis ? Math.max(1, Math.ceil(
+                                  (k.vipBis - Date.now()) / 86_400_000)) : 0) : null,
+                                neu);
+                            }}
+                            className="mt-0.5 h-3.5 w-3.5 shrink-0 accent-amber-500" />
+                          <span className="min-w-0">
+                            <span className={`block text-xs font-semibold ${an
+                              ? 'text-amber-300' : 'text-slate-300'}`}>
                               <T>{b.titel}</T>
                             </span>
                             <span className="block text-[10px] text-slate-600">

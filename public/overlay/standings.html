@@ -27,6 +27,8 @@
   --breite: 420px;
   --akzent: #f5c542;
   --text: #ffffff;
+  /* Wie rund die Ecken sind - der Betreiber wollte das umstellen koennen. */
+  --ecken: 10px;
   /* Wie in qual.html: der Deckkraft-Regler wirkt nur auf den Grund, die
      Nebenschrift bleibt lesbar. Fuenfundfuenfzig Prozent waren zu schwach,
      sobald das Spielbild durchscheint. */
@@ -36,6 +38,59 @@
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
+
+/*
+ * ------------------------------------------------- FNCS Global Championship
+ *
+ * Fuer die Globals 2026 in Antwerpen. Der Betreiber: "dieser Overlay soll
+ * extra farblich angepasst werden fuer die Global Championships ... beim
+ * Banner machst du das Logo mittig weg und die Schrift unten, dann hast du
+ * einfach nur den Banner ohne Logos. Dann machst du es noch ein bisschen
+ * transparent, plus eine schwarze Folie darueber."
+ *
+ * Genau so: das Bild in public/overlay/globals ist aus den kristall- und
+ * goldfarbenen Raendern von Epics Banner gebaut, ohne Logo und ohne Schrift.
+ * Darueber liegt dieselbe schwarze Folie, die der Deckkraft-Regler steuert -
+ * das Overlay bleibt lesbar, und wie stark das Bild durchkommt, entscheidet
+ * er. Die Schrift wird golden, die Trennlinien im Blau des FNCS-Logos
+ * (#0e47de, aus dem Logo selbst gelesen, nicht geraten).
+ */
+body.globals {
+  --akzent: #f5c542;
+  --rand: rgba(245, 197, 66, 0.30);
+  --zeile: rgba(255, 255, 255, 0.06);
+  --fncs: #0e47de;
+}
+body.globals #karte {
+  background-image:
+    linear-gradient(rgb(var(--grund) / var(--deckkraft)),
+                    rgb(var(--grund) / var(--deckkraft))),
+    url('globals/fncs-hoch.jpg');
+  background-size: cover;
+  background-position: center;
+  box-shadow: 0 0 0 1px rgba(245, 197, 66, 0.18), 0 10px 30px rgba(0, 0, 0, 0.45);
+}
+body.globals #kopf {
+  background: linear-gradient(90deg, rgba(14, 71, 222, 0.55), rgba(14, 71, 222, 0));
+  border-bottom: 1px solid rgba(245, 197, 66, 0.35);
+}
+body.globals #titel {
+  color: #ffd766;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.55);
+}
+body.globals td.team { color: #fff7e0; }
+body.globals tr.gold td.team,
+body.globals tr.gold td.platz,
+body.globals tr.gold td.punkte { color: #ffd766; }
+
+/* Das eigene Zeichen, klein in der Kopfzeile - wenn er es anhakt. */
+#marke {
+  height: 1.15em;
+  width: auto;
+  margin-left: .55em;
+  opacity: .85;
+  vertical-align: -0.18em;
+}
 
 html, body {
   background: transparent;
@@ -66,7 +121,7 @@ html, body {
   max-width: 100vw;
   background: rgb(var(--grund) / var(--deckkraft));
   border: 1px solid var(--rand);
-  border-radius: 10px;
+  border-radius: var(--ecken);
   overflow: hidden;
   opacity: 0;
   transform: translateY(-6px);
@@ -195,7 +250,7 @@ td.punkte b.neu { animation: stups .9s ease-out; }
 
 <div id="karte">
   <div id="kopf">
-    <span id="titel">STANDINGS</span>
+    <span id="titel">STANDINGS</span><img id="marke" src="/logos/CompHub-Logo-frei.png" alt="" hidden>
     <!-- Beim Blaettern steht hier, welche Plaetze gerade zu sehen sind. -->
     <span id="spanne" hidden></span>
     <span id="kopfrechts">POINTS</span>
@@ -220,6 +275,18 @@ td.punkte b.neu { animation: stups .9s ease-out; }
     event: '', window: '',
     titel: 'STANDINGS',
     kopfrechts: 'POINTS',
+    thema: '',
+    ecken: 10,
+    marke: 0,
+    /*
+     * Weitere Spieltage desselben Cups - fuer den Gesamtstand.
+     *
+     * Der Betreiber zu den Globals: "da kann er entweder ein Leaderboard nur
+     * von dem heutigen Tag oder ein Leaderboard vom ganzen Tournament
+     * auswaehlen." Steht hier mehr als ein Fenster, werden die Tage
+     * zusammengezaehlt: Punkte, Eliminierungen, Siege und Spiele je Team.
+     */
+    fenster: [],
     /** Von welchem bis zu welchem Platz. */
     von: 1, bis: 5,
     /** Wie oft die Zahlen geholt werden, in Sekunden. */
@@ -387,11 +454,57 @@ td.punkte b.neu { animation: stups .9s ease-out; }
        * Sekunden eine Abfrage an, obwohl sich die Tabelle in der Zeit kaum
        * bewegt.
        */
-      const u = server + '/api/cup-leaderboard?event=' + encodeURIComponent(cfg.event)
-        + '&window=' + encodeURIComponent(cfg.window)
-        + '&limit=' + Math.max(1, letzterPlatz());
-      const d = await (await fetch(u, { cache: 'no-store' })).json();
-      bestand = (d.entries || []);
+      const grenze = Math.max(1, letzterPlatz());
+      const eine = async function (fenster) {
+        const u = server + '/api/cup-leaderboard?event=' + encodeURIComponent(cfg.event)
+          + '&window=' + encodeURIComponent(fenster)
+          + '&limit=' + grenze;
+        const d = await (await fetch(u, { cache: 'no-store' })).json();
+        return d.entries || [];
+      };
+
+      /*
+       * Ein Tag - oder alle Tage zusammen.
+       *
+       * Bei einem mehrtaegigen Finale (Globals: Tag 1 und Tag 2) wollte der
+       * Betreiber beides zeigen koennen: "entweder ein Leaderboard nur von
+       * dem heutigen Tag oder ein Leaderboard vom ganzen Tournament."
+       * Stehen in cfg.fenster mehrere Spieltage, werden sie hier
+       * zusammengezaehlt - Punkte, Eliminierungen, Siege und Spiele je Team,
+       * und der Platz ergibt sich neu aus der Summe. Erfunden wird dabei
+       * nichts: jede Zahl kommt aus Epics Bestenliste des jeweiligen Tages.
+       */
+      const tage = Array.isArray(cfg.fenster) && cfg.fenster.length > 1
+        ? cfg.fenster : [cfg.window];
+
+      if (tage.length === 1) {
+        bestand = await eine(tage[0]);
+      } else {
+        const zusammen = new Map();
+        for (const f of tage) {
+          let zeilen = [];
+          try { zeilen = await eine(f); } catch (e) { zeilen = []; }
+          for (const e of zeilen) {
+            const ids = (e.players || []).map(function (p) { return p.id || p.name; });
+            const schluessel = ids.slice().sort().join('|');
+            const da = zusammen.get(schluessel);
+            if (da) {
+              da.points += e.points || 0;
+              da.elims += e.elims || 0;
+              da.wins += e.wins || 0;
+              da.games += e.games || 0;
+            } else {
+              zusammen.set(schluessel, {
+                players: e.players, points: e.points || 0, elims: e.elims || 0,
+                wins: e.wins || 0, games: e.games || 0, rank: 0,
+              });
+            }
+          }
+        }
+        bestand = Array.from(zusammen.values())
+          .sort(function (a, b) { return b.points - a.points || b.elims - a.elims; })
+          .map(function (e, i) { e.rank = i + 1; return e; });
+      }
       if (!bestand.length) return meldung('No standings yet');
       seiteZeigen();
     } catch (e) {
@@ -410,6 +523,9 @@ td.punkte b.neu { animation: stups .9s ease-out; }
       s.setProperty('--akzent', String(cfg.akzent));
       s.setProperty('--schrift', cfg.schrift + 'px');
       s.setProperty('--breite', cfg.breite + 'px');
+      s.setProperty('--ecken', (Number(cfg.ecken) || 0) + 'px');
+      document.body.classList.toggle('globals', cfg.thema === 'globals');
+      $('marke').hidden = !Number(cfg.marke);
       $('titel').textContent = String(cfg.titel || 'STANDINGS');
       $('kopfrechts').textContent = String(cfg.kopfrechts || 'POINTS');
 

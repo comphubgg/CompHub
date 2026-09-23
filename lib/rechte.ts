@@ -28,6 +28,36 @@ export const BEREICHE = [
 
 export type Bereich = typeof BEREICHE[number]['schluessel'];
 
+/*
+ * Zusaetzliche Bereiche, die ein VIP bekommen kann - nicht nur ein Manager.
+ *
+ * Anlass: die FNCS Global Championship 2026. Der Betreiber wollte einem
+ * Streamer die dafuer gebauten Overlays geben, ohne ihn zum Manager zu
+ * machen: "dann kann ich sozusagen einstellen, welche Streamer von was
+ * Zugriff haben ... er sieht das fuer sich selber nur im Dashboard." Der
+ * Schluessel steht wie ein Recht in der Liste des Zugangs; wer ihn hat,
+ * sieht im Dashboard den VIP-Block.
+ */
+export const VIP_BEREICHE = [
+  {
+    schluessel: 'globals',
+    titel: 'Overlays (Globals 2026)',
+    was: 'Leaderboard, Spieler-Banner und freies Overlay im Aussehen der Global Championship',
+  },
+] as const;
+
+export type VipBereich = typeof VIP_BEREICHE[number]['schluessel'];
+
+/** Hat dieser Zugang einen der zusaetzlichen VIP-Bereiche? */
+export function darfVip(
+  rolle: 'admin' | 'manager' | 'pro' | null | undefined,
+  rechte: string[] | undefined,
+  bereich: VipBereich,
+): boolean {
+  if (rolle === 'admin') return true;
+  return (rechte ?? []).includes(bereich);
+}
+
 export const ALLE_BEREICHE: Bereich[] = BEREICHE.map((b) => b.schluessel);
 
 /**

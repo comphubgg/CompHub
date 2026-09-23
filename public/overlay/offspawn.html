@@ -30,6 +30,32 @@
   --text: #ffffff;
   --rand: rgba(255, 255, 255, 0.09);
   --massstab: 1;
+  /* Wie rund die Ecken sind - umstellbar wie bei der Bestenliste. */
+  --ecken: 12px;
+}
+
+/*
+ * ------------------------------------------------- FNCS Global Championship
+ *
+ * Dasselbe Aussehen wie bei der Bestenliste: Epics Banner-Grafik ohne Logo
+ * und Schrift als Hintergrund, darueber die schwarze Folie des
+ * Deckkraft-Reglers, goldene Schrift, das Blau des FNCS-Logos als Rahmen.
+ * Der Betreiber wollte auch das freie Overlay ("Custom Overlay") in den
+ * Farben der Globals - dort zaehlt er waehrend des Turniers 1v1s und 4v4s
+ * mit.
+ */
+body.globals {
+  --rand: rgba(245, 197, 66, 0.30);
+  --text: #fff7e0;
+}
+body.globals #karte {
+  background-image:
+    linear-gradient(rgb(var(--grund) / var(--deckkraft)),
+                    rgb(var(--grund) / var(--deckkraft))),
+    url('globals/fncs-breit.jpg');
+  background-size: cover;
+  background-position: center;
+  box-shadow: 0 0 0 1px rgba(245, 197, 66, 0.18), 0 10px 30px rgba(0, 0, 0, 0.45);
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -88,7 +114,7 @@ html, body {
   max-width: 100vw;
   background: rgb(var(--grund) / var(--deckkraft));
   border: 1px solid var(--rand);
-  border-radius: 12px;
+  border-radius: var(--ecken);
   /* Damit die Fotos an den Ecken sauber vom Kasten beschnitten werden. */
   overflow: hidden;
   color: var(--text);
@@ -292,6 +318,8 @@ html, body {
       s.setProperty('--breite',
         Number(cfg.breite) > 0 ? Number(cfg.breite) + 'px' : 'max-content');
       s.setProperty('--massstab', String(Number(cfg.massstab) || 1));
+      s.setProperty('--ecken', (Number(cfg.ecken ?? 12)) + 'px');
+      document.body.classList.toggle('globals', cfg.thema === 'globals');
 
       // Der Rahmen wird versteckt, nicht das Bild darin: er traegt die Groesse.
       for (const [rahmen, bild, pfad] of

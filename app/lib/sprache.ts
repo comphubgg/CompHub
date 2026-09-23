@@ -1953,6 +1953,38 @@ const AUF_ENGLISCH: Record<string, string> = {
     'sessions',
   'Anderes Event wählen':
     'Pick another event',
+  'Custom overlay':
+    'Custom overlay',
+  'Overlays (Globals 2026)':
+    'Overlays (Globals 2026)',
+  'Spieler-Banner (Globals 2026)':
+    'Player banner (Globals 2026)',
+  'Custom overlay (Globals 2026)':
+    'Custom overlay (Globals 2026)',
+  'Leaderboard im Aussehen der Global Championship':
+    'Leaderboard in the look of the Global Championship',
+  'Zwei Spieler mit Foto, in den Farben des Turniers':
+    'Two players with photos, in the colours of the tournament',
+  'Freier Stand - 1v1s, 4v4s, alles mit eigenem Titel':
+    'Free scoreboard — 1v1s, 4v4s, with your own title',
+  'VIP-Bereiche':
+    'VIP areas',
+  'Leaderboard, Spieler-Banner und freies Overlay im Aussehen der Global Championship':
+    'Leaderboard, player banner and free overlay in the look of the Global Championship',
+  'Thema':
+    'Theme',
+  'Ecken':
+    'Corners',
+  'FNCS Globals':
+    'FNCS Globals',
+  'Gesamtstand über alle Tage':
+    'Overall standings across all days',
+  'Tage werden zusammengezählt':
+    'days are added up',
+  'Nur der gewählte Spieltag':
+    'only the selected day',
+  'CompHub-Zeichen in der Kopfzeile':
+    'CompHub mark in the header',
   'Something Big Is Coming':
     'Something Big Is Coming',
   'Scrims der Community-Server — Leaderboards, Sessions und Statistiken, direkt auf CompHub.':

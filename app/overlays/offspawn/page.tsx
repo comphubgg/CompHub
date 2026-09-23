@@ -37,6 +37,10 @@ const STANDARD = {
   bild1: '', bild2: '',
   grund: '0 0 0', deckkraft: 0.72,
   schrift: 30,
+  /** Das Aussehen: leer ist das gewohnte, "globals" das der FNCS-Globals. */
+  thema: '' as '' | 'globals',
+  /** Wie rund die Ecken sind. */
+  ecken: 12,
 };
 
 type Config = typeof STANDARD;
@@ -62,7 +66,7 @@ export default function OffspawnSeite() {
   const { liste, fehler, speichern, entfernen } = useOverlays('offspawn');
 
   const [id, setId] = useState<string | null>(null);
-  const [name, setName] = useState('Offspawn');
+  const [name, setName] = useState('Custom overlay');
   const [cfg, setCfg] = useState<Config>(STANDARD);
   const [gespeichert, setGespeichert] = useState(false);
   const [schmutzig, setSchmutzig] = useState(false);
@@ -181,7 +185,7 @@ export default function OffspawnSeite() {
   return (
     <OverlayGeruest aktiv="offspawn">
       <div className="mb-5">
-        <h1 className="text-xl font-semibold text-slate-100"><T>Offspawn</T></h1>
+        <h1 className="text-xl font-semibold text-slate-100"><T>Custom overlay</T></h1>
         <p className="mt-1 text-sm text-slate-500">
           <T>Zwei Teams, ein Stand von Hand. Epic weiß davon nichts — was hier
           steht, steht im Stream.</T>
@@ -334,8 +338,21 @@ export default function OffspawnSeite() {
                 setzen={(w) => setz('farbe2', w)} />
               <Wahlreihe titel="Grundfarbe" wert={cfg.grund} optionen={GRUENDE}
                 setzen={(w) => setz('grund', w)} />
+              {/* Das Aussehen der Global Championship - siehe offspawn.html. */}
+              <Wahlreihe titel="Thema" wert={cfg.thema}
+                optionen={[
+                  { wert: '' as const, titel: 'Standard' },
+                  { wert: 'globals' as const, titel: 'FNCS Globals' },
+                ]}
+                setzen={(w) => setCfg((a) => ({
+                  ...a, thema: w,
+                  farbe1: w === 'globals' && a.farbe1 === '#ffffff' ? '#f5c542' : a.farbe1,
+                  farbe2: w === 'globals' && a.farbe2 === '#ffffff' ? '#f5c542' : a.farbe2,
+                }))} />
               <Regler titel="Schriftgröße" wert={cfg.schrift} von={14} bis={80}
                 einheit="px" setzen={(n) => setz('schrift', n)} />
+              <Regler titel="Ecken" wert={cfg.ecken} von={0} bis={28}
+                einheit="px" setzen={(n) => setz('ecken', n)} />
               {/*
                 * Kein Regler mehr fuer die Bildgroesse.
                 *

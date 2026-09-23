@@ -23,6 +23,19 @@ import { CupWahl, MeineListe, Regler, Vorschau, Wahlreihe } from '../Teile';
 const STANDARD = {
   event: '', window: '',
   titel: 'STANDINGS',
+  /** Das Aussehen: leer ist das gewohnte, "globals" das der FNCS-Globals. */
+  thema: '' as '' | 'globals',
+  /** Wie rund die Ecken sind. */
+  ecken: 10,
+  /** Das eigene Zeichen klein in der Kopfzeile. */
+  marke: 0,
+  /**
+   * Alle Spieltage des Cups - fuer den Gesamtstand ueber mehrere Tage.
+   *
+   * Leer oder einer: es zaehlt nur das gewaehlte Fenster. Mehrere: das
+   * Overlay zaehlt die Tage zusammen (siehe standings.html).
+   */
+  fenster: [] as string[],
   kopfrechts: 'POINTS',
   von: 1, bis: 5,
   takt: 15,
@@ -89,6 +102,46 @@ export default function StandingsSeite() {
       setTimeout(() => setGespeichert(false), 2000);
     }
   }
+
+  /*
+   * Die Spieltage desselben Cups - fuer den Gesamtstand.
+   *
+   * Ein Finale laeuft ueber mehrere Tage (Globals: Tag 1 und Tag 2), und der
+   * Betreiber wollte beides zeigen koennen: nur den heutigen Tag oder den
+   * Stand ueber das ganze Turnier. Welche Tage es gibt, steht im Katalog -
+   * hier werden sie zum gewaehlten Fenster gesucht.
+   */
+  const [tage, setTage] = useState<Array<{ windowId: string; begin: number }>>([]);
+  useEffect(() => {
+    let weg = false;
+    if (!cfg.event || !cfg.window) {
+      const leer = setTimeout(() => setTage([]), 0);
+      return () => { weg = true; clearTimeout(leer); };
+    }
+    fetch('/api/cup-catalog?modus=alle')
+      .then((r) => r.json())
+      .then((j) => {
+        if (weg) return;
+        const alle: Array<{ windowId: string; begin: number; region: string; eventId: string }> = [];
+        for (const c of j.cups ?? []) {
+          for (const liste of Object.values(c.regionen ?? {})) {
+            for (const w of liste as Array<{ eventId: string; windowId: string; begin: number; region: string }>) {
+              alle.push({ eventId: w.eventId, windowId: w.windowId, begin: w.begin, region: w.region });
+            }
+          }
+        }
+        const dieses = alle.find((w) => w.windowId === cfg.window);
+        const dazu = alle
+          .filter((w) => w.eventId === cfg.event && (!dieses || w.region === dieses.region))
+          .sort((a, b) => a.begin - b.begin)
+          .map((w) => ({ windowId: w.windowId, begin: w.begin }));
+        setTage(dazu);
+      })
+      .catch(() => { if (!weg) setTage([]); });
+    return () => { weg = true; };
+  }, [cfg.event, cfg.window]);
+
+  const gesamt = (cfg.fenster?.length ?? 0) > 1;
 
   /*
    * Die Vorschau zeigt dasselbe Overlay, das spaeter in OBS laeuft.
@@ -160,6 +213,9 @@ export default function StandingsSeite() {
               <CupWahl event={cfg.event} window={cfg.window}
                 onWahl={(e, w, titel) => setCfg((alt) => ({
                   ...alt, event: e, window: w,
+                  // Ein anderer Cup, ein anderer Gesamtstand: die Tage
+                  // werden neu gesammelt, sobald er ihn wieder anhakt.
+                  fenster: [],
                   // Der Titel wird vorgeschlagen, bleibt aber überschreibbar.
                   titel: alt.titel === STANDARD.titel && titel
                     ? titel.toUpperCase() : alt.titel,
@@ -286,6 +342,54 @@ export default function StandingsSeite() {
               <Regler titel="Aktualisierung" wert={cfg.takt} von={3} bis={120}
                 einheit="s" setzen={(n) => setz('takt', n)} />
 
+              {/*
+                * Das Aussehen fuer die FNCS Global Championship.
+                *
+                * Der Betreiber vor den Globals 2026: "dieser Overlay soll
+                * extra farblich angepasst werden fuer die Global
+                * Championships." Der Hintergrund ist Epics eigene
+                * Banner-Grafik, aus der Logo und Schrift heraus sind;
+                * darueber liegt dieselbe schwarze Folie wie sonst.
+                */}
+              <Wahlreihe titel="Thema" wert={cfg.thema}
+                optionen={[
+                  { wert: '' as const, titel: 'Standard' },
+                  { wert: 'globals' as const, titel: 'FNCS Globals' },
+                ]}
+                setzen={(w) => setCfg((a) => ({
+                  ...a,
+                  thema: w,
+                  // Zum Thema gehoert der goldene Akzent - umstellbar bleibt er.
+                  akzent: w === 'globals' ? '#f5c542' : a.akzent,
+                  deckkraft: w === 'globals' && a.deckkraft > 0.85 ? 0.72 : a.deckkraft,
+                }))} />
+
+              <Regler titel="Ecken" wert={cfg.ecken} von={0} bis={28}
+                einheit="px" setzen={(n) => setz('ecken', n)} />
+
+              {/*
+                * Ein Tag oder das ganze Turnier.
+                *
+                * Nur zu sehen, wenn der Cup ueberhaupt mehrere Spieltage hat -
+                * sonst waere es ein Schalter ohne Wirkung.
+                */}
+              {tage.length > 1 && (
+                <label className="flex items-start gap-2 self-end text-xs text-slate-400">
+                  <input type="checkbox" checked={gesamt}
+                    onChange={(e) => setz('fenster',
+                      e.target.checked ? tage.map((x) => x.windowId) : [])}
+                    className="mt-0.5 accent-sky-500" />
+                  <span>
+                    <T>Gesamtstand über alle Tage</T>
+                    <span className="mt-0.5 block text-[11px] text-slate-500">
+                      {gesamt
+                        ? `${tage.length} ${t('Tage werden zusammengezählt')}`
+                        : t('Nur der gewählte Spieltag')}
+                    </span>
+                  </span>
+                </label>
+              )}
+
               <Wahlreihe titel="Golden hervorheben" wert={cfg.gold}
                 optionen={[
                   { wert: 0, titel: 'keine' },
@@ -293,6 +397,13 @@ export default function StandingsSeite() {
                   { wert: 3, titel: 'Top 3' },
                 ]}
                 setzen={(w) => setz('gold', w)} />
+
+              <label className="flex items-center gap-2 self-end text-xs text-slate-400">
+                <input type="checkbox" checked={Boolean(cfg.marke)}
+                  onChange={(e) => setz('marke', e.target.checked ? 1 : 0)}
+                  className="accent-sky-500" />
+                <T>CompHub-Zeichen in der Kopfzeile</T>
+              </label>
 
               <label className="flex items-center gap-2 self-end text-xs text-slate-400">
                 <input type="checkbox" checked={cfg.bilder}
