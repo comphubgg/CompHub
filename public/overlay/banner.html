@@ -485,6 +485,21 @@ function aktuelleNamen() {
   return [(n[0] || '').trim(), (n[1] || '').trim()];
 }
 
+/*
+ * Die von Hand gewaehlten Fotos zum aktuellen Duo.
+ *
+ * Leer heisst: das gepflegte Foto des Kontos nehmen, wie bisher. "-" heisst:
+ * gar keines. Sonst steht dort der Pfad eines Fotos aus dem Archiv. Der
+ * Betreiber wollte es waehlen koennen - "bei den Globals Overlay fuer
+ * 1v1/2v2 usw soll man auch Profile Picture auswaehlen koennen".
+ */
+const TEAMFOTOS = (P.get('fotos') || '').split(';').map(t => t.split(','));
+function aktuelleFotos() {
+  if (!TEAMS.length) return [P.get('f1') || '', P.get('f2') || ''];
+  const f = TEAMFOTOS[teamNr % TEAMS.length] || [];
+  return [(f[0] || '').trim(), (f[1] || '').trim()];
+}
+
 /**
  * Das Foto zu einem Spieler.
  *
@@ -496,7 +511,10 @@ function aktuelleNamen() {
  * Nur der Rueckfall, nie der erste Weg - die Konto-Id ist eindeutig, ein
  * Name ist es nicht.
  */
-async function fotoNachName(spieler, eingetragen) {
+async function fotoNachName(spieler, eingetragen, gewaehlt) {
+  // Was von Hand gewaehlt wurde, gilt - auch die Entscheidung gegen ein Bild.
+  if (gewaehlt === '-') return null;
+  if (gewaehlt) return gewaehlt;
   if (spieler && spieler.img) return spieler.img;
   const n = eingetragen || (spieler && spieler.name);
   if (!n) return null;
@@ -652,9 +670,10 @@ async function zeichne(sanft) {
   passeGroesseAn();
   namenEinpassen();
 
+  const [w1, w2] = aktuelleFotos();
   const [f1, f2] = await Promise.all([
-    fotoNachName(liste[0], g1),
-    fotoNachName(liste[1], g2),
+    fotoNachName(liste[0], g1, w1),
+    fotoNachName(liste[1], g2, w2),
   ]);
   zeigeFoto(document.getElementById('foto1'), document.getElementById('bild1'), f1);
   zeigeFoto(document.getElementById('foto2'), document.getElementById('bild2'), f2);

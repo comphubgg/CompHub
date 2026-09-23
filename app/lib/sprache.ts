@@ -1106,6 +1106,80 @@ const AUF_ENGLISCH: Record<string, string> = {
   ['Nicht gespeichert — beim nächsten Tippen versuche ich es erneut.']:
     'Not saved — I will try again on your next keystroke.',
 
+  /* ------------------------------------------------ Globals 2026
+   *
+   * Die eigene Seite zur FNCS Global Championship: /globals mit Overlays,
+   * Teams, Karte und Prognose. Alles, was dort neu dazukam, steht hier -
+   * sonst stuende Deutsch in der englischen Ansicht.
+   */
+  'Die Globals-Seite wird einzeln vergeben — mit einem gewöhnlichen Konto ist sie nicht zugänglich.':
+    'The Globals page is granted individually — a regular account cannot open it.',
+  'Alles zur Global Championship an einem Ort — die Einblendungen für deinen Stream, das Feld, die Karte und der Tipp auf den Ausgang. Die Overlays kennen nur dieses Turnier; einen Cup auszuwählen gibt es hier nicht.':
+    'Everything about the Global Championship in one place — the overlays for your stream, the field, the map and your call on the outcome. The overlays know only this tournament; there is no cup to pick here.',
+  'Die Spieltage': 'The match days',
+  'Welche Spieltage es wirklich gibt, holt jede Seite aus Epics Turnierkatalog. Kommt dort ein dritter Tag dazu, steht er überall von selbst mit drin.':
+    'Which match days actually exist comes from Epic’s tournament catalogue. If a third day appears there, it shows up here by itself.',
+  'Leaderboard, Spieler-Banner und freies Overlay - im Aussehen der Globals':
+    'Leaderboard, player banner and free overlay — in the look of the Globals',
+  'Wer im Feld steht, und aus welchem Land': 'Who is in the field, and from which country',
+  'Die Karte des Turniers - wer wo landet': 'The tournament map — who lands where',
+  'Der Tipp auf den Ausgang': 'Your call on the outcome',
+
+  'Drei Einblendungen, alle im Aussehen der Global Championship. Einen Cup gibt es hier nicht auszuwählen — nur die beiden Spieltage des Turniers.':
+    'Three overlays, all in the look of the Global Championship. There is no cup to pick here — only the two match days of the tournament.',
+  'Spieler-Banner': 'Player banner',
+  'Freies Overlay': 'Free overlay',
+  'Die vordersten Plätze — ein Spieltag oder der Gesamtstand über beide':
+    'The leading places — one match day or the combined standings',
+  'Zwei Spieler mit Foto und ihren Werten — Foto selbst wählbar':
+    'Two players with photo and their numbers — photo of your choosing',
+  '1v1s, 2v2s und alles andere — Stand von Hand, Titel frei':
+    '1v1s, 2v2s and anything else — score by hand, title your own',
+  'Einstellen': 'Set up',
+  'Ein Banner für deinen Stream — Spieltag wählen, Duo wählen, fertig. Das Aussehen ist das der Global Championship.':
+    'A banner for your stream — pick the match day, pick the duo, done. The look is the Global Championship’s.',
+
+  'Spieler suchen': 'Search player',
+  'Epic führt zu diesem Spieltag noch keine Teilnehmerliste. Sobald sie steht, stehen die Teams hier — erfunden wird hier nichts.':
+    'Epic does not list the entrants for this match day yet. As soon as it does, the teams show up here — nothing is invented.',
+  'Flagge und Foto von {n} der {m} Konten — Epic legt für das LAN eigene Konten an, zugeordnet wird über den Namen. Wer nicht eindeutig zuzuordnen ist, bleibt ohne Flagge.':
+    'Flag and photo for {n} of {m} accounts — Epic creates separate accounts for the LAN, so the match runs over the name. Anyone who cannot be matched beyond doubt stays without a flag.',
+
+  'Noch keine Karte für die Globals': 'No map for the Globals yet',
+  'Die Karte entsteht im Karten-Werkzeug: Formen setzen, Teams darauf ziehen. Hier wird nichts von selbst verteilt — wer wo landet, entscheidest du.':
+    'The map is built in the map tool: place the shapes, drag the teams onto them. Nothing is placed for you here — who lands where is your call.',
+  'Karte anlegen': 'Create a map',
+  'Im Karten-Werkzeug öffnen': 'Open in the map tool',
+  'Nur zum Ansehen — verschoben wird im Karten-Werkzeug.':
+    'For viewing only — moving happens in the map tool.',
+
+  'Noch keine Prognose für die Globals': 'No prediction for the Globals yet',
+  'Die Reihenfolge legst du im Prognose-Werkzeug fest. Hier steht danach, was du getippt hast — ausgedacht wird hier nichts.':
+    'You set the order in the prediction tool. What you called then shows up here — nothing is made up.',
+  'Prognose anlegen': 'Create a prediction',
+  'Ausführliche Prognose': 'Full prediction',
+
+  'kein': 'none',
+  'eigenes Foto': 'own photo',
+  'Foto automatisch': 'photo automatic',
+  'Automatisch': 'Automatic',
+  'Kein Foto': 'No photo',
+  'Anderes Foto — Namen eintippen': 'Another photo — type a name',
+  'Namen eintippen — gezeigt wird, wer ein Foto hat.':
+    'Type a name — anyone with a photo shows up.',
+  'Niemand mit Foto gefunden.': 'Nobody with a photo found.',
+
+  // Scrims - das Beispiel, solange kein Server verbunden ist
+  'Bis dahin steht hier ein Beispiel — so sieht die Seite aus, sobald ein Server verbunden ist. Keine dieser Zahlen ist echt.':
+    'Until then this is an example — that is how the page looks once a server is connected. None of these numbers are real.',
+  'Beispiel': 'Example',
+  'angeschlossen': 'connected',
+  'Der Einladungslink kommt vom Server selbst — sobald er verbunden ist, steht er hier.':
+    'The invite link comes from the server itself — once it is connected, it shows up here.',
+
+  // Die Uebersicht der Overlays - fruehr "Studio"
+  'Overview': 'Overview',
+
   // Tierlist - was dasteht, wenn nichts dasteht
   'Kein Spieler gefunden': 'No players found',
   'Alle Spieler sind eingestuft': 'All players assigned',

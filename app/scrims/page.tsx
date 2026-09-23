@@ -63,6 +63,68 @@ const PUNKTE = {
   backgroundSize: '22px 22px, 100% 100%',
 } as const;
 
+
+/*
+ * ------------------------------------------------------------- Beispiel
+ *
+ * Solange kein Discord-Server die App freigeschaltet hat, steht hier nichts
+ * als ein Hinweis - und der Betreiber sieht nicht, was die Seite einmal
+ * koennen soll. Er wollte sie deshalb fertig sehen: "Bau die Scrims-Seite
+ * schon 'fertig' mit Platzhalter, den DC-Server von den Scrims, die Seiten
+ * und Buttons usw."
+ *
+ * Genau das ist das Folgende - und es ist als Beispiel gekennzeichnet, an
+ * jeder Kachel und ueber der ganzen Ansicht. Zahlen, die echt aussehen,
+ * aber keine sind, waeren das Schlimmste, was diese Seite haben koennte;
+ * sobald ein Server verbunden ist, verschwindet das Beispiel von selbst.
+ */
+const BEISPIEL_SERVER: Server[] = [
+  { guildId: 'beispiel-1', name: 'Scrim Server 1', bild: null, rechte: [] },
+  { guildId: 'beispiel-2', name: 'Scrim Server 2', bild: null, rechte: [] },
+];
+
+const BEISPIEL_TURNIERE: Turnier[] = [
+  {
+    id: 'beispiel-eu-duo', name: 'EU Duo Scrims', teamGroesse: 2, region: 'EU',
+    beginn: 0, ende: 0, art: 'SCRIM', bauen: 'BUILD', spielart: 'BR',
+    live: true, vorbei: false,
+  },
+  {
+    id: 'beispiel-eu-zb', name: 'EU Zero Build Scrims', teamGroesse: 2, region: 'EU',
+    beginn: 0, ende: 0, art: 'SCRIM', bauen: 'ZERO_BUILD', spielart: 'BR',
+    live: false, vorbei: false,
+  },
+  {
+    id: 'beispiel-nae-trio', name: 'NA East Trio Scrims', teamGroesse: 3, region: 'NAC',
+    beginn: 0, ende: 0, art: 'SCRIM', bauen: 'BUILD', spielart: 'BR',
+    live: false, vorbei: true,
+  },
+];
+
+/** Eine Bestenliste, wie sie aussieht - mit Platzhaltern statt Namen. */
+const BEISPIEL_TEAMS: Team[] = Array.from({ length: 10 }, (_, i) => ({
+  teamId: `beispiel-${i}`,
+  spieler: [{ name: `Player ${i * 2 + 1}` }, { name: `Player ${i * 2 + 2}` }],
+  platz: i + 1,
+  punkte: 96 - i * 7,
+  elims: 40 - i * 3,
+  matches: 6,
+  siege: i === 0 ? 2 : i < 3 ? 1 : 0,
+  elimsJeMatch: +((40 - i * 3) / 6).toFixed(1),
+  schnittPlatz: +(3.2 + i * 0.8).toFixed(1),
+  zeitSchnitt: 0,
+  spiele: [],
+}));
+
+const BEISPIEL_RUNDEN: Runde[] = Array.from({ length: 6 }, (_, i) => ({
+  sessionId: `beispiel-runde-${i}`,
+  zeitpunkt: 0,
+  gastgeber: null,
+  spieler: 98 - i * 2,
+  gewertet: 'SCORED',
+  ignoriert: false,
+}));
+
 export default function ScrimsSeite() {
   const { sprache, t } = useSprache();
   const zugang = useZugang();
@@ -79,20 +141,30 @@ export default function ScrimsSeite() {
   const [laedtCup, setLaedtCup] = useState(false);
   const [hinweis, setHinweis] = useState('');
   const [region, setRegion] = useState('alle');
+  /** Steht hier gerade das Beispiel statt echter Scrims? */
+  const [beispiel, setBeispiel] = useState(false);
 
   const darf = zugang.admin;
 
   /** Die freigeschalteten Server und ihre Scrims - alles in einem Zug. */
   const holen = useCallback(async () => {
     setHinweis('');
+    setBeispiel(false);
+    /** Nichts Echtes da: die Seite zeigt das Beispiel, klar als solches. */
+    const zeigeBeispiel = (grund: string) => {
+      setHinweis(grund);
+      setBeispiel(true);
+      setServer(BEISPIEL_SERVER);
+      setTurniere(BEISPIEL_TURNIERE);
+    };
     try {
       const d = await fetch('/api/scrims').then((r) => r.json());
       if (d.error === 'nicht-eingerichtet' || d.eingerichtet === false) {
-        setHinweis('nicht-eingerichtet'); setServer([]); setTurniere([]); return;
+        zeigeBeispiel('nicht-eingerichtet'); return;
       }
       const liste: Server[] = d.server ?? [];
       setServer(liste);
-      if (!liste.length) { setHinweis('kein-server'); setTurniere([]); return; }
+      if (!liste.length) { zeigeBeispiel('kein-server'); return; }
 
       const alle: Turnier[] = [];
       let ohnePremium = 0;
@@ -103,9 +175,9 @@ export default function ScrimsSeite() {
       }
       alle.sort((a, b) => (b.live ? 1 : 0) - (a.live ? 1 : 0) || b.beginn - a.beginn);
       setTurniere(alle);
-      if (!alle.length) setHinweis(ohnePremium ? 'kein-premium' : 'keine-scrims');
+      if (!alle.length) zeigeBeispiel(ohnePremium ? 'kein-premium' : 'keine-scrims');
     } catch {
-      setHinweis('fehler');
+      zeigeBeispiel('fehler');
     } finally { setLaedt(false); }
   }, []);
 
@@ -122,7 +194,10 @@ export default function ScrimsSeite() {
 
   /** Ein Scrim öffnen: Bestenliste und Runden dazu. */
   async function oeffnen(tn: Turnier & { guildId?: string }) {
-    setOffen(tn); setTeams([]); setRunden([]); setLaedtCup(true);
+    setOffen(tn); setTeams([]); setRunden([]);
+    // Das Beispiel braucht keine Abfrage - es steht schon fest.
+    if (beispiel) { setTeams(BEISPIEL_TEAMS); setRunden(BEISPIEL_RUNDEN); return; }
+    setLaedtCup(true);
     try {
       const gid = (tn as { guildId?: string }).guildId ?? server[0]?.guildId;
       const d = await fetch(`/api/scrims?server=${encodeURIComponent(gid ?? '')}`
@@ -216,8 +291,11 @@ export default function ScrimsSeite() {
           </div>
         )}
 
-        {laedt || zugang.laedt ? <LadeSchirm /> : hinweis ? (
-          <div className="rounded-xl border border-zinc-800 bg-black/40 p-6 text-center text-sm text-slate-400">
+        {laedt || zugang.laedt ? <LadeSchirm /> : (
+          <>
+        {hinweis && (
+          <div className="mb-4 rounded-xl border border-amber-500/25 bg-amber-500/[0.06]
+                          px-4 py-3 text-sm text-amber-200/90">
             {hinweis === 'nicht-eingerichtet' && (
               <T>Yunite ist noch nicht eingerichtet — es fehlt der Schlüssel der App.</T>
             )}
@@ -229,8 +307,55 @@ export default function ScrimsSeite() {
             )}
             {hinweis === 'keine-scrims' && <T>Dieser Server hat noch keine Scrims veranstaltet.</T>}
             {hinweis === 'fehler' && <T>Yunite antwortet gerade nicht.</T>}
+            {beispiel && (
+              <p className="mt-1 text-[11px] text-amber-200/70">
+                <T>Bis dahin steht hier ein Beispiel — so sieht die Seite aus,
+                sobald ein Server verbunden ist. Keine dieser Zahlen ist echt.</T>
+              </p>
+            )}
           </div>
-        ) : offen ? (
+        )}
+
+        {/*
+          * Die Discord-Server, von denen die Scrims kommen.
+          *
+          * Der Betreiber wollte sie sehen ("den DC-Server von den Scrims").
+          * Ein Einladungslink steht in Yunites Auskunft nicht drin - wo
+          * keiner bekannt ist, steht deshalb auch keiner, statt einen zu
+          * erfinden, der ins Leere fuehrt.
+          */}
+        {server.length > 0 && (
+          <div className="mb-4 flex flex-wrap gap-2">
+            {server.map((s) => (
+              <div key={s.guildId}
+                className={`flex items-center gap-2.5 rounded-xl border bg-black/40 px-3 py-2
+                  ${beispiel ? 'border-dashed border-zinc-700' : 'border-zinc-800'}`}>
+                {s.bild ? (
+                  /* eslint-disable-next-line @next/next/no-img-element */
+                  <img src={s.bild} alt="" className="h-8 w-8 rounded-full object-cover" />
+                ) : (
+                  <span className="grid h-8 w-8 place-items-center rounded-full bg-zinc-900
+                                   text-[11px] font-bold text-slate-500">
+                    {s.name.slice(0, 2).toUpperCase()}
+                  </span>
+                )}
+                <div className="min-w-0">
+                  <p className="truncate text-sm text-slate-200">{s.name}</p>
+                  <p className="text-[10px] uppercase tracking-wider text-slate-600">
+                    {beispiel ? <T>Beispiel</T> : <T>angeschlossen</T>}
+                  </p>
+                </div>
+                <span className="ml-2 rounded-lg border border-zinc-800 px-2.5 py-1 text-[11px]
+                                 text-slate-600"
+                  title={t('Der Einladungslink kommt vom Server selbst — sobald er verbunden ist, steht er hier.')}>
+                  Discord
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
+
+        {offen ? (
           /* ---------------------------------------------- Ein Scrim offen */
           <div>
             <button onClick={() => setOffen(null)}
@@ -346,8 +471,9 @@ export default function ScrimsSeite() {
               const s = server.find((x) => (tn as { guildId?: string }).guildId === x.guildId) ?? server[0];
               return (
                 <button key={tn.id} onClick={() => oeffnen({ ...tn, guildId: s?.guildId })}
-                  className="group overflow-hidden rounded-xl border border-zinc-800 bg-black/40
-                             text-left transition hover:border-sky-500/60">
+                  className={`group relative overflow-hidden rounded-xl bg-black/40 text-left
+                    transition hover:border-sky-500/60 ${beispiel
+                      ? 'border border-dashed border-zinc-700' : 'border border-zinc-800'}`}>
                   <div className="relative h-40 w-full overflow-hidden bg-zinc-900">
                     {tn.bild ? (
                       /* eslint-disable-next-line @next/next/no-img-element */
@@ -392,10 +518,18 @@ export default function ScrimsSeite() {
                       {s?.name && <> · {s.name}</>}
                     </p>
                   </div>
+                  {beispiel && (
+                    <span className="absolute bottom-2 right-2 rounded bg-black/80 px-2 py-0.5
+                                     text-[10px] font-bold uppercase tracking-wider text-amber-300">
+                      <T>Beispiel</T>
+                    </span>
+                  )}
                 </button>
               );
             })}
           </div>
+        )}
+          </>
         )}
       </div>
     </main>

@@ -27,10 +27,18 @@ import { ARTEN, type OverlayEintrag } from '../OverlayGeruest';
  *      Studio, mit Cup-Auswahl, Reglern und eigener Vorschau.
  *   3. Speichern dort: das Element auf dem Bild zeigt ab sofort dieses
  *      Overlay. Verschieben mit der Maus, die Ecke zieht die Groesse.
- *   4. Cam, Gameplay und Werbung sind Platzhalter - nur hier zu sehen, damit
- *      klar ist, was frei bleiben muss; in OBS erscheinen sie nicht.
- *   5. Die Szene hat eine Adresse fuer OBS. Was hier steht, steht dort.
+ *   4. Die Szene hat eine Adresse fuer OBS. Was hier steht, steht dort.
  *      Sobald die Szene einen Namen hat, speichert sie sich von selbst.
+ *
+ * Am 23.9.2026 hat der Betreiber das eingegrenzt: "Unter Overview soll es
+ * nicht so eine Art Studio sein, also nicht, dass man auch Cam, Gameplay,
+ * Werbung usw anzeigen lassen kann, sondern wirklich nur die Overlays. Mach
+ * es einfach alles viel uebersichtlicher und einfacher zu bedienen."
+ *
+ * Also: die Platzhalter fuer Cam, Gameplay und Werbung sind fort - samt der
+ * Leiste, in der sie standen. Was hier liegt, ist ein Overlay und sonst
+ * nichts. Aus alten Szenen werden sie beim Laden entfernt; sie waren
+ * ohnehin nur hier zu sehen und nie in OBS.
  */
 
 const BREITE = 1920;
@@ -38,7 +46,7 @@ const HOEHE = 1080;
 
 interface Element {
   kennung: string;
-  /** Eine Overlay-Art aus ARTEN - oder 'hilfe' fuer Cam, Gameplay, Werbung. */
+  /** Eine Overlay-Art aus ARTEN. */
   art: string;
   /** Das gespeicherte Overlay dieser Art - fehlt, solange es nicht eingerichtet ist. */
   overlayId?: string;
@@ -48,12 +56,6 @@ interface Element {
 
 interface Szene { elemente: Element[] }
 
-const PLATZHALTER: Array<{ name: string; w: number; h: number }> = [
-  { name: 'Cam', w: 480, h: 270 },
-  { name: 'Gameplay', w: 1280, h: 720 },
-  { name: 'Werbung', w: 400, h: 120 },
-];
-
 /** Die Standardgroesse je Art - so gross, wie das Overlay gebaut ist. */
 const GROESSE: Record<string, [number, number]> = {
   teamkarte: [1920, 260], standings: [420, 620], timer: [520, 140],
@@ -62,6 +64,18 @@ const GROESSE: Record<string, [number, number]> = {
 
 function neueKennung() {
   return Math.random().toString(36).slice(2, 10);
+}
+
+/**
+ * Die Elemente einer gespeicherten Szene - ohne die alten Platzhalter.
+ *
+ * Cam, Gameplay und Werbung lagen als Art "hilfe" in der Szene. Sie sind
+ * fort; in alten Szenen stehen sie noch, und dort haetten sie nichts mehr
+ * zu suchen. In OBS waren sie ohnehin nie zu sehen.
+ */
+function ohnePlatzhalter(roh: unknown): Element[] {
+  return (Array.isArray(roh) ? roh as Element[] : [])
+    .filter((e) => e?.art !== 'hilfe');
 }
 
 export default function Studio() {
@@ -110,7 +124,7 @@ export default function Studio() {
     if (o) {
       const cfg = o.config as unknown as Szene;
       ersterStand.current = true;
-      setSzene({ elemente: Array.isArray(cfg?.elemente) ? cfg.elemente : [] });
+      setSzene({ elemente: ohnePlatzhalter(cfg?.elemente) });
       setSzeneId(o.id); setSzeneName(o.name);
     }
     // Nur beim ersten Laden - danach entscheidet der Klick.
@@ -146,12 +160,12 @@ export default function Studio() {
   };
 
   /* ------------------------------------------------- Elemente */
-  const hinzufuegen = (art: string, o?: OverlayEintrag, platzhalter?: { name: string; w: number; h: number }) => {
-    const [w, h] = platzhalter ? [platzhalter.w, platzhalter.h] : (GROESSE[art] ?? [600, 200]);
+  const hinzufuegen = (art: string, o?: OverlayEintrag) => {
+    const [w, h] = GROESSE[art] ?? [600, 200];
     const n = szene.elemente.length;
     const el: Element = {
-      kennung: neueKennung(), art: platzhalter ? 'hilfe' : art,
-      overlayId: o?.id, name: platzhalter ? platzhalter.name : (o?.name ?? (seite(art)?.titel ?? art)),
+      kennung: neueKennung(), art,
+      overlayId: o?.id, name: o?.name ?? (seite(art)?.titel ?? art),
       x: Math.min(60 + n * 30, BREITE - w), y: Math.min(60 + n * 30, HOEHE - h), w, h,
     };
     setSzene((s) => ({ elemente: [...s.elemente, el] }));
@@ -159,7 +173,7 @@ export default function Studio() {
     setLeiste(false);
     // Ein neues Overlay wird gleich eingerichtet - so wollte es der Betreiber:
     // "dann komme ich auf eine Seite, um die Settings einzustellen."
-    if (!platzhalter && !o) einstellen(el);
+    if (!o) einstellen(el);
   };
   const entfernen = (kennung: string) => {
     setSzene((s) => ({ elemente: s.elemente.filter((e) => e.kennung !== kennung) }));
@@ -271,7 +285,7 @@ export default function Studio() {
   const oeffneSzene = (o: OverlayEintrag) => {
     const cfg = o.config as unknown as Szene;
     ersterStand.current = true;
-    setSzene({ elemente: Array.isArray(cfg?.elemente) ? cfg.elemente : [] });
+    setSzene({ elemente: ohnePlatzhalter(cfg?.elemente) });
     setSzeneId(o.id); setSzeneName(o.name); setGewaehlt(null); setLeiste(false);
     try { localStorage.setItem('comphub-studio-szene', o.id); } catch { /* egal */ }
   };
@@ -318,7 +332,7 @@ export default function Studio() {
           <span className="h-0.5 w-5 bg-slate-200" />
         </button>
         <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-          <T>Studio</T>
+          <T>Overview</T>
         </span>
         <input value={szeneName} onChange={(e) => setSzeneName(e.target.value)}
           onBlur={() => { if (szeneId && szeneName.trim()) void speichern(true); }}
@@ -405,22 +419,6 @@ export default function Studio() {
 
             <div>
               <p className="mb-1 px-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                <T>Platzhalter</T>
-              </p>
-              <p className="mb-1 px-1 text-[11px] leading-snug text-slate-600">
-                <T>Nur hier sichtbar, nicht in OBS: wo Cam, Gameplay und Werbung liegen.</T>
-              </p>
-              {PLATZHALTER.map((p) => (
-                <button key={p.name} onClick={() => hinzufuegen('hilfe', undefined, p)}
-                  className="block w-full rounded-lg px-3 py-1.5 text-left text-sm text-slate-300
-                             transition hover:bg-zinc-900/60 hover:text-sky-400">
-                  + <T>{p.name}</T>
-                </button>
-              ))}
-            </div>
-
-            <div>
-              <p className="mb-1 px-1 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
                 <T>Meine Szenen</T>
               </p>
               <button onClick={neueSzene}
@@ -461,17 +459,11 @@ export default function Studio() {
               return (
                 <div key={el.kennung}
                   onPointerDown={(e) => beginne(e, el, 'schieben')}
-                  onDoubleClick={() => { if (el.art !== 'hilfe') einstellen(el); }}
+                  onDoubleClick={() => einstellen(el)}
                   className={`absolute cursor-move select-none rounded-sm ${
                     aktiv ? 'ring-2 ring-sky-500' : 'ring-1 ring-white/10 hover:ring-sky-500/60'}`}
                   style={{ left: el.x * massstab, top: el.y * massstab, width: el.w * massstab, height: el.h * massstab }}>
-                  {el.art === 'hilfe' ? (
-                    <div className="flex h-full w-full items-center justify-center border border-dashed
-                                    border-amber-500/50 bg-amber-500/5 text-xs font-semibold uppercase
-                                    tracking-[0.2em] text-amber-400/80">
-                      <T>{el.name}</T>
-                    </div>
-                  ) : !el.overlayId ? (
+                  {!el.overlayId ? (
                     <div className="flex h-full w-full flex-col items-center justify-center gap-1 border
                                     border-dashed border-sky-500/50 bg-sky-500/5 text-center">
                       <span className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-400/80">{el.name}</span>
@@ -494,12 +486,10 @@ export default function Studio() {
                         className="absolute -bottom-1.5 -right-1.5 h-3.5 w-3.5 cursor-nwse-resize rounded-sm
                                    bg-sky-500" />
                       <div className="absolute -top-8 left-0 flex gap-1" onPointerDown={(e) => e.stopPropagation()}>
-                        {el.art !== 'hilfe' && (
-                          <button onClick={() => einstellen(el)}
-                            className="rounded bg-sky-500 px-2 py-1 text-[11px] font-semibold text-white transition hover:bg-sky-400">
-                            {el.overlayId ? <T>Einstellungen</T> : <T>Einrichten</T>}
-                          </button>
-                        )}
+                        <button onClick={() => einstellen(el)}
+                          className="rounded bg-sky-500 px-2 py-1 text-[11px] font-semibold text-white transition hover:bg-sky-400">
+                          {el.overlayId ? <T>Einstellungen</T> : <T>Einrichten</T>}
+                        </button>
                         <button onClick={() => nachVorn(el.kennung)}
                           className="rounded bg-zinc-900 px-2 py-1 text-[11px] text-slate-200 transition hover:text-sky-400">
                           <T>Nach vorn</T>

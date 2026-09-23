@@ -54,13 +54,18 @@ interface Ziel { href: string; titel: string; text: string }
  * Fuer die FNCS Global Championship 2026 gebaut: dieselben Overlay-Seiten
  * wie sonst, nur mit dem Aussehen des Turniers (Thema "FNCS Globals").
  */
+/*
+ * Der VIP-Block fuehrt auf eine einzige Seite.
+ *
+ * Vorher standen hier drei Kacheln, die in die gewoehnlichen Overlay-Seiten
+ * fuehrten. Der Betreiber wollte es anders: "dann kann man im VIP-Dashboard
+ * einfach die Globals-2026-Seite oeffnen und die drei, vier verschiedenen
+ * Funktionen benutzen." Genau das ist /globals - Overlays, Teams, Karte und
+ * Prognose unter einem Dach und an eigenen Adressen.
+ */
 const VIP_ZIELE: Ziel[] = [
-  { href: '/overlays/standings', titel: 'Overlays (Globals 2026)',
-    text: 'Leaderboard im Aussehen der Global Championship' },
-  { href: '/overlays/teamkarte', titel: 'Spieler-Banner (Globals 2026)',
-    text: 'Zwei Spieler mit Foto, in den Farben des Turniers' },
-  { href: '/overlays/offspawn', titel: 'Custom overlay (Globals 2026)',
-    text: 'Freier Stand - 1v1s, 4v4s, alles mit eigenem Titel' },
+  { href: '/globals', titel: 'Globals 2026',
+    text: 'Overlays, Teams, Karte und Prognose zur Global Championship' },
 ];
 
 /** Wohin jeder springt, der angemeldet ist. */

@@ -388,6 +388,19 @@ td.punkte b.neu { animation: stups .9s ease-out; }
     $('karte').classList.add('da');
   }
 
+  /*
+   * Der Name ohne Turniermarke.
+   *
+   * Bei einem LAN traegt jedes Konto die Marke des Turniers vor dem Namen -
+   * bei den Globals 2026 heisst jeder Spieler "[FNCSGC26] GodL Chap". In der
+   * Tabelle frisst das die halbe Zeile und sagt nichts: dass es die Globals
+   * sind, steht in der Ueberschrift.
+   */
+  function spielerName(roh) {
+    var n = String(roh || '').replace(/\[[^\]]*\]\s*/g, '').trim();
+    return n || String(roh || '');
+  }
+
   function zeichnen(eintraege) {
     $('hinweis').hidden = true;
     const tb = $('zeilen');
@@ -423,7 +436,7 @@ td.punkte b.neu { animation: stups .9s ease-out; }
 
       const team = document.createElement('td');
       team.className = 'team';
-      team.textContent = (e.players || []).map((p) => p.name).join(' & ');
+      team.textContent = (e.players || []).map((p) => spielerName(p.name)).join(' & ');
       tr.appendChild(team);
 
       const punkte = document.createElement('td');

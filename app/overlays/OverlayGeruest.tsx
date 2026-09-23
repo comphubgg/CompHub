@@ -234,11 +234,17 @@ export default function OverlayGeruest({ aktiv, children }: {
             <T>Overlays</T>
           </p>
           <nav className="flex flex-wrap gap-1 lg:flex-col">
-            {/* Das Studio: alle Overlays auf einem Stream-Bild anordnen. */}
+            {/*
+              * Die Uebersicht: alle Overlays auf einem Stream-Bild anordnen.
+              * Sie hiess "Studio", bis der Betreiber klarstellte, dass dort
+              * nur Overlays liegen sollen und nichts, was nach Regiepult
+              * aussieht - "unter Overview soll es nicht so eine Art Studio
+              * sein ... sondern wirklich nur die Overlays."
+              */}
             <Link href="/overlays/studio"
               className="rounded-lg border border-sky-500/40 bg-sky-500/10 px-3 py-2 text-sm
                          font-semibold text-sky-400 transition hover:bg-sky-500/20">
-              <T>Studio</T>
+              <T>Overview</T>
             </Link>
             {ARTEN.map((a) => (
               <Link key={a.schluessel} href={a.pfad}
