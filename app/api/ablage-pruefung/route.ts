@@ -58,6 +58,30 @@ async function mailPruefen() {
 
 export async function GET(request: Request) {
   const mitMail = new URL(request.url).searchParams.has('mail');
+  /*
+   * Eine einzelne Datei wirklich lesen - nicht nur nach ihr fragen.
+   *
+   * Am 22.9.2026 meldete diese Auskunft "alles in Ordnung", waehrend die
+   * Anmeldung "Ablage antwortet nicht" sagte: die Probe fragte nur nach dem
+   * Zeitstempel, gelesen hat sie nichts. Mit ?datei=vip-users.json laeuft
+   * derselbe Weg wie bei der Anmeldung, samt Fehlermeldung.
+   */
+  const datei = (new URL(request.url).searchParams.get('datei') ?? '').trim();
+  if (datei) {
+    const t0 = Date.now();
+    try {
+      const roh = await speicher.lies(datei);
+      return NextResponse.json({
+        datei, gelesen: Boolean(roh), bytes: roh?.length ?? 0,
+        dauerMs: Date.now() - t0, fehler: null,
+      }, { headers: { 'Cache-Control': 'no-store' } });
+    } catch (e) {
+      return NextResponse.json({
+        datei, gelesen: false, bytes: 0, dauerMs: Date.now() - t0,
+        fehler: (e as Error).message,
+      }, { headers: { 'Cache-Control': 'no-store' } });
+    }
+  }
   const gewaehlt = (process.env.COMPHUB_ABLAGE || '(nicht gesetzt)').toLowerCase();
   const beginn = Date.now();
 
