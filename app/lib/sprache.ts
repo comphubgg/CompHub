@@ -1184,6 +1184,53 @@ const AUF_ENGLISCH: Record<string, string> = {
   // Die Uebersicht der Overlays - fruehr "Studio"
   'Overview': 'Overview',
 
+  // Scrims-Seite nach dem Vorbild von Fortnite Tracker
+  'Läuft': 'Ongoing',
+  'Stand der Session': 'Standings',
+  'Keine Sessions.': 'No sessions.',
+  'Server': 'Servers',
+  'Beitreten': 'Join',
+  'Alle Events': 'All events',
+  'Event-Info': 'Event info',
+  'Preise': 'Rewards',
+  'Spieler je Land': 'Players by country',
+  'Die Herkunft der Spieler gibt Yunite nicht heraus.': 'Yunite does not share where the players come from.',
+  'Punkte der Teams': 'Team points',
+  'Insgesamt': 'Event totals',
+  'Steht hier, sobald ein Server verbunden ist.': 'Shows up here as soon as a server is connected.',
+  'Das gibt Yunite zu dieser Session nicht heraus.': 'Yunite does not share this for the session.',
+  'Powered by Yunite': 'Powered by Yunite',
+  'Spieler finden': 'Find player',
+  'am Leben': 'alive',
+  'Yunite zählt je Team - jeder Spieler steht mit den Werten seines Teams.': 'Yunite counts per team — every player is shown with their team’s numbers.',
+  'Team-Details': 'Team details',
+  'Ø am Leben': 'Avg. alive',
+  'Die Besten': 'Top performers',
+  'Meiste Punkte': 'Most points',
+  'Meiste Siege': 'Most wins',
+  'Bester Schnittplatz': 'Best average place',
+  'Am längsten am Leben': 'Longest alive',
+  'Leaderboards, Sessions und Statistiken der Scrims der Community-Server.': 'Leaderboards, sessions and statistics of the community servers’ scrims.',
+  'Community Events': 'Community Events',
+  'Raster': 'Grid',
+  'Gerade gibt es keine Community Events.': 'There are no community events right now.',
+  'In dieser Region gibt es gerade keine Scrims.': 'There are no scrims in this region right now.',
+  'Sessions': 'Sessions',
+
+  // Globals-Teams: Duo-Ansicht
+  'Zusammen gespielt — diese Saison': 'Played together — this season',
+  'Die Cups ließen sich gerade nicht laden.': 'The cups could not be loaded right now.',
+  'Zu diesem Duo kennt das Werkzeug keines der Konten — Cups gibt es deshalb keine.':
+    'The tool knows neither account of this duo — so there are no cups to show.',
+  'In dieser Saison haben die beiden keinen erfassten Cup zusammen gespielt.':
+    'The two have not played a recorded cup together this season.',
+  'Elims je Spieler aus der Szene-Quelle, sonst aus unseren Replays; fehlt beides, steht ein Strich.':
+    'Elims per player from the scene source, otherwise from our replays; where neither exists, a dash.',
+  'Auf ein Duo klicken — beide groß, dazu ihre gemeinsamen Cups dieser Saison.':
+    'Click a duo — both big, with their cups together this season.',
+  'Flagge und Name von {n} der {m} Konten, Fotos von {f} — Epic legt für das LAN eigene Konten an, zugeordnet wird über den Namen. Wer nicht eindeutig zuzuordnen ist, bleibt ohne Flagge; ein Foto kommt nur vom zugeordneten Konto selbst.':
+    'Flag and name for {n} of {m} accounts, photos for {f} — Epic creates separate accounts for the LAN, so they are matched by name. Anyone who cannot be matched beyond doubt stays without a flag; a photo only ever comes from the matched account itself.',
+
   // Freies Overlay: mehrere Fotos je Seite
   'Foto hinzufügen — Spieler suchen': 'Add a photo — search a player',
   'Foto entfernen': 'Remove photo',
