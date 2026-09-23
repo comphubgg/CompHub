@@ -33,6 +33,7 @@
  * kosten Zeit, aber keine Daten, und muessen deshalb nicht im selben Zug mit.
  */
 
+import crypto from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
 import process from 'node:process';
@@ -108,6 +109,76 @@ function wert(name) {
  * Kontingent von Supabase in wenigen Tagen aufbrauchen.
  */
 const neuerAls = Number(wert('--neuer-als') || 0);
+
+/*
+ * ------------------------------------------------ Nie ueber die Seite hinweg
+ *
+ * Am 23.9.2026 war die Arbeit des Betreibers an der Globals-Karte weg: "wenn
+ * ich Formen anpasse, Spieler in eine Form einfuege und die Seite neu lade
+ * ... GG, ist alles nochmal von neu."
+ *
+ * Der stuendliche Lauf war es. Er holt am Anfang das Noetigste aus Supabase
+ * (--herunterladen --noetiges) und laedt am Ende alles hoch, was juenger als
+ * zwei Stunden ist (--neuer-als 120). Dateien aus der Tabelle bekamen beim
+ * Holen aber den Zeitpunkt des Holens - nur Dateien aus dem Objektspeicher
+ * trugen den ihrer letzten Aenderung. Damit galt turnier-karten.json am Ende
+ * als frisch und wurde hochgeladen: in dem Stand, den der Lauf vierzig bis
+ * neunzig Minuten vorher geholt hatte. Alles, was der Betreiber in dieser
+ * Zeit auf der Seite getan hatte, war ueberschrieben. Belegt an den
+ * Zeitstempeln: turnier-karten.json, karten-vorlagen.json, prognosen.json
+ * und karten-ausgeblendet.json wurden am 23.9. um 19:11 UTC binnen
+ * fuenfunddreissig Sekunden neu geschrieben - genau im Schritt "Das
+ * Noetigste hoch" des Laufs, der um 17:23 UTC begonnen hatte. Auf demselben
+ * Weg war zuvor der Foto-Eintrag von Rax aus spielerbilder.json verschwunden.
+ *
+ * Drei Riegel, damit das nie wieder geschieht:
+ *
+ *   1. Beim Holen wird je Datei gemerkt, was geholt wurde (Pruefsumme) und
+ *      wann sie dort zuletzt geaendert war (.geholt.json im Datenordner).
+ *   2. Hochgeladen wird nur, was der Lauf selbst veraendert hat - gleiche
+ *      Pruefsumme wie beim Holen heisst: unberuehrt, nicht hochladen.
+ *   3. Und auch das nur, wenn dort seit dem Holen niemand etwas geaendert
+ *      hat. Sonst gewinnt die Seite: der Lauf laesst die Datei liegen und
+ *      sagt es im Protokoll.
+ *
+ * Dazu kommen die Dateien, die nur auf der Seite entstehen - Karten,
+ * Prognosen, Tierlists, Konten, Overlays, Fotozuordnung. Der Lauf hat bei
+ * ihnen gar nichts hochzuladen, gleich was die Pruefsummen sagen.
+ */
+const MERKDATEI = path.join(DATEN, '.geholt.json');
+
+const NUR_VON_DER_SEITE = [
+  'turnier-karten.json', 'karten-vorlagen.json', 'karten-ausgeblendet.json',
+  'prognosen.json', 'predictions.json', 'tierlists.json', 'tierlisten',
+  'konten.json', 'overlays.json', 'dashboard.json', 'homepage-vips.json',
+  'dienst-zugaenge.json', 'streamers.json', 'streamer-profiles.json',
+  'spieler-profile.json', 'spielerbilder.json', 'orgtags.json', 'socials.json',
+  'kontakt.json', 'sektionen.json', 'notes.json', 'anwesenheit.json',
+  'anwesenheit', 'besuche.json', 'discord-anfragen.json', 'galerie.json',
+  'offene-aufgaben.json', 'insel-bilder.json',
+];
+
+function nurVonDerSeite(name) {
+  return NUR_VON_DER_SEITE.some((n) => name === n || name.startsWith(`${n}/`));
+}
+
+function pruefsumme(roh) {
+  return crypto.createHash('sha256').update(roh).digest('hex');
+}
+
+function merklisteLesen() {
+  try { return JSON.parse(fs.readFileSync(MERKDATEI, 'utf8')); } catch { return {}; }
+}
+
+/** Wann eine Zeile der Tabelle dort zuletzt geaendert wurde - oder null. */
+async function tabellenZeit(name) {
+  const r = await fetch(
+    `${URL_}/rest/v1/${TABELLE}?name=eq.${encodeURIComponent(name)}&select=geaendert`,
+    { headers: KOPF, signal: AbortSignal.timeout(15_000) });
+  if (!r.ok) throw new Error(`Zeit nicht lesbar (${r.status})`);
+  const zeilen = await r.json();
+  return zeilen.length ? Date.parse(zeilen[0].geaendert) || null : null;
+}
 
 /**
  * Holen, aber nichts auf die Platte schreiben.
@@ -440,6 +511,8 @@ async function holen() {
   let fertig = 0;
   let unveraendert = 0;
   const fehler = [];
+  /** Was geholt wurde - siehe MERKDATEI. */
+  const merkliste = merklisteLesen();
 
   const eine = async (name) => {
     try {
@@ -460,12 +533,15 @@ async function holen() {
         roh = Buffer.from(await r.arrayBuffer());
       } else {
         const r = await fetch(
-          `${URL_}/rest/v1/${TABELLE}?name=eq.${encodeURIComponent(name)}&select=wert`,
+          `${URL_}/rest/v1/${TABELLE}?name=eq.${encodeURIComponent(name)}&select=wert,geaendert`,
           { headers: KOPF });
         if (!r.ok) throw new Error(String(r.status));
         const zeilen = await r.json();
         if (!zeilen.length) throw new Error('leer');
         roh = Buffer.from(zeilen[0].wert, 'utf8');
+        // Auch die Zeile der Tabelle traegt ihre Zeit - siehe unten.
+        const zeitDort = Date.parse(zeilen[0].geaendert ?? '');
+        if (zeitDort) groessen.set(name, { ...(groessen.get(name) ?? { groesse: null }), zeit: zeitDort });
       }
       if (!trocken) {
         const ziel = path.join(DATEN, name);
@@ -479,6 +555,12 @@ async function holen() {
          */
         const zeit = groessen.get(name)?.zeit;
         if (zeit) { try { fs.utimesSync(ziel, new Date(zeit), new Date(zeit)); } catch { /* egal */ } }
+        merkliste[name] = {
+          summe: pruefsumme(roh),
+          zeit: zeit ?? null,
+          ort: quelleVon(name),
+          geholt: Date.now(),
+        };
       }
       ok += 1;
     } catch (e) {
@@ -493,6 +575,10 @@ async function holen() {
 
   for (let i = 0; i < namen.length; i += HOLEN_GLEICHZEITIG) {
     await Promise.all(namen.slice(i, i + HOLEN_GLEICHZEITIG).map(eine));
+  }
+  if (!trocken) {
+    try { fs.writeFileSync(MERKDATEI, JSON.stringify(merkliste)); }
+    catch (e) { console.log(`  Merkliste nicht geschrieben: ${e.message}`); }
   }
 
   console.log('\n');
@@ -566,11 +652,37 @@ async function los() {
    */
   let hintereinander = 0;
   let abgebrochen = false;
+  const merkliste = merklisteLesen();
+  const ausgelassen = { seite: [], unberuehrt: [], neuerDort: [] };
 
   for (const [i, name] of alle.entries()) {
     const roh = fs.readFileSync(path.join(DATEN, name));
     process.stdout.write(
       `\r  ${String(i + 1).padStart(4)}/${alle.length}  ${name.slice(0, 52).padEnd(52)}`);
+
+    /*
+     * Die drei Riegel (siehe NUR_VON_DER_SEITE) - nur im stuendlichen Lauf,
+     * also mit --neuer-als. Wer von Hand hochlaedt, weiss, was er tut.
+     */
+    if (neuerAls) {
+      if (nurVonDerSeite(name)) { ausgelassen.seite.push(name); continue; }
+      const gemerkt = merkliste[name];
+      if (gemerkt && gemerkt.summe === pruefsumme(roh)) {
+        ausgelassen.unberuehrt.push(name); continue;
+      }
+      if (gemerkt && gemerkt.ort === 'tabelle' && !alsObjekt(name)) {
+        try {
+          const dort = await tabellenZeit(name);
+          if (dort && gemerkt.zeit && dort > gemerkt.zeit) {
+            ausgelassen.neuerDort.push(name); continue;
+          }
+        } catch (e) {
+          // Ohne Auskunft lieber nicht ueberschreiben.
+          ausgelassen.neuerDort.push(`${name} (${e.message})`); continue;
+        }
+      }
+    }
+
     try {
       let wo;
       if (alsObjekt(name)) { await schreibObjekt(name, roh); wo = 'objekt'; }
@@ -593,6 +705,14 @@ async function los() {
   console.log('\n');
   console.log(`  Uebertragen und nachgeprueft : ${ok}`);
   console.log(`  Abweichend oder gescheitert  : ${schief}`);
+  if (neuerAls) {
+    console.log(`  Nur von der Seite, nicht hoch: ${ausgelassen.seite.length}`);
+    console.log(`  Unberuehrt seit dem Holen    : ${ausgelassen.unberuehrt.length}`);
+    console.log(`  Dort inzwischen neuer        : ${ausgelassen.neuerDort.length}`);
+    for (const n of ausgelassen.neuerDort.slice(0, 10)) {
+      console.log(`    - ${n}: auf der Seite geaendert, nicht ueberschrieben`);
+    }
+  }
   if (fehler.length) {
     console.log('');
     for (const f of fehler.slice(0, 25)) console.log(`    - ${f}`);
