@@ -261,10 +261,16 @@ function serverFehler(r: Response, name: string): void {
    * das einen ganzen Tag lang so - und weil 402 hier nicht stand, galt
    * jede Datei als fehlend: die Startseite ohne Profile, die Karten ohne
    * Bilder, die Anmeldung mit "Login failed" statt "Ablage antwortet
-   * nicht". Genau das darf nie wie "leer" aussehen. Alles, was nicht 200
-   * und nicht 404 ist, ist ein Ausfall.
+   * nicht". Genau das darf nie wie "leer" aussehen.
+   *
+   * Nur: diese Stelle wird nach JEDER Antwort aufgerufen, auch nach einer
+   * gelungenen. Ein erster Versuch, hier alles ausser 404 zu werfen, warf
+   * deshalb auch bei 200 - und damit war jede gelesene Datei ein "Ausfall",
+   * die Anmeldung meldete "Ablage antwortet nicht", obwohl Supabase sauber
+   * geantwortet hatte. Gemeint ist: alles, was weder gelungen (2xx) noch
+   * ein ehrliches "gibt es nicht" (404) ist.
    */
-  if (r.status !== 404) {
+  if (!r.ok && r.status !== 404) {
     throw new Error(`Ablage nicht erreichbar (${r.status}) bei ${name}`);
   }
 }
