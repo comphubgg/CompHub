@@ -119,10 +119,68 @@ function typenVon(c: Cup): Set<Typ> {
 }
 
 type Status = 'aktuell' | 'live' | 'kommt' | 'vorbei' | 'alle';
-function statusVon(c: Cup): 'live' | 'kommt' | 'vorbei' {
-  if (c.live) return 'live';
-  if (c.naechsterStart && c.naechsterStart > Date.now()) return 'kommt';
-  return 'vorbei';
+
+/*
+ * Wo ein Cup gerade steht - hier gerechnet, nicht vom Server uebernommen.
+ *
+ * Der Katalog kommt zwischengespeichert, und sein "live" gilt fuer alle
+ * Regionen zusammen. Der Betreiber (24.9.2026): der Mobile Cup stand oben
+ * noch auf Live, obwohl er in Europa um 19:15 vorbei war, und mit Europa
+ * gewaehlt hiess es "in 4 Minuten", obwohl Europa laengst durch war. Jedes
+ * Fenster traegt Beginn und Ende; daraus ergibt sich der Stand fuer die
+ * gewaehlte Region zu jeder Minute von selbst.
+ */
+interface Lage {
+  status: 'live' | 'kommt' | 'vorbei';
+  naechster: number | null;
+  letzter: number | null;
+  /** Bei "Alle Regionen": wo es gerade laeuft oder als Naechstes losgeht. */
+  wo: string | null;
+}
+
+/** Die Fenster eines Cups in dieser Region - bei "alle" alle. */
+function fensterIn(c: Cup, region: string): Fenster[] {
+  if (region === 'alle' || c.global) return Object.values(c.regionen).flat();
+  return c.regionen[region] ?? [];
+}
+
+/** Laeuft dieses Fenster gerade? */
+function laeuft(f: Fenster, jetzt: number): boolean {
+  if (!f.begin || f.begin > jetzt) return false;
+  if (f.end) return jetzt < f.end;
+  // Ohne Endzeit (nachgetragene Turniere): Epics Stand, hoechstens vier Stunden.
+  return f.status === 'live' && jetzt - f.begin < 4 * 3_600_000;
+}
+
+function lageVon(c: Cup, region: string, jetzt: number): Lage {
+  const f = fensterIn(c, region);
+  const live = f.filter((w) => laeuft(w, jetzt));
+  const kommend = f.filter((w) => w.begin > jetzt).sort((a, b) => a.begin - b.begin);
+  const gewesen = f.filter((w) => w.begin && w.begin <= jetzt).sort((a, b) => b.begin - a.begin);
+  const regionen = (liste: Fenster[]) => [...new Set(liste.map((w) => w.region))];
+  if (live.length) {
+    return { status: 'live', naechster: kommend[0]?.begin ?? null, letzter: live[0].begin,
+      wo: region === 'alle' && !c.global ? regionen(live).join(' · ') : null };
+  }
+  if (kommend.length) {
+    return { status: 'kommt', naechster: kommend[0].begin, letzter: gewesen[0]?.begin ?? null,
+      wo: region === 'alle' && !c.global ? kommend[0].region : null };
+  }
+  return { status: 'vorbei', naechster: null, letzter: gewesen[0]?.begin ?? null, wo: null };
+}
+
+/*
+ * Ist das die Grundausgabe eines Cups - nicht Mobile, nicht Zero Build?
+ *
+ * Fuer das Bild im Kopf. Der Betreiber: "benutz immer das Thumbnail, wo
+ * nicht Mobile ist ... immer den normalen Madison Beer Icon Cup, ohne Zero
+ * Build oben dran oder Mobile oben dran."
+ */
+function istGrundausgabe(c: Cup): boolean {
+  if (istMobile(c)) return false;
+  const text = `${c.id} ${c.titel} ${c.untertitel ?? ''}`;
+  if (/zero\s*build|(^|[_\s])zb($|[_\s])/i.test(text)) return false;
+  return !Object.values(c.regionen).flat().some((f) => /_ZB_|zerobuild/i.test(f.eventId));
 }
 
 /*
@@ -167,11 +225,14 @@ const PUNKTE = {
 } as const;
 
 /** Die Marke oben links - Live ohne Rot, mit pulsierendem Punkt im Blau. */
-function Marke({ c, t }: { c: Cup; t: (s: string) => string }) {
-  const s = statusVon(c);
-  const text = s === 'live' ? 'Live'
-    : s === 'kommt' && c.naechsterStart ? restzeit(c.naechsterStart, t)
-      : c.letzterStart ? vergangen(c.letzterStart, t) : t('beendet');
+function Marke({ lage, t }: { lage: Lage; t: (s: string) => string }) {
+  const s = lage.status;
+  const grund = s === 'live' ? 'Live'
+    : s === 'kommt' && lage.naechster ? restzeit(lage.naechster, t)
+      : lage.letzter ? vergangen(lage.letzter, t) : t('beendet');
+  // Bei "Alle Regionen" dazu, wo - sonst liest sich ein Live in Brasilien
+  // wie ein Live in Europa.
+  const text = lage.wo ? `${grund} · ${lage.wo}` : grund;
   return (
     <span className={`inline-flex items-center gap-1.5 rounded-full bg-black/70 px-2.5 py-1 text-[10px]
                       font-bold uppercase tracking-wider ring-1 ring-white/15 backdrop-blur-sm ${
@@ -239,13 +300,41 @@ export default function EventsPage() {
   const [typ, setTyp] = useState<'alle' | Typ>('alle');
   const [status, setStatus] = useState<Status>('alle');
   const [plattform, setPlattform] = useState<Plattform>('alle');
-  const [region, setRegion] = useState('alle');
+  const [region, setRegionRoh] = useState('alle');
   const [offen, setOffen] = useState<string | null>(null);
+  /*
+   * Die Uhr der Seite: jede halbe Minute weiter, damit "Live", "in 5 Min."
+   * und "beendet" von selbst umspringen, ohne dass jemand neu laedt.
+   */
+  const [jetzt, setJetzt] = useState(() => Date.now());
+  useEffect(() => {
+    const uhr = setInterval(() => setJetzt(Date.now()), 30_000);
+    return () => clearInterval(uhr);
+  }, []);
+  /*
+   * Die gewaehlte Region bleibt beim naechsten Besuch stehen. Eingelesen
+   * wird sie, sobald der Katalog da ist - vorher gibt es ohnehin nichts zu
+   * zeigen.
+   */
+  const regionGelesen = useRef(false);
+  const gemerkteRegion = () => {
+    if (regionGelesen.current) return;
+    regionGelesen.current = true;
+    try {
+      const gemerkt = localStorage.getItem('events-region');
+      if (gemerkt && (gemerkt === 'alle' || REGIONEN.includes(gemerkt))) setRegionRoh(gemerkt);
+    } catch { /* ohne Speicher eben "alle" */ }
+  };
+  const setRegion = (r: string) => {
+    setRegionRoh(r);
+    try { localStorage.setItem('events-region', r); } catch { /* egal */ }
+  };
 
-  // Einmal alles - gefiltert wird hier, nicht beim Server.
+  // Alles auf einmal - gefiltert wird hier, nicht beim Server. Alle fuenf
+  // Minuten frisch, damit neue Fenster und Zeiten von selbst ankommen.
   useEffect(() => {
     let weg = false;
-    (async () => {
+    const holen = async () => {
       try {
         const r = await fetch('/api/cup-catalog?modus=alle');
         const d = await r.json();
@@ -254,14 +343,21 @@ export default function EventsPage() {
           setLoginNoetig(Boolean(d.needsLogin));
           setFehler(d.error ?? 'nicht ladbar');
         } else {
+          gemerkteRegion();
           setCups(d.cups ?? []);
           setArchiv({ turniere: d.archiv?.turniere ?? 0, tage: d.archiv?.tage ?? 0 });
         }
       } catch (e) { if (!weg) setFehler((e as Error).message); }
       finally { if (!weg) setLaedt(false); }
-    })();
-    return () => { weg = true; };
+    };
+    void holen();
+    const uhr = setInterval(holen, 5 * 60_000);
+    return () => { weg = true; clearInterval(uhr); };
   }, []);
+
+  /** Der Stand jedes Cups fuer die gewaehlte Region, jetzt. */
+  const lage = useMemo(() => new Map(cups.map((c) => [c.id, lageVon(c, region, jetzt)])), [cups, region, jetzt]);
+  const lageZu = (c: Cup): Lage => lage.get(c.id) ?? lageVon(c, region, jetzt);
 
   /** Alles ausser dem Status - daraus entstehen die Abschnitte. */
   const gefiltert = useMemo(() => {
@@ -282,12 +378,13 @@ export default function EventsPage() {
   }, [cups, suche, typ, plattform, region, ohneRanked]);
 
   const abschnitte = useMemo(() => {
-    const live = gefiltert.filter((c) => statusVon(c) === 'live')
-      .sort((a, b) => (a.letzterStart ?? 0) - (b.letzterStart ?? 0));
-    const kommt = gefiltert.filter((c) => statusVon(c) === 'kommt')
-      .sort((a, b) => (a.naechsterStart ?? 0) - (b.naechsterStart ?? 0));
-    const vorbei = gefiltert.filter((c) => statusVon(c) === 'vorbei')
-      .sort((a, b) => (b.letzterStart ?? 0) - (a.letzterStart ?? 0));
+    const von = (c: Cup) => lage.get(c.id) ?? lageVon(c, region, jetzt);
+    const live = gefiltert.filter((c) => von(c).status === 'live')
+      .sort((a, b) => (von(a).letzter ?? 0) - (von(b).letzter ?? 0));
+    const kommt = gefiltert.filter((c) => von(c).status === 'kommt')
+      .sort((a, b) => (von(a).naechster ?? 0) - (von(b).naechster ?? 0));
+    const vorbei = gefiltert.filter((c) => von(c).status === 'vorbei')
+      .sort((a, b) => (von(b).letzter ?? 0) - (von(a).letzter ?? 0));
     const zeig = (s: 'live' | 'kommt' | 'vorbei') =>
       status === 'alle' || status === s || (status === 'aktuell' && s !== 'vorbei');
     return [
@@ -295,19 +392,26 @@ export default function EventsPage() {
       { schluessel: 'kommt', titel: 'Demnächst', cups: zeig('kommt') ? kommt : [] },
       { schluessel: 'vorbei', titel: 'Beendet', cups: zeig('vorbei') ? vorbei : [] },
     ].filter((a) => a.cups.length);
-  }, [gefiltert, status]);
+  }, [gefiltert, status, lage, region, jetzt]);
 
   /** Der Kopf: was gerade laeuft, dann was als Naechstes kommt. */
   const hervor = useMemo(() => {
+    const von = (c: Cup) => lage.get(c.id) ?? lageVon(c, region, jetzt);
     const basis = cups.filter((c) => !typenVon(c).has('ranked')
       && (region === 'alle' || c.global || c.regionen[region]));
     return [
-      ...basis.filter((c) => statusVon(c) === 'live'),
-      ...basis.filter((c) => statusVon(c) === 'kommt')
-        .sort((a, b) => (a.naechsterStart ?? 0) - (b.naechsterStart ?? 0)),
+      ...basis.filter((c) => von(c).status === 'live'),
+      ...basis.filter((c) => von(c).status === 'kommt')
+        .sort((a, b) => (von(a).naechster ?? 0) - (von(b).naechster ?? 0)),
     ].slice(0, 4);
-  }, [cups, region]);
-  const kopfBild = hervor.find((c) => c.bild)?.bild ?? null;
+  }, [cups, region, lage, jetzt]);
+  /*
+   * Das Bild im Kopf: der Cup, der gerade laeuft - sonst der naechste -, und
+   * davon die Grundausgabe, nicht Mobile oder Zero Build. Nur wenn es nichts
+   * anderes gibt, nimmt es eine der beiden.
+   */
+  const kopfBild = (hervor.find((c) => c.bild && istGrundausgabe(c))
+    ?? hervor.find((c) => c.bild))?.bild ?? null;
 
   const heute = useMemo(() => {
     const tag = new Date().toDateString();
@@ -323,7 +427,7 @@ export default function EventsPage() {
     if (c.global || regionen.length <= 1) router.push(`/events/${c.id}`);
     else if (region !== 'alle' && c.regionen[region]) {
       const liste = c.regionen[region];
-      const w = liste.find((x) => x.status === 'live') ?? liste.find((x) => x.status === 'kommt');
+      const w = liste.find((x) => laeuft(x, jetzt)) ?? liste.find((x) => x.begin > jetzt);
       router.push(`/events/${c.id}?region=${region}${w ? `&fenster=${encodeURIComponent(w.windowId)}` : ''}`);
     } else setOffen(offen === c.id ? null : c.id);
   };
@@ -335,7 +439,12 @@ export default function EventsPage() {
         {kopfBild && (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={kopfBild} alt="" aria-hidden
-            className="absolute inset-0 h-full w-full object-cover opacity-35" />
+            className="absolute inset-0 h-full w-full object-cover opacity-35"
+            // Der Kopf ist flach und breit; mittig beschnitten fiel das
+            // Gesicht oben heraus. Oberes Drittel zeigen - der Betreiber:
+            // "das Gesicht links sehen, so leicht ... ein bisschen nach unten
+            // verschieben".
+            style={{ objectPosition: '50% 20%' }} />
         )}
         <div aria-hidden className="absolute inset-0 bg-gradient-to-b from-zinc-950/40 via-zinc-950/70 to-zinc-950" />
         <div aria-hidden className="absolute inset-0" style={PUNKTE} />
@@ -388,7 +497,7 @@ export default function EventsPage() {
                              shadow-xl transition hover:border-sky-500/60">
                   <div className="relative aspect-video overflow-hidden">
                     <Bild c={c} klasse="h-full w-full transition duration-300 group-hover:scale-105" />
-                    <div className="absolute left-2 top-2"><Marke c={c} t={t} /></div>
+                    <div className="absolute left-2 top-2"><Marke lage={lageZu(c)} t={t} /></div>
                   </div>
                   <p className="truncate px-3 py-2.5 text-sm font-bold text-slate-100">{c.titel}</p>
                 </button>
@@ -470,9 +579,10 @@ export default function EventsPage() {
                 <div className="space-y-8">
                   {abschnitte.map((a) => (
                     <Abschnitt key={a.schluessel} titel={a.titel} cups={a.cups} offen={offen}
+                      lageZu={lageZu} jetzt={jetzt}
                       oeffnen={oeffnen} regionWaehlen={(c, r) => {
                         const liste = c.regionen[r];
-                        const w = liste.find((x) => x.status === 'live') ?? liste.find((x) => x.status === 'kommt');
+                        const w = liste.find((x) => laeuft(x, jetzt)) ?? liste.find((x) => x.begin > jetzt);
                         router.push(`/events/${c.id}?region=${r}${w ? `&fenster=${encodeURIComponent(w.windowId)}` : ''}`);
                       }} />
                   ))}
@@ -493,9 +603,11 @@ export default function EventsPage() {
 
 /* ============================================================ Abschnitte */
 
-function Abschnitt({ titel, cups, offen, oeffnen, regionWaehlen }: {
+function Abschnitt({ titel, cups, offen, oeffnen, regionWaehlen, lageZu, jetzt }: {
   titel: string; cups: Cup[]; offen: string | null;
   oeffnen: (c: Cup) => void; regionWaehlen: (c: Cup, r: string) => void;
+  /** Der Stand je Cup fuer die gewaehlte Region - siehe lageVon. */
+  lageZu: (c: Cup) => Lage; jetzt: number;
 }) {
   const { sprache, t } = useSprache();
   /*
@@ -537,7 +649,7 @@ function Abschnitt({ titel, cups, offen, oeffnen, regionWaehlen }: {
                 <div className="relative aspect-video overflow-hidden bg-zinc-900">
                   <Bild c={c} klasse="h-full w-full transition duration-300 group-hover:scale-105" />
                   <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/80 via-transparent to-transparent" />
-                  <div className="absolute left-2 top-2"><Marke c={c} t={t} /></div>
+                  <div className="absolute left-2 top-2"><Marke lage={lageZu(c)} t={t} /></div>
                   <span className="absolute right-2 top-2 rounded-full bg-black/70 px-2.5 py-1 text-[10px]
                                    font-semibold uppercase tracking-wider text-slate-200 ring-1 ring-white/10">
                     {c.global ? t('global') : istMobile(c) ? t('Mobile')
@@ -553,8 +665,9 @@ function Abschnitt({ titel, cups, offen, oeffnen, regionWaehlen }: {
                 <div className="max-h-60 overflow-y-auto border-t border-zinc-800 bg-zinc-950/90">
                   {regionen.map((r) => {
                     const liste = c.regionen[r];
-                    const live = liste.find((x) => x.status === 'live');
-                    const naechstes = liste.find((x) => x.status === 'kommt');
+                    const live = liste.find((x) => laeuft(x, jetzt));
+                    const naechstes = liste.filter((x) => x.begin > jetzt)
+                      .sort((a, b) => a.begin - b.begin)[0];
                     return (
                       <button key={r} type="button" onClick={() => regionWaehlen(c, r)}
                         className="flex w-full items-center justify-between gap-2 border-b border-zinc-900 px-3 py-2
