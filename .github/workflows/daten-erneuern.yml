@@ -183,7 +183,11 @@ jobs:
         timeout-minutes: 15
         env:
           WERKZEUG_URL: https://www.thecomphub.com
-        run: node scripts/epic-fenster-suchen.mjs --hoechstens 1500 2>&1 | tail -15
+        # Endet selbst nach zwoelf Minuten (SIGTERM), statt jedes Mal hart in
+        # die Grenze zu laufen und den Lauf als gescheitert zu markieren.
+        run: |
+          timeout --signal=TERM 12m node scripts/epic-fenster-suchen.mjs --hoechstens 1500 2>&1 | tail -15
+          true
 
       # Die Team-Eliminierungen aus Epics Bestenlisten (Statistik, Jahre):
       # die offenen Saisons aus den Spieltagen oben neu, das laufende Jahr
@@ -262,6 +266,25 @@ jobs:
         timeout-minutes: 10
         run: node scripts/replays-aggregieren.mjs 2>&1 | tee /tmp/aggregieren.log | tail -20
 
+      # Das Gerechnete sofort ans Release - noch vor dem Bau.
+      #
+      # Seit dem 24.9.2026 bekam der Laufrechner beim Bauen jedes Mal ein
+      # Abschaltsignal ("The runner has received a shutdown signal", exit
+      # 143), und alles danach - auch "Ergebnis ans GitHub-Release" mit
+      # always() - fiel weg. Die Seite blieb auf dem Stand vom 23.9. stehen;
+      # der Betreiber sah es an "Matches processed", das sich seit Tagen
+      # nicht mehr bewegte. Jetzt ist das Wichtigste oben, bevor gebaut wird;
+      # der Schritt am Ende laedt dann nur noch nach, was sich seither
+      # geaendert hat (das Manifest kennt den Rest).
+      - name: Zwischenstand ans GitHub-Release
+        if: always()
+        continue-on-error: true
+        timeout-minutes: 25
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          node scripts/ablage-github.mjs 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -30
+
       # ------------------------------------------------- Antworten vorrechnen
       #
       # Die Startseite und die Statistikseite rechnen ueber neunhundert
@@ -284,9 +307,17 @@ jobs:
         continue-on-error: true
         timeout-minutes: 15
         env:
-          NODE_OPTIONS: --max-old-space-size=6144
+          NODE_OPTIONS: --max-old-space-size=5120
         run: |
           set +e
+          # Uebrig gebliebene Replay-Auswerter beenden, bevor gebaut wird.
+          # "timeout" im Schritt "Replays holen" beendet nur das Skript, die
+          # gestarteten FortniteReplayAnalysis-Prozesse liefen weiter und
+          # teilten sich den Speicher mit dem Bau - bis der Laufrechner
+          # abgeschaltet wurde (siehe "Zwischenstand ans GitHub-Release").
+          pkill -f FortniteReplayAnalysis || true
+          pkill -f replays-holen || true
+          free -m | head -2
           npm run build > /tmp/bau.log 2>&1
           CODE=$?
           echo "code=$CODE" >> "$GITHUB_OUTPUT"
