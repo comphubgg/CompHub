@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
-import { kontoAus, nachId } from '@/lib/konten';
+import { istVip, kontoAus, nachId } from '@/lib/konten';
+import { wirksameRechte } from '@/lib/rechte';
 import { vipAus } from '@/lib/vipCookie';
 import { zugangNach, rechteVon } from '@/lib/vipZugaenge';
 
@@ -43,7 +44,7 @@ export async function GET() {
       // Ein gesperrtes Konto hat keine Rechte mehr, egal was dranstand.
       if (k && !k.gesperrt) {
         rolle = k.rolle ?? null;
-        rechte = k.rechte ?? [];
+        rechte = wirksameRechte(k.rolle, k.rechte, istVip(k));
         name = k.name;
         epicId = k.epicId ?? null;
       }

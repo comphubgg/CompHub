@@ -60,6 +60,49 @@ export function darfVip(
 
 export const ALLE_BEREICHE: Bereich[] = BEREICHE.map((b) => b.schluessel);
 
+const VIP_SCHLUESSEL: string[] = VIP_BEREICHE.map((b) => b.schluessel);
+
+/**
+ * Was von den angehakten Bereichen gespeichert wird.
+ *
+ * Die Verwaltungsbereiche gelten nur fuer einen Manager, die VIP-Bereiche
+ * fuer jeden ausser dem Admin - der hat ohnehin alles. Frueher wurde hier
+ * alles verworfen, was kein Verwaltungsbereich war, und bei einem VIP ohne
+ * Rolle gleich die ganze Liste: der Haken bei "Overlays (Globals 2026)"
+ * sprang nach dem Speichern wieder heraus. Der Betreiber: "es macht einfach
+ * keinen Haken, wenn ich drauf druecke, und gibt Access. Es geht irgendwie
+ * nicht."
+ */
+export function rechteBereinigen(
+  rolle: 'admin' | 'manager' | 'pro' | null | undefined,
+  bereiche: unknown[],
+): string[] {
+  if (rolle === 'admin') return [];
+  // "overlays" traegt ein geteilter Manager-Zugang fuer die Overlays eines
+  // Streamers (lib/discord) - er bleibt, wie er angelegt wurde.
+  const erlaubt = rolle === 'manager'
+    ? [...(ALLE_BEREICHE as string[]), ...VIP_SCHLUESSEL, 'overlays']
+    : VIP_SCHLUESSEL;
+  return [...new Set(bereiche.map((x) => String(x)).filter((x) => erlaubt.includes(x)))]
+    .slice(0, 20);
+}
+
+/**
+ * Die Rechte, die gerade zaehlen.
+ *
+ * Ein VIP-Bereich haengt am VIP: laeuft die Frist ab und hat das Konto
+ * keine Rolle, bleibt der Haken zwar gespeichert, oeffnet aber nichts mehr.
+ */
+export function wirksameRechte(
+  rolle: 'admin' | 'manager' | 'pro' | null | undefined,
+  rechte: string[] | undefined,
+  vip: boolean,
+): string[] {
+  const liste = rechte ?? [];
+  if (rolle || vip) return liste;
+  return liste.filter((x) => !VIP_SCHLUESSEL.includes(x));
+}
+
 /**
  * Darf dieses Konto in diesen Bereich?
  *

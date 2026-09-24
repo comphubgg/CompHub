@@ -2125,6 +2125,16 @@ const AUF_ENGLISCH: Record<string, string> = {
     'Free scoreboard — 1v1s, 4v4s, with your own title',
   'VIP-Bereiche':
     'VIP areas',
+  'Die Adminrolle schließt diesen Bereich ein':
+    'The admin role includes this area',
+  'Alle Teams sind gesetzt.':
+    'All teams are placed.',
+  'Bereits gesetzt':
+    'Already placed',
+  'Kein Spieler im Feld passt zur Suche.':
+    'No player in the field matches your search.',
+  'Mitglieder':
+    'members',
   'Leaderboard, Spieler-Banner und freies Overlay im Aussehen der Global Championship':
     'Leaderboard, player banner and free overlay in the look of the Global Championship',
   'Thema':

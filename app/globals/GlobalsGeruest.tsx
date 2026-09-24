@@ -50,9 +50,14 @@ export const GLOBALS_SEITEN: Array<{
 export const FNCS_BLAU = '#0e47de';
 export const FNCS_GOLD = '#f5c542';
 
-export default function GlobalsGeruest({ aktiv, children }: {
+export default function GlobalsGeruest({ aktiv, breit, children }: {
   /** Der Pfad des aktiven Bereichs, etwa "/globals/overlays". */
   aktiv?: string;
+  /**
+   * Die volle Fensterbreite fuer den Inhalt - fuer die Prognose, deren
+   * Karte so gross wie moeglich sein soll.
+   */
+  breit?: boolean;
   children: React.ReactNode;
 }) {
   const t = useT();
@@ -136,7 +141,9 @@ export default function GlobalsGeruest({ aktiv, children }: {
         </div>
       </div>
 
-      <div className="mx-auto max-w-[1500px] px-4 py-6">{children}</div>
+      <div className={`mx-auto px-4 py-6 ${breit ? 'max-w-[1900px]' : 'max-w-[1500px]'}`}>
+        {children}
+      </div>
     </main>
   );
 }

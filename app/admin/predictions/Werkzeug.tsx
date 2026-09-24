@@ -21,7 +21,7 @@
 // nichts: nennt Epic die Qualifikation noch nicht, steht das so da.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { kernname, namensSchluessel } from '@/lib/homoglyph';
+import { gefaltet, kernname, namensSchluessel } from '@/lib/homoglyph';
 import TeamFlagge from '@/components/TeamFlagge';
 
 import T from '@/app/components/T';
@@ -451,6 +451,9 @@ export default function PrognosenWerkzeug({ globals = false }: {
   /** Karte und Liste lassen sich einzeln gross ziehen, nicht nur zusammen. */
   const [vollbildKarte, setVollbildKarte] = useState(false);
   const [vollbildListe, setVollbildListe] = useState(false);
+
+  /** Die Suche im Feld rechts - nach einem Spielernamen. */
+  const [suche, setSuche] = useState('');
 
   /** Ortsnamen auf der Karte - nur die Fortnite-Insel bringt beide Fassungen mit. */
   const [orteSichtbar, setOrteSichtbar] = useState(true);
@@ -1325,6 +1328,22 @@ export default function PrognosenWerkzeug({ globals = false }: {
   const offen = useMemo(
     () => feld.filter((t) => !plaetze.includes(t.key)), [feld, plaetze]);
 
+  /*
+   * Die Suche im Feld.
+   *
+   * Der Betreiber wollte "eine Suchliste bei Prediction": bei fuenfzig Duos
+   * ist ein Name schneller getippt als gefunden. Gesucht wird im gepflegten
+   * Namen und im Namen bei Epic, in gefalteter Schreibweise ("vico" findet
+   * "Vic0"). Ist ein passendes Team schon gesetzt, steht es mit seinem Platz
+   * darunter, statt einfach zu fehlen.
+   */
+  const passtZurSuche = useCallback((t: TeamImFeld) => {
+    const q = gefaltet(namensSchluessel(suche));
+    if (!q) return true;
+    return t.namen.some((n, k) => [n, findeProfil(n, t.ids[k])?.anzeige ?? '']
+      .some((x) => gefaltet(namensSchluessel(x)).includes(q)));
+  }, [suche, findeProfil]);
+
   /**
    * Ein Team auf einen bestimmten Platz legen.
    *
@@ -1380,12 +1399,6 @@ export default function PrognosenWerkzeug({ globals = false }: {
 
   function alleRaus() {
     setPlaetze((alt) => alt.map(() => null));
-  }
-
-  /** Die Reihenfolge aus den bisherigen Platzierungen vorschlagen. */
-  function ausErgebnis() {
-    setPlaetze(feld.map((t) => t.key));
-    setStatus('Nach bisheriger Platzierung vorbelegt — jetzt anpassen');
   }
 
   const teamZu = useCallback(
@@ -1949,17 +1962,24 @@ export default function PrognosenWerkzeug({ globals = false }: {
           * Spalten ("1st" bis "50th"), rechts schmal das Feld nach Regionen.
           * "Mittig sehe ich die Plaetze, links am Rand die Map, die Spieler
           * rechts am Rand, nach Region sortiert."
+          *
+          * Seit dem 24.9.2026 bekommt die Karte den Loewenanteil: "Man
+          * erkennt sehr wenig ... die muss sicher mal doppelt so gross
+          * sein." Die Karte ist so gross, wie das Fenster hoch ist, und ihre
+          * Spalte genau so breit - was an Breite uebrig bleibt, bekommen die
+          * Plaetze. Beide Listen rechts scrollen in der Hoehe der Karte,
+          * statt die Zeile hoeher zu machen als sie.
           */}
         {cupId && (
         <div className="grid gap-4
-                        lg:grid-cols-[minmax(0,1fr)_minmax(380px,0.85fr)_250px]
-                        2xl:grid-cols-[minmax(0,0.9fr)_minmax(640px,1.2fr)_260px]">
+                        lg:grid-cols-[minmax(0,calc(100vh_-_3.4rem))_minmax(260px,1fr)_240px]
+                        xl:grid-cols-[minmax(0,calc(100vh_-_3.4rem))_minmax(400px,1fr)_280px]">
 
           {/* Kartenansicht: dieselben Formen wie im Karteneditor, hier nur zum
               Verteilen. Wer wo landet, hilft beim Aufstellen der Reihenfolge. */}
           <div className={vollbildKarte
             ? 'fixed inset-0 z-50 flex flex-col overflow-auto bg-zinc-950 p-4'
-            : 'rounded-xl border border-zinc-800 bg-zinc-900/40 p-3'}>
+            : 'min-w-0 rounded-xl border border-zinc-800 bg-zinc-900/40 p-3'}>
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-sm font-semibold text-slate-100">
                 <T>Karte</T>
@@ -2232,7 +2252,7 @@ export default function PrognosenWerkzeug({ globals = false }: {
                          rounded-lg bg-zinc-950"
               style={{
                 containerType: 'size',
-                maxWidth: vollbildKarte ? 'min(100%, 84vh)' : 'min(100%, 70vh)',
+                maxWidth: vollbildKarte ? 'min(100%, 84vh)' : 'min(100%, calc(100vh - 5rem))',
                 cursor: formenAn ? 'default' : zoom > 1 ? 'grab' : 'default',
               }}
               onMouseDown={(e) => {
@@ -2491,7 +2511,7 @@ export default function PrognosenWerkzeug({ globals = false }: {
 
           <div className={vollbildListe
             ? 'fixed inset-0 z-50 flex flex-col overflow-auto bg-zinc-950 p-5'
-            : 'rounded-xl border border-zinc-800 bg-zinc-900/40 p-3'}>
+            : 'flex min-w-0 flex-col rounded-xl border border-zinc-800 bg-zinc-900/40 p-3'}>
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-sm font-semibold text-slate-100">
                 <T>Reihenfolge</T>
@@ -2500,11 +2520,6 @@ export default function PrognosenWerkzeug({ globals = false }: {
                   : ''}
               </h2>
               <div className="flex flex-wrap gap-2">
-                <button onClick={ausErgebnis} disabled={!feld.length}
-                  className="rounded-lg border border-zinc-700 px-2 py-1 text-[11px]
-                             text-slate-300 hover:border-sky-500 disabled:opacity-40">
-                  Nach Ergebnis vorbelegen
-                </button>
                 <button onClick={alleRaus} disabled={!plaetze.some(Boolean)}
                   className="rounded-lg border border-zinc-700 px-2 py-1 text-[11px]
                              text-slate-300 hover:border-rose-500 disabled:opacity-40">
@@ -2534,6 +2549,10 @@ export default function PrognosenWerkzeug({ globals = false }: {
               </div>
             </div>
 
+            {/* Die Liste scrollt fuer sich - so bestimmt die Karte die Hoehe. */}
+            <div className={vollbildListe ? 'flex-1' : 'relative lg:min-h-[320px] lg:flex-1'}>
+            <div className={vollbildListe ? '' : `max-h-[70vh] overflow-y-auto pr-1
+                            lg:absolute lg:inset-0 lg:max-h-none`}>
             {!plaetze.length ? (
               <p className="py-8 text-center text-xs text-slate-500">
                 {laedt ? <T>lädt das Feld …</T> : <T>Noch kein Feld — siehe Hinweis oben.</T>}
@@ -2554,7 +2573,7 @@ export default function PrognosenWerkzeug({ globals = false }: {
                */
               <div className={vollbildListe
                 ? 'grid flex-1 content-start gap-2 md:grid-cols-2 xl:grid-cols-3'
-                : 'grid gap-1 sm:grid-cols-2 xl:grid-cols-3'}>
+                : 'grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-1'}>
                 {plaetze.map((key, i) => {
                   const t = teamZu(key);
                   return (
@@ -2648,16 +2667,34 @@ export default function PrognosenWerkzeug({ globals = false }: {
                 </span>
               </p>
             )}
+            </div>
+            </div>
           </div>
 
-          <div className="flex flex-col gap-3">
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-3">
+          <div className="flex min-w-0 flex-col gap-3">
+            <div className="flex flex-col rounded-xl border border-zinc-800 bg-zinc-900/40 p-3
+                            lg:min-h-0 lg:flex-1">
               <div className="mb-2 flex items-center justify-between">
                 <h2 className="text-sm font-semibold text-slate-100"><T>Feld</T></h2>
                 <span className="text-xs text-slate-500">
                   {feld.length - offen.length}/{feld.length} <T>gesetzt</T>
                 </span>
               </div>
+              {feld.length > 0 && (
+                <div className="relative mb-2">
+                  <input value={suche} onChange={(e) => setSuche(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Escape') setSuche(''); }}
+                    placeholder={uebs('Spieler suchen …')} type="text"
+                    className="w-full rounded-lg border border-zinc-700 bg-zinc-950 py-2 pl-3
+                               pr-8 text-[13px] text-slate-100 outline-none
+                               placeholder:text-slate-600 focus:border-sky-500" />
+                  {suche && (
+                    <button onClick={() => setSuche('')} title={uebs('Suche leeren')}
+                      className="absolute right-2 top-1/2 -translate-y-1/2 text-slate-500
+                                 hover:text-slate-200">×</button>
+                  )}
+                </div>
+              )}
               {/*
                 * Nach Regionen, die groesste Gruppe zuerst.
                 *
@@ -2666,10 +2703,12 @@ export default function PrognosenWerkzeug({ globals = false }: {
                 * Spieler in einer Region." Also: die Region mit den meisten
                 * Teams oben, bei Gleichstand die Reihenfolge der Seite.
                 */}
-              <div className="max-h-[560px] space-y-2 overflow-y-auto">
+              <div className="relative lg:min-h-[320px] lg:flex-1">
+              <div className="max-h-[560px] space-y-2 overflow-y-auto pr-1
+                              lg:absolute lg:inset-0 lg:max-h-none">
                 {(() => {
                   const gruppen = new Map<string, TeamImFeld[]>();
-                  for (const t of offen) {
+                  for (const t of offen.filter(passtZurSuche)) {
                     const r = t.region || '?';
                     if (!gruppen.has(r)) gruppen.set(r, []);
                     gruppen.get(r)!.push(t);
@@ -2728,9 +2767,48 @@ export default function PrognosenWerkzeug({ globals = false }: {
                     </div>
                   ));
                 })()}
-                {!offen.length && feld.length > 0 && (
+                {/* Schon gesetzt, aber gesucht: mit Platz statt gar nicht. */}
+                {suche.trim() && (() => {
+                  const gesetzt = plaetze
+                    .map((key, i) => ({ t: teamZu(key), i }))
+                    .filter((x): x is { t: TeamImFeld; i: number } => !!x.t && passtZurSuche(x.t));
+                  if (!gesetzt.length) return null;
+                  return (
+                    <div>
+                      <p className="mb-1 px-1 text-[10px] font-semibold uppercase
+                                    tracking-[0.14em] text-slate-500">
+                        <T>Bereits gesetzt</T>
+                      </p>
+                      <div className="space-y-1">
+                        {gesetzt.map(({ t, i }) => (
+                          <div key={t.key}
+                            className="flex items-center gap-2.5 rounded-lg border border-zinc-800/70
+                                       px-2.5 py-2 text-[13px] opacity-70">
+                            <span className="w-9 shrink-0 text-[11px] font-bold tabular-nums
+                                             text-sky-300">{ordnung(i + 1)}</span>
+                            <TeamFlagge laender={t.namen.map(
+                              (n, k) => findeProfil(n, t.ids[k])?.land)} />
+                            <span className="flex min-w-0 flex-1 flex-col leading-tight">
+                              {t.namen.map((n, k) => (
+                                <span key={k} className="truncate text-slate-300">
+                                  {kurz(findeProfil(n, t.ids[k])?.anzeige || n)}
+                                </span>
+                              ))}
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })()}
+                {suche.trim() && feld.length > 0 && !feld.some(passtZurSuche) && (
                   <p className="py-4 text-center text-[11px] text-slate-500">
-                    Alle Teams sind gesetzt.
+                    <T>Kein Spieler im Feld passt zur Suche.</T>
+                  </p>
+                )}
+                {!offen.length && feld.length > 0 && !suche.trim() && (
+                  <p className="py-4 text-center text-[11px] text-slate-500">
+                    <T>Alle Teams sind gesetzt.</T>
                   </p>
                 )}
                 {!feld.length && (
@@ -2738,6 +2816,7 @@ export default function PrognosenWerkzeug({ globals = false }: {
                     <T>Noch kein Feld geladen.</T>
                   </p>
                 )}
+              </div>
               </div>
             </div>
 

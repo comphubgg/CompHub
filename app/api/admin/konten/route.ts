@@ -5,7 +5,7 @@ import {
   loesche, setzeBestaetigt } from '@/lib/konten';
 import { istBetreiber, vipAus } from '@/lib/vipCookie';
 import { zugangNach, rechteVon } from '@/lib/vipZugaenge';
-import { ALLE_BEREICHE } from '@/lib/rechte';
+import { rechteBereinigen } from '@/lib/rechte';
 import { verankereProfi } from '@/lib/profiVerankern';
 
 // Die Kontoverwaltung.
@@ -123,12 +123,12 @@ export async function POST(request: Request) {
 
   /*
    * Die angehakten Bereiche - nur bekannte Schluessel, damit sich nichts
-   * Erfundenes in die Datei schreibt.
+   * Erfundenes in die Datei schreibt. Welche davon zur Rolle passen,
+   * entscheidet setzeRechte (lib/rechte, rechteBereinigen) - die
+   * VIP-Bereiche gehoeren ausdruecklich dazu.
    */
   const bereiche = Array.isArray(koerper.bereiche)
-    ? (koerper.bereiche as unknown[])
-      .map((x) => String(x))
-      .filter((x) => (ALLE_BEREICHE as string[]).includes(x))
+    ? rechteBereinigen(roh === 'admin' ? null : 'manager', koerper.bereiche as unknown[])
     : undefined;
 
   const konto = await setzeRechte(id, roh, tage, bereiche);

@@ -1,6 +1,7 @@
 import fs from '@/lib/ablageFs';
 import path from 'path';
 import { DATEN_ORT } from './datenOrt';
+import { wirksameRechte } from './rechte';
 import {
   neuerSchluessel, schluesselTaugt, schonVergeben,
 } from './zugangsSchluessel';
@@ -124,7 +125,7 @@ export function rechteVon(z: Zugang | null): {
   return {
     gueltig: true,
     rolle: z.rolle ?? null,
-    rechte: z.rechte ?? [],
+    rechte: wirksameRechte(z.rolle, z.rechte, vip),
     vip,
     epicId: z.epicId ?? null,
   };

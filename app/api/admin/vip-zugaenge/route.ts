@@ -7,6 +7,7 @@ import { kontoAus, nachId } from '@/lib/konten';
 import { istBetreiber, vipAus } from '@/lib/vipCookie';
 import { zugangNach, rechteVon } from '@/lib/vipZugaenge';
 import { verankereProfi } from '@/lib/profiVerankern';
+import { rechteBereinigen } from '@/lib/rechte';
 import { modName } from '@/lib/modName';
 import { DATEN_ORT } from '@/lib/datenOrt';
 import { schickeSchluessel, loescheZugang, discordDa } from '@/lib/discord';
@@ -379,13 +380,13 @@ export async function PUT(request: Request) {
   if (roh === null) delete daten.users[i].rolle;
   else if (roh) daten.users[i].rolle = roh;
 
-  // Die Bereiche gelten nur fuer Manager - sonst waeren sie eine Falle.
-  if (roh === 'manager' && Array.isArray(koerper.bereiche)) {
-    daten.users[i].rechte = (koerper.bereiche as unknown[])
-      .map((x) => String(x)).slice(0, 20);
-  } else if (roh !== 'manager') {
-    delete daten.users[i].rechte;
-  }
+  // Die Verwaltungsbereiche gelten nur fuer Manager - sonst waeren sie eine
+  // Falle. Die VIP-Bereiche dagegen fuer jeden ausser dem Admin (lib/rechte).
+  const rechte = rechteBereinigen(daten.users[i].rolle,
+    Array.isArray(koerper.bereiche)
+      ? koerper.bereiche as unknown[] : (daten.users[i].rechte ?? []));
+  if (rechte.length) daten.users[i].rechte = rechte;
+  else delete daten.users[i].rechte;
 
   /*
    * Darf dieser Zugang seinen Schluessel selbst aendern?

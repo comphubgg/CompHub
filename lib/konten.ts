@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import fs from '@/lib/ablageFs';
 import path from 'path';
 import { DATEN_ORT } from './datenOrt';
+import { rechteBereinigen, wirksameRechte } from './rechte';
 
 // Benutzerkonten.
 //
@@ -478,12 +479,14 @@ export async function setzeRechte(
    * Die Bereiche gelten nur fuer Manager. Faellt die Rolle weg oder wird
    * jemand Admin, verschwinden sie - ein Admin darf ohnehin alles, und eine
    * Liste, die niemand mehr liest, ist nur eine Falle fuer spaeter.
+   *
+   * Die VIP-Bereiche dagegen gelten fuer jeden ausser dem Admin - auch fuer
+   * einen VIP ohne Rolle, fuer den sie gemacht sind (lib/rechte).
    */
-  if (rolle === 'manager' && Array.isArray(bereiche)) {
-    liste[i].rechte = bereiche.slice(0, 20);
-  } else if (rolle !== 'manager') {
-    delete liste[i].rechte;
-  }
+  const neu = rechteBereinigen(rolle,
+    Array.isArray(bereiche) ? bereiche : (liste[i].rechte ?? []));
+  if (neu.length) liste[i].rechte = neu;
+  else delete liste[i].rechte;
 
   /*
    * Den Zeitpunkt festhalten, aber nur bei einer echten Vergabe.
@@ -632,7 +635,7 @@ export function oeffentlich(k: Konto) {
   return {
     id: k.id, email: k.email, name: k.name,
     rolle: k.rolle ?? null,
-    rechte: k.rechte ?? [],
+    rechte: wirksameRechte(k.rolle, k.rechte, istVip(k)),
     vip: istVip(k),
     vipBis: k.vipBis ?? null,
     /*

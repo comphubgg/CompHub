@@ -1346,13 +1346,17 @@ ${k.name}`)) return;
                   </p>
                   <div className="grid gap-1.5 sm:grid-cols-2">
                     {VIP_BEREICHE.map((b) => {
-                      const an = k.rechte.includes(b.schluessel);
+                      // Der Admin hat den Bereich ohnehin - der Haken steht
+                      // fest, statt leer und scheinbar abgeschaltet.
+                      const admin = k.rolle === 'admin';
+                      const an = admin || k.rechte.includes(b.schluessel);
                       return (
                         <label key={b.schluessel}
-                          className={`flex cursor-pointer items-start gap-2 rounded-lg
-                                      px-2 py-1.5 transition ${an
+                          title={admin ? t('Die Adminrolle schließt diesen Bereich ein') : undefined}
+                          className={`flex items-start gap-2 rounded-lg px-2 py-1.5
+                                      transition ${admin ? 'cursor-default' : 'cursor-pointer'} ${an
                             ? 'bg-amber-500/10' : 'hover:bg-zinc-900'}`}>
-                          <input type="checkbox" checked={an}
+                          <input type="checkbox" checked={an} disabled={admin}
                             onChange={() => {
                               const neu = an
                                 ? k.rechte.filter((x) => x !== b.schluessel)

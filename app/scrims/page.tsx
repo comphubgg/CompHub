@@ -37,6 +37,7 @@ import { useSprache } from '@/app/components/SprachProvider';
 import { useZugang } from '@/app/lib/zugang';
 import LadeSchirm from '@/app/components/LadeSchirm';
 import { MARKE } from '@/lib/marke';
+import { SCRIM_SERVER, einladungVon } from '@/lib/scrimServer';
 
 /* ================================================================ Daten */
 
@@ -74,18 +75,7 @@ const REGION_NAME: Record<string, string> = {
   ASIA: 'Asia', ME: 'Middle East', OCE: 'Oceania',
 };
 
-/*
- * Die Server rechts am Rand.
- *
- * Mit den Einladungen, die der Betreiber genannt hat - und der Region nur
- * dort, wo sie feststeht: bei Noble und Manu steht sie im Vorbild, bei
- * Vital nicht, also steht sie hier auch nicht.
- */
-const SERVER_RAND: Array<{ name: string; region: string; einladung: string; logo: string }> = [
-  { name: 'Noble Scrims', region: 'Europe', einladung: 'https://discord.com/invite/eu', logo: '/scrims/noble-gelb.jpg' },
-  { name: 'Manu Scrims', region: 'NA Central', einladung: 'https://discord.com/invite/manua12', logo: '/scrims/manu.jpg' },
-  { name: 'Vital Scrims', region: '', einladung: 'https://discord.com/invite/vitalscrims', logo: '/scrims/vital-gruen.jpg' },
-];
+/* Die Server rechts am Rand stehen in lib/scrimServer. */
 
 /**
  * Das Logo einer Serie - aus den Logos, die der Betreiber geschickt hat.
@@ -111,6 +101,15 @@ function logoFuer(name: string, eigenes?: string | null): string | null {
     return '/scrims/vital-gruen.jpg';
   }
   if (/manu/.test(n)) return '/scrims/manu.jpg';
+  // Poyo: jede Division ihr eigenes Banner, in ihrer Farbe.
+  if (/poyo/.test(n)) {
+    if (/solo/.test(n)) return '/scrims/poyo-solo.jpg';
+    if (/master/.test(n)) return '/scrims/poyo-master.jpg';
+    if (/legend/.test(n)) return '/scrims/poyo-legends.jpg';
+    if (/closed/.test(n)) return '/scrims/poyo-closed.jpg';
+    if (/prestige/.test(n)) return '/scrims/poyo-prestige.jpg';
+    return '/scrims/poyo-nzr.jpg';
+  }
   return eigenes ?? null;
 }
 
@@ -169,8 +168,22 @@ const BEISPIEL_SERIEN: Serie[] = [
     logo: '/scrims/noble-blau.jpg', sitzungen: beispielSitzungen('nd3', 'EU', 2, true) },
   { id: 'b-manu', name: 'Manu Scrims', region: 'NAC', server: 'Manu Scrims',
     logo: '/scrims/manu.jpg', sitzungen: beispielSitzungen('manu', 'NAC', 3, true) },
-  { id: 'b-vital', name: 'Vital Scrims', region: '', server: 'Vital Scrims',
-    logo: '/scrims/vital-gruen.jpg', sitzungen: beispielSitzungen('vital', '', 2, false) },
+  { id: 'b-vital', name: 'Vital Scrims', region: 'NAC', server: 'Vital Scrims',
+    logo: '/scrims/vital-gruen.jpg', sitzungen: beispielSitzungen('vital', 'NAC', 2, false) },
+  // Poyo - die Divisionen wie bei Fortnite Tracker, ohne Region: die steht
+  // nirgends.
+  { id: 'b-poyo-nzr', name: 'Poyo No Zone Rules', region: '', server: 'Poyo No Zone Rules',
+    logo: '/scrims/poyo-nzr.jpg', sitzungen: beispielSitzungen('pnzr', '', 2, true) },
+  { id: 'b-poyo-solo', name: 'Poyo Solo Division', region: '', server: 'Poyo No Zone Rules',
+    logo: '/scrims/poyo-solo.jpg', sitzungen: beispielSitzungen('psolo', '', 1, false) },
+  { id: 'b-poyo-master', name: 'Poyo Master Division', region: '', server: 'Poyo No Zone Rules',
+    logo: '/scrims/poyo-master.jpg', sitzungen: beispielSitzungen('pmaster', '', 2, false) },
+  { id: 'b-poyo-legends', name: 'Poyo Legends Division', region: '', server: 'Poyo No Zone Rules',
+    logo: '/scrims/poyo-legends.jpg', sitzungen: beispielSitzungen('plegends', '', 2, true) },
+  { id: 'b-poyo-closed', name: 'Poyo Closed Division', region: '', server: 'Poyo No Zone Rules',
+    logo: '/scrims/poyo-closed.jpg', sitzungen: beispielSitzungen('pclosed', '', 2, false) },
+  { id: 'b-poyo-prestige', name: 'Poyo Prestige Division', region: '', server: 'Poyo No Zone Rules',
+    logo: '/scrims/poyo-prestige.jpg', sitzungen: beispielSitzungen('pprestige', '', 2, false) },
 ];
 
 /** Eine Bestenliste, wie sie aussieht - mit Platzhaltern statt Namen. */
@@ -344,22 +357,43 @@ function Kachel({ serie, beispiel, offen, umschalten, waehle }: {
 /* ============================================================ Server-Rand */
 
 function ServerRand() {
+  const { sprache } = useSprache();
+  /*
+   * Die Mitgliederzahl jedes Servers - von Discord, wie im Vorbild
+   * ("166,887 members"). Kommt keine, steht keine da, nie eine 0.
+   */
+  const [zahlen, setZahlen] = useState<Record<string, { mitglieder: number }>>({});
+  useEffect(() => {
+    let weg = false;
+    fetch('/api/scrims/einladungen').then((r) => r.json())
+      .then((d) => { if (!weg) setZahlen(d.zahlen ?? {}); })
+      .catch(() => {});
+    return () => { weg = true; };
+  }, []);
+
   return (
     <aside className="space-y-3">
       <h2 className="text-lg font-black uppercase tracking-wide text-slate-100">
         <T>Server</T>
       </h2>
-      {SERVER_RAND.map((s) => (
+      {SCRIM_SERVER.map((s) => (
         <div key={s.name}
           className="flex items-center gap-3 overflow-hidden rounded-xl border border-zinc-800
                      bg-black/40 pr-3">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={s.logo} alt="" className="h-16 w-16 shrink-0 object-cover" />
           <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-bold text-slate-100">{s.name}</p>
+            <p className="text-sm font-bold leading-tight text-slate-100">{s.name}</p>
             {s.region && <p className="text-[11px] text-slate-500">{s.region}</p>}
+            {zahlen[s.code] && (
+              <p className="flex items-center gap-1.5 text-[11px] text-slate-500">
+                <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+                {zahlen[s.code].mitglieder.toLocaleString(sprache === 'en' ? 'en-US' : 'de-DE')}
+                {' '}<T>Mitglieder</T>
+              </p>
+            )}
           </div>
-          <a href={s.einladung} target="_blank" rel="noreferrer"
+          <a href={einladungVon(s.code)} target="_blank" rel="noreferrer"
             title={`${s.name} — Discord`}
             className="flex shrink-0 items-center gap-1.5 rounded-lg bg-[#5865F2] px-3 py-2
                        text-xs font-bold text-white transition hover:bg-[#4752c4]">

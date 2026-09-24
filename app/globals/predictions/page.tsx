@@ -67,7 +67,7 @@ export default function GlobalsPredictions() {
   }
   if (zugang.admin) {
     return (
-      <GlobalsGeruest aktiv="/globals/predictions">
+      <GlobalsGeruest aktiv="/globals/predictions" breit>
         <PrognosenWerkzeug globals />
       </GlobalsGeruest>
     );
