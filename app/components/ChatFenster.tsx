@@ -235,9 +235,13 @@ export default function ChatFenster({ alsSeite = false }: { alsSeite?: boolean }
    * sobald jemand etwas geschrieben hat - zwischen "abgeschickt" und "steht
    * beim anderen auf dem Schirm" liegt dann weniger als eine Sekunde statt
    * bis zu fuenf.
+   *
+   * Nur solange das Fenster offen ist. Geschlossen genuegt der Takt oben -
+   * vorher hielt jeder angemeldete Besucher auf jeder Seite eine Leitung
+   * offen, und alle zusammen haben Supabase am 24.9.2026 lahmgelegt.
    */
   useEffect(() => {
-    if (!darf) return;
+    if (!darf || !offen) return;
     let lebt = true;
     let quelle: EventSource | null = null;
     try {
@@ -247,7 +251,7 @@ export default function ChatFenster({ alsSeite = false }: { alsSeite?: boolean }
       quelle.onerror = () => {};
     } catch { /* kein EventSource: dann bleibt es beim Takt */ }
     return () => { lebt = false; quelle?.close(); };
-  }, [darf, holen]);
+  }, [darf, offen, holen]);
 
   // Beim Zurueckkommen sofort nachsehen: Browser drosseln Zeitgeber in
   // verborgenen Tabs bis auf einen Lauf je Minute.

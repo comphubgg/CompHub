@@ -1,5 +1,5 @@
-import fs from '@/lib/ablageFs';
 import path from 'path';
+import { beobachte, liesGeteilt } from '@/lib/dateiWache';
 import { DATEN_ORT } from '@/lib/datenOrt';
 
 /*
@@ -27,8 +27,15 @@ export const runtime = 'nodejs';
 
 const DATEI = path.join(DATEN_ORT, 'turnier-karten.json');
 
-/** So oft wird auf den Zeitstempel gesehen. */
-const BLICK_MS = 250;
+/*
+ * So oft sieht die gemeinsame Wache auf den Zeitstempel (lib/dateiWache).
+ *
+ * Vorher sah jede Leitung selbst alle 250 ms nach und las nach jeder
+ * Aenderung die ganze Kartendatei - je Zuschauer. Jetzt ist es ein Blick je
+ * Instanz und ein Lesen je Aenderung, gleich wie viele zusehen. Mit dem
+ * halben Sekundchen des Selbstspeicherns bleibt es bei gut einer Sekunde.
+ */
+const BLICK_MS = 600;
 /** Damit Zwischenstellen die stille Verbindung nicht zumachen. */
 const LEBENSZEICHEN_MS = 20_000;
 
@@ -58,9 +65,9 @@ function stabileIds(k: Karte): Map<string, string> {
   return neu;
 }
 
-async function holeKarte(id: string): Promise<Karte | null> {
+async function holeKarte(id: string, stempel: number): Promise<Karte | null> {
   try {
-    const alle = JSON.parse(await fs.readFile(DATEI, 'utf8')) as Karte[];
+    const alle = await liesGeteilt<Karte[]>(DATEI, stempel);
     return alle.find((k) => k.id === id) ?? null;
   } catch {
     return null;
@@ -100,32 +107,22 @@ export async function GET(request: Request) {
         catch { offen = false; }
       };
 
-      const schauNach = async () => {
-        if (!offen) return;
-        try {
-          // Nur der Zeitstempel. Die Datei zu lesen, solange sich nichts
-          // getan hat, waere viermal je Sekunde eine Datei fuer nichts.
-          const stand = await fs.stat(DATEI);
-          const stempel = stand.mtimeMs;
-          if (stempel === zuletztGesehen) return;
-          zuletztGesehen = stempel;
-
-          const k = await holeKarte(id);
+      // Die Wache meldet den aktuellen Stand gleich beim Anmelden - damit
+      // muss niemand auf die erste Aenderung warten.
+      const abmelden = beobachte(DATEI, BLICK_MS, (stempel) => {
+        if (!offen || stempel === zuletztGesehen) return;
+        zuletztGesehen = stempel;
+        void holeKarte(id, stempel).then((k) => {
           if (!k || k.geaendert === zuletztGesendet) return;
           zuletztGesendet = k.geaendert;
           sende(`data: ${JSON.stringify(alsStand(k))}\n\n`);
-        } catch { /* Datei gerade im Schreiben: beim naechsten Blick wieder */ }
-      };
-
-      const uhr = setInterval(() => { void schauNach(); }, BLICK_MS);
+        });
+      });
       const puls = setInterval(() => sende(': ping\n\n'), LEBENSZEICHEN_MS);
-      // Den aktuellen Stand gleich mitgeben, damit niemand auf die erste
-      // Aenderung warten muss.
-      void schauNach();
 
       const schluss = () => {
         offen = false;
-        clearInterval(uhr);
+        abmelden();
         clearInterval(puls);
         try { steuerung.close(); } catch { /* schon zu */ }
       };
