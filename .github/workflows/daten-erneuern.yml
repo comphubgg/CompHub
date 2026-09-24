@@ -121,14 +121,36 @@ jobs:
       # ohne ein einziges Bild in die Ablage: der Laufrechner hatte keine
       # spielerbilder.json. Alles Grosse bleibt draussen.
       - name: Das Noetigste aus Supabase
+        id: noetiges
         # Genau die Liste aus scripts/umzug-supabase.mjs (NOETIGES) - was
         # Nutzer und Betreiber auf der Seite schreiben. Sonst nichts.
         continue-on-error: true
         timeout-minutes: 5
         run: |
+          set -o pipefail
           node scripts/umzug-supabase.mjs --herunterladen --noetiges \
             --ohne kartenbilder,kontakt-bilder,admin-maps,galerie,eigene-matches \
             2>&1 | tail -4
+
+      # Das Gepflegte sofort ans Release - vor allem anderen.
+      #
+      # Antwortet Supabase nicht, liest die Seite Karten, Prognosen und
+      # Profile vom Release. Am 24.9.2026 war diese Kopie vom Vortag: das
+      # Sichern stand hinter den Replays, und die hingen seit Stunden. Die
+      # Globals-Karte stand waehrend eines Ausfalls dadurch ohne ein einziges
+      # Team da. Jetzt wandern die gepflegten Dateien gleich nach dem Holen
+      # hoch - aber nur, wenn das Holen geklappt hat, sonst laege hier ein
+      # alter Stand aus dem Zwischenspeicher, und der ersetzte einen neueren.
+      - name: Gepflegtes sofort ans Release
+        if: steps.noetiges.outcome == 'success'
+        continue-on-error: true
+        timeout-minutes: 5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          node scripts/ablage-github.mjs --nur prognosen.json --nur turnier-karten.json \
+            --nur karten-vorlagen.json --nur spieler-profile.json --nur spielerbilder.json \
+            --nur spieler-namen.json --nur orgtags.json 2>&1 | tail -6
 
       # Die Verdienst-Akte und Epics Auszahlungstabellen entstehen nur auf dem
       # Betreiber-Rechner (die alten Bestenlisten liegen nur dort) und kommen
