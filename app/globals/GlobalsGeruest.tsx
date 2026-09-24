@@ -141,7 +141,7 @@ export default function GlobalsGeruest({ aktiv, breit, children }: {
         </div>
       </div>
 
-      <div className={`mx-auto px-4 py-6 ${breit ? 'max-w-[1900px]' : 'max-w-[1500px]'}`}>
+      <div className={`mx-auto py-6 ${breit ? 'w-full px-2 sm:px-3' : 'max-w-[1500px] px-4'}`}>
         {children}
       </div>
     </main>

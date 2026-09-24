@@ -2481,6 +2481,16 @@ const AUF_ENGLISCH: Record<string, string> = {
     'Online cups from the maintained prize table (EU) and LAN events from published tables, per player.',
   'Die Overlays sind Teil des VIP-Zugangs.':
     'Overlays are part of VIP access.',
+  'Ranglisten, Teamkarten, Cup-Timer und mehr — live in deinem Stream.':
+    'Leaderboards, team cards, cup timers and more — live on your stream.',
+  'Zugang gewünscht?':
+    'Wanna get access?',
+  'Tritt unserem Discord bei oder schreib uns auf X.':
+    'Join our Discord or DM us on X.',
+  'Auf X schreiben':
+    'DM us on X',
+  'Schon VIP? Anmelden':
+    'Already VIP? Sign in',
   'Links oben die drei Striche: von dort kommen Team card, Standings, Cup timer, Offspawn, Custom text und Qual line auf das Bild. Ziehen zum Verschieben, die Ecke zum Vergrößern.':
     'Top left, the three lines: from there Team card, Standings, Cup timer, Offspawn, Custom text and Qual line come onto the picture. Drag to move, the corner to resize.',
   'Nach vorn':

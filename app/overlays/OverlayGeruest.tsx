@@ -8,6 +8,7 @@ import { useZugang } from '@/app/lib/zugang';
 import MeineOverlays from './MeineOverlays';
 import Startansicht from './Startansicht';
 import LadeSchirm from '@/app/components/LadeSchirm';
+import VipVorhang from './VipVorhang';
 
 /*
  * Das gemeinsame Geruest der Overlay-Seiten.
@@ -201,27 +202,8 @@ export default function OverlayGeruest({ aktiv, children }: {
 
   if (zugang.laedt) return <LadeSchirm />;
 
-  if (!zugang.vip) {
-    return (
-      <main className="grid min-h-screen place-items-center bg-zinc-950 px-4
-                       text-center text-slate-100">
-        <div className="max-w-md">
-          <h1 className="text-xl font-bold"><T>Nur für VIPs</T></h1>
-          <p className="mt-3 text-sm leading-relaxed text-slate-500">
-            <T>Die Overlays sind Teil des VIP-Zugangs. Er wird vergeben, nicht
-            freigeschaltet — mit einem gewöhnlichen Konto sind sie nicht
-            zugänglich.</T>
-          </p>
-          <Link href="/sign-in"
-            className="mt-6 inline-block rounded-lg bg-sky-500 px-5 py-2.5
-                       text-sm font-semibold text-white transition
-                       hover:bg-sky-400">
-            <T>Zur Anmeldung</T>
-          </Link>
-        </div>
-      </main>
-    );
-  }
+  // Ohne VIP: der Vorhang mit dem Weg zum Zugang (siehe VipVorhang).
+  if (!zugang.vip) return <VipVorhang />;
 
   return (
     <main className={`flex-1 bg-zinc-950 text-slate-200 ${eingebettet ? 'px-4 py-4' : 'px-4 py-6'}`}>

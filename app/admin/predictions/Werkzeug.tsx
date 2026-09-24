@@ -1729,8 +1729,8 @@ export default function PrognosenWerkzeug({ globals = false }: {
   const Huelle = globals ? 'div' : 'main';
 
   return (
-    <Huelle className={globals ? 'text-slate-200' : 'flex-1 bg-zinc-950 px-4 py-6 text-slate-200'}>
-      <div className="mx-auto max-w-[1900px]">
+    <Huelle className={globals ? 'text-slate-200' : 'flex-1 bg-zinc-950 px-2 py-6 text-slate-200 sm:px-3'}>
+      <div className="mx-auto w-full">
 
         <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
           <div>
@@ -1971,9 +1971,9 @@ export default function PrognosenWerkzeug({ globals = false }: {
           * statt die Zeile hoeher zu machen als sie.
           */}
         {cupId && (
-        <div className="grid gap-4
-                        lg:grid-cols-[minmax(0,calc(100vh_-_3.4rem))_minmax(260px,1fr)_240px]
-                        xl:grid-cols-[minmax(0,calc(100vh_-_3.4rem))_minmax(400px,1fr)_280px]">
+        <div className="grid gap-3
+                        lg:grid-cols-[minmax(0,calc(100vh_-_4.9rem))_minmax(260px,1fr)_240px]
+                        xl:grid-cols-[minmax(0,calc(100vh_-_4.9rem))_minmax(420px,1fr)_250px]">
 
           {/* Kartenansicht: dieselben Formen wie im Karteneditor, hier nur zum
               Verteilen. Wer wo landet, hilft beim Aufstellen der Reihenfolge. */}
@@ -2252,7 +2252,7 @@ export default function PrognosenWerkzeug({ globals = false }: {
                          rounded-lg bg-zinc-950"
               style={{
                 containerType: 'size',
-                maxWidth: vollbildKarte ? 'min(100%, 84vh)' : 'min(100%, calc(100vh - 5rem))',
+                maxWidth: vollbildKarte ? 'min(100%, 84vh)' : 'min(100%, calc(100vh - 6.5rem))',
                 cursor: formenAn ? 'default' : zoom > 1 ? 'grab' : 'default',
               }}
               onMouseDown={(e) => {
@@ -2573,7 +2573,7 @@ export default function PrognosenWerkzeug({ globals = false }: {
                */
               <div className={vollbildListe
                 ? 'grid flex-1 content-start gap-2 md:grid-cols-2 xl:grid-cols-3'
-                : 'grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] gap-1'}>
+                : 'grid grid-cols-[repeat(auto-fill,minmax(150px,1fr))] gap-1 xl:grid-cols-3'}>
                 {plaetze.map((key, i) => {
                   const t = teamZu(key);
                   return (

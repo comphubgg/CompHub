@@ -49,7 +49,18 @@ export async function GET(req: NextRequest) {
    * er bleibt Admin, auch wenn dort nichts zu ihm steht.
    */
   const betreiber = login.trim().toLowerCase() === 'admin-juanito';
-  const eintrag = await zugangNach(login);
+  /*
+   * Antwortet die Ablage nicht, bleibt der Betreiber trotzdem angemeldet -
+   * sein unterschriebenes Cookie ist sein Ausweis, nicht diese Datei (siehe
+   * unten). Vorher warf die Pruefung hier einen Fehler 500, und die Seite
+   * behandelte ihn wie abgemeldet. Alle anderen brauchen den Eintrag.
+   */
+  let eintrag: Awaited<ReturnType<typeof zugangNach>> = null;
+  try {
+    eintrag = await zugangNach(login);
+  } catch (e) {
+    if (!betreiber) throw e;
+  }
   const darf = rechteVon(eintrag);
 
   /*

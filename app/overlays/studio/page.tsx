@@ -5,6 +5,7 @@ import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import { useZugang } from '@/app/lib/zugang';
 import LadeSchirm from '@/app/components/LadeSchirm';
+import VipVorhang from '../VipVorhang';
 import { ARTEN, type OverlayEintrag } from '../OverlayGeruest';
 
 /*
@@ -310,13 +311,7 @@ export default function Studio() {
   const ausgewaehlt = szene.elemente.find((e) => e.kennung === gewaehlt) ?? null;
 
   if (zugang.laedt) return <LadeSchirm />;
-  if (!zugang.vip) {
-    return (
-      <main className="flex-1 bg-zinc-950 px-4 py-16 text-center text-slate-300">
-        <p className="text-sm"><T>Die Overlays sind Teil des VIP-Zugangs.</T></p>
-      </main>
-    );
-  }
+  if (!zugang.vip) return <VipVorhang />;
 
   return (
     <main className="relative flex min-h-screen flex-col bg-zinc-950 text-slate-200"
