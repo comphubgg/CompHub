@@ -1196,7 +1196,7 @@ export default function PrognosenWerkzeug({ globals = false }: {
           { signal: AbortSignal.timeout(90_000) });
         const d = await r.json() as {
           error?: string;
-          teams?: Array<{ rang: number; spieler: Array<{
+          teams?: Array<{ rang: number; region?: string | null; spieler: Array<{
             turnierId: string; epicId: string | null; anzeige: string;
           }> }>;
         };
@@ -1206,7 +1206,10 @@ export default function PrognosenWerkzeug({ globals = false }: {
           return {
             key: [...ids].sort().join('|'),
             namen: t.spieler.map((s) => s.anzeige),
-            ids, herkunft: [], besterPlatz: t.rang, region: 'GLOBAL',
+            // Die Region, fuer die das Team spielt (Heimatregion seiner
+            // Spieler, siehe /api/globals-teams) - nicht "GLOBAL", das traegt
+            // hier jedes Team.
+            ids, herkunft: [], besterPlatz: t.rang, region: t.region || '',
           };
         });
         setFeld(liste);

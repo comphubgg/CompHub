@@ -5,6 +5,7 @@ import { DATEN_ORT } from '@/lib/datenOrt';
 import { kernname, namensSchluessel } from '@/lib/homoglyph';
 import { gecacht, holeTop, EpicLoginNoetig } from '@/lib/epicCups';
 import { GLOBALS_EVENT, GLOBALS_TAGE } from '@/lib/globalsCup';
+import { heimatRegionen } from '@/lib/szeneStats';
 
 /*
  * Das Feld der Global Championship - wer antritt, und woher.
@@ -176,12 +177,15 @@ export async function GET(request: Request) {
       players?: Array<{ id: string; name: string; img?: string | null }>;
     }> }).entries ?? [];
 
-    const [namen, profile, bilder, szeneRoh] = await Promise.all([
+    const [namen, profile, bilder, szeneRoh, heimat] = await Promise.all([
       liesJson<Record<string, { namen?: string[]; haupt?: string }>>('spieler-namen.json', {}),
       liesJson<Record<string, Profil>>('spieler-profile.json', {}),
       liesJson<Bildeintrag[]>('spielerbilder.json', []),
       liesJson<Array<{ ID?: string; NAME?: string; COUNTRY?: string }>>(
         path.join('szene-quelle', 'spielerliste.json'), []),
+      // Wo jemand am meisten gespielt hat - von Hand gesetzte Regionen gehen
+      // vor (siehe lib/szeneStats). Ohne Archiv bleibt es leer, nie geraten.
+      heimatRegionen().catch(() => new Map<string, string>()),
     ]);
 
     const lanKonten = new Set(eintraege.flatMap((e) => (e.players ?? []).map((x) => x.id)));
@@ -199,6 +203,17 @@ export async function GET(request: Request) {
         szene.set(s.ID, { name: s.NAME, land: (s.COUNTRY || '').toUpperCase() });
       }
     }
+
+    /*
+     * Fuer welche Region ein Team antritt - aus der Heimatregion seiner
+     * Spieler. Der Betreiber: "in der Predictions-Player-Liste soll nicht der
+     * Tag Global sein, sondern deren Region, ob das Team fuer NAC, EU, Asia
+     * spielt." Spielen die beiden aus verschiedenen Regionen, stehen beide da.
+     */
+    const regionVon = (ids: Array<string | null>) => {
+      const r = [...new Set(ids.map((id) => (id ? heimat.get(id) : undefined)).filter(Boolean))];
+      return r.join('/') || null;
+    };
 
     const teams = eintraege.map((e) => ({
       rang: e.rank,
@@ -232,7 +247,7 @@ export async function GET(request: Request) {
     return NextResponse.json({
       fenster,
       stand: Date.now(),
-      teams,
+      teams: teams.map((t) => ({ ...t, region: regionVon(t.spieler.map((s) => s.epicId)) })),
       zugeordnet: teams.reduce((n, t) =>
         n + t.spieler.filter((s) => s.epicId).length, 0),
       mitFoto: teams.reduce((n, t) =>

@@ -29,7 +29,7 @@
 // Yunite-Premium verbunden ist, steht ein Beispiel da - gekennzeichnet, an
 // jeder Kachel und ueber der ganzen Ansicht.
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 
 import T from '@/app/components/T';
@@ -65,6 +65,12 @@ interface Runde {
 interface Serie {
   id: string; name: string; region: string; logo: string | null;
   server: string; sitzungen: Sitzung[];
+  /**
+   * Offener Server: jeder darf mitspielen, eine Session laeuft ueber viele
+   * Lobbys zugleich (bei Noble Practice bis zu 1000 Spieler). Sonst eine
+   * Lobby mit 100 Spielern je Session - siehe beispielTeams.
+   */
+  offen?: boolean;
 }
 
 /** Wie viele Spieler ein Team hat - als Wort, wie im Turnierbereich. */
@@ -159,7 +165,7 @@ function beispielSitzungen(praefix: string, region: string, groesse: number, liv
 
 const BEISPIEL_SERIEN: Serie[] = [
   { id: 'b-noble-practice', name: 'Noble Practice Scrims', region: 'EU', server: 'Noble Scrims',
-    logo: '/scrims/noble-gelb.jpg', sitzungen: beispielSitzungen('npr', 'EU', 3, true) },
+    offen: true, logo: '/scrims/noble-gelb.jpg', sitzungen: beispielSitzungen('npr', 'EU', 3, true) },
   { id: 'b-noble-pro', name: 'Noble Pro Scrims', region: 'EU', server: 'Noble Scrims',
     logo: '/scrims/noble-gold.jpg', sitzungen: beispielSitzungen('npro', 'EU', 2, false) },
   { id: 'b-noble-div1', name: 'Noble Division 1', region: 'EU', server: 'Noble Scrims',
@@ -174,7 +180,7 @@ const BEISPIEL_SERIEN: Serie[] = [
   // Betreiber gesagt ("Poyo No Zone Rules sind auch Europa"), und die
   // Divisionen sind die Aufstiegsstufen desselben Servers.
   { id: 'b-poyo-nzr', name: 'Poyo No Zone Rules', region: 'EU', server: 'Poyo No Zone Rules',
-    logo: '/scrims/poyo-nzr.jpg', sitzungen: beispielSitzungen('pnzr', 'EU', 2, true) },
+    offen: true, logo: '/scrims/poyo-nzr.jpg', sitzungen: beispielSitzungen('pnzr', 'EU', 2, true) },
   { id: 'b-poyo-solo', name: 'Poyo Solo Division', region: 'EU', server: 'Poyo No Zone Rules',
     logo: '/scrims/poyo-solo.jpg', sitzungen: beispielSitzungen('psolo', 'EU', 1, false) },
   { id: 'b-poyo-master', name: 'Poyo Master Division', region: 'EU', server: 'Poyo No Zone Rules',
@@ -187,26 +193,45 @@ const BEISPIEL_SERIEN: Serie[] = [
     logo: '/scrims/poyo-prestige.jpg', sitzungen: beispielSitzungen('pprestige', 'EU', 2, false) },
 ];
 
+/*
+ * Wie gross eine Session ist - so, wie der Betreiber es beschrieben hat:
+ * eine Lobby hat 100 Spieler, also 100 Solos, 50 Duos oder rund 33 Trios.
+ * Eine Division spielt eine Lobby je Session; ein offener Server wie Noble
+ * Practice viele zugleich, bis zu 1000 Spieler.
+ */
+const LOBBY = 100;
+const OFFEN_SPIELER = 1000;
+
+function teamZahl(groesse: number, offen = false) {
+  return Math.floor((offen ? OFFEN_SPIELER : LOBBY) / Math.max(1, groesse));
+}
+
 /** Eine Bestenliste, wie sie aussieht - mit Platzhaltern statt Namen. */
-function beispielTeams(groesse: number): Team[] {
+function beispielTeams(groesse: number, offen = false): Team[] {
   const n = Math.max(1, groesse);
-  return Array.from({ length: 30 }, (_, i) => {
+  const zahl = teamZahl(n, offen);
+  const jeLobby = teamZahl(n);
+  // Neun Matches; in jedem gewinnt je Lobby ein Team.
+  let sieg = 9 * (offen ? OFFEN_SPIELER / LOBBY : 1);
+  return Array.from({ length: zahl }, (_, i) => {
+    const anteil = 1 - i / (zahl * 1.12);
     const matches = 9 - (i % 4);
-    const siege = i === 0 ? 2 : i < 4 ? 1 : 0;
-    const elims = Math.max(2, Math.floor(44 - i * 1.3));
+    const siege = sieg > 0 ? Math.min(sieg, i === 0 ? 2 : 1) : 0;
+    sieg -= siege;
+    const elims = Math.max(0, Math.round(44 * Math.pow(anteil, 1.3)));
     return {
       teamId: `b-${i}`,
       spieler: Array.from({ length: n }, (__, k) => ({ name: `Player ${i * n + k + 1}` })),
       platz: i + 1,
-      punkte: 393 - i * 9,
+      punkte: Math.max(1, Math.round(393 * Math.pow(anteil, 1.6))),
       elims, matches, siege,
       elimsJeMatch: +(elims / matches).toFixed(2),
-      schnittPlatz: +(4 + i * 0.9).toFixed(1),
-      zeitSchnitt: 1100 - i * 12,
+      schnittPlatz: +(4 + (1 - anteil) * jeLobby * 0.8).toFixed(1),
+      zeitSchnitt: Math.round(1100 * (0.35 + 0.65 * anteil)),
       spiele: Array.from({ length: Math.min(matches, 8) }, (__, k) => ({
-        platz: ((i * 7 + k * 5) % 30) + 1,
+        platz: ((i * 7 + k * 5) % jeLobby) + 1,
         elims: (i + k * 3) % 10,
-        punkte: 80 - ((i * 7 + k * 5) % 30) * 2,
+        punkte: Math.max(0, 80 - ((i * 7 + k * 5) % jeLobby) * 2),
         zeitpunkt: Date.now() - k * 1500_000,
         zaehlt: true,
       })),
@@ -214,15 +239,20 @@ function beispielTeams(groesse: number): Team[] {
   });
 }
 
-function beispielRunden(): Runde[] {
+function beispielRunden(groesse: number, offen = false): Runde[] {
+  const voll = teamZahl(groesse, offen) * Math.max(1, groesse);
   return Array.from({ length: 9 }, (_, i) => ({
     sessionId: `b-runde-${i}`, zeitpunkt: Date.now() - i * 1500_000, gastgeber: null,
-    spieler: 98 - i * 2, gewertet: 'SCORED', ignoriert: false,
+    spieler: voll - (offen ? i * 9 : i), gewertet: 'SCORED', ignoriert: false,
   }));
 }
 
 /** Woher die Spieler kommen - nur im Beispiel; Yunite nennt es nicht. */
-const BEISPIEL_LAENDER: Array<[string, number]> = [['FR', 98], ['GB', 94], ['IT', 76], ['DE', 73], ['Other', 526]];
+function beispielLaender(spieler: number): Array<[string, number]> {
+  const teil = (x: number) => Math.round(spieler * x);
+  const oben: Array<[string, number]> = [['FR', teil(0.11)], ['GB', teil(0.11)], ['IT', teil(0.09)], ['DE', teil(0.08)]];
+  return [...oben, ['Other', spieler - oben.reduce((a, [, z]) => a + z, 0)]];
+}
 
 /* ============================================================ Helfer */
 
@@ -529,6 +559,29 @@ function SessionSeite({ serie, sitzung, teams, runden, laedt, beispiel, zurueck,
   const gefiltert = useMemo(() => (q
     ? teams.filter((tm) => tm.spieler.some((s) => s.name.toLowerCase().includes(q)))
     : teams), [teams, q]);
+
+  /*
+   * Nach und nach zeichnen, nicht alles auf einmal: ein offener Server
+   * bringt bis zu 500 Teams. Sichtbar sind zuerst sechzig, und jedes Mal,
+   * wenn das Ende der Liste ins Bild kommt, sechzig mehr - ohne Knopf.
+   */
+  // Wechselt die Liste oder die Suche, beginnt es wieder bei sechzig.
+  const schluessel = `${liste}|${q}|${teams.length}`;
+  const [stand, setStand] = useState({ schluessel, zahl: 60 });
+  const zeigen = stand.schluessel === schluessel ? stand.zahl : 60;
+  const ende = useRef<HTMLDivElement | null>(null);
+  useEffect(() => {
+    const el = ende.current;
+    if (!el) return;
+    const beob = new IntersectionObserver((e) => {
+      if (!e.some((x) => x.isIntersecting)) return;
+      setStand((s) => ({ schluessel, zahl: (s.schluessel === schluessel ? s.zahl : 60) + 60 }));
+    }, { rootMargin: '400px' });
+    beob.observe(el);
+    return () => beob.disconnect();
+    // Auch nach jedem Nachladen neu beobachten: steht das Ende dann noch im
+    // Bild, meldet der Beobachter das sofort, und es kommen weitere sechzig.
+  }, [schluessel, zeigen]);
   const team = teams.find((x) => x.teamId === gewaehlt) ?? teams[0] ?? null;
 
   const spielerZahl = teams.reduce((n, x) => n + x.spieler.length, 0);
@@ -647,7 +700,7 @@ function SessionSeite({ serie, sitzung, teams, runden, laedt, beispiel, zurueck,
                         <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-300">
                           <T>Spieler je Land</T>
                         </p>
-                        {beispiel ? <Kringel teile={BEISPIEL_LAENDER} /> : (
+                        {beispiel ? <Kringel teile={beispielLaender(spielerZahl)} /> : (
                           <p className="text-xs text-slate-500">
                             <T>Die Herkunft der Spieler gibt Yunite nicht heraus.</T>
                           </p>
@@ -724,7 +777,7 @@ function SessionSeite({ serie, sitzung, teams, runden, laedt, beispiel, zurueck,
                           </tr>
                         </thead>
                         <tbody className="tabular-nums">
-                          {gefiltert.map((tm) => (
+                          {gefiltert.slice(0, zeigen).map((tm) => (
                             <tr key={tm.teamId} onClick={() => setGewaehlt(tm.teamId)}
                               className={`${zeile} cursor-pointer transition ${
                                 team?.teamId === tm.teamId ? 'bg-sky-500/10' : 'hover:bg-zinc-900/60'}`}>
@@ -761,7 +814,7 @@ function SessionSeite({ serie, sitzung, teams, runden, laedt, beispiel, zurueck,
                           </tr>
                         </thead>
                         <tbody className="tabular-nums">
-                          {gefiltert.flatMap((tm) => tm.spieler.map((s) => (
+                          {gefiltert.slice(0, zeigen).flatMap((tm) => tm.spieler.map((s) => (
                             <tr key={`${tm.teamId}-${s.name}`} className={zeile}>
                               <td className="px-4 py-2 font-semibold text-slate-100">{s.name}</td>
                               <td className="px-2 py-2 text-right text-slate-300">{tm.platz}</td>
@@ -785,7 +838,7 @@ function SessionSeite({ serie, sitzung, teams, runden, laedt, beispiel, zurueck,
                           </tr>
                         </thead>
                         <tbody className="tabular-nums">
-                          {[...gefiltert].sort((a, b) => b.elims - a.elims).map((tm) => (
+                          {[...gefiltert].sort((a, b) => b.elims - a.elims).slice(0, zeigen).map((tm) => (
                             <tr key={tm.teamId} className={zeile}>
                               <td className="max-w-[340px] px-4 py-2 font-semibold text-slate-100">
                                 <span className="line-clamp-1">{tm.spieler.map((s) => s.name).join(' + ')}</span>
@@ -807,6 +860,8 @@ function SessionSeite({ serie, sitzung, teams, runden, laedt, beispiel, zurueck,
                     {!gefiltert.length && (
                       <p className="py-8 text-center text-sm text-slate-500"><T>Niemand gefunden.</T></p>
                     )}
+                    {/* Kommt das ins Bild, laden die naechsten sechzig. */}
+                    <div ref={ende} aria-hidden className="h-px" />
                   </div>
 
                   {/* ---------------------------------------- Team-Details */}
@@ -992,8 +1047,8 @@ export default function ScrimsSeite() {
     if (typeof window !== 'undefined') window.scrollTo({ top: 0 });
     // Das Beispiel braucht keine Abfrage - es steht schon fest.
     if (beispiel) {
-      setTeams(beispielTeams(sitzung.teamGroesse));
-      setRunden(beispielRunden());
+      setTeams(beispielTeams(sitzung.teamGroesse, serie.offen));
+      setRunden(beispielRunden(sitzung.teamGroesse, serie.offen));
       return;
     }
     setLaedtCup(true);
