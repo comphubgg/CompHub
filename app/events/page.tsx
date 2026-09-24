@@ -237,7 +237,7 @@ export default function EventsPage() {
   const [ohneRanked, setOhneRanked] = useState(true);
   const [suche, setSuche] = useState('');
   const [typ, setTyp] = useState<'alle' | Typ>('alle');
-  const [status, setStatus] = useState<Status>('aktuell');
+  const [status, setStatus] = useState<Status>('alle');
   const [plattform, setPlattform] = useState<Plattform>('alle');
   const [region, setRegion] = useState('alle');
   const [offen, setOffen] = useState<string | null>(null);
@@ -315,7 +315,7 @@ export default function EventsPage() {
       .some((f) => new Date(f.begin).toDateString() === tag)).map((c) => c.id)).size;
   }, [gefiltert]);
 
-  const filterZahl = [suche.trim(), typ !== 'alle', status !== 'aktuell', plattform !== 'alle']
+  const filterZahl = [suche.trim(), typ !== 'alle', status !== 'alle', plattform !== 'alle']
     .filter(Boolean).length;
 
   const oeffnen = (c: Cup) => {
@@ -431,8 +431,8 @@ export default function EventsPage() {
             <Wahl titel="Typ" wert={typ} setzen={setTyp}
               optionen={[['alle', 'Alle'], ...TYPEN] as Array<['alle' | Typ, string]>} />
             <Wahl titel="Status" wert={status} setzen={setStatus} optionen={[
-              ['aktuell', 'Live & demnächst'], ['live', 'Live'], ['kommt', 'Demnächst'],
-              ['vorbei', 'Beendet'], ['alle', 'Alle'],
+              ['alle', 'Alle'], ['aktuell', 'Live & demnächst'], ['live', 'Live'],
+              ['kommt', 'Demnächst'], ['vorbei', 'Beendet'],
             ]} />
             <Wahl titel="Plattform" wert={plattform} setzen={setPlattform} optionen={[
               ['alle', 'Alle'], ['pc', 'PC'], ['konsole', 'Konsole'], ['mobile', 'Mobile'],

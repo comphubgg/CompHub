@@ -98,10 +98,9 @@ async function gemeinsameCups(a: Spieler, b: Spieler): Promise<Zeile[] | null> {
  * soll so wie in Bild 2 eine Liste mit den Regionen kommen und wo welcher
  * von ist, also Land usw." Seit dem Abend desselben Tages eine eigene Ansicht
  * ("Nationalities") neben den Spielern und den Regionen. Jedes Land eine
- * Karte mit Flagge, Name, Zahl und seinen Spielern; ein gewaehltes steht
- * vorn und leuchtet.
+ * Karte mit Flagge, Name, Zahl und seinen Spielern, das groesste zuerst.
  */
-function LaenderRaster({ teams, gewaehlt }: { teams: Team[]; gewaehlt: string | null }) {
+function LaenderRaster({ teams }: { teams: Team[] }) {
   const { sprache } = useSprache();
   const namen = useMemo(() => {
     try { return new Intl.DisplayNames([sprache === 'en' ? 'en' : 'de'], { type: 'region' }); }
@@ -113,18 +112,15 @@ function LaenderRaster({ teams, gewaehlt }: { teams: Team[]; gewaehlt: string | 
       if (!s.land) continue;
       (je.get(s.land) ?? je.set(s.land, []).get(s.land)!).push(s);
     }
-    return [...je.entries()].sort((a, b) =>
-      (a[0] === gewaehlt ? -1 : b[0] === gewaehlt ? 1 : 0) || b[1].length - a[1].length);
-  }, [teams, gewaehlt]);
+    return [...je.entries()].sort((a, b) => b[1].length - a[1].length);
+  }, [teams]);
   const ohne = teams.flatMap((tm) => tm.spieler).filter((s) => !s.land).length;
 
   return (
     <>
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
         {gruppen.map(([land, spieler]) => (
-          <div key={land}
-            className={`rounded-xl border bg-zinc-900/50 p-3 ${land === gewaehlt
-              ? 'border-amber-400/70 ring-1 ring-amber-400/40' : 'border-zinc-800'}`}>
+          <div key={land} className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-3">
             <div className="mb-2 flex items-center gap-2 border-b border-zinc-800 pb-2">
               <Flagge land={land} groesse="h-5 w-5" />
               <span className="min-w-0 flex-1 truncate text-sm font-bold text-slate-100">
@@ -154,9 +150,8 @@ function LaenderRaster({ teams, gewaehlt }: { teams: Team[]; gewaehlt: string | 
 
 /*
  * Die Teams nach Wettkampfregion - EU, NA Central, NA West, Brasilien, Asien,
- * Middle East, Ozeanien. Die Region eines Teams ist die Heimatregion seiner
- * Spieler (siehe /api/globals-teams); ein gemischtes Duo steht in beiden
- * Regionen, mit der jeweils anderen als Marke dahinter.
+ * Middle East, Ozeanien. Jedes Team steht genau einmal, unter der Region
+ * seiner Qualifikation (siehe /api/globals-teams).
  */
 const REGIONEN: Array<[string, string]> = [
   ['EU', 'Europe'], ['NAC', 'NA Central'], ['NAW', 'NA West'], ['BR', 'Brazil'],
@@ -167,7 +162,7 @@ function RegionenRaster({ teams, oeffnen }: { teams: Team[]; oeffnen: (t: Team) 
   const gruppen = REGIONEN
     .map(([kurz, name]) => ({
       kurz, name,
-      teams: teams.filter((tm) => (tm.region ?? '').split('/').includes(kurz)),
+      teams: teams.filter((tm) => tm.region === kurz),
     }))
     .filter((g) => g.teams.length);
   const ohne = teams.filter((tm) => !tm.region).length;
@@ -195,11 +190,6 @@ function RegionenRaster({ teams, oeffnen }: { teams: Team[]; oeffnen: (t: Team) 
                     <span className="min-w-0 flex-1 truncate font-semibold">
                       {tm.spieler.map((sp) => sp.anzeige).join(' + ')}
                     </span>
-                    {(tm.region ?? '').includes('/') && (
-                      <span className="shrink-0 rounded border border-zinc-700 px-1 text-[10px] text-slate-400">
-                        {(tm.region ?? '').split('/').filter((x) => x !== g.kurz).join('/')}
-                      </span>
-                    )}
                   </button>
                 </li>
               ))}
@@ -367,8 +357,6 @@ export default function GlobalsTeams() {
    * Funktionen - allgemein die Players, dann Nationalities, dann Region."
    */
   const [ansicht, setAnsicht] = useState<'spieler' | 'laender' | 'regionen'>('spieler');
-  /** Welches Land in der Laenderansicht vorn steht. */
-  const [landGewaehlt, setLandGewaehlt] = useState<string | null>(null);
 
   useEffect(() => {
     let weg = false;
@@ -392,18 +380,6 @@ export default function GlobalsTeams() {
     return teams.filter((tm) => tm.spieler.some((s) =>
       s.anzeige.toLowerCase().includes(q) || s.name.toLowerCase().includes(q)));
   }, [teams, suche]);
-
-  /** Wie viele Spieler je Land - die kleine Übersicht oben. */
-  const laender = useMemo(() => {
-    const zaehler = new Map<string, number>();
-    for (const tm of teams ?? []) {
-      for (const s of tm.spieler) {
-        if (!s.land) continue;
-        zaehler.set(s.land, (zaehler.get(s.land) ?? 0) + 1);
-      }
-    }
-    return [...zaehler.entries()].sort((a, b) => b[1] - a[1]);
-  }, [teams]);
 
   return (
     <GlobalsGeruest aktiv="/globals/teams">
@@ -433,39 +409,30 @@ export default function GlobalsTeams() {
         </p>
       ) : (
         <>
-          <div className="mb-4 flex flex-wrap items-center gap-2">
-            <span className="rounded-lg border border-amber-500/25 bg-zinc-900/60
-                             px-3 py-1.5 text-xs text-amber-200/90">
+          {/*
+            * Die drei Ansichten als schmaler Umschalter, daneben die Zahl.
+            * Der Betreiber (24.9.2026): die Laenderknoepfe oben weg, und "die
+            * Filterungen zwischen Nationality, Regions und Player kleiner und
+            * cleaner".
+            */}
+          <div className="mb-4 flex flex-wrap items-center gap-3">
+            <div className="inline-flex rounded-lg bg-zinc-900/70 p-0.5 ring-1 ring-zinc-800">
+              {([['spieler', 'Spieler'], ['laender', 'Nationalitäten'], ['regionen', 'Regionen']] as const)
+                .map(([k, titel]) => (
+                  <button key={k} type="button" onClick={() => setAnsicht(k)}
+                    className={`rounded-md px-3 py-1 text-xs font-semibold transition ${ansicht === k
+                      ? 'bg-amber-400/15 text-amber-200'
+                      : 'text-slate-400 hover:text-slate-100'}`}>
+                    <T>{titel}</T>
+                  </button>
+                ))}
+            </div>
+            <span className="text-xs tabular-nums text-slate-500">
               {teams.length} <T>Teams</T> · {zahlen.spieler} <T>Spieler</T>
             </span>
-            {/* Alle Laender, und jedes oeffnet die Uebersicht - siehe LaenderAnsicht. */}
-            {laender.map(([land, n]) => (
-              <button key={land} type="button"
-                onClick={() => { setLandGewaehlt(land); setAnsicht('laender'); }}
-                title={t('Spieler nach Land')}
-                className="flex items-center gap-1.5 rounded-lg border border-zinc-800
-                           bg-zinc-900/40 px-2.5 py-1.5 text-xs text-slate-300 transition
-                           hover:border-amber-400/60 hover:text-amber-100">
-                <Flagge land={land} /> {land}
-                <span className="text-slate-500">{n}</span>
-              </button>
-            ))}
           </div>
 
-          {/* Die drei Ansichten - gleiche Knoepfe nebeneinander. */}
-          <div className="mb-4 inline-flex overflow-hidden rounded-xl border border-amber-500/25">
-            {([['spieler', 'Spieler'], ['laender', 'Nationalitäten'], ['regionen', 'Regionen']] as const)
-              .map(([k, titel]) => (
-                <button key={k} type="button" onClick={() => setAnsicht(k)}
-                  className={`px-5 py-2 text-sm font-semibold transition ${ansicht === k
-                    ? 'bg-amber-400/15 text-amber-200'
-                    : 'text-slate-300 hover:bg-white/5 hover:text-amber-100'}`}>
-                  <T>{titel}</T>
-                </button>
-              ))}
-          </div>
-
-          {ansicht === 'laender' && <LaenderRaster teams={gezeigt} gewaehlt={landGewaehlt} />}
+          {ansicht === 'laender' && <LaenderRaster teams={gezeigt} />}
           {ansicht === 'regionen' && <RegionenRaster teams={gezeigt} oeffnen={setOffen} />}
 
           {/*

@@ -1222,8 +1222,8 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
           return {
             key: [...ids].sort().join('|'),
             namen: t.spieler.map((s) => s.anzeige),
-            // Die Region, fuer die das Team spielt (Heimatregion seiner
-            // Spieler, siehe /api/globals-teams) - nicht "GLOBAL", das traegt
+            // Die Region, fuer die das Team spielt (die seiner Qualifikation,
+            // siehe /api/globals-teams) - nicht "GLOBAL", das traegt
             // hier jedes Team.
             ids, herkunft: [], besterPlatz: t.rang, region: t.region || '',
           };
