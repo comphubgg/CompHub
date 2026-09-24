@@ -170,20 +170,21 @@ const BEISPIEL_SERIEN: Serie[] = [
     logo: '/scrims/manu.jpg', sitzungen: beispielSitzungen('manu', 'NAC', 3, true) },
   { id: 'b-vital', name: 'Vital Scrims', region: 'NAC', server: 'Vital Scrims',
     logo: '/scrims/vital-gruen.jpg', sitzungen: beispielSitzungen('vital', 'NAC', 2, false) },
-  // Poyo - die Divisionen wie bei Fortnite Tracker, ohne Region: die steht
-  // nirgends.
-  { id: 'b-poyo-nzr', name: 'Poyo No Zone Rules', region: '', server: 'Poyo No Zone Rules',
-    logo: '/scrims/poyo-nzr.jpg', sitzungen: beispielSitzungen('pnzr', '', 2, true) },
-  { id: 'b-poyo-solo', name: 'Poyo Solo Division', region: '', server: 'Poyo No Zone Rules',
-    logo: '/scrims/poyo-solo.jpg', sitzungen: beispielSitzungen('psolo', '', 1, false) },
-  { id: 'b-poyo-master', name: 'Poyo Master Division', region: '', server: 'Poyo No Zone Rules',
-    logo: '/scrims/poyo-master.jpg', sitzungen: beispielSitzungen('pmaster', '', 2, false) },
-  { id: 'b-poyo-legends', name: 'Poyo Legends Division', region: '', server: 'Poyo No Zone Rules',
-    logo: '/scrims/poyo-legends.jpg', sitzungen: beispielSitzungen('plegends', '', 2, true) },
-  { id: 'b-poyo-closed', name: 'Poyo Closed Division', region: '', server: 'Poyo No Zone Rules',
-    logo: '/scrims/poyo-closed.jpg', sitzungen: beispielSitzungen('pclosed', '', 2, false) },
-  { id: 'b-poyo-prestige', name: 'Poyo Prestige Division', region: '', server: 'Poyo No Zone Rules',
-    logo: '/scrims/poyo-prestige.jpg', sitzungen: beispielSitzungen('pprestige', '', 2, false) },
+  // Poyo - die Divisionen wie bei Fortnite Tracker. Europa: das hat der
+  // Betreiber gesagt ("Poyo No Zone Rules sind auch Europa"), und die
+  // Divisionen sind die Aufstiegsstufen desselben Servers.
+  { id: 'b-poyo-nzr', name: 'Poyo No Zone Rules', region: 'EU', server: 'Poyo No Zone Rules',
+    logo: '/scrims/poyo-nzr.jpg', sitzungen: beispielSitzungen('pnzr', 'EU', 2, true) },
+  { id: 'b-poyo-solo', name: 'Poyo Solo Division', region: 'EU', server: 'Poyo No Zone Rules',
+    logo: '/scrims/poyo-solo.jpg', sitzungen: beispielSitzungen('psolo', 'EU', 1, false) },
+  { id: 'b-poyo-master', name: 'Poyo Master Division', region: 'EU', server: 'Poyo No Zone Rules',
+    logo: '/scrims/poyo-master.jpg', sitzungen: beispielSitzungen('pmaster', 'EU', 2, false) },
+  { id: 'b-poyo-legends', name: 'Poyo Legends Division', region: 'EU', server: 'Poyo No Zone Rules',
+    logo: '/scrims/poyo-legends.jpg', sitzungen: beispielSitzungen('plegends', 'EU', 2, true) },
+  { id: 'b-poyo-closed', name: 'Poyo Closed Division', region: 'EU', server: 'Poyo No Zone Rules',
+    logo: '/scrims/poyo-closed.jpg', sitzungen: beispielSitzungen('pclosed', 'EU', 2, false) },
+  { id: 'b-poyo-prestige', name: 'Poyo Prestige Division', region: 'EU', server: 'Poyo No Zone Rules',
+    logo: '/scrims/poyo-prestige.jpg', sitzungen: beispielSitzungen('pprestige', 'EU', 2, false) },
 ];
 
 /** Eine Bestenliste, wie sie aussieht - mit Platzhaltern statt Namen. */
@@ -246,6 +247,9 @@ function zeitText(sekunden: number) {
 }
 
 /** Status einer Serie: live, laeuft (eine Session ist offen) oder vorbei. */
+/** In dieser Reihenfolge stehen die Kacheln: was live ist, zuerst. */
+const RANG = { live: 0, laeuft: 1, vorbei: 2 } as const;
+
 function statusVon(s: Serie): 'live' | 'laeuft' | 'vorbei' {
   if (s.sitzungen.some((x) => x.live)) return 'live';
   if (s.sitzungen.some((x) => !x.vorbei)) return 'laeuft';
@@ -262,6 +266,37 @@ function Marke({ children, art }: { children: React.ReactNode; art: 'hell' | 'gr
     <span className={`rounded border px-1.5 py-0.5 text-[10px] font-bold uppercase
                       leading-none tracking-wide ${farbe}`}>
       {children}
+    </span>
+  );
+}
+
+/*
+ * Ob etwas live ist - ohne Rot.
+ *
+ * Vorher trug eine laufende Kachel oben einen roten Streifen und rundum
+ * einen roten Rahmen. Der Betreiber: "dieses Rot da gefaellt mir irgendwie
+ * nicht ... hast du dazu eine andere Idee?" Jetzt sagt es eine Marke aus
+ * dunklem Glas oben links, bei Live mit pulsierendem Punkt im Blau der
+ * Startseite. Und was vorbei ist, verblasst: das Bild wird grau, bis man
+ * darueberfaehrt - so springen die laufenden Serien von selbst ins Auge.
+ */
+function StatusMarke({ status, klein = false }: {
+  status: 'live' | 'laeuft' | 'vorbei'; klein?: boolean;
+}) {
+  return (
+    <span className={`inline-flex items-center gap-1.5 rounded-full bg-black/65 font-bold
+                      uppercase tracking-wider ring-1 ring-white/15 backdrop-blur-sm ${
+      klein ? 'px-2 py-0.5 text-[10px]' : 'px-2.5 py-1 text-[11px]'} ${
+      status === 'live' ? 'text-white' : status === 'laeuft' ? 'text-slate-200' : 'text-slate-400'}`}>
+      {status === 'live' && (
+        <span className="relative flex h-2 w-2">
+          <span className="absolute inline-flex h-full w-full animate-ping rounded-full
+                           bg-sky-400 opacity-75 motion-reduce:animate-none" />
+          <span className="relative inline-flex h-2 w-2 rounded-full bg-sky-400" />
+        </span>
+      )}
+      {status === 'laeuft' && <span className="h-2 w-2 rounded-full border border-slate-300" />}
+      {status === 'live' ? 'Live' : status === 'laeuft' ? <T>Läuft</T> : <T>Beendet</T>}
     </span>
   );
 }
@@ -286,28 +321,18 @@ function Kachel({ serie, beispiel, offen, umschalten, waehle }: {
   umschalten: () => void; waehle: (s: Sitzung) => void;
 }) {
   const status = statusVon(serie);
-  const streifen = status === 'live'
-    ? 'bg-gradient-to-r from-rose-600 to-rose-500'
-    : 'bg-zinc-900';
-  const rahmen = status === 'live' ? 'border-rose-500/70' : 'border-zinc-800';
 
   return (
-    <div className={`group relative overflow-hidden rounded-2xl border ${rahmen} bg-zinc-950
+    <div className={`group relative overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950
                      ${beispiel ? 'border-dashed' : ''}`}>
-      <div className={`flex items-center justify-between px-3 py-2 ${streifen}`}>
-        {status === 'live' ? <Marke art="hell">● Live</Marke>
-          : status === 'laeuft' ? <Marke art="gruen"><T>Läuft</T></Marke>
-            : <Marke art="grau"><T>Beendet</T></Marke>}
-        {serie.region && <Marke art={status === 'live' ? 'hell' : 'grau'}>{serie.region}</Marke>}
-      </div>
-
       <div role="button" tabIndex={0} onClick={umschalten}
         onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') umschalten(); }}
         className="relative block aspect-square w-full cursor-pointer overflow-hidden text-left">
         {serie.logo ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={serie.logo} alt="" loading="lazy"
-            className="h-full w-full object-cover transition duration-300 group-hover:scale-[1.03]" />
+            className={`h-full w-full object-cover transition duration-300 group-hover:scale-[1.03] ${
+              status === 'vorbei' ? 'opacity-60 grayscale group-hover:opacity-100 group-hover:grayscale-0' : ''}`} />
         ) : (
           <div className="h-full w-full bg-gradient-to-br from-sky-900/60 to-zinc-950" />
         )}
@@ -317,12 +342,26 @@ function Kachel({ serie, beispiel, offen, umschalten, waehle }: {
                        tracking-tight text-white drop-shadow-[0_2px_4px_rgba(0,0,0,0.9)]">
           {serie.name}
         </h3>
-        {beispiel && (
-          <span className="absolute right-2 top-2 rounded bg-black/80 px-2 py-0.5 text-[10px]
-                           font-bold uppercase tracking-wider text-amber-300">
-            <T>Beispiel</T>
+        {/* Oben: links der Stand, rechts Region und - im Beispiel - der Hinweis. */}
+        <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start
+                        justify-between gap-2 p-3">
+          <StatusMarke status={status} />
+          <span className="flex flex-col items-end gap-1.5">
+            {serie.region && (
+              <span className="rounded-full bg-black/65 px-2.5 py-1 text-[11px] font-bold
+                               uppercase tracking-wider text-slate-200 ring-1 ring-white/15
+                               backdrop-blur-sm">
+                {serie.region}
+              </span>
+            )}
+            {beispiel && (
+              <span className="rounded bg-black/80 px-2 py-0.5 text-[10px] font-bold uppercase
+                               tracking-wider text-amber-300">
+                <T>Beispiel</T>
+              </span>
+            )}
           </span>
-        )}
+        </div>
 
         {/*
           * Die Sessions der Serie - ein Klick auf die Kachel zeigt sie, wie
@@ -342,7 +381,7 @@ function Kachel({ serie, beispiel, offen, umschalten, waehle }: {
                     : 'bg-zinc-900 text-slate-100 hover:bg-zinc-800'}`}>
                 <span className="min-w-0 truncate">{s.name}</span>
                 <span className={`shrink-0 text-[11px] font-bold uppercase ${
-                  s.live ? 'text-rose-400' : s.vorbei ? 'text-slate-500' : 'text-emerald-400'}`}>
+                  s.live ? 'text-sky-400' : s.vorbei ? 'text-slate-500' : 'text-emerald-400'}`}>
                   {s.live ? 'Live' : s.vorbei ? 'Ended' : 'Open'}
                 </span>
               </button>
@@ -980,7 +1019,8 @@ export default function ScrimsSeite() {
       sitzungen: s.sitzungen.filter((x) => (art === 'scrims' ? x.art === 'SCRIM' : x.art !== 'SCRIM')),
     }))
     .filter((s) => s.sitzungen.length)
-    .filter((s) => region === 'alle' || s.region === region), [serien, art, region]);
+    .filter((s) => region === 'alle' || s.region === region)
+    .sort((a, b) => RANG[statusVon(a)] - RANG[statusVon(b)]), [serien, art, region]);
 
   /* ------------------------------------------------------------ Vorhang */
 
@@ -1131,9 +1171,7 @@ export default function ScrimsSeite() {
                             )}
                             <span className="min-w-0 flex-1 truncate font-bold text-slate-100">{s.name}</span>
                             {s.region && <Marke art="grau">{s.region}</Marke>}
-                            {status === 'live' ? <span className="text-xs font-bold uppercase text-rose-400">● Live</span>
-                              : status === 'laeuft' ? <span className="text-xs font-bold uppercase text-emerald-400"><T>Läuft</T></span>
-                                : <span className="text-xs font-bold uppercase text-slate-500"><T>Beendet</T></span>}
+                            <StatusMarke status={status} klein />
                             <span className="w-24 text-right text-xs text-slate-500">
                               {s.sitzungen.length} <T>Sessions</T>
                             </span>
@@ -1149,7 +1187,7 @@ export default function ScrimsSeite() {
                                              text-left text-sm font-semibold text-slate-200 hover:bg-zinc-800">
                                   <span className="truncate">{x.name}</span>
                                   <span className={`text-[11px] font-bold uppercase ${
-                                    x.live ? 'text-rose-400' : x.vorbei ? 'text-slate-500' : 'text-emerald-400'}`}>
+                                    x.live ? 'text-sky-400' : x.vorbei ? 'text-slate-500' : 'text-emerald-400'}`}>
                                     {x.live ? 'Live' : x.vorbei ? 'Ended' : 'Open'}
                                   </span>
                                 </button>
