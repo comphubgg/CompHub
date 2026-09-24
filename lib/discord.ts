@@ -2191,6 +2191,10 @@ export async function zugangEntscheiden(
   }
 
   /* --------------------------------------------------------- Anlegen */
+  // Erst pruefen, ob die Kanal-Zuordnung lesbar ist. Sonst stuende gleich ein
+  // Zugang ohne Schluesselnachricht da, und ein zweiter Klick liefe in
+  // "gibt es schon". Wirft hier etwas, ist noch nichts angelegt.
+  await lies();
   const { neuerSchluessel, schonVergeben } = await import('./zugangsSchluessel');
   const { alleZugaenge: zugaenge, schreibeZugaenge } = await import('./vipZugaenge');
   const users = await zugaenge();
