@@ -437,6 +437,13 @@ export default function KartenSeite(
    */
   const [teamGrenze, setTeamGrenze] = useState(50);
   const [status, setStatus] = useState('');
+  /*
+   * Kam die Kartenliste aus der Ersatzkopie? Dann steht es gross da - ein
+   * aelterer Stand darf nie aussehen wie der aktuelle (Betreiber: "Ausfall
+   * nie wie leer"). Gespeichert wird in der Zeit ohnehin nicht, siehe
+   * lib/ablage.
+   */
+  const [ausErsatz, setAusErsatz] = useState(false);
   const [bildStand, setBildStand] = useState(0);   // erzwingt ein Neuladen
   const [bilder, setBilder] = useState<Kartenbild[]>([]);
   /**
@@ -983,6 +990,7 @@ export default function KartenSeite(
     fetch('/api/turnier-karten').then((r) => r.json())
       .then((d) => {
         const liste: GespeicherteKarte[] = d.karten ?? [];
+        setAusErsatz(!!d.ersatz);
         setGespeicherte(liste);
         gespeicherteRef.current = liste;
         pruefeDirektlink(cupsRef.current, liste);
@@ -3410,6 +3418,13 @@ ${name}
       {/* Bis 1900 statt 1500: auf einem breiten Bildschirm blieben sonst
           links und rechts mehrere hundert Punkte ungenutzt. */}
       <div className="mx-auto max-w-[1900px]">
+
+        {ausErsatz && (
+          <p className="mb-3 rounded-lg border border-amber-600/60 bg-amber-950/40 px-4 py-3
+                        text-sm text-amber-200">
+            <T>Die Ablage antwortet gerade nicht. Das hier ist die letzte Sicherung und kann älter sein – deine Karte ist nicht verloren. Gespeichert wird erst wieder, wenn die Ablage antwortet.</T>
+          </p>
+        )}
 
         <div className="mb-3 flex flex-wrap items-end justify-between gap-3">
           <div>

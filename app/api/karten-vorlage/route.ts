@@ -39,6 +39,22 @@ async function lies(): Promise<Vorlagen> {
   }
 }
 
+/*
+ * Lesen, um danach zu schreiben: hier ist ein Fehler kein "leer". Sonst
+ * legte ein Speichern waehrend eines Ausfalls der Ablage eine Liste ab, in
+ * der nur noch der neue Eintrag steht. Nur eine fehlende Datei gilt als leer.
+ */
+async function liesZumSchreiben(): Promise<Vorlagen> {
+  let roh: string;
+  try {
+    roh = await fs.readFile(DATEI, 'utf8');
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException)?.code === 'ENOENT') return {};
+    throw e;
+  }
+  return JSON.parse(roh) as Vorlagen;
+}
+
 export async function GET(request: Request) {
   const bild = new URL(request.url).searchParams.get('bild') || STANDARD;
   const alle = await lies();
@@ -60,10 +76,17 @@ export async function POST(request: Request) {
     ...(s.farbe ? { farbe: s.farbe } : {}),
   }));
 
-  const alle = await lies();
-  alle[bild] = { spots, geaendert: Date.now() };
-  await fs.mkdir(path.dirname(DATEI), { recursive: true });
-  await fs.writeFile(DATEI, JSON.stringify(alle, null, 2), 'utf8');
+  let alle: Vorlagen;
+  try {
+    alle = await liesZumSchreiben();
+    alle[bild] = { spots, geaendert: Date.now() };
+    await fs.mkdir(path.dirname(DATEI), { recursive: true });
+    await fs.writeFile(DATEI, JSON.stringify(alle, null, 2), 'utf8');
+  } catch {
+    return NextResponse.json({
+      error: 'Storage is not answering right now - the template was not saved.',
+    }, { status: 503 });
+  }
 
   return NextResponse.json({ ok: true, bild, spots: spots.length });
 }

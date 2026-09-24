@@ -148,6 +148,29 @@ function ort(name: string): string {
  */
 let gewaehlt: Speicher | null = null;
 
+/*
+ * Was zuletzt aus der Ersatzkopie am Release kam statt aus Supabase.
+ *
+ * Antwortet Supabase nicht, liest die Seite die gepflegten Dateien (Karten,
+ * Prognosen, Profile ...) vom Release - dort liegt der Stand des letzten
+ * stuendlichen Laufs, am 24.9.2026 abends einer vom Vortag. Anzeigen darf
+ * man ihn. Speichern auf seiner Grundlage darf man nicht: die Globals-Karte
+ * kam so ohne eine einzige Zuordnung zurueck, und jedes Speichern haette
+ * diesen alten Stand ueber die fuenfzig Teams des Betreibers gelegt, sobald
+ * Supabase wieder schreibt.
+ *
+ * Deshalb: wer eine Datei eben aus der Ersatzkopie gelesen hat, schreibt sie
+ * eine Weile nicht. Ein erfolgreiches Lesen aus Supabase hebt die Sperre auf.
+ */
+const ausErsatz = new Map<string, number>();
+const ERSATZ_SPERRE_MS = 15 * 60_000;
+
+/** Seit wann diese Datei aus der Ersatzkopie kommt - null, wenn nicht. */
+export function ersatzSeit(name: string): number | null {
+  const seit = ausErsatz.get(name);
+  return seit && Date.now() - seit < ERSATZ_SPERRE_MS ? seit : null;
+}
+
 export const speicher: Speicher = {
   lies: (n) => waehle().lies(n),
   schreib: (n, d) => waehle().schreib(n, d),
@@ -188,9 +211,15 @@ function waehle(): Speicher {
           return supabaseSpeicher.lies(name);
         }
         if (amRelease(name)) {
-          try { return await supabaseSpeicher.lies(name); }
-          catch (e) {
-            try { return await githubLeser.lies(name); } catch { throw e; }
+          try {
+            const wert = await supabaseSpeicher.lies(name);
+            ausErsatz.delete(name);
+            return wert;
+          } catch (e) {
+            let alt: Buffer | null;
+            try { alt = await githubLeser.lies(name); } catch { throw e; }
+            ausErsatz.set(name, Date.now());
+            return alt;
           }
         }
         return supabaseSpeicher.lies(name);
@@ -199,6 +228,11 @@ function waehle(): Speicher {
       // davon nichts bei Supabase ab - sie rechnet es notfalls noch einmal.
       schreib: async (name, daten) => {
         if (nurRelease(name)) return;
+        // Nie auf Grundlage der Ersatzkopie speichern - siehe ausErsatz.
+        if (ersatzSeit(name) !== null) {
+          throw new Error(`Ablage nicht erreichbar (nur aeltere Kopie) bei ${name} - `
+            + 'gespeichert wird erst wieder, wenn sie den aktuellen Stand liefert');
+        }
         return supabaseSpeicher.schreib(name, daten);
       },
       loesche: async (name) => {

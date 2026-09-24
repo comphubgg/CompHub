@@ -1378,6 +1378,10 @@ const AUF_ENGLISCH: Record<string, string> = {
   ['Freie Form: Ecken klicken, am ersten Punkt schließen']:
     'Free shape: click the corners, close at the first point',
   'Ganze Karte': 'Whole map',
+  ['Die Ablage antwortet gerade nicht. Das hier ist die letzte Sicherung und kann älter sein – deine Karte ist nicht verloren. Gespeichert wird erst wieder, wenn die Ablage antwortet.']:
+    "Storage isn't answering right now. This is the last backup and may be older – your map is not lost. Saving resumes as soon as storage answers again.",
+  ['Die Ablage antwortet gerade nicht. Das hier ist die letzte Sicherung und kann älter sein – die Karte ist nicht verloren und steht gleich wieder aktuell da.']:
+    "Storage isn't answering right now. This is the last backup and may be older – the map is not lost and will be up to date again shortly.",
   'Ohne Region': 'No region',
   'Noch keiner Form zugeordnet': 'Not placed on the map yet',
   ['Mausrad zoomt, ziehen verschiebt, Doppelklick fährt eine Form an. Nur zum Ansehen — verteilt wird im Karten-Werkzeug.']:

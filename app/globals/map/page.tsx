@@ -383,6 +383,8 @@ export default function GlobalsMap() {
   const [feld, setFeld] = useState<FeldTeam[]>([]);
   const [markiert, setMarkiert] = useState<string | null>(null);
   const [zeige, setZeige] = useState<{ id: string; mal: number } | null>(null);
+  /** Kam die Karte aus der Ersatzkopie? Dann sagen wir es dazu. */
+  const [ausErsatz, setAusErsatz] = useState(false);
 
   useEffect(() => {
     let weg = false;
@@ -391,6 +393,7 @@ export default function GlobalsMap() {
       .then((j) => {
         if (weg) return;
         const alle: Karte[] = Array.isArray(j) ? j : (j?.karten ?? []);
+        setAusErsatz(!!j?.ersatz);
         setKarten(alle.filter((k) => k.eventId === GLOBALS_EVENT));
       })
       .catch((e) => { if (!weg) { setFehler((e as Error).message); setKarten([]); } });
@@ -485,6 +488,12 @@ export default function GlobalsMap() {
         </div>
       ) : (
         <>
+          {ausErsatz && (
+            <p className="mb-4 rounded-lg border border-amber-600/60 bg-amber-950/40 px-4 py-3
+                          text-sm text-amber-200">
+              <T>Die Ablage antwortet gerade nicht. Das hier ist die letzte Sicherung und kann älter sein – die Karte ist nicht verloren und steht gleich wieder aktuell da.</T>
+            </p>
+          )}
           <div className="mb-4 flex flex-wrap items-center gap-2">
             {karten.map((k, i) => (
               <button key={k.id} type="button" onClick={() => setOffen(i)}

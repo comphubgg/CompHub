@@ -4,6 +4,7 @@ import path from 'path';
 import { schreibGrund } from '@/lib/schreibfehler';
 import { werSchreibt, darfKarteAendern } from '@/lib/werSchreibt';
 import { DATEN_ORT } from '@/lib/datenOrt';
+import { ersatzSeit } from '@/lib/ablage';
 
 // Ablage der Turnierkarten: Spots samt zugeordneten Teams.
 //
@@ -111,6 +112,40 @@ async function lies(): Promise<Turnierkarte[]> {
   }
 }
 
+/*
+ * Lesen, um danach zu schreiben - hier ist ein Fehler kein "leer".
+ *
+ * lies() macht aus jedem Fehler eine leere Liste; zum Anzeigen ist das
+ * nachsichtig, zum Speichern verheerend: die neue Karte waere danach die
+ * einzige, alle anderen weg. Nur eine Datei, die es wirklich nicht gibt,
+ * gilt hier als leer.
+ */
+async function liesZumSchreiben(): Promise<Turnierkarte[]> {
+  let roh: string;
+  try {
+    roh = await fs.readFile(DATEI, 'utf8');
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException)?.code === 'ENOENT') return [];
+    throw e;
+  }
+  return JSON.parse(roh) as Turnierkarte[];
+}
+
+/** Kam die Datei eben aus der Ersatzkopie? Siehe lib/ablage, ausErsatz. */
+const ausErsatz = () => ersatzSeit('turnier-karten.json') !== null;
+
+/** Wenn gerade nicht gespeichert werden darf, die Antwort dafuer. */
+async function kartenZumSchreiben(): Promise<Turnierkarte[] | NextResponse> {
+  try {
+    const karten = await liesZumSchreiben();
+    if (!ausErsatz()) return karten;
+  } catch { /* unten */ }
+  return NextResponse.json({
+    error: 'Storage is not answering right now - nothing was saved, so your current '
+      + 'map stays as it is. Try again in a moment.',
+  }, { status: 503 });
+}
+
 async function schreib(karten: Turnierkarte[]) {
   await fs.mkdir(path.dirname(DATEI), { recursive: true });
   await fs.writeFile(DATEI, JSON.stringify(karten, null, 2), 'utf8');
@@ -162,6 +197,11 @@ export async function GET(request: Request) {
      */
     if (searchParams.get('nur') === 'stand') {
       const seit = Number(searchParams.get('seit') ?? 0);
+      // Aus der Ersatzkopie kommt ein aelterer Stand. Einer offenen Karte
+      // wird er nicht untergeschoben - sie behaelt, was sie hat.
+      if (seit && ausErsatz()) {
+        return NextResponse.json({ geaendert: seit, unveraendert: true, ersatz: true });
+      }
       if (seit && seit === k.geaendert) {
         return NextResponse.json({ geaendert: k.geaendert, unveraendert: true });
       }
@@ -178,17 +218,22 @@ export async function GET(request: Request) {
         })),
       });
     }
-    return NextResponse.json(k);
+    return NextResponse.json(ausErsatz() ? { ...k, ersatz: true } : k);
   }
 
   // Gibt es zu diesem Spieltag eine Karte? Die Events-Seite fragt so nach.
   if (event && window_) {
     const treffer = karten.filter((k) =>
       k.eventId === event && k.windowId === window_ && k.oeffentlich);
-    return NextResponse.json({ karten: treffer });
+    return NextResponse.json({ karten: treffer, ersatz: ausErsatz() || undefined });
   }
   // Neueste zuerst - beim Speichern ist das die, an der gerade gearbeitet wurde.
-  return NextResponse.json({ karten: karten.sort((a, b) => b.geaendert - a.geaendert) });
+  return NextResponse.json({
+    karten: karten.sort((a, b) => b.geaendert - a.geaendert),
+    // Die Ablage antwortet nicht, das ist der letzte gesicherte Stand -
+    // die Seiten sagen das dazu, statt ihn wie den aktuellen aussehen zu lassen.
+    ersatz: ausErsatz() || undefined,
+  });
 }
 
 /** Ein Nein mit Grund - dreimal gebraucht, einmal geschrieben. */
@@ -229,7 +274,9 @@ export async function POST(request: Request) {
     oeffentlich: eingang.oeffentlich ?? false,
   };
 
-  const karten = await lies();
+  const gelesen = await kartenZumSchreiben();
+  if (gelesen instanceof NextResponse) return gelesen;
+  const karten = gelesen;
   const i = karten.findIndex((x) => x.id === karte.id);
   if (i >= 0) karten[i] = karte; else karten.push(karte);
   const schiefgegangen = await schreibOderSage(karten);
@@ -255,7 +302,9 @@ export async function PATCH(request: Request) {
     return NextResponse.json({ error: 'id und oeffentlich sind noetig' }, { status: 400 });
   }
 
-  const karten = await lies();
+  const gelesen = await kartenZumSchreiben();
+  if (gelesen instanceof NextResponse) return gelesen;
+  const karten = gelesen;
   const k = karten.find((x) => x.id === id);
   if (!k) return NextResponse.json({ error: 'Unknown map' }, { status: 404 });
 
@@ -270,7 +319,9 @@ export async function DELETE(request: Request) {
   if (abgewiesen) return abgewiesen;
   const id = new URL(request.url).searchParams.get('id');
   if (!id) return NextResponse.json({ error: 'id fehlt' }, { status: 400 });
-  const karten = await lies();
+  const gelesen = await kartenZumSchreiben();
+  if (gelesen instanceof NextResponse) return gelesen;
+  const karten = gelesen;
   const rest = karten.filter((x) => x.id !== id);
   if (rest.length === karten.length) {
     return NextResponse.json({ error: 'Unknown map' }, { status: 404 });

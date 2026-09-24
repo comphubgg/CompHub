@@ -180,6 +180,26 @@ async function lies(): Promise<Prognose[]> {
   }
 }
 
+/*
+ * Lesen, um danach zu schreiben: hier ist ein Fehler kein "leer". Sonst
+ * legte ein Speichern waehrend eines Ausfalls der Ablage eine Liste ab, in
+ * der nur noch der neue Eintrag steht. Nur eine fehlende Datei gilt als leer.
+ */
+async function liesZumSchreiben(): Promise<Prognose[]> {
+  let roh: string;
+  try {
+    roh = await fs.readFile(DATEI, 'utf8');
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException)?.code === 'ENOENT') return [];
+    throw e;
+  }
+  return JSON.parse(roh) as Prognose[];
+}
+
+const NICHT_GESPEICHERT = () => NextResponse.json({
+  error: 'Storage is not answering right now - nothing was saved. Try again in a moment.',
+}, { status: 503 });
+
 async function schreib(liste: Prognose[]) {
   await fs.mkdir(path.dirname(DATEI), { recursive: true });
   await fs.writeFile(DATEI, JSON.stringify(liste, null, 2), 'utf8');
@@ -244,10 +264,11 @@ export async function POST(request: Request) {
     oeffentlich: eingang.oeffentlich ?? false,
   };
 
-  const alle = await lies();
+  let alle: Prognose[];
+  try { alle = await liesZumSchreiben(); } catch { return NICHT_GESPEICHERT(); }
   const i = alle.findIndex((p) => p.id === prognose.id);
   if (i >= 0) alle[i] = prognose; else alle.push(prognose);
-  await schreib(alle);
+  try { await schreib(alle); } catch { return NICHT_GESPEICHERT(); }
   return NextResponse.json({ ok: true, prognose });
 }
 
@@ -257,7 +278,8 @@ export async function DELETE(request: Request) {
   }
   const id = new URL(request.url).searchParams.get('id');
   if (!id) return NextResponse.json({ error: 'id fehlt' }, { status: 400 });
-  const alle = await lies();
-  await schreib(alle.filter((p) => p.id !== id));
+  let alle: Prognose[];
+  try { alle = await liesZumSchreiben(); } catch { return NICHT_GESPEICHERT(); }
+  try { await schreib(alle.filter((p) => p.id !== id)); } catch { return NICHT_GESPEICHERT(); }
   return NextResponse.json({ ok: true });
 }
