@@ -2147,6 +2147,12 @@ const AUF_ENGLISCH: Record<string, string> = {
     'per team',
   'pro Spieler':
     'per player',
+  'Automatisch gespeichert':
+    'Saved automatically',
+  'Speichert sich von selbst':
+    'Saves automatically',
+  'Deine Prognose ist gerade nicht erreichbar - die Ablage antwortet nicht. Nichts ist verloren; bitte gleich noch einmal laden.':
+    'Your prediction is not reachable right now - storage is not responding. Nothing is lost; please reload in a moment.',
   'Quelle: Epics Auszahlungstabelle der Global Championship. Die Beträge gelten je Spieler; ein Duo erhält das Doppelte.':
     "Source: Epic's payout table for the Global Championship. Amounts are per player; a duo receives double.",
   'Epic nennt das Preisgeld gerade nicht - bitte gleich noch einmal laden.':

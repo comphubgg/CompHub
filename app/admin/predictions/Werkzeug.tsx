@@ -340,9 +340,17 @@ function tag(ms: number) {
  *     vergibt, nennt Epic nicht, und so blieb das Feld leer;
  *   - die Karte - die Formen der Globals-Turnierkarte, die er unter /maps
  *     gezeichnet hat. Kein Kartenwechsel, keine neuen Formen.
+ *
+ * Und mit "eigen" gehoert die Prognose dem, der sie macht: jeder VIP mit dem
+ * Globals-Bereich hat seine eigene (/api/meine-prognose) und sieht die des
+ * Admins nicht. Der Betreiber: "als VIP seine eigene Prediction machen kann,
+ * nicht die vom Admin zu sehen ist - das einzige, was nur der Admin machen
+ * muss, ist die Map." Gespeichert wird von selbst, ohne Knopf; die Stifte
+ * zum Pflegen von Flaggen und Namen bleiben dem Admin.
  */
-export default function PrognosenWerkzeug({ globals = false }: {
+export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
   globals?: boolean;
+  eigen?: boolean;
 } = {}) {
   const uebs = useT();
   const [istAdmin, setIstAdmin] = useState<boolean | null>(null);
@@ -434,6 +442,8 @@ export default function PrognosenWerkzeug({ globals = false }: {
    * naechste Speichern ueberschriebe seine fertige Reihenfolge.
    */
   const [gespeicherteDa, setGespeicherteDa] = useState(false);
+  /** Antwortet die Ablage nicht, steht das da - nie eine leere Prognose. */
+  const [ladeFehler, setLadeFehler] = useState('');
   /** Welche gespeicherte Prognose wird gerade umbenannt? */
   const [benennt, setBenennt] = useState<string | null>(null);
   const [benenntTitel, setBenenntTitel] = useState('');
@@ -537,9 +547,15 @@ export default function PrognosenWerkzeug({ globals = false }: {
       .finally(() => setCupsLaden(false));
     fetch('/api/spieler-profile').then((r) => r.json())
       .then((j) => setProfile(j.profile ?? {})).catch(() => {});
-    fetch('/api/prognosen').then((r) => r.json())
-      .then((d) => { setGespeicherte(d.prognosen ?? []); setGespeicherteDa(true); })
-      .catch(() => {});
+    // Die eigene Prognose kommt aus dem eigenen Fach. Scheitert das Lesen,
+    // bleibt "da" aus: sonst finge das Werkzeug mit einer leeren Prognose an,
+    // und das Selbstspeichern ueberschriebe die fertige.
+    fetch(eigen ? '/api/meine-prognose' : '/api/prognosen').then((r) => r.json())
+      .then((d) => {
+        if (d.fehler) { setLadeFehler(String(d.fehler)); return; }
+        setGespeicherte(d.prognosen ?? []); setGespeicherteDa(true);
+      })
+      .catch(() => setLadeFehler('Die Ablage antwortet gerade nicht.'));
     fetch('/api/karten-bild').then((r) => r.json())
       .then((d) => { setBilder(d.karten ?? []); setInseln(d.inseln ?? {}); }).catch(() => {});
     fetch('/api/flaggen').then((r) => r.json())
@@ -1523,23 +1539,31 @@ export default function PrognosenWerkzeug({ globals = false }: {
     if (!cup) { setStatus(uebs('Erst einen Cup wählen')); return; }
     const id = kennung(cupId, gruppe);
     const liste = mitAktueller();
-    const r = await fetch('/api/prognosen', {
+    const inhalt = {
+      id, titel, cupId, cupTitel: cup.titel, gruppe: gruppe || undefined,
+      qualiBis, quellen, plaetze, mvp: mvp || undefined, oeffentlich: !eigen,
+      // Das Feld als Schnappschuss und das Finale, zu dem es gehoert.
+      feld, ziel: ziel ?? undefined,
+      // Jede Karte wandert als Kopie mit hinein - Bild, Formen und wer wo
+      // steht. Ab jetzt gehoeren sie dieser Prognose.
+      // Ohne das Merkzeichen "eigen" - das gilt nur in der Oberflaeche.
+      karten: liste.map((k) => ({
+        id: k.id, bildId: k.bildId, titel: k.titel,
+        spots: k.spots, aufSpot: k.aufSpot,
+      })),
+    };
+    const r = await fetch(eigen ? '/api/meine-prognose' : '/api/prognosen', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        id, titel, cupId, cupTitel: cup.titel, gruppe: gruppe || undefined,
-        qualiBis, quellen, plaetze, mvp: mvp || undefined, oeffentlich: true,
-        // Das Feld als Schnappschuss und das Finale, zu dem es gehoert.
-        feld, ziel: ziel ?? undefined,
-        // Jede Karte wandert als Kopie mit hinein - Bild, Formen und wer wo
-        // steht. Ab jetzt gehoeren sie dieser Prognose.
-        // Ohne das Merkzeichen "eigen" - das gilt nur in der Oberflaeche.
-        karten: liste.map((k) => ({
-          id: k.id, bildId: k.bildId, titel: k.titel,
-          spots: k.spots, aufSpot: k.aufSpot,
-        })),
-      }),
+      body: JSON.stringify(inhalt),
     });
     if (!r.ok) { setStatus(uebs('Speichern fehlgeschlagen')); return; }
+    if (eigen) {
+      // Das eigene Fach hat genau eine; keine Liste nachzuladen.
+      setGespeicherte([inhalt as unknown as Prognose]);
+      if (!karten.every((k) => k.eigen)) setKarten(liste.map((k) => ({ ...k, eigen: true })));
+      setStatus(uebs('Automatisch gespeichert'));
+      return;
+    }
     await listeHolen();
     setKarten(liste.map((k) => ({ ...k, eigen: true })));
     if (!kartenTitel) setKartenTitel(kartenName);
@@ -1694,6 +1718,19 @@ export default function PrognosenWerkzeug({ globals = false }: {
    * solange die Prognose noch keine eigene Karte hat: eine gespeicherte
    * behaelt ihre.
    */
+  /*
+   * Die eigene Prognose speichert sich selbst - eine Sekunde nach der
+   * letzten Aenderung, ohne Knopf. Erst wenn das eigene Fach gelesen ist und
+   * das Feld steht: vorher gaebe es nichts, was sich zu sichern lohnt.
+   */
+  useEffect(() => {
+    if (!eigen || !cupId || !gespeicherteDa || !feld.length) return;
+    const uhr = setTimeout(() => { void speichern(); }, 1000);
+    return () => clearTimeout(uhr);
+    // speichern liest den Stand, der hier die Abhaengigkeiten sind.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eigen, cupId, gespeicherteDa, feld.length, plaetze, aufSpot, mvp, qualiBis, titel]);
+
   const globalsKarteGenommen = useRef(false);
   useEffect(() => {
     if (!globals || !cupId || globalsKarteGenommen.current) return;
@@ -1716,7 +1753,7 @@ export default function PrognosenWerkzeug({ globals = false }: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [globals, cupId, karten, turnierKarten]);
 
-  if (istAdmin === false) {
+  if (istAdmin === false && !eigen) {
     return (
       <main className="flex-1 bg-zinc-950 px-4 py-10 text-slate-200">
         <p className="mx-auto max-w-md rounded-xl border border-zinc-800 bg-zinc-900/40
@@ -1764,11 +1801,18 @@ export default function PrognosenWerkzeug({ globals = false }: {
           */}
         {/* Die Globals waehlen ihr Finale selbst - bis dahin nur warten. */}
         {!cupId && globals && (
+          ladeFehler ? (
+            <p className="mx-auto max-w-lg rounded-lg border border-amber-800 bg-amber-950/30 px-4 py-3
+                          text-center text-sm text-amber-300">
+              <T>Deine Prognose ist gerade nicht erreichbar - die Ablage antwortet nicht. Nichts ist verloren; bitte gleich noch einmal laden.</T>
+            </p>
+          ) : (
           <p className="py-10 text-center text-sm text-slate-500">
             {cupsLaden || !gespeicherteDa
               ? <T>lädt …</T>
               : <T>Die Global Championship steht gerade nicht im Turnierkatalog.</T>}
           </p>
+          )
         )}
         {!cupId && !globals && (
           cupsLaden ? (
@@ -1943,11 +1987,17 @@ export default function PrognosenWerkzeug({ globals = false }: {
                   {laedt ? uebs('lädt…') : uebs('Feld neu laden')}
                 </button>
               )}
-              <button onClick={speichern} disabled={!cup || !feld.length}
-                className="rounded-lg bg-sky-500 px-4 py-2 text-sm font-medium text-white
-                           transition hover:bg-sky-400 disabled:opacity-40">
-                <T>Speichern</T>
-              </button>
+              {eigen ? (
+                <span className="rounded-lg border border-zinc-800 px-3 py-2 text-xs text-slate-500">
+                  <T>Speichert sich von selbst</T>
+                </span>
+              ) : (
+                <button onClick={speichern} disabled={!cup || !feld.length}
+                  className="rounded-lg bg-sky-500 px-4 py-2 text-sm font-medium text-white
+                             transition hover:bg-sky-400 disabled:opacity-40">
+                  <T>Speichern</T>
+                </button>
+              )}
             </div>
             {feldHinweise.length > 0 && (
               <ul className="mt-2 space-y-0.5 text-[11px] text-amber-300/90">
@@ -2616,9 +2666,11 @@ export default function PrognosenWerkzeug({ globals = false }: {
                               </span>
                             ))}
                           </span>
-                          <button onClick={() => pflegeOeffnen(t)}
-                            title={uebs('Flaggen dieses Teams von Hand setzen')}
-                            className="shrink-0 text-slate-600 hover:text-amber-400">✎</button>
+                          {!eigen && (
+                            <button onClick={() => pflegeOeffnen(t)}
+                              title={uebs('Flaggen dieses Teams von Hand setzen')}
+                              className="shrink-0 text-slate-600 hover:text-amber-400">✎</button>
+                          )}
                           <button onClick={() => raeumen(i)} title={uebs('Zurück in die Liste')}
                             className="shrink-0 text-slate-600 hover:text-rose-400">×</button>
                         </>
@@ -2755,6 +2807,7 @@ export default function PrognosenWerkzeug({ globals = false }: {
                                      text-[9px] font-semibold uppercase text-sky-300">
                       {t.region || '?'}
                     </span>
+                    {!eigen && (
                     <span role="button" tabIndex={0}
                       onClick={(e) => { e.stopPropagation(); pflegeOeffnen(t); }}
                       onKeyDown={(e) => {
@@ -2764,6 +2817,7 @@ export default function PrognosenWerkzeug({ globals = false }: {
                       title={`${uebs('Flaggen dieses Teams von Hand setzen')} · #${t.besterPlatz}`}
                       className="shrink-0 cursor-pointer text-slate-600
                                  hover:text-amber-400">✎</span>
+                    )}
                   </button>
                 ))}
                       </div>

@@ -150,6 +150,8 @@ const MERKDATEI = path.join(DATEN, '.geholt.json');
 const NUR_VON_DER_SEITE = [
   'turnier-karten.json', 'karten-vorlagen.json', 'karten-ausgeblendet.json',
   'prognosen.json', 'predictions.json', 'tierlists.json', 'tierlisten',
+  // Die eigenen Globals-Prognosen der VIPs (app/api/meine-prognose).
+  'meine-prognosen',
   'konten.json', 'overlays.json', 'dashboard.json', 'homepage-vips.json',
   'dienst-zugaenge.json', 'streamers.json', 'streamer-profiles.json',
   'spieler-profile.json', 'spielerbilder.json', 'orgtags.json', 'socials.json',
