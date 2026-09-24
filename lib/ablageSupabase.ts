@@ -286,15 +286,61 @@ async function tabelleLies(name: string): Promise<Buffer | null> {
   }
 
   const { url, kopf } = zugang();
-  const r = await anfrage(
-    `${url}/rest/v1/${TABELLE}?name=eq.${encodeURIComponent(name)}&select=wert`,
+  const adresse = `${url}/rest/v1/${TABELLE}?name=eq.${encodeURIComponent(name)}`;
+
+  /*
+   * Schon einmal gelesen? Dann nur fragen, ob sich etwas getan hat.
+   *
+   * Vorher kam bei jedem Lesen der ganze Inhalt - die Overlays in OBS holten
+   * so alle zehn Sekunden die 100 KB der Fotozuordnung, Anmeldung und
+   * Konten bei jedem Aufruf ihre Dateien. Am 24.9.2026 stand "Comphub 2"
+   * (kleinste Stufe) zweimal still. Jetzt geht der Inhalt nur noch nach
+   * einer Aenderung ueber die Leitung; sonst ist es ein Zeitstempel.
+   */
+  const gemerkt = inhaltCache.get(name);
+  if (gemerkt && Date.now() - gemerkt.geprueft < FRISCH_MS) return gemerkt.wert;
+  if (gemerkt) {
+    let stand: Array<{ geaendert: string }>;
+    try {
+      const s = await anfrage(`${adresse}&select=geaendert`,
+        { headers: kopf, cache: 'no-store', signal: frist(LESEN_MS) });
+      serverFehler(s, name);
+      if (!s.ok) return null;
+      stand = await s.json() as Array<{ geaendert: string }>;
+    } catch {
+      // Supabase haengt: der zuletzt gelesene Stand ist besser als ein
+      // Fehler - Anmeldung und Konten laufen auf diesem Server weiter.
+      // Schreiben scheitert in der Zeit ohnehin.
+      return gemerkt.wert;
+    }
+    if (!stand.length) { inhaltCache.delete(name); return null; }
+    if (stand[0].geaendert === gemerkt.geaendert) {
+      gemerkt.geprueft = Date.now();
+      return gemerkt.wert;
+    }
+  }
+
+  const r = await anfrage(`${adresse}&select=wert,geaendert`,
     { headers: kopf, cache: 'no-store', signal: frist(LESEN_MS) });
   serverFehler(r, name);
   if (!r.ok) return null;
-  const zeilen = await r.json() as Array<{ wert: string }>;
-  if (!zeilen.length) return null;
-  return Buffer.from(zeilen[0].wert, 'utf8');
+  const zeilen = await r.json() as Array<{ wert: string; geaendert: string }>;
+  if (!zeilen.length) { inhaltCache.delete(name); return null; }
+  const wert = Buffer.from(zeilen[0].wert, 'utf8');
+  inhaltCache.set(name, { geaendert: zeilen[0].geaendert, wert, geprueft: Date.now() });
+  return wert;
 }
+
+/*
+ * Gelesene Inhalte je Instanz, mit dem Zeitstempel, zu dem sie galten.
+ *
+ * Innerhalb einer Sekunde wird gar nicht gefragt - das faengt die Buendel
+ * ab, in denen eine Seite dieselbe Datei mehrmals liest. Schreiben und
+ * Loeschen ueber diesen Weg werfen den Eintrag weg; ein Zeitstempel, der
+ * sich laut tabelleAngaben bewegt hat, ebenso.
+ */
+const FRISCH_MS = 1_000;
+const inhaltCache = new Map<string, { geaendert: string; wert: Buffer; geprueft: number }>();
 
 async function tabelleSchreib(name: string, daten: Buffer): Promise<void> {
   const { url, kopf } = zugang();
@@ -333,6 +379,7 @@ async function tabelleSchreib(name: string, daten: Buffer): Promise<void> {
   // Was gerade geschrieben wurde, darf nicht aus dem Vorgriff kommen.
   const praefix = ordnerVon(name);
   if (praefix) ordnerCache.delete(praefix);
+  inhaltCache.delete(name);
 }
 
 async function tabelleLoesche(name: string): Promise<void> {
@@ -341,6 +388,7 @@ async function tabelleLoesche(name: string): Promise<void> {
     { method: 'DELETE', headers: kopf, signal: frist(SCHREIBEN_MS) });
   const praefix = ordnerVon(name);
   if (praefix) ordnerCache.delete(praefix);
+  inhaltCache.delete(name);
 }
 
 async function tabelleListe(ordner: string): Promise<string[]> {
@@ -379,7 +427,11 @@ async function tabelleAngaben(name: string) {
     { headers: kopf, cache: 'no-store', signal: frist(LESEN_MS) });
   if (!r.ok) { serverFehler(r, name); return null; }
   const zeilen = await r.json() as Array<{ geaendert: string }>;
-  if (!zeilen.length) return null;
+  if (!zeilen.length) { inhaltCache.delete(name); return null; }
+  // Hat sich die Datei bewegt, gilt der gemerkte Inhalt nicht mehr - sonst
+  // liefe eine Live-Leitung, die gerade die Aenderung sah, in den alten Stand.
+  const gemerkt = inhaltCache.get(name);
+  if (gemerkt && gemerkt.geaendert !== zeilen[0].geaendert) inhaltCache.delete(name);
   return { groesse: 0, geaendert: new Date(zeilen[0].geaendert) };
 }
 

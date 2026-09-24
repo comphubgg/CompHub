@@ -1651,7 +1651,9 @@ export async function bilder() {
       .filter((p) => !platzhalter.has(p.file.toLowerCase())),
     logos: await bildListe('logos'),
     nachKonto: nach,
-    bis: Date.now() + 10_000,
+    // Eine Minute: die Fotozuordnung aendert sich selten, und jede Runde
+    // fragt Supabase (siehe lib/ablageSupabase, inhaltCache).
+    bis: Date.now() + 60_000,
   };
   return bildCache;
 }
