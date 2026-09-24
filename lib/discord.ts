@@ -88,13 +88,24 @@ export function discordDa(): boolean {
   return Boolean(process.env.DISCORD_BOT_TOKEN);
 }
 
+/*
+ * Nur eine fehlende Datei gilt als leer.
+ *
+ * Vorher wurde jeder Lesefehler zu einer leeren Zuordnung. Antwortete die
+ * Ablage nicht, kannte der Bot keinen einzigen VIP-Kanal mehr, legte einen
+ * zweiten an und schrieb danach eine Zuordnung zurueck, in der nur noch
+ * dieser eine stand. Jetzt bricht der Vorgang ab und wird wiederholt.
+ */
 async function lies(): Promise<Ablage> {
+  let text: string;
   try {
-    const roh = JSON.parse(await fs.readFile(DATEI, 'utf8')) as Ablage;
-    return roh && typeof roh === 'object' ? roh : {};
-  } catch {
-    return {};
+    text = await fs.readFile(DATEI, 'utf8');
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException)?.code === 'ENOENT') return {};
+    throw e;
   }
+  const roh = JSON.parse(text) as Ablage;
+  return roh && typeof roh === 'object' ? roh : {};
 }
 
 async function schreibe(a: Ablage): Promise<void> {
@@ -1260,7 +1271,9 @@ export async function gemerkterKanal(
 ): Promise<string | null> {
   const klein = name.trim().toLowerCase();
   if (!klein) return null;
-  const ablage = await lies();
+  // Nur lesend: antwortet die Ablage nicht, bleiben die fest bekannten.
+  let ablage: Ablage = {};
+  try { ablage = await lies(); } catch { /* siehe unten */ }
   const schluessel = art === 'manager' ? `manager:${klein}` : klein;
   return ablage[schluessel]?.kanal
     ?? (art === 'vip' ? BEKANNTE_KANAELE[klein] ?? null : null);
@@ -1611,6 +1624,8 @@ export async function ticketPanel(
  */
 export async function ticketOeffnen(
   nutzerId: string, nutzerName: string, art = 'sonst', fuerManager = false,
+  /** Eigene Begruessung - fuer ein Gespraech, das der Admin anstoesst. */
+  anlass?: { titel: string; text: string },
 ): Promise<{ ok: boolean; kanal?: string; schonDa?: boolean; grund?: string }> {
   if (!discordDa()) return { ok: false, grund: 'kein-token' };
 
@@ -1652,9 +1667,10 @@ export async function ticketOeffnen(
 
   await ruf(`/channels/${id}/messages`, 'POST', {
     content: `<@${nutzerId}>`,
+    allowed_mentions: { users: [nutzerId] },
     embeds: [{
-      title: gewaehlt ? `${gewaehlt.emoji} ${gewaehlt.titel}` : 'How can I help?',
-      description: [
+      title: anlass?.titel ?? (gewaehlt ? `${gewaehlt.emoji} ${gewaehlt.titel}` : 'How can I help?'),
+      description: anlass ? `${anlass.text}\n\nPress **Close** when you are done.` : [
         'Write what you need — a screenshot helps more than a description.',
         '',
         'Useful things to mention: which page, which cup, and what you '
@@ -1877,7 +1893,7 @@ export interface ZugangAnfrage {
   streamer?: string;
   kanal?: string;
   nachricht?: string;
-  status: 'offen' | 'angenommen' | 'abgelehnt' | 'gescheitert';
+  status: 'offen' | 'angenommen' | 'abgelehnt' | 'gescheitert' | 'geloescht';
   zeit: string;
   entschieden?: string;
   von?: string;
@@ -1886,12 +1902,118 @@ export interface ZugangAnfrage {
 
 const ANFRAGEN_DATEI = path.join(DATEN_ORT, 'discord-anfragen.json');
 
+/*
+ * Die abgelegten Anfragen - oder ein Fehler, wenn die Ablage nicht antwortet.
+ *
+ * Nicht mehr "leer bei jedem Fehler": am 24.9.2026 antwortete Supabase
+ * nicht, die Anfrage von Pollo kam nie in der Ablage an, und Accept meldete
+ * "This request no longer exists". Wer die Anfrage braucht, nimmt jetzt
+ * anfrageFinden(): zuerst die Ablage, sonst die Discord-Nachricht selbst.
+ */
 async function liesAnfragen(): Promise<Record<string, ZugangAnfrage>> {
-  try { return JSON.parse(await fs.readFile(ANFRAGEN_DATEI, 'utf8')); } catch { return {}; }
+  let text: string;
+  try {
+    text = await fs.readFile(ANFRAGEN_DATEI, 'utf8');
+  } catch (e) {
+    if ((e as NodeJS.ErrnoException)?.code === 'ENOENT') return {};
+    throw e;
+  }
+  return JSON.parse(text) as Record<string, ZugangAnfrage>;
+}
+
+/** Die Anfragen, oder null, wenn die Ablage gerade nicht antwortet. */
+async function anfragenOderNichts(): Promise<Record<string, ZugangAnfrage> | null> {
+  try { return await liesAnfragen(); } catch { return null; }
+}
+
+/** Die Nachricht, an der ein Knopf haengt - so, wie Discord sie mitschickt. */
+export interface KnopfNachricht {
+  id?: string; channel_id?: string; content?: string;
+  embeds?: Array<{
+    title?: string;
+    fields?: Array<{ name?: string; value?: string }>;
+    footer?: { text?: string };
+  }>;
+}
+
+/**
+ * Eine Anfrage aus ihrer Discord-Nachricht zurueckgewinnen.
+ *
+ * In der Nachricht steht alles, was eine Entscheidung braucht: wer (die
+ * Erwaehnung), welcher Zugangsname, welche Art, und die Kennung unten. Fehlt
+ * die Anfrage in der Ablage, weil die beim Eingang nicht antwortete, geht es
+ * damit trotzdem.
+ */
+export function anfrageAusNachricht(m?: KnopfNachricht | null): ZugangAnfrage | null {
+  const e = m?.embeds?.[0];
+  if (!m?.id || !e) return null;
+  const feld = (n: string) => String(e.fields?.find((f) => f.name === n)?.value ?? '').trim();
+  const nutzerId = /<@!?(\d+)>/.exec(feld('Discord'))?.[1] ?? /<@!?(\d+)>/.exec(m.content ?? '')?.[1];
+  const id = /Request\s+(\S+)/.exec(e.footer?.text ?? '')?.[1];
+  const name = feld('Access name');
+  if (!nutzerId || !id || !name) return null;
+  const art: ZugangArt = /^manager/i.test(e.title ?? '') ? 'manager' : 'vip';
+  const ohneStrich = (x: string) => (x === '—' ? '' : x);
+  return {
+    id, nutzerId, art, name,
+    nutzerName: /\(([^)]+)\)/.exec(feld('Discord'))?.[1] ?? name,
+    socials: ohneStrich(feld('Socials')),
+    grund: ohneStrich(feld('Why')),
+    ...(art === 'manager' ? { streamer: feld('Manages') } : {}),
+    kanal: m.channel_id, nachricht: m.id,
+    status: 'offen', zeit: new Date().toISOString(),
+  };
+}
+
+/**
+ * Die Knoepfe unter einer Anfrage, je nach Stand.
+ *
+ * Offen: Accept, Decline, Chat, Message. Danach bleiben Chat und Message -
+ * der Betreiber will auch nach der Entscheidung noch mit der Person reden
+ * koennen -, und nach einem Accept kommt "Delete access" dazu.
+ */
+function anfrageKnoepfe(id: string, stand: ZugangAnfrage['status']) {
+  if (!knoepfeMoeglich()) return [];
+  const k: Array<Record<string, unknown>> = [];
+  if (stand === 'offen') {
+    k.push({ type: 2, style: 3, label: 'Accept', custom_id: `zugang:ok:${id}` });
+    k.push({ type: 2, style: 4, label: 'Decline', custom_id: `zugang:nein:${id}` });
+  }
+  k.push({ type: 2, style: 2, label: 'Chat', custom_id: `zugang:chat:${id}` });
+  k.push({ type: 2, style: 2, label: 'Message as CompHub', custom_id: `zugang:dm:${id}` });
+  if (stand === 'angenommen') {
+    k.push({ type: 2, style: 4, label: 'Delete access', custom_id: `zugang:weg:${id}` });
+  }
+  return [{ type: 1, components: k }];
 }
 async function schreibeAnfragen(a: Record<string, ZugangAnfrage>): Promise<void> {
   await fs.mkdir(path.dirname(ANFRAGEN_DATEI), { recursive: true });
   await fs.writeFile(ANFRAGEN_DATEI, JSON.stringify(a, null, 2));
+}
+
+/**
+ * Eine Anfrage festhalten, wenn es geht.
+ *
+ * Nur wenn die Liste vorher wirklich gelesen wurde - sonst stuende danach
+ * allein diese eine darin. Scheitert das Schreiben, geht es trotzdem weiter:
+ * die Nachricht in Discord traegt alles, was spaeter gebraucht wird.
+ */
+async function anfrageMerken(liste: Record<string, ZugangAnfrage> | null, a: ZugangAnfrage) {
+  if (!liste) return;
+  liste[a.id] = a;
+  try { await schreibeAnfragen(liste); } catch (e) {
+    console.error('[discord] Anfrage nicht abgelegt:', (e as Error).message);
+  }
+}
+
+/** Die Anfrage zu dieser Kennung: aus der Ablage, sonst aus der Nachricht. */
+async function anfrageFinden(id: string, ausNachricht?: ZugangAnfrage | null) {
+  const liste = await anfragenOderNichts();
+  const gespeichert = liste?.[id];
+  // Der Stand steht in der Ablage; fehlt sie, gilt die Nachricht - an der
+  // haengen ja genau die Knoepfe, die zum jeweiligen Stand passen.
+  const a = gespeichert ?? (ausNachricht && ausNachricht.id === id ? ausNachricht : null);
+  return { liste, a };
 }
 
 /** Der Aushang mit dem Knopf und der private Kanal fuer die Anfragen. */
@@ -1985,9 +2107,11 @@ export async function zugangAnfrage(
   }
   if (!anfragenKanal) return { ok: false, grund: 'kein-kanal' };
 
-  const anfragen = await liesAnfragen();
+  // Antwortet die Ablage nicht, geht die Anfrage trotzdem durch - die
+  // Nachricht mit den Knoepfen traegt alles Noetige (anfrageAusNachricht).
+  const anfragen = await anfragenOderNichts();
   // Eine offene Anfrage je Person und Art - kein Stapel derselben Bitte.
-  const offen = Object.values(anfragen).find((a) => a.nutzerId === nutzerId && a.art === art && a.status === 'offen');
+  const offen = Object.values(anfragen ?? {}).find((a) => a.nutzerId === nutzerId && a.art === art && a.status === 'offen');
   if (offen) return { ok: false, grund: 'schon-offen' };
 
   const id = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
@@ -2013,22 +2137,13 @@ export async function zugangAnfrage(
       ],
       footer: { text: `Request ${id}` },
     }],
-    ...(knoepfeMoeglich() ? {
-      components: [{
-        type: 1,
-        components: [
-          { type: 2, style: 3, label: 'Accept', custom_id: `zugang:ok:${id}` },
-          { type: 2, style: 4, label: 'Decline', custom_id: `zugang:nein:${id}` },
-        ],
-      }],
-    } : {}),
+    components: anfrageKnoepfe(id, 'offen'),
   });
   const nachricht = idAus(gesendet);
   if (!nachricht) return { ok: false, grund: 'abgelehnt' };
   anfrage.kanal = anfragenKanal;
   anfrage.nachricht = nachricht;
-  anfragen[id] = anfrage;
-  await schreibeAnfragen(anfragen);
+  await anfrageMerken(anfragen, anfrage);
   return { ok: true };
 }
 
@@ -2045,7 +2160,7 @@ async function anfrageAbschliessen(a: ZugangAnfrage, zeile: string): Promise<voi
   if (!a.kanal || !a.nachricht) return;
   await ruf(`/channels/${a.kanal}/messages/${a.nachricht}`, 'PATCH', {
     content: zeile,
-    components: [],
+    components: anfrageKnoepfe(a.id, a.status),
   });
 }
 
@@ -2055,15 +2170,15 @@ async function anfrageAbschliessen(a: ZugangAnfrage, zeile: string): Promise<voi
  */
 export async function zugangEntscheiden(
   id: string, angenommen: boolean, von: string, grund = '',
+  ausNachricht?: ZugangAnfrage | null,
 ): Promise<{ ok: boolean; text: string }> {
-  const anfragen = await liesAnfragen();
-  const a = anfragen[id];
-  if (!a) return { ok: false, text: 'This request no longer exists.' };
+  const { liste: anfragen, a } = await anfrageFinden(id, ausNachricht);
+  if (!a) return { ok: false, text: 'I cannot find this request - neither in storage nor in the message.' };
   if (a.status !== 'offen') return { ok: false, text: `Already decided: ${a.status}.` };
 
   if (!angenommen) {
     a.status = 'abgelehnt'; a.entschieden = new Date().toISOString(); a.von = von; a.ergebnis = grund;
-    await schreibeAnfragen(anfragen);
+    await anfrageMerken(anfragen, a);
     const dm = await direktnachricht(a.nutzerId, {
       embeds: [{
         title: `Your ${a.art === 'vip' ? 'VIP' : 'manager'} request was declined`,
@@ -2110,7 +2225,21 @@ export async function zugangEntscheiden(
   const kanal = await gemerkterKanal(a.art === 'manager' ? streamer : name, kanalArt);
   a.status = 'angenommen'; a.entschieden = new Date().toISOString(); a.von = von;
   a.ergebnis = hin.ok ? 'Schluessel im Kanal' : `Schluessel nicht gesendet: ${hin.grund}`;
-  await schreibeAnfragen(anfragen);
+  await anfrageMerken(anfragen, a);
+
+  /*
+   * Die Person gleich im eigenen Kanal markieren.
+   *
+   * Der Betreiber: "wenn sie einen Access Key bekommen, sollst du ihn auch
+   * immer gleich markieren." Die Direktnachricht kommt nicht immer an
+   * (geschlossene DMs) - eine Erwaehnung im Kanal schon.
+   */
+  if (kanal && hin.ok) {
+    await ruf(`/channels/${kanal}/messages`, 'POST', {
+      content: `<@${a.nutzerId}> your access is ready - the key is right above.`,
+      allowed_mentions: { users: [a.nutzerId] },
+    });
+  }
 
   const dm = await direktnachricht(a.nutzerId, {
     embeds: [{
@@ -2127,6 +2256,105 @@ export async function zugangEntscheiden(
   return {
     ok: true,
     text: `Accepted - access "${name}" created${kanal ? `, key in <#${kanal}>` : ''}${dm ? ', DM sent.' : ', but the DM could not be delivered (closed DMs).'}`,
+  };
+}
+
+/**
+ * Ein Gespraech mit der Person, die angefragt hat.
+ *
+ * Der Betreiber: "einen Chat eroeffnen, ein Ticket-Chat, dass er automatisch
+ * markiert wird ... und ich kann darueber schreiben, ja okay, aber das und
+ * das erwarte ich." Ein privater Ticketkanal wie beim Support, nur von hier
+ * aus geoeffnet und mit passender Begruessung.
+ */
+export async function zugangChat(
+  id: string, ausNachricht?: ZugangAnfrage | null,
+): Promise<{ ok: boolean; text: string }> {
+  const { a } = await anfrageFinden(id, ausNachricht);
+  if (!a) return { ok: false, text: 'I cannot find this request.' };
+  const erg = await ticketOeffnen(a.nutzerId, a.nutzerName, 'zugang', a.art === 'manager', {
+    titel: `About your ${a.art === 'vip' ? 'VIP' : 'manager'} access request`,
+    text: `Juanito would like to talk to you about your request for **${a.name}**. Just reply here.`,
+  });
+  if (!erg.ok || !erg.kanal) return { ok: false, text: 'The chat could not be opened.' };
+  return { ok: true, text: erg.schonDa ? `There is already a chat: <#${erg.kanal}>` : `Chat open: <#${erg.kanal}>` };
+}
+
+/**
+ * Eine Nachricht im Namen von CompHub.
+ *
+ * Der Betreiber schreibt den Text, der Bot schickt ihn - als
+ * Direktnachricht, und wenn die Person keine annimmt, in ihren eigenen
+ * Kanal (oder ein Gespraech) mit Erwaehnung.
+ */
+export async function zugangNachricht(
+  id: string, text: string, ausNachricht?: ZugangAnfrage | null,
+): Promise<{ ok: boolean; text: string }> {
+  const { a } = await anfrageFinden(id, ausNachricht);
+  if (!a) return { ok: false, text: 'I cannot find this request.' };
+  const inhalt = {
+    embeds: [{ title: 'Message from CompHub', description: text.slice(0, 3900), color: FARBE }],
+  };
+  if (await direktnachricht(a.nutzerId, inhalt)) return { ok: true, text: 'Sent as a direct message from CompHub.' };
+
+  const kanal = await gemerkterKanal(a.art === 'manager' ? (a.streamer ?? a.name) : a.name,
+    a.art === 'manager' ? 'manager' : 'vip');
+  const ziel = kanal ?? (await ticketOeffnen(a.nutzerId, a.nutzerName, 'zugang', a.art === 'manager', {
+    titel: 'Message from CompHub', text: 'You have a message from CompHub below.',
+  })).kanal;
+  if (!ziel) return { ok: false, text: 'Direct messages are closed and no channel could be used.' };
+  const hin = await ruf(`/channels/${ziel}/messages`, 'POST', {
+    content: `<@${a.nutzerId}>`, allowed_mentions: { users: [a.nutzerId] }, ...inhalt,
+  });
+  return idAus(hin)
+    ? { ok: true, text: `DMs are closed - posted in <#${ziel}> with a mention instead.` }
+    : { ok: false, text: 'The message could not be delivered.' };
+}
+
+/**
+ * Einen Zugang wieder loeschen - mit Grund.
+ *
+ * Der Zugang faellt aus der Liste (Anmeldung geht nicht mehr), die Rollen
+ * werden abgenommen, die Person bekommt den Grund als Direktnachricht. Der
+ * Kanal mit dem Verlauf bleibt stehen; sehen kann ihn die Person ohne die
+ * Rolle nicht mehr.
+ */
+export async function zugangLoeschen(
+  id: string, grund: string, von: string, ausNachricht?: ZugangAnfrage | null,
+): Promise<{ ok: boolean; text: string }> {
+  const { liste, a } = await anfrageFinden(id, ausNachricht);
+  if (!a) return { ok: false, text: 'I cannot find this request.' };
+  const { alleZugaenge, schreibeZugaenge } = await import('./vipZugaenge');
+  // Streng gelesen: antwortet die Ablage nicht, wirft das hier - eine leere
+  // Liste zurueckzuschreiben wuerde sonst jeden Zugang loeschen.
+  const users = await alleZugaenge();
+  const rest = users.filter((u) => u.username.toLowerCase() !== a.name.toLowerCase());
+  const hatteZugang = rest.length !== users.length;
+  if (hatteZugang) await schreibeZugaenge(rest);
+
+  const rollen = await rollenListe();
+  const streamer = (a.streamer ?? '').trim();
+  for (const r of [
+    rollen.get((a.art === 'manager' ? `${streamer} manager` : a.name).toLowerCase()),
+    rollen.get(a.art === 'manager' ? 'vip manager' : 'vip streamer'),
+  ]) {
+    if (r) await ruf(`/guilds/${SERVER}/members/${a.nutzerId}/roles/${r}`, 'DELETE');
+  }
+
+  const dm = await direktnachricht(a.nutzerId, {
+    embeds: [{
+      title: `Your ${a.art === 'vip' ? 'VIP' : 'manager'} access was removed`,
+      description: `**Reason:** ${grund}\n\nYou can ask again later in #${ZUGANG_PANEL}.`,
+      color: FARBE,
+    }],
+  });
+  a.status = 'geloescht'; a.entschieden = new Date().toISOString(); a.von = von; a.ergebnis = grund;
+  await anfrageMerken(liste, a);
+  await anfrageAbschliessen(a, `Access deleted by ${von} · ${grund}${dm ? '' : ' · (DM could not be delivered)'}`);
+  return {
+    ok: true,
+    text: `${hatteZugang ? `Access "${a.name}" deleted` : `There was no access named "${a.name}" (anymore)`}`
+      + `, roles removed${dm ? ', DM with your reason sent.' : ' - the DM could not be delivered.'}`,
   };
 }
 

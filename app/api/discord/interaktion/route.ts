@@ -7,6 +7,8 @@ import {
   beitragEinbettung, gemerkterKanal, schickeSchluessel,
   ticketOeffnen, ticketSchliessen,
   zugangFormular, zugangAnfrage, zugangEntscheiden, darfEntscheiden,
+  anfrageAusNachricht, zugangChat, zugangNachricht, zugangLoeschen,
+  type KnopfNachricht,
 } from '@/lib/discord';
 
 /*
@@ -124,6 +126,8 @@ export async function POST(request: NextRequest) {
      * aber beides zu lesen kostet nichts.
      */
     member?: { user?: { id?: string; username?: string; global_name?: string }; roles?: string[] };
+    /** Die Nachricht, an der der Knopf haengt (auch beim Eingabefenster dazu). */
+    message?: KnopfNachricht;
     user?: { id?: string; username?: string; global_name?: string };
     data?: {
       custom_id?: string;
@@ -168,6 +172,22 @@ export async function POST(request: NextRequest) {
       `https://discord.com/api/v10/webhooks/${d.application_id}/${d.token}/messages/@original`,
       { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content: text }) });
   };
+  /*
+   * Eine Arbeit nach der Antwort - und immer mit Rueckmeldung.
+   *
+   * Scheiterte etwas (etwa weil die Ablage nicht antwortet), blieb in Discord
+   * vorher ewig "denkt nach ..." stehen. Jetzt steht dort, was los ist.
+   */
+  const danach = (arbeit: () => Promise<string>) => after(async () => {
+    try {
+      await melde(await arbeit());
+    } catch (e) {
+      console.error('[discord] Knopf gescheitert:', (e as Error).message);
+      await melde('Storage is not answering right now - nothing was changed. Please try again in a minute.');
+    }
+  });
+  /** Die Anfrage, wie sie in der Nachricht mit dem Knopf steht. */
+  const ausNachricht = anfrageAusNachricht(d.message);
 
   /* ---------------------------------------------------- Get Access */
   // Der Knopf im Aushang: das Eingabefenster oeffnen.
@@ -196,10 +216,7 @@ export async function POST(request: NextRequest) {
     if (!(await darfEntscheiden(nutzer, d.member?.roles ?? []))) return nurFuerIhn('Only the admin can decide this.');
     const anfrageId = id.slice('zugang:ok:'.length);
     const von = nutzer?.global_name || nutzer?.username || 'admin';
-    after(async () => {
-      const erg = await zugangEntscheiden(anfrageId, true, von);
-      await melde(erg.text);
-    });
+    danach(async () => (await zugangEntscheiden(anfrageId, true, von, '', ausNachricht)).text);
     return NextResponse.json({ type: 5, data: { flags: 64 } });
   }
   // Decline - erst der Grund (Fenster), dann die Entscheidung.
@@ -221,10 +238,63 @@ export async function POST(request: NextRequest) {
     }
     const grund = felderAus().grund?.trim() || 'No reason given.';
     const von = nutzer?.global_name || nutzer?.username || 'admin';
-    after(async () => {
-      const erg = await zugangEntscheiden(anfrageId, false, von, grund);
-      await melde(erg.text);
-    });
+    danach(async () => (await zugangEntscheiden(anfrageId, false, von, grund, ausNachricht)).text);
+    return NextResponse.json({ type: 5, data: { flags: 64 } });
+  }
+
+  /*
+   * Chat, Nachricht als CompHub, Zugang loeschen - nur der Admin.
+   *
+   * Der Betreiber (24.9.2026) wollte unter jeder Anfrage mit der Person
+   * reden koennen - in einem Ticket-Chat oder als CompHub -, und einen
+   * vergebenen Zugang mit Begruendung wieder wegnehmen.
+   */
+  if (id.startsWith('zugang:chat:')) {
+    if (!(await darfEntscheiden(nutzer, d.member?.roles ?? []))) return nurFuerIhn('Only the admin can do this.');
+    const anfrageId = id.slice('zugang:chat:'.length);
+    danach(async () => (await zugangChat(anfrageId, ausNachricht)).text);
+    return NextResponse.json({ type: 5, data: { flags: 64 } });
+  }
+  if (id.startsWith('zugang:dm:')) {
+    if (!(await darfEntscheiden(nutzer, d.member?.roles ?? []))) return nurFuerIhn('Only the admin can do this.');
+    const anfrageId = id.slice('zugang:dm:'.length);
+    if (d.type === 3) {
+      return NextResponse.json({
+        type: 9,
+        data: {
+          custom_id: `zugang:dm:${anfrageId}`,
+          title: 'Message as CompHub',
+          components: [{
+            type: 1,
+            components: [{ type: 4, custom_id: 'text', label: 'Your message (sent by the CompHub bot)', style: 2, min_length: 2, max_length: 1800, required: true }],
+          }],
+        },
+      });
+    }
+    const text = felderAus().text?.trim() ?? '';
+    if (!text) return nurFuerIhn('The message was empty.');
+    danach(async () => (await zugangNachricht(anfrageId, text, ausNachricht)).text);
+    return NextResponse.json({ type: 5, data: { flags: 64 } });
+  }
+  if (id.startsWith('zugang:weg:')) {
+    if (!(await darfEntscheiden(nutzer, d.member?.roles ?? []))) return nurFuerIhn('Only the admin can do this.');
+    const anfrageId = id.slice('zugang:weg:'.length);
+    if (d.type === 3) {
+      return NextResponse.json({
+        type: 9,
+        data: {
+          custom_id: `zugang:weg:${anfrageId}`,
+          title: 'Delete this access - why?',
+          components: [{
+            type: 1,
+            components: [{ type: 4, custom_id: 'grund', label: 'Reason (the person gets it as a DM)', style: 2, min_length: 3, max_length: 600, required: true }],
+          }],
+        },
+      });
+    }
+    const grund = felderAus().grund?.trim() || 'No reason given.';
+    const von = nutzer?.global_name || nutzer?.username || 'admin';
+    danach(async () => (await zugangLoeschen(anfrageId, grund, von, ausNachricht)).text);
     return NextResponse.json({ type: 5, data: { flags: 64 } });
   }
 
