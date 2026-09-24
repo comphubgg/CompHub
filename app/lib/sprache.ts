@@ -2149,6 +2149,56 @@ const AUF_ENGLISCH: Record<string, string> = {
     'per player',
   'Spieler nach Land':
     'Players by country',
+  'Teams ohne bekannte Region':
+    'teams without a known region',
+  'Bestenlisten und Statistiken zu allen Fortnite-Turnieren - direkt von Epic.':
+    'Leaderboards and statistics for all Fortnite tournaments - straight from Epic.',
+  'Filter':
+    'Filters',
+  'Ranked Cups ausblenden':
+    'Hide Ranked Cups',
+  'Suche':
+    'Search',
+  'Name des Turniers':
+    'Event name',
+  'Typ':
+    'Type',
+  'Status':
+    'Status',
+  'Plattform':
+    'Platform',
+  'Live & demnächst':
+    'Live & upcoming',
+  'Demnächst':
+    'Upcoming',
+  'PC':
+    'PC',
+  'Konsole':
+    'Console',
+  'Mobile':
+    'Mobile',
+  'Katalog':
+    'Catalog',
+  'Kalender':
+    'Calendar',
+  'Turniere heute':
+    'events today',
+  'In den nächsten vierzehn Tagen steht nichts an.':
+    'Nothing scheduled for the next fourteen days.',
+  'Andere':
+    'Other',
+  'Cash Cup':
+    'Cash Cup',
+  'FNCS':
+    'FNCS',
+  'Performance Cup':
+    'Performance Cup',
+  'Ranked Cup':
+    'Ranked Cup',
+  'Skin Cup':
+    'Skin Cup',
+  'Victory Cup':
+    'Victory Cup',
   'Spieler ohne gepflegtes Land':
     'players without a country on file',
   'Automatisch gespeichert':

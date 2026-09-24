@@ -29,6 +29,8 @@ interface Spieler {
 }
 interface Team {
   rang: number; punkte: number; spiele: number; elims: number;
+  /** Fuer welche Region das Team spielt, "EU" oder bei gemischten "NAC/EU". */
+  region?: string | null;
   spieler: Spieler[];
 }
 
@@ -94,13 +96,12 @@ async function gemeinsameCups(a: Spieler, b: Spieler): Promise<Zeile[] | null> {
  *
  * Der Betreiber (#admin-todo, 24.9.2026): "wenn ich auf einen denen druecke,
  * soll so wie in Bild 2 eine Liste mit den Regionen kommen und wo welcher
- * von ist, also Land usw." Jedes Land eine Karte mit Flagge, Name, Zahl und
- * seinen Spielern; das angeklickte steht vorn und leuchtet.
+ * von ist, also Land usw." Seit dem Abend desselben Tages eine eigene Ansicht
+ * ("Nationalities") neben den Spielern und den Regionen. Jedes Land eine
+ * Karte mit Flagge, Name, Zahl und seinen Spielern; ein gewaehltes steht
+ * vorn und leuchtet.
  */
-function LaenderAnsicht({ teams, gewaehlt, schliessen }: {
-  teams: Team[]; gewaehlt: string; schliessen: () => void;
-}) {
-  const t = useT();
+function LaenderRaster({ teams, gewaehlt }: { teams: Team[]; gewaehlt: string | null }) {
   const { sprache } = useSprache();
   const namen = useMemo(() => {
     try { return new Intl.DisplayNames([sprache === 'en' ? 'en' : 'de'], { type: 'region' }); }
@@ -117,53 +118,101 @@ function LaenderAnsicht({ teams, gewaehlt, schliessen }: {
   }, [teams, gewaehlt]);
   const ohne = teams.flatMap((tm) => tm.spieler).filter((s) => !s.land).length;
 
-  useEffect(() => {
-    const taste = (e: KeyboardEvent) => { if (e.key === 'Escape') schliessen(); };
-    window.addEventListener('keydown', taste);
-    return () => window.removeEventListener('keydown', taste);
-  }, [schliessen]);
-
   return (
-    <div className="fixed inset-0 z-[80] overflow-y-auto bg-black/80 p-4 backdrop-blur-sm"
-      onClick={schliessen}>
-      <div className="mx-auto max-w-7xl rounded-2xl border border-amber-500/30 bg-zinc-950 p-5"
-        onClick={(e) => e.stopPropagation()}>
-        <div className="mb-4 flex items-center justify-between gap-3">
-          <h2 className="text-lg font-black text-amber-200"><T>Spieler nach Land</T></h2>
-          <button type="button" onClick={schliessen} aria-label={t('Schließen')}
-            className="rounded-lg border border-zinc-700 px-3 py-1.5 text-sm text-slate-300
-                       hover:border-amber-400/60">✕</button>
-        </div>
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
-          {gruppen.map(([land, spieler]) => (
-            <div key={land}
-              className={`rounded-xl border bg-zinc-900/50 p-3 ${land === gewaehlt
-                ? 'border-amber-400/70 ring-1 ring-amber-400/40' : 'border-zinc-800'}`}>
-              <div className="mb-2 flex items-center gap-2 border-b border-zinc-800 pb-2">
-                <Flagge land={land} groesse="h-5 w-5" />
-                <span className="min-w-0 flex-1 truncate text-sm font-bold text-slate-100">
-                  {namen?.of(land) ?? land}
-                </span>
-                <span className="text-xs tabular-nums text-slate-500">{spieler.length}</span>
-              </div>
-              <ul className="space-y-1 text-center">
-                {spieler.map((s) => (
-                  <li key={s.turnierId} className="truncate text-sm font-semibold uppercase
-                                                   tracking-wide text-slate-200">
-                    {s.anzeige}
-                  </li>
-                ))}
-              </ul>
+    <>
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
+        {gruppen.map(([land, spieler]) => (
+          <div key={land}
+            className={`rounded-xl border bg-zinc-900/50 p-3 ${land === gewaehlt
+              ? 'border-amber-400/70 ring-1 ring-amber-400/40' : 'border-zinc-800'}`}>
+            <div className="mb-2 flex items-center gap-2 border-b border-zinc-800 pb-2">
+              <Flagge land={land} groesse="h-5 w-5" />
+              <span className="min-w-0 flex-1 truncate text-sm font-bold text-slate-100">
+                {namen?.of(land) ?? land}
+              </span>
+              <span className="text-xs tabular-nums text-slate-500">{spieler.length}</span>
             </div>
-          ))}
-        </div>
-        {ohne > 0 && (
-          <p className="mt-4 text-xs text-slate-500">
-            {ohne} <T>Spieler ohne gepflegtes Land</T>
-          </p>
-        )}
+            <ul className="space-y-1 text-center">
+              {spieler.map((s) => (
+                <li key={s.turnierId} className="truncate text-sm font-semibold uppercase
+                                                 tracking-wide text-slate-200">
+                  {s.anzeige}
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
       </div>
-    </div>
+      {ohne > 0 && (
+        <p className="mt-4 text-xs text-slate-500">
+          {ohne} <T>Spieler ohne gepflegtes Land</T>
+        </p>
+      )}
+    </>
+  );
+}
+
+/*
+ * Die Teams nach Wettkampfregion - EU, NA Central, NA West, Brasilien, Asien,
+ * Middle East, Ozeanien. Die Region eines Teams ist die Heimatregion seiner
+ * Spieler (siehe /api/globals-teams); ein gemischtes Duo steht in beiden
+ * Regionen, mit der jeweils anderen als Marke dahinter.
+ */
+const REGIONEN: Array<[string, string]> = [
+  ['EU', 'Europe'], ['NAC', 'NA Central'], ['NAW', 'NA West'], ['BR', 'Brazil'],
+  ['ASIA', 'Asia'], ['ME', 'Middle East'], ['OCE', 'Oceania'],
+];
+
+function RegionenRaster({ teams, oeffnen }: { teams: Team[]; oeffnen: (t: Team) => void }) {
+  const gruppen = REGIONEN
+    .map(([kurz, name]) => ({
+      kurz, name,
+      teams: teams.filter((tm) => (tm.region ?? '').split('/').includes(kurz)),
+    }))
+    .filter((g) => g.teams.length);
+  const ohne = teams.filter((tm) => !tm.region).length;
+  return (
+    <>
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        {gruppen.map((g) => (
+          <div key={g.kurz} className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-3">
+            <div className="mb-2 flex items-center gap-2 border-b border-zinc-800 pb-2">
+              <span className="rounded-md bg-amber-400/15 px-2 py-0.5 text-xs font-black text-amber-200">
+                {g.kurz}
+              </span>
+              <span className="min-w-0 flex-1 truncate text-sm font-bold text-slate-100">{g.name}</span>
+              <span className="text-xs tabular-nums text-slate-500">{g.teams.length}</span>
+            </div>
+            <ul className="space-y-1">
+              {g.teams.map((tm) => (
+                <li key={tm.rang}>
+                  <button type="button" onClick={() => oeffnen(tm)}
+                    className="flex w-full items-center gap-2 rounded-lg px-2 py-1.5 text-left text-sm
+                               text-slate-200 transition hover:bg-zinc-800/70">
+                    <span className="flex shrink-0 -space-x-1">
+                      {tm.spieler.map((sp) => <Flagge key={sp.turnierId} land={sp.land} />)}
+                    </span>
+                    <span className="min-w-0 flex-1 truncate font-semibold">
+                      {tm.spieler.map((sp) => sp.anzeige).join(' + ')}
+                    </span>
+                    {(tm.region ?? '').includes('/') && (
+                      <span className="shrink-0 rounded border border-zinc-700 px-1 text-[10px] text-slate-400">
+                        {(tm.region ?? '').split('/').filter((x) => x !== g.kurz).join('/')}
+                      </span>
+                    )}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+        ))}
+      </div>
+      {ohne > 0 && (
+        <p className="mt-4 text-xs text-slate-500">
+          {ohne} <T>Teams ohne bekannte Region</T>
+        </p>
+      )}
+    </>
   );
 }
 
@@ -221,10 +270,14 @@ function DuoAnsicht({ team, schliessen }: { team: Team; schliessen: () => void }
               </div>
             </div>
           ))}
-          <span className="absolute left-3 top-3 rounded-lg bg-black/70 px-2.5 py-1
-                           text-sm font-bold text-amber-300">
-            #{team.rang}
-          </span>
+          {/* Vor dem ersten Match keine Platzierung - Epic fuehrt das Feld
+              dann nur in irgendeiner Reihenfolge. */}
+          {team.spiele > 0 && (
+            <span className="absolute left-3 top-3 rounded-lg bg-black/70 px-2.5 py-1
+                             text-sm font-bold text-amber-300">
+              #{team.rang}
+            </span>
+          )}
           <button type="button" onClick={schliessen} aria-label={t('Schließen')}
             className="absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-full
                        bg-black/70 text-lg text-slate-200 transition hover:bg-black">
@@ -308,8 +361,14 @@ export default function GlobalsTeams() {
   const [zahlen, setZahlen] = useState({ zugeordnet: 0, spieler: 0, mitFoto: 0 });
   const [suche, setSuche] = useState('');
   const [offen, setOffen] = useState<Team | null>(null);
-  /** Welches Land in der Laenderuebersicht vorn steht - null: zu. */
-  const [landOffen, setLandOffen] = useState<string | null>(null);
+  /*
+   * Drei Ansichten, gleichrangig nebeneinander: die Duos, die Laender, die
+   * Regionen. Der Betreiber: "unter den Teams gibt es dann drei verschiedene
+   * Funktionen - allgemein die Players, dann Nationalities, dann Region."
+   */
+  const [ansicht, setAnsicht] = useState<'spieler' | 'laender' | 'regionen'>('spieler');
+  /** Welches Land in der Laenderansicht vorn steht. */
+  const [landGewaehlt, setLandGewaehlt] = useState<string | null>(null);
 
   useEffect(() => {
     let weg = false;
@@ -381,7 +440,8 @@ export default function GlobalsTeams() {
             </span>
             {/* Alle Laender, und jedes oeffnet die Uebersicht - siehe LaenderAnsicht. */}
             {laender.map(([land, n]) => (
-              <button key={land} type="button" onClick={() => setLandOffen(land)}
+              <button key={land} type="button"
+                onClick={() => { setLandGewaehlt(land); setAnsicht('laender'); }}
                 title={t('Spieler nach Land')}
                 className="flex items-center gap-1.5 rounded-lg border border-zinc-800
                            bg-zinc-900/40 px-2.5 py-1.5 text-xs text-slate-300 transition
@@ -392,10 +452,27 @@ export default function GlobalsTeams() {
             ))}
           </div>
 
+          {/* Die drei Ansichten - gleiche Knoepfe nebeneinander. */}
+          <div className="mb-4 inline-flex overflow-hidden rounded-xl border border-amber-500/25">
+            {([['spieler', 'Spieler'], ['laender', 'Nationalitäten'], ['regionen', 'Regionen']] as const)
+              .map(([k, titel]) => (
+                <button key={k} type="button" onClick={() => setAnsicht(k)}
+                  className={`px-5 py-2 text-sm font-semibold transition ${ansicht === k
+                    ? 'bg-amber-400/15 text-amber-200'
+                    : 'text-slate-300 hover:bg-white/5 hover:text-amber-100'}`}>
+                  <T>{titel}</T>
+                </button>
+              ))}
+          </div>
+
+          {ansicht === 'laender' && <LaenderRaster teams={gezeigt} gewaehlt={landGewaehlt} />}
+          {ansicht === 'regionen' && <RegionenRaster teams={gezeigt} oeffnen={setOffen} />}
+
           {/*
             * Die Duos als Karten - die Fotos gross, jedes mit Flagge und Namen
             * darunter. Ein Klick oeffnet die Duo-Ansicht.
             */}
+          {ansicht === 'spieler' && (
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
             {gezeigt.map((tm) => (
               <button key={tm.rang} type="button" onClick={() => setOffen(tm)}
@@ -413,10 +490,13 @@ export default function GlobalsTeams() {
                     </div>
                   ))}
                 </div>
-                <span className="absolute left-2 top-2 rounded-md bg-black/70 px-2 py-0.5
-                                 text-xs font-bold tabular-nums text-amber-300">
-                  #{tm.rang}
-                </span>
+                {/* Vor dem ersten Match keine Platzierung (siehe DuoAnsicht). */}
+                {tm.spiele > 0 && (
+                  <span className="absolute left-2 top-2 rounded-md bg-black/70 px-2 py-0.5
+                                   text-xs font-bold tabular-nums text-amber-300">
+                    #{tm.rang}
+                  </span>
+                )}
                 {tm.spiele > 0 && (
                   <span className="absolute right-2 top-2 rounded-md bg-black/70 px-2 py-0.5
                                    text-xs tabular-nums text-slate-200">
@@ -426,6 +506,7 @@ export default function GlobalsTeams() {
               </button>
             ))}
           </div>
+          )}
 
           <p className="mt-4 text-[11px] leading-relaxed text-slate-600">
             {t('Flagge und Name von {n} der {m} Konten, Fotos von {f} — Epic legt für '
@@ -440,9 +521,6 @@ export default function GlobalsTeams() {
       )}
 
       {offen && <DuoAnsicht team={offen} schliessen={() => setOffen(null)} />}
-      {landOffen && teams && (
-        <LaenderAnsicht teams={teams} gewaehlt={landOffen} schliessen={() => setLandOffen(null)} />
-      )}
     </GlobalsGeruest>
   );
 }

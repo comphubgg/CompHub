@@ -43,6 +43,25 @@ interface Fenster {
    * jede unter ihrer Kennung - siehe lib/epicCups, CupFensterDetail.raenge.
    */
   raenge?: Array<{ kennung: string; name: string }>;
+  /** Epics Playlist, etwa "Playlist_ShowdownTournament_NPM_Duos". */
+  playlist?: string;
+}
+
+/**
+ * Wie viele Spieler ein Team hat - aus Epics Playlist, sonst null.
+ *
+ * Gebraucht fuer das Preisgeld: Epics Betraege gelten je Spieler. Ein Duo
+ * auf Platz 4 des Performance Evaluation Cups bekommt 400 USD je Spieler,
+ * zusammen 800 - der Betreiber: "du kannst 800 Earnings hinschreiben, aber
+ * man bekommt halt nur eins." Also stehen beide Zahlen da.
+ */
+function teamGroesseAus(playlist?: string): number | null {
+  const p = (playlist ?? '').toLowerCase();
+  if (/solo/.test(p)) return 1;
+  if (/duo/.test(p)) return 2;
+  if (/trio/.test(p)) return 3;
+  if (/squad/.test(p)) return 4;
+  return null;
 }
 
 /** Die Rangstufen in Epics Reihenfolge, so heissen sie im Spiel. */
@@ -2429,9 +2448,23 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                           ? <><T>beste</T> {(g.schwelle * 100).toFixed(0)} %</>
                           : <>{g.schwelle.toLocaleString(ort)} <T>Punkte</T></>}
                     </span>
-                    <span className="text-sm font-semibold text-emerald-400">
-                      {g.betrag.toLocaleString(ort)} {preise.waehrung ?? 'USD'}
-                    </span>
+                    {/* Bei Teams der Betrag je Team gross, darunter je
+                        Spieler - Epics Zahl gilt je Spieler. */}
+                    {preise.proPerson !== false && (teamGroesseAus(fenster?.playlist) ?? 1) > 1 ? (
+                      <span className="text-right leading-tight">
+                        <span className="block text-sm font-semibold text-emerald-400">
+                          {(g.betrag * (teamGroesseAus(fenster?.playlist) ?? 1)).toLocaleString(ort)}{' '}
+                          {preise.waehrung ?? 'USD'}
+                        </span>
+                        <span className="block text-[10px] text-slate-500">
+                          {g.betrag.toLocaleString(ort)} <T>pro Spieler</T>
+                        </span>
+                      </span>
+                    ) : (
+                      <span className="text-sm font-semibold text-emerald-400">
+                        {g.betrag.toLocaleString(ort)} {preise.waehrung ?? 'USD'}
+                      </span>
+                    )}
                   </div>
                 ))}
               </div>
