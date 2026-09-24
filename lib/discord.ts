@@ -754,6 +754,8 @@ async function zugangsRollen(): Promise<{ vip: string[]; manager: string[] }> {
   };
 
   nimm(vip, 'vip streamer');
+  // Die Rolle fuer VIPs, die keine Streamer sind (seit 24.9.2026).
+  nimm(vip, 'vip');
   nimm(manager, 'vip manager');
 
   for (const z of await alleZugaenge()) {
@@ -1880,6 +1882,18 @@ export async function richteAdminEin(
 
 export type ZugangArt = 'vip' | 'manager';
 
+/*
+ * Zwei Arten VIP.
+ *
+ * Der Betreiber (24.9.2026): "es gibt ja die VIP-Streamer-Rolle, und dann
+ * mach noch eine eigene VIP-Rolle, die nicht Streamer sind, sondern einfach
+ * VIPs. Dann kann ich immer entscheiden, wenn ich eine Request akzeptiere, ob
+ * er ein VIP ist oder VIP-Streamer." Beide sehen dieselben Kanaele (Guide,
+ * VIP-Updates, Support).
+ */
+export type VipStufe = 'vip' | 'streamer';
+const STUFE_NAME: Record<VipStufe, string> = { vip: 'VIP', streamer: 'VIP Streamer' };
+
 export interface ZugangAnfrage {
   id: string;
   nutzerId: string;
@@ -1894,6 +1908,8 @@ export interface ZugangAnfrage {
   kanal?: string;
   nachricht?: string;
   status: 'offen' | 'angenommen' | 'abgelehnt' | 'gescheitert' | 'geloescht';
+  /** Bei VIPs: als VIP oder als VIP Streamer angenommen. */
+  stufe?: VipStufe;
   zeit: string;
   entschieden?: string;
   von?: string;
@@ -1972,20 +1988,82 @@ export function anfrageAusNachricht(m?: KnopfNachricht | null): ZugangAnfrage | 
  * der Betreiber will auch nach der Entscheidung noch mit der Person reden
  * koennen -, und nach einem Accept kommt "Delete access" dazu.
  */
-function anfrageKnoepfe(id: string, stand: ZugangAnfrage['status']) {
+function anfrageKnoepfe(a: Pick<ZugangAnfrage, 'id' | 'status' | 'art'>) {
   if (!knoepfeMoeglich()) return [];
+  const { id, status: stand, art } = a;
   const k: Array<Record<string, unknown>> = [];
   if (stand === 'offen') {
-    k.push({ type: 2, style: 3, label: 'Accept', custom_id: `zugang:ok:${id}` });
+    if (art === 'vip') {
+      // Beim Annehmen gleich entscheiden: VIP oder VIP Streamer.
+      k.push({ type: 2, style: 3, label: 'Accept as VIP', custom_id: `zugang:ok:${id}:vip` });
+      k.push({ type: 2, style: 3, label: 'Accept as VIP Streamer', custom_id: `zugang:ok:${id}:streamer` });
+    } else {
+      k.push({ type: 2, style: 3, label: 'Accept', custom_id: `zugang:ok:${id}` });
+    }
     k.push({ type: 2, style: 4, label: 'Decline', custom_id: `zugang:nein:${id}` });
   }
   k.push({ type: 2, style: 2, label: 'Chat', custom_id: `zugang:chat:${id}` });
   k.push({ type: 2, style: 2, label: 'Message as CompHub', custom_id: `zugang:dm:${id}` });
   if (stand === 'angenommen') {
+    // Spaeter umstufen, ohne den Zugang anzufassen.
+    if (art === 'vip') {
+      k.push({ type: 2, style: 1, label: 'Make VIP', custom_id: `zugang:stufe:${id}:vip` });
+      k.push({ type: 2, style: 1, label: 'Make VIP Streamer', custom_id: `zugang:stufe:${id}:streamer` });
+    }
     k.push({ type: 2, style: 4, label: 'Delete access', custom_id: `zugang:weg:${id}` });
   }
   return [{ type: 1, components: k }];
 }
+
+/** Wann die Anfrage einging - aus der Kennung der Nachricht, sonst aus der Ablage. */
+function anfrageSeit(a: ZugangAnfrage): number {
+  if (a.nachricht && /^\d{15,}$/.test(a.nachricht)) {
+    return Number((BigInt(a.nachricht) >> BigInt(22)) + BigInt(1420070400000));
+  }
+  return Date.parse(a.zeit) || 0;
+}
+
+/*
+ * Die Rolle "VIP" - bei Bedarf angelegt, mit denselben Kanalfreigaben wie
+ * VIP STREAMER: ueberall, wo VIP STREAMER etwas sehen darf, darf VIP es auch.
+ * Legt der Bot sie selbst an, steht sie unter seiner eigenen Rolle - dann
+ * darf er sie auch vergeben.
+ */
+async function vipRolleBereit(): Promise<string | null> {
+  const rollen = await rollenListe();
+  const id = rollen.get('vip') ?? await rolleFuer('VIP');
+  const streamer = rollen.get('vip streamer');
+  if (!id || !streamer) return id;
+  const kanaele = await ruf(`/guilds/${SERVER}/channels`, 'GET');
+  if (!Array.isArray(kanaele)) return id;
+  for (const k of kanaele as Array<{
+    id: string; permission_overwrites?: Array<{ id: string; allow: string; deny: string }>;
+  }>) {
+    const vorlage = k.permission_overwrites?.find((o) => o.id === streamer);
+    if (!vorlage) continue;
+    const schon = k.permission_overwrites?.find((o) => o.id === id);
+    if (schon && schon.allow === vorlage.allow && schon.deny === vorlage.deny) continue;
+    await ruf(`/channels/${k.id}/permissions/${id}`, 'PUT', { type: 0, allow: vorlage.allow, deny: vorlage.deny });
+  }
+  return id;
+}
+
+/*
+ * Eine Rolle vergeben und merken, wenn Discord ablehnt.
+ *
+ * Ein Bot darf nur Rollen vergeben, die unter seiner eigenen stehen. Am
+ * 24.9.2026 stand "VIP STREAMER" ueber "CompHub" - AIR bekam deshalb nur
+ * seine eigene Rolle und sah weder Support noch Guide, ohne dass es jemand
+ * erfuhr. Jetzt steht die Absage in der Antwort an den Admin.
+ */
+async function rolleGeben(nutzerId: string, rolle: string, name: string, fehler: string[]) {
+  const erg = await ruf(`/guilds/${SERVER}/members/${nutzerId}/roles/${rolle}`, 'PUT');
+  if (erg === null) fehler.push(name);
+}
+const ROLLEN_HINWEIS = (fehler: string[]) => (fehler.length
+  ? ` Discord refused the role${fehler.length > 1 ? 's' : ''} ${fehler.join(', ')}: in Server Settings > Roles, `
+    + 'drag the CompHub role above them, then press the button again.'
+  : '');
 async function schreibeAnfragen(a: Record<string, ZugangAnfrage>): Promise<void> {
   await fs.mkdir(path.dirname(ANFRAGEN_DATEI), { recursive: true });
   await fs.writeFile(ANFRAGEN_DATEI, JSON.stringify(a, null, 2));
@@ -2137,7 +2215,7 @@ export async function zugangAnfrage(
       ],
       footer: { text: `Request ${id}` },
     }],
-    components: anfrageKnoepfe(id, 'offen'),
+    components: anfrageKnoepfe({ id, status: 'offen', art }),
   });
   const nachricht = idAus(gesendet);
   if (!nachricht) return { ok: false, grund: 'abgelehnt' };
@@ -2160,7 +2238,7 @@ async function anfrageAbschliessen(a: ZugangAnfrage, zeile: string): Promise<voi
   if (!a.kanal || !a.nachricht) return;
   await ruf(`/channels/${a.kanal}/messages/${a.nachricht}`, 'PATCH', {
     content: zeile,
-    components: anfrageKnoepfe(a.id, a.status),
+    components: anfrageKnoepfe(a),
   });
 }
 
@@ -2170,7 +2248,7 @@ async function anfrageAbschliessen(a: ZugangAnfrage, zeile: string): Promise<voi
  */
 export async function zugangEntscheiden(
   id: string, angenommen: boolean, von: string, grund = '',
-  ausNachricht?: ZugangAnfrage | null,
+  ausNachricht?: ZugangAnfrage | null, stufe: VipStufe = 'streamer',
 ): Promise<{ ok: boolean; text: string }> {
   const { liste: anfragen, a } = await anfrageFinden(id, ausNachricht);
   if (!a) return { ok: false, text: 'I cannot find this request - neither in storage nor in the message.' };
@@ -2200,31 +2278,51 @@ export async function zugangEntscheiden(
   const users = await zugaenge();
   const name = a.name;
   const streamer = (a.streamer ?? '').trim();
-  if (users.some((u) => u.username.toLowerCase() === name.toLowerCase())) {
-    return { ok: false, text: `There is already an access named "${name}". Create it by hand in the admin panel or decline.` };
-  }
   if (a.art === 'manager') {
     const da = streamer && users.some((u) => u.username.toLowerCase() === streamer.toLowerCase());
     if (!da) return { ok: false, text: `No VIP named "${streamer || '?'}" - a manager access needs an existing VIP. Decline or create the VIP first.` };
   }
-  let schluessel = neuerSchluessel('');
-  for (let i = 0; schonVergeben(schluessel, users, name) && i < 5; i += 1) schluessel = neuerSchluessel('');
-  users.push({
-    username: name, accessKey: schluessel, status: 'active', createdAt: new Date().toISOString(),
-    ...(a.art === 'manager' ? { rolle: 'manager' as const, rechte: ['overlays'], verwaltet: streamer, darfSchluessel: false, mods: [name] } : {}),
-  });
-  await schreibeZugaenge(users);
+  /*
+   * Gibt es den Zugang schon, kommt es darauf an, seit wann.
+   *
+   * Entstand er erst nach dieser Anfrage, war es ein Accept derselben
+   * Anfrage, das mittendrin abbrach (so bei Pollo am 24.9.2026: Zugang
+   * angelegt, dann antwortete die Ablage nicht mehr - kein Kanal, keine
+   * Rolle). Dann geht es dort weiter. Aelter heisst: ein anderer VIP traegt
+   * den Namen, und dessen Schluessel gibt es hier nicht.
+   */
+  const vorhanden = users.find((u) => u.username.toLowerCase() === name.toLowerCase());
+  let schluessel: string;
+  if (vorhanden) {
+    if (!(Date.parse(vorhanden.createdAt || '') >= anfrageSeit(a))) {
+      return { ok: false, text: `There is already an access named "${name}". Create it by hand in the admin panel or decline.` };
+    }
+    schluessel = vorhanden.accessKey;
+  } else {
+    schluessel = neuerSchluessel('');
+    for (let i = 0; schonVergeben(schluessel, users, name) && i < 5; i += 1) schluessel = neuerSchluessel('');
+    users.push({
+      username: name, accessKey: schluessel, status: 'active', createdAt: new Date().toISOString(),
+      ...(a.art === 'manager' ? { rolle: 'manager' as const, rechte: ['overlays'], verwaltet: streamer, darfSchluessel: false, mods: [name] } : {}),
+    });
+    await schreibeZugaenge(users);
+  }
 
   const kanalArt: KanalArt = a.art === 'manager' ? 'manager' : 'vip';
   const hin = await schickeSchluessel(a.art === 'manager' ? streamer : name, schluessel, kanalArt, a.art === 'vip', false, name);
 
-  // Rollen: die eigene des Zugangs und die Sammelrolle, sofern es sie gibt.
+  // Rollen: die eigene des Zugangs und die Sammelrolle - VIP oder VIP
+  // Streamer, wie beim Annehmen gewaehlt.
   const rollen = await rollenListe();
-  const eigene = await rolleFuer(a.art === 'manager' ? `${streamer} manager` : name);
-  const sammel = rollen.get(a.art === 'manager' ? 'vip manager' : 'vip streamer') ?? null;
-  for (const r of [eigene, sammel]) {
-    if (r) await ruf(`/guilds/${SERVER}/members/${a.nutzerId}/roles/${r}`, 'PUT');
-  }
+  const eigenName = a.art === 'manager' ? `${streamer} manager` : name;
+  const eigene = await rolleFuer(eigenName);
+  const sammel = a.art === 'manager' ? rollen.get('vip manager') ?? null
+    : stufe === 'vip' ? await vipRolleBereit() : rollen.get('vip streamer') ?? null;
+  const sammelName = a.art === 'manager' ? 'VIP MANAGER' : stufe === 'vip' ? 'VIP' : 'VIP STREAMER';
+  const rollenFehler: string[] = [];
+  if (eigene) await rolleGeben(a.nutzerId, eigene, eigenName, rollenFehler);
+  if (sammel) await rolleGeben(a.nutzerId, sammel, sammelName, rollenFehler);
+  if (a.art === 'vip') a.stufe = stufe;
 
   const kanal = await gemerkterKanal(a.art === 'manager' ? streamer : name, kanalArt);
   a.status = 'angenommen'; a.entschieden = new Date().toISOString(); a.von = von;
@@ -2256,11 +2354,35 @@ export async function zugangEntscheiden(
       color: FARBE,
     }],
   });
-  await anfrageAbschliessen(a, `Accepted by ${von} · access "${name}"${kanal ? ` · <#${kanal}>` : ''}${dm ? '' : ' · (DM could not be delivered)'}`);
+  const alsWas = a.art === 'vip' ? ` as ${STUFE_NAME[stufe]}` : '';
+  await anfrageAbschliessen(a, `Accepted by ${von} · access "${name}"${alsWas}${kanal ? ` · <#${kanal}>` : ''}${dm ? '' : ' · (DM could not be delivered)'}`);
   return {
     ok: true,
-    text: `Accepted - access "${name}" created${kanal ? `, key in <#${kanal}>` : ''}${dm ? ', DM sent.' : ', but the DM could not be delivered (closed DMs).'}`,
+    text: `Accepted${alsWas} - access "${name}" ${vorhanden ? 'finished' : 'created'}${kanal ? `, key in <#${kanal}>` : ''}`
+      + `${dm ? ', DM sent.' : ', but the DM could not be delivered (closed DMs).'}${ROLLEN_HINWEIS(rollenFehler)}`,
   };
+}
+
+/** Einen angenommenen VIP umstufen: VIP oder VIP Streamer. */
+export async function zugangStufe(
+  id: string, stufe: VipStufe, ausNachricht?: ZugangAnfrage | null,
+): Promise<{ ok: boolean; text: string }> {
+  const { liste, a } = await anfrageFinden(id, ausNachricht);
+  if (!a) return { ok: false, text: 'I cannot find this request.' };
+  if (a.art !== 'vip') return { ok: false, text: 'Only VIP accesses have this choice.' };
+  const rollen = await rollenListe();
+  const ziel = stufe === 'vip' ? await vipRolleBereit() : rollen.get('vip streamer') ?? null;
+  const andere = stufe === 'vip' ? rollen.get('vip streamer') : rollen.get('vip');
+  const fehler: string[] = [];
+  if (ziel) await rolleGeben(a.nutzerId, ziel, stufe === 'vip' ? 'VIP' : 'VIP STREAMER', fehler);
+  if (andere && !fehler.length) {
+    const weg = await ruf(`/guilds/${SERVER}/members/${a.nutzerId}/roles/${andere}`, 'DELETE');
+    if (weg === null) fehler.push(stufe === 'vip' ? 'VIP STREAMER (remove)' : 'VIP (remove)');
+  }
+  a.stufe = stufe;
+  await anfrageMerken(liste, a);
+  if (fehler.length) return { ok: false, text: `Not done.${ROLLEN_HINWEIS(fehler)}` };
+  return { ok: true, text: `Done - ${a.name} is now ${STUFE_NAME[stufe]}.` };
 }
 
 /**
@@ -2340,7 +2462,7 @@ export async function zugangLoeschen(
   const streamer = (a.streamer ?? '').trim();
   for (const r of [
     rollen.get((a.art === 'manager' ? `${streamer} manager` : a.name).toLowerCase()),
-    rollen.get(a.art === 'manager' ? 'vip manager' : 'vip streamer'),
+    ...(a.art === 'manager' ? [rollen.get('vip manager')] : [rollen.get('vip streamer'), rollen.get('vip')]),
   ]) {
     if (r) await ruf(`/guilds/${SERVER}/members/${a.nutzerId}/roles/${r}`, 'DELETE');
   }

@@ -7,7 +7,7 @@ import {
   beitragEinbettung, gemerkterKanal, schickeSchluessel,
   ticketOeffnen, ticketSchliessen,
   zugangFormular, zugangAnfrage, zugangEntscheiden, darfEntscheiden,
-  anfrageAusNachricht, zugangChat, zugangNachricht, zugangLoeschen,
+  anfrageAusNachricht, zugangChat, zugangNachricht, zugangLoeschen, zugangStufe,
   type KnopfNachricht,
 } from '@/lib/discord';
 
@@ -214,9 +214,12 @@ export async function POST(request: NextRequest) {
   // Accept - nur der Admin.
   if (id.startsWith('zugang:ok:')) {
     if (!(await darfEntscheiden(nutzer, d.member?.roles ?? []))) return nurFuerIhn('Only the admin can decide this.');
-    const anfrageId = id.slice('zugang:ok:'.length);
+    // "zugang:ok:<id>:vip" oder ":streamer" - aeltere Knoepfe ohne Zusatz
+    // nahmen als VIP Streamer an, wie bisher.
+    const [anfrageId, wahl] = id.slice('zugang:ok:'.length).split(':');
+    const stufe = wahl === 'vip' ? 'vip' : 'streamer';
     const von = nutzer?.global_name || nutzer?.username || 'admin';
-    danach(async () => (await zugangEntscheiden(anfrageId, true, von, '', ausNachricht)).text);
+    danach(async () => (await zugangEntscheiden(anfrageId, true, von, '', ausNachricht, stufe)).text);
     return NextResponse.json({ type: 5, data: { flags: 64 } });
   }
   // Decline - erst der Grund (Fenster), dann die Entscheidung.
@@ -249,6 +252,12 @@ export async function POST(request: NextRequest) {
    * reden koennen - in einem Ticket-Chat oder als CompHub -, und einen
    * vergebenen Zugang mit Begruendung wieder wegnehmen.
    */
+  if (id.startsWith('zugang:stufe:')) {
+    if (!(await darfEntscheiden(nutzer, d.member?.roles ?? []))) return nurFuerIhn('Only the admin can do this.');
+    const [anfrageId, wahl] = id.slice('zugang:stufe:'.length).split(':');
+    danach(async () => (await zugangStufe(anfrageId, wahl === 'vip' ? 'vip' : 'streamer', ausNachricht)).text);
+    return NextResponse.json({ type: 5, data: { flags: 64 } });
+  }
   if (id.startsWith('zugang:chat:')) {
     if (!(await darfEntscheiden(nutzer, d.member?.roles ?? []))) return nurFuerIhn('Only the admin can do this.');
     const anfrageId = id.slice('zugang:chat:'.length);
