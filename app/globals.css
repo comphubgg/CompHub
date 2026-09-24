@@ -236,3 +236,49 @@ html.eingebettet body > .fixed,
 html.eingebettet body > button.fixed {
   display: none !important;
 }
+
+/* ------------------------------------------------ Die Turnierkarten */
+/*
+ * Beschriftung und Formen aller Karten, nach dem Vorbild von
+ * eucompetitive.com/globals (siehe app/lib/kartenStil.ts).
+ *
+ * --z ist die Vergroesserung der Zoom-Ebene. Alles, was durch sie geteilt
+ * wird, steht auf dem Bildschirm immer gleich gross da - Schrift, Kontur,
+ * Rand und Schein -, waehrend die Karte darunter waechst.
+ */
+.karten-name {
+  font-family: var(--font-karte), Roboto, system-ui, sans-serif;
+  font-weight: 600;
+  color: #fff;
+  line-height: 1.12;
+  white-space: nowrap;
+  text-shadow:
+    calc(-1px / var(--z, 1)) calc(-1px / var(--z, 1)) 0 #000,
+    calc(1px / var(--z, 1)) calc(-1px / var(--z, 1)) 0 #000,
+    calc(-1px / var(--z, 1)) calc(1px / var(--z, 1)) 0 #000,
+    calc(1px / var(--z, 1)) calc(1px / var(--z, 1)) 0 #000,
+    0 0 calc(2px / var(--z, 1)) rgba(0, 0, 0, 0.5);
+}
+.karten-form {
+  stroke-width: calc(1.5px / var(--z, 1));
+  transform-box: fill-box;
+  transform-origin: center;
+  transition: transform 0.2s ease, filter 0.2s ease;
+}
+.karten-form.ist-gewaehlt { stroke-width: calc(2.5px / var(--z, 1)); }
+.karten-form.ist-hover {
+  transform: scale(1.02);
+  filter: drop-shadow(0 0 calc(9px / var(--z, 1)) rgba(0, 0, 0, 0.45));
+}
+.karten-form.ist-rot.ist-hover {
+  filter: drop-shadow(0 0 calc(10px / var(--z, 1)) rgba(255, 0, 0, 0.5));
+}
+/* Die Beschriftung waechst mit ihrer Form. */
+.karten-beschriftung { transition: transform 0.2s ease; }
+.karten-beschriftung.ist-hover { transform: scale(1.02); }
+/* Ziehpunkte und Marken, die auf dem Bildschirm gleich gross bleiben. */
+.karten-fest { transform: translate(-50%, -50%) scale(calc(1 / var(--z, 1))); }
+
+@media (prefers-reduced-motion: reduce) {
+  .karten-form, .karten-beschriftung { transition: none; }
+}

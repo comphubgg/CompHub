@@ -12,16 +12,19 @@
 // Formen, wer wo landet). Diese Seite zeigt sie nur - und zeigt nur, was
 // aus Epics Daten und den gepflegten Profilen belegt ist. Erfunden wird
 // nichts: ohne Bestenliste bleibt das Feld leer, ohne Tabelle das Preisgeld.
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
-import { kernname, namensSchluessel } from '@/lib/homoglyph';
+import { namensSchluessel } from '@/lib/homoglyph';
 import TeamFlagge, { flaggenPfad } from '@/components/TeamFlagge';
 import T from '@/app/components/T';
 import { useT, useSprache } from '@/app/components/SprachProvider';
 import LadeSchirm from '@/app/components/LadeSchirm';
 import {
-  einheitsGroesse, rahmen, spanneBei, type Spot,
+  einheitsGroesse, rahmen, spanneBei, type Punkt, type Spot,
 } from '@/lib/prognoseKarte';
+import {
+  kartenSchrift, kartenName, formFarbe, hebeFormHervor, useEchteNamen,
+} from '@/app/lib/kartenStil';
 
 /* ------------------------------------------------------------ Daten */
 
@@ -66,10 +69,23 @@ const ABSCHNITTE: Array<[Abschnitt, string, string]> = [
 
 const REGIONEN = ['EU', 'NAC', 'NAW', 'BR', 'ASIA', 'ME', 'OCE'];
 
-/** "[EWC2026] AURA shxrk 7" wird zu "Shxrk". */
+/*
+ * "[EWC2026] AURA shxrk 7" wird zu "SHXRK" - komplett gross, wie auf jeder
+ * Karte (siehe app/lib/kartenStil).
+ */
 function kurz(name: string) {
-  const k = kernname(name).slice(0, 16);
-  return k ? k[0].toUpperCase() + k.slice(1) : k;
+  return kartenName(name);
+}
+
+/** Liegt der Punkt in der Flaeche? Strahlenverfahren. */
+function imPolygon(q: Punkt, ecken: Punkt[]) {
+  let drin = false;
+  for (let i = 0, j = ecken.length - 1; i < ecken.length; j = i++) {
+    const a = ecken[i], b = ecken[j];
+    if ((a.y > q.y) !== (b.y > q.y)
+      && q.x < ((b.x - a.x) * (q.y - a.y)) / (b.y - a.y) + a.x) drin = !drin;
+  }
+  return drin;
 }
 
 function landName(kuerzel: string, sprache: string) {
@@ -210,7 +226,18 @@ export default function Prognosen() {
   }, [prognose]);
 
   const teamVon = useCallback((key: string | null) => (key ? feld.find((x) => x.key === key) ?? null : null), [feld]);
-  const anzeigeName = useCallback((name: string, id?: string) => kurz(findeProfil(name, id)?.anzeige || name), [findeProfil]);
+  /*
+   * Der echte Name ueber die Konto-Id (siehe /api/echte-namen) - nicht der,
+   * den Epic gerade fuehrt ("Idropy281").
+   */
+  const feldKonten = useMemo(() => feld.flatMap((x) => x.ids), [feld]);
+  const echteNamen = useEchteNamen(feldKonten,
+    prognose?.quellen[prognose.quellen.length - 1]?.eventId ?? null);
+  const anzeigeName = useCallback((name: string, id?: string) =>
+    kurz(echteNamen[id ?? ''] || findeProfil(name, id)?.anzeige || name), [echteNamen, findeProfil]);
+  /** Die Form unter dem Zeiger - hervorgehoben wie beim Vorbild. */
+  const kartenFlaeche = useRef<HTMLDivElement | null>(null);
+  const hoverRef = useRef<string | null>(null);
   const teamRegion = useCallback((team: Team) => {
     if (REGIONEN.includes(team.region)) return team.region;
     // LAN: die Heimatregion des Teams, aus den gepflegten Profilen.
@@ -496,19 +523,37 @@ export default function Prognosen() {
                     <T>Zu dieser Prognose ist noch keine Karte hinterlegt.</T>
                   </p>
                 ) : (
-                  <div className="relative mx-auto aspect-square w-full max-w-[860px] overflow-hidden rounded-xl border border-zinc-800"
-                    style={{ containerType: 'inline-size' }}>
+                  <div ref={kartenFlaeche}
+                    className={`${kartenSchrift.variable} relative mx-auto aspect-square w-full max-w-[860px] overflow-hidden rounded-xl border border-white/[0.06]`}
+                    style={{ containerType: 'inline-size' }}
+                    onMouseMove={(e) => {
+                      const kasten = e.currentTarget.getBoundingClientRect();
+                      const q = {
+                        x: ((e.clientX - kasten.left) / kasten.width) * 100,
+                        y: ((e.clientY - kasten.top) / kasten.height) * 100,
+                      };
+                      const drunter = [...karte.spots].reverse()
+                        .find((sp) => imPolygon(q, sp.punkte))?.id ?? null;
+                      hebeFormHervor(kartenFlaeche.current, hoverRef.current, drunter);
+                      hoverRef.current = drunter;
+                    }}
+                    onMouseLeave={() => {
+                      hebeFormHervor(kartenFlaeche.current, hoverRef.current, null);
+                      hoverRef.current = null;
+                    }}>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img alt={t('Karte')} draggable={false} className="absolute inset-0 h-full w-full object-cover"
                       src={`/api/karten-bild?datei=1&id=${encodeURIComponent(karte.bildId)}`} />
                     <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="pointer-events-none absolute inset-0 h-full w-full">
                       {karte.spots.map((sp) => {
                         const belegt = (karte.aufSpot[sp.id] ?? []).length;
+                        // Farben wie beim Vorbild, Rand und Hover aus globals.css.
+                        const f = formFarbe(belegt, belegt ? null : sp.farbe);
                         return (
-                          <polygon key={sp.id} points={sp.punkte.map((q) => `${q.x},${q.y}`).join(' ')}
-                            fill={belegt >= 2 ? 'rgba(220,38,38,0.34)' : belegt === 1 ? 'rgba(0,0,0,0.42)' : 'rgba(0,0,0,0.14)'}
-                            stroke={belegt >= 2 ? 'rgb(248,60,60)' : belegt === 1 ? 'rgba(0,0,0,0.95)' : sp.farbe ?? 'rgba(0,0,0,0.75)'}
-                            strokeWidth={2} vectorEffect="non-scaling-stroke" />
+                          <polygon key={sp.id} data-form={sp.id}
+                            className={`karten-form${f.rot ? ' ist-rot' : ''}`}
+                            points={sp.punkte.map((q) => `${q.x},${q.y}`).join(' ')}
+                            fill={f.fuellung} stroke={f.rand} vectorEffect="non-scaling-stroke" />
                         );
                       })}
                     </svg>
@@ -517,28 +562,37 @@ export default function Prognosen() {
                       if (!keys.length) return null;
                       const r = rahmen(sp.punkte);
                       const anzahl = keys.length;
-                      return keys.map((k, i) => {
-                        const texte = zeilenFuer(k, anzahl === 1);
-                        if (!texte.length) return null;
-                        const bandMitte = r.oben + (r.hoehe / anzahl) * (i + 0.5);
-                        const hoch = texte.length * schrift * 1.15;
-                        const obenY = r.oben + hoch * 0.62;
-                        const untenY = r.oben + r.hoehe - hoch * 0.62;
-                        const platz = untenY - obenY;
-                        const y = (anzahl === 1 || platz <= 0) ? bandMitte : obenY + platz * (i / (anzahl - 1));
-                        const spanne = spanneBei(sp.punkte, y) ?? { mitte: r.links + r.breite / 2, breite: r.breite };
-                        return (
-                          <div key={k} style={{ left: `${spanne.mitte}%`, top: `${y}%`, transform: 'translate(-50%, -50%)' }}
-                            className="pointer-events-none absolute z-10 text-center leading-none">
-                            {texte.map((tx, z) => (
-                              <p key={z} style={{ fontSize: `${schrift}cqw` }}
-                                className="whitespace-nowrap font-semibold uppercase text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)]">
-                                {tx}
-                              </p>
-                            ))}
-                          </div>
-                        );
-                      });
+                      const mitteX = r.links + r.breite / 2;
+                      // Ein Kasten in der Groesse der Form, darin die Teams mittig
+                      // oder von Rand zu Rand - wie im Karten-Werkzeug.
+                      return (
+                        <div key={sp.id} data-form={sp.id}
+                          className="karten-beschriftung pointer-events-none absolute z-10 flex flex-col items-center text-center"
+                          style={{
+                            left: `${r.links}%`, top: `${r.oben}%`, width: `${r.breite}%`, height: `${r.hoehe}%`,
+                            justifyContent: anzahl === 1 ? 'center' : 'space-between',
+                            paddingBlock: '0.45cqw',
+                          }}>
+                          {keys.map((k, i) => {
+                            const texte = zeilenFuer(k, anzahl === 1);
+                            if (!texte.length) return null;
+                            const yProz = anzahl === 1
+                              ? r.oben + r.hoehe / 2
+                              : r.oben + r.hoehe * (0.1 + 0.8 * (i / (anzahl - 1)));
+                            const spanne = sp.form === 'rechteck' ? null : spanneBei(sp.punkte, yProz);
+                            const versatz = spanne && r.breite > 0 ? ((spanne.mitte - mitteX) / r.breite) * 100 : 0;
+                            return (
+                              <div key={k} className="relative" style={versatz ? { left: `${versatz}%` } : undefined}>
+                                {texte.map((tx, z) => (
+                                  <p key={z} className="karten-name" style={{ fontSize: `${schrift}cqw` }}>
+                                    {tx}
+                                  </p>
+                                ))}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      );
                     })}
                   </div>
                 )}

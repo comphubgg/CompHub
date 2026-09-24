@@ -1378,6 +1378,10 @@ const AUF_ENGLISCH: Record<string, string> = {
   ['Freie Form: Ecken klicken, am ersten Punkt schließen']:
     'Free shape: click the corners, close at the first point',
   'Ganze Karte': 'Whole map',
+  'Ohne Region': 'No region',
+  'Noch keiner Form zugeordnet': 'Not placed on the map yet',
+  ['Mausrad zoomt, ziehen verschiebt, Doppelklick fährt eine Form an. Nur zum Ansehen — verteilt wird im Karten-Werkzeug.']:
+    'Scroll to zoom, drag to pan, double-click a spot to fly to it. View only — teams are placed in the map tool.',
   'Gruppe oder Karte (frei)': 'Group or map (free text)',
   'Klick entfernt das Team von dieser Form': 'Click removes the team from this shape',
   'Name der Karte': 'Map name',

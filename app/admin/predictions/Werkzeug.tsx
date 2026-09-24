@@ -21,7 +21,7 @@
 // nichts: nennt Epic die Qualifikation noch nicht, steht das so da.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { gefaltet, kernname, namensSchluessel } from '@/lib/homoglyph';
+import { gefaltet, namensSchluessel } from '@/lib/homoglyph';
 import TeamFlagge from '@/components/TeamFlagge';
 
 import T from '@/app/components/T';
@@ -32,6 +32,9 @@ import { speichereLeinwand } from '@/app/lib/bildSpeichern';
 import { gruppenName } from '@/lib/fensterName';
 import type { FeldErgebnis, FeldHinweis } from '@/lib/prognoseFeld';
 import { GLOBALS_EVENT } from '@/lib/globalsCup';
+import {
+  kartenSchrift, kartenName, formFarbe, hebeFormHervor, useEchteNamen,
+} from '@/app/lib/kartenStil';
 interface Fenster {
   status: string; begin: number;
   /** Fehlt bei nachgetragenen Turnieren. */
@@ -201,22 +204,10 @@ function spanneBei(punkte: Punkt[], y: number): { mitte: number; breite: number 
  */
 function schriftgroesse(breite: number, hoehe: number, zeichen: number) {
   const nachHoehe = hoehe * 0.6;
-  // Gemischte Schreibweise braucht gut die halbe Hoehe an Breite je Zeichen.
-  // 0,92 heisst: die Zeile darf 92 Prozent der Formbreite einnehmen.
-  const nachBreite = (breite * 0.92) / Math.max(zeichen * 0.52, 1);
+  // Grossbuchstaben in Alata brauchen gut sechs Zehntel der Hoehe an Breite
+  // je Zeichen. 0,92 heisst: die Zeile darf 92 Prozent der Formbreite nehmen.
+  const nachBreite = (breite * 0.92) / Math.max(zeichen * 0.62, 1);
   return Math.max(0.5, Math.min(nachHoehe, nachBreite, 2.4));
-}
-
-/**
- * Wie stark die Schrift der Vergroesserung folgt.
- *
- * Die Wurzel ist der Mittelweg zwischen "waechst voll mit" und "bleibt
- * starr": bei vierfachem Zoom steht sie doppelt so gross auf dem Schirm,
- * in Kartenmassen wird sie dabei kleiner und kann nie ueber den Rand der
- * Form hinauslaufen.
- */
-function schriftFaktor(zoom: number) {
-  return Math.sqrt(Math.max(1, zoom));
 }
 
 /** Der umschliessende Rahmen einer Form, in Prozent. */
@@ -309,15 +300,13 @@ function ordnung(n: number): string {
 /** Die Regionen rechts in der Reihenfolge der Seite - Europa zuerst. */
 const REGION_REIHE = ['EU', 'NAC', 'NAW', 'BR', 'ASIA', 'OCE', 'ME'];
 
-/** Aus "[EWC2026] AURA shxrk 7" wird "Shxrk". */
 /*
- * Der Name im Feld und auf der Karte - erster Buchstabe gross, der Rest
- * klein, wie im Karten-Werkzeug. Der Betreiber: "Mach immer die Regel,
- * erster Buchstabe gross, der Rest klein."
+ * Der Name im Feld und auf der Karte: aus "[EWC2026] AURA shxrk 7" wird
+ * "SHXRK". Komplett gross, wie auf jeder Karte - der Betreiber (24.9.2026):
+ * "Mach alle Buchstaben immer komplett gross geschrieben. Alle, alle."
  */
 function kurz(name: string) {
-  const k = kernname(name).slice(0, 16);
-  return k ? k[0].toUpperCase() + k.slice(1).toLowerCase() : k;
+  return kartenName(name);
 }
 
 function tag(ms: number) {
@@ -466,7 +455,8 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
   const [suche, setSuche] = useState('');
 
   /** Ortsnamen auf der Karte - nur die Fortnite-Insel bringt beide Fassungen mit. */
-  const [orteSichtbar, setOrteSichtbar] = useState(true);
+  // Ortsnamen von Anfang an aus - wie auf jeder Karte (Betreiber, 24.9.2026).
+  const [orteSichtbar, setOrteSichtbar] = useState(false);
   /** Die Beschriftungen ausblenden, um die reinen Flaechen zu sehen. */
   const [spielerSichtbar, setSpielerSichtbar] = useState(true);
 
@@ -524,6 +514,8 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
 
   const flaeche = useRef<HTMLDivElement | null>(null);
   const ebene = useRef<HTMLDivElement | null>(null);
+  /** Die Form, ueber der der Zeiger gerade steht. */
+  const hoverRef = useRef<string | null>(null);
   const zoomRef = useRef(1);
   const mitteRef = useRef<Punkt>({ x: 50, y: 50 });
   const malUhr = useRef<number | null>(null);
@@ -619,15 +611,39 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
       if (!n || !el) return;
       el.style.transform =
         `scale(${n.z}) translate(${50 / n.z - n.m.x}%, ${50 / n.z - n.m.y}%)`;
+      // Schrift, Raender und Schein rechnen gegen --z (globals.css).
+      el.style.setProperty('--z', String(n.z));
     });
   }, []);
 
+  /** Wartet, bis das Rad stillsteht, bevor der Ausschnitt in den Zustand geht. */
+  const festUhr = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const setzeAusschnitt = useCallback((z: number, ziel: Punkt) => {
+    if (festUhr.current) { clearTimeout(festUhr.current); festUhr.current = null; }
     const zz = Math.max(1, Math.min(6, z));
     const mm = begrenze(zz, ziel);
     zoomRef.current = zz; mitteRef.current = mm;
     setZoom(zz); setMitte(mm);
   }, [begrenze]);
+
+  /*
+   * Das Rad zoomt direkt am Element, ohne die Seite neu zu zeichnen - das
+   * Neuzeichnen bei jedem Radstoss liess die Karte ruckeln. In den Zustand
+   * geht der Ausschnitt erst, wenn das Rad eine Weile stillsteht.
+   */
+  const zoomeFluessig = useCallback((z: number, ziel: Punkt) => {
+    const zz = Math.max(1, Math.min(6, z));
+    const mm = begrenze(zz, ziel);
+    zoomRef.current = zz; mitteRef.current = mm;
+    malAusschnitt(zz, mm);
+    if (festUhr.current) clearTimeout(festUhr.current);
+    festUhr.current = setTimeout(() => {
+      festUhr.current = null;
+      setZoom(zoomRef.current); setMitte(mitteRef.current);
+    }, 160);
+  }, [begrenze, malAusschnitt]);
+  useEffect(() => () => { if (festUhr.current) clearTimeout(festUhr.current); }, []);
 
   /** Der Kartenpunkt unter dem Zeiger, in Prozent. */
   const pos = useCallback((e: { clientX: number; clientY: number }): Punkt => {
@@ -669,14 +685,15 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
       const px = m.x - sicht / 2 + fx * sicht;
       const py = m.y - sicht / 2 + fy * sicht;
 
-      const z2 = Math.max(1, Math.min(6, z * (e.deltaY < 0 ? 1.2 : 1 / 1.2)));
+      // Feinere Stufen, wie im Karten-Werkzeug.
+      const z2 = Math.max(1, Math.min(6, z * (e.deltaY < 0 ? 1.12 : 1 / 1.12)));
       const sicht2 = 100 / z2;
-      setzeAusschnitt(z2, { x: px + sicht2 * (0.5 - fx), y: py + sicht2 * (0.5 - fy) });
+      zoomeFluessig(z2, { x: px + sicht2 * (0.5 - fx), y: py + sicht2 * (0.5 - fy) });
     };
     window.addEventListener('wheel', amRad, { passive: false, capture: true });
     return () => window.removeEventListener(
       'wheel', amRad, { capture: true } as EventListenerOptions);
-  }, [setzeAusschnitt]);
+  }, [zoomeFluessig]);
 
   /**
    * Schieben, Formen versetzen und Ecken ziehen.
@@ -865,12 +882,23 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
    * untereinander; stehen mehrere Teams in derselben Form, teilen sie sich
    * die Hoehe und jedes bekommt nur eine Zeile.
    */
+  /*
+   * Der echte Name ueber die Konto-Id (siehe /api/echte-namen) - nicht der,
+   * den Epic gerade fuehrt ("Idropy281"). Ein von Hand gepflegter Name geht
+   * dabei ohnehin vor; der steht in derselben Quelle an erster Stelle.
+   */
+  const feldKonten = useMemo(() => feld.flatMap((t) => t.ids), [feld]);
+  const echteNamen = useEchteNamen(feldKonten, globals ? GLOBALS_EVENT : null);
+  const nameVon = useCallback((n: string, id?: string | null) =>
+    kurz(echteNamen[id ?? ''] || findeProfil(n, id ?? undefined)?.anzeige || n),
+  [echteNamen, findeProfil]);
+
   const zeilenFuer = useCallback((key: string, alleine: boolean): string[] => {
     const t = feld.find((x) => x.key === key);
     if (!t) return [];
-    const namen = t.namen.map((n, k) => kurz(findeProfil(n, t.ids[k])?.anzeige || n));
+    const namen = t.namen.map((n, k) => nameVon(n, t.ids[k]));
     return alleine && namen.length > 1 ? namen : [namen.join(' ')];
-  }, [feld, findeProfil]);
+  }, [feld, nameVon]);
 
   /**
    * Eine Schriftgroesse fuer die ganze Karte.
@@ -1081,7 +1109,7 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
       g.font = '600 19px Inter, system-ui, sans-serif';
       g.fillStyle = t ? '#e2e8f0' : '#3f3f46';
       const text = t
-        ? t.namen.map((n, k) => kurz(findeProfil(n, t.ids[k])?.anzeige || n))
+        ? t.namen.map((n, k) => nameVon(n, t.ids[k]))
           .join(' + ')
         : uebs('offen');
       // Was nicht in die Spalte passt, wird gekuerzt statt in die naechste
@@ -2301,8 +2329,8 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
             )}
 
             <div ref={flaeche}
-              className="relative mx-auto aspect-square w-full overflow-hidden
-                         rounded-lg bg-zinc-950"
+              className={`${kartenSchrift.variable} relative mx-auto aspect-square w-full
+                         overflow-hidden rounded-lg bg-zinc-950`}
               style={{
                 containerType: 'size',
                 maxWidth: vollbildKarte ? 'min(100%, 84vh)' : 'min(100%, calc(100vh - 6.5rem))',
@@ -2342,6 +2370,15 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
                 };
               }}
               onMouseMove={(e) => {
+                // Die Form unter dem Zeiger hervorheben, wie beim Vorbild -
+                // direkt am Element, nicht waehrend eines Zugs.
+                if (!griff.current && !werkzeug) {
+                  const q = pos(e);
+                  const drunter = [...spots].reverse()
+                    .find((sp) => imPolygon(q, sp.punkte))?.id ?? null;
+                  hebeFormHervor(flaeche.current, hoverRef.current, drunter);
+                  hoverRef.current = drunter;
+                }
                 if (!formenAn || !werkzeug) return;
                 const q = pos(e);
                 if (werkzeug === 'polygon') { setZeiger(q); return; }
@@ -2362,6 +2399,10 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
                 gummiRef.current = null;
                 setGummi(null);
               }}
+              onMouseLeave={() => {
+                hebeFormHervor(flaeche.current, hoverRef.current, null);
+                hoverRef.current = null;
+              }}
               onDragOver={(e) => e.preventDefault()}
               onDrop={(e) => {
                 e.preventDefault();
@@ -2380,7 +2421,8 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
                 transform:
                   `scale(${zoom}) translate(${50 / zoom - mitte.x}%, ${50 / zoom - mitte.y}%)`,
                 width: '100%', height: '100%',
-              }}>
+                '--z': zoom,
+              } as React.CSSProperties}>
 
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img alt={uebs('Karte')} draggable={false}
@@ -2395,8 +2437,12 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
                 {spots.map((sp) => {
                   const belegt = (aufSpot[sp.id] ?? []).length;
                   const dran = formenAn && gewaehlteForm === sp.id;
+                  // Farben wie beim Vorbild (app/lib/kartenStil); Randstaerke,
+                  // Hover und Schein aus globals.css.
+                  const f = formFarbe(belegt, belegt ? null : sp.farbe);
                   return (
-                    <polygon key={sp.id}
+                    <polygon key={sp.id} data-form={sp.id}
+                      className={`karten-form${f.rot ? ' ist-rot' : ''}${dran ? ' ist-gewaehlt' : ''}`}
                       points={sp.punkte.map((q) => `${q.x},${q.y}`).join(' ')}
                       onMouseDown={formenAn && !werkzeug ? (e) => {
                         e.stopPropagation();
@@ -2404,13 +2450,9 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
                         griff.current = { art: 'form', id: sp.id, letzt: pos(e) };
                       } : undefined}
                       style={formenAn && !werkzeug ? { cursor: 'move' } : undefined}
-                      fill={belegt >= 2 ? 'rgba(220,38,38,0.34)'
-                        : belegt === 1 ? 'rgba(0,0,0,0.42)' : 'rgba(0,0,0,0.14)'}
-                      stroke={dran ? 'rgb(251,191,36)'
-                        : belegt >= 2 ? 'rgb(248,60,60)'
-                        : belegt === 1 ? 'rgba(0,0,0,0.95)'
-                        : sp.farbe ?? 'rgba(0,0,0,0.75)'}
-                      strokeWidth={dran ? 3.5 : 2} vectorEffect="non-scaling-stroke" />
+                      fill={f.fuellung}
+                      stroke={dran ? 'rgb(251,191,36)' : f.rand}
+                      vectorEffect="non-scaling-stroke" />
                   );
                 })}
 
@@ -2457,59 +2499,62 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
                 )}
               </svg>
 
+              {/*
+                * Beschriftungen - wie im Karten-Werkzeug: ein Kasten in der
+                * Groesse der Form, darin die Teams mittig oder von Rand zu
+                * Rand verteilt. Die Schrift rechnet gegen --z und bleibt beim
+                * Zoomen auf dem Bildschirm gleich gross, ohne dass die Karte
+                * neu gezeichnet werden muss.
+                */}
               {spielerSichtbar && spots.map((sp) => {
                 const keys = aufSpot[sp.id] ?? [];
                 if (!keys.length) return null;
                 const r = rahmen(sp.punkte);
                 const anzahl = keys.length;
+                const mitteX = r.links + r.breite / 2;
 
-                return keys.map((k, i) => {
-                  const texte = zeilenFuer(k, anzahl === 1);
-                  if (!texte.length) return null;
-
-                  // Das erste Team an den oberen Rand der Form, das letzte an
-                  // den unteren. Mittig in ihrem Band zu sitzen liesse die
-                  // Flaeche dazwischen leer und machte schlechter kenntlich,
-                  // welcher Teil der Form zu wem gehoert.
-                  const bandMitte = r.oben + (r.hoehe / anzahl) * (i + 0.5);
-                  const hoch = texte.length * (einheitsGroesse / schriftFaktor(zoom)) * 1.15;
-                  const obenY = r.oben + hoch * 0.62;
-                  const untenY = r.oben + r.hoehe - hoch * 0.62;
-                  const platz = untenY - obenY;
-                  const y = (anzahl === 1 || platz <= 0)
-                    ? bandMitte
-                    : obenY + platz * (i / (anzahl - 1));
-
-                  // Waagerecht mittig in der Spanne auf genau dieser Hoehe -
-                  // bei einer schraegen Form liegt die anders als die Mitte
-                  // des umschliessenden Rechtecks.
-                  const spanne = spanneBei(sp.punkte, y)
-                    ?? { mitte: r.links + r.breite / 2, breite: r.breite };
-
-                  return (
-                    <div key={k} draggable
-                      onDragStart={(ev) => {
-                        ev.dataTransfer.setData('text/team', k); setZieht(k);
-                      }}
-                      onClick={() => vonForm(sp.id, k)}
-                      title={uebs('Klick entfernt das Team von dieser Form')}
-                      style={{ left: `${spanne.mitte}%`, top: `${y}%`,
-                               transform: 'translate(-50%, -50%)' }}
-                      className="absolute z-10 cursor-pointer text-center leading-none">
-                      {texte.map((t, z) => (
-                        // Geteilt durch die Vergroesserung: die Schrift bleibt
-                        // auf dem Bildschirm gleich gross, waehrend die Form
-                        // unter ihr waechst - so kennt man es von einer Karte.
-                        <p key={z}
-                          style={{ fontSize: `${einheitsGroesse / schriftFaktor(zoom)}cqw` }}
-                          className="whitespace-nowrap font-semibold text-white
-                                     drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)]">
-                          {t}
-                        </p>
-                      ))}
-                    </div>
-                  );
-                });
+                return (
+                  <div key={sp.id} data-form={sp.id}
+                    className="karten-beschriftung pointer-events-none absolute z-10 flex
+                               flex-col items-center text-center"
+                    style={{
+                      left: `${r.links}%`, top: `${r.oben}%`,
+                      width: `${r.breite}%`, height: `${r.hoehe}%`,
+                      justifyContent: anzahl === 1 ? 'center' : 'space-between',
+                      paddingBlock: 'calc(0.45cqw / var(--z, 1))',
+                    }}>
+                    {keys.map((k, i) => {
+                      const texte = zeilenFuer(k, anzahl === 1);
+                      if (!texte.length) return null;
+                      // Waagerecht mittig in der Spanne auf der Hoehe der Zeile -
+                      // bei einer schraegen Form liegt die anders als die Mitte
+                      // des umschliessenden Rechtecks.
+                      const yProz = anzahl === 1
+                        ? r.oben + r.hoehe / 2
+                        : r.oben + r.hoehe * (0.1 + 0.8 * (i / (anzahl - 1)));
+                      const spanne = sp.form === 'rechteck' ? null : spanneBei(sp.punkte, yProz);
+                      const versatz = spanne && r.breite > 0
+                        ? ((spanne.mitte - mitteX) / r.breite) * 100 : 0;
+                      return (
+                        <div key={k} draggable
+                          onDragStart={(ev) => {
+                            ev.dataTransfer.setData('text/team', k); setZieht(k);
+                          }}
+                          onClick={() => vonForm(sp.id, k)}
+                          title={uebs('Klick entfernt das Team von dieser Form')}
+                          className="pointer-events-auto relative cursor-pointer"
+                          style={versatz ? { left: `${versatz}%` } : undefined}>
+                          {texte.map((t, z) => (
+                            <p key={z} className="karten-name"
+                              style={{ fontSize: `calc(${einheitsGroesse}cqw / var(--z, 1))` }}>
+                              {t}
+                            </p>
+                          ))}
+                        </div>
+                      );
+                    })}
+                  </div>
+                );
               })}
 
             </div>
@@ -2662,7 +2707,7 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
                           <span className="flex min-w-0 flex-1 flex-col leading-tight">
                             {t.namen.map((n, k) => (
                               <span key={k} className="truncate font-medium text-slate-100">
-                                {kurz(findeProfil(n, t.ids[k])?.anzeige || n)}
+                                {nameVon(n, t.ids[k])}
                               </span>
                             ))}
                           </span>
@@ -2798,7 +2843,7 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
                     <span className="flex min-w-0 flex-1 flex-col leading-tight">
                       {t.namen.map((n, k) => (
                         <span key={k} className="truncate font-medium text-slate-100">
-                          {kurz(findeProfil(n, t.ids[k])?.anzeige || n)}
+                          {nameVon(n, t.ids[k])}
                         </span>
                       ))}
                     </span>
@@ -2848,7 +2893,7 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
                             <span className="flex min-w-0 flex-1 flex-col leading-tight">
                               {t.namen.map((n, k) => (
                                 <span key={k} className="truncate text-slate-300">
-                                  {kurz(findeProfil(n, t.ids[k])?.anzeige || n)}
+                                  {nameVon(n, t.ids[k])}
                                 </span>
                               ))}
                             </span>

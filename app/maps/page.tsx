@@ -12,7 +12,7 @@ import {
 } from 'react';
 import { MARKE } from '@/lib/marke';
 import TeamFlagge, { flaggenPfad } from '@/components/TeamFlagge';
-import { gefaltet, kernname, namensSchluessel, ohneZierrat } from '@/lib/homoglyph';
+import { gefaltet, namensSchluessel } from '@/lib/homoglyph';
 
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
@@ -21,6 +21,9 @@ import { inselAusPlaylist } from '@/lib/inseln';
 import { istGrossesTurnier } from '@/lib/turnierArt';
 import { speichereLeinwand } from '@/app/lib/bildSpeichern';
 import { leseWoerter } from './bildLesen';
+import {
+  kartenSchrift, kartenName, formFarbe, hebeFormHervor, useEchteNamen,
+} from '@/app/lib/kartenStil';
 type Form = 'rechteck' | 'polygon';
 interface Punkt { x: number; y: number }
 interface Spot {
@@ -240,22 +243,9 @@ function schriftgroesse(breite: number, hoehe: number, zeichen: number) {
    * Breite, und die Obergrenze steigt von 2,4 auf 3,2.
    */
   const nachHoehe = hoehe * 0.7;
-  const nachBreite = (breite * 0.96) / Math.max(zeichen * 0.52, 1);
+  // Grossbuchstaben in Alata: gut sechs Zehntel der Schriftgroesse je Zeichen.
+  const nachBreite = (breite * 0.96) / Math.max(zeichen * 0.62, 1);
   return Math.max(0.6, Math.min(nachHoehe, nachBreite, 3.2));
-}
-
-/**
- * Wie stark die Schrift der Vergroesserung folgt.
- *
- * Ganz mitwachsen liess sie frueher beim Hineinzoomen den halben Bildschirm
- * fuellen. Gar nicht mitwachsen liess sie in einer weit aufgezogenen Form
- * verloren wirken. Die Wurzel ist der Mittelweg: bei vierfachem Zoom steht
- * sie doppelt so gross auf dem Schirm wie bei einfachem, bei sechsfachem
- * zweieinhalbfach - und weil sie in Kartenmassen dabei nur kleiner wird,
- * kann sie nie ueber den Rand der Form hinauslaufen.
- */
-function schriftFaktor(zoom: number) {
-  return Math.sqrt(Math.max(1, zoom));
 }
 
 /** Liegt der Punkt in der Flaeche? Strahlenverfahren, fuer Drag and Drop. */
@@ -270,23 +260,9 @@ function imPolygon(p: Punkt, ecken: Punkt[]) {
 }
 
 function kuerze(name: string) {
-  // Gemeinsame Regel mit der Beitragsseite: nur ein echter Orgtag faellt
-  // weg, damit "FocusHD yhyh" und "Th0masHD yhyh" unterscheidbar bleiben.
-  return grossAnfang(ohneZierrat(kernname(name)).slice(0, 16));
-}
-
-/**
- * Erster Buchstabe gross, der Rest klein - immer, ohne Schalter.
- *
- * Auf der Karte stehen Namen nebeneinander, die mal ganz gross und mal ganz
- * klein geschrieben sind ("CURVE" neben "flickzy"). Zuerst wurde hier nur das
- * erste Zeichen angehoben und der Rest gelassen; das reichte dem Betreiber
- * nicht: "Mach immer die Regel, erster Buchstabe gross, der Rest klein."
- * Umgeschrieben wird nur die Anzeige - gespeichert bleibt der Name, wie er
- * kam. Beginnt er mit einer Ziffer ("5aald"), bleibt die Ziffer vorn stehen.
- */
-function grossAnfang(name: string) {
-  return name ? name[0].toUpperCase() + name.slice(1).toLowerCase() : name;
+  // Gemeinsame Regel aller Karten (siehe app/lib/kartenStil): ohne
+  // Turniermarke, Orgtag und Zierzeichen, komplett in Grossbuchstaben.
+  return kartenName(name);
 }
 
 /* ---------------------------------------------------------------- Symbole */
@@ -405,7 +381,9 @@ export default function KartenSeite(
   const [teams, setTeams] = useState<KartenTeam[]>([]);
   const [gesperrt, setGesperrt] = useState(false);
 
-  const [orteSichtbar, setOrteSichtbar] = useState(true);
+  // Ortsnamen von Anfang an aus - der Betreiber (24.9.2026): "Place Names
+  // standardmaessig aus". Wer sie braucht, schaltet sie am Auge ein.
+  const [orteSichtbar, setOrteSichtbar] = useState(false);
   const [vollbild, setVollbild] = useState(false);
 
   const [werkzeug, setWerkzeug] = useState<Form | null>(null);
@@ -423,7 +401,8 @@ export default function KartenSeite(
     // Rollen und das Rechteck faellt in sich zusammen.
     | { art: 'ecke'; index: number; gegen: Punkt | null }
     // Die Karte selbst verschieben, wenn hineingezoomt wurde.
-    | { art: 'karte'; start: Punkt; mitte: Punkt };
+    // sx/sy: wo auf dem Bildschirm angefasst wurde - siehe aufFlaecheBewegt.
+    | { art: 'karte'; start: Punkt; mitte: Punkt; sx: number; sy: number };
   const greiftRef = useRef<Griff | null>(null);
   const ziehtRef = useRef<{ von: Punkt; bis: Punkt } | null>(null);
   const gewaehltRef = useRef<string | null>(null);
@@ -618,7 +597,7 @@ export default function KartenSeite(
   /** Der Rahmen der Zeichenflaeche, einmal je Ziehbewegung gemessen. */
   const zugRahmen = useRef<DOMRect | null>(null);
   /** Der naechste Ausschnitt, der beim naechsten Bildaufbau gemalt wird. */
-  const naechsterAusschnitt = useRef<{ z: number; m: Punkt } | null>(null);
+  const naechsterAusschnitt = useRef<{ z: number; m: Punkt; schicht: boolean } | null>(null);
   const malUhr = useRef<number | null>(null);
   /** Rueckmeldung nach dem Speichern: wo die Karte oeffentlich erscheint. */
   const [veroeffentlicht, setVeroeffentlicht] =
@@ -713,6 +692,10 @@ export default function KartenSeite(
   const ebeneRef = useRef<HTMLDivElement | null>(null);
   const zoomRef = useRef(1);
   const mitteRef = useRef<Punkt>({ x: 50, y: 50 });
+  /** Die Form, ueber der der Zeiger gerade steht. */
+  const hoverRef = useRef<string | null>(null);
+  /** Im Breitbild die ganze Flaeche um die Karte - dort gilt das Rad auch. */
+  const bereichRef = useRef<HTMLDivElement | null>(null);
 
   /**
    * Eine veroeffentlichte Turnierkarte ist erst nach einem Klick auf den Stift
@@ -1889,11 +1872,11 @@ export default function KartenSeite(
    * wirkte das Verschieben abgehackt. Waehrend des Ziehens wird der Ausschnitt
    * darum direkt gesetzt und erst beim Loslassen in den Zustand uebernommen.
    */
-  const malAusschnitt = useCallback((z: number, m: Punkt) => {
+  const malAusschnitt = useCallback((z: number, m: Punkt, schicht = true) => {
     // Die Maus meldet sich oefter als der Bildschirm neu zeichnet. Jede
     // Meldung sofort zu malen bringt nichts und kostet - gemalt wird darum
     // einmal je Bildaufbau, immer mit dem zuletzt gemeldeten Stand.
-    naechsterAusschnitt.current = { z, m };
+    naechsterAusschnitt.current = { z, m, schicht };
     if (malUhr.current !== null) return;
     malUhr.current = requestAnimationFrame(() => {
       malUhr.current = null;
@@ -1909,12 +1892,40 @@ export default function KartenSeite(
       // einmal gerastertes Bild wird beim Hineinzoomen mitvergroessert, und
       // Schrift wie Formkanten werden unscharf. Nach dem Loslassen faellt die
       // Schicht weg und alles wird in voller Schaerfe neu gezeichnet.
-      el.style.willChange = 'transform';
+      if (naechst.schicht) el.style.willChange = 'transform';
       el.style.transform =
         `scale(${naechst.z}) translate(${50 / naechst.z - naechst.m.x}%, `
         + `${50 / naechst.z - naechst.m.y}%)`;
+      // Schrift, Raender und Ziehpunkte rechnen gegen --z (globals.css).
+      el.style.setProperty('--z', String(naechst.z));
     });
   }, []);
+
+  /*
+   * Zoomen mit dem Rad, ohne die Seite neu zu zeichnen.
+   *
+   * Vorher ging jeder Radstoss als Zustandswechsel durch React: alle Formen,
+   * alle Beschriftungen und ihre Groessen wurden neu berechnet, und das
+   * vierzigmal in einer Drehung. Der Betreiber (24.9.2026): "wenn ich zoome
+   * und scrolle, laggt es". Jetzt wandert der Ausschnitt direkt am Element,
+   * die Beschriftung folgt ueber --z von selbst, und in den Zustand geht er
+   * erst, wenn das Rad eine Weile stillsteht.
+   */
+  const festUhr = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const zoomeFluessig = useCallback((neuerZoom: number, punkt: Punkt) => {
+    const z = Math.max(1, Math.min(6, neuerZoom));
+    const m = begrenze(z, z === 1 ? { x: 50, y: 50 } : punkt);
+    zoomRef.current = z;
+    mitteRef.current = m;
+    malAusschnitt(z, m, false);
+    if (festUhr.current) clearTimeout(festUhr.current);
+    festUhr.current = setTimeout(() => {
+      festUhr.current = null;
+      setZoom(zoomRef.current);
+      setMitte(mitteRef.current);
+    }, 160);
+  }, [begrenze, malAusschnitt]);
+  useEffect(() => () => { if (festUhr.current) clearTimeout(festUhr.current); }, []);
 
   /** Vergroessern und dabei den Punkt unter dem Zeiger festhalten. */
   const zoomeAuf = useCallback((neuerZoom: number, punkt?: Punkt) => {
@@ -1971,8 +1982,8 @@ export default function KartenSeite(
     // stabil - der Ort unter dem Zeiger bleibt genau dort stehen.
     //
     // Wer eine Form mittig und gross sehen will, haelt sie gedrueckt.
-    zoomeAuf(z2, anker);
-  }, [zoomeAuf]);
+    zoomeFluessig(z2, anker);
+  }, [zoomeFluessig]);
 
   /**
    * Das Mausrad ueber der Karte zoomt - und die Seite scrollt dabei nicht mit.
@@ -2001,7 +2012,9 @@ export default function KartenSeite(
       // Dann galt das Rad als "ausserhalb" und die Seite scrollte doch mit.
       // Der Rahmen und clientX/clientY beziehen sich beide auf das sichtbare
       // Fenster, also stimmt der Vergleich in jeder Scrollstellung.
-      const r = el.getBoundingClientRect();
+      // Im Breitbild zaehlt die ganze Flaeche um die Karte - hineingezoomt
+      // fuellt die Karte sie ja aus.
+      const r = (bereichRef.current ?? el).getBoundingClientRect();
       const drin = e.clientX >= r.left && e.clientX <= r.right
         && e.clientY >= r.top && e.clientY <= r.bottom;
       if (!drin) return;
@@ -2046,6 +2059,7 @@ export default function KartenSeite(
     const zielZ = Math.max(1, Math.min(6, zielZoom));
     const zielM = begrenze(zielZ, zielZ === 1 ? { x: 50, y: 50 } : zielMitte);
     bewegungStoppen();
+    if (festUhr.current) { clearTimeout(festUhr.current); festUhr.current = null; }
     if (!el) { zoomeAuf(zielZ, zielM); return; }
 
     const vonZ = zoomRef.current;
@@ -2075,6 +2089,7 @@ export default function KartenSeite(
       const my = vonM.y + (zielM.y - vonM.y) * e;
       el.style.transform =
         `scale(${z}) translate(${50 / z - mx}%, ${50 / z - my}%)`;
+      el.style.setProperty('--z', String(z));
       if (t < 1) { bewegung.current = requestAnimationFrame(schritt); return; }
       // Am Ziel den Zustand nachziehen, damit Ziehen und Rad weiterrechnen.
       bewegung.current = null;
@@ -2134,7 +2149,10 @@ export default function KartenSeite(
 
     // Gedrueckt halten faehrt die Form unter dem Zeiger an - egal ob man
     // die Karte bearbeiten darf, denn es ist reines Anschauen.
-    if (!werkzeug) {
+    //
+    // Nicht, wer bauen darf: der drueckt auf eine Form, um sie zu ziehen, und
+    // wer dabei kurz stillhaelt, wurde ungefragt hingefahren.
+    if (!werkzeug && !darfBauen) {
       const drunter = [...spots].reverse().find((sp) => imPolygon(p, sp.punkte));
       if (drunter) {
         halteStart.current = p;
@@ -2155,7 +2173,7 @@ export default function KartenSeite(
     // auch den Admin, solange eine veroeffentlichte Karte nur betrachtet wird.
     if (!darfBauen) {
       if (zoomRef.current > 1) {
-        greiftRef.current = { art: 'karte', start: p, mitte: mitteRef.current };
+        greiftRef.current = { art: 'karte', start: p, mitte: mitteRef.current, sx: e.clientX, sy: e.clientY };
       }
       return;
     }
@@ -2202,7 +2220,7 @@ export default function KartenSeite(
     }
     // Hineingezoomt: dann zieht man stattdessen den Ausschnitt.
     if (zoomRef.current > 1) {
-      greiftRef.current = { art: 'karte', start: p, mitte: mitteRef.current };
+      greiftRef.current = { art: 'karte', start: p, mitte: mitteRef.current, sx: e.clientX, sy: e.clientY };
     }
   }
 
@@ -2216,16 +2234,26 @@ export default function KartenSeite(
     // damit weg - sonst rutschte die Karte beim Doppelklick mit.
     greiftRef.current = null;
     halteAbbrechen();
-    // Anfahren wie beim Klick auf ein Team in der Liste. Das ist reines
-    // Anschauen und deshalb auch ohne Bearbeitungsrecht erlaubt.
-    zeigeSpot(treffer);
-    if (!darfBauen) return;
+    // Wer nur schaut, faehrt die Form an - wie beim Klick auf ein Team.
+    //
+    // Wer bauen darf, oeffnet sie zum Bearbeiten, und die Karte bleibt, wo
+    // sie ist. Der Betreiber (24.9.2026): "wenn ich doppelt drauf klicke ...
+    // soll nicht dorthin gezoomt werden."
+    if (!darfBauen) { zeigeSpot(treffer); return; }
     setGewaehlt(treffer.id);
     gewaehltRef.current = treffer.id;
   }
 
   function aufFlaecheBewegt(e: React.MouseEvent) {
     const p = pos(e);
+
+    // Die Form unter dem Zeiger hervorheben, wie beim Vorbild - direkt am
+    // Element, ohne Neuzeichnen. Nicht waehrend eines Zugs.
+    if (!greiftRef.current && !ziehtRef.current && !werkzeug) {
+      const drunter = [...spots].reverse().find((sp) => imPolygon(p, sp.punkte))?.id ?? null;
+      hebeFormHervor(flaeche.current, hoverRef.current, drunter);
+      hoverRef.current = drunter;
+    }
 
     // Wer den Zeiger merklich bewegt, wollte ziehen und nicht halten.
     const halt = halteStart.current;
@@ -2244,10 +2272,18 @@ export default function KartenSeite(
     const greift = greiftRef.current;
     if (greift?.art === 'karte') {
       // Der Punkt unter dem Zeiger soll dort bleiben, wo er angefasst wurde.
+      //
+      // Gerechnet wird mit der Bildschirmstrecke seit dem Anfassen, nicht mit
+      // dem Kartenpunkt unter dem Zeiger. Der haengt selbst am Ausschnitt, der
+      // gerade verschoben wird: jede Bewegung schob den Ausschnitt, der
+      // naechste Kartenpunkt fiel dadurch anders aus, und die Karte sprang
+      // bei jeder Mausmeldung hin und her. Das war das Ruckeln beim Ziehen.
       const z = zoomRef.current;
+      const kasten = zugRahmen.current ?? flaeche.current!.getBoundingClientRect();
+      const sicht = 100 / z;
       const m = begrenze(z, {
-        x: greift.mitte.x - (p.x - greift.start.x),
-        y: greift.mitte.y - (p.y - greift.start.y),
+        x: greift.mitte.x - ((e.clientX - greift.sx) / kasten.width) * sicht,
+        y: greift.mitte.y - ((e.clientY - greift.sy) / kasten.height) * sicht,
       });
       mitteRef.current = m;
       malAusschnitt(z, m);
@@ -2699,6 +2735,11 @@ ${name}
     g.fillStyle = '#0a0a0b'; g.fillRect(0, 0, G, G);
     try { g.drawImage(img, 0, 0, G, G); } catch { /* Bild noch nicht bereit */ }
 
+    // Dieselbe Schrift wie auf dem Bildschirm - vorher laden, sonst malt die
+    // Leinwand mit der Ersatzschrift.
+    const familie = kartenSchrift.style.fontFamily;
+    try { await document.fonts.load(`600 40px ${familie}`); } catch { /* dann Ersatz */ }
+
     for (const s of spots) {
       const f = spotFarbe(s);
       g.beginPath();
@@ -2710,7 +2751,7 @@ ${name}
       g.fillStyle = f.fuellung;
       g.fill();
       g.strokeStyle = f.rand;
-      g.lineWidth = 3; g.stroke();
+      g.lineWidth = 2; g.stroke();
 
       // Dieselbe Aufteilung wie auf dem Bildschirm: die Namen fuellen die
       // Form aus und verteilen sich gleichmaessig ueber ihre Hoehe.
@@ -2724,7 +2765,7 @@ ${name}
       if (!belegt.length) {
         if (!s.name) continue;
         const px = schriftgroesse(r.breite, r.hoehe, s.name.length) / 100 * G;
-        g.font = `600 ${px}px Segoe UI, system-ui, sans-serif`;
+        g.font = `600 ${px}px ${familie}, system-ui, sans-serif`;
         const y = (r.oben + r.hoehe / 2) / 100 * G;
         /*
          * Ein duennerer Rand um die Schrift.
@@ -2743,7 +2784,7 @@ ${name}
 
       const hoeheProTeam = r.hoehe / belegt.length;
       belegt.forEach((t, i) => {
-        const namen = t.spieler.map(kuerze);
+        const namen = namenVon(t);
         const allein = belegt.length === 1 && namen.length > 1;
         const zeilen = allein ? namen : [namen.join(' ')];
 
@@ -2764,16 +2805,14 @@ ${name}
           : obenY + platzY * (i / (belegt.length - 1));
         const spanne = spanneBei(s.punkte, yProz)
           ?? { mitte: r.links + r.breite / 2, breite: r.breite };
-        g.font = `600 ${px}px Segoe UI, system-ui, sans-serif`;
+        g.font = `600 ${px}px ${familie}, system-ui, sans-serif`;
 
         const zx = (spanne.mitte / 100) * G;
         const mitte = (yProz / 100) * G;
         zeilen.forEach((zeile, j) => {
           const y = mitte + (j - (zeilen.length - 1) / 2) * px * 1.05;
-          // Gemischte Schreibweise wie auf dem Bildschirm - Grossbuchstaben
-          // brauchen mehr Platz und liefen bei engen Formen heraus.
-          // Derselbe duennere Rand wie oben - siehe dort.
-          g.strokeStyle = 'rgba(0,0,0,0.78)'; g.lineWidth = px * 0.13;
+          // Die schwarze Kontur wie auf dem Bildschirm.
+          g.strokeStyle = '#000'; g.lineWidth = px * 0.14;
           g.lineJoin = 'round';
           g.strokeText(zeile, zx, y);
           g.fillStyle = '#ffffff';
@@ -2911,29 +2950,9 @@ ${name}
   }
 
   function spotFarbe(s: Spot) {
-    // Eine selbst gesetzte Farbe hat immer Vorrang, auch wenn Teams drin stehen.
-    if (s.farbe) {
-      const r = parseInt(s.farbe.slice(1, 3), 16);
-      const g = parseInt(s.farbe.slice(3, 5), 16);
-      const b = parseInt(s.farbe.slice(5, 7), 16);
-      return { fuellung: `rgba(${r},${g},${b},0.45)`, rand: s.farbe };
-    }
-    // Kraeftiger als frueher. Die alten Werte liessen die Karte zwar schoen
-    // durchscheinen, aber gerade die roten Formen wirkten ausgewaschen und
-    // waren auf orangem Untergrund kaum vom Boden zu unterscheiden. Der Rand
-    // ist jetzt deckend, die Fuellung etwas dichter.
-    const belegt = s.teams?.length ?? 0;
-    /*
-     * Das Rot kraeftiger, das Schwarz zurueckhaltender.
-     *
-     * Der Betreiber hat die Karte neben die des Vorbilds gehalten: "das Rot
-     * ist ein bisschen intensiver, die schwarzen Umrandungen bei den Namen
-     * sind nicht so intensiv. Es soll mehr clean aussehen." Eine umkaempfte
-     * Stelle soll ins Auge springen, eine gewoehnliche nicht.
-     */
-    if (belegt >= 2) return { fuellung: 'rgba(232,16,16,0.62)', rand: 'rgb(255,32,32)' };
-    if (belegt === 1) return { fuellung: 'rgba(0,0,0,0.34)', rand: 'rgba(0,0,0,0.82)' };
-    return { fuellung: 'rgba(0,0,0,0.12)', rand: 'rgba(0,0,0,0.6)' };
+    // Wie beim Vorbild (siehe app/lib/kartenStil): Rot, sobald zwei Teams auf
+    // einer Form stehen, sonst Schwarz. Eine selbst gesetzte Farbe geht vor.
+    return formFarbe(s.teams?.length ?? 0, s.farbe);
   }
 
   /**
@@ -2948,6 +2967,18 @@ ${name}
    * die ganze Karte in Kleinschrift. Die wenigen Beschriftungen, die dadurch
    * etwas ueber ihre Form hinausragen, sind der Preis fuer ein ruhiges Bild.
    */
+  /*
+   * Die echten Namen der Spieler, ueber ihre Konto-Id (siehe /api/echte-namen).
+   * Der Betreiber: "Du weisst ja, wer der Spieler ist, wieso machst du dann
+   * diese Zahlen hinten dran?" - aus "Idropy281" wird so wieder IDROP.
+   */
+  const kartenEvent = fenster.find((x) => x.windowId === fensterId)?.eventId
+    ?? gespeicherte.find((k) => k.id === ausTurnier)?.eventId ?? null;
+  const alleKonten = useMemo(() => teams.flatMap((t) => t.ids ?? []), [teams]);
+  const echteNamen = useEchteNamen(alleKonten, kartenEvent);
+  const namenVon = (t: KartenTeam) =>
+    t.spieler.map((n, k) => kuerze(echteNamen[t.ids?.[k] ?? ''] ?? n));
+
   const einheitsGroesse = ((): number => {
     const werte: number[] = [];
     for (const s of spots) {
@@ -2957,7 +2988,7 @@ ${name}
       const hoeheProTeam = r.hoehe / anzahl;
       const zeilenSaetze: string[][] = belegt.length
         ? belegt.map((t) => {
-            const namen = t.spieler.map(kuerze);
+            const namen = namenVon(t);
             return belegt.length === 1 && namen.length > 1 ? namen : [namen.join(' ')];
           })
         : (s.name ? [[s.name]] : []);
@@ -3010,6 +3041,8 @@ ${name}
       onMouseUp={aufFlaecheHoch}
       onDoubleClick={aufFlaecheDoppelt}
       onMouseLeave={() => {
+        hebeFormHervor(flaeche.current, hoverRef.current, null);
+        hoverRef.current = null;
         halteAbbrechen();
         zugRahmen.current = null;
         if (ebeneRef.current) ebeneRef.current.style.willChange = 'auto';
@@ -3017,8 +3050,14 @@ ${name}
       }}
       onDragOver={(e) => { if (darfBauen || darfMichSetzen) e.preventDefault(); }}
       onDrop={aufFlaecheAbgelegt}
-      className={`relative mx-auto aspect-square w-full overflow-hidden rounded-lg
+      className={`${kartenSchrift.variable} relative mx-auto aspect-square w-full rounded-lg
                   bg-zinc-950 select-none lg:w-auto ${
+                    // Im Breitbild darf die Karte beim Hineinzoomen ueber das
+                    // Quadrat hinaus die ganze Flaeche fuellen - wie beim
+                    // Vorbild. Der Betreiber: "soll nicht der blaue Rand
+                    // bleiben ... wird die Map einfach groesser." Beschnitten
+                    // wird dann an der Flaeche aussen herum.
+                    vollbild ? 'overflow-visible' : 'overflow-hidden'} ${
                     werkzeug ? 'cursor-crosshair' : zoom > 1 ? 'cursor-grab' : ''}`}
       style={{
         containerType: 'size',
@@ -3045,7 +3084,8 @@ ${name}
         style={{
           transform: `scale(${zoom}) translate(${50 / zoom - mitte.x}%, ${50 / zoom - mitte.y}%)`,
           width: '100%', height: '100%',
-        }}>
+          '--z': zoom,
+        } as React.CSSProperties}>
 
       <img ref={bildRef}
         src={(bildId
@@ -3109,11 +3149,12 @@ ${name}
         className="pointer-events-none absolute inset-0 h-full w-full">
         {spots.map((s) => {
           const f = spotFarbe(s);
+          // Randstaerke, Hover und Schein kommen aus globals.css (.karten-form).
           return (
-            <polygon key={s.id}
+            <polygon key={s.id} data-form={s.id}
+              className={`karten-form${f.rot ? ' ist-rot' : ''}${gewaehlt === s.id ? ' ist-gewaehlt' : ''}`}
               points={s.punkte.map((p) => `${p.x},${p.y}`).join(' ')}
               fill={f.fuellung} stroke={f.rand}
-              strokeWidth={gewaehlt === s.id ? 3.5 : 2}
               vectorEffect="non-scaling-stroke" />
           );
         })}
@@ -3143,10 +3184,9 @@ ${name}
             };
             gewaehltRef.current = gewaehlterSpot.id;
           }}
-          style={{ left: `${p.x}%`, top: `${p.y}%`,
-                   transform: `translate(-50%, -50%) scale(${1 / zoom})` }}
+          style={{ left: `${p.x}%`, top: `${p.y}%` }}
           title="Ecke ziehen"
-          className="absolute z-20 flex h-6 w-6 cursor-grab items-center justify-center">
+          className="karten-fest absolute z-20 flex h-6 w-6 cursor-grab items-center justify-center">
           {/* Die Schaltflaeche ist bewusst groesser als der sichtbare Punkt,
               damit man sie auch schnell trifft. */}
           <span className="h-3 w-3 rounded-sm border-2 border-sky-400 bg-zinc-950" />
@@ -3160,78 +3200,65 @@ ${name}
                      -translate-y-1/2 rounded-full border-2 border-emerald-400 bg-emerald-950" />
       )}
 
-      {/* Beschriftungen. Jede Zeile sitzt in der Spanne, die die Form auf
-          ihrer Hoehe wirklich hat - bei schraegen Formen wandert sie damit
-          mit, statt am umschliessenden Rechteck zu kleben. */}
+      {/*
+        * Beschriftungen - wie beim Vorbild.
+        *
+        * Jede Form bekommt einen Kasten in ihrer Groesse. Darin stehen die
+        * Teams: eines mittig, mehrere vom oberen bis zum unteren Rand
+        * verteilt. Die Schrift rechnet gegen --z und bleibt beim Zoomen auf
+        * dem Bildschirm gleich gross; der Kasten waechst mit der Karte, und
+        * die Zeilen ruecken dabei von selbst an ihren Platz. So muss beim
+        * Zoomen nichts neu berechnet werden.
+        *
+        * Bei schraegen Formen rueckt jede Zeile in die Spanne, die die Form
+        * auf ihrer Hoehe wirklich hat.
+        */}
       {spots.map((s) => {
         const belegt = s.teams.map((id) => teams.find((t) => t.id === id))
           .filter(Boolean) as KartenTeam[];
         if (!belegt.length && !s.name) return null;
 
         const r = rahmen(s.punkte);
-        const anzahl = belegt.length || 1;
-        const hoeheProTeam = r.hoehe / anzahl;
-
-        /** Zeile setzen: waagerecht mittig in ihrer Spanne, senkrecht am Rand. */
-        const zeile = (
-          schluessel: string, texte: string[], i: number, fett: boolean,
-        ) => {
-          const bandMitte = r.oben + hoeheProTeam * (i + 0.5);
-          // Eine Groesse fuer die ganze Karte - siehe einheitsGroesse.
-          const groesse = einheitsGroesse;
-
-          // Zweiter Durchgang: die Zeile an den Rand ruecken.
-          //
-          // Bei mehreren Teams gehoert das erste an den oberen, das letzte an
-          // den unteren Rand der Form. In der Mitte ihres Bandes zu sitzen
-          // laesst die Flaeche dazwischen leer und macht schlechter kenntlich,
-          // welcher Teil zu wem gehoert.
-          //
-          // Die Texthoehe zaehlt in Kartenprozent, nicht in Bildschirmpunkten:
-          // die Schrift ist ja gegen die Vergroesserung gerechnet und wird auf
-          // der Karte kleiner, je weiter man hineinzoomt.
-          const hoch = texte.length * (groesse / schriftFaktor(zoom)) * 1.15;
-          const obenY = r.oben + hoch * 0.62;
-          const untenY = r.oben + r.hoehe - hoch * 0.62;
-          const platz = untenY - obenY;
-          const y = (anzahl === 1 || platz <= 0)
-            ? bandMitte
-            : obenY + platz * (i / (anzahl - 1));
-
-          const spanne = spanneBei(s.punkte, y)
-            ?? { mitte: r.links + r.breite / 2, breite: r.breite };
-          return (
-            <div key={schluessel}
-              style={{ left: `${spanne.mitte}%`, top: `${y}%`,
-                       transform: 'translate(-50%, -50%)' }}
-              className="pointer-events-none absolute z-10 text-center leading-none">
-              {texte.map((t, k) => (
-                // Geteilt durch die Vergroesserung: dadurch bleibt die Schrift
-                // auf dem Bildschirm immer gleich gross. Beim Hineinzoomen
-                // waechst die Form unter ihr, die Zeile nicht - genau so, wie
-                // man es von einer Karte erwartet.
-                <p key={k} style={{ fontSize: `${groesse / schriftFaktor(zoom)}cqw` }}
-                  className={`whitespace-nowrap drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)] ${
-                    fett ? 'font-semibold text-white'
-                         : 'font-medium tracking-wide text-white/75'}`}>
-                  {t}
-                </p>
-              ))}
-            </div>
-          );
-        };
+        const mitteX = r.links + r.breite / 2;
+        // Steht ein Team allein, bekommt jeder Name eine eigene Zeile und
+        // damit mehr Groesse. Bei mehreren Teams je Team eine Zeile.
+        const gruppen: string[][] = belegt.length
+          ? belegt.map((t) => {
+              const namen = namenVon(t);
+              return belegt.length === 1 && namen.length > 1 ? namen : [namen.join(' ')];
+            })
+          : [[s.name ?? '']];
+        const anzahl = gruppen.length;
 
         return (
-          <Fragment key={s.id}>
-            {s.name && !belegt.length && zeile(`${s.id}-n`, [s.name], 0, false)}
-            {belegt.map((t, i) => {
-              // Steht ein Team allein, bekommt jeder Name eine eigene Zeile und
-              // damit mehr Groesse. Bei mehreren Teams passt nur eine Zeile.
-              const namen = t.spieler.map(kuerze);
-              const allein = belegt.length === 1 && namen.length > 1;
-              return zeile(t.id, allein ? namen : [namen.join(' ')], i, true);
+          <div key={s.id} data-form={s.id}
+            className="karten-beschriftung pointer-events-none absolute z-10 flex flex-col
+                       items-center text-center"
+            style={{
+              left: `${r.links}%`, top: `${r.oben}%`,
+              width: `${r.breite}%`, height: `${r.hoehe}%`,
+              justifyContent: anzahl === 1 ? 'center' : 'space-between',
+              paddingBlock: 'calc(0.45cqw / var(--z, 1))',
+            }}>
+            {gruppen.map((zeilen, i) => {
+              const yProz = anzahl === 1
+                ? r.oben + r.hoehe / 2
+                : r.oben + r.hoehe * (0.1 + 0.8 * (i / (anzahl - 1)));
+              const spanne = s.form === 'rechteck' ? null : spanneBei(s.punkte, yProz);
+              const versatz = spanne && r.breite > 0 ? ((spanne.mitte - mitteX) / r.breite) * 100 : 0;
+              return (
+                <div key={i} className="relative"
+                  style={versatz ? { left: `${versatz}%` } : undefined}>
+                  {zeilen.map((tx, k) => (
+                    <p key={k} className={`karten-name${belegt.length ? '' : ' opacity-75'}`}
+                      style={{ fontSize: `calc(${einheitsGroesse}cqw / var(--z, 1))` }}>
+                      {tx}
+                    </p>
+                  ))}
+                </div>
+              );
             })}
-          </Fragment>
+          </div>
         );
       })}
 
@@ -3244,9 +3271,8 @@ ${name}
         * statt einfach zu verschwinden.
         */}
       {funde?.map((f) => (
-        <span key={f.epicId} style={{ left: `${f.x}%`, top: `${f.y}%`,
-                                      transform: `translate(-50%, -50%) scale(${1 / zoom})` }}
-          className={`pointer-events-none absolute z-20 whitespace-nowrap rounded
+        <span key={f.epicId} style={{ left: `${f.x}%`, top: `${f.y}%` }}
+          className={`karten-fest pointer-events-none absolute z-20 whitespace-nowrap rounded
                       px-1 py-0.5 text-[9px] font-semibold shadow ${f.nehmen
             ? 'bg-sky-500/90 text-white'
             : 'bg-zinc-900/85 text-slate-500 line-through'}`}>
@@ -3354,8 +3380,9 @@ ${name}
             sichtbare Kante um die Karte. Nimmt man den gemessenen Eckpunkt
             unveraendert, verschwindet die Grenze und die Karte sitzt in ihrem
             eigenen Wasser. */}
-        <div className="relative mx-auto max-w-[1900px] overflow-hidden rounded-xl
-                        border border-sky-800/70"
+        <div ref={bereichRef}
+          className="relative mx-auto max-w-[1900px] overflow-hidden rounded-xl
+                        border border-white/[0.06]"
           style={{ background: randFarbe }}>
           <div className="flex items-center justify-center"
             style={{ height: 'calc(100vh - 9rem)' }}>
@@ -4156,7 +4183,7 @@ ${name}
                           title={uebs('Aus der Form entfernen')}
                           className="rounded border border-zinc-700 bg-zinc-900 px-2 py-0.5
                                      text-[11px] text-slate-200 hover:border-rose-600">
-                          {t.spieler.map(kuerze).join(' + ')} ×
+                          {namenVon(t).join(' + ')} ×
                         </button>
                       );
                     })}
@@ -4203,7 +4230,7 @@ ${name}
                       : darfMichSetzen || darfBauen ? 'cursor-grab' : ''}`}>
                     <TeamFlagge groesse={24} laender={laenderVon(meinTeam)} />
                     <span className="truncate text-sky-100">
-                      {meinTeam.spieler.map(kuerze).join(' + ')}
+                      {namenVon(meinTeam).join(' + ')}
                     </span>
                     {meinSpot && (
                       <span className="ml-auto shrink-0 text-[10px] text-sky-400/80">
@@ -4386,7 +4413,7 @@ ${name}
                       ) : (
                         <>
                           <span className="truncate text-slate-200">
-                            {t.spieler.map(kuerze).join(' + ')}
+                            {namenVon(t).join(' + ')}
                           </span>
                           {spot && (
                             <span className="ml-auto shrink-0 text-[10px] text-slate-500">

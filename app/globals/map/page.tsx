@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
@@ -8,8 +8,9 @@ import LadeSchirm from '@/app/components/LadeSchirm';
 import GlobalsGeruest from '../GlobalsGeruest';
 import { GLOBALS_EVENT, GLOBALS_TAGE } from '@/lib/globalsCup';
 import { useZugang } from '@/app/lib/zugang';
-import { rahmen, spanneBei, type Spot } from '@/lib/prognoseKarte';
-import { kernname } from '@/lib/homoglyph';
+import { rahmen, spanneBei, einheitsGroesse, type Punkt, type Spot } from '@/lib/prognoseKarte';
+import { flaggenPfad } from '@/components/TeamFlagge';
+import { kartenSchrift, kartenName, formFarbe, hebeFormHervor } from '@/app/lib/kartenStil';
 
 /*
  * Eine Form der Turnierkarte.
@@ -37,107 +38,331 @@ interface KartenTeam { id: string; spieler?: string[]; ids?: string[]; farbe?: s
 interface Karte {
   id: string; titel: string; bildTitel?: string; bildId?: string;
   eventId?: string; windowId?: string;
+  /**
+   * Heisst so, meint aber die Ortsnamen: das Karten-Werkzeug speichert hier
+   * seinen Schalter "Ortsnamen". Diese Seite las es frueher als
+   * "Spielernamen zeigen" - hatte der Betreiber die Ortsnamen aus, standen
+   * die Formen hier leer da, obwohl alle Teams zugeordnet waren.
+   */
   namenSichtbar?: boolean;
   geaendert?: number; oeffentlich?: boolean;
   teams?: KartenTeam[]; spots?: KartenSpot[];
 }
 
-/**
- * Der Name, wie er auf der Karte steht.
- *
- * Ohne Turniermarke, und in derselben Schreibweise wie im Karten-Werkzeug:
- * erster Buchstabe gross, der Rest klein - der Betreiber: "Mach immer die
- * Regel, erster Buchstabe gross, der Rest klein."
- */
-function kurz(name: string): string {
-  // Wie im Karten-Werkzeug: Turniermarke und Orgtag fallen weg ("GodL Chap"
-  // wird "Chap"), dann die Schreibweise.
-  const n = kernname(String(name ?? '')).slice(0, 16);
-  return n ? n[0].toUpperCase() + n.slice(1).toLowerCase() : n;
-}
+/** Ein Spieler aus dem Feld der Globals (siehe /api/globals-teams). */
+interface FeldSpieler { turnierId: string; anzeige: string; land: string | null }
+interface FeldTeam { rang: number; region?: string | null; spieler: FeldSpieler[] }
 
 /** Wie die Karte hier heisst - eine Karte fuer beide Tage. */
 const KARTEN_NAME = 'Global Championship (2026)';
 
+/** Die Regionen in der Reihenfolge der Seite - Europa zuerst. */
+const REGIONEN = ['EU', 'NAC', 'NAW', 'BR', 'ASIA', 'ME', 'OCE'];
+
+/** Liegt der Punkt in der Flaeche? Strahlenverfahren. */
+function imPolygon(p: Punkt, ecken: Punkt[]) {
+  let drin = false;
+  for (let i = 0, j = ecken.length - 1; i < ecken.length; j = i++) {
+    const a = ecken[i], b = ecken[j];
+    if ((a.y > p.y) !== (b.y > p.y)
+      && p.x < ((b.x - a.x) * (p.y - a.y)) / (b.y - a.y) + a.x) drin = !drin;
+  }
+  return drin;
+}
+
+/** Den Blickpunkt so einfangen, dass der Ausschnitt am Bildrand haelt. */
+function begrenze(z: number, m: Punkt): Punkt {
+  if (z <= 1) return { x: 50, y: 50 };
+  const sicht = 100 / z;
+  return {
+    x: Math.min(100 - sicht / 2, Math.max(sicht / 2, m.x)),
+    y: Math.min(100 - sicht / 2, Math.max(sicht / 2, m.y)),
+  };
+}
+
+function Flagge({ land }: { land: string | null }) {
+  if (!land) return null;
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img src={flaggenPfad(land)} alt={land} title={land}
+      className="h-4 w-4 shrink-0 rounded-full object-cover ring-1 ring-black/40" />
+  );
+}
+
 /**
- * Eine gespeicherte Karte zeichnen - dieselbe Darstellung wie in der
- * Prognose: das Kartenbild, die Formen darueber, und in jeder Form die
- * Teams, die dort stehen.
+ * Eine gespeicherte Karte zeichnen - wie im Karten-Werkzeug und nach dem
+ * Vorbild von eucompetitive.com (siehe app/lib/kartenStil): Rot, wo zwei
+ * Teams landen, Alata mit schwarzer Kontur, beim Ueberfahren waechst die
+ * Form ein wenig. Mit dem Rad wird gezoomt, gezogen wird mit der Maus - und
+ * weil beides direkt am Element geschieht, ohne die Seite neu zu zeichnen,
+ * laeuft es fluessig.
  */
-function KartenBild({ karte }: { karte: Karte }) {
+function KartenBild({ karte, namenZu, markiert, zeige }: {
+  karte: Karte;
+  namenZu: (team: KartenTeam) => string[];
+  /** Die Form, die die Teamliste gerade hervorhebt. */
+  markiert: string | null;
+  /** Hierhin gleiten (Klick in der Teamliste). */
+  zeige: { id: string; mal: number } | null;
+}) {
   const t = useT();
-  const teams = new Map((karte.teams ?? []).map((x) => [x.id, x]));
-  const spots = karte.spots ?? [];
-  // So gross wie in der Prognose: bezogen auf die Breite der Karte.
-  const schrift = 1.5;
+  const teams = useMemo(() => new Map((karte.teams ?? []).map((x) => [x.id, x])), [karte.teams]);
+  const spots = useMemo(() => karte.spots ?? [], [karte.spots]);
+
+  const flaeche = useRef<HTMLDivElement | null>(null);
+  const ebene = useRef<HTMLDivElement | null>(null);
+  const zoomRef = useRef(1);
+  const mitteRef = useRef<Punkt>({ x: 50, y: 50 });
+  const hoverRef = useRef<string | null>(null);
+  const malUhr = useRef<number | null>(null);
+  const bewegung = useRef<number | null>(null);
+  const zug = useRef<{ sx: number; sy: number; mitte: Punkt; kasten: DOMRect } | null>(null);
+  const [gezoomt, setGezoomt] = useState(false);
+
+  const zeilen = useCallback((key: string, alleine: boolean) => {
+    const tm = teams.get(key);
+    if (!tm) return [];
+    const namen = namenZu(tm);
+    return alleine && namen.length > 1 ? namen : [namen.join(' ')];
+  }, [teams, namenZu]);
+  const aufSpot = useMemo(
+    () => Object.fromEntries(spots.map((sp) => [sp.id, sp.teams ?? []])), [spots]);
+  const groesse = useMemo(
+    () => einheitsGroesse(spots, aufSpot, zeilen), [spots, aufSpot, zeilen]);
+
+  /** Den Ausschnitt direkt ans Element schreiben, einmal je Bildaufbau. */
+  const male = useCallback(() => {
+    if (malUhr.current !== null) return;
+    malUhr.current = requestAnimationFrame(() => {
+      malUhr.current = null;
+      const el = ebene.current;
+      if (!el) return;
+      const z = zoomRef.current, m = mitteRef.current;
+      el.style.transform = `scale(${z}) translate(${50 / z - m.x}%, ${50 / z - m.y}%)`;
+      // Schrift, Raender und Schein rechnen gegen --z (globals.css).
+      el.style.setProperty('--z', String(z));
+      setGezoomt(z > 1.02);
+    });
+  }, []);
+
+  const stopp = useCallback(() => {
+    if (bewegung.current !== null) { cancelAnimationFrame(bewegung.current); bewegung.current = null; }
+  }, []);
+
+  /** Zu einem Ausschnitt gleiten - Massstab und Mitte gemeinsam, auf geradem Weg. */
+  const gleite = useCallback((zielZ: number, zielM: Punkt) => {
+    stopp();
+    const z1 = Math.max(1, Math.min(6, zielZ));
+    const m1 = begrenze(z1, zielM);
+    const z0 = zoomRef.current, m0 = { ...mitteRef.current };
+    const start = performance.now();
+    const schritt = (jetzt: number) => {
+      const f = Math.min(1, (jetzt - start) / 600);
+      const e = f < 0.5 ? 2 * f * f : 1 - ((-2 * f + 2) ** 2) / 2;
+      zoomRef.current = z0 + (z1 - z0) * e;
+      mitteRef.current = { x: m0.x + (m1.x - m0.x) * e, y: m0.y + (m1.y - m0.y) * e };
+      male();
+      bewegung.current = f < 1 ? requestAnimationFrame(schritt) : null;
+    };
+    bewegung.current = requestAnimationFrame(schritt);
+  }, [male, stopp]);
+
+  /** Eine Form gross in die Mitte holen. */
+  const fahreAn = useCallback((sp: KartenSpot) => {
+    const r = rahmen(sp.punkte);
+    gleite(Math.min(4, 45 / Math.max(r.breite, r.hoehe, 4)),
+      { x: r.links + r.breite / 2, y: r.oben + r.hoehe / 2 });
+  }, [gleite]);
+
+  // Klick in der Teamliste: zur Form gleiten.
+  useEffect(() => {
+    if (!zeige) return;
+    const sp = spots.find((x) => x.id === zeige.id);
+    if (sp) fahreAn(sp);
+  }, [zeige, spots, fahreAn]);
+
+  // Die Teamliste hebt eine Form hervor, wie beim Ueberfahren.
+  useEffect(() => {
+    hebeFormHervor(flaeche.current, hoverRef.current, markiert);
+    hoverRef.current = markiert;
+  }, [markiert]);
+
+  /** Der Kartenpunkt unter dem Zeiger, in Prozent. */
+  const punktBei = (e: { clientX: number; clientY: number }): Punkt | null => {
+    const el = flaeche.current;
+    if (!el) return null;
+    const r = el.getBoundingClientRect();
+    const z = zoomRef.current, m = mitteRef.current, sicht = 100 / z;
+    return {
+      x: m.x - sicht / 2 + ((e.clientX - r.left) / r.width) * sicht,
+      y: m.y - sicht / 2 + ((e.clientY - r.top) / r.height) * sicht,
+    };
+  };
+  const formBei = (e: { clientX: number; clientY: number }) => {
+    const p = punktBei(e);
+    return p ? [...spots].reverse().find((sp) => imPolygon(p, sp.punkte)) : undefined;
+  };
+
+  // Das Rad zoomt, und die Seite scrollt dabei nicht mit. Am Fenster und
+  // nicht passiv - sonst bliebe preventDefault wirkungslos.
+  useEffect(() => {
+    const amRad = (e: WheelEvent) => {
+      const el = flaeche.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      if (e.clientX < r.left || e.clientX > r.right
+        || e.clientY < r.top || e.clientY > r.bottom) return;
+      e.preventDefault();
+      stopp();
+      const fx = (e.clientX - r.left) / r.width, fy = (e.clientY - r.top) / r.height;
+      const z = zoomRef.current, m = mitteRef.current, sicht = 100 / z;
+      const px = m.x - sicht / 2 + fx * sicht, py = m.y - sicht / 2 + fy * sicht;
+      const z2 = Math.max(1, Math.min(6, z * (e.deltaY < 0 ? 1.12 : 1 / 1.12)));
+      const sicht2 = 100 / z2;
+      zoomRef.current = z2;
+      // Der Ort unter dem Zeiger bleibt, wo er ist.
+      mitteRef.current = begrenze(z2, { x: px + sicht2 * (0.5 - fx), y: py + sicht2 * (0.5 - fy) });
+      male();
+    };
+    window.addEventListener('wheel', amRad, { passive: false, capture: true });
+    return () => window.removeEventListener('wheel', amRad, { capture: true } as EventListenerOptions);
+  }, [male, stopp]);
+
+  // Ziehen: ueber die Bildschirmstrecke seit dem Anfassen gerechnet, nicht
+  // ueber den Kartenpunkt unter dem Zeiger - der haengt selbst am Ausschnitt,
+  // und die Karte sprang dabei hin und her.
+  useEffect(() => {
+    const bewegt = (e: MouseEvent) => {
+      const g = zug.current;
+      if (!g) return;
+      const sicht = 100 / zoomRef.current;
+      mitteRef.current = begrenze(zoomRef.current, {
+        x: g.mitte.x - ((e.clientX - g.sx) / g.kasten.width) * sicht,
+        y: g.mitte.y - ((e.clientY - g.sy) / g.kasten.height) * sicht,
+      });
+      male();
+    };
+    const los = () => { zug.current = null; };
+    window.addEventListener('mousemove', bewegt);
+    window.addEventListener('mouseup', los);
+    return () => {
+      window.removeEventListener('mousemove', bewegt);
+      window.removeEventListener('mouseup', los);
+    };
+  }, [male]);
+
+  useEffect(() => () => {
+    if (malUhr.current !== null) cancelAnimationFrame(malUhr.current);
+    if (bewegung.current !== null) cancelAnimationFrame(bewegung.current);
+  }, []);
 
   return (
-    <div className="relative mx-auto aspect-square w-full max-w-[900px]
-                    overflow-hidden rounded-xl border border-zinc-800"
-      style={{ containerType: 'inline-size' }}>
-      {/*
-        * Das Kartenbild. Ohne eigenes Bild ist es die Fortnite-Karte des
-        * Tages - dasselbe, was das Karten-Werkzeug zeigt. Hier stand vorher
-        * nur ein Bild, wenn die Karte ein eigenes hatte, und die Globals-Karte
-        * hat keins: die Formen lagen auf Schwarz.
-        */}
-      {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img alt={t('Karte')} draggable={false}
-        className="absolute inset-0 h-full w-full object-cover"
-        src={karte.bildId
-          ? `/api/karten-bild?datei=1&id=${encodeURIComponent(karte.bildId)}`
-          : '/api/fortnite-map?bild=poi'} />
+    <div ref={flaeche}
+      className={`${kartenSchrift.variable} relative mx-auto aspect-square w-full select-none
+                  overflow-hidden rounded-xl border border-white/[0.06] bg-zinc-950
+                  ${gezoomt ? 'cursor-grab active:cursor-grabbing' : ''}`}
+      style={{ containerType: 'inline-size', maxWidth: 'min(100%, calc(100vh - 7rem))' }}
+      onMouseDown={(e) => {
+        if (e.button !== 0 || zoomRef.current <= 1 || !flaeche.current) return;
+        stopp();
+        zug.current = {
+          sx: e.clientX, sy: e.clientY, mitte: { ...mitteRef.current },
+          kasten: flaeche.current.getBoundingClientRect(),
+        };
+      }}
+      onMouseMove={(e) => {
+        if (zug.current) return;
+        const drunter = formBei(e)?.id ?? null;
+        hebeFormHervor(flaeche.current, hoverRef.current, drunter);
+        hoverRef.current = drunter;
+      }}
+      onMouseLeave={() => {
+        hebeFormHervor(flaeche.current, hoverRef.current, markiert);
+        hoverRef.current = markiert;
+      }}
+      onDoubleClick={(e) => {
+        // Doppelklick auf eine Form faehrt sie an - hier wird nur geschaut.
+        const sp = formBei(e);
+        if (sp) fahreAn(sp);
+      }}>
 
-      <svg viewBox="0 0 100 100" preserveAspectRatio="none"
-        className="pointer-events-none absolute inset-0 h-full w-full">
+      <div ref={ebene} className="absolute inset-0 origin-top-left"
+        style={{ '--z': 1 } as React.CSSProperties}>
+        {/*
+          * Das Kartenbild. Ohne eigenes Bild ist es die Fortnite-Karte des
+          * Tages - mit Ortsnamen nur, wenn der Betreiber sie im Werkzeug
+          * eingeschaltet hat.
+          */}
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img alt={t('Karte')} draggable={false}
+          className="pointer-events-none absolute inset-0 h-full w-full object-cover"
+          src={karte.bildId
+            ? `/api/karten-bild?datei=1&id=${encodeURIComponent(karte.bildId)}`
+            : `/api/fortnite-map?bild=${karte.namenSichtbar ? 'poi' : 'leer'}`} />
+
+        <svg viewBox="0 0 100 100" preserveAspectRatio="none"
+          className="pointer-events-none absolute inset-0 h-full w-full">
+          {spots.map((sp) => {
+            const n = (sp.teams ?? []).length;
+            const f = formFarbe(n, n ? null : sp.farbe);
+            return (
+              <polygon key={sp.id} data-form={sp.id}
+                className={`karten-form${f.rot ? ' ist-rot' : ''}`}
+                points={sp.punkte.map((q) => `${q.x},${q.y}`).join(' ')}
+                fill={f.fuellung} stroke={f.rand} vectorEffect="non-scaling-stroke" />
+            );
+          })}
+        </svg>
+
         {spots.map((sp) => {
-          const belegt = (sp.teams ?? []).length;
+          const drauf = (sp.teams ?? []).filter((k) => teams.has(k));
+          if (!drauf.length) return null;
+          const r = rahmen(sp.punkte);
+          const anzahl = drauf.length;
+          const mitteX = r.links + r.breite / 2;
           return (
-            <polygon key={sp.id}
-              points={sp.punkte.map((q) => `${q.x},${q.y}`).join(' ')}
-              fill={belegt >= 2 ? 'rgba(220,38,38,0.34)'
-                : belegt === 1 ? 'rgba(0,0,0,0.42)' : 'rgba(0,0,0,0.14)'}
-              stroke={belegt >= 2 ? 'rgb(248,60,60)'
-                : belegt === 1 ? 'rgba(0,0,0,0.95)' : sp.farbe ?? 'rgba(0,0,0,0.75)'}
-              strokeWidth={2} vectorEffect="non-scaling-stroke" />
-          );
-        })}
-      </svg>
-
-      {karte.namenSichtbar !== false && spots.map((sp) => {
-        const drauf = sp.teams ?? [];
-        if (!drauf.length) return null;
-        const r = rahmen(sp.punkte);
-        const anzahl = drauf.length;
-        return drauf.map((key, i) => {
-          const tm = teams.get(key);
-          const texte = (tm?.spieler ?? []).map(kurz).filter(Boolean);
-          if (!texte.length) return null;
-          const bandMitte = r.oben + (r.hoehe / anzahl) * (i + 0.5);
-          const hoch = texte.length * schrift * 1.15;
-          const obenY = r.oben + hoch * 0.62;
-          const untenY = r.oben + r.hoehe - hoch * 0.62;
-          const platz = untenY - obenY;
-          const y = (anzahl === 1 || platz <= 0)
-            ? bandMitte : obenY + platz * (i / (anzahl - 1));
-          const spanne = spanneBei(sp.punkte, y)
-            ?? { mitte: r.links + r.breite / 2, breite: r.breite };
-          return (
-            <div key={`${sp.id}-${key}`}
-              style={{ left: `${spanne.mitte}%`, top: `${y}%`,
-                transform: 'translate(-50%, -50%)' }}
-              className="pointer-events-none absolute z-10 text-center leading-none">
-              {texte.map((tx, z) => (
-                <p key={z} style={{ fontSize: `${schrift}cqw` }}
-                  className="whitespace-nowrap font-semibold text-white
-                             drop-shadow-[0_1px_2px_rgba(0,0,0,0.95)]">
-                  {tx}
-                </p>
-              ))}
+            <div key={sp.id} data-form={sp.id}
+              className="karten-beschriftung pointer-events-none absolute z-10 flex flex-col
+                         items-center text-center"
+              style={{
+                left: `${r.links}%`, top: `${r.oben}%`,
+                width: `${r.breite}%`, height: `${r.hoehe}%`,
+                justifyContent: anzahl === 1 ? 'center' : 'space-between',
+                paddingBlock: 'calc(0.45cqw / var(--z, 1))',
+              }}>
+              {drauf.map((key, i) => {
+                const texte = zeilen(key, anzahl === 1);
+                const yProz = anzahl === 1
+                  ? r.oben + r.hoehe / 2
+                  : r.oben + r.hoehe * (0.1 + 0.8 * (i / (anzahl - 1)));
+                const spanne = sp.form === 'rechteck' ? null : spanneBei(sp.punkte, yProz);
+                const versatz = spanne && r.breite > 0
+                  ? ((spanne.mitte - mitteX) / r.breite) * 100 : 0;
+                return (
+                  <div key={key} className="relative"
+                    style={versatz ? { left: `${versatz}%` } : undefined}>
+                    {texte.map((tx, z) => (
+                      <p key={z} className="karten-name"
+                        style={{ fontSize: `calc(${groesse}cqw / var(--z, 1))` }}>
+                        {tx}
+                      </p>
+                    ))}
+                  </div>
+                );
+              })}
             </div>
           );
-        });
-      })}
+        })}
+      </div>
+
+      {gezoomt && (
+        <button type="button" onMouseDown={(e) => e.stopPropagation()}
+          onClick={() => gleite(1, { x: 50, y: 50 })}
+          className="absolute bottom-2 left-2 z-30 rounded-md bg-black/75 px-2.5 py-1
+                     text-[11px] text-slate-200 transition hover:bg-black/90">
+          <T>Ganze Karte</T>
+        </button>
+      )}
     </div>
   );
 }
@@ -150,9 +375,14 @@ export default function GlobalsMap() {
    * anderen deshalb auch kein Knopf dorthin.
    */
   const zugang = useZugang();
+  const t = useT();
   const [karten, setKarten] = useState<Karte[] | null>(null);
   const [offen, setOffen] = useState(0);
   const [fehler, setFehler] = useState('');
+  /** Das Feld der Globals - fuer echte Namen, Flaggen und Regionen. */
+  const [feld, setFeld] = useState<FeldTeam[]>([]);
+  const [markiert, setMarkiert] = useState<string | null>(null);
+  const [zeige, setZeige] = useState<{ id: string; mal: number } | null>(null);
 
   useEffect(() => {
     let weg = false;
@@ -164,8 +394,59 @@ export default function GlobalsMap() {
         setKarten(alle.filter((k) => k.eventId === GLOBALS_EVENT));
       })
       .catch((e) => { if (!weg) { setFehler((e as Error).message); setKarten([]); } });
+    fetch(`/api/globals-teams?fenster=${encodeURIComponent(GLOBALS_TAGE[0].windowId)}`)
+      .then((r) => r.json())
+      .then((j) => { if (!weg && Array.isArray(j?.teams)) setFeld(j.teams); })
+      .catch(() => { /* dann die Namen, wie die Karte sie gespeichert hat */ });
     return () => { weg = true; };
   }, []);
+
+  /** LAN-Konto -> Spieler und Region aus dem Feld. */
+  const ausFeld = useMemo(() => {
+    const spieler = new Map<string, FeldSpieler>();
+    const region = new Map<string, string>();
+    for (const tm of feld) {
+      for (const s of tm.spieler) {
+        spieler.set(s.turnierId, s);
+        if (tm.region) region.set(s.turnierId, tm.region);
+      }
+    }
+    return { spieler, region };
+  }, [feld]);
+
+  /*
+   * Der Name auf der Karte: der echte Name aus dem Feld (ueber das LAN-Konto
+   * zum gewoehnlichen Konto, siehe lib/globalsTeams), komplett gross. Nur
+   * ohne Feld der gespeicherte Name, ohne Turniermarke und Orgtag.
+   */
+  const namenZu = useCallback((tm: KartenTeam) =>
+    (tm.spieler ?? []).map((n, k) =>
+      kartenName(ausFeld.spieler.get(tm.ids?.[k] ?? '')?.anzeige || n)),
+  [ausFeld]);
+
+  const karte = karten?.[offen] ?? karten?.[0] ?? null;
+
+  /*
+   * Die Teams neben der Karte, nach Region. Der Betreiber: "Spielerliste
+   * rechts oder links neben der Map." Ueberfahren hebt ihre Form hervor, ein
+   * Klick faehrt sie an.
+   */
+  const liste = useMemo(() => {
+    if (!karte) return [];
+    const formVon = new Map<string, string>();
+    for (const sp of karte.spots ?? []) for (const k of sp.teams ?? []) formVon.set(k, sp.id);
+    const zeilen = (karte.teams ?? []).map((tm) => ({
+      tm,
+      namen: namenZu(tm),
+      laender: (tm.ids ?? []).map((id) => ausFeld.spieler.get(id)?.land ?? null),
+      region: (tm.ids ?? []).map((id) => ausFeld.region.get(id)).find(Boolean) ?? '',
+      form: formVon.get(tm.id) ?? null,
+    }));
+    return [...REGIONEN, ''].map((reg) => ({
+      region: reg,
+      zeilen: zeilen.filter((z) => (REGIONEN.includes(z.region) ? z.region : '') === reg),
+    })).filter((g) => g.zeilen.length);
+  }, [karte, namenZu, ausFeld]);
 
   const neuAdresse = `/maps?event=${encodeURIComponent(GLOBALS_EVENT)}`
     + `&window=${encodeURIComponent(GLOBALS_TAGE[0].windowId)}`;
@@ -177,7 +458,7 @@ export default function GlobalsMap() {
       ) : fehler ? (
         <p className="rounded-lg border border-amber-800 bg-amber-950/30 px-4 py-3
                       text-sm text-amber-300">{fehler}</p>
-      ) : !karten.length ? (
+      ) : !karte ? (
         <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-5">
           <h2 className="text-base font-semibold text-slate-100">
             <T>Noch keine Karte für die Globals</T>
@@ -225,21 +506,69 @@ export default function GlobalsMap() {
                 )}
               </button>
             ))}
-{zugang.admin && (
-            <Link href={`/maps?id=${encodeURIComponent((karten[offen] ?? karten[0]).id)}`}
-              className="ml-auto rounded-lg border border-zinc-800 px-3 py-2
-                         text-xs text-slate-400 transition
-                         hover:border-amber-400/60 hover:text-amber-200">
-              <T>Im Karten-Werkzeug öffnen</T>
-            </Link>
+            {zugang.admin && (
+              <Link href={`/maps?id=${encodeURIComponent(karte.id)}`}
+                className="ml-auto rounded-lg border border-zinc-800 px-3 py-2
+                           text-xs text-slate-400 transition
+                           hover:border-amber-400/60 hover:text-amber-200">
+                <T>Im Karten-Werkzeug öffnen</T>
+              </Link>
             )}
           </div>
 
-          <KartenBild karte={karten[offen] ?? karten[0]} />
+          <div className="grid items-start gap-4 lg:grid-cols-[minmax(0,1fr)_300px]">
+            <div>
+              <KartenBild key={karte.id} karte={karte} namenZu={namenZu}
+                markiert={markiert} zeige={zeige} />
+              <p className="mt-3 text-center text-[11px] text-slate-600">
+                <T>Mausrad zoomt, ziehen verschiebt, Doppelklick fährt eine Form an. Nur zum Ansehen — verteilt wird im Karten-Werkzeug.</T>
+              </p>
+            </div>
 
-          <p className="mt-3 text-center text-[11px] text-slate-600">
-            <T>Nur zum Ansehen — verschoben wird im Karten-Werkzeug.</T>
-          </p>
+            <aside className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-3
+                              lg:sticky lg:top-4 lg:max-h-[calc(100vh-7rem)] lg:overflow-y-auto">
+              <h2 className="mb-2 flex items-baseline justify-between text-sm font-semibold
+                             text-slate-100">
+                <T>Teams</T>
+                <span className="text-xs font-normal tabular-nums text-slate-500">
+                  {(karte.teams ?? []).length}
+                </span>
+              </h2>
+              <div className="space-y-3">
+                {liste.map((g) => (
+                  <div key={g.region || 'ohne'}>
+                    <p className="mb-1 text-[10px] font-bold uppercase tracking-wider
+                                  text-amber-300/80">
+                      {g.region || <T>Ohne Region</T>}
+                      <span className="ml-1.5 font-normal text-slate-600">{g.zeilen.length}</span>
+                    </p>
+                    <ul>
+                      {g.zeilen.map((z) => (
+                        <li key={z.tm.id}>
+                          <button type="button" disabled={!z.form}
+                            onMouseEnter={() => setMarkiert(z.form)}
+                            onMouseLeave={() => setMarkiert(null)}
+                            onClick={() => { if (z.form) setZeige({ id: z.form, mal: Date.now() }); }}
+                            title={z.form ? undefined : t('Noch keiner Form zugeordnet')}
+                            className="flex w-full items-center gap-2 rounded-md px-2 py-1 text-left
+                                       transition hover:bg-zinc-800/70 disabled:cursor-default
+                                       disabled:opacity-50 disabled:hover:bg-transparent">
+                            <span className="flex shrink-0 -space-x-1">
+                              {z.laender.map((l, k) => <Flagge key={k} land={l} />)}
+                            </span>
+                            <span className={`${kartenSchrift.className} min-w-0 flex-1 truncate
+                                              text-[13px] tracking-wide text-slate-200`}>
+                              {z.namen.join(' + ')}
+                            </span>
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            </aside>
+          </div>
         </>
       )}
     </GlobalsGeruest>

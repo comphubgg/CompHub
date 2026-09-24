@@ -46,7 +46,8 @@ export function spanneBei(punkte: Punkt[], y: number): { mitte: number; breite: 
  */
 export function schriftgroesse(breite: number, hoehe: number, zeichen: number) {
   const nachHoehe = hoehe * 0.6;
-  const nachBreite = (breite * 0.92) / Math.max(zeichen * 0.52, 1);
+  // Grossbuchstaben (siehe app/lib/kartenStil) brauchen gut 0,62 je Zeichen.
+  const nachBreite = (breite * 0.92) / Math.max(zeichen * 0.62, 1);
   return Math.max(0.5, Math.min(nachHoehe, nachBreite, 2.4));
 }
 
