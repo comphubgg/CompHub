@@ -95,12 +95,18 @@ const frist = (ms: number) => AbortSignal.timeout(ms);
  * Danach wird es wieder versucht.
  */
 const PAUSE_MS = 10_000;
-let gestoertBis = 0;
+/*
+ * Je Projekt eine eigene Pause: haengt das Hauptprojekt, soll die Anmeldung
+ * auf ihrem eigenen Projekt (siehe anmeldeZugang) trotzdem weiterlaufen.
+ */
+const gestoert = new Map<string, number>();
 
 async function anfrage(eingabe: string, init: RequestInit & { name?: string }): Promise<Response> {
-  if (Date.now() < gestoertBis) {
+  const projekt = new URL(eingabe).origin;
+  if (Date.now() < (gestoert.get(projekt) ?? 0)) {
     throw new Error(`Ablage nicht erreichbar (Pause nach Aussetzer) bei ${init.name ?? eingabe}`);
   }
+  const pause = () => { gestoert.set(projekt, Date.now() + PAUSE_MS); };
   let r: Response;
   try {
     /*
@@ -113,10 +119,10 @@ async function anfrage(eingabe: string, init: RequestInit & { name?: string }): 
      */
     r = await fetch(eingabe, init);
   } catch (e) {
-    gestoertBis = Date.now() + PAUSE_MS;
+    pause();
     throw e;
   }
-  if (r.status >= 500 || r.status === 429 || r.status === 408 || r.status === 401 || r.status === 403) gestoertBis = Date.now() + PAUSE_MS;
+  if (r.status >= 500 || r.status === 429 || r.status === 408 || r.status === 401 || r.status === 403) pause();
   return r;
 }
 
@@ -509,14 +515,111 @@ async function objektAngaben(name: string) {
   };
 }
 
+/* ------------------------------------------------ Die Anmeldung, getrennt
+ *
+ * Konten und VIP-Zugaenge koennen in einem eigenen Supabase-Projekt liegen.
+ * Der Betreiber, nachdem "Comphub 2" am 24.9.2026 zweimal stillstand und mit
+ * ihm das Einloggen: "ich hab einen dritten Account Supabase, benutze den,
+ * wenn es was nuetzt, komplett nur fuer das Login-System."
+ *
+ * Stehen SUPABASE_LOGIN_URL und SUPABASE_LOGIN_SERVICE_ROLE_KEY in der
+ * Umgebung, gehen genau diese Dateien dorthin - als Objekte im Eimer
+ * "anmeldung", damit das Projekt keine Tabelle und kein SQL braucht
+ * (eingerichtet von scripts/anmeldung-einrichten.mjs). Ohne die beiden
+ * Werte bleibt alles, wie es war. Gelesen wird wie beim Hauptprojekt: der
+ * Inhalt einmal, danach nur der Zeitstempel.
+ */
+const ANMELDE_DATEIEN = new Set(['konten.json', 'vip-users.json']);
+const ANMELDE_EIMER = 'anmeldung';
+
+function anmeldeZugang(name: string): { url: string; kopf: Record<string, string> } | null {
+  if (!ANMELDE_DATEIEN.has(name)) return null;
+  const url = (process.env.SUPABASE_LOGIN_URL ?? '').trim().replace(/\/+$/, '');
+  const key = (process.env.SUPABASE_LOGIN_SERVICE_ROLE_KEY ?? '').trim();
+  return url && key ? { url, kopf: schluesselKopf(key) } : null;
+}
+
+const anmeldeCache = new Map<string, { geaendert: string; wert: Buffer; geprueft: number }>();
+
+async function anmeldeAngaben(name: string, z: { url: string; kopf: Record<string, string> }) {
+  const r = await anfrage(`${z.url}/storage/v1/object/info/${ANMELDE_EIMER}/${name}`,
+    { headers: z.kopf, cache: 'no-store', signal: frist(LESEN_MS) });
+  if (r.status === 400 || r.status === 404) { anmeldeCache.delete(name); return null; }
+  if (!r.ok) { serverFehler(r, name); return null; }
+  const j = await r.json() as { size?: number; updated_at?: string; last_modified?: string };
+  const stempel = String(j.updated_at ?? j.last_modified ?? '');
+  const gemerkt = anmeldeCache.get(name);
+  if (gemerkt && gemerkt.geaendert !== stempel) anmeldeCache.delete(name);
+  return { groesse: Number(j.size ?? 0), geaendert: new Date(stempel || Date.now()), stempel };
+}
+
+async function anmeldeLies(name: string, z: { url: string; kopf: Record<string, string> }) {
+  const gemerkt = anmeldeCache.get(name);
+  if (gemerkt && Date.now() - gemerkt.geprueft < FRISCH_MS) return gemerkt.wert;
+  let stand: Awaited<ReturnType<typeof anmeldeAngaben>>;
+  try {
+    stand = await anmeldeAngaben(name, z);
+  } catch (e) {
+    if (gemerkt) return gemerkt.wert;
+    throw e;
+  }
+  if (!stand) return null;
+  if (gemerkt && gemerkt.geaendert === stand.stempel) {
+    gemerkt.geprueft = Date.now();
+    return gemerkt.wert;
+  }
+  const r = await anfrage(`${z.url}/storage/v1/object/${ANMELDE_EIMER}/${name}`,
+    { headers: z.kopf, cache: 'no-store', signal: frist(LESEN_MS) });
+  serverFehler(r, name);
+  if (!r.ok) return null;
+  const wert = Buffer.from(await r.arrayBuffer());
+  anmeldeCache.set(name, { geaendert: stand.stempel, wert, geprueft: Date.now() });
+  return wert;
+}
+
+async function anmeldeSchreib(name: string, daten: Buffer, z: { url: string; kopf: Record<string, string> }) {
+  const r = await anfrage(`${z.url}/storage/v1/object/${ANMELDE_EIMER}/${name}`, {
+    method: 'POST',
+    signal: frist(SCHREIBEN_MS),
+    headers: { ...z.kopf, 'Content-Type': 'application/json', 'x-upsert': 'true' },
+    body: new Uint8Array(daten),
+  });
+  if (!r.ok) throw new Error(`Anmeldung schreiben (${name}): ${r.status} ${await r.text()}`);
+  anmeldeCache.delete(name);
+}
+
+async function anmeldeLoesche(name: string, z: { url: string; kopf: Record<string, string> }) {
+  await anfrage(`${z.url}/storage/v1/object/${ANMELDE_EIMER}/${name}`,
+    { method: 'DELETE', headers: z.kopf, signal: frist(SCHREIBEN_MS) });
+  anmeldeCache.delete(name);
+}
+
 /* ---------------------------------------------------------- Der Speicher */
 
 export const supabaseSpeicher: Speicher = {
-  lies: (name) => (alsObjekt(name) ? objektLies(name) : tabelleLies(name)),
-  schreib: (name, daten) =>
-    (alsObjekt(name) ? objektSchreib(name, daten) : tabelleSchreib(name, daten)),
-  loesche: (name) => (alsObjekt(name) ? objektLoesche(name) : tabelleLoesche(name)),
+  lies: (name) => {
+    const z = anmeldeZugang(name);
+    if (z) return anmeldeLies(name, z);
+    return alsObjekt(name) ? objektLies(name) : tabelleLies(name);
+  },
+  schreib: (name, daten) => {
+    const z = anmeldeZugang(name);
+    if (z) return anmeldeSchreib(name, daten, z);
+    return alsObjekt(name) ? objektSchreib(name, daten) : tabelleSchreib(name, daten);
+  },
+  loesche: (name) => {
+    const z = anmeldeZugang(name);
+    if (z) return anmeldeLoesche(name, z);
+    return alsObjekt(name) ? objektLoesche(name) : tabelleLoesche(name);
+  },
   liste: (ordner) => (alsObjekt(`${ordner.replace(/\/+$/, '')}/`)
     ? objektListe(ordner) : tabelleListe(ordner)),
-  angaben: (name) => (alsObjekt(name) ? objektAngaben(name) : tabelleAngaben(name)),
+  angaben: async (name) => {
+    const z = anmeldeZugang(name);
+    if (z) {
+      const a = await anmeldeAngaben(name, z);
+      return a ? { groesse: a.groesse, geaendert: a.geaendert } : null;
+    }
+    return alsObjekt(name) ? objektAngaben(name) : tabelleAngaben(name);
+  },
 };
