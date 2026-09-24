@@ -429,11 +429,23 @@ function alsText(feld, wert) {
   return String(wert);
 }
 
+/*
+ * Vor dem ersten Spiel gibt es keine Platzierung.
+ *
+ * Epic fuehrt das Feld schon vor dem Start, alle mit null Punkten in
+ * irgendeiner Reihenfolge - im Banner stand dann "Top #34" fuer ein Duo, das
+ * noch gar nicht gespielt hatte. Der Betreiber: "hier kann die Platzierung ja
+ * nicht stimmen, es darf keine haben, weil er ja nicht live ist." Erst mit
+ * dem ersten gespielten Match steht ein Platz da.
+ */
+const ohnePlatz = (e) => Boolean(e) && e.games === 0;
+
 function schreibeWerte(e) {
   for (const f of FELDER) {
     const el = werteBox.querySelector('[data-f="' + f + '"]');
     if (!el) continue;
-    const txt = alsText(f, e ? e[f] : null);
+    const txt = (f === 'rank' || f === 'bestPlace') && ohnePlatz(e)
+      ? '–' : alsText(f, e ? e[f] : null);
     if (el.textContent === txt) continue;
     el.textContent = txt;
     // Beim ersten Mal nicht zappeln, nur bei echten Aenderungen.

@@ -2147,6 +2147,10 @@ const AUF_ENGLISCH: Record<string, string> = {
     'per team',
   'pro Spieler':
     'per player',
+  'Spieler nach Land':
+    'Players by country',
+  'Spieler ohne gepflegtes Land':
+    'players without a country on file',
   'Automatisch gespeichert':
     'Saved automatically',
   'Speichert sich von selbst':

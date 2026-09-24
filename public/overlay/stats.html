@@ -189,7 +189,8 @@ async function tick() {
                e.players[0];
     await Overlay.setzeStil(C, me, C);
 
-    document.getElementById('platz').textContent = '#' + e.rank;
+    // Vor dem ersten Spiel keine Platzierung (siehe banner.html).
+    document.getElementById('platz').textContent = e.games === 0 ? '–' : '#' + e.rank;
     // Gesuchten Spieler zuerst, Partner darunter.
     zeigeSpieler([me, ...e.players.filter(p => p !== me)]);
     document.getElementById('werte').innerHTML =

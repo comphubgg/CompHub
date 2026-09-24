@@ -7,8 +7,6 @@ import LadeSchirm from '@/app/components/LadeSchirm';
 import GlobalsGeruest from '../GlobalsGeruest';
 import { GLOBALS_TAGE } from '@/lib/globalsCup';
 import { flaggenPfad } from '@/components/TeamFlagge';
-import { namensSchluessel } from '@/lib/homoglyph';
-import { fensterName } from '@/lib/fensterName';
 
 /*
  * Das Feld der Global Championship.
@@ -76,56 +74,97 @@ interface Zeile {
 /**
  * Die gemeinsamen Cups eines Duos in der laufenden Saison.
  *
- * Aus dem Profil des einen Spielers - dort steht zu jedem Spieltag, mit wem
- * er gespielt hat, als Konto-Id. Genommen werden die Tage, an denen der
- * andere daneben stand. "Laufende Saison" ist die juengste, in der er
- * ueberhaupt angetreten ist.
+ * Vom Server fertig zusammengestellt (/api/globals-duo) - nur die
+ * Spieltage, an denen beide Konten im selben Team standen. Vorher holte die
+ * Ansicht dafuer die ganze Spielerakte und brauchte auf einem kalten Server
+ * eine halbe Minute und mehr; der Betreiber: "das kann nicht sein."
+ * Ohne beide Konto-Ids gibt es nichts Sicheres zu finden - dann null.
  */
 async function gemeinsameCups(a: Spieler, b: Spieler): Promise<Zeile[] | null> {
-  const haupt = a.epicId ? a : b.epicId ? b : null;
-  if (!haupt?.epicId) return null;
-  const partner = haupt === a ? b : a;
-  const partnerKey = namensSchluessel(partner.anzeige || partner.name);
+  if (!a.epicId || !b.epicId) return null;
+  const r = await fetch(`/api/globals-duo?a=${encodeURIComponent(a.epicId)}&b=${encodeURIComponent(b.epicId)}`,
+    { signal: AbortSignal.timeout(45_000) });
+  const d = await r.json();
+  if (!r.ok || d.error) throw new Error(d.error ?? String(r.status));
+  return d.zeilen ?? [];
+}
 
-  const d = await fetch(`/api/szene-stats?spieler=${encodeURIComponent(haupt.epicId)}`)
-    .then((r) => r.json());
+/*
+ * Wer aus welchem Land kommt - alle Laender auf einen Blick.
+ *
+ * Der Betreiber (#admin-todo, 24.9.2026): "wenn ich auf einen denen druecke,
+ * soll so wie in Bild 2 eine Liste mit den Regionen kommen und wo welcher
+ * von ist, also Land usw." Jedes Land eine Karte mit Flagge, Name, Zahl und
+ * seinen Spielern; das angeklickte steht vorn und leuchtet.
+ */
+function LaenderAnsicht({ teams, gewaehlt, schliessen }: {
+  teams: Team[]; gewaehlt: string; schliessen: () => void;
+}) {
+  const t = useT();
+  const { sprache } = useSprache();
+  const namen = useMemo(() => {
+    try { return new Intl.DisplayNames([sprache === 'en' ? 'en' : 'de'], { type: 'region' }); }
+    catch { return null; }
+  }, [sprache]);
+  const gruppen = useMemo(() => {
+    const je = new Map<string, Spieler[]>();
+    for (const tm of teams) for (const s of tm.spieler) {
+      if (!s.land) continue;
+      (je.get(s.land) ?? je.set(s.land, []).get(s.land)!).push(s);
+    }
+    return [...je.entries()].sort((a, b) =>
+      (a[0] === gewaehlt ? -1 : b[0] === gewaehlt ? 1 : 0) || b[1].length - a[1].length);
+  }, [teams, gewaehlt]);
+  const ohne = teams.flatMap((tm) => tm.spieler).filter((s) => !s.land).length;
 
-  type Mit = { epicId?: string; name?: string };
-  const istPartner = (m: Mit) => Boolean(
-    (partner.epicId && m.epicId === partner.epicId)
-    || (partnerKey && namensSchluessel(String(m.name ?? '')) === partnerKey));
+  useEffect(() => {
+    const taste = (e: KeyboardEvent) => { if (e.key === 'Escape') schliessen(); };
+    window.addEventListener('keydown', taste);
+    return () => window.removeEventListener('keydown', taste);
+  }, [schliessen]);
 
-  const alle: Array<Zeile & { mit: Mit[] }> = [];
-  const gesehen = new Set<string>();
-  for (const z of d?.verlauf ?? []) {
-    gesehen.add(z.windowId);
-    alle.push({
-      windowId: z.windowId, titel: z.event, season: z.season, datum: z.datum ?? 0,
-      platz: z.platz ?? null, punkte: z.punkte ?? null,
-      elims: z.werte?.eliminations ?? null,
-      verdienst: typeof z.verdienst === 'number' ? z.verdienst : null,
-      mit: z.mitspieler ?? [],
-    });
-  }
-  for (const z of d?.epicZeilen ?? []) {
-    if (gesehen.has(z.windowId)) continue;
-    const runde = fensterName(z.windowId);
-    alle.push({
-      windowId: z.windowId,
-      titel: runde ? `${z.titel || z.event} · ${runde}` : (z.titel || z.event),
-      season: z.season, datum: z.datum ?? 0,
-      platz: z.platz ?? null, punkte: z.punkte ?? null,
-      elims: typeof z.replayElims === 'number' ? z.replayElims : null,
-      verdienst: typeof z.verdienst === 'number' ? z.verdienst : null,
-      mit: z.mitspieler ?? [],
-    });
-  }
-  if (!alle.length) return [];
-  const saison = [...alle].sort((x, y) => y.datum - x.datum)[0].season;
-  return alle
-    .filter((z) => z.season === saison && z.mit.some(istPartner))
-    .sort((x, y) => y.datum - x.datum)
-    .slice(0, 12);
+  return (
+    <div className="fixed inset-0 z-[80] overflow-y-auto bg-black/80 p-4 backdrop-blur-sm"
+      onClick={schliessen}>
+      <div className="mx-auto max-w-7xl rounded-2xl border border-amber-500/30 bg-zinc-950 p-5"
+        onClick={(e) => e.stopPropagation()}>
+        <div className="mb-4 flex items-center justify-between gap-3">
+          <h2 className="text-lg font-black text-amber-200"><T>Spieler nach Land</T></h2>
+          <button type="button" onClick={schliessen} aria-label={t('Schließen')}
+            className="rounded-lg border border-zinc-700 px-3 py-1.5 text-sm text-slate-300
+                       hover:border-amber-400/60">✕</button>
+        </div>
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
+          {gruppen.map(([land, spieler]) => (
+            <div key={land}
+              className={`rounded-xl border bg-zinc-900/50 p-3 ${land === gewaehlt
+                ? 'border-amber-400/70 ring-1 ring-amber-400/40' : 'border-zinc-800'}`}>
+              <div className="mb-2 flex items-center gap-2 border-b border-zinc-800 pb-2">
+                <Flagge land={land} groesse="h-5 w-5" />
+                <span className="min-w-0 flex-1 truncate text-sm font-bold text-slate-100">
+                  {namen?.of(land) ?? land}
+                </span>
+                <span className="text-xs tabular-nums text-slate-500">{spieler.length}</span>
+              </div>
+              <ul className="space-y-1 text-center">
+                {spieler.map((s) => (
+                  <li key={s.turnierId} className="truncate text-sm font-semibold uppercase
+                                                   tracking-wide text-slate-200">
+                    {s.anzeige}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ))}
+        </div>
+        {ohne > 0 && (
+          <p className="mt-4 text-xs text-slate-500">
+            {ohne} <T>Spieler ohne gepflegtes Land</T>
+          </p>
+        )}
+      </div>
+    </div>
+  );
 }
 
 function DuoAnsicht({ team, schliessen }: { team: Team; schliessen: () => void }) {
@@ -269,6 +308,8 @@ export default function GlobalsTeams() {
   const [zahlen, setZahlen] = useState({ zugeordnet: 0, spieler: 0, mitFoto: 0 });
   const [suche, setSuche] = useState('');
   const [offen, setOffen] = useState<Team | null>(null);
+  /** Welches Land in der Laenderuebersicht vorn steht - null: zu. */
+  const [landOffen, setLandOffen] = useState<string | null>(null);
 
   useEffect(() => {
     let weg = false;
@@ -338,13 +379,16 @@ export default function GlobalsTeams() {
                              px-3 py-1.5 text-xs text-amber-200/90">
               {teams.length} <T>Teams</T> · {zahlen.spieler} <T>Spieler</T>
             </span>
-            {laender.slice(0, 14).map(([land, n]) => (
-              <span key={land}
+            {/* Alle Laender, und jedes oeffnet die Uebersicht - siehe LaenderAnsicht. */}
+            {laender.map(([land, n]) => (
+              <button key={land} type="button" onClick={() => setLandOffen(land)}
+                title={t('Spieler nach Land')}
                 className="flex items-center gap-1.5 rounded-lg border border-zinc-800
-                           bg-zinc-900/40 px-2.5 py-1.5 text-xs text-slate-300">
+                           bg-zinc-900/40 px-2.5 py-1.5 text-xs text-slate-300 transition
+                           hover:border-amber-400/60 hover:text-amber-100">
                 <Flagge land={land} /> {land}
                 <span className="text-slate-500">{n}</span>
-              </span>
+              </button>
             ))}
           </div>
 
@@ -396,6 +440,9 @@ export default function GlobalsTeams() {
       )}
 
       {offen && <DuoAnsicht team={offen} schliessen={() => setOffen(null)} />}
+      {landOffen && teams && (
+        <LaenderAnsicht teams={teams} gewaehlt={landOffen} schliessen={() => setLandOffen(null)} />
+      )}
     </GlobalsGeruest>
   );
 }

@@ -408,11 +408,14 @@ td.punkte b.neu { animation: stups .9s ease-out; }
 
     for (const e of eintraege) {
       const tr = document.createElement('tr');
-      if (cfg.gold > 0 && e.rank <= cfg.gold) tr.className = 'gold';
+      // Vor dem ersten Spiel keine Platzierung und kein Gold - Epic fuehrt das
+      // Feld dann nur in irgendeiner Reihenfolge (siehe banner.html).
+      const gespielt = e.games !== 0;
+      if (gespielt && cfg.gold > 0 && e.rank <= cfg.gold) tr.className = 'gold';
 
       const platz = document.createElement('td');
       platz.className = 'platz';
-      platz.textContent = e.rank;
+      platz.textContent = gespielt ? e.rank : '–';
       tr.appendChild(platz);
 
       /*

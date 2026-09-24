@@ -105,7 +105,8 @@ function render(entries) {
     prev.set(e.rank, e.points);
 
     tr.innerHTML =
-      '<td class="r">' + e.rank + '</td>' +
+      // Vor dem ersten Spiel keine Platzierung (siehe banner.html).
+      '<td class="r">' + (e.games === 0 ? '–' : e.rank) + '</td>' +
       '<td class="t">' + team.replace(/</g, '&lt;') + '</td>' +
       '<td class="p">' + (changed ? '<span class="bump">' + e.points + '</span>' : e.points) + '</td>' +
       '<td class="e">' + e.elims + '</td>';
