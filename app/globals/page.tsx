@@ -36,7 +36,7 @@ export default function GlobalsStart() {
         nicht.</T>
       </p>
 
-      <div className="grid gap-3 sm:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         {GLOBALS_SEITEN.map((s) => (
           <Link key={s.pfad} href={s.pfad}
             className="group rounded-xl border border-amber-500/20 bg-zinc-900/40 p-4

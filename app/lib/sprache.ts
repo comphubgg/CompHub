@@ -2135,6 +2135,22 @@ const AUF_ENGLISCH: Record<string, string> = {
     'No player in the field matches your search.',
   'Mitglieder':
     'members',
+  'Jeder Platz mit seinem Preisgeld':
+    'Every place with its prize money',
+  'Prize Pool':
+    'Prize Pool',
+  'bezahlte Plätze':
+    'paid places',
+  'je Spielerseite':
+    'per player side',
+  'pro Team':
+    'per team',
+  'pro Spieler':
+    'per player',
+  'Quelle: Epics Auszahlungstabelle der Global Championship. Die Beträge gelten je Spieler; ein Duo erhält das Doppelte.':
+    "Source: Epic's payout table for the Global Championship. Amounts are per player; a duo receives double.",
+  'Epic nennt das Preisgeld gerade nicht - bitte gleich noch einmal laden.':
+    'Epic is not returning the prize money right now - please reload in a moment.',
   'Leaderboard, Spieler-Banner und freies Overlay im Aussehen der Global Championship':
     'Leaderboard, player banner and free overlay in the look of the Global Championship',
   'Thema':

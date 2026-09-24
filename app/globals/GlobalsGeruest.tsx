@@ -44,6 +44,10 @@ export const GLOBALS_SEITEN: Array<{
     pfad: '/globals/predictions', titel: 'Predictions',
     was: 'Der Tipp auf den Ausgang',
   },
+  {
+    pfad: '/globals/prizepool', titel: 'Prize Pool',
+    was: 'Jeder Platz mit seinem Preisgeld',
+  },
 ];
 
 /** Das Blau aus dem FNCS-Zeichen - aus dem Zeichen gelesen, nicht geraten. */
