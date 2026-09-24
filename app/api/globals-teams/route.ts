@@ -66,6 +66,36 @@ async function liesJson<T>(datei: string, ersatz: T): Promise<T> {
 const KONTO = /^[0-9a-f]{32}$/;
 const MARKE = /\[[^\]]+\]/;
 
+/*
+ * Feste Zuordnung: Turnierkonto der LAN -> gewoehnliches Konto.
+ *
+ * Fuer die Faelle, in denen der Name auf ein zweites, altes Konto derselben
+ * Person fuehrte und das Foto deshalb fehlte. Der Betreiber (24.9.2026):
+ * "Der Spieler heisst ohne Re, also Syaaz, dann haette er auch ein Bild ...
+ * es fehlen noch ziemlich viele Bilder, obwohl ich die habe."
+ *
+ * Entschieden ist jeder Eintrag ueber Konto-Ids, nicht ueber den Namen: der
+ * Globals-Partner hat in dieser Saison nachweislich mit genau diesem Konto
+ * gespielt (Mitspieler-Ids aus den Platzierungen), das verworfene Konto
+ * nicht - oder das verworfene hat gar keine Turniere.
+ */
+const FESTE_KONTEN: Record<string, string> = {
+  // MGA Re Syaaz - Scaryy spielte 10x mit "MGA Syaaz holi11".
+  '78262c913d484782b4d430e85be84c44': '1bed52eac9c747588b328b3a70021222',
+  // VSN Salvatore - MSHARY spielte 11x mit diesem Konto.
+  'd1b8f89774ef43af94b8b77aa539424f': 'a2d547c84c0449358949ebb51b3c671b',
+  // NTX shadow1x - Vergo spielte 11x mit "NTX shadow1x".
+  'aa7f02a352af4fdfb0ce48f1df6eba83': '34009ee20b024cfb843d984e5b9b30aa',
+  // 5aald Q8 - 134 Turnierzeilen diese Saison; das andere Konto keine.
+  'e3d2041f1eb9422288a391820426ed7d': '278c95a8671d432da2110578a5120e7b',
+  // Rise - MUZ spielte 20x mit diesem Konto.
+  '3dcd4df5d13a40b9b1cdc9f882abecc8': 'e5556b3269cf4e3499198774adc4cac2',
+  // LEV RomeroFDP - Lewa spielte 8x mit "ROMERO".
+  '3371680b04954fb0b70e5dd3566fd139': 'f899b6ef72c74f03af0aeca85b2bedca',
+  // GENG Ritual - Cold spielte 9x mit "GEN ritualx 9".
+  '30de8aa096a1462a890d016170e38048': '28f2d4207f9142838351f610815012e1',
+};
+
 type Index = Map<string, Set<string>>;
 
 /** Die Zuordnung Name -> gewoehnliches Konto, siehe oben. */
@@ -179,7 +209,7 @@ export async function GET(request: Request) {
         // Die Marke des Turniers vor dem Namen faellt weg - sie gehoert
         // nicht zum Spieler, sondern zum Anlass.
         const roher = String(sp.name ?? '').replace(/\[[^\]]*\]\s*/g, '').trim();
-        const konto = kontoZu(roher);
+        const konto = FESTE_KONTEN[sp.id] ?? kontoZu(roher);
         const pr = konto ? profile[konto] : undefined;
         const sz = konto ? szene.get(konto) : undefined;
         return {
