@@ -491,7 +491,7 @@ export default function GlobalsMap() {
           {ausErsatz && (
             <p className="mb-4 rounded-lg border border-amber-600/60 bg-amber-950/40 px-4 py-3
                           text-sm text-amber-200">
-              <T>Die Ablage antwortet gerade nicht. Das hier ist die letzte Sicherung und kann älter sein – die Karte ist nicht verloren und steht gleich wieder aktuell da.</T>
+              <T>Die Ablage antwortet gerade nicht. Du siehst die letzte Sicherung, und die kann älter sein. Die Karte ist nicht verloren und steht gleich wieder aktuell da.</T>
             </p>
           )}
           <div className="mb-4 flex flex-wrap items-center gap-2">

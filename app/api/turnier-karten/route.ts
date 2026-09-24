@@ -246,7 +246,7 @@ async function nurAdmin() {
 export async function POST(request: Request) {
   const abgewiesen = await nurAdmin();
   if (abgewiesen) return abgewiesen;
-  const eingang = await request.json() as Partial<Turnierkarte>;
+  const eingang = await request.json() as Partial<Turnierkarte> & { basis?: number | null };
   if (!eingang.id || !eingang.titel) {
     return NextResponse.json({ error: 'id und titel fehlen' }, { status: 400 });
   }
@@ -278,6 +278,28 @@ export async function POST(request: Request) {
   if (gelesen instanceof NextResponse) return gelesen;
   const karten = gelesen;
   const i = karten.findIndex((x) => x.id === karte.id);
+
+  /*
+   * Nur speichern, was auf dem aktuellen Stand aufbaut.
+   *
+   * Der Editor schickt mit, welchen Stand der Karte er geladen hat ("basis").
+   * Liegt hier inzwischen ein neuerer, wird nichts geschrieben. Am 24.9.2026
+   * zeigte die Seite waehrend eines Supabase-Ausfalls eine alte Kopie der
+   * Globals-Karte ohne ein einziges Team; ein offenes Fenster mit diesem
+   * Stand haette beim naechsten Selbstspeichern alle fuenfzig Zuordnungen
+   * ueberschrieben. Ein Fenster ohne "basis" stammt von vor dieser Regel -
+   * auch das wird abgewiesen, ein Neuladen genuegt.
+   */
+  if (i >= 0) {
+    const basis = Number(eingang.basis) || 0;
+    if (!basis || karten[i].geaendert > basis) {
+      return NextResponse.json({
+        error: 'This map changed since this page loaded it (or the page was showing an older copy). '
+          + 'Nothing was saved, so the current map is safe - reload the page and edit again.',
+        veraltet: true, aktuell: karten[i].geaendert,
+      }, { status: 409 });
+    }
+  }
   if (i >= 0) karten[i] = karte; else karten.push(karte);
   const schiefgegangen = await schreibOderSage(karten);
   if (schiefgegangen) return schiefgegangen;

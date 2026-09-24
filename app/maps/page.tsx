@@ -444,6 +444,19 @@ export default function KartenSeite(
    * lib/ablage.
    */
   const [ausErsatz, setAusErsatz] = useState(false);
+  /*
+   * Welchen Stand jeder Karte dieses Fenster zuletzt gesehen hat - der geht
+   * beim Speichern mit (siehe /api/turnier-karten, POST). Ist auf dem Server
+   * inzwischen ein neuerer, wird nichts ueberschrieben.
+   */
+  const standVon = useRef(new Map<string, number>());
+  const merkeStaende = (liste: Array<{ id: string; geaendert?: number }>) => {
+    for (const k of liste) if (k.geaendert) standVon.current.set(k.id, k.geaendert);
+  };
+  /** Abgewiesen, weil die Karte woanders neuer ist: dann gross sagen, neu laden. */
+  const [veraltet, setVeraltet] = useState(false);
+  /** Speichern laeuft nacheinander, nie zwei zugleich - siehe sichern(). */
+  const speicherLauf = useRef<Promise<void>>(Promise.resolve());
   const [bildStand, setBildStand] = useState(0);   // erzwingt ein Neuladen
   const [bilder, setBilder] = useState<Kartenbild[]>([]);
   /**
@@ -991,6 +1004,7 @@ export default function KartenSeite(
       .then((d) => {
         const liste: GespeicherteKarte[] = d.karten ?? [];
         setAusErsatz(!!d.ersatz);
+        merkeStaende(liste);
         setGespeicherte(liste);
         gespeicherteRef.current = liste;
         pruefeDirektlink(cupsRef.current, liste);
@@ -1023,6 +1037,15 @@ export default function KartenSeite(
           if (k.cupId) setCupId(k.cupId);
           // Hier kommen die Formen aus der Turnierkarte, nicht aus der Vorlage.
           vorlageGeladen.current = true;
+          /*
+           * Aber was der Admin hier an den Formen aendert, wird die Vorlage
+           * fuer jede kuenftige Karte dieses Bildes. Der Betreiber (24.9.2026):
+           * "wenn der Admin eine Form aendert auf der Map, soll es die Formen
+           * speichern fuer jede zukuenftige andere Map." Bisher galt das nur
+           * im leeren Editor, nicht in einer ueber einen Link geoeffneten
+           * Karte. Die gespeicherten Karten selbst bleiben davon unberuehrt.
+           */
+          spotsFuer.current = k.bildId || 'fortnite-karte';
         }
       }).catch(() => {});
   }, []);
@@ -2479,8 +2502,11 @@ export default function KartenSeite(
         bildAutomatisch: bildVonHandFuer.current !== fensterId,
         spiele: spiele.trim() || undefined,
         oeffentlich: true,
+        // Der Stand, auf dem diese Aenderung aufbaut - siehe standVon.
+        basis: standVon.current.get(id) ?? null,
       }),
     });
+    if (r.status === 409) setVeraltet(true);
     if (!r.ok) {
       // Den Grund vom Server durchreichen. "Speichern fehlgeschlagen" allein
       // sagt nichts; meist ist es ein fehlendes Schreibrecht, und das steht
@@ -2493,9 +2519,14 @@ export default function KartenSeite(
       return;
     }
 
+    // Der neue Stand ist die Grundlage fuer das naechste Speichern.
+    const antwort = await r.json().catch(() => null) as { karte?: { geaendert?: number } } | null;
+    if (antwort?.karte?.geaendert) standVon.current.set(id, antwort.karte.geaendert);
+
     if (still) { setSelbstGesichert(Date.now()); return; }
 
     const d = await fetch('/api/turnier-karten').then((x) => x.json());
+    merkeStaende(d.karten ?? []);
     setGespeicherte(d.karten ?? []);
 
     // Ruecken melden, wo die Karte jetzt oeffentlich auftaucht. Ohne Cup und
@@ -2513,6 +2544,20 @@ export default function KartenSeite(
      Takt unten davon unberuehrt und laeuft nicht bei jedem Tastendruck neu. */
   const speichernRef = useRef(speichern);
   useEffect(() => { speichernRef.current = speichern; });
+
+  /*
+   * Speichern hintereinander statt gleichzeitig.
+   *
+   * Jedes Speichern nennt den Stand, auf dem es aufbaut. Liefen zwei
+   * zugleich, wuesste das zweite noch nichts vom ersten und wuerde als
+   * veraltet abgewiesen. Also wartet jedes, bis das vorige zurueck ist - und
+   * nimmt dann den neuesten Inhalt des Editors.
+   */
+  function sichern(still: boolean) {
+    speicherLauf.current = speicherLauf.current
+      .then(() => speichernRef.current(still))
+      .catch(() => {});
+  }
 
   /**
    * Die Karte schreibt sich von selbst.
@@ -2545,7 +2590,7 @@ export default function KartenSeite(
      */
     const uhr = setTimeout(() => {
       inhaltVomNutzer.current = false;
-      void speichernRef.current(true);
+      sichern(true);
     }, 200);
     return () => clearTimeout(uhr);
   }, [spots, teams, titel, spiele, bildId, fensterId, istAdmin, gesperrt]);
@@ -2693,6 +2738,7 @@ ${name}
       return;
     }
     const d = await fetch('/api/turnier-karten').then((x) => x.json());
+    merkeStaende(d.karten ?? []);
     setGespeicherte(d.karten ?? []);
     setStatus(`${uebs('Karte gelöscht')}: ${name}`);
   }
@@ -3419,10 +3465,23 @@ ${name}
           links und rechts mehrere hundert Punkte ungenutzt. */}
       <div className="mx-auto max-w-[1900px]">
 
+        {veraltet && (
+          <div className="mb-3 flex flex-wrap items-center gap-3 rounded-lg border border-amber-600/60
+                          bg-amber-950/40 px-4 py-3 text-sm text-amber-200">
+            <span className="min-w-0 flex-1">
+              <T>Diese Seite zeigt einen älteren Stand der Karte. Damit er nichts überschreibt, wird nicht gespeichert. Bitte neu laden und dann weiterarbeiten.</T>
+            </span>
+            <button type="button" onClick={() => window.location.reload()}
+              className="rounded-lg bg-amber-400/90 px-3 py-1.5 text-xs font-semibold text-zinc-950
+                         transition hover:bg-amber-300">
+              <T>Neu laden</T>
+            </button>
+          </div>
+        )}
         {ausErsatz && (
           <p className="mb-3 rounded-lg border border-amber-600/60 bg-amber-950/40 px-4 py-3
                         text-sm text-amber-200">
-            <T>Die Ablage antwortet gerade nicht. Das hier ist die letzte Sicherung und kann älter sein – deine Karte ist nicht verloren. Gespeichert wird erst wieder, wenn die Ablage antwortet.</T>
+            <T>Die Ablage antwortet gerade nicht. Du siehst die letzte Sicherung, und die kann älter sein. Deine Karte ist nicht verloren. Gespeichert wird erst wieder, wenn die Ablage antwortet.</T>
           </p>
         )}
 
@@ -3732,7 +3791,7 @@ ${name}
               })()}
             </label>
             <div className="flex flex-col items-stretch justify-end gap-1">
-              <button onClick={() => speichern()}
+              <button onClick={() => sichern(false)}
                 className="rounded-lg bg-sky-500 px-4 py-2 text-sm font-medium text-white
                            transition hover:bg-sky-400">
                 <T>Speichern</T>
