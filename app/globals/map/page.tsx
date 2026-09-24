@@ -11,6 +11,7 @@ import { useZugang } from '@/app/lib/zugang';
 import { rahmen, spanneBei, einheitsGroesse, type Punkt, type Spot } from '@/lib/prognoseKarte';
 import { flaggenPfad } from '@/components/TeamFlagge';
 import { kartenSchrift, kartenName, formFarbe, hebeFormHervor } from '@/app/lib/kartenStil';
+import { REGION_DER_QUALI } from '@/lib/globalsRegionen';
 
 /*
  * Eine Form der Turnierkarte.
@@ -442,7 +443,9 @@ export default function GlobalsMap() {
       tm,
       namen: namenZu(tm),
       laender: (tm.ids ?? []).map((id) => ausFeld.spieler.get(id)?.land ?? null),
-      region: (tm.ids ?? []).map((id) => ausFeld.region.get(id)).find(Boolean) ?? '',
+      // Die feste Qualifikationsregion zuerst - sie haengt weder an Epic noch
+      // an der Ablage und steht deshalb auch waehrend eines Ausfalls da.
+      region: (tm.ids ?? []).map((id) => REGION_DER_QUALI[id] ?? ausFeld.region.get(id)).find(Boolean) ?? '',
       form: formVon.get(tm.id) ?? null,
     }));
     return [...REGIONEN, ''].map((reg) => ({
