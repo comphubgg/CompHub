@@ -3517,6 +3517,9 @@ ${name}
               </button>
             )}
           </div>
+          {/* Kartenstand und Zahlen nur fuer den Admin - Besuchern sagen sie
+              nichts (Betreiber, 24.9.2026: "Spots ist unnoetig"). */}
+          {istAdmin && (
           <div className="text-right text-xs text-slate-500">
             {bildId ? (
               <p className="text-emerald-400">
@@ -3536,6 +3539,7 @@ ${name}
             ) : null}
             <p>{spots.length} <T>Spots</T> · {teams.length} <T>Teams</T></p>
           </div>
+          )}
         </div>
 
         {/* Kam man ueber einen Link von der Eventseite, gehoert der Rueckweg

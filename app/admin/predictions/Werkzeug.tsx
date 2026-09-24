@@ -458,7 +458,7 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
   // Ortsnamen von Anfang an aus - wie auf jeder Karte (Betreiber, 24.9.2026).
   const [orteSichtbar, setOrteSichtbar] = useState(false);
   /** Die Beschriftungen ausblenden, um die reinen Flaechen zu sehen. */
-  const [spielerSichtbar, setSpielerSichtbar] = useState(true);
+
 
   /** Der sichtbare Ausschnitt der Karte. */
   const [zoom, setZoom] = useState(1);
@@ -2061,6 +2061,16 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
           <div className={vollbildKarte
             ? 'fixed inset-0 z-50 flex flex-col overflow-auto bg-zinc-950 p-4'
             : 'min-w-0 rounded-xl border border-zinc-800 bg-zinc-900/40 p-3'}>
+            {/*
+              * Die Kopfzeile ueber der Karte gibt es nur fuer den Admin.
+              *
+              * Der Betreiber (24.9.2026): "Map ist unnoetig, diese Spots ist
+              * unnoetig, dieser Titel ist unnoetig, diese Zoom-Anzeige ist
+              * unnoetig" - fuer alle, die nicht als Admin angemeldet sind.
+              * Ortsnamen und Vollbild sitzen jetzt als kleine Quadrate auf der
+              * Karte selbst, fuer jeden.
+              */}
+            {istAdmin && (
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-sm font-semibold text-slate-100">
                 <T>Karte</T>
@@ -2204,37 +2214,16 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
                   <span className="text-[11px] text-slate-500">{formenStand}</span>
                 )}
 
-                {Object.keys(aufSpot).length > 0 && (
+                {Object.keys(aufSpot).length > 0 && !eigen && (
                   <button onClick={() => setAufSpot({})}
                     className="rounded-lg border border-zinc-700 px-2 py-1 text-[11px]
                                text-slate-300 hover:border-rose-500">
                     Karte leeren
                   </button>
                 )}
-                {/* Ansicht: dieselben Schalter wie im Karteneditor. */}
-                {!bildId && (
-                  <button onClick={() => setOrteSichtbar((v) => !v)}
-                    title={uebs('Ortsnamen auf der Karte ein- und ausblenden')}
-                    className={`rounded-lg border px-2 py-1 text-[11px] transition ${orteSichtbar
-                      ? 'border-zinc-700 text-slate-300 hover:border-sky-500'
-                      : 'border-sky-500 bg-sky-950/30 text-sky-400'}`}>
-                    {orteSichtbar ? uebs('Orte an') : uebs('Orte aus')}
-                  </button>
-                )}
-                <button onClick={() => setSpielerSichtbar((v) => !v)}
-                  title={uebs('Die eingetragenen Teams ein- und ausblenden')}
-                  className={`rounded-lg border px-2 py-1 text-[11px] transition ${spielerSichtbar
-                    ? 'border-zinc-700 text-slate-300 hover:border-sky-500'
-                    : 'border-sky-500 bg-sky-950/30 text-sky-400'}`}>
-                  {spielerSichtbar ? uebs('Teams an') : uebs('Teams aus')}
-                </button>
-                <button onClick={() => setVollbildKarte((v) => !v)}
-                  className="rounded-lg border border-zinc-700 px-2 py-1 text-[11px]
-                             text-slate-300 hover:border-sky-500">
-                  {vollbildKarte ? `✕ ${uebs('Schließen')}` : `⛶ ${uebs('Vollbild')}`}
-                </button>
               </div>
             </div>
+            )}
 
             {/* Die Karten dieses Spieltags.
                 Laeuft ein Tag auf zwei Karten - erst Slurpush, dann
@@ -2416,6 +2405,42 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
                 else setStatus(uebs('Dort ist keine Form — zieh das Team auf einen Spot'));
               }}>
 
+            {/*
+              * Ortsnamen und Vollbild - zwei kleine Quadrate oben rechts auf
+              * der Karte, wie im Karten-Werkzeug. "Teams an/aus" gibt es nicht
+              * mehr: der Betreiber will ihn "komplett immer loeschen,
+              * ueberall" - ohne Teams ist die Karte hier ohne Sinn.
+              */}
+            <div onMouseDown={(e) => e.stopPropagation()} onMouseUp={(e) => e.stopPropagation()}
+              className="absolute right-2 top-2 z-30 flex flex-col gap-1.5">
+              {!bildId && (
+                <button type="button" onClick={() => setOrteSichtbar((v) => !v)}
+                  title={uebs('Ortsnamen auf der Karte ein- und ausblenden')}
+                  aria-label={uebs('Ortsnamen auf der Karte ein- und ausblenden')}
+                  className={`flex h-9 w-9 items-center justify-center rounded-lg border transition ${orteSichtbar
+                    ? 'border-sky-500 bg-sky-500 text-white'
+                    : 'border-zinc-700 bg-zinc-900/90 text-slate-300 hover:border-zinc-500 hover:text-white'}`}>
+                  <svg viewBox="0 0 20 20" className="h-[18px] w-[18px]" fill="none" stroke="currentColor"
+                    strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M1 10s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6Z" />
+                    <circle cx="10" cy="10" r="2.6" />
+                  </svg>
+                </button>
+              )}
+              <button type="button" onClick={() => setVollbildKarte((v) => !v)}
+                title={vollbildKarte ? uebs('Schließen') : uebs('Vollbild')}
+                aria-label={vollbildKarte ? uebs('Schließen') : uebs('Vollbild')}
+                className={`flex h-9 w-9 items-center justify-center rounded-lg border transition ${vollbildKarte
+                  ? 'border-sky-500 bg-sky-500 text-white'
+                  : 'border-zinc-700 bg-zinc-900/90 text-slate-300 hover:border-zinc-500 hover:text-white'}`}>
+                <svg viewBox="0 0 20 20" className="h-[18px] w-[18px]" fill="none" stroke="currentColor"
+                  strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M7.5 2.5h-5v5" /><path d="M12.5 2.5h5v5" />
+                  <path d="M17.5 12.5v5h-5" /><path d="M2.5 12.5v5h5" />
+                </svg>
+              </button>
+            </div>
+
             <div ref={ebene} className="absolute inset-0 origin-top-left"
               style={{
                 transform:
@@ -2506,7 +2531,7 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
                 * Zoomen auf dem Bildschirm gleich gross, ohne dass die Karte
                 * neu gezeichnet werden muss.
                 */}
-              {spielerSichtbar && spots.map((sp) => {
+              {spots.map((sp) => {
                 const keys = aufSpot[sp.id] ?? [];
                 if (!keys.length) return null;
                 const r = rahmen(sp.punkte);
