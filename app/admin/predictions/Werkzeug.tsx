@@ -337,6 +337,69 @@ function tag(ms: number) {
  * muss, ist die Map." Gespeichert wird von selbst, ohne Knopf; die Stifte
  * zum Pflegen von Flaggen und Namen bleiben dem Admin.
  */
+/*
+ * Die Wahl des MVP.
+ *
+ * Vorher ein freies Feld mit den Vorschlaegen des Browsers - nur Namen, und
+ * wer sich vertippte, hatte einen MVP, den es nicht gibt. Der Betreiber
+ * (24.9.2026): "wenn ich da Leute suche, soll eine Liste kommen mit den
+ * Spielern ... von der Liste rechts, mit Flagge vorne dran und welcher
+ * Region, dass man die auswaehlen kann." Uebernommen wird nur, was in der
+ * Liste angeklickt wird.
+ */
+interface MvpSpieler { name: string; land?: string | null; region: string; schluessel: string }
+function MvpWahl({ wert, setzen, spieler, gross }: {
+  wert: string; setzen: (name: string) => void; spieler: MvpSpieler[]; gross: boolean;
+}) {
+  const uebs = useT();
+  const [offen, setOffen] = useState(false);
+  const [suche, setSuche] = useState('');
+  const treffer = useMemo(() => {
+    const q = suche.trim().toLowerCase();
+    return q ? spieler.filter((x) => x.name.toLowerCase().includes(q)) : spieler;
+  }, [spieler, suche]);
+  const waehle = (x: MvpSpieler) => { setzen(x.name); setOffen(false); setSuche(''); };
+
+  return (
+    <div className="relative min-w-0 flex-1">
+      <input value={offen ? suche : wert}
+        onFocus={() => { setOffen(true); setSuche(''); }}
+        onChange={(e) => { setSuche(e.target.value); setOffen(true); }}
+        onBlur={() => setTimeout(() => setOffen(false), 150)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' && treffer[0]) { e.preventDefault(); waehle(treffer[0]); }
+          if (e.key === 'Escape') setOffen(false);
+        }}
+        placeholder={uebs('Spieler suchen …')}
+        className="w-full min-w-0 bg-transparent text-slate-100 outline-none placeholder:text-slate-600" />
+      {offen && (
+        // Nach oben: der MVP steht unten in der Liste, darunter ist kein Platz.
+        <ul className="absolute bottom-full left-0 right-0 z-40 mb-2 max-h-72 overflow-y-auto rounded-lg
+                       border border-zinc-700 bg-zinc-950 py-1 shadow-2xl">
+          {treffer.length ? treffer.map((x) => (
+            <li key={x.schluessel}>
+              <button type="button"
+                // Vor dem Verlassen des Feldes waehlen, sonst schliesst die Liste zuerst.
+                onMouseDown={(e) => { e.preventDefault(); waehle(x); }}
+                className={`flex w-full items-center gap-2 px-2.5 text-left transition hover:bg-zinc-800 ${
+                  gross ? 'py-2 text-[15px]' : 'py-1.5 text-[12px]'} ${x.name === wert ? 'bg-amber-500/10' : ''}`}>
+                <TeamFlagge laender={[x.land]} groesse={gross ? 22 : 18} />
+                <span className="min-w-0 flex-1 truncate font-semibold text-slate-100">{x.name}</span>
+                {x.region && (
+                  <span className="shrink-0 rounded border border-zinc-700 px-1.5 text-[10px] font-semibold
+                                   text-slate-400">{x.region}</span>
+                )}
+              </button>
+            </li>
+          )) : (
+            <li className="px-2.5 py-2 text-[12px] text-slate-500"><T>Kein Spieler gefunden</T></li>
+          )}
+        </ul>
+      )}
+    </div>
+  );
+}
+
 export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
   globals?: boolean;
   eigen?: boolean;
@@ -410,8 +473,11 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
    */
   const [turnierKarten, setTurnierKarten] = useState<Array<{
     id: string; titel: string; cupId?: string; bildId?: string;
-    bildTitel?: string; spots?: Spot[]; eventId?: string;
+    bildTitel?: string; spots?: Array<Spot & { teams?: string[] }>; eventId?: string;
+    teams?: Array<{ id: string; ids?: string[] }>; geaendert?: number;
   }>>([]);
+  /** Bei den Globals: LAN-Konto -> Schluessel des Teams im Feld. */
+  const [lanZuKey, setLanZuKey] = useState<Record<string, string>>({});
   const [turnierListeOffen, setTurnierListeOffen] = useState(false);
   const [karteNr, setKarteNr] = useState(0);
   const [kartenTitel, setKartenTitel] = useState('');
@@ -1245,8 +1311,10 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
           }> }>;
         };
         if (!r.ok || d.error) throw new Error(d.error ?? 'nicht ladbar');
+        const lan: Record<string, string> = {};
         const liste: TeamImFeld[] = (d.teams ?? []).map((t) => {
           const ids = t.spieler.map((s) => s.epicId || s.turnierId);
+          for (const s of t.spieler) lan[s.turnierId] = [...ids].sort().join('|');
           return {
             key: [...ids].sort().join('|'),
             namen: t.spieler.map((s) => s.anzeige),
@@ -1257,6 +1325,7 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
           };
         });
         setFeld(liste);
+        setLanZuKey(lan);
         setQuellen([]); setFeldHinweise([]); setFeldGeprueft(true);
         setPlaetze((alt) => (plaetzeBehalten && alt.length ? alt
           : Array.from({ length: liste.length }, () => null)));
@@ -1412,6 +1481,8 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
 
   /** Ein Team auf eine Form der Karte legen. Ein Team steht nur an einem Ort. */
   function aufForm(spotId: string, key: string) {
+    // Die Globals-Karte gehoert dem Karten-Werkzeug - hier nur ansehen.
+    if (karteFest) { setStatus(uebs('Die Karte wird im Karten-Werkzeug verteilt.')); return; }
     setAufSpot((alt) => {
       const neu: Record<string, string[]> = {};
       for (const [id, keys] of Object.entries(alt)) {
@@ -1424,6 +1495,7 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
   }
 
   function vonForm(spotId: string, key: string) {
+    if (karteFest) return;
     setAufSpot((alt) => {
       const rest = (alt[spotId] ?? []).filter((k) => k !== key);
       const neu = { ...alt };
@@ -1454,11 +1526,19 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
   /* ==================================================== Mehrere Karten */
 
   useEffect(() => {
-    fetch('/api/turnier-karten')
+    // Bei den Globals ist die Karte die aus dem Karten-Werkzeug - sie soll
+    // hier ankommen, ohne dass jemand neu laedt.
+    const holen = () => fetch('/api/turnier-karten')
       .then((r) => r.json())
-      .then((d) => setTurnierKarten(d.karten ?? []))
+      .then((d) => setTurnierKarten((alt) =>
+        // Die Ersatzkopie (Ablage antwortet nicht) ersetzt keinen echten Stand.
+        (d.ersatz && alt.length ? alt : d.karten ?? [])))
       .catch(() => {});
-  }, []);
+    void holen();
+    if (!globals) return;
+    const uhr = setInterval(holen, 60_000);
+    return () => clearInterval(uhr);
+  }, [globals]);
 
   /** Welche Turnierkarten gehoeren zum gerade gewaehlten Cup? */
   const passendeTurnierKarten = useMemo(
@@ -1759,27 +1839,48 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [eigen, cupId, gespeicherteDa, feld.length, plaetze, aufSpot, mvp, qualiBis, titel]);
 
-  const globalsKarteGenommen = useRef(false);
+  /*
+   * Bei den Globals ist die Karte DIE Karte aus dem Karten-Werkzeug - mit
+   * Formen und Teams, genau wie unter "Map".
+   *
+   * Der Betreiber (24.9.2026): "diese Map bei Prediction soll eigentlich die
+   * Map sein, die man unter Map sieht ... ich als VIP soll ja nicht andere
+   * User auf einen anderen Spot tun." Vorher kamen nur die Formen, einmal,
+   * ohne Belegung. Jetzt wird die Karte bei jeder Aenderung dort neu
+   * uebernommen, und hier laesst sich darauf nichts verschieben.
+   */
+  const globalsKarte = useMemo(
+    () => (globals ? turnierKarten.find((k) => k.eventId === GLOBALS_EVENT && k.spots?.length) ?? null : null),
+    [globals, turnierKarten]);
+  const karteFest = !!globalsKarte;
+  const globalsStand = useRef('');
   useEffect(() => {
-    if (!globals || !cupId || globalsKarteGenommen.current) return;
-    if (karten.some((k) => k.eigen && k.spots.length)) { globalsKarteGenommen.current = true; return; }
-    const tk = turnierKarten.find((k) => k.eventId === GLOBALS_EVENT && k.spots?.length);
-    if (!tk) return;
-    globalsKarteGenommen.current = true;
+    if (!globalsKarte || !cupId) return;
+    const stand = `${globalsKarte.id}|${globalsKarte.geaendert ?? 0}|${Object.keys(lanZuKey).length}`;
+    if (globalsStand.current === stand) return;
+    globalsStand.current = stand;
+    const teamKey = new Map((globalsKarte.teams ?? []).map((t) => [
+      t.id, (t.ids ?? []).map((id) => lanZuKey[id]).find(Boolean) ?? null,
+    ]));
+    const aufSpotNeu: Record<string, string[]> = {};
+    for (const sp of globalsKarte.spots ?? []) {
+      const keys = (sp.teams ?? []).map((t) => teamKey.get(t)).filter((k): k is string => !!k);
+      if (keys.length) aufSpotNeu[sp.id] = keys;
+    }
     const neu: Karte = {
-      id: 'k1', bildId: tk.bildId ?? '', titel: 'Global Championship (2026)',
-      spots: (tk.spots ?? []).map((sp) => ({
+      id: 'k1', bildId: globalsKarte.bildId ?? '', titel: 'Global Championship (2026)',
+      spots: (globalsKarte.spots ?? []).map((sp) => ({
         id: sp.id, form: sp.form, punkte: sp.punkte,
         ...(sp.name ? { name: sp.name } : {}),
         ...(sp.farbe ? { farbe: sp.farbe } : {}),
       })),
-      aufSpot: {}, eigen: true,
+      aufSpot: aufSpotNeu, eigen: true,
     };
     const uhr = setTimeout(() => karteZeigen([neu], 0), 0);
     return () => clearTimeout(uhr);
     // karteZeigen setzt nur Zustand.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [globals, cupId, karten, turnierKarten]);
+  }, [globalsKarte, cupId, lanZuKey]);
 
   if (istAdmin === false && !eigen) {
     return (
@@ -2214,7 +2315,16 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
                   <span className="text-[11px] text-slate-500">{formenStand}</span>
                 )}
 
-                {Object.keys(aufSpot).length > 0 && !eigen && (
+                {/* Die Globals-Karte wird im Karten-Werkzeug verteilt - der
+                    Weg dorthin statt eines Leeren-Knopfes. */}
+                {globalsKarte && (
+                  <a href={`/maps?id=${encodeURIComponent(globalsKarte.id)}`}
+                    className="rounded-lg border border-zinc-700 px-2 py-1 text-[11px]
+                               text-slate-300 hover:border-sky-500 hover:text-sky-300">
+                    <T>Im Karten-Werkzeug öffnen</T>
+                  </a>
+                )}
+                {Object.keys(aufSpot).length > 0 && !eigen && !karteFest && (
                   <button onClick={() => setAufSpot({})}
                     className="rounded-lg border border-zinc-700 px-2 py-1 text-[11px]
                                text-slate-300 hover:border-rose-500">
@@ -2561,13 +2671,13 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
                       const versatz = spanne && r.breite > 0
                         ? ((spanne.mitte - mitteX) / r.breite) * 100 : 0;
                       return (
-                        <div key={k} draggable
+                        <div key={k} draggable={!karteFest}
                           onDragStart={(ev) => {
                             ev.dataTransfer.setData('text/team', k); setZieht(k);
                           }}
                           onClick={() => vonForm(sp.id, k)}
-                          title={uebs('Klick entfernt das Team von dieser Form')}
-                          className="pointer-events-auto relative cursor-pointer"
+                          title={karteFest ? undefined : uebs('Klick entfernt das Team von dieser Form')}
+                          className={`relative ${karteFest ? '' : 'pointer-events-auto cursor-pointer'}`}
                           style={versatz ? { left: `${versatz}%` } : undefined}>
                           {texte.map((t, z) => (
                             <p key={z} className="karten-name"
@@ -2760,15 +2870,13 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
                     ? 'gap-3 px-3 py-2 text-[15px]' : 'gap-2 px-2 py-1 text-[12px]'}`}>
                     <span className={`shrink-0 text-[11px] font-bold text-amber-300 ${
                       vollbildListe ? 'w-10' : 'w-8'}`}>MVP</span>
-                    <input value={mvp} onChange={(e) => setMvp(e.target.value)}
-                      list="mvp-namen" placeholder={uebs('Spieler suchen …')}
-                      className="min-w-0 flex-1 bg-transparent text-slate-100 outline-none
-                                 placeholder:text-slate-600" />
-                    <datalist id="mvp-namen">
-                      {feld.flatMap((t) => t.namen.map((n, k) => ({
-                        n: findeProfil(n, t.ids[k])?.anzeige || n,
-                      }))).map((x) => <option key={x.n} value={x.n} />)}
-                    </datalist>
+                    <MvpWahl wert={mvp} setzen={setMvp} gross={vollbildListe}
+                      spieler={feld.flatMap((t) => t.namen.map((n, k) => ({
+                        name: nameVon(n, t.ids[k]),
+                        land: findeProfil(n, t.ids[k])?.land,
+                        region: t.region,
+                        schluessel: `${t.key}#${k}`,
+                      })))} />
                     {mvp && (
                       <button onClick={() => setMvp('')} title={uebs('Leeren')}
                         className="shrink-0 text-slate-600 hover:text-rose-400">×</button>
@@ -2800,7 +2908,8 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
             <div className="flex flex-col rounded-xl border border-zinc-800 bg-zinc-900/40 p-3
                             lg:min-h-0 lg:flex-1">
               <div className="mb-2 flex items-center justify-between">
-                <h2 className="text-sm font-semibold text-slate-100"><T>Feld</T></h2>
+                {/* "List" statt "Field" - der Betreiber wollte es so genannt haben. */}
+                <h2 className="text-sm font-semibold text-slate-100"><T>Liste</T></h2>
                 <span className="text-xs text-slate-500">
                   {feld.length - offen.length}/{feld.length} <T>gesetzt</T>
                 </span>

@@ -1378,6 +1378,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   ['Freie Form: Ecken klicken, am ersten Punkt schließen']:
     'Free shape: click the corners, close at the first point',
   'Ganze Karte': 'Whole map',
+  'Die Karte wird im Karten-Werkzeug verteilt.': 'Teams are placed on this map in the map tool.',
   ['Diese Seite zeigt einen älteren Stand der Karte. Damit er nichts überschreibt, wird nicht gespeichert. Bitte neu laden und dann weiterarbeiten.']:
     'This page shows an older version of the map. To keep it from overwriting anything, nothing is saved. Please reload, then carry on.',
   ['Die Ablage antwortet gerade nicht. Du siehst die letzte Sicherung, und die kann älter sein. Deine Karte ist nicht verloren. Gespeichert wird erst wieder, wenn die Ablage antwortet.']:
