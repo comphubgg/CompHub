@@ -38,6 +38,7 @@ import { useZugang } from '@/app/lib/zugang';
 import LadeSchirm from '@/app/components/LadeSchirm';
 import { MARKE } from '@/lib/marke';
 import { SCRIM_SERVER, einladungVon } from '@/lib/scrimServer';
+import { flaggenPfad, GLOBUS } from '@/components/TeamFlagge';
 
 /* ================================================================ Daten */
 
@@ -52,6 +53,8 @@ interface Sitzung {
   archiv?: boolean;
   /** Poyo: Battle Royale, Reload, OG ... */
   modus?: string | null;
+  /** Poyo heute: angemeldet und Plaetze - "0/100 players". */
+  spieler?: number; plaetze?: number;
 }
 interface Team {
   teamId: string;
@@ -81,8 +84,14 @@ interface Serie {
   quelle?: 'noble' | 'poyo' | 'yunite';
   /** Gerade ohne Scrims (Noble X). */
   inaktiv?: boolean;
-  /** Zeigt seine Sessions nicht oeffentlich (Poyo Closed Division). */
-  privat?: boolean;
+  /**
+   * Seit wann keine Sessions mehr (Poyo Closed Division: zuletzt am 9.9.).
+   * Stand vorher als "privat" da - falsch, der Server ist oeffentlich, er
+   * spielt nur gerade nicht.
+   */
+  ruhtSeit?: string | null;
+  /** Die Discord-Einladung - fuer "Join server". */
+  einladung?: string | null;
   /** Die Quelle hat fuer diesen Server nicht geantwortet. */
   fehler?: boolean;
 }
@@ -288,11 +297,47 @@ function beispielRunden(groesse: number, offen = false): Runde[] {
   }));
 }
 
-/** Woher die Spieler kommen - nur im Beispiel; Yunite nennt es nicht. */
-function beispielLaender(spieler: number): Array<[string, number]> {
-  const teil = (x: number) => Math.round(spieler * x);
-  const oben: Array<[string, number]> = [['FR', teil(0.11)], ['GB', teil(0.11)], ['IT', teil(0.09)], ['DE', teil(0.08)]];
-  return [...oben, ['Other', spieler - oben.reduce((a, [, z]) => a + z, 0)]];
+/*
+ * Die Flagge eines Spielers - nur, wo die Quelle ein Land nennt (Noble) und
+ * es dazu eine Flagge gibt. Kein Globus als Ersatz: der saehe aus wie eine
+ * Angabe, die es nicht gibt.
+ */
+function flaggeVon(land?: string | null): string | null {
+  if (!land) return null;
+  const k = land.toUpperCase() === 'UK' ? 'GB' : land;
+  const pfad = flaggenPfad(k);
+  return pfad === GLOBUS ? null : pfad;
+}
+
+/** Namen mit Flagge davor, mehrere mit "+" verbunden. */
+function Namen({ spieler }: { spieler: Team['spieler'] }) {
+  return (
+    <>
+      {spieler.map((sp, i) => {
+        const f = flaggeVon(sp.land);
+        return (
+          <span key={`${sp.name}-${i}`}>
+            {i > 0 && ' + '}
+            {f && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={f} alt={sp.land ?? ''} title={sp.land ?? ''}
+                className="mr-1.5 inline-block h-3.5 w-3.5 rounded-full object-cover align-[-2px]
+                           ring-1 ring-black/40" />
+            )}
+            {sp.name}
+          </span>
+        );
+      })}
+    </>
+  );
+}
+
+/** Wie lange noch bis zum Start: "in 14 min", "in 2 h". */
+function baldText(ms: number, jetzt: number) {
+  const min = Math.max(0, Math.round((ms - jetzt) / 60_000));
+  if (min < 60) return `in ${min} min`;
+  const h = Math.floor(min / 60);
+  return `in ${h} h${min % 60 ? ` ${min % 60} min` : ''}`;
 }
 
 /* ============================================================ Helfer */
@@ -399,7 +444,9 @@ function Kachel({ serie, offen, umschalten, waehle }: {
 }) {
   const status = statusVon(serie);
   const beispiel = !!serie.beispiel;
-  const { sprache } = useSprache();
+  const { sprache, t } = useSprache();
+  // Fuer "Upcoming · in 14 min" - einmal beim Aufklappen gemessen.
+  const [jetzt] = useState(() => Date.now());
 
   return (
     <div className={`group relative overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950
@@ -424,10 +471,10 @@ function Kachel({ serie, offen, umschalten, waehle }: {
         {/* Oben: links der Stand, rechts Region und - im Beispiel - der Hinweis. */}
         <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start
                         justify-between gap-2 p-3">
-          {serie.inaktiv || serie.fehler || serie.privat ? (
+          {serie.inaktiv || serie.fehler || serie.ruhtSeit ? (
             <span className="rounded-full bg-black/65 px-2.5 py-1 text-[11px] font-bold uppercase
                              tracking-wider text-slate-400 ring-1 ring-white/15 backdrop-blur-sm">
-              {serie.inaktiv ? <T>Inaktiv</T> : serie.privat ? <T>Privat</T> : <T>Keine Antwort</T>}
+              {serie.inaktiv || serie.ruhtSeit ? <T>Inaktiv</T> : <T>Keine Antwort</T>}
             </span>
           ) : <StatusMarke status={status} />}
           <span className="flex flex-col items-end gap-1.5">
@@ -438,10 +485,15 @@ function Kachel({ serie, offen, umschalten, waehle }: {
                 {serie.region}
               </span>
             )}
+            {/*
+              * Ein Server ohne Datenquelle. Der Betreiber (25.9.2026): statt
+              * "Example" lieber "Not connected" - drinnen steht weiterhin
+              * ein gekennzeichnetes Beispiel.
+              */}
             {beispiel && (
               <span className="rounded bg-black/80 px-2 py-0.5 text-[10px] font-bold uppercase
                                tracking-wider text-amber-300">
-                <T>Beispiel</T>
+                <T>Nicht verbunden</T>
               </span>
             )}
           </span>
@@ -458,7 +510,8 @@ function Kachel({ serie, offen, umschalten, waehle }: {
               <p className="p-3 text-center text-xs text-slate-500">
                 {serie.inaktiv ? <T>Dieser Server ist gerade inaktiv.</T>
                   : serie.fehler ? <T>nobleprac.com antwortet gerade nicht.</T>
-                    : serie.privat ? <T>Dieser Server zeigt seine Sessions nicht öffentlich.</T>
+                    : serie.ruhtSeit
+                      ? <>{t('Keine Sessions seit')} {kurzDatum(Date.parse(`${serie.ruhtSeit}T12:00:00Z`), sprache)}.</>
                       : <T>Keine Sessions.</T>}
               </p>
             )}
@@ -476,8 +529,8 @@ function Kachel({ serie, offen, umschalten, waehle }: {
                   </span>
                 )}
                 <span className={`shrink-0 text-[11px] font-bold uppercase ${
-                  s.live ? 'text-sky-400' : s.vorbei ? 'text-slate-500' : 'text-emerald-400'}`}>
-                  {s.live ? 'Live' : s.vorbei ? 'Ended' : 'Open'}
+                  s.live ? 'text-sky-400' : s.vorbei ? 'text-slate-500' : 'text-indigo-300'}`}>
+                  {s.live ? 'Live' : s.vorbei ? 'Ended' : `Upcoming · ${baldText(s.beginn, jetzt)}`}
                 </span>
               </button>
             ))}
@@ -514,8 +567,10 @@ function ServerRand() {
         <div key={s.name}
           className="flex items-center gap-3 overflow-hidden rounded-xl border border-zinc-800
                      bg-black/40 pr-3">
+          {/* Volle Zeilenhoehe: bei zweizeiligem Namen stand sonst oben und
+              unten ein schwarzer Streifen (Poyo No Zone Rules). */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={s.logo} alt="" className="h-16 w-16 shrink-0 object-cover" />
+          <img src={s.logo} alt="" className="min-h-16 w-16 shrink-0 self-stretch object-cover" />
           <div className="min-w-0 flex-1">
             <p className="text-sm font-bold leading-tight text-slate-100">{s.name}</p>
             {s.region && <p className="text-[11px] text-slate-500">{s.region}</p>}
@@ -553,38 +608,6 @@ function Kennzahl({ titel, wert }: { titel: string; wert: string | number }) {
   );
 }
 
-/** Der Kringel "Spieler je Land" - nur mit Werten, die es gibt. */
-function Kringel({ teile }: { teile: Array<[string, number]> }) {
-  const summe = teile.reduce((s, [, n]) => s + n, 0) || 1;
-  const farben = ['#38bdf8', '#f43f5e', '#34d399', '#facc15', '#6366f1', '#a78bfa'];
-  const umfang = 2 * Math.PI * 38;
-  const stuecke = teile.map(([land, n], i) => {
-    const vorher = teile.slice(0, i).reduce((s, [, m]) => s + m, 0) / summe;
-    return { land, anteil: n / summe, vorher, farbe: farben[i % farben.length] };
-  });
-  return (
-    <div className="flex items-center gap-5">
-      <svg viewBox="0 0 100 100" className="h-28 w-28 -rotate-90">
-        {stuecke.map((s) => (
-          <circle key={s.land} cx="50" cy="50" r="38" fill="none" stroke={s.farbe}
-            strokeWidth="12" strokeDasharray={`${s.anteil * umfang} ${umfang}`}
-            strokeDashoffset={-s.vorher * umfang} />
-        ))}
-      </svg>
-      <ul className="space-y-1 text-xs">
-        {teile.map(([land, n], i) => (
-          <li key={land} className="flex items-center gap-2 tabular-nums">
-            <span className="h-2 w-2 rounded-full" style={{ background: farben[i % farben.length] }} />
-            <span className="w-12 font-semibold text-slate-200">{land}</span>
-            <span className="w-10 text-right text-slate-300">{n}</span>
-            <span className="w-12 text-right text-slate-500">{((n / summe) * 100).toFixed(1)}%</span>
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
 /** Wie sich die Punkte der Teams verteilen - sechs Spannen, wie im Vorbild. */
 function PunkteVerteilung({ teams }: { teams: Team[] }) {
   const hoechst = Math.max(1, ...teams.map((t) => t.punkte));
@@ -609,13 +632,21 @@ function PunkteVerteilung({ teams }: { teams: Team[] }) {
   );
 }
 
-function SessionSeite({ serie, sitzung, teams, runden, laender, laedt, nichtDa, zurueck, wechsle }: {
+function SessionSeite({ serie, sitzung, teams, runden, laedt, nichtDa, zurueck, wechsle }: {
   serie: Serie; sitzung: Sitzung; teams: Team[]; runden: Runde[]; nichtDa: boolean;
-  /** Spieler je Land - nur, wo die Quelle es nennt (Noble). */
-  laender: Array<[string, number]> | null;
   laedt: boolean; zurueck: () => void; wechsle: (s: Sitzung) => void;
 }) {
   const beispiel = !!serie.beispiel;
+  /*
+   * Offene Server (Noble Practice Scrims) spielen viele Lobbys zugleich -
+   * so heissen sie dort auch. Der Betreiber: "es sind zwar Matches, aber man
+   * nennt die Lobbys." Bei Divisionen besteht eine Session aus Matches.
+   */
+  const rundenWort = serie.offen ? 'Lobbys' : 'Matches';
+  // Solo: keine Teams, nur Spieler.
+  const solo = sitzung.teamGroesse === 1;
+  const kommt = !sitzung.live && !sitzung.vorbei && !beispiel;
+  const [jetzt] = useState(() => Date.now());
   /*
    * Echt von einer offenen Seite (Noble, Poyo) - und wo das Leaderboard
    * dort steht, damit der Kopf der Tabelle dorthin verweist.
@@ -741,13 +772,26 @@ function SessionSeite({ serie, sitzung, teams, runden, laender, laedt, nichtDa, 
                   </option>
                 ))}
               </select>
+              {/* Den Server gleich betreten - die Einladung, wie der Server sie nennt. */}
+              {serie.einladung && (
+                <a href={serie.einladung} target="_blank" rel="noreferrer"
+                  className="flex items-center gap-1.5 rounded-lg bg-[#5865F2] px-3 py-1.5 text-xs
+                             font-bold text-white transition hover:bg-[#4752c4]">
+                  <T>Server beitreten</T>
+                </a>
+              )}
             </div>
             <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-1.5 text-sm
                             font-semibold text-slate-200">
               <span>📅 {uhr(sitzung.beginn, sprache)}{sitzung.ende ? ` – ${uhr(sitzung.ende, sprache)}` : ''}</span>
               {sitzung.ende > sitzung.beginn && <span>⏱ {dauer(sitzung.ende - sitzung.beginn)}</span>}
               <span>👤 {GROESSE[sitzung.teamGroesse] ?? `${sitzung.teamGroesse}er`}</span>
-              <span>⚔ {runden.length} <T>Matches</T></span>
+              {kommt ? (
+                <span className="text-indigo-300">
+                  Upcoming · {baldText(sitzung.beginn, jetzt)}
+                  {!!sitzung.plaetze && ` · ${sitzung.spieler ?? 0}/${sitzung.plaetze} ${t('Spieler')}`}
+                </span>
+              ) : <span>⚔ {runden.length} <T>{rundenWort}</T></span>}
               {sitzung.bauen === 'ZERO_BUILD' && <span>Zero Build</span>}
               {/* Poyo spielt auch Reload und OG - Battle Royale ist der Normalfall. */}
               {sitzung.modus && sitzung.modus !== 'Battle Royale' && <span>{sitzung.modus}</span>}
@@ -764,9 +808,13 @@ function SessionSeite({ serie, sitzung, teams, runden, laender, laedt, nichtDa, 
       {!laedt && offeneQuelle && !teams.length && (
         <p className="mb-5 rounded-xl border border-amber-500/25 bg-amber-500/[0.06] px-4 py-3
                       text-sm text-amber-200/90">
-          {nichtDa
-            ? <T>Die Quelle gibt dieses Leaderboard gerade nicht heraus, auch dort lässt es sich nicht öffnen. Jüngere Sessions stehen meist vollständig da.</T>
-            : <T>Zu dieser Session hat die Quelle keine Einträge. Gespielt wurde offenbar nicht.</T>}
+          {kommt
+            ? <T>Diese Session hat noch nicht begonnen. Das Leaderboard steht hier, sobald die erste Runde gespielt ist.</T>
+            : sitzung.live
+              ? <T>Die Session läuft, es gibt aber noch keine Einträge. Sie erscheinen nach der ersten gewerteten Runde.</T>
+              : nichtDa
+                ? <T>Die Quelle gibt dieses Leaderboard gerade nicht heraus, auch dort lässt es sich nicht öffnen. Jüngere Sessions stehen meist vollständig da.</T>
+                : <T>Zu dieser Session hat die Quelle keine Einträge. Gespielt wurde offenbar nicht.</T>}
           {' '}({quellSeite})
         </p>
       )}
@@ -795,34 +843,18 @@ function SessionSeite({ serie, sitzung, teams, runden, laender, laedt, nichtDa, 
 
                 {reiter === 'uebersicht' ? (
                   <div className="p-4">
-                    <div className="grid gap-6 md:grid-cols-2">
-                      <div>
-                        <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-300">
-                          <T>Spieler je Land</T>
-                        </p>
-                        {beispiel ? <Kringel teile={beispielLaender(spielerZahl)} />
-                          : laender?.length ? <Kringel teile={laender} /> : (
-                            <p className="text-xs text-slate-500">
-                              {serie.quelle === 'noble'
-                                ? <T>Kein Spieler dieser Session hat ein Land hinterlegt.</T>
-                                : serie.quelle === 'poyo'
-                                  ? <T>Die Herkunft der Spieler nennt die Quelle nicht.</T>
-                                  : <T>Die Herkunft der Spieler gibt Yunite nicht heraus.</T>}
-                            </p>
-                          )}
-                      </div>
-                      <div>
-                        <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-300">
-                          <T>Punkte der Teams</T>
-                        </p>
-                        <PunkteVerteilung teams={teams} />
-                      </div>
+                    {/* Spieler je Land ist weg - der Betreiber wollte die Statistik nicht. */}
+                    <div>
+                      <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-300">
+                        {solo ? <T>Punkte der Spieler</T> : <T>Punkte der Teams</T>}
+                      </p>
+                      <PunkteVerteilung teams={teams} />
                     </div>
                     <p className="mt-5 text-sm font-semibold text-slate-200">
-                      <T>Insgesamt</T> <span className="text-xs text-slate-500">{runden.length} <T>Matches</T></span>
+                      <T>Insgesamt</T> <span className="text-xs text-slate-500">{runden.length} <T>{rundenWort}</T></span>
                     </p>
-                    <div className="mt-2 grid grid-cols-2 gap-4 sm:grid-cols-4">
-                      <Kennzahl titel="Teams" wert={teams.length} />
+                    <div className={`mt-2 grid grid-cols-2 gap-4 ${solo ? 'sm:grid-cols-3' : 'sm:grid-cols-4'}`}>
+                      {!solo && <Kennzahl titel="Teams" wert={teams.length} />}
                       <Kennzahl titel="Spieler" wert={spielerZahl} />
                       <Kennzahl titel="Kills" wert={kills.toLocaleString('en-US')} />
                       <Kennzahl titel="Siege" wert={teams.reduce((n, x) => n + x.siege, 0)} />
@@ -852,9 +884,11 @@ function SessionSeite({ serie, sitzung, teams, runden, laender, laedt, nichtDa, 
                 <Filter an={liste === 'spieler'} onClick={() => setListe('spieler')}>
                   <T>Spieler</T>
                 </Filter>
-                <Filter an={liste === 'teams'} onClick={() => setListe('teams')}>
-                  <T>Teams</T>
-                </Filter>
+                {!solo && (
+                  <Filter an={liste === 'teams'} onClick={() => setListe('teams')}>
+                    <T>Teams</T>
+                  </Filter>
+                )}
               </div>
 
               <div className="overflow-hidden rounded-2xl border border-zinc-800 bg-black/40">
@@ -863,7 +897,7 @@ function SessionSeite({ serie, sitzung, teams, runden, laender, laedt, nichtDa, 
                     <a href={quellLink} target="_blank" rel="noreferrer" className="hover:text-sky-400">
                       <T>Daten von</T> {quellSeite}
                     </a>
-                  ) : <T>Powered by Yunite</T>} {'//'} {teams.length} <T>Teams</T>
+                  ) : <T>Powered by Yunite</T>} {'//'} {teams.length} {solo ? <T>Spieler</T> : <T>Teams</T>}
                   {beispiel && <> {'//'} <span className="text-amber-300"><T>Beispiel</T></span></>}
                 </p>
                 <div className="border-b border-zinc-800 px-4 py-2">
@@ -880,7 +914,7 @@ function SessionSeite({ serie, sitzung, teams, runden, laender, laedt, nichtDa, 
                         <thead className="text-xs capitalize text-slate-400">
                           <tr>
                             <th className="px-4 py-2 font-medium"><T>Platz</T></th>
-                            <th className="px-2 py-2 font-medium"><T>Team</T></th>
+                            <th className="px-2 py-2 font-medium">{solo ? <T>Spieler</T> : <T>Team</T>}</th>
                             <th className="px-2 py-2 text-right font-medium"><T>Punkte</T></th>
                             <th className="px-2 py-2 text-right font-medium"><T>Matches</T></th>
                             <th className="px-2 py-2 text-right font-medium"><T>Siege</T></th>
@@ -900,9 +934,7 @@ function SessionSeite({ serie, sitzung, teams, runden, laender, laedt, nichtDa, 
                                 </span>
                               </td>
                               <td className="max-w-[340px] px-2 py-2.5 font-semibold text-slate-100">
-                                <span className="line-clamp-1">
-                                  {tm.spieler.map((s) => s.name).join(' + ')}
-                                </span>
+                                <span className="line-clamp-1"><Namen spieler={tm.spieler} /></span>
                               </td>
                               <td className="px-2 py-2.5 text-right font-bold text-slate-100">{tm.punkte}</td>
                               <td className="px-2 py-2.5 text-right text-slate-300">{tm.matches}</td>
@@ -927,7 +959,7 @@ function SessionSeite({ serie, sitzung, teams, runden, laender, laedt, nichtDa, 
                         <tbody className="tabular-nums">
                           {gefiltert.slice(0, zeigen).flatMap((tm) => tm.spieler.map((s) => (
                             <tr key={`${tm.teamId}-${s.name}`} className={zeile}>
-                              <td className="px-4 py-2 font-semibold text-slate-100">{s.name}</td>
+                              <td className="px-4 py-2 font-semibold text-slate-100"><Namen spieler={[s]} /></td>
                               <td className="px-2 py-2 text-right text-slate-300">{tm.platz}</td>
                               <td className="px-2 py-2 text-right text-slate-300">{tm.punkte}</td>
                               <td className="px-4 py-2 text-right text-slate-300">{tm.elims}</td>
@@ -937,7 +969,7 @@ function SessionSeite({ serie, sitzung, teams, runden, laender, laedt, nichtDa, 
                       </table>
                     )}
 
-                    {liste === 'teams' && (
+                    {liste === 'teams' && !solo && (
                       <table className="w-full text-left text-sm">
                         <thead className="text-xs capitalize text-slate-400">
                           <tr>
@@ -952,7 +984,7 @@ function SessionSeite({ serie, sitzung, teams, runden, laender, laedt, nichtDa, 
                           {[...gefiltert].sort((a, b) => b.elims - a.elims).slice(0, zeigen).map((tm) => (
                             <tr key={tm.teamId} className={zeile}>
                               <td className="max-w-[340px] px-4 py-2 font-semibold text-slate-100">
-                                <span className="line-clamp-1">{tm.spieler.map((s) => s.name).join(' + ')}</span>
+                                <span className="line-clamp-1"><Namen spieler={tm.spieler} /></span>
                               </td>
                               <td className="px-2 py-2 text-right text-slate-300">{tm.elims}</td>
                               <td className="px-2 py-2 text-right text-slate-300">{tm.siege}</td>
@@ -979,11 +1011,11 @@ function SessionSeite({ serie, sitzung, teams, runden, laender, laedt, nichtDa, 
                   {liste === 'leaderboard' && team && (
                     <div className="border-t border-zinc-800 lg:border-l lg:border-t-0">
                       <p className="border-b border-zinc-800 px-4 py-2 text-xs font-semibold text-slate-400">
-                        #{team.platz} <T>Team-Details</T>
+                        #{team.platz} {solo ? <T>Spieler-Details</T> : <T>Team-Details</T>}
                       </p>
                       <div className="space-y-1 border-b border-zinc-800 px-4 py-3">
                         {team.spieler.map((s) => (
-                          <p key={s.name} className="truncate text-lg font-black text-slate-100">{s.name}</p>
+                          <p key={s.name} className="truncate text-lg font-black text-slate-100"><Namen spieler={[s]} /></p>
                         ))}
                       </div>
                       <div className="grid grid-cols-3 gap-3 border-b border-zinc-800 px-4 py-3 text-xs tabular-nums">
@@ -1000,8 +1032,13 @@ function SessionSeite({ serie, sitzung, teams, runden, laender, laedt, nichtDa, 
                           </div>
                         ))}
                       </div>
-                      <div className="max-h-80 space-y-1.5 overflow-y-auto p-3">
-                        {team.spiele.map((sp, i) => (
+                      {/*
+                        * Neueste zuerst, wie bei nobleprac.com - und ohne eigene
+                        * Bildlaufleiste: die Liste waechst mit, gescrollt wird die
+                        * Seite. Erst bei sehr vielen Runden bekommt sie eine.
+                        */}
+                      <div className={`space-y-1.5 p-3 ${team.spiele.length > 40 ? 'max-h-[80vh] overflow-y-auto' : ''}`}>
+                        {team.spiele.map((sp, nr) => ({ sp, nr })).reverse().map(({ sp, nr: i }) => (
                           <div key={i}
                             className={`flex items-center justify-between rounded-lg border px-3 py-2 text-xs ${
                               sp.platz === 1 ? 'border-amber-500/40 bg-amber-500/10'
@@ -1009,7 +1046,7 @@ function SessionSeite({ serie, sitzung, teams, runden, laender, laedt, nichtDa, 
                                   : 'border-zinc-800 bg-zinc-900/40'}`}>
                             <div>
                               <p className="text-[10px] text-slate-500">
-                                {uhr(sp.zeitpunkt, sprache, false)}
+                                {sp.zeitpunkt ? uhr(sp.zeitpunkt, sprache, false) : `${rundenWort === 'Lobbys' ? 'Lobby' : 'Match'} ${i + 1}`}
                               </p>
                               <p className="font-bold text-slate-100">
                                 {sp.platz}. <T>Platz</T>
@@ -1040,7 +1077,7 @@ function SessionSeite({ serie, sitzung, teams, runden, laender, laedt, nichtDa, 
                   <div key={b.titel} className="border-b border-zinc-900 px-4 py-3 last:border-0">
                     <p className="text-[11px] font-semibold text-sky-400"><T>{b.titel}</T></p>
                     <p className="truncate text-sm font-bold text-slate-100">
-                      {b.team?.spieler.map((s) => s.name).join(' + ') ?? '–'}
+                      {b.team ? <Namen spieler={b.team.spieler} /> : '–'}
                     </p>
                     <p className="text-[11px] text-slate-500">{b.wert}</p>
                   </div>
@@ -1049,14 +1086,14 @@ function SessionSeite({ serie, sitzung, teams, runden, laender, laedt, nichtDa, 
             </section>
             <section>
               <h2 className="mb-2 flex items-baseline gap-2 text-lg font-black uppercase tracking-wide text-slate-100">
-                <T>Matches</T> <span className="text-xs font-normal normal-case text-slate-500">{runden.length}</span>
+                <T>{rundenWort}</T> <span className="text-xs font-normal normal-case text-slate-500">{runden.length}</span>
               </h2>
               <div className="max-h-96 space-y-1.5 overflow-y-auto rounded-2xl border border-zinc-800 bg-black/40 p-3">
                 {runden.map((r, i) => (
                   <div key={r.sessionId}
                     className="rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-2 text-xs">
                     <p className="text-[10px] text-slate-500">
-                      {uhr(r.zeitpunkt, sprache)} {'//'} Match {runden.length - i}
+                      {uhr(r.zeitpunkt, sprache)} {'//'} {rundenWort === 'Lobbys' ? 'Lobby' : 'Match'} {runden.length - i}
                     </p>
                     <p className="font-semibold text-slate-200">
                       {r.ignoriert ? t('nicht gewertet')
@@ -1093,7 +1130,6 @@ export default function ScrimsSeite() {
   const [laedt, setLaedt] = useState(true);
   const [laedtCup, setLaedtCup] = useState(false);
   const [hinweis, setHinweis] = useState('');
-  const [laender, setLaender] = useState<Array<[string, number]> | null>(null);
   /** Noble: das Leaderboard gibt es dort gerade nicht (sonst: einfach ohne Eintraege). */
   const [nichtDa, setNichtDa] = useState(false);
 
@@ -1119,7 +1155,10 @@ export default function ScrimsSeite() {
         fetch('/api/scrims?quelle=archiv').then((r) => (r.ok ? r.json() : null)).catch(() => null),
         fetch('/api/scrims?quelle=noble').then((r) => r.json()).catch(() => null),
       ]) as [{
-        server: Array<{ quelle: 'noble' | 'poyo'; guildId: string; name: string; bild?: string | null; inaktiv?: boolean }>;
+        server: Array<{
+          quelle: 'noble' | 'poyo'; guildId: string; name: string; bild?: string | null; inaktiv?: boolean;
+          einladung?: string | null; letzterTag?: string | null;
+        }>;
         sitzungen: Array<{
           id: string; quelle: string; guildId: string; name: string; beginn: number; ende: number;
           teamGroesse: number; modus?: string | null; nichtDa?: boolean;
@@ -1127,9 +1166,19 @@ export default function ScrimsSeite() {
       } | null, {
         serien?: Array<{
           guildId: string; name: string; logo: string; offen?: boolean; inaktiv?: boolean;
-          fehler?: boolean; sitzungen: Sitzung[];
+          fehler?: boolean; sitzungen: Sitzung[]; einladung?: string | null;
         }>;
       } | null];
+
+      // Poyo heute: was ansteht oder laeuft - das Archiv kennt nur Beendetes.
+      const poyoIds = (archiv?.server ?? []).filter((s) => s.quelle === 'poyo').map((s) => s.guildId);
+      const heute: Record<string, Array<{
+        id: string; name: string; guildId: string; teamGroesse: number; modus: string | null;
+        beginn: number; live: boolean; spieler: number; plaetze: number;
+      }>> = poyoIds.length
+        ? (await fetch(`/api/scrims?quelle=poyo-heute&server=${poyoIds.join(',')}`)
+          .then((r) => r.json()).catch(() => null))?.heute ?? {}
+        : {};
 
       const liveNoble = new Map((live?.serien ?? []).map((x) => [x.guildId, x]));
       // Alle Server: die aus dem Archiv, und Nobles, falls das Archiv fehlt.
@@ -1151,7 +1200,12 @@ export default function ScrimsSeite() {
         const nl = sv.quelle === 'noble' ? liveNoble.get(sv.guildId) : undefined;
         // Live dazu, was das Archiv (noch) nicht hat - laufende und frische Sessions.
         const bekannt = new Set(ausArchiv.filter((s) => s.archiv).map((s) => s.id));
-        const dazu = (nl?.sitzungen ?? []).filter((s) => !bekannt.has(s.id));
+        const dazu: Sitzung[] = [
+          ...(nl?.sitzungen ?? []),
+          ...(heute[sv.guildId] ?? []).map((h) => ({
+            ...h, region: 'EU', ende: 0, art: 'SCRIM', vorbei: false,
+          })),
+        ].filter((s) => !bekannt.has(s.id));
         const ohneDoppelte = ausArchiv.filter((s) => s.archiv || !dazu.some((d) => d.id === s.id));
         const sitzungen = [...ohneDoppelte, ...dazu]
           .sort((a, b) => (b.live ? 1 : 0) - (a.live ? 1 : 0) || b.beginn - a.beginn);
@@ -1161,7 +1215,8 @@ export default function ScrimsSeite() {
           logo: nl?.logo ?? logoFuer(sv.name, sv.bild ?? null),
           offen: nl?.offen, inaktiv: sv.inaktiv || nl?.inaktiv,
           fehler: !sitzungen.length && nl?.fehler,
-          privat: sv.quelle === 'poyo' && !sitzungen.length,
+          ruhtSeit: sv.quelle === 'poyo' && !sitzungen.length ? (sv.letzterTag ?? null) : null,
+          einladung: nl?.einladung ?? sv.einladung ?? null,
           quelle: sv.quelle, sitzungen,
         };
       });
@@ -1216,7 +1271,7 @@ export default function ScrimsSeite() {
 
   /** Eine Session öffnen: Bestenliste und Runden dazu. */
   const oeffnen = useCallback(async (serie: Serie, sitzung: Sitzung) => {
-    setOffen({ serie, sitzung }); setTeams([]); setRunden([]); setLaender(null); setNichtDa(false);
+    setOffen({ serie, sitzung }); setTeams([]); setRunden([]); setNichtDa(false);
     setOffeneKachel(null);
     if (typeof window !== 'undefined') window.scrollTo({ top: 0 });
     // Das Beispiel braucht keine Abfrage - es steht schon fest.
@@ -1233,16 +1288,24 @@ export default function ScrimsSeite() {
           .then((r) => r.json());
         setTeams(d.teams ?? []);
         setRunden(d.runden ?? []);
-        setLaender(d.laender ?? null);
         setNichtDa(!!d.nichtDa || !d.teams);
         if (d.turnier) setOffen({ serie, sitzung: { ...sitzung, ...d.turnier, archiv: true } });
       } catch { setNichtDa(true); }
       finally { setLaedtCup(false); }
       return;
     }
-    // Poyo gibt es nur aus dem Archiv; fehlt die Session dort, fehlt sie der Quelle.
+    // Poyo, noch nicht im Archiv: kommt es erst, gibt es nichts zu holen;
+    // sonst live von scrims.poyocup.com.
     if (serie.quelle === 'poyo') {
-      setNichtDa(true); setLaedtCup(false);
+      if (!sitzung.live && !sitzung.vorbei) { setLaedtCup(false); return; }
+      try {
+        const d = await fetch(`/api/scrims?quelle=poyo&server=${encodeURIComponent(sitzung.guildId ?? '')}`
+          + `&turnier=${encodeURIComponent(sitzung.id)}`).then((r) => r.json());
+        setTeams(d.teams ?? []);
+        setRunden(d.runden ?? []);
+        setNichtDa(!!d.nichtDa);
+      } catch { setNichtDa(true); }
+      finally { setLaedtCup(false); }
       return;
     }
     if (serie.quelle === 'noble') {
@@ -1251,7 +1314,6 @@ export default function ScrimsSeite() {
           .then((r) => r.json());
         setTeams(d.teams ?? []);
         setRunden(d.runden ?? []);
-        setLaender(d.laender ?? null);
         setNichtDa(!!d.nichtDa);
         // Die Teamgroesse und die Regeln kennt erst das Leaderboard selbst.
         if (d.turnier) setOffen({ serie, sitzung: { ...sitzung, ...d.turnier } });
@@ -1281,7 +1343,7 @@ export default function ScrimsSeite() {
       sitzungen: s.sitzungen.filter((x) => (art === 'scrims' ? x.art === 'SCRIM' : x.art !== 'SCRIM')),
     }))
     // Ein inaktiver Server (Noble X) bleibt unter Scrims sichtbar - mit Hinweis.
-    .filter((s) => s.sitzungen.length || (art === 'scrims' && (s.inaktiv || s.fehler || s.privat)))
+    .filter((s) => s.sitzungen.length || (art === 'scrims' && (s.inaktiv || s.fehler || s.ruhtSeit)))
     .filter((s) => region === 'alle' || s.region === region)
     .sort((a, b) => Number(!!a.beispiel) - Number(!!b.beispiel)
       || RANG[statusVon(a)] - RANG[statusVon(b)]), [serien, art, region]);
@@ -1332,7 +1394,7 @@ export default function ScrimsSeite() {
 
         {laedt || zugang.laedt ? <LadeSchirm /> : offen ? (
           <SessionSeite serie={offen.serie} sitzung={offen.sitzung} teams={teams} runden={runden}
-            laender={laender} laedt={laedtCup} nichtDa={nichtDa}
+            laedt={laedtCup} nichtDa={nichtDa}
             zurueck={() => setOffen(null)}
             wechsle={(s) => { void oeffnen(offen.serie, s); }} />
         ) : (
@@ -1449,7 +1511,7 @@ export default function ScrimsSeite() {
                                   <span className="truncate">{x.name}</span>
                                   <span className={`text-[11px] font-bold uppercase ${
                                     x.live ? 'text-sky-400' : x.vorbei ? 'text-slate-500' : 'text-emerald-400'}`}>
-                                    {x.live ? 'Live' : x.vorbei ? 'Ended' : 'Open'}
+                                    {x.live ? 'Live' : x.vorbei ? 'Ended' : 'Upcoming'}
                                   </span>
                                 </button>
                               ))}

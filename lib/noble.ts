@@ -26,6 +26,8 @@ export interface NobleServer {
   guildId: string; name: string; logo: string;
   /** Offen fuer alle - viele Lobbys zugleich statt einer. */
   offen?: boolean;
+  /** Die Discord-Einladung, wie nobleprac.com sie nennt (geschlossene Server haben keine). */
+  einladung?: string | null;
   /** Gerade ohne Scrims (Noble X, laut Betreiber "gerade inaktiv"). */
   inaktiv?: boolean;
 }
@@ -35,14 +37,24 @@ export interface NobleServer {
  * stehen dort im Programm der Seite; die Logos sind Nobles eigene.
  */
 export const NOBLE_SERVER: NobleServer[] = [
-  { guildId: '854725181384556584', name: 'Noble Practice Scrims', logo: '/scrims/noble-gelb.jpg', offen: true },
-  { guildId: '1098721307077652630', name: 'Noble Solos', logo: '/scrims/noble-solos.jpg', offen: true },
+  /*
+   * Offen ist nur Noble Practice Scrims: "da kann ja jeder mitspielen", und
+   * seine vielen parallelen Spiele heissen Lobbys (der Betreiber, 25.9.2026).
+   */
+  { guildId: '854725181384556584', name: 'Noble Practice Scrims', logo: '/scrims/noble-gelb.jpg', offen: true,
+    einladung: 'https://discord.gg/eu' },
+  { guildId: '1098721307077652630', name: 'Noble Solos', logo: '/scrims/noble-solos.jpg',
+    einladung: 'https://discord.gg/vpR7e9nGW4' },
   { guildId: '1403403384115040368', name: 'Noble Solos Closed', logo: '/scrims/noble-solos-closed.jpg' },
-  { guildId: '1275856938940502047', name: 'Noble Division 0', logo: '/scrims/noble-division-0.jpg' },
+  { guildId: '1275856938940502047', name: 'Noble Division 0', logo: '/scrims/noble-division-0.jpg',
+    einladung: 'https://discord.gg/2pgMcz8QU2' },
   { guildId: '902656971113644132', name: 'Noble Division 3', logo: '/scrims/noble-blau.jpg' },
-  { guildId: '1539238647587405884', name: 'Noble Division 2', logo: '/scrims/noble-lachs.jpg' },
-  { guildId: '757573638995050608', name: 'Noble Division 1', logo: '/scrims/noble-gruen.jpg' },
-  { guildId: '797443677403217940', name: 'Noble Pro Scrims', logo: '/scrims/noble-gold.jpg' },
+  { guildId: '1539238647587405884', name: 'Noble Division 2', logo: '/scrims/noble-lachs.jpg',
+    einladung: 'https://discord.gg/SjHbcrQW3h' },
+  { guildId: '757573638995050608', name: 'Noble Division 1', logo: '/scrims/noble-gruen.jpg',
+    einladung: 'https://discord.gg/SjHbcrQW3h' },
+  { guildId: '797443677403217940', name: 'Noble Pro Scrims', logo: '/scrims/noble-gold.jpg',
+    einladung: 'https://discord.gg/RyfHPqvY' },
   { guildId: '858831001663963156', name: 'Noble X', logo: '/scrims/noble-x.jpg', inaktiv: true },
 ];
 
@@ -134,6 +146,13 @@ export interface NobleRunde {
 
 const runde2 = (x: number) => Math.round(x * 100) / 100;
 
+/** Nobles Laendercode als ISO-Kuerzel - "global" heisst: keines, "UK" ist GB. */
+function landVon(c?: string): string | null {
+  if (!c || c === 'global') return null;
+  const k = c.toUpperCase();
+  return k === 'UK' ? 'GB' : k;
+}
+
 /**
  * Ein Leaderboard: Teams, Runden und woher die Spieler kommen.
  *
@@ -172,7 +191,7 @@ export async function nobleLeaderboard(id: string) {
       spieler: (x.players ?? []).map((p) => ({
         name: p.displayName, epicId: p.accountId,
         // "global" heisst dort: kein Land hinterlegt.
-        land: p.country && p.country !== 'global' ? p.country.toUpperCase() : null,
+        land: landVon(p.country),
       })),
       platz: x.placement, punkte: x.points, elims: x.kills, matches: n,
       siege: spiele.filter((s) => s.placement === 1).length,

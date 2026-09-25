@@ -15,6 +15,10 @@ import { speicher } from '@/lib/ablage';
 export interface ArchivServer {
   quelle: 'noble' | 'poyo'; guildId: string; name: string; region: string;
   bild?: string | null; inaktiv?: boolean;
+  /** Die Discord-Einladung des Servers. */
+  einladung?: string | null;
+  /** Poyo: der letzte Tag mit Sessions (fuer Server, die gerade ruhen). */
+  letzterTag?: string | null;
 }
 export interface ArchivKurz {
   id: string; quelle: 'noble' | 'poyo'; guildId: string; server: string; name: string;

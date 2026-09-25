@@ -84,13 +84,25 @@ function team(t) {
 
 /* ---------------------------------------------------------------- Noble */
 
+// Id, Name, Discord-Einladung (wie nobleprac.com sie nennt; geschlossene haben keine).
 const NOBLE = [
-  ['854725181384556584', 'Noble Practice Scrims'], ['1098721307077652630', 'Noble Solos'],
-  ['1403403384115040368', 'Noble Solos Closed'], ['1275856938940502047', 'Noble Division 0'],
-  ['902656971113644132', 'Noble Division 3'], ['1539238647587405884', 'Noble Division 2'],
-  ['757573638995050608', 'Noble Division 1'], ['797443677403217940', 'Noble Pro Scrims'],
-  ['858831001663963156', 'Noble X'],
+  ['854725181384556584', 'Noble Practice Scrims', 'https://discord.gg/eu'],
+  ['1098721307077652630', 'Noble Solos', 'https://discord.gg/vpR7e9nGW4'],
+  ['1403403384115040368', 'Noble Solos Closed', null],
+  ['1275856938940502047', 'Noble Division 0', 'https://discord.gg/2pgMcz8QU2'],
+  ['902656971113644132', 'Noble Division 3', null],
+  ['1539238647587405884', 'Noble Division 2', 'https://discord.gg/SjHbcrQW3h'],
+  ['757573638995050608', 'Noble Division 1', 'https://discord.gg/SjHbcrQW3h'],
+  ['797443677403217940', 'Noble Pro Scrims', 'https://discord.gg/RyfHPqvY'],
+  ['858831001663963156', 'Noble X', null],
 ];
+
+/** Nobles Laendercode als ISO-Kuerzel - "global" heisst: keines, "UK" ist GB. */
+function landVon(c) {
+  if (!c || c === 'global') return null;
+  const k = String(c).toUpperCase();
+  return k === 'UK' ? 'GB' : k;
+}
 
 function groesseAusName(name) {
   const n = name.toLowerCase();
@@ -132,7 +144,7 @@ async function nobleServer(guildId, name, alt) {
       .map((x) => team({
         teamId: x.teamId, platz: x.placement, punkte: x.points, kills: x.kills,
         spieler: (x.players ?? []).map((p) => [p.displayName, p.accountId || null,
-          p.country && p.country !== 'global' ? p.country.toUpperCase() : null, null]),
+          landVon(p.country), null]),
         runden: (x.games ?? []).map((g) => [g.placement, g.kills, g.score,
           Math.round((Date.parse(g.timestamp) || 0) / 1000), g.sessionId, Math.round(g.survivalTime || 0)]),
       }));
@@ -148,8 +160,12 @@ async function nobleServer(guildId, name, alt) {
 const POYO = 'https://scrims.poyocup.com/api/view/servers';
 const GROESSE = { Solo: 1, Duo: 2, Trio: 3, Squad: 4 };
 
-async function poyoServer(guildId, name, alt) {
+async function poyoServer(guildId, name, alt, sv) {
   const erst = await json(`${POYO}/${guildId}`);
+  // Der letzte Tag mit Sessions - fuer Server, die gerade ruhen (Poyo Closed
+  // Division spielte zuletzt am 9.9.2026). So steht da "seit ... keine
+  // Sessions" statt eines falschen "privat".
+  sv.letzterTag = (erst?.availableDays ?? [])[0] ?? null;
   const tage = (erst?.availableDays ?? []).filter(imFenster);
   // Heute steht nicht immer in availableDays, solange noch nichts vorbei ist.
   if (imFenster(heute) && !tage.includes(heute)) tage.push(heute);
@@ -221,8 +237,8 @@ async function main() {
   const index = (await abgelegt('scrims/_index.json')) ?? { sitzungen: [] };
 
   const server = [
-    ...NOBLE.map(([id, name]) => ({
-      quelle: 'noble', guildId: id, name, region: 'EU',
+    ...NOBLE.map(([id, name, einladung]) => ({
+      quelle: 'noble', guildId: id, name, region: 'EU', einladung,
       // Noble X ist gerade inaktiv (der Betreiber, und die Quelle antwortet mit 400).
       ...(name === 'Noble X' ? { inaktiv: true } : {}),
     })),
@@ -252,7 +268,7 @@ async function main() {
     try {
       sitzungen = sv.quelle === 'noble'
         ? await nobleServer(sv.guildId, sv.name, alt)
-        : await poyoServer(sv.guildId, sv.name, alt);
+        : await poyoServer(sv.guildId, sv.name, alt, sv);
     } catch (e) {
       console.warn(`  ${sv.name}: ${e.message} - der abgelegte Stand bleibt`);
       continue;
@@ -260,6 +276,9 @@ async function main() {
     // Was frueher abgelegt war und jetzt fehlt (die Quelle hat es vergessen), bleibt.
     const jetzt = new Set(sitzungen.map((s) => s.id));
     for (const s of alt.values()) if (!jetzt.has(s.id)) sitzungen.push(s);
+
+    // Alte Eintraege mit "UK" (vor dem 25.9.) auf das ISO-Kuerzel bringen.
+    for (const s of sitzungen) for (const t of s.teams) for (const p of t.s) if (p[2] === 'UK') p[2] = 'GB';
 
     const jeTag = new Map();
     for (const s of sitzungen) (jeTag.get(s.tag) ?? jeTag.set(s.tag, []).get(s.tag)).push(s);

@@ -6,6 +6,7 @@ import {
 } from '@/lib/yunite';
 import { NOBLE_SERVER, nobleSitzungen, nobleLeaderboard } from '@/lib/noble';
 import { scrimVerzeichnis, scrimSession } from '@/lib/scrimArchiv';
+import { poyoHeute, poyoLobby } from '@/lib/poyo';
 
 // Die Scrims der Community-Server - siehe lib/yunite.
 //
@@ -66,6 +67,27 @@ export async function GET(request: Request) {
       const v = await scrimVerzeichnis();
       // Kein Verzeichnis ist kein "leer": die Seite sagt dann, dass es fehlt.
       return v ? NextResponse.json(v) : NextResponse.json({ error: 'kein-archiv' }, { status: 503 });
+    } catch (e) {
+      return NextResponse.json({ error: (e as Error).message }, { status: 502 });
+    }
+  }
+
+  /*
+   * Poyo live: was heute ansteht oder laeuft (fuer "Upcoming"), und eine
+   * Lobby, die das Archiv noch nicht hat - siehe lib/poyo.
+   */
+  if (searchParams.get('quelle') === 'poyo-heute') {
+    const ids = (searchParams.get('server') ?? '').split(',').map((x) => x.trim())
+      .filter((x) => /^\d{5,25}$/.test(x)).slice(0, 12);
+    return NextResponse.json({ heute: await poyoHeute(ids) });
+  }
+  if (searchParams.get('quelle') === 'poyo') {
+    if (!/^\d{5,25}$/.test(guildId) || !/^[0-9a-f]{24}$/i.test(turnierId)) {
+      return NextResponse.json({ error: 'unbekannt' }, { status: 400 });
+    }
+    try {
+      const l = await poyoLobby(guildId, turnierId);
+      return l ? NextResponse.json(l) : NextResponse.json({ nichtDa: true, teams: [], runden: [] });
     } catch (e) {
       return NextResponse.json({ error: (e as Error).message }, { status: 502 });
     }
