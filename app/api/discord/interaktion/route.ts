@@ -8,6 +8,7 @@ import {
   ticketOeffnen, ticketSchliessen,
   zugangFormular, zugangAnfrage, zugangEntscheiden, darfEntscheiden,
   anfrageAusNachricht, zugangChat, zugangNachricht, zugangLoeschen, zugangStufe,
+  chatErstellen, nachrichtAnMitglied, dmsSpiegeln, alsCompHub, vorlagenText, zeitraumVon, VORLAGEN,
   type KnopfNachricht,
 } from '@/lib/discord';
 
@@ -131,6 +132,9 @@ export async function POST(request: NextRequest) {
     user?: { id?: string; username?: string; global_name?: string };
     data?: {
       custom_id?: string;
+      /** Slash-Befehl: Name und Optionen. */
+      name?: string;
+      options?: Array<{ name: string; value?: string }>;
       /*
        * Was in einem Eingabefenster stand.
        *
@@ -150,6 +154,36 @@ export async function POST(request: NextRequest) {
 
   // Typ 1: Discord klopft nur an.
   if (d.type === 1) return NextResponse.json({ type: 1 });
+
+  /* ------------------------------------------------ /comphub (Typ 2) */
+  /*
+   * Der Admin schreibt, CompHub postet. Die Antwort an den Admin sieht nur
+   * er ("Sent"); im Kanal steht allein die Nachricht von CompHub.
+   */
+  if (d.type === 2 && d.data?.name === 'comphub') {
+    const wer = d.member?.user ?? d.user;
+    if (!(await darfEntscheiden(wer, d.member?.roles ?? []))) return nurFuerIhn('Only the admin can post as CompHub.');
+    if (!d.channel_id) return nurFuerIhn('I could not tell which channel this is.');
+    const opt = Object.fromEntries((d.data.options ?? []).map((o) => [o.name, String(o.value ?? '')]));
+    let text = (opt.message ?? '').trim();
+    if (opt.template) {
+      const v = vorlagenText(opt.template, opt.period);
+      if (!v.ok) return nurFuerIhn(v.text);
+      text = text ? `${text}\n\n${v.text}` : v.text;
+    }
+    if (!text) return nurFuerIhn('Write a message or pick a template.');
+    const kanal = d.channel_id;
+    after(async () => {
+      const ok = await alsCompHub(kanal, text);
+      if (d.application_id && d.token) {
+        await fetch(`https://discord.com/api/v10/webhooks/${d.application_id}/${d.token}/messages/@original`, {
+          method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content: ok ? 'Sent as CompHub.' : 'That did not go through - does the bot see this channel?' }),
+        });
+      }
+    });
+    return NextResponse.json({ type: 5, data: { flags: 64 } });
+  }
 
   // Typ 3 ist ein Knopf, Typ 5 ein abgeschicktes Eingabefenster.
   if (d.type !== 3 && d.type !== 5) return NextResponse.json({ type: 1 });
@@ -211,15 +245,37 @@ export async function POST(request: NextRequest) {
     });
     return NextResponse.json({ type: 5, data: { flags: 64 } });
   }
-  // Accept - nur der Admin.
-  if (id.startsWith('zugang:ok:')) {
+  // Accept - nur der Admin. Erst fragt ein Fenster, wie lange der Zugang
+  // gilt ("Infinity oder ein spezielles Datum", der Betreiber am 25.9.2026).
+  if (id.startsWith('zugang:ok:') || id.startsWith('zugang:okm:')) {
     if (!(await darfEntscheiden(nutzer, d.member?.roles ?? []))) return nurFuerIhn('Only the admin can decide this.');
     // "zugang:ok:<id>:vip" oder ":streamer" - aeltere Knoepfe ohne Zusatz
     // nahmen als VIP Streamer an, wie bisher.
-    const [anfrageId, wahl] = id.slice('zugang:ok:'.length).split(':');
+    const mitFenster = id.startsWith('zugang:okm:');
+    const [anfrageId, wahl] = id.slice(mitFenster ? 'zugang:okm:'.length : 'zugang:ok:'.length).split(':');
     const stufe = wahl === 'vip' ? 'vip' : 'streamer';
+    if (d.type === 3) {
+      return NextResponse.json({
+        type: 9,
+        data: {
+          custom_id: `zugang:okm:${anfrageId}:${stufe}`,
+          title: 'Accept - how long?',
+          components: [{
+            type: 1,
+            components: [{
+              type: 4, custom_id: 'bis', style: 1, required: false, max_length: 30,
+              label: 'Valid until (empty = unlimited)',
+              placeholder: '25.10.2026  or  1 month  or  2 weeks',
+            }],
+          }],
+        },
+      });
+    }
+    const eingabe = (felderAus().bis ?? '').trim();
+    const z = eingabe ? zeitraumVon(eingabe) : null;
+    if (eingabe && !z) return nurFuerIhn(`"${eingabe}" is not a date in the future or a duration - nothing was changed.`);
     const von = nutzer?.global_name || nutzer?.username || 'admin';
-    danach(async () => (await zugangEntscheiden(anfrageId, true, von, '', ausNachricht, stufe)).text);
+    danach(async () => (await zugangEntscheiden(anfrageId, true, von, '', ausNachricht, stufe, z?.bis ?? null)).text);
     return NextResponse.json({ type: 5, data: { flags: 64 } });
   }
   // Decline - erst der Grund (Fenster), dann die Entscheidung.
@@ -343,6 +399,118 @@ export async function POST(request: NextRequest) {
     });
 
     return NextResponse.json({ type: 5, data: { flags: 64 } });
+  }
+
+  /* ------------------------------------------------- Admin-Werkzeug */
+  if (id.startsWith('werkzeug:') || id === 'chat:zu') {
+    if (!(await darfEntscheiden(nutzer, d.member?.roles ?? []))) return nurFuerIhn('Only the admin can use this.');
+    const werte = d.data?.values ?? [];
+
+    // Create chat: erst die Leute waehlen (bis zu zehn) ...
+    if (id === 'werkzeug:chat') {
+      return NextResponse.json({
+        type: 4,
+        data: {
+          flags: 64,
+          content: 'Who should be in the chat? You and CompHub are always in it.',
+          components: [{ type: 1, components: [{
+            type: 5, custom_id: 'werkzeug:chat:wahl', placeholder: 'Pick members', min_values: 1, max_values: 10,
+          }] }],
+        },
+      });
+    }
+    // ... dann entsteht er.
+    if (id === 'werkzeug:chat:wahl') {
+      danach(async () => (await chatErstellen(werte)).text);
+      return NextResponse.json({ type: 5, data: { flags: 64 } });
+    }
+
+    // Message as CompHub: wer ...
+    if (id === 'werkzeug:nachricht') {
+      return NextResponse.json({
+        type: 4,
+        data: {
+          flags: 64,
+          content: 'Who should get the message? It is posted in their chat as CompHub.',
+          components: [{ type: 1, components: [{
+            type: 5, custom_id: 'werkzeug:nachricht:wer', placeholder: 'Pick a member', min_values: 1, max_values: 1,
+          }] }],
+        },
+      });
+    }
+    // ... eigener Text oder Vorlage ...
+    if (id === 'werkzeug:nachricht:wer') {
+      const wer = werte[0];
+      if (!wer) return nurFuerIhn('Nobody picked.');
+      return NextResponse.json({
+        type: 7,
+        data: {
+          content: `Message to <@${wer}> - write your own or start from a template:`,
+          allowed_mentions: { parse: [] },
+          components: [{ type: 1, components: [
+            { type: 2, style: 1, label: 'Write a message', custom_id: `werkzeug:nachricht:frei:${wer}` },
+            ...Object.entries(VORLAGEN).map(([k, v]) => ({
+              type: 2, style: 2, label: v.name, custom_id: `werkzeug:nachricht:vorlage:${k}:${wer}`,
+            })),
+          ] }],
+        },
+      });
+    }
+    // ... das Fenster (bei einer Vorlage mit ihrem Text vorausgefuellt) ...
+    if ((id.startsWith('werkzeug:nachricht:frei:') || id.startsWith('werkzeug:nachricht:vorlage:')) && d.type === 3) {
+      const teile = id.split(':');
+      const vorlage = teile[2] === 'vorlage' ? teile[3] : '';
+      const wer = teile[teile.length - 1];
+      const v = vorlage ? VORLAGEN[vorlage] : null;
+      return NextResponse.json({
+        type: 9,
+        data: {
+          custom_id: `werkzeug:nachricht:senden:${vorlage || '-'}:${wer}`,
+          title: v ? v.name : 'Message as CompHub',
+          components: [
+            { type: 1, components: [{
+              type: 4, custom_id: 'text', style: 2, label: 'Message (posted as CompHub)',
+              min_length: 2, max_length: 1800, required: true, ...(v ? { value: v.text } : {}),
+            }] },
+            ...(v?.zeitraum ? [{ type: 1, components: [{
+              type: 4, custom_id: 'zeitraum', style: 1, required: true, max_length: 30,
+              label: 'Period (shown in bold below)', placeholder: '25.10.2026  or  1 month',
+            }] }] : []),
+          ],
+        },
+      });
+    }
+    // ... und abschicken.
+    if (id.startsWith('werkzeug:nachricht:senden:')) {
+      const teile = id.split(':');
+      const vorlage = teile[3] === '-' ? '' : teile[3];
+      const wer = teile[4];
+      const f = felderAus();
+      let text = (f.text ?? '').trim();
+      if (vorlage && VORLAGEN[vorlage]?.zeitraum) {
+        const z = zeitraumVon(f.zeitraum ?? '');
+        if (!z) return nurFuerIhn(`"${f.zeitraum ?? ''}" is not a date in the future or a duration - nothing was sent.`);
+        text = `${text}\n\n${z.zeile}`;
+      }
+      if (!text) return nurFuerIhn('The message is empty.');
+      danach(async () => (await nachrichtAnMitglied(wer, text)).text);
+      return NextResponse.json({ type: 5, data: { flags: 64 } });
+    }
+
+    // DM inbox: neue Direktnachrichten nach #admin-dms.
+    if (id === 'werkzeug:dms') {
+      danach(async () => (await dmsSpiegeln()).text);
+      return NextResponse.json({ type: 5, data: { flags: 64 } });
+    }
+
+    // Einen Chat schliessen - nur der Admin; der Verlauf geht ins Archiv.
+    if (id === 'chat:zu') {
+      if (!d.channel_id) return nurFuerIhn('I could not tell which chat that is.');
+      const kanal = d.channel_id;
+      after(async () => { await ticketSchliessen(kanal); });
+      return NextResponse.json({ type: 5, data: { flags: 64 } });
+    }
+    return nurFuerIhn('Unknown button.');
   }
 
   if (id === 'ticket:zu') {

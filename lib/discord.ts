@@ -1716,7 +1716,7 @@ export async function ticketSchliessen(
   const wer = await ruf(`/channels/${kanal}`, 'GET');
   const name = (wer && !Array.isArray(wer) && typeof wer.name === 'string')
     ? wer.name : 'ticket';
-  if (!name.startsWith('ticket-') && !name.startsWith('mticket-')) {
+  if (!name.startsWith('ticket-') && !name.startsWith('mticket-') && !name.startsWith('chat-')) {
     return { ok: false, grund: 'kein-ticket' };
   }
 
@@ -2253,7 +2253,10 @@ async function direktnachricht(nutzerId: string, inhalt: Record<string, unknown>
   const dm = await ruf('/users/@me/channels', 'POST', { recipient_id: nutzerId });
   const kanal = idAus(dm);
   if (!kanal) return false;
-  return Boolean(idAus(await ruf(`/channels/${kanal}/messages`, 'POST', inhalt)));
+  const ok = Boolean(idAus(await ruf(`/channels/${kanal}/messages`, 'POST', inhalt)));
+  // Merken, damit die Antworten spaeter unter "DM inbox" zu sehen sind.
+  if (ok) await dmMerken(nutzerId, kanal);
+  return ok;
 }
 
 /** Die Anfrage-Nachricht nach der Entscheidung ohne Knoepfe, mit Ergebnis. */
@@ -2272,6 +2275,11 @@ async function anfrageAbschliessen(a: ZugangAnfrage, zeile: string): Promise<voi
 export async function zugangEntscheiden(
   id: string, angenommen: boolean, von: string, grund = '',
   ausNachricht?: ZugangAnfrage | null, stufe: VipStufe = 'streamer',
+  /**
+   * Wie lange der Zugang gilt - beim Annehmen gewaehlt ("Infinity oder ein
+   * spezielles Datum", der Betreiber am 25.9.2026). Ohne: unbegrenzt.
+   */
+  bis: number | null = null,
 ): Promise<{ ok: boolean; text: string }> {
   const { liste: anfragen, a } = await anfrageFinden(id, ausNachricht);
   if (!a) return { ok: false, text: 'I cannot find this request - neither in storage nor in the message.' };
@@ -2384,11 +2392,15 @@ export async function zugangEntscheiden(
     }],
   });
   const alsWas = a.art === 'vip' ? ` as ${STUFE_NAME[stufe]}` : '';
-  await anfrageAbschliessen(a, `Accepted by ${von} · access "${name}"${alsWas}${kanal ? ` · <#${kanal}>` : ''}${dm ? '' : ' · (DM could not be delivered)'}`);
+  // Die Laufzeit gleich mit setzen - vipFrist schreibt sie und meldet sie per DM.
+  const frist = bis ? await vipFrist(name, bis) : null;
+  const bisText = bis ? ` · until ${TAG_EN(bis)}` : ' · unlimited';
+  await anfrageAbschliessen(a, `Accepted by ${von} · access "${name}"${alsWas}${bisText}${kanal ? ` · <#${kanal}>` : ''}${dm ? '' : ' · (DM could not be delivered)'}`);
   return {
     ok: true,
     text: `Accepted${alsWas} - access "${name}" ${vorhanden ? 'finished' : 'created'}${kanal ? `, key in <#${kanal}>` : ''}`
-      + `${dm ? ', DM sent.' : ', but the DM could not be delivered (closed DMs).'}${ROLLEN_HINWEIS(rollenFehler)}`,
+      + `${dm ? ', DM sent.' : ', but the DM could not be delivered (closed DMs).'}${ROLLEN_HINWEIS(rollenFehler)}`
+      + (frist ? ` ${frist.text}` : ' No end date.'),
   };
 }
 
@@ -2758,4 +2770,329 @@ export async function abgelaufeneVipsLoeschen(): Promise<string[]> {
     if (erg.ok) weg.push(u.username);
   }
   return weg;
+}
+
+/* ==================================================================== */
+/* ================================================== Admin-Werkzeug == */
+/* ==================================================================== */
+
+/*
+ * Das Werkzeug des Betreibers im Admin-Bereich.
+ *
+ * Der Betreiber (25.9.2026): "ein Admin-Tool unter Admin im Discord, wo ich
+ * Buttons habe. Um Create the Chat, nachher kann ich dann User auswaehlen,
+ * mit wem oder mehrere User ... Dann werden die speziellen User in die
+ * Kategorie hinzugefuegt und in den einzelnen Chat ... ich kann ja mehrere
+ * Chats gleichzeitig haben." Und: alles, was er ueber einen Befehl schreibt,
+ * soll "als CompHub" erscheinen - "er schreibt im Discord, im Chat als
+ * CompHub, nicht ueber Privatnachrichten". Direktnachrichten gibt es weiter,
+ * und was die Leute dort antworten, will er sehen koennen.
+ *
+ * Alles im Discord ist englisch.
+ */
+
+const WERKZEUG_KANAL = 'admin-tools';
+const DM_KANAL = 'admin-dms';
+const CHAT_KATEGORIE = 'Chats';
+const DM_DATEI = path.join(DATEN_ORT, 'discord-dms.json');
+
+/** Vorlagen fuer Nachrichten als CompHub. */
+export const VORLAGEN: Record<string, { name: string; text: string; zeitraum?: boolean }> = {
+  temporary_vip: {
+    name: 'Temporary VIP access',
+    text: 'You have been temporarily granted VIP access. Please note that this status will only '
+      + 'remain active for a limited time. VIP status is strictly reserved for active content '
+      + 'creators and streamers. An exception was made in this case, as you do not currently '
+      + 'produce content.',
+    zeitraum: true,
+  },
+};
+
+const TAG_KURZ = (ms: number) => {
+  const d = new Date(ms);
+  return `${String(d.getUTCDate()).padStart(2, '0')}.${String(d.getUTCMonth() + 1).padStart(2, '0')}.${d.getUTCFullYear()}`;
+};
+
+/*
+ * Ein Zeitraum aus einer Eingabe: ein Datum ("25.10.2026", "2026-10-25")
+ * oder eine Dauer ("1 month", "2 weeks", "30 days", auch deutsch).
+ * Ergebnis: das Enddatum und die fette Zeile unter der Nachricht.
+ */
+export function zeitraumVon(eingabe: string, jetzt = Date.now()): { bis: number; zeile: string } | null {
+  const e = eingabe.trim().toLowerCase();
+  if (!e) return null;
+  let bis: number | null = null;
+  let dauer = '';
+  const datum = e.match(/^(\d{1,2})\.(\d{1,2})\.(\d{2,4})$/) ?? null;
+  const iso = e.match(/^(\d{4})-(\d{2})-(\d{2})$/);
+  if (datum) {
+    const j = Number(datum[3]) < 100 ? 2000 + Number(datum[3]) : Number(datum[3]);
+    bis = Date.UTC(j, Number(datum[2]) - 1, Number(datum[1]), 23, 59);
+  } else if (iso) {
+    bis = Date.UTC(Number(iso[1]), Number(iso[2]) - 1, Number(iso[3]), 23, 59);
+  } else {
+    const m = e.match(/^(\d+)\s*(day|days|tag|tage|week|weeks|woche|wochen|month|months|monat|monate|year|years|jahr|jahre)$/);
+    if (!m) return null;
+    const n = Number(m[1]);
+    const d = new Date(jetzt);
+    if (/^(day|tag)/.test(m[2])) d.setUTCDate(d.getUTCDate() + n);
+    else if (/^(week|woche)/.test(m[2])) d.setUTCDate(d.getUTCDate() + 7 * n);
+    else if (/^(month|monat)/.test(m[2])) d.setUTCMonth(d.getUTCMonth() + n);
+    else d.setUTCFullYear(d.getUTCFullYear() + n);
+    bis = d.getTime();
+    const einheit = /^(day|tag)/.test(m[2]) ? 'day' : /^(week|woche)/.test(m[2]) ? 'week'
+      : /^(month|monat)/.test(m[2]) ? 'month' : 'year';
+    dauer = ` (${n} ${einheit}${n === 1 ? '' : 's'})`;
+  }
+  if (!bis || !Number.isFinite(bis) || bis <= jetzt) return null;
+  return { bis, zeile: `**Access period: ${TAG_KURZ(jetzt)} – ${TAG_KURZ(bis)}${dauer}**` };
+}
+
+/** Der Text einer Vorlage, mit dem Zeitraum fett darunter. */
+export function vorlagenText(vorlage: string, zeitraum?: string): { ok: boolean; text: string } {
+  const v = VORLAGEN[vorlage];
+  if (!v) return { ok: false, text: 'Unknown template.' };
+  if (!v.zeitraum) return { ok: true, text: v.text };
+  const z = zeitraum ? zeitraumVon(zeitraum) : null;
+  if (!z) return { ok: false, text: 'This template needs a period - a date like 25.10.2026 or a duration like 1 month.' };
+  return { ok: true, text: `${v.text}\n\n${z.zeile}` };
+}
+
+/* ------------------------------------------------ Slash-Befehl /comphub */
+
+/**
+ * Den Befehl /comphub anmelden (nur auf dem CompHub-Server, nur fuer Admins).
+ * Ein Gildenbefehl steht sofort bereit, ein globaler erst nach bis zu einer
+ * Stunde.
+ */
+export async function befehleEinrichten(): Promise<{ ok: boolean; text: string }> {
+  if (!discordDa()) return { ok: false, text: 'no bot token' };
+  const app = await ruf('/applications/@me', 'GET');
+  const appId = app && !Array.isArray(app) && typeof app.id === 'string' ? app.id : process.env.DISCORD_APP_ID;
+  if (!appId) return { ok: false, text: 'application id unknown' };
+  const antwort = await ruf(`/applications/${appId}/guilds/${SERVER}/commands`, 'PUT', [{
+    name: 'comphub',
+    description: 'Post a message as CompHub in this channel',
+    type: 1,
+    default_member_permissions: '8',
+    dm_permission: false,
+    options: [
+      { type: 3, name: 'message', description: 'What CompHub should write', required: false, max_length: 1900 },
+      {
+        type: 3, name: 'template', description: 'A prepared message', required: false,
+        choices: Object.entries(VORLAGEN).map(([value, v]) => ({ name: v.name, value })),
+      },
+      { type: 3, name: 'period', description: 'For templates: until a date (25.10.2026) or a duration (1 month)', required: false },
+    ],
+  }]);
+  return Array.isArray(antwort)
+    ? { ok: true, text: '/comphub registered' }
+    : { ok: false, text: `registering /comphub failed (${letzterStatus})` };
+}
+
+/** Eine Nachricht als CompHub in einen Kanal. */
+export async function alsCompHub(kanal: string, text: string, erwaehnen: string[] = []): Promise<boolean> {
+  const inhalt = erwaehnen.length ? `${erwaehnen.map((u) => `<@${u}>`).join(' ')}\n${text}` : text;
+  const antwort = await ruf(`/channels/${kanal}/messages`, 'POST', {
+    content: inhalt.slice(0, 2000),
+    allowed_mentions: { users: erwaehnen },
+  });
+  return Boolean(idAus(antwort));
+}
+
+/* ---------------------------------------------------------------- Chats */
+
+async function mitgliedName(id: string): Promise<string> {
+  const m = await ruf(`/guilds/${SERVER}/members/${id}`, 'GET');
+  if (m && !Array.isArray(m)) {
+    const u = (m.user ?? {}) as { global_name?: string; username?: string };
+    return String(m.nick || u.global_name || u.username || id);
+  }
+  return id;
+}
+
+/**
+ * Einen Chat mit einem oder mehreren Mitgliedern aufmachen.
+ *
+ * Ein eigener Kanal in der Kategorie "Chats" (die entsteht, wenn es sie
+ * noch nicht gibt). Sehen koennen ihn nur die Gewaehlten, der Admin und der
+ * Bot. Oben steht eine angepinnte Einleitung. Gibt es fuer genau diese
+ * Leute schon einen Chat, wird er wiederverwendet.
+ */
+export async function chatErstellen(
+  nutzerIds: string[],
+): Promise<{ ok: boolean; kanal?: string; text: string }> {
+  if (!discordDa()) return { ok: false, text: 'no bot token' };
+  const ids = [...new Set(nutzerIds)].filter((x) => /^\d{5,25}$/.test(x)).slice(0, 10);
+  if (!ids.length) return { ok: false, text: 'Pick at least one member.' };
+  const namen = await Promise.all(ids.map(mitgliedName));
+  const kanalName = `chat-${namen.map((n) => [...n.toLowerCase()].map((z) => UMLAUTE[z] ?? z).join('')
+    .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 20) || 'member').join('-')}`.slice(0, 90);
+
+  const kanaele = await alleKanaele();
+  const schon = kanaele.find((k) => k.type === 0 && k.name === kanalName);
+  if (schon) return { ok: true, kanal: schon.id, text: `There already is a chat with them: <#${schon.id}>` };
+
+  const kategorie = await kategorieFuer(CHAT_KATEGORIE);
+  const ich = await werBinIch();
+  const adminRolle = await adminRolleId();
+  const regeln: Array<Record<string, string | number>> = [
+    { id: SERVER, type: 0, allow: '0', deny: '1024' },
+    ...ids.map((id) => ({ id, type: 1, allow: '68608', deny: '0' })),
+  ];
+  if (ich) regeln.push({ id: ich, type: 1, allow: VOLLZUGRIFF, deny: '0' });
+  if (adminRolle) regeln.push({ id: adminRolle, type: 0, allow: VOLLZUGRIFF, deny: '0' });
+
+  const neu = await ruf(`/guilds/${SERVER}/channels`, 'POST', {
+    name: kanalName, type: 0,
+    ...(kategorie ? { parent_id: kategorie } : {}),
+    topic: `Private chat with ${namen.join(', ')} - CompHub`,
+    permission_overwrites: regeln,
+  });
+  const kanal = idAus(neu);
+  if (!kanal) return { ok: false, text: `The channel could not be created (${letzterStatus}).` };
+
+  const einleitung = await ruf(`/channels/${kanal}/messages`, 'POST', {
+    content: ids.map((u) => `<@${u}>`).join(' '),
+    allowed_mentions: { users: ids },
+    embeds: [{
+      title: 'CompHub',
+      description: [
+        `Hi ${namen.join(', ')}, welcome to your private channel with the CompHub team.`,
+        '',
+        'Only you and CompHub can see this channel. We will write to you here, and you can '
+        + 'answer or ask anything right in this channel - no direct messages needed.',
+        '',
+        'Thank you for being part of CompHub.',
+      ].join('\n'),
+      color: FARBE,
+    }],
+    ...(knoepfeMoeglich() ? {
+      components: [{ type: 1, components: [{ type: 2, style: 4, label: 'Close chat', custom_id: 'chat:zu' }] }],
+    } : {}),
+  });
+  const einleitungId = idAus(einleitung);
+  if (einleitungId) await anpinnen(kanal, einleitungId);
+  return { ok: true, kanal, text: `Chat ready: <#${kanal}>` };
+}
+
+/**
+ * Eine Nachricht als CompHub an ein Mitglied - in seinen Chat, nicht als DM.
+ * Gibt es noch keinen Chat mit ihm, entsteht er.
+ */
+export async function nachrichtAnMitglied(nutzerId: string, text: string): Promise<{ ok: boolean; text: string }> {
+  const chat = await chatErstellen([nutzerId]);
+  if (!chat.ok || !chat.kanal) return { ok: false, text: chat.text };
+  const ok = await alsCompHub(chat.kanal, text, [nutzerId]);
+  return ok ? { ok: true, text: `Sent as CompHub in <#${chat.kanal}>.` } : { ok: false, text: 'The message could not be posted.' };
+}
+
+/* ------------------------------------------------------ Direktnachrichten */
+
+interface DmEintrag { kanal: string; name?: string; zuletzt?: string }
+
+async function liesDms(): Promise<Record<string, DmEintrag>> {
+  try { return JSON.parse(await fs.readFile(DM_DATEI, 'utf8')) as Record<string, DmEintrag>; }
+  catch { return {}; }
+}
+
+/** Den DM-Kanal zu einem Mitglied merken - fuer die Einsicht in Antworten. */
+async function dmMerken(nutzerId: string, kanal: string): Promise<void> {
+  try {
+    const d = await liesDms();
+    if (d[nutzerId]?.kanal === kanal) return;
+    d[nutzerId] = { ...d[nutzerId], kanal };
+    await fs.mkdir(path.dirname(DM_DATEI), { recursive: true });
+    await fs.writeFile(DM_DATEI, JSON.stringify(d, null, 1), 'utf8');
+  } catch { /* Merken ist Zugabe - die DM selbst ist schon raus */ }
+}
+
+/**
+ * Was in den Direktnachrichten des Bots neu ist, in #admin-dms spiegeln.
+ *
+ * Der Betreiber: "Ich will eigentlich sozusagen, wie der Account mir
+ * gehoert, dass ich die Privatnachrichten sehen kann." Ein Bot kann seine
+ * DM-Kanaele nicht auflisten; bekannt sind die, in die er selbst einmal
+ * geschrieben hat. Deren neue Nachrichten - beide Seiten - landen hier.
+ */
+export async function dmsSpiegeln(): Promise<{ ok: boolean; text: string }> {
+  if (!discordDa()) return { ok: false, text: 'no bot token' };
+  const dms = await liesDms();
+  const eintraege = Object.entries(dms);
+  if (!eintraege.length) return { ok: true, text: 'No direct message conversations are known yet.' };
+
+  const kanaele = await alleKanaele();
+  const ziel = kanaele.find((k) => k.type === 0 && gleich(k.name, DM_KANAL))?.id
+    ?? await infoKanal(DM_KANAL, 'Direct messages to the CompHub bot - both sides', await kategorieFuer('Admin'), kanaele, 'manager', []);
+  if (!ziel) return { ok: false, text: `#${DM_KANAL} could not be created.` };
+
+  let neu = 0;
+  for (const [nutzerId, e] of eintraege) {
+    const roh = await ruf(`/channels/${e.kanal}/messages?limit=50${e.zuletzt ? `&after=${e.zuletzt}` : ''}`, 'GET');
+    if (!Array.isArray(roh) || !roh.length) continue;
+    const nachrichten = [...roh as Array<{
+      id: string; content?: string; timestamp?: string;
+      author?: { id?: string; username?: string; bot?: boolean };
+      embeds?: Array<{ title?: string; description?: string }>;
+    }>].sort((a, b) => (BigInt(a.id) < BigInt(b.id) ? -1 : 1));
+    const zeilen = nachrichten.map((m) => {
+      const wann = (m.timestamp ?? '').slice(0, 16).replace('T', ' ');
+      const wer = m.author?.bot ? 'CompHub' : (m.author?.username ?? '?');
+      const text = (m.content || m.embeds?.map((x) => [x.title, x.description].filter(Boolean).join(': ')).join(' / ') || '(attachment)')
+        .replace(/\s+/g, ' ').slice(0, 300);
+      return `\`${wann}\` **${wer}:** ${text}`;
+    });
+    const beschreibung = zeilen.join('\n').slice(0, 3900);
+    await ruf(`/channels/${ziel}/messages`, 'POST', {
+      embeds: [{ title: `Direct messages with ${e.name ?? nutzerId}`, description: `<@${nutzerId}>\n${beschreibung}`, color: FARBE }],
+      allowed_mentions: { parse: [] },
+    });
+    e.zuletzt = nachrichten[nachrichten.length - 1].id;
+    neu += nachrichten.length;
+  }
+  try { await fs.writeFile(DM_DATEI, JSON.stringify(dms, null, 1), 'utf8'); } catch { /* beim naechsten Mal */ }
+  return { ok: true, text: neu ? `${neu} new message(s) mirrored to <#${ziel}>.` : 'No new direct messages.' };
+}
+
+/* ------------------------------------------------------------ Das Panel */
+
+/** #admin-tools anlegen und das Panel mit den Knoepfen hineinstellen. */
+export async function werkzeugEinrichten(): Promise<{ ok: boolean; text: string }> {
+  if (!discordDa()) return { ok: false, text: 'no bot token' };
+  const kanaele = await alleKanaele();
+  const kategorie = await kategorieFuer('Admin');
+  const kanal = kanaele.find((k) => k.type === 0 && gleich(k.name, WERKZEUG_KANAL))?.id
+    ?? await infoKanal(WERKZEUG_KANAL, 'Admin tools: chats, messages as CompHub, direct messages', kategorie, kanaele, 'manager', []);
+  if (!kanal) return { ok: false, text: `#${WERKZEUG_KANAL} could not be created.` };
+
+  const ablage = await lies();
+  const alt = ablage['werkzeug:panel']?.nachricht;
+  if (alt) await ruf(`/channels/${kanal}/messages/${alt}`, 'DELETE');
+  const gesendet = await ruf(`/channels/${kanal}/messages`, 'POST', {
+    embeds: [{
+      title: 'Admin tools',
+      description: [
+        '💬 **Create chat** - pick one or more members; they get a private channel under *Chats* with you.',
+        '✉️ **Message as CompHub** - pick a member and write, or use a template; it is posted in their chat as CompHub.',
+        '📥 **DM inbox** - mirror what people answered to the bot in direct messages into #admin-dms.',
+        '',
+        'In any channel: **/comphub** posts your text as CompHub (templates and a period included).',
+      ].join('\n'),
+      color: FARBE,
+    }],
+    components: [{
+      type: 1,
+      components: [
+        { type: 2, style: 1, label: 'Create chat', custom_id: 'werkzeug:chat', emoji: { name: '💬' } },
+        { type: 2, style: 2, label: 'Message as CompHub', custom_id: 'werkzeug:nachricht', emoji: { name: '✉️' } },
+        { type: 2, style: 2, label: 'DM inbox', custom_id: 'werkzeug:dms', emoji: { name: '📥' } },
+      ],
+    }],
+  });
+  const id = idAus(gesendet);
+  if (!id) return { ok: false, text: 'The panel could not be posted.' };
+  ablage['werkzeug:panel'] = { kanal, nachricht: id };
+  await schreibe(ablage);
+  const befehl = await befehleEinrichten();
+  return { ok: true, text: `Panel in <#${kanal}> · ${befehl.text}` };
 }
