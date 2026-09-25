@@ -395,21 +395,40 @@ jobs:
 
       - name: Antworten vorrechnen
         continue-on-error: true
-        timeout-minutes: 20
+        timeout-minutes: 30
         env:
           BAU_CODE: ${{ steps.bau.outputs.code }}
+          # Mehr Speicher fuer den Server: am 25.9.2026 starb er mitten im
+          # Vorrechnen (178 fertig, 394 "fetch failed"), und die Antwort fuer
+          # die laufende Season blieb beim Stand vom 21.9. stehen - in der
+          # Statistik fehlten deshalb Platz und Punkte der Week-4-Finals.
+          NODE_OPTIONS: --max-old-space-size=12288
         run: |
           set +e
-          npx next start -p 3000 > /tmp/server.log 2>&1 &
-          SERVER=$!
-          BEREIT=nein
-          # Warten, bis er antwortet - hoechstens eine Minute.
-          for _ in $(seq 1 30); do
-            curl -sf http://localhost:3000/api/stand >/dev/null && { BEREIT=ja; break; }
-            sleep 2
+          starten() {
+            npx next start -p 3000 >> /tmp/server.log 2>&1 &
+            SERVER=$!
+            BEREIT=nein
+            # Warten, bis er antwortet - hoechstens eine Minute.
+            for _ in $(seq 1 30); do
+              curl -sf http://localhost:3000/api/stand >/dev/null && { BEREIT=ja; break; }
+              sleep 2
+            done
+          }
+          starten
+          # Zwei Durchgaenge: stirbt der Server, startet er neu, und der zweite
+          # Durchgang holt nach, was fehlt (Fertiges kommt dann sofort zurueck).
+          for DURCHGANG in 1 2; do
+            node scripts/antworten-vorrechnen.mjs http://localhost:3000 > /tmp/vorrechnen.log 2>&1
+            grep -E "Vorgerechnet|Saisons:" /tmp/vorrechnen.log
+            if kill -0 $SERVER 2>/dev/null; then break; fi
+            echo "::warning::Server ist im Durchgang $DURCHGANG abgestuerzt - letzte Abfrage vor dem Absturz und Server-Protokoll:"
+            grep -B3 -m1 "fetch failed" /tmp/vorrechnen.log
+            tail -n 25 /tmp/server.log
+            dmesg 2>/dev/null | grep -i -E "killed process|out of memory" | tail -3
+            starten
           done
-          node scripts/antworten-vorrechnen.mjs http://localhost:3000 > /tmp/vorrechnen.log 2>&1
-          tail -n 30 /tmp/vorrechnen.log
+          tail -n 12 /tmp/vorrechnen.log
           # Die Zahlen des Tages nach #admin-zahlen - eine Nachricht je Tag,
           # die jeder Lauf fortschreibt (scripts/admin-zahlen-discord.mjs).
           node scripts/admin-zahlen-discord.mjs http://localhost:3000 2>&1 | tail -2
