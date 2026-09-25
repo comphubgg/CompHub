@@ -74,6 +74,16 @@ if (stand) {
   if (!a) { console.error(`Aufgabe ${stand} gibt es nicht.`); process.exit(1); }
   a.hinweis = argumente[argumente.indexOf('--stand') + 2] ?? ''; geaendert = true;
 }
+// Einen doppelt angelegten Eintrag entfernen (--weg 68,69). Nur fuer
+// Dubletten - Erledigtes wird mit --fertig abgehakt, nicht geloescht.
+const weg = arg('--weg');
+if (weg) {
+  const ids = new Set(weg.split(',').map(Number));
+  const vorher = daten.aufgaben.length;
+  daten.aufgaben = daten.aufgaben.filter((x) => !ids.has(x.id));
+  if (daten.aufgaben.length === vorher) { console.error(`Keine Aufgabe ${weg}.`); process.exit(1); }
+  geaendert = true;
+}
 if (geaendert) schreib(daten);
 
 const offen = daten.aufgaben.filter((a) => a.stand !== 'erledigt');
