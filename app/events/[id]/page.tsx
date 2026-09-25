@@ -2571,27 +2571,38 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                   * die Preisgeld-Kacheln darueber, damit beides zusammen
                   * eine Flaeche bleibt.
                   */}
-                <div className="grid gap-2 sm:grid-cols-2">
-                  {preise.gegenstaende.map((g) => (
-                    <div key={`${g.art}-${g.schwelle}-${g.name}`}
-                      className="flex items-center gap-3 rounded-lg border
-                                 border-zinc-800 bg-zinc-950/60 p-2">
-                      {g.bild && (
-                        <img src={g.bild} alt="" width={56} height={56} loading="lazy"
-                          className="h-14 w-14 shrink-0 rounded-md bg-zinc-900/80
-                                     object-contain"
-                          onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-                      )}
-                      <div className="min-w-0">
-                        <div className="text-xs font-semibold text-sky-400">
-                          {schwellenText(g.art, g.schwelle)}
-                        </div>
-                        <div className="truncate text-sm font-medium text-slate-200">
-                          {g.name}
-                        </div>
-                        {g.sorte && (
-                          <div className="text-[11px] text-slate-500">{g.sorte}</div>
-                        )}
+                {/*
+                  * Nach Stufe gruppiert, wie bei Fortnite Tracker: eine
+                  * Ueberschrift "Top #200" oder "5 Points", darunter alles,
+                  * was es dafuer gibt - Bild, Name, Art. Vorher stand die
+                  * Stufe an jedem Gegenstand einzeln, fuenfmal "Top #200".
+                  */}
+                <div className="grid items-start gap-3 sm:grid-cols-2">
+                  {[...preise.gegenstaende.reduce((m, g) => {
+                    const k = `${g.art}|${g.schwelle}`;
+                    (m.get(k) ?? m.set(k, []).get(k)!).push(g);
+                    return m;
+                  }, new Map<string, typeof preise.gegenstaende>()).values()].map((gruppe) => (
+                    <div key={`${gruppe[0].art}-${gruppe[0].schwelle}`}
+                      className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-2">
+                      <div className="mb-1.5 px-1 text-sm font-bold text-sky-400">
+                        {schwellenText(gruppe[0].art, gruppe[0].schwelle)}
+                      </div>
+                      <div className="space-y-1.5">
+                        {gruppe.map((g) => (
+                          <div key={g.name} className="flex items-center gap-3 rounded-md bg-zinc-900/60 p-1.5">
+                            {g.bild ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={g.bild} alt="" width={48} height={48} loading="lazy"
+                                className="h-12 w-12 shrink-0 rounded-md bg-zinc-900 object-contain"
+                                onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                            ) : <div className="h-12 w-12 shrink-0 rounded-md bg-zinc-900" />}
+                            <div className="min-w-0">
+                              <div className="truncate text-sm font-semibold text-slate-100">{g.name}</div>
+                              {g.sorte && <div className="text-[11px] text-slate-500">{g.sorte}</div>}
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   ))}
