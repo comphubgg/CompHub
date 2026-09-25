@@ -180,6 +180,17 @@ async function main() {
          */
         if (!brauchbar.length) {
           ohne.push(nr);
+          /*
+           * Kommt schon am Anfang gar nichts, antwortet Epic diesem Rechner
+           * nicht. So ist es auf den GitHub-Rechnern (seit 25.9.2026: jede
+           * Seite leer, der Schritt hing neun Minuten) - von einem
+           * gewoehnlichen Anschluss aus kommt die Liste. Dann nicht weiter
+           * warten.
+           */
+          if (!gesammelt.length && nr >= 2) {
+            console.log(`${region}: Epic liefert diesem Rechner keine Tabelle - abgebrochen.`);
+            break;
+          }
           if (++leer >= 5) break;
         } else {
           leer = 0;
