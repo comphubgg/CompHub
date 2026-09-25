@@ -63,7 +63,19 @@ export function beobachte(pfad: string, taktMs: number, abonnent: Abonnent): () 
       } catch { /* Ablage gerade weg oder Datei im Schreiben: naechster Takt */ }
       finally { wache.laeuft = false; }
     };
-    wache.uhr = setInterval(() => { void schau(); }, taktMs);
+    /*
+     * Liegt die Datei in Supabase, hoechstens alle 2,5 Sekunden.
+     *
+     * Die Karte bat um 600 ms - je Instanz rund hundert Abfragen in der
+     * Minute, pausenlos, solange irgendwo eine Karte offen ist. Am 25.9.2026,
+     * dem ersten Globals-Tag mit der Globals-Karte, stand "Comphub 2" erneut
+     * mit Zeitueberschreitungen still. Zweieinhalb Sekunden bis zum
+     * Nachziehen eines verschobenen Teams merkt niemand; die Datenbank
+     * schon.
+     */
+    const takt = (process.env.COMPHUB_ABLAGE || '').toLowerCase() === 'supabase'
+      ? Math.max(taktMs, 2500) : taktMs;
+    wache.uhr = setInterval(() => { void schau(); }, takt);
     void schau();
   }
 
