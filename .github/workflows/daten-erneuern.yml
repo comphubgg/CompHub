@@ -265,8 +265,17 @@ jobs:
         env:
           WERKZEUG_URL: https://www.thecomphub.com
         continue-on-error: true
-        timeout-minutes: 31
-        # Zweiundsiebzig Stunden statt zwei: was der Live-Sammler waehrend
+        timeout-minutes: 14
+        # Seit dem 25.9.2026 nur noch das Frische der letzten zwoelf Stunden,
+        # und nur zwoelf Minuten lang. Den Rueckstand aelterer Spieltage
+        # arbeitet .github/workflows/replays-nacharbeiten.yml auf vier
+        # Rechnern ab - hier kostete er neun Minuten je Stunde und schaffte
+        # kaum etwas, waehrend der Lauf danach beim Bau abgeschossen wurde.
+        # Die Grenze von zwoelf Stunden ist dieselbe wie dort (--ohne-frische
+        # 12): so fassen nie zwei Rechner denselben Spieltag an. Neue
+        # Spieltage legt nur dieser Gang an.
+        #
+        # (Frueher:) Zweiundsiebzig Stunden statt zwei: was der Live-Sammler waehrend
         # eines Cups verpasst hat, wird so binnen drei Tagen nachgeholt -
         # Epic haelt die Replays einunddreissig Tage vor. Schon Ausgewertetes
         # kostet dabei nichts, der Stand je Fenster kennt es.
@@ -279,8 +288,7 @@ jobs:
         # wie lange geht das noch?" Beide enden sanft an ihrer Frist (SIGTERM),
         # der Stand je Fenster ist alle zweihundert Matches gesichert.
         run: |
-          timeout --signal=TERM 20m node scripts/replays-holen.mjs --frisch 72 2>&1 | tee /tmp/replays.log | grep -v ' \.\.\.$' | tail -25
-          timeout --signal=TERM 9m node scripts/replays-holen.mjs --wiederholen --hoechstens 400 2>&1 | tee -a /tmp/replays.log | grep -v ' \.\.\.$' | tail -15
+          timeout --signal=TERM 12m node scripts/replays-holen.mjs --frisch 12 2>&1 | tee /tmp/replays.log | grep -v ' \.\.\.$' | tail -25
           true
 
       - name: Replays auswerten
@@ -340,8 +348,20 @@ jobs:
           pkill -f FortniteReplayAnalysis || true
           pkill -f replays-holen || true
           free -m | head -2
+          df -h / | tail -1
+          # Der Datenordner geht waehrend des Baus beiseite - wie bei Vercel,
+          # wo er gar nicht existiert. Hier lagen daneben ueber 155000
+          # Dateien, und der Bau wurde seit dem 24.9.2026 jedes Mal nach
+          # knapp vier Minuten abgeschossen ("The runner has received a
+          # shutdown signal"), obwohl vorher 15 GB Speicher frei waren.
+          mv data /tmp/daten-beiseite
+          # Speicher und Platte im Blick, falls es doch wieder abbricht.
+          ( while sleep 30; do echo "  [Wache] $(free -m | awk 'NR==2{print $7}') MB frei, Platte $(df -h / | awk 'NR==2{print $4}') frei"; done ) &
+          WACHE=$!
           npm run build > /tmp/bau.log 2>&1
           CODE=$?
+          kill $WACHE 2>/dev/null
+          mv /tmp/daten-beiseite data
           echo "code=$CODE" >> "$GITHUB_OUTPUT"
           tail -n 40 /tmp/bau.log
           exit $CODE

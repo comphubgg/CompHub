@@ -1,0 +1,90 @@
+# Den Rueckstand an Replays abarbeiten - auf vier Rechnern zugleich.
+#
+# Am 25.9.2026 warteten 15884 Matches aus siebzehn Spieltagen auf ihre
+# Auswertung. Der stuendliche Lauf gab dafuer neun Minuten her und schaffte
+# ein paar hundert; jeden Tag kamen Tausende dazu. Der Betreiber: "seit fuenf
+# Tagen schaust du dir keine Replays mehr an ... bis seit daher gab es schon
+# richtig viele andere Cups. Die solltest du ja eigentlich alle machen."
+#
+# Deshalb ein eigener Ablauf: alle zwei Stunden vier Rechner, jeder nimmt
+# reihum jeden vierten Spieltag (replays-holen.mjs --teil), arbeitet fuenfzig
+# Minuten und legt dann sauber ab. Zwei Rechner fassen so nie denselben
+# Spieltag an und ueberschreiben einander nichts.
+#
+# Die Grenze zu den anderen Ablaeufen: was juenger als zwoelf Stunden ist,
+# gehoert dem Live-Ablauf und dem stuendlichen "frischen" Gang (der auch neue
+# Spieltage erst anlegt). Hier nur, was aelter ist - bis zur Frist von
+# einunddreissig Tagen, nach der Epic die Replays loescht.
+#
+# Supabase wird nur fuer die Epic-Anmeldung gefragt (eine kleine Datei). Der
+# Stand je Spieltag kommt vom Release und geht dorthin zurueck.
+
+name: Replays nacharbeiten
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '40 */2 * * *'   # alle zwei Stunden, vierzig nach
+
+jobs:
+  nacharbeiten:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        teil: [0, 1, 2, 3]
+    # Je Teil nie zwei Laeufe zugleich - und einen laufenden nie abwuergen.
+    concurrency:
+      group: replays-nacharbeiten-${{ matrix.teil }}
+      cancel-in-progress: false
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Abhängigkeiten
+        run: npm ci --omit=optional
+
+      - name: Zugangsdaten
+        run: printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
+
+      - name: Epic-Anmeldung und Stand vom Release
+        run: |
+          node scripts/umzug-supabase.mjs --herunterladen --nur epic-auth.json 2>&1 | tail -2
+          node scripts/ablage-github-holen.mjs --ordner replays 2>&1 | tail -3
+
+      - name: Nacharbeiten
+        continue-on-error: true
+        timeout-minutes: 58
+        env:
+          WERKZEUG_URL: https://www.thecomphub.com
+          MAX_REPLAY_DOWNLOADS: '4'
+          MAX_REPLAY_PARSERS: '3'
+        run: |
+          node scripts/replays-holen.mjs --wiederholen --teil ${{ matrix.teil }}/4 \
+            --minuten 50 --ohne-frische 12 2>&1 | grep -v ' \.\.\.$' | tail -40
+
+      - name: Auswerten
+        continue-on-error: true
+        timeout-minutes: 8
+        run: node scripts/replays-aggregieren.mjs 2>&1 | tail -15
+
+      - name: Ans GitHub-Release
+        if: always()
+        continue-on-error: true
+        timeout-minutes: 8
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          node scripts/ablage-github.mjs --nur replays 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -12
+
+      - name: Zugangsdaten wieder weg
+        if: always()
+        run: rm -f .env.local

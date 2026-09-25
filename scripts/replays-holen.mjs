@@ -195,10 +195,38 @@ const hoechstensIdx = argumente.indexOf('--hoechstens');
 const hoechstens = hoechstensIdx >= 0
   ? Math.max(0, Number(argumente[hoechstensIdx + 1]) || 0) : 0;
 
+/*
+ * Nacharbeiten auf mehreren Rechnern zugleich (siehe
+ * .github/workflows/replays-nacharbeiten.yml).
+ *
+ * Am 25.9.2026 warteten 15884 Matches aus siebzehn Spieltagen; ein
+ * stuendlicher Lauf schaffte davon in seinen neunundzwanzig Minuten ein paar
+ * hundert, und jeden Tag kamen Tausende dazu. Der Betreiber: "seit fuenf
+ * Tagen schaust du dir keine Replays mehr an".
+ *
+ *   --teil 2/4       dieser Rechner nimmt jeden vierten Spieltag (den dritten)
+ *   --minuten 50     danach nichts Neues mehr anfangen, sauber sichern
+ *   --ohne-frische 6 Spieltage der letzten sechs Stunden auslassen - die
+ *                    holt der Live-Ablauf, und zwei Rechner auf demselben
+ *                    Spieltag ueberschrieben einander den Stand
+ */
+const teilIdx = argumente.indexOf('--teil');
+const [teilNr, teilVon] = teilIdx >= 0
+  ? String(argumente[teilIdx + 1] ?? '0/1').split('/').map((x) => Math.max(0, Number(x) || 0))
+  : [0, 1];
+const minutenIdx = argumente.indexOf('--minuten');
+const minuten = minutenIdx >= 0 ? Math.max(0, Number(argumente[minutenIdx + 1]) || 0) : 0;
+const schluss = minuten ? Date.now() + minuten * 60_000 : Infinity;
+const frischeIdx = argumente.indexOf('--ohne-frische');
+const ohneFrischeStunden = frischeIdx >= 0 ? Math.max(0, Number(argumente[frischeIdx + 1]) || 0) : 0;
+
 const nurFenster = argumente.filter((a, i) =>
   !a.startsWith('--')
   && !(frischIdx >= 0 && i === frischIdx + 1)
-  && !(hoechstensIdx >= 0 && i === hoechstensIdx + 1));
+  && !(hoechstensIdx >= 0 && i === hoechstensIdx + 1)
+  && !(teilIdx >= 0 && i === teilIdx + 1)
+  && !(minutenIdx >= 0 && i === minutenIdx + 1)
+  && !(frischeIdx >= 0 && i === frischeIdx + 1));
 
 /**
  * Eine Schleuse.
@@ -642,12 +670,22 @@ async function wiederholen() {
       if ((zustand.datum ?? 0) && zustand.datum < grenze) {
         ausserhalb += offen.length; continue;
       }
+      // Was eben erst lief, gehoert dem Live-Ablauf.
+      if (ohneFrischeStunden && (zustand.datum ?? 0) > Date.now() - ohneFrischeStunden * 3600_000) continue;
       arbeit.push({ season, windowId, zustand, offen });
     }
   }
 
   // Das aelteste zuerst: dessen Frist laeuft als naechstes ab.
   arbeit.sort((a, b) => (a.zustand.datum ?? 0) - (b.zustand.datum ?? 0));
+
+  // Mehrere Rechner: reihum verteilt. Alle sehen denselben Stand vom
+  // Release und sortieren gleich - also nimmt jeder genau seine Spieltage.
+  if (teilVon > 1) {
+    const meine = arbeit.filter((_, i) => i % teilVon === teilNr % teilVon);
+    console.log(`Teil ${teilNr % teilVon + 1} von ${teilVon}: ${meine.length} von ${arbeit.length} Spieltagen.`);
+    arbeit.splice(0, arbeit.length, ...meine);
+  }
 
   const gesamt = arbeit.reduce((a, x) => a + x.offen.length, 0);
   console.log(`${arbeit.length} Fenster mit ${gesamt} offenen Matches`
@@ -658,10 +696,11 @@ async function wiederholen() {
     return;
   }
 
-  let angefasst = 0; let fertig = 0; let ohne = 0; let fehler = 0;
+  let angefasst = 0; let fertig = 0; let ohne = 0; let fehler = 0; let liegen = 0;
 
   for (const f of arbeit) {
     if (hoechstens && angefasst >= hoechstens) break;
+    if (Date.now() >= schluss) break;
     const dran = hoechstens ? f.offen.slice(0, hoechstens - angefasst) : f.offen;
     angefasst += dran.length;
 
@@ -676,21 +715,40 @@ ${f.season} ${(f.zustand.region ?? '?').padEnd(4)} `
     };
 
     let getan = 0; let seitSicherung = 0;
-    const ergebnisse = await Promise.all(dran.map(async (id) => {
-      const r = await verarbeite(ziel, id, f.zustand);
-      getan += 1; seitSicherung += 1;
-      if (getan % 50 === 0 || getan === dran.length) {
-        console.log(`    ${getan}/${dran.length} ...`);
+    /*
+     * Eine Schlange statt alles auf einmal.
+     *
+     * Vorher liefen alle Matches eines Spieltags gleichzeitig an und
+     * warteten erst in den Schleusen - eine Zeitgrenze liess sich so nicht
+     * einhalten. Jetzt holt sich jeder Arbeiter das naechste Match und sieht
+     * vorher auf die Uhr: ist die Zeit um, bleibt der Rest offen und wird
+     * beim naechsten Lauf angefasst, statt mitten im Laden abgewuergt zu
+     * werden.
+     */
+    const ergebnisse = [];
+    let naechster = 0;
+    const arbeiter = async () => {
+      while (naechster < dran.length) {
+        const id = dran[naechster++];
+        if (Date.now() >= schluss) { liegen += 1; ergebnisse.push('liegen'); continue; }
+        const r = await verarbeite(ziel, id, f.zustand);
+        ergebnisse.push(r);
+        getan += 1; seitSicherung += 1;
+        if (getan % 50 === 0 || getan === dran.length) {
+          console.log(`    ${getan}/${dran.length} ...`);
+        }
+        if (seitSicherung >= 200) {
+          seitSicherung = 0;
+          await schreibeZustand(f.season, f.windowId, f.zustand);
+        }
       }
-      if (seitSicherung >= 200) {
-        seitSicherung = 0;
-        await schreibeZustand(f.season, f.windowId, f.zustand);
-      }
-      return r;
-    }));
+    };
+    // Genug gleichzeitig, dass Laden, Pruefen und Lesen nie leerlaufen.
+    await Promise.all(Array.from({ length: MAX_LADEN + MAX_LESEN + MAX_PRUEFEN }, arbeiter));
     for (const r of ergebnisse) {
       if (r === 'fertig') fertig++;
       else if (r === 'nicht_vorhanden') ohne++;
+      else if (r === 'liegen') { /* naechstes Mal */ }
       else fehler++;
     }
     await schreibeZustand(f.season, f.windowId, f.zustand);
@@ -699,7 +757,7 @@ ${f.season} ${(f.zustand.region ?? '?').padEnd(4)} `
 
   console.log(`
 Fertig: ${fertig} nachgeholt, ${ohne} ohne Replay, `
-    + `${fehler} wieder fehlgeschlagen`);
+    + `${fehler} wieder fehlgeschlagen${liegen ? `, ${liegen} fuer den naechsten Lauf liegen gelassen` : ''}`);
   await protokoll({
     ok: true, fenster: arbeit.length, neu: fertig,
     ohneReplay: ohne, fehlgeschlagen: fehler,
