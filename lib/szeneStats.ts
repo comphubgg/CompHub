@@ -228,12 +228,24 @@ let verzeichnisBis = 0;
 
 export async function liesVerzeichnis(): Promise<ArchivEintrag[]> {
   if (verzeichnis && Date.now() < verzeichnisBis) return verzeichnis;
+  /*
+   * Kein Verzeichnis ist ein Fehler, keine leere Liste.
+   *
+   * Frueher wurde daraus [] - und jede Auswertung zu "0 Spieler". Am
+   * 25.9.2026 sah der Server des stuendlichen Laufs seinen Datenordner nicht,
+   * rechnete so alle Bestenlisten leer vor, und die leeren Antworten ersetzten
+   * die richtigen: die Statistik stand fuer alle mit 0 Spielern da. Ein
+   * Fehler hier laesst die abgelegte Antwort unberuehrt.
+   */
+  let gelesen: ArchivEintrag[];
   try {
-    verzeichnis = JSON.parse(
+    gelesen = JSON.parse(
       await fs.readFile(path.join(ABLAGE, 'index.json'), 'utf8')) as ArchivEintrag[];
-  } catch {
-    verzeichnis = [];
+  } catch (e) {
+    throw new Error(`Verzeichnis der Szene nicht lesbar: ${(e as Error).message}`);
   }
+  if (!Array.isArray(gelesen) || !gelesen.length) throw new Error('Verzeichnis der Szene ist leer');
+  verzeichnis = gelesen;
   verzeichnisBis = Date.now() + 60_000;
   return verzeichnis;
 }

@@ -97,6 +97,23 @@ jobs:
           key: comphub-daten-${{ github.run_id }}
           restore-keys: comphub-daten-
 
+      # Aufraeumen nach dem Fehler vom 25.9.2026 (siehe "Anwendung bauen"):
+      # jeder Lauf hatte den Datenordner eine Ebene tiefer geschoben, bis zu
+      # data/daten-beiseite/daten-beiseite/... Die Ebenen werden hier wieder
+      # zusammengefuehrt - die neueste zuerst, aeltere fuellen nur Luecken.
+      # Danach ist nichts verloren; faellt nichts an, tut der Schritt nichts.
+      - name: Verschachtelten Datenordner zusammenfuehren
+        run: |
+          EBENEN=0
+          while [ -d data/daten-beiseite ]; do
+            mv data/daten-beiseite /tmp/alte-ebene
+            cp -rn /tmp/alte-ebene/. data/ 2>/dev/null || true
+            rm -rf /tmp/alte-ebene
+            EBENEN=$((EBENEN + 1))
+          done
+          echo "Zusammengefuehrt: $EBENEN Ebenen"
+          test -f data/szene-stats/index.json && echo "szene-stats/index.json da" || echo "szene-stats/index.json fehlt"
+
       - name: Stand vom Release holen
         # Nur wenn der Zwischenspeicher nichts hergab. GitHub wirft ihn nach
         # sieben Tagen ohne Zugriff weg; dann faengt der Lauf sonst bei null an
@@ -364,7 +381,14 @@ jobs:
           npm run build > /tmp/bau.log 2>&1
           CODE=$?
           kill $WACHE 2>/dev/null
+          # Der Bau legt beim Laden von lib/datenOrt.ts selbst einen leeren
+          # Ordner "data" an. Ein blosses "mv" schob den echten Ordner dann
+          # HINEIN (data/daten-beiseite) - der Server sah beim Vorrechnen
+          # nichts, und die Statistik stand am 25.9.2026 mit 0 Spielern da.
+          # Den leeren Ordner des Baus also erst weg.
+          if [ -d data ]; then mv data /tmp/bau-daten-leer; fi
           mv /tmp/daten-beiseite data
+          test -d data/szene-stats || echo "::warning::data/szene-stats fehlt nach dem Bau"
           echo "code=$CODE" >> "$GITHUB_OUTPUT"
           tail -n 40 /tmp/bau.log
           exit $CODE

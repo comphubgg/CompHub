@@ -87,12 +87,16 @@ let verzeichnisBis = 0;
 
 async function liesVerzeichnis(): Promise<ArchivEintrag[]> {
   if (verzeichnis && Date.now() < verzeichnisBis) return verzeichnis;
+  // Kein Verzeichnis ist ein Fehler, keine leere Liste - siehe
+  // lib/szeneStats.ts, liesVerzeichnis (25.9.2026: Statistik mit 0 Spielern).
+  let gelesen: ArchivEintrag[];
   try {
-    verzeichnis = JSON.parse(
+    gelesen = JSON.parse(
       await fs.readFile(path.join(ARCHIV, 'index.json'), 'utf8')) as ArchivEintrag[];
-  } catch {
-    verzeichnis = [];
+  } catch (e) {
+    throw new Error(`Verzeichnis der Szene nicht lesbar: ${(e as Error).message}`);
   }
+  verzeichnis = gelesen;
   verzeichnisBis = Date.now() + 60_000;
   return verzeichnis;
 }
