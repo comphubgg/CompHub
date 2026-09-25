@@ -69,14 +69,6 @@ function eigenesDaraus(stand: Folder[], basis: Folder[]): EigeneErgaenzungen {
   return { ordner, zusatz };
 }
 
-interface Tournament {
-  id: string;
-  name: string;
-  category?: string;
-  round?: string;
-  status: 'live' | 'upcoming' | 'completed';
-}
-
 const DEFAULT_FOLDERS: Folder[] = [
   {
     id: 'fortnite-eu',
@@ -499,7 +491,6 @@ export default function Home() {
   
   // Favorites-System
   const [favoriteStreamers, setFavoriteStreamers] = useState<string[]>([]);
-  const [showLiveFinalsLeaderboard, setShowLiveFinalsLeaderboard] = useState(false);
   
   // Notifications
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
@@ -577,30 +568,6 @@ const response = await fetch(getApiUrl(`/api/search?q=${encodeURIComponent(twitc
       console.error('Failed to load live status:', error);
     }
   }, [folders]);
-
-  // Notifications für Favorites-Streamer
-  useEffect(() => {
-    const fetchLiveFinalsStatus = async () => {
-      try {
-        const response = await fetch('/api/tournaments');
-        if (!response.ok) return;
-
-        const data = await response.json();
-        const hasLiveFinals = Array.isArray(data.tournaments) && data.tournaments.some((tournament: Tournament) => {
-          const summary = `${tournament.name} ${tournament.category ?? ''} ${tournament.round ?? ''}`.toLowerCase();
-          return tournament.status === 'live' && summary.includes('final');
-        });
-
-        setShowLiveFinalsLeaderboard(hasLiveFinals);
-      } catch (error) {
-        console.error('Unable to determine live finals status:', error);
-      }
-    };
-
-    fetchLiveFinalsStatus();
-    const interval = setInterval(fetchLiveFinalsStatus, 30000);
-    return () => clearInterval(interval);
-  }, []);
 
   useEffect(() => {
     if (!notificationsEnabled) return;

@@ -192,7 +192,10 @@ async function namensBuch(): Promise<Map<string, KontoKurz>> {
 
 export async function GET(request: Request) {
   const wer = await werFragt();
-  if (!wer) return NextResponse.json({ fehler: 'nicht angemeldet' }, { status: 401 });
+  // Fuer Besucher kein Fehler, sondern eine Auskunft: das Chatfenster fragt
+  // auf jeder Seite einmal nach, und ein 401 stand dann als rote Zeile in
+  // der Konsole jedes Besuchers (Seitenpruefung 26.9.2026).
+  if (!wer) return NextResponse.json({ angemeldet: false });
 
   const p = new URL(request.url).searchParams;
 

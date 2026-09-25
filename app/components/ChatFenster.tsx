@@ -200,6 +200,7 @@ export default function ChatFenster({ alsSeite = false }: { alsSeite?: boolean }
         { cache: 'no-store' });
       if (!r.ok) { setDarf(false); return; }
       const j = await r.json();
+      if (j.angemeldet === false) { setDarf(false); return; }
       setDarf(true);
       setAdmin(Boolean(j.admin));
       setUngelesen(Number(j.ungelesen ?? 0));
