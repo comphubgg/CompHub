@@ -1,4 +1,4 @@
-import { NextRequest, NextResponse } from "next/server";
+import { NextRequest, NextResponse, after } from "next/server";
 import { kontoAus } from '@/lib/konten';
 import { vipAus } from '@/lib/vipCookie';
 import { merkeAbmeldung } from '@/lib/anwesenheit';
@@ -25,9 +25,19 @@ export async function GET(request: NextRequest) {
    * Bescheid; darauf noch zu warten waere schlicht falsch.
    */
   const vip = vipAus(request.cookies.get('streamer_dashboard_auth')?.value);
-  if (vip) await merkeAbmeldung(`vip:${vip.toLowerCase()}`);
   const konto = kontoAus(request.cookies.get('streamer_dashboard_konto')?.value);
-  if (konto) await merkeAbmeldung(konto);
+  /*
+   * Die Abmeldung merken - aber nach der Antwort und ohne Folgen, wenn es
+   * scheitert. Am 25.9.2026 antwortete Supabase nicht, und der Abmelde-
+   * Link endete mit "HTTP ERROR 500": wer sich abmelden wollte, blieb
+   * angemeldet. Abmelden muss immer gehen.
+   */
+  after(async () => {
+    try {
+      if (vip) await merkeAbmeldung(`vip:${vip.toLowerCase()}`);
+      if (konto) await merkeAbmeldung(konto);
+    } catch { /* dann steht die Abmeldezeit eben nicht in der Liste */ }
+  });
 
   /*
    * Wohin nach dem Abmelden.

@@ -61,14 +61,35 @@ export function notName(wert: string): string {
     .trim() || wert;
 }
 
+/*
+ * Die Ablage ist nur ein Merkzettel. Antwortet sie nicht, wird trotzdem
+ * nachgeschlagen - am 25.9.2026 standen bei einem Skin-Cup nur Decknamen
+ * ("Character Cosmictrellis" statt "Joker (P5R)"), weil Supabase ausfiel
+ * und damit das ganze Nachschlagen. Geschrieben wird dann nichts.
+ */
+let ablageLesbar = true;
+
 async function laden(): Promise<Record<string, Gegenstand>> {
   if (vorrat) return vorrat;
-  vorrat = await liesJson<Record<string, Gegenstand>>(ABLAGE, {});
+  try {
+    vorrat = await liesJson<Record<string, Gegenstand>>(ABLAGE, {});
+    ablageLesbar = true;
+  } catch {
+    ablageLesbar = false;
+    vorrat = {};
+    return vorrat;
+  }
+  // Fruehere Fehlschlaege (Deckname ohne Art und Bild) nicht mehr glauben -
+  // ein neuer Skin steht oft erst Stunden nach dem Cup bei fortnite-api.com.
+  for (const [k, g] of Object.entries(vorrat)) if (!g.art && !g.bild) delete vorrat[k];
   return vorrat;
 }
 
+/** Was eben nicht gefunden wurde - erst nach einer Stunde wieder fragen. */
+const fehlt = new Map<string, number>();
+
 async function sichern(): Promise<void> {
-  if (!neuDabei || !vorrat) return;
+  if (!neuDabei || !vorrat || !ablageLesbar) return;
   neuDabei = false;
   try {
     await schreibJson(ABLAGE, vorrat);
@@ -119,22 +140,28 @@ export async function holeGegenstaende(
   }
 
   if (offen.length) {
-    const ergebnisse = await Promise.all(
-      offen.map(async (wert) => [wert, await nachschlagen(kennungAus(wert))] as const));
+    const jetzt = Date.now();
+    const ergebnisse = await Promise.all(offen.map(async (wert) => {
+      const k = kennungAus(wert);
+      if ((fehlt.get(k) ?? 0) > jetzt) return [wert, null] as const;
+      return [wert, await nachschlagen(k)] as const;
+    }));
     for (const [wert, gefunden] of ergebnisse) {
       const k = kennungAus(wert);
       /*
-       * Auch ein Fehlschlag wird gemerkt.
-       *
-       * Sonst fragt jede Anfrage erneut bei fortnite-api.com nach einer
-       * Kennung, die es dort nicht gibt - und das sind bei Emoticons alle.
-       * Gemerkt wird dann der Notname, damit die Anzeige etwas hat.
+       * Nur Gefundenes wird dauerhaft gemerkt. Ein Fehlschlag wartet eine
+       * Stunde im Speicher und wird dann neu versucht - frueher blieb er fuer
+       * immer als Deckname stehen, auch nachdem fortnite-api.com den Skin
+       * laengst kannte.
        */
-      const eintrag: Gegenstand = gefunden
-        ?? { name: notName(wert), art: null, bild: null };
-      bekannt[k] = eintrag;
-      raus.set(wert, eintrag);
-      neuDabei = true;
+      if (gefunden) {
+        bekannt[k] = gefunden;
+        neuDabei = true;
+        raus.set(wert, gefunden);
+      } else {
+        fehlt.set(k, jetzt + 60 * 60_000);
+        raus.set(wert, { name: notName(wert), art: null, bild: null });
+      }
     }
     void sichern();
   }

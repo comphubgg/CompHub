@@ -3019,46 +3019,97 @@ async function dmMerken(nutzerId: string, kanal: string): Promise<void> {
  *
  * Der Betreiber: "Ich will eigentlich sozusagen, wie der Account mir
  * gehoert, dass ich die Privatnachrichten sehen kann." Ein Bot kann seine
- * DM-Kanaele nicht auflisten; bekannt sind die, in die er selbst einmal
- * geschrieben hat. Deren neue Nachrichten - beide Seiten - landen hier.
+ * DM-Kanaele nicht auflisten. Gefragt wird deshalb bei allen, mit denen er
+ * nachweislich zu tun hatte: wer in #access-requests eine Anfrage gestellt
+ * hat (dorthin schreibt er ihnen), und wen die Ablage kennt. Der DM-Kanal
+ * zu einer Person laesst sich jederzeit neu erfragen.
+ *
+ * Kein Schritt braucht Supabase: am 25.9.2026 meldete der Knopf nur
+ * "Storage is not answering". Wie weit schon gespiegelt ist, steht im
+ * Kanal selbst - in der Fusszeile jeder Spiegelung ("dm:<Person>:<Nachricht>").
  */
 export async function dmsSpiegeln(): Promise<{ ok: boolean; text: string }> {
   if (!discordDa()) return { ok: false, text: 'no bot token' };
-  const dms = await liesDms();
-  const eintraege = Object.entries(dms);
-  if (!eintraege.length) return { ok: true, text: 'No direct message conversations are known yet.' };
 
   const kanaele = await alleKanaele();
   const ziel = kanaele.find((k) => k.type === 0 && gleich(k.name, DM_KANAL))?.id
     ?? await infoKanal(DM_KANAL, 'Direct messages to the CompHub bot - both sides', await kategorieFuer('Admin'), kanaele, 'manager', []);
   if (!ziel) return { ok: false, text: `#${DM_KANAL} could not be created.` };
 
-  let neu = 0;
-  for (const [nutzerId, e] of eintraege) {
-    const roh = await ruf(`/channels/${e.kanal}/messages?limit=50${e.zuletzt ? `&after=${e.zuletzt}` : ''}`, 'GET');
+  // Wer in Frage kommt: aus der Ablage (wenn sie antwortet) und aus den Anfragen.
+  const kandidaten = new Map<string, string>();
+  try {
+    for (const [id, e] of Object.entries(await liesDms())) kandidaten.set(id, e.name ?? id);
+  } catch { /* ohne Ablage - die Anfragen genuegen */ }
+  const anfragen = kanaele.find((k) => k.type === 0 && gleich(k.name, ZUGANG_ANFRAGEN));
+  if (anfragen) {
+    let vor = '';
+    for (let seite = 0; seite < 5; seite += 1) {
+      const roh = await ruf(`/channels/${anfragen.id}/messages?limit=100${vor ? `&before=${vor}` : ''}`, 'GET');
+      if (!Array.isArray(roh) || !roh.length) break;
+      for (const m of roh as KnopfNachricht[]) {
+        const a = anfrageAusNachricht(m);
+        if (a?.nutzerId) kandidaten.set(a.nutzerId, a.nutzerName || a.name || a.nutzerId);
+      }
+      vor = String((roh[roh.length - 1] as { id: string }).id);
+      if (roh.length < 100) break;
+    }
+  }
+  if (!kandidaten.size) return { ok: true, text: 'No direct message conversations are known yet.' };
+
+  // Wie weit schon gespiegelt ist - aus den Fusszeilen in #admin-dms.
+  const zuletzt = new Map<string, string>();
+  const ich = await werBinIch();
+  const alt = await ruf(`/channels/${ziel}/messages?limit=100`, 'GET');
+  if (Array.isArray(alt)) {
+    for (const m of alt as Array<{ author?: { id?: string }; embeds?: Array<{ footer?: { text?: string } }> }>) {
+      if (m.author?.id !== ich) continue;
+      const f = m.embeds?.[0]?.footer?.text ?? '';
+      const t = f.match(/^dm:(\d+):(\d+)$/);
+      if (t && !zuletzt.has(t[1])) zuletzt.set(t[1], t[2]);
+    }
+  }
+
+  let neu = 0; let gespraeche = 0;
+  const grenze = Date.now() - 30 * 86400_000;
+  for (const [nutzerId, name] of kandidaten) {
+    const kanal = idAus(await ruf('/users/@me/channels', 'POST', { recipient_id: nutzerId }));
+    if (!kanal) continue;
+    const seit = zuletzt.get(nutzerId);
+    const roh = await ruf(`/channels/${kanal}/messages?limit=50${seit ? `&after=${seit}` : ''}`, 'GET');
     if (!Array.isArray(roh) || !roh.length) continue;
     const nachrichten = [...roh as Array<{
       id: string; content?: string; timestamp?: string;
       author?: { id?: string; username?: string; bot?: boolean };
       embeds?: Array<{ title?: string; description?: string }>;
-    }>].sort((a, b) => (BigInt(a.id) < BigInt(b.id) ? -1 : 1));
+    }>]
+      .filter((m) => seit || Date.parse(m.timestamp ?? '') > grenze)
+      .sort((a, b) => (BigInt(a.id) < BigInt(b.id) ? -1 : 1));
+    if (!nachrichten.length) continue;
     const zeilen = nachrichten.map((m) => {
       const wann = (m.timestamp ?? '').slice(0, 16).replace('T', ' ');
-      const wer = m.author?.bot ? 'CompHub' : (m.author?.username ?? '?');
+      const wer = m.author?.bot ? 'CompHub' : (m.author?.username ?? name);
       const text = (m.content || m.embeds?.map((x) => [x.title, x.description].filter(Boolean).join(': ')).join(' / ') || '(attachment)')
         .replace(/\s+/g, ' ').slice(0, 300);
       return `\`${wann}\` **${wer}:** ${text}`;
     });
-    const beschreibung = zeilen.join('\n').slice(0, 3900);
     await ruf(`/channels/${ziel}/messages`, 'POST', {
-      embeds: [{ title: `Direct messages with ${e.name ?? nutzerId}`, description: `<@${nutzerId}>\n${beschreibung}`, color: FARBE }],
+      embeds: [{
+        title: `Direct messages with ${name}`,
+        description: `<@${nutzerId}>\n${zeilen.join('\n').slice(0, 3900)}`,
+        color: FARBE,
+        footer: { text: `dm:${nutzerId}:${nachrichten[nachrichten.length - 1].id}` },
+      }],
       allowed_mentions: { parse: [] },
     });
-    e.zuletzt = nachrichten[nachrichten.length - 1].id;
-    neu += nachrichten.length;
+    neu += nachrichten.length; gespraeche += 1;
   }
-  try { await fs.writeFile(DM_DATEI, JSON.stringify(dms, null, 1), 'utf8'); } catch { /* beim naechsten Mal */ }
-  return { ok: true, text: neu ? `${neu} new message(s) mirrored to <#${ziel}>.` : 'No new direct messages.' };
+  return {
+    ok: true,
+    text: neu
+      ? `${neu} message(s) from ${gespraeche} conversation(s) mirrored to <#${ziel}>.`
+      : `No new direct messages (${kandidaten.size} conversation(s) checked).`,
+  };
 }
 
 /* ------------------------------------------------------------ Das Panel */
