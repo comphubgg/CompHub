@@ -852,6 +852,13 @@ export interface CupFensterDetail extends CupFenster {
    */
   playlist?: string;
   /**
+   * Auf welchen Geraeten gespielt werden darf - aus Epics Ereignisdaten,
+   * zusammengefasst zu Mobile, PC, PlayStation, Switch, Xbox.
+   */
+  plattformen?: string[];
+  /** Nur mit Touch-Steuerung (Mobile Cups): Epics Bedingung "input-touch". */
+  nurTouch?: boolean;
+  /**
    * Wie viele Teams sich aus diesem Fenster qualifizieren.
    *
    * Aus Epics Auszahlungstabelle, nicht geschaetzt. Fehlt, wo es nichts zu
@@ -1018,13 +1025,38 @@ interface RohEvent {
   eventId: string;
   displayDataId?: string;
   regions?: string[];
+  /** Epics Plattformkennungen: Windows, PS5, XSX, Switch2, Helios ... */
+  platforms?: string[];
   metadata?: Record<string, unknown>;
   eventWindows?: Array<{
     eventWindowId: string; beginTime: string; endTime: string;
     round?: number; eventTemplateId?: string;
     metadata?: Record<string, unknown>;
     requireAllTokens?: string[]; requireAnyTokens?: string[];
+    /** Etwa "input-touch" (nur mit Touch-Steuerung) oder "mfa". */
+    additionalRequirements?: string[];
   }>;
+}
+
+/*
+ * Epics Plattformkennungen, zusammengefasst wie auf fortnite.com: "Mobile,
+ * PC, PlayStation, Switch, Xbox". Cloud-Dienste zaehlen zu dem Geraet, das
+ * sie nachbilden. Eine unbekannte Kennung faellt weg, statt geraten zu werden.
+ */
+const PLATTFORM: Record<string, string> = {
+  Windows: 'PC', Mac: 'PC', GFN: 'PC', Luna: 'PC',
+  PS4: 'PlayStation', PS5: 'PlayStation',
+  XB1: 'Xbox', XboxOne: 'Xbox', XboxOneGDK: 'Xbox', XSX: 'Xbox', XCloud: 'Xbox',
+  Switch: 'Switch', Switch2: 'Switch',
+  IOS: 'Mobile', Android: 'Mobile', Helios: 'Mobile', HeliosMobile: 'Mobile',
+  LunaMobile: 'Mobile', XCloudMobile: 'Mobile', GFNMobile: 'Mobile',
+};
+const PLATTFORM_REIHE = ['Mobile', 'PC', 'PlayStation', 'Switch', 'Xbox'];
+
+function plattformenVon(roh?: string[]): string[] | undefined {
+  if (!roh?.length) return undefined;
+  const da = new Set(roh.map((p) => PLATTFORM[p]).filter(Boolean));
+  return PLATTFORM_REIHE.filter((p) => da.has(p));
 }
 
 /** Eine Auszahlungsgruppe, wie Epic sie fuehrt. */
@@ -1227,6 +1259,8 @@ export async function cupsGruppiert(regionen: readonly string[] = REGIONEN) {
           tokens,
           matchCap: w.eventTemplateId ? caps.get(w.eventTemplateId) : undefined,
           playlist: w.eventTemplateId ? playlists.get(w.eventTemplateId) : undefined,
+          plattformen: plattformenVon(ev.platforms),
+          nurTouch: (w.additionalRequirements ?? []).includes('input-touch') || undefined,
           // Wie viele weiterkommen. Nichts, wenn Epic keine Schwelle fuehrt -
           // bei einem Finale gibt es keine.
           qualifiziert: rangSchwelle(daten.payoutTables?.[w.eventWindowId]) ?? undefined,
@@ -1300,6 +1334,9 @@ export interface ArchivEintrag {
   istFinale: boolean; matchCap?: number; qualifiziert?: number;
   /** Epics Playlist - siehe CupFensterDetail.playlist. */
   playlist?: string;
+  /** Plattformen und Touch-Bedingung - siehe CupFensterDetail (seit 25.9.2026). */
+  plattformen?: string[];
+  nurTouch?: boolean;
   /** Die Bestenlisten je Rangstufe - siehe CupFensterDetail.raenge. */
   raenge?: RangListe[];
   /**
@@ -1396,7 +1433,7 @@ export async function archivCups(
       // zeitlichen Reihenfolge, damit die Anzeige nicht leer bleibt.
       runde: 0, istFinale: e.istFinale, tokens: e.tokens ?? [], matchCap: e.matchCap,
       qualifiziert: e.qualifiziert, playlist: e.playlist, raenge: e.raenge,
-      marken: e.marken,
+      marken: e.marken, plattformen: e.plattformen, nurTouch: e.nurTouch,
     });
   }
 
@@ -1453,6 +1490,10 @@ export async function schreibeArchiv(cups: CupGruppe[]): Promise<number> {
           // Und die Marken (seit dem 22.9.2026), solange Epic sie noch nennt.
           if (f.marken?.length && !da.marken?.length) { da.marken = f.marken; neu++; }
           if (f.tokens?.length && !da.tokens?.length) { da.tokens = f.tokens; neu++; }
+          // Plattformen fuer "About" (seit dem 25.9.2026).
+          if (f.plattformen?.length && !da.plattformen?.length) {
+            da.plattformen = f.plattformen; da.nurTouch = f.nurTouch; neu++;
+          }
           continue;
         }
         nachSchluessel.set(k, {
@@ -1462,6 +1503,7 @@ export async function schreibeArchiv(cups: CupGruppe[]): Promise<number> {
           begin: f.begin, end: f.end,
           istFinale: f.istFinale, matchCap: f.matchCap,
           qualifiziert: f.qualifiziert, playlist: f.playlist,
+          ...(f.plattformen?.length ? { plattformen: f.plattformen, nurTouch: f.nurTouch } : {}),
           ...(f.raenge?.length ? { raenge: f.raenge } : {}),
           ...(f.tokens?.length ? { tokens: f.tokens } : {}),
           ...(f.marken?.length ? { marken: f.marken } : {}),

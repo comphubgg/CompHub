@@ -19,6 +19,7 @@ import { regionFarbe } from '@/lib/regionFarbe';
 import { useT, useSprache } from '@/app/components/SprachProvider';
 import { kartenTitel } from '@/lib/rundenName';
 import CupArchiv from '@/app/components/CupArchiv';
+import { inselAusPlaylist } from '@/lib/inseln';
 /**
  * Regionen, fuer die von selbst eine Karte bereitsteht.
  *
@@ -45,6 +46,62 @@ interface Fenster {
   raenge?: Array<{ kennung: string; name: string }>;
   /** Epics Playlist, etwa "Playlist_ShowdownTournament_NPM_Duos". */
   playlist?: string;
+  /** Mobile, PC, PlayStation, Switch, Xbox - aus Epics Ereignisdaten. */
+  plattformen?: string[];
+  /** Nur mit Touch-Steuerung (Mobile Cups). */
+  nurTouch?: boolean;
+}
+
+/*
+ * Was sich aus Epics Playlist ueber den Spieltag sagen laesst - und nur das.
+ *
+ *   Playlist_ShowdownTournament_RE_JumpBearNoBuildSolo_PBM
+ *     RE        Reload (Lobbys mit 40 Spielern)
+ *     JumpBear  der Codename der Insel (lib/inseln)
+ *     NoBuild   Zero Build
+ *     Solo      Teamgroesse
+ *     PBM       Points-Based Matchmaking
+ *
+ * Steht etwas nicht in der Playlist, steht es hier auch nicht.
+ */
+function spieltagAus(playlist?: string) {
+  const p = playlist ?? '';
+  const insel = inselAusPlaylist(p);
+  const reload = insel.art === 'reload';
+  return {
+    insel,
+    reload,
+    zeroBuild: /NoBuild|ZeroBuild/i.test(p),
+    pbm: /_PBM$/i.test(p),
+    // Reload spielt in Lobbys zu 40, Battle Royale zu 100.
+    maxSpieler: reload ? 40 : insel.art === 'br' ? 100 : null,
+  };
+}
+
+/** "1 hour 15 minutes" / "1 Stunde 15 Minuten". */
+function spieltagDauer(ms: number, en: boolean) {
+  const min = Math.round(ms / 60_000);
+  const h = Math.floor(min / 60);
+  const m = min % 60;
+  const teile = [];
+  if (h) teile.push(en ? `${h} ${h === 1 ? 'hour' : 'hours'}` : `${h} ${h === 1 ? 'Stunde' : 'Stunden'}`);
+  if (m) teile.push(en ? `${m} ${m === 1 ? 'minute' : 'minutes'}` : `${m} ${m === 1 ? 'Minute' : 'Minuten'}`);
+  return teile.join(' ') || (en ? '0 minutes' : '0 Minuten');
+}
+
+/** "Starts in 6 hours" / "Beginnt in 6 Stunden". */
+function startText(ms: number, jetzt: number, en: boolean) {
+  const min = Math.max(0, Math.round((ms - jetzt) / 60_000));
+  const h = Math.round(min / 60);
+  const d = Math.round(h / 24);
+  if (en) {
+    if (min < 60) return `Starts in ${min} ${min === 1 ? 'minute' : 'minutes'}`;
+    if (h < 48) return `Starts in ${h} ${h === 1 ? 'hour' : 'hours'}`;
+    return `Starts in ${d} days`;
+  }
+  if (min < 60) return `Beginnt in ${min} ${min === 1 ? 'Minute' : 'Minuten'}`;
+  if (h < 48) return `Beginnt in ${h} ${h === 1 ? 'Stunde' : 'Stunden'}`;
+  return `Beginnt in ${d} Tagen`;
 }
 
 /**
@@ -664,6 +721,11 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
    * schauen ihn nie an, und die Anfrage geht zu Epic.
    */
   const [quali, setQuali] = useState<Array<{ art: string; text: string }> | null>(null);
+  /** "Show rules" unter About - die Teilnahmebedingungen, eingeklappt. */
+  const [regelnOffen, setRegelnOffen] = useState(false);
+  /** Name und Bild der Reload-Insel des Spieltags (lib/inseln, /api/karten-bild). */
+  const [insel, setInsel] = useState<{ code: string; titel: string; bildId: string } | null>(null);
+  const [aboutJetzt, setAboutJetzt] = useState(0);
   useEffect(() => {
     if (reiter !== 'about' || quali || !fenster) return;
     const p = new URLSearchParams({
@@ -674,6 +736,21 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
       .then((j) => setQuali(Array.isArray(j?.zeilen) ? j.zeilen : []))
       .catch(() => setQuali([]));
   }, [reiter, quali, fenster]);
+
+  // About: die Insel eines Reload-Spieltags mit Namen und Karte. Die Seite
+  // besorgt sie selbst aus den Spieldateien, wenn es sie noch nicht gibt.
+  useEffect(() => {
+    if (reiter !== 'about' || !fenster) return;
+    const id = setTimeout(() => setAboutJetzt(Date.now()), 0);
+    const code = inselAusPlaylist(fenster.playlist).schluessel;
+    if (!code || code === 'BR' || insel?.code === code) return () => clearTimeout(id);
+    let weg = false;
+    fetch(`/api/karten-bild?insel=${encodeURIComponent(code)}`)
+      .then((r) => r.json())
+      .then((j) => { if (!weg && j?.ok) setInsel({ code, titel: j.titel, bildId: j.bildId }); })
+      .catch(() => { /* dann ohne Kartenbild */ });
+    return () => { weg = true; clearTimeout(id); };
+  }, [reiter, fenster, insel?.code]);
 
   /*
    * Wer aus diesem Cup gerade sendet.
@@ -2672,44 +2749,108 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
 
 
         {/* ------------------------------------------------- About */}
-        {reiter === 'about' && (
-          <section className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
-            <h2 className="text-sm font-semibold text-slate-100">
-              <T>Wer mitspielen darf</T>
-            </h2>
-            <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
-              <T>Direkt aus Epics Turnierdaten für genau diesen Spieltag —
-              nichts davon ist geschätzt.</T>
+        {/*
+          * About - wie auf Epics eigener Turnierseite: Map, Format, Matches,
+          * Plattformen, Datum und Dauer. Der Betreiber (25.9.2026): "Das
+          * erwarte ich eigentlich, wie es bei About aussieht ... Was du jetzt
+          * gerade unter About hast, ist ja eigentlich Rules." Die Regeln
+          * stehen deshalb darunter, hinter "Show rules". Alles kommt aus
+          * Epics Ereignisdaten und der Playlist; was dort fehlt, fehlt hier.
+          */}
+        {reiter === 'about' && fenster && (() => {
+          const st = spieltagAus(fenster.playlist);
+          const groesse = teamGroesseAus(fenster.playlist);
+          const format = groesse ? ({ 1: 'Solo', 2: 'Duo', 3: 'Trio', 4: 'Squad' } as Record<number, string>)[groesse] : null;
+          const kartenName = st.reload ? insel?.titel ?? null : st.insel.art === 'br' ? 'Battle Royale' : null;
+          const kartenBild = st.reload
+            ? (insel ? `/api/karten-bild?datei=1&id=${encodeURIComponent(insel.bildId)}` : null)
+            : st.insel.art === 'br' ? '/api/fortnite-map?bild=poi' : null;
+          const zeile = (titel: string, wert: React.ReactNode) => (
+            <p className="text-sm leading-relaxed text-slate-300">
+              <span className="font-bold text-slate-100">{titel}:</span> {wert}
             </p>
+          );
+          return (
+            <section className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
+              <div className="flex flex-col gap-5 md:flex-row">
+                <div className="min-w-0 flex-1 space-y-1.5">
+                  <h2 className="text-base font-bold text-slate-100">{kartenTitel(cup?.titel, fenster, t)}</h2>
+                  {st.pbm && (
+                    <p className="text-sm font-bold text-emerald-400">Points-Based Matchmaking (ELO)</p>
+                  )}
+                  {kartenName && zeile(t('Karte'), kartenName)}
+                  {(format || fenster.matchCap) && zeile(t('Format'), (
+                    <>
+                      {format && <>{format}{st.zeroBuild ? ' · Zero Build' : ''}{st.maxSpieler ? ` (max ${st.maxSpieler} ${t('Spieler')})` : ''}</>}
+                      {format && fenster.matchCap ? <span className="text-slate-600">  |  </span> : null}
+                      {fenster.matchCap ? <><span className="font-bold text-slate-100">Matches:</span> {fenster.matchCap}</> : null}
+                    </>
+                  ))}
+                  {!!fenster.plattformen?.length && zeile(t('Plattformen'), fenster.nurTouch
+                    ? t('Nur Mobile (Touch-Steuerung)')
+                    : fenster.plattformen.join(', '))}
+                  {zeile(t('Datum'), (
+                    <>
+                      {tag(fenster.begin, ort)}, {uhr(fenster.begin, ort)}
+                      {typeof fenster.end === 'number' && (
+                        <><span className="text-slate-600">  |  </span>
+                          <span className="font-bold text-slate-100">{t('Dauer')}:</span> {spieltagDauer(fenster.end - fenster.begin, sprache === 'en')}</>
+                      )}
+                      <span className="text-slate-600">  |  </span>
+                      {fenster.status === 'live' ? <span className="text-sky-400">{t('Läuft gerade')}</span>
+                        : fenster.status === 'vorbei' ? t('Beendet')
+                          : aboutJetzt ? startText(fenster.begin, aboutJetzt, sprache === 'en') : ''}
+                    </>
+                  ))}
+                </div>
+                {/* Die Karte des Spieltags, klein. */}
+                {kartenBild && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={kartenBild} alt={kartenName ?? ''} loading="lazy"
+                    className="h-44 w-44 shrink-0 self-start rounded-lg border border-zinc-800 object-cover" />
+                )}
+              </div>
 
-            {!quali && <LadeSchirm />}
-            {quali && !quali.length && (
-              <p className="mt-4 text-sm leading-relaxed text-slate-500">
-                <T>Zu diesem Spieltag nennt Epic keine Bedingungen.</T>
-              </p>
-            )}
-
-            {quali && quali.length > 0 && (
-              <ul className="mt-4 space-y-2">
-                {quali.map((z) => (
-                  <li key={z.text} className="flex gap-2 text-sm leading-relaxed">
-                    {/*
-                      * Ein Zeichen statt einer Farbe allein: was mitmachen
-                      * laesst, was aussperrt, und was bloss eine Regel ist.
-                      */}
-                    <span className={`shrink-0 font-bold ${
-                      z.art === 'dabei' ? 'text-emerald-400'
-                        : z.art === 'gesperrt' ? 'text-rose-400' : 'text-slate-600'}`}>
-                      {z.art === 'dabei' ? '✓' : z.art === 'gesperrt' ? '✕' : '·'}
-                    </span>
-                    <span className={z.art === 'sonst'
-                      ? 'text-slate-400' : 'text-slate-200'}>{z.text}</span>
-                  </li>
-                ))}
-              </ul>
-            )}
-          </section>
-        )}
+              {/* Die Teilnahmebedingungen - eingeklappt, wie "Show rules". */}
+              <button type="button" onClick={() => setRegelnOffen((v) => !v)}
+                className="mt-4 rounded-lg border border-zinc-800 px-3 py-1.5 text-xs font-semibold
+                           text-slate-300 transition hover:border-sky-500 hover:text-sky-400">
+                {regelnOffen ? t('Regeln ausblenden') : t('Regeln zeigen')}
+              </button>
+              {regelnOffen && (
+                <div className="mt-3 border-t border-zinc-800 pt-3">
+                  <h3 className="text-sm font-semibold text-slate-100">
+                    <T>Wer mitspielen darf</T>
+                  </h3>
+                  <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
+                    <T>Direkt aus Epics Turnierdaten für genau diesen Spieltag — nichts davon ist geschätzt.</T>
+                  </p>
+                  {!quali && <LadeSchirm />}
+                  {quali && !quali.length && (
+                    <p className="mt-4 text-sm leading-relaxed text-slate-500">
+                      <T>Zu diesem Spieltag nennt Epic keine Bedingungen.</T>
+                    </p>
+                  )}
+                  {quali && quali.length > 0 && (
+                    <ul className="mt-4 space-y-2">
+                      {quali.map((z) => (
+                        <li key={z.text} className="flex gap-2 text-sm leading-relaxed">
+                          <span className={`shrink-0 font-bold ${
+                            z.art === 'dabei' ? 'text-emerald-400'
+                              : z.art === 'gesperrt' ? 'text-rose-400' : 'text-slate-600'}`}>
+                            {z.art === 'dabei' ? '✓' : z.art === 'gesperrt' ? '✕' : '·'}
+                          </span>
+                          <span className={z.art === 'sonst'
+                            ? 'text-slate-400' : 'text-slate-200'}>{z.text}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              )}
+            </section>
+          );
+        })()}
 
         {/* Leaderboard */}
         {reiter === 'liste' && (
