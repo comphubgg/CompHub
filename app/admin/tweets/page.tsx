@@ -2995,6 +2995,20 @@ export default function TweetSeite() {
     }
 
     /*
+     * Beim Team Spotlight genau die Spieler dieses Teams, jeder fuer sich.
+     *
+     * Der Betreiber (26.9.2026): "ein Team Spotlight ist ja oft nur zwei
+     * Personen". Vorher kam das Bild aus der Bestenliste - fuenf fremde
+     * Teams statt des einen, um das es geht. Und als eine Gruppe
+     * geschickt, haette die Schnittstelle von einem Duo nur einen gezeigt.
+     */
+    if (vorlage === 'spieler') {
+      const e = eintraege.find((x) => x.rank === spotlight);
+      return (e?.players ?? []).map((x) => x.id)
+        .filter((id): id is string => Boolean(id) && /^[0-9a-f]{32}$/i.test(id!));
+    }
+
+    /*
      * Je Team eine Gruppe, mit senkrechtem Strich verbunden.
      *
      * /api/beitrag-bild entscheidet daraus, wer ins Bild kommt: aus jedem
@@ -3033,7 +3047,11 @@ export default function TweetSeite() {
     if (raus.length < 12) for (const e of eintraege) gruppe(e.players.map((x) => x.id));
 
     return raus.slice(0, 20);
-  }, [aktiveListen, gewaehlteListen, eintraege, vorlage, eigeneWahl]);
+  }, [aktiveListen, gewaehlteListen, eintraege, vorlage, eigeneWahl, spotlight]);
+
+  /** Beim Team Spotlight so viele Gesichter, wie das Team Spieler hat. */
+  const bildAnzahl = vorlage === 'spieler'
+    ? Math.max(2, mosaikIds.length) : mosaikAnzahl;
 
   /**
    * Das Mosaik holen, sobald sich die Auswahl aendert.
@@ -3056,7 +3074,7 @@ export default function TweetSeite() {
       try {
         const r = await fetch(
           `/api/beitrag-bild?ids=${encodeURIComponent(mosaikIds.join(','))}`
-          + `&anzahl=${mosaikAnzahl}`, { cache: 'no-store' });
+          + `&anzahl=${bildAnzahl}`, { cache: 'no-store' });
         if (!r.ok) {
           const j = await r.json().catch(() => null);
           if (!weg) { setMosaikUrl(null); setMosaikFehler(j?.hinweis ?? j?.error ?? 'kein Bild'); }
@@ -3083,7 +3101,7 @@ export default function TweetSeite() {
     void Promise.resolve().then(lauf);
 
     return () => { weg = true; };
-  }, [mosaikIds, mosaikAnzahl]);
+  }, [mosaikIds, bildAnzahl]);
 
   /**
    * Das Bild in die Zwischenablage legen.
@@ -4270,8 +4288,11 @@ export default function TweetSeite() {
                     * drei, zehn fuenf mal zwei - so, wie der Betreiber es
                     * fuer seine eigenen Beitraege wollte.
                     */}
+                  {/* Beim Team Spotlight gibt die Teamgroesse die Zahl vor -
+                      dort gibt es nichts zu waehlen. */}
+                  {vorlage !== 'spieler' && (
                   <span className="flex flex-wrap items-center gap-1">
-                    {[3, 4, 5, 6, 9, 10].map((n) => (
+                    {[2, 3, 4, 5, 6, 9, 10].map((n) => (
                       <button key={n} onClick={() => setMosaikAnzahl(n)}
                         className={`rounded-md border px-2 py-0.5 text-[11px]
                                     font-semibold transition ${mosaikAnzahl === n
@@ -4281,6 +4302,7 @@ export default function TweetSeite() {
                       </button>
                     ))}
                   </span>
+                  )}
 
                   <span className="ml-auto flex items-center gap-2">
                     <button onClick={mosaikKopieren} disabled={!mosaikUrl}
