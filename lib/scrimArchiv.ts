@@ -72,7 +72,39 @@ export async function scrimSession(id: string) {
   const tag = await lies<{ sitzungen: ArchivSitzung[] }>(`scrims/${kurz.tag}/${kurz.quelle}-${kurz.guildId}.json`);
   const s = tag?.sitzungen.find((x) => x.id === id);
   if (!s) return null;
+  return ausKurzform(s);
+}
 
+/*
+ * Poyo heute - was ansteht oder laeuft, samt Zwischenstand laufender Lobbys.
+ * Schreibt der Ablauf "Scrims sammeln" alle zehn Minuten (Poyo sperrt die
+ * Server von Vercel, die Seite kann dort nicht selbst fragen).
+ */
+export interface PoyoHeuteDatei {
+  stand: number;
+  sitzungen: Array<{
+    id: string; guildId: string; name: string; teamGroesse: number; modus: string | null;
+    beginn: number; live: boolean; spieler: number; plaetze: number;
+  }>;
+  lobbys: Record<string, ArchivSitzung>;
+  fehler: Record<string, string>;
+}
+
+export function poyoHeuteDatei(): Promise<PoyoHeuteDatei | null> {
+  return lies<PoyoHeuteDatei>('scrims/_heute.json');
+}
+
+/** Eine laufende Poyo-Lobby mit Zwischenstand, aus scrims/_heute.json. */
+export async function poyoHeuteLobby(id: string) {
+  const d = await poyoHeuteDatei();
+  const s = d?.lobbys?.[id];
+  if (!s) return null;
+  const aus = ausKurzform(s);
+  return { ...aus, turnier: { ...aus.turnier, live: true, vorbei: false }, stand: d?.stand ?? 0 };
+}
+
+/** Eine abgelegte Session in der Form, die die Seite zeigt. */
+function ausKurzform(s: ArchivSitzung) {
   const teams = s.teams.map((x) => {
     const n = x.g.length;
     return {

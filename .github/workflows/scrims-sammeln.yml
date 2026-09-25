@@ -21,12 +21,16 @@ on:
         description: 'Ab welchem Tag (JJJJ-MM-TT) - leer: die letzten drei Tage'
         required: false
   schedule:
-    - cron: '25 * * * *'   # jede Stunde, fuenfundzwanzig nach
+    - cron: '25 * * * *'     # jede Stunde: die letzten drei Tage
+    # Alle zehn Minuten nur heute: was bei Poyo ansteht oder laeuft (fuer
+    # "Upcoming" und laufende Lobbys) und was eben zu Ende ging. Poyo sperrt
+    # die Server von Vercel - die Seite liest es deshalb aus dieser Ablage.
+    - cron: '5,15,35,45,55 * * * *'
 
 jobs:
   sammeln:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 25
     permissions:
       contents: write
     concurrency:
@@ -46,9 +50,11 @@ jobs:
         timeout-minutes: 20
         run: |
           if [ -n "${{ github.event.inputs.seit }}" ]; then
-            node scripts/scrims-holen.mjs --seit "${{ github.event.inputs.seit }}"
+            node scripts/scrims-holen.mjs --seit "${{ github.event.inputs.seit }}" --heute
+          elif [ "${{ github.event.schedule }}" = "25 * * * *" ] || [ -z "${{ github.event.schedule }}" ]; then
+            node scripts/scrims-holen.mjs --heute
           else
-            node scripts/scrims-holen.mjs
+            node scripts/scrims-holen.mjs --seit heute --heute
           fi
 
       - name: Ans GitHub-Release

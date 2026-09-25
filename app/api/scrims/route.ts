@@ -1,12 +1,13 @@
 import { NextResponse } from 'next/server';
+import type { PoyoHeuteDatei } from '@/lib/scrimArchiv';
 import { istAdminAnfrage } from '@/lib/adminPruefung';
 import {
   server, turniere, bestenliste, matches, yuniteDa,
   KeinPremium, NichtFreigegeben, YuniteFehlt,
 } from '@/lib/yunite';
 import { NOBLE_SERVER, nobleSitzungen, nobleLeaderboard } from '@/lib/noble';
-import { scrimVerzeichnis, scrimSession } from '@/lib/scrimArchiv';
-import { poyoHeute, poyoLobby } from '@/lib/poyo';
+import { scrimVerzeichnis, scrimSession, poyoHeuteDatei, poyoHeuteLobby } from '@/lib/scrimArchiv';
+import { poyoLobby } from '@/lib/poyo';
 
 // Die Scrims der Community-Server - siehe lib/yunite.
 //
@@ -76,20 +77,35 @@ export async function GET(request: Request) {
    * Poyo live: was heute ansteht oder laeuft (fuer "Upcoming"), und eine
    * Lobby, die das Archiv noch nicht hat - siehe lib/poyo.
    */
+  /*
+   * Aus der Ablage, nicht direkt von Poyo: Poyos Cloudflare sperrt die
+   * Server von Vercel (403, 25.9.2026). Die Datei schreibt der Ablauf
+   * "Scrims sammeln" alle zehn Minuten.
+   */
   if (searchParams.get('quelle') === 'poyo-heute') {
-    const ids = (searchParams.get('server') ?? '').split(',').map((x) => x.trim())
-      .filter((x) => /^\d{5,25}$/.test(x)).slice(0, 12);
-    return NextResponse.json(await poyoHeute(ids));
+    try {
+      const d = await poyoHeuteDatei();
+      if (!d) return NextResponse.json({ error: 'noch-nicht-gesammelt' }, { status: 503 });
+      const heute: Record<string, PoyoHeuteDatei['sitzungen']> = {};
+      for (const s of d.sitzungen) (heute[s.guildId] ??= []).push(s);
+      return NextResponse.json({ heute, fehler: d.fehler, stand: d.stand });
+    } catch (e) {
+      return NextResponse.json({ error: (e as Error).message }, { status: 502 });
+    }
   }
   if (searchParams.get('quelle') === 'poyo') {
     if (!/^\d{5,25}$/.test(guildId) || !/^[0-9a-f]{24}$/i.test(turnierId)) {
       return NextResponse.json({ error: 'unbekannt' }, { status: 400 });
     }
+    // Erst der Zwischenstand aus der Ablage (laufende Lobbys), dann Poyo
+    // selbst - das klappt nur, wenn Poyo die Anfrage nicht sperrt.
+    const ausAblage = await poyoHeuteLobby(turnierId).catch(() => null);
+    if (ausAblage) return NextResponse.json(ausAblage);
     try {
       const l = await poyoLobby(guildId, turnierId);
       return l ? NextResponse.json(l) : NextResponse.json({ nichtDa: true, teams: [], runden: [] });
     } catch (e) {
-      return NextResponse.json({ error: (e as Error).message }, { status: 502 });
+      return NextResponse.json({ nichtDa: true, teams: [], runden: [], error: (e as Error).message });
     }
   }
 

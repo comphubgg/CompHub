@@ -1204,6 +1204,9 @@ export default function ScrimsSeite() {
           ...(nl?.sitzungen ?? []),
           ...(heute[sv.guildId] ?? []).map((h) => ({
             ...h, region: 'EU', ende: 0, art: 'SCRIM', vorbei: false,
+            // Die Liste ist bis zu zehn Minuten alt: was laut Zeit schon
+            // begonnen hat, gilt als laufend, nicht mehr als "Upcoming".
+            live: h.live || h.beginn <= Date.now(),
           })),
         ].filter((s) => !bekannt.has(s.id));
         const ohneDoppelte = ausArchiv.filter((s) => s.archiv || !dazu.some((d) => d.id === s.id));

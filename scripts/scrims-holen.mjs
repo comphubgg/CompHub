@@ -41,7 +41,17 @@ const wert = (n) => { const i = argumente.indexOf(n); return i >= 0 ? argumente[
 /** Der Tag eines Zeitpunkts, wie man ihn in Mitteleuropa zaehlt. */
 const tagVon = (ms) => new Intl.DateTimeFormat('en-CA', { timeZone: ZONE }).format(new Date(ms));
 const heute = tagVon(Date.now());
-const seit = wert('--seit') ?? tagVon(Date.now() - 2 * 86400_000);
+const seit = wert('--seit') === 'heute' ? heute : (wert('--seit') ?? tagVon(Date.now() - 2 * 86400_000));
+/*
+ * --heute: zusaetzlich festhalten, was bei Poyo heute ansteht oder laeuft
+ * (scrims/_heute.json), samt Zwischenstand laufender Lobbys.
+ *
+ * Warum hier und nicht auf der Seite: Poyo steht hinter Cloudflare, und das
+ * sperrt die Server von Vercel mit 403 - die Seite selbst bekommt von Poyo
+ * nichts (festgestellt am 25.9.2026). GitHubs Rechner werden bedient. Der
+ * Ablauf "Scrims sammeln" schreibt das deshalb alle zehn Minuten.
+ */
+const mitHeute = argumente.includes('--heute');
 if (!/^\d{4}-\d{2}-\d{2}$/.test(seit)) { console.error('--seit JJJJ-MM-TT'); process.exit(1); }
 const imFenster = (tag) => tag >= seit && tag <= heute;
 
@@ -308,6 +318,41 @@ async function main() {
     sitzungen: [...kurz.values()].sort((a, b) => b.beginn - a.beginn),
   });
   console.log(`Fertig: ${gesamt} Sessions im Fenster, ${neu} neu, ${fehlen} gibt die Quelle gerade nicht heraus.`);
+
+  if (mitHeute) await poyoHeute(server.filter((sv) => sv.quelle === 'poyo'));
+}
+
+/** Was bei Poyo heute ansteht oder laeuft - fuer "Upcoming" und laufende Lobbys. */
+async function poyoHeute(server) {
+  const sitzungen = []; const lobbys = {}; const fehler = {};
+  for (const sv of server) {
+    await warte(300);
+    const d = await json(`${POYO}/${sv.guildId}`).catch((e) => { fehler[sv.guildId] = e.message; return null; });
+    if (!d) continue;
+    for (const s of d.sessions ?? []) {
+      if (s.status === 'ended') continue;
+      const eintrag = {
+        id: s._id, guildId: sv.guildId, name: `Session ${s.sessionNumber} Lobby ${s.lobbyNumber}`,
+        teamGroesse: GROESSE[s.teamSize] ?? 0, modus: s.gameMode || null,
+        beginn: Date.parse(s.registrationTime || s.createdAt) || 0,
+        live: s.status !== 'upcoming', spieler: s.playerCount ?? 0, plaetze: s.playerLimit ?? 0,
+      };
+      sitzungen.push(eintrag);
+      // Laufende Lobbys mit ihrem Zwischenstand - die Seite kann ihn nicht selbst holen.
+      if (eintrag.live) {
+        await warte(500);
+        const lb = await json(`${POYO}/${sv.guildId}/lobby/${s._id}/leaderboard`).catch(() => null);
+        const teams = (lb?.standings ?? []).filter((x) => (x.games ?? []).length).map((x) => team({
+          teamId: x.teamId, platz: x.rank, punkte: x.totalScore, kills: x.totalKills,
+          spieler: (x.players ?? []).map((p) => [p.name, null, null, p.discordId || null]),
+          runden: (x.games ?? []).map((g) => [g.placement, g.kills, g.score, 0, g.sessionId, 0]),
+        }));
+        lobbys[s._id] = { ...eintrag, quelle: 'poyo', server: sv.name, tag: heute, ende: 0, teams };
+      }
+    }
+  }
+  schreib('scrims/_heute.json', { stand: Date.now(), sitzungen, lobbys, fehler });
+  console.log(`Poyo heute: ${sitzungen.length} anstehend oder laufend, ${Object.keys(lobbys).length} mit Zwischenstand.`);
 }
 
 main().catch((e) => { console.error('Fehlgeschlagen:', e.message); process.exit(1); });
