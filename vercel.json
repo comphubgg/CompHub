@@ -1,0 +1,5 @@
+{
+  "crons": [
+    { "path": "/api/cron/vip-ablauf", "schedule": "0 7 * * *" }
+  ]
+}

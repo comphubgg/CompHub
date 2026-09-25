@@ -117,6 +117,9 @@ const NUR_ADMIN: Ziel[] = [
   { href: '/admin/live', titel: 'Live',
     text: 'Wer gerade da ist und wann sich wer angemeldet hat' },
   { href: '/admin/accounts', titel: 'Konten', text: 'Rollen und VIP vergeben' },
+  // Jeder VIP-Zugang mit Frist, Chat und Loeschen - der Betreiber wollte
+  // dafuer ein eigenes Panel (24.9.2026).
+  { href: '/admin/vip-access', titel: 'VIP-Zugänge', text: 'Frist, Chat und Löschen je VIP' },
   /*
    * Der Kontowechsel als eigene Seite.
    *

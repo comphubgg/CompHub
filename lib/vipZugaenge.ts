@@ -30,6 +30,17 @@ export interface Zugang {
   rechte?: string[];
   epicId?: string;
   vipBis?: number;
+  /**
+   * Die Frist wurde im VIP-Panel gesetzt: laeuft sie ab, wird der Zugang
+   * geloescht (siehe lib/discord, abgelaufeneVipsLoeschen). Fristen aus der
+   * Kontenseite nehmen dagegen nur das VIP-Recht und bleiben stehen.
+   */
+  fristLoescht?: boolean;
+  /** Das Discord-Konto der Person - aus ihrer Anfrage oder von Hand verknuepft. */
+  discordId?: string;
+  discordName?: string;
+  /** Als VIP oder als VIP Streamer angenommen. */
+  stufe?: 'vip' | 'streamer';
   /*
    * Darf dieser VIP seinen Schluessel selbst aendern?
    *

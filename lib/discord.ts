@@ -1910,6 +1910,8 @@ export interface ZugangAnfrage {
   status: 'offen' | 'angenommen' | 'abgelehnt' | 'gescheitert' | 'geloescht';
   /** Bei VIPs: als VIP oder als VIP Streamer angenommen. */
   stufe?: VipStufe;
+  /** Die wievielte Anfrage dieser Person das ist (1 = die erste). */
+  nummer?: number;
   zeit: string;
   entschieden?: string;
   von?: string;
@@ -2192,23 +2194,44 @@ export async function zugangAnfrage(
   const offen = Object.values(anfragen ?? {}).find((a) => a.nutzerId === nutzerId && a.art === art && a.status === 'offen');
   if (offen) return { ok: false, grund: 'schon-offen' };
 
+  /*
+   * Die wievielte Anfrage ist das?
+   *
+   * Der Betreiber (24.9.2026): "wenn er nochmal eine Request schickt, soll
+   * ich sehen, dass es seine zweite ist - dritte, vierte, fuenfte". Gezaehlt
+   * wird ueber das Discord-Konto: in der Ablage und in den letzten hundert
+   * Nachrichten des Anfragen-Kanals, damit auch Anfragen zaehlen, die die
+   * Ablage waehrend eines Ausfalls nie gesehen hat.
+   */
+  const frueher = new Set(Object.values(anfragen ?? {}).filter((x) => x.nutzerId === nutzerId).map((x) => x.id));
+  const alte = await ruf(`/channels/${anfragenKanal}/messages?limit=100`, 'GET');
+  if (Array.isArray(alte)) {
+    for (const m of alte as KnopfNachricht[]) {
+      const z = anfrageAusNachricht(m);
+      if (z && z.nutzerId === nutzerId) frueher.add(z.id);
+    }
+  }
+  const nummer = frueher.size + 1;
+
   const id = `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
   const anfrage: ZugangAnfrage = {
     id, nutzerId, nutzerName, art, name,
     socials: (felder.socials ?? '').trim().slice(0, 800),
     grund: (felder.grund ?? '').trim().slice(0, 1200),
     ...(art === 'manager' ? { streamer: zugangsName(felder.streamer ?? '') } : {}),
-    status: 'offen', zeit: new Date().toISOString(),
+    status: 'offen', zeit: new Date().toISOString(), nummer,
   };
 
   const gesendet = await ruf(`/channels/${anfragenKanal}/messages`, 'POST', {
-    content: `New ${art === 'vip' ? 'VIP' : 'manager'} request from <@${nutzerId}>`,
+    content: `New ${art === 'vip' ? 'VIP' : 'manager'} request from <@${nutzerId}>`
+      + (nummer > 1 ? ` · **${ordnungszahl(nummer)} request**` : ''),
     embeds: [{
       title: `${art === 'vip' ? 'VIP' : 'Manager'} access · ${name}`,
       color: FARBE,
       fields: [
         { name: 'Discord', value: `<@${nutzerId}> (${nutzerName})`, inline: true },
         { name: 'Access name', value: name, inline: true },
+        { name: 'Request', value: nummer > 1 ? `${ordnungszahl(nummer)} from this person` : 'first', inline: true },
         ...(anfrage.streamer ? [{ name: 'Manages', value: anfrage.streamer, inline: true }] : []),
         { name: 'Socials', value: anfrage.socials || '—' },
         { name: 'Why', value: anfrage.grund || '—' },
@@ -2298,11 +2321,17 @@ export async function zugangEntscheiden(
       return { ok: false, text: `There is already an access named "${name}". Create it by hand in the admin panel or decline.` };
     }
     schluessel = vorhanden.accessKey;
+    vorhanden.discordId = a.nutzerId; vorhanden.discordName = a.nutzerName;
+    if (a.art === 'vip') vorhanden.stufe = stufe;
+    await schreibeZugaenge(users);
   } else {
     schluessel = neuerSchluessel('');
     for (let i = 0; schonVergeben(schluessel, users, name) && i < 5; i += 1) schluessel = neuerSchluessel('');
     users.push({
       username: name, accessKey: schluessel, status: 'active', createdAt: new Date().toISOString(),
+      // Wer das ist - fuer Chat, Frist und Loeschen im VIP-Panel.
+      discordId: a.nutzerId, discordName: a.nutzerName,
+      ...(a.art === 'vip' ? { stufe } : {}),
       ...(a.art === 'manager' ? { rolle: 'manager' as const, rechte: ['overlays'], verwaltet: streamer, darfSchluessel: false, mods: [name] } : {}),
     });
     await schreibeZugaenge(users);
@@ -2538,3 +2567,195 @@ export async function einladung(): Promise<string | null> {
 }
 /** Die Einladung dieses Vorgangs - einmal geholt, dann gemerkt. */
 let einladungGemerkt: string | null = null;
+
+/* =============================================================== VIP-Panel */
+
+/** "2nd", "3rd", "11th" ... */
+function ordnungszahl(n: number): string {
+  const r10 = n % 10, r100 = n % 100;
+  const endung = r100 >= 11 && r100 <= 13 ? 'th' : r10 === 1 ? 'st' : r10 === 2 ? 'nd' : r10 === 3 ? 'rd' : 'th';
+  return `${n}${endung}`;
+}
+
+export interface VipZeile {
+  name: string;
+  art: 'vip' | 'manager' | 'pro';
+  stufe: VipStufe | null;
+  discordId: string | null;
+  discordName: string | null;
+  /** Wie viele Anfragen dieses Discord-Konto bisher gestellt hat. */
+  anfragen: number;
+  angelegt: string;
+  vipBis: number | null;
+  fristLoescht: boolean;
+  aktiv: boolean;
+  /** Wessen Overlays ein Manager betreut. */
+  verwaltet: string | null;
+}
+
+/*
+ * Alle Zugaenge fuer das VIP-Panel.
+ *
+ * Der Betreiber (24.9.2026): "ein Panel im Admin-Bereich, wo ich jeden
+ * aufgelisteten VIP sehe", mit Loeschen (begruendet), Chat und einer Frist.
+ * Das Discord-Konto steht am Zugang (seit dem Annehmen ueber Discord) oder in
+ * seiner angenommenen Anfrage; aeltere Zugaenge verknuepft der Admin von Hand.
+ */
+export async function vipUebersicht(): Promise<VipZeile[]> {
+  const { alleZugaenge } = await import('./vipZugaenge');
+  const users = await alleZugaenge();
+  const liste = Object.values((await anfragenOderNichts()) ?? {});
+  return users.filter((u) => u.rolle !== 'admin').map((u) => {
+    const eigene = liste
+      .filter((a) => a.name.toLowerCase() === u.username.toLowerCase() && a.status === 'angenommen')
+      .sort((a, b) => (a.entschieden ?? '').localeCompare(b.entschieden ?? ''))
+      .pop();
+    const discordId = u.discordId ?? eigene?.nutzerId ?? null;
+    return {
+      name: u.username,
+      art: u.rolle === 'manager' ? 'manager' as const : u.rolle === 'pro' ? 'pro' as const : 'vip' as const,
+      stufe: u.stufe ?? eigene?.stufe ?? null,
+      discordId,
+      discordName: u.discordName ?? eigene?.nutzerName ?? null,
+      anfragen: discordId ? liste.filter((a) => a.nutzerId === discordId).length : 0,
+      angelegt: u.createdAt,
+      vipBis: u.vipBis ?? null,
+      fristLoescht: Boolean(u.fristLoescht),
+      aktiv: u.status === 'active',
+      verwaltet: u.verwaltet ?? null,
+    };
+  });
+}
+
+/** Mitglieder des Servers zum Verknuepfen - Suche nach Namen. */
+export async function mitgliederSuchen(q: string): Promise<Array<{ id: string; name: string; anzeige: string }>> {
+  const text = q.trim();
+  if (text.length < 2) return [];
+  const roh = await ruf(`/guilds/${SERVER}/members/search?query=${encodeURIComponent(text)}&limit=10`, 'GET');
+  if (!Array.isArray(roh)) return [];
+  return (roh as Array<{ user?: { id?: string; username?: string; global_name?: string }; nick?: string }>)
+    .filter((m) => m.user?.id)
+    .map((m) => ({
+      id: m.user!.id!, name: m.user!.username ?? '',
+      anzeige: m.nick || m.user!.global_name || m.user!.username || '',
+    }));
+}
+
+/** Einen Zugang mit einem Discord-Konto verknuepfen. */
+export async function vipVerknuepfen(name: string, discordId: string, discordName: string) {
+  const { alleZugaenge, schreibeZugaenge } = await import('./vipZugaenge');
+  const users = await alleZugaenge();
+  const u = users.find((x) => x.username.toLowerCase() === name.toLowerCase());
+  if (!u) return { ok: false, text: 'This access does not exist.' };
+  u.discordId = discordId; u.discordName = discordName;
+  await schreibeZugaenge(users);
+  return { ok: true, text: `Linked to ${discordName}.` };
+}
+
+async function zeileZu(name: string): Promise<VipZeile | null> {
+  return (await vipUebersicht()).find((z) => z.name.toLowerCase() === name.toLowerCase()) ?? null;
+}
+
+/** Ein Gespraech mit einem VIP - ueber den Bot, nicht privat. */
+export async function vipChat(name: string): Promise<{ ok: boolean; text: string; kanal?: string }> {
+  const z = await zeileZu(name);
+  if (!z) return { ok: false, text: 'This access does not exist.' };
+  if (!z.discordId) return { ok: false, text: 'Not linked to a Discord account yet.' };
+  const erg = await ticketOeffnen(z.discordId, z.discordName ?? z.name, 'zugang', z.art === 'manager', {
+    titel: 'A message from CompHub',
+    text: `Juanito would like to talk to you about your CompHub access **${z.name}**. Just reply here.`,
+  });
+  if (!erg.ok || !erg.kanal) return { ok: false, text: 'The channel could not be created.' };
+  return { ok: true, text: erg.schonDa ? 'There is already an open chat.' : 'Chat created.', kanal: erg.kanal };
+}
+
+const TAG_EN = (ms: number) => new Date(ms).toLocaleDateString('en-GB',
+  { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Zurich' });
+
+/*
+ * Eine Frist setzen - mit Nachricht vom Bot.
+ *
+ * Der Betreiber: "Set a Time, wie lange die VIP noch gueltig ist ... das wird
+ * dann natuerlich ueber DMs vom Bot geschrieben ... wenn diese Zeit
+ * abgelaufen ist, wird der Account geloescht." bis = null heisst ohne Ende.
+ */
+export async function vipFrist(name: string, bis: number | null): Promise<{ ok: boolean; text: string }> {
+  const { alleZugaenge, schreibeZugaenge } = await import('./vipZugaenge');
+  const users = await alleZugaenge();
+  const u = users.find((x) => x.username.toLowerCase() === name.toLowerCase());
+  if (!u) return { ok: false, text: 'This access does not exist.' };
+  if (bis === null) { delete u.vipBis; delete u.fristLoescht; } else { u.vipBis = bis; u.fristLoescht = true; }
+  await schreibeZugaenge(users);
+
+  const z = await zeileZu(name);
+  const was = z?.art === 'manager' ? 'manager' : z?.stufe === 'vip' ? 'VIP' : 'VIP Streamer';
+  const dm = z?.discordId ? await direktnachricht(z.discordId, {
+    embeds: [{
+      title: 'Your CompHub access',
+      description: bis === null
+        ? `Your ${was} access **${u.username}** no longer has an end date.`
+        : `Your ${was} access **${u.username}** is valid until **${TAG_EN(bis)}**.\n\nAfter that date it will be removed automatically. If you would like to keep it, just reply to Juanito in the CompHub server.`,
+      color: FARBE,
+    }],
+  }) : false;
+  return {
+    ok: true,
+    text: (bis === null ? 'End date removed' : `Valid until ${TAG_EN(bis)}`)
+      + (z?.discordId ? (dm ? ' · DM sent.' : ' · the DM could not be delivered (closed DMs).') : ' · no DM: not linked to Discord.'),
+  };
+}
+
+/*
+ * Einen Zugang loeschen - mit Grund, der als DM geht.
+ *
+ * Danach ist die Anmeldung weg, die Rollen und der Schluesselkanal ebenso
+ * (wie beim Loeschen unter "Konten").
+ */
+export async function vipLoeschen(
+  name: string, grund: string, ablauf = false,
+): Promise<{ ok: boolean; text: string }> {
+  const z = await zeileZu(name);
+  const { alleZugaenge, schreibeZugaenge } = await import('./vipZugaenge');
+  const users = await alleZugaenge();
+  const weg = users.find((x) => x.username.toLowerCase() === name.toLowerCase());
+  if (!weg || !z) return { ok: false, text: 'This access does not exist.' };
+
+  let dm = false;
+  if (z.discordId) {
+    const was = z.art === 'manager' ? 'manager' : z.stufe === 'vip' ? 'VIP' : 'VIP Streamer';
+    dm = await direktnachricht(z.discordId, {
+      embeds: [{
+        title: ablauf ? `Your ${was} access has ended` : `Your ${was} access was removed`,
+        description: `${ablauf ? `Your access period ended on ${TAG_EN(weg.vipBis ?? Date.now())}.` : `**Reason:** ${grund}`}`
+          + `\n\nYou can ask again any time in #${ZUGANG_PANEL}.`,
+        color: FARBE,
+      }],
+    });
+    // Die Sammelrollen abnehmen; Kanal und eigene Rolle raeumt loescheZugang.
+    const rollen = await rollenListe();
+    for (const r of [rollen.get('vip'), rollen.get('vip streamer'), rollen.get('vip manager')]) {
+      if (r) await ruf(`/guilds/${SERVER}/members/${z.discordId}/roles/${r}`, 'DELETE');
+    }
+  }
+  await schreibeZugaenge(users.filter((x) => x !== weg));
+  const fuer = (weg.verwaltet ?? '').trim();
+  await (fuer ? loescheZugang(fuer, 'manager') : loescheZugang(weg.username));
+  return {
+    ok: true,
+    text: `Access "${weg.username}" deleted`
+      + (z.discordId ? (dm ? ', reason sent as a DM.' : ', but the DM could not be delivered.') : ' (not linked to Discord, no DM).'),
+  };
+}
+
+/** Was im Panel eine Frist hat und abgelaufen ist: loeschen. Liefert die Namen. */
+export async function abgelaufeneVipsLoeschen(): Promise<string[]> {
+  const { alleZugaenge } = await import('./vipZugaenge');
+  const faellig = (await alleZugaenge()).filter((u) => u.fristLoescht && typeof u.vipBis === 'number'
+    && u.vipBis > 0 && u.vipBis <= Date.now());
+  const weg: string[] = [];
+  for (const u of faellig) {
+    const erg = await vipLoeschen(u.username, 'The access period ended.', true);
+    if (erg.ok) weg.push(u.username);
+  }
+  return weg;
+}
