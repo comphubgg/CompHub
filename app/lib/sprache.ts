@@ -1378,6 +1378,8 @@ const AUF_ENGLISCH: Record<string, string> = {
   ['Freie Form: Ecken klicken, am ersten Punkt schließen']:
     'Free shape: click the corners, close at the first point',
   'Ganze Karte': 'Whole map',
+  'Mehr anzeigen': 'Show more',
+  'aus früheren Seasons': 'from earlier seasons',
   'betreut': 'manages',
   'nicht mit Discord verknüpft': 'not linked to Discord',
   'abgelaufen am': 'expired on',

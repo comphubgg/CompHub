@@ -138,6 +138,21 @@ interface Lage {
   wo: string | null;
 }
 
+/*
+ * Aus welcher Season ein Cup ist - aus den Kennungen seiner Spieltage
+ * ("S42_MadisonBeerIconCup_EU"), sonst aus der Kennung des Cups ("s42_lan").
+ */
+function saisonVon(c: Cup): number {
+  const aus = Object.values(c.regionen).flat().map((f) => {
+    const m = /^S(\d+)_/i.exec(f.windowId ?? '') ?? /_S(\d+)_/i.exec(f.eventId ?? '');
+    return m ? Number(m[1]) : 0;
+  });
+  const hoechste = Math.max(0, ...aus);
+  if (hoechste) return hoechste;
+  const m = /^s(\d+)[_-]/i.exec(c.id);
+  return m ? Number(m[1]) : 0;
+}
+
 /** Die Fenster eines Cups in dieser Region - bei "alle" alle. */
 function fensterIn(c: Cup, region: string): Fenster[] {
   if (region === 'alle' || c.global) return Object.values(c.regionen).flat();
@@ -303,6 +318,12 @@ export default function EventsPage() {
   const [region, setRegionRoh] = useState('alle');
   const [offen, setOffen] = useState<string | null>(null);
   /*
+   * Unter "Beendet" nur die laufende Season - der Betreiber (25.9.2026): "bei
+   * Finished nur diese Season ... aber man kann auch auf Show More gehen, und
+   * nachher zeigt es alle anderen auch an. Wenn man ganz unten ist."
+   */
+  const [aeltereZeigen, setAeltereZeigen] = useState(false);
+  /*
    * Die Uhr der Seite: jede halbe Minute weiter, damit "Live", "in 5 Min."
    * und "beendet" von selbst umspringen, ohne dass jemand neu laedt.
    */
@@ -383,16 +404,21 @@ export default function EventsPage() {
       .sort((a, b) => (von(a).letzter ?? 0) - (von(b).letzter ?? 0));
     const kommt = gefiltert.filter((c) => von(c).status === 'kommt')
       .sort((a, b) => (von(a).naechster ?? 0) - (von(b).naechster ?? 0));
-    const vorbei = gefiltert.filter((c) => von(c).status === 'vorbei')
+    const vorbeiAlle = gefiltert.filter((c) => von(c).status === 'vorbei')
       .sort((a, b) => (von(b).letzter ?? 0) - (von(a).letzter ?? 0));
+    const aktuelleSaison = Math.max(0, ...cups.map(saisonVon));
+    const vorbei = aeltereZeigen ? vorbeiAlle
+      : vorbeiAlle.filter((c) => saisonVon(c) === aktuelleSaison);
     const zeig = (s: 'live' | 'kommt' | 'vorbei') =>
       status === 'alle' || status === s || (status === 'aktuell' && s !== 'vorbei');
     return [
       { schluessel: 'live', titel: 'Live', cups: zeig('live') ? live : [] },
       { schluessel: 'kommt', titel: 'Demnächst', cups: zeig('kommt') ? kommt : [] },
-      { schluessel: 'vorbei', titel: 'Beendet', cups: zeig('vorbei') ? vorbei : [] },
+      { schluessel: 'vorbei', titel: 'Beendet', cups: zeig('vorbei') ? vorbei : [],
+        // Was die aelteren Seasons noch bringen - fuer "Show more".
+        mehr: zeig('vorbei') && !aeltereZeigen ? vorbeiAlle.length - vorbei.length : 0 },
     ].filter((a) => a.cups.length);
-  }, [gefiltert, status, lage, region, jetzt]);
+  }, [gefiltert, status, lage, region, jetzt, cups, aeltereZeigen]);
 
   /** Der Kopf: was gerade laeuft, dann was als Naechstes kommt. */
   const hervor = useMemo(() => {
@@ -580,6 +606,7 @@ export default function EventsPage() {
                   {abschnitte.map((a) => (
                     <Abschnitt key={a.schluessel} titel={a.titel} cups={a.cups} offen={offen}
                       lageZu={lageZu} jetzt={jetzt}
+                      mehr={'mehr' in a ? a.mehr : 0} mehrZeigen={() => setAeltereZeigen(true)}
                       oeffnen={oeffnen} regionWaehlen={(c, r) => {
                         const liste = c.regionen[r];
                         const w = liste.find((x) => laeuft(x, jetzt)) ?? liste.find((x) => x.begin > jetzt);
@@ -603,11 +630,13 @@ export default function EventsPage() {
 
 /* ============================================================ Abschnitte */
 
-function Abschnitt({ titel, cups, offen, oeffnen, regionWaehlen, lageZu, jetzt }: {
+function Abschnitt({ titel, cups, offen, oeffnen, regionWaehlen, lageZu, jetzt, mehr = 0, mehrZeigen }: {
   titel: string; cups: Cup[]; offen: string | null;
   oeffnen: (c: Cup) => void; regionWaehlen: (c: Cup, r: string) => void;
   /** Der Stand je Cup fuer die gewaehlte Region - siehe lageVon. */
   lageZu: (c: Cup) => Lage; jetzt: number;
+  /** Wie viele Cups aelterer Seasons hinter "Show more" warten. */
+  mehr?: number; mehrZeigen?: () => void;
 }) {
   const { sprache, t } = useSprache();
   /*
@@ -689,6 +718,19 @@ function Abschnitt({ titel, cups, offen, oeffnen, regionWaehlen, lageZu, jetzt }
         })}
       </div>
       {zahl < cups.length && <div ref={ende} aria-hidden className="h-px" />}
+      {/* Ganz unten, wenn diese Season durch ist: die aelteren dazu. */}
+      {zahl >= cups.length && mehr > 0 && mehrZeigen && (
+        <div className="mt-5 flex justify-center">
+          <button type="button" onClick={mehrZeigen}
+            className="rounded-lg border border-zinc-700 bg-zinc-900/80 px-5 py-2.5 text-sm font-semibold
+                       text-slate-200 transition hover:border-sky-500 hover:text-sky-300">
+            <T>Mehr anzeigen</T>
+            <span className="ml-2 text-xs font-normal text-slate-500">
+              {mehr} <T>aus früheren Seasons</T>
+            </span>
+          </button>
+        </div>
+      )}
     </section>
   );
 }
