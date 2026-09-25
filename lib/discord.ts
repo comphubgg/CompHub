@@ -1876,6 +1876,9 @@ export async function richteAdminEin(
     if (id) schritte.push({ text: 'Admin-Kanal steht', wert: `#${ADMIN_KANAELE[k]}` });
     else fehler.push({ text: 'Kanal ließ sich nicht anlegen', wert: `#${ADMIN_KANAELE[k]}` });
   }
+  // Das Werkzeug: #admin-tools mit den Knoepfen und der Befehl /comphub.
+  const werkzeug = await werkzeugEinrichten();
+  (werkzeug.ok ? schritte : fehler).push({ text: 'Admin-Werkzeug', wert: werkzeug.text });
 }
 
 /* ------------------------------------------------------------ Zugang */
