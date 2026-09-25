@@ -4,12 +4,18 @@ import {
   server, turniere, bestenliste, matches, yuniteDa,
   KeinPremium, NichtFreigegeben, YuniteFehlt,
 } from '@/lib/yunite';
+import { NOBLE_SERVER, nobleSitzungen, nobleLeaderboard } from '@/lib/noble';
 
 // Die Scrims der Community-Server - siehe lib/yunite.
 //
 //   GET /api/scrims                          -> die freigeschalteten Server
 //   GET /api/scrims?server=<guildId>         -> dessen Scrims und Turniere
 //   GET /api/scrims?server=…&turnier=<id>    -> Bestenliste und Runden
+//   GET /api/scrims?quelle=noble             -> Nobles Server mit Sessions
+//   GET /api/scrims?quelle=noble&turnier=<id> -> ein Noble-Leaderboard
+//
+// Noble kommt nicht ueber Yunite, sondern offen von nobleprac.com (siehe
+// lib/noble) - dort braucht es weder Premium noch einen Schluessel.
 //
 // Vorerst nur fuer den Betreiber: die Seite dazu steht fuer Besucher hinter
 // einem Vorhang ("Something Big Is Coming"), und was dort nicht zu sehen
@@ -41,6 +47,24 @@ export async function GET(request: Request) {
 
   if (!await istAdminAnfrage(request)) {
     return NextResponse.json({ error: 'noch-nicht-offen' }, { status: 403 });
+  }
+
+  if (searchParams.get('quelle') === 'noble') {
+    try {
+      if (turnierId) return NextResponse.json(await nobleLeaderboard(turnierId));
+      const serien = await Promise.all(NOBLE_SERVER.map(async (s) => {
+        try {
+          return { ...s, sitzungen: s.inaktiv ? [] : await nobleSitzungen(s.guildId) };
+        } catch {
+          // Ein Server, der nicht antwortet, steht ohne Sessions da - und
+          // sagt es, statt wie "leer" auszusehen.
+          return { ...s, sitzungen: [], fehler: true };
+        }
+      }));
+      return NextResponse.json({ serien });
+    } catch (e) {
+      return NextResponse.json({ error: (e as Error).message }, { status: 502 });
+    }
   }
 
   if (!yuniteDa()) {

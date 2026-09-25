@@ -51,7 +51,7 @@ interface Sitzung {
 }
 interface Team {
   teamId: string;
-  spieler: Array<{ name: string; epicId?: string; discordId?: string }>;
+  spieler: Array<{ name: string; epicId?: string; discordId?: string; land?: string | null }>;
   platz: number; punkte: number; elims: number; matches: number; siege: number;
   elimsJeMatch: number; schnittPlatz: number; zeitSchnitt: number;
   spiele: Array<{ platz: number; elims: number; punkte: number; zeitpunkt: number; zaehlt: boolean }>;
@@ -71,6 +71,14 @@ interface Serie {
    * Lobby mit 100 Spielern je Session - siehe beispielTeams.
    */
   offen?: boolean;
+  /** Nur ein Beispiel - klar gekennzeichnet, keine echten Zahlen. */
+  beispiel?: boolean;
+  /** Woher die echten Zahlen kommen. */
+  quelle?: 'noble' | 'yunite';
+  /** Gerade ohne Scrims (Noble X). */
+  inaktiv?: boolean;
+  /** Die Quelle hat fuer diesen Server nicht geantwortet. */
+  fehler?: boolean;
 }
 
 /** Wie viele Spieler ein Team hat - als Wort, wie im Turnierbereich. */
@@ -163,19 +171,47 @@ function beispielSitzungen(praefix: string, region: string, groesse: number, liv
   return raus;
 }
 
+/*
+ * Noble steht nicht mehr hier: dessen Scrims kommen seit dem 25.9.2026 echt
+ * von nobleprac.com (lib/noble). Was bleibt, sind Server, deren Zahlen noch
+ * keine offene Quelle hat - als Beispiel, an jeder Kachel so beschriftet.
+ */
+/** Beispiel-Events: ein Cup je Woche, der letzte laeuft gerade. */
+function beispielEvents(praefix: string, region: string, groesse: number, titel: string): Sitzung[] {
+  const woche = 7 * 24 * 3600_000;
+  const heute = new Date(); heute.setHours(18, 0, 0, 0);
+  return [0, 1, 2].map((w) => {
+    const beginn = heute.getTime() - w * woche;
+    return {
+      id: `${praefix}-${w}`,
+      name: `${titel} #${3 - w}`,
+      beschreibung: 'Example event:\n• 3 hours, up to 10 matches.\n• Points for placement and eliminations.',
+      teamGroesse: groesse, region, beginn, ende: beginn + 3 * 3600_000,
+      art: 'TOURNAMENT', bauen: 'BUILD', spielart: 'BR',
+      live: w === 0, vorbei: w > 0,
+    };
+  });
+}
+
 const BEISPIEL_SERIEN: Serie[] = [
-  { id: 'b-noble-practice', name: 'Noble Practice Scrims', region: 'EU', server: 'Noble Scrims',
-    offen: true, logo: '/scrims/noble-gelb.jpg', sitzungen: beispielSitzungen('npr', 'EU', 3, true) },
-  { id: 'b-noble-pro', name: 'Noble Pro Scrims', region: 'EU', server: 'Noble Scrims',
-    logo: '/scrims/noble-gold.jpg', sitzungen: beispielSitzungen('npro', 'EU', 2, false) },
-  { id: 'b-noble-div1', name: 'Noble Division 1', region: 'EU', server: 'Noble Scrims',
-    logo: '/scrims/noble-gruen.jpg', sitzungen: beispielSitzungen('nd1', 'EU', 2, true) },
-  { id: 'b-noble-div3', name: 'Noble Division 3', region: 'EU', server: 'Noble Scrims',
-    logo: '/scrims/noble-blau.jpg', sitzungen: beispielSitzungen('nd3', 'EU', 2, true) },
   { id: 'b-manu', name: 'Manu Scrims', region: 'NAC', server: 'Manu Scrims',
     logo: '/scrims/manu.jpg', sitzungen: beispielSitzungen('manu', 'NAC', 3, true) },
-  { id: 'b-vital', name: 'Vital Scrims', region: 'NAC', server: 'Vital Scrims',
-    logo: '/scrims/vital-gruen.jpg', sitzungen: beispielSitzungen('vital', 'NAC', 2, false) },
+  /*
+   * Vital - die Server, wie vitalscrims.com/scrims sie fuehrt (25.9.2026).
+   * Der Betreiber: "Virtual Scrims nur ein Server? Da hat sicher mehrere
+   * Server gehabt." Dort stehen fuenf; Leaderboards zeigt die Seite keine,
+   * nur Dropmaps - deshalb bleiben die Zahlen ein Beispiel.
+   */
+  { id: 'b-vital-nac', name: 'Vital Scrims NA-Central', region: 'NAC', server: 'Vital Scrims',
+    offen: true, logo: '/scrims/vital-gruen.jpg', sitzungen: beispielSitzungen('vital-nac', 'NAC', 2, true) },
+  { id: 'b-vital-naw', name: 'Vital Scrims NA-West', region: 'NAW', server: 'Vital Scrims',
+    logo: '/scrims/vital-gruen.jpg', sitzungen: beispielSitzungen('vital-naw', 'NAW', 2, false) },
+  { id: 'b-vital-oce', name: 'Vital Scrims OCE', region: 'OCE', server: 'Vital Scrims',
+    logo: '/scrims/vital-gelb.jpg', sitzungen: beispielSitzungen('vital-oce', 'OCE', 2, false) },
+  { id: 'b-vital-me', name: 'Vital ME Private', region: 'ME', server: 'Vital Scrims',
+    logo: '/scrims/vital-rot.jpg', sitzungen: beispielSitzungen('vital-me', 'ME', 2, false) },
+  { id: 'b-vital-console', name: 'Vital Scrims Console', region: 'NAC', server: 'Vital Scrims',
+    logo: '/scrims/vital-gruen.jpg', sitzungen: beispielSitzungen('vital-console', 'NAC', 2, false) },
   // Poyo - die Divisionen wie bei Fortnite Tracker. Europa: das hat der
   // Betreiber gesagt ("Poyo No Zone Rules sind auch Europa"), und die
   // Divisionen sind die Aufstiegsstufen desselben Servers.
@@ -191,7 +227,19 @@ const BEISPIEL_SERIEN: Serie[] = [
     logo: '/scrims/poyo-closed.jpg', sitzungen: beispielSitzungen('pclosed', 'EU', 2, false) },
   { id: 'b-poyo-prestige', name: 'Poyo Prestige Division', region: 'EU', server: 'Poyo No Zone Rules',
     logo: '/scrims/poyo-prestige.jpg', sitzungen: beispielSitzungen('pprestige', 'EU', 2, false) },
-];
+  /*
+   * Community Events - Cups, die ein Server fuer seine Leute ausrichtet. Der
+   * Betreiber: "bei Community Events gibt es keine Beispiele." Echte kommen,
+   * sobald ein Server Yunite freigibt; bis dahin zeigt das hier, wie sie
+   * aussehen. Die Namen sind Gattungen, keine echten Cups.
+   */
+  { id: 'b-community-solo', name: 'Community Solo Cup', region: 'EU', server: 'Community',
+    offen: true, logo: null, sitzungen: beispielEvents('csolo', 'EU', 1, 'Solo Cup') },
+  { id: 'b-community-duo', name: 'Community Duo Cup', region: 'EU', server: 'Community',
+    logo: null, sitzungen: beispielEvents('cduo', 'EU', 2, 'Duo Cup') },
+  { id: 'b-community-trio', name: 'Community Trio Cash Cup', region: 'NAC', server: 'Community',
+    logo: null, sitzungen: beispielEvents('ctrio', 'NAC', 3, 'Trio Cash Cup') },
+].map((x) => ({ ...x, beispiel: true }));
 
 /*
  * Wie gross eine Session ist - so, wie der Betreiber es beschrieben hat:
@@ -346,11 +394,12 @@ function Filter({ an, onClick, children }: {
 
 /* =============================================================== Kachel */
 
-function Kachel({ serie, beispiel, offen, umschalten, waehle }: {
-  serie: Serie; beispiel: boolean; offen: boolean;
+function Kachel({ serie, offen, umschalten, waehle }: {
+  serie: Serie; offen: boolean;
   umschalten: () => void; waehle: (s: Sitzung) => void;
 }) {
   const status = statusVon(serie);
+  const beispiel = !!serie.beispiel;
 
   return (
     <div className={`group relative overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950
@@ -375,7 +424,12 @@ function Kachel({ serie, beispiel, offen, umschalten, waehle }: {
         {/* Oben: links der Stand, rechts Region und - im Beispiel - der Hinweis. */}
         <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start
                         justify-between gap-2 p-3">
-          <StatusMarke status={status} />
+          {serie.inaktiv || serie.fehler ? (
+            <span className="rounded-full bg-black/65 px-2.5 py-1 text-[11px] font-bold uppercase
+                             tracking-wider text-slate-400 ring-1 ring-white/15 backdrop-blur-sm">
+              {serie.inaktiv ? <T>Inaktiv</T> : <T>Keine Antwort</T>}
+            </span>
+          ) : <StatusMarke status={status} />}
           <span className="flex flex-col items-end gap-1.5">
             {serie.region && (
               <span className="rounded-full bg-black/65 px-2.5 py-1 text-[11px] font-bold
@@ -401,7 +455,11 @@ function Kachel({ serie, beispiel, offen, umschalten, waehle }: {
           <div className="absolute inset-0 overflow-y-auto bg-zinc-950/92 p-2 backdrop-blur-sm"
             onClick={(e) => e.stopPropagation()}>
             {serie.sitzungen.length === 0 && (
-              <p className="p-3 text-center text-xs text-slate-500"><T>Keine Sessions.</T></p>
+              <p className="p-3 text-center text-xs text-slate-500">
+                {serie.inaktiv ? <T>Dieser Server ist gerade inaktiv.</T>
+                  : serie.fehler ? <T>nobleprac.com antwortet gerade nicht.</T>
+                    : <T>Keine Sessions.</T>}
+              </p>
             )}
             {serie.sitzungen.map((s) => (
               <button key={s.id} type="button" onClick={() => waehle(s)}
@@ -544,10 +602,14 @@ function PunkteVerteilung({ teams }: { teams: Team[] }) {
   );
 }
 
-function SessionSeite({ serie, sitzung, teams, runden, laedt, beispiel, zurueck, wechsle }: {
-  serie: Serie; sitzung: Sitzung; teams: Team[]; runden: Runde[]; laedt: boolean;
-  beispiel: boolean; zurueck: () => void; wechsle: (s: Sitzung) => void;
+function SessionSeite({ serie, sitzung, teams, runden, laender, laedt, nichtDa, zurueck, wechsle }: {
+  serie: Serie; sitzung: Sitzung; teams: Team[]; runden: Runde[]; nichtDa: boolean;
+  /** Spieler je Land - nur, wo die Quelle es nennt (Noble). */
+  laender: Array<[string, number]> | null;
+  laedt: boolean; zurueck: () => void; wechsle: (s: Sitzung) => void;
 }) {
+  const beispiel = !!serie.beispiel;
+  const noble = serie.quelle === 'noble';
   const { sprache, t } = useSprache();
   const [reiter, setReiter] = useState<'uebersicht' | 'wertung' | 'preise' | 'streams'>('uebersicht');
   const [liste, setListe] = useState<'leaderboard' | 'spieler' | 'teams'>('leaderboard');
@@ -671,6 +733,20 @@ function SessionSeite({ serie, sitzung, teams, runden, laedt, beispiel, zurueck,
         </div>
       </div>
 
+      {/*
+        * Ein leeres Noble-Leaderboard sagt, warum - statt nur "0" zu zeigen.
+        * Ob es die Session nie gab oder nobleprac.com sie gerade nicht
+        * herausgibt, ist fuer den Leser ein Unterschied.
+        */}
+      {!laedt && noble && !teams.length && (
+        <p className="mb-5 rounded-xl border border-amber-500/25 bg-amber-500/[0.06] px-4 py-3
+                      text-sm text-amber-200/90">
+          {nichtDa
+            ? <T>nobleprac.com gibt dieses Leaderboard gerade nicht heraus — auch dort lässt es sich nicht öffnen. Jüngere Sessions stehen meist vollständig da.</T>
+            : <T>Zu dieser Session hat nobleprac.com keine Einträge — gespielt wurde offenbar nicht.</T>}
+        </p>
+      )}
+
       {laedt ? <LadeSchirm /> : (
         <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_300px]">
           <div className="min-w-0 space-y-6">
@@ -700,11 +776,14 @@ function SessionSeite({ serie, sitzung, teams, runden, laedt, beispiel, zurueck,
                         <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-300">
                           <T>Spieler je Land</T>
                         </p>
-                        {beispiel ? <Kringel teile={beispielLaender(spielerZahl)} /> : (
-                          <p className="text-xs text-slate-500">
-                            <T>Die Herkunft der Spieler gibt Yunite nicht heraus.</T>
-                          </p>
-                        )}
+                        {beispiel ? <Kringel teile={beispielLaender(spielerZahl)} />
+                          : laender?.length ? <Kringel teile={laender} /> : (
+                            <p className="text-xs text-slate-500">
+                              {noble
+                                ? <T>Kein Spieler dieser Session hat ein Land hinterlegt.</T>
+                                : <T>Die Herkunft der Spieler gibt Yunite nicht heraus.</T>}
+                            </p>
+                          )}
                       </div>
                       <div>
                         <p className="mb-2 text-xs font-bold uppercase tracking-wide text-slate-300">
@@ -727,7 +806,9 @@ function SessionSeite({ serie, sitzung, teams, runden, laedt, beispiel, zurueck,
                   <p className="p-6 text-center text-sm text-slate-500">
                     {beispiel
                       ? <T>Steht hier, sobald ein Server verbunden ist.</T>
-                      : <T>Das gibt Yunite zu dieser Session nicht heraus.</T>}
+                      : noble
+                        ? <T>Das nennt nobleprac.com zu dieser Session nicht.</T>
+                        : <T>Das gibt Yunite zu dieser Session nicht heraus.</T>}
                   </p>
                 )}
               </div>
@@ -752,7 +833,12 @@ function SessionSeite({ serie, sitzung, teams, runden, laedt, beispiel, zurueck,
 
               <div className="overflow-hidden rounded-2xl border border-zinc-800 bg-black/40">
                 <p className="border-b border-zinc-800 px-4 py-2.5 text-center text-xs text-slate-400">
-                  <T>Powered by Yunite</T> {'//'} {teams.length} <T>Teams</T>
+                  {noble ? (
+                    <a href={`https://nobleprac.com/leaderboards/${encodeURIComponent(sitzung.id)}`}
+                      target="_blank" rel="noreferrer" className="hover:text-sky-400">
+                      <T>Daten von nobleprac.com</T>
+                    </a>
+                  ) : <T>Powered by Yunite</T>} {'//'} {teams.length} <T>Teams</T>
                   {beispiel && <> {'//'} <span className="text-amber-300"><T>Beispiel</T></span></>}
                 </p>
                 <div className="border-b border-zinc-800 px-4 py-2">
@@ -982,7 +1068,9 @@ export default function ScrimsSeite() {
   const [laedt, setLaedt] = useState(true);
   const [laedtCup, setLaedtCup] = useState(false);
   const [hinweis, setHinweis] = useState('');
-  const [beispiel, setBeispiel] = useState(false);
+  const [laender, setLaender] = useState<Array<[string, number]> | null>(null);
+  /** Noble: das Leaderboard gibt es dort gerade nicht (sonst: einfach ohne Eintraege). */
+  const [nichtDa, setNichtDa] = useState(false);
 
   /* Die Filter - wie im Vorbild. */
   const [art, setArt] = useState<'scrims' | 'community'>('scrims');
@@ -991,15 +1079,34 @@ export default function ScrimsSeite() {
 
   const darf = zugang.admin;
 
-  /** Die freigeschalteten Server und ihre Sessions - alles in einem Zug. */
+  /*
+   * Die Server und ihre Sessions - alles in einem Zug.
+   *
+   * Echt sind Noble (von nobleprac.com) und was ein Server ueber Yunite
+   * freigibt. Fuer alle anderen steht ein Beispiel da, an jeder Kachel
+   * gekennzeichnet - aber nie fuer einen Server, der echte Zahlen hat.
+   */
   const holen = useCallback(async () => {
     setHinweis('');
-    setBeispiel(false);
-    /** Nichts Echtes da: die Seite zeigt das Beispiel, klar als solches. */
+    const nobleHolen = async (): Promise<Serie[]> => {
+      try {
+        const d = await fetch('/api/scrims?quelle=noble').then((r) => r.json());
+        return ((d.serien ?? []) as Array<{
+          guildId: string; name: string; logo: string; offen?: boolean; inaktiv?: boolean;
+          fehler?: boolean; sitzungen: Sitzung[];
+        }>).map((x) => ({
+          id: `noble-${x.guildId}`, name: x.name, server: 'Noble Scrims', region: 'EU',
+          logo: x.logo, offen: x.offen, inaktiv: x.inaktiv, fehler: x.fehler,
+          quelle: 'noble' as const,
+          sitzungen: [...x.sitzungen].sort((a, b) => (b.live ? 1 : 0) - (a.live ? 1 : 0) || b.beginn - a.beginn),
+        }));
+      } catch { return []; }
+    };
+    const echteNoble = await nobleHolen();
+    /** Yunite hat nichts: Noble und dazu die Beispiele der uebrigen Server. */
     const zeigeBeispiel = (grund: string) => {
       setHinweis(grund);
-      setBeispiel(true);
-      setSerien(BEISPIEL_SERIEN);
+      setSerien([...echteNoble, ...BEISPIEL_SERIEN]);
     };
     try {
       const d = await fetch('/api/scrims').then((r) => r.json());
@@ -1024,11 +1131,14 @@ export default function ScrimsSeite() {
           id: s.guildId, name: s.name, server: s.name,
           region: regionen.length === 1 ? regionen[0] : '',
           logo: logoFuer(s.name, s.bild ?? sitzungen[0]?.bild ?? null),
-          sitzungen,
+          sitzungen, quelle: 'yunite',
         });
       }
-      setSerien(neu);
-      if (!neu.length) zeigeBeispiel(ohnePremium ? 'kein-premium' : 'keine-scrims');
+      if (!neu.length) { zeigeBeispiel(ohnePremium ? 'kein-premium' : 'keine-scrims'); return; }
+      // Beispiele nur fuer Server, die weder Noble noch ueber Yunite echt sind.
+      const echt = new Set([...neu, ...echteNoble].map((x) => x.server.toLowerCase()));
+      setSerien([...echteNoble, ...neu,
+        ...BEISPIEL_SERIEN.filter((b) => !echt.has(b.server.toLowerCase()))]);
     } catch {
       zeigeBeispiel('fehler');
     } finally { setLaedt(false); }
@@ -1042,16 +1152,30 @@ export default function ScrimsSeite() {
 
   /** Eine Session öffnen: Bestenliste und Runden dazu. */
   const oeffnen = useCallback(async (serie: Serie, sitzung: Sitzung) => {
-    setOffen({ serie, sitzung }); setTeams([]); setRunden([]);
+    setOffen({ serie, sitzung }); setTeams([]); setRunden([]); setLaender(null); setNichtDa(false);
     setOffeneKachel(null);
     if (typeof window !== 'undefined') window.scrollTo({ top: 0 });
     // Das Beispiel braucht keine Abfrage - es steht schon fest.
-    if (beispiel) {
+    if (serie.beispiel) {
       setTeams(beispielTeams(sitzung.teamGroesse, serie.offen));
       setRunden(beispielRunden(sitzung.teamGroesse, serie.offen));
       return;
     }
     setLaedtCup(true);
+    if (serie.quelle === 'noble') {
+      try {
+        const d = await fetch(`/api/scrims?quelle=noble&turnier=${encodeURIComponent(sitzung.id)}`)
+          .then((r) => r.json());
+        setTeams(d.teams ?? []);
+        setRunden(d.runden ?? []);
+        setLaender(d.laender ?? null);
+        setNichtDa(!!d.nichtDa);
+        // Die Teamgroesse und die Regeln kennt erst das Leaderboard selbst.
+        if (d.turnier) setOffen({ serie, sitzung: { ...sitzung, ...d.turnier } });
+      } catch { /* dann bleibt es leer */ }
+      finally { setLaedtCup(false); }
+      return;
+    }
     try {
       const d = await fetch(`/api/scrims?server=${encodeURIComponent(sitzung.guildId ?? serie.id)}`
         + `&turnier=${encodeURIComponent(sitzung.id)}`).then((r) => r.json());
@@ -1059,7 +1183,7 @@ export default function ScrimsSeite() {
       setRunden(d.runden ?? []);
     } catch { /* dann bleibt es leer, der Hinweis steht unten */ }
     finally { setLaedtCup(false); }
-  }, [beispiel]);
+  }, []);
 
   const regionen = useMemo(
     () => [...new Set(serien.map((x) => x.region).filter(Boolean))].sort(), [serien]);
@@ -1073,9 +1197,11 @@ export default function ScrimsSeite() {
       ...s,
       sitzungen: s.sitzungen.filter((x) => (art === 'scrims' ? x.art === 'SCRIM' : x.art !== 'SCRIM')),
     }))
-    .filter((s) => s.sitzungen.length)
+    // Ein inaktiver Server (Noble X) bleibt unter Scrims sichtbar - mit Hinweis.
+    .filter((s) => s.sitzungen.length || (art === 'scrims' && (s.inaktiv || s.fehler)))
     .filter((s) => region === 'alle' || s.region === region)
-    .sort((a, b) => RANG[statusVon(a)] - RANG[statusVon(b)]), [serien, art, region]);
+    .sort((a, b) => Number(!!a.beispiel) - Number(!!b.beispiel)
+      || RANG[statusVon(a)] - RANG[statusVon(b)]), [serien, art, region]);
 
   /* ------------------------------------------------------------ Vorhang */
 
@@ -1123,7 +1249,7 @@ export default function ScrimsSeite() {
 
         {laedt || zugang.laedt ? <LadeSchirm /> : offen ? (
           <SessionSeite serie={offen.serie} sitzung={offen.sitzung} teams={teams} runden={runden}
-            laedt={laedtCup} beispiel={beispiel}
+            laender={laender} laedt={laedtCup} nichtDa={nichtDa}
             zurueck={() => setOffen(null)}
             wechsle={(s) => { void oeffnen(offen.serie, s); }} />
         ) : (
@@ -1184,12 +1310,9 @@ export default function ScrimsSeite() {
                 )}
                 {hinweis === 'keine-scrims' && <T>Dieser Server hat noch keine Scrims veranstaltet.</T>}
                 {hinweis === 'fehler' && <T>Yunite antwortet gerade nicht.</T>}
-                {beispiel && (
-                  <p className="mt-1 text-[11px] text-amber-200/70">
-                    <T>Bis dahin steht hier ein Beispiel — so sieht die Seite aus,
-                    sobald ein Server verbunden ist. Keine dieser Zahlen ist echt.</T>
-                  </p>
-                )}
+                <p className="mt-1 text-[11px] text-amber-200/70">
+                  <T>Noble ist echt (von nobleprac.com). Die Kacheln mit „Beispiel“ zeigen, wie ein Server aussieht, sobald er verbunden ist — keine dieser Zahlen ist echt.</T>
+                </p>
               </div>
             )}
 
@@ -1204,7 +1327,7 @@ export default function ScrimsSeite() {
                 ) : ansicht === 'raster' ? (
                   <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
                     {gezeigt.map((s) => (
-                      <Kachel key={s.id} serie={s} beispiel={beispiel}
+                      <Kachel key={s.id} serie={s}
                         offen={offeneKachel === s.id}
                         umschalten={() => setOffeneKachel((v) => (v === s.id ? null : s.id))}
                         waehle={(x) => { void oeffnen(s, x); }} />
@@ -1230,7 +1353,7 @@ export default function ScrimsSeite() {
                             <span className="w-24 text-right text-xs text-slate-500">
                               {s.sitzungen.length} <T>Sessions</T>
                             </span>
-                            {beispiel && (
+                            {s.beispiel && (
                               <span className="text-[10px] font-bold uppercase text-amber-300"><T>Beispiel</T></span>
                             )}
                           </button>
