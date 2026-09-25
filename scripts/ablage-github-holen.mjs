@@ -40,6 +40,8 @@ function tagFuer(name) {
   if (/^szene-stats\//.test(name)) return 'daten-szene';
   if (/^tournament-leaderboards\//.test(name)) return 'daten-leaderboards';
   if (/^replays\//.test(name)) return 'daten-replays';
+  { const m = name.match(/^scrims\/(\d{4}-\d{2})-\d{2}\//); if (m) return `daten-scrims-${m[1]}`; }
+  if (/^scrims\//.test(name)) return 'daten-scrims';
   return 'daten';
 }
 

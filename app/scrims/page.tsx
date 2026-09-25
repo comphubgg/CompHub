@@ -48,6 +48,10 @@ interface Sitzung {
   art: string; bauen?: string | null; spielart?: string | null;
   live: boolean; vorbei: boolean;
   guildId?: string;
+  /** Liegt im Archiv (lib/scrimArchiv) - von dort geoeffnet, nicht live. */
+  archiv?: boolean;
+  /** Poyo: Battle Royale, Reload, OG ... */
+  modus?: string | null;
 }
 interface Team {
   teamId: string;
@@ -74,9 +78,11 @@ interface Serie {
   /** Nur ein Beispiel - klar gekennzeichnet, keine echten Zahlen. */
   beispiel?: boolean;
   /** Woher die echten Zahlen kommen. */
-  quelle?: 'noble' | 'yunite';
+  quelle?: 'noble' | 'poyo' | 'yunite';
   /** Gerade ohne Scrims (Noble X). */
   inaktiv?: boolean;
+  /** Zeigt seine Sessions nicht oeffentlich (Poyo Closed Division). */
+  privat?: boolean;
   /** Die Quelle hat fuer diesen Server nicht geantwortet. */
   fehler?: boolean;
 }
@@ -212,21 +218,8 @@ const BEISPIEL_SERIEN: Serie[] = [
     logo: '/scrims/vital-rot.jpg', sitzungen: beispielSitzungen('vital-me', 'ME', 2, false) },
   { id: 'b-vital-console', name: 'Vital Scrims Console', region: 'NAC', server: 'Vital Scrims',
     logo: '/scrims/vital-gruen.jpg', sitzungen: beispielSitzungen('vital-console', 'NAC', 2, false) },
-  // Poyo - die Divisionen wie bei Fortnite Tracker. Europa: das hat der
-  // Betreiber gesagt ("Poyo No Zone Rules sind auch Europa"), und die
-  // Divisionen sind die Aufstiegsstufen desselben Servers.
-  { id: 'b-poyo-nzr', name: 'Poyo No Zone Rules', region: 'EU', server: 'Poyo No Zone Rules',
-    offen: true, logo: '/scrims/poyo-nzr.jpg', sitzungen: beispielSitzungen('pnzr', 'EU', 2, true) },
-  { id: 'b-poyo-solo', name: 'Poyo Solo Division', region: 'EU', server: 'Poyo No Zone Rules',
-    logo: '/scrims/poyo-solo.jpg', sitzungen: beispielSitzungen('psolo', 'EU', 1, false) },
-  { id: 'b-poyo-master', name: 'Poyo Master Division', region: 'EU', server: 'Poyo No Zone Rules',
-    logo: '/scrims/poyo-master.jpg', sitzungen: beispielSitzungen('pmaster', 'EU', 2, false) },
-  { id: 'b-poyo-legends', name: 'Poyo Legends Division', region: 'EU', server: 'Poyo No Zone Rules',
-    logo: '/scrims/poyo-legends.jpg', sitzungen: beispielSitzungen('plegends', 'EU', 2, true) },
-  { id: 'b-poyo-closed', name: 'Poyo Closed Division', region: 'EU', server: 'Poyo No Zone Rules',
-    logo: '/scrims/poyo-closed.jpg', sitzungen: beispielSitzungen('pclosed', 'EU', 2, false) },
-  { id: 'b-poyo-prestige', name: 'Poyo Prestige Division', region: 'EU', server: 'Poyo No Zone Rules',
-    logo: '/scrims/poyo-prestige.jpg', sitzungen: beispielSitzungen('pprestige', 'EU', 2, false) },
+  // Poyo steht nicht mehr hier: seit dem 25.9.2026 echt aus dem Archiv
+  // (scripts/scrims-holen.mjs, von scrims.poyocup.com).
   /*
    * Community Events - Cups, die ein Server fuer seine Leute ausrichtet. Der
    * Betreiber: "bei Community Events gibt es keine Beispiele." Echte kommen,
@@ -310,6 +303,12 @@ function uhr(ms: number, sprache: string, mitDatum = true) {
     mitDatum
       ? { day: '2-digit', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit' }
       : { hour: '2-digit', minute: '2-digit' });
+}
+
+/** Nur der Tag, kurz: "24.09." oder "24 Sep". */
+function kurzDatum(ms: number, sprache: string) {
+  return new Date(ms).toLocaleDateString(sprache === 'en' ? 'en-GB' : 'de-DE',
+    sprache === 'en' ? { day: 'numeric', month: 'short' } : { day: '2-digit', month: '2-digit' });
 }
 
 function dauer(ms: number) {
@@ -400,6 +399,7 @@ function Kachel({ serie, offen, umschalten, waehle }: {
 }) {
   const status = statusVon(serie);
   const beispiel = !!serie.beispiel;
+  const { sprache } = useSprache();
 
   return (
     <div className={`group relative overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950
@@ -424,10 +424,10 @@ function Kachel({ serie, offen, umschalten, waehle }: {
         {/* Oben: links der Stand, rechts Region und - im Beispiel - der Hinweis. */}
         <div className="pointer-events-none absolute inset-x-0 top-0 flex items-start
                         justify-between gap-2 p-3">
-          {serie.inaktiv || serie.fehler ? (
+          {serie.inaktiv || serie.fehler || serie.privat ? (
             <span className="rounded-full bg-black/65 px-2.5 py-1 text-[11px] font-bold uppercase
                              tracking-wider text-slate-400 ring-1 ring-white/15 backdrop-blur-sm">
-              {serie.inaktiv ? <T>Inaktiv</T> : <T>Keine Antwort</T>}
+              {serie.inaktiv ? <T>Inaktiv</T> : serie.privat ? <T>Privat</T> : <T>Keine Antwort</T>}
             </span>
           ) : <StatusMarke status={status} />}
           <span className="flex flex-col items-end gap-1.5">
@@ -458,7 +458,8 @@ function Kachel({ serie, offen, umschalten, waehle }: {
               <p className="p-3 text-center text-xs text-slate-500">
                 {serie.inaktiv ? <T>Dieser Server ist gerade inaktiv.</T>
                   : serie.fehler ? <T>nobleprac.com antwortet gerade nicht.</T>
-                    : <T>Keine Sessions.</T>}
+                    : serie.privat ? <T>Dieser Server zeigt seine Sessions nicht öffentlich.</T>
+                      : <T>Keine Sessions.</T>}
               </p>
             )}
             {serie.sitzungen.map((s) => (
@@ -467,7 +468,13 @@ function Kachel({ serie, offen, umschalten, waehle }: {
                             py-2.5 text-left text-sm font-semibold transition ${
                   s.vorbei ? 'bg-zinc-900/60 text-slate-400 hover:bg-zinc-800'
                     : 'bg-zinc-900 text-slate-100 hover:bg-zinc-800'}`}>
-                <span className="min-w-0 truncate">{s.name}</span>
+                <span className="min-w-0 flex-1 truncate">{s.name}</span>
+                {/* Das Datum: bei Poyo heisst jeder Tag "Session 1 Lobby 1". */}
+                {!beispiel && !!s.beginn && (
+                  <span className="shrink-0 text-[11px] font-medium tabular-nums text-slate-500">
+                    {kurzDatum(s.beginn, sprache)}
+                  </span>
+                )}
                 <span className={`shrink-0 text-[11px] font-bold uppercase ${
                   s.live ? 'text-sky-400' : s.vorbei ? 'text-slate-500' : 'text-emerald-400'}`}>
                   {s.live ? 'Live' : s.vorbei ? 'Ended' : 'Open'}
@@ -609,7 +616,15 @@ function SessionSeite({ serie, sitzung, teams, runden, laender, laedt, nichtDa, 
   laedt: boolean; zurueck: () => void; wechsle: (s: Sitzung) => void;
 }) {
   const beispiel = !!serie.beispiel;
-  const noble = serie.quelle === 'noble';
+  /*
+   * Echt von einer offenen Seite (Noble, Poyo) - und wo das Leaderboard
+   * dort steht, damit der Kopf der Tabelle dorthin verweist.
+   */
+  const offeneQuelle = serie.quelle === 'noble' || serie.quelle === 'poyo';
+  const quellSeite = serie.quelle === 'poyo' ? 'scrims.poyocup.com' : 'nobleprac.com';
+  const quellLink = serie.quelle === 'poyo'
+    ? `https://scrims.poyocup.com/servers/${encodeURIComponent(sitzung.guildId ?? '')}/${encodeURIComponent(sitzung.id)}/leaderboard`
+    : `https://nobleprac.com/leaderboards/${encodeURIComponent(sitzung.id)}`;
   const { sprache, t } = useSprache();
   const [reiter, setReiter] = useState<'uebersicht' | 'wertung' | 'preise' | 'streams'>('uebersicht');
   const [liste, setListe] = useState<'leaderboard' | 'spieler' | 'teams'>('leaderboard');
@@ -660,7 +675,11 @@ function SessionSeite({ serie, sitzung, teams, runden, laender, laedt, nichtDa, 
       ['Meiste Eliminierungen', nach((x) => x.elims), (x) => `${x.elims} Elims`],
       ['Meiste Siege', nach((x) => x.siege), (x) => `${x.siege} ${t('Siege')}`],
       ['Bester Schnittplatz', nach((x) => x.schnittPlatz, true), (x) => `Ø ${x.schnittPlatz}`],
-      ['Am längsten am Leben', nach((x) => x.zeitSchnitt), (x) => zeitText(x.zeitSchnitt)],
+      // Nur, wo die Quelle die Zeit am Leben nennt (Poyo nennt sie nicht).
+      ...(teams.some((x) => x.zeitSchnitt > 0)
+        ? [['Am längsten am Leben', nach((x) => x.zeitSchnitt), (x: Team) => zeitText(x.zeitSchnitt)] as
+          [string, Team | undefined, (x: Team) => string]]
+        : []),
     ];
     return liste.map(([titel, x, wert]) => ({ titel, team: x, wert: x ? wert(x) : '' }));
   }, [teams, t]);
@@ -717,7 +736,9 @@ function SessionSeite({ serie, sitzung, teams, runden, laender, laedt, nichtDa, 
                 className="rounded-lg bg-sky-500 px-3 py-1.5 text-xs font-bold text-white
                            outline-none">
                 {serie.sitzungen.map((s) => (
-                  <option key={s.id} value={s.id} className="bg-zinc-900">{s.name}</option>
+                  <option key={s.id} value={s.id} className="bg-zinc-900">
+                    {s.name}{!beispiel && s.beginn ? ` · ${kurzDatum(s.beginn, sprache)}` : ''}
+                  </option>
                 ))}
               </select>
             </div>
@@ -728,22 +749,25 @@ function SessionSeite({ serie, sitzung, teams, runden, laender, laedt, nichtDa, 
               <span>👤 {GROESSE[sitzung.teamGroesse] ?? `${sitzung.teamGroesse}er`}</span>
               <span>⚔ {runden.length} <T>Matches</T></span>
               {sitzung.bauen === 'ZERO_BUILD' && <span>Zero Build</span>}
+              {/* Poyo spielt auch Reload und OG - Battle Royale ist der Normalfall. */}
+              {sitzung.modus && sitzung.modus !== 'Battle Royale' && <span>{sitzung.modus}</span>}
             </div>
           </div>
         </div>
       </div>
 
       {/*
-        * Ein leeres Noble-Leaderboard sagt, warum - statt nur "0" zu zeigen.
-        * Ob es die Session nie gab oder nobleprac.com sie gerade nicht
-        * herausgibt, ist fuer den Leser ein Unterschied.
+        * Ein leeres Leaderboard sagt, warum - statt nur "0" zu zeigen. Ob
+        * es die Session nie gab oder die Quelle sie gerade nicht herausgibt,
+        * ist fuer den Leser ein Unterschied.
         */}
-      {!laedt && noble && !teams.length && (
+      {!laedt && offeneQuelle && !teams.length && (
         <p className="mb-5 rounded-xl border border-amber-500/25 bg-amber-500/[0.06] px-4 py-3
                       text-sm text-amber-200/90">
           {nichtDa
-            ? <T>nobleprac.com gibt dieses Leaderboard gerade nicht heraus — auch dort lässt es sich nicht öffnen. Jüngere Sessions stehen meist vollständig da.</T>
-            : <T>Zu dieser Session hat nobleprac.com keine Einträge — gespielt wurde offenbar nicht.</T>}
+            ? <T>Die Quelle gibt dieses Leaderboard gerade nicht heraus, auch dort lässt es sich nicht öffnen. Jüngere Sessions stehen meist vollständig da.</T>
+            : <T>Zu dieser Session hat die Quelle keine Einträge. Gespielt wurde offenbar nicht.</T>}
+          {' '}({quellSeite})
         </p>
       )}
 
@@ -779,9 +803,11 @@ function SessionSeite({ serie, sitzung, teams, runden, laender, laedt, nichtDa, 
                         {beispiel ? <Kringel teile={beispielLaender(spielerZahl)} />
                           : laender?.length ? <Kringel teile={laender} /> : (
                             <p className="text-xs text-slate-500">
-                              {noble
+                              {serie.quelle === 'noble'
                                 ? <T>Kein Spieler dieser Session hat ein Land hinterlegt.</T>
-                                : <T>Die Herkunft der Spieler gibt Yunite nicht heraus.</T>}
+                                : serie.quelle === 'poyo'
+                                  ? <T>Die Herkunft der Spieler nennt die Quelle nicht.</T>
+                                  : <T>Die Herkunft der Spieler gibt Yunite nicht heraus.</T>}
                             </p>
                           )}
                       </div>
@@ -806,8 +832,8 @@ function SessionSeite({ serie, sitzung, teams, runden, laender, laedt, nichtDa, 
                   <p className="p-6 text-center text-sm text-slate-500">
                     {beispiel
                       ? <T>Steht hier, sobald ein Server verbunden ist.</T>
-                      : noble
-                        ? <T>Das nennt nobleprac.com zu dieser Session nicht.</T>
+                      : offeneQuelle
+                        ? <T>Das nennt die Quelle zu dieser Session nicht.</T>
                         : <T>Das gibt Yunite zu dieser Session nicht heraus.</T>}
                   </p>
                 )}
@@ -833,10 +859,9 @@ function SessionSeite({ serie, sitzung, teams, runden, laender, laedt, nichtDa, 
 
               <div className="overflow-hidden rounded-2xl border border-zinc-800 bg-black/40">
                 <p className="border-b border-zinc-800 px-4 py-2.5 text-center text-xs text-slate-400">
-                  {noble ? (
-                    <a href={`https://nobleprac.com/leaderboards/${encodeURIComponent(sitzung.id)}`}
-                      target="_blank" rel="noreferrer" className="hover:text-sky-400">
-                      <T>Daten von nobleprac.com</T>
+                  {offeneQuelle ? (
+                    <a href={quellLink} target="_blank" rel="noreferrer" className="hover:text-sky-400">
+                      <T>Daten von</T> {quellSeite}
                     </a>
                   ) : <T>Powered by Yunite</T>} {'//'} {teams.length} <T>Teams</T>
                   {beispiel && <> {'//'} <span className="text-amber-300"><T>Beispiel</T></span></>}
@@ -1082,27 +1107,66 @@ export default function ScrimsSeite() {
   /*
    * Die Server und ihre Sessions - alles in einem Zug.
    *
-   * Echt sind Noble (von nobleprac.com) und was ein Server ueber Yunite
-   * freigibt. Fuer alle anderen steht ein Beispiel da, an jeder Kachel
-   * gekennzeichnet - aber nie fuer einen Server, der echte Zahlen hat.
+   * Echt sind Noble und Poyo (aus dem Archiv, das scripts/scrims-holen.mjs
+   * stuendlich fortschreibt, dazu Nobles laufende Sessions live) und was ein
+   * Server ueber Yunite freigibt. Fuer alle anderen steht ein Beispiel da,
+   * an jeder Kachel gekennzeichnet - nie fuer einen Server mit echten Zahlen.
    */
   const holen = useCallback(async () => {
     setHinweis('');
-    const nobleHolen = async (): Promise<Serie[]> => {
-      try {
-        const d = await fetch('/api/scrims?quelle=noble').then((r) => r.json());
-        return ((d.serien ?? []) as Array<{
+    const echteHolen = async (): Promise<Serie[]> => {
+      const [archiv, live] = await Promise.all([
+        fetch('/api/scrims?quelle=archiv').then((r) => (r.ok ? r.json() : null)).catch(() => null),
+        fetch('/api/scrims?quelle=noble').then((r) => r.json()).catch(() => null),
+      ]) as [{
+        server: Array<{ quelle: 'noble' | 'poyo'; guildId: string; name: string; bild?: string | null; inaktiv?: boolean }>;
+        sitzungen: Array<{
+          id: string; quelle: string; guildId: string; name: string; beginn: number; ende: number;
+          teamGroesse: number; modus?: string | null; nichtDa?: boolean;
+        }>;
+      } | null, {
+        serien?: Array<{
           guildId: string; name: string; logo: string; offen?: boolean; inaktiv?: boolean;
           fehler?: boolean; sitzungen: Sitzung[];
-        }>).map((x) => ({
-          id: `noble-${x.guildId}`, name: x.name, server: 'Noble Scrims', region: 'EU',
-          logo: x.logo, offen: x.offen, inaktiv: x.inaktiv, fehler: x.fehler,
-          quelle: 'noble' as const,
-          sitzungen: [...x.sitzungen].sort((a, b) => (b.live ? 1 : 0) - (a.live ? 1 : 0) || b.beginn - a.beginn),
-        }));
-      } catch { return []; }
+        }>;
+      } | null];
+
+      const liveNoble = new Map((live?.serien ?? []).map((x) => [x.guildId, x]));
+      // Alle Server: die aus dem Archiv, und Nobles, falls das Archiv fehlt.
+      const server = [...(archiv?.server ?? [])];
+      for (const x of liveNoble.values()) {
+        if (!server.some((s) => s.quelle === 'noble' && s.guildId === x.guildId)) {
+          server.push({ quelle: 'noble', guildId: x.guildId, name: x.name, inaktiv: x.inaktiv });
+        }
+      }
+
+      return server.map((sv) => {
+        const ausArchiv: Sitzung[] = (archiv?.sitzungen ?? [])
+          .filter((s) => s.quelle === sv.quelle && s.guildId === sv.guildId)
+          .map((s) => ({
+            id: s.id, name: s.name, teamGroesse: s.teamGroesse, region: 'EU',
+            beginn: s.beginn, ende: s.ende, art: 'SCRIM', modus: s.modus ?? null,
+            live: false, vorbei: true, guildId: s.guildId, archiv: !s.nichtDa,
+          }));
+        const nl = sv.quelle === 'noble' ? liveNoble.get(sv.guildId) : undefined;
+        // Live dazu, was das Archiv (noch) nicht hat - laufende und frische Sessions.
+        const bekannt = new Set(ausArchiv.filter((s) => s.archiv).map((s) => s.id));
+        const dazu = (nl?.sitzungen ?? []).filter((s) => !bekannt.has(s.id));
+        const ohneDoppelte = ausArchiv.filter((s) => s.archiv || !dazu.some((d) => d.id === s.id));
+        const sitzungen = [...ohneDoppelte, ...dazu]
+          .sort((a, b) => (b.live ? 1 : 0) - (a.live ? 1 : 0) || b.beginn - a.beginn);
+        return {
+          id: `${sv.quelle}-${sv.guildId}`, name: sv.name, region: 'EU',
+          server: sv.quelle === 'noble' ? 'Noble Scrims' : 'Poyo Scrims',
+          logo: nl?.logo ?? logoFuer(sv.name, sv.bild ?? null),
+          offen: nl?.offen, inaktiv: sv.inaktiv || nl?.inaktiv,
+          fehler: !sitzungen.length && nl?.fehler,
+          privat: sv.quelle === 'poyo' && !sitzungen.length,
+          quelle: sv.quelle, sitzungen,
+        };
+      });
     };
-    const echteNoble = await nobleHolen();
+    const echteNoble = await echteHolen();
     /** Yunite hat nichts: Noble und dazu die Beispiele der uebrigen Server. */
     const zeigeBeispiel = (grund: string) => {
       setHinweis(grund);
@@ -1162,6 +1226,25 @@ export default function ScrimsSeite() {
       return;
     }
     setLaedtCup(true);
+    // Aus dem Archiv - beendet und vollstaendig abgelegt.
+    if (sitzung.archiv) {
+      try {
+        const d = await fetch(`/api/scrims?quelle=archiv&turnier=${encodeURIComponent(sitzung.id)}`)
+          .then((r) => r.json());
+        setTeams(d.teams ?? []);
+        setRunden(d.runden ?? []);
+        setLaender(d.laender ?? null);
+        setNichtDa(!!d.nichtDa || !d.teams);
+        if (d.turnier) setOffen({ serie, sitzung: { ...sitzung, ...d.turnier, archiv: true } });
+      } catch { setNichtDa(true); }
+      finally { setLaedtCup(false); }
+      return;
+    }
+    // Poyo gibt es nur aus dem Archiv; fehlt die Session dort, fehlt sie der Quelle.
+    if (serie.quelle === 'poyo') {
+      setNichtDa(true); setLaedtCup(false);
+      return;
+    }
     if (serie.quelle === 'noble') {
       try {
         const d = await fetch(`/api/scrims?quelle=noble&turnier=${encodeURIComponent(sitzung.id)}`)
@@ -1198,7 +1281,7 @@ export default function ScrimsSeite() {
       sitzungen: s.sitzungen.filter((x) => (art === 'scrims' ? x.art === 'SCRIM' : x.art !== 'SCRIM')),
     }))
     // Ein inaktiver Server (Noble X) bleibt unter Scrims sichtbar - mit Hinweis.
-    .filter((s) => s.sitzungen.length || (art === 'scrims' && (s.inaktiv || s.fehler)))
+    .filter((s) => s.sitzungen.length || (art === 'scrims' && (s.inaktiv || s.fehler || s.privat)))
     .filter((s) => region === 'alle' || s.region === region)
     .sort((a, b) => Number(!!a.beispiel) - Number(!!b.beispiel)
       || RANG[statusVon(a)] - RANG[statusVon(b)]), [serien, art, region]);
@@ -1311,7 +1394,7 @@ export default function ScrimsSeite() {
                 {hinweis === 'keine-scrims' && <T>Dieser Server hat noch keine Scrims veranstaltet.</T>}
                 {hinweis === 'fehler' && <T>Yunite antwortet gerade nicht.</T>}
                 <p className="mt-1 text-[11px] text-amber-200/70">
-                  <T>Noble ist echt (von nobleprac.com). Die Kacheln mit „Beispiel“ zeigen, wie ein Server aussieht, sobald er verbunden ist — keine dieser Zahlen ist echt.</T>
+                  <T>Noble und Poyo sind echt, von nobleprac.com und scrims.poyocup.com, seit dem 21.9. gesammelt und stündlich ergänzt. Die Kacheln mit „Beispiel“ zeigen, wie ein Server aussieht, sobald er verbunden ist. Deren Zahlen sind nicht echt.</T>
                 </p>
               </div>
             )}

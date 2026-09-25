@@ -5,6 +5,7 @@ import {
   KeinPremium, NichtFreigegeben, YuniteFehlt,
 } from '@/lib/yunite';
 import { NOBLE_SERVER, nobleSitzungen, nobleLeaderboard } from '@/lib/noble';
+import { scrimVerzeichnis, scrimSession } from '@/lib/scrimArchiv';
 
 // Die Scrims der Community-Server - siehe lib/yunite.
 //
@@ -13,6 +14,8 @@ import { NOBLE_SERVER, nobleSitzungen, nobleLeaderboard } from '@/lib/noble';
 //   GET /api/scrims?server=…&turnier=<id>    -> Bestenliste und Runden
 //   GET /api/scrims?quelle=noble             -> Nobles Server mit Sessions
 //   GET /api/scrims?quelle=noble&turnier=<id> -> ein Noble-Leaderboard
+//   GET /api/scrims?quelle=archiv            -> alle gesammelten Sessions
+//   GET /api/scrims?quelle=archiv&turnier=<id> -> eine davon mit Leaderboard
 //
 // Noble kommt nicht ueber Yunite, sondern offen von nobleprac.com (siehe
 // lib/noble) - dort braucht es weder Premium noch einen Schluessel.
@@ -20,7 +23,7 @@ import { NOBLE_SERVER, nobleSitzungen, nobleLeaderboard } from '@/lib/noble';
 // Vorerst nur fuer den Betreiber: die Seite dazu steht fuer Besucher hinter
 // einem Vorhang ("Something Big Is Coming"), und was dort nicht zu sehen
 // ist, soll auch ueber die Adresse nicht herauskommen. Geschrieben wird
-// nichts - Yunites Regeln verbieten, die Daten dauerhaft abzulegen.
+// hier nichts; das Archiv baut scripts/scrims-holen.mjs.
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -47,6 +50,25 @@ export async function GET(request: Request) {
 
   if (!await istAdminAnfrage(request)) {
     return NextResponse.json({ error: 'noch-nicht-offen' }, { status: 403 });
+  }
+
+  /*
+   * Das Archiv (scripts/scrims-holen.mjs): Noble und Poyo, stuendlich
+   * gesammelt und am Release abgelegt. Ohne turnier das Verzeichnis aller
+   * Sessions, mit turnier deren Leaderboard.
+   */
+  if (searchParams.get('quelle') === 'archiv') {
+    try {
+      if (turnierId) {
+        const s = await scrimSession(turnierId);
+        return s ? NextResponse.json(s) : NextResponse.json({ error: 'nicht-im-archiv' }, { status: 404 });
+      }
+      const v = await scrimVerzeichnis();
+      // Kein Verzeichnis ist kein "leer": die Seite sagt dann, dass es fehlt.
+      return v ? NextResponse.json(v) : NextResponse.json({ error: 'kein-archiv' }, { status: 503 });
+    } catch (e) {
+      return NextResponse.json({ error: (e as Error).message }, { status: 502 });
+    }
   }
 
   if (searchParams.get('quelle') === 'noble') {

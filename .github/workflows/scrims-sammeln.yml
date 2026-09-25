@@ -1,0 +1,59 @@
+# Die Scrims der Community-Server sammeln - stuendlich, von Noble und Poyo.
+#
+# Der Betreiber (25.9.2026): "von jedem Scrim Server ... von dieser Woche bis
+# aktuell und nachher ab jetzt, dann machst du dann immer die neuesten hinzu
+# einfach." scripts/scrims-holen.mjs holt die letzten drei Tage von
+# nobleprac.com und scrims.poyocup.com (offen, ohne Schluessel) und legt jede
+# beendete Session mit Leaderboard ab. Was schon da ist, bleibt, auch wenn die
+# Quelle es spaeter nicht mehr herausgibt.
+#
+# Ein eigener, kleiner Ablauf statt eines Schritts im grossen stuendlichen:
+# er braucht keine Abhaengigkeiten, keinen Bau und kein Supabase, und laeuft
+# so auch dann, wenn der grosse Lauf haengt. Abgelegt wird am GitHub-Release
+# (daten-scrims und je Monat daten-scrims-JJJJ-MM).
+
+name: Scrims sammeln
+
+on:
+  workflow_dispatch:
+    inputs:
+      seit:
+        description: 'Ab welchem Tag (JJJJ-MM-TT) - leer: die letzten drei Tage'
+        required: false
+  schedule:
+    - cron: '25 * * * *'   # jede Stunde, fuenfundzwanzig nach
+
+jobs:
+  sammeln:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    concurrency:
+      group: scrims-sammeln
+      cancel-in-progress: false
+
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: scripts
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Sammeln
+        timeout-minutes: 20
+        run: |
+          if [ -n "${{ github.event.inputs.seit }}" ]; then
+            node scripts/scrims-holen.mjs --seit "${{ github.event.inputs.seit }}"
+          else
+            node scripts/scrims-holen.mjs
+          fi
+
+      - name: Ans GitHub-Release
+        if: always()
+        timeout-minutes: 8
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/ablage-github.mjs --nur scrims 2>&1 | tr '\r' '\n' | grep -v '^ *[0-9]*/[0-9]* ' | tail -12

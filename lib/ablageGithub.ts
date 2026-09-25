@@ -45,6 +45,11 @@ export function tagFuer(name: string): string {
   if (/^szene-stats\//.test(name)) return 'daten-szene';
   if (/^tournament-leaderboards\//.test(name)) return 'daten-leaderboards';
   if (/^replays\//.test(name)) return 'daten-replays';
+  // Die Scrims: Tagesdateien je Monat ein Release (hoechstens tausend
+  // Anhaenge je Release), das Verzeichnis fuer sich - scripts/scrims-holen.mjs.
+  const monat = name.match(/^scrims\/(\d{4}-\d{2})-\d{2}\//);
+  if (monat) return `daten-scrims-${monat[1]}`;
+  if (/^scrims\//.test(name)) return 'daten-scrims';
   return 'daten';
 }
 const basis = (tag: string) => `https://github.com/${REPO}/releases/download/${tag}/`;
@@ -79,6 +84,8 @@ const AM_RELEASE: Array<RegExp> = [
   // Die ausgewerteten Replays (je Spieltag ein _aggregat.json, bis zu
   // fuenfzig Megabyte): seit dem 22.9.2026 nur noch hier, siehe nurRelease.
   /^replays\//,
+  // Das Archiv der Scrims (scripts/scrims-holen.mjs) - nur hier, nie in Supabase.
+  /^scrims\//,
   /^(verdienst-archiv|elims-archiv|elims-summen-alt|preisgeld-tabellen|preisgelder|lan-preisgelder|epic-namen|cup-archiv|prognose-felder)\.json$/,
   // Vom Betreiber gepflegt, von der Seite viel gelesen: als Rueckfall, wenn
   // Supabase nicht antwortet. Gelesen wird zuerst die lebende Kopie dort.
@@ -113,6 +120,7 @@ const NUR_RELEASE: Array<RegExp> = [
   /^tournament-leaderboards\//,
   /^power-rankings\//,
   /^replays\//,
+  /^scrims\//,
   /^(verdienst-archiv|elims-archiv|elims-summen-alt|preisgeld-tabellen|prognose-felder)\.json$/,
 ];
 

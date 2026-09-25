@@ -12,10 +12,13 @@
  * Schluessel. Je Server die letzten hundert Leaderboards, je Leaderboard die
  * Teams mit Konto-Id, Name und Land und jede einzelne Runde.
  *
- * Abgelegt wird nichts: die Seite fragt, wenn jemand hinsieht, und merkt sich
- * die Antwort ein paar Minuten im Speicher. Die Zahlen stammen aus Yunite, und
- * dessen Regeln verbieten, sie dauerhaft zu halten (siehe lib/yunite).
+ * Hier wird live gefragt und die Antwort ein paar Minuten im Speicher
+ * gemerkt - fuer das, was gerade laeuft oder noch nicht gesammelt ist.
+ * Beendete Sessions legt scripts/scrims-holen.mjs stuendlich ins Archiv
+ * (lib/scrimArchiv), denn nobleprac.com gibt aeltere oft nicht mehr heraus.
  */
+
+import { laenderVon } from '@/lib/scrimArchiv';
 
 const QUELLE = 'https://tournament.nobleprac.com';
 
@@ -157,7 +160,7 @@ export async function nobleLeaderboard(id: string) {
     vorrat.set(weg, { bis: Date.now() + 2 * 60_000, wert: t });
     return {
       turnier: alsSitzung(t, t.guildId), teams: [] as NobleTeam[], runden: [] as NobleRunde[],
-      laender: [] as Array<[string, number]>, ohneLand: 0, nichtDa: true,
+      laender: [] as Array<[string, number]>, nichtDa: true,
     };
   }
 
@@ -200,22 +203,9 @@ export async function nobleLeaderboard(id: string) {
     }
   }
 
-  // Woher die Spieler kommen - nur, wer ein Land hinterlegt hat.
-  const zaehler = new Map<string, number>();
-  let ohneLand = 0;
-  for (const tm of teams) {
-    for (const p of tm.spieler) {
-      if (p.land) zaehler.set(p.land, (zaehler.get(p.land) ?? 0) + 1);
-      else ohneLand += 1;
-    }
-  }
-  const sortiert = [...zaehler.entries()].sort((a, b) => b[1] - a[1]);
-  const laender: Array<[string, number]> = sortiert.slice(0, 5);
-  const rest = sortiert.slice(5).reduce((a, [, z]) => a + z, 0);
-  if (rest) laender.push(['Other', rest]);
-  // Wer kein Land hinterlegt hat, zaehlt sichtbar mit - sonst stuenden vier
-  // Spieler mit Flagge da wie hundert Prozent des Felds.
-  if (ohneLand && laender.length) laender.push(['—', ohneLand]);
+  // Woher die Spieler kommen. Wer kein Land hinterlegt hat, zaehlt sichtbar
+  // mit - sonst stuenden vier Spieler mit Flagge da wie das ganze Feld.
+  const laender = laenderVon(teams.flatMap((x) => x.spieler));
 
   const sitzung = alsSitzung(t, t.guildId);
   const groesse = teams.find((x) => x.spieler.length)?.spieler.length ?? 0;
@@ -230,6 +220,6 @@ export async function nobleLeaderboard(id: string) {
     turnier: sitzung,
     teams,
     runden: [...runden.values()].sort((a, b) => b.zeitpunkt - a.zeitpunkt),
-    laender, ohneLand, nichtDa: false,
+    laender, nichtDa: false,
   };
 }
