@@ -5,7 +5,7 @@ import { istBetreiber, vipAus } from '@/lib/vipCookie';
 import { zugangNach, rechteVon } from '@/lib/vipZugaenge';
 import {
   richteServerEin, schluesselAufraeumen, discordDa, knoepfeMoeglich,
-  richteUpdatesEin, richteZugangEin, richteAdminEin, type AufbauZeile,
+  richteUpdatesEin, richteZugangEin, richteAdminEin, werkzeugEinrichten, type AufbauZeile,
 } from '@/lib/discord';
 
 /*
@@ -85,6 +85,19 @@ export async function POST(request: Request) {
    * gueltigen Schluessel neu hinein. Getrennt, weil das zweite oefter
    * gebraucht wird und nichts am Aufbau aendern soll.
    */
+  /*
+   * Nur das Admin-Werkzeug (#admin-tools und /comphub) - schnell, ohne den
+   * Rest des Aufbaus. Ein Fehler kommt als Text zurueck, nicht als leere 500.
+   */
+  if (koerper.was === 'werkzeug') {
+    try {
+      const w = await werkzeugEinrichten();
+      return NextResponse.json(w, { status: w.ok ? 200 : 207 });
+    } catch (e) {
+      return NextResponse.json({ ok: false, text: (e as Error).message }, { status: 500 });
+    }
+  }
+
   const bericht = koerper.was === 'schluessel'
     ? await schluesselAufraeumen()
     : koerper.was === 'zugang'
