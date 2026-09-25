@@ -394,7 +394,18 @@ async function tabellenNamen(praefixe = []) {
     const r = await fetch(`${URL_}/rest/v1/${TABELLE}?select=name${abfrage}`, {
       headers: { ...KOPF, Range: `${von}-${von + PRO_SEITE - 1}` },
     });
-    if (!r.ok) break;
+    /*
+     * Ein Fehler ist hier kein "keine Zeilen".
+     *
+     * Vorher brach die Schleife still ab. Die Namen fehlten dann, und jede
+     * Datei galt als eine des Dateispeichers - wo zum Teil noch alte Kopien
+     * aus der Zeit vor der Tabelle liegen. Am 25.9.2026 kam so, waehrend
+     * Supabase haengte, die Turnierkarte vom 23.9. in die Sicherung am
+     * Release, und die Seite zeigte sie als Ersatz: die Globals-Karte ohne
+     * ein einziges Team. Jetzt scheitert das Holen sichtbar, und der Schritt
+     * danach sichert nichts.
+     */
+    if (!r.ok) throw new Error(`Tabelle ${TABELLE} nicht lesbar (${r.status})`);
     const teil = await r.json();
     for (const z of teil) raus.push(z.name);
     if (teil.length < PRO_SEITE) break;

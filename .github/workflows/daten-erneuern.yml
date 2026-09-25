@@ -147,6 +147,9 @@ jobs:
         timeout-minutes: 5
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Nur hier duerfen die gepflegten Dateien ans Release - siehe
+          # scripts/ablage-github.mjs, GEPFLEGT.
+          GEPFLEGT_HOCHLADEN: '1'
         run: |
           node scripts/ablage-github.mjs --nur prognosen.json --nur turnier-karten.json \
             --nur karten-vorlagen.json --nur spieler-profile.json --nur spielerbilder.json \

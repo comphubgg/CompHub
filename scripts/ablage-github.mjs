@@ -116,6 +116,8 @@ const AM_RELEASE = [
   // Supabase nicht antwortet. Gelesen wird zuerst die lebende Kopie dort.
   /^(prognosen|turnier-karten|karten-vorlagen|spieler-profile|spielerbilder|spieler-namen|orgtags|galerie)\.json$/,
 ];
+/** Was der Betreiber auf der Seite pflegt - siehe gewuenscht(). */
+const GEPFLEGT = /^(prognosen|turnier-karten|karten-vorlagen|spieler-profile|spielerbilder|spieler-namen|orgtags|galerie)\.json$/;
 const anhangName = (name) => name.replace(/\//g, '__').replace(/=/g, '-eq-');
 
 function gewuenscht(name) {
@@ -125,6 +127,19 @@ function gewuenscht(name) {
   if (/^replays\//.test(name) && !/\/(_aggregat|_zustand)\.json$|^replays\/_[^/]+\.json$/.test(name)) return false;
   if (!AM_RELEASE.some((m) => m.test(name))) return false;
   if (nur.length && !nur.some((n) => name === n || name.startsWith(`${n}/`))) return false;
+  /*
+   * Vom Betreiber Gepflegtes nur, wenn es eben frisch aus Supabase kam.
+   *
+   * Karten, Prognosen, Profile und Fotozuordnung leben in Supabase; am
+   * Release liegt nur ihre Ersatzkopie. Der Laufrechner hat davon aber auch
+   * einen Stand im Zwischenspeicher - am 25.9.2026 einen vom 23.9. -, und
+   * jedes Hochladen am Ende eines Laufs schob diesen alten Stand als
+   * Ersatzkopie ans Release. Die Seite zeigte ihn dann bei jedem Aussetzer
+   * von Supabase: die Globals-Karte ohne ein einziges Team. Jetzt duerfen
+   * sie nur aus dem Schritt hoch, der sie gerade erfolgreich geholt hat
+   * (GEPFLEGT_HOCHLADEN=1).
+   */
+  if (GEPFLEGT.test(name) && process.env.GEPFLEGT_HOCHLADEN !== '1') return false;
   return true;
 }
 

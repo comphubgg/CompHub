@@ -113,24 +113,55 @@ if (!kanal) {
 }
 
 const zeile = (a) => `**${a.id}** · ${a.titel}${a.hinweis ? ` · _${a.hinweis}_` : ''} · seit ${a.seit}`;
-const einbettung = {
-  title: `Open tasks (${offen.length})`,
-  description: (offen.length ? offen.map(zeile).join('\n') : 'Nothing open.')
-    + (zuletzt.length ? `\n\n**Recently done**\n${zuletzt.map((a) => `~~${a.titel}~~ · ${a.erledigt}`).join('\n')}` : ''),
-  color: FARBE,
-  footer: { text: `updated ${new Date().toISOString().slice(0, 16).replace('T', ' ')} UTC` },
-};
 
-let ok = false;
-if (daten.nachricht) {
-  try { await ruf(`/channels/${kanal.id}/messages/${daten.nachricht}`, 'PATCH', { embeds: [einbettung] }); ok = true; }
-  catch { ok = false; }
+/*
+ * Die Liste auf mehrere Nachrichten verteilt, sobald sie zu lang wird.
+ *
+ * Discord nimmt je Beschreibung hoechstens 4096 Zeichen. Am 25.9.2026 war
+ * die Liste laenger, und jedes Eintragen scheiterte mit "Invalid Form Body".
+ * Jetzt je Nachricht bis 3800 Zeichen; alle bleiben angepinnt.
+ */
+const zeilen = [
+  ...(offen.length ? offen.map(zeile) : ['Nothing open.']),
+  ...(zuletzt.length ? ['', '**Recently done**', ...zuletzt.map((a) => `~~${a.titel}~~ · ${a.erledigt}`)] : []),
+];
+const teile = [];
+let teil = '';
+for (const z of zeilen) {
+  const kurz = z.length > 1000 ? `${z.slice(0, 997)}...` : z;
+  if (teil && teil.length + kurz.length + 1 > 3800) { teile.push(teil); teil = ''; }
+  teil += (teil ? '\n' : '') + kurz;
 }
-if (!ok) {
-  const neuNachricht = await ruf(`/channels/${kanal.id}/messages`, 'POST', { embeds: [einbettung] });
-  daten.nachricht = neuNachricht.id;
-  schreib(daten);
-  // Angepinnt, damit sie im Kanal oben bleibt.
-  await ruf(`/channels/${kanal.id}/pins/${neuNachricht.id}`, 'PUT').catch(() => {});
+teile.push(teil);
+const aktualisiert = `updated ${new Date().toISOString().slice(0, 16).replace("T", " ")} UTC`;
+const einbettungen = teile.map((text, i) => ({
+  title: i === 0 ? `Open tasks (${offen.length})` : `Open tasks (${i + 1}/${teile.length})`,
+  description: text,
+  color: FARBE,
+  ...(i === teile.length - 1 ? { footer: { text: aktualisiert } } : {}),
+}));
+
+const alte = daten.nachrichten ?? (daten.nachricht ? [daten.nachricht] : []);
+const neue = [];
+for (let i = 0; i < einbettungen.length; i += 1) {
+  let id = alte[i] ?? null;
+  if (id) {
+    try { await ruf(`/channels/${kanal.id}/messages/${id}`, 'PATCH', { embeds: [einbettungen[i]] }); }
+    catch { id = null; }
+  }
+  if (!id) {
+    const n = await ruf(`/channels/${kanal.id}/messages`, 'POST', { embeds: [einbettungen[i]] });
+    id = n.id;
+    // Angepinnt, damit sie im Kanal oben bleibt.
+    await ruf(`/channels/${kanal.id}/pins/${id}`, 'PUT').catch(() => {});
+  }
+  neue.push(id);
 }
+// Was die Liste nicht mehr braucht, verschwindet.
+for (const id of alte.slice(einbettungen.length)) {
+  await ruf(`/channels/${kanal.id}/messages/${id}`, 'DELETE').catch(() => {});
+}
+daten.nachrichten = neue;
+daten.nachricht = neue[0];
+schreib(daten);
 console.log(`  #${KANAL} aktualisiert.`);
