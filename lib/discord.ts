@@ -1234,10 +1234,11 @@ export async function richteServerEin(
     fehler.push({ text: 'Kanal ließ sich nicht anlegen', wert: '#manager-support' });
   }
 
-  // Update-Kanaele, Get-Access und der Admin-Bereich - siehe unten.
+  // Update-Kanaele, Get-Access, der Admin-Bereich und die Community - siehe unten.
   await richteUpdatesEin(schritte, fehler);
   await richteZugangEin(schritte, fehler);
   await richteAdminEin(schritte, fehler);
+  await richteCommunityEin(schritte, fehler);
 
   if (!knoepfeMoeglich()) {
     schritte.push({
@@ -1879,6 +1880,91 @@ export async function richteAdminEin(
   // Das Werkzeug: #admin-tools mit den Knoepfen und der Befehl /comphub.
   const werkzeug = await werkzeugEinrichten();
   (werkzeug.ok ? schritte : fehler).push({ text: 'Admin-Werkzeug', wert: werkzeug.text });
+}
+
+/* --------------------------------------------------------- Community */
+
+/*
+ * Der Ausbau zum Community-Server (offene Aufgabe seit 21.9., am 26.9. vom
+ * Betreiber freigegeben: "alle Sachen, die unter Aufgaben noch nicht geloest
+ * sind ... mal einbauen").
+ *
+ *   #announcements  Ankuendigungen - schreiben darf nur der Admin (und der Bot)
+ *   #live-now       wer von den VIP-Streamern gerade live ist - schreibt der
+ *                   Bot von selbst (scripts/live-discord.mjs)
+ *   #results        die ersten zehn jedes Finales - schreibt der stuendliche
+ *                   Lauf (scripts/ergebnisse-discord.mjs)
+ *   #vip-lounge     Chat fuer VIPs und VIP-Streamer
+ *   #manager-chat   Chat fuer die Manager
+ */
+export const COMMUNITY_KANAELE = {
+  ankuendigungen: 'announcements', live: 'live-now', ergebnisse: 'results',
+  lounge: 'vip-lounge', manager: 'manager-chat',
+} as const;
+
+/** Schreiben, Links, Bilder und Reaktionen - was ein Chat braucht. */
+const CHATTEN = String(1024 + 65536 + 2048 + 16384 + 32768 + 64);
+
+const COMMUNITY_TEXTE: Record<keyof typeof COMMUNITY_KANAELE, { thema: string; gruss: string }> = {
+  ankuendigungen: {
+    thema: 'News and announcements from CompHub',
+    gruss: 'Announcements from CompHub land here: new features, events and anything worth knowing. Only the team posts in this channel.',
+  },
+  live: {
+    thema: 'CompHub VIP streamers who are live right now',
+    gruss: 'When one of the CompHub VIP streamers goes live on Twitch, the bot posts it here. When the stream ends, the post is marked as ended.',
+  },
+  ergebnisse: {
+    thema: 'Top 10 of every finals, posted automatically',
+    gruss: 'After every finals (FNCS, Performance Evaluation, EWC and more) the bot posts the top 10 here, with points, wins and eliminations. Full standings: www.thecomphub.com/events',
+  },
+  lounge: {
+    thema: 'Chat for VIPs and VIP streamers',
+    gruss: 'Welcome to the VIP lounge. This channel is only visible to VIPs, VIP streamers and the CompHub team. Feel free to chat, share clips or ask each other anything.',
+  },
+  manager: {
+    thema: 'Chat for VIP managers',
+    gruss: 'Welcome to the manager chat. Only managers and the CompHub team can see this channel. Use it to talk to each other; for problems with the tool, open a ticket in #manager-support.',
+  },
+};
+
+export async function richteCommunityEin(
+  schritte: AufbauZeile[], fehler: AufbauZeile[],
+): Promise<void> {
+  const kanaele = await alleKanaele();
+  const kategorie = await kategorieFuer('Community');
+  // Die Kategorie selbst sieht jeder - welche Kanaele darin, regeln die Kanaele.
+  if (kategorie) {
+    await ruf(`/channels/${kategorie}/permissions/${SERVER}`, 'PUT', { type: 0, allow: LESEN, deny: '0' });
+  }
+  const rollen = await zugangsRollen();
+  const plan: Array<[keyof typeof COMMUNITY_KANAELE, Sichtbar, string[], boolean]> = [
+    ['ankuendigungen', 'alle', [], false],
+    ['live', 'alle', [], false],
+    ['ergebnisse', 'alle', [], false],
+    ['lounge', 'vip', rollen.vip, true],
+    ['manager', 'manager', rollen.manager, true],
+  ];
+  for (const [k, sichtbar, darf, chat] of plan) {
+    const name = COMMUNITY_KANAELE[k];
+    const neu = !kanaele.some((x) => x.type === 0 && gleich(x.name, name));
+    const id = await infoKanal(name, COMMUNITY_TEXTE[k].thema, kategorie, kanaele, sichtbar, darf);
+    if (!id) { fehler.push({ text: 'Kanal ließ sich nicht anlegen', wert: `#${name}` }); continue; }
+    // In den beiden Chats darf die Rolle schreiben - ein Aushang sind sie nicht.
+    if (chat) {
+      for (const rolle of darf) {
+        await ruf(`/channels/${id}/permissions/${rolle}`, 'PUT', { type: 0, allow: CHATTEN, deny: '0' });
+      }
+    }
+    if (neu) {
+      const gesendet = await ruf(`/channels/${id}/messages`, 'POST', {
+        embeds: [{ title: `#${name}`, description: COMMUNITY_TEXTE[k].gruss, color: FARBE }],
+      });
+      const nachricht = idAus(gesendet);
+      if (nachricht) await anpinnen(id, nachricht);
+    }
+    schritte.push({ text: neu ? 'Community-Kanal angelegt' : 'Community-Kanal steht', wert: `#${name}` });
+  }
 }
 
 /* ------------------------------------------------------------ Zugang */

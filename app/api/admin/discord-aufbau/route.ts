@@ -5,7 +5,8 @@ import { istBetreiber, vipAus } from '@/lib/vipCookie';
 import { zugangNach, rechteVon } from '@/lib/vipZugaenge';
 import {
   richteServerEin, schluesselAufraeumen, discordDa, knoepfeMoeglich,
-  richteUpdatesEin, richteZugangEin, richteAdminEin, werkzeugEinrichten, type AufbauZeile,
+  richteUpdatesEin, richteZugangEin, richteAdminEin, werkzeugEinrichten, richteCommunityEin,
+  type AufbauZeile,
 } from '@/lib/discord';
 
 /*
@@ -96,6 +97,14 @@ export async function POST(request: Request) {
     } catch (e) {
       return NextResponse.json({ ok: false, text: (e as Error).message }, { status: 500 });
     }
+  }
+
+  // Nur die Community-Kanaele (#announcements, #live-now, #results, Lounges).
+  if (koerper.was === 'community') {
+    const schritte: AufbauZeile[] = []; const fehler: AufbauZeile[] = [];
+    await richteCommunityEin(schritte, fehler);
+    return NextResponse.json({ ok: fehler.length === 0, schritte, fehler },
+      { status: fehler.length ? 207 : 200 });
   }
 
   const bericht = koerper.was === 'schluessel'

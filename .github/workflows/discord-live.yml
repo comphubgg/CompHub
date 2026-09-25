@@ -1,0 +1,38 @@
+# #live-now im Discord: wer von den CompHub-VIPs gerade auf Twitch live ist.
+#
+# Alle zehn Minuten, klein und ohne Bau: scripts/live-discord.mjs fragt die
+# VIPs der Startseite ab, dann Twitch, und schreibt oder beendet die
+# Meldungen im Kanal. Der Kanal ist das Gedaechtnis, eine Ablage braucht es
+# nicht.
+
+name: Discord live
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '2,12,22,32,42,52 * * * *'
+
+jobs:
+  live:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    concurrency:
+      group: discord-live
+      cancel-in-progress: true
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: scripts
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Live melden
+        run: |
+          printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
+          set +e
+          node scripts/live-discord.mjs
+          rc=$?
+          rm -f .env.local
+          exit $rc
