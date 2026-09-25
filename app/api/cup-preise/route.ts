@@ -155,6 +155,12 @@ export async function GET(request: Request) {
     ?? Object.entries(alle).find(([k]) => k.includes(window_))?.[1];
   const wertung = wertungVon(epic, window_, eventIdRoh);
 
+  // Epics Tabelle unveraendert - fuer scripts/preisgeld-aus-katalog.mjs,
+  // das sie dauerhaft ablegt, bevor das Fenster aus dem Katalog faellt.
+  if (searchParams.get('roh') === '1') {
+    return NextResponse.json({ window: window_, region, gruppen: gruppen ?? null });
+  }
+
   const eventId = eventIdRoh;
   const istFinale = searchParams.get('finale') === '1';
 

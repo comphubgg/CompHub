@@ -434,6 +434,9 @@ jobs:
           # Nach den Globals: das Preisgeld je Spieler von selbst in die Earnings
           # (scripts/globals-preisgeld-eintragen.mjs, laeuft nur einmal).
           node scripts/globals-preisgeld-eintragen.mjs http://localhost:3000 2>&1 | tail -3
+          # Epics Auszahlungstabellen der laufenden Season dauerhaft ablegen,
+          # bevor ein Fenster aus dem Katalog faellt (scripts/preisgeld-aus-katalog.mjs).
+          node scripts/preisgeld-aus-katalog.mjs http://localhost:3000 2>&1 | tail -2
           node scripts/admin-zahlen-discord.mjs http://localhost:3000 2>&1 | tail -2
           # Die ersten zehn jedes Finales nach #results (scripts/ergebnisse-discord.mjs).
           node scripts/ergebnisse-discord.mjs http://localhost:3000 2>&1 | tail -3

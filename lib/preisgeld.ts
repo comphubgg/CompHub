@@ -177,11 +177,19 @@ async function ausEpicKatalog(windowId: string, region: string): Promise<Tabelle
       const betrag = (r.payouts ?? [])
         .filter((z) => z.rewardType === 'ecomm' && typeof z.quantity === 'number')
         .reduce((summe, z) => summe + (z.quantity ?? 0), 0);
-      if (betrag <= 0) continue;
-      if (g.scoringType === 'value') stufen.push({ abPunkte: r.threshold, betrag });
-      else if (g.scoringType === 'rank') stufen.push({ bis: r.threshold, betrag });
+      if (g.scoringType === 'value') {
+        if (betrag > 0) stufen.push({ abPunkte: r.threshold, betrag });
+      } else if (g.scoringType === 'rank') {
+        /*
+         * Auch die Stufen ohne Geld: sie begrenzen die Spanne darunter.
+         * "bis 16: nur Aufstieg, bis 33: 200 $" heisst Platz 1 bis 16
+         * bekommt nichts - ohne die Nullstufe hielte die Rechnung sie fuer
+         * die Spanne bis 33 und zahlte ihnen 200 $.
+         */
+        stufen.push({ bis: r.threshold, betrag });
+      }
     }
-    if (!stufen.length) continue;
+    if (!stufen.some((s) => s.betrag > 0)) continue;
     return {
       fenster: windowId, season, region: region.toUpperCase(), muster: '',
       tage: 'einzeln', art: g.scoringType === 'value' ? 'punkte' : 'platz',
