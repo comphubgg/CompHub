@@ -20,6 +20,7 @@ import { useT, useSprache } from '@/app/components/SprachProvider';
 import { kartenTitel } from '@/lib/rundenName';
 import CupArchiv from '@/app/components/CupArchiv';
 import { inselAusPlaylist } from '@/lib/inseln';
+import { istGlobalsEvent } from '@/lib/globalsCup';
 /**
  * Regionen, fuer die von selbst eine Karte bereitsteht.
  *
@@ -566,9 +567,9 @@ function KartenKnopf({ karte, aufVerstecken }: {
       </svg>
       {/* Der Name der Insel steht vorn - danach unterscheiden sich zwei
           Karten eines Spieltags. Die Spielangabe ist ein Zusatz. */}
-      {karte.bildTitel ?? 'Karte öffnen'}
+      {karte.bildTitel ?? t('Karte öffnen')}
       <span className="text-xs text-sky-400/80">
-        {karte.spiele ? `Spiele ${karte.spiele}` : karte.titel}
+        {karte.spiele ? `${t('Spiele')} ${karte.spiele}` : karte.titel}
       </span>
     </a>
     {aufVerstecken && (
@@ -990,8 +991,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
   /** Karten je Spieltag, sofern der Admin welche hinterlegt hat. */
   /** Je Spieltag koennen mehrere Karten liegen - eine je Spielhaelfte. */
   const [istAdmin, setIstAdmin] = useState(false);
-  const [karten, setKarten] = useState<Record<string,
-    Array<{ id: string; titel: string; spiele?: string; bildTitel?: string }>>>({});
+  const [karten, setKarten] = useState<Array<{ id: string; titel: string; spiele?: string;
+    bildTitel?: string; eventId?: string; windowId: string }>>([]);
 
   // ---- Cup finden ----------------------------------------------------
   useEffect(() => {
@@ -1048,19 +1049,17 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
         .then((r) => r.json())
         .then((d) => {
           if (weg) return;
-          const nach: Record<string,
-            Array<{ id: string; titel: string; spiele?: string; bildTitel?: string }>> = {};
+          const nach: typeof karten = [];
           for (const k of d.karten ?? []) {
             if (!k.windowId || !k.oeffentlich) continue;
-            (nach[k.windowId] ??= []).push({
+            nach.push({
               id: k.id, titel: k.titel, spiele: k.spiele, bildTitel: k.bildTitel,
+              eventId: k.eventId, windowId: k.windowId,
             });
           }
           // Nach dem Inselnamen sortieren, damit die Reihenfolge bleibt.
-          for (const liste of Object.values(nach)) {
-            liste.sort((a, b) => (a.bildTitel ?? a.titel)
-              .localeCompare(b.bildTitel ?? b.titel, 'de', { numeric: true }));
-          }
+          nach.sort((a, b) => (a.bildTitel ?? a.titel)
+            .localeCompare(b.bildTitel ?? b.titel, 'de', { numeric: true }));
           setKarten(nach);
         })
         .catch(() => {});
@@ -1070,7 +1069,28 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     return () => { weg = true; clearInterval(uhr); };
   }, [cup]);
 
-  const kartenHier = (fenster ? karten[fenster.windowId] : undefined) ?? [];
+  /*
+   * Welche Karten gehoeren zu einem Spieltag?
+   *
+   * Zuerst die, die unter genau diesem Spieltag gespeichert sind. Sonst gilt
+   * eine Karte fuer das ganze Turnier: bei einem LAN (Globals, EWC) fuer
+   * jeden Tag desselben Events, bei den Globals zusaetzlich fuer den zweiten
+   * Katalogeintrag "FNCS Global Championship". Der Betreiber (26.9.2026):
+   * "wieso die nicht einfach automatisch da ist ... fuer beide die gleiche
+   * Map". Bei gewoehnlichen Cups bleibt es beim einzelnen Spieltag - dort
+   * teilen sich Woche 1 bis 4 eine Event-Kennung, sind aber eigene Finals.
+   */
+  const kartenFuer = useCallback((f: { eventId: string; windowId: string }) => {
+    const eigene = karten.filter((k) => k.windowId === f.windowId);
+    if (eigene.length) return eigene;
+    if (istGlobalsEvent(f.eventId, f.windowId)) {
+      return karten.filter((k) => istGlobalsEvent(k.eventId, k.windowId));
+    }
+    if (cup?.global) return karten.filter((k) => k.eventId === f.eventId);
+    return [];
+  }, [karten, cup]);
+
+  const kartenHier = useMemo(() => (fenster ? kartenFuer(fenster) : []), [fenster, kartenFuer]);
 
 
   /**
@@ -1086,14 +1106,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id, oeffentlich: false }),
     }).then(() => {
-      setKarten((alt) => {
-        const nach: typeof alt = {};
-        for (const [w, liste] of Object.entries(alt)) {
-          const rest = liste.filter((k) => k.id !== id);
-          if (rest.length) nach[w] = rest;
-        }
-        return nach;
-      });
+      setKarten((alt) => alt.filter((k) => k.id !== id));
     }).catch(() => {});
   }, []);
 
@@ -2300,8 +2313,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                     </span>
                     {f.status === 'live' &&
                       <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />}
-                    {!!karten[f.windowId]?.length && (
-                      <span title={`${t('Karten zu diesem Spieltag')}: ${karten[f.windowId].length}`}
+                    {!!kartenFuer(f).length && (
+                      <span title={`${t('Karten zu diesem Spieltag')}: ${kartenFuer(f).length}`}
                         className="text-[10px] text-sky-400">◆</span>
                     )}
                   </div>

@@ -47,6 +47,21 @@ export function istGlobalsFenster(windowId: string): boolean {
   return /^MannekenPis_/i.test(windowId);
 }
 
+/*
+ * Dasselbe Turnier steht im Katalog zweimal: als "Fortnite Global
+ * Championship" (Epics Event) und als "FNCS Global Championship" (von Hand
+ * angelegt, eventId manuell_...). Der Betreiber (26.9.2026): "Fortnite Global
+ * Championship und FNCS Global Championship ist das gleiche." Eine Karte der
+ * Globals gilt deshalb fuer beide Eintraege und fuer jeden Tag.
+ */
+const GLOBALS_GLEICHE = ['manuell_S42_FNCSGlobalChampionship'];
+
+/** Gehoert dieses Event zu den Globals 2026 - unter welchem Eintrag auch immer? */
+export function istGlobalsEvent(eventId?: string | null, windowId?: string | null): boolean {
+  return eventId === GLOBALS_EVENT || GLOBALS_GLEICHE.includes(eventId ?? '')
+    || istGlobalsFenster(windowId ?? '');
+}
+
 /**
  * "Day 1" aus einer Fensterkennung.
  *
