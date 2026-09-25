@@ -45,6 +45,8 @@ interface Antwort {
   players: Spieler[];
   /** Noch nichts da - der Lauf ist angestossen. */
   holt?: boolean;
+  /** Lueckenlos ab Platz 1? Siehe app/api/power-rankings. */
+  ersterPlatz?: number; letzterPlatz?: number; fehlend?: number;
   error?: string;
 }
 
@@ -226,6 +228,16 @@ export default function PowerRankingsTable() {
           </label>
         </div>
       </header>
+
+      {/* Ein Ausschnitt wird nie still als ganze Liste gezeigt. */}
+      {!!daten?.fehlend && !daten.holt && (
+        <p className="border-b border-amber-700/40 bg-amber-950/30 px-5 py-3 text-sm text-amber-200">
+          <T>Epics Rangliste war beim letzten Abruf nur teilweise erreichbar.</T>{' '}
+          {t('Hier stehen die Plätze')} {zahl(daten.ersterPlatz ?? 0, ort)}–{zahl(daten.letzterPlatz ?? 0, ort)}
+          {', '}{zahl(daten.fehlend, ort)} {t('Plätze fehlen')}.{' '}
+          <T>Der nächste vollständige Abruf ersetzt die Liste von selbst.</T>
+        </p>
+      )}
 
       {fehler ? (
         <p className="p-8 text-center text-sm text-rose-400">{fehler}</p>

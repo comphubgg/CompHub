@@ -12,6 +12,7 @@ import { rahmen, spanneBei, einheitsGroesse, type Punkt, type Spot } from '@/lib
 import { flaggenPfad } from '@/components/TeamFlagge';
 import { kartenSchrift, kartenName, formFarbe, hebeFormHervor } from '@/app/lib/kartenStil';
 import { REGION_DER_QUALI } from '@/lib/globalsRegionen';
+import KartenWasserzeichen from '@/app/components/KartenWasserzeichen';
 
 /*
  * Eine Form der Turnierkarte.
@@ -119,6 +120,22 @@ function KartenBild({ karte, namenZu, markiert, zeige }: {
   const bewegung = useRef<number | null>(null);
   const zug = useRef<{ sx: number; sy: number; mitte: Punkt; kasten: DOMRect } | null>(null);
   const [gezoomt, setGezoomt] = useState(false);
+  /*
+   * Vollbild - ein Quadrat oben rechts auf der Karte, wie bei den
+   * Predictions. Der Betreiber (25.9.2026): "bei der Map auch dieses
+   * Fullscreen-Zeichen haben, oben rechts ... wie bei Prediction ... nur
+   * Fullscreen, das andere nicht." Die Ortsnamen folgen hier dem Schalter
+   * im Karten-Werkzeug, einen eigenen gibt es deshalb nicht.
+   */
+  const [vollbild, setVollbild] = useState(false);
+
+  // Escape schliesst das Vollbild, wie ueberall.
+  useEffect(() => {
+    if (!vollbild) return;
+    const taste = (e: KeyboardEvent) => { if (e.key === 'Escape') setVollbild(false); };
+    window.addEventListener('keydown', taste);
+    return () => window.removeEventListener('keydown', taste);
+  }, [vollbild]);
 
   const zeilen = useCallback((key: string, alleine: boolean) => {
     const tm = teams.get(key);
@@ -258,11 +275,17 @@ function KartenBild({ karte, namenZu, markiert, zeige }: {
   }, []);
 
   return (
+    <div className={vollbild
+      ? 'fixed inset-0 z-50 flex items-center justify-center bg-zinc-950 p-4'
+      : ''}>
     <div ref={flaeche}
       className={`${kartenSchrift.variable} relative mx-auto aspect-square w-full select-none
                   overflow-hidden rounded-xl border border-white/[0.06] bg-zinc-950
                   ${gezoomt ? 'cursor-grab active:cursor-grabbing' : ''}`}
-      style={{ containerType: 'inline-size', maxWidth: 'min(100%, calc(100vh - 7rem))' }}
+      style={{
+        containerType: 'inline-size',
+        maxWidth: vollbild ? 'min(100%, calc(100vh - 2rem))' : 'min(100%, calc(100vh - 7rem))',
+      }}
       onMouseDown={(e) => {
         if (e.button !== 0 || zoomRef.current <= 1 || !flaeche.current) return;
         stopp();
@@ -300,6 +323,9 @@ function KartenBild({ karte, namenZu, markiert, zeige }: {
           src={karte.bildId
             ? `/api/karten-bild?datei=1&id=${encodeURIComponent(karte.bildId)}`
             : `/api/fortnite-map?bild=${karte.namenSichtbar ? 'poi' : 'leer'}`} />
+
+        {/* thecomphub.com, wie auf jeder Karte - unter den Formen. */}
+        <KartenWasserzeichen />
 
         <svg viewBox="0 0 100 100" preserveAspectRatio="none"
           className="pointer-events-none absolute inset-0 h-full w-full">
@@ -364,6 +390,24 @@ function KartenBild({ karte, namenZu, markiert, zeige }: {
           <T>Ganze Karte</T>
         </button>
       )}
+
+      {/* Das Vollbild-Quadrat - gleich gebaut wie bei den Predictions. */}
+      <button type="button" onMouseDown={(e) => e.stopPropagation()}
+        onDoubleClick={(e) => e.stopPropagation()}
+        onClick={() => setVollbild((v) => !v)}
+        title={vollbild ? t('Schließen') : t('Vollbild')}
+        aria-label={vollbild ? t('Schließen') : t('Vollbild')}
+        className={`absolute right-2 top-2 z-30 flex h-9 w-9 items-center justify-center
+                    rounded-lg border transition ${vollbild
+          ? 'border-sky-500 bg-sky-500 text-white'
+          : 'border-zinc-700 bg-zinc-900/90 text-slate-300 hover:border-zinc-500 hover:text-white'}`}>
+        <svg viewBox="0 0 20 20" className="h-[18px] w-[18px]" fill="none" stroke="currentColor"
+          strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M7.5 2.5h-5v5" /><path d="M12.5 2.5h5v5" />
+          <path d="M17.5 12.5v5h-5" /><path d="M2.5 12.5v5h5" />
+        </svg>
+      </button>
+    </div>
     </div>
   );
 }

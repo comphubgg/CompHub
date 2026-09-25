@@ -25,6 +25,7 @@ import {
 import {
   kartenSchrift, kartenName, formFarbe, hebeFormHervor, useEchteNamen,
 } from '@/app/lib/kartenStil';
+import KartenWasserzeichen from '@/app/components/KartenWasserzeichen';
 
 /* ------------------------------------------------------------ Daten */
 
@@ -544,6 +545,7 @@ export default function Prognosen() {
                     {/* eslint-disable-next-line @next/next/no-img-element */}
                     <img alt={t('Karte')} draggable={false} className="absolute inset-0 h-full w-full object-cover"
                       src={`/api/karten-bild?datei=1&id=${encodeURIComponent(karte.bildId)}`} />
+                    <KartenWasserzeichen />
                     <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="pointer-events-none absolute inset-0 h-full w-full">
                       {karte.spots.map((sp) => {
                         const belegt = (karte.aufSpot[sp.id] ?? []).length;

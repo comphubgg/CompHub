@@ -134,6 +134,9 @@ async function main() {
       const gesammelt = [];
       let leer = 0;
 
+      /** Welche Seiten ohne Zeilen blieben - die kommen am Ende noch einmal dran. */
+      const ohne = [];
+
       for (let nr = 1; nr <= seitenGrenze; nr++) {
         let zeilen = [];
         /*
@@ -160,15 +163,50 @@ async function main() {
         const brauchbar = zeilen.filter((z) => z.rank && z.name);
         gesammelt.push(...brauchbar);
 
-        // Zwei leere Seiten hintereinander heissen: das war das Ende.
+        /*
+         * Wann ist die Liste zu Ende?
+         *
+         * Frueher hiessen zwei leere Seiten hintereinander "Ende". Am
+         * 23.9.2026 zeigte Epics Seite zwischendurch nur "OOPS" - der Lauf
+         * hoerte nach Platz 3500 auf, Seite 1 und die Plaetze 2201 bis 2300
+         * fehlten, und gespeichert wurden 3300 Spieler ab Platz 101. Der
+         * Betreiber: "startet bei 101 und hat nur 3300 Spieler, obwohl es
+         * 10.000 sein sollten."
+         *
+         * Jetzt ist erst das Ende, wenn eine Seite weniger als hundert Zeilen
+         * bringt (die letzte ist nie voll) oder fuenf Seiten hintereinander
+         * gar nichts - dann ist Epic ganz weg. Leere Seiten werden gemerkt
+         * und am Schluss noch einmal gelesen.
+         */
         if (!brauchbar.length) {
-          if (++leer >= 2) break;
+          ohne.push(nr);
+          if (++leer >= 5) break;
         } else {
           leer = 0;
+          if (brauchbar.length < PRO_SEITE) break;
         }
 
         if (nr % 10 === 0) {
           console.log(`${region}: ${gesammelt.length} Zeilen nach Seite ${nr}`);
+        }
+      }
+
+      // Die leeren Seiten ein zweites Mal - nach einer Pause, in der sich
+      // Epics Seite meist wieder gefangen hat. Nur die vor der letzten
+      // gelesenen Seite: was danach kam, war das Ende der Liste.
+      const letzteMitZeilen = Math.max(0, ...gesammelt.map((z) => Math.ceil(z.rank / PRO_SEITE)));
+      const nachholen = ohne.filter((nr) => nr < letzteMitZeilen);
+      if (nachholen.length) {
+        console.log(`${region}: ${nachholen.length} Seiten blieben leer (${nachholen.join(', ')}) - zweiter Anlauf`);
+        await new Promise((r) => setTimeout(r, 20_000));
+        for (const nr of nachholen) {
+          for (let versuch = 1; versuch <= 3; versuch += 1) {
+            let zeilen = [];
+            try { zeilen = await leseSeite(browser, region, nr); } catch { /* naechster Versuch */ }
+            const brauchbar = zeilen.filter((z) => z.rank && z.name);
+            if (brauchbar.length) { gesammelt.push(...brauchbar); break; }
+            await new Promise((r) => setTimeout(r, 6000 * versuch));
+          }
         }
       }
 
@@ -190,10 +228,54 @@ async function main() {
           deltaWertung: 0, deltaPlatz: z.deltaPlatz,
         }));
 
+      /*
+       * Vollstaendig oder nicht?
+       *
+       * Vollstaendig heisst: ab Platz 1 und ohne Loch. Ein unvollstaendiger
+       * Stand ersetzt nie einen vollstaendigen - "ein stiller Ausschnitt ist
+       * schlimmer als keine Liste". Liegt nur ein noch schlechterer Stand
+       * vor, geht der neue trotzdem hinein, aber mit Vermerk; die Seite sagt
+       * es dann dazu.
+       */
+      const fehlend = (s) => {
+        if (!s.length) return Infinity;
+        return s[s.length - 1].rank - s.length;
+      };
+      // Wie viele Plaetze zwischen 1 und dem letzten fehlen, oben eingeschlossen.
+      const luecke = fehlend(spieler);
+      const vollstaendig = spieler[0].rank === 1 && fehlend(spieler) === 0;
+      const ziel = path.join(ABLAGE, `${region.toLowerCase()}.json`);
+      if (!vollstaendig) {
+        let alt = null;
+        try { alt = JSON.parse(await fs.readFile(ziel, 'utf8')); } catch { /* keiner da */ }
+        if (!alt?.spieler?.length) {
+          // Kein Stand auf der Platte - der am Release zaehlt.
+          try {
+            const r = await fetch('https://github.com/comphubgg/CompHub/releases/download/daten-spieltage/'
+              + `power-rankings__${region.toLowerCase()}.json`, { signal: AbortSignal.timeout(30_000) });
+            if (r.ok) alt = await r.json();
+          } catch { /* dann eben keiner */ }
+        }
+        const altSp = alt?.spieler ?? [];
+        const altVoll = altSp.length && altSp[0].rank === 1 && fehlend(altSp) === 0;
+        const neuBesser = !altSp.length
+          || (!altVoll && spieler[0].rank <= altSp[0].rank && spieler.length > altSp.length);
+        console.warn(`${region}: unvollstaendig - erster Platz ${spieler[0].rank}, `
+          + `${spieler.length} Spieler, ${luecke} Plaetze fehlen`);
+        if (!neuBesser) {
+          console.warn(`${region}: der vorhandene Stand (${altSp.length} Spieler ab Platz `
+            + `${altSp[0]?.rank}) bleibt stehen`);
+          continue;
+        }
+      }
+
       await fs.mkdir(ABLAGE, { recursive: true });
       await fs.writeFile(
-        path.join(ABLAGE, `${region.toLowerCase()}.json`),
-        JSON.stringify({ region, spieler, gesamt: spieler.length, geholt: Date.now() }),
+        ziel,
+        JSON.stringify({
+          region, spieler, gesamt: spieler.length, geholt: Date.now(),
+          ...(vollstaendig ? {} : { unvollstaendig: true }),
+        }),
         'utf8',
       );
       const mitLand = spieler.filter((s) => s.land).length;

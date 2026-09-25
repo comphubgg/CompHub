@@ -35,6 +35,7 @@ import { GLOBALS_EVENT } from '@/lib/globalsCup';
 import {
   kartenSchrift, kartenName, formFarbe, hebeFormHervor, useEchteNamen,
 } from '@/app/lib/kartenStil';
+import KartenWasserzeichen from '@/app/components/KartenWasserzeichen';
 interface Fenster {
   status: string; begin: number;
   /** Fehlt bei nachgetragenen Turnieren. */
@@ -2565,6 +2566,9 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
                 src={bildId
                   ? `/api/karten-bild?datei=1&id=${encodeURIComponent(bildId)}`
                   : `/api/fortnite-map?bild=${orteSichtbar ? 'poi' : 'leer'}`} />
+
+              {/* thecomphub.com, wie auf jeder Karte - unter den Formen. */}
+              <KartenWasserzeichen />
 
               <svg viewBox="0 0 100 100" preserveAspectRatio="none"
                 className={`absolute inset-0 h-full w-full ${formenAn

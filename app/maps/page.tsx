@@ -24,6 +24,7 @@ import { leseWoerter } from './bildLesen';
 import {
   kartenSchrift, kartenName, formFarbe, hebeFormHervor, useEchteNamen,
 } from '@/app/lib/kartenStil';
+import KartenWasserzeichen from '@/app/components/KartenWasserzeichen';
 type Form = 'rechteck' | 'polygon';
 interface Punkt { x: number; y: number }
 interface Spot {
@@ -3172,32 +3173,7 @@ ${name}
         * Als Muster in einer eigenen Ebene ueber der Karte und unter den
         * Formen - so verdeckt es nichts und laesst sich nicht wegschneiden.
         */}
-      <div aria-hidden
-        className="pointer-events-none absolute inset-0 overflow-hidden">
-        {/*
-          * Gross, fett, und ueber den Rand hinaus.
-          *
-          * Der erste Versuch stand klein in der Mitte und liess die Ecken
-          * frei. Die Flaeche ist jetzt in jede Richtung um die halbe
-          * Kartenbreite groesser als die Karte, damit auch nach der Drehung
-          * ueberall etwas steht.
-          */}
-        <div className="absolute -inset-1/2 grid content-center justify-center
-                        gap-x-14 gap-y-16 opacity-[0.075]"
-          style={{
-            transform: 'rotate(-20deg)',
-            gridTemplateColumns: 'repeat(4, max-content)',
-          }}>
-          {Array.from({ length: 32 }, (_, i) => (
-            <span key={i}
-              className="whitespace-nowrap text-lg font-extrabold tracking-wide
-                         text-white"
-              style={{ transform: i % 8 >= 4 ? 'translateX(50%)' : undefined }}>
-              thecomphub.com
-            </span>
-          ))}
-        </div>
-      </div>
+      <KartenWasserzeichen />
 
       <svg viewBox="0 0 100 100" preserveAspectRatio="none"
         className="pointer-events-none absolute inset-0 h-full w-full">

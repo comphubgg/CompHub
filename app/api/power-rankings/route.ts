@@ -81,6 +81,15 @@ export async function GET(request: Request) {
       matched: gefiltert.length,
       total: alle.length,
       fetchedAt: stand.geholt,
+      /*
+       * Ist die Liste lueckenlos ab Platz 1? Epics Seite lieferte am
+       * 23.9.2026 zwischendurch nur "OOPS", und gespeichert wurden 3300
+       * Spieler ab Platz 101. Die Tabelle sagt das dann dazu, statt einen
+       * Ausschnitt still als ganze Liste auszugeben.
+       */
+      ersterPlatz: alle[0]?.rank ?? 0,
+      letzterPlatz: alle[alle.length - 1]?.rank ?? 0,
+      fehlend: alle.length ? alle[alle.length - 1].rank - alle.length : 0,
       players: gefiltert.slice((jetzt - 1) * proSeite, jetzt * proSeite),
     });
   } catch (fehler) {
