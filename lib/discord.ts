@@ -2996,7 +2996,11 @@ interface DmEintrag { kanal: string; name?: string; zuletzt?: string }
 
 async function liesDms(): Promise<Record<string, DmEintrag>> {
   try { return JSON.parse(await fs.readFile(DM_DATEI, 'utf8')) as Record<string, DmEintrag>; }
-  catch { return {}; }
+  catch (e) {
+    // Nur "gibt es noch nicht" ist leer - ein Ausfall der Ablage ist ein Fehler.
+    if ((e as NodeJS.ErrnoException)?.code === 'ENOENT') return {};
+    throw e;
+  }
 }
 
 /** Den DM-Kanal zu einem Mitglied merken - fuer die Einsicht in Antworten. */
@@ -3068,9 +3072,20 @@ export async function werkzeugEinrichten(): Promise<{ ok: boolean; text: string 
     ?? await infoKanal(WERKZEUG_KANAL, 'Admin tools: chats, messages as CompHub, direct messages', kategorie, kanaele, 'manager', []);
   if (!kanal) return { ok: false, text: `#${WERKZEUG_KANAL} could not be created.` };
 
-  const ablage = await lies();
-  const alt = ablage['werkzeug:panel']?.nachricht;
-  if (alt) await ruf(`/channels/${kanal}/messages/${alt}`, 'DELETE');
+  /*
+   * Das alte Panel suchen und ersetzen - im Kanal selbst, nicht in der
+   * Ablage. So geht das auch, wenn Supabase gerade nicht antwortet (am
+   * 25.9.2026 scheiterte der erste Aufbau genau daran).
+   */
+  const ich = await werBinIch();
+  const vorhanden = await ruf(`/channels/${kanal}/messages?limit=50`, 'GET');
+  if (Array.isArray(vorhanden)) {
+    for (const m of vorhanden as Array<{ id: string; author?: { id?: string }; embeds?: Array<{ title?: string }> }>) {
+      if (m.author?.id === ich && m.embeds?.some((e) => e.title === 'Admin tools')) {
+        await ruf(`/channels/${kanal}/messages/${m.id}`, 'DELETE');
+      }
+    }
+  }
   const gesendet = await ruf(`/channels/${kanal}/messages`, 'POST', {
     embeds: [{
       title: 'Admin tools',
@@ -3094,8 +3109,7 @@ export async function werkzeugEinrichten(): Promise<{ ok: boolean; text: string 
   });
   const id = idAus(gesendet);
   if (!id) return { ok: false, text: 'The panel could not be posted.' };
-  ablage['werkzeug:panel'] = { kanal, nachricht: id };
-  await schreibe(ablage);
+  await anpinnen(kanal, id);
   const befehl = await befehleEinrichten();
   return { ok: true, text: `Panel in <#${kanal}> · ${befehl.text}` };
 }
