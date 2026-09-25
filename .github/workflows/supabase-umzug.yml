@@ -1,0 +1,69 @@
+# Einmaliger Umzug der Ablage in ein neues Supabase-Projekt.
+#
+# Am 25.9.2026 um 22:30 UTC blieb "Comphub 2" mit Zeitueberschreitungen
+# stehen; der Betreiber legte "Comphub 4" an. Die juengste vollstaendige
+# Kopie dessen, was auf der Seite geschrieben wird (Karten, Prognosen,
+# Tierlisten, Overlays, Kontakt, ...), liegt im Zwischenspeicher des
+# stuendlichen Laufs - dessen Schritt "Das Noetigste aus Supabase" hat sie um
+# 21:39 UTC frisch aus Comphub 2 geholt. Dieser Ablauf stellt genau diesen
+# Stand wieder her und laedt ihn in die Ablage, auf die ENV_LOCAL zeigt.
+#
+# Konten und VIP-Zugaenge bleiben draussen: sie liegen im eigenen
+# Anmelde-Projekt (CompHub 3), das laeuft - eine aeltere Kopie wuerde dort
+# neuere Konten ueberschreiben.
+
+name: Supabase-Umzug
+
+on:
+  workflow_dispatch:
+    inputs:
+      zwischenspeicher:
+        description: 'Schluessel des Zwischenspeichers (comphub-daten-<Lauf>)'
+        required: true
+        default: 'comphub-daten-36191265239'
+      probe:
+        description: 'nur zeigen, was uebertragen wuerde (ja/nein)'
+        required: false
+        default: 'nein'
+
+jobs:
+  umzug:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: scripts
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Stand aus dem Zwischenspeicher
+        id: stand
+        uses: actions/cache/restore@v4
+        with:
+          path: data
+          key: ${{ github.event.inputs.zwischenspeicher }}
+
+      - name: Was darin liegt
+        run: |
+          test "${{ steps.stand.outputs.cache-hit }}" = "true" || { echo "::error::Zwischenspeicher nicht gefunden"; exit 1; }
+          node -e "
+            const fs=require('fs');const m=JSON.parse(fs.readFileSync('data/.geholt.json','utf8'));
+            const n=['turnier-karten.json','prognosen.json','tierlists.json','overlays.json','homepage-vips.json','kontakt.json','karten-vorlagen.json','galerie.json','spieler-profile.json'];
+            for(const x of n){const e=m[x];const s=fs.existsSync('data/'+x)?fs.statSync('data/'+x).size:0;console.log(x.padEnd(24),String(s).padStart(9),'Byte  zuletzt dort geaendert:',e&&e.zeit?new Date(e.zeit).toISOString():'?')}
+          " || true
+
+      - name: Hochladen
+        run: |
+          printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
+          set +e
+          if [ "${{ github.event.inputs.probe }}" = "ja" ]; then
+            node scripts/umzug-supabase.mjs --noetiges --ohne konten.json,vip-users.json --probe 2>&1 | tr '\r' '\n' | grep -v '^ *[0-9]*/[0-9]* ' | tail -40
+          else
+            node scripts/umzug-supabase.mjs --noetiges --ohne konten.json,vip-users.json 2>&1 | tr '\r' '\n' | grep -v '^ *[0-9]*/[0-9]* ' | tail -40
+          fi
+          rc=${PIPESTATUS[0]}
+          rm -f .env.local
+          exit $rc

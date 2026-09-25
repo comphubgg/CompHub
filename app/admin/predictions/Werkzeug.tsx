@@ -1156,7 +1156,8 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
     g.fillStyle = '#64748b';
     g.fillText(
       `${uebs('Platz')} 1 ${uebs('bis')} ${plaetze.length}`
-      + (qualiBis ? ` · ${uebs('weiter bis Platz')} ${qualiBis}` : ''),
+      + (qualiBis === 1 ? ` · ${uebs('Sieger markiert')}`
+        : qualiBis ? ` · ${uebs('weiter bis Platz')} ${qualiBis}` : ''),
       listeX, RAND + 58);
 
     plaetze.forEach((key, i) => {
@@ -2896,7 +2897,7 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
                             uppercase tracking-wider text-slate-500">
                 <span className="flex items-center gap-1.5">
                   <span className="inline-block h-2 w-2 rounded-full bg-amber-400" />
-                  {qualiBis === 1 ? 'Sieger' : `Weiter — Platz 1 bis ${qualiBis}`}
+                  {qualiBis === 1 ? uebs('Siegerteam') : `${uebs('Weiter, Platz 1 bis')} ${qualiBis}`}
                 </span>
                 <span className="flex items-center gap-1.5">
                   <span className="inline-block h-2 w-2 rounded-full bg-zinc-600" />
