@@ -431,6 +431,9 @@ jobs:
           tail -n 12 /tmp/vorrechnen.log
           # Die Zahlen des Tages nach #admin-zahlen - eine Nachricht je Tag,
           # die jeder Lauf fortschreibt (scripts/admin-zahlen-discord.mjs).
+          # Nach den Globals: das Preisgeld je Spieler von selbst in die Earnings
+          # (scripts/globals-preisgeld-eintragen.mjs, laeuft nur einmal).
+          node scripts/globals-preisgeld-eintragen.mjs http://localhost:3000 2>&1 | tail -3
           node scripts/admin-zahlen-discord.mjs http://localhost:3000 2>&1 | tail -2
           # Die ersten zehn jedes Finales nach #results (scripts/ergebnisse-discord.mjs).
           node scripts/ergebnisse-discord.mjs http://localhost:3000 2>&1 | tail -3
