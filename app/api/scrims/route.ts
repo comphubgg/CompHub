@@ -79,7 +79,7 @@ export async function GET(request: Request) {
   if (searchParams.get('quelle') === 'poyo-heute') {
     const ids = (searchParams.get('server') ?? '').split(',').map((x) => x.trim())
       .filter((x) => /^\d{5,25}$/.test(x)).slice(0, 12);
-    return NextResponse.json({ heute: await poyoHeute(ids) });
+    return NextResponse.json(await poyoHeute(ids));
   }
   if (searchParams.get('quelle') === 'poyo') {
     if (!/^\d{5,25}$/.test(guildId) || !/^[0-9a-f]{24}$/i.test(turnierId)) {

@@ -40,9 +40,15 @@ export interface PoyoHeute {
   beginn: number; live: boolean; vorbei: boolean; spieler: number; plaetze: number;
 }
 
-/** Heute ansteht oder laeuft - je Server, ohne das schon Beendete. */
-export async function poyoHeute(guildIds: string[]): Promise<Record<string, PoyoHeute[]>> {
+/**
+ * Heute ansteht oder laeuft - je Server, ohne das schon Beendete.
+ * Ein Server, der nicht antwortet, steht unter "fehler" - nie als leere Liste.
+ */
+export async function poyoHeute(guildIds: string[]): Promise<{
+  heute: Record<string, PoyoHeute[]>; fehler: Record<string, string>;
+}> {
   const raus: Record<string, PoyoHeute[]> = {};
+  const fehler: Record<string, string> = {};
   await Promise.all(guildIds.map(async (id) => {
     try {
       const d = await hole<{ sessions?: RohLobby[] }>(`${POYO}/${encodeURIComponent(id)}`, 60_000);
@@ -57,9 +63,9 @@ export async function poyoHeute(guildIds: string[]): Promise<Record<string, Poyo
           live: s.status !== 'upcoming', vorbei: false,
           spieler: s.playerCount ?? 0, plaetze: s.playerLimit ?? 0,
         }));
-    } catch { raus[id] = []; }
+    } catch (e) { fehler[id] = (e as Error).message; }
   }));
-  return raus;
+  return { heute: raus, fehler };
 }
 
 /**
