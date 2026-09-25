@@ -74,6 +74,8 @@ const werte = (name) => argumente.flatMap((a, i) => (a === name && argumente[i +
 const nur = werte('--nur');
 const neuerAls = Number(wert('--neuer-als') || 0);
 const probe = argumente.includes('--probe');
+/** --heilen daten-replays: nur das Verzeichnis dieses Releases wiederherstellen. */
+const heilen = werte('--heilen');
 // Auch hochladen, was laut Manifest schon so liegt - wenn das Manifest luegt.
 const erzwingen = argumente.includes('--erzwingen');
 
@@ -231,6 +233,58 @@ async function anhangLesen(a) {
 }
 
 /*
+ * Ein Anhang ueber die API statt ueber den Download-Link.
+ *
+ * Der Download-Link geht ueber GitHubs Zwischenspeicher und lieferte am
+ * 25.9.2026 minutenlang einen ersetzten Anhang weiter aus. Fuer das
+ * Verzeichnis (manifest.json) zaehlt nur der wirkliche Stand.
+ */
+async function anhangLesenApi(a) {
+  const r = await fetch(`${API}/repos/${REPO}/releases/assets/${a.id}`, {
+    headers: { ...KOPF, Accept: 'application/octet-stream' },
+    redirect: 'follow', signal: AbortSignal.timeout(120_000),
+  });
+  if (!r.ok) return null;
+  return Buffer.from(await r.arrayBuffer());
+}
+
+/** Ablage-Name aus dem Anhang - "replays__S42__x.json" -> "replays/S42/x.json". */
+const ablageName = (anhang) => anhang.replace(/-eq-/g, '=').replace(/__/g, '/');
+
+/*
+ * Das Verzeichnis eines Releases lesen - streng.
+ *
+ * Frueher wurde aus einem unlesbaren Verzeichnis ein leeres, und das naechste
+ * Hochladen schrieb dann eines nur mit den eigenen Dateien. Am 25.9.2026
+ * stand im Verzeichnis von daten-replays so nur noch eine einzige Datei,
+ * waehrend 820 dort lagen: jeder Lauf sah "0 Spieltage", und die Seite fand
+ * keine Replay-Auswertung mehr. Jetzt bricht das Hochladen lieber ab.
+ *
+ * Und was als Anhang dort liegt, aber im Verzeichnis fehlt, wird wieder
+ * aufgenommen - sofern es nach seinem Namen in dieses Release gehoert (in
+ * "daten" liegen Altlasten aus der Zeit vor den eigenen Releases; die
+ * bleiben draussen).
+ */
+async function verzeichnisLesen(tag, vorhandene) {
+  const m = vorhandene.get('manifest.json');
+  let verzeichnis = {};
+  if (m) {
+    const roh = await anhangLesenApi(m) ?? await anhangLesen(m);
+    if (!roh) throw new Error(`manifest.json von ${tag} nicht lesbar - Abbruch statt eines leeren Verzeichnisses`);
+    verzeichnis = JSON.parse(roh.toString('utf8'));
+  }
+  let wieder = 0;
+  for (const [name, a] of vorhandene) {
+    if (name === 'manifest.json' || name.endsWith('.neu') || verzeichnis[name]) continue;
+    if (tagFuer(ablageName(name)) !== tag) continue;
+    verzeichnis[name] = { summe: null, groesse: a.size, zeit: a.updated_at, wiederhergestellt: true };
+    wieder += 1;
+  }
+  if (wieder) console.log(`  ${tag}: ${wieder} Anhaenge wieder ins Verzeichnis aufgenommen`);
+  return verzeichnis;
+}
+
+/*
  * Ersetzen ohne Luecke: erst die neue Fassung unter "<name>.neu" hochladen,
  * dann die alte loeschen, dann die neue umbenennen. Vorher hiess es
  * loeschen und danach hochladen - dazwischen fehlte der Anhang ein paar
@@ -272,6 +326,16 @@ async function hochladen(releaseId, vorhandene, name, daten) {
 /* ------------------------------------------------------------ Ablauf */
 
 async function main() {
+  if (heilen.length) {
+    for (const tag of heilen) {
+      const release = await releaseHolen(tag);
+      const vorhandene = await anhaenge(release.id);
+      const verzeichnis = await verzeichnisLesen(tag, vorhandene);
+      await hochladen(release.id, vorhandene, 'manifest.json', Buffer.from(JSON.stringify(verzeichnis), 'utf8'));
+      console.log(`  ${tag}: Verzeichnis mit ${Object.keys(verzeichnis).length} Eintraegen geschrieben`);
+    }
+    return;
+  }
   const frisch = (name) => {
     if (!neuerAls) return true;
     const st = fs.statSync(path.join(DATEN, name));
@@ -298,9 +362,12 @@ async function main() {
     if (releases.has(tag)) return releases.get(tag);
     const release = await releaseHolen(tag);
     const vorhandene = await anhaenge(release.id);
-    const manifestAlt = vorhandene.get('manifest.json')
-      ? JSON.parse((await anhangLesen(vorhandene.get('manifest.json')))?.toString('utf8') || '{}') : {};
-    const eintrag = { tag, release, vorhandene, manifestAlt, manifest: { ...manifestAlt }, fertig: 0 };
+    const manifestAlt = await verzeichnisLesen(tag, vorhandene);
+    const eintrag = {
+      tag, release, vorhandene, manifestAlt, manifest: { ...manifestAlt }, fertig: 0,
+      /** Was dieser Lauf selbst geschrieben hat - das gewinnt beim Zusammenfuehren. */
+      eigene: new Set(),
+    };
     releases.set(tag, eintrag);
     return eintrag;
   };
@@ -372,6 +439,18 @@ async function main() {
    */
   const manifestSchreiben = async (rel) => {
     try {
+      /*
+       * Vor dem Schreiben frisch nachlesen und zusammenfuehren: die vier
+       * Rechner von "Replays nacharbeiten" schreiben dasselbe Verzeichnis
+       * zur selben Zeit. Vorher gewann der Letzte, und was die anderen
+       * eingetragen hatten, war weg.
+       */
+      try {
+        rel.vorhandene = await anhaenge(rel.release.id);
+        const frisch = await verzeichnisLesen(rel.tag, rel.vorhandene);
+        const eigene = Object.fromEntries([...rel.eigene].map((k) => [k, rel.manifest[k]]));
+        rel.manifest = { ...rel.manifest, ...frisch, ...eigene };
+      } catch (e) { console.log(`  ${rel.tag}: frisches Verzeichnis nicht lesbar (${e.message}) - das eigene wird geschrieben`); }
       await hochladen(rel.release.id, rel.vorhandene, 'manifest.json', Buffer.from(JSON.stringify(rel.manifest), 'utf8'));
       rel.manifestStand = rel.fertig;
     } catch (e) { fehler.push(`${rel.tag}/manifest.json: ${e.message}`); }
@@ -387,6 +466,7 @@ async function main() {
           ...(a.inhaltZeit ? { inhaltZeit: a.inhaltZeit } : {}),
         };
         a.rel.fertig += 1;
+        a.rel.eigene.add(a.anhang);
         fertig += 1;
         if (a.rel.fertig - (a.rel.manifestStand ?? 0) >= 40) {
           const rel = a.rel; rel.manifestStand = rel.fertig;

@@ -80,6 +80,30 @@ async function kanalFinden() {
 const zahl = (n) => Number(n ?? 0).toLocaleString('en-US');
 const geld = (n) => `${zahl(Math.round(n))} $`;
 
+/*
+ * Die Cups des Tages - aus dem Katalog der Seite. Der Betreiber (25.9.2026):
+ * "Heute gibt es einen Cup. Das soll ja dann angezeigt werden, und
+ * sozusagen, was fuer ein Cup, aufgelistet." Je Cup Name, Regionen und
+ * Zeit (UTC) des ersten Fensters heute.
+ */
+async function cupsHeute(tag) {
+  try {
+    const r = await fetch(`${SERVER}/api/cup-catalog?modus=aktuell`, { signal: AbortSignal.timeout(60_000) });
+    if (!r.ok) return null;
+    const j = await r.json();
+    const raus = [];
+    for (const c of j.cups ?? []) {
+      const heute = Object.values(c.regionen ?? {}).flat()
+        .filter((f) => new Date(f.begin).toISOString().slice(0, 10) === tag);
+      if (!heute.length) continue;
+      const regionen = [...new Set(heute.map((f) => f.region))];
+      const beginn = Math.min(...heute.map((f) => f.begin));
+      raus.push({ titel: c.titel || c.id, regionen, beginn });
+    }
+    return raus.sort((a, b) => a.beginn - b.beginn);
+  } catch { return null; }
+}
+
 function einbettung(z) {
   const r = z.replays ?? {};
   const s = z.spieltage ?? {};
@@ -92,6 +116,15 @@ function einbettung(z) {
         + (r.wartend ? `\n${zahl(r.wartend)} waiting` : '')
         + (r.fehlgeschlagen ? ` · ${zahl(r.fehlgeschlagen)} failed` : '')
         + (r.nichtVerfuegbar ? ` · ${zahl(r.nichtVerfuegbar)} not available at Epic` : ''),
+      inline: false,
+    },
+    {
+      name: 'Cups today',
+      value: z.cupsHeute === null || z.cupsHeute === undefined
+        ? 'The cup catalog did not answer.'
+        : z.cupsHeute.length
+          ? z.cupsHeute.slice(0, 12).map((c) => `**${c.titel}** · ${c.regionen.join(', ')} · from ${new Date(c.beginn).toISOString().slice(11, 16)} UTC`).join('\n')
+          : 'No cup today.',
       inline: false,
     },
     {
@@ -143,6 +176,17 @@ async function main() {
     console.log(`Zahlen nicht erreichbar (${SERVER}): ${e.message}`);
     return;
   }
+  /*
+   * Keine Nullen als Tageszahlen ausgeben, wenn in Wahrheit die Daten
+   * fehlen. Am 25.9.2026 sah der Lauf seinen Datenordner nicht und meldete
+   * "Replays heute 0, Spieltage heute 0" - der Betreiber las daraus, dass
+   * nichts mehr ausgewertet wird.
+   */
+  if (!Number(z.spieltage?.gesamt) && !Number(z.replays?.gesamt)) {
+    console.log('  Keine Spieltage und keine Replays im Datenordner - das ist ein Fehler des Laufs, keine Tageszahl. Nichts gemeldet.');
+    return;
+  }
+  z.cupsHeute = await cupsHeute(z.tag);
   let merker = {};
   try { merker = JSON.parse(fs.readFileSync(MERKER, 'utf8')); } catch { /* neu */ }
 
