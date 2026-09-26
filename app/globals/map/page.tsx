@@ -13,6 +13,7 @@ import { flaggenPfad } from '@/components/TeamFlagge';
 import { kartenSchrift, kartenName, formFarbe, hebeFormHervor } from '@/app/lib/kartenStil';
 import { REGION_DER_QUALI } from '@/lib/globalsRegionen';
 import KartenWasserzeichen from '@/app/components/KartenWasserzeichen';
+import { useKartenVollbild } from '@/app/components/kartenVollbild';
 
 /*
  * Eine Form der Turnierkarte.
@@ -128,6 +129,7 @@ function KartenBild({ karte, namenZu, markiert, zeige }: {
    * im Karten-Werkzeug, einen eigenen gibt es deshalb nicht.
    */
   const [vollbild, setVollbild] = useState(false);
+  const kartenBild = useKartenVollbild();
 
   // Escape schliesst das Vollbild, wie ueberall.
   useEffect(() => {
@@ -276,15 +278,17 @@ function KartenBild({ karte, namenZu, markiert, zeige }: {
 
   return (
     <div className={vollbild
-      ? 'fixed inset-0 z-50 flex items-center justify-center bg-zinc-950 p-4'
-      : ''}>
+      ? 'fixed inset-0 z-50 flex items-center justify-center overflow-hidden'
+      : ''}
+      // Im Vollbild geht das Meer bis an den Bildschirmrand (kartenVollbild).
+      style={vollbild ? { background: kartenBild.meer } : undefined}>
     <div ref={flaeche}
       className={`${kartenSchrift.variable} relative mx-auto aspect-square w-full select-none
-                  overflow-hidden rounded-xl border border-white/[0.06] bg-zinc-950
+                  ${vollbild ? 'overflow-visible' : 'overflow-hidden rounded-xl border border-white/[0.06] bg-zinc-950'}
                   ${gezoomt ? 'cursor-grab active:cursor-grabbing' : ''}`}
       style={{
         containerType: 'inline-size',
-        maxWidth: vollbild ? 'min(100%, calc(100vh - 2rem))' : 'min(100%, calc(100vh - 7rem))',
+        maxWidth: vollbild ? 'min(100vw, 100vh)' : 'min(100%, calc(100vh - 7rem))',
       }}
       onMouseDown={(e) => {
         if (e.button !== 0 || zoomRef.current <= 1 || !flaeche.current) return;
@@ -320,6 +324,7 @@ function KartenBild({ karte, namenZu, markiert, zeige }: {
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img alt={t('Karte')} draggable={false}
           className="pointer-events-none absolute inset-0 h-full w-full object-cover"
+          onLoad={kartenBild.beiLaden} style={kartenBild.bildStil(vollbild)}
           src={karte.bildId
             ? `/api/karten-bild?datei=1&id=${encodeURIComponent(karte.bildId)}`
             : `/api/fortnite-map?bild=${karte.namenSichtbar ? 'poi' : 'leer'}`} />
@@ -397,7 +402,7 @@ function KartenBild({ karte, namenZu, markiert, zeige }: {
         onClick={() => setVollbild((v) => !v)}
         title={vollbild ? t('Schließen') : t('Vollbild')}
         aria-label={vollbild ? t('Schließen') : t('Vollbild')}
-        className={`absolute right-2 top-2 z-30 flex h-9 w-9 items-center justify-center
+        className={`${vollbild ? 'fixed right-4 top-4' : 'absolute right-2 top-2'} z-30 flex h-9 w-9 items-center justify-center
                     rounded-lg border transition ${vollbild
           ? 'border-sky-500 bg-sky-500 text-white'
           : 'border-zinc-700 bg-zinc-900/90 text-slate-300 hover:border-zinc-500 hover:text-white'}`}>

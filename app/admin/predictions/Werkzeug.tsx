@@ -36,6 +36,7 @@ import {
   kartenSchrift, kartenName, formFarbe, hebeFormHervor, useEchteNamen,
 } from '@/app/lib/kartenStil';
 import KartenWasserzeichen from '@/app/components/KartenWasserzeichen';
+import { useKartenVollbild } from '@/app/components/kartenVollbild';
 interface Fenster {
   status: string; begin: number;
   /** Fehlt bei nachgetragenen Turnieren. */
@@ -516,6 +517,7 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
 
   /** Karte und Liste lassen sich einzeln gross ziehen, nicht nur zusammen. */
   const [vollbildKarte, setVollbildKarte] = useState(false);
+  const kartenBild = useKartenVollbild();
   const [vollbildListe, setVollbildListe] = useState(false);
 
   /** Die Suche im Feld rechts - nach einem Spielernamen. */
@@ -2162,8 +2164,10 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
           {/* Kartenansicht: dieselben Formen wie im Karteneditor, hier nur zum
               Verteilen. Wer wo landet, hilft beim Aufstellen der Reihenfolge. */}
           <div className={vollbildKarte
-            ? 'fixed inset-0 z-50 flex flex-col overflow-auto bg-zinc-950 p-4'
-            : 'min-w-0 rounded-xl border border-zinc-800 bg-zinc-900/40 p-3'}>
+            ? 'fixed inset-0 z-50 flex items-center justify-center overflow-hidden'
+            : 'min-w-0 rounded-xl border border-zinc-800 bg-zinc-900/40 p-3'}
+            // Im Vollbild geht das Meer bis an den Bildschirmrand (kartenVollbild).
+            style={vollbildKarte ? { background: kartenBild.meer } : undefined}>
             {/*
               * Die Kopfzeile ueber der Karte gibt es nur fuer den Admin.
               *
@@ -2173,7 +2177,9 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
               * Ortsnamen und Vollbild sitzen jetzt als kleine Quadrate auf der
               * Karte selbst, fuer jeden.
               */}
-            {istAdmin && (
+            {/* Im Vollbild nur die Karte - der Betreiber: "diese Zeichen oben
+                rechts sollen weg sein". */}
+            {istAdmin && !vollbildKarte && (
             <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
               <h2 className="text-sm font-semibold text-slate-100">
                 <T>Karte</T>
@@ -2343,7 +2349,7 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
                 Reihenfolge der Teams gilt fuer den ganzen Tag, nur die Karte
                 darunter wechselt. Jede hat ihre eigenen Formen und ihre
                 eigene Zuordnung. */}
-            {!globals && (
+            {!globals && !vollbildKarte && (
             <div className="mb-2 flex flex-wrap items-center gap-1.5">
               {(karten.length ? karten : [{ id: 'k1', titel: kartenName }])
                 .map((k, i) => (
@@ -2431,10 +2437,10 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
 
             <div ref={flaeche}
               className={`${kartenSchrift.variable} relative mx-auto aspect-square w-full
-                         overflow-hidden rounded-lg bg-zinc-950`}
+                         ${vollbildKarte ? 'overflow-visible' : 'overflow-hidden rounded-lg bg-zinc-950'}`}
               style={{
                 containerType: 'size',
-                maxWidth: vollbildKarte ? 'min(100%, 84vh)' : 'min(100%, calc(100vh - 6.5rem))',
+                maxWidth: vollbildKarte ? 'min(100vw, 100vh)' : 'min(100%, calc(100vh - 6.5rem))',
                 cursor: formenAn ? 'default' : zoom > 1 ? 'grab' : 'default',
               }}
               onMouseDown={(e) => {
@@ -2523,8 +2529,10 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
               * mehr: der Betreiber will ihn "komplett immer loeschen,
               * ueberall" - ohne Teams ist die Karte hier ohne Sinn.
               */}
+            {/* Im Vollbild ganz am rechten Bildschirmrand, nicht an der Karte. */}
             <div onMouseDown={(e) => e.stopPropagation()} onMouseUp={(e) => e.stopPropagation()}
-              className="absolute right-2 top-2 z-30 flex flex-col gap-1.5">
+              className={`${vollbildKarte ? 'fixed right-4 top-4' : 'absolute right-2 top-2'}
+                          z-30 flex flex-col gap-1.5`}>
               {!bildId && (
                 <button type="button" onClick={() => setOrteSichtbar((v) => !v)}
                   title={uebs('Ortsnamen auf der Karte ein- und ausblenden')}
@@ -2564,6 +2572,7 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img alt={uebs('Karte')} draggable={false}
                 className="absolute inset-0 h-full w-full object-cover"
+                onLoad={kartenBild.beiLaden} style={kartenBild.bildStil(vollbildKarte)}
                 src={bildId
                   ? `/api/karten-bild?datei=1&id=${encodeURIComponent(bildId)}`
                   : `/api/fortnite-map?bild=${orteSichtbar ? 'poi' : 'leer'}`} />
