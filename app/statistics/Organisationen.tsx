@@ -83,7 +83,7 @@ export default function Organisationen({ aufSpieler }: {
   }, [t]);
 
   const geld = useMemo(() => new Intl.NumberFormat(ort, {
-    style: 'currency', currency: 'USD', maximumFractionDigits: 0,
+    style: 'currency', currency: 'USD', currencyDisplay: 'narrowSymbol', maximumFractionDigits: 0,
   }), [ort]);
   const tag = (d: string) => new Date(`${d}T12:00:00Z`).toLocaleDateString(ort, {
     day: 'numeric', month: 'short', year: 'numeric',
@@ -218,7 +218,7 @@ export default function Organisationen({ aufSpieler }: {
         )}
 
         <p className="text-xs text-slate-500">
-          <T>Preisgeld aus Epics Ergebnissen und Auszahlungstabellen und von den LAN-Events, je Spieler ab dem Tag seines Beitritts.</T> {standText}
+          <T>Preisgeld aus Epics Ergebnissen und Auszahlungstabellen und von den LAN-Events, je Spieler ab dem Tag seines Beitritts.</T> · {standText}
         </p>
       </div>
     );

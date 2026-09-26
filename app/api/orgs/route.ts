@@ -101,7 +101,8 @@ export async function GET(request: Request) {
         && (s.epicId in verdienst.posten || (verdienst.konten ?? []).includes(s.epicId)));
       const wert = posten ? fuerDieOrg(posten, s.seit) : (bekannt ? { betrag: 0, anzahl: 0 } : null);
       return {
-        epicId: s.epicId, name: p?.name || s.name, land: p?.land ? String(p.land).toUpperCase() : null,
+        // Der Name, wie ihn die Org fuehrt - das Profil kennt oft nur den rohen Epic-Namen.
+        epicId: s.epicId, name: s.name || p?.name || '?', land: p?.land ? String(p.land).toUpperCase() : null,
         bild: s.epicId ? bildZu.get(s.epicId) ?? null : null, seit: s.seit,
         betrag: wert ? wert.betrag : null, turniere: wert ? wert.anzahl : null,
       };

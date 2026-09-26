@@ -58,6 +58,23 @@ export async function GET(request: Request) {
   }
 }
 
+/**
+ * Ist das Logo dunkel auf durchsichtigem Grund?
+ *
+ * Gemessen am staerksten Farbkanal der deckenden Punkte, nicht an der
+ * Leuchtdichte: ein rotes Logo (T1) ist auf dunklem Grund gut zu sehen,
+ * obwohl seine Leuchtdichte niedrig ist; ein schwarzes (CGN) nicht.
+ */
+async function dunklesLogo(png: Buffer): Promise<boolean> {
+  const { data } = await sharp(png).ensureAlpha().resize(64, 64, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
+    .raw().toBuffer({ resolveWithObject: true });
+  let summe = 0; let deckend = 0; let durch = 0;
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i + 3] > 128) { summe += Math.max(data[i], data[i + 1], data[i + 2]); deckend += 1; } else durch += 1;
+  }
+  return deckend > 0 && summe / deckend < 70 && durch / (durch + deckend) > 0.2;
+}
+
 export async function POST(request: Request) {
   if (!await istAdmin()) return NextResponse.json({ fehler: 'Only the admin.' }, { status: 403 });
   const form = await request.formData().catch(() => null);
@@ -71,9 +88,14 @@ export async function POST(request: Request) {
   }
   let bild: Buffer;
   try {
-    bild = await sharp(Buffer.from(await datei.arrayBuffer()))
+    const roh = await sharp(Buffer.from(await datei.arrayBuffer()))
       .resize(256, 256, { fit: 'contain', background: { r: 0, g: 0, b: 0, alpha: 0 } })
-      .webp({ quality: 90 }).toBuffer();
+      .png().toBuffer();
+    bild = await (await dunklesLogo(roh)
+      // Schwarz auf durchsichtig verschwindet auf der dunklen Seite - dann
+      // bekommt das Logo eine helle Flaeche.
+      ? sharp(roh).flatten({ background: '#f1f5f9' })
+      : sharp(roh)).webp({ quality: 90 }).toBuffer();
   } catch {
     return NextResponse.json({ fehler: 'This file is not an image that can be read (PNG, JPG, WebP, SVG).' }, { status: 400 });
   }

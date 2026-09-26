@@ -164,10 +164,10 @@ export default function OrgsAdmin() {
     aendere(org.id, (o) => ({ ...o, logo: j.logo }), true);
   };
 
-  if (erlaubt === null) return <main className="mx-auto max-w-6xl px-6 py-16 text-sm text-slate-500"><T>Wird geladen …</T></main>;
+  if (erlaubt === null) return <main className="min-h-screen bg-zinc-950 px-6 py-16 text-sm text-slate-500"><T>Wird geladen …</T></main>;
   if (!erlaubt) {
     return (
-      <main className="mx-auto max-w-6xl px-6 py-16">
+      <main className="min-h-screen bg-zinc-950 px-6 py-16">
         <p className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-6 text-sm text-slate-400">
           <T>Diese Seite ist dem Admin vorbehalten.</T>
         </p>
@@ -179,7 +179,8 @@ export default function OrgsAdmin() {
   const gefiltert = orgs.filter((o) => !filter.trim() || o.name.toLowerCase().includes(filter.trim().toLowerCase()));
 
   return (
-    <main className="mx-auto max-w-6xl px-6 py-10">
+    <main className="min-h-screen bg-zinc-950 text-slate-100">
+      <div className="mx-auto max-w-6xl px-6 py-10">
       <div className="mb-2 flex flex-wrap items-baseline gap-3">
         <h1 className="text-2xl font-bold text-slate-100"><T>E-Sports-Teams</T></h1>
         <span className="text-xs text-slate-500">{orgs.length} <T>Organisationen</T></span>
@@ -363,6 +364,7 @@ export default function OrgsAdmin() {
         )}
       </div>
       )}
+      </div>
     </main>
   );
 }
