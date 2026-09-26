@@ -2578,7 +2578,7 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
                   : `/api/fortnite-map?bild=${orteSichtbar ? 'poi' : 'leer'}`} />
 
               {/* thecomphub.com, wie auf jeder Karte - unter den Formen. */}
-              <KartenWasserzeichen />
+              <div className="pointer-events-none absolute inset-0 overflow-hidden"><KartenWasserzeichen /></div>
 
               <svg viewBox="0 0 100 100" preserveAspectRatio="none"
                 className={`absolute inset-0 h-full w-full ${formenAn
