@@ -168,6 +168,13 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Zurück': 'Back',
   'Weiter': 'Next',
   // Die E-Sports-Organisationen (app/statistics/Organisationen.tsx)
+  'Bezahlte Turniere': 'Paid events',
+  'Kader': 'Roster',
+  'Für diese Organisation sind noch keine Spieler eingetragen.': 'No players listed for this organization yet.',
+  'Organisation suchen …': 'Search organization …',
+  'Kader folgt': 'Roster to come',
+  'freiwillig': 'optional',
+  'Land (zwei Buchstaben, z. B. DE)': 'Country (two letters, e.g. DE)',
   // ... und ihr Admin-Werkzeug (app/admin/orgs)
   'E-Sports-Teams': 'Esports teams',
   'Organisationen, Spieler und Logos': 'Organizations, players and logos',

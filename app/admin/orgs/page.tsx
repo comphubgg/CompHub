@@ -21,7 +21,8 @@ interface Spieler { epicId: string | null; name: string; seit: string | null }
 interface Extra { titel: string; betrag: number; datum: string | null }
 interface Org {
   id: string; name: string; logo: string | null; website: string | null; x: string | null;
-  region: string | null; spieler: Spieler[]; extras: Extra[];
+  youtube: string | null; twitch: string | null; instagram: string | null; tiktok: string | null;
+  land: string | null; region: string | null; spieler: Spieler[]; extras: Extra[];
 }
 interface Treffer { epicId: string; name: string; anzeige?: string; land?: string | null; regionen?: string[] }
 
@@ -95,7 +96,9 @@ export default function OrgsAdmin() {
         if (!r.ok || !j?.orgs) { setFehler(j?.fehler ?? 'Storage is not answering right now.'); return; }
         // Nur die gepflegten Felder - Betraege und Fotos rechnet die Anzeige.
         setOrgs(j.orgs.map((o: Org & { spieler: Array<Spieler & Record<string, unknown>> }) => ({
-          id: o.id, name: o.name, logo: o.logo, website: o.website, x: o.x, region: o.region,
+          id: o.id, name: o.name, logo: o.logo, website: o.website, x: o.x,
+          youtube: o.youtube ?? null, twitch: o.twitch ?? null, instagram: o.instagram ?? null,
+          tiktok: o.tiktok ?? null, land: o.land ?? null, region: o.region,
           spieler: o.spieler.map((s) => ({ epicId: s.epicId, name: s.name, seit: s.seit })),
           extras: o.extras ?? [],
         })).sort((a: Org, b: Org) => a.name.localeCompare(b.name)));
@@ -257,6 +260,20 @@ export default function OrgsAdmin() {
                   <input value={org.x ?? ''} placeholder="@"
                     onChange={(e) => aendere(org.id, (o) => ({ ...o, x: e.target.value.replace(/^@/, '') || null }))}
                     className={`${feld} mt-1 w-full`} />
+                </label>
+                {/* Weitere Kanaele - sie erscheinen als Knoepfe unter dem Logo. */}
+                {(['youtube', 'twitch', 'instagram', 'tiktok'] as const).map((k) => (
+                  <label key={k} className="text-xs text-slate-500">
+                    {{ youtube: 'YouTube', twitch: 'Twitch', instagram: 'Instagram', tiktok: 'TikTok' }[k]} (<T>freiwillig</T>)
+                    <input value={org[k] ?? ''} placeholder="@"
+                      onChange={(e) => aendere(org.id, (o) => ({ ...o, [k]: e.target.value.replace(/^@/, '') || null }))}
+                      className={`${feld} mt-1 w-full`} />
+                  </label>
+                ))}
+                <label className="text-xs text-slate-500"><T>Land (zwei Buchstaben, z. B. DE)</T>
+                  <input value={org.land ?? ''} maxLength={2} placeholder="DE"
+                    onChange={(e) => aendere(org.id, (o) => ({ ...o, land: e.target.value.toUpperCase().replace(/[^A-Z]/g, '') || null }))}
+                    className={`${feld} mt-1 w-full uppercase`} />
                 </label>
                 <div className="text-xs text-slate-500 sm:col-span-2"><T>Region</T>
                   <div className="mt-1 flex flex-wrap gap-1.5">

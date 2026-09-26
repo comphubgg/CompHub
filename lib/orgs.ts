@@ -48,6 +48,13 @@ export interface Org {
   website: string | null;
   /** X-Konto ohne @ */
   x: string | null;
+  /** Weitere Kanaele - Konto oder Adresse, wie der Betreiber sie eintraegt. */
+  youtube: string | null;
+  twitch: string | null;
+  instagram: string | null;
+  tiktok: string | null;
+  /** Herkunftsland der Organisation, zweistelliger ISO-Code ("DE"). */
+  land: string | null;
   region: string | null;
   spieler: OrgSpieler[];
   extras: OrgExtra[];
@@ -79,12 +86,22 @@ const TAG = /^\d{4}-\d{2}-\d{2}$/;
 export function saeubere(o: Partial<Org>): Org {
   const text = (x: unknown, max = 120) => String(x ?? '').trim().slice(0, max);
   const web = text(o.website, 300);
+  // Ein Kanal als blosses Konto - "@XSET" oder die ganze Adresse werden zu "XSET".
+  const konto = (x: unknown) => {
+    const t = text(x, 200).replace(/^https?:\/\/(www\.)?[^/]+\/(@|c\/|channel\/|user\/)?/i, '').replace(/^@/, '').split(/[/?#]/)[0];
+    return t ? t.slice(0, 60) : null;
+  };
   return {
     id: text(o.id, 60).toLowerCase().replace(/[^a-z0-9-]/g, '') || 'org',
     name: text(o.name) || 'Unnamed',
     logo: o.logo ? text(o.logo, 400) : null,
     website: /^https?:\/\/[^\s]+\.[^\s]+/.test(web) ? web : null,
-    x: o.x ? text(o.x, 40).replace(/^@/, '') || null : null,
+    x: konto(o.x),
+    youtube: konto(o.youtube),
+    twitch: konto(o.twitch),
+    instagram: konto(o.instagram),
+    tiktok: konto(o.tiktok),
+    land: /^[A-Za-z]{2}$/.test(String(o.land ?? '')) ? String(o.land).toUpperCase() : null,
     region: o.region ? text(o.region, 8).toUpperCase() : null,
     spieler: (Array.isArray(o.spieler) ? o.spieler : []).map((s) => ({
       epicId: s && KONTO.test(String(s.epicId ?? '').toLowerCase()) ? String(s.epicId).toLowerCase() : null,
