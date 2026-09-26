@@ -158,6 +158,8 @@ const NUR_VON_DER_SEITE = [
   'kontakt.json', 'sektionen.json', 'notes.json', 'anwesenheit.json',
   'anwesenheit', 'besuche.json', 'discord-anfragen.json', 'galerie.json',
   'offene-aufgaben.json', 'insel-bilder.json',
+  'statistik-sichtbarkeit.json', 'spieler-versteckt.json', 'tierlist-entfernt.json',
+  'cup-player-config.json', 'discord-dms.json', 'user-storage',
 ];
 
 function nurVonDerSeite(name) {
@@ -213,6 +215,10 @@ export const NOETIGES = [
   'epic-namen.json', 'preisgelder.json', 'lan-preisgelder.json', 'cup-archiv.json',
   'bekannte-ohne-foto.txt', 'fehlende-bilder.txt',
   'discord-kanaele.json', 'discord-anfragen.json',
+  // Was die Seite ausserdem selbst schreibt - fehlte bis 26.9.2026 und lag
+  // deshalb beim Ausfall von Comphub 2 nur dort (siehe supabase-nachholen.mjs).
+  'meine-prognosen', 'tierlisten', 'statistik-sichtbarkeit.json', 'spieler-versteckt.json',
+  'tierlist-entfernt.json', 'cup-player-config.json', 'discord-dms.json', 'user-storage',
   // Ordner: Bilder des Archivs und der Karten, eigene Replay-Werte, Meldungen.
   'galerie', 'kartenbilder', 'kontakt-bilder', 'admin-maps', 'eigene-matches', 'anwesenheit',
   // Der Cup-Katalog: die Seite schreibt ihn selbst alle fuenf Minuten.
