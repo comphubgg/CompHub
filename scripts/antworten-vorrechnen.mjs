@@ -128,8 +128,10 @@ function wege(saisons) {
       raus.push(`/api/szene-stats?saison=${encodeURIComponent(sa)}&sort=elims&limit=300&region=${r}`);
     }
   }
-  // Das Preisgeld der Spieler der E-Sports-Organisationen (app/api/orgs).
-  raus.push('/api/orgs?ansicht=verdienst');
+  // Das Preisgeld der Spieler der E-Sports-Organisationen (app/api/orgs) -
+  // ganz vorn: es braucht Sekunden, stand es am Ende, erreichte der Lauf es
+  // nie (26.9.2026, Zeitgrenze in der letzten Portion).
+  raus.unshift('/api/orgs?ansicht=verdienst');
   return raus;
 }
 
@@ -206,12 +208,16 @@ async function los() {
     const start = Date.now();
     try {
       /*
-       * Zehn Minuten Geduld je Abfrage. Auf dem Laufrechner dauert keine so
-       * lange - aber ein Abbruch waere schlimmer als Warten: dann fehlte
-       * genau die Antwort, die den Besucher spaeter aufhaelt.
+       * Drei Minuten Geduld je Abfrage. Frueher waren es zehn - ein Abbruch
+       * schien schlimmer als Warten. Am 26.9.2026 hielten aber wenige
+       * haengende Abfragen die letzte Portion bis in die Zeitgrenze auf, und
+       * alles danach fehlte. Eine fehlende Antwort rechnet spaeter der erste
+       * Besucher; eine verlorene Portion niemand.
        */
       const r = await fetch(SERVER + weg, {
-        signal: AbortSignal.timeout(600_000),
+        // Drei Minuten: eine haengende Abfrage hielt sonst die ganze
+        // letzte Portion bis in die Zeitgrenze auf.
+        signal: AbortSignal.timeout(180_000),
       });
       const bytes = (await r.arrayBuffer()).byteLength;
       if (!r.ok) throw new Error(String(r.status));
