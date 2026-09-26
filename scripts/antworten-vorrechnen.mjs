@@ -178,9 +178,19 @@ async function los() {
   console.log(`  Server: ${SERVER}`);
 
   const s = await saisons();
-  const liste = wege(s);
+  /*
+   * In Portionen ("--teil=2/4"): der Server waechst mit jeder Antwort und
+   * lief am 26.9.2026 nach rund 390 Abfragen bei zehn Gigabyte voll. Der
+   * Ablauf startet ihn zwischen den Portionen neu; die Profile kommen mit
+   * der letzten, wenn alle Listen liegen.
+   */
+  const teilArg = process.argv.find((a) => /^--teil=\d+\/\d+$/.test(a));
+  const [teil, teile] = teilArg ? teilArg.slice(7).split('/').map(Number) : [1, 1];
+  const alle = wege(s);
+  const je = Math.ceil(alle.length / teile);
+  const liste = alle.slice((teil - 1) * je, teil * je);
   console.log(`  Saisons: ${s.length ? s.join(', ') : '(keine gefunden)'}`);
-  console.log(`  Abfragen: ${liste.length}`);
+  console.log(`  Abfragen: ${liste.length}${teile > 1 ? ` (Teil ${teil} von ${teile}, zusammen ${alle.length})` : ''}`);
   console.log('');
 
   let ok = 0;
@@ -211,7 +221,7 @@ async function los() {
    * Vier nebeneinander: einzeln waren es bei sechshundert Profilen eine
    * Viertelstunde, so ein paar Minuten.
    */
-  const profile = await profileDerListen();
+  const profile = teil === teile ? await profileDerListen() : [];
   console.log(`  Profile: ${profile.length}`);
   let profileOk = 0;
   for (let i = 0; i < profile.length; i += 4) {

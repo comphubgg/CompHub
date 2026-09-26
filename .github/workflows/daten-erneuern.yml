@@ -395,7 +395,7 @@ jobs:
 
       - name: Antworten vorrechnen
         continue-on-error: true
-        timeout-minutes: 30
+        timeout-minutes: 40
         env:
           BAU_CODE: ${{ steps.bau.outputs.code }}
           # Mehr Speicher fuer den Server: am 25.9.2026 starb er mitten im
@@ -415,20 +415,25 @@ jobs:
               sleep 2
             done
           }
-          starten
-          # Zwei Durchgaenge: stirbt der Server, startet er neu, und der zweite
-          # Durchgang holt nach, was fehlt (Fertiges kommt dann sofort zurueck).
-          for DURCHGANG in 1 2; do
-            node scripts/antworten-vorrechnen.mjs http://localhost:3000 > /tmp/vorrechnen.log 2>&1
-            grep -E "Vorgerechnet|Saisons:" /tmp/vorrechnen.log
-            if kill -0 $SERVER 2>/dev/null; then break; fi
-            echo "::warning::Server ist im Durchgang $DURCHGANG abgestuerzt - letzte Abfrage vor dem Absturz und Server-Protokoll:"
-            grep -B3 -m1 "fetch failed" /tmp/vorrechnen.log
-            tail -n 25 /tmp/server.log
-            dmesg 2>/dev/null | grep -i -E "killed process|out of memory" | tail -3
-            starten
+          # In vier Portionen, der Server frisch fuer jede: er waechst mit jeder
+          # Antwort und lief am 26.9.2026 nach rund 390 Abfragen bei zehn
+          # Gigabyte voll (JavaScript heap out of memory). Stirbt er trotzdem
+          # in einer Portion, kommt sie ein zweites Mal dran.
+          : > /tmp/vorrechnen.log
+          for TEIL in 1 2 3 4; do
+            for VERSUCH in 1 2; do
+              starten
+              node scripts/antworten-vorrechnen.mjs http://localhost:3000 --teil=$TEIL/4 > /tmp/teil.log 2>&1
+              LEBT=nein; kill -0 $SERVER 2>/dev/null && LEBT=ja
+              kill $SERVER 2>/dev/null; wait $SERVER 2>/dev/null
+              cat /tmp/teil.log >> /tmp/vorrechnen.log
+              echo "Teil $TEIL/4, Versuch $VERSUCH: $(grep -E 'Vorgerechnet' /tmp/teil.log | tr -s ' ')"
+              [ "$LEBT" = ja ] && break
+              echo "::warning::Server in Teil $TEIL abgestuerzt:"
+              tail -n 8 /tmp/server.log
+            done
           done
-          tail -n 12 /tmp/vorrechnen.log
+          starten
           # Die Zahlen des Tages nach #admin-zahlen - eine Nachricht je Tag,
           # die jeder Lauf fortschreibt (scripts/admin-zahlen-discord.mjs).
           # Nach den Globals: das Preisgeld je Spieler von selbst in die Earnings
