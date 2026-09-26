@@ -1684,9 +1684,21 @@ export async function verdienstPosten(jahr: number, ids: Set<string>): Promise<R
     .filter((t) => !imArchiv.has(t.windowId) && saisons.includes(t.season))
     .map((t) => ({ season: t.season, windowId: t.windowId, eventId: t.eventId,
       region: t.region, name: t.titel, datum: t.datum ?? null }));
+  /*
+   * Der Tag eines Archiv-Finales: aus Epics Spieltagen oder dem Cup-Archiv.
+   * Nie das Datum der Archivdatei selbst - das ist der Tag, an dem sie
+   * erzeugt wurde (bei vielen Finals aus Chapter 7 Season 1 und 2 der
+   * 12.7.2026). So zaehlten Preisgelder von vor dem Beitritt fuer die Org
+   * (26.9.2026: All Gamers 466.000 statt rund 270.000). Ohne gesicherten Tag
+   * bleibt er leer - dann zaehlt der Posten nur, wo kein Beitritt bekannt ist.
+   */
+  const cupTag = new Map<string, number>();
+  for (const f of await liesJson<Array<{ windowId?: string; begin?: number }>>('cup-archiv.json', [])) {
+    if (f.windowId && typeof f.begin === 'number') cupTag.set(f.windowId, f.begin);
+  }
   const alle = [
     ...eintraege.map((e) => ({ season: e.season, windowId: e.windowId, eventId: e.eventId,
-      region: e.region, name: e.name, datum: datumVon.get(e.windowId) ?? e.datum ?? null })),
+      region: e.region, name: e.name, datum: datumVon.get(e.windowId) ?? cupTag.get(e.windowId) ?? null })),
     ...weitere,
   ];
   for (const e of alle) {
