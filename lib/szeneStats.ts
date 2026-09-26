@@ -1651,6 +1651,87 @@ export async function jahresListen(jahr: number, region?: string, nurSaison?: st
  * Epics Auszahlungstabelle (verdienst). Ohne Tabelle kein Betrag - dann
  * steht der Spieltag nur in "spieltage", nicht in "mitTabelle".
  */
+/** Ein bezahlter Spieltag eines Kontos - mit Datum, fuer "seit dem Beitritt". */
+export interface VerdienstPosten {
+  /** Millisekunden; null, wo die Quelle keinen Zeitpunkt nennt. */
+  datum: number | null;
+  betrag: number;
+  titel: string;
+  windowId: string;
+}
+
+/**
+ * Das Preisgeld eines Jahres je Konto, Posten fuer Posten mit Datum.
+ *
+ * Fuer die E-Sports-Organisationen: der Betreiber will sehen, was ein Spieler
+ * fuer seine Org gewonnen hat - "wenn du weisst, wann die Spieler gejoint
+ * sind", zaehlt erst ab dann. Dieselbe Rechnung wie die Jahresliste
+ * "Most earnings" (jahresListen): Archiv-Finals und die uebrigen
+ * Epic-Spieltage mit Epics Auszahlungstabelle, dazu die Verdienst-Akte fuer
+ * Fenster, die dort nicht mehr liegen, und die LAN-Preisgelder. Nur, dass
+ * hier jeder Betrag seinen Tag behaelt.
+ */
+export async function verdienstPosten(jahr: number, ids: Set<string>): Promise<Record<string, VerdienstPosten[]>> {
+  const saisons = JAHR_SAISONS[jahr] ?? [];
+  const raus: Record<string, VerdienstPosten[]> = {};
+  const dazu = (id: string, p: VerdienstPosten) => { if (p.betrag > 0) (raus[id] ??= []).push(p); };
+
+  const eintraege = (await liesVerzeichnis()).filter((e) => saisons.includes(e.season));
+  const imArchiv = new Set(eintraege.map((e) => e.windowId));
+  const epicTage = await liesEpicSpieltage();
+  const datumVon = new Map(epicTage.map((t) => [t.windowId, t.datum]));
+  const weitere = epicTage
+    .filter((t) => !imArchiv.has(t.windowId) && saisons.includes(t.season))
+    .map((t) => ({ season: t.season, windowId: t.windowId, eventId: t.eventId,
+      region: t.region, name: t.titel, datum: t.datum ?? null }));
+  const alle = [
+    ...eintraege.map((e) => ({ season: e.season, windowId: e.windowId, eventId: e.eventId,
+      region: e.region, name: e.name, datum: datumVon.get(e.windowId) ?? e.datum ?? null })),
+    ...weitere,
+  ];
+  for (const e of alle) {
+    const karte = await platzKarte(e.season, e.windowId);
+    if (!karte) continue;
+    for (const [id, p] of karte) {
+      if (!ids.has(id)) continue;
+      const v = await verdienst({
+        windowId: e.windowId, eventId: e.eventId, region: e.region, name: e.name,
+        platz: p.platz, punkte: p.punkte,
+      });
+      if (!v) break; // keine Regel fuer diesen Spieltag
+      dazu(id, { datum: e.datum, betrag: v.betrag, titel: e.name, windowId: e.windowId });
+    }
+  }
+
+  // Die Verdienst-Akte - nur Fenster, die oben nicht schon zaehlten.
+  const liveFenster = new Set(alle.map((e) => e.windowId));
+  const archiv = await liesVerdienstArchiv();
+  for (const id of ids) {
+    for (const e of archiv.konten[id] ?? []) {
+      if (liveFenster.has(e[0])) continue;
+      const jahrDesFensters = jahrVonSaison(saisonVonFenster(e[0], e[2])) || eintragJahr(e);
+      if (jahrDesFensters !== jahr) continue;
+      dazu(id, { datum: Date.parse(e[2]) || null, betrag: e[5], titel: cupNameAusKennung(e[0]) || e[0], windowId: e[0] });
+    }
+  }
+
+  // Die LANs - ihr Tag steht im Cup-Archiv (Beginn des Fensters).
+  const cupArchiv = await liesJson<Array<{ windowId?: string; begin?: number }>>('cup-archiv.json', []);
+  const lanTag = new Map<string, number>();
+  for (const f of Array.isArray(cupArchiv) ? cupArchiv : []) {
+    if (f.windowId && typeof f.begin === 'number') lanTag.set(f.windowId, f.begin);
+  }
+  for (const e of await lanEintraege()) {
+    if (!saisons.includes(e.season)) continue;
+    for (const s of e.spieler) {
+      if (!ids.has(s.epicId)) continue;
+      dazu(s.epicId, { datum: lanTag.get(e.fenster) ?? datumVon.get(e.fenster) ?? null, betrag: s.betrag, titel: e.name, windowId: e.fenster });
+    }
+  }
+  for (const liste of Object.values(raus)) liste.sort((a, b) => (b.datum ?? 0) - (a.datum ?? 0));
+  return raus;
+}
+
 export async function tagesVerdienst(seit: number) {
   const tage = (await liesEpicSpieltage()).filter((t) => (t.datum ?? 0) >= seit);
   type Eintrag = { betrag: number; fenster: Array<{ windowId: string; titel: string; region: string; platz: number; betrag: number }> };

@@ -19,7 +19,7 @@ export const dynamic = 'force-dynamic';
 
 const DATEI = 'statistik-sichtbarkeit.json';
 const STUFEN = new Set(['alle', 'vip', 'admin']);
-const BEREICHE = new Set(['turniere', 'regional', 'spieler', 'jahr', 'vergleich', 'bilder']);
+const BEREICHE = new Set(['turniere', 'regional', 'spieler', 'jahr', 'vergleich', 'bilder', 'orgs']);
 
 export async function GET() {
   const bereiche = await liesJson<Record<string, string>>(DATEI, {});

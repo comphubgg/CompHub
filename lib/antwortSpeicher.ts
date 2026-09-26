@@ -301,6 +301,14 @@ export async function fertigeAntwort<T>(
   return wert;
 }
 
+/**
+ * Eine eben gerechnete Antwort ablegen - fuer den stuendlichen Lauf, der sie
+ * frisch haben will und nicht auf eine Rechnung im Hintergrund warten kann.
+ */
+export async function legeAntwortAb<T>(schluessel: string, wert: T): Promise<void> {
+  await merkeAntwort(nameVon(schluessel), { zeit: Date.now(), wert });
+}
+
 /** Die abgelegte Antwort, wie sie ist - oder null, wenn keine liegt. */
 export async function abgelegteAntwort<T>(schluessel: string): Promise<T | null> {
   const abgelegt = await liesAblage<T>(nameVon(schluessel), FRISCH_MS);

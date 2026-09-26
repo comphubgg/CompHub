@@ -61,6 +61,8 @@ const IM_OBJEKTSPEICHER = [
   // Die Fotos des Archivs (lib/galerie) - Bilder, einzeln abgerufen.
   'galerie/',
   '_sicherung/',
+  // Die Logos der E-Sports-Organisationen (app/api/orgs/logo).
+  'org-logos/',
 ];
 
 function alsObjekt(name: string): boolean {

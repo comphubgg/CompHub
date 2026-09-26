@@ -128,6 +128,8 @@ function wege(saisons) {
       raus.push(`/api/szene-stats?saison=${encodeURIComponent(sa)}&sort=elims&limit=300&region=${r}`);
     }
   }
+  // Das Preisgeld der Spieler der E-Sports-Organisationen (app/api/orgs).
+  raus.push('/api/orgs?ansicht=verdienst');
   return raus;
 }
 
@@ -150,6 +152,11 @@ async function profileDerListen() {
   try {
     const jahr = await (await fetch(`${SERVER}/api/szene-stats?ansicht=jahr&jahr=${new Date().getUTCFullYear()}`)).json();
     for (const l of jahr.listen ?? []) for (const p of (l.plaetze ?? []).slice(0, 100)) if (p.epicId) ids.add(p.epicId);
+  } catch { /* dann ohne */ }
+  // Und die Spieler der Organisationen - ein Klick dort fuehrt ins Profil.
+  try {
+    const orgs = await (await fetch(`${SERVER}/api/orgs`)).json();
+    for (const o of orgs.orgs ?? []) for (const sp of o.spieler ?? []) if (sp.epicId) ids.add(sp.epicId);
   } catch { /* dann ohne */ }
   return [...ids].map((id) => `/api/szene-stats?spieler=${id}`);
 }

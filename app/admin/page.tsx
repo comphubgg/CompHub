@@ -148,6 +148,7 @@ const ADMIN_ZIELE: Ziel[] = [
   { href: '/admin/predictions', titel: 'Prognosen', text: 'Vorhersagen zeichnen' },
   { href: '/admin/replays', titel: 'Replays', text: 'Turnier-Replays nachsehen' },
   { href: '/admin/players', titel: 'Player Center', text: 'Flaggen und @-Konten pflegen' },
+  { href: '/admin/orgs', titel: 'E-Sports-Teams', text: 'Organisationen, Spieler und Logos' },
   { href: '/admin/assets', titel: 'Bildvorrat', text: 'Logos und Grafiken ablegen' },
   { href: '/admin/archive', titel: 'Archiv', text: 'Fotos und Videos zu Events und Spielern' },
   /*

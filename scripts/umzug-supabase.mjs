@@ -52,6 +52,8 @@ const IM_OBJEKTSPEICHER = [
   // Die Fotos des Archivs (lib/galerie.ts) - das Verzeichnis galerie.json
   // daneben bleibt in der Tabelle.
   'galerie/',
+  // Die Logos der E-Sports-Organisationen (app/api/orgs/logo).
+  'org-logos/',
 ];
 
 /**
@@ -159,7 +161,7 @@ const NUR_VON_DER_SEITE = [
   'anwesenheit', 'besuche.json', 'discord-anfragen.json', 'galerie.json',
   'offene-aufgaben.json', 'insel-bilder.json',
   'statistik-sichtbarkeit.json', 'spieler-versteckt.json', 'tierlist-entfernt.json',
-  'cup-player-config.json', 'discord-dms.json', 'user-storage',
+  'cup-player-config.json', 'discord-dms.json', 'user-storage', 'orgs.json', 'org-logos',
 ];
 
 function nurVonDerSeite(name) {
@@ -219,6 +221,8 @@ export const NOETIGES = [
   // deshalb beim Ausfall von Comphub 2 nur dort (siehe supabase-nachholen.mjs).
   'meine-prognosen', 'tierlisten', 'statistik-sichtbarkeit.json', 'spieler-versteckt.json',
   'tierlist-entfernt.json', 'cup-player-config.json', 'discord-dms.json', 'user-storage',
+  // Die E-Sports-Organisationen und ihre hochgeladenen Logos (lib/orgs).
+  'orgs.json', 'org-logos',
   // Ordner: Bilder des Archivs und der Karten, eigene Replay-Werte, Meldungen.
   'galerie', 'kartenbilder', 'kontakt-bilder', 'admin-maps', 'eigene-matches', 'anwesenheit',
   // Der Cup-Katalog: die Seite schreibt ihn selbst alle fuenf Minuten.

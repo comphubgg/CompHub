@@ -26,6 +26,7 @@ import T from '@/app/components/T';
 import { JAHR_SAISONS, jahrVonSaison } from '@/lib/saisonJahre';
 import LadeSchirm from '@/app/components/LadeSchirm';
 import SpielerArchiv from '@/app/components/SpielerArchiv';
+import Organisationen from './Organisationen';
 import { regionFarbe, REGIONEN_REIHE } from '@/lib/regionFarbe';
 import { useSprache, useT } from '@/app/components/SprachProvider';
 import { useZugang } from '@/app/lib/zugang';
@@ -46,7 +47,7 @@ function nachRegionReihe(regionen: string[]): string[] {
   return [...regionen].sort((a, b) => rang(a) - rang(b));
 }
 
-type Bereich = 'start' | 'turniere' | 'regional' | 'spieler' | 'jahr' | 'vergleich' | 'bilder';
+type Bereich = 'start' | 'turniere' | 'regional' | 'spieler' | 'jahr' | 'orgs' | 'vergleich' | 'bilder';
 
 /** Das Jahr der Jahresansicht - siehe JAHR_SAISONS in lib/szeneStats. */
 const JAHR = 2026;
@@ -61,7 +62,7 @@ const JAHR = 2026;
 type Sichtbar = 'alle' | 'vip' | 'admin';
 const SICHTBAR_STANDARD: Record<Bereich, Sichtbar> = {
   start: 'alle', turniere: 'alle', regional: 'alle', spieler: 'alle', jahr: 'alle',
-  vergleich: 'vip', bilder: 'admin',
+  orgs: 'alle', vergleich: 'vip', bilder: 'admin',
 };
 const SICHTBAR_REIHE: Sichtbar[] = ['alle', 'vip', 'admin'];
 type SpielerReiter = 'uebersicht' | 'leistung' | 'werte' | 'turniere' | 'verdienst' | 'archiv';
@@ -288,6 +289,8 @@ const BEREICHE: Array<[Bereich, string]> = [
   ['regional', 'Regionen'],
   ['spieler', 'Spieler'],
   ['jahr', String(JAHR)],
+  // Die E-Sports-Organisationen (Organisationen.tsx).
+  ['orgs', 'Organisationen'],
 ];
 
 /**
@@ -330,6 +333,8 @@ function Zeichen({ art }: { art: Bereich }) {
       + 'a1.5 1.5 0 0 0 0 3z',
     spieler: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M4 21a8 8 0 0 1 16 0',
     jahr: 'M4 5h16v15H4z M4 9h16 M8 3v4 M16 3v4 M8 13h2 M14 13h2 M8 17h2 M14 17h2',
+    // Ein Wappenschild - die Organisation.
+    orgs: 'M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6z M9 12l2 2 4-4',
     bilder: 'M3 5h18v14H3z M3 16l5-5 4 4 3-3 6 6',
     vergleich: 'M12 3v18 M7 8l-4 4 4 4 M17 8l4 4-4 4',
   };
@@ -2074,7 +2079,7 @@ export default function StatistikSeite() {
      * window.location, das beim Seitenwechsel noch die alte Adresse traegt.
      */
     const gewuenscht = suchParameter?.get('bereich');
-    if (gewuenscht && ['turniere', 'regional', 'spieler', 'jahr', 'vergleich', 'bilder'].includes(gewuenscht)) {
+    if (gewuenscht && ['turniere', 'regional', 'spieler', 'jahr', 'orgs', 'vergleich', 'bilder'].includes(gewuenscht)) {
       setBereich(gewuenscht as Bereich);
       const j = suchParameter?.get('jahr');
       if (j === 'alle') setJahrWahl('alle');
@@ -2702,6 +2707,30 @@ export default function StatistikSeite() {
     setVerdienstKapitel(0); setVerdienstSaison('');
     void profilLaden(s, 'alle');
   }, [profilLaden]);
+
+  /*
+   * Ein Profil ueber die Konto-Id oeffnen - aus dem Reiter der
+   * Organisationen. Zuerst in der geladenen Liste, dann ueber die Suche nach
+   * dem Namen (die Konto-Id entscheidet, nie der Name allein). Findet die
+   * Suche das Konto nicht, oeffnet das Profil mit Id und Namen; die Werte
+   * holt es sich dann selbst.
+   */
+  const oeffneKonto = useCallback(async (epicId: string, name: string) => {
+    const da = spieler.find((x) => x.epicId === epicId);
+    if (da) { oeffne(da, 'verdienst'); return; }
+    try {
+      const j = await (await fetch(`/api/szene-stats?ansicht=suche&q=${encodeURIComponent(name)}`)).json();
+      const treffer = ((j.spieler ?? []) as Spieler[]).find((x) => x.epicId === epicId);
+      if (treffer) { oeffne(treffer, 'verdienst'); return; }
+    } catch { /* dann mit Id und Namen */ }
+    oeffne({
+      epicId, name, anzeige: name, namen: [name], land: null, x: null, regionen: [], heimat: '',
+      bild: null, events: 0, matches: 0, elims: 0, assists: 0, reboots: 0, shots: 0, hits: 0,
+      headshots: 0, damage: 0, damageTaken: 0, heals: 0, stormDamage: 0, fallDamage: 0, mats: 0,
+      builds: 0, distanz: 0, timeInStorm: 0, timeAlive: 0, quote: 0, genauigkeit: 0,
+      elimsProMatch: 0, damageProMatch: 0,
+    }, 'verdienst');
+  }, [spieler, oeffne]);
 
   /*
    * Der geoeffnete Spieler steht in der Adresse.
@@ -4344,6 +4373,9 @@ export default function StatistikSeite() {
           })()}
 
           {/* -------------------------------------------------- Regionen */}
+          {/* ---------------------------------------- Organisationen */}
+          {bereich === 'orgs' && <Organisationen aufSpieler={oeffneKonto} />}
+
           {/* ------------------------------------------------ Das Jahr */}
           {bereich === 'jahr' && (
             <div>
