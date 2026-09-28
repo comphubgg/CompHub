@@ -1,0 +1,24 @@
+# Was nicht ins Image gehoert (siehe Dockerfile.web).
+node_modules
+.next
+.git
+.vercel
+data
+tmp
+dist
+elektron
+discord-bot
+cloudflare
+tunnel-zugang
+.env*
+*.log
+tmp*
+tmp_*
+admincookie*
+cookies.txt
+__pycache__
+*.py
+*.bat
+*.png
+!public/**/*.png
+!app/**/*.png

@@ -1670,8 +1670,16 @@ function ListenKarte({ liste, aufVoll, aufSpieler }: {
 }
 
 /** Eine Zeile in einer Bestenliste. */
-function Platz({ nr, s, wert, aufKlick, zusatz, mitBild }: {
+function Platz({ nr, s, wert, aufKlick, zusatz, mitBild, hervor, aufZeigen }: {
   nr: number; s: Spieler; wert: string; aufKlick?: () => void;
+  /**
+   * Derselbe Spieler steht gerade unter der Maus - in dieser oder einer
+   * anderen Liste. Der Betreiber (28.9.2026, nach Osirions Vorbild): wer
+   * ueber einen Namen faehrt, sieht in allen Ranglisten, wo der Spieler noch
+   * unter den Top 10 steht - "mit Blau, halt mit meiner Farbe".
+   */
+  hervor?: boolean;
+  aufZeigen?: (an: boolean) => void;
   /** Eine kleine Zeile unter dem Namen - etwa "Finals 79 · Opens 293". */
   zusatz?: string;
   /**
@@ -1684,8 +1692,12 @@ function Platz({ nr, s, wert, aufKlick, zusatz, mitBild }: {
 }) {
   return (
     <button onClick={aufKlick} disabled={!aufKlick}
+      onMouseEnter={aufZeigen ? () => aufZeigen(true) : undefined}
+      onMouseLeave={aufZeigen ? () => aufZeigen(false) : undefined}
       className={`flex w-full items-center text-left transition
-                  ${mitBild ? 'gap-4 px-4 py-3' : 'gap-3 px-3 py-2'} ${aufKlick ? 'hover:bg-zinc-900/60' : ''}`}>
+                  ${mitBild ? 'gap-4 px-4 py-3' : 'gap-3 px-3 py-2'} ${hervor
+                    ? 'rounded-md bg-sky-500/10 ring-1 ring-inset ring-sky-500/70'
+                    : aufKlick ? 'hover:bg-zinc-900/60' : ''}`}>
       <span className={`shrink-0 font-bold tabular-nums ${mitBild ? 'w-7 text-sm' : 'w-5 text-[11px]'} ${
         nr === 1 ? 'text-amber-400' : 'text-slate-600'}`}>{nr}</span>
       {mitBild ? (
@@ -1769,6 +1781,8 @@ export default function StatistikSeite() {
   const [trefferRechts, setTrefferRechts] = useState<Spieler[]>([]);
   /** Filter ueber beiden Turnierlisten im Vergleich. */
   const [vglArt, setVglArt] = useState('Alle');
+  /** Der Spieler unter der Maus - leuchtet in allen Ranglisten eines Cups auf. */
+  const [markiert, setMarkiert] = useState<string | null>(null);
   /** Solo (Profil gegen Profil) oder Duo gegen Duo - siehe KopfAnKopf. */
   const [vglModus, setVglModus] = useState<'solo' | 'duo'>('solo');
   const [vglWieViele, setVglWieViele] = useState<number>(5);
@@ -4058,7 +4072,11 @@ export default function StatistikSeite() {
                                 tracking-[0.18em] text-slate-500">
                     <T>Bestenlisten dieses Spieltags</T>
                   </p>
-                  <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                  {/* Fuenf nebeneinander, je die zehn Besten - wie beim Vorbild, in
+                      den eigenen Farben. Wer unter der Maus steht, leuchtet in
+                      jeder Liste auf, in der er vorkommt (siehe Platz). */}
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5"
+                    onMouseLeave={() => setMarkiert(null)}>
                     {cupListen.map((l) => (
                       <div key={l.titel}
                         className="overflow-hidden rounded-xl border border-zinc-800
@@ -4068,7 +4086,7 @@ export default function StatistikSeite() {
                                       uppercase tracking-[0.14em] text-slate-400">
                           <T>{l.titel}</T>
                           {/* Dahinter das ganze Feld, nicht nur die Spitze. */}
-                          {l.zeilen.length > 5 && (
+                          {l.zeilen.length > 10 && (
                             <button onClick={() => {
                               setVolleListe({
                                 titel: l.titel, zeilen: l.zeilen, feld: l.feld,
@@ -4085,11 +4103,13 @@ export default function StatistikSeite() {
                           )}
                         </p>
                         <div className="divide-y divide-zinc-900">
-                          {l.zeilen.slice(0, 5).map((sp, i) => (
+                          {l.zeilen.slice(0, 10).map((sp, i) => (
                             <Platz key={sp.epicId} nr={i + 1} s={sp}
                               wert={l.format === 'zeit' ? alsZeit(Number(sp[l.feld]))
                                 : l.format === 'km' ? `${zahl(Number(sp[l.feld]) / 1000, 1, sprache)} km`
                                 : zahl(Number(sp[l.feld]), l.nachkomma ?? 0, sprache) + (l.einheit ?? '')}
+                              hervor={markiert === sp.epicId}
+                              aufZeigen={(an) => setMarkiert(an ? sp.epicId : null)}
                               aufKlick={() => oeffne(sp)} />
                           ))}
                         </div>

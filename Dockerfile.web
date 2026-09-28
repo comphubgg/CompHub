@@ -1,0 +1,34 @@
+# Die Seite als eigenstaendiger Server - fuer jeden Host, der ein Docker-Image
+# startet (Render, eine eigene VM, ...). Gebaut wird im GitHub-Ablauf
+# .github/workflows/web-image.yml, nicht auf dem Host: der Next-Build braucht
+# mehr Speicher, als ein kostenloser Server hat.
+#
+# Keine Geheimnisse im Image: Supabase-Schluessel, Discord- und Mail-Zugaenge
+# kommen zur Laufzeit aus der Umgebung des Hosts. Das Image darf oeffentlich
+# sein.
+#
+# Zur Laufzeit noetig (wie bei Vercel): COMPHUB_ABLAGE=supabase,
+# COMPHUB_KEIN_HINTERGRUND=1, SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, ...
+
+FROM node:24-slim AS bau
+WORKDIR /app
+ENV NEXT_TELEMETRY_DISABLED=1 COMPHUB_STANDALONE=1
+COPY package.json package-lock.json ./
+RUN npm ci --no-audit --no-fund
+COPY . .
+# Oeffentliche Werte, die Next beim Bauen einsetzt - nichts Geheimes.
+ARG NEXT_PUBLIC_BASE_URL=https://www.thecomphub.com
+ENV NEXT_PUBLIC_BASE_URL=$NEXT_PUBLIC_BASE_URL
+RUN NODE_OPTIONS=--max-old-space-size=6144 npx next build
+
+FROM node:24-slim
+WORKDIR /app
+ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 \
+    HOSTNAME=0.0.0.0 PORT=10000 \
+    COMPHUB_ABLAGE=supabase COMPHUB_KEIN_HINTERGRUND=1 \
+    NODE_OPTIONS=--max-old-space-size=400
+COPY --from=bau /app/.next/standalone ./
+COPY --from=bau /app/.next/static ./.next/static
+COPY --from=bau /app/public ./public
+EXPOSE 10000
+CMD ["node", "server.js"]

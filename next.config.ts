@@ -28,6 +28,15 @@ const ALTE_ADRESSEN: Array<[string, string]> = [
 ];
 
 const nextConfig: NextConfig = {
+  /*
+   * Ein eigenstaendiger Server fuer einen eigenen Host (Dockerfile.web).
+   *
+   * Am 27.9.2026 hat Vercel die Seite wegen aufgebrauchter Rechenzeit
+   * gesperrt; der Betreiber will weder zahlen noch einen Probezeitraum. Das
+   * Paket fuer einen anderen, dauerhaft kostenlosen Host entsteht mit
+   * COMPHUB_STANDALONE=1 - bei Vercel bleibt alles wie bisher.
+   */
+  ...(process.env.COMPHUB_STANDALONE ? { output: 'standalone' as const } : {}),
   turbopack: {
     root: __dirname,
   },
