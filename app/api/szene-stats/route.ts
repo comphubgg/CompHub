@@ -1377,7 +1377,8 @@ async function berechne(request: Request) {
      * Konten kommt aus lib/lanKonten.
      */
     let clutchDa = false;
-    const clutchFenster = event ? [event] : events;
+    // Ausgeblendet, bis belegt - siehe app/api/cup-spieler (COMPHUB_CLUTCH).
+    const clutchFenster = process.env.COMPHUB_CLUTCH !== '1' ? [] : event ? [event] : events;
     if (clutchFenster.length) {
       const { liesLanKonten } = await import('@/lib/lanKonten');
       const lan = await liesLanKonten();

@@ -50,7 +50,15 @@ async function ausSzene(tage: string[], anzeige: Map<string, string>, land: Map<
    */
   const clutch = new Map<string, number>();
   let clutchDa = false;
-  for (const w of tage) {
+  /*
+   * Ausgeblendet, bis die Werte belegt sind (28.9.2026): mit beiden Globals-
+   * Tagen lagen sie im Mittel 10 bis 15 Punkte neben Osirion, einzelne
+   * Spieler weit mehr - Osirion kennt die Zeitpunkte der Reboots, unser
+   * Leser nicht. Der Betreiber: "nur wenn sie ueberhaupt stimmen".
+   * Gerechnet wird weiter (scripts/clutch-berechnen.mjs); COMPHUB_CLUTCH=1
+   * zeigt sie wieder.
+   */
+  for (const w of process.env.COMPHUB_CLUTCH === '1' ? tage : []) {
     const c = await liesJson<{ summe?: Record<string, number> } | null>(`clutch/${w}.json`, null).catch(() => null);
     if (!c?.summe) continue;
     clutchDa = true;
