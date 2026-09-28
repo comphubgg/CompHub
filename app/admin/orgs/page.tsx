@@ -17,10 +17,18 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 
-interface Spieler { epicId: string | null; name: string; seit: string | null }
+type Rolle = 'pro' | 'academy' | 'creator';
+interface Spieler {
+  epicId: string | null; name: string; seit: string | null; rolle: Rolle;
+  x: string | null; twitch: string | null; tiktok: string | null; youtube: string | null;
+}
+const ROLLEN: Array<[Rolle, string]> = [['pro', 'Pro'], ['academy', 'Academy'], ['creator', 'Content Creator']];
+const neuerSpieler = (epicId: string | null, name: string, rolle: Rolle = 'pro'): Spieler => ({
+  epicId, name, seit: null, rolle, x: null, twitch: null, tiktok: null, youtube: null,
+});
 interface Extra { titel: string; betrag: number; datum: string | null }
 interface Org {
-  id: string; name: string; logo: string | null; website: string | null; x: string | null;
+  id: string; name: string; logo: string | null; banner: string | null; website: string | null; x: string | null;
   youtube: string | null; twitch: string | null; instagram: string | null; tiktok: string | null;
   land: string | null; region: string | null; spieler: Spieler[]; extras: Extra[];
 }
@@ -106,10 +114,15 @@ export default function OrgsAdmin() {
         setFotos(f);
         // Nur die gepflegten Felder - Betraege und Fotos rechnet die Anzeige.
         setOrgs(j.orgs.map((o: Org & { spieler: Array<Spieler & Record<string, unknown>> }) => ({
-          id: o.id, name: o.name, logo: o.logo, website: o.website, x: o.x,
+          id: o.id, name: o.name, logo: o.logo, banner: o.banner ?? null, website: o.website, x: o.x,
           youtube: o.youtube ?? null, twitch: o.twitch ?? null, instagram: o.instagram ?? null,
           tiktok: o.tiktok ?? null, land: o.land ?? null, region: o.region,
-          spieler: o.spieler.map((s) => ({ epicId: s.epicId, name: s.name, seit: s.seit })),
+          // Alles, was gepflegt wird - sonst setzte das naechste Speichern
+          // Rollen und Kanaele zurueck.
+          spieler: o.spieler.map((s) => ({
+            epicId: s.epicId, name: s.name, seit: s.seit, rolle: s.rolle ?? 'pro',
+            x: s.x ?? null, twitch: s.twitch ?? null, tiktok: s.tiktok ?? null, youtube: s.youtube ?? null,
+          })),
           extras: o.extras ?? [],
         })).sort((a: Org, b: Org) => a.name.localeCompare(b.name)));
       })
@@ -184,6 +197,24 @@ export default function OrgsAdmin() {
     } catch { setFotoFehler(t('Keine Verbindung zum Server.')); }
     finally { setFotoLaedt(null); }
   };
+
+  /** Das Banner hinter dem Logo - als Datei oder vom X-Konto der Org. */
+  const [bannerLaedt, setBannerLaedt] = useState(false);
+  const bannerHochladen = async (org: Org, quelle: File | { vonX: string }) => {
+    setBannerLaedt(true); setStand(t('Wird gespeichert …'));
+    const form = new FormData();
+    form.append('org', org.id); form.append('art', 'banner');
+    if (quelle instanceof File) form.append('datei', quelle); else form.append('vonX', quelle.vonX);
+    try {
+      const r = await fetch('/api/orgs/logo', { method: 'POST', body: form });
+      const j = await r.json().catch(() => null);
+      if (!r.ok || !j?.banner) { setStand(`${t('Nicht gespeichert')}: ${j?.fehler ?? r.status}`); return; }
+      aendere(org.id, (o) => ({ ...o, banner: j.banner }), true);
+    } catch { setStand(t('Keine Verbindung zum Server.')); }
+    finally { setBannerLaedt(false); }
+  };
+  const bannerFeld = useRef<HTMLInputElement | null>(null);
+  const [ohneKonto, setOhneKonto] = useState('');
 
   const logoHochladen = async (org: Org, datei: File) => {
     setStand(t('Wird gespeichert …'));
@@ -317,6 +348,37 @@ export default function OrgsAdmin() {
               </div>
             </div>
 
+            {/* ------------------------------------------------- Banner */}
+            <div>
+              <h2 className="mb-1 text-sm font-semibold text-slate-200"><T>Banner</T></h2>
+              <p className="mb-2 text-xs text-slate-500"><T>Das breite Bild hinter dem Logo auf der Seite der Organisation.</T></p>
+              <div className="relative aspect-[3/1] w-full max-w-xl overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950">
+                {org.banner
+                  // eslint-disable-next-line @next/next/no-img-element
+                  ? <img src={org.banner} alt="" className="h-full w-full object-cover" />
+                  : <span className="flex h-full w-full items-center justify-center text-xs text-slate-600"><T>kein Banner</T></span>}
+                {bannerLaedt && <span className="absolute inset-0 flex items-center justify-center bg-black/60">
+                  <span className="h-5 w-5 animate-spin rounded-full border-2 border-zinc-600 border-t-sky-400" /></span>}
+              </div>
+              <div className="mt-2 flex flex-wrap gap-2">
+                <button type="button" onClick={() => bannerFeld.current?.click()} disabled={bannerLaedt}
+                  className="rounded-lg border border-zinc-700 px-3 py-1.5 text-sm text-slate-200 transition hover:border-sky-500 hover:text-sky-400 disabled:opacity-50">
+                  <T>Banner hochladen</T>
+                </button>
+                <button type="button" disabled={!org.x || bannerLaedt} onClick={() => org.x && void bannerHochladen(org, { vonX: org.x })}
+                  title={org.x ? `@${org.x}` : t('Erst das X-Konto eintragen')}
+                  className="rounded-lg border border-zinc-700 px-3 py-1.5 text-sm text-slate-200 transition hover:border-sky-500 hover:text-sky-400 disabled:opacity-50">
+                  <T>Banner von X übernehmen</T>
+                </button>
+                {org.banner && (
+                  <button type="button" onClick={() => aendere(org.id, (o) => ({ ...o, banner: null }), true)}
+                    className="px-2 text-sm text-slate-500 hover:text-rose-400"><T>Banner entfernen</T></button>
+                )}
+              </div>
+              <input ref={bannerFeld} type="file" accept="image/*" className="hidden"
+                onChange={(e) => { const d = e.target.files?.[0]; e.target.value = ''; if (d) void bannerHochladen(org, d); }} />
+            </div>
+
             {/* ------------------------------------------------ Spieler */}
             <div>
               <h2 className="mb-2 text-sm font-semibold text-slate-200"><T>Spieler</T> · {org.spieler.length}</h2>
@@ -361,6 +423,23 @@ export default function OrgsAdmin() {
                       className="rounded-lg border border-zinc-800 px-2.5 py-1 text-xs text-slate-500 transition hover:border-rose-600 hover:text-rose-400">
                       <T>entfernen</T>
                     </button>
+                    {/* Rolle und Kanaele: Pros und Academy nur X, Creator alle. */}
+                    <div className="flex w-full flex-wrap items-center gap-2 pl-[3.25rem]">
+                      {ROLLEN.map(([r, titel]) => (
+                        <button key={r} type="button"
+                          onClick={() => aendere(org.id, (o) => ({ ...o, spieler: o.spieler.map((x, j) => (j === i ? { ...x, rolle: r } : x)) }), true)}
+                          className={`rounded-lg border px-2.5 py-1 text-xs font-semibold transition ${s.rolle === r
+                            ? 'border-sky-500 bg-sky-500/10 text-sky-400' : 'border-zinc-800 text-slate-400 hover:border-zinc-600'}`}>
+                          {titel}
+                        </button>
+                      ))}
+                      {((s.rolle === 'creator' ? ['tiktok', 'twitch', 'x', 'youtube'] : ['x']) as Array<'x' | 'twitch' | 'tiktok' | 'youtube'>).map((k) => (
+                        <input key={k} value={s[k] ?? ''}
+                          placeholder={{ x: 'X @', twitch: 'Twitch', tiktok: 'TikTok @', youtube: 'YouTube @' }[k]}
+                          onChange={(e) => aendere(org.id, (o) => ({ ...o, spieler: o.spieler.map((x, j) => (j === i ? { ...x, [k]: e.target.value.replace(/^@/, '') || null } : x)) }))}
+                          className={`${feld} w-32 py-1 text-xs`} />
+                      ))}
+                    </div>
                   </div>
                 ))}
               </div>
@@ -368,8 +447,23 @@ export default function OrgsAdmin() {
                 onWahl={(k) => aendere(org.id, (o) => ({
                   ...o,
                   spieler: o.spieler.some((x) => x.epicId === k.epicId) ? o.spieler
-                    : [...o.spieler, { epicId: k.epicId, name: k.anzeige || k.name, seit: null }],
+                    : [...o.spieler, neuerSpieler(k.epicId, k.anzeige || k.name)],
                 }), true)} />
+              {/* Creator spielen oft keine Turniere - dann ohne Konto, nur mit Namen. */}
+              <form className="mt-2 flex gap-2" onSubmit={(e) => {
+                e.preventDefault();
+                const name = ohneKonto.trim();
+                if (!name) return;
+                aendere(org.id, (o) => ({ ...o, spieler: [...o.spieler, neuerSpieler(null, name, 'creator')] }), true);
+                setOhneKonto('');
+              }}>
+                <input value={ohneKonto} onChange={(e) => setOhneKonto(e.target.value)}
+                  placeholder={t('Content Creator ohne Epic-Konto: Namen tippen …')} className={`${feld} flex-1`} />
+                <button type="submit" disabled={!ohneKonto.trim()}
+                  className="rounded-lg border border-zinc-700 px-3 py-1.5 text-sm text-slate-200 transition hover:border-sky-500 disabled:opacity-40">
+                  + <T>hinzufügen</T>
+                </button>
+              </form>
             </div>
 
             {/* ----------------------------------------------- Extras */}

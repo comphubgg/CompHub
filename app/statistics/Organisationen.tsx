@@ -24,12 +24,14 @@ import { useSprache, useT } from '@/app/components/SprachProvider';
 import { ortVon } from '@/app/lib/ort';
 import { regionFarbe, REGIONEN_REIHE } from '@/lib/regionFarbe';
 
+type Rolle = 'pro' | 'academy' | 'creator';
 interface OrgSpielerAnzeige {
   epicId: string | null; name: string; land: string | null; bild: string | null;
   seit: string | null; betrag: number | null; turniere: number | null;
+  rolle?: Rolle; x?: string | null; twitch?: string | null; tiktok?: string | null; youtube?: string | null;
 }
 interface OrgAnzeige {
-  id: string; name: string; logo: string | null; website: string | null; x: string | null;
+  id: string; name: string; logo: string | null; banner?: string | null; website: string | null; x: string | null;
   youtube?: string | null; twitch?: string | null; instagram?: string | null; tiktok?: string | null;
   land?: string | null; region: string | null; gesamt: number | null;
   spieler: OrgSpielerAnzeige[];
@@ -58,6 +60,24 @@ function kanaele(o: OrgAnzeige): Array<{ art: string; url: string; titel: string
   if (o.tiktok) raus.push({ art: 'tiktok', url: `https://www.tiktok.com/@${o.tiktok}`, titel: 'TikTok',
     zeichen: voll('M12.53.02C13.84 0 15.14.01 16.44 0c.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z') });
   return raus;
+}
+
+const GRUPPEN: Array<[Rolle, string]> = [['pro', 'Pro Roster'], ['academy', 'Academy Roster'], ['creator', 'Content Creator']];
+const rolleVon = (s: OrgSpielerAnzeige): Rolle => s.rolle ?? 'pro';
+/** Die Spielerzahl einer Org - das Pro Roster, ohne Academy und Creator. */
+const proZahl = (o: OrgAnzeige) => o.spieler.filter((s) => rolleVon(s) === 'pro').length;
+
+/** Die Kanaele eines Spielers - bei Pros und Academy nur X, bei Creatorn alle. */
+function spielerKanaele(s: OrgSpielerAnzeige) {
+  const creator = rolleVon(s) === 'creator';
+  const alle = kanaele({
+    id: '', name: '', logo: null, website: null, region: null, gesamt: null, spieler: [], extras: [],
+    x: s.x ?? null,
+    twitch: creator ? s.twitch : null, tiktok: creator ? s.tiktok : null, youtube: creator ? s.youtube : null,
+  });
+  // Die Reihenfolge des Betreibers: TikTok, Twitch, X, YouTube.
+  const reihe = ['tiktok', 'twitch', 'x', 'youtube'];
+  return alle.sort((a, b) => reihe.indexOf(a.art) - reihe.indexOf(b.art));
 }
 
 /** Zwei, drei Buchstaben, wo noch kein Logo hinterlegt ist. */
@@ -110,6 +130,8 @@ export default function Organisationen({ aufSpieler }: {
   const [region, setRegion] = useState<string>('alle');
   const [suche, setSuche] = useState('');
   const [offen, setOffen] = useState<string | null>(null);
+  /** Welche Gruppe des Kaders - alle, oder nur Pro, Academy, Creator. */
+  const [kaderFilter, setKaderFilter] = useState<Rolle | 'alle'>('alle');
 
   useEffect(() => {
     let weg = false;
@@ -165,6 +187,7 @@ export default function Organisationen({ aufSpieler }: {
   /* ---------------------------------------------------- Eine Org offen */
   if (org) {
     const kanal = kanaele(org);
+    const gruppen = GRUPPEN.filter(([r]) => org.spieler.some((s) => rolleVon(s) === r));
     const turniere = org.spieler.reduce((a, s) => a + (s.turniere ?? 0), 0);
     return (
       <div className="space-y-8">
@@ -175,8 +198,14 @@ export default function Organisationen({ aufSpieler }: {
 
         {/* ------------------------------------------------- Der Kopf */}
         <section className="relative overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950">
-          <Schein logo={org.logo} />
-          <div className="pointer-events-none absolute inset-0 bg-gradient-to-b from-transparent via-zinc-950/40 to-zinc-950" />
+          {/* Das Banner der Org hinter dem Logo; ohne Banner das verwischte Logo. */}
+          {org.banner ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={org.banner} alt="" aria-hidden="true"
+              className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-70" />
+          ) : <Schein logo={org.logo} />}
+          <div className={`pointer-events-none absolute inset-0 bg-gradient-to-b ${org.banner
+            ? 'from-zinc-950/30 via-zinc-950/55 to-zinc-950' : 'from-transparent via-zinc-950/40 to-zinc-950'}`} />
           <div className="relative flex flex-col items-center px-6 pb-8 pt-12 text-center">
             <Logo org={org} groesse={148} runder />
             <h1 className="mt-6 text-4xl font-black tracking-tight text-slate-50 sm:text-5xl">{org.name}</h1>
@@ -205,7 +234,7 @@ export default function Organisationen({ aufSpieler }: {
           <div className="relative grid grid-cols-3 border-t border-zinc-800/80 bg-zinc-950/70 backdrop-blur">
             {([
               [<><T>Für die Organisation gewonnen</T> · {daten.jahr}</>, betragText(org)],
-              [<T key="s">Spieler</T>, String(org.spieler.length)],
+              [<T key="s">Spieler</T>, String(proZahl(org))],
               [<T key="b">Bezahlte Turniere</T>, org.gesamt === null ? '—' : String(turniere)],
             ] as Array<[ReactNode, string]>).map(([titel, wert], i) => (
               <div key={i} className={`px-4 py-5 text-center ${i ? 'border-l border-zinc-800/80' : ''}`}>
@@ -217,15 +246,31 @@ export default function Organisationen({ aufSpieler }: {
         </section>
 
         {/* --------------------------------------------------- Der Kader */}
-        <section>
-          <h2 className="mb-4 text-xs font-bold uppercase tracking-[0.2em] text-sky-400"><T>Kader</T></h2>
-          {!org.spieler.length ? (
-            <p className="rounded-2xl border border-zinc-800 px-5 py-6 text-sm text-slate-400">
-              <T>Für diese Organisation sind noch keine Spieler eingetragen.</T>
-            </p>
-          ) : (
+        {/* Pro Roster, darunter Academy, darunter Content Creator; oben
+            gleichrangige Knoepfe, um nur eine Gruppe zu sehen. */}
+        {!org.spieler.length ? (
+          <p className="rounded-2xl border border-zinc-800 px-5 py-6 text-sm text-slate-400">
+            <T>Für diese Organisation sind noch keine Spieler eingetragen.</T>
+          </p>
+        ) : (
+          <>
+            {gruppen.length > 1 && (
+              <div className="flex flex-wrap gap-2">
+                {([['alle', 'Alle'], ...gruppen] as Array<[Rolle | 'alle', string]>).map(([w, titel]) => (
+                  <button key={w} type="button" onClick={() => setKaderFilter(w)}
+                    className={`rounded-lg border px-4 py-1.5 text-sm font-semibold transition ${kaderFilter === w
+                      ? 'border-sky-500 bg-sky-500/10 text-sky-400'
+                      : 'border-zinc-800 text-slate-400 hover:border-zinc-600 hover:text-slate-200'}`}>
+                    <T>{titel}</T>
+                  </button>
+                ))}
+              </div>
+            )}
+            {gruppen.filter(([r]) => kaderFilter === 'alle' || kaderFilter === r).map(([rolle, titel]) => (
+        <section key={rolle}>
+          <h2 className="mb-4 text-xs font-bold uppercase tracking-[0.2em] text-sky-400"><T>{titel}</T></h2>
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {org.spieler.map((s, i) => {
+              {org.spieler.filter((s) => rolleVon(s) === rolle).map((s, i) => {
                 const klickbar = !!s.epicId;
                 const karte = (
                   <>
@@ -245,10 +290,24 @@ export default function Organisationen({ aufSpieler }: {
                         </div>
                         <div className="mt-0.5 text-xs text-slate-400">
                           {s.seit ? <>{t('Teil von')} {org.name} {t('seit')} {tag(s.seit)}</>
-                            : !klickbar ? <T>Kein Konto verknüpft</T> : null}
+                            : !klickbar && rolle !== 'creator' ? <T>Kein Konto verknüpft</T> : null}
                         </div>
                       </div>
                     </div>
+                    {/* Kanaele: bei Pros und Academy nur X, bei Creatorn alle. */}
+                    {spielerKanaele(s).length > 0 && (
+                      <div className="flex gap-2 border-t border-zinc-800 px-4 py-2.5">
+                        {spielerKanaele(s).map((k) => (
+                          <a key={k.art} href={k.url} target="_blank" rel="noopener noreferrer" title={k.titel} aria-label={k.titel}
+                            onClick={(e) => e.stopPropagation()}
+                            className="flex h-8 w-8 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900
+                                       text-slate-300 transition hover:border-sky-500 hover:text-sky-400">
+                            <svg viewBox="0 0 24 24" className="h-4 w-4" aria-hidden="true">{k.zeichen}</svg>
+                          </a>
+                        ))}
+                      </div>
+                    )}
+                    {rolle !== 'creator' && (
                     <div className="flex items-end justify-between gap-2 border-t border-zinc-800 px-4 py-3">
                       <span className="text-[11px] uppercase tracking-wider text-slate-500">
                         {daten.jahr}
@@ -259,21 +318,26 @@ export default function Organisationen({ aufSpieler }: {
                         {s.betrag === null ? '—' : geld.format(s.betrag)}
                       </span>
                     </div>
+                    )}
                   </>
                 );
                 const stil = 'group overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/60 text-left transition';
                 return klickbar ? (
-                  <button key={`${s.epicId}-${i}`} type="button" onClick={() => aufSpieler(s.epicId!, s.name)}
-                    title={t('Profil öffnen')} className={`${stil} hover:-translate-y-0.5 hover:border-sky-500/70`}>
+                  <div key={`${s.epicId}-${i}`} role="button" tabIndex={0} onClick={() => aufSpieler(s.epicId!, s.name)}
+                    onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); aufSpieler(s.epicId!, s.name); } }}
+                    title={t('Profil öffnen')}
+                    className={`${stil} cursor-pointer hover:-translate-y-0.5 hover:border-sky-500/70 focus-visible:border-sky-500 focus-visible:outline-none`}>
                     {karte}
-                  </button>
+                  </div>
                 ) : (
                   <div key={`${s.name}-${i}`} className={stil}>{karte}</div>
                 );
               })}
             </div>
-          )}
         </section>
+            ))}
+          </>
+        )}
 
         {org.extras.length > 0 && (
           <section className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-5">
@@ -297,7 +361,7 @@ export default function Organisationen({ aufSpieler }: {
   }
 
   /* ---------------------------------------------------------- Die Liste */
-  const oeffne = (id: string) => { setOffen(id); window.scrollTo({ top: 0 }); };
+  const oeffne = (id: string) => { setOffen(id); setKaderFilter('alle'); window.scrollTo({ top: 0 }); };
   const mitGeld = sichtbar.filter((o) => (o.gesamt ?? 0) > 0);
   const podest = !suche.trim() ? mitGeld.slice(0, 3) : [];
   const rest = sichtbar.filter((o) => !podest.includes(o));
@@ -351,7 +415,7 @@ export default function Organisationen({ aufSpieler }: {
                 <div className="mt-1 flex items-center gap-2 text-sm text-slate-400">
                   {o.land && <TeamFlagge groesse={16} laender={[o.land]} />}
                   <span className="truncate">{landName(o.land)}</span>
-                  <span>· {o.spieler.length} <T>Spieler</T></span>
+                  <span>· {proZahl(o)} <T>Spieler</T></span>
                 </div>
                 <div className="mt-4 text-3xl font-black tabular-nums text-slate-50">{betragText(o)}</div>
               </div>
@@ -376,7 +440,7 @@ export default function Organisationen({ aufSpieler }: {
                 <div className="truncate text-base font-bold text-slate-100">{o.name}</div>
                 <div className="mt-0.5 flex items-center gap-1.5 text-xs text-slate-500">
                   {o.land && <TeamFlagge groesse={14} laender={[o.land]} />}
-                  <span className="truncate">{o.spieler.length ? `${o.spieler.length} ${t('Spieler')}` : landName(o.land)}</span>
+                  <span className="truncate">{proZahl(o) ? `${proZahl(o)} ${t('Spieler')}` : landName(o.land)}</span>
                 </div>
                 <div className="mt-1.5 text-sm font-bold tabular-nums text-slate-200">
                   {o.spieler.length ? betragText(o) : <span className="font-normal text-slate-600"><T>Kader folgt</T></span>}

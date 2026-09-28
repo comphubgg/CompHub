@@ -11,6 +11,11 @@ import { zugangNach, rechteVon } from '@/lib/vipZugaenge';
  *
  *   POST (Formular, Feld "datei", "org")  hochladen - nur Admin; zurueck kommt
  *                                         die Adresse fuer das Feld "logo"
+ *   POST ... "art" = "banner"             dasselbe fuer das breite Bild hinter
+ *                                         dem Logo (Feld "banner")
+ *   POST ... "art" = "banner", "vonX"     das Banner des X-Kontos uebernehmen
+ *                                         (ueber api.fxtwitter.com, frei und
+ *                                         ohne Schluessel)
  *   GET ?datei=org-logos/...              das Bild ausliefern
  *
  * Abgelegt als quadratisches WebP (256 px) im Objektspeicher - ein Logo muss
@@ -75,11 +80,55 @@ async function dunklesLogo(png: Buffer): Promise<boolean> {
   return deckend > 0 && summe / deckend < 70 && durch / (durch + deckend) > 0.2;
 }
 
+/** Das Banner eines X-Kontos - die Adresse kommt von fxtwitter, das Bild von X selbst. */
+async function xBanner(konto: string): Promise<Buffer | { fehler: string }> {
+  const handle = konto.replace(/^@/, '').replace(/[^A-Za-z0-9_]/g, '').slice(0, 30);
+  if (!handle) return { fehler: 'No X account entered.' };
+  const r = await fetch(`https://api.fxtwitter.com/${handle}`, { headers: { 'User-Agent': 'CompHub/1.0' }, cache: 'no-store' })
+    .catch(() => null);
+  const j = r?.ok ? await r.json().catch(() => null) as { user?: { banner_url?: string } } | null : null;
+  const url = j?.user?.banner_url ?? '';
+  if (!/^https:\/\/pbs\.twimg\.com\/profile_banners\//.test(url)) {
+    return { fehler: `@${handle} has no banner on X.` };
+  }
+  const bild = await fetch(`${url}/1500x500`, { cache: 'no-store' }).catch(() => null);
+  if (!bild?.ok) return { fehler: 'X did not deliver the banner.' };
+  return Buffer.from(await bild.arrayBuffer());
+}
+
+/** Ein Banner: 1500 x 500, beschnitten statt verzerrt. */
+async function bannerBild(roh: Buffer): Promise<Buffer> {
+  return sharp(roh).resize(1500, 500, { fit: 'cover', position: 'attention' }).webp({ quality: 82 }).toBuffer();
+}
+
 export async function POST(request: Request) {
   if (!await istAdmin()) return NextResponse.json({ fehler: 'Only the admin.' }, { status: 403 });
   const form = await request.formData().catch(() => null);
   const datei = form?.get('datei');
   const org = String(form?.get('org') ?? '').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 60) || 'org';
+
+  if (form?.get('art') === 'banner') {
+    let roh: Buffer;
+    const vonX = String(form.get('vonX') ?? '');
+    if (vonX) {
+      const x = await xBanner(vonX);
+      if (!Buffer.isBuffer(x)) return NextResponse.json(x, { status: 404 });
+      roh = x;
+    } else {
+      if (!(datei instanceof File) || !datei.size) return NextResponse.json({ fehler: 'No image received.' }, { status: 400 });
+      if (datei.size > 12 * 1024 * 1024) return NextResponse.json({ fehler: 'The image is larger than 12 MB.' }, { status: 413 });
+      roh = Buffer.from(await datei.arrayBuffer());
+    }
+    let bild: Buffer;
+    try { bild = await bannerBild(roh); } catch {
+      return NextResponse.json({ fehler: 'This file is not an image that can be read (PNG, JPG, WebP).' }, { status: 400 });
+    }
+    const name = `org-logos/${org}-banner-${Date.now().toString(36)}.webp`;
+    try { await speicher.schreib(name, bild); } catch (e) {
+      return NextResponse.json({ fehler: `Not saved: ${(e as Error).message}` }, { status: 503 });
+    }
+    return NextResponse.json({ ok: true, banner: `/api/orgs/logo?datei=${encodeURIComponent(name)}` });
+  }
   if (!(datei instanceof File) || !datei.size) {
     return NextResponse.json({ fehler: 'No image received.' }, { status: 400 });
   }

@@ -3534,6 +3534,13 @@ const AUF_ENGLISCH: Record<string, string> = {
   'weitere Kennzahlen': 'more stats',
   'filtern …': 'filter …',
   'keine': 'none',
+  'Das breite Bild hinter dem Logo auf der Seite der Organisation.': 'The wide image behind the logo on the organization page.',
+  'kein Banner': 'no banner',
+  'Banner hochladen': 'Upload banner',
+  'Banner von X übernehmen': 'Take banner from X',
+  'Banner entfernen': 'Remove banner',
+  'Erst das X-Konto eintragen': 'Enter the X account first',
+  'Content Creator ohne Epic-Konto: Namen tippen …': 'Content creator without an Epic account: type a name …',
 };
 
 /**

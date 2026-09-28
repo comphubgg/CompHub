@@ -22,6 +22,14 @@ export const ORGS_DATEI = 'orgs.json';
 /** Das Jahr, dessen Preisgeld gezaehlt wird. */
 export const ORGS_JAHR = 2026;
 
+/**
+ * Die Rolle in der Org. Der Betreiber (26./28.9.2026): Pro Roster, darunter
+ * Academy Roster, darunter Content Creator - Academy-Spieler "werden nicht
+ * gleich behandelt wie die Pro-Spieler" (sie zaehlen nicht zum Preisgeld der
+ * Org), Creator zeigen ihre Kanaele.
+ */
+export type OrgRolle = 'pro' | 'academy' | 'creator';
+
 export interface OrgSpieler {
   /** Epic-Konto; null, solange der Spieler keinem Konto zugeordnet ist. */
   epicId: string | null;
@@ -29,6 +37,13 @@ export interface OrgSpieler {
   name: string;
   /** Seit wann bei der Org, "JJJJ-MM-TT" - oder null, wenn unbekannt. */
   seit: string | null;
+  /** Pro (Standard), Academy oder Content Creator. */
+  rolle: OrgRolle;
+  /** Kanaele - bei Pros und Academy nur X, bei Creatorn TikTok, Twitch, X, YouTube. */
+  x: string | null;
+  twitch: string | null;
+  tiktok: string | null;
+  youtube: string | null;
 }
 
 export interface OrgExtra {
@@ -45,6 +60,8 @@ export interface Org {
   name: string;
   /** Pfad unter public ("/orgs/big.webp") oder die Adresse eines hochgeladenen Logos. */
   logo: string | null;
+  /** Das breite Bild hinter dem Logo auf der Org-Seite (meist das X-Banner der Org). */
+  banner: string | null;
   website: string | null;
   /** X-Konto ohne @ */
   x: string | null;
@@ -95,6 +112,7 @@ export function saeubere(o: Partial<Org>): Org {
     id: text(o.id, 60).toLowerCase().replace(/[^a-z0-9-]/g, '') || 'org',
     name: text(o.name) || 'Unnamed',
     logo: o.logo ? text(o.logo, 400) : null,
+    banner: o.banner ? text(o.banner, 400) : null,
     website: /^https?:\/\/[^\s]+\.[^\s]+/.test(web) ? web : null,
     x: konto(o.x),
     youtube: konto(o.youtube),
@@ -103,11 +121,21 @@ export function saeubere(o: Partial<Org>): Org {
     tiktok: konto(o.tiktok),
     land: /^[A-Za-z]{2}$/.test(String(o.land ?? '')) ? String(o.land).toUpperCase() : null,
     region: o.region ? text(o.region, 8).toUpperCase() : null,
-    spieler: (Array.isArray(o.spieler) ? o.spieler : []).map((s) => ({
-      epicId: s && KONTO.test(String(s.epicId ?? '').toLowerCase()) ? String(s.epicId).toLowerCase() : null,
-      name: text(s?.name, 40),
-      seit: s && TAG.test(String(s.seit ?? '')) ? String(s.seit) : null,
-    })).filter((s) => s.name || s.epicId),
+    spieler: (Array.isArray(o.spieler) ? o.spieler : []).map((s) => {
+      const rolle: OrgRolle = s?.rolle === 'academy' || s?.rolle === 'creator' ? s.rolle : 'pro';
+      return {
+        epicId: s && KONTO.test(String(s.epicId ?? '').toLowerCase()) ? String(s.epicId).toLowerCase() : null,
+        name: text(s?.name, 40),
+        seit: s && TAG.test(String(s.seit ?? '')) ? String(s.seit) : null,
+        rolle,
+        x: konto(s?.x),
+        // Twitch, TikTok und YouTube nur bei Creatorn - der Betreiber will bei
+        // Pros und Academy allein das X-Konto.
+        twitch: rolle === 'creator' ? konto(s?.twitch) : null,
+        tiktok: rolle === 'creator' ? konto(s?.tiktok) : null,
+        youtube: rolle === 'creator' ? konto(s?.youtube) : null,
+      };
+    }).filter((s) => s.name || s.epicId),
     extras: (Array.isArray(o.extras) ? o.extras : []).map((e) => ({
       titel: text(e?.titel, 80),
       betrag: Math.max(0, Math.round(Number(e?.betrag) || 0)),

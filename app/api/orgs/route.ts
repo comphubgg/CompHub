@@ -105,10 +105,14 @@ export async function GET(request: Request) {
         epicId: s.epicId, name: s.name || p?.name || '?', land: p?.land ? String(p.land).toUpperCase() : null,
         bild: s.epicId ? bildZu.get(s.epicId) ?? null : null, seit: s.seit,
         betrag: wert ? wert.betrag : null, turniere: wert ? wert.anzahl : null,
+        rolle: s.rolle, x: s.x || (p as { x?: string } | undefined)?.x || null,
+        twitch: s.twitch, tiktok: s.tiktok, youtube: s.youtube,
       };
     }).sort((a, b) => (b.betrag ?? -1) - (a.betrag ?? -1));
     const jahrExtras = o.extras.filter((e) => !e.datum || e.datum.startsWith(String(ORGS_JAHR)));
-    const summeSpieler = spieler.reduce((a, s) => a + (s.betrag ?? 0), 0);
+    // Zum Preisgeld der Org zaehlt nur das Pro Roster - Academy und Creator
+    // stehen mit ihren eigenen Zahlen da, gehen aber nicht in die Summe.
+    const summeSpieler = spieler.filter((s) => s.rolle === 'pro').reduce((a, s) => a + (s.betrag ?? 0), 0);
     const gesamt = verdienst ? summeSpieler + jahrExtras.reduce((a, e) => a + e.betrag, 0) : null;
     return { ...o, spieler, extras: jahrExtras, gesamt };
   }).sort((a, b) => (b.gesamt ?? -1) - (a.gesamt ?? -1) || a.name.localeCompare(b.name));
