@@ -31,6 +31,7 @@ import { regionFarbe, REGIONEN_REIHE } from '@/lib/regionFarbe';
 import { useSprache, useT } from '@/app/components/SprachProvider';
 import { useZugang } from '@/app/lib/zugang';
 import { sichtbarerTakt } from '@/app/lib/takt';
+import KopfAnKopf from './KopfAnKopf';
 /**
  * In welcher Reihenfolge die Regionen stehen.
  *
@@ -1768,6 +1769,8 @@ export default function StatistikSeite() {
   const [trefferRechts, setTrefferRechts] = useState<Spieler[]>([]);
   /** Filter ueber beiden Turnierlisten im Vergleich. */
   const [vglArt, setVglArt] = useState('Alle');
+  /** Solo (Profil gegen Profil) oder Duo gegen Duo - siehe KopfAnKopf. */
+  const [vglModus, setVglModus] = useState<'solo' | 'duo'>('solo');
   const [vglWieViele, setVglWieViele] = useState<number>(5);
   /** Merker, wenn ein Gewaehlter in der Saison gar nicht angetreten ist. */
   const [vglLeer, setVglLeer] = useState<[boolean, boolean]>([false, false]);
@@ -4842,8 +4845,31 @@ export default function StatistikSeite() {
               </div>
             );
 
+            // Solo oder Duo - gleichrangig nebeneinander, wie die Bereiche oben.
+            const modusWahl = (
+              <div className="mb-4 flex gap-1">
+                {([['solo', 'Solo'], ['duo', 'Duo']] as const).map(([w, titel]) => (
+                  <button key={w} onClick={() => setVglModus(w)}
+                    className={`rounded-lg border px-4 py-1.5 text-xs font-semibold transition ${vglModus === w
+                      ? 'border-sky-500 bg-sky-500/15 text-sky-400'
+                      : 'border-zinc-800 text-slate-500 hover:text-slate-300'}`}>
+                    {titel}
+                  </button>
+                ))}
+              </div>
+            );
+            if (vglModus === 'duo') {
+              return (
+                <>
+                  {modusWahl}
+                  <KopfAnKopf saison={alleSaisons ? '' : saison} saisonTitel={alleSaisons ? '' : saisonTitel} sprache={sprache} t={t} />
+                </>
+              );
+            }
+
             return (
               <>
+                {modusWahl}
                 <div className="mb-5 rounded-xl border border-zinc-800
                                 bg-zinc-950/60 p-5">
                   <div className="flex flex-wrap items-start gap-4">
@@ -4887,6 +4913,10 @@ export default function StatistikSeite() {
                       zeitraum={alleSaisons ? t('alle Saisons')
                         : t('Saison {n}').replace('{n}', saisonTitel)}
                       aufKlick={oeffne} gross />
+
+                    {/* Head to Head ueber die Finals - auch fuer einen einzelnen Cup. */}
+                    <KopfAnKopf key={`${vglLinks.epicId}-${vglRechts.epicId}`} saison={alleSaisons ? '' : saison} saisonTitel={alleSaisons ? '' : saisonTitel}
+                      sprache={sprache} t={t} festeTeams={[[vglLinks], [vglRechts]]} />
 
                     <section className="rounded-xl border border-zinc-800
                                         bg-zinc-950/60 p-5">

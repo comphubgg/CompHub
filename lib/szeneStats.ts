@@ -932,7 +932,18 @@ export async function verlauf(epicId: string, filter: Filter = {}): Promise<Verl
     const p = datei.players.find((x) => x.epicId === epicId);
     if (!p) continue;
     const karte = await platzKarte(e.season, e.windowId);
-    const platz = karte?.get(epicId) ?? null;
+    /*
+     * An einem LAN fuehrt Epics Bestenliste das Turnierkonto ("[FNCSGC26]
+     * BIG Vico"), die Szene-Quelle das echte Konto - der Platz steht also
+     * unter dem Turnierkonto (lib/lanKonten).
+     */
+    let platz = karte?.get(epicId) ?? null;
+    if (!platz && karte) {
+      for (const lanId of (await lanUmkehr()).get(epicId) ?? []) {
+        const x = karte.get(lanId);
+        if (x) { platz = x; break; }
+      }
+    }
     zeilen.push({
       event: e.name, windowId: e.windowId, region: e.region, season: e.season, werte: p,
       datum: e.datum ?? 0,
@@ -2134,4 +2145,19 @@ export async function szeneFenster(windowIds: string[]): Promise<{ matches: numb
 /** Epics Aufstellung eines Spieltags (Teams, Punkte, Platz) - oder null. */
 export async function epicTag(windowId: string): Promise<EpicSpieltag | null> {
   return (await liesEpicSpieltage()).find((t) => t.windowId === windowId) ?? null;
+}
+
+/** Echtes Konto -> seine Turnierkonten an LANs (lib/lanKonten, umgedreht). */
+let lanUmkehrMerker: { bis: number; wert: Map<string, string[]> } | null = null;
+async function lanUmkehr(): Promise<Map<string, string[]>> {
+  if (lanUmkehrMerker && Date.now() < lanUmkehrMerker.bis) return lanUmkehrMerker.wert;
+  const lan = await liesJson<Record<string, { echt: string }>>('lan-konten.json', {}).catch(() => ({} as Record<string, { echt: string }>));
+  const wert = new Map<string, string[]>();
+  for (const [lanId, z] of Object.entries(lan)) {
+    if (!z?.echt) continue;
+    if (!wert.has(z.echt)) wert.set(z.echt, []);
+    wert.get(z.echt)!.push(lanId);
+  }
+  lanUmkehrMerker = { bis: Date.now() + 10 * 60_000, wert };
+  return wert;
 }
