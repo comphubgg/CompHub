@@ -291,9 +291,12 @@ async function holeRoh(request: Request) {
     } catch { /* ohne Epic-Anmeldung bleibt die gekuerzte Id stehen */ }
   }
 
-  const spieler = gezeigt.map((x) => {
+  // Der Platz im ganzen Feld (nach Kills) - auch fuer Treffer einer Suche.
+  const rangVon = q ? new Map(rep.spieler.map((x, i) => [x.epicId, i + 1])) : null;
+  const spieler = gezeigt.map((x, i) => {
     const team = zumTeam.get(x.epicId);
     return {
+      rang: rangVon ? rangVon.get(x.epicId) ?? null : i + 1,
       epicId: x.epicId,
       name: anzeige.get(x.epicId) ?? x.epicId.slice(0, 8),
       land: land.get(x.epicId) ?? '',

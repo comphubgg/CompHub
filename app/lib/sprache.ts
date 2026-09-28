@@ -3541,6 +3541,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Banner entfernen': 'Remove banner',
   'Erst das X-Konto eintragen': 'Enter the X account first',
   'Content Creator ohne Epic-Konto: Namen tippen …': 'Content creator without an Epic account: type a name …',
+  'Kein Spieler gefunden.': 'No player found.',
 };
 
 /**

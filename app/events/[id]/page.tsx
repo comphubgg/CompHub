@@ -23,6 +23,7 @@ import { inselAusPlaylist } from '@/lib/inseln';
 import { istGlobalsEvent } from '@/lib/globalsCup';
 import { sichtbarerTakt } from '@/app/lib/takt';
 import { fortniteKarte, eigeneKarte } from '@/lib/bildAdressen';
+import StatKacheln from '@/app/components/StatKacheln';
 /**
  * Regionen, fuer die von selbst eine Karte bereitsteht.
  *
@@ -828,10 +829,18 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
       assists?: number; damage?: number; damageTaken?: number;
       damageRatio?: number | null; genauigkeit?: number | null;
       clutch?: number | null;
+      hits?: number; headshots?: number; mats?: number; builds?: number;
+      distanz?: number; timeInStorm?: number; timeAlive?: number;
+      /** Platz im ganzen Feld nach Kills (Replays). */
+      rang?: number | null;
     }>;
     /** Gibt es zu diesem Spieltag Solo Clutch Points (aus den Server-Replays)? */
     clutch?: boolean;
+    /** Wie viele Spieler es gibt - bei grossen Cups sind nur die besten 500 geladen. */
+    gesamt?: number; gekuerzt?: boolean;
   } | null>(null);
+  /** Treffer der Suche auf dem Server - bei grossen Cups, siehe app/api/cup-spieler. */
+  const [spielerTreffer, setSpielerTreffer] = useState<NonNullable<typeof spielerWerte>['spieler'] | null>(null);
   const [spielerLaedt, setSpielerLaedt] = useState(false);
   const [spielerSuche, setSpielerSuche] = useState('');
   const [kopiert, setKopiert] = useState<string | null>(null);
@@ -1823,6 +1832,29 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
   const eineLobby = useMemo(
     () => !!spiele && gespielteRunden > 0 && spiele.length <= gespielteRunden + 1,
     [spiele, gespielteRunden]);
+
+  /*
+   * Die Suche in einem grossen Feld geht an den Server.
+   *
+   * Bei einem offenen Cup kommen nur die besten 500 an; wer dahinter liegt,
+   * soll trotzdem zu finden sein - der Server sucht im ganzen Feld.
+   */
+  useEffect(() => {
+    const q = spielerSuche.trim();
+    if (reiter !== 'spieler' || !fenster || !spielerWerte?.gekuerzt || q.length < 2) {
+      setSpielerTreffer(null);
+      return;
+    }
+    let weg = false;
+    const uhr = setTimeout(() => {
+      fetch(`/api/cup-spieler?window=${encodeURIComponent(fenster.windowId)}`
+        + `&event=${encodeURIComponent(fenster.eventId)}&q=${encodeURIComponent(q)}`)
+        .then((r) => r.json())
+        .then((j) => { if (!weg) setSpielerTreffer(j?.spieler ?? []); })
+        .catch(() => { if (!weg) setSpielerTreffer([]); });
+    }, 350);
+    return () => { weg = true; clearTimeout(uhr); };
+  }, [reiter, fenster, spielerWerte?.gekuerzt, spielerSuche]);
 
   useEffect(() => {
     if (reiter !== 'spieler' || !fenster || spielerWerte) return;
@@ -3873,6 +3905,18 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
           * die Elims geholt hat - gezaehlt aus den Replays, die das Werkzeug
           * ohnehin einsammelt.
           */}
+        {/*
+          * Die Bestenlisten als Kacheln, je die zehn Besten - nach Osirions
+          * Vorbild, in den eigenen Farben (app/components/StatKacheln).
+          * Darunter bleibt die ganze Tabelle mit Suche.
+          */}
+        {reiter === 'spieler' && !soloCup && !!spielerWerte?.spieler.length && (
+          <div className="mb-4">
+            <StatKacheln spieler={spielerWerte.spieler.map((s) => ({
+              ...s, elims: s.kills, quote: s.damageRatio ?? 0,
+            }))} />
+          </div>
+        )}
         {reiter === 'spieler' && !soloCup && (
           <section className="rounded-xl border border-zinc-800 bg-zinc-950/60">
             <header className="flex flex-wrap items-center justify-between gap-3
@@ -3889,7 +3933,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                              focus:border-sky-500" />
                 {spielerWerte?.vorhanden && (
                   <span className="text-xs text-slate-500">
-                    {spielerWerte.spieler.length} <T>Spieler</T>
+                    {(spielerWerte.gesamt ?? spielerWerte.spieler.length).toLocaleString(ort)} <T>Spieler</T>
                     {' · '}
                     {/*
                       * Wie viele Runden ausgewertet sind - und wie viele es
@@ -4047,10 +4091,10 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                     </tr>
                   </thead>
                   <tbody>
-                    {spielerWerte.spieler
+                    {(spielerTreffer ?? spielerWerte.spieler)
                       .filter((sp) => {
                         const q = spielerSuche.trim().toLowerCase();
-                        if (!q) return true;
+                        if (!q || spielerTreffer) return true;
                         return sp.name.toLowerCase().includes(q)
                           || sp.partner.some((x) => x.toLowerCase().includes(q));
                       })
@@ -4063,7 +4107,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                         <tr key={sp.epicId}
                           className="border-b border-zinc-900/70 last:border-0">
                           <td className="px-4 py-1.5 text-right tabular-nums
-                                         text-slate-500">{i + 1}</td>
+                                         text-slate-500">{sp.rang ?? i + 1}</td>
                           <td className="px-3 py-1.5">
                             <span className="flex items-center gap-2">
                               {sp.land && (
