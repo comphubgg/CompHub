@@ -57,8 +57,83 @@ function XBeitrag({ kennung, titel }: { kennung: string; titel: string }) {
   );
 }
 
+/*
+ * Eine Videodatei, nur das Video - in ihrem eigenen Format.
+ *
+ * Der Betreiber (28.9.2026): "so dass man wirklich nur das Video sieht,
+ * nicht auch den Twitter-Account ... mach den schwarzen Rand unten weg ...
+ * es kann auch andere Groesse haben." Also kein fester 16:9-Kasten, sondern
+ * das Seitenverhaeltnis der Datei.
+ *
+ * Gespielt wird in einem eigenen kleinen Dokument ohne Referrer: Xs
+ * Videoserver (video.twimg.com) weist Anfragen mit fremder Herkunft ab
+ * (403), ohne Herkunft liefert er. Fuer Dateien am Release ist das egal,
+ * schadet aber nicht.
+ */
+function VideoDatei({ src, bild, breite, hoehe, titel }: {
+  src: string; bild?: string | null; breite?: number | null; hoehe?: number | null; titel: string;
+}) {
+  const [format, setFormat] = useState<number | null>(breite && hoehe ? breite / hoehe : null);
+  const doc = `<!doctype html><html><head><meta name="referrer" content="no-referrer"><style>`
+    + `html,body{margin:0;height:100%;background:#000;overflow:hidden}video{display:block;width:100%;height:100%;object-fit:contain;background:#000}`
+    + `</style></head><body><video controls playsinline preload="metadata" src="${src.replace(/"/g, '&quot;')}"`
+    + (bild ? ` poster="${bild.replace(/"/g, '&quot;')}"` : '')
+    + ` onloadedmetadata="parent.postMessage({videoFormat:this.videoWidth/this.videoHeight,src:this.currentSrc},'*')"></video></body></html>`;
+  useEffect(() => {
+    if (format) return undefined;
+    const hoeren = (ev: MessageEvent) => {
+      const d = ev.data as { videoFormat?: number; src?: string } | undefined;
+      if (d?.videoFormat && d.src && src.startsWith(d.src.split('?')[0].slice(0, 40))) setFormat(d.videoFormat);
+    };
+    window.addEventListener('message', hoeren);
+    return () => window.removeEventListener('message', hoeren);
+  }, [format, src]);
+  return (
+    <div className="w-full overflow-hidden rounded-lg bg-black"
+      style={{ aspectRatio: String(format ?? 16 / 9), maxHeight: 640 }}>
+      <iframe className="block h-full w-full" srcDoc={doc} title={titel} referrerPolicy="no-referrer"
+        allow="fullscreen; picture-in-picture" allowFullScreen loading="lazy" />
+    </div>
+  );
+}
+
+/**
+ * Ein Video von X - nur das Video, ohne Beitragsrahmen.
+ *
+ * Die Datei hinter dem Beitrag nennt fxtwitter (frei, ohne Schluessel, vom
+ * Browser aus erreichbar). Findet sich keine - ein Beitrag ohne Video, ein
+ * geloeschter -, bleibt es beim eingebetteten Beitrag.
+ */
+function XVideo({ kennung, titel }: { kennung: string; titel: string }) {
+  const [video, setVideo] = useState<{ url: string; bild?: string; breite?: number; hoehe?: number } | null | undefined>(undefined);
+  useEffect(() => {
+    let weg = false;
+    fetch(`https://api.fxtwitter.com/status/${encodeURIComponent(kennung)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        if (weg) return;
+        const v = j?.tweet?.media?.videos?.[0];
+        setVideo(v?.url ? { url: v.url, bild: v.thumbnail_url, breite: v.width, hoehe: v.height } : null);
+      })
+      .catch(() => { if (!weg) setVideo(null); });
+    return () => { weg = true; };
+  }, [kennung]);
+  if (video === undefined) return <div className="aspect-video w-full animate-pulse rounded-lg bg-zinc-900" />;
+  if (!video) return <XBeitrag kennung={kennung} titel={titel} />;
+  return <VideoDatei src={video.url} bild={video.bild} breite={video.breite} hoehe={video.hoehe} titel={titel} />;
+}
+
 /** Ein Video, das hier abspielt - oder ein Link, wo Einbetten nicht geht. */
 export function ArchivVideo({ e, t }: { e: GalerieEintrag; t: (s: string) => string }) {
+  // Hochgeladen, aber noch nicht bereitgestellt (siehe galerieTypen, ausstehend).
+  if (e.ausstehend && !e.url) {
+    return (
+      <div className="flex aspect-video w-full flex-col items-center justify-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900/60 text-center">
+        <span className="h-5 w-5 animate-spin rounded-full border-2 border-zinc-700 border-t-sky-400" />
+        <span className="px-4 text-xs text-slate-400">{t('Das Video wird bereitgestellt - spätestens in einer Stunde spielt es hier.')}</span>
+      </div>
+    );
+  }
   const { art, kennung } = videoArt(e.url ?? '');
   const host = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
   const rahmen = 'aspect-video w-full overflow-hidden rounded-lg border border-zinc-800 bg-black';
@@ -75,7 +150,8 @@ export function ArchivVideo({ e, t }: { e: GalerieEintrag; t: (s: string) => str
   if (art === 'tiktok') {
     return <div className="w-full overflow-hidden rounded-lg border border-zinc-800 bg-black" style={{ aspectRatio: '9 / 16', maxHeight: 560 }}><iframe className="h-full w-full" src={`https://www.tiktok.com/embed/v2/${kennung}`} title={titel} allowFullScreen loading="lazy" /></div>;
   }
-  if (art === 'x') return <XBeitrag kennung={kennung} titel={titel} />;
+  if (art === 'x') return <XVideo kennung={kennung} titel={titel} />;
+  if (art === 'datei') return <VideoDatei src={kennung} titel={titel} />;
   return (
     <a href={e.url} target="_blank" rel="noreferrer"
       className="flex aspect-video w-full flex-col items-center justify-center gap-2 rounded-lg border

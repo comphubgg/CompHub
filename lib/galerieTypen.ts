@@ -35,8 +35,21 @@ export interface GalerieEvent {
    * unter dem passenden Cup" - auf dessen Seite im Reiter Archiv.
    */
   cupId?: string;
+  /**
+   * Weitere Cups mit demselben Archiv. Der Betreiber (28.9.2026): die
+   * Globals stehen als "Fortnite Global Championship" (Day 1, Day 2) und
+   * als "FNCS Global Championship" (Finals) im Katalog - "das sind die
+   * gleichen, also sollen beide das gleiche [Archiv] haben", und allgemein
+   * sollen sich mehrere Cups ein Archiv teilen koennen.
+   */
+  cupIds?: string[];
   beschreibung?: string;
   erstellt: number;
+}
+
+/** Gehoert dieses Archiv-Event zu diesem Cup (erster oder weiterer)? */
+export function gehoertZuCup(ev: GalerieEvent, cup: string): boolean {
+  return ev.cupId === cup || (ev.cupIds ?? []).includes(cup);
 }
 
 export interface GalerieEintrag {
@@ -55,6 +68,13 @@ export interface GalerieEintrag {
   bytes?: number;
   /** Bei Videos: die Adresse, so wie sie der Betreiber eingegeben hat. */
   url?: string;
+  /**
+   * Ein hochgeladenes Video, das noch im Objektspeicher liegt (Pfad dort).
+   * Der stuendliche Lauf legt es ans Release "archiv-videos" und setzt
+   * dann "url" - bis dahin ist es "ausstehend" (scripts/archiv-videos-umziehen.mjs).
+   */
+  videoDatei?: string;
+  ausstehend?: boolean;
   titel?: string;
   /** Die Konto-Ids der Spieler auf dem Bild oder im Video. */
   spieler: string[];
@@ -93,7 +113,11 @@ export function neueId(): string {
  * Welches Video das ist - fuer das Einbetten. Erkannt werden YouTube,
  * Twitch (Clips und Videos), X und TikTok; alles andere bleibt ein Link.
  */
-export function videoArt(url: string): { art: 'youtube' | 'twitch-clip' | 'twitch-video' | 'x' | 'tiktok' | 'link'; kennung: string } {
+export function videoArt(url: string): { art: 'youtube' | 'twitch-clip' | 'twitch-video' | 'x' | 'tiktok' | 'datei' | 'link'; kennung: string } {
+  // Eine Videodatei (hochgeladen, am Release) spielt ohne fremden Rahmen.
+  if (/\.(mp4|webm|mov|m4v)(\?|$)/i.test(url) || /github\.com\/[^/]+\/[^/]+\/releases\/download\//i.test(url)) {
+    return { art: 'datei', kennung: url };
+  }
   try {
     const u = new URL(url);
     const host = u.hostname.replace(/^www\./, '');

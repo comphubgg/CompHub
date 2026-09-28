@@ -599,6 +599,21 @@ async function anmeldeLoesche(name: string, z: { url: string; kopf: Record<strin
 
 /* ---------------------------------------------------------- Der Speicher */
 
+/**
+ * Eine Adresse, unter der der Browser eine Datei selbst in den
+ * Objektspeicher legt - fuer Videos, die groesser sind, als Vercel in einer
+ * Anfrage annimmt (4,5 MB). Gilt zwei Stunden, nur fuer diesen Namen.
+ */
+export async function hochladeAdresse(name: string): Promise<string> {
+  const { url, kopf } = zugang();
+  const r = await anfrage(`${url}/storage/v1/object/upload/sign/${EIMER}/${name}`,
+    { method: 'POST', headers: kopf, signal: frist(SCHREIBEN_MS) });
+  if (!r.ok) throw new Error(`Objektspeicher ${r.status}`);
+  const j = await r.json() as { url?: string };
+  if (!j.url) throw new Error('keine Adresse');
+  return `${url}/storage/v1${j.url}`;
+}
+
 export const supabaseSpeicher: Speicher = {
   lies: (name) => {
     const z = anmeldeZugang(name);

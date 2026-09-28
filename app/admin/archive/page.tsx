@@ -54,6 +54,8 @@ export default function ArchivVerwaltung() {
   const [ueberZiel, setUeberZiel] = useState(false);
   const [videoUrl, setVideoUrl] = useState('');
   const [videoTitel, setVideoTitel] = useState('');
+  const [videoLaedt, setVideoLaedt] = useState(false);
+  const videoFeld = useRef<HTMLInputElement | null>(null);
   /** Spieler, die jedem neu hochgeladenen Foto gleich zugeordnet werden. */
   const [vorabSpieler, setVorabSpieler] = useState<string[]>([]);
   const dateiFeld = useRef<HTMLInputElement | null>(null);
@@ -93,7 +95,7 @@ export default function ArchivVerwaltung() {
     setEventId(j.event.id);
   }, [neu, laden, t]);
 
-  const eventAendern = useCallback(async (felder: Record<string, string>) => {
+  const eventAendern = useCallback(async (felder: Record<string, string | string[]>) => {
     if (!eventId) return;
     await fetch('/api/galerie', { method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ eventId, ...felder }) });
@@ -144,6 +146,34 @@ export default function ArchivVerwaltung() {
     setVideoUrl(''); setVideoTitel(''); setMeldung('');
     await laden();
   }, [eventId, videoUrl, videoTitel, vorabSpieler, laden, t]);
+
+  /*
+   * Ein Video als Datei - direkt in den Objektspeicher (siehe app/api/galerie,
+   * aktion video-datei). Scheitert das Hochladen, verschwindet der Eintrag
+   * wieder, statt als ewig "ausstehend" stehenzubleiben.
+   */
+  const videoHochladen = useCallback(async (datei: File) => {
+    if (allgemein && !vorabSpieler.length) { setMeldung(t('Für das allgemeine Archiv erst einen Spieler wählen.')); return; }
+    setVideoLaedt(true); setMeldung('');
+    try {
+      const form = new FormData();
+      form.append('aktion', 'video-datei'); form.append('eventId', allgemein ? '' : eventId);
+      form.append('name', datei.name); form.append('groesse', String(datei.size));
+      form.append('titel', videoTitel.trim()); form.append('spieler', vorabSpieler.join(','));
+      const r = await fetch('/api/galerie', { method: 'POST', body: form });
+      const j = await r.json().catch(() => null);
+      if (!r.ok || !j?.hochladen) { setMeldung(j?.error ?? t('nicht angelegt')); return; }
+      const hoch = await fetch(j.hochladen, { method: 'PUT', body: datei, headers: { 'Content-Type': datei.type || 'video/mp4' } });
+      if (!hoch.ok) {
+        await fetch(`/api/galerie?id=${encodeURIComponent(j.eintrag.id)}`, { method: 'DELETE' });
+        setMeldung(`${t('nicht angelegt')} (${hoch.status})`);
+        return;
+      }
+      setVideoTitel('');
+      await laden();
+    } catch { setMeldung(t('Keine Verbindung zum Server.')); }
+    finally { setVideoLaedt(false); }
+  }, [allgemein, eventId, videoTitel, vorabSpieler, laden, t]);
 
   const entfernen = useCallback(async (id: string) => {
     if (!window.confirm(t('Diesen Eintrag wirklich entfernen?'))) return;
@@ -274,6 +304,21 @@ export default function ArchivVerwaltung() {
                     </Link>
                   )}
                 </span>
+                {/* Weitere Cups, die dasselbe Archiv zeigen (z. B. Globals Day 1/Day 2 und Finals). */}
+                {event.cupId && (
+                  <span className="flex w-full flex-wrap items-center gap-2">
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500"><T>Weitere Cups mit diesem Archiv</T></span>
+                    {(event.cupIds ?? []).map((c) => (
+                      <span key={c} className="flex items-center gap-1 rounded-full border border-zinc-700 px-2 py-0.5 text-xs text-slate-300">
+                        <Link href={`/events/${encodeURIComponent(c)}`} className="hover:text-sky-400">{c}</Link>
+                        <button type="button" title={t('Entfernen')}
+                          onClick={() => void eventAendern({ cupIds: (event.cupIds ?? []).filter((x) => x !== c) })}
+                          className="text-slate-500 hover:text-red-400">✕</button>
+                      </span>
+                    ))}
+                    <CupWahl wert="" aufAendern={(c) => { if (c) void eventAendern({ cupIds: [...(event.cupIds ?? []), c] }); }} t={t} />
+                  </span>
+                )}
                 {!eintraege.length && (
                   <button onClick={eventEntfernen} className="ml-auto rounded-md border border-zinc-800 px-2.5 py-1 text-xs text-slate-500 hover:border-red-500 hover:text-red-400">
                     <T>Event entfernen</T>
@@ -311,6 +356,16 @@ export default function ArchivVerwaltung() {
                       className="rounded-lg border border-sky-500 bg-sky-500/10 px-3 py-1.5 text-sm font-semibold text-sky-400 transition hover:bg-sky-500/20">
                       <T>Hinzufügen</T>
                     </button>
+                    {/* Oder die Datei selbst - ohne Umweg ueber X oder YouTube. */}
+                    <button type="button" onClick={() => videoFeld.current?.click()} disabled={videoLaedt}
+                      className="flex items-center justify-center gap-2 rounded-lg border border-dashed border-zinc-700 px-3 py-1.5 text-sm text-slate-300 transition hover:border-sky-500 hover:text-sky-400 disabled:opacity-60">
+                      {videoLaedt
+                        ? <><span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-zinc-700 border-t-sky-400" /><T>Video wird hochgeladen …</T></>
+                        : <>🎬 <T>oder als Datei hochladen</T></>}
+                    </button>
+                    <span className="text-[11px] text-slate-600"><T>MP4, WebM oder MOV · bis 50 MB</T></span>
+                    <input ref={videoFeld} type="file" accept="video/mp4,video/webm,video/quicktime,.mp4,.webm,.mov,.m4v" className="hidden"
+                      onChange={(e) => { const d = e.target.files?.[0]; e.target.value = ''; if (d) void videoHochladen(d); }} />
                     <span className="text-[11px] text-slate-600">
                       {videoUrl.trim() ? `${t('Erkannt')}: ${videoArt(videoUrl.trim()).art}` : t('YouTube, Twitch, X und TikTok spielen direkt hier ab.')}
                     </span>

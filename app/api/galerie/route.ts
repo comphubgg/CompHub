@@ -1,8 +1,8 @@
 import { NextResponse } from 'next/server';
 import { istAdminAnfrage } from '@/lib/adminPruefung';
-import { liesJson } from '@/lib/ablage';
+import { liesJson, speicher } from '@/lib/ablage';
 import {
-  liesGalerie, schreibGalerie, liesBild, schreibBild, loescheBild, neueId,
+  liesGalerie, schreibGalerie, liesBild, schreibBild, loescheBild, neueId, gehoertZuCup,
   type Galerie, type GalerieEintrag, type GalerieEvent,
 } from '@/lib/galerie';
 
@@ -82,7 +82,7 @@ export async function GET(request: Request) {
   let events = g.events;
   let eintraege = g.eintraege;
   if (cup) {
-    events = events.filter((ev) => ev.cupId === cup);
+    events = events.filter((ev) => gehoertZuCup(ev, cup));
     const ids = new Set(events.map((ev) => ev.id));
     eintraege = eintraege.filter((e) => ids.has(e.eventId));
   }
@@ -138,6 +138,39 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true, eintrag });
   }
 
+  /*
+   * Ein Video als Datei hochladen (nicht nur per Adresse).
+   *
+   * Vercel nimmt in einer Anfrage hoechstens 4,5 MB an - ein Video geht
+   * deshalb am Werkzeug vorbei direkt in den Objektspeicher: hier gibt es
+   * nur die Adresse dafuer und den Eintrag ("ausstehend"). Der stuendliche
+   * Lauf legt die Datei danach ans Release, wo sie ohne Kontingent
+   * abgespielt wird, und raeumt den Objektspeicher wieder.
+   */
+  if (aktion === 'video-datei') {
+    const name = sauber(form.get('name'), 200);
+    const groesse = Number(form.get('groesse')) || 0;
+    const ext = (/\.(mp4|webm|mov|m4v)$/i.exec(name)?.[1] ?? '').toLowerCase();
+    if (!ext) return NextResponse.json({ error: 'Nur MP4, WebM oder MOV.' }, { status: 400 });
+    if (groesse > 50 * 1024 * 1024) return NextResponse.json({ error: 'Groesser als 50 MB - bitte kuerzen oder als Link anhaengen.' }, { status: 413 });
+    const id = neueId();
+    const videoDatei = `galerie-videos/${id}.${ext}`;
+    let hochladen: string;
+    try {
+      const { hochladeAdresse } = await import('@/lib/ablageSupabase');
+      hochladen = await hochladeAdresse(videoDatei);
+    } catch (e) {
+      return NextResponse.json({ error: `Hochladen gerade nicht moeglich: ${(e as Error).message.slice(0, 120)}` }, { status: 503 });
+    }
+    const eintrag: GalerieEintrag = {
+      id, eventId, art: 'video', videoDatei, ausstehend: true,
+      titel: sauber(form.get('titel'), 120) || undefined, spieler, erstellt: Date.now(),
+    };
+    g.eintraege.push(eintrag);
+    await schreibGalerie(g);
+    return NextResponse.json({ success: true, eintrag, hochladen });
+  }
+
   if (aktion === 'bild') {
     const dateien = form.getAll('dateien').filter((d): d is File => d instanceof File);
     if (!dateien.length) return NextResponse.json({ error: 'keine Datei' }, { status: 400 });
@@ -182,6 +215,11 @@ export async function PATCH(request: Request) {
       ev.bis = /^\d{4}-\d{2}-\d{2}$/.test(bis) && bis > ev.datum ? bis : undefined;
     }
     if (body.cupId !== undefined) ev.cupId = sauber(body.cupId, 120) || undefined;
+    if (Array.isArray(body.cupIds)) {
+      const weitere = [...new Set(body.cupIds.map((x) => sauber(x, 120)).filter(Boolean))]
+        .filter((x) => x !== ev.cupId).slice(0, 12);
+      ev.cupIds = weitere.length ? weitere : undefined;
+    }
     if (body.beschreibung !== undefined) ev.beschreibung = sauber(body.beschreibung, 600) || undefined;
     await schreibGalerie(g);
     return NextResponse.json({ success: true, event: ev });
@@ -205,6 +243,7 @@ export async function DELETE(request: Request) {
     const e = g.eintraege.find((x) => x.id === id);
     if (!e) return NextResponse.json({ error: 'Eintrag unbekannt' }, { status: 404 });
     if (e.datei) await loescheBild(e.datei);
+    if (e.videoDatei) { try { await speicher.loesche(e.videoDatei); } catch { /* schon weg */ } }
     g.eintraege = g.eintraege.filter((x) => x.id !== id);
   } else if (eventId) {
     // Ein Event geht nur weg, wenn nichts mehr darin liegt - sonst waeren
