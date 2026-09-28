@@ -22,6 +22,7 @@ import CupArchiv from '@/app/components/CupArchiv';
 import { inselAusPlaylist } from '@/lib/inseln';
 import { istGlobalsEvent } from '@/lib/globalsCup';
 import { sichtbarerTakt } from '@/app/lib/takt';
+import { fortniteKarte, eigeneKarte } from '@/lib/bildAdressen';
 /**
  * Regionen, fuer die von selbst eine Karte bereitsteht.
  *
@@ -2843,8 +2844,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
           const format = groesse ? ({ 1: 'Solo', 2: 'Duo', 3: 'Trio', 4: 'Squad' } as Record<number, string>)[groesse] : null;
           const kartenName = st.reload ? insel?.titel ?? null : st.insel.art === 'br' ? 'Battle Royale' : null;
           const kartenBild = st.reload
-            ? (insel ? `/api/karten-bild?datei=1&id=${encodeURIComponent(insel.bildId)}` : null)
-            : st.insel.art === 'br' ? '/api/fortnite-map?bild=poi' : null;
+            ? (insel ? eigeneKarte(insel.bildId) : null)
+            : st.insel.art === 'br' ? fortniteKarte(true) : null;
           const zeile = (titel: string, wert: React.ReactNode) => (
             <p className="text-sm leading-relaxed text-slate-300">
               <span className="font-bold text-slate-100">{titel}:</span> {wert}

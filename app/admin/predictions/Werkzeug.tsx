@@ -37,6 +37,7 @@ import {
 } from '@/app/lib/kartenStil';
 import KartenWasserzeichen from '@/app/components/KartenWasserzeichen';
 import { useKartenVollbild } from '@/app/components/kartenVollbild';
+import { fortniteKarte as fortniteKartenBild, eigeneKarte as eigenesKartenBild } from '@/lib/bildAdressen';
 interface Fenster {
   status: string; begin: number;
   /** Fehlt bei nachgetragenen Turnieren. */
@@ -1048,8 +1049,8 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
 
     /* ------------------------------------------------------- Die Karte */
     const bildQuelle = bildId
-      ? `/api/karten-bild?datei=1&id=${encodeURIComponent(bildId)}`
-      : `/api/fortnite-map?bild=${orteSichtbar ? 'poi' : 'leer'}`;
+      ? eigenesKartenBild(bildId)
+      : fortniteKartenBild(orteSichtbar);
 
     await new Promise<void>((fertig) => {
       const img = new Image();
@@ -2574,8 +2575,8 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
                 className="absolute inset-0 h-full w-full object-cover"
                 onLoad={kartenBild.beiLaden} style={kartenBild.bildStil(vollbildKarte)}
                 src={bildId
-                  ? `/api/karten-bild?datei=1&id=${encodeURIComponent(bildId)}`
-                  : `/api/fortnite-map?bild=${orteSichtbar ? 'poi' : 'leer'}`} />
+                  ? eigenesKartenBild(bildId)
+                  : fortniteKartenBild(orteSichtbar)} />
 
               {/* thecomphub.com, wie auf jeder Karte - unter den Formen. */}
               <div className="pointer-events-none absolute inset-0 overflow-hidden"><KartenWasserzeichen /></div>

@@ -21,6 +21,7 @@ import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
+import { fortniteKarte } from '@/lib/bildAdressen';
 
 interface MatchKurz {
   id: string; nr: number; beginn?: string; ende?: number; sieger?: string[]; spieler?: number; zonen?: number;
@@ -51,7 +52,7 @@ function Karte({ kreise, punkte, beschriftung }: {
   return (
     <div className="relative aspect-square w-full overflow-hidden rounded-2xl border border-zinc-800 bg-sky-950">
       {/* eslint-disable-next-line @next/next/no-img-element */}
-      <img src="/api/fortnite-map?bild=leer" alt="" className="absolute inset-0 h-full w-full object-cover" />
+      <img src={fortniteKarte(false)} alt="" className="absolute inset-0 h-full w-full object-cover" />
       <svg viewBox="0 0 1000 1000" className="absolute inset-0 h-full w-full">
         {kreise.map((k, i) => (
           <g key={i}>

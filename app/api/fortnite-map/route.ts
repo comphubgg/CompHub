@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { promises as fs } from 'fs';
 import path from 'path';
+import { fortniteKarte } from '@/lib/bildAdressen';
 
 // Aktuelles Fortnite-Kartenbild samt Ortsnamen - von fortnite-api.com,
 // kostenlos und ohne Schluessel. Dadurch muss kein PNG mehr von Hand
@@ -74,6 +75,9 @@ export async function GET(request: Request) {
         'Content-Type': img.headers.get('content-type') ?? 'image/png',
         // Fuenf Minuten aus eigener Kraft, danach jedes Mal kurz nachfragen.
         'Cache-Control': 'public, max-age=300, must-revalidate',
+        // Cloudflare haelt es eine Stunde (lib/bildAdressen) - zwei Megabyte
+        // je Besuch waeren sonst Datenverkehr bei Render.
+        'CDN-Cache-Control': 'public, max-age=3600',
       };
       const stand = img.headers.get('last-modified');
       const marke = img.headers.get('etag');
@@ -104,8 +108,8 @@ export async function GET(request: Request) {
       ? null : Math.floor((Date.now() - standMs) / 86_400_000);
 
     return NextResponse.json({
-      bildMitNamen: '/api/fortnite-map?bild=poi',
-      bildOhneNamen: '/api/fortnite-map?bild=leer',
+      bildMitNamen: fortniteKarte(true),
+      bildOhneNamen: fortniteKarte(false),
       quelle: karte.daten.images.pois,
       stand: karte.stand,
       tageAlt,

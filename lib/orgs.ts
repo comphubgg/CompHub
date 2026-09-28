@@ -17,6 +17,7 @@
  */
 
 import { speicher, schreibJson } from '@/lib/ablage';
+import { orgBild } from '@/lib/bildAdressen';
 
 export const ORGS_DATEI = 'orgs.json';
 /** Das Jahr, dessen Preisgeld gezaehlt wird. */
@@ -97,6 +98,12 @@ export async function schreibOrgs(orgs: Org[]): Promise<void> {
 }
 
 const KONTO = /^[0-9a-f]{32}$/;
+
+/** Alte Adressen hochgeladener Bilder (/api/orgs/logo?datei=...) auf die, die Cloudflare zwischenspeichert. */
+function bildAdresse(url: string): string {
+  const m = /^\/api\/orgs\/logo\?datei=(.+)$/.exec(url);
+  return m ? orgBild(decodeURIComponent(m[1])) : url;
+}
 const TAG = /^\d{4}-\d{2}-\d{2}$/;
 
 /** Nur, was hineingehoert - auch fuer das, was vom Admin-Werkzeug kommt. */
@@ -111,8 +118,8 @@ export function saeubere(o: Partial<Org>): Org {
   return {
     id: text(o.id, 60).toLowerCase().replace(/[^a-z0-9-]/g, '') || 'org',
     name: text(o.name) || 'Unnamed',
-    logo: o.logo ? text(o.logo, 400) : null,
-    banner: o.banner ? text(o.banner, 400) : null,
+    logo: o.logo ? bildAdresse(text(o.logo, 400)) : null,
+    banner: o.banner ? bildAdresse(text(o.banner, 400)) : null,
     website: /^https?:\/\/[^\s]+\.[^\s]+/.test(web) ? web : null,
     x: konto(o.x),
     youtube: konto(o.youtube),

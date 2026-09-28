@@ -5,6 +5,7 @@ import { speicher } from '@/lib/ablage';
 import { kontoAus, nachId } from '@/lib/konten';
 import { istBetreiber, vipAus } from '@/lib/vipCookie';
 import { zugangNach, rechteVon } from '@/lib/vipZugaenge';
+import { orgBild } from '@/lib/bildAdressen';
 
 /*
  * Die Logos der Organisationen, die der Betreiber selbst hochlaedt.
@@ -127,7 +128,7 @@ export async function POST(request: Request) {
     try { await speicher.schreib(name, bild); } catch (e) {
       return NextResponse.json({ fehler: `Not saved: ${(e as Error).message}` }, { status: 503 });
     }
-    return NextResponse.json({ ok: true, banner: `/api/orgs/logo?datei=${encodeURIComponent(name)}` });
+    return NextResponse.json({ ok: true, banner: orgBild(name) });
   }
   if (!(datei instanceof File) || !datei.size) {
     return NextResponse.json({ fehler: 'No image received.' }, { status: 400 });
@@ -154,5 +155,5 @@ export async function POST(request: Request) {
   } catch (e) {
     return NextResponse.json({ fehler: `Not saved: ${(e as Error).message}` }, { status: 503 });
   }
-  return NextResponse.json({ ok: true, logo: `/api/orgs/logo?datei=${encodeURIComponent(name)}` });
+  return NextResponse.json({ ok: true, logo: orgBild(name) });
 }

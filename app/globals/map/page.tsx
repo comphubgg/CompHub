@@ -14,6 +14,7 @@ import { kartenSchrift, kartenName, formFarbe, hebeFormHervor } from '@/app/lib/
 import { REGION_DER_QUALI } from '@/lib/globalsRegionen';
 import KartenWasserzeichen from '@/app/components/KartenWasserzeichen';
 import { useKartenVollbild } from '@/app/components/kartenVollbild';
+import { fortniteKarte, eigeneKarte } from '@/lib/bildAdressen';
 
 /*
  * Eine Form der Turnierkarte.
@@ -326,8 +327,8 @@ function KartenBild({ karte, namenZu, markiert, zeige }: {
           className="pointer-events-none absolute inset-0 h-full w-full object-cover"
           onLoad={kartenBild.beiLaden} style={kartenBild.bildStil(vollbild)}
           src={karte.bildId
-            ? `/api/karten-bild?datei=1&id=${encodeURIComponent(karte.bildId)}`
-            : `/api/fortnite-map?bild=${karte.namenSichtbar ? 'poi' : 'leer'}`} />
+            ? eigeneKarte(karte.bildId)
+            : fortniteKarte(!!karte.namenSichtbar)} />
 
         {/* thecomphub.com, wie auf jeder Karte - unter den Formen. */}
         <div className="pointer-events-none absolute inset-0 overflow-hidden"><KartenWasserzeichen /></div>

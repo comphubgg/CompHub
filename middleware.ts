@@ -77,5 +77,5 @@ export const config = {
    * Schnittstellen, Nexts Bauwerk, die Bilddateien. Das spart bei jedem
    * Seitenaufruf eine Handvoll ueberfluessiger Durchlaeufe.
    */
-  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|logos|players|flags).*)'],
+  matcher: ['/((?!api|_next/static|_next/image|favicon.ico|logos|players|flags|bilder).*)'],
 };

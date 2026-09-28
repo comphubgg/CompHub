@@ -26,6 +26,7 @@ import {
 } from '@/app/lib/kartenStil';
 import KartenWasserzeichen from '@/app/components/KartenWasserzeichen';
 import { sichtbarerTakt } from '@/app/lib/takt';
+import { fortniteKarte, eigeneKarte } from '@/lib/bildAdressen';
 type Form = 'rechteck' | 'polygon';
 interface Punkt { x: number; y: number }
 interface Spot {
@@ -3147,8 +3148,8 @@ ${name}
 
       <img ref={bildRef}
         src={(bildId
-          ? `/api/karten-bild?datei=1&id=${encodeURIComponent(bildId)}`
-          : `/api/fortnite-map?bild=${orteSichtbar ? 'poi' : 'leer'}`)
+          ? eigeneKarte(bildId)
+          : fortniteKarte(orteSichtbar))
           + (bildStand ? `&v=${bildStand}` : '')}
         alt={uebs('Fortnite-Karte')} draggable={false} crossOrigin="anonymous"
         onLoad={messeRandFarbe}
