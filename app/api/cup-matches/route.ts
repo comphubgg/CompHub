@@ -11,6 +11,7 @@ import {
 import { zwischenspeichern } from '@/lib/zwischenspeicher';
 import { abgesagtFuer } from '@/lib/abgesagt';
 import { replayTag } from '@/lib/replaySchlank';
+import { ohneDateien } from '@/lib/antwortSpeicher';
 import { istGlobalsFinale } from '@/lib/globalsGesamt';
 import { GLOBALS_EVENT, GLOBALS_TAGE } from '@/lib/globalsCup';
 
@@ -248,7 +249,12 @@ async function holeRoh(request: Request) {
   // Bis zum ganzen Feld: eine Lobby einer Qualifikation zieht sich durch
   // die gesamte Bestenliste, und eine halbe Aufstellung waere schlimmer
   // als gar keine.
-  const limit = Math.min(parseInt(p.get('limit') ?? '500', 10) || 500, 10_000);
+  //
+  // Auf dem Host der Seite hoechstens zweitausend: die Aufstellungen eines
+  // Qualifiers mit zehntausend Teams waeren eine Antwort von rund 35 MB und
+  // Minuten Rechenzeit bei 0,1 CPU - genug, um Render umzuwerfen. Was dann
+  // unten fehlt, sagt die Seite dazu (feldGrenze).
+  const limit = Math.min(parseInt(p.get('limit') ?? '500', 10) || 500, ohneDateien() ? 2_000 : 10_000);
 
   if (!event || !window_) {
     return NextResponse.json({ error: 'event und window sind noetig' }, { status: 400 });
