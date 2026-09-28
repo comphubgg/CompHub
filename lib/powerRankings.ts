@@ -122,6 +122,10 @@ const laeuft = new Set<string>();
  * die Seite zeigt derweil den vorhandenen Stand und ist sofort da.
  */
 export function erneuereImHintergrund(region: string) {
+  // Auf dem Host der Seite (Render) gibt es weder das Skript noch Zeit dafuer -
+  // dort holt der stuendliche GitHub-Lauf die Liste. Ohne diese Sperre startete
+  // bei einem alten Stand jeder Aufruf einen Node-Prozess, der sofort scheitert.
+  if (process.env.COMPHUB_KEIN_HINTERGRUND) return;
   if (laeuft.has(region)) return;
   laeuft.add(region);
 

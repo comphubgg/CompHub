@@ -295,18 +295,12 @@ jobs:
         continue-on-error: true
         run: node scripts/lan-konten-zuordnen.mjs 2>&1 | tail -8
 
-      # Das Ranglisten-Skript liest Epics Seite in einem Browser. Der
-      # Browser fehlte auf dem Laufrechner - der Schritt endete nach null
-      # Sekunden, "continue-on-error" verschluckte es, und die Rangliste
-      # blieb seit dem 8. September stehen.
-      - name: Browser fuer die Weltrangliste
-        continue-on-error: true
-        timeout-minutes: 8
-        run: npx playwright install --with-deps chromium 2>&1 | tail -3
-
+      # Die Weltrangliste kommt seit dem 28.9.2026 ueber Epics Schnittstelle
+      # (wie die Cup-Bestenlisten) statt aus einem Browser - Epics Webseite
+      # lieferte den GitHub-Rechnern seit dem 23.9. keine Tabelle mehr.
       - name: Weltrangliste holen
         continue-on-error: true
-        timeout-minutes: 25
+        timeout-minutes: 6
         run: node scripts/power-rankings-holen.mjs 2>&1 | tail -8
 
       # Dasselbe wie im Live-Ablauf: ohne diese Adresse sucht das Skript das

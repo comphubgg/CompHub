@@ -1,332 +1,190 @@
-// Die Power Rankings von Epic holen.
+// Die Power Rankings von Epic holen - ueber Epics eigene Schnittstelle.
 //
-// Warum ueber den Browser und nicht per Abruf vom Server?
+// Bis zum 28.9.2026 las dieses Skript Epics Webseite in einem Browser aus.
+// Seit dem 23.9. lieferte die den GitHub-Rechnern keine Tabelle mehr, und die
+// Rangliste blieb auf einem Stand stehen, der bei Platz 101 begann. Der
+// Betreiber: "seit 105 Stunden alt ... man startet nicht bei 1, sondern bei
+// 101".
 //
-// Epics Seite holt ihre Daten von einer offenen Adresse - derselbe Pfad mit
-// angehaengtem ".data". Aus curl und aus einem gewoehnlichen Browserfenster
-// antwortet die; aus Node heraus dagegen mit 403, und ebenso aus einem
-// ferngesteuerten Browser - bei identischen Kopfzeilen. Erkannt wird also
-// nicht die Kennung, sondern die Art der Verbindung. Das gezielt auszuhebeln
-// waere das Umgehen einer Bot-Erkennung, und das unterbleibt hier.
+// Dabei ist die Weltrangliste bei Epic intern eine gewoehnliche
+// Turnier-Bestenliste: Event "epicgames_dreamyparadox", Fenster
+// "dreamyparadox" (so steht es in den Daten der Seite selbst). Solche
+// Bestenlisten holt das Werkzeug ohnehin fuer jeden Cup, mit dem Epic-Zugang
+// des Betreibers (lib/replayKern.mjs) - hundert Seiten zu hundert Plaetzen,
+// in einer halben Minute, ohne Browser. Dazu bringt jeder Eintrag die
+// Konto-Id mit, die der Webseite fehlte: Namen und Flaggen haengen jetzt an
+// der Id statt am angezeigten Namen.
 //
-// Was dagegen ohne Weiteres geht: die Seite ganz normal aufrufen und lesen,
-// was sie anzeigt. Genau das tut dieses Skript. Die Tabelle traegt Platz,
-// Wochenveraenderung, Flagge, Name und Wertung - mehr braucht die Rangliste
-// nicht. Mit "pageSize=100" in der Adresse kommen hundert Zeilen je Aufruf,
-// also hundert Aufrufe fuer die vollen zehntausend Plaetze.
-//
-// Aufruf:  node scripts/power-rankings-holen.mjs [Region ...] [--seiten N]
+// Aufruf:  node scripts/power-rankings-holen.mjs [--probe]
+//          --probe: holen und zusammenfassen, nichts schreiben
 
-import { chromium } from 'playwright';
-import { promises as fs } from 'fs';
+import { promises as fs, readFileSync } from 'fs';
 import path from 'path';
 
-const PRO_SEITE = 100;
-const ABLAGE = path.join(process.cwd(), 'data', 'power-rankings');
-
-const argumente = process.argv.slice(2);
-const seitenGrenze = (() => {
-  const i = argumente.indexOf('--seiten');
-  return i >= 0 ? Math.max(1, parseInt(argumente[i + 1], 10) || 100) : 100;
-})();
-const regionen = argumente
-  .filter((a) => !a.startsWith('--') && !/^\d+$/.test(a))
-  .map((r) => r.toUpperCase());
-// Epic fuehrt nur eine weltweite Liste; der Parameter in der Adresse
-// aendert am Ergebnis nichts. Abgelegt wird sie deshalb als "global".
-const ZIEL = regionen.length ? regionen : ['GLOBAL'];
-
-/** Eine Seite auslesen. Gibt zurueck, was in der Tabelle steht. */
-async function leseSeite(browser, region, nr) {
-  // Fuer jede Seite ein frischer Tab.
-  //
-  // Ein blosses goto auf dieselbe Adresse fing die Anwendung intern ab: die
-  // vorige Tabelle blieb stehen, und man las hundertmal dieselben Zeilen.
-  // Ein neuer Tab kennt keinen alten Zustand.
-  const seite = await browser.newPage({
-    userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-      + ' (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
-  });
-  try {
-  await seite.goto(
-    'https://www.fortnite.com/competitive/power-rankings'
-    + `?pageSize=${PRO_SEITE}&page=${nr}`,
-    { waitUntil: 'domcontentloaded', timeout: 60_000 },
-  );
-  // Warten, bis die Tabelle dieser Seite steht.
-  //
-  // Auf "mindestens eine Zeile" zu warten genuegt nicht: nach dem Wechsel
-  // steht die vorige Tabelle noch im Dokument, und dann liest man zweimal
-  // dieselben hundert Zeilen. Gewartet wird deshalb auf den Platz, der oben
-  // stehen muss - bei Seite 3 mit hundert Zeilen also auf 201.
-  const ersterPlatz = (nr - 1) * PRO_SEITE + 1;
-  await seite.waitForFunction(
-    (erwartet) => {
-      const erste = document.querySelector('table tbody tr');
-      if (!erste) return false;
-      const zahl = parseInt((erste.innerText.split('\n')[0] || '').replace(/\D/g, ''), 10);
-      return zahl === erwartet;
-    },
-    ersterPlatz, { timeout: 30_000 },
-  ).catch(() => {});
-
-  return await seite.evaluate(() => [...document.querySelectorAll('table tbody tr')].map((tr) => {
-    const zellen = [...tr.querySelectorAll('td,th')];
-    // Spalte 1 traegt Platz und Veraenderung nebeneinander.
-    const ersteZeilen = (zellen[0]?.innerText ?? '').split('\n')
-      .map((x) => x.trim()).filter(Boolean);
-    const rang = parseInt((ersteZeilen[0] ?? '').replace(/\D/g, ''), 10);
-
-    // Die Richtung steht nicht im Text.
-    //
-    // Neben dem Platz sitzt ein Abzeichen mit einer blanken Zahl - "2" heisst
-    // je nach Pfeil daneben zwei Plaetze hinauf oder zwei hinunter. Nimmt man
-    // nur den Text, geht es jedes Mal aufwaerts, und die halbe Liste stimmt
-    // nicht.
-    //
-    // Der Pfeil ist ein Chevron ohne Beschriftung. Erkennbar ist er an zwei
-    // Dingen: Epic faerbt ihn gold, wenn es hinaufgeht, und violett, wenn es
-    // hinuntergeht; und der Pfad beginnt oben rechts (M25…) beziehungsweise
-    // oben links (M6…). Beide Merkmale werden geprueft. Laesst sich die
-    // Richtung nicht bestimmen, wird nichts behauptet - dann bleibt das Feld
-    // leer und der Lauf meldet es.
-    const abzeichen = zellen[0]?.querySelector('div > span:nth-child(2) > span');
-    let delta = 0;
-    let unklar = false;
-    if (abzeichen) {
-      const betrag = parseInt((abzeichen.innerText || '').replace(/\D/g, ''), 10);
-      const stil = abzeichen.querySelector('div[style*="color"]')
-        ?.getAttribute('style') ?? '';
-      const pfad = abzeichen.querySelector('path')?.getAttribute('d') ?? '';
-      const hoch = /254,\s*184,\s*24/.test(stil) || /^M25\./.test(pfad);
-      const runter = /139,\s*64,\s*253/.test(stil) || /^M6\./.test(pfad);
-
-      if (!Number.isFinite(betrag) || hoch === runter) unklar = true;
-      else delta = hoch ? betrag : -betrag;
-    }
-
-    const flagge = zellen[1]?.querySelector('img')?.getAttribute('src') ?? '';
-    const land = (flagge.match(/flag-([A-Za-z]{2})\.png/) ?? [])[1] ?? '';
-    const name = (zellen[1]?.innerText ?? '').trim();
-    // "32.840" ist Epics Schreibweise fuer 32840.
-    const wertung = parseInt((zellen[2]?.innerText ?? '').replace(/\D/g, ''), 10);
-
-    return {
-      rank: Number.isFinite(rang) ? rang : null,
-      name,
-      land: land.toLowerCase(),
-      wertung: Number.isFinite(wertung) ? wertung : 0,
-      deltaPlatz: delta,
-      unklar,
-    };
-  }));
-  } finally {
-    await seite.close();
+// Zugangsdaten wie in den anderen Skripten aus .env.local (im Lauf schreibt
+// der Schritt "Zugangsdaten" sie dorthin).
+try {
+  for (const z of readFileSync('.env.local', 'utf8').split(/\r?\n/)) {
+    const i = z.indexOf('=');
+    const k = z.slice(0, i).trim();
+    if (i > 0 && !z.startsWith('#') && !process.env[k]) process.env[k] = z.slice(i + 1).trim().replace(/^"|"$/g, '');
   }
+} catch { /* nur Umgebung */ }
+
+const { holeNutzerToken, verwirfNutzerToken } = await import('../lib/replayKern.mjs');
+
+const EVENTS = 'https://events-public-service-live.ol.epicgames.com';
+const ACCOUNT = 'https://account-public-service-prod.ol.epicgames.com';
+const EVENT = 'epicgames_dreamyparadox';
+const FENSTER = 'dreamyparadox';
+const REGION = 'GLOBAL';
+const ABLAGE = path.join(process.cwd(), 'data', 'power-rankings');
+const probe = process.argv.includes('--probe');
+const warte = (ms) => new Promise((r) => setTimeout(r, ms));
+
+let zugang = await holeNutzerToken();
+
+/** Eine Abfrage mit Epic-Zugang; ein 401 heisst "Token verworfen", nicht "abgemeldet". */
+async function hole(url) {
+  for (let versuch = 1; versuch <= 4; versuch += 1) {
+    let r = await fetch(url, { headers: { Authorization: zugang.token }, signal: AbortSignal.timeout(30_000) }).catch(() => null);
+    if (r?.status === 401) {
+      verwirfNutzerToken();
+      zugang = await holeNutzerToken();
+      r = await fetch(url, { headers: { Authorization: zugang.token }, signal: AbortSignal.timeout(30_000) }).catch(() => null);
+    }
+    if (r?.ok) return r.json();
+    // 429 und Aussetzer: kurz warten, dann noch einmal.
+    await warte(1500 * versuch);
+  }
+  throw new Error(`Epic antwortet nicht: ${url.replace(/\/[0-9a-f]{32}\?/, '/…?')}`);
+}
+
+/*
+ * Flaggen: Epic nennt das Land als "GroupIdentity_GeoIdentity_<land>" -
+ * ausgeschrieben, klein, ohne Leerzeichen ("unitedstates"). Die Kuerzel
+ * kommen aus den englischen Laendernamen; England, Schottland und Wales
+ * fuehrt Epic einzeln, wie auf seiner Seite (flag-EN, flag-SCO, flag-WAL).
+ */
+const LAENDER = (() => {
+  const dn = new Intl.DisplayNames(['en'], { type: 'region' });
+  const karte = new Map();
+  for (let a = 65; a <= 90; a += 1) {
+    for (let b = 65; b <= 90; b += 1) {
+      const code = String.fromCharCode(a, b);
+      let name = '';
+      try { name = dn.of(code) ?? ''; } catch { continue; }
+      if (!name || name === code) continue;
+      karte.set(name.toLowerCase().normalize('NFKD').replace(/[^a-z]/g, ''), code.toLowerCase());
+    }
+  }
+  const extra = {
+    england: 'en', scotland: 'sco', wales: 'wal', northernireland: 'nir', unitedstates: 'us', usa: 'us',
+    unitedkingdom: 'gb', greatbritain: 'gb', southkorea: 'kr', korea: 'kr', russia: 'ru', czechia: 'cz',
+    czechrepublic: 'cz', turkey: 'tr', turkiye: 'tr', vietnam: 'vn', ivorycoast: 'ci', cotedivoire: 'ci',
+    bosnia: 'ba', bosniaandherzegovina: 'ba', northmacedonia: 'mk', macedonia: 'mk', uae: 'ae',
+    unitedarabemirates: 'ae', hongkong: 'hk', taiwan: 'tw', macau: 'mo', macao: 'mo', palestine: 'ps',
+    kosovo: 'xk', moldova: 'md', syria: 'sy', iran: 'ir', laos: 'la', bolivia: 'bo', venezuela: 've',
+    tanzania: 'tz', congo: 'cg', drcongo: 'cd', democraticrepublicofthecongo: 'cd', brunei: 'bn',
+    capeverde: 'cv', eswatini: 'sz', swaziland: 'sz', timorleste: 'tl', easttimor: 'tl',
+  };
+  for (const [k, v] of Object.entries(extra)) karte.set(k, v);
+  return karte;
+})();
+const unbekannteFlaggen = new Set();
+function land(token) {
+  const m = /GeoIdentity_(.+)$/.exec(token ?? '');
+  if (!m) return '';
+  const schluessel = m[1].toLowerCase().replace(/[^a-z]/g, '');
+  const code = LAENDER.get(schluessel);
+  if (!code) unbekannteFlaggen.add(m[1]);
+  return code ?? '';
+}
+
+/** Namen je Konto - hundert je Abfrage, vier Abfragen gleichzeitig (wie lib/epicCups). */
+async function namen(ids) {
+  const raus = new Map();
+  const bloecke = [];
+  for (let i = 0; i < ids.length; i += 100) bloecke.push(ids.slice(i, i + 100));
+  for (let i = 0; i < bloecke.length; i += 4) {
+    const antworten = await Promise.all(bloecke.slice(i, i + 4).map((b) =>
+      hole(`${ACCOUNT}/account/api/public/account?${b.map((id) => `accountId=${id}`).join('&')}`).catch(() => [])));
+    for (const acc of antworten.flat()) {
+      let name = acc.displayName;
+      if (!name && acc.externalAuths) {
+        const ext = Object.values(acc.externalAuths)[0];
+        name = ext?.externalDisplayName;
+      }
+      if (name) raus.set(acc.id, name);
+    }
+  }
+  return raus;
 }
 
 async function main() {
-  const browser = await chromium.launch({ headless: true });
-  /** Welche Dateien dieser Lauf neu geschrieben hat - die gehen in die Ablage. */
-  const geschrieben = [];
-  try {
-    for (const region of ZIEL) {
-      const gesammelt = [];
-      let leer = 0;
-
-      /** Welche Seiten ohne Zeilen blieben - die kommen am Ende noch einmal dran. */
-      const ohne = [];
-
-      for (let nr = 1; nr <= seitenGrenze; nr++) {
-        let zeilen = [];
-        /*
-         * Bis zu dreimal je Seite.
-         *
-         * Der erste Aufruf der Seite laeuft durch eine Kette von
-         * Weiterleitungen (Anmeldung, Region) und kam gelegentlich ohne
-         * Tabelle zurueck - der Lauf meldete dann "nur 0 Zeilen" und liess
-         * die alte Datei stehen. Der Betreiber: "wieso wurde die Power
-         * Ranking Page zuletzt vor dreizehn Tagen updated?" Ein zweiter
-         * Anlauf im frischen Tab genuegt in der Regel.
-         */
-        for (let versuch = 1; versuch <= 3 && !zeilen.some((z) => z.rank && z.name); versuch += 1) {
-          try {
-            zeilen = await leseSeite(browser, region, nr);
-          } catch (e) {
-            console.error(`${region} Seite ${nr} (Versuch ${versuch}): ${e.message}`);
-          }
-          if (!zeilen.some((z) => z.rank && z.name) && versuch < 3) {
-            await new Promise((r) => setTimeout(r, 4000 * versuch));
-          }
-        }
-
-        const brauchbar = zeilen.filter((z) => z.rank && z.name);
-        gesammelt.push(...brauchbar);
-
-        /*
-         * Wann ist die Liste zu Ende?
-         *
-         * Frueher hiessen zwei leere Seiten hintereinander "Ende". Am
-         * 23.9.2026 zeigte Epics Seite zwischendurch nur "OOPS" - der Lauf
-         * hoerte nach Platz 3500 auf, Seite 1 und die Plaetze 2201 bis 2300
-         * fehlten, und gespeichert wurden 3300 Spieler ab Platz 101. Der
-         * Betreiber: "startet bei 101 und hat nur 3300 Spieler, obwohl es
-         * 10.000 sein sollten."
-         *
-         * Jetzt ist erst das Ende, wenn eine Seite weniger als hundert Zeilen
-         * bringt (die letzte ist nie voll) oder fuenf Seiten hintereinander
-         * gar nichts - dann ist Epic ganz weg. Leere Seiten werden gemerkt
-         * und am Schluss noch einmal gelesen.
-         */
-        if (!brauchbar.length) {
-          ohne.push(nr);
-          /*
-           * Kommt schon am Anfang gar nichts, antwortet Epic diesem Rechner
-           * nicht. So ist es auf den GitHub-Rechnern (seit 25.9.2026: jede
-           * Seite leer, der Schritt hing neun Minuten) - von einem
-           * gewoehnlichen Anschluss aus kommt die Liste. Dann nicht weiter
-           * warten.
-           */
-          if (!gesammelt.length && nr >= 2) {
-            console.log(`${region}: Epic liefert diesem Rechner keine Tabelle - abgebrochen.`);
-            break;
-          }
-          if (++leer >= 5) break;
-        } else {
-          leer = 0;
-          if (brauchbar.length < PRO_SEITE) break;
-        }
-
-        if (nr % 10 === 0) {
-          console.log(`${region}: ${gesammelt.length} Zeilen nach Seite ${nr}`);
-        }
-      }
-
-      // Die leeren Seiten ein zweites Mal - nach einer Pause, in der sich
-      // Epics Seite meist wieder gefangen hat. Nur die vor der letzten
-      // gelesenen Seite: was danach kam, war das Ende der Liste.
-      const letzteMitZeilen = Math.max(0, ...gesammelt.map((z) => Math.ceil(z.rank / PRO_SEITE)));
-      const nachholen = ohne.filter((nr) => nr < letzteMitZeilen);
-      if (nachholen.length) {
-        console.log(`${region}: ${nachholen.length} Seiten blieben leer (${nachholen.join(', ')}) - zweiter Anlauf`);
-        await new Promise((r) => setTimeout(r, 20_000));
-        for (const nr of nachholen) {
-          for (let versuch = 1; versuch <= 3; versuch += 1) {
-            let zeilen = [];
-            try { zeilen = await leseSeite(browser, region, nr); } catch { /* naechster Versuch */ }
-            const brauchbar = zeilen.filter((z) => z.rank && z.name);
-            if (brauchbar.length) { gesammelt.push(...brauchbar); break; }
-            await new Promise((r) => setTimeout(r, 6000 * versuch));
-          }
-        }
-      }
-
-      if (gesammelt.length < 50) {
-        console.error(`${region}: nur ${gesammelt.length} Zeilen - die vorhandene `
-          + 'Datei bleibt stehen, ein halber Stand waere schlechter als der alte');
-        continue;
-      }
-
-      // Nach Platz sortieren und Dubletten entfernen, falls eine Seite
-      // zweimal gelesen wurde.
-      const nachPlatz = new Map();
-      for (const z of gesammelt) if (!nachPlatz.has(z.rank)) nachPlatz.set(z.rank, z);
-      const spieler = [...nachPlatz.values()]
-        .sort((a, b) => a.rank - b.rank)
-        .map((z) => ({
-          rank: z.rank, id: '', name: z.name, land: z.land,
-          wertung: z.wertung, bestwert: 0,
-          deltaWertung: 0, deltaPlatz: z.deltaPlatz,
-        }));
-
-      /*
-       * Vollstaendig oder nicht?
-       *
-       * Vollstaendig heisst: ab Platz 1 und ohne Loch. Ein unvollstaendiger
-       * Stand ersetzt nie einen vollstaendigen - "ein stiller Ausschnitt ist
-       * schlimmer als keine Liste". Liegt nur ein noch schlechterer Stand
-       * vor, geht der neue trotzdem hinein, aber mit Vermerk; die Seite sagt
-       * es dann dazu.
-       */
-      const fehlend = (s) => {
-        if (!s.length) return Infinity;
-        return s[s.length - 1].rank - s.length;
-      };
-      // Wie viele Plaetze zwischen 1 und dem letzten fehlen, oben eingeschlossen.
-      const luecke = fehlend(spieler);
-      const vollstaendig = spieler[0].rank === 1 && fehlend(spieler) === 0;
-      const ziel = path.join(ABLAGE, `${region.toLowerCase()}.json`);
-      if (!vollstaendig) {
-        let alt = null;
-        try { alt = JSON.parse(await fs.readFile(ziel, 'utf8')); } catch { /* keiner da */ }
-        if (!alt?.spieler?.length) {
-          // Kein Stand auf der Platte - der am Release zaehlt.
-          try {
-            const r = await fetch('https://github.com/comphubgg/CompHub/releases/download/daten-spieltage/'
-              + `power-rankings__${region.toLowerCase()}.json`, { signal: AbortSignal.timeout(30_000) });
-            if (r.ok) alt = await r.json();
-          } catch { /* dann eben keiner */ }
-        }
-        const altSp = alt?.spieler ?? [];
-        const altVoll = altSp.length && altSp[0].rank === 1 && fehlend(altSp) === 0;
-        const neuBesser = !altSp.length
-          || (!altVoll && spieler[0].rank <= altSp[0].rank && spieler.length > altSp.length);
-        console.warn(`${region}: unvollstaendig - erster Platz ${spieler[0].rank}, `
-          + `${spieler.length} Spieler, ${luecke} Plaetze fehlen`);
-        if (!neuBesser) {
-          console.warn(`${region}: der vorhandene Stand (${altSp.length} Spieler ab Platz `
-            + `${altSp[0]?.rank}) bleibt stehen`);
-          continue;
-        }
-      }
-
-      await fs.mkdir(ABLAGE, { recursive: true });
-      await fs.writeFile(
-        ziel,
-        JSON.stringify({
-          region, spieler, gesamt: spieler.length, geholt: Date.now(),
-          ...(vollstaendig ? {} : { unvollstaendig: true }),
-        }),
-        'utf8',
-      );
-      const mitLand = spieler.filter((s) => s.land).length;
-      const hoch = spieler.filter((s) => s.deltaPlatz > 0).length;
-      const runter = spieler.filter((s) => s.deltaPlatz < 0).length;
-      console.log(`${region}: ${spieler.length} Spieler gespeichert, ${mitLand} mit Flagge, `
-        + `${hoch} hinauf / ${runter} hinunter`);
-      // Ein Pfeil, dessen Richtung sich nicht bestimmen liess, ist ein Hinweis
-      // darauf, dass Epic das Abzeichen umgebaut hat.
-      const offen = gesammelt.filter((z) => z.unklar).length;
-      if (offen) console.warn(`${region}: bei ${offen} Zeilen war die Richtung unklar`);
-      geschrieben.push(`power-rankings/${region.toLowerCase()}.json`);
+  // Seite 0 sagt, wie viele Seiten es gibt; der Rest vier zugleich.
+  const erste = await hole(`${EVENTS}/api/v1/leaderboards/Fortnite/${EVENT}/${FENSTER}/${zugang.accountId}?page=0&rank=0&teamAccountIds=`);
+  const seiten = Math.min(Number(erste.totalPages) || 1, 200);
+  const alle = [...(erste.entries ?? [])];
+  const epicStand = erste.updatedTime ?? null;
+  for (let p = 1; p < seiten; p += 4) {
+    const gruppe = [];
+    for (let q = p; q < Math.min(p + 4, seiten); q += 1) {
+      gruppe.push(hole(`${EVENTS}/api/v1/leaderboards/Fortnite/${EVENT}/${FENSTER}/${zugang.accountId}?page=${q}&rank=0&teamAccountIds=`));
     }
-  } finally {
-    await browser.close();
+    for (const d of await Promise.all(gruppe)) alle.push(...(d.entries ?? []));
+    await warte(250);
   }
 
-  /*
-   * Den frischen Stand gleich in die Ablage bringen.
-   *
-   * Die Seite bei Vercel liest aus Supabase, nicht von diesem Rechner. Bis
-   * hierher schrieb der Lauf nur die Datei auf die Platte - auf dem
-   * Betreiber-Rechner dreimal am Tag, ohne dass je etwas davon die Seite
-   * erreichte; dort blieb der Stand des Laufrechners stehen, und der kam
-   * wochenlang nicht durch. Mit Zugangsdaten in .env.local geht der Stand
-   * jetzt direkt hinterher.
-   */
-  if (geschrieben.length) {
-    try {
-      const { spawnSync } = await import('child_process');
-      const skript = path.join(process.cwd(), 'scripts', 'umzug-supabase.mjs');
-      const lauf = spawnSync(process.execPath, [skript, '--nur', geschrieben.join(',')], {
-        cwd: process.cwd(), encoding: 'utf8', timeout: 120_000,
-      });
-      const zeile = (lauf.stdout || '').split('\n').find((z) => /Uebertragen|fehlen/.test(z));
-      console.log(zeile ? `Ablage: ${zeile.trim()}` : `Ablage: ${lauf.status === 0 ? 'hochgeladen' : 'nicht hochgeladen'}`);
-    } catch (e) {
-      console.warn('Ablage: nicht hochgeladen -', e.message);
-    }
+  const nachPlatz = new Map();
+  for (const e of alle) {
+    // Ein Platz ohne Konto (bei Epic ohne Namen, etwa ein geloeschtes
+    // Konto) bleibt stehen - sonst klaffte in der Liste ein Loch.
+    const id = e.teamAccountIds?.[0] ?? '';
+    const schluessel = id || `platz-${e.rank}`;
+    if (!e.rank || nachPlatz.has(schluessel)) continue;
+    const s = e.sessionHistory?.[0]?.trackedStats ?? {};
+    nachPlatz.set(schluessel, {
+      rank: e.rank, id, name: '', land: land(e.playerFlagTokens?.[id]),
+      wertung: Number(s.PR ?? e.pointsEarned) || 0,
+      bestwert: Number(s.peakPR) || 0,
+      deltaWertung: Number(s.deltaPR) || 0,
+      deltaPlatz: Number(s.deltaPosition) || 0,
+    });
   }
+  const spieler = [...nachPlatz.values()].sort((a, b) => a.rank - b.rank);
+  const namenJeKonto = await namen(spieler.map((s) => s.id).filter(Boolean));
+  let ohneName = 0;
+  for (const s of spieler) {
+    s.name = namenJeKonto.get(s.id) ?? '';
+    if (!s.name) ohneName += 1;
+  }
+
+  const luecke = spieler.length ? spieler[spieler.length - 1].rank - spieler.length : Infinity;
+  const vollstaendig = spieler[0]?.rank === 1 && luecke === 0;
+  console.log(`${REGION}: ${spieler.length} Plaetze von ${seiten} Seiten, erster ${spieler[0]?.rank}, `
+    + `Luecken ${luecke}, ohne Name ${ohneName}, mit Flagge ${spieler.filter((s) => s.land).length}, Epic-Stand ${epicStand}`);
+  if (unbekannteFlaggen.size) console.log(`Flaggen ohne Kuerzel: ${[...unbekannteFlaggen].join(', ')}`);
+  if (probe) {
+    const zaehl = new Map();
+    for (const s of spieler) zaehl.set(s.rank, (zaehl.get(s.rank) ?? 0) + 1);
+    const fehlt = Array.from({ length: spieler.at(-1)?.rank ?? 0 }, (_, i) => i + 1).filter((r) => !zaehl.has(r));
+    console.log('--probe: doppelte Plaetze', [...zaehl].filter(([, n]) => n > 1).slice(0, 10), 'fehlende', fehlt.slice(0, 10));
+    console.log(JSON.stringify(spieler.slice(0, 2)));
+    return;
+  }
+
+  // Ein unvollstaendiger Stand ersetzt nie einen vollstaendigen - "ein
+  // stiller Ausschnitt ist schlimmer als keine Liste".
+  if (!vollstaendig) {
+    console.error(`${REGION}: unvollstaendig - die vorhandene Datei bleibt stehen`);
+    process.exitCode = 1;
+    return;
+  }
+  await fs.mkdir(ABLAGE, { recursive: true });
+  await fs.writeFile(path.join(ABLAGE, `${REGION.toLowerCase()}.json`),
+    JSON.stringify({ region: REGION, spieler, gesamt: spieler.length, geholt: Date.now(), epicStand }), 'utf8');
+  console.log(`${REGION}: gespeichert`);
 }
 
 main().catch((e) => { console.error('Fehlgeschlagen:', e.message); process.exit(1); });

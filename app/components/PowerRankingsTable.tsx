@@ -296,7 +296,8 @@ export default function PowerRankingsTable() {
                             10". Der Orgtag bleibt - in einer Rangliste
                             gehoert er zum Namen. */}
                         <span className="truncate text-slate-200">
-                          {ohneZierrat(s.name)}
+                          {/* Epic fuehrt vereinzelt Plaetze ohne Namen (geloeschte Konten). */}
+                          {s.name ? ohneZierrat(s.name) : '—'}
                         </span>
                       </div>
                     </td>
