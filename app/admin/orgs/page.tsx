@@ -86,6 +86,10 @@ export default function OrgsAdmin() {
   const orgsRef = useRef<Org[]>([]);
   useEffect(() => { orgsRef.current = orgs; }, [orgs]);
   const dateiFeld = useRef<HTMLInputElement | null>(null);
+  /** Spielerfotos je Konto - kommen mit der Liste, gehoeren aber nicht zur Org. */
+  const [fotos, setFotos] = useState<Record<string, string>>({});
+  const [fotoLaedt, setFotoLaedt] = useState<string | null>(null);
+  const [fotoFehler, setFotoFehler] = useState('');
 
   useEffect(() => {
     fetch('/api/auth/check-admin', { cache: 'no-store' })
@@ -94,6 +98,12 @@ export default function OrgsAdmin() {
       .then(async (r) => {
         const j = await r.json().catch(() => null);
         if (!r.ok || !j?.orgs) { setFehler(j?.fehler ?? 'Storage is not answering right now.'); return; }
+        // Die Fotos fuer die Zeilen - gespeichert werden sie nicht mit der Org.
+        const f: Record<string, string> = {};
+        for (const o of j.orgs as Array<{ spieler: Array<{ epicId: string | null; bild?: string | null }> }>) {
+          for (const s of o.spieler) if (s.epicId && s.bild) f[s.epicId] = s.bild;
+        }
+        setFotos(f);
         // Nur die gepflegten Felder - Betraege und Fotos rechnet die Anzeige.
         setOrgs(j.orgs.map((o: Org & { spieler: Array<Spieler & Record<string, unknown>> }) => ({
           id: o.id, name: o.name, logo: o.logo, website: o.website, x: o.x,
@@ -155,6 +165,24 @@ export default function OrgsAdmin() {
     if (r.ok) { setOrgs((alt) => alt.filter((o) => o.id !== id)); setWahl(null); setStand(t('Gespeichert')); }
     else setStand(t('Nicht gespeichert'));
     setLoeschFrage(false);
+  };
+
+  /**
+   * Ein Spielerfoto hochladen. Der Betreiber: "wenn es keins hat" - ein
+   * vorhandenes laesst sich ersetzen, muss aber nicht.
+   */
+  const fotoHochladen = async (s: Spieler, datei: File) => {
+    if (!s.epicId) return;
+    setFotoLaedt(s.epicId); setFotoFehler('');
+    const form = new FormData();
+    form.set('datei', datei); form.set('epicId', s.epicId); form.set('name', s.name);
+    try {
+      const r = await fetch('/api/spielerbild/hochladen', { method: 'POST', body: form });
+      const j = await r.json().catch(() => null);
+      if (!r.ok || !j?.bild) { setFotoFehler(j?.fehler ?? `HTTP ${r.status}`); return; }
+      setFotos((v) => ({ ...v, [s.epicId!]: j.bild }));
+    } catch { setFotoFehler(t('Keine Verbindung zum Server.')); }
+    finally { setFotoLaedt(null); }
   };
 
   const logoHochladen = async (org: Org, datei: File) => {
@@ -292,11 +320,29 @@ export default function OrgsAdmin() {
             {/* ------------------------------------------------ Spieler */}
             <div>
               <h2 className="mb-2 text-sm font-semibold text-slate-200"><T>Spieler</T> · {org.spieler.length}</h2>
+              {fotoFehler && <p className="mb-2 rounded-lg border border-rose-600/50 bg-rose-950/40 px-3 py-2 text-sm text-rose-200">
+                <T>Foto nicht gespeichert:</T> {fotoFehler}</p>}
               <div className="mb-3 space-y-1.5">
                 {org.spieler.map((s, i) => (
                   <div key={`${s.epicId ?? s.name}-${i}`}
                     className="flex flex-wrap items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2">
-                    <span className="min-w-[8rem] flex-1 text-sm font-medium text-slate-100">{s.name}</span>
+                    {/* Das Foto - mit Konto laesst es sich hochladen oder ersetzen. */}
+                    <label className={`relative h-12 w-10 shrink-0 overflow-hidden rounded-md border border-zinc-800 bg-zinc-900
+                                       ${s.epicId ? 'cursor-pointer hover:border-sky-500' : 'opacity-40'}`}
+                      title={s.epicId ? (s.epicId && fotos[s.epicId] ? t('Foto ersetzen') : t('Foto hochladen')) : t('Erst ein Konto zuweisen')}>
+                      {s.epicId && fotos[s.epicId]
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        ? <img src={fotos[s.epicId]} alt="" className="h-full w-full object-cover object-top" />
+                        : <span className="flex h-full w-full items-center justify-center text-lg text-zinc-600">+</span>}
+                      {fotoLaedt === s.epicId && <span className="absolute inset-0 flex items-center justify-center bg-black/60">
+                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-600 border-t-sky-400" /></span>}
+                      {s.epicId && <input type="file" accept="image/*" className="hidden"
+                        onChange={(e) => { const d = e.target.files?.[0]; e.target.value = ''; if (d) void fotoHochladen(s, d); }} />}
+                    </label>
+                    <span className="min-w-[8rem] flex-1 text-sm font-medium text-slate-100">
+                      {s.name}
+                      {s.epicId && !fotos[s.epicId] && <span className="ml-2 text-xs font-normal text-amber-400/80"><T>ohne Foto</T></span>}
+                    </span>
                     {s.epicId
                       ? <span className="text-xs text-emerald-400" title={s.epicId}>✓ <T>Konto</T></span>
                       : (

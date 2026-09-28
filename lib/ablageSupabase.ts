@@ -63,6 +63,7 @@ const IM_OBJEKTSPEICHER = [
   '_sicherung/',
   // Die Logos der E-Sports-Organisationen (app/api/orgs/logo).
   'org-logos/',
+  'spielerfotos/',
 ];
 
 function alsObjekt(name: string): boolean {

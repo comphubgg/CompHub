@@ -31,6 +31,20 @@ const nextConfig: NextConfig = {
   turbopack: {
     root: __dirname,
   },
+  /*
+   * Spielerfotos, die der Betreiber im Admin-Werkzeug hochlaedt, liegen im
+   * Objektspeicher statt im Ordner public/spielerbilder. Dieselbe Adresse
+   * fuer beide: was dort nicht als Datei liegt, liefert die Schnittstelle.
+   */
+  async rewrites() {
+    return {
+      beforeFiles: [],
+      afterFiles: [],
+      fallback: [
+        { source: '/spielerbilder/:datei', destination: '/api/spielerbild/hochladen?datei=:datei' },
+      ],
+    };
+  },
   async redirects() {
     return ALTE_ADRESSEN.flatMap(([alt, neu]) => [
       { source: alt, destination: neu, permanent: true },

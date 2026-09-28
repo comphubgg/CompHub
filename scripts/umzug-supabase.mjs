@@ -54,6 +54,7 @@ const IM_OBJEKTSPEICHER = [
   'galerie/',
   // Die Logos der E-Sports-Organisationen (app/api/orgs/logo).
   'org-logos/',
+  'spielerfotos/',
 ];
 
 /**
