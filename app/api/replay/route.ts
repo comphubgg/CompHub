@@ -38,9 +38,9 @@ export async function GET(request: Request) {
       return zwischenspeichern(NextResponse.json({ ...daten, info: e }, { headers: { 'Cache-Control': 'public, max-age=3600' } }), 86_400);
     }
     // Nach Spieltag gruppiert, darin nach Beginn; die Games nummeriert.
-    const tage = new Map<string, { windowId: string; titel: string; region: string; season: string; matches: Array<IndexEintrag & { id: string; nr: number }> }>();
+    const tage = new Map<string, { windowId: string; eventId: string; titel: string; region: string; season: string; matches: Array<IndexEintrag & { id: string; nr: number }> }>();
     for (const [id, e] of Object.entries(alle)) {
-      const t = tage.get(e.windowId) ?? { windowId: e.windowId, titel: e.titel ?? e.windowId, region: e.region ?? '', season: e.season ?? '', matches: [] };
+      const t = tage.get(e.windowId) ?? { windowId: e.windowId, eventId: e.eventId, titel: e.titel ?? e.windowId, region: e.region ?? '', season: e.season ?? '', matches: [] };
       t.matches.push({ ...e, id, nr: 0 });
       tage.set(e.windowId, t);
     }

@@ -22,11 +22,12 @@ import { useEffect, useMemo, useState } from 'react';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import { fortniteKarte } from '@/lib/bildAdressen';
+import ZonenBild from './ZonenBild';
 
 interface MatchKurz {
   id: string; nr: number; beginn?: string; ende?: number; sieger?: string[]; spieler?: number; zonen?: number;
 }
-interface Tag { windowId: string; titel: string; region: string; season: string; matches: MatchKurz[] }
+interface Tag { windowId: string; eventId?: string; titel: string; region: string; season: string; matches: MatchKurz[] }
 interface Spieler {
   id: number; epic?: string; name?: string; bot?: boolean; team?: number; platz?: number;
   kills?: number; teamKills?: number; tod?: number; todX?: number; todY?: number;
@@ -105,6 +106,11 @@ export default function ReplaySeite() {
   }, [t]);
 
   const tag = tage?.find((x) => x.windowId === tagWahl) ?? null;
+  // Alle Tage desselben Turniers, der Reihe nach - fuer das Zonen-Bild.
+  const turnierTage = useMemo(() => (tag && tage
+    ? tage.filter((x) => (tag.eventId ? x.eventId === tag.eventId : x.windowId === tag.windowId))
+      .sort((a, b) => String(a.matches[0]?.beginn ?? '').localeCompare(String(b.matches[0]?.beginn ?? '')))
+    : []), [tag, tage]);
 
   // Fuer die Zonen-Uebersicht eines Tages alle seine Games laden.
   useEffect(() => {
@@ -221,6 +227,7 @@ export default function ReplaySeite() {
 
             <section className="min-w-0 space-y-5">
               {/* ---- Zonen eines ganzen Tages ---- */}
+              {tag && !matchWahl && turnierTage.length > 0 && <ZonenBild key={turnierTage.map((x) => x.windowId).join('|')} tage={turnierTage} />}
               {tag && !matchWahl && (
                 <>
                   <div className="flex flex-wrap items-center gap-2">
