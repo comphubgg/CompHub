@@ -1,10 +1,11 @@
 import { NextResponse } from 'next/server';
 import { gecacht, listeCups, istEingerichtet, EpicLoginNoetig } from '@/lib/epicCups';
+import { zwischenspeichern } from '@/lib/zwischenspeicher';
 
 // Alle Cups einer Region: laufende, kommende und vergangene.
 //   ?region=EU|NAC|NAW|BR|ASIA|ME|OCE
 
-export async function GET(request: Request) {
+async function holeRoh(request: Request) {
   const { searchParams } = new URL(request.url);
   const region = searchParams.get('region') ?? 'EU';
 
@@ -22,4 +23,9 @@ export async function GET(request: Request) {
       { status: login ? 401 : 500 },
     );
   }
+}
+
+/** Fuer alle gleich - Vercels Zwischenspeicher beantwortet Wiederholungen (lib/zwischenspeicher). */
+export async function GET(request: Request) {
+  return zwischenspeichern(await holeRoh(request), 60);
 }

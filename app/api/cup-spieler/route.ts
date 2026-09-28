@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import fs from '@/lib/ablageFs';
 import path from 'path';
 import { DATEN_ORT } from '@/lib/datenOrt';
+import { zwischenspeichern } from '@/lib/zwischenspeicher';
 
 // Werte je einzelnem Spieler - aus den Replays.
 //
@@ -100,7 +101,7 @@ async function letzterLauf() {
   } catch { return null; }
 }
 
-export async function GET(request: Request) {
+async function holeRoh(request: Request) {
   const p = new URL(request.url).searchParams;
   const fenster = p.get('window');
   if (!fenster) {
@@ -220,4 +221,9 @@ export async function GET(request: Request) {
     spieler,
     hinweis: 'Counted from the replays of this match day, per player.',
   });
+}
+
+/** Fuer alle gleich - Vercels Zwischenspeicher beantwortet Wiederholungen (lib/zwischenspeicher). */
+export async function GET(request: Request) {
+  return zwischenspeichern(await holeRoh(request), 60);
 }

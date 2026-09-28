@@ -8,6 +8,7 @@ import {
 } from '@/lib/cupWertung';
 import { DATEN_ORT } from '@/lib/datenOrt';
 import { lanEintraege, tabelleFuer } from '@/lib/preisgeld';
+import { zwischenspeichern } from '@/lib/zwischenspeicher';
 
 // Was es in einem Cup zu gewinnen gibt.
 //
@@ -129,7 +130,7 @@ async function gepflegte(): Promise<Gepflegt[]> {
   } catch { return []; }
 }
 
-export async function GET(request: Request) {
+async function holeRoh(request: Request) {
   const { searchParams } = new URL(request.url);
   const window_ = searchParams.get('window');
   const region = (searchParams.get('region') ?? 'EU').toUpperCase();
@@ -357,4 +358,9 @@ export async function GET(request: Request) {
     vorhanden: true, window: window_, region, waehrung,
     geld: gespannt, gegenstaende, gesamt, wertung,
   });
+}
+
+/** Fuer alle gleich - Vercels Zwischenspeicher beantwortet Wiederholungen (lib/zwischenspeicher). */
+export async function GET(request: Request) {
+  return zwischenspeichern(await holeRoh(request), 300);
 }

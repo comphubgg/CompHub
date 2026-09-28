@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { bilder } from '@/lib/epicCups';
 import { namensSchluessel } from '@/lib/homoglyph';
+import { zwischenspeichern } from '@/lib/zwischenspeicher';
 
 /*
  * Das Foto zu einem Namen.
@@ -22,7 +23,7 @@ import { namensSchluessel } from '@/lib/homoglyph';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-export async function GET(request: Request) {
+async function holeRoh(request: Request) {
   const name = (new URL(request.url).searchParams.get('name') ?? '').trim();
   if (!name) return NextResponse.json({ img: null });
 
@@ -45,4 +46,9 @@ export async function GET(request: Request) {
   return NextResponse.json({
     img: treffer ? `/spielerbilder/${encodeURIComponent(treffer.file)}` : null,
   });
+}
+
+/** Fuer alle gleich - Vercels Zwischenspeicher beantwortet Wiederholungen (lib/zwischenspeicher). */
+export async function GET(request: Request) {
+  return zwischenspeichern(await holeRoh(request), 3600);
 }

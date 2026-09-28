@@ -12,6 +12,7 @@ import {
 } from '@/lib/szeneStats';
 import { DATEN_ORT } from '@/lib/datenOrt';
 import { getToken, loeseNamenAuf } from '@/lib/epicCups';
+import { zwischenspeichern } from '@/lib/zwischenspeicher';
 
 /**
  * Das Namensverzeichnis - Konto-Id auf die Namen, unter denen jemand
@@ -276,7 +277,7 @@ async function holeSuchIndex(): Promise<SuchEintrag[]> {
   return stand;
 }
 
-export async function GET(request: Request) {
+async function holeRoh(request: Request) {
   const url = new URL(request.url);
   const ansicht = url.searchParams.get('ansicht') ?? '';
 
@@ -1332,4 +1333,9 @@ async function berechne(request: Request) {
     return NextResponse.json(
       { success: false, error: (fehler as Error).message }, { status: 500 });
   }
+}
+
+/** Fuer alle gleich - Vercels Zwischenspeicher beantwortet Wiederholungen (lib/zwischenspeicher). */
+export async function GET(request: Request) {
+  return zwischenspeichern(await holeRoh(request), 60);
 }

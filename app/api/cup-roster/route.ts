@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
 import { gecacht, holeTop, ergaenzeBilder, bilder, EpicLoginNoetig } from '@/lib/epicCups';
+import { zwischenspeichern } from '@/lib/zwischenspeicher';
 
 // Alle Teams eines Cups mit der Information, wer ein Bild hinterlegt hat.
 // Grundlage fuer Spielerauswahl, Rotation und Karte.
 //   ?event=…&window=…&limit=100
 
-export async function GET(request: Request) {
+async function holeRoh(request: Request) {
   const { searchParams } = new URL(request.url);
   const event = searchParams.get('event');
   const window_ = searchParams.get('window');
@@ -46,4 +47,9 @@ export async function POST() {
     bilder: b.players.map((x) => x.key),
     logos: b.logos.map((x) => x.key),
   });
+}
+
+/** Fuer alle gleich - Vercels Zwischenspeicher beantwortet Wiederholungen (lib/zwischenspeicher). */
+export async function GET(request: Request) {
+  return zwischenspeichern(await holeRoh(request), 60);
 }

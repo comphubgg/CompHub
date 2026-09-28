@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { promises as fs } from 'fs';
 import path from 'path';
+import { zwischenspeichern } from '@/lib/zwischenspeicher';
 
 // Welche Flaggen liegen im Ordner?
 //
@@ -13,7 +14,7 @@ import path from 'path';
 
 const ORDNER = path.join(process.cwd(), 'public', 'flags');
 
-export async function GET() {
+async function holeRoh() {
   try {
     const dateien = await fs.readdir(ORDNER);
     const flaggen = dateien
@@ -26,4 +27,9 @@ export async function GET() {
   } catch {
     return NextResponse.json({ flaggen: [] });
   }
+}
+
+/** Fuer alle gleich - Vercels Zwischenspeicher beantwortet Wiederholungen (lib/zwischenspeicher). */
+export async function GET() {
+  return zwischenspeichern(await holeRoh(), 3600);
 }

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { getToken, EVENTS, gecacht } from '@/lib/epicCups';
 import { qualiZeilen, type QualiZeile } from '@/lib/qualiText';
+import { zwischenspeichern } from '@/lib/zwischenspeicher';
 
 /*
  * Wer bei diesem Spieltag mitspielen darf.
@@ -30,7 +31,7 @@ interface RohesEreignis {
   eventWindows?: Array<{ eventWindowId: string } & Record<string, unknown>>;
 }
 
-export async function GET(request: Request) {
+async function holeRoh(request: Request) {
   const p = new URL(request.url).searchParams;
   const event = (p.get('event') ?? '').trim();
   const fenster = (p.get('window') ?? '').trim();
@@ -80,4 +81,9 @@ export async function GET(request: Request) {
      */
     return NextResponse.json({ ok: false, zeilen: [], grund: (e as Error).message });
   }
+}
+
+/** Fuer alle gleich - Vercels Zwischenspeicher beantwortet Wiederholungen (lib/zwischenspeicher). */
+export async function GET(request: Request) {
+  return zwischenspeichern(await holeRoh(request), 30);
 }

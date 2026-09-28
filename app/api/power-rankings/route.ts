@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { LISTE, erneuereImHintergrund, istAlt, lies } from '@/lib/powerRankings';
 import { gefaltet, namensSchluessel } from '@/lib/homoglyph';
+import { zwischenspeichern } from '@/lib/zwischenspeicher';
 
 // Die Power Rankings, seitenweise.
 //
@@ -17,7 +18,7 @@ import { gefaltet, namensSchluessel } from '@/lib/homoglyph';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-export async function GET(request: Request) {
+async function holeRoh(request: Request) {
   const p = new URL(request.url).searchParams;
   const seite = Math.max(1, parseInt(p.get('page') || '1', 10) || 1);
   const proSeite = Math.min(200, Math.max(10, parseInt(p.get('pageSize') || '50', 10) || 50));
@@ -98,4 +99,9 @@ export async function GET(request: Request) {
       { status: 500 },
     );
   }
+}
+
+/** Fuer alle gleich - Vercels Zwischenspeicher beantwortet Wiederholungen (lib/zwischenspeicher). */
+export async function GET(request: Request) {
+  return zwischenspeichern(await holeRoh(request), 300);
 }

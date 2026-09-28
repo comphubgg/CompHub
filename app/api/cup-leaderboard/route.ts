@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import {
   gecacht, holeTop, holeBereich, findeSpieler, ergaenzeBilder, EpicLoginNoetig,
 } from '@/lib/epicCups';
+import { zwischenspeichern } from '@/lib/zwischenspeicher';
 
 // Live-Leaderboard eines Cups.
 //   ?event=…&window=…            -> Top-Liste
@@ -30,7 +31,7 @@ const TTL = 45_000;
  */
 export const maxDuration = 60;
 
-export async function GET(request: Request) {
+async function holeRoh(request: Request) {
   const { searchParams } = new URL(request.url);
   const event = searchParams.get('event');
   const window_ = searchParams.get('window');
@@ -84,4 +85,9 @@ export async function GET(request: Request) {
       { status: login ? 401 : 500 },
     );
   }
+}
+
+/** Fuer alle gleich - Vercels Zwischenspeicher beantwortet Wiederholungen (lib/zwischenspeicher). */
+export async function GET(request: Request) {
+  return zwischenspeichern(await holeRoh(request), 20);
 }

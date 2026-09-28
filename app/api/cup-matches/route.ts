@@ -8,6 +8,7 @@ import {
 import {
   holeKatalog, punkteFuerRunde, regionAus, wertungVon, type WertungsRegel,
 } from '@/lib/cupWertung';
+import { zwischenspeichern } from '@/lib/zwischenspeicher';
 
 // Die einzelnen Runden eines Spieltags.
 //
@@ -240,7 +241,7 @@ async function lobbyBesetzung(
   }
 }
 
-export async function GET(request: Request) {
+async function holeRoh(request: Request) {
   const p = new URL(request.url).searchParams;
   const event = p.get('event');
   const window_ = p.get('window');
@@ -674,4 +675,9 @@ export async function GET(request: Request) {
       { status: login ? 401 : 500 },
     );
   }
+}
+
+/** Fuer alle gleich - Vercels Zwischenspeicher beantwortet Wiederholungen (lib/zwischenspeicher). */
+export async function GET(request: Request) {
+  return zwischenspeichern(await holeRoh(request), 20);
 }

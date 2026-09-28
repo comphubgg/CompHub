@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { gecacht, holeTop, EpicLoginNoetig, type CupEintrag } from '@/lib/epicCups';
+import { zwischenspeichern } from '@/lib/zwischenspeicher';
 
 // Bestenlisten je Kennzahl fuer einen Spieltag - die Grundlage fuer die
 // Turnier-Statistikseite und die Beitragsvorlagen.
@@ -55,7 +56,7 @@ const KATEGORIEN: Kategorie[] = [
     faktor: 1 / 60, nachkomma: 0, wert: (e) => e.timeAlive },
 ];
 
-export async function GET(request: Request) {
+async function holeRoh(request: Request) {
   const { searchParams } = new URL(request.url);
   const event = searchParams.get('event');
   const window_ = searchParams.get('window');
@@ -149,4 +150,9 @@ export async function GET(request: Request) {
       { status: login ? 401 : 500 },
     );
   }
+}
+
+/** Fuer alle gleich - Vercels Zwischenspeicher beantwortet Wiederholungen (lib/zwischenspeicher). */
+export async function GET(request: Request) {
+  return zwischenspeichern(await holeRoh(request), 30);
 }

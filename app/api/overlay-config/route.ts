@@ -166,7 +166,14 @@ export async function GET(request: Request) {
      */
     return NextResponse.json({
       id: e.id, typ: e.typ, stand: e.stand, config: e.config,
-    }, { headers: { 'Cache-Control': 'no-store' } });
+    }, {
+      /*
+       * Jedes Overlay in OBS fragt alle paar Sekunden nach, stundenlang.
+       * Vercels Zwischenspeicher beantwortet das; eine Aenderung im Studio
+       * kommt nach hoechstens zehn Sekunden an (lib/zwischenspeicher).
+       */
+      headers: { 'Cache-Control': 'no-store', 'Vercel-CDN-Cache-Control': 'max-age=10, stale-while-revalidate=60' },
+    });
   }
 
   if (p.get('meine')) {

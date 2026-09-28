@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import {
   gecacht, holeTop, cupsGruppiert, REGIONEN, EpicLoginNoetig,
 } from '@/lib/epicCups';
+import { zwischenspeichern } from '@/lib/zwischenspeicher';
 
 // Wie viele Punkte es voraussichtlich braucht, um weiterzukommen.
 //
@@ -35,7 +36,7 @@ function reihe(windowId: string): string {
     .toLowerCase();
 }
 
-export async function GET(request: Request) {
+async function holeRoh(request: Request) {
   const p = new URL(request.url).searchParams;
   const window_ = p.get('window');
   const region = (p.get('region') ?? 'EU').toUpperCase();
@@ -210,4 +211,9 @@ export async function GET(request: Request) {
     hinweis: schnitt === null
       ? 'Zu den früheren Ausgaben liegen keine Ergebnisse vor.' : null,
   });
+}
+
+/** Fuer alle gleich - Vercels Zwischenspeicher beantwortet Wiederholungen (lib/zwischenspeicher). */
+export async function GET(request: Request) {
+  return zwischenspeichern(await holeRoh(request), 20);
 }
