@@ -122,10 +122,12 @@ export default function StatKacheln({ spieler, listen = TURNIER_KACHELN, anzahl 
             </p>
             <div className="divide-y divide-zinc-900">
               {k.zeilen.slice(0, anzahl).map((s, i) => (
-                <button key={s.epicId} type="button" onClick={aufKlick ? () => aufKlick(s) : undefined}
-                  disabled={!aufKlick}
+                // Kein deaktivierter Knopf: der bekommt im Browser keine
+                // Maus-Ereignisse, und das Hervorheben blieb aus.
+                <div key={s.epicId} role={aufKlick ? 'button' : undefined} tabIndex={aufKlick ? 0 : undefined}
+                  onClick={aufKlick ? () => aufKlick(s) : undefined}
                   onMouseEnter={() => setMarkiert(s.epicId)}
-                  className={`flex w-full items-center gap-3 px-3 py-2 text-left transition ${markiert === s.epicId
+                    className={`flex w-full items-center gap-3 px-3 py-2 text-left transition ${aufKlick ? 'cursor-pointer' : ''} ${markiert === s.epicId
                     ? 'rounded-md bg-sky-500/10 ring-1 ring-inset ring-sky-500/70'
                     : aufKlick ? 'hover:bg-zinc-900/60' : ''}`}>
                   <span className={`w-5 shrink-0 text-[11px] font-bold tabular-nums ${i === 0 ? 'text-amber-400' : 'text-slate-600'}`}>
@@ -136,7 +138,7 @@ export default function StatKacheln({ spieler, listen = TURNIER_KACHELN, anzahl 
                   <span className="shrink-0 text-[12px] font-bold tabular-nums text-sky-400">
                     {wert(k, Number(s[k.feld]))}
                   </span>
-                </button>
+                </div>
               ))}
             </div>
           </div>

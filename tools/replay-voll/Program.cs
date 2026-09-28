@@ -20,10 +20,26 @@ var replay = reader.ReadReplay(datei);
 var einst = new JsonSerializerSettings { ReferenceLoopHandling = ReferenceLoopHandling.Ignore, NullValueHandling = NullValueHandling.Ignore };
 
 if (probe) {
+  // Was der Leser ueberhaupt kennt: jede Eigenschaft des Replays (mit
+  // Anzahl, wo es eine Sammlung ist) und des ersten Spielers mit Wert -
+  // gesucht sind Schaden, Treffer, Material je Spieler (Osirion zeigt sie).
+  static object Beschreibe(object? o) {
+    if (o is null) return "null";
+    if (o is string str) return str.Length > 80 ? str[..80] : str;
+    if (o is System.Collections.ICollection c) return $"Sammlung[{c.Count}]";
+    if (o is System.Collections.IEnumerable e && o is not string) { var n = 0; foreach (var _ in e) n++; return $"Folge[{n}]"; }
+    return o.ToString() ?? "";
+  }
   var sp = replay.PlayerData.Where(p => !p.IsBot).ToList();
+  var ersteR = replay.GetType().GetProperties().ToDictionary(p => p.Name, p => { try { return Beschreibe(p.GetValue(replay)); } catch (Exception ex) { return "fehler " + ex.GetType().Name; } });
+  var erster = sp.FirstOrDefault();
+  var ersteS = erster?.GetType().GetProperties().ToDictionary(p => p.Name, p => { try { return Beschreibe(p.GetValue(erster)); } catch (Exception ex) { return "fehler " + ex.GetType().Name; } });
+  var gs = replay.GameData;
+  var ersteG = gs?.GetType().GetProperties().ToDictionary(p => p.Name, p => { try { return Beschreibe(p.GetValue(gs)); } catch (Exception ex) { return "fehler " + ex.GetType().Name; } });
   Console.WriteLine(JsonConvert.SerializeObject(new {
     Spieler = sp.Count, MitOrten = sp.Count(p => (p.Locations?.Count ?? 0) > 0),
     Zonen = replay.MapData?.SafeZones?.Count ?? -1,
+    Replay = ersteR, ErsterSpieler = ersteS, Spiel = ersteG,
   }, Formatting.Indented, einst));
   return;
 }

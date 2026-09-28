@@ -92,9 +92,14 @@ jobs:
           cd tools/replay-voll
           dotnet run -c Release -- ../../probe.replay > ../../probe.json 2> ../../probe.err || true
           head -c 6000 ../../probe.json; echo; tail -20 ../../probe.err
+          # Was kennt der Leser je Spieler? (Schaden, Treffer, Material)
+          dotnet run -c Release -- --probe ../../probe.replay > ../../probe-felder.json 2>> ../../probe.err || true
+          cat ../../probe-felder.json | head -c 12000
       - uses: actions/upload-artifact@v4
         with:
           name: replay-probe
-          path: probe.json
+          path: |
+            probe.json
+            probe-felder.json
       - if: always()
         run: rm -f .env.local
