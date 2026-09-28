@@ -720,7 +720,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
    */
   const [reiter, setReiter] =
     useState<'liste' | 'runden' | 'spieler' | 'teams' | 'streams'
-      | 'about' | 'archiv'>('liste');
+      | 'about' | 'archiv' | 'preis'>('liste');
 
   /*
    * Das Archiv zu diesem Cup - Fotos und Videos vom Event (lib/galerie).
@@ -2554,7 +2554,10 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
             Steht nur da, wenn Epic zu diesem Spieltag wirklich eine
             Auszahlungstabelle fuehrt - bei Practice-Cups gibt es keine, und
             eine leere Ueberschrift waere ein falsches Versprechen. */}
-        {preise?.vorhanden
+        {/* Seit dem 28.9.2026 ein eigener Reiter neben Leaderboard, Matches
+            und Player Stats (Betreiber: "in der gleichen Liste ... dass man
+            das so pop-upen kann"). */}
+        {reiter === 'preis' && preise?.vorhanden
           && (preise.geld.length > 0 || preise.gegenstaende.length > 0) && (
           <section className="mb-5 rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
             {/*
@@ -2815,6 +2818,16 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
             * den uebrigen Reitern - der Betreiber wollte unter Events sehen,
             * "wie man sich qualifizieren kann".
             */}
+          {preise?.vorhanden && (preise.geld.length > 0 || preise.gegenstaende.length > 0) && (
+            <button
+              onClick={() => setReiter('preis')}
+              className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                reiter === 'preis'
+                  ? 'bg-sky-500/10 text-sky-400'
+                  : 'text-slate-400 hover:text-slate-200'}`}>
+              <T>Preispool</T>
+            </button>
+          )}
           <button
             onClick={() => setReiter('about')}
             className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
@@ -3170,6 +3183,13 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                             <td className={`px-4 py-2 text-right font-semibold tabular-nums ${
                               betrag ? 'text-emerald-400' : 'text-slate-700'}`}>
                               {betrag ? `${betrag.toLocaleString(ort)} ${waehrung}` : '—'}
+                              {/* Ob der Betrag je Spieler gilt oder fuer das ganze Team -
+                                  Epics Tabellen nennen ihn je Spieler. */}
+                              {!!betrag && (teamGroesseAus(fenster?.playlist) ?? 1) > 1 && (
+                                <span className="ml-1 text-[10px] font-normal text-slate-500">
+                                  {preise?.proPerson === false ? t('pro Team') : t('pro Spieler')}
+                                </span>
+                              )}
                             </td>
                           );
                         })()}

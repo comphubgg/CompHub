@@ -8,7 +8,7 @@
  *   oben     Filter nach Platzgruppe und Rechenart, die Summen des Feldes,
  *            "Mehr anzeigen" klappt die weiteren auf
  *   darunter die Spitze je Kennzahl ("Top Damage Ratio: XSET Clix mit 2,12")
- *   dann     wann zuletzt aktualisiert, und die zehn Kacheln (Top 10)
+ *   dann     wann zuletzt aktualisiert, und die zehn Kacheln (je Top 5, Plus fuer alle)
  *
  * Nur, was die Quelle je Spieler fuehrt. Builds Edited, Time spent Editing,
  * Hit by Surge, Weakpoint Hits, Overshield und Damage to Self kennt sie nicht
@@ -207,7 +207,7 @@ export default function SpielerStatsUebersicht({ spieler, matches, aktualisiert,
         {vorWann ? <><T>Zuletzt aktualisiert</T> {vorWann}</> : szene ? <T>Endstand aus der Szene-Quelle</T> : null}
       </p>
 
-      <StatKacheln spieler={spieler} listen={OSIRION_KACHELN} anzahl={10} leereZeigen />
+      <StatKacheln spieler={spieler} listen={OSIRION_KACHELN} anzahl={5} leereZeigen />
     </div>
   );
 }
