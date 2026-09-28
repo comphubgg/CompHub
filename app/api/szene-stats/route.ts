@@ -14,6 +14,7 @@ import { DATEN_ORT } from '@/lib/datenOrt';
 import { getToken, loeseNamenAuf } from '@/lib/epicCups';
 import { zwischenspeichern } from '@/lib/zwischenspeicher';
 import { liesJson } from '@/lib/ablage';
+import { fncsTafel, andereErfolge, fncsFinalTag, mitLeerzeichen, type ProfilZeile } from '@/lib/profilTafeln';
 
 /**
  * Das Namensverzeichnis - Konto-Id auf die Namen, unter denen jemand
@@ -1106,6 +1107,46 @@ async function berechne(request: Request) {
         return { ...x, mitspieler: namen };
       }));
 
+      /*
+       * Die FNCS-Tafel und die Erfolge (lib/profilTafeln) - immer ueber alle
+       * Zeiten, gleich welche Saison oben gewaehlt ist.
+       */
+      const [alleSzene, alleEpic, lanListen] = await Promise.all([
+        verlauf(spieler).catch(() => []),
+        epicVerlauf(spieler).catch(() => []),
+        lanEintraege().catch(() => []),
+      ]);
+      const profilZeilen: ProfilZeile[] = [
+        ...alleSzene.map((z) => ({ windowId: z.windowId, season: z.season, titel: z.event, datum: z.datum ?? null, platz: z.platz ?? null, mitspieler: z.mitspieler ?? [] })),
+        ...alleEpic.map((z) => ({ windowId: z.windowId, season: z.season, titel: z.titel, datum: z.datum ?? null, platz: z.platz ?? null, mitspieler: z.mitspieler ?? [] })),
+      ];
+      const lanFuerTafel = lanListen.map((e) => ({
+        kennung: e.kennung, name: e.name, season: e.season, fenster: e.fenster,
+        spieler: e.spieler.map((x) => ({ epicId: x.epicId, platz: x.platz })),
+      }));
+      const labelVon = (kennung: string) => mitLeerzeichen(saisonKurz(kennung));
+      const letzteQuelle = Math.max(0, ...(fncs?.saisons ?? []).map((x) => {
+        const k = kennungZu.get(x.saison.replace(/\s+/g, '').toUpperCase());
+        return k ? Number(k.slice(1)) : 0;
+      }));
+      const weitereFinals = [...new Set(verzeichnis
+        .filter((e) => fncsFinalTag(e.windowId) && Number(e.season.slice(1)) > letzteQuelle)
+        .map((e) => e.season))];
+      const tafelRoh = fncsTafel({
+        quelle: fncs?.saisons ?? [], zeilen: profilZeilen, lan: lanFuerTafel, spieler,
+        label: labelVon,
+        kennungVon: (l) => kennungZu.get(l.replace(/\s+/g, '').toUpperCase()),
+        weitereFinals,
+      });
+      const erfolgeRoh = andereErfolge(profilZeilen, lanFuerTafel, spieler);
+      const person = (id: string) => {
+        const pr2 = profileFuerSiege.get(id);
+        const sz2 = szeneFuerSiege.get(id);
+        return { epicId: id, name: pr2?.anzeige || pr2?.name || sz2?.name || id.slice(0, 8), land: pr2?.land || sz2?.land || null };
+      };
+      const fncsTafelFertig = tafelRoh.map((z) => ({ ...z, mitspieler: z.mitspieler.map(person) }));
+      const erfolge = erfolgeRoh.map((e) => ({ ...e, saisonName: saisonName(e.season), mitspieler: e.mitspieler.map(person) }));
+
       /**
        * Wo der Spieler im Feld steht - regional und weltweit.
        *
@@ -1342,6 +1383,8 @@ async function berechne(request: Request) {
           [...new Set([...zeilen, ...epicZeilen].map((z) => z.season))]
             .map((k) => [k, saisonName(k)])),
         fncs,
+        fncsTafel: fncsTafelFertig,
+        erfolge,
         verlauf: zeilen,
         epicZeilen,
       });
