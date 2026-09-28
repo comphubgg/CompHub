@@ -1,0 +1,22 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Ein Replay vollstaendig auslesen: Spieler samt Positionen ueber das ganze
+    Match, Zonen, Kill-Feed. Grundlage fuer die Replay-Seite (/admin/replay)
+    und fuer genaue Solo Clutch Points (Reboots). Nutzt denselben Leser wie
+    fortnite-replay-analysis, nur im vollen Lesemodus.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>disable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <LeserPfad>$(MSBuildThisFileDirectory)../../node_modules/fortnite-replay-analysis/CSproj/bin/Release/net10.0/linux-x64/publish</LeserPfad>
+  </PropertyGroup>
+  <ItemGroup>
+    <Reference Include="FortniteReplayReader"><HintPath>$(LeserPfad)/FortniteReplayReader.dll</HintPath></Reference>
+    <Reference Include="Unreal.Core"><HintPath>$(LeserPfad)/Unreal.Core.dll</HintPath></Reference>
+    <Reference Include="Unreal.Encryption"><HintPath>$(LeserPfad)/Unreal.Encryption.dll</HintPath></Reference>
+    <Reference Include="OozSharp"><HintPath>$(LeserPfad)/OozSharp.dll</HintPath></Reference>
+    <Reference Include="Newtonsoft.Json"><HintPath>$(LeserPfad)/Newtonsoft.Json.dll</HintPath></Reference>
+  </ItemGroup>
+</Project>

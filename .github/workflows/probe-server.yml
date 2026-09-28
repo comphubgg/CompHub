@@ -1,0 +1,90 @@
+# Proben auf dem Server - von Hand gestartet, nichts wird veroeffentlicht.
+#
+#   seite:  das Image der Seite mit den Grenzen eines kostenlosen Hosts
+#           (512 MB, 0,1 CPU) starten und die wichtigsten Adressen messen.
+#   replay: ein Globals-Replay im vollen Lesemodus auslesen - liefert der
+#           Leser Positionen, Zonen und Reboots?
+
+name: Proben
+
+on:
+  workflow_dispatch:
+    inputs:
+      was:
+        description: 'seite oder replay'
+        required: true
+        default: 'seite'
+
+jobs:
+  seite:
+    if: inputs.was == 'seite'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      packages: read
+    steps:
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Umgebung
+        run: |
+          printf '%s' "${{ secrets.ENV_LOCAL }}" > roh.env
+          # Docker nimmt Werte woertlich - Anfuehrungszeichen und Kommentare weg.
+          grep -E '^[A-Za-z_][A-Za-z0-9_]*=' roh.env | sed -E 's/^([^=]+)="(.*)"\s*$/\1=\2/' > app.env
+          rm roh.env
+      - name: Starten wie auf dem kostenlosen Host
+        run: |
+          docker run -d --name seite --memory 512m --cpus 0.1 -p 10000:10000 --env-file app.env \
+            -e COMPHUB_ABLAGE=supabase -e COMPHUB_KEIN_HINTERGRUND=1 ghcr.io/comphubgg/comphub-web:latest
+          for i in $(seq 1 60); do curl -s -o /dev/null http://localhost:10000/api/stand && break; sleep 2; done
+          echo "bereit nach etwa $((i*2)) s"
+      - name: Messen
+        run: |
+          for p in / /api/stand /statistics /events /api/cup-catalog?modus=alle "/api/szene-stats?ansicht=start&saison=S42" /api/orgs /api/spieler-profile /tierlist /globals; do
+            for n in 1 2; do
+              curl -s -o /dev/null -w "%{http_code} %{time_total}s %{size_download}B  $p\n" -m 120 "http://localhost:10000$p"
+            done
+          done
+          docker stats --no-stream seite
+          docker logs seite 2>&1 | tail -20
+      - if: always()
+        run: rm -f app.env
+
+  replay:
+    if: inputs.was == 'replay'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - run: npm ci --no-audit --no-fund
+      - name: Umgebung
+        run: printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
+      - name: Replay holen
+        run: |
+          node -e "
+          const { createRequire } = require('module');
+          const r = createRequire(process.cwd() + '/package.json');
+          const { downloadReplay } = r('fortnite-serverreplay-downloader');
+          downloadReplay({ matchId: '0bef11d9f0924394a4a44e53185e2254', dataCount: 100000, checkpointCount: 100000, eventCount: 100000 })
+            .then((b) => { require('fs').writeFileSync('probe.replay', b); console.log('geladen', b.length); });
+          "
+      - name: Voll auslesen
+        run: |
+          cd tools/replay-voll
+          dotnet run -c Release -- ../../probe.replay > ../../probe.json 2> ../../probe.err || true
+          head -c 6000 ../../probe.json; echo; tail -20 ../../probe.err
+      - uses: actions/upload-artifact@v4
+        with:
+          name: replay-probe
+          path: probe.json
+      - if: always()
+        run: rm -f .env.local
