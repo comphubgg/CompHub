@@ -97,6 +97,8 @@ export default function SpielerStatsUebersicht({ spieler, matches, aktualisiert,
   const [gruppe, setGruppe] = useState('alle');
   const [art, setArt] = useState('summe');
   const [mehr, setMehr] = useState(false);
+  // Der Zeitpunkt des Oeffnens - fuer "vor 29 Minuten"; nicht bei jedem Zeichnen neu.
+  const [jetzt] = useState(() => Date.now());
 
   const zahl = (v: number, n = 0) => v.toLocaleString(ort, { minimumFractionDigits: n, maximumFractionDigits: n });
   const zeigen = (v: number, f?: Format, n = 0) => (f === 'zeit' ? alsZeit(v, true)
@@ -140,7 +142,7 @@ export default function SpielerStatsUebersicht({ spieler, matches, aktualisiert,
   const stand = aktualisiert ? Date.parse(aktualisiert) : NaN;
   const vorWann = Number.isFinite(stand) ? (() => {
     const rtf = new Intl.RelativeTimeFormat(ort, { numeric: 'auto' });
-    const min = Math.round((stand - Date.now()) / 60_000);
+    const min = Math.round((stand - jetzt) / 60_000);
     if (Math.abs(min) < 60) return rtf.format(min, 'minute');
     const h = Math.round(min / 60);
     return Math.abs(h) < 48 ? rtf.format(h, 'hour') : rtf.format(Math.round(h / 24), 'day');
