@@ -50,6 +50,9 @@ export function tagFuer(name: string): string {
   const monat = name.match(/^scrims\/(\d{4}-\d{2})-\d{2}\//);
   if (monat) return `daten-scrims-${monat[1]}`;
   if (/^scrims\//.test(name)) return 'daten-scrims';
+  // Voll ausgelesene Replays je Monat (scripts/replay-voll-holen.mjs), das
+  // Verzeichnis selbst am allgemeinen Release.
+  { const m = name.match(/^replay-voll\/(\d{4}-\d{2})\//); if (m) return `daten-replayvoll-${m[1]}`; }
   return 'daten';
 }
 const basis = (tag: string) => `https://github.com/${REPO}/releases/download/${tag}/`;
@@ -86,6 +89,7 @@ const AM_RELEASE: Array<RegExp> = [
   /^replays\//,
   // Solo Clutch Points je Spieltag (scripts/clutch-berechnen.mjs).
   /^clutch\//,
+  /^replay-voll\//,
   // Das Archiv der Scrims (scripts/scrims-holen.mjs) - nur hier, nie in Supabase.
   /^scrims\//,
   /^(verdienst-archiv|elims-archiv|elims-summen-alt|preisgeld-tabellen|preisgelder|lan-preisgelder|epic-namen|cup-archiv|prognose-felder|lan-konten)\.json$/,
@@ -124,6 +128,7 @@ const NUR_RELEASE: Array<RegExp> = [
   /^replays\//,
   // Solo Clutch Points je Spieltag (scripts/clutch-berechnen.mjs).
   /^clutch\//,
+  /^replay-voll\//,
   /^scrims\//,
   /^(verdienst-archiv|elims-archiv|elims-summen-alt|preisgeld-tabellen|prognose-felder|lan-konten)\.json$/,
 ];
@@ -145,6 +150,7 @@ const ZUERST: Array<RegExp> = [
   /^replays\//,
   // Solo Clutch Points je Spieltag (scripts/clutch-berechnen.mjs).
   /^clutch\//,
+  /^replay-voll\//,
   /^(verdienst-archiv|elims-archiv|elims-summen-alt|preisgeld-tabellen|preisgelder|lan-preisgelder|epic-namen|cup-archiv|prognose-felder|lan-konten)\.json$/,
 ];
 

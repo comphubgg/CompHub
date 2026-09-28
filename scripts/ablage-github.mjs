@@ -44,6 +44,9 @@ function tagFuer(name) {
   // rund fuenfzehn am Tag dazu. Das Verzeichnis aller Sessions liegt fuer sich.
   { const m = name.match(/^scrims\/(\d{4}-\d{2})-\d{2}\//); if (m) return `daten-scrims-${m[1]}`; }
   if (/^scrims\//.test(name)) return 'daten-scrims';
+  // Voll ausgelesene Replays je Monat (scripts/replay-voll-holen.mjs), das
+  // Verzeichnis selbst am allgemeinen Release.
+  { const m = name.match(/^replay-voll\/(\d{4}-\d{2})\//); if (m) return `daten-replayvoll-${m[1]}`; }
   return 'daten';
 }
 const API = 'https://api.github.com';
@@ -122,6 +125,7 @@ const AM_RELEASE = [
   /^scrims\//,
   // Solo Clutch Points je Spieltag (scripts/clutch-berechnen.mjs).
   /^clutch\//,
+  /^replay-voll\//,
   /^(verdienst-archiv|elims-archiv|elims-summen-alt|preisgeld-tabellen|preisgelder|lan-preisgelder|epic-namen|cup-archiv|prognose-felder|lan-konten)\.json$/,
   // Vom Betreiber gepflegt, von der Seite viel gelesen: als Rueckfall, wenn
   // Supabase nicht antwortet. Gelesen wird zuerst die lebende Kopie dort.

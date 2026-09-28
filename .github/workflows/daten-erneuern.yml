@@ -258,6 +258,21 @@ jobs:
         continue-on-error: true
         run: node scripts/szene-stats-holen.mjs
 
+      # Die Server-Replays der Finals und LANs voll auslesen - Zonen, Kill-Feed
+      # mit Ort, Spieler - und fuer immer ablegen (scripts/replay-voll-holen.mjs,
+      # Seite /admin/replay). Epic haelt ein Replay nur 31 Tage.
+      - uses: actions/setup-dotnet@v4
+        continue-on-error: true
+        with:
+          dotnet-version: '10.0.x'
+      - name: Replays voll auslesen
+        continue-on-error: true
+        timeout-minutes: 25
+        run: |
+          dotnet build tools/replay-voll -c Release -v q 2>&1 | tail -3
+          node scripts/ablage-github-holen.mjs replay-voll/index.json 2>&1 | tail -2
+          node scripts/replay-voll-holen.mjs --hoechstens 24 2>&1 | tail -30
+
       # Solo Clutch Points der Finaltage und LANs aus den Server-Replays
       # (scripts/clutch-berechnen.mjs) - Epic haelt die Replays 31 Tage.
       - name: Clutch-Punkte rechnen
