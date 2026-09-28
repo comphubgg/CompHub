@@ -128,7 +128,7 @@ jobs:
         run: |
           node scripts/ablage-github-holen.mjs --ordner epic-spieltage --ordner platzierungen \
             --ordner szene-stats --ordner szene-quelle --ordner power-rankings \
-            --ordner tournament-leaderboards --ordner akten --ordner antworten --ordner replays \
+            --ordner tournament-leaderboards --ordner akten --ordner antworten --ordner replays --ordner clutch \
             2>&1 | tail -12
 
       # Die kleinen Staende jede Stunde: Fotos, gepflegte Profile, Namen,
@@ -257,6 +257,13 @@ jobs:
       - name: Werte der Szene holen
         continue-on-error: true
         run: node scripts/szene-stats-holen.mjs
+
+      # Solo Clutch Points der Finaltage und LANs aus den Server-Replays
+      # (scripts/clutch-berechnen.mjs) - Epic haelt die Replays 31 Tage.
+      - name: Clutch-Punkte rechnen
+        continue-on-error: true
+        timeout-minutes: 20
+        run: node scripts/clutch-berechnen.mjs --lan 2>&1 | grep -v 'Spieler mit' | tail -12
 
       # Im Admin-Archiv hochgeladene Videos vom Objektspeicher ans Release
       # "archiv-videos" legen (scripts/archiv-videos-umziehen.mjs).

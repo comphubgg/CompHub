@@ -84,6 +84,8 @@ const AM_RELEASE: Array<RegExp> = [
   // Die ausgewerteten Replays (je Spieltag ein _aggregat.json, bis zu
   // fuenfzig Megabyte): seit dem 22.9.2026 nur noch hier, siehe nurRelease.
   /^replays\//,
+  // Solo Clutch Points je Spieltag (scripts/clutch-berechnen.mjs).
+  /^clutch\//,
   // Das Archiv der Scrims (scripts/scrims-holen.mjs) - nur hier, nie in Supabase.
   /^scrims\//,
   /^(verdienst-archiv|elims-archiv|elims-summen-alt|preisgeld-tabellen|preisgelder|lan-preisgelder|epic-namen|cup-archiv|prognose-felder|lan-konten)\.json$/,
@@ -120,6 +122,8 @@ const NUR_RELEASE: Array<RegExp> = [
   /^tournament-leaderboards\//,
   /^power-rankings\//,
   /^replays\//,
+  // Solo Clutch Points je Spieltag (scripts/clutch-berechnen.mjs).
+  /^clutch\//,
   /^scrims\//,
   /^(verdienst-archiv|elims-archiv|elims-summen-alt|preisgeld-tabellen|prognose-felder|lan-konten)\.json$/,
 ];
@@ -139,6 +143,8 @@ const ZUERST: Array<RegExp> = [
   /^antworten\/(?!catalog_|szene_spieler=|szene_ansicht=profil)/,
   /^akten\//,
   /^replays\//,
+  // Solo Clutch Points je Spieltag (scripts/clutch-berechnen.mjs).
+  /^clutch\//,
   /^(verdienst-archiv|elims-archiv|elims-summen-alt|preisgeld-tabellen|preisgelder|lan-preisgelder|epic-namen|cup-archiv|prognose-felder|lan-konten)\.json$/,
 ];
 

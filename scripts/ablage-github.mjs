@@ -120,6 +120,8 @@ const AM_RELEASE = [
   /^replays\//,
   // Das Archiv der Scrims (scripts/scrims-holen.mjs).
   /^scrims\//,
+  // Solo Clutch Points je Spieltag (scripts/clutch-berechnen.mjs).
+  /^clutch\//,
   /^(verdienst-archiv|elims-archiv|elims-summen-alt|preisgeld-tabellen|preisgelder|lan-preisgelder|epic-namen|cup-archiv|prognose-felder|lan-konten)\.json$/,
   // Vom Betreiber gepflegt, von der Seite viel gelesen: als Rueckfall, wenn
   // Supabase nicht antwortet. Gelesen wird zuerst die lebende Kopie dort.

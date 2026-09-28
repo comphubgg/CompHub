@@ -826,7 +826,10 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
       platz: number | null; partner: string[];
       assists?: number; damage?: number; damageTaken?: number;
       damageRatio?: number | null; genauigkeit?: number | null;
+      clutch?: number | null;
     }>;
+    /** Gibt es zu diesem Spieltag Solo Clutch Points (aus den Server-Replays)? */
+    clutch?: boolean;
   } | null>(null);
   const [spielerLaedt, setSpielerLaedt] = useState(false);
   const [spielerSuche, setSpielerSuche] = useState('');
@@ -3965,6 +3968,11 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                       <th className="px-3 py-2 text-right font-medium"><T>Damage</T></th>
                       <th className="px-3 py-2 text-right font-medium"><T>Elims</T></th>
                       <th className="px-3 py-2 text-right font-medium"><T>Assists</T></th>
+                      {spielerWerte.clutch && (
+                        <th className="px-3 py-2 text-right font-medium" title={t('Turnierpunkte, die der Spieler allein geholt hat, nachdem sein Mate umgehauen war - aus den Server-Replays gerechnet')}>
+                          <T>Solo Clutch</T>
+                        </th>
+                      )}
                       <th className="px-4 py-2 text-right font-medium"><T>Spiele</T></th>
                     </tr>
                   </thead>
@@ -4007,6 +4015,9 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                           </td>
                           <td className="px-3 py-1.5 text-right tabular-nums text-slate-400">{sp.kills}</td>
                           <td className="px-3 py-1.5 text-right tabular-nums text-slate-500">{sp.assists ?? 0}</td>
+                          {spielerWerte.clutch && (
+                            <td className="px-3 py-1.5 text-right tabular-nums font-semibold text-amber-300/90">{sp.clutch ?? 0}</td>
+                          )}
                           <td className="px-4 py-1.5 text-right tabular-nums text-slate-500">{sp.spiele}</td>
                         </tr>
                       ))}
@@ -4014,6 +4025,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                 </table>
                 <p className="border-t border-zinc-900 px-4 py-2 text-[11px] text-slate-600">
                   <T>Werte je Spieler aus der Szene-Quelle, unter den echten Konten der Spieler. Team und Platz aus Epics Leaderboard. Damage Ratio: ausgeteilter geteilt durch erlittenen Schaden.</T>
+                  {spielerWerte.clutch && <>{' '}<T>Solo Clutch: Turnierpunkte, die ein Spieler allein holte, nachdem sein Mate umgehauen war - aus Epics Server-Replays gerechnet, nicht von Epic geliefert.</T></>}
                 </p>
               </div>
             )}

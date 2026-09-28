@@ -5,6 +5,7 @@ import { DATEN_ORT } from '@/lib/datenOrt';
 import { zwischenspeichern } from '@/lib/zwischenspeicher';
 import { szeneFenster, epicTag } from '@/lib/szeneStats';
 import { liesLanKonten } from '@/lib/lanKonten';
+import { liesJson } from '@/lib/ablage';
 import { GLOBALS_TAGE, istGlobalsEvent, istGlobalsFenster } from '@/lib/globalsCup';
 
 /*
@@ -42,6 +43,23 @@ async function ausSzene(tage: string[], anzeige: Map<string, string>, land: Map<
   const teamVon = new Map<string, { spieler: string[]; platz?: number }>();
   for (const t of teams.values()) for (const id of t.spieler) teamVon.set(id, t);
 
+  /*
+   * Solo Clutch Points, wo sie gerechnet sind (scripts/clutch-berechnen.mjs):
+   * je Tag unter den Konten, die im Replay stehen - bei einem LAN die
+   * Turnierkonten, hier auf die echten umgeschrieben.
+   */
+  const clutch = new Map<string, number>();
+  let clutchDa = false;
+  for (const w of tage) {
+    const c = await liesJson<{ summe?: Record<string, number> } | null>(`clutch/${w}.json`, null).catch(() => null);
+    if (!c?.summe) continue;
+    clutchDa = true;
+    for (const [id, pkt] of Object.entries(c.summe)) {
+      const e = echtVon(id);
+      clutch.set(e, (clutch.get(e) ?? 0) + pkt);
+    }
+  }
+
   const nameVon = (id: string) => anzeige.get(id)
     ?? sz.spieler.find((x) => x.epicId === id)?.username ?? id.slice(0, 8);
   const spieler = sz.spieler.map((x) => {
@@ -57,14 +75,17 @@ async function ausSzene(tage: string[], anzeige: Map<string, string>, land: Map<
       assists: x.assists ?? 0,
       damage: Math.round(x.damageDealt ?? 0),
       damageTaken: Math.round(x.damageTakenFromPlayers ?? 0),
-      // Ausgeteilter geteilt durch erlittenen Schaden - so rechnet die Quelle.
+      // Ausgeteilter geteilt durch von Spielern erlittenen Schaden - dieselbe
+      // Rechnung wie ueberall im Werkzeug (lib/szeneStats, "quote"). Das Feld
+      // "damageRatio" der Quelle passt zu keiner Formel (siehe dort).
       damageRatio: x.damageTakenFromPlayers ? (x.damageDealt ?? 0) / x.damageTakenFromPlayers : null,
       genauigkeit: x.shots ? ((x.hitsToPlayers ?? 0) / x.shots) * 100 : null,
+      clutch: clutchDa ? (clutch.get(x.epicId) ?? 0) : null,
       platz: t?.platz ?? null,
       partner: (t?.spieler ?? []).filter((id) => id !== x.epicId).map(nameVon),
     };
   }).sort((a, b) => b.damage - a.damage);
-  return { vorhanden: true, quelle: 'szene', runden: sz.matches, rundenGesamt: sz.matches, lauf: null, spieler };
+  return { vorhanden: true, quelle: 'szene', runden: sz.matches, rundenGesamt: sz.matches, lauf: null, clutch: clutchDa, spieler };
 }
 
 // Werte je einzelnem Spieler - aus den Replays.
