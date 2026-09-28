@@ -936,6 +936,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
   /** Suchfeld der geoeffneten Kennzahl - bei tausenden Zeilen unverzichtbar. */
   const [listenSuche, setListenSuche] = useState('');
   const [listeLaedt, setListeLaedt] = useState(false);
+  /** Wie viele Zeilen der offenen Liste gezeichnet sind - beim Scrollen mehr. */
+  const [listenGezeigt, setListenGezeigt] = useState(500);
 
   /*
    * Ranked Cups: welche Rangstufe die Bestenliste zeigt.
@@ -973,22 +975,30 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
    * wie ein Fehler.
    */
   const listeOeffnen = useCallback((b: Bestenliste) => {
-    setOffeneListe(b); setListenTiefe(50); setListenSuche('');
+    setOffeneListe(b); setListenTiefe(50); setListenSuche(''); setListenGezeigt(500);
     if (!lbFenster) return;
     setListeLaedt(true);
-    fetch(`/api/cup-stats?event=${encodeURIComponent(lbFenster.eventId)}`
+    /*
+     * In zwei Stufen: erst tausend (wenige Sekunden), dann das ganze Feld.
+     *
+     * Die vollen zehntausend brauchen auf dem kostenlosen Host rund eine
+     * Minute (hundert Seiten bei Epic, zehntausend Namen). Bis dahin standen
+     * nur hundert da, auch unter "Alle" - der Betreiber: "wirklich alle ...
+     * nicht nur 100".
+     */
+    const hole = (limit: number) => fetch(`/api/cup-stats?event=${encodeURIComponent(lbFenster.eventId)}`
       + `&window=${encodeURIComponent(lbFenster.windowId)}`
-      + `&liste=${encodeURIComponent(b.schluessel)}&limit=10000&top=5`)
+      + `&liste=${encodeURIComponent(b.schluessel)}&limit=${limit}&top=5`)
       .then((r) => r.json())
       .then((d) => {
         const voll = (d.bestenlisten ?? [])[0];
         if (voll?.alle?.length) {
           setOffeneListe((jetzt) => (jetzt && jetzt.schluessel === b.schluessel
-            ? { ...jetzt, alle: voll.alle } : jetzt));
+            && voll.alle.length > jetzt.alle.length ? { ...jetzt, alle: voll.alle } : jetzt));
         }
       })
-      .catch(() => { /* dann bleibt die kurze Liste stehen */ })
-      .finally(() => setListeLaedt(false));
+      .catch(() => { /* dann bleibt die kuerzere Liste stehen */ });
+    void hole(1000).then(() => hole(10000)).finally(() => setListeLaedt(false));
   }, [lbFenster]);
   const [laedt, setLaedt] = useState(false);
   const [suche, setSuche] = useState('');
@@ -4459,7 +4469,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                 </span>
 
                 <input value={listenSuche}
-                  onChange={(e) => setListenSuche(e.target.value)}
+                  onChange={(e) => { setListenSuche(e.target.value); setListenGezeigt(500); }}
                   placeholder={t('Spieler suchen …')}
                   className="w-44 rounded-lg border border-zinc-800 bg-zinc-900/80 px-3
                              py-1 text-xs text-slate-100 outline-none
@@ -4467,7 +4477,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
 
                 <div className="ml-auto flex items-center gap-1">
                   {([50, 100, 0] as const).map((n) => (
-                    <button key={n} type="button" onClick={() => setListenTiefe(n)}
+                    <button key={n} type="button" onClick={() => { setListenTiefe(n); setListenGezeigt(500); }}
                       className={`rounded-md border px-2.5 py-1 text-xs transition ${
                         listenTiefe === n
                           ? 'border-sky-500 bg-sky-500/10 text-sky-400'
@@ -4484,7 +4494,17 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                 </div>
               </header>
 
-              <ol className="divide-y divide-zinc-900 overflow-y-auto">
+              {/* Epic gibt je Spieltag hoechstens zehntausend Plaetze heraus. */}
+              {offeneListe.alle.length >= 10_000 && (
+                <p className="border-b border-zinc-800 px-4 py-2 text-[11px] text-slate-500">
+                  <T>Epic gibt je Spieltag nur die ersten 10.000 Plätze heraus, gesucht wird in diesen.</T>
+                </p>
+              )}
+              <ol className="divide-y divide-zinc-900 overflow-y-auto"
+                onScroll={(e) => {
+                  const el = e.currentTarget;
+                  if (el.scrollTop + el.clientHeight > el.scrollHeight - 400) setListenGezeigt((n) => n + 500);
+                }}>
                 {/*
                   * Wird gesucht, gilt die Tiefe nicht.
                   *
@@ -4509,6 +4529,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                       || n.toLowerCase().includes(s)))
                     : listenTiefe ? mitPlatz.slice(0, listenTiefe) : mitPlatz;
                 })()
+                  // Nach und nach zeichnen, nicht zehntausend Zeilen auf einmal.
+                  .slice(0, listenGezeigt)
                   .map(({ pl, platz }) => (
                     <li key={`${pl.rank}-${platz}`} className="flex items-center gap-2.5 px-4 py-2">
                       <span className={`w-8 shrink-0 text-right text-xs font-bold tabular-nums ${
