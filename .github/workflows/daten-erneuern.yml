@@ -41,6 +41,8 @@ jobs:
     # Schreiben ans Release (zweite Ablage) braucht contents: write.
     permissions:
       contents: write
+      # Fuer den Anstoss des naechsten Laufs (letzter Schritt).
+      actions: write
     # Ein Lauf braucht gemessen gut neunzig Minuten (Replays holen 30,
     # Antworten vorrechnen 13, Supabase 12, Release 15). Mit einer Frist von
     # neunzig wurde am Ende jeder Lauf als "cancelled" abgebrochen - vierzig
@@ -57,6 +59,8 @@ jobs:
       cancel-in-progress: false
 
     steps:
+      - name: Beginn merken
+        run: echo "LAUF_BEGINN=$(date +%s)" >> "$GITHUB_ENV"
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
@@ -558,3 +562,22 @@ jobs:
       - name: Zugangsdaten wieder weg
         if: always()
         run: rm -f .env.local
+
+      # GitHub laesst geplante Laeufe unter Last ausfallen: am 28.9.2026 kam
+      # nach 15:23 UTC fuenf Stunden lang keiner, die Replays standen seit
+      # Tagen still ("steht immer noch 23k left"). Jeder Lauf stoesst deshalb
+      # am Ende den naechsten selbst an - fruehestens 45 Minuten nach seinem
+      # Beginn. Ein workflow_dispatch mit dem Schluessel des Laufs ist die
+      # eine Art Anstoss, die GitHub zulaesst; der Zeitplan oben bleibt als
+      # Rueckfall, falls die Kette einmal reisst. Mehr als ein laufender und
+      # ein wartender Lauf entstehen nicht (concurrency oben).
+      - name: Naechsten Lauf anstossen
+        if: always() && !cancelled()
+        continue-on-error: true
+        timeout-minutes: 50
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          rest=$(( 2700 - ($(date +%s) - ${LAUF_BEGINN:-0}) ))
+          if [ "$rest" -gt 0 ] && [ "$rest" -le 2700 ]; then sleep "$rest"; fi
+          gh workflow run daten-erneuern.yml -R "${{ github.repository }}" --ref main && echo "naechster Lauf angestossen"

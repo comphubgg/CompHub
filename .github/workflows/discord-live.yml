@@ -15,7 +15,11 @@ on:
 jobs:
   live:
     runs-on: ubuntu-latest
-    timeout-minutes: 5
+    # Fuer den Anstoss des naechsten Laufs (letzter Schritt).
+    permissions:
+      contents: read
+      actions: write
+    timeout-minutes: 15
     concurrency:
       group: discord-live
       cancel-in-progress: true
@@ -49,3 +53,15 @@ jobs:
             GEHEIM=$(printf '%s' "${{ secrets.ENV_LOCAL }}" | grep '^CRON_SECRET=' | cut -d= -f2- | tr -d '"\r')
             curl -s -o /dev/null -w "VIP-Ablauf: %{http_code}\n" -m 120 -H "Authorization: Bearer $GEHEIM" "https://www.thecomphub.com/api/cron/vip-ablauf" || true
           fi
+
+      # GitHub liess den Zeitplan am 28.9.2026 sieben Stunden lang ausfallen.
+      # Jeder Lauf stoesst deshalb nach zehn Minuten den naechsten selbst an;
+      # der Zeitplan oben bleibt als Rueckfall. Der Lauf sagt es mit "Kette".
+      - name: Naechsten Lauf anstossen
+        if: always() && !cancelled()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          sleep 540
+          gh workflow run discord-live.yml -R "${{ github.repository }}" --ref main && echo "Kette: naechster Lauf angestossen"
