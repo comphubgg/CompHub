@@ -7,6 +7,7 @@ import { szeneFenster, epicTag } from '@/lib/szeneStats';
 import { liesLanKonten } from '@/lib/lanKonten';
 import { liesJson } from '@/lib/ablage';
 import { GLOBALS_TAGE, istGlobalsEvent, istGlobalsFenster } from '@/lib/globalsCup';
+import { replayTag } from '@/lib/replaySchlank';
 
 /*
  * Ohne Replays: die Werte der Szene-Quelle.
@@ -89,6 +90,15 @@ async function ausSzene(tage: string[], anzeige: Map<string, string>, land: Map<
       damageRatio: x.damageTakenFromPlayers ? (x.damageDealt ?? 0) / x.damageTakenFromPlayers : null,
       genauigkeit: x.shots ? ((x.hitsToPlayers ?? 0) / x.shots) * 100 : null,
       clutch: clutchDa ? (clutch.get(x.epicId) ?? 0) : null,
+      // Fuer die Kacheln (app/components/StatKacheln) - dieselben Summen wie
+      // in der Statistik (lib/szeneStats): Meter, Sekunden, Stueck.
+      hits: x.hitsToPlayers ?? 0,
+      headshots: x.headshots ?? 0,
+      mats: (x.woodFarmed ?? 0) + (x.stoneFarmed ?? 0) + (x.metalFarmed ?? 0),
+      builds: (x.woodBuildsPlaced ?? 0) + (x.stoneBuildsPlaced ?? 0) + (x.metalBuildsPlaced ?? 0),
+      distanz: (x.distanceOnFoot ?? 0) + (x.distanceSkydiving ?? 0),
+      timeInStorm: x.timeInStorm ?? 0,
+      timeAlive: x.timeAlive ?? 0,
       platz: t?.platz ?? null,
       partner: (t?.spieler ?? []).filter((id) => id !== x.epicId).map(nameVon),
     };
@@ -118,19 +128,6 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 const ABLAGE = path.join(DATEN_ORT, 'replays');
-
-interface AggSpieler {
-  epicId: string; matches?: number; kills?: number; knocks?: number;
-  gestorben?: number; umgehauen?: number;
-}
-interface AggTeam {
-  platz?: number; punkte?: number; spieler?: string[];
-  kills?: number; knocks?: number;
-}
-interface Aggregat {
-  matches?: number; elims?: number; quelle?: string; gerechnet?: string;
-  spieler?: AggSpieler[]; teams?: AggTeam[];
-}
 
 /** Die gepflegten Anzeigenamen - dieselben wie ueberall sonst im Werkzeug. */
 async function namen(): Promise<Map<string, string>> {
@@ -207,65 +204,67 @@ async function holeRoh(request: Request) {
   const tage = istGlobalsEvent(event, fenster) && !istGlobalsFenster(fenster)
     ? GLOBALS_TAGE.map((t) => t.windowId) : [fenster];
 
-  let agg: Aggregat | null = null;
-  if (tage.length === 1) {
-    try {
-      agg = JSON.parse(await fs.readFile(
-        path.join(ABLAGE, saison, fenster, '_aggregat.json'), 'utf8')) as Aggregat;
-    } catch { agg = null; }
+  /*
+   * Die Werte der Szene-Quelle (Damage, Treffer, Material, Zeit ...) gibt es
+   * zu jedem Spieltag, den sie fuehrt - Finals, Cash Cups, LANs; es sind
+   * hoechstens ein paar hundert Spieler. Der Betreiber (28.9.2026): die
+   * Player Stats "bei jedem alten und zukuenftigen Cup ... immer". Wo es sie
+   * gibt, gehen sie vor, die Knocks kommen aus den Replays dazu. Sonst die
+   * Replays allein (Kills, Knocks, Tode).
+   */
+  const [anzeige, land] = await Promise.all([namen(), laender()]);
+  const rep = tage.length === 1 && saison ? await replayTag(saison, fenster) : null;
+  const szene = await ausSzene(tage, anzeige, land).catch(() => null);
+  if (szene) {
+    if (rep?.spieler.length) {
+      const knocks = new Map(rep.spieler.map((x) => [x.epicId, x.knocks]));
+      for (const x of szene.spieler) x.knocks = knocks.get(x.epicId) ?? x.knocks;
+    }
+    return NextResponse.json({ ...szene, gesamt: szene.spieler.length });
   }
-  if (!agg?.spieler?.length) {
-    const [anzeigeS, landS] = await Promise.all([namen(), laender()]);
-    const szene = await ausSzene(tage, anzeigeS, landS).catch(() => null);
-    if (szene) return NextResponse.json(szene);
+  if (!rep?.spieler.length) {
     return NextResponse.json({
       vorhanden: false, spieler: [], runden: 0, lauf: await letzterLauf(),
     });
   }
 
-  const [anzeige, land] = await Promise.all([namen(), laender()]);
-
   /*
-   * Wer in keiner Liste steht, wird bei Epic erfragt.
+   * Nur die Zeilen, die gezeigt werden.
    *
-   * In der Spielertabelle standen reihenweise Zeichenfolgen wie "7f2842f4"
-   * und "with 8c4999ae" - die ersten acht Zeichen einer Konto-Id. Das
-   * Replay kennt nur Ids; Namen kommen aus dem Verzeichnis, und wer dort
-   * fehlt, blieb eine Zahlenreihe. Epics eigener Kontodienst nennt den
-   * aktuellen Anzeigenamen, und genau dafuer ist er da.
-   *
-   * Gefragt wird in einem Zug fuer alle Offenen und nur fuer die, die
-   * wirklich in der Tabelle landen - bei einer Qualifikation mit
-   * fuenfzehnhundert Spielern waeren fuenfzehn Abfragen zu viel.
+   * Ein offener Cup hat bis zu 85.000 Spieler mit Kill oder Knock. Alle an
+   * den Browser zu schicken und alle Namen bei Epic zu erfragen (tausend
+   * Abfragen) waere fuer die Seite wie fuer Render zu viel. Es gehen die
+   * besten `limit` heraus; eine Suche (`q`) sucht auf dem Server im ganzen
+   * Feld - in den bekannten Namen und, ueber Epics Namensaufloesung, nach dem
+   * genauen Epic-Namen, auch weit hinter Platz 10.000.
    */
-  const offen = [...new Set([
-    ...(agg.spieler ?? []).map((x) => x.epicId),
-    ...(agg.teams ?? []).flatMap((t) => t.spieler ?? []),
-  ])].filter((id) => id && !anzeige.has(id));
-
-  if (offen.length) {
-    try {
-      const { getToken, loeseNamenAuf } = await import('@/lib/epicCups');
-      const { token } = await getToken();
-      const aufgeloest = await loeseNamenAuf(offen, token);
-      for (const [id, name] of Object.entries(aufgeloest)) {
-        // Was Epic nicht kennt, kommt als gekuerzte Id zurueck - die haben
-        // wir schon, und sie soll nicht als Name durchgehen.
-        if (name && name !== id.slice(0, 8)) anzeige.set(id, name);
-      }
-    } catch { /* ohne Epic-Anmeldung bleibt die gekuerzte Id stehen */ }
+  const limit = Math.min(Math.max(Number(p.get('limit')) || 500, 50), 2000);
+  const q = (p.get('q') ?? '').trim().toLowerCase();
+  let auswahl = rep.spieler;
+  if (q) {
+    const ids = new Set(rep.spieler
+      .filter((x) => (anzeige.get(x.epicId) ?? '').toLowerCase().includes(q) || x.epicId === q)
+      .map((x) => x.epicId));
+    if (q.length >= 3) {
+      try {
+        const { getToken } = await import('@/lib/epicCups');
+        const { token } = await getToken();
+        const r = await fetch('https://account-public-service-prod.ol.epicgames.com/account/api/public/account/displayName/'
+          + encodeURIComponent(q), { headers: { Authorization: token }, signal: AbortSignal.timeout(8_000) });
+        if (r.ok) {
+          const konto = await r.json() as { id?: string; displayName?: string };
+          if (konto.id) { ids.add(konto.id); if (konto.displayName) anzeige.set(konto.id, konto.displayName); }
+        }
+      } catch { /* ohne Epic bleibt es bei den bekannten Namen */ }
+    }
+    auswahl = rep.spieler.filter((x) => ids.has(x.epicId));
   }
+  const gezeigt = auswahl.slice(0, limit);
 
-  /*
-   * Zu jedem Spieler sein Team.
-   *
-   * Der Tracker schreibt unter jeden Namen das Team - das ist beim Lesen
-   * die halbe Miete, weil man sonst bei hundert Namen nicht sieht, wer mit
-   * wem gespielt hat. Die Zuordnung steht im Aggregat, sie muss nur
-   * umgedreht werden.
-   */
   const zumTeam = new Map<string, { partner: string[]; platz: number | null }>();
-  for (const t of agg.teams ?? []) {
+  const gesucht = new Set(gezeigt.map((x) => x.epicId));
+  for (const t of rep.teams ?? []) {
+    if (!(t.spieler ?? []).some((id) => gesucht.has(id))) continue;
     for (const id of t.spieler ?? []) {
       zumTeam.set(id, {
         partner: (t.spieler ?? []).filter((x) => x !== id),
@@ -274,54 +273,54 @@ async function holeRoh(request: Request) {
     }
   }
 
-  const spieler = (agg.spieler ?? []).map((s) => {
-    const team = zumTeam.get(s.epicId);
-    return {
-      epicId: s.epicId,
-      name: anzeige.get(s.epicId) ?? s.epicId.slice(0, 8),
-      land: land.get(s.epicId) ?? '',
-      spiele: s.matches ?? 0,
-      kills: s.kills ?? 0,
-      knocks: s.knocks ?? 0,
-      tode: s.gestorben ?? 0,
-      umgehauen: s.umgehauen ?? 0,
-      platz: team?.platz ?? null,
-      partner: (team?.partner ?? []).map((id) =>
-        anzeige.get(id) ?? id.slice(0, 8)),
-    };
-  }).sort((a, b) => b.kills - a.kills || b.knocks - a.knocks);
+  // Namen bei Epic nur fuer die gezeigten Zeilen und ihre Mitspieler.
+  const offen = [...new Set([
+    ...gezeigt.map((x) => x.epicId),
+    ...gezeigt.flatMap((x) => zumTeam.get(x.epicId)?.partner ?? []),
+  ])].filter((id) => id && !anzeige.has(id));
+  if (offen.length) {
+    try {
+      const { getToken, loeseNamenAuf } = await import('@/lib/epicCups');
+      const { token } = await getToken();
+      const aufgeloest = await loeseNamenAuf(offen, token);
+      for (const [id, name] of Object.entries(aufgeloest)) {
+        // Was Epic nicht kennt, kommt als gekuerzte Id zurueck - die soll
+        // nicht als Name durchgehen.
+        if (name && name !== id.slice(0, 8)) anzeige.set(id, name);
+      }
+    } catch { /* ohne Epic-Anmeldung bleibt die gekuerzte Id stehen */ }
+  }
 
-  /*
-   * Wie viele Runden es ueberhaupt gab - nicht nur, wie viele ausgewertet
-   * sind.
-   *
-   * Der Betreiber sah "543 Players · 46 Rounds" und einen Spitzenreiter mit
-   * fuenf Eliminierungen und hielt die Zahlen fuer falsch. Sie waren nicht
-   * falsch, sie waren unvollstaendig: zu dem Zeitpunkt lagen 46 von deutlich
-   * mehr Runden ausgewertet vor, und das stand nirgends. Eine Teilmenge, die
-   * sich als Ganzes ausgibt, ist schlimmer als eine fehlende Zahl - deshalb
-   * steht jetzt beides da.
-   */
-  let ausRunden: number | null = null;
-  try {
-    const z = JSON.parse(await fs.readFile(
-      path.join(DATEN_ORT, 'replays', saison, fenster, '_zustand.json'), 'utf8')) as
-      { matches?: Record<string, { stand?: string }> };
-    ausRunden = Object.keys(z.matches ?? {}).length || null;
-  } catch { /* ohne Zustand bleibt es bei der ausgewerteten Zahl */ }
+  const spieler = gezeigt.map((x) => {
+    const team = zumTeam.get(x.epicId);
+    return {
+      epicId: x.epicId,
+      name: anzeige.get(x.epicId) ?? x.epicId.slice(0, 8),
+      land: land.get(x.epicId) ?? '',
+      spiele: x.matches,
+      kills: x.kills,
+      knocks: x.knocks,
+      tode: x.gestorben,
+      umgehauen: x.umgehauen,
+      platz: team?.platz ?? null,
+      partner: (team?.partner ?? []).map((id) => anzeige.get(id) ?? id.slice(0, 8)),
+    };
+  });
 
   return NextResponse.json({
     vorhanden: true,
-    runden: agg.matches ?? 0,
-    /** Wie viele Runden dieser Spieltag insgesamt hat. */
-    rundenGesamt: ausRunden,
-    gerechnet: agg.gerechnet ?? null,
+    runden: rep.matches ?? 0,
+    rundenGesamt: rep.rundenGesamt,
+    gerechnet: rep.gerechnet ?? null,
     spieler,
+    /** Wie viele Spieler mit Kill oder Knock es insgesamt gibt - gezeigt sind die besten. */
+    gesamt: q ? auswahl.length : rep.spieler.length,
+    gekuerzt: !q && rep.spieler.length > gezeigt.length,
+    suche: q || null,
     hinweis: 'Counted from the replays of this match day, per player.',
   });
 }
 
-/** Fuer alle gleich - Vercels Zwischenspeicher beantwortet Wiederholungen (lib/zwischenspeicher). */
 export async function GET(request: Request) {
   return zwischenspeichern(await holeRoh(request), 60);
 }

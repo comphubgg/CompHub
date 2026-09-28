@@ -53,6 +53,9 @@ export function tagFuer(name: string): string {
   // Voll ausgelesene Replays je Monat (scripts/replay-voll-holen.mjs), das
   // Verzeichnis selbst am allgemeinen Release.
   { const m = name.match(/^replay-voll\/(\d{4}-\d{2})\//); if (m) return `daten-replayvoll-${m[1]}`; }
+  // Die schlanken Replay-Werte fuer die Seite (scripts/replays-schlank.mjs),
+  // je Saison ein Release - daten-replays ist mit 863 Anhaengen fast voll.
+  { const m = name.match(/^replays-schlank\/(S\d+)\//i); if (m) return `daten-replays-schlank-${m[1].toLowerCase()}`; }
   return 'daten';
 }
 const basis = (tag: string) => `https://github.com/${REPO}/releases/download/${tag}/`;
@@ -90,6 +93,7 @@ const AM_RELEASE: Array<RegExp> = [
   // Solo Clutch Points je Spieltag (scripts/clutch-berechnen.mjs).
   /^clutch\//,
   /^replay-voll\//,
+  /^replays-schlank\//,
   // Das Archiv der Scrims (scripts/scrims-holen.mjs) - nur hier, nie in Supabase.
   /^scrims\//,
   /^(verdienst-archiv|elims-archiv|elims-summen-alt|preisgeld-tabellen|preisgelder|lan-preisgelder|epic-namen|cup-archiv|prognose-felder|lan-konten)\.json$/,
@@ -129,6 +133,7 @@ const NUR_RELEASE: Array<RegExp> = [
   // Solo Clutch Points je Spieltag (scripts/clutch-berechnen.mjs).
   /^clutch\//,
   /^replay-voll\//,
+  /^replays-schlank\//,
   /^scrims\//,
   /^(verdienst-archiv|elims-archiv|elims-summen-alt|preisgeld-tabellen|prognose-felder|lan-konten)\.json$/,
 ];
@@ -151,6 +156,7 @@ const ZUERST: Array<RegExp> = [
   // Solo Clutch Points je Spieltag (scripts/clutch-berechnen.mjs).
   /^clutch\//,
   /^replay-voll\//,
+  /^replays-schlank\//,
   /^(verdienst-archiv|elims-archiv|elims-summen-alt|preisgeld-tabellen|preisgelder|lan-preisgelder|epic-namen|cup-archiv|prognose-felder|lan-konten)\.json$/,
 ];
 

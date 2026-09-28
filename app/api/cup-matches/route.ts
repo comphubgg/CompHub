@@ -10,6 +10,7 @@ import {
 } from '@/lib/cupWertung';
 import { zwischenspeichern } from '@/lib/zwischenspeicher';
 import { abgesagtFuer } from '@/lib/abgesagt';
+import { replayTag } from '@/lib/replaySchlank';
 import { istGlobalsFinale } from '@/lib/globalsGesamt';
 import { GLOBALS_EVENT, GLOBALS_TAGE } from '@/lib/globalsCup';
 
@@ -234,14 +235,10 @@ async function lobbyBesetzung(
 ): Promise<Record<string, Besetzung>> {
   const saison = /^(S\d+)_/i.exec(windowId)?.[1]?.toUpperCase() ?? '';
   if (!saison) return {};
-  try {
-    const roh = await fs.readFile(
-      path.join(DATEN_ORT, 'replays', saison, windowId, '_aggregat.json'), 'utf8');
-    const agg = JSON.parse(roh) as { lobbys?: Record<string, Besetzung> };
-    return agg.lobbys ?? {};
-  } catch {
-    return {};
-  }
+  // Die schlanke Fassung (lib/replaySchlank) - die volle Auswertung ist bei
+  // einem offenen Cup bis zu 54 MB und riss auf Render den Server um.
+  const tag = await replayTag(saison, windowId).catch(() => null);
+  return (tag?.lobbys ?? {}) as Record<string, Besetzung>;
 }
 
 async function holeRoh(request: Request) {

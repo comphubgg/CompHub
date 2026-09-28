@@ -351,6 +351,14 @@ jobs:
         timeout-minutes: 10
         run: node scripts/replays-aggregieren.mjs 2>&1 | tee /tmp/aggregieren.log | tail -20
 
+      # Die schlanke Fassung fuer die Seite (lib/replaySchlank): die volle
+      # Auswertung eines offenen Cups ist bis zu 54 MB und riss auf Render
+      # (512 MB) den Server um.
+      - name: Replays schlank ablegen
+        continue-on-error: true
+        timeout-minutes: 10
+        run: node scripts/replays-schlank.mjs 2>&1 | tail -3
+
       # Das Gerechnete sofort ans Release - noch vor dem Bau.
       #
       # Seit dem 24.9.2026 bekam der Laufrechner beim Bauen jedes Mal ein
@@ -369,6 +377,27 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           node scripts/ablage-github.mjs 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -30
+
+      # Einmalig (28.9.2026, 20:24 UTC): ein versehentlich gestarteter
+      # Hochladelauf vom Entwicklerrechner ersetzte am Release 17 Dateien durch
+      # aeltere Staende (Antworten, Elims-Archiv, Preisgeld-Tabellen,
+      # Epic-Namen, Clutch, Platzierungen). Die Manifeste blieben unberuehrt,
+      # der normale Upload haelt sie daher fuer aktuell. Der Datenstand des
+      # Laufs ist der richtige; er geht hier erzwungen hinauf. Die Marke im
+      # Datenordner (wird mit ihm zwischengespeichert, nie hochgeladen)
+      # verhindert eine Wiederholung.
+      - name: Release-Reparatur vom 28.9.
+        if: always()
+        continue-on-error: true
+        timeout-minutes: 10
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ ! -f data/.reparatur-2809 ]; then
+            node scripts/ablage-github.mjs --erzwingen --nur 'antworten/szene_ansicht=start_saison=S42.json' --nur 'antworten/szene_ansicht=turniere_region=EU.json' --nur 'antworten/szene_gesamt.json' --nur 'antworten/szene_heimat.json' --nur 'antworten/szene_saison=S42_spieler=072e8b9f8188405ab0eb52544e1dc906.json' --nur 'antworten/szene_saison=S42_spieler=39a4c6ccd9bf46a2bc6f9a3106de22f4.json' --nur 'antworten/szene_saison=S42_spieler=b39cded93b0f4aa59ffdadf0db18e853.json' --nur 'antworten/szene_saison=S42_spieler=e7987ee7c7fa43dd814252eedc06af2f.json' --nur 'antworten/szene_tagesbeste.json' --nur 'clutch/MannekenPis_Day1.json' --nur 'clutch/MannekenPis_Day2.json' --nur 'elims-archiv.json' --nur 'epic-namen.json' --nur 'preisgeld-tabellen.json' --nur 'platzierungen/S40/S40_FNCSMajor1_Final_Day1_ASIA.json' --nur 'platzierungen/_fehlend.json' --nur 'power-rankings/global.json' 2>&1 | tail -8 && touch data/.reparatur-2809
+          else
+            echo "schon repariert"
+          fi
 
       # ------------------------------------------------- Antworten vorrechnen
       #

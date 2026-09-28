@@ -2,7 +2,8 @@ import fs from '@/lib/ablageFs';
 import path from 'path';
 import { DATEN_ORT } from './datenOrt';
 import { liesJson } from '@/lib/ablage';
-import { fertigeAntwort } from '@/lib/antwortSpeicher';
+import { fertigeAntwort, ohneDateien } from '@/lib/antwortSpeicher';
+import { replayTag } from '@/lib/replaySchlank';
 
 /*
  * Die Einzelwerte aus den eigenen Replay-Auswertungen.
@@ -72,9 +73,10 @@ async function fensterKarte(
 
   const karte = new Map<string, ReplayWert>();
   try {
-    const roh = JSON.parse(await fs.readFile(
-      path.join(ABLAGE, season, windowId, '_aggregat.json'), 'utf8')) as Aggregat;
-    for (const k of roh.spieler ?? []) {
+    // Die schlanke Fassung (lib/replaySchlank): nur wer etwas geholt hat -
+    // wer fehlt, hat 0 Elims und 0 Knocks.
+    const roh = await replayTag(season, windowId);
+    for (const k of roh?.spieler ?? []) {
       if (!k.epicId) continue;
       karte.set(k.epicId, {
         elims: k.kills ?? 0,
@@ -136,6 +138,11 @@ export async function aggregateSaison(season: string): Promise<AggregatTag[]> {
 }
 
 async function aggregateLesen(season: string): Promise<AggregatTag[]> {
+  // Nie auf dem Host der Seite: alle Auswertungen einer Saison sind dort zu
+  // viel (bis zu 54 MB je Spieltag, siehe lib/replaySchlank). Dort gilt die
+  // vorgerechnete Antwort des stuendlichen Laufs; fehlt sie, ein Fehler statt
+  // eines Absturzes.
+  if (ohneDateien()) throw new Error('Season replay aggregates are only read by the hourly job.');
 
   let fenster: string[] = [];
   try { fenster = await fs.readdir(path.join(ABLAGE, season)); } catch { fenster = []; }

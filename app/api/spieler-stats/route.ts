@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import fs from '@/lib/ablageFs';
 import path from 'path';
 import { DATEN_ORT } from '@/lib/datenOrt';
+import { replayTag } from '@/lib/replaySchlank';
 
 // Werte je einzelnem Spieler statt je Team.
 //
@@ -165,10 +166,15 @@ async function ausReplays(windowId: string, season?: string) {
     : [windowId.split('_')[0].toUpperCase(), ...SEASONS];
   for (const s of kandidaten) {
     if (!/^S\d+$/i.test(s)) continue;
-    const datei = path.join(DATEN_ORT, 'replays', s, windowId,
-      '_aggregat.json');
     try {
-      const roh = JSON.parse(await fs.readFile(datei, 'utf8')) as ReplayAggregat;
+      // Die schlanke Fassung (lib/replaySchlank) - die volle Auswertung ist
+      // bei einem offenen Cup bis zu 54 MB und riss auf Render den Server um.
+      const tag = await replayTag(s, windowId);
+      if (!tag) continue;
+      const roh: ReplayAggregat = {
+        windowId, season: s, matches: tag.matches, spieler: tag.spieler,
+        region: /_(EU|NAC|NAW|BR|ASIA|ME|OCE)$/i.exec(windowId)?.[1]?.toUpperCase(),
+      };
       const liste = roh.spieler ?? [];
       if (!liste.length) continue;
 
