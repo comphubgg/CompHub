@@ -48,6 +48,18 @@ jobs:
               curl -s -o /dev/null -w "%{http_code} %{time_total}s %{size_download}B  $p\n" -m 120 "http://localhost:10000$p"
             done
           done
+          # Die Verwaltung mit Admin-Anmeldung, mit den Kopfzeilen, die hinter
+          # Render und Cloudflare ankommen: 200 heisst, die Vorpruefung laesst durch.
+          GEHEIM=$(grep -E '^AUTH_COOKIE_SECRET=' app.env | cut -d= -f2-)
+          [ -z "$GEHEIM" ] && GEHEIM=$(grep -E '^DISCORD_CLIENT_SECRET=' app.env | cut -d= -f2-)
+          KEKS=$(GEHEIM="$GEHEIM" node -e "const c=require('crypto');const w='admin-juanito:'+Date.now();process.stdout.write('streamer_dashboard_auth='+encodeURIComponent(w+':'+c.createHmac('sha256',process.env.GEHEIM).update(w).digest('hex')))")
+          curl -s -m 30 -H "Cookie: $KEKS" -w '  check-admin %{http_code}
+' http://localhost:10000/api/auth/check-admin
+          for p in /admin /admin/orgs; do
+            curl -s -o /dev/null -m 60 -H "Cookie: $KEKS" -H 'Host: www.thecomphub.com' -H 'X-Forwarded-Proto: https' -H 'X-Forwarded-Host: www.thecomphub.com' \
+              -w "%{http_code} %{time_total}s loc=%header{location}  admin $p
+" "http://localhost:10000$p"
+          done
           docker stats --no-stream seite
           docker logs seite 2>&1 | tail -20
       - if: always()

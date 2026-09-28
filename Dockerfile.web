@@ -24,7 +24,8 @@ RUN NODE_OPTIONS=--max-old-space-size=6144 npx next build
 FROM node:24-slim
 WORKDIR /app
 ENV NODE_ENV=production NEXT_TELEMETRY_DISABLED=1 \
-    HOSTNAME=0.0.0.0 PORT=10000 \
+    HOSTNAME=0.0.0.0 PORT=10000 COMPHUB_INTERN_URL=http://127.0.0.1:10000 \
+    COMPHUB_WACH_URL=https://www.thecomphub.com/api/auth/verify \
     COMPHUB_ABLAGE=supabase COMPHUB_KEIN_HINTERGRUND=1 \
     NODE_OPTIONS=--max-old-space-size=400
 COPY --from=bau /app/.next/standalone ./

@@ -41,20 +41,44 @@ import { NextResponse, type NextRequest } from 'next/server';
  */
 const SITZUNGS_COOKIES = ['streamer_dashboard_konto', 'streamer_dashboard_auth'];
 
+/*
+ * Wohin die Nachfrage geht.
+ *
+ * Bei Vercel ging sie an die eigene oeffentliche Adresse. Auf dem eigenen
+ * Host (Render, hinter Cloudflare) kam sie von dort nie an: jeder Aufruf
+ * von /admin landete bei der Anmeldung, die den angemeldeten Betreiber
+ * sofort zurueckschickte - der Betreiber (28.9.2026): "obwohl ich
+ * eingeloggt bin, komme ich wieder auf die Login-Page". Dort fragt die
+ * Middleware deshalb den Server direkt (COMPHUB_INTERN_URL, im Image
+ * gesetzt) und nur ersatzweise die oeffentliche Adresse.
+ */
+function auskunftAdressen(request: NextRequest): string[] {
+  const oeffentlich = new URL('/api/auth/check-admin', request.url).toString();
+  const intern = process.env.COMPHUB_INTERN_URL;
+  return intern ? [`${intern.replace(/\/+$/, '')}/api/auth/check-admin`, oeffentlich] : [oeffentlich];
+}
+
 async function verwaltungErlaubt(request: NextRequest): Promise<boolean> {
   if (!SITZUNGS_COOKIES.some((c) => request.cookies.get(c)?.value)) return false;
-  try {
-    const r = await fetch(new URL('/api/auth/check-admin', request.url), {
-      headers: { cookie: request.headers.get('cookie') ?? '' },
-      cache: 'no-store',
-      signal: AbortSignal.timeout(8_000),
-    });
-    if (!r.ok) return false;
-    const j = await r.json() as { isAdmin?: boolean; rolle?: string | null };
-    return j.isAdmin === true || j.rolle === 'manager';
-  } catch {
-    return false;
+  for (const adresse of auskunftAdressen(request)) {
+    try {
+      const r = await fetch(adresse, {
+        headers: { cookie: request.headers.get('cookie') ?? '' },
+        cache: 'no-store',
+        signal: AbortSignal.timeout(8_000),
+      });
+      if (!r.ok) {
+        console.warn(`[verwaltung] ${adresse}: HTTP ${r.status}`);
+        continue;
+      }
+      const j = await r.json() as { isAdmin?: boolean; rolle?: string | null };
+      return j.isAdmin === true || j.rolle === 'manager';
+    } catch (e) {
+      console.warn(`[verwaltung] ${adresse}: ${(e as Error).message}`);
+    }
   }
+  // Keine Auskunft: wie bisher nicht angemeldet - die Verwaltung bleibt zu.
+  return false;
 }
 
 export async function middleware(request: NextRequest) {

@@ -49,6 +49,24 @@ export async function register() {
    * COMPHUB_KEIN_HINTERGRUND schaltet es auch von Hand ab, etwa wenn zwei
    * Fassungen nebeneinander laufen und nur eine die Nachtlaeufe machen soll.
    */
+  /*
+   * Wachhalten auf dem kostenlosen Host.
+   *
+   * Render legt die Seite nach fuenfzehn Minuten ohne Besuch schlafen; der
+   * naechste Besucher wartet dann rund eine Minute. Der Ping aus dem
+   * GitHub-Ablauf "Discord live" sollte das verhindern, aber GitHub laesst
+   * geplante Laeufe unter Last ausfallen (am 28.9.2026 sieben Stunden lang
+   * keiner) - der Betreiber: "die Player-Stats ... laden ziemlich, ziemlich
+   * lange". Der Server ruft deshalb selbst alle zehn Minuten seine
+   * oeffentliche Adresse auf; das kommt ueber Cloudflare als Besuch bei
+   * Render an. Eine Anfrage, zwanzig Byte.
+   */
+  const wach = process.env.COMPHUB_WACH_URL;
+  if (wach) {
+    const ping = () => { void fetch(`${wach}?wach=${Date.now()}`, { cache: 'no-store', signal: AbortSignal.timeout(30_000) }).catch(() => {}); };
+    setInterval(ping, 10 * 60_000).unref?.();
+  }
+
   if (process.env.VERCEL || process.env.COMPHUB_KEIN_HINTERGRUND) {
     console.log(
       'Hintergrundlaeufe aus - hier laeuft kein durchgehender Vorgang. '
