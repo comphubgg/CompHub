@@ -1919,6 +1919,19 @@ let epicBis = 0;
 
 async function liesEpicSpieltage(): Promise<EpicSpieltag[]> {
   if (epicListe && Date.now() < epicBis) return epicListe;
+  /*
+   * Nie auf dem Host der Seite.
+   *
+   * Alle Spieltage zusammen sind 390 Megabyte (Stand 28.9.2026, jede
+   * Qualifikation mit zehntausend Teams). Render gibt der Seite 512 MB: das
+   * Laden riss den Server um, und bis er neu stand, hing die ganze Seite fuer
+   * alle - ausgeloest schon durch einen Klick auf die Player-Stats der
+   * Globals. Dort, wo die Daten nur am Release liegen, rechnet das der
+   * stuendliche Lauf vor; hier gibt es lieber einen Fehler als einen Absturz.
+   */
+  if (ohneDateien()) {
+    throw new Error('Epic match days are only read by the hourly job, not on the site host.');
+  }
 
   const geladen: EpicSpieltag[] = [];
   try {
@@ -2144,7 +2157,19 @@ export async function szeneFenster(windowIds: string[]): Promise<{ matches: numb
 
 /** Epics Aufstellung eines Spieltags (Teams, Punkte, Platz) - oder null. */
 export async function epicTag(windowId: string): Promise<EpicSpieltag | null> {
-  return (await liesEpicSpieltage()).find((t) => t.windowId === windowId) ?? null;
+  if (epicListe && Date.now() < epicBis) return epicListe.find((t) => t.windowId === windowId) ?? null;
+  // Die eine Datei lesen statt aller (siehe liesEpicSpieltage): sie liegt als
+  // <windowId>.json im Ordner ihrer Saison - die aus der Kennung zuerst,
+  // sonst die neueste zuerst (die Globals heissen "MannekenPis_Day1").
+  const ausKennung = /^(S\d+)_/i.exec(windowId)?.[1]?.toUpperCase();
+  const ordner = await fs.readdir(EPIC_ABLAGE).catch(() => [] as string[]);
+  const reihe = [...new Set([ausKennung, ...[...ordner].sort().reverse()].filter((x): x is string => !!x))];
+  for (const saison of reihe) {
+    try {
+      return JSON.parse(await fs.readFile(path.join(EPIC_ABLAGE, saison, `${windowId}.json`), 'utf8')) as EpicSpieltag;
+    } catch { /* nicht in dieser Saison */ }
+  }
+  return null;
 }
 
 /** Echtes Konto -> seine Turnierkonten an LANs (lib/lanKonten, umgedreht). */

@@ -10,6 +10,8 @@ import {
 } from '@/lib/cupWertung';
 import { zwischenspeichern } from '@/lib/zwischenspeicher';
 import { abgesagtFuer } from '@/lib/abgesagt';
+import { istGlobalsFinale } from '@/lib/globalsGesamt';
+import { GLOBALS_EVENT, GLOBALS_TAGE } from '@/lib/globalsCup';
 
 // Die einzelnen Runden eines Spieltags.
 //
@@ -681,7 +683,45 @@ async function holeRoh(request: Request) {
   }
 }
 
+/**
+ * Das Finale der Globals: die Matches beider Tage in einer Liste.
+ *
+ * Es hat bei Epic keine eigene Bestenliste (lib/globalsGesamt). Jeder Tag
+ * wird wie sonst gerechnet; jedes Match traegt seinen Tag und sein Fenster
+ * (etwa zum Absagen einer Runde), die Liste bleibt nach Zeit geordnet.
+ */
+async function globalsMatches(request: Request) {
+  const teile = await Promise.all(GLOBALS_TAGE.map(async (t) => {
+    const u = new URL(request.url);
+    u.searchParams.set('event', GLOBALS_EVENT);
+    u.searchParams.set('window', t.windowId);
+    const r = await holeRoh(new Request(u));
+    return { t, r, j: await r.clone().json() as Record<string, unknown> & { spiele?: Array<{ ende?: string | null }> } };
+  }));
+  const kaputt = teile.find((x) => !x.r.ok);
+  if (kaputt) return kaputt.r;
+  const zahl = (k: string) => teile.reduce((a, x) => a + (Number(x.j[k]) || 0), 0);
+  const spiele = teile
+    .flatMap(({ t, j }) => (j.spiele ?? []).map((s) => ({ ...s, tag: t.titel, fenster: t.windowId })))
+    .sort((a, b) => (b.ende ?? '').localeCompare(a.ende ?? ''));
+  return NextResponse.json({
+    ...teile[teile.length - 1].j,
+    spiele,
+    teams: Math.max(...teile.map((x) => Number(x.j.teams) || 0)),
+    feldGrenze: teile.some((x) => x.j.feldGrenze === true),
+    nachgetragen: zahl('nachgetragen'),
+    plaetzeAusReplay: zahl('plaetzeAusReplay'),
+    mitEigenen: zahl('mitEigenen'),
+    mitPunkten: teile.every((x) => x.j.mitPunkten === true),
+    zusammengerechnet: GLOBALS_TAGE.map((t) => t.windowId),
+  });
+}
+
 /** Fuer alle gleich - Vercels Zwischenspeicher beantwortet Wiederholungen (lib/zwischenspeicher). */
 export async function GET(request: Request) {
+  const p = new URL(request.url).searchParams;
+  if (istGlobalsFinale(p.get('event'), p.get('window'))) {
+    return zwischenspeichern(await globalsMatches(request), 60);
+  }
   return zwischenspeichern(await holeRoh(request), 20);
 }
