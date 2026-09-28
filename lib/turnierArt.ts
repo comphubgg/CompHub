@@ -50,6 +50,16 @@ export function istFinaleTag(
    * anderen bleibt Epics Kennzeichen massgeblich.
    */
   if (/performance/i.test(name ?? '') && /round2/i.test(windowId ?? '')) return true;
+  /*
+   * Die Globals: jeder Tag ist Teil des Finales.
+   *
+   * "FNCS Global Championship 2026 - Day 1" traegt das Wort "Finals" nicht,
+   * und Epic fuehrt dort kein Kennzeichen - der Tag fiel deshalb aus der
+   * Turnierliste der Statistik. Der Betreiber (28.9.2026): "wieso ... FNCS
+   * Grands ... Globals nicht unter [Statistics] drin. Das ist eigentlich das
+   * Einzige, was legit am wichtigsten ist. Beide Tage."
+   */
+  if (/global\s*championship|globals/i.test(name ?? '') || /^(MannekenPis|Dinosauron|BambiRaptor)_/i.test(windowId ?? '')) return true;
   if (typeof kennzeichen === 'boolean') return kennzeichen;
   return /final/i.test(name ?? '');
 }

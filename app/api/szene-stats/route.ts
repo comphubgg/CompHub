@@ -753,9 +753,30 @@ async function berechne(request: Request) {
     // Die Spieltage einer Saison, fuer die Turnieruebersicht.
     if (p.get('ansicht') === 'turniere') {
       const alle = await liesVerzeichnis();
+      /*
+       * Die Globals gehoeren keiner Region - alle Teams in einem Feld. Die
+       * Quelle legt sie unter EU (manchmal zusaetzlich NAC) ab; gezeigt
+       * werden sie unter jeder Region, und zwar nur einmal.
+       */
+      const lanGesehen = new Set<string>();
+      const istLan = (e: { name: string; windowId: string }) =>
+        /global\s*championship|globals/i.test(e.name) || /^(MannekenPis|Dinosauron|BambiRaptor)_/i.test(e.windowId);
       const gefiltert = alle
-        .filter((e) => (!saison || e.season === saison)
-                    && (!region || e.region === region));
+        .filter((e) => (!saison || e.season === saison))
+        .filter((e) => {
+          if (!region || e.region === region) {
+            if (istLan(e)) lanGesehen.add(e.windowId);
+            return true;
+          }
+          return false;
+        });
+      if (region) {
+        for (const e of alle) {
+          if ((saison && e.season !== saison) || !istLan(e) || lanGesehen.has(e.windowId)) continue;
+          lanGesehen.add(e.windowId);
+          gefiltert.push(e);
+        }
+      }
 
       /*
        * Nur die grossen Finale - so wollte es der Betreiber.
