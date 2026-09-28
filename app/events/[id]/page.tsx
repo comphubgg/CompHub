@@ -3175,14 +3175,30 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                                   <T>Spielverlauf</T>
                                 </div>
                                 <div className="grid gap-1.5 sm:grid-cols-2 xl:grid-cols-3">
-                                  {[...e.matches].reverse().map((m, i) => (
-                                    <div key={i}
+                                  {/*
+                                    * Welches Spiel welches war - klein und grau
+                                    * davor. Der Betreiber: "sag mir, welches Game
+                                    * welches ist ... so klein, graulich, nicht
+                                    * ganz offensichtlich." Gezaehlt nach der
+                                    * Endzeit; das neueste steht vorn.
+                                    */}
+                                  {e.matches.map((m, k) => ({ m, k }))
+                                    .sort((a, b) => String(a.m.endTime ?? '').localeCompare(String(b.m.endTime ?? '')) || a.k - b.k)
+                                    .map((x, i) => ({ ...x, nr: i + 1 }))
+                                    .reverse()
+                                    .map(({ m, nr }) => (
+                                    <div key={nr}
                                       className={`flex items-center justify-between rounded-lg px-2.5
                                                   py-1.5 text-xs ${m.placement === 1
                                                     ? 'bg-amber-950/40 text-amber-200'
                                                     : 'bg-zinc-900/70 text-slate-300'}`}>
-                                      <span className="font-semibold">
-                                        {m.placement ? `Platz ${m.placement}` : '–'}
+                                      <span className="flex items-baseline gap-2">
+                                        <span className="text-[10px] font-normal text-slate-600">
+                                          {sprache === 'en' ? 'Game' : 'Spiel'} {nr}
+                                        </span>
+                                        <span className="font-semibold">
+                                          {m.placement ? `${t('Platz')} ${m.placement}` : '–'}
+                                        </span>
                                       </span>
                                       <span className="text-slate-500">
                                         {m.elims ?? 0} Elims · {dauer(m.timeAlive ?? 0)}
