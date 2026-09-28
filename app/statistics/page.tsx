@@ -355,23 +355,44 @@ function Zeichen({ art }: { art: Bereich }) {
  * "Highest Rated" und "Lowest Rated" stehen, steht hier die Schadensquote -
  * die laesst sich aus den Dateien nachrechnen, das Rating nicht.
  */
+/*
+ * Die Bestenlisten eines Spieltags.
+ *
+ * Die ersten zehn in der Reihenfolge, die der Betreiber vorgegeben hat
+ * (28.9.2026, Discord): Damage Ratio, Damage to Players, Eliminations, Solo
+ * Clutch Points, Time in Storm, Time Alive, Distance Traveled, Hits to
+ * Players, Mats Farmed, Builds Placed. Danach, was es sonst noch gibt.
+ * "format" sagt, wie der Wert zu lesen ist: Sekunden als Zeit, Meter als km.
+ */
+type WertFormat = 'zeit' | 'km';
 const CUP_LISTEN: Array<{
   feld: keyof Spieler; titel: string; nachkomma?: number; einheit?: string;
-  kleinBesser?: boolean;
+  kleinBesser?: boolean; format?: WertFormat;
 }> = [
-  { feld: 'elims', titel: 'Meiste Eliminierungen' },
-  { feld: 'damage', titel: 'Meister Schaden' },
-  { feld: 'hits', titel: 'Meiste Treffer' },
   { feld: 'quote', titel: 'Beste Schadensquote', nachkomma: 2 },
+  { feld: 'damage', titel: 'Meister Schaden' },
+  { feld: 'elims', titel: 'Meiste Eliminierungen' },
+  { feld: 'clutch' as keyof Spieler, titel: 'Meiste Solo Clutch Points' },
+  { feld: 'timeInStorm', titel: 'Längste Zeit im Sturm', format: 'zeit' },
+  { feld: 'timeAlive', titel: 'Längste Überlebenszeit', format: 'zeit' },
+  { feld: 'distanz', titel: 'Längste Strecke', format: 'km' },
+  { feld: 'hits', titel: 'Meiste Treffer' },
+  { feld: 'mats', titel: 'Meistes Material' },
+  { feld: 'builds', titel: 'Meiste Bauteile' },
   { feld: 'quote', titel: 'Schlechteste Schadensquote', nachkomma: 2, kleinBesser: true },
   { feld: 'damageTaken', titel: 'Meister Schaden erlitten' },
   { feld: 'headshots', titel: 'Meiste Kopftreffer' },
   { feld: 'assists', titel: 'Meiste Assists' },
-  { feld: 'mats', titel: 'Meistes Material' },
-  { feld: 'builds', titel: 'Meiste Bauteile' },
   { feld: 'genauigkeit', titel: 'Beste Trefferquote', nachkomma: 1, einheit: ' %' },
   { feld: 'reboots', titel: 'Meiste Wiederbelebungen' },
 ];
+
+/** "47m 3s" / "2h 2m" - Sekunden als Zeit, wie in den Ranglisten ueblich. */
+function alsZeit(sek: number): string {
+  const s = Math.max(0, Math.round(sek));
+  const h = Math.floor(s / 3600); const m = Math.floor((s % 3600) / 60);
+  return h ? `${h}h ${m}m` : `${m}m ${s % 60}s`;
+}
 
 const SORTIERUNG: Array<[string, string]> = [
   ['elims', 'Meiste Eliminierungen'],
@@ -1944,7 +1965,7 @@ export default function StatistikSeite() {
     /** Woher die Liste stammt (Saison oder Region) - bleibt, wie es ist. */
     zusatz?: string;
     zeilen: Spieler[];
-    feld: keyof Spieler; nachkomma: number; einheit: string } | null>(null);
+    feld: keyof Spieler; nachkomma: number; einheit: string; format?: WertFormat } | null>(null);
   const [listenTiefe, setListenTiefe] = useState(50);
   /** Die Preisgeldliste blaettert: hundert je Seite, ab eins. */
   const [listenSeite, setListenSeite] = useState(1);
@@ -4048,7 +4069,7 @@ export default function StatistikSeite() {
                             <button onClick={() => {
                               setVolleListe({
                                 titel: l.titel, zeilen: l.zeilen, feld: l.feld,
-                                nachkomma: l.nachkomma ?? 0, einheit: l.einheit ?? '',
+                                nachkomma: l.nachkomma ?? 0, einheit: l.einheit ?? '', format: l.format,
                               });
                               setListenTiefe(50);
                             }}
@@ -4063,8 +4084,9 @@ export default function StatistikSeite() {
                         <div className="divide-y divide-zinc-900">
                           {l.zeilen.slice(0, 5).map((sp, i) => (
                             <Platz key={sp.epicId} nr={i + 1} s={sp}
-                              wert={zahl(Number(sp[l.feld]), l.nachkomma ?? 0, sprache)
-                                    + (l.einheit ?? '')}
+                              wert={l.format === 'zeit' ? alsZeit(Number(sp[l.feld]))
+                                : l.format === 'km' ? `${zahl(Number(sp[l.feld]) / 1000, 1, sprache)} km`
+                                : zahl(Number(sp[l.feld]), l.nachkomma ?? 0, sprache) + (l.einheit ?? '')}
                               aufKlick={() => oeffne(sp)} />
                           ))}
                         </div>
@@ -5470,8 +5492,9 @@ export default function StatistikSeite() {
               {zeigen.map(({ sp, nr }) => (
                 <Platz key={sp.epicId} nr={nr} s={sp}
                   mitBild={istGeld}
-                  wert={zahl(Number(sp[volleListe.feld]), volleListe.nachkomma, sprache)
-                        + volleListe.einheit}
+                  wert={volleListe.format === 'zeit' ? alsZeit(Number(sp[volleListe.feld]))
+                    : volleListe.format === 'km' ? `${zahl(Number(sp[volleListe.feld]) / 1000, 1, sprache)} km`
+                    : zahl(Number(sp[volleListe.feld]), volleListe.nachkomma, sprache) + volleListe.einheit}
                   zusatz={istElims && typeof sp.opensElims === 'number'
                     ? `${t('Finals')} ${sp.finals ?? 0} · ${t('Opens')}: ${zahl(sp.opensElims ?? 0, 0, sprache)} ${t('Elims')} ${t('in')} ${sp.opens ?? 0} ${t('Spieltagen')}`
                     : undefined}

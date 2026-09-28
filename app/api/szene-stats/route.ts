@@ -13,6 +13,7 @@ import {
 import { DATEN_ORT } from '@/lib/datenOrt';
 import { getToken, loeseNamenAuf } from '@/lib/epicCups';
 import { zwischenspeichern } from '@/lib/zwischenspeicher';
+import { liesJson } from '@/lib/ablage';
 
 /**
  * Das Namensverzeichnis - Konto-Id auf die Namen, unter denen jemand
@@ -1342,12 +1343,35 @@ async function berechne(request: Request) {
       };
     });
 
+    /*
+     * Solo Clutch Points eines Spieltags, wo sie gerechnet sind
+     * (scripts/clutch-berechnen.mjs, aus Epics Server-Replays). Die Replays
+     * fuehren bei einem LAN die Turnierkonten - die Zuordnung zu den echten
+     * Konten kommt aus lib/lanKonten.
+     */
+    let clutchDa = false;
+    if (event) {
+      const c = await liesJson<{ summe?: Record<string, number> } | null>(`clutch/${event}.json`, null).catch(() => null);
+      if (c?.summe) {
+        clutchDa = true;
+        const { liesLanKonten } = await import('@/lib/lanKonten');
+        const lan = await liesLanKonten();
+        const je = new Map<string, number>();
+        for (const [id, pkt] of Object.entries(c.summe)) {
+          const e = lan[id]?.echt ?? id;
+          je.set(e, (je.get(e) ?? 0) + pkt);
+        }
+        for (const z of mitProfil) (z as Record<string, unknown>).clutch = je.get(z.epicId) ?? 0;
+      }
+    }
+
     return NextResponse.json({
       success: true,
       quelle: QUELLE,
       spieltage,
       gesamt: gefiltert.length,
       sort: feld,
+      clutch: clutchDa,
       spieler: mitProfil,
     });
   } catch (fehler) {
