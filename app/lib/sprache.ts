@@ -3542,6 +3542,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Erst das X-Konto eintragen': 'Enter the X account first',
   'Content Creator ohne Epic-Konto: Namen tippen …': 'Content creator without an Epic account: type a name …',
   'Kein Spieler gefunden.': 'No player found.',
+  'Beide Tage zusammen': 'Both days combined',
   'Epic gibt je Spieltag nur die ersten 10.000 Plätze heraus, gesucht wird in diesen.': 'Epic only releases the first 10,000 places per match day – the search covers these.',
 };
 

@@ -861,18 +861,31 @@ async function berechne(request: Request) {
         if (!lanGruppen.has(m[1])) lanGruppen.set(m[1], []);
         lanGruppen.get(m[1])!.push(t);
       }
+      /*
+       * Und nur diese eine Kachel (Betreiber, 28.9.2026: "mach auch nur 1
+       * Event fuer Globals, so dass man ueber Day 1 und 2 wechseln kann und
+       * kumulativ"). Die Tage traegt sie mit; die Statistikseite schaltet
+       * zwischen ihnen und der Summe um.
+       */
       for (const [, tage] of lanGruppen) {
         if (tage.length < 2) continue;
-        const letzter = [...tage].sort((a, b) => (b.datum ?? 0) - (a.datum ?? 0))[0];
+        const sortiert = [...tage].sort((a, b) => (a.datum ?? 0) - (b.datum ?? 0));
+        const letzter = sortiert[sortiert.length - 1];
         const finale = {
           ...letzter,
           datei: 'gesamt',
-          name: letzter.name.replace(/\s*-?\s*Day\s*\d+$/i, '').replace(/Day\d+$/i, '') + ' - Finals',
+          name: letzter.name.replace(/\s*-?\s*Day\s*\d+$/i, '').replace(/Day\d+$/i, '').trim(),
           matches: tage.reduce((a, t) => a + (t.matches ?? 0), 0),
-          events: tage.map((t) => t.windowId).sort(),
+          events: sortiert.map((t) => t.windowId),
+          tage: sortiert.map((t) => ({
+            windowId: t.windowId, datei: t.datei,
+            titel: `Day ${/Day\s*(\d+)/i.exec(t.windowId)?.[1] ?? ''}`.trim(),
+          })),
           gesamt: true,
         };
-        turniere.splice(turniere.indexOf(letzter), 0, finale);
+        const stelle = turniere.indexOf(letzter);
+        for (const t of tage) turniere.splice(turniere.indexOf(t), 1);
+        turniere.splice(Math.min(stelle, turniere.length), 0, finale);
       }
 
       return NextResponse.json({ success: true, quelle: QUELLE, turniere, zahlen });

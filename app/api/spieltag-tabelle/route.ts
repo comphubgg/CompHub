@@ -3,6 +3,7 @@ import { verdienst } from '@/lib/preisgeld';
 import fs from '@/lib/ablageFs';
 import path from 'path';
 import { DATEN_ORT } from '@/lib/datenOrt';
+import { liesLanKonten } from '@/lib/lanKonten';
 
 // Die Endtabelle eines Spieltags - Platz, Team, Punkte, Matches.
 //
@@ -134,6 +135,24 @@ export async function GET(request: Request) {
 
   const namen = await namensKarte();
   /*
+   * An einer LAN (Globals) spielen die Profis auf Turnierkonten. In der
+   * Tabelle standen deshalb Kuerzel wie "1c3b86b9 + cb249b53". Ueber die
+   * Zuordnung der Turnierkonten (lib/lanKonten) steht dort der echte Name mit
+   * Flagge; wo keine Zuordnung da ist, der Name des Turnierkontos ohne den
+   * Vorsatz "[FNCSGC26]".
+   */
+  const lan = await liesLanKonten().catch(() => ({} as Awaited<ReturnType<typeof liesLanKonten>>));
+  const person = (id: string) => {
+    const echt = lan[id]?.echt;
+    const n = (echt ? namen.get(echt) : undefined) ?? namen.get(id);
+    const lanName = lan[id]?.lan?.replace(/^\[[^\]]+\]\s*/, '') || undefined;
+    return {
+      epicId: echt ?? id,
+      name: (n && n.name !== id.slice(0, 8) ? n.name : undefined) ?? lan[id]?.name ?? lanName ?? n?.name ?? id.slice(0, 8),
+      land: n?.land ?? '',
+    };
+  };
+  /*
    * Und das Preisgeld je Platz, wo eine Regel gepflegt ist - siehe
    * lib/preisgeld. Abgeleitet aus Platz beziehungsweise Punkten und der
    * gepflegten Tabelle; je Person. Wo keine Regel steht, bleibt es leer.
@@ -159,11 +178,7 @@ export async function GET(request: Request) {
         matches: t.matches ?? null,
         elims: t.teamElims ?? null,
         verdienst: geld ? geld.betrag : null,
-        spieler: (t.spieler ?? []).map((id) => ({
-          epicId: id,
-          name: namen.get(id)?.name ?? id.slice(0, 8),
-          land: namen.get(id)?.land ?? '',
-        })),
+        spieler: (t.spieler ?? []).map(person),
       };
     }));
 

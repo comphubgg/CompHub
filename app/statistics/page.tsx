@@ -103,6 +103,8 @@ interface Turnier {
   region: string; season: string; datei: string; windowId: string;
   /** Die Kachel "Finals" einer LAN: die Fenster aller Tage, zusammengerechnet. */
   events?: string[]; gesamt?: boolean;
+  /** Die Tage dieser LAN - zum Umschalten zwischen Tag und Summe. */
+  tage?: Array<{ windowId: string; datei: string; titel: string }>;
   name: string; spieler: number; matches: number; datum?: number;
   /** Eine LAN - mit Namen und Ort, aus der LAN-Datei. */
   lan?: { name: string | null; ort: string | null } | null;
@@ -1891,6 +1893,14 @@ export default function StatistikSeite() {
 
   // Ein einzelner Cup, aufgeschlagen
   const [cup, setCup] = useState<Turnier | null>(null);
+  /** Bei einer LAN mit mehreren Tagen: ein Tag oder "gesamt" (die Summe). */
+  const [tagWahl, setTagWahl] = useState('gesamt');
+  /** Der Cup, wie er gerade gezeigt wird - bei einer LAN der gewaehlte Tag. */
+  const cupAktiv = useMemo<Turnier | null>(() => {
+    if (!cup?.tage?.length || tagWahl === 'gesamt') return cup;
+    const tag = cup.tage.find((x) => x.windowId === tagWahl);
+    return tag ? { ...cup, windowId: tag.windowId, datei: tag.datei, events: undefined, gesamt: false } : cup;
+  }, [cup, tagWahl]);
   const [cupFeld, setCupFeld] = useState<Spieler[]>([]);
   /*
    * Wer im Aufmacher eines Cups steht.
@@ -2379,6 +2389,7 @@ export default function StatistikSeite() {
    * taucht nicht auf; dafuer meint jede Zahl dasselbe.
    */
   useEffect(() => {
+    const cup = cupAktiv;
     if (!cup?.windowId) { setSpieltagTabelle(null); return; }
     let weg = false;
     setSpieltagTabelle(null); setTabelleSuche(''); setTabelleTiefe(50);
@@ -2390,7 +2401,7 @@ export default function StatistikSeite() {
       .catch(() => { if (!weg) setSpieltagTabelle([]); })
       .finally(() => { if (!weg) setTabelleLaedt(false); });
     return () => { weg = true; };
-  }, [cup]);
+  }, [cupAktiv]);
 
   const suchen = useCallback(async (text: string, wohin: (t: Spieler[]) => void) => {
     const q = text.trim();
@@ -2629,6 +2640,7 @@ export default function StatistikSeite() {
    * statt zwoelfmal dasselbe zu holen.
    */
   useEffect(() => {
+    const cup = cupAktiv;
     if (!cup) { setCupFeld([]); return; }
     let weg = false;
     setCupLaedt(true);
@@ -2643,7 +2655,7 @@ export default function StatistikSeite() {
       .catch(() => { if (!weg) setCupFeld([]); })
       .finally(() => { if (!weg) setCupLaedt(false); });
     return () => { weg = true; };
-  }, [cup]);
+  }, [cupAktiv]);
 
   /** Die Bestenlisten dieses Spieltags, aus dem geladenen Feld gerechnet. */
   const cupListen = useMemo(() => CUP_LISTEN.map((k) => {
@@ -3897,10 +3909,25 @@ export default function StatistikSeite() {
           {/* ------------------------------------------- ein einzelner Cup */}
           {bereich === 'turniere' && cup && (
             <>
-              <button onClick={() => { setCup(null); setVolleListe(null); }}
+              <button onClick={() => { setCup(null); setVolleListe(null); setTagWahl('gesamt'); }}
                 className="mb-3 text-xs text-slate-400 transition hover:text-sky-400">
                 <T>← Zurück zu den Turnieren</T>
               </button>
+
+              {/* Eine LAN mit mehreren Tagen: jeder Tag fuer sich oder alle zusammen. */}
+              {!!cup.tage?.length && (
+                <div className="mb-4 flex flex-wrap gap-2">
+                  {[...cup.tage.map((x) => [x.windowId, x.titel] as [string, string]), ['gesamt', 'Beide Tage zusammen'] as [string, string]]
+                    .map(([w, titel]) => (
+                      <button key={w} type="button" onClick={() => setTagWahl(w)}
+                        className={`rounded-lg border px-4 py-1.5 text-sm font-semibold transition ${tagWahl === w
+                          ? 'border-sky-500 bg-sky-500/10 text-sky-400'
+                          : 'border-zinc-800 text-slate-400 hover:border-zinc-600 hover:text-slate-200'}`}>
+                        {w === 'gesamt' ? <T>{titel}</T> : titel}
+                      </button>
+                    ))}
+                </div>
+              )}
 
 
               {cupLaedt && !cupFeld.length ? (

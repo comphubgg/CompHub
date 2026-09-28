@@ -1061,6 +1061,9 @@ export const KENNZAHLEN: Array<{
  * ("discoverytile-performanceevaluation").
  */
 const BILD_STICHWORTE: Array<[RegExp, RegExp]> = [
+  // Die Globals 2026 (MannekenPis): die Grafik der Cup-Seite. Nur dieses
+  // Jahr - die Globals davor bekaemen sonst das Bild von 2026.
+  [/global\s*championship\s*2026|mannekenpis/i, /^FNCS Global Championship$/i],
   [/performance|perf ?eval/i, /performance/i],
   [/escargo|reload elite/i, /reload elite series|reload-championship/i],
   [/fncs.*(major|last ?chance|grand)|grand ?finals/i, /last chance|major|global championship/i],
