@@ -93,7 +93,9 @@ export async function GET(request: Request) {
    * die Summe der Tagesfenster, danach die Plaetze - und nicht der Tag.
    */
   let gesamt = false;
-  const letzterTag = fenster.match(/(?:_Final_Day|SoloSeriesCupFinal_Day)(\d+)_/);
+  // Bei einer LAN nur auf Wunsch (Kachel "Finals"): Day 2 allein bleibt Day 2.
+  const letzterTag = fenster.match(/(?:_Final_Day|SoloSeriesCupFinal_Day)(\d+)_/)
+    ?? (p.get('gesamt') === '1' ? fenster.match(/^(?:MannekenPis|Dinosauron|BambiRaptor)_Day(\d+)$/) : null);
   if (daten?.teams?.length && letzterTag && Number(letzterTag[1]) >= 2) {
     const summe = new Map<string, { spieler: string[]; punkte: number; matches: number; teamElims: number }>();
     let vollstaendig = true;

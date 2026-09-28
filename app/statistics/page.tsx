@@ -101,6 +101,8 @@ interface Spieler {
 
 interface Turnier {
   region: string; season: string; datei: string; windowId: string;
+  /** Die Kachel "Finals" einer LAN: die Fenster aller Tage, zusammengerechnet. */
+  events?: string[]; gesamt?: boolean;
   name: string; spieler: number; matches: number; datum?: number;
   /** Eine LAN - mit Namen und Ort, aus der LAN-Datei. */
   lan?: { name: string | null; ort: string | null } | null;
@@ -2382,7 +2384,7 @@ export default function StatistikSeite() {
     setSpieltagTabelle(null); setTabelleSuche(''); setTabelleTiefe(50);
     setTabelleLaedt(true);
     fetch(`/api/spieltag-tabelle?window=${encodeURIComponent(cup.windowId)}`
-      + `&saison=${encodeURIComponent(cup.season ?? '')}`)
+      + `&saison=${encodeURIComponent(cup.season ?? '')}${cup.gesamt ? '&gesamt=1' : ''}`)
       .then((r) => r.json())
       .then((j) => { if (!weg) { setSpieltagTabelle(j?.teams ?? []); setTabelleGesamt(Boolean(j?.gesamt)); } })
       .catch(() => { if (!weg) setSpieltagTabelle([]); })
@@ -2631,7 +2633,8 @@ export default function StatistikSeite() {
     let weg = false;
     setCupLaedt(true);
     const p = new URLSearchParams({
-      saison: cup.season, region: cup.region, event: cup.windowId,
+      saison: cup.season, region: cup.region,
+      ...(cup.events?.length ? { events: cup.events.join(',') } : { event: cup.windowId }),
       sort: 'elims', limit: '500',
     });
     fetch(`/api/szene-stats?${p}`)

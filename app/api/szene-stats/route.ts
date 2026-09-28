@@ -848,6 +848,33 @@ async function berechne(request: Request) {
             (t as { windowId?: string }).windowId)).length,
       };
 
+      /*
+       * Das Finale einer LAN (Globals) als eigene Kachel: alle Tage zusammen.
+       * Der Betreiber (28.9.2026): "Beide Tage, also Day 1, Day 2 und
+       * Finals." Die Kachel traegt die Fenster der Tage ("events"); die
+       * Zahlen rechnet dieselbe Summe wie fuer eine Turnierreihe.
+       */
+      const lanGruppen = new Map<string, typeof turniere>();
+      for (const t of turniere) {
+        const m = /^(MannekenPis|Dinosauron|BambiRaptor)_Day\d+$/.exec(t.windowId ?? '');
+        if (!m) continue;
+        if (!lanGruppen.has(m[1])) lanGruppen.set(m[1], []);
+        lanGruppen.get(m[1])!.push(t);
+      }
+      for (const [, tage] of lanGruppen) {
+        if (tage.length < 2) continue;
+        const letzter = [...tage].sort((a, b) => (b.datum ?? 0) - (a.datum ?? 0))[0];
+        const finale = {
+          ...letzter,
+          datei: 'gesamt',
+          name: letzter.name.replace(/\s*-?\s*Day\s*\d+$/i, '').replace(/Day\d+$/i, '') + ' - Finals',
+          matches: tage.reduce((a, t) => a + (t.matches ?? 0), 0),
+          events: tage.map((t) => t.windowId).sort(),
+          gesamt: true,
+        };
+        turniere.splice(turniere.indexOf(letzter), 0, finale);
+      }
+
       return NextResponse.json({ success: true, quelle: QUELLE, turniere, zahlen });
     }
 
@@ -1350,19 +1377,21 @@ async function berechne(request: Request) {
      * Konten kommt aus lib/lanKonten.
      */
     let clutchDa = false;
-    if (event) {
-      const c = await liesJson<{ summe?: Record<string, number> } | null>(`clutch/${event}.json`, null).catch(() => null);
-      if (c?.summe) {
+    const clutchFenster = event ? [event] : events;
+    if (clutchFenster.length) {
+      const { liesLanKonten } = await import('@/lib/lanKonten');
+      const lan = await liesLanKonten();
+      const je = new Map<string, number>();
+      for (const w of clutchFenster) {
+        const c = await liesJson<{ summe?: Record<string, number> } | null>(`clutch/${w}.json`, null).catch(() => null);
+        if (!c?.summe) continue;
         clutchDa = true;
-        const { liesLanKonten } = await import('@/lib/lanKonten');
-        const lan = await liesLanKonten();
-        const je = new Map<string, number>();
         for (const [id, pkt] of Object.entries(c.summe)) {
           const e = lan[id]?.echt ?? id;
           je.set(e, (je.get(e) ?? 0) + pkt);
         }
-        for (const z of mitProfil) (z as Record<string, unknown>).clutch = je.get(z.epicId) ?? 0;
       }
+      if (clutchDa) for (const z of mitProfil) (z as Record<string, unknown>).clutch = je.get(z.epicId) ?? 0;
     }
 
     return NextResponse.json({
