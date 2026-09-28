@@ -43,7 +43,7 @@ var feed = replay.KillFeed.Select(k => new {
   x = R(k.DeathLocation?.X), y = R(k.DeathLocation?.Y), ursache = k.DeathCause, abstand = R(k.Distance),
 }).ToList();
 
-var zonen = (replay.MapData?.SafeZones ?? new()).Select(z => new {
+var zonen = (replay.MapData?.SafeZones ?? Enumerable.Empty<FortniteReplayReader.Models.SafeZone>()).Select(z => new {
   radius = R(z.Radius), naechsterRadius = R(z.NextRadius),
   x = R(z.NextCenter?.X), y = R(z.NextCenter?.Y),
   schrumpftAb = R(z.StartShrinkTime), schrumpftBis = R(z.FinishShrinkTime),
