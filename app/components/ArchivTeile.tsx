@@ -14,7 +14,7 @@
  *     gespeichert wird die Konto-Id.
  *   - CupWahl: den Cup der Seite waehlen, zu dem ein Event gehoert.
  */
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import TeamFlagge from '@/components/TeamFlagge';
 import T from '@/app/components/T';
 import { videoArt, type GalerieEintrag } from '@/lib/galerieTypen';
@@ -74,6 +74,7 @@ function VideoDatei({ src, bild, breite, hoehe, titel }: {
   src: string; bild?: string | null; breite?: number | null; hoehe?: number | null; titel: string;
 }) {
   const [format, setFormat] = useState<number | null>(breite && hoehe ? breite / hoehe : null);
+  const rahmen = useRef<HTMLIFrameElement | null>(null);
   const doc = `<!doctype html><html><head><meta name="referrer" content="no-referrer"><style>`
     + `html,body{margin:0;height:100%;background:#000;overflow:hidden}video{display:block;width:100%;height:100%;object-fit:contain;background:#000}`
     + `</style></head><body><video controls playsinline preload="metadata" src="${src.replace(/"/g, '&quot;')}"`
@@ -82,8 +83,10 @@ function VideoDatei({ src, bild, breite, hoehe, titel }: {
   useEffect(() => {
     if (format) return undefined;
     const hoeren = (ev: MessageEvent) => {
-      const d = ev.data as { videoFormat?: number; src?: string } | undefined;
-      if (d?.videoFormat && d.src && src.startsWith(d.src.split('?')[0].slice(0, 40))) setFormat(d.videoFormat);
+      // Nur die Nachricht des eigenen Rahmens - auf einer Seite spielen viele.
+      if (ev.source !== rahmen.current?.contentWindow) return;
+      const d = ev.data as { videoFormat?: number } | undefined;
+      if (d?.videoFormat && Number.isFinite(d.videoFormat)) setFormat(d.videoFormat);
     };
     window.addEventListener('message', hoeren);
     return () => window.removeEventListener('message', hoeren);
@@ -91,7 +94,7 @@ function VideoDatei({ src, bild, breite, hoehe, titel }: {
   return (
     <div className="w-full overflow-hidden rounded-lg bg-black"
       style={{ aspectRatio: String(format ?? 16 / 9), maxHeight: 640 }}>
-      <iframe className="block h-full w-full" srcDoc={doc} title={titel} referrerPolicy="no-referrer"
+      <iframe ref={rahmen} className="block h-full w-full" srcDoc={doc} title={titel} referrerPolicy="no-referrer"
         allow="fullscreen; picture-in-picture" allowFullScreen loading="lazy" />
     </div>
   );
