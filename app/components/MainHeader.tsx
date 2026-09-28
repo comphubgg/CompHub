@@ -8,6 +8,7 @@ import VIPLoginForm from '../login/VIPLoginForm';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import { useSektionen, zustandFuer } from '@/app/lib/sektionen-stand';
+import { sichtbarerTakt, geteilterAbruf, vergissAbruf } from '@/app/lib/takt';
 
 /*
  * Die Leiste und die schaltbaren Bereiche sind dieselbe Liste.
@@ -88,10 +89,10 @@ export default function MainHeader({ sektionenAnfang }: {
 
     const holen = async () => {
       try {
-        const antwort = await fetch('/api/konto', {
-          credentials: 'same-origin', cache: 'no-store',
-        });
-        const j = await antwort.json();
+        const j = (await geteilterAbruf<{ angemeldet?: boolean; konto?: {
+          name?: string; bild?: string; rolle?: string; vip?: boolean;
+          vipBis?: number | null; vipNeu?: boolean;
+        } }>('/api/konto')).daten;
         if (fort) return;
         setKontoName(j?.angemeldet ? (j.konto?.name ?? null) : null);
         setKontoBild(j?.angemeldet ? (j.konto?.bild ?? null) : null);
@@ -104,18 +105,12 @@ export default function MainHeader({ sektionenAnfang }: {
 
     void Promise.resolve().then(() => { if (!fort) return holen(); });
 
-    const uhr = setInterval(() => { void holen(); }, 30_000);
-    const beiRueckkehr = () => {
-      if (document.visibilityState === 'visible') void holen();
-    };
-    document.addEventListener('visibilitychange', beiRueckkehr);
-    window.addEventListener('focus', beiRueckkehr);
+    // Zwei Minuten und nur bei sichtbarem Tab - siehe app/lib/takt.
+    const stopp = sichtbarerTakt(() => { void holen(); }, 120_000);
 
     return () => {
       fort = true;
-      clearInterval(uhr);
-      document.removeEventListener('visibilitychange', beiRueckkehr);
-      window.removeEventListener('focus', beiRueckkehr);
+      stopp();
     };
   }, []);
 
@@ -126,18 +121,14 @@ export default function MainHeader({ sektionenAnfang }: {
       if (isLocal) setAuthStatus('loading');
 
       try {
-        const response = await fetch('/api/auth/verify', {
-          method: 'GET',
-          credentials: 'same-origin',
-          cache: 'no-store',
-        });
+        const response = await geteilterAbruf<{ authorized?: boolean; user?: string }>('/api/auth/verify');
 
         if (!response.ok) {
           if (isLocal) setAuthStatus('unauthorized');
           throw new Error('Not authorized');
         }
 
-        const data = await response.json();
+        const data = response.daten;
         if (data?.authorized && data?.user) {
           setProfileName(data.user);
           if (isLocal) setAuthStatus('authorized');
@@ -480,6 +471,7 @@ export default function MainHeader({ sektionenAnfang }: {
                   method: 'POST', headers: { 'Content-Type': 'application/json' },
                   body: JSON.stringify({ was: 'vipGesehen' }),
                 }).catch(() => { /* beim naechsten Mal wieder */ });
+                vergissAbruf('/api/konto');
               }}
               className="rounded-lg border border-amber-700/60 px-3 py-1.5
                          text-xs font-semibold text-amber-200 transition

@@ -30,6 +30,7 @@ import Organisationen from './Organisationen';
 import { regionFarbe, REGIONEN_REIHE } from '@/lib/regionFarbe';
 import { useSprache, useT } from '@/app/components/SprachProvider';
 import { useZugang } from '@/app/lib/zugang';
+import { sichtbarerTakt } from '@/app/lib/takt';
 /**
  * In welcher Reihenfolge die Regionen stehen.
  *
@@ -1781,6 +1782,8 @@ export default function StatistikSeite() {
   /** Schon geholte Jahresantworten, je Auswahl - beim Zurueckwechseln sofort da. */
   const jahrMerker = useRef(new Map<string, NonNullable<typeof jahr>>());
   const [sichtbar, setSichtbar] = useState<Record<Bereich, Sichtbar>>(SICHTBAR_STANDARD);
+  /** Wann der Admin das Schloss zuletzt selbst gedreht hat - siehe unten. */
+  const selbstGedreht = useRef(0);
   const zugang = useZugang();
   const [pflegeName, setPflegeName] = useState('');
   const [pflegeLand, setPflegeLand] = useState('');
@@ -2092,13 +2095,20 @@ export default function StatistikSeite() {
      * soll das live auf der ganzen Webseite fuer jeden gelten." Also fragt
      * jede offene Seite regelmaessig nach; die Antwort ist ein paar Byte.
      */
-    const schloesserHolen = () => fetch('/api/statistik-sichtbarkeit', { cache: 'no-store' })
+    /*
+     * Die Antwort kommt aus Vercels Zwischenspeicher (bis zehn Sekunden alt).
+     * Hat der Admin gerade selbst gedreht, gilt eine Minute lang seine
+     * Eingabe - sonst sprang das Schloss kurz auf den alten Stand zurueck.
+     */
+    const schloesserHolen = () => fetch('/api/statistik-sichtbarkeit')
       .then((r) => (r.ok ? r.json() : null))
-      .then((j) => { if (j?.bereiche) { setSichtbar({ ...SICHTBAR_STANDARD, ...j.bereiche }); setSchloesserBekannt(true); } })
+      .then((j) => {
+        if (!j?.bereiche || Date.now() - selbstGedreht.current < 60_000) return;
+        setSichtbar({ ...SICHTBAR_STANDARD, ...j.bereiche }); setSchloesserBekannt(true);
+      })
       .catch(() => { /* dann gilt der Standard */ });
     void schloesserHolen();
-    const takt = setInterval(schloesserHolen, 10_000);
-    return () => clearInterval(takt);
+    return sichtbarerTakt(() => { void schloesserHolen(); }, 15_000);
   }, []);
 
   useEffect(() => {
@@ -2177,6 +2187,7 @@ export default function StatistikSeite() {
     const naechste = SICHTBAR_REIHE[(SICHTBAR_REIHE.indexOf(jetzt) + 1) % SICHTBAR_REIHE.length];
     const neu = { ...sichtbar, [bereich]: naechste };
     setSichtbar(neu);
+    selbstGedreht.current = Date.now();
     try {
       await fetch('/api/statistik-sichtbarkeit', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },

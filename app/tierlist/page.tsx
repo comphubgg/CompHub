@@ -28,6 +28,7 @@ import { getRegionFromCountryCode, TIER_LABELS_DEFAULT } from './utils/constants
 import { gefaltet, namensSchluessel } from '@/lib/homoglyph';
 
 import T from '@/app/components/T';
+import { sichtbarerTakt } from '@/app/lib/takt';
 /**
  * TierList Page: Main tier list application
  * Complete rebuild - fixed hook order stability
@@ -400,21 +401,12 @@ export default function TierListPage() {
 
     void tryLoadCloud();
 
-    const intervalId = window.setInterval(() => {
-      void tryLoadCloud();
-    }, 5000);
-
-    const handleFocus = () => {
-      void tryLoadCloud();
-    };
-
-    window.addEventListener('focus', handleFocus);
-    document.addEventListener('visibilitychange', handleFocus);
+    // Frueher alle fuenf Sekunden, auch in verborgenen Tabs. Eine Tierlist
+    // aendert man in diesem Tab; aus einem anderen Geraet reicht eine Minute.
+    const stopp = sichtbarerTakt(() => { void tryLoadCloud(); }, 60_000);
 
     return () => {
-      window.clearInterval(intervalId);
-      window.removeEventListener('focus', handleFocus);
-      document.removeEventListener('visibilitychange', handleFocus);
+      stopp();
     };
   }, []);
 

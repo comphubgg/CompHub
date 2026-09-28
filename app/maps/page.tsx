@@ -25,6 +25,7 @@ import {
   kartenSchrift, kartenName, formFarbe, hebeFormHervor, useEchteNamen,
 } from '@/app/lib/kartenStil';
 import KartenWasserzeichen from '@/app/components/KartenWasserzeichen';
+import { sichtbarerTakt } from '@/app/lib/takt';
 type Form = 'rechteck' | 'polygon';
 interface Punkt { x: number; y: number }
 interface Spot {
@@ -804,7 +805,9 @@ export default function KartenSeite(
    * Waehrend der Betreiber baut, bleibt der Abgleich aus - sonst kaeme ihm
    * sein eigener, noch nicht gespeicherter Stand abhanden.
    */
-  const TAKT_MS = 5_000;
+  // Die offene Leitung unten bringt jede Aenderung sofort; der Takt ist nur
+  // das Netz, falls sie reisst - und laeuft nur bei sichtbarem Tab.
+  const TAKT_MS = 20_000;
   useEffect(() => {
     if (!ausTurnier || darfBauen) return;
     let lebt = true;
@@ -880,7 +883,7 @@ export default function KartenSeite(
     } catch { /* kein EventSource: dann bleibt es beim Takt */ }
 
     void abgleichen();
-    const uhr = setInterval(abgleichen, TAKT_MS);
+    const stoppTakt = sichtbarerTakt(() => { void abgleichen(); }, TAKT_MS);
     /*
      * Browser drosseln Zeitgeber in verborgenen Tabs bis auf einen Lauf je
      * Minute. Wer die Karte in einem anderen Fenster liegen hatte, saehe sonst
@@ -893,7 +896,7 @@ export default function KartenSeite(
     document.addEventListener('visibilitychange', beimAnschauen);
     return () => {
       lebt = false;
-      clearInterval(uhr);
+      stoppTakt();
       quelle?.close();
       document.removeEventListener('visibilitychange', beimAnschauen);
     };

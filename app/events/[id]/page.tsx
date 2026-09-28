@@ -21,6 +21,7 @@ import { kartenTitel } from '@/lib/rundenName';
 import CupArchiv from '@/app/components/CupArchiv';
 import { inselAusPlaylist } from '@/lib/inseln';
 import { istGlobalsEvent } from '@/lib/globalsCup';
+import { sichtbarerTakt } from '@/app/lib/takt';
 /**
  * Regionen, fuer die von selbst eine Karte bereitsteht.
  *
@@ -882,7 +883,16 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
       .then((j) => {
         if (weg) return;
         setQual(j?.vorhanden ? j : null);
-        if (j?.laeuft) uhr = window.setTimeout(holen, 20_000);
+        // Ein verborgener Tab fragt nicht - er holt beim Zurueckkommen nach.
+        if (j?.laeuft) uhr = window.setTimeout(() => {
+          if (!document.hidden) { holen(); return; }
+          const zurueck = () => {
+            if (document.hidden) return;
+            document.removeEventListener('visibilitychange', zurueck);
+            if (!weg) holen();
+          };
+          document.addEventListener('visibilitychange', zurueck);
+        }, 30_000);
       })
       .catch(() => {});
     holen();
@@ -1042,9 +1052,10 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
   useEffect(() => {
     if (!cup) return;
     let weg = false;
+    // Ob hier der Admin sitzt, aendert sich nicht im Takt - einmal fragen.
+    fetch('/api/auth/check-admin').then((r) => r.json())
+      .then((j) => { if (!weg) setIstAdmin(j.isAdmin === true); }).catch(() => {});
     const holen = () => {
-      fetch('/api/auth/check-admin').then((r) => r.json())
-        .then((j) => { if (!weg) setIstAdmin(j.isAdmin === true); }).catch(() => {});
       fetch('/api/turnier-karten')
         .then((r) => r.json())
         .then((d) => {
@@ -1065,8 +1076,10 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
         .catch(() => {});
     };
     holen();
-    const uhr = setInterval(holen, 20_000);
-    return () => { weg = true; clearInterval(uhr); };
+    // Eine Minute, und nur bei sichtbarem Tab: frueher alle zwanzig
+    // Sekunden, von jedem Zuschauer - siehe app/lib/takt.
+    const stopp = sichtbarerTakt(holen, 60_000);
+    return () => { weg = true; stopp(); };
   }, [cup]);
 
   /*
@@ -1771,8 +1784,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
      * Sekunden neu heraus; alle zwanzig zu fragen holt das ab, ohne sie zu
      * ueberrennen.
      */
-    const uhr = setInterval(() => setNachladen((n) => n + 1), 20_000);
-    return () => clearInterval(uhr);
+    return sichtbarerTakt(() => setNachladen((n) => n + 1), 20_000);
   }, [reiter, laufende, fenster]);
 
   /*
@@ -2053,8 +2065,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
    */
   useEffect(() => {
     if (!laeuftGerade || !lbFenster) return undefined;
-    const uhr = setInterval(() => { void laden(lbFenster); }, 60_000);
-    return () => clearInterval(uhr);
+    return sichtbarerTakt(() => { void laden(lbFenster); }, 60_000);
   }, [laeuftGerade, lbFenster, laden]);
 
   useEffect(() => { if (lbFenster) laden(lbFenster); }, [lbFenster, laden]);
@@ -2066,8 +2077,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     // Leaderboard seltener aufgefrischt, statt die Quelle im Minutentakt
     // mit hundert Anfragen zu belegen.
     const takt = tabelle.length > 1000 ? 180_000 : 45_000;
-    const t = setInterval(() => laden(lbFenster), takt);
-    return () => clearInterval(t);
+    return sichtbarerTakt(() => { void laden(lbFenster); }, takt);
   }, [lbFenster, laden, tabelle.length]);
 
   /*

@@ -173,6 +173,10 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Für diese Organisation sind noch keine Spieler eingetragen.': 'No players listed for this organization yet.',
   'Organisation suchen …': 'Search organization …',
   'Kader folgt': 'Roster to come',
+  'Änderungen noch nicht gespeichert.': 'changes not saved yet.',
+  'Der Server nimmt sie gerade nicht an:': 'The server is not accepting them right now:',
+  'Sie bleiben in diesem Browser und werden alle 20 Sekunden erneut geschickt, auch nach einem Neuladen.': 'They stay in this browser and are sent again every 20 seconds, even after a reload.',
+  'Die Seite ist bei Vercel gesperrt (402).': 'The site is paused at Vercel (402).',
   'freiwillig': 'optional',
   'Land (zwei Buchstaben, z. B. DE)': 'Country (two letters, e.g. DE)',
   // ... und ihr Admin-Werkzeug (app/admin/orgs)

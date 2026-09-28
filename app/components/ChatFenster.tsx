@@ -21,6 +21,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import T from './T';
 import { useT } from './SprachProvider';
 import { liesChatHud, setzeChatHud, CHAT_HUD_EREIGNIS } from '@/app/lib/chatHud';
+import { sichtbarerTakt } from '@/app/lib/takt';
 
 interface Nachricht {
   id: string; zeit: number; von: 'nutzer' | 'betreiber';
@@ -41,7 +42,7 @@ interface Gespraech {
 interface Nutzer { id: string; name: string; rolle: string | null }
 
 /** Wie oft nachgefragt wird - offen haeufiger als geschlossen. */
-const TAKT_ZU_MS = 30_000;
+const TAKT_ZU_MS = 120_000;
 const TAKT_OFFEN_MS = 5_000;
 
 /*
@@ -223,9 +224,8 @@ export default function ChatFenster({ alsSeite = false }: { alsSeite?: boolean }
    */
   useEffect(() => {
     if (!darf) return;
-    const uhr = setInterval(() => { void holen(!offen); },
+    return sichtbarerTakt(() => { void holen(!offen); },
       offen ? TAKT_OFFEN_MS : TAKT_ZU_MS);
-    return () => clearInterval(uhr);
   }, [offen, holen, darf]);
 
   /*

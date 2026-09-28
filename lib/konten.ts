@@ -179,6 +179,25 @@ async function lies(): Promise<Konto[]> {
 async function schreibe(liste: Konto[]) {
   await fs.mkdir(path.dirname(DATEI), { recursive: true });
   await fs.writeFile(DATEI, JSON.stringify(liste, null, 1), 'utf8');
+  gelesen = null;
+}
+
+/*
+ * Fuers blosse Nachsehen: dieselbe Liste fuer ein paar Sekunden.
+ *
+ * Jede Seite fragt "wer bin ich?" (/api/konto, die Adminpruefung vieler
+ * Schnittstellen), und jedes Mal wurde die ganze Kontenliste gelesen und
+ * zerlegt. Am 27.9.2026 hat Vercel die Seite wegen aufgebrauchter
+ * Rechenzeit gesperrt; das hier war ein Teil davon. Wer etwas aendert, liest
+ * weiter frisch (lies), und jedes Schreiben verwirft diesen Stand.
+ */
+let gelesen: { zeit: number; liste: Promise<Konto[]> } | null = null;
+function liesZumNachsehen(): Promise<Konto[]> {
+  if (gelesen && Date.now() - gelesen.zeit < 5_000) return gelesen.liste;
+  const liste = lies();
+  gelesen = { zeit: Date.now(), liste };
+  liste.catch(() => { if (gelesen?.liste === liste) gelesen = null; });
+  return liste;
 }
 
 /* ------------------------------------------------------------ Passwoerter */
@@ -252,7 +271,7 @@ export function kontoAus(cookieWert: string | undefined): string | null {
 /* ----------------------------------------------------------------- Zugriff */
 
 export async function nachId(id: string): Promise<Konto | null> {
-  return (await lies()).find((k) => k.id === id) ?? null;
+  return (await liesZumNachsehen()).find((k) => k.id === id) ?? null;
 }
 
 /**
@@ -265,20 +284,20 @@ export async function nachId(id: string): Promise<Konto | null> {
 export async function nachName(name: string): Promise<Konto | null> {
   const k = name.trim().toLowerCase();
   if (!k) return null;
-  const treffer = (await lies()).filter(
+  const treffer = (await liesZumNachsehen()).filter(
     (x) => String(x.name ?? '').trim().toLowerCase() === k);
   return treffer.length === 1 ? treffer[0] : null;
 }
 
 export async function nachEmail(email: string): Promise<Konto | null> {
   const gesucht = email.trim().toLowerCase();
-  return (await lies()).find((k) => k.email === gesucht) ?? null;
+  return (await liesZumNachsehen()).find((k) => k.email === gesucht) ?? null;
 }
 
 export async function nachDienst(
   dienst: 'twitch' | 'discord' | 'google', fremdeId: string,
 ): Promise<Konto | null> {
-  return (await lies()).find((k) => k.dienste?.[dienst] === fremdeId) ?? null;
+  return (await liesZumNachsehen()).find((k) => k.dienste?.[dienst] === fremdeId) ?? null;
 }
 
 /**
@@ -564,7 +583,7 @@ export async function setzeBestaetigt(
  */
 export async function ipGesperrt(ip: string): Promise<boolean> {
   if (!ip) return false;
-  return (await lies()).some((k) => k.gesperrt && (k.ips ?? []).includes(ip));
+  return (await liesZumNachsehen()).some((k) => k.gesperrt && (k.ips ?? []).includes(ip));
 }
 
 /**

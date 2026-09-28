@@ -46,6 +46,7 @@ async function bauKennung(): Promise<string> {
 export async function GET() {
   return NextResponse.json(
     { stand: await bauKennung() },
-    { headers: { 'Cache-Control': 'no-store' } },
+    // Fuer alle gleich - Vercels Zwischenspeicher beantwortet den Takt.
+    { headers: { 'Cache-Control': 'no-store', 'Vercel-CDN-Cache-Control': 'max-age=60' } },
   );
 }

@@ -1,6 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
+import { sichtbarerTakt } from './takt';
 import type { Sektion, Staende, Zustand } from '@/lib/sektionen';
 
 /*
@@ -30,7 +31,7 @@ const ANFANG: SektionenStand = {
 };
 
 /** Wie oft nachgefragt wird. */
-const TAKT = 10_000;
+const TAKT = 15_000;
 
 /**
  * @param anfang Der Stand, den der Server schon mitgeliefert hat.
@@ -43,10 +44,23 @@ export function useSektionen(anfang?: Partial<SektionenStand>): SektionenStand {
   const [stand, setStand] = useState<SektionenStand>(
     anfang ? { ...ANFANG, ...anfang, laedt: false } : ANFANG);
 
+  /*
+   * Einmal alles (mit der Frage, ob hier der Admin sitzt), danach im Takt
+   * nur die Staende - die sind fuer alle gleich und kommen aus Vercels
+   * Zwischenspeicher, siehe /api/sektionen.
+   */
+  const ganz = useRef(false);
   const holen = useCallback(async (weg: () => boolean) => {
     try {
+      if (ganz.current) {
+        const j = await (await fetch('/api/sektionen?nur=staende')).json();
+        if (weg() || !j?.staende) return;
+        setStand((v) => ({ ...v, laedt: false, staende: j.staende }));
+        return;
+      }
       const j = await (await fetch('/api/sektionen', { cache: 'no-store' })).json();
       if (weg()) return;
+      ganz.current = true;
       setStand({
         laedt: false,
         admin: Boolean(j?.admin),
@@ -71,18 +85,11 @@ export function useSektionen(anfang?: Partial<SektionenStand>): SektionenStand {
 
     void Promise.resolve().then(() => { if (!fort) return holen(weg); });
 
-    const uhr = setInterval(() => { void holen(weg); }, TAKT);
-    const beiRueckkehr = () => {
-      if (document.visibilityState === 'visible') void holen(weg);
-    };
-    document.addEventListener('visibilitychange', beiRueckkehr);
-    window.addEventListener('focus', beiRueckkehr);
+    const stopp = sichtbarerTakt(() => { void holen(weg); }, TAKT);
 
     return () => {
       fort = true;
-      clearInterval(uhr);
-      document.removeEventListener('visibilitychange', beiRueckkehr);
-      window.removeEventListener('focus', beiRueckkehr);
+      stopp();
     };
   }, [holen]);
 

@@ -43,7 +43,22 @@ async function istAdmin(): Promise<boolean> {
   return false;
 }
 
-export async function GET() {
+/*
+ * Wie lange Vercels Zwischenspeicher die Staende ausliefert, ohne die
+ * Funktion zu wecken. Jede offene Seite fragt im Takt nach; seit der Sperre
+ * vom 27.9.2026 (Rechenzeit aufgebraucht) beantwortet das der Speicher, und
+ * gerechnet wird hoechstens einmal in zehn Sekunden je Region.
+ */
+const ZWISCHENSPEICHER = 'max-age=10, stale-while-revalidate=60';
+
+export async function GET(request: Request) {
+  // Nur die Staende - fuer alle gleich, also zwischenspeicherbar. Ob der
+  // Besucher Admin ist, weiss die Seite schon vom ersten Abruf.
+  if (new URL(request.url).searchParams.get('nur') === 'staende') {
+    return NextResponse.json({ ok: true, staende: await liesStaende() }, {
+      headers: { 'Vercel-CDN-Cache-Control': ZWISCHENSPEICHER, 'Cache-Control': 'no-store' },
+    });
+  }
   const [staende, admin] = await Promise.all([liesStaende(), istAdmin()]);
   return NextResponse.json({
     ok: true,

@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
@@ -55,6 +55,45 @@ const SCHRITT = 150;
 
 const zahl = (n: number) => n.toLocaleString('de-DE');
 
+/*
+ * Aenderungen, die noch nicht beim Server angekommen sind.
+ *
+ * Am 27.9.2026 hat der Betreiber rund hundert Spieler umbenannt und ihre
+ * X-Konten eingetragen - eine halbe Stunde Arbeit. Waehrenddessen hat Vercel
+ * die Seite gesperrt, jedes Speichern scheiterte, und die Seite sagte nichts
+ * dazu. Nach dem Neuladen war alles weg.
+ *
+ * Deshalb liegt jede Aenderung zuerst hier im Browser und wird von dort
+ * geschickt, bis der Server sie bestaetigt. Scheitert das, bleibt sie
+ * liegen, steht weiter in der Liste und wird erneut versucht - auch nach
+ * einem Neuladen. Oben steht, wie viele noch fehlen.
+ */
+interface Aenderung { id: string; name: string; land: string; x: string; anzeige: string }
+const AUSSTEHEND = 'comphub.player-center.ausstehend';
+
+function liesAusstehend(): Record<string, Aenderung> {
+  try {
+    const roh = window.localStorage.getItem(AUSSTEHEND);
+    return roh ? JSON.parse(roh) as Record<string, Aenderung> : {};
+  } catch { return {}; }
+}
+
+function merkeAusstehend(a: Record<string, Aenderung>) {
+  try { window.localStorage.setItem(AUSSTEHEND, JSON.stringify(a)); } catch { /* dann nur im Speicher */ }
+}
+
+/** Was eine Aenderung an der Zeile bewirkt - vor und nach dem Speichern gleich. */
+function mitAenderung(s: Spieler, a: Aenderung): Spieler {
+  return {
+    ...s,
+    name: a.anzeige || s.turniername,
+    land: a.land || '',
+    landQuelle: a.land ? 'gepflegt' : '',
+    x: a.x,
+    gepflegt: Boolean(a.land || a.x || a.anzeige),
+  };
+}
+
 /** Das Flaggenbild aus dem eigenen Ordner - Windows hat keine Flaggenschrift. */
 function Flagge({ land }: { land: string }) {
   if (!land || !/^[A-Za-z]{2}$/.test(land)) {
@@ -95,7 +134,15 @@ export default function PlayerCenter() {
   const [eX, setEX] = useState('');
   /** Der Anzeigename - was im Beitrag steht, wenn kein @-Konto da ist. */
   const [eName, setEName] = useState('');
-  const [speichert, setSpeichert] = useState(false);
+  /** Noch nicht bestaetigte Aenderungen, je Konto - siehe AUSSTEHEND. */
+  const [ausstehend, setAusstehend] = useState<Record<string, Aenderung>>({});
+  const [sendeFehler, setSendeFehler] = useState('');
+  const ausstehendRef = useRef<Record<string, Aenderung>>({});
+  useEffect(() => {
+    const da = liesAusstehend();
+    ausstehendRef.current = da;
+    if (Object.keys(da).length) void Promise.resolve().then(() => setAusstehend(da));
+  }, []);
 
   useEffect(() => {
     fetch('/api/auth/check-admin')
@@ -123,7 +170,27 @@ export default function PlayerCenter() {
           + `&mindestens=${mindestens}`, { cache: 'no-store' });
         const j = await r.json();
         if (weg) return;
-        setAlle(j?.spieler ?? []);
+        /*
+         * Die Liste selbst wird stuendlich vorgerechnet - wer eben etwas
+         * gespeichert hat, saehe dort bis zu einer Stunde den alten Stand.
+         * Deshalb kommen Name, Flagge und X-Konto frisch aus den Profilen
+         * dazu, und darueber noch, was hier im Browser auf den Server wartet.
+         */
+        let liste: Spieler[] = j?.spieler ?? [];
+        try {
+          const pr = await (await fetch('/api/spieler-profile', { cache: 'no-store' })).json() as {
+            profile?: Record<string, { id?: string; land?: string; x?: string; anzeige?: string }>;
+          };
+          const nachId = new Map(Object.values(pr.profile ?? {}).filter((e) => e.id).map((e) => [e.id!, e]));
+          liste = liste.map((sp) => {
+            const e = nachId.get(sp.epicId);
+            return e ? mitAenderung(sp, { id: sp.epicId, name: sp.turniername, land: e.land ?? '', x: e.x ?? '', anzeige: e.anzeige ?? '' }) : sp;
+          });
+        } catch { /* dann bleibt es beim vorgerechneten Stand */ }
+        if (weg) return;
+        const warten = ausstehendRef.current;
+        liste = liste.map((sp) => (warten[sp.epicId] ? mitAenderung(sp, warten[sp.epicId]) : sp));
+        setAlle(liste);
         setJeRegion(j?.jeRegion ?? {});
       } catch { if (!weg) setAlle([]); }
       finally { if (!weg) setLaedt(false); }
@@ -176,30 +243,63 @@ export default function PlayerCenter() {
     setEName(s.name === s.turniername ? '' : s.name);
   };
 
-  const speichern = useCallback(async (s: Spieler) => {
-    setSpeichert(true);
+  /**
+   * Alles Ausstehende schicken, eines nach dem anderen.
+   *
+   * Was der Server bestaetigt, faellt aus der Liste; was scheitert, bleibt
+   * und kommt beim naechsten Durchgang wieder dran.
+   */
+  const sendet = useRef(false);
+  const senden = useCallback(async () => {
+    if (sendet.current) return;
+    sendet.current = true;
     try {
-      const r = await fetch('/api/spieler-profile', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          id: s.epicId, name: s.turniername,
-          land: eLand.trim().toUpperCase(), x: eX.trim().replace(/^@/, ''),
-          anzeige: eName.trim(),
-        }),
-      });
-      if (!r.ok) return;
-      const j = await r.json();
-      setAlle((vorher) => vorher.map((x) => (x.epicId === s.epicId ? {
-        ...x,
-        name: j.profile?.anzeige || x.turniername,
-        land: j.profile?.land ?? '',
-        landQuelle: j.profile?.land ? 'gepflegt' : x.landQuelle,
-        x: j.profile?.x ?? '',
-        gepflegt: Boolean(j.profile),
-      } : x)));
-      setOffen(null);
-    } finally { setSpeichert(false); }
-  }, [eLand, eX, eName]);
+      for (const a of Object.values(ausstehendRef.current)) {
+        let grund = '';
+        try {
+          const r = await fetch('/api/spieler-profile', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(a),
+          });
+          if (!r.ok) grund = r.status === 402 ? t('Die Seite ist bei Vercel gesperrt (402).') : `HTTP ${r.status}`;
+        } catch { grund = t('Keine Verbindung zum Server.'); }
+        if (grund) { setSendeFehler(grund); break; }
+        // Nur entfernen, wenn in der Zwischenzeit nichts Neueres dazukam.
+        if (ausstehendRef.current[a.id] === a) {
+          const rest = { ...ausstehendRef.current };
+          delete rest[a.id];
+          ausstehendRef.current = rest;
+          merkeAusstehend(rest);
+          setAusstehend(rest);
+        }
+      }
+      if (!Object.keys(ausstehendRef.current).length) setSendeFehler('');
+    } finally { sendet.current = false; }
+  }, [t]);
+
+  // Solange etwas wartet, alle zwanzig Sekunden ein neuer Versuch.
+  const wartend = Object.keys(ausstehend).length;
+  useEffect(() => {
+    if (!wartend) return undefined;
+    void Promise.resolve().then(() => senden());
+    const uhr = setInterval(() => { void senden(); }, 20_000);
+    return () => clearInterval(uhr);
+  }, [wartend, senden]);
+
+  const speichern = useCallback((s: Spieler) => {
+    const a: Aenderung = {
+      id: s.epicId, name: s.turniername,
+      land: eLand.trim().toUpperCase(), x: eX.trim().replace(/^@/, ''),
+      anzeige: eName.trim(),
+    };
+    const neu = { ...ausstehendRef.current, [s.epicId]: a };
+    ausstehendRef.current = neu;
+    merkeAusstehend(neu);
+    setAusstehend(neu);
+    setAlle((vorher) => vorher.map((x) => (x.epicId === s.epicId ? mitAenderung(x, a) : x)));
+    setOffen(null);
+    void senden();
+  }, [eLand, eX, eName, senden]);
 
   if (istAdmin === false) {
     return (
@@ -234,6 +334,19 @@ export default function PlayerCenter() {
             ein Namenswechsel ändert nichts.</T>
           </span>
         </div>
+
+        {/* Was noch nicht beim Server ist - unuebersehbar, solange es das gibt. */}
+        {wartend > 0 && (
+          <div className={`mb-4 rounded-xl border px-4 py-3 text-sm ${sendeFehler
+            ? 'border-red-500/60 bg-red-950/40 text-red-200'
+            : 'border-amber-500/50 bg-amber-950/30 text-amber-200'}`}>
+            <b>{wartend} <T>Änderungen noch nicht gespeichert.</T></b>{' '}
+            {sendeFehler
+              ? <><T>Der Server nimmt sie gerade nicht an:</T> {sendeFehler}{' '}
+                <T>Sie bleiben in diesem Browser und werden alle 20 Sekunden erneut geschickt, auch nach einem Neuladen.</T></>
+              : <T>Wird gespeichert …</T>}
+          </div>
+        )}
 
         {/* ------------------------------------------------------ Regionen */}
         <div className="mb-3 flex flex-wrap items-center gap-1.5">
@@ -442,7 +555,6 @@ export default function PlayerCenter() {
                           {auf ? (
                             <span className="flex items-center justify-end gap-2">
                               <button onClick={() => void speichern(s)}
-                                disabled={speichert}
                                 className="rounded bg-sky-500 px-2.5 py-0.5 text-[11px]
                                            font-medium text-white transition
                                            hover:bg-sky-400 disabled:opacity-40">

@@ -23,7 +23,11 @@ const BEREICHE = new Set(['turniere', 'regional', 'spieler', 'jahr', 'vergleich'
 
 export async function GET() {
   const bereiche = await liesJson<Record<string, string>>(DATEI, {});
-  return NextResponse.json({ bereiche });
+  // Fuer alle gleich: Vercels Zwischenspeicher beantwortet den Takt der
+  // offenen Seiten, gerechnet wird hoechstens alle zehn Sekunden.
+  return NextResponse.json({ bereiche }, {
+    headers: { 'Vercel-CDN-Cache-Control': 'max-age=10, stale-while-revalidate=60', 'Cache-Control': 'no-store' },
+  });
 }
 
 export async function POST(request: Request) {

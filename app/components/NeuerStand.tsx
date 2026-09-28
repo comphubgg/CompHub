@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import T from '@/app/components/T';
+import { sichtbarerTakt } from '@/app/lib/takt';
 
 /*
  * Der Hinweis, dass eine neue Fassung bereitsteht.
@@ -34,7 +35,7 @@ export default function NeuerStand() {
 
     const nachsehen = async () => {
       try {
-        const r = await fetch('/api/stand', { cache: 'no-store' });
+        const r = await fetch('/api/stand');
         if (!r.ok) return;
         const { stand } = await r.json() as { stand?: string };
         if (weg || !stand) return;
@@ -47,8 +48,8 @@ export default function NeuerStand() {
     };
 
     void nachsehen();
-    const uhr = setInterval(() => { void nachsehen(); }, TAKT_MS);
-    return () => { weg = true; clearInterval(uhr); };
+    const stopp = sichtbarerTakt(() => { void nachsehen(); }, TAKT_MS);
+    return () => { weg = true; stopp(); };
   }, []);
 
   if (!neu) return null;

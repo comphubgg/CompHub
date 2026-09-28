@@ -12,6 +12,7 @@ import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import { useZugang } from '@/app/lib/zugang';
 import Kachel from './Kachel';
+import { sichtbarerTakt } from '@/app/lib/takt';
 interface Streamer {
   twitch: string;
   twitter: string;
@@ -605,10 +606,10 @@ const response = await fetch(getApiUrl(`/api/search?q=${encodeURIComponent(twitc
       void loadAllLiveStatus();
     }, 1500);
 
-    const interval = window.setInterval(loadAllLiveStatus, 60000);
+    const stopp = sichtbarerTakt(() => { void loadAllLiveStatus(); }, 60000);
     return () => {
       window.clearTimeout(timer);
-      window.clearInterval(interval);
+      stopp();
     };
   }, [isMounted, isGuest, loadAllLiveStatus]);
 

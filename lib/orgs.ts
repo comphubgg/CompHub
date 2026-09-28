@@ -131,9 +131,14 @@ export interface Posten { datum: number | null; betrag: number; titel: string; w
  * die Anzeige sagt dann "since" nicht dazu. Posten ohne Tag zaehlen nur,
  * wenn kein Beitrittsdatum bekannt ist (sonst liesse sich nicht sagen, ob er
  * schon dabei war).
+ *
+ * "Das Jahr" ist das Wettkampfjahr des Werkzeugs (lib/saisonJahre): 2026
+ * beginnt mit Chapter 7 Season 1 im Dezember 2025. Die Posten kommen schon so
+ * gefiltert an - ein zusaetzlicher Schnitt am 1. Januar liesse die Finals vom
+ * Dezember fehlen, die das Spielerprofil unter 2026 fuehrt.
  */
-export function fuerDieOrg(posten: Posten[], seit: string | null, jahr = ORGS_JAHR): { betrag: number; anzahl: number } {
-  const ab = Math.max(Date.UTC(jahr, 0, 1), seit ? Date.parse(`${seit}T00:00:00Z`) : 0);
+export function fuerDieOrg(posten: Posten[], seit: string | null): { betrag: number; anzahl: number } {
+  const ab = seit ? Date.parse(`${seit}T00:00:00Z`) : 0;
   let betrag = 0; let anzahl = 0;
   for (const p of posten) {
     if (p.datum === null ? !!seit : p.datum < ab) continue;

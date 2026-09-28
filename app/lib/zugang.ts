@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import { sichtbarerTakt, geteilterAbruf } from './takt';
 import { darf, type Bereich } from '@/lib/rechte';
 
 // Wer darf was.
@@ -60,7 +61,7 @@ const ANFANG: Zugang = {
 };
 
 /** Wie oft nachgefragt wird. */
-const TAKT = 30_000;
+const TAKT = 120_000;
 
 export function useZugang(): Zugang {
   const [zugang, setZugang] = useState<Zugang>(ANFANG);
@@ -76,7 +77,7 @@ export function useZugang(): Zugang {
     let vipZugangOhneRecht = false;
 
     try {
-      const j = await (await fetch('/api/konto', { cache: 'no-store' })).json();
+      const j = (await geteilterAbruf<{ angemeldet?: boolean; konto?: { name?: string; rolle?: 'admin' | 'manager' | 'pro' | null; rechte?: string[]; vip?: boolean } }>('/api/konto')).daten;
       if (j?.angemeldet) {
         kontoName = String(j.konto?.name ?? '');
         rolle = j.konto?.rolle ?? null;
@@ -86,11 +87,9 @@ export function useZugang(): Zugang {
     } catch { /* ohne Auskunft gilt: kein Konto */ }
 
     try {
-      const r = await fetch('/api/auth/verify', {
-        credentials: 'same-origin', cache: 'no-store',
-      });
+      const r = await geteilterAbruf<{ authorized?: boolean; user?: string; rolle?: 'admin' | 'manager' | 'pro' | null; rechte?: string[]; vip?: boolean; verwaltet?: string }>('/api/auth/verify');
       if (r.ok) {
-        const j = await r.json();
+        const j = r.daten;
         if (j?.authorized && j?.user) {
           vipName = String(j.user);
           /*
@@ -161,18 +160,12 @@ export function useZugang(): Zugang {
 
     // Regelmaessig und bei der Rueckkehr ins Fenster - so greift eine
     // Rechtevergabe binnen Sekunden, ohne dass jemand neu laden muss.
-    const uhr = setInterval(() => { void holen(weg); }, TAKT);
-    const beiRueckkehr = () => {
-      if (document.visibilityState === 'visible') void holen(weg);
-    };
-    document.addEventListener('visibilitychange', beiRueckkehr);
-    window.addEventListener('focus', beiRueckkehr);
+    // Nur solange der Tab sichtbar ist - siehe app/lib/takt.
+    const stopp = sichtbarerTakt(() => { void holen(weg); }, TAKT);
 
     return () => {
       fort = true;
-      clearInterval(uhr);
-      document.removeEventListener('visibilitychange', beiRueckkehr);
-      window.removeEventListener('focus', beiRueckkehr);
+      stopp();
     };
   }, [holen]);
 

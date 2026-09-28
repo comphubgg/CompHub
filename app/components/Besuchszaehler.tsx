@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react';
 import { usePathname } from 'next/navigation';
+import { sichtbarerTakt } from '@/app/lib/takt';
 
 /*
  * Meldet dem Server, dass eine Seite geoeffnet wurde.
@@ -53,15 +54,9 @@ export default function Besuchszaehler() {
       void fetch('/api/besuch?puls=1', { method: 'POST', keepalive: true })
         .catch(() => { /* ein verpasster Schlag faellt beim naechsten auf */ });
     };
-    const uhr = setInterval(schlag, 60_000);
-    // Wer den Reiter wieder nach vorn holt, ist sofort wieder da - und muss
-    // nicht bis zum naechsten Takt warten.
-    const beiSichtbar = () => { if (!document.hidden) schlag(); };
-    document.addEventListener('visibilitychange', beiSichtbar);
-    return () => {
-      clearInterval(uhr);
-      document.removeEventListener('visibilitychange', beiSichtbar);
-    };
+    // Nur bei sichtbarem Tab; wer ihn wieder nach vorn holt, meldet sich
+    // sofort (siehe app/lib/takt).
+    return sichtbarerTakt(schlag, 120_000);
   }, []);
 
   return null;
