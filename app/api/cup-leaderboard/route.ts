@@ -3,6 +3,74 @@ import {
   gecacht, holeTop, holeBereich, findeSpieler, ergaenzeBilder, EpicLoginNoetig,
 } from '@/lib/epicCups';
 import { zwischenspeichern } from '@/lib/zwischenspeicher';
+import { abgesagtFuer, ohneAbgesagte } from '@/lib/abgesagt';
+import { holeKatalog, regionAus, wertungVon, type WertungsRegel } from '@/lib/cupWertung';
+import { GLOBALS_EVENT, GLOBALS_TAGE, istGlobalsEvent, istGlobalsFenster } from '@/lib/globalsCup';
+import type { CupEintrag } from '@/lib/epicCups';
+
+/** Die Wertungstabelle eines Spieltags - ohne sie keine Rundenpunkte. */
+async function wertungFuer(event: string, windowId: string): Promise<WertungsRegel[]> {
+  try { return wertungVon(await holeKatalog(regionAus(windowId)), windowId, event); } catch { return []; }
+}
+
+/**
+ * Abgesagte Runden herausrechnen (lib/abgesagt) - nur wenn der Admin fuer
+ * diesen Spieltag eine abgesagt hat.
+ */
+async function bereinigt<T extends { entries?: unknown[]; totalPages?: number }>(
+  daten: T, event: string, windowId: string,
+): Promise<T & { punkteUnsicher?: boolean; abgesagt?: string[] }> {
+  const abgesagt = await abgesagtFuer(windowId);
+  if (!abgesagt.size || !Array.isArray(daten.entries)) return daten;
+  const wertung = await wertungFuer(event, windowId);
+  const { eintraege, punkteUnsicher } = ohneAbgesagte(
+    daten.entries as CupEintrag[], abgesagt, wertung, (daten.totalPages ?? 1) <= 1);
+  return { ...daten, entries: eintraege, punkteUnsicher, abgesagt: [...abgesagt] };
+}
+
+/**
+ * Das Finale der Globals: Day 1 und Day 2 zusammengerechnet.
+ *
+ * Der Katalogeintrag "FNCS Global Championship" hat bei Epic keine eigene
+ * Bestenliste - es ist ein LAN, gespielt an zwei Tagen unter
+ * "Fortnite Global Championship". Der Betreiber (28.9.2026): "Das sind
+ * einfach die Leaderboards von ... Fortnite Global Championship, einfach
+ * beide Tage zusammengerechnet." Abgesagte Runden sind schon abgezogen.
+ */
+async function globalsGesamt() {
+  const tage = await Promise.all(GLOBALS_TAGE.map(async (t) => {
+    const d = await gecacht(`bereich|${GLOBALS_EVENT}|${t.windowId}|0|2`, TTL,
+      () => holeBereich(GLOBALS_EVENT, t.windowId, 0, 2));
+    return bereinigt(d, GLOBALS_EVENT, t.windowId);
+  }));
+  const nach = new Map<string, CupEintrag>();
+  for (const d of tage) {
+    for (const e of (d.entries ?? []) as CupEintrag[]) {
+      const k = e.players.map((p) => p.id).sort().join('|');
+      const da = nach.get(k);
+      if (!da) { nach.set(k, { ...e, matches: [...e.matches], players: [...e.players] }); continue; }
+      da.points += e.points; da.elims += e.elims; da.games += e.games; da.wins += e.wins;
+      da.damage += e.damage; da.damageTaken += e.damageTaken; da.headshots += e.headshots;
+      da.timeAlive += e.timeAlive; da.matches.push(...e.matches);
+      if (e.bestPlace !== null && (da.bestPlace === null || e.bestPlace < da.bestPlace)) da.bestPlace = e.bestPlace;
+    }
+  }
+  const eintraege = [...nach.values()].map((e) => {
+    const spiele = Math.max(1, e.games);
+    const plaetze = e.matches.map((m) => m.placement).filter((x): x is number => typeof x === 'number');
+    return {
+      ...e, avgPoints: e.points / spiele, avgElims: e.elims / spiele,
+      avgPlace: plaetze.length ? plaetze.reduce((a, b) => a + b, 0) / plaetze.length : e.avgPlace,
+    };
+  }).sort((a, b) => b.points - a.points || b.wins - a.wins || b.avgElims - a.avgElims || a.avgPlace - b.avgPlace);
+  eintraege.forEach((e, i) => { e.rank = i + 1; });
+  return {
+    eventId: GLOBALS_EVENT, windowId: 'gesamt', page: 0, totalPages: 1,
+    updated: tage.map((d) => d.updated).filter(Boolean).sort().pop() ?? '',
+    liveSessions: null, entries: eintraege, zusammengerechnet: GLOBALS_TAGE.map((t) => t.windowId),
+    punkteUnsicher: tage.some((d) => d.punkteUnsicher),
+  };
+}
 
 // Live-Leaderboard eines Cups.
 //   ?event=…&window=…            -> Top-Liste
@@ -50,10 +118,15 @@ async function holeRoh(request: Request) {
   const limit = Math.min(parseInt(searchParams.get('limit') ?? '100', 10) || 100, 10_000);
 
   try {
+    // Das Finale der Globals: beide Tage zusammen (siehe globalsGesamt).
+    if (istGlobalsEvent(event) && !istGlobalsFenster(window_)) {
+      const daten = await globalsGesamt();
+      return NextResponse.json(await ergaenzeBilder(daten));
+    }
     if (namen.length || ids.length) {
       const key = `find|${event}|${window_}|${namen.join(',').toLowerCase()}|${ids.join(',')}`;
       const daten = await gecacht(key, TTL, () => findeSpieler(event, window_, namen, ids));
-      return NextResponse.json(await ergaenzeBilder(daten));
+      return NextResponse.json(await ergaenzeBilder(await bereinigt(daten, event, window_)));
     }
 
     /*
@@ -70,13 +143,13 @@ async function holeRoh(request: Request) {
       const key = `bereich|${event}|${window_}|${von}|${seiten}`;
       const daten = await gecacht(key, TTL,
         () => holeBereich(event, window_, von, seiten));
-      return NextResponse.json(await ergaenzeBilder(daten));
+      return NextResponse.json(await ergaenzeBilder(await bereinigt(daten, event, window_)));
     }
 
     // namen=0: nur Konto-Ids, keine Namensaufloesung bei Epic (siehe holeSeite).
     const ohneNamen = searchParams.get('namen') === '0';
     const key = `top|${event}|${window_}|${limit}|${ohneNamen ? 'ids' : 'namen'}`;
-    const daten = await gecacht(key, TTL, () => holeTop(event, window_, limit, ohneNamen));
+    const daten = await bereinigt(await gecacht(key, TTL, () => holeTop(event, window_, limit, ohneNamen)), event, window_);
     return NextResponse.json(ohneNamen ? daten : await ergaenzeBilder(daten));
   } catch (e) {
     const login = e instanceof EpicLoginNoetig;

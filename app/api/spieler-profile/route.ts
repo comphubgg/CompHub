@@ -4,6 +4,7 @@ import fs from '@/lib/ablageFs';
 import path from 'path';
 import { namensSchluessel } from '@/lib/homoglyph';
 import { DATEN_ORT } from '@/lib/datenOrt';
+import { liesLanKonten } from '@/lib/lanKonten';
 
 // Herkunftsland, X-Konto und Anzeigename je Spieler - von Hand gepflegt.
 //
@@ -99,8 +100,47 @@ async function schreibSicher(
   return profile;
 }
 
+/*
+ * Turnierkonten eines LAN tragen Flagge und X-Konto des echten Kontos.
+ *
+ * Nur in der Antwort, nie in der Datei: wer ein Turnierkonto selbst pflegt,
+ * gewinnt, und die Zuordnung (lib/lanKonten) kann sich im naechsten Lauf
+ * noch verbessern. Ein Anzeigename wird bewusst nicht gesetzt - der
+ * Betreiber will in der Bestenliste Epics Namen sehen ("[FNCSGC26] BIG
+ * Vico"). Wo ein Name fuer einen Beitrag gebraucht wird, steht der echte in
+ * "echterName".
+ */
+async function mitLanKonten(profile: Record<string, SpielerProfil>) {
+  const lan = await liesLanKonten();
+  if (!Object.keys(lan).length) return profile;
+  const nachId = new Map(Object.values(profile).filter((p) => p.id).map((p) => [p.id!, p]));
+  const raus: Record<string, SpielerProfil & { echt?: string; echterName?: string }> = { ...profile };
+  for (const [id, z] of Object.entries(lan)) {
+    const echt = nachId.get(z.echt);
+    const eigen = nachId.get(id);
+    const echterName = echt?.anzeige || z.name.replace(/^\S+\s+/, '') || z.name;
+    if (eigen) {
+      // Eigener Eintrag: nur Luecken fuellen.
+      raus[id] = {
+        ...eigen,
+        land: eigen.land || echt?.land, x: eigen.x || echt?.x, twitch: eigen.twitch || echt?.twitch,
+        echt: z.echt, echterName: eigen.anzeige || echterName,
+      };
+      continue;
+    }
+    raus[id] = {
+      id, name: z.lan, namen: [z.lan],
+      ...(echt?.land ? { land: echt.land } : {}),
+      ...(echt?.x ? { x: echt.x } : {}),
+      ...(echt?.twitch ? { twitch: echt.twitch } : {}),
+      echt: z.echt, echterName,
+    };
+  }
+  return raus;
+}
+
 export async function GET() {
-  return NextResponse.json({ profile: await lies() });
+  return NextResponse.json({ profile: await mitLanKonten(await lies()) });
 }
 
 /**

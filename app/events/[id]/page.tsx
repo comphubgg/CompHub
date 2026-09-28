@@ -187,6 +187,8 @@ interface Spiel {
   verbleibend?: number;
   /** Wie viele Teams wir zu dieser Runde ueberhaupt sehen. */
   gesehen?: number;
+  /** Vom Admin abgesagt - zaehlt nicht mehr (lib/abgesagt). */
+  abgesagt?: boolean;
 }
 
 /** "18m 13s" - so steht die Dauer auch beim Vorbild. */
@@ -275,8 +277,9 @@ const SpielKachel = memo(function SpielKachel({
     <button
       onClick={() => oeffnen((v) => (v === sp.id ? null : sp.id))}
       className={`rounded-lg border px-3 py-2.5 text-left
-                  transition ${offen
+                  transition ${sp.abgesagt ? 'opacity-70 ' : ''}${offen
         ? 'border-sky-600 bg-sky-950/20'
+        : sp.abgesagt ? 'border-dashed border-rose-900/70 bg-zinc-950/60 hover:border-rose-700'
         : sp.live
           ? 'border-rose-900/60 bg-zinc-900/40 hover:border-rose-700'
           : 'border-zinc-800 bg-zinc-950/60 hover:border-zinc-700'}`}>
@@ -336,7 +339,15 @@ const SpielKachel = memo(function SpielKachel({
 
       {/* Dritte Zeile: wer noch drin ist - oder wer gewann. */}
       <div className="mt-2 border-t border-zinc-800/80 pt-2">
-        {sp.live ? (
+        {sp.abgesagt ? (
+          /* Das Match gab es - es zaehlt nur nicht. */
+          <span className="text-[11px] font-semibold uppercase tracking-wide text-rose-400">
+            <T>Match abgesagt</T>
+            <span className="ml-1.5 font-normal normal-case tracking-normal text-slate-500">
+              · <T>Punkte zählen nicht</T>
+            </span>
+          </span>
+        ) : sp.live ? (
           <span className="flex items-center justify-between gap-2
                            text-[11px]">
             <span className="text-slate-400">
@@ -650,6 +661,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
    * waere Arbeit fuer nichts.
    */
   const [spiele, setSpiele] = useState<Spiel[] | null>(null);
+  const [absageFehler, setAbsageFehler] = useState('');
   const [spieleLaedt, setSpieleLaedt] = useState(false);
   const [offenesSpiel, setOffenesSpiel] = useState<string | null>(null);
   /**
@@ -806,10 +818,14 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     rundenGesamt?: number | null;
     /** Wann der Replay-Sammler zuletzt lief - siehe app/api/cup-spieler. */
     lauf?: { zeitpunkt?: string; art?: string; ok?: boolean; fehler?: string } | null;
+    /** "szene": Werte der Szene-Quelle statt Replays (LAN, siehe app/api/cup-spieler). */
+    quelle?: string;
     spieler: Array<{
       epicId: string; name: string; land: string; spiele: number;
       kills: number; knocks: number; tode: number; umgehauen: number;
       platz: number | null; partner: string[];
+      assists?: number; damage?: number; damageTaken?: number;
+      damageRatio?: number | null; genauigkeit?: number | null;
     }>;
   } | null>(null);
   const [spielerLaedt, setSpielerLaedt] = useState(false);
@@ -1808,7 +1824,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     if (reiter !== 'spieler' || !fenster || spielerWerte) return;
     let weg = false;
     setSpielerLaedt(true);
-    fetch(`/api/cup-spieler?window=${encodeURIComponent(fenster.windowId)}`)
+    fetch(`/api/cup-spieler?window=${encodeURIComponent(fenster.windowId)}`
+      + `&event=${encodeURIComponent(fenster.eventId)}`)
       .then((r) => r.json())
       .then((j) => { if (!weg) setSpielerWerte(j?.error ? null : j); })
       .catch(() => { if (!weg) setSpielerWerte(null); })
@@ -1933,7 +1950,9 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
      * Seite trotzdem und schreibt Epics rohe 404-Meldung samt Adresse in
      * die Anzeige - fuer Besucher unverstaendlich und haesslich dazu.
      */
-    if (f.eventId.startsWith('manuell_')) {
+    // Ausser beim Finale der Globals: dort rechnet die Schnittstelle Day 1
+    // und Day 2 zusammen (app/api/cup-leaderboard, globalsGesamt).
+    if (f.eventId.startsWith('manuell_') && !istGlobalsEvent(f.eventId)) {
       setTabelle([]);
       setStand(t('Keine Bestenliste — dieses Turnier wird auf einer LAN gespielt.'));
       setLaedt(false);
@@ -2069,6 +2088,30 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
   }, [laeuftGerade, lbFenster, laden]);
 
   useEffect(() => { if (lbFenster) laden(lbFenster); }, [lbFenster, laden]);
+
+  /**
+   * Ein Match absagen oder die Absage zuruecknehmen - nur der Admin, mit
+   * Rueckfrage (lib/abgesagt). Das Match bleibt sichtbar, seine Punkte
+   * zaehlen nicht mehr.
+   */
+  const absagen = async (sp: Spiel, ja: boolean) => {
+    if (!lbFenster) return;
+    const frage = ja
+      ? t('Dieses Match absagen? Seine Punkte, Elims und das Spiel fallen für alle Teams aus dem Leaderboard. Das Match bleibt als „abgesagt“ sichtbar. Das Leaderboard zeigt es nach spätestens einer halben Minute.')
+      : t('Die Absage zurücknehmen? Das Match zählt dann wieder.');
+    if (!window.confirm(frage)) return;
+    setAbsageFehler('');
+    try {
+      const r = await fetch('/api/cup-matches/absagen', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ windowId: lbFenster.windowId, sessionId: sp.id, abgesagt: ja }),
+      });
+      const j = await r.json().catch(() => null);
+      if (!r.ok) { setAbsageFehler(j?.error ?? `HTTP ${r.status}`); return; }
+      setSpiele((v) => (v ? v.map((x) => (x.id === sp.id ? { ...x, abgesagt: ja } : x)) : v));
+      void laden(lbFenster);
+    } catch { setAbsageFehler(t('Keine Verbindung zum Server.')); }
+  };
 
   useEffect(() => {
     if (!lbFenster || lbFenster.status !== 'live') return;
@@ -3739,6 +3782,23 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                         namenVon={namenVon} oeffnen={setOffenesSpiel} />
                       {sp.id === offenesSpiel && (
                         <div className="sm:col-span-2 lg:col-span-3">
+                          {/*
+                            * Nur der Admin, nur von Hand. Der Betreiber:
+                            * "mach kein automatisch Cancel, sondern nur wenn
+                            * es der Admin macht."
+                            */}
+                          {istAdmin && lbFenster && !sp.live && (
+                            <div className="mb-2 flex flex-wrap items-center justify-end gap-3">
+                              {absageFehler && <span className="text-xs text-rose-400">{absageFehler}</span>}
+                              <button type="button"
+                                onClick={() => void absagen(sp, !sp.abgesagt)}
+                                className={`rounded-lg border px-3 py-1.5 text-xs font-semibold transition ${sp.abgesagt
+                                  ? 'border-emerald-700/60 text-emerald-300 hover:border-emerald-500'
+                                  : 'border-rose-800/70 text-rose-300 hover:border-rose-500'}`}>
+                                {sp.abgesagt ? <T>Absage zurücknehmen</T> : <T>Match absagen</T>}
+                              </button>
+                            </div>
+                          )}
                           {aufstellung(sp)}
                         </div>
                       )}
@@ -3875,7 +3935,74 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
               </div>
             )}
 
-            {spielerWerte?.vorhanden && (
+            {spielerWerte?.vorhanden && spielerWerte.quelle === 'szene' && (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="border-b border-zinc-800 text-[11px] uppercase
+                                   tracking-wider text-slate-500">
+                      <th className="px-4 py-2 text-right font-medium">#</th>
+                      <th className="px-3 py-2 text-left font-medium"><T>Spieler</T></th>
+                      <th className="px-3 py-2 text-right font-medium"><T>Damage je Spiel</T></th>
+                      <th className="px-3 py-2 text-right font-medium"><T>Elims je Spiel</T></th>
+                      <th className="px-3 py-2 text-right font-medium"><T>Damage Ratio</T></th>
+                      <th className="px-3 py-2 text-right font-medium"><T>Damage</T></th>
+                      <th className="px-3 py-2 text-right font-medium"><T>Elims</T></th>
+                      <th className="px-3 py-2 text-right font-medium"><T>Assists</T></th>
+                      <th className="px-4 py-2 text-right font-medium"><T>Spiele</T></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {spielerWerte.spieler
+                      .filter((sp) => {
+                        const q = spielerSuche.trim().toLowerCase();
+                        return !q || sp.name.toLowerCase().includes(q)
+                          || sp.partner.some((x) => x.toLowerCase().includes(q));
+                      })
+                      .map((sp, i) => (
+                        <tr key={sp.epicId} className="border-b border-zinc-900/70 last:border-0">
+                          <td className="px-4 py-1.5 text-right tabular-nums text-slate-500">{i + 1}</td>
+                          <td className="px-3 py-1.5">
+                            <span className="flex items-center gap-2">
+                              {sp.land && (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={`/flags/${sp.land.toLowerCase()}.png`} alt=""
+                                  className="h-3.5 w-5 rounded-[2px] object-cover" />
+                              )}
+                              <span className="text-slate-200">{sp.name}</span>
+                              {sp.partner.length > 0 && (
+                                <span className="text-[11px] text-slate-600">
+                                  <T>mit</T> {sp.partner.join(', ')}{sp.platz ? ` · #${sp.platz}` : ''}
+                                </span>
+                              )}
+                            </span>
+                          </td>
+                          <td className="px-3 py-1.5 text-right tabular-nums font-semibold text-slate-100">
+                            {sp.spiele ? Math.round((sp.damage ?? 0) / sp.spiele).toLocaleString(ort) : '—'}
+                          </td>
+                          <td className="px-3 py-1.5 text-right tabular-nums text-slate-300">
+                            {sp.spiele ? (sp.kills / sp.spiele).toFixed(2) : '—'}
+                          </td>
+                          <td className="px-3 py-1.5 text-right tabular-nums text-slate-300">
+                            {typeof sp.damageRatio === 'number' ? sp.damageRatio.toFixed(2) : '—'}
+                          </td>
+                          <td className="px-3 py-1.5 text-right tabular-nums text-slate-400">
+                            {(sp.damage ?? 0).toLocaleString(ort)}
+                          </td>
+                          <td className="px-3 py-1.5 text-right tabular-nums text-slate-400">{sp.kills}</td>
+                          <td className="px-3 py-1.5 text-right tabular-nums text-slate-500">{sp.assists ?? 0}</td>
+                          <td className="px-4 py-1.5 text-right tabular-nums text-slate-500">{sp.spiele}</td>
+                        </tr>
+                      ))}
+                  </tbody>
+                </table>
+                <p className="border-t border-zinc-900 px-4 py-2 text-[11px] text-slate-600">
+                  <T>Werte je Spieler aus der Szene-Quelle, unter den echten Konten der Spieler. Team und Platz aus Epics Leaderboard. Damage Ratio: ausgeteilter geteilt durch erlittenen Schaden.</T>
+                </p>
+              </div>
+            )}
+
+            {spielerWerte?.vorhanden && spielerWerte.quelle !== 'szene' && (
               <div className="overflow-x-auto">
                 <table className="w-full text-sm">
                   <thead>

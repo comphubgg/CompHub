@@ -3,6 +3,69 @@ import fs from '@/lib/ablageFs';
 import path from 'path';
 import { DATEN_ORT } from '@/lib/datenOrt';
 import { zwischenspeichern } from '@/lib/zwischenspeicher';
+import { szeneFenster, epicTag } from '@/lib/szeneStats';
+import { liesLanKonten } from '@/lib/lanKonten';
+import { GLOBALS_TAGE, istGlobalsEvent, istGlobalsFenster } from '@/lib/globalsCup';
+
+/*
+ * Ohne Replays: die Werte der Szene-Quelle.
+ *
+ * Bei einem LAN (Globals) gibt es keine Replays - die Profis spielen auf
+ * Turnierkonten an fremden Rechnern. Die Szene-Quelle fuehrt die Werte je
+ * Spieler trotzdem (Damage, Elims, Assists, ...), unter den echten Konten.
+ * Team und Platz kommen aus Epics Bestenliste, verbunden ueber die
+ * Zuordnung der Turnierkonten (lib/lanKonten). Beim Finale der Globals
+ * zaehlen beide Tage zusammen.
+ */
+async function ausSzene(tage: string[], anzeige: Map<string, string>, land: Map<string, string>) {
+  const sz = await szeneFenster(tage);
+  if (!sz?.spieler.length) return null;
+  const lan = await liesLanKonten();
+  const echtVon = (id: string) => lan[id]?.echt ?? id;
+
+  // Die Teams ueber alle Tage: Punkte zusammen, daraus der Platz.
+  const teams = new Map<string, { spieler: string[]; punkte: number; platz?: number }>();
+  for (const w of tage) {
+    const tag = await epicTag(w);
+    for (const t of tag?.teams ?? []) {
+      const echte = (t.spieler ?? []).map(echtVon);
+      const k = [...echte].sort().join('|');
+      const da = teams.get(k) ?? { spieler: echte, punkte: 0 };
+      da.punkte += t.punkte ?? 0;
+      if (tage.length === 1) da.platz = t.platz;
+      teams.set(k, da);
+    }
+  }
+  if (tage.length > 1) {
+    [...teams.values()].sort((a, b) => b.punkte - a.punkte).forEach((t, i) => { t.platz = i + 1; });
+  }
+  const teamVon = new Map<string, { spieler: string[]; platz?: number }>();
+  for (const t of teams.values()) for (const id of t.spieler) teamVon.set(id, t);
+
+  const nameVon = (id: string) => anzeige.get(id)
+    ?? sz.spieler.find((x) => x.epicId === id)?.username ?? id.slice(0, 8);
+  const spieler = sz.spieler.map((x) => {
+    const t = teamVon.get(x.epicId);
+    const spiele = x.matchesPlayed || sz.matches || 0;
+    return {
+      epicId: x.epicId,
+      name: nameVon(x.epicId),
+      land: land.get(x.epicId) ?? '',
+      spiele,
+      kills: x.eliminations ?? 0,
+      knocks: 0, tode: 0, umgehauen: 0,
+      assists: x.assists ?? 0,
+      damage: Math.round(x.damageDealt ?? 0),
+      damageTaken: Math.round(x.damageTakenFromPlayers ?? 0),
+      // Ausgeteilter geteilt durch erlittenen Schaden - so rechnet die Quelle.
+      damageRatio: x.damageTakenFromPlayers ? (x.damageDealt ?? 0) / x.damageTakenFromPlayers : null,
+      genauigkeit: x.shots ? ((x.hitsToPlayers ?? 0) / x.shots) * 100 : null,
+      platz: t?.platz ?? null,
+      partner: (t?.spieler ?? []).filter((id) => id !== x.epicId).map(nameVon),
+    };
+  }).sort((a, b) => b.damage - a.damage);
+  return { vorhanden: true, quelle: 'szene', runden: sz.matches, rundenGesamt: sz.matches, lauf: null, spieler };
+}
 
 // Werte je einzelnem Spieler - aus den Replays.
 //
@@ -110,16 +173,22 @@ async function holeRoh(request: Request) {
   const saison = p.get('saison')
     ?? /^(S\d+)_/i.exec(fenster)?.[1]?.toUpperCase() ?? '';
 
-  let agg: Aggregat;
-  try {
-    agg = JSON.parse(await fs.readFile(
-      path.join(ABLAGE, saison, fenster, '_aggregat.json'), 'utf8')) as Aggregat;
-  } catch {
-    return NextResponse.json({
-      vorhanden: false, spieler: [], runden: 0, lauf: await letzterLauf(),
-    });
+  // Das Finale der Globals: beide Tage (siehe ausSzene).
+  const event = p.get('event');
+  const tage = istGlobalsEvent(event, fenster) && !istGlobalsFenster(fenster)
+    ? GLOBALS_TAGE.map((t) => t.windowId) : [fenster];
+
+  let agg: Aggregat | null = null;
+  if (tage.length === 1) {
+    try {
+      agg = JSON.parse(await fs.readFile(
+        path.join(ABLAGE, saison, fenster, '_aggregat.json'), 'utf8')) as Aggregat;
+    } catch { agg = null; }
   }
-  if (!agg.spieler?.length) {
+  if (!agg?.spieler?.length) {
+    const [anzeigeS, landS] = await Promise.all([namen(), laender()]);
+    const szene = await ausSzene(tage, anzeigeS, landS).catch(() => null);
+    if (szene) return NextResponse.json(szene);
     return NextResponse.json({
       vorhanden: false, spieler: [], runden: 0, lauf: await letzterLauf(),
     });

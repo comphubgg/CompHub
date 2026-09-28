@@ -1396,7 +1396,13 @@ export default function TweetSeite() {
     // Wer dort fehlt, erscheint ohne Flagge - erfunden wird nichts.
     fetch('/api/spieler-profile').then((r) => r.json())
       .then((j) => {
-        const p = (j.profile ?? {}) as Record<string, Profil>;
+        const p = (j.profile ?? {}) as Record<string, Profil & { echterName?: string }>;
+        /*
+         * Turnierkonten eines LAN ("[FNCSGC26] BIG Vico") kommen mit dem
+         * Namen des echten Kontos (lib/lanKonten). Im Beitrag steht der
+         * Spieler, nicht das Turnierkonto - "Vico", mit seinem @-Konto.
+         */
+        for (const e of Object.values(p)) if (!e.anzeige && e.echterName) e.anzeige = e.echterName;
         setProfile(p);
         for (const eintrag of Object.values(p)) {
           const code = eintrag.land?.toLowerCase();

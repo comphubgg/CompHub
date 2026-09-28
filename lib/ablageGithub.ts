@@ -86,7 +86,7 @@ const AM_RELEASE: Array<RegExp> = [
   /^replays\//,
   // Das Archiv der Scrims (scripts/scrims-holen.mjs) - nur hier, nie in Supabase.
   /^scrims\//,
-  /^(verdienst-archiv|elims-archiv|elims-summen-alt|preisgeld-tabellen|preisgelder|lan-preisgelder|epic-namen|cup-archiv|prognose-felder)\.json$/,
+  /^(verdienst-archiv|elims-archiv|elims-summen-alt|preisgeld-tabellen|preisgelder|lan-preisgelder|epic-namen|cup-archiv|prognose-felder|lan-konten)\.json$/,
   // Vom Betreiber gepflegt, von der Seite viel gelesen: als Rueckfall, wenn
   // Supabase nicht antwortet. Gelesen wird zuerst die lebende Kopie dort.
   /^(prognosen|turnier-karten|karten-vorlagen|spieler-profile|spielerbilder|spieler-namen|orgtags|galerie)\.json$/,
@@ -121,7 +121,7 @@ const NUR_RELEASE: Array<RegExp> = [
   /^power-rankings\//,
   /^replays\//,
   /^scrims\//,
-  /^(verdienst-archiv|elims-archiv|elims-summen-alt|preisgeld-tabellen|prognose-felder)\.json$/,
+  /^(verdienst-archiv|elims-archiv|elims-summen-alt|preisgeld-tabellen|prognose-felder|lan-konten)\.json$/,
 ];
 
 export function nurRelease(name: string): boolean {
@@ -139,7 +139,7 @@ const ZUERST: Array<RegExp> = [
   /^antworten\/(?!catalog_|szene_spieler=|szene_ansicht=profil)/,
   /^akten\//,
   /^replays\//,
-  /^(verdienst-archiv|elims-archiv|elims-summen-alt|preisgeld-tabellen|preisgelder|lan-preisgelder|epic-namen|cup-archiv|prognose-felder)\.json$/,
+  /^(verdienst-archiv|elims-archiv|elims-summen-alt|preisgeld-tabellen|preisgelder|lan-preisgelder|epic-namen|cup-archiv|prognose-felder|lan-konten)\.json$/,
 ];
 
 export function releaseZuerst(name: string): boolean {

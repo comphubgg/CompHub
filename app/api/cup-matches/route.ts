@@ -9,6 +9,7 @@ import {
   holeKatalog, punkteFuerRunde, regionAus, wertungVon, type WertungsRegel,
 } from '@/lib/cupWertung';
 import { zwischenspeichern } from '@/lib/zwischenspeicher';
+import { abgesagtFuer } from '@/lib/abgesagt';
 
 // Die einzelnen Runden eines Spieltags.
 //
@@ -279,6 +280,7 @@ async function holeRoh(request: Request) {
       wertung = wertungVon(katalog, window_, event);
     } catch { /* ohne Tabelle keine Rundenpunkte */ }
 
+    const abgesagt = await abgesagtFuer(window_);
     const runden = new Map<string, Runde>();
     /*
      * Zu jedem Konto sein Eintrag in der Bestenliste.
@@ -588,6 +590,8 @@ async function holeRoh(request: Request) {
           ende: s.ende,
           teams: s.teams,
           nummer: i + 1,
+          /** Vom Admin abgesagt - zaehlt nicht (lib/abgesagt). */
+          abgesagt: abgesagt.has(s.id),
           live,
           /** Beginn der Runde als ISO-Zeit - hergeleitet, siehe oben. */
           beginn: beginn ? new Date(beginn).toISOString() : null,

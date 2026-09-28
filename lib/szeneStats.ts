@@ -2099,3 +2099,39 @@ export async function epicVerlauf(
   zeilen.sort((a, b) => (b.datum ?? 0) - (a.datum ?? 0));
   return zeilen;
 }
+
+/**
+ * Die Werte der Szene-Quelle fuer einzelne Spieltage, je Spieler summiert.
+ *
+ * Fuer die Spieler-Stats einer Cup-Seite, wenn es keine Replays gibt - bei
+ * einem LAN wie den Globals spielen die Profis nicht auf ihren Konten, und
+ * Replays gibt es von dort nicht. Die Szene-Quelle fuehrt die Werte trotzdem,
+ * unter den echten Konten (siehe lib/lanKonten).
+ */
+export async function szeneFenster(windowIds: string[]): Promise<{ matches: number; spieler: RohSpieler[] } | null> {
+  const verz = await liesVerzeichnis();
+  const summe = new Map<string, RohSpieler>();
+  let matches = 0; let gefunden = 0;
+  for (const w of windowIds) {
+    const e = verz.find((x) => x.windowId === w);
+    if (!e) continue;
+    const d = await liesDatei(e);
+    if (!d) continue;
+    gefunden += 1; matches += d.matches ?? 0;
+    for (const p of d.players) {
+      const da = summe.get(p.epicId);
+      if (!da) { summe.set(p.epicId, { ...p }); continue; }
+      const ziel = da as unknown as Record<string, unknown>;
+      for (const [k, v] of Object.entries(p)) {
+        if (typeof v === 'number' && typeof ziel[k] === 'number') ziel[k] = (ziel[k] as number) + v;
+      }
+      da.username = p.username;
+    }
+  }
+  return gefunden ? { matches, spieler: [...summe.values()] } : null;
+}
+
+/** Epics Aufstellung eines Spieltags (Teams, Punkte, Platz) - oder null. */
+export async function epicTag(windowId: string): Promise<EpicSpieltag | null> {
+  return (await liesEpicSpieltage()).find((t) => t.windowId === windowId) ?? null;
+}
