@@ -14,8 +14,9 @@ import { istAdminAnfrage } from '@/lib/adminPruefung';
 //   public/assets/turniere/<Turnier>/   Logos, Siegergrafiken, Hintergruende
 //   public/assets/spieler/<Name>/       alles zu einem einzelnen Profi
 //
-// Was direkt in public/assets liegt, bleibt liegen - dort stehen die
-// Vorlagen, auf denen die Turniergrafik zeichnet.
+// Was direkt in public/assets liegt, bleibt liegen. (Die Turniergrafik, fuer
+// die dort Vorlagen lagen, gibt es seit dem 28.9.2026 nicht mehr - der
+// Betreiber: "komplett rausloeschen".)
 //
 //   GET                          -> alle Ordner mit ihren Dateien
 //   POST  (multipart)            -> Dateien in einen Ordner legen

@@ -13,7 +13,7 @@ import { kernname, namensSchluessel } from '@/lib/homoglyph';
 
 import T from '@/app/components/T';
 import { useSprache } from '@/app/components/SprachProvider';
-import { speichereAdresse, speichereLeinwand } from '@/app/lib/bildSpeichern';
+import { speichereAdresse } from '@/app/lib/bildSpeichern';
 interface Fenster {
   status: string; begin: number;
   /** Fehlt bei nachgetragenen Turnieren. */
@@ -950,10 +950,6 @@ export default function TweetSeite() {
   const [zuordnungOffen, setZuordnungOffen] = useState(false);
   const [statistikOffen, setStatistikOffen] = useState(false);
 
-  /* Die Turniergrafik auf Epics eigener Vorlage. */
-  const vorlagenLeinwand = useRef<HTMLCanvasElement | null>(null);
-  const [vorlagenTitel, setVorlagenTitel] = useState('');
-
   /* ------------------------------------------- Eigene Liste ohne Cup */
   /** Die Ueberschrift, die der Betreiber selbst schreibt. */
   const [eigenerKopf, setEigenerKopf] = useState('');
@@ -969,10 +965,6 @@ export default function TweetSeite() {
   }>>([]);
   /** Ob die Nummerierung im Text stehen soll - bei einer Frage nicht. */
   const [eigeneNummern, setEigeneNummern] = useState(true);
-  const [schriftDa, setSchriftDa] = useState(false);
-  const [vorlagenKopiert, setVorlagenKopiert] = useState(false);
-  /** Warum das Speichern nicht ging - sonst bliebe der Knopf stumm. */
-  const [vorlagenFehler, setVorlagenFehler] = useState('');
 
   /* Suche und Filter fuer die Zuordnungsliste. Bei zweihundert Kacheln ist
      Scrollen keine Bedienung mehr. */
@@ -1349,24 +1341,6 @@ export default function TweetSeite() {
   const leinwand = useRef<HTMLCanvasElement | null>(null);
   /** Vorgeladene Flaggenbilder fuer die Leinwand, nach Laenderkuerzel. */
   const flaggenBilder = useRef<Record<string, HTMLImageElement>>({});
-  /**
-   * Die Schrift fuer die Turniergrafik.
-   *
-   * Fortnite setzt "Burbank Big Condensed Black" - die ist lizenzpflichtig
-   * und liegt hier nicht. Anton kommt ihr am naechsten: schmal, sehr fett,
-   * dieselbe Anmutung, und unter der Open Font License frei verwendbar.
-   * Die Schraeglage macht die Zeichnung selbst, so wie in der Vorlage.
-   *
-   * Laedt sie nicht, faellt die Grafik auf eine Systemschrift zurueck. Sie
-   * sieht dann anders aus, aber sie entsteht.
-   */
-  useEffect(() => {
-    const schrift = new FontFace('AntonBeitrag', "url('/fonts/anton-latin.woff2')");
-    schrift.load()
-      .then((geladen) => { document.fonts.add(geladen); setSchriftDa(true); })
-      .catch(() => setSchriftDa(false));
-  }, []);
-
   /** Das eigene Logo fuer die Fusszeile der Grafik. */
   const logoBild = useRef<HTMLImageElement | null>(null);
 
@@ -2652,168 +2626,6 @@ export default function TweetSeite() {
       setGewaehlteListen(stats.bestenlisten.slice(0, 6).map((b) => b.schluessel));
     }
   }, [ebeneEffektiv, spielerListen, stats]);
-
-  /* ------------------------------------------- Grafik auf Epics Vorlage */
-
-  /**
-   * Die Masse der Vorlage, ausgemessen an public/assets/TEAM STATS.jpg.
-   *
-   * Die beiden Balken sind Teil des Hintergrundbildes, nicht gezeichnet -
-   * deshalb muss der Text genau dorthin, wo sie liegen. Gemessen wurde
-   * zeilenweise ueber die laengste Strecke gleicher Farbe:
-   *
-   *   tuerkiser Balken   y 480..578, x 411..933 (nach unten leicht versetzt)
-   *   weisser Balken     y 590..662, x 277..1083
-   *
-   * Der tuerkise Balken laeuft schraeg - dreizehn Pixel auf vierundachtzig
-   * Hoehe, also gut neun Grad. Genau diese Neigung bekommt auch der Titel,
-   * sonst steht die Schrift schief im Balken statt mit ihm.
-   */
-  const VORLAGE = {
-    // "groesse" ist der Startwert, "hoechstens" der Deckel. Der Deckel kommt
-    // aus der Hoehe des Balkens, nicht aus dem Geschmack: der tuerkise ist
-    // 98 Pixel hoch, der weisse 72. Anton hat eine Versalhoehe von etwa 0,73
-    // der Schriftgroesse - 74 beziehungsweise 52 Pixel fuellen den Balken
-    // also gut aus, ohne oben und unten anzustossen.
-    titel: { x: 672, y: 530, breite: 455, groesse: 74, hoechstens: 74,
-      neigung: -0.155 },
-    namen: { x: 680, y: 626, breite: 750, groesse: 46, hoechstens: 52 },
-    logo: { x: 1128, y: 30, groesse: 156 },
-  };
-
-  /** Ein Bild laden und auf das Ergebnis warten. */
-  const bildLaden = (pfad: string) => new Promise<HTMLImageElement>((fertig, fehler) => {
-    const b = new Image();
-    b.onload = () => fertig(b);
-    b.onerror = () => fehler(new Error(pfad));
-    b.src = pfad;
-  });
-
-  /**
-   * Text so gross wie moeglich, aber nicht breiter als der Balken.
-   *
-   * "CHAMPIONS" und "TWIS ACORN + TWIS BOLTZZEROO" sind verschieden lang;
-   * eine feste Schriftgroesse liesse das eine verloren aussehen und das
-   * andere ueber den Rand laufen.
-   *
-   * Der Wert waechst auch nach oben. Zuerst wurde nur verkleinert - dann
-   * stand "AZATGO + KOS UPL" klein und verloren in einem Balken, der auf
-   * einen doppelt so langen Namen ausgelegt ist. Die Obergrenze verhindert,
-   * dass ein kurzer Titel wie "#4" den Balken sprengt.
-   */
-  const passendeGroesse = (g: CanvasRenderingContext2D, text: string,
-                           start: number, maxBreite: number, deckel: number) => {
-    const setze = (n: number) => {
-      g.font = `${n}px AntonBeitrag, "Arial Black", sans-serif`;
-      return g.measureText(text).width;
-    };
-    let groesse = Math.min(start, deckel);
-    if (setze(groesse) > maxBreite) {
-      while (groesse > 14 && setze(groesse) > maxBreite) groesse -= 1;
-    } else {
-      while (groesse < deckel && setze(groesse + 1) <= maxBreite) groesse += 1;
-      setze(groesse);
-    }
-    return groesse;
-  };
-
-  /**
-   * Die Turniergrafik zeichnen.
-   *
-   * Hintergrund, Titel, die beiden Namen - und oben rechts das FNCS-Zeichen,
-   * aber nur bei einem FNCS-Turnier. Ein Logo auf einem Ranked Cup waere
-   * eine Behauptung ueber den Cup, die nicht stimmt.
-   */
-  const zeichneVorlage = useCallback(async () => {
-    const c = vorlagenLeinwand.current;
-    if (!c) return;
-    const g = c.getContext('2d');
-    if (!g) return;
-
-    let hintergrund: HTMLImageElement;
-    try { hintergrund = await bildLaden('/assets/TEAM STATS.jpg'); }
-    catch { return; }
-
-    c.width = hintergrund.width;
-    c.height = hintergrund.height;
-    g.drawImage(hintergrund, 0, 0);
-
-    const e = eintraege.find((x) => x.rank === spotlight);
-    const namen = e
-      ? e.players.map((sp) => (findeProfil(sp.name, sp.id)?.anzeige || sp.name).toUpperCase())
-        .join(' + ')
-      : '';
-    // Ohne eigene Eingabe der Platz als Titel - "CHAMPIONS" nur, wo es
-    // wirklich der erste ist.
-    const titel = (vorlagenTitel.trim()
-      || (e?.rank === 1 ? 'CHAMPIONS' : e ? `#${e.rank}` : '')).toUpperCase();
-
-    // ------------------------------------------------------- Der Titel
-    if (titel) {
-      g.save();
-      g.translate(VORLAGE.titel.x, VORLAGE.titel.y);
-      g.transform(1, 0, VORLAGE.titel.neigung, 1, 0, 0);
-      g.textAlign = 'center';
-      g.textBaseline = 'middle';
-      passendeGroesse(g, titel, VORLAGE.titel.groesse, VORLAGE.titel.breite,
-        VORLAGE.titel.hoechstens);
-      g.fillStyle = '#ffffff';
-      g.fillText(titel, 0, 0);
-      g.restore();
-    }
-
-    // -------------------------------------------------------- Die Namen
-    if (namen) {
-      g.save();
-      g.textAlign = 'center';
-      g.textBaseline = 'middle';
-      passendeGroesse(g, namen, VORLAGE.namen.groesse, VORLAGE.namen.breite,
-        VORLAGE.namen.hoechstens);
-      g.fillStyle = '#15161a';
-      g.fillText(namen, VORLAGE.namen.x, VORLAGE.namen.y);
-      g.restore();
-    }
-
-    // --------------------------------------------------- Das FNCS-Zeichen
-    if (/fncs/i.test(cupName)) {
-      try {
-        const logo = await bildLaden('/assets/fncs-logo.png');
-        const { x, y, groesse } = VORLAGE.logo;
-        g.drawImage(logo, x, y, groesse, groesse);
-      } catch { /* ohne Logo ist die Grafik trotzdem brauchbar */ }
-    }
-  }, [eintraege, spotlight, findeProfil, vorlagenTitel, cupName]);
-
-  useEffect(() => { void zeichneVorlage(); }, [zeichneVorlage, schriftDa]);
-
-  async function vorlageKopieren() {
-    const c = vorlagenLeinwand.current;
-    if (!c) return;
-    await new Promise<void>((fertig) => c.toBlob(async (blob) => {
-      if (blob) {
-        try {
-          await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
-          setVorlagenKopiert(true);
-          setTimeout(() => setVorlagenKopiert(false), 1800);
-        } catch { /* der Browser gibt die Zwischenablage nicht frei */ }
-      }
-      fertig();
-    }, 'image/png'));
-  }
-
-  async function vorlageSpeichern() {
-    const c = vorlagenLeinwand.current;
-    if (!c) return;
-    setVorlagenFehler('');
-    try {
-      await speichereLeinwand(
-        c,
-        `${(cupName || 'cup').toLowerCase().replace(/[^a-z0-9]+/g, '-')}-team.png`,
-      );
-    } catch (e) {
-      setVorlagenFehler(t(e instanceof Error ? e.message : String(e)));
-    }
-  }
 
   /** Die Grafik zum Beitrag. Alles wird direkt gezeichnet, ohne Fremdcode. */
   const zeichnen = useCallback(() => {
@@ -4214,65 +4026,6 @@ export default function TweetSeite() {
                   )}
                 </div>
               </div>
-
-              {/* Die Turniergrafik auf Epics eigener Vorlage.
-                  Nur beim Team Spotlight - sie zeigt genau ein Team, und
-                  ohne ausgewaehltes Team stuenden die Balken leer da. */}
-              {vorlage === 'spieler' && (
-                <div className="mt-4 rounded-xl border border-zinc-800
-                                bg-zinc-900/40 p-3">
-                  <div className="mb-2 flex flex-wrap items-center gap-3">
-                    <h2 className="text-sm font-semibold text-slate-100">
-                      <T>Turniergrafik</T>
-                    </h2>
-                    <input value={vorlagenTitel}
-                      onChange={(e) => setVorlagenTitel(e.target.value)}
-                      placeholder={t('Titel — leer: Champions bzw. der Platz')}
-                      spellCheck={false}
-                      className="w-64 max-w-full rounded-lg border border-zinc-800
-                                 bg-zinc-950 px-3 py-1 text-xs text-slate-100
-                                 outline-none placeholder:text-slate-600
-                                 focus:border-sky-500" />
-                    <span className="flex items-center gap-1">
-                      {['CHAMPIONS', 'GAME WINNER', 'VICTORY ROYALE'].map((v) => (
-                        <button key={v} onClick={() => setVorlagenTitel(v)}
-                          className="rounded-md border border-zinc-800 px-2 py-0.5
-                                     text-[10px] text-slate-500 transition
-                                     hover:border-sky-500/60 hover:text-sky-400">
-                          {v}
-                        </button>
-                      ))}
-                    </span>
-                    <span className="ml-auto flex items-center gap-2">
-                      <button onClick={vorlageKopieren}
-                        className="rounded-lg bg-sky-500 px-3 py-1 text-xs
-                                   font-medium text-white transition
-                                   hover:bg-sky-400">
-                        {vorlagenKopiert ? <T>kopiert</T> : <T>Bild kopieren</T>}
-                      </button>
-                      <button onClick={() => void vorlageSpeichern()}
-                        className="rounded-lg border border-zinc-800 px-3 py-1
-                                   text-xs text-slate-400 transition
-                                   hover:border-sky-500/60 hover:text-sky-400">
-                        <T>speichern</T>
-                      </button>
-                      {vorlagenFehler && (
-                        <span className="text-[11px] text-red-400">
-                          {vorlagenFehler}
-                        </span>
-                      )}
-                    </span>
-                  </div>
-                  <canvas ref={vorlagenLeinwand}
-                    className="w-full rounded-lg border border-zinc-800 bg-zinc-950" />
-                  {!schriftDa && (
-                    <p className="mt-2 text-[11px] text-amber-400/90">
-                      <T>Die Schrift lädt noch — die Grafik nutzt solange eine
-                      Ersatzschrift.</T>
-                    </p>
-                  )}
-                </div>
-              )}
 
               {/* Das Fotomosaik.
                   Auf X steht unter so einer Liste ueblicherweise ein breites

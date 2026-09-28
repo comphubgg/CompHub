@@ -1817,12 +1817,6 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Dieser Bereich ist dem Adminkonto vorbehalten.':
     'This area is reserved for the admin account.',
 
-  // Turniergrafik auf Epics Vorlage
-  'Turniergrafik': 'Tournament graphic',
-  'Titel — leer: Champions bzw. der Platz': 'Title — empty: Champions or the placement',
-  ['Die Schrift lädt noch — die Grafik nutzt solange eine Ersatzschrift.']:
-    'The font is still loading — the graphic uses a fallback for now.',
-
   // Zuordnungsliste im Beitrags-Panel
   'Spieler suchen — auch alte Namen und @-Konten':
     'Search players — old names and @ handles too',
