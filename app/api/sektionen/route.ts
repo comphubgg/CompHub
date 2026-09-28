@@ -56,7 +56,7 @@ export async function GET(request: Request) {
   // Besucher Admin ist, weiss die Seite schon vom ersten Abruf.
   if (new URL(request.url).searchParams.get('nur') === 'staende') {
     return NextResponse.json({ ok: true, staende: await liesStaende() }, {
-      headers: { 'Vercel-CDN-Cache-Control': ZWISCHENSPEICHER, 'Cache-Control': 'no-store' },
+      headers: { 'Vercel-CDN-Cache-Control': ZWISCHENSPEICHER, 'CDN-Cache-Control': ZWISCHENSPEICHER, 'Cache-Control': 'no-store' },
     });
   }
   const [staende, admin] = await Promise.all([liesStaende(), istAdmin()]);

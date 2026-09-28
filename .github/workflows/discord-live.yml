@@ -36,3 +36,16 @@ jobs:
           rc=$?
           rm -f .env.local
           exit $rc
+
+      # Der kostenlose Host legt die Seite nach 15 Minuten ohne Besuch
+      # schlafen; dieser Aufruf alle zehn Minuten haelt sie wach. Dazu einmal
+      # am Tag (07:0x UTC) die abgelaufenen VIP-Zugaenge - das tat vorher
+      # Vercels Zeitplan (vercel.json).
+      - name: Seite wach halten
+        if: always()
+        run: |
+          curl -s -o /dev/null -w "Seite: %{http_code} %{time_total}s\n" -m 90 "https://www.thecomphub.com/api/auth/verify?wach=$(date +%s)" || true
+          if [ "$(date -u +%H)" = "07" ] && [ "$(date -u +%M)" -lt 10 ]; then
+            GEHEIM=$(printf '%s' "${{ secrets.ENV_LOCAL }}" | grep '^CRON_SECRET=' | cut -d= -f2- | tr -d '"\r')
+            curl -s -o /dev/null -w "VIP-Ablauf: %{http_code}\n" -m 120 -H "Authorization: Bearer $GEHEIM" "https://www.thecomphub.com/api/cron/vip-ablauf" || true
+          fi

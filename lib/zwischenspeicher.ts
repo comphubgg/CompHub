@@ -16,13 +16,17 @@
 export function zwischenspeichern(antwort: Response, sekunden: number): Response {
   if (antwort.status !== 200) return antwort;
   const wert = `max-age=${sekunden}, stale-while-revalidate=${sekunden * 6}`;
+  // Vercels Netz liest den eigenen Kopf, Cloudflare (vor einem eigenen Host)
+  // den allgemeinen "CDN-Cache-Control". Der Browser sieht keinen von beiden.
   try {
     antwort.headers.set('Vercel-CDN-Cache-Control', wert);
+    antwort.headers.set('CDN-Cache-Control', wert);
     return antwort;
   } catch {
     // Unveraenderliche Koepfe (durchgereichte Antwort): neu verpacken.
     const koepfe = new Headers(antwort.headers);
     koepfe.set('Vercel-CDN-Cache-Control', wert);
+    koepfe.set('CDN-Cache-Control', wert);
     return new Response(antwort.body, { status: antwort.status, statusText: antwort.statusText, headers: koepfe });
   }
 }

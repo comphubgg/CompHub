@@ -172,7 +172,7 @@ export async function GET(request: Request) {
        * Vercels Zwischenspeicher beantwortet das; eine Aenderung im Studio
        * kommt nach hoechstens zehn Sekunden an (lib/zwischenspeicher).
        */
-      headers: { 'Cache-Control': 'no-store', 'Vercel-CDN-Cache-Control': 'max-age=10, stale-while-revalidate=60' },
+      headers: { 'Cache-Control': 'no-store', 'Vercel-CDN-Cache-Control': 'max-age=10, stale-while-revalidate=60', 'CDN-Cache-Control': 'max-age=10, stale-while-revalidate=60' },
     });
   }
 

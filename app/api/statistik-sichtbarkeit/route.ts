@@ -26,7 +26,7 @@ export async function GET() {
   // Fuer alle gleich: Vercels Zwischenspeicher beantwortet den Takt der
   // offenen Seiten, gerechnet wird hoechstens alle zehn Sekunden.
   return NextResponse.json({ bereiche }, {
-    headers: { 'Vercel-CDN-Cache-Control': 'max-age=10, stale-while-revalidate=60', 'Cache-Control': 'no-store' },
+    headers: { 'Vercel-CDN-Cache-Control': 'max-age=10, stale-while-revalidate=60', 'CDN-Cache-Control': 'max-age=10, stale-while-revalidate=60', 'Cache-Control': 'no-store' },
   });
 }
 
