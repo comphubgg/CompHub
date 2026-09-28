@@ -23,7 +23,7 @@ import { inselAusPlaylist } from '@/lib/inseln';
 import { istGlobalsEvent } from '@/lib/globalsCup';
 import { sichtbarerTakt } from '@/app/lib/takt';
 import { fortniteKarte, eigeneKarte } from '@/lib/bildAdressen';
-import StatKacheln from '@/app/components/StatKacheln';
+import SpielerStatsUebersicht from '@/app/components/SpielerStatsUebersicht';
 /**
  * Regionen, fuer die von selbst eine Karte bereitsteht.
  *
@@ -560,12 +560,14 @@ const ZEILEN_PRO_SEITE = [50, 100] as const;
 
 /** Der Knopf zur Turnierkarte. Steht ueber und unter dem Leaderboard,
  *  damit man ihn nicht suchen muss. */
-function KartenKnopf({ karte, aufVerstecken }: {
+function KartenKnopf({ karte, aufVerstecken, mitInsel = false }: {
   karte: { id: string; titel: string; spiele?: string; bildTitel?: string;
     /** Eigenes Ziel - fuer die Karte, die es noch gar nicht gibt. */
     href?: string };
   /** Nur fuer Admins gesetzt - blendet die Karte oeffentlich aus. */
   aufVerstecken?: (id: string) => void;
+  /** Mehrere Karten an einem Spieltag (Reload-Inseln): der Inselname unterscheidet sie. */
+  mitInsel?: boolean;
 }) {
   const t = useT();
   return (
@@ -579,12 +581,18 @@ function KartenKnopf({ karte, aufVerstecken }: {
         <path d="M2.5 5.5 7.5 3l5 2.5L17.5 3v11.5L12.5 17l-5-2.5L2.5 17z" />
         <path d="M7.5 3v11.5M12.5 5.5V17" />
       </svg>
-      {/* Der Name der Insel steht vorn - danach unterscheiden sich zwei
-          Karten eines Spieltags. Die Spielangabe ist ein Zusatz. */}
-      {karte.bildTitel ?? t('Karte öffnen')}
-      <span className="text-xs text-sky-400/80">
-        {karte.spiele ? `${t('Spiele')} ${karte.spiele}` : karte.titel}
-      </span>
+      {/* Nur der Name des Turniers - ohne "Battle Royale" und ohne Tag. Der
+          Betreiber (28.9.2026): "Es soll nie immer Battle Royale einfach dort
+          stehen. Es soll einfach der Titel stehen ... und Tag ist auch
+          egal." Nur wenn ein Spieltag mehrere Karten hat (Reload-Inseln),
+          steht der Inselname klein dahinter, sonst waeren sie nicht zu
+          unterscheiden. */}
+      {karte.titel.split('·')[0].trim() || karte.bildTitel || t('Karte öffnen')}
+      {(karte.spiele || (mitInsel && karte.bildTitel)) && (
+        <span className="text-xs text-sky-400/80">
+          {karte.spiele ? `${t('Spiele')} ${karte.spiele}` : karte.bildTitel}
+        </span>
+      )}
     </a>
     {aufVerstecken && (
       // Verstecken, nicht loeschen: Formen und Zuordnung bleiben erhalten und
@@ -641,6 +649,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
   const [stand, setStand] = useState('');
   /** Die Turnierstatistik - nur zu einem Finale. */
   const [statistik, setStatistik] = useState<Bestenliste[]>([]);
+  /** Wann Epic die Bestenliste zuletzt fortgeschrieben hat - "zuletzt aktualisiert". */
+  const [statistikStand, setStatistikStand] = useState<string | null>(null);
   /**
    * Spieltage, zu denen bewusst keine Karte angeboten wird.
    *
@@ -838,6 +848,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     clutch?: boolean;
     /** Wie viele Spieler es gibt - bei grossen Cups sind nur die besten 500 geladen. */
     gesamt?: number; gekuerzt?: boolean;
+    /** Wann die Werte zuletzt gerechnet wurden (Replays). */
+    aktualisiert?: string | null;
   } | null>(null);
   /** Treffer der Suche auf dem Server - bei grossen Cups, siehe app/api/cup-spieler. */
   const [spielerTreffer, setSpielerTreffer] = useState<NonNullable<typeof spielerWerte>['spieler'] | null>(null);
@@ -1373,7 +1385,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     fetch(`/api/cup-stats?event=${encodeURIComponent(lbFenster.eventId)}`
         + `&window=${encodeURIComponent(lbFenster.windowId)}&top=5`)
       .then((r) => r.json())
-      .then((d) => { if (!weg) setStatistik(d.bestenlisten ?? []); })
+      .then((d) => { if (!weg) { setStatistik(d.bestenlisten ?? []); setStatistikStand(d.aktualisiert ?? null); } })
       .catch(() => { if (!weg) setStatistik([]); });
     return () => { weg = true; };
   }, [lbFenster, zeigeStatistik]);
@@ -2459,7 +2471,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
         {kartenZumZeigen.length > 0 && (
           <div className="mb-5 flex flex-wrap gap-2">
             {kartenZumZeigen.map((k) => (
-              <KartenKnopf key={k.id} karte={k}
+              <KartenKnopf key={k.id} karte={k} mitInsel={kartenZumZeigen.length > 1}
                 aufVerstecken={!istAdmin ? undefined
                   // Eine gespeicherte Karte wird ausgeblendet, ein blosses
                   // Angebot ganz weggenommen - es gibt ja noch nichts.
@@ -3922,9 +3934,11 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
           */}
         {reiter === 'spieler' && !soloCup && !!spielerWerte?.spieler.length && (
           <div className="mb-4">
-            <StatKacheln spieler={spielerWerte.spieler.map((s) => ({
-              ...s, elims: s.kills, quote: s.damageRatio ?? 0,
-            }))} />
+            <SpielerStatsUebersicht
+              spieler={spielerWerte.spieler.map((s) => ({ ...s, elims: s.kills, quote: s.damageRatio ?? 0 }))}
+              matches={spielerWerte.runden}
+              aktualisiert={spielerWerte.aktualisiert ?? null}
+              szene={spielerWerte.quelle === 'szene'} />
           </div>
         )}
         {reiter === 'spieler' && !soloCup && (
@@ -4384,6 +4398,10 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                 */}
               <span className="text-[11px] text-slate-500">
                 <T>Werte je</T> {soloCup ? t('Spieler (Einzahl)') : 'Duo'}<T>, direkt von Epic — nur was dieses Turnier mitschickt</T>
+                {statistikStand && Number.isFinite(Date.parse(statistikStand)) && (
+                  <> · <T>Zuletzt aktualisiert</T>{' '}
+                    {new Date(statistikStand).toLocaleString(ort, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</>
+                )}
               </span>
             </div>
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">

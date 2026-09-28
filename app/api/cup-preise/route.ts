@@ -9,6 +9,8 @@ import {
 import { DATEN_ORT } from '@/lib/datenOrt';
 import { lanEintraege, tabelleFuer } from '@/lib/preisgeld';
 import { zwischenspeichern } from '@/lib/zwischenspeicher';
+import { GLOBALS_EVENT, istGlobalsFenster } from '@/lib/globalsCup';
+import { istGlobalsFinale } from '@/lib/globalsGesamt';
 
 // Was es in einem Cup zu gewinnen gibt.
 //
@@ -152,8 +154,23 @@ async function holeRoh(request: Request) {
   // laengeren Kennung, die sie enthaelt - beides beruecksichtigen.
   const eventIdRoh = searchParams.get('event') ?? '';
   const alle = epic.payoutTables ?? {};
-  const gruppen = alle[window_]
-    ?? Object.entries(alle).find(([k]) => k.includes(window_))?.[1];
+  /*
+   * Die Globals: Epic fuehrt die Auszahlung unter dem Event, nicht unter
+   * einem Tag - und sie gilt fuer den Endstand beider Tage. Der Betreiber
+   * (28.9.2026): die Earnings "stehen bei Global nicht neben den Namen".
+   * Das Finale bekommt deshalb Epics Tabelle; die einzelnen Tage keine,
+   * ihre Tageswertung zahlt nichts aus.
+   */
+  if (istGlobalsFenster(window_)) {
+    return NextResponse.json({
+      vorhanden: false, window: window_, region,
+      hinweis: 'Prize money is paid on the final standings of both days, not per day.',
+      geld: [], gegenstaende: [], waehrung: null, gesamt: null, wertung: wertungVon(epic, window_, eventIdRoh),
+    });
+  }
+  const gruppen = istGlobalsFinale(eventIdRoh, window_)
+    ? Object.entries(alle).find(([k]) => k === GLOBALS_EVENT || k.includes('MannekenPis'))?.[1]
+    : alle[window_] ?? Object.entries(alle).find(([k]) => k.includes(window_))?.[1];
   const wertung = wertungVon(epic, window_, eventIdRoh);
 
   // Epics Tabelle unveraendert - fuer scripts/preisgeld-aus-katalog.mjs,

@@ -21,6 +21,13 @@ export function istGlobalsFinale(event: string | null, windowId: string | null):
   return istGlobalsEvent(event, windowId) && !istGlobalsFenster(windowId ?? '');
 }
 
+/** Wann Epic die Bestenlisten der Globals zuletzt fortgeschrieben hat (der spaetere Tag). */
+export async function globalsStand(limit: number): Promise<string> {
+  const staende = await Promise.all(GLOBALS_TAGE.map((t) => gecacht(`stats|${GLOBALS_EVENT}|${t.windowId}|${limit}`, 60_000,
+    () => holeTop(GLOBALS_EVENT, t.windowId, limit)).then((d) => d.updated ?? '').catch(() => '')));
+  return staende.sort().pop() ?? '';
+}
+
 /** Die Bestenlisten beider Tage, abgesagte Runden abgezogen. */
 export async function globalsTage(limit: number): Promise<CupEintrag[][]> {
   return Promise.all(GLOBALS_TAGE.map(async (t) => {

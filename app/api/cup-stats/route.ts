@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { gecacht, holeTop, EpicLoginNoetig, type CupEintrag } from '@/lib/epicCups';
 import { zwischenspeichern } from '@/lib/zwischenspeicher';
-import { istGlobalsFinale, globalsTage, summiereTage } from '@/lib/globalsGesamt';
+import { istGlobalsFinale, globalsTage, globalsStand, summiereTage } from '@/lib/globalsGesamt';
 
 // Bestenlisten je Kennzahl fuer einen Spieltag - die Grundlage fuer die
 // Turnier-Statistikseite und die Beitragsvorlagen.
@@ -81,10 +81,12 @@ async function holeRoh(request: Request) {
 
   try {
     // Das Finale der Globals hat keine eigene Bestenliste: beide Tage zusammen.
-    const eintraege = istGlobalsFinale(event, window_)
-      ? summiereTage(await globalsTage(limit))
-      : (await gecacht(`stats|${event}|${window_}|${limit}`, TTL,
-        () => holeTop(event, window_, limit))).entries;
+    const finale = istGlobalsFinale(event, window_);
+    const einzeln = finale ? null : await gecacht(`stats|${event}|${window_}|${limit}`, TTL,
+      () => holeTop(event, window_, limit));
+    const eintraege = finale ? summiereTage(await globalsTage(limit)) : einzeln!.entries;
+    // Wann Epic die Bestenliste zuletzt fortgeschrieben hat - fuer "zuletzt aktualisiert".
+    const aktualisiert = finale ? await globalsStand(limit) : einzeln!.updated ?? null;
 
     const bestenlisten = KATEGORIEN.filter((k) =>
       !nurListe || k.schluessel === nurListe).map((k) => {
@@ -140,6 +142,7 @@ async function holeRoh(request: Request) {
     }
 
     return NextResponse.json({
+      aktualisiert: aktualisiert || null,
       teams: eintraege.length,
       spiele: eintraege[0]?.games ?? 0,
       bestenlisten,

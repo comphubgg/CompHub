@@ -66,12 +66,17 @@ function alsZeit(sek: number): string {
 
 type Kachel = KachelListe & { zeilen: KachelSpieler[] };
 
-export default function StatKacheln({ spieler, listen = TURNIER_KACHELN, anzahl = 5, aufKlick }: {
+export default function StatKacheln({ spieler, listen = TURNIER_KACHELN, anzahl = 5, aufKlick, leereZeigen = false }: {
   spieler: KachelSpieler[];
   listen?: KachelListe[];
   /** Wie viele je Kachel stehen - der Rest hinter dem Plus. */
   anzahl?: number;
   aufKlick?: (s: KachelSpieler) => void;
+  /**
+   * Genau diese Kennzahlen, auch ohne Werte (dann mit Hinweis) - kein
+   * Ersatz durch Assists. Fuer die Player Stats nach Osirions Vorbild.
+   */
+  leereZeigen?: boolean;
 }) {
   const { sprache, t } = useSprache();
   const ort = ortVon(sprache);
@@ -87,13 +92,14 @@ export default function StatKacheln({ spieler, listen = TURNIER_KACHELN, anzahl 
           ? Number(a[k.feld]) - Number(b[k.feld])
           : Number(b[k.feld]) - Number(a[k.feld]))),
     });
+    if (leereZeigen) return listen.map(mitZeilen);
     const da = listen.map(mitZeilen).filter((l) => l.zeilen.length);
     if (da.length < listen.length && !da.some((l) => l.feld === ERSATZ.feld)) {
       const ersatz = mitZeilen(ERSATZ);
       if (ersatz.zeilen.length) da.push(ersatz);
     }
     return da;
-  }, [spieler, listen]);
+  }, [spieler, listen, leereZeigen]);
 
   const wert = (k: KachelListe, v: number) => (k.format === 'zeit' ? alsZeit(v)
     : k.format === 'km' ? `${(v / 1000).toLocaleString(ort, { minimumFractionDigits: 1, maximumFractionDigits: 1 })} km`
@@ -121,6 +127,9 @@ export default function StatKacheln({ spieler, listen = TURNIER_KACHELN, anzahl 
               )}
             </p>
             <div className="divide-y divide-zinc-900">
+              {!k.zeilen.length && (
+                <p className="px-3 py-6 text-center text-[11px] text-slate-600"><T>Liegt für diesen Cup nicht vor</T></p>
+              )}
               {k.zeilen.slice(0, anzahl).map((s, i) => (
                 // Kein deaktivierter Knopf: der bekommt im Browser keine
                 // Maus-Ereignisse, und das Hervorheben blieb aus.

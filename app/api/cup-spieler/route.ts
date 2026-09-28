@@ -52,14 +52,11 @@ async function ausSzene(tage: string[], anzeige: Map<string, string>, land: Map<
   const clutch = new Map<string, number>();
   let clutchDa = false;
   /*
-   * Ausgeblendet, bis die Werte belegt sind (28.9.2026): mit beiden Globals-
-   * Tagen lagen sie im Mittel 10 bis 15 Punkte neben Osirion, einzelne
-   * Spieler weit mehr - Osirion kennt die Zeitpunkte der Reboots, unser
-   * Leser nicht. Der Betreiber: "nur wenn sie ueberhaupt stimmen".
-   * Gerechnet wird weiter (scripts/clutch-berechnen.mjs); COMPHUB_CLUTCH=1
-   * zeigt sie wieder.
+   * Seit dem 28.9.2026 wieder sichtbar - der Betreiber will die Kachel.
+   * Gerechnet aus Epics Server-Replays der gewerteten Spiele (bei den Globals
+   * 6 + 6); Osirion zaehlt dort 13 Matches, die Werte weichen deshalb ab.
    */
-  for (const w of process.env.COMPHUB_CLUTCH === '1' ? tage : []) {
+  for (const w of tage) {
     const c = await liesJson<{ summe?: Record<string, number> } | null>(`clutch/${w}.json`, null).catch(() => null);
     if (!c?.summe) continue;
     clutchDa = true;
@@ -99,6 +96,13 @@ async function ausSzene(tage: string[], anzeige: Map<string, string>, land: Map<
       distanz: (x.distanceOnFoot ?? 0) + (x.distanceSkydiving ?? 0),
       timeInStorm: x.timeInStorm ?? 0,
       timeAlive: x.timeAlive ?? 0,
+      // Fuer die Uebersicht (Show More) - was die Quelle je Spieler fuehrt.
+      shots: x.shots ?? 0,
+      reboots: x.rebootsAndRevives ?? 0,
+      fallDamage: Math.round(x.fallDamage ?? 0),
+      stormDamage: Math.round(x.stormDamage ?? 0),
+      healthHealed: Math.round(x.healthHealed ?? 0),
+      shieldHealed: Math.round(x.shieldHealed ?? 0),
       platz: t?.platz ?? null,
       partner: (t?.spieler ?? []).filter((id) => id !== x.epicId).map(nameVon),
     };
@@ -315,6 +319,7 @@ async function holeRoh(request: Request) {
     runden: rep.matches ?? 0,
     rundenGesamt: rep.rundenGesamt,
     gerechnet: rep.gerechnet ?? null,
+    aktualisiert: rep.gerechnet ?? null,
     spieler,
     /** Wie viele Spieler mit Kill oder Knock es insgesamt gibt - gezeigt sind die besten. */
     gesamt: q ? auswahl.length : rep.spieler.length,
