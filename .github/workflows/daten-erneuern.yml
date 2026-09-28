@@ -258,6 +258,15 @@ jobs:
         continue-on-error: true
         run: node scripts/szene-stats-holen.mjs
 
+      # Im Admin-Archiv hochgeladene Videos vom Objektspeicher ans Release
+      # "archiv-videos" legen (scripts/archiv-videos-umziehen.mjs).
+      - name: Archiv-Videos umziehen
+        continue-on-error: true
+        timeout-minutes: 15
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/archiv-videos-umziehen.mjs 2>&1 | tail -12
+
       # LAN-Konten ("[FNCSGC26] BIG Vico") den echten Konten zuordnen - fuer
       # Flagge, X-Konto und Statistik (scripts/lan-konten-zuordnen.mjs).
       - name: LAN-Konten zuordnen
