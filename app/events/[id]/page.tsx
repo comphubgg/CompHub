@@ -3131,10 +3131,12 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
               : `${n}. Platz`);
             const teamPanel = (e: Eintrag) => {
               const betrag = mitPreis ? preisFuer(e.rank, e.points) : null;
+              // Game 1 oben, dann der Reihe nach - der Betreiber (29.9.2026):
+              // "die oberste Runde ist die erste Runde ... nicht so oberst ist
+              // die letzte Runde".
               const spieleSortiert = e.matches.map((m, k) => ({ m, k }))
                 .sort((a, b) => String(a.m.endTime ?? '').localeCompare(String(b.m.endTime ?? '')) || a.k - b.k)
-                .map((x, i) => ({ ...x, nr: i + 1 }))
-                .reverse();
+                .map((x, i) => ({ ...x, nr: i + 1 }));
               const kachel = (titel: string, wert: string | number, gross = false) => (
                 <div key={titel}>
                   <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500"><T>{titel}</T></div>

@@ -270,6 +270,12 @@ interface VerlaufZeile {
    */
   nurEpic?: boolean;
   /**
+   * Die Gesamtzeile eines mehrtaegigen LANs (Globals, Summit): beide Tage
+   * zusammen, mit Endplatz und Preisgeld. Sie steht nur in den
+   * Turnierergebnissen und zaehlt in keiner Summe mit.
+   */
+  gesamt?: boolean;
+  /**
    * Preisgeld je Person zu diesem Spieltag - abgeleitet aus Platz oder
    * Punkten und der gepflegten Tabelle (lib/preisgeld). null, wo keine
    * Regel gepflegt ist.
@@ -1458,14 +1464,16 @@ function VerlaufTabelle({ zeilen, fuss }: {
              Eine Epic-Zeile traegt lauter Nullen; sie mitzuzaehlen liesse
              den Schnitt sinken, ohne dass jemand schlechter gespielt hat.
              Platz und Matches sind dort echt und zaehlen mit. */
-          const mitWerten = zeilen.filter((z) => !z.nurEpic);
+          // Die Gesamtzeile eines LANs zaehlt nicht mit - ihre Tage stehen schon da.
+          const tage = zeilen.filter((z) => !z.gesamt);
+          const mitWerten = tage.filter((z) => !z.nurEpic);
           const n = (holen: (z: VerlaufZeile) => number) =>
             mitWerten.reduce((summe, z) => summe + holen(z), 0);
           const alleN = (holen: (z: VerlaufZeile) => number) =>
-            zeilen.reduce((summe, z) => summe + holen(z), 0);
+            tage.reduce((summe, z) => summe + holen(z), 0);
           const schaden = n((z) => z.werte.damageDealt);
           const erlitten = n((z) => z.werte.damageTakenFromPlayers);
-          const mitPlatz = zeilen.filter((z) => z.platz !== null);
+          const mitPlatz = tage.filter((z) => z.platz !== null);
           const schnittPlatz = mitPlatz.length
             ? mitPlatz.reduce((sum, z) => sum + (z.platz ?? 0), 0) / mitPlatz.length
             : null;
@@ -3214,8 +3222,54 @@ export default function StatistikSeite() {
     const zusammen = alleRegionen
       ? [...verlauf, ...epicZeilen]
       : [...verlaufHeimat, ...heimatEpic];
-    return zusammen.sort((a, b) => (b.datum ?? 0) - (a.datum ?? 0));
-  }, [verlauf, verlaufHeimat, epicZeilen, alleRegionen, heimatRegion]);
+    /*
+     * Mehrtaegige LANs bekommen eine Zeile "Kumulativ" ueber ihren Tagen.
+     *
+     * Der Betreiber (29.9.2026) zu den Globals: "Earnings ist ja klar, das
+     * muss ja kumulativ, da kannst du ja noch eine dritte Zeile machen."
+     * Darin: der Endplatz und das Preisgeld aus der LAN-Liste, die Punkte
+     * und Werte beider Tage zusammen. Das Preisgeld steht dann dort und
+     * nicht mehr am letzten Tag - gezaehlt wird es weiter genau einmal.
+     */
+    const LAN_TAG = /^(MannekenPis|Dinosauron|BambiRaptor|Escargo|Bratwurst|Acrocanthosaurus)_(?:Finals_)?Day(\d+)$/i;
+    const gruppen = new Map<string, VerlaufZeile[]>();
+    for (const z of zusammen) {
+      const m = LAN_TAG.exec(z.windowId);
+      if (!m || z.nurEpic) continue;
+      const k = m[1];
+      gruppen.set(k, [...(gruppen.get(k) ?? []), z]);
+    }
+    const gesamtZeilen: VerlaufZeile[] = [];
+    const ohneGeld = new Set<VerlaufZeile>();
+    for (const [kern, tageDerLan] of gruppen) {
+      if (tageDerLan.length < 2) continue;
+      const lan = lanErgebnisse.find((l) => l.fenster.startsWith(`${kern}_`));
+      const werte = { ...tageDerLan[0].werte } as Record<string, number>;
+      for (const z of tageDerLan.slice(1)) {
+        for (const [k, v] of Object.entries(z.werte)) {
+          if (typeof v === 'number') werte[k] = (werte[k] ?? 0) + v;
+        }
+      }
+      const punkte = tageDerLan.every((z) => typeof z.punkte === 'number')
+        ? tageDerLan.reduce((a, z) => a + (z.punkte ?? 0), 0) : null;
+      const erster = tageDerLan[0];
+      if (lan) for (const z of tageDerLan) ohneGeld.add(z);
+      gesamtZeilen.push({
+        ...erster,
+        event: `${erster.event.replace(/\s*[-·]\s*Day\s*\d+\s*$/i, '')} · ${t('Kumulativ')}`,
+        windowId: `${kern}_Kumulativ`,
+        werte: werte as VerlaufZeile['werte'],
+        datum: Math.max(...tageDerLan.map((z) => z.datum ?? 0)) + 1,
+        platz: lan?.platz ?? null,
+        punkte,
+        verdienst: lan ? lan.betrag : null,
+        mitspieler: tageDerLan.find((z) => z.mitspieler.length)?.mitspieler ?? [],
+        gesamt: true,
+      });
+    }
+    return [...zusammen.map((z) => (ohneGeld.has(z) ? { ...z, verdienst: null } : z)), ...gesamtZeilen]
+      .sort((a, b) => (b.datum ?? 0) - (a.datum ?? 0));
+  }, [verlauf, verlaufHeimat, epicZeilen, alleRegionen, heimatRegion, lanErgebnisse, t]);
 
   /**
    * Der Zusatz an den beiden Raengen.
@@ -6728,8 +6782,8 @@ export default function StatistikSeite() {
                               {kapitelName(saisonNamen[sn] ?? sn)}
                             </p>
                             <p className="mt-0.5 text-[11px] text-slate-500">
-                              {zeilen.length}{' '}
-                              {t(zeilen.length === 1 ? 'Spieltag' : 'Spieltage')}
+                              {zeilen.filter((z) => !z.gesamt).length}{' '}
+                              {t(zeilen.filter((z) => !z.gesamt).length === 1 ? 'Spieltag' : 'Spieltage')}
                               {' · '}{regionen.join(' · ')}
                             </p>
                           </div>
