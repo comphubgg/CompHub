@@ -35,11 +35,11 @@ for (const id of ids) {
     fs.writeFileSync(datei, puffer);
     const erstes = !summe.size;
     const roh = JSON.parse(execFileSync('dotnet', [WERKZEUG, datei], {
-      maxBuffer: 256 * 1024 * 1024, env: { ...process.env, SCHADEN_ROH: erstes ? '60' : '0' },
+      maxBuffer: 256 * 1024 * 1024, env: { ...process.env, SCHADEN_ROH: '0' },
     }).toString('utf8'));
     if (roh.schadenRoh) console.log(roh.schadenRoh.join(String.fromCharCode(10)));
     const epicVon = new Map((roh.spieler ?? []).map((p) => [p.id, p.epic]));
-    console.log(`  ${id}: ${roh.schadenEreignisse} Schadens-Ereignisse, ${roh.schadenZugeordnet} zugeordnet, ${roh.schaden?.length ?? 0} Spieler`);
+    console.log(`  ${id}: ${roh.schadenEreignisse} Schadens-Ereignisse, ${roh.schadenZugeordnet} zugeordnet, ${roh.schadenVorDemBus} vor dem Bus (ab ${roh.busAb}), ${roh.schaden?.length ?? 0} Spieler`);
     for (const s of roh.schaden ?? []) {
       const k = echt(epicVon.get(s.id) ?? `?${s.id}`);
       const d = summe.get(k) ?? { gemacht: 0, genommen: 0, treffer: 0, krit: 0 };

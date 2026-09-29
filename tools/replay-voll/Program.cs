@@ -70,6 +70,7 @@ var zonen = (replay.MapData?.SafeZones ?? Enumerable.Empty<FortniteReplayReader.
 }).ToList();
 
 // Schaden je Spieler aus den Schadens-Ereignissen (siehe SchadenLeser unten).
+reader.Zaehle(replay.GameData?.AircraftStartTime);
 var schaden = reader.Je.Select(kv => new {
   id = kv.Key, gemacht = Math.Round(kv.Value.Gemacht), genommen = Math.Round(kv.Value.Genommen),
   treffer = kv.Value.Treffer, krit = kv.Value.Krit, schild = Math.Round(kv.Value.AufSchild),
@@ -78,7 +79,8 @@ var schaden = reader.Je.Select(kv => new {
 var gd = replay.GameData;
 Console.WriteLine(JsonConvert.SerializeObject(new {
   version = 2,
-  schaden, schadenEreignisse = reader.Ereignisse, schadenZugeordnet = reader.Zugeordnet,
+  schaden, schadenEreignisse = reader.Ereignisse, schadenZugeordnet = reader.Zugeordnet, schadenVorDemBus = reader.VorDemBus,
+  busAb = replay.GameData?.AircraftStartTime,
   schadenRoh = reader.Roh.Count > 0 ? reader.Roh : null,
   match = gd?.GameSessionId, beginn = gd?.UtcTimeStartedMatch, ende = R(gd?.MatchEndTime),
   playlist = gd?.CurrentPlaylist, runde = gd?.TournamentRound, sieger = gd?.WinningTeam,
@@ -165,13 +167,32 @@ class SchadenLeser : ReplayReader {
     if (von?.Id is null || an?.Id is null || von.Id == an.Id) return;
     if (von.TeamIndex is not null && von.TeamIndex == an.TeamIndex) return;
     Zugeordnet++;
+    Liste.Add((von.Id.Value, an.Id.Value, c.Magnitude.Value, c.bIsCritical == true, c.bIsShield == true, Zeit()));
     if (Roh.Count < RohZeilen) {
       Roh.Add($"k={channelIndex} ziel={zielKanal} hit={c.HitActor} mag={c.Magnitude} krit={c.bIsCritical} schild={c.bIsShield} weg={c.bIsShieldDestroyed} fatal={c.bIsFatal} ball={c.bIsBallistic} waffe={c.bWeaponActivate} von={von.Id}/{von.TeamIndex} an={an.Id}/{an.TeamIndex}");
     }
-    double hoehe = c.Magnitude.Value;
-    var s1 = Fuer(von.Id.Value); s1.Gemacht += hoehe; s1.Treffer++;
-    if (c.bIsCritical == true) s1.Krit++;
-    if (c.bIsShield == true) s1.AufSchild += hoehe;
-    Fuer(an.Id.Value).Genommen += hoehe;
   }
+
+  /*
+   * Erst nach dem Start des Busses zaehlen.
+   *
+   * Auf der Aufwaerminsel vor dem Bus schiessen sich die Spieler gegenseitig
+   * an - das zaehlt in keiner Statistik. In der zweiten Gegenprobe (29.9.2026)
+   * stand ein Spieler mit dutzenden 24er- und 48er-Treffern auf denselben
+   * Gegner da, bevor das Spiel ueberhaupt begonnen hatte.
+   */
+  public readonly List<(int von, int an, double hoehe, bool krit, bool schild, double? t)> Liste = new();
+  public int VorDemBus;
+  public void Zaehle(double? busAb) {
+    foreach (var e in Liste) {
+      if (busAb is not null && e.t is not null && e.t < busAb) { VorDemBus++; continue; }
+      var s1 = Fuer(e.von); s1.Gemacht += e.hoehe; s1.Treffer++;
+      if (e.krit) s1.Krit++;
+      if (e.schild) s1.AufSchild += e.hoehe;
+      Fuer(e.an).Genommen += e.hoehe;
+    }
+  }
+
+  static readonly FieldInfo ZeitFeld = typeof(FortniteReplayBuilder).GetField("ReplicatedWorldTimeSecondsDouble", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
+  double? Zeit() { try { return ZeitFeld?.GetValue(Bauer) as double?; } catch { return null; } }
 }
