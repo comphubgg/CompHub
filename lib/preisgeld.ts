@@ -129,18 +129,53 @@ export interface Tabelle {
   stufen: Array<{ bis?: number; abPunkte?: number; schwelle?: number; betrag: number }>;
 }
 
-let tabellen: { liste: Array<Tabelle & { re: RegExp }>; bis: number } | null = null;
+type TabelleMitRe = Tabelle & { re: RegExp; nr: number };
+/*
+ * Nachschlagen statt Durchsuchen.
+ *
+ * Die Datei fuehrt ueber 5.600 Tabellen. Jede Profilzeile suchte ihre
+ * Tabelle, indem sie alle der Reihe nach pruefte, jede mit ihrem eigenen
+ * regulaeren Ausdruck - bei dreihundert Zeilen anderthalb Millionen
+ * Vergleiche. Auf Renders Zehntel-Kern waren das drei der fuenf Sekunden,
+ * die ein Profil zum Oeffnen brauchte (gemessen am 29.9.2026). Fast alle
+ * Muster nennen genau ein Fenster ("^S42_..._EU$"); die stehen jetzt in
+ * einem Verzeichnis, nur die echten Familienmuster werden noch geprueft.
+ */
+interface TabellenIndex {
+  liste: TabelleMitRe[];
+  /** Fensterkennung (klein) -> Tabellen, deren Fenster oder Muster genau sie ist. */
+  genau: Map<string, TabelleMitRe[]>;
+  /** Die Muster, die mehr als ein Fenster treffen. */
+  familien: TabelleMitRe[];
+}
+let tabellen: { index: TabellenIndex; bis: number } | null = null;
 
-async function liesTabellen() {
-  if (tabellen && Date.now() < tabellen.bis) return tabellen.liste;
+const WOERTLICH = /^\^([A-Za-z0-9_]+)\$$/;
+
+async function liesIndex(): Promise<TabellenIndex> {
+  if (tabellen && Date.now() < tabellen.bis) return tabellen.index;
   const roh = await liesJson<{ eintraege?: Tabelle[] } | null>('preisgeld-tabellen.json', null);
   const liste = (Array.isArray(roh?.eintraege) ? roh.eintraege : [])
     .filter((t) => t.muster && Array.isArray(t.stufen))
-    .map((t) => ({ ...t, re: new RegExp(t.muster, 'i') }));
-  tabellen = { liste, bis: Date.now() + 10 * 60_000 };
+    .map((t, nr) => ({ ...t, re: new RegExp(t.muster, 'i'), nr }));
+  const genau = new Map<string, TabelleMitRe[]>();
+  const familien: TabelleMitRe[] = [];
+  const dazu = (k: string, t: TabelleMitRe) => {
+    const l = genau.get(k.toLowerCase()) ?? [];
+    if (!l.includes(t)) l.push(t);
+    genau.set(k.toLowerCase(), l);
+  };
+  for (const t of liste) {
+    if (t.fenster) dazu(t.fenster, t);
+    const w = WOERTLICH.exec(t.muster);
+    if (w) dazu(w[1], t); else familien.push(t);
+  }
+  const index = { liste, genau, familien };
+  tabellen = { index, bis: Date.now() + 10 * 60_000 };
   tabelleJeFenster.clear();
-  return liste;
+  return index;
 }
+
 
 /** Je Fenster gemerkt - die Jahresliste fragt hunderttausendmal. */
 const tabelleJeFenster = new Map<string, Tabelle | null>();
@@ -201,16 +236,20 @@ async function ausEpicKatalog(windowId: string, region: string): Promise<Tabelle
 
 /** Die Tabelle zu einem Spieltag - oder null. */
 export async function tabelleFuer(windowId: string, region?: string): Promise<Tabelle | null> {
-  const liste = await liesTabellen();
+  const { genau, familien } = await liesIndex();
   const schluessel = `${windowId}|${region ?? ''}`;
   const gemerkt = tabelleJeFenster.get(schluessel);
   if (gemerkt !== undefined) return gemerkt;
   let gefunden: Tabelle | null = null;
-  // Erst die Tabelle genau dieses Fensters, dann die der Familie.
-  for (const t of liste) {
-    if (region && t.region !== region.toUpperCase()) continue;
-    if (t.fenster === windowId) { gefunden = t; break; }
-    if (!gefunden && t.re.test(windowId)) gefunden = t;
+  // Erst die Tabelle genau dieses Fensters, dann die der Familie - bei
+  // mehreren die, die in der Datei zuerst steht (wie vorher beim Durchgehen).
+  const passt = (t: TabelleMitRe) => !region || t.region === region.toUpperCase();
+  const kandidaten = (genau.get(windowId.toLowerCase()) ?? []).filter(passt);
+  gefunden = kandidaten.filter((t) => t.fenster === windowId).sort((a, b) => a.nr - b.nr)[0] ?? null;
+  if (!gefunden) {
+    const treffer = [...kandidaten.filter((t) => t.re.test(windowId)),
+      ...familien.filter((t) => passt(t) && t.re.test(windowId))];
+    gefunden = treffer.sort((a, b) => a.nr - b.nr)[0] ?? null;
   }
   // Nichts in der Datei: die laufende Saison kennt Epic selbst.
   if (!gefunden && region && /^S\d+_/.test(windowId)) gefunden = await ausEpicKatalog(windowId, region);

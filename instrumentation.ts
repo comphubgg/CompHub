@@ -67,6 +67,29 @@ export async function register() {
     setInterval(ping, 10 * 60_000).unref?.();
   }
 
+  /*
+   * Aufwaermen nach jedem Start.
+   *
+   * Das erste Profil nach einem Neustart brauchte am 29.9.2026 46 Sekunden,
+   * jedes weitere fuenf: erst muessen die grossen Listen (Gesamtsumme aller
+   * Spieler, Tagesbeste, Heimatregionen, Spielerliste der Quelle) vom
+   * Release geholt und gelesen werden. Das erledigt jetzt der Server selbst,
+   * kurz nach dem Start, statt dass der erste Besucher davor wartet. Danach
+   * die Uebersichten, die fast jeder zuerst oeffnet.
+   */
+  const intern = process.env.COMPHUB_INTERN_URL;
+  if (intern) {
+    const aufwaermen = async () => {
+      for (const weg of [
+        '/api/szene-stats?spieler=02c93e4588f241baa6cb5040632326b4',
+        '/api/cup-catalog?modus=alle',
+      ]) {
+        await fetch(`${intern}${weg}`, { cache: 'no-store', signal: AbortSignal.timeout(180_000) }).catch(() => {});
+      }
+    };
+    setTimeout(() => { void aufwaermen(); }, 20_000).unref?.();
+  }
+
   if (process.env.VERCEL || process.env.COMPHUB_KEIN_HINTERGRUND) {
     console.log(
       'Hintergrundlaeufe aus - hier laeuft kein durchgehender Vorgang. '
