@@ -1,0 +1,58 @@
+# Die Kader der E-Sports-Organisationen taeglich mit Liquipedia abgleichen
+# (scripts/org-kader-pruefen.mjs). Der Betreiber (29.9.2026): "eine
+# automatische Analyse taeglich ..., ob diese Spieler wirklich auch noch im
+# Team sind". Jede Aenderung geht nach #admin-log.
+
+name: Org-Kader
+
+on:
+  workflow_dispatch:
+    inputs:
+      probe:
+        description: Nur zeigen, nichts schreiben (ja/nein)
+        default: 'nein'
+  schedule:
+    - cron: '30 6 * * *'   # taeglich morgens
+
+concurrency:
+  group: org-kader
+  cancel-in-progress: false
+
+jobs:
+  abgleich:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Abhängigkeiten
+        run: npm ci --omit=optional
+      - name: Zugangsdaten
+        run: printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
+      - name: Orgs aus Supabase
+        run: node scripts/umzug-supabase.mjs --herunterladen --nur orgs.json 2>&1 | tail -2
+      - name: Abgleich
+        run: |
+          if [ "${{ inputs.probe }}" = "ja" ]; then
+            node scripts/org-kader-pruefen.mjs --probe
+          else
+            node scripts/org-kader-pruefen.mjs
+          fi
+      - name: Zurueck nach Supabase und Bericht
+        if: inputs.probe != 'ja'
+        run: |
+          [ -s data/.kader-aenderungen.json ] || exit 0
+          anzahl=$(node -e "console.log(JSON.parse(require('fs').readFileSync('data/.kader-aenderungen.json','utf8')).length)")
+          node scripts/umzug-supabase.mjs --nur orgs.json 2>&1 | tail -2
+          if [ "$anzahl" -gt 0 ]; then
+            text=$(node -e "const a=JSON.parse(require('fs').readFileSync('data/.kader-aenderungen.json','utf8')); console.log(a.slice(0,30).join('\n') + (a.length>30 ? '\n... and ' + (a.length-30) + ' more' : ''))")
+            node scripts/discord-update.mjs --ziel admin --art geaendert --titel "Org rosters updated from Liquipedia ($anzahl)" --text "$text" 2>&1 | tail -1
+          fi
+      - name: Zugangsdaten wieder weg
+        if: always()
+        run: rm -f .env.local
