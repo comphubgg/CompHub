@@ -2723,12 +2723,22 @@ export default function StatistikSeite() {
        * Profil sofort. Nur der juengste Abruf setzt Zustand - wer schnell
        * ein anderes Profil oeffnet, bekommt nicht die Zahlen des vorigen.
        */
+      /*
+       * Und laenger als vier Versuche: startet der Server gerade neu (nach
+       * einem Aufspielen gut eine Minute), kommt sofort 502, und vier
+       * Versuche waren nach sechs Sekunden verbraucht - der Betreiber sah
+       * "die ganze Zeit Try Again" (29.9.2026). Jetzt wird bis zu anderthalb
+       * Minuten weiter gefragt, mit wachsendem Abstand.
+       */
       let j: Awaited<ReturnType<Response['json']>> | null = null;
-      for (let versuch = 0; versuch < 4 && !j; versuch++) {
-        if (versuch) await new Promise((w) => setTimeout(w, 1500));
+      const bis = Date.now() + 90_000;
+      const abstaende = [0, 1500, 3000, 5000, 8000, 10_000];
+      for (let versuch = 0; !j && Date.now() < bis; versuch++) {
+        const warten = abstaende[Math.min(versuch, abstaende.length - 1)];
+        if (warten) await new Promise((w) => setTimeout(w, warten));
         if (veraltet()) return;
         try {
-          const r = await fetch(`/api/szene-stats?${p}`, { signal: AbortSignal.timeout(20_000) });
+          const r = await fetch(`/api/szene-stats?${p}`, { signal: AbortSignal.timeout(25_000) });
           if (r.ok) j = await r.json();
         } catch { /* Frist abgelaufen oder Netz weg - noch einmal */ }
       }

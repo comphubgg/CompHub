@@ -3117,8 +3117,111 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
             };
             const mitPreis = geldStufen.length > 0 || punkteStufen.length > 0;
             const waehrung = preise?.waehrung ?? 'USD';
+            /*
+             * Die Details eines Teams - rechts neben der Liste.
+             *
+             * Der Betreiber (29.9.2026) nach dem Vorbild Fortnite Tracker:
+             * "wenn ich auf ein Team draufklicke, ich die Statistics und
+             * Match History ... rechts sehe ... Und nicht unten dran, weil
+             * das ist so zerquetscht." Nur der Inhalt ist uebernommen, die
+             * Optik bleibt die der Seite. Ohne Klick steht Platz eins da.
+             */
+            const platzText = (n: number) => (sprache === 'en'
+              ? `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : (['th', 'st', 'nd', 'rd'][n % 10] ?? 'th')} Place`
+              : `${n}. Platz`);
+            const teamPanel = (e: Eintrag) => {
+              const betrag = mitPreis ? preisFuer(e.rank, e.points) : null;
+              const spieleSortiert = e.matches.map((m, k) => ({ m, k }))
+                .sort((a, b) => String(a.m.endTime ?? '').localeCompare(String(b.m.endTime ?? '')) || a.k - b.k)
+                .map((x, i) => ({ ...x, nr: i + 1 }))
+                .reverse();
+              const kachel = (titel: string, wert: string | number, gross = false) => (
+                <div key={titel}>
+                  <div className="text-[10px] font-semibold uppercase tracking-wider text-slate-500"><T>{titel}</T></div>
+                  <div className={`${gross ? 'text-2xl' : 'text-base'} font-bold tabular-nums text-slate-100`}>{wert}</div>
+                </div>
+              );
+              return (
+                <div className="space-y-4 p-4">
+                  <div className="flex items-baseline justify-between">
+                    <span className={`text-3xl font-black tabular-nums ${e.rank <= 3 ? 'text-amber-400' : 'text-slate-500'}`}>#{e.rank}</span>
+                    <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500"><T>Team-Details</T></span>
+                  </div>
+                  <div
+                    onDoubleClick={istAdmin ? () => flaggenOeffnen(e) : undefined}
+                    title={istAdmin ? 'Doppelklick: Flaggen und Twitch-Kanal dieses Duos' : undefined}
+                    className={`space-y-2 ${istAdmin ? 'cursor-pointer' : ''}`}>
+                    {e.players.map((p) => (
+                      <div key={p.id} className="flex items-center gap-2.5">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={flaggenPfad(landVon(p))} alt=""
+                          title={landVon(p) ?? 'Herkunft nicht hinterlegt'}
+                          className="h-6 w-6 shrink-0 rounded-full object-cover ring-1 ring-white/20" />
+                        <div className="min-w-0">
+                          <div className="truncate text-base font-bold text-sky-400">{namenVon(p)}</div>
+                          {p.logo && <img src={p.logo} alt=""
+                            className="mt-0.5 h-3.5 w-auto max-w-16 object-contain opacity-70" />}
+                        </div>
+                      </div>
+                    ))}
+                    {!!betrag && (
+                      <p className="text-sm font-semibold text-emerald-400">
+                        {betrag.toLocaleString(ort)} {waehrung}
+                        {(teamGroesseAus(fenster?.playlist) ?? 1) > 1 && (
+                          <span className="ml-1 text-[10px] font-normal text-slate-500">
+                            {preise?.proPerson === false ? t('pro Team') : t('pro Spieler')}
+                          </span>
+                        )}
+                      </p>
+                    )}
+                  </div>
+                  <div className="grid grid-cols-3 gap-3 border-t border-zinc-800 pt-4">
+                    {kachel('Punkte', e.points, true)}
+                    {kachel('Spiele', e.games, true)}
+                    {kachel('Siege', e.wins, true)}
+                    {kachel('Ø Punkte', schnitt(e.avgPoints, ort))}
+                    {kachel('Ø Platz', schnitt(e.avgPlace, ort))}
+                    {kachel('Ø Überlebenszeit', dauer(e.games ? e.timeAlive / e.games : 0))}
+                    {kachel('Elims', e.elims)}
+                    {kachel('Ø Elims', schnitt(e.avgElims, ort))}
+                    {kachel('K/D', schnitt(e.kd, ort))}
+                  </div>
+                  <div className="border-t border-zinc-800 pt-4">
+                    <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
+                      <T>Spielverlauf</T> · {e.matches.length}
+                    </div>
+                    <div className="space-y-1.5 lg:max-h-[calc(100vh-24rem)] lg:overflow-y-auto lg:pr-1">
+                      {spieleSortiert.map(({ m, nr }) => (
+                        <div key={nr}
+                          className={`flex items-center justify-between gap-3 rounded-lg px-3 py-2 ${m.placement === 1
+                            ? 'bg-amber-950/40' : 'bg-zinc-900/70'}`}>
+                          <div className="min-w-0">
+                            <div className={`text-sm font-bold ${m.placement === 1 ? 'text-amber-300' : 'text-slate-100'}`}>
+                              {m.placement ? platzText(m.placement) : '–'}
+                            </div>
+                            <div className="text-[11px] text-slate-500">
+                              <span className="text-slate-600">{sprache === 'en' ? 'Game' : 'Spiel'} {nr}</span>
+                              {m.endTime && Number.isFinite(Date.parse(m.endTime)) && (
+                                <> · {new Date(m.endTime).toLocaleString(ort, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</>
+                              )}
+                            </div>
+                          </div>
+                          <div className="shrink-0 text-right">
+                            <div className="text-sm font-bold tabular-nums text-slate-100">{m.elims ?? 0} Elims</div>
+                            <div className="text-[11px] tabular-nums text-slate-500">{dauer(m.timeAlive ?? 0)}</div>
+                          </div>
+                        </div>
+                      ))}
+                      {!e.matches.length && <p className="text-xs text-slate-600"><T>Keine Matchdaten.</T></p>}
+                    </div>
+                  </div>
+                </div>
+              );
+            };
+            const gezeigt = zeilen.find((x) => x.rank === offen) ?? zeilen[0];
             return (
-            <div className="overflow-x-auto">
+            <div className="lg:flex lg:items-start">
+            <div className="min-w-0 flex-1 overflow-x-auto">
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-zinc-800 text-[11px] uppercase
@@ -3211,100 +3314,12 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                         })()}
                       </tr>
 
-                      {/* Team-Details - klappt unter der Zeile auf */}
+                      {/* Team-Details: auf breiten Schirmen rechts neben der Liste
+                          (siehe unten), auf dem Handy unter der Zeile. */}
                       {offen === e.rank && (
-                        <tr className="border-b border-zinc-900 bg-zinc-950">
-                          <td colSpan={mitPreis ? 8 : 7} className="px-4 py-4">
-                            <div className="grid gap-4 lg:grid-cols-[280px_1fr]">
-                              <div
-                                onDoubleClick={istAdmin ? () => flaggenOeffnen(e) : undefined}
-                                title={istAdmin
-                                  ? 'Doppelklick: Flaggen und Twitch-Kanal dieses Duos'
-                                  : undefined}
-                                className={istAdmin ? 'cursor-pointer' : undefined}>
-                                {istAdmin && (
-                                  <p className="mb-1.5 text-[10px] uppercase tracking-wider
-                                                text-slate-600">
-                                    <T>Doppelklick: Flaggen und Twitch</T>
-                                  </p>
-                                )}
-                                {e.players.map((p) => (
-                                  <div key={p.id} className="mb-2 flex items-center gap-2">
-                                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                                    <img src={flaggenPfad(landVon(p))} alt=""
-                                      title={landVon(p) ?? 'Herkunft nicht hinterlegt'}
-                                      className="h-5 w-5 shrink-0 rounded-full object-cover
-                                                 ring-1 ring-white/20" />
-                                    {p.img && <img src={p.img} alt=""
-                                      className="h-9 w-9 rounded-lg object-cover object-top" />}
-                                    <div className="min-w-0">
-                                      <div className="truncate text-sm font-semibold text-slate-100">
-                                        {p.name}
-                                      </div>
-                                      {p.logo && <img src={p.logo} alt=""
-                                        className="mt-0.5 h-3.5 w-auto max-w-16 object-contain opacity-70" />}
-                                    </div>
-                                  </div>
-                                ))}
-                                <div className="mt-3 grid grid-cols-2 gap-2">
-                                  {([
-                                    // Auch hier die Nachkommastelle behalten -
-                                    // dieselbe Ueberlegung wie in der Spalte
-                                    // "Ø Platz".
-                                    ['Ø Punkte', schnitt(e.avgPoints, ort)],
-                                    ['Ø Elims', schnitt(e.avgElims, ort)],
-                                    ['K/D', schnitt(e.kd, ort)],
-                                    ['Bester Platz', e.bestPlace ?? '–'],
-                                  ] as Array<[string, string | number]>).map(([l, v]) => (
-                                    <div key={l} className="rounded-lg bg-zinc-900/70 px-2.5 py-1.5">
-                                      <div className="text-[9px] uppercase tracking-wider text-slate-500"><T>{l}</T></div>
-                                      <div className="text-sm font-semibold text-slate-100">{v}</div>
-                                    </div>
-                                  ))}
-                                </div>
-                              </div>
-
-                              <div>
-                                <div className="mb-1.5 text-[10px] uppercase tracking-wider text-slate-500">
-                                  <T>Spielverlauf</T>
-                                </div>
-                                <div className="grid gap-1.5 sm:grid-cols-2 xl:grid-cols-3">
-                                  {/*
-                                    * Welches Spiel welches war - klein und grau
-                                    * davor. Der Betreiber: "sag mir, welches Game
-                                    * welches ist ... so klein, graulich, nicht
-                                    * ganz offensichtlich." Gezaehlt nach der
-                                    * Endzeit; das neueste steht vorn.
-                                    */}
-                                  {e.matches.map((m, k) => ({ m, k }))
-                                    .sort((a, b) => String(a.m.endTime ?? '').localeCompare(String(b.m.endTime ?? '')) || a.k - b.k)
-                                    .map((x, i) => ({ ...x, nr: i + 1 }))
-                                    .reverse()
-                                    .map(({ m, nr }) => (
-                                    <div key={nr}
-                                      className={`flex items-center justify-between rounded-lg px-2.5
-                                                  py-1.5 text-xs ${m.placement === 1
-                                                    ? 'bg-amber-950/40 text-amber-200'
-                                                    : 'bg-zinc-900/70 text-slate-300'}`}>
-                                      <span className="flex items-baseline gap-2">
-                                        <span className="text-[10px] font-normal text-slate-600">
-                                          {sprache === 'en' ? 'Game' : 'Spiel'} {nr}
-                                        </span>
-                                        <span className="font-semibold">
-                                          {m.placement ? `${t('Platz')} ${m.placement}` : '–'}
-                                        </span>
-                                      </span>
-                                      <span className="text-slate-500">
-                                        {m.elims ?? 0} Elims · {dauer(m.timeAlive ?? 0)}
-                                      </span>
-                                    </div>
-                                  ))}
-                                  {!e.matches.length && (
-                                    <p className="text-xs text-slate-600"><T>Keine Matchdaten.</T></p>
-                                  )}
-                                </div>
-                              </div>
-                            </div>
+                        <tr className="border-b border-zinc-900 bg-zinc-950 lg:hidden">
+                          <td colSpan={mitPreis ? 8 : 7} className="p-0">
+                            {teamPanel(e)}
                           </td>
                         </tr>
                       )}
@@ -3406,6 +3421,12 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                   )}
                 </div>
               )}
+            </div>
+            {gezeigt && (
+              <aside className="hidden w-[340px] shrink-0 border-l border-zinc-800 lg:sticky lg:top-4 lg:block">
+                {teamPanel(gezeigt)}
+              </aside>
+            )}
             </div>
             );
           })() : (
