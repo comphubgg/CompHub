@@ -10,13 +10,22 @@ for (const w of process.argv.slice(2)) {
   const saison = /^(S\d+)_/.exec(w)?.[1];
   const z = await fetch(`https://github.com/comphubgg/CompHub/releases/download/daten-replays/replays__${saison}__${w}___zustand.json`)
     .then((r) => (r.ok ? r.json() : null)).catch(() => null);
-  const ids = Object.entries(z?.matches ?? {}).filter(([, m]) => m.stand === 'NOT_AVAILABLE').map(([id]) => id).slice(0, 15);
+  // Je offenem Zustand (nicht vorhanden, haengt beim Laden, fehlgeschlagen)
+  // bis zu 15 Matches.
+  const jeStand = {};
+  for (const [id, m] of Object.entries(z?.matches ?? {})) {
+    if (m.stand === 'PARSED') continue;
+    (jeStand[m.stand] ??= []).push(id);
+  }
+  const ids = Object.entries(jeStand).flatMap(([st, liste]) => liste.slice(0, 15).map((id) => [st, id]));
   const ergebnis = {};
-  for (const id of ids) {
+  for (const [st, id] of ids) {
+    let k;
     try {
       const { vorhanden } = await replayVorhanden(id);
-      ergebnis[vorhanden ? 'jetzt da' : '404'] = (ergebnis[vorhanden ? 'jetzt da' : '404'] ?? 0) + 1;
-    } catch (e) { ergebnis[e.message] = (ergebnis[e.message] ?? 0) + 1; }
+      k = `${st}: ${vorhanden ? 'jetzt da' : '404'}`;
+    } catch (e) { k = `${st}: ${e.message}`; }
+    ergebnis[k] = (ergebnis[k] ?? 0) + 1;
   }
   console.log(`${w}: ${ids.length} geprueft ->`, JSON.stringify(ergebnis), z?.datum ? new Date(z.datum).toISOString().slice(0, 10) : '');
 }
