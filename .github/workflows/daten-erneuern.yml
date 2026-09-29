@@ -359,6 +359,15 @@ jobs:
         timeout-minutes: 10
         run: node scripts/replays-schlank.mjs 2>&1 | tail -3
 
+      # Die Uebersicht fuer /admin/replays gleich hier, nicht erst beim
+      # Vorrechnen: scheitert das, stand die Seite tagelang auf "24.000 offen"
+      # (scripts/replay-uebersicht.mjs). "Zwischenstand ans GitHub-Release"
+      # nimmt die Datei mit.
+      - name: Replay-Uebersicht ablegen
+        continue-on-error: true
+        timeout-minutes: 5
+        run: node scripts/replay-uebersicht.mjs 2>&1 | tail -3
+
       # Das Gerechnete sofort ans Release - noch vor dem Bau.
       #
       # Seit dem 24.9.2026 bekam der Laufrechner beim Bauen jedes Mal ein

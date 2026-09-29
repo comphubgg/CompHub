@@ -428,12 +428,18 @@ export default function ReplayVerwaltung() {
               */}
             {fenster.length > 0 && (() => {
               const summe: Record<string, number> = {};
+              // Was aelter ist als Epics Frist von 31 Tagen, kommt nie mehr -
+              // das ist nicht "offen", sondern verloren, und gehoert getrennt
+              // gezaehlt, sonst steht der Rueckstand fuer immer da.
+              const frist = Date.now() - 31 * 864e5;
+              let offen = 0; let verloren = 0;
               for (const f of fenster) {
                 for (const [stand, n] of Object.entries(f.zaehler)) {
                   summe[stand] = (summe[stand] ?? 0) + n;
+                  if (!OFFEN.includes(stand)) continue;
+                  if ((f.datum ?? 0) && (f.datum ?? 0) < frist) verloren += n; else offen += n;
                 }
               }
-              const offen = OFFEN.reduce((a, k) => a + (summe[k] ?? 0), 0);
               return (
                 <span className="flex flex-wrap items-center gap-x-3 gap-y-1
                                  text-[11px] text-slate-500">
@@ -449,6 +455,11 @@ export default function ReplayVerwaltung() {
                   {summe.NOT_AVAILABLE ? (
                     <span>{zahl(summe.NOT_AVAILABLE)} <T>ohne Replay</T></span>
                   ) : null}
+                  {verloren > 0 && (
+                    <span title="Epic hält Replays 31 Tage vor">
+                      {zahl(verloren)} <T>älter als 31 Tage, nicht mehr holbar</T>
+                    </span>
+                  )}
                 </span>
               );
             })()}
@@ -532,12 +543,17 @@ export default function ReplayVerwaltung() {
                                          text-slate-500">
                             <th className="px-4 py-2 text-left font-medium">
                               <T>Match-ID</T></th>
+                            {/* Der Betreiber las "eine Stunde fuer ein Replay, nur 39
+                                Spieler". Die Zeit ist, wann das Match gespielt wurde,
+                                und die Zahl zaehlt nur, wer an einer Eliminierung
+                                beteiligt war - beides steht jetzt so da. */}
                             <th className="px-4 py-2 text-left font-medium">
-                              <T>Zeitpunkt</T></th>
+                              <T>Gespielt am</T></th>
                             <th className="px-4 py-2 text-center font-medium">
                               <T>Zustand</T></th>
-                            <th className="px-4 py-2 text-right font-medium">
-                              <T>Spieler</T></th>
+                            <th className="px-4 py-2 text-right font-medium"
+                              title="Konten, die als Täter oder Opfer an einer Eliminierung beteiligt waren - nicht die ganze Lobby">
+                              <T>An Elims beteiligt</T></th>
                             <th className="px-4 py-2 text-right font-medium">
                               <T>Ereignisse</T></th>
                             <th className="px-4 py-2 text-left font-medium">
