@@ -1739,6 +1739,9 @@ function Platz({ nr, s, wert, aufKlick, zusatz, mitBild, hervor, aufZeigen }: {
   );
 }
 
+/** Zaehlt die Profilabrufe: nur der juengste darf Zustand setzen. */
+let profilAbrufNr = 0;
+
 export default function StatistikSeite() {
   // Fuer Beschriftungen, die in einem Attribut stehen - dort hilft kein
   // eingewickelter Text. Die Sprache selbst wird fuer das Datum gebraucht.
@@ -2063,6 +2066,8 @@ export default function StatistikSeite() {
   const [verlauf, setVerlauf] = useState<VerlaufZeile[]>([]);
   /** Laeuft gerade eine Abfrage fuer das offene Profil? */
   const [profilLaedt, setProfilLaedt] = useState(false);
+  /** Das Profil kam trotz Wiederholungen nicht - dann eine Meldung statt "nicht angetreten". */
+  const [profilFehler, setProfilFehler] = useState(false);
   const [spielerReiter, setSpielerReiter] = useState<SpielerReiter>('uebersicht');
   const [perzentile, setPerzentile] = useState<Perzentile | null>(null);
   const [fncs, setFncs] = useState<Fncs | null>(null);
@@ -2690,7 +2695,9 @@ export default function StatistikSeite() {
    * nur die Zahlen wechseln.
    */
   const profilLaden = useCallback(async (s: Spieler, zeitraum: string) => {
-    setProfilLaedt(true);
+    const nr = ++profilAbrufNr;
+    const veraltet = () => nr !== profilAbrufNr;
+    setProfilLaedt(true); setProfilFehler(false);
     setVerlauf([]); setEpicZeilen([]);
     setPerzentile(null); setFncs(null); setTagesbest([]); setFncsSiege([]);
     setLanErgebnisse([]);
@@ -2705,7 +2712,28 @@ export default function StatistikSeite() {
     if (zeitraum.startsWith('jahr:')) p.set('jahr', zeitraum.slice(5));
     else if (zeitraum !== 'alle') p.set('saison', zeitraum);
     try {
-      const j = await (await fetch(`/api/szene-stats?${p}`)).json();
+      /*
+       * Mit Frist und Wiederholung. Der Betreiber (29.9.2026): Profile
+       * "ziemlich oft in dieser Ladeanimation stuck", erst ein Neuladen half.
+       * Ein Profil, das noch nie geoeffnet wurde, rechnet der kleine Server
+       * erst - das dauert Sekunden, manchmal eine Minute, und ohne Frist
+       * wartete die Seite, bis der Rand nach hundert Sekunden aufgab. Jetzt
+       * fragt sie nach zwanzig Sekunden erneut; der Server haengt die neue
+       * Frage an die laufende Rechnung, und sobald die fertig ist, kommt das
+       * Profil sofort. Nur der juengste Abruf setzt Zustand - wer schnell
+       * ein anderes Profil oeffnet, bekommt nicht die Zahlen des vorigen.
+       */
+      let j: Awaited<ReturnType<Response['json']>> | null = null;
+      for (let versuch = 0; versuch < 4 && !j; versuch++) {
+        if (versuch) await new Promise((w) => setTimeout(w, 1500));
+        if (veraltet()) return;
+        try {
+          const r = await fetch(`/api/szene-stats?${p}`, { signal: AbortSignal.timeout(20_000) });
+          if (r.ok) j = await r.json();
+        } catch { /* Frist abgelaufen oder Netz weg - noch einmal */ }
+      }
+      if (veraltet()) return;
+      if (!j) throw new Error('kein Profil');
       setVerlauf(j.verlauf ?? []);
       setPerzentile(j.perzentile ?? null);
       setFncs(j.fncs ?? null);
@@ -2766,11 +2794,13 @@ export default function StatistikSeite() {
         return { ...alt, ...leer } as Spieler;
       });
     } catch {
+      if (veraltet()) return;
       setVerlauf([]); setPerzentile(null); setFncs(null); setTagesbest([]);
       setFncsSiege([]); setRang(null);
       setSaisonBilder({}); setSaisonNamen({});
+      setProfilFehler(true);
     } finally {
-      setProfilLaedt(false);
+      if (!veraltet()) setProfilLaedt(false);
     }
   }, []);
 
@@ -6000,6 +6030,15 @@ export default function StatistikSeite() {
                   wartete auf etwas, das nie kommt. */}
               {profilLaedt ? (
                 <p className="text-xs text-slate-600"><T>Wird geladen …</T></p>
+              ) : profilFehler ? (
+                /* Ein Ausfall ist nicht "nicht angetreten" - das stand sonst da. */
+                <div className="flex flex-col items-center gap-3 py-8 text-center">
+                  <p className="text-sm text-slate-400"><T>Das Profil ließ sich gerade nicht laden.</T></p>
+                  <button type="button" onClick={() => void profilLaden(offen, profilSaison)}
+                    className="rounded-lg bg-sky-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky-400">
+                    <T>Nochmal versuchen</T>
+                  </button>
+                </div>
               ) : !verlauf.length && !epicZeilen.length && spielerReiter !== 'fncs' && spielerReiter !== 'erfolge' ? (
                 /* Auch die Spieltage zaehlen, zu denen bisher nur Epic etwas
                    hat. Vorher stand hier "nicht angetreten", obwohl zehn

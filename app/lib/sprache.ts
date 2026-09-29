@@ -3544,6 +3544,8 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Kein Spieler gefunden.': 'No player found.',
   'Beide Tage zusammen': 'Both days combined',
   'Bilderarchiv': 'Player Pictures',
+  'Das Profil ließ sich gerade nicht laden.': 'The profile could not be loaded right now.',
+  'Nochmal versuchen': 'Try again',
   'Karriere-Bestwerte': 'Career Best',
   'Alle ansehen': 'View all',
   'Stats': 'Stats',

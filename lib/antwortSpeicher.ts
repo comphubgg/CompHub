@@ -166,6 +166,8 @@ interface Ablage<T> {
 
 /** Welche Schluessel gerade neu gerechnet werden - nicht zweimal zugleich. */
 const laufend = new Set<string>();
+/** Rechnungen, auf die schon jemand wartet - je Schluessel nur eine. */
+const inArbeit = new Map<string, Promise<unknown>>();
 
 /**
  * Aus einem Schluessel einen Dateinamen machen.
@@ -287,18 +289,27 @@ export async function fertigeAntwort<T>(
     return abgelegt.wert;
   }
 
-  // Gar nichts da - hier muss gewartet werden.
-  const wert = await rechne();
-  /*
-   * Was der Server ohne Dateien rechnet, ist bei Archiv-Antworten leer
-   * oder halb - das darf nicht als fertige Antwort liegenbleiben, sonst
-   * ueberdeckt es den naechsten Stand des Laufrechners bis zur Frist.
-   */
-  if (!hintergrund && ohneDateien()) return wert;
-  try {
-    await merkeAntwort(name, { zeit: Date.now(), wert });
-  } catch { /* ohne Ablage wird eben jedes Mal gerechnet */ }
-  return wert;
+  // Gar nichts da - hier muss gewartet werden. Fragt waehrenddessen ein
+  // zweiter Aufruf dasselbe (das Profil versucht es nach einer Frist
+  // erneut), haengt er sich an die laufende Rechnung, statt sie auf dem
+  // kleinen Server ein zweites Mal anzustossen.
+  const unterwegs = inArbeit.get(schluessel) as Promise<T> | undefined;
+  if (unterwegs) return unterwegs;
+  const arbeit = (async () => {
+    const wert = await rechne();
+    /*
+     * Was der Server ohne Dateien rechnet, ist bei Archiv-Antworten leer
+     * oder halb - das darf nicht als fertige Antwort liegenbleiben, sonst
+     * ueberdeckt es den naechsten Stand des Laufrechners bis zur Frist.
+     */
+    if (!hintergrund && ohneDateien()) return wert;
+    try {
+      await merkeAntwort(name, { zeit: Date.now(), wert });
+    } catch { /* ohne Ablage wird eben jedes Mal gerechnet */ }
+    return wert;
+  })();
+  inArbeit.set(schluessel, arbeit);
+  try { return await arbeit; } finally { inArbeit.delete(schluessel); }
 }
 
 /**
