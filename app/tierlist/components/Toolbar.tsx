@@ -5,8 +5,8 @@ import React from 'react';
 import T from '@/app/components/T';
 interface ToolbarProps {
   onReset: () => void;
-  onSwitchMode: (mode: 'solo' | 'duo') => void;
-  currentMode: 'solo' | 'duo';
+  onSwitchMode: (mode: 'solo' | 'duo' | 'trio') => void;
+  currentMode: 'solo' | 'duo' | 'trio';
   disabled?: boolean;
 }
 
@@ -39,6 +39,14 @@ export const Toolbar: React.FC<ToolbarProps> = ({
         className={`mode-btn ${currentMode === 'duo' ? 'active' : ''}`}
       >
         Duos
+      </button>
+
+      <button
+        onClick={() => onSwitchMode('trio')}
+        disabled={disabled}
+        className={`mode-btn ${currentMode === 'trio' ? 'active' : ''}`}
+      >
+        Trios
       </button>
     </div>
   );

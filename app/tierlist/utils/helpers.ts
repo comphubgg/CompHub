@@ -27,13 +27,31 @@ export function isDuo(data: any): data is Duo {
   return Boolean(data && data.player1 && data.player2 && typeof data.player1.name === 'string' && typeof data.player2.name === 'string');
 }
 
+/** Ein Trio: drei Spieler (player1 bis player3). */
+export function isTrio(data: any): boolean {
+  return Boolean(isDuo(data) && (data as any).player3 && typeof (data as any).player3.name === 'string');
+}
+
+/** Die Spieler eines Eintrags - einer, zwei oder drei. */
+export function mitglieder(data: any): Array<{ name: string; countryCode?: string; region?: string }> {
+  if (!data || typeof data !== 'object') return [];
+  if (isDuo(data)) return [data.player1, data.player2, (data as any).player3].filter(Boolean);
+  return [data];
+}
+
+/** Welche Art ein Eintrag ist. */
+export function artVon(entry: any): 'solo' | 'duo' | 'trio' {
+  if (entry?.isTrio || isTrio(entry?.data)) return 'trio';
+  return entry?.isDuo ? 'duo' : 'solo';
+}
+
 export function getDisplayName(data: any): string {
   if (!data || typeof data !== 'object') {
     return '';
   }
 
   if (isDuo(data)) {
-    return `${cleanPlayerName(data.player1.name)} / ${cleanPlayerName(data.player2.name)}`;
+    return mitglieder(data).map((p) => cleanPlayerName(p.name)).join(' / ');
   }
 
   if (typeof data.name === 'string' && data.name.trim()) {
@@ -51,12 +69,12 @@ export function matchesSearch(data: any, query: string): boolean {
   const isAllUpper = raw.length > 0 && raw === raw.toUpperCase();
   const name = getDisplayName(data).toLowerCase();
   const region = String(data.region || '').toLowerCase();
-  const duoNames = isDuo(data) ? `${cleanPlayerName(data.player1.name)} ${cleanPlayerName(data.player2.name)}`.toLowerCase() : '';
+  const duoNames = isDuo(data) ? mitglieder(data).map((p) => cleanPlayerName(p.name)).join(' ').toLowerCase() : '';
   // also match country codes (solo `countryCode` or duo player country codes)
   const soloCountry = String((data && (data.countryCode || data.country)) || '').toLowerCase();
   let duoCountries = '';
   if (isDuo(data)) {
-    duoCountries = `${String(data.player1?.countryCode || '')} ${String(data.player2?.countryCode || '')}`.toLowerCase();
+    duoCountries = mitglieder(data).map((p) => String(p?.countryCode || '')).join(' ').toLowerCase();
   }
 
   // If the query is exactly a known 2-letter flag code and is typed in ALL CAPS,
@@ -95,6 +113,17 @@ export function getSoloKey(player: Partial<Player> | { name?: unknown } | null |
     return '';
   }
   return normalizePlayerName((player as { name?: unknown }).name as string | undefined);
+}
+
+/**
+ * Der Schluessel eines Trios - derselbe wie in /api/tierlist-trios und in der
+ * Entfernt-Liste ("trio:" davor, damit er nie auf ein Duo passt).
+ */
+export function getTrioKey(trio: any): string {
+  const teile = [trio?.player1?.name, trio?.player2?.name, trio?.player3?.name]
+    .map((n) => String(n ?? '').toLowerCase().replace(/[^a-z0-9]/g, ''));
+  if (teile.some((t) => !t)) return '';
+  return `trio:${teile.sort().join('|')}`;
 }
 
 export function getDuoKey(duo: Duo): string {

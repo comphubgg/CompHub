@@ -4,7 +4,7 @@ import React from 'react';
 import { createPortal } from 'react-dom';
 import { FlaggenWahl } from './FlaggenWahl';
 import { TierListEntry } from '../types';
-import { getPrimaryRegion, isDuo, cleanPlayerName } from '../utils/helpers';
+import { getPrimaryRegion, isDuo, isTrio, cleanPlayerName } from '../utils/helpers';
 import { kernname, ohneZierrat } from '@/lib/homoglyph';
 
 import { useT } from '@/app/components/SprachProvider';
@@ -26,7 +26,7 @@ interface PlayerCardProps {
    * aendert damit seine eigene Ansicht - fortgeschrieben wird die
    * offizielle Liste ohnehin nur vom Admin.
    */
-  onRename?: (rohName: string, neuerName: string, welcher?: 1 | 2) => void;
+  onRename?: (rohName: string, neuerName: string, welcher?: 1 | 2 | 3) => void;
   /**
    * Der gepflegte Anzeigename zu einem Turniernamen.
    *
@@ -135,6 +135,7 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
   const t = useT();
   const entryData = entry.data || {};
   const isDuoEntry = isDuo(entryData);
+  const isTrioEntry = isTrio(entryData);
 
   /**
    * Bearbeitet wird nur in der Liste, nicht in der Tierliste.
@@ -222,6 +223,10 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
   };
 
   // Das Profil geht vor dem Kuerzel im Eintrag.
+  // Beim Trio der dritte Spieler.
+  const player3Name = isTrioEntry ? cleanPlayerName((entryData as any).player3?.name || '') : undefined;
+  const player3Country = isTrioEntry ? (entryData as any).player3?.countryCode : undefined;
+  const land3 = player3Name ? (landVon?.(player3Name) ?? player3Country) : undefined;
   const land1 = landVon?.(player1Name) ?? player1Country;
   const land2 = player2Name ? (landVon?.(player2Name) ?? player2Country) : player2Country;
   const flag1Url = getCountryFlag(land1);
@@ -266,6 +271,8 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
   const anzeige1 = anzeigeVon?.(player1Name) || ohneBeiwerk(player1Name);
   const anzeige2 = player2Name
     ? (anzeigeVon?.(player2Name) || ohneBeiwerk(player2Name)) : player2Name;
+  const anzeige3 = player3Name
+    ? (anzeigeVon?.(player3Name) || ohneBeiwerk(player3Name)) : player3Name;
   const cardClass = `${variant === 'pool' ? 'pool-duo-card' : 'duo-card'} ${isDuoEntry ? '' : 'solo-entry'}`;
 
   const isOwner = eigener;
@@ -305,7 +312,18 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
       className={`${cardClass} ${isDragging ? 'dragging' : ''} ${disabled ? 'locked-card' : ''}`}
     >
       <div className="flag-badge-wrapper">
-        {isDuoEntry ? (
+        {isTrioEntry ? (
+          /* Drei Flaggen in drei Dritteln - bei gleichem Land eine ganze. */
+          land1 && land1 === land2 && land2 === land3 ? (
+            <img src={flag1Url} alt={land1} className="full-flag" />
+          ) : (
+            <>
+              <div className="flag-third flag-third-1" style={{ backgroundImage: `url(${flag1Url})` }} />
+              <div className="flag-third flag-third-2" style={{ backgroundImage: `url(${flag2Url})` }} />
+              <div className="flag-third flag-third-3" style={{ backgroundImage: `url(${getCountryFlag(land3)})` }} />
+            </>
+          )
+        ) : isDuoEntry ? (
           einLand ? (
             <img src={flag1Url} alt={land1} className="full-flag" />
           ) : (
@@ -331,13 +349,18 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
       </div>
       <div className="player-names">
         {isDuoEntry ? (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: isTrioEntry ? 3 : 6 }}>
             <NameFeld klasse="player1" wert={anzeige1}
               aendern={bearbeitbar && onRename
                 ? (n) => onRename(player1Name, n, 1) : undefined} />
             <NameFeld klasse="player2" wert={anzeige2 ?? ''}
               aendern={bearbeitbar && onRename
                 ? (n) => onRename(player2Name ?? '', n, 2) : undefined} />
+            {isTrioEntry && (
+              <NameFeld klasse="player2" wert={anzeige3 ?? ''}
+                aendern={bearbeitbar && onRename
+                  ? (n) => onRename(player3Name ?? '', n, 3) : undefined} />
+            )}
           </div>
         ) : (
           <NameFeld klasse="player1" wert={anzeige1}
@@ -398,16 +421,16 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
             onMouseDown={(e) => e.stopPropagation()}
             onClick={(e) => e.stopPropagation()}>
             <p className="kachel-bearbeiten-titel">
-              {isDuoEntry ? 'Duo bearbeiten' : 'Spieler bearbeiten'}
+              {t(isTrioEntry ? 'Trio bearbeiten' : isDuoEntry ? 'Duo bearbeiten' : 'Spieler bearbeiten')}
             </p>
-            {(isDuoEntry ? [1, 2] : [1]).map((nr) => {
+            {(isTrioEntry ? [1, 2, 3] : isDuoEntry ? [1, 2] : [1]).map((nr) => {
               // Der echte Name bleibt der Schluessel, im Feld steht der
               // gepflegte - genau das will man hier ja aendern.
-              const name = nr === 1 ? player1Name : (player2Name ?? '');
-              const gezeigt = (nr === 1 ? anzeige1 : anzeige2) ?? '';
+              const name = nr === 1 ? player1Name : nr === 2 ? (player2Name ?? '') : (player3Name ?? '');
+              const gezeigt = (nr === 1 ? anzeige1 : nr === 2 ? anzeige2 : anzeige3) ?? '';
               const land = (nr === 1
                 ? (landVon?.(player1Name) ?? player1Country)
-                : land2) ?? 'flag-GLOBE';
+                : nr === 2 ? land2 : land3) ?? 'flag-GLOBE';
               return (
                 <div key={nr} className="kachel-bearbeiten-zeile">
                   {/* Die Flagge gehoert zu den offiziellen Angaben und laesst
@@ -426,12 +449,12 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
                     defaultValue={gezeigt}
                     onKeyDown={(e) => {
                       if (e.key === 'Enter') {
-                        onRename?.(name, (e.target as HTMLInputElement).value, nr as 1 | 2);
+                        onRename?.(name, (e.target as HTMLInputElement).value, nr as 1 | 2 | 3);
                         setBearbeitet(false);
                       }
                       if (e.key === 'Escape') setBearbeitet(false);
                     }}
-                    onBlur={(e) => onRename?.(name, e.target.value, nr as 1 | 2)}
+                    onBlur={(e) => onRename?.(name, e.target.value, nr as 1 | 2 | 3)}
                   />
                 </div>
               );

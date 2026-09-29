@@ -24,7 +24,7 @@ interface TierListProps {
   currentUser?: string;
   onDeletePlayer?: (entryId: string) => void;
   /** Einen Namen aendern - siehe PlayerCard. */
-  onRename?: (rohName: string, neuerName: string, welcher?: 1 | 2) => void;
+  onRename?: (rohName: string, neuerName: string, welcher?: 1 | 2 | 3) => void;
   /** Das gepflegte Land zu einem Namen - siehe PlayerCard. */
   landVon?: (name: string) => string | undefined;
   /** Der gepflegte Anzeigename - siehe PlayerCard. */

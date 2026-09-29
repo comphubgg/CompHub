@@ -30,7 +30,7 @@ const createDefaultList = (listId: string): TierListStateData => ({
   updatedAt: Date.now(),
 });
 
-export function useTierList(listId: string, mode: 'solo' | 'duo') {
+export function useTierList(listId: string, mode: 'solo' | 'duo' | 'trio') {
   const [listState, setListState] = useState<TierListStateData>(createDefaultList(listId));
   const [isLoaded, setIsLoaded] = useState(false);
 
@@ -208,12 +208,15 @@ export function useTierList(listId: string, mode: 'solo' | 'duo') {
         ...newEntries.map(entry => {
           const data = entry?.data ? entry.data : entry;
           const isDuo = Boolean(data && typeof data === 'object' && 'player1' in data && 'player2' in data);
+          const isTrio = Boolean(isDuo && 'player3' in data);
           return {
             id: entry.id || generateId(),
             tier: null,
-            isDuo,
+            isDuo: isDuo && !isTrio,
+            ...(isTrio ? { isTrio: true } : {}),
             data,
             localOnly: options?.localOnly,
+            ...(entry.vonPool ? { vonPool: true } : {}),
           };
         }),
       ],
@@ -231,12 +234,14 @@ export function useTierList(listId: string, mode: 'solo' | 'duo') {
    * ihn schon, obwohl nichts zu sehen war.
    */
   const addEntry = (
-    entry: any, isDuo: boolean,
+    entry: any, isDuo: boolean | 'trio',
     options?: { localOnly?: boolean; vonHand?: boolean },
   ) => {
     saveList({
       entries: [...entries, {
-        id: entry.id, tier: null, isDuo, data: entry,
+        id: entry.id, tier: null, isDuo: isDuo === true,
+        ...(isDuo === 'trio' ? { isTrio: true } : {}),
+        data: entry,
         localOnly: options?.localOnly, vonHand: options?.vonHand,
       }],
     });
@@ -279,15 +284,15 @@ export function useTierList(listId: string, mode: 'solo' | 'duo') {
    * sind. Wer kein Admin ist, aendert damit seine eigene Ansicht; die
    * offizielle Liste schreibt nur der Admin fort.
    */
-  const renameEntry = (entryId: string, name: string, welcher?: 1 | 2) => {
+  const renameEntry = (entryId: string, name: string, welcher?: 1 | 2 | 3) => {
     const sauber = name.trim();
     if (!sauber) return;
     setListState(prev => ({
       ...prev,
       entries: prev.entries.map((eintrag: any) => {
         if (eintrag.id !== entryId) return eintrag;
-        if (eintrag.isDuo) {
-          const feld = welcher === 2 ? 'player2' : 'player1';
+        if (eintrag.isDuo || eintrag.isTrio) {
+          const feld = welcher === 3 ? 'player3' : welcher === 2 ? 'player2' : 'player1';
           return {
             ...eintrag,
             data: {
@@ -316,15 +321,15 @@ export function useTierList(listId: string, mode: 'solo' | 'duo') {
   const passt = (n: unknown, gesucht: string) =>
     String(n ?? '').trim().toLowerCase() === gesucht;
 
-  const umbenennenNachName = (rohName: string, neu: string, welcher?: 1 | 2) => {
+  const umbenennenNachName = (rohName: string, neu: string, welcher?: 1 | 2 | 3) => {
     const gesucht = String(rohName ?? '').trim().toLowerCase();
     const sauber = String(neu ?? '').trim();
     if (!gesucht || !sauber) return;
     setListState((prev) => ({
       ...prev,
       entries: prev.entries.map((e: any) => {
-        if (e.isDuo) {
-          const feld = welcher === 2 ? 'player2' : 'player1';
+        if (e.isDuo || e.isTrio) {
+          const feld = welcher === 3 ? 'player3' : welcher === 2 ? 'player2' : 'player1';
           if (!passt(e.data?.[feld]?.name, gesucht)) return e;
           return { ...e, data: { ...e.data,
             [feld]: { ...e.data[feld], name: sauber } } };
@@ -344,13 +349,12 @@ export function useTierList(listId: string, mode: 'solo' | 'duo') {
     setListState((prev) => ({
       ...prev,
       entries: prev.entries.map((e: any) => {
-        if (e.isDuo) {
+        if (e.isDuo || e.isTrio) {
           let d = e.data;
-          if (passt(d?.player1?.name, gesucht)) {
-            d = { ...d, player1: { ...d.player1, countryCode: code } };
-          }
-          if (passt(d?.player2?.name, gesucht)) {
-            d = { ...d, player2: { ...d.player2, countryCode: code } };
+          for (const feld of ['player1', 'player2', 'player3'] as const) {
+            if (d?.[feld] && passt(d[feld].name, gesucht)) {
+              d = { ...d, [feld]: { ...d[feld], countryCode: code } };
+            }
           }
           return d === e.data ? e : { ...e, data: d };
         }

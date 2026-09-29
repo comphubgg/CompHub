@@ -50,6 +50,14 @@ function personenSchluessel(name: unknown, konten?: Record<string, string>): str
 
 /** Ein Duo unabhaengig davon, wer von beiden vorn steht. */
 function gruppenSchluessel(e: any, konten?: Record<string, string>): string {
+  if (e?.isTrio) {
+    const drei = [
+      personenSchluessel(e.data?.player1?.name, konten),
+      personenSchluessel(e.data?.player2?.name, konten),
+      personenSchluessel(e.data?.player3?.name, konten),
+    ].sort().join('+');
+    return `trio:${drei}`;
+  }
   if (e?.isDuo) {
     const paar = [
       personenSchluessel(e.data?.player1?.name, konten),
@@ -62,15 +70,17 @@ function gruppenSchluessel(e: any, konten?: Record<string, string>): string {
 
 /** Wie viele Flaggen an diesem Eintrag gepflegt sind. */
 function flaggen(e: any): number {
-  const werte = e?.isDuo
-    ? [e.data?.player1?.countryCode, e.data?.player2?.countryCode]
-    : [e?.data?.countryCode];
+  const werte = e?.isTrio
+    ? [e.data?.player1?.countryCode, e.data?.player2?.countryCode, e.data?.player3?.countryCode]
+    : e?.isDuo
+      ? [e.data?.player1?.countryCode, e.data?.player2?.countryCode]
+      : [e?.data?.countryCode];
   return werte.filter(Boolean).length;
 }
 
 function rohName(e: any): string {
-  return e?.isDuo
-    ? `${e.data?.player1?.name ?? ''} ${e.data?.player2?.name ?? ''}`
+  return e?.isDuo || e?.isTrio
+    ? `${e.data?.player1?.name ?? ''} ${e.data?.player2?.name ?? ''} ${e.data?.player3?.name ?? ''}`.trim()
     : String(e?.data?.name ?? '');
 }
 
@@ -98,6 +108,8 @@ function mitFlaggenDerGruppe(behalten: any, gruppe: any[]): any {
     return undefined;
   };
 
+  // Beim Trio bleibt, was da ist - die Flaggen kommen dort aus den Profilen.
+  if (behalten.isTrio) return behalten;
   if (behalten.isDuo) {
     const p1 = behalten.data?.player1;
     const p2 = behalten.data?.player2;

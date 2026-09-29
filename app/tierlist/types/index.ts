@@ -28,11 +28,28 @@ export interface Duo {
   createdBy?: string;
 }
 
+/*
+ * Ein Trio - seit dem 29.9.2026. Trios sind fuer 2027 angekuendigt und werden
+ * der Hauptmodus; Duos und Solos bleiben daneben.
+ */
+export interface Trio {
+  id: string;
+  player1: DuoPlayer;
+  player2: DuoPlayer;
+  player3: DuoPlayer;
+  region?: Region;
+  isGlobal?: boolean;
+  createdBy?: string;
+}
+
+export type TierModus = 'solo' | 'duo' | 'trio';
+
 export interface TierListEntry {
   id: string;
   tier?: TierKey | null;
-  data: Player | Duo | any;
+  data: Player | Duo | Trio | any;
   isDuo?: boolean;
+  isTrio?: boolean;
   localOnly?: boolean;
   /**
    * Von Hand angelegt, nicht aus einer Quelle geladen.

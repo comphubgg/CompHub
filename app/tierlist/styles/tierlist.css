@@ -263,6 +263,16 @@
 .flag-half-right {
   clip-path: polygon(100% 0, 100% 100%, 0 100%);
 }
+/* Trio: drei senkrechte Drittel */
+.flag-third {
+  position: absolute;
+  inset: 0;
+  background-size: cover;
+  background-position: center;
+}
+.flag-third-1 { clip-path: inset(0 66.66% 0 0); }
+.flag-third-2 { clip-path: inset(0 33.33% 0 33.33%); }
+.flag-third-3 { clip-path: inset(0 0 0 66.66%); }
 
 .tier-content .remove-btn {
   display: none;

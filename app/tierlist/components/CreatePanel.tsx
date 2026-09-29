@@ -7,9 +7,10 @@ import { FlaggenWahl, FLAGGEN_MIT_GLOBUS } from './FlaggenWahl';
 import { FLAG_CODES, getRegionFromCountryCode, REGION_LABELS } from '../utils/constants';
 
 interface CreatePanelProps {
-  mode: 'solo' | 'duo';
+  mode: 'solo' | 'duo' | 'trio';
   onCreatePlayer: (name: string, region: Region, countryCode: string) => Promise<void>;
   onCreateDuo: (player1: string, player2: string, countryCode1: string, countryCode2: string) => Promise<void>;
+  onCreateTrio?: (namen: [string, string, string], laender: [string, string, string]) => Promise<void>;
   existingEntries: any[];
   /**
    * Zum vorhandenen Spieler fuehren.
@@ -29,12 +30,15 @@ export const CreatePanel: React.FC<CreatePanelProps> = ({
   mode,
   onCreatePlayer,
   onCreateDuo,
+  onCreateTrio,
   existingEntries,
   onShowExisting,
   disabled = false,
 }) => {
   const [player1, setPlayer1] = useState('');
   const [player2, setPlayer2] = useState('');
+  const [player3, setPlayer3] = useState('');
+  const [countryCode3, setCountryCode3] = useState('flag-GLOBE');
   const [region, setRegion] = useState<Region>('EU');
   const [countryCode, setCountryCode] = useState('flag-GLOBE');
   const [countryCode2, setCountryCode2] = useState('flag-GLOBE');
@@ -187,6 +191,26 @@ export const CreatePanel: React.FC<CreatePanelProps> = ({
         const selectedRegion = region || getRegionFromCountryCode(countryCode);
         await onCreatePlayer(player1.trim(), selectedRegion, countryCode);
         setPlayer1('');
+      } else if (mode === 'trio') {
+        const namen = [player1, player2, player3].map((n) => n.trim());
+        if (namen.some((n) => !n)) {
+          setError('Three player names required');
+          return;
+        }
+        if (new Set(namen.map((n) => n.toLowerCase())).size < 3) {
+          setError('A trio requires three different player names');
+          return;
+        }
+        const schluessel = (xs: string[]) => xs.map((n) => n.toLowerCase().replace(/[^a-z0-9]/g, '')).sort().join('+');
+        const gesucht = schluessel(namen);
+        const schonDa = (existingEntries || []).some((entry: any) => entry.isTrio
+          && schluessel([entry.data?.player1?.name, entry.data?.player2?.name, entry.data?.player3?.name].map(String)) === gesucht);
+        if (schonDa) {
+          setError('This trio is already in the list');
+          return;
+        }
+        await onCreateTrio?.(namen as [string, string, string], [countryCode, countryCode2, countryCode3]);
+        setPlayer1(''); setPlayer2(''); setPlayer3('');
       } else {
         if (!player1.trim() || !player2.trim()) {
           setError('Both player names required');
@@ -219,7 +243,7 @@ export const CreatePanel: React.FC<CreatePanelProps> = ({
         setPlayer2('');
       }
     } catch (err: any) {
-      const msg = err?.message || `Failed to create ${mode === 'solo' ? 'player' : 'duo'}`;
+      const msg = err?.message || `Failed to create ${mode === 'solo' ? 'player' : mode}`;
       setError(msg);
     } finally {
       setLoading(false);
@@ -283,7 +307,7 @@ export const CreatePanel: React.FC<CreatePanelProps> = ({
   return (
     <form onSubmit={handleSubmit} className="create-panel">
       <div className="create-panel-title">
-        {mode === 'solo' ? 'CREATE A SOLO' : 'CREATE A DUO'}
+        {mode === 'solo' ? 'CREATE A SOLO' : mode === 'trio' ? 'CREATE A TRIO' : 'CREATE A DUO'}
       </div>
 
       <div className="create-panel-row create-panel-row--compact">
@@ -296,11 +320,11 @@ export const CreatePanel: React.FC<CreatePanelProps> = ({
               const v = e.target.value.toUpperCase();
               setError(null);
               setPlayer1(v);
-              setSuggestions1(mode === 'duo' ? findSuggestions(v) : []);
+              setSuggestions1(mode !== 'solo' ? findSuggestions(v) : []);
             }}
             disabled={disabled || loading}
           />
-          {mode === 'duo' && suggestions1.length > 0 && !disabled && (
+          {mode !== 'solo' && suggestions1.length > 0 && !disabled && (
             <div className="autocomplete-list">
               {suggestions1.map(s => {
                 const info = knownPlayers[s] || { region: 'EU' };
@@ -321,7 +345,7 @@ export const CreatePanel: React.FC<CreatePanelProps> = ({
           aus={disabled || loading} onWahl={setCountryCode} />
       </div>
 
-      {mode === 'duo' && (
+      {mode !== 'solo' && (
         <div className="create-panel-row create-panel-row--compact">
           <div className="create-panel-field create-panel-player">
             <input
@@ -358,10 +382,26 @@ export const CreatePanel: React.FC<CreatePanelProps> = ({
         </div>
       )}
 
+      {mode === 'trio' && (
+        <div className="create-panel-row create-panel-row--compact">
+          <div className="create-panel-field create-panel-player">
+            <input
+              type="text"
+              placeholder="Player 3..."
+              value={player3}
+              onChange={e => { setError(null); setPlayer3(e.target.value.toUpperCase()); }}
+              disabled={disabled || loading}
+            />
+          </div>
+          <FlaggenWahl wert={countryCode3}
+            aus={disabled || loading} onWahl={setCountryCode3} />
+        </div>
+      )}
+
       {error && <p className="text-xs text-red-400">{error}</p>}
 
       <button type="submit" disabled={disabled || loading}>
-        {loading ? 'Creating...' : mode === 'solo' ? 'Create Solo' : 'Create Duo'}
+        {loading ? 'Creating...' : mode === 'solo' ? 'Create Solo' : mode === 'trio' ? 'Create Trio' : 'Create Duo'}
       </button>
     </form>
   );

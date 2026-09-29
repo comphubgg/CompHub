@@ -382,6 +382,14 @@ jobs:
         timeout-minutes: 5
         run: node scripts/replay-uebersicht.mjs 2>&1 | tail -3
 
+      # Die Trios der Tierlist aus den Trio-Spieltagen (scripts/tierlist-trios.mjs):
+      # je Spieler sein juengstes Trio, Flaggen ueber die Konto-Id. Seit dem
+      # 29.9.2026 - Trios sind fuer 2027 der Hauptmodus.
+      - name: Trios fuer die Tierlist
+        continue-on-error: true
+        timeout-minutes: 5
+        run: node scripts/tierlist-trios.mjs 2>&1 | tail -4
+
       # Das Gerechnete sofort ans Release - noch vor dem Bau.
       #
       # Seit dem 24.9.2026 bekam der Laufrechner beim Bauen jedes Mal ein

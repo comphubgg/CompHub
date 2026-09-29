@@ -1724,7 +1724,10 @@ export default function KartenSeite(
     const gewaehlte = (funde ?? []).filter((f) => f.nehmen);
     if (!gewaehlte.length) return;
 
-    const proTeam = alsTeams ? (teams[0]?.spieler.length || 2) : 1;
+    // Ohne geladene Teams gilt die Trio-Groesse: Trios sind fuer 2027 der
+    // Hauptmodus (Betreiber, 29.9.2026). Bei einem Duo-Cup geben die
+    // geladenen Teams die Groesse vor.
+    const proTeam = alsTeams ? (teams[0]?.spieler.length || 3) : 1;
 
     /*
      * Zuerst nach Naehe gruppieren, dann erst die Form dazu suchen.
@@ -3682,7 +3685,7 @@ ${name}
               <input value={eigenesTeam}
                 onChange={(e) => setEigenesTeam(e.target.value)}
                 onKeyDown={(e) => { if (e.key === 'Enter') teamEintragen(); }}
-                placeholder={uebs('Sky & Scroll')}
+                placeholder={uebs('Name & Name & Name')}
                 title={uebs('Zwei Namen mit &, Komma oder Schrägstrich trennen. '
                   + 'Ein einzelner Name ergibt ein Solo.')}
                 className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2
@@ -4399,7 +4402,7 @@ ${name}
                         <div className="min-w-0 flex-1 space-y-1.5"
                           onClick={(e) => e.stopPropagation()}>
                           <input value={entwurf} onChange={(e) => setEntwurf(e.target.value)}
-                            placeholder={uebs('Name + Name')}
+                            placeholder={uebs('Name + Name + Name')}
                             className="w-full rounded border border-zinc-700 bg-zinc-900 px-1.5
                                        py-1 text-xs text-slate-100 outline-none
                                        focus:border-sky-500" />

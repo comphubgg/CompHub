@@ -23,7 +23,7 @@ import { TierList, Sidebar } from './components';
 
 // Types & Utils
 import { TierKey, Player, Duo } from './types';
-import { generateId, getSoloKey, getDuoKey, getDisplayName } from './utils/helpers';
+import { generateId, getSoloKey, getDuoKey, getTrioKey, getDisplayName, artVon } from './utils/helpers';
 import { getRegionFromCountryCode, TIER_LABELS_DEFAULT } from './utils/constants';
 import { gefaltet, namensSchluessel } from '@/lib/homoglyph';
 
@@ -286,8 +286,50 @@ export default function TierListPage() {
 
   /** Der Schluessel, unter dem ein Eintrag in der Entfernt-Liste steht. */
   const entfernSchluessel = useCallback((entry: any): string => (
-    entry?.isDuo ? getDuoKey(entry.data as any) : getSoloKey(entry?.data)
+    entry?.isTrio ? getTrioKey(entry.data)
+      : entry?.isDuo ? getDuoKey(entry.data as any) : getSoloKey(entry?.data)
   ), []);
+
+  /*
+   * Die gemeinsamen Trios - fuer jedes Konto dieselben.
+   *
+   * Trios sind fuer 2027 der Hauptmodus. Der Betreiber (29.9.2026): die
+   * Trios aus dem Performance Cup "automatisch generieren mit Flagge",
+   * "immer wieder updaten", und was er selbst hinzufuegt, "speichert es die
+   * fuer immer und ueberall". /api/tierlist-trios fuehrt beides: was der
+   * stuendliche Lauf aus den Trio-Spieltagen rechnet und was der Admin
+   * angelegt hat.
+   *
+   * Anders als bei Solos und Duos steht damit auch in einer frischen Liste
+   * schon etwas. Die Trios landen im Pool, nie in einer Stufe - einsortiert
+   * wird von Hand.
+   */
+  const [trioPool, setTrioPool] = useState<any[] | null>(null);
+  const trioPoolLaden = useCallback(async () => {
+    try {
+      const j = await (await fetch('/api/tierlist-trios', { cache: 'no-store' })).json();
+      if (!Array.isArray(j?.trios)) return;
+      setTrioPool(j.trios.map((t: any) => {
+        const [a, b, c] = t.spieler ?? [];
+        const spieler = (p: any) => ({
+          id: generateId(), name: String(p?.name ?? ''),
+          region: String(t.region ?? 'EU'), countryCode: p?.land ? String(p.land).toLowerCase() : 'flag-GLOBE',
+        });
+        return {
+          schluessel: t.schluessel,
+          quelle: t.quelle,
+          data: {
+            id: `trio-${t.schluessel}`,
+            player1: spieler(a), player2: spieler(b), player3: spieler(c),
+            region: String(t.region ?? 'EU'),
+          },
+        };
+      }));
+    } catch { /* ohne Pool bleiben die eigenen Trios */ }
+  }, []);
+  useEffect(() => { void trioPoolLaden(); }, [trioPoolLaden]);
+  const trioPoolSchluessel = React.useMemo(
+    () => new Set((trioPool ?? []).map((t) => t.schluessel)), [trioPool]);
 
   const landVon = useCallback((name: string): string | undefined => {
     const schluessel = String(name ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
@@ -314,7 +356,23 @@ export default function TierListPage() {
   const importInputRef = useRef<HTMLInputElement | null>(null);
 
   const currentUser = user?.name?.trim().toLowerCase() || '';
-  const currentModeIsDuo = mode === 'duo';
+
+  /*
+   * Fehlende Trios aus dem gemeinsamen Pool in die eigene Liste holen.
+   *
+   * Nur im Trio-Modus und nur, was noch nicht darin steht. Die Liste kann
+   * nach dem Laden noch vom Server ersetzt werden - dann fehlen sie wieder,
+   * und dieser Schritt holt sie erneut. Einsortiert wird nichts: alles
+   * landet ohne Stufe im Pool.
+   */
+  useEffect(() => {
+    if (mode !== 'trio' || !trioPool?.length || isGuest) return;
+    const da = new Set(tierListState.entries
+      .filter((e: any) => e.isTrio).map((e: any) => getTrioKey(e.data)));
+    const neu = trioPool.filter((t) => t.schluessel && !da.has(t.schluessel) && !entfernt.has(t.schluessel));
+    if (!neu.length) return;
+    tierListState.addEntries(neu.map((t) => ({ id: generateId(), data: t.data, vonPool: true })));
+  }, [mode, trioPool, tierListState.entries, entfernt, isGuest]);
 
   // Static list ID Sync
   useEffect(() => {
@@ -521,6 +579,17 @@ export default function TierListPage() {
       listName: tierListState.listName,
       listId,
       entries: tierListState.entries.map((entry: any) => {
+        if (entry.isTrio) {
+          const t = entry.data as any;
+          return {
+            type: 'trio',
+            tier: entry.tier,
+            region: t.region,
+            players: [t.player1, t.player2, t.player3].map((p: any) => ({
+              name: p?.name, region: p?.region, countryCode: p?.countryCode,
+            })),
+          };
+        }
         if (entry.isDuo) {
           const duo = entry.data as Duo;
           return {
@@ -729,9 +798,10 @@ export default function TierListPage() {
   const flaggenZahl = useCallback((entry: any): number => {
     const hat = (name?: string, kuerzel?: string) =>
       (landVon(String(name ?? '').trim()) ?? (kuerzel || undefined)) ? 1 : 0;
-    if (entry?.isDuo) {
+    if (entry?.isDuo || entry?.isTrio) {
       return hat(entry.data?.player1?.name, entry.data?.player1?.countryCode)
-        + hat(entry.data?.player2?.name, entry.data?.player2?.countryCode);
+        + hat(entry.data?.player2?.name, entry.data?.player2?.countryCode)
+        + (entry?.isTrio ? hat(entry.data?.player3?.name, entry.data?.player3?.countryCode) : 0);
     }
     return hat(entry?.data?.name, entry?.data?.countryCode);
   }, [landVon]);
@@ -792,11 +862,24 @@ export default function TierListPage() {
       return false;
     }
 
+    /*
+     * Ein automatisches Trio, das es so nicht mehr gibt.
+     *
+     * Der stuendliche Lauf fuehrt je Spieler nur sein juengstes Trio. Hat
+     * einer gewechselt, faellt das alte aus dem Pool - hier verschwindet es
+     * dann auch, solange es niemand einsortiert hat. Was in einer Stufe
+     * steht, bleibt: das ist eine Entscheidung des Nutzers.
+     */
+    if (entry.vonPool && !entry.tier && trioPool
+        && !trioPoolSchluessel.has(getTrioKey(entry.data))) {
+      return false;
+    }
+
     if (entry.localOnly) {
       const entryOwner = String(entry.data?.createdBy || '').trim().toLowerCase();
-      return Boolean(currentUser && entryOwner === currentUser && entry.isDuo === currentModeIsDuo);
+      return Boolean(currentUser && entryOwner === currentUser && artVon(entry) === mode);
     }
-    return entry.isDuo === currentModeIsDuo;
+    return artVon(entry) === mode;
   });
 
   /**
@@ -811,8 +894,9 @@ export default function TierListPage() {
       const k = gefaltet(namensSchluessel(String(name ?? '')));
       return k && raenge[k] !== undefined ? raenge[k] : Number.MAX_SAFE_INTEGER;
     };
-    if (entry?.isDuo) {
-      return Math.min(platz(entry.data?.player1?.name), platz(entry.data?.player2?.name));
+    if (entry?.isDuo || entry?.isTrio) {
+      return Math.min(platz(entry.data?.player1?.name), platz(entry.data?.player2?.name),
+        entry?.isTrio ? platz(entry.data?.player3?.name) : Number.MAX_SAFE_INTEGER);
     }
     return platz(entry?.data?.name);
   }, [raenge]);
@@ -820,7 +904,7 @@ export default function TierListPage() {
   /** Die Region eines Eintrags - beim Duo die des Duos, sonst die des Spielers. */
   const regionVon = (entry: any): string => String(
     entry?.data?.region || entry?.data?.player1?.region
-    || entry?.data?.player2?.region || '',
+    || entry?.data?.player2?.region || entry?.data?.player3?.region || '',
   ).toUpperCase();
 
   /*
@@ -905,7 +989,7 @@ export default function TierListPage() {
   const getUsedSoloPlayerKeys = (): Set<string> => {
     return new Set(
       tierListState.entries.flatMap((entry: any) => {
-        if (entry.isDuo || !entry?.data || typeof entry.data !== 'object') return [];
+        if (entry.isDuo || entry.isTrio || !entry?.data || typeof entry.data !== 'object') return [];
         return [getSoloKey(entry.data)].filter(Boolean);
       })
     );
@@ -1001,6 +1085,51 @@ export default function TierListPage() {
     }
   };
 
+  /*
+   * Ein Trio anlegen.
+   *
+   * Beim Admin geht es in den gemeinsamen Bestand (/api/tierlist-trios) und
+   * steht damit bei jedem Konto - "fuer immer und ueberall", bis er es
+   * loescht. Alle anderen legen es nur fuer sich an.
+   */
+  const handleCreateTrio = async (namen: [string, string, string], laender: [string, string, string]) => {
+    if (previewMode) return;
+    const saubere = namen.map((n) => String(n).trim()) as [string, string, string];
+    const spieler = (i: number) => ({
+      id: generateId(), name: saubere[i],
+      region: getRegionFromCountryCode(laender[i]), countryCode: laender[i],
+    });
+    const trio: any = {
+      id: generateId(),
+      player1: spieler(0), player2: spieler(1), player3: spieler(2),
+      region: getRegionFromCountryCode(laender[0]),
+      ...(isAdmin ? {} : { createdBy: currentUser || undefined }),
+    };
+    if (isAdmin) {
+      const antwort = await fetch('/api/tierlist-trios', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          spieler: saubere.map((name, i) => ({
+            name, land: /^[a-z]{2}$/i.test(laender[i]) ? laender[i].toUpperCase() : undefined,
+          })),
+          region: trio.region,
+        }),
+      });
+      if (!antwort.ok) {
+        const j = await antwort.json().catch(() => ({}));
+        throw new Error(j?.error || 'Failed to save trio online');
+      }
+      // Stand er schon einmal in der Entfernt-Liste, gilt das Anlegen als Zuruecknahme.
+      const schluessel = getTrioKey(trio);
+      if (entfernt.has(schluessel)) {
+        await fetch(`/api/tierlist-entfernt?schluessel=${encodeURIComponent(schluessel)}`, { method: 'DELETE' }).catch(() => {});
+        setEntfernt((alt) => { const n = new Set(alt); n.delete(schluessel); return n; });
+      }
+      void trioPoolLaden();
+    }
+    tierListState.addEntry(trio, 'trio', { localOnly: !isAdmin, vonHand: true });
+  };
+
   const handleDeleteEntry = async (entryId: string) => {
     const entry = tierListState.entries.find((e: any) => e.id === entryId);
     if (!entry) return;
@@ -1013,7 +1142,13 @@ export default function TierListPage() {
     if (!canDelete) return;
 
     if (isAdmin) {
-      if (entry.isDuo) {
+      if (entry.isTrio) {
+        const schluessel = getTrioKey(entry.data);
+        if (schluessel) {
+          await fetch(`/api/tierlist-trios?schluessel=${encodeURIComponent(schluessel)}`, { method: 'DELETE' })
+            .catch(() => {});
+        }
+      } else if (entry.isDuo) {
         const duo = entry.data as any;
         const deleted = await duoService.deleteDuo(duo.player1.name, duo.player2.name, duo.region);
         if (!deleted) {
@@ -1042,9 +1177,11 @@ export default function TierListPage() {
             method: 'POST', headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               schluessel,
-              name: entry.isDuo
-                ? `${(entry.data as any).player1?.name} & ${(entry.data as any).player2?.name}`
-                : (entry.data as any).name,
+              name: entry.isTrio
+                ? `${(entry.data as any).player1?.name} & ${(entry.data as any).player2?.name} & ${(entry.data as any).player3?.name}`
+                : entry.isDuo
+                  ? `${(entry.data as any).player1?.name} & ${(entry.data as any).player2?.name}`
+                  : (entry.data as any).name,
             }),
           });
           setEntfernt((alt) => new Set(alt).add(schluessel));
@@ -1072,6 +1209,13 @@ export default function TierListPage() {
                 onClick={() => tierListState.resetTierAssignments()}
               >
                 <T>Reset</T>
+              </button>
+              <button
+                type="button"
+                className={`tierlist-button ${mode === 'trio' ? 'tierlist-button-primary' : 'tierlist-button-secondary'}`}
+                onClick={() => switchMode('trio')}
+              >
+                Trios
               </button>
               <button
                 type="button"
@@ -1147,6 +1291,7 @@ export default function TierListPage() {
           onReset={tierListState.resetTierAssignments}
           onCreatePlayer={handleCreatePlayer}
           onCreateDuo={handleCreateDuo}
+          onCreateTrio={handleCreateTrio}
           existingEntries={tierListState.entries}
           isAdmin={isAdmin}
           currentUser={currentUser}

@@ -25,8 +25,8 @@ interface SidebarProps {
   onPoolDrop: (draggedId: string, targetId: string | null) => void;
 
   // Mode switching
-  currentMode: 'solo' | 'duo';
-  onSwitchMode: (mode: 'solo' | 'duo') => void;
+  currentMode: 'solo' | 'duo' | 'trio';
+  onSwitchMode: (mode: 'solo' | 'duo' | 'trio') => void;
 
   // List operations
   onReset: () => void;
@@ -34,13 +34,14 @@ interface SidebarProps {
   // Create operations
   onCreatePlayer: (name: string, region: Region, countryCode: string) => Promise<void>;
   onCreateDuo: (player1: string, player2: string, countryCode1: string, countryCode2: string) => Promise<void>;
+  onCreateTrio?: (namen: [string, string, string], laender: [string, string, string]) => Promise<void>;
 
   // Admin controls
   isAdmin?: boolean;
   currentUser?: string;
   onDeleteEntry?: (entryId: string) => void;
   /** Einen Namen aendern - siehe PlayerCard. */
-  onRenameEntry?: (rohName: string, neuerName: string, welcher?: 1 | 2) => void;
+  onRenameEntry?: (rohName: string, neuerName: string, welcher?: 1 | 2 | 3) => void;
   /** Das gepflegte Land zu einem Namen - siehe PlayerCard. */
   landVon?: (name: string) => string | undefined;
   /** Der gepflegte Anzeigename - siehe PlayerCard. */
@@ -73,6 +74,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onReset,
   onCreatePlayer,
   onCreateDuo,
+  onCreateTrio,
   existingEntries,
   isAdmin = false,
   currentUser,
@@ -126,6 +128,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           mode={currentMode}
           onCreatePlayer={onCreatePlayer}
           onCreateDuo={onCreateDuo}
+          onCreateTrio={onCreateTrio}
           existingEntries={existingEntries}
           disabled={createDisabled}
           // Bei einem schon vorhandenen Namen die Suche darauf setzen -
