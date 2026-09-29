@@ -33,7 +33,7 @@ import os from 'node:os';
 import { createRequire } from 'node:module';
 import { holeNutzerToken, matchIds } from '../lib/replayKern.mjs';
 import { leseReplay } from '../lib/replayLeser.mjs';
-import { clutchPunkte } from '../lib/clutch.mjs';
+import { clutchPunkte, clutchAusVoll } from '../lib/clutch.mjs';
 
 const require = createRequire(import.meta.url);
 const { downloadReplay } = require('fortnite-serverreplay-downloader');
@@ -78,10 +78,17 @@ const GROSS_MAX = 60;
  * nicht, der Ueberschuss laesst sich deshalb nicht genau abziehen.
  */
 const SCHADEN_LESER = path.join(process.cwd(), 'tools', 'replay-voll', 'bin', 'Release', 'net10.0', 'ReplayVoll.dll');
-function schadenAus(datei) {
+/** Die volle Ausgabe des eigenen Lesers - oder null, wenn er fehlt oder scheitert. */
+function vollAus(datei) {
   if (!fs.existsSync(SCHADEN_LESER)) return null;
   try {
-    const roh = JSON.parse(execFileSync('dotnet', [SCHADEN_LESER, datei], { maxBuffer: 512 * 1024 * 1024 }).toString('utf8'));
+    return JSON.parse(execFileSync('dotnet', [SCHADEN_LESER, datei], { maxBuffer: 512 * 1024 * 1024 }).toString('utf8'));
+  } catch (e) { console.log(`    Leser: ${String(e.message).slice(0, 120)}`); return null; }
+}
+
+function schadenAus(roh) {
+  if (!roh) return null;
+  try {
     const epicVon = new Map((roh.spieler ?? []).map((p) => [p.id, p.epic]));
     const raus = {};
     for (const s of roh.schaden ?? []) {
@@ -106,8 +113,11 @@ async function tag(eventId, windowId, idsVorab = null) {
       const puffer = await downloadReplay({ matchId: id, dataCount: 100000, checkpointCount: 100000, eventCount: 100000 });
       fs.writeFileSync(datei, puffer);
       const roh = await leseReplay(datei);
-      const c = regeln.length ? clutchPunkte(roh, regeln) : new Map();
-      const sch = schadenAus(datei);
+      // Clutch nach der Regel des Betreibers aus dem eigenen Leser (Reboots
+      // inklusive); nur wenn der fehlt, die alte Rechnung.
+      const voll = vollAus(datei);
+      const c = !regeln.length ? new Map() : voll ? clutchAusVoll(voll, regeln) : clutchPunkte(roh, regeln);
+      const sch = schadenAus(voll);
       for (const [k, v] of Object.entries(sch ?? {})) {
         const d = schaden[k] ?? { dmg: 0, dmgAlle: 0, erlitten: 0, treffer: 0, krit: 0 };
         for (const f of Object.keys(d)) d[f] += v[f] ?? 0;
@@ -128,7 +138,7 @@ async function tag(eventId, windowId, idsVorab = null) {
   if (!matches.length) return false;
   fs.mkdirSync(ZIEL, { recursive: true });
   fs.writeFileSync(path.join(ZIEL, `${windowId}.json`), JSON.stringify({
-    eventId, windowId, gerechnet: new Date().toISOString(), regeln, matches, summe, spiele,
+    version: 2, eventId, windowId, gerechnet: new Date().toISOString(), regeln, matches, summe, spiele,
     ...(Object.keys(schaden).length ? { schaden } : {}),
   }, null, 1));
 }
@@ -169,7 +179,8 @@ if (arg[0] === '--alle') {
         const gilt = weg && (/Matches/.test(weg.grund ?? String(weg)) || (weg.zeit ?? 0) > Date.now() - 864e5);
         // Schon gerechnet - es sei denn, der Schaden fehlt noch (Dateien von vor dem 29.9.2026).
         const vorhanden = (() => { try { return JSON.parse(fs.readFileSync(path.join(ZIEL, `${t.windowId}.json`), 'utf8')); } catch { return null; } })();
-        if ((vorhanden && vorhanden.schaden) || gilt) continue;
+        // Neu gerechnet wird auch, was noch nach der alten Clutch-Regel steht (vor Version 2).
+        if ((vorhanden && vorhanden.schaden && vorhanden.version >= 2) || gilt) continue;
         tage.push({ eventId: t.eventId, windowId: t.windowId, datum: t.datum ?? 0 });
       } catch { /* eine kaputte Datei haelt nichts auf */ }
     }

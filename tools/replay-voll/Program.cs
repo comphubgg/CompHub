@@ -93,6 +93,7 @@ Console.WriteLine(JsonConvert.SerializeObject(new {
   version = 2,
   schaden, schadenEreignisse = reader.Ereignisse, schadenZugeordnet = reader.Zugeordnet, schadenVorDemBus = reader.VorDemBus, schadenAufBoden = reader.AufBoden,
   busAb,
+  figuren = reader.Figuren.Select(f => new { id = f.id, t = Math.Round(f.t, 1) }).ToList(),
   schadenRoh = reader.Roh.Count > 0 ? reader.Roh : null,
   match = gd?.GameSessionId, beginn = gd?.UtcTimeStartedMatch, ende = R(gd?.MatchEndTime),
   playlist = gd?.CurrentPlaylist, runde = gd?.TournamentRound, sieger = gd?.WinningTeam,
@@ -149,6 +150,9 @@ class SchadenLeser : ReplayReader {
   readonly Dictionary<uint, uint> kanalAkteur = new();
   readonly HashSet<uint> figurKanaele = new();
   readonly Dictionary<uint, uint> figurVonAkteur = new();
+  /// Wann ein Spieler eine neue Figur bekam (Absprung, Reboot) - fuer die Solo Clutch Points.
+  public readonly List<(int id, double t)> Figuren = new();
+  readonly HashSet<uint> figurGemeldet = new();
 
   protected override void OnChannelOpened(uint channelIndex, Unreal.Core.Models.NetworkGUID actor) {
     base.OnChannelOpened(channelIndex, actor);
@@ -159,6 +163,7 @@ class SchadenLeser : ReplayReader {
     base.OnChannelClosed(channelIndex, actor);
     if (figurKanaele.Contains(channelIndex) && Zeit() is double t) FigurEnde.Add(t);
     figurKanaele.Remove(channelIndex);
+    figurGemeldet.Remove(channelIndex);
     if (kanalAkteur.TryGetValue(channelIndex, out var a) && figurVonAkteur.TryGetValue(a, out var k) && k == channelIndex) figurVonAkteur.Remove(a);
     kanalAkteur.Remove(channelIndex);
   }
@@ -168,6 +173,11 @@ class SchadenLeser : ReplayReader {
     if (exportGroup is FortniteReplayReader.Models.NetFieldExports.PlayerPawn) {
       figurKanaele.Add(channelIndex);
       if (kanalAkteur.TryGetValue(channelIndex, out var akteur)) figurVonAkteur[akteur] = channelIndex;
+      // Eine neue Figur fuer einen Spieler: Absprung aus dem Bus oder Reboot.
+      if (!figurGemeldet.Contains(channelIndex)) {
+        var wem = Hole(VonFigur, channelIndex);
+        if (wem?.Id is not null && Zeit() is double tt) { Figuren.Add((wem.Id.Value, tt)); figurGemeldet.Add(channelIndex); }
+      }
       return;
     }
     // (Lebenspunkte je Figur - FortRegenHealthSet - kommen in diesen Replays
