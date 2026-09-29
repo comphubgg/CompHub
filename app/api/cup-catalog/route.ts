@@ -5,6 +5,7 @@ import {
   type CupArt, type CupGruppe,
 } from '@/lib/epicCups';
 import { AblageNichtErreichbar, fertigeAntwort, FRISCH_LIVE_MS } from '@/lib/antwortSpeicher';
+import { globalsVereint } from '@/lib/globalsCup';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -112,7 +113,8 @@ export async function GET(request: Request) {
      * durch die Pruefung.
      */
     const ausArchiv = await archivCups(new Set(alle.map((c) => c.id)));
-    const zusammen = [...alle, ...ausArchiv];
+    // Die Globals als ein Eintrag (Kumulativ, Day 1, Day 2) - lib/globalsCup.
+    const zusammen = globalsVereint([...alle, ...ausArchiv]);
 
     /*
      * Von den Divisionen zaehlt nur die erste.

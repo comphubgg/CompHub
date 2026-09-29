@@ -837,6 +837,8 @@ export const REGION_TEXT: Record<string, string> = {
 export interface CupFensterDetail extends CupFenster {
   region: string;
   runde: number;
+  /** Fester Name des Spieltags, wo ihn die Reihenfolge nicht hergibt - "Kumulativ", "Day 1" (Globals). */
+  anzeige?: string;
   rundenTyp?: string;
   /** Finale erkennbar am Zugangs-Token oder am Namen des Fensters. */
   istFinale: boolean;

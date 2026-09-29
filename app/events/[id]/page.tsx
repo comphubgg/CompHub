@@ -20,7 +20,7 @@ import { useT, useSprache } from '@/app/components/SprachProvider';
 import { kartenTitel } from '@/lib/rundenName';
 import CupArchiv from '@/app/components/CupArchiv';
 import { inselAusPlaylist } from '@/lib/inseln';
-import { istGlobalsEvent } from '@/lib/globalsCup';
+import { istGlobalsEvent, GLOBALS_CUP_ALIAS, GLOBALS_CUP_ID } from '@/lib/globalsCup';
 import { sichtbarerTakt } from '@/app/lib/takt';
 import { fortniteKarte, eigeneKarte } from '@/lib/bildAdressen';
 import SpielerStatsUebersicht from '@/app/components/SpielerStatsUebersicht';
@@ -40,6 +40,8 @@ interface Fenster {
   eventId: string; windowId: string;
   region: string; runde: number;
   istFinale: boolean; tokens: string[];
+  /** Fester Name des Spieltags ("Kumulativ", "Day 1" bei den Globals). */
+  anzeige?: string;
   /** Wie viele Teams sich qualifizieren - aus Epics Auszahlungstabelle. */
   qualifiziert?: number;
   matchCap?: number;
@@ -1067,7 +1069,9 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
         const d = await r.json();
         if (weg) return;
         if (!r.ok) throw new Error(d.error ?? 'nicht ladbar');
-        const c = (d.cups as Cup[]).find((x) => x.id === id);
+        // Alte Links auf Epics Eintrag der Globals fuehren zum einen Eintrag.
+        const gesucht = id === GLOBALS_CUP_ALIAS ? GLOBALS_CUP_ID : id;
+        const c = (d.cups as Cup[]).find((x) => x.id === gesucht);
         if (!c) {
           // Epic haelt vergangene Turniere nur wenige Tage vor. Der Satz nennt
           // deshalb nur, was sicher ist: hier liegt nichts vor.
@@ -1217,6 +1221,11 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     const rundenJeTag = new Map<number, number>();
     for (const g of gliederung) {
       rundenJeTag.set(g.tag, Math.max(rundenJeTag.get(g.tag) ?? 0, g.runde));
+    }
+
+    // Feste Namen, wo es welche gibt - die Globals: Kumulativ, Day 1, Day 2.
+    if (tage.length && tage.every((f) => f.anzeige)) {
+      return tage.map((f) => ({ finale: f.istFinale, haupt: t(f.anzeige ?? ''), neben: '' }));
     }
 
     return tage.map((f, i) => {
@@ -1571,8 +1580,11 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
      * gibt ihn in der Adresse mit, und der Wunsch steht oben vor dieser
      * Regel.
      */
+    // Bei den Globals zuerst die Wertung beider Tage zusammen.
+    const kumuliert = tage.find((f) => f.anzeige === 'Kumulativ' && f.status !== 'kommt');
     setFenster(
       tage.find((f) => f.status === 'live')
+      ?? kumuliert
       ?? [...tage].reverse().find((f) => f.status === 'vorbei')
       ?? tage.find((f) => f.status === 'kommt')
       ?? tage[0]);

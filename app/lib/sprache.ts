@@ -3546,6 +3546,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Bilderarchiv': 'Player Pictures',
   'Das Profil ließ sich gerade nicht laden.': 'The profile could not be loaded right now.',
   'Nochmal versuchen': 'Try again',
+  'Kumulativ': 'Cumulative',
   'Gespielt am': 'Played at',
   'An Elims beteiligt': 'Involved in elims',
   'älter als 31 Tage, nicht mehr holbar': 'older than 31 days, no longer available',
