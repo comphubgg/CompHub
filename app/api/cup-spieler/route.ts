@@ -298,6 +298,13 @@ async function holeRoh(request: Request) {
 
   // Der Platz im ganzen Feld (nach Kills) - auch fuer Treffer einer Suche.
   const rangVon = q ? new Map(rep.spieler.map((x, i) => [x.epicId, i + 1])) : null;
+  /*
+   * Solo Clutch Points auch hier, wo sie fuer diesen Spieltag gerechnet sind
+   * (.github/workflows/clutch-rechnen.yml, jeder Team-Spieltag bis 60
+   * Matches). Der Betreiber: "Clutch Points muessen immer dort sein."
+   */
+  const clutchDatei = await liesJson<{ summe?: Record<string, number> } | null>(`clutch/${fenster}.json`, null).catch(() => null);
+  const clutchVon = clutchDatei?.summe ? new Map(Object.entries(clutchDatei.summe)) : null;
   const spieler = gezeigt.map((x, i) => {
     const team = zumTeam.get(x.epicId);
     return {
@@ -312,11 +319,13 @@ async function holeRoh(request: Request) {
       umgehauen: x.umgehauen,
       platz: team?.platz ?? null,
       partner: (team?.partner ?? []).map((id) => anzeige.get(id) ?? id.slice(0, 8)),
+      clutch: clutchVon ? (clutchVon.get(x.epicId.toLowerCase()) ?? 0) : null,
     };
   });
 
   return NextResponse.json({
     vorhanden: true,
+    clutch: !!clutchVon,
     runden: rep.matches ?? 0,
     rundenGesamt: rep.rundenGesamt,
     gerechnet: rep.gerechnet ?? null,

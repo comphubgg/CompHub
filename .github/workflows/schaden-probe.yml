@@ -1,0 +1,46 @@
+# Gegenprobe: Schaden aus den Server-Replays gegen die Szene-Quelle
+# (scripts/schaden-probe.mjs). Nur von Hand gestartet.
+
+name: Schaden-Probe
+
+on:
+  workflow_dispatch:
+    inputs:
+      event:
+        description: Epics Event-Kennung
+        default: epicgames_MannekenPis_Official
+      window:
+        description: Spieltag
+        default: MannekenPis_Day1
+      games:
+        description: Hoechstens so viele Games
+        default: '7'
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Abhängigkeiten
+        run: npm ci
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Zugangsdaten
+        run: |
+          printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
+          node scripts/umzug-supabase.mjs --herunterladen --nur epic-auth.json 2>&1 | tail -2
+      - name: Leser bauen
+        run: dotnet build tools/replay-voll -c Release -v q 2>&1 | tail -15
+      - name: Probe
+        run: node scripts/schaden-probe.mjs "${{ inputs.event }}" "${{ inputs.window }}" "${{ inputs.games }}"
+      - name: Zugangsdaten wieder weg
+        if: always()
+        run: rm -f .env.local

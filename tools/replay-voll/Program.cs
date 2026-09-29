@@ -9,13 +9,17 @@
 // (Locations bleiben leer, geprueft am 28.9.2026 mit Globals Day 1) - deshalb
 // stehen hier keine. Epic haelt ein Replay 31 Tage; was hier herauskommt,
 // bleibt am Release fuer immer.
+using System.Reflection;
 using FortniteReplayReader;
+using FortniteReplayReader.Models;
+using FortniteReplayReader.Models.NetFieldExports.RPC;
+using Unreal.Core.Contracts;
 using Unreal.Core.Models.Enums;
 using Newtonsoft.Json;
 
 var probe = args.Length > 1 && args[0] == "--probe";
 var datei = probe ? args[1] : args[0];
-var reader = new ReplayReader(null, ParseMode.Full);
+var reader = new SchadenLeser();
 var replay = reader.ReadReplay(datei);
 var einst = new JsonSerializerSettings { ReferenceLoopHandling = ReferenceLoopHandling.Ignore, NullValueHandling = NullValueHandling.Ignore };
 
@@ -65,11 +69,64 @@ var zonen = (replay.MapData?.SafeZones ?? Enumerable.Empty<FortniteReplayReader.
   schrumpftAb = R(z.StartShrinkTime), schrumpftBis = R(z.FinishShrinkTime),
 }).ToList();
 
+// Schaden je Spieler aus den Schadens-Ereignissen (siehe SchadenLeser unten).
+var schaden = reader.Je.Select(kv => new {
+  id = kv.Key, gemacht = Math.Round(kv.Value.Gemacht), genommen = Math.Round(kv.Value.Genommen),
+  treffer = kv.Value.Treffer, krit = kv.Value.Krit, schild = Math.Round(kv.Value.AufSchild),
+}).ToList();
+
 var gd = replay.GameData;
 Console.WriteLine(JsonConvert.SerializeObject(new {
-  version = 1,
+  version = 2,
+  schaden, schadenEreignisse = reader.Ereignisse, schadenZugeordnet = reader.Zugeordnet,
   match = gd?.GameSessionId, beginn = gd?.UtcTimeStartedMatch, ende = R(gd?.MatchEndTime),
   playlist = gd?.CurrentPlaylist, runde = gd?.TournamentRound, sieger = gd?.WinningTeam,
   karte = replay.Info?.FriendlyName, laenge = replay.Info?.LengthInMs,
   spieler, feed, zonen,
 }, Formatting.None, einst));
+
+/*
+ * Schaden je Spieler - aus den Schadens-Ereignissen des Replays.
+ *
+ * Der Betreiber (29.9.2026): Damage und Ratio "fuer jeden einzelnen Cup",
+ * nicht nur dort, wo die Szene-Quelle Werte veroeffentlicht. Der Leser
+ * kennt das Ereignis (NetMulticast_Athena_BatchedDamageCues auf der Figur
+ * des Schuetzen: getroffenes Ziel, Hoehe, Kopftreffer, Schild), gibt es aber
+ * nicht heraus. Hier wird es abgefangen: der Kanal nennt den Schuetzen, das
+ * Ziel (HitActor) den Getroffenen; beide loest die Zuordnung des Lesers auf.
+ * Treffer auf Mitspieler und auf Nicht-Spieler zaehlen nicht.
+ */
+class SchadenLeser : ReplayReader {
+  public SchadenLeser() : base(null, ParseMode.Full) { }
+
+  public sealed class Schaden { public double Gemacht, Genommen, AufSchild; public int Treffer, Krit; }
+  public readonly Dictionary<int, Schaden> Je = new();
+  public int Ereignisse, Zugeordnet;
+
+  static readonly MethodInfo VonFigur = typeof(FortniteReplayBuilder).GetMethod("TryGetPlayerDataFromPawn", BindingFlags.NonPublic | BindingFlags.Instance);
+  static readonly MethodInfo VonAkteur = typeof(FortniteReplayBuilder).GetMethod("TryGetPlayerDataFromActor", BindingFlags.NonPublic | BindingFlags.Instance);
+
+  PlayerData Hole(MethodInfo m, uint wert) {
+    if (m is null) return null;
+    var a = new object[] { wert, null };
+    try { return (bool)m.Invoke(Builder, a) ? a[1] as PlayerData : null; } catch { return null; }
+  }
+  Schaden Fuer(int id) { if (!Je.TryGetValue(id, out var s)) Je[id] = s = new Schaden(); return s; }
+
+  protected override void OnExportRead(uint channelIndex, INetFieldExportGroup exportGroup) {
+    base.OnExportRead(channelIndex, exportGroup);
+    if (exportGroup is not BatchedDamageCues c) return;
+    Ereignisse++;
+    if (c.HitActor is null || c.Magnitude is null || c.Magnitude <= 0) return;
+    var von = Hole(VonFigur, channelIndex);
+    var an = Hole(VonAkteur, c.HitActor.Value);
+    if (von?.Id is null || an?.Id is null || von.Id == an.Id) return;
+    if (von.TeamIndex is not null && von.TeamIndex == an.TeamIndex) return;
+    Zugeordnet++;
+    double hoehe = c.Magnitude.Value;
+    var s1 = Fuer(von.Id.Value); s1.Gemacht += hoehe; s1.Treffer++;
+    if (c.bIsCritical == true) s1.Krit++;
+    if (c.bIsShield == true) s1.AufSchild += hoehe;
+    Fuer(an.Id.Value).Genommen += hoehe;
+  }
+}
