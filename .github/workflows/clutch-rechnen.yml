@@ -1,4 +1,4 @@
-# Solo Clutch Points fuer jeden Team-Spieltag - auf vier Rechnern.
+# Solo Clutch Points und Schaden je Spieler fuer jeden Spieltag - auf vier Rechnern.
 #
 # Der Betreiber (29.9.2026): "Die Statistik soll wirklich fuer jeden
 # einzelnen Cup sein. Auch Solo Clutch Points ... Division 1, 2, 3, 4, egal
@@ -48,6 +48,15 @@ jobs:
 
       - name: Zugangsdaten
         run: printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
+
+      # Der eigene Leser zaehlt den Schaden je Spieler (tools/replay-voll).
+      - uses: actions/setup-dotnet@v4
+        continue-on-error: true
+        with:
+          dotnet-version: '10.0.x'
+      - name: Leser bauen
+        continue-on-error: true
+        run: dotnet build tools/replay-voll -c Release -v q 2>&1 | tail -3
 
       - name: Epic-Anmeldung und Stand vom Release
         env:

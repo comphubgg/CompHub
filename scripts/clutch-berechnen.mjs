@@ -27,6 +27,7 @@
 // Solche Tage stehen mit ihrer Matchzahl in data/clutch/_zu-gross.json.
 
 import fs from 'node:fs';
+import { execFileSync } from 'node:child_process';
 import path from 'node:path';
 import os from 'node:os';
 import { createRequire } from 'node:module';
@@ -66,19 +67,52 @@ async function wertung(eventId, windowId) {
 
 const GROSS_MAX = 60;
 
+/*
+ * Schaden je Spieler aus demselben Replay - mit dem eigenen Leser
+ * (tools/replay-voll, SchadenLeser). Der Betreiber (29.9.2026): Damage und
+ * Ratio "fuer jeden einzelnen Cup". Gezaehlt werden Treffer auf Spieler nach
+ * dem Start des Busses, ohne Treffer auf schon Umgehauene; an den Globals
+ * Day 1 gegen Epics eigene Werte geprueft (scripts/schaden-probe.mjs): im
+ * Mittel 6 % darunter, Treffer auf etwa 4 % genau. Epic zaehlt den Schaden
+ * je Schuss nur bis zu den restlichen Lebenspunkten; die stehen im Replay
+ * nicht, der Ueberschuss laesst sich deshalb nicht genau abziehen.
+ */
+const SCHADEN_LESER = path.join(process.cwd(), 'tools', 'replay-voll', 'bin', 'Release', 'net10.0', 'ReplayVoll.dll');
+function schadenAus(datei) {
+  if (!fs.existsSync(SCHADEN_LESER)) return null;
+  try {
+    const roh = JSON.parse(execFileSync('dotnet', [SCHADEN_LESER, datei], { maxBuffer: 512 * 1024 * 1024 }).toString('utf8'));
+    const epicVon = new Map((roh.spieler ?? []).map((p) => [p.id, p.epic]));
+    const raus = {};
+    for (const s of roh.schaden ?? []) {
+      const k = epicVon.get(s.id);
+      if (!k) continue;
+      raus[k] = { dmg: s.gemachtOhneBoden ?? s.gemacht, dmgAlle: s.gemacht, erlitten: s.genommen, treffer: s.treffer, krit: s.krit };
+    }
+    return raus;
+  } catch (e) { console.log(`    Schaden: ${String(e.message).slice(0, 120)}`); return null; }
+}
+
 async function tag(eventId, windowId, idsVorab = null) {
   const regeln = await wertung(eventId, windowId);
-  if (!regeln.length) { console.log(`  ${windowId}: keine Wertungstabelle - uebersprungen`); return false; }
+  // Ohne Wertungstabelle keine Clutch-Punkte - der Schaden zaehlt trotzdem.
+  if (!regeln.length) console.log(`  ${windowId}: keine Wertungstabelle - nur Schaden`);
   const ids = idsVorab ?? [...await matchIds(eventId, windowId, 3)];
   console.log(`  ${windowId}: ${ids.length} Matches, ${regeln.length} Regeln`);
-  const matches = []; const summe = {}; const spiele = {};
+  const matches = []; const summe = {}; const spiele = {}; const schaden = {};
   for (const id of ids) {
     const datei = path.join(os.tmpdir(), `clutch-${id}.replay`);
     try {
       const puffer = await downloadReplay({ matchId: id, dataCount: 100000, checkpointCount: 100000, eventCount: 100000 });
       fs.writeFileSync(datei, puffer);
       const roh = await leseReplay(datei);
-      const c = clutchPunkte(roh, regeln);
+      const c = regeln.length ? clutchPunkte(roh, regeln) : new Map();
+      const sch = schadenAus(datei);
+      for (const [k, v] of Object.entries(sch ?? {})) {
+        const d = schaden[k] ?? { dmg: 0, dmgAlle: 0, erlitten: 0, treffer: 0, krit: 0 };
+        for (const f of Object.keys(d)) d[f] += v[f] ?? 0;
+        schaden[k] = d;
+      }
       const spieler = Object.fromEntries(c);
       matches.push({ id, spieler });
       for (const p of (roh.PlayerData ?? []).filter((x) => !x.IsBot && x.EpicId)) {
@@ -95,6 +129,7 @@ async function tag(eventId, windowId, idsVorab = null) {
   fs.mkdirSync(ZIEL, { recursive: true });
   fs.writeFileSync(path.join(ZIEL, `${windowId}.json`), JSON.stringify({
     eventId, windowId, gerechnet: new Date().toISOString(), regeln, matches, summe, spiele,
+    ...(Object.keys(schaden).length ? { schaden } : {}),
   }, null, 1));
 }
 
@@ -127,12 +162,14 @@ if (arg[0] === '--alle') {
       try {
         const t = JSON.parse(fs.readFileSync(path.join(o, f), 'utf8'));
         if ((t.datum ?? 0) < grenze || !t.eventId) continue;
-        if ((t.teams?.[0]?.spieler?.length ?? 0) < 2) continue; // Solo: kein Clutch
+        // Auch Solo-Tage: dort gibt es keine Clutch-Punkte, aber den Schaden.
         // Zu gross bleibt zu gross; "nichts zu rechnen" kann ein Aussetzer bei
         // Epic gewesen sein und wird nach einem Tag noch einmal versucht.
         const weg = zuGross[t.windowId];
         const gilt = weg && (/Matches/.test(weg.grund ?? String(weg)) || (weg.zeit ?? 0) > Date.now() - 864e5);
-        if (fs.existsSync(path.join(ZIEL, `${t.windowId}.json`)) || gilt) continue;
+        // Schon gerechnet - es sei denn, der Schaden fehlt noch (Dateien von vor dem 29.9.2026).
+        const vorhanden = (() => { try { return JSON.parse(fs.readFileSync(path.join(ZIEL, `${t.windowId}.json`), 'utf8')); } catch { return null; } })();
+        if ((vorhanden && vorhanden.schaden) || gilt) continue;
         tage.push({ eventId: t.eventId, windowId: t.windowId, datum: t.datum ?? 0 });
       } catch { /* eine kaputte Datei haelt nichts auf */ }
     }
