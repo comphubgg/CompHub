@@ -129,7 +129,7 @@ export interface Tabelle {
   stufen: Array<{ bis?: number; abPunkte?: number; schwelle?: number; betrag: number }>;
 }
 
-type TabelleMitRe = Tabelle & { re: RegExp; nr: number };
+type TabelleMitRe = Tabelle & { re: RegExp; nr: number; vor?: string };
 /*
  * Nachschlagen statt Durchsuchen.
  *
@@ -168,7 +168,13 @@ async function liesIndex(): Promise<TabellenIndex> {
   for (const t of liste) {
     if (t.fenster) dazu(t.fenster, t);
     const w = WOERTLICH.exec(t.muster);
-    if (w) dazu(w[1], t); else familien.push(t);
+    // Der feste Anfang eines Familienmusters ("^S29_FNCSMajor") - nur wo die
+    // Fensterkennung so beginnt, lohnt der regulaere Ausdruck ueberhaupt.
+    // (Nicht bei "|" oder einem Quantor gleich dahinter - dort ist der
+    // Anfang nicht fest.)
+    const fest = !t.muster.includes('|') && !/^\^[A-Za-z0-9_]*[?*+{]/.test(t.muster);
+    if (w) dazu(w[1], t);
+    else familien.push({ ...t, vor: fest ? (/^\^([A-Za-z0-9_]*)/.exec(t.muster)?.[1] ?? '').toLowerCase() : '' });
   }
   const index = { liste, genau, familien };
   tabellen = { index, bis: Date.now() + 10 * 60_000 };
@@ -244,11 +250,12 @@ export async function tabelleFuer(windowId: string, region?: string): Promise<Ta
   // Erst die Tabelle genau dieses Fensters, dann die der Familie - bei
   // mehreren die, die in der Datei zuerst steht (wie vorher beim Durchgehen).
   const passt = (t: TabelleMitRe) => !region || t.region === region.toUpperCase();
+  const klein = windowId.toLowerCase();
   const kandidaten = (genau.get(windowId.toLowerCase()) ?? []).filter(passt);
   gefunden = kandidaten.filter((t) => t.fenster === windowId).sort((a, b) => a.nr - b.nr)[0] ?? null;
   if (!gefunden) {
     const treffer = [...kandidaten.filter((t) => t.re.test(windowId)),
-      ...familien.filter((t) => passt(t) && t.re.test(windowId))];
+      ...familien.filter((t) => passt(t) && klein.startsWith(t.vor ?? '') && t.re.test(windowId))];
     gefunden = treffer.sort((a, b) => a.nr - b.nr)[0] ?? null;
   }
   // Nichts in der Datei: die laufende Saison kennt Epic selbst.
