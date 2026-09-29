@@ -16,13 +16,15 @@ const VARIANTEN = {
   knockOhneReboot: { abKnock: true, ohneReboot: true }, nurElims: { nurElims: true }, nurPlatz: { nurPlatz: true },
 };
 const summe = {}; const namen = new Map();
+const protokoll = process.env.PROTOKOLL?.toLowerCase();
 for (const f of fs.readdirSync(ordner).filter((x) => x.endsWith('.json'))) {
   const w = f.split('__')[0];
   const regeln = JSON.parse(fs.readFileSync(path.join('data', 'clutch', `${w}.json`), 'utf8')).regeln ?? [];
   const voll = JSON.parse(fs.readFileSync(path.join(ordner, f), 'utf8'));
   for (const p of voll.spieler ?? []) if (p.epic) namen.set(String(p.epic).toLowerCase(), p.name);
+  if (protokoll) console.log(`  ${f}:`);
   for (const [v, art] of Object.entries(VARIANTEN)) {
-    for (const [k, pkt] of clutchAusVoll(voll, regeln, art)) {
+    for (const [k, pkt] of clutchAusVoll(voll, regeln, v === 'regel' && protokoll ? { ...art, protokoll } : art)) {
       summe[v] ??= {}; summe[v][k] = (summe[v][k] ?? 0) + pkt;
     }
   }
