@@ -88,3 +88,28 @@ jobs:
       - name: Zugangsdaten wieder weg
         if: always()
         run: rm -f .env.local
+
+  # Solange etwas liegen blieb, gleich weiter - nicht erst, wenn GitHub den
+  # naechsten geplanten Lauf irgendwann anstoesst (am 28.9.2026 kamen statt
+  # zwoelf Laeufen am Tag vier). Der Betreiber: "wieso machst du bei den
+  # Replays immer noch nicht weiter?" Ist alles erledigt, endet die Kette.
+  weiter:
+    needs: nacharbeiten
+    if: always() && !cancelled()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Weitermachen, solange etwas liegen blieb
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh run view ${{ github.run_id }} -R "${{ github.repository }}" --log 2>/dev/null \
+              | grep -q "fuer den naechsten Lauf liegen gelassen"; then
+            gh workflow run replays-nacharbeiten.yml -R "${{ github.repository }}" --ref main \
+              && echo "Es blieb etwas liegen - naechster Durchgang angestossen."
+          else
+            echo "Nichts liegen geblieben - keine Kette."
+          fi
