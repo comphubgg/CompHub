@@ -754,9 +754,29 @@ export interface Akte {
 
 const AKTEN = 'akten';
 
+/*
+ * Die zuletzt gelesenen Akten, eine Minute lang.
+ *
+ * Ein Profil liest die Akte seines Spielers nicht einmal, sondern je FNCS-
+ * Saison erneut (fncsDetail), dazu fuer Verlauf, Epic-Zeilen, Tafel und
+ * Erfolge - bei Vico gut zwanzigmal. Jedes Mal wurde dafuer das ganze
+ * Aktenbuendel (rund zwei Megabyte) zerlegt. Auf Renders kleinem Rechner
+ * (ein Zehntel eines Prozessorkerns) waren das Sekunden je Profil.
+ */
+const aktenMerker = new Map<string, { bis: number; wert: Promise<Akte | null> }>();
+
 async function akteLesen(epicId: string): Promise<Akte | null> {
   if (!/^[0-9a-f]{32}$/.test(epicId)) return null;
-  return liesJson<Akte | null>(`${AKTEN}/${epicId}.json`, null);
+  const jetzt = Date.now();
+  const da = aktenMerker.get(epicId);
+  if (da && da.bis > jetzt) return da.wert;
+  const wert = liesJson<Akte | null>(`${AKTEN}/${epicId}.json`, null);
+  aktenMerker.set(epicId, { bis: jetzt + 60_000, wert });
+  // Fehlschlag nicht merken - beim naechsten Mal neu versuchen.
+  wert.catch(() => aktenMerker.delete(epicId));
+  for (const [k, v] of aktenMerker) if (v.bis <= jetzt) aktenMerker.delete(k);
+  while (aktenMerker.size > 12) aktenMerker.delete(aktenMerker.keys().next().value as string);
+  return wert;
 }
 
 /**
