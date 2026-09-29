@@ -234,7 +234,14 @@ async function los() {
    * Vier nebeneinander: einzeln waren es bei sechshundert Profilen eine
    * Viertelstunde, so ein paar Minuten.
    */
-  const profile = teil === teile ? await profileDerListen() : [];
+  /*
+   * Nicht mehr: Profile legt die Seite seit dem 22.9.2026 nicht mehr ab, sie
+   * leben nur im Speicher der Seite (lib/antwortSpeicher, nurImSpeicher).
+   * Hier sechshundert davon zu rechnen legte nichts ab und kostete ueber
+   * eine halbe Stunde - am 29.9.2026 lief der Schritt damit in seine Frist,
+   * und alles danach fiel aus. Mit COMPHUB_PROFILE_VORRECHNEN=1 wieder an.
+   */
+  const profile = teil === teile && process.env.COMPHUB_PROFILE_VORRECHNEN === '1' ? await profileDerListen() : [];
   console.log(`  Profile: ${profile.length}`);
   let profileOk = 0;
   for (let i = 0; i < profile.length; i += 4) {
