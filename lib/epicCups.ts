@@ -741,6 +741,8 @@ const CONTENT_URL =
 export interface TurnierOptik {
   titel: string;
   untertitel?: string;
+  /** Epics Beschreibung des Turniers ("Drop into the FNCS Solos! ..."). */
+  beschreibung?: string;
   kurzTitel?: string;
   bild?: string;
   posterVorn?: string;
@@ -767,6 +769,7 @@ export async function turnierOptik(): Promise<Record<string, TurnierOptik>> {
       daten[key] = {
         titel: ti.title_line_1,
         untertitel: ti.title_line_2 || undefined,
+        beschreibung: (ti.details_description || ti.flavor_description || '').trim() || undefined,
         kurzTitel: ti.short_format_title || undefined,
         bild: ti.playlist_tile_image || ti.loading_screen_image || undefined,
         posterVorn: ti.poster_front_image || undefined,
@@ -946,6 +949,8 @@ export interface CupGruppe {
   id: string;                    // displayDataId
   titel: string;
   untertitel?: string;
+  /** Epics Beschreibung (About) - bleibt im Archiv, wenn Epic sie nicht mehr fuehrt. */
+  beschreibung?: string;
   bild?: string;
   farbe?: string;
   /** Kapitel und Season, klein auf der Kachel - etwa "CH7S2". */
@@ -1223,6 +1228,7 @@ export async function cupsGruppiert(regionen: readonly string[] = REGIONEN) {
           id,
           titel,
           untertitel: o?.untertitel,
+          beschreibung: o?.beschreibung,
           bild: o?.bild,
           farbe: o?.farbe,
           art: bestimmeArt(id, titel, ev.metadata?.tournamentType as string | undefined),
@@ -1319,6 +1325,7 @@ const ARCHIV = path.join(DATEN_ORT, 'cup-archiv.json');
 
 export interface ArchivEintrag {
   id: string; titel: string; untertitel?: string; bild?: string;
+  beschreibung?: string;
   art: CupArt; global: boolean;
   eventId: string; windowId: string; region: string;
   /** Epics Kapitel-und-Season-Kuerzel, etwa "CH7S2" - nur bei Nachgetragenem. */
@@ -1415,9 +1422,11 @@ export async function archivCups(
     if (schonBekannt.has(e.id)) continue;
 
     let g = gruppen.get(e.id);
+    if (g && !g.beschreibung && e.beschreibung) g.beschreibung = e.beschreibung;
     if (!g) {
       g = {
         id: e.id, titel: e.titel, untertitel: e.untertitel, bild: e.bild,
+        beschreibung: e.beschreibung,
         kapitel: e.kapitel,
         art: e.art, global: e.global, regionen: {},
         naechsterStart: null, letzterStart: null, live: false, vorbei: true,
@@ -1487,6 +1496,8 @@ export async function schreibeArchiv(cups: CupGruppe[]): Promise<number> {
           // 21.9.2026 ins Archiv, und ohne sie oeffnet ein Reload-Spieltag
           // seine Karte auf Battle Royale.
           if (f.playlist && !da.playlist) { da.playlist = f.playlist; neu++; }
+          // Epics Beschreibung (seit dem 29.9.2026), solange Epic sie noch nennt.
+          if (c.beschreibung && !da.beschreibung) { da.beschreibung = c.beschreibung; neu++; }
           // Ebenso die Rangstufen der Ranked Cups (seit dem 21.9.2026).
           if (f.raenge?.length && !da.raenge?.length) { da.raenge = f.raenge; neu++; }
           // Und die Marken (seit dem 22.9.2026), solange Epic sie noch nennt.
@@ -1500,6 +1511,7 @@ export async function schreibeArchiv(cups: CupGruppe[]): Promise<number> {
         }
         nachSchluessel.set(k, {
           id: c.id, titel: c.titel, untertitel: c.untertitel, bild: c.bild,
+          ...(c.beschreibung ? { beschreibung: c.beschreibung } : {}),
           art: c.art, global: c.global,
           eventId: f.eventId, windowId: f.windowId, region,
           begin: f.begin, end: f.end,

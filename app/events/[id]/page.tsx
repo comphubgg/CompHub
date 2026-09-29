@@ -221,7 +221,7 @@ interface Bestenliste {
 }
 
 interface Cup {
-  id: string; titel: string; untertitel?: string;
+  id: string; titel: string; beschreibung?: string; untertitel?: string;
   bild?: string; farbe?: string; art: string; global: boolean;
   regionen: Record<string, Fenster[]>;
   live: boolean;
@@ -1227,6 +1227,26 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     if (tage.length && tage.every((f) => f.anzeige)) {
       return tage.map((f) => ({ finale: f.istFinale, haupt: t(f.anzeige ?? ''), neben: '' }));
     }
+
+    /*
+     * Die Gliederung aus Epics Kennung, wo sie eine hat - wie bei Fortnite
+     * Tracker: "Qualifier 1" und darunter "Day 1 Round 1", "Round 2" ...
+     * Der Betreiber (29.9.2026): es gibt mehrere Qualifier, "nicht einfach
+     * verschiedene Tage".
+     */
+    const gegliedert = tage.map((f) => {
+      const w = f.windowId;
+      const q = /Qual(\d+)Round(\d+)(?:Day(\d+))?/i.exec(w);
+      if (q) return { finale: false, haupt: `Qualifier ${q[1]}`, neben: `${q[3] ? `${t('Tag')} ${q[3]} ` : ''}${t('Runde')} ${q[2]}` };
+      const h = /Heats?Stage_Heat(\d+)|_Heat(\d+)/i.exec(w);
+      if (h) return { finale: false, haupt: `Heat ${h[1] ?? h[2]}`, neben: '' };
+      if (/LastChanceQualifier/i.test(w)) return { finale: false, haupt: 'Last Chance', neben: 'Qualifier' };
+      if (/LastChanceLobby/i.test(w)) return { finale: false, haupt: 'Last Chance', neben: 'Lobby' };
+      const fd = /_Final_Day(\d+)/i.exec(w);
+      if (fd) return { finale: true, haupt: t('Finale'), neben: `${t('Tag')} ${fd[1]}` };
+      return null;
+    });
+    if (tage.length && gegliedert.every(Boolean)) return gegliedert as Array<{ finale: boolean; haupt: string; neben: string }>;
 
     return tage.map((f, i) => {
       const g = gliederung[i];
@@ -2939,6 +2959,16 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
               <div className="flex flex-col gap-5 md:flex-row">
                 <div className="min-w-0 flex-1 space-y-1.5">
                   <h2 className="text-base font-bold text-slate-100">{kartenTitel(cup?.titel, fenster, t)}</h2>
+                  {/* Epics eigene Beschreibung - worum es geht und wie die Runden
+                      zusammenhaengen (Qualifier, Runden, wer weiterkommt). Der
+                      Betreiber (29.9.2026): "bei About soll unbedingt so etwas
+                      stehen ... bei jedem Cup". */}
+                  {cup?.beschreibung && (
+                    <div className="mb-3 rounded-lg border border-zinc-800 bg-zinc-900/50 p-3">
+                      <p className="mb-1 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500"><T>Event-Info</T></p>
+                      <p className="whitespace-pre-line text-sm leading-relaxed text-slate-300">{cup.beschreibung}</p>
+                    </div>
+                  )}
                   {st.pbm && (
                     <p className="text-sm font-bold text-emerald-400">Points-Based Matchmaking (ELO)</p>
                   )}
