@@ -42,8 +42,8 @@ for (const id of ids) {
     console.log(`  ${id}: ${roh.schadenEreignisse} Schadens-Ereignisse, ${roh.schadenZugeordnet} zugeordnet, ${roh.schadenVorDemBus} vor dem Bus, ${roh.schadenAufBoden} auf Umgehauene (ab ${roh.busAb}), ${roh.schaden?.length ?? 0} Spieler`);
     for (const s of roh.schaden ?? []) {
       const k = echt(epicVon.get(s.id) ?? `?${s.id}`);
-      const d = summe.get(k) ?? { gemacht: 0, ohneBoden: 0, genommen: 0, treffer: 0, krit: 0 };
-      d.ohneBoden += s.gemachtOhneBoden ?? 0; d.gemacht += s.gemacht; d.genommen += s.genommen; d.treffer += s.treffer; d.krit += s.krit;
+      const d = summe.get(k) ?? { gemacht: 0, ohneBoden: 0, ohneFatal: 0, genommen: 0, treffer: 0, krit: 0 };
+      d.ohneBoden += s.gemachtOhneBoden ?? 0; d.ohneFatal += s.gemachtOhneFatal ?? 0; d.gemacht += s.gemacht; d.genommen += s.genommen; d.treffer += s.treffer; d.krit += s.krit;
       summe.set(k, d);
     }
   } catch (e) {
@@ -55,9 +55,17 @@ const szene = await fetch(`https://www.thecomphub.com/api/cup-spieler?event=${en
   .then((r) => (r.ok ? r.json() : null)).catch(() => null);
 const vergleich = new Map((szene?.spieler ?? []).map((s) => [s.epicId, s]));
 console.log(`\nQuelle der Seite: ${szene?.quelle ?? '-'} (${szene?.spieler?.length ?? 0} Spieler)`);
-console.log('Konto                             Replay-Schaden  ohne-Boden  Quelle-Schaden  Replay-erlitten  Quelle-erlitten  Treffer Quelle-Treffer');
+console.log('Konto                             Replay-Schaden  ohne-Boden  ohne-Fatal  Quelle-Schaden  Replay-erlitten  Quelle-erlitten  Treffer Quelle-Treffer');
 const reihe = [...summe.entries()].sort((a, b) => b[1].gemacht - a[1].gemacht).slice(0, 25);
 for (const [k, d] of reihe) {
   const v = vergleich.get(k);
-  console.log(`${(v?.name ?? k).slice(0, 32).padEnd(33)} ${String(Math.round(d.gemacht)).padStart(14)}  ${String(Math.round(d.ohneBoden)).padStart(10)}  ${String(v?.damage ?? '-').padStart(14)}  ${String(Math.round(d.genommen)).padStart(15)}  ${String(v?.damageTaken ?? '-').padStart(15)}  ${String(d.treffer).padStart(7)} ${String(v?.hits ?? '-').padStart(14)}`);
+  console.log(`${(v?.name ?? k).slice(0, 32).padEnd(33)} ${String(Math.round(d.gemacht)).padStart(14)}  ${String(Math.round(d.ohneBoden)).padStart(10)}  ${String(Math.round(d.ohneFatal)).padStart(10)}  ${String(v?.damage ?? '-').padStart(14)}  ${String(Math.round(d.genommen)).padStart(15)}  ${String(v?.damageTaken ?? '-').padStart(15)}  ${String(d.treffer).padStart(7)} ${String(v?.hits ?? '-').padStart(14)}`);
+}
+
+const mitQuelle = [...summe.entries()].filter(([k]) => vergleich.get(k)?.damage > 0).sort((a, b) => b[1].gemacht - a[1].gemacht).slice(0, 60);
+for (const feld of ['gemacht', 'ohneBoden', 'ohneFatal']) {
+  const q = mitQuelle.map(([k, d]) => d[feld] / vergleich.get(k).damage);
+  const mittel = q.reduce((a, b) => a + b, 0) / q.length;
+  const streu = Math.sqrt(q.reduce((a, b) => a + (b - mittel) ** 2, 0) / q.length);
+  console.log(`${feld.padEnd(10)}: Verhaeltnis zur Quelle im Mittel ${mittel.toFixed(3)}, Streuung ${streu.toFixed(3)} (${q.length} Spieler)`);
 }

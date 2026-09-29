@@ -84,7 +84,7 @@ foreach (var g in replay.KillFeed.Where(k => k.PlayerId is not null).GroupBy(k =
 }
 reader.Zaehle(busAb);
 var schaden = reader.Je.Select(kv => new {
-  id = kv.Key, gemacht = Math.Round(kv.Value.Gemacht), gemachtOhneBoden = Math.Round(reader.OhneBodenGemacht(kv.Key)), genommen = Math.Round(kv.Value.Genommen),
+  id = kv.Key, gemacht = Math.Round(kv.Value.Gemacht), gemachtOhneBoden = Math.Round(reader.OhneBodenGemacht(kv.Key)), gemachtOhneFatal = Math.Round(reader.OhneFatalGemacht(kv.Key)), genommen = Math.Round(kv.Value.Genommen),
   treffer = kv.Value.Treffer, krit = kv.Value.Krit, schild = Math.Round(kv.Value.AufSchild),
 }).ToList();
 
@@ -180,7 +180,7 @@ class SchadenLeser : ReplayReader {
     if (von?.Id is null || an?.Id is null || von.Id == an.Id) return;
     if (von.TeamIndex is not null && von.TeamIndex == an.TeamIndex) return;
     Zugeordnet++;
-    Liste.Add((von.Id.Value, an.Id.Value, c.Magnitude.Value, c.bIsCritical == true, c.bIsShield == true, Zeit()));
+    Liste.Add((von.Id.Value, an.Id.Value, c.Magnitude.Value, c.bIsCritical == true, c.bIsShield == true, Zeit(), c.bIsFatal == true));
     if (Roh.Count < RohZeilen) {
       Roh.Add($"k={channelIndex} ziel={zielKanal} hit={c.HitActor} mag={c.Magnitude} krit={c.bIsCritical} schild={c.bIsShield} weg={c.bIsShieldDestroyed} fatal={c.bIsFatal} ball={c.bIsBallistic} waffe={c.bWeaponActivate} von={von.Id}/{von.TeamIndex} an={an.Id}/{an.TeamIndex}");
     }
@@ -194,11 +194,13 @@ class SchadenLeser : ReplayReader {
    * stand ein Spieler mit dutzenden 24er- und 48er-Treffern auf denselben
    * Gegner da, bevor das Spiel ueberhaupt begonnen hatte.
    */
-  public readonly List<(int von, int an, double hoehe, bool krit, bool schild, double? t)> Liste = new();
+  public readonly List<(int von, int an, double hoehe, bool krit, bool schild, double? t, bool fatal)> Liste = new();
   /// Wann ein Spieler am Boden lag (umgehauen bis aufgestanden oder tot) - aus dem Kill-Feed.
   public Dictionary<int, List<(double ab, double bis)>> AmBoden = new();
   public double OhneBodenGemacht(int id) => ohneBoden.TryGetValue(id, out var v) ? v : 0;
   readonly Dictionary<int, double> ohneBoden = new();
+  readonly Dictionary<int, double> ohneFatal = new();
+  public double OhneFatalGemacht(int id) => ohneFatal.TryGetValue(id, out var v) ? v : 0;
   public int AufBoden;
   /// Wann Spielerfiguren verschwanden - beim Einsteigen in den Bus fast alle zugleich.
   public readonly List<double> FigurEnde = new();
@@ -224,6 +226,7 @@ class SchadenLeser : ReplayReader {
       var s1 = Fuer(e.von); s1.Gemacht += e.hoehe; s1.Treffer++;
       bool amBoden = e.t is double tt && AmBoden.TryGetValue(e.an, out var zeiten) && zeiten.Any(z => tt >= z.ab && tt <= z.bis);
       if (amBoden) AufBoden++; else ohneBoden[e.von] = (ohneBoden.TryGetValue(e.von, out var alt) ? alt : 0) + e.hoehe;
+      if (!e.fatal) ohneFatal[e.von] = (ohneFatal.TryGetValue(e.von, out var alt2) ? alt2 : 0) + e.hoehe;
       if (e.krit) s1.Krit++;
       if (e.schild) s1.AufSchild += e.hoehe;
       Fuer(e.an).Genommen += e.hoehe;
