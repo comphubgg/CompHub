@@ -116,6 +116,11 @@ async function tag(eventId, windowId, idsVorab = null) {
       // Clutch nach der Regel des Betreibers aus dem eigenen Leser (Reboots
       // inklusive); nur wenn der fehlt, die alte Rechnung.
       const voll = vollAus(datei);
+      // Fuer den Abgleich (scripts/clutch-varianten.mjs) die Ausgabe ablegen.
+      if (voll && process.env.VOLL_ABLEGEN) {
+        fs.mkdirSync(process.env.VOLL_ABLEGEN, { recursive: true });
+        fs.writeFileSync(path.join(process.env.VOLL_ABLEGEN, `${windowId}__${id}.json`), JSON.stringify(voll));
+      }
       const c = !regeln.length ? new Map() : voll ? clutchAusVoll(voll, regeln) : clutchPunkte(roh, regeln);
       const sch = schadenAus(voll);
       for (const [k, v] of Object.entries(sch ?? {})) {

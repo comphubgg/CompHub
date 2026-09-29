@@ -49,9 +49,10 @@ jobs:
         if: inputs.art == 'clutch'
         run: |
           for w in $(echo "${{ inputs.window }}" | tr ',' ' '); do
-            node scripts/clutch-berechnen.mjs "${{ inputs.event }}" "$w" 2>&1 | grep -v 'Spieler mit' | tail -4
+            VOLL_ABLEGEN=/tmp/voll node scripts/clutch-berechnen.mjs "${{ inputs.event }}" "$w" 2>&1 | grep -v 'Spieler mit' | tail -4
           done
           node scripts/clutch-probe.mjs $(echo "${{ inputs.window }}" | tr ',' ' ')
+          node scripts/clutch-varianten.mjs /tmp/voll "nxthan,fuukun,syaaz,rax,cr1nge,cringe,chap,romero,t3eny,shxrk,vico,malibuca"
       - name: Probe
         if: inputs.art != 'clutch'
         env:
