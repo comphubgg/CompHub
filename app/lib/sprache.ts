@@ -3546,6 +3546,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Bilderarchiv': 'Player Pictures',
   'Das Profil ließ sich gerade nicht laden.': 'The profile could not be loaded right now.',
   'Nochmal versuchen': 'Try again',
+  'Schaden, Treffer und Kopftreffer aus den Server-Replays gezählt (ohne Treffer auf Umgehauene); im Abgleich mit Epics eigenen Werten im Mittel 6 % niedriger.': 'Damage, hits and headshots counted from the server replays (without hits on knocked players); compared with Epic’s own figures about 6% lower on average.',
   'Kumulativ': 'Cumulative',
   'Gespielt am': 'Played at',
   'An Elims beteiligt': 'Involved in elims',

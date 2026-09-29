@@ -303,8 +303,20 @@ async function holeRoh(request: Request) {
    * (.github/workflows/clutch-rechnen.yml, jeder Team-Spieltag bis 60
    * Matches). Der Betreiber: "Clutch Points muessen immer dort sein."
    */
-  const clutchDatei = await liesJson<{ summe?: Record<string, number> } | null>(`clutch/${fenster}.json`, null).catch(() => null);
-  const clutchVon = clutchDatei?.summe ? new Map(Object.entries(clutchDatei.summe)) : null;
+  const clutchDatei = await liesJson<{
+    summe?: Record<string, number>;
+    schaden?: Record<string, { dmg: number; erlitten: number; treffer: number; krit: number }>;
+  } | null>(`clutch/${fenster}.json`, null).catch(() => null);
+  // Leer bei Solo-Tagen (dort gibt es keine Clutch-Punkte) - dann gar keine Zahl.
+  const clutchVon = clutchDatei?.summe && Object.keys(clutchDatei.summe).length
+    ? new Map(Object.entries(clutchDatei.summe)) : null;
+  /*
+   * Schaden, Treffer und Kopftreffer aus den vollen Replays, wo der Spieltag
+   * gelesen ist (tools/replay-voll, SchadenLeser) - gezaehlt ohne Treffer auf
+   * Umgehauene; an den Globals gegen Epics Werte geprueft: im Mittel 6 %
+   * darunter. Die Anzeige sagt, dass es gezaehlt ist.
+   */
+  const schadenVon = clutchDatei?.schaden ? new Map(Object.entries(clutchDatei.schaden)) : null;
   const spieler = gezeigt.map((x, i) => {
     const team = zumTeam.get(x.epicId);
     return {
@@ -320,12 +332,22 @@ async function holeRoh(request: Request) {
       platz: team?.platz ?? null,
       partner: (team?.partner ?? []).map((id) => anzeige.get(id) ?? id.slice(0, 8)),
       clutch: clutchVon ? (clutchVon.get(x.epicId.toLowerCase()) ?? 0) : null,
+      ...(() => {
+        const d = schadenVon?.get(x.epicId.toLowerCase());
+        if (!d) return {};
+        return {
+          damage: Math.round(d.dmg), damageTaken: Math.round(d.erlitten),
+          damageRatio: d.erlitten > 0 ? d.dmg / d.erlitten : null,
+          hits: d.treffer, headshots: d.krit, schadenAusReplay: true,
+        };
+      })(),
     };
   });
 
   return NextResponse.json({
     vorhanden: true,
     clutch: !!clutchVon,
+    schadenAusReplay: !!schadenVon,
     runden: rep.matches ?? 0,
     rundenGesamt: rep.rundenGesamt,
     gerechnet: rep.gerechnet ?? null,

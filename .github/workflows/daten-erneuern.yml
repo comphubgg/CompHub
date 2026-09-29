@@ -221,7 +221,8 @@ jobs:
         continue-on-error: true
         timeout-minutes: 15
         run: |
-          node scripts/ablage-github-holen.mjs --ordner replays --ordner epic-spieltage 2>&1 | tail -4
+          # Dazu Schaden und Clutch je Spieltag (Ablauf "Clutch rechnen") fuer die Akten.
+          node scripts/ablage-github-holen.mjs --ordner replays --ordner epic-spieltage --ordner clutch 2>&1 | tail -4
 
       # Auch hier die Adresse des Werkzeugs. Ohne sie fragte das Skript auf
       # localhost ins Leere und brach nach einer Sekunde mit ECONNREFUSED ab

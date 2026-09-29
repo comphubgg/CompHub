@@ -874,12 +874,18 @@ export async function aktenSchreiben(): Promise<{ konten: number; geschrieben: n
   for (const tag of await liesEpicSpieltage()) {
     if (imArchiv.has(tag.windowId)) continue;
     let replays: Map<string, ReplayWert> | null = null;
+    let voll: { schaden?: Record<string, { dmg: number; erlitten: number; treffer: number; krit: number }>; summe?: Record<string, number> } | null = null;
     for (const team of tag.teams) {
       for (const id of team.spieler) {
         const a = akten.get(id) ?? (bekannt.has(id) ? akte(id) : null);
         if (!a) continue;
         replays ??= await replayKarte(tag.season, tag.windowId);
         const w = replays.get(id);
+        // Schaden und Clutch aus den vollen Replays, wo der Tag gelesen ist
+        // (.github/workflows/clutch-rechnen.yml) - gezaehlt, nicht von Epic.
+        voll ??= await vollWerte(tag.windowId);
+        const sch = voll.schaden?.[id];
+        const cl = voll.summe && Object.keys(voll.summe).length ? (voll.summe[id] ?? 0) : undefined;
         a.epic.push({
           event: tag.windowId, windowId: tag.windowId, region: tag.region,
           season: tag.season, titel: tag.titel, datum: tag.datum,
@@ -887,6 +893,8 @@ export async function aktenSchreiben(): Promise<{ konten: number; geschrieben: n
           mitspieler: team.spieler.filter((x) => x !== id),
           nurEpic: true,
           ...(w ? { replayElims: w.elims, replayKnocks: w.knocks } : {}),
+          ...(sch ? { replaySchaden: { dmg: Math.round(sch.dmg), erlitten: Math.round(sch.erlitten), treffer: sch.treffer, krit: sch.krit } } : {}),
+          ...(typeof cl === 'number' ? { replayClutch: cl } : {}),
         });
       }
     }
@@ -2203,6 +2211,15 @@ export async function epicTag(windowId: string): Promise<EpicSpieltag | null> {
     } catch { /* nicht in dieser Saison */ }
   }
   return null;
+}
+
+/** Schaden und Clutch eines Spieltags aus data/clutch/<windowId>.json (leer, wenn nicht gelesen). */
+async function vollWerte(windowId: string) {
+  try {
+    return JSON.parse(await fs.readFile(path.join(DATEN_ORT, 'clutch', `${windowId}.json`), 'utf8')) as {
+      schaden?: Record<string, { dmg: number; erlitten: number; treffer: number; krit: number }>; summe?: Record<string, number>;
+    };
+  } catch { return {}; }
 }
 
 /** Echtes Konto -> seine Turnierkonten an LANs (lib/lanKonten, umgedreht). */

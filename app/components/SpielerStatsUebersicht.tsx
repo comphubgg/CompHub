@@ -83,12 +83,14 @@ function alsZeit(sek: number, stunden = false): string {
   return h ? `${h}h ${m}m` : `${m}m ${s % 60}s`;
 }
 
-export default function SpielerStatsUebersicht({ spieler, matches, aktualisiert, szene }: {
+export default function SpielerStatsUebersicht({ spieler, matches, aktualisiert, szene, schadenAusReplay }: {
   spieler: KachelSpieler[];
   /** Wie viele Matches der Spieltag (oder das Turnier) hatte. */
   matches: number;
   /** Wann die Werte zuletzt gerechnet oder von Epic fortgeschrieben wurden. */
   aktualisiert?: string | null;
+  /** Schaden, Treffer, Kopftreffer aus den eigenen Replays gezaehlt (nicht Epics Zahl). */
+  schadenAusReplay?: boolean;
   /** Werte aus der Szene-Quelle (Endstand) statt aus den eigenen Replays. */
   szene?: boolean;
 }) {
@@ -208,6 +210,12 @@ export default function SpielerStatsUebersicht({ spieler, matches, aktualisiert,
         {vorWann ? <><T>Zuletzt aktualisiert</T>{' '}
           {new Date(stand).toLocaleString(ort, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })} ({vorWann})</>
           : szene ? <T>Endstand aus der Szene-Quelle</T> : null}
+        {/* Gezaehlt, nicht von Epic - das muss dabeistehen (echte, aber abgeleitete Zahlen). */}
+        {schadenAusReplay && (
+          <span className="mt-1 block text-slate-600">
+            <T>Schaden, Treffer und Kopftreffer aus den Server-Replays gezählt (ohne Treffer auf Umgehauene); im Abgleich mit Epics eigenen Werten im Mittel 6 % niedriger.</T>
+          </span>
+        )}
       </p>
 
       <StatKacheln spieler={spieler} listen={OSIRION_KACHELN} anzahl={5} leereZeigen />

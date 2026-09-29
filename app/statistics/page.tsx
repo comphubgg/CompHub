@@ -275,6 +275,8 @@ interface VerlaufZeile {
    * Turnierergebnissen und zaehlt in keiner Summe mit.
    */
   gesamt?: boolean;
+  /** Schaden aus den vollen Replays gezaehlt (Epic-Zeilen ohne Werte der Quelle). */
+  replaySchaden?: { dmg: number; erlitten: number; treffer: number; krit: number };
   /**
    * Preisgeld je Person zu diesem Spieltag - abgeleitet aus Platz oder
    * Punkten und der gepflegten Tabelle (lib/preisgeld). null, wo keine
@@ -1303,6 +1305,7 @@ function VerlaufTabelle({ zeilen, fuss }: {
   const ohneWert = t('Zu diesem Spieltag hat die Szene-Quelle noch nichts '
     + 'veröffentlicht. Epics Bestenliste führt Schaden, Material und Bauteile '
     + 'nicht, und im Replay stehen sie ebenfalls nicht.');
+  const replayHinweis = t('Schaden, Treffer und Kopftreffer aus den Server-Replays gezählt (ohne Treffer auf Umgehauene); im Abgleich mit Epics eigenen Werten im Mittel 6 % niedriger.');
 
   return (
     <div className="overflow-x-auto">
@@ -1432,15 +1435,21 @@ function VerlaufTabelle({ zeilen, fuss }: {
                 * sagt das Feld jetzt im Mouseover, warum es leer ist.
                 * Geraten wird nichts.
                 */}
+              {/* Bei Epic-Zeilen der Schaden aus den eigenen Replays, wo der Tag voll
+                  gelesen ist - gepunktet unterstrichen wie die Elims daneben. */}
               <td className="px-2 py-2 text-right tabular-nums text-slate-400">
-                {z.nurEpic
-                  ? <span className="cursor-help text-slate-700" title={ohneWert}>—</span>
-                  : zahl(Math.round(z.werte.damageDealt), 0, sprache)}
+                {z.nurEpic && z.replaySchaden
+                  ? <span className="cursor-help underline decoration-dotted decoration-sky-400/50 underline-offset-2" title={replayHinweis}>{zahl(z.replaySchaden.dmg, 0, sprache)}</span>
+                  : z.nurEpic
+                    ? <span className="cursor-help text-slate-700" title={ohneWert}>—</span>
+                    : zahl(Math.round(z.werte.damageDealt), 0, sprache)}
               </td>
               <td className="px-2 py-2 text-right tabular-nums text-slate-400">
-                {z.nurEpic
-                  ? <span className="cursor-help text-slate-700" title={ohneWert}>—</span>
-                  : zahl(quote(z.werte), 2, sprache)}
+                {z.nurEpic && z.replaySchaden && z.replaySchaden.erlitten > 0
+                  ? <span className="cursor-help underline decoration-dotted decoration-sky-400/50 underline-offset-2" title={replayHinweis}>{zahl(z.replaySchaden.dmg / z.replaySchaden.erlitten, 2, sprache)}</span>
+                  : z.nurEpic
+                    ? <span className="cursor-help text-slate-700" title={ohneWert}>—</span>
+                    : zahl(quote(z.werte), 2, sprache)}
               </td>
               <td className="px-2 py-2 text-right tabular-nums text-slate-400">
                 {z.nurEpic || !mats(z.werte)
@@ -2787,6 +2796,7 @@ export default function StatistikSeite() {
         datum: number | null; platz: number; punkte: number; matches: number;
         mitspieler: Mitspieler[];
         replayElims?: number; replayKnocks?: number;
+        replaySchaden?: { dmg: number; erlitten: number; treffer: number; krit: number };
         verdienst?: number | null;
       }) => ({
         event: z.titel || z.windowId,
@@ -2801,6 +2811,7 @@ export default function StatistikSeite() {
         nurEpic: true,
         replayElims: z.replayElims,
         replayKnocks: z.replayKnocks,
+        replaySchaden: z.replaySchaden,
         /*
          * Das Preisgeld der Epic-Zeilen ging hier verloren - die Verdienst-
          * Seite zaehlte nur die Zeilen der Szene-Quelle, und Queasy stand

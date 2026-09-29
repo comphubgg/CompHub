@@ -3997,7 +3997,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
               spieler={spielerWerte.spieler.map((s) => ({ ...s, elims: s.kills, quote: s.damageRatio ?? 0 }))}
               matches={spielerWerte.runden}
               aktualisiert={spielerWerte.aktualisiert ?? null}
-              szene={spielerWerte.quelle === 'szene'} />
+              szene={spielerWerte.quelle === 'szene'}
+              schadenAusReplay={!!(spielerWerte as { schadenAusReplay?: boolean }).schadenAusReplay} />
           </div>
         )}
         {reiter === 'spieler' && !soloCup && (
