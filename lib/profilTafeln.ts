@@ -44,7 +44,10 @@ export function fncsFinalTag(windowId: string): number | null {
 /** "S19" -> "CH3 S1" (aus saisonKurz "CH3S1"). */
 export const mitLeerzeichen = (kurz: string) => kurz.toUpperCase().replace(/^(CH\d+)(S\d+)$/, '$1 $2');
 
-const istLanLabel = (label: string) => /^(GLOBALS|INVITATIONAL)|SUMMIT/i.test(label);
+const istLanLabel = (label: string) => /^(GLOBALS|INVITATIONAL|EWC)|SUMMIT/i.test(label);
+/** Die LANs, die in die FNCS-Tafel gehoeren. */
+const EWC = /reload elite series championship|esports world cup|\bEWC\b/i;
+const FNCS_LAN = new RegExp(`global championship|summit|invitational|${EWC.source}`, 'i');
 
 export function fncsTafel(opt: {
   quelle: Array<{ saison: string; platz: number }>;
@@ -57,6 +60,16 @@ export function fncsTafel(opt: {
   kennungVon: (label: string) => string | undefined;
   /** Saisons, in denen es ein FNCS-Finale gab, das die Quelle noch nicht fuehrt. */
   weitereFinals: string[];
+  /**
+   * Wer in der Liste der Quelle bei diesem Eintrag denselben Platz hat.
+   *
+   * Gebraucht fuer die LANs ohne eigene Bestenliste im Archiv (Invitational
+   * 2022, Globals 2023). Dort gibt es ein einziges Feld fuer die ganze Welt,
+   * jeder Platz gehoert genau einem Team - wer denselben Platz hat, ist der
+   * Mitspieler. Der Betreiber (29.9.2026): "du musst unbedingt die Mates
+   * zumindest herausfinden", und zwar wirklich, nicht vom Bild abgelesen.
+   */
+  gleicherPlatz?: (saison: string, platz: number) => string[];
 }): TafelZeile[] {
   const { quelle, zeilen, lan, spieler, label, kennungVon } = opt;
   const nr = (k?: string) => (k && /^S\d+$/.test(k) ? Number(k.slice(1)) : NaN);
@@ -70,10 +83,13 @@ export function fncsTafel(opt: {
     if (!da || tag > da.tag || (tag === da.tag && (z.mitspieler.length > da.mitspieler.length))) jeSaison.set(z.season, { ...z, tag });
   }
   // Die LANs der FNCS (Globals, Summit), je Kennung.
-  const lans = lan.filter((e) => /global championship|summit|invitational/i.test(e.name));
+  const lans = lan.filter((e) => FNCS_LAN.test(e.name));
   const lanLabel = (e: LanListe) => (/global championship/i.test(e.name)
     ? `GLOBALS ${/(\d{4})/.exec(e.name)?.[1] ?? ''}`.trim()
-    : `${label(e.season)} MID SUMMIT`);
+    // Die Reload Elite Series Championship lief beim Esports World Cup - fuer
+    // den Betreiber (29.9.2026) "auch ein FNCS".
+    : EWC.test(e.name) ? `EWC ${/(\d{4})/.exec(e.name)?.[1] ?? ''}`.trim()
+      : `${label(e.season)} MID SUMMIT`);
   const lanTeam = (e: LanListe) => {
     const ich = e.spieler.find((s) => s.epicId === spieler);
     return ich ? { platz: ich.platz, mit: e.spieler.filter((s) => s.platz === ich.platz && s.epicId !== spieler).map((s) => s.epicId) } : null;
@@ -91,7 +107,8 @@ export function fncsTafel(opt: {
     const lanT = lanE ? lanTeam(lanE) : null;
     raus.set(q.saison, {
       saison: q.saison, platz: q.platz, typ: istLanLabel(q.saison) ? 'LAN' : 'ONLINE',
-      mitspieler: q.platz ? (lanT?.mit ?? z?.mitspieler ?? []) : [],
+      mitspieler: q.platz ? (lanT?.mit ?? (z?.mitspieler.length ? z.mitspieler : null)
+        ?? (/^(GLOBALS|INVITATIONAL)/.test(q.saison) ? opt.gleicherPlatz?.(q.saison, q.platz) : null) ?? []) : [],
       datum: z?.datum ?? null, schluessel,
     });
   }
@@ -164,7 +181,7 @@ export function andereErfolge(zeilen: ProfilZeile[], lan: LanListe[], spieler: s
     });
   }
   for (const e of lan) {
-    if (/global championship|summit|invitational/i.test(e.name)) continue;
+    if (FNCS_LAN.test(e.name)) continue;
     const ich = e.spieler.find((s) => s.epicId === spieler);
     if (!ich || ich.platz > 3) continue;
     raus.push({

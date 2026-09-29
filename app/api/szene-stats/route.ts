@@ -1137,6 +1137,9 @@ async function berechne(request: Request) {
         label: labelVon,
         kennungVon: (l) => kennungZu.get(l.replace(/\s+/g, '').toUpperCase()),
         weitereFinals,
+        gleicherPlatz: (saison, platz) => szeneListe
+          .filter((x) => x.ID !== spieler && Number(x[saison.replace(/\s+/g, '_')]) === platz)
+          .map((x) => String(x.ID)),
       });
       const erfolgeRoh = andereErfolge(profilZeilen, lanFuerTafel, spieler);
       const person = (id: string) => {
