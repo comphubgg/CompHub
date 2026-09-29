@@ -942,6 +942,11 @@ async function berechne(request: Request) {
       : await summen(filter);
 
     if (spieler) {
+      // Wie lange die Teile des Profils brauchen - mitgeliefert als "messung",
+      // um die Ladezeit auf Renders kleinem Rechner gezielt zu druecken.
+      const t0 = Date.now();
+      const messung: Record<string, number> = {};
+      const mark = (teil: string) => { messung[teil] = Date.now() - t0; };
       /*
        * Ohne Auswahl steht die Summe fertig in der Liste; mit Auswahl wird
        * sie aus den Zeilen gerechnet (siehe unten, sobald sie da sind).
@@ -968,6 +973,7 @@ async function berechne(request: Request) {
        * wer oefter angetreten ist.
        */
       const gesamt = await gesamtSummen();
+      mark('gesamt');
       const gEintrag = gesamt.find((s) => s.epicId === spieler);
       const feld = gesamt.filter((s) => s.matches >= 10);
       const rang = (wert: number, holen: (s: typeof gesamt[number]) => number) => {
@@ -1027,7 +1033,9 @@ async function berechne(request: Request) {
        * ihrem Rating. Hier zaehlt, was in den Dateien steht: die meisten
        * Eliminierungen eines Spieltags.
        */
+      mark('perzentile');
       const tage = (await tagesbeste()).get(spieler) ?? [];
+      mark('tagesbeste');
       const tagesbest = tage
         .map((t) => ({ ...t, saisonName: saisonName(t.season) }))
         .sort((a, b) => b.elims - a.elims);
@@ -1091,6 +1099,7 @@ async function berechne(request: Request) {
        * Sie kommen als Konto-Ids aus Epics Bestenliste; die Namen holt
        * dieselbe Zuordnung, die auch die Turnierliste benutzt.
        */
+      mark('fncsDetail');
       const profileFuerSiege = await liesProfile();
       const szeneFuerSiege = await liesSzeneSpieler();
       const fncsSiege = await Promise.all(fncsSiegeRoh.map(async (x) => {
@@ -1116,6 +1125,7 @@ async function berechne(request: Request) {
         epicVerlauf(spieler).catch(() => []),
         lanEintraege().catch(() => []),
       ]);
+      mark('verlaufAlle');
       const profilZeilen: ProfilZeile[] = [
         ...alleSzene.map((z) => ({ windowId: z.windowId, season: z.season, titel: z.event, datum: z.datum ?? null, platz: z.platz ?? null, mitspieler: z.mitspieler ?? [] })),
         ...alleEpic.map((z) => ({ windowId: z.windowId, season: z.season, titel: z.titel, datum: z.datum ?? null, platz: z.platz ?? null, mitspieler: z.mitspieler ?? [] })),
@@ -1162,7 +1172,9 @@ async function berechne(request: Request) {
        * Gezaehlt wird ueber denselben Zeitraum, der oben gewaehlt ist - bei
        * "alle Saisons" also ueber das ganze Archiv.
        */
+      mark('tafel');
       const heimatKarte = await heimatRegionen();
+      mark('heimat');
       const meineRegion = heimatKarte.get(spieler) ?? '';
       const nachElims = [...alle].sort((a2, b2) => b2.elims - a2.elims);
       const rangGlobal = nachElims.findIndex((x) => x.epicId === spieler) + 1;
@@ -1195,7 +1207,9 @@ async function berechne(request: Request) {
        * tragen kein einziges Werteld: Schaden, Material und Bauteile kennt
        * Epic nicht, und die Eliminierungen dort gelten fuers ganze Team.
        */
+      mark('verlauf');
       const rohEpic = await epicVerlauf(spieler, { saison, saisons, region });
+      mark('epicVerlauf');
 
       /**
        * Die Mitspieler mit Namen und Flagge versehen.
@@ -1261,6 +1275,7 @@ async function berechne(request: Request) {
        * lib/preisgeld. Abgeleitet aus Platz beziehungsweise Punkten; wo
        * keine Regel steht, bleibt es null.
        */
+      mark('namen');
       const lanDesSpielers = await lanErgebnisse(spieler);
       const zeilen = await Promise.all(rohZeilen.map(async (z) => ({
         ...z,
@@ -1296,6 +1311,7 @@ async function berechne(request: Request) {
         })),
       })));
 
+      mark('verdienst');
       /**
        * Ein Bild je Saison fuer die Bannerzeile ueber der Turnierliste.
        *
@@ -1390,6 +1406,7 @@ async function berechne(request: Request) {
         erfolge,
         verlauf: zeilen,
         epicZeilen,
+        messung: (mark('ende'), messung),
       });
     }
 
