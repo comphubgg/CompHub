@@ -122,20 +122,52 @@ class SchadenLeser : ReplayReader {
   static readonly int RohZeilen = int.TryParse(Environment.GetEnvironmentVariable("SCHADEN_ROH"), out var n) ? n : 0;
   public readonly List<string> Roh = new();
 
+  /*
+   * Welche Kanaele gerade Spielerfiguren tragen - selbst gefuehrt.
+   *
+   * Die Zuordnung des Lesers (Kanal -> Spieler) bleibt stehen, wenn ein
+   * Kanal geschlossen und fuer ein anderes Objekt wiederverwendet wird. Erste
+   * Gegenprobe am 29.9.2026: so landeten Spitzhackenschlaege auf Baeume und
+   * Waende (50 und 100 je Schlag) bei Spielern, und der Schaden lag um ein
+   * Vielfaches zu hoch. Gezaehlt wird jetzt nur, wo beide Seiten in diesem
+   * Moment eine Spielerfigur sind.
+   */
+  readonly Dictionary<uint, uint> kanalAkteur = new();
+  readonly HashSet<uint> figurKanaele = new();
+  readonly Dictionary<uint, uint> figurVonAkteur = new();
+
+  protected override void OnChannelOpened(uint channelIndex, Unreal.Core.Models.NetworkGUID actor) {
+    base.OnChannelOpened(channelIndex, actor);
+    if (actor is not null) kanalAkteur[channelIndex] = actor.Value;
+  }
+
+  protected override void OnChannelClosed(uint channelIndex, Unreal.Core.Models.NetworkGUID actor) {
+    base.OnChannelClosed(channelIndex, actor);
+    figurKanaele.Remove(channelIndex);
+    if (kanalAkteur.TryGetValue(channelIndex, out var a) && figurVonAkteur.TryGetValue(a, out var k) && k == channelIndex) figurVonAkteur.Remove(a);
+    kanalAkteur.Remove(channelIndex);
+  }
+
   protected override void OnExportRead(uint channelIndex, INetFieldExportGroup exportGroup) {
     base.OnExportRead(channelIndex, exportGroup);
+    if (exportGroup is FortniteReplayReader.Models.NetFieldExports.PlayerPawn) {
+      figurKanaele.Add(channelIndex);
+      if (kanalAkteur.TryGetValue(channelIndex, out var akteur)) figurVonAkteur[akteur] = channelIndex;
+      return;
+    }
     if (exportGroup is not BatchedDamageCues c) return;
     Ereignisse++;
-    if (Roh.Count < RohZeilen) {
-      var v1 = Hole(VonFigur, channelIndex); var a1 = c.HitActor is null ? null : Hole(VonAkteur, c.HitActor.Value);
-      Roh.Add($"k={channelIndex} obj={System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(c)} hit={c.HitActor} mag={c.Magnitude} npHit={c.NonPlayerHitActor} npMag={c.NonPlayerMagnitude} loc={c.Location?.X:0},{c.Location?.Y:0} krit={c.bIsCritical} schild={c.bIsShield} fatal={c.bIsFatal} ball={c.bIsBallistic} valid={c.bIsValid} von={v1?.Id}/{v1?.TeamIndex} an={a1?.Id}/{a1?.TeamIndex}");
-    }
     if (c.HitActor is null || c.Magnitude is null || c.Magnitude <= 0) return;
+    if (!figurKanaele.Contains(channelIndex)) return;
+    if (!figurVonAkteur.TryGetValue(c.HitActor.Value, out var zielKanal) || !figurKanaele.Contains(zielKanal)) return;
     var von = Hole(VonFigur, channelIndex);
-    var an = Hole(VonAkteur, c.HitActor.Value);
+    var an = Hole(VonFigur, zielKanal);
     if (von?.Id is null || an?.Id is null || von.Id == an.Id) return;
     if (von.TeamIndex is not null && von.TeamIndex == an.TeamIndex) return;
     Zugeordnet++;
+    if (Roh.Count < RohZeilen) {
+      Roh.Add($"k={channelIndex} ziel={zielKanal} hit={c.HitActor} mag={c.Magnitude} krit={c.bIsCritical} schild={c.bIsShield} weg={c.bIsShieldDestroyed} fatal={c.bIsFatal} ball={c.bIsBallistic} waffe={c.bWeaponActivate} von={von.Id}/{von.TeamIndex} an={an.Id}/{an.TeamIndex}");
+    }
     double hoehe = c.Magnitude.Value;
     var s1 = Fuer(von.Id.Value); s1.Gemacht += hoehe; s1.Treffer++;
     if (c.bIsCritical == true) s1.Krit++;
