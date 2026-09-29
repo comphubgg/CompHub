@@ -71,16 +71,27 @@ var zonen = (replay.MapData?.SafeZones ?? Enumerable.Empty<FortniteReplayReader.
 
 // Schaden je Spieler aus den Schadens-Ereignissen (siehe SchadenLeser unten).
 var busAb = (double?)replay.GameData?.AircraftStartTime ?? reader.BusErkennen(replay.PlayerData.Count(p => !p.IsBot));
+// Zeiten am Boden je Spieler aus dem Kill-Feed: umgehauen -> aufgestanden oder tot.
+foreach (var g in replay.KillFeed.Where(k => k.PlayerId is not null).GroupBy(k => k.PlayerId.Value)) {
+  var liste = new List<(double, double)>(); double? ab = null;
+  foreach (var k in g.OrderBy(k => k.ReplicatedWorldTimeSecondsDouble ?? 0)) {
+    var t = k.ReplicatedWorldTimeSecondsDouble ?? 0;
+    if (k.IsDowned && !k.IsRevived) { ab ??= t; continue; }
+    if (ab is not null) { liste.Add((ab.Value, t)); ab = null; }
+  }
+  if (ab is not null) liste.Add((ab.Value, double.MaxValue));
+  reader.AmBoden[g.Key] = liste;
+}
 reader.Zaehle(busAb);
 var schaden = reader.Je.Select(kv => new {
-  id = kv.Key, gemacht = Math.Round(kv.Value.Gemacht), genommen = Math.Round(kv.Value.Genommen),
+  id = kv.Key, gemacht = Math.Round(kv.Value.Gemacht), gemachtOhneBoden = Math.Round(reader.OhneBodenGemacht(kv.Key)), genommen = Math.Round(kv.Value.Genommen),
   treffer = kv.Value.Treffer, krit = kv.Value.Krit, schild = Math.Round(kv.Value.AufSchild),
 }).ToList();
 
 var gd = replay.GameData;
 Console.WriteLine(JsonConvert.SerializeObject(new {
   version = 2,
-  schaden, schadenEreignisse = reader.Ereignisse, schadenZugeordnet = reader.Zugeordnet, schadenVorDemBus = reader.VorDemBus,
+  schaden, schadenEreignisse = reader.Ereignisse, schadenZugeordnet = reader.Zugeordnet, schadenVorDemBus = reader.VorDemBus, schadenAufBoden = reader.AufBoden,
   busAb,
   schadenRoh = reader.Roh.Count > 0 ? reader.Roh : null,
   match = gd?.GameSessionId, beginn = gd?.UtcTimeStartedMatch, ende = R(gd?.MatchEndTime),
@@ -184,6 +195,11 @@ class SchadenLeser : ReplayReader {
    * Gegner da, bevor das Spiel ueberhaupt begonnen hatte.
    */
   public readonly List<(int von, int an, double hoehe, bool krit, bool schild, double? t)> Liste = new();
+  /// Wann ein Spieler am Boden lag (umgehauen bis aufgestanden oder tot) - aus dem Kill-Feed.
+  public Dictionary<int, List<(double ab, double bis)>> AmBoden = new();
+  public double OhneBodenGemacht(int id) => ohneBoden.TryGetValue(id, out var v) ? v : 0;
+  readonly Dictionary<int, double> ohneBoden = new();
+  public int AufBoden;
   /// Wann Spielerfiguren verschwanden - beim Einsteigen in den Bus fast alle zugleich.
   public readonly List<double> FigurEnde = new();
 
@@ -206,6 +222,8 @@ class SchadenLeser : ReplayReader {
     foreach (var e in Liste) {
       if (busAb is not null && e.t is not null && e.t < busAb) { VorDemBus++; continue; }
       var s1 = Fuer(e.von); s1.Gemacht += e.hoehe; s1.Treffer++;
+      bool amBoden = e.t is double tt && AmBoden.TryGetValue(e.an, out var zeiten) && zeiten.Any(z => tt >= z.ab && tt <= z.bis);
+      if (amBoden) AufBoden++; else ohneBoden[e.von] = (ohneBoden.TryGetValue(e.von, out var alt) ? alt : 0) + e.hoehe;
       if (e.krit) s1.Krit++;
       if (e.schild) s1.AufSchild += e.hoehe;
       Fuer(e.an).Genommen += e.hoehe;
