@@ -509,6 +509,27 @@ function imAggregatSync(f) {
   }
 }
 
+/*
+ * Wann ein "nicht vorhanden" noch einmal gefragt wird.
+ *
+ * Bis zum 29.9.2026 nur am ersten Tag. Eine Stichprobe an diesem Tag zeigte
+ * aber: von sechs Spieltagen mit "NOT_AVAILABLE" lagen bei vier alle
+ * geprueften Replays inzwischen bei Epic (Madison Beer ME, Division 1 NAC,
+ * Performance Evaluation Event 2, Persona 5 ZB ME) - Epic legt manche erst
+ * Tage spaeter ab. Der Betreiber: "es sollen eigentlich gar keine Matches
+ * fehlen". Jetzt wird bis zu Epics Frist von 31 Tagen weiter gefragt: am
+ * ersten Tag alle zehn Minuten, danach alle zwoelf Stunden.
+ */
+function nochmalFragen(m) {
+  const zuletzt = Date.parse(m.zuletzt ?? '') || 0;
+  const erstmals = Date.parse(m.erstmals ?? '') || zuletzt;
+  const alter = Date.now() - erstmals;
+  if (alter > FRIST_TAGE * 864e5) return false;
+  return alter < 24 * 3600_000
+    ? Date.now() - zuletzt > 10 * 60_000
+    : Date.now() - zuletzt > 12 * 3600_000;
+}
+
 /** Ein einzelnes Match durch die Kette schicken. */
 async function verarbeite(f, matchId, zustand) {
   const setze = (stand, zusatz = {}) => {
@@ -661,8 +682,7 @@ async function wiederholen() {
         // zurueck. Alles andere - fehlgeschlagen, haengengeblieben, nie
         // begonnen - wird noch einmal angefasst.
         .filter(([, m]) => m.stand !== ZUSTAND.FERTIG
-          && (m.stand !== ZUSTAND.NICHT_VORHANDEN
-            || Date.now() - (Date.parse(m.erstmals ?? m.zuletzt ?? '') || 0) < 24 * 3600_000))
+          && (m.stand !== ZUSTAND.NICHT_VORHANDEN || nochmalFragen(m)))
         .map(([id]) => id);
       if (!offen.length) continue;
       // Ausserhalb der Frist gibt es das Replay nicht mehr. Danach zu fragen
@@ -855,15 +875,7 @@ ${f.season} ${f.region.padEnd(4)} ${f.titel}`);
        * mehr." Jetzt wird ein junges "nicht da" wieder gefragt; nach
        * einem Tag ohne Replay ist es wirklich keins.
        */
-      if (m.stand === ZUSTAND.NICHT_VORHANDEN) {
-        const zuletzt = Date.parse(m.zuletzt ?? '') || 0;
-        const erstmals = Date.parse(m.erstmals ?? '') || zuletzt;
-        // Und nicht jede Minute: alle zehn Minuten genuegt - Epic braucht
-        // ohnehin ein paar Minuten, und tausend Nachfragen je Durchgang
-        // waeren Epic gegenueber unhoeflich.
-        return Date.now() - erstmals < 24 * 3600_000
-          && Date.now() - zuletzt > 10 * 60_000;
-      }
+      if (m.stand === ZUSTAND.NICHT_VORHANDEN) return nochmalFragen(m);
       if (m.stand !== ZUSTAND.FERTIG) return true;
       // Fertig - und die Datei liegt hier: fertig.
       if (existsSync(matchPfad(f.season, f.windowId, id))) return false;
