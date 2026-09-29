@@ -65,7 +65,9 @@ async function wertung(eventId, windowId) {
   return [];
 }
 
-const GROSS_MAX = 60;
+// Bis 250 Matches: Finals, Division 1 bis 4 und Cash-Cup-Finals (mehrere
+// Lobbys). Offene Runden mit 400 bis 2000 Lobbys bleiben aussen vor.
+const GROSS_MAX = 250;
 
 /*
  * Schaden je Spieler aus demselben Replay - mit dem eigenen Leser
@@ -181,7 +183,10 @@ if (arg[0] === '--alle') {
         // Zu gross bleibt zu gross; "nichts zu rechnen" kann ein Aussetzer bei
         // Epic gewesen sein und wird nach einem Tag noch einmal versucht.
         const weg = zuGross[t.windowId];
-        const gilt = weg && (/Matches/.test(weg.grund ?? String(weg)) || (weg.zeit ?? 0) > Date.now() - 864e5);
+        // Zu gross nur, wenn es ueber der heutigen Grenze liegt (die Grenze ist
+        // gestiegen - was vorher zu gross war, kann jetzt passen).
+        const zahlText = /(\d+) Matches/.exec(weg?.grund ?? String(weg ?? ''))?.[1];
+        const gilt = weg && (zahlText ? Number(zahlText) > GROSS_MAX : (weg.zeit ?? 0) > Date.now() - 864e5);
         // Schon gerechnet - es sei denn, der Schaden fehlt noch (Dateien von vor dem 29.9.2026).
         const vorhanden = (() => { try { return JSON.parse(fs.readFileSync(path.join(ZIEL, `${t.windowId}.json`), 'utf8')); } catch { return null; } })();
         // Neu gerechnet wird auch, was noch nach der alten Clutch-Regel steht (vor Version 2).
@@ -196,8 +201,8 @@ if (arg[0] === '--alle') {
   console.log(`Offene Team-Spieltage: ${tage.length}, davon hier ${meine.length}`);
   let fertig = 0; let gross = 0;
   for (const t of meine) {
-    // Ein Spieltag mit 60 Matches braucht gut sechs Minuten - danach keiner mehr.
-    if (Date.now() > schluss - 8 * 60_000) break;
+    // Ein Spieltag mit 250 Matches braucht bis zu einer Stunde - danach keiner mehr.
+    if (Date.now() > schluss - 60 * 60_000) break;
     let ids = [];
     try { ids = [...await matchIds(t.eventId, t.windowId, 3)]; } catch (e) { console.log(`  ${t.windowId}: ${e.message}`); continue; }
     if (ids.length > GROSS_MAX) {

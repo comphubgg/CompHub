@@ -28,7 +28,7 @@ concurrency:
 jobs:
   rechnen:
     runs-on: ubuntu-latest
-    timeout-minutes: 75
+    timeout-minutes: 340
     permissions:
       contents: read
     strategy:
@@ -76,9 +76,9 @@ jobs:
 
       - name: Rechnen
         continue-on-error: true
-        timeout-minutes: 62
+        timeout-minutes: 310
         run: |
-          node scripts/clutch-berechnen.mjs --alle --teil ${{ matrix.teil }}/4 --minuten 55 2>&1 \
+          node scripts/clutch-berechnen.mjs --alle --teil ${{ matrix.teil }}/4 --minuten 300 2>&1 \
             | grep -v 'Spieler mit' | tail -40
 
       - name: Ergebnisse weitergeben
