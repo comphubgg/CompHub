@@ -33,7 +33,11 @@ for (const id of ids) {
   try {
     const puffer = await downloadReplay({ matchId: id, dataCount: 100000, checkpointCount: 100000, eventCount: 100000 });
     fs.writeFileSync(datei, puffer);
-    const roh = JSON.parse(execFileSync('dotnet', [WERKZEUG, datei], { maxBuffer: 256 * 1024 * 1024 }).toString('utf8'));
+    const erstes = !summe.size;
+    const roh = JSON.parse(execFileSync('dotnet', [WERKZEUG, datei], {
+      maxBuffer: 256 * 1024 * 1024, env: { ...process.env, SCHADEN_ROH: erstes ? '60' : '0' },
+    }).toString('utf8'));
+    if (roh.schadenRoh) console.log(roh.schadenRoh.join(String.fromCharCode(10)));
     const epicVon = new Map((roh.spieler ?? []).map((p) => [p.id, p.epic]));
     console.log(`  ${id}: ${roh.schadenEreignisse} Schadens-Ereignisse, ${roh.schadenZugeordnet} zugeordnet, ${roh.schaden?.length ?? 0} Spieler`);
     for (const s of roh.schaden ?? []) {

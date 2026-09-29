@@ -79,6 +79,7 @@ var gd = replay.GameData;
 Console.WriteLine(JsonConvert.SerializeObject(new {
   version = 2,
   schaden, schadenEreignisse = reader.Ereignisse, schadenZugeordnet = reader.Zugeordnet,
+  schadenRoh = reader.Roh.Count > 0 ? reader.Roh : null,
   match = gd?.GameSessionId, beginn = gd?.UtcTimeStartedMatch, ende = R(gd?.MatchEndTime),
   playlist = gd?.CurrentPlaylist, runde = gd?.TournamentRound, sieger = gd?.WinningTeam,
   karte = replay.Info?.FriendlyName, laenge = replay.Info?.LengthInMs,
@@ -118,10 +119,17 @@ class SchadenLeser : ReplayReader {
   }
   Schaden Fuer(int id) { if (!Je.TryGetValue(id, out var s)) Je[id] = s = new Schaden(); return s; }
 
+  static readonly int RohZeilen = int.TryParse(Environment.GetEnvironmentVariable("SCHADEN_ROH"), out var n) ? n : 0;
+  public readonly List<string> Roh = new();
+
   protected override void OnExportRead(uint channelIndex, INetFieldExportGroup exportGroup) {
     base.OnExportRead(channelIndex, exportGroup);
     if (exportGroup is not BatchedDamageCues c) return;
     Ereignisse++;
+    if (Roh.Count < RohZeilen) {
+      var v1 = Hole(VonFigur, channelIndex); var a1 = c.HitActor is null ? null : Hole(VonAkteur, c.HitActor.Value);
+      Roh.Add($"k={channelIndex} obj={System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(c)} hit={c.HitActor} mag={c.Magnitude} npHit={c.NonPlayerHitActor} npMag={c.NonPlayerMagnitude} loc={c.Location?.X:0},{c.Location?.Y:0} krit={c.bIsCritical} schild={c.bIsShield} fatal={c.bIsFatal} ball={c.bIsBallistic} valid={c.bIsValid} von={v1?.Id}/{v1?.TeamIndex} an={a1?.Id}/{a1?.TeamIndex}");
+    }
     if (c.HitActor is null || c.Magnitude is null || c.Magnitude <= 0) return;
     var von = Hole(VonFigur, channelIndex);
     var an = Hole(VonAkteur, c.HitActor.Value);
