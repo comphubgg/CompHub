@@ -40,6 +40,9 @@ function tagFuer(name) {
   if (/^szene-stats\//.test(name)) return 'daten-szene';
   if (/^tournament-leaderboards\//.test(name)) return 'daten-leaderboards';
   if (/^replays\//.test(name)) return 'daten-replays';
+  // Solo Clutch Points: eigenes Release, geschrieben nur vom Ablauf "Clutch rechnen"
+  // (zwei Schreiber an einem Manifest verlieren sich gegenseitig Eintraege).
+  if (/^clutch\//.test(name)) return 'daten-clutch';
   { const m = name.match(/^scrims\/(\d{4}-\d{2})-\d{2}\//); if (m) return `daten-scrims-${m[1]}`; }
   if (/^scrims\//.test(name)) return 'daten-scrims';
   return 'daten';

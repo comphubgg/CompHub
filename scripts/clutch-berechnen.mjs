@@ -14,6 +14,17 @@
 //   node scripts/clutch-berechnen.mjs --lan                        alle LAN-/Finaltage
 //                                                                    der letzten 31 Tage
 //                                                                    ohne Ergebnis
+//   node scripts/clutch-berechnen.mjs --alle [--teil 0/4] [--minuten 55]
+//                                   jeder Team-Spieltag der letzten 31 Tage ohne
+//                                   Ergebnis (Duos, Trios, Squads), soweit er
+//                                   hoechstens GROSS_MAX Matches hat
+//
+// Der Betreiber (29.9.2026): Solo Clutch Points "fuer jeden einzelnen Cup ...
+// Division 1, 2, 3, 4, egal fuer welchen Cup", bei Duos, Trios, Squads. Ein
+// volles Server-Replay sind rund 140 MB - Finals, Division- und Cash-Cup-
+// Finals (eine Handvoll Lobbys) gehen damit, eine offene Runde mit
+// Tausenden Lobbys nicht (dort waeren es Hunderte Gigabyte je Spieltag).
+// Solche Tage stehen mit ihrer Matchzahl in data/clutch/_zu-gross.json.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -53,10 +64,12 @@ async function wertung(eventId, windowId) {
   return [];
 }
 
-async function tag(eventId, windowId) {
+const GROSS_MAX = 60;
+
+async function tag(eventId, windowId, idsVorab = null) {
   const regeln = await wertung(eventId, windowId);
-  if (!regeln.length) { console.log(`  ${windowId}: keine Wertungstabelle - uebersprungen`); return; }
-  const ids = [...await matchIds(eventId, windowId, 3)];
+  if (!regeln.length) { console.log(`  ${windowId}: keine Wertungstabelle - uebersprungen`); return false; }
+  const ids = idsVorab ?? [...await matchIds(eventId, windowId, 3)];
   console.log(`  ${windowId}: ${ids.length} Matches, ${regeln.length} Regeln`);
   const matches = []; const summe = {}; const spiele = {};
   for (const id of ids) {
@@ -78,7 +91,7 @@ async function tag(eventId, windowId) {
       console.log(`    ${id}: ${e.message}`);
     } finally { fs.rmSync(datei, { force: true }); }
   }
-  if (!matches.length) return;
+  if (!matches.length) return false;
   fs.mkdirSync(ZIEL, { recursive: true });
   fs.writeFileSync(path.join(ZIEL, `${windowId}.json`), JSON.stringify({
     eventId, windowId, gerechnet: new Date().toISOString(), regeln, matches, summe, spiele,
@@ -86,7 +99,67 @@ async function tag(eventId, windowId) {
 }
 
 const arg = process.argv.slice(2);
-if (arg[0] === '--lan') {
+const wert = (name) => { const i = arg.indexOf(name); return i >= 0 ? arg[i + 1] : null; };
+if (arg[0] === '--alle') {
+  const [teilNr, teilVon] = (wert('--teil') ?? '0/1').split('/').map(Number);
+  const schluss = Date.now() + Number(wert('--minuten') ?? 50) * 60_000;
+  const grenze = Date.now() - 31 * 864e5;
+  const ordner = path.join(DATEN, 'epic-spieltage');
+  // Was uebersprungen wurde (zu viele Lobbys, kein Replay mehr), je Rechner
+  // eine Datei - die vier Rechner eines Laufs schreiben sonst dieselbe.
+  const grossDatei = path.join(ZIEL, `_uebersprungen-${teilNr}.json`);
+  const zuGross = {};
+  for (const f of fs.existsSync(ZIEL) ? fs.readdirSync(ZIEL) : []) {
+    if (!/^_uebersprungen-\d+\.json$/.test(f)) continue;
+    try { Object.assign(zuGross, JSON.parse(fs.readFileSync(path.join(ZIEL, f), 'utf8'))); } catch { /* kaputt */ }
+  }
+  const meineGross = (() => { try { return JSON.parse(fs.readFileSync(grossDatei, 'utf8')); } catch { return {}; } })();
+  const merke = (w, grund) => {
+    zuGross[w] = { grund, zeit: Date.now() }; meineGross[w] = zuGross[w];
+    fs.mkdirSync(ZIEL, { recursive: true });
+    fs.writeFileSync(grossDatei, JSON.stringify(meineGross, null, 1));
+  };
+  const tage = [];
+  for (const s of fs.existsSync(ordner) ? fs.readdirSync(ordner) : []) {
+    const o = path.join(ordner, s);
+    if (!fs.statSync(o).isDirectory()) continue;
+    for (const f of fs.readdirSync(o).filter((x) => x.endsWith('.json'))) {
+      try {
+        const t = JSON.parse(fs.readFileSync(path.join(o, f), 'utf8'));
+        if ((t.datum ?? 0) < grenze || !t.eventId) continue;
+        if ((t.teams?.[0]?.spieler?.length ?? 0) < 2) continue; // Solo: kein Clutch
+        // Zu gross bleibt zu gross; "nichts zu rechnen" kann ein Aussetzer bei
+        // Epic gewesen sein und wird nach einem Tag noch einmal versucht.
+        const weg = zuGross[t.windowId];
+        const gilt = weg && (/Matches/.test(weg.grund ?? String(weg)) || (weg.zeit ?? 0) > Date.now() - 864e5);
+        if (fs.existsSync(path.join(ZIEL, `${t.windowId}.json`)) || gilt) continue;
+        tage.push({ eventId: t.eventId, windowId: t.windowId, datum: t.datum ?? 0 });
+      } catch { /* eine kaputte Datei haelt nichts auf */ }
+    }
+  }
+  // Das Neueste zuerst - danach wird geschaut; reihum auf die Rechner verteilt.
+  tage.sort((a, b) => b.datum - a.datum);
+  const meine = tage.filter((_, i) => i % teilVon === teilNr % teilVon);
+  console.log(`Offene Team-Spieltage: ${tage.length}, davon hier ${meine.length}`);
+  let fertig = 0; let gross = 0;
+  for (const t of meine) {
+    // Ein Spieltag mit 60 Matches braucht gut sechs Minuten - danach keiner mehr.
+    if (Date.now() > schluss - 8 * 60_000) break;
+    let ids = [];
+    try { ids = [...await matchIds(t.eventId, t.windowId, 3)]; } catch (e) { console.log(`  ${t.windowId}: ${e.message}`); continue; }
+    if (ids.length > GROSS_MAX) {
+      merke(t.windowId, `${ids.length} Matches`); gross += 1;
+      console.log(`  ${t.windowId}: ${ids.length} Matches - zu gross, uebersprungen`);
+      continue;
+    }
+    const ok = await tag(t.eventId, t.windowId, ids);
+    // Kein einziges Replay lesbar (bei Epic schon geloescht): nicht endlos neu versuchen.
+    if (ok === false) { merke(t.windowId, 'nichts zu rechnen (keine Wertung oder kein Replay)'); gross += 1; continue; }
+    fertig += 1;
+  }
+  const offen = meine.length - fertig - gross;
+  console.log(`Fertig: ${fertig} gerechnet, ${gross} zu gross, ${offen > 0 ? `noch offen: ${offen}` : 'nichts mehr offen'}`);
+} else if (arg[0] === '--lan') {
   // Finaltage und LANs der letzten 31 Tage aus den Epic-Spieltagen, die noch kein Ergebnis haben.
   const grenze = Date.now() - 31 * 864e5;
   const ordner = path.join(DATEN, 'epic-spieltage');

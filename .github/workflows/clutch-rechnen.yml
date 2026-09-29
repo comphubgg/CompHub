@@ -1,0 +1,136 @@
+# Solo Clutch Points fuer jeden Team-Spieltag - auf vier Rechnern.
+#
+# Der Betreiber (29.9.2026): "Die Statistik soll wirklich fuer jeden
+# einzelnen Cup sein. Auch Solo Clutch Points ... Division 1, 2, 3, 4, egal
+# fuer welchen Cup ... bei Duos und Trios oder Squads." Bis dahin rechnete
+# der stuendliche Lauf nur Finaltage und LANs, sechs je Lauf, nur Duos.
+#
+# Jeder Rechner nimmt reihum jeden vierten offenen Team-Spieltag der letzten
+# 31 Tage (scripts/clutch-berechnen.mjs --alle), rechnet gut fuenfzig
+# Minuten und reicht seine Ergebnisse weiter. Hochgeladen wird danach an
+# einer einzigen Stelle ("ablegen") - vier Schreiber an einem Manifest
+# verloeren sich gegenseitig Eintraege. Die Dateien liegen am eigenen
+# Release "daten-clutch"; der stuendliche Lauf laedt sie nicht mehr hoch
+# (OHNE_CLUTCH). Solange etwas offen blieb, stoesst sich der Ablauf selbst
+# wieder an.
+
+name: Clutch rechnen
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '15 */6 * * *'   # Rueckfall, falls die Kette einmal reisst
+
+concurrency:
+  group: clutch-rechnen
+  cancel-in-progress: false
+
+jobs:
+  rechnen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 75
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        teil: [0, 1, 2, 3]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Abhängigkeiten
+        run: npm ci
+
+      - name: Zugangsdaten
+        run: printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
+
+      - name: Epic-Anmeldung und Stand vom Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          node scripts/umzug-supabase.mjs --herunterladen --nur epic-auth.json 2>&1 | tail -2
+          node scripts/ablage-github-holen.mjs --ordner epic-spieltage --ordner clutch 2>&1 | tail -3
+          # Was bis zum 29.9.2026 am allgemeinen Release lag, nicht noch einmal rechnen.
+          mkdir -p data/clutch /tmp/altclutch
+          gh release download daten -R "${{ github.repository }}" -p 'clutch__*.json' -D /tmp/altclutch 2>/dev/null || true
+          for f in /tmp/altclutch/clutch__*.json; do
+            [ -e "$f" ] || continue
+            ziel="data/clutch/$(basename "$f" | sed 's/^clutch__//')"
+            [ -e "$ziel" ] || cp "$f" "$ziel"
+          done
+          ls data/clutch | wc -l
+
+      - name: Rechnen
+        continue-on-error: true
+        timeout-minutes: 62
+        run: |
+          node scripts/clutch-berechnen.mjs --alle --teil ${{ matrix.teil }}/4 --minuten 55 2>&1 \
+            | grep -v 'Spieler mit' | tail -40
+
+      - name: Ergebnisse weitergeben
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: clutch-${{ matrix.teil }}
+          path: data/clutch/
+          if-no-files-found: ignore
+          retention-days: 2
+
+      - name: Zugangsdaten wieder weg
+        if: always()
+        run: rm -f .env.local
+
+  ablegen:
+    needs: rechnen
+    if: always() && !cancelled()
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Ergebnisse zusammenholen
+        uses: actions/download-artifact@v4
+        with:
+          pattern: clutch-*
+          path: data/clutch
+          merge-multiple: true
+
+      - name: Ans Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          ls data/clutch | wc -l
+          node scripts/ablage-github.mjs --nur clutch 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -12
+
+  # Solange etwas offen blieb, gleich weiter.
+  weiter:
+    needs: [rechnen, ablegen]
+    if: always() && !cancelled()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Weitermachen, solange etwas offen ist
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh run view ${{ github.run_id }} -R "${{ github.repository }}" --log 2>/dev/null \
+              | grep -q "noch offen: [1-9]"; then
+            gh workflow run clutch-rechnen.yml -R "${{ github.repository }}" --ref main \
+              && echo "Noch offen - naechster Durchgang angestossen."
+          else
+            echo "Alles gerechnet - keine Kette."
+          fi

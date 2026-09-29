@@ -39,6 +39,9 @@ function tagFuer(name) {
   if (/^szene-stats\//.test(name)) return 'daten-szene';
   if (/^tournament-leaderboards\//.test(name)) return 'daten-leaderboards';
   if (/^replays\//.test(name)) return 'daten-replays';
+  // Solo Clutch Points: eigenes Release, geschrieben nur vom Ablauf "Clutch rechnen"
+  // (zwei Schreiber an einem Manifest verlieren sich gegenseitig Eintraege).
+  if (/^clutch\//.test(name)) return 'daten-clutch';
   // Die Scrims (scripts/scrims-holen.mjs): die Tagesdateien je Monat ein
   // Release - ein Release fasst hoechstens tausend Anhaenge, und es kommen
   // rund fuenfzehn am Tag dazu. Das Verzeichnis aller Sessions liegt fuer sich.
@@ -145,6 +148,8 @@ function gewuenscht(name) {
   // (siebzehntausend Dateien, die sich nie wieder aendern).
   if (/^replays\//.test(name) && !/\/(_aggregat|_zustand)\.json$|^replays\/_[^/]+\.json$/.test(name)) return false;
   if (!AM_RELEASE.some((m) => m.test(name))) return false;
+  // Clutch-Dateien schreibt allein der Ablauf "Clutch rechnen" ans Release.
+  if (/^clutch\//.test(name) && process.env.OHNE_CLUTCH === '1') return false;
   if (nur.length && !nur.some((n) => name === n || name.startsWith(`${n}/`))) return false;
   /*
    * Vom Betreiber Gepflegtes nur, wenn es eben frisch aus Supabase kam.

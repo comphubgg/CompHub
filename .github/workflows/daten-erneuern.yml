@@ -58,6 +58,9 @@ jobs:
       group: daten-erneuern
       cancel-in-progress: false
 
+    # Clutch-Dateien schreibt nur .github/workflows/clutch-rechnen.yml.
+    env:
+      OHNE_CLUTCH: '1'
     steps:
       - name: Beginn merken
         run: echo "LAUF_BEGINN=$(date +%s)" >> "$GITHUB_ENV"
@@ -277,12 +280,8 @@ jobs:
           node scripts/ablage-github-holen.mjs replay-voll/index.json 2>&1 | tail -2
           node scripts/replay-voll-holen.mjs --hoechstens 24 2>&1 | tail -30
 
-      # Solo Clutch Points der Finaltage und LANs aus den Server-Replays
-      # (scripts/clutch-berechnen.mjs) - Epic haelt die Replays 31 Tage.
-      - name: Clutch-Punkte rechnen
-        continue-on-error: true
-        timeout-minutes: 20
-        run: node scripts/clutch-berechnen.mjs --lan 2>&1 | grep -v 'Spieler mit' | tail -12
+      # Die Solo Clutch Points rechnet seit dem 29.9.2026 ein eigener Ablauf
+      # fuer jeden Team-Spieltag (.github/workflows/clutch-rechnen.yml).
 
       # Im Admin-Archiv hochgeladene Videos vom Objektspeicher ans Release
       # "archiv-videos" legen (scripts/archiv-videos-umziehen.mjs).

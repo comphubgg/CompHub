@@ -45,6 +45,9 @@ export function tagFuer(name: string): string {
   if (/^szene-stats\//.test(name)) return 'daten-szene';
   if (/^tournament-leaderboards\//.test(name)) return 'daten-leaderboards';
   if (/^replays\//.test(name)) return 'daten-replays';
+  // Solo Clutch Points: eigenes Release, geschrieben nur vom Ablauf "Clutch rechnen"
+  // (zwei Schreiber an einem Manifest verlieren sich gegenseitig Eintraege).
+  if (/^clutch\//.test(name)) return 'daten-clutch';
   // Die Scrims: Tagesdateien je Monat ein Release (hoechstens tausend
   // Anhaenge je Release), das Verzeichnis fuer sich - scripts/scrims-holen.mjs.
   const monat = name.match(/^scrims\/(\d{4}-\d{2})-\d{2}\//);
@@ -239,7 +242,10 @@ async function lies(name: string): Promise<Buffer | null> {
     const a = buendel[akte.id];
     return a === undefined ? null : Buffer.from(JSON.stringify(a, null, 1), 'utf8');
   }
-  return holeAnhang(anhangName(name), tagFuer(name));
+  const wert = await holeAnhang(anhangName(name), tagFuer(name));
+  // Clutch-Dateien lagen bis zum 29.9.2026 am allgemeinen Release.
+  if (!wert && /^clutch\//.test(name)) return holeAnhang(anhangName(name), 'daten');
+  return wert;
 }
 
 /* ------------------------------------------------------------ Auflisten */
