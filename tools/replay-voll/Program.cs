@@ -70,7 +70,8 @@ var zonen = (replay.MapData?.SafeZones ?? Enumerable.Empty<FortniteReplayReader.
 }).ToList();
 
 // Schaden je Spieler aus den Schadens-Ereignissen (siehe SchadenLeser unten).
-reader.Zaehle(replay.GameData?.AircraftStartTime);
+var busAb = (double?)replay.GameData?.AircraftStartTime ?? reader.BusErkennen(replay.PlayerData.Count(p => !p.IsBot));
+reader.Zaehle(busAb);
 var schaden = reader.Je.Select(kv => new {
   id = kv.Key, gemacht = Math.Round(kv.Value.Gemacht), genommen = Math.Round(kv.Value.Genommen),
   treffer = kv.Value.Treffer, krit = kv.Value.Krit, schild = Math.Round(kv.Value.AufSchild),
@@ -80,7 +81,7 @@ var gd = replay.GameData;
 Console.WriteLine(JsonConvert.SerializeObject(new {
   version = 2,
   schaden, schadenEreignisse = reader.Ereignisse, schadenZugeordnet = reader.Zugeordnet, schadenVorDemBus = reader.VorDemBus,
-  busAb = replay.GameData?.AircraftStartTime,
+  busAb,
   schadenRoh = reader.Roh.Count > 0 ? reader.Roh : null,
   match = gd?.GameSessionId, beginn = gd?.UtcTimeStartedMatch, ende = R(gd?.MatchEndTime),
   playlist = gd?.CurrentPlaylist, runde = gd?.TournamentRound, sieger = gd?.WinningTeam,
@@ -145,6 +146,7 @@ class SchadenLeser : ReplayReader {
 
   protected override void OnChannelClosed(uint channelIndex, Unreal.Core.Models.NetworkGUID actor) {
     base.OnChannelClosed(channelIndex, actor);
+    if (figurKanaele.Contains(channelIndex) && Zeit() is double t) FigurEnde.Add(t);
     figurKanaele.Remove(channelIndex);
     if (kanalAkteur.TryGetValue(channelIndex, out var a) && figurVonAkteur.TryGetValue(a, out var k) && k == channelIndex) figurVonAkteur.Remove(a);
     kanalAkteur.Remove(channelIndex);
@@ -182,6 +184,23 @@ class SchadenLeser : ReplayReader {
    * Gegner da, bevor das Spiel ueberhaupt begonnen hatte.
    */
   public readonly List<(int von, int an, double hoehe, bool krit, bool schild, double? t)> Liste = new();
+  /// Wann Spielerfiguren verschwanden - beim Einsteigen in den Bus fast alle zugleich.
+  public readonly List<double> FigurEnde = new();
+
+  /*
+   * Den Start des Busses erkennen: der fruehste Zeitpunkt, ab dem binnen
+   * zehn Sekunden mindestens die Haelfte aller Spielerfiguren verschwindet.
+   * Epics eigene Angabe (AircraftStartTime) steht in diesen Replays nicht.
+   */
+  public double? BusErkennen(int spielerZahl) {
+    if (spielerZahl <= 0 || FigurEnde.Count == 0) return null;
+    var z = FigurEnde.OrderBy(x => x).ToList();
+    for (int i = 0, j = 0; i < z.Count; i++) {
+      while (j < z.Count && z[j] - z[i] <= 10) j++;
+      if (j - i >= spielerZahl / 2.0) return z[i];
+    }
+    return null;
+  }
   public int VorDemBus;
   public void Zaehle(double? busAb) {
     foreach (var e in Liste) {
