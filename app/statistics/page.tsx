@@ -23,6 +23,10 @@ import TeamFlagge from '@/components/TeamFlagge';
 import { ohneZierrat } from '@/lib/homoglyph';
 
 import T from '@/app/components/T';
+import { FncsReiter, ErfolgeReiter, KarriereBest, type TafelZeile, type Erfolg } from './ProfilFncs';
+import { bildPfad } from '@/app/components/ArchivTeile';
+import type { GalerieEintrag } from '@/lib/galerieTypen';
+import ProfilVerlauf from './ProfilVerlauf';
 import { JAHR_SAISONS, jahrVonSaison } from '@/lib/saisonJahre';
 import LadeSchirm from '@/app/components/LadeSchirm';
 import SpielerArchiv from '@/app/components/SpielerArchiv';
@@ -67,7 +71,7 @@ const SICHTBAR_STANDARD: Record<Bereich, Sichtbar> = {
   orgs: 'alle', vergleich: 'vip', bilder: 'admin',
 };
 const SICHTBAR_REIHE: Sichtbar[] = ['alle', 'vip', 'admin'];
-type SpielerReiter = 'uebersicht' | 'leistung' | 'werte' | 'turniere' | 'verdienst' | 'archiv';
+type SpielerReiter = 'uebersicht' | 'leistung' | 'werte' | 'turniere' | 'fncs' | 'erfolge' | 'verdienst' | 'archiv';
 
 /** Ein LAN-Ergebnis mit Preisgeld - aus data/lan-preisgelder.json. */
 interface LanErgebnis {
@@ -1522,7 +1526,7 @@ function Balken({ wert, klein = false }: { wert: number; klein?: boolean }) {
   const farbe = wert >= 85 ? 'bg-sky-400' : wert >= 60 ? 'bg-sky-500/70' : 'bg-slate-600';
   return (
     <div className={`overflow-hidden rounded-full bg-zinc-800 ${klein ? 'h-1' : 'h-1.5'}`}>
-      <div className={`h-full rounded-full ${farbe}`} style={{ width: `${wert}%` }} />
+      <div className={`profil-balken h-full rounded-full ${farbe}`} style={{ width: `${wert}%` }} />
     </div>
   );
 }
@@ -2087,12 +2091,19 @@ export default function StatistikSeite() {
   const [verdienstJahr, setVerdienstJahr] = useState<number>(0);
   /** Wie viele Bilder und Videos das Archiv zu diesem Spieler hat - 0 heisst: kein Reiter. */
   const [archivAnzahl, setArchivAnzahl] = useState(0);
+  /** Die Bilder davon - ein paar stehen unten in der Uebersicht. */
+  const [archivBilder, setArchivBilder] = useState<GalerieEintrag[]>([]);
   useEffect(() => {
-    if (!offen?.epicId) { setArchivAnzahl(0); return; }
+    if (!offen?.epicId) { setArchivAnzahl(0); setArchivBilder([]); return; }
     let weg = false;
     fetch(`/api/galerie?spieler=${encodeURIComponent(offen.epicId)}`, { cache: 'no-store' })
       .then((r) => r.json())
-      .then((j) => { if (!weg) setArchivAnzahl(Array.isArray(j?.eintraege) ? j.eintraege.length : 0); })
+      .then((j) => {
+        if (weg) return;
+        const liste: GalerieEintrag[] = Array.isArray(j?.eintraege) ? j.eintraege : [];
+        setArchivAnzahl(liste.length);
+        setArchivBilder(liste.filter((e) => e.art === 'bild' && e.datei).sort((a, b) => b.erstellt - a.erstellt));
+      })
       .catch(() => { if (!weg) setArchivAnzahl(0); });
     return () => { weg = true; };
   }, [offen?.epicId]);
@@ -2100,6 +2111,9 @@ export default function StatistikSeite() {
   const [saisonNamen, setSaisonNamen] = useState<Record<string, string>>({});
   /** Spieltage, zu denen nur Epic etwas hat - ohne Einzelwerte. */
   const [epicZeilen, setEpicZeilen] = useState<VerlaufZeile[]>([]);
+  /** Jedes FNCS-Finale seit CH1 SX und die Top-3-Plaetze sonst (lib/profilTafeln). */
+  const [fncsTafel, setFncsTafel] = useState<TafelZeile[]>([]);
+  const [erfolge, setErfolge] = useState<Erfolg[]>([]);
   /** Welche Marke gerade aufgeklappt ist. */
   const [marke, setMarke] = useState<'fncs' | 'tage' | null>(null);
   /** Epics Ranked-Stufen des offenen Spielers - der aktuelle Stand je Art. */
@@ -2681,6 +2695,7 @@ export default function StatistikSeite() {
     setPerzentile(null); setFncs(null); setTagesbest([]); setFncsSiege([]);
     setLanErgebnisse([]);
     setRang(null);
+    setFncsTafel([]); setErfolge([]);
 
     // Aus der Galerie kommt nur das Noetigste - Name, Flagge, Bild. Die
     // Werte und der Verlauf werden hier nachgeholt und daruebergelegt, damit
@@ -2697,6 +2712,8 @@ export default function StatistikSeite() {
       setTagesbest(j.tagesbest ?? []);
       setFncsSiege(j.fncsSiege ?? []);
       setLanErgebnisse(j.lan ?? []);
+      setFncsTafel(j.fncsTafel ?? []);
+      setErfolge(j.erfolge ?? []);
       setRang(j.rang ?? null);
       setSaisonBilder(j.saisonBilder ?? {});
       setSaisonNamen(j.saisonNamen ?? {});
@@ -5894,9 +5911,15 @@ export default function StatistikSeite() {
                 dort sucht man ihn, weil die Zahlen darunter davon abhaengen. */}
             <div className="flex flex-wrap items-center gap-6 border-b border-zinc-800
                             px-7">
-              {([['uebersicht', 'Übersicht'], ['leistung', 'Leistung'],
-                 ['werte', 'Alle Werte'],
-                 ['turniere', 'Turniere'],
+              {/* Nach dem Vorbild eucompetitive (Betreiber, 28.9.2026): Overview,
+                  Stats, Tournament Results, FNCS, Achievements - dazu Earnings
+                  und die Bilder. "Alle Werte" und "Leistung" sind zu "Stats"
+                  zusammengelegt. */}
+              {([['uebersicht', 'Übersicht'],
+                 ['werte', 'Stats'],
+                 ['turniere', 'Turnierergebnisse'],
+                 ['fncs', 'FNCS'],
+                 ['erfolge', 'Erfolge'],
                  ['verdienst', 'Verdienst'],
                  /*
                   * Das Archiv nur, wenn es etwas gibt. Der Betreiber: "wenn
@@ -5904,7 +5927,7 @@ export default function StatistikSeite() {
                   * das Player Archiv auch nicht angezeigt werden, auch kein
                   * leeres." Der Admin sieht es immer, zum Hochladen.
                   */
-                 ...((archivAnzahl > 0 || istAdmin) ? [['archiv', 'Spielerarchiv']] : [])] as Array<[SpielerReiter, string]>)
+                 ...((archivAnzahl > 0 || istAdmin) ? [['archiv', 'Bilderarchiv']] : [])] as Array<[SpielerReiter, string]>)
                 .map(([w, titel]) => (
                 // "titel" statt "t": der Uebersetzer heisst hier ebenfalls t,
                 // und ihn in einer Schleife zu beschatten ist eine Falle fuer
@@ -5962,8 +5985,8 @@ export default function StatistikSeite() {
                   const cups = mitGeld.length + lanErgebnisse.filter((l) =>
                     !mitGeld.some((z) => z.windowId.split('_')[0] === (l.fenster ?? '').split('_')[0])).length;
                   return `${spanne}${spanne ? ' · ' : ''}${zahl(cups, 0, sprache)} ${t(cups === 1 ? 'Cup mit Preisgeld' : 'Cups mit Preisgeld')}`;
-                })() : spielerReiter === 'leistung'
-                  ? `${t('Vergleich über alle erfassten Spieltage')} · ${archivTitel}`
+                })() : spielerReiter === 'fncs' || spielerReiter === 'erfolge'
+                  ? t('Über alle Zeiten')
                   : `${profilSaison === 'alle' ? archivTitel
                     : (saisons.find((x) => x.kennung === profilSaison)?.name
                       ?? profilSaison)}`
@@ -5977,7 +6000,7 @@ export default function StatistikSeite() {
                   wartete auf etwas, das nie kommt. */}
               {profilLaedt ? (
                 <p className="text-xs text-slate-600"><T>Wird geladen …</T></p>
-              ) : !verlauf.length && !epicZeilen.length ? (
+              ) : !verlauf.length && !epicZeilen.length && spielerReiter !== 'fncs' && spielerReiter !== 'erfolge' ? (
                 /* Auch die Spieltage zaehlen, zu denen bisher nur Epic etwas
                    hat. Vorher stand hier "nicht angetreten", obwohl zehn
                    Epic-Spieltage vorlagen - die Quelle veroeffentlicht in
@@ -6088,9 +6111,67 @@ export default function StatistikSeite() {
                         ))}
                     </div>
                   </section>
+
+                  {/* Die besten FNCS-Platzierungen und ein paar Bilder -
+                      wie beim Vorbild, "plus noch Bilder ganz unten". */}
+                  <KarriereBest tafel={fncsTafel} />
+                  {archivBilder.length > 0 && (
+                    <section>
+                      <div className="mb-3 flex items-center gap-3">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500"><T>Spielerbilder</T></p>
+                        <button type="button" onClick={() => setSpielerReiter('archiv')}
+                          className="ml-auto text-[11px] text-slate-500 transition hover:text-sky-400">
+                          <T>Alle ansehen</T> →
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+                        {archivBilder.slice(0, 6).map((b) => (
+                          <button key={b.id} type="button" onClick={() => setSpielerReiter('archiv')}
+                            className="aspect-square overflow-hidden rounded-lg border border-zinc-800 transition hover:border-sky-500">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={bildPfad(b)} alt={b.titel ?? ''} loading="lazy" className="h-full w-full object-cover" />
+                          </button>
+                        ))}
+                      </div>
+                    </section>
+                  )}
                 </div>
-              ) : spielerReiter === 'leistung' ? (
+              ) : spielerReiter === 'werte' || spielerReiter === 'leistung' ? (
                 <div className="space-y-7">
+                <div className="grid gap-x-8 rounded-lg border border-zinc-800
+                                bg-zinc-900/30 p-5 sm:grid-cols-2 lg:grid-cols-3">
+                  {([
+                    ['Eliminierungen', zahl(offen.elims, 0, sprache)],
+                    ['Elims je Match', zahl(offen.elimsProMatch, 2, sprache)],
+                    ['Assists', zahl(offen.assists, 0, sprache)],
+                    ['Wiederbelebungen', zahl(offen.reboots, 0, sprache)],
+                    ['Schaden', zahl(offen.damage, 0, sprache)],
+                    ['Schaden je Match', zahl(offen.damageProMatch, 0, sprache)],
+                    ['Schaden erlitten', zahl(offen.damageTaken, 0, sprache)],
+                    ['Schadensquote', zahl(offen.quote, 2, sprache)],
+                    ['Schüsse', zahl(offen.shots, 0, sprache)],
+                    ['Treffer', zahl(offen.hits, 0, sprache)],
+                    ['Trefferquote', `${zahl(offen.genauigkeit, 1, sprache)} %`],
+                    ['Kopftreffer', zahl(offen.headshots, 0, sprache)],
+                    ['Material', zahl(offen.mats, 0, sprache)],
+                    ['Bauteile', zahl(offen.builds, 0, sprache)],
+                    ['Heilung', zahl(offen.heals, 0, sprache)],
+                    ['Sturmschaden', zahl(offen.stormDamage, 0, sprache)],
+                    ['Fallschaden', zahl(offen.fallDamage, 0, sprache)],
+                    ['Strecke', `${zahl(offen.distanz, 1, sprache)} km`],
+                    ['Spieltage', zahl(offen.events, 0, sprache)],
+                    ['Matches', zahl(offen.matches, 0, sprache)],
+                  ] as Array<[string, string]>).map(([l, v]) => (
+                    <div key={l} className="flex items-baseline justify-between gap-4
+                                            border-b border-zinc-900 py-2.5">
+                      <span className="text-[11px] uppercase tracking-wider
+                                       text-slate-500"><T>{l}</T></span>
+                      <span className="text-sm font-semibold tabular-nums
+                                       text-slate-100">{v}</span>
+                    </div>
+                  ))}
+                </div>
+                  <ProfilVerlauf zeilen={verlauf} />
                   {/* Die drei Staerkefelder.
                       Der Wert eines Feldes ist der Schnitt seiner Raenge - und
                       darunter steht, woraus er entsteht. Nichts daran ist
@@ -6294,6 +6375,10 @@ export default function StatistikSeite() {
                     </p>
                   )}
                 </div>
+              ) : spielerReiter === 'fncs' ? (
+                <FncsReiter tafel={fncsTafel} name={offen.anzeige || offen.name} />
+              ) : spielerReiter === 'erfolge' ? (
+                <ErfolgeReiter tafel={fncsTafel} erfolge={erfolge} />
               ) : spielerReiter === 'verdienst' ? (
                 /*
                  * Der Verdienst - jeder Spieltag mit Preisgeld, wann, wo, wie viel.
@@ -6528,40 +6613,6 @@ export default function StatistikSeite() {
                    eigene Seite: "wenn ich auf Twi drauf gehe, steht dort
                    Player Archiv." */
                 <SpielerArchiv epicId={offen.epicId} istAdmin={istAdmin} />
-              ) : spielerReiter === 'werte' ? (
-                <div className="grid gap-x-8 rounded-lg border border-zinc-800
-                                bg-zinc-900/30 p-5 sm:grid-cols-2 lg:grid-cols-3">
-                  {([
-                    ['Eliminierungen', zahl(offen.elims, 0, sprache)],
-                    ['Elims je Match', zahl(offen.elimsProMatch, 2, sprache)],
-                    ['Assists', zahl(offen.assists, 0, sprache)],
-                    ['Wiederbelebungen', zahl(offen.reboots, 0, sprache)],
-                    ['Schaden', zahl(offen.damage, 0, sprache)],
-                    ['Schaden je Match', zahl(offen.damageProMatch, 0, sprache)],
-                    ['Schaden erlitten', zahl(offen.damageTaken, 0, sprache)],
-                    ['Schadensquote', zahl(offen.quote, 2, sprache)],
-                    ['Schüsse', zahl(offen.shots, 0, sprache)],
-                    ['Treffer', zahl(offen.hits, 0, sprache)],
-                    ['Trefferquote', `${zahl(offen.genauigkeit, 1, sprache)} %`],
-                    ['Kopftreffer', zahl(offen.headshots, 0, sprache)],
-                    ['Material', zahl(offen.mats, 0, sprache)],
-                    ['Bauteile', zahl(offen.builds, 0, sprache)],
-                    ['Heilung', zahl(offen.heals, 0, sprache)],
-                    ['Sturmschaden', zahl(offen.stormDamage, 0, sprache)],
-                    ['Fallschaden', zahl(offen.fallDamage, 0, sprache)],
-                    ['Strecke', `${zahl(offen.distanz, 1, sprache)} km`],
-                    ['Spieltage', zahl(offen.events, 0, sprache)],
-                    ['Matches', zahl(offen.matches, 0, sprache)],
-                  ] as Array<[string, string]>).map(([l, v]) => (
-                    <div key={l} className="flex items-baseline justify-between gap-4
-                                            border-b border-zinc-900 py-2.5">
-                      <span className="text-[11px] uppercase tracking-wider
-                                       text-slate-500"><T>{l}</T></span>
-                      <span className="text-sm font-semibold tabular-nums
-                                       text-slate-100">{v}</span>
-                    </div>
-                  ))}
-                </div>
               ) : (
                 /* Nach Saison gebuendelt, mit Banner darueber und der
                    Zusammenfassung darunter - so wie es das Vorbild fuehrt. */
