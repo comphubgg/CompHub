@@ -147,6 +147,10 @@ const ADMIN_ZIELE: Ziel[] = [
   { href: '/admin/tweets', titel: 'Beiträge', text: 'Statistik-Posts erstellen' },
   { href: '/admin/predictions', titel: 'Prognosen', text: 'Vorhersagen zeichnen' },
   { href: '/admin/replays', titel: 'Replays', text: 'Turnier-Replays nachsehen' },
+  // Das Zonen-Bild zum Posten und je Game Zonen und Kills (29.9.2026: "sag
+  // mir mal, wo ich diese Map an sich machen kann ... Das soll auch im
+  // Admin-Dashboard eigentlich sein").
+  { href: '/admin/replay', titel: 'Zonen & Games', text: 'Zonen-Bild bauen, Kills und Zonen je Game' },
   { href: '/admin/players', titel: 'Player Center', text: 'Flaggen und @-Konten pflegen' },
   { href: '/admin/orgs', titel: 'E-Sports-Teams', text: 'Organisationen, Spieler und Logos' },
   { href: '/admin/assets', titel: 'Bildvorrat', text: 'Logos und Grafiken ablegen' },

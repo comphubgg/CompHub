@@ -3546,6 +3546,8 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Bilderarchiv': 'Player Pictures',
   'Das Profil ließ sich gerade nicht laden.': 'The profile could not be loaded right now.',
   'Nochmal versuchen': 'Try again',
+  'Zonen & Games': 'Zones & Games',
+  'Zonen-Bild bauen, Kills und Zonen je Game': 'Build the zone image, kills and zones per game',
   'Karriere-Bestwerte': 'Career Best',
   'Alle ansehen': 'View all',
   'Stats': 'Stats',

@@ -8,6 +8,11 @@
  * darunter in Gelb die kleinere, in die sie danach rotiert ist. Day 1 in
  * Schwarz, Day 2 "in Blau, also meiner Farbe", und ein Bild mit beiden Tagen.
  *
+ * Am 29.9.2026 dann: "Blau passt gar nicht. Man erkennt das nicht so krass.
+ * Mach eine andere Farbe" - Blau ging auf dem Wasser und den blauen Flaechen
+ * der Karte unter. Day 2 ist jetzt Rot, das sich von Gruen, Blau und dem
+ * Gelb der kleinen Zonen gleichermassen abhebt.
+ *
  * Gezeichnet auf einer Leinwand in voller Kartengroesse, damit es sich als
  * PNG speichern laesst. Die Zonen kommen aus den Server-Replays
  * (tools/replay-voll): der dunkle Kreis ist die Zone mit Radius 20.000, der
@@ -24,8 +29,8 @@ interface TagKurz { windowId: string; titel: string; matches: Array<{ id: string
 const SPANNE = 135_000;
 const GROSS = 20_000;
 const KLEIN = 10_000;
-/** Die Farbe des grossen Kreises je Tag: Schwarz, dann das Blau der Seite. */
-const TAGFARBEN = ['rgba(8, 8, 12, 0.74)', 'rgba(14, 165, 233, 0.62)', 'rgba(124, 58, 237, 0.62)'];
+/** Die Farbe des grossen Kreises je Tag: Schwarz, dann Rot (ein dritter Tag Violett). */
+const TAGFARBEN = ['rgba(8, 8, 12, 0.74)', 'rgba(220, 20, 60, 0.68)', 'rgba(124, 58, 237, 0.66)'];
 const GELB = 'rgba(250, 204, 21, 0.62)';
 
 const tagNummer = (windowId: string, i: number) => Number(/Day\s*(\d+)/i.exec(windowId)?.[1] ?? i + 1);
