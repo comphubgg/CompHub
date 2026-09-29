@@ -94,6 +94,7 @@ Console.WriteLine(JsonConvert.SerializeObject(new {
   schaden, schadenEreignisse = reader.Ereignisse, schadenZugeordnet = reader.Zugeordnet, schadenVorDemBus = reader.VorDemBus, schadenAufBoden = reader.AufBoden,
   busAb,
   schadenRoh = reader.Roh.Count > 0 ? reader.Roh : null,
+  lebenRoh = reader.LebenRoh.Count > 0 ? reader.LebenRoh : null,
   match = gd?.GameSessionId, beginn = gd?.UtcTimeStartedMatch, ende = R(gd?.MatchEndTime),
   playlist = gd?.CurrentPlaylist, runde = gd?.TournamentRound, sieger = gd?.WinningTeam,
   karte = replay.Info?.FriendlyName, laenge = replay.Info?.LengthInMs,
@@ -135,6 +136,7 @@ class SchadenLeser : ReplayReader {
 
   static readonly int RohZeilen = int.TryParse(Environment.GetEnvironmentVariable("SCHADEN_ROH"), out var n) ? n : 0;
   public readonly List<string> Roh = new();
+  public readonly List<string> LebenRoh = new();
 
   /*
    * Welche Kanaele gerade Spielerfiguren tragen - selbst gefuehrt.
@@ -170,8 +172,15 @@ class SchadenLeser : ReplayReader {
       if (kanalAkteur.TryGetValue(channelIndex, out var akteur)) figurVonAkteur[akteur] = channelIndex;
       return;
     }
+    if (exportGroup is FortniteReplayReader.Models.NetFieldExports.HealthSet h) {
+      if (LebenRoh.Count < RohZeilen && figurKanaele.Contains(channelIndex))
+        LebenRoh.Add($"t={Zeit():0.0} k={channelIndex} obj={System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(h)} hp={h.HealthCurrentValue} hpBase={h.HealthBaseValue} hpMax={h.HealthMaxValue} sh={h.ShieldCurrentValue} shBase={h.ShieldBaseValue} shMax={h.ShieldMaxValue}");
+      return;
+    }
     if (exportGroup is not BatchedDamageCues c) return;
     Ereignisse++;
+    if (LebenRoh.Count < RohZeilen && c.HitActor is not null && figurVonAkteur.TryGetValue(c.HitActor.Value, out var zk0) && figurKanaele.Contains(channelIndex))
+      LebenRoh.Add($"t={Zeit():0.0} TREFFER von k={channelIndex} auf k={zk0} mag={c.Magnitude} schild={c.bIsShield} weg={c.bIsShieldDestroyed} fatal={c.bIsFatal}");
     if (c.HitActor is null || c.Magnitude is null || c.Magnitude <= 0) return;
     if (!figurKanaele.Contains(channelIndex)) return;
     if (!figurVonAkteur.TryGetValue(c.HitActor.Value, out var zielKanal) || !figurKanaele.Contains(zielKanal)) return;

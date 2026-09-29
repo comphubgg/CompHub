@@ -15,6 +15,9 @@ on:
       games:
         description: Hoechstens so viele Games
         default: '7'
+      roh:
+        description: Rohe Zeilen des ersten Games (0 = keine)
+        default: '0'
 
 jobs:
   probe:
@@ -40,6 +43,8 @@ jobs:
       - name: Leser bauen
         run: dotnet build tools/replay-voll -c Release -v q 2>&1 | tail -15
       - name: Probe
+        env:
+          ROH: ${{ inputs.roh }}
         run: node scripts/schaden-probe.mjs "${{ inputs.event }}" "${{ inputs.window }}" "${{ inputs.games }}"
       - name: Zugangsdaten wieder weg
         if: always()

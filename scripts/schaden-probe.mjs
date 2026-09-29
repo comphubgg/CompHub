@@ -35,9 +35,9 @@ for (const id of ids) {
     fs.writeFileSync(datei, puffer);
     const erstes = !summe.size;
     const roh = JSON.parse(execFileSync('dotnet', [WERKZEUG, datei], {
-      maxBuffer: 256 * 1024 * 1024, env: { ...process.env, SCHADEN_ROH: '0' },
+      maxBuffer: 256 * 1024 * 1024, env: { ...process.env, SCHADEN_ROH: erstes ? (process.env.ROH ?? '0') : '0' },
     }).toString('utf8'));
-    if (roh.schadenRoh) console.log(roh.schadenRoh.join(String.fromCharCode(10)));
+    if (roh.lebenRoh) console.log(roh.lebenRoh.join(String.fromCharCode(10)));
     const epicVon = new Map((roh.spieler ?? []).map((p) => [p.id, p.epic]));
     console.log(`  ${id}: ${roh.schadenEreignisse} Schadens-Ereignisse, ${roh.schadenZugeordnet} zugeordnet, ${roh.schadenVorDemBus} vor dem Bus, ${roh.schadenAufBoden} auf Umgehauene (ab ${roh.busAb}), ${roh.schaden?.length ?? 0} Spieler`);
     for (const s of roh.schaden ?? []) {
