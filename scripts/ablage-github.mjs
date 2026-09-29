@@ -42,6 +42,7 @@ function tagFuer(name) {
   // Solo Clutch Points: eigenes Release, geschrieben nur vom Ablauf "Clutch rechnen"
   // (zwei Schreiber an einem Manifest verlieren sich gegenseitig Eintraege).
   if (/^clutch\//.test(name)) return 'daten-clutch';
+  if (/^clutch-roh\//.test(name)) return 'daten-clutch-roh';
   // Die Scrims (scripts/scrims-holen.mjs): die Tagesdateien je Monat ein
   // Release - ein Release fasst hoechstens tausend Anhaenge, und es kommen
   // rund fuenfzehn am Tag dazu. Das Verzeichnis aller Sessions liegt fuer sich.
@@ -131,6 +132,7 @@ const AM_RELEASE = [
   /^scrims\//,
   // Solo Clutch Points je Spieltag (scripts/clutch-berechnen.mjs).
   /^clutch\//,
+  /^clutch-roh\//,
   /^replay-voll\//,
   /^replays-schlank\//,
   /^(verdienst-archiv|elims-archiv|elims-summen-alt|preisgeld-tabellen|preisgelder|lan-preisgelder|epic-namen|cup-archiv|prognose-felder|lan-konten)\.json$/,
@@ -149,7 +151,7 @@ function gewuenscht(name) {
   if (/^replays\//.test(name) && !/\/(_aggregat|_zustand)\.json$|^replays\/_[^/]+\.json$/.test(name)) return false;
   if (!AM_RELEASE.some((m) => m.test(name))) return false;
   // Clutch-Dateien schreibt allein der Ablauf "Clutch rechnen" ans Release.
-  if (/^clutch\//.test(name) && process.env.OHNE_CLUTCH === '1') return false;
+  if (/^clutch(-roh)?\//.test(name) && process.env.OHNE_CLUTCH === '1') return false;
   if (nur.length && !nur.some((n) => name === n || name.startsWith(`${n}/`))) return false;
   /*
    * Vom Betreiber Gepflegtes nur, wenn es eben frisch aus Supabase kam.

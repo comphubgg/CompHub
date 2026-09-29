@@ -48,6 +48,7 @@ export function tagFuer(name: string): string {
   // Solo Clutch Points: eigenes Release, geschrieben nur vom Ablauf "Clutch rechnen"
   // (zwei Schreiber an einem Manifest verlieren sich gegenseitig Eintraege).
   if (/^clutch\//.test(name)) return 'daten-clutch';
+  if (/^clutch-roh\//.test(name)) return 'daten-clutch-roh';
   // Die Scrims: Tagesdateien je Monat ein Release (hoechstens tausend
   // Anhaenge je Release), das Verzeichnis fuer sich - scripts/scrims-holen.mjs.
   const monat = name.match(/^scrims\/(\d{4}-\d{2})-\d{2}\//);

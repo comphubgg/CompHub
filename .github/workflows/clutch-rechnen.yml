@@ -63,7 +63,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           node scripts/umzug-supabase.mjs --herunterladen --nur epic-auth.json 2>&1 | tail -2
-          node scripts/ablage-github-holen.mjs --ordner epic-spieltage --ordner clutch 2>&1 | tail -3
+          node scripts/ablage-github-holen.mjs --ordner epic-spieltage --ordner clutch --ordner clutch-roh 2>&1 | tail -3
           # Was bis zum 29.9.2026 am allgemeinen Release lag, nicht noch einmal rechnen.
           mkdir -p data/clutch /tmp/altclutch
           gh release download daten -R "${{ github.repository }}" -p 'clutch__*.json' -D /tmp/altclutch 2>/dev/null || true
@@ -86,7 +86,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: clutch-${{ matrix.teil }}
-          path: data/clutch/
+          path: |
+            data/clutch/
+            data/clutch-roh/
           if-no-files-found: ignore
           retention-days: 2
 
@@ -112,15 +114,18 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           pattern: clutch-*
-          path: data/clutch
+          path: data
           merge-multiple: true
 
+      - name: Clutch aus den Rohdaten nach der aktuellen Regel
+        continue-on-error: true
+        run: node scripts/clutch-neu-rechnen.mjs
       - name: Ans Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           ls data/clutch | wc -l
-          node scripts/ablage-github.mjs --nur clutch 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -12
+          node scripts/ablage-github.mjs --nur clutch --nur clutch-roh 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -12
 
   # Solange etwas offen blieb, gleich weiter.
   weiter:

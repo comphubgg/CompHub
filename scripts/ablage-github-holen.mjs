@@ -43,6 +43,7 @@ function tagFuer(name) {
   // Solo Clutch Points: eigenes Release, geschrieben nur vom Ablauf "Clutch rechnen"
   // (zwei Schreiber an einem Manifest verlieren sich gegenseitig Eintraege).
   if (/^clutch\//.test(name)) return 'daten-clutch';
+  if (/^clutch-roh\//.test(name)) return 'daten-clutch-roh';
   { const m = name.match(/^scrims\/(\d{4}-\d{2})-\d{2}\//); if (m) return `daten-scrims-${m[1]}`; }
   if (/^scrims\//.test(name)) return 'daten-scrims';
   return 'daten';

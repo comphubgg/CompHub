@@ -109,6 +109,10 @@ async function tag(eventId, windowId, idsVorab = null) {
   const ids = idsVorab ?? [...await matchIds(eventId, windowId, 3)];
   console.log(`  ${windowId}: ${ids.length} Matches, ${regeln.length} Regeln`);
   const matches = []; const summe = {}; const spiele = {}; const schaden = {};
+  // Die Rohdaten je Match, kompakt (Teams, Kill-Feed, neue Figuren, Endplaetze):
+  // damit laesst sich die Clutch-Regel spaeter neu rechnen, ohne ein Replay
+  // erneut zu laden (scripts/clutch-neu-rechnen.mjs).
+  const roh = [];
   for (const id of ids) {
     const datei = path.join(os.tmpdir(), `clutch-${id}.replay`);
     try {
@@ -118,6 +122,14 @@ async function tag(eventId, windowId, idsVorab = null) {
       // Clutch nach der Regel des Betreibers aus dem eigenen Leser (Reboots
       // inklusive); nur wenn der fehlt, die alte Rechnung.
       const voll = vollAus(datei);
+      if (voll) {
+        roh.push({
+          id, busAb: voll.busAb ?? null,
+          spieler: (voll.spieler ?? []).map((p) => ({ id: p.id, epic: p.epic, name: p.name, team: p.team, platz: p.platz, bot: p.bot })),
+          feed: (voll.feed ?? []).map((f) => ({ t: f.t, opfer: f.opfer, taeter: f.taeter, art: f.art })),
+          figuren: voll.figuren ?? [],
+        });
+      }
       // Fuer den Abgleich (scripts/clutch-varianten.mjs) die Ausgabe ablegen.
       if (voll && process.env.VOLL_ABLEGEN) {
         fs.mkdirSync(process.env.VOLL_ABLEGEN, { recursive: true });
@@ -144,6 +156,11 @@ async function tag(eventId, windowId, idsVorab = null) {
   }
   if (!matches.length) return false;
   fs.mkdirSync(ZIEL, { recursive: true });
+  if (roh.length) {
+    const rohOrdner = path.join(DATEN, 'clutch-roh');
+    fs.mkdirSync(rohOrdner, { recursive: true });
+    fs.writeFileSync(path.join(rohOrdner, `${windowId}.json`), JSON.stringify({ eventId, windowId, regeln, matches: roh }));
+  }
   fs.writeFileSync(path.join(ZIEL, `${windowId}.json`), JSON.stringify({
     version: 2, eventId, windowId, gerechnet: new Date().toISOString(), regeln, matches, summe, spiele,
     ...(Object.keys(schaden).length ? { schaden } : {}),
@@ -190,7 +207,8 @@ if (arg[0] === '--alle') {
         // Schon gerechnet - es sei denn, der Schaden fehlt noch (Dateien von vor dem 29.9.2026).
         const vorhanden = (() => { try { return JSON.parse(fs.readFileSync(path.join(ZIEL, `${t.windowId}.json`), 'utf8')); } catch { return null; } })();
         // Neu gerechnet wird auch, was noch nach der alten Clutch-Regel steht (vor Version 2).
-        if ((vorhanden && vorhanden.schaden && vorhanden.version >= 2) || gilt) continue;
+        const mitRoh = fs.existsSync(path.join(DATEN, 'clutch-roh', `${t.windowId}.json`));
+        if ((vorhanden && vorhanden.schaden && vorhanden.version >= 2 && mitRoh) || gilt) continue;
         tage.push({ eventId: t.eventId, windowId: t.windowId, datum: t.datum ?? 0 });
       } catch { /* eine kaputte Datei haelt nichts auf */ }
     }
