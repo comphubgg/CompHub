@@ -106,10 +106,15 @@ class SchadenLeser : ReplayReader {
   static readonly MethodInfo VonFigur = typeof(FortniteReplayBuilder).GetMethod("TryGetPlayerDataFromPawn", BindingFlags.NonPublic | BindingFlags.Instance);
   static readonly MethodInfo VonAkteur = typeof(FortniteReplayBuilder).GetMethod("TryGetPlayerDataFromActor", BindingFlags.NonPublic | BindingFlags.Instance);
 
+  // Die Zuordnung des Lesers ist privat - ueber Reflection.
+  static readonly FieldInfo BauerFeld = typeof(ReplayReader).GetField("Builder", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
+  object Bauer => BauerFeld?.GetValue(this);
+
   PlayerData Hole(MethodInfo m, uint wert) {
-    if (m is null) return null;
+    var b = Bauer;
+    if (m is null || b is null) return null;
     var a = new object[] { wert, null };
-    try { return (bool)m.Invoke(Builder, a) ? a[1] as PlayerData : null; } catch { return null; }
+    try { return (bool)m.Invoke(b, a) ? a[1] as PlayerData : null; } catch { return null; }
   }
   Schaden Fuer(int id) { if (!Je.TryGetValue(id, out var s)) Je[id] = s = new Schaden(); return s; }
 
