@@ -45,7 +45,15 @@ async function bauKennung(): Promise<string> {
 
 export async function GET() {
   return NextResponse.json(
-    { stand: await bauKennung() },
+    {
+      stand: await bauKennung(),
+      // Speicher und Laufzeit des Servers - um Abstuerze zu sehen (die
+      // Laufzeit faengt nach jedem Neustart bei null an) und wie nah er an
+      // Renders 512 MB kommt.
+      speicherMb: Math.round(process.memoryUsage().rss / 1048576),
+      heapMb: Math.round(process.memoryUsage().heapUsed / 1048576),
+      laufzeitMin: Math.round(process.uptime() / 60),
+    },
     // Fuer alle gleich - Vercels Zwischenspeicher beantwortet den Takt.
     { headers: { 'Cache-Control': 'no-store', 'Vercel-CDN-Cache-Control': 'max-age=60', 'CDN-Cache-Control': 'max-age=60' } },
   );

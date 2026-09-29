@@ -204,7 +204,10 @@ export default function SpielerStatsUebersicht({ spieler, matches, aktualisiert,
       </div>
 
       <p className="text-[11px] text-slate-500">
-        {vorWann ? <><T>Zuletzt aktualisiert</T> {vorWann}</> : szene ? <T>Endstand aus der Szene-Quelle</T> : null}
+        {/* Datum und Uhrzeit, dazu wie lange das her ist - wie bei den Team-Stats. */}
+        {vorWann ? <><T>Zuletzt aktualisiert</T>{' '}
+          {new Date(stand).toLocaleString(ort, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })} ({vorWann})</>
+          : szene ? <T>Endstand aus der Szene-Quelle</T> : null}
       </p>
 
       <StatKacheln spieler={spieler} listen={OSIRION_KACHELN} anzahl={5} leereZeigen />

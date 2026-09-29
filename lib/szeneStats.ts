@@ -291,7 +291,17 @@ async function liesDatei(e: ArchivEintrag): Promise<Datei | null> {
    * liegen keine Einzelwerte vor", obwohl die Datei da war. Ein
    * Fehlschlag wird jetzt beim naechsten Mal einfach noch einmal versucht.
    */
-  if (daten) dateiCache.set(schluessel, { daten, bis: Date.now() + HALTBAR });
+  if (daten) {
+    dateiCache.set(schluessel, { daten, bis: Date.now() + HALTBAR });
+    // Abgelaufenes weg und hoechstens achtzig Dateien - vorher blieb jede je
+    // gelesene Spieltagsdatei im Speicher, bis der Server (512 MB) starb.
+    const jetzt = Date.now();
+    for (const [k, v] of dateiCache) if (v.bis <= jetzt) dateiCache.delete(k);
+    for (const k of dateiCache.keys()) {
+      if (dateiCache.size <= 80) break;
+      dateiCache.delete(k);
+    }
+  }
   return daten;
 }
 
@@ -2129,16 +2139,22 @@ export async function epicVerlauf(
  * Replays gibt es von dort nicht. Die Szene-Quelle fuehrt die Werte trotzdem,
  * unter den echten Konten (siehe lib/lanKonten).
  */
-export async function szeneFenster(windowIds: string[]): Promise<{ matches: number; spieler: RohSpieler[] } | null> {
+export async function szeneFenster(windowIds: string[]): Promise<{ matches: number; spieler: RohSpieler[]; aktualisiert: string | null } | null> {
   const verz = await liesVerzeichnis();
   const summe = new Map<string, RohSpieler>();
   let matches = 0; let gefunden = 0;
+  // Wann die Quelle die Werte zuletzt erzeugt hat ("generatedAt" je Datei) -
+  // das "zuletzt aktualisiert" der Spieler-Stats.
+  let aktualisiert: string | null = null;
   for (const w of windowIds) {
     const e = verz.find((x) => x.windowId === w);
     if (!e) continue;
     const d = await liesDatei(e);
     if (!d) continue;
     gefunden += 1; matches += d.matches ?? 0;
+    const erzeugt = (d as unknown as { generatedAt?: string }).generatedAt;
+    if (erzeugt && Number.isFinite(Date.parse(erzeugt))
+      && (!aktualisiert || Date.parse(erzeugt) > Date.parse(aktualisiert))) aktualisiert = erzeugt;
     for (const p of d.players) {
       const da = summe.get(p.epicId);
       if (!da) { summe.set(p.epicId, { ...p }); continue; }
@@ -2149,7 +2165,7 @@ export async function szeneFenster(windowIds: string[]): Promise<{ matches: numb
       da.username = p.username;
     }
   }
-  return gefunden ? { matches, spieler: [...summe.values()] } : null;
+  return gefunden ? { matches, spieler: [...summe.values()], aktualisiert } : null;
 }
 
 /** Epics Aufstellung eines Spieltags (Teams, Punkte, Platz) - oder null. */

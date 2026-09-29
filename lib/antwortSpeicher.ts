@@ -74,6 +74,31 @@ export class AblageNichtErreichbar extends Error {
  * Datei - und erst dann geladen.
  */
 const vorrat = new Map<string, { zeile: Ablage<unknown>; geholt: number }>();
+/*
+ * Aber nicht unbegrenzt.
+ *
+ * Bis zum 29.9.2026 blieb jede je gelesene oder gerechnete Antwort fuer
+ * immer im Speicher: jedes Profil, jede Suche, jede Cup-Statistik. Nach ein
+ * paar Stunden war der Server (512 MB) voll und startete neu - die Seite gab
+ * 502, und ein Profil hing im Ladeschirm. Jetzt bleiben die zuletzt
+ * gebrauchten, Profile gesondert und knapper, weil es davon Tausende gibt.
+ */
+const VORRAT_HOECHSTENS = 150;
+const PROFILE_HOECHSTENS = 25;
+function merkeImVorrat(name: string, eintrag: { zeile: Ablage<unknown>; geholt: number }) {
+  vorrat.delete(name);
+  vorrat.set(name, eintrag);
+  let profile = 0;
+  for (const k of vorrat.keys()) if (nurImSpeicher(k)) profile += 1;
+  for (const k of vorrat.keys()) {
+    if (vorrat.size <= VORRAT_HOECHSTENS && profile <= PROFILE_HOECHSTENS) break;
+    const istProfil = nurImSpeicher(k);
+    if (vorrat.size <= VORRAT_HOECHSTENS && !istProfil) continue;
+    if (k === name) continue;
+    vorrat.delete(k);
+    if (istProfil) profile -= 1;
+  }
+}
 /** Wie oft hoechstens bei der Ablage nach einem neueren Stand gefragt wird. */
 const NACHFRAGE_MS = 60_000;
 const nachgefragt = new Map<string, number>();
@@ -111,7 +136,7 @@ async function liesAblage<T>(name: string, frischMs: number): Promise<Ablage<T> 
   }
   try {
     const zeile = await liesJson<Ablage<T> | null>(name, null);
-    if (zeile && typeof zeile.zeit === 'number') vorrat.set(name, { zeile, geholt: jetzt });
+    if (zeile && typeof zeile.zeit === 'number') merkeImVorrat(name, { zeile, geholt: jetzt });
     return zeile;
   } catch (e) {
     if (da) return da.zeile as Ablage<T>;
@@ -122,7 +147,7 @@ async function liesAblage<T>(name: string, frischMs: number): Promise<Ablage<T> 
 
 /** Eine frisch gerechnete Antwort merken - und ablegen, wo das vorgesehen ist. */
 async function merkeAntwort(name: string, zeile: Ablage<unknown>): Promise<void> {
-  vorrat.set(name, { zeile, geholt: Date.now() });
+  merkeImVorrat(name, { zeile, geholt: Date.now() });
   if (nurImSpeicher(name)) return;
   await schreibJson(name, zeile);
 }

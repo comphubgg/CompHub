@@ -107,7 +107,8 @@ async function ausSzene(tage: string[], anzeige: Map<string, string>, land: Map<
       partner: (t?.spieler ?? []).filter((id) => id !== x.epicId).map(nameVon),
     };
   }).sort((a, b) => b.damage - a.damage);
-  return { vorhanden: true, quelle: 'szene', runden: sz.matches, rundenGesamt: sz.matches, lauf: null, clutch: clutchDa, spieler };
+  return { vorhanden: true, quelle: 'szene', runden: sz.matches, rundenGesamt: sz.matches, lauf: null, clutch: clutchDa, spieler,
+    aktualisiert: sz.aktualisiert };
 }
 
 // Werte je einzelnem Spieler - aus den Replays.

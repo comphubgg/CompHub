@@ -2500,8 +2500,12 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
               [t('Beginn'), `${tag(fenster.begin, ort)}, ${uhr(fenster.begin, ort)}`],
               [t('Ende'), typeof fenster.end === 'number'
                 ? `${tag(fenster.end, ort)}, ${uhr(fenster.end, ort)}` : '—'],
+              // Ohne Epics Obergrenze (LANs wie die Globals) zaehlt, was
+              // gespielt ist - die hoechste Matchzahl der Bestenliste. Dort
+              // stand "unbegrenzt", obwohl es zwoelf Games waren.
               [t('Spiele'), fenster.matchCap
-                ? String(fenster.matchCap) : t('unbegrenzt')],
+                ? String(fenster.matchCap)
+                : fenster.status !== 'kommt' && gespielteRunden ? String(gespielteRunden) : t('unbegrenzt')],
               // Die genaue Zahl, nicht die gerundete: dieselbe Groesse steht
               // im Kopf des Leaderboards, und dort stand 1476, waehrend hier
               // "1.000" behauptet wurde.

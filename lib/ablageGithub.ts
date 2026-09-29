@@ -186,6 +186,29 @@ export function aktenBuendel(name: string): { buendel: string; id: string } | nu
 /** Kurzer Vorrat je Vorgang: dieselbe Datei nicht zweimal in einer Minute holen. */
 const vorrat = new Map<string, { bis: number; wert: Buffer | null }>();
 const VORRAT_MS = 60_000;
+/*
+ * Und nie mehr als das hier im Speicher.
+ *
+ * Abgelaufene Eintraege wurden bis zum 29.9.2026 nie entfernt, nur
+ * ueberschrieben. Jedes geoeffnete Profil holt ein Aktenbuendel von rund
+ * zwei Megabyte - nach hundert Profilen lagen zweihundert Megabyte alter
+ * Buendel im Speicher, und der Server (512 MB bei Render) starb. Genau dann
+ * hing das Profil im Ladeschirm, und die ganze Seite gab 502.
+ */
+const VORRAT_BYTES = 40 * 1024 * 1024;
+function vorratAufraeumen(jetzt: number) {
+  let summe = 0;
+  for (const [k, v] of vorrat) {
+    if (v.bis <= jetzt) { vorrat.delete(k); continue; }
+    summe += v.wert?.length ?? 0;
+  }
+  // Immer noch zu viel: die aeltesten zuerst (die Map haelt die Reihenfolge).
+  for (const [k, v] of vorrat) {
+    if (summe <= VORRAT_BYTES) break;
+    summe -= v.wert?.length ?? 0;
+    vorrat.delete(k);
+  }
+}
 
 async function holeAnhang(anhang: string, tag: string): Promise<Buffer | null> {
   const jetzt = Date.now();
@@ -199,7 +222,11 @@ async function holeAnhang(anhang: string, tag: string): Promise<Buffer | null> {
   else if (!r.ok) throw new Error(`GitHub-Ablage ${r.status} bei ${anhang}`);
   else wert = Buffer.from(await r.arrayBuffer());
   // Nur Gefundenes merken - was fehlt, kann im naechsten Lauf da sein.
-  if (wert) vorrat.set(anhang, { bis: jetzt + VORRAT_MS, wert });
+  if (wert) {
+    vorrat.delete(anhang);
+    vorrat.set(anhang, { bis: jetzt + VORRAT_MS, wert });
+    vorratAufraeumen(jetzt);
+  }
   return wert;
 }
 
