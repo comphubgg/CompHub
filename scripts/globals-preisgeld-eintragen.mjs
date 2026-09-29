@@ -37,6 +37,8 @@ const PROBE = process.argv.includes('--probe');
 const EVENT = 'epicgames_MannekenPis_Official';
 const TAGE = ['MannekenPis_Day1', 'MannekenPis_Day2'];
 const KENNUNG = 'fncs-global-championship-2026';
+/** Ende von Tag 2 (27.9.2026, Abend in Antwerpen) - falls Epic ihn schon aus dem Katalog genommen hat. */
+const ENDE_TAG2 = Date.UTC(2026, 8, 27, 20, 0);
 const API = 'https://discord.com/api/v10';
 
 function umgebung() {
@@ -83,8 +85,12 @@ async function main() {
   const katalog = await hole('/api/cup-catalog');
   const tag2 = (katalog?.cups ?? []).flatMap((c) => Object.values(c.regionen ?? {}).flat())
     .find((f) => f.windowId === TAGE[1]);
-  if (!tag2) { console.log('Tag 2 steht nicht im Katalog.'); return; }
-  if (!(tag2.status === 'vorbei' && tag2.end < Date.now() - 60 * 60_000)) {
+  // Epic nimmt beendete LANs nach ein, zwei Tagen aus dem Katalog - am
+  // 29.9.2026 stand Tag 2 schon nicht mehr drin, und das Preisgeld kam nie
+  // in die Earnings. Fehlt er, gilt das bekannte Ende von Tag 2 (27.9.2026,
+  // Antwerpen).
+  if (!tag2 && Date.now() < ENDE_TAG2 + 60 * 60_000) { console.log('Tag 2 steht nicht im Katalog.'); return; }
+  if (tag2 && !(tag2.status === 'vorbei' && tag2.end < Date.now() - 60 * 60_000)) {
     console.log(`Globals noch nicht vorbei (Tag 2: ${tag2.status}).`);
     return;
   }

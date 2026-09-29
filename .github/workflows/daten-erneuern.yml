@@ -469,6 +469,21 @@ jobs:
           NODE_OPTIONS: --max-old-space-size=12288
         run: |
           set +e
+          # Den Server wirklich beenden. "kill $SERVER" traf nur den
+          # npx-Mantel; der eigentliche next-server lief weiter und hielt den
+          # Port. Am 29.9.2026 starb deshalb jeder Neustart mit EADDRINUSE,
+          # alle Teile liefen gegen denselben, immer volleren Server, der
+          # schliesslich im Speicher erstickte - der Schritt lief in seine
+          # Frist, und alles dahinter (das Preisgeld der Globals) fiel aus.
+          stoppen() {
+            kill $SERVER 2>/dev/null; wait $SERVER 2>/dev/null
+            pkill -f "next-server" 2>/dev/null; pkill -f "next start" 2>/dev/null
+            for _ in $(seq 1 20); do
+              curl -s -o /dev/null http://localhost:3000/ || break
+              sleep 1
+            done
+            pkill -9 -f "next-server" 2>/dev/null || true
+          }
           starten() {
             npx next start -p 3000 >> /tmp/server.log 2>&1 &
             SERVER=$!
@@ -484,12 +499,22 @@ jobs:
           # Gigabyte voll (JavaScript heap out of memory). Stirbt er trotzdem
           # in einer Portion, kommt sie ein zweites Mal dran.
           : > /tmp/vorrechnen.log
+          # Zuerst, was nur einmal laufen muss und sonst hinter einer
+          # abgelaufenen Frist verloren geht: das Preisgeld der Globals in die
+          # Earnings (scripts/globals-preisgeld-eintragen.mjs, laeuft nur
+          # einmal) und Epics Auszahlungstabellen der laufenden Season
+          # (scripts/preisgeld-aus-katalog.mjs), bevor ein Fenster aus dem
+          # Katalog faellt.
+          starten
+          node scripts/globals-preisgeld-eintragen.mjs http://localhost:3000 2>&1 | tail -3
+          node scripts/preisgeld-aus-katalog.mjs http://localhost:3000 2>&1 | tail -2
+          stoppen
           for TEIL in 1 2 3 4; do
             for VERSUCH in 1 2; do
               starten
               node scripts/antworten-vorrechnen.mjs http://localhost:3000 --teil=$TEIL/4 > /tmp/teil.log 2>&1
               LEBT=nein; kill -0 $SERVER 2>/dev/null && LEBT=ja
-              kill $SERVER 2>/dev/null; wait $SERVER 2>/dev/null
+              stoppen
               cat /tmp/teil.log >> /tmp/vorrechnen.log
               echo "Teil $TEIL/4, Versuch $VERSUCH: $(grep -E 'Vorgerechnet' /tmp/teil.log | tr -s ' ')"
               [ "$LEBT" = ja ] && break
@@ -500,16 +525,10 @@ jobs:
           starten
           # Die Zahlen des Tages nach #admin-zahlen - eine Nachricht je Tag,
           # die jeder Lauf fortschreibt (scripts/admin-zahlen-discord.mjs).
-          # Nach den Globals: das Preisgeld je Spieler von selbst in die Earnings
-          # (scripts/globals-preisgeld-eintragen.mjs, laeuft nur einmal).
-          node scripts/globals-preisgeld-eintragen.mjs http://localhost:3000 2>&1 | tail -3
-          # Epics Auszahlungstabellen der laufenden Season dauerhaft ablegen,
-          # bevor ein Fenster aus dem Katalog faellt (scripts/preisgeld-aus-katalog.mjs).
-          node scripts/preisgeld-aus-katalog.mjs http://localhost:3000 2>&1 | tail -2
           node scripts/admin-zahlen-discord.mjs http://localhost:3000 2>&1 | tail -2
           # Die ersten zehn jedes Finales nach #results (scripts/ergebnisse-discord.mjs).
           node scripts/ergebnisse-discord.mjs http://localhost:3000 2>&1 | tail -3
-          kill $SERVER || true
+          stoppen
           mkdir -p data/antworten
           BEREIT=$BEREIT node scripts/lauf-protokoll.mjs
 
