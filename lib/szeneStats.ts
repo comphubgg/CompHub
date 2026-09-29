@@ -824,7 +824,7 @@ export async function aktenSchreiben(): Promise<{ konten: number; geschrieben: n
       const a = akte(p.epicId);
       if (/^(Escargo|Bratwurst|Dinosauron|BambiRaptor|Acrocanthosaurus)/.test(e.windowId)
           && a.verlauf.some((z) => z.windowId === e.windowId)) continue;
-      const platz = karte?.get(p.epicId) ?? null;
+      const platz = await platzMitLan(karte, p.epicId);
       a.verlauf.push({
         event: e.name, windowId: e.windowId, region: e.region, season: e.season,
         werte: p, datum: e.datum ?? 0,
@@ -937,13 +937,7 @@ export async function verlauf(epicId: string, filter: Filter = {}): Promise<Verl
      * BIG Vico"), die Szene-Quelle das echte Konto - der Platz steht also
      * unter dem Turnierkonto (lib/lanKonten).
      */
-    let platz = karte?.get(epicId) ?? null;
-    if (!platz && karte) {
-      for (const lanId of (await lanUmkehr()).get(epicId) ?? []) {
-        const x = karte.get(lanId);
-        if (x) { platz = x; break; }
-      }
-    }
+    const platz = await platzMitLan(karte, epicId);
     zeilen.push({
       event: e.name, windowId: e.windowId, region: e.region, season: e.season, werte: p,
       datum: e.datum ?? 0,
@@ -2176,16 +2170,43 @@ export async function epicTag(windowId: string): Promise<EpicSpieltag | null> {
 }
 
 /** Echtes Konto -> seine Turnierkonten an LANs (lib/lanKonten, umgedreht). */
-let lanUmkehrMerker: { bis: number; wert: Map<string, string[]> } | null = null;
+let lanUmkehrMerker: { bis: number; wert: Map<string, string[]>; vorwaerts: Map<string, string> } | null = null;
 async function lanUmkehr(): Promise<Map<string, string[]>> {
   if (lanUmkehrMerker && Date.now() < lanUmkehrMerker.bis) return lanUmkehrMerker.wert;
   const lan = await liesJson<Record<string, { echt: string }>>('lan-konten.json', {}).catch(() => ({} as Record<string, { echt: string }>));
   const wert = new Map<string, string[]>();
+  const vorwaerts = new Map<string, string>();
   for (const [lanId, z] of Object.entries(lan)) {
     if (!z?.echt) continue;
     if (!wert.has(z.echt)) wert.set(z.echt, []);
     wert.get(z.echt)!.push(lanId);
+    vorwaerts.set(lanId, z.echt);
   }
-  lanUmkehrMerker = { bis: Date.now() + 10 * 60_000, wert };
+  lanUmkehrMerker = { bis: Date.now() + 10 * 60_000, wert, vorwaerts };
   return wert;
+}
+
+/**
+ * Der Platz eines Kontos an einem Spieltag - auch an einem LAN.
+ *
+ * Dort fuehrt Epics Bestenliste das Turnierkonto ("[FNCSGC26] BIG Vico"),
+ * die Szene-Quelle das echte Konto. Gesucht wird deshalb auch unter den
+ * Turnierkonten des Spielers, und die Mitspieler kommen als echte Konten
+ * zurueck. Der Betreiber (29.9.2026) zu den Zeilen der Globals-Tage ohne
+ * Platz, Punkte und Mitspieler: "Du kannst es nicht einfach leer lassen."
+ * Vorher tat das nur verlauf() mit Dateien - die Akte, aus der das Profil
+ * auf dem Server liest, schrieb die LAN-Tage ohne Platz.
+ */
+async function platzMitLan(karte: Map<string, Platzierung> | null, epicId: string): Promise<Platzierung | null> {
+  if (!karte) return null;
+  let platz = karte.get(epicId) ?? null;
+  if (!platz) {
+    for (const lanId of (await lanUmkehr()).get(epicId) ?? []) {
+      const x = karte.get(lanId);
+      if (x) { platz = x; break; }
+    }
+  }
+  if (!platz) return null;
+  const echt = lanUmkehrMerker?.vorwaerts;
+  return echt?.size ? { ...platz, mitspieler: platz.mitspieler.map((id) => echt.get(id) ?? id) } : platz;
 }
