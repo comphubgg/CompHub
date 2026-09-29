@@ -407,7 +407,8 @@ export default function EventsPage() {
     const vorbeiAlle = gefiltert.filter((c) => von(c).status === 'vorbei')
       .sort((a, b) => (von(b).letzter ?? 0) - (von(a).letzter ?? 0));
     const aktuelleSaison = Math.max(0, ...cups.map(saisonVon));
-    const vorbei = aeltereZeigen ? vorbeiAlle
+    // Wer sucht, sucht auch in den aelteren Seasons.
+    const vorbei = aeltereZeigen || suche.trim() ? vorbeiAlle
       : vorbeiAlle.filter((c) => saisonVon(c) === aktuelleSaison);
     const zeig = (s: 'live' | 'kommt' | 'vorbei') =>
       status === 'alle' || status === s || (status === 'aktuell' && s !== 'vorbei');
@@ -416,9 +417,9 @@ export default function EventsPage() {
       { schluessel: 'kommt', titel: 'Demnächst', cups: zeig('kommt') ? kommt : [] },
       { schluessel: 'vorbei', titel: 'Beendet', cups: zeig('vorbei') ? vorbei : [],
         // Was die aelteren Seasons noch bringen - fuer "Show more".
-        mehr: zeig('vorbei') && !aeltereZeigen ? vorbeiAlle.length - vorbei.length : 0 },
+        mehr: zeig('vorbei') && !aeltereZeigen && !suche.trim() ? vorbeiAlle.length - vorbei.length : 0 },
     ].filter((a) => a.cups.length);
-  }, [gefiltert, status, lage, region, jetzt, cups, aeltereZeigen]);
+  }, [gefiltert, status, lage, region, jetzt, cups, aeltereZeigen, suche]);
 
   /** Der Kopf: was gerade laeuft, dann was als Naechstes kommt. */
   const hervor = useMemo(() => {
@@ -445,7 +446,7 @@ export default function EventsPage() {
       .some((f) => new Date(f.begin).toDateString() === tag)).map((c) => c.id)).size;
   }, [gefiltert]);
 
-  const filterZahl = [suche.trim(), typ !== 'alle', status !== 'alle', plattform !== 'alle']
+  const filterZahl = [typ !== 'alle', status !== 'alle', plattform !== 'alle']
     .filter(Boolean).length;
 
   const oeffnen = (c: Cup) => {
@@ -550,19 +551,24 @@ export default function EventsPage() {
               className="h-4 w-4 accent-sky-500" />
             <T>Ranked Cups ausblenden</T>
           </label>
+          {/* Die Suche offen oben, nicht im Filtermenue - der Betreiber
+              (29.9.2026): "wieso auch immer gibt es keine Suchliste unter
+              meinem Events-Tab". Sie lag zugeklappt im Filter. */}
+          <div className="relative ml-auto w-full sm:w-80">
+            <svg viewBox="0 0 24 24" className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500"
+              fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+              <circle cx="11" cy="11" r="7" /><path d="m20 20-3.5-3.5" strokeLinecap="round" />
+            </svg>
+            <input value={suche} onChange={(e) => setSuche(e.target.value)} placeholder={t('Name des Turniers')}
+              aria-label={t('Suche')}
+              className="w-full rounded-lg border border-zinc-700 bg-zinc-900 py-2 pl-9 pr-3 text-sm text-slate-100
+                         outline-none placeholder:text-slate-600 focus:border-sky-500" />
+          </div>
         </div>
 
         {filterOffen && (
           <div className="mb-4 grid gap-3 rounded-xl border border-zinc-800 bg-zinc-900/60 p-4
                           sm:grid-cols-2 lg:grid-cols-4">
-            <label className="block">
-              <span className="mb-1 block text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
-                <T>Suche</T>
-              </span>
-              <input value={suche} onChange={(e) => setSuche(e.target.value)} placeholder={t('Name des Turniers')}
-                className="w-full rounded-lg border border-zinc-700 bg-zinc-900 px-3 py-2 text-sm text-slate-100
-                           outline-none placeholder:text-slate-600 focus:border-sky-500" />
-            </label>
             <Wahl titel="Typ" wert={typ} setzen={setTyp}
               optionen={[['alle', 'Alle'], ...TYPEN] as Array<['alle' | Typ, string]>} />
             <Wahl titel="Status" wert={status} setzen={setStatus} optionen={[

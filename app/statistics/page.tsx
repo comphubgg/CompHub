@@ -602,6 +602,21 @@ function turnierName(roh: string, t?: (s: string) => string) {
 }
 
 /**
+ * Der Name eines Turniers als Ueberschrift - ausgeschrieben.
+ *
+ * Der Betreiber (29.9.2026): "FNCSLastChanceMajor Final ... alles
+ * zusammengeschrieben. Macht die Namen mal richtig." Wo die Quelle das
+ * Kapitel vorn anhaengt ("CH7S2FNCSDivision1FinalsWeek3"), steht es
+ * ausgeschrieben davor: "Chapter 7 Season 2 FNCS Division 1 Finals Week 3".
+ */
+function turnierTitel(roh: string) {
+  if (!roh) return roh;
+  const m = /^CH(\d+)S(\d+)(?=[A-Z_])/i.exec(roh);
+  const kapitel = m ? `Chapter ${m[1]} Season ${m[2]} ` : '';
+  return `${kapitel}${turnierName(roh)}`.trim();
+}
+
+/**
  * Die Reihenfolge der Saisons.
  *
  * Gebuendelt wird nach Saison, sortiert wurde bisher nach dem Datum der
@@ -3653,7 +3668,7 @@ export default function StatistikSeite() {
                               <T>Turnier</T>
                             </p>
                             <h2 className="mt-0.5 text-xl font-bold text-slate-50">
-                              {k.turnier.name}
+                              {turnierTitel(k.turnier.name)}
                             </h2>
                             <div className="mt-2 flex flex-wrap items-center gap-2">
                               {[saisonTitel, datumText(k.turnier.datum, sprache),
@@ -4163,7 +4178,7 @@ export default function StatistikSeite() {
                               <T>Turnier</T>
                             </p>
                             <h2 className="mt-0.5 text-xl font-bold text-slate-50">
-                              {cup.name}
+                              {turnierTitel(cup.name)}
                             </h2>
                             <div className="mt-2 flex flex-wrap items-center gap-2">
                               {[cup.region, saisonTitel,
@@ -4213,7 +4228,8 @@ export default function StatistikSeite() {
                                 tracking-[0.18em] text-slate-500">
                     <T>Bestenlisten dieses Spieltags</T>
                   </p>
-                  {/* Fuenf nebeneinander, je die zehn Besten - wie beim Vorbild, in
+                  {/* Fuenf nebeneinander, je die fuenf Besten (29.9.2026, wie auf den
+                      Cup-Seiten: "nur Top 5 ... und dann ein Plus"), in
                       den eigenen Farben. Wer unter der Maus steht, leuchtet in
                       jeder Liste auf, in der er vorkommt (siehe Platz). */}
                   <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5"
@@ -4227,7 +4243,7 @@ export default function StatistikSeite() {
                                       uppercase tracking-[0.14em] text-slate-400">
                           <T>{l.titel}</T>
                           {/* Dahinter das ganze Feld, nicht nur die Spitze. */}
-                          {l.zeilen.length > 10 && (
+                          {l.zeilen.length > 5 && (
                             <button onClick={() => {
                               setVolleListe({
                                 titel: l.titel, zeilen: l.zeilen, feld: l.feld,
@@ -4244,7 +4260,7 @@ export default function StatistikSeite() {
                           )}
                         </p>
                         <div className="divide-y divide-zinc-900">
-                          {l.zeilen.slice(0, 10).map((sp, i) => (
+                          {l.zeilen.slice(0, 5).map((sp, i) => (
                             <Platz key={sp.epicId} nr={i + 1} s={sp}
                               wert={l.format === 'zeit' ? alsZeit(Number(sp[l.feld]))
                                 : l.format === 'km' ? `${zahl(Number(sp[l.feld]) / 1000, 1, sprache)} km`
@@ -4472,7 +4488,7 @@ export default function StatistikSeite() {
                               )}
                             </div>
                             <p className="text-sm font-semibold leading-snug text-slate-100">
-                              {t.name}
+                              {turnierTitel(t.name)}
                             </p>
                             <p className="mt-1 text-[11px] text-slate-500">
                               {datumText(t.datum, sprache)}{' '}
@@ -4535,7 +4551,7 @@ export default function StatistikSeite() {
                                   </span>
                                 )}
                                 <span className="min-w-0">
-                              {t.name}
+                              {turnierTitel(t.name)}
                               {t.nurEpic && (
                                 <span className="ml-2 rounded border
                                                  border-amber-700/50 px-1.5

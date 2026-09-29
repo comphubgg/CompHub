@@ -156,6 +156,25 @@ async function main() {
       ? { ...e, datum: alt.datum, datumQuelle: 'epic' }
       : e);
   }
+  /*
+   * Die Matchzahl nachtragen, wo die Quelle sie nicht mitliefert.
+   *
+   * Aeltere Dateien (bis Chapter 7 Season 2) fuehren kein Feld "matches";
+   * in der Turnierliste stand deshalb bei 268 Turnieren "0 Matches" (der
+   * Betreiber, 29.9.2026). Die Zahl steht aber je Spieler in der Datei - die
+   * hoechste davon ist die Zahl der Games des Tages.
+   */
+  let nachgetragen = 0;
+  for (const e of zusammen.values()) {
+    if (e.matches) continue;
+    try {
+      const d = JSON.parse(await fs.readFile(path.join(ABLAGE, e.region, e.season, e.datei), 'utf8'));
+      const hoechste = Math.max(0, ...(d.players ?? []).map((x) => Number(x.matchesPlayed) || 0));
+      if (hoechste) { e.matches = d.matches || hoechste; nachgetragen += 1; }
+    } catch { /* Datei nicht da - bleibt, wie es ist */ }
+  }
+  if (nachgetragen) console.log(`Matchzahl nachgetragen: ${nachgetragen} Spieltage`);
+
   await fs.writeFile(indexDatei,
     JSON.stringify([...zusammen.values()].sort((a, b) =>
       (a.season + a.region + a.datei).localeCompare(b.season + b.region + b.datei)), null, 1),
