@@ -1418,6 +1418,49 @@ export async function archivCups(
   const jetzt = Date.now();
   const gruppen = new Map<string, CupGruppe>();
 
+  /*
+   * Epics Beschreibung auch fuer vergangene Cups.
+   *
+   * Die Inhaltsquelle (turnierOptik) fuehrt sie fuer ueber 470 Turniere,
+   * auch aus alten Saisons - uebernommen wurde sie bisher aber nur fuer
+   * Cups, die gerade im Katalog standen. Im About-Reiter fehlte sie damit
+   * bei fast allem Vergangenen. Der Betreiber (29.9.2026): "bei About soll
+   * unbedingt so etwas stehen ... bei jedem Cup".
+   */
+  let optik: Record<string, TurnierOptik> = {};
+  try { optik = await turnierOptik(); } catch { /* dann nur, was im Archiv steht */ }
+  /*
+   * Aeltere Archiv-Eintraege tragen eine andere Kennung ("s41-performance-cup"
+   * statt "s41_perfeval_reload"). Fuer sie gilt: gleiche Saison und genau
+   * derselbe Titel - und nur, wenn das eindeutig ist. Eine Beschreibung vom
+   * falschen Cup waere schlimmer als keine.
+   */
+  const titelNorm = (t?: string) => String(t ?? '').toLowerCase().replace(/[^a-z0-9]/g, '');
+  const jeSaisonTitel = new Map<string, Set<string>>();
+  for (const [key, o] of Object.entries(optik)) {
+    const saison = /^s(\d+)/i.exec(key)?.[1];
+    if (!saison || !o.beschreibung) continue;
+    for (const t of [titelNorm(o.titel), titelNorm(`${o.titel}${o.untertitel ?? ''}`)]) {
+      const k = `${saison}|${t}`;
+      if (!jeSaisonTitel.has(k)) jeSaisonTitel.set(k, new Set());
+      jeSaisonTitel.get(k)!.add(o.beschreibung);
+    }
+  }
+  const beschreibungVon = (g: { id: string; titel?: string; untertitel?: string }): string | undefined => {
+    const roh = String(g.id ?? '');
+    // Die NAC-/NAW-Kacheln tragen ihre Region als Anhang an der Kennung.
+    const ohneRegion = roh.replace(/_(nac|naw|nae|na)$/i, '');
+    const direkt = optik[alsContentKey(roh)]?.beschreibung ?? optik[alsContentKey(ohneRegion)]?.beschreibung;
+    if (direkt) return direkt;
+    const saison = /^s(\d+)/i.exec(roh)?.[1];
+    if (!saison) return undefined;
+    for (const t of [titelNorm(`${g.titel ?? ''}${g.untertitel ?? ''}`), titelNorm(g.titel)]) {
+      const treffer = jeSaisonTitel.get(`${saison}|${t}`);
+      if (treffer && treffer.size === 1) return [...treffer][0];
+    }
+    return undefined;
+  };
+
   for (const e of eintraege) {
     if (schonBekannt.has(e.id)) continue;
 
@@ -1465,6 +1508,10 @@ export async function archivCups(
     g.naechsterStart = naechster;
     g.letzterStart = letzter;
     g.vorbei = !g.live && naechster === null;
+  }
+
+  for (const g of gruppen.values()) {
+    if (!g.beschreibung) g.beschreibung = beschreibungVon(g);
   }
 
   return [...gruppen.values()]

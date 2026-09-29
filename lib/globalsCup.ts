@@ -106,6 +106,9 @@ export function globalsVereint<G extends Gruppe>(cups: G[]): G[] {
     // Bild, Untertitel und Art vom Eintrag des Finales, Epics Angaben dahinter.
     ...lan, ...fin,
     id: GLOBALS_CUP_ID, titel: 'FNCS Global Championship',
+    // Epics Beschreibung haengt am LAN-Eintrag (s42_lan).
+    beschreibung: (fin as { beschreibung?: string }).beschreibung
+      ?? (lan as { beschreibung?: string }).beschreibung,
     regionen: { [GLOBALS_REGION]: fenster },
     naechsterStart: kommend.length ? Math.min(...kommend) : null,
     letzterStart: Math.max(...starts),

@@ -2365,6 +2365,21 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     );
   }
 
+  /*
+   * Solange der Cup noch gesucht wird: der gemeinsame Ladeschirm.
+   *
+   * Vorher stand in dieser Zeit die rohe Kennung als Titel
+   * ("s42_fncssolos_qual") und darunter "No data." - das sieht aus wie ein
+   * Cup ohne Ergebnisse, obwohl die Seite nur noch laedt.
+   */
+  if (!cup) {
+    return (
+      <main className="flex-1 bg-zinc-950 text-slate-200">
+        <LadeSchirm />
+      </main>
+    );
+  }
+
   return (
     <main className="flex-1 bg-zinc-950 text-slate-200">
       {/* Kopf mit Turnierbild */}
