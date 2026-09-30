@@ -23,6 +23,8 @@ interface Spieler {
   x: string | null; twitch: string | null; tiktok: string | null; youtube: string | null;
   /** Foto am Eintrag - fuer Spieler ohne Konto (lib/orgs). */
   bild?: string | null;
+  /** Vom Abgleich gepflegt (Liquipedia-Spielerseite) - nur durchgereicht. */
+  liquipedia?: string | null;
 }
 /** Die Fotos je Konto aus der Antwort von /api/orgs. */
 function fotosAus(orgs: Array<{ spieler: Array<{ epicId: string | null; bild?: string | null }> }>) {
@@ -41,6 +43,9 @@ interface Org {
   land: string | null; region: string | null; spieler: Spieler[]; extras: Extra[];
   /** Vom Admin entfernte Namen - der Liquipedia-Abgleich traegt sie nie wieder ein. */
   ausgeschlossen: string[];
+  /** Vom Abgleich gepflegt - hier nur durchgereicht, damit Speichern sie nicht loescht. */
+  ehemalige?: unknown[];
+  liquipedia?: string | null;
 }
 const namensTeil = (n: string) => n.toLowerCase().replace(/[^a-z0-9]/g, '');
 interface Treffer { epicId: string; name: string; anzeige?: string; land?: string | null; regionen?: string[] }
@@ -129,9 +134,12 @@ export default function OrgsAdmin() {
             epicId: s.epicId, name: s.name, seit: s.seit, rolle: s.rolle ?? 'pro',
             x: s.x ?? null, twitch: s.twitch ?? null, tiktok: s.tiktok ?? null, youtube: s.youtube ?? null,
             bild: (s as { eigenesBild?: string | null }).eigenesBild ?? null,
+            liquipedia: (s as { liquipedia?: string | null }).liquipedia ?? null,
           })),
           extras: o.extras ?? [],
           ausgeschlossen: o.ausgeschlossen ?? [],
+          ehemalige: o.ehemalige ?? [],
+          liquipedia: o.liquipedia ?? null,
         })).sort((a: Org, b: Org) => a.name.localeCompare(b.name)));
       })
       .catch(() => setFehler('Storage is not answering right now.'));

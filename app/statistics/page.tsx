@@ -71,7 +71,7 @@ const SICHTBAR_STANDARD: Record<Bereich, Sichtbar> = {
   orgs: 'alle', vergleich: 'vip', bilder: 'admin',
 };
 const SICHTBAR_REIHE: Sichtbar[] = ['alle', 'vip', 'admin'];
-type SpielerReiter = 'uebersicht' | 'leistung' | 'werte' | 'turniere' | 'fncs' | 'erfolge' | 'verdienst' | 'archiv';
+type SpielerReiter = 'uebersicht' | 'leistung' | 'werte' | 'turniere' | 'fncs' | 'erfolge' | 'verdienst' | 'teams' | 'archiv';
 
 /** Ein LAN-Ergebnis mit Preisgeld - aus data/lan-preisgelder.json. */
 interface LanErgebnis {
@@ -2130,6 +2130,23 @@ export default function StatistikSeite() {
   const [zeitraumOffen, setZeitraumOffen] = useState(false);
   /** Bei der Verdienst-Wahl: ein ganzes Jahr statt Kapitel oder Saison. */
   const [verdienstJahr, setVerdienstJahr] = useState<number>(0);
+  /*
+   * Der Teamverlauf - bei welchen Orgs der Spieler war und ist (/api/teamverlauf).
+   * Wie beim Archiv: gibt es nichts, gibt es auch keinen Reiter.
+   */
+  const [teamVerlauf, setTeamVerlauf] = useState<Array<{
+    org: string; name: string; logo: string | null; seit: string | null; bis: string | null;
+    rolle: string | null; aktuell: boolean;
+  }>>([]);
+  useEffect(() => {
+    if (!offen?.epicId) { setTeamVerlauf([]); return; }
+    let weg = false;
+    fetch(`/api/teamverlauf?spieler=${encodeURIComponent(offen.epicId)}`, { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((j) => { if (!weg) setTeamVerlauf(Array.isArray(j?.eintraege) ? j.eintraege : []); })
+      .catch(() => { if (!weg) setTeamVerlauf([]); });
+    return () => { weg = true; };
+  }, [offen?.epicId]);
   /** Wie viele Bilder und Videos das Archiv zu diesem Spieler hat - 0 heisst: kein Reiter. */
   const [archivAnzahl, setArchivAnzahl] = useState(0);
   /** Die Bilder davon - ein paar stehen unten in der Uebersicht. */
@@ -6073,6 +6090,7 @@ export default function StatistikSeite() {
                  ['fncs', 'FNCS'],
                  ['erfolge', 'Erfolge'],
                  ['verdienst', 'Verdienst'],
+                 ...(teamVerlauf.length ? [['teams', 'Teamverlauf']] : []),
                  /*
                   * Das Archiv nur, wenn es etwas gibt. Der Betreiber: "wenn
                   * es keine Bilder, Videos zu einem Player gibt, dann muss
@@ -6768,6 +6786,35 @@ export default function StatistikSeite() {
                     </div>
                   );
                 })()
+              ) : spielerReiter === 'teams' ? (
+                /* Der Teamverlauf: heutige Org oben, dann die frueheren nach
+                   Austritt - aus den Kadern der Orgs (Liquipedia). */
+                <div className="space-y-2">
+                  {teamVerlauf.map((e, i) => (
+                    <div key={`${e.org}-${e.seit ?? ''}-${i}`}
+                      className="flex items-center gap-4 rounded-xl border border-zinc-800 bg-zinc-950/60 px-4 py-3">
+                      <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-zinc-900">
+                        {e.logo
+                          // eslint-disable-next-line @next/next/no-img-element
+                          ? <img src={e.logo} alt="" className="h-full w-full object-contain p-1" />
+                          : <span className="text-lg font-black text-zinc-600">{e.name.slice(0, 1)}</span>}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="truncate text-sm font-bold text-slate-100">{e.name}</span>
+                          {e.aktuell && <span className="rounded bg-sky-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-sky-400"><T>Aktuell</T></span>}
+                          {e.rolle && e.rolle !== 'pro' && <span className="text-[11px] text-slate-500">{e.rolle === 'academy' ? 'Academy' : 'Content Creator'}</span>}
+                        </div>
+                        <div className="mt-0.5 text-xs text-slate-400">
+                          {e.seit ? new Date(e.seit).toLocaleDateString(sprache === 'en' ? 'en-GB' : 'de-CH', { day: 'numeric', month: 'short', year: 'numeric' }) : '?'}
+                          {' – '}
+                          {e.aktuell ? t('heute') : e.bis ? new Date(e.bis).toLocaleDateString(sprache === 'en' ? 'en-GB' : 'de-CH', { day: 'numeric', month: 'short', year: 'numeric' }) : '?'}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                  <p className="pt-1 text-xs text-slate-500"><T>Quelle: die Kader der Organisationen und Liquipedia. Gezeigt werden nur Organisationen, die CompHub führt.</T></p>
+                </div>
               ) : spielerReiter === 'archiv' ? (
                 /* Das Archiv des Spielers - Fotos und Videos, allgemein und
                    je Event. Der Betreiber wollte es genau hier, nicht als

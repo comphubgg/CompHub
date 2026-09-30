@@ -108,6 +108,8 @@ export async function GET(request: Request) {
         // eine neue Adresse holt sie frisch.
         bild: (s.epicId ? bildZu.get(s.epicId) : null) ?? (s.bild ? `${s.bild}?v=2` : null),
         eigenesBild: s.bild ?? null, seit: s.seit,
+        // Durchgereicht, damit das Admin-Werkzeug sie beim Speichern behaelt.
+        liquipedia: s.liquipedia ?? null,
         betrag: wert ? wert.betrag : null, turniere: wert ? wert.anzahl : null,
         rolle: s.rolle, x: s.x || (p as { x?: string } | undefined)?.x || null,
         twitch: s.twitch, tiktok: s.tiktok, youtube: s.youtube,

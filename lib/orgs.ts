@@ -51,6 +51,16 @@ export interface OrgSpieler {
    * gilt das Foto am Konto; dieses hier bleibt der Rueckfall.
    */
   bild?: string | null;
+  /** Die Liquipedia-Spielerseite - fuer Teamverlauf und Zuordnung ueber X. */
+  liquipedia?: string | null;
+}
+
+/** Ein ehemaliger Spieler der Org, wie Liquipedia ihn fuehrt. */
+export interface OrgEhemaliger {
+  name: string;
+  liquipedia: string | null;
+  seit: string | null;
+  bis: string | null;
 }
 
 export interface OrgExtra {
@@ -89,6 +99,10 @@ export interface Org {
    * Spielern sind nicht mehr da drin").
    */
   ausgeschlossen?: string[];
+  /** Ehemalige Spieler laut Liquipedia (scripts/org-kader-pruefen.mjs). */
+  ehemalige?: OrgEhemaliger[];
+  /** Die Liquipedia-Teamseite der Org. */
+  liquipedia?: string | null;
 }
 
 interface Datei { stand?: string; orgs?: Org[] }
@@ -155,8 +169,16 @@ export function saeubere(o: Partial<Org>): Org {
         tiktok: rolle === 'creator' ? konto(s?.tiktok) : null,
         youtube: rolle === 'creator' ? konto(s?.youtube) : null,
         bild: /^\/spielerbilder\/[A-Za-z0-9%._-]+$/.test(String(s?.bild ?? '')) ? String(s.bild) : null,
+        liquipedia: s?.liquipedia ? text(s.liquipedia, 120) : null,
       };
     }).filter((s) => s.name || s.epicId),
+    liquipedia: o.liquipedia ? text(o.liquipedia, 120) : null,
+    ehemalige: (Array.isArray(o.ehemalige) ? o.ehemalige : []).map((e) => ({
+      name: text(e?.name, 40),
+      liquipedia: e?.liquipedia ? text(e.liquipedia, 120) : null,
+      seit: e && TAG.test(String(e.seit ?? '')) ? String(e.seit) : null,
+      bis: e && TAG.test(String(e.bis ?? '')) ? String(e.bis) : null,
+    })).filter((e) => e.name).slice(0, 300),
     ausgeschlossen: [...new Set((Array.isArray(o.ausgeschlossen) ? o.ausgeschlossen : [])
       .map((n) => text(n, 40)).filter(Boolean))].slice(0, 300),
     extras: (Array.isArray(o.extras) ? o.extras : []).map((e) => ({

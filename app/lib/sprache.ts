@@ -3326,6 +3326,9 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Die Werte konnten gerade nicht geladen werden. Bitte gleich noch einmal öffnen.':
     'The values could not be loaded just now. Please open it again in a moment.',
   'Nicht gespeichert. Bitte noch einmal umschalten.': 'Not saved. Please switch it again.',
+  'Teamverlauf': 'Team history',
+  'Aktuell': 'Current',
+  'Quelle: die Kader der Organisationen und Liquipedia. Gezeigt werden nur Organisationen, die CompHub führt.': 'Source: the rosters of the organizations and Liquipedia. Only organizations listed on CompHub are shown.',
   'Zu diesem Spieltag liegen keine Einzelwerte vor.':
     'No individual values are available for this match day.',
   'Oben eine andere Saison wählen oder jemand anderen suchen.':

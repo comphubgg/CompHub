@@ -259,7 +259,9 @@ async function main() {
       const da = bleiben.find((sp) => derselbe(sp, a.id));
       if (da) {
         // Die Spielerseite merken - daran haengt die Zuordnung ueber X.
-        if (!da.liquipedia && a.seite && !da.epicId) da.liquipedia = a.seite;
+        // Die Spielerseite merken - daran haengen die Zuordnung ueber X und
+        // der Teamverlauf im Profil (dieselbe Seite = dieselbe Person).
+        if (!da.liquipedia && a.seite) da.liquipedia = a.seite;
         continue;
       }
       bleiben.push({ epicId: null, name: a.id, seit: /^\d{4}-\d{2}-\d{2}$/.test(a.beitritt) ? a.beitritt : null,
@@ -268,6 +270,20 @@ async function main() {
       aenderungen.push(`${org.name}: **${a.id}** neu dabei${a.beitritt ? ` (${a.beitritt})` : ''} - Epic-Konto noch zuweisen`);
     }
     org.spieler = bleiben;
+    /*
+     * Die Ehemaligen, wie Liquipedia sie fuehrt - fuer das ehemalige Roster
+     * auf der Org-Seite und den Teamverlauf im Spielerprofil (Betreiber,
+     * 30.9.2026: "so wie bei Fortnite Tracker ... eine Art ehemaliges
+     * Roster"). Nur Name, Spielerseite und Daten; ein Epic-Konto wird hier
+     * nicht geraten.
+     */
+    org.ehemalige = [...ehemalig.values()]
+      .filter((e) => ![...aktiv.values()].some((a) => a.id.toLowerCase() === e.id.toLowerCase()))
+      .map((e) => ({ name: e.id, liquipedia: e.seite ?? null,
+        seit: /^\d{4}-\d{2}-\d{2}$/.test(e.beitritt) ? e.beitritt : null,
+        bis: /^\d{4}-\d{2}-\d{2}$/.test(e.austritt) ? e.austritt : null }))
+      .sort((x, y) => String(y.bis ?? '').localeCompare(String(x.bis ?? '')))
+      .slice(0, 300);
   }
   /*
    * Doppelte in derselben Org entfernen.
