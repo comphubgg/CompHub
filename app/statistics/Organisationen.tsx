@@ -118,6 +118,36 @@ function Schein({ logo, staerke = 'opacity-[0.16]' }: { logo: string | null; sta
   );
 }
 
+/*
+ * Ein Spielerfoto, das einen Aussetzer uebersteht.
+ *
+ * Startete der Server gerade neu (nach jedem Deploy rund eine Minute), kam
+ * ein Foto nicht an, und der Browser versuchte es nie wieder - die Karte blieb
+ * dunkel (Betreiber, 30.9.2026: "wieso auch immer laedt es jetzt ein paar
+ * Profilbilder nicht mehr"). Jetzt zwei weitere Versuche nach 3 und 10
+ * Sekunden, danach der Anfangsbuchstabe wie bei Spielern ohne Foto.
+ */
+function SpielerFoto({ bild, name }: { bild: string | null; name: string }) {
+  const [versuch, setVersuch] = useState(0);
+  const [kaputt, setKaputt] = useState(false);
+  if (!bild || kaputt) {
+    return (
+      <span className="flex h-full w-full items-center justify-center text-6xl font-black text-zinc-700">
+        {name.slice(0, 1).toUpperCase()}
+      </span>
+    );
+  }
+  const quelle = versuch ? `${bild}${bild.includes('?') ? '&' : '?'}r=${versuch}` : bild;
+  return (
+    // eslint-disable-next-line @next/next/no-img-element
+    <img key={quelle} src={quelle} alt="" className="h-full w-full object-cover object-top transition duration-300 group-hover:scale-105"
+      onError={() => {
+        if (versuch >= 2) { setKaputt(true); return; }
+        window.setTimeout(() => setVersuch((v) => v + 1), versuch ? 10_000 : 3_000);
+      }} />
+  );
+}
+
 export default function Organisationen({ aufSpieler }: {
   /** Ein Profil oeffnen - dasselbe Fenster wie ueberall in der Statistik. */
   aufSpieler: (epicId: string, name: string) => void;
@@ -275,14 +305,7 @@ export default function Organisationen({ aufSpieler }: {
                 const karte = (
                   <>
                     <div className="relative aspect-[4/5] overflow-hidden bg-gradient-to-b from-zinc-800 to-zinc-950">
-                      {s.bild ? (
-                        // eslint-disable-next-line @next/next/no-img-element
-                        <img src={s.bild} alt="" className="h-full w-full object-cover object-top transition duration-300 group-hover:scale-105" />
-                      ) : (
-                        <span className="flex h-full w-full items-center justify-center text-6xl font-black text-zinc-700">
-                          {s.name.slice(0, 1).toUpperCase()}
-                        </span>
-                      )}
+                      <SpielerFoto bild={s.bild} name={s.name} />
                       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-zinc-950 via-zinc-950/85 to-transparent px-4 pb-3 pt-12">
                         <div className="flex items-center gap-2">
                           {s.land && <TeamFlagge groesse={18} laender={[s.land]} />}
