@@ -311,29 +311,38 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
       }}
       className={`${cardClass} ${isDragging ? 'dragging' : ''} ${disabled ? 'locked-card' : ''}`}
     >
-      <div className={`flag-badge-wrapper${isTrioEntry ? ' flag-trio-kreise' : ''}`}>
+      <div className={`flag-badge-wrapper${isTrioEntry ? ' flag-trio-gross' : ''}`}>
         {isTrioEntry ? (() => {
           /*
-           * Drei ganze Flaggen als kleine Kreise: oben, links unten, rechts
-           * unten. Zuerst war es eine Torte in drei Stuecken (Skizze des
-           * Betreibers); dort war das obere Stueck ein schmaler Keil und kaum
-           * zu erkennen ("das obere ist zu klein"). Er hat ein besseres Format
-           * ausdruecklich freigegeben (30.9.2026). Je Land ein Kreis: drei
-           * gleiche = eine ganze Flagge, zwei gleiche = zwei Kreise.
+           * Drei Flaggen wie drei Tortenstuecke: oben, links unten, rechts
+           * unten (Skizze des Betreibers). Der Kreis ist groesser als bei
+           * Solo und Duo, und das obere Stueck zeigt seine Flagge im selben
+           * Massstab wie die unteren - vorher wirkte es zu klein. Drei
+           * gleiche Laender: eine ganze Flagge. Zwei gleiche: die untere
+           * Haelfte ist eine Flagge, oben die andere (30.9.2026, Variante B).
            */
-          const laender: string[] = [];
-          for (const x of [land1, land2, land3]) {
-            const k = String(x ?? '').toLowerCase();
-            if (!laender.some((y) => y.toLowerCase() === k)) laender.push(String(x ?? ''));
+          const l = [land1, land2, land3].map((x) => String(x ?? '').toLowerCase());
+          const url = (i: number) => getCountryFlag([land1, land2, land3][i]);
+          if (l[0] && l[0] === l[1] && l[1] === l[2]) {
+            return <img src={url(0)} alt={land1} className="full-flag" />;
           }
-          if (laender.length === 1) {
-            return <img src={getCountryFlag(laender[0])} alt={laender[0]} className="full-flag" />;
+          const paar = l[0] === l[1] ? [0, 1] : l[0] === l[2] ? [0, 2] : l[1] === l[2] ? [1, 2] : null;
+          if (paar && l[paar[0]]) {
+            const allein = [0, 1, 2].find((i) => !paar.includes(i))!;
+            return (
+              <>
+                <div className="flag-trio flag-trio-unten" style={{ backgroundImage: `url(${url(paar[0])})` }} />
+                <div className="flag-trio flag-trio-oben" style={{ backgroundImage: `url(${url(allein)})` }} />
+              </>
+            );
           }
-          return laender.map((l, i) => (
-            <span key={`${l}-${i}`} className={`flag-kreis flag-kreis-${laender.length}-${i + 1}`}>
-              <img src={getCountryFlag(l)} alt={l} />
-            </span>
-          ));
+          return (
+            <>
+              <div className="flag-trio flag-trio-oben" style={{ backgroundImage: `url(${url(0)})` }} />
+              <div className="flag-trio flag-trio-links" style={{ backgroundImage: `url(${url(1)})` }} />
+              <div className="flag-trio flag-trio-rechts" style={{ backgroundImage: `url(${url(2)})` }} />
+            </>
+          );
         })() : isDuoEntry ? (
           einLand ? (
             <img src={flag1Url} alt={land1} className="full-flag" />

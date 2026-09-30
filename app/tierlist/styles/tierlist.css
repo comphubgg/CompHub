@@ -1192,20 +1192,19 @@ button,input,select,textarea{transition:var(--transition)}
    darunter ist kein Platz, und die Seitenleiste schneidet ab (30.9.2026). */
 .tierlist-page .sidebar .sidebar-create .autocomplete-list{top:auto;bottom:calc(100% + 6px);max-height:260px}
 
-/* Trio: je Land ein kleiner, ganzer Flaggen-Kreis - oben, links unten,
-   rechts unten (30.9.2026). Der Kasten ist groesser als bei Solo/Duo, weil
-   die Trio-Karte drei Namen hoch ist. */
-.flag-badge-wrapper.flag-trio-kreise,
-.pool-duo-card .flag-badge-wrapper.flag-trio-kreise,
-.pool-duo-card.solo-entry .flag-badge-wrapper.flag-trio-kreise{
-  width:40px;height:40px;flex:0 0 40px;border-radius:0;overflow:visible;background:none;border:0;
+/* Trio: drei Tortenstuecke zu je 120 Grad - oben, links unten, rechts unten
+   (Variante B, 30.9.2026). Die Kanten laufen vom Mittelpunkt nach 30, 150
+   und 270 Grad und treffen den Rand bei 21.13 % Hoehe (tan 30 Grad). Jedes
+   Stueck hat einen eigenen Kasten gleicher Hoehe, damit alle drei Flaggen im
+   selben Massstab erscheinen; "unten" ist links und rechts zusammen. Der
+   Kreis ist groesser als bei Solo/Duo, weil die Karte drei Namen hoch ist. */
+.flag-badge-wrapper.flag-trio-gross,
+.pool-duo-card .flag-badge-wrapper.flag-trio-gross,
+.pool-duo-card.solo-entry .flag-badge-wrapper.flag-trio-gross{
+  width:40px;height:40px;flex:0 0 40px;
 }
-.flag-trio-kreise .full-flag{border-radius:50%;border:1px solid rgba(255,255,255,0.08)}
-.flag-kreis{position:absolute;border-radius:50%;overflow:hidden;box-sizing:border-box;
-  border:1.5px solid var(--panel,#18181b);background:#111}
-.flag-kreis img{width:100%;height:100%;object-fit:cover;display:block}
-.flag-kreis-3-1{left:21%;top:0;width:58%;height:58%}
-.flag-kreis-3-2{left:0;bottom:0;width:58%;height:58%}
-.flag-kreis-3-3{right:0;bottom:0;width:58%;height:58%}
-.flag-kreis-2-1{left:0;top:0;width:64%;height:64%}
-.flag-kreis-2-2{right:0;bottom:0;width:64%;height:64%}
+.flag-trio{position:absolute;inset:0;background-size:cover;background-position:center}
+.flag-trio-oben  {bottom:21.13%;clip-path:polygon(50% 63.4%,100% 26.8%,100% 0,0 0,0 26.8%)}
+.flag-trio-links {top:21.13%;right:50%;clip-path:polygon(100% 36.6%,0 0,0 100%,100% 100%)}
+.flag-trio-rechts{top:21.13%;left:50%;clip-path:polygon(0 36.6%,100% 0,100% 100%,0 100%)}
+.flag-trio-unten {top:21.13%;clip-path:polygon(50% 36.6%,0 0,0 100%,100% 100%,100% 0)}
