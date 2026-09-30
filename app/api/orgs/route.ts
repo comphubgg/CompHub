@@ -104,7 +104,9 @@ export async function GET(request: Request) {
         // Der Name, wie ihn die Org fuehrt - das Profil kennt oft nur den rohen Epic-Namen.
         epicId: s.epicId, name: s.name || p?.name || '?', land: p?.land ? String(p.land).toUpperCase() : null,
         // Das Foto am Konto, sonst das vom Admin hier hochgeladene.
-        bild: (s.epicId ? bildZu.get(s.epicId) : null) ?? s.bild ?? null,
+        // "?v=2": Cloudflare hielt fuer diese Fotos ein 404 fest (30.9.2026) -
+        // eine neue Adresse holt sie frisch.
+        bild: (s.epicId ? bildZu.get(s.epicId) : null) ?? (s.bild ? `${s.bild}?v=2` : null),
         eigenesBild: s.bild ?? null, seit: s.seit,
         betrag: wert ? wert.betrag : null, turniere: wert ? wert.anzahl : null,
         rolle: s.rolle, x: s.x || (p as { x?: string } | undefined)?.x || null,

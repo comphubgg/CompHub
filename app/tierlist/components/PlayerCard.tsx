@@ -312,18 +312,36 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
       className={`${cardClass} ${isDragging ? 'dragging' : ''} ${disabled ? 'locked-card' : ''}`}
     >
       <div className="flag-badge-wrapper">
-        {isTrioEntry ? (
-          /* Drei Flaggen in drei Dritteln - bei gleichem Land eine ganze. */
-          land1 && land1 === land2 && land2 === land3 ? (
-            <img src={flag1Url} alt={land1} className="full-flag" />
-          ) : (
+        {isTrioEntry ? (() => {
+          /*
+           * Drei Flaggen wie drei Tortenstuecke: oben, links unten, rechts
+           * unten (Skizze des Betreibers, 30.9.2026). Drei gleiche Laender:
+           * eine ganze Flagge. Zwei gleiche: die untere Haelfte ist eine
+           * Flagge, oben die andere - nie zweimal dasselbe Stueck.
+           */
+          const l = [land1, land2, land3].map((x) => String(x ?? '').toLowerCase());
+          const url = (i: number) => getCountryFlag([land1, land2, land3][i]);
+          if (l[0] && l[0] === l[1] && l[1] === l[2]) {
+            return <img src={url(0)} alt={land1} className="full-flag" />;
+          }
+          const paar = l[0] === l[1] ? [0, 1] : l[0] === l[2] ? [0, 2] : l[1] === l[2] ? [1, 2] : null;
+          if (paar && l[paar[0]]) {
+            const allein = [0, 1, 2].find((i) => !paar.includes(i))!;
+            return (
+              <>
+                <div className="flag-trio flag-trio-unten" style={{ backgroundImage: `url(${url(paar[0])})` }} />
+                <div className="flag-trio flag-trio-oben" style={{ backgroundImage: `url(${url(allein)})` }} />
+              </>
+            );
+          }
+          return (
             <>
-              <div className="flag-third flag-third-1" style={{ backgroundImage: `url(${flag1Url})` }} />
-              <div className="flag-third flag-third-2" style={{ backgroundImage: `url(${flag2Url})` }} />
-              <div className="flag-third flag-third-3" style={{ backgroundImage: `url(${getCountryFlag(land3)})` }} />
+              <div className="flag-trio flag-trio-oben" style={{ backgroundImage: `url(${url(0)})` }} />
+              <div className="flag-trio flag-trio-links" style={{ backgroundImage: `url(${url(1)})` }} />
+              <div className="flag-trio flag-trio-rechts" style={{ backgroundImage: `url(${url(2)})` }} />
             </>
-          )
-        ) : isDuoEntry ? (
+          );
+        })() : isDuoEntry ? (
           einLand ? (
             <img src={flag1Url} alt={land1} className="full-flag" />
           ) : (

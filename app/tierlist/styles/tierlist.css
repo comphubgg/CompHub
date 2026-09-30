@@ -263,16 +263,22 @@
 .flag-half-right {
   clip-path: polygon(100% 0, 100% 100%, 0 100%);
 }
-/* Trio: drei senkrechte Drittel */
-.flag-third {
+/* Trio: drei Tortenstuecke zu je 120 Grad - oben, links unten, rechts unten.
+   Die Kanten laufen vom Mittelpunkt nach 30, 150 und 270 Grad; am Rand des
+   Quadrats liegen sie bei 21.13 % Hoehe (tan 30 Grad). "unten" ist links und
+   rechts zusammen - fuer zwei Spieler aus demselben Land. */
+.flag-trio {
   position: absolute;
   inset: 0;
   background-size: cover;
   background-position: center;
 }
-.flag-third-1 { clip-path: inset(0 66.66% 0 0); }
-.flag-third-2 { clip-path: inset(0 33.33% 0 33.33%); }
-.flag-third-3 { clip-path: inset(0 0 0 66.66%); }
+/* Oben und unten bekommt die Flagge ihren eigenen Kasten, damit sie darin
+   erkennbar bleibt (sonst zeigte das obere Stueck von Deutschland nur Schwarz). */
+.flag-trio-oben   { bottom: auto; height: 50%; clip-path: polygon(50% 100%, 100% 42.26%, 100% 0, 0 0, 0 42.26%); }
+.flag-trio-links  { clip-path: polygon(50% 50%, 0 21.13%, 0 100%, 50% 100%); }
+.flag-trio-rechts { clip-path: polygon(50% 50%, 50% 100%, 100% 100%, 100% 21.13%); }
+.flag-trio-unten  { top: 21.13%; clip-path: polygon(50% 36.6%, 0 0, 0 100%, 100% 100%, 100% 0); }
 
 .tier-content .remove-btn {
   display: none;

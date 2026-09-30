@@ -424,7 +424,7 @@ export default function OrgsAdmin() {
                             title={foto ? t('Foto ersetzen') : t('Foto hochladen')}>
                             {foto
                               /* eslint-disable-next-line @next/next/no-img-element */
-                              ? <img src={foto} alt="" className="h-full w-full object-cover object-top" />
+                              ? <img src={foto.endsWith('.webp') ? `${foto}?v=2` : foto} alt="" className="h-full w-full object-cover object-top" />
                               : <span className="flex h-full w-full items-center justify-center text-lg text-zinc-600">+</span>}
                             {/* Nur beim Hochladen genau dieses Fotos. Vorher stand hier
                                 fotoLaedt === s.epicId - ohne Konto und ohne laufendes

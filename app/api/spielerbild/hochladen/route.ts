@@ -27,11 +27,29 @@ const ORDNER = 'spielerfotos/';
 const NAME = /^[a-z0-9-]+\.webp$/;
 
 export async function GET(request: Request) {
-  const datei = (new URL(request.url).searchParams.get('datei') ?? '').replace(/^spielerfotos\//, '');
-  if (!NAME.test(datei)) return NextResponse.json({ fehler: 'unknown photo' }, { status: 404 });
+  /*
+   * Der Dateiname kommt als ?datei=... - oder, ueber die Weiterleitung aus
+   * next.config (/spielerbilder/<datei>), aus dem Pfad. Dort kam der
+   * Parameter nicht an: jedes hochgeladene Foto antwortete mit 404 und stand
+   * im Admin als kaputtes Bild da (30.9.2026).
+   */
+  const adresse = new URL(request.url);
+  let roh = adresse.searchParams.get('datei') ?? '';
+  if (!roh) {
+    // Die Middleware legt den urspruenglichen Pfad in x-comphub-pfad ab.
+    for (const pfad of [request.headers.get('x-comphub-pfad') ?? '', adresse.pathname]) {
+      const m = /\/spielerbilder\/([^/?#]+)$/.exec(pfad);
+      if (m) { try { roh = decodeURIComponent(m[1]); } catch { roh = m[1]; } break; }
+    }
+  }
+  const datei = roh.replace(/^spielerfotos\//, '');
+  // Ein 404 darf nirgends liegen bleiben: Cloudflare hielt es vier Stunden
+  // fest, und ein eben hochgeladenes Foto blieb so lange kaputt (30.9.2026).
+  const nie = { 'Cache-Control': 'no-store' };
+  if (!NAME.test(datei)) return NextResponse.json({ fehler: 'unknown photo' }, { status: 404, headers: nie });
   try {
     const roh = await speicher.lies(ORDNER + datei);
-    if (!roh) return NextResponse.json({ fehler: 'unknown photo' }, { status: 404 });
+    if (!roh) return NextResponse.json({ fehler: 'unknown photo' }, { status: 404, headers: nie });
     return new NextResponse(new Uint8Array(roh), {
       headers: {
         'Content-Type': 'image/webp',
