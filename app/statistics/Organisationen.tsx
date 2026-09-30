@@ -36,8 +36,11 @@ interface OrgAnzeige {
   land?: string | null; region: string | null; gesamt: number | null;
   spieler: OrgSpielerAnzeige[];
   extras: Array<{ titel: string; betrag: number; datum: string | null }>;
+  /** Ehemalige laut Liquipedia - bei "alle Jahre" mit ihrem Preisgeld fuer die Org. */
+  ehemalige?: Array<{ name: string; epicId: string | null; seit: string | null; bis: string | null;
+    land: string | null; betrag: number | null; turniere: number | null }>;
 }
-interface Antwort { jahr: number; stand: number | null; orgs: OrgAnzeige[] }
+interface Antwort { jahr: number | 'alle'; stand: number | null; orgs: OrgAnzeige[] }
 
 /* ------------------------------------------------------------ Zeichen */
 
@@ -162,19 +165,28 @@ export default function Organisationen({ aufSpieler }: {
   const [offen, setOffen] = useState<string | null>(null);
   /** Welche Gruppe des Kaders - alle, oder nur Pro, Academy, Creator. */
   const [kaderFilter, setKaderFilter] = useState<Rolle | 'alle'>('alle');
+  /*
+   * Ueber alle Jahre oder nur dieses Jahr. "Alle Jahre" zaehlt wie Fortnite
+   * Tracker: heutige Spieler ab Beitritt, dazu Ehemalige fuer ihre Zeit bei
+   * der Org (Betreiber, 30.9.2026).
+   */
+  const [zeitraum, setZeitraum] = useState<'alle' | 'jahr'>('alle');
 
   useEffect(() => {
     let weg = false;
-    fetch('/api/orgs', { cache: 'no-store' })
+    fetch(zeitraum === 'alle' ? '/api/orgs?zeitraum=alle' : '/api/orgs', { cache: 'no-store' })
       .then(async (r) => {
         const j = await r.json().catch(() => null);
         if (weg) return;
         if (!r.ok || !j?.orgs) { setFehler(j?.fehler ?? t('Die Organisationen ließen sich gerade nicht laden.')); return; }
+        // "Alle Jahre" noch nicht gerechnet (neu seit 30.9.2026, der
+        // stuendliche Lauf legt es ab): dann das Jahr statt lauter Striche.
+        if (zeitraum === 'alle' && j.stand === null) { setZeitraum('jahr'); return; }
         setDaten(j as Antwort);
       })
       .catch(() => { if (!weg) setFehler(t('Die Organisationen ließen sich gerade nicht laden.')); });
     return () => { weg = true; };
-  }, [t]);
+  }, [t, zeitraum]);
 
   const geld = useMemo(() => new Intl.NumberFormat(ort, {
     style: 'currency', currency: 'USD', currencyDisplay: 'narrowSymbol', maximumFractionDigits: 0,
@@ -213,6 +225,8 @@ export default function Organisationen({ aufSpieler }: {
     ? `${t('Stand')} ${new Date(daten.stand).toLocaleString(ort, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}`
     : t('Wird innerhalb der nächsten Stunde gerechnet');
   const betragText = (o: OrgAnzeige) => (o.gesamt === null ? '—' : geld.format(o.gesamt));
+  /** "2026" oder "Alle Jahre" - fuer Kopf, Kacheln und Karten. */
+  const jahrText = daten ? (daten.jahr === 'alle' ? t('Alle Jahre') : String(daten.jahr)) : '';
 
   /* ---------------------------------------------------- Eine Org offen */
   if (org) {
@@ -263,7 +277,7 @@ export default function Organisationen({ aufSpieler }: {
           </div>
           <div className="relative grid grid-cols-3 border-t border-zinc-800/80 bg-zinc-950/70 backdrop-blur">
             {([
-              [<><T>Für die Organisation gewonnen</T> · {daten.jahr}</>, betragText(org)],
+              [<><T>Für die Organisation gewonnen</T> · {jahrText}</>, betragText(org)],
               [<T key="s">Spieler</T>, String(proZahl(org))],
               [<T key="b">Bezahlte Turniere</T>, org.gesamt === null ? '—' : String(turniere)],
             ] as Array<[ReactNode, string]>).map(([titel, wert], i) => (
@@ -333,7 +347,7 @@ export default function Organisationen({ aufSpieler }: {
                     {rolle !== 'creator' && (
                     <div className="flex items-end justify-between gap-2 border-t border-zinc-800 px-4 py-3">
                       <span className="text-[11px] uppercase tracking-wider text-slate-500">
-                        {daten.jahr}
+                        {jahrText}
                         {!!s.turniere && <> · {s.turniere} {s.turniere === 1 ? t('bezahltes Turnier') : t('bezahlte Turniere')}</>}
                       </span>
                       <span className="text-lg font-bold tabular-nums text-slate-50"
@@ -360,6 +374,53 @@ export default function Organisationen({ aufSpieler }: {
         </section>
             ))}
           </>
+        )}
+
+        {/*
+          * Der Roster-Verlauf wie bei Fortnite Tracker: wer wann kam und ging.
+          * Die Ehemaligen stammen aus Liquipedia; ihr Preisgeld steht nur bei
+          * "Alle Jahre" und nur, wo ein Konto sicher zugeordnet ist.
+          */}
+        {(org.ehemalige?.length ?? 0) > 0 && (
+          <section className="rounded-2xl border border-zinc-800 bg-zinc-900/40 p-5">
+            <h2 className="mb-3 text-xs font-bold uppercase tracking-[0.2em] text-sky-400"><T>Roster-Verlauf</T></h2>
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[520px] text-sm">
+                <thead>
+                  <tr className="text-left text-[11px] uppercase tracking-wider text-slate-500">
+                    <th className="py-2 pr-3 font-semibold"><T>Spieler</T></th>
+                    <th className="py-2 pr-3 font-semibold"><T>Beitritt</T></th>
+                    <th className="py-2 pr-3 font-semibold"><T>Austritt</T></th>
+                    {daten.jahr === 'alle' && <th className="py-2 text-right font-semibold"><T>Für die Organisation gewonnen</T></th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {org.spieler.filter((s) => rolleVon(s) !== 'creator').map((s, i) => (
+                    <tr key={`a-${s.name}-${i}`} className="border-t border-zinc-800/70">
+                      <td className="py-2 pr-3 font-semibold text-slate-100">
+                        <span className="flex items-center gap-2">{s.land && <TeamFlagge groesse={16} laender={[s.land]} />}{s.name}</span>
+                      </td>
+                      <td className="py-2 pr-3 tabular-nums text-slate-300">{s.seit ? tag(s.seit) : '—'}</td>
+                      <td className="py-2 pr-3 text-sky-400"><T>aktuell</T></td>
+                      {daten.jahr === 'alle' && <td className="py-2 text-right font-bold tabular-nums text-slate-100">{s.betrag === null ? '—' : geld.format(s.betrag)}</td>}
+                    </tr>
+                  ))}
+                  {(org.ehemalige ?? []).map((e, i) => (
+                    <tr key={`e-${e.name}-${i}`} className="border-t border-zinc-800/70">
+                      <td className="py-2 pr-3 text-slate-300">
+                        <span className="flex items-center gap-2">{e.land && <TeamFlagge groesse={16} laender={[e.land]} />}{e.name}</span>
+                      </td>
+                      <td className="py-2 pr-3 tabular-nums text-slate-400">{e.seit ? tag(e.seit) : '—'}</td>
+                      <td className="py-2 pr-3 tabular-nums text-slate-400">{e.bis ? tag(e.bis) : '—'}</td>
+                      {daten.jahr === 'alle' && <td className="py-2 text-right tabular-nums text-slate-300"
+                        title={e.epicId ? undefined : t('Kein Konto zugeordnet')}>{e.betrag === null ? '—' : geld.format(e.betrag)}</td>}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <p className="mt-2 text-xs text-slate-500"><T>Ehemalige laut Liquipedia. Preisgeld nur, wo ein Epic-Konto sicher zugeordnet ist.</T></p>
+          </section>
         )}
 
         {org.extras.length > 0 && (
@@ -393,11 +454,23 @@ export default function Organisationen({ aufSpieler }: {
     <div className="space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <div className="text-xs font-bold uppercase tracking-[0.2em] text-sky-400">Esports · {daten.jahr}</div>
+          <div className="text-xs font-bold uppercase tracking-[0.2em] text-sky-400">Esports · {jahrText}</div>
           <h2 className="mt-1 text-3xl font-black tracking-tight text-slate-50"><T>Organisationen</T></h2>
           <p className="mt-1 text-sm text-slate-400">
-            <T>Preisgeld für die Organisation, gezählt ab dem Beitritt jedes Spielers</T>
+            {daten.jahr === 'alle'
+              ? <T>Preisgeld für die Organisation über alle Jahre: heutige Spieler ab Beitritt, ehemalige für ihre Zeit bei der Organisation</T>
+              : <T>Preisgeld für die Organisation, gezählt ab dem Beitritt jedes Spielers</T>}
           </p>
+          <div className="mt-3 flex gap-1.5">
+            {([['alle', t('Alle Jahre')], ['jahr', '2026']] as Array<['alle' | 'jahr', string]>).map(([w, titel]) => (
+              <button key={w} type="button" onClick={() => setZeitraum(w)}
+                className={`rounded-lg border px-3 py-1.5 text-sm font-semibold transition ${zeitraum === w
+                  ? 'border-sky-500 bg-sky-500/10 text-sky-400'
+                  : 'border-zinc-800 text-slate-400 hover:border-zinc-600 hover:text-slate-200'}`}>
+                {titel}
+              </button>
+            ))}
+          </div>
         </div>
         <input value={suche} onChange={(e) => setSuche(e.target.value)} placeholder={t('Organisation suchen …')}
           className="w-full max-w-xs rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-2.5 text-sm text-slate-100

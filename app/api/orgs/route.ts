@@ -32,6 +32,12 @@ export const maxDuration = 300;
 const KONTO_COOKIE = 'streamer_dashboard_konto';
 const VIP_COOKIE = 'streamer_dashboard_auth';
 const SCHLUESSEL = `orgs|verdienst|${ORGS_JAHR}`;
+/*
+ * Ueber alle Jahre - wie bei Fortnite Tracker (Betreiber, 30.9.2026): die
+ * heutigen Spieler ab Beitritt in jedem Jahr, dazu die Ehemaligen fuer die
+ * Zeit, in der sie bei der Org waren.
+ */
+const SCHLUESSEL_ALLE = 'orgs|verdienst|alle';
 
 /** Fuer wen gerechnet wurde (konten) und was sie gewannen (posten - nur Konten mit Geld). */
 interface VerdienstAntwort { zeit: number; konten?: string[]; posten: Record<string, Posten[]> }
@@ -57,6 +63,24 @@ async function rechne(orgs: Org[]): Promise<VerdienstAntwort> {
   return { zeit: Date.now(), konten: [...ids], posten: await verdienstPosten(ORGS_JAHR, ids) };
 }
 
+/** Dasselbe ueber alle Jahre, fuer heutige und ehemalige Spieler. */
+async function rechneAlle(orgs: Org[]): Promise<VerdienstAntwort> {
+  const { verdienstPosten, JAHR_SAISONS } = await import('@/lib/szeneStats');
+  const ids = new Set([
+    ...orgs.flatMap((o) => o.spieler.map((s) => s.epicId)),
+    ...orgs.flatMap((o) => (o.ehemalige ?? []).map((e) => e.epicId ?? null)),
+  ].filter((x): x is string => !!x));
+  const posten: Record<string, Posten[]> = {};
+  for (const jahr of Object.keys(JAHR_SAISONS).map(Number).sort()) {
+    const teil = await verdienstPosten(jahr, ids);
+    for (const [id, liste] of Object.entries(teil)) {
+      const da = new Set((posten[id] ?? []).map((p) => p.windowId));
+      posten[id] = [...(posten[id] ?? []), ...liste.filter((p) => !da.has(p.windowId))];
+    }
+  }
+  return { zeit: Date.now(), konten: [...ids], posten };
+}
+
 export async function GET(request: Request) {
   const ansicht = new URL(request.url).searchParams.get('ansicht');
 
@@ -72,15 +96,20 @@ export async function GET(request: Request) {
     if (ohneDateien()) return NextResponse.json({ fehler: 'only where the data files are' }, { status: 400 });
     const antwort = await rechne(orgs);
     await legeAntwortAb(SCHLUESSEL, antwort);
-    return NextResponse.json({ ok: true, konten: Object.keys(antwort.posten).length });
+    const alle = await rechneAlle(orgs);
+    await legeAntwortAb(SCHLUESSEL_ALLE, alle);
+    return NextResponse.json({ ok: true, konten: Object.keys(antwort.posten).length, kontenAlle: Object.keys(alle.posten).length });
   }
 
+  // "?zeitraum=alle": alle Jahre samt Ehemaligen; sonst das Jahr (ORGS_JAHR).
+  const alleJahre = new URL(request.url).searchParams.get('zeitraum') === 'alle';
+  const schluessel = alleJahre ? SCHLUESSEL_ALLE : SCHLUESSEL;
   let verdienst: VerdienstAntwort | null = null;
   try {
-    verdienst = await abgelegteAntwort<VerdienstAntwort>(SCHLUESSEL);
+    verdienst = await abgelegteAntwort<VerdienstAntwort>(schluessel);
     if (!verdienst && !ohneDateien()) {
-      verdienst = await rechne(orgs);
-      await legeAntwortAb(SCHLUESSEL, verdienst);
+      verdienst = alleJahre ? await rechneAlle(orgs) : await rechne(orgs);
+      await legeAntwortAb(schluessel, verdienst);
     }
   } catch { verdienst = null; }
 
@@ -115,15 +144,33 @@ export async function GET(request: Request) {
         twitch: s.twitch, tiktok: s.tiktok, youtube: s.youtube,
       };
     }).sort((a, b) => (b.betrag ?? -1) - (a.betrag ?? -1));
-    const jahrExtras = o.extras.filter((e) => !e.datum || e.datum.startsWith(String(ORGS_JAHR)));
+    const jahrExtras = alleJahre ? o.extras
+      : o.extras.filter((e) => !e.datum || e.datum.startsWith(String(ORGS_JAHR)));
+    /*
+     * Die Ehemaligen - fuer den Roster-Verlauf und, ueber alle Jahre, mit
+     * dem, was sie in ihrer Zeit bei der Org gewonnen haben. Ohne Konto
+     * bleibt der Betrag leer (null), statt 0 vorzutaeuschen.
+     */
+    const ehemalige = (o.ehemalige ?? []).map((e) => {
+      const posten = e.epicId && verdienst ? (verdienst.posten[e.epicId] ?? []) : null;
+      const wert = alleJahre && posten ? fuerDieOrg(posten, e.seit, e.bis) : null;
+      return {
+        // liquipedia durchgereicht, damit das Admin-Werkzeug sie behaelt.
+        name: e.name, liquipedia: e.liquipedia ?? null,
+        epicId: e.epicId ?? null, seit: e.seit, bis: e.bis,
+        land: e.epicId && profile[e.epicId]?.land ? String(profile[e.epicId]!.land).toUpperCase() : null,
+        betrag: wert ? wert.betrag : null, turniere: wert ? wert.anzahl : null,
+      };
+    });
     // Zum Preisgeld der Org zaehlt nur das Pro Roster - Academy und Creator
     // stehen mit ihren eigenen Zahlen da, gehen aber nicht in die Summe.
     const summeSpieler = spieler.filter((s) => s.rolle === 'pro').reduce((a, s) => a + (s.betrag ?? 0), 0);
-    const gesamt = verdienst ? summeSpieler + jahrExtras.reduce((a, e) => a + e.betrag, 0) : null;
-    return { ...o, spieler, extras: jahrExtras, gesamt };
+    const summeEhemalige = alleJahre ? ehemalige.reduce((a, e) => a + (e.betrag ?? 0), 0) : 0;
+    const gesamt = verdienst ? summeSpieler + summeEhemalige + jahrExtras.reduce((a, e) => a + e.betrag, 0) : null;
+    return { ...o, spieler, ehemalige, extras: jahrExtras, gesamt };
   }).sort((a, b) => (b.gesamt ?? -1) - (a.gesamt ?? -1) || a.name.localeCompare(b.name));
 
-  return NextResponse.json({ jahr: ORGS_JAHR, stand: verdienst?.zeit ?? null, orgs: raus });
+  return NextResponse.json({ jahr: alleJahre ? 'alle' : ORGS_JAHR, stand: verdienst?.zeit ?? null, orgs: raus });
 }
 
 export async function POST(request: Request) {

@@ -61,6 +61,8 @@ export interface OrgEhemaliger {
   liquipedia: string | null;
   seit: string | null;
   bis: string | null;
+  /** Nur ueber dieselbe Liquipedia-Seite oder das X-Konto zugeordnet - nie ueber den Namen. */
+  epicId?: string | null;
 }
 
 export interface OrgExtra {
@@ -178,6 +180,7 @@ export function saeubere(o: Partial<Org>): Org {
       liquipedia: e?.liquipedia ? text(e.liquipedia, 120) : null,
       seit: e && TAG.test(String(e.seit ?? '')) ? String(e.seit) : null,
       bis: e && TAG.test(String(e.bis ?? '')) ? String(e.bis) : null,
+      epicId: e && KONTO.test(String(e.epicId ?? '').toLowerCase()) ? String(e.epicId).toLowerCase() : null,
     })).filter((e) => e.name).slice(0, 300),
     ausgeschlossen: [...new Set((Array.isArray(o.ausgeschlossen) ? o.ausgeschlossen : [])
       .map((n) => text(n, 40)).filter(Boolean))].slice(0, 300),
@@ -210,11 +213,13 @@ export interface Posten { datum: number | null; betrag: number; titel: string; w
  * gefiltert an - ein zusaetzlicher Schnitt am 1. Januar liesse die Finals vom
  * Dezember fehlen, die das Spielerprofil unter 2026 fuehrt.
  */
-export function fuerDieOrg(posten: Posten[], seit: string | null): { betrag: number; anzahl: number } {
+export function fuerDieOrg(posten: Posten[], seit: string | null, bis: string | null = null): { betrag: number; anzahl: number } {
   const ab = seit ? Date.parse(`${seit}T00:00:00Z`) : 0;
+  // Bei Ehemaligen: nur bis zum Austrittstag (einschliesslich).
+  const ende = bis ? Date.parse(`${bis}T23:59:59Z`) : Infinity;
   let betrag = 0; let anzahl = 0;
   for (const p of posten) {
-    if (p.datum === null ? !!seit : p.datum < ab) continue;
+    if (p.datum === null ? (!!seit || !!bis) : (p.datum < ab || p.datum > ende)) continue;
     betrag += p.betrag; anzahl += 1;
   }
   return { betrag, anzahl };

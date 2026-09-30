@@ -330,8 +330,23 @@ async function main() {
   for (const org of orgs) for (const sp of org.spieler ?? []) {
     if (!sp.epicId && sp.liquipedia) offen.push({ org, sp });
   }
+  /*
+   * Die Ehemaligen: zuerst ueber dieselbe Liquipedia-Seite wie ein heutiger
+   * Spieler mit Konto (dieselbe Seite = dieselbe Person), sonst ueber das
+   * X-Konto wie oben. Damit zaehlt ihr Preisgeld fuer die Zeit bei der Org.
+   */
+  const kontoNachSeite = new Map();
+  for (const org of orgs) for (const sp of org.spieler ?? []) {
+    if (sp.epicId && sp.liquipedia) kontoNachSeite.set(sp.liquipedia.toLowerCase(), sp.epicId);
+  }
+  const offeneEhemalige = [];
+  for (const org of orgs) for (const e of org.ehemalige ?? []) {
+    if (e.epicId || !e.liquipedia) continue;
+    const k = kontoNachSeite.get(e.liquipedia.toLowerCase());
+    if (k) e.epicId = k; else offeneEhemalige.push(e);
+  }
   const xVonSeite = new Map();
-  const seitenListe = [...new Set(offen.map((o) => o.sp.liquipedia))];
+  const seitenListe = [...new Set([...offen.map((o) => o.sp.liquipedia), ...offeneEhemalige.map((e) => e.liquipedia)])];
   for (let i = 0; i < seitenListe.length && kontoNachX.size; i += 50) {
     const j = await api({ action: 'query', titles: seitenListe.slice(i, i + 50).join('|'), redirects: '1',
       prop: 'revisions', rvprop: 'content', rvslots: 'main' });
@@ -358,7 +373,14 @@ async function main() {
     verknuepft += 1;
     aenderungen.push(`${org.name}: **${sp.name}** ueber X @${h} mit seinem Epic-Konto verknuepft`);
   }
-  console.log(`${offen.length} ohne Epic-Konto, ${xVonSeite.size} X-Konten gelesen, ${verknuepft} ueber X zugeordnet`);
+  let ehemaligeMitKonto = 0;
+  for (const e of offeneEhemalige) {
+    const h = xVonSeite.get(e.liquipedia);
+    const ids = h ? kontoNachX.get(h) : null;
+    if (ids && ids.size === 1) e.epicId = [...ids][0];
+  }
+  for (const org of orgs) for (const e of org.ehemalige ?? []) if (e.epicId) ehemaligeMitKonto += 1;
+  console.log(`${offen.length} ohne Epic-Konto, ${xVonSeite.size} X-Konten gelesen, ${verknuepft} ueber X zugeordnet; Ehemalige mit Konto: ${ehemaligeMitKonto}`);
 
   console.log(`${geprueft} Orgs mit Liquipedia-Kader geprueft, ${aenderungen.length} Aenderungen`);
   for (const a of aenderungen) console.log(`  ${a.replace(/\*\*/g, '')}`);
