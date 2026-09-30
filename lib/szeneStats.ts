@@ -1399,11 +1399,35 @@ export async function startseite(saison?: string, wieViele = 25, jeTag = 3) {
   }));
 
   const szeneTage = alle.filter((e) => e.season === dieSaison && !eigeneFenster.has(e.windowId));
+  /*
+   * Eine LAN (Globals) zaehlt fuer jeden Spieler in seiner Heimatregion.
+   *
+   * Im Archiv steht der Globals-Tag unter einer Region (EU), gespielt haben
+   * aber alle Regionen. Mit der Region des Eintrags landeten die Kills eines
+   * NAC-Spielers bei "EU" und fehlten in seiner Heimat - die Liste zeigte
+   * Peterbot ohne Globals (Betreiber, 30.9.2026: "Globals fehlen ja richtig
+   * viele Kills"). "*" heisst: in die Heimat. Steht derselbe LAN-Tag unter
+   * mehreren Regionen, zaehlt er je Spieler nur einmal.
+   */
+  const istLan = (e: { windowId: string; name?: string }) =>
+    /^(MannekenPis|Dinosauron|BambiRaptor)_Day\d+$/.test(e.windowId) || /global championship/i.test(e.name ?? '');
+  const lanGezaehlt = new Set<string>();
+  const lanFenster = new Set<string>();
   for (const e of szeneTage) {
+    const lan = istLan(e);
+    if (lan && lanFenster.has(e.windowId)) continue;
     const { spieler: feld } = await summen({ saison: dieSaison, region: e.region, event: e.windowId });
-    for (const s of feld) zaehle(s.epicId, s.elims, s.matches, e.region, true);
+    for (const s of feld) {
+      if (lan) {
+        const k = `${e.windowId}|${s.epicId}`;
+        if (lanGezaehlt.has(k)) continue;
+        lanGezaehlt.add(k);
+      }
+      zaehle(s.epicId, s.elims, s.matches, lan ? '*' : e.region, true);
+    }
+    if (lan) lanFenster.add(e.windowId);
     nachweis.push({
-      name: e.name, region: e.region, datum: e.datum ?? null,
+      name: e.name, region: lan ? 'LAN' : e.region, datum: e.datum ?? null,
       quelle: 'szene', ausgewertet: e.matches, gesamt: null,
     });
   }
@@ -1421,20 +1445,31 @@ export async function startseite(saison?: string, wieViele = 25, jeTag = 3) {
         .sort((a, b) => (b[1].events + b[1].opens) - (a[1].events + a[1].opens)
           || b[1].elims - a[1].elims);
       const archivHeimat = heimatKarte.get(id);
-      const [heimat, daheim] = (archivHeimat && z.has(archivHeimat))
-        ? [archivHeimat, z.get(archivHeimat)!] : regionen[0];
+      // Die LAN ("*") ist keine eigene Region - sie kommt zur Heimat dazu.
+      const lan = z.get('*');
+      const ohneLan = regionen.filter(([r]) => r !== '*');
+      const [heimat, daheimRoh] = (archivHeimat && z.has(archivHeimat))
+        ? [archivHeimat, z.get(archivHeimat)!]
+        : (ohneLan[0] ?? [archivHeimat ?? '*', { elims: 0, matches: 0, events: 0, finalsElims: 0, opensElims: 0, finals: 0, opens: 0, opensMatches: 0 }]);
+      const daheim = lan ? {
+        ...daheimRoh,
+        elims: daheimRoh.elims + lan.elims, matches: daheimRoh.matches + lan.matches,
+        events: daheimRoh.events + lan.events, finalsElims: daheimRoh.finalsElims + lan.finalsElims,
+        finals: daheimRoh.finals + lan.finals,
+      } : daheimRoh;
       const s = leereSumme(id, '');
       s.elims = daheim.elims; s.matches = daheim.matches; s.events = daheim.events;
       s.finalsElims = daheim.finalsElims; s.opensElims = daheim.opensElims;
       s.finals = daheim.finals; s.opens = daheim.opens; s.opensMatches = daheim.opensMatches;
       s.name = archivNamen.get(id) ?? gespeichert[id] ?? '';
       s.namen = s.name ? [s.name] : [];
-      s.regionen = regionen.map(([r]) => r);
+      s.regionen = ohneLan.map(([r]) => r);
       s.elimsProMatch = s.matches ? s.elims / s.matches : 0;
       return {
         ...s,
         heimat,
-        jeRegion: Object.fromEntries(regionen),
+        // Ohne die LAN als eigene Region - sie steckt in der Heimat.
+        jeRegion: { ...Object.fromEntries(ohneLan), [heimat]: daheim },
       };
     })
       .filter((s) => s.elims > 0 || (s.opensElims ?? 0) > 0)
