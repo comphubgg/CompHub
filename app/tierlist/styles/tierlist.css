@@ -263,23 +263,6 @@
 .flag-half-right {
   clip-path: polygon(100% 0, 100% 100%, 0 100%);
 }
-/* Trio: drei Tortenstuecke zu je 120 Grad - oben, links unten, rechts unten.
-   Die Kanten laufen vom Mittelpunkt nach 30, 150 und 270 Grad; am Rand des
-   Quadrats liegen sie bei 21.13 % Hoehe (tan 30 Grad). "unten" ist links und
-   rechts zusammen - fuer zwei Spieler aus demselben Land. */
-.flag-trio {
-  position: absolute;
-  inset: 0;
-  background-size: cover;
-  background-position: center;
-}
-/* Jedes Stueck bekommt einen eigenen Kasten, damit die Flagge darin
-   erkennbar bleibt (sonst zeigte das obere Stueck von Deutschland nur
-   Schwarz und das linke von Russland kein Weiss). */
-.flag-trio-oben   { bottom: auto; height: 50%; clip-path: polygon(50% 100%, 100% 42.26%, 100% 0, 0 0, 0 42.26%); }
-.flag-trio-links  { top: 21.13%; right: 50%; clip-path: polygon(100% 36.6%, 0 0, 0 100%, 100% 100%); }
-.flag-trio-rechts { top: 21.13%; left: 50%; clip-path: polygon(0 36.6%, 100% 0, 100% 100%, 0 100%); }
-.flag-trio-unten  { top: 21.13%; clip-path: polygon(50% 36.6%, 0 0, 0 100%, 100% 100%, 100% 0); }
 
 .tier-content .remove-btn {
   display: none;
@@ -1208,3 +1191,21 @@ button,input,select,textarea{transition:var(--transition)}
 /* Vorschlaege im Anlegen-Feld unten in der Seitenleiste nach oben oeffnen:
    darunter ist kein Platz, und die Seitenleiste schneidet ab (30.9.2026). */
 .tierlist-page .sidebar .sidebar-create .autocomplete-list{top:auto;bottom:calc(100% + 6px);max-height:260px}
+
+/* Trio: je Land ein kleiner, ganzer Flaggen-Kreis - oben, links unten,
+   rechts unten (30.9.2026). Der Kasten ist groesser als bei Solo/Duo, weil
+   die Trio-Karte drei Namen hoch ist. */
+.flag-badge-wrapper.flag-trio-kreise,
+.pool-duo-card .flag-badge-wrapper.flag-trio-kreise,
+.pool-duo-card.solo-entry .flag-badge-wrapper.flag-trio-kreise{
+  width:40px;height:40px;flex:0 0 40px;border-radius:0;overflow:visible;background:none;border:0;
+}
+.flag-trio-kreise .full-flag{border-radius:50%;border:1px solid rgba(255,255,255,0.08)}
+.flag-kreis{position:absolute;border-radius:50%;overflow:hidden;box-sizing:border-box;
+  border:1.5px solid var(--panel,#18181b);background:#111}
+.flag-kreis img{width:100%;height:100%;object-fit:cover;display:block}
+.flag-kreis-3-1{left:21%;top:0;width:58%;height:58%}
+.flag-kreis-3-2{left:0;bottom:0;width:58%;height:58%}
+.flag-kreis-3-3{right:0;bottom:0;width:58%;height:58%}
+.flag-kreis-2-1{left:0;top:0;width:64%;height:64%}
+.flag-kreis-2-2{right:0;bottom:0;width:64%;height:64%}
