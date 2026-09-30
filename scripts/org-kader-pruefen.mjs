@@ -123,13 +123,18 @@ function zeilenAus(html) {
   const out = [];
   for (const m of html.matchAll(/<tr class="table2__row--body"[^>]*>([\s\S]*?)<\/tr>/g)) {
     const zeile = m[1];
-    const spieler = /class="inline-player"[\s\S]*?<a [^>]*>([^<]+)<\/a>/.exec(zeile)?.[1]?.trim();
+    const treffer = /class="inline-player"[\s\S]*?<a ([^>]*)>([^<]+)<\/a>/.exec(zeile);
+    const spieler = treffer?.[2]?.trim();
     if (!spieler) continue;
+    // Die Spielerseite (fuer das X-Konto weiter unten), aus dem Link.
+    const href = /href="\/fortnite\/([^"#?]+)"/.exec(treffer[1])?.[1];
+    let seite = null;
+    try { seite = href ? decodeURIComponent(href).replace(/_/g, ' ') : null; } catch { seite = null; }
     // Die Daten aus dem sichtbaren Text der Zellen - die Fussnoten tragen
     // dasselbe Datum noch einmal in ihrer Kennung.
     const zellen = [...zeile.matchAll(/<td[^>]*>([\s\S]*?)<\/td>/g)].map((z) => z[1].replace(/<[^>]+>/g, ' '));
     const daten = zellen.map((z) => /\d{4}-\d{2}-\d{2}/.exec(z)?.[0]).filter(Boolean);
-    out.push({ id: spieler, beitritt: daten[0] ?? '', austritt: daten[1] ?? '' });
+    out.push({ id: spieler, seite, beitritt: daten[0] ?? '', austritt: daten[1] ?? '' });
   }
   return out;
 }
@@ -200,13 +205,76 @@ async function main() {
     });
     // Dazu: bei Liquipedia aktiv, bei uns nicht.
     for (const a of aktiv.values()) {
-      if (bleiben.some((sp) => gleich(sp.name, a.id))) continue;
+      const da = bleiben.find((sp) => gleich(sp.name, a.id));
+      if (da) {
+        // Die Spielerseite merken - daran haengt die Zuordnung ueber X.
+        if (!da.liquipedia && a.seite && !da.epicId) da.liquipedia = a.seite;
+        continue;
+      }
       bleiben.push({ epicId: null, name: a.id, seit: /^\d{4}-\d{2}-\d{2}$/.test(a.beitritt) ? a.beitritt : null,
-        rolle: 'pro', x: null, twitch: null, tiktok: null, youtube: null });
+        rolle: 'pro', x: null, twitch: null, tiktok: null, youtube: null,
+        ...(a.seite ? { liquipedia: a.seite } : {}) });
       aenderungen.push(`${org.name}: **${a.id}** joined${a.beitritt ? ` (${a.beitritt})` : ''} - Epic account still to assign`);
     }
     org.spieler = bleiben;
   }
+  /*
+   * Das Epic-Konto ueber das X-Konto - nie ueber den Namen.
+   *
+   * Liquipedia fuehrt kein Epic-Konto, aber auf jeder Spielerseite das
+   * X-Konto. Die gepflegten Profile tragen ihr X-Konto an der Konto-Id. Passt
+   * das X-Konto einer Spielerseite genau auf ein Profil, ist das dasselbe
+   * Konto; gibt es keinen oder mehr als einen Treffer, bleibt der Spieler
+   * zum Zuordnen stehen.
+   */
+  const handle = (x) => String(x ?? '').trim().toLowerCase()
+    .replace(/^https?:\/\/(www\.)?(x|twitter)\.com\//, '').replace(/^@/, '').replace(/[/?#].*$/, '');
+  const profile = (() => {
+    try { return JSON.parse(fs.readFileSync(path.join(path.dirname(DATEI), 'spieler-profile.json'), 'utf8')); }
+    catch { return {}; }
+  })();
+  const kontoNachX = new Map();
+  for (const [schl, pr] of Object.entries(profile)) {
+    const id = /^[0-9a-f]{32}$/.test(schl) ? schl : (/^[0-9a-f]{32}$/.test(pr?.id ?? '') ? pr.id : null);
+    const h = handle(pr?.x);
+    if (!id || !h) continue;
+    if (!kontoNachX.has(h)) kontoNachX.set(h, new Set());
+    kontoNachX.get(h).add(id);
+  }
+  const offen = [];
+  for (const org of orgs) for (const sp of org.spieler ?? []) {
+    if (!sp.epicId && sp.liquipedia) offen.push({ org, sp });
+  }
+  const xVonSeite = new Map();
+  const seitenListe = [...new Set(offen.map((o) => o.sp.liquipedia))];
+  for (let i = 0; i < seitenListe.length && kontoNachX.size; i += 50) {
+    const j = await api({ action: 'query', titles: seitenListe.slice(i, i + 50).join('|'), redirects: '1',
+      prop: 'revisions', rvprop: 'content', rvslots: 'main' });
+    const q = j?.query;
+    const weiter = new Map();
+    for (const n of q?.normalized ?? []) weiter.set(n.to, n.from);
+    for (const r of q?.redirects ?? []) weiter.set(r.to, weiter.get(r.from) ?? r.from);
+    for (const seite of Object.values(q?.pages ?? {})) {
+      const text = seite?.revisions?.[0]?.slots?.main?.['*'] ?? '';
+      const x = /\|\s*twitter\s*=\s*([^|\n}]+)/i.exec(text)?.[1];
+      if (x) {
+        xVonSeite.set(seite.title, handle(x));
+        if (weiter.has(seite.title)) xVonSeite.set(weiter.get(seite.title), handle(x));
+      }
+    }
+  }
+  let verknuepft = 0;
+  for (const { org, sp } of offen) {
+    const h = xVonSeite.get(sp.liquipedia);
+    const ids = h ? kontoNachX.get(h) : null;
+    if (!ids || ids.size !== 1) continue;
+    sp.epicId = [...ids][0];
+    if (!sp.x) sp.x = h;
+    verknuepft += 1;
+    aenderungen.push(`${org.name}: **${sp.name}** linked to their Epic account via X @${h}`);
+  }
+  console.log(`${offen.length} ohne Epic-Konto, ${xVonSeite.size} X-Konten gelesen, ${verknuepft} ueber X zugeordnet`);
+
   console.log(`${geprueft} Orgs mit Liquipedia-Kader geprueft, ${aenderungen.length} Aenderungen`);
   for (const a of aenderungen) console.log(`  ${a.replace(/\*\*/g, '')}`);
   if (PROBE) return;
