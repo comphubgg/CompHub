@@ -167,14 +167,59 @@ function kaderAus(rohHtml) {
 async function main() {
   const roh = JSON.parse(fs.readFileSync(DATEI, 'utf8'));
   const orgs = Array.isArray(roh) ? roh : roh.orgs ?? [];
-  // Derselbe Spieler, auch wenn eine Seite Zusaetze fuehrt ("27 twi" / "Twi").
+  /*
+   * Derselbe Spieler, auch wenn eine Seite Zusaetze fuehrt ("27 twi" / "Twi")
+   * oder Ziffern statt Buchstaben schreibt: Liquipedia fuehrt Vico als
+   * "vic0" (mit Null). Der erste Abgleich am 30.9.2026 hielt das fuer einen
+   * neuen Spieler und trug ihn bei BIG ein zweites Mal ein - der Betreiber:
+   * "VIC0 ... das ist der gleiche Spieler wie ... Vico".
+   *
+   * Deshalb gefaltet (0->o, 1->i, 3->e, 4->a, 5->s, 7->t, kyrillische und
+   * griechische Zwillingsbuchstaben), und dazu alle Namen, unter denen das
+   * Konto eines Spielers je angetreten ist ("BIG vic0").
+   */
+  const ZWILLINGE = { 'а': 'a', 'в': 'b', 'е': 'e', 'к': 'k', 'м': 'm', 'н': 'h', 'о': 'o', 'р': 'p', 'с': 'c',
+    'т': 't', 'у': 'y', 'х': 'x', 'і': 'i', 'ј': 'j', 'ѕ': 's', 'ԁ': 'd', 'α': 'a', 'ε': 'e', 'ι': 'i', 'κ': 'k',
+    'ο': 'o', 'ρ': 'p', 'τ': 't', 'υ': 'u', 'ν': 'v', 'ı': 'i', 'ł': 'l', 'ø': 'o' };
+  const ZIFFERN = { 0: 'o', 1: 'i', 3: 'e', 4: 'a', 5: 's', 7: 't' };
+  const falte = (t) => [...String(t ?? '').normalize('NFKC').toLowerCase()].map((z) => ZWILLINGE[z] ?? z).join('')
+    .replace(/[^a-z0-9]/g, '').replace(/[013457]/g, (z) => ZIFFERN[z]);
   const gleich = (a, b) => {
-    const x = norm(a); const y = norm(b);
+    const x = falte(a); const y = falte(b);
     if (!x || !y) return false;
     if (x === y) return true;
     const [kurz, lang] = x.length <= y.length ? [x, y] : [y, x];
     return kurz.length >= 3 && (lang.startsWith(kurz) || lang.endsWith(kurz));
   };
+  const namenVz = (() => {
+    try { return JSON.parse(fs.readFileSync(path.join(path.dirname(DATEI), 'spieler-namen.json'), 'utf8')); }
+    catch { return {}; }
+  })();
+  const profilVz = (() => {
+    try { return JSON.parse(fs.readFileSync(path.join(path.dirname(DATEI), 'spieler-profile.json'), 'utf8')); }
+    catch { return {}; }
+  })();
+  /** Alle gefalteten Namen, unter denen dieser Spieler bekannt ist. */
+  const bekannteNamen = (sp) => {
+    const roh = [sp.name];
+    if (sp.epicId) {
+      const e = namenVz[sp.epicId];
+      roh.push(...(e?.namen ?? []), e?.haupt ?? '');
+      const pr = profilVz[sp.epicId];
+      roh.push(pr?.anzeige ?? '', pr?.name ?? '', ...(pr?.namen ?? []));
+    }
+    const raus = new Set();
+    for (const n of roh) {
+      if (!n) continue;
+      raus.add(falte(n));
+      // Ohne Orgtag und Startnummer: jedes Wort fuer sich ("BIG vic0 1!").
+      for (const w of String(n).split(/\s+/)) { const f = falte(w); if (f.length >= 3) raus.add(f); }
+    }
+    raus.delete('');
+    return raus;
+  };
+  /** Ist dieser Liquipedia-Eintrag der Spieler sp? */
+  const derselbe = (sp, lpId) => gleich(sp.name, lpId) || bekannteNamen(sp).has(falte(lpId));
   const aenderungen = [];
   let geprueft = 0;
   console.log(`${orgs.length} Orgs - Teamseiten suchen`);
@@ -195,17 +240,17 @@ async function main() {
     // Weg: bei Liquipedia ehemalig und nicht mehr aktiv (nur Spieler, keine Creator).
     const bleiben = spieler.filter((sp) => {
       if (sp.rolle === 'creator') return true;
-      const weg = [...ehemalig.values()].some((e) => gleich(e.id, sp.name))
-        && ![...aktiv.values()].some((a) => gleich(a.id, sp.name));
+      const weg = [...ehemalig.values()].some((e) => derselbe(sp, e.id))
+        && ![...aktiv.values()].some((a) => derselbe(sp, a.id));
       if (weg) {
-        const e = [...ehemalig.values()].find((x) => gleich(x.id, sp.name));
+        const e = [...ehemalig.values()].find((x) => derselbe(sp, x.id));
         aenderungen.push(`${org.name}: **${sp.name}** left${e?.austritt ? ` (${e.austritt})` : ''}`);
       }
       return !weg;
     });
     // Dazu: bei Liquipedia aktiv, bei uns nicht.
     for (const a of aktiv.values()) {
-      const da = bleiben.find((sp) => gleich(sp.name, a.id));
+      const da = bleiben.find((sp) => derselbe(sp, a.id));
       if (da) {
         // Die Spielerseite merken - daran haengt die Zuordnung ueber X.
         if (!da.liquipedia && a.seite && !da.epicId) da.liquipedia = a.seite;
@@ -219,6 +264,28 @@ async function main() {
     org.spieler = bleiben;
   }
   /*
+   * Doppelte in derselben Org entfernen.
+   *
+   * Was der Abgleich vom 30.9.2026 unter einer anderen Schreibweise schon
+   * eingetragen hat ("vic0" neben "Vico"), faellt hier wieder heraus: ein
+   * Eintrag ohne Epic-Konto, der derselbe Spieler ist wie ein anderer Eintrag
+   * derselben Org mit Konto.
+   */
+  for (const org of orgs) {
+    const liste = org.spieler ?? [];
+    const mitKonto = liste.filter((sp) => sp.epicId);
+    const raus = new Set();
+    for (const sp of liste) {
+      if (sp.epicId || sp.rolle === 'creator') continue;
+      const original = mitKonto.find((o) => o !== sp && derselbe(o, sp.name));
+      if (!original) continue;
+      raus.add(sp);
+      aenderungen.push(`${org.name}: removed duplicate **${sp.name}** (same player as ${original.name})`);
+    }
+    if (raus.size) org.spieler = liste.filter((sp) => !raus.has(sp));
+  }
+
+  /*
    * Das Epic-Konto ueber das X-Konto - nie ueber den Namen.
    *
    * Liquipedia fuehrt kein Epic-Konto, aber auf jeder Spielerseite das
@@ -229,12 +296,8 @@ async function main() {
    */
   const handle = (x) => String(x ?? '').trim().toLowerCase()
     .replace(/^https?:\/\/(www\.)?(x|twitter)\.com\//, '').replace(/^@/, '').replace(/[/?#].*$/, '');
-  const profile = (() => {
-    try { return JSON.parse(fs.readFileSync(path.join(path.dirname(DATEI), 'spieler-profile.json'), 'utf8')); }
-    catch { return {}; }
-  })();
   const kontoNachX = new Map();
-  for (const [schl, pr] of Object.entries(profile)) {
+  for (const [schl, pr] of Object.entries(profilVz)) {
     const id = /^[0-9a-f]{32}$/.test(schl) ? schl : (/^[0-9a-f]{32}$/.test(pr?.id ?? '') ? pr.id : null);
     const h = handle(pr?.x);
     if (!id || !h) continue;

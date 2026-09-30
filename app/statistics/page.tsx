@@ -1865,6 +1865,8 @@ export default function StatistikSeite() {
   const [sichtbar, setSichtbar] = useState<Record<Bereich, Sichtbar>>(SICHTBAR_STANDARD);
   /** Wann der Admin das Schloss zuletzt selbst gedreht hat - siehe unten. */
   const selbstGedreht = useRef(0);
+  /** Das letzte Umschalten wurde nicht gespeichert. */
+  const [schlossFehler, setSchlossFehler] = useState(false);
   const zugang = useZugang();
   const [pflegeName, setPflegeName] = useState('');
   const [pflegeLand, setPflegeLand] = useState('');
@@ -2290,13 +2292,26 @@ export default function StatistikSeite() {
     const naechste = SICHTBAR_REIHE[(SICHTBAR_REIHE.indexOf(jetzt) + 1) % SICHTBAR_REIHE.length];
     const neu = { ...sichtbar, [bereich]: naechste };
     setSichtbar(neu);
+    setSchlossFehler(false);
     selbstGedreht.current = Date.now();
+    /*
+     * Gespeichert ist erst, was der Server bestaetigt. Vorher stand hier ein
+     * Aufruf ohne Blick auf die Antwort: lehnte der Server ab, zeigte das
+     * Schloss trotzdem den neuen Stand - bis zum Neuladen (30.9.2026).
+     */
+    let ok = false;
     try {
-      await fetch('/api/statistik-sichtbarkeit', {
+      const r = await fetch('/api/statistik-sichtbarkeit', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ bereich, sichtbar: naechste }),
       });
-    } catch { /* dann steht es beim naechsten Laden wieder wie vorher */ }
+      ok = r.ok;
+    } catch { ok = false; }
+    if (!ok) {
+      setSichtbar(sichtbar);
+      selbstGedreht.current = 0;
+      setSchlossFehler(true);
+    }
   }, [sichtbar, bereich]);
 
   /* ----------------------------------------------------------- Startseite */
@@ -3560,6 +3575,11 @@ export default function StatistikSeite() {
                 </button>
               );
             })()}
+            {istAdmin && schlossFehler && (
+              <span className="text-xs font-semibold text-rose-400">
+                <T>Nicht gespeichert. Bitte noch einmal umschalten.</T>
+              </span>
+            )}
 
             {/*
               * Die Reiter duerfen umbrechen.

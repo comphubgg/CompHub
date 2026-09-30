@@ -35,7 +35,7 @@ jobs:
       - name: Zugangsdaten
         run: printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
       - name: Orgs aus Supabase
-        run: node scripts/umzug-supabase.mjs --herunterladen --nur orgs.json,spieler-profile.json 2>&1 | tail -2
+        run: node scripts/umzug-supabase.mjs --herunterladen --nur orgs.json,spieler-profile.json,spieler-namen.json 2>&1 | tail -2
       - name: Abgleich
         run: |
           if [ "${{ inputs.probe }}" = "ja" ]; then
