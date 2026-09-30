@@ -112,7 +112,7 @@ async function tag(eventId, windowId, idsVorab = null) {
   // Die Rohdaten je Match, kompakt (Teams, Kill-Feed, neue Figuren, Endplaetze):
   // damit laesst sich die Clutch-Regel spaeter neu rechnen, ohne ein Replay
   // erneut zu laden (scripts/clutch-neu-rechnen.mjs).
-  const roh = [];
+  const rohMatches = [];
   for (const id of ids) {
     const datei = path.join(os.tmpdir(), `clutch-${id}.replay`);
     try {
@@ -123,7 +123,7 @@ async function tag(eventId, windowId, idsVorab = null) {
       // inklusive); nur wenn der fehlt, die alte Rechnung.
       const voll = vollAus(datei);
       if (voll) {
-        roh.push({
+        rohMatches.push({
           id, busAb: voll.busAb ?? null,
           spieler: (voll.spieler ?? []).map((p) => ({ id: p.id, epic: p.epic, name: p.name, team: p.team, platz: p.platz, bot: p.bot })),
           feed: (voll.feed ?? []).map((f) => ({ t: f.t, opfer: f.opfer, taeter: f.taeter, art: f.art })),
@@ -156,10 +156,10 @@ async function tag(eventId, windowId, idsVorab = null) {
   }
   if (!matches.length) return false;
   fs.mkdirSync(ZIEL, { recursive: true });
-  if (roh.length) {
+  if (rohMatches.length) {
     const rohOrdner = path.join(DATEN, 'clutch-roh');
     fs.mkdirSync(rohOrdner, { recursive: true });
-    fs.writeFileSync(path.join(rohOrdner, `${windowId}.json`), JSON.stringify({ eventId, windowId, regeln, matches: roh }));
+    fs.writeFileSync(path.join(rohOrdner, `${windowId}.json`), JSON.stringify({ eventId, windowId, regeln, matches: rohMatches }));
   }
   fs.writeFileSync(path.join(ZIEL, `${windowId}.json`), JSON.stringify({
     version: 2, eventId, windowId, gerechnet: new Date().toISOString(), regeln, matches, summe, spiele,
@@ -203,7 +203,11 @@ if (arg[0] === '--alle') {
         // Zu gross nur, wenn es ueber der heutigen Grenze liegt (die Grenze ist
         // gestiegen - was vorher zu gross war, kann jetzt passen).
         const zahlText = /(\d+) Matches/.exec(weg?.grund ?? String(weg ?? ''))?.[1];
-        const gilt = weg && (zahlText ? Number(zahlText) > GROSS_MAX : (weg.zeit ?? 0) > Date.now() - 864e5);
+        // "Nichts zu rechnen" vom 29./30.9.2026 zaehlt nicht: da scheiterte
+        // jedes Match an einem Fehler im Skript ("roh.push is not a function").
+        const FEHLER_BIS = Date.parse('2026-09-30T16:30:00Z');
+        const gilt = weg && (zahlText ? Number(zahlText) > GROSS_MAX
+          : (weg.zeit ?? 0) > Math.max(Date.now() - 864e5, FEHLER_BIS));
         // Schon gerechnet - es sei denn, der Schaden fehlt noch (Dateien von vor dem 29.9.2026).
         const vorhanden = (() => { try { return JSON.parse(fs.readFileSync(path.join(ZIEL, `${t.windowId}.json`), 'utf8')); } catch { return null; } })();
         // Neu gerechnet wird auch, was noch nach der alten Clutch-Regel steht (vor Version 2).
