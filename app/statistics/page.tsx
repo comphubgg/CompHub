@@ -1950,6 +1950,8 @@ export default function StatistikSeite() {
    */
   const [cupNr, setCupNr] = useState(0);
   const [cupLaedt, setCupLaedt] = useState(false);
+  /** Die Werte des Spieltags kamen nicht an - das ist nicht dasselbe wie "keine". */
+  const [cupFehler, setCupFehler] = useState(false);
   /** Welche Kennzahl in voller Laenge offen ist. */
   /*
    * Die Endtabelle des Spieltags.
@@ -2695,15 +2697,20 @@ export default function StatistikSeite() {
     if (!cup) { setCupFeld([]); return; }
     let weg = false;
     setCupLaedt(true);
+    setCupFehler(false);
     const p = new URLSearchParams({
       saison: cup.season, region: cup.region,
       ...(cup.events?.length ? { events: cup.events.join(',') } : { event: cup.windowId }),
       sort: 'elims', limit: '500',
     });
     fetch(`/api/szene-stats?${p}`)
-      .then((r) => r.json())
+      .then(async (r) => {
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok || j?.success === false) throw new Error(j?.error ?? `HTTP ${r.status}`);
+        return j;
+      })
       .then((j) => { if (!weg) setCupFeld(j.spieler ?? []); })
-      .catch(() => { if (!weg) setCupFeld([]); })
+      .catch(() => { if (!weg) { setCupFeld([]); setCupFehler(true); } })
       .finally(() => { if (!weg) setCupLaedt(false); });
     return () => { weg = true; };
   }, [cupAktiv]);
@@ -4068,11 +4075,15 @@ export default function StatistikSeite() {
 
 
               {cupLaedt && !cupFeld.length ? (
-                <div className="h-64" />
+                <LadeSchirm />
               ) : !cupFeld.length ? (
                 <p className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-8
                               text-center text-sm text-slate-500">
-                  <T>Zu diesem Spieltag liegen keine Einzelwerte vor.</T>
+                  {/* Kam die Antwort nicht an, steht das da - nicht "keine
+                      Werte", das liest sich wie verlorene Daten. */}
+                  {cupFehler
+                    ? <T>Die Werte konnten gerade nicht geladen werden. Bitte gleich noch einmal öffnen.</T>
+                    : <T>Zu diesem Spieltag liegen keine Einzelwerte vor.</T>}
                 </p>
               ) : (
                 <>

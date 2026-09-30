@@ -296,7 +296,20 @@ export async function fertigeAntwort<T>(
   }
   const jetzt = Date.now();
 
-  if (abgelegt && typeof abgelegt.zeit === 'number') {
+  /*
+   * Im Vorrechnen des stuendlichen Laufs wird eine zu alte Antwort sofort
+   * neu gerechnet, nicht im Hintergrund.
+   *
+   * Seit dem 26.9.2026 startet der Lauf den Server fuer jede Portion neu und
+   * beendet ihn danach. Die Rechnung im Hintergrund lief erst nach der
+   * Antwort an - und wurde mit dem Server beendet, bevor sie fertig war. Jede
+   * schon abgelegte Antwort blieb damit auf ihrem alten Stand: die
+   * Startansicht der Statistik zeigte am 30.9. noch den 26.9., ohne die
+   * Globals (Betreiber: "das ist auch nicht updated ... Globals fehlt").
+   */
+  const vorrechnen = process.env.COMPHUB_VORRECHNEN === '1' && !ohneDateien();
+
+  if (abgelegt && typeof abgelegt.zeit === 'number' && !(vorrechnen && jetzt - abgelegt.zeit >= frischMs)) {
     if (jetzt - abgelegt.zeit < frischMs) return abgelegt.wert;
     if (!hintergrund && ohneDateien()) return abgelegt.wert;
 

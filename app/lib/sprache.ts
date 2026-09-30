@@ -3323,6 +3323,8 @@ const AUF_ENGLISCH: Record<string, string> = {
   '← Zurück zu den Turnieren': '← Back to tournaments',
   'Zu diesem Spieler liegen keine Vergleichswerte vor.':
     'No comparison values are available for this player.',
+  'Die Werte konnten gerade nicht geladen werden. Bitte gleich noch einmal öffnen.':
+    'The values could not be loaded just now. Please open it again in a moment.',
   'Zu diesem Spieltag liegen keine Einzelwerte vor.':
     'No individual values are available for this match day.',
   'Oben eine andere Saison wählen oder jemand anderen suchen.':

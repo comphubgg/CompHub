@@ -493,6 +493,9 @@ jobs:
         timeout-minutes: 40
         env:
           BAU_CODE: ${{ steps.bau.outputs.code }}
+          # Zu alte Antworten sofort neu rechnen statt im Hintergrund - der
+          # Server wird nach jeder Portion beendet (lib/antwortSpeicher.ts).
+          COMPHUB_VORRECHNEN: '1'
           # Mehr Speicher fuer den Server: am 25.9.2026 starb er mitten im
           # Vorrechnen (178 fertig, 394 "fetch failed"), und die Antwort fuer
           # die laufende Season blieb beim Stand vom 21.9. stehen - in der

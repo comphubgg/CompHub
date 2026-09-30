@@ -312,6 +312,15 @@ async function holeRoh(request: Request) {
    * dauert er gut eine Sekunde.
    */
   if (url.searchParams.get('event')) return berechne(request);
+  /*
+   * Ebenso wenige Spieltage zusammen - die Tage einer LAN ("Beide Tage
+   * zusammen" bei den Globals). Das sind zwei, drei Dateien. Vorher fiel die
+   * Anfrage unter die Regel fuer archivweite Listen (sie traegt "sort"),
+   * wurde nie vorgerechnet und kam als 503 zurueck; auf der Seite stand
+   * "Zu diesem Spieltag liegen keine Einzelwerte vor" (Betreiber, 30.9.2026).
+   */
+  const mehrere = (url.searchParams.get('events') ?? '').split(',').filter(Boolean);
+  if (mehrere.length && mehrere.length <= 6) return berechne(request);
 
   /*
    * Die Antwort zu einem einzelnen Spieler wird wie jede andere abgelegt.
