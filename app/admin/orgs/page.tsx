@@ -21,6 +21,14 @@ type Rolle = 'pro' | 'academy' | 'creator';
 interface Spieler {
   epicId: string | null; name: string; seit: string | null; rolle: Rolle;
   x: string | null; twitch: string | null; tiktok: string | null; youtube: string | null;
+  /** Foto am Eintrag - fuer Spieler ohne Konto (lib/orgs). */
+  bild?: string | null;
+}
+/** Die Fotos je Konto aus der Antwort von /api/orgs. */
+function fotosAus(orgs: Array<{ spieler: Array<{ epicId: string | null; bild?: string | null }> }>) {
+  const f: Record<string, string> = {};
+  for (const o of orgs) for (const s of o.spieler) if (s.epicId && s.bild) f[s.epicId] = s.bild;
+  return f;
 }
 const ROLLEN: Array<[Rolle, string]> = [['pro', 'Pro'], ['academy', 'Academy'], ['creator', 'Content Creator']];
 const neuerSpieler = (epicId: string | null, name: string, rolle: Rolle = 'pro'): Spieler => ({
@@ -106,12 +114,7 @@ export default function OrgsAdmin() {
       .then(async (r) => {
         const j = await r.json().catch(() => null);
         if (!r.ok || !j?.orgs) { setFehler(j?.fehler ?? 'Storage is not answering right now.'); return; }
-        // Die Fotos fuer die Zeilen - gespeichert werden sie nicht mit der Org.
-        const f: Record<string, string> = {};
-        for (const o of j.orgs as Array<{ spieler: Array<{ epicId: string | null; bild?: string | null }> }>) {
-          for (const s of o.spieler) if (s.epicId && s.bild) f[s.epicId] = s.bild;
-        }
-        setFotos(f);
+        setFotos(fotosAus(j.orgs));
         // Nur die gepflegten Felder - Betraege und Fotos rechnet die Anzeige.
         setOrgs(j.orgs.map((o: Org & { spieler: Array<Spieler & Record<string, unknown>> }) => ({
           id: o.id, name: o.name, logo: o.logo, banner: o.banner ?? null, website: o.website, x: o.x,
@@ -122,6 +125,7 @@ export default function OrgsAdmin() {
           spieler: o.spieler.map((s) => ({
             epicId: s.epicId, name: s.name, seit: s.seit, rolle: s.rolle ?? 'pro',
             x: s.x ?? null, twitch: s.twitch ?? null, tiktok: s.tiktok ?? null, youtube: s.youtube ?? null,
+            bild: (s as { eigenesBild?: string | null }).eigenesBild ?? null,
           })),
           extras: o.extras ?? [],
         })).sort((a: Org, b: Org) => a.name.localeCompare(b.name)));
@@ -183,20 +187,37 @@ export default function OrgsAdmin() {
   /**
    * Ein Spielerfoto hochladen. Der Betreiber: "wenn es keins hat" - ein
    * vorhandenes laesst sich ersetzen, muss aber nicht.
+   *
+   * Auch ohne Konto (30.9.2026): "dann lass mich mindestens ein Bild
+   * hochladen. Es muss ja kein Account connected sein." Dann haengt das Foto
+   * am Eintrag der Org und wird mit ihr fuer alle gespeichert.
    */
-  const fotoHochladen = async (s: Spieler, datei: File) => {
-    if (!s.epicId) return;
-    setFotoLaedt(s.epicId); setFotoFehler('');
+  const fotoHochladen = async (orgId: string, i: number, s: Spieler, datei: File) => {
+    const schluessel = s.epicId ?? `${orgId}#${i}`;
+    setFotoLaedt(schluessel); setFotoFehler('');
     const form = new FormData();
-    form.set('datei', datei); form.set('epicId', s.epicId); form.set('name', s.name);
+    form.set('datei', datei); form.set('name', s.name);
+    if (s.epicId) form.set('epicId', s.epicId); else form.set('ohneKonto', '1');
     try {
       const r = await fetch('/api/spielerbild/hochladen', { method: 'POST', body: form });
       const j = await r.json().catch(() => null);
       if (!r.ok || !j?.bild) { setFotoFehler(j?.fehler ?? `HTTP ${r.status}`); return; }
-      setFotos((v) => ({ ...v, [s.epicId!]: j.bild }));
+      if (s.epicId) setFotos((v) => ({ ...v, [s.epicId!]: j.bild }));
+      else aendere(orgId, (o) => ({ ...o, spieler: o.spieler.map((x, j2) => (j2 === i ? { ...x, bild: j.bild } : x)) }), true);
     } catch { setFotoFehler(t('Keine Verbindung zum Server.')); }
     finally { setFotoLaedt(null); }
   };
+
+  /*
+   * Die Fotos neu holen, nachdem ein Konto zugewiesen wurde. Vorher kamen sie
+   * nur beim Oeffnen der Seite - ein eben zugewiesenes Konto stand deshalb
+   * "ohne Foto" da, obwohl es in der Statistik eins hat (Higgs, 30.9.2026).
+   */
+  const fotosNeu = useCallback(() => {
+    fetch('/api/orgs', { cache: 'no-store' })
+      .then((r) => r.json()).then((j) => { if (j?.orgs) setFotos(fotosAus(j.orgs)); })
+      .catch(() => {});
+  }, []);
 
   /** Das Banner hinter dem Logo - als Datei oder vom X-Konto der Org. */
   const [bannerLaedt, setBannerLaedt] = useState(false);
@@ -388,29 +409,41 @@ export default function OrgsAdmin() {
                 {org.spieler.map((s, i) => (
                   <div key={`${s.epicId ?? s.name}-${i}`}
                     className="flex flex-wrap items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2">
-                    {/* Das Foto - mit Konto laesst es sich hochladen oder ersetzen. */}
-                    <label className={`relative h-12 w-10 shrink-0 overflow-hidden rounded-md border border-zinc-800 bg-zinc-900
-                                       ${s.epicId ? 'cursor-pointer hover:border-sky-500' : 'opacity-40'}`}
-                      title={s.epicId ? (s.epicId && fotos[s.epicId] ? t('Foto ersetzen') : t('Foto hochladen')) : t('Erst ein Konto zuweisen')}>
-                      {s.epicId && fotos[s.epicId]
-                        /* eslint-disable-next-line @next/next/no-img-element */
-                        ? <img src={fotos[s.epicId]} alt="" className="h-full w-full object-cover object-top" />
-                        : <span className="flex h-full w-full items-center justify-center text-lg text-zinc-600">+</span>}
-                      {fotoLaedt === s.epicId && <span className="absolute inset-0 flex items-center justify-center bg-black/60">
-                        <span className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-600 border-t-sky-400" /></span>}
-                      {s.epicId && <input type="file" accept="image/*" className="hidden"
-                        onChange={(e) => { const d = e.target.files?.[0]; e.target.value = ''; if (d) void fotoHochladen(s, d); }} />}
-                    </label>
-                    <span className="min-w-[8rem] flex-1 text-sm font-medium text-slate-100">
-                      {s.name}
-                      {s.epicId && !fotos[s.epicId] && <span className="ml-2 text-xs font-normal text-amber-400/80"><T>ohne Foto</T></span>}
-                    </span>
+                    {/* Das Foto - mit oder ohne Konto hochladen oder ersetzen. */}
+                    {(() => {
+                      const foto = (s.epicId && fotos[s.epicId]) || s.bild || null;
+                      const schluessel = s.epicId ?? `${org.id}#${i}`;
+                      return (
+                        <>
+                          <label className="relative h-12 w-10 shrink-0 cursor-pointer overflow-hidden rounded-md border border-zinc-800
+                                            bg-zinc-900 hover:border-sky-500"
+                            title={foto ? t('Foto ersetzen') : t('Foto hochladen')}>
+                            {foto
+                              /* eslint-disable-next-line @next/next/no-img-element */
+                              ? <img src={foto} alt="" className="h-full w-full object-cover object-top" />
+                              : <span className="flex h-full w-full items-center justify-center text-lg text-zinc-600">+</span>}
+                            {/* Nur beim Hochladen genau dieses Fotos. Vorher stand hier
+                                fotoLaedt === s.epicId - ohne Konto und ohne laufendes
+                                Hochladen sind beide null, und jeder Spieler ohne Konto
+                                zeigte dauerhaft den Ladekringel. */}
+                            {fotoLaedt !== null && fotoLaedt === schluessel && <span className="absolute inset-0 flex items-center justify-center bg-black/60">
+                              <span className="h-4 w-4 animate-spin rounded-full border-2 border-zinc-600 border-t-sky-400" /></span>}
+                            <input type="file" accept="image/*" className="hidden"
+                              onChange={(e) => { const d = e.target.files?.[0]; e.target.value = ''; if (d) void fotoHochladen(org.id, i, s, d); }} />
+                          </label>
+                          <span className="min-w-[8rem] flex-1 text-sm font-medium text-slate-100">
+                            {s.name}
+                            {!foto && <span className="ml-2 text-xs font-normal text-amber-400/80"><T>ohne Foto</T></span>}
+                          </span>
+                        </>
+                      );
+                    })()}
                     {s.epicId
                       ? <span className="text-xs text-emerald-400" title={s.epicId}>✓ <T>Konto</T></span>
                       : (
                         <div className="w-56">
                           <KontoSuche platzhalter={t('Konto zuweisen …')}
-                            onWahl={(k) => aendere(org.id, (o) => ({ ...o, spieler: o.spieler.map((x, j) => (j === i ? { ...x, epicId: k.epicId } : x)) }), true)} />
+                            onWahl={(k) => { aendere(org.id, (o) => ({ ...o, spieler: o.spieler.map((x, j) => (j === i ? { ...x, epicId: k.epicId } : x)) }), true); window.setTimeout(fotosNeu, 1500); }} />
                         </div>
                       )}
                     <label className="flex items-center gap-2 text-xs text-slate-500"><T>seit</T>

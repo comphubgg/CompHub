@@ -52,7 +52,14 @@ export async function POST(request: Request) {
   const datei = form?.get('datei');
   const epicId = String(form?.get('epicId') ?? '').toLowerCase();
   const name = String(form?.get('name') ?? '').trim().slice(0, 40);
-  if (!(datei instanceof File) || !/^[0-9a-f]{32}$/.test(epicId)) {
+  /*
+   * Auch ohne Konto - fuer Content Creator und Spieler, zu denen es kein
+   * Epic-Konto gibt. Der Betreiber (30.9.2026): "dann lass mich mindestens
+   * ein Bild hochladen. Es muss ja kein Account connected sein." Das Foto
+   * haengt dann am Eintrag der Org (lib/orgs, Feld "bild"), nicht am Konto.
+   */
+  const ohneKonto = String(form?.get('ohneKonto') ?? '') === '1';
+  if (!(datei instanceof File) || (!ohneKonto && !/^[0-9a-f]{32}$/.test(epicId)) || (ohneKonto && !name)) {
     return NextResponse.json({ fehler: 'Photo or account missing.' }, { status: 400 });
   }
   if (datei.size > 15 * 1024 * 1024) return NextResponse.json({ fehler: 'The photo is larger than 15 MB.' }, { status: 413 });
@@ -67,7 +74,12 @@ export async function POST(request: Request) {
 
   const kurz = (name || 'spieler').normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase()
     .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 30) || 'spieler';
-  const dateiName = `${kurz}-${epicId.slice(0, 8)}-${Date.now().toString(36)}.webp`;
+  const dateiName = `${kurz}-${ohneKonto ? 'org' : epicId.slice(0, 8)}-${Date.now().toString(36)}.webp`;
+  if (ohneKonto) {
+    try { await speicher.schreib(ORDNER + dateiName, bild); }
+    catch { return NextResponse.json({ fehler: 'Storage is not answering right now - the photo was not saved.' }, { status: 503 }); }
+    return NextResponse.json({ ok: true, bild: `/spielerbilder/${dateiName}` });
+  }
   try {
     await speicher.schreib(ORDNER + dateiName, bild);
     const liste = await liesJson<Bild[]>('spielerbilder.json', []);

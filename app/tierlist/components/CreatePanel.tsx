@@ -49,6 +49,74 @@ export const CreatePanel: React.FC<CreatePanelProps> = ({
   const [suggestions1, setSuggestions1] = useState<string[]>([]);
   const [suggestions2, setSuggestions2] = useState<string[]>([]);
 
+  /*
+   * Vorschlaege aus dem Archiv - fuer jedes Namensfeld, in jedem Modus.
+   *
+   * Vorher schlug das Feld nur Namen vor, die schon als Solo in der eigenen
+   * Liste standen; beim Trio gar nichts. Der Betreiber (30.9.2026): "wenn ich
+   * ein Trio machen will und Leute hier eingebe, dann sollen die auftauchen,
+   * wenn ich sie im Archiv habe ... bei Duos und Solos genauso." Gesucht wird
+   * ueber dieselbe Suche wie auf der Statistikseite und bei den Karten -
+   * mit dem gepflegten Namen und der Flagge des Kontos.
+   */
+  type Vorschlag = { name: string; land: string };
+  const [aktivesFeld, setAktivesFeld] = useState<1 | 2 | 3 | null>(null);
+  // Die Treffer samt der Eingabe, zu der sie gehoeren - so zeigt ein Feld nie
+  // die Vorschlaege zu einem anderen Text.
+  const [archivStand, setArchivStand] = useState<{ q: string; liste: Vorschlag[] }>({ q: '', liste: [] });
+  const suchText = aktivesFeld === 1 ? player1 : aktivesFeld === 2 ? player2 : aktivesFeld === 3 ? player3 : '';
+  useEffect(() => {
+    const q = suchText.trim();
+    if (!aktivesFeld || q.length < 2) return;
+    let lebt = true;
+    const uhr = setTimeout(() => {
+      void (async () => {
+        try {
+          const r = await fetch('/api/szene-stats?ansicht=suche&q=' + encodeURIComponent(q));
+          const j = await r.json();
+          if (!lebt) return;
+          const gesehen = new Set<string>();
+          const liste: Vorschlag[] = [];
+          for (const sp of (j?.spieler ?? []) as Array<{ anzeige?: string; name?: string; land?: string }>) {
+            const name = String(sp.anzeige || sp.name || '').trim();
+            if (!name || gesehen.has(name.toLowerCase())) continue;
+            gesehen.add(name.toLowerCase());
+            liste.push({ name, land: String(sp.land ?? '').toLowerCase() });
+            if (liste.length >= 8) break;
+          }
+          setArchivStand({ q, liste });
+        } catch { if (lebt) setArchivStand({ q, liste: [] }); }
+      })();
+    }, 200);
+    return () => { lebt = false; clearTimeout(uhr); };
+  }, [suchText, aktivesFeld]);
+
+  /** Einen Vorschlag uebernehmen: Name und Flagge ins Feld. */
+  const vorschlagNehmen = (feld: 1 | 2 | 3, v: Vorschlag) => {
+    const name = v.name.toUpperCase();
+    const land = /^[a-z]{2}$/.test(v.land) ? v.land : 'flag-GLOBE';
+    setError(null);
+    if (feld === 1) { setPlayer1(name); setCountryCode(land); if (/^[a-z]{2}$/.test(v.land)) setRegion(getRegionFromCountryCode(land) as Region); }
+    else if (feld === 2) { setPlayer2(name); setCountryCode2(land); }
+    else { setPlayer3(name); setCountryCode3(land); }
+    setArchivStand({ q: '', liste: [] }); setAktivesFeld(null);
+  };
+  const archiv = archivStand.q && archivStand.q === suchText.trim() ? archivStand.liste : [];
+
+  const vorschlagsListe = (feld: 1 | 2 | 3) => (aktivesFeld === feld && archiv.length > 0 && !disabled ? (
+    <div className="autocomplete-list">
+      {archiv.map((v) => (
+        <div key={v.name} className="autocomplete-item"
+          // Vor dem blur, sonst schliesst sich die Liste vor dem Klick.
+          onMouseDown={(e) => { e.preventDefault(); vorschlagNehmen(feld, v); }}>
+          <img src={`/flags/${/^[a-z]{2}$/.test(v.land) ? v.land : 'flag-GLOBE'}.png`} alt=""
+            style={{ width: 20, height: 14, marginRight: 8, borderRadius: 2, objectFit: 'cover' }} />
+          <span>{v.name.toUpperCase()}</span>
+        </div>
+      ))}
+    </div>
+  ) : null);
+
   useEffect(() => {
     try {
       const buildId = process?.env?.NEXT_PUBLIC_BUILD_ID || process?.env?.NEXT_PUBLIC_VERCEL_GIT_COMMIT_SHA || process?.env?.VERCEL_GIT_COMMIT_SHA || null;
@@ -320,25 +388,13 @@ export const CreatePanel: React.FC<CreatePanelProps> = ({
               const v = e.target.value.toUpperCase();
               setError(null);
               setPlayer1(v);
-              setSuggestions1(mode !== 'solo' ? findSuggestions(v) : []);
+              setAktivesFeld(1);
             }}
+            onFocus={() => setAktivesFeld(1)}
+            onBlur={() => setAktivesFeld((f) => (f === 1 ? null : f))}
             disabled={disabled || loading}
           />
-          {mode !== 'solo' && suggestions1.length > 0 && !disabled && (
-            <div className="autocomplete-list">
-              {suggestions1.map(s => {
-                const info = knownPlayers[s] || { region: 'EU' };
-                const previewCode = info.countryCode || getDefaultCountryForRegion(info.region as any);
-                return (
-                  <div key={s} className="autocomplete-item" onClick={() => selectSuggestion(1, s)}>
-                    <img src={`/flags/${previewCode}.png`} alt={previewCode} style={{ width: 20, height: 14, marginRight: 8, borderRadius: 2 }} />
-                    <span style={{ marginRight: 8 }}>{s}</span>
-                    <small style={{ color: 'rgba(255,255,255,0.45)' }}>{info.region}</small>
-                  </div>
-                );
-              })}
-            </div>
-          )}
+          {vorschlagsListe(1)}
         </div>
 
         <FlaggenWahl wert={countryCode}
@@ -356,25 +412,13 @@ export const CreatePanel: React.FC<CreatePanelProps> = ({
                 const v = e.target.value.toUpperCase();
                 setError(null);
                 setPlayer2(v);
-                setSuggestions2(findSuggestions(v));
+                setAktivesFeld(2);
               }}
+              onFocus={() => setAktivesFeld(2)}
+              onBlur={() => setAktivesFeld((f) => (f === 2 ? null : f))}
               disabled={disabled || loading}
             />
-            {suggestions2.length > 0 && (
-              <div className="autocomplete-list">
-                {suggestions2.map(s => {
-                  const info = knownPlayers[s] || { region: 'EU' };
-                  const previewCode = info.countryCode || getDefaultCountryForRegion(info.region as any);
-                  return (
-                    <div key={s} className="autocomplete-item" onClick={() => selectSuggestion(2, s)}>
-                      <img src={`/flags/${previewCode}.png`} alt={previewCode} style={{ width: 20, height: 14, marginRight: 8, borderRadius: 2 }} />
-                      <span style={{ marginRight: 8 }}>{s}</span>
-                      <small style={{ color: 'rgba(255,255,255,0.45)' }}>{info.region}</small>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
+            {vorschlagsListe(2)}
           </div>
 
           <FlaggenWahl wert={countryCode2}
@@ -389,9 +433,12 @@ export const CreatePanel: React.FC<CreatePanelProps> = ({
               type="text"
               placeholder="Player 3..."
               value={player3}
-              onChange={e => { setError(null); setPlayer3(e.target.value.toUpperCase()); }}
+              onChange={e => { setError(null); setPlayer3(e.target.value.toUpperCase()); setAktivesFeld(3); }}
+              onFocus={() => setAktivesFeld(3)}
+              onBlur={() => setAktivesFeld((f) => (f === 3 ? null : f))}
               disabled={disabled || loading}
             />
+            {vorschlagsListe(3)}
           </div>
           <FlaggenWahl wert={countryCode3}
             aus={disabled || loading} onWahl={setCountryCode3} />

@@ -45,6 +45,12 @@ export interface OrgSpieler {
   twitch: string | null;
   tiktok: string | null;
   youtube: string | null;
+  /**
+   * Ein vom Admin hochgeladenes Foto fuer einen Spieler ohne Konto (Content
+   * Creator, weniger bekannte Pros) - "/spielerbilder/<datei>". Mit Konto
+   * gilt das Foto am Konto; dieses hier bleibt der Rueckfall.
+   */
+  bild?: string | null;
 }
 
 export interface OrgExtra {
@@ -141,6 +147,7 @@ export function saeubere(o: Partial<Org>): Org {
         twitch: rolle === 'creator' ? konto(s?.twitch) : null,
         tiktok: rolle === 'creator' ? konto(s?.tiktok) : null,
         youtube: rolle === 'creator' ? konto(s?.youtube) : null,
+        bild: /^\/spielerbilder\/[A-Za-z0-9%._-]+$/.test(String(s?.bild ?? '')) ? String(s.bild) : null,
       };
     }).filter((s) => s.name || s.epicId),
     extras: (Array.isArray(o.extras) ? o.extras : []).map((e) => ({

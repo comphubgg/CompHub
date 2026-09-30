@@ -76,7 +76,10 @@ async function teamSeiten(orgs) {
   const kandidaten = new Map(); // angefragter Titel -> Org-Namen
   for (const org of orgs) {
     const namen = org.liquipedia ? [org.liquipedia]
-      : [org.name, `Team ${org.name}`, `${org.name} (team)`, `${org.name} Esports`];
+      // Auch "FOKUS CLAN" (Betreiber, 30.9.2026: bei FOKUS fehlten Spieler -
+      // die Liquipedia-Seite heisst mit "Clan") und weitere uebliche Formen.
+      : [org.name, `Team ${org.name}`, `${org.name} (team)`, `${org.name} Esports`,
+        `${org.name} Clan`, `${org.name} CLAN`, `${org.name} Gaming`, `${org.name} eSports`, `${org.name} Esport`];
     for (const n of namen) {
       const t = String(n).trim();
       if (!t) continue;

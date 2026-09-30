@@ -103,7 +103,9 @@ export async function GET(request: Request) {
       return {
         // Der Name, wie ihn die Org fuehrt - das Profil kennt oft nur den rohen Epic-Namen.
         epicId: s.epicId, name: s.name || p?.name || '?', land: p?.land ? String(p.land).toUpperCase() : null,
-        bild: s.epicId ? bildZu.get(s.epicId) ?? null : null, seit: s.seit,
+        // Das Foto am Konto, sonst das vom Admin hier hochgeladene.
+        bild: (s.epicId ? bildZu.get(s.epicId) : null) ?? s.bild ?? null,
+        eigenesBild: s.bild ?? null, seit: s.seit,
         betrag: wert ? wert.betrag : null, turniere: wert ? wert.anzahl : null,
         rolle: s.rolle, x: s.x || (p as { x?: string } | undefined)?.x || null,
         twitch: s.twitch, tiktok: s.tiktok, youtube: s.youtube,
