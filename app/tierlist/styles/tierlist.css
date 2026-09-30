@@ -273,11 +273,12 @@
   background-size: cover;
   background-position: center;
 }
-/* Oben und unten bekommt die Flagge ihren eigenen Kasten, damit sie darin
-   erkennbar bleibt (sonst zeigte das obere Stueck von Deutschland nur Schwarz). */
+/* Jedes Stueck bekommt einen eigenen Kasten, damit die Flagge darin
+   erkennbar bleibt (sonst zeigte das obere Stueck von Deutschland nur
+   Schwarz und das linke von Russland kein Weiss). */
 .flag-trio-oben   { bottom: auto; height: 50%; clip-path: polygon(50% 100%, 100% 42.26%, 100% 0, 0 0, 0 42.26%); }
-.flag-trio-links  { clip-path: polygon(50% 50%, 0 21.13%, 0 100%, 50% 100%); }
-.flag-trio-rechts { clip-path: polygon(50% 50%, 50% 100%, 100% 100%, 100% 21.13%); }
+.flag-trio-links  { top: 21.13%; right: 50%; clip-path: polygon(100% 36.6%, 0 0, 0 100%, 100% 100%); }
+.flag-trio-rechts { top: 21.13%; left: 50%; clip-path: polygon(0 36.6%, 100% 0, 100% 100%, 0 100%); }
 .flag-trio-unten  { top: 21.13%; clip-path: polygon(50% 36.6%, 0 0, 0 100%, 100% 100%, 100% 0); }
 
 .tier-content .remove-btn {
