@@ -308,8 +308,16 @@ export async function fertigeAntwort<T>(
    * Globals (Betreiber: "das ist auch nicht updated ... Globals fehlt").
    */
   const vorrechnen = process.env.COMPHUB_VORRECHNEN === '1' && !ohneDateien();
+  /*
+   * Und im Vorrechnen gilt als alt, was vor dem Beginn dieses Laufs
+   * entstand - nicht erst nach 90 Minuten. Sonst blieb eine Korrektur an
+   * einer Liste (Globals in "Most Eliminations", 30.9.2026) bis zum
+   * uebernaechsten Lauf liegen, weil die Antwort des letzten noch "frisch" war.
+   */
+  const laufBeginn = Number(process.env.LAUF_BEGINN || 0) * 1000;
+  const vorDemLauf = (zeit: number) => laufBeginn > 0 ? zeit < laufBeginn : jetzt - zeit >= frischMs;
 
-  if (abgelegt && typeof abgelegt.zeit === 'number' && !(vorrechnen && jetzt - abgelegt.zeit >= frischMs)) {
+  if (abgelegt && typeof abgelegt.zeit === 'number' && !(vorrechnen && vorDemLauf(abgelegt.zeit))) {
     if (jetzt - abgelegt.zeit < frischMs) return abgelegt.wert;
     if (!hintergrund && ohneDateien()) return abgelegt.wert;
 
