@@ -251,8 +251,11 @@ async function main() {
       }
       return !weg;
     });
-    // Dazu: bei Liquipedia aktiv, bei uns nicht.
+    // Dazu: bei Liquipedia aktiv, bei uns nicht - ausser der Admin hat ihn
+    // aus dieser Org entfernt (Liquipedia ist nicht immer aktuell).
+    const ausgeschlossen = org.ausgeschlossen ?? [];
     for (const a of aktiv.values()) {
+      if (ausgeschlossen.some((n) => gleich(n, a.id))) continue;
       const da = bleiben.find((sp) => derselbe(sp, a.id));
       if (da) {
         // Die Spielerseite merken - daran haengt die Zuordnung ueber X.

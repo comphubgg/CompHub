@@ -1197,3 +1197,7 @@ button,input,select,textarea{transition:var(--transition)}
     min-height: 64px;
   }
 }
+
+/* Vorschlaege im Anlegen-Feld unten in der Seitenleiste nach oben oeffnen:
+   darunter ist kein Platz, und die Seitenleiste schneidet ab (30.9.2026). */
+.tierlist-page .sidebar .sidebar-create .autocomplete-list{top:auto;bottom:calc(100% + 6px);max-height:260px}

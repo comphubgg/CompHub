@@ -82,6 +82,13 @@ export interface Org {
   region: string | null;
   spieler: OrgSpieler[];
   extras: OrgExtra[];
+  /**
+   * Namen, die der Admin aus dieser Org entfernt hat. Der taegliche Abgleich
+   * mit Liquipedia (scripts/org-kader-pruefen.mjs) traegt sie nie wieder ein -
+   * Liquipedia ist nicht immer aktuell (FOKUS, 30.9.2026: "zwei von den
+   * Spielern sind nicht mehr da drin").
+   */
+  ausgeschlossen?: string[];
 }
 
 interface Datei { stand?: string; orgs?: Org[] }
@@ -150,6 +157,8 @@ export function saeubere(o: Partial<Org>): Org {
         bild: /^\/spielerbilder\/[A-Za-z0-9%._-]+$/.test(String(s?.bild ?? '')) ? String(s.bild) : null,
       };
     }).filter((s) => s.name || s.epicId),
+    ausgeschlossen: [...new Set((Array.isArray(o.ausgeschlossen) ? o.ausgeschlossen : [])
+      .map((n) => text(n, 40)).filter(Boolean))].slice(0, 300),
     extras: (Array.isArray(o.extras) ? o.extras : []).map((e) => ({
       titel: text(e?.titel, 80),
       betrag: Math.max(0, Math.round(Number(e?.betrag) || 0)),

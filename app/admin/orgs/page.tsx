@@ -39,7 +39,10 @@ interface Org {
   id: string; name: string; logo: string | null; banner: string | null; website: string | null; x: string | null;
   youtube: string | null; twitch: string | null; instagram: string | null; tiktok: string | null;
   land: string | null; region: string | null; spieler: Spieler[]; extras: Extra[];
+  /** Vom Admin entfernte Namen - der Liquipedia-Abgleich traegt sie nie wieder ein. */
+  ausgeschlossen: string[];
 }
+const namensTeil = (n: string) => n.toLowerCase().replace(/[^a-z0-9]/g, '');
 interface Treffer { epicId: string; name: string; anzeige?: string; land?: string | null; regionen?: string[] }
 
 const REGIONEN = ['EU', 'NAC', 'NAW', 'BR', 'ASIA', 'ME', 'OCE'];
@@ -128,6 +131,7 @@ export default function OrgsAdmin() {
             bild: (s as { eigenesBild?: string | null }).eigenesBild ?? null,
           })),
           extras: o.extras ?? [],
+          ausgeschlossen: o.ausgeschlossen ?? [],
         })).sort((a: Org, b: Org) => a.name.localeCompare(b.name)));
       })
       .catch(() => setFehler('Storage is not answering right now.'));
@@ -452,7 +456,13 @@ export default function OrgsAdmin() {
                         className={`${feld} py-1.5`} />
                     </label>
                     <button type="button"
-                      onClick={() => aendere(org.id, (o) => ({ ...o, spieler: o.spieler.filter((_, j) => j !== i) }), true)}
+                      /* Entfernt heisst: bleibt draussen - auch wenn Liquipedia den
+                         Spieler noch fuehrt. Der taegliche Abgleich liest diese Liste. */
+                      onClick={() => aendere(org.id, (o) => ({
+                        ...o,
+                        spieler: o.spieler.filter((_, j) => j !== i),
+                        ausgeschlossen: [...new Set([...(o.ausgeschlossen ?? []), s.name])],
+                      }), true)}
                       className="rounded-lg border border-zinc-800 px-2.5 py-1 text-xs text-slate-500 transition hover:border-rose-600 hover:text-rose-400">
                       <T>entfernen</T>
                     </button>
@@ -481,13 +491,17 @@ export default function OrgsAdmin() {
                   ...o,
                   spieler: o.spieler.some((x) => x.epicId === k.epicId) ? o.spieler
                     : [...o.spieler, neuerSpieler(k.epicId, k.anzeige || k.name)],
+                  // Wer von Hand wieder dazukommt, ist nicht mehr ausgeschlossen.
+                  ausgeschlossen: (o.ausgeschlossen ?? []).filter((n) => ![k.anzeige, k.name]
+                    .some((m) => m && namensTeil(m) === namensTeil(n))),
                 }), true)} />
               {/* Creator spielen oft keine Turniere - dann ohne Konto, nur mit Namen. */}
               <form className="mt-2 flex gap-2" onSubmit={(e) => {
                 e.preventDefault();
                 const name = ohneKonto.trim();
                 if (!name) return;
-                aendere(org.id, (o) => ({ ...o, spieler: [...o.spieler, neuerSpieler(null, name, 'creator')] }), true);
+                aendere(org.id, (o) => ({ ...o, spieler: [...o.spieler, neuerSpieler(null, name, 'creator')],
+                  ausgeschlossen: (o.ausgeschlossen ?? []).filter((n) => namensTeil(n) !== namensTeil(name)) }), true);
                 setOhneKonto('');
               }}>
                 <input value={ohneKonto} onChange={(e) => setOhneKonto(e.target.value)}
