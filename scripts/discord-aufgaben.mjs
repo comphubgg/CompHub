@@ -118,7 +118,7 @@ if (!kanal) {
   const NICHT_SCHREIBEN = String(2048 + 2 ** 35 + 2 ** 36 + 2 ** 38);
   const regeln = [{ id: SERVER, type: 0, allow: '0', deny: String(1024 + Number(NICHT_SCHREIBEN)) }, { id: ich, type: 1, allow: '76800', deny: '0' }];
   if (admin) regeln.push({ id: admin, type: 0, allow: '76800', deny: '0' });
-  kanal = await ruf(`/guilds/${SERVER}/channels`, 'POST', { name: KANAL, type: 0, parent_id: kategorie, permission_overwrites: regeln, topic: 'Open tasks - one message, kept up to date' });
+  kanal = await ruf(`/guilds/${SERVER}/channels`, 'POST', { name: KANAL, type: 0, parent_id: kategorie, permission_overwrites: regeln, topic: 'Offene Auftraege - eine Nachricht, laufend fortgeschrieben' });
   console.log(`  Kanal #${KANAL} angelegt.`);
 }
 
@@ -132,8 +132,8 @@ const zeile = (a) => `**${a.id}** · ${a.titel}${a.hinweis ? ` · _${a.hinweis}_
  * Jetzt je Nachricht bis 3800 Zeichen; alle bleiben angepinnt.
  */
 const zeilen = [
-  ...(offen.length ? offen.map(zeile) : ['Nothing open.']),
-  ...(zuletzt.length ? ['', '**Recently done**', ...zuletzt.map((a) => `~~${a.titel}~~ · ${a.erledigt}`)] : []),
+  ...(offen.length ? offen.map(zeile) : ['Nichts offen.']),
+  ...(zuletzt.length ? ['', '**Zuletzt erledigt**', ...zuletzt.map((a) => `~~${a.titel}~~ · ${a.erledigt}`)] : []),
 ];
 const teile = [];
 let teil = '';
@@ -145,7 +145,7 @@ for (const z of zeilen) {
 teile.push(teil);
 const aktualisiert = `updated ${new Date().toISOString().slice(0, 16).replace("T", " ")} UTC`;
 const einbettungen = teile.map((text, i) => ({
-  title: i === 0 ? `Open tasks (${offen.length})` : `Open tasks (${i + 1}/${teile.length})`,
+  title: i === 0 ? `Offene Aufträge (${offen.length})` : `Offene Aufträge (${i + 1}/${teile.length})`,
   description: text,
   color: FARBE,
   ...(i === teile.length - 1 ? { footer: { text: aktualisiert } } : {}),

@@ -121,11 +121,11 @@ async function main() {
     stand = reihe.map((t, i) => ({ ...t, platz: i + 1 }));
     herkunft = "Epic's Day 1 + Day 2 leaderboards, Epic's tiebreakers";
     if (ungeloest >= 0) {
-      const grund = `Tie between places ${ungeloest} and ${ungeloest + 1} that the tiebreakers do not resolve.`;
+      const grund = `Gleichstand zwischen Platz ${ungeloest} und ${ungeloest + 1}, den die Tiebreaker nicht aufloesen.`;
       console.log(grund);
       await discord('admin-alarm', {
-        title: 'Globals 2026 prize money not entered', color: 0xf97316,
-        description: `${grund} Nothing was written to the earnings - please check the official final standings.`,
+        title: 'Globals-2026-Preisgeld nicht eingetragen', color: 0xf97316,
+        description: `${grund} In die Earnings wurde nichts geschrieben - bitte den offiziellen Endstand pruefen.`,
       });
       return;
     }
@@ -169,11 +169,11 @@ async function main() {
     .map((s) => `\`${String(s.platz).padStart(2)}.\` ${s.name} · +${s.betrag.toLocaleString('en-US')} $`);
   for (let i = 0; i < zeilen.length; i += 40) {
     await discord('admin-zahlen', {
-      title: i ? 'FNCS Global Championship 2026 · earnings (cont.)' : 'FNCS Global Championship 2026 · earnings added',
+      title: i ? 'FNCS Global Championship 2026 · Earnings (Fortsetzung)' : 'FNCS Global Championship 2026 · Earnings eingetragen',
       color: 0x0ea5e9,
       description: zeilen.slice(i, i + 40).join('\n')
         + (i + 40 >= zeilen.length && ohneKonto.length
-          ? `\n\nNo account found (not added): ${ohneKonto.join(', ')}` : ''),
+          ? `\n\nKein Konto gefunden (nicht eingetragen): ${ohneKonto.join(', ')}` : ''),
       footer: { text: herkunft },
     });
   }

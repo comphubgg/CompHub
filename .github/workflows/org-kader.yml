@@ -50,8 +50,8 @@ jobs:
           anzahl=$(node -e "console.log(JSON.parse(require('fs').readFileSync('data/.kader-aenderungen.json','utf8')).length)")
           node scripts/umzug-supabase.mjs --nur orgs.json 2>&1 | tail -2
           if [ "$anzahl" -gt 0 ]; then
-            text=$(node -e "const a=JSON.parse(require('fs').readFileSync('data/.kader-aenderungen.json','utf8')); console.log(a.slice(0,30).join('\n') + (a.length>30 ? '\n... and ' + (a.length-30) + ' more' : ''))")
-            node scripts/discord-update.mjs --ziel admin --art geaendert --titel "Org rosters updated from Liquipedia ($anzahl)" --text "$text" 2>&1 | tail -1
+            text=$(node -e "const a=JSON.parse(require('fs').readFileSync('data/.kader-aenderungen.json','utf8')); console.log(a.slice(0,30).join('\n') + (a.length>30 ? '\n... und ' + (a.length-30) + ' weitere' : ''))")
+            node scripts/discord-update.mjs --ziel admin --art geaendert --titel "Kader der Orgs von Liquipedia abgeglichen ($anzahl)" --text "$text" 2>&1 | tail -1
           fi
       - name: Zugangsdaten wieder weg
         if: always()

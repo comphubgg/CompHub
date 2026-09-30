@@ -247,7 +247,7 @@ async function main() {
         && ![...aktiv.values()].some((a) => derselbe(sp, a.id));
       if (weg) {
         const e = [...ehemalig.values()].find((x) => derselbe(sp, x.id));
-        aenderungen.push(`${org.name}: **${sp.name}** left${e?.austritt ? ` (${e.austritt})` : ''}`);
+        aenderungen.push(`${org.name}: **${sp.name}** ist raus${e?.austritt ? ` (${e.austritt})` : ''}`);
       }
       return !weg;
     });
@@ -265,7 +265,7 @@ async function main() {
       bleiben.push({ epicId: null, name: a.id, seit: /^\d{4}-\d{2}-\d{2}$/.test(a.beitritt) ? a.beitritt : null,
         rolle: 'pro', x: null, twitch: null, tiktok: null, youtube: null,
         ...(a.seite ? { liquipedia: a.seite } : {}) });
-      aenderungen.push(`${org.name}: **${a.id}** joined${a.beitritt ? ` (${a.beitritt})` : ''} - Epic account still to assign`);
+      aenderungen.push(`${org.name}: **${a.id}** neu dabei${a.beitritt ? ` (${a.beitritt})` : ''} - Epic-Konto noch zuweisen`);
     }
     org.spieler = bleiben;
   }
@@ -286,7 +286,7 @@ async function main() {
       const original = mitKonto.find((o) => o !== sp && derselbe(o, sp.name));
       if (!original) continue;
       raus.add(sp);
-      aenderungen.push(`${org.name}: removed duplicate **${sp.name}** (same player as ${original.name})`);
+      aenderungen.push(`${org.name}: doppelten Eintrag **${sp.name}** entfernt (derselbe Spieler wie ${original.name})`);
     }
     if (raus.size) org.spieler = liste.filter((sp) => !raus.has(sp));
   }
@@ -340,7 +340,7 @@ async function main() {
     sp.epicId = [...ids][0];
     if (!sp.x) sp.x = h;
     verknuepft += 1;
-    aenderungen.push(`${org.name}: **${sp.name}** linked to their Epic account via X @${h}`);
+    aenderungen.push(`${org.name}: **${sp.name}** ueber X @${h} mit seinem Epic-Konto verknuepft`);
   }
   console.log(`${offen.length} ohne Epic-Konto, ${xVonSeite.size} X-Konten gelesen, ${verknuepft} ueber X zugeordnet`);
 

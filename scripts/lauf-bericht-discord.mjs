@@ -84,8 +84,8 @@ await fetch(`${API}/channels/${kanal.id}/messages`, {
   method: 'POST', headers: h,
   body: JSON.stringify({
     embeds: [{
-      title: 'ALERT · hourly run',
-      description: probleme.map((p) => `- ${p}`).join('\n') + (U.LAUF_URL ? `\n\n[Log](${U.LAUF_URL})` : ''),
+      title: 'ALARM · stündlicher Lauf',
+      description: probleme.map((p) => `- ${p}`).join('\n') + (U.LAUF_URL ? `\n\n[Protokoll](${U.LAUF_URL})` : ''),
       color: 0xef4444,
       footer: { text: new Date().toISOString().slice(0, 16).replace('T', ' ') + ' UTC' },
     }],

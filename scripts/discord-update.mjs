@@ -114,10 +114,22 @@ async function kanalFinden() {
 }
 
 const kanal = await kanalFinden();
-const vorsatz = {
+/*
+ * Fuer die Mitglieder englisch, fuer den Admin deutsch. Der Betreiber
+ * (30.9.2026): "Alles, was fuer den Admin ist, kann auf Deutsch sein. Aber
+ * alles, was fuer jeden ist, soll Englisch sein. Ich verstehe Englisch nicht."
+ */
+const fuerAdmin = ziel === 'admin' || ziel === 'alarm' || ziel === 'todo';
+const vorsatz = (fuerAdmin ? {
+  neu: 'NEU', behoben: 'BEHOBEN', geaendert: 'GEÄNDERT', erledigt: 'ERLEDIGT', alarm: 'ALARM', info: 'INFO',
+  pruefung: 'SEITENPRÜFUNG', aufgabe: 'FÜR DICH ZU TUN',
+} : {
   neu: 'NEW', behoben: 'FIXED', geaendert: 'CHANGED', erledigt: 'DONE', alarm: 'ALERT', info: 'INFO',
   pruefung: 'SITE CHECK', aufgabe: 'ADMIN TO DO',
-}[art];
+})[art];
+const zeitText = fuerAdmin
+  ? new Date().toLocaleString('de-CH', { timeZone: 'Europe/Zurich', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' Uhr'
+  : new Date().toISOString().slice(0, 16).replace('T', ' ') + ' UTC';
 // Pruefberichte der ganzen Seite orange (so gewuenscht, nicht das uebliche Blau),
 // Auftraege an den Admin gelb, Alarme rot.
 const farbe = art === 'alarm' ? 0xef4444 : art === 'pruefung' ? 0xf97316 : art === 'aufgabe' ? 0xeab308 : FARBE;
@@ -126,7 +138,7 @@ await ruf(`/channels/${kanal}/messages`, 'POST', {
     title: `${vorsatz} · ${titel}`.slice(0, 256),
     description: text.slice(0, 4000),
     color: farbe,
-    footer: { text: new Date().toISOString().slice(0, 16).replace('T', ' ') + ' UTC' },
+    footer: { text: zeitText },
   }],
 });
 console.log(`  Update in #${KANAELE[ziel]} geschrieben: ${vorsatz} · ${titel}`);

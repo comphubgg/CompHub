@@ -127,8 +127,8 @@ async function main() {
       await fetch(`${API}/channels/${k.id}/messages`, {
         method: 'POST', headers: h,
         body: JSON.stringify({ embeds: [{
-          title: 'DONE · Comphub 2 is back - missing data copied to Comphub 4', color: 0x0ea5e9,
-          description: `${ok} files copied from Comphub 2 (missing in Comphub 4 or changed there after the backup), each read back and compared.`
+          title: 'ERLEDIGT · Comphub 2 ist zurück - fehlende Daten nach Comphub 4 kopiert', color: 0x0ea5e9,
+          description: `${ok} Dateien aus Comphub 2 kopiert (fehlten in Comphub 4 oder wurden dort nach der Sicherung geaendert), jede zurueckgelesen und verglichen.`
             + (beidseitig.length ? `\nChanged in both, left untouched: ${beidseitig.join(', ')}` : '')
             + (schief.length ? `\nFailed: ${schief.length}` : ''),
           footer: { text: new Date().toISOString().slice(0, 10) },

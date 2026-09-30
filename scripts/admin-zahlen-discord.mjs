@@ -71,7 +71,7 @@ async function kanalFinden() {
   if (admin) regeln.push({ id: admin, type: 0, allow: '76800', deny: '0' });
   const neu = await ruf(`/guilds/${SERVER_ID}/channels`, 'POST', {
     name: KANAL, type: 0, parent_id: kategorie, permission_overwrites: regeln,
-    topic: 'Numbers of the day - replays, match days, prize money, visitors; one message per day',
+    topic: 'Zahlen des Tages - Replays, Spieltage, Preisgeld, Besucher; eine Nachricht je Tag',
   });
   console.log(`  Kanal #${KANAL} angelegt.`);
   return neu.id;
@@ -111,25 +111,25 @@ function einbettung(z) {
   const b = z.besuche ?? {};
   const felder = [
     {
-      name: 'Replays analysed',
-      value: `**${zahl(r.heute)}** today in ${zahl(r.fensterHeute)} match days · **${zahl(r.gesamt)}** in total`
-        + (r.wartend ? `\n${zahl(r.wartend)} waiting` : '')
-        + (r.fehlgeschlagen ? ` · ${zahl(r.fehlgeschlagen)} failed` : '')
-        + (r.nichtVerfuegbar ? ` · ${zahl(r.nichtVerfuegbar)} not available at Epic` : ''),
+      name: 'Replays ausgewertet',
+      value: `**${zahl(r.heute)}** heute in ${zahl(r.fensterHeute)} Spieltagen · **${zahl(r.gesamt)}** insgesamt`
+        + (r.wartend ? `\n${zahl(r.wartend)} warten` : '')
+        + (r.fehlgeschlagen ? ` · ${zahl(r.fehlgeschlagen)} fehlgeschlagen` : '')
+        + (r.nichtVerfuegbar ? ` · ${zahl(r.nichtVerfuegbar)} bei Epic nicht verfügbar` : ''),
       inline: false,
     },
     {
-      name: 'Cups today',
+      name: 'Cups heute',
       value: z.cupsHeute === null || z.cupsHeute === undefined
-        ? 'The cup catalog did not answer.'
+        ? 'Der Cup-Katalog hat nicht geantwortet.'
         : z.cupsHeute.length
-          ? z.cupsHeute.slice(0, 12).map((c) => `**${c.titel}** · ${c.regionen.join(', ')} · from ${new Date(c.beginn).toISOString().slice(11, 16)} UTC`).join('\n')
-          : 'No cup today.',
+          ? z.cupsHeute.slice(0, 12).map((c) => `**${c.titel}** · ${c.regionen.join(', ')} · ab ${new Date(c.beginn).toLocaleTimeString('de-CH', { timeZone: 'Europe/Zurich', hour: '2-digit', minute: '2-digit' })} Uhr`).join('\n')
+          : 'Heute kein Cup.',
       inline: false,
     },
     {
-      name: 'Match days (Epic leaderboards)',
-      value: `**${zahl(s.heute)}** fetched today · **${zahl(s.gesamt)}** in total · scene archive ${zahl(z.szene?.spieltage)}`
+      name: 'Spieltage (Epic-Bestenlisten)',
+      value: `**${zahl(s.heute)}** heute geholt · **${zahl(s.gesamt)}** insgesamt · Szene-Archiv ${zahl(z.szene?.spieltage)}`
         + (s.heuteNamen?.length ? `\n${s.heuteNamen.slice(0, 8).join(', ')}${s.heuteNamen.length > 8 ? ' …' : ''}` : ''),
       inline: false,
     },
@@ -141,27 +141,27 @@ function einbettung(z) {
       return `${i + 1}. **${p.name}** ${geld(p.betrag)}${wo}`;
     });
     felder.push({
-      name: 'Prize money today',
+      name: 'Preisgeld heute',
       value: v.spieltage
-        ? `**${geld(v.summe)}** to ${zahl(v.konten)} accounts · ${zahl(v.mitTabelle)} of ${zahl(v.spieltage)} match days with a payout table`
+        ? `**${geld(v.summe)}** an ${zahl(v.konten)} Konten · ${zahl(v.mitTabelle)} von ${zahl(v.spieltage)} Spieltagen mit Auszahlungstabelle`
           + (zeilen.length ? `\n${zeilen.join('\n')}` : '')
-        : 'No finished match day yet today.',
+        : 'Heute noch kein fertiger Spieltag.',
       inline: false,
     });
   }
   const h = b.heute; const g = b.gestern;
   felder.push({
-    name: 'Site',
-    value: `Visitors today **${zahl(h?.besucher)}** (${zahl(h?.aufrufe)} views, ${zahl(h?.neu)} new)`
-      + (g ? ` · yesterday ${zahl(g.besucher)} (${zahl(g.aufrufe)} views)` : '')
-      + `\nAccounts **${zahl(z.konten?.gesamt)}** (+${zahl(z.konten?.neuHeute)} today, ${zahl(z.konten?.aktivHeute)} active) · VIP keys **${zahl(z.vip?.gesamt)}** (+${zahl(z.vip?.neuHeute)} today)`,
+    name: 'Seite',
+    value: `Besucher heute **${zahl(h?.besucher)}** (${zahl(h?.aufrufe)} Aufrufe, ${zahl(h?.neu)} neu)`
+      + (g ? ` · gestern ${zahl(g.besucher)} (${zahl(g.aufrufe)} Aufrufe)` : '')
+      + `\nKonten **${zahl(z.konten?.gesamt)}** (+${zahl(z.konten?.neuHeute)} heute, ${zahl(z.konten?.aktivHeute)} aktiv) · VIP-Schlüssel **${zahl(z.vip?.gesamt)}** (+${zahl(z.vip?.neuHeute)} heute)`,
     inline: false,
   });
   return {
-    title: `Numbers · ${z.tag}`,
+    title: `Zahlen · ${z.tag}`,
     color: FARBE,
     fields: felder.map((f) => ({ ...f, value: f.value.slice(0, 1024) })),
-    footer: { text: `updated ${new Date().toISOString().slice(0, 16).replace('T', ' ')} UTC` },
+    footer: { text: `aktualisiert ${new Date().toLocaleString('de-CH', { timeZone: 'Europe/Zurich', day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })} Uhr` },
   };
 }
 
