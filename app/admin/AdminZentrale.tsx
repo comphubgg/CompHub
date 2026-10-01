@@ -163,8 +163,8 @@ export default function AdminZentrale({ werkzeuge, zeigeLaeufe }: {
               <T>Der Zustand der Läufe ließ sich gerade nicht abrufen.</T>
             </p>
           )}
-          <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-5">
-            {(daten?.jobs ?? Array.from({ length: 5 }, () => null)).map((j, i) => {
+          <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+            {(daten?.jobs ?? Array.from({ length: 8 }, () => null)).map((j, i) => {
               if (!j) return <div key={i} className="h-[74px] animate-pulse rounded-xl border border-zinc-800 bg-zinc-900/40" />;
               const a = AMPEL[j.ampel];
               const l = j.aktiv ?? j.letzter;

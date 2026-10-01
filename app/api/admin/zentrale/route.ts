@@ -32,6 +32,9 @@ const ABLAEUFE: Array<{ schluessel: string; datei: string; name: string; was: st
   { schluessel: 'clutch', datei: 'clutch-rechnen.yml', name: 'Solo Clutch', was: 'Punkte je Spieltag', ruhigBisMin: 24 * 60 },
   { schluessel: 'kader', datei: 'org-kader.yml', name: 'Org-Kader', was: 'Abgleich mit Liquipedia', ruhigBisMin: 36 * 60 },
   { schluessel: 'verlauf', datei: 'team-verlauf.yml', name: 'Team-Verlauf', was: 'Spielerhistorie', ruhigBisMin: 36 * 60 },
+  { schluessel: 'pruefung', datei: 'seitenpruefung.yml', name: 'Seitenprüfung', was: 'Antworten alle Seiten?', ruhigBisMin: 120 },
+  { schluessel: 'sicherung', datei: 'sicherung.yml', name: 'Sicherung', was: 'Tägliche Kopie der gepflegten Dateien', ruhigBisMin: 36 * 60 },
+  { schluessel: 'live', datei: 'replays-live.yml', name: 'Live-Replays', was: 'Laufende Cups einsammeln', ruhigBisMin: 240 },
 ];
 
 interface Lauf {
@@ -49,7 +52,7 @@ interface JobAntwort {
 }
 
 const merker = new Map<string, { bis: number; wert: JobAntwort }>();
-const MERK_MS = 10 * 60_000;
+const MERK_MS = 15 * 60_000;
 
 async function holeLauf(a: typeof ABLAEUFE[number]): Promise<JobAntwort> {
   const m = merker.get(a.schluessel);
