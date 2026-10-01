@@ -13,6 +13,9 @@
  *     --titel "Login und Registrierung" --text "Seit dem 17.9. ..."
  *   --ziel alle|vip|manager   --art neu|behoben|geaendert
  *   --text kann mehrzeilig sein (\n im Text wird zum Zeilenumbruch).
+ *   --bild <datei>  haengt ein Bild an (mehrfach erlaubt, bis zu zehn) - der
+ *                   Betreiber (1.10.2026): "sende im Discord von jedem Bilder,
+ *                   wie es optisch aussieht".
  *
  * Der Bot-Token kommt aus .env.local (DISCORD_BOT_TOKEN).
  */
@@ -54,6 +57,7 @@ const ziel = arg('--ziel', 'alle');
 const art = arg('--art', 'geaendert');
 const titel = arg('--titel');
 const text = arg('--text').replace(/\\n/g, '\n');
+const bilder = process.argv.flatMap((a, i, alle) => (a === '--bild' && alle[i + 1] ? [alle[i + 1]] : []));
 
 if (!TOKEN) { console.error('DISCORD_BOT_TOKEN fehlt in .env.local.'); process.exit(1); }
 if (!KANAELE[ziel]) { console.error('--ziel muss alle, vip, manager, admin, alarm oder todo sein.'); process.exit(1); }
@@ -133,12 +137,24 @@ const zeitText = fuerAdmin
 // Pruefberichte der ganzen Seite orange (so gewuenscht, nicht das uebliche Blau),
 // Auftraege an den Admin gelb, Alarme rot.
 const farbe = art === 'alarm' ? 0xef4444 : art === 'pruefung' ? 0xf97316 : art === 'aufgabe' ? 0xeab308 : FARBE;
-await ruf(`/channels/${kanal}/messages`, 'POST', {
+const nachricht = {
   embeds: [{
     title: `${vorsatz} · ${titel}`.slice(0, 256),
     description: text.slice(0, 4000),
     color: farbe,
     footer: { text: zeitText },
   }],
-});
+};
+if (bilder.length) {
+  // Mit Bildern: ein Formular, die Nachricht als payload_json, jedes Bild als Datei.
+  const form = new FormData();
+  form.append('payload_json', JSON.stringify(nachricht));
+  bilder.slice(0, 10).forEach((pfad, i) => {
+    form.append(`files[${i}]`, new Blob([fs.readFileSync(pfad)]), path.basename(pfad));
+  });
+  const r = await fetch(`${API}/channels/${kanal}/messages`, { method: 'POST', headers: { Authorization: `Bot ${TOKEN}` }, body: form });
+  if (!r.ok) throw new Error(`Bilder senden: ${r.status} ${(await r.text()).slice(0, 200)}`);
+} else {
+  await ruf(`/channels/${kanal}/messages`, 'POST', nachricht);
+}
 console.log(`  Update in #${KANAELE[ziel]} geschrieben: ${vorsatz} · ${titel}`);
