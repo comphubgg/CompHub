@@ -69,10 +69,10 @@ type Drei = [string, string, string];
  * jede aussieht. "drei" ist die abgestimmte Fassung der Dreiteilung.
  */
 const TRIO_LAYOUTS = [
-  { id: 'drei', titel: 'Dreigeteilt', was: 'Drei schmale Fotos nebeneinander, die Zahlen groß darunter.', basis: 210 },
-  { id: 'mitte', titel: 'Mitte groß', was: 'Das mittlere Foto größer, die beiden äußeren schmaler.', basis: 232 },
-  { id: 'reihe', titel: 'Reihe', was: 'Drei Fotos links, Namen und Zahlen rechts daneben.', basis: 124 },
-  { id: 'kompakt', titel: 'Kompakt', was: 'Kleine Fotos und eine knappe Zeile — für wenig Platz.', basis: 76 },
+  { id: 'drei', titel: 'Dreigeteilt', was: 'Drei Fotos nebeneinander, Gesicht mittig, die Zahlen groß darunter.', basis: 282 },
+  { id: 'mitte', titel: 'Mitte groß', was: 'Das mittlere Foto größer, die beiden äußeren schmaler.', basis: 302 },
+  { id: 'reihe', titel: 'Reihe', was: 'Drei Fotos links, Namen und Zahlen rechts daneben.', basis: 150 },
+  { id: 'kompakt', titel: 'Kompakt', was: 'Kleine Fotos und eine knappe Zeile — für wenig Platz.', basis: 96 },
 ] as const;
 
 
@@ -129,14 +129,14 @@ function LayoutVorschau({
     return `${basis}/overlay/banner.html?${p.toString()}`;
   }, [basis, echt, eventId, windowId, ids, namen, fotos, layout, vorlage, klar, abstand]);
   // Das Banner ist bis etwa 800 Punkte breit; die Kachel zeigt es auf 0,42.
-  const hoehe = Math.round(((TRIO_LAYOUTS.find((x) => x.id === layout)?.basis ?? 210) + 24) * 0.42);
+  const hoehe = Math.round(((TRIO_LAYOUTS.find((x) => x.id === layout)?.basis ?? 282) + 24) * 0.42);
   return (
     <span className="relative block w-full overflow-hidden bg-zinc-950"
       style={{ height: Math.max(hoehe, 56) }}>
       {basis && (
         <iframe src={adresse} title={layout} tabIndex={-1} loading="lazy"
           className="pointer-events-none absolute left-0 top-0 border-0"
-          style={{ width: 820, height: 280, transform: 'scale(0.42)', transformOrigin: 'top left' }} />
+          style={{ width: 820, height: 380, transform: 'scale(0.42)', transformOrigin: 'top left' }} />
       )}
       {!echt && (
         <span className="absolute bottom-1 right-1.5 rounded bg-black/60 px-1.5 py-0.5 text-[9px] uppercase tracking-wider text-slate-300">
@@ -702,7 +702,7 @@ export default function TeamkarteBaukasten({ globals = false }: {
   const stelleTeamGroesse = (g: 2 | 3, l: string = layout) => {
     if (g === teamGroesse) return;
     setTeamGroesse(g);
-    setHoehe(g === 3 ? (TRIO_LAYOUTS.find((x) => x.id === l)?.basis ?? 210) : 108);
+    setHoehe(g === 3 ? (TRIO_LAYOUTS.find((x) => x.id === l)?.basis ?? 282) : 108);
     // Ein Duo hat keinen dritten Platz.
     if (g === 2) {
       setDuo((alt) => alt.slice(0, 2));
@@ -713,7 +713,7 @@ export default function TeamkarteBaukasten({ globals = false }: {
 
   const waehleLayout = (l: string) => {
     setLayout(l);
-    setHoehe(TRIO_LAYOUTS.find((x) => x.id === l)?.basis ?? 210);
+    setHoehe(TRIO_LAYOUTS.find((x) => x.id === l)?.basis ?? 282);
   };
 
   const waehleTeam = (tm: Team) => {

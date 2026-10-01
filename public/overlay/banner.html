@@ -231,9 +231,12 @@
     background: var(--grund2);
   }
   .t-foto.leer { visibility: hidden; }
-  .t-foto img { width: 100%; height: 100%; object-fit: cover; object-position: center 2%; display: block; }
-  /* Die Fotos sind hochkant, das Fenster ist schmal: oben anfangen, damit die Gesichter drin bleiben. */
-  #banner.trio.l-reihe .t-foto img, #banner.trio.l-kompakt .t-foto img { object-position: center 8%; }
+  /*
+   * Das Bild sitzt frei im Rahmen: zuschneiden() setzt Groesse und Lage in Prozent
+   * so, dass das Gesicht in der Mitte steht (Lage aus _gesichter.json). Bis dahin,
+   * und fuer Fotos ohne erkanntes Gesicht, gilt der Standardausschnitt oben mittig.
+   */
+  .t-foto img { position: absolute; left: 0; top: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 12%; display: block; }
   .t-foto + .t-foto { border-left: calc(2px * var(--skala)) solid color-mix(in srgb, var(--akzent) 35%, transparent); }
   .t-name {
     position: absolute; left: 0; right: 0; bottom: 0;
@@ -263,13 +266,13 @@
 
   /* drei: Fotoband schmal, darunter die Zahlen. */
   #banner.trio.l-drei { --trio-breite: 760px; }
-  #banner.trio.l-drei .t-fotos { height: calc(118px * var(--skala)); }
+  #banner.trio.l-drei .t-fotos { height: calc(190px * var(--skala)); }
   #banner.trio.l-drei .t-stats { height: calc(92px * var(--skala)); }
 
   /* mitte: das mittlere Foto ist am groessten, die beiden aussen kleiner. */
   #banner.trio.l-mitte { --trio-breite: 760px; }
-  #banner.trio.l-mitte .t-fotos { height: calc(140px * var(--skala)); background: var(--grund); }
-  #banner.trio.l-mitte .t-foto { height: 74%; }
+  #banner.trio.l-mitte .t-fotos { height: calc(210px * var(--skala)); background: var(--grund); }
+  #banner.trio.l-mitte .t-foto { height: 80%; }
   #banner.trio.l-mitte .t-foto:nth-child(2) { flex: 1.45 1 0; height: 100%; box-shadow: 0 0 0 calc(3px * var(--skala)) color-mix(in srgb, var(--akzent) 40%, transparent); z-index: 2; }
   #banner.trio.l-mitte .t-stats { height: calc(92px * var(--skala)); }
 
@@ -277,16 +280,16 @@
   #banner.trio.l-reihe, #banner.trio.l-kompakt { --trio-breite: 760px; }
   #banner.trio.l-reihe #trio, #banner.trio.l-kompakt #trio { flex-direction: row; }
   #banner.trio.l-reihe .t-fotos, #banner.trio.l-kompakt .t-fotos { flex: 0 0 auto; align-items: stretch; }
-  #banner.trio.l-reihe .t-foto { width: calc(112px * var(--skala)); height: calc(124px * var(--skala)); flex: 0 0 auto; }
-  #banner.trio.l-kompakt .t-foto { width: calc(76px * var(--skala)); height: calc(76px * var(--skala)); flex: 0 0 auto; }
+  #banner.trio.l-reihe .t-foto { width: calc(120px * var(--skala)); height: calc(150px * var(--skala)); flex: 0 0 auto; }
+  #banner.trio.l-kompakt .t-foto { width: calc(96px * var(--skala)); height: calc(96px * var(--skala)); flex: 0 0 auto; }
   #banner.trio.l-reihe .t-name, #banner.trio.l-kompakt .t-name { display: none; }
   #banner.trio.l-reihe .t-stats, #banner.trio.l-kompakt .t-stats { flex: 1 1 auto; flex-direction: column; gap: calc(10px * var(--skala)); padding: 0 calc(18px * var(--skala)); }
   #banner.trio.l-reihe .t-namen, #banner.trio.l-kompakt .t-namen {
     display: block; width: 100%; text-align: center; white-space: nowrap; overflow: hidden;
     font-weight: 800; letter-spacing: .03em; text-transform: uppercase; color: var(--schrift);
   }
-  #banner.trio.l-reihe .t-namen { font-size: calc(26px * var(--skala)); }
-  #banner.trio.l-kompakt { --trio-breite: 560px; }
+  #banner.trio.l-reihe .t-namen { font-size: calc(23px * var(--skala)); }
+  #banner.trio.l-kompakt { --trio-breite: 620px; }
   #banner.trio.l-kompakt .t-namen { font-size: calc(18px * var(--skala)); }
   #banner.trio.l-kompakt .werte { gap: calc(26px * var(--skala)); }
   #banner.trio.l-kompakt .spalte .l { font-size: calc(10px * var(--skala)); }
@@ -467,7 +470,7 @@ const BESCHRIFTUNG = {
  * Konten (oder die Vorschau mit Beispieldaten) schaltet auf die Anordnung
  * "layout". Ohne Angabe gilt "drei". Bei zwei Spielern aendert sich nichts.
  */
-const TRIO_BASIS = { drei: 210, mitte: 232, reihe: 124, kompakt: 76 };
+const TRIO_BASIS = { drei: 282, mitte: 302, reihe: 150, kompakt: 96 };
 const PROBE = P.get('probe') === '1';
 const GROESSTES_TEAM = Math.max(IDS.length, ...TEAMS.map(t => t.length), 0);
 const LAYOUT = TRIO_BASIS[(P.get('layout') || '').trim()] ? (P.get('layout') || '').trim() : 'drei';
@@ -718,9 +721,47 @@ function textEinpassen(el) {
   }
 }
 
+/*
+ * Wo das Gesicht im Foto steht - berechnet von scripts/gesichter-erkennen.py.
+ *
+ * Der Betreiber (1.10.2026): "man erkennt ja die Spieler gar nicht ... zuschneiden,
+ * immer so, dass der Kopf mittig ist." Je Foto steht dort [mitte_x, mitte_y, hoehe]
+ * als Anteil des Bildes. Fehlt ein Foto in der Liste (neu hochgeladen, kein Gesicht
+ * erkannt), gilt ein Kopfbild-Standard.
+ */
+let GESICHTER = null;
+async function ladeGesichter() {
+  if (GESICHTER) return GESICHTER;
+  try { GESICHTER = await (await fetch(SERVER + '/spielerbilder/_gesichter.json')).json(); }
+  catch { GESICHTER = {}; }
+  return GESICHTER;
+}
+/** Das Gesicht im Rahmen mittig setzen und so gross, dass man den Spieler erkennt. */
+function zuschneiden(img) {
+  const k = img.parentElement;
+  const W = k.clientWidth; const H = k.clientHeight;
+  const nw = img.naturalWidth; const nh = img.naturalHeight;
+  if (!W || !H || !nw || !nh) return;
+  let datei = (img.getAttribute('src') || '').split('?')[0].split('/').pop();
+  try { datei = decodeURIComponent(datei); } catch { /* bleibt */ }
+  const [fx, fy, fh] = (GESICHTER && GESICHTER[datei]) || [0.5, 0.3, 0.2];
+  // Das Gesicht (Augen bis Kinn) fuellt ein Drittel der Rahmenhoehe: der ganze Kopf mit Haaren und ein Stueck Schulter bleiben im Bild (Betreiber: "mehr vom Gesicht, groessere Umrandung").
+  const smin = Math.max(W / nw, H / nh);
+  const s = Math.max(smin, Math.min(0.33 * H / (fh * nh), 1.6));
+  const links = Math.min(0, Math.max(W - nw * s, W / 2 - fx * nw * s));
+  const oben = Math.min(0, Math.max(H - nh * s, 0.47 * H - fy * nh * s));
+  const st = img.style;
+  st.objectFit = 'fill';
+  st.width = (nw * s / W * 100) + '%';
+  st.height = (nh * s / H * 100) + '%';
+  st.left = (links / W * 100) + '%';
+  st.top = (oben / H * 100) + '%';
+}
+
 /** Das Trio zeichnen: drei Fotofelder mit Namen, die Zahlen kommen aus schreibeWerte(). */
 async function zeichneTrio(liste, g, w) {
   const fotos = document.getElementById('t-fotos');
+  await ladeGesichter();
   const namen = [];
   for (let i = 0; i < 3; i++) namen.push(anzeigeName(liste[i] && liste[i].name, g[i]));
   const bilder = await Promise.all([0, 1, 2].map(i => liste[i] ? fotoNachName(liste[i], g[i], w[i]) : Promise.resolve(null)));
@@ -737,7 +778,14 @@ async function zeichneTrio(liste, g, w) {
     const k = fotos.children[i];
     const img = k.querySelector('img');
     const voll = bilder[i] ? (bilder[i].startsWith('http') ? bilder[i] : SERVER + bilder[i]) : '';
-    if (voll) { if (img.getAttribute('src') !== voll) img.src = voll; img.style.visibility = ''; }
+    if (voll) {
+      if (img.getAttribute('src') !== voll) {
+        img.removeAttribute('style');
+        img.onload = () => zuschneiden(img);
+        img.src = voll;
+      } else if (img.complete) zuschneiden(img);
+      img.style.visibility = '';
+    }
     else { img.removeAttribute('src'); img.style.visibility = 'hidden'; }
     k.classList.toggle('leer', !liste[i]);
     k.querySelector('.t-name').textContent = namen[i] || '';

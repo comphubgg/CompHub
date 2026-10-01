@@ -3370,7 +3370,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Mitte groß': 'Large centre',
   'Reihe': 'Row',
   'Kompakt': 'Compact',
-  'Drei schmale Fotos nebeneinander, die Zahlen groß darunter.': 'Three narrow photos side by side, the numbers large underneath.',
+  'Drei Fotos nebeneinander, Gesicht mittig, die Zahlen groß darunter.': 'Three photos side by side, face centred, the numbers large underneath.',
   'Das mittlere Foto größer, die beiden äußeren schmaler.': 'The middle photo larger, the two outer ones narrower.',
   'Drei Fotos links, Namen und Zahlen rechts daneben.': 'Three photos on the left, names and numbers on the right.',
   'Kleine Fotos und eine knappe Zeile — für wenig Platz.': 'Small photos and a short line — for tight spaces.',
