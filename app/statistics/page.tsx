@@ -742,19 +742,23 @@ function Duellzeile({ titel, links, rechts, nachkomma = 0, einheit = '' }: {
   );
 }
 
-/** Welche Werte im Duell gegenuebergestellt werden. */
+/**
+ * Welche Werte im Duell gegenuebergestellt werden.
+ *
+ * Der Betreiber (1.10.2026): das Head to Head soll klein sein wie bei
+ * eucompetitive - Eliminierungen, Schaden, Kopftreffer, Treffer,
+ * Schadensquote. Elf Zeilen waren eine Tabelle, kein Duell. Das "Avg.
+ * Rating" der Vorlage fehlt mit Absicht: das rechnet nur der Anbieter, und
+ * eine geratene Formel waere eine erfundene Zahl. Die uebrigen Werte
+ * (Assists, Bauteile, Material, Matches, Trefferquote) stehen im
+ * Staerkenprofil und in den Spieltagen darunter.
+ */
 const DUELL_WERTE: Array<[string, keyof Spieler, number, string]> = [
   ['Eliminierungen', 'elims', 0, ''],
-  ['Elims je Match', 'elimsProMatch', 2, ''],
   ['Schaden', 'damage', 0, ''],
-  ['Schadensquote', 'quote', 2, ''],
-  ['Treffer', 'hits', 0, ''],
   ['Kopftreffer', 'headshots', 0, ''],
-  ['Trefferquote', 'genauigkeit', 1, ' %'],
-  ['Assists', 'assists', 0, ''],
-  ['Bauteile', 'builds', 0, ''],
-  ['Material', 'mats', 0, ''],
-  ['Matches', 'matches', 0, ''],
+  ['Treffer', 'hits', 0, ''],
+  ['Schadensquote', 'quote', 2, ''],
 ];
 
 /**
