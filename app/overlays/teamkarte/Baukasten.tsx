@@ -57,6 +57,24 @@ const VORLAGEN = [
 
 const REGIONEN = ['EU', 'NAC', 'NAW', 'BR', 'ASIA', 'ME', 'OCE'];
 
+/** Drei Plaetze: Duo-Cups nutzen zwei, Trio-Cups alle drei. */
+type Drei = [string, string, string];
+
+/*
+ * Die Anordnungen fuers Trio-Banner - muss zu public/overlay/banner.html passen.
+ *
+ * "basis" ist die Hoehe der ganzen Karte bei Massstab 1. Der Betreiber (1.10.2026)
+ * wollte die Fotos "viel schmaler, also weniger hoch", damit die Zahlen groesser
+ * wirken als die Bilder, und alle Anordnungen waehlbar, mit einer Vorschau, wie
+ * jede aussieht. "drei" ist die abgestimmte Fassung der Dreiteilung.
+ */
+const TRIO_LAYOUTS = [
+  { id: 'drei', titel: 'Dreigeteilt', was: 'Drei schmale Fotos nebeneinander, die Zahlen groß darunter.', basis: 210 },
+  { id: 'mitte', titel: 'Mitte groß', was: 'Das mittlere Foto größer, die beiden äußeren schmaler.', basis: 232 },
+  { id: 'reihe', titel: 'Reihe', was: 'Drei Fotos links, Namen und Zahlen rechts daneben.', basis: 124 },
+  { id: 'kompakt', titel: 'Kompakt', was: 'Kleine Fotos und eine knappe Zeile — für wenig Platz.', basis: 76 },
+] as const;
+
 
 /**
  * Der Name, wie er im Banner stehen soll - derselbe Vorschlag wie dort.
@@ -69,6 +87,64 @@ function namensVorschlag(roh: string): string {
   let n = String(roh || '').replace(/\[[^\]]*\]/g, ' ').trim();
   n = n.replace(/^[A-Z0-9]{2,5}\s+(?=\S)/, '').trim();
   return n || String(roh || '');
+}
+
+/**
+ * Die kleine Vorschau einer Trio-Anordnung.
+ *
+ * Eine verkleinerte Fassung des echten Banners in einem Rahmen - mit den
+ * gewaehlten drei Spielern, solange sie da sind. Davor zeigt sie ein klar
+ * als Beispiel gekennzeichnetes Trio (probe=1 in banner.html), damit man die
+ * Anordnungen vergleichen kann, bevor ein Team feststeht. Das Beispiel traegt
+ * erfundene Zahlen; es steht nur in der Vorschau, nie in einer Adresse, die
+ * jemand kopiert.
+ */
+function LayoutVorschau({
+  basis, layout, vorlage, klar, abstand, ids, namen, fotos, eventId, windowId,
+}: {
+  basis: string; layout: string; vorlage: string; klar: number; abstand: number;
+  ids: string[]; namen: Drei; fotos: Drei; eventId: string; windowId: string;
+}) {
+  const echt = ids.length >= 3;
+  const adresse = useMemo(() => {
+    const p = new URLSearchParams();
+    if (basis) p.set('server', basis);
+    if (echt) {
+      if (eventId) p.set('event', eventId);
+      if (windowId) p.set('window', windowId);
+      p.set('id', ids.join(','));
+      if (namen[0]) p.set('n1', namen[0]);
+      if (namen[1]) p.set('n2', namen[1]);
+      if (namen[2]) p.set('n3', namen[2]);
+      if (fotos[0]) p.set('f1', fotos[0]);
+      if (fotos[1]) p.set('f2', fotos[1]);
+      if (fotos[2]) p.set('f3', fotos[2]);
+    } else {
+      p.set('probe', '1');
+    }
+    p.set('layout', layout);
+    p.set('vorlage', vorlage);
+    p.set('klar', String(klar));
+    if (abstand !== 18) p.set('abstand', String(abstand));
+    return `${basis}/overlay/banner.html?${p.toString()}`;
+  }, [basis, echt, eventId, windowId, ids, namen, fotos, layout, vorlage, klar, abstand]);
+  // Das Banner ist bis etwa 800 Punkte breit; die Kachel zeigt es auf 0,42.
+  const hoehe = Math.round(((TRIO_LAYOUTS.find((x) => x.id === layout)?.basis ?? 210) + 24) * 0.42);
+  return (
+    <span className="relative block w-full overflow-hidden bg-zinc-950"
+      style={{ height: Math.max(hoehe, 56) }}>
+      {basis && (
+        <iframe src={adresse} title={layout} tabIndex={-1} loading="lazy"
+          className="pointer-events-none absolute left-0 top-0 border-0"
+          style={{ width: 820, height: 280, transform: 'scale(0.42)', transformOrigin: 'top left' }} />
+      )}
+      {!echt && (
+        <span className="absolute bottom-1 right-1.5 rounded bg-black/60 px-1.5 py-0.5 text-[9px] uppercase tracking-wider text-slate-300">
+          <T>Beispiel</T>
+        </span>
+      )}
+    </span>
+  );
 }
 
 /**
@@ -183,7 +259,7 @@ export default function TeamkarteBaukasten({ globals = false }: {
   /** Zaehlt die Suchlaeufe - siehe sucheImTurnier(). */
   const laufRef = useRef(0);
   const [suchInfo, setSuchInfo] = useState('');
-  const [namen, setNamen] = useState<[string, string]>(['', '']);
+  const [namen, setNamen] = useState<Drei>(['', '', '']);
   /*
    * Das Foto je Platz - leer heisst: das gepflegte Foto des Kontos.
    *
@@ -194,7 +270,16 @@ export default function TeamkarteBaukasten({ globals = false }: {
    * soll: leer fuer das gepflegte Foto, "-" fuer keines, sonst der Pfad
    * eines Fotos aus dem Archiv.
    */
-  const [fotos, setFotos] = useState<[string, string]>(['', '']);
+  const [fotos, setFotos] = useState<Drei>(['', '', '']);
+  /*
+   * Zwei oder drei Spieler je Team - und bei dreien die Anordnung.
+   *
+   * Ab 2027 sind Trios der Hauptmodus. Duo-Cups bleiben bei zwei; die Wahl
+   * folgt der Teamgroesse, sobald ein Team gewaehlt ist, und laesst sich
+   * daneben von Hand umstellen.
+   */
+  const [teamGroesse, setTeamGroesse] = useState<2 | 3>(2);
+  const [layout, setLayout] = useState<string>('drei');
 
   /*
    * Gespeicherte Vorlagen.
@@ -210,10 +295,12 @@ export default function TeamkarteBaukasten({ globals = false }: {
     /** Das gewaehlte Foto je Platz - siehe FotoWahl. */
     fotos?: string[];
     vorlage: string; klar: number; hoehe: number; abstand?: number;
+    /** Spieler je Team (2 oder 3) und bei Trios die Anordnung. */
+    spieler?: number; layout?: string;
     /** Mehrere Duos und ihr Wechseltakt - seit die Adresse fest ist. */
     weitere?: Array<{
-      ids: string[]; namen: [string, string];
-      fotos?: [string, string]; etikett: string;
+      ids: string[]; namen: Drei;
+      fotos?: Drei; etikett: string;
     }>;
     wechsel?: number;
   }
@@ -243,6 +330,9 @@ export default function TeamkarteBaukasten({ globals = false }: {
         region: c.region ?? 'EU',
         ids: c.ids ?? [],
         namen: c.namen ?? [],
+        fotos: c.fotos,
+        spieler: c.spieler,
+        layout: c.layout,
         vorlage: c.vorlage ?? 'nacht',
         klar: c.klar ?? 92,
         hoehe: c.hoehe ?? 108,
@@ -289,9 +379,9 @@ export default function TeamkarteBaukasten({ globals = false }: {
    * ist immer das erste; was hier dazukommt, folgt danach.
    */
   const [weitere, setWeitere] = useState<Array<{
-    ids: string[]; namen: [string, string];
+    ids: string[]; namen: Drei;
     /** Das gewaehlte Foto je Platz - siehe FotoWahl. */
-    fotos?: [string, string];
+    fotos?: Drei;
     etikett: string;
   }>>([]);
   /** Sekunden je Duo. */
@@ -467,8 +557,10 @@ export default function TeamkarteBaukasten({ globals = false }: {
       setNeuerTitel(o.titel);
       setRegion(o.region);
       setDuo(o.ids.map((id, i) => ({ id, name: o.namen[i] ?? '' })));
-      setNamen([o.namen[0] ?? '', o.namen[1] ?? '']);
-      setFotos([o.fotos?.[0] ?? '', o.fotos?.[1] ?? '']);
+      setNamen([o.namen[0] ?? '', o.namen[1] ?? '', o.namen[2] ?? '']);
+      setFotos([o.fotos?.[0] ?? '', o.fotos?.[1] ?? '', o.fotos?.[2] ?? '']);
+      setTeamGroesse(o.spieler === 3 || o.ids.length >= 3 ? 3 : 2);
+      if (o.layout && TRIO_LAYOUTS.some((l) => l.id === o.layout)) setLayout(o.layout);
       setVorlage(o.vorlage);
       setKlar(o.klar);
       setHoehe(o.hoehe);
@@ -606,13 +698,36 @@ export default function TeamkarteBaukasten({ globals = false }: {
     return () => window.clearTimeout(stift);
   }, [teamSuche, eventId, windowId, sucheImTurnier]);
 
+  /** Wechselt zwischen Duo und Trio und stellt die Hoehe auf das Mass der Anordnung. */
+  const stelleTeamGroesse = (g: 2 | 3, l: string = layout) => {
+    if (g === teamGroesse) return;
+    setTeamGroesse(g);
+    setHoehe(g === 3 ? (TRIO_LAYOUTS.find((x) => x.id === l)?.basis ?? 210) : 108);
+    // Ein Duo hat keinen dritten Platz.
+    if (g === 2) {
+      setDuo((alt) => alt.slice(0, 2));
+      setNamen((alt) => [alt[0], alt[1], '']);
+      setFotos((alt) => [alt[0], alt[1], '']);
+    }
+  };
+
+  const waehleLayout = (l: string) => {
+    setLayout(l);
+    setHoehe(TRIO_LAYOUTS.find((x) => x.id === l)?.basis ?? 210);
+  };
+
   const waehleTeam = (tm: Team) => {
-    const zwei = tm.spieler.slice(0, 2);
-    setDuo(zwei);
+    // Ein Team mit drei Spielern ist ein Trio; sonst bleibt es beim Duo.
+    const g: 2 | 3 = tm.spieler.length >= 3 ? 3 : 2;
+    const gewaehlt = tm.spieler.slice(0, g);
+    setDuo(gewaehlt);
     setNamen([
-      namensVorschlag(zwei[0]?.name ?? ''),
-      namensVorschlag(zwei[1]?.name ?? ''),
+      namensVorschlag(gewaehlt[0]?.name ?? ''),
+      namensVorschlag(gewaehlt[1]?.name ?? ''),
+      namensVorschlag(gewaehlt[2]?.name ?? ''),
     ]);
+    setFotos(['', '', '']);
+    stelleTeamGroesse(g);
   };
 
   /**
@@ -624,15 +739,16 @@ export default function TeamkarteBaukasten({ globals = false }: {
    */
   const vormerken = (p: { epicId: string; anzeige: string; bild: string | null }) => {
     const neu: Spieler = { id: p.epicId, name: p.anzeige, img: p.bild };
+    const platz = teamGroesse;
     setDuo((alt) => {
       if (alt.some((x) => x.id === neu.id)) return alt;
-      if (alt.length < 2) return [...alt, neu];
-      return [alt[0], neu];
+      if (alt.length < platz) return [...alt, neu];
+      return [...alt.slice(0, platz - 1), neu];
     });
     setNamen((alt) => {
-      const naechster = duo.some((x) => x.id === neu.id) ? -1 : duo.length < 2 ? duo.length : 1;
+      const naechster = duo.some((x) => x.id === neu.id) ? -1 : duo.length < platz ? duo.length : platz - 1;
       if (naechster < 0) return alt;
-      const kopie: [string, string] = [alt[0] ?? '', alt[1] ?? ''];
+      const kopie: Drei = [alt[0] ?? '', alt[1] ?? '', alt[2] ?? ''];
       kopie[naechster] = namensVorschlag(p.anzeige);
       return kopie;
     });
@@ -694,6 +810,7 @@ export default function TeamkarteBaukasten({ globals = false }: {
   }, [basis]);
 
   const bannerUrl = useMemo(() => {
+    const trio = teamGroesse === 3;
     const p = new URLSearchParams();
     if (basis) p.set('server', basis);
     if (eventId) p.set('event', eventId);
@@ -719,29 +836,32 @@ export default function TeamkarteBaukasten({ globals = false }: {
         (w) => w.ids.join(',').toLowerCase() !== schluessel);
       const alle = [{ ids, namen, fotos }, ...ohneDoppel];
       p.set('teams', alle.map((w) => w.ids.join(',')).join(';'));
-      p.set('namen', alle.map((w) => `${w.namen[0] ?? ''},${w.namen[1] ?? ''}`).join(';'));
+      p.set('namen', alle.map((w) => `${w.namen[0] ?? ''},${w.namen[1] ?? ''}${trio ? `,${w.namen[2] ?? ''}` : ''}`).join(';'));
       // Dieselbe Reihenfolge wie die Namen - siehe banner.html.
       const gewaehlt = alle.map((w) => {
         const f = (w as { fotos?: string[] }).fotos ?? [];
-        return `${f[0] ?? ''},${f[1] ?? ''}`;
+        return `${f[0] ?? ''},${f[1] ?? ''}${trio ? `,${f[2] ?? ''}` : ''}`;
       });
-      if (gewaehlt.some((x) => x !== ',')) p.set('fotos', gewaehlt.join(';'));
+      if (gewaehlt.some((x) => x.replace(/,/g, '') !== '')) p.set('fotos', gewaehlt.join(';'));
       p.set('wechsel', String(wechsel));
     } else {
       if (ids.length) p.set('id', ids.join(','));
       if (namen[0]) p.set('n1', namen[0]);
       if (namen[1]) p.set('n2', namen[1]);
+      if (trio && namen[2]) p.set('n3', namen[2]);
     }
     // Das gewaehlte Foto je Platz - leer heisst: das gepflegte nehmen.
     if (fotos[0]) p.set('f1', fotos[0]);
     if (fotos[1]) p.set('f2', fotos[1]);
+    if (trio && fotos[2]) p.set('f3', fotos[2]);
+    if (trio) p.set('layout', layout);
     p.set('vorlage', vorlage);
     p.set('klar', String(klar));
     p.set('hoehe', String(hoehe));
     if (abstand !== 18) p.set('abstand', String(abstand));
     return `${basis}/overlay/banner.html?${p.toString()}`;
   }, [basis, eventId, windowId, duo, namen, fotos, vorlage, klar, hoehe, abstand,
-    weitere, wechsel]);
+    weitere, wechsel, teamGroesse, layout]);
 
   /*
    * Die Adresse, die abgelegt wird.
@@ -915,7 +1035,7 @@ export default function TeamkarteBaukasten({ globals = false }: {
               )}
             </Schritt>
 
-            <Schritt nummer={2} titel="Duo"
+            <Schritt nummer={2} titel={teamGroesse === 3 ? 'Trio' : 'Duo'}
               offen={schritt === 2}
               gesperrt={!cup}
               onOeffnen={() => setSchritt(2)}
@@ -923,6 +1043,19 @@ export default function TeamkarteBaukasten({ globals = false }: {
                 ? duo.map((p) => p.name).join(' · ') : ''}
               weiter={duo.length ? () => setSchritt(3) : undefined}>
               <>
+                  {/* Duo oder Trio: zwei gleiche Knoepfe nebeneinander. */}
+                  <div className="mb-3 flex items-center gap-2">
+                    <span className="text-[11px] text-slate-500"><T>Spieler je Team</T></span>
+                    {([2, 3] as const).map((g) => (
+                      <button key={g} type="button" onClick={() => stelleTeamGroesse(g)}
+                        className={`rounded-lg border px-3 py-1 text-xs font-medium transition ${
+                          teamGroesse === g
+                            ? 'border-sky-500 bg-sky-500/10 text-slate-100'
+                            : 'border-zinc-800 text-slate-400 hover:border-zinc-600'}`}>
+                        {g === 2 ? <T>Duo</T> : <T>Trio</T>}
+                      </button>
+                    ))}
+                  </div>
                   {/* Die Suche steht sofort da und laeuft beim Tippen los -
                       nach einer kurzen Pause, damit nicht jeder Tastendruck
                       die ganze Bestenliste abfragt. */}
@@ -969,7 +1102,7 @@ export default function TeamkarteBaukasten({ globals = false }: {
                           * nicht mit Profilbild hochladen ... das soll nicht
                           * gezeigt werden."
                           */}
-                        {tm.spieler.slice(0, 2).map((s) => (s.img ? (
+                        {tm.spieler.slice(0, 3).map((s) => (s.img ? (
                           // eslint-disable-next-line @next/next/no-img-element
                           <img key={s.id} src={s.img} alt=""
                             className="h-6 w-6 shrink-0 rounded object-cover"
@@ -1016,21 +1149,27 @@ export default function TeamkarteBaukasten({ globals = false }: {
 
               {/* Die beiden Namen, wie sie im Banner stehen sollen. */}
               {duo.length > 0 && (
-                <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                <div className={`mt-3 grid gap-2 ${duo.length >= 3 ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
                   {duo.map((s, i) => (
                     <div key={s.id} className="text-[11px] text-slate-500">
                       <label className="block">
                         <T>Angezeigter Name</T>
                         <span className="ml-1 text-slate-600">({s.name})</span>
                         <input value={namen[i] ?? ''}
-                          onChange={(e) => setNamen((a) => (i === 0
-                            ? [e.target.value, a[1]] : [a[0], e.target.value]))}
+                          onChange={(e) => setNamen((a) => {
+                            const k: Drei = [a[0], a[1], a[2]];
+                            k[i] = e.target.value;
+                            return k;
+                          })}
                           className={`${feld} mt-1`} />
                       </label>
                       {/* Welches Foto dazu gehoert - siehe FotoWahl. */}
                       <FotoWahl wert={fotos[i] ?? ''} eigenes={s.img}
-                        onWahl={(w) => setFotos((a) => (i === 0
-                          ? [w, a[1]] : [a[0], w]))} />
+                        onWahl={(w) => setFotos((a) => {
+                          const k: Drei = [a[0], a[1], a[2]];
+                          k[i] = w;
+                          return k;
+                        })} />
                     </div>
                   ))}
                 </div>
@@ -1057,9 +1196,9 @@ export default function TeamkarteBaukasten({ globals = false }: {
                         ? a
                         : [...a, {
                           ids: duo.map((x) => x.id),
-                          namen: [namen[0] ?? '', namen[1] ?? ''] as [string, string],
+                          namen: [namen[0] ?? '', namen[1] ?? '', namen[2] ?? ''] as Drei,
                           // Das gewaehlte Foto gehoert zum Duo, nicht zum Platz.
-                          fotos: [fotos[0] ?? '', fotos[1] ?? ''] as [string, string],
+                          fotos: [fotos[0] ?? '', fotos[1] ?? '', fotos[2] ?? ''] as Drei,
                           etikett: duo.map((x, i) => (namen[i] || namensVorschlag(x.name)))
                             .join(' + '),
                         }]))}
@@ -1119,6 +1258,34 @@ export default function TeamkarteBaukasten({ globals = false }: {
               gesperrt={!cup}
               onOeffnen={() => setSchritt(3)}
               weiter={() => setSchritt(4)}>
+              {teamGroesse === 3 && (
+                <div className="mb-5">
+                  <p className="mb-2 text-xs font-semibold text-slate-300"><T>Anordnung</T></p>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {TRIO_LAYOUTS.map((l) => (
+                      <button key={l.id} type="button" onClick={() => waehleLayout(l.id)}
+                        className={`overflow-hidden rounded-lg border text-left transition ${
+                          layout === l.id ? 'border-sky-500 bg-sky-500/5' : 'border-zinc-800 hover:border-zinc-600'}`}>
+                        <LayoutVorschau basis={basis} layout={l.id} vorlage={vorlage}
+                          klar={klar} abstand={abstand}
+                          ids={duo.length >= 3 ? duo.map((x) => x.id) : []}
+                          namen={namen} fotos={fotos}
+                          eventId={eventId} windowId={windowId} />
+                        <span className="block px-3 pb-2 pt-1.5">
+                          <span className="block text-[13px] font-medium text-slate-200">{t(l.titel)}</span>
+                          <span className="block text-[11px] leading-snug text-slate-500">{t(l.was)}</span>
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                  {duo.length < 3 && (
+                    <p className="mt-2 text-[11px] text-slate-500">
+                      <T>Die Vorschau zeigt Beispieldaten, bis drei Spieler gewählt sind.</T>
+                    </p>
+                  )}
+                </div>
+              )}
+
               <div className="mb-4 grid grid-cols-2 gap-2 sm:grid-cols-5">
                 {VORLAGEN.map((v) => (
                   <button key={v.id} onClick={() => setVorlage(v.id)}
@@ -1163,7 +1330,7 @@ export default function TeamkarteBaukasten({ globals = false }: {
                     Groessen am Massstab der Hoehe haengen, bleibt auch ein
                     flaches Banner lesbar - vorher wurde dort der Name
                     abgeschnitten, und der Regler durfte gar nicht so weit. */}
-                <input type="range" min={32} max={220} value={hoehe}
+                <input type="range" min={32} max={teamGroesse === 3 ? 340 : 220} value={hoehe}
                   onChange={(e) => setHoehe(Number(e.target.value))}
                   className="mt-1 w-full accent-sky-500" />
               </label>
@@ -1201,6 +1368,7 @@ export default function TeamkarteBaukasten({ globals = false }: {
                         ids: duo.map((p) => p.id),
                         namen: namen.filter(Boolean),
                         fotos,
+                        spieler: teamGroesse, layout,
                         vorlage, klar, hoehe, abstand,
                         // Mehrere Duos und der Wechseltakt gehoeren dazu,
                         // sonst zeigt die feste Adresse nur das erste.

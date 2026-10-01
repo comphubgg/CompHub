@@ -21,6 +21,9 @@
     &klar=70            wie deckend die Mitte ist, 0 bis 100
     &abstand=18         Abstand zwischen Foto und Text, 8 bis 64
     &felder=rank,points,games,elims
+    &layout=drei        Trio (drei Spieler): drei | reihe | mitte | kompakt
+    &n3=…&f3=…          dritter Name und drittes Foto
+    &probe=1            nur fuer die Vorschau im Baukasten: Beispieldaten statt Bestenliste
 -->
 <style>
   :root {
@@ -201,6 +204,94 @@
    */
   #banner.flach .mitte { flex-direction: row; gap: calc(18px * var(--skala)); }
   #banner.flach .namen { width: auto; }
+
+  /*
+   * Das Banner fuer drei Spieler (Trios).
+   *
+   * Der Betreiber (1.10.2026): "diese Variante, aber die Bilder viel schmaler,
+   * also weniger hoch, sodass die Stats groesser aussehen als die Bilder,
+   * jedoch noch gut sichtbar - und alle Varianten, man kann waehlen". Vier
+   * Anordnungen, alle mit grossen Zahlen und schmalen Fotos:
+   *   drei      drei Fotofelder nebeneinander, darunter die Zahlen
+   *   mitte     das mittlere Foto groesser, aussen kleiner, darunter die Zahlen
+   *   reihe     drei Fotos links, rechts Namen und Zahlen
+   *   kompakt   wie reihe, aber klein - fuer die Ecke im Stream
+   * Alle Masse haengen an --skala, wie beim Duo-Banner.
+   */
+  #trio { display: none; }
+  #banner.trio { display: block; width: calc(var(--trio-breite, 760px) * var(--skala)); height: auto; }
+  #banner.trio > .foto, #banner.trio > .mitte { display: none; }
+  #banner.trio #trio { display: flex; flex-direction: column; }
+
+  .t-fotos { display: flex; align-items: flex-end; background: var(--grund2); }
+  .t-foto {
+    position: relative; overflow: hidden; flex: 1 1 0; min-width: 0;
+    /* Die Hoehe gehoert dem Fotoband, nicht dem Bild - sonst zaehlt die natuerliche Hoehe des Fotos. */
+    height: 100%;
+    background: var(--grund2);
+  }
+  .t-foto.leer { visibility: hidden; }
+  .t-foto img { width: 100%; height: 100%; object-fit: cover; object-position: center 2%; display: block; }
+  /* Die Fotos sind hochkant, das Fenster ist schmal: oben anfangen, damit die Gesichter drin bleiben. */
+  #banner.trio.l-reihe .t-foto img, #banner.trio.l-kompakt .t-foto img { object-position: center 8%; }
+  .t-foto + .t-foto { border-left: calc(2px * var(--skala)) solid color-mix(in srgb, var(--akzent) 35%, transparent); }
+  .t-name {
+    position: absolute; left: 0; right: 0; bottom: 0;
+    padding: calc(12px * var(--skala)) calc(6px * var(--skala)) calc(5px * var(--skala));
+    text-align: center; white-space: nowrap; overflow: hidden;
+    font-size: calc(19px * var(--skala)); font-weight: 800; letter-spacing: .03em;
+    color: var(--schrift); text-transform: uppercase;
+    background: linear-gradient(transparent, rgba(0, 0, 0, .78));
+  }
+  .t-stats {
+    display: flex; align-items: center; justify-content: center;
+    background-color: color-mix(in srgb, var(--grund) calc(var(--klar) * 100%), transparent);
+    background-image:
+      linear-gradient(color-mix(in srgb, var(--grund) calc(var(--klar) * 100%), transparent),
+                      color-mix(in srgb, var(--grund) calc(var(--klar) * 100%), transparent)),
+      var(--bild);
+    background-size: cover; background-position: center;
+  }
+  /* Die Zahlen sind das Wichtigste: gross, die Fotos davor schmal. */
+  #banner.trio .werte { gap: calc(44px * var(--skala)); }
+  #banner.trio .spalte .l { font-size: calc(12px * var(--skala)); }
+  #banner.trio .spalte .v { font-size: calc(46px * var(--skala)); line-height: 1.05; }
+  .t-namen { display: none; }
+  #t-hinweis { display: none; font-size: calc(14px * var(--skala)); color: var(--leise); padding: 0 12px; text-align: center; }
+  #banner.trio.leerlauf .werte { display: none; }
+  #banner.trio.leerlauf #t-hinweis { display: block; }
+
+  /* drei: Fotoband schmal, darunter die Zahlen. */
+  #banner.trio.l-drei { --trio-breite: 760px; }
+  #banner.trio.l-drei .t-fotos { height: calc(118px * var(--skala)); }
+  #banner.trio.l-drei .t-stats { height: calc(92px * var(--skala)); }
+
+  /* mitte: das mittlere Foto ist am groessten, die beiden aussen kleiner. */
+  #banner.trio.l-mitte { --trio-breite: 760px; }
+  #banner.trio.l-mitte .t-fotos { height: calc(140px * var(--skala)); background: var(--grund); }
+  #banner.trio.l-mitte .t-foto { height: 74%; }
+  #banner.trio.l-mitte .t-foto:nth-child(2) { flex: 1.45 1 0; height: 100%; box-shadow: 0 0 0 calc(3px * var(--skala)) color-mix(in srgb, var(--akzent) 40%, transparent); z-index: 2; }
+  #banner.trio.l-mitte .t-stats { height: calc(92px * var(--skala)); }
+
+  /* reihe und kompakt: Fotos links, rechts ein Block mit Namen und Zahlen. */
+  #banner.trio.l-reihe, #banner.trio.l-kompakt { --trio-breite: 760px; }
+  #banner.trio.l-reihe #trio, #banner.trio.l-kompakt #trio { flex-direction: row; }
+  #banner.trio.l-reihe .t-fotos, #banner.trio.l-kompakt .t-fotos { flex: 0 0 auto; align-items: stretch; }
+  #banner.trio.l-reihe .t-foto { width: calc(112px * var(--skala)); height: calc(124px * var(--skala)); flex: 0 0 auto; }
+  #banner.trio.l-kompakt .t-foto { width: calc(76px * var(--skala)); height: calc(76px * var(--skala)); flex: 0 0 auto; }
+  #banner.trio.l-reihe .t-name, #banner.trio.l-kompakt .t-name { display: none; }
+  #banner.trio.l-reihe .t-stats, #banner.trio.l-kompakt .t-stats { flex: 1 1 auto; flex-direction: column; gap: calc(10px * var(--skala)); padding: 0 calc(18px * var(--skala)); }
+  #banner.trio.l-reihe .t-namen, #banner.trio.l-kompakt .t-namen {
+    display: block; width: 100%; text-align: center; white-space: nowrap; overflow: hidden;
+    font-weight: 800; letter-spacing: .03em; text-transform: uppercase; color: var(--schrift);
+  }
+  #banner.trio.l-reihe .t-namen { font-size: calc(26px * var(--skala)); }
+  #banner.trio.l-kompakt { --trio-breite: 560px; }
+  #banner.trio.l-kompakt .t-namen { font-size: calc(18px * var(--skala)); }
+  #banner.trio.l-kompakt .werte { gap: calc(26px * var(--skala)); }
+  #banner.trio.l-kompakt .spalte .l { font-size: calc(10px * var(--skala)); }
+  #banner.trio.l-kompakt .spalte .v { font-size: calc(26px * var(--skala)); }
+  #banner.trio.l-reihe .spalte .v { font-size: calc(38px * var(--skala)); }
 </style>
 </head>
 <body>
@@ -213,6 +304,14 @@
     <div id="hinweis"></div>
   </div>
   <div class="foto leer" id="foto2"><img id="bild2" alt=""></div>
+  <!-- Drei Spieler: die Fotos und die Zahlen, je nach Anordnung (siehe CSS). -->
+  <div id="trio">
+    <div class="t-fotos" id="t-fotos"></div>
+    <div class="t-stats" id="t-stats">
+      <div class="t-namen" id="t-namen"></div>
+      <div id="t-hinweis"></div>
+    </div>
+  </div>
 </div>
 
 <script src="vorlagen.js"></script>
@@ -361,6 +460,21 @@ const BESCHRIFTUNG = {
   kd: 'K/D', bestPlace: 'Best', timeAlive: 'Alive',
 };
 
+/*
+ * Drei Spieler?
+ *
+ * Aus der Adresse zu erkennen, nicht erst an den Daten: ein Team mit drei
+ * Konten (oder die Vorschau mit Beispieldaten) schaltet auf die Anordnung
+ * "layout". Ohne Angabe gilt "drei". Bei zwei Spielern aendert sich nichts.
+ */
+const TRIO_BASIS = { drei: 210, mitte: 232, reihe: 124, kompakt: 76 };
+const PROBE = P.get('probe') === '1';
+const GROESSTES_TEAM = Math.max(IDS.length, ...TEAMS.map(t => t.length), 0);
+const LAYOUT = TRIO_BASIS[(P.get('layout') || '').trim()] ? (P.get('layout') || '').trim() : 'drei';
+const TRIO_MODE = (GROESSTES_TEAM >= 3 || PROBE) && (GROESSTES_TEAM >= 3 || !!P.get('layout'));
+/** Der Massstab aus der eingestellten Hoehe - passeGroesseAn() schrumpft nur von hier aus weiter. */
+let TRIO_START = 1;
+
 // Vorlage und Deckkraft aus der Adresse.
 Vorlagen.anwenden(document.documentElement, P.get('vorlage'));
 if (P.get('klar')) {
@@ -386,7 +500,13 @@ if (P.get('hoehe')) {
    * Inhalt.
    */
   const h = parseInt(P.get('hoehe'), 10);
-  if (h > 0) {
+  if (TRIO_MODE) {
+    // Die Hoehe ist die der ganzen Karte; der Massstab misst sich an der Anordnung.
+    if (h > 0) {
+      TRIO_START = Math.round(Math.max(0.5, Math.min(2.2, h / TRIO_BASIS[LAYOUT])) * 100) / 100;
+      document.documentElement.style.setProperty('--skala', String(TRIO_START));
+    }
+  } else if (h > 0) {
     document.documentElement.style.setProperty('--hoehe', h + 'px');
     /*
      * Unter siebzig Punkten wird die Karte flach (siehe CSS): eine Zeile,
@@ -405,6 +525,11 @@ if (P.get('hoehe')) {
 
 const banner = document.getElementById('banner');
 const werteBox = document.getElementById('werte');
+if (TRIO_MODE) {
+  banner.classList.add('trio', 'l-' + LAYOUT);
+  // Die Zahlen sitzen im Trio-Block - dieselben Felder, dieselbe Schreibweise.
+  document.getElementById('t-stats').insertBefore(werteBox, document.getElementById('t-hinweis'));
+}
 const letzte = {};
 
 function baueSpalten() {
@@ -492,9 +617,9 @@ function aktuelleIds() {
 
 /** Die von Hand gesetzten Namen zum aktuellen Duo. */
 function aktuelleNamen() {
-  if (!TEAMS.length) return [P.get('n1'), P.get('n2')];
+  if (!TEAMS.length) return [P.get('n1'), P.get('n2'), P.get('n3')];
   const n = TEAMNAMEN[teamNr % TEAMS.length] || [];
-  return [(n[0] || '').trim(), (n[1] || '').trim()];
+  return [(n[0] || '').trim(), (n[1] || '').trim(), (n[2] || '').trim()];
 }
 
 /*
@@ -507,9 +632,9 @@ function aktuelleNamen() {
  */
 const TEAMFOTOS = (P.get('fotos') || '').split(';').map(t => t.split(','));
 function aktuelleFotos() {
-  if (!TEAMS.length) return [P.get('f1') || '', P.get('f2') || ''];
+  if (!TEAMS.length) return [P.get('f1') || '', P.get('f2') || '', P.get('f3') || ''];
   const f = TEAMFOTOS[teamNr % TEAMS.length] || [];
-  return [(f[0] || '').trim(), (f[1] || '').trim()];
+  return [(f[0] || '').trim(), (f[1] || '').trim(), (f[2] || '').trim()];
 }
 
 /**
@@ -571,8 +696,8 @@ function passeGroesseAn() {
   const el = document.getElementById('banner');
   if (!el) return;
   const wurzel = document.documentElement.style;
-  let skala = 1;
-  wurzel.setProperty('--skala', '1');
+  let skala = TRIO_MODE ? TRIO_START : 1;
+  wurzel.setProperty('--skala', String(skala));
   let schutz = 0;
   while (el.scrollWidth > document.documentElement.clientWidth
     && skala > 0.5 && schutz < 25) {
@@ -580,6 +705,47 @@ function passeGroesseAn() {
     schutz += 1;
     wurzel.setProperty('--skala', skala.toFixed(2));
   }
+}
+
+/** Ein Element so weit verkleinern, bis sein Text hineinpasst (nie unter die Haelfte). */
+function textEinpassen(el) {
+  if (!el) return;
+  el.style.fontSize = '';
+  const voll = parseFloat(getComputedStyle(el).fontSize) || 19;
+  let g = voll; let schutz = 0;
+  while (el.scrollWidth > el.clientWidth + 1 && g > voll * 0.5 && schutz < 24) {
+    g -= 1; schutz += 1; el.style.fontSize = g + 'px';
+  }
+}
+
+/** Das Trio zeichnen: drei Fotofelder mit Namen, die Zahlen kommen aus schreibeWerte(). */
+async function zeichneTrio(liste, g, w) {
+  const fotos = document.getElementById('t-fotos');
+  const namen = [];
+  for (let i = 0; i < 3; i++) namen.push(anzeigeName(liste[i] && liste[i].name, g[i]));
+  const bilder = await Promise.all([0, 1, 2].map(i => liste[i] ? fotoNachName(liste[i], g[i], w[i]) : Promise.resolve(null)));
+  if (fotos.children.length !== 3) {
+    fotos.innerHTML = '';
+    for (let i = 0; i < 3; i++) {
+      const d = document.createElement('div');
+      d.className = 't-foto';
+      d.innerHTML = '<img alt=""><span class="t-name"></span>';
+      fotos.appendChild(d);
+    }
+  }
+  for (let i = 0; i < 3; i++) {
+    const k = fotos.children[i];
+    const img = k.querySelector('img');
+    const voll = bilder[i] ? (bilder[i].startsWith('http') ? bilder[i] : SERVER + bilder[i]) : '';
+    if (voll) { if (img.getAttribute('src') !== voll) img.src = voll; img.style.visibility = ''; }
+    else { img.removeAttribute('src'); img.style.visibility = 'hidden'; }
+    k.classList.toggle('leer', !liste[i]);
+    k.querySelector('.t-name').textContent = namen[i] || '';
+  }
+  document.getElementById('t-namen').textContent = namen.filter(Boolean).join(' & ');
+  passeGroesseAn();
+  fotos.querySelectorAll('.t-name').forEach(textEinpassen);
+  textEinpassen(document.getElementById('t-namen'));
 }
 
 function namenEinpassen() {
@@ -601,7 +767,7 @@ async function zeichne(sanft) {
   const d = letzteAntwort;
   if (!d) return;
   const ids = aktuelleIds();
-  const [g1, g2] = aktuelleNamen();
+  const [g1, g2, g3] = aktuelleNamen();
 
   /* Den Eintrag zu genau diesen Konten suchen - bei mehreren Duos liegen
      alle in derselben Antwort, und der erste waere der falsche. */
@@ -661,6 +827,7 @@ async function zeichne(sanft) {
     document.getElementById('namen').textContent = g1 || SUCHE || 'Duo';
     namenEinpassen();
     document.getElementById('hinweis').textContent = 'not in the leaderboard yet';
+    document.getElementById('t-hinweis').textContent = 'not in the leaderboard yet';
     banner.classList.add('leerlauf', 'da');
     banner.classList.remove('wechsel');
     return;
@@ -673,6 +840,14 @@ async function zeichne(sanft) {
     ? ids.map(id => (e.players || []).find(p => p.id === id)).filter(Boolean)
     : (e.players || []);
   const liste = spieler.length ? spieler : (e.players || []);
+
+  if (TRIO_MODE) {
+    await zeichneTrio(liste, [g1, g2, g3], aktuelleFotos());
+    schreibeWerte(e);
+    banner.classList.add('da');
+    banner.classList.remove('wechsel');
+    return;
+  }
 
   const n1 = anzeigeName(liste[0] && liste[0].name, g1);
   const n2 = anzeigeName(liste[1] && liste[1].name, g2);
@@ -695,8 +870,19 @@ async function zeichne(sanft) {
   banner.classList.remove('wechsel');
 }
 
+/** Beispieldaten nur fuer die Vorschau im Baukasten (?probe=1) - nie fuer OBS. */
+const PROBE_EINTRAG = {
+  rank: 1, points: 304, games: 6, elims: 25,
+  players: [
+    { id: 'probe1', name: 'MALIBUCA', img: '/spielerbilder/malibuca.jpg' },
+    { id: 'probe2', name: 'VICO', img: '/spielerbilder/vico.jpg' },
+    { id: 'probe3', name: 'DEMUS', img: '/spielerbilder/demus.jpg' },
+  ],
+};
+
 async function tick() {
   baueSpalten();
+  if (PROBE) { letzteAntwort = { entries: [PROBE_EINTRAG] }; await zeichne(false); return; }
   await findeSpieltag();
   const alle = TEAMS.length ? TEAMS.flat() : IDS;
   if (!EVENT || !FENSTER || (!alle.length && !SUCHE)) {
