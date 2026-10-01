@@ -52,14 +52,22 @@ export const ARTEN: Array<{
    * gibt es erst recht keinen.
    */
   ohneCup?: boolean;
+  /**
+   * Nicht in der Auswahl und nicht in der Leiste.
+   *
+   * Der Betreiber (1.10.2026) will nur drei Arten sehen: Team Banner,
+   * Leaderboard, Custom. Was jemand frueher von den anderen angelegt hat,
+   * laeuft weiter - die Adresse in OBS und die Seite dazu bleiben.
+   */
+  versteckt?: boolean;
 }> = [
   {
-    schluessel: 'teamkarte', pfad: '/overlays/teamkarte', titel: 'Team card',
+    schluessel: 'teamkarte', pfad: '/overlays/teamkarte', titel: 'Team Banner',
     datei: 'banner.html',
     was: 'Zwei Spieler nebeneinander, mit Foto und Werten',
   },
   {
-    schluessel: 'standings', pfad: '/overlays/standings', titel: 'Standings',
+    schluessel: 'standings', pfad: '/overlays/standings', titel: 'Leaderboard',
     datei: 'standings.html',
     was: 'Die vordersten Plätze des laufenden Spieltags',
   },
@@ -71,13 +79,14 @@ export const ARTEN: Array<{
     schluessel: 'timer', pfad: '/overlays/timer', titel: 'Cup timer',
     datei: 'timer.html',
     was: 'Countdown bis zum Start des Spieltags',
+    versteckt: true,
   },
   /*
    * Der Offspawn-Stand. Er holt als einziger nichts von Epic - was dort
    * steht, gibt der Betreiber selbst ein.
    */
   {
-    schluessel: 'offspawn', pfad: '/overlays/offspawn', titel: 'Custom overlay',
+    schluessel: 'offspawn', pfad: '/overlays/offspawn', titel: 'Custom',
     datei: 'offspawn.html',
     was: 'Zwei Teams und ein Stand, von Hand gepflegt',
     ohneCup: true,
@@ -92,11 +101,13 @@ export const ARTEN: Array<{
     datei: 'text.html',
     was: 'Eine Zeile Text, frei geschrieben, mit Balken oder ohne',
     ohneCup: true,
+    versteckt: true,
   },
   {
     schluessel: 'qual', pfad: '/overlays/qual', titel: 'Qual line',
     datei: 'qual.html',
     was: 'Wie viele Punkte es zum Weiterkommen braucht',
+    versteckt: true,
   },
 ];
 
@@ -217,18 +228,16 @@ export default function OverlayGeruest({ aktiv, children }: {
           </p>
           <nav className="flex flex-wrap gap-1 lg:flex-col">
             {/*
-              * Die Uebersicht: alle Overlays auf einem Stream-Bild anordnen.
-              * Sie hiess "Studio", bis der Betreiber klarstellte, dass dort
-              * nur Overlays liegen sollen und nichts, was nach Regiepult
-              * aussieht - "unter Overview soll es nicht so eine Art Studio
-              * sein ... sondern wirklich nur die Overlays."
+              * Die Auswahl der drei Arten mit Vorschau. Das "Studio" mit dem
+              * Stream-Bild gibt es nicht mehr: der Betreiber wollte jede Art
+              * wieder einzeln, mit Vorschau - ohne Bildschirm als Vorlage.
               */}
-            <Link href="/overlays/studio"
+            <Link href="/overlays"
               className="rounded-lg border border-sky-500/40 bg-sky-500/10 px-3 py-2 text-sm
                          font-semibold text-sky-400 transition hover:bg-sky-500/20">
               <T>Overview</T>
             </Link>
-            {ARTEN.map((a) => (
+            {ARTEN.filter((a) => !a.versteckt || a.schluessel === aktiv).map((a) => (
               <Link key={a.schluessel} href={a.pfad}
                 title={t(a.was)}
                 className={`rounded-lg px-3 py-2 text-sm transition ${
