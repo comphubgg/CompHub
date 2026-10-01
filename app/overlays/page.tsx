@@ -133,6 +133,11 @@ export default function OverlaysSeite() {
         <p className="mt-4 text-[11px] text-slate-600">
           <T>Die Vorschauen zeigen Beispielwerte.</T>
         </p>
+        <Link href="/admin#archiv"
+          className="mt-4 inline-block rounded-lg border border-zinc-800 bg-zinc-900/40 px-4 py-2.5 text-sm
+                     text-slate-300 transition hover:border-sky-500 hover:text-sky-400">
+          <T>Deine gespeicherten Overlays: Dashboard → Mein Archiv</T>
+        </Link>
       </div>
     </main>
   );

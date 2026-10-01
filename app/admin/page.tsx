@@ -28,6 +28,7 @@ import { useZugang } from '@/app/lib/zugang';
 import { bereichVonPfad } from '@/lib/rechte';
 import Nutzungszahlen from '@/app/components/Nutzungszahlen';
 import Fusszeile from '@/app/components/Fusszeile';
+import MeinArchiv from './MeinArchiv';
 type ProfileData = {
   displayName: string;
   avatarUrl: string | null;
@@ -679,6 +680,9 @@ export default function AdminDashboardPage() {
                 {ZIELE.map((z) => <Kachel key={z.href} z={z} />)}
               </div>
             </section>
+
+            {/* Mein Archiv - das private Archiv jedes Kontos (Overlays, Tierlists, ...) */}
+            <MeinArchiv />
 
             {/* Admin-Werkzeuge - eigener Block, nur fuer den Admin */}
             {(istAdmin || rolle === 'admin' || rolle === 'manager'

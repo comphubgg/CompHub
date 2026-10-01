@@ -265,6 +265,13 @@ export default function OverlayGeruest({ aktiv, children }: {
             * waere sie zweimal dasselbe.
             */}
           {imBaukasten && <MeineOverlays nurArt={aktiv} />}
+
+          {/* Alles, was gespeichert ist, steht im Dashboard unter "Mein Archiv". */}
+          <Link href="/admin#archiv"
+            className="mt-5 block rounded-lg border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-xs
+                       text-slate-400 transition hover:border-sky-500 hover:text-sky-400">
+            <T>Deine gespeicherten Overlays: Dashboard → Mein Archiv</T>
+          </Link>
         </aside>}
 
         <div className="min-w-0 flex-1">

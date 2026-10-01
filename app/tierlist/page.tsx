@@ -413,10 +413,12 @@ export default function TierListPage() {
 
         const mergedLists = cloudLists.map(cloudList => {
           const localList = localLists.find(list => list.listId === cloudList.listId);
-          const localOnlyEntries = Array.isArray(localList?.entries)
-            ? localList.entries.filter((entry: any) => entry.localOnly)
-            : [];
           const filteredCloudEntries = Array.isArray(cloudList.entries) ? cloudList.entries : [];
+          // Was beim Konto schon gesichert ist, steht nicht zweimal da.
+          const localOnlyEntries = Array.isArray(localList?.entries)
+            ? localList.entries.filter((entry: any) => entry.localOnly
+              && !filteredCloudEntries.some((c: any) => c?.id === entry.id))
+            : [];
           return {
             ...cloudList,
             entries: [...filteredCloudEntries, ...localOnlyEntries],
@@ -448,7 +450,10 @@ export default function TierListPage() {
           }));
 
         storageService.saveTierLists([...mergedLists, ...preservedLocalLists] as any);
-        const nextListId = data?.currentListId || cloudLists[0].listId;
+        // Aus dem Archiv geoeffnet: die dort gewaehlte Liste, wenn es sie gibt.
+        const wunsch = new URLSearchParams(window.location.search).get('liste');
+        const nextListId = (wunsch && cloudLists.some((l) => l.listId === wunsch) ? wunsch : null)
+          || data?.currentListId || cloudLists[0].listId;
         storageService.setCurrentListId(nextListId);
         setListId(nextListId);
         window.dispatchEvent(new Event('tierlist-cloud-sync'));
@@ -497,9 +502,20 @@ export default function TierListPage() {
     checkAdminStatus();
   }, [user]);
 
+  /*
+   * Wer auf seinem Konto speichern darf: der Admin und jeder Angemeldete.
+   *
+   * Der Betreiber (1.10.2026): jeder Nutzer soll ein privates Archiv im
+   * Dashboard haben, und dort stehen auch seine Tierlists. Dafuer muessen sie
+   * auf dem Konto liegen - vorher sicherte sich nur der Admin, alle anderen
+   * hatten ihre Liste nur in diesem Browser. Die Ablage ist je Konto
+   * (/api/tierlists), niemand sieht die Liste eines anderen.
+   */
+  const darfSpeichern = isAdmin || !isGuest;
+
   const saveTierlistsToCloud = async (): Promise<boolean> => {
-    if (!isAdmin) {
-      setCloudSaveMessage('Only admin can save the global tierlist');
+    if (!darfSpeichern) {
+      setCloudSaveMessage('Sign in to save your tierlist');
       return false;
     }
 
@@ -509,12 +525,14 @@ export default function TierListPage() {
     try {
       const lists = storageService.getTierLists();
       const currentListId = storageService.getCurrentListId();
-      const sharedLists = lists.map((list: any) => ({
+      // Beim Admin ohne die nur lokalen Eintraege (sein Stand ist die offizielle Liste);
+      // bei allen anderen ist die ganze Liste ihre eigene und wird vollstaendig gesichert.
+      const sharedLists = isAdmin ? lists.map((list: any) => ({
         ...list,
         entries: Array.isArray(list.entries)
           ? list.entries.filter((entry: any) => !entry.localOnly)
           : [],
-      }));
+      })) : lists;
       const response = await fetch('/api/tierlists', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -540,7 +558,7 @@ export default function TierListPage() {
   };
 
   useEffect(() => {
-    if (!isAdmin) return;
+    if (!darfSpeichern) return;
     if (isInitialCloudSave.current) {
       isInitialCloudSave.current = false;
       return;
@@ -561,7 +579,7 @@ export default function TierListPage() {
     }, 1000);
 
     return () => window.clearTimeout(timeout);
-  }, [isAdmin, tierListState.entries, tierListState.tierLabels, tierListState.listName]);
+  }, [darfSpeichern, tierListState.entries, tierListState.tierLabels, tierListState.listName]);
 
   const readFileAsText = (file: File): Promise<string> => {
     return new Promise((resolve, reject) => {
