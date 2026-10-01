@@ -78,6 +78,53 @@
         bild: "url('globals/fncs-breit.jpg')",
       },
     },
+    /*
+     * Die Aussehen der anderen Turnierreihen (Betreiber, 1.10.2026: "extra
+     * eins fuer Performance Cups, extra eins fuer Division Cups usw.").
+     * Die Farben sind die der Kacheln, die Epic fuer die Cups verwendet; das
+     * Muster ist ein CSS-Verlauf, keine Grafik von Epic. Dieselben Farben wie
+     * public/overlay/themen.css.
+     */
+    {
+      id: 'performance',
+      titel: 'Performance Cup',
+      beschreibung: 'Tuerkis mit schwarzer Schraege - Performance Evaluation',
+      werte: {
+        grund: '#04302d', grund2: '#14a89b', schrift: '#ffffff',
+        leise: '#7ff5ec', akzent: '#2ad1cc',
+        bild: 'linear-gradient(162deg, transparent 0 68%, rgba(0,0,0,.38) 68.2% 80%, transparent 80.2%), linear-gradient(118deg, #0a5f58 0%, #14a89b 34%, #2ad1cc 52%, #12988b 70%, #0a5a54 100%)',
+      },
+    },
+    {
+      id: 'division',
+      titel: 'Division Cup',
+      beschreibung: 'Mint und Chromblau - die Division Cups',
+      werte: {
+        grund: '#08203f', grund2: '#2f86d6', schrift: '#ffffff',
+        leise: '#a6f2de', akzent: '#7fd8c0',
+        bild: 'linear-gradient(200deg, rgba(231,240,255,.20) 0 14%, transparent 14.2%), linear-gradient(120deg, #1556b8 0%, #2f86d6 34%, #4fb3b0 68%, #7fd8c0 100%)',
+      },
+    },
+    {
+      id: 'cash',
+      titel: 'Cash Cup',
+      beschreibung: 'Blau ueber Violett zu Magenta - die Cash Cups',
+      werte: {
+        grund: '#160a38', grund2: '#5b4fe0', schrift: '#ffffff',
+        leise: '#f5d0fe', akzent: '#e879f9',
+        bild: 'linear-gradient(200deg, rgba(255,255,255,.16) 0 12%, transparent 12.2%), linear-gradient(120deg, #0b4fd8 0%, #5b4fe0 38%, #9a3fdc 68%, #c112c9 100%)',
+      },
+    },
+    {
+      id: 'reload',
+      titel: 'Reload',
+      beschreibung: 'Nachtblau mit Gold - Reload und Reload Championship',
+      werte: {
+        grund: '#040817', grund2: '#1a2a6a', schrift: '#ffffff',
+        leise: '#f0cd78', akzent: '#e0b455',
+        bild: 'repeating-linear-gradient(0deg, rgba(120,150,255,.11) 0 1px, transparent 1px 34px), repeating-linear-gradient(90deg, rgba(120,150,255,.11) 0 1px, transparent 1px 34px), linear-gradient(160deg, #040817 0%, #0b1740 56%, #1a2a6a 100%)',
+      },
+    },
   ];
 
   function nach(id) {

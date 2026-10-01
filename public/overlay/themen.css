@@ -1,0 +1,85 @@
+/*
+ * Die Themen der Overlays - ein Aussehen je Turnierreihe.
+ *
+ * Der Betreiber (1.10.2026): fuer die Globals gibt es ein eigenes Aussehen,
+ * und er will es auch fuer die anderen Reihen: "extra eins fuer Performance
+ * Cups, extra eins fuer Division Cups usw.". Gebraucht von standings.html und
+ * offspawn.html; das Banner hat seine eigenen Vorlagen (vorlagen.js).
+ *
+ * Die Farben sind die der Kacheln, die Epic fuer die Cups verwendet (aus den
+ * Bildern gelesen, nicht geraten):
+ *   Performance Evaluation   Tuerkis, schwarze Akzente
+ *   Division Cups            Mint und Chromblau
+ *   Cash Cups                Blau ueber Violett zu Magenta
+ *   Reload                   Nachtblau mit Gold
+ * Es sind nur Verlaeufe und Muster aus CSS - keine Grafik von Epic liegt hier.
+ * Ueber dem Muster liegt wie beim Globals-Aussehen die schwarze Folie, die der
+ * Deckkraft-Regler steuert: das Overlay bleibt lesbar, und wie stark die Farbe
+ * durchkommt, entscheidet der Betreiber.
+ *
+ * Angeschaltet wird ein Thema ueber eine Klasse am body: th-performance,
+ * th-division, th-cash, th-reload (siehe das Skript in den beiden Seiten).
+ */
+
+body.th-performance {
+  --akzent: #2ad1cc;
+  --rand: rgba(42, 209, 204, 0.40);
+  --text: #eafffd;
+  --titel: #7ff5ec;
+  --muster:
+    linear-gradient(162deg, transparent 0 68%, rgba(0, 0, 0, 0.38) 68.2% 80%, transparent 80.2%),
+    linear-gradient(118deg, #0a5f58 0%, #14a89b 34%, #2ad1cc 52%, #12988b 70%, #0a5a54 100%);
+}
+
+body.th-division {
+  --akzent: #7fd8c0;
+  --rand: rgba(127, 216, 192, 0.40);
+  --text: #effffa;
+  --titel: #a6f2de;
+  --muster:
+    linear-gradient(200deg, rgba(231, 240, 255, 0.20) 0 14%, transparent 14.2%),
+    linear-gradient(120deg, #1556b8 0%, #2f86d6 34%, #4fb3b0 68%, #7fd8c0 100%);
+}
+
+body.th-cash {
+  --akzent: #e879f9;
+  --rand: rgba(232, 121, 249, 0.40);
+  --text: #fff4fe;
+  --titel: #f5d0fe;
+  --muster:
+    linear-gradient(200deg, rgba(255, 255, 255, 0.16) 0 12%, transparent 12.2%),
+    linear-gradient(120deg, #0b4fd8 0%, #5b4fe0 38%, #9a3fdc 68%, #c112c9 100%);
+}
+
+body.th-reload {
+  --akzent: #e0b455;
+  --rand: rgba(224, 180, 85, 0.38);
+  --text: #fff7e3;
+  --titel: #f0cd78;
+  --muster:
+    repeating-linear-gradient(0deg, rgba(120, 150, 255, 0.11) 0 1px, transparent 1px 34px),
+    repeating-linear-gradient(90deg, rgba(120, 150, 255, 0.11) 0 1px, transparent 1px 34px),
+    linear-gradient(160deg, #040817 0%, #0b1740 56%, #1a2a6a 100%);
+}
+
+/* Gemeinsam: Muster unter der schwarzen Folie, Akzent in Kopf und Spitzenplatz. */
+body[class*="th-"] #karte {
+  background-image:
+    linear-gradient(rgb(var(--grund) / var(--deckkraft)), rgb(var(--grund) / var(--deckkraft))),
+    var(--muster);
+  background-size: cover;
+  background-position: center;
+  box-shadow: 0 0 0 1px var(--rand), 0 10px 30px rgba(0, 0, 0, 0.45);
+}
+body[class*="th-"] #kopf {
+  color: var(--titel);
+  border-bottom: 1px solid var(--rand);
+}
+body[class*="th-"] #titel {
+  color: var(--titel);
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.55);
+}
+body[class*="th-"] td.team { color: var(--text); }
+body[class*="th-"] tr.gold td.team,
+body[class*="th-"] tr.gold td.platz,
+body[class*="th-"] tr.gold td.punkte { color: var(--titel); }

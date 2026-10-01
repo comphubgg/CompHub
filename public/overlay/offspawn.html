@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Offspawn</title>
+<link rel="stylesheet" href="themen.css">
 <style>
 /*
  * Der Offspawn-Stand.
@@ -336,6 +337,8 @@ html, body {
       s.setProperty('--massstab', String(Number(cfg.massstab) || 1));
       s.setProperty('--ecken', (Number(cfg.ecken ?? 12)) + 'px');
       document.body.classList.toggle('globals', cfg.thema === 'globals');
+      // Die Themen der anderen Reihen (public/overlay/themen.css).
+      for (const th of ['performance', 'division', 'cash', 'reload']) document.body.classList.toggle('th-' + th, cfg.thema === th);
 
       /*
        * Die Fotos je Seite. Die neue Liste gilt; eine alte Einstellung mit

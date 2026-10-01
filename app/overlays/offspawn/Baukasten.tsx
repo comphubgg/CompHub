@@ -7,6 +7,7 @@ import OverlayGeruest, {
   overlayAdresse, useOverlays, type OverlayEintrag,
 } from '../OverlayGeruest';
 import { MeineListe, Regler, Vorschau, Wahlreihe } from '../Teile';
+import { THEMEN, themaAkzent, themaFuerCup, type Thema } from '../themen';
 import GlobalsGeruest from '@/app/globals/GlobalsGeruest';
 
 /*
@@ -41,7 +42,7 @@ const STANDARD = {
   grund: '0 0 0', deckkraft: 0.72,
   schrift: 30,
   /** Das Aussehen: leer ist das gewohnte, "globals" das der FNCS-Globals. */
-  thema: '' as '' | 'globals',
+  thema: '' as Thema,
   /** Wie rund die Ecken sind. */
   ecken: 12,
 };
@@ -393,14 +394,12 @@ export default function OffspawnBaukasten({ globals = false }: {
               {/* Das Aussehen der Global Championship - siehe offspawn.html.
                   Unter /globals ist es gesetzt und steht nicht zur Wahl. */}
               {!globals && <Wahlreihe titel="Thema" wert={cfg.thema}
-                optionen={[
-                  { wert: '' as const, titel: 'Standard' },
-                  { wert: 'globals' as const, titel: 'FNCS Globals' },
-                ]}
+                optionen={THEMEN.map((x) => ({ wert: x.wert, titel: x.titel }))}
                 setzen={(w) => setCfg((a) => ({
                   ...a, thema: w,
-                  farbe1: w === 'globals' && a.farbe1 === '#ffffff' ? '#f5c542' : a.farbe1,
-                  farbe2: w === 'globals' && a.farbe2 === '#ffffff' ? '#f5c542' : a.farbe2,
+                  // Zum Thema gehoert sein Akzent als Farbe der Namen - nur, wo noch Weiss steht.
+                  farbe1: w && themaAkzent(w) && a.farbe1 === '#ffffff' ? themaAkzent(w)! : a.farbe1,
+                  farbe2: w && themaAkzent(w) && a.farbe2 === '#ffffff' ? themaAkzent(w)! : a.farbe2,
                 }))} />}
               <Regler titel="Schriftgröße" wert={cfg.schrift} von={14} bis={80}
                 einheit="px" setzen={(n) => setz('schrift', n)} />

@@ -7,6 +7,7 @@ import OverlayGeruest, {
   overlayAdresse, useOverlays, type OverlayEintrag,
 } from '../OverlayGeruest';
 import { CupWahl, MeineListe, Regler, Vorschau, Wahlreihe } from '../Teile';
+import { THEMEN, themaAkzent, themaFuerCup, type Thema } from '../themen';
 import GlobalsGeruest from '@/app/globals/GlobalsGeruest';
 import GlobalsTagWahl from '@/app/globals/GlobalsTage';
 import { GLOBALS_EVENT, GLOBALS_TAGE } from '@/lib/globalsCup';
@@ -27,7 +28,7 @@ const STANDARD = {
   event: '', window: '',
   titel: 'STANDINGS',
   /** Das Aussehen: leer ist das gewohnte, "globals" das der FNCS-Globals. */
-  thema: '' as '' | 'globals',
+  thema: '' as Thema,
   /** Wie rund die Ecken sind. */
   ecken: 10,
   /** Das eigene Zeichen klein in der Kopfzeile. */
@@ -261,6 +262,11 @@ export default function StandingsBaukasten({ globals = false }: {
                     // Der Titel wird vorgeschlagen, bleibt aber überschreibbar.
                     titel: alt.titel === STANDARD.titel && titel
                       ? titel.toUpperCase() : alt.titel,
+                    // Das Aussehen der Reihe wird vorgeschlagen (Performance Cup,
+                    // Division Cup ...), solange noch keins gewaehlt ist.
+                    ...(alt.thema === '' && themaFuerCup(w, titel)
+                      ? { thema: themaFuerCup(w, titel), akzent: themaAkzent(themaFuerCup(w, titel)) ?? alt.akzent }
+                      : {}),
                   }))} />
               )}
 
@@ -401,16 +407,13 @@ export default function StandingsBaukasten({ globals = false }: {
                 */}
               {!globals && (
                 <Wahlreihe titel="Thema" wert={cfg.thema}
-                  optionen={[
-                    { wert: '' as const, titel: 'Standard' },
-                    { wert: 'globals' as const, titel: 'FNCS Globals' },
-                  ]}
+                  optionen={THEMEN.map((x) => ({ wert: x.wert, titel: x.titel }))}
                   setzen={(w) => setCfg((a) => ({
                     ...a,
                     thema: w,
-                    // Zum Thema gehoert der goldene Akzent - umstellbar bleibt er.
-                    akzent: w === 'globals' ? '#f5c542' : a.akzent,
-                    deckkraft: w === 'globals' && a.deckkraft > 0.85 ? 0.72 : a.deckkraft,
+                    // Zum Thema gehoert sein Akzent - umstellbar bleibt er.
+                    akzent: themaAkzent(w) ?? a.akzent,
+                    deckkraft: w && a.deckkraft > 0.85 ? 0.72 : a.deckkraft,
                   }))} />
               )}
 

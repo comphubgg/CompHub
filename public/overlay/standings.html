@@ -3,6 +3,7 @@
 <head>
 <meta charset="utf-8">
 <title>Standings</title>
+<link rel="stylesheet" href="themen.css">
 <style>
 /*
  * Das Standings-Overlay.
@@ -541,6 +542,8 @@ td.punkte b.neu { animation: stups .9s ease-out; }
       s.setProperty('--breite', cfg.breite + 'px');
       s.setProperty('--ecken', (Number(cfg.ecken) || 0) + 'px');
       document.body.classList.toggle('globals', cfg.thema === 'globals');
+      // Die Themen der anderen Reihen (public/overlay/themen.css).
+      for (const th of ['performance', 'division', 'cash', 'reload']) document.body.classList.toggle('th-' + th, cfg.thema === th);
       $('marke').hidden = !Number(cfg.marke);
       $('titel').textContent = String(cfg.titel || 'STANDINGS');
       $('kopfrechts').textContent = String(cfg.kopfrechts || 'POINTS');

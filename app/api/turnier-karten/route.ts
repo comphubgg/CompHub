@@ -195,11 +195,14 @@ export async function GET(request: Request) {
      * hat, und waere als Datum falsch).
      */
     const beginVon = new Map<string, number>();
+    const bildVon = new Map<string, string>();
     try {
-      for (const c of await liesJson<Array<{ windowId?: string; begin?: number }>>('cup-archiv.json', [])) {
+      for (const c of await liesJson<Array<{ windowId?: string; begin?: number; bild?: string }>>('cup-archiv.json', [])) {
         if (c.windowId && c.begin) beginVon.set(c.windowId, c.begin);
+        // Das Kachelbild, das Epic fuer den Cup verwendet - als Vorschaubild der Karte.
+        if (c.windowId && c.bild && /^https:\/\//.test(c.bild)) bildVon.set(c.windowId, c.bild);
       }
-    } catch { /* ohne Datum bleibt es bei der Reihenfolge der Bearbeitung */ }
+    } catch { /* ohne Datum und Bild bleibt es bei der Reihenfolge der Bearbeitung */ }
     const kurz = karten
       .filter((k) => k.oeffentlich && k.spots.some((sp) => sp.teams.length))
       .map((k) => ({
@@ -208,6 +211,7 @@ export async function GET(request: Request) {
         teams: k.teams.length, platziert: k.spots.reduce((a, sp) => a + sp.teams.length, 0),
         geaendert: k.geaendert,
         datum: (k.windowId ? beginVon.get(k.windowId) : undefined) ?? null,
+        bild: (k.windowId ? bildVon.get(k.windowId) : undefined) ?? null,
       }))
       .sort((a, b) => (b.datum ?? b.geaendert) - (a.datum ?? a.geaendert));
     return NextResponse.json({ karten: kurz }, { headers: { 'Cache-Control': 'no-store' } });

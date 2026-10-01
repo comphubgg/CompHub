@@ -48,6 +48,11 @@ const VORLAGEN = [
    * Sie stand nur in vorlagen.js und fehlte hier, war also nicht zu waehlen.
    */
   { id: 'globals', titel: 'FNCS Globals', grund: '#05070f', akzent: '#f5c542', schrift: '#ffd766' },
+  // Die Aussehen der anderen Reihen - Farben der Cup-Kacheln, siehe vorlagen.js.
+  { id: 'performance', titel: 'Performance Cup', grund: '#14a89b', akzent: '#2ad1cc', schrift: '#ffffff' },
+  { id: 'division', titel: 'Division Cup', grund: '#2f86d6', akzent: '#7fd8c0', schrift: '#ffffff' },
+  { id: 'cash', titel: 'Cash Cup', grund: '#5b4fe0', akzent: '#e879f9', schrift: '#ffffff' },
+  { id: 'reload', titel: 'Reload', grund: '#0b1740', akzent: '#e0b455', schrift: '#ffffff' },
 ];
 
 const REGIONEN = ['EU', 'NAC', 'NAW', 'BR', 'ASIA', 'ME', 'OCE'];
