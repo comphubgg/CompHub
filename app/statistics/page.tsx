@@ -1743,7 +1743,7 @@ function ClutchTabelle({ daten, saison, saisonTitel, aufKonto }: {
   const [voll, setVoll] = useState<ClutchZeileAnzeige[] | null>(null);
   const [vollFehler, setVollFehler] = useState(false);
   useEffect(() => {
-    if (!offen || voll) return undefined;
+    if (!offen || voll || daten.zeilen.length > 10) return undefined;
     let weg = false;
     setVollFehler(false);
     fetch(`/api/szene-stats?ansicht=start&saison=${encodeURIComponent(saison)}&clutch=alle`)
@@ -1751,8 +1751,10 @@ function ClutchTabelle({ daten, saison, saisonTitel, aufKonto }: {
       .then((j) => { if (!weg) { if (Array.isArray(j?.clutch?.zeilen)) setVoll(j.clutch.zeilen); else setVollFehler(true); } })
       .catch(() => { if (!weg) setVollFehler(true); });
     return () => { weg = true; };
-  }, [offen, voll, saison]);
+  }, [offen, voll, saison, daten.zeilen.length]);
   const alle = voll ?? daten.zeilen;
+  // Eine aeltere Antwort traegt noch alle Zeilen in der Startantwort - dann ist die Liste schon da.
+  const vollDa = voll !== null || daten.zeilen.length > 10;
   // Nach unten gescrollt: die naechsten hundert nachladen.
   useEffect(() => {
     if (!offen || !ende.current) return;
@@ -1761,7 +1763,7 @@ function ClutchTabelle({ daten, saison, saisonTitel, aufKonto }: {
     }, { rootMargin: '200px' });
     o.observe(ende.current);
     return () => o.disconnect();
-  }, [offen, sichtbar, voll]);
+  }, [offen, sichtbar, voll, daten.zeilen.length]);
   const soloText = (s: number | null) => (s === null ? '' : `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, '0')}s`);
   const zeilen = offen ? alle.slice(0, sichtbar) : daten.zeilen.slice(0, 10);
 
@@ -1806,13 +1808,13 @@ function ClutchTabelle({ daten, saison, saisonTitel, aufKonto }: {
               {daten.soloDa && <span className="w-20 shrink-0 text-right text-[13px] tabular-nums text-slate-400">{soloText(z.solo)}</span>}
             </button>
           ))}
-          {offen && !voll && !vollFehler && (
+          {offen && !vollDa && !vollFehler && (
             <p className="px-4 py-3 text-center text-[12px] text-slate-500"><T>Wird geladen …</T></p>
           )}
-          {offen && vollFehler && (
+          {offen && !vollDa && vollFehler && (
             <p className="px-4 py-3 text-center text-[12px] text-rose-300"><T>Die Liste ließ sich gerade nicht laden. Bitte gleich noch einmal versuchen.</T></p>
           )}
-          {offen && voll && sichtbar < alle.length && <div ref={ende} className="h-8" />}
+          {offen && vollDa && sichtbar < alle.length && <div ref={ende} className="h-8" />}
         </div>
       </div>
       <p className="mt-1.5 text-[10px] text-slate-600">
