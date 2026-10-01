@@ -1,0 +1,56 @@
+# Die Seitenpruefung: alle halbe Stunde die wichtigen Seiten und
+# Schnittstellen abfragen (scripts/seiten-pruefen.mjs). Gemeldet wird nur, wenn
+# etwas nicht stimmt - nach #admin-alarm - und einmal, wenn es wieder stimmt.
+# Kostenlos: GitHub Actions, eine Minute je Lauf.
+
+name: Seitenpruefung
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '7,37 * * * *'
+
+concurrency:
+  group: seitenpruefung
+  cancel-in-progress: false
+
+jobs:
+  pruefen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      actions: read
+      contents: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Seiten abfragen
+        id: pruefung
+        run: node scripts/seiten-pruefen.mjs
+        continue-on-error: true
+      - name: Zugangsdaten
+        run: printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
+      # Nur beim Wechsel melden: wer schon gestoert war, bekommt nicht alle halbe Stunde dasselbe.
+      - name: Melden
+        run: |
+          vorher=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow seitenpruefung.yml --status completed --limit 1 --json conclusion --jq '.[0].conclusion // "success"')
+          if [ "${{ steps.pruefung.outcome }}" = "failure" ]; then
+            if [ "$vorher" != "failure" ]; then
+              node scripts/discord-update.mjs --ziel alarm --art alarm --titel "Seite gestoert" --text "$(cat seitenpruefung.txt)" 2>&1 | tail -1
+            fi
+          else
+            if [ "$vorher" = "failure" ]; then
+              node scripts/discord-update.mjs --ziel alarm --art info --titel "Seite wieder in Ordnung" --text "Alle geprueften Seiten und Schnittstellen antworten wieder." 2>&1 | tail -1
+            fi
+          fi
+      - name: Zugangsdaten wieder weg
+        if: always()
+        run: rm -f .env.local
+      # Der Lauf selbst wird rot, wenn etwas gestoert ist - damit der naechste "vorher" kennt.
+      - name: Ergebnis
+        if: steps.pruefung.outcome == 'failure'
+        run: exit 1

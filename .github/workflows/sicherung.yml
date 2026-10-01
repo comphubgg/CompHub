@@ -1,0 +1,66 @@
+# Taegliche Sicherung der Dateien, die der Betreiber auf der Seite selbst
+# pflegt - Orgs mit Fotos und X-Konten, Spielerprofile, Turnierkarten,
+# Prognosen, Archiv. Anlass (1.10.2026): Fotos und X-Konten der Org-Spieler
+# waren verschwunden, weil ein Abgleich seinen alten Stand zurueckschrieb. Die
+# Ursache ist behoben (scripts/orgs-zusammenfuehren.mjs); die Sicherung sorgt
+# dafuer, dass so etwas beim naechsten Mal ein Handgriff statt ein Verlust ist.
+#
+# Gesichert wird nur, was ohnehin oeffentlich auf der Seite steht. Konten,
+# Schluessel, Meldungen, Tierlists und private Prognosen gehoeren nicht dazu -
+# das Release ist oeffentlich lesbar.
+#
+# Ein Archiv je Tag am Release "daten-sicherung"; die letzten dreissig bleiben.
+# Wiederherstellen: das Archiv laden, die eine Datei herausnehmen,
+# node scripts/umzug-supabase.mjs --nur <datei> (nach Pruefung des Inhalts).
+
+name: Sicherung
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '15 3 * * *'
+
+concurrency:
+  group: sicherung
+  cancel-in-progress: false
+
+jobs:
+  sichern:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Zugangsdaten
+        run: printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
+      - name: Dateien aus Supabase holen
+        run: |
+          mkdir -p data/sicherung
+          COMPHUB_DATEN=data/sicherung node scripts/umzug-supabase.mjs --herunterladen --nur orgs.json,spieler-profile.json,spieler-namen.json,spielerbilder.json,turnier-karten.json,karten-vorlagen.json,karten-ausgeblendet.json,galerie.json,prognosen.json,orgtags.json,homepage-vips.json,sektionen.json,statistik-sichtbarkeit.json,tierlist-entfernt.json,tierlist-trios.json,players.json 2>&1 | tail -4
+          ls -la data/sicherung | head -30
+      - name: Archiv packen und pruefen
+        run: |
+          # Eine Sicherung, in der die wichtigsten Dateien fehlen, ist keine.
+          for f in orgs.json spieler-profile.json turnier-karten.json galerie.json; do
+            [ -s "data/sicherung/$f" ] || { echo "FEHLT: $f - keine Sicherung angelegt"; exit 1; }
+          done
+          tar -czf "sicherung-$(date -u +%F).tar.gz" -C data/sicherung .
+          ls -la sicherung-*.tar.gz
+      - name: Ans Release
+        run: |
+          gh release view daten-sicherung >/dev/null 2>&1 || gh release create daten-sicherung --title "Sicherung der gepflegten Dateien" --notes "Taegliche Archive, die letzten dreissig. Siehe .github/workflows/sicherung.yml." --prerelease
+          gh release upload daten-sicherung sicherung-*.tar.gz --clobber
+          # Nur die letzten dreissig behalten.
+          gh release view daten-sicherung --json assets --jq '.assets | sort_by(.name) | reverse | .[30:] | .[].name' | while read -r alt; do
+            [ -n "$alt" ] && gh release delete-asset daten-sicherung "$alt" --yes
+          done
+          gh release view daten-sicherung --json assets --jq '.assets | length | "Archive am Release: \(.)"'
+      - name: Zugangsdaten wieder weg
+        if: always()
+        run: rm -f .env.local
