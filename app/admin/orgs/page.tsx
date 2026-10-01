@@ -104,6 +104,8 @@ export default function OrgsAdmin() {
   const [stand, setStand] = useState('');
   const [loeschFrage, setLoeschFrage] = useState(false);
   const [filter, setFilter] = useState('');
+  /** Nur Organisationen mit Luecken (Foto oder Konto fehlt). */
+  const [nurLuecken, setNurLuecken] = useState(false);
   // Je Org ein eigener Takt - sonst verschluckte der Wechsel zur naechsten
   // Org die noch nicht gespeicherte Aenderung der vorigen.
   const uhren = useRef(new Map<string, ReturnType<typeof setTimeout>>());
@@ -271,7 +273,24 @@ export default function OrgsAdmin() {
   }
 
   const org = orgs.find((o) => o.id === wahl) ?? null;
-  const gefiltert = orgs.filter((o) => !filter.trim() || o.name.toLowerCase().includes(filter.trim().toLowerCase()));
+  /*
+   * Was noch fehlt - je Organisation und insgesamt.
+   *
+   * Der Betreiber (1.10.2026): fuer den Admin "simpler, optisch besser
+   * sichtbar". Bei hundert Organisationen sieht man nicht, wo noch ein Foto
+   * oder ein Konto fehlt; die Liste sagt es jetzt selbst. Ein Content Creator
+   * braucht kein Konto, ein Pro oder Academy-Spieler schon.
+   */
+  const luecken = (o: Org) => ({
+    fotos: o.spieler.filter((x) => !((x.epicId && fotos[x.epicId]) || x.bild)).length,
+    konten: o.spieler.filter((x) => !x.epicId && x.rolle !== 'creator').length,
+  });
+  const gesamtLuecken = orgs.reduce((a, o) => {
+    const l = luecken(o);
+    return { fotos: a.fotos + l.fotos, konten: a.konten + l.konten, orgs: a.orgs + (l.fotos || l.konten ? 1 : 0) };
+  }, { fotos: 0, konten: 0, orgs: 0 });
+  const gefiltert = orgs.filter((o) => (!filter.trim() || o.name.toLowerCase().includes(filter.trim().toLowerCase()))
+    && (!nurLuecken || luecken(o).fotos > 0 || luecken(o).konten > 0));
 
   return (
     <main className="min-h-screen bg-zinc-950 text-slate-100">
@@ -301,7 +320,19 @@ export default function OrgsAdmin() {
             + <T>Neue Organisation</T>
           </button>
           <input value={filter} onChange={(e) => setFilter(e.target.value)} placeholder={t('Namen suchen …')}
-            className={`${feld} mb-3 w-full`} />
+            className={`${feld} mb-2 w-full`} />
+          {(gesamtLuecken.fotos > 0 || gesamtLuecken.konten > 0) && (
+            <button type="button" onClick={() => setNurLuecken((v) => !v)}
+              className={`mb-3 w-full rounded-lg border px-3 py-2 text-left text-xs leading-snug transition ${nurLuecken
+                ? 'border-amber-500 bg-amber-500/10 text-amber-300' : 'border-zinc-800 text-slate-400 hover:border-amber-500/60'}`}>
+              <span className="block font-semibold">
+                {nurLuecken ? <T>Nur Organisationen mit Lücken</T> : <T>Es fehlt noch etwas</T>}
+              </span>
+              <span className="block text-slate-500">
+                {gesamtLuecken.fotos} <T>Fotos</T> · {gesamtLuecken.konten} <T>Konten</T> · {gesamtLuecken.orgs} <T>Organisationen</T>
+              </span>
+            </button>
+          )}
           <div className="max-h-[70vh] space-y-1 overflow-y-auto pr-1">
             {gefiltert.map((o) => (
               <button key={o.id} type="button" onClick={() => { setWahl(o.id); setLoeschFrage(false); }}
@@ -312,6 +343,15 @@ export default function OrgsAdmin() {
                   ? <img src={o.logo} alt="" className="h-8 w-8 shrink-0 rounded-md object-contain" />
                   : <span className="h-8 w-8 shrink-0 rounded-md border border-dashed border-zinc-700" />}
                 <span className="min-w-0 flex-1 truncate text-sm font-medium text-slate-200">{o.name}</span>
+                {(() => {
+                  const l = luecken(o);
+                  return l.fotos || l.konten ? (
+                    <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-semibold text-amber-300"
+                      title={`${l.fotos} ${t('Fotos')} · ${l.konten} ${t('Konten')}`}>
+                      {l.fotos + l.konten}
+                    </span>
+                  ) : null;
+                })()}
                 <span className="text-xs text-slate-500">{o.spieler.length}</span>
               </button>
             ))}

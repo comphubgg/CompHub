@@ -3364,6 +3364,8 @@ const AUF_ENGLISCH: Record<string, string> = {
   'unbegrenzt': 'unlimited',
   'Karten zu diesem Spieltag': 'Maps for this match day',
   'Alle anzeigen': 'Show all',
+  'Nur Organisationen mit Lücken': 'Only organizations with gaps',
+  'Es fehlt noch etwas': 'Something is still missing',
   'in der Frist noch offen': 'still open within the deadline',
   'nicht mehr zu holen': 'no longer retrievable',
   'Spieltage erfasst': 'match days recorded',
