@@ -164,7 +164,18 @@ async function merkeAntwort(name: string, zeile: Ablage<unknown>): Promise<void>
  * kommt eine fertige Antwort in Bruchteilen einer Sekunde, auch wenn die
  * Ablage gerade nicht antwortet.
  */
-export const CDN_FRIST = 'public, max-age=60, s-maxage=300, stale-while-revalidate=86400';
+/*
+ * Browser-Frist: kurz.
+ *
+ * "stale-while-revalidate=86400" galt nicht nur fuer Vercels Rand, sondern auch
+ * fuer den Browser: wer die Seite nach mehr als einer Minute wieder aufmachte,
+ * bekam zuerst den Stand seines letzten Besuchs - bis zu einem Tag alt - und
+ * erst beim naechsten Laden den frischen. So blieb "Most Eliminations" auf den
+ * Zahlen von vor Stunden stehen, obwohl der Lauf laengst neue geliefert hatte
+ * (Betreiber, 1.10.2026: "wurde immer noch nicht updated"). Jetzt hoechstens
+ * elf Minuten.
+ */
+export const CDN_FRIST = 'public, max-age=60, s-maxage=300, stale-while-revalidate=600';
 
 /** Wie lange eine Antwort als frisch gilt. Die Daten kommen stuendlich. */
 const FRISCH_MS = 90 * 60_000;
