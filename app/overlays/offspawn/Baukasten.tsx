@@ -7,7 +7,7 @@ import OverlayGeruest, {
   overlayAdresse, useOverlays, type OverlayEintrag,
 } from '../OverlayGeruest';
 import { MeineListe, Regler, Vorschau, Wahlreihe } from '../Teile';
-import { THEMEN, themaAkzent, themaFuerCup, type Thema } from '../themen';
+import { THEMEN, themaAkzent, deckkraftFuer, type Thema } from '../themen';
 import GlobalsGeruest from '@/app/globals/GlobalsGeruest';
 
 /*
@@ -397,6 +397,7 @@ export default function OffspawnBaukasten({ globals = false }: {
                 optionen={THEMEN.map((x) => ({ wert: x.wert, titel: x.titel }))}
                 setzen={(w) => setCfg((a) => ({
                   ...a, thema: w,
+                  deckkraft: deckkraftFuer(w, a.deckkraft),
                   // Zum Thema gehoert sein Akzent als Farbe der Namen - nur, wo noch Weiss steht.
                   farbe1: w && themaAkzent(w) && a.farbe1 === '#ffffff' ? themaAkzent(w)! : a.farbe1,
                   farbe2: w && themaAkzent(w) && a.farbe2 === '#ffffff' ? themaAkzent(w)! : a.farbe2,

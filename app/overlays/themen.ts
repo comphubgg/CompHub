@@ -38,3 +38,17 @@ export function themaFuerCup(windowId: string, titel = ''): Thema {
   if (/Reload|Escargo/i.test(s)) return 'reload';
   return '';
 }
+
+/**
+ * Wie deckend die schwarze Folie mit einem Thema anfaengt.
+ *
+ * Die Globals tragen ein Foto und bleiben bei 72 Prozent. Die Verlaeufe der
+ * anderen Reihen sind kraeftige Farben - bei 72 Prozent Schwarz bliebe davon
+ * nichts uebrig, deshalb 55. Was der Betreiber selbst eingestellt hat, bleibt.
+ */
+export function deckkraftFuer(t: Thema, aktuell: number): number {
+  const unberuehrt = aktuell === 0.72 || aktuell > 0.85;
+  if (!t) return aktuell > 0.85 ? 0.72 : aktuell;
+  if (!unberuehrt) return aktuell;
+  return t === 'globals' ? 0.72 : 0.55;
+}

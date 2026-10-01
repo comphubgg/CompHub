@@ -7,7 +7,7 @@ import OverlayGeruest, {
   overlayAdresse, useOverlays, type OverlayEintrag,
 } from '../OverlayGeruest';
 import { CupWahl, MeineListe, Regler, Vorschau, Wahlreihe } from '../Teile';
-import { THEMEN, themaAkzent, themaFuerCup, type Thema } from '../themen';
+import { THEMEN, themaAkzent, themaFuerCup, deckkraftFuer, type Thema } from '../themen';
 import GlobalsGeruest from '@/app/globals/GlobalsGeruest';
 import GlobalsTagWahl from '@/app/globals/GlobalsTage';
 import { GLOBALS_EVENT, GLOBALS_TAGE } from '@/lib/globalsCup';
@@ -265,7 +265,8 @@ export default function StandingsBaukasten({ globals = false }: {
                     // Das Aussehen der Reihe wird vorgeschlagen (Performance Cup,
                     // Division Cup ...), solange noch keins gewaehlt ist.
                     ...(alt.thema === '' && themaFuerCup(w, titel)
-                      ? { thema: themaFuerCup(w, titel), akzent: themaAkzent(themaFuerCup(w, titel)) ?? alt.akzent }
+                      ? { thema: themaFuerCup(w, titel), akzent: themaAkzent(themaFuerCup(w, titel)) ?? alt.akzent,
+                          deckkraft: deckkraftFuer(themaFuerCup(w, titel), alt.deckkraft) }
                       : {}),
                   }))} />
               )}
@@ -413,7 +414,7 @@ export default function StandingsBaukasten({ globals = false }: {
                     thema: w,
                     // Zum Thema gehoert sein Akzent - umstellbar bleibt er.
                     akzent: themaAkzent(w) ?? a.akzent,
-                    deckkraft: w && a.deckkraft > 0.85 ? 0.72 : a.deckkraft,
+                    deckkraft: deckkraftFuer(w, a.deckkraft),
                   }))} />
               )}
 
