@@ -52,6 +52,7 @@ function wege(saisons) {
     // davon lebt jedes Profil bei Vercel.
     '/api/szene-stats?ansicht=akten',
     '/api/szene-stats?ansicht=start',
+    '/api/szene-stats?ansicht=start&clutch=alle',
     // Das Jahr - ueber alle Saisons, mit Preisgeld.
     `/api/szene-stats?ansicht=jahr&jahr=${new Date().getUTCFullYear()}`,
     '/api/szene-stats?ansicht=jahr&jahr=alle',
@@ -86,6 +87,8 @@ function wege(saisons) {
    */
   for (const s of [...saisons, 'alle']) {
     raus.push(`/api/szene-stats?ansicht=start&saison=${encodeURIComponent(s)}`);
+    // Alle Spieler der Clutch-Tabelle ("Details" auf der Startseite) - eigene Antwort, siehe route.ts.
+    raus.push(`/api/szene-stats?ansicht=start&saison=${encodeURIComponent(s)}&clutch=alle`);
     raus.push(`/api/szene-stats?ansicht=turniere&saison=${encodeURIComponent(s)}`);
     // Die Spieler-Ansicht fragt mit limit=300 - zuerst ohne Region.
     raus.push(`/api/szene-stats?saison=${encodeURIComponent(s)}&sort=elims&limit=300`);

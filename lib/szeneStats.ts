@@ -2352,6 +2352,14 @@ export async function clutchDerSaison(saison: string, verzeichnis: ArchivEintrag
   return { zeilen, spieltage: tage, soloDa };
 }
 
+/** Dieselbe Rechnung fuer die Saison, die die Startseite zeigt (die juengste, wenn keine genannt ist). */
+export async function clutchFuerSaison(saison?: string) {
+  const alle = await liesVerzeichnis();
+  const gefiltert = saison ? alle.filter((e) => e.season === saison) : alle;
+  const dieSaison = [...gefiltert].sort((a, b) => (b.datum ?? 0) - (a.datum ?? 0))[0]?.season ?? saison ?? '';
+  return { saison: dieSaison, ...(await clutchDerSaison(dieSaison, alle)) };
+}
+
 /** Echtes Konto -> seine Turnierkonten an LANs (lib/lanKonten, umgedreht). */
 let lanUmkehrMerker: { bis: number; wert: Map<string, string[]>; vorwaerts: Map<string, string> } | null = null;
 async function lanUmkehr(): Promise<Map<string, string[]>> {

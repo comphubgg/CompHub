@@ -1725,8 +1725,9 @@ interface ClutchZeileAnzeige {
   epicId: string; anzeige: string; gepflegt: boolean; land: string | null;
   heimat: string; punkte: number; spiele: number; solo: number | null;
 }
-function ClutchTabelle({ daten, saisonTitel, aufKonto }: {
-  daten: { spieltage: number; soloDa: boolean; zeilen: ClutchZeileAnzeige[] };
+function ClutchTabelle({ daten, saison, saisonTitel, aufKonto }: {
+  daten: { spieltage: number; soloDa: boolean; gesamt?: number; zeilen: ClutchZeileAnzeige[] };
+  saison: string;
   saisonTitel: string;
   aufKonto: (epicId: string, name: string) => void;
 }) {
@@ -1735,6 +1736,23 @@ function ClutchTabelle({ daten, saisonTitel, aufKonto }: {
   const [offen, setOffen] = useState(false);
   const [sichtbar, setSichtbar] = useState(50);
   const ende = useRef<HTMLDivElement | null>(null);
+  /*
+   * Die ganze Liste kommt erst auf "Details": in der Startantwort stehen nur
+   * die ersten zehn (rund zwanzigtausend Zeilen waeren vier Megabyte).
+   */
+  const [voll, setVoll] = useState<ClutchZeileAnzeige[] | null>(null);
+  const [vollFehler, setVollFehler] = useState(false);
+  useEffect(() => {
+    if (!offen || voll) return undefined;
+    let weg = false;
+    setVollFehler(false);
+    fetch(`/api/szene-stats?ansicht=start&saison=${encodeURIComponent(saison)}&clutch=alle`)
+      .then((r) => r.json())
+      .then((j) => { if (!weg) { if (Array.isArray(j?.clutch?.zeilen)) setVoll(j.clutch.zeilen); else setVollFehler(true); } })
+      .catch(() => { if (!weg) setVollFehler(true); });
+    return () => { weg = true; };
+  }, [offen, voll, saison]);
+  const alle = voll ?? daten.zeilen;
   // Nach unten gescrollt: die naechsten hundert nachladen.
   useEffect(() => {
     if (!offen || !ende.current) return;
@@ -1743,9 +1761,9 @@ function ClutchTabelle({ daten, saisonTitel, aufKonto }: {
     }, { rootMargin: '200px' });
     o.observe(ende.current);
     return () => o.disconnect();
-  }, [offen, sichtbar]);
+  }, [offen, sichtbar, voll]);
   const soloText = (s: number | null) => (s === null ? '' : `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, '0')}s`);
-  const zeilen = offen ? daten.zeilen.slice(0, sichtbar) : daten.zeilen.slice(0, 10);
+  const zeilen = offen ? alle.slice(0, sichtbar) : daten.zeilen.slice(0, 10);
 
   return (
     <section className="mt-7">
@@ -1788,12 +1806,18 @@ function ClutchTabelle({ daten, saisonTitel, aufKonto }: {
               {daten.soloDa && <span className="w-20 shrink-0 text-right text-[13px] tabular-nums text-slate-400">{soloText(z.solo)}</span>}
             </button>
           ))}
-          {offen && sichtbar < daten.zeilen.length && <div ref={ende} className="h-8" />}
+          {offen && !voll && !vollFehler && (
+            <p className="px-4 py-3 text-center text-[12px] text-slate-500"><T>Wird geladen …</T></p>
+          )}
+          {offen && vollFehler && (
+            <p className="px-4 py-3 text-center text-[12px] text-rose-300"><T>Die Liste ließ sich gerade nicht laden. Bitte gleich noch einmal versuchen.</T></p>
+          )}
+          {offen && voll && sichtbar < alle.length && <div ref={ende} className="h-8" />}
         </div>
       </div>
       <p className="mt-1.5 text-[10px] text-slate-600">
         <T>Punkte, die ein Spieler allein im Team holt: Platzierungen und Eliminierungen, nachdem sein Mitspieler ausgeschieden ist. Gezählt aus den Replays.</T>
-        {' '}{zahl(daten.zeilen.length, 0, sprache)} <T>Spieler</T>
+        {' '}{zahl(daten.gesamt ?? daten.zeilen.length, 0, sprache)} <T>Spieler</T>
       </p>
     </section>
   );
@@ -1891,7 +1915,7 @@ export default function StatistikSeite() {
   const [kachelHalt, setKachelHalt] = useState(false);
   const [listen, setListen] = useState<Liste[]>([]);
   /** Solo Clutch Points der Saison - Tabelle unter den Bestenlisten. */
-  const [clutchSaison, setClutchSaison] = useState<{ spieltage: number; soloDa: boolean; zeilen: ClutchZeileAnzeige[] } | null>(null);
+  const [clutchSaison, setClutchSaison] = useState<{ spieltage: number; soloDa: boolean; gesamt?: number; zeilen: ClutchZeileAnzeige[] } | null>(null);
   /** Welche Spieltage in den Saisonlisten stecken - siehe Nachweis unten. */
   const [grundlage, setGrundlage] = useState<{
     jeSpieler: boolean;
@@ -3968,7 +3992,7 @@ export default function StatistikSeite() {
 
               {/* ------------------------------------- Solo Clutch Points */}
               {clutchSaison && (
-                <ClutchTabelle daten={clutchSaison} saisonTitel={saisonTitel} aufKonto={oeffneKonto} />
+                <ClutchTabelle daten={clutchSaison} saison={saison} saisonTitel={saisonTitel} aufKonto={oeffneKonto} />
               )}
 
               {/* --------------------------------------- Spielerprofile */}

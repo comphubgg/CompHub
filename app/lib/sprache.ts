@@ -3364,6 +3364,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'unbegrenzt': 'unlimited',
   'Karten zu diesem Spieltag': 'Maps for this match day',
   'Alle anzeigen': 'Show all',
+  'Die Liste ließ sich gerade nicht laden. Bitte gleich noch einmal versuchen.': 'The list could not be loaded right now. Please try again in a moment.',
   'Team Banner': 'Team Banner',
   'Custom': 'Custom',
   'Auswählen': 'Select',
