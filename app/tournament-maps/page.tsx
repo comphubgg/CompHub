@@ -22,7 +22,7 @@ import { useT } from '@/app/components/SprachProvider';
 interface Karte {
   id: string; titel: string; cupTitel: string | null; region: string | null;
   windowId: string | null; spiele: string | null; bildTitel: string | null;
-  teams: number; platziert: number; geaendert: number;
+  teams: number; platziert: number; geaendert: number; datum: number | null;
 }
 interface MeineKarte {
   id: string; spot: string | null; mitspieler: string[];
@@ -114,7 +114,7 @@ export default function TurnierKarten() {
                   {k.platziert} / {k.teams} <T>Teams gesetzt</T>
                   {k.spiele ? <> · {k.spiele}</> : null}
                   {k.bildTitel ? <> · {k.bildTitel}</> : null}
-                  {k.geaendert ? <> · {DATUM.format(new Date(k.geaendert))}</> : null}
+                  {k.datum ? <> · {DATUM.format(new Date(k.datum))}</> : null}
                 </p>
                 {ich && (
                   <p className="mt-2 text-xs font-semibold text-sky-400">

@@ -4,7 +4,7 @@ import path from 'path';
 import { schreibGrund } from '@/lib/schreibfehler';
 import { werSchreibt, darfKarteAendern } from '@/lib/werSchreibt';
 import { DATEN_ORT } from '@/lib/datenOrt';
-import { ersatzSeit } from '@/lib/ablage';
+import { ersatzSeit, liesJson } from '@/lib/ablage';
 
 // Ablage der Turnierkarten: Spots samt zugeordneten Teams.
 //
@@ -189,6 +189,17 @@ export async function GET(request: Request) {
    * ein Team ohne Spot taucht nicht auf. Nur veroeffentlichte Karten.
    */
   if (searchParams.get('liste') === '1') {
+    /*
+     * Wann der Cup war - aus dem Cup-Archiv, nicht aus der letzten Aenderung
+     * der Karte (die steht dort, wo der Betreiber zuletzt daran gearbeitet
+     * hat, und waere als Datum falsch).
+     */
+    const beginVon = new Map<string, number>();
+    try {
+      for (const c of await liesJson<Array<{ windowId?: string; begin?: number }>>('cup-archiv.json', [])) {
+        if (c.windowId && c.begin) beginVon.set(c.windowId, c.begin);
+      }
+    } catch { /* ohne Datum bleibt es bei der Reihenfolge der Bearbeitung */ }
     const kurz = karten
       .filter((k) => k.oeffentlich && k.spots.some((sp) => sp.teams.length))
       .map((k) => ({
@@ -196,8 +207,9 @@ export async function GET(request: Request) {
         windowId: k.windowId ?? null, spiele: k.spiele ?? null, bildTitel: k.bildTitel ?? null,
         teams: k.teams.length, platziert: k.spots.reduce((a, sp) => a + sp.teams.length, 0),
         geaendert: k.geaendert,
+        datum: (k.windowId ? beginVon.get(k.windowId) : undefined) ?? null,
       }))
-      .sort((a, b) => b.geaendert - a.geaendert);
+      .sort((a, b) => (b.datum ?? b.geaendert) - (a.datum ?? a.geaendert));
     return NextResponse.json({ karten: kurz }, { headers: { 'Cache-Control': 'no-store' } });
   }
 
