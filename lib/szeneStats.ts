@@ -1436,46 +1436,84 @@ export async function startseite(saison?: string, wieViele = 25, jeTag = 3) {
   if (elimsListe && jeRegion.size) {
     const archivNamen = new Map(saisonFeld.map((s) => [s.epicId, s.name]));
     const gespeichert = await liesJson<Record<string, string>>('epic-namen.json', {});
-    // Die Heimat ueber das ganze Archiv gilt vor der Zaehlung dieser
-    // Saison - wie ueberall sonst auf der Seite. Nur wer dort in dieser
-    // Saison gar nicht antrat, wird nach seiner meistgespielten gezaehlt.
     const heimatKarte = await heimatRegionen();
     const plaetze = [...jeRegion.entries()].map(([id, z]) => {
       const regionen = [...z.entries()]
         .sort((a, b) => (b[1].events + b[1].opens) - (a[1].events + a[1].opens)
           || b[1].elims - a[1].elims);
-      const archivHeimat = heimatKarte.get(id);
-      // Die LAN ("*") ist keine eigene Region - sie kommt zur Heimat dazu.
-      const lan = z.get('*');
+      // Die LAN ("*") ist keine eigene Region - sie zaehlt mit, steckt aber in der Heimat.
       const ohneLan = regionen.filter(([r]) => r !== '*');
-      const [heimat, daheimRoh] = (archivHeimat && z.has(archivHeimat))
-        ? [archivHeimat, z.get(archivHeimat)!]
-        : (ohneLan[0] ?? [archivHeimat ?? '*', { elims: 0, matches: 0, events: 0, finalsElims: 0, opensElims: 0, finals: 0, opens: 0, opensMatches: 0 }]);
-      const daheim = lan ? {
-        ...daheimRoh,
-        elims: daheimRoh.elims + lan.elims, matches: daheimRoh.matches + lan.matches,
-        events: daheimRoh.events + lan.events, finalsElims: daheimRoh.finalsElims + lan.finalsElims,
-        finals: daheimRoh.finals + lan.finals,
-      } : daheimRoh;
+      /*
+       * Die Summe ueber ALLE Regionen und die LAN - so zaehlt eucompetitive.
+       *
+       * Der Betreiber (1.10.2026) zeigte deren Liste ("Most Eliminations, CH7
+       * S4, All Regions") als das, "wie die Liste eigentlich aussehen sollte":
+       * Peterbot 132 = NAC 104 + NAW 11 + Globals 17. Die Zahlen von Twi (101),
+       * Mace (90), Scroll (82) und Curve (110) ergeben sich genauso - nachgerechnet
+       * aus den Spieltagen. Wer in NAC und NAW antritt, hat in beiden Finals
+       * gespielt; beide Tage zaehlen. (Die Warnung von frueher - 440 Elims in
+       * NAC, NAW und ASIA - galt der Summe aus Finals UND Opens; hier sind es
+       * nur die Finals.)
+       *
+       * Die Region im Kopf der Zeile ist die, in der er diese Saison am
+       * meisten gespielt hat - nicht die Heimat aus dem Archiv: bei Veno stand
+       * dort "EU", gezaehlt wurden deshalb nur seine 14 Elims von den Globals,
+       * und er fehlte in der Liste, obwohl er mit 130 Zweiter ist.
+       */
+      const summe: RegionSumme = {
+        elims: 0, matches: 0, events: 0, finalsElims: 0, opensElims: 0, finals: 0, opens: 0, opensMatches: 0,
+      };
+      for (const [, r] of regionen) {
+        summe.elims += r.elims; summe.matches += r.matches; summe.events += r.events;
+        summe.finalsElims += r.finalsElims; summe.opensElims += r.opensElims;
+        summe.finals += r.finals; summe.opens += r.opens; summe.opensMatches += r.opensMatches;
+      }
+      const heimat = ohneLan[0]?.[0] ?? heimatKarte.get(id) ?? '*';
       const s = leereSumme(id, '');
-      s.elims = daheim.elims; s.matches = daheim.matches; s.events = daheim.events;
-      s.finalsElims = daheim.finalsElims; s.opensElims = daheim.opensElims;
-      s.finals = daheim.finals; s.opens = daheim.opens; s.opensMatches = daheim.opensMatches;
+      s.elims = summe.elims; s.matches = summe.matches; s.events = summe.events;
+      s.finalsElims = summe.finalsElims; s.opensElims = summe.opensElims;
+      s.finals = summe.finals; s.opens = summe.opens; s.opensMatches = summe.opensMatches;
       s.name = archivNamen.get(id) ?? gespeichert[id] ?? '';
       s.namen = s.name ? [s.name] : [];
       s.regionen = ohneLan.map(([r]) => r);
       s.elimsProMatch = s.matches ? s.elims / s.matches : 0;
-      return {
-        ...s,
-        heimat,
-        // Ohne die LAN als eigene Region - sie steckt in der Heimat.
-        jeRegion: { ...Object.fromEntries(ohneLan), [heimat]: daheim },
-      };
+      // Die Aufteilung je Region; die LAN steckt in der Heimat, damit die Summe stimmt.
+      const lan = z.get('*');
+      const jeRegionSumme: Record<string, RegionSumme> = Object.fromEntries(ohneLan);
+      if (lan && jeRegionSumme[heimat]) {
+        const d = jeRegionSumme[heimat];
+        jeRegionSumme[heimat] = {
+          ...d, elims: d.elims + lan.elims, matches: d.matches + lan.matches, events: d.events + lan.events,
+          finalsElims: d.finalsElims + lan.finalsElims, finals: d.finals + lan.finals,
+        };
+      }
+      return { ...s, heimat, jeRegion: jeRegionSumme };
     })
       .filter((s) => s.elims > 0 || (s.opensElims ?? 0) > 0)
       .sort((a, b) => b.elims - a.elims || (b.opensElims ?? 0) - (a.opensElims ?? 0))
       .slice(0, LISTEN_LAENGE);
     elimsListe.plaetze = plaetze;
+  }
+
+  /*
+   * In allen Listen dieselbe Region im Kopf der Zeile: die, in der der
+   * Spieler diese Saison am meisten gespielt hat. Vorher kam sie aus dem
+   * ganzen Archiv - bei Veno "EU", obwohl er diese Saison NAC spielt und
+   * eucompetitive ihn als NAC fuehrt. (Hat jemand sein Land von Hand
+   * eingetragen, aendert das nichts: hier geht es nur um die Region des
+   * Wettbewerbs.)
+   */
+  const saisonRegion = new Map<string, string>();
+  for (const [id, z] of jeRegion) {
+    const beste = [...z.entries()].filter(([r]) => r !== '*')
+      .sort((a, b) => (b[1].events + b[1].opens) - (a[1].events + a[1].opens) || b[1].elims - a[1].elims)[0];
+    if (beste) saisonRegion.set(id, beste[0]);
+  }
+  for (const l of listen) {
+    for (const p of l.plaetze as Array<{ epicId?: string; heimat?: string }>) {
+      const r = p.epicId ? saisonRegion.get(p.epicId) : undefined;
+      if (r) p.heimat = r;
+    }
   }
 
   /*
