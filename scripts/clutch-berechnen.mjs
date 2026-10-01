@@ -108,7 +108,7 @@ async function tag(eventId, windowId, idsVorab = null) {
   if (!regeln.length) console.log(`  ${windowId}: keine Wertungstabelle - nur Schaden`);
   const ids = idsVorab ?? [...await matchIds(eventId, windowId, 3)];
   console.log(`  ${windowId}: ${ids.length} Matches, ${regeln.length} Regeln`);
-  const matches = []; const summe = {}; const spiele = {}; const schaden = {};
+  const matches = []; const summe = {}; const spiele = {}; const schaden = {}; const solo = {};
   // Die Rohdaten je Match, kompakt (Teams, Kill-Feed, neue Figuren, Endplaetze):
   // damit laesst sich die Clutch-Regel spaeter neu rechnen, ohne ein Replay
   // erneut zu laden (scripts/clutch-neu-rechnen.mjs).
@@ -135,7 +135,9 @@ async function tag(eventId, windowId, idsVorab = null) {
         fs.mkdirSync(process.env.VOLL_ABLEGEN, { recursive: true });
         fs.writeFileSync(path.join(process.env.VOLL_ABLEGEN, `${windowId}__${id}.json`), JSON.stringify(voll));
       }
-      const c = !regeln.length ? new Map() : voll ? clutchAusVoll(voll, regeln) : clutchPunkte(roh, regeln);
+      const soloMatch = new Map();
+      const c = !regeln.length ? new Map() : voll ? clutchAusVoll(voll, regeln, { solo: soloMatch }) : clutchPunkte(roh, regeln);
+      for (const [k, v] of soloMatch) solo[k] = (solo[k] ?? 0) + Math.round(v);
       const sch = schadenAus(voll);
       for (const [k, v] of Object.entries(sch ?? {})) {
         const d = schaden[k] ?? { dmg: 0, dmgAlle: 0, erlitten: 0, treffer: 0, krit: 0 };
@@ -163,6 +165,7 @@ async function tag(eventId, windowId, idsVorab = null) {
   }
   fs.writeFileSync(path.join(ZIEL, `${windowId}.json`), JSON.stringify({
     version: 2, eventId, windowId, gerechnet: new Date().toISOString(), regeln, matches, summe, spiele,
+    ...(Object.keys(solo).length ? { solo } : {}),
     ...(Object.keys(schaden).length ? { schaden } : {}),
   }, null, 1));
 }

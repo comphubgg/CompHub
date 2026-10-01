@@ -628,6 +628,36 @@ async function berechne(request: Request) {
             });
             return einmalig.slice(0, 15);
           })(),
+          /*
+           * Die Solo Clutch Points der Saison, alle Spieler (Tabelle auf der
+           * Startseite, "Details" zeigt die ganze Liste). Namen wie in jeder
+           * anderen Liste: gepflegtes Profil, Szeneliste, juengster Turniername,
+           * zuletzt Epic selbst - und nur wenn auch das nichts kennt, die
+           * Kennung. Ohne Bild: bei tausendsechshundert Zeilen waeren das
+           * ebenso viele Anfragen.
+           */
+          clutch: await (async () => {
+            const c = daten.clutch;
+            const nameVon = (id: string) => gepflegt.get(id)?.anzeige || gepflegt.get(id)?.name
+              || szene.get(id)?.name || juengsteNamen.get(id) || '';
+            const fehlt = c.zeilen.filter((z) => !nameVon(z.epicId)).map((z) => z.epicId);
+            let epicNamen: Record<string, string> = {};
+            if (fehlt.length) {
+              try { const { token } = await getToken(); epicNamen = await loeseNamenAuf(fehlt, token); } catch { /* dann die Kennung */ }
+            }
+            return {
+              spieltage: c.spieltage,
+              soloDa: c.soloDa,
+              zeilen: c.zeilen.map((z) => ({
+                epicId: z.epicId,
+                anzeige: nameVon(z.epicId) || epicNamen[z.epicId] || z.epicId.slice(0, 8),
+                gepflegt: Boolean(gepflegt.get(z.epicId)?.anzeige || gepflegt.get(z.epicId)?.name),
+                land: gepflegt.get(z.epicId)?.land || szene.get(z.epicId)?.land || null,
+                heimat: heimat.get(z.epicId) ?? '',
+                punkte: z.punkte, spiele: z.spiele, solo: z.solo,
+              })),
+            };
+          })(),
           listen: await Promise.all(daten.listen.map(async (l) => {
             /*
              * Namen nachschlagen, die noch fehlen.

@@ -3364,6 +3364,12 @@ const AUF_ENGLISCH: Record<string, string> = {
   'unbegrenzt': 'unlimited',
   'Karten zu diesem Spieltag': 'Maps for this match day',
   'Alle anzeigen': 'Show all',
+  'Solo Clutch Points': 'Solo Clutch Points',
+  'Details': 'Details',
+  'Clutch-Spiele': 'Clutch games',
+  'Solo-Zeit': 'Solo time',
+  'aus {n} Spieltagen mit Replay-Auswertung': 'from {n} match days with replay data',
+  'Punkte, die ein Spieler allein im Team holt: Platzierungen und Eliminierungen, nachdem sein Mitspieler ausgeschieden ist. Gezählt aus den Replays.': 'Points a player earns on their own: placements and eliminations after their teammate is out. Counted from the replays.',
 
   // Admin Tools im Dashboard.
   'Admin Tools': 'Admin Tools',

@@ -1526,7 +1526,9 @@ export async function startseite(saison?: string, wieViele = 25, jeTag = 3) {
   nachweis.sort((a, b) => (b.datum ?? 0) - (a.datum ?? 0));
   const grundlage = { jeSpieler: true, spieltage: nachweis };
 
-  return { kacheln, listen, saison: dieSaison, grundlage };
+  const clutch = await clutchDerSaison(dieSaison, alle);
+
+  return { kacheln, listen, saison: dieSaison, grundlage, clutch };
 }
 
 /* ------------------------------------------------------------ Das Jahr */
@@ -2291,8 +2293,63 @@ async function vollWerte(windowId: string) {
   try {
     return JSON.parse(await fs.readFile(path.join(DATEN_ORT, 'clutch', `${windowId}.json`), 'utf8')) as {
       schaden?: Record<string, { dmg: number; erlitten: number; treffer: number; krit: number }>; summe?: Record<string, number>;
+      /** Je Match: Konto -> Punkte. Wer darin steht, hatte in diesem Match Clutch-Punkte. */
+      matches?: Array<{ spieler?: Record<string, number> }>;
+      /** Sekunden allein im Team (seit 1.10.2026; aeltere Tage haben sie noch nicht). */
+      solo?: Record<string, number>;
     };
   } catch { return {}; }
+}
+
+export interface ClutchZeile { epicId: string; punkte: number; spiele: number; solo: number | null }
+
+/**
+ * Solo Clutch Points der ganzen Saison, je Spieler.
+ *
+ * Der Betreiber (1.10.2026): unter den Saisonwerten der Startseite soll eine
+ * Tabelle stehen wie bei eucompetitive - Rang, Spieler, Region, Punkte,
+ * Solo-Zeit - und ein "Details" mit allen Spielern der Saison.
+ *
+ * Summiert werden die Spieltage, die aus den Replays gerechnet sind
+ * (data/clutch/<windowId>.json, Ablauf "Clutch rechnen") - gezaehlt wie
+ * bei der Kachel "Meiste Solo Clutch Points": Turnierkonten eines LANs
+ * zaehlen fuer das echte Konto. Die Solo-Zeit steht nur dann in der
+ * Antwort, wenn jeder dieser Tage sie fuehrt; sonst waere sie fuer manche
+ * Spieler eine halbe Summe, die wie eine ganze aussieht.
+ */
+export async function clutchDerSaison(saison: string, verzeichnis: ArchivEintrag[]) {
+  const fenster = new Set<string>();
+  for (const e of verzeichnis) if (e.season === saison) fenster.add(e.windowId);
+  try { for (const t of await liesEpicSpieltage()) if (t.season === saison) fenster.add(t.windowId); } catch { /* nur die vom Archiv */ }
+
+  await lanUmkehr();
+  const echtes = (id: string) => lanUmkehrMerker?.vorwaerts.get(id) ?? id;
+  const je = new Map<string, { punkte: number; spiele: number; solo: number }>();
+  let tage = 0; let mitSolo = 0;
+  for (const w of fenster) {
+    const c = await vollWerte(w);
+    if (!c.summe || !Object.keys(c.summe).length) continue;
+    tage += 1;
+    if (c.solo) mitSolo += 1;
+    for (const [id, pkt] of Object.entries(c.summe)) {
+      const e = echtes(id);
+      const z = je.get(e) ?? { punkte: 0, spiele: 0, solo: 0 };
+      z.punkte += pkt;
+      z.solo += c.solo?.[id] ?? 0;
+      je.set(e, z);
+    }
+    for (const m of c.matches ?? []) {
+      for (const [id, pkt] of Object.entries(m.spieler ?? {})) {
+        if (pkt > 0) { const z = je.get(echtes(id)); if (z) z.spiele += 1; }
+      }
+    }
+  }
+  const soloDa = tage > 0 && mitSolo === tage;
+  const zeilen: ClutchZeile[] = [...je.entries()]
+    .filter(([, z]) => z.punkte > 0)
+    .map(([epicId, z]) => ({ epicId, punkte: z.punkte, spiele: z.spiele, solo: soloDa ? z.solo : null }))
+    .sort((a, b) => b.punkte - a.punkte);
+  return { zeilen, spieltage: tage, soloDa };
 }
 
 /** Echtes Konto -> seine Turnierkonten an LANs (lib/lanKonten, umgedreht). */

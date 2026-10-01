@@ -1,0 +1,36 @@
+# Die Solo Clutch Points aller bisher gelesenen Spieltage nach der aktuellen
+# Regel neu rechnen (lib/clutch.mjs) - aus den abgelegten Rohdaten, ohne ein
+# Replay erneut zu laden. Von Hand anzustossen, sobald sich die Regel aendert
+# (zuletzt 1.10.2026: letzte Spanne aus den letzten Toden, Solo-Zeit dazu).
+#
+# Gleiche Gruppe wie "Clutch rechnen": beide schreiben das Manifest des
+# Releases "daten-clutch" und duerfen nicht gleichzeitig laufen.
+
+name: Clutch neu rechnen
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: clutch-rechnen
+  cancel-in-progress: false
+
+jobs:
+  neu:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Rohdaten und bisherigen Stand vom Release
+        run: node scripts/ablage-github-holen.mjs --ordner clutch-roh --ordner clutch 2>&1 | tail -6
+      - name: Neu rechnen
+        run: node scripts/clutch-neu-rechnen.mjs
+      - name: Ans Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/ablage-github.mjs --nur clutch 2>&1 | tail -8
