@@ -21,7 +21,7 @@ const ROH = path.join(DATEN, 'clutch-roh');
 const ZIEL = path.join(DATEN, 'clutch');
 let gerechnet = 0; let hergeleitet = 0; let ohneTabelle = 0;
 
-/** Duos? Clutch gibt es nur im Team aus zwei - bei Solos und Squads lohnt die Herleitung nicht. */
+/** Team aus zwei bis vier? Clutch gibt es bei Duos, Trios und Squads - bei Solos nicht. */
 function istDuo(matches) {
   const m = matches?.[0];
   if (!m) return false;
@@ -29,7 +29,8 @@ function istDuo(matches) {
   for (const p of m.spieler ?? []) if (!p.bot) je.set(p.team, (je.get(p.team) ?? 0) + 1);
   const haeufigkeit = new Map();
   for (const n of je.values()) haeufigkeit.set(n, (haeufigkeit.get(n) ?? 0) + 1);
-  return [...haeufigkeit.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] === 2;
+  const gross = [...haeufigkeit.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? 0;
+  return gross >= 2 && gross <= 4;
 }
 
 for (const f of fs.existsSync(ROH) ? fs.readdirSync(ROH).filter((x) => x.endsWith('.json')) : []) {

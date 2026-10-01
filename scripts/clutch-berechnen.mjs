@@ -255,7 +255,9 @@ if (arg[0] === '--alle') {
         const t = JSON.parse(fs.readFileSync(path.join(o, f), 'utf8'));
         const gross = t.istFinale || /MannekenPis|Global|LAN/i.test(`${t.windowId} ${t.cupId} ${t.titel}`);
         if (!gross || (t.datum ?? 0) < grenze) continue;
-        if ((t.teams?.[0]?.spieler?.length ?? 0) !== 2) continue; // Clutch gibt es nur im Duo
+        // Clutch gibt es im Team aus zwei bis vier: der letzte Lebende allein (Duo, Trio, Squad).
+        const teamGroesse = t.teams?.[0]?.spieler?.length ?? 0;
+        if (teamGroesse < 2 || teamGroesse > 4) continue;
         if (fs.existsSync(path.join(ZIEL, `${t.windowId}.json`))) continue;
         tage.push([t.eventId, t.windowId]);
       } catch { /* eine kaputte Datei haelt nichts auf */ }
