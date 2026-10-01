@@ -49,6 +49,9 @@ export function tagFuer(name: string): string {
   // (zwei Schreiber an einem Manifest verlieren sich gegenseitig Eintraege).
   if (/^clutch\//.test(name)) return 'daten-clutch';
   if (/^clutch-roh\//.test(name)) return 'daten-clutch-roh';
+  // Die Team-Historie der Spieler (scripts/team-verlauf-holen.mjs) - eigenes
+  // Release, geschrieben nur von diesem Ablauf.
+  if (name === 'team-verlauf.json') return 'daten-teams';
   // Die Scrims: Tagesdateien je Monat ein Release (hoechstens tausend
   // Anhaenge je Release), das Verzeichnis fuer sich - scripts/scrims-holen.mjs.
   const monat = name.match(/^scrims\/(\d{4}-\d{2})-\d{2}\//);
@@ -100,7 +103,7 @@ const AM_RELEASE: Array<RegExp> = [
   /^replays-schlank\//,
   // Das Archiv der Scrims (scripts/scrims-holen.mjs) - nur hier, nie in Supabase.
   /^scrims\//,
-  /^(verdienst-archiv|elims-archiv|elims-summen-alt|preisgeld-tabellen|preisgelder|lan-preisgelder|epic-namen|cup-archiv|prognose-felder|lan-konten)\.json$/,
+  /^(verdienst-archiv|elims-archiv|elims-summen-alt|preisgeld-tabellen|preisgelder|lan-preisgelder|epic-namen|cup-archiv|prognose-felder|lan-konten|team-verlauf)\.json$/,
   // Vom Betreiber gepflegt, von der Seite viel gelesen: als Rueckfall, wenn
   // Supabase nicht antwortet. Gelesen wird zuerst die lebende Kopie dort.
   /^(prognosen|turnier-karten|karten-vorlagen|spieler-profile|spielerbilder|spieler-namen|orgtags|galerie)\.json$/,
@@ -139,7 +142,7 @@ const NUR_RELEASE: Array<RegExp> = [
   /^replay-voll\//,
   /^replays-schlank\//,
   /^scrims\//,
-  /^(verdienst-archiv|elims-archiv|elims-summen-alt|preisgeld-tabellen|prognose-felder|lan-konten)\.json$/,
+  /^(verdienst-archiv|elims-archiv|elims-summen-alt|preisgeld-tabellen|prognose-felder|lan-konten|team-verlauf)\.json$/,
 ];
 
 export function nurRelease(name: string): boolean {
@@ -161,7 +164,7 @@ const ZUERST: Array<RegExp> = [
   /^clutch\//,
   /^replay-voll\//,
   /^replays-schlank\//,
-  /^(verdienst-archiv|elims-archiv|elims-summen-alt|preisgeld-tabellen|preisgelder|lan-preisgelder|epic-namen|cup-archiv|prognose-felder|lan-konten)\.json$/,
+  /^(verdienst-archiv|elims-archiv|elims-summen-alt|preisgeld-tabellen|preisgelder|lan-preisgelder|epic-namen|cup-archiv|prognose-felder|lan-konten|team-verlauf)\.json$/,
 ];
 
 export function releaseZuerst(name: string): boolean {

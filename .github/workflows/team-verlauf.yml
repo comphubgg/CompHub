@@ -1,0 +1,51 @@
+# Die Team-Historie der Spieler taeglich aus Liquipedia holen
+# (scripts/team-verlauf-holen.mjs). Der Betreiber (1.10.2026): beim
+# Teamverlauf fehlten die frueheren Organisationen. Liquipedia erlaubt einen
+# Seitenaufbau je 30 Sekunden - ein Lauf liest deshalb rund hundert Seiten
+# und macht beim naechsten Mal weiter; jede Seite wird hoechstens einmal pro
+# Woche neu gelesen. Das Ergebnis liegt am Release "daten-teams".
+
+name: Team-Verlauf
+
+on:
+  workflow_dispatch:
+    inputs:
+      minuten:
+        description: Wie lange gelesen wird (Minuten)
+        default: '100'
+  schedule:
+    - cron: '10 7 * * *'   # taeglich, nach dem Kader-Abgleich
+
+concurrency:
+  group: team-verlauf
+  cancel-in-progress: false
+
+jobs:
+  holen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 140
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - name: Abhängigkeiten
+        run: npm ci --omit=optional
+      - name: Zugangsdaten
+        run: printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
+      - name: Orgs aus Supabase
+        run: node scripts/umzug-supabase.mjs --herunterladen --nur orgs.json 2>&1 | tail -2
+      - name: Bisheriger Stand vom Release
+        run: node scripts/ablage-github-holen.mjs team-verlauf.json 2>&1 | tail -2
+      - name: Seiten lesen
+        run: node scripts/team-verlauf-holen.mjs --minuten ${{ inputs.minuten || '100' }} 2>&1 | tail -12
+      - name: Ans Release
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/ablage-github.mjs --nur team-verlauf.json 2>&1 | tail -6
+      - name: Zugangsdaten wieder weg
+        if: always()
+        run: rm -f .env.local

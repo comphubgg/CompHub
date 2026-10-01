@@ -44,6 +44,7 @@ function tagFuer(name) {
   // (zwei Schreiber an einem Manifest verlieren sich gegenseitig Eintraege).
   if (/^clutch\//.test(name)) return 'daten-clutch';
   if (/^clutch-roh\//.test(name)) return 'daten-clutch-roh';
+  if (name === 'team-verlauf.json') return 'daten-teams';
   { const m = name.match(/^scrims\/(\d{4}-\d{2})-\d{2}\//); if (m) return `daten-scrims-${m[1]}`; }
   if (/^scrims\//.test(name)) return 'daten-scrims';
   return 'daten';

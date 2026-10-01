@@ -2135,8 +2135,8 @@ export default function StatistikSeite() {
    * Wie beim Archiv: gibt es nichts, gibt es auch keinen Reiter.
    */
   const [teamVerlauf, setTeamVerlauf] = useState<Array<{
-    org: string; name: string; logo: string | null; seit: string | null; bis: string | null;
-    rolle: string | null; aktuell: boolean;
+    team: string; org: string | null; logo: string | null; seit: string | null; bis: string | null;
+    aktuell: boolean; hinweis: string | null; rolle: string | null;
   }>>([]);
   useEffect(() => {
     if (!offen?.epicId) { setTeamVerlauf([]); return; }
@@ -6790,29 +6790,40 @@ export default function StatistikSeite() {
                 /* Der Teamverlauf: heutige Org oben, dann die frueheren nach
                    Austritt - aus den Kadern der Orgs (Liquipedia). */
                 <div className="space-y-2">
-                  {teamVerlauf.map((e, i) => (
-                    <div key={`${e.org}-${e.seit ?? ''}-${i}`}
+                  {teamVerlauf.map((e, i) => {
+                    /* Liquipedia kennt auch Teilangaben: "2021-??-??" heisst nur das Jahr. */
+                    const tag = (d: string | null) => {
+                      if (!d) return '?';
+                      const m = /^(\d{4})-(\d{2}|\?\?)-(\d{2}|\?\?)$/.exec(d) ?? /^(\d{4})$/.exec(d);
+                      if (!m) return d;
+                      const ort = sprache === 'en' ? 'en-GB' : 'de-CH';
+                      if (m[3] && m[3] !== '??' && m[2] !== '??') return new Date(`${d}T12:00:00Z`).toLocaleDateString(ort, { day: 'numeric', month: 'short', year: 'numeric' });
+                      if (m[2] && m[2] !== '??') return new Date(`${m[1]}-${m[2]}-01T12:00:00Z`).toLocaleDateString(ort, { month: 'short', year: 'numeric' });
+                      return m[1];
+                    };
+                    return (
+                    <div key={`${e.team}-${e.seit ?? ''}-${i}`}
                       className="flex items-center gap-4 rounded-xl border border-zinc-800 bg-zinc-950/60 px-4 py-3">
                       <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-zinc-900">
                         {e.logo
                           // eslint-disable-next-line @next/next/no-img-element
                           ? <img src={e.logo} alt="" className="h-full w-full object-contain p-1" />
-                          : <span className="text-lg font-black text-zinc-600">{e.name.slice(0, 1)}</span>}
+                          : <span className="text-lg font-black text-zinc-600">{e.team.slice(0, 1).toUpperCase()}</span>}
                       </span>
                       <div className="min-w-0 flex-1">
                         <div className="flex flex-wrap items-center gap-2">
-                          <span className="truncate text-sm font-bold text-slate-100">{e.name}</span>
+                          <span className="truncate text-sm font-bold text-slate-100">{e.team}</span>
                           {e.aktuell && <span className="rounded bg-sky-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-sky-400"><T>Aktuell</T></span>}
                           {e.rolle && e.rolle !== 'pro' && <span className="text-[11px] text-slate-500">{e.rolle === 'academy' ? 'Academy' : 'Content Creator'}</span>}
+                          {e.hinweis && <span className="text-[11px] text-slate-500">({e.hinweis})</span>}
                         </div>
                         <div className="mt-0.5 text-xs text-slate-400">
-                          {e.seit ? new Date(e.seit).toLocaleDateString(sprache === 'en' ? 'en-GB' : 'de-CH', { day: 'numeric', month: 'short', year: 'numeric' }) : '?'}
-                          {' – '}
-                          {e.aktuell ? t('heute') : e.bis ? new Date(e.bis).toLocaleDateString(sprache === 'en' ? 'en-GB' : 'de-CH', { day: 'numeric', month: 'short', year: 'numeric' }) : '?'}
+                          {tag(e.seit)}{' – '}{e.aktuell ? t('heute') : e.bis ? tag(e.bis) : '?'}
                         </div>
                       </div>
                     </div>
-                  ))}
+                    );
+                  })}
                   <p className="pt-1 text-xs text-slate-500"><T>Quelle: die Kader der Organisationen und Liquipedia. Gezeigt werden nur Organisationen, die CompHub führt.</T></p>
                 </div>
               ) : spielerReiter === 'archiv' ? (
