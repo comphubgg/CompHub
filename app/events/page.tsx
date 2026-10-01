@@ -316,7 +316,6 @@ export default function EventsPage() {
   const [status, setStatus] = useState<Status>('alle');
   const [plattform, setPlattform] = useState<Plattform>('alle');
   const [region, setRegionRoh] = useState('alle');
-  const [offen, setOffen] = useState<string | null>(null);
   /*
    * Unter "Beendet" nur die laufende Season - der Betreiber (25.9.2026): "bei
    * Finished nur diese Season ... aber man kann auch auf Show More gehen, und
@@ -449,14 +448,23 @@ export default function EventsPage() {
   const filterZahl = [typ !== 'alle', status !== 'alle', plattform !== 'alle']
     .filter(Boolean).length;
 
+  /*
+   * Ein Klick auf einen Cup fuehrt direkt hinein - mit Europa.
+   *
+   * Vorher klappte bei "Alle Regionen" unter der Kachel eine Liste auf, aus
+   * der man erst eine Region waehlen musste. Der Betreiber (1.10.2026):
+   * "wenn ich da drauf druecke, komme ich einfach auf den Cup, automatisch
+   * auf Europa, und nachher kann ich im Cup die Region wechseln." Gewaehlt
+   * ist die Region aus dem Filter, sonst Europa, sonst die erste des Cups.
+   */
   const oeffnen = (c: Cup) => {
     const regionen = Object.keys(c.regionen);
-    if (c.global || regionen.length <= 1) router.push(`/events/${c.id}`);
-    else if (region !== 'alle' && c.regionen[region]) {
-      const liste = c.regionen[region];
-      const w = liste.find((x) => laeuft(x, jetzt)) ?? liste.find((x) => x.begin > jetzt);
-      router.push(`/events/${c.id}?region=${region}${w ? `&fenster=${encodeURIComponent(w.windowId)}` : ''}`);
-    } else setOffen(offen === c.id ? null : c.id);
+    if (c.global || regionen.length <= 1) { router.push(`/events/${c.id}`); return; }
+    const r = region !== 'alle' && c.regionen[region] ? region
+      : c.regionen.EU ? 'EU' : regionen[0];
+    const liste = c.regionen[r];
+    const w = liste.find((x) => laeuft(x, jetzt)) ?? liste.find((x) => x.begin > jetzt);
+    router.push(`/events/${c.id}?region=${r}${w ? `&fenster=${encodeURIComponent(w.windowId)}` : ''}`);
   };
 
   return (
@@ -610,14 +618,10 @@ export default function EventsPage() {
               abschnitte.length ? (
                 <div className="space-y-8">
                   {abschnitte.map((a) => (
-                    <Abschnitt key={a.schluessel} titel={a.titel} cups={a.cups} offen={offen}
-                      lageZu={lageZu} jetzt={jetzt}
+                    <Abschnitt key={a.schluessel} titel={a.titel} cups={a.cups}
+                      lageZu={lageZu}
                       mehr={'mehr' in a ? a.mehr : 0} mehrZeigen={() => setAeltereZeigen(true)}
-                      oeffnen={oeffnen} regionWaehlen={(c, r) => {
-                        const liste = c.regionen[r];
-                        const w = liste.find((x) => laeuft(x, jetzt)) ?? liste.find((x) => x.begin > jetzt);
-                        router.push(`/events/${c.id}?region=${r}${w ? `&fenster=${encodeURIComponent(w.windowId)}` : ''}`);
-                      }} />
+                      oeffnen={oeffnen} />
                   ))}
                 </div>
               ) : (
@@ -636,11 +640,11 @@ export default function EventsPage() {
 
 /* ============================================================ Abschnitte */
 
-function Abschnitt({ titel, cups, offen, oeffnen, regionWaehlen, lageZu, jetzt, mehr = 0, mehrZeigen }: {
-  titel: string; cups: Cup[]; offen: string | null;
-  oeffnen: (c: Cup) => void; regionWaehlen: (c: Cup, r: string) => void;
+function Abschnitt({ titel, cups, oeffnen, lageZu, mehr = 0, mehrZeigen }: {
+  titel: string; cups: Cup[];
+  oeffnen: (c: Cup) => void;
   /** Der Stand je Cup fuer die gewaehlte Region - siehe lageVon. */
-  lageZu: (c: Cup) => Lage; jetzt: number;
+  lageZu: (c: Cup) => Lage;
   /** Wie viele Cups aelterer Seasons hinter "Show more" warten. */
   mehr?: number; mehrZeigen?: () => void;
 }) {
@@ -675,11 +679,9 @@ function Abschnitt({ titel, cups, offen, oeffnen, regionWaehlen, lageZu, jetzt, 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
         {cups.slice(0, zahl).map((c) => {
           const regionen = Object.keys(c.regionen);
-          const istOffen = offen === c.id;
           return (
             <article key={c.id}
-              className={`group overflow-hidden rounded-xl border bg-zinc-950/70 transition ${
-                istOffen ? 'border-sky-500' : 'border-zinc-800 hover:border-zinc-600'}`}>
+              className="group overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950/70 transition hover:border-zinc-600">
               <button type="button" onClick={() => oeffnen(c)} className="block w-full text-left">
                 <div className="relative aspect-video overflow-hidden bg-zinc-900">
                   <Bild c={c} klasse="h-full w-full transition duration-300 group-hover:scale-105" />
@@ -696,29 +698,6 @@ function Abschnitt({ titel, cups, offen, oeffnen, regionWaehlen, lageZu, jetzt, 
                   <p className="truncate text-xs text-slate-500">{unterzeile(c, sprache, t)}</p>
                 </div>
               </button>
-              {istOffen && (
-                <div className="max-h-60 overflow-y-auto border-t border-zinc-800 bg-zinc-950/90">
-                  {regionen.map((r) => {
-                    const liste = c.regionen[r];
-                    const live = liste.find((x) => laeuft(x, jetzt));
-                    const naechstes = liste.filter((x) => x.begin > jetzt)
-                      .sort((a, b) => a.begin - b.begin)[0];
-                    return (
-                      <button key={r} type="button" onClick={() => regionWaehlen(c, r)}
-                        className="flex w-full items-center justify-between gap-2 border-b border-zinc-900 px-3 py-2
-                                   text-left text-xs transition last:border-0 hover:bg-zinc-900">
-                        <span className={`flex items-center gap-2 font-medium ${regionFarbe(r).schrift}`}>
-                          {live && <span className="h-1.5 w-1.5 rounded-full bg-sky-400" />}
-                          {REGION_TEXT[r] ?? r}
-                        </span>
-                        <span className="text-slate-500">
-                          {live ? t('läuft') : naechstes ? restzeit(naechstes.begin, t) : t('beendet')}
-                        </span>
-                      </button>
-                    );
-                  })}
-                </div>
-              )}
             </article>
           );
         })}
