@@ -71,7 +71,7 @@ const SICHTBAR_STANDARD: Record<Bereich, Sichtbar> = {
   orgs: 'alle', vergleich: 'vip', bilder: 'admin',
 };
 const SICHTBAR_REIHE: Sichtbar[] = ['alle', 'vip', 'admin'];
-type SpielerReiter = 'uebersicht' | 'leistung' | 'werte' | 'turniere' | 'fncs' | 'erfolge' | 'verdienst' | 'teams' | 'archiv';
+type SpielerReiter = 'uebersicht' | 'leistung' | 'werte' | 'turniere' | 'fncs' | 'erfolge' | 'verdienst' | 'teams' | 'karten' | 'archiv';
 
 /** Ein LAN-Ergebnis mit Preisgeld - aus data/lan-preisgelder.json. */
 interface LanErgebnis {
@@ -2237,6 +2237,23 @@ export default function StatistikSeite() {
       .then((r) => r.json())
       .then((j) => { if (!weg) setTeamVerlauf(Array.isArray(j?.eintraege) ? j.eintraege : []); })
       .catch(() => { if (!weg) setTeamVerlauf([]); });
+    return () => { weg = true; };
+  }, [offen?.epicId]);
+  /*
+   * Die Karten des Spielers - wo sein Team vor einem Cup auf der Turnierkarte
+   * lag (/api/turnier-karten?spieler=). Gibt es keine, gibt es auch keinen Reiter.
+   */
+  const [spielerKarten, setSpielerKarten] = useState<Array<{
+    id: string; titel: string; cupTitel: string | null; region: string | null; windowId: string | null;
+    spiele: string | null; bildTitel: string | null; spot: string | null; mitspieler: string[]; geaendert: number;
+  }>>([]);
+  useEffect(() => {
+    if (!offen?.epicId) { setSpielerKarten([]); return; }
+    let weg = false;
+    fetch(`/api/turnier-karten?spieler=${encodeURIComponent(offen.epicId)}`, { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((j) => { if (!weg) setSpielerKarten(Array.isArray(j?.karten) ? j.karten : []); })
+      .catch(() => { if (!weg) setSpielerKarten([]); });
     return () => { weg = true; };
   }, [offen?.epicId]);
   /** Wie viele Bilder und Videos das Archiv zu diesem Spieler hat - 0 heisst: kein Reiter. */
@@ -6189,6 +6206,7 @@ export default function StatistikSeite() {
                  ['erfolge', 'Erfolge'],
                  ['verdienst', 'Verdienst'],
                  ...(teamVerlauf.length ? [['teams', 'Teamverlauf']] : []),
+                 ...(spielerKarten.length ? [['karten', 'Maps']] : []),
                  /*
                   * Das Archiv nur, wenn es etwas gibt. Der Betreiber: "wenn
                   * es keine Bilder, Videos zu einem Player gibt, dann muss
@@ -6923,6 +6941,30 @@ export default function StatistikSeite() {
                     );
                   })}
                   <p className="pt-1 text-xs text-slate-500"><T>Quelle: die Kader der Organisationen und Liquipedia. Gezeigt werden nur Organisationen, die CompHub führt.</T></p>
+                </div>
+              ) : spielerReiter === 'karten' ? (
+                /* Die Karten vor den Cups: wo das Team des Spielers lag. Gelesen
+                   aus den Turnierkarten, die der Betreiber selbst belegt hat. */
+                <div className="space-y-2">
+                  {spielerKarten.map((k) => (
+                    <a key={k.id} href={`/maps?id=${encodeURIComponent(k.id)}`}
+                      className="flex items-center gap-4 rounded-xl border border-zinc-800 bg-zinc-950/60 px-4 py-3 transition hover:border-sky-500">
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="truncate text-sm font-bold text-slate-100">{k.titel}</span>
+                          {k.region && k.region !== 'GLOBAL' && <RegionMarke region={k.region} />}
+                          {k.spiele && <span className="text-[11px] text-slate-500">{k.spiele}</span>}
+                        </div>
+                        <div className="mt-0.5 text-xs text-slate-400">
+                          {k.spot ? <>{t('Spot')}: <span className="font-semibold text-slate-200">{k.spot}</span> · </> : null}
+                          {k.mitspieler.map((n) => grossName(n)).join(' + ')}
+                          {k.bildTitel ? <span className="text-slate-600"> · {k.bildTitel}</span> : null}
+                        </div>
+                      </div>
+                      <span className="shrink-0 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500"><T>Karte öffnen →</T></span>
+                    </a>
+                  ))}
+                  <p className="pt-1 text-xs text-slate-500"><T>Die Karten vor den Cups, auf denen das Team dieses Spielers einen Spot hat.</T></p>
                 </div>
               ) : spielerReiter === 'archiv' ? (
                 /* Das Archiv des Spielers - Fotos und Videos, allgemein und

@@ -10,6 +10,9 @@ import { ersatzSeit } from '@/lib/ablage';
 //
 //   GET                  -> alle Karten
 //   GET ?id=...          -> eine Karte
+//   GET ?spieler=<epicId> -> die veroeffentlichten Karten, auf denen das Team
+//                           dieses Spielers einen Spot hat (Reiter "Maps"
+//                           im Spielerprofil) - nur lesen, nie verschieben
 //   POST { karte }       -> anlegen oder ueberschreiben
 //   DELETE ?id=...       -> loeschen
 //
@@ -174,6 +177,39 @@ export async function GET(request: Request) {
   const event = searchParams.get('event');
   const window_ = searchParams.get('window');
   const karten = await lies();
+
+  /*
+   * Die Karten eines Spielers - fuer den Reiter "Maps" im Profil (Betreiber,
+   * 1.10.2026: pro Spieler eine Geschichte der Karten mit seiner Platzierung
+   * vor jedem Cup, wie bei eucompetitive). Gelesen wird, was der Betreiber
+   * selbst gelegt hat: das Team, in dem die Konto-ID des Spielers steht, und
+   * der Spot, auf dem es liegt. Es wird nichts abgeleitet und nichts gelegt;
+   * ein Team ohne Spot taucht nicht auf. Nur veroeffentlichte Karten.
+   */
+  const spielerId = (searchParams.get('spieler') ?? '').toLowerCase();
+  if (spielerId) {
+    const raus: Array<{
+      id: string; titel: string; cupTitel: string | null; region: string | null;
+      windowId: string | null; spiele: string | null; bildTitel: string | null;
+      spot: string | null; mitspieler: string[]; geaendert: number;
+    }> = [];
+    for (const k of karten) {
+      if (!k.oeffentlich) continue;
+      const team = k.teams.find((t) => (t.ids ?? []).some((x) => x.toLowerCase() === spielerId));
+      if (!team) continue;
+      const schluessel = stabileIds(k).get(team.id) ?? team.id;
+      const spotNr = k.spots.findIndex((sp) => sp.teams.includes(schluessel) || sp.teams.includes(team.id));
+      if (spotNr < 0) continue;
+      const sp = k.spots[spotNr];
+      raus.push({
+        id: k.id, titel: k.titel, cupTitel: k.cupTitel ?? null, region: k.region ?? null,
+        windowId: k.windowId ?? null, spiele: k.spiele ?? null, bildTitel: k.bildTitel ?? null,
+        spot: sp.name?.trim() || null, mitspieler: team.spieler, geaendert: k.geaendert,
+      });
+    }
+    raus.sort((a, b) => b.geaendert - a.geaendert);
+    return NextResponse.json({ karten: raus }, { headers: { 'Cache-Control': 'no-store' } });
+  }
 
   if (id) {
     const k = karten.find((x) => x.id === id);
