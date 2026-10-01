@@ -35,7 +35,10 @@ jobs:
       - name: Zugangsdaten
         run: printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
       - name: Orgs aus Supabase
-        run: node scripts/umzug-supabase.mjs --herunterladen --nur orgs.json,spieler-profile.json,spieler-namen.json 2>&1 | tail -2
+        run: |
+          node scripts/umzug-supabase.mjs --herunterladen --nur orgs.json,spieler-profile.json,spieler-namen.json 2>&1 | tail -2
+          # Der Stand zu Beginn - Grundlage fuer das Zusammenfuehren am Ende.
+          cp data/orgs.json data/orgs.basis.json
       - name: Abgleich
         run: |
           if [ "${{ inputs.probe }}" = "ja" ]; then
@@ -47,6 +50,14 @@ jobs:
         if: inputs.probe != 'ja'
         run: |
           [ -s data/.kader-aenderungen.json ] || exit 0
+          # Der Abgleich dauert gut eine Stunde. Was der Betreiber in dieser Zeit
+          # im Admin eingetragen hat (Fotos, X-Konten), darf nicht ueberschrieben
+          # werden: den frischen Stand holen und nur die Aenderungen des Abgleichs
+          # daraufsetzen (scripts/orgs-zusammenfuehren.mjs).
+          mkdir -p data/frisch
+          COMPHUB_DATEN=data/frisch node scripts/umzug-supabase.mjs --herunterladen --nur orgs.json 2>&1 | tail -2
+          [ -s data/frisch/orgs.json ] || { echo "Der frische Stand von orgs.json fehlt - nichts geschrieben."; exit 1; }
+          node scripts/orgs-zusammenfuehren.mjs data/orgs.basis.json data/orgs.json data/frisch/orgs.json data/orgs.json
           anzahl=$(node -e "console.log(JSON.parse(require('fs').readFileSync('data/.kader-aenderungen.json','utf8')).length)")
           node scripts/umzug-supabase.mjs --nur orgs.json 2>&1 | tail -2
           if [ "$anzahl" -gt 0 ]; then
