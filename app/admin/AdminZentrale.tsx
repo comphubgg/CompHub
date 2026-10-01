@@ -25,7 +25,8 @@ interface Job {
   schluessel: string; name: string; was: string; aktiv: Lauf | null; letzter: Lauf | null;
   ampel: 'ok' | 'warnung' | 'fehler' | 'unbekannt'; hinweis: string;
 }
-interface Antwort { jobs: Job[]; kontaktOffen: number | null; stand: number }
+interface Auftrag { id: number; titel: string; hinweis: string; seit: string }
+interface Antwort { jobs: Job[]; kontaktOffen: number | null; auftraege: Auftrag[] | null; stand: number }
 interface ReplayStand { gesamt: number; ausgewertet: number; offenInFrist: number; imFristGesamt: number }
 
 /** Die Gruppen der Werkzeuge. Was hier nicht steht, landet unter "Weitere". */
@@ -205,6 +206,26 @@ export default function AdminZentrale({ werkzeuge, zeigeLaeufe }: {
           </div>
           {allesRuhig && (
             <p className="mt-2 text-xs text-emerald-400"><T>Alles ruhig — nichts wartet auf dich.</T></p>
+          )}
+
+          {/* 3. Die offenen Auftraege - dieselbe Liste wie in #admin-aufgaben. */}
+          {daten?.auftraege && daten.auftraege.length > 0 && (
+            <>
+              <h3 className="mt-6 flex items-baseline gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                <T>Offene Aufträge</T>
+                <span className="font-normal normal-case tracking-normal text-slate-600">{daten.auftraege.length}</span>
+              </h3>
+              <div className="mt-2 max-h-72 divide-y divide-zinc-900 overflow-y-auto rounded-lg border border-zinc-800 bg-zinc-900/30">
+                {daten.auftraege.map((a) => (
+                  <div key={a.id} className="px-3.5 py-2.5">
+                    <p className="text-sm font-medium text-slate-200">
+                      <span className="mr-2 text-[11px] tabular-nums text-slate-600">{a.id}</span>{a.titel}
+                    </p>
+                    {a.hinweis && <p className="mt-0.5 text-xs leading-snug text-slate-500">{a.hinweis}</p>}
+                  </div>
+                ))}
+              </div>
+            </>
           )}
         </>
       )}

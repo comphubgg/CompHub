@@ -10,7 +10,7 @@ import { offen as offeneMeldungen } from '@/lib/kontakt';
  * nachsehen, ob der Datenlauf noch laeuft, ob ein Ablauf gescheitert ist und
  * ob im Posteingang etwas wartet. Diese Antwort sammelt das an einer Stelle.
  *
- *   GET -> { jobs: [...], kontaktOffen: n, stand }
+ *   GET -> { jobs: [...], kontaktOffen: n, auftraege: [...] | null, stand }
  *
  * Die Laeufe stehen bei GitHub Actions. Die Auskunft dort ist oeffentlich
  * (das Projekt ist es), braucht also keinen Schluessel; ist GITHUB_TOKEN
@@ -83,13 +83,75 @@ async function holeLauf(a: typeof ABLAEUFE[number]): Promise<JobAntwort> {
   }
 }
 
+/*
+ * Die offenen Auftraege - gelesen aus #admin-aufgaben.
+ *
+ * Dort steht die Liste als angepinnte Nachricht (scripts/discord-aufgaben.mjs),
+ * je Auftrag eine Zeile "**12** · Titel · _Hinweis_ · seit 2026-09-28". Hier
+ * wird sie nur gelesen, nie geschrieben. Ohne Bot-Token oder bei einem
+ * Fehler bleibt die Liste leer und die Zentrale sagt es.
+ */
+interface Auftrag { id: number; titel: string; hinweis: string; seit: string }
+let aufgabenMerker: { bis: number; liste: Auftrag[] } | null = null;
+
+async function holeAuftraege(): Promise<Auftrag[] | null> {
+  if (aufgabenMerker && Date.now() < aufgabenMerker.bis) return aufgabenMerker.liste;
+  const token = (process.env.DISCORD_BOT_TOKEN ?? '').trim();
+  if (!token) return null;
+  const server = process.env.DISCORD_SERVER_ID || '1529205620287344783';
+  const kopf = { Authorization: `Bot ${token}` };
+  try {
+    const kanaele = await (await fetch(`https://discord.com/api/v10/guilds/${server}/channels`, { headers: kopf, signal: AbortSignal.timeout(8000) })).json() as Array<{ id: string; name: string; type: number }>;
+    const kanal = Array.isArray(kanaele) ? kanaele.find((k) => k.type === 0 && k.name.toLowerCase() === 'admin-aufgaben') : null;
+    if (!kanal) return null;
+    const pins = await (await fetch(`https://discord.com/api/v10/channels/${kanal.id}/pins`, { headers: kopf, signal: AbortSignal.timeout(8000) })).json() as Array<{
+      id?: string; timestamp: string; edited_timestamp?: string | null; embeds?: Array<{ title?: string; description?: string; footer?: { text?: string } }>;
+    }>;
+    if (!Array.isArray(pins)) return null;
+    /*
+     * Nur die aktuelle Liste, nicht die alten Staende.
+     *
+     * Im Kanal liegen auch aeltere angepinnte Fassungen der Liste (auch die
+     * englische von vor dem 30.9.). Die aktuelle erkennt man daran, dass das
+     * Skript alle ihre Teile in einem Zug neu schreibt: ihre letzte Aenderung
+     * liegt innerhalb weniger Minuten beieinander. Genommen werden alle
+     * Listen-Nachrichten, deren Stand hoechstens fuenfzehn Minuten hinter der
+     * juengsten liegt.
+     */
+    const stand = (m: typeof pins[number]) => Date.parse(m.edited_timestamp ?? m.timestamp);
+    const listen = pins.filter((m) => /^Offene Aufträge \(/.test(m.embeds?.[0]?.title ?? ''));
+    // Das Skript schreibt die Kennungen der aktuellen Nachrichten in den Fuss der letzten ("msgs: a,b,c").
+    const mitKennung = listen
+      .map((m) => ({ m, ids: /msgs: ([0-9,]+)/.exec(m.embeds?.[0]?.footer?.text ?? '')?.[1]?.split(',') ?? [] }))
+      .filter((x) => x.ids.length > 0)
+      .sort((x, y) => stand(y.m) - stand(x.m))[0];
+    const juengste = Math.max(0, ...listen.map(stand));
+    const aktuell = mitKennung
+      ? mitKennung.ids.map((id) => pins.find((m) => (m as { id?: string }).id === id)).filter((m): m is typeof pins[number] => !!m)
+      : listen.filter((m) => juengste - stand(m) <= 15 * 60_000);
+    const liste: Auftrag[] = [];
+    // Erst Teil 1, dann 2/3, 3/3 - die Reihenfolge der Auftraege bleibt wie im Kanal.
+    const teil = (m: typeof pins[number]) => Number(/\((\d+)\/\d+\)/.exec(m.embeds?.[0]?.title ?? '')?.[1] ?? 1);
+    for (const m of [...aktuell].sort((x, y) => teil(x) - teil(y))) {
+      for (const z of (m.embeds?.[0]?.description ?? '').split(String.fromCharCode(10))) {
+        if (/^\*\*Zuletzt erledigt\*\*/.test(z)) break;
+        const t = /^\*\*(\d+)\*\* · (.+?)(?: · _(.+)_)? · seit (\d{4}-\d{2}-\d{2})$/.exec(z.trim());
+        if (t) liste.push({ id: Number(t[1]), titel: t[2], hinweis: t[3] ?? '', seit: t[4] });
+      }
+    }
+    aufgabenMerker = { bis: Date.now() + 5 * 60_000, liste };
+    return liste;
+  } catch { return null; }
+}
+
 export async function GET(request: Request) {
   if (!await istAdminAnfrage(request)) {
     return NextResponse.json({ fehler: 'Nicht erlaubt.' }, { status: 403 });
   }
-  const [jobs, kontaktOffen] = await Promise.all([
+  const [jobs, kontaktOffen, auftraege] = await Promise.all([
     Promise.all(ABLAEUFE.map(holeLauf)),
     offeneMeldungen().catch(() => null),
+    holeAuftraege(),
   ]);
-  return NextResponse.json({ jobs, kontaktOffen, stand: Date.now() }, { headers: { 'Cache-Control': 'no-store' } });
+  return NextResponse.json({ jobs, kontaktOffen, auftraege, stand: Date.now() }, { headers: { 'Cache-Control': 'no-store' } });
 }

@@ -171,6 +171,27 @@ for (let i = 0; i < einbettungen.length; i += 1) {
 for (const id of alte.slice(einbettungen.length)) {
   await ruf(`/channels/${kanal.id}/messages/${id}`, 'DELETE').catch(() => {});
 }
+/*
+ * Die Kennungen der aktuellen Nachrichten in den Fuss der letzten.
+ *
+ * Die Admin-Zentrale im Dashboard liest die Liste von hier (nur lesend) und
+ * muss wissen, welche der angepinnten Nachrichten die aktuelle ist - im Kanal
+ * lagen auch aeltere Staende. Dazu: das Aufraeumen der alten.
+ */
+const letzteId = neue[neue.length - 1];
+await ruf(`/channels/${kanal.id}/messages/${letzteId}`, 'PATCH', {
+  embeds: [{ ...einbettungen[einbettungen.length - 1], footer: { text: `${aktualisiert} · msgs: ${neue.join(',')}` } }],
+}).catch(() => {});
+try {
+  const angepinnt = await ruf(`/channels/${kanal.id}/pins`);
+  for (const m of Array.isArray(angepinnt) ? angepinnt : []) {
+    const titel = m.embeds?.[0]?.title ?? '';
+    // Nur Staende dieser Liste (deutsch und die frueheren englischen), nie etwas anderes.
+    if (!neue.includes(m.id) && m.author?.bot && /^(Offene Aufträge|Open tasks) \(/.test(titel)) {
+      await ruf(`/channels/${kanal.id}/messages/${m.id}`, 'DELETE').catch(() => {});
+    }
+  }
+} catch { /* Aufraeumen ist Zugabe */ }
 daten.nachrichten = neue;
 daten.nachricht = neue[0];
 schreib(daten);
