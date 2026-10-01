@@ -74,6 +74,8 @@ const ZIELE: Ziel[] = [
   { href: '/power-rankings', titel: 'Rankings', text: 'Weltweite Bestenliste' },
   { href: '/events', titel: 'Events', text: 'Cups und Leaderboards' },
   { href: '/tierlist', titel: 'Tierlist', text: 'Spieler einsortieren' },
+  // Die Karten vergangener Cups - wo die Teams gelandet sind (Betreiber, 1.10.2026).
+  { href: '/tournament-maps', titel: 'Tournament Maps', text: 'Wo die Teams vor jedem Cup gelandet sind' },
   { href: '/overlays', titel: 'Overlays', text: 'Einblendungen für den Stream' },
   /*
    * Das Chatarchiv gehoert hierher und nicht in das schwebende Fenster.

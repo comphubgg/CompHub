@@ -1,7 +1,9 @@
 # Die Solo Clutch Points aller bisher gelesenen Spieltage nach der aktuellen
 # Regel neu rechnen (lib/clutch.mjs) - aus den abgelegten Rohdaten, ohne ein
 # Replay erneut zu laden. Von Hand anzustossen, sobald sich die Regel aendert
-# (zuletzt 1.10.2026: letzte Spanne aus den letzten Toden, Solo-Zeit dazu).
+# (zuletzt 1.10.2026: letzte Spanne aus den letzten Toden, Solo-Zeit dazu,
+# Elimination zaehlt fuer den, der niedergeschossen hat). Taeglich ausserdem, damit
+# Spieltage ohne Punktetabelle eine belegte bekommen (lib/clutchRegeln.mjs).
 #
 # Gleiche Gruppe wie "Clutch rechnen": beide schreiben das Manifest des
 # Releases "daten-clutch" und duerfen nicht gleichzeitig laufen.
@@ -10,6 +12,8 @@ name: Clutch neu rechnen
 
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '20 5 * * *'   # taeglich: neue Spieltage ohne Tabelle bekommen eine hergeleitete
 
 concurrency:
   group: clutch-rechnen

@@ -10,6 +10,8 @@ import { ersatzSeit } from '@/lib/ablage';
 //
 //   GET                  -> alle Karten
 //   GET ?id=...          -> eine Karte
+//   GET ?liste=1         -> Kurzfassung aller veroeffentlichten Karten (Seite
+//                           "Tournament Maps" im Dashboard), ohne Formen und Teams
 //   GET ?spieler=<epicId> -> die veroeffentlichten Karten, auf denen das Team
 //                           dieses Spielers einen Spot hat (Reiter "Maps"
 //                           im Spielerprofil) - nur lesen, nie verschieben
@@ -186,6 +188,19 @@ export async function GET(request: Request) {
    * der Spot, auf dem es liegt. Es wird nichts abgeleitet und nichts gelegt;
    * ein Team ohne Spot taucht nicht auf. Nur veroeffentlichte Karten.
    */
+  if (searchParams.get('liste') === '1') {
+    const kurz = karten
+      .filter((k) => k.oeffentlich && k.spots.some((sp) => sp.teams.length))
+      .map((k) => ({
+        id: k.id, titel: k.titel, cupTitel: k.cupTitel ?? null, region: k.region ?? null,
+        windowId: k.windowId ?? null, spiele: k.spiele ?? null, bildTitel: k.bildTitel ?? null,
+        teams: k.teams.length, platziert: k.spots.reduce((a, sp) => a + sp.teams.length, 0),
+        geaendert: k.geaendert,
+      }))
+      .sort((a, b) => b.geaendert - a.geaendert);
+    return NextResponse.json({ karten: kurz }, { headers: { 'Cache-Control': 'no-store' } });
+  }
+
   const spielerId = (searchParams.get('spieler') ?? '').toLowerCase();
   if (spielerId) {
     const raus: Array<{
