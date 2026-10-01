@@ -89,6 +89,59 @@ const zahl = (n: number) => n.toLocaleString('de-DE');
 const OFFEN = ['FAILED', 'DOWNLOADING', 'PENDING', 'RETRYING',
   'CHECKING', 'AVAILABLE', 'DOWNLOADED', 'PARSING'];
 
+/**
+ * Der Ueberblick: wie viel ist ausgewertet, was ist noch zu holen, was ist
+ * verloren - in drei grossen Zahlen und einem Balken.
+ *
+ * Der Betreiber (1.10.2026): fuer den Admin "simpler, optisch besser
+ * sichtbar". Vorher musste man die Summenzeile unter "Eingesammelte Turniere"
+ * lesen. Gezaehlt wird wie dort: was aelter ist als Epics Frist von 31 Tagen,
+ * kommt nie mehr - das ist verloren, nicht offen.
+ */
+function Ueberblick({ fenster }: { fenster: Fenster[] }) {
+  if (!fenster.length) return null;
+  const frist = Date.now() - 31 * 864e5;
+  let gesamt = 0; let fertig = 0; let offenInFrist = 0; let verloren = 0; let ohneReplay = 0;
+  for (const f of fenster) {
+    for (const [stand, n] of Object.entries(f.zaehler)) {
+      gesamt += n;
+      const alt = (f.datum ?? 0) > 0 && (f.datum ?? 0) < frist;
+      if (stand === 'PARSED') fertig += n;
+      else if (stand === 'NOT_AVAILABLE') { if (alt) verloren += n; else ohneReplay += n; }
+      else if (alt) verloren += n;
+      else offenInFrist += n;
+    }
+  }
+  if (!gesamt) return null;
+  const prozent = (n: number) => `${(n / gesamt * 100).toFixed(1)}%`;
+  const Kachel = ({ wert, titel, was, farbe }: { wert: string; titel: string; was: string; farbe: string }) => (
+    <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 px-5 py-4">
+      <p className={`text-3xl font-bold tabular-nums ${farbe}`}>{wert}</p>
+      <p className="mt-0.5 text-sm font-medium text-slate-200"><T>{titel}</T></p>
+      <p className="mt-1 text-xs leading-snug text-slate-500"><T>{was}</T></p>
+    </div>
+  );
+  return (
+    <section className="mb-8">
+      <div className="flex h-3 overflow-hidden rounded-full bg-zinc-800">
+        <div className="bg-emerald-500" style={{ width: prozent(fertig) }} title={`${zahl(fertig)}`} />
+        <div className="bg-amber-400" style={{ width: prozent(offenInFrist + ohneReplay) }} title={`${zahl(offenInFrist + ohneReplay)}`} />
+        <div className="bg-zinc-600" style={{ width: prozent(verloren) }} title={`${zahl(verloren)}`} />
+      </div>
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        <Kachel wert={prozent(fertig)} titel="ausgewertet" farbe="text-emerald-400"
+          was={`${zahl(fertig)} von ${zahl(gesamt)} Matches`} />
+        <Kachel wert={zahl(offenInFrist + ohneReplay)} titel="in der Frist noch offen" farbe={offenInFrist + ohneReplay > 50 ? 'text-amber-300' : 'text-emerald-400'}
+          was="Die planmäßigen Läufe holen sie von selbst — Epic hält ein Replay 31 Tage vor." />
+        <Kachel wert={zahl(verloren)} titel="nicht mehr zu holen" farbe="text-slate-300"
+          was="Älter als 31 Tage: Epic hat diese Replays gelöscht. Das lässt sich nicht nachholen." />
+        <Kachel wert={zahl(fenster.length)} titel="Spieltage erfasst" farbe="text-sky-400"
+          was="Jeder Spieltag mit seinen Runden, auch die offenen Qualifikationen." />
+      </div>
+    </section>
+  );
+}
+
 export default function ReplayVerwaltung() {
   const t = useT();
   const [istAdmin, setIstAdmin] = useState(false);
@@ -209,14 +262,16 @@ export default function ReplayVerwaltung() {
           </Link>
         </div>
 
-        {/* Was dieses Werkzeug kann und was nicht - direkt oben, damit
-            niemand hier nach Schaden oder Material sucht. */}
+        <Ueberblick fenster={fenster} />
+
+        {/* Was die Replays liefern - einmal klar, damit niemand an der falschen Stelle sucht. */}
         <div className="mb-8 rounded-xl border border-zinc-800 bg-zinc-900/40 p-5">
           <p className="text-sm leading-relaxed text-slate-400">
             <T>Aus den Server-Replays kommen Eliminierungen, Knocks, Waffe und
-            Zeitpunkt — und wer wen ausgeschaltet hat. Schaden, Kopftreffer,
-            Material und Bauteile stehen im Netzwerk-Stream, den der offene
-            Parser nicht mehr lesen kann; die bleiben Sache der Szene-Quelle.</T>
+            Zeitpunkt — und wer wen ausgeschaltet hat. Dazu liest ein eigener
+            Leser Schaden und Treffer und rechnet die Solo Clutch Points. Das
+            gilt für jeden Spieltag bis 250 Matches; offene Runden mit mehreren
+            hundert Lobbys werden nicht gelesen (rund 140 MB je Replay).</T>
           </p>
           <p className="mt-3 text-sm leading-relaxed text-amber-400/90">
             <T>Epic hält ein Replay 31 Tage vor. Was in dieser Zeit nicht geholt
