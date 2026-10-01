@@ -1882,6 +1882,27 @@ export async function richteAdminEin(
   (werkzeug.ok ? schritte : fehler).push({ text: 'Admin-Werkzeug', wert: werkzeug.text });
 }
 
+/**
+ * Eine Meldung in #admin-alarm - fuer alles, was von selbst schiefgeht und der
+ * Betreiber nicht verpassen soll (zum Beispiel Fehler im Browser eines Besuchers).
+ */
+export async function schickeAlarm(
+  { titel, text }: { titel: string; text: string },
+): Promise<{ ok: boolean; grund?: string }> {
+  if (!discordDa()) return { ok: false, grund: 'kein-token' };
+  const kanal = (await alleKanaele()).find((k) => k.type === 0 && gleich(k.name, ADMIN_KANAELE.alarm));
+  if (!kanal) return { ok: false, grund: 'kein-kanal' };
+  const gesendet = await ruf(`/channels/${kanal.id}/messages`, 'POST', {
+    embeds: [{
+      title: `ALARM · ${titel}`.slice(0, 256),
+      description: text.slice(0, 4000),
+      color: 0xef4444,
+      footer: { text: new Date().toLocaleString('de-CH', { timeZone: 'Europe/Zurich' }) + ' Uhr' },
+    }],
+  });
+  return idAus(gesendet) ? { ok: true } : { ok: false, grund: 'abgelehnt' };
+}
+
 /* --------------------------------------------------------- Community */
 
 /*

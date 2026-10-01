@@ -13,6 +13,7 @@ import ChatFenster from "@/app/components/ChatFenster";
 import PreviewTour from './components/PreviewTour';
 import RouteTransitionLoader from './components/RouteTransitionLoader';
 import Besuchszaehler from './components/Besuchszaehler';
+import Fehlerfaenger from './components/Fehlerfaenger';
 import SektionSperre from './components/SektionSperre';
 import SperrSeite from './components/SperrSeite';
 import { sperreFuerAufruf, sektionsLage } from '@/lib/sektionen-server';
@@ -200,6 +201,8 @@ export default async function RootLayout({
             * Dashboard.
             */}
           <Besuchszaehler />
+          {/* Meldet Abstuerze im Browser eines Besuchers an #admin-alarm. */}
+          <Fehlerfaenger />
         </SprachProvider>
       </body>
     </html>

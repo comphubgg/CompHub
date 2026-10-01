@@ -1,0 +1,44 @@
+# Der Morgenbericht: jeden Morgen eine Nachricht in #admin-log - laeuft alles,
+# wie viele Besucher kamen, welche Cups starten, wie viele Replays fehlen
+# (scripts/morgenbericht.mjs). Vom Betreiber am 1.10.2026 freigegeben.
+# Kostenlos: GitHub Actions, wenige Minuten je Lauf.
+
+name: Morgenbericht
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '30 5 * * *'
+
+concurrency:
+  group: morgenbericht
+  cancel-in-progress: false
+
+jobs:
+  bericht:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      actions: read
+      contents: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Zugangsdaten
+        run: printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
+      - name: Besucher und Konten aus der Ablage holen
+        run: |
+          mkdir -p data/morgen
+          COMPHUB_DATEN=data/morgen node scripts/umzug-supabase.mjs --herunterladen --nur besuche.json,konten.json 2>&1 | tail -3
+      - name: Bericht zusammenstellen
+        run: COMPHUB_DATEN=data/morgen node scripts/morgenbericht.mjs
+      - name: Nach Discord
+        run: |
+          node scripts/discord-update.mjs --ziel admin --art info --titel "Morgenbericht $(date -u +%d.%m.)" --text "$(cat morgenbericht.txt)" 2>&1 | tail -1
+      - name: Zugangsdaten wieder weg
+        if: always()
+        run: rm -f .env.local

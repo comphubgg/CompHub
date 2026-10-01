@@ -20,7 +20,7 @@ jobs:
     timeout-minutes: 10
     permissions:
       actions: read
-      contents: read
+      contents: write
     env:
       GH_TOKEN: ${{ github.token }}
     steps:
@@ -34,6 +34,16 @@ jobs:
         continue-on-error: true
       - name: Zugangsdaten
         run: printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
+      # Der Ladezeiten-Verlauf: den Lauf anhaengen, ans Release legen, bei dauerhaft langsamer Seite melden.
+      - name: Ladezeiten fortschreiben
+        run: |
+          [ -s ladezeiten-neu.json ] || { echo "keine Messwerte"; exit 0; }
+          node scripts/ladezeiten-fortschreiben.mjs
+          gh release view daten-ladezeiten >/dev/null 2>&1 || gh release create daten-ladezeiten --title "Ladezeiten der Seiten" --notes "Verlauf der Seitenpruefung, die letzten 400 Laeufe. Siehe scripts/ladezeiten-fortschreiben.mjs." --prerelease
+          gh release upload daten-ladezeiten ladezeiten.json --clobber
+          if [ -s ladezeiten-alarm.txt ]; then
+            node scripts/discord-update.mjs --ziel alarm --art alarm --titel "Seite deutlich langsamer" --text "$(cat ladezeiten-alarm.txt)" 2>&1 | tail -1
+          fi
       # Nur beim Wechsel melden: wer schon gestoert war, bekommt nicht alle halbe Stunde dasselbe.
       - name: Melden
         run: |

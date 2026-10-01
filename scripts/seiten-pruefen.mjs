@@ -98,4 +98,9 @@ const text = [
   ...langsam.map((e) => `${e.titel} antwortet langsam: ${(e.ms / 1000).toFixed(1)} s`),
 ].join('\n');
 fs.writeFileSync('seitenpruefung.txt', text);
+// Fuer den Verlauf (scripts/ladezeiten-fortschreiben.mjs): nur Antworten, die in Ordnung waren.
+fs.writeFileSync('ladezeiten-neu.json', JSON.stringify({
+  zeit: new Date().toISOString(),
+  werte: Object.fromEntries(ergebnisse.filter((e) => e.ok).map((e) => [e.titel, e.ms])),
+}));
 process.exitCode = fehler.length ? 1 : 0;

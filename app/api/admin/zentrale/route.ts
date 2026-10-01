@@ -10,7 +10,7 @@ import { offen as offeneMeldungen } from '@/lib/kontakt';
  * nachsehen, ob der Datenlauf noch laeuft, ob ein Ablauf gescheitert ist und
  * ob im Posteingang etwas wartet. Diese Antwort sammelt das an einer Stelle.
  *
- *   GET -> { jobs: [...], kontaktOffen: n, auftraege: [...] | null, stand }
+ *   GET -> { jobs: [...], kontaktOffen: n, auftraege: [...] | null, ladezeiten: [...] | null, stand }
  *
  * Die Laeufe stehen bei GitHub Actions. Die Auskunft dort ist oeffentlich
  * (das Projekt ist es), braucht also keinen Schluessel; ist GITHUB_TOKEN
@@ -147,14 +147,45 @@ async function holeAuftraege(): Promise<Auftrag[] | null> {
   } catch { return null; }
 }
 
+/*
+ * Die Ladezeiten - gelesen aus dem Verlauf der Seitenpruefung.
+ *
+ * Die Seitenpruefung (alle halbe Stunde) haengt ihre Messwerte ans Release
+ * "daten-ladezeiten" (scripts/ladezeiten-fortschreiben.mjs). Hier werden die
+ * letzten vierundzwanzig Stunden je Seite gelesen. Fehlt der Verlauf noch
+ * (der erste Lauf steht aus), bleibt die Liste leer und die Zentrale sagt es.
+ */
+interface LadeZeile { titel: string; jetzt: number; median: number; verlauf: number[] }
+let ladeMerker: { bis: number; liste: LadeZeile[] } | null = null;
+
+async function holeLadezeiten(): Promise<LadeZeile[] | null> {
+  if (ladeMerker && Date.now() < ladeMerker.bis) return ladeMerker.liste;
+  try {
+    const r = await fetch(`https://github.com/${REPO}/releases/download/daten-ladezeiten/ladezeiten.json`,
+      { redirect: 'follow', signal: AbortSignal.timeout(8000), cache: 'no-store' });
+    if (!r.ok) return null;
+    const j = await r.json() as { verlauf?: Array<{ t: string; w: Record<string, number> }> };
+    const verlauf = j.verlauf ?? [];
+    const titel = Object.keys(verlauf[verlauf.length - 1]?.w ?? {});
+    const liste: LadeZeile[] = titel.map((t) => {
+      const reihe = verlauf.slice(-48).map((e) => e.w?.[t]).filter((x): x is number => typeof x === 'number');
+      const s = [...reihe].sort((a, b) => a - b);
+      return { titel: t, jetzt: reihe[reihe.length - 1] ?? 0, median: s[Math.floor(s.length / 2)] ?? 0, verlauf: reihe };
+    });
+    ladeMerker = { bis: Date.now() + 5 * 60_000, liste };
+    return liste;
+  } catch { return null; }
+}
+
 export async function GET(request: Request) {
   if (!await istAdminAnfrage(request)) {
     return NextResponse.json({ fehler: 'Nicht erlaubt.' }, { status: 403 });
   }
-  const [jobs, kontaktOffen, auftraege] = await Promise.all([
+  const [jobs, kontaktOffen, auftraege, ladezeiten] = await Promise.all([
     Promise.all(ABLAEUFE.map(holeLauf)),
     offeneMeldungen().catch(() => null),
     holeAuftraege(),
+    holeLadezeiten(),
   ]);
-  return NextResponse.json({ jobs, kontaktOffen, auftraege, stand: Date.now() }, { headers: { 'Cache-Control': 'no-store' } });
+  return NextResponse.json({ jobs, kontaktOffen, auftraege, ladezeiten, stand: Date.now() }, { headers: { 'Cache-Control': 'no-store' } });
 }

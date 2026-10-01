@@ -26,7 +26,23 @@ interface Job {
   ampel: 'ok' | 'warnung' | 'fehler' | 'unbekannt'; hinweis: string;
 }
 interface Auftrag { id: number; titel: string; hinweis: string; seit: string }
-interface Antwort { jobs: Job[]; kontaktOffen: number | null; auftraege: Auftrag[] | null; stand: number }
+interface LadeZeile { titel: string; jetzt: number; median: number; verlauf: number[] }
+interface Antwort { jobs: Job[]; kontaktOffen: number | null; auftraege: Auftrag[] | null; ladezeiten: LadeZeile[] | null; stand: number }
+
+/** Der Verlauf einer Seite als kleine Linie; der letzte Wert ist als Punkt hervorgehoben. */
+function Linie({ werte, farbe }: { werte: number[]; farbe: string }) {
+  if (werte.length < 2) return <svg viewBox="0 0 100 24" className="h-6 w-full" />;
+  const max = Math.max(...werte, 1);
+  const pkt = werte.map((w, i) => [(i / (werte.length - 1)) * 100, 22 - (w / max) * 20] as const);
+  const [lx, ly] = pkt[pkt.length - 1];
+  return (
+    <svg viewBox="0 0 100 24" preserveAspectRatio="none" className="h-6 w-full overflow-visible">
+      <polyline points={pkt.map(([x, y]) => `${x.toFixed(1)},${y.toFixed(1)}`).join(' ')}
+        fill="none" stroke={farbe} strokeWidth="1.4" vectorEffect="non-scaling-stroke" />
+      <circle cx={lx} cy={ly} r="1.8" fill={farbe} vectorEffect="non-scaling-stroke" />
+    </svg>
+  );
+}
 interface ReplayStand { gesamt: number; ausgewertet: number; offenInFrist: number; imFristGesamt: number }
 
 /** Die Gruppen der Werkzeuge. Was hier nicht steht, landet unter "Weitere". */
@@ -226,6 +242,37 @@ export default function AdminZentrale({ werkzeuge, zeigeLaeufe }: {
                 ))}
               </div>
             </>
+          )}
+
+          {/* 4. Wie schnell antworten die Seiten? Verlauf der letzten 24 Stunden aus der Seitenprüfung. */}
+          <h3 className="mt-6 flex items-baseline gap-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+            <T>Ladezeiten der Seiten</T>
+            <span className="font-normal normal-case tracking-normal text-slate-600"><T>letzte 24 Stunden</T></span>
+          </h3>
+          {daten && !daten.ladezeiten?.length && (
+            <p className="mt-2 text-xs text-slate-500"><T>Der Verlauf beginnt mit der nächsten Seitenprüfung.</T></p>
+          )}
+          {!!daten?.ladezeiten?.length && (
+            <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+              {daten.ladezeiten.map((z) => {
+                const langsam = z.jetzt > Math.max(3000, 2.5 * z.median);
+                const farbe = langsam ? '#fbbf24' : '#38bdf8';
+                return (
+                  <div key={z.titel} className={`rounded-xl border bg-zinc-900/40 px-3.5 py-2.5 ${langsam ? 'border-amber-500/40' : 'border-zinc-800'}`}>
+                    <span className="flex items-baseline justify-between gap-2">
+                      <span className="truncate text-[13px] font-medium text-slate-200">{z.titel}</span>
+                      <span className={`shrink-0 text-sm font-semibold tabular-nums ${langsam ? 'text-amber-300' : 'text-slate-100'}`}>
+                        {z.jetzt >= 1000 ? `${(z.jetzt / 1000).toFixed(1)} s` : `${z.jetzt} ms`}
+                      </span>
+                    </span>
+                    <Linie werte={z.verlauf} farbe={farbe} />
+                    <span className="block text-[10px] text-slate-600">
+                      <T>sonst etwa</T> {z.median >= 1000 ? `${(z.median / 1000).toFixed(1)} s` : `${z.median} ms`}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
           )}
         </>
       )}
