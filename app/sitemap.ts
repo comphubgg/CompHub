@@ -29,6 +29,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     ['/tierlist', 0.6, 'weekly'],
     ['/streams', 0.5, 'weekly'],
     ['/overlays', 0.4, 'monthly'],
+    ['/tournament-maps', 0.5, 'weekly'],
   ];
 
   return seiten.map(([pfad, priority, changeFrequency]) => ({
