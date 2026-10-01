@@ -258,6 +258,7 @@ html, body {
 </div>
 
 <script src="konfig.js"></script>
+<script src="gesicht.js"></script>
 <script>
 (function () {
   'use strict';
@@ -306,6 +307,8 @@ html, body {
     if (!hoehe) return;
     const schrift = parseFloat(getComputedStyle(mitte).fontSize) || 1;
     $('karte').style.setProperty('--fotoBreite', (hoehe / schrift) + 'em');
+    // Die Breite der Rahmen hat sich geaendert: das Gesicht neu in die Mitte setzen.
+    requestAnimationFrame(function () { document.querySelectorAll('.foto').forEach(function (i) { Gesicht.zuschneiden(i, 0.4, 0.45); }); });
   }
 
   /*
@@ -362,6 +365,8 @@ html, body {
             bild.src = pfad;
             rahmen.appendChild(bild);
             ziel.appendChild(rahmen);
+            // Das Gesicht in die Mitte des Quadrats (gesicht.js); ohne Treffer bleibt der Standardausschnitt.
+            Gesicht.lade(location.origin).then(function () { Gesicht.binde(bild, 0.4, 0.45); });
           }
         }
         ziel.hidden = !pfade.length;

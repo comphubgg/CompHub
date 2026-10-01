@@ -186,11 +186,23 @@ td.platz {
 tr.gold td.platz { color: var(--akzent); }
 
 td.bild { width: 1%; padding-right: 0; }
-td.bild img {
-  display: block;
+td.bild { white-space: nowrap; }
+/* Der Rahmen haelt das Rund; das Bild liegt darin und wird am Gesicht zugeschnitten (gesicht.js). */
+td.bild .rahmen {
+  display: inline-block;
+  position: relative;
+  overflow: hidden;
+  vertical-align: middle;
   height: calc(var(--schrift) * 1.5);
   width: calc(var(--schrift) * 1.5);
   border-radius: 50%;
+}
+/* Bei einem Trio stehen drei Fotos dicht nebeneinander. */
+td.bild .rahmen + .rahmen { margin-left: calc(var(--schrift) * 0.2); }
+td.bild img {
+  display: block;
+  position: absolute; left: 0; top: 0;
+  height: 100%; width: 100%;
   object-fit: cover;
   object-position: top;
 }
@@ -261,6 +273,7 @@ td.punkte b.neu { animation: stups .9s ease-out; }
 </div>
 
 <script src="konfig.js"></script>
+<script src="gesicht.js"></script>
 <script>
 (function () {
   'use strict';
@@ -428,12 +441,24 @@ td.punkte b.neu { animation: stups .9s ease-out; }
       if (cfg.bilder) {
         const td = document.createElement('td');
         td.className = 'bild';
-        const mit = (e.players || []).find((p) => p.img);
-        if (mit) {
+        /*
+         * Ein Foto je Team - bei einem Trio alle drei.
+         *
+         * Der Betreiber (1.10.2026): Trios sind ab 2027 der Hauptmodus; das
+         * Leaderboard soll drei Namen und drei Fotos zeigen. Bei Duos bleibt
+         * es bei einem Foto, wie bisher.
+         */
+        const mitBild = (e.players || []).filter((p) => p.img);
+        const zeigen = (e.players || []).length >= 3 ? mitBild.slice(0, 3) : mitBild.slice(0, 1);
+        for (const p of zeigen) {
+          const rahmen = document.createElement('span');
+          rahmen.className = 'rahmen';
           const img = document.createElement('img');
-          img.src = mit.img;
           img.alt = '';
-          td.appendChild(img);
+          img.src = p.img;
+          rahmen.appendChild(img);
+          td.appendChild(rahmen);
+          Gesicht.binde(img, 0.42, 0.5);
         }
         tr.appendChild(td);
       }
@@ -534,6 +559,7 @@ td.punkte b.neu { animation: stups .9s ease-out; }
     anwenden(neu, wo) {
       cfg = neu;
       server = wo;
+      Gesicht.lade(server);
       const s = document.documentElement.style;
       s.setProperty('--grund', String(cfg.grund));
       s.setProperty('--deckkraft', String(cfg.deckkraft));
