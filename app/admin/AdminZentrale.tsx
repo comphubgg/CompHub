@@ -26,7 +26,7 @@ interface Job {
   ampel: 'ok' | 'warnung' | 'fehler' | 'unbekannt'; hinweis: string;
 }
 interface Antwort { jobs: Job[]; kontaktOffen: number | null; stand: number }
-interface ReplayStand { gesamt: number; ausgewertet: number; offenInFrist: number }
+interface ReplayStand { gesamt: number; ausgewertet: number; offenInFrist: number; imFristGesamt: number }
 
 /** Die Gruppen der Werkzeuge. Was hier nicht steht, landet unter "Weitere". */
 const GRUPPEN: Array<{
@@ -92,16 +92,21 @@ export default function AdminZentrale({ werkzeuge, zeigeLaeufe }: {
     fetch('/api/replays', { cache: 'no-store' }).then((r) => r.json())
       .then((j) => {
         const grenze = Date.now() - 31 * 864e5;
-        let gesamt = 0; let ausgewertet = 0; let offenInFrist = 0;
+        let gesamt = 0; let ausgewertet = 0; let offenInFrist = 0; let imFristGesamt = 0;
         for (const f of (j?.fenster ?? []) as Array<{ datum?: number; zaehler?: Record<string, number> }>) {
-          for (const [stand, n] of Object.entries(f.zaehler ?? {})) {
+          const z = f.zaehler ?? {};
+          // Ein Spieltag, von dem kein einziges Replay da ist (die Arena-Modi haben keine Server-Replays),
+          // wartet nicht auf uns - er kommt nie.
+          const nieDa = !(z.PARSED > 0) && Object.keys(z).every((k) => k === 'NOT_AVAILABLE');
+          for (const [stand, n] of Object.entries(z)) {
             gesamt += n;
             if (stand === 'PARSED') ausgewertet += n;
+            if ((f.datum ?? 0) > grenze) imFristGesamt += n;
             // Offen zaehlt nur, was noch zu holen ist: Epic haelt ein Replay 31 Tage vor.
-            else if ((f.datum ?? 0) > grenze) offenInFrist += n;
+            if (stand !== 'PARSED' && (f.datum ?? 0) > grenze && !nieDa) offenInFrist += n;
           }
         }
-        setReplays({ gesamt, ausgewertet, offenInFrist });
+        setReplays({ gesamt, ausgewertet, offenInFrist, imFristGesamt });
       })
       .catch(() => setReplays(null));
   }, [zeigeLaeufe]);
@@ -116,7 +121,7 @@ export default function AdminZentrale({ werkzeuge, zeigeLaeufe }: {
   const probleme = (daten?.jobs ?? []).filter((j) => j.ampel === 'fehler' || j.ampel === 'warnung').length;
   const offenPost = daten?.kontaktOffen ?? 0;
   const replayOffen = replays?.offenInFrist ?? 0;
-  const allesRuhig = daten && probleme === 0 && offenPost === 0 && replayOffen === 0;
+  const allesRuhig = daten && probleme === 0 && offenPost === 0 && replayOffen <= Math.max(50, (replays?.imFristGesamt ?? 0) * 0.005);
 
   // Die Werkzeuge in ihre Gruppen sortieren; Unbekanntes unter "Weitere".
   const bekannt = new Set(GRUPPEN.flatMap((g) => g.hrefs));
@@ -189,7 +194,7 @@ export default function AdminZentrale({ werkzeuge, zeigeLaeufe }: {
           <h3 className="mt-6 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500"><T>Was wartet auf dich?</T></h3>
           <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
             <Kennzahl wert={daten ? String(offenPost) : '…'} titel="Meldungen im Posteingang" href="/admin/contact" ernst={offenPost > 0} />
-            <Kennzahl wert={replays ? String(replayOffen) : '…'} titel="Replays in der Frist noch offen" href="/admin/replays" ernst={replayOffen > 50} />
+            <Kennzahl wert={replays ? String(replayOffen) : '…'} titel="Replays in der Frist noch offen" href="/admin/replays" ernst={replayOffen > Math.max(50, (replays?.imFristGesamt ?? 0) * 0.005)} />
             <Kennzahl wert={daten ? String(probleme) : '…'} titel="Läufe mit Problem" href="#" ernst={probleme > 0} />
             <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 px-4 py-3">
               <span className="block text-3xl font-bold tabular-nums text-sky-400">

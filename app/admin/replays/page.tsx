@@ -103,12 +103,15 @@ function Ueberblick({ fenster }: { fenster: Fenster[] }) {
   const frist = Date.now() - 31 * 864e5;
   let gesamt = 0; let fertig = 0; let offenInFrist = 0; let verloren = 0; let ohneReplay = 0;
   for (const f of fenster) {
+    // Ein Spieltag, von dem kein einziges Replay da ist (die Arena-Modi haben keine Server-Replays),
+    // wartet nicht auf uns - er kommt nie. Er zaehlt als "ohne Replay", nicht als offen.
+    const nieDa = !(f.zaehler.PARSED > 0) && Object.keys(f.zaehler).every((k) => k === 'NOT_AVAILABLE');
     for (const [stand, n] of Object.entries(f.zaehler)) {
       gesamt += n;
       const alt = (f.datum ?? 0) > 0 && (f.datum ?? 0) < frist;
       if (stand === 'PARSED') fertig += n;
-      else if (stand === 'NOT_AVAILABLE') { if (alt) verloren += n; else ohneReplay += n; }
       else if (alt) verloren += n;
+      else if (nieDa) ohneReplay += n;
       else offenInFrist += n;
     }
   }
@@ -125,16 +128,16 @@ function Ueberblick({ fenster }: { fenster: Fenster[] }) {
     <section className="mb-8">
       <div className="flex h-3 overflow-hidden rounded-full bg-zinc-800">
         <div className="bg-emerald-500" style={{ width: prozent(fertig) }} title={`${zahl(fertig)}`} />
-        <div className="bg-amber-400" style={{ width: prozent(offenInFrist + ohneReplay) }} title={`${zahl(offenInFrist + ohneReplay)}`} />
-        <div className="bg-zinc-600" style={{ width: prozent(verloren) }} title={`${zahl(verloren)}`} />
+        <div className="bg-amber-400" style={{ width: prozent(offenInFrist) }} title={`${zahl(offenInFrist)}`} />
+        <div className="bg-zinc-600" style={{ width: prozent(verloren + ohneReplay) }} title={`${zahl(verloren + ohneReplay)}`} />
       </div>
       <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Kachel wert={prozent(fertig)} titel="ausgewertet" farbe="text-emerald-400"
           was={`${zahl(fertig)} von ${zahl(gesamt)} Matches`} />
-        <Kachel wert={zahl(offenInFrist + ohneReplay)} titel="in der Frist noch offen" farbe={offenInFrist + ohneReplay > 50 ? 'text-amber-300' : 'text-emerald-400'}
+        <Kachel wert={zahl(offenInFrist)} titel="in der Frist noch offen" farbe={offenInFrist > Math.max(50, gesamt * 0.0005) ? 'text-amber-300' : 'text-emerald-400'}
           was="Die planmäßigen Läufe holen sie von selbst — Epic hält ein Replay 31 Tage vor." />
         <Kachel wert={zahl(verloren)} titel="nicht mehr zu holen" farbe="text-slate-300"
-          was="Älter als 31 Tage: Epic hat diese Replays gelöscht. Das lässt sich nicht nachholen." />
+          was={`Älter als 31 Tage: Epic hat diese Replays gelöscht. Dazu ${zahl(ohneReplay)} Matches aus Spieltagen, für die es nie Replays gab (Arena).`} />
         <Kachel wert={zahl(fenster.length)} titel="Spieltage erfasst" farbe="text-sky-400"
           was="Jeder Spieltag mit seinen Runden, auch die offenen Qualifikationen." />
       </div>
