@@ -1197,12 +1197,8 @@ button,input,select,textarea{transition:var(--transition)}
    und 270 Grad und treffen den Rand bei 21.13 % Hoehe (tan 30 Grad). Jedes
    Stueck hat einen eigenen Kasten gleicher Hoehe, damit alle drei Flaggen im
    selben Massstab erscheinen; "unten" ist links und rechts zusammen. Der
-   Kreis ist groesser als bei Solo/Duo, weil die Karte drei Namen hoch ist. */
-.flag-badge-wrapper.flag-trio-gross,
-.pool-duo-card .flag-badge-wrapper.flag-trio-gross,
-.pool-duo-card.solo-entry .flag-badge-wrapper.flag-trio-gross{
-  width:40px;height:40px;flex:0 0 40px;
-}
+   Kreis ist so gross wie bei Solo und Duo (28 px) - 40 px waren dem
+   Betreiber "viel zu gross" (30.9.2026). */
 .flag-trio{position:absolute;inset:0;background-size:cover;background-position:center}
 .flag-trio-oben  {bottom:21.13%;clip-path:polygon(50% 63.4%,100% 26.8%,100% 0,0 0,0 26.8%)}
 .flag-trio-links {top:21.13%;right:50%;clip-path:polygon(100% 36.6%,0 0,0 100%,100% 100%)}
