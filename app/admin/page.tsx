@@ -29,6 +29,7 @@ import { bereichVonPfad } from '@/lib/rechte';
 import Nutzungszahlen from '@/app/components/Nutzungszahlen';
 import Fusszeile from '@/app/components/Fusszeile';
 import MeinArchiv from './MeinArchiv';
+import AdminZentrale from './AdminZentrale';
 type ProfileData = {
   displayName: string;
   avatarUrl: string | null;
@@ -168,16 +169,6 @@ const ADMIN_ZIELE: Ziel[] = [
    */
   { href: '/admin/contact', titel: 'Kontakt', text: 'Meldungen aus dem Formular lesen' },
 ];
-
-/**
- * Wie viele Kacheln auf eine Seite passen.
- *
- * Drei Spalten mal vier Zeilen. Kommt eine dazu, entsteht eine zweite Seite,
- * statt dass die Uebersicht nach unten wegwaechst - der Betreiber wollte das
- * so: "falls jetzt weitere in der Zukunft hinzugefuegt werden, machst Du
- * oben rechts eine Art Balken, go to next page."
- */
-const JE_SEITE = 12;
 
 export default function AdminDashboardPage() {
   const t = useT();
@@ -393,10 +384,7 @@ export default function AdminDashboardPage() {
     }),
     ...((istAdmin || rolle === 'admin' || zugang.admin) ? NUR_ADMIN : []),
   ];
-  const werkzeugSeiten = Math.max(1, Math.ceil(werkzeuge.length / JE_SEITE));
-  const [werkzeugSeite, setWerkzeugSeite] = useState(0);
-
-  /** Eine Kachel - fuer beide Blocke dieselbe Form. */
+  /** Eine Kachel - fuer den Schnellzugriff. */
   const Kachel = ({ z }: { z: Ziel }) => (
     <Link href={z.href}
       className="group rounded-lg border border-zinc-800 bg-zinc-900/40 px-3 py-2.5
@@ -454,6 +442,18 @@ export default function AdminDashboardPage() {
 
         <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
           <div className="space-y-4">
+
+            {/*
+              * Die Admin-Zentrale steht zuerst: laeuft alles, was wartet auf
+              * mich, und dann die Werkzeuge nach Themen. Die Laeufe und
+              * Replay-Zahlen sieht nur der Admin; ein Manager bekommt seine
+              * Werkzeuge.
+              */}
+            {(istAdmin || rolle === 'admin' || rolle === 'manager'
+              || zugang.admin || zugang.manager) && !verwaltet && (
+              <AdminZentrale werkzeuge={werkzeuge}
+                zeigeLaeufe={istAdmin || rolle === 'admin' || zugang.admin} />
+            )}
 
             {/* Profil */}
             <section className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
@@ -683,45 +683,6 @@ export default function AdminDashboardPage() {
 
             {/* Mein Archiv - das private Archiv jedes Kontos (Overlays, Tierlists, ...) */}
             <MeinArchiv />
-
-            {/* Admin-Werkzeuge - eigener Block, nur fuer den Admin */}
-            {(istAdmin || rolle === 'admin' || rolle === 'manager'
-              || zugang.admin || zugang.manager) && !verwaltet && (
-              <section className="rounded-xl border border-sky-500/25 bg-zinc-950/60 p-4">
-                <div className="flex items-baseline gap-2">
-                  <h2 className="text-sm font-semibold text-slate-100"><T>Admin-Werkzeuge</T></h2>
-                  <span className="text-xs text-slate-500">
-                    <T>sichtbar nur für dich</T>
-                  </span>
-
-                  {/*
-                    * Der Seitenwechsel - nur, wenn es eine zweite Seite gibt.
-                    *
-                    * Klein und rechts oben, damit er nicht wie ein Werkzeug
-                    * aussieht. Steht da nichts, gibt es auch nichts zu
-                    * blaettern.
-                    */}
-                  {werkzeugSeiten > 1 && (
-                    <span className="ml-auto flex items-center gap-1">
-                      {Array.from({ length: werkzeugSeiten }, (_, i) => (
-                        <button key={i} onClick={() => setWerkzeugSeite(i)}
-                          className={`h-6 w-6 rounded-md text-[11px] font-semibold
-                                      transition ${i === werkzeugSeite
-                            ? 'bg-sky-500 text-white'
-                            : 'text-slate-500 hover:bg-zinc-900 hover:text-slate-200'}`}>
-                          {i + 1}
-                        </button>
-                      ))}
-                    </span>
-                  )}
-                </div>
-                <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                  {werkzeuge
-                    .slice(werkzeugSeite * JE_SEITE, (werkzeugSeite + 1) * JE_SEITE)
-                    .map((z) => <Kachel key={z.href} z={z} />)}
-                </div>
-              </section>
-            )}
           </div>
 
           {/*
