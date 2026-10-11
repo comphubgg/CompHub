@@ -3535,6 +3535,14 @@ export default function StatistikSeite() {
                 <T>{titel}</T>
               </button>
             ))}
+            {/* Wer sein Epic-Konto verknuepft hat, kommt mit einem Klick zu den eigenen Werten (wie bei Osirion). */}
+            {zugang.epicId && (
+              <button onClick={() => { void oeffneKonto(zugang.epicId, zugang.name); }}
+                className="mt-2 flex w-full items-center gap-2.5 rounded-lg border border-sky-500/40 bg-sky-500/10 px-3 py-2.5 text-sm font-medium text-sky-300 transition hover:bg-sky-500/20">
+                <span className="grid h-4 w-4 place-items-center text-sky-400" aria-hidden>★</span>
+                <T>Meine Stats</T>
+              </button>
+            )}
           </nav>
 
           {/* Die laufende Bestenliste - ohne Kasten, direkt in der Leiste */}
@@ -3764,6 +3772,12 @@ export default function StatistikSeite() {
                   <T>{titel}</T>
                 </button>
               ))}
+              {zugang.epicId && (
+                <button onClick={() => { void oeffneKonto(zugang.epicId, zugang.name); }}
+                  className="shrink-0 rounded-lg border border-sky-500/50 bg-sky-500/10 px-2.5 py-1.5 text-xs text-sky-300">
+                  ★ <T>Meine Stats</T>
+                </button>
+              )}
             </div>
           </div>
 

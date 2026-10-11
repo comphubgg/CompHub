@@ -25,6 +25,7 @@ import { sichtbarerTakt } from '@/app/lib/takt';
 import { fortniteKarte, eigeneKarte } from '@/lib/bildAdressen';
 import SpielerStatsUebersicht from '@/app/components/SpielerStatsUebersicht';
 import AktualisierungsStand from '@/app/components/AktualisierungsStand';
+import { useZugang } from '@/app/lib/zugang';
 /**
  * Regionen, fuer die von selbst eine Karte bereitsteht.
  *
@@ -2271,6 +2272,11 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
    */
   const [proSeite, setProSeite] = useState<number>(ZEILEN_PRO_SEITE[0]);
   const [seite, setSeite] = useState(1);
+  // Das eigene Team: wer sein Epic-Konto verknuepft hat, sieht sich in der Tabelle hervorgehoben (wie bei Osirion).
+  const zugang = useZugang();
+  const meineId = zugang.epicId;
+  const istMein = useCallback((e: { players: Array<{ id?: string }> }) =>
+    Boolean(meineId) && e.players.some((p) => String(p.id ?? '').replace(/-/g, '').toLowerCase() === meineId), [meineId]);
 
   /*
    * Ranked Cups: welche Stufe - wie im Spiel, wo dieselbe Liste ein Menue
@@ -2307,6 +2313,12 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
   const zeilen = useMemo(
     () => gefiltert.slice((seiteJetzt - 1) * proSeite, seiteJetzt * proSeite),
     [gefiltert, seiteJetzt, proSeite]);
+  /** Das eigene Team in dieser Tabelle - mit seiner Stelle in der gefilterten Liste. */
+  const meinTeam = useMemo(() => {
+    if (!meineId) return null;
+    const i = gefiltert.findIndex(istMein);
+    return i >= 0 ? { e: gefiltert[i], index: i } : null;
+  }, [meineId, gefiltert, istMein]);
 
   /**
    * Das Finale, in das sich aus diesem Fenster qualifiziert wird.
@@ -3288,6 +3300,17 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
             return (
             <div className="lg:flex lg:items-start">
             <div className="min-w-0 flex-1 overflow-x-auto">
+              {meinTeam && (
+                <div className="mb-2 flex flex-wrap items-center gap-x-4 gap-y-1 rounded-lg border border-sky-500/40 bg-sky-500/10 px-4 py-2 text-xs">
+                  <span className="font-semibold uppercase tracking-wider text-sky-300"><T>Mein Team</T></span>
+                  <span className="text-slate-200">#{meinTeam.e.rank} · {meinTeam.e.points} <T>Punkte</T> · {meinTeam.e.elims} Elims</span>
+                  <button type="button"
+                    onClick={() => { setSeite(Math.floor(meinTeam.index / proSeite) + 1); setOffen(meinTeam.e.rank); }}
+                    className="ml-auto rounded-md border border-sky-500/50 px-2.5 py-1 text-sky-300 transition hover:bg-sky-500/10">
+                    <T>Zu meinem Team</T>
+                  </button>
+                </div>
+              )}
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-zinc-800 text-[11px] uppercase
@@ -3311,7 +3334,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                     <Fragment key={e.rank}>
                       <tr onClick={() => setOffen(offen === e.rank ? null : e.rank)}
                         className={`cursor-pointer border-b border-zinc-900 transition
-                                    hover:bg-zinc-900/60 ${offen === e.rank ? 'bg-zinc-900/70' : ''}`}>
+                                    hover:bg-zinc-900/60 ${offen === e.rank ? 'bg-zinc-900/70' : ''}
+                                    ${istMein(e) ? 'bg-sky-500/10 ring-1 ring-inset ring-sky-500/40' : ''}`}>
                         <td className={`px-4 py-2 text-right font-bold tabular-nums ${
                           e.rank <= 3 ? 'text-amber-400' : 'text-sky-400'}`}>{e.rank}</td>
                         <td className="px-3 py-2">

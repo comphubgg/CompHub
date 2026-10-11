@@ -31,7 +31,7 @@ konfig.win.icon = 'build/icon.png';
 fs.writeFileSync(path.join(TEMP, 'bau.json'), JSON.stringify(konfig, null, 2));
 
 const bauer = path.join(WURZEL, 'node_modules', '.bin', process.platform === 'win32' ? 'electron-builder.cmd' : 'electron-builder');
-const r = spawnSync(bauer, ['--win', '--config', 'bau.json', '--projectDir', TEMP], { cwd: TEMP, stdio: 'inherit', shell: true });
+const r = spawnSync('"' + bauer + '"', ['--win', '--config', 'bau.json', '--projectDir', TEMP], { cwd: TEMP, stdio: 'inherit', shell: true });
 if (r.status !== 0) { console.error('Bau fehlgeschlagen.'); process.exit(r.status ?? 1); }
 
 fs.rmSync(AUS, { recursive: true, force: true });

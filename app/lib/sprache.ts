@@ -3365,6 +3365,9 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Karten zu diesem Spieltag': 'Maps for this match day',
   'Alle anzeigen': 'Show all',
   // ------------------------------------------------------------ Multiview (11.10.2026)
+  'Meine Stats': 'My stats',
+  'Mein Team': 'My team',
+  'Zu meinem Team': 'Jump to my team',
   'Programm für Windows laden': 'Download Windows app',
   'Das Dashboard als Windows-Programm: läuft im Hintergrund weiter, die Anmeldung bleibt gespeichert.': 'The dashboard as a Windows app: keeps running in the background, your sign-in is remembered.',
   'Nächstes Update': 'Next update',

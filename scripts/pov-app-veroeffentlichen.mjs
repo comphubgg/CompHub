@@ -21,7 +21,7 @@ if (!token) {
   token = (env.find((z) => z.startsWith('DATEN_TOKEN=')) ?? env.find((z) => z.startsWith('GITHUB_TOKEN=')) ?? '').split('=').slice(1).join('=').trim();
 }
 const version = JSON.parse(fs.readFileSync(path.join(WURZEL, 'pov-app', 'package.json'), 'utf8')).version;
-const gh = (...a) => spawnSync('gh', a, { env: { ...process.env, GH_TOKEN: token }, encoding: 'utf8', shell: process.platform === 'win32' });
+const gh = (...a) => spawnSync('gh', a, { env: { ...process.env, GH_TOKEN: token }, encoding: 'utf8' });
 
 const da = gh('release', 'view', 'pov-app', '--repo', REPO);
 if (da.status !== 0) {

@@ -50,13 +50,15 @@ export interface Zugang {
    */
   verwaltet: string;
   name: string;
+  /** Das mit dem Konto verknuepfte Epic-Konto (32 Zeichen) - leer, wenn keines. Damit findet jeder seine eigenen Werte. */
+  epicId: string;
   /** Darf dieses Konto in diesen Verwaltungsbereich? */
   darfBereich: (b: Bereich) => boolean;
 }
 
 const ANFANG: Zugang = {
   laedt: true, gast: true, nutzer: false, vip: false, admin: false,
-  manager: false, pro: false, rechte: [], verwaltet: '', name: '',
+  manager: false, pro: false, rechte: [], verwaltet: '', name: '', epicId: '',
   darfBereich: () => false,
 };
 
@@ -72,17 +74,19 @@ export function useZugang(): Zugang {
     let rolle: 'admin' | 'manager' | 'pro' | null = null;
     let rechte: string[] = [];
     let vipKonto = false;
+    let epicId = '';
     let verwaltet = '';
     /** Ein Zugang, dessen VIP-Frist abgelaufen ist. */
     let vipZugangOhneRecht = false;
 
     try {
-      const j = (await geteilterAbruf<{ angemeldet?: boolean; konto?: { name?: string; rolle?: 'admin' | 'manager' | 'pro' | null; rechte?: string[]; vip?: boolean } }>('/api/konto')).daten;
+      const j = (await geteilterAbruf<{ angemeldet?: boolean; konto?: { name?: string; rolle?: 'admin' | 'manager' | 'pro' | null; rechte?: string[]; vip?: boolean; epicId?: string | null } }>('/api/konto')).daten;
       if (j?.angemeldet) {
         kontoName = String(j.konto?.name ?? '');
         rolle = j.konto?.rolle ?? null;
         rechte = Array.isArray(j.konto?.rechte) ? j.konto.rechte : [];
         vipKonto = Boolean(j.konto?.vip);
+        epicId = String(j.konto?.epicId ?? '').replace(/-/g, '').toLowerCase();
       }
     } catch { /* ohne Auskunft gilt: kein Konto */ }
 
@@ -146,6 +150,7 @@ export function useZugang(): Zugang {
       rechte,
       verwaltet,
       name: kontoName || vipName,
+      epicId,
       darfBereich: (b) => (admin ? true : darf(rolle, rechte, b)),
     });
   }, []);
