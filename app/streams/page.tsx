@@ -602,6 +602,8 @@ const response = await fetch(getApiUrl(`/api/search?q=${encodeURIComponent(twitc
 
   useEffect(() => {
     if (!shouldLoadLiveStatus({ isMounted, isGuest })) return;
+    // Die Multiview fragt selbst nach allen Ordnern und der Wand - eine zweite Abfrage waere doppelt (und kostet bei Netlify Punkte).
+    if (mehrfach) return;
 
     const timer = window.setTimeout(() => {
       void loadAllLiveStatus();
@@ -612,7 +614,7 @@ const response = await fetch(getApiUrl(`/api/search?q=${encodeURIComponent(twitc
       window.clearTimeout(timer);
       stopp();
     };
-  }, [isMounted, isGuest, loadAllLiveStatus]);
+  }, [isMounted, isGuest, loadAllLiveStatus, mehrfach]);
 
   /*
    * Kein Springen mehr auf einen anderen Stream.

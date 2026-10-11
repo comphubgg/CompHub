@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { sichtbarerTakt } from './takt';
 import type { Sektion, Staende, Zustand } from '@/lib/sektionen';
 
@@ -30,8 +30,63 @@ const ANFANG: SektionenStand = {
   laedt: true, admin: false, sektionen: [], staende: {},
 };
 
-/** Wie oft nachgefragt wird. */
-const TAKT = 15_000;
+/**
+ * Wie oft nachgefragt wird.
+ *
+ * Eine halbe Minute (vorher fuenfzehn Sekunden): bei Netlify kostet jede Anfrage an die Seite Punkte aus einem
+ * knappen Monatskontingent (300), und diese Frage stellte jede offene Seite mehrfach. Eine Umschaltung des
+ * Admins greift damit nach hoechstens dreissig Sekunden - und sofort beim Zurueckkehren ins Fenster.
+ */
+const TAKT = 30_000;
+
+/*
+ * Ein gemeinsamer Stand fuer alle Stellen der Seite.
+ *
+ * Kopfzeile, Sperrseite und weitere Bauteile riefen "useSektionen" je fuer sich auf - und jedes fragte im Takt
+ * nach: auf einer einzigen Seite ein Dutzend gleiche Anfragen in der Minute (am 11.10.2026 gemessen). Jetzt
+ * gibt es EINE Abfrage fuer die ganze Seite; die Bauteile hoeren nur mit.
+ */
+let geteilt: SektionenStand = ANFANG;
+let ganzGeholt = false;
+const hoerer = new Set<(s: SektionenStand) => void>();
+let stopp: (() => void) | null = null;
+let unterwegs: Promise<void> | null = null;
+
+function setzeGeteilt(neu: SektionenStand) {
+  geteilt = neu;
+  hoerer.forEach((f) => f(neu));
+}
+
+function holenGeteilt(): Promise<void> {
+  if (unterwegs) return unterwegs;
+  unterwegs = (async () => {
+    try {
+      if (ganzGeholt) {
+        const j = await (await fetch('/api/sektionen?nur=staende')).json();
+        if (!j?.staende) return;
+        setzeGeteilt({ ...geteilt, laedt: false, staende: j.staende });
+        return;
+      }
+      const j = await (await fetch('/api/sektionen', { cache: 'no-store' })).json();
+      ganzGeholt = true;
+      setzeGeteilt({
+        laedt: false,
+        admin: Boolean(j?.admin),
+        sektionen: Array.isArray(j?.sektionen) ? j.sektionen : [],
+        staende: j?.staende ?? {},
+      });
+    } catch {
+      /*
+       * Keine Auskunft heisst: alles offen.
+       *
+       * Ein Netzfehler darf nicht dazu fuehren, dass das halbe Werkzeug verschwindet. Lieber einmal zu viel
+       * gezeigt als eine Seite, die grundlos zu ist.
+       */
+      setzeGeteilt({ ...geteilt, laedt: false });
+    } finally { unterwegs = null; }
+  })();
+  return unterwegs;
+}
 
 /**
  * @param anfang Der Stand, den der Server schon mitgeliefert hat.
@@ -42,56 +97,21 @@ const TAKT = 15_000;
  */
 export function useSektionen(anfang?: Partial<SektionenStand>): SektionenStand {
   const [stand, setStand] = useState<SektionenStand>(
-    anfang ? { ...ANFANG, ...anfang, laedt: false } : ANFANG);
-
-  /*
-   * Einmal alles (mit der Frage, ob hier der Admin sitzt), danach im Takt
-   * nur die Staende - die sind fuer alle gleich und kommen aus Vercels
-   * Zwischenspeicher, siehe /api/sektionen.
-   */
-  const ganz = useRef(false);
-  const holen = useCallback(async (weg: () => boolean) => {
-    try {
-      if (ganz.current) {
-        const j = await (await fetch('/api/sektionen?nur=staende')).json();
-        if (weg() || !j?.staende) return;
-        setStand((v) => ({ ...v, laedt: false, staende: j.staende }));
-        return;
-      }
-      const j = await (await fetch('/api/sektionen', { cache: 'no-store' })).json();
-      if (weg()) return;
-      ganz.current = true;
-      setStand({
-        laedt: false,
-        admin: Boolean(j?.admin),
-        sektionen: Array.isArray(j?.sektionen) ? j.sektionen : [],
-        staende: j?.staende ?? {},
-      });
-    } catch {
-      /*
-       * Keine Auskunft heisst: alles offen.
-       *
-       * Ein Netzfehler darf nicht dazu fuehren, dass das halbe Werkzeug
-       * verschwindet. Lieber einmal zu viel gezeigt als eine Seite, die
-       * grundlos zu ist.
-       */
-      if (!weg()) setStand((v) => ({ ...v, laedt: false }));
-    }
-  }, []);
+    () => (geteilt !== ANFANG ? geteilt : anfang ? { ...ANFANG, ...anfang, laedt: false } : ANFANG));
 
   useEffect(() => {
-    let fort = false;
-    const weg = () => fort;
-
-    void Promise.resolve().then(() => { if (!fort) return holen(weg); });
-
-    const stopp = sichtbarerTakt(() => { void holen(weg); }, TAKT);
-
+    hoerer.add(setStand);
+    // Wer spaeter dazukommt, bekommt sofort, was schon bekannt ist.
+    if (geteilt !== ANFANG) setStand(geteilt);
+    if (!stopp) {
+      void holenGeteilt();
+      stopp = sichtbarerTakt(() => { void holenGeteilt(); }, TAKT);
+    }
     return () => {
-      fort = true;
-      stopp();
+      hoerer.delete(setStand);
+      if (!hoerer.size && stopp) { stopp(); stopp = null; }
     };
-  }, [holen]);
+  }, []);
 
   return stand;
 }

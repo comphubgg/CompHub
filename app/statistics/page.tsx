@@ -2374,7 +2374,8 @@ export default function StatistikSeite() {
       })
       .catch(() => { /* dann gilt der Standard */ });
     void schloesserHolen();
-    return sichtbarerTakt(() => { void schloesserHolen(); }, 15_000);
+    // Alle halbe Minute (nicht alle fuenfzehn Sekunden): bei Netlify kostet jede Anfrage Punkte aus einem knappen Kontingent.
+    return sichtbarerTakt(() => { void schloesserHolen(); }, 30_000);
   }, []);
 
   useEffect(() => {
