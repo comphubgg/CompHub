@@ -243,8 +243,14 @@ export default function Multiview(props: MultiviewProps) {
   });
   const [qualitaetAlle, setQualitaetAlle] = useState<string>(
     () => ladeJson<{ qualitaet?: string } | null>(SCHLUESSEL_STAND, null)?.qualitaet || 'auto');
-  const [einst, setEinst] = useState<MvEinstellungen>(
-    () => ({ ...EINSTELLUNGEN_STANDARD, ...ladeJson<Partial<MvEinstellungen>>(SCHLUESSEL_EINSTELLUNGEN, {}) }));
+  const [einst, setEinst] = useState<MvEinstellungen>(() => {
+    const gespeichert = ladeJson<Partial<MvEinstellungen> & { _v?: number }>(SCHLUESSEL_EINSTELLUNGEN, {});
+    const m = { ...EINSTELLUNGEN_STANDARD, ...gespeichert };
+    // Der alte Standard war "Kopfzeile aus": die Wand wirkte wie eine fremde Webseite (Betreiber, 11.10.2026).
+    // Wer die Einstellung noch nie angefasst hat (keine Version gespeichert), bekommt die Kopfzeile zurueck.
+    if (!gespeichert._v) m.streamModus = false;
+    return m;
+  });
   const [kuerzel, setKuerzel] = useState<Record<KuerzelName, Kuerzel>>(
     () => ({ ...KUERZEL_STANDARD, ...ladeJson<Partial<Record<KuerzelName, Kuerzel>>>(SCHLUESSEL_KUERZEL, {}) }));
   const [seite, setSeite] = useState<boolean>(() => {
@@ -295,7 +301,7 @@ export default function Multiview(props: MultiviewProps) {
   }, [einst.tabSync]);
 
   const aendereEinst = useCallback((teil: Partial<MvEinstellungen>) => {
-    setEinst((alt) => { const n = { ...alt, ...teil }; speichereJson(SCHLUESSEL_EINSTELLUNGEN, n); return n; });
+    setEinst((alt) => { const n = { ...alt, ...teil }; speichereJson(SCHLUESSEL_EINSTELLUNGEN, { ...n, _v: 2 }); return n; });
   }, []);
   /** Das Zahnrad auf der POV-Kachel: dieselben Einstellungen wie im Einstellungsfenster. */
   const aendereBanner = useCallback((teil: Partial<BannerEinst>) => {

@@ -70,5 +70,13 @@ export async function GET(request: NextRequest) {
     headers: { Location: '/login' },
   });
   response.cookies.delete("streamer_dashboard_auth");
+  /*
+   * Auch das Konto abmelden.
+   *
+   * Dieser Weg raeumte nur den VIP-Schluessel ab; das CompHub-Konto (Cookie "streamer_dashboard_konto") blieb
+   * stehen. Wer ueber "Sign out" in der Kopfzeile oder im Pro-Dashboard ausloggte, war danach weiter angemeldet
+   * (Betreiber, 11.10.2026: "wenn ich auf Sign Out gehe, kann ich mich nicht ausloggen"). Abmelden heisst beides.
+   */
+  response.cookies.set('streamer_dashboard_konto', '', { path: '/', maxAge: 0 });
   return response;
 }

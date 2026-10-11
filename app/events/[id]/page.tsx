@@ -24,6 +24,7 @@ import { istGlobalsEvent, GLOBALS_CUP_ALIAS, GLOBALS_CUP_ID } from '@/lib/global
 import { sichtbarerTakt } from '@/app/lib/takt';
 import { fortniteKarte, eigeneKarte } from '@/lib/bildAdressen';
 import SpielerStatsUebersicht from '@/app/components/SpielerStatsUebersicht';
+import AktualisierungsStand from '@/app/components/AktualisierungsStand';
 /**
  * Regionen, fuer die von selbst eine Karte bereitsteht.
  *
@@ -4061,6 +4062,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
               matches={spielerWerte.runden}
               aktualisiert={spielerWerte.aktualisiert ?? null}
               szene={spielerWerte.quelle === 'szene'}
+              laeuft={laeuftGerade}
               schadenAusReplay={!!(spielerWerte as { schadenAusReplay?: boolean }).schadenAusReplay} />
           </div>
         )}
@@ -4521,12 +4523,11 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                 */}
               <span className="text-[11px] text-slate-500">
                 <T>Werte je</T> {soloCup ? t('Spieler (Einzahl)') : 'Duo'}<T>, direkt von Epic — nur was dieses Turnier mitschickt</T>
-                {statistikStand && Number.isFinite(Date.parse(statistikStand)) && (
-                  <> · <T>Zuletzt aktualisiert</T>{' '}
-                    {new Date(statistikStand).toLocaleString(ort, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</>
-                )}
               </span>
             </div>
+            {statistikStand && Number.isFinite(Date.parse(statistikStand)) && (
+              <div className="mb-3"><AktualisierungsStand stand={statistikStand} art={laeuftGerade ? 'laeuft' : 'fertig'} /></div>
+            )}
             <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
               {statistik.map((b) => (
                 <div key={b.schluessel}

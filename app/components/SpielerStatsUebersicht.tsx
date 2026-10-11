@@ -22,6 +22,7 @@ import TeamFlagge from '@/components/TeamFlagge';
 import { useSprache } from '@/app/components/SprachProvider';
 import { ortVon } from '@/app/lib/ort';
 import StatKacheln, { type KachelListe, type KachelSpieler } from '@/app/components/StatKacheln';
+import AktualisierungsStand from '@/app/components/AktualisierungsStand';
 
 /** Die zehn Kennzahlen - genau die des Vorbilds. */
 export const OSIRION_KACHELN: KachelListe[] = [
@@ -83,7 +84,7 @@ function alsZeit(sek: number, stunden = false): string {
   return h ? `${h}h ${m}m` : `${m}m ${s % 60}s`;
 }
 
-export default function SpielerStatsUebersicht({ spieler, matches, aktualisiert, szene, schadenAusReplay }: {
+export default function SpielerStatsUebersicht({ spieler, matches, aktualisiert, szene, schadenAusReplay, laeuft }: {
   spieler: KachelSpieler[];
   /** Wie viele Matches der Spieltag (oder das Turnier) hatte. */
   matches: number;
@@ -93,14 +94,14 @@ export default function SpielerStatsUebersicht({ spieler, matches, aktualisiert,
   schadenAusReplay?: boolean;
   /** Werte aus der Szene-Quelle (Endstand) statt aus den eigenen Replays. */
   szene?: boolean;
+  /** Laeuft der Cup gerade? Dann kommt in zehn Minuten das naechste Update, sonst ist es der Endstand. */
+  laeuft?: boolean;
 }) {
   const { sprache, t } = useSprache();
   const ort = ortVon(sprache);
   const [gruppe, setGruppe] = useState('alle');
   const [art, setArt] = useState('summe');
   const [mehr, setMehr] = useState(false);
-  // Der Zeitpunkt des Oeffnens - fuer "vor 29 Minuten"; nicht bei jedem Zeichnen neu.
-  const [jetzt] = useState(() => Date.now());
 
   const zahl = (v: number, n = 0) => v.toLocaleString(ort, { minimumFractionDigits: n, maximumFractionDigits: n });
   const zeigen = (v: number, f?: Format, n = 0) => (f === 'zeit' ? alsZeit(v, true)
@@ -140,15 +141,6 @@ export default function SpielerStatsUebersicht({ spieler, matches, aktualisiert,
       .sort((a, b) => Number(b[k.feld]) - Number(a[k.feld]))[0];
     return { k, beste };
   });
-
-  const stand = aktualisiert ? Date.parse(aktualisiert) : NaN;
-  const vorWann = Number.isFinite(stand) ? (() => {
-    const rtf = new Intl.RelativeTimeFormat(ort, { numeric: 'auto' });
-    const min = Math.round((stand - jetzt) / 60_000);
-    if (Math.abs(min) < 60) return rtf.format(min, 'minute');
-    const h = Math.round(min / 60);
-    return Math.abs(h) < 48 ? rtf.format(h, 'hour') : rtf.format(Math.round(h / 24), 'day');
-  })() : null;
 
   const auswahl = 'rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-1.5 text-sm text-slate-200 outline-none focus:border-sky-500';
 
@@ -205,11 +197,10 @@ export default function SpielerStatsUebersicht({ spieler, matches, aktualisiert,
         ))}
       </div>
 
+      {/* Wann zuletzt, auf die Sekunde - und wann das naechste Update kommt (siehe AktualisierungsStand). */}
+      <AktualisierungsStand stand={aktualisiert} art={laeuft ? 'laeuft' : 'fertig'} />
       <p className="text-[11px] text-slate-500">
-        {/* Datum und Uhrzeit, dazu wie lange das her ist - wie bei den Team-Stats. */}
-        {vorWann ? <><T>Zuletzt aktualisiert</T>{' '}
-          {new Date(stand).toLocaleString(ort, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })} ({vorWann})</>
-          : szene ? <T>Endstand aus der Szene-Quelle</T> : null}
+        {szene ? <T>Endstand aus der Szene-Quelle</T> : null}
         {/* Gezaehlt, nicht von Epic - das muss dabeistehen (echte, aber abgeleitete Zahlen). */}
         {schadenAusReplay && (
           <span className="mt-1 block text-slate-600">

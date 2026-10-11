@@ -241,6 +241,25 @@ export default function ProDashboard() {
         </div>
 
         {fehler && <p className="mb-4 rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-2.5 text-sm text-rose-300">{fehler}</p>}
+
+        {/*
+          * Discord: ohne zugewiesenes Konto kann CompHub nicht sehen, dass der Profi im Sprachkanal streamt
+          * (Betreiber, 11.10.2026: "ich bin im Live Support und streame, laut Webseite bin ich nicht online").
+          */}
+        {mein && tab === 'pov' && discord && !discord.id && (
+          <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-2.5 text-sm text-amber-200">
+            <span><T>Dein Discord-Konto ist nicht zugewiesen — so sieht CompHub nicht, wenn du in einem Sprachkanal streamst.</T></span>
+            <button type="button" onClick={() => setTab('settings')} className="rounded-md border border-amber-400/40 px-3 py-1 text-xs transition hover:bg-amber-500/10">
+              <T>Jetzt zuweisen</T>
+            </button>
+          </div>
+        )}
+        {mein && tab === 'pov' && discord?.stand?.imKanal && (
+          <p className="mb-4 flex items-center gap-2 text-sm text-indigo-300">
+            <span className={`h-2 w-2 rounded-full ${discord.stand.streamt ? 'animate-pulse bg-red-500' : 'bg-indigo-400'}`} />
+            {discord.stand.streamt ? t('Auf Discord live') : t('Im Discord-Sprachkanal')}{discord.stand.kanalName ? ` · #${discord.stand.kanalName}` : ''}
+          </p>
+        )}
         {!mein && !fehler && <p className="text-sm text-slate-500"><T>Wird geladen …</T></p>}
 
         {mein && tab === 'pov' && (

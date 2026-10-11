@@ -72,7 +72,7 @@ export const EINSTELLUNGEN_STANDARD: MvEinstellungen = {
   liveTakt: 120,
   offlineAlle: false,
   dunkel: true,
-  streamModus: true,
+  streamModus: false,
   povBanner: true,
   povBannerOrt: 'unten',
   povBannerBild: true,

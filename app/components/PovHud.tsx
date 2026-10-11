@@ -9,10 +9,10 @@ import type { PovHud, HudOrt } from '@/lib/pov';
 
 export type HudGroesse = 'klein' | 'mittel' | 'gross';
 
-/** Wo das Banner im Bild sitzt. Unten liegt es ueber der Bedienleiste der Kachel. */
+/** Wo das Banner im Bild sitzt: "unten" ganz unten am Rand, "oben" ganz oben (Betreiber, 11.10.2026). */
 export function hudLage(ort: HudOrt): string {
-  if (ort === 'oben') return 'left-1/2 top-3 -translate-x-1/2';
-  if (ort === 'unten') return 'bottom-12 left-1/2 -translate-x-1/2';
+  if (ort === 'oben') return 'left-1/2 top-2 -translate-x-1/2';
+  if (ort === 'unten') return 'bottom-2 left-1/2 -translate-x-1/2';
   if (ort === 'links') return 'left-3 top-1/2 -translate-y-1/2';
   return 'right-3 top-1/2 -translate-y-1/2';
 }

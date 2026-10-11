@@ -58,6 +58,8 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Render Bescheid geben
+        # Render ist gesperrt (409): das Bild ist trotzdem gebaut und der Lauf soll nicht rot werden.
+        continue-on-error: true
         env:
           HOOK: ${{ secrets.RENDER_DEPLOY_HOOK }}
         run: |
