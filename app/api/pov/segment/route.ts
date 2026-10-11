@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
-import { liesPros, standardBild, wer } from '@/lib/pov';
-import { ADMIN_LINK, holeNach, istLive, schluesselFuer, schluesselLesen } from '@/lib/povRelay';
+import { liesPros, standardBild } from '@/lib/pov';
+import { ADMIN_LINK, holeNach, istLive, schluesselFuer } from '@/lib/povRelay';
+import { pruefeZuschauer } from '@/lib/povZugang';
 
 /*
  * Ein Zuschauer holt das naechste Stueck eines POVs (siehe lib/povRelay.ts).
@@ -23,34 +24,15 @@ export const maxDuration = 60;
 
 const nie = { 'Cache-Control': 'no-store' };
 
-async function darfZusehen(proIdent: string, idents: string[], rolle: string | null): Promise<boolean> {
-  if (rolle === 'admin' || idents.includes(ADMIN_LINK)) return true;
-  if (idents.includes(proIdent)) return true;
-  const pro = (await liesPros())[proIdent];
-  return !!pro && pro.erlaubt.some((e) => idents.includes(e));
-}
-
 export async function GET(request: Request) {
   const p = new URL(request.url).searchParams;
   const proIdent = (p.get('pro') ?? '').slice(0, 120);
   if (!proIdent) return NextResponse.json({ ok: false, error: 'Kein POV gewählt.' }, { status: 400, headers: nie });
 
-  // Wer fragt: ueber den Link-Schluessel oder die Anmeldung.
-  let idents: string[] = [];
-  let rolle: string | null = null;
-  const schluessel = p.get('s');
-  if (schluessel) {
-    const k = schluesselLesen(schluessel);
-    if (!k || k.profi !== proIdent) return NextResponse.json({ ok: false, error: 'Link ungültig.' }, { status: 403, headers: nie });
-    idents = [k.zuschauer];
-  } else {
-    const ich = await wer();
-    idents = ich.idents; rolle = ich.rolle;
-  }
-  if (!idents.length) return NextResponse.json({ ok: false, error: 'Nicht angemeldet.' }, { status: 401, headers: nie });
-  if (!await darfZusehen(proIdent, idents, rolle)) {
-    return NextResponse.json({ ok: false, error: 'Nicht freigegeben.' }, { status: 403, headers: nie });
-  }
+  // Wer fragt: ueber den Link-Schluessel oder die Anmeldung - und darf er das?
+  const pruefung = await pruefeZuschauer(request, proIdent);
+  if (!pruefung.ok) return NextResponse.json({ ok: false, error: pruefung.error }, { status: pruefung.status, headers: nie });
+  const { idents, rolle } = pruefung.z;
 
   if (p.get('aktion') === 'link') {
     // Ein Link braucht eine feste Zuschauerkennung: die eigene, nicht die des Admins ueber alles.

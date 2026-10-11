@@ -3,8 +3,8 @@
 import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import PovVideo from '@/app/streams/PovVideo';
-import { HudBanner } from '@/app/components/PovHud';
-import type { PovHud } from '@/lib/pov';
+import type { HudGroesse } from '@/app/components/PovHud';
+import type { BannerEinst } from '@/app/streams/PovVideo';
 
 /*
  * Ein Pro-POV als reine Bildflaeche - fuer eine Browserquelle in OBS.
@@ -14,7 +14,7 @@ import type { PovHud } from '@/lib/pov';
  * eingestellt hat - seinem Namensbanner. Ist der Zuschauer nicht (mehr) freigegeben, steht dort "Not approved".
  *
  * Das Banner richtet sich nach den Einstellungen des Zuschauers auf der Streams-Seite; sie stehen im Link
- * (&hud=oben|unten|links|rechts|aus und &bild=1|0), der dort kopiert wird.
+ * (&hud=oben|unten|links|rechts|aus, &bild=1|0 und &gr=klein|mittel|gross), der dort kopiert wird.
  */
 
 function Inhalt() {
@@ -22,13 +22,14 @@ function Inhalt() {
   const pro = p.get('pro') ?? '';
   const schluessel = p.get('s') ?? undefined;
   const hudWahl = p.get('hud') ?? 'unten';
-  const hud: PovHud = {
+  const groesseWahl = p.get('gr') ?? 'mittel';
+  const hud: BannerEinst = {
     an: hudWahl !== 'aus',
     ort: (['oben', 'unten', 'links', 'rechts'] as const).find((o) => o === hudWahl) ?? 'unten',
     mitBild: p.get('bild') !== '0',
-    text: '',
+    groesse: (['klein', 'mittel', 'gross'] as const).find((o) => o === groesseWahl) as HudGroesse | undefined ?? 'mittel',
   };
-  const [info, setInfo] = useState<{ name: string; bild: string | null; hud: PovHud } | null>(null);
+  const [info, setInfo] = useState<{ name: string; bild: string | null } | null>(null);
 
   useEffect(() => {
     if (!pro) return undefined;
@@ -47,8 +48,8 @@ function Inhalt() {
   if (!pro) return null;
   return (
     <div className="group fixed inset-0 z-[1000] bg-black">
-      <PovVideo pro={pro} schluessel={schluessel} stumm={false} name={info?.name} />
-      {info && <HudBanner hud={hud} name={info.name} bild={info.bild} />}
+      <PovVideo pro={pro} schluessel={schluessel} stumm={false} name={info?.name}
+        banner={info ? { einst: hud, name: info.name, bild: info.bild } : undefined} />
     </div>
   );
 }

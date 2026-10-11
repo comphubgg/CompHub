@@ -141,6 +141,19 @@ export function EinstellungenFenster({ einst, aendern, kuerzel, zu }: {
               ))}
             </div>
           </div>
+          <div className="flex items-center gap-3 px-2 py-2 text-sm">
+            <span className="w-4 shrink-0" />
+            <span className="min-w-0 flex-1"><T>Größe</T></span>
+            <div className="flex gap-1">
+              {([['klein', 'Klein'], ['mittel', 'Mittel'], ['gross', 'Groß']] as const).map(([wert, titel]) => (
+                <button key={wert} type="button" onClick={() => aendern({ povBannerGroesse: wert })}
+                  className={`rounded-md border px-2 py-1 text-xs transition ${einst.povBannerGroesse === wert
+                    ? 'border-sky-500 bg-sky-500/15 text-sky-400' : 'mv-fl mv-hover'}`}>
+                  {t(titel)}
+                </button>
+              ))}
+            </div>
+          </div>
           <Zeile symbol={<Strich d="M10 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM4 17a6 6 0 0 1 12 0" />} text={t('Mit Profilbild')}
             an={einst.povBannerBild} aendern={(v) => aendern({ povBannerBild: v })} />
         </>

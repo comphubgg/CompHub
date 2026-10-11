@@ -6,10 +6,9 @@ import {
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import { sichtbarerTakt } from '@/app/lib/takt';
-import { HudBanner } from '@/app/components/PovHud';
 import type { PovHud } from '@/lib/pov';
 import MvPlayer, { type MvPlayerHandle } from './MvPlayer';
-import PovVideo from './PovVideo';
+import PovVideo, { type BannerEinst } from './PovVideo';
 import Seitenleiste, { type MvOrdner } from './MvSeitenleiste';
 import { EinstellungenFenster, KanalAendernFenster, KuerzelFenster } from './MvDialoge';
 import {
@@ -102,8 +101,9 @@ interface KachelProps {
   pov?: 'pro' | 'discord';
   /** Dieser Platz zeigt ein privates Pro-POV (Kennung des Profis). */
   povId?: string;
-  /** Das Namensbanner - nach den eigenen Einstellungen des Zuschauers (Einstellungen > POV-Banner). */
-  hud?: { hud: PovHud; name: string; bild: string | null };
+  /** Das Namensbanner - nach den eigenen Einstellungen des Zuschauers (Einstellungen > POV-Banner oder das Zahnrad auf der Kachel). */
+  banner?: { einst: BannerEinst; name: string; bild: string | null };
+  aendereBanner: (teil: Partial<BannerEinst>) => void;
   abgerundet: boolean;
   tooltips: boolean;
   qualitaetJeStream: boolean;
@@ -136,7 +136,8 @@ const Kachel = memo(function Kachel(p: KachelProps) {
       <div className={`h-full w-full overflow-hidden bg-black ${p.abgerundet ? 'rounded-lg' : ''}
         ${p.ziehend ? 'shadow-2xl ring-2 ring-sky-400' : ''}`}>
         {s.pov
-          ? <PovVideo key={`${s.pov}#${p.neu}`} ref={(h) => p.griff(s.id, h)} pro={s.pov} name={s.kanal} />
+          ? <PovVideo key={`${s.pov}#${p.neu}`} ref={(h) => p.griff(s.id, h)} pro={s.pov} name={s.kanal}
+            banner={p.banner} aendereBanner={p.aendereBanner} />
           : <MvPlayer key={`${s.kanal}#${p.neu}`} ref={(h) => p.griff(s.id, h)} kanal={s.kanal} host={p.host}
             qualitaet={p.qualitaet} />}
       </div>
@@ -147,8 +148,6 @@ const Kachel = memo(function Kachel(p: KachelProps) {
           className={`pointer-events-none absolute inset-0 border-2 border-sky-400/70
             shadow-[0_0_14px_rgba(56,189,248,0.25)] ${p.abgerundet ? 'rounded-lg' : ''}`} />
       )}
-
-      {p.hud && <HudBanner hud={p.hud.hud} name={p.hud.name} bild={p.hud.bild} />}
 
       {/* Ziehen von ueberall: eine durchsichtige Flaeche ueber dem Player. */}
       {p.ziehenUeberall && !s.fest && (
@@ -164,14 +163,18 @@ const Kachel = memo(function Kachel(p: KachelProps) {
           </svg>
         </div>
 
-        <div className="absolute left-1/2 top-2 flex -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-full bg-black/70 px-2.5 py-0.5 text-[11px] font-medium text-white">
-          {s.kanal}
-          {p.pov && (
-            <span className="rounded border border-sky-400/60 px-1 text-[9px] font-semibold uppercase tracking-wider text-sky-300">
-              {p.pov === 'discord' ? 'Discord POV' : 'POV'}
-            </span>
-          )}
-        </div>
+        {/* Ein Pro-POV traegt sein Namensbanner (unten, nach den eigenen Einstellungen) - ein zweites Zeichen oben
+            waere doppelt (Betreiber, 11.10.2026: "das soll nur eins haben"). */}
+        {!s.pov && (
+          <div className="absolute left-1/2 top-2 flex -translate-x-1/2 items-center gap-1.5 whitespace-nowrap rounded-full bg-black/70 px-2.5 py-0.5 text-[11px] font-medium text-white">
+            {s.kanal}
+            {p.pov && (
+              <span className="rounded border border-sky-400/60 px-1 text-[9px] font-semibold uppercase tracking-wider text-sky-300">
+                {p.pov === 'discord' ? 'Discord POV' : 'POV'}
+              </span>
+            )}
+          </div>
+        )}
 
         <div className="absolute right-2 top-2 flex items-center gap-1">
           {p.qualitaetJeStream && (
@@ -207,7 +210,7 @@ export interface MultiviewProps {
   /** Wer in den Ordnern gerade sendet - fuer die Zaehler dort. */
   ordnerLive: Record<string, boolean>;
   /** Die POVs, die dieser Besucher sehen darf (Profis haben sie freigegeben). */
-  povs: Array<{ ident: string; name: string; bild: string | null; live: boolean; hud: PovHud }>;
+  povs: Array<{ ident: string; name: string; bild: string | null; live: boolean; hud: PovHud; discord?: { streamt: boolean; kanal: string | null; link: string | null } | null }>;
   /** Wer in einem Ordner nachtraeglich etwas entfernen darf. */
   kannAusOrdner: (ordnerId: string, kanal: string) => boolean;
   ausOrdner: (ordnerId: string, kanal: string) => void;
@@ -294,6 +297,15 @@ export default function Multiview(props: MultiviewProps) {
   const aendereEinst = useCallback((teil: Partial<MvEinstellungen>) => {
     setEinst((alt) => { const n = { ...alt, ...teil }; speichereJson(SCHLUESSEL_EINSTELLUNGEN, n); return n; });
   }, []);
+  /** Das Zahnrad auf der POV-Kachel: dieselben Einstellungen wie im Einstellungsfenster. */
+  const aendereBanner = useCallback((teil: Partial<BannerEinst>) => {
+    aendereEinst({
+      ...(teil.an !== undefined ? { povBanner: teil.an } : {}),
+      ...(teil.ort !== undefined ? { povBannerOrt: teil.ort } : {}),
+      ...(teil.mitBild !== undefined ? { povBannerBild: teil.mitBild } : {}),
+      ...(teil.groesse !== undefined ? { povBannerGroesse: teil.groesse } : {}),
+    });
+  }, [aendereEinst]);
   const setzeKuerzel = useCallback((name: KuerzelName, k: Kuerzel) => {
     setKuerzel((alt) => { const n = { ...alt, [name]: k }; speichereJson(SCHLUESSEL_KUERZEL, n); return n; });
   }, []);
@@ -635,10 +647,11 @@ export default function Multiview(props: MultiviewProps) {
             <Kachel key={id} s={s}
               x={ziehend ? zieh.x : p.x} y={ziehend ? zieh.y : p.y} w={raster.w} h={raster.h}
               host={props.host} qualitaet={s.qualitaet || qualitaetAlle} pov={s.pov ? 'pro' : pov[s.kanal]}
-              hud={s.pov && povInfo.get(s.pov) ? {
-                hud: { an: einst.povBanner, ort: einst.povBannerOrt, mitBild: einst.povBannerBild, text: '' },
+              banner={s.pov && povInfo.get(s.pov) ? {
+                einst: { an: einst.povBanner, ort: einst.povBannerOrt, mitBild: einst.povBannerBild, groesse: einst.povBannerGroesse },
                 name: povInfo.get(s.pov)!.name, bild: povInfo.get(s.pov)!.bild,
               } : undefined}
+              aendereBanner={aendereBanner}
               abgerundet={einst.abgerundet} tooltips={einst.tooltips} qualitaetJeStream={einst.qualitaetJeStream}
               ziehenUeberall={einst.ziehenUeberall} ziehend={ziehend} neu={neu[id] ?? 0}
               aktionen={aktionen} griff={griff} ziehen={ziehen} />
@@ -680,7 +693,7 @@ export default function Multiview(props: MultiviewProps) {
         aufWand={aufWand} offlineAlle={einst.offlineAlle} povs={props.povs}
         kannAusOrdner={props.kannAusOrdner} ausOrdner={props.ausOrdner}
         einzelAnsicht={props.zurEinzelansicht} einstellungen={() => setDialog('einstellungen')}
-        banner={{ an: einst.povBanner, ort: einst.povBannerOrt, mitBild: einst.povBannerBild }} />
+        banner={{ an: einst.povBanner, ort: einst.povBannerOrt, mitBild: einst.povBannerBild, groesse: einst.povBannerGroesse }} />
 
       {/* Rueckgaengig nach dem Entfernen */}
       {rueck && (

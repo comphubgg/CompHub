@@ -39,6 +39,13 @@ export default function ProDashboard() {
   const [zuschauerJetzt, setZuschauerJetzt] = useState(0);
   const vorschau = useRef<HTMLVideoElement | null>(null);
   const [webhook, setWebhook] = useState('');
+  /** Das Discord-Konto: zugewiesen oder (auto) das verknuepfte - und ob der Bot den Profi gerade im Sprachkanal sieht. */
+  const [discord, setDiscord] = useState<{
+    id: string; name: string; auto: boolean;
+    stand: { imKanal: boolean; streamt: boolean; kanalName: string | null } | null;
+  } | null>(null);
+  const [dSuche, setDSuche] = useState('');
+  const [dTreffer, setDTreffer] = useState<Array<{ id: string; name: string; anzeige: string }>>([]);
   const uhr = useRef<number | null>(null);
   const offen = useRef<Record<string, unknown>>({});
 
@@ -50,11 +57,33 @@ export default function ProDashboard() {
       .then((j) => {
         if (weg) return;
         if (!j.ok) { setFehler(j.error ?? t('Nicht ladbar')); return; }
-        setMein(j.mein as PovPro); setBildEigen(Boolean(j.bildEigen)); setVips(j.vips as Vip[]); setZuschauerJetzt(j.zuschauer ?? 0); setWebhook((j.mein as PovPro).webhook ?? '');
+        setMein(j.mein as PovPro); setBildEigen(Boolean(j.bildEigen)); setDiscord(j.discord ?? null); setVips(j.vips as Vip[]); setZuschauerJetzt(j.zuschauer ?? 0); setWebhook((j.mein as PovPro).webhook ?? '');
       })
       .catch(() => { if (!weg) setFehler(t('Nicht ladbar')); });
     return () => { weg = true; };
   }, [t]);
+
+  /** Alle fuenfzehn Sekunden: sieht der Bot den Profi gerade im Sprachkanal? */
+  useEffect(() => {
+    const holen = () => {
+      fetch('/api/pov?modus=mein', { cache: 'no-store' }).then((r) => r.json())
+        .then((j) => { if (j?.ok) setDiscord(j.discord ?? null); }).catch(() => undefined);
+    };
+    const id = window.setInterval(holen, 15_000);
+    return () => window.clearInterval(id);
+  }, []);
+
+  /** Die Namenssuche im CompHub-Server - erst nach einer kurzen Pause im Tippen. */
+  useEffect(() => {
+    const q = dSuche.trim();
+    if (q.length < 3) { setDTreffer([]); return undefined; }
+    let weg = false;
+    const uhr = window.setTimeout(() => {
+      fetch(`/api/pov/discord?q=${encodeURIComponent(q)}`, { cache: 'no-store' }).then((r) => r.json())
+        .then((j) => { if (!weg && j?.ok) setDTreffer(j.treffer ?? []); }).catch(() => undefined);
+    }, 350);
+    return () => { weg = true; window.clearTimeout(uhr); };
+  }, [dSuche]);
 
   /* --------------------------------------------------------- Speichern */
   const senden = useCallback(async () => {
@@ -101,9 +130,23 @@ export default function ProDashboard() {
     setFehler('');
     const q = QUALITAET[mein.qualitaet];
     try {
+      /*
+       * Der Ton: ohne Echo-, Rausch- und Pegelkorrektur.
+       *
+       * Der Browser behandelt den geteilten Ton sonst wie ein Mikrofon: Rauschunterdrueckung und automatische
+       * Pegelregelung zerhacken Spielton und Schuesse ("die Audioqualitaet ist komplett schlecht"). Roh, in
+       * Stereo, 48 kHz. Systemton gibt es nur beim Teilen des ganzen Bildschirms; dieses Fenster selbst wird
+       * in der Auswahl nicht angeboten.
+       */
       const strom = await navigator.mediaDevices.getDisplayMedia({
-        video: { width: { ideal: q.breite }, height: { ideal: q.hoehe }, frameRate: { ideal: q.fps, max: q.fps } },
-        audio: true,
+        video: {
+          width: { ideal: q.breite }, height: { ideal: q.hoehe }, frameRate: { ideal: q.fps, max: q.fps },
+          displaySurface: 'monitor',
+        } as MediaTrackConstraints,
+        audio: {
+          echoCancellation: false, noiseSuppression: false, autoGainControl: false, channelCount: 2, sampleRate: 48000,
+        } as MediaTrackConstraints,
+        ...({ systemAudio: 'include', selfBrowserSurface: 'exclude', surfaceSwitching: 'include' } as object),
       });
       startSenden(strom, mein.qualitaet);
     } catch (e) {
@@ -119,6 +162,16 @@ export default function ProDashboard() {
     startSenden(testbildStrom(mein.qualitaet, mein.name), mein.qualitaet);
   };
   const teilenStoppen = () => holeAktiv()?.stop();
+
+  const discordZuweisen = (t: { id: string; anzeige: string; name: string }) => {
+    setDiscord({ id: t.id, name: t.anzeige || t.name, auto: false, stand: null });
+    setDSuche(''); setDTreffer([]);
+    aendere({ discordId: t.id });
+  };
+  const discordEntfernen = () => {
+    setDiscord(null);
+    aendere({ discordId: '' });
+  };
   const teilt = teilen?.art === 'laeuft';
 
   const erlaubt = useMemo(() => new Set(mein?.erlaubt ?? []), [mein?.erlaubt]);
@@ -230,6 +283,24 @@ export default function ProDashboard() {
                         {(teilen?.warten ?? 0) > 1 && <span className="ml-2 text-amber-300"><T>Verbindung zu langsam</T></span>}
                       </p>
                     )}
+                    {teilt && (
+                      <div className="mt-1.5 flex items-center gap-2 text-[11px]">
+                        {teilen?.ton ? (
+                          <>
+                            <span className="text-emerald-400"><T>Ton wird geteilt</T></span>
+                            <span className="h-1.5 w-24 overflow-hidden rounded-full bg-zinc-800">
+                              <span className="block h-full rounded-full bg-emerald-400 transition-all duration-100"
+                                style={{ width: `${Math.round((teilen.pegel ?? 0) * 100)}%` }} />
+                            </span>
+                          </>
+                        ) : (
+                          <span className="text-amber-300"><T>Kein Ton — beim Teilen den ganzen Bildschirm wählen und „Systemaudio teilen" anhaken.</T></span>
+                        )}
+                      </div>
+                    )}
+                    {teilt && teilen?.weg === 'stuecke' && (
+                      <p className="mt-1 text-[11px] text-amber-300"><T>Dein Browser kann den schnellen Weg nicht — mit Chrome oder Edge ist die Verzögerung deutlich kleiner.</T></p>
+                    )}
                     {teilen?.art === 'fehler' && <p className="mt-0.5 text-rose-300">{teilen.text}</p>}
                   </div>
                 </div>
@@ -319,7 +390,55 @@ export default function ProDashboard() {
                 )
                 : mein.bild && <span className="text-xs text-slate-500"><T>Standard: dein Spielerfoto</T></span>}
             </div>
-            <h2 className="mt-8 text-sm font-semibold">Discord</h2>
+            <h2 className="mt-8 text-sm font-semibold"><T>Discord-Konto</T></h2>
+            <p className="mt-1 text-xs text-slate-500">
+              <T>Wähle dein Konto im CompHub-Discord. Gehst du dort in einen Sprachkanal und teilst deinen Bildschirm („Live gehen"), sehen freigegebene VIPs auf der Streams-Seite „Live auf Discord" mit einem Knopf, der den Kanal öffnet.</T>
+            </p>
+            <div className="mt-3">
+              {discord?.id ? (
+                <div className="flex flex-wrap items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm">
+                  <span className="font-semibold text-indigo-300">{discord.name || discord.id}</span>
+                  {discord.auto && <span className="text-[11px] text-slate-500"><T>verknüpftes Konto</T></span>}
+                  <span className="flex-1" />
+                  {discord.stand?.imKanal
+                    ? (
+                      <span className="flex items-center gap-1.5 text-[11px] text-emerald-400">
+                        <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
+                        {discord.stand.streamt ? t('Im Sprachkanal und streamt') : t('Im Sprachkanal')}
+                        {discord.stand.kanalName ? ` · #${discord.stand.kanalName}` : ''}
+                      </span>
+                    )
+                    : <span className="text-[11px] text-slate-500"><T>Gerade in keinem Sprachkanal</T></span>}
+                  {!discord.auto && (
+                    <button type="button" onClick={discordEntfernen} className="text-xs text-slate-500 transition hover:text-rose-400">
+                      <T>Entfernen</T>
+                    </button>
+                  )}
+                </div>
+              ) : (
+                <p className="text-xs text-slate-500"><T>Noch kein Discord-Konto zugewiesen.</T></p>
+              )}
+              <input value={dSuche} onChange={(e) => setDSuche(e.target.value)} spellCheck={false}
+                placeholder={t('Discord-Namen suchen …')} className={`mt-3 ${feld}`} />
+              {dTreffer.length > 0 && (
+                <ul className="mt-2 max-h-56 space-y-1 overflow-y-auto">
+                  {dTreffer.map((x) => (
+                    <li key={x.id}>
+                      <button type="button" onClick={() => discordZuweisen(x)}
+                        className="flex w-full items-center justify-between gap-3 rounded-lg border border-zinc-800 px-3 py-2 text-left text-sm transition hover:border-indigo-400/60">
+                        <span className="truncate">{x.anzeige || x.name}</span>
+                        <span className="shrink-0 text-[11px] text-slate-500">@{x.name}</span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {dSuche.trim().length >= 3 && dTreffer.length === 0 && (
+                <p className="mt-2 text-[11px] text-slate-600"><T>Kein Mitglied gefunden — du musst im CompHub-Discord sein.</T></p>
+              )}
+            </div>
+
+            <h2 className="mt-8 text-sm font-semibold">Discord-Webhook</h2>
             <p className="mt-1 text-xs text-slate-500">
               <T>Optional: Trage einen Discord-Webhook deines Servers ein (Kanal → Integrationen → Webhooks). Sobald du live gehst, meldet CompHub es dort — das Bild selbst sehen nur deine Freigegebenen auf CompHub.</T>
             </p>

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import {
   alleVips, bereinige, leererPro, liesPros, oeffentlichPov, schreibePros, standardBild, wer,
 } from '@/lib/pov';
+import { discordStand, mitgliedName, standardDiscordId } from '@/lib/povDiscord';
 import { istLive, liveSeit, zuschauerZahl } from '@/lib/povRelay';
 
 /*
@@ -38,9 +39,14 @@ export async function GET(request: Request) {
     const eigenes = Boolean(alle[ident]?.bild);
     const standard = (await standardBild(ident)) ?? ich.bild;
     mein.bild = eigenes ? mein.bild : standard;
+    // Das Discord-Konto: das zugewiesene, sonst das verknuepfte. Der Stand zeigt, ob der Bot den Profi im Sprachkanal sieht.
+    const dId = mein.discordId || (await standardDiscordId(ident)) || '';
+    const dName = mein.discordId ? mein.discordName : (dId ? await mitgliedName(dId) : null);
+    const dStand = dId ? await discordStand(dId) : null;
     return NextResponse.json({
       ok: true,
       mein: { ...mein, live: istLive(ident), liveSeit: liveSeit(ident) },
+      discord: { id: dId, name: dName ?? '', auto: !mein.discordId && Boolean(dId), stand: dStand },
       bildEigen: eigenes,
       zuschauer: zuschauerZahl(ident),
       vips: (await alleVips()).filter((v) => !v.auch.includes(ident)),
@@ -51,9 +57,15 @@ export async function GET(request: Request) {
   if (!ich.vip) return NextResponse.json({ ok: true, pros: [] }, { headers: nie });
   const sichtbar = Object.values(alle)
     .filter((p) => ich.rolle === 'admin' || p.erlaubt.some((e) => ich.idents.includes(e)));
-  const pros = await Promise.all(sichtbar.map(async (p) => ({
-    ...oeffentlichPov(p), bild: p.bild ?? (await standardBild(p.ident)),
-  })));
+  const pros = await Promise.all(sichtbar.map(async (p) => {
+    // Sitzt der Profi in einem Discord-Sprachkanal? Nur das, was ein freigegebener Zuschauer braucht.
+    const dId = p.discordId || (await standardDiscordId(p.ident)) || '';
+    const d = dId ? await discordStand(dId) : null;
+    return {
+      ...oeffentlichPov(p), bild: p.bild ?? (await standardBild(p.ident)),
+      discord: d && d.imKanal ? { streamt: d.streamt, kanal: d.kanalName, link: d.link } : null,
+    };
+  }));
   return NextResponse.json({ ok: true, pros }, { headers: nie });
 }
 
@@ -70,7 +82,17 @@ export async function POST(request: Request) {
   const alle = await liesPros();
   const alt = alle[ident] ?? leererPro(ident, ich.name, ich.bild);
   const vips = new Set((await alleVips()).flatMap((v) => v.auch));
-  const neu = bereinige(alt, body.teil ?? {}, vips);
+  const teil = { ...(body.teil ?? {}) };
+  // Ein zugewiesenes Discord-Konto muss ein Mitglied des CompHub-Servers sein; der Name kommt von dort.
+  if (typeof teil.discordId === 'string') {
+    const id = teil.discordId.trim();
+    if (!id) { teil.discordId = ''; teil.discordName = ''; } else {
+      const name = await mitgliedName(id);
+      if (!name) return NextResponse.json({ ok: false, error: 'Dieses Discord-Konto ist nicht im CompHub-Server.' }, { status: 400, headers: nie });
+      teil.discordName = name;
+    }
+  }
+  const neu = bereinige(alt, teil, vips);
   // Der Name des Kontos gilt; das Bild ist das gewaehlte, sonst das Spielerfoto (siehe GET).
   neu.name = ich.name || neu.name;
   alle[ident] = neu;

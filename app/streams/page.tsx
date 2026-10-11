@@ -1054,6 +1054,7 @@ const response = await fetch(getApiUrl(`/api/search?q=${encodeURIComponent(twitc
   const [povs, setPovs] = useState<Array<{
     ident: string; name: string; bild: string | null; live: boolean;
     hud: { an: boolean; ort: 'oben' | 'unten' | 'links' | 'rechts'; mitBild: boolean; text: string };
+    discord?: { streamt: boolean; kanal: string | null; link: string | null } | null;
   }>>([]);
   useEffect(() => {
     if (!zugang.vip) return undefined;
@@ -1065,7 +1066,8 @@ const response = await fetch(getApiUrl(`/api/search?q=${encodeURIComponent(twitc
         .catch(() => { /* beim naechsten Takt wieder */ });
     };
     holen();
-    const abbau = sichtbarerTakt(holen, 60_000);
+    // Alle zwanzig Sekunden: so zeigt sich auch "Live auf Discord" zeitnah (der Server merkt sich die Antwort von Discord zwoelf Sekunden).
+    const abbau = sichtbarerTakt(holen, 20_000);
     return () => { weg = true; abbau(); };
   }, [zugang.vip]);
 

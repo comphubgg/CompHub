@@ -7,6 +7,7 @@
  */
 
 import type { HudOrt } from '@/lib/pov';
+import type { HudGroesse } from '@/app/components/PovHud';
 
 /** Ein Stream auf der Wand. Die Reihenfolge im Feld ist die Reihenfolge auf der Wand. */
 export interface MvStream {
@@ -54,6 +55,7 @@ export interface MvEinstellungen {
   povBanner: boolean;
   povBannerOrt: HudOrt;
   povBannerBild: boolean;
+  povBannerGroesse: HudGroesse;
 }
 
 export const EINSTELLUNGEN_STANDARD: MvEinstellungen = {
@@ -74,6 +76,7 @@ export const EINSTELLUNGEN_STANDARD: MvEinstellungen = {
   povBanner: true,
   povBannerOrt: 'unten',
   povBannerBild: true,
+  povBannerGroesse: 'mittel',
 };
 
 export const LIVE_TAKTE = [30, 60, 120, 300];

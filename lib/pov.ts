@@ -57,6 +57,12 @@ export interface PovPro {
    * Bots keine Bildschirmuebertragung empfangen). Nie an Besucher ausgeliefert.
    */
   webhook: string;
+  /**
+   * Das Discord-Konto des Profis (Konto-Id und Anzeigename im CompHub-Server). Damit sieht der Bot, wann er in
+   * einem Sprachkanal streamt (lib/povDiscord.ts). Leer = das Konto, mit dem das Konto ohnehin verknuepft ist.
+   */
+  discordId: string;
+  discordName: string;
   aktualisiert: number;
 }
 
@@ -76,7 +82,7 @@ export const HUD_STANDARD: PovHud = { an: true, ort: 'unten', mitBild: true, tex
 export function leererPro(ident: string, name: string, bild: string | null): PovPro {
   return {
     ident, name, bild, twitch: '', live: false, liveSeit: null, qualitaet: 'mittel',
-    hud: { ...HUD_STANDARD }, erlaubt: [], webhook: '', aktualisiert: Date.now(),
+    hud: { ...HUD_STANDARD }, erlaubt: [], webhook: '', discordId: '', discordName: '', aktualisiert: Date.now(),
   };
 }
 
@@ -178,13 +184,20 @@ export async function alleVips(): Promise<VipEintrag[]> {
 interface Bildeintrag { datei: string; epicId: string; echtesFoto?: boolean }
 
 /** Das Spielerfoto zu einem Epic-Konto (kleine Fassung) - oder nichts. */
+const fotoMerk = new Map<string, { bis: number; pfad: string | null }>();
+
 export async function spielerFoto(epicId: string | null | undefined): Promise<string | null> {
   const id = String(epicId ?? '').replace(/-/g, '').toLowerCase();
   if (!id) return null;
+  // Fuenf Minuten gemerkt: die Streams-Seite fragt alle zwanzig Sekunden, die Bilderliste ist gross.
+  const da = fotoMerk.get(id);
+  if (da && da.bis > Date.now()) return da.pfad;
   const bilder = await liesJson<Bildeintrag[]>('spielerbilder.json', []);
   const gleich = bilder.filter((b) => String(b.epicId ?? '').replace(/-/g, '').toLowerCase() === id);
   const b = gleich.find((x) => x.echtesFoto) ?? gleich[0];
-  return b ? spielerbildKlein(b.datei) : null;
+  const pfad = b ? spielerbildKlein(b.datei) : null;
+  fotoMerk.set(id, { bis: Date.now() + 5 * 60_000, pfad });
+  return pfad;
 }
 
 /**
@@ -232,6 +245,13 @@ export function bereinige(alt: PovPro, teil: Record<string, unknown>, gueltigeVi
     // Nur ein echter Discord-Webhook: sonst wuerde der Server beliebige Adressen anrufen.
     neu.webhook = /^https:\/\/(?:ptb\.|canary\.)?discord(?:app)?\.com\/api\/webhooks\/\d+\/[\w-]+$/.test(w) ? w : '';
   }
+  if (typeof teil.discordId === 'string') {
+    // Die Pruefung, ob es ein Mitglied des Servers ist, macht die Schnittstelle (sie fragt Discord); hier nur die Form.
+    const d = teil.discordId.trim();
+    neu.discordId = /^\d{15,25}$/.test(d) ? d : '';
+    if (!neu.discordId) neu.discordName = '';
+  }
+  if (typeof teil.discordName === 'string' && neu.discordId) neu.discordName = teil.discordName.trim().slice(0, 60);
   if (typeof teil.bild === 'string' || teil.bild === null) {
     // Nur ein kleines Bild: Data-URL (aus dem Dashboard auf 256 px verkleinert) oder eine eigene Adresse.
     const b = teil.bild as string | null;

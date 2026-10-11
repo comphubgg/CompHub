@@ -37,13 +37,13 @@ interface Props {
   aufWand: Set<string>;
   offlineAlle: boolean;
   /** Die Profi-POVs, die dieser Besucher sehen darf. */
-  povs: Array<{ ident: string; name: string; bild: string | null; live: boolean }>;
+  povs: Array<{ ident: string; name: string; bild: string | null; live: boolean; discord?: { streamt: boolean; kanal: string | null; link: string | null } | null }>;
   kannAusOrdner: (ordnerId: string, kanal: string) => boolean;
   ausOrdner: (ordnerId: string, kanal: string) => void;
   einzelAnsicht: () => void;
   einstellungen: () => void;
   /** Das Namensbanner nach den eigenen Einstellungen - wandert in den Link fuer OBS. */
-  banner: { an: boolean; ort: string; mitBild: boolean };
+  banner: { an: boolean; ort: string; mitBild: boolean; groesse: string };
 }
 
 const kurz = (n: number) => new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(n);
@@ -299,7 +299,7 @@ export default function Seitenleiste(p: Props) {
       const j = await r.json() as { ok?: boolean; schluessel?: string };
       if (!r.ok || !j.schluessel) throw new Error('kein Link');
       const url = `${window.location.origin}/pov-ansicht?pro=${encodeURIComponent(ident)}&s=${encodeURIComponent(j.schluessel)}`
-        + `&hud=${p.banner.an ? p.banner.ort : 'aus'}&bild=${p.banner.mitBild ? '1' : '0'}`;
+        + `&hud=${p.banner.an ? p.banner.ort : 'aus'}&bild=${p.banner.mitBild ? '1' : '0'}&gr=${p.banner.groesse}`;
       await navigator.clipboard.writeText(url);
       setLinkMeldung(t('Link kopiert — in OBS als Browserquelle einfügen. Nicht weitergeben.'));
     } catch { setLinkMeldung(t('Der Link ließ sich nicht erzeugen.')); }
@@ -628,6 +628,15 @@ export default function Seitenleiste(p: Props) {
                     {x.live
                       ? <span className="flex shrink-0 items-center gap-1 text-[10px] font-semibold text-red-500"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-500" />LIVE</span>
                       : <span className="mv-mute shrink-0 text-[9px] uppercase tracking-wider">offline</span>}
+                    {/* Sitzt der Profi in einem Discord-Sprachkanal? Das Bild bleibt in Discord - der Knopf oeffnet den Kanal. */}
+                    {x.discord && (
+                      <a href={x.discord.link ?? undefined} target="_blank" rel="noreferrer"
+                        title={`${t('In Discord ansehen')}${x.discord.kanal ? ` — #${x.discord.kanal}` : ''}`}
+                        className="flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-semibold text-indigo-300 ring-1 ring-indigo-400/40 transition hover:bg-indigo-500/10">
+                        <span className={`h-1.5 w-1.5 rounded-full ${x.discord.streamt ? 'animate-pulse bg-red-500' : 'bg-indigo-400'}`} />
+                        {x.discord.streamt ? t('Discord LIVE') : 'Discord'}
+                      </a>
+                    )}
                     <Knopf titel={t('Link für OBS kopieren')} klick={() => { void linkKopieren(x.ident); }}>
                       <Zeichen d={D.link} klein />
                     </Knopf>
