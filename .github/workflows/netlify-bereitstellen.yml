@@ -52,9 +52,16 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Bauen und hochladen
         run: |
-          # Ohne Angabe (der Montagslauf) wird veroeffentlicht; nur "entwurf" bleibt auf der Testadresse.
-          if [ "${{ inputs.ziel }}" = "entwurf" ]; then
-            npx --yes netlify-cli@latest deploy --debug --alias probe --message "Entwurf aus GitHub ${GITHUB_SHA::7}"
-          else
-            npx --yes netlify-cli@latest deploy --build --prod --message "Bereitstellung aus GitHub ${GITHUB_SHA::7}"
+          # Der Bau laeuft immer als Entwurf (alias probe). Netlify verweigert dem Werkzeug seit dem
+          # 11.10.2026 ("Forbidden") einen Bau direkt fuer die Hauptseite, einen Entwurf nimmt es an.
+          # "live" veroeffentlicht deshalb den fertigen Entwurf danach ueber die Schnittstelle (restore) -
+          # derselbe Stand, ohne zweiten Bau.
+          AUS=$(npx --yes netlify-cli@latest deploy --alias probe --json --message "Bereitstellung aus GitHub ${GITHUB_SHA::7}")
+          echo "$AUS" | tail -n 40
+          ID=$(echo "$AUS" | node -e "let s='';process.stdin.on('data',d=>s+=d).on('end',()=>{const m=s.match(/\"deploy_id\"\s*:\s*\"([0-9a-f]+)\"/);console.log(m?m[1]:'')})")
+          echo "Entwurf: $ID"
+          if [ "${{ inputs.ziel }}" != "entwurf" ]; then
+            if [ -z "$ID" ]; then echo "Keine Entwurfs-Kennung gefunden"; exit 1; fi
+            curl -sf -X POST -H "Authorization: Bearer $NETLIFY_AUTH_TOKEN"               "https://api.netlify.com/api/v1/sites/$NETLIFY_SITE_ID/deploys/$ID/restore" -o /dev/null
+            echo "Veroeffentlicht: $ID"
           fi
