@@ -16,6 +16,10 @@
 name: Netlify bereitstellen
 
 on:
+  # Jeden Montag fruehmorgens der aktuelle Stand (live): so ist die Seite nie lange hinter dem Code,
+  # und es kostet nur vier, fuenf Baeue im Monat (je 15 von 300 Punkten).
+  schedule:
+    - cron: '30 3 * * 1'
   workflow_dispatch:
     inputs:
       ziel:
@@ -48,8 +52,9 @@ jobs:
         run: npm ci --no-audit --no-fund
       - name: Bauen und hochladen
         run: |
-          if [ "${{ inputs.ziel }}" = "live" ]; then
-            npx --yes netlify-cli@latest deploy --build --prod --message "Bereitstellung aus GitHub ${GITHUB_SHA::7}"
-          else
+          # Ohne Angabe (der Montagslauf) wird veroeffentlicht; nur "entwurf" bleibt auf der Testadresse.
+          if [ "${{ inputs.ziel }}" = "entwurf" ]; then
             npx --yes netlify-cli@latest deploy --build --alias probe --message "Entwurf aus GitHub ${GITHUB_SHA::7}"
+          else
+            npx --yes netlify-cli@latest deploy --build --prod --message "Bereitstellung aus GitHub ${GITHUB_SHA::7}"
           fi

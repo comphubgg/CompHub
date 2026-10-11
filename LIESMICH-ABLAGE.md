@@ -42,3 +42,25 @@ Die GitHub-Läufe brauchen nichts Neues: sie lesen `GITHUB_TOKEN` aus dem Geheim
 
 `/api/ablage-pruefung` zeigt Archiv, Zahl der Dateien im Speicher und den letzten Fehler.
 Rate-Limit von GitHub: 5000 Anfragen pro Stunde; „nicht geändert"-Antworten zählen nicht.
+
+## Wo die Seite läuft (seit 11.10.2026): Netlify
+
+Render hat den Arbeitsbereich wegen der 5-GB-Grenze des kostenlosen Tarifs gesperrt, ein Reset-Datum
+gab es nicht. Die Seite läuft deshalb bei **Netlify** (Seite „thecomphub", Konto `comphubgg`, Tarif
+Free: 300 Punkte im Monat, harte Grenze, kostet nie etwas, pausiert schlimmstenfalls).
+
+- **Bereitstellen:** nur über den GitHub-Ablauf **„Netlify bereitstellen"** (Linux-Bau, Protokoll im
+  Lauf sichtbar). Montags 03:30 UTC automatisch, sonst von Hand (`ziel=live` oder `entwurf`). Netlify
+  baut **nicht** mehr von selbst bei jedem Push (`stop_builds`), weil jeder Bau 15 Punkte kostet.
+- **Geheimnisse:** `NETLIFY_AUTH_TOKEN` und `NETLIFY_SITE_ID` als GitHub-Geheimnisse; die Einstellungen
+  der Seite (Discord, Mail, Twitch, `DATEN_TOKEN` …) liegen bei Netlify unter Site configuration →
+  Environment variables.
+- **Server-Teil unter 250 MB:** `next.config.ts` schließt Replay-Paket und Datenordner aus
+  (`outputFileTracingExcludes`) und nimmt die Laufzeit für Schnittstellen mit (`...Includes`).
+- **Domain:** `www.thecomphub.com` ist die Hauptdomain, `thecomphub.com` leitet dorthin. Bei Cloudflare
+  stehen beide Einträge als CNAME auf `thecomphub.netlify.app`, **Nur DNS** (grau). Mit orangem Proxy
+  und SSL-Modus „Full" würde Cloudflare Bilder und Skripte zwischenspeichern und Netlify-Punkte sparen.
+- **Geht dort nicht:** Replays auswerten, Videos als Datei hochladen, „Alles aktualisieren" (braucht
+  `GITHUB_TOKEN` mit Recht „workflow" in den Netlify-Einstellungen).
+- Render ist nicht mehr nötig. Der Schritt „Render Bescheid geben" im Ablauf `web-image.yml` scheitert
+  seitdem mit 409 und ist ohne Folgen.
