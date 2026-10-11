@@ -16,6 +16,7 @@ import { getToken, loeseNamenAuf } from '@/lib/epicCups';
 import { zwischenspeichern } from '@/lib/zwischenspeicher';
 import { liesJson } from '@/lib/ablage';
 import { fncsTafel, andereErfolge, fncsFinalTag, mitLeerzeichen, type ProfilZeile } from '@/lib/profilTafeln';
+import { spielerbildKlein } from '@/lib/spielerbildKlein';
 
 /**
  * Das Namensverzeichnis - Konto-Id auf die Namen, unter denen jemand
@@ -144,13 +145,13 @@ async function geaendert(datei: string): Promise<number> {
 }
 
 const BILDER_DATEI = path.join(DATEN_ORT, 'spielerbilder.json');
-let bilder: Map<string, { pfad: string; echt: boolean }> | null = null;
+let bilder: Map<string, { pfad: string; gross: string; echt: boolean }> | null = null;
 let bilderStand = -1;
 
 async function liesBilder() {
   const stand = await geaendert(BILDER_DATEI);
   if (bilder && bilderStand === stand) return bilder;
-  const karte = new Map<string, { pfad: string; echt: boolean }>();
+  const karte = new Map<string, { pfad: string; gross: string; echt: boolean }>();
   try {
     const roh = JSON.parse(await fs.readFile(
       path.join(DATEN_ORT, 'spielerbilder.json'), 'utf8')) as
@@ -172,7 +173,9 @@ async function liesBilder() {
     for (const e of roh) {
       if (!e.epicId || !e.echtesFoto) continue;
       karte.set(e.epicId, {
-        pfad: `/spielerbilder/${encodeURIComponent(e.datei)}`,
+        // Listen und Karten bekommen die kleine Fassung; das Profil nimmt das Original (gross).
+        pfad: spielerbildKlein(e.datei),
+        gross: `/spielerbilder/${encodeURIComponent(e.datei)}`,
         echt: true,
       });
     }
@@ -280,6 +283,65 @@ async function holeSuchIndex(): Promise<SuchEintrag[]> {
   return stand;
 }
 
+/*
+ * Eine Spielerliste, die nicht vorgerechnet liegt, aus einer vorgerechneten ableiten.
+ *
+ * Der Betreiber (11.10.2026): "Players" in der Statistik laedt endlos. Auf dem Server ohne Dateien
+ * (Netlify) gibt es fuer jede Saison und Region nur die Liste nach Eliminierungen; jede andere
+ * Sortierung ("Damage", "Quote" ...) und jede Suche im Feld lag nirgends vor und kam als 503 zurueck -
+ * die Seite wartete auf eine Antwort, die nie kam. Die Zeilen der vorgerechneten Liste tragen schon
+ * alle Kennzahlen, also wird hier nur neu sortiert, gefiltert und gekuerzt. Der Preis: es zaehlen die
+ * 500 (ohne Region 300) Spieler mit den meisten Eliminierungen - wer weiter hinten steht, taucht
+ * bei einer anderen Sortierung nicht auf.
+ */
+const LISTEN_SORTEN = ['elims', 'damage', 'matches', 'headshots', 'hits', 'assists',
+  'quote', 'genauigkeit', 'mats', 'builds', 'timeAlive', 'elimsProMatch', 'damageProMatch', 'events'];
+
+async function ausGrundliste(url: URL): Promise<Record<string, unknown> | null> {
+  const p = url.searchParams;
+  const frei = (x: string | null) => (!x || x === 'alle' || x === 'all' ? '' : x);
+  const saison = p.get('saison') ?? '';
+  const region = frei(p.get('region'));
+  const feldRoh = p.get('sort') ?? 'elims';
+  const feld = LISTEN_SORTEN.includes(feldRoh) ? feldRoh : 'elims';
+  const grenze = Math.min(2000, Math.max(1, parseInt(p.get('limit') ?? '200', 10) || 200));
+  const suche = (p.get('q') ?? '').trim().toLowerCase();
+
+  // Die Schluessel so, wie GET sie bildet: Angaben nach Namen sortiert.
+  const schluessel = (limit: number) => 'szene|' + [
+    ['limit', String(limit)], ...(region ? [['region', region]] : []),
+    ...(saison ? [['saison', saison]] : []), ['sort', 'elims'],
+  ].map(([k, v]) => `${k}=${v}`).join('|');
+
+  type Zeile = Record<string, unknown> & { namen?: string[]; name?: string; anzeige?: string };
+  type Liste = { success?: boolean; spieltage?: unknown; gesamt?: number; clutch?: boolean; spieler?: Zeile[] };
+  let grund: Liste | null = null;
+  for (const limit of [500, 300]) {
+    try {
+      const fertig = await abgelegteAntwort<Liste>(schluessel(limit));
+      if (fertig?.spieler?.length) { grund = fertig; break; }
+    } catch { /* naechster Versuch */ }
+  }
+  if (!grund?.spieler) return null;
+
+  const enthaelt = (z: Zeile) => (z.namen ?? []).some((n) => n.toLowerCase().includes(suche))
+    || String(z.anzeige ?? '').toLowerCase().includes(suche)
+    || String(z.name ?? '').toLowerCase().includes(suche);
+  const gefiltert = suche ? grund.spieler.filter(enthaelt) : grund.spieler;
+  const sortiert = [...gefiltert].sort((a, b) => Number(b[feld]) - Number(a[feld]));
+  return {
+    success: true,
+    quelle: QUELLE,
+    spieltage: grund.spieltage,
+    // Ohne Suche zaehlt die ganze Gruppe; mit Suche nur, was in der Grundliste steht.
+    gesamt: suche ? gefiltert.length : (grund.gesamt ?? gefiltert.length),
+    sort: feld,
+    clutch: Boolean(grund.clutch),
+    spieler: sortiert.slice(0, grenze),
+    abgeleitet: true,
+  };
+}
+
 async function holeRoh(request: Request) {
   const url = new URL(request.url);
   const ansicht = url.searchParams.get('ansicht') ?? '';
@@ -360,7 +422,7 @@ async function holeRoh(request: Request) {
    * auch wenn er ein paar Stunden alt ist.
    */
   const archivWeit = ['jahr', 'start', 'bilder', 'suche'].includes(url.searchParams.get('ansicht') ?? '')
-    || url.searchParams.has('sort');
+    || url.searchParams.has('sort') || url.searchParams.has('q');
   if (archivWeit && ohneDateien()) {
     let fertig: unknown = null;
     try { fertig = await abgelegteAntwort<unknown>(schluessel); }
@@ -369,6 +431,13 @@ async function holeRoh(request: Request) {
       return NextResponse.json(fertig, {
         headers: { 'Cache-Control': CDN_FRIST },
       });
+    }
+    // Eine Spielerliste in anderer Sortierung oder mit Suche: aus der vorgerechneten ableiten.
+    if (!url.searchParams.has('ansicht') && !url.searchParams.has('spieler')) {
+      const abgeleitet = await ausGrundliste(url);
+      if (abgeleitet) {
+        return NextResponse.json(abgeleitet, { headers: { 'Cache-Control': CDN_FRIST } });
+      }
     }
     // Liegt nichts, wartet niemand eine Minute auf eine leere Liste.
     return NextResponse.json(
@@ -1436,7 +1505,7 @@ async function berechne(request: Request) {
           gepflegt: Boolean(pr?.anzeige || pr?.name),
           land: pr?.land || szeneNamen.get(spieler)?.land || null,
           x: pr?.x ?? null,
-          bild: (await liesBilder()).get(spieler)?.pfad ?? null,
+          bild: (await liesBilder()).get(spieler)?.gross ?? null,
           heimat: (await heimatRegionen()).get(spieler) ?? '',
         } : null,
         perzentile,
@@ -1547,5 +1616,20 @@ async function berechne(request: Request) {
 
 /** Fuer alle gleich - Vercels Zwischenspeicher beantwortet Wiederholungen (lib/zwischenspeicher). */
 export async function GET(request: Request) {
-  return zwischenspeichern(await holeRoh(request), 60);
+  const antwort = await holeRoh(request);
+  /*
+   * Fertige Antworten aus der Zeit vor den kleinen Fotos tragen noch die Adresse des Originals
+   * (bis 600 KB je Foto). Listen und Karten bekommen hier die kleine Fassung; das Profil eines
+   * Spielers ("spieler=") zeigt sein Foto gross und bleibt, wie es ist.
+   */
+  if (antwort.ok && !new URL(request.url).searchParams.has('spieler')
+      && (antwort.headers.get('content-type') ?? '').includes('json')) {
+    const text = (await antwort.text()).replace(
+      /"(bild|img)":"\/spielerbilder\/([A-Za-z0-9._-]+)\.(?:jpe?g|png)"/gi,
+      (_m, feld: string, name: string) => `"${feld}":"/spielerbilder-klein/${name}.webp"`);
+    const koepfe = new Headers(antwort.headers);
+    koepfe.delete('content-length');
+    return zwischenspeichern(new NextResponse(text, { status: antwort.status, headers: koepfe }), 60);
+  }
+  return zwischenspeichern(antwort, 60);
 }

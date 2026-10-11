@@ -8,6 +8,7 @@ import {
   liesOrgs, schreibOrgs, saeubere, orgKennung, fuerDieOrg, ORGS_JAHR, type Org, type Posten,
 } from '@/lib/orgs';
 import { abgelegteAntwort, legeAntwortAb, ohneDateien } from '@/lib/antwortSpeicher';
+import { spielerbildKlein } from '@/lib/spielerbildKlein';
 
 /*
  * Die E-Sports-Organisationen (lib/orgs).
@@ -119,7 +120,7 @@ export async function GET(request: Request) {
     liesJson<Array<{ epicId?: string; datei?: string; echtesFoto?: boolean }>>('spielerbilder.json', []).catch(() => []),
   ]);
   const bildZu = new Map<string, string>();
-  for (const b of bilder) if (b.epicId && b.datei && b.echtesFoto) bildZu.set(b.epicId, `/spielerbilder/${encodeURIComponent(b.datei)}`);
+  for (const b of bilder) if (b.epicId && b.datei && b.echtesFoto) bildZu.set(b.epicId, spielerbildKlein(b.datei));
 
   const raus = orgs.map((o) => {
     const spieler = o.spieler.map((s) => {

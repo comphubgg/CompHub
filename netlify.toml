@@ -8,3 +8,19 @@
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
+# Fotos und Logos aendern sich selten: der Browser darf sie einen Tag behalten und danach eine Woche
+# lang im Hintergrund pruefen. Sonst fragt jeder Besuch jedes Foto neu an - bei Netlify kostet das Punkte.
+[[headers]]
+  for = "/spielerbilder-klein/*"
+  [headers.values]
+    Cache-Control = "public, max-age=3600, stale-while-revalidate=86400"
+
+[[headers]]
+  for = "/spielerbilder/*"
+  [headers.values]
+    Cache-Control = "public, max-age=3600, stale-while-revalidate=86400"
+
+[[headers]]
+  for = "/logos/*"
+  [headers.values]
+    Cache-Control = "public, max-age=3600, stale-while-revalidate=86400"

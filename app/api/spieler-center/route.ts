@@ -5,6 +5,7 @@ import path from 'path';
 import { gesamtSummen, heimatRegionen } from '@/lib/szeneStats';
 import { DATEN_ORT } from '@/lib/datenOrt';
 import { namensSchluessel } from '@/lib/homoglyph';
+import { spielerbildKlein } from '@/lib/spielerbildKlein';
 
 // Alles, was das Player Center ueber einen Spieler wissen muss - an einer
 // Stelle.
@@ -95,7 +96,7 @@ async function liesFotos(): Promise<Map<string, string>> {
       Array<{ datei: string; epicId: string; echtesFoto?: boolean }>;
     for (const e of roh) {
       if (e.epicId && e.echtesFoto && e.datei) {
-        karte.set(e.epicId, `/spielerbilder/${encodeURIComponent(e.datei)}`);
+        karte.set(e.epicId, spielerbildKlein(e.datei));
       }
     }
   } catch { /* noch keine da */ }

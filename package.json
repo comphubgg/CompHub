@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "node scripts/dev-3000.mjs",
+    "prebuild": "node scripts/spielerbilder-klein.mjs",
     "build": "next build",
     "start": "next start -H 0.0.0.0",
     "lint": "eslint",
