@@ -65,6 +65,19 @@ const nextConfig: NextConfig = {
     root: __dirname,
   },
   /*
+   * Kein Zwischenspeicher am Rand von Netlify fuer die Schnittstellen.
+   *
+   * Netlify legt Antworten mit "CDN-Cache-Control" am Rand ab und unterscheidet sie dabei nur nach
+   * den Abfrage-Teilen, die das Next-Paket nennt (Netlify-Vary: query=__nextDataReq|_rsc). Alle
+   * anderen Teile der Adresse zaehlen nicht: /api/szene-stats?ansicht=jahr&jahr=alle lieferte so
+   * dieselbe Antwort wie /api/szene-stats, und die Startseite zeigte Striche statt Zahlen
+   * (11.10.2026). "Netlify-CDN-Cache-Control" hat bei Netlify Vorrang vor allen anderen Angaben.
+   * Der Browser merkt sich die Antworten weiter (Cache-Control), und davor kann Cloudflare stehen.
+   */
+  async headers() {
+    return [{ source: '/api/:path*', headers: [{ key: 'Netlify-CDN-Cache-Control', value: 'no-store' }] }];
+  },
+  /*
    * Spielerfotos, die der Betreiber im Admin-Werkzeug hochlaedt, liegen im
    * Objektspeicher statt im Ordner public/spielerbilder. Dieselbe Adresse
    * fuer beide: was dort nicht als Datei liegt, liefert die Schnittstelle.
