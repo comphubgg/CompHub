@@ -6,6 +6,8 @@ import {
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import { sichtbarerTakt } from '@/app/lib/takt';
+import { HudBanner } from '@/app/components/PovHud';
+import type { PovHud } from '@/lib/pov';
 import MvPlayer, { type MvPlayerHandle } from './MvPlayer';
 import Seitenleiste, { type MvOrdner } from './MvSeitenleiste';
 import { EinstellungenFenster, KanalAendernFenster, KuerzelFenster } from './MvDialoge';
@@ -97,6 +99,8 @@ interface KachelProps {
   host: string;
   qualitaet: string;
   pov?: 'pro' | 'discord';
+  /** Das Namensbanner, das der Profi fuer sein POV eingestellt hat. */
+  hud?: { hud: PovHud; name: string; bild: string | null };
   abgerundet: boolean;
   tooltips: boolean;
   qualitaetJeStream: boolean;
@@ -138,6 +142,8 @@ const Kachel = memo(function Kachel(p: KachelProps) {
           className={`pointer-events-none absolute inset-0 border-2 border-sky-400/70
             shadow-[0_0_14px_rgba(56,189,248,0.25)] ${p.abgerundet ? 'rounded-lg' : ''}`} />
       )}
+
+      {p.hud && <HudBanner hud={p.hud.hud} name={p.hud.name} bild={p.hud.bild} />}
 
       {/* Ziehen von ueberall: eine durchsichtige Flaeche ueber dem Player. */}
       {p.ziehenUeberall && !s.fest && (
@@ -195,6 +201,8 @@ export interface MultiviewProps {
   ordner: MvOrdner[];
   /** Wer in den Ordnern gerade sendet - fuer die Zaehler dort. */
   ordnerLive: Record<string, boolean>;
+  /** Die POVs, die dieser Besucher sehen darf (Profis haben sie freigegeben). */
+  povs: Array<{ ident: string; name: string; bild: string | null; twitch: string; live: boolean; hud: PovHud }>;
   /** Wer in einem Ordner nachtraeglich etwas entfernen darf. */
   kannAusOrdner: (ordnerId: string, kanal: string) => boolean;
   ausOrdner: (ordnerId: string, kanal: string) => void;
@@ -458,8 +466,10 @@ export default function Multiview(props: MultiviewProps) {
       const art = /discord/i.test(o.name) ? 'discord' : 'pro';
       for (const x of o.streamers) if (!karte[x.twitch] || art === 'pro') karte[x.twitch] = art;
     }
+    for (const x of props.povs) karte[x.twitch] = 'pro';
     return karte;
-  }, [props.ordner]);
+  }, [props.ordner, props.povs]);
+  const povInfo = useMemo(() => new Map(props.povs.map((x) => [x.twitch, x])), [props.povs]);
 
   /* ---------------------------------------------------------------- Ziehen (Wand) */
   const ziehen = useCallback((e: React.PointerEvent, id: string) => {
@@ -503,7 +513,8 @@ export default function Multiview(props: MultiviewProps) {
   const kanaele = useMemo(() => [...new Set([
     ...streams.map((x) => x.kanal),
     ...props.ordner.flatMap((o) => o.streamers.map((x) => x.twitch.toLowerCase())),
-  ])].join(','), [streams, props.ordner]);
+    ...props.povs.map((x) => x.twitch),
+  ])].join(','), [streams, props.ordner, props.povs]);
   useEffect(() => {
     if (!einst.liveAbfrage || !kanaele) return undefined;
     let weg = false;
@@ -595,6 +606,7 @@ export default function Multiview(props: MultiviewProps) {
             <Kachel key={id} s={s}
               x={ziehend ? zieh.x : p.x} y={ziehend ? zieh.y : p.y} w={raster.w} h={raster.h}
               host={props.host} qualitaet={s.qualitaet || qualitaetAlle} pov={pov[s.kanal]}
+              hud={povInfo.get(s.kanal) ? { hud: povInfo.get(s.kanal)!.hud, name: povInfo.get(s.kanal)!.name, bild: povInfo.get(s.kanal)!.bild } : undefined}
               abgerundet={einst.abgerundet} tooltips={einst.tooltips} qualitaetJeStream={einst.qualitaetJeStream}
               ziehenUeberall={einst.ziehenUeberall} ziehend={ziehend} neu={neu[id] ?? 0}
               aktionen={aktionen} griff={griff} ziehen={ziehen} />
@@ -633,7 +645,7 @@ export default function Multiview(props: MultiviewProps) {
       <Seitenleiste offen={seite} zu={() => setSeite(false)} streams={streams} live={liveAlle} pov={pov}
         aktionen={aktionen} qualitaetAlle={qualitaetAlle} ordner={props.ordner} darfOrdner={props.darfOrdner}
         ordnerSpeichern={props.ordnerSpeichern} zuOrdner={props.zuOrdner} verschiebeVor={verschiebeVor}
-        aufWand={aufWand} offlineAlle={einst.offlineAlle}
+        aufWand={aufWand} offlineAlle={einst.offlineAlle} povs={props.povs}
         kannAusOrdner={props.kannAusOrdner} ausOrdner={props.ausOrdner}
         einzelAnsicht={props.zurEinzelansicht} einstellungen={() => setDialog('einstellungen')} />
 

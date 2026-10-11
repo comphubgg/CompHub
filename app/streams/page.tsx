@@ -1044,6 +1044,30 @@ const response = await fetch(getApiUrl(`/api/search?q=${encodeURIComponent(twitc
   const [kachelSuche, setKachelSuche] = useState('');
 
   /*
+   * Die Profi-POVs, die dieser Besucher sehen darf.
+   *
+   * Die Profis geben sie in ihrem Dashboard einzeln frei (app/admin/ProDashboard.tsx); der Server
+   * liefert nur, was fuer diesen Besucher freigegeben ist. Nur fuer VIPs - alle anderen fragen gar nicht.
+   */
+  const [povs, setPovs] = useState<Array<{
+    ident: string; name: string; bild: string | null; twitch: string; live: boolean;
+    hud: { an: boolean; ort: 'oben' | 'unten' | 'links' | 'rechts'; mitBild: boolean; text: string };
+  }>>([]);
+  useEffect(() => {
+    if (!zugang.vip) return undefined;
+    let weg = false;
+    const holen = () => {
+      fetch('/api/pov?modus=sichtbar', { cache: 'no-store' })
+        .then((r) => r.json())
+        .then((j) => { if (!weg && j?.ok && Array.isArray(j.pros)) setPovs(j.pros); })
+        .catch(() => { /* beim naechsten Takt wieder */ });
+    };
+    holen();
+    const abbau = sichtbarerTakt(holen, 60_000);
+    return () => { weg = true; abbau(); };
+  }, [zugang.vip]);
+
+  /*
    * Die Vorschlaege unter dem Suchfeld.
    *
    * Der Betreiber: "am besten kommt noch eine Liste darunter von den
@@ -1732,6 +1756,7 @@ const response = await fetch(getApiUrl(`/api/search?q=${encodeURIComponent(twitc
         start={mvStart}
         ordner={folders}
         ordnerLive={liveStatusMap}
+        povs={povs}
         darfOrdner={!isGuest && (darfOrdner || isAdmin)}
         ordnerSpeichern={(name, kanaele) => {
           if (isGuest) return;

@@ -36,6 +36,8 @@ interface Props {
   /** Welche Streams gerade auf der Wand stehen (offline und nicht freigegebene fehlen). */
   aufWand: Set<string>;
   offlineAlle: boolean;
+  /** Die Profi-POVs, die dieser Besucher sehen darf. */
+  povs: Array<{ ident: string; name: string; bild: string | null; twitch: string; live: boolean }>;
   kannAusOrdner: (ordnerId: string, kanal: string) => boolean;
   ausOrdner: (ordnerId: string, kanal: string) => void;
   einzelAnsicht: () => void;
@@ -588,6 +590,38 @@ export default function Seitenleiste(p: Props) {
             )
           )}
         </Abschnitt>
+
+        {p.povs.length > 0 && (
+          <Abschnitt>
+            <Titel symbol={<Zeichen d={D.sender} klein />}><T>Pro-POVs</T> ({p.povs.length})</Titel>
+            <ul className="space-y-1">
+              {p.povs.map((x) => {
+                const stand = p.live[x.twitch];
+                const sendet = stand?.isLive === true;
+                const drauf = p.streams.some((s) => s.kanal === x.twitch && p.aufWand.has(s.id));
+                return (
+                  <li key={x.ident} className="flex items-center gap-2 rounded-lg border border-sky-500/30 px-2 py-1.5">
+                    {x.bild
+                      // eslint-disable-next-line @next/next/no-img-element
+                      ? <img src={x.bild} alt="" className="h-6 w-6 shrink-0 rounded-full object-cover" />
+                      : <span className="mv-rand h-6 w-6 shrink-0 rounded-full border" />}
+                    <span className="min-w-0 flex-1 truncate text-xs font-semibold text-sky-400">{x.name}</span>
+                    {sendet
+                      ? <span className="flex shrink-0 items-center gap-1 text-[10px] font-semibold text-red-500"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-500" />LIVE</span>
+                      // Der Profi hat sich live gemeldet, auf Twitch laeuft es noch nicht: gleich.
+                      : x.live
+                        ? <span className="shrink-0 text-[9px] uppercase tracking-wider text-sky-400">{t('gleich live')}</span>
+                        : <span className="mv-mute shrink-0 text-[9px] uppercase tracking-wider">offline</span>}
+                    <Knopf titel={drauf ? t('Steht auf der Wand') : t('Auf die Wand holen')} aktiv={drauf}
+                      klick={() => a.kanalZeigen(x.twitch)}>
+                      <Zeichen d={drauf ? D.auge : D.plus} klein />
+                    </Knopf>
+                  </li>
+                );
+              })}
+            </ul>
+          </Abschnitt>
+        )}
 
         <OrdnerAbschnitt p={p} />
 

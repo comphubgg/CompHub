@@ -120,7 +120,7 @@ export default function Anmelden({ start = 'anmelden' }: {
         ]);
         setDienste(d);
         // Wer schon angemeldet ist, hat hier nichts zu suchen.
-        if (ich?.angemeldet) router.replace('/account');
+        if (ich?.angemeldet) router.replace(ich?.konto?.rolle === 'pro' ? '/pov' : '/account');
       } catch { /* dann eben ohne */ }
     });
   }, [router]);
@@ -164,7 +164,7 @@ export default function Anmelden({ start = 'anmelden' }: {
       if (j?.hinweis) setHinweis(j.hinweis);
       // Wer von einer gesperrten Adresse kam (/admin), kommt dorthin zurueck.
       const weiter = new URLSearchParams(window.location.search).get('weiter') ?? '';
-      router.push(/^\/[a-z0-9/_-]*$/i.test(weiter) && weiter.startsWith('/') && !weiter.startsWith('//') ? weiter : '/account');
+      router.push(/^\/[a-z0-9/_-]*$/i.test(weiter) && weiter.startsWith('/') && !weiter.startsWith('//') ? weiter : (j?.konto?.rolle === 'pro' ? '/pov' : '/account'));
       router.refresh();
     } catch (err) {
       setFehler((err as Error).message);
