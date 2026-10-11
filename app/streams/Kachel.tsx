@@ -30,11 +30,13 @@ declare global {
   }
 }
 
-interface TwitchSpieler {
+export interface TwitchSpieler {
   setMuted(stumm: boolean): void;
   setVolume(wert: number): void;
   play(): void;
   pause(): void;
+  /** Nicht jeder Player kennt es (Werbung, Offline-Bild) - deshalb optional. */
+  setQuality?(qualitaet: string): void;
   addEventListener(ereignis: string, ruf: () => void): void;
 }
 
@@ -42,7 +44,7 @@ const SKRIPT = 'https://player.twitch.tv/js/embed/v1.js';
 let laden: Promise<void> | null = null;
 
 /** Das Skript einmal holen - alle Kacheln teilen sich denselben Aufruf. */
-function skriptLaden(): Promise<void> {
+export function skriptLaden(): Promise<void> {
   if (window.Twitch?.Player) return Promise.resolve();
   if (!laden) {
     laden = new Promise<void>((ok, nein) => {

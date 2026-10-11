@@ -12,6 +12,7 @@ import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import { useZugang } from '@/app/lib/zugang';
 import Kachel from './Kachel';
+import Multiview from './Multiview';
 import { sichtbarerTakt } from '@/app/lib/takt';
 interface Streamer {
   twitch: string;
@@ -1028,15 +1029,10 @@ const response = await fetch(getApiUrl(`/api/search?q=${encodeURIComponent(twitc
    */
   const spielerPool = useMemo(() => {
     if (mehrfach) return kachelnGezeigt;
-    const liste: Streamer[] = [];
-    if (activeStreamerTwitch) liste.push({ twitch: activeStreamerTwitch, twitter: '' });
-    if (eigeneWahl) {
-      kachelnGezeigt.forEach((st) => {
-        if (st.twitch !== activeStreamerTwitch) liste.push(st);
-      });
-    }
-    return liste;
-  }, [mehrfach, kachelnGezeigt, activeStreamerTwitch, eigeneWahl]);
+    // Die Mehrfachansicht ist seit dem 11.10.2026 eine eigene Wand (Multiview.tsx) und fuehrt ihre
+    // Player selbst - hier laeuft nur noch der eine aktive Stream.
+    return activeStreamerTwitch ? [{ twitch: activeStreamerTwitch, twitter: '' }] as Streamer[] : [];
+  }, [mehrfach, kachelnGezeigt, activeStreamerTwitch]);
 
   /*
    * Die Suche ueber der Kachelansicht.
@@ -1716,6 +1712,46 @@ const response = await fetch(getApiUrl(`/api/search?q=${encodeURIComponent(twitc
     setTwitchSearchQuery('');
     setTwitchSearchResults([]);
   };
+
+  /*
+   * Die Mehrfachansicht: eine eigene Wand nach dem Vorbild von viewington.com/watch.
+   *
+   * Der Betreiber (11.10.2026): die Stream-Seite soll "eins zu eins wie bei Viewington" werden - Wand
+   * ueber den ganzen Bildschirm, Seitenleiste, Einstellungen -, nur in den Farben von CompHub. Die
+   * Ordner bleiben: die Wand liest sie, legt Streamer hinein und speichert die Wand als neuen Ordner.
+   * Die Einzelansicht darunter bleibt, wie sie war.
+   */
+  if (mehrfach && currentHost) {
+    const mvStart = eigeneWahl && kachelWahl.length
+      ? kachelWahl
+      : kachelnGezeigt.length ? kachelnGezeigt.map((k) => k.twitch)
+      : activeStreamerTwitch ? [activeStreamerTwitch] : [];
+    return (
+      <Multiview
+        host={currentHost}
+        start={mvStart}
+        ordner={folders}
+        ordnerLive={liveStatusMap}
+        darfOrdner={!isGuest && (darfOrdner || isAdmin)}
+        ordnerSpeichern={(name, kanaele) => {
+          if (isGuest) return;
+          const neuerOrdner: Folder = {
+            id: Date.now().toString(),
+            name,
+            streamers: kanaele.map((k) => ({ twitch: k, twitter: k, createdBy: currentDashboardUser || undefined })),
+          };
+          persistFolders([...folders, neuerOrdner]);
+        }}
+        zuOrdner={(ordnerId, kanal) => {
+          if (isGuest) return;
+          persistFolders(folders.map((f) => (f.id === ordnerId && !f.streamers.some((x) => x.twitch === kanal)
+            ? { ...f, streamers: [...f.streamers, { twitch: kanal, twitter: kanal, createdBy: currentDashboardUser || undefined }] }
+            : f)));
+        }}
+        zurEinzelansicht={mehrfachUmschalten}
+      />
+    );
+  }
 
   return (
     <div className="h-screen w-full bg-zinc-950 text-white max-w-[2000px] mx-auto px-4 md:px-6 font-sans flex flex-col gap-2 relative overflow-auto pb-8 ${(previewMode && tourMode) ? 'pointer-events-none' : ''}">
