@@ -181,6 +181,10 @@ export async function GET(request: Request) {
   if (!await istAdminAnfrage(request)) {
     return NextResponse.json({ fehler: 'Nicht erlaubt.' }, { status: 403 });
   }
+  // "?frisch=1": die Zwischenspeicher dieser Antwort leeren (der Knopf "Aktualisieren" soll wirklich neu holen).
+  if (new URL(request.url).searchParams.get('frisch') === '1') {
+    merker.clear(); aufgabenMerker = null; ladeMerker = null;
+  }
   const [jobs, kontaktOffen, auftraege, ladezeiten] = await Promise.all([
     Promise.all(ABLAEUFE.map(holeLauf)),
     offeneMeldungen().catch(() => null),

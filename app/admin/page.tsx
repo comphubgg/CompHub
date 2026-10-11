@@ -30,6 +30,7 @@ import Nutzungszahlen from '@/app/components/Nutzungszahlen';
 import Fusszeile from '@/app/components/Fusszeile';
 import MeinArchiv from './MeinArchiv';
 import AdminZentrale from './AdminZentrale';
+import Klappbar from './Klappbar';
 type ProfileData = {
   displayName: string;
   avatarUrl: string | null;
@@ -451,7 +452,7 @@ export default function AdminDashboardPage() {
               */}
             {(istAdmin || rolle === 'admin' || rolle === 'manager'
               || zugang.admin || zugang.manager) && !verwaltet && (
-              <AdminZentrale werkzeuge={werkzeuge}
+              <AdminZentrale werkzeuge={werkzeuge} teil="werkzeuge"
                 zeigeLaeufe={istAdmin || rolle === 'admin' || zugang.admin} />
             )}
 
@@ -747,7 +748,21 @@ export default function AdminDashboardPage() {
           * weil dreissig Balken in einer 380 Pixel breiten Spalte nicht mehr
           * zu unterscheiden waeren.
           */}
-        {(istAdmin || rolle === 'admin' || zugang.admin) && <Nutzungszahlen />}
+        {/*
+          * Zwei zuklappbare Balken untereinander: Admin-Center (laeuft alles, was wartet,
+          * Auftraege, Ladezeiten) und Usage. Beide zu, bis man draufdrueckt - der Betreiber
+          * (11.10.2026): "das eher unten, als eine Linie, die sich oeffnen und zuklappen laesst."
+          */}
+        {(istAdmin || rolle === 'admin' || zugang.admin) && (
+          <div className="mt-4 space-y-3">
+            <Klappbar titel="Admin-Center" kennung="admin-center" hinweis="Läuft alles? Was wartet auf dich?">
+              <AdminZentrale werkzeuge={werkzeuge} teil="status" zeigeLaeufe />
+            </Klappbar>
+            <Klappbar titel="Usage" kennung="usage" hinweis="Besucher, Konten, Zugänge">
+              <Nutzungszahlen />
+            </Klappbar>
+          </div>
+        )}
       </div>
 
       {/*

@@ -87,10 +87,16 @@ function vor(zeit: string | number, t: (s: string) => string): string {
   return t('vor {n} Tagen').replace('{n}', String(Math.round(min / 1440)));
 }
 
-export default function AdminZentrale({ werkzeuge, zeigeLaeufe }: {
+export default function AdminZentrale({ werkzeuge, zeigeLaeufe, teil = 'alles' }: {
   werkzeuge: Ziel[];
   /** Die Laeufe und Replays sind Sache des Admins - ein Manager sieht nur seine Werkzeuge. */
   zeigeLaeufe: boolean;
+  /**
+   * Was gezeigt wird: die Werkzeuge nach Themen (oben auf der Seite), der Zustand der Laeufe
+   * (zuklappbar unten) oder beides. Der Betreiber (11.10.2026): "das eher unten, als eine
+   * Linie, auf die ich druecke und es oeffnet sich."
+   */
+  teil?: 'alles' | 'werkzeuge' | 'status';
 }) {
   const t = useT();
   const [daten, setDaten] = useState<Antwort | null>(null);
@@ -98,14 +104,20 @@ export default function AdminZentrale({ werkzeuge, zeigeLaeufe }: {
   const [replays, setReplays] = useState<ReplayStand | null>(null);
   const [laedt, setLaedt] = useState(false);
 
-  const laden = useCallback(() => {
+  // Wann zuletzt geholt wurde - damit der Knopf "Aktualisieren" sichtbar etwas tut.
+  const [stand, setStand] = useState<string>('');
+  /** Zustand von "Alles aktualisieren": nichts, laeuft, oder das Ergebnis. */
+  const [alles, setAlles] = useState<null | 'laeuft' | { ok: boolean; text: string }>(null);
+  const laden = useCallback((frisch: boolean = false) => {
     if (!zeigeLaeufe) return;
     setLaedt(true);
-    fetch('/api/admin/zentrale', { cache: 'no-store' })
+    fetch(`/api/admin/zentrale${frisch ? '?frisch=1' : ''}`, { cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
-      .then((j) => { setDaten(j); setFehler(false); })
+      .then((j) => { setDaten(j); setFehler(false); setStand(new Date().toLocaleTimeString()); })
       .catch(() => setFehler(true))
       .finally(() => setLaedt(false));
+    // Die Werkzeuge oben brauchen nur die Zahl der Meldungen, nicht die Replay-Zahlen.
+    if (teil === 'werkzeuge') return;
     fetch('/api/replays', { cache: 'no-store' }).then((r) => r.json())
       .then((j) => {
         const grenze = Date.now() - 31 * 864e5;
@@ -126,8 +138,30 @@ export default function AdminZentrale({ werkzeuge, zeigeLaeufe }: {
         setReplays({ gesamt, ausgewertet, offenInFrist, imFristGesamt });
       })
       .catch(() => setReplays(null));
-  }, [zeigeLaeufe]);
+  }, [zeigeLaeufe, teil]);
   useEffect(() => { laden(); }, [laden]);
+
+  /*
+   * "Alles aktualisieren": stoesst die Ablaeufe an, die alles neu holen (Datenlauf mit Power
+   * Rankings, Org-Kader, Team-Verlauf). Der Betreiber (2.10.2026): "ein Knopf fuer alles."
+   */
+  const allesAktualisieren = async () => {
+    if (!window.confirm(t('Alles neu holen? Das startet den Datenlauf (Statistiken, Power Rankings, Startseite), den Org-Kader und den Team-Verlauf. Es dauert gut eine Stunde.'))) return;
+    setAlles('laeuft');
+    try {
+      const r = await fetch('/api/admin/alles-aktualisieren', { method: 'POST' });
+      const j = await r.json() as { ok?: boolean; fehler?: string; laeufe?: Array<{ name: string; ok: boolean }> };
+      if (j.laeufe) {
+        const gut = j.laeufe.filter((l) => l.ok).length;
+        setAlles({ ok: !!j.ok, text: `${gut} ${t('von')} ${j.laeufe.length} ${t('Läufen gestartet')}${j.ok ? '' : ` — ${j.laeufe.filter((l) => !l.ok).map((l) => l.name).join(', ')} ${t('ging nicht')}`}` });
+      } else {
+        setAlles({ ok: false, text: j.fehler ?? t('Das hat nicht geklappt.') });
+      }
+    } catch {
+      setAlles({ ok: false, text: t('Das hat nicht geklappt.') });
+    }
+    window.setTimeout(() => laden(true), 4000);
+  };
   // Alle fuenf Minuten von selbst - die Zentrale soll offen stehen koennen.
   useEffect(() => {
     if (!zeigeLaeufe) return undefined;
@@ -157,20 +191,31 @@ export default function AdminZentrale({ werkzeuge, zeigeLaeufe }: {
   );
 
   return (
-    <section className="rounded-xl border border-sky-500/25 bg-zinc-950/60 p-5">
+    <section className={teil === 'status' ? '' : 'rounded-xl border border-sky-500/25 bg-zinc-950/60 p-5'}>
       <div className="flex flex-wrap items-baseline gap-2">
-        <h2 className="text-base font-semibold text-slate-100"><T>Admin-Zentrale</T></h2>
-        <span className="text-xs text-slate-500"><T>sichtbar nur für dich</T></span>
-        {zeigeLaeufe && (
-          <button type="button" onClick={laden} disabled={laedt}
-            className="ml-auto rounded-md border border-zinc-700 px-2.5 py-1 text-[11px] text-slate-400 transition
-                       hover:border-sky-500 hover:text-sky-400 disabled:opacity-50">
-            {laedt ? <T>Wird geladen …</T> : <T>Aktualisieren</T>}
-          </button>
+        {teil !== 'status' && <h2 className="text-base font-semibold text-slate-100">{teil === 'werkzeuge' ? <T>Admin-Werkzeuge</T> : <T>Admin-Zentrale</T>}</h2>}
+        {teil !== 'status' && <span className="text-xs text-slate-500"><T>sichtbar nur für dich</T></span>}
+        {zeigeLaeufe && teil !== 'werkzeuge' && (
+          <span className="ml-auto flex flex-wrap items-center gap-2">
+            {stand && <span className="text-[11px] text-slate-600"><T>Stand</T> {stand}</span>}
+            <button type="button" onClick={() => laden(true)} disabled={laedt}
+              className="rounded-md border border-zinc-700 px-2.5 py-1 text-[11px] text-slate-400 transition
+                         hover:border-sky-500 hover:text-sky-400 disabled:opacity-50">
+              {laedt ? <T>Wird geladen …</T> : <T>Aktualisieren</T>}
+            </button>
+            <button type="button" onClick={() => void allesAktualisieren()} disabled={alles === 'laeuft'}
+              className="rounded-md border border-sky-500/50 bg-sky-500/10 px-2.5 py-1 text-[11px] font-semibold text-sky-300
+                         transition hover:bg-sky-500/20 disabled:opacity-50">
+              {alles === 'laeuft' ? <T>Wird gestartet …</T> : <T>Alles aktualisieren</T>}
+            </button>
+          </span>
         )}
       </div>
+      {alles && alles !== 'laeuft' && (
+        <p className={`mt-2 text-xs ${alles.ok ? 'text-emerald-400' : 'text-rose-300'}`}>{alles.text}</p>
+      )}
 
-      {zeigeLaeufe && (
+      {zeigeLaeufe && teil !== 'werkzeuge' && (
         <>
           {/* 1. Laeuft alles? */}
           <h3 className="mt-5 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500"><T>Läuft alles?</T></h3>
@@ -278,7 +323,8 @@ export default function AdminZentrale({ werkzeuge, zeigeLaeufe }: {
       )}
 
       {/* 3. Die Werkzeuge, nach Themen. */}
-      <div className={zeigeLaeufe ? 'mt-7' : 'mt-4'}>
+      {teil !== 'status' && (
+      <div className={zeigeLaeufe && teil === 'alles' ? 'mt-7' : 'mt-4'}>
         <div className="grid gap-x-8 gap-y-6 lg:grid-cols-2">
           {gruppen.map((g) => (
             <div key={g.id}>
@@ -304,6 +350,7 @@ export default function AdminZentrale({ werkzeuge, zeigeLaeufe }: {
           ))}
         </div>
       </div>
+      )}
     </section>
   );
 }
