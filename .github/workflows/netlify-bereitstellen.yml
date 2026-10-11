@@ -54,7 +54,7 @@ jobs:
         run: |
           # Ohne Angabe (der Montagslauf) wird veroeffentlicht; nur "entwurf" bleibt auf der Testadresse.
           if [ "${{ inputs.ziel }}" = "entwurf" ]; then
-            npx --yes netlify-cli@latest deploy --build --alias probe --message "Entwurf aus GitHub ${GITHUB_SHA::7}"
+            npx --yes netlify-cli@latest deploy --debug --alias probe --message "Entwurf aus GitHub ${GITHUB_SHA::7}"
           else
             npx --yes netlify-cli@latest deploy --build --prod --message "Bereitstellung aus GitHub ${GITHUB_SHA::7}"
           fi
