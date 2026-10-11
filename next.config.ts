@@ -37,6 +37,22 @@ const nextConfig: NextConfig = {
    * COMPHUB_STANDALONE=1 - bei Vercel bleibt alles wie bisher.
    */
   ...(process.env.COMPHUB_STANDALONE ? { output: 'standalone' as const } : {}),
+  /*
+   * Was nicht in den Server-Teil gehoert.
+   *
+   * Netlify erlaubt fuer den Server einer Seite hoechstens 250 MB. Gemessen zog Next dafuer das
+   * Replay-Paket (316 MB, nur fuer die Auswertung in den GitHub-Ablaeufen) und - auf dem Rechner
+   * des Betreibers - ganze Datenordner (ueber 6 GB Replays) hinein. Der Live-Server liest seine
+   * Daten aus dem GitHub-Archiv und vom Release, nie aus diesen Ordnern, und wertet keine Replays aus.
+   */
+  outputFileTracingExcludes: {
+    '/**': [
+      './data/**', './dist/**', './tmp/**', './elektron/**', './supabase/**', './tools/**',
+      './node_modules/fortnite-replay-analysis/**',
+      './node_modules/@next/swc-*/**', './node_modules/@esbuild/**', './node_modules/esbuild/**',
+      './node_modules/typescript/**', './node_modules/eslint*/**',
+    ],
+  },
   turbopack: {
     root: __dirname,
   },
