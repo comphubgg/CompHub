@@ -430,6 +430,11 @@ export default function KartenSeite(
   const [cupId, setCupId] = useState('');
   const [fensterId, setFensterId] = useState('');
   const [laedtTeams, setLaedtTeams] = useState(false);
+  /** "Generate map": laeuft gerade, und die Liste der Noble-Spieltage, falls die Kennung nicht gleich ist. */
+  const [nobleLaeuft, setNobleLaeuft] = useState(false);
+  const [nobleListe, setNobleListe] = useState<Array<{
+    turnierId: string; turnier: string; region: string; windowId: string; name: string; start: string | null;
+  }> | null>(null);
   /**
    * Wie viele Teams hoechstens geladen werden.
    *
@@ -1476,6 +1481,95 @@ export default function KartenSeite(
       setStatus((e as Error).message);
     } finally { setLaedtTeams(false); }
   }, [fenster, fensterId, profile, teamGrenze, vorrundeZu]);
+
+  /**
+   * "Generate map": Formen und Spieler dieses Spieltags von Noble Practice uebernehmen.
+   *
+   * Der Betreiber (11.10.2026): ein Knopf, und die Karte entsteht - die Formen so, wie Noble sie
+   * zeichnet, die Spieler dort, wo sie bei Noble stehen. Das ist ausdruecklich seine Anweisung fuer
+   * diesen Knopf; sonst bleiben die Zuordnungen seine Sache und werden nie von selbst gesetzt.
+   *
+   * Ersetzt wird die Karte erst nach Rueckfrage, und Strg+Z bringt die alten Formen zurueck. Spieler,
+   * die in der eigenen Liste fehlen, werden mit ihrem Namen von Noble ergaenzt. Die Formen dieser Karte
+   * werden hier nicht zur Vorlage fuer kuenftige Karten: sie hat der Betreiber nicht selbst gezeichnet.
+   */
+  const generiereKarte = useCallback(async (
+    manuell?: { windowId: string; turnierId: string; region: string },
+  ) => {
+    if (!fensterId) return;
+    if (spots.length && !window.confirm(uebs(
+      'Die Formen und Zuordnungen dieser Karte werden durch die von Noble ersetzt. Mit Strg+Z kommst du zurück. Weitermachen?'))) return;
+    setNobleLaeuft(true); setStatus(''); setNobleListe(null);
+    try {
+      const q = manuell
+        ? `window=${encodeURIComponent(manuell.windowId)}&turnier=${encodeURIComponent(manuell.turnierId)}`
+          + `&region=${encodeURIComponent(manuell.region)}`
+        : `window=${encodeURIComponent(fensterId)}`;
+      const r = await fetch(`/api/noble-karte?${q}`, { cache: 'no-store' });
+      const j = await r.json() as {
+        ok?: boolean; error?: string; nichtGefunden?: boolean;
+        formen?: Array<{ punkte: Punkt[]; teams: Array<{ ids: string[]; namen: string[] }> }>;
+        ohneForm?: Array<{ ids: string[]; namen: string[] }>;
+      };
+      if (!r.ok || !j.ok) {
+        if (j.nichtGefunden) {
+          const l = await fetch('/api/noble-karte?liste=1', { cache: 'no-store' });
+          const lj = await l.json() as { fenster?: NonNullable<typeof nobleListe> };
+          setNobleListe(lj.fenster ?? []);
+        }
+        throw new Error(j.error ?? 'Noble nicht erreichbar');
+      }
+
+      const neueTeams: KartenTeam[] = [];
+      const finde = (ids: string[]) => {
+        const schluessel = kontoSchluessel(ids);
+        const passt = (t: KartenTeam) => t.id === schluessel || (t.ids ?? []).some((x) => x && ids.includes(x));
+        return teams.find(passt) ?? neueTeams.find(passt);
+      };
+      const wieNoble = (e: { ids: string[]; namen: string[] }): KartenTeam => {
+        let t = finde(e.ids);
+        if (!t) {
+          t = {
+            id: kontoSchluessel(e.ids) ?? `noble-${e.ids.join('_')}`,
+            spieler: e.namen.map((n, i) => profile[e.ids[i] ?? '']?.anzeige || n),
+            ids: e.ids,
+            farbe: FARBEN[(teams.length + neueTeams.length) % FARBEN.length],
+          };
+          neueTeams.push(t);
+        }
+        return t;
+      };
+
+      const jetzt = Date.now().toString(36);
+      let eingetragen = 0;
+      const neueSpots: Spot[] = (j.formen ?? []).map((fo, i) => {
+        const xs = [...new Set(fo.punkte.map((p) => p.x))];
+        const ys = [...new Set(fo.punkte.map((p) => p.y))];
+        const rechteck = fo.punkte.length === 4 && xs.length === 2 && ys.length === 2;
+        const ids = fo.teams.map((e) => wieNoble(e).id);
+        eingetragen += ids.length;
+        return {
+          id: `noble-${jetzt}-${i}`,
+          form: rechteck ? 'rechteck' : 'polygon',
+          punkte: rechteck
+            ? rechteckPunkte({ x: Math.min(...xs), y: Math.min(...ys) }, { x: Math.max(...xs), y: Math.max(...ys) })
+            : fo.punkte,
+          teams: ids,
+        } as Spot;
+      });
+      // Teams, fuer die Noble noch keine Form hat, stehen danach in der Liste und warten dort.
+      for (const e of j.ohneForm ?? []) wieNoble(e);
+
+      merke();
+      formenVomNutzer.current = false; inhaltVomNutzer.current = true;
+      setSpots(neueSpots);
+      if (neueTeams.length) setTeams((alt) => [...alt, ...neueTeams]);
+      setStatus(`${neueSpots.length} ${uebs('Formen von Noble übernommen')}, ${eingetragen} ${uebs('Teams eingetragen')}`
+        + (neueTeams.length ? ` · ${neueTeams.length} ${uebs('nicht in deiner Liste, von Noble ergänzt')}` : ''));
+    } catch (e) {
+      setStatus((e as Error).message);
+    } finally { setNobleLaeuft(false); }
+  }, [fensterId, spots, teams, profile, merke, uebs]);
 
   /**
    * Die Teamliste erneuert sich waehrend des Cups von selbst.
@@ -3689,6 +3783,34 @@ ${name}
                          text-slate-100 transition hover:bg-zinc-700 disabled:opacity-40">
               {laedtTeams ? 'lädt…' : 'Teams laden'}
             </button>
+            {/* Formen und Spieler von Noble Practice - nur wer bauen darf. */}
+            {darfBauen && (
+              <button onClick={() => void generiereKarte()} disabled={!fensterId || nobleLaeuft}
+                title={uebs('Formen und Spieler dieses Spieltags von Noble übernehmen. Auch zum Aktualisieren kurz vor dem Cup.')}
+                className="self-end rounded-lg bg-sky-500 px-4 py-2 text-sm font-semibold
+                           text-white transition hover:bg-sky-400 disabled:opacity-40">
+                {nobleLaeuft ? 'lädt…' : spots.length ? uebs('Von Noble aktualisieren') : 'Generate map'}
+              </button>
+            )}
+            {darfBauen && nobleListe && (
+              <label className="text-xs text-slate-400">
+                <T>Spieltag bei Noble</T>
+                <select defaultValue=""
+                  onChange={(e) => {
+                    const w = nobleListe.find((x) => `${x.turnierId}|${x.region}|${x.windowId}` === e.target.value);
+                    if (w) void generiereKarte({ windowId: w.windowId, turnierId: w.turnierId, region: w.region });
+                  }}
+                  className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2
+                             text-sm text-slate-100 outline-none focus:border-sky-500">
+                  <option value="">— auswählen —</option>
+                  {nobleListe.map((w) => (
+                    <option key={`${w.turnierId}|${w.region}|${w.windowId}`} value={`${w.turnierId}|${w.region}|${w.windowId}`}>
+                      {w.turnier} · {w.name} · {w.region}{w.start ? ` · ${new Date(w.start).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}` : ''}
+                    </option>
+                  ))}
+                </select>
+              </label>
+            )}
 
             {/*
               * Von Hand dazu - neben "Teams laden", weil es dieselbe Frage

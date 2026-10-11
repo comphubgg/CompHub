@@ -70,6 +70,8 @@ interface Ziel { href: string; titel: string; text: string }
 const VIP_ZIELE: Ziel[] = [
   { href: '/globals', titel: 'Globals 2026',
     text: 'Overlays, Teams, Karte und Prognose zur Global Championship' },
+  { href: '/globals-solos', titel: 'Globals Solos',
+    text: 'Qualifizierte, Heats und Karten der FNCS Solos' },
 ];
 
 /** Wohin jeder springt, der angemeldet ist. */

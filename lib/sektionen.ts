@@ -50,6 +50,7 @@ export const SEKTIONEN: Sektion[] = [
   // Die Globals-Seiten fuer VIPs (Teams, Karte, Prognosen, Overlays). Seit 11.10.2026 schaltbar: offline heisst fuer
   // alle ausser dem Admin weg, nicht geloescht.
   { schluessel: 'globals', pfad: '/globals', titel: 'Globals (VIP)' },
+  { schluessel: 'globals-solos', pfad: '/globals-solos', titel: 'Globals Solos (VIP)' },
 ];
 
 /**

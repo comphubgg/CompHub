@@ -1,0 +1,187 @@
+/*
+ * FNCS Globals Solos - wer sich wie qualifiziert hat, wer in welchem Heat steht, und die Karten.
+ *
+ * Der Betreiber (11.10.2026): "eine neue VIP-Page fuer Globals Solos. Da tust du automatisch immer die
+ * eintragen, die sich direkt qualifiziert haben ... Dann kommt noch irgendwann Last Chance Qualifier ...
+ * Und nachher zu den Heats: welche Spieler in welchem Heat sind. Dann natuerlich die Map."
+ *
+ * Alles kommt von Noble Practice (tournaments.nobleprac.com): je Fenster die Spieler und ihre Formen.
+ * Die Finalisten sind die Spieler des Fensters "Finals" - sie stehen dort, sobald sie sich qualifiziert
+ * haben. Wie sie das getan haben, ergibt sich aus den anderen Fenstern: wer in einem Heat steht, kam
+ * ueber diesen Heat; sonst ueber das Qualifier-Fenster, in dessen Ergebnissen er auftaucht (Rang und
+ * Punkte aus Epics Bestenliste). Eine feste Zahl wie "die ersten acht" steht hier nicht: es zaehlt, wen
+ * Noble im Finale fuehrt.
+ */
+
+import { liesJson } from '@/lib/ablage';
+import { gecacht, holeTop, listeCups } from '@/lib/epicCups';
+import { detail, jungeTurniere, formenAus, namenRepariert, type RohDetail } from '@/lib/nobleKarte';
+import { spielerbildKlein } from '@/lib/spielerbildKlein';
+
+/** Das Turnier bei Noble: "FNCS Solos" der laufenden Saison. */
+const TURNIER_NAME = /^FNCS Solos$/i;
+const REGION = 'EU';
+
+export interface SolosSpieler {
+  id: string;
+  name: string;
+  anzeige: string;
+  land: string | null;
+  bild: string | null;
+}
+
+export type FensterArt = 'qualifier' | 'heat' | 'finale' | 'sonst';
+
+export interface SolosFenster {
+  windowId: string;
+  name: string;
+  art: FensterArt;
+  start: string | null;
+  end: string | null;
+  spieler: SolosSpieler[];
+  /** Die Landepunkte, mit den Anzeigenamen der Spieler darauf - Ecken in Prozent des Kartenbildes. */
+  formen: Array<{ punkte: Array<{ x: number; y: number }>; spieler: string[] }>;
+}
+
+export interface SolosGruppe {
+  /** "Fast Tracks", "Heat 1" ... - woher diese Spieler kommen. */
+  quelle: string;
+  windowId: string | null;
+  art: FensterArt;
+  spieler: Array<SolosSpieler & { rang: number | null; punkte: number | null }>;
+}
+
+export interface SolosDaten {
+  turnier: { id: string; name: string };
+  stand: string;
+  fenster: SolosFenster[];
+  /** Die Finalisten, nach Herkunft gruppiert. */
+  qualifiziert: SolosGruppe[];
+}
+
+interface Profil { anzeige?: string; name?: string; land?: string }
+interface Bildeintrag { datei: string; epicId: string; echtesFoto?: boolean }
+
+function artVon(name: string): FensterArt {
+  if (/final/i.test(name)) return 'finale';
+  if (/heat/i.test(name)) return 'heat';
+  if (/fast track|last chance|qualif/i.test(name)) return 'qualifier';
+  return 'sonst';
+}
+
+/** Epics Ereignis-Kennung zu einer Fenster-Kennung - aus Epics eigenem Katalog. */
+async function eventZu(windowId: string): Promise<string | null> {
+  try {
+    const k = await gecacht('solos|katalog', 10 * 60_000, () => listeCups(REGION));
+    return k.windows.find((w) => w.windowId === windowId)?.eventId ?? null;
+  } catch { return null; }
+}
+
+async function ergebnisse(windowId: string): Promise<Map<string, { rang: number; punkte: number }>> {
+  const karte = new Map<string, { rang: number; punkte: number }>();
+  const event = await eventZu(windowId);
+  if (!event) return karte;
+  try {
+    const roh = await gecacht(`solos|top|${windowId}`, 2 * 60_000, () => holeTop(event, windowId, 100, true));
+    for (const e of (roh as { entries?: Array<{ rank: number; points?: number; players?: Array<{ id: string }> }> }).entries ?? []) {
+      for (const p of e.players ?? []) karte.set(p.id, { rang: e.rank, punkte: e.points ?? 0 });
+    }
+  } catch { /* ohne Ergebnisse bleibt die Gruppe ohne Rang */ }
+  return karte;
+}
+
+export async function globalsSolos(): Promise<SolosDaten | null> {
+  const turniere = await jungeTurniere(12);
+  const turnier = turniere.find((t) => TURNIER_NAME.test(t.tournamentName));
+  if (!turnier) return null;
+
+  const uebersicht = await detail(turnier.id, REGION);
+  const fensterListe = uebersicht.tournamentData?.windows ?? [];
+  const einzeln = await Promise.all(fensterListe.map(async (w) => {
+    try { return { w, d: await detail(turnier.id, REGION, w.windowId) as RohDetail }; }
+    catch { return { w, d: null }; }
+  }));
+
+  const [profile, bilder] = await Promise.all([
+    liesJson<Record<string, Profil>>('spieler-profile.json', {}),
+    liesJson<Bildeintrag[]>('spielerbilder.json', []),
+  ]);
+  const bildZu = new Map<string, string>();
+  for (const b of bilder) if (b.epicId && b.echtesFoto) bildZu.set(b.epicId, spielerbildKlein(b.datei));
+
+  const spielerVon = (id: string, roh: string, land?: string): SolosSpieler => {
+    const pr = profile[id];
+    const name = namenRepariert(roh);
+    const nobleLand = land && land !== 'global' ? land.toUpperCase() : null;
+    return {
+      id, name,
+      anzeige: pr?.anzeige || pr?.name || name,
+      land: (pr?.land || nobleLand || '').toUpperCase() || null,
+      bild: bildZu.get(id) ?? null,
+    };
+  };
+
+  const fenster: SolosFenster[] = einzeln.map(({ w, d }) => {
+    const teams = d?.windowData?.teams ?? [];
+    const spieler: SolosSpieler[] = [];
+    const bekannt = new Set<string>();
+    for (const t of teams) {
+      for (const p of t.players ?? []) {
+        if (!p.accountId || bekannt.has(p.accountId)) continue;
+        bekannt.add(p.accountId);
+        spieler.push(spielerVon(p.accountId, p.username ?? '', (p as { country?: string }).country));
+      }
+    }
+    const nachId = new Map(spieler.map((s) => [s.id, s]));
+    const { formen } = d ? formenAus(d) : { formen: [] };
+    return {
+      windowId: w.windowId, name: w.name, art: artVon(w.name),
+      start: w.startDate ?? null, end: w.endDate ?? null,
+      spieler,
+      formen: formen.map((f) => ({
+        punkte: f.punkte,
+        spieler: f.teams.flatMap((t) => t.ids.map((id) => nachId.get(id)?.anzeige ?? '')).filter(Boolean),
+      })),
+    };
+  }).sort((a, b) => String(a.start ?? '').localeCompare(String(b.start ?? '')));
+
+  /* ------------------------------------------------------ Wer kam woher */
+  const finale = fenster.filter((f) => f.art === 'finale').flatMap((f) => f.spieler);
+  const heats = fenster.filter((f) => f.art === 'heat');
+  const qualis = fenster.filter((f) => f.art === 'qualifier');
+  const ergebnisseJe = new Map<string, Map<string, { rang: number; punkte: number }>>();
+  await Promise.all(qualis.map(async (q) => { ergebnisseJe.set(q.windowId, await ergebnisse(q.windowId)); }));
+
+  const gruppen = new Map<string, SolosGruppe>();
+  const zu = (kopf: { quelle: string; windowId: string | null; art: FensterArt }) => {
+    const k = kopf.windowId ?? kopf.quelle;
+    if (!gruppen.has(k)) gruppen.set(k, { ...kopf, spieler: [] });
+    return gruppen.get(k)!;
+  };
+  for (const sp of finale) {
+    // Heat zuerst: wer dort steht, hat den Weg ueber den Heat genommen.
+    const heat = heats.find((h) => h.spieler.some((x) => x.id === sp.id));
+    if (heat) { zu({ quelle: heat.name, windowId: heat.windowId, art: 'heat' }).spieler.push({ ...sp, rang: null, punkte: null }); continue; }
+    const quali = qualis.find((q) => ergebnisseJe.get(q.windowId)?.has(sp.id));
+    if (quali) {
+      const e = ergebnisseJe.get(quali.windowId)!.get(sp.id)!;
+      zu({ quelle: quali.name, windowId: quali.windowId, art: 'qualifier' }).spieler.push({ ...sp, rang: e.rang, punkte: e.punkte });
+      continue;
+    }
+    zu({ quelle: 'Other', windowId: null, art: 'sonst' }).spieler.push({ ...sp, rang: null, punkte: null });
+  }
+  const qualifiziert = [...gruppen.values()].map((g) => ({
+    ...g,
+    spieler: [...g.spieler].sort((a, b) => (a.rang ?? 9999) - (b.rang ?? 9999)),
+  })).sort((a, b) => {
+    const reihenfolge = (g: SolosGruppe) => (g.art === 'qualifier' ? 0 : g.art === 'heat' ? 1 : 2);
+    return reihenfolge(a) - reihenfolge(b);
+  });
+
+  return {
+    turnier: { id: turnier.id, name: turnier.tournamentName },
+    stand: new Date().toISOString(),
+    fenster,
+    qualifiziert,
+  };
+}
