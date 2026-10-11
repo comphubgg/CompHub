@@ -1,0 +1,42 @@
+# Der Waechter: alle fuenf Minuten fragen, ob die Startseite antwortet, und bei
+# einem Wechsel (weg / wieder da) nach #admin-alarm melden - mit der Ursache, so
+# weit sie sich aus der Antwort lesen laesst (scripts/seite-da.mjs).
+# Vom Betreiber am 2.10.2026 verlangt. Kostenlos: GitHub Actions, wenige Sekunden je Lauf.
+# GitHub fuehrt "alle 5 Minuten" bei Last gelegentlich spaeter aus; ein Ausfall von
+# wenigen Minuten kann so durchrutschen, ein laengerer nicht.
+#
+# Der Lauf wird rot, solange die Seite weg ist: daran erkennt der naechste Lauf,
+# dass er nicht noch einmal melden muss.
+
+name: Seite da
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/5 * * * *'
+
+concurrency:
+  group: seite-da
+  cancel-in-progress: false
+
+jobs:
+  pruefen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read
+      contents: read
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: Zugangsdaten
+        run: printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
+      - name: Startseite fragen
+        run: node scripts/seite-da.mjs
+      - name: Zugangsdaten wieder weg
+        if: always()
+        run: rm -f .env.local

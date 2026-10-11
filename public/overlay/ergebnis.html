@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Result card</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!--
+  Das Ergebnisbild: die ersten zehn eines Finales mit Fotos, Punkten und Preisgeld.
+
+  Der Betreiber (1.10.2026) hat den Vorschlag freigegeben: "Nach jedem Finale
+  legt der Bot ein fertiges Bild in #admin-log: Top 10 mit Fotos, Punkten und
+  Preisgeld im CompHub-Stil, bereit zum Posten auf X." Dies ist die Seite, die
+  fotografiert wird (scripts/ergebnisbild.mjs, ein kopfloser Chrome). Sie ist
+  1200 Pixel breit und waechst mit der Zahl der Zeilen.
+
+    ?server=https://www.thecomphub.com
+    &event=epicgames_...&window=S42_..._EU&region=EU
+    &titel=FNCS%20Solos%20%C2%B7%20Finals%20%C2%B7%20EU     (Ueberschrift)
+    &bis=10                                                 (wie viele Plaetze)
+
+  Alles kommt aus den Abfragen der Seite. Fehlt zu einem Platz das Preisgeld,
+  bleibt die Spalte leer - erfunden wird nichts. Bei einem Duo oder Trio stehen
+  alle Fotos des Teams; wer kein Foto hat, bekommt kein Bild statt einer
+  Silhouette.
+-->
+<style>
+  @font-face { font-family: 'Anton'; src: url('../fonts/anton-latin.woff2') format('woff2'); font-display: block; }
+  :root {
+    --grund: #0a1020;
+    --karte: #111a2e;
+    --zeile: #0e1627;
+    --rand: #1d2a45;
+    --text: #e8eefc;
+    --leise: #8a9ab8;
+    --akzent: #38bdf8;
+    --gold: #f5c542;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { background: var(--grund); color: var(--text); width: 1200px; }
+  body {
+    font-family: 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+    padding: 36px 40px 28px;
+    background:
+      radial-gradient(900px 340px at 85% -80px, rgba(56, 189, 248, 0.20), transparent 70%),
+      var(--grund);
+  }
+  .kopf { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; margin-bottom: 22px; }
+  .marke { font-size: 15px; letter-spacing: 0.22em; text-transform: uppercase; color: var(--akzent); font-weight: 700; }
+  h1 { font-family: 'Anton', Impact, sans-serif; font-weight: 400; font-size: 54px; line-height: 1.05; letter-spacing: 0.01em; text-transform: uppercase; margin-top: 6px; }
+  .datum { font-size: 17px; color: var(--leise); text-align: right; white-space: nowrap; padding-bottom: 6px; }
+  .tabelle { display: flex; flex-direction: column; gap: 6px; }
+  .zeile {
+    display: grid; grid-template-columns: 64px auto 1fr 90px 130px 150px; align-items: center; gap: 16px;
+    background: var(--zeile); border: 1px solid var(--rand); border-radius: 12px; padding: 0 22px 0 8px; height: 66px;
+  }
+  .zeile.kopfzeile { background: none; border: none; height: 26px; font-size: 13px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--leise); }
+  .zeile.kopfzeile > * { text-align: right; }
+  .zeile.kopfzeile > .team, .zeile.kopfzeile > .platz { text-align: left; }
+  .zeile:nth-child(2) { border-color: rgba(245, 197, 66, 0.55); background: linear-gradient(90deg, rgba(245, 197, 66, 0.12), var(--zeile) 60%); }
+  .platz { font-family: 'Anton', Impact, sans-serif; font-size: 32px; text-align: center; color: var(--leise); }
+  .zeile:nth-child(2) .platz { color: var(--gold); }
+  .fotos { display: flex; gap: 6px; min-width: 56px; }
+  .rahmen { position: relative; overflow: hidden; width: 52px; height: 52px; border-radius: 50%; background: var(--karte); flex: none; }
+  .rahmen img { display: block; position: absolute; left: 0; top: 0; width: 100%; height: 100%; object-fit: cover; }
+  .team { font-size: 26px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; text-transform: uppercase; letter-spacing: 0.01em; }
+  .zahl { font-family: 'Anton', Impact, sans-serif; font-size: 30px; text-align: right; font-variant-numeric: tabular-nums; }
+  .zahl small { display: none; }
+  .elims { color: var(--leise); }
+  .preis { font-family: 'Anton', Impact, sans-serif; font-size: 30px; text-align: right; color: var(--gold); font-variant-numeric: tabular-nums; }
+  .preis:empty::after { content: '–'; color: var(--rand); }
+  .fuss { display: flex; justify-content: space-between; margin-top: 18px; font-size: 15px; color: var(--leise); }
+  .fuss b { color: var(--akzent); font-weight: 700; letter-spacing: 0.04em; }
+  .hinweis { padding: 60px 0; text-align: center; color: var(--leise); font-size: 22px; }
+</style>
+</head>
+<body>
+<div class="kopf">
+  <div>
+    <div class="marke">CompHub</div>
+    <h1 id="titel">Results</h1>
+  </div>
+  <div class="datum" id="datum"></div>
+</div>
+<div class="tabelle" id="tabelle"><div class="hinweis">Loading …</div></div>
+<div class="fuss">
+  <span id="fussnote"></span>
+  <b>thecomphub.com</b>
+</div>
+
+<script src="gesicht.js"></script>
+<script>
+(async function () {
+  'use strict';
+  const P = new URLSearchParams(location.search);
+  const SERVER = (P.get('server') || location.origin).replace(/\/+$/, '');
+  const EVENT = P.get('event') || '';
+  const FENSTER = P.get('window') || '';
+  const REGION = (P.get('region') || 'EU').toUpperCase();
+  const BIS = Math.max(3, Math.min(25, parseInt(P.get('bis') || '10', 10) || 10));
+  document.getElementById('titel').textContent = P.get('titel') || 'Results';
+  document.getElementById('datum').textContent = P.get('datum') || '';
+
+  const holen = (weg, init) => fetch(SERVER + weg, Object.assign({ cache: 'no-store' }, init || {}))
+    .then((r) => (r.ok ? r.json() : null)).catch(() => null);
+  const spielerName = (roh) => (String(roh || '').replace(/\[[^\]]*\]\s*/g, '').trim() || String(roh || ''));
+  const zahl = (n) => Number(n || 0).toLocaleString('en-US');
+
+  const [lb, preise] = await Promise.all([
+    holen('/api/cup-leaderboard?event=' + encodeURIComponent(EVENT) + '&window=' + encodeURIComponent(FENSTER) + '&limit=' + BIS),
+    holen('/api/cup-preise?region=' + encodeURIComponent(REGION) + '&window=' + encodeURIComponent(FENSTER) + '&event=' + encodeURIComponent(EVENT)),
+    Gesicht.lade(SERVER),
+  ]);
+  const eintraege = ((lb && lb.entries) || []).slice(0, BIS);
+  const tab = document.getElementById('tabelle');
+  if (!eintraege.length) { tab.innerHTML = '<div class="hinweis">No results yet.</div>'; document.title = 'fertig'; return; }
+
+  // Die gepflegten Namen - dieselben wie sonst im Werkzeug.
+  const ids = eintraege.flatMap((e) => (e.players || []).map((p) => p.id));
+  const echt = ((await holen('/api/echte-namen', {
+    method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ids: ids, event: EVENT }),
+  })) || {}).namen || {};
+
+  // Preisgeld je Platz: die Zeile der Tabelle, in deren Spanne der Platz liegt (siehe /api/cup-preise).
+  const geld = (preise && preise.vorhanden && Array.isArray(preise.geld)) ? preise.geld.filter((g) => g.art === 'rank') : [];
+  const waehrung = (preise && preise.waehrung) || 'USD';
+  const symbol = { USD: '$', EUR: '€', GBP: '£' }[waehrung] || (waehrung + ' ');
+  const preisFuer = (platz) => {
+    const z = geld.find((g) => platz >= (g.von || g.schwelle) && platz <= g.schwelle);
+    return z && z.betrag > 0 ? symbol + zahl(z.betrag) : '';
+  };
+  const mitPreis = eintraege.some((e) => preisFuer(e.rank));
+  const jePerson = !!(preise && preise.proPerson);
+
+  tab.innerHTML = '';
+  const kopf = document.createElement('div');
+  kopf.className = 'zeile kopfzeile';
+  kopf.innerHTML = '<span class="platz">#</span><span></span><span class="team">Team</span><span>Elims</span><span>Points</span><span>' + (mitPreis ? 'Prize' : '') + '</span>';
+  tab.appendChild(kopf);
+
+  for (const e of eintraege) {
+    const z = document.createElement('div');
+    z.className = 'zeile';
+    const fotos = document.createElement('span');
+    fotos.className = 'fotos';
+    for (const p of (e.players || []).filter((x) => x.img).slice(0, 4)) {
+      const r = document.createElement('span'); r.className = 'rahmen';
+      const i = document.createElement('img'); i.alt = ''; i.src = p.img.startsWith('http') ? p.img : SERVER + p.img;
+      r.appendChild(i); fotos.appendChild(r);
+      Gesicht.binde(i, 0.42, 0.5);
+    }
+    const namen = (e.players || []).map((p) => spielerName(echt[p.id] || p.name)).join(' · ');
+    z.innerHTML = '<span class="platz">' + e.rank + '</span>';
+    z.appendChild(fotos);
+    z.insertAdjacentHTML('beforeend',
+      '<span class="team"></span><span class="zahl elims">' + zahl(e.elims) + '</span><span class="zahl">' + zahl(e.points) + '</span><span class="preis">' + (mitPreis ? preisFuer(e.rank) : '') + '</span>');
+    z.querySelector('.team').textContent = namen;
+    tab.appendChild(z);
+  }
+  document.getElementById('fussnote').textContent =
+    (mitPreis ? 'Prize money as published by Epic' + (jePerson ? ' · per player' : '') + ' · ' : '') + 'Top ' + eintraege.length;
+
+  // Erst fertig, wenn alle Fotos da sind (der Fotograf wartet auf den Titel).
+  await Promise.all([...document.images].map((i) => (i.complete ? 0 : new Promise((f) => { i.onload = i.onerror = f; }))));
+  await new Promise((f) => setTimeout(f, 300));
+  document.title = 'fertig';
+})();
+</script>
+</body>
+</html>

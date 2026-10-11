@@ -80,6 +80,30 @@ async function pruefe(p) {
   return { ...p, ...letzter, versuche: VERSUCHE };
 }
 
+/*
+ * Ist die Seite ueberhaupt da? Wenn nicht, hat es keinen Sinn, vierzehn Adressen
+ * je viermal im Abstand von 25 Sekunden zu fragen: das dauerte zwanzig Minuten,
+ * der Lauf lief in die Zeitgrenze und wurde abgebrochen, und gemeldet wurde nie
+ * etwas (so geschehen ab dem 3.10.2026, als die Seite tagelang weg war). Den
+ * Ausfall meldet der Waechter (scripts/seite-da.mjs, alle fuenf Minuten); dieser
+ * Lauf beendet sich dann sofort, ohne Meldung und ohne Eintrag im Verlauf.
+ */
+{
+  let da = false;
+  for (let v = 1; v <= 3 && !da; v++) {
+    try {
+      const r = await fetch(BASIS + '/', { redirect: 'follow', signal: AbortSignal.timeout(20_000), headers: { 'User-Agent': 'comphub-seitenpruefung' } });
+      da = r.status === 200;
+    } catch { /* naechster Versuch */ }
+    if (!da && v < 3) await warte(10_000);
+  }
+  if (!da) {
+    console.log('Die Startseite antwortet nicht - Einzelpruefung entfaellt, der Waechter meldet den Ausfall.');
+    fs.writeFileSync('seitenpruefung.txt', '');
+    process.exit(0);
+  }
+}
+
 // Nacheinander: der kleine Server beantwortet vierzehn gleichzeitige Fragen langsam,
 // und eine Pruefung, die ihn belastet, misst nicht mehr, wie er im Alltag antwortet.
 const ergebnisse = [];
