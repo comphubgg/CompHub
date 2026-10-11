@@ -62,6 +62,8 @@ export interface Konto {
   zuruecksetzung?: { schluessel: string; bis: number };
   /** Das eigene Epic-Konto - dann zeigt das Profil die eigenen Werte. */
   epicId?: string;
+  /** Hat Epic selbst bestaetigt, dass das Konto diesem Spieler gehoert (Verknuepfung ueber "Mit Epic Games verbinden")? */
+  epicVerifiziert?: boolean;
   /**
    * Was dieses Konto darf.
    *
@@ -298,6 +300,14 @@ export async function nachDienst(
   dienst: 'twitch' | 'discord' | 'google', fremdeId: string,
 ): Promise<Konto | null> {
   return (await liesZumNachsehen()).find((k) => k.dienste?.[dienst] === fremdeId) ?? null;
+}
+
+/** Das Konto, an dem diese Epic-Konto-Id haengt - oder keines. */
+export async function nachEpicId(epicId: string): Promise<Konto | null> {
+  const id = epicId.replace(/-/g, '').toLowerCase();
+  if (!id) return null;
+  return (await liesZumNachsehen()).find(
+    (k) => (k.epicId ?? '').replace(/-/g, '').toLowerCase() === id) ?? null;
 }
 
 /**
@@ -669,6 +679,7 @@ export function oeffentlich(k: Konto) {
     // ob sie nach dem bisherigen Passwort fragen soll.
     hatPasswort: Boolean(k.passwort),
     epicId: k.epicId ?? null,
+    epicVerifiziert: Boolean(k.epicVerifiziert),
     spielerVerlauf: k.spielerVerlauf ?? [],
     bannerVorlagen: k.bannerVorlagen ?? [],
     socials: k.socials ?? {},

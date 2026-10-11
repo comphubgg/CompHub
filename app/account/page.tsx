@@ -36,7 +36,7 @@ import Fusszeile from '@/app/components/Fusszeile';
 
 interface Konto {
   id: string; email: string; name: string; bestaetigt: boolean;
-  dienste: string[]; epicId: string | null; hatPasswort: boolean;
+  dienste: string[]; epicId: string | null; epicVerifiziert?: boolean; hatPasswort: boolean;
   socials: Record<string, string>; bild: string | null; angelegt: string;
 }
 
@@ -217,6 +217,13 @@ export default function KontoSeite() {
    * eigene bleiben, auch waehrend man jemand anderen ansieht.
    */
   const [meinEpic, setMeinEpic] = useState('');
+  /** Der Spielername zum eigenen Epic-Konto - fuer "Verbunden mit ...". */
+  const [meinEpicName, setMeinEpicName] = useState('');
+  /** Ist die Epic-Anbindung beim Anbieter eingerichtet? Erst dann gibt es den Knopf. */
+  const [epicBereit, setEpicBereit] = useState<boolean | null>(null);
+  /** Was Epic nach der Rueckkehr gemeldet hat (verbunden, abgebrochen, vergeben ...). */
+  const [epicMeldung, setEpicMeldung] = useState('');
+  const [epicTrennFehler, setEpicTrennFehler] = useState('');
   /** Zuletzt nachgeschlagene Spieler - haengt am Konto, nicht am Browser. */
   const [spielerVerlauf, setSpielerVerlauf] =
     useState<Array<{ id: string; name: string }>>([]);
@@ -303,6 +310,7 @@ export default function KontoSeite() {
             .then((n) => {
               const wie = n?.haupt || (n?.namen ?? [])[0] || '';
               if (!wie) return;
+              setMeinEpicName(wie);
               setSuchtext(wie); setGewaehlterName(wie);
             })
             .catch(() => {});
@@ -311,6 +319,30 @@ export default function KontoSeite() {
       finally { setLaedt(false); }
     });
   }, [router, zugang.laedt, zugang.vip, zugang.name]);
+
+  /* Ist Epic eingerichtet, und was hat Epic bei der Rueckkehr gemeldet? */
+  useEffect(() => {
+    let weg = false;
+    void fetch('/api/konto/dienste').then((r) => r.json())
+      .then((j) => { if (!weg) setEpicBereit(Boolean(j?.dienste?.epic)); })
+      .catch(() => { if (!weg) setEpicBereit(false); });
+    try {
+      const m = new URLSearchParams(window.location.search).get('epic');
+      if (m) setEpicMeldung(m);
+    } catch { /* ohne Adresse keine Meldung */ }
+    return () => { weg = true; };
+  }, []);
+
+  async function epicTrennen() {
+    setEpicTrennFehler('');
+    try {
+      const r = await fetch('/api/auth/epic/trennen', { method: 'POST' });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) { setEpicTrennFehler(String(j?.fehler ?? 'Nicht gelöst.')); return; }
+      setKonto((k) => (k ? { ...k, epicId: null, epicVerifiziert: false } : k));
+      setEpicId(''); setMeinEpic(''); setMeinEpicName(''); setEpicMeldung('');
+    } catch { setEpicTrennFehler('Nicht gelöst.'); }
+  }
 
   /*
    * Die Cups, in denen sich suchen laesst. Alles, was ein Leaderboard hat -
@@ -962,6 +994,62 @@ export default function KontoSeite() {
                                  text-slate-300">
                   {daten.id}
                 </code>
+              </section>
+            )}
+
+            {!nurVip && (
+              <section className={kasten}>
+                <h2 className={ueberschrift}><T>Epic Games</T></h2>
+                {epicMeldung && epicMeldung !== 'verbunden' && (
+                  <p className="mb-3 mt-2 rounded-lg border border-amber-800 bg-amber-950/30 px-3 py-2 text-xs text-amber-300">
+                    {epicMeldung === 'abgebrochen' ? <T>Die Verbindung mit Epic wurde abgebrochen.</T>
+                      : epicMeldung === 'vergeben' ? <T>Dieses Epic-Konto ist schon mit einem anderen CompHub-Konto verbunden.</T>
+                      : epicMeldung === 'zugewiesen' ? <T>Dir wurde bereits ein anderes Epic-Konto zugewiesen. Das gilt, bis der Betreiber es ändert.</T>
+                      : epicMeldung === 'nicht-eingerichtet' ? <T>Die Epic-Verbindung wird gerade eingerichtet. Bis dahin kann dir der Betreiber dein Epic-Konto zuweisen.</T>
+                      : <T>Die Verbindung mit Epic hat nicht geklappt. Bitte versuche es noch einmal.</T>}
+                  </p>
+                )}
+                {daten.epicId ? (
+                  <div className="mt-3 space-y-3">
+                    <p className="flex flex-wrap items-center gap-2 text-sm text-slate-200">
+                      <span className="h-2 w-2 rounded-full bg-emerald-400" />
+                      <span className="font-semibold">{meinEpicName || '…'}</span>
+                      <span className="rounded bg-emerald-500/10 px-2 py-0.5 text-[10px] uppercase tracking-wider text-emerald-400">
+                        {daten.epicVerifiziert ? <T>Von Epic bestätigt</T> : <T>Vom Betreiber zugewiesen</T>}
+                      </span>
+                    </p>
+                    <div className="flex flex-wrap items-center gap-3">
+                      <Link href="/statistics"
+                        className="rounded-lg bg-sky-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-sky-400">
+                        <T>Meine Stats öffnen</T>
+                      </Link>
+                      {daten.epicVerifiziert && (
+                        <button type="button" onClick={() => void epicTrennen()}
+                          className="text-xs text-slate-500 underline transition hover:text-rose-400">
+                          <T>Verbindung lösen</T>
+                        </button>
+                      )}
+                    </div>
+                    {epicTrennFehler && <p className="text-xs text-rose-400"><T>{epicTrennFehler}</T></p>}
+                  </div>
+                ) : (
+                  <div className="mt-3 space-y-3">
+                    <p className="text-[11px] leading-relaxed text-slate-500">
+                      <T>Verbinde dein Epic-Konto, dann findest du deine Werte in der Statistik mit einem Klick und dein Team ist in jeder Turniertabelle hervorgehoben. Epic bestätigt dabei selbst, dass das Konto dir gehört — du gibst kein Passwort an uns.</T>
+                    </p>
+                    {epicBereit ? (
+                      <a href="/api/auth/epic/authorize"
+                        className="inline-flex items-center gap-2 rounded-lg bg-sky-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-sky-400">
+                        <img src="/icons/epic.svg" alt="" className="h-4 w-4" />
+                        <T>Mit Epic Games verbinden</T>
+                      </a>
+                    ) : (
+                      <p className="rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-xs text-slate-400">
+                        <T>Die Epic-Verbindung wird gerade eingerichtet. Bis dahin kann dir der Betreiber dein Epic-Konto zuweisen.</T>
+                      </p>
+                    )}
+                  </div>
+                )}
               </section>
             )}
 

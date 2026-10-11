@@ -14,7 +14,7 @@ import { useCallback, useEffect, useState } from 'react';
 import T from '@/app/components/T';
 
 interface Stand {
-  dienst: 'twitch' | 'discord' | 'google';
+  dienst: 'twitch' | 'discord' | 'google' | 'epic';
   woher: 'eingetragen' | 'umgebung' | 'fehlt';
   seite: string;
   rueckrufVoll: string;
@@ -24,6 +24,7 @@ const LOGO: Record<string, string> = {
   twitch: '/icons/twitch.png',
   discord: '/icons/discord.png',
   google: '/icons/google.svg',
+  epic: '/icons/epic.svg',
 };
 
 export default function DienstePage() {

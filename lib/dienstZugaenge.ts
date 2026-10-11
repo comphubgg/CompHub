@@ -19,7 +19,7 @@ import { DATEN_ORT } from './datenOrt';
 
 const DATEI = path.join(DATEN_ORT, 'dienst-zugaenge.json');
 
-export type Dienst = 'twitch' | 'discord' | 'google';
+export type Dienst = 'twitch' | 'discord' | 'google' | 'epic';
 
 interface Eintrag { id?: string; secret?: string }
 type Ablage = Partial<Record<Dienst, Eintrag>>;
@@ -41,6 +41,7 @@ const AUS_UMGEBUNG: Record<Dienst, [string | undefined, string | undefined]> = {
   twitch: [process.env.TWITCH_CLIENT_ID, process.env.TWITCH_CLIENT_SECRET],
   discord: [process.env.DISCORD_CLIENT_ID, process.env.DISCORD_CLIENT_SECRET],
   google: [process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET],
+  epic: [process.env.EPIC_CLIENT_ID, process.env.EPIC_CLIENT_SECRET],
 };
 
 /** Client-Id und Secret eines Dienstes - Ablage zuerst, dann Umgebung. */

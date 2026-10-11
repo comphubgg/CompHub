@@ -19,7 +19,7 @@ export const runtime = 'nodejs';
 
 const KONTO_COOKIE = 'streamer_dashboard_konto';
 const VIP_COOKIE = 'streamer_dashboard_auth';
-const DIENSTE: Dienst[] = ['twitch', 'discord', 'google'];
+const DIENSTE: Dienst[] = ['twitch', 'discord', 'google', 'epic'];
 
 async function istAdmin(): Promise<boolean> {
   const laden = await cookies();
@@ -43,6 +43,8 @@ const WOHER: Record<Dienst, { seite: string; rueckruf: string }> = {
     rueckruf: '/api/auth/discord/callback' },
   google: { seite: 'console.cloud.google.com/apis/credentials',
     rueckruf: '/api/auth/google/callback' },
+  epic: { seite: 'dev.epicgames.com/portal',
+    rueckruf: '/api/auth/epic/callback' },
 };
 
 export async function GET() {

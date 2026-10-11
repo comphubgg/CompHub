@@ -29,13 +29,16 @@ export async function GET() {
   // Nicht mehr nur die Umgebung: was im Werkzeug eingetragen wurde, zaehlt
   // genauso - sonst stuende ein frisch eingefuegter Schluessel als "nicht
   // eingerichtet" da, bis jemand den Server neu startet.
-  const [tw, dc, go] = await Promise.all([
+  const [tw, dc, go, ep] = await Promise.all([
     holeDienst('twitch'), holeDienst('discord'), holeDienst('google'),
+    holeDienst('epic'),
   ]);
   const dienste = {
     twitch: tw.woher !== 'fehlt',
     discord: dc.woher !== 'fehlt',
     google: go.woher !== 'fehlt',
+    // Epic ist keine Anmeldung, sondern die Verknuepfung des Spielerkontos.
+    epic: ep.woher !== 'fehlt',
     // E-Mail und Passwort brauchen niemanden von aussen - das laeuft immer.
     email: true,
   };
