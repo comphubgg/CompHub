@@ -1737,13 +1737,25 @@ function ClutchTabelle({ daten, saison, saisonTitel, aufKonto }: {
   const [sichtbar, setSichtbar] = useState(50);
   const ende = useRef<HTMLDivElement | null>(null);
   /*
-   * Die ganze Liste kommt erst auf "Details": in der Startantwort stehen nur
-   * die ersten zehn (rund zwanzigtausend Zeilen waeren vier Megabyte).
+   * Die Suche steht immer da, nicht erst unter "Details".
+   *
+   * Der Betreiber (11.10.2026): "wenn ich auf Details gehe, kommt eine Suchliste,
+   * aber nur dann - sonst nicht." Wer seinen Namen sucht, soll nicht erst die
+   * Tabelle aufklappen muessen. Ab zwei Buchstaben wird die ganze Liste geholt
+   * (siehe unten) und nach dem Namen durchsucht; der Rang bleibt der Rang in
+   * der ganzen Liste, nicht der in der Trefferliste.
+   */
+  const [suche, setSuche] = useState('');
+  const suchen = suche.trim().length >= 2;
+  /*
+   * Die ganze Liste kommt erst auf "Details" oder beim Suchen: in der
+   * Startantwort stehen nur die ersten zehn (rund zwanzigtausend Zeilen
+   * waeren vier Megabyte).
    */
   const [voll, setVoll] = useState<ClutchZeileAnzeige[] | null>(null);
   const [vollFehler, setVollFehler] = useState(false);
   useEffect(() => {
-    if (!offen || voll || daten.zeilen.length > 10) return undefined;
+    if (!(offen || suchen) || voll || daten.zeilen.length > 10) return undefined;
     let weg = false;
     setVollFehler(false);
     fetch(`/api/szene-stats?ansicht=start&saison=${encodeURIComponent(saison)}&clutch=alle`)
@@ -1751,7 +1763,7 @@ function ClutchTabelle({ daten, saison, saisonTitel, aufKonto }: {
       .then((j) => { if (!weg) { if (Array.isArray(j?.clutch?.zeilen)) setVoll(j.clutch.zeilen); else setVollFehler(true); } })
       .catch(() => { if (!weg) setVollFehler(true); });
     return () => { weg = true; };
-  }, [offen, voll, saison, daten.zeilen.length]);
+  }, [offen, suchen, voll, saison, daten.zeilen.length]);
   const alle = voll ?? daten.zeilen;
   // Eine aeltere Antwort traegt noch alle Zeilen in der Startantwort - dann ist die Liste schon da.
   const vollDa = voll !== null || daten.zeilen.length > 10;
@@ -1765,7 +1777,13 @@ function ClutchTabelle({ daten, saison, saisonTitel, aufKonto }: {
     return () => o.disconnect();
   }, [offen, sichtbar, voll, daten.zeilen.length]);
   const soloText = (s: number | null) => (s === null ? '' : `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, '0')}s`);
-  const zeilen = offen ? alle.slice(0, sichtbar) : daten.zeilen.slice(0, 10);
+  const klein = suche.trim().toLowerCase();
+  // Mit Rang in der ganzen Liste, damit er auch in der Trefferliste stimmt.
+  const gefunden = suchen && vollDa
+    ? alle.map((z, i) => ({ z, rang: i + 1 })).filter((x) => x.z.anzeige.toLowerCase().includes(klein)).slice(0, 50)
+    : null;
+  const zeilen = (gefunden ?? (offen ? alle.slice(0, sichtbar) : daten.zeilen.slice(0, 10))
+    .map((z, i) => ({ z, rang: i + 1 })));
 
   return (
     <section className="mt-7">
@@ -1776,8 +1794,13 @@ function ClutchTabelle({ daten, saison, saisonTitel, aufKonto }: {
         <span className="text-[10px] text-slate-600">
           {t('aus {n} Spieltagen mit Replay-Auswertung').replace('{n}', String(daten.spieltage))}
         </span>
+        <input value={suche} onChange={(e) => setSuche(e.target.value)}
+          placeholder={t('Spieler suchen …')}
+          className="ml-auto w-44 rounded border border-zinc-800 bg-zinc-950 px-2.5 py-1 text-[12px]
+                     normal-case tracking-normal text-slate-200 outline-none placeholder:text-slate-600
+                     focus:border-sky-500" />
         <button type="button" onClick={() => { setOffen((o) => !o); setSichtbar(50); }}
-          className="ml-auto rounded border border-zinc-700 px-3 py-1 text-[11px] font-semibold
+          className="rounded border border-zinc-700 px-3 py-1 text-[11px] font-semibold
                      uppercase tracking-[0.14em] text-slate-400 transition
                      hover:border-sky-500 hover:text-sky-400">
           {offen ? <T>Weniger</T> : <T>Details</T>}
@@ -1793,11 +1816,11 @@ function ClutchTabelle({ daten, saison, saisonTitel, aufKonto }: {
           <span className="hidden w-20 shrink-0 text-right sm:block"><T>Clutch-Spiele</T></span>
           {daten.soloDa && <span className="w-20 shrink-0 text-right"><T>Solo-Zeit</T></span>}
         </div>
-        <div className={`divide-y divide-zinc-900 ${offen ? 'max-h-[70vh] overflow-y-auto' : ''}`}>
-          {zeilen.map((z, i) => (
+        <div className={`divide-y divide-zinc-900 ${offen || suchen ? 'max-h-[70vh] overflow-y-auto' : ''}`}>
+          {zeilen.map(({ z, rang }) => (
             <button key={z.epicId} type="button" onClick={() => aufKonto(z.epicId, z.anzeige)}
               className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition hover:bg-zinc-900/60">
-              <span className={`w-8 shrink-0 text-sm font-bold tabular-nums ${i === 0 ? 'text-amber-400' : 'text-slate-600'}`}>{i + 1}</span>
+              <span className={`w-8 shrink-0 text-sm font-bold tabular-nums ${rang === 1 ? 'text-amber-400' : 'text-slate-600'}`}>{rang}</span>
               <span className="flex min-w-0 flex-1 items-center gap-2.5 text-[13px]">
                 <TeamFlagge groesse={18} laender={[z.land ?? undefined]} />
                 <span className="truncate font-medium text-slate-200">{grossName(z.anzeige, z.gepflegt)}</span>
@@ -1808,13 +1831,16 @@ function ClutchTabelle({ daten, saison, saisonTitel, aufKonto }: {
               {daten.soloDa && <span className="w-20 shrink-0 text-right text-[13px] tabular-nums text-slate-400">{soloText(z.solo)}</span>}
             </button>
           ))}
-          {offen && !vollDa && !vollFehler && (
+          {suchen && vollDa && gefunden && !gefunden.length && (
+            <p className="px-4 py-3 text-center text-[12px] text-slate-500"><T>Kein Spieler gefunden.</T></p>
+          )}
+          {(offen || suchen) && !vollDa && !vollFehler && (
             <p className="px-4 py-3 text-center text-[12px] text-slate-500"><T>Wird geladen …</T></p>
           )}
-          {offen && !vollDa && vollFehler && (
+          {(offen || suchen) && !vollDa && vollFehler && (
             <p className="px-4 py-3 text-center text-[12px] text-rose-300"><T>Die Liste ließ sich gerade nicht laden. Bitte gleich noch einmal versuchen.</T></p>
           )}
-          {offen && vollDa && sichtbar < alle.length && <div ref={ende} className="h-8" />}
+          {offen && !suchen && vollDa && sichtbar < alle.length && <div ref={ende} className="h-8" />}
         </div>
       </div>
       <p className="mt-1.5 text-[10px] text-slate-600">
