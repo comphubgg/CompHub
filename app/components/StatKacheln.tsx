@@ -66,7 +66,7 @@ function alsZeit(sek: number): string {
 
 type Kachel = KachelListe & { zeilen: KachelSpieler[] };
 
-export default function StatKacheln({ spieler, listen = TURNIER_KACHELN, anzahl = 5, aufKlick, leereZeigen = false }: {
+export default function StatKacheln({ spieler, listen = TURNIER_KACHELN, anzahl = 5, aufKlick, leereZeigen = false, leerText }: {
   spieler: KachelSpieler[];
   listen?: KachelListe[];
   /** Wie viele je Kachel stehen - der Rest hinter dem Plus. */
@@ -77,6 +77,8 @@ export default function StatKacheln({ spieler, listen = TURNIER_KACHELN, anzahl 
    * Ersatz durch Assists. Fuer die Player Stats nach Osirions Vorbild.
    */
   leereZeigen?: boolean;
+  /** Warum eine Kachel leer ist - je Kennzahl; ohne Angabe der allgemeine Hinweis. */
+  leerText?: (feld: string) => string;
 }) {
   const { sprache, t } = useSprache();
   const ort = ortVon(sprache);
@@ -128,7 +130,9 @@ export default function StatKacheln({ spieler, listen = TURNIER_KACHELN, anzahl 
             </p>
             <div className="divide-y divide-zinc-900">
               {!k.zeilen.length && (
-                <p className="px-3 py-6 text-center text-[11px] text-slate-600"><T>Liegt für diesen Cup nicht vor</T></p>
+                <p className="px-3 py-6 text-center text-[11px] leading-snug text-slate-500">
+                  {leerText ? leerText(k.feld) : <T>Liegt für diesen Cup nicht vor</T>}
+                </p>
               )}
               {k.zeilen.slice(0, anzahl).map((s, i) => (
                 // Kein deaktivierter Knopf: der bekommt im Browser keine

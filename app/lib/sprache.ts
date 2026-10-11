@@ -3365,6 +3365,8 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Karten zu diesem Spieltag': 'Maps for this match day',
   'Alle anzeigen': 'Show all',
   // ------------------------------------------------------------ Multiview (11.10.2026)
+  'Wird aus den Replays nachgetragen, sobald sie ausgewertet sind': 'Will be added from the replays as soon as they have been processed',
+  'Dieser Wert kommt aus den Server-Replays. Epic löscht sie nach 31 Tagen — für diesen Cup wurden sie nicht aufgezeichnet.': 'This value comes from the server replays. Epic deletes them after 31 days — they were not recorded for this cup.',
   'Discord-Server': 'Discord servers',
   'CompHub kann auf Discord-Servern ankündigen, wenn du live gehst. Lade CompHub auf einen Server ein — es legt dort den Kanal „comphub-dashboard" an, in dem ein Server-Admin festlegt, wohin die Meldungen kommen. Hier wählst du, auf welchen Servern dein POV angekündigt wird. Das Bild selbst sehen nur deine Freigegebenen auf CompHub.': 'CompHub can announce on Discord servers when you go live. Invite CompHub to a server — it creates the channel "comphub-dashboard" there, where a server admin chooses where the messages go. Here you choose on which servers your POV is announced. Only the people you approved can see the picture itself, on CompHub.',
   'CompHub zu einem Server einladen': 'Invite CompHub to a server',

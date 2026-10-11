@@ -84,7 +84,7 @@ function alsZeit(sek: number, stunden = false): string {
   return h ? `${h}h ${m}m` : `${m}m ${s % 60}s`;
 }
 
-export default function SpielerStatsUebersicht({ spieler, matches, aktualisiert, szene, schadenAusReplay, laeuft }: {
+export default function SpielerStatsUebersicht({ spieler, matches, aktualisiert, szene, schadenAusReplay, laeuft, endeMs }: {
   spieler: KachelSpieler[];
   /** Wie viele Matches der Spieltag (oder das Turnier) hatte. */
   matches: number;
@@ -96,6 +96,8 @@ export default function SpielerStatsUebersicht({ spieler, matches, aktualisiert,
   szene?: boolean;
   /** Laeuft der Cup gerade? Dann kommt in zehn Minuten das naechste Update, sonst ist es der Endstand. */
   laeuft?: boolean;
+  /** Wann der Spieltag zu Ende ging - daraus folgt, ob die Replays noch bei Epic liegen (31 Tage). */
+  endeMs?: number | null;
 }) {
   const { sprache, t } = useSprache();
   const ort = ortVon(sprache);
@@ -144,6 +146,19 @@ export default function SpielerStatsUebersicht({ spieler, matches, aktualisiert,
 
   const auswahl = 'rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-1.5 text-sm text-slate-200 outline-none focus:border-sky-500';
 
+  /*
+   * Warum eine Kachel leer ist - ehrlich und je nach Alter des Cups. Alles ausser den Eliminierungen kommt aus den
+   * Server-Replays; Epic loescht sie nach 31 Tagen. Ist der Cup juenger, kommt der Wert nach der Auswertung noch;
+   * ist er aelter und wurde damals nicht aufgezeichnet, kommt er nie mehr (kein Wert, der erfunden waere).
+   */
+  const alterTage = endeMs ? (Date.now() - endeMs) / 86_400_000 : null;
+  const leerText = (f: string): string => {
+    if (f === 'elims') return t('Liegt für diesen Cup nicht vor');
+    return alterTage !== null && alterTage <= 31
+      ? t('Wird aus den Replays nachgetragen, sobald sie ausgewertet sind')
+      : t('Dieser Wert kommt aus den Server-Replays. Epic löscht sie nach 31 Tagen — für diesen Cup wurden sie nicht aufgezeichnet.');
+  };
+
   return (
     <div className="space-y-4">
       <section className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
@@ -191,7 +206,7 @@ export default function SpielerStatsUebersicht({ spieler, matches, aktualisiert,
                 </p>
               </>
             ) : (
-              <p className="mt-1 text-[11px] text-slate-600"><T>Liegt für diesen Cup nicht vor</T></p>
+              <p className="mt-1 text-[11px] leading-snug text-slate-500">{leerText(k.feld)}</p>
             )}
           </div>
         ))}
@@ -209,7 +224,7 @@ export default function SpielerStatsUebersicht({ spieler, matches, aktualisiert,
         )}
       </p>
 
-      <StatKacheln spieler={spieler} listen={OSIRION_KACHELN} anzahl={5} leereZeigen />
+      <StatKacheln spieler={spieler} listen={OSIRION_KACHELN} anzahl={5} leereZeigen leerText={leerText} />
     </div>
   );
 }

@@ -4087,6 +4087,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
               aktualisiert={spielerWerte.aktualisiert ?? null}
               szene={spielerWerte.quelle === 'szene'}
               laeuft={laeuftGerade}
+              endeMs={fenster?.end ?? fenster?.begin ?? null}
               schadenAusReplay={!!(spielerWerte as { schadenAusReplay?: boolean }).schadenAusReplay} />
           </div>
         )}
