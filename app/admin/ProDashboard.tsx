@@ -173,6 +173,11 @@ export default function ProDashboard() {
     aendere({ discordId: '' });
   };
   const teilt = teilen?.art === 'laeuft';
+  // Im Programm (CompHub POV): dem Symbol im Infobereich sagen, ob gerade uebertragen wird.
+  const imProgramm = typeof window !== 'undefined' && Boolean((window as unknown as { comphubApp?: unknown }).comphubApp);
+  useEffect(() => {
+    (window as unknown as { comphubApp?: { live: (an: boolean) => void } }).comphubApp?.live(teilt);
+  }, [teilt]);
 
   const erlaubt = useMemo(() => new Set(mein?.erlaubt ?? []), [mein?.erlaubt]);
   const gefiltert = useMemo(() => {
@@ -223,6 +228,14 @@ export default function ProDashboard() {
           <div className="flex items-center gap-3 text-xs text-slate-500">
             {stand === 'speichert' && <span><T>speichert …</T></span>}
             {stand === 'gespeichert' && <span className="text-emerald-400"><T>Gespeichert</T></span>}
+            {/* Das Programm fuer Windows - im Programm selbst ist der Knopf ueberfluessig. */}
+            {!imProgramm && (
+              <a href="/api/pov/app"
+                title={t('Das Dashboard als Windows-Programm: läuft im Hintergrund weiter, die Anmeldung bleibt gespeichert.')}
+                className="rounded-md border border-sky-500/50 px-3 py-1.5 text-sky-400 transition hover:bg-sky-500/10">
+                <T>Programm für Windows laden</T>
+              </a>
+            )}
             {/* Ein gewoehnlicher Link, kein next/link: der wuerde die Adresse vorab laden - und damit abmelden. */}
             <a href="/api/auth/logout" className="rounded-md border border-zinc-700 px-3 py-1.5 text-slate-300 transition hover:border-sky-500 hover:text-sky-400">
               <T>Abmelden</T>

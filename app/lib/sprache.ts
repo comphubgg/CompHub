@@ -3365,6 +3365,8 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Karten zu diesem Spieltag': 'Maps for this match day',
   'Alle anzeigen': 'Show all',
   // ------------------------------------------------------------ Multiview (11.10.2026)
+  'Programm für Windows laden': 'Download Windows app',
+  'Das Dashboard als Windows-Programm: läuft im Hintergrund weiter, die Anmeldung bleibt gespeichert.': 'The dashboard as a Windows app: keeps running in the background, your sign-in is remembered.',
   'Nächstes Update': 'Next update',
   'Cup beendet — Endstand, keine weiteren Updates geplant': 'Cup finished — final standings, no further updates planned',
   'Dein Discord-Konto ist nicht zugewiesen — so sieht CompHub nicht, wenn du in einem Sprachkanal streamst.': 'Your Discord account is not assigned — so CompHub cannot see when you stream in a voice channel.',

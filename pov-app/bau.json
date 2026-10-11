@@ -1,0 +1,21 @@
+{
+  "appId": "gg.comphub.pov",
+  "productName": "CompHub POV",
+  "directories": { "app": "pov-app", "output": "dist-pov", "buildResources": "pov-app/build" },
+  "electronVersion": "44.0.0",
+  "electronDist": "node_modules/electron/dist",
+  "files": ["haupt.js", "vorladen.js", "quelle-vorladen.js", "quelle.html", "package.json", "build/icon.png"],
+  "asar": true,
+  "compression": "maximum",
+  "win": { "target": [{ "target": "nsis", "arch": ["x64"] }], "icon": "pov-app/build/icon.png" },
+  "nsis": {
+    "oneClick": true,
+    "perMachine": false,
+    "runAfterFinish": true,
+    "createDesktopShortcut": true,
+    "createStartMenuShortcut": true,
+    "shortcutName": "CompHub POV",
+    "artifactName": "CompHub-POV-Setup.exe"
+  },
+  "publish": null
+}

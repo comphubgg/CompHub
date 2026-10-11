@@ -1,0 +1,8 @@
+{
+  "name": "comphub-pov",
+  "productName": "CompHub POV",
+  "version": "1.0.0",
+  "description": "Das Dashboard der Profis von CompHub als Programm: live gehen, im Hintergrund weiterlaufen.",
+  "author": "CompHub",
+  "main": "haupt.js"
+}

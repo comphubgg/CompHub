@@ -14,6 +14,7 @@
     "schnell": "next build && next start -H 0.0.0.0",
     "exe": "node elektron/bauen.mjs",
     "exe-klein": "node elektron/bauen.mjs --ohne-daten",
+    "pov-app": "node scripts/pov-app-bauen.mjs",
     "veroeffentlichen": "next build && powershell -NoProfile -ExecutionPolicy Bypass -File scripts/neu-veroeffentlichen.ps1"
   },
   "dependencies": {

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import T from '@/app/components/T';
 import LadeSchirm from '@/app/components/LadeSchirm';
 import { useZugang } from '@/app/lib/zugang';
+import { useEffect } from 'react';
 import ProDashboard from '@/app/admin/ProDashboard';
 
 /*
@@ -14,6 +15,12 @@ import ProDashboard from '@/app/admin/ProDashboard';
  */
 export default function ProSeite() {
   const zugang = useZugang();
+  // Im Programm (CompHub POV) gleich zur Anmeldung - dort gibt es keine Startseite, auf der man sie suchen koennte.
+  const imProgramm = typeof navigator !== 'undefined' && /CompHubPOV\//.test(navigator.userAgent);
+  const brauchtAnmeldung = !zugang.laedt && !zugang.pro && !zugang.admin;
+  useEffect(() => {
+    if (imProgramm && brauchtAnmeldung) window.location.href = '/sign-in?weiter=%2Fpov';
+  }, [imProgramm, brauchtAnmeldung]);
   if (zugang.laedt) return <LadeSchirm />;
   if (!zugang.pro && !zugang.admin) {
     return (
