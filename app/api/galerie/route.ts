@@ -153,6 +153,15 @@ export async function POST(request: Request) {
     const ext = (/\.(mp4|webm|mov|m4v)$/i.exec(name)?.[1] ?? '').toLowerCase();
     if (!ext) return NextResponse.json({ error: 'Nur MP4, WebM oder MOV.' }, { status: 400 });
     if (groesse > 50 * 1024 * 1024) return NextResponse.json({ error: 'Groesser als 50 MB - bitte kuerzen oder als Link anhaengen.' }, { status: 413 });
+    /*
+     * Seit dem 11.10.2026 liegen die Daten in einem privaten GitHub-Archiv statt bei
+     * Supabase. Dorthin gibt es keinen Direktweg vom Browser, und ein Video durch den
+     * Server zu schicken sprengt dessen Grenzen. Videos kommen deshalb als Link
+     * (YouTube, Twitch, Streamable ...); Bilder gehen weiter als Datei.
+     */
+    if ((process.env.DATEN_TOKEN || '').trim()) {
+      return NextResponse.json({ error: 'Videos bitte als Link anhaengen (YouTube, Twitch, Streamable ...). Bilder gehen weiter als Datei.' }, { status: 501 });
+    }
     const id = neueId();
     const videoDatei = `galerie-videos/${id}.${ext}`;
     let hochladen: string;

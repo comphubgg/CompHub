@@ -11,7 +11,7 @@
 #
 # Ein Archiv je Tag am Release "daten-sicherung"; die letzten dreissig bleiben.
 # Wiederherstellen: das Archiv laden, die eine Datei herausnehmen,
-# node scripts/umzug-supabase.mjs --nur <datei> (nach Pruefung des Inhalts).
+# node scripts/daten-sync.mjs --nur <datei> (nach Pruefung des Inhalts).
 
 name: Sicherung
 
@@ -42,7 +42,7 @@ jobs:
       - name: Dateien aus Supabase holen
         run: |
           mkdir -p data/sicherung
-          COMPHUB_DATEN=data/sicherung node scripts/umzug-supabase.mjs --herunterladen --nur orgs.json,spieler-profile.json,spieler-namen.json,spielerbilder.json,turnier-karten.json,karten-vorlagen.json,karten-ausgeblendet.json,galerie.json,prognosen.json,orgtags.json,homepage-vips.json,sektionen.json,statistik-sichtbarkeit.json,tierlist-entfernt.json,tierlist-trios.json,players.json 2>&1 | tail -4
+          COMPHUB_DATEN=data/sicherung node scripts/daten-sync.mjs --herunterladen --nur orgs.json,spieler-profile.json,spieler-namen.json,spielerbilder.json,turnier-karten.json,karten-vorlagen.json,karten-ausgeblendet.json,galerie.json,prognosen.json,orgtags.json,homepage-vips.json,sektionen.json,statistik-sichtbarkeit.json,tierlist-entfernt.json,tierlist-trios.json,players.json 2>&1 | tail -4
           ls -la data/sicherung | head -30
       - name: Archiv packen und pruefen
         run: |

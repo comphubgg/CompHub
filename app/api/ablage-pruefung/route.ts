@@ -100,7 +100,9 @@ export async function GET(request: Request) {
   const gefunden = proben.filter((p) => p.da).length;
 
   return NextResponse.json({
-    speicher: gewaehlt,
+    speicher: (process.env.DATEN_TOKEN || '').trim() ? 'github-archiv' : gewaehlt,
+    // Das private GitHub-Archiv (seit 11.10.2026): Archiv, Zahl der Dateien im Speicher, letzter Fehler.
+    archiv: (process.env.DATEN_TOKEN || '').trim() ? (await import('@/lib/ablageGitDaten')).gitDatenZustand() : null,
     ...(mitMail ? { mail: await mailPruefen() } : {}),
     /*
      * Der Ordner steht nur zur Einordnung dabei. Bei Vercel ist er

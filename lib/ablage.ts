@@ -181,11 +181,23 @@ export const speicher: Speicher = {
 
 function waehle(): Speicher {
   if (gewaehlt) return gewaehlt;
-  if ((process.env.COMPHUB_ABLAGE || '').toLowerCase() === 'supabase') {
+  /*
+   * Zwei Datenbanken, eine Schicht: ein privates GitHub-Archiv (ab 11.10.2026) oder Supabase.
+   *
+   * Steht DATEN_TOKEN in der Umgebung, gilt das GitHub-Archiv - egal, was bei
+   * COMPHUB_ABLAGE steht. Das ist Absicht: der Betreiber muss auf dem Server nur
+   * diese eine Einstellung setzen, nicht zwei. Siehe lib/ablageGitDaten.ts.
+   */
+  const alteAblage = (process.env.COMPHUB_ABLAGE || '').toLowerCase();
+  if (alteAblage === 'supabase' || alteAblage === 'github' || (process.env.DATEN_TOKEN || '').trim()) {
     // Erst hier hereingeholt - siehe oben.
     // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const { supabaseSpeicher } = require('@/lib/ablageSupabase') as
+    const { gitDatenAktiv, gitDatenSpeicher } = require('@/lib/ablageGitDaten') as
+      { gitDatenAktiv: () => boolean; gitDatenSpeicher: Speicher };
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const { supabaseSpeicher: supabaseAlt } = require('@/lib/ablageSupabase') as
       { supabaseSpeicher: Speicher };
+    const supabaseSpeicher: Speicher = gitDatenAktiv() ? gitDatenSpeicher : supabaseAlt;
     // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { githubLeser, amRelease, releaseZuerst, nurRelease } = require('@/lib/ablageGithub') as {
       githubLeser: Pick<Speicher, 'lies' | 'liste'>;

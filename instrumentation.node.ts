@@ -13,6 +13,28 @@
  * nachdem feststeht, dass es der Node-Prozess ist.
  */
 export async function starteHintergrund() {
+  /*
+   * Das GitHub-Archiv vorwaermen und beim Beenden leeren (lib/ablageGitDaten).
+   *
+   * Beim Start werden die haeufig gelesenen kleinen Dateien geholt, damit die erste
+   * Seite nicht auf GitHub wartet. Beim Beenden (Render schickt SIGTERM bei jedem
+   * Aufspielen) geht noch ins Archiv, was bis dahin nur gesammelt war.
+   */
+  if ((process.env.DATEN_TOKEN || '').trim()) {
+    try {
+      const { ablageWaermen, ablageLeeren } = await import('./lib/ablageGitDaten');
+      void ablageWaermen([
+        'konten.json', 'sektionen.json', 'overlays.json', 'homepage-vips.json', 'dienst-zugaenge.json', 'vip-users.json',
+        'streamers.json', 'spieler-profile.json', 'spielerbilder.json', 'spieler-namen.json', 'orgs.json', 'orgtags.json',
+        'turnier-karten.json', 'karten-vorlagen.json', 'karten-ausgeblendet.json', 'prognosen.json', 'galerie.json',
+        'statistik-sichtbarkeit.json', 'tierlist-entfernt.json', 'tierlist-trios.json', 'players.json', 'besuche.json',
+        'kartenbilder/karten.json', 'insel-bilder.json',
+      ]);
+      process.once('SIGTERM', () => { void ablageLeeren(); });
+    } catch (e) {
+      console.warn('GitHub-Archiv: Vorwaermen fehlgeschlagen:', (e as Error).message);
+    }
+  }
   const { LISTE, erneuereImHintergrund, istAlt, lies, TERMIN_STUNDEN } =
     await import('./lib/powerRankings');
 

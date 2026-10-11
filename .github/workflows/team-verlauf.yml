@@ -37,7 +37,7 @@ jobs:
       - name: Zugangsdaten
         run: printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
       - name: Orgs aus Supabase
-        run: node scripts/umzug-supabase.mjs --herunterladen --nur orgs.json 2>&1 | tail -2
+        run: node scripts/daten-sync.mjs --herunterladen --nur orgs.json 2>&1 | tail -2
       - name: Bisheriger Stand vom Release
         run: node scripts/ablage-github-holen.mjs team-verlauf.json 2>&1 | tail -2
       - name: Seiten lesen

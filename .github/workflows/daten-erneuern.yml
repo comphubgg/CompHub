@@ -158,15 +158,15 @@ jobs:
       # sonst nur den Stand vom ersten Tag. Genau so kam eine Startansicht
       # ohne ein einziges Bild in die Ablage: der Laufrechner hatte keine
       # spielerbilder.json. Alles Grosse bleibt draussen.
-      - name: Das Noetigste aus Supabase
+      - name: Das Noetigste aus dem Archiv
         id: noetiges
-        # Genau die Liste aus scripts/umzug-supabase.mjs (NOETIGES) - was
+        # Genau die Liste aus scripts/daten-sync.mjs (NOETIGES) - was
         # Nutzer und Betreiber auf der Seite schreiben. Sonst nichts.
         continue-on-error: true
         timeout-minutes: 5
         run: |
           set -o pipefail
-          node scripts/umzug-supabase.mjs --herunterladen --noetiges \
+          node scripts/daten-sync.mjs --herunterladen --noetiges \
             --ohne kartenbilder,kontakt-bilder,admin-maps,galerie,eigene-matches \
             2>&1 | tail -4
 
@@ -585,7 +585,7 @@ jobs:
         # groesste Last am kostenlosen Kontingent (500 MB).
         #
         # Seit dem 22.9.2026 nur noch das Noetigste (NOETIGES in
-        # scripts/umzug-supabase.mjs): was dieser Lauf davon anfasst - Namen,
+        # scripts/daten-sync.mjs): was dieser Lauf davon anfasst - Namen,
         # Fotos-Zuordnung, Cup-Archiv. Antworten, Akten, Spieltage, Replays
         # gehen ausschliesslich ans Release. Supabase hatte das Projekt wegen
         # aufgebrauchten Datenverkehrs gesperrt; der Betreiber: "dort soll
@@ -593,7 +593,7 @@ jobs:
         continue-on-error: true
         timeout-minutes: 6
         run: |
-          node scripts/umzug-supabase.mjs --neuer-als 120 --noetiges \
+          node scripts/daten-sync.mjs --neuer-als 120 --noetiges \
             --ohne kartenbilder,kontakt-bilder,admin-maps,galerie,eigene-matches,antworten
 
       # Die zweite Ablage: dieselben Dateien als Anhaenge am Release "daten"

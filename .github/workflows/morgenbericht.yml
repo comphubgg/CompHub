@@ -33,7 +33,7 @@ jobs:
       - name: Besucher und Konten aus der Ablage holen
         run: |
           mkdir -p data/morgen
-          COMPHUB_DATEN=data/morgen node scripts/umzug-supabase.mjs --herunterladen --nur besuche.json,konten.json 2>&1 | tail -3
+          COMPHUB_DATEN=data/morgen node scripts/daten-sync.mjs --herunterladen --nur besuche.json,konten.json 2>&1 | tail -3
       - name: Bericht zusammenstellen
         run: COMPHUB_DATEN=data/morgen node scripts/morgenbericht.mjs
       - name: Nach Discord

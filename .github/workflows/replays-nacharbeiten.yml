@@ -57,7 +57,7 @@ jobs:
 
       - name: Epic-Anmeldung und Stand vom Release
         run: |
-          node scripts/umzug-supabase.mjs --herunterladen --nur epic-auth.json 2>&1 | tail -2
+          node scripts/daten-sync.mjs --herunterladen --nur epic-auth.json 2>&1 | tail -2
           node scripts/ablage-github-holen.mjs --ordner replays 2>&1 | tail -3
 
       - name: Nacharbeiten

@@ -62,7 +62,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          node scripts/umzug-supabase.mjs --herunterladen --nur epic-auth.json 2>&1 | tail -2
+          node scripts/daten-sync.mjs --herunterladen --nur epic-auth.json 2>&1 | tail -2
           node scripts/ablage-github-holen.mjs --ordner epic-spieltage --ordner clutch --ordner clutch-roh 2>&1 | tail -3
           # Was bis zum 29.9.2026 am allgemeinen Release lag, nicht noch einmal rechnen.
           mkdir -p data/clutch /tmp/altclutch
