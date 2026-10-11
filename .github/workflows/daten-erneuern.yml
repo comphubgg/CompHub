@@ -490,7 +490,7 @@ jobs:
 
       - name: Antworten vorrechnen
         continue-on-error: true
-        timeout-minutes: 40
+        timeout-minutes: 50
         env:
           BAU_CODE: ${{ steps.bau.outputs.code }}
           # Zu alte Antworten sofort neu rechnen statt im Hintergrund - der
@@ -500,9 +500,25 @@ jobs:
           # Vorrechnen (178 fertig, 394 "fetch failed"), und die Antwort fuer
           # die laufende Season blieb beim Stand vom 21.9. stehen - in der
           # Statistik fehlten deshalb Platz und Punkte der Week-4-Finals.
-          NODE_OPTIONS: --max-old-space-size=12288
+          # 12 Gigabyte Heap auf einem Laufrechner mit 16 Gigabyte: ab dem
+          # 11.10.2026 starb der ganze Rechner mitten in Teil 1 ("The runner
+          # has received a shutdown signal", fuenfmal hintereinander, jedes
+          # Mal sechs bis sieben Minuten nach Beginn des Schritts) - und mit
+          # ihm der Lauf, ohne dass eine einzige Antwort erneuert wurde.
+          # Mit zehn Gigabyte bricht stattdessen nur der Server ab (der Teil
+          # kommt ein zweites Mal dran), der Rechner bleibt am Leben.
+          NODE_OPTIONS: --max-old-space-size=10240
         run: |
           set +e
+          # Auslagerungsdatei: faengt Spitzen ab, statt dass der Laufrechner
+          # bei vollem Speicher stehen bleibt. Auf /mnt liegt die grosse,
+          # fluechtige Platte des Laufrechners.
+          sudo fallocate -l 8G /mnt/auslagerung 2>/dev/null && sudo chmod 600 /mnt/auslagerung \
+            && sudo mkswap /mnt/auslagerung >/dev/null && sudo swapon /mnt/auslagerung \
+            && echo "Auslagerung an: $(free -m | awk '/Swap/{print $2}') MB" || echo "Auslagerung nicht moeglich"
+          # Speicher im Blick - damit im Protokoll steht, wo es eng wird.
+          ( while sleep 20; do echo "  [Wache] $(date +%T) belegt $(free -m | awk 'NR==2{print $3}') MB, Auslagerung $(free -m | awk 'NR==3{print $3}') MB, Server $(ps -o rss= -C node 2>/dev/null | sort -n | tail -1 | awk '{printf "%d", $1/1024}') MB"; done ) &
+          WACHE=$!
           # Den Server wirklich beenden. "kill $SERVER" traf nur den
           # npx-Mantel; der eigentliche next-server lief weiter und hielt den
           # Port. Am 29.9.2026 starb deshalb jeder Neustart mit EADDRINUSE,
@@ -546,7 +562,9 @@ jobs:
           for TEIL in 1 2 3 4; do
             for VERSUCH in 1 2; do
               starten
-              timeout 480 node scripts/antworten-vorrechnen.mjs http://localhost:3000 --teil=$TEIL/4 > /tmp/teil.log 2>&1
+              # Das Protokoll laeuft live mit (tee): wird der Teil abgeschossen,
+              # steht im Lauf trotzdem, welche Abfrage zuletzt dran war.
+              timeout 540 node scripts/antworten-vorrechnen.mjs http://localhost:3000 --teil=$TEIL/4 2>&1 | tee /tmp/teil.log | sed -u 's/^/  [teil '"$TEIL"'] /'
               LEBT=nein; kill -0 $SERVER 2>/dev/null && LEBT=ja
               stoppen
               cat /tmp/teil.log >> /tmp/vorrechnen.log
@@ -563,6 +581,7 @@ jobs:
           # Die ersten zehn jedes Finales nach #results (scripts/ergebnisse-discord.mjs).
           node scripts/ergebnisse-discord.mjs http://localhost:3000 2>&1 | tail -3
           stoppen
+          kill $WACHE 2>/dev/null
           mkdir -p data/antworten
           BEREIT=$BEREIT node scripts/lauf-protokoll.mjs
 
