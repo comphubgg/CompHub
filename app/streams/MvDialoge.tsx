@@ -43,6 +43,10 @@ function Rahmen({ titel, unter, zu, children }: {
   );
 }
 
+const STATS_ORTE: Array<{ wert: 'oben' | 'mitte' | 'links' | 'rechts' | 'unten'; titel: string }> = [
+  { wert: 'oben', titel: 'Oben' }, { wert: 'mitte', titel: 'Mitte' }, { wert: 'links', titel: 'Links' },
+  { wert: 'rechts', titel: 'Rechts' }, { wert: 'unten', titel: 'Unten' },
+];
 const POV_ORTE: Array<{ wert: 'oben' | 'unten' | 'links' | 'rechts'; titel: string }> = [
   { wert: 'oben', titel: 'Oben' }, { wert: 'unten', titel: 'Unten' },
   { wert: 'links', titel: 'Links' }, { wert: 'rechts', titel: 'Rechts' },
@@ -156,6 +160,42 @@ export function EinstellungenFenster({ einst, aendern, kuerzel, zu }: {
           </div>
           <Zeile symbol={<Strich d="M10 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM4 17a6 6 0 0 1 12 0" />} text={t('Mit Profilbild')}
             an={einst.povBannerBild} aendern={(v) => aendern({ povBannerBild: v })} />
+        </>
+      )}
+
+      <Abschnitt titel={t('POV-Statistik')} />
+      <Zeile symbol={<Strich d="M4 16V9M10 16V4M16 16v-5" />} text={t('Mit Statistik (bei Profis mit verbundenem Konto)')}
+        an={einst.povStats} aendern={(v) => aendern({ povStats: v })} />
+      {einst.povStats && (
+        <>
+          <div className="flex items-center gap-3 px-2 py-2 text-sm">
+            <span className="w-4 shrink-0" />
+            <span className="min-w-0 flex-1"><T>Position</T></span>
+            <div className="flex flex-wrap justify-end gap-1">
+              {STATS_ORTE.map((o) => (
+                <button key={o.wert} type="button" onClick={() => aendern({ povStatsOrt: o.wert })}
+                  className={`rounded-md border px-2 py-1 text-xs transition ${einst.povStatsOrt === o.wert
+                    ? 'border-sky-500 bg-sky-500/15 text-sky-400' : 'mv-fl mv-hover'}`}>
+                  {t(o.titel)}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="flex items-center gap-3 px-2 py-2 text-sm">
+            <span className="w-4 shrink-0" />
+            <span className="min-w-0 flex-1"><T>Größe</T></span>
+            <div className="flex gap-1">
+              {([['klein', 'Klein'], ['mittel', 'Mittel'], ['gross', 'Groß']] as const).map(([wert, titel]) => (
+                <button key={wert} type="button" onClick={() => aendern({ povStatsGroesse: wert })}
+                  className={`rounded-md border px-2 py-1 text-xs transition ${einst.povStatsGroesse === wert
+                    ? 'border-sky-500 bg-sky-500/15 text-sky-400' : 'mv-fl mv-hover'}`}>
+                  {t(titel)}
+                </button>
+              ))}
+            </div>
+          </div>
+          <Zeile symbol={<Strich d="M10 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM4 17a6 6 0 0 1 12 0" />} text={t('Mit Profilbild')}
+            an={einst.povStatsBild} aendern={(v) => aendern({ povStatsBild: v })} />
         </>
       )}
 

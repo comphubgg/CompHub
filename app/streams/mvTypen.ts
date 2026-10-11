@@ -8,6 +8,7 @@
 
 import type { HudOrt } from '@/lib/pov';
 import type { HudGroesse } from '@/app/components/PovHud';
+import type { StatsOrt } from '@/app/components/PovStatsBanner';
 
 /** Ein Stream auf der Wand. Die Reihenfolge im Feld ist die Reihenfolge auf der Wand. */
 export interface MvStream {
@@ -56,6 +57,14 @@ export interface MvEinstellungen {
   povBannerOrt: HudOrt;
   povBannerBild: boolean;
   povBannerGroesse: HudGroesse;
+  /**
+   * Die Statistik auf Pro-POVs (nur bei Profis mit verbundenem Epic-Konto): Platz, Punkte, Elims des laufenden
+   * Cups - schlicht, schwarz und halbdurchsichtig. Position, Groesse und Profilbild stellt der Zuschauer ein.
+   */
+  povStats: boolean;
+  povStatsOrt: StatsOrt;
+  povStatsBild: boolean;
+  povStatsGroesse: HudGroesse;
 }
 
 export const EINSTELLUNGEN_STANDARD: MvEinstellungen = {
@@ -77,6 +86,10 @@ export const EINSTELLUNGEN_STANDARD: MvEinstellungen = {
   povBannerOrt: 'unten',
   povBannerBild: true,
   povBannerGroesse: 'mittel',
+  povStats: false,
+  povStatsOrt: 'oben',
+  povStatsBild: true,
+  povStatsGroesse: 'mittel',
 };
 
 export const LIVE_TAKTE = [30, 60, 120, 300];

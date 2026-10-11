@@ -4,6 +4,7 @@ import { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useSta
 import type { MvPlayerHandle } from './MvPlayer';
 import type { HudOrt } from '@/lib/pov';
 import { HudBanner, type HudGroesse } from '@/app/components/PovHud';
+import { PovStatsBanner, type StatsEinst, type StatsOrt } from '@/app/components/PovStatsBanner';
 import { useT } from '@/app/components/SprachProvider';
 
 /*
@@ -22,6 +23,7 @@ import { useT } from '@/app/components/SprachProvider';
 type Stand = 'verbinde' | 'live' | 'offline' | 'verboten';
 
 export interface BannerEinst { an: boolean; ort: HudOrt; mitBild: boolean; groesse: HudGroesse }
+export type { StatsEinst };
 
 interface Props {
   /** Die Kennung des Profis. */
@@ -36,6 +38,9 @@ interface Props {
   banner?: { einst: BannerEinst; name: string; bild: string | null };
   /** Mit Bedienleiste (Wand): so aendert der Zuschauer sein Banner. In OBS fehlt es. */
   aendereBanner?: (teil: Partial<BannerEinst>) => void;
+  /** Die Statistik des Profis (nur wenn er ein verbundenes Epic-Konto hat) nach den Einstellungen des Zuschauers. */
+  stats?: { einst: StatsEinst; name: string; bild: string | null };
+  aendereStats?: (teil: Partial<StatsEinst>) => void;
 }
 
 /** "video/mp4;codecs=avc1.64002A,mp4a.40.2" -> 'video/mp4; codecs="avc1.64002A,mp4a.40.2"' */
@@ -77,12 +82,16 @@ const Ikone = ({ d, extra = '' }: { d: string; extra?: string }) => (
 const ORTE: Array<{ wert: HudOrt; titel: string }> = [
   { wert: 'oben', titel: 'Oben' }, { wert: 'unten', titel: 'Unten' }, { wert: 'links', titel: 'Links' }, { wert: 'rechts', titel: 'Rechts' },
 ];
+const STATS_ORTE: Array<{ wert: StatsOrt; titel: string }> = [
+  { wert: 'oben', titel: 'Oben' }, { wert: 'mitte', titel: 'Mitte' }, { wert: 'links', titel: 'Links' },
+  { wert: 'rechts', titel: 'Rechts' }, { wert: 'unten', titel: 'Unten' },
+];
 const GROESSEN: Array<{ wert: HudGroesse; titel: string }> = [
   { wert: 'klein', titel: 'Klein' }, { wert: 'mittel', titel: 'Mittel' }, { wert: 'gross', titel: 'Groß' },
 ];
 
 const PovVideo = forwardRef<MvPlayerHandle, Props>(function PovVideo(
-  { pro, schluessel, stumm = true, name, banner, aendereBanner }, ref,
+  { pro, schluessel, stumm = true, name, banner, aendereBanner, stats, aendereStats }, ref,
 ) {
   const t = useT();
   const wurzel = useRef<HTMLDivElement | null>(null);
@@ -309,6 +318,11 @@ const PovVideo = forwardRef<MvPlayerHandle, Props>(function PovVideo(
         <HudBanner hud={{ ...banner.einst, text: '' }} groesse={banner.einst.groesse} name={banner.name} bild={banner.bild} />
       )}
 
+      {stats && stats.einst.an && stand === 'live' && (
+        <PovStatsBanner pro={pro} schluessel={schluessel} einst={stats.einst} name={stats.name} bild={stats.bild}
+          versetzt={Boolean(banner?.einst.an && banner.einst.ort === stats.einst.ort)} />
+      )}
+
       {aendereBanner && (
         <>
           {zahnrad && banner && (
@@ -354,6 +368,51 @@ const PovVideo = forwardRef<MvPlayerHandle, Props>(function PovVideo(
                     {t('Mit Profilbild')}
                   </label>
                 </>
+              )}
+              {stats && aendereStats && (
+                <div className="space-y-3 border-t border-white/10 pt-3">
+                  <button type="button" role="switch" aria-checked={stats.einst.an}
+                    onClick={() => aendereStats({ an: !stats.einst.an })}
+                    className="flex w-full items-center justify-between gap-3 text-left">
+                    <span>{t('Mit Statistik')}</span>
+                    <span className={`relative h-5 w-9 shrink-0 rounded-full transition ${stats.einst.an ? 'bg-sky-500' : 'bg-zinc-600/70'}`}>
+                      <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${stats.einst.an ? 'left-[18px]' : 'left-0.5'}`} />
+                    </span>
+                  </button>
+                  {stats.einst.an && (
+                    <>
+                      <div>
+                        <p className="mb-1 text-[10px] uppercase tracking-wider text-slate-500">{t('Position der Statistik')}</p>
+                        <div className="grid grid-cols-5 gap-1">
+                          {STATS_ORTE.map((o) => (
+                            <button key={o.wert} type="button" onClick={() => aendereStats({ ort: o.wert })}
+                              className={`rounded-md border px-0.5 py-1 text-[11px] transition ${stats.einst.ort === o.wert
+                                ? 'border-sky-500 bg-sky-500/15 text-sky-400' : 'border-zinc-700 hover:border-zinc-500'}`}>
+                              {t(o.titel)}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <div>
+                        <p className="mb-1 text-[10px] uppercase tracking-wider text-slate-500">{t('Größe der Statistik')}</p>
+                        <div className="grid grid-cols-3 gap-1">
+                          {GROESSEN.map((o) => (
+                            <button key={o.wert} type="button" onClick={() => aendereStats({ groesse: o.wert })}
+                              className={`rounded-md border px-1 py-1 transition ${stats.einst.groesse === o.wert
+                                ? 'border-sky-500 bg-sky-500/15 text-sky-400' : 'border-zinc-700 hover:border-zinc-500'}`}>
+                              {t(o.titel)}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <label className="flex cursor-pointer items-center gap-2">
+                        <input type="checkbox" checked={stats.einst.mitBild} className="accent-sky-500"
+                          onChange={(e) => aendereStats({ mitBild: e.target.checked })} />
+                        {t('Mit Profilbild')}
+                      </label>
+                    </>
+                  )}
+                </div>
               )}
             </div>
           )}

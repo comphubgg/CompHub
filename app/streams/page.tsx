@@ -1053,6 +1053,8 @@ const response = await fetch(getApiUrl(`/api/search?q=${encodeURIComponent(twitc
    */
   const [povs, setPovs] = useState<Array<{
     ident: string; name: string; bild: string | null; live: boolean;
+    /** Hat der Profi ein verbundenes Epic-Konto? Dann kann das POV seine Statistik zeigen. */
+    stats?: boolean;
     hud: { an: boolean; ort: 'oben' | 'unten' | 'links' | 'rechts'; mitBild: boolean; text: string };
     discord?: { streamt: boolean; kanal: string | null; link: string | null } | null;
   }>>([]);

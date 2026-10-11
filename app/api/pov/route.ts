@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import {
-  alleVips, bereinige, leererPro, liesPros, oeffentlichPov, schreibePros, standardBild, wer,
+  alleVips, bereinige, epicIdVon, leererPro, liesPros, oeffentlichPov, schreibePros, standardBild, wer,
 } from '@/lib/pov';
 import { discordStand, mitgliedName, standardDiscordId } from '@/lib/povDiscord';
 import { istLive, liveSeit, zuschauerZahl } from '@/lib/povRelay';
@@ -63,6 +63,8 @@ export async function GET(request: Request) {
     const d = dId ? await discordStand(dId) : null;
     return {
       ...oeffentlichPov(p), bild: p.bild ?? (await standardBild(p.ident)),
+      // Hat der Profi ein verbundenes Epic-Konto, kann das POV seine Werte zeigen.
+      stats: Boolean(await epicIdVon(p.ident)),
       discord: d && d.imKanal ? { streamt: d.streamt, kanal: d.kanalName, link: d.link } : null,
     };
   }));

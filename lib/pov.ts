@@ -218,6 +218,19 @@ export async function standardBild(ident: string): Promise<string | null> {
   } catch { return null; }
 }
 
+/**
+ * Das Epic-Konto eines Profis, sofern eines verknuepft oder zugewiesen ist (Konto oder Zugang) - leer, wenn keines.
+ * Nur wer eines hat, kann seine Werte auf dem POV zeigen.
+ */
+export async function epicIdVon(ident: string): Promise<string> {
+  try {
+    let id: string | undefined;
+    if (ident.startsWith('z:')) id = (await zugangNach(ident.slice(2)))?.epicId;
+    else if (ident.startsWith('k:')) id = (await nachId(ident.slice(2)))?.epicId;
+    return String(id ?? '').replace(/-/g, '').toLowerCase();
+  } catch { return ''; }
+}
+
 /** Aus einer Eingabe die gueltigen, bereinigten Felder machen - nie mehr, als der Profi aendern darf. */
 export function bereinige(alt: PovPro, teil: Record<string, unknown>, gueltigeVips: Set<string>): PovPro {
   const neu: PovPro = { ...alt, hud: { ...alt.hud }, erlaubt: [...alt.erlaubt] };

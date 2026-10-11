@@ -8,7 +8,7 @@ import { useT } from '@/app/components/SprachProvider';
 import { sichtbarerTakt } from '@/app/lib/takt';
 import type { PovHud } from '@/lib/pov';
 import MvPlayer, { type MvPlayerHandle } from './MvPlayer';
-import PovVideo, { type BannerEinst } from './PovVideo';
+import PovVideo, { type BannerEinst, type StatsEinst } from './PovVideo';
 import Seitenleiste, { type MvOrdner } from './MvSeitenleiste';
 import { EinstellungenFenster, KanalAendernFenster, KuerzelFenster } from './MvDialoge';
 import {
@@ -104,6 +104,9 @@ interface KachelProps {
   /** Das Namensbanner - nach den eigenen Einstellungen des Zuschauers (Einstellungen > POV-Banner oder das Zahnrad auf der Kachel). */
   banner?: { einst: BannerEinst; name: string; bild: string | null };
   aendereBanner: (teil: Partial<BannerEinst>) => void;
+  /** Die Statistik - nur bei Profis mit verbundenem Epic-Konto. */
+  stats?: { einst: StatsEinst; name: string; bild: string | null };
+  aendereStats: (teil: Partial<StatsEinst>) => void;
   abgerundet: boolean;
   tooltips: boolean;
   qualitaetJeStream: boolean;
@@ -137,7 +140,7 @@ const Kachel = memo(function Kachel(p: KachelProps) {
         ${p.ziehend ? 'shadow-2xl ring-2 ring-sky-400' : ''}`}>
         {s.pov
           ? <PovVideo key={`${s.pov}#${p.neu}`} ref={(h) => p.griff(s.id, h)} pro={s.pov} name={s.kanal}
-            banner={p.banner} aendereBanner={p.aendereBanner} />
+            banner={p.banner} aendereBanner={p.aendereBanner} stats={p.stats} aendereStats={p.aendereStats} />
           : <MvPlayer key={`${s.kanal}#${p.neu}`} ref={(h) => p.griff(s.id, h)} kanal={s.kanal} host={p.host}
             qualitaet={p.qualitaet} />}
       </div>
@@ -210,7 +213,7 @@ export interface MultiviewProps {
   /** Wer in den Ordnern gerade sendet - fuer die Zaehler dort. */
   ordnerLive: Record<string, boolean>;
   /** Die POVs, die dieser Besucher sehen darf (Profis haben sie freigegeben). */
-  povs: Array<{ ident: string; name: string; bild: string | null; live: boolean; hud: PovHud; discord?: { streamt: boolean; kanal: string | null; link: string | null } | null }>;
+  povs: Array<{ ident: string; name: string; bild: string | null; live: boolean; stats?: boolean; hud: PovHud; discord?: { streamt: boolean; kanal: string | null; link: string | null } | null }>;
   /** Wer in einem Ordner nachtraeglich etwas entfernen darf. */
   kannAusOrdner: (ordnerId: string, kanal: string) => boolean;
   ausOrdner: (ordnerId: string, kanal: string) => void;
@@ -310,6 +313,14 @@ export default function Multiview(props: MultiviewProps) {
       ...(teil.ort !== undefined ? { povBannerOrt: teil.ort } : {}),
       ...(teil.mitBild !== undefined ? { povBannerBild: teil.mitBild } : {}),
       ...(teil.groesse !== undefined ? { povBannerGroesse: teil.groesse } : {}),
+    });
+  }, [aendereEinst]);
+  const aendereStats = useCallback((teil: Partial<StatsEinst>) => {
+    aendereEinst({
+      ...(teil.an !== undefined ? { povStats: teil.an } : {}),
+      ...(teil.ort !== undefined ? { povStatsOrt: teil.ort } : {}),
+      ...(teil.mitBild !== undefined ? { povStatsBild: teil.mitBild } : {}),
+      ...(teil.groesse !== undefined ? { povStatsGroesse: teil.groesse } : {}),
     });
   }, [aendereEinst]);
   const setzeKuerzel = useCallback((name: KuerzelName, k: Kuerzel) => {
@@ -658,6 +669,11 @@ export default function Multiview(props: MultiviewProps) {
                 name: povInfo.get(s.pov)!.name, bild: povInfo.get(s.pov)!.bild,
               } : undefined}
               aendereBanner={aendereBanner}
+              stats={s.pov && povInfo.get(s.pov)?.stats ? {
+                einst: { an: einst.povStats, ort: einst.povStatsOrt, mitBild: einst.povStatsBild, groesse: einst.povStatsGroesse },
+                name: povInfo.get(s.pov)!.name, bild: povInfo.get(s.pov)!.bild,
+              } : undefined}
+              aendereStats={aendereStats}
               abgerundet={einst.abgerundet} tooltips={einst.tooltips} qualitaetJeStream={einst.qualitaetJeStream}
               ziehenUeberall={einst.ziehenUeberall} ziehend={ziehend} neu={neu[id] ?? 0}
               aktionen={aktionen} griff={griff} ziehen={ziehen} />
@@ -699,7 +715,8 @@ export default function Multiview(props: MultiviewProps) {
         aufWand={aufWand} offlineAlle={einst.offlineAlle} povs={props.povs}
         kannAusOrdner={props.kannAusOrdner} ausOrdner={props.ausOrdner}
         einzelAnsicht={props.zurEinzelansicht} einstellungen={() => setDialog('einstellungen')}
-        banner={{ an: einst.povBanner, ort: einst.povBannerOrt, mitBild: einst.povBannerBild, groesse: einst.povBannerGroesse }} />
+        banner={{ an: einst.povBanner, ort: einst.povBannerOrt, mitBild: einst.povBannerBild, groesse: einst.povBannerGroesse }}
+        stats={{ an: einst.povStats, ort: einst.povStatsOrt, mitBild: einst.povStatsBild, groesse: einst.povStatsGroesse }} />
 
       {/* Rueckgaengig nach dem Entfernen */}
       {rueck && (

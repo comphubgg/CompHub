@@ -4,7 +4,7 @@ import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import PovVideo from '@/app/streams/PovVideo';
 import type { HudGroesse } from '@/app/components/PovHud';
-import type { BannerEinst } from '@/app/streams/PovVideo';
+import type { BannerEinst, StatsEinst } from '@/app/streams/PovVideo';
 
 /*
  * Ein Pro-POV als reine Bildflaeche - fuer eine Browserquelle in OBS.
@@ -14,7 +14,9 @@ import type { BannerEinst } from '@/app/streams/PovVideo';
  * eingestellt hat - seinem Namensbanner. Ist der Zuschauer nicht (mehr) freigegeben, steht dort "Not approved".
  *
  * Das Banner richtet sich nach den Einstellungen des Zuschauers auf der Streams-Seite; sie stehen im Link
- * (&hud=oben|unten|links|rechts|aus, &bild=1|0 und &gr=klein|mittel|gross), der dort kopiert wird.
+ * (&hud=oben|unten|links|rechts|aus, &bild=1|0 und &gr=klein|mittel|gross), der dort kopiert wird. Mit &st=oben|mitte|links|
+ * rechts|unten (dazu &stbild=1|0 und &stgr=klein|mittel|gross) kommt die Statistik des Profis dazu, sofern er ein
+ * verbundenes Epic-Konto hat.
  */
 
 function Inhalt() {
@@ -29,7 +31,15 @@ function Inhalt() {
     mitBild: p.get('bild') !== '0',
     groesse: (['klein', 'mittel', 'gross'] as const).find((o) => o === groesseWahl) as HudGroesse | undefined ?? 'mittel',
   };
-  const [info, setInfo] = useState<{ name: string; bild: string | null } | null>(null);
+  const stWahl = p.get('st') ?? '';
+  const stGroesse = p.get('stgr') ?? 'mittel';
+  const statsEinst: StatsEinst = {
+    an: ['oben', 'mitte', 'links', 'rechts', 'unten'].includes(stWahl),
+    ort: (['oben', 'mitte', 'links', 'rechts', 'unten'] as const).find((o) => o === stWahl) ?? 'oben',
+    mitBild: p.get('stbild') !== '0',
+    groesse: (['klein', 'mittel', 'gross'] as const).find((o) => o === stGroesse) as HudGroesse | undefined ?? 'mittel',
+  };
+  const [info, setInfo] = useState<{ name: string; bild: string | null; stats?: boolean } | null>(null);
 
   useEffect(() => {
     if (!pro) return undefined;
@@ -49,7 +59,8 @@ function Inhalt() {
   return (
     <div className="group fixed inset-0 z-[1000] bg-black">
       <PovVideo pro={pro} schluessel={schluessel} stumm={false} name={info?.name}
-        banner={info ? { einst: hud, name: info.name, bild: info.bild } : undefined} />
+        banner={info ? { einst: hud, name: info.name, bild: info.bild } : undefined}
+        stats={info?.stats ? { einst: statsEinst, name: info.name, bild: info.bild } : undefined} />
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { liesPros, standardBild } from '@/lib/pov';
+import { epicIdVon, liesPros, standardBild } from '@/lib/pov';
 import { ADMIN_LINK, holeNach, istLive, schluesselFuer } from '@/lib/povRelay';
 import { pruefeZuschauer } from '@/lib/povZugang';
 
@@ -44,7 +44,10 @@ export async function GET(request: Request) {
     const pro = (await liesPros())[proIdent];
     if (!pro) return NextResponse.json({ ok: false, error: 'Unbekannt.' }, { status: 404, headers: nie });
     return NextResponse.json({
-      ok: true, info: { name: pro.name, bild: pro.bild ?? await standardBild(proIdent), hud: pro.hud },
+      ok: true, info: {
+        name: pro.name, bild: pro.bild ?? await standardBild(proIdent), hud: pro.hud,
+        stats: Boolean(await epicIdVon(proIdent)),
+      },
     }, { headers: nie });
   }
 
