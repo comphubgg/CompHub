@@ -9,6 +9,7 @@ import { sichtbarerTakt } from '@/app/lib/takt';
 import { HudBanner } from '@/app/components/PovHud';
 import type { PovHud } from '@/lib/pov';
 import MvPlayer, { type MvPlayerHandle } from './MvPlayer';
+import PovVideo from './PovVideo';
 import Seitenleiste, { type MvOrdner } from './MvSeitenleiste';
 import { EinstellungenFenster, KanalAendernFenster, KuerzelFenster } from './MvDialoge';
 import {
@@ -99,6 +100,8 @@ interface KachelProps {
   host: string;
   qualitaet: string;
   pov?: 'pro' | 'discord';
+  /** Dieser Platz zeigt ein privates Pro-POV (Kennung des Profis). */
+  povId?: string;
   /** Das Namensbanner, das der Profi fuer sein POV eingestellt hat. */
   hud?: { hud: PovHud; name: string; bild: string | null };
   abgerundet: boolean;
@@ -132,8 +135,10 @@ const Kachel = memo(function Kachel(p: KachelProps) {
       className="group">
       <div className={`h-full w-full overflow-hidden bg-black ${p.abgerundet ? 'rounded-lg' : ''}
         ${p.ziehend ? 'shadow-2xl ring-2 ring-sky-400' : ''}`}>
-        <MvPlayer key={`${s.kanal}#${p.neu}`} ref={(h) => p.griff(s.id, h)} kanal={s.kanal} host={p.host}
-          qualitaet={p.qualitaet} />
+        {s.pov
+          ? <PovVideo key={`${s.pov}#${p.neu}`} ref={(h) => p.griff(s.id, h)} pro={s.pov} name={s.kanal} />
+          : <MvPlayer key={`${s.kanal}#${p.neu}`} ref={(h) => p.griff(s.id, h)} kanal={s.kanal} host={p.host}
+            qualitaet={p.qualitaet} />}
       </div>
 
       {/* POV: ein blauer Rand, damit die POVs der Seite zwischen den Streams auffallen. */}
@@ -202,7 +207,7 @@ export interface MultiviewProps {
   /** Wer in den Ordnern gerade sendet - fuer die Zaehler dort. */
   ordnerLive: Record<string, boolean>;
   /** Die POVs, die dieser Besucher sehen darf (Profis haben sie freigegeben). */
-  povs: Array<{ ident: string; name: string; bild: string | null; twitch: string; live: boolean; hud: PovHud }>;
+  povs: Array<{ ident: string; name: string; bild: string | null; live: boolean; hud: PovHud }>;
   /** Wer in einem Ordner nachtraeglich etwas entfernen darf. */
   kannAusOrdner: (ordnerId: string, kanal: string) => boolean;
   ausOrdner: (ordnerId: string, kanal: string) => void;
@@ -221,11 +226,12 @@ export default function Multiview(props: MultiviewProps) {
     const gespeichert = ladeJson<{ streams?: MvStream[] } | null>(SCHLUESSEL_STAND, null);
     if (gespeichert && Array.isArray(gespeichert.streams)) {
       return gespeichert.streams
-        .filter((s) => s && typeof s.kanal === 'string' && kanalAusEingabe(s.kanal))
+        .filter((s) => s && typeof s.kanal === 'string' && (s.pov || kanalAusEingabe(s.kanal)))
         // Was nur fuer die Sitzung galt (nicht in einem Ordner), ist nach dem Neuladen weg.
         .filter((s) => !s.einmalig)
         .map((s) => ({
           id: s.id || neueId(), nr: typeof s.nr === 'number' ? s.nr : ++zaehler,
+          pov: typeof s.pov === 'string' ? s.pov : undefined,
           kanal: s.kanal, versteckt: !!s.versteckt, zeigeOffline: !!s.zeigeOffline, einmalig: false,
           fest: !!s.fest, qualitaet: s.qualitaet || '',
         }));
@@ -330,6 +336,11 @@ export default function Multiview(props: MultiviewProps) {
     zeigeOfflineUmschalten: (id) => setStreams((alt) => alt.map((s) => (s.id === id ? { ...s, zeigeOffline: !s.zeigeOffline } : s))),
     offlineAlleUmschalten: () => {
       setEinst((alt) => { const n = { ...alt, offlineAlle: !alt.offlineAlle }; speichereJson(SCHLUESSEL_EINSTELLUNGEN, n); return n; });
+    },
+    povZeigen: (ident, name) => {
+      setStreams((alt) => (alt.some((s) => s.pov === ident)
+        ? alt.map((s) => (s.pov === ident ? { ...s, versteckt: false } : s))
+        : [...alt, { ...neuerStream(name, { zeigeOffline: true }), pov: ident }]));
     },
     kanalZeigen: (kanal) => {
       const k = kanalAusEingabe(kanal);
@@ -464,9 +475,10 @@ export default function Multiview(props: MultiviewProps) {
   const sichtbar = useMemo(() => streams.filter((s) => {
     if (s.versteckt) return false;
     if (s.zeigeOffline || einst.offlineAlle || !einst.liveAbfrage) return true;
+    if (s.pov) return props.povs.find((x) => x.ident === s.pov)?.live ?? false;
     const stand = liveAlle[s.kanal];
     return stand ? stand.isLive : liveFertig;
-  }), [streams, liveAlle, einst.offlineAlle, einst.liveAbfrage, liveFertig]);
+  }), [streams, liveAlle, einst.offlineAlle, einst.liveAbfrage, liveFertig, props.povs]);
   const aufWand = useMemo(() => new Set(sichtbar.map((s) => s.id)), [sichtbar]);
   const raster = useMemo(() => rastern(sichtbar.length, flaeche.b, flaeche.h), [sichtbar.length, flaeche]);
   const sichtbarRef = useRef(sichtbar);
@@ -485,10 +497,9 @@ export default function Multiview(props: MultiviewProps) {
       const art = /discord/i.test(o.name) ? 'discord' : 'pro';
       for (const x of o.streamers) if (!karte[x.twitch] || art === 'pro') karte[x.twitch] = art;
     }
-    for (const x of props.povs) karte[x.twitch] = 'pro';
     return karte;
-  }, [props.ordner, props.povs]);
-  const povInfo = useMemo(() => new Map(props.povs.map((x) => [x.twitch, x])), [props.povs]);
+  }, [props.ordner]);
+  const povInfo = useMemo(() => new Map(props.povs.map((x) => [x.ident, x])), [props.povs]);
 
   /* ---------------------------------------------------------------- Ziehen (Wand) */
   const ziehen = useCallback((e: React.PointerEvent, id: string) => {
@@ -530,10 +541,9 @@ export default function Multiview(props: MultiviewProps) {
   /* ------------------------------------------------------------------ Live-Status */
   // Gefragt wird nach der Wand und nach allen Ordnern: "Nur Live laden" muss wissen, wer in den Ordnern sendet.
   const kanaele = useMemo(() => [...new Set([
-    ...streams.map((x) => x.kanal),
+    ...streams.filter((x) => !x.pov).map((x) => x.kanal),
     ...props.ordner.flatMap((o) => o.streamers.map((x) => x.twitch.toLowerCase())),
-    ...props.povs.map((x) => x.twitch),
-  ])].join(','), [streams, props.ordner, props.povs]);
+  ])].join(','), [streams, props.ordner]);
   useEffect(() => {
     if (!einst.liveAbfrage || !kanaele) return undefined;
     let weg = false;
@@ -624,8 +634,8 @@ export default function Multiview(props: MultiviewProps) {
           return (
             <Kachel key={id} s={s}
               x={ziehend ? zieh.x : p.x} y={ziehend ? zieh.y : p.y} w={raster.w} h={raster.h}
-              host={props.host} qualitaet={s.qualitaet || qualitaetAlle} pov={pov[s.kanal]}
-              hud={povInfo.get(s.kanal) ? { hud: povInfo.get(s.kanal)!.hud, name: povInfo.get(s.kanal)!.name, bild: povInfo.get(s.kanal)!.bild } : undefined}
+              host={props.host} qualitaet={s.qualitaet || qualitaetAlle} pov={s.pov ? 'pro' : pov[s.kanal]}
+              hud={s.pov && povInfo.get(s.pov) ? { hud: povInfo.get(s.pov)!.hud, name: povInfo.get(s.pov)!.name, bild: povInfo.get(s.pov)!.bild } : undefined}
               abgerundet={einst.abgerundet} tooltips={einst.tooltips} qualitaetJeStream={einst.qualitaetJeStream}
               ziehenUeberall={einst.ziehenUeberall} ziehend={ziehend} neu={neu[id] ?? 0}
               aktionen={aktionen} griff={griff} ziehen={ziehen} />

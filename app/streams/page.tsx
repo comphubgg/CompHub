@@ -1050,7 +1050,7 @@ const response = await fetch(getApiUrl(`/api/search?q=${encodeURIComponent(twitc
    * liefert nur, was fuer diesen Besucher freigegeben ist. Nur fuer VIPs - alle anderen fragen gar nicht.
    */
   const [povs, setPovs] = useState<Array<{
-    ident: string; name: string; bild: string | null; twitch: string; live: boolean;
+    ident: string; name: string; bild: string | null; live: boolean;
     hud: { an: boolean; ort: 'oben' | 'unten' | 'links' | 'rechts'; mitBild: boolean; text: string };
   }>>([]);
   useEffect(() => {

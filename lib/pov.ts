@@ -3,18 +3,19 @@ import { liesJson, schreibJson } from '@/lib/ablage';
 import { kontoAus, nachId, alleKonten, istVip } from '@/lib/konten';
 import { istBetreiber, vipAus } from '@/lib/vipCookie';
 import { alleZugaenge, zugangNach, rechteVon } from '@/lib/vipZugaenge';
+import { istLive, liveSeit } from '@/lib/povRelay';
 
 /*
  * Pro-POVs: Profis stellen ihr POV bereit und entscheiden, welche VIP-Streamer es sehen duerfen.
  *
  * Der Betreiber (11.10.2026): Profis haben ein eigenes Konto (normale Anmeldung) und sehen im Dashboard
- * nur POV und Settings. Unter POV gehen sie live, waehlen aus der Liste der VIPs, wer ihr POV sehen
- * darf, und stellen Qualitaet und ein kleines Namensbanner (HUD) ein.
+ * nur POV und Settings. Dort teilen sie ihr Bild, waehlen aus der Liste der VIPs, wer es sehen darf, und
+ * stellen Qualitaet und ein kleines Namensbanner (HUD) ein.
  *
- * Das POV selbst laeuft ueber den Twitch-Kanal des Profis (kostenlos, mit Player-Einbettung, ohne eigene
- * Videotechnik). Hier liegt nur, wer es sehen darf und wie es dargestellt wird: die Freigabe gilt
- * auf der Streams-Seite - dort erscheint das POV nur in der Liste derer, die es sehen duerfen.
- * Gespeichert in einer Datei im Datenarchiv (pov-pros.json), je Profi ein Eintrag.
+ * Nichts davon laeuft ueber Twitch - die Profis wollen nicht oeffentlich streamen, damit keine Fremden
+ * zusehen und sie nicht griefen koennen. Das Bild geht direkt vom Browser des Profis an den Server und von
+ * dort nur an die Freigegebenen (lib/povRelay.ts). Hier liegt, wer das darf und wie es dargestellt wird;
+ * gespeichert in einer Datei im Datenarchiv (pov-pros.json), je Profi ein Eintrag.
  */
 
 const DATEI = 'pov-pros.json';
@@ -38,9 +39,9 @@ export interface PovPro {
   name: string;
   /** Profilbild als Adresse oder Data-URL; null = keins. */
   bild: string | null;
-  /** Der Twitch-Kanal, auf dem das POV laeuft. */
+  /** Frueher der Twitch-Kanal - das POV laeuft nicht mehr ueber Twitch; das Feld bleibt nur fuer alte Eintraege. */
   twitch: string;
-  /** Hat sich der Profi "live" gemeldet? */
+  /** Ob der Profi gerade sendet, weiss der Weiterreicher (lib/povRelay.ts); hier steht nur der alte Merker. */
   live: boolean;
   liveSeit: number | null;
   qualitaet: PovQualitaet;
@@ -49,8 +50,8 @@ export interface PovPro {
   erlaubt: string[];
   /**
    * Ein Discord-Webhook des Profis (optional). Geht er live, steht dort eine Meldung - so erfahren die
-   * Leute in seinem Discord davon. Das Video selbst laeuft ueber Twitch: Discord laesst Bots keine
-   * Bildschirmuebertragung empfangen. Nie an Besucher ausgeliefert.
+   * Leute in seinem Discord davon. Das Bild selbst sehen nur die Freigegebenen auf CompHub (Discord laesst
+   * Bots keine Bildschirmuebertragung empfangen). Nie an Besucher ausgeliefert.
    */
   webhook: string;
   aktualisiert: number;
@@ -151,11 +152,6 @@ export function bereinige(alt: PovPro, teil: Record<string, unknown>, gueltigeVi
       .replace(/^(https?:\/\/)?(www\.)?twitch\.tv\//, '').replace(/[/?#].*$/, '').replace(/^@/, '');
     neu.twitch = NAME.test(t) ? t : '';
   }
-  if (typeof teil.live === 'boolean') {
-    if (teil.live && !neu.live) neu.liveSeit = Date.now();
-    if (!teil.live) neu.liveSeit = null;
-    neu.live = teil.live;
-  }
   if (teil.qualitaet === 'max' || teil.qualitaet === 'mittel' || teil.qualitaet === 'niedrig') {
     neu.qualitaet = teil.qualitaet;
   }
@@ -183,11 +179,11 @@ export function bereinige(alt: PovPro, teil: Record<string, unknown>, gueltigeVi
   return neu;
 }
 
-/** Was ein Besucher von einem POV sehen darf - ohne die Freigabeliste. */
+/** Was ein Besucher von einem POV sehen darf - ohne die Freigabeliste. Ob es live ist, weiss der Weiterreicher. */
 export function oeffentlichPov(p: PovPro) {
   return {
-    ident: p.ident, name: p.name, bild: p.bild, twitch: p.twitch,
-    live: p.live, liveSeit: p.liveSeit, hud: p.hud,
+    ident: p.ident, name: p.name, bild: p.bild,
+    live: istLive(p.ident), liveSeit: liveSeit(p.ident), hud: p.hud,
   };
 }
 

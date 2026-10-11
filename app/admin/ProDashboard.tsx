@@ -6,6 +6,7 @@ import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import type { PovPro, PovHud, PovQualitaet, HudOrt } from '@/lib/pov';
 import { HudBanner } from '@/app/components/PovHud';
+import { QUALITAET, abonniere, holeAktiv, startSenden, type Zustand } from '@/app/pov/sender';
 
 /*
  * Das Dashboard eines Profis.
@@ -36,8 +37,9 @@ export default function ProDashboard() {
   const [fehler, setFehler] = useState('');
   const [stand, setStand] = useState<'' | 'speichert' | 'gespeichert'>('');
   const [suche, setSuche] = useState('');
-  const [twitchLive, setTwitchLive] = useState<null | { isLive: boolean; viewers: number }>(null);
-  const [kanalEingabe, setKanalEingabe] = useState('');
+  const [teilen, setTeilen] = useState<Zustand | null>(() => holeAktiv()?.zustand ?? null);
+  const [zuschauerJetzt, setZuschauerJetzt] = useState(0);
+  const vorschau = useRef<HTMLVideoElement | null>(null);
   const [webhook, setWebhook] = useState('');
   const uhr = useRef<number | null>(null);
   const offen = useRef<Record<string, unknown>>({});
@@ -50,7 +52,7 @@ export default function ProDashboard() {
       .then((j) => {
         if (weg) return;
         if (!j.ok) { setFehler(j.error ?? t('Nicht ladbar')); return; }
-        setMein(j.mein as PovPro); setVips(j.vips as Vip[]); setKanalEingabe((j.mein as PovPro).twitch); setWebhook((j.mein as PovPro).webhook ?? '');
+        setMein(j.mein as PovPro); setVips(j.vips as Vip[]); setZuschauerJetzt(j.zuschauer ?? 0); setWebhook((j.mein as PovPro).webhook ?? '');
       })
       .catch(() => { if (!weg) setFehler(t('Nicht ladbar')); });
     return () => { weg = true; };
@@ -96,24 +98,32 @@ export default function ProDashboard() {
     uhr.current = window.setTimeout(() => { void senden(); }, 500);
   }, [senden]);
 
-  /* ---------------------------------------------------- Twitch-Zustand */
-  const kanal = mein?.twitch ?? '';
+  /* ------------------------------------------------------ Bild teilen */
+  // Das Teilen laeuft ueber Seitenwechsel weiter (app/pov/sender.ts) - hier nur den Stand mitlesen.
+  useEffect(() => abonniere((z) => { setTeilen(z); if (z?.zuschauer !== undefined) setZuschauerJetzt(z.zuschauer); }), []);
   useEffect(() => {
-    if (!kanal) return undefined;
-    let weg = false;
-    const holen = async () => {
-      try {
-        const r = await fetch('/api/live-status', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ usernames: [kanal] }),
-        });
-        const j = await r.json() as Record<string, { isLive?: boolean; viewers?: number }>;
-        if (!weg) setTwitchLive({ isLive: !!j[kanal]?.isLive, viewers: j[kanal]?.viewers ?? 0 });
-      } catch { /* beim naechsten Mal */ }
-    };
-    void holen();
-    const takt = window.setInterval(holen, 60_000);
-    return () => { weg = true; window.clearInterval(takt); };
-  }, [kanal]);
+    const a = holeAktiv();
+    if (vorschau.current && a) vorschau.current.srcObject = a.vorschau;
+  }, [teilen?.art, tab]);
+
+  const teilenStarten = async () => {
+    if (!mein) return;
+    setFehler('');
+    const q = QUALITAET[mein.qualitaet];
+    try {
+      const strom = await navigator.mediaDevices.getDisplayMedia({
+        video: { width: { ideal: q.breite }, height: { ideal: q.hoehe }, frameRate: { ideal: q.fps, max: q.fps } },
+        audio: true,
+      });
+      startSenden(strom, mein.qualitaet);
+    } catch (e) {
+      const name = (e as DOMException).name;
+      // "Abbrechen" im Auswahlfenster ist kein Fehler.
+      if (name !== 'NotAllowedError' && name !== 'AbortError') setFehler(t('Das Bild lässt sich nicht teilen.'));
+    }
+  };
+  const teilenStoppen = () => holeAktiv()?.stop();
+  const teilt = teilen?.art === 'laeuft';
 
   const erlaubt = useMemo(() => new Set(mein?.erlaubt ?? []), [mein?.erlaubt]);
   const gefiltert = useMemo(() => {
@@ -185,51 +195,61 @@ export default function ProDashboard() {
         {mein && tab === 'pov' && (
           <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_380px]">
             <div className="space-y-5">
-              {/* ------------------------------------------- Live gehen */}
+              {/* ------------------------------------------- Bild teilen */}
               <section className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-5">
                 <h2 className="text-sm font-semibold"><T>Dein POV</T></h2>
-                <p className="mt-1 text-xs text-slate-500"><T>Das POV läuft über deinen Twitch-Kanal. Starte dort deinen Stream und melde dich hier live — die VIPs, die du freigibst, sehen es dann auf der Streams-Seite.</T></p>
-
-                <label className="mt-4 block text-xs text-slate-400">
-                  <T>Twitch-Kanal</T>
-                  <input value={kanalEingabe} spellCheck={false} placeholder="twitch.tv/…"
-                    onChange={(e) => setKanalEingabe(e.target.value)}
-                    onBlur={() => { if (kanalEingabe !== mein.twitch) aendere({ twitch: kanalEingabe }); }}
-                    onKeyDown={(e) => { if (e.key === 'Enter') (e.target as HTMLInputElement).blur(); }}
-                    className={`mt-1 ${feld}`} />
-                </label>
+                <p className="mt-1 text-xs text-slate-500">
+                  <T>Teile dein Spielfenster direkt hier. Nur die VIPs, die du rechts freigibst, sehen es — nicht auf Twitch, nicht öffentlich.</T>
+                </p>
 
                 <div className="mt-4 flex flex-wrap items-center gap-4">
-                  <button type="button" disabled={!mein.twitch} onClick={() => aendere({ live: !mein.live })}
-                    className={`rounded-lg px-6 py-3 text-sm font-bold transition disabled:opacity-40 ${mein.live
-                      ? 'bg-red-500 text-white hover:bg-red-400' : 'bg-sky-500 text-white hover:bg-sky-400'}`}>
-                    {mein.live ? t('Live beenden') : t('Live gehen')}
-                  </button>
+                  {teilt ? (
+                    <button type="button" onClick={teilenStoppen}
+                      className="rounded-lg bg-red-500 px-6 py-3 text-sm font-bold text-white transition hover:bg-red-400">
+                      <T>Teilen beenden</T>
+                    </button>
+                  ) : (
+                    <button type="button" onClick={() => void teilenStarten()}
+                      className="rounded-lg bg-sky-500 px-6 py-3 text-sm font-bold text-white transition hover:bg-sky-400">
+                      <T>Bild teilen und live gehen</T>
+                    </button>
+                  )}
                   <div className="text-xs">
-                    <p className={mein.live ? 'font-semibold text-red-400' : 'text-slate-500'}>
-                      {mein.live ? t('Du bist live gemeldet') : t('Nicht live gemeldet')}
+                    <p className={teilt ? 'flex items-center gap-1.5 font-semibold text-red-400' : 'text-slate-500'}>
+                      {teilt && <span className="h-2 w-2 animate-pulse rounded-full bg-red-500" />}
+                      {teilt ? t('Du bist live') : t('Nicht live')}
                     </p>
-                    {mein.twitch && (
-                      <p className="mt-0.5 text-slate-500">
-                        Twitch: {twitchLive === null ? '…' : twitchLive.isLive
-                          ? <span className="text-red-400">LIVE · {twitchLive.viewers}</span> : t('offline')}
+                    {teilt && (
+                      <p className="mt-0.5 tabular-nums text-slate-500">
+                        {zuschauerJetzt} <T>Zuschauer</T> · {teilen?.kbit ?? 0} kbit/s
+                        {(teilen?.warten ?? 0) > 1 && <span className="ml-2 text-amber-300"><T>Verbindung zu langsam</T></span>}
                       </p>
                     )}
+                    {teilen?.art === 'fehler' && <p className="mt-0.5 text-rose-300">{teilen.text}</p>}
                   </div>
                 </div>
-                {mein.live && twitchLive && !twitchLive.isLive && (
-                  <p className="mt-3 text-xs text-amber-300"><T>Du bist hier live gemeldet, aber auf Twitch läuft dein Stream noch nicht.</T></p>
+
+                {teilt && (
+                  <div className="mt-4">
+                    <video ref={vorschau} autoPlay muted playsInline className="aspect-video w-full max-w-sm rounded-lg border border-zinc-800 bg-black" />
+                    <p className="mt-1.5 text-[11px] text-slate-600"><T>Lass diesen Tab offen. Beim Wechseln zu anderen Seiten dieser Webseite läuft das Teilen weiter; Tab schließen oder Neuladen beendet es.</T></p>
+                  </div>
+                )}
+                {!teilt && (
+                  <p className="mt-3 text-[11px] text-slate-600">
+                    <T>Im Auswahlfenster „Fenster" oder „Bildschirm" wählen — für den Ton „Systemaudio teilen" anhaken. Die Qualität darunter gilt, bis du das Teilen beendest.</T>
+                  </p>
                 )}
               </section>
 
               {/* ------------------------------------------- Qualitaet */}
               <section className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-5">
                 <h2 className="text-sm font-semibold"><T>Qualität</T></h2>
-                <p className="mt-1 text-xs text-slate-500"><T>Weniger Bitrate heißt weniger Verzögerung. Stelle diese Werte in OBS ein (Ausgabe → Streaming) und aktiviere bei Twitch den Low-Latency-Modus.</T></p>
+                <p className="mt-1 text-xs text-slate-500"><T>Gilt für das, was du hier teilst. Weniger Bitrate heißt weniger Datenverkehr und eine leichtere Verbindung; zum Ändern kurz beenden und neu teilen.</T></p>
                 <div className="mt-3 grid gap-2 sm:grid-cols-3">
                   {QUALITAETEN.map((q) => (
-                    <button key={q.wert} type="button" onClick={() => aendere({ qualitaet: q.wert })}
-                      className={`rounded-lg border px-3 py-3 text-left transition ${mein.qualitaet === q.wert
+                    <button key={q.wert} type="button" disabled={teilt} onClick={() => aendere({ qualitaet: q.wert })}
+                      className={`rounded-lg border px-3 py-3 text-left transition disabled:opacity-60 ${mein.qualitaet === q.wert
                         ? 'border-sky-500 bg-sky-500/10' : 'border-zinc-800 hover:border-zinc-600'}`}>
                       <span className="block text-sm font-semibold">{t(q.titel)}</span>
                       <span className="mt-1 block text-[11px] leading-snug text-slate-500">{t(q.text)}</span>
@@ -339,7 +359,7 @@ export default function ProDashboard() {
             </div>
             <h2 className="mt-8 text-sm font-semibold">Discord</h2>
             <p className="mt-1 text-xs text-slate-500">
-              <T>Optional: Trage einen Discord-Webhook deines Servers ein (Kanal → Integrationen → Webhooks). Sobald du live gehst, meldet CompHub es dort. Das Video läuft über Twitch — Discord erlaubt Bots keine Bildschirmübertragung zu empfangen.</T>
+              <T>Optional: Trage einen Discord-Webhook deines Servers ein (Kanal → Integrationen → Webhooks). Sobald du live gehst, meldet CompHub es dort — das Bild selbst sehen nur deine Freigegebenen auf CompHub.</T>
             </p>
             <input value={webhook} spellCheck={false} placeholder="https://discord.com/api/webhooks/…"
               onChange={(e) => setWebhook(e.target.value)}

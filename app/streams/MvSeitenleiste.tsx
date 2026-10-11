@@ -37,7 +37,7 @@ interface Props {
   aufWand: Set<string>;
   offlineAlle: boolean;
   /** Die Profi-POVs, die dieser Besucher sehen darf. */
-  povs: Array<{ ident: string; name: string; bild: string | null; twitch: string; live: boolean }>;
+  povs: Array<{ ident: string; name: string; bild: string | null; live: boolean }>;
   kannAusOrdner: (ordnerId: string, kanal: string) => boolean;
   ausOrdner: (ordnerId: string, kanal: string) => void;
   einzelAnsicht: () => void;
@@ -66,6 +66,7 @@ const D = {
   pause: 'M6 4v12M14 4v12',
   stumm: 'M3 8h3l4-3v10l-4-3H3zM13 8l4 4M17 8l-4 4',
   suche: 'M9 15a6 6 0 1 0 0-12 6 6 0 0 0 0 12zM17 17l-3.7-3.7',
+  link: 'M8.5 11.5a3 3 0 0 0 4.2 0l3-3a3 3 0 0 0-4.2-4.2l-1 1M11.5 8.5a3 3 0 0 0-4.2 0l-3 3a3 3 0 0 0 4.2 4.2l1-1',
   sender: 'M10 11.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM6.2 13.8a5.4 5.4 0 0 1 0-7.6M13.8 6.2a5.4 5.4 0 0 1 0 7.6M3.6 16.4a9 9 0 0 1 0-12.8M16.4 3.6a9 9 0 0 1 0 12.8',
 };
 
@@ -285,6 +286,22 @@ export default function Seitenleiste(p: Props) {
   const [alleWeg, setAlleWeg] = useState(false);
   /** Wohin ein eingetippter Kanal kommt: leer = nur fuer diese Sitzung, sonst in diesen Ordner. */
   const [zielOrdner, setZielOrdner] = useState('');
+  const [linkMeldung, setLinkMeldung] = useState('');
+  /*
+   * Der Link fuer OBS: ein Pro-POV als Browserquelle. Der Schluessel gehoert diesem Zuschauer allein und
+   * verfaellt, sobald der Profi ihn aus der Freigabe nimmt.
+   */
+  const linkKopieren = async (ident: string) => {
+    try {
+      const r = await fetch(`/api/pov/segment?aktion=link&pro=${encodeURIComponent(ident)}`, { cache: 'no-store' });
+      const j = await r.json() as { ok?: boolean; schluessel?: string };
+      if (!r.ok || !j.schluessel) throw new Error('kein Link');
+      const url = `${window.location.origin}/pov-ansicht?pro=${encodeURIComponent(ident)}&s=${encodeURIComponent(j.schluessel)}`;
+      await navigator.clipboard.writeText(url);
+      setLinkMeldung(t('Link kopiert — in OBS als Browserquelle einfügen. Nicht weitergeben.'));
+    } catch { setLinkMeldung(t('Der Link ließ sich nicht erzeugen.')); }
+    window.setTimeout(() => setLinkMeldung(''), 6000);
+  };
   const zeilen = useRef(new Map<string, HTMLElement>());
 
   /* ----------------------------------------------------- Vorschlaege beim Tippen */
@@ -500,8 +517,9 @@ export default function Seitenleiste(p: Props) {
                 </button>
                 <ul className="space-y-1">
                   {gefiltert.map((s) => {
-                    const stand = p.live[s.kanal];
-                    const povArt = p.pov[s.kanal];
+                    const povDaten = s.pov ? p.povs.find((x) => x.ident === s.pov) : undefined;
+                    const stand = s.pov ? (povDaten ? { isLive: povDaten.live, viewers: 0 } : undefined) : p.live[s.kanal];
+                    const povArt = s.pov ? 'pro' : p.pov[s.kanal];
                     const aktiv = zeilenAktiv === s.id;
                     return (
                       <li key={s.id} ref={(el) => { if (el) zeilen.current.set(s.id, el); else zeilen.current.delete(s.id); }}
@@ -596,9 +614,7 @@ export default function Seitenleiste(p: Props) {
             <Titel symbol={<Zeichen d={D.sender} klein />}><T>Pro-POVs</T> ({p.povs.length})</Titel>
             <ul className="space-y-1">
               {p.povs.map((x) => {
-                const stand = p.live[x.twitch];
-                const sendet = stand?.isLive === true;
-                const drauf = p.streams.some((s) => s.kanal === x.twitch && p.aufWand.has(s.id));
+                const drauf = p.streams.some((s) => s.pov === x.ident && p.aufWand.has(s.id));
                 return (
                   <li key={x.ident} className="flex items-center gap-2 rounded-lg border border-sky-500/30 px-2 py-1.5">
                     {x.bild
@@ -606,20 +622,21 @@ export default function Seitenleiste(p: Props) {
                       ? <img src={x.bild} alt="" className="h-6 w-6 shrink-0 rounded-full object-cover" />
                       : <span className="mv-rand h-6 w-6 shrink-0 rounded-full border" />}
                     <span className="min-w-0 flex-1 truncate text-xs font-semibold text-sky-400">{x.name}</span>
-                    {sendet
+                    {x.live
                       ? <span className="flex shrink-0 items-center gap-1 text-[10px] font-semibold text-red-500"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-500" />LIVE</span>
-                      // Der Profi hat sich live gemeldet, auf Twitch laeuft es noch nicht: gleich.
-                      : x.live
-                        ? <span className="shrink-0 text-[9px] uppercase tracking-wider text-sky-400">{t('gleich live')}</span>
-                        : <span className="mv-mute shrink-0 text-[9px] uppercase tracking-wider">offline</span>}
+                      : <span className="mv-mute shrink-0 text-[9px] uppercase tracking-wider">offline</span>}
+                    <Knopf titel={t('Link für OBS kopieren')} klick={() => { void linkKopieren(x.ident); }}>
+                      <Zeichen d={D.link} klein />
+                    </Knopf>
                     <Knopf titel={drauf ? t('Steht auf der Wand') : t('Auf die Wand holen')} aktiv={drauf}
-                      klick={() => a.kanalZeigen(x.twitch)}>
+                      klick={() => a.povZeigen(x.ident, x.name)}>
                       <Zeichen d={drauf ? D.auge : D.plus} klein />
                     </Knopf>
                   </li>
                 );
               })}
             </ul>
+            {linkMeldung && <p className="mv-mute mt-1.5 text-[11px]">{linkMeldung}</p>}
           </Abschnitt>
         )}
 

@@ -9,6 +9,8 @@
 /** Ein Stream auf der Wand. Die Reihenfolge im Feld ist die Reihenfolge auf der Wand. */
 export interface MvStream {
   id: string;
+  /** Kennung eines Pro-POVs (privat ueber CompHub, nicht Twitch) - dann ist "kanal" nur der Anzeigename. */
+  pov?: string;
   /** Wann der Stream dazukam - bestimmt die feste Zeichenreihenfolge der Player (nicht die Sortierung). */
   nr: number;
   kanal: string;
@@ -148,4 +150,6 @@ export interface MvAktionen {
   ordnerLaden: (kanaele: string[], art: 'live' | 'alle') => void;
   /** Einen einzelnen Kanal aus einem Ordner auf die Wand holen (auch offline). */
   kanalZeigen: (kanal: string) => void;
+  /** Ein Pro-POV auf die Wand holen. */
+  povZeigen: (ident: string, name: string) => void;
 }

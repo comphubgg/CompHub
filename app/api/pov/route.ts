@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import {
-  alleVips, bereinige, leererPro, liesPros, meldeLive, oeffentlichPov, schreibePros, wer,
+  alleVips, bereinige, leererPro, liesPros, oeffentlichPov, schreibePros, wer,
 } from '@/lib/pov';
+import { istLive, liveSeit, zuschauerZahl } from '@/lib/povRelay';
 
 /*
  * Pro-POVs.
@@ -35,14 +36,17 @@ export async function GET(request: Request) {
     // Name und Bild folgen dem Konto, solange der Profi nichts anderes gesetzt hat.
     if (!alle[ident]) { mein.name = ich.name; mein.bild = ich.bild; }
     return NextResponse.json({
-      ok: true, mein, vips: (await alleVips()).filter((v) => v.ident !== ident),
+      ok: true,
+      mein: { ...mein, live: istLive(ident), liveSeit: liveSeit(ident) },
+      zuschauer: zuschauerZahl(ident),
+      vips: (await alleVips()).filter((v) => v.ident !== ident),
     }, { headers: nie });
   }
 
   // sichtbar
   if (!ich.vip) return NextResponse.json({ ok: true, pros: [] }, { headers: nie });
   const pros = Object.values(alle)
-    .filter((p) => p.twitch && (ich.rolle === 'admin' || p.erlaubt.some((e) => ich.idents.includes(e))))
+    .filter((p) => ich.rolle === 'admin' || p.erlaubt.some((e) => ich.idents.includes(e)))
     .map(oeffentlichPov);
   return NextResponse.json({ ok: true, pros }, { headers: nie });
 }
@@ -65,11 +69,5 @@ export async function POST(request: Request) {
   neu.name = ich.name || neu.name;
   alle[ident] = neu;
   await schreibePros(alle);
-  // Gerade live gegangen: dem Discord des Profis Bescheid geben.
-  if (neu.live && !alt.live) {
-    const host = request.headers.get('x-forwarded-host') || request.headers.get('host') || 'www.thecomphub.com';
-    const daheim = /^(localhost|127\.0\.0\.1)/.test(host);
-    await meldeLive(neu, `${daheim ? 'http' : 'https'}://${host}`);
-  }
-  return NextResponse.json({ ok: true, mein: neu }, { headers: nie });
+  return NextResponse.json({ ok: true, mein: { ...neu, live: istLive(ident), liveSeit: liveSeit(ident) } }, { headers: nie });
 }
