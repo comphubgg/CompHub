@@ -3,6 +3,8 @@ import { NextRequest, NextResponse, after } from 'next/server';
 import {
   wechsleSchluessel, setzeSchluessel, zugangNach,
 } from '@/lib/vipZugaenge';
+import { darfEinstellen, dashboardNachricht, sendeTest, setzeKanal } from '@/lib/discordGilden';
+import { liesPros } from '@/lib/pov';
 import {
   beitragEinbettung, gemerkterKanal, schickeSchluessel,
   ticketOeffnen, ticketSchliessen,
@@ -119,6 +121,7 @@ export async function POST(request: NextRequest) {
     application_id?: string;
     token?: string;
     channel_id?: string;
+    guild_id?: string;
     /*
      * Wer gedrueckt hat.
      *
@@ -126,7 +129,7 @@ export async function POST(request: NextRequest) {
      * Direktnachricht unter "user" - unsere Knoepfe stehen nur in Kanaelen,
      * aber beides zu lesen kostet nichts.
      */
-    member?: { user?: { id?: string; username?: string; global_name?: string }; roles?: string[] };
+    member?: { user?: { id?: string; username?: string; global_name?: string }; roles?: string[]; permissions?: string };
     /** Die Nachricht, an der der Knopf haengt (auch beim Eingabefenster dazu). */
     message?: KnopfNachricht;
     user?: { id?: string; username?: string; global_name?: string };
@@ -185,6 +188,37 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ type: 5, data: { flags: 64 } });
   }
 
+  /* ------------------------------------------------ /povkanal (Typ 2) */
+  /*
+   * Ein Server-Admin legt fest, wohin die Live-Meldungen der Profis kommen - fuer alle oder (mit "pro") fuer einen
+   * einzelnen Profi. Dasselbe geht per Auswahl im Kanal #comphub-dashboard.
+   */
+  if (d.type === 2 && d.data?.name === 'povkanal') {
+    if (!d.guild_id) return nurFuerIhn('Use this command in a server.');
+    if (!darfEinstellen(d.member?.permissions)) return nurFuerIhn('Only server admins (Manage Server) can set this.');
+    const opt = Object.fromEntries((d.data.options ?? []).map((o) => [o.name, String(o.value ?? '')]));
+    const kanal = opt.channel ?? '';
+    if (!kanal) return nurFuerIhn('Pick a channel.');
+    let proId: string | undefined;
+    let proName = '';
+    if (opt.pro) {
+      const q = opt.pro.trim().toLowerCase();
+      const hier = Object.values(await liesPros()).filter((p) => (p.gilden ?? []).includes(d.guild_id as string));
+      const treffer = hier.find((p) => p.name.toLowerCase() === q) ?? hier.find((p) => p.name.toLowerCase().includes(q));
+      if (!treffer) {
+        return nurFuerIhn(hier.length
+          ? `No pro called "${opt.pro}" announces here. Pros turned on for this server: ${hier.map((p) => p.name).join(', ')}.`
+          : 'No pro has turned this server on yet. Pros do that in their CompHub dashboard (Settings → Discord servers).');
+      }
+      proId = treffer.ident; proName = treffer.name;
+    }
+    const g = await setzeKanal(d.guild_id, kanal, proId);
+    if (!g) return nurFuerIhn('CompHub is not set up on this server yet — please try again in a minute.');
+    return nurFuerIhn(proName
+      ? `Done — ${proName}'s live announcements now go to <#${kanal}>.`
+      : `Done — live announcements now go to <#${kanal}>.`);
+  }
+
   // Typ 3 ist ein Knopf, Typ 5 ein abgeschicktes Eingabefenster.
   if (d.type !== 3 && d.type !== 5) return NextResponse.json({ type: 1 });
 
@@ -222,6 +256,30 @@ export async function POST(request: NextRequest) {
   });
   /** Die Anfrage, wie sie in der Nachricht mit dem Knopf steht. */
   const ausNachricht = anfrageAusNachricht(d.message);
+
+  /* ---------------------------------------------------- Server-Einstellungen (#comphub-dashboard) */
+  if (id.startsWith('gilde:')) {
+    if (!d.guild_id) return nurFuerIhn('This only works in a server.');
+    if (!darfEinstellen(d.member?.permissions)) return nurFuerIhn('Only server admins (Manage Server) can change this.');
+    if (id === 'gilde:kanal') {
+      const kanal = d.data?.values?.[0] ?? '';
+      const g = kanal ? await setzeKanal(d.guild_id, kanal) : null;
+      if (!g) return nurFuerIhn('CompHub is not set up on this server yet — please try again in a minute.');
+      return NextResponse.json({ type: 7, data: dashboardNachricht(g) });
+    }
+    if (id === 'gilde:aus') {
+      const g = await setzeKanal(d.guild_id, '');
+      if (!g) return nurFuerIhn('CompHub is not set up on this server yet — please try again in a minute.');
+      return NextResponse.json({ type: 7, data: dashboardNachricht(g) });
+    }
+    if (id === 'gilde:test') {
+      const erg = await sendeTest(d.guild_id);
+      return nurFuerIhn(erg === 'ok' ? 'Test message sent.'
+        : erg === 'kein-kanal' ? 'Pick the announcement channel first.'
+          : 'That did not go through — can CompHub write in that channel?');
+    }
+    return nurFuerIhn('Unknown action.');
+  }
 
   /* ---------------------------------------------------- Get Access */
   // Der Knopf im Aushang: das Eingabefenster oeffnen.

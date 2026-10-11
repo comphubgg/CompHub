@@ -13,7 +13,7 @@ import { QUALITAET, abonniere, holeAktiv, startSenden, testbildStrom, type Zusta
  * Der Betreiber (11.10.2026): Profis loggen sich ganz normal ein und sehen "nichts ausser POV und
  * Settings". Unter POV gehen sie live, waehlen aus der Liste der VIPs - einzeln -, wer ihr POV sehen darf,
  * und stellen die Qualitaet ein. Unter Einstellungen: Profilbild (ohne eigene Wahl ihr Spielerfoto) und
- * Discord-Webhook. Das Namensbanner stellt nicht der Profi ein, sondern jeder Zuschauer selbst. Alles
+ * Discord-Server (Ankuendigungen). Das Namensbanner stellt nicht der Profi ein, sondern jeder Zuschauer selbst. Alles
  * speichert sich von selbst.
  */
 
@@ -38,11 +38,16 @@ export default function ProDashboard() {
   const [teilen, setTeilen] = useState<Zustand | null>(() => holeAktiv()?.zustand ?? null);
   const [zuschauerJetzt, setZuschauerJetzt] = useState(0);
   const vorschau = useRef<HTMLVideoElement | null>(null);
-  const [webhook, setWebhook] = useState('');
+  /** Die Discord-Server, auf denen CompHub ist - und auf welchen davon dieser Profi live angekuendigt wird. */
+  const [gilden, setGilden] = useState<{
+    einladung: string | null;
+    liste: Array<{ id: string; name: string; kanal: boolean; eingerichtet: boolean; fehler: string; aktiv: boolean }>;
+  } | null>(null);
+  const [gildenFehler, setGildenFehler] = useState('');
   /** Das Discord-Konto: zugewiesen oder (auto) das verknuepfte - und ob der Bot den Profi gerade im Sprachkanal sieht. */
   const [discord, setDiscord] = useState<{
     id: string; name: string; auto: boolean;
-    stand: { imKanal: boolean; streamt: boolean; kanalName: string | null } | null;
+    stand: { imKanal: boolean; streamt: boolean; kanalName: string | null; gildenName?: string | null } | null;
   } | null>(null);
   const [dSuche, setDSuche] = useState('');
   const [dTreffer, setDTreffer] = useState<Array<{ id: string; name: string; anzeige: string }>>([]);
@@ -57,7 +62,7 @@ export default function ProDashboard() {
       .then((j) => {
         if (weg) return;
         if (!j.ok) { setFehler(j.error ?? t('Nicht ladbar')); return; }
-        setMein(j.mein as PovPro); setBildEigen(Boolean(j.bildEigen)); setDiscord(j.discord ?? null); setVips(j.vips as Vip[]); setZuschauerJetzt(j.zuschauer ?? 0); setWebhook((j.mein as PovPro).webhook ?? '');
+        setMein(j.mein as PovPro); setBildEigen(Boolean(j.bildEigen)); setDiscord(j.discord ?? null); setVips(j.vips as Vip[]); setZuschauerJetzt(j.zuschauer ?? 0);
       })
       .catch(() => { if (!weg) setFehler(t('Nicht ladbar')); });
     return () => { weg = true; };
@@ -72,6 +77,21 @@ export default function ProDashboard() {
     const id = window.setInterval(holen, 15_000);
     return () => window.clearInterval(id);
   }, []);
+
+  /** Die Discord-Server: beim Oeffnen der Einstellungen und danach alle halbe Minute (neu eingeladene Server tauchen so auf). */
+  const gildenLaden = useCallback(() => {
+    fetch('/api/pov/discord?aktion=gilden', { cache: 'no-store' }).then((r) => r.json())
+      .then((j) => {
+        if (j?.ok) { setGilden({ einladung: j.einladung ?? null, liste: j.gilden ?? [] }); setGildenFehler(''); }
+        else setGildenFehler(j?.error ?? t('Nicht ladbar'));
+      }).catch(() => setGildenFehler(t('Nicht ladbar')));
+  }, [t]);
+  useEffect(() => {
+    if (tab !== 'settings') return undefined;
+    gildenLaden();
+    const id = window.setInterval(gildenLaden, 30_000);
+    return () => window.clearInterval(id);
+  }, [tab, gildenLaden]);
 
   /** Die Namenssuche im CompHub-Server - erst nach einer kurzen Pause im Tippen. */
   useEffect(() => {
@@ -437,7 +457,7 @@ export default function ProDashboard() {
                       <span className="flex items-center gap-1.5 text-[11px] text-emerald-400">
                         <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
                         {discord.stand.streamt ? t('Im Sprachkanal und streamt') : t('Im Sprachkanal')}
-                        {discord.stand.kanalName ? ` · #${discord.stand.kanalName}` : ''}
+                        {discord.stand.gildenName ? ` · ${discord.stand.gildenName}` : ''}{discord.stand.kanalName ? ` · #${discord.stand.kanalName}` : ''}
                       </span>
                     )
                     : <span className="text-[11px] text-slate-500"><T>Gerade in keinem Sprachkanal</T></span>}
@@ -470,16 +490,49 @@ export default function ProDashboard() {
               )}
             </div>
 
-            <h2 className="mt-8 text-sm font-semibold">Discord-Webhook</h2>
+            <h2 className="mt-8 text-sm font-semibold"><T>Discord-Server</T></h2>
             <p className="mt-1 text-xs text-slate-500">
-              <T>Optional: Trage einen Discord-Webhook deines Servers ein (Kanal → Integrationen → Webhooks). Sobald du live gehst, meldet CompHub es dort — das Bild selbst sehen nur deine Freigegebenen auf CompHub.</T>
+              <T>CompHub kann auf Discord-Servern ankündigen, wenn du live gehst. Lade CompHub auf einen Server ein — es legt dort den Kanal „comphub-dashboard" an, in dem ein Server-Admin festlegt, wohin die Meldungen kommen. Hier wählst du, auf welchen Servern dein POV angekündigt wird. Das Bild selbst sehen nur deine Freigegebenen auf CompHub.</T>
             </p>
-            <input value={webhook} spellCheck={false} placeholder="https://discord.com/api/webhooks/…"
-              onChange={(e) => setWebhook(e.target.value)}
-              onBlur={() => { if (webhook !== (mein.webhook ?? '')) aendere({ webhook }); }}
-              className={`mt-3 ${feld}`} />
-            {webhook && !mein.webhook && stand === 'gespeichert' && (
-              <p className="mt-2 text-xs text-amber-300"><T>Das ist kein gültiger Discord-Webhook.</T></p>
+            <div className="mt-3 flex flex-wrap items-center gap-3">
+              {gilden?.einladung && (
+                <a href={gilden.einladung} target="_blank" rel="noreferrer"
+                  className="rounded-lg bg-indigo-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-indigo-400">
+                  <T>CompHub zu einem Server einladen</T>
+                </a>
+              )}
+              <button type="button" onClick={gildenLaden} className="text-xs text-slate-500 transition hover:text-sky-400">
+                <T>Neu prüfen</T>
+              </button>
+            </div>
+            {gildenFehler && <p className="mt-2 text-xs text-amber-300">{gildenFehler}</p>}
+            {gilden && (
+              <ul className="mt-3 space-y-2">
+                {gilden.liste.map((g) => {
+                  const an = (mein.gilden ?? []).includes(g.id);
+                  return (
+                    <li key={g.id} className="flex flex-wrap items-center gap-3 rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm">
+                      <span className="min-w-0 flex-1 truncate font-semibold">{g.name}</span>
+                      {g.fehler
+                        ? <span className="text-[11px] text-amber-300"><T>CompHub fehlt die Berechtigung „Kanäle verwalten"</T></span>
+                        : g.kanal
+                          ? <span className="text-[11px] text-emerald-400"><T>Meldungs-Kanal gewählt</T></span>
+                          : <span className="text-[11px] text-slate-500"><T>Noch kein Meldungs-Kanal — ein Server-Admin wählt ihn in #comphub-dashboard</T></span>}
+                      <button type="button" role="switch" aria-checked={an}
+                        onClick={() => aendere({ gilden: an ? (mein.gilden ?? []).filter((x) => x !== g.id) : [...(mein.gilden ?? []), g.id] })}
+                        className="flex items-center gap-2 text-xs text-slate-300">
+                        <span>{an ? t('Ankündigen an') : t('Ankündigen aus')}</span>
+                        <span className={`relative h-5 w-9 shrink-0 rounded-full transition ${an ? 'bg-sky-500' : 'bg-zinc-600/70'}`}>
+                          <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-all ${an ? 'left-[18px]' : 'left-0.5'}`} />
+                        </span>
+                      </button>
+                    </li>
+                  );
+                })}
+                {gilden.liste.length === 0 && (
+                  <li className="text-xs text-slate-500"><T>CompHub ist noch auf keinem Server.</T></li>
+                )}
+              </ul>
             )}
             <p className="mt-6 text-xs text-slate-500">
               <T>Deinen Namen und dein Passwort änderst du unter</T>{' '}

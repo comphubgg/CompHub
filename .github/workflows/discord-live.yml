@@ -54,6 +54,16 @@ jobs:
             curl -s -o /dev/null -w "VIP-Ablauf: %{http_code}\n" -m 120 -H "Authorization: Bearer $GEHEIM" "https://www.thecomphub.com/api/cron/vip-ablauf" || true
           fi
 
+      # CompHub auf neuen Discord-Servern einrichten (Kanal #comphub-dashboard) und Live-Meldungen von POVs
+      # abraeumen, die nicht mehr senden (lib/discordGilden.ts).
+      - name: Discord-Server einrichten
+        if: always()
+        continue-on-error: true
+        run: |
+          GEHEIM=$(printf '%s' "${{ secrets.ENV_LOCAL }}" | grep '^DISCORD_BOT_TOKEN=' | cut -d= -f2- | tr -d '"\r')
+          curl -s -w ' [Discord-Server: %{http_code}]' -m 90 -H "Authorization: Bearer $GEHEIM" "https://www.thecomphub.com/api/cron/discord-gilden" || true
+          echo
+
       # GitHub liess den Zeitplan am 28.9.2026 sieben Stunden lang ausfallen.
       # Jeder Lauf stoesst deshalb nach zehn Minuten den naechsten selbst an;
       # der Zeitplan oben bleibt als Rueckfall. Der Lauf sagt es mit "Kette".

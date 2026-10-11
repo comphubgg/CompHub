@@ -65,7 +65,7 @@ export async function GET(request: Request) {
       ...oeffentlichPov(p), bild: p.bild ?? (await standardBild(p.ident)),
       // Hat der Profi ein verbundenes Epic-Konto, kann das POV seine Werte zeigen.
       stats: Boolean(await epicIdVon(p.ident)),
-      discord: d && d.imKanal ? { streamt: d.streamt, kanal: d.kanalName, link: d.link } : null,
+      discord: d && d.imKanal ? { streamt: d.streamt, kanal: d.kanalName, server: d.gildenName, link: d.link } : null,
     };
   }));
   return NextResponse.json({ ok: true, pros }, { headers: nie });

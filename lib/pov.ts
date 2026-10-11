@@ -5,6 +5,7 @@ import { istBetreiber, vipAus } from '@/lib/vipCookie';
 import { alleZugaenge, zugangNach, rechteVon } from '@/lib/vipZugaenge';
 import { istLive, liveSeit } from '@/lib/povRelay';
 import { spielerbildKlein } from '@/lib/spielerbildKlein';
+import { kuendigeAn } from '@/lib/discordGilden';
 
 /*
  * Pro-POVs: Profis stellen ihr POV bereit und entscheiden, welche VIP-Streamer es sehen duerfen.
@@ -52,11 +53,16 @@ export interface PovPro {
   /** Wer zusehen darf - Kennungen wie bei "ident". */
   erlaubt: string[];
   /**
-   * Ein Discord-Webhook des Profis (optional). Geht er live, steht dort eine Meldung - so erfahren die
-   * Leute in seinem Discord davon. Das Bild selbst sehen nur die Freigegebenen auf CompHub (Discord laesst
-   * Bots keine Bildschirmuebertragung empfangen). Nie an Besucher ausgeliefert.
+   * Frueher ein Discord-Webhook des Profis. Der Betreiber (11.10.2026): keine Webhooks je Kanal - Ankuendigungen
+   * laufen jetzt ueber den Bot (siehe "gilden"). Das Feld bleibt nur fuer alte Eintraege und wird nicht mehr benutzt.
    */
   webhook: string;
+  /**
+   * Die Discord-Server, auf denen das POV angekuendigt wird, wenn der Profi live geht (Kennungen). Auf jedem
+   * dieser Server muss CompHub eingeladen und ein Meldungs-Kanal gewaehlt sein (lib/discordGilden.ts). Das Bild
+   * selbst sehen nur die Freigegebenen auf CompHub (Discord laesst Bots keine Bildschirmuebertragung empfangen).
+   */
+  gilden: string[];
   /**
    * Das Discord-Konto des Profis (Konto-Id und Anzeigename im CompHub-Server). Damit sieht der Bot, wann er in
    * einem Sprachkanal streamt (lib/povDiscord.ts). Leer = das Konto, mit dem das Konto ohnehin verknuepft ist.
@@ -82,7 +88,7 @@ export const HUD_STANDARD: PovHud = { an: true, ort: 'unten', mitBild: true, tex
 export function leererPro(ident: string, name: string, bild: string | null): PovPro {
   return {
     ident, name, bild, twitch: '', live: false, liveSeit: null, qualitaet: 'mittel',
-    hud: { ...HUD_STANDARD }, erlaubt: [], webhook: '', discordId: '', discordName: '', aktualisiert: Date.now(),
+    hud: { ...HUD_STANDARD }, erlaubt: [], webhook: '', gilden: [], discordId: '', discordName: '', aktualisiert: Date.now(),
   };
 }
 
@@ -233,7 +239,7 @@ export async function epicIdVon(ident: string): Promise<string> {
 
 /** Aus einer Eingabe die gueltigen, bereinigten Felder machen - nie mehr, als der Profi aendern darf. */
 export function bereinige(alt: PovPro, teil: Record<string, unknown>, gueltigeVips: Set<string>): PovPro {
-  const neu: PovPro = { ...alt, hud: { ...alt.hud }, erlaubt: [...alt.erlaubt] };
+  const neu: PovPro = { ...alt, hud: { ...alt.hud }, erlaubt: [...alt.erlaubt], gilden: [...(alt.gilden ?? [])] };
 
   if (typeof teil.twitch === 'string') {
     const t = teil.twitch.trim().toLowerCase()
@@ -253,10 +259,9 @@ export function bereinige(alt: PovPro, teil: Record<string, unknown>, gueltigeVi
   if (Array.isArray(teil.erlaubt)) {
     neu.erlaubt = [...new Set((teil.erlaubt as unknown[]).map(String).filter((x) => gueltigeVips.has(x)))];
   }
-  if (typeof teil.webhook === 'string') {
-    const w = teil.webhook.trim();
-    // Nur ein echter Discord-Webhook: sonst wuerde der Server beliebige Adressen anrufen.
-    neu.webhook = /^https:\/\/(?:ptb\.|canary\.)?discord(?:app)?\.com\/api\/webhooks\/\d+\/[\w-]+$/.test(w) ? w : '';
+  if (Array.isArray(teil.gilden)) {
+    // Nur Server-Kennungen; ob der Bot dort sitzt, prueft die Ankuendigung beim Live-Gehen.
+    neu.gilden = [...new Set((teil.gilden as unknown[]).map(String).filter((x) => /^\d{15,25}$/.test(x)))].slice(0, 50);
   }
   if (typeof teil.discordId === 'string') {
     // Die Pruefung, ob es ein Mitglied des Servers ist, macht die Schnittstelle (sie fragt Discord); hier nur die Form.
@@ -282,17 +287,8 @@ export function oeffentlichPov(p: PovPro) {
   };
 }
 
-/** Dem Discord des Profis sagen, dass er live ist - ohne dass ein Fehler hier etwas blockiert. */
+/** Den Discord-Servern des Profis sagen, dass er live ist - ohne dass ein Fehler hier etwas blockiert. */
 export async function meldeLive(p: PovPro, seite: string): Promise<void> {
-  if (!p.webhook) return;
-  try {
-    await fetch(p.webhook, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      signal: AbortSignal.timeout(8_000),
-      body: JSON.stringify({
-        username: 'CompHub',
-        content: `\u{1F534} **${p.name.replace(/[*_`~|>]/g, '')}** is live with their POV on CompHub: ${seite}/streams`,
-      }),
-    });
-  } catch { /* der Webhook ist ein Zusatz */ }
+  if (!p.gilden?.length) return;
+  try { await kuendigeAn(p.ident, p.name, p.gilden, seite); } catch { /* die Meldung ist ein Zusatz */ }
 }

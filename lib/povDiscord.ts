@@ -1,4 +1,5 @@
 import { mitgliederSuchen } from '@/lib/discord';
+import { mitgliedPerName, stimmeSuchen } from '@/lib/discordGilden';
 import { nachId } from '@/lib/konten';
 import { zugangNach } from '@/lib/vipZugaenge';
 
@@ -14,8 +15,10 @@ import { zugangNach } from '@/lib/vipZugaenge';
  * Discord-Konto zu (Namenssuche im CompHub-Server). Ohne eigene Wahl gilt das Discord-Konto, mit dem das Konto
  * oder der VIP-Zugang ohnehin verknuepft ist.
  *
- * Gesehen wird nur der CompHub-Server: der Bot sitzt nur dort. Wer in einem fremden Server streamt, taucht
- * hier nicht auf.
+ * Gesehen wird auf JEDEM Server, auf dem der Bot sitzt (lib/discordGilden.ts) - nicht nur im CompHub-Server.
+ * Der Betreiber (11.10.2026): er war im Sprachkanal "Live Support" und die Seite sah ihn nicht; es gibt mehrere
+ * Server und Sprachkanaele. Ist kein Discord-Konto zugewiesen, sucht CompHub den bei den Socials eingetragenen
+ * Discord-Namen auf den Servern des Bots.
  */
 
 const API = 'https://discord.com/api/v10';
@@ -27,11 +30,13 @@ export interface DiscordStand {
   streamt: boolean;
   kamera: boolean;
   kanalName: string | null;
+  /** Auf welchem Server. */
+  gildenName: string | null;
   /** Oeffnet den Sprachkanal in Discord. */
   link: string | null;
 }
 
-const NICHT_DA: DiscordStand = { imKanal: false, streamt: false, kamera: false, kanalName: null, link: null };
+const NICHT_DA: DiscordStand = { imKanal: false, streamt: false, kamera: false, kanalName: null, gildenName: null, link: null };
 
 async function bot(weg: string): Promise<Response | null> {
   const token = (process.env.DISCORD_BOT_TOKEN ?? '').trim();
@@ -43,21 +48,6 @@ async function bot(weg: string): Promise<Response | null> {
   } catch { return null; }
 }
 
-/* ------------------------------------------------------------------ Kanalnamen */
-
-let kanaele: { bis: number; namen: Map<string, string> } | null = null;
-
-async function kanalName(id: string): Promise<string | null> {
-  if (!kanaele || kanaele.bis < Date.now()) {
-    const r = await bot(`/guilds/${SERVER}/channels`);
-    if (r?.ok) {
-      const liste = await r.json().catch(() => []) as Array<{ id: string; name: string }>;
-      kanaele = { bis: Date.now() + 5 * 60_000, namen: new Map(liste.map((k) => [k.id, k.name])) };
-    }
-  }
-  return kanaele?.namen.get(id) ?? null;
-}
-
 /* ------------------------------------------------------------------ Stand eines Mitglieds */
 
 const stand = new Map<string, { bis: number; wert: DiscordStand | null }>();
@@ -67,20 +57,13 @@ export async function discordStand(id: string): Promise<DiscordStand | null> {
   if (!/^\d{15,25}$/.test(id)) return null;
   const da = stand.get(id);
   if (da && da.bis > Date.now()) return da.wert;
+  const s = await stimmeSuchen(id); // alle Server des Bots
   let wert: DiscordStand | null = null;
-  const r = await bot(`/guilds/${SERVER}/voice-states/${id}`);
-  if (r) {
-    if (r.status === 404) wert = NICHT_DA; // "Unknown Voice State": sitzt in keinem Sprachkanal
-    else if (r.ok) {
-      const j = await r.json().catch(() => null) as { channel_id?: string; self_stream?: boolean; self_video?: boolean } | null;
-      const kanal = String(j?.channel_id ?? '');
-      wert = kanal
-        ? {
-          imKanal: true, streamt: Boolean(j?.self_stream), kamera: Boolean(j?.self_video),
-          kanalName: await kanalName(kanal), link: `https://discord.com/channels/${SERVER}/${kanal}`,
-        }
-        : NICHT_DA;
-    }
+  if (s === null) wert = NICHT_DA;
+  else if (s) {
+    wert = {
+      imKanal: true, streamt: s.streamt, kamera: s.kamera, kanalName: s.kanalName, gildenName: s.gildenName, link: s.link,
+    };
   }
   // Zwoelf Sekunden gemerkt: viele Zuschauer, eine Abfrage.
   stand.set(id, { bis: Date.now() + 12_000, wert });
@@ -112,11 +95,32 @@ export async function mitgliedName(id: string): Promise<string | null> {
 
 export { mitgliederSuchen };
 
-/** Das Discord-Konto, das ohne eigene Wahl gilt: das des verknuepften VIP-Zugangs oder Anmeldedienstes. */
+const perName = new Map<string, { bis: number; id: string | null }>();
+
+/** Das Discord-Konto zu einem bei den Socials eingetragenen Benutzernamen - auf einem Server des Bots gesucht. */
+async function ueberSocials(name: string): Promise<string | null> {
+  const n = name.trim().replace(/^@/, '').toLowerCase();
+  if (n.length < 2) return null;
+  const da = perName.get(n);
+  if (da && da.bis > Date.now()) return da.id;
+  const id = await mitgliedPerName(n);
+  perName.set(n, { bis: Date.now() + (id ? 30 : 5) * 60_000, id });
+  return id;
+}
+
+/**
+ * Das Discord-Konto, das ohne eigene Wahl gilt: das des verknuepften VIP-Zugangs oder Anmeldedienstes - und wo es
+ * keines gibt, das Mitglied, dessen Benutzername bei den Socials des Kontos steht.
+ */
 export async function standardDiscordId(ident: string): Promise<string | null> {
   try {
     if (ident.startsWith('z:')) return (await zugangNach(ident.slice(2)))?.discordId ?? null;
-    if (ident.startsWith('k:')) return (await nachId(ident.slice(2)))?.dienste?.discord ?? null;
+    if (ident.startsWith('k:')) {
+      const k = await nachId(ident.slice(2));
+      if (k?.dienste?.discord) return k.dienste.discord;
+      const name = k?.socials?.discord;
+      return name ? await ueberSocials(name) : null;
+    }
   } catch { /* dann keines */ }
   return null;
 }

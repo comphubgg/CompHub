@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { liesPros, meldeLive, wer } from '@/lib/pov';
+import { beendeAnkuendigung } from '@/lib/discordGilden';
 import {
   STUECK_MAX, beende, legeAb, markiereGemeldet, markiereStromGemeldet, stromFragment, stromStart,
 } from '@/lib/povRelay';
@@ -56,6 +57,7 @@ export async function POST(request: Request) {
 
   if (new URL(request.url).searchParams.get('ende')) {
     beende(ident);
+    void liesPros().then((alle) => beendeAnkuendigung(ident, alle[ident]?.name || ich.name)).catch(() => undefined);
     return NextResponse.json({ ok: true }, { headers: nie });
   }
 
@@ -73,7 +75,7 @@ export async function POST(request: Request) {
         markiereStromGemeldet(ident);
         try {
           const pro = (await liesPros())[ident];
-          if (pro?.webhook) {
+          if (pro?.gilden?.length) {
             const host = request.headers.get('x-forwarded-host') || request.headers.get('host') || 'www.thecomphub.com';
             const daheim = /^(localhost|127\.0\.0\.1)/.test(host);
             void meldeLive({ ...pro, name: pro.name || ich.name }, `${daheim ? 'http' : 'https'}://${host}`);
@@ -103,7 +105,7 @@ export async function POST(request: Request) {
     markiereGemeldet(ident);
     try {
       const pro = (await liesPros())[ident];
-      if (pro?.webhook) {
+      if (pro?.gilden?.length) {
         const host = request.headers.get('x-forwarded-host') || request.headers.get('host') || 'www.thecomphub.com';
         const daheim = /^(localhost|127\.0\.0\.1)/.test(host);
         void meldeLive({ ...pro, name: pro.name || ich.name }, `${daheim ? 'http' : 'https'}://${host}`);
@@ -119,6 +121,9 @@ export async function DELETE() {
     return NextResponse.json({ ok: false, error: 'Nur für Profis.' }, { status: 403, headers: nie });
   }
   const ident = ich.idents[0];
-  if (ident) beende(ident);
+  if (ident) {
+    beende(ident);
+    void liesPros().then((alle) => beendeAnkuendigung(ident, alle[ident]?.name || ich.name)).catch(() => undefined);
+  }
   return NextResponse.json({ ok: true }, { headers: nie });
 }
