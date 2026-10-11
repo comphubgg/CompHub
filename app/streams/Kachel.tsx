@@ -35,6 +35,7 @@ export interface TwitchSpieler {
   setVolume(wert: number): void;
   play(): void;
   pause(): void;
+  isPaused?(): boolean;
   /** Nicht jeder Player kennt es (Werbung, Offline-Bild) - deshalb optional. */
   setQuality?(qualitaet: string): void;
   addEventListener(ereignis: string, ruf: () => void): void;

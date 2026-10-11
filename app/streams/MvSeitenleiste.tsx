@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
-import { QUALITAETEN, type LiveStand, type MvAktionen, type MvStream } from './mvTypen';
+import { QUALITAETEN, kanalAusEingabe, type LiveStand, type MvAktionen, type MvStream } from './mvTypen';
 
 /*
  * Die Seitenleiste der Multiview - nach dem Vorbild von viewington.com/watch:
@@ -11,7 +11,7 @@ import { QUALITAETEN, type LiveStand, type MvAktionen, type MvStream } from './m
  * Steuerung fuer alle. Statt "Profil speichern / Liste teilen" stehen hier die Ordner von CompHub.
  */
 
-export interface MvOrdner { id: string; name: string; streamers: Array<{ twitch: string }> }
+export interface MvOrdner { id: string; name: string; streamers: Array<{ twitch: string; createdBy?: string }> }
 
 interface KanalFund {
   login: string; name: string; live: boolean;
@@ -33,6 +33,11 @@ interface Props {
   ordnerSpeichern: (name: string, kanaele: string[]) => void;
   zuOrdner: (ordnerId: string, kanal: string) => void;
   verschiebeVor: (id: string, zielId: string) => void;
+  /** Welche Streams gerade auf der Wand stehen (offline und nicht freigegebene fehlen). */
+  aufWand: Set<string>;
+  offlineAlle: boolean;
+  kannAusOrdner: (ordnerId: string, kanal: string) => boolean;
+  ausOrdner: (ordnerId: string, kanal: string) => void;
   einzelAnsicht: () => void;
   einstellungen: () => void;
 }
@@ -59,6 +64,7 @@ const D = {
   pause: 'M6 4v12M14 4v12',
   stumm: 'M3 8h3l4-3v10l-4-3H3zM13 8l4 4M17 8l-4 4',
   suche: 'M9 15a6 6 0 1 0 0-12 6 6 0 0 0 0 12zM17 17l-3.7-3.7',
+  sender: 'M10 11.5a1.5 1.5 0 1 0 0-3 1.5 1.5 0 0 0 0 3zM6.2 13.8a5.4 5.4 0 0 1 0-7.6M13.8 6.2a5.4 5.4 0 0 1 0 7.6M3.6 16.4a9 9 0 0 1 0-12.8M16.4 3.6a9 9 0 0 1 0 12.8',
 };
 
 // Ausserhalb der Seitenleiste: innen definiert waere es bei jedem Zeichnen ein neuer Typ, und die Felder darin
@@ -86,6 +92,181 @@ function Knopf({ titel, klick, aktiv, gefahr, children }: {
   );
 }
 
+/*
+ * Die Ordner: Auswahl mehrerer Ordner, Laden (nur wer sendet) und Hinzufuegen (jeder), und darunter die
+ * Liste der Streamer im aufgeklappten Ordner - dort lassen sich Kanaele einzeln auf die Wand holen,
+ * hinzufuegen und (mit Recht) entfernen. Der Betreiber (11.10.2026): "wenn ich auf den Ordner druecke,
+ * oeffnet sich darunter direkt die Liste mit den Spielern."
+ */
+function OrdnerAbschnitt({ p }: { p: Props }) {
+  const t = useT();
+  const a = p.aktionen;
+  const [auf, setAuf] = useState<string | null>(null);
+  const [wahl, setWahl] = useState<string[]>([]);
+  const [neuerKanal, setNeuerKanal] = useState('');
+  const [neuFehler, setNeuFehler] = useState(false);
+  const [ordnerName, setOrdnerName] = useState<string | null>(null);
+
+  const gewaehlt = wahl.filter((id) => p.ordner.some((o) => o.id === id));
+  const alleGewaehlt = p.ordner.length > 0 && gewaehlt.length === p.ordner.length;
+  const kanaeleVon = (ids: string[]) => [...new Set(
+    p.ordner.filter((o) => ids.includes(o.id)).flatMap((o) => o.streamers.map((x) => x.twitch)))];
+  const sendet = (k: string) => p.live[k]?.isLive === true;
+  const bekannt = (k: string) => p.live[k] !== undefined;
+
+  const umschalten = (id: string) => setWahl((alt) => (alt.includes(id) ? alt.filter((x) => x !== id) : [...alt, id]));
+  const kleinKnopf = 'mv-rand shrink-0 rounded border px-1.5 py-0.5 text-[10px] transition hover:border-sky-500 hover:text-sky-400 disabled:opacity-40';
+
+  return (
+    <Abschnitt>
+      <div className="mb-2 flex items-center gap-2">
+        <p className="mv-mute flex min-w-0 flex-1 items-center gap-1.5 text-[11px] font-medium">
+          <Zeichen d={D.ordner} klein /><T>Ordner</T> ({p.ordner.length})
+        </p>
+        {p.ordner.length > 1 && (
+          <label className="mv-mute flex cursor-pointer items-center gap-1 text-[10px]">
+            <input type="checkbox" checked={alleGewaehlt} className="accent-sky-500"
+              onChange={() => setWahl(alleGewaehlt ? [] : p.ordner.map((o) => o.id))} />
+            <T>alle wählen</T>
+          </label>
+        )}
+      </div>
+
+      {gewaehlt.length > 0 && (
+        <div className="mv-rand mb-2 flex flex-wrap items-center gap-1.5 rounded-lg border px-2.5 py-2">
+          <span className="mv-mute min-w-0 flex-1 text-[11px]">{gewaehlt.length} <T>Ordner gewählt</T></span>
+          <button type="button" className={kleinKnopf}
+            title={t('Die Wand durch alle ersetzen, die in diesen Ordnern gerade senden')}
+            onClick={() => a.ordnerLaden(kanaeleVon(gewaehlt), 'live')}>
+            <T>Nur Live laden</T>
+          </button>
+          <button type="button" className={kleinKnopf}
+            title={t('Alle aus diesen Ordnern zur Wand hinzufügen, auch Offline')}
+            onClick={() => a.ordnerLaden(kanaeleVon(gewaehlt), 'alle')}>
+            <T>Alle hinzufügen</T>
+          </button>
+        </div>
+      )}
+
+      {p.ordner.length === 0 ? (
+        <p className="mv-mute text-center text-xs"><T>Noch keine Ordner</T></p>
+      ) : (
+        <ul className="space-y-1">
+          {p.ordner.map((o) => {
+            const sende = o.streamers.filter((x) => sendet(x.twitch)).length;
+            const offen = auf === o.id;
+            const liste = [...o.streamers].sort((x, y) => Number(sendet(y.twitch)) - Number(sendet(x.twitch)));
+            return (
+              <li key={o.id} className="mv-rand rounded-lg border">
+                <div className="flex items-center gap-1.5 px-2 py-1.5">
+                  <input type="checkbox" checked={gewaehlt.includes(o.id)} onChange={() => umschalten(o.id)}
+                    aria-label={o.name} className="shrink-0 accent-sky-500" />
+                  <button type="button" onClick={() => setAuf(offen ? null : o.id)} aria-expanded={offen}
+                    className="flex min-w-0 flex-1 items-center gap-1 text-left">
+                    <svg viewBox="0 0 20 20" className={`mv-mute h-3 w-3 shrink-0 transition ${offen ? 'rotate-90' : ''}`} fill="none"
+                      stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 4l6 6-6 6" /></svg>
+                    <span className="truncate text-xs font-semibold">{o.name}</span>
+                  </button>
+                  <span className="mv-mute shrink-0 text-[10px] tabular-nums">{o.streamers.length}</span>
+                  {sende > 0 && (
+                    <span className="flex shrink-0 items-center gap-1 text-[10px] font-semibold tabular-nums text-red-500">
+                      <span className="h-1.5 w-1.5 rounded-full bg-red-500" />{sende}
+                    </span>
+                  )}
+                  <button type="button" disabled={!sende} className={kleinKnopf}
+                    title={t('Die Wand durch alle ersetzen, die in diesem Ordner gerade senden')}
+                    onClick={() => a.ordnerLaden(o.streamers.map((x) => x.twitch), 'live')}>
+                    <T>Live</T>
+                  </button>
+                  <button type="button" disabled={!o.streamers.length} className={kleinKnopf}
+                    title={t('Alle aus dem Ordner zur Wand hinzufügen, auch Offline')}
+                    onClick={() => a.ordnerLaden(o.streamers.map((x) => x.twitch), 'alle')}>
+                    <T>Alle</T>
+                  </button>
+                </div>
+
+                {offen && (
+                  <div className="mv-rand border-t px-2 py-1.5">
+                    {liste.length === 0 && <p className="mv-mute py-1 text-center text-[11px]"><T>Der Ordner ist leer</T></p>}
+                    <ul className="space-y-0.5">
+                      {liste.map((x) => {
+                        const live = sendet(x.twitch);
+                        const stand = p.live[x.twitch];
+                        const aufWand = p.streams.some((s) => s.kanal === x.twitch && p.aufWand.has(s.id));
+                        return (
+                          <li key={x.twitch} className="group mv-hover flex items-center gap-1.5 rounded px-1.5 py-1">
+                            <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${live ? 'bg-red-500' : 'bg-zinc-600'}`} />
+                            <span className={`min-w-0 flex-1 truncate text-xs ${live ? 'font-semibold' : 'mv-mute'}`}>{x.twitch}</span>
+                            {live && (stand?.viewers ?? 0) > 0 && <span className="mv-mute shrink-0 text-[10px]">{kurz(stand!.viewers)}</span>}
+                            {!live && bekannt(x.twitch) && <span className="mv-mute shrink-0 text-[9px] uppercase tracking-wider">offline</span>}
+                            <Knopf titel={aufWand ? t('Steht auf der Wand') : t('Auf die Wand holen')} aktiv={aufWand}
+                              klick={() => a.kanalZeigen(x.twitch)}>
+                              <Zeichen d={aufWand ? D.auge : D.plus} klein />
+                            </Knopf>
+                            {p.kannAusOrdner(o.id, x.twitch) && (
+                              <Knopf titel={t('Aus dem Ordner entfernen')} gefahr klick={() => p.ausOrdner(o.id, x.twitch)}>
+                                <Zeichen d={D.kreuz} klein />
+                              </Knopf>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                    {p.darfOrdner && (
+                      <form className="mt-1.5 flex gap-1.5"
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          const k = kanalAusEingabe(neuerKanal);
+                          if (!k) { setNeuFehler(true); return; }
+                          p.zuOrdner(o.id, k);
+                          setNeuerKanal(''); setNeuFehler(false);
+                        }}>
+                        <input value={neuerKanal} spellCheck={false} onChange={(e) => { setNeuerKanal(e.target.value); setNeuFehler(false); }}
+                          placeholder={t('Streamer zum Ordner hinzufügen …')}
+                          className={`mv-fl min-w-0 flex-1 rounded-md border px-2 py-1 text-[11px] outline-none focus:border-sky-500 ${neuFehler ? 'border-rose-500' : ''}`} />
+                        <button type="submit" aria-label={t('Streamer zum Ordner hinzufügen')}
+                          className="flex h-6 w-7 shrink-0 items-center justify-center rounded-md bg-sky-500 text-white transition hover:bg-sky-400">
+                          <Zeichen d={D.plus} klein />
+                        </button>
+                      </form>
+                    )}
+                  </div>
+                )}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+
+      {p.darfOrdner && (
+        ordnerName === null ? (
+          <button type="button" disabled={!p.streams.length} onClick={() => setOrdnerName('')}
+            className="mv-fl mv-hover mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs transition disabled:opacity-40">
+            <Zeichen d={D.ordner} klein /><T>Wand als Ordner speichern</T>
+          </button>
+        ) : (
+          <form className="mt-2 flex gap-2"
+            onSubmit={(e) => {
+              e.preventDefault();
+              const n = ordnerName.trim();
+              if (!n) return;
+              p.ordnerSpeichern(n, p.streams.map((s) => s.kanal));
+              setOrdnerName(null);
+            }}>
+            <input autoFocus value={ordnerName} onChange={(e) => setOrdnerName(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Escape') setOrdnerName(null); }}
+              placeholder={t('Name des Ordners …')}
+              className="mv-fl min-w-0 flex-1 rounded-lg border px-3 py-1.5 text-xs outline-none focus:border-sky-500" />
+            <button type="submit" className="rounded-lg bg-sky-500 px-3 text-xs font-semibold text-white transition hover:bg-sky-400">
+              <T>Speichern</T>
+            </button>
+          </form>
+        )
+      )}
+    </Abschnitt>
+  );
+}
+
 export default function Seitenleiste(p: Props) {
   const t = useT();
   const a = p.aktionen;
@@ -100,7 +281,8 @@ export default function Seitenleiste(p: Props) {
   const [ordnerMenue, setOrdnerMenue] = useState<string | null>(null);
   const [ziehId, setZiehId] = useState<string | null>(null);
   const [alleWeg, setAlleWeg] = useState(false);
-  const [ordnerName, setOrdnerName] = useState<string | null>(null);
+  /** Wohin ein eingetippter Kanal kommt: leer = nur fuer diese Sitzung, sonst in diesen Ordner. */
+  const [zielOrdner, setZielOrdner] = useState('');
   const zeilen = useRef(new Map<string, HTMLElement>());
 
   /* ----------------------------------------------------- Vorschlaege beim Tippen */
@@ -125,7 +307,7 @@ export default function Seitenleiste(p: Props) {
   const gezeigt = mehr ? funde : erste;
 
   const hinzu = (text: string) => {
-    if (a.hinzufuegen(text)) { setEingabe(''); setFunde([]); setFehler(false); setFundeOffen(false); }
+    if (a.hinzufuegen(text, zielOrdner || undefined)) { setEingabe(''); setFunde([]); setFehler(false); setFundeOffen(false); }
     else setFehler(true);
   };
   const aus = () => {
@@ -220,8 +402,8 @@ export default function Seitenleiste(p: Props) {
                       <span className="flex items-center gap-1.5">
                         <span className="truncate text-xs font-semibold">{k.name}</span>
                         {k.live
-                          ? <span className="flex shrink-0 items-center gap-1 text-[10px] font-semibold text-sky-400">
-                              <span className="h-1.5 w-1.5 rounded-full bg-sky-400" />LIVE
+                          ? <span className="flex shrink-0 items-center gap-1 text-[10px] font-semibold text-red-500">
+                              <span className="h-1.5 w-1.5 rounded-full bg-red-500" />LIVE
                               {k.zuschauer !== null && <span className="mv-mute font-normal">· {kurz(k.zuschauer)}</span>}
                             </span>
                           : <span className="mv-mute shrink-0 text-[10px] uppercase tracking-wider">offline</span>}
@@ -242,6 +424,16 @@ export default function Seitenleiste(p: Props) {
               </div>
             )}
           </form>
+          {p.darfOrdner && p.ordner.length > 0 && (
+            <label className="mv-mute mt-2 flex items-center gap-2 text-[11px]">
+              <span className="shrink-0"><T>Speichern in</T></span>
+              <select value={zielOrdner} onChange={(e) => setZielOrdner(e.target.value)}
+                className="mv-fl min-w-0 flex-1 rounded-md border px-2 py-1 text-xs outline-none focus:border-sky-500">
+                <option value="">{t('Nur diese Sitzung')}</option>
+                {p.ordner.map((o) => <option key={o.id} value={o.id}>{o.name}</option>)}
+              </select>
+            </label>
+          )}
         </Abschnitt>
 
         {/* Streams */}
@@ -272,7 +464,7 @@ export default function Seitenleiste(p: Props) {
           {alleWeg && (
             <div className="mb-2 flex items-center gap-2 rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-2 text-xs">
               <span className="min-w-0 flex-1">
-                {weg} <T>Streams von der Wand nehmen? Du kannst es danach rückgängig machen.</T>
+                {weg} <T>Streams von der Wand nehmen? Sie bleiben in ihren Ordnern, und du kannst es rückgängig machen.</T>
               </span>
               <button type="button" onClick={() => { a.alleEntfernen(); setAlleWeg(false); }}
                 className="rounded-md bg-rose-500 px-2.5 py-1 font-semibold text-white transition hover:bg-rose-400">
@@ -297,6 +489,13 @@ export default function Seitenleiste(p: Props) {
                     placeholder={t('Streams durchsuchen …')}
                     className="mv-fl w-full rounded-lg border py-1.5 pl-8 pr-3 text-xs outline-none focus:border-sky-500" />
                 </div>
+                <button type="button" role="switch" aria-checked={p.offlineAlle} onClick={a.offlineAlleUmschalten}
+                  className="mv-hover -mx-1 mb-2 flex w-[calc(100%+0.5rem)] items-center gap-2 rounded-md px-1 py-1 text-left text-xs transition">
+                  <span className="min-w-0 flex-1"><T>Alle Offline-Streams zeigen</T></span>
+                  <span className={`relative h-4 w-7 shrink-0 rounded-full transition ${p.offlineAlle ? 'bg-sky-500' : 'bg-zinc-600/70'}`}>
+                    <span className={`absolute top-0.5 h-3 w-3 rounded-full bg-white shadow transition-all ${p.offlineAlle ? 'left-[14px]' : 'left-0.5'}`} />
+                  </span>
+                </button>
                 <ul className="space-y-1">
                   {gefiltert.map((s) => {
                     const stand = p.live[s.kanal];
@@ -305,7 +504,7 @@ export default function Seitenleiste(p: Props) {
                     return (
                       <li key={s.id} ref={(el) => { if (el) zeilen.current.set(s.id, el); else zeilen.current.delete(s.id); }}
                         className={`group relative rounded-lg border transition ${ziehId === s.id
-                          ? 'border-sky-500 bg-sky-500/10' : 'mv-rand'} ${s.versteckt ? 'opacity-60' : ''}`}>
+                          ? 'border-sky-500 bg-sky-500/10' : 'mv-rand'} ${s.versteckt || !p.aufWand.has(s.id) ? 'opacity-60' : ''}`}>
                         <div className="flex items-center gap-1.5 px-1.5 py-1.5">
                           <span onPointerDown={(e) => { if (!s.fest) ziehen(e, s.id); }}
                             title={s.fest ? t('Angeheftet') : t('Zum Sortieren ziehen')}
@@ -323,21 +522,31 @@ export default function Seitenleiste(p: Props) {
                                 POV
                               </span>
                             )}
-                            {stand?.isLive === false && (
-                              <span className="mv-mute shrink-0 text-[10px] uppercase tracking-wider">offline</span>
-                            )}
                             {stand?.isLive === true && (
-                              <span className="flex shrink-0 items-center gap-1 text-[10px] font-semibold text-sky-400">
-                                <span className="h-1.5 w-1.5 rounded-full bg-sky-400" />
+                              <span className="flex shrink-0 items-center gap-1 text-[10px] font-semibold text-red-500">
+                                <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-500" />
                                 {stand.viewers > 0 && <span className="mv-mute font-normal">{kurz(stand.viewers)}</span>}
                               </span>
                             )}
                           </button>
+                          {stand?.isLive === false && (
+                            // Ein Druck entscheidet fuer diesen einen Kanal, ob er auch offline auf der Wand steht.
+                            <button type="button" onClick={() => a.zeigeOfflineUmschalten(s.id)}
+                              title={s.zeigeOffline ? t('Offline nicht mehr zeigen') : t('Auch offline zeigen')}
+                              className={`shrink-0 rounded-full border px-1.5 py-px text-[9px] uppercase tracking-wider transition ${s.zeigeOffline
+                                ? 'border-sky-500 text-sky-400' : 'mv-rand mv-mute hover:border-sky-500 hover:text-sky-400'}`}>
+                              offline{s.zeigeOffline ? ' ✓' : ''}
+                            </button>
+                          )}
                           {s.fest && <span className="text-sky-400" title={t('Angeheftet')}><Zeichen d={D.nadel} klein /></span>}
                           {/* Zeilenaktionen: beim Darueberfahren, oder nach einem Tipp auf den Namen (Touch). */}
                           <div className={`items-center gap-0.5 ${aktiv ? 'flex' : 'hidden group-hover:flex group-focus-within:flex'}`}>
                             <Knopf titel={s.fest ? t('Lösen') : t('Anheften')} aktiv={s.fest} klick={() => a.festmachen(s.id)}>
                               <Zeichen d={D.nadel} klein />
+                            </Knopf>
+                            <Knopf titel={s.zeigeOffline ? t('Offline nicht mehr zeigen') : t('Auch offline zeigen')} aktiv={s.zeigeOffline}
+                              klick={() => a.zeigeOfflineUmschalten(s.id)}>
+                              <Zeichen d={D.sender} klein />
                             </Knopf>
                             <Knopf titel={s.versteckt ? t('Einblenden') : t('Ausblenden')} klick={() => a.verstecken(s.id)}>
                               <Zeichen d={s.versteckt ? D.augeZu : D.auge} klein />
@@ -380,64 +589,7 @@ export default function Seitenleiste(p: Props) {
           )}
         </Abschnitt>
 
-        {/* Ordner (bei Viewington: Profile) */}
-        <Abschnitt>
-          <Titel symbol={<Zeichen d={D.ordner} klein />}><T>Ordner</T> ({p.ordner.length})</Titel>
-          {p.ordner.length === 0 ? (
-            <p className="mv-mute text-center text-xs"><T>Noch keine Ordner</T></p>
-          ) : (
-            <ul className="space-y-1">
-              {p.ordner.map((o) => {
-                const sendend = o.streamers.filter((x) => p.live[x.twitch]?.isLive).length;
-                return (
-                  <li key={o.id} className="mv-rand flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5">
-                    <span className="min-w-0 flex-1 truncate text-xs font-semibold">{o.name}</span>
-                    <span className="mv-mute shrink-0 text-[10px] tabular-nums">
-                      {o.streamers.length}{sendend > 0 ? ` · ${sendend} live` : ''}
-                    </span>
-                    <button type="button" disabled={!o.streamers.length}
-                      title={t('Ordner auf die Wand laden und die Wand ersetzen')}
-                      onClick={() => a.ordnerLaden(o.streamers.map((x) => x.twitch), true)}
-                      className="mv-rand shrink-0 rounded border px-1.5 py-0.5 text-[10px] transition hover:border-sky-500 hover:text-sky-400 disabled:opacity-40">
-                      <T>Laden</T>
-                    </button>
-                    <button type="button" disabled={!o.streamers.length}
-                      title={t('Alle aus dem Ordner zur Wand hinzufügen')}
-                      onClick={() => a.ordnerLaden(o.streamers.map((x) => x.twitch), false)}
-                      className="mv-rand shrink-0 rounded border px-1.5 py-0.5 text-[10px] transition hover:border-sky-500 hover:text-sky-400 disabled:opacity-40">
-                      +
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-          {p.darfOrdner && (
-            ordnerName === null ? (
-              <button type="button" disabled={!p.streams.length} onClick={() => setOrdnerName('')}
-                className="mv-fl mv-hover mt-2 flex w-full items-center justify-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs transition disabled:opacity-40">
-                <Zeichen d={D.ordner} klein /><T>Wand als Ordner speichern</T>
-              </button>
-            ) : (
-              <form className="mt-2 flex gap-2"
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  const n = ordnerName.trim();
-                  if (!n) return;
-                  p.ordnerSpeichern(n, p.streams.map((s) => s.kanal));
-                  setOrdnerName(null);
-                }}>
-                <input autoFocus value={ordnerName} onChange={(e) => setOrdnerName(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Escape') setOrdnerName(null); }}
-                  placeholder={t('Name des Ordners …')}
-                  className="mv-fl min-w-0 flex-1 rounded-lg border px-3 py-1.5 text-xs outline-none focus:border-sky-500" />
-                <button type="submit" className="rounded-lg bg-sky-500 px-3 text-xs font-semibold text-white transition hover:bg-sky-400">
-                  <T>Speichern</T>
-                </button>
-              </form>
-            )
-          )}
-        </Abschnitt>
+        <OrdnerAbschnitt p={p} />
 
         {/* Qualitaet */}
         <Abschnitt>

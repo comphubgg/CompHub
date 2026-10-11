@@ -43,7 +43,21 @@ const MvPlayer = forwardRef<MvPlayerHandle, Props>(function MvPlayer({ kanal, ho
   };
 
   useImperativeHandle(ref, () => ({
-    abspielen: () => { try { spieler.current?.play(); } catch { /* noch nicht bereit */ } },
+    abspielen: () => {
+      const p = spieler.current;
+      if (!p) return;
+      try { p.play(); } catch { /* noch nicht bereit */ }
+      /*
+       * Twitch laesst play() aus dem Elternfenster manchmal ins Leere laufen (Autoplay-Sperre des
+       * Browsers). Stumm abspielen ist immer erlaubt - also wird nach einem Moment nachgesehen und
+       * notfalls stumm noch einmal angestossen. Der Ton bleibt dabei, wie er war, solange es klappt.
+       */
+      window.setTimeout(() => {
+        try {
+          if (spieler.current === p && p.isPaused?.()) { p.setMuted(true); p.play(); }
+        } catch { /* Player gerade weg */ }
+      }, 900);
+    },
     pausieren: () => { try { spieler.current?.pause(); } catch { /* noch nicht bereit */ } },
     stumm: (an: boolean) => { try { spieler.current?.setMuted(an); } catch { /* noch nicht bereit */ } },
     qualitaet: stelleQualitaet,

@@ -71,7 +71,9 @@ function rastern(n: number, breite: number, hoehe: number): Raster {
 
 const neueId = () => Math.random().toString(36).slice(2, 10);
 let zaehler = Date.now();
-const neuerStream = (kanal: string): MvStream => ({ id: neueId(), nr: ++zaehler, kanal, versteckt: false, fest: false, qualitaet: '' });
+const neuerStream = (kanal: string, wahl: Partial<Pick<MvStream, 'zeigeOffline' | 'einmalig'>> = {}): MvStream => ({
+  id: neueId(), nr: ++zaehler, kanal, versteckt: false, zeigeOffline: false, einmalig: false, fest: false, qualitaet: '', ...wahl,
+});
 
 /** Angeheftete zuerst, sonst die Reihenfolge behalten. */
 const festeVor = (liste: MvStream[]) => [...liste.filter((s) => s.fest), ...liste.filter((s) => !s.fest)];
@@ -170,15 +172,8 @@ const Kachel = memo(function Kachel(p: KachelProps) {
               ))}
             </select>
           )}
-          <button type="button" className={`${knopf} ${s.fest ? 'text-sky-300' : ''}`} title={tip(s.fest ? 'Lösen' : 'Anheften')}
-            aria-label={t(s.fest ? 'Lösen' : 'Anheften')} onClick={() => a.festmachen(s.id)}>
-            {ikon('M7 3h6l-1 5 3 3H5l3-3zM10 11v6')}
-          </button>
           <button type="button" className={knopf} title={tip('Neu laden')} aria-label={t('Neu laden')} onClick={() => a.neuLaden(s.id)}>
             {ikon('M16 10a6 6 0 1 1-1.8-4.3M16 3v3.2h-3.2')}
-          </button>
-          <button type="button" className={knopf} title={tip('Kanal ändern')} aria-label={t('Kanal ändern')} onClick={() => a.kanalAendern(s.id, '')}>
-            {ikon('M3 17l1-4L14 3l3 3L7 16zM12 5l3 3')}
           </button>
           <button type="button" className={knopf} title={tip('Ausblenden')} aria-label={t('Ausblenden')} onClick={() => a.verstecken(s.id)}>
             {ikon('M3 3l14 14M8.2 5a8 8 0 0 1 1.8-.5c5 0 8.5 5.5 8.5 5.5a14 14 0 0 1-2.4 3M5.2 6.6A14 14 0 0 0 1.5 10S5 15.5 10 15.5a8 8 0 0 0 3-.6')}
@@ -200,6 +195,9 @@ export interface MultiviewProps {
   ordner: MvOrdner[];
   /** Wer in den Ordnern gerade sendet - fuer die Zaehler dort. */
   ordnerLive: Record<string, boolean>;
+  /** Wer in einem Ordner nachtraeglich etwas entfernen darf. */
+  kannAusOrdner: (ordnerId: string, kanal: string) => boolean;
+  ausOrdner: (ordnerId: string, kanal: string) => void;
   /** VIP oder Admin: darf Ordner anlegen und Streamer hineinlegen. */
   darfOrdner: boolean;
   ordnerSpeichern: (name: string, kanaele: string[]) => void;
@@ -216,12 +214,15 @@ export default function Multiview(props: MultiviewProps) {
     if (gespeichert && Array.isArray(gespeichert.streams)) {
       return gespeichert.streams
         .filter((s) => s && typeof s.kanal === 'string' && kanalAusEingabe(s.kanal))
+        // Was nur fuer die Sitzung galt (nicht in einem Ordner), ist nach dem Neuladen weg.
+        .filter((s) => !s.einmalig)
         .map((s) => ({
           id: s.id || neueId(), nr: typeof s.nr === 'number' ? s.nr : ++zaehler,
-          kanal: s.kanal, versteckt: !!s.versteckt, fest: !!s.fest, qualitaet: s.qualitaet || '',
+          kanal: s.kanal, versteckt: !!s.versteckt, zeigeOffline: !!s.zeigeOffline, einmalig: false,
+          fest: !!s.fest, qualitaet: s.qualitaet || '',
         }));
     }
-    return props.start.map(neuerStream);
+    return props.start.map((k) => neuerStream(k));
   });
   const [qualitaetAlle, setQualitaetAlle] = useState<string>(
     () => ladeJson<{ qualitaet?: string } | null>(SCHLUESSEL_STAND, null)?.qualitaet || 'auto');
@@ -235,6 +236,8 @@ export default function Multiview(props: MultiviewProps) {
   });
   const [neu, setNeu] = useState<Record<string, number>>({});
   const [live, setLive] = useState<LiveStand>({});
+  /** Hat die erste Live-Abfrage geantwortet (oder ist gescheitert)? Bis dahin bleibt Unbekanntes verborgen. */
+  const [liveFertig, setLiveFertig] = useState(false);
   const [dialog, setDialog] = useState<null | 'einstellungen' | 'kuerzel'>(null);
   const [bearbeiteId, setBearbeiteId] = useState<string | null>(null);
   const [rueck, setRueck] = useState<null | { text: string; stand: MvStream[] }>(null);
@@ -251,6 +254,9 @@ export default function Multiview(props: MultiviewProps) {
   qualitaetRef.current = qualitaetAlle;
   const einstRef = useRef(einst);
   einstRef.current = einst;
+  const liveRef = useRef<LiveStand>({});
+  const propsRef = useRef(props);
+  propsRef.current = props;
 
   /* ------------------------------------------------------------------ Speichern */
   useEffect(() => { speichereJson(SCHLUESSEL_STAND, { streams, qualitaet: qualitaetAlle }); }, [streams, qualitaetAlle]);
@@ -300,13 +306,29 @@ export default function Multiview(props: MultiviewProps) {
   }, []);
 
   const aktionen = useMemo<MvAktionen>(() => ({
-    hinzufuegen: (eingabe) => {
+    hinzufuegen: (eingabe, ordnerId) => {
       const k = kanalAusEingabe(eingabe);
       if (!k) return false;
+      /*
+       * Ein von Hand eingetippter Kanal wird gezeigt, auch wenn er offline ist: der Betreiber tippt ihn
+       * nur ein, wenn er ihn sehen will. Ohne Ordner gilt er nur fuer diese Sitzung, mit Ordner bleibt er.
+       */
       setStreams((alt) => (alt.some((s) => s.kanal === k)
-        ? alt.map((s) => (s.kanal === k ? { ...s, versteckt: false } : s))
-        : [...alt, neuerStream(k)]));
+        ? alt.map((s) => (s.kanal === k ? { ...s, versteckt: false, zeigeOffline: true, einmalig: ordnerId ? false : s.einmalig } : s))
+        : [...alt, neuerStream(k, { zeigeOffline: true, einmalig: !ordnerId })]));
+      if (ordnerId) propsRef.current.zuOrdner(ordnerId, k);
       return true;
+    },
+    zeigeOfflineUmschalten: (id) => setStreams((alt) => alt.map((s) => (s.id === id ? { ...s, zeigeOffline: !s.zeigeOffline } : s))),
+    offlineAlleUmschalten: () => {
+      setEinst((alt) => { const n = { ...alt, offlineAlle: !alt.offlineAlle }; speichereJson(SCHLUESSEL_EINSTELLUNGEN, n); return n; });
+    },
+    kanalZeigen: (kanal) => {
+      const k = kanalAusEingabe(kanal);
+      if (!k) return;
+      setStreams((alt) => (alt.some((s) => s.kanal === k)
+        ? alt.map((s) => (s.kanal === k ? { ...s, versteckt: false, zeigeOffline: true } : s))
+        : [...alt, neuerStream(k, { zeigeOffline: true })]));
     },
     entfernen: (id) => {
       const alt = streamsRef.current;
@@ -345,19 +367,25 @@ export default function Multiview(props: MultiviewProps) {
       setQualitaetAlle(q);
       setStreams((alt) => alt.map((s) => (s.qualitaet ? { ...s, qualitaet: '' } : s)));
     },
-    ordnerLaden: (kanaele, ersetzen) => {
+    ordnerLaden: (kanaele, art) => {
       const gueltig = [...new Set(kanaele.map((k) => kanalAusEingabe(k)).filter((k): k is string => !!k))];
       const alt = streamsRef.current;
-      if (ersetzen) {
+      if (art === 'live') {
+        // Laden: nur wer gerade sendet, und die Wand wird durch diese Auswahl ersetzt.
+        const sendend = gueltig.filter((k) => liveRef.current[k]?.isLive === true);
         if (alt.some((s) => !s.fest)) merkeRueck('Wand', alt);
         const fest = alt.filter((s) => s.fest);
-        setStreams([...fest, ...gueltig.filter((k) => !fest.some((f) => f.kanal === k)).map(neuerStream)]);
+        setStreams([...fest, ...sendend.filter((k) => !fest.some((f) => f.kanal === k)).map((k) => neuerStream(k))]);
       } else {
-        setStreams([...alt.map((s) => (gueltig.includes(s.kanal) ? { ...s, versteckt: false } : s)),
-          ...gueltig.filter((k) => !alt.some((s) => s.kanal === k)).map(neuerStream)]);
+        // Alle hinzufuegen: jeder, auch Offline - sonst waere "alle" nicht alle.
+        setStreams([
+          ...alt.map((s) => (gueltig.includes(s.kanal) ? { ...s, versteckt: false, zeigeOffline: true } : s)),
+          ...gueltig.filter((k) => !alt.some((s) => s.kanal === k)).map((k) => neuerStream(k, { zeigeOffline: true })),
+        ]);
       }
     },
   }), [merkeRueck]);
+
 
   const griff = useCallback((id: string, g: MvPlayerHandle | null) => {
     if (g) griffe.current.set(id, g); else griffe.current.delete(id);
@@ -390,7 +418,29 @@ export default function Multiview(props: MultiviewProps) {
     return () => { document.body.style.overflow = vorher; };
   }, []);
 
-  const sichtbar = useMemo(() => streams.filter((s) => !s.versteckt), [streams]);
+  // Ordner-Zaehler: was die Seite ueber die Ordner schon weiss, ohne es hier nochmal zu erfragen.
+  const liveAlle = useMemo<LiveStand>(() => {
+    const aus: LiveStand = {};
+    for (const [k, v] of Object.entries(props.ordnerLive)) aus[k.toLowerCase()] = { isLive: v, viewers: 0 };
+    return { ...aus, ...live };
+  }, [props.ordnerLive, live]);
+  liveRef.current = liveAlle;
+
+  /*
+   * Wer auf der Wand steht.
+   *
+   * Von Hand ausgeblendete nicht, und Kanaele, die offline sind, nur wenn der Betreiber sie dafuer
+   * freigegeben hat (je Kanal) oder "Offline-Streams zeigen" an ist. Ob einer sendet, weiss die
+   * erste Live-Abfrage; bis sie geantwortet hat, bleibt Unbekanntes verborgen (nicht erst aufbauen und
+   * wieder abbauen). Scheitert sie, wird alles gezeigt statt nichts.
+   */
+  const sichtbar = useMemo(() => streams.filter((s) => {
+    if (s.versteckt) return false;
+    if (s.zeigeOffline || einst.offlineAlle || !einst.liveAbfrage) return true;
+    const stand = liveAlle[s.kanal];
+    return stand ? stand.isLive : liveFertig;
+  }), [streams, liveAlle, einst.offlineAlle, einst.liveAbfrage, liveFertig]);
+  const aufWand = useMemo(() => new Set(sichtbar.map((s) => s.id)), [sichtbar]);
   const raster = useMemo(() => rastern(sichtbar.length, flaeche.b, flaeche.h), [sichtbar.length, flaeche]);
   const sichtbarRef = useRef(sichtbar);
   sichtbarRef.current = sichtbar;
@@ -449,7 +499,11 @@ export default function Multiview(props: MultiviewProps) {
   }, [verschiebeVor]);
 
   /* ------------------------------------------------------------------ Live-Status */
-  const kanaele = streams.map((s) => s.kanal).join(',');
+  // Gefragt wird nach der Wand und nach allen Ordnern: "Nur Live laden" muss wissen, wer in den Ordnern sendet.
+  const kanaele = useMemo(() => [...new Set([
+    ...streams.map((x) => x.kanal),
+    ...props.ordner.flatMap((o) => o.streamers.map((x) => x.twitch.toLowerCase())),
+  ])].join(','), [streams, props.ordner]);
   useEffect(() => {
     if (!einst.liveAbfrage || !kanaele) return undefined;
     let weg = false;
@@ -465,18 +519,12 @@ export default function Multiview(props: MultiviewProps) {
         for (const k of kanaele.split(',')) neuer[k] = { isLive: !!j[k]?.isLive, viewers: j[k]?.viewers ?? 0 };
         if (!weg) setLive((alt) => ({ ...alt, ...neuer }));
       } catch { /* beim naechsten Takt wieder */ }
+      finally { if (!weg) setLiveFertig(true); }
     };
     void holen();
     const ab = sichtbarerTakt(() => { void holen(); }, Math.max(15, einst.liveTakt) * 1000);
     return () => { weg = true; ab(); };
   }, [einst.liveAbfrage, einst.liveTakt, kanaele]);
-
-  // Ordner-Zaehler: was die Seite ueber die Ordner schon weiss, ohne es hier nochmal zu erfragen.
-  const liveAlle = useMemo<LiveStand>(() => {
-    const aus: LiveStand = {};
-    for (const [k, v] of Object.entries(props.ordnerLive)) aus[k.toLowerCase()] = { isLive: v, viewers: 0 };
-    return { ...aus, ...live };
-  }, [props.ordnerLive, live]);
 
   /* -------------------------------------------------------------------- Vollbild */
   useEffect(() => {
@@ -560,7 +608,7 @@ export default function Multiview(props: MultiviewProps) {
             <h1 className="text-xl font-semibold text-sky-400">CompHub Multiview</h1>
             <p className="mv-mute max-w-xs text-sm">
               {streams.length
-                ? <T>Alle Streams sind ausgeblendet. Die Seitenleiste blendet sie wieder ein.</T>
+                ? <T>Alle Streams sind ausgeblendet oder offline. Die Seitenleiste zeigt sie, auch die Offline-Streams.</T>
                 : <T>Mehrere Twitch-Streams gleichzeitig, mit automatisch passender Anordnung. Öffne die Seitenleiste, um Streams hinzuzufügen.</T>}
             </p>
             <p className="mv-mute flex items-center gap-1.5 text-xs">
@@ -585,6 +633,8 @@ export default function Multiview(props: MultiviewProps) {
       <Seitenleiste offen={seite} zu={() => setSeite(false)} streams={streams} live={liveAlle} pov={pov}
         aktionen={aktionen} qualitaetAlle={qualitaetAlle} ordner={props.ordner} darfOrdner={props.darfOrdner}
         ordnerSpeichern={props.ordnerSpeichern} zuOrdner={props.zuOrdner} verschiebeVor={verschiebeVor}
+        aufWand={aufWand} offlineAlle={einst.offlineAlle}
+        kannAusOrdner={props.kannAusOrdner} ausOrdner={props.ausOrdner}
         einzelAnsicht={props.zurEinzelansicht} einstellungen={() => setDialog('einstellungen')} />
 
       {/* Rueckgaengig nach dem Entfernen */}

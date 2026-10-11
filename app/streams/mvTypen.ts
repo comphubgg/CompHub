@@ -13,6 +13,10 @@ export interface MvStream {
   nr: number;
   kanal: string;
   versteckt: boolean;
+  /** Auch zeigen, wenn der Kanal gerade offline ist (der Betreiber weiss, dass er gleich kommt). */
+  zeigeOffline: boolean;
+  /** Nur fuer diese Sitzung: nach dem Neuladen der Seite weg (nicht in einem Ordner gespeichert). */
+  einmalig: boolean;
   /** Angeheftet: bleibt vorn und laesst sich nicht verschieben oder mit "Alle entfernen" wegnehmen. */
   fest: boolean;
   /** Eigene Qualitaet dieses Streams; leer = die gemeinsame. */
@@ -34,6 +38,8 @@ export interface MvEinstellungen {
   liveAbfrage: boolean;
   /** Sekunden zwischen zwei Abfragen. */
   liveTakt: number;
+  /** Alle Kanaele zeigen, auch die offline sind. */
+  offlineAlle: boolean;
   dunkel: boolean;
   /** Die Kopfzeile der Seite ausblenden - die Wand fuellt den ganzen Bildschirm. */
   streamModus: boolean;
@@ -51,6 +57,7 @@ export const EINSTELLUNGEN_STANDARD: MvEinstellungen = {
   vollbildStummBeimVerlassen: false,
   liveAbfrage: true,
   liveTakt: 120,
+  offlineAlle: false,
   dunkel: true,
   streamModus: true,
 };
@@ -119,7 +126,10 @@ export const SCHLUESSEL_SEITE = 'multihub_mv_seite_v1';
 
 /** Was die Seitenleiste und die Kacheln an der Wand ausloesen koennen. */
 export interface MvAktionen {
-  hinzufuegen: (eingabe: string) => boolean;
+  /** Mit Ordner: der Kanal wird dort gespeichert; ohne: nur fuer diese Sitzung. */
+  hinzufuegen: (eingabe: string, ordnerId?: string) => boolean;
+  zeigeOfflineUmschalten: (id: string) => void;
+  offlineAlleUmschalten: () => void;
   entfernen: (id: string) => void;
   verstecken: (id: string) => void;
   festmachen: (id: string) => void;
@@ -134,5 +144,8 @@ export interface MvAktionen {
   alleStumm: () => void;
   alleNeuLaden: () => void;
   alleQualitaet: (qualitaet: string) => void;
-  ordnerLaden: (kanaele: string[], ersetzen: boolean) => void;
+  /** 'live': die Wand durch die Sendenden ersetzen. 'alle': jeden hinzufuegen, auch Offline. */
+  ordnerLaden: (kanaele: string[], art: 'live' | 'alle') => void;
+  /** Einen einzelnen Kanal aus einem Ordner auf die Wand holen (auch offline). */
+  kanalZeigen: (kanal: string) => void;
 }

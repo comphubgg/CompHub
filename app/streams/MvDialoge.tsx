@@ -103,6 +103,8 @@ export function EinstellungenFenster({ einst, aendern, kuerzel, zu }: {
       <Abschnitt titel={t('Live-Status')} />
       <Zeile symbol={<Strich d="M4 10a6 6 0 0 1 12 0M7 10a3 3 0 0 1 6 0M10 10v.01" />} text={t('Live-Status abfragen')}
         an={einst.liveAbfrage} aendern={(v) => aendern({ liveAbfrage: v })} />
+      <Zeile symbol={<Strich d="M10 4.5C5 4.5 1.5 10 1.5 10S5 15.5 10 15.5 18.5 10 18.5 10 15 4.5 10 4.5zM10 12.5a2.5 2.5 0 1 0 0-5 2.5 2.5 0 0 0 0 5z" />}
+        text={t('Offline-Streams zeigen')} an={einst.offlineAlle} aendern={(v) => aendern({ offlineAlle: v })} />
       {einst.liveAbfrage && (
         <div className="flex items-center gap-3 px-2 py-2 text-sm">
           <span className="w-4 shrink-0" />

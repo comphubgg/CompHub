@@ -1742,6 +1742,19 @@ const response = await fetch(getApiUrl(`/api/search?q=${encodeURIComponent(twitc
           };
           persistFolders([...folders, neuerOrdner]);
         }}
+        kannAusOrdner={(ordnerId, kanal) => {
+          if (isGuest) return false;
+          if (isAdmin) return true;
+          const st = folders.find((f) => f.id === ordnerId)?.streamers.find((x) => x.twitch === kanal);
+          // Wer nicht Admin ist, nimmt nur heraus, was er selbst hineingelegt hat.
+          return !!st && !!currentDashboardUser && st.createdBy?.trim().toLowerCase() === currentDashboardUser;
+        }}
+        ausOrdner={(ordnerId, kanal) => {
+          if (isGuest) return;
+          persistFolders(folders.map((f) => (f.id === ordnerId
+            ? { ...f, streamers: f.streamers.filter((x) => x.twitch !== kanal) }
+            : f)));
+        }}
         zuOrdner={(ordnerId, kanal) => {
           if (isGuest) return;
           persistFolders(folders.map((f) => (f.id === ordnerId && !f.streamers.some((x) => x.twitch === kanal)
