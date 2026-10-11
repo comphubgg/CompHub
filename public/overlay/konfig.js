@@ -67,8 +67,10 @@
         const r = await fetch(
           server + '/api/overlay-config?id=' + encodeURIComponent(id),
           { cache: 'no-store' });
-        if (!r.ok) return;
+        if (!r.ok) { vomMerkzettel(); return; }
         const j = await r.json();
+        if (!j || !j.config) { vomMerkzettel(); return; }
+        merken(j);
         if (j.stand === stand) return;
         stand = j.stand;
         laeuft = true;
@@ -76,7 +78,35 @@
       } catch (e) {
         /* Netz weg - beim naechsten Mal wieder. Das Overlay bleibt stehen,
            statt eine Fehlermeldung ueber den Stream zu legen. */
+        vomMerkzettel();
       }
+    }
+
+    /*
+     * Der Merkzettel: die letzte gute Einstellung dieses Overlays.
+     *
+     * Der Betreiber (3.10.2026): "die Overlay-URL funktioniert nicht fuer
+     * immer: ich habe eine erstellt, in OBS eingefuegt, zwei, drei Tage spaeter
+     * ist es einfach ein leeres Overlay, obwohl die Adresse noch drin ist und
+     * ich nichts geaendert habe." Die Adresse muss fuer immer gelten. Antwortet
+     * der Server nicht (Ausfall, Neustart, gesperrte Ablage) oder kennt er die
+     * Kennung nicht mehr, zeichnet das Overlay deshalb das, was es zuletzt
+     * richtig bekommen hat - die Browserquelle in OBS behaelt ihren lokalen
+     * Speicher. Sobald der Server wieder antwortet, gilt wieder er.
+     */
+    const MERKZETTEL = 'comphub-overlay:' + id;
+    function merken(j) {
+      try { localStorage.setItem(MERKZETTEL, JSON.stringify({ config: j.config, stand: j.stand })); } catch (e) { /* Speicher gesperrt */ }
+    }
+    function vomMerkzettel() {
+      if (laeuft) return; // es steht schon etwas auf dem Schirm
+      try {
+        const g = JSON.parse(localStorage.getItem(MERKZETTEL) || 'null');
+        if (g && g.config) {
+          laeuft = true;
+          anwenden(Object.assign({}, standard, g.config), server);
+        }
+      } catch (e) { /* kein Merkzettel */ }
     }
 
     nachsehen();
