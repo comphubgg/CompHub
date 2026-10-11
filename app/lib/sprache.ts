@@ -3365,6 +3365,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Karten zu diesem Spieltag': 'Maps for this match day',
   'Alle anzeigen': 'Show all',
   // ------------------------------------------------------------ Multiview (11.10.2026)
+  'Wer wo landet. Das Breitbild lässt sich rechts umschalten.': 'Who lands where. The wide view can be toggled on the right.',
   'Optional: Trage einen Discord-Webhook deines Servers ein (Kanal → Integrationen → Webhooks). Sobald du live gehst, meldet CompHub es dort — das Bild selbst sehen nur deine Freigegebenen auf CompHub.': 'Optional: enter a Discord webhook of your server (channel → Integrations → Webhooks). As soon as you go live, CompHub announces it there — only the people you approve see the picture itself, on CompHub.',
   'Link für OBS kopieren': 'Copy link for OBS',
   'Link kopiert — in OBS als Browserquelle einfügen. Nicht weitergeben.': 'Link copied — paste it into OBS as a browser source. Do not share it.',

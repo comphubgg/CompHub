@@ -24,6 +24,7 @@ import { leseWoerter } from './bildLesen';
 import {
   kartenSchrift, kartenName, formFarbe, hebeFormHervor, useEchteNamen,
 } from '@/app/lib/kartenStil';
+import { ZOOM_MAX, doppelKlickZiel } from '@/app/lib/kartenZoom';
 import KartenWasserzeichen from '@/app/components/KartenWasserzeichen';
 import { sichtbarerTakt } from '@/app/lib/takt';
 import { fortniteKarte, eigeneKarte } from '@/lib/bildAdressen';
@@ -384,9 +385,9 @@ export default function KartenSeite(
   const [teams, setTeams] = useState<KartenTeam[]>([]);
   const [gesperrt, setGesperrt] = useState(false);
 
-  // Ortsnamen von Anfang an aus - der Betreiber (24.9.2026): "Place Names
-  // standardmaessig aus". Wer sie braucht, schaltet sie am Auge ein.
-  const [orteSichtbar, setOrteSichtbar] = useState(false);
+  // Ortsnamen gibt es auf keiner Karte: erst "standardmaessig aus" (24.9.2026), dann der Schalter ganz weg
+  // (Betreiber, 11.10.2026: "Show Place Names komplett weg ueberall").
+  const orteSichtbar = false;
   const [vollbild, setVollbild] = useState(false);
 
   const [werkzeug, setWerkzeug] = useState<Form | null>(null);
@@ -2046,10 +2047,11 @@ export default function KartenSeite(
    */
   const festUhr = useRef<ReturnType<typeof setTimeout> | null>(null);
   const zoomeFluessig = useCallback((neuerZoom: number, punkt: Punkt) => {
-    const z = Math.max(1, Math.min(6, neuerZoom));
+    const z = Math.max(1, Math.min(ZOOM_MAX, neuerZoom));
     const m = begrenze(z, z === 1 ? { x: 50, y: 50 } : punkt);
     zoomRef.current = z;
     mitteRef.current = m;
+    zielRef.current = null;
     malAusschnitt(z, m, false);
     if (festUhr.current) clearTimeout(festUhr.current);
     festUhr.current = setTimeout(() => {
@@ -2062,7 +2064,7 @@ export default function KartenSeite(
 
   /** Vergroessern und dabei den Punkt unter dem Zeiger festhalten. */
   const zoomeAuf = useCallback((neuerZoom: number, punkt?: Punkt) => {
-    const z = Math.max(1, Math.min(6, neuerZoom));
+    const z = Math.max(1, Math.min(ZOOM_MAX, neuerZoom));
     const vorher = zoomRef.current;
     zoomRef.current = z;
     // Beim reinen Verschieben aendert sich die Vergroesserung nicht - dann
@@ -2096,7 +2098,7 @@ export default function KartenSeite(
     const px = m.x - sicht / 2 + fx * sicht;
     const py = m.y - sicht / 2 + fy * sicht;
 
-    const z2 = Math.max(1, Math.min(6, z * faktor));
+    const z2 = Math.max(1, Math.min(ZOOM_MAX, z * faktor));
     const sicht2 = 100 / z2;
 
     // Bildmitte, bei der derselbe Punkt exakt unter dem Zeiger bleibt.
@@ -2180,16 +2182,24 @@ export default function KartenSeite(
    */
   const bewegung = useRef<number | null>(null);
 
+  /** Wohin die laufende Bewegung unterwegs ist - fuer mehrere Doppelklicks hintereinander. */
+  const zielRef = useRef<{ z: number } | null>(null);
+
   const bewegungStoppen = useCallback(() => {
     if (bewegung.current !== null) {
       cancelAnimationFrame(bewegung.current);
       bewegung.current = null;
+      // Mitten im Gleiten angehalten: der Stand, bei dem es stehen blieb, gehoert auch in den Zustand.
+      setZoom(zoomRef.current);
+      setMitte(mitteRef.current);
     }
+    // zielRef bleibt: der zweite Klick eines Doppelklicks haelt die Bewegung an, der naechste Doppelklick
+    // soll aber von deren Ziel aus weiterzaehlen. Geloescht wird es am Ziel, beim Rad und beim Ziehen.
   }, []);
 
   const gleiteZu = useCallback((zielZoom: number, zielMitte: Punkt, dauer = 650) => {
     const el = ebeneRef.current;
-    const zielZ = Math.max(1, Math.min(6, zielZoom));
+    const zielZ = Math.max(1, Math.min(ZOOM_MAX, zielZoom));
     const zielM = begrenze(zielZ, zielZ === 1 ? { x: 50, y: 50 } : zielMitte);
     bewegungStoppen();
     if (festUhr.current) { clearTimeout(festUhr.current); festUhr.current = null; }
@@ -2199,7 +2209,7 @@ export default function KartenSeite(
     const vonM = { ...mitteRef.current };
     // Steht es schon dort, gibt es nichts zu zeigen.
     if (Math.abs(vonZ - zielZ) < 0.01
-      && Math.abs(vonM.x - zielM.x) < 0.01 && Math.abs(vonM.y - zielM.y) < 0.01) return;
+      && Math.abs(vonM.x - zielM.x) < 0.01 && Math.abs(vonM.y - zielM.y) < 0.01) { zielRef.current = null; return; }
 
     /*
      * In einem verborgenen Fenster halten Browser die Bildfolge an. Eine
@@ -2213,6 +2223,7 @@ export default function KartenSeite(
     }
 
     const start = performance.now();
+    zielRef.current = { z: zielZ };
     const schritt = (jetzt: number) => {
       const t = Math.min(1, (jetzt - start) / dauer);
       // Weich anfahren, weich ankommen - ohne Ueberschwingen.
@@ -2220,12 +2231,17 @@ export default function KartenSeite(
       const z = vonZ + (zielZ - vonZ) * e;
       const mx = vonM.x + (zielM.x - vonM.x) * e;
       const my = vonM.y + (zielM.y - vonM.y) * e;
+      // Der Stand steht in jedem Bild in den Referenzen: ein neuer Doppelklick mitten in der Bewegung
+      // setzt dort an und springt nicht zurueck an den Anfang.
+      zoomRef.current = z;
+      mitteRef.current = { x: mx, y: my };
       el.style.transform =
         `scale(${z}) translate(${50 / z - mx}%, ${50 / z - my}%)`;
       el.style.setProperty('--z', String(z));
       if (t < 1) { bewegung.current = requestAnimationFrame(schritt); return; }
       // Am Ziel den Zustand nachziehen, damit Ziehen und Rad weiterrechnen.
       bewegung.current = null;
+      zielRef.current = null;
       zoomRef.current = zielZ;
       mitteRef.current = zielM;
       setZoom(zielZ);
@@ -2241,8 +2257,18 @@ export default function KartenSeite(
   const zeigeSpot = useCallback((spot: Spot) => {
     const r = rahmen(spot.punkte);
     const groesse = Math.max(r.breite, r.hoehe, 4);
-    gleiteZu(Math.min(6, 55 / groesse),
+    gleiteZu(Math.min(ZOOM_MAX, 55 / groesse),
       { x: r.links + r.breite / 2, y: r.oben + r.hoehe / 2 });
+  }, [gleiteZu]);
+
+  /**
+   * Doppelklick: in Stufen an die Form heran (siehe app/lib/kartenZoom) - jeder weitere Doppelklick auf
+   * dieselbe Form ist eine Stufe naeher, immer mit der Form in der Mitte. Ohne Form: ein Schritt an die Stelle.
+   */
+  const doppelZoom = useCallback((spot: Spot | null, p: Punkt) => {
+    const basis = zielRef.current?.z ?? zoomRef.current;
+    const ziel = doppelKlickZiel(spot ? rahmen(spot.punkte) : null, p, basis);
+    gleiteZu(ziel.zoom, ziel.mitte);
   }, [gleiteZu]);
 
   /**
@@ -2362,17 +2388,19 @@ export default function KartenSeite(
     if (werkzeug) return;
     const p = pos(e);
     const treffer = [...spots].reverse().find((sp) => imPolygon(p, sp.punkte));
-    if (!treffer) return;
     // Das Ziehen des Ausschnitts, das der erste Klick begonnen hat, faellt
     // damit weg - sonst rutschte die Karte beim Doppelklick mit.
     greiftRef.current = null;
     halteAbbrechen();
-    // Wer nur schaut, faehrt die Form an - wie beim Klick auf ein Team.
+    // Freie Flaeche: ein Schritt naeher an die Stelle (auch beim Bearbeiten - dort ist nichts zu oeffnen).
+    if (!treffer) { doppelZoom(null, p); return; }
+    // Wer nur schaut, zoomt in Stufen an die Form - der Betreiber (11.10.2026): "bei Noble wirst du so
+    // clean, smooth angezoomt".
     //
     // Wer bauen darf, oeffnet sie zum Bearbeiten, und die Karte bleibt, wo
     // sie ist. Der Betreiber (24.9.2026): "wenn ich doppelt drauf klicke ...
     // soll nicht dorthin gezoomt werden."
-    if (!darfBauen) { zeigeSpot(treffer); return; }
+    if (!darfBauen) { doppelZoom(treffer, p); return; }
     setGewaehlt(treffer.id);
     gewaehltRef.current = treffer.id;
   }
@@ -2419,6 +2447,7 @@ export default function KartenSeite(
         y: greift.mitte.y - ((e.clientY - greift.sy) / kasten.height) * sicht,
       });
       mitteRef.current = m;
+      zielRef.current = null;
       malAusschnitt(z, m);
       return;
     }
@@ -3434,8 +3463,6 @@ ${name}
         onMouseDown={(e) => e.stopPropagation()}
         onMouseUp={(e) => e.stopPropagation()}
         className="absolute right-2 top-2 z-30 flex flex-col gap-1.5">
-        <Werkzeugknopf titel="Ortsnamen" kind={Ikone.auge} aktiv={orteSichtbar}
-          onClick={() => setOrteSichtbar((v) => !v)} />
         <Werkzeugknopf titel={vollbild ? 'Breitbild verlassen' : 'Breitbild'} kind={Ikone.vollbild}
           aktiv={vollbild} onClick={() => setVollbild((v) => !v)} />
         {/* Zurueck auf die ganze Karte - nach dem Hineinzoomen der Knopf,
@@ -3586,7 +3613,7 @@ ${name}
             </h1>
             <p className="mt-1 text-sm text-slate-500">
               {!istAdmin || direkt
-                ? uebs('Wer wo landet. Ortsnamen und Breitbild lassen sich rechts umschalten.')
+                ? uebs('Wer wo landet. Das Breitbild lässt sich rechts umschalten.')
                 : ausTurnier
                 ? (bearbeitenAn
                     ? 'Veröffentlichte Turnierkarte — Bearbeiten ist an.'

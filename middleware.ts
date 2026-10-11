@@ -54,8 +54,24 @@ const SITZUNGS_COOKIES = ['streamer_dashboard_konto', 'streamer_dashboard_auth']
  */
 function auskunftAdressen(request: NextRequest): string[] {
   const oeffentlich = new URL('/api/auth/check-admin', request.url).toString();
+  const adressen: string[] = [];
   const intern = process.env.COMPHUB_INTERN_URL;
-  return intern ? [`${intern.replace(/\/+$/, '')}/api/auth/check-admin`, oeffentlich] : [oeffentlich];
+  if (intern) adressen.push(`${intern.replace(/\/+$/, '')}/api/auth/check-admin`);
+
+  /*
+   * Der eigene Rechner hinter dem Tunnel (11.10.2026): der Server laeuft mit "-H 0.0.0.0", und Next baut
+   * request.url dann aus genau diesem Namen - dazu "https", weil Cloudflare es so weiterreicht. Die
+   * Nachfrage ging damit an "https://0.0.0.0:3100" und scheiterte: jeder Aufruf von /admin/... auf der
+   * oeffentlichen Adresse landete bei der Anmeldung, obwohl der Betreiber angemeldet war ("ich werde direkt
+   * auf die Login-Seite weitergeleitet"). Hoert der Server auf allen Adressen, fragt er sich deshalb selbst
+   * ueber die Schleife - ohne Tunnel, ohne https.
+   */
+  const u = new URL(request.url);
+  if (['0.0.0.0', '[::]', '::'].includes(u.hostname)) {
+    adressen.push(`http://127.0.0.1:${u.port || process.env.PORT || '3000'}/api/auth/check-admin`);
+  }
+  adressen.push(oeffentlich);
+  return adressen;
 }
 
 async function verwaltungErlaubt(request: NextRequest): Promise<boolean> {
@@ -65,7 +81,8 @@ async function verwaltungErlaubt(request: NextRequest): Promise<boolean> {
       const r = await fetch(adresse, {
         headers: { cookie: request.headers.get('cookie') ?? '' },
         cache: 'no-store',
-        signal: AbortSignal.timeout(8_000),
+        // Im Entwicklungsserver wird die Auskunft beim ersten Aufruf erst uebersetzt - das dauert laenger.
+        signal: AbortSignal.timeout(process.env.NODE_ENV === 'development' ? 45_000 : 8_000),
       });
       if (!r.ok) {
         console.warn(`[verwaltung] ${adresse}: HTTP ${r.status}`);

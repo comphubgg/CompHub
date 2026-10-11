@@ -524,9 +524,8 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
   /** Die Suche im Feld rechts - nach einem Spielernamen. */
   const [suche, setSuche] = useState('');
 
-  /** Ortsnamen auf der Karte - nur die Fortnite-Insel bringt beide Fassungen mit. */
-  // Ortsnamen von Anfang an aus - wie auf jeder Karte (Betreiber, 24.9.2026).
-  const [orteSichtbar, setOrteSichtbar] = useState(false);
+  // Ortsnamen gibt es auf keiner Karte mehr (Betreiber, 11.10.2026: "Show Place Names komplett weg ueberall").
+  const orteSichtbar = false;
   /** Die Beschriftungen ausblenden, um die reinen Flaechen zu sehen. */
 
 
@@ -2525,7 +2524,7 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
               }}>
 
             {/*
-              * Ortsnamen und Vollbild - zwei kleine Quadrate oben rechts auf
+              * Das Vollbild - ein kleines Quadrat oben rechts auf
               * der Karte, wie im Karten-Werkzeug. "Teams an/aus" gibt es nicht
               * mehr: der Betreiber will ihn "komplett immer loeschen,
               * ueberall" - ohne Teams ist die Karte hier ohne Sinn.
@@ -2534,20 +2533,6 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
             <div onMouseDown={(e) => e.stopPropagation()} onMouseUp={(e) => e.stopPropagation()}
               className={`${vollbildKarte ? 'fixed right-4 top-4' : 'absolute right-2 top-2'}
                           z-30 flex flex-col gap-1.5`}>
-              {!bildId && (
-                <button type="button" onClick={() => setOrteSichtbar((v) => !v)}
-                  title={uebs('Ortsnamen auf der Karte ein- und ausblenden')}
-                  aria-label={uebs('Ortsnamen auf der Karte ein- und ausblenden')}
-                  className={`flex h-9 w-9 items-center justify-center rounded-lg border transition ${orteSichtbar
-                    ? 'border-sky-500 bg-sky-500 text-white'
-                    : 'border-zinc-700 bg-zinc-900/90 text-slate-300 hover:border-zinc-500 hover:text-white'}`}>
-                  <svg viewBox="0 0 20 20" className="h-[18px] w-[18px]" fill="none" stroke="currentColor"
-                    strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-                    <path d="M1 10s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6Z" />
-                    <circle cx="10" cy="10" r="2.6" />
-                  </svg>
-                </button>
-              )}
               <button type="button" onClick={() => setVollbildKarte((v) => !v)}
                 title={vollbildKarte ? uebs('Schließen') : uebs('Vollbild')}
                 aria-label={vollbildKarte ? uebs('Schließen') : uebs('Vollbild')}

@@ -12,6 +12,7 @@ import { fortniteKarte } from '@/lib/bildAdressen';
 import { rahmen as formRahmen, spanneBei, einheitsGroesse, type Punkt, type Spot } from '@/lib/prognoseKarte';
 import { kartenSchrift, kartenName, formFarbe, hebeFormHervor } from '@/app/lib/kartenStil';
 import KartenWasserzeichen from '@/app/components/KartenWasserzeichen';
+import { ZOOM_MAX, doppelKlickZiel } from '@/app/lib/kartenZoom';
 import type { SolosDaten, SolosFenster, SolosSpieler } from '@/lib/globalsSolos';
 
 /*
@@ -84,9 +85,10 @@ function Karte({ f }: { f: SolosFenster }) {
   const mitteRef = useRef<Punkt>({ x: 50, y: 50 });
   const hoverRef = useRef<string | null>(null);
   const malUhr = useRef<number | null>(null);
+  const bewegung = useRef<number | null>(null);
+  const zielZoom = useRef<number | null>(null);
   const zug = useRef<{ sx: number; sy: number; mitte: Punkt; kasten: DOMRect } | null>(null);
   const [gezoomt, setGezoomt] = useState(false);
-  const [orte, setOrte] = useState(true);
 
   const spots = useMemo(() => f.formen.map((fo, i): Spot & { spieler: string[] } => {
     const xs = [...new Set(fo.punkte.map((q) => q.x))];
@@ -114,6 +116,36 @@ function Karte({ f }: { f: SolosFenster }) {
     });
   }, []);
 
+  const stopp = useCallback(() => {
+    if (bewegung.current !== null) { cancelAnimationFrame(bewegung.current); bewegung.current = null; }
+    // zielZoom bleibt: der zweite Klick eines Doppelklicks haelt die Bewegung an, der naechste Doppelklick
+    // zaehlt von deren Ziel aus weiter. Geloescht wird es am Ziel, beim Rad und beim Ziehen.
+  }, []);
+
+  /** Zu einem Ausschnitt gleiten - Massstab und Mitte gemeinsam, auf geradem Weg, weich an- und abfahrend. */
+  const gleite = useCallback((zielZ: number, zielM: Punkt) => {
+    stopp();
+    const z1 = Math.max(1, Math.min(ZOOM_MAX, zielZ));
+    const m1 = begrenze(z1, zielM);
+    const z0 = zoomRef.current, m0 = { ...mitteRef.current };
+    if (typeof document !== 'undefined' && document.visibilityState !== 'visible') {
+      zoomRef.current = z1; mitteRef.current = m1; male();
+      return;
+    }
+    const start = performance.now();
+    zielZoom.current = z1;
+    const schritt = (jetzt: number) => {
+      const t = Math.min(1, (jetzt - start) / 650);
+      const e = t < 0.5 ? 2 * t * t : 1 - ((-2 * t + 2) ** 2) / 2;
+      zoomRef.current = z0 + (z1 - z0) * e;
+      mitteRef.current = { x: m0.x + (m1.x - m0.x) * e, y: m0.y + (m1.y - m0.y) * e };
+      male();
+      if (t < 1) bewegung.current = requestAnimationFrame(schritt);
+      else { bewegung.current = null; zielZoom.current = null; }
+    };
+    bewegung.current = requestAnimationFrame(schritt);
+  }, [male, stopp]);
+
   // Das Rad zoomt, und die Seite scrollt dabei nicht mit.
   useEffect(() => {
     const amRad = (e: WheelEvent) => {
@@ -122,10 +154,12 @@ function Karte({ f }: { f: SolosFenster }) {
       const r = el.getBoundingClientRect();
       if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) return;
       e.preventDefault();
+      stopp();
+      zielZoom.current = null;
       const fx = (e.clientX - r.left) / r.width, fy = (e.clientY - r.top) / r.height;
       const z = zoomRef.current, m = mitteRef.current, sicht = 100 / z;
       const px = m.x - sicht / 2 + fx * sicht, py = m.y - sicht / 2 + fy * sicht;
-      const z2 = Math.max(1, Math.min(6, z * (e.deltaY < 0 ? 1.12 : 1 / 1.12)));
+      const z2 = Math.max(1, Math.min(ZOOM_MAX, z * (e.deltaY < 0 ? 1.12 : 1 / 1.12)));
       const sicht2 = 100 / z2;
       zoomRef.current = z2;
       mitteRef.current = begrenze(z2, { x: px + sicht2 * (0.5 - fx), y: py + sicht2 * (0.5 - fy) });
@@ -133,7 +167,7 @@ function Karte({ f }: { f: SolosFenster }) {
     };
     window.addEventListener('wheel', amRad, { passive: false, capture: true });
     return () => window.removeEventListener('wheel', amRad, { capture: true } as EventListenerOptions);
-  }, [male]);
+  }, [male, stopp]);
 
   // Ziehen: ueber die Bildschirmstrecke seit dem Anfassen gerechnet.
   useEffect(() => {
@@ -141,6 +175,7 @@ function Karte({ f }: { f: SolosFenster }) {
       const g = zug.current;
       if (!g) return;
       const sicht = 100 / zoomRef.current;
+      zielZoom.current = null;
       mitteRef.current = begrenze(zoomRef.current, {
         x: g.mitte.x - ((e.clientX - g.sx) / g.kasten.width) * sicht,
         y: g.mitte.y - ((e.clientY - g.sy) / g.kasten.height) * sicht,
@@ -156,19 +191,25 @@ function Karte({ f }: { f: SolosFenster }) {
     };
   }, [male]);
 
-  useEffect(() => () => { if (malUhr.current !== null) cancelAnimationFrame(malUhr.current); }, []);
+  useEffect(() => () => {
+    if (malUhr.current !== null) cancelAnimationFrame(malUhr.current);
+    if (bewegung.current !== null) cancelAnimationFrame(bewegung.current);
+  }, []);
 
-  /** Die Form unter dem Zeiger. */
-  const formBei = (e: { clientX: number; clientY: number }) => {
+  /** Der Kartenpunkt unter dem Zeiger, in Prozent. */
+  const punktBei = (e: { clientX: number; clientY: number }): Punkt | null => {
     const el = flaeche.current;
-    if (!el) return undefined;
+    if (!el) return null;
     const r = el.getBoundingClientRect();
     const z = zoomRef.current, m = mitteRef.current, sicht = 100 / z;
-    const p = {
+    return {
       x: m.x - sicht / 2 + ((e.clientX - r.left) / r.width) * sicht,
       y: m.y - sicht / 2 + ((e.clientY - r.top) / r.height) * sicht,
     };
-    return [...spots].reverse().find((sp) => imPolygon(p, sp.punkte));
+  };
+  const formBei = (e: { clientX: number; clientY: number }) => {
+    const p = punktBei(e);
+    return p ? [...spots].reverse().find((sp) => imPolygon(p, sp.punkte)) : undefined;
   };
 
   if (!f.formen.length) {
@@ -181,16 +222,22 @@ function Karte({ f }: { f: SolosFenster }) {
 
   return (
     <div>
-      <label className="mb-2 flex w-fit cursor-pointer items-center gap-2 text-xs text-slate-400">
-        <input type="checkbox" checked={orte} onChange={(e) => setOrte(e.target.checked)} className="accent-sky-500" />
-        <T>Ortsnamen zeigen</T>
-      </label>
       <div ref={flaeche}
         className={`${kartenSchrift.variable} relative mx-auto aspect-square w-full select-none overflow-hidden
                     rounded-xl border border-white/[0.06] bg-zinc-950 ${gezoomt ? 'cursor-grab active:cursor-grabbing' : ''}`}
         style={{ containerType: 'inline-size', maxWidth: 'min(100%, calc(100vh - 7rem))' }}
+        onDoubleClick={(e) => {
+          // Doppelklick: in Stufen an die Form heran (app/lib/kartenZoom), ohne Form ein Schritt an die Stelle.
+          const p = punktBei(e);
+          if (!p) return;
+          zug.current = null;
+          const sp = formBei(e);
+          const ziel = doppelKlickZiel(sp ? formRahmen(sp.punkte) : null, p, zielZoom.current ?? zoomRef.current);
+          gleite(ziel.zoom, ziel.mitte);
+        }}
         onMouseDown={(e) => {
           if (e.button !== 0 || zoomRef.current <= 1 || !flaeche.current) return;
+          stopp();
           zug.current = {
             sx: e.clientX, sy: e.clientY, mitte: { ...mitteRef.current },
             kasten: flaeche.current.getBoundingClientRect(),
@@ -208,7 +255,7 @@ function Karte({ f }: { f: SolosFenster }) {
         }}>
         <div ref={ebene} className="absolute inset-0 origin-top-left" style={{ '--z': 1 } as React.CSSProperties}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={fortniteKarte(orte)} alt={t('Karte')} draggable={false}
+          <img src={fortniteKarte(false)} alt={t('Karte')} draggable={false}
             className="pointer-events-none absolute inset-0 h-full w-full object-cover" />
 
           {/* thecomphub.com, wie auf jeder Karte - unter den Formen. */}
@@ -262,7 +309,7 @@ function Karte({ f }: { f: SolosFenster }) {
 
         {gezoomt && (
           <button type="button" onMouseDown={(e) => e.stopPropagation()}
-            onClick={() => { zoomRef.current = 1; mitteRef.current = { x: 50, y: 50 }; male(); }}
+            onClick={() => gleite(1, { x: 50, y: 50 })}
             className="absolute bottom-2 left-2 z-30 rounded-md bg-black/75 px-2.5 py-1 text-[11px] text-slate-200
                        transition hover:bg-black/90">
             <T>Ganze Karte</T>

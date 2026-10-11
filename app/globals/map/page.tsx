@@ -13,6 +13,7 @@ import { flaggenPfad } from '@/components/TeamFlagge';
 import { kartenSchrift, kartenName, formFarbe, hebeFormHervor } from '@/app/lib/kartenStil';
 import { REGION_DER_QUALI } from '@/lib/globalsRegionen';
 import KartenWasserzeichen from '@/app/components/KartenWasserzeichen';
+import { ZOOM_MAX, doppelKlickZiel } from '@/app/lib/kartenZoom';
 import { useKartenVollbild } from '@/app/components/kartenVollbild';
 import { fortniteKarte, eigeneKarte } from '@/lib/bildAdressen';
 
@@ -168,22 +169,27 @@ function KartenBild({ karte, namenZu, markiert, zeige }: {
 
   const stopp = useCallback(() => {
     if (bewegung.current !== null) { cancelAnimationFrame(bewegung.current); bewegung.current = null; }
+    // zielZoom bleibt: der zweite Klick eines Doppelklicks haelt die Bewegung an, der naechste Doppelklick
+    // zaehlt von deren Ziel aus weiter. Geloescht wird es am Ziel, beim Rad und beim Ziehen.
   }, []);
 
   /** Zu einem Ausschnitt gleiten - Massstab und Mitte gemeinsam, auf geradem Weg. */
+  const zielZoom = useRef<number | null>(null);
   const gleite = useCallback((zielZ: number, zielM: Punkt) => {
     stopp();
-    const z1 = Math.max(1, Math.min(6, zielZ));
+    const z1 = Math.max(1, Math.min(ZOOM_MAX, zielZ));
     const m1 = begrenze(z1, zielM);
     const z0 = zoomRef.current, m0 = { ...mitteRef.current };
     const start = performance.now();
+    zielZoom.current = z1;
     const schritt = (jetzt: number) => {
-      const f = Math.min(1, (jetzt - start) / 600);
+      const f = Math.min(1, (jetzt - start) / 650);
       const e = f < 0.5 ? 2 * f * f : 1 - ((-2 * f + 2) ** 2) / 2;
       zoomRef.current = z0 + (z1 - z0) * e;
       mitteRef.current = { x: m0.x + (m1.x - m0.x) * e, y: m0.y + (m1.y - m0.y) * e };
       male();
       bewegung.current = f < 1 ? requestAnimationFrame(schritt) : null;
+      if (f >= 1) zielZoom.current = null;
     };
     bewegung.current = requestAnimationFrame(schritt);
   }, [male, stopp]);
@@ -238,7 +244,8 @@ function KartenBild({ karte, namenZu, markiert, zeige }: {
       const fx = (e.clientX - r.left) / r.width, fy = (e.clientY - r.top) / r.height;
       const z = zoomRef.current, m = mitteRef.current, sicht = 100 / z;
       const px = m.x - sicht / 2 + fx * sicht, py = m.y - sicht / 2 + fy * sicht;
-      const z2 = Math.max(1, Math.min(6, z * (e.deltaY < 0 ? 1.12 : 1 / 1.12)));
+      zielZoom.current = null;
+      const z2 = Math.max(1, Math.min(ZOOM_MAX, z * (e.deltaY < 0 ? 1.12 : 1 / 1.12)));
       const sicht2 = 100 / z2;
       zoomRef.current = z2;
       // Der Ort unter dem Zeiger bleibt, wo er ist.
@@ -257,6 +264,7 @@ function KartenBild({ karte, namenZu, markiert, zeige }: {
       const g = zug.current;
       if (!g) return;
       const sicht = 100 / zoomRef.current;
+      zielZoom.current = null;
       mitteRef.current = begrenze(zoomRef.current, {
         x: g.mitte.x - ((e.clientX - g.sx) / g.kasten.width) * sicht,
         y: g.mitte.y - ((e.clientY - g.sy) / g.kasten.height) * sicht,
@@ -310,9 +318,14 @@ function KartenBild({ karte, namenZu, markiert, zeige }: {
         hoverRef.current = markiert;
       }}
       onDoubleClick={(e) => {
-        // Doppelklick auf eine Form faehrt sie an - hier wird nur geschaut.
+        // Doppelklick: in Stufen an die Form heran (app/lib/kartenZoom), ohne Form ein Schritt an die Stelle.
+        // Hier wird nur geschaut.
+        const p = punktBei(e);
+        if (!p) return;
+        zug.current = null;
         const sp = formBei(e);
-        if (sp) fahreAn(sp);
+        const ziel = doppelKlickZiel(sp ? rahmen(sp.punkte) : null, p, zielZoom.current ?? zoomRef.current);
+        gleite(ziel.zoom, ziel.mitte);
       }}>
 
       <div ref={ebene} className="absolute inset-0 origin-top-left"
@@ -328,7 +341,7 @@ function KartenBild({ karte, namenZu, markiert, zeige }: {
           onLoad={kartenBild.beiLaden} style={kartenBild.bildStil(vollbild)}
           src={karte.bildId
             ? eigeneKarte(karte.bildId)
-            : fortniteKarte(!!karte.namenSichtbar)} />
+            : fortniteKarte(false)} />
 
         {/* thecomphub.com, wie auf jeder Karte - unter den Formen. */}
         <div className="pointer-events-none absolute inset-0 overflow-hidden"><KartenWasserzeichen /></div>
