@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import {
-  alleVips, bereinige, leererPro, liesPros, oeffentlichPov, schreibePros, wer,
+  alleVips, bereinige, leererPro, liesPros, meldeLive, oeffentlichPov, schreibePros, wer,
 } from '@/lib/pov';
 
 /*
@@ -65,5 +65,11 @@ export async function POST(request: Request) {
   neu.name = ich.name || neu.name;
   alle[ident] = neu;
   await schreibePros(alle);
+  // Gerade live gegangen: dem Discord des Profis Bescheid geben.
+  if (neu.live && !alt.live) {
+    const host = request.headers.get('x-forwarded-host') || request.headers.get('host') || 'www.thecomphub.com';
+    const daheim = /^(localhost|127\.0\.0\.1)/.test(host);
+    await meldeLive(neu, `${daheim ? 'http' : 'https'}://${host}`);
+  }
   return NextResponse.json({ ok: true, mein: neu }, { headers: nie });
 }

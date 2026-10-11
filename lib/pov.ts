@@ -47,6 +47,12 @@ export interface PovPro {
   hud: PovHud;
   /** Wer zusehen darf - Kennungen wie bei "ident". */
   erlaubt: string[];
+  /**
+   * Ein Discord-Webhook des Profis (optional). Geht er live, steht dort eine Meldung - so erfahren die
+   * Leute in seinem Discord davon. Das Video selbst laeuft ueber Twitch: Discord laesst Bots keine
+   * Bildschirmuebertragung empfangen. Nie an Besucher ausgeliefert.
+   */
+  webhook: string;
   aktualisiert: number;
 }
 
@@ -66,7 +72,7 @@ export const HUD_STANDARD: PovHud = { an: true, ort: 'unten', mitBild: true, tex
 export function leererPro(ident: string, name: string, bild: string | null): PovPro {
   return {
     ident, name, bild, twitch: '', live: false, liveSeit: null, qualitaet: 'mittel',
-    hud: { ...HUD_STANDARD }, erlaubt: [], aktualisiert: Date.now(),
+    hud: { ...HUD_STANDARD }, erlaubt: [], webhook: '', aktualisiert: Date.now(),
   };
 }
 
@@ -163,6 +169,11 @@ export function bereinige(alt: PovPro, teil: Record<string, unknown>, gueltigeVi
   if (Array.isArray(teil.erlaubt)) {
     neu.erlaubt = [...new Set((teil.erlaubt as unknown[]).map(String).filter((x) => gueltigeVips.has(x)))];
   }
+  if (typeof teil.webhook === 'string') {
+    const w = teil.webhook.trim();
+    // Nur ein echter Discord-Webhook: sonst wuerde der Server beliebige Adressen anrufen.
+    neu.webhook = /^https:\/\/(?:ptb\.|canary\.)?discord(?:app)?\.com\/api\/webhooks\/\d+\/[\w-]+$/.test(w) ? w : '';
+  }
   if (typeof teil.bild === 'string' || teil.bild === null) {
     // Nur ein kleines Bild: Data-URL (aus dem Dashboard auf 256 px verkleinert) oder eine eigene Adresse.
     const b = teil.bild as string | null;
@@ -178,4 +189,19 @@ export function oeffentlichPov(p: PovPro) {
     ident: p.ident, name: p.name, bild: p.bild, twitch: p.twitch,
     live: p.live, liveSeit: p.liveSeit, hud: p.hud,
   };
+}
+
+/** Dem Discord des Profis sagen, dass er live ist - ohne dass ein Fehler hier etwas blockiert. */
+export async function meldeLive(p: PovPro, seite: string): Promise<void> {
+  if (!p.webhook) return;
+  try {
+    await fetch(p.webhook, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      signal: AbortSignal.timeout(8_000),
+      body: JSON.stringify({
+        username: 'CompHub',
+        content: `\u{1F534} **${p.name.replace(/[*_`~|>]/g, '')}** is live with their POV on CompHub: ${seite}/streams`,
+      }),
+    });
+  } catch { /* der Webhook ist ein Zusatz */ }
 }

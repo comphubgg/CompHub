@@ -3365,6 +3365,8 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Karten zu diesem Spieltag': 'Maps for this match day',
   'Alle anzeigen': 'Show all',
   // ------------------------------------------------------------ Multiview (11.10.2026)
+  'Optional: Trage einen Discord-Webhook deines Servers ein (Kanal → Integrationen → Webhooks). Sobald du live gehst, meldet CompHub es dort. Das Video läuft über Twitch — Discord erlaubt Bots keine Bildschirmübertragung zu empfangen.': 'Optional: enter a Discord webhook of your server (channel → Integrations → Webhooks). As soon as you go live, CompHub announces it there. The video runs over Twitch — Discord does not let bots receive screen shares.',
+  'Das ist kein gültiger Discord-Webhook.': 'That is not a valid Discord webhook.',
   'gleich live': 'live soon',
   'Nur für Profis': 'Pros only',
   'Dieses Dashboard gibt es nur für Profis mit freigeschaltetem Konto.': 'This dashboard is only for pros with an enabled account.',

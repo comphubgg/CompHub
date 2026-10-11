@@ -38,6 +38,7 @@ export default function ProDashboard() {
   const [suche, setSuche] = useState('');
   const [twitchLive, setTwitchLive] = useState<null | { isLive: boolean; viewers: number }>(null);
   const [kanalEingabe, setKanalEingabe] = useState('');
+  const [webhook, setWebhook] = useState('');
   const uhr = useRef<number | null>(null);
   const offen = useRef<Record<string, unknown>>({});
 
@@ -49,7 +50,7 @@ export default function ProDashboard() {
       .then((j) => {
         if (weg) return;
         if (!j.ok) { setFehler(j.error ?? t('Nicht ladbar')); return; }
-        setMein(j.mein as PovPro); setVips(j.vips as Vip[]); setKanalEingabe((j.mein as PovPro).twitch);
+        setMein(j.mein as PovPro); setVips(j.vips as Vip[]); setKanalEingabe((j.mein as PovPro).twitch); setWebhook((j.mein as PovPro).webhook ?? '');
       })
       .catch(() => { if (!weg) setFehler(t('Nicht ladbar')); });
     return () => { weg = true; };
@@ -336,6 +337,17 @@ export default function ProDashboard() {
                 </button>
               )}
             </div>
+            <h2 className="mt-8 text-sm font-semibold">Discord</h2>
+            <p className="mt-1 text-xs text-slate-500">
+              <T>Optional: Trage einen Discord-Webhook deines Servers ein (Kanal → Integrationen → Webhooks). Sobald du live gehst, meldet CompHub es dort. Das Video läuft über Twitch — Discord erlaubt Bots keine Bildschirmübertragung zu empfangen.</T>
+            </p>
+            <input value={webhook} spellCheck={false} placeholder="https://discord.com/api/webhooks/…"
+              onChange={(e) => setWebhook(e.target.value)}
+              onBlur={() => { if (webhook !== (mein.webhook ?? '')) aendere({ webhook }); }}
+              className={`mt-3 ${feld}`} />
+            {webhook && !mein.webhook && stand === 'gespeichert' && (
+              <p className="mt-2 text-xs text-amber-300"><T>Das ist kein gültiger Discord-Webhook.</T></p>
+            )}
             <p className="mt-6 text-xs text-slate-500">
               <T>Deinen Namen und dein Passwort änderst du unter</T>{' '}
               <Link href="/account" className="text-sky-400 hover:text-sky-300"><T>Konto</T></Link>.
