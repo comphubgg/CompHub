@@ -62,6 +62,17 @@ interface KartenTeam {
   id: string; spieler: string[]; farbe: string;
   /** Epic-Konto-IDs in derselben Reihenfolge wie die Namen. */
   ids?: string[];
+  /**
+   * Das Team stammt aus "Generate map" (Noble Practice) und gehoert damit zur Karte, nicht zur Rangliste:
+   * das Nachladen der Teamliste (ladeTeams) darf es nicht wieder wegnehmen - sonst stuenden die Formen
+   * nach dem naechsten Takt leer da ("die Spieler werden nicht zu den Formen hinzugefuegt").
+   */
+  quelle?: 'noble';
+}
+
+/** Dasselbe Team? Gleicher Schluessel oder ein gemeinsames Epic-Konto. */
+function gleichesTeam(a: KartenTeam, b: KartenTeam): boolean {
+  return a.id === b.id || (a.ids ?? []).some((x) => x && (b.ids ?? []).includes(x));
 }
 
 /**
@@ -436,6 +447,12 @@ export default function KartenSeite(
   const [nobleListe, setNobleListe] = useState<Array<{
     turnierId: string; turnier: string; region: string; windowId: string; name: string; start: string | null;
   }> | null>(null);
+  /**
+   * Was "Generate map" zuletzt gemacht hat - als eigener Hinweis unter dem Formular, nicht als graue
+   * Zeile weiter unten. 'nichts': Noble fuehrt den Spieltag nicht (der Hinweis bietet die Spieltage an,
+   * die es gibt); 'leer': Noble kennt ihn, hat aber noch keine Formen; 'ok'; 'fehler'.
+   */
+  const [nobleMeldung, setNobleMeldung] = useState<{ art: 'ok' | 'nichts' | 'leer' | 'fehler'; text: string } | null>(null);
   /**
    * Wie viele Teams hoechstens geladen werden.
    *
@@ -1474,7 +1491,13 @@ export default function KartenSeite(
           farbe: FARBEN[i % FARBEN.length],
         };
       }).filter((t) => t.spieler.length);
-      setTeams(liste);
+      // Teams von "Generate map" bleiben stehen, auch wenn sie nicht (mehr) in der Rangliste sind.
+      setTeams((alt) => {
+        const noble = alt.filter((t) => t.quelle === 'noble');
+        if (!noble.length) return liste;
+        const gemerkt = liste.map((t) => (noble.some((n) => gleichesTeam(n, t)) ? { ...t, quelle: 'noble' as const } : t));
+        return [...gemerkt, ...noble.filter((n) => !liste.some((t) => gleichesTeam(n, t)))];
+      });
       setStatus(liste.length
         ? `${liste.length} Teams geladen${woher}`
         : uebs('Noch keine Ergebnisse'));
@@ -1498,9 +1521,7 @@ export default function KartenSeite(
     manuell?: { windowId: string; turnierId: string; region: string },
   ) => {
     if (!fensterId) return;
-    if (spots.length && !window.confirm(uebs(
-      'Die Formen und Zuordnungen dieser Karte werden durch die von Noble ersetzt. Mit Strg+Z kommst du zurück. Weitermachen?'))) return;
-    setNobleLaeuft(true); setStatus(''); setNobleListe(null);
+    setNobleLaeuft(true); setStatus(''); setNobleMeldung(null); setNobleListe(null);
     try {
       const q = manuell
         ? `window=${encodeURIComponent(manuell.windowId)}&turnier=${encodeURIComponent(manuell.turnierId)}`
@@ -1509,19 +1530,24 @@ export default function KartenSeite(
       const r = await fetch(`/api/noble-karte?${q}`, { cache: 'no-store' });
       const j = await r.json() as {
         ok?: boolean; error?: string; nichtGefunden?: boolean;
+        turnier?: { name: string }; fenster?: { name: string };
         formen?: Array<{ punkte: Punkt[]; teams: Array<{ ids: string[]; namen: string[] }> }>;
         ohneForm?: Array<{ ids: string[]; namen: string[] }>;
       };
       if (!r.ok || !j.ok) {
         if (j.nichtGefunden) {
-          const l = await fetch('/api/noble-karte?liste=1', { cache: 'no-store' });
-          const lj = await l.json() as { fenster?: NonNullable<typeof nobleListe> };
-          setNobleListe(lj.fenster ?? []);
+          // Nichts wird veraendert und nichts gefragt: der Hinweis sagt, welche Spieltage Noble hat.
+          const l = await fetch('/api/noble-karte?liste=1', { cache: 'no-store' }).catch(() => null);
+          const lj = l ? await l.json().catch(() => null) as { fenster?: NonNullable<typeof nobleListe> } | null : null;
+          setNobleListe(lj?.fenster ?? []);
+          setNobleMeldung({ art: 'nichts', text: '' });
+          return;
         }
         throw new Error(j.error ?? 'Noble nicht erreichbar');
       }
 
       const neueTeams: KartenTeam[] = [];
+      const genutzt = new Set<string>();
       const finde = (ids: string[]) => {
         const schluessel = kontoSchluessel(ids);
         const passt = (t: KartenTeam) => t.id === schluessel || (t.ids ?? []).some((x) => x && ids.includes(x));
@@ -1535,9 +1561,11 @@ export default function KartenSeite(
             spieler: e.namen.map((n, i) => profile[e.ids[i] ?? '']?.anzeige || n),
             ids: e.ids,
             farbe: FARBEN[(teams.length + neueTeams.length) % FARBEN.length],
+            quelle: 'noble',
           };
           neueTeams.push(t);
         }
+        genutzt.add(t.id);
         return t;
       };
 
@@ -1558,17 +1586,45 @@ export default function KartenSeite(
           teams: ids,
         } as Spot;
       });
+
+      // Kennt Noble den Spieltag, hat aber noch keine Formen, bleibt die Karte, wie sie ist.
+      if (!neueSpots.length) {
+        setNobleMeldung({
+          art: 'leer',
+          text: uebs('Noble kennt diesen Spieltag, hat aber noch keine Formen eingetragen — die Karte bleibt, wie sie ist.'),
+        });
+        return;
+      }
+
       // Teams, fuer die Noble noch keine Form hat, stehen danach in der Liste und warten dort.
       for (const e of j.ohneForm ?? []) wieNoble(e);
+
+      // Erst jetzt fragen: jetzt ist klar, was ersetzt wird.
+      if (spots.length && !window.confirm(uebs(
+        'Noble ({name}): {formen} Formen, {teams} Teams. Die {alt} Formen und Zuordnungen dieser Karte werden ersetzt — mit Strg+Z kommst du zurück. Weitermachen?')
+        .replace('{name}', [j.turnier?.name, j.fenster?.name].filter(Boolean).join(' · '))
+        .replace('{formen}', String(neueSpots.length))
+        .replace('{teams}', String(genutzt.size))
+        .replace('{alt}', String(spots.length)))) return;
 
       merke();
       formenVomNutzer.current = false; inhaltVomNutzer.current = true;
       setSpots(neueSpots);
-      if (neueTeams.length) setTeams((alt) => [...alt, ...neueTeams]);
-      setStatus(`${neueSpots.length} ${uebs('Formen von Noble übernommen')}, ${eingetragen} ${uebs('Teams eingetragen')}`
-        + (neueTeams.length ? ` · ${neueTeams.length} ${uebs('nicht in deiner Liste, von Noble ergänzt')}` : ''));
+      // Die Teams dieser Karte sind jetzt die von Noble: alte Noble-Teams, die nicht mehr vorkommen, gehen,
+      // gefundene Teams der Rangliste werden als zur Karte gehoerig vermerkt, neue kommen dazu.
+      setTeams((alt) => [
+        ...alt
+          .filter((t) => t.quelle !== 'noble' || genutzt.has(t.id))
+          .map((t) => (genutzt.has(t.id) && t.quelle !== 'noble' ? { ...t, quelle: 'noble' as const } : t)),
+        ...neueTeams.filter((n) => !alt.some((t) => t.id === n.id)),
+      ]);
+      setNobleMeldung({
+        art: 'ok',
+        text: `${neueSpots.length} ${uebs('Formen von Noble übernommen')}, ${eingetragen} ${uebs('Teams eingetragen')}`
+          + (neueTeams.length ? ` · ${neueTeams.length} ${uebs('nicht in deiner Liste, von Noble ergänzt')}` : ''),
+      });
     } catch (e) {
-      setStatus((e as Error).message);
+      setNobleMeldung({ art: 'fehler', text: (e as Error).message });
     } finally { setNobleLaeuft(false); }
   }, [fensterId, spots, teams, profile, merke, uebs]);
 
@@ -4137,14 +4193,68 @@ ${name}
           </div>
         )}
 
+        {/*
+          * Das Ergebnis von "Generate map" - gleich unter dem Formular und gut zu sehen.
+          *
+          * Vorher stand es als graue Zeile weit unten: bei einem Spieltag, den Noble nicht fuehrt, sah es
+          * aus, als haette der Knopf nichts getan. Jetzt steht da, was passiert ist und - wenn Noble den
+          * Spieltag nicht hat - welche es gibt, zum direkten Anklicken (die naechsten zuerst).
+          */}
+        {darfBauen && nobleMeldung && (
+          <div className={`mb-3 flex items-start gap-3 rounded-xl border px-4 py-3 text-sm ${
+            nobleMeldung.art === 'ok'
+              ? 'border-emerald-700/60 bg-emerald-950/25 text-emerald-200'
+              : 'border-amber-700/60 bg-amber-950/25 text-amber-100'}`}>
+            <div className="min-w-0 flex-1">
+              {nobleMeldung.art === 'nichts' ? (() => {
+                const dieser = fenster.find((x) => x.windowId === fensterId);
+                const ref = dieser?.begin ?? Date.now();
+                const abstand = (s: string | null) => (s ? Math.abs(Date.parse(s) - ref) : Infinity);
+                const nahe = [...(nobleListe ?? [])].sort((a, b) => abstand(a.start) - abstand(b.start)).slice(0, 6);
+                return (
+                  <>
+                    <p className="font-semibold"><T>Noble hat für diesen Spieltag keine Karte.</T></p>
+                    <p className="mt-1 text-xs text-slate-300">
+                      {nahe.length
+                        ? <T>Bei Noble gibt es diese Spieltage — klick einen an, um dessen Formen und Spieler zu übernehmen. Deine Karte bleibt unverändert, bis du bestätigst.</T>
+                        : <T>Die Liste der Spieltage von Noble ließ sich nicht laden. Versuch es gleich noch einmal.</T>}
+                    </p>
+                    {nahe.length > 0 && (
+                      <div className="mt-2 flex flex-wrap gap-2">
+                        {nahe.map((w) => (
+                          <button key={`${w.turnierId}|${w.region}|${w.windowId}`} type="button"
+                            onClick={() => void generiereKarte({ windowId: w.windowId, turnierId: w.turnierId, region: w.region })}
+                            className="rounded-lg border border-amber-700/60 px-2.5 py-1 text-xs text-amber-100
+                                       transition hover:border-amber-500 hover:bg-amber-900/30">
+                            {w.turnier} · {w.name} · {w.region}
+                            {w.start ? ` · ${new Date(w.start).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}` : ''}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </>
+                );
+              })() : <p className={nobleMeldung.art === 'ok' ? 'font-semibold' : ''}>{nobleMeldung.text}</p>}
+            </div>
+            <button type="button" onClick={() => setNobleMeldung(null)} title={uebs('Schließen')}
+              className="shrink-0 text-slate-400 transition hover:text-white">×</button>
+          </div>
+        )}
+
         {/* Kartenbilder waehlen und hochladen gehoert in den Adminbereich.
             Wer ueber die Eventseite auf einen bestimmten Spieltag kommt, hat
             sein Bild schon - er will Formen und Spieler anfassen, nicht die
-            Insel wechseln. */}
+            Insel wechseln.
+
+            Eingeklappt: zwanzig Namensschilder, die nur zum Umbenennen taugen, nahmen drei Zeilen ueber
+            der Karte ein (Betreiber, 11.10.2026: "wieso habe ich immer noch so viele eigene Maps als
+            Auswahl?"). Gewaehlt wird das Kartenbild oben im Formular. */}
         {istAdmin && !direkt && (
-          <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border
-                          border-zinc-800 bg-zinc-900/40 px-3 py-1.5">
-            <span className="text-xs text-slate-400"><T>Eigene Karten:</T></span>
+          <details className="group mb-3 rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-1.5">
+            <summary className="cursor-pointer select-none text-xs text-slate-400 transition hover:text-slate-200">
+              <T>Eigene Karten</T> ({bilder.length}) — <T>umbenennen und hochladen</T>
+            </summary>
+          <div className="mt-2 flex flex-wrap items-center gap-2 pb-1">
             {bilder.map((b) => (
               <span key={b.id}
                 className={`flex items-center gap-1 rounded-lg border px-2 py-1 text-[11px] ${
@@ -4209,6 +4319,7 @@ ${name}
               <T>erst benennen, dann Datei wählen</T>
             </span>
           </div>
+          </details>
         )}
 
         {veroeffentlicht && (

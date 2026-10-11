@@ -259,6 +259,15 @@ function waehle(): Speicher {
   } else {
     gewaehlt = ordnerSpeicher;
   }
+  /*
+   * Zum gefahrlosen Ausprobieren gegen den echten Stand: mit COMPHUB_NUR_LESEN=1 wird nichts geschrieben und
+   * nichts geloescht - die Seite arbeitet mit den echten Daten, ohne sie anzufassen. Ohne die Einstellung
+   * aendert sich nichts.
+   */
+  if (process.env.COMPHUB_NUR_LESEN === '1') {
+    const echt = gewaehlt;
+    gewaehlt = { ...echt, schreib: async () => {}, loesche: async () => {} };
+  }
   return gewaehlt;
 }
 

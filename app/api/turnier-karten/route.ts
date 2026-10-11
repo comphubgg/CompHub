@@ -38,6 +38,8 @@ export interface KartenTeam {
   farbe: string;
   /** Epic-Konto-IDs in der Reihenfolge der Namen - Grundlage des Schluessels. */
   ids?: string[];
+  /** Kam mit "Generate map" von Noble Practice - bleibt beim Nachladen der Teamliste stehen. */
+  quelle?: 'noble';
 }
 
 export interface Turnierkarte {

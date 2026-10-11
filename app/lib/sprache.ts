@@ -3365,6 +3365,13 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Karten zu diesem Spieltag': 'Maps for this match day',
   'Alle anzeigen': 'Show all',
   // ------------------------------------------------------------ Multiview (11.10.2026)
+  'Noble hat für diesen Spieltag keine Karte.': 'Noble has no map for this match day.',
+  'Bei Noble gibt es diese Spieltage — klick einen an, um dessen Formen und Spieler zu übernehmen. Deine Karte bleibt unverändert, bis du bestätigst.': 'Noble has these match days — click one to take over its shapes and players. Your map stays unchanged until you confirm.',
+  'Die Liste der Spieltage von Noble ließ sich nicht laden. Versuch es gleich noch einmal.': 'The list of match days from Noble could not be loaded. Try again in a moment.',
+  'Noble kennt diesen Spieltag, hat aber noch keine Formen eingetragen — die Karte bleibt, wie sie ist.': 'Noble knows this match day but has no shapes yet — the map stays as it is.',
+  'Noble ({name}): {formen} Formen, {teams} Teams. Die {alt} Formen und Zuordnungen dieser Karte werden ersetzt — mit Strg+Z kommst du zurück. Weitermachen?': 'Noble ({name}): {formen} shapes, {teams} teams. The {alt} shapes and assignments of this map will be replaced — Ctrl+Z brings them back. Continue?',
+  'Eigene Karten': 'Own maps',
+  'umbenennen und hochladen': 'rename and upload',
   'Wer wo landet. Das Breitbild lässt sich rechts umschalten.': 'Who lands where. The wide view can be toggled on the right.',
   'Optional: Trage einen Discord-Webhook deines Servers ein (Kanal → Integrationen → Webhooks). Sobald du live gehst, meldet CompHub es dort — das Bild selbst sehen nur deine Freigegebenen auf CompHub.': 'Optional: enter a Discord webhook of your server (channel → Integrations → Webhooks). As soon as you go live, CompHub announces it there — only the people you approve see the picture itself, on CompHub.',
   'Link für OBS kopieren': 'Copy link for OBS',
