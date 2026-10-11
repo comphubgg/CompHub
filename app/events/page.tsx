@@ -545,6 +545,20 @@ export default function EventsPage() {
       <div className="mx-auto max-w-[1500px] px-4 py-6">
         {/* -------------------------------------------- Filter und Haken */}
         <div className="mb-3 flex flex-wrap items-center gap-3">
+          {/* Die drei Reiter offen oben: Alles, Live und demnaechst, Beendet.
+              Der Betreiber (2.10.2026): "ein vergangener Cup ist im Past-Reiter
+              einzeln, ich sehe nie einen, sondern muss immer auf Upcoming und
+              dann nach hinten scrollen." Die Auswahl lag im Filtermenue; jetzt
+              ist sie ein Knopf mit einem Klick. */}
+          <div className="flex overflow-hidden rounded-lg border border-zinc-700 bg-zinc-900/80">
+            {([['alle', 'Alle'], ['aktuell', 'Live & demnächst'], ['vorbei', 'Beendet']] as const).map(([k, titel]) => (
+              <button key={k} type="button" onClick={() => setStatus(k)}
+                className={`px-3.5 py-2 text-sm font-semibold transition ${status === k
+                  ? 'bg-sky-500/15 text-sky-300' : 'text-slate-300 hover:text-white'}`}>
+                <T>{titel}</T>
+              </button>
+            ))}
+          </div>
           <button type="button" onClick={() => setFilterOffen((v) => !v)}
             className={`flex items-center gap-2 rounded-lg border px-3.5 py-2 text-sm font-semibold transition ${
               filterOffen ? 'border-sky-500 bg-sky-500/10 text-sky-300'
