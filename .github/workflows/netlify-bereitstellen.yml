@@ -1,0 +1,55 @@
+# Die Seite bei Netlify bereitstellen - gebaut auf einem Linux-Rechner von GitHub.
+#
+# Der Betreiber (11.10.2026): Render hat den kostenlosen Datenverkehr gesperrt, und die Seite soll
+# jetzt wieder erreichbar sein. Netlify hat die Seite "thecomphub" schon, mit der Domain. Die eigenen
+# Aufbauten von Netlify scheiterten ohne lesbare Fehlermeldung; hier laeuft derselbe Bau mit dem
+# Netlify-Werkzeug, und das Protokoll steht in diesem Lauf. Auf dem Windows-Rechner des Betreibers
+# geht der Bau nicht (Netlify legt Verknuepfungen an, die Windows verbietet).
+#
+# Die Einstellungen der Seite (Zugangsdaten) liegen bei Netlify selbst und werden beim Bau von dort geholt.
+# Netlify baut nicht mehr von selbst bei jedem Push (das kostet je Bau 15 Punkte von 300 im Monat);
+# gebaut wird nur auf Anstoss hier.
+#
+#   ziel = entwurf   Testadresse, ohne die Domain anzufassen
+#   ziel = live      veroeffentlichen
+
+name: Netlify bereitstellen
+
+on:
+  workflow_dispatch:
+    inputs:
+      ziel:
+        description: 'entwurf (Testadresse) oder live'
+        required: true
+        default: 'entwurf'
+        type: choice
+        options: [entwurf, live]
+
+concurrency:
+  group: netlify
+  cancel-in-progress: false
+
+jobs:
+  bereitstellen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      NETLIFY_AUTH_TOKEN: ${{ secrets.NETLIFY_AUTH_TOKEN }}
+      NETLIFY_SITE_ID: ${{ secrets.NETLIFY_SITE_ID }}
+      NEXT_TELEMETRY_DISABLED: '1'
+      NODE_OPTIONS: --max-old-space-size=6144
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+      - name: Abhängigkeiten
+        run: npm ci --no-audit --no-fund
+      - name: Bauen und hochladen
+        run: |
+          if [ "${{ inputs.ziel }}" = "live" ]; then
+            npx --yes netlify-cli@latest deploy --build --prod --message "Bereitstellung aus GitHub ${GITHUB_SHA::7}"
+          else
+            npx --yes netlify-cli@latest deploy --build --alias probe --message "Entwurf aus GitHub ${GITHUB_SHA::7}"
+          fi
