@@ -1151,10 +1151,28 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
   const kartenFuer = useCallback((f: { eventId: string; windowId: string }) => {
     const eigene = karten.filter((k) => k.windowId === f.windowId);
     if (eigene.length) return eigene;
+    /*
+     * Von anderen Tagen geborgte Karten: hoechstens eine je Insel.
+     *
+     * Bei Reload standen unter Tag 3 vier Knoepfe (zweimal Slurpush, zweimal
+     * Stronghold), weil die Karten von Tag 1 und Tag 2 beide dazukamen. Der
+     * Betreiber (11.10.2026): "es hat in Reload maximal zwei verschiedene
+     * Karten, vier ist unmoeglich." Je Insel gilt die zuletzt gespeicherte; die
+     * Liste ist nach Inselnamen sortiert, also bleibt die erste je Name stehen.
+     */
+    const jeInsel = (liste: typeof karten) => {
+      const gesehen = new Set<string>();
+      return liste.filter((k) => {
+        const schluessel = (k.bildTitel ?? k.titel).toLowerCase();
+        if (gesehen.has(schluessel)) return false;
+        gesehen.add(schluessel);
+        return true;
+      });
+    };
     if (istGlobalsEvent(f.eventId, f.windowId)) {
-      return karten.filter((k) => istGlobalsEvent(k.eventId, k.windowId));
+      return jeInsel(karten.filter((k) => istGlobalsEvent(k.eventId, k.windowId)));
     }
-    if (cup?.global) return karten.filter((k) => k.eventId === f.eventId);
+    if (cup?.global) return jeInsel(karten.filter((k) => k.eventId === f.eventId));
     return [];
   }, [karten, cup]);
 

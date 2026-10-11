@@ -1052,7 +1052,7 @@ export default function KartenSeite(
            */
           spotsFuer.current = k.bildId || 'fortnite-karte';
         }
-      }).catch(() => {});
+      }).catch(() => { setLinkKarte(null); }); // ohne Antwort: lieber die Standardkarte als eine leere Flaeche
   }, []);
 
   // Formvorlage zum gewaehlten Kartenbild holen. Jede Karte hat ihre eigenen
@@ -3149,14 +3149,28 @@ ${name}
           '--z': zoom,
         } as React.CSSProperties}>
 
-      <img ref={bildRef}
-        src={(bildId
-          ? eigeneKarte(bildId)
-          : fortniteKarte(orteSichtbar))
-          + (bildStand ? `&v=${bildStand}` : '')}
-        alt={uebs('Fortnite-Karte')} draggable={false} crossOrigin="anonymous"
-        onLoad={messeRandFarbe}
-        className="pointer-events-none absolute inset-0 h-full w-full object-cover" />
+      {/*
+        * Das Bild erst, wenn feststeht, welches es ist.
+        *
+        * Wer eine Karte ueber ihre Adresse oeffnete, sah zwei, drei Sekunden
+        * lang die Battle-Royale-Karte und erst dann die richtige (bei Reload
+        * die Insel): das Bild stand sofort da, die gespeicherte Karte mit
+        * ihrer Wahl kam erst nach der Abfrage. Der Betreiber (11.10.2026):
+        * "das ist ein grosser Fehler, es soll nicht von automatisch die
+        * Battle-Royale-Karte laden, sondern wirklich die richtige." Solange
+        * die Adresse eine Karte nennt und diese noch nicht geladen ist,
+        * bleibt die Flaeche leer (dunkles Blau, wie das Meer der Karte).
+        */}
+      {(!linkKarte || ausTurnier) && (
+        <img ref={bildRef}
+          src={(bildId
+            ? eigeneKarte(bildId)
+            : fortniteKarte(orteSichtbar))
+            + (bildStand ? `&v=${bildStand}` : '')}
+          alt={uebs('Fortnite-Karte')} draggable={false} crossOrigin="anonymous"
+          onLoad={messeRandFarbe}
+          className="pointer-events-none absolute inset-0 h-full w-full object-cover" />
+      )}
 
       {/* Die eingefuegte Vorlage - ueber der Karte, unter den Formen, damit
           man beim Zeichnen sieht, was man abpaust. */}
