@@ -83,3 +83,4 @@ next-env.d.ts
 
 # Ein Sicherungsordner, den das Aktualisieren anlegt.
 /sicherung-*
+neustart.txt

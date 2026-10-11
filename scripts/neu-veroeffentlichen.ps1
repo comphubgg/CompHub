@@ -34,10 +34,22 @@ for ($i = 0; $i -lt 20 -and (WerLauscht); $i++) { Start-Sleep -Milliseconds 500 
 
 $nochDa = WerLauscht
 if ($nochDa -and $alteKennung -and (Compare-Object $nochDa $alteKennung -SyncWindow 0) -eq $null) {
+    # Der alte Server gehoert dem Systemkonto. Ein gewoehnliches Fenster darf ihn nicht beenden - aber der
+    # Waechter (scripts/dauerbetrieb.ps1, laeuft alle zwei Minuten) darf es und tut es auf Zuruf: er sucht im
+    # Projektordner nach neustart.txt, beendet den Server und startet ihn mit dem neuen Bau.
+    Write-Host 'Der alte Server gehoert dem Systemkonto - der Waechter startet ihn gleich neu (hoechstens drei Minuten) ...'
+    Set-Content -Path (Join-Path $Projekt 'neustart.txt') -Value (Get-Date -Format 'o') -Encoding ascii
+    for ($i = 0; $i -lt 90; $i++) {
+        Start-Sleep -Seconds 2
+        $jetzt = WerLauscht
+        if ($jetzt -and (Compare-Object $jetzt $alteKennung -SyncWindow 0)) {
+            Write-Host "Der oeffentliche Server laeuft mit dem neuen Bau (Vorgang $jetzt)."
+            exit 0
+        }
+    }
+    Remove-Item -Path (Join-Path $Projekt 'neustart.txt') -Force -ErrorAction SilentlyContinue
     Write-Host ''
-    Write-Host '  Der alte Server laesst sich nicht beenden.' -ForegroundColor Red
-    Write-Host '  Er gehoert dem Systemkonto - ein gewoehnliches Fenster darf das nicht.'
-    Write-Host ''
+    Write-Host '  Der Waechter hat den Server nicht neu gestartet.' -ForegroundColor Red
     Write-Host '  Der neue Bau liegt bereit, ausgeliefert wird aber weiter der alte.'
     Write-Host '  Zum Umstellen im Hauptordner doppelklicken:' -ForegroundColor Yellow
     Write-Host '      dauerbetrieb-einrichten.bat' -ForegroundColor Yellow

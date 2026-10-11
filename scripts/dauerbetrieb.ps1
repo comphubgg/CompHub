@@ -111,6 +111,23 @@ function LauschtJemand($p) {
     return [bool]$treffer
 }
 
+# ------------------------------------------------------- Neustart auf Zuruf
+
+# Der Webserver gehoert hier dem Systemkonto, und ein gewoehnliches Fenster darf ihn nicht beenden. Damit ein
+# neuer Bau trotzdem ohne Administratorrechte live geht, legt "npm run veroeffentlichen" die Datei
+# neustart.txt in den Projektordner. Der Waechter (laeuft alle zwei Minuten) beendet daraufhin den alten
+# Server und startet unten den neuen. Weiter als "Server neu starten" geht diese Datei nicht.
+$Marke = Join-Path $Projekt 'neustart.txt'
+if (Test-Path $Marke) {
+    Notiere 'Neustart angefordert (neustart.txt) - der Webserver wird beendet und mit dem neuen Bau gestartet.'
+    Remove-Item -Path $Marke -Force -ErrorAction SilentlyContinue
+    foreach ($id in (Get-NetTCPConnection -LocalPort $Port -State Listen -ErrorAction SilentlyContinue |
+            Select-Object -ExpandProperty OwningProcess -Unique)) {
+        Stop-Process -Id $id -Force -ErrorAction SilentlyContinue
+    }
+    for ($i = 0; $i -lt 20 -and (LauschtJemand $Port); $i++) { Start-Sleep -Milliseconds 500 }
+}
+
 # ------------------------------------------------------------- Der Webserver
 
 if (-not (LauschtJemand $Port)) {
