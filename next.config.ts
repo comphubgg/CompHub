@@ -45,6 +45,14 @@ const nextConfig: NextConfig = {
    * des Betreibers - ganze Datenordner (ueber 6 GB Replays) hinein. Der Live-Server liest seine
    * Daten aus dem GitHub-Archiv und vom Release, nie aus diesen Ordnern, und wertet keine Replays aus.
    */
+  /*
+   * Die Laufzeit fuer Schnittstellen ausdruecklich mitnehmen: bei Netlify fehlte
+   * next/dist/compiled/next-server/app-route-turbo.runtime.prod.js im Server-Teil, und jede
+   * Schnittstelle (/api/...) antwortete mit 500, waehrend die Seiten liefen.
+   */
+  outputFileTracingIncludes: {
+    '/**': ['./node_modules/next/dist/compiled/next-server/*.runtime.prod.js'],
+  },
   outputFileTracingExcludes: {
     '/**': [
       './data/**', './dist/**', './tmp/**', './elektron/**', './supabase/**', './tools/**',
