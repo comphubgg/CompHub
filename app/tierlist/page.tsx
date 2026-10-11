@@ -28,6 +28,7 @@ import { getRegionFromCountryCode, TIER_LABELS_DEFAULT } from './utils/constants
 import { gefaltet, namensSchluessel } from '@/lib/homoglyph';
 
 import T from '@/app/components/T';
+import { useT } from '@/app/components/SprachProvider';
 import { sichtbarerTakt } from '@/app/lib/takt';
 /**
  * TierList Page: Main tier list application
@@ -43,7 +44,14 @@ export default function TierListPage() {
   const [listId, setListId] = useState<string>('static-tierlist');
 
   // Core hooks
+  const txt = useT();
   const { mode, switchMode } = useMode('solo');
+  const MODUS_ADRESSE = { solo: 'solos', duo: 'duos', trio: 'trios' } as const;
+  /** Modus wechseln und die Adresse mitziehen, damit ein Neuladen oder Teilen im selben Modus landet. */
+  const modusWechseln = (m: 'solo' | 'duo' | 'trio') => {
+    switchMode(m);
+    try { window.history.replaceState(null, '', `/tierlist/${MODUS_ADRESSE[m]}${window.location.search}`); } catch { /* ohne Verlauf bleibt die Adresse */ }
+  };
   const { searchQuery, setSearchQuery, clearSearch } = useSearch();
   const {
     draggedId,
@@ -346,6 +354,17 @@ export default function TierListPage() {
     return undefined;
   }, [spielerProfile, laenderNachName]);
   const [cloudSaveMessage, setCloudSaveMessage] = useState<string | null>(null);
+  /*
+   * Eine Liste unter einem Titel ablegen.
+   *
+   * Der Betreiber (2.10.2026): oben links ein Speichern-Knopf im Stil von Duos,
+   * Solo und Trios; nach dem Druck einen Titel eingeben ("Solos 22. 2026"), und
+   * wenn es geklappt hat, steht gruen "Gespeichert". Im Archiv liegen dann
+   * mehrere Listen, und jede oeffnet direkt im richtigen Modus.
+   */
+  const [ablegenOffen, setAblegenOffen] = useState(false);
+  const [ablegenTitel, setAblegenTitel] = useState('');
+  const [ablegenStand, setAblegenStand] = useState<'ok' | 'fehler' | 'anmelden' | null>(null);
   const [uploadStatusMessage, setUploadStatusMessage] = useState<string | null>(null);
   const [isCloudSaving, setIsCloudSaving] = useState(false);
   const [isAdmin, setIsAdmin] = useState(false);
@@ -456,6 +475,11 @@ export default function TierListPage() {
           || data?.currentListId || cloudLists[0].listId;
         storageService.setCurrentListId(nextListId);
         setListId(nextListId);
+        // Eine aus dem Archiv geoeffnete Liste kommt in dem Modus, in dem sie gespeichert wurde.
+        const gewaehlt = wunsch ? (cloudLists as Array<{ listId?: string; modus?: string }>).find((l) => l.listId === wunsch) : undefined;
+        if (gewaehlt?.modus === 'solo' || gewaehlt?.modus === 'duo' || gewaehlt?.modus === 'trio') {
+          if (!/\/tierlist\/(solos|duos|trios)/.test(window.location.pathname)) switchMode(gewaehlt.modus);
+        }
         window.dispatchEvent(new Event('tierlist-cloud-sync'));
       } catch (err) {
         // ignore
@@ -471,6 +495,17 @@ export default function TierListPage() {
     return () => {
       stopp();
     };
+  }, []);
+
+  // Der Modus aus der Adresse (/tierlist/trios) - einmal beim Oeffnen.
+  useEffect(() => {
+    const pfad = window.location.pathname;
+    const wunsch = new URLSearchParams(window.location.search).get('modus');
+    const m = /\/tierlist\/trios/.test(pfad) || wunsch === 'trio' ? 'trio'
+      : /\/tierlist\/duos/.test(pfad) || wunsch === 'duo' ? 'duo'
+        : /\/tierlist\/solos/.test(pfad) || wunsch === 'solo' ? 'solo' : null;
+    if (m) switchMode(m);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Check admin status via API
@@ -512,6 +547,28 @@ export default function TierListPage() {
    * (/api/tierlists), niemand sieht die Liste eines anderen.
    */
   const darfSpeichern = isAdmin || !isGuest;
+
+  /** Eine Kopie des Standes unter einem Titel ablegen - sie landet im Archiv. */
+  const unterTitelAblegen = async () => {
+    const titel = ablegenTitel.trim().slice(0, 80);
+    if (!titel) return;
+    if (!darfSpeichern) { setAblegenStand('anmelden'); return; }
+    const alle = storageService.getTierLists();
+    const kopie = {
+      listId: `liste-${Date.now().toString(36)}`,
+      listName: titel,
+      /* Der Modus, in dem sie gespeichert wurde: das Archiv oeffnet sie dort. */
+      modus: mode,
+      tierLabels: JSON.parse(JSON.stringify(tierListState.tierLabels)),
+      entries: JSON.parse(JSON.stringify(tierListState.entries)),
+      eigeneStufen: true,
+      updatedAt: Date.now(),
+    };
+    storageService.saveTierLists([...alle, kopie]);
+    const ok = await saveTierlistsToCloud();
+    setAblegenStand(ok ? 'ok' : 'fehler');
+    if (ok) { setAblegenTitel(''); window.setTimeout(() => { setAblegenStand(null); setAblegenOffen(false); }, 3500); }
+  };
 
   const saveTierlistsToCloud = async (): Promise<boolean> => {
     if (!darfSpeichern) {
@@ -1217,9 +1274,17 @@ export default function TierListPage() {
     <div className="tierlist-page new">
       <div className="page-wrapper">
         <div className="tierlist-panel">
-          <div className="tierlist-header">
+          <div className="tierlist-header" style={{ flexWrap: 'wrap', justifyContent: 'space-between' }}>
             {/* Die Ueberschrift "Tierlist" ist entfernt - man sieht ja, wo
                 man ist, und die Zeile kostete nur Hoehe. */}
+            {/* Speichern oben links, im selben Stil wie die Modus-Knoepfe. */}
+            <button
+              type="button"
+              className={`tierlist-button ${ablegenOffen ? 'tierlist-button-primary' : 'tierlist-button-secondary'}`}
+              onClick={() => { setAblegenOffen((v) => !v); setAblegenStand(null); }}
+            >
+              <T>Speichern</T>
+            </button>
             <div className="tierlist-controls">
               <button
                 type="button"
@@ -1231,25 +1296,46 @@ export default function TierListPage() {
               <button
                 type="button"
                 className={`tierlist-button ${mode === 'trio' ? 'tierlist-button-primary' : 'tierlist-button-secondary'}`}
-                onClick={() => switchMode('trio')}
+                onClick={() => modusWechseln('trio')}
               >
                 Trios
               </button>
               <button
                 type="button"
                 className={`tierlist-button ${mode === 'duo' ? 'tierlist-button-primary' : 'tierlist-button-secondary'}`}
-                onClick={() => switchMode('duo')}
+                onClick={() => modusWechseln('duo')}
               >
                 Duos
               </button>
               <button
                 type="button"
                 className={`tierlist-button ${mode === 'solo' ? 'tierlist-button-primary' : 'tierlist-button-secondary'}`}
-                onClick={() => switchMode('solo')}
+                onClick={() => modusWechseln('solo')}
               >
                 Solo
               </button>
             </div>
+            {ablegenOffen && (
+              <form
+                style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8, marginTop: 10, flexBasis: '100%' }}
+                onSubmit={(e) => { e.preventDefault(); void unterTitelAblegen(); }}
+              >
+                <input
+                  value={ablegenTitel}
+                  onChange={(e) => { setAblegenTitel(e.target.value); setAblegenStand(null); }}
+                  placeholder={txt('Titel, zum Beispiel „Solos 22. 2026“')}
+                  maxLength={80}
+                  autoFocus
+                  style={{ minWidth: 240, padding: '8px 12px', borderRadius: 8, border: '1px solid #3f3f46', background: '#0a0a0a', color: '#e2e8f0', fontSize: 14 }}
+                />
+                <button type="submit" disabled={!ablegenTitel.trim() || isCloudSaving} className="tierlist-button tierlist-button-primary">
+                  <T>Speichern</T>
+                </button>
+                {ablegenStand === 'ok' && <span style={{ color: '#4ade80', fontWeight: 600 }}><T>Gespeichert</T> ✓ <span style={{ color: '#94a3b8', fontWeight: 400 }}><T>Du findest sie im Dashboard unter Mein Archiv.</T></span></span>}
+                {ablegenStand === 'fehler' && <span style={{ color: '#f87171' }}><T>Speichern hat nicht geklappt. Bitte gleich noch einmal versuchen.</T></span>}
+                {ablegenStand === 'anmelden' && <span style={{ color: '#fbbf24' }}><T>Zum Speichern bitte anmelden.</T></span>}
+              </form>
+            )}
             {/* Der Dateiimport ist entfernt.
                 Eine Tierlist aus einer fremden Datei zu laden hat sich nicht
                 bewaehrt: was dabei hereinkam, war weder geprueft noch mit den

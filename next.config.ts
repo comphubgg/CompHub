@@ -48,7 +48,17 @@ const nextConfig: NextConfig = {
   async rewrites() {
     return {
       beforeFiles: [],
-      afterFiles: [],
+      /*
+       * Die Tierlist hat je Modus eine eigene Adresse: /tierlist/solos, /duos,
+       * /trios. Der Betreiber (2.10.2026): wer eine Solo-Liste speichert und
+       * sie im Archiv oeffnet, soll direkt auf der Solo-Liste landen, nicht auf
+       * Trios. Die Seite bleibt dieselbe, der Modus kommt aus der Adresse.
+       */
+      afterFiles: [
+        { source: '/tierlist/solos', destination: '/tierlist?modus=solo' },
+        { source: '/tierlist/duos', destination: '/tierlist?modus=duo' },
+        { source: '/tierlist/trios', destination: '/tierlist?modus=trio' },
+      ],
       fallback: [
         { source: '/spielerbilder/:datei', destination: '/api/spielerbild/hochladen?datei=:datei' },
       ],

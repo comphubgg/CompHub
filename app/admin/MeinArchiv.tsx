@@ -25,7 +25,7 @@ import { ARTEN, overlayAdresse } from '@/app/overlays/OverlayGeruest';
  */
 
 interface Overlay { id: string; typ: string; name: string; stand: number; geaendert: string }
-interface Tierlist { listId: string; listName?: string; entries?: Array<{ tier?: string | null }>; updatedAt?: number }
+interface Tierlist { listId: string; listName?: string; modus?: 'solo' | 'duo' | 'trio'; entries?: Array<{ tier?: string | null }>; updatedAt?: number }
 interface Zeile {
   schluessel: string; titel: string; zusatz: string; datum: number | null;
   oeffnen: { href: string; text: string };
@@ -77,9 +77,13 @@ export default function MeinArchiv() {
       const gesetzt = (l.entries ?? []).filter((e) => e.tier).length;
       return {
         schluessel: l.listId, titel: l.listName || 'Tierlist',
-        zusatz: `${gesetzt} / ${gesamt} ${t('eingestuft')}`,
+        zusatz: `${l.modus ? ({ solo: 'Solo', duo: 'Duos', trio: 'Trios' }[l.modus]) + ' · ' : ''}${gesetzt} / ${gesamt} ${t('eingestuft')}`,
         datum: l.updatedAt ?? null,
-        oeffnen: { href: `/tierlist?liste=${encodeURIComponent(l.listId)}`, text: 'Öffnen' },
+        // Direkt im gespeicherten Modus: /tierlist/solos, /duos oder /trios.
+        oeffnen: {
+          href: `/tierlist${l.modus ? '/' + ({ solo: 'solos', duo: 'duos', trio: 'trios' }[l.modus]) : ''}?liste=${encodeURIComponent(l.listId)}`,
+          text: 'Öffnen',
+        },
       };
     });
 
