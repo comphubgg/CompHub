@@ -99,13 +99,15 @@ export default function Nutzungszahlen() {
   const [zahlen, setZahlen] = useState<Zahlen | null>(null);
   const [laedt, setLaedt] = useState(true);
   const [fehler, setFehler] = useState('');
+  // Hochgezaehlt vom Knopf "Aktualisieren": holt die Zahlen noch einmal, am Zwischenspeicher vorbei.
+  const [nochmal, setNochmal] = useState(0);
 
   useEffect(() => {
     let abgebrochen = false;
     setLaedt(true);
     void (async () => {
       try {
-        const r = await fetch(`/api/statistik/nutzung?tage=${spanne}`);
+        const r = await fetch(`/api/statistik/nutzung?tage=${spanne}`, { cache: 'no-store' });
         if (!r.ok) throw new Error(String(r.status));
         const j = (await r.json()) as Zahlen;
         if (!abgebrochen) { setZahlen(j); setFehler(''); }
@@ -116,7 +118,7 @@ export default function Nutzungszahlen() {
       }
     })();
     return () => { abgebrochen = true; };
-  }, [spanne, t]);
+  }, [spanne, t, nochmal]);
 
   /** Der Tag als "5.9." - die Jahreszahl steht dreissigmal daneben nur im Weg. */
   const kurz = (tag: string) => {
@@ -143,7 +145,11 @@ export default function Nutzungszahlen() {
           <h2 className="text-sm font-semibold text-slate-100"><T>Nutzung</T></h2>
           <span className="text-xs text-slate-500"><T>sichtbar nur für dich</T></span>
         </div>
-        <div className="flex gap-1">
+        <div className="flex flex-wrap items-center gap-1">
+          <button type="button" onClick={() => setNochmal((n) => n + 1)} disabled={laedt}
+            className="mr-1 rounded-md border border-zinc-800 px-2.5 py-1 text-xs font-semibold text-slate-400 transition hover:border-sky-500 hover:text-sky-400 disabled:opacity-50">
+            {laedt ? <T>Wird geladen …</T> : <T>Aktualisieren</T>}
+          </button>
           {SPANNEN.map((s) => (
             <button key={s} type="button" onClick={() => setSpanne(s)}
               aria-pressed={spanne === s}

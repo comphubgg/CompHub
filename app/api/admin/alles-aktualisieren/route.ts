@@ -38,11 +38,12 @@ export async function POST(request: Request) {
   if (!await istAdminAnfrage(request)) {
     return NextResponse.json({ ok: false, fehler: 'Nicht erlaubt.' }, { status: 403 });
   }
-  const token = (process.env.GITHUB_TOKEN ?? '').trim();
+  // Auf Netlify gibt es GITHUB_TOKEN nicht; DATEN_TOKEN (Klassik-Schluessel mit Recht "workflow") tut dasselbe.
+  const token = (process.env.GITHUB_TOKEN || process.env.DATEN_TOKEN || '').trim();
   if (!token) {
     return NextResponse.json({
       ok: false,
-      fehler: 'Auf dem Server fehlt GITHUB_TOKEN (Render-Umgebung). Ohne ihn darf die Seite keine Läufe starten.',
+      fehler: 'Auf dem Server fehlt ein GitHub-Schlüssel (GITHUB_TOKEN oder DATEN_TOKEN). Ohne ihn darf die Seite keine Läufe starten.',
     }, { status: 500 });
   }
   const laeufe = await Promise.all(LAEUFE.map(async (l) => {
