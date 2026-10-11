@@ -8,7 +8,10 @@ name: Seitenpruefung
 on:
   workflow_dispatch:
   schedule:
-    - cron: '7,37 * * * *'
+    # Alle drei Stunden statt alle halbe Stunde: jede Pruefung laedt gut ein Megabyte, und Renders
+    # kostenloser Tarif erlaubt nur fuenf Gigabyte im Monat. Die Lebenszeichen alle fuenf Minuten
+    # macht der Waechter (seite-da.yml).
+    - cron: '7 */3 * * *'
 
 concurrency:
   group: seitenpruefung

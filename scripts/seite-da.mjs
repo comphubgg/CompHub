@@ -31,13 +31,14 @@ async function frage() {
   for (let v = 1; v <= 2; v++) {
     const t0 = Date.now();
     try {
-      const r = await fetch(BASIS + '/', { redirect: 'follow', signal: AbortSignal.timeout(25_000), headers: { 'User-Agent': 'comphub-waechter' } });
+      // Nur das Lebenszeichen (zwei Buchstaben), nicht die ganze Startseite: siehe app/api/ping/route.ts.
+      const r = await fetch(BASIS + '/api/ping', { redirect: 'follow', signal: AbortSignal.timeout(25_000), headers: { 'User-Agent': 'comphub-waechter' } });
       const text = r.status === 200 ? await r.text() : '';
       letzter = {
         status: r.status, ms: Date.now() - t0,
         routing: r.headers.get('x-render-routing') || '',
         cf: r.headers.get('cf-ray') || '',
-        ok: r.status === 200 && /<html/i.test(text),
+        ok: r.status === 200 && text.trim() === 'ok',
       };
       if (letzter.ok) return letzter;
     } catch (e) {
@@ -57,7 +58,7 @@ function ursache(a) {
   if (a.status === 503) return `Dienst nicht verfügbar (503${a.routing ? ', Render: ' + a.routing : ''}).`;
   if (a.status === 504 || a.status === 524) return 'Der Server hat zu lange gebraucht (Zeitüberschreitung): die Startseite hing vermutlich an der Ablage (Supabase).';
   if (a.status === 0) return `Keine Verbindung (${a.fehler || 'Zeitüberschreitung'}): Cloudflare oder der Server ist nicht erreichbar.`;
-  if (a.status === 200) return 'Die Antwort war keine gültige Seite.';
+  if (a.status === 200) return 'Der Server antwortet, aber nicht wie erwartet.';
   return `Unerwartete Antwort: HTTP ${a.status}${a.routing ? ', Render: ' + a.routing : ''}.`;
 }
 
