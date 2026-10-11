@@ -47,6 +47,9 @@ export const SEKTIONEN: Sektion[] = [
   { schluessel: 'prognosen', pfad: '/predictions', titel: 'Predictions' },
   { schluessel: 'tierlist', pfad: '/tierlist', titel: 'Tierlist' },
   { schluessel: 'overlays', pfad: '/overlays', titel: 'Overlays' },
+  // Die Globals-Seiten fuer VIPs (Teams, Karte, Prognosen, Overlays). Seit 11.10.2026 schaltbar: offline heisst fuer
+  // alle ausser dem Admin weg, nicht geloescht.
+  { schluessel: 'globals', pfad: '/globals', titel: 'Globals (VIP)' },
 ];
 
 /**

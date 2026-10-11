@@ -31,6 +31,7 @@ import Fusszeile from '@/app/components/Fusszeile';
 import MeinArchiv from './MeinArchiv';
 import AdminZentrale from './AdminZentrale';
 import Klappbar from './Klappbar';
+import OfflineSeiten from './OfflineSeiten';
 type ProfileData = {
   displayName: string;
   avatarUrl: string | null;
@@ -757,6 +758,9 @@ export default function AdminDashboardPage() {
           <div className="mt-4 space-y-3">
             <Klappbar titel="Admin-Center" kennung="admin-center" hinweis="Läuft alles? Was wartet auf dich?">
               <AdminZentrale werkzeuge={werkzeuge} teil="status" zeigeLaeufe />
+            </Klappbar>
+            <Klappbar titel="Offline-Seiten" kennung="offline-seiten" hinweis="Was gerade nicht online ist">
+              <OfflineSeiten />
             </Klappbar>
             <Klappbar titel="Usage" kennung="usage" hinweis="Besucher, Konten, Zugänge">
               <Nutzungszahlen />
