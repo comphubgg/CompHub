@@ -71,7 +71,13 @@ const NUR_SPEICHER = /^antworten\//;
 
 const repo = () => (process.env.DATEN_REPO || 'comphubgg/comphub-daten').trim();
 const praefix = () => (process.env.DATEN_PRAEFIX || '').trim().replace(/^\/+|\/+$/g, '');
-const token = () => (process.env.DATEN_TOKEN || '').trim();
+/*
+ * Der Schluessel fuers Archiv: DATEN_TOKEN - oder, wenn die Seite auf dem eigenen Rechner laeuft (COMPHUB_ABLAGE=github), der
+ * GITHUB_TOKEN, der dort ohnehin in .env.local steht. So muss auf dem Rechner kein zweiter Schluessel abgelegt werden.
+ */
+const token = () => (process.env.DATEN_TOKEN
+  || (['github', 'supabase'].includes((process.env.COMPHUB_ABLAGE || '').toLowerCase()) ? process.env.GITHUB_TOKEN : '')
+  || '').trim();
 
 /** Ist dieser Speicher eingeschaltet? Ja, sobald ein Schluessel fuer das Archiv in der Umgebung steht. */
 export function gitDatenAktiv(): boolean {

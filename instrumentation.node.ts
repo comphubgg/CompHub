@@ -20,7 +20,7 @@ export async function starteHintergrund() {
    * Seite nicht auf GitHub wartet. Beim Beenden (Render schickt SIGTERM bei jedem
    * Aufspielen) geht noch ins Archiv, was bis dahin nur gesammelt war.
    */
-  if ((process.env.DATEN_TOKEN || '').trim()) {
+  if ((process.env.DATEN_TOKEN || '').trim() || ['github', 'supabase'].includes((process.env.COMPHUB_ABLAGE || '').toLowerCase())) {
     try {
       const { ablageWaermen, ablageLeeren } = await import('./lib/ablageGitDaten');
       void ablageWaermen([
