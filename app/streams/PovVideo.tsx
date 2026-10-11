@@ -326,7 +326,7 @@ const PovVideo = forwardRef<MvPlayerHandle, Props>(function PovVideo(
       {aendereBanner && (
         <>
           {zahnrad && banner && (
-            <div className="absolute bottom-12 right-2 z-30 w-60 space-y-3 rounded-lg border border-white/10 bg-zinc-900/95 p-3 text-xs text-slate-200 shadow-xl"
+            <div className="absolute bottom-12 right-2 z-30 max-h-[calc(100%-4rem)] w-60 space-y-3 overflow-y-auto rounded-lg border border-white/10 bg-zinc-900/95 p-3 text-xs text-slate-200 shadow-xl"
               onPointerDown={(e) => e.stopPropagation()}>
               <button type="button" role="switch" aria-checked={banner.einst.an}
                 onClick={() => aendereBanner({ an: !banner.einst.an })}

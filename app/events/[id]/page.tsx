@@ -1531,6 +1531,34 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     return karte;
   }, [reiter, tabelleTraege, namenVon]);
 
+  /**
+   * Die Teams der Bestenliste als Zeilen fuer die Spieler-Stats - der Rueckfall fuer Cups ohne ausgewertete Replays.
+   *
+   * Der Betreiber (11.10.2026): jeder Cup soll Statistik haben, "manche haben gar keine Player Stats". Zu Cups, deren
+   * Replays nicht ausgewertet werden (Ranked, Opens, Divisionen) liegt je Spieler nichts vor - aber Epics Bestenliste
+   * fuehrt je Team Eliminierungen, Ueberlebenszeit und, wo der Cup sie mitschickt, Schaden, Strecke und Material. Das
+   * sind echte Werte; sie stehen hier als Teamwerte und sind so beschriftet. Nur was Epic liefert (>0), sonst fehlt das Feld.
+   */
+  const teamZeilen = useMemo(() => {
+    if (reiter !== 'spieler') return [];
+    const pos = (v: unknown): number | undefined => (typeof v === 'number' && v > 0 ? v : undefined);
+    return tabelleTraege.map((e) => {
+      const roh = e as unknown as Record<string, unknown>;
+      const schaden = pos(roh.damage);
+      const erlitten = pos(roh.damageTaken);
+      const strecke = pos(roh.strecke);
+      return {
+        epicId: e.players[0]?.id || `team-${e.rank}`,
+        name: e.players.map(namenVon).join('  +  '),
+        land: (e.players[0] ? landVon(e.players[0]) : '') ?? '',
+        platz: e.rank, spiele: e.games, kills: e.elims, elims: e.elims,
+        damage: schaden, damageTaken: erlitten, quote: schaden && erlitten ? schaden / erlitten : undefined,
+        timeAlive: pos(roh.timeAlive), distanz: strecke ? strecke / 100 : undefined,
+        mats: pos(roh.matsGefarmt), headshots: pos(roh.headshots),
+      };
+    });
+  }, [reiter, tabelleTraege, namenVon, landVon]);
+
   function flaggenOeffnen(e: Eintrag) {
     setFlaggenTeam(e);
     setFlaggenSuche(''); setFlaggenStand('');
@@ -4091,6 +4119,19 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
               schadenAusReplay={!!(spielerWerte as { schadenAusReplay?: boolean }).schadenAusReplay} />
           </div>
         )}
+        {/* Cups ohne ausgewertete Replays: die Werte aus Epics Bestenliste, je Team - statt eines leeren Reiters. */}
+        {reiter === 'spieler' && !soloCup && !!spielerWerte && !spielerWerte.vorhanden && teamZeilen.length > 0 && (
+          <div className="mb-4">
+            <SpielerStatsUebersicht
+              spieler={teamZeilen}
+              matches={teamZeilen.reduce((m, z) => Math.max(m, z.spiele), 0)}
+              aktualisiert={null}
+              laeuft={laeuftGerade}
+              endeMs={fenster?.end ?? fenster?.begin ?? null}
+              teamWerte />
+          </div>
+        )}
+
         {reiter === 'spieler' && !soloCup && (
           <section className="rounded-xl border border-zinc-800 bg-zinc-950/60">
             <header className="flex flex-wrap items-center justify-between gap-3

@@ -84,7 +84,7 @@ function alsZeit(sek: number, stunden = false): string {
   return h ? `${h}h ${m}m` : `${m}m ${s % 60}s`;
 }
 
-export default function SpielerStatsUebersicht({ spieler, matches, aktualisiert, szene, schadenAusReplay, laeuft, endeMs }: {
+export default function SpielerStatsUebersicht({ spieler, matches, aktualisiert, szene, schadenAusReplay, laeuft, endeMs, teamWerte }: {
   spieler: KachelSpieler[];
   /** Wie viele Matches der Spieltag (oder das Turnier) hatte. */
   matches: number;
@@ -98,6 +98,11 @@ export default function SpielerStatsUebersicht({ spieler, matches, aktualisiert,
   laeuft?: boolean;
   /** Wann der Spieltag zu Ende ging - daraus folgt, ob die Replays noch bei Epic liegen (31 Tage). */
   endeMs?: number | null;
+  /**
+   * Die Zeilen sind Teams (Duo, Trio) mit den Werten aus Epics Bestenliste, nicht Spieler aus den Replays - fuer
+   * Cups, zu denen keine Replays ausgewertet sind. Der Betreiber (11.10.2026): jeder Cup soll Statistik haben.
+   */
+  teamWerte?: boolean;
 }) {
   const { sprache, t } = useSprache();
   const ort = ortVon(sprache);
@@ -129,7 +134,7 @@ export default function SpielerStatsUebersicht({ spieler, matches, aktualisiert,
   // "Matches" als Kleinwort im Satz).
   const kacheln: Array<{ titel: string; wert: string; roh?: boolean }> = [
     { titel: 'Matches', wert: zahl(matches), roh: true },
-    { titel: 'Spieler', wert: zahl(feld.length) },
+    { titel: teamWerte ? 'Teams' : 'Spieler', wert: zahl(feld.length) },
     ...SUMMEN.filter((s) => vorhanden.has(s.feld)).map((s) => ({
       titel: s.titel,
       wert: zeigen(summe(s.feld) / teiler, s.format, teiler > 1 && s.format !== 'zeit' && s.format !== 'km' ? 1 : 0),
@@ -153,6 +158,7 @@ export default function SpielerStatsUebersicht({ spieler, matches, aktualisiert,
    */
   const alterTage = endeMs ? (Date.now() - endeMs) / 86_400_000 : null;
   const leerText = (f: string): string => {
+    if (teamWerte) return t('Epic liefert diesen Wert für diesen Cup nicht mit.');
     if (f === 'elims') return t('Liegt für diesen Cup nicht vor');
     return alterTage !== null && alterTage <= 31
       ? t('Wird aus den Replays nachgetragen, sobald sie ausgewertet sind')
@@ -216,6 +222,11 @@ export default function SpielerStatsUebersicht({ spieler, matches, aktualisiert,
       <AktualisierungsStand stand={aktualisiert} art={laeuft ? 'laeuft' : 'fertig'} />
       <p className="text-[11px] text-slate-500">
         {szene ? <T>Endstand aus der Szene-Quelle</T> : null}
+        {teamWerte && (
+          <span className="block text-slate-500">
+            <T>Diese Werte stammen direkt aus Epics Bestenliste und gelten je Team (Duo oder Trio), nicht je Spieler. Werte je einzelnem Spieler stehen nur in den Replays — zu diesem Cup liegen sie nicht vor.</T>
+          </span>
+        )}
         {/* Gezaehlt, nicht von Epic - das muss dabeistehen (echte, aber abgeleitete Zahlen). */}
         {schadenAusReplay && (
           <span className="mt-1 block text-slate-600">
