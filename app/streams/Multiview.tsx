@@ -363,7 +363,26 @@ export default function Multiview(props: MultiviewProps) {
       merkeRueck(`${weg} Streams`, alt);
       setStreams(alt.filter((s) => s.fest));
     },
-    alleAbspielen: () => griffe.current.forEach((g) => g.abspielen()),
+    alleAbspielen: () => {
+      griffe.current.forEach((g) => g.abspielen());
+      /*
+       * Was nach einem Moment noch steht, wird neu aufgebaut.
+       *
+       * Hat der Browser das Abspielen gesperrt (der Player zeigt das grosse Dreieck), nimmt Twitch einen Befehl
+       * von aussen nicht an. Ein frisch gebauter Player startet dagegen, solange der Klick auf "Alle abspielen"
+       * noch frisch ist - der Betreiber: "Play All Streams funktioniert nicht, es playt nicht alle."
+       */
+      window.setTimeout(() => {
+        const stehen: string[] = [];
+        griffe.current.forEach((g, id) => { if (g.pausiert() === true) stehen.push(id); });
+        if (!stehen.length) return;
+        setNeu((alt) => {
+          const n = { ...alt };
+          for (const id of stehen) n[id] = (n[id] ?? 0) + 1;
+          return n;
+        });
+      }, 1600);
+    },
     allePausieren: () => griffe.current.forEach((g) => g.pausieren()),
     alleStumm: () => griffe.current.forEach((g) => g.stumm(true)),
     alleNeuLaden: () => setNeu((alt) => {

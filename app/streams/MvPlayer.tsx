@@ -16,6 +16,8 @@ import { skriptLaden, type TwitchSpieler } from './Kachel';
  */
 export interface MvPlayerHandle {
   abspielen(): void;
+  /** Steht der Player? null, wenn er (noch) nicht antwortet. */
+  pausiert(): boolean | null;
   pausieren(): void;
   stumm(an: boolean): void;
   qualitaet(wert: string): void;
@@ -58,6 +60,7 @@ const MvPlayer = forwardRef<MvPlayerHandle, Props>(function MvPlayer({ kanal, ho
         } catch { /* Player gerade weg */ }
       }, 900);
     },
+    pausiert: () => { try { return spieler.current?.isPaused?.() ?? null; } catch { return null; } },
     pausieren: () => { try { spieler.current?.pause(); } catch { /* noch nicht bereit */ } },
     stumm: (an: boolean) => { try { spieler.current?.setMuted(an); } catch { /* noch nicht bereit */ } },
     qualitaet: stelleQualitaet,
