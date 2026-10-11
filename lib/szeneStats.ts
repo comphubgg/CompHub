@@ -1223,11 +1223,22 @@ export async function startseite(saison?: string, wieViele = 25, jeTag = 3) {
     if (!besten.length) continue;
     const bild = await bildFuer(t.name);
     const plaetze = await platzKarte(t.season, t.windowId);
+    /*
+     * Platz und Punkte auch bei einem LAN.
+     *
+     * Der Betreiber (2.10.2026): "du hast jede Statistik ausser Placement und
+     * Points, das ist das Einfachste, was du rausfinden kannst." An den Globals
+     * fuehrt Epics Bestenliste die Turnierkonten ("[FNCSGC26] ..."), die Kachel
+     * das echte Konto - ein direkter Blick in die Bestenliste fand nichts, und
+     * Rang und Punkte standen als Strich da. platzMitLan schlaegt ueber die
+     * Zuordnung der LAN-Konten nach, wie es das Profil schon tat.
+     */
+    const staende = await Promise.all(besten.map((sp) => platzMitLan(plaetze, sp.epicId)));
     jeSpieltag.push(besten.map((spitze, i) => ({
       turnier: { ...t, bild },
       spitze,
       platz: i + 1,
-      stand: plaetze?.get(spitze.epicId) ?? null,
+      stand: staende[i] ?? null,
     })));
   }
 
