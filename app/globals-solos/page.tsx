@@ -9,6 +9,9 @@ import TeamFlagge from '@/components/TeamFlagge';
 import { useZugang } from '@/app/lib/zugang';
 import { sichtbarerTakt } from '@/app/lib/takt';
 import { fortniteKarte } from '@/lib/bildAdressen';
+import { rahmen as formRahmen, spanneBei, einheitsGroesse, type Punkt, type Spot } from '@/lib/prognoseKarte';
+import { kartenSchrift, kartenName, formFarbe, hebeFormHervor } from '@/app/lib/kartenStil';
+import KartenWasserzeichen from '@/app/components/KartenWasserzeichen';
 import type { SolosDaten, SolosFenster, SolosSpieler } from '@/lib/globalsSolos';
 
 /*
@@ -20,7 +23,6 @@ import type { SolosDaten, SolosFenster, SolosSpieler } from '@/lib/globalsSolos'
  * eingetragen, nichts verteilt und nichts gespeichert. Die Seite erneuert sich alle zwei Minuten.
  */
 
-const GOLD = '#f5c542';
 const BLAU = '#0e47de';
 
 const datum = (iso: string | null) => (iso
@@ -44,23 +46,130 @@ function Gesicht({ s, gross }: { s: SolosSpieler; gross?: boolean }) {
 
 /* ------------------------------------------------------------------ Karte */
 
+/** Liegt der Punkt in der Flaeche? Strahlenverfahren. */
+function imPolygon(p: Punkt, ecken: Punkt[]) {
+  let drin = false;
+  for (let i = 0, j = ecken.length - 1; i < ecken.length; j = i++) {
+    const a = ecken[i], b = ecken[j];
+    if ((a.y > p.y) !== (b.y > p.y)
+      && p.x < ((b.x - a.x) * (p.y - a.y)) / (b.y - a.y) + a.x) drin = !drin;
+  }
+  return drin;
+}
+
+/** Den Blickpunkt so einfangen, dass der Ausschnitt am Bildrand haelt. */
+function begrenze(z: number, m: Punkt): Punkt {
+  if (z <= 1) return { x: 50, y: 50 };
+  const sicht = 100 / z;
+  return {
+    x: Math.min(100 - sicht / 2, Math.max(sicht / 2, m.x)),
+    y: Math.min(100 - sicht / 2, Math.max(sicht / 2, m.y)),
+  };
+}
+
+/**
+ * Die Karte eines Spieltags - genau so gezeichnet wie jede Turnierkarte im Werkzeug.
+ *
+ * Der Betreiber (11.10.2026): "Die Farben von Noble musst du nicht uebernehmen. Du musst einfach die Formen
+ * optisch uebernehmen und wo sie sind ... als ob ich es als Admin machen wuerde": Schwarz, wo einer
+ * steht, Rot ab zwei, Alata mit schwarzer Kontur, die Form waechst beim Ueberfahren, das Rad zoomt.
+ * Dieselben Bausteine wie /maps und /globals/map (app/lib/kartenStil, lib/prognoseKarte, globals.css);
+ * nur die Formen und wer darauf steht kommen von Noble.
+ */
 function Karte({ f }: { f: SolosFenster }) {
   const t = useT();
-  const rahmen = useRef<HTMLDivElement | null>(null);
-  const [breite, setBreite] = useState(800);
+  const flaeche = useRef<HTMLDivElement | null>(null);
+  const ebene = useRef<HTMLDivElement | null>(null);
+  const zoomRef = useRef(1);
+  const mitteRef = useRef<Punkt>({ x: 50, y: 50 });
+  const hoverRef = useRef<string | null>(null);
+  const malUhr = useRef<number | null>(null);
+  const zug = useRef<{ sx: number; sy: number; mitte: Punkt; kasten: DOMRect } | null>(null);
+  const [gezoomt, setGezoomt] = useState(false);
   const [orte, setOrte] = useState(true);
 
-  useEffect(() => {
-    const el = rahmen.current;
-    if (!el || typeof ResizeObserver === 'undefined') return undefined;
-    const messen = () => setBreite(el.clientWidth || 800);
-    const b = new ResizeObserver(messen);
-    b.observe(el);
-    messen();
-    return () => b.disconnect();
+  const spots = useMemo(() => f.formen.map((fo, i): Spot & { spieler: string[] } => {
+    const xs = [...new Set(fo.punkte.map((q) => q.x))];
+    const ys = [...new Set(fo.punkte.map((q) => q.y))];
+    const rechteck = fo.punkte.length === 4 && xs.length === 2 && ys.length === 2;
+    return { id: `f${i}`, form: rechteck ? 'rechteck' : 'polygon', punkte: fo.punkte, spieler: fo.spieler };
+  }), [f.formen]);
+
+  const aufSpot = useMemo(
+    () => Object.fromEntries(spots.map((sp) => [sp.id, sp.spieler])), [spots]);
+  const zeilen = useCallback((name: string) => [kartenName(name)], []);
+  const groesse = useMemo(() => einheitsGroesse(spots, aufSpot, zeilen), [spots, aufSpot, zeilen]);
+
+  /** Den Ausschnitt direkt ans Element schreiben, einmal je Bildaufbau. */
+  const male = useCallback(() => {
+    if (malUhr.current !== null) return;
+    malUhr.current = requestAnimationFrame(() => {
+      malUhr.current = null;
+      const el = ebene.current;
+      if (!el) return;
+      const z = zoomRef.current, m = mitteRef.current;
+      el.style.transform = `scale(${z}) translate(${50 / z - m.x}%, ${50 / z - m.y}%)`;
+      el.style.setProperty('--z', String(z));
+      setGezoomt(z > 1.02);
+    });
   }, []);
 
-  const schrift = Math.max(7, Math.min(13, breite / 78));
+  // Das Rad zoomt, und die Seite scrollt dabei nicht mit.
+  useEffect(() => {
+    const amRad = (e: WheelEvent) => {
+      const el = flaeche.current;
+      if (!el) return;
+      const r = el.getBoundingClientRect();
+      if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) return;
+      e.preventDefault();
+      const fx = (e.clientX - r.left) / r.width, fy = (e.clientY - r.top) / r.height;
+      const z = zoomRef.current, m = mitteRef.current, sicht = 100 / z;
+      const px = m.x - sicht / 2 + fx * sicht, py = m.y - sicht / 2 + fy * sicht;
+      const z2 = Math.max(1, Math.min(6, z * (e.deltaY < 0 ? 1.12 : 1 / 1.12)));
+      const sicht2 = 100 / z2;
+      zoomRef.current = z2;
+      mitteRef.current = begrenze(z2, { x: px + sicht2 * (0.5 - fx), y: py + sicht2 * (0.5 - fy) });
+      male();
+    };
+    window.addEventListener('wheel', amRad, { passive: false, capture: true });
+    return () => window.removeEventListener('wheel', amRad, { capture: true } as EventListenerOptions);
+  }, [male]);
+
+  // Ziehen: ueber die Bildschirmstrecke seit dem Anfassen gerechnet.
+  useEffect(() => {
+    const bewegt = (e: MouseEvent) => {
+      const g = zug.current;
+      if (!g) return;
+      const sicht = 100 / zoomRef.current;
+      mitteRef.current = begrenze(zoomRef.current, {
+        x: g.mitte.x - ((e.clientX - g.sx) / g.kasten.width) * sicht,
+        y: g.mitte.y - ((e.clientY - g.sy) / g.kasten.height) * sicht,
+      });
+      male();
+    };
+    const los = () => { zug.current = null; };
+    window.addEventListener('mousemove', bewegt);
+    window.addEventListener('mouseup', los);
+    return () => {
+      window.removeEventListener('mousemove', bewegt);
+      window.removeEventListener('mouseup', los);
+    };
+  }, [male]);
+
+  useEffect(() => () => { if (malUhr.current !== null) cancelAnimationFrame(malUhr.current); }, []);
+
+  /** Die Form unter dem Zeiger. */
+  const formBei = (e: { clientX: number; clientY: number }) => {
+    const el = flaeche.current;
+    if (!el) return undefined;
+    const r = el.getBoundingClientRect();
+    const z = zoomRef.current, m = mitteRef.current, sicht = 100 / z;
+    const p = {
+      x: m.x - sicht / 2 + ((e.clientX - r.left) / r.width) * sicht,
+      y: m.y - sicht / 2 + ((e.clientY - r.top) / r.height) * sicht,
+    };
+    return [...spots].reverse().find((sp) => imPolygon(p, sp.punkte));
+  };
 
   if (!f.formen.length) {
     return (
@@ -76,28 +185,89 @@ function Karte({ f }: { f: SolosFenster }) {
         <input type="checkbox" checked={orte} onChange={(e) => setOrte(e.target.checked)} className="accent-sky-500" />
         <T>Ortsnamen zeigen</T>
       </label>
-      <div ref={rahmen} className="relative mx-auto aspect-square w-full max-w-[min(100%,980px)] overflow-hidden rounded-xl border border-amber-500/25 bg-zinc-950">
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img src={fortniteKarte(orte)} alt={t('Karte')} className="absolute inset-0 h-full w-full object-cover" draggable={false} />
-        <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
-          {f.formen.map((fo, i) => (
-            <polygon key={i} points={fo.punkte.map((p) => `${p.x},${p.y}`).join(' ')}
-              fill={fo.spieler.length ? 'rgba(245,197,66,0.30)' : 'rgba(14,71,222,0.25)'}
-              stroke={fo.spieler.length ? GOLD : '#7aa2ff'} strokeWidth="0.25" vectorEffect="non-scaling-stroke" />
-          ))}
-        </svg>
-        {f.formen.map((fo, i) => {
-          if (!fo.spieler.length) return null;
-          const mx = fo.punkte.reduce((a, p) => a + p.x, 0) / fo.punkte.length;
-          const my = fo.punkte.reduce((a, p) => a + p.y, 0) / fo.punkte.length;
-          return (
-            <div key={i}
-              style={{ left: `${mx}%`, top: `${my}%`, fontSize: schrift, lineHeight: 1.15 }}
-              className="pointer-events-none absolute w-max max-w-[16%] -translate-x-1/2 -translate-y-1/2 text-center font-extrabold uppercase text-white [text-shadow:0_0_3px_#000,0_0_3px_#000,0_1px_2px_#000]">
-              {fo.spieler.map((n) => <div key={n} className="truncate">{n}</div>)}
-            </div>
-          );
-        })}
+      <div ref={flaeche}
+        className={`${kartenSchrift.variable} relative mx-auto aspect-square w-full select-none overflow-hidden
+                    rounded-xl border border-white/[0.06] bg-zinc-950 ${gezoomt ? 'cursor-grab active:cursor-grabbing' : ''}`}
+        style={{ containerType: 'inline-size', maxWidth: 'min(100%, calc(100vh - 7rem))' }}
+        onMouseDown={(e) => {
+          if (e.button !== 0 || zoomRef.current <= 1 || !flaeche.current) return;
+          zug.current = {
+            sx: e.clientX, sy: e.clientY, mitte: { ...mitteRef.current },
+            kasten: flaeche.current.getBoundingClientRect(),
+          };
+        }}
+        onMouseMove={(e) => {
+          if (zug.current) return;
+          const drunter = formBei(e)?.id ?? null;
+          hebeFormHervor(flaeche.current, hoverRef.current, drunter);
+          hoverRef.current = drunter;
+        }}
+        onMouseLeave={() => {
+          hebeFormHervor(flaeche.current, hoverRef.current, null);
+          hoverRef.current = null;
+        }}>
+        <div ref={ebene} className="absolute inset-0 origin-top-left" style={{ '--z': 1 } as React.CSSProperties}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={fortniteKarte(orte)} alt={t('Karte')} draggable={false}
+            className="pointer-events-none absolute inset-0 h-full w-full object-cover" />
+
+          {/* thecomphub.com, wie auf jeder Karte - unter den Formen. */}
+          <div className="pointer-events-none absolute inset-0 overflow-hidden"><KartenWasserzeichen /></div>
+
+          <svg viewBox="0 0 100 100" preserveAspectRatio="none"
+            className="pointer-events-none absolute inset-0 h-full w-full">
+            {spots.map((sp) => {
+              const c = formFarbe(sp.spieler.length);
+              return (
+                <polygon key={sp.id} data-form={sp.id}
+                  className={`karten-form${c.rot ? ' ist-rot' : ''}`}
+                  points={sp.punkte.map((q) => `${q.x},${q.y}`).join(' ')}
+                  fill={c.fuellung} stroke={c.rand} vectorEffect="non-scaling-stroke" />
+              );
+            })}
+          </svg>
+
+          {spots.map((sp) => {
+            if (!sp.spieler.length) return null;
+            const r = formRahmen(sp.punkte);
+            const anzahl = sp.spieler.length;
+            const mitteX = r.links + r.breite / 2;
+            return (
+              <div key={sp.id} data-form={sp.id}
+                className="karten-beschriftung pointer-events-none absolute z-10 flex flex-col items-center text-center"
+                style={{
+                  left: `${r.links}%`, top: `${r.oben}%`,
+                  width: `${r.breite}%`, height: `${r.hoehe}%`,
+                  justifyContent: anzahl === 1 ? 'center' : 'space-between',
+                  paddingBlock: 'calc(0.45cqw / var(--z, 1))',
+                }}>
+                {sp.spieler.map((name, i) => {
+                  const yProz = anzahl === 1
+                    ? r.oben + r.hoehe / 2
+                    : r.oben + r.hoehe * (0.1 + 0.8 * (i / (anzahl - 1)));
+                  const spanne = sp.form === 'rechteck' ? null : spanneBei(sp.punkte, yProz);
+                  const versatz = spanne && r.breite > 0 ? ((spanne.mitte - mitteX) / r.breite) * 100 : 0;
+                  return (
+                    <div key={`${name}-${i}`} className="relative" style={versatz ? { left: `${versatz}%` } : undefined}>
+                      <p className="karten-name" style={{ fontSize: `calc(${groesse}cqw / var(--z, 1))` }}>
+                        {kartenName(name)}
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            );
+          })}
+        </div>
+
+        {gezoomt && (
+          <button type="button" onMouseDown={(e) => e.stopPropagation()}
+            onClick={() => { zoomRef.current = 1; mitteRef.current = { x: 50, y: 50 }; male(); }}
+            className="absolute bottom-2 left-2 z-30 rounded-md bg-black/75 px-2.5 py-1 text-[11px] text-slate-200
+                       transition hover:bg-black/90">
+            <T>Ganze Karte</T>
+          </button>
+        )}
       </div>
     </div>
   );
