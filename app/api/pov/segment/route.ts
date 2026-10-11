@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { liesPros, wer } from '@/lib/pov';
+import { liesPros, standardBild, wer } from '@/lib/pov';
 import { ADMIN_LINK, holeNach, istLive, schluesselFuer, schluesselLesen } from '@/lib/povRelay';
 
 /*
@@ -61,7 +61,9 @@ export async function GET(request: Request) {
   if (p.get('aktion') === 'info') {
     const pro = (await liesPros())[proIdent];
     if (!pro) return NextResponse.json({ ok: false, error: 'Unbekannt.' }, { status: 404, headers: nie });
-    return NextResponse.json({ ok: true, info: { name: pro.name, bild: pro.bild, hud: pro.hud } }, { headers: nie });
+    return NextResponse.json({
+      ok: true, info: { name: pro.name, bild: pro.bild ?? await standardBild(proIdent), hud: pro.hud },
+    }, { headers: nie });
   }
 
   const nach = Math.max(0, Number(p.get('nach') ?? 0) || 0);

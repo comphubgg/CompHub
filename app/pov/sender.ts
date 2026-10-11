@@ -45,6 +45,45 @@ export function waehleAufnahme(mitTon: boolean): string | null {
 
 const STUECK_MS = 1000;
 
+/**
+ * Ein Testbild statt des Spielfensters: Farbbalken, die Uhrzeit und ein wandernder Block.
+ *
+ * Zum Ausprobieren, ohne ein zweites Konto und ohne Spiel: der Admin sendet das Testbild hier und sieht es
+ * in einem zweiten Tab auf der Streams-Seite (dort sieht er alle POVs). Laeuft ueber denselben Weg wie
+ * ein echtes Bild.
+ */
+export function testbildStrom(qualitaet: Qualitaet, name: string): MediaStream {
+  const { breite, hoehe, fps } = QUALITAET[qualitaet];
+  const flaeche = document.createElement('canvas');
+  flaeche.width = breite; flaeche.height = hoehe;
+  const g = flaeche.getContext('2d')!;
+  const strom = flaeche.captureStream(Math.min(fps, 30));
+  const spur = strom.getVideoTracks()[0];
+  const start = performance.now();
+  const balken = ['#e5e5e5', '#e6d600', '#00c8c8', '#00c24a', '#c800c8', '#e02424', '#2455e0'];
+  const text = (t: string, x: number, y: number, px: number) => {
+    g.font = `700 ${px}px system-ui, sans-serif`;
+    g.lineWidth = px * 0.14; g.strokeStyle = '#000'; g.lineJoin = 'round';
+    g.strokeText(t, x, y); g.fillStyle = '#fff'; g.fillText(t, x, y);
+  };
+  let uhr = 0;
+  const zeichne = () => {
+    // Das Teilen ist zu Ende (Spur gestoppt): die Zeichnerei auch.
+    if (spur.readyState === 'ended') { window.clearInterval(uhr); return; }
+    const t = (performance.now() - start) / 1000;
+    balken.forEach((f, i) => { g.fillStyle = f; g.fillRect((i * breite) / 7, 0, breite / 7 + 1, hoehe * 0.72); });
+    g.fillStyle = '#101114'; g.fillRect(0, hoehe * 0.72, breite, hoehe * 0.28);
+    g.fillStyle = '#fff'; g.fillRect((t * 240) % (breite - 140), hoehe * 0.72 + hoehe * 0.05, 140, hoehe * 0.18);
+    g.textAlign = 'center';
+    text(`${name} · POV test`, breite / 2, hoehe * 0.3, hoehe * 0.075);
+    text(new Date().toLocaleTimeString('de-DE'), breite / 2, hoehe * 0.5, hoehe * 0.11);
+    g.textAlign = 'left';
+  };
+  uhr = window.setInterval(zeichne, 33);
+  zeichne();
+  return strom;
+}
+
 /*
  * Das Teilen haengt am Modul, nicht an der Seite: wechselt der Profi im Dashboard von POV zu Einstellungen oder
  * in eine andere Seite der Webseite, laeuft es weiter. Nur Tab schliessen oder Neuladen beendet es.

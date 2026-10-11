@@ -12,12 +12,22 @@ import type { PovHud } from '@/lib/pov';
  * Der Streamer fuegt in OBS die Adresse mit seinem Link-Schluessel ein (aus der Streams-Seite: "Link fuer OBS
  * kopieren"). Die Seite liegt ueber der ganzen Flaeche, ohne Kopfzeile, mit Ton und - wenn der Profi es
  * eingestellt hat - seinem Namensbanner. Ist der Zuschauer nicht (mehr) freigegeben, steht dort "Not approved".
+ *
+ * Das Banner richtet sich nach den Einstellungen des Zuschauers auf der Streams-Seite; sie stehen im Link
+ * (&hud=oben|unten|links|rechts|aus und &bild=1|0), der dort kopiert wird.
  */
 
 function Inhalt() {
   const p = useSearchParams();
   const pro = p.get('pro') ?? '';
   const schluessel = p.get('s') ?? undefined;
+  const hudWahl = p.get('hud') ?? 'unten';
+  const hud: PovHud = {
+    an: hudWahl !== 'aus',
+    ort: (['oben', 'unten', 'links', 'rechts'] as const).find((o) => o === hudWahl) ?? 'unten',
+    mitBild: p.get('bild') !== '0',
+    text: '',
+  };
   const [info, setInfo] = useState<{ name: string; bild: string | null; hud: PovHud } | null>(null);
 
   useEffect(() => {
@@ -38,7 +48,7 @@ function Inhalt() {
   return (
     <div className="group fixed inset-0 z-[1000] bg-black">
       <PovVideo pro={pro} schluessel={schluessel} stumm={false} name={info?.name} />
-      {info && <HudBanner hud={info.hud} name={info.name} bild={info.bild} />}
+      {info && <HudBanner hud={hud} name={info.name} bild={info.bild} />}
     </div>
   );
 }

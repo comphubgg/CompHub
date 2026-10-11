@@ -4,13 +4,16 @@ import { kontoAus, nachId, alleKonten, istVip } from '@/lib/konten';
 import { istBetreiber, vipAus } from '@/lib/vipCookie';
 import { alleZugaenge, zugangNach, rechteVon } from '@/lib/vipZugaenge';
 import { istLive, liveSeit } from '@/lib/povRelay';
+import { spielerbildKlein } from '@/lib/spielerbildKlein';
 
 /*
  * Pro-POVs: Profis stellen ihr POV bereit und entscheiden, welche VIP-Streamer es sehen duerfen.
  *
  * Der Betreiber (11.10.2026): Profis haben ein eigenes Konto (normale Anmeldung) und sehen im Dashboard
- * nur POV und Settings. Dort teilen sie ihr Bild, waehlen aus der Liste der VIPs, wer es sehen darf, und
- * stellen Qualitaet und ein kleines Namensbanner (HUD) ein.
+ * nur POV und Settings. Dort teilen sie ihr Bild, waehlen aus der Liste der VIPs - einzeln -, wer es sehen
+ * darf, und stellen die Qualitaet ein. Das Namensbanner (HUD) stellt NICHT der Profi ein, sondern jeder
+ * zuschauende VIP selbst in den Einstellungen der Streams-Seite (Position, mit/ohne Profilbild); das Feld
+ * "hud" im Profil bleibt nur fuer alte Eintraege.
  *
  * Nichts davon laeuft ueber Twitch - die Profis wollen nicht oeffentlich streamen, damit keine Fremden
  * zusehen und sie nicht griefen koennen. Das Bild geht direkt vom Browser des Profis an den Server und von
@@ -123,24 +126,83 @@ export async function schreibePros(daten: Record<string, PovPro>): Promise<void>
   await schreibJson(DATEI, daten);
 }
 
-/** Alle VIPs, die zusehen koennten - Konten mit VIP und Zugaenge mit Schluessel. */
-export async function alleVips(): Promise<Array<{ ident: string; name: string }>> {
-  const raus = new Map<string, { ident: string; name: string }>();
+export interface VipEintrag {
+  /** Die Hauptkennung dieses VIPs (Konto vor Zugang). */
+  ident: string;
+  name: string;
+  /** Alle Kennungen dieses VIPs - dieselbe Person kann als Konto und als Zugang auftreten. */
+  auch: string[];
+}
+
+/**
+ * Alle VIPs, die zusehen koennten - jeder einzelne mit VIP-Status.
+ *
+ * Der Betreiber (11.10.2026): in der Liste des Profis standen nur vier Konten. Ursache: die VIP-Zugaenge
+ * (Anmeldename + Schluessel - dort liegen die meisten VIPs) wurden ueber ein Feld "name" gelesen, das es
+ * dort nicht gibt (es heisst "username"), und fielen deshalb alle heraus. Jetzt stehen sie drin; gesperrte
+ * und abgelaufene nicht. Dieselbe Person als Konto und als Zugang (gleicher Name) steht einmal da; das
+ * Anhaken gibt dann beide Kennungen frei, damit sie zusehen kann, womit auch immer sie sich anmeldet.
+ */
+export async function alleVips(): Promise<VipEintrag[]> {
+  const nachName = new Map<string, VipEintrag>();
+  const trage = (ident: string, name: string) => {
+    const schluessel = name.trim().toLowerCase();
+    if (!schluessel) return;
+    const da = nachName.get(schluessel);
+    if (da) {
+      if (!da.auch.includes(ident)) da.auch.push(ident);
+      // Das Konto geht vor: seine Kennung ist die Hauptkennung.
+      if (ident.startsWith('k:') && !da.ident.startsWith('k:')) da.ident = ident;
+    } else {
+      nachName.set(schluessel, { ident, name: name.trim(), auch: [ident] });
+    }
+  };
   try {
     for (const k of await alleKonten()) {
       if (k.gesperrt) continue;
-      if (k.vip || k.rolle === 'admin' || k.rolle === 'manager' || k.rolle === 'pro') {
-        raus.set(`k:${k.id}`, { ident: `k:${k.id}`, name: k.name });
-      }
+      if (k.vip || k.rolle === 'admin' || k.rolle === 'manager' || k.rolle === 'pro') trage(`k:${k.id}`, k.name);
     }
   } catch { /* ohne Konten bleibt die Liste der Zugaenge */ }
   try {
     for (const z of await alleZugaenge()) {
-      const n = String((z as { name?: string }).name ?? '').trim();
-      if (n) raus.set(`z:${n.toLowerCase()}`, { ident: `z:${n.toLowerCase()}`, name: n });
+      // Gesperrte und abgelaufene Zugaenge sind keine VIPs mehr.
+      if (z.status === 'disabled') continue;
+      if (typeof z.vipBis === 'number' && z.vipBis > 0 && z.vipBis <= Date.now()) continue;
+      const u = String(z.username ?? '').trim();
+      if (u) trage(`z:${u.toLowerCase()}`, u);
     }
   } catch { /* nur die Konten */ }
-  return [...raus.values()].sort((a, b) => a.name.localeCompare(b.name));
+  return [...nachName.values()].sort((a, b) => a.name.localeCompare(b.name));
+}
+
+interface Bildeintrag { datei: string; epicId: string; echtesFoto?: boolean }
+
+/** Das Spielerfoto zu einem Epic-Konto (kleine Fassung) - oder nichts. */
+export async function spielerFoto(epicId: string | null | undefined): Promise<string | null> {
+  const id = String(epicId ?? '').replace(/-/g, '').toLowerCase();
+  if (!id) return null;
+  const bilder = await liesJson<Bildeintrag[]>('spielerbilder.json', []);
+  const gleich = bilder.filter((b) => String(b.epicId ?? '').replace(/-/g, '').toLowerCase() === id);
+  const b = gleich.find((x) => x.echtesFoto) ?? gleich[0];
+  return b ? spielerbildKlein(b.datei) : null;
+}
+
+/**
+ * Das Profilbild, das ein Profi ohne eigene Wahl bekommt: sein Spielerfoto ueber das verknuepfte Epic-Konto
+ * (der Betreiber: "ich mache Vico zum Pro, dann hat er sowieso ein Bild - gib ihm das"), sonst das Bild
+ * seines Kontos. Ein selbst gewaehltes Bild geht immer vor.
+ */
+export async function standardBild(ident: string): Promise<string | null> {
+  try {
+    if (ident.startsWith('z:')) {
+      const z = await zugangNach(ident.slice(2));
+      return await spielerFoto(z?.epicId);
+    }
+    if (!ident.startsWith('k:')) return null;
+    const k = await nachId(ident.slice(2));
+    if (!k) return null;
+    return (await spielerFoto(k.epicId)) ?? ((k as { bild?: string | null }).bild ?? null);
+  } catch { return null; }
 }
 
 /** Aus einer Eingabe die gueltigen, bereinigten Felder machen - nie mehr, als der Profi aendern darf. */

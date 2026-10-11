@@ -3365,6 +3365,13 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Karten zu diesem Spieltag': 'Maps for this match day',
   'Alle anzeigen': 'Show all',
   // ------------------------------------------------------------ Multiview (11.10.2026)
+  'POV-Banner': 'POV banner',
+  'Namensbanner auf Pro-POVs': 'Name banner on pro POVs',
+  'Testbild senden': 'Send test picture',
+  'Sendet Farbbalken und eine Uhr statt deines Spiels — zum Ausprobieren. Du siehst es danach auf der Streams-Seite.': 'Sends colour bars and a clock instead of your game — for trying things out. You will see it on the Streams page afterwards.',
+  'Standard: dein Spielerfoto': 'Default: your player photo',
+  'Es erscheint im Namensbanner deines POVs — bei Zuschauern, die „Mit Profilbild" eingestellt haben. Ohne eigene Wahl ist es dein Spielerfoto.': 'It appears in the name banner of your POV — for viewers who turned on "With profile picture". Without a choice of your own it is your player photo.',
+  'Alle VIPs von CompHub. Hake einzeln an, wer dein POV auf der Streams-Seite sehen darf.': 'All CompHub VIPs. Tick one by one who may watch your POV on the Streams page.',
   'Noble hat für diesen Spieltag keine Karte.': 'Noble has no map for this match day.',
   'Bei Noble gibt es diese Spieltage — klick einen an, um dessen Formen und Spieler zu übernehmen. Deine Karte bleibt unverändert, bis du bestätigst.': 'Noble has these match days — click one to take over its shapes and players. Your map stays unchanged until you confirm.',
   'Die Liste der Spieltage von Noble ließ sich nicht laden. Versuch es gleich noch einmal.': 'The list of match days from Noble could not be loaded. Try again in a moment.',

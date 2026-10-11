@@ -6,6 +6,8 @@
  * In den Farben von CompHub, ohne Farbwahl, ohne Import/Export; die Ordner (Profile) bleiben.
  */
 
+import type { HudOrt } from '@/lib/pov';
+
 /** Ein Stream auf der Wand. Die Reihenfolge im Feld ist die Reihenfolge auf der Wand. */
 export interface MvStream {
   id: string;
@@ -45,6 +47,13 @@ export interface MvEinstellungen {
   dunkel: boolean;
   /** Die Kopfzeile der Seite ausblenden - die Wand fuellt den ganzen Bildschirm. */
   streamModus: boolean;
+  /**
+   * Das Namensbanner auf Pro-POVs. Der Betreiber (11.10.2026): nicht der Profi stellt es ein, sondern wer
+   * zuschaut - jeder VIP in seinen eigenen Einstellungen (Position, mit/ohne Profilbild).
+   */
+  povBanner: boolean;
+  povBannerOrt: HudOrt;
+  povBannerBild: boolean;
 }
 
 export const EINSTELLUNGEN_STANDARD: MvEinstellungen = {
@@ -62,6 +71,9 @@ export const EINSTELLUNGEN_STANDARD: MvEinstellungen = {
   offlineAlle: false,
   dunkel: true,
   streamModus: true,
+  povBanner: true,
+  povBannerOrt: 'unten',
+  povBannerBild: true,
 };
 
 export const LIVE_TAKTE = [30, 60, 120, 300];

@@ -42,6 +42,8 @@ interface Props {
   ausOrdner: (ordnerId: string, kanal: string) => void;
   einzelAnsicht: () => void;
   einstellungen: () => void;
+  /** Das Namensbanner nach den eigenen Einstellungen - wandert in den Link fuer OBS. */
+  banner: { an: boolean; ort: string; mitBild: boolean };
 }
 
 const kurz = (n: number) => new Intl.NumberFormat('en', { notation: 'compact', maximumFractionDigits: 1 }).format(n);
@@ -296,7 +298,8 @@ export default function Seitenleiste(p: Props) {
       const r = await fetch(`/api/pov/segment?aktion=link&pro=${encodeURIComponent(ident)}`, { cache: 'no-store' });
       const j = await r.json() as { ok?: boolean; schluessel?: string };
       if (!r.ok || !j.schluessel) throw new Error('kein Link');
-      const url = `${window.location.origin}/pov-ansicht?pro=${encodeURIComponent(ident)}&s=${encodeURIComponent(j.schluessel)}`;
+      const url = `${window.location.origin}/pov-ansicht?pro=${encodeURIComponent(ident)}&s=${encodeURIComponent(j.schluessel)}`
+        + `&hud=${p.banner.an ? p.banner.ort : 'aus'}&bild=${p.banner.mitBild ? '1' : '0'}`;
       await navigator.clipboard.writeText(url);
       setLinkMeldung(t('Link kopiert — in OBS als Browserquelle einfügen. Nicht weitergeben.'));
     } catch { setLinkMeldung(t('Der Link ließ sich nicht erzeugen.')); }

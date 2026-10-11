@@ -102,7 +102,7 @@ interface KachelProps {
   pov?: 'pro' | 'discord';
   /** Dieser Platz zeigt ein privates Pro-POV (Kennung des Profis). */
   povId?: string;
-  /** Das Namensbanner, das der Profi fuer sein POV eingestellt hat. */
+  /** Das Namensbanner - nach den eigenen Einstellungen des Zuschauers (Einstellungen > POV-Banner). */
   hud?: { hud: PovHud; name: string; bild: string | null };
   abgerundet: boolean;
   tooltips: boolean;
@@ -635,7 +635,10 @@ export default function Multiview(props: MultiviewProps) {
             <Kachel key={id} s={s}
               x={ziehend ? zieh.x : p.x} y={ziehend ? zieh.y : p.y} w={raster.w} h={raster.h}
               host={props.host} qualitaet={s.qualitaet || qualitaetAlle} pov={s.pov ? 'pro' : pov[s.kanal]}
-              hud={s.pov && povInfo.get(s.pov) ? { hud: povInfo.get(s.pov)!.hud, name: povInfo.get(s.pov)!.name, bild: povInfo.get(s.pov)!.bild } : undefined}
+              hud={s.pov && povInfo.get(s.pov) ? {
+                hud: { an: einst.povBanner, ort: einst.povBannerOrt, mitBild: einst.povBannerBild, text: '' },
+                name: povInfo.get(s.pov)!.name, bild: povInfo.get(s.pov)!.bild,
+              } : undefined}
               abgerundet={einst.abgerundet} tooltips={einst.tooltips} qualitaetJeStream={einst.qualitaetJeStream}
               ziehenUeberall={einst.ziehenUeberall} ziehend={ziehend} neu={neu[id] ?? 0}
               aktionen={aktionen} griff={griff} ziehen={ziehen} />
@@ -676,7 +679,8 @@ export default function Multiview(props: MultiviewProps) {
         ordnerSpeichern={props.ordnerSpeichern} zuOrdner={props.zuOrdner} verschiebeVor={verschiebeVor}
         aufWand={aufWand} offlineAlle={einst.offlineAlle} povs={props.povs}
         kannAusOrdner={props.kannAusOrdner} ausOrdner={props.ausOrdner}
-        einzelAnsicht={props.zurEinzelansicht} einstellungen={() => setDialog('einstellungen')} />
+        einzelAnsicht={props.zurEinzelansicht} einstellungen={() => setDialog('einstellungen')}
+        banner={{ an: einst.povBanner, ort: einst.povBannerOrt, mitBild: einst.povBannerBild }} />
 
       {/* Rueckgaengig nach dem Entfernen */}
       {rueck && (

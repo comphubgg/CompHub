@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import {
-  alleVips, bereinige, leererPro, liesPros, oeffentlichPov, schreibePros, wer,
+  alleVips, bereinige, leererPro, liesPros, oeffentlichPov, schreibePros, standardBild, wer,
 } from '@/lib/pov';
 import { istLive, liveSeit, zuschauerZahl } from '@/lib/povRelay';
 
@@ -33,21 +33,27 @@ export async function GET(request: Request) {
     const ident = ich.idents[0];
     if (!ident) return NextResponse.json({ ok: false, error: 'Nicht angemeldet.' }, { status: 401, headers: nie });
     const mein = alle[ident] ?? leererPro(ident, ich.name, ich.bild);
-    // Name und Bild folgen dem Konto, solange der Profi nichts anderes gesetzt hat.
-    if (!alle[ident]) { mein.name = ich.name; mein.bild = ich.bild; }
+    // Der Name folgt dem Konto; das Bild ist das gewaehlte - sonst das Spielerfoto des verknuepften Epic-Kontos.
+    if (!alle[ident]) mein.name = ich.name;
+    const eigenes = Boolean(alle[ident]?.bild);
+    const standard = (await standardBild(ident)) ?? ich.bild;
+    mein.bild = eigenes ? mein.bild : standard;
     return NextResponse.json({
       ok: true,
       mein: { ...mein, live: istLive(ident), liveSeit: liveSeit(ident) },
+      bildEigen: eigenes,
       zuschauer: zuschauerZahl(ident),
-      vips: (await alleVips()).filter((v) => v.ident !== ident),
+      vips: (await alleVips()).filter((v) => !v.auch.includes(ident)),
     }, { headers: nie });
   }
 
   // sichtbar
   if (!ich.vip) return NextResponse.json({ ok: true, pros: [] }, { headers: nie });
-  const pros = Object.values(alle)
-    .filter((p) => ich.rolle === 'admin' || p.erlaubt.some((e) => ich.idents.includes(e)))
-    .map(oeffentlichPov);
+  const sichtbar = Object.values(alle)
+    .filter((p) => ich.rolle === 'admin' || p.erlaubt.some((e) => ich.idents.includes(e)));
+  const pros = await Promise.all(sichtbar.map(async (p) => ({
+    ...oeffentlichPov(p), bild: p.bild ?? (await standardBild(p.ident)),
+  })));
   return NextResponse.json({ ok: true, pros }, { headers: nie });
 }
 
@@ -63,11 +69,15 @@ export async function POST(request: Request) {
   try { body = await request.json(); } catch { /* leerer Rumpf */ }
   const alle = await liesPros();
   const alt = alle[ident] ?? leererPro(ident, ich.name, ich.bild);
-  const vips = new Set((await alleVips()).map((v) => v.ident));
+  const vips = new Set((await alleVips()).flatMap((v) => v.auch));
   const neu = bereinige(alt, body.teil ?? {}, vips);
-  // Name und Bild des Kontos gelten, solange kein eigenes Bild gesetzt ist.
+  // Der Name des Kontos gilt; das Bild ist das gewaehlte, sonst das Spielerfoto (siehe GET).
   neu.name = ich.name || neu.name;
   alle[ident] = neu;
   await schreibePros(alle);
-  return NextResponse.json({ ok: true, mein: { ...neu, live: istLive(ident), liveSeit: liveSeit(ident) } }, { headers: nie });
+  const wirksam = neu.bild ?? (await standardBild(ident)) ?? ich.bild;
+  return NextResponse.json({
+    ok: true, bildEigen: Boolean(neu.bild),
+    mein: { ...neu, bild: wirksam, live: istLive(ident), liveSeit: liveSeit(ident) },
+  }, { headers: nie });
 }

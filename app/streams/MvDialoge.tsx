@@ -43,6 +43,11 @@ function Rahmen({ titel, unter, zu, children }: {
   );
 }
 
+const POV_ORTE: Array<{ wert: 'oben' | 'unten' | 'links' | 'rechts'; titel: string }> = [
+  { wert: 'oben', titel: 'Oben' }, { wert: 'unten', titel: 'Unten' },
+  { wert: 'links', titel: 'Links' }, { wert: 'rechts', titel: 'Rechts' },
+];
+
 function Zeile({ symbol, text, an, aendern }: {
   symbol: ReactNode; text: string; an: boolean; aendern: (an: boolean) => void;
 }) {
@@ -116,6 +121,29 @@ export function EinstellungenFenster({ einst, aendern, kuerzel, zu }: {
             ))}
           </select>
         </div>
+      )}
+
+      <Abschnitt titel={t('POV-Banner')} />
+      <Zeile symbol={<Strich d="M3 14h14M5 14V9h10v5M7 9V6h6v3" />} text={t('Namensbanner auf Pro-POVs')}
+        an={einst.povBanner} aendern={(v) => aendern({ povBanner: v })} />
+      {einst.povBanner && (
+        <>
+          <div className="flex items-center gap-3 px-2 py-2 text-sm">
+            <span className="w-4 shrink-0" />
+            <span className="min-w-0 flex-1"><T>Position</T></span>
+            <div className="flex gap-1">
+              {POV_ORTE.map((o) => (
+                <button key={o.wert} type="button" onClick={() => aendern({ povBannerOrt: o.wert })}
+                  className={`rounded-md border px-2 py-1 text-xs transition ${einst.povBannerOrt === o.wert
+                    ? 'border-sky-500 bg-sky-500/15 text-sky-400' : 'mv-fl mv-hover'}`}>
+                  {t(o.titel)}
+                </button>
+              ))}
+            </div>
+          </div>
+          <Zeile symbol={<Strich d="M10 9a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM4 17a6 6 0 0 1 12 0" />} text={t('Mit Profilbild')}
+            an={einst.povBannerBild} aendern={(v) => aendern({ povBannerBild: v })} />
+        </>
       )}
 
       <Abschnitt titel={t('Darstellung')} />

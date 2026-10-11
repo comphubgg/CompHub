@@ -2,8 +2,8 @@ import type { PovHud, HudOrt } from '@/lib/pov';
 
 /*
  * Das HUD-Banner eines Pro-POVs: ein kleines Banner mit dem Namen (und auf Wunsch dem Profilbild) auf
- * dem POV, damit man sofort sieht, wessen POV es ist. Der Profi stellt es in seinem Dashboard ein
- * (app/admin/ProDashboard.tsx); gezeichnet wird es dort in der Vorschau und auf der Wand der Streams-Seite.
+ * dem POV, damit man sofort sieht, wessen POV es ist. Wie es aussieht, stellt der Zuschauer ein (Streams-Seite >
+ * Einstellungen > POV-Banner, app/streams/mvTypen.ts); gezeichnet wird es auf der Wand und in der OBS-Ansicht.
  */
 
 /** Wo das Banner im Bild sitzt. */
