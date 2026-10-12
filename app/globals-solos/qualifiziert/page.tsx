@@ -18,7 +18,7 @@ export default function SolosQualifiziert() {
             <h2 className="text-lg font-bold text-amber-200">
               <T>Qualifiziert für das Finale</T> <span className="text-sm font-normal text-slate-500">({finalZahl})</span>
             </h2>
-            <p className="mt-1 text-xs text-slate-500"><T>Alle, die Noble im Finale führt — gruppiert danach, wie sie sich qualifiziert haben.</T></p>
+            <p className="mt-1 text-xs text-slate-500"><T>Alle, die im Finale stehen — gruppiert danach, wie sie sich qualifiziert haben.</T></p>
             {daten.qualifiziert.length === 0 ? (
               <p className="mt-4 rounded-xl border border-zinc-800 bg-zinc-900/40 px-4 py-8 text-center text-sm text-slate-500">
                 <T>Noch hat sich niemand qualifiziert.</T>

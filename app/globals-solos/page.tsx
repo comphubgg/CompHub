@@ -20,6 +20,7 @@ export default function GlobalsSolos() {
           '/globals-solos/qualifiziert': String(finalZahl),
           '/globals-solos/heats': String(heats.length),
           '/globals-solos/map': String(daten.fenster.length),
+          '/globals-solos/laender': String(new Set(daten.fenster.flatMap((f) => f.spieler.map((x) => x.land ?? ''))).size),
         };
         return (
           <>
@@ -27,7 +28,7 @@ export default function GlobalsSolos() {
               <T>Die Solos der Global Championship an einem Ort — wer im Finale steht, die Heats und die Karte jedes Spieltags.</T>
             </p>
 
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
               {SOLOS_SEITEN.map((s) => (
                 <Link key={s.pfad} href={s.pfad}
                   className="group rounded-xl border border-amber-500/20 bg-zinc-900/40 p-4 transition hover:border-amber-400/60 hover:bg-amber-500/[0.06]">

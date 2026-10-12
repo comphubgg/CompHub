@@ -52,14 +52,21 @@ export interface RohTurnier {
   regions?: Array<{ code: string }>;
 }
 interface RohFenster { windowId: string; name: string; startDate?: string; endDate?: string }
-interface RohTeam {
+export interface RohTeam {
   teamId: string;
   coordinates?: Array<[number, number]>;
   players?: Array<{ accountId: string; username?: string }>;
+  rank?: number | null;
+  points?: number | null;
+  wins?: number | null;
 }
 export interface RohDetail {
   tournamentData?: { id: string; tournamentName: string; windows?: RohFenster[] };
-  windowData?: { windowId: string; windowName?: string; windowFullName?: string; teams?: RohTeam[] };
+  windowData?: {
+    windowId: string; windowName?: string; windowFullName?: string; teams?: RohTeam[];
+    /** Das Kartenbild zu dieser Spielversion - mit und ohne Ortsnamen. */
+    map?: { withPOINames?: string; withoutPOINames?: string };
+  };
 }
 
 export interface NobleFenster {

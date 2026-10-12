@@ -1,23 +1,30 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import T from '@/app/components/T';
 import TeamFlagge from '@/components/TeamFlagge';
+import Rollzahl from '@/app/components/Rollzahl';
 
 /*
  * Die Schaukaesten der Startseite: Statistics - Maps - More.
  *
  * Der Betreiber (12.10.2026) hatte bei einem anderen Statistikangebot gesehen, wie eine Startseite wirken kann, und
  * wollte genau diese Art: drei Spalten, Karten, die von allein rotieren (Spieler, Turniere, Global), ein Kartenstreifen,
- * der beim Ueberfahren den Cup wechselt, und kleine Vorschauen auf Tierlist, Heats und Trios. "Einfach halt obviously
- * mein Style" - uebernommen ist also der Aufbau und die Bewegung, nicht die Optik: unser Blau, unsere Schrift, Glas
- * nur hier. Alle Zahlen kommen aus den eigenen Antworten (/api/startvitrine, /api/globals-solos, /api/turnier-karten);
- * fehlt eine, steht an ihrer Stelle ein Hinweis statt einer leeren Flaeche.
+ * der beim Ueberfahren den Cup wechselt, und kleine Vorschauen. "Einfach halt obviously mein Style" - uebernommen ist
+ * der Aufbau und die Bewegung, nicht die Optik: unser Blau, unsere Schrift, Glas nur hier.
+ *
+ * Seine Rueckmeldung zur ersten Fassung: das Ganze breiter (links und rechts war Platz), die Maps groesser; beim Klick auf
+ * einen Cup im Kartenstreifen sollen die anderen verschwinden; die Turnierkarte zeigt wechselnde Cups mit Bild und die
+ * Bestenliste mit dem ganzen Team (Flaggen, Punkte, Siege, Eliminierungen, Platz); die Zahlen der Spieler-Karte rollen
+ * bei jedem neuen Spieler; Heats und Trios gibt es als eigene Seiten nicht - statt ihrer stehen hier die Rangliste und die
+ * Globals Solos (die es als Seite gibt).
+ *
+ * Alle Zahlen kommen aus den eigenen Antworten (/api/startvitrine); fehlt eine, steht ein Hinweis statt einer leeren Flaeche.
  */
 
 const CSS = `
-@keyframes vit-hoch { from { transform: translateY(0); } to { transform: translateY(-50%); } }
 @keyframes vit-fuell { from { transform: scaleX(0); } to { transform: scaleX(1); } }
 @keyframes vit-rein { from { opacity: 0; transform: translateY(12px) scale(.985); } to { opacity: 1; transform: none; } }
 @keyframes vit-rechts { from { opacity: 0; transform: translateX(-14px); } to { opacity: 1; transform: none; } }
@@ -25,22 +32,22 @@ const CSS = `
 .vit-glas { border: 1px solid rgba(255,255,255,.09); background: linear-gradient(160deg, rgba(255,255,255,.055), rgba(255,255,255,.02));
   backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); box-shadow: 0 10px 40px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.06); }
 .vit-karte { border: 1px solid rgba(255,255,255,.07); background: rgba(9,9,11,.55); }
-.vit-schleier { mask-image: linear-gradient(to bottom, transparent 0, #000 14%, #000 86%, transparent 100%);
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 14%, #000 86%, transparent 100%); }
-.vit-scheibe { transition: flex-grow .55s cubic-bezier(.2,.8,.2,1), filter .4s; }
+.vit-gold { border: 1px solid rgba(245,197,66,.28); background: linear-gradient(160deg, rgba(245,197,66,.09), rgba(9,9,11,.55)); }
+.vit-scheibe { transition: flex-grow .6s cubic-bezier(.2,.8,.2,1), filter .4s, opacity .45s, margin .6s; }
 @media (prefers-reduced-motion: reduce) { .vit-an { animation: none !important; } .vit-scheibe { transition: none; } }
 `;
 
 /* ------------------------------------------------------------------ Typen */
 
 interface VSpieler { id: string; name: string; land: string | null; region: string; bild: string | null; elims: number; schaden: number; quote: number; matches: number }
-interface VTurnier { name: string; region: string; datum: number | null; spieler: number; matches: number; sieger: { name: string; land: string | null; elims: number } | null }
+interface VZeile { rang: number; punkte: number; siege: number; elims: number; spieler: Array<{ name: string; land: string | null }> }
+interface VCup { titel: string; cup: string; typ: string; bild: string | null; datum: number | null; region: string; saisonKurz: string; zeilen: VZeile[] }
 interface VRegion { region: string; name: string; land: string | null; elims: number }
-interface VTrio { spieler: Array<{ name: string; land: string | null }>; region: string | null; platz: number | null }
-interface Vitrine { ok: boolean; saison: string | null; spieltage: number | null; spieler: VSpieler[]; turniere: VTurnier[]; regionen: VRegion[]; trios: VTrio[] }
+interface VRang { rang: number; name: string; land: string | null; wertung: number; delta: number }
+interface Vitrine { ok: boolean; saison: string | null; spieler: VSpieler[]; cups: VCup[]; maps: number; regionen: VRegion[]; rangliste: VRang[] }
 interface SolosFenster { windowId: string; name: string; art: string; spieler: Array<{ id: string; anzeige: string; land: string | null }> }
 
-const DATUM = new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: '2-digit', timeZone: 'Europe/Brussels' });
+const DATUM = new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', timeZone: 'Europe/Brussels' });
 
 /* ----------------------------------------------------------------- Helfer */
 
@@ -69,23 +76,6 @@ function useSichtbar<E extends HTMLElement>(): [(el: E | null) => void, boolean]
   return [setHalter, drin];
 }
 
-/** Zaehlt beim Erscheinen von null auf den Wert. */
-function useZaehler(ziel: number, los: boolean, ms = 1400): number {
-  const [wert, setWert] = useState(0);
-  useEffect(() => {
-    if (!los || !ziel) return undefined;
-    let raf = 0; const t0 = performance.now();
-    const schritt = (t: number) => {
-      const p = Math.min(1, (t - t0) / ms);
-      setWert(Math.round(ziel * (1 - Math.pow(1 - p, 3))));
-      if (p < 1) raf = requestAnimationFrame(schritt);
-    };
-    raf = requestAnimationFrame(schritt);
-    return () => cancelAnimationFrame(raf);
-  }, [ziel, los, ms]);
-  return wert;
-}
-
 const zahl = (n: number) => n.toLocaleString('de-DE');
 
 function Gesicht({ name, bild, px }: { name: string; bild: string | null; px: number }) {
@@ -96,12 +86,12 @@ function Gesicht({ name, bild, px }: { name: string; bild: string | null; px: nu
 }
 
 /** Eine Karte mit Kopf: Symbol, Titel, Pfeil zur ganzen Seite. */
-function Karte({ titel, href, symbol, children, className = '' }: { titel: string; href: string; symbol: ReactNode; children: ReactNode; className?: string }) {
+function Karte({ titel, href, symbol, children, gold = false, className = '' }: { titel: string; href: string; symbol: ReactNode; children: ReactNode; gold?: boolean; className?: string }) {
   return (
-    <div className={`vit-karte group/karte rounded-2xl p-4 ${className}`}>
-      <Link href={href} className="mb-3 flex items-center justify-between gap-2 text-slate-100 transition hover:text-sky-400">
+    <div className={`${gold ? 'vit-gold' : 'vit-karte'} group/karte rounded-2xl p-4 ${className}`}>
+      <Link href={href} className={`mb-3 flex items-center justify-between gap-2 transition ${gold ? 'text-amber-200 hover:text-amber-100' : 'text-slate-100 hover:text-sky-400'}`}>
         <span className="flex items-center gap-2 text-sm font-black uppercase tracking-wide">
-          <span className="text-sky-500">{symbol}</span><T>{titel}</T>
+          <span className={gold ? 'text-amber-300' : 'text-sky-500'}>{symbol}</span><T>{titel}</T>
         </span>
         <span aria-hidden className="text-slate-600 transition group-hover/karte:translate-x-0.5 group-hover/karte:text-sky-400">→</span>
       </Link>
@@ -122,12 +112,12 @@ const SYM = {
   welt: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3c3 3 3 15 0 18M12 3c-3 3-3 15 0 18" /></svg>,
   stufen: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 6h10M4 12h14M4 18h8" /></svg>,
   flamme: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 3c1 4 5 5 5 10a5 5 0 0 1-10 0c0-2 1-3 2-4 0 2 1 3 2 3 0-3-1-6 1-9z" /></svg>,
-  gruppe: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="8" cy="9" r="3" /><circle cx="17" cy="10" r="2.5" /><path d="M2 20c.7-3 3-5 6-5s5.3 2 6 5M15 15c3 0 5 1.6 6 4.5" /></svg>,
+  rang: <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M5 20V10M12 20V4M19 20v-7" /></svg>,
 };
 
 /* ------------------------------------------------------- Statistics: Spieler */
 
-const RAD_MS = 4200;
+const RAD_MS = 4600;
 
 function SpielerKarte({ daten, fertig }: { daten: Vitrine | null; fertig: boolean }) {
   const liste = daten?.spieler ?? [];
@@ -139,23 +129,27 @@ function SpielerKarte({ daten, fertig }: { daten: Vitrine | null; fertig: boolea
       {!s ? <Hinweis geladen={fertig} /> : (
         <div onMouseEnter={() => setHalt(true)} onMouseLeave={() => setHalt(false)}>
           <div key={s.id} className="vit-an" style={{ animation: 'vit-rein .55s cubic-bezier(.2,.8,.2,1) both' }}>
-            <div className="flex items-center gap-3 rounded-xl border border-white/[0.07] bg-black/30 px-3 py-2.5">
-              <Gesicht name={s.name} bild={s.bild} px={38} />
+            <Link href={`/statistics?spieler=${encodeURIComponent(s.name)}`}
+              className="flex items-center gap-3 rounded-xl border border-white/[0.07] bg-black/30 px-3 py-2.5 transition hover:border-sky-500/50">
+              <Gesicht name={s.name} bild={s.bild} px={42} />
               <TeamFlagge groesse={18} laender={[s.land ?? undefined]} />
-              <span className="min-w-0 flex-1 truncate text-lg font-black uppercase tracking-wide text-slate-50">{s.name}</span>
+              <span className="min-w-0 flex-1 truncate text-xl font-black uppercase tracking-wide text-slate-50">{s.name}</span>
               <span className="rounded border border-sky-500/30 bg-sky-500/10 px-1.5 py-0.5 text-[10px] font-bold text-sky-300">{s.region}</span>
-            </div>
+            </Link>
             <div className="mt-2 grid grid-cols-3 gap-2">
               {([['Quote', s.quote.toFixed(2), 'text-emerald-400'], ['Elims', zahl(s.elims), 'text-slate-50'], ['Schaden', zahl(s.schaden), 'text-slate-50']] as const).map(([t, w, farbe]) => (
-                <div key={t} className="rounded-xl border border-white/[0.07] bg-black/30 px-2 py-2 text-center">
+                <div key={t} className="rounded-xl border border-white/[0.07] bg-black/30 px-2 py-2.5 text-center">
                   <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-500"><T>{t}</T></p>
-                  <p className={`mt-0.5 text-lg font-black tabular-nums ${farbe}`}>{w}</p>
+                  <p className={`mt-0.5 text-xl font-black tabular-nums ${farbe}`}><Rollzahl wert={w} los dauer={900} /></p>
                 </div>
               ))}
             </div>
           </div>
-          <div className="mt-3 h-[3px] overflow-hidden rounded-full bg-white/[0.07]">
-            <div key={i} className="vit-an h-full origin-left bg-sky-500" style={{ animation: `vit-fuell ${RAD_MS}ms linear both`, animationPlayState: halt ? 'paused' : 'running' }} />
+          <div className="mt-3 flex items-center gap-3">
+            <div className="h-[3px] flex-1 overflow-hidden rounded-full bg-white/[0.07]">
+              <div key={i} className="vit-an h-full origin-left bg-sky-500" style={{ animation: `vit-fuell ${RAD_MS}ms linear both`, animationPlayState: halt ? 'paused' : 'running' }} />
+            </div>
+            <span className="text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-600"><T>alle Saisons</T></span>
           </div>
         </div>
       )}
@@ -165,33 +159,62 @@ function SpielerKarte({ daten, fertig }: { daten: Vitrine | null; fertig: boolea
 
 /* ------------------------------------------------------ Statistics: Turniere */
 
-function TurnierKarte({ daten, fertig }: { daten: Vitrine | null; fertig: boolean }) {
-  const liste = daten?.turniere ?? [];
-  // Doppelt gelegt: bei der halben Hoehe springt die Schleife unmerklich zurueck.
-  const doppelt = useMemo(() => [...liste, ...liste], [liste]);
+const CUP_MS = 7500;
+
+/** Ein Cup nach dem anderen - mit Bild, Datum, Region und den ersten Teams der Bestenliste. */
+function CupKarte({ daten, fertig }: { daten: Vitrine | null; fertig: boolean }) {
+  const liste = daten?.cups ?? [];
   const [halt, setHalt] = useState(false);
+  const i = useRad(liste.length, CUP_MS, halt);
+  const c = liste[i];
   return (
     <Karte titel="Turniere" href="/events" symbol={SYM.pokal}>
-      {liste.length === 0 ? <Hinweis geladen={fertig} /> : (
-        <div className="vit-schleier h-[170px] overflow-hidden" onMouseEnter={() => setHalt(true)} onMouseLeave={() => setHalt(false)}>
-          <ul className="vit-an" style={{ animation: `vit-hoch ${Math.max(24, liste.length * 4)}s linear infinite`, animationPlayState: halt ? 'paused' : 'running' }}>
-            {doppelt.map((t, k) => (
-              <li key={k} className="flex items-center gap-2 border-b border-white/[0.05] py-2 text-xs">
-                <span className="w-9 shrink-0 rounded bg-white/[0.06] px-1 py-0.5 text-center text-[9px] font-bold text-slate-300">{t.region}</span>
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate font-semibold text-slate-200">{t.name}</span>
-                  <span className="block text-[10px] tabular-nums text-slate-600">{t.datum ? DATUM.format(new Date(t.datum)) : ''}{t.spieler ? ` · ${zahl(t.spieler)}` : ''}</span>
-                </span>
-                {t.sieger && (
-                  <span className="flex shrink-0 items-center gap-1.5 text-[11px] text-slate-300">
-                    <TeamFlagge groesse={13} laender={[t.sieger.land ?? undefined]} />
-                    <span className="max-w-[72px] truncate font-semibold uppercase">{t.sieger.name}</span>
-                    <span className="tabular-nums text-sky-400">{t.sieger.elims}</span>
-                  </span>
-                )}
-              </li>
-            ))}
-          </ul>
+      {!c ? <Hinweis geladen={fertig} /> : (
+        <div onMouseEnter={() => setHalt(true)} onMouseLeave={() => setHalt(false)}>
+          <div key={c.titel} className="vit-an" style={{ animation: 'vit-rein .55s cubic-bezier(.2,.8,.2,1) both' }}>
+            <div className="mb-2 flex items-center gap-3">
+              {c.bild && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={encodeURI(c.bild)} alt="" loading="lazy" className="h-10 w-[72px] shrink-0 rounded-md border border-white/10 object-cover" />
+              )}
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-sm font-black uppercase tracking-wide text-slate-100">{c.titel.replace(/\s*·\s*/g, ' – ')}</p>
+                <p className="mt-0.5 flex items-center gap-2 text-[10px] font-semibold uppercase tracking-[0.12em] text-slate-500">
+                  <span className="rounded bg-white/[0.08] px-1 py-0.5 text-slate-300">{c.region}</span>
+                  <span>{c.saisonKurz}</span>{c.datum ? <span>{DATUM.format(new Date(c.datum))}</span> : null}
+                </p>
+              </div>
+            </div>
+            <table className="w-full text-[11px]">
+              <thead>
+                <tr className="text-left text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-600">
+                  <th className="w-6 pb-1">#</th><th className="pb-1">Team</th><th className="w-10 pb-1 text-right">Pts</th><th className="w-8 pb-1 text-right" title="Victory Royales">VR</th><th className="w-10 pb-1 text-right">Elims</th>
+                </tr>
+              </thead>
+              <tbody>
+                {c.zeilen.slice(0, 5).map((z, k) => (
+                  <tr key={z.rang} className="vit-an border-t border-white/[0.05]" style={{ animation: `vit-rechts .45s ${k * 90}ms cubic-bezier(.2,.8,.2,1) both` }}>
+                    <td className="py-1.5 text-[10px] font-bold tabular-nums text-slate-500">{z.rang}</td>
+                    <td className="py-1.5">
+                      <span className="flex flex-wrap items-center gap-x-2 gap-y-0.5">
+                        {z.spieler.map((p) => (
+                          <span key={p.name} className="flex items-center gap-1 font-bold uppercase text-slate-200">
+                            <TeamFlagge groesse={12} laender={[p.land ?? undefined]} />{p.name}
+                          </span>
+                        ))}
+                      </span>
+                    </td>
+                    <td className="py-1.5 text-right font-bold tabular-nums text-sky-400">{z.punkte}</td>
+                    <td className="py-1.5 text-right tabular-nums text-slate-300">{z.siege}</td>
+                    <td className="py-1.5 text-right tabular-nums text-slate-300">{z.elims}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="mt-2 flex items-center justify-center gap-1.5">
+            {liste.map((x, k) => <span key={x.titel} className={`h-1 rounded-full transition-all duration-500 ${k === i ? 'w-6 bg-sky-500' : 'w-2 bg-white/15'}`} />)}
+          </div>
         </div>
       )}
     </Karte>
@@ -219,7 +242,7 @@ function GlobalKarte({ daten, fertig }: { daten: Vitrine | null; fertig: boolean
               <li key={r.region} className="flex items-center gap-2 text-[11px]">
                 <span className="w-9 shrink-0 font-bold text-slate-400">{r.region}</span>
                 <span className="relative h-4 flex-1 overflow-hidden rounded bg-white/[0.05]">
-                  <span className="vit-an absolute inset-y-0 left-0 origin-left rounded transition-colors duration-500"
+                  <span className="absolute inset-y-0 left-0 origin-left rounded"
                     style={{
                       width: `${(r.elims / max) * 100}%`,
                       background: k === hell ? 'linear-gradient(90deg,#0284c7,#38bdf8)' : 'linear-gradient(90deg,#0c4a6e,#0369a1)',
@@ -231,7 +254,7 @@ function GlobalKarte({ daten, fertig }: { daten: Vitrine | null; fertig: boolean
                     <span className="truncate uppercase">{r.name}</span>
                   </span>
                 </span>
-                <span className="w-9 shrink-0 text-right font-bold tabular-nums text-slate-200">{zahl(r.elims)}</span>
+                <span className="w-10 shrink-0 text-right font-bold tabular-nums text-slate-200">{zahl(r.elims)}</span>
               </li>
             ))}
           </ul>
@@ -250,47 +273,72 @@ const SCHEIBEN: Array<{ titel: string; bild: string; typ: string }> = [
   { titel: 'Reload', bild: '/tournaments/Reload Elite Series Finals.jpg', typ: 'reload' },
 ];
 
-function MapsSpalte({ anzahl }: { anzahl: number | null }) {
+function MapsSpalte({ anzahl }: { anzahl: number }) {
+  const router = useRouter();
   const [auf, setAuf] = useState<number | null>(null);
+  const [gewaehlt, setGewaehlt] = useState<number | null>(null);
   const [setHalter, drin] = useSichtbar<HTMLDivElement>();
-  const gezaehlt = useZaehler(anzahl ?? 0, drin);
-  return (
-    <div ref={setHalter} className="vit-glas flex min-h-[420px] flex-col overflow-hidden rounded-3xl p-5">
-      <h3 className="text-4xl font-black uppercase tracking-tight text-slate-50 sm:text-5xl">Maps</h3>
-      <p className="mt-1 max-w-xs text-xs leading-relaxed text-slate-400"><T>Wo die Teams gelandet sind — jeder Cup, jede Saison.</T></p>
+  const [gezaehlt, setGezaehlt] = useState(0);
+  useEffect(() => {
+    if (!drin || !anzahl) return undefined;
+    let raf = 0; const t0 = performance.now();
+    const schritt = (t: number) => {
+      const p = Math.min(1, (t - t0) / 1400);
+      setGezaehlt(Math.round(anzahl * (1 - Math.pow(1 - p, 3))));
+      if (p < 1) raf = requestAnimationFrame(schritt);
+    };
+    raf = requestAnimationFrame(schritt);
+    return () => cancelAnimationFrame(raf);
+  }, [drin, anzahl]);
 
-      <div className="relative mt-4 flex min-h-[260px] flex-1 overflow-hidden rounded-2xl" onMouseLeave={() => setAuf(null)}>
+  /** Ein Klick laesst die anderen verschwinden; der gewaehlte fuellt den Streifen, dann geht es zur Seite. */
+  const waehle = (k: number, typ: string) => {
+    setGewaehlt(k);
+    window.setTimeout(() => router.push(`/tournament-maps?typ=${typ}`), 520);
+  };
+
+  return (
+    <div ref={setHalter} className="vit-glas flex min-h-[560px] flex-col overflow-hidden rounded-3xl p-6">
+      <h3 className="text-4xl font-black uppercase tracking-tight text-slate-50 sm:text-6xl">Maps</h3>
+      <p className="mt-1 max-w-sm text-xs leading-relaxed text-slate-400"><T>Wo die Teams gelandet sind — jeder Cup, jede Saison.</T></p>
+
+      <div className="relative mt-5 flex min-h-[360px] flex-1 overflow-hidden rounded-2xl" onMouseLeave={() => setAuf(null)}>
         {SCHEIBEN.map((s, k) => {
           const an = auf === k;
+          const weg = gewaehlt !== null && gewaehlt !== k;
+          const fokus = gewaehlt === k;
           return (
-            <Link key={s.typ} href={`/tournament-maps?typ=${s.typ}`} onMouseEnter={() => setAuf(k)} onFocus={() => setAuf(k)}
+            <Link key={s.typ} href={`/tournament-maps?typ=${s.typ}`}
+              onClick={(e) => { e.preventDefault(); if (gewaehlt === null) waehle(k, s.typ); }}
+              onMouseEnter={() => setAuf(k)} onFocus={() => setAuf(k)}
               className="vit-scheibe group/s relative block overflow-hidden"
               style={{
-                flexGrow: an ? 3.2 : 1, flexBasis: 0, marginLeft: k ? '-3.2%' : 0,
-                clipPath: 'polygon(7% 0, 100% 0, 93% 100%, 0 100%)',
-                filter: auf !== null && !an ? 'brightness(.55) saturate(.7)' : 'none',
+                flexGrow: weg ? 0.0001 : fokus ? 1 : an ? 3.2 : 1, flexBasis: 0, minWidth: 0,
+                marginLeft: k && !weg ? '-3.2%' : 0, opacity: weg ? 0 : 1, pointerEvents: weg ? 'none' : 'auto',
+                clipPath: fokus ? 'polygon(0 0, 100% 0, 100% 100%, 0 100%)' : 'polygon(7% 0, 100% 0, 93% 100%, 0 100%)',
+                filter: auf !== null && !an && !fokus ? 'brightness(.55) saturate(.7)' : 'none',
               }}>
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={encodeURI(s.bild)} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover/s:scale-110" />
               <span className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-black/10" />
-              <span className="absolute inset-x-0 bottom-0 px-4 pb-4">
-                <span className="block text-[11px] font-black uppercase leading-tight tracking-wide text-white drop-shadow sm:text-sm">
+              <span className="absolute inset-x-0 bottom-0 px-4 pb-5">
+                <span className="block text-[11px] font-black uppercase leading-tight tracking-wide text-white drop-shadow sm:text-base">
                   <T>{s.titel}</T>
                 </span>
-                <span className="mt-1 block h-0.5 origin-left bg-sky-400 transition-transform duration-500" style={{ transform: an ? 'scaleX(1)' : 'scaleX(0)' }} />
+                <span className="mt-1.5 block h-0.5 origin-left bg-sky-400 transition-transform duration-500" style={{ transform: an || fokus ? 'scaleX(1)' : 'scaleX(0)' }} />
               </span>
             </Link>
           );
         })}
       </div>
 
-      <div className="mt-4 flex items-end justify-between gap-3">
-        <p className="text-4xl font-black tabular-nums leading-none text-sky-400 sm:text-5xl">
+      <div className="mt-5 flex items-end justify-between gap-3">
+        <p className="text-4xl font-black tabular-nums leading-none text-sky-400 sm:text-6xl">
           {anzahl ? <>{zahl(gezaehlt)}<span className="text-sky-500">+</span></> : '—'}
           <span className="ml-2 align-middle text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Maps</span>
         </p>
         <Link href="/tournament-maps"
-          className="rounded-xl bg-white px-4 py-2.5 text-xs font-bold text-zinc-900 shadow-lg transition hover:bg-sky-100">
+          className="rounded-xl bg-white px-5 py-3 text-sm font-bold text-zinc-900 shadow-lg transition hover:bg-sky-100">
           <T>Alle Maps ansehen</T> →
         </Link>
       </div>
@@ -301,47 +349,53 @@ function MapsSpalte({ anzahl }: { anzahl: number | null }) {
 /* ------------------------------------------------------------------ More */
 
 const STUFEN = [
-  { buchstabe: 'S', farbe: 'bg-red-500' },
-  { buchstabe: 'A', farbe: 'bg-orange-500' },
-  { buchstabe: 'B', farbe: 'bg-amber-400' },
+  { buchstabe: 'S', farbe: 'bg-red-500', rand: 'border-red-500/40' },
+  { buchstabe: 'A', farbe: 'bg-orange-500', rand: 'border-orange-500/40' },
+  { buchstabe: 'B', farbe: 'bg-amber-400', rand: 'border-amber-400/40' },
 ];
 
+/** Die Tierlist als drei Saeulen mit Gesichtern - bewusst anders als eine Zeilenliste. */
 function TierlistKarte({ daten, fertig }: { daten: Vitrine | null; fertig: boolean }) {
   const liste = daten?.spieler ?? [];
   return (
     <Karte titel="Tierlist" href="/tierlist" symbol={SYM.stufen}>
-      {liste.length < 3 ? <Hinweis geladen={fertig} /> : (
-        <div className="space-y-1.5">
-          {STUFEN.map((st, r) => (
-            <div key={st.buchstabe} className="vit-an flex items-stretch gap-1.5 overflow-hidden rounded-lg border border-white/[0.07] bg-black/30"
-              style={{ animation: `vit-rechts .5s ${r * 120}ms cubic-bezier(.2,.8,.2,1) both` }}>
-              <span className={`flex w-9 shrink-0 items-center justify-center text-base font-black text-zinc-950 ${st.farbe}`}>{st.buchstabe}</span>
-              <span className="flex min-w-0 flex-1 flex-wrap gap-1 py-1.5 pr-1.5">
-                {liste.slice(r * 3, r * 3 + 3).map((s) => (
-                  <span key={s.id} className="flex items-center gap-1 rounded-md border border-white/[0.08] bg-zinc-900/70 px-1.5 py-1 text-[10px] font-bold uppercase text-slate-200">
-                    <TeamFlagge groesse={12} laender={[s.land ?? undefined]} />{s.name}
-                  </span>
-                ))}
-              </span>
-            </div>
-          ))}
-          <p className="pt-0.5 text-[10px] text-slate-600"><T>Vorschau nach Eliminierungen — bau deine eigene.</T></p>
-        </div>
+      {liste.length < 9 ? <Hinweis geladen={fertig} /> : (
+        <>
+          <div className="grid grid-cols-3 gap-2">
+            {STUFEN.map((st, r) => (
+              <div key={st.buchstabe} className={`vit-an overflow-hidden rounded-xl border bg-black/30 ${st.rand}`}
+                style={{ animation: `vit-rein .5s ${r * 120}ms cubic-bezier(.2,.8,.2,1) both` }}>
+                <div className={`flex items-center justify-center py-1 text-base font-black text-zinc-950 ${st.farbe}`}>{st.buchstabe}</div>
+                <div className="space-y-1.5 p-2">
+                  {liste.slice(r * 3, r * 3 + 3).map((s) => (
+                    <div key={s.id} className="flex items-center gap-2">
+                      <Gesicht name={s.name} bild={s.bild} px={26} />
+                      <span className="min-w-0 flex-1 truncate text-[10px] font-bold uppercase text-slate-200">{s.name}</span>
+                      <TeamFlagge groesse={11} laender={[s.land ?? undefined]} />
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+          <p className="pt-2 text-[10px] text-slate-600"><T>Vorschau nach Eliminierungen — bau deine eigene.</T></p>
+        </>
       )}
     </Karte>
   );
 }
 
-function HeatKarte({ heats, geladen }: { heats: SolosFenster[] | null; geladen: boolean }) {
+/** Die Globals Solos - als goldenes Extra, mit den Heats. */
+function SoloKarte({ heats, fertig }: { heats: SolosFenster[] | null; fertig: boolean }) {
   const zeigen = (heats ?? []).filter((h) => h.spieler.length).slice(0, 3);
   return (
-    <Karte titel="Heats" href="/globals-solos/heats" symbol={SYM.flamme}>
-      {zeigen.length === 0 ? (heats && geladen ? <p className="py-4 text-center text-xs text-slate-600"><T>Noch keine Heats eingeteilt.</T></p> : <Hinweis geladen={geladen} />) : (
+    <Karte titel="Globals Solos" href="/globals-solos" symbol={SYM.flamme} gold>
+      {zeigen.length === 0 ? (heats && fertig ? <p className="py-4 text-center text-xs text-slate-500"><T>Noch keine Heats eingeteilt.</T></p> : <Hinweis geladen={fertig} />) : (
         <div className="grid grid-cols-3 gap-1.5">
           {zeigen.map((h, k) => (
-            <div key={h.windowId} className="vit-an rounded-lg border border-white/[0.07] bg-black/30 p-1.5"
+            <div key={h.windowId} className="vit-an rounded-lg border border-amber-400/15 bg-black/30 p-2"
               style={{ animation: `vit-rein .5s ${k * 130}ms cubic-bezier(.2,.8,.2,1) both` }}>
-              <p className="mb-1 text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-500">{h.name}</p>
+              <p className="mb-1 text-[9px] font-semibold uppercase tracking-[0.14em] text-amber-300/80">{h.name}</p>
               {h.spieler.slice(0, 3).map((s) => (
                 <p key={s.id} className="flex items-center gap-1 truncate py-0.5 text-[10px] font-bold uppercase text-slate-200">
                   <TeamFlagge groesse={11} laender={[s.land ?? undefined]} /><span className="truncate">{s.anzeige}</span>
@@ -355,27 +409,26 @@ function HeatKarte({ heats, geladen }: { heats: SolosFenster[] | null; geladen: 
   );
 }
 
-function TrioKarte({ daten, fertig }: { daten: Vitrine | null; fertig: boolean }) {
-  const liste = daten?.trios ?? [];
-  const [halt, setHalt] = useState(false);
-  const seiten = Math.max(1, Math.floor(liste.length / 3));
-  const i = useRad(seiten, 5000, halt);
-  const zeigen = liste.slice(i * 3, i * 3 + 3);
+/** Die ersten fuenf der Power Rankings. */
+function RangKarte({ daten, fertig }: { daten: Vitrine | null; fertig: boolean }) {
+  const liste = daten?.rangliste ?? [];
   return (
-    <Karte titel="Trios" href="/tierlist" symbol={SYM.gruppe}>
-      {zeigen.length === 0 ? <Hinweis geladen={fertig} /> : (
-        <div key={i} className="space-y-1.5" onMouseEnter={() => setHalt(true)} onMouseLeave={() => setHalt(false)}>
-          {zeigen.map((t, k) => (
-            <div key={t.spieler.map((s) => s.name).join('|')} className="vit-an flex items-center gap-2.5 rounded-lg border border-white/[0.07] bg-black/30 px-2.5 py-2"
-              style={{ animation: `vit-rechts .5s ${k * 110}ms cubic-bezier(.2,.8,.2,1) both` }}>
-              {t.spieler.map((s) => (
-                <span key={s.name} className="flex min-w-0 items-center gap-1 text-[10px] font-bold uppercase text-slate-200">
-                  <TeamFlagge groesse={12} laender={[s.land ?? undefined]} /><span className="truncate">{s.name}</span>
-                </span>
-              ))}
-            </div>
+    <Karte titel="Rankings" href="/power-rankings" symbol={SYM.rang}>
+      {liste.length === 0 ? <Hinweis geladen={fertig} /> : (
+        <ul className="space-y-1">
+          {liste.map((r, k) => (
+            <li key={r.rang} className="vit-an flex items-center gap-2.5 rounded-lg border border-white/[0.06] bg-black/30 px-2.5 py-1.5"
+              style={{ animation: `vit-rechts .45s ${k * 90}ms cubic-bezier(.2,.8,.2,1) both` }}>
+              <span className="w-4 text-center text-[11px] font-black tabular-nums text-slate-500">{r.rang}</span>
+              <TeamFlagge groesse={13} laender={[r.land ?? undefined]} />
+              <span className="min-w-0 flex-1 truncate text-[11px] font-bold uppercase text-slate-100">{r.name}</span>
+              <span className="text-[11px] font-bold tabular-nums text-sky-400">{zahl(r.wertung)}</span>
+              <span className={`w-6 text-right text-[10px] font-bold tabular-nums ${r.delta > 0 ? 'text-emerald-400' : r.delta < 0 ? 'text-rose-400' : 'text-slate-600'}`}>
+                {r.delta > 0 ? `▲${r.delta}` : r.delta < 0 ? `▼${-r.delta}` : '–'}
+              </span>
+            </li>
           ))}
-        </div>
+        </ul>
       )}
     </Karte>
   );
@@ -386,19 +439,16 @@ function TrioKarte({ daten, fertig }: { daten: Vitrine | null; fertig: boolean }
 export default function StartVitrine() {
   const [daten, setDaten] = useState<Vitrine | null>(null);
   const [heats, setHeats] = useState<SolosFenster[] | null>(null);
-  const [mapsAnzahl, setMapsAnzahl] = useState<number | null>(null);
   const [geladen, setGeladen] = useState(false);
   const geholt = useRef(false);
 
   useEffect(() => {
     if (geholt.current) return;
     geholt.current = true;
-    const frist = () => AbortSignal.timeout(15_000);
-    const j = (a: string) => fetch(a, { signal: frist(), cache: 'no-store' }).then((r) => r.json());
+    const j = (a: string) => fetch(a, { signal: AbortSignal.timeout(20_000), cache: 'no-store' }).then((r) => r.json());
     void Promise.allSettled([
       j('/api/startvitrine').then((v: Vitrine) => { if (v?.ok) setDaten(v); }),
       j('/api/globals-solos').then((v: { ok?: boolean; fenster?: SolosFenster[] }) => { if (v?.ok) setHeats((v.fenster ?? []).filter((f) => f.art === 'heat')); }),
-      j('/api/turnier-karten?liste=1').then((v: { karten?: unknown[] }) => { if (Array.isArray(v?.karten)) setMapsAnzahl(v.karten.length); }),
     ]).finally(() => setGeladen(true));
   }, []);
 
@@ -406,29 +456,29 @@ export default function StartVitrine() {
     <section className="relative px-4 py-16">
       <style>{CSS}</style>
       <div aria-hidden className="pointer-events-none absolute inset-x-0 top-10 mx-auto h-72 max-w-5xl rounded-full bg-sky-500/[0.06] blur-[110px]" />
-      <div className="relative mx-auto grid max-w-6xl gap-4 lg:grid-cols-[1fr_1.12fr_1fr]">
+      <div className="relative mx-auto grid max-w-[1760px] gap-5 xl:grid-cols-[1fr_1.4fr_1fr]">
         {/* ---------------------------------------------------- Statistics */}
-        <div className="vit-glas rounded-3xl p-5">
-          <h3 className="text-4xl font-black uppercase tracking-tight text-slate-50 sm:text-5xl"><T>Statistiken</T></h3>
+        <div className="vit-glas rounded-3xl p-6">
+          <h3 className="text-4xl font-black uppercase tracking-tight text-slate-50 sm:text-6xl"><T>Statistiken</T></h3>
           <p className="mt-1 text-xs leading-relaxed text-slate-400"><T>Aus den Spielwerten jedes Cups — nach jedem Event erneuert.</T></p>
-          <div className="mt-4 space-y-3">
+          <div className="mt-5 space-y-3">
             <SpielerKarte daten={daten} fertig={geladen} />
-            <TurnierKarte daten={daten} fertig={geladen} />
+            <CupKarte daten={daten} fertig={geladen} />
             <GlobalKarte daten={daten} fertig={geladen} />
           </div>
         </div>
 
         {/* ---------------------------------------------------------- Maps */}
-        <MapsSpalte anzahl={mapsAnzahl} />
+        <MapsSpalte anzahl={daten?.maps ?? 0} />
 
         {/* ----------------------------------------------------------- More */}
-        <div className="vit-glas rounded-3xl p-5">
-          <h3 className="text-4xl font-black uppercase tracking-tight text-slate-50 sm:text-5xl"><T>Mehr</T></h3>
-          <p className="mt-1 text-xs leading-relaxed text-slate-400"><T>Eigene Tierlist bauen, die Heats der Solos und die aktuellen Trios.</T></p>
-          <div className="mt-4 space-y-3">
+        <div className="vit-glas rounded-3xl p-6">
+          <h3 className="text-4xl font-black uppercase tracking-tight text-slate-50 sm:text-6xl"><T>Mehr</T></h3>
+          <p className="mt-1 text-xs leading-relaxed text-slate-400"><T>Eigene Tierlist bauen, die Rankings ansehen und die Globals Solos verfolgen.</T></p>
+          <div className="mt-5 space-y-3">
             <TierlistKarte daten={daten} fertig={geladen} />
-            <HeatKarte heats={heats} geladen={geladen} />
-            <TrioKarte daten={daten} fertig={geladen} />
+            <RangKarte daten={daten} fertig={geladen} />
+            <SoloKarte heats={heats} fertig={geladen} />
           </div>
         </div>
       </div>

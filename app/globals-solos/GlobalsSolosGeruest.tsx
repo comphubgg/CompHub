@@ -25,6 +25,7 @@ export const SOLOS_SEITEN: Array<{ pfad: string; titel: string; was: string }> =
   { pfad: '/globals-solos/qualifiziert', titel: 'Qualifiziert', was: 'Wer im Finale steht, und wie er sich qualifiziert hat' },
   { pfad: '/globals-solos/heats', titel: 'Heats', was: 'Die Spieler jedes Heats' },
   { pfad: '/globals-solos/map', titel: 'Map', was: 'Die Karte jedes Spieltags - wer wo landet' },
+  { pfad: '/globals-solos/laender', titel: 'Länder', was: 'Spieler nach Land — je Spieltag' },
 ];
 
 export default function GlobalsSolosGeruest({ aktiv, children }: {
@@ -95,7 +96,7 @@ export default function GlobalsSolosGeruest({ aktiv, children }: {
       <div className="mx-auto max-w-[1500px] space-y-8 px-4 py-6">
         <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
           <span>
-            <T>Quelle: Noble Practice. Die Seite erneuert sich alle zwei Minuten.</T>
+            <T>Die Seite erneuert sich alle zwei Minuten.</T>
             {daten && <> · <T>Stand</T> {uhr(daten.stand)}</>}
           </span>
           <button type="button" onClick={() => void holen(zugang.admin)} disabled={laedt}

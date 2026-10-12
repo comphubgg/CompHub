@@ -39,8 +39,20 @@ export interface SolosFenster {
   start: string | null;
   end: string | null;
   spieler: SolosSpieler[];
+  /** Die Teams des Spieltags (bei Solos je ein Spieler) - mit Platz und Punkten, wo es sie schon gibt. */
+  teams?: SolosTeam[];
+  /** Das Kartenbild zu diesem Spieltag (die Karte der Spielversion, bei Reload die Reload-Karte). */
+  bild?: string | null;
   /** Die Landepunkte, mit den Anzeigenamen der Spieler darauf - Ecken in Prozent des Kartenbildes. */
-  formen: Array<{ punkte: Array<{ x: number; y: number }>; spieler: string[] }>;
+  formen: Array<{ punkte: Array<{ x: number; y: number }>; spieler: string[]; /** Wie viele Teams auf dieser Stelle stehen. */ teams?: number }>;
+}
+
+export interface SolosTeam {
+  id: string;
+  spieler: SolosSpieler[];
+  rang: number | null;
+  punkte: number | null;
+  siege: number | null;
 }
 
 export interface SolosGruppe {
@@ -127,13 +139,26 @@ function fensterAus(w: { windowId: string; name: string; startDate?: string; end
   }
   const nachId = new Map(spieler.map((s) => [s.id, s]));
   const { formen } = d ? formenAus(d) : { formen: [] };
+  const teamListe: SolosTeam[] = [];
+  for (const t of teams) {
+    const mitglieder = (t.players ?? []).filter((p) => p.accountId).map((p) => nachId.get(p.accountId)).filter((x): x is SolosSpieler => !!x);
+    if (!mitglieder.length) continue;
+    teamListe.push({
+      id: t.teamId, spieler: mitglieder,
+      rang: typeof t.rank === 'number' ? t.rank : null, punkte: typeof t.points === 'number' ? t.points : null,
+      siege: typeof t.wins === 'number' ? t.wins : null,
+    });
+  }
   return {
     windowId: w.windowId, name: w.name, art: artVon(w.name),
     start: w.startDate ?? null, end: w.endDate ?? null,
     spieler,
+    teams: teamListe,
+    bild: d?.windowData?.map?.withoutPOINames ?? null,
     formen: formen.map((f) => ({
       punkte: f.punkte,
       spieler: f.teams.flatMap((t) => t.ids.map((id) => nachId.get(id)?.anzeige ?? '')).filter(Boolean),
+      teams: f.teams.length,
     })),
   };
 }

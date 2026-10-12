@@ -11,7 +11,8 @@ import { useEffect, useState } from 'react';
  * Bewegung abgestellt hat, sieht die fertige Zahl sofort.
  */
 export default function Rollzahl({ wert, los, ort = 'de-DE', dauer = 1100, className = '' }: {
-  wert: number | null;
+  /** Eine Zahl - oder schon fertig geschriebener Text wie "1.45", dessen Ziffern rollen. */
+  wert: number | string | null;
   los: boolean;
   ort?: string;
   /** Wie lange die laengste Ziffer rollt (ms). */
@@ -32,7 +33,7 @@ export default function Rollzahl({ wert, los, ort = 'de-DE', dauer = 1100, class
   }, [los, wert]);
 
   if (wert === null) return <span className={className}>—</span>;
-  const text = wert.toLocaleString(ort);
+  const text = typeof wert === 'string' ? wert : wert.toLocaleString(ort);
   const zeichen = [...text];
   const gezeigt = ruhig ? true : an;
 

@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server';
 import { abgelegteAntwort, ohneDateien, CDN_FRIST } from '@/lib/antwortSpeicher';
 import { cupNameAusKennung, rundenName } from '@/lib/rundenName';
-import { GET as triosLesen } from '../tierlist-trios/route';
+import { mapsVerzeichnis, type MapEintrag, type MapTyp } from '@/lib/mapsVerzeichnis';
+import { gecacht, holeTop } from '@/lib/epicCups';
+import { liesJson } from '@/lib/ablage';
+import { GET as prLesen } from '../power-rankings/route';
 
 /*
  * Die Schaukaesten der Startseite - ein paar Kilobyte statt der ganzen Startansicht.
@@ -63,12 +66,48 @@ function kachelName(k: Kachel): string {
   return [cup || k.turnier.name, runde].filter(Boolean).join(' · ');
 }
 
+interface CupZeile { rang: number; punkte: number; siege: number; elims: number; spieler: Array<{ name: string; land: string | null }> }
+interface VCup { titel: string; cup: string; typ: MapTyp; bild: string | null; datum: number | null; region: string; saisonKurz: string; zeilen: CupZeile[] }
+
+/**
+ * Vier verschiedene Cups mit den ersten Plaetzen ihrer Bestenliste - fuer die "Turniere"-Karte der Startseite.
+ *
+ * Der Betreiber (12.10.2026): nicht immer derselbe Cup, "mehrere verschiedene Cups, mehrere verschiedene Thumbnails",
+ * und die Liste mit dem ganzen Team: Flaggen, Punkte, Siege (VR), Eliminierungen, Platz. Je Art (Performance, Division,
+ * FNCS, Reload) der neueste beendete Spieltag, dessen Ereignis Epic kennt.
+ */
+async function cupsHolen(): Promise<VCup[]> {
+  const liste = await mapsVerzeichnis();
+  const jetzt = Date.now();
+  const fertig = liste.filter((e) => e.eventId && e.datum && (e.ende ?? (e.datum as number) + 4 * 3600_000) < jetzt);
+  const wahl: MapEintrag[] = [];
+  for (const typ of ['performance', 'division', 'fncs', 'reload'] as MapTyp[]) {
+    const e = fertig.filter((x) => x.typ === typ).sort((a, b) => (b.datum ?? 0) - (a.datum ?? 0))[0];
+    if (e) wahl.push(e);
+  }
+  const profile = await liesJson<Record<string, { anzeige?: string; name?: string; land?: string }>>('spieler-profile.json', {}).catch(() => ({} as Record<string, { anzeige?: string; name?: string; land?: string }>));
+  const raus: VCup[] = [];
+  await Promise.all(wahl.map(async (e) => {
+    try {
+      const top = await gecacht(`vitrine|top|${e.windowId}`, 15 * 60_000, () => holeTop(e.eventId as string, e.windowId, 8, true));
+      const zeilen: CupZeile[] = ((top as { entries?: Array<{ rank: number; points: number; wins: number; elims: number; players: Array<{ id: string; name?: string }> }> }).entries ?? [])
+        .slice(0, 6).map((z) => ({
+          rang: z.rank, punkte: z.points, siege: z.wins, elims: z.elims,
+          spieler: z.players.map((p) => ({ name: profile[p.id]?.anzeige || profile[p.id]?.name || (p.name && p.name !== p.id ? p.name : p.id.slice(0, 6)), land: (profile[p.id]?.land ?? '').toUpperCase() || null })),
+        }));
+      if (zeilen.length) raus.push({ titel: e.titel, cup: e.cup, typ: e.typ, bild: e.bild, datum: e.datum, region: e.region, saisonKurz: e.saisonKurz, zeilen });
+    } catch { /* ohne Bestenliste faellt dieser Cup weg */ }
+  }));
+  const reihenfolge = ['performance', 'division', 'fncs', 'reload'];
+  return raus.sort((a, b) => reihenfolge.indexOf(a.typ) - reihenfolge.indexOf(b.typ));
+}
+
 export async function GET(request: Request) {
   if (merker && merker.bis > Date.now()) {
     return NextResponse.json(merker.antwort, { headers: { 'Cache-Control': CDN_FRIST } });
   }
   const start = await startHolen(request);
-  if (!start) return NextResponse.json({ ok: false, spieler: [], turniere: [], regionen: [], trios: [] }, { status: 200 });
+  if (!start) return NextResponse.json({ ok: false, spieler: [], cups: [], regionen: [], maps: 0 }, { status: 200 });
 
   const alle = (start.profile ?? []).flatMap((p) => p.spieler);
   const spieler = [...alle].sort((a, b) => (b.elims ?? 0) - (a.elims ?? 0)).slice(0, 14).map(schlank);
@@ -80,26 +119,26 @@ export async function GET(request: Request) {
     .map((r) => ({ region: r.region, name: r.bester.anzeige || r.bester.name, land: r.bester.land ?? null, elims: r.bester.elims ?? 0 }))
     .sort((a, b) => b.elims - a.elims);
 
-  const turniere = (start.kacheln ?? []).slice(0, 15).map((k) => ({
-    name: kachelName(k), region: k.turnier.region, datum: k.turnier.datum,
-    spieler: k.turnier.spieler, matches: k.turnier.matches,
-    sieger: k.spitze ? { name: k.spitze.anzeige || k.spitze.name, land: k.spitze.land ?? null, elims: k.spitze.elims ?? 0 } : null,
-  }));
-
-  // Die bestaetigten Trios zuerst (siehe lib/triosAktuell), dann die, die sich ausprobieren.
-  let trios: Array<{ spieler: Array<{ name: string; land: string | null }>; region: string | null; platz: number | null }> = [];
+  let cups: VCup[] = [];
+  try { cups = await cupsHolen(); } catch { /* ohne Cups bleibt die Karte leer */ }
+  // Die ersten fuenf der Power Rankings - mit dem Namen aus den Profilen statt Epics Anzeigenamen samt Teamkuerzel.
+  let rangliste: Array<{ rang: number; name: string; land: string | null; wertung: number; delta: number }> = [];
   try {
-    const j = await (await triosLesen()).json() as { trios?: Array<{ spieler: Array<{ name: string; land?: string }>; region?: string; platz?: number; status?: string }> };
-    trios = (j.trios ?? [])
-      .filter((t) => t.spieler?.length === 3 && (t.region ?? 'EU') === 'EU')
-      .sort((a, b) => Number(b.status === 'bestaetigt') - Number(a.status === 'bestaetigt'))
-      .slice(0, 6)
-      .map((t) => ({ spieler: t.spieler.map((s) => ({ name: s.name, land: s.land ?? null })), region: t.region ?? null, platz: t.platz ?? null }));
-  } catch { /* ohne Trios bleibt die Karte leer */ }
+    const profile = await liesJson<Record<string, { anzeige?: string; name?: string; land?: string }>>('spieler-profile.json', {});
+    const j = await (await prLesen(new Request('http://localhost/api/power-rankings?page=1'))).json() as {
+      players?: Array<{ rank: number; id: string; name: string; land?: string; wertung: number; deltaPlatz?: number }>;
+    };
+    rangliste = (j.players ?? []).slice(0, 5).map((x) => ({
+      rang: x.rank, name: profile[x.id]?.anzeige || profile[x.id]?.name || x.name,
+      land: (profile[x.id]?.land || x.land || '').toUpperCase() || null, wertung: x.wertung, delta: x.deltaPlatz ?? 0,
+    }));
+  } catch { /* ohne Rangliste bleibt die Karte leer */ }
+  let maps = 0;
+  try { maps = (await mapsVerzeichnis()).length; } catch { /* ohne Zahl */ }
 
   const antwort = {
     ok: true, saison: start.saison ?? null, spieltage: start.grundlage?.spieltage?.length ?? null,
-    spieler, turniere, regionen, trios,
+    spieler, cups, maps, regionen, rangliste,
   };
   merker = { bis: Date.now() + 10 * 60_000, antwort };
   return NextResponse.json(antwort, { headers: { 'Cache-Control': CDN_FRIST } });

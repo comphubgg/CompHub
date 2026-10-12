@@ -1,6 +1,6 @@
 import { alleTurniere, detail } from '@/lib/nobleKarte';
 import { liesJson } from '@/lib/ablage';
-import { saisonName } from '@/lib/szeneStats';
+import { saisonName, SAISON_NAMEN } from '@/lib/szeneStats';
 
 /*
  * Das Verzeichnis der Maps: jeder Cup, zu dem es eine Karte gibt.
@@ -32,6 +32,10 @@ export interface MapEintrag {
   saisonName: string;
   typ: MapTyp;
   bild: string | null;
+  /** Epics Ereignis-Kennung - fuer die Bestenliste (leer, wo das Cup-Archiv das Fenster nicht kennt). */
+  eventId: string | null;
+  /** Ende des Spieltags (ms), wo bekannt. */
+  ende: number | null;
 }
 
 /** "Chapter 7 Season 4" -> "CH7 S4"; Namen wie "The Simpsons" bleiben, wie sie sind. */
@@ -58,7 +62,7 @@ const BILD_JE_TYP: Record<MapTyp, string | null> = {
   sonst: null,
 };
 
-interface ArchivEintrag { windowId?: string; titel?: string; bild?: string; begin?: number }
+interface ArchivEintrag { windowId?: string; eventId?: string; titel?: string; bild?: string; begin?: number; end?: number }
 
 let merker: { bis: number; liste: MapEintrag[] } | null = null;
 
@@ -88,6 +92,7 @@ export async function mapsVerzeichnis(): Promise<MapEintrag[]> {
           datum: Number.isFinite(datum as number) ? datum : null,
           saison, saisonKurz: '', saisonName: '',
           typ, bild: a?.bild ?? BILD_JE_TYP[typ],
+          eventId: a?.eventId ?? null, ende: w.endDate ? Date.parse(w.endDate) : (a?.end ?? null),
         });
       }
     } catch { /* dieses Turnier ueberspringen */ }
@@ -112,4 +117,29 @@ export async function mapsVerzeichnis(): Promise<MapEintrag[]> {
   liste.sort((a, b) => (b.datum ?? 0) - (a.datum ?? 0));
   merker = { bis: Date.now() + 15 * 60_000, liste };
   return liste;
+}
+
+/* ------------------------------------------------------------------ Kapitel und Saisons */
+
+export interface SaisonInfo { kennung: string; nr: number; name: string; kurz: string; kapitel: number }
+
+/** Zu welchem Kapitel eine Saison gehoert - nach Epics Zaehlung (S8 bis S42). */
+function kapitelVon(nr: number): number {
+  if (nr <= 10) return 1;
+  if (nr <= 18) return 2;
+  if (nr <= 22) return 3;
+  if (nr <= 27) return 4;
+  if (nr <= 31) return 5;
+  if (nr === 32) return 2; // Chapter 2 Remix
+  if (nr <= 38) return 6;
+  return 7;
+}
+
+/** Alle Saisons von Chapter 1 bis heute, geordnet - auch die ohne Karten (die Seite zeigt sie grau). */
+export function alleSaisons(): SaisonInfo[] {
+  return Object.keys(SAISON_NAMEN).map((k) => {
+    const nr = Number(k.slice(1));
+    const name = SAISON_NAMEN[k];
+    return { kennung: k, nr, name, kurz: kurzName(name), kapitel: kapitelVon(nr) };
+  }).sort((a, b) => a.nr - b.nr);
 }

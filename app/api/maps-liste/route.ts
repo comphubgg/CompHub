@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { mapsVerzeichnis } from '@/lib/mapsVerzeichnis';
+import { mapsVerzeichnis, alleSaisons } from '@/lib/mapsVerzeichnis';
 
 /*
  * Das Verzeichnis der Maps (siehe lib/mapsVerzeichnis) - fuer die Seite /tournament-maps. Kein Konto noetig.
@@ -11,7 +11,7 @@ export const runtime = 'nodejs';
 export async function GET() {
   try {
     const eintraege = await mapsVerzeichnis();
-    return NextResponse.json({ ok: true, eintraege }, {
+    return NextResponse.json({ ok: true, eintraege, saisons: alleSaisons() }, {
       headers: { 'Cache-Control': 'public, max-age=60, s-maxage=300' },
     });
   } catch (e) {

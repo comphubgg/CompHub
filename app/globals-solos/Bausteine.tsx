@@ -21,6 +21,12 @@ import type { SolosFenster, SolosSpieler } from '@/lib/globalsSolos';
 
 export const BLAU = '#0e47de';
 
+/** Wo das Kartenbild herkommt: Bilder der Quelle ueber unseren Server, eigene direkt, sonst Epics aktuelle Karte. */
+export function kartenQuelle(bild?: string | null): string {
+  if (!bild) return fortniteKarte(false);
+  return /^https?:\/\//.test(bild) ? `/api/maps-bild?u=${encodeURIComponent(bild)}` : encodeURI(bild);
+}
+
 export const datum = (iso: string | null) => (iso
   ? new Intl.DateTimeFormat('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', timeZone: 'Europe/Brussels' }).format(new Date(iso))
   : '');
@@ -72,7 +78,13 @@ function begrenze(z: number, m: Punkt): Punkt {
  * Dieselben Bausteine wie /maps und /globals/map (app/lib/kartenStil, lib/prognoseKarte, globals.css);
  * nur die Formen und wer darauf steht kommen von Noble.
  */
-export function Karte({ f }: { f: SolosFenster }) {
+export function Karte({ f, bild, rotAb = 2 }: {
+  f: SolosFenster;
+  /** Das Kartenbild (die Wahl des Admins hat Vorrang vor dem der Spielversion); sonst Epics aktuelle Karte. */
+  bild?: string | null;
+  /** Ab wie vielen Teams auf einer Stelle sie rot wird. Bei Duos und Trios drei, bei Solos zwei. */
+  rotAb?: number;
+}) {
   const t = useT();
   const flaeche = useRef<HTMLDivElement | null>(null);
   const ebene = useRef<HTMLDivElement | null>(null);
@@ -85,11 +97,11 @@ export function Karte({ f }: { f: SolosFenster }) {
   const zug = useRef<{ sx: number; sy: number; mitte: Punkt; kasten: DOMRect } | null>(null);
   const [gezoomt, setGezoomt] = useState(false);
 
-  const spots = useMemo(() => f.formen.map((fo, i): Spot & { spieler: string[] } => {
+  const spots = useMemo(() => f.formen.map((fo, i): Spot & { spieler: string[]; teams: number } => {
     const xs = [...new Set(fo.punkte.map((q) => q.x))];
     const ys = [...new Set(fo.punkte.map((q) => q.y))];
     const rechteck = fo.punkte.length === 4 && xs.length === 2 && ys.length === 2;
-    return { id: `f${i}`, form: rechteck ? 'rechteck' : 'polygon', punkte: fo.punkte, spieler: fo.spieler };
+    return { id: `f${i}`, form: rechteck ? 'rechteck' : 'polygon', punkte: fo.punkte, spieler: fo.spieler, teams: fo.teams ?? fo.spieler.length };
   }), [f.formen]);
 
   const aufSpot = useMemo(
@@ -210,7 +222,7 @@ export function Karte({ f }: { f: SolosFenster }) {
   if (!f.formen.length) {
     return (
       <p className="rounded-xl border border-zinc-800 bg-zinc-900/40 px-4 py-8 text-center text-sm text-slate-500">
-        <T>Für diesen Spieltag hat Noble noch keine Landepunkte eingetragen.</T>
+        <T>Für diesen Spieltag sind noch keine Landepunkte eingetragen.</T>
       </p>
     );
   }
@@ -250,7 +262,7 @@ export function Karte({ f }: { f: SolosFenster }) {
         }}>
         <div ref={ebene} className="absolute inset-0 origin-top-left" style={{ '--z': 1 } as React.CSSProperties}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={fortniteKarte(false)} alt={t('Karte')} draggable={false}
+          <img src={kartenQuelle(bild)} alt={t('Karte')} draggable={false}
             className="pointer-events-none absolute inset-0 h-full w-full object-cover" />
 
           {/* thecomphub.com, wie auf jeder Karte - unter den Formen. */}
@@ -259,7 +271,8 @@ export function Karte({ f }: { f: SolosFenster }) {
           <svg viewBox="0 0 100 100" preserveAspectRatio="none"
             className="pointer-events-none absolute inset-0 h-full w-full">
             {spots.map((sp) => {
-              const c = formFarbe(sp.spieler.length);
+              // Eine Stelle wird erst rot, wenn genug Teams darauf stehen - sonst waere bei einem Finale alles rot.
+              const c = formFarbe(sp.teams >= rotAb ? 2 : sp.spieler.length ? 1 : 0);
               return (
                 <polygon key={sp.id} data-form={sp.id}
                   className={`karten-form${c.rot ? ' ist-rot' : ''}`}

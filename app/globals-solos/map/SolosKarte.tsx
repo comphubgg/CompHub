@@ -4,6 +4,10 @@ import { useState } from 'react';
 import T from '@/app/components/T';
 import type { SolosDaten } from '@/lib/globalsSolos';
 import { Karte } from '../Bausteine';
+import type { SolosFenster } from '@/lib/globalsSolos';
+
+/** Solos: ab zwei auf einer Stelle rot; bei Teams ab drei. */
+const rotFuer = (f: SolosFenster) => ((f.teams ?? []).some((t) => t.spieler.length > 1) ? 3 : 2);
 
 /** Die Karte eines Spieltags; oben die Wahl des Fensters. Standard: das Finale, sonst das erste. */
 export default function SolosKarte({ daten }: { daten: SolosDaten }) {
@@ -23,10 +27,7 @@ export default function SolosKarte({ daten }: { daten: SolosDaten }) {
           </button>
         ))}
       </div>
-      <div className="mt-4">{aktiv && <Karte key={aktiv.windowId} f={aktiv} />}</div>
-      <p className="mt-2 text-[11px] text-slate-600">
-        <T>Die Landepunkte und wer wo steht, kommen unverändert von Noble Practice.</T>
-      </p>
+      <div className="mt-4">{aktiv && <Karte key={aktiv.windowId} f={aktiv} bild={aktiv.bild} rotAb={rotFuer(aktiv)} />}</div>
     </section>
   );
 }
