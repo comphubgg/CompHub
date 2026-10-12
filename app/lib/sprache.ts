@@ -3365,6 +3365,9 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Karten zu diesem Spieltag': 'Maps for this match day',
   'Alle anzeigen': 'Show all',
   // ------------------------------------------------------------ Multiview (11.10.2026)
+  'Installieren per Befehl': 'Install with a command',
+  'Befehl kopiert — in cmd einfügen': 'Command copied — paste it into cmd',
+  'Kopiert einen Befehl für die Eingabeaufforderung (cmd): installiert oder aktualisiert das Programm ohne Anmeldung. Das Programm aktualisiert sich danach von selbst.': 'Copies a command for the Command Prompt (cmd): installs or updates the program without signing in. The program then updates itself.',
   'Noble ({name}): {formen} Formen, {teams} Teams. Die {alt} Formen und Zuordnungen dieser Karte werden ersetzt — mit Strg+Z kommst du zurück.': 'Noble ({name}): {formen} shapes, {teams} teams. The {alt} shapes and assignments of this map will be replaced — Ctrl+Z brings them back.',
   'Weitermachen': 'Continue',
   'Datenschutz': 'Privacy',

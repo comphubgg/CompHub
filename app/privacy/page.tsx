@@ -10,7 +10,7 @@ import RechtsSeite, { type RechtsText } from '@/app/components/RechtsSeite';
  */
 
 export const metadata: Metadata = {
-  title: 'Privacy Policy — CompHub',
+  title: 'Privacy Policy',
   description: 'What CompHub stores about you, why, and how to have it deleted.',
 };
 

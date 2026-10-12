@@ -30,12 +30,22 @@ konfig.electronDist = path.join(WURZEL, 'node_modules', 'electron', 'dist');
 konfig.win.icon = 'build/icon.png';
 fs.writeFileSync(path.join(TEMP, 'bau.json'), JSON.stringify(konfig, null, 2));
 
+// Die Selbst-Aktualisierung braucht electron-updater im Programm: im leeren Ordner installiert, nicht aus dem Projekt
+// gezogen - sonst kaemen dessen Abhaengigkeiten wieder alle mit.
+const npm = spawnSync('npm install --omit=dev --no-audit --no-fund --no-package-lock', { cwd: TEMP, stdio: 'inherit', shell: true });
+if (npm.status !== 0) { console.error('electron-updater ließ sich nicht installieren.'); process.exit(npm.status ?? 1); }
+
 const bauer = path.join(WURZEL, 'node_modules', '.bin', process.platform === 'win32' ? 'electron-builder.cmd' : 'electron-builder');
-const r = spawnSync('"' + bauer + '"', ['--win', '--config', 'bau.json', '--projectDir', TEMP], { cwd: TEMP, stdio: 'inherit', shell: true });
+const r = spawnSync('"' + bauer + '"', ['--win', '--config', 'bau.json', '--projectDir', TEMP, '--publish', 'never'], { cwd: TEMP, stdio: 'inherit', shell: true });
 if (r.status !== 0) { console.error('Bau fehlgeschlagen.'); process.exit(r.status ?? 1); }
 
 fs.rmSync(AUS, { recursive: true, force: true });
 fs.mkdirSync(AUS, { recursive: true });
-fs.copyFileSync(path.join(TEMP, 'ausgabe', 'CompHub-POV-Setup.exe'), path.join(AUS, 'CompHub-POV-Setup.exe'));
+// Die Installationsdatei samt latest.yml und Blockabbild - die beiden anderen braucht die Selbst-Aktualisierung.
+for (const d of ['CompHub-POV-Setup.exe', 'CompHub-POV-Setup.exe.blockmap', 'latest.yml']) {
+  const von = path.join(TEMP, 'ausgabe', d);
+  if (fs.existsSync(von)) fs.copyFileSync(von, path.join(AUS, d));
+  else console.warn(`Hinweis: ${d} wurde nicht erzeugt.`);
+}
 const mb = Math.round(fs.statSync(path.join(AUS, 'CompHub-POV-Setup.exe')).size / 1048576);
 console.log(`\nFertig: dist-pov/CompHub-POV-Setup.exe (${mb} MB)`);

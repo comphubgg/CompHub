@@ -10,7 +10,7 @@ import RechtsSeite, { type RechtsText } from '@/app/components/RechtsSeite';
  */
 
 export const metadata: Metadata = {
-  title: 'Terms of Use — CompHub',
+  title: 'Terms of Use',
   description: 'The rules for using CompHub.',
 };
 

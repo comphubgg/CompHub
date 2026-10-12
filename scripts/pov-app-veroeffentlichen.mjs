@@ -32,6 +32,9 @@ if (da.status !== 0) {
   const r = gh('release', 'edit', 'pov-app', '--repo', REPO, '--title', `CompHub POV ${version}`);
   if (r.status !== 0) { console.error(r.stderr); process.exit(1); }
 }
-const up = gh('release', 'upload', 'pov-app', DATEI, '--repo', REPO, '--clobber');
+// Erst Installationsdatei und Blockabbild, zuletzt latest.yml: das Programm sucht dort nach einer neueren Fassung und soll
+// die Datei, auf die es verweist, schon vorfinden.
+const dateien = [DATEI, DATEI + '.blockmap', path.join(WURZEL, 'dist-pov', 'latest.yml')].filter((d) => fs.existsSync(d));
+const up = gh('release', 'upload', 'pov-app', ...dateien, '--repo', REPO, '--clobber');
 if (up.status !== 0) { console.error(up.stderr); process.exit(1); }
 console.log(`Veroeffentlicht: CompHub POV ${version} (${Math.round(fs.statSync(DATEI).size / 1048576)} MB) am Release "pov-app".`);

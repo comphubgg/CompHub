@@ -15,6 +15,7 @@
 // Im Programm steckt kein Schluessel und keine Zugangsdaten: wer es hat, kommt ohne Anmeldung nicht weiter.
 
 const { app, BrowserWindow, Tray, Menu, shell, session, desktopCapturer, ipcMain, nativeImage, dialog, powerSaveBlocker } = require('electron');
+const { autoUpdater } = require('electron-updater');
 const path = require('path');
 
 const SEITE = (process.env.COMPHUB_URL || 'https://www.thecomphub.com').replace(/\/+$/, '');
@@ -31,6 +32,8 @@ let ablage = null;
 let live = false;
 let wirklichBeenden = false;
 let schlaf = null;
+/** Die Fassung, die schon geladen ist und beim naechsten Moment ohne Uebertragung installiert wird. */
+let updateBereit = null;
 
 const sperre = app.requestSingleInstanceLock();
 if (!sperre) { app.quit(); }
@@ -173,7 +176,8 @@ function aktualisiereAblage() {
       label: 'Mit Windows starten', type: 'checkbox', checked: app.getLoginItemSettings().openAtLogin,
       click: (m) => app.setLoginItemSettings({ openAtLogin: m.checked, args: ['--versteckt'] }),
     },
-    { label: `Version ${VERSION}`, enabled: false },
+    { label: updateBereit ? `Update ${updateBereit} wird installiert, sobald du nicht live bist` : `Version ${VERSION}`, enabled: false },
+    { label: 'Nach Updates suchen', click: () => { void nachUpdatesSuchen(true); } },
     { type: 'separator' },
     {
       label: 'Beenden', click: () => {
@@ -194,25 +198,51 @@ ipcMain.on('pov:live', (_e, an) => {
   if (!live && schlaf !== null) { powerSaveBlocker.stop(schlaf); schlaf = null; }
   aktualisiereAblage();
   if (fenster) fenster.setTitle(live ? 'CompHub POV – live' : 'CompHub POV');
+  // Ist ein Update schon geladen, kommt es nach dem Ende der Uebertragung - mit einer Minute Luft, falls es gleich weitergeht.
+  if (!live && updateBereit) setTimeout(installiereUpdate, 60_000);
 });
 
 /* ------------------------------------------------------------------ Neue Version? */
 
-async function nachNeuemPruefen() {
+/*
+ * Das Programm aktualisiert sich selbst.
+ *
+ * Der Betreiber (12.10.2026): wenn er mit Claude ein Update macht, soll niemand das Programm neu laden oder
+ * hochladen muessen. Deshalb fragt es beim Start und danach alle paar Stunden bei CompHub nach (latest.yml, siehe
+ * /api/pov/update), laedt eine neuere Fassung im Hintergrund und installiert sie, sobald keine Uebertragung laeuft -
+ * mitten im Live-Gehen wird nie neu gestartet. Beim Beenden wird ein geladenes Update ohnehin installiert.
+ */
+
+function installiereUpdate() {
+  if (!updateBereit || live) return;
+  wirklichBeenden = true;
+  // Still, und danach wieder starten - der Profi muss nichts anklicken.
+  autoUpdater.quitAndInstall(true, true);
+}
+
+async function nachUpdatesSuchen(vomNutzer = false) {
+  if (!app.isPackaged) return;
   try {
-    const r = await fetch(`${SEITE}/api/pov/app?info=1`, { cache: 'no-store' });
-    const j = await r.json();
-    const neu = String(j.version || '');
-    if (!neu || neu === VERSION || !/^\d+\.\d+\.\d+$/.test(neu)) return;
-    const a = neu.split('.').map(Number); const b = VERSION.split('.').map(Number);
-    const neuer = a[0] > b[0] || (a[0] === b[0] && (a[1] > b[1] || (a[1] === b[1] && a[2] > b[2])));
-    if (!neuer || !fenster) return;
-    const antwort = dialog.showMessageBoxSync(fenster, {
-      type: 'info', buttons: ['Jetzt laden', 'Später'], defaultId: 0, cancelId: 1,
-      message: `Eine neue Version ist da (${neu}).`, detail: 'Das Dashboard bleibt bis dahin unverändert nutzbar.',
-    });
-    if (antwort === 0) fenster.webContents.downloadURL(`${SEITE}/api/pov/app`);
-  } catch { /* offline - beim naechsten Start wieder */ }
+    const r = await autoUpdater.checkForUpdates();
+    if (vomNutzer && fenster && !(r?.updateInfo && r.updateInfo.version !== VERSION)) {
+      dialog.showMessageBox(fenster, { type: 'info', message: 'Du hast die neueste Version.', detail: `CompHub POV ${VERSION}` });
+    }
+  } catch { /* offline - beim naechsten Mal wieder */ }
+}
+
+function richteUpdatesEin() {
+  if (!app.isPackaged) return;
+  autoUpdater.autoDownload = true;
+  autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.on('update-downloaded', (info) => {
+    updateBereit = info.version;
+    aktualisiereAblage();
+    if (!live) installiereUpdate();
+    else if (ablage) ablage.displayBalloon?.({ title: `Update ${info.version} ist geladen`, content: 'Es wird installiert, sobald deine Übertragung zu Ende ist.' });
+  });
+  autoUpdater.on('error', (e) => { console.error('Update:', e?.message ?? e); });
+  setTimeout(() => { void nachUpdatesSuchen(); }, 15_000);
+  setInterval(() => { void nachUpdatesSuchen(); }, 3 * 3600_000);
 }
 
 /* ------------------------------------------------------------------ Start */
@@ -222,7 +252,7 @@ if (sperre) {
     const versteckt = process.argv.includes('--versteckt');
     baueFenster(versteckt);
     baueAblage();
-    setTimeout(() => { void nachNeuemPruefen(); }, 15_000);
+    richteUpdatesEin();
   });
   app.on('before-quit', () => { wirklichBeenden = true; });
   // Das Fenster ist nur weggelegt - das Programm bleibt, bis es ueber den Infobereich beendet wird.

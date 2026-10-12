@@ -44,6 +44,12 @@ export default function ProDashboard() {
     liste: Array<{ id: string; name: string; kanal: boolean; eingerichtet: boolean; fehler: string; aktiv: boolean }>;
   } | null>(null);
   const [gildenFehler, setGildenFehler] = useState('');
+  /** Der Befehl, der das Programm ohne Anmeldung installiert oder aktualisiert (kopiert in die Zwischenablage). */
+  const [befehlKopiert, setBefehlKopiert] = useState(false);
+  const installBefehl = () => {
+    const wurzel = typeof window !== 'undefined' ? window.location.origin : 'https://www.thecomphub.com';
+    return `powershell -NoProfile -Command "iwr ${wurzel}/api/pov/update/CompHub-POV-Setup.exe -OutFile $env:TEMP\\CompHubPOV.exe; Start-Process $env:TEMP\\CompHubPOV.exe -ArgumentList '/S','--force-run' -Wait"`;
+  };
   /** Das Discord-Konto: zugewiesen oder (auto) das verknuepfte - und ob der Bot den Profi gerade im Sprachkanal sieht. */
   const [discord, setDiscord] = useState<{
     id: string; name: string; auto: boolean;
@@ -255,6 +261,15 @@ export default function ProDashboard() {
                 className="rounded-md border border-sky-500/50 px-3 py-1.5 text-sky-400 transition hover:bg-sky-500/10">
                 <T>Programm für Windows laden</T>
               </a>
+            )}
+            {/* Ein Befehl fuer die Eingabeaufforderung: installiert die neueste Fassung oder aktualisiert eine vorhandene. */}
+            {!imProgramm && (
+              <button type="button"
+                title={t('Kopiert einen Befehl für die Eingabeaufforderung (cmd): installiert oder aktualisiert das Programm ohne Anmeldung. Das Programm aktualisiert sich danach von selbst.')}
+                onClick={() => { void navigator.clipboard.writeText(installBefehl()).then(() => { setBefehlKopiert(true); window.setTimeout(() => setBefehlKopiert(false), 4000); }).catch(() => undefined); }}
+                className="rounded-md border border-zinc-700 px-3 py-1.5 text-slate-300 transition hover:border-sky-500 hover:text-sky-400">
+                {befehlKopiert ? <T>Befehl kopiert — in cmd einfügen</T> : <T>Installieren per Befehl</T>}
+              </button>
             )}
             {/* Ein gewoehnlicher Link, kein next/link: der wuerde die Adresse vorab laden - und damit abmelden. */}
             <a href="/api/auth/logout" className="rounded-md border border-zinc-700 px-3 py-1.5 text-slate-300 transition hover:border-sky-500 hover:text-sky-400">
