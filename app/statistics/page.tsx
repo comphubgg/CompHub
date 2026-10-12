@@ -769,13 +769,41 @@ const DUELL_WERTE: Array<[string, keyof Spieler, number, string]> = [
  * Dieselbe Ansicht auf der Startseite und im Vergleich - dort wechselt sie
  * von selbst durch, hier waehlt man beide Seiten selbst aus.
  */
-function DuellTafel({ links, rechts, zeitraum, aufKlick, gross = false }: {
+function DuellTafel({ links, rechts, zeitraum, aufKlick, gross = false, schlicht = false }: {
   links: Spieler; rechts: Spieler;
   /** Woher die Zahlen stammen - Saison oder Zeitraum, steht ueber der Tafel. */
   zeitraum: string;
   aufKlick?: (s: Spieler) => void;
   gross?: boolean;
+  /** Ohne Fotos: nur die beiden Namen oben und die Zahlen darunter (Uebersicht). */
+  schlicht?: boolean;
 }) {
+  if (schlicht) {
+    const kopf = (s: Spieler, rechtsRum: boolean) => (
+      <button type="button" onClick={() => aufKlick?.(s)} disabled={!aufKlick}
+        className={`flex min-w-0 flex-1 items-center gap-2 ${rechtsRum ? 'flex-row-reverse text-right' : ''}
+                    ${aufKlick ? 'cursor-pointer transition hover:text-sky-300' : ''}`}>
+        <TeamFlagge groesse={22} laender={[s.land ?? undefined]} />
+        <span className="truncate text-lg font-black uppercase tracking-wide text-slate-50">
+          {grossName(s.anzeige, s.gepflegt)}
+        </span>
+      </button>
+    );
+    return (
+      <div className="rounded-xl border border-zinc-800 bg-zinc-950/60 px-5 py-4">
+        <div className="mb-3 flex items-center gap-4">
+          {kopf(links, false)}
+          <span className="shrink-0 text-center text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-600">{zeitraum}</span>
+          {kopf(rechts, true)}
+        </div>
+        {DUELL_WERTE.map(([titel, feld, nk, einheit]) => (
+          <Duellzeile key={feld as string} titel={titel} nachkomma={nk} einheit={einheit}
+            links={Number(links[feld] ?? 0)} rechts={Number(rechts[feld] ?? 0)} />
+        ))}
+      </div>
+    );
+  }
+
   // Das Bild fuellt die ganze Hoehe der Tafel.
   //
   // Vorher hatte es ein festes Seitenverhaeltnis, und weil die Werteliste in
@@ -2510,15 +2538,7 @@ export default function StatistikSeite() {
     return () => window.clearInterval(uhr);
   }, [kacheln.length, bereich, kachelHalt]);
 
-  /* Die Profilkarten wandern regionweise weiter, die Duelle einzeln - beide
-     im selben Zehn-Sekunden-Takt wie der Aufmacher. */
-  useEffect(() => {
-    if (profile.length < 2 || bereich !== 'start') return;
-    const t = setInterval(
-      () => setProfilNr((n) => (n + 1) % profile.length), 10_000);
-    return () => clearInterval(t);
-  }, [profile.length, bereich]);
-
+  /* Die Duelle wandern einzeln weiter, im Zehn-Sekunden-Takt. */
   useEffect(() => {
     if (duelle.length < 2 || bereich !== 'start') return;
     const t = setInterval(
@@ -2538,16 +2558,6 @@ export default function StatistikSeite() {
   /* Ein anderer Cup faengt wieder beim Besten an. */
   const cupKennung = cup?.windowId ?? '';
   useEffect(() => { setCupNr(0); }, [cupKennung]);
-
-  /* Die Power Rankings fuehrt das Werkzeug schon - hier stehen die besten
-     zehn, alles Weitere auf der eigenen Seite. */
-  useEffect(() => {
-    if (bereich !== 'start' || power.length) return;
-    fetch('/api/power-rankings?page=1&pageSize=15')
-      .then((r) => r.json())
-      .then((j) => setPower(j.players ?? []))
-      .catch(() => setPower([]));
-  }, [bereich, power.length]);
 
   /* -------------------------------------------------------- Spielerliste */
   /*
@@ -3787,12 +3797,25 @@ export default function StatistikSeite() {
           {bereich === 'start' && (
             <>
               <StatistikZahlen />
-              {/* Aufmacher: das letzte Turnier mit dem Tagesbesten, der FNCS-Kalender, die Regionen (Betreiber, 12.10.2026). */}
+              {/* Aufmacher: Slider durch die jüngsten Turniere mit dem Besten des Tages, darunter die Regionen (Betreiber, 12.10.2026). */}
               <StatistikAufmacher
-                kachel={kacheln[0] ?? null}
-                titel={kacheln[0] ? turnierTitel(kacheln[0].turnier.name) : ''}
-                meta={kacheln[0] ? [saisonTitel, datumText(kacheln[0].turnier.datum, sprache), kacheln[0].turnier.region] : []}
+                kacheln={(() => {
+                  // Erst jedes Turnier einmal (das jüngste vorn), dann die weiteren Besten - so wechseln auch die Cups.
+                  const gesehen = new Set<string>();
+                  const erste: typeof kacheln = []; const rest: typeof kacheln = [];
+                  for (const kk of kacheln) {
+                    const sl = `${kk.turnier.name}|${kk.turnier.region}`;
+                    (gesehen.has(sl) ? rest : erste).push(kk); gesehen.add(sl);
+                  }
+                  erste.sort((x, y) => (y.turnier.datum ?? 0) - (x.turnier.datum ?? 0));
+                  return [...erste, ...rest].slice(0, 8).map((kk) => ({
+                    titel: turnierTitel(kk.turnier.name), datumText: datumText(kk.turnier.datum, sprache), saisonText: saisonTitel,
+                    region: kk.turnier.region, spitze: kk.spitze, stand: kk.stand ?? null,
+                  }));
+                })()}
                 zuTurnieren={() => setBereich('turniere')}
+                zuRegionen={() => wechsleBereich('regional')}
+                zuSpielern={() => wechsleBereich('spieler')}
                 oeffneSpieler={(id, name) => { void oeffneKonto(id, name); }} />
 
               <p className="mb-2 text-[10px] font-semibold uppercase
@@ -3866,107 +3889,6 @@ export default function StatistikSeite() {
                 <ClutchTabelle daten={clutchSaison} saison={saison} saisonTitel={saisonTitel} aufKonto={oeffneKonto} />
               )}
 
-              {/* --------------------------------------- Spielerprofile */}
-              {profile.length > 0 && (() => {
-                const g = profile[profilNr % profile.length];
-                return (
-                  <section className="mt-7">
-                    <div className="mb-2 flex flex-wrap items-baseline gap-3">
-                      <p className="text-[10px] font-semibold uppercase
-                                    tracking-[0.18em] text-slate-500">
-                        <T>Spielerprofile</T>
-                      </p>
-                      <RegionMarke region={g.region} />
-                      <span className="text-[10px] text-slate-600">
-                        <T>über alle erfassten Spieltage</T>
-                      </span>
-                      <button onClick={() => wechsleBereich('spieler')}
-                        className="ml-auto text-[10px] font-semibold uppercase
-                                   tracking-[0.14em] text-slate-500 transition
-                                   hover:text-sky-400">
-                        <T>Alle anzeigen →</T>
-                      </button>
-                    </div>
-                    {/* Der Streifen laeuft von links nach rechts voll, dann
-                        springt die Ansicht zur naechsten Region. */}
-                    <div className="mb-3 h-px w-full overflow-hidden bg-zinc-900">
-                      <div key={profilNr} className="h-full w-full bg-sky-500
-                                                     animate-fuellen" />
-                    </div>
-                    <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-5">
-                      {g.spieler.map((sp) => (
-                        <button key={sp.epicId} onClick={() => oeffne(sp)}
-                          className="group relative aspect-[3/4] overflow-hidden
-                                     rounded-xl border border-zinc-800 bg-zinc-900
-                                     text-left transition hover:border-sky-500">
-                          {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={sp.bild ?? ''} alt="" loading="lazy"
-                            className="absolute inset-0 h-full w-full object-cover
-                                       object-top transition duration-300
-                                       group-hover:scale-105" />
-                          <span className="absolute left-2 top-2">
-                            <RegionMarke region={sp.heimat || g.region} />
-                          </span>
-
-                          {/* Name und Werte liegen auf dem Bild, nicht darunter.
-                              Der dunkle Verlauf laesst das Foto durchscheinen -
-                              die Karte bleibt ein Bild und wird nicht zur
-                              Tabelle mit Kopfzeile. */}
-                          <span className="absolute bottom-0 w-full
-                                           bg-gradient-to-t from-black/95
-                                           via-black/70 to-transparent px-3 pb-2.5
-                                           pt-10">
-                            <span className="flex items-center gap-1.5">
-                              <TeamFlagge groesse={16}
-                                laender={[sp.land ?? undefined]} />
-                              <span className="min-w-0 truncate text-sm font-bold
-                                               uppercase tracking-wide text-slate-50">
-                                {grossName(sp.anzeige, sp.gepflegt)}
-                              </span>
-                            </span>
-                            <span className="mt-1.5 flex divide-x divide-white/10
-                                             rounded-lg bg-black/45
-                                             backdrop-blur-sm">
-                              {/* Quote steht zuerst und farbig: sie ist die
-                                  Zahl, die dem Rating der Quelle am naechsten
-                                  kommt - ausgeteilter zu erlittenem Schaden. */}
-                              {([['Quote', zahl(sp.quote, 2, sprache), true],
-                                 ['Elims', kurzZahl(sp.elims, sprache), false],
-                                 ['Schaden', kurzZahl(sp.damage, sprache), false]] as
-                                Array<[string, string, boolean]>).map(
-                                ([l, v, farbig]) => (
-                                  <span key={l} className="min-w-0 flex-1 px-1.5 py-1.5
-                                                          text-center">
-                                    <span className="block truncate text-[9px]
-                                                     font-semibold uppercase
-                                                     text-slate-400"><T>{l}</T></span>
-                                    <span className={`mt-0.5 block truncate text-[13px]
-                                                      font-bold tabular-nums ${farbig
-                                      ? 'text-sky-400' : 'text-slate-100'}`}>{v}</span>
-                                  </span>
-                                ))}
-                            </span>
-                          </span>
-                        </button>
-                      ))}
-                    </div>
-
-                    {/* Punkte zum Umschalten - der Wechsel laeuft von selbst
-                        weiter, aber wer eine bestimmte Region sehen will,
-                        soll nicht warten muessen. */}
-                    <div className="mt-3 flex items-center justify-center gap-2">
-                      {profile.map((gr, i) => (
-                        <button key={gr.region} onClick={() => setProfilNr(i)}
-                          title={gr.region}
-                          aria-label={`Region ${gr.region} zeigen`}
-                          className={`h-2 rounded-full transition-all ${i === profilNr
-                            ? 'w-6 bg-sky-400' : 'w-2 bg-zinc-700 hover:bg-zinc-600'}`} />
-                      ))}
-                    </div>
-                  </section>
-                );
-              })()}
-
               {/* --------------------------------------------- Duelle */}
               {duelle.length > 0 && (
                 <section className="mt-7">
@@ -3992,88 +3914,7 @@ export default function StatistikSeite() {
                   <DuellTafel links={duelle[duellNr % duelle.length].links}
                     rechts={duelle[duellNr % duelle.length].rechts}
                     zeitraum={archivTitel}
-                    aufKlick={oeffne} gross />
-                </section>
-              )}
-
-              {/* --------------------------------------- Power Ranking */}
-              {power.length > 0 && (
-                <section className="mt-7">
-                  <div className="mb-2 flex flex-wrap items-baseline gap-3">
-                    <p className="text-[10px] font-semibold uppercase
-                                  tracking-[0.18em] text-slate-500">
-                      <T>Power Ranking</T>
-                    </p>
-                    <span className="text-[10px] text-slate-600">
-                      <T>Epics weltweite Liste</T>
-                    </span>
-                    <a href="/power-rankings"
-                      className="ml-auto text-[10px] font-semibold uppercase
-                                 tracking-[0.14em] text-slate-500 transition
-                                 hover:text-sky-400">
-                      <T>Alle Ranglisten →</T>
-                    </a>
-                  </div>
-                  {/* Eine Tabelle statt zweier Spalten: Platz, Spieler,
-                      Wertung und die Veraenderung - so wie beim Vorbild. Eine
-                      Regionsspalte fehlt bewusst, denn die weltweite Liste
-                      fuehrt zu einem Spieler nur sein Land, keine Region. */}
-                  <div className="overflow-hidden rounded-xl border border-zinc-800
-                                  bg-zinc-950/60">
-                    <div className="flex items-center gap-3 border-b border-zinc-800
-                                    bg-zinc-900/40 px-4 py-2 text-[10px] font-semibold
-                                    uppercase tracking-[0.14em] text-slate-500">
-                      <span className="w-9 shrink-0 text-right">#</span>
-                      <span className="w-5 shrink-0" />
-                      <span className="min-w-0 flex-1"><T>Spieler</T></span>
-                      <span className="w-24 shrink-0 text-right"><T>PR-Wertung</T></span>
-                      <span className="w-20 shrink-0 text-right"><T>Plätze</T></span>
-                    </div>
-                    {power.slice(0, 15).map((z) => {
-                      // Die Veraenderung des Platzes, nicht der Wertung: eine
-                      // Punktdifferenz fuehrt die Liste nicht mit, dort steht
-                      // ueberall null. Wer sie als "Δ PR" ausgaebe, zeigte
-                      // eine Zahl, die es nicht gibt.
-                      const d = z.deltaPlatz ?? 0;
-                      return (
-                        <div key={z.rank}
-                          className="flex items-center gap-3 border-b border-zinc-900
-                                     px-4 py-2.5 last:border-b-0
-                                     hover:bg-zinc-900/40">
-                          <span className={`w-9 shrink-0 text-right text-xs font-bold
-                                            tabular-nums ${z.rank === 1
-                            ? 'text-amber-400' : z.rank <= 3
-                              ? 'text-sky-400' : 'text-slate-600'}`}>
-                            #{z.rank}
-                          </span>
-                          <span className="w-5 shrink-0">
-                            <TeamFlagge groesse={18} laender={[z.land || undefined]} />
-                          </span>
-                          <span className="min-w-0 flex-1 truncate text-xs font-bold
-                                           uppercase tracking-wide text-slate-100">
-                            {grossName(z.name)}
-                          </span>
-                          <span className="w-24 shrink-0 text-right text-xs font-bold
-                                           tabular-nums text-slate-100">
-                            {zahl(z.wertung, 0, sprache)}
-                          </span>
-                          <span className={`flex w-20 shrink-0 items-center
-                                            justify-end gap-1 text-[11px] font-semibold
-                                            tabular-nums ${d > 0 ? 'text-emerald-400'
-                            : d < 0 ? 'text-rose-400' : 'text-slate-700'}`}>
-                            {d !== 0 && (
-                              <svg width="8" height="8" viewBox="0 0 10 10"
-                                aria-hidden className="shrink-0">
-                                <path d={d > 0 ? 'M5 1 L9 8 L1 8 Z' : 'M5 9 L1 2 L9 2 Z'}
-                                  fill="currentColor" />
-                              </svg>
-                            )}
-                            {d === 0 ? '—' : zahl(Math.abs(d), 0, sprache)}
-                          </span>
-                        </div>
-                      );
-                    })}
-                  </div>
+                    aufKlick={oeffne} gross schlicht />
                 </section>
               )}
             </>

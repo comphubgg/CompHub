@@ -123,14 +123,15 @@ export async function GET(request: Request) {
     .sort((a, b) => b.elims - a.elims);
   if (start.saison) {
     try {
-      const sa = await abgelegteAntwort<{ listen?: Array<{ feld: string; plaetze?: Array<Zeile & { jeRegion?: Record<string, { elims?: number }> }> }> }>(
+      // Dieselbe Liste wie "Meiste Eliminierungen" in der Leiste der Statistikseite - mit denselben Zahlen und derselben
+      // Region (Heimatregion): der Betreiber sah dort 152 und hier 141 und wollte, dass es dasselbe ist.
+      const sa = await abgelegteAntwort<{ listen?: Array<{ feld: string; plaetze?: Array<Zeile & { regionen?: string[] }> }> }>(
         `szene|ansicht=start&saison=${start.saison}`);
       const je = new Map<string, { region: string; name: string; land: string | null; elims: number }>();
       for (const z of sa?.listen?.find((l) => l.feld === 'elims')?.plaetze ?? []) {
-        for (const [r, w] of Object.entries(z.jeRegion ?? {})) {
-          const n = w?.elims ?? 0;
-          if (n > (je.get(r)?.elims ?? 0)) je.set(r, { region: r, name: z.anzeige || z.name, land: z.land ?? null, elims: n });
-        }
+        const r = z.heimat || z.regionen?.[0] || '';
+        const n = z.elims ?? 0;
+        if (r && n > (je.get(r)?.elims ?? 0)) je.set(r, { region: r, name: z.anzeige || z.name, land: z.land ?? null, elims: n });
       }
       const saisonweit = [...je.values()].sort((a, b) => b.elims - a.elims);
       if (saisonweit.length >= 3) regionen = saisonweit;

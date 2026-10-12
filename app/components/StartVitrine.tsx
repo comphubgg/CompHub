@@ -35,6 +35,10 @@ const CSS = `
 .vit-gold { border: 1px solid rgba(245,197,66,.28); background: linear-gradient(160deg, rgba(245,197,66,.09), rgba(9,9,11,.55)); }
 .vit-scheibe { transition: flex-grow .65s cubic-bezier(.2,.8,.2,1), filter .4s, opacity .3s, margin .65s; }
 @media (prefers-reduced-motion: reduce) { .vit-an { animation: none !important; } .vit-scheibe { transition: none; } }
+/* Auf grossen Schirmen alles um gut zehn Prozent kleiner, damit die drei Spalten auf einen Blick passen (Betreiber, 12.10.2026:
+   "ich muss legit ein bisschen scrollen ... von oben nach unten kleiner, breit ist okay"). Die Breite bleibt: der Raster darf
+   um denselben Faktor breiter rechnen. */
+@media (min-width: 1280px) { .vit-raster { zoom: .88; } }
 `;
 
 /* ------------------------------------------------------------------ Typen */
@@ -461,10 +465,10 @@ export default function StartVitrine() {
   }, []);
 
   return (
-    <section className="relative px-4 py-16">
+    <section className="relative px-4 py-10 xl:py-8">
       <style>{CSS}</style>
       <div aria-hidden className="pointer-events-none absolute inset-x-0 top-10 mx-auto h-72 max-w-5xl rounded-full bg-sky-500/[0.06] blur-[110px]" />
-      <div className="relative mx-auto grid max-w-[1760px] gap-5 xl:grid-cols-[1fr_1.4fr_1fr]">
+      <div className="vit-raster relative mx-auto grid max-w-[1760px] gap-5 xl:max-w-[2000px] xl:grid-cols-[1fr_1.4fr_1fr]">
         {/* ---------------------------------------------------- Statistics */}
         <div className="vit-glas rounded-3xl p-6">
           <h3 className="text-4xl font-black uppercase tracking-tight text-slate-50 sm:text-6xl"><T>Statistiken</T></h3>

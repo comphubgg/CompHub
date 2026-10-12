@@ -37,10 +37,10 @@ export function TeamKarten({ teams }: { teams: SolosTeam[] }) {
         <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
           {sichtbar.map((x, i) => (
             <li key={x.id} className="flex flex-col items-center rounded-xl border border-white/[0.07] bg-zinc-900/50 px-3 py-4 text-center transition hover:border-sky-500/40 hover:bg-zinc-900/80">
-              <span className="flex -space-x-1">
-                {x.spieler.map((s) => <TeamFlagge key={s.id} groesse={26} laender={[s.land ?? undefined]} />)}
+              <TeamFlagge groesse={x.spieler.length > 1 ? 40 : 30} laender={x.spieler.map((s) => s.land ?? undefined)} />
+              <span className="mt-2 flex flex-col text-[11px] font-black uppercase leading-snug tracking-wide text-slate-100">
+                {x.spieler.map((s) => <span key={s.id}>{s.anzeige}</span>)}
               </span>
-              <span className="mt-2 text-[11px] font-black uppercase leading-snug tracking-wide text-slate-100">{x.spieler.map((s) => s.anzeige).join(' ')}</span>
               <span className="mt-1 text-[10px] font-semibold tabular-nums text-slate-600">#{x.rang ?? i + 1}</span>
             </li>
           ))}
@@ -88,13 +88,11 @@ export function RangTabelle({ eventId, windowId, laender }: { eventId: string | 
             <tr key={z.rank} className="border-b border-white/[0.04] transition hover:bg-sky-500/[0.05]">
               <td className="px-3 py-2 text-[11px] font-bold tabular-nums text-slate-500">{z.rank}</td>
               <td className="px-3 py-2">
-                <span className="flex flex-wrap items-center gap-x-3 gap-y-1">
-                  {z.players.map((p) => (
-                    <span key={p.id} className="flex items-center gap-1.5 text-[11px] font-bold uppercase text-slate-100">
-                      <TeamFlagge groesse={14} laender={[laender.get(p.id) ?? undefined]} />
-                      {p.displayName || p.name || '—'}
-                    </span>
-                  ))}
+                <span className="flex items-center gap-2.5">
+                  <TeamFlagge groesse={z.players.length > 1 ? 28 : 20} laender={z.players.map((p) => laender.get(p.id) ?? undefined)} />
+                  <span className="flex flex-col text-[11px] font-bold uppercase leading-[1.25] text-slate-100">
+                    {z.players.map((p) => <span key={p.id}>{p.displayName || p.name || '—'}</span>)}
+                  </span>
                 </span>
               </td>
               <td className="px-3 py-2 text-right font-bold tabular-nums text-slate-100">{z.points}</td>

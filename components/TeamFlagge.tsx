@@ -69,7 +69,12 @@ export default function TeamFlagge({ laender, groesse = 26 }: {
   // auf der anderen Haelfte sagt ja etwas anderes als die Flagge.
   const einig = alle.length > 1 && alle.every((f) => f === alle[0]);
   const pfade = einig ? [alle[0]] : alle;
-  const zwei = pfade.length > 1;
+  const zwei = pfade.length === 2;
+  // Drei Spieler: ein Kreis in drei Stuecken (oben, links unten, rechts unten) wie auf den Tierlist-Kacheln. Sind zwei
+  // davon dasselbe Land, bilden sie zusammen die untere Haelfte und das dritte Land liegt darueber.
+  const drei = pfade.length >= 3;
+  const paar = drei ? (pfade[0] === pfade[1] ? [0, 1] : pfade[0] === pfade[2] ? [0, 2] : pfade[1] === pfade[2] ? [1, 2] : null) : null;
+  const allein = paar ? [0, 1, 2].find((i) => !paar.includes(i))! : -1;
 
   const bild = (quelle: string, clip: string) => (
     <image href={quelle} x="0" y="0" width="100" height="100"
@@ -85,13 +90,35 @@ export default function TeamFlagge({ laender, groesse = 26 }: {
           <polygon points={zwei ? '0,0 100,0 0,100' : '0,0 100,0 100,100 0,100'} />
         </clipPath>
         <clipPath id={`${eigen}-b`}><polygon points="100,0 100,100 0,100" /></clipPath>
+        <clipPath id={`${eigen}-o`}><polygon points="50,50 -36.6,0 -36.6,-50 136.6,-50 136.6,0" /></clipPath>
+        <clipPath id={`${eigen}-l`}><polygon points="50,50 -36.6,0 -36.6,150 50,150" /></clipPath>
+        <clipPath id={`${eigen}-r`}><polygon points="50,50 136.6,0 136.6,150 50,150" /></clipPath>
+        <clipPath id={`${eigen}-u`}><polygon points="50,50 -36.6,0 -36.6,150 136.6,150 136.6,0" /></clipPath>
       </defs>
       <g clipPath={`url(#${eigen}-k)`}>
-        {bild(pfade[0], `${eigen}-a`)}
-        {zwei && bild(pfade[1], `${eigen}-b`)}
-        {zwei && (
-          <line x1="100" y1="0" x2="0" y2="100"
-            stroke="rgba(0,0,0,0.6)" strokeWidth="5" />
+        {drei ? (paar ? (
+          <>
+            {bild(pfade[allein], `${eigen}-o`)}
+            {bild(pfade[paar[0]], `${eigen}-u`)}
+            <polyline points="-36.6,0 50,50 136.6,0" fill="none" stroke="rgba(0,0,0,0.6)" strokeWidth="5" />
+          </>
+        ) : (
+          <>
+            {bild(pfade[0], `${eigen}-o`)}
+            {bild(pfade[1], `${eigen}-l`)}
+            {bild(pfade[2], `${eigen}-r`)}
+            <polyline points="-36.6,0 50,50 136.6,0" fill="none" stroke="rgba(0,0,0,0.6)" strokeWidth="5" />
+            <line x1="50" y1="50" x2="50" y2="150" stroke="rgba(0,0,0,0.6)" strokeWidth="5" />
+          </>
+        )) : (
+          <>
+            {bild(pfade[0], `${eigen}-a`)}
+            {zwei && bild(pfade[1], `${eigen}-b`)}
+            {zwei && (
+              <line x1="100" y1="0" x2="0" y2="100"
+                stroke="rgba(0,0,0,0.6)" strokeWidth="5" />
+            )}
+          </>
         )}
       </g>
       <circle cx="50" cy="50" r="47" fill="none"
