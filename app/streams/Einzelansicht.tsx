@@ -25,6 +25,8 @@ interface OrdnerEintrag { id: string; name: string; streamers: Array<{ twitch: s
 
 export interface PovEintrag {
   ident: string; name: string; bild: string | null; live: boolean; stats?: boolean;
+  /** Derselbe Anschluss wie der Sender: das POV beginnt stumm (sonst Echo). */
+  lokal?: boolean;
   discord?: { streamt: boolean; kanal: string | null; link: string | null } | null;
 }
 
@@ -425,7 +427,7 @@ export default function Einzelansicht(p: Props) {
         <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-3 pb-3 md:flex-row md:overflow-hidden">
           <div data-tour="preview" className="aspect-video w-full shrink-0 overflow-hidden rounded-xl bg-black md:aspect-auto md:h-full md:min-w-0 md:flex-1">
             {povInfo ? (
-              <PovVideo key={povInfo.ident} pro={povInfo.ident} name={povInfo.name} stumm={false}
+              <PovVideo key={povInfo.ident} pro={povInfo.ident} name={povInfo.name} stumm={Boolean(povInfo.lokal)}
                 banner={{
                   einst: { an: p.einst.povBanner, ort: p.einst.povBannerOrt, mitBild: p.einst.povBannerBild, groesse: p.einst.povBannerGroesse },
                   name: povInfo.name, bild: povInfo.bild,

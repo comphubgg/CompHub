@@ -61,9 +61,32 @@ interface Strom {
   fragmente: number;
 }
 
-const G = globalThis as unknown as { __povSitzungen?: Map<string, Sitzung>; __povStroeme?: Map<string, Strom> };
+const G = globalThis as unknown as { __povSitzungen?: Map<string, Sitzung>; __povStroeme?: Map<string, Strom>; __povAnschluss?: Map<string, { ip: string; zuletzt: number }> };
 const sitzungen: Map<string, Sitzung> = (G.__povSitzungen ??= new Map());
+const anschluesse: Map<string, { ip: string; zuletzt: number }> = (G.__povAnschluss ??= new Map());
 const stroeme: Map<string, Strom> = (G.__povStroeme ??= new Map());
+
+/** Die Adresse des Anrufers - hinter dem Cloudflare-Tunnel steht sie im Kopf cf-connecting-ip. */
+export function anschlussVon(request: Request): string {
+  return (request.headers.get('cf-connecting-ip') || request.headers.get('x-forwarded-for') || '').split(',')[0].trim();
+}
+
+/** Die Adresse, von der ein Profi gerade sendet - aufgefrischt mit jedem Strom-Beginn. */
+export function merkeAnschluss(ident: string, ip: string): void {
+  if (!ip) return;
+  anschluesse.set(ident, { ip, zuletzt: Date.now() });
+}
+
+/**
+ * Schaut jemand von demselben Anschluss zu, von dem der Profi sendet? Dann sitzt er wahrscheinlich am selben Rechner:
+ * sein Systemton (Windows "loopback") enthaelt dann den Ton des Zuschauer-Fensters, der geht mit ins Bild und kommt
+ * Sekunden spaeter noch einmal heraus - ein Echo, das sich aufschaukelt (der Betreiber, 12.10.2026: "mein Headset
+ * explodiert"). Die Seite stellt dort den Ton des POVs deshalb zuerst aus.
+ */
+export function gleicherAnschluss(ident: string, ip: string): boolean {
+  const a = anschluesse.get(ident);
+  return Boolean(a && ip && a.ip === ip && Date.now() - a.zuletzt < 6 * 60 * 60 * 1000);
+}
 
 /** Ein Strom gilt als live, solange das letzte Fragment juenger ist als das (es kommen zehn je Sekunde). */
 export const STROM_LIVE_MS = 3_500;

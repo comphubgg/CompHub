@@ -3,7 +3,7 @@ import {
   alleVips, bereinige, epicIdVon, leererPro, liesPros, oeffentlichPov, schreibePros, standardBild, wer,
 } from '@/lib/pov';
 import { discordStand, mitgliedName, pruefeDiscordLive, standardDiscordId } from '@/lib/povDiscord';
-import { istLive, liveSeit, zuschauerZahl } from '@/lib/povRelay';
+import { istLive, liveSeit, zuschauerZahl, gleicherAnschluss, anschlussVon } from '@/lib/povRelay';
 
 /*
  * Pro-POVs.
@@ -68,6 +68,8 @@ export async function GET(request: Request) {
       ...oeffentlichPov(p), bild: p.bild ?? (await standardBild(p.ident)),
       // Hat der Profi ein verbundenes Epic-Konto, kann das POV seine Werte zeigen.
       stats: Boolean(await epicIdVon(p.ident)),
+      // Derselbe Anschluss wie der Sender: dann zuerst ohne Ton (Echo, siehe lib/povRelay gleicherAnschluss).
+      lokal: gleicherAnschluss(p.ident, anschlussVon(request)),
       discord: d && d.imKanal ? { streamt: d.streamt, kanal: d.kanalName, server: d.gildenName, link: d.link } : null,
     };
   }));

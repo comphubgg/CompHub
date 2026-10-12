@@ -1092,6 +1092,8 @@ const response = await fetch(getApiUrl(`/api/search?q=${encodeURIComponent(twitc
     ident: string; name: string; bild: string | null; live: boolean;
     /** Hat der Profi ein verbundenes Epic-Konto? Dann kann das POV seine Statistik zeigen. */
     stats?: boolean;
+    /** Derselbe Anschluss wie der Sender: das POV beginnt stumm (sonst Echo). */
+    lokal?: boolean;
     hud: { an: boolean; ort: 'oben' | 'unten' | 'links' | 'rechts'; mitBild: boolean; text: string };
     discord?: { streamt: boolean; kanal: string | null; link: string | null } | null;
   }>>([]);

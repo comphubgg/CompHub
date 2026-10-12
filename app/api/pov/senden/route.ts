@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { liesPros, meldeLive, sichereProEintrag, wer } from '@/lib/pov';
 import { beendeAnkuendigung } from '@/lib/discordGilden';
 import {
-  STUECK_MAX, beende, legeAb, markiereGemeldet, markiereStromGemeldet, stromFragment, stromStart,
+  STUECK_MAX, beende, legeAb, markiereGemeldet, markiereStromGemeldet, stromFragment, stromStart, merkeAnschluss, anschlussVon,
 } from '@/lib/povRelay';
 
 /*
@@ -71,6 +71,7 @@ export async function POST(request: Request) {
       const mime = (request.headers.get('x-pov-mime') ?? '').trim();
       if (!MIME.test(mime)) return NextResponse.json({ ok: false, error: 'Unbekannte Aufnahmeart.' }, { status: 400, headers: nie });
       const r = stromStart(ident, mime, bytes);
+      merkeAnschluss(ident, anschlussVon(request));
       if (r.neuBeginn) {
         markiereStromGemeldet(ident);
         try {
