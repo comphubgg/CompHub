@@ -126,6 +126,15 @@ export default function Einzelansicht(p: Props) {
   const [neuFehler, setNeuFehler] = useState(false);
   const [umbenennen, setUmbenennen] = useState<{ id: string; name: string } | null>(null);
   const [suche, setSuche] = useState('');
+  /** Ist der Ordner "POVs" (die Profis, die einen freigegeben haben) der gewaehlte? Gemerkt wie die Leiste. */
+  const [povOrdner, setPovOrdner] = useState(false);
+  useEffect(() => {
+    try { setPovOrdner(localStorage.getItem('multihub_einzel_povordner') === '1'); } catch { /* ohne Speicher */ }
+  }, []);
+  const povOrdnerSetzen = (an: boolean) => {
+    setPovOrdner(an);
+    try { localStorage.setItem('multihub_einzel_povordner', an ? '1' : '0'); } catch { /* ohne Speicher */ }
+  };
 
   // Die Kopfzeile der Seite bleibt stehen; die Ansicht beginnt darunter (wie die Multiview).
   useLayoutEffect(() => {
@@ -143,7 +152,9 @@ export default function Einzelansicht(p: Props) {
   const sendet = (k: string) => p.live[k.toLowerCase()] === true;
   const bekannt = (k: string) => p.live[k.toLowerCase()] !== undefined;
   const ordner = p.ordner;
-  const offen = ordner.find((o) => o.id === p.aktivOrdner);
+  // Ohne Wahl gilt der erste Ordner - die Liste darunter ist nie leer, nur weil nichts angeklickt wurde.
+  const gewaehlterOrdner = ordner.find((o) => o.id === p.aktivOrdner) ?? ordner[0];
+  const povZeigen = povOrdner && p.povs.length > 0;
   const povInfo = p.aktivPov ? p.povs.find((x) => x.ident === p.aktivPov) : undefined;
   const chatName = !povInfo && p.aktiv ? p.aktiv.trim().toLowerCase() : '';
   const zeigeChat = p.chatAn && !!chatName && !!p.host;
@@ -219,10 +230,86 @@ export default function Einzelansicht(p: Props) {
           )}
         </Abschnitt>
 
-        {/* Der Ordner der Profis: blau, nur lesen, auch offline. */}
-        {p.povs.length > 0 && (
+        {/* Favoriten */}
+        {p.favoriten.length > 0 && (
           <Abschnitt>
-            <Titel symbol={<Zeichen d={D.sender} klein />}><T>Pro-POVs</T> ({p.povs.length})</Titel>
+            <Titel symbol={<Zeichen d={D.nadel} klein />}><T>Favoriten</T> ({p.favoriten.length})</Titel>
+            <ul className="space-y-0.5">{p.favoriten.map((f) => streamerZeile(f, null))}</ul>
+          </Abschnitt>
+        )}
+
+        {/*
+          * Die Ordner - zum Anklicken, nicht zum Aufklappen. Der gewaehlte ist hervorgehoben, seine Streamer stehen darunter
+          * in einem eigenen Abschnitt (wie vorher). Ganz oben der Ordner "POVs": die Profis, die einen als VIP freigegeben
+          * haben - blau, nur lesen.
+          */}
+        <Abschnitt>
+          <Titel symbol={<Zeichen d={D.ordner} klein />}><T>Ordner</T> ({ordner.length + (p.povs.length > 0 ? 1 : 0)})</Titel>
+          <ul className="space-y-1">
+            {p.povs.length > 0 && (
+              <li>
+                <button type="button" onClick={() => povOrdnerSetzen(true)}
+                  className={`flex w-full items-center gap-2 rounded-lg border px-2.5 py-1.5 text-left transition ${povZeigen
+                    ? 'border-sky-400 bg-sky-500/15' : 'border-sky-500/30 hover:border-sky-400/70 hover:bg-sky-500/10'}`}>
+                  <span className="text-sky-400"><Zeichen d={D.sender} klein /></span>
+                  <span className="min-w-0 flex-1 truncate text-xs font-semibold text-sky-400">POVs</span>
+                  <span className="mv-mute shrink-0 text-[10px] tabular-nums">{p.povs.length}</span>
+                  {p.povs.some((x) => x.live) && (
+                    <span className="flex shrink-0 items-center gap-1 text-[10px] font-semibold tabular-nums text-red-500">
+                      <span className="h-1.5 w-1.5 rounded-full bg-red-500" />{p.povs.filter((x) => x.live).length}
+                    </span>
+                  )}
+                </button>
+              </li>
+            )}
+            {ordner.map((o) => {
+              const gewaehlt = !povZeigen && gewaehlterOrdner?.id === o.id;
+              const sende = o.streamers.filter((x) => sendet(x.twitch)).length;
+              return (
+                <li key={o.id}>
+                  <div className={`group flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 transition ${gewaehlt
+                    ? 'border-sky-500/60 bg-sky-500/10' : 'mv-rand mv-hover'}`}>
+                    {umbenennen?.id === o.id ? (
+                      <input autoFocus value={umbenennen.name}
+                        onChange={(e) => setUmbenennen({ id: o.id, name: e.target.value })}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') { p.ordnerUmbenennen(o.id, umbenennen.name); setUmbenennen(null); }
+                          if (e.key === 'Escape') setUmbenennen(null);
+                        }}
+                        onBlur={() => { if (umbenennen.name.trim()) p.ordnerUmbenennen(o.id, umbenennen.name); setUmbenennen(null); }}
+                        className="mv-fl min-w-0 flex-1 rounded-md border px-2 py-1 text-xs outline-none focus:border-sky-500" />
+                    ) : (
+                      <button type="button" onClick={() => { povOrdnerSetzen(false); p.waehleOrdner(o.id); setSuche(''); }}
+                        className="min-w-0 flex-1 truncate text-left text-xs font-semibold">{o.name}</button>
+                    )}
+                    <span className="mv-mute shrink-0 text-[10px] tabular-nums">{o.streamers.length}</span>
+                    {sende > 0 && (
+                      <span className="flex shrink-0 items-center gap-1 text-[10px] font-semibold tabular-nums text-red-500">
+                        <span className="h-1.5 w-1.5 rounded-full bg-red-500" />{sende}
+                      </span>
+                    )}
+                    {!p.gast && umbenennen?.id !== o.id && (
+                      <span className="flex shrink-0 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
+                        <Knopf titel={t('Ordner umbenennen')} klick={() => setUmbenennen({ id: o.id, name: o.name })}><Zeichen d={D.stift} klein /></Knopf>
+                        <Knopf titel={t('Ordner löschen')} gefahr klick={() => { if (window.confirm(`${t('Ordner löschen')}: "${o.name}"?`)) p.ordnerLoeschen(o.id); }}>
+                          <Zeichen d={D.muell} klein />
+                        </Knopf>
+                      </span>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+          {ordner.length === 0 && p.povs.length === 0 && (
+            <p className="mv-mute mt-1 text-center text-xs"><T>Noch keine Ordner</T></p>
+          )}
+        </Abschnitt>
+
+        {/* Darunter: die POVs oder die Streamer des gewaehlten Ordners */}
+        {povZeigen ? (
+          <Abschnitt>
+            <Titel symbol={<Zeichen d={D.sender} klein />}>POVs</Titel>
             <ul className="space-y-1">
               {p.povs.map((x) => (
                 <li key={x.ident}>
@@ -251,99 +338,44 @@ export default function Einzelansicht(p: Props) {
               ))}
             </ul>
           </Abschnitt>
-        )}
-
-        {/* Favoriten */}
-        {p.favoriten.length > 0 && (
+        ) : gewaehlterOrdner && (
           <Abschnitt>
-            <Titel symbol={<Zeichen d={D.nadel} klein />}><T>Favoriten</T> ({p.favoriten.length})</Titel>
-            <ul className="space-y-0.5">{p.favoriten.map((f) => streamerZeile(f, null))}</ul>
+            <Titel symbol={<Zeichen d={D.ordner} klein />}><T>Streamer in</T> &quot;{gewaehlterOrdner.name}&quot;</Titel>
+            <input value={suche} onChange={(e) => setSuche(e.target.value)} spellCheck={false}
+              placeholder={t('Streamer suchen …')}
+              className="mv-fl mb-2 w-full rounded-md border px-2 py-1 text-[11px] outline-none focus:border-sky-500" />
+            {(() => {
+              const liste = [...gewaehlterOrdner.streamers]
+                .filter((x) => !q || x.twitch.toLowerCase().includes(q))
+                .sort((x, y) => Number(sendet(y.twitch)) - Number(sendet(x.twitch)));
+              return (
+                <>
+                  {liste.length === 0 && <p className="mv-mute py-1 text-center text-[11px]"><T>Der Ordner ist leer</T></p>}
+                  <ul className="space-y-0.5">{liste.map((x) => streamerZeile(x.twitch, gewaehlterOrdner.id))}</ul>
+                </>
+              );
+            })()}
+            {!p.gast && (
+              <form className="mt-2 flex gap-1.5"
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  const k = kanalAusEingabe(neuerKanal);
+                  if (!k) { setNeuFehler(true); return; }
+                  p.streamerHinzufuegen(gewaehlterOrdner.id, k);
+                  setNeuerKanal(''); setNeuFehler(false);
+                }}>
+                <input value={neuerKanal} spellCheck={false}
+                  onChange={(e) => { setNeuerKanal(e.target.value); setNeuFehler(false); }}
+                  placeholder={t('Streamer zum Ordner hinzufügen …')}
+                  className={`mv-fl min-w-0 flex-1 rounded-md border px-2 py-1 text-[11px] outline-none focus:border-sky-500 ${neuFehler ? 'border-rose-500' : ''}`} />
+                <button type="submit" aria-label={t('Streamer zum Ordner hinzufügen')}
+                  className="flex h-6 w-7 shrink-0 items-center justify-center rounded-md bg-sky-500 text-white transition hover:bg-sky-400">
+                  <Zeichen d={D.plus} klein />
+                </button>
+              </form>
+            )}
           </Abschnitt>
         )}
-
-        {/* Ordner und darunter die Streamer des gewaehlten Ordners */}
-        <Abschnitt>
-          <Titel symbol={<Zeichen d={D.ordner} klein />}><T>Ordner</T> ({ordner.length})</Titel>
-          {ordner.length === 0 ? (
-            <p className="mv-mute text-center text-xs"><T>Noch keine Ordner</T></p>
-          ) : (
-            <ul className="space-y-1">
-              {ordner.map((o) => {
-                const aufgeklappt = o.id === p.aktivOrdner;
-                const sende = o.streamers.filter((x) => sendet(x.twitch)).length;
-                const liste = [...o.streamers]
-                  .filter((x) => !q || x.twitch.toLowerCase().includes(q))
-                  .sort((x, y) => Number(sendet(y.twitch)) - Number(sendet(x.twitch)));
-                return (
-                  <li key={o.id} className="mv-rand rounded-lg border">
-                    <div className="group flex items-center gap-1.5 px-2 py-1.5">
-                      {umbenennen?.id === o.id ? (
-                        <input autoFocus value={umbenennen.name}
-                          onChange={(e) => setUmbenennen({ id: o.id, name: e.target.value })}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') { p.ordnerUmbenennen(o.id, umbenennen.name); setUmbenennen(null); }
-                            if (e.key === 'Escape') setUmbenennen(null);
-                          }}
-                          onBlur={() => { if (umbenennen.name.trim()) p.ordnerUmbenennen(o.id, umbenennen.name); setUmbenennen(null); }}
-                          className="mv-fl min-w-0 flex-1 rounded-md border px-2 py-1 text-xs outline-none focus:border-sky-500" />
-                      ) : (
-                        <button type="button" onClick={() => p.waehleOrdner(aufgeklappt ? '' : o.id)} aria-expanded={aufgeklappt}
-                          className="flex min-w-0 flex-1 items-center gap-1 text-left">
-                          <svg viewBox="0 0 20 20" className={`mv-mute h-3 w-3 shrink-0 transition ${aufgeklappt ? 'rotate-90' : ''}`} fill="none"
-                            stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 4l6 6-6 6" /></svg>
-                          <span className="truncate text-xs font-semibold">{o.name}</span>
-                        </button>
-                      )}
-                      <span className="mv-mute shrink-0 text-[10px] tabular-nums">{o.streamers.length}</span>
-                      {sende > 0 && (
-                        <span className="flex shrink-0 items-center gap-1 text-[10px] font-semibold tabular-nums text-red-500">
-                          <span className="h-1.5 w-1.5 rounded-full bg-red-500" />{sende}
-                        </span>
-                      )}
-                      {!p.gast && umbenennen?.id !== o.id && (
-                        <span className="flex shrink-0 opacity-0 transition-opacity group-hover:opacity-100 focus-within:opacity-100">
-                          <Knopf titel={t('Ordner umbenennen')} klick={() => setUmbenennen({ id: o.id, name: o.name })}><Zeichen d={D.stift} klein /></Knopf>
-                          <Knopf titel={t('Ordner löschen')} gefahr klick={() => { if (window.confirm(`${t('Ordner löschen')}: "${o.name}"?`)) p.ordnerLoeschen(o.id); }}>
-                            <Zeichen d={D.muell} klein />
-                          </Knopf>
-                        </span>
-                      )}
-                    </div>
-
-                    {aufgeklappt && (
-                      <div className="mv-rand border-t px-2 py-1.5">
-                        <input value={suche} onChange={(e) => setSuche(e.target.value)} spellCheck={false}
-                          placeholder={t('Streamer suchen …')}
-                          className="mv-fl mb-1.5 w-full rounded-md border px-2 py-1 text-[11px] outline-none focus:border-sky-500" />
-                        {liste.length === 0 && <p className="mv-mute py-1 text-center text-[11px]"><T>Der Ordner ist leer</T></p>}
-                        <ul className="space-y-0.5">{liste.map((x) => streamerZeile(x.twitch, o.id))}</ul>
-                        {!p.gast && (
-                          <form className="mt-1.5 flex gap-1.5"
-                            onSubmit={(e) => {
-                              e.preventDefault();
-                              const k = kanalAusEingabe(neuerKanal);
-                              if (!k) { setNeuFehler(true); return; }
-                              p.streamerHinzufuegen(o.id, k);
-                              setNeuerKanal(''); setNeuFehler(false);
-                            }}>
-                            <input value={neuerKanal} spellCheck={false}
-                              onChange={(e) => { setNeuerKanal(e.target.value); setNeuFehler(false); }}
-                              placeholder={t('Streamer zum Ordner hinzufügen …')}
-                              className={`mv-fl min-w-0 flex-1 rounded-md border px-2 py-1 text-[11px] outline-none focus:border-sky-500 ${neuFehler ? 'border-rose-500' : ''}`} />
-                            <button type="submit" aria-label={t('Streamer zum Ordner hinzufügen')}
-                              className="flex h-6 w-7 shrink-0 items-center justify-center rounded-md bg-sky-500 text-white transition hover:bg-sky-400">
-                              <Zeichen d={D.plus} klein />
-                            </button>
-                          </form>
-                        )}
-                      </div>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          )}
-        </Abschnitt>
       </div>
     </aside>
   );
