@@ -13,7 +13,10 @@
  * Noble im Finale fuehrt.
  */
 
+import { promises as fs } from 'node:fs';
+import path from 'node:path';
 import { liesJson } from '@/lib/ablage';
+import { DATEN_ORT } from '@/lib/datenOrt';
 import { gecacht, holeTop, listeCups } from '@/lib/epicCups';
 import { detail, jungeTurniere, formenAus, namenRepariert, type RohDetail } from '@/lib/nobleKarte';
 import { spielerbildKlein } from '@/lib/spielerbildKlein';
@@ -104,11 +107,32 @@ async function ergebnisse(windowId: string): Promise<Map<string, { rang: number;
 
 type SpielerVon = (id: string, roh: string, land?: string) => SolosSpieler;
 
+/**
+ * Die Heimatlaender aus der Spielerliste der Szene-Quelle (Konto-Id -> Laenderkuerzel).
+ *
+ * Der Betreiber (12.10.2026): auf den Karten standen bei den meisten Spielern Weltkugeln statt Flaggen, "weil dazu ja jeder
+ * Spieler eigentlich in der Liste steht". Die Liste kennt das Land zu rund 2.100 der im Archiv gefuehrten Konten - sie ist
+ * dieselbe Grundlage, die auch die Statistikseite nimmt. Ein gepflegtes Profil schlaegt sie, Nobles Angabe auch; nur wo beide
+ * nichts wissen, springt sie ein. Wo auch sie nichts kennt, bleibt die Weltkugel: ein Land wird nicht geraten.
+ */
+let szeneLaender: { bis: number; karte: Map<string, string> } | null = null;
+async function szeneLand(): Promise<Map<string, string>> {
+  if (szeneLaender && szeneLaender.bis > Date.now()) return szeneLaender.karte;
+  const karte = new Map<string, string>();
+  try {
+    const roh = JSON.parse(await fs.readFile(path.join(DATEN_ORT, 'szene-quelle', 'spielerliste.json'), 'utf8')) as Array<{ ID?: string; COUNTRY?: string }>;
+    for (const p of roh) if (p.ID && /^[A-Za-z]{2}$/.test(p.COUNTRY ?? '')) karte.set(p.ID, (p.COUNTRY as string).toUpperCase());
+  } catch { /* ohne Liste bleibt es bei Profil und Noble */ }
+  szeneLaender = { bis: Date.now() + 10 * 60_000, karte };
+  return karte;
+}
+
 /** Wie ein Spieler aus Noble zu unserem Anzeigenamen, Land und Foto kommt (Profile und Spielerbilder des Werkzeugs). */
 async function spielerKontext(): Promise<SpielerVon> {
-  const [profile, bilder] = await Promise.all([
+  const [profile, bilder, szene] = await Promise.all([
     liesJson<Record<string, Profil>>('spieler-profile.json', {}),
     liesJson<Bildeintrag[]>('spielerbilder.json', []),
+    szeneLand(),
   ]);
   const bildZu = new Map<string, string>();
   for (const b of bilder) if (b.epicId && b.echtesFoto) bildZu.set(b.epicId, spielerbildKlein(b.datei));
@@ -119,7 +143,7 @@ async function spielerKontext(): Promise<SpielerVon> {
     return {
       id, name,
       anzeige: pr?.anzeige || pr?.name || name,
-      land: (pr?.land || nobleLand || '').toUpperCase() || null,
+      land: (pr?.land || nobleLand || szene.get(id) || '').toUpperCase() || null,
       bild: bildZu.get(id) ?? null,
     };
   };
