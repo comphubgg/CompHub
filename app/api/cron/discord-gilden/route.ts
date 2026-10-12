@@ -3,6 +3,7 @@ import { NextResponse } from 'next/server';
 import { richteAlleEin, raeumeVerwaiste } from '@/lib/discordGilden';
 import { istLive } from '@/lib/povRelay';
 import { liesPros } from '@/lib/pov';
+import { pruefeDiscordLive } from '@/lib/povDiscord';
 
 /*
  * Alle zehn Minuten (Ablauf "Discord live" der GitHub-Aktion):
@@ -35,6 +36,8 @@ export async function GET(request: Request) {
     const pros = await liesPros();
     const namen = Object.fromEntries(Object.values(pros).map((p) => [p.ident, p.name]));
     const abgeraeumt = await raeumeVerwaiste(istLive, namen);
+    // Wer von den Profis gerade in einem Sprachkanal streamt, wird gemeldet (und wer aufgehoert hat, durchgestrichen).
+    for (const p of Object.values(pros)) await pruefeDiscordLive(p);
     return NextResponse.json({ ok: true, gilden, abgeraeumt });
   } catch (e) {
     return NextResponse.json({ ok: false, fehler: (e as Error).message }, { status: 503 });

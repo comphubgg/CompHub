@@ -299,6 +299,64 @@ export async function kuendigeAn(ident: string, name: string, gildenIds: string[
   return gesendet;
 }
 
+/*
+ * Der Profi streamt in einem Discord-Sprachkanal ("Live gehen"): auf dem Server melden, auf dem er sitzt.
+ *
+ * Der Betreiber (12.10.2026): er war live in einem Sprachkanal, und es kam keine Meldung. Der Bot sieht nur, WER in
+ * welchem Sprachkanal sitzt und ob er streamt - nicht das Bild. Gemeldet wird, wenn der Profi das fuer diesen Server
+ * eingeschaltet hat und dort ein Meldungs-Kanal gewaehlt ist; einmal je Sitzung, und beim Ende wird die Meldung
+ * durchgestrichen. Gepruefte Stelle: wann immer jemand den Stand abfragt (Streams-Seite, Dashboard) und im
+ * Zehn-Minuten-Ablauf.
+ */
+const unterwegs = new Set<string>();
+
+export interface StimmenStand {
+  streamt: boolean; gilde: string | null; gildenName: string | null; kanalName: string | null; link: string | null;
+}
+
+export async function meldeDiscordStand(
+  ident: string, name: string, gildenIds: string[], stand: StimmenStand | null,
+): Promise<void> {
+  const schluessel = `${ident}#discord`;
+  if (unterwegs.has(schluessel)) return;
+  unterwegs.add(schluessel);
+  try {
+    const a = await lies();
+    const offen = a.live[schluessel] ?? [];
+    const sauber = name.replace(/[*_`~|>]/g, '');
+    if (!stand?.streamt || !stand.gilde) {
+      if (!offen.length) return;
+      for (const m of offen) {
+        await bot(`/channels/${m.kanal}/messages/${m.nachricht}`, 'PATCH', {
+          embeds: [{ title: `${sauber} was live on Discord`, description: 'The stream in the voice channel has ended.', color: 0x64748b }],
+        });
+      }
+      delete a.live[schluessel];
+      await schreibe(a);
+      return;
+    }
+    // Schon gemeldet in dieser Sitzung (hoechstens zwoelf Stunden alt - eine haengengebliebene Meldung soll nicht ewig blockieren).
+    if (offen.some((m) => Date.now() - m.seit < 12 * 3600_000)) return;
+    if (!gildenIds.includes(stand.gilde)) return;
+    const kanal = zielKanal(a.gilden[stand.gilde], ident);
+    if (!kanal) return;
+    const r = await bot<{ id?: string }>(`/channels/${kanal}/messages`, 'POST', {
+      embeds: [{
+        title: `\u{1F534} ${sauber} is live on Discord`,
+        description: `Streaming in the voice channel **#${stand.kanalName ?? 'voice'}** on ${stand.gildenName ?? 'this server'}`
+          + (stand.link ? ` — [join](${stand.link})` : ''),
+        color: 0xef4444,
+      }],
+    });
+    if ((r.status === 200 || r.status === 201) && r.daten?.id) {
+      a.live[schluessel] = [{ kanal, nachricht: String(r.daten.id), seit: Date.now(), gilde: stand.gilde }];
+      await schreibe(a);
+    }
+  } finally {
+    unterwegs.delete(schluessel);
+  }
+}
+
 /** Das POV ist zu Ende: die Live-Meldungen durchstreichen. */
 export async function beendeAnkuendigung(ident: string, name: string): Promise<void> {
   const a = await lies();
@@ -322,7 +380,8 @@ export async function raeumeVerwaiste(istLive: (ident: string) => boolean, namen
   const a = await lies();
   let n = 0;
   for (const ident of Object.keys(a.live)) {
-    if (istLive(ident)) continue;
+    // Die Meldungen zum Discord-Sprachkanal prueft meldeDiscordStand - nicht der Weiterreicher.
+    if (ident.endsWith('#discord') || istLive(ident)) continue;
     await beendeAnkuendigung(ident, namen[ident] || 'Pro');
     n += 1;
   }

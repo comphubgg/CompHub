@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import {
   alleVips, bereinige, epicIdVon, leererPro, liesPros, oeffentlichPov, schreibePros, standardBild, wer,
 } from '@/lib/pov';
-import { discordStand, mitgliedName, standardDiscordId } from '@/lib/povDiscord';
+import { discordStand, mitgliedName, pruefeDiscordLive, standardDiscordId } from '@/lib/povDiscord';
 import { istLive, liveSeit, zuschauerZahl } from '@/lib/povRelay';
 
 /*
@@ -43,6 +43,7 @@ export async function GET(request: Request) {
     const dId = mein.discordId || (await standardDiscordId(ident)) || '';
     const dName = mein.discordId ? mein.discordName : (dId ? await mitgliedName(dId) : null);
     const dStand = dId ? await discordStand(dId) : null;
+    void pruefeDiscordLive({ ident, name: mein.name || ich.name, gilden: mein.gilden, discordId: mein.discordId });
     return NextResponse.json({
       ok: true,
       mein: { ...mein, live: istLive(ident), liveSeit: liveSeit(ident) },
@@ -61,6 +62,8 @@ export async function GET(request: Request) {
     // Sitzt der Profi in einem Discord-Sprachkanal? Nur das, was ein freigegebener Zuschauer braucht.
     const dId = p.discordId || (await standardDiscordId(p.ident)) || '';
     const d = dId ? await discordStand(dId) : null;
+    // Streamt er im Sprachkanal, geht dazu die Meldung auf seinen Servern hinaus (einmal je Sitzung).
+    void pruefeDiscordLive(p);
     return {
       ...oeffentlichPov(p), bild: p.bild ?? (await standardBild(p.ident)),
       // Hat der Profi ein verbundenes Epic-Konto, kann das POV seine Werte zeigen.

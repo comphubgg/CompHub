@@ -1,5 +1,5 @@
 import { mitgliederSuchen } from '@/lib/discord';
-import { mitgliedPerName, stimmeSuchen } from '@/lib/discordGilden';
+import { meldeDiscordStand, mitgliedPerName, stimmeSuchen } from '@/lib/discordGilden';
 import { nachId } from '@/lib/konten';
 import { zugangNach } from '@/lib/vipZugaenge';
 
@@ -32,11 +32,12 @@ export interface DiscordStand {
   kanalName: string | null;
   /** Auf welchem Server. */
   gildenName: string | null;
+  gilde: string | null;
   /** Oeffnet den Sprachkanal in Discord. */
   link: string | null;
 }
 
-const NICHT_DA: DiscordStand = { imKanal: false, streamt: false, kamera: false, kanalName: null, gildenName: null, link: null };
+const NICHT_DA: DiscordStand = { imKanal: false, streamt: false, kamera: false, kanalName: null, gildenName: null, gilde: null, link: null };
 
 async function bot(weg: string): Promise<Response | null> {
   const token = (process.env.DISCORD_BOT_TOKEN ?? '').trim();
@@ -62,7 +63,7 @@ export async function discordStand(id: string): Promise<DiscordStand | null> {
   if (s === null) wert = NICHT_DA;
   else if (s) {
     wert = {
-      imKanal: true, streamt: s.streamt, kamera: s.kamera, kanalName: s.kanalName, gildenName: s.gildenName, link: s.link,
+      imKanal: true, streamt: s.streamt, kamera: s.kamera, kanalName: s.kanalName, gildenName: s.gildenName, gilde: s.gilde, link: s.link,
     };
   }
   // Zwoelf Sekunden gemerkt: viele Zuschauer, eine Abfrage.
@@ -123,4 +124,21 @@ export async function standardDiscordId(ident: string): Promise<string | null> {
     }
   } catch { /* dann keines */ }
   return null;
+}
+
+/**
+ * Streamt dieser Profi gerade in einem Sprachkanal? Dann auf seinen eingeschalteten Servern melden - und beim Ende
+ * die Meldung durchstreichen. Faengt Fehler selbst ab: die Meldung ist ein Zusatz und blockiert nie die Antwort.
+ */
+export async function pruefeDiscordLive(
+  p: { ident: string; name: string; gilden?: string[]; discordId?: string },
+): Promise<void> {
+  try {
+    if (!p.gilden?.length) return;
+    const dId = p.discordId || (await standardDiscordId(p.ident)) || '';
+    if (!dId) return;
+    const d = await discordStand(dId);
+    if (d === null) return; // Discord antwortet nicht: nichts behaupten
+    await meldeDiscordStand(p.ident, p.name, p.gilden, d.imKanal ? d : null);
+  } catch { /* ein Zusatz */ }
 }
