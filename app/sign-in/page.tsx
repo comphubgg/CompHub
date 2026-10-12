@@ -156,6 +156,27 @@ export default function Anmelden({ start = 'anmelden' }: {
          * englischen Seite. Der Satz steht im Woerterbuch; er musste nur
          * noch hindurch.
          */
+        /*
+         * Ein VIP-Zugang auch hier.
+         *
+         * Wer hier den Namen und den Schluessel seines VIP-Zugangs eintippt, hat kein Konto gemeint, sondern den
+         * Schluessel - und bekam "Diesen Namen kennt niemand hier" (der Betreiber, 12.10.2026). Also: kennt das
+         * Formular den Namen nicht als Konto, wird er als VIP-Zugang versucht. Klappt auch das nicht, bleibt es bei
+         * der bisherigen Antwort. Der eigene VIP-Reiter bleibt dafuer da.
+         */
+        if (reiter === 'anmelden' && j?.keinKonto && email.trim() && !email.includes('@') && passwort) {
+          try {
+            const v = await fetch('/api/auth/vip', {
+              method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ username: email.trim(), accessKey: passwort }),
+            });
+            if (v.ok) {
+              const nach = new URLSearchParams(window.location.search).get('weiter') ?? '';
+              window.location.href = /^\/[a-z0-9/_-]*$/i.test(nach) && !nach.startsWith('//') ? nach : '/vip';
+              return;
+            }
+          } catch { /* dann gilt die Antwort des Kontos */ }
+        }
         setFehler(t(j?.fehler ?? 'Das hat nicht geklappt.'));
         // Kein Konto? Dann gleich zum Registrieren, mit der Adresse im Feld.
         if (j?.keinKonto) { setReiter('registrieren'); setPasswort(''); }
