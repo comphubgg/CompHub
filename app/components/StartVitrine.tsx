@@ -38,7 +38,7 @@ const CSS = `
 /* Auf grossen Schirmen alles um gut zehn Prozent kleiner, damit die drei Spalten auf einen Blick passen (Betreiber, 12.10.2026:
    "ich muss legit ein bisschen scrollen ... von oben nach unten kleiner, breit ist okay"). Die Breite bleibt: der Raster darf
    um denselben Faktor breiter rechnen. */
-@media (min-width: 1280px) { .vit-raster { zoom: .88; } }
+@media (min-width: 1280px) { .vit-raster { zoom: .84; } }
 `;
 
 /* ------------------------------------------------------------------ Typen */
@@ -92,8 +92,8 @@ function Gesicht({ name, bild, px }: { name: string; bild: string | null; px: nu
 /** Eine Karte mit Kopf: Symbol, Titel, Pfeil zur ganzen Seite. */
 function Karte({ titel, href, symbol, children, gold = false, className = '' }: { titel: string; href: string; symbol: ReactNode; children: ReactNode; gold?: boolean; className?: string }) {
   return (
-    <div className={`${gold ? 'vit-gold' : 'vit-karte'} group/karte rounded-2xl p-4 ${className}`}>
-      <Link href={href} className={`mb-3 flex items-center justify-between gap-2 transition ${gold ? 'text-amber-200 hover:text-amber-100' : 'text-slate-100 hover:text-sky-400'}`}>
+    <div className={`${gold ? 'vit-gold' : 'vit-karte'} group/karte rounded-2xl p-3.5 ${className}`}>
+      <Link href={href} className={`mb-2.5 flex items-center justify-between gap-2 transition ${gold ? 'text-amber-200 hover:text-amber-100' : 'text-slate-100 hover:text-sky-400'}`}>
         <span className="flex items-center gap-2 text-sm font-black uppercase tracking-wide">
           <span className={gold ? 'text-amber-300' : 'text-sky-500'}>{symbol}</span><T>{titel}</T>
         </span>
@@ -303,7 +303,7 @@ function MapsSpalte({ anzahl }: { anzahl: number }) {
 
   return (
     <div ref={setHalter} className="vit-glas flex min-h-[560px] flex-col overflow-hidden rounded-3xl p-6">
-      <h3 className="text-4xl font-black uppercase tracking-tight text-slate-50 sm:text-6xl">Maps</h3>
+      <h3 className="text-4xl font-black uppercase tracking-tight text-slate-50 sm:text-5xl">Maps</h3>
       <p className="mt-1 max-w-sm text-xs leading-relaxed text-slate-400"><T>Wo die Teams gelandet sind — jeder Cup, jede Saison.</T></p>
 
       <div className="relative mt-5 flex min-h-[360px] flex-1 overflow-hidden rounded-2xl" onMouseLeave={() => setAuf(null)}>
@@ -468,12 +468,12 @@ export default function StartVitrine() {
     <section className="relative px-4 py-10 xl:py-8">
       <style>{CSS}</style>
       <div aria-hidden className="pointer-events-none absolute inset-x-0 top-10 mx-auto h-72 max-w-5xl rounded-full bg-sky-500/[0.06] blur-[110px]" />
-      <div className="vit-raster relative mx-auto grid max-w-[1760px] gap-5 xl:max-w-[2000px] xl:grid-cols-[1fr_1.4fr_1fr]">
+      <div className="vit-raster relative mx-auto grid max-w-[1760px] gap-5 xl:max-w-[2100px] xl:grid-cols-[1fr_1.4fr_1fr]">
         {/* ---------------------------------------------------- Statistics */}
         <div className="vit-glas rounded-3xl p-6">
-          <h3 className="text-4xl font-black uppercase tracking-tight text-slate-50 sm:text-6xl"><T>Statistiken</T></h3>
+          <h3 className="text-4xl font-black uppercase tracking-tight text-slate-50 sm:text-5xl"><T>Statistiken</T></h3>
           <p className="mt-1 text-xs leading-relaxed text-slate-400"><T>Aus den Spielwerten jedes Cups — nach jedem Event erneuert.</T></p>
-          <div className="mt-5 space-y-3">
+          <div className="mt-4 space-y-2.5">
             <SpielerKarte daten={daten} fertig={geladen} />
             <CupKarte daten={daten} fertig={geladen} />
             <GlobalKarte daten={daten} fertig={geladen} />
@@ -485,9 +485,9 @@ export default function StartVitrine() {
 
         {/* ----------------------------------------------------------- More */}
         <div className="vit-glas rounded-3xl p-6">
-          <h3 className="text-4xl font-black uppercase tracking-tight text-slate-50 sm:text-6xl"><T>Mehr</T></h3>
+          <h3 className="text-4xl font-black uppercase tracking-tight text-slate-50 sm:text-5xl"><T>Mehr</T></h3>
           <p className="mt-1 text-xs leading-relaxed text-slate-400"><T>Eigene Tierlist bauen, die Rankings ansehen und die Globals Solos verfolgen.</T></p>
-          <div className="mt-5 space-y-3">
+          <div className="mt-4 space-y-2.5">
             <TierlistKarte daten={daten} fertig={geladen} />
             <RangKarte daten={daten} fertig={geladen} />
             <SoloKarte heats={heats} fertig={geladen} />
