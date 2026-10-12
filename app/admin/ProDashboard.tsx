@@ -59,6 +59,20 @@ export default function ProDashboard() {
   const [dTreffer, setDTreffer] = useState<Array<{ id: string; name: string; anzeige: string }>>([]);
   const uhr = useRef<number | null>(null);
   const offen = useRef<Record<string, unknown>>({});
+  /*
+   * Auf Discord live -> auch auf CompHub senden.
+   *
+   * Der Betreiber (12.10.2026): wer auf Discord live geht, soll nicht in Discord angesehen werden muessen, sondern auf
+   * der eigenen Seite - "wie als ob ich ueber meine eigene Seite streame". Discord laesst den Bot kein Video holen; also
+   * teilt das Programm denselben Bildschirm gleichzeitig an CompHub, sobald der Bot sieht, dass der Profi in einem
+   * Sprachkanal streamt. Im Browser fragt der Bildschirm-Dialog immer, dort bleibt es bei einem Knopf.
+   */
+  const [autoDiscord, setAutoDiscord] = useState(true);
+  const autoSitzung = useRef(false);
+  const autoGestartet = useRef(false);
+  useEffect(() => {
+    try { setAutoDiscord(localStorage.getItem('comphub_pov_auto_discord') !== '0'); } catch { /* ohne Speicher: an */ }
+  }, []);
 
   /* -------------------------------------------------------------- Laden */
   useEffect(() => {
@@ -205,6 +219,22 @@ export default function ProDashboard() {
     (window as unknown as { comphubApp?: { live: (an: boolean) => void } }).comphubApp?.live(teilt);
   }, [teilt]);
 
+  const discordStreamt = Boolean(discord?.stand?.streamt);
+  useEffect(() => {
+    if (!discordStreamt) {
+      // Der Discord-Stream ist zu Ende: ein von selbst gestartetes POV endet mit ihm.
+      if (autoGestartet.current && teilt) teilenStoppen();
+      autoGestartet.current = false; autoSitzung.current = false;
+      return;
+    }
+    if (!imProgramm || !autoDiscord || teilt || autoSitzung.current || !mein) return;
+    autoSitzung.current = true; // einmal je Discord-Sitzung - wer es selbst beendet, wird nicht wieder gestartet
+    autoGestartet.current = true;
+    (window as unknown as { comphubApp?: { auto?: (an: boolean) => void } }).comphubApp?.auto?.(true);
+    void teilenStarten();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [discordStreamt, imProgramm, autoDiscord, teilt, mein]);
+
   const erlaubt = useMemo(() => new Set(mein?.erlaubt ?? []), [mein?.erlaubt]);
   const gefiltert = useMemo(() => {
     const q = suche.trim().toLowerCase();
@@ -307,6 +337,22 @@ export default function ProDashboard() {
             <span className={`h-2 w-2 rounded-full ${discord.stand.streamt ? 'animate-pulse bg-red-500' : 'bg-indigo-400'}`} />
             {discord.stand.streamt ? t('Auf Discord live') : t('Im Discord-Sprachkanal')}{discord.stand.kanalName ? ` · #${discord.stand.kanalName}` : ''}
           </p>
+        )}
+        {/* Auf Discord live, aber noch nicht auf CompHub: im Browser ein Klick, im Programm von selbst (siehe oben). */}
+        {mein && tab === 'pov' && discordStreamt && !teilt && (!imProgramm || !autoDiscord) && (
+          <div className="mb-4 flex flex-wrap items-center gap-3 rounded-lg border border-sky-500/30 bg-sky-500/10 px-4 py-2.5 text-sm text-sky-200">
+            <span><T>Du bist auf Discord live. Teile dasselbe Bild auch hier, damit deine Freigegebenen es auf CompHub sehen statt in Discord.</T></span>
+            <button type="button" onClick={() => void teilenStarten()} className="rounded-md bg-sky-500 px-3 py-1 text-xs font-semibold text-white transition hover:bg-sky-400">
+              <T>Jetzt auch hier senden</T>
+            </button>
+          </div>
+        )}
+        {mein && tab === 'pov' && imProgramm && (
+          <label className="mb-4 flex cursor-pointer items-center gap-2 text-xs text-slate-400">
+            <input type="checkbox" checked={autoDiscord} className="accent-sky-500"
+              onChange={(e) => { setAutoDiscord(e.target.checked); try { localStorage.setItem('comphub_pov_auto_discord', e.target.checked ? '1' : '0'); } catch { /* ohne Speicher */ } }} />
+            <T>Automatisch auf CompHub senden, sobald ich auf Discord live gehe (Hauptbildschirm mit Ton)</T>
+          </label>
         )}
         {!mein && !fehler && <p className="text-sm text-slate-500"><T>Wird geladen …</T></p>}
 

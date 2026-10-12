@@ -80,7 +80,7 @@ const neuerStream = (kanal: string, wahl: Partial<Pick<MvStream, 'zeigeOffline' 
 /** Angeheftete zuerst, sonst die Reihenfolge behalten. */
 const festeVor = (liste: MvStream[]) => [...liste.filter((s) => s.fest), ...liste.filter((s) => !s.fest)];
 
-const CSS = `
+export const CSS = `
 @layer components {
   .mv-root{--mv-bg:#09090b;--mv-panel:#111113;--mv-rand:#27272a;--mv-text:#f4f4f5;--mv-mute:#a1a1aa;--mv-hover:#1f1f23;background:var(--mv-bg);color:var(--mv-text)}
   .mv-root.mv-hell{--mv-bg:#f4f4f5;--mv-panel:#ffffff;--mv-rand:#e4e4e7;--mv-text:#18181b;--mv-mute:#52525b;--mv-hover:#f4f4f5}

@@ -5,4 +5,6 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('comphubApp', {
   app: true,
   live: (an) => ipcRenderer.send('pov:live', Boolean(an)),
+  // Das naechste Teilen ohne Auswahlfenster: der Hauptbildschirm mit Systemton (wenn die Seite von selbst startet).
+  auto: (an) => ipcRenderer.send('pov:auto', Boolean(an)),
 });

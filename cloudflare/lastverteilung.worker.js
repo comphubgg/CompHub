@@ -14,9 +14,9 @@
  *     Worker automatisch die andere. Ein Konto darf also ganz ausfallen, ohne dass die Seite ausfaellt.
  *   - Der Rest der Domain bleibt unberuehrt: die Adresse thecomphub.com wird nie gegen eine netlify.app getauscht.
  *
- * Nicht auf Netlify moeglich (braucht einen dauernd laufenden Server): das Live-POV der Profis (/api/pov/senden und
- * /api/pov/strom). Wer das nutzt, braucht weiter den Rechner daheim hinter dem Tunnel - die Routen dafuer unten
- * (ZUHAUSE) ausnehmen oder auf den Tunnel legen.
+ * Nicht auf Netlify moeglich (braucht einen dauernd laufenden Server): das Live-POV der Profis (/api/pov/senden,
+ * /api/pov/strom). Diese Pfade reicht der Worker unveraendert an den Rechner daheim hinter dem Tunnel (ZUHAUSE unten) -
+ * der Tunnel und seine DNS-Eintraege bleiben also, wie sie sind.
  *
  * Einrichten (einmal, im Cloudflare-Dashboard):
  *   1. Workers & Pages -> Create -> Start with Hello World -> Deploy
@@ -33,9 +33,12 @@ const SEITEN = [
   'lambent-moxie-2dc34a.netlify.app', // Konto 2
 ];
 
-/** Diese Pfade bleiben beim Rechner daheim (Tunnel) - sie brauchen einen dauernd laufenden Server. */
-const ZUHAUSE = [/^\/api\/pov\/(senden|strom)/];
-const ZUHAUSE_HOST = ''; // z. B. 'daheim.thecomphub.com' - leer lassen, solange es keinen eigenen Namen fuer den Tunnel gibt.
+/**
+ * Diese Pfade bleiben beim Rechner daheim (Tunnel): das Live-POV braucht einen dauernd laufenden Server.
+ * Ein fetch() an die eigene Domain geht aus einem Worker direkt an den Ursprung - also durch den Tunnel zum Rechner,
+ * ohne dass der Worker noch einmal anspringt. Ist der Rechner aus, fallen genau diese Pfade aus, alles andere nicht.
+ */
+const ZUHAUSE = [/^\/api\/pov\/(senden|strom|segment)/];
 
 /** Eine kleine, stabile Zahl aus einem Text (FNV-1a). */
 function streuwert(text) {
@@ -67,11 +70,7 @@ export default {
   async fetch(request) {
     const url = new URL(request.url);
 
-    if (ZUHAUSE_HOST && ZUHAUSE.some((r) => r.test(url.pathname))) {
-      const ziel = new URL(request.url);
-      ziel.hostname = ZUHAUSE_HOST;
-      return fetch(new Request(ziel.toString(), request));
-    }
+    if (ZUHAUSE.some((r) => r.test(url.pathname))) return fetch(request);
 
     // Wer es sendet, kann nur einmal senden: den Koerper vorher lesen, damit die zweite Seite ihn auch bekommt.
     const hatKoerper = !['GET', 'HEAD'].includes(request.method);

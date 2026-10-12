@@ -631,14 +631,14 @@ export default function Seitenleiste(p: Props) {
                     {x.live
                       ? <span className="flex shrink-0 items-center gap-1 text-[10px] font-semibold text-red-500"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-500" />LIVE</span>
                       : <span className="mv-mute shrink-0 text-[9px] uppercase tracking-wider">offline</span>}
-                    {/* Sitzt der Profi in einem Discord-Sprachkanal? Das Bild bleibt in Discord - der Knopf oeffnet den Kanal. */}
+                    {/* Nur ein Zeichen: der Profi sitzt in einem Discord-Sprachkanal. Gesehen wird sein Stream auf CompHub, nicht in Discord. */}
                     {x.discord && (
-                      <a href={x.discord.link ?? undefined} target="_blank" rel="noreferrer"
-                        title={`${t('In Discord ansehen')}${x.discord.kanal ? ` — #${x.discord.kanal}` : ''}`}
-                        className="flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-semibold text-indigo-300 ring-1 ring-indigo-400/40 transition hover:bg-indigo-500/10">
-                        <span className={`h-1.5 w-1.5 rounded-full ${x.discord.streamt ? 'animate-pulse bg-red-500' : 'bg-indigo-400'}`} />
-                        {x.discord.streamt ? t('Discord LIVE') : 'Discord'}
-                      </a>
+                      <span title={x.discord.streamt ? t('Der Profi streamt gerade in einem Discord-Sprachkanal') : t('Der Profi sitzt in einem Discord-Sprachkanal')}
+                        className={`flex h-5 w-5 shrink-0 items-center justify-center rounded ${x.discord.streamt ? 'text-red-500' : 'text-indigo-300'}`}>
+                        <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="currentColor" aria-hidden>
+                          <path d="M20.3 4.4A19.8 19.8 0 0 0 15.4 3l-.6 1.2a18.3 18.3 0 0 0-5.6 0L8.6 3a19.7 19.7 0 0 0-4.9 1.5C.6 9.1-.2 13.6.2 18.1a19.9 19.9 0 0 0 6 3l1.3-2a12.8 12.8 0 0 1-2-1l.5-.4a14.2 14.2 0 0 0 12 0l.5.4a12.9 12.9 0 0 1-2 1l1.3 2a19.8 19.8 0 0 0 6-3c.5-5.2-.9-9.7-3.5-13.7ZM8.5 15.3c-1.2 0-2.1-1.1-2.1-2.4s.9-2.4 2.1-2.4 2.2 1.1 2.1 2.4c0 1.3-.9 2.4-2.1 2.4Zm7 0c-1.2 0-2.1-1.1-2.1-2.4s.9-2.4 2.1-2.4 2.2 1.1 2.1 2.4c0 1.3-.9 2.4-2.1 2.4Z" />
+                        </svg>
+                      </span>
                     )}
                     <Knopf titel={t('Link für OBS kopieren')} klick={() => { void linkKopieren(x.ident); }}>
                       <Zeichen d={D.link} klein />

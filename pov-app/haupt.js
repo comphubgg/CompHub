@@ -32,6 +32,8 @@ let ablage = null;
 let live = false;
 let wirklichBeenden = false;
 let schlaf = null;
+/** Das naechste Teilen ohne Auswahlfenster (die Seite startet von selbst, weil der Profi auf Discord live ging). */
+let autoQuelle = false;
 /** Die Fassung, die schon geladen ist und beim naechsten Moment ohne Uebertragung installiert wird. */
 let updateBereit = null;
 
@@ -91,6 +93,12 @@ function richteTeilenEin(sitzung) {
   sitzung.setDisplayMediaRequestHandler(async (_anfrage, antwort) => {
     try {
       const quellen = await desktopCapturer.getSources({ types: ['screen', 'window'], thumbnailSize: { width: 360, height: 200 } });
+      // Von selbst gestartet: der Hauptbildschirm mit Systemton, ohne zu fragen - der Profi ist gerade im Spiel.
+      if (autoQuelle) {
+        autoQuelle = false;
+        const schirm = quellen.find((q) => q.id.startsWith('screen'));
+        if (schirm) { antwort({ video: schirm, audio: 'loopback' }); return; }
+      }
       const gewaehlt = await waehleQuelle(quellen);
       if (!gewaehlt) { antwort({}); return; }
       // "loopback": der ganze Systemton (Windows). Ohne Haken kommt nur das Bild.
@@ -190,6 +198,12 @@ function aktualisiereAblage() {
 }
 
 /* ------------------------------------------------------------------ Seite meldet ihren Zustand */
+
+ipcMain.on('pov:auto', (_e, an) => {
+  autoQuelle = Boolean(an);
+  // Nur fuer diesen einen Start: bleibt es liegen, soll das naechste Mal von Hand wieder gefragt werden.
+  if (autoQuelle) setTimeout(() => { autoQuelle = false; }, 30_000);
+});
 
 ipcMain.on('pov:live', (_e, an) => {
   live = Boolean(an);
