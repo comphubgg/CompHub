@@ -1,6 +1,6 @@
 'use client';
 
-import { useLayoutEffect, useState, type ReactNode } from 'react';
+import { useEffect, useLayoutEffect, useState, type ReactNode } from 'react';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import Kachel from './Kachel';
@@ -103,7 +103,24 @@ function Knopf({ titel, klick, aktiv, gefahr, children }: {
 export default function Einzelansicht(p: Props) {
   const t = useT();
   const [oben, setOben] = useState(0);
-  const [handyOffen, setHandyOffen] = useState(false);
+  /*
+   * Die Ordnerliste: auf einem breiten Bildschirm daneben, auf einem schmalen darueber - und immer zuklappbar.
+   * Der Betreiber (12.10.2026): sie soll "automatisch wieder zugehen beziehungsweise zuklappbar sein, wie frueher".
+   * Nach der Wahl eines Streamers schliesst sie sich auf schmalen Bildschirmen von selbst; die Wahl wird gemerkt.
+   */
+  const [leisteOffen, setLeisteOffen] = useState(true);
+  useEffect(() => {
+    try {
+      const gemerkt = localStorage.getItem('multihub_einzel_leiste');
+      setLeisteOffen(gemerkt === null ? window.innerWidth >= 1024 : gemerkt === '1');
+    } catch { setLeisteOffen(window.innerWidth >= 1024); }
+  }, []);
+  const leisteSetzen = (an: boolean) => {
+    setLeisteOffen(an);
+    try { localStorage.setItem('multihub_einzel_leiste', an ? '1' : '0'); } catch { /* ohne Speicher */ }
+  };
+  /** Auf einem schmalen Bildschirm nach der Wahl zuklappen (gemerkt wird das nicht - dort ist es nur Platz). */
+  const schmalZu = () => { if (typeof window !== 'undefined' && window.innerWidth < 1024) setLeisteOffen(false); };
   const [neuerOrdner, setNeuerOrdner] = useState('');
   const [neuerKanal, setNeuerKanal] = useState('');
   const [neuFehler, setNeuFehler] = useState(false);
@@ -140,7 +157,7 @@ export default function Einzelansicht(p: Props) {
       <li key={`${ordnerId ?? 'fav'}:${twitch}`}
         className={`group mv-hover flex items-center gap-1.5 rounded px-1.5 py-1 ${gewaehlt ? 'bg-sky-500/10 ring-1 ring-inset ring-sky-500/40' : ''}`}>
         <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${live ? 'bg-red-500' : 'bg-zinc-600'}`} />
-        <button type="button" onClick={() => { p.waehleStreamer(twitch); setHandyOffen(false); }}
+        <button type="button" onClick={() => { p.waehleStreamer(twitch); schmalZu(); }}
           className={`min-w-0 flex-1 truncate text-left text-xs ${live ? 'font-semibold' : 'mv-mute'}`}>{twitch}</button>
         {!live && bekannt(twitch) && <span className="mv-mute shrink-0 text-[9px] uppercase tracking-wider">offline</span>}
         <Knopf titel={fav ? t('Favorit entfernen') : t('Als Favorit merken')} aktiv={fav} klick={() => p.favoritUmschalten(twitch)}>
@@ -157,7 +174,7 @@ export default function Einzelansicht(p: Props) {
   };
 
   const leiste = (
-    <aside data-tour="sidebar" className="mv-fl mv-rand flex h-full w-full flex-col border-r lg:w-[320px]">
+    <aside data-tour="sidebar" className="mv-fl mv-rand flex h-full w-[min(320px,92vw)] flex-col border-r">
       <div className="mv-rand flex items-center gap-2 border-b px-4 py-3">
         <div className="min-w-0 flex-1">
           <p className="truncate text-sm font-semibold">CompHub <T>Einzelansicht</T></p>
@@ -166,6 +183,11 @@ export default function Einzelansicht(p: Props) {
           className="mv-fl mv-hover flex shrink-0 items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs transition">
           <Zeichen d={D.raster} klein /><T>Multi view</T>
         </button>
+        <Knopf titel={t('Ordnerliste verbergen')} klick={() => leisteSetzen(false)}>
+          <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polyline points="14 18 8 12 14 6" />
+          </svg>
+        </Knopf>
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto">
@@ -204,7 +226,7 @@ export default function Einzelansicht(p: Props) {
             <ul className="space-y-1">
               {p.povs.map((x) => (
                 <li key={x.ident}>
-                  <button type="button" onClick={() => { p.waehlePov(x.ident); setHandyOffen(false); }}
+                  <button type="button" onClick={() => { p.waehlePov(x.ident); schmalZu(); }}
                     className={`flex w-full items-center gap-2 rounded-lg border px-2 py-1.5 text-left transition ${p.aktivPov === x.ident
                       ? 'border-sky-400 bg-sky-500/15' : 'border-sky-500/30 hover:border-sky-400/70 hover:bg-sky-500/10'}`}>
                     {x.bild
@@ -330,27 +352,41 @@ export default function Einzelansicht(p: Props) {
     <div className="mv-root fixed bottom-0 left-0 right-0 z-[300] flex overflow-hidden" style={{ top: oben }}>
       <style>{CSS}</style>
 
-      {/* Links die Seitenleiste; auf dem Handy hinter einem Knopf. */}
-      <div className={`${handyOffen ? 'absolute inset-0 z-20 flex' : 'hidden'} lg:static lg:z-auto lg:flex lg:shrink-0`}>{leiste}</div>
+      {/* Die Seitenleiste: auf breiten Bildschirmen daneben, auf schmalen darueber (mit abgedunkeltem Rest zum Antippen). */}
+      {leisteOffen && (
+        <>
+          <div className="absolute inset-0 z-10 bg-black/60 lg:hidden" onClick={() => setLeisteOffen(false)} aria-hidden />
+          <div className="absolute inset-y-0 left-0 z-20 shadow-2xl lg:static lg:z-auto lg:shrink-0 lg:shadow-none">{leiste}</div>
+        </>
+      )}
 
       {/* Rechts der Stream, dazu der Chat */}
       <div className="flex min-w-0 flex-1 flex-col">
-        <div className="mv-rand flex shrink-0 items-center gap-2 border-b px-3 py-1.5">
-          <button type="button" onClick={() => setHandyOffen((x) => !x)}
-            className="mv-fl mv-hover rounded-md border px-2.5 py-1 text-xs lg:hidden"><T>Ordner</T></button>
-          <p className="min-w-0 flex-1 truncate text-xs font-semibold">
+        <div className="flex shrink-0 items-center gap-2 px-3 py-2">
+          {!leisteOffen && (
+            <button type="button" onClick={() => leisteSetzen(true)} title={t('Ordnerliste anzeigen')} aria-label={t('Ordnerliste anzeigen')}
+              className="mv-fl mv-hover flex h-8 w-8 shrink-0 items-center justify-center rounded-full border transition">
+              <svg viewBox="0 0 20 20" className="h-[18px] w-[18px]" fill="none" stroke="currentColor" strokeWidth="1.6"
+                strokeLinecap="round" strokeLinejoin="round">
+                <rect x="2.5" y="3.5" width="15" height="13" rx="2.5" /><line x1="8" y1="3.5" x2="8" y2="16.5" />
+              </svg>
+            </button>
+          )}
+          <p className="min-w-0 flex-1 truncate text-sm font-semibold">
             {povInfo ? povInfo.name : p.aktiv || ''}
           </p>
+          {/* Wie frueher: ein runder Knopf, Chat an oder aus. */}
           {!povInfo && p.aktiv && (
-            <button type="button" onClick={p.chatUmschalten}
-              className={`flex items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs transition ${p.chatAn ? 'border-sky-500 bg-sky-500/15 text-sky-400' : 'mv-fl mv-hover'}`}>
-              <Zeichen d={D.chat} klein />{p.chatAn ? <T>Chat an</T> : <T>Chat aus</T>}
+            <button type="button" onClick={p.chatUmschalten} title={t('Toggle chat')}
+              className="rounded-full border border-zinc-800 bg-zinc-900/80 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-200 transition hover:bg-zinc-800">
+              {p.chatAn ? 'Chat off' : 'Chat on'}
             </button>
           )}
         </div>
 
-        <div className="flex min-h-0 flex-1">
-          <div data-tour="preview" className="min-w-0 flex-1 bg-black">
+        {/* Auf breiten Bildschirmen nebeneinander, auf schmalen untereinander - der Chat als Karte, wie vorher. */}
+        <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto px-3 pb-3 md:flex-row md:overflow-hidden">
+          <div data-tour="preview" className="aspect-video w-full shrink-0 overflow-hidden rounded-xl bg-black md:aspect-auto md:h-full md:min-w-0 md:flex-1">
             {povInfo ? (
               <PovVideo key={povInfo.ident} pro={povInfo.ident} name={povInfo.name} stumm={false}
                 banner={{
@@ -372,9 +408,14 @@ export default function Einzelansicht(p: Props) {
             )}
           </div>
           {zeigeChat && (
-            <div data-tour="chat" className="mv-rand hidden w-[380px] shrink-0 border-l md:block">
-              <iframe title={`Twitch chat ${chatName}`} className="h-full w-full"
-                src={`https://www.twitch.tv/embed/${chatName}/chat?parent=${p.host}&darkpopout`} />
+            <div data-tour="chat" className="flex h-[480px] w-full shrink-0 flex-col overflow-hidden rounded-xl border border-zinc-900 bg-zinc-950 shadow-2xl md:h-full md:w-[420px]">
+              <div className="flex items-center justify-between border-b border-zinc-900 bg-zinc-950/90 px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-zinc-400">
+                <span> Chat: {chatName || 'None'}</span>
+              </div>
+              <div className="min-h-0 flex-1 overflow-hidden bg-zinc-950">
+                <iframe title={`Twitch chat für ${chatName}`} className="h-full w-full"
+                  src={`https://www.twitch.tv/embed/${chatName}/chat?parent=${p.host}&darkpopout`} />
+              </div>
             </div>
           )}
         </div>

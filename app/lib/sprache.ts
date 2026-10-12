@@ -3365,6 +3365,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Karten zu diesem Spieltag': 'Maps for this match day',
   'Alle anzeigen': 'Show all',
   // ------------------------------------------------------------ Multiview (11.10.2026)
+  'Ordnerliste verbergen': 'Hide folder list',
   'Du bist auf Discord live. Teile dasselbe Bild auch hier, damit deine Freigegebenen es auf CompHub sehen statt in Discord.': 'You are live on Discord. Share the same picture here too, so the people you approved watch it on CompHub instead of in Discord.',
   'Jetzt auch hier senden': 'Send here too',
   'Automatisch auf CompHub senden, sobald ich auf Discord live gehe (Hauptbildschirm mit Ton)': 'Send to CompHub automatically as soon as I go live on Discord (main screen with sound)',
