@@ -820,7 +820,20 @@ async function bekannteKonten(): Promise<Set<string>> {
   return raus;
 }
 
-export async function aktenSchreiben(): Promise<{ konten: number; geschrieben: number }> {
+/**
+ * Die Akten schreiben - wahlweise nur eine Schale der Konten.
+ *
+ * Alle Akten zugleich im Speicher zu halten (jeder Spieler, jeder Spieltag, die vollen Werte) brauchte mit dem
+ * Archiv von 2026 mehr als der Laufrechner hat: seit dem 11.10.2026 stockte der stuendliche Lauf in genau diesem
+ * Schritt (Speicher voll, Auslagerung, Zeitgrenze) und die Startseite zeigte Antworten, die tagelang alt waren.
+ * Mit "teil" (k von n) liest jede Runde zwar alle Spieltage, behaelt aber nur die Konten, deren Kennung in diese
+ * Schale faellt - der Speicher sinkt auf ein n-tel, das Ergebnis ist dasselbe, in n Laeufen statt einem.
+ */
+export async function aktenSchreiben(teil?: { k: number; n: number }): Promise<{ konten: number; geschrieben: number }> {
+  const inSchale = (id: string): boolean => {
+    if (!teil || teil.n <= 1) return true;
+    return (parseInt(id.slice(0, 8), 16) || 0) % teil.n === teil.k - 1;
+  };
   /*
    * Ohne die Verdienst-Akte keine Akten. Fehlt sie dem Laufrechner (die
    * Ablage antwortete nicht, das Release war nicht erreichbar), entstuenden
@@ -844,7 +857,7 @@ export async function aktenSchreiben(): Promise<{ konten: number; geschrieben: n
     if (!datei) continue;
     const karte = await platzKarte(e.season, e.windowId);
     for (const p of datei.players) {
-      if (!p.epicId) continue;
+      if (!p.epicId || !inSchale(p.epicId)) continue;
       /*
        * Ein LAN-Fenster (Globals, Summit, Reload Elite Championship) liegt
        * im Archiv der Szene je Region einmal - derselbe Spieltag, dieselben
@@ -877,6 +890,7 @@ export async function aktenSchreiben(): Promise<{ konten: number; geschrieben: n
     let voll: { schaden?: Record<string, { dmg: number; erlitten: number; treffer: number; krit: number }>; summe?: Record<string, number> } | null = null;
     for (const team of tag.teams) {
       for (const id of team.spieler) {
+        if (!inSchale(id)) continue;
         const a = akten.get(id) ?? (bekannt.has(id) ? akte(id) : null);
         if (!a) continue;
         replays ??= await replayKarte(tag.season, tag.windowId);
@@ -908,6 +922,7 @@ export async function aktenSchreiben(): Promise<{ konten: number; geschrieben: n
    */
   const archiv = await liesVerdienstArchiv();
   for (const [id, eintraege] of Object.entries(archiv.konten)) {
+    if (!inSchale(id)) continue;
     const a = akten.get(id) ?? (bekannt.has(id) ? akte(id) : null);
     if (!a) continue;
     const da = new Set([...a.verlauf.map((z) => z.windowId), ...a.epic.map((z) => z.windowId)]);

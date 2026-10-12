@@ -505,7 +505,11 @@ async function berechne(request: Request) {
         return NextResponse.json({ error: 'Akten werden nur dort geschrieben, wo die Dateien liegen.' },
           { status: 400 });
       }
-      const ergebnis = await aktenSchreiben();
+      // "teil=2/4": nur diese Schale der Konten (siehe aktenSchreiben) - der Lauf ruft die Schalen einzeln.
+      const tm = /^(\d+)\/(\d+)$/.exec(p.get('teil') ?? '');
+      const teil = tm && Number(tm[2]) > 1 && Number(tm[1]) >= 1 && Number(tm[1]) <= Number(tm[2])
+        ? { k: Number(tm[1]), n: Number(tm[2]) } : undefined;
+      const ergebnis = await aktenSchreiben(teil);
       return NextResponse.json({ success: true, ...ergebnis });
     }
 

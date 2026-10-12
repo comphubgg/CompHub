@@ -50,7 +50,7 @@ function wege(saisons) {
   const raus = [
     // Zuerst die Akten je Spieler und die Summen ueber das ganze Archiv -
     // davon lebt jedes Profil bei Vercel.
-    '/api/szene-stats?ansicht=akten',
+    // Die Akten kommen je Portion in einer Schale (siehe los()): alle auf einmal passen nicht in den Speicher.
     '/api/szene-stats?ansicht=start',
     '/api/szene-stats?ansicht=start&clutch=alle',
     // Das Jahr - ueber alle Saisons, mit Preisgeld.
@@ -200,7 +200,10 @@ async function los() {
   const [teil, teile] = teilArg ? teilArg.slice(7).split('/').map(Number) : [1, 1];
   const alle = wege(s);
   const je = Math.ceil(alle.length / teile);
-  const liste = alle.slice((teil - 1) * je, teil * je);
+  // Die Akten in Schalen: jede Portion schreibt ihr n-tel (lib/szeneStats aktenSchreiben) - allein und als Erstes,
+  // solange der Server noch leer ist. Ohne Portionen (ein Lauf) in einem Zug.
+  const liste = [`/api/szene-stats?ansicht=akten${teile > 1 ? `&teil=${teil}/${teile}` : ''}`,
+    ...alle.slice((teil - 1) * je, teil * je)];
   console.log(`  Saisons: ${s.length ? s.join(', ') : '(keine gefunden)'}`);
   console.log(`  Abfragen: ${liste.length}${teile > 1 ? ` (Teil ${teil} von ${teile}, zusammen ${alle.length})` : ''}`);
   console.log('');
@@ -217,10 +220,13 @@ async function los() {
        * alles danach fehlte. Eine fehlende Antwort rechnet spaeter der erste
        * Besucher; eine verlorene Portion niemand.
        */
+      // Die schweren Abfragen (Akten, die Summen ueber das ganze Archiv) duerfen laenger: abgebrochen rechnet der Server
+      // trotzdem weiter und blockiert die naechste - am 12.10.2026 liefen so Akten und Startansicht beide in die Frist.
+      const schwer = /ansicht=akten|ansicht=start(&clutch=alle)?$|ansicht=start&saison=alle|ansicht=jahr&jahr=alle(&|$)/.test(weg);
       const r = await fetch(SERVER + weg, {
         // Drei Minuten: eine haengende Abfrage hielt sonst die ganze
         // letzte Portion bis in die Zeitgrenze auf.
-        signal: AbortSignal.timeout(180_000),
+        signal: AbortSignal.timeout(schwer ? 900_000 : 180_000),
       });
       const bytes = (await r.arrayBuffer()).byteLength;
       if (!r.ok) throw new Error(String(r.status));

@@ -490,7 +490,7 @@ jobs:
 
       - name: Antworten vorrechnen
         continue-on-error: true
-        timeout-minutes: 50
+        timeout-minutes: 110
         env:
           BAU_CODE: ${{ steps.bau.outputs.code }}
           # Zu alte Antworten sofort neu rechnen statt im Hintergrund - der
@@ -517,7 +517,7 @@ jobs:
             && sudo mkswap /mnt/auslagerung >/dev/null && sudo swapon /mnt/auslagerung \
             && echo "Auslagerung an: $(free -m | awk '/Swap/{print $2}') MB" || echo "Auslagerung nicht moeglich"
           # Speicher im Blick - damit im Protokoll steht, wo es eng wird.
-          ( while sleep 20; do echo "  [Wache] $(date +%T) belegt $(free -m | awk 'NR==2{print $3}') MB, Auslagerung $(free -m | awk 'NR==3{print $3}') MB, Server $(ps -o rss= -C node 2>/dev/null | sort -n | tail -1 | awk '{printf "%d", $1/1024}') MB"; done ) &
+          ( while sleep 20; do echo "  [Wache] $(date +%T) belegt $(free -m | awk 'NR==2{print $3}') MB, Auslagerung $(free -m | awk 'NR==3{print $3}') MB, Groesster: $(ps -eo rss=,comm= --sort=-rss 2>/dev/null | head -1 | awk '{printf "%s %d MB", $2, $1/1024}')"; done ) &
           WACHE=$!
           # Den Server wirklich beenden. "kill $SERVER" traf nur den
           # npx-Mantel; der eigentliche next-server lief weiter und hielt den
@@ -564,7 +564,7 @@ jobs:
               starten
               # Das Protokoll laeuft live mit (tee): wird der Teil abgeschossen,
               # steht im Lauf trotzdem, welche Abfrage zuletzt dran war.
-              timeout 540 node scripts/antworten-vorrechnen.mjs http://localhost:3000 --teil=$TEIL/4 2>&1 | tee /tmp/teil.log | sed -u 's/^/  [teil '"$TEIL"'] /'
+              timeout 1500 node scripts/antworten-vorrechnen.mjs http://localhost:3000 --teil=$TEIL/4 2>&1 | tee /tmp/teil.log | sed -u 's/^/  [teil '"$TEIL"'] /'
               LEBT=nein; kill -0 $SERVER 2>/dev/null && LEBT=ja
               stoppen
               cat /tmp/teil.log >> /tmp/vorrechnen.log
