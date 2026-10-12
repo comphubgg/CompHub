@@ -188,7 +188,7 @@ export default function Einzelansicht(p: Props) {
     <aside data-tour="sidebar" className="mv-fl mv-rand flex h-full w-[min(320px,92vw)] flex-col border-r">
       <div className="mv-rand flex items-center gap-2 border-b px-4 py-3">
         <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-semibold">CompHub <T>Einzelansicht</T></p>
+          <p className="truncate text-sm font-semibold"><T>Einzelansicht</T></p>
         </div>
         <button type="button" onClick={p.zurMultiview}
           className="mv-fl mv-hover flex shrink-0 items-center gap-1.5 rounded-md border px-2.5 py-1 text-xs transition">
