@@ -3365,6 +3365,13 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Karten zu diesem Spieltag': 'Maps for this match day',
   'Alle anzeigen': 'Show all',
   // ------------------------------------------------------------ Multiview (11.10.2026)
+  'Alles auf einen Blick': 'Everything at a glance',
+  'Wer im Finale steht, und wie er sich qualifiziert hat': 'Who is in the final, and how they qualified',
+  'Die Spieler jedes Heats': 'The players of every heat',
+  'Die Karte jedes Spieltags - wer wo landet': 'The map of every match day - who lands where',
+  'Die Solos der Global Championship an einem Ort — wer im Finale steht, die Heats und die Karte jedes Spieltags.': 'The Global Championship solos in one place — who is in the final, the heats and the map of every match day.',
+  'Qualifiziert': 'Qualified',
+  'Map': 'Map',
   'Chat einblenden': 'Show chat',
   'Chat ausblenden': 'Hide chat',
   'Streamer in': 'Streamers in',
