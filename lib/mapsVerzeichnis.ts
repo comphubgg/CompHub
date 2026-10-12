@@ -1,6 +1,11 @@
 import { alleTurniere, detail } from '@/lib/nobleKarte';
 import { liesJson } from '@/lib/ablage';
 import { saisonName, SAISON_NAMEN } from '@/lib/szeneStats';
+import { typVon, type MapTyp } from '@/lib/mapsTyp';
+import { alteEintraege } from '@/lib/alteMaps';
+
+export { typVon };
+export type { MapTyp };
 
 /*
  * Das Verzeichnis der Maps: jeder Cup, zu dem es eine Karte gibt.
@@ -12,8 +17,6 @@ import { saisonName, SAISON_NAMEN } from '@/lib/szeneStats';
  * und das steht auf der Seite auch so. Epics Cup-Archiv (cup-archiv.json) liefert zu jedem Fenster Titel, Bild und
  * Beginn - was dort fehlt, bleibt leer, statt geraten zu werden.
  */
-
-export type MapTyp = 'fncs' | 'performance' | 'division' | 'reload' | 'sonst';
 
 export interface MapEintrag {
   turnierId: string;
@@ -36,21 +39,18 @@ export interface MapEintrag {
   eventId: string | null;
   /** Ende des Spieltags (ms), wo bekannt. */
   ende: number | null;
+  /** Reihenfolge innerhalb eines Cups, wo das Datum fehlt (ältere Events: Week 1, Week 2 ...). */
+  reihe?: number;
+  /** Ein LAN-Event. */
+  lan?: boolean;
+  /** Eine Karte ohne Landepunkte aus dem Archiv - der Admin zeichnet sie von Hand ein (lib/alteMaps). */
+  alt?: boolean;
 }
 
 /** "Chapter 7 Season 4" -> "CH7 S4"; Namen wie "The Simpsons" bleiben, wie sie sind. */
 function kurzName(name: string): string {
   const m = name.match(/^Chapter\s*(\d+)\s*Season\s*(\S+)$/i);
   return m ? `CH${m[1]} S${m[2]}` : name;
-}
-
-export function typVon(name: string): MapTyp {
-  const n = name.toLowerCase();
-  if (/reload/.test(n)) return 'reload';
-  if (/division/.test(n)) return 'division';
-  if (/performance/.test(n)) return 'performance';
-  if (/fncs|global championship|major|last chance|solos/.test(n)) return 'fncs';
-  return 'sonst';
 }
 
 /** Ein eigenes Bild je Art, wo Epics Bild fehlt - nur Bilder, die im Werkzeug liegen. */
@@ -62,9 +62,18 @@ const BILD_JE_TYP: Record<MapTyp, string | null> = {
   sonst: null,
 };
 
-interface ArchivEintrag { windowId?: string; eventId?: string; titel?: string; bild?: string; begin?: number; end?: number }
+interface ArchivEintrag { windowId?: string; eventId?: string; titel?: string; bild?: string; begin?: number; end?: number; region?: string }
 
-let merker: { bis: number; liste: MapEintrag[] } | null = null;
+let merker: { bis: number; liste: MapEintrag[]; versteckt: MapEintrag[] } | null = null;
+
+/** Nach einer Aenderung der alten Karten: das Verzeichnis beim naechsten Abruf neu bauen. */
+export function vergissVerzeichnis() { merker = null; }
+
+/** Die vom Admin versteckten alten Karten - damit sie sich zurueckholen lassen. */
+export async function versteckteKarten(): Promise<MapEintrag[]> {
+  await mapsVerzeichnis();
+  return merker?.versteckt ?? [];
+}
 
 /** Alle Fenster aller Noble-Turniere, neueste zuerst. Fuenfzehn Minuten im Speicher. */
 export async function mapsVerzeichnis(): Promise<MapEintrag[]> {
@@ -78,6 +87,7 @@ export async function mapsVerzeichnis(): Promise<MapEintrag[]> {
   for (const a of archiv) if (a.windowId) imArchiv.set(a.windowId, a);
 
   const liste: MapEintrag[] = [];
+  let versteckt: MapEintrag[] = [];
   await Promise.all(turniere.flatMap((t) => (t.regions ?? []).map(async (r) => {
     try {
       const d = await detail(t.id, r.code);
@@ -99,6 +109,16 @@ export async function mapsVerzeichnis(): Promise<MapEintrag[]> {
   })));
 
   /*
+   * Die Karten ohne Landepunkte: Events aus Epics Archiv, zu denen Noble nichts fuehrt (vor Juli 2025), und die alten
+   * Events von Chapter 1 bis 4. Sie stehen in der Liste wie alle anderen; der Admin zeichnet die Landepunkte selbst ein.
+   */
+  try {
+    const alte = await alteEintraege(new Set(liste.map((e) => e.windowId)), archiv, typVon, BILD_JE_TYP);
+    liste.push(...alte.sichtbar);
+    versteckt = alte.versteckt;
+  } catch { /* ohne die alten Karten bleibt es bei denen von Noble */ }
+
+  /*
    * Fenster ohne Saison in ihrer Kennung (EWC_..., FNCS_Major_1_Summit_..., Erazer_LAN) bekommen die Saison, in der ihr
    * Datum liegt: die letzte, deren erstes bekanntes Fenster nicht nach ihnen liegt. Die Grenzen kommen aus den Fenstern,
    * die ihre Saison selbst tragen - nichts ist von Hand eingetragen.
@@ -114,8 +134,8 @@ export async function mapsVerzeichnis(): Promise<MapEintrag[]> {
     if (e.saison) { e.saisonName = saisonName(e.saison); e.saisonKurz = kurzName(e.saisonName); }
   }
 
-  liste.sort((a, b) => (b.datum ?? 0) - (a.datum ?? 0));
-  merker = { bis: Date.now() + 15 * 60_000, liste };
+  liste.sort((a, b) => (b.datum ?? 0) - (a.datum ?? 0) || (b.reihe ?? 0) - (a.reihe ?? 0));
+  merker = { bis: Date.now() + 15 * 60_000, liste, versteckt };
   return liste;
 }
 

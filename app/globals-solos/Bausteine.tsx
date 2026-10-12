@@ -219,14 +219,7 @@ export function Karte({ f, bild, rotAb = 2 }: {
     return p ? [...spots].reverse().find((sp) => imPolygon(p, sp.punkte)) : undefined;
   };
 
-  if (!f.formen.length) {
-    return (
-      <p className="rounded-xl border border-zinc-800 bg-zinc-900/40 px-4 py-8 text-center text-sm text-slate-500">
-        <T>Für diesen Spieltag sind noch keine Landepunkte eingetragen.</T>
-      </p>
-    );
-  }
-
+  // Ohne Landepunkte steht trotzdem die Insel da - der Hinweis kommt klein darunter (Betreiber, 12.10.2026: "die Map zumindest").
   return (
     <div>
       <div ref={flaeche}
@@ -324,6 +317,9 @@ export function Karte({ f, bild, rotAb = 2 }: {
           </button>
         )}
       </div>
+      {!f.formen.length && (
+        <p className="mt-3 text-center text-xs text-slate-500"><T>Für diesen Spieltag sind noch keine Landepunkte eingetragen.</T></p>
+      )}
     </div>
   );
 }

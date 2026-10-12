@@ -105,7 +105,7 @@ async function ergebnisse(windowId: string): Promise<Map<string, { rang: number;
   return karte;
 }
 
-type SpielerVon = (id: string, roh: string, land?: string) => SolosSpieler;
+export type SpielerVon = (id: string, roh: string, land?: string) => SolosSpieler;
 
 /**
  * Die Heimatlaender aus der Spielerliste der Szene-Quelle (Konto-Id -> Laenderkuerzel).
@@ -128,7 +128,7 @@ async function szeneLand(): Promise<Map<string, string>> {
 }
 
 /** Wie ein Spieler aus Noble zu unserem Anzeigenamen, Land und Foto kommt (Profile und Spielerbilder des Werkzeugs). */
-async function spielerKontext(): Promise<SpielerVon> {
+export async function spielerKontext(): Promise<SpielerVon> {
   const [profile, bilder, szene] = await Promise.all([
     liesJson<Record<string, Profil>>('spieler-profile.json', {}),
     liesJson<Bildeintrag[]>('spielerbilder.json', []),

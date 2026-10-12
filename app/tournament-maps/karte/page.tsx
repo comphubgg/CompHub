@@ -18,12 +18,13 @@ import { useZugang } from '@/app/lib/zugang';
 import type { SolosFenster } from '@/lib/globalsSolos';
 import { Karte } from '@/app/globals-solos/Bausteine';
 import LaenderListe from '@/app/components/LaenderListe';
-import { TeamKarten, RangTabelle } from './Mannschaften';
+import { TeamKarten, RangTabelle, RangAusTeams } from './Mannschaften';
 import CupTierlist from './CupTierlist';
 
 interface Eintrag {
   turnierId: string; region: string; windowId: string; cup: string; fenster: string; titel: string;
   datum: number | null; ende: number | null; saison: string; saisonKurz: string; saisonName: string; bild: string | null; eventId: string | null;
+  reihe?: number; lan?: boolean; alt?: boolean;
 }
 
 const KURZ = new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: '2-digit', timeZone: 'Europe/Brussels' });
@@ -91,7 +92,7 @@ export default function KartenSeite() {
 
   const meta = useMemo(() => liste.find((e) => params && e.windowId === params.w && e.region === params.r) ?? null, [liste, params]);
   const wochen = useMemo(
-    () => liste.filter((e) => meta && e.turnierId === meta.turnierId && e.region === meta.region).sort((a, b) => (a.datum ?? 0) - (b.datum ?? 0)),
+    () => liste.filter((e) => meta && e.turnierId === meta.turnierId && e.region === meta.region).sort((a, b) => (a.datum ?? 0) - (b.datum ?? 0) || (a.reihe ?? 0) - (b.reihe ?? 0)),
     [liste, meta],
   );
   const laender = useMemo(() => new Map((fenster?.spieler ?? []).map((s) => [s.id, s.land])), [fenster]);
@@ -108,6 +109,14 @@ export default function KartenSeite() {
       if (j?.ok) setWahlBild(j.u ?? null);
     } finally { setSpeichert(false); }
   }, [params]);
+
+  /** Die Karte aus der Liste nehmen (sie bleibt gespeichert und laesst sich in der Verwaltung zurueckholen). */
+  const verstecken = useCallback(async () => {
+    if (!params || !window.confirm('Diese Karte aus der Liste nehmen?')) return;
+    const r = await fetch('/api/alte-maps', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ aktion: 'verstecken', w: params.w, versteckt: true }) });
+    const j = await r.json().catch(() => ({}));
+    if (j?.ok) window.location.href = meta?.saison ? `/tournament-maps?saison=${meta.saison}` : '/tournament-maps';
+  }, [params, meta]);
 
   const titelOben = meta?.cup || '';
   const chip = (an: boolean) => `rounded-lg px-4 py-2 text-xs font-bold uppercase tracking-[0.12em] transition ${an
@@ -134,6 +143,7 @@ export default function KartenSeite() {
             <div className="min-w-0">
               <h1 className="text-3xl font-black tracking-tight sm:text-5xl">{titelOben || fenster?.name || t('Karte')}</h1>
               <p className="mt-1 flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                {meta?.lan && <span className="rounded bg-amber-400 px-1.5 py-0.5 font-black text-zinc-950">LAN</span>}
                 {meta?.saisonKurz && <span>{meta.saisonKurz}</span>}
                 {meta?.region && <span className="rounded bg-white/10 px-1.5 py-0.5 text-slate-200">{meta.region}</span>}
                 {(fenster?.start || meta?.datum) && <span>{LANG.format(new Date(fenster?.start ?? (meta?.datum as number)))}</span>}
@@ -184,6 +194,18 @@ export default function KartenSeite() {
             <div className="mt-5">
               {reiter === 'karte' && (
                 <div>
+                  {zugang.admin && meta?.alt && params && (
+                    <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-amber-400/25 bg-amber-400/[0.06] px-3 py-2 text-xs">
+                      <span className="font-semibold uppercase tracking-wider text-amber-300/90">Admin</span>
+                      <Link href={`/tournament-maps/bearbeiten?t=${encodeURIComponent(params.t)}&r=${encodeURIComponent(params.r)}&w=${encodeURIComponent(params.w)}`}
+                        className="rounded-lg bg-amber-400 px-3 py-1.5 font-bold text-zinc-950 transition hover:bg-amber-300">
+                        <T>Landepunkte bearbeiten</T>
+                      </Link>
+                      <button type="button" onClick={() => void verstecken()} className="rounded-lg border border-white/10 px-3 py-1.5 font-semibold text-slate-300 transition hover:border-rose-500/60 hover:text-rose-300">
+                        <T>Aus der Liste nehmen</T>
+                      </button>
+                    </div>
+                  )}
                   {zugang.admin && auswahl.length > 0 && (
                     <div className="mb-3">
                       <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
@@ -219,7 +241,9 @@ export default function KartenSeite() {
                 </div>
               )}
               {reiter === 'spieler' && <TeamKarten teams={fenster.teams ?? []} />}
-              {reiter === 'leaderboard' && <RangTabelle eventId={meta?.eventId ?? null} windowId={fenster.windowId} laender={laender} />}
+              {reiter === 'leaderboard' && (meta?.alt && !meta.eventId
+                ? <RangAusTeams teams={fenster.teams ?? []} />
+                : <RangTabelle eventId={meta?.eventId ?? null} windowId={fenster.windowId} laender={laender} />)}
               {reiter === 'tierlist' && <CupTierlist windowId={fenster.windowId} teams={fenster.teams ?? []} />}
               {reiter === 'laender' && (
                 <div className="max-w-2xl">

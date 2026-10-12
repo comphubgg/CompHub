@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
+import fs from '@/lib/ablageFs';
+import path from 'path';
 import { liesJson, schreibJson } from '@/lib/ablage';
 import { istAdminAnfrage } from '@/lib/adminPruefung';
+import { DATEN_ORT } from '@/lib/datenOrt';
+import { eigeneKarte } from '@/lib/bildAdressen';
 
 /*
  * Das Kartenbild einer Map - das richtige zur Spielversion, und vom Admin aenderbar.
@@ -19,7 +23,7 @@ export const runtime = 'nodejs';
 const DATEI = 'maps-bild.json';
 /** Erlaubt sind nur Kartenbilder der Quelle und die eigenen unter /maps/. */
 const FREMD = /^https:\/\/nobleprac\.com\/maps\/[\w.\-/]+\.(png|jpe?g|webp)$/i;
-const EIGEN = /^\/maps\/[\w.\-/ %()]+\.(png|jpe?g|webp)$/i;
+const EIGEN = /^(\/maps\/[\w.\-/ %()]+\.(png|jpe?g|webp)|\/bilder\/karten\/[\w.\-%]+\.png)$/i;
 
 /** Die Bilder, die im Werkzeug selbst liegen und zur Wahl stehen. */
 const AUSWAHL: Array<{ u: string; titel: string }> = [
@@ -50,6 +54,14 @@ const AUSWAHL: Array<{ u: string; titel: string }> = [
   { u: '/maps/archiv/karte-20.jpg', titel: 'Archiv · Karte 20' },
 ];
 
+/** Die Kartenbilder, die der Admin im Karten-Werkzeug hochgeladen hat (data/kartenbilder) - auch sie stehen zur Wahl. */
+async function hochgeladene(): Promise<Array<{ u: string; titel: string }>> {
+  try {
+    const liste = JSON.parse(await fs.readFile(path.join(DATEN_ORT, 'kartenbilder', 'karten.json'), 'utf8')) as Array<{ id: string; titel: string }>;
+    return liste.map((k) => ({ u: eigeneKarte(k.id), titel: k.titel }));
+  } catch { return []; }
+}
+
 const vorrat = new Map<string, { bis: number; typ: string; daten: ArrayBuffer }>();
 
 export async function GET(request: Request) {
@@ -76,7 +88,7 @@ export async function GET(request: Request) {
 
   const w = p.get('w');
   const wahl = await liesJson<Record<string, string>>(DATEI, {});
-  return NextResponse.json({ ok: true, u: w ? (wahl[w] ?? null) : null, auswahl: AUSWAHL, alle: w ? undefined : wahl },
+  return NextResponse.json({ ok: true, u: w ? (wahl[w] ?? null) : null, auswahl: [...await hochgeladene(), ...AUSWAHL], alle: w ? undefined : wahl },
     { headers: { 'Cache-Control': 'no-store' } });
 }
 
@@ -86,7 +98,7 @@ export async function POST(request: Request) {
   const w = String(k.w ?? '').slice(0, 200);
   const u = String(k.u ?? '');
   if (!w) return NextResponse.json({ ok: false, error: 'Fenster fehlt.' }, { status: 400 });
-  if (u && !(EIGEN.test(u) && AUSWAHL.some((a) => a.u === u))) {
+  if (u && !(EIGEN.test(u) && [...AUSWAHL, ...await hochgeladene()].some((a) => a.u === u))) {
     return NextResponse.json({ ok: false, error: 'Dieses Bild steht nicht zur Wahl.' }, { status: 400 });
   }
   const wahl = await liesJson<Record<string, string>>(DATEI, {});

@@ -1,5 +1,7 @@
 import { NextResponse } from 'next/server';
 import { fensterFuer } from '@/lib/globalsSolos';
+import { mapsVerzeichnis } from '@/lib/mapsVerzeichnis';
+import { ALT, alteFenster } from '@/lib/alteMaps';
 
 /*
  * Die Karte eines Fensters, wie Noble Practice sie fuehrt: die Spieler (mit Land und Foto) und die Landepunkte.
@@ -18,6 +20,12 @@ export async function GET(request: Request) {
   const w = p.get('w') ?? '';
   if (!t || !r || !w) return NextResponse.json({ ok: false, error: 'Turnier, Region und Fenster fehlen.' }, { status: 400 });
   try {
+    // Die Karten ohne Landepunkte (Archiv, aeltere Events, vom Admin angelegt) - siehe lib/alteMaps.
+    if (t.startsWith(ALT)) {
+      const e = (await mapsVerzeichnis()).find((x) => x.turnierId === t && x.windowId === w);
+      if (!e) return NextResponse.json({ ok: false, error: 'Dieses Fenster gibt es nicht.' }, { status: 404, headers: { 'Cache-Control': 'no-store' } });
+      return NextResponse.json({ ok: true, ...await alteFenster(e) }, { headers: { 'Cache-Control': 'no-store' } });
+    }
     const f = await fensterFuer(t, r, w);
     if (!f) return NextResponse.json({ ok: false, error: 'Dieses Fenster gibt es nicht.' }, { status: 404, headers: { 'Cache-Control': 'no-store' } });
     return NextResponse.json({ ok: true, ...f }, { headers: { 'Cache-Control': 'public, max-age=60, s-maxage=120' } });
