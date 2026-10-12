@@ -10,6 +10,7 @@ import Fusszeile from '@/app/components/Fusszeile';
 import TeamFlagge from '@/components/TeamFlagge';
 import DiscordKnopf from '@/app/components/DiscordKnopf';
 import StartVitrine from '@/app/components/StartVitrine';
+import Rollzahl from '@/app/components/Rollzahl';
 
 /** Ein Platz in der Preisgeldliste der Startseite. */
 interface Geldplatz {
@@ -236,7 +237,6 @@ export default function Startseite() {
   // Die Zahlen folgen der eingestellten Sprache. Vorher stand hier fest
   // 'de-DE', und auf Englisch las man "37.004 matches processed".
   const ort = ortVon(sprache);
-  const zahl = (n: number | null) => (n === null ? '—' : n.toLocaleString(ort));
 
   return (
     <main className="min-h-screen bg-zinc-950 text-slate-100">
@@ -306,14 +306,14 @@ export default function Startseite() {
                           border-zinc-800 bg-zinc-900/30 sm:grid-cols-4
                           sm:divide-x ${laedt ? 'opacity-40' : ''}`}>
             {([
-              [zahl(stand?.spieltage ?? null), 'Spieltage im Archiv'],
-              [zahl(stand?.saisons ?? null), 'Saisons erfasst'],
-              [zahl(stand?.regionen ?? null), 'Regionen'],
-              [zahl(stand?.replays ?? null), 'Matches ausgewertet'],
-            ] as Array<[string, string]>).map(([wert, titel]) => (
+              [stand?.spieltage ?? null, 'Spieltage im Archiv'],
+              [stand?.saisons ?? null, 'Saisons erfasst'],
+              [stand?.regionen ?? null, 'Regionen'],
+              [stand?.replays ?? null, 'Matches ausgewertet'],
+            ] as Array<[number | null, string]>).map(([wert, titel]) => (
               <div key={titel} className="px-6 py-8 text-center">
                 <p className="text-3xl font-black tabular-nums text-sky-500
-                              sm:text-4xl">{wert}</p>
+                              sm:text-4xl"><Rollzahl wert={wert} los={!laedt} ort={ort} /></p>
                 <p className="mt-2 text-[10px] font-semibold uppercase
                               tracking-[0.16em] text-slate-500">
                   <T>{titel}</T>

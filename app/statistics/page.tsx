@@ -18,6 +18,7 @@
 // Ebenso fehlen die Spielerfotos: das sind lizenzierte Pressebilder.
 
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
+import StatistikZahlen from './StatistikZahlen';
 import { useSearchParams } from 'next/navigation';
 import TeamFlagge from '@/components/TeamFlagge';
 import { ohneZierrat } from '@/lib/homoglyph';
@@ -3784,6 +3785,7 @@ export default function StatistikSeite() {
           {/* ------------------------------------------------- Übersicht */}
           {bereich === 'start' && (
             <>
+              <StatistikZahlen />
               {kacheln[kachelNr] && (() => {
                 const k = kacheln[kachelNr];
                 return (

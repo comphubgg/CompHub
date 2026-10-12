@@ -32,6 +32,7 @@ import MeinArchiv from './MeinArchiv';
 import AdminZentrale from './AdminZentrale';
 import Klappbar from './Klappbar';
 import OfflineSeiten from './OfflineSeiten';
+import Ebenen from './Ebenen';
 type ProfileData = {
   displayName: string;
   avatarUrl: string | null;
@@ -51,58 +52,6 @@ const DEFAULT_PROFILE: ProfileData = {
 };
 
 interface Ziel { href: string; titel: string; text: string }
-
-/*
- * Die Werkzeuge des VIP-Blocks.
- *
- * Fuer die FNCS Global Championship 2026 gebaut: dieselben Overlay-Seiten
- * wie sonst, nur mit dem Aussehen des Turniers (Thema "FNCS Globals").
- */
-/*
- * Der VIP-Block fuehrt auf eine einzige Seite.
- *
- * Vorher standen hier drei Kacheln, die in die gewoehnlichen Overlay-Seiten
- * fuehrten. Der Betreiber wollte es anders: "dann kann man im VIP-Dashboard
- * einfach die Globals-2026-Seite oeffnen und die drei, vier verschiedenen
- * Funktionen benutzen." Genau das ist /globals - Overlays, Teams, Karte und
- * Prognose unter einem Dach und an eigenen Adressen.
- */
-const VIP_ZIELE: Ziel[] = [
-  { href: '/globals', titel: 'Globals 2026',
-    text: 'Overlays, Teams, Karte und Prognose zur Global Championship' },
-  { href: '/globals-solos', titel: 'Globals Solos',
-    text: 'Qualifizierte, Heats und Karten der FNCS Solos' },
-];
-
-/** Wohin jeder springt, der angemeldet ist. */
-const ZIELE: Ziel[] = [
-  { href: '/', titel: 'Multiview', text: 'Streams nebeneinander' },
-  { href: '/power-rankings', titel: 'Rankings', text: 'Weltweite Bestenliste' },
-  { href: '/events', titel: 'Events', text: 'Cups und Leaderboards' },
-  { href: '/tierlist', titel: 'Tierlist', text: 'Spieler einsortieren' },
-  // Die Karten vergangener Cups - wo die Teams gelandet sind (Betreiber, 1.10.2026).
-  { href: '/tournament-maps', titel: 'Tournament Maps', text: 'Wo die Teams vor jedem Cup gelandet sind' },
-  { href: '/overlays', titel: 'Overlays', text: 'Einblendungen für den Stream' },
-  /*
-   * Das Chatarchiv gehoert hierher und nicht in das schwebende Fenster.
-   *
-   * Dort steht, was gerade laeuft; wer ein abgeschlossenes Gespraech sucht,
-   * sucht es bewusst und nicht im Vorbeigehen. Und es steht im
-   * Schnellzugriff, nicht bei den Adminwerkzeugen: jeder hat Gespraeche,
-   * nur eben die eigenen.
-   */
-  { href: '/messages', titel: 'Chatarchiv', text: 'Alle Gespräche, auch die abgeschlossenen' },
-  /*
-   * Das Kontaktformular.
-   *
-   * Es stand nur auf der Kontoseite - und die sieht nicht, wer sich mit
-   * einem Zugangsschluessel anmeldet. Der Betreiber: "ein Kontaktformular
-   * haben die auch keins." Genau hier gehoert es hin: neben dem Chatarchiv,
-   * denn beides fuehrt in dieselbe Unterhaltung.
-   */
-  { href: '/contact', titel: 'Kontakt',
-    text: 'Etwas kaputt, fehlt oder besser zu machen? Schreib es dem Betreiber' },
-];
 
 /**
  * Die Werkzeuge, die nur der Admin sieht.
@@ -388,18 +337,6 @@ export default function AdminDashboardPage() {
     }),
     ...((istAdmin || rolle === 'admin' || zugang.admin) ? NUR_ADMIN : []),
   ];
-  /** Eine Kachel - fuer den Schnellzugriff. */
-  const Kachel = ({ z }: { z: Ziel }) => (
-    <Link href={z.href}
-      className="group rounded-lg border border-zinc-800 bg-zinc-900/40 px-3 py-2.5
-                 transition hover:border-sky-500 hover:bg-zinc-900/70">
-      <span className="block text-sm font-medium text-slate-200 group-hover:text-sky-400">
-        <T>{z.titel}</T>
-      </span>
-      <span className="block text-xs text-slate-500"><T>{z.text}</T></span>
-    </Link>
-  );
-
   return (
     <main className="min-h-screen bg-zinc-950 text-slate-100">
       <div className="mx-auto max-w-[1400px] px-4 py-6">
@@ -448,7 +385,16 @@ export default function AdminDashboardPage() {
           <div className="space-y-4">
 
             {/*
-              * Die Admin-Zentrale steht zuerst: laeuft alles, was wartet auf
+              * Die Werkzeuge nach Stufen: fuer alle, nur fuer VIP, nur hier im Dashboard (Redesign 12.10.2026).
+              * Die Overlays stehen nicht mehr in der Leiste, sondern hier bei den VIP-Werkzeugen.
+              */}
+            <Ebenen admin={istAdmin || rolle === 'admin' || zugang.admin}
+              vip={zugang.vip || rolle === 'manager' || zugang.manager}
+              globals={eigeneRechte.includes('globals') || zugang.rechte.includes('globals')}
+              pro={zugang.pro || rolle === 'pro'} />
+
+            {/*
+              * Die Admin-Zentrale steht danach: laeuft alles, was wartet auf
               * mich, und dann die Werkzeuge nach Themen. Die Laeufe und
               * Replay-Zahlen sieht nur der Admin; ein Manager bekommt seine
               * Werkzeuge.
@@ -460,7 +406,7 @@ export default function AdminDashboardPage() {
             )}
 
             {/* Profil */}
-            <section className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
+            <section id="profil" className="scroll-mt-20 rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
               <h2 className="text-sm font-semibold text-slate-100"><T>Profil</T></h2>
               {/*
                 * Bild und Adresse - beides gab es hier bisher nicht.
@@ -645,48 +591,8 @@ export default function AdminDashboardPage() {
             </section>
             )}
 
-            {/*
-              * Der VIP-Block - nur fuer die Streamer, die ihn bekommen haben.
-              *
-              * Der Betreiber vor den Globals 2026: "im Dashboard selber sieht
-              * er dann unter VIP, nur fuer ihn ... VIP in goldener Schrift,
-              * Overlays (Globals 2026)." Nicht in der Kopfzeile der Seite,
-              * nicht auf der Startseite - nur hier, und nur fuer ihn.
-              */}
-            {(zugang.admin || istAdmin || rolle === 'admin'
-              || eigeneRechte.includes('globals') || zugang.rechte.includes('globals')) && (
-              <section className="rounded-xl border border-amber-500/30
-                                  bg-gradient-to-br from-amber-500/[0.07] to-transparent p-4">
-                <div className="flex items-baseline gap-2">
-                  <h2 className="text-sm font-bold tracking-wide text-amber-300">VIP</h2>
-                  <span className="text-xs text-slate-500"><T>sichtbar nur für dich</T></span>
-                </div>
-                <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                  {VIP_ZIELE.map((z) => (
-                    <a key={z.href} href={z.href}
-                      className="group rounded-lg border border-amber-500/25 bg-zinc-950/60
-                                 p-3 transition hover:border-amber-400/60 hover:bg-amber-500/[0.06]">
-                      <p className="text-sm font-semibold text-amber-200
-                                    group-hover:text-amber-100">
-                        <T>{z.titel}</T>
-                      </p>
-                      <p className="mt-0.5 text-xs text-slate-500"><T>{z.text}</T></p>
-                    </a>
-                  ))}
-                </div>
-              </section>
-            )}
-
-            {/* Schnellzugriff */}
-            <section className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
-              <h2 className="text-sm font-semibold text-slate-100"><T>Schnellzugriff</T></h2>
-              <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                {ZIELE.map((z) => <Kachel key={z.href} z={z} />)}
-              </div>
-            </section>
-
             {/* Mein Archiv - das private Archiv jedes Kontos (Overlays, Tierlists, ...) */}
-            <MeinArchiv />
+            <div id="mein-archiv" className="scroll-mt-20"><MeinArchiv /></div>
           </div>
 
           {/*
