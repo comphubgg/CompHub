@@ -225,6 +225,23 @@ export async function standardBild(ident: string): Promise<string | null> {
 }
 
 /**
+ * Den Eintrag eines Profis anlegen, wenn er noch keinen hat - sobald er sendet.
+ *
+ * Bisher entstand der Eintrag erst, wenn jemand im Dashboard etwas speicherte. Wer ohne das sendete (der Admin beim
+ * Ausprobieren, ein neuer Profi), stand in keiner Liste: der Betreiber (12.10.2026) schaute auf den Eintrag "juanito"
+ * (sein Profi-Konto, offline), waehrend sein Admin-Konto sendete - und sah nichts. Mit dem Eintrag taucht jedes
+ * sendende POV fuer den Admin im Ordner POVs auf.
+ */
+export async function sichereProEintrag(ident: string, name: string): Promise<PovPro> {
+  const alle = await liesPros();
+  if (alle[ident]) return alle[ident];
+  const neu = leererPro(ident, name, await standardBild(ident));
+  alle[ident] = neu;
+  await schreibePros(alle);
+  return neu;
+}
+
+/**
  * Das Epic-Konto eines Profis, sofern eines verknuepft oder zugewiesen ist (Konto oder Zugang) - leer, wenn keines.
  * Nur wer eines hat, kann seine Werte auf dem POV zeigen.
  */

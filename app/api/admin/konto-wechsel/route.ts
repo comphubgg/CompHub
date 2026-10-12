@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { altesHostCookieWeg, sitzungsDomain } from '@/lib/cookieDomain';
 import { cookies } from 'next/headers';
 import crypto from 'crypto';
 import { kontoAus, nachId } from '@/lib/konten';
@@ -104,7 +105,9 @@ export async function POST(request: NextRequest) {
     verwaltet: zugang.verwaltet ?? null,
   });
 
+  altesHostCookieWeg(antwort, request, VIP_COOKIE, 'streamer_dashboard_user_login');
   antwort.cookies.set(VIP_COOKIE, cookieWert(zugang.username), {
+    ...sitzungsDomain(request),
     httpOnly: true,
     secure: https,
     sameSite: 'lax',
@@ -112,6 +115,7 @@ export async function POST(request: NextRequest) {
     maxAge: 60 * 60 * 24 * 30,
   });
   antwort.cookies.set('streamer_dashboard_user_login', zugang.username, {
+    ...sitzungsDomain(request),
     httpOnly: false,
     secure: https,
     sameSite: 'lax',

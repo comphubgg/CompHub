@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { altesHostCookieWeg, sitzungsDomain } from '@/lib/cookieDomain';
 import { cookies } from 'next/headers';
 import {
   aendern, anlegen, emailTaugt, ipGesperrt, kontoAus, loesche, merkeAnmeldung, nachName,
@@ -90,7 +91,9 @@ function anschluss(request: Request): string {
 async function setzeSitzung(
   antwort: NextResponse, kontoId: string, request?: Request,
 ) {
+  altesHostCookieWeg(antwort, request, COOKIE);
   antwort.cookies.set(COOKIE, sitzungFuer(kontoId), {
+    ...sitzungsDomain(request),
     httpOnly: true,
     sameSite: 'lax',
     /*
@@ -154,6 +157,7 @@ export async function POST(request: Request) {
 
     const antwort = NextResponse.json({ ok: true });
     antwort.cookies.set(COOKIE, '', { path: '/', maxAge: 0 });
+    antwort.cookies.set(COOKIE, '', { path: '/', maxAge: 0, ...sitzungsDomain(request) });
     return antwort;
   }
 
@@ -529,6 +533,7 @@ export async function POST(request: Request) {
     await loesche(id);
     const antwort = NextResponse.json({ ok: true });
     antwort.cookies.set(COOKIE, '', { path: '/', maxAge: 0 });
+    antwort.cookies.set(COOKIE, '', { path: '/', maxAge: 0, ...sitzungsDomain(request) });
     return antwort;
   }
 

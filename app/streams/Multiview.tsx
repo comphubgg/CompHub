@@ -406,22 +406,28 @@ export default function Multiview(props: MultiviewProps) {
     alleAbspielen: () => {
       griffe.current.forEach((g) => g.abspielen());
       /*
-       * Was nach einem Moment noch steht, wird neu aufgebaut.
+       * Nur wer noch nie gespielt hat, wird neu aufgebaut.
        *
-       * Hat der Browser das Abspielen gesperrt (der Player zeigt das grosse Dreieck), nimmt Twitch einen Befehl
-       * von aussen nicht an. Ein frisch gebauter Player startet dagegen, solange der Klick auf "Alle abspielen"
-       * noch frisch ist - der Betreiber: "Play All Streams funktioniert nicht, es playt nicht alle."
+       * Hat der Browser das Abspielen gesperrt (der Player zeigt das grosse Dreieck und hat noch kein Bild gezeigt),
+       * nimmt Twitch einen Befehl von aussen nicht an - ein frisch gebauter Player startet dagegen, solange der Klick
+       * auf "Alle abspielen" noch frisch ist. Wer dagegen schon lief und nur pausiert wurde, wird NICHT neu gebaut:
+       * ein Live-Stream braucht nach dem Pausieren ein paar Sekunden, bis er wieder steht, und das Neuaufbauen
+       * sah aus, als lade jedes Fenster neu (der Betreiber, 12.10.2026: "Pause all ... das ist wie alle Streams
+       * reloaden"). Er bekommt stattdessen einen zweiten Anstoss, stumm.
        */
       window.setTimeout(() => {
-        const stehen: string[] = [];
-        griffe.current.forEach((g, id) => { if (g.pausiert() === true) stehen.push(id); });
-        if (!stehen.length) return;
+        const nie: string[] = [];
+        griffe.current.forEach((g, id) => {
+          if (g.pausiert() !== true) return;
+          if (g.gespielt()) g.abspielen(); else nie.push(id);
+        });
+        if (!nie.length) return;
         setNeu((alt) => {
           const n = { ...alt };
-          for (const id of stehen) n[id] = (n[id] ?? 0) + 1;
+          for (const id of nie) n[id] = (n[id] ?? 0) + 1;
           return n;
         });
-      }, 1600);
+      }, 2600);
     },
     allePausieren: () => griffe.current.forEach((g) => g.pausieren()),
     alleStumm: () => griffe.current.forEach((g) => g.stumm(true)),

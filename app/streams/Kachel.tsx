@@ -25,6 +25,7 @@ declare global {
         READY: string;
         ONLINE: string;
         OFFLINE: string;
+        PLAYING?: string;
       };
     };
   }

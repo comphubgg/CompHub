@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { altesHostCookieWeg, sitzungsDomain } from '@/lib/cookieDomain';
 import crypto from 'crypto';
 import {
   anlegen, merkeAnmeldung, nachDienst, nachEmail, SITZUNG_TAGE, sitzungFuer,
@@ -125,7 +126,9 @@ export async function GET(req: NextRequest) {
 
     await merkeAnmeldung(konto.id);
     const antwort = zurueck(req, '/account');
+    altesHostCookieWeg(antwort, req, COOKIE);
     antwort.cookies.set(COOKIE, sitzungFuer(konto.id), {
+      ...sitzungsDomain(req),
       httpOnly: true, sameSite: 'lax', path: '/',
       secure: ueberHttps(req),
       maxAge: SITZUNG_TAGE * 24 * 3600,

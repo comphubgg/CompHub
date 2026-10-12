@@ -133,6 +133,8 @@ const PovVideo = forwardRef<MvPlayerHandle, Props>(function PovVideo(
 
   useImperativeHandle(ref, () => ({
     abspielen: () => { void video.current?.play().catch(() => undefined); },
+    // Ein POV wird nie vom Browser gesperrt neu aufgebaut: er gilt immer als gestartet.
+    gespielt: () => true,
     pausiert: () => (video.current ? video.current.paused : null),
     pausieren: () => video.current?.pause(),
     stumm: (an: boolean) => { setTon(!an); },

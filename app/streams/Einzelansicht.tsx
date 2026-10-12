@@ -341,22 +341,8 @@ export default function Einzelansicht(p: Props) {
         ) : gewaehlterOrdner && (
           <Abschnitt>
             <Titel symbol={<Zeichen d={D.ordner} klein />}><T>Streamer in</T> &quot;{gewaehlterOrdner.name}&quot;</Titel>
-            <input value={suche} onChange={(e) => setSuche(e.target.value)} spellCheck={false}
-              placeholder={t('Streamer suchen …')}
-              className="mv-fl mb-2 w-full rounded-md border px-2 py-1 text-[11px] outline-none focus:border-sky-500" />
-            {(() => {
-              const liste = [...gewaehlterOrdner.streamers]
-                .filter((x) => !q || x.twitch.toLowerCase().includes(q))
-                .sort((x, y) => Number(sendet(y.twitch)) - Number(sendet(x.twitch)));
-              return (
-                <>
-                  {liste.length === 0 && <p className="mv-mute py-1 text-center text-[11px]"><T>Der Ordner ist leer</T></p>}
-                  <ul className="space-y-0.5">{liste.map((x) => streamerZeile(x.twitch, gewaehlterOrdner.id))}</ul>
-                </>
-              );
-            })()}
             {!p.gast && (
-              <form className="mt-2 flex gap-1.5"
+              <form className="mb-2 flex gap-1.5"
                 onSubmit={(e) => {
                   e.preventDefault();
                   const k = kanalAusEingabe(neuerKanal);
@@ -374,6 +360,20 @@ export default function Einzelansicht(p: Props) {
                 </button>
               </form>
             )}
+            <input value={suche} onChange={(e) => setSuche(e.target.value)} spellCheck={false}
+              placeholder={t('Streamer suchen …')}
+              className="mv-fl mb-2 w-full rounded-md border px-2 py-1 text-[11px] outline-none focus:border-sky-500" />
+            {(() => {
+              const liste = [...gewaehlterOrdner.streamers]
+                .filter((x) => !q || x.twitch.toLowerCase().includes(q))
+                .sort((x, y) => Number(sendet(y.twitch)) - Number(sendet(x.twitch)));
+              return (
+                <>
+                  {liste.length === 0 && <p className="mv-mute py-1 text-center text-[11px]"><T>Der Ordner ist leer</T></p>}
+                  <ul className="space-y-0.5">{liste.map((x) => streamerZeile(x.twitch, gewaehlterOrdner.id))}</ul>
+                </>
+              );
+            })()}
           </Abschnitt>
         )}
       </div>
@@ -407,11 +407,16 @@ export default function Einzelansicht(p: Props) {
           <p className="min-w-0 flex-1 truncate text-sm font-semibold">
             {povInfo ? povInfo.name : p.aktiv || ''}
           </p>
-          {/* Wie frueher: ein runder Knopf, Chat an oder aus. */}
+          {/* Chat an oder aus: ein Symbol im Stil der Leiste, kein Text-Knopf. */}
           {!povInfo && p.aktiv && (
-            <button type="button" onClick={p.chatUmschalten} title={t('Toggle chat')}
-              className="rounded-full border border-zinc-800 bg-zinc-900/80 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-200 transition hover:bg-zinc-800">
-              {p.chatAn ? 'Chat off' : 'Chat on'}
+            <button type="button" onClick={p.chatUmschalten} aria-pressed={p.chatAn}
+              title={p.chatAn ? t('Chat ausblenden') : t('Chat einblenden')} aria-label={p.chatAn ? t('Chat ausblenden') : t('Chat einblenden')}
+              className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-md border transition ${p.chatAn
+                ? 'border-sky-500/60 bg-sky-500/10 text-sky-400' : 'mv-fl mv-hover mv-mute'}`}>
+              <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 4.5h14v9H8.5L5 16.5v-3H3z" />
+                {!p.chatAn && <path d="M3 17L17 3" />}
+              </svg>
             </button>
           )}
         </div>
@@ -440,7 +445,7 @@ export default function Einzelansicht(p: Props) {
             )}
           </div>
           {zeigeChat && (
-            <div data-tour="chat" className="flex h-[480px] w-full shrink-0 flex-col overflow-hidden rounded-xl border border-zinc-900 bg-zinc-950 shadow-2xl md:h-full md:w-[420px]">
+            <div data-tour="chat" className="flex h-[480px] w-full shrink-0 flex-col overflow-hidden rounded-xl border border-zinc-900 bg-zinc-950 shadow-2xl md:h-full md:w-[360px]">
               <div className="flex items-center justify-between border-b border-zinc-900 bg-zinc-950/90 px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-zinc-400">
                 <span> Chat: {chatName || 'None'}</span>
               </div>

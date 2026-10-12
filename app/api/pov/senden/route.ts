@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { liesPros, meldeLive, wer } from '@/lib/pov';
+import { liesPros, meldeLive, sichereProEintrag, wer } from '@/lib/pov';
 import { beendeAnkuendigung } from '@/lib/discordGilden';
 import {
   STUECK_MAX, beende, legeAb, markiereGemeldet, markiereStromGemeldet, stromFragment, stromStart,
@@ -74,7 +74,7 @@ export async function POST(request: Request) {
       if (r.neuBeginn) {
         markiereStromGemeldet(ident);
         try {
-          const pro = (await liesPros())[ident];
+          const pro = await sichereProEintrag(ident, ich.name);
           if (pro?.gilden?.length) {
             const host = request.headers.get('x-forwarded-host') || request.headers.get('host') || 'www.thecomphub.com';
             const daheim = /^(localhost|127\.0\.0\.1)/.test(host);
@@ -104,7 +104,7 @@ export async function POST(request: Request) {
     // Gerade angefangen: dem Discord des Profis Bescheid geben (einmal je Beginn).
     markiereGemeldet(ident);
     try {
-      const pro = (await liesPros())[ident];
+      const pro = await sichereProEintrag(ident, ich.name);
       if (pro?.gilden?.length) {
         const host = request.headers.get('x-forwarded-host') || request.headers.get('host') || 'www.thecomphub.com';
         const daheim = /^(localhost|127\.0\.0\.1)/.test(host);

@@ -1,4 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { altesHostCookieWeg, sitzungsDomain } from '@/lib/cookieDomain';
 import fs from '@/lib/ablageFs';
 import path from 'path';
 import crypto from 'crypto';
@@ -100,7 +101,9 @@ export async function POST(request: NextRequest) {
      * oder aus dem Fensterprogramm kommt.
      */
     const isProduction = ueberHttps(request);
+    altesHostCookieWeg(response, request, 'streamer_dashboard_auth', 'streamer_dashboard_user_login');
     response.cookies.set('streamer_dashboard_auth', cookieValue, {
+      ...sitzungsDomain(request),
       httpOnly: true,
       secure: isProduction,
       sameSite: 'lax',
@@ -108,6 +111,7 @@ export async function POST(request: NextRequest) {
       maxAge: 60 * 60 * 24 * 30,
     });
     response.cookies.set('streamer_dashboard_user_login', user.username, {
+      ...sitzungsDomain(request),
       httpOnly: false,
       secure: isProduction,
       sameSite: 'lax',

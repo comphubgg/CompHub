@@ -70,6 +70,10 @@ export async function GET(request: NextRequest) {
     headers: { Location: '/login' },
   });
   response.cookies.delete("streamer_dashboard_auth");
+  // Auch die Cookies mit Domain (siehe lib/cookieDomain): sonst bliebe die Anmeldung unter dem anderen Namen stehen.
+  for (const n of ['streamer_dashboard_auth', 'streamer_dashboard_user_login']) {
+    response.headers.append('Set-Cookie', `${n}=; Path=/; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Domain=.thecomphub.com`);
+  }
   /*
    * Auch das Konto abmelden.
    *
@@ -78,5 +82,6 @@ export async function GET(request: NextRequest) {
    * (Betreiber, 11.10.2026: "wenn ich auf Sign Out gehe, kann ich mich nicht ausloggen"). Abmelden heisst beides.
    */
   response.cookies.set('streamer_dashboard_konto', '', { path: '/', maxAge: 0 });
+  response.headers.append('Set-Cookie', 'streamer_dashboard_konto=; Path=/; Max-Age=0; Expires=Thu, 01 Jan 1970 00:00:00 GMT; Domain=.thecomphub.com');
   return response;
 }
