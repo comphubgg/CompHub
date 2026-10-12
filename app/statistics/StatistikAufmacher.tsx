@@ -99,12 +99,12 @@ export default function StatistikAufmacher({ kacheln, zuTurnieren, zuRegionen, z
   ];
 
   return (
-    <div className="mb-6 space-y-6">
+    <div className="mb-12 mt-10 space-y-14">
       <style>{CSS}</style>
 
       {/* -------------------------------------------- Slider: Turnier und Bester des Tages */}
       {k && (
-        <div ref={heroRef} className="grid items-center gap-5 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.4fr)]"
+        <div ref={heroRef} className="grid items-center gap-8 py-2 lg:grid-cols-[minmax(0,0.85fr)_minmax(0,1.4fr)]"
           onMouseEnter={() => setHalt(true)} onMouseLeave={() => setHalt(false)}>
           <div key={`l${nr}`} className="sa-an px-1" style={{ animation: heroDrin ? 'sa-rein .5s cubic-bezier(.2,.8,.2,1) both' : undefined }}>
             <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">
@@ -177,7 +177,7 @@ export default function StatistikAufmacher({ kacheln, zuTurnieren, zuRegionen, z
 
       {/* -------------------------------------------- Regionen */}
       {kaestchen.length > 0 && (
-        <section ref={regRef} className="grid items-center gap-6 px-1 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
+        <section ref={regRef} className="grid items-center gap-10 px-1 py-2 lg:grid-cols-[minmax(0,1.15fr)_minmax(0,1fr)]">
           <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
             {kaestchen.map((c, i) => {
               const farbe = OBEN[c.kopf];

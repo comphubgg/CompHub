@@ -273,7 +273,7 @@ function GlobalKarte({ daten, fertig }: { daten: Vitrine | null; fertig: boolean
 const SCHEIBEN: Array<{ titel: string; bild: string; typ: string }> = [
   { titel: 'Performance Cup', bild: '/tournaments/Fortnite Performance Evaluation.jpg', typ: 'performance' },
   { titel: 'Division Cup', bild: '/tournaments/FNCS Division 1.jpg', typ: 'division' },
-  { titel: 'FNCS', bild: '/cups/fncs-global-championship-2026.jpg', typ: 'fncs' },
+  { titel: 'FNCS', bild: '/cups/fncs-global-championship-2026-hd.jpg', typ: 'fncs' },
   { titel: 'Reload', bild: '/tournaments/Reload Elite Series Finals.jpg', typ: 'reload' },
 ];
 

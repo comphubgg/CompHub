@@ -23,11 +23,11 @@ type Stufe = typeof STUFEN[number]['k'];
 
 const schluessel = (windowId: string) => `maps_tierlist_${windowId}`;
 
-function TeamChip({ t, aktiv, onKlick, onZiehen }: { t: SolosTeam; aktiv?: boolean; onKlick: () => void; onZiehen: (id: string | null) => void }) {
+function TeamChip({ t, aktiv, wie = 'stufe', onKlick, onZiehen }: { t: SolosTeam; aktiv?: boolean; wie?: 'stufe' | 'liste'; onKlick: () => void; onZiehen: (id: string | null) => void }) {
   return (
     <button type="button" draggable onClick={onKlick}
       onDragStart={(e) => { e.dataTransfer.setData('text/plain', t.id); onZiehen(t.id); }} onDragEnd={() => onZiehen(null)}
-      className={`flex w-fit max-w-full items-center gap-2 rounded-lg border px-2.5 py-1.5 text-left transition ${aktiv
+      className={`flex ${wie === 'liste' ? 'w-full' : 'w-fit max-w-full'} items-center gap-2 rounded-lg border px-2.5 py-1.5 text-left transition ${aktiv
         ? 'border-sky-400 bg-sky-500/15' : 'border-white/[0.08] bg-zinc-900/70 hover:border-sky-500/50'}`}>
       {/* Ein Kreis fuer das ganze Team: zwei oder drei Flaggen in einer, wie auf den Kacheln der Tierlist. */}
       <TeamFlagge groesse={t.spieler.length > 1 ? 30 : 24} laender={t.spieler.map((s) => s.land ?? undefined)} />
@@ -95,8 +95,8 @@ export default function CupTierlist({ windowId, teams }: { windowId: string; tea
           <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Pool <span className="text-slate-600">{pool.length}</span></p>
           <input value={suche} onChange={(e) => setSuche(e.target.value)} placeholder={t('Spieler suchen …')}
             className="mb-2 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-1.5 text-sm text-slate-100 outline-none placeholder:text-slate-600 focus:border-sky-500" />
-          <div className="flex max-h-[520px] flex-wrap content-start gap-1.5 overflow-y-auto pr-1">
-            {pool.map((x) => <TeamChip key={x.id} t={x} aktiv={gewaehlt === x.id} onKlick={() => setGewaehlt(gewaehlt === x.id ? null : x.id)} onZiehen={setZieht} />)}
+          <div className="flex max-h-[520px] flex-col gap-1.5 overflow-y-auto pr-1">
+            {pool.map((x) => <TeamChip key={x.id} t={x} wie="liste" aktiv={gewaehlt === x.id} onKlick={() => setGewaehlt(gewaehlt === x.id ? null : x.id)} onZiehen={setZieht} />)}
           </div>
         </aside>
       </div>

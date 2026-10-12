@@ -57,7 +57,7 @@ export function typVon(name: string): MapTyp {
 const BILD_JE_TYP: Record<MapTyp, string | null> = {
   performance: '/tournaments/Fortnite Performance Evaluation.jpg',
   division: '/tournaments/FNCS Division 1.jpg',
-  fncs: '/cups/fncs-global-championship-2026.jpg',
+  fncs: '/cups/fncs-global-championship-2026-hd.jpg',
   reload: '/tournaments/Reload Elite Series Finals.jpg',
   sonst: null,
 };
