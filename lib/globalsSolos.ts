@@ -90,6 +90,63 @@ async function ergebnisse(windowId: string): Promise<Map<string, { rang: number;
   return karte;
 }
 
+type SpielerVon = (id: string, roh: string, land?: string) => SolosSpieler;
+
+/** Wie ein Spieler aus Noble zu unserem Anzeigenamen, Land und Foto kommt (Profile und Spielerbilder des Werkzeugs). */
+async function spielerKontext(): Promise<SpielerVon> {
+  const [profile, bilder] = await Promise.all([
+    liesJson<Record<string, Profil>>('spieler-profile.json', {}),
+    liesJson<Bildeintrag[]>('spielerbilder.json', []),
+  ]);
+  const bildZu = new Map<string, string>();
+  for (const b of bilder) if (b.epicId && b.echtesFoto) bildZu.set(b.epicId, spielerbildKlein(b.datei));
+  return (id, roh, land) => {
+    const pr = profile[id];
+    const name = namenRepariert(roh);
+    const nobleLand = land && land !== 'global' ? land.toUpperCase() : null;
+    return {
+      id, name,
+      anzeige: pr?.anzeige || pr?.name || name,
+      land: (pr?.land || nobleLand || '').toUpperCase() || null,
+      bild: bildZu.get(id) ?? null,
+    };
+  };
+}
+
+/** Aus einem Fenster von Noble (Teams, Spieler, Formen) unser Fenster mit Spielern und Landeformen. */
+function fensterAus(w: { windowId: string; name: string; startDate?: string; endDate?: string }, d: RohDetail | null, spielerVon: SpielerVon): SolosFenster {
+  const teams = d?.windowData?.teams ?? [];
+  const spieler: SolosSpieler[] = [];
+  const bekannt = new Set<string>();
+  for (const t of teams) {
+    for (const p of t.players ?? []) {
+      if (!p.accountId || bekannt.has(p.accountId)) continue;
+      bekannt.add(p.accountId);
+      spieler.push(spielerVon(p.accountId, p.username ?? '', (p as { country?: string }).country));
+    }
+  }
+  const nachId = new Map(spieler.map((s) => [s.id, s]));
+  const { formen } = d ? formenAus(d) : { formen: [] };
+  return {
+    windowId: w.windowId, name: w.name, art: artVon(w.name),
+    start: w.startDate ?? null, end: w.endDate ?? null,
+    spieler,
+    formen: formen.map((f) => ({
+      punkte: f.punkte,
+      spieler: f.teams.flatMap((t) => t.ids.map((id) => nachId.get(id)?.anzeige ?? '')).filter(Boolean),
+    })),
+  };
+}
+
+/** Das Fenster irgendeines Noble-Turniers - fuer die Maps-Seiten (jeder Cup, jede Karte). */
+export async function fensterFuer(turnierId: string, region: string, windowId: string): Promise<{ turnier: string; fenster: SolosFenster } | null> {
+  const uebersicht = await detail(turnierId, region);
+  const w = (uebersicht.tournamentData?.windows ?? []).find((x) => x.windowId === windowId);
+  if (!w) return null;
+  const [d, spielerVon] = await Promise.all([detail(turnierId, region, windowId), spielerKontext()]);
+  return { turnier: uebersicht.tournamentData?.tournamentName ?? '', fenster: fensterAus(w, d, spielerVon) };
+}
+
 export async function globalsSolos(): Promise<SolosDaten | null> {
   const turniere = await jungeTurniere(12);
   const turnier = turniere.find((t) => TURNIER_NAME.test(t.tournamentName));
@@ -102,48 +159,10 @@ export async function globalsSolos(): Promise<SolosDaten | null> {
     catch { return { w, d: null }; }
   }));
 
-  const [profile, bilder] = await Promise.all([
-    liesJson<Record<string, Profil>>('spieler-profile.json', {}),
-    liesJson<Bildeintrag[]>('spielerbilder.json', []),
-  ]);
-  const bildZu = new Map<string, string>();
-  for (const b of bilder) if (b.epicId && b.echtesFoto) bildZu.set(b.epicId, spielerbildKlein(b.datei));
+  const spielerVon = await spielerKontext();
 
-  const spielerVon = (id: string, roh: string, land?: string): SolosSpieler => {
-    const pr = profile[id];
-    const name = namenRepariert(roh);
-    const nobleLand = land && land !== 'global' ? land.toUpperCase() : null;
-    return {
-      id, name,
-      anzeige: pr?.anzeige || pr?.name || name,
-      land: (pr?.land || nobleLand || '').toUpperCase() || null,
-      bild: bildZu.get(id) ?? null,
-    };
-  };
-
-  const fenster: SolosFenster[] = einzeln.map(({ w, d }) => {
-    const teams = d?.windowData?.teams ?? [];
-    const spieler: SolosSpieler[] = [];
-    const bekannt = new Set<string>();
-    for (const t of teams) {
-      for (const p of t.players ?? []) {
-        if (!p.accountId || bekannt.has(p.accountId)) continue;
-        bekannt.add(p.accountId);
-        spieler.push(spielerVon(p.accountId, p.username ?? '', (p as { country?: string }).country));
-      }
-    }
-    const nachId = new Map(spieler.map((s) => [s.id, s]));
-    const { formen } = d ? formenAus(d) : { formen: [] };
-    return {
-      windowId: w.windowId, name: w.name, art: artVon(w.name),
-      start: w.startDate ?? null, end: w.endDate ?? null,
-      spieler,
-      formen: formen.map((f) => ({
-        punkte: f.punkte,
-        spieler: f.teams.flatMap((t) => t.ids.map((id) => nachId.get(id)?.anzeige ?? '')).filter(Boolean),
-      })),
-    };
-  }).sort((a, b) => String(a.start ?? '').localeCompare(String(b.start ?? '')));
+  const fenster: SolosFenster[] = einzeln.map(({ w, d }) => fensterAus(w, d, spielerVon))
+    .sort((a, b) => String(a.start ?? '').localeCompare(String(b.start ?? '')));
 
   /* ------------------------------------------------------ Wer kam woher */
   const finale = fenster.filter((f) => f.art === 'finale').flatMap((f) => f.spieler);
