@@ -47,9 +47,16 @@ jobs:
   bereitstellen:
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    # Der Montagslauf stellt beide Konten bereit (Betreiber, 12.10.2026: die Last auf zwei Konten teilen, damit ein
+    # Konto nicht wieder allein die Punkte verbraucht); ein Handstart nur das gewaehlte. Faellt eines aus (Punkte
+    # aufgebraucht), laeuft das andere trotzdem durch.
+    strategy:
+      fail-fast: false
+      matrix:
+        konto: ${{ fromJSON(github.event_name == 'schedule' && '["1","2"]' || format('["{0}"]', inputs.konto)) }}
     env:
-      NETLIFY_AUTH_TOKEN: ${{ inputs.konto == '2' && secrets.NETLIFY_AUTH_TOKEN_2 || secrets.NETLIFY_AUTH_TOKEN }}
-      NETLIFY_SITE_ID: ${{ inputs.konto == '2' && secrets.NETLIFY_SITE_ID_2 || secrets.NETLIFY_SITE_ID }}
+      NETLIFY_AUTH_TOKEN: ${{ matrix.konto == '2' && secrets.NETLIFY_AUTH_TOKEN_2 || secrets.NETLIFY_AUTH_TOKEN }}
+      NETLIFY_SITE_ID: ${{ matrix.konto == '2' && secrets.NETLIFY_SITE_ID_2 || secrets.NETLIFY_SITE_ID }}
       NEXT_TELEMETRY_DISABLED: '1'
       NODE_OPTIONS: --max-old-space-size=6144
     steps:
