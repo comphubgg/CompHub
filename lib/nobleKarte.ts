@@ -91,9 +91,52 @@ export async function detail(id: string, region: string, windowId?: string): Pro
   return hole<RohDetail>(`${BASIS}/tournament?${q}`);
 }
 
-/** Alle Fenster der jüngsten Turniere - fuer die Auswahl, wenn die Kennung nicht gleich ist. */
-export async function nobleFenster(anzahl = 10): Promise<NobleFenster[]> {
-  const turniere = await jungeTurniere(anzahl);
+/*
+ * Welches Turnier bei Noble zu welchem Cup gehoert - ueber den Namen.
+ *
+ * Der Betreiber (12.10.2026): "bei einer Performance Evaluation musst du mir bei Noble nicht Solo Heat vorschlagen,
+ * nur Performance Cup." Noble fuehrt einen Cup als ein Turnier mit vielen Spieltagen ("Performance Evaluation", 7. Juni
+ * bis 13. August, darin Finals am 7.6., 18.6., ...). Verglichen werden die bedeutungstragenden Woerter; Allgemeines wie
+ * "Cup", "Series" oder "Practice" zaehlt nicht mit.
+ */
+const ALLGEMEIN = new Set(['cup', 'series', 'practice', 'the', 'and', 'zero', 'build', 'reload', 'battle', 'royale', 'ranked', 'open', 'finals', 'final']);
+function woerter(name: string): string[] {
+  return name.toLowerCase().replace(/[^a-z0-9 ]+/g, ' ').split(/\s+/)
+    .filter((w) => w.length > 2 && !ALLGEMEIN.has(w));
+}
+/** Wie viele bedeutungstragende Woerter beide Namen gemeinsam haben. */
+export function namensTreffer(a: string, b: string): number {
+  const wb = new Set(woerter(b));
+  return woerter(a).filter((w) => wb.has(w)).length;
+}
+
+/** Alle Turniere von Noble - es sind nur wenige Dutzend, und die laengsten laufen ueber Monate. */
+export async function alleTurniere(): Promise<RohTurnier[]> {
+  const j = await hole<{ tournaments?: RohTurnier[] }>(`${BASIS}/tournaments`);
+  return [...(j.tournaments ?? [])]
+    .sort((a, b) => String(b.earliestStart ?? '').localeCompare(String(a.earliestStart ?? '')));
+}
+
+export interface FensterWunsch {
+  /** Der Titel des Cups bei uns, z. B. "Performance Evaluation". */
+  titel?: string;
+  /** Beginn des Spieltags bei Epic (ms). */
+  begin?: number;
+}
+
+/**
+ * Alle Fenster der Turniere von Noble - fuer die Auswahl, wenn die Kennung nicht gleich ist.
+ *
+ * Mit Titel nur die des passenden Turniers (gibt es keines, alle). Mit Beginn die zeitlich naechsten zuerst.
+ */
+export async function nobleFenster(anzahl = 40, wunsch: FensterWunsch = {}): Promise<NobleFenster[]> {
+  const alle = await alleTurniere();
+  let turniere = alle;
+  if (wunsch.titel) {
+    const passend = alle.filter((t) => namensTreffer(wunsch.titel!, t.tournamentName) > 0);
+    if (passend.length) turniere = passend;
+  }
+  turniere = turniere.slice(0, wunsch.titel ? 12 : anzahl);
   const raus: NobleFenster[] = [];
   await Promise.all(turniere.map(async (t) => {
     for (const r of t.regions ?? []) {
@@ -108,7 +151,10 @@ export async function nobleFenster(anzahl = 10): Promise<NobleFenster[]> {
       } catch { /* dieses Turnier ueberspringen */ }
     }
   }));
-  return raus.sort((a, b) => String(b.start ?? '').localeCompare(String(a.start ?? '')));
+  const abstand = (w: NobleFenster) => (wunsch.begin && w.start ? Math.abs(Date.parse(w.start) - wunsch.begin) : 0);
+  return raus.sort((a, b) => (wunsch.begin
+    ? abstand(a) - abstand(b)
+    : String(b.start ?? '').localeCompare(String(a.start ?? ''))));
 }
 
 export interface NobleForm {
@@ -162,13 +208,18 @@ export function formenAus(d: RohDetail): { formen: NobleForm[]; ohneForm: NobleK
  * Die Karte eines Fensters. Gesucht wird in den jüngsten Turnieren das Fenster mit derselben Kennung
  * (Epics windowId); ohne Treffer kann der Aufrufer Turnier und Region selbst nennen.
  */
-export async function nobleKarte(windowId: string, turnierId?: string, region?: string): Promise<NobleKarte | null> {
+export async function nobleKarte(
+  windowId: string, turnierId?: string, region?: string, wunsch: FensterWunsch = {},
+): Promise<(NobleKarte & { zugeordnet?: 'datum' }) | null> {
   let treffer: { id: string; name: string; region: string } | null = null;
+  /** Das Fenster, das tatsaechlich gelesen wird - bei der Zuordnung ueber das Datum ein anderes als das gefragte. */
+  let fensterKennung = windowId;
+  let ueberDatum = false;
 
   if (turnierId && region) {
     treffer = { id: turnierId, name: turnierId, region };
   } else {
-    const turniere = await jungeTurniere(14);
+    const turniere = await alleTurniere();
     await Promise.all(turniere.map(async (t) => {
       if (treffer) return;
       const codes = (t.regions ?? []).map((r) => r.code);
@@ -185,21 +236,39 @@ export async function nobleKarte(windowId: string, turnierId?: string, region?: 
       }
     }));
   }
+  /*
+   * Nennt Noble den Spieltag anders, hilft Name und Datum: das Turnier mit demselben Namen wie der Cup und darin der
+   * Spieltag vom selben Tag (und derselben Region). Gibt es genau einen solchen, wird er genommen - wie wenn man bei
+   * Noble in "Performance Evaluation" geht und das Datum sucht.
+   */
+  if (!treffer && wunsch.titel && wunsch.begin) {
+    const endung = /_([A-Z]{2,4})$/.exec(windowId)?.[1];
+    const kandidaten = (await nobleFenster(40, wunsch)).filter((w) => w.start
+      && Math.abs(Date.parse(w.start) - wunsch.begin!) < 14 * 3600_000
+      && (!endung || w.region === endung));
+    if (kandidaten.length === 1) {
+      const k = kandidaten[0];
+      treffer = { id: k.turnierId, name: k.turnier, region: k.region };
+      fensterKennung = k.windowId;
+      ueberDatum = true;
+    }
+  }
   if (!treffer) return null;
 
-  const d = await detail(treffer.id, treffer.region, windowId);
-  if (!d.windowData || d.windowData.windowId !== windowId) return null;
-  const fensterName = d.windowData.windowFullName || d.windowData.windowName || windowId;
+  const d = await detail(treffer.id, treffer.region, fensterKennung);
+  if (!d.windowData || d.windowData.windowId !== fensterKennung) return null;
+  const fensterName = d.windowData.windowFullName || d.windowData.windowName || fensterKennung;
 
   const { formen, ohneForm, anzahlTeams } = formenAus(d);
 
   return {
     turnier: { id: treffer.id, name: d.tournamentData?.tournamentName ?? treffer.name },
-    fenster: { windowId, name: fensterName },
+    fenster: { windowId: fensterKennung, name: fensterName },
     region: treffer.region,
     formen,
     ohneForm,
     anzahlTeams,
+    ...(ueberDatum ? { zugeordnet: 'datum' as const } : {}),
   };
 }
 

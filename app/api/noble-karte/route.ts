@@ -7,7 +7,8 @@ import { nobleFenster, nobleKarte } from '@/lib/nobleKarte';
  *
  *   GET ?window=<Epic-windowId>                      die Karte dieses Fensters
  *   GET ?window=...&turnier=<id>&region=<EU>         wenn Noble das Fenster anders nennt
- *   GET ?liste=1                                     die Fenster der juengsten Turniere zur Auswahl
+ *   GET ?window=...&titel=<Cup>&begin=<ms>           Zuordnung ueber Turniername und Datum, wenn die Kennung nicht passt
+ *   GET ?liste=1[&titel=<Cup>&begin=<ms>]            die Spieltage zur Auswahl - nur die zum Cup (Name) gehoeren, die naechsten zuerst
  *
  * Nur Admin: die Antwort wird in eine Karte uebernommen, die der Betreiber verantwortet.
  */
@@ -24,11 +25,13 @@ export async function GET(request: Request) {
   const p = new URL(request.url).searchParams;
   try {
     if (p.get('liste')) {
-      return NextResponse.json({ ok: true, fenster: await nobleFenster(10) }, { headers: nie });
+      const wunsch = { titel: (p.get('titel') ?? '').trim() || undefined, begin: Number(p.get('begin')) || undefined };
+      return NextResponse.json({ ok: true, fenster: await nobleFenster(40, wunsch) }, { headers: nie });
     }
     const kennung = (p.get('window') ?? '').trim();
     if (!kennung) return NextResponse.json({ ok: false, error: 'Kein Spieltag gewählt.' }, { status: 400, headers: nie });
-    const karte = await nobleKarte(kennung, p.get('turnier') ?? undefined, p.get('region') ?? undefined);
+    const wunsch = { titel: (p.get('titel') ?? '').trim() || undefined, begin: Number(p.get('begin')) || undefined };
+    const karte = await nobleKarte(kennung, p.get('turnier') ?? undefined, p.get('region') ?? undefined, wunsch);
     if (!karte) {
       return NextResponse.json({
         ok: false, nichtGefunden: true,

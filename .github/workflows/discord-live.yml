@@ -64,6 +64,28 @@ jobs:
           curl -s -w ' [Discord-Server: %{http_code}]' -m 90 -H "Authorization: Bearer $GEHEIM" "https://www.thecomphub.com/api/cron/discord-gilden" || true
           echo
 
+      # Die Wache fuer die Statistik: laeuft der stuendliche Datenlauf nicht mehr durch, merkt es sonst niemand -
+      # am 11.10.2026 starb er fuenfmal hintereinander, und die Statistik der letzten Cups stand stundenlang still.
+      # Ist der letzte erfolgreiche Lauf aelter als sechs Stunden, kommt eine Meldung in #admin-alarm (hoechstens
+      # alle sechs Stunden, nur im ersten Lauf dieser Stunde).
+      - name: Statistik-Wache
+        if: always()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          STUNDE=$(date -u +%H); MINUTE=$(date -u +%M)
+          if [ $((10#$STUNDE % 6)) -ne 0 ] || [ "$MINUTE" -ge 10 ]; then echo "keine Wachzeit"; exit 0; fi
+          LETZT=$(gh run list -R "${{ github.repository }}" --workflow daten-erneuern.yml --status success --limit 1 --json updatedAt --jq '.[0].updatedAt')
+          [ -z "$LETZT" ] && LETZT="1970-01-01T00:00:00Z"
+          ALTER=$(( ( $(date -u +%s) - $(date -u -d "$LETZT" +%s) ) / 3600 ))
+          echo "Letzter erfolgreicher Datenlauf: $LETZT (vor $ALTER Stunden)"
+          if [ "$ALTER" -ge 6 ]; then
+            printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
+            node scripts/discord-update.mjs --ziel alarm --art behoben --titel "Datenlauf steht seit $ALTER Stunden" --text "Der stuendliche Lauf Daten erneuern war zuletzt am $LETZT erfolgreich. Seitdem kommen keine neuen Statistiken auf die Seite. Schau bei GitHub unter Actions nach dem Schritt, der scheitert." || true
+            rm -f .env.local
+          fi
+
       # GitHub liess den Zeitplan am 28.9.2026 sieben Stunden lang ausfallen.
       # Jeder Lauf stoesst deshalb nach zehn Minuten den naechsten selbst an;
       # der Zeitplan oben bleibt als Rueckfall. Der Lauf sagt es mit "Kette".

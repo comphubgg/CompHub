@@ -453,6 +453,8 @@ export default function KartenSeite(
    * die es gibt); 'leer': Noble kennt ihn, hat aber noch keine Formen; 'ok'; 'fehler'.
    */
   const [nobleMeldung, setNobleMeldung] = useState<{ art: 'ok' | 'nichts' | 'leer' | 'fehler'; text: string } | null>(null);
+  /** Die Rueckfrage vor dem Ersetzen der Karte - mit dem, was bei "Weitermachen" geschieht. */
+  const [nobleFrage, setNobleFrage] = useState<{ text: string; anwenden: () => void } | null>(null);
   /**
    * Wie viele Teams hoechstens geladen werden.
    *
@@ -1521,12 +1523,19 @@ export default function KartenSeite(
     manuell?: { windowId: string; turnierId: string; region: string },
   ) => {
     if (!fensterId) return;
-    setNobleLaeuft(true); setStatus(''); setNobleMeldung(null); setNobleListe(null);
+    setNobleLaeuft(true); setStatus(''); setNobleMeldung(null); setNobleListe(null); setNobleFrage(null);
     try {
+      /*
+       * Mit Cup-Titel und Beginn des Spieltags: heisst der Spieltag bei Noble anders, ordnet der Server ihn ueber den
+       * Namen des Turniers (Performance Evaluation) und das Datum zu - so wie man bei Noble das Turnier oeffnet und
+       * dort den Tag sucht. Der Betreiber (12.10.2026): bei vergangenen Cups passierte nichts.
+       */
+      const dieser = fenster.find((x) => x.windowId === fensterId);
+      const wunsch = `&titel=${encodeURIComponent(cup?.titel ?? '')}&begin=${dieser?.begin ?? ''}`;
       const q = manuell
         ? `window=${encodeURIComponent(manuell.windowId)}&turnier=${encodeURIComponent(manuell.turnierId)}`
           + `&region=${encodeURIComponent(manuell.region)}`
-        : `window=${encodeURIComponent(fensterId)}`;
+        : `window=${encodeURIComponent(fensterId)}${wunsch}`;
       const r = await fetch(`/api/noble-karte?${q}`, { cache: 'no-store' });
       const j = await r.json() as {
         ok?: boolean; error?: string; nichtGefunden?: boolean;
@@ -1537,7 +1546,7 @@ export default function KartenSeite(
       if (!r.ok || !j.ok) {
         if (j.nichtGefunden) {
           // Nichts wird veraendert und nichts gefragt: der Hinweis sagt, welche Spieltage Noble hat.
-          const l = await fetch('/api/noble-karte?liste=1', { cache: 'no-store' }).catch(() => null);
+          const l = await fetch(`/api/noble-karte?liste=1${wunsch}`, { cache: 'no-store' }).catch(() => null);
           const lj = l ? await l.json().catch(() => null) as { fenster?: NonNullable<typeof nobleListe> } | null : null;
           setNobleListe(lj?.fenster ?? []);
           setNobleMeldung({ art: 'nichts', text: '' });
@@ -1599,34 +1608,45 @@ export default function KartenSeite(
       // Teams, fuer die Noble noch keine Form hat, stehen danach in der Liste und warten dort.
       for (const e of j.ohneForm ?? []) wieNoble(e);
 
-      // Erst jetzt fragen: jetzt ist klar, was ersetzt wird.
-      if (spots.length && !window.confirm(uebs(
-        'Noble ({name}): {formen} Formen, {teams} Teams. Die {alt} Formen und Zuordnungen dieser Karte werden ersetzt — mit Strg+Z kommst du zurück. Weitermachen?')
-        .replace('{name}', [j.turnier?.name, j.fenster?.name].filter(Boolean).join(' · '))
-        .replace('{formen}', String(neueSpots.length))
-        .replace('{teams}', String(genutzt.size))
-        .replace('{alt}', String(spots.length)))) return;
+      const anwenden = () => {
+        merke();
+        formenVomNutzer.current = false; inhaltVomNutzer.current = true;
+        setSpots(neueSpots);
+        // Die Teams dieser Karte sind jetzt die von Noble: alte Noble-Teams, die nicht mehr vorkommen, gehen,
+        // gefundene Teams der Rangliste werden als zur Karte gehoerig vermerkt, neue kommen dazu.
+        setTeams((alt) => [
+          ...alt
+            .filter((t) => t.quelle !== 'noble' || genutzt.has(t.id))
+            .map((t) => (genutzt.has(t.id) && t.quelle !== 'noble' ? { ...t, quelle: 'noble' as const } : t)),
+          ...neueTeams.filter((n) => !alt.some((t) => t.id === n.id)),
+        ]);
+        setNobleFrage(null);
+        setNobleMeldung({
+          art: 'ok',
+          text: `${neueSpots.length} ${uebs('Formen von Noble übernommen')}, ${eingetragen} ${uebs('Teams eingetragen')}`
+            + (neueTeams.length ? ` · ${neueTeams.length} ${uebs('nicht in deiner Liste, von Noble ergänzt')}` : ''),
+        });
+      };
 
-      merke();
-      formenVomNutzer.current = false; inhaltVomNutzer.current = true;
-      setSpots(neueSpots);
-      // Die Teams dieser Karte sind jetzt die von Noble: alte Noble-Teams, die nicht mehr vorkommen, gehen,
-      // gefundene Teams der Rangliste werden als zur Karte gehoerig vermerkt, neue kommen dazu.
-      setTeams((alt) => [
-        ...alt
-          .filter((t) => t.quelle !== 'noble' || genutzt.has(t.id))
-          .map((t) => (genutzt.has(t.id) && t.quelle !== 'noble' ? { ...t, quelle: 'noble' as const } : t)),
-        ...neueTeams.filter((n) => !alt.some((t) => t.id === n.id)),
-      ]);
-      setNobleMeldung({
-        art: 'ok',
-        text: `${neueSpots.length} ${uebs('Formen von Noble übernommen')}, ${eingetragen} ${uebs('Teams eingetragen')}`
-          + (neueTeams.length ? ` · ${neueTeams.length} ${uebs('nicht in deiner Liste, von Noble ergänzt')}` : ''),
-      });
+      // Erst jetzt fragen: jetzt ist klar, was ersetzt wird. Die Frage steht auf der Seite - ein Browserfenster
+      // (window.confirm) wird in manchen Umgebungen stumm abgelehnt, dann sah es aus, als passiere nichts.
+      if (spots.length) {
+        setNobleFrage({
+          text: uebs(
+            'Noble ({name}): {formen} Formen, {teams} Teams. Die {alt} Formen und Zuordnungen dieser Karte werden ersetzt — mit Strg+Z kommst du zurück.')
+            .replace('{name}', [j.turnier?.name, j.fenster?.name].filter(Boolean).join(' · '))
+            .replace('{formen}', String(neueSpots.length))
+            .replace('{teams}', String(genutzt.size))
+            .replace('{alt}', String(spots.length)),
+          anwenden,
+        });
+        return;
+      }
+      anwenden();
     } catch (e) {
       setNobleMeldung({ art: 'fehler', text: (e as Error).message });
     } finally { setNobleLaeuft(false); }
-  }, [fensterId, spots, teams, profile, merke, uebs]);
+  }, [fensterId, fenster, cup, spots, teams, profile, merke, uebs]);
 
   /**
    * Die Teamliste erneuert sich waehrend des Cups von selbst.
@@ -4200,6 +4220,20 @@ ${name}
           * aus, als haette der Knopf nichts getan. Jetzt steht da, was passiert ist und - wenn Noble den
           * Spieltag nicht hat - welche es gibt, zum direkten Anklicken (die naechsten zuerst).
           */}
+        {darfBauen && nobleFrage && (
+          <div className="mb-3 flex flex-wrap items-center gap-3 rounded-xl border border-sky-700/60 bg-sky-950/25 px-4 py-3 text-sm text-sky-100">
+            <p className="min-w-0 flex-1">{nobleFrage.text}</p>
+            <button type="button" onClick={() => nobleFrage.anwenden()}
+              className="rounded-lg bg-sky-500 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-sky-400">
+              <T>Weitermachen</T>
+            </button>
+            <button type="button" onClick={() => setNobleFrage(null)}
+              className="rounded-lg border border-sky-700/60 px-3 py-1.5 text-xs text-sky-100 transition hover:bg-sky-900/30">
+              <T>Abbrechen</T>
+            </button>
+          </div>
+        )}
+
         {darfBauen && nobleMeldung && (
           <div className={`mb-3 flex items-start gap-3 rounded-xl border px-4 py-3 text-sm ${
             nobleMeldung.art === 'ok'
@@ -4210,7 +4244,7 @@ ${name}
                 const dieser = fenster.find((x) => x.windowId === fensterId);
                 const ref = dieser?.begin ?? Date.now();
                 const abstand = (s: string | null) => (s ? Math.abs(Date.parse(s) - ref) : Infinity);
-                const nahe = [...(nobleListe ?? [])].sort((a, b) => abstand(a.start) - abstand(b.start)).slice(0, 6);
+                const nahe = [...(nobleListe ?? [])].sort((a, b) => abstand(a.start) - abstand(b.start)).slice(0, 12);
                 return (
                   <>
                     <p className="font-semibold"><T>Noble hat für diesen Spieltag keine Karte.</T></p>

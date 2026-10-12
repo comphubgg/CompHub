@@ -141,8 +141,10 @@ export default function Fusszeile() {
       <div className="mx-auto mt-12 flex max-w-5xl flex-col items-center gap-2
                       border-t border-zinc-900 pt-6 text-center sm:flex-row
                       sm:justify-between sm:text-left">
-        <p className="text-[11px] text-slate-700">
-          © {new Date().getFullYear()} CompHub
+        <p className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 text-[11px] text-slate-700 sm:justify-start">
+          <span>© {new Date().getFullYear()} CompHub</span>
+          <Link href="/privacy" className="transition hover:text-sky-400"><T>Datenschutz</T></Link>
+          <Link href="/terms" className="transition hover:text-sky-400"><T>Nutzungsbedingungen</T></Link>
         </p>
         <p className="text-[11px] text-slate-700">
           <T>Nicht mit Epic Games verbunden. Alle Marken gehören ihren

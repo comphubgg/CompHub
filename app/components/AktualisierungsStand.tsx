@@ -67,31 +67,22 @@ export default function AktualisierungsStand({ stand, art }: { stand: string | n
   const uhr = (ms: number) => new Date(ms).toLocaleTimeString(ort, { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
   return (
-    <div className="mt-1 flex flex-wrap items-stretch gap-2 text-xs">
-      <div className="flex items-center gap-2.5 rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-2">
-        <span className={`h-2 w-2 shrink-0 rounded-full ${farbe} ${art === 'laeuft' ? 'animate-pulse' : ''}`} />
-        <div>
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500"><T>Zuletzt aktualisiert</T></p>
-          <p className="mt-0.5 tabular-nums text-slate-200">
-            {new Date(zeit).toLocaleDateString(ort, { day: 'numeric', month: 'short', year: 'numeric' })}{' · '}
-            <span className="font-semibold">{uhr(zeit)}</span>
-          </p>
-          <p className="tabular-nums text-sky-400">{sprache === 'en' ? `${dauer(alt)} ago` : `vor ${dauer(alt)}`}</p>
-        </div>
-      </div>
-      <div className="flex items-center gap-2.5 rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-2">
-        <div>
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-500"><T>Nächstes Update</T></p>
-          {naechste !== null ? (
-            <>
-              <p className="mt-0.5 tabular-nums text-slate-200"><span className="font-semibold">{uhr(naechste)}</span></p>
-              <p className="tabular-nums text-sky-400">in {dauer(naechste - jetzt)}</p>
-            </>
-          ) : (
-            <p className="mt-0.5 max-w-[16rem] text-slate-400"><T>Cup beendet — Endstand, keine weiteren Updates geplant</T></p>
-          )}
-        </div>
-      </div>
-    </div>
+    <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] text-slate-500">
+      <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${farbe} ${art === 'laeuft' ? 'animate-pulse' : ''}`} />
+      <span><T>Zuletzt aktualisiert</T></span>
+      <span className="tabular-nums text-slate-300">
+        {new Date(zeit).toLocaleDateString(ort, { day: 'numeric', month: 'short' })}{' · '}{uhr(zeit)}
+      </span>
+      <span className="tabular-nums text-sky-400">{sprache === 'en' ? `${dauer(alt)} ago` : `vor ${dauer(alt)}`}</span>
+      {/* Bei einem beendeten Cup kommt nichts mehr - dann steht dazu auch nichts da. */}
+      {naechste !== null && (
+        <>
+          <span className="text-slate-700">·</span>
+          <span><T>Nächstes Update</T></span>
+          <span className="tabular-nums text-slate-300">{uhr(naechste)}</span>
+          <span className="tabular-nums text-sky-400">in {dauer(naechste - jetzt)}</span>
+        </>
+      )}
+    </p>
   );
 }

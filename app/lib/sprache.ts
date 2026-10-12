@@ -3365,6 +3365,10 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Karten zu diesem Spieltag': 'Maps for this match day',
   'Alle anzeigen': 'Show all',
   // ------------------------------------------------------------ Multiview (11.10.2026)
+  'Noble ({name}): {formen} Formen, {teams} Teams. Die {alt} Formen und Zuordnungen dieser Karte werden ersetzt — mit Strg+Z kommst du zurück.': 'Noble ({name}): {formen} shapes, {teams} teams. The {alt} shapes and assignments of this map will be replaced — Ctrl+Z brings them back.',
+  'Weitermachen': 'Continue',
+  'Datenschutz': 'Privacy',
+  'Nutzungsbedingungen': 'Terms of Use',
   'Epic liefert diesen Wert für diesen Cup nicht mit.': 'Epic does not provide this value for this cup.',
   'Diese Werte stammen direkt aus Epics Bestenliste und gelten je Team (Duo oder Trio), nicht je Spieler. Werte je einzelnem Spieler stehen nur in den Replays — zu diesem Cup liegen sie nicht vor.': 'These values come straight from Epic\'s leaderboard and apply per team (duo or trio), not per player. Values per individual player only exist in the replays — they are not available for this cup.',
   'Wird aus den Replays nachgetragen, sobald sie ausgewertet sind': 'Will be added from the replays as soon as they have been processed',
