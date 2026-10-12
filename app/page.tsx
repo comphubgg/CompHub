@@ -9,6 +9,7 @@ import VipSlider from '@/app/components/VipSlider';
 import Fusszeile from '@/app/components/Fusszeile';
 import TeamFlagge from '@/components/TeamFlagge';
 import DiscordKnopf from '@/app/components/DiscordKnopf';
+import StartVitrine from '@/app/components/StartVitrine';
 
 /** Ein Platz in der Preisgeldliste der Startseite. */
 interface Geldplatz {
@@ -184,40 +185,6 @@ function Abschnitt({ children, className = '' }: {
   );
 }
 
-/** Die Bereiche des Werkzeugs - dieselben wie in der Kopfzeile. */
-const BEREICHE = [
-  {
-    href: '/statistics', titel: 'Statistiken',
-    text: 'Jeder Spieler, jeder Spieltag, jede Kennzahl — Schaden, Material, '
-      + 'Bauteile, Trefferquote. Mit Verlauf über alle Chapter.',
-  },
-  {
-    href: '/events', titel: 'Turniere',
-    text: 'Der komplette Kalender aller Regionen: was läuft, was kommt, was '
-      + 'vorbei ist — mit Endstand und Qualifikation.',
-  },
-  {
-    href: '/power-rankings', titel: 'Ranglisten',
-    text: 'Epics weltweite Power Rankings, täglich erneuert, mit dem '
-      + 'Unterschied zur Vorwoche.',
-  },
-  {
-    href: '/tierlist', titel: 'Tierlist',
-    text: 'Eigene Tierlists bauen und teilen — Spieler ziehen, Stufen benennen, '
-      + 'als Bild speichern.',
-  },
-  {
-    href: '/streams', titel: 'Streams',
-    text: 'Mehrere Twitch-Streams nebeneinander, in eigenen Ordnern, mit '
-      + 'Live-Anzeige und gemeinsamem Chat.',
-  },
-  {
-    href: '/overlays', titel: 'Overlays',
-    text: 'Einblendungen für den eigenen Stream — aus denselben Turnierdaten '
-      + 'gespeist, ohne Abtippen.',
-  },
-];
-
 export default function Startseite() {
   const { sprache } = useSprache();
   const [stand, setStand] = useState<Stand | null>(null);
@@ -360,43 +327,8 @@ export default function Startseite() {
         </div>
       </section>
 
-      {/* ------------------------------------------------------ Bereiche */}
-      <section className="px-4 py-20">
-        <div className="mx-auto max-w-6xl">
-          <Abschnitt>
-            <h2 className="mb-2 text-center text-3xl font-black tracking-tight
-                           sm:text-4xl">
-              <T>Was hier drin steckt</T>
-            </h2>
-            <p className="mb-12 text-center text-sm text-slate-500">
-              <T>Sechs Bereiche, eine Datengrundlage.</T>
-            </p>
-          </Abschnitt>
-
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-            {BEREICHE.map((b, i) => (
-              <Abschnitt key={b.href} className={`delay-[${(i % 3) * 80}ms]`}>
-                <Link href={b.href}
-                  className="group flex h-full flex-col rounded-2xl border
-                             border-zinc-800 bg-zinc-900/30 p-6 transition
-                             hover:border-sky-500/50 hover:bg-zinc-900/60">
-                  <h3 className="text-lg font-bold text-slate-100
-                                 group-hover:text-sky-400">
-                    <T>{b.titel}</T>
-                  </h3>
-                  <p className="mt-2 flex-1 text-sm leading-relaxed text-slate-500">
-                    <T>{b.text}</T>
-                  </p>
-                  <span className="mt-4 text-xs font-semibold text-sky-500/80
-                                   transition group-hover:text-sky-400">
-                    <T>öffnen</T> →
-                  </span>
-                </Link>
-              </Abschnitt>
-            ))}
-          </div>
-        </div>
-      </section>
+      {/* ------------------------------------------- Statistics, Maps, More */}
+      <StartVitrine />
 
       <MeistesPreisgeld ort={ort} />
 

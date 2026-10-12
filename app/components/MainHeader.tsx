@@ -28,7 +28,13 @@ const navItems = [
   // "Prediction und Archiv soll oben in der Taskleiste nicht sein." Das
   // Archiv lebt im Spielerprofil, die Prognosen bleiben unter ihrer Adresse.
   { href: '/tierlist', label: 'Tierlist', schluessel: 'tierlist' },
-  { href: '/overlays', label: 'Overlays', schluessel: 'overlays' },
+  /*
+   * Maps statt Overlays.
+   *
+   * Der Betreiber (12.10.2026): oben die Maps, die Overlays "unter Dashboard ... fuer jeden VIP". Die Overlays
+   * stehen im Dashboard im Schnellzugriff (app/admin/page.tsx) und unter ihrer Adresse /overlays.
+   */
+  { href: '/tournament-maps', label: 'Maps', schluessel: 'maps' },
 ];
 
 export default function MainHeader({ sektionenAnfang }: {

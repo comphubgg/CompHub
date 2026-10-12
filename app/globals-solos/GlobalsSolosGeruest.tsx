@@ -55,24 +55,12 @@ export default function GlobalsSolosGeruest({ aktiv, children }: {
     return sichtbarerTakt(() => { void holen(false); }, 120_000);
   }, [holen]);
 
-  if (zugang.laedt) return <LadeSchirm />;
-  const darfHinein = zugang.admin || zugang.rechte.includes('globals');
-  if (!darfHinein) {
-    return (
-      <main className="grid min-h-screen place-items-center bg-zinc-950 px-4 text-center text-slate-100">
-        <div className="max-w-md">
-          <h1 className="text-xl font-bold"><T>Nur für VIPs</T></h1>
-          <p className="mt-3 text-sm leading-relaxed text-slate-500">
-            <T>Die Globals-Seiten werden einzeln vergeben — mit einem gewöhnlichen Konto sind sie nicht zugänglich.</T>
-          </p>
-          <Link href="/sign-in" className="mt-6 inline-block rounded-lg bg-sky-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-400">
-            <T>Zur Anmeldung</T>
-          </Link>
-        </div>
-      </main>
-    );
-  }
-
+  /*
+   * Fuer alle offen.
+   *
+   * Der Betreiber (12.10.2026): die Solos-Seite darf "oeffentlich" sein, "als goldene Extra". Die Daten waren ohnehin ohne
+   * Anmeldung abrufbar (/api/globals-solos); jetzt steht auch die Seite jedem offen. Den Knopf "Aktualisieren" hat nur der Admin.
+   */
   const hier = aktiv ?? '/globals-solos';
 
   return (
@@ -82,7 +70,7 @@ export default function GlobalsSolosGeruest({ aktiv, children }: {
         <div aria-hidden className="absolute inset-0" style={{ background: `linear-gradient(90deg, ${BLAU}55, transparent 55%), rgba(0,0,0,.72)` }} />
         <div className="relative mx-auto max-w-[1500px] px-4 py-6">
           <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-amber-300/80">
-            VIP · FNCS Solos · EU
+            FNCS Solos · EU
           </p>
           <h1 className="mt-1 text-2xl font-black tracking-tight sm:text-3xl" style={{ color: '#ffd766' }}>
             FNCS Globals Solos 2026
