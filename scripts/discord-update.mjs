@@ -36,6 +36,11 @@ const KANAELE = {
    * alles durch" - deshalb ein eigener Kanal, der Auftrag fett.
    */
   todo: 'to-do-for-admin',
+  /*
+   * Die Aufgabenliste von Claude selbst, in Lila. Der Betreiber (12.10.2026): "mach die To-Do-List fuer dich ... auf Lila,
+   * dann weiss ich, das ist so eine spezielle" - getrennt von dem, was er selbst erledigen muss (gelb, #to-do-for-admin).
+   */
+  projekt: 'claude-to-do',
 };
 const FARBE = 0x0ea5e9;
 
@@ -60,8 +65,8 @@ const text = arg('--text').replace(/\\n/g, '\n');
 const bilder = process.argv.flatMap((a, i, alle) => (a === '--bild' && alle[i + 1] ? [alle[i + 1]] : []));
 
 if (!TOKEN) { console.error('DISCORD_BOT_TOKEN fehlt in .env.local.'); process.exit(1); }
-if (!KANAELE[ziel]) { console.error('--ziel muss alle, vip, manager, admin, alarm oder todo sein.'); process.exit(1); }
-if (!['neu', 'behoben', 'geaendert', 'erledigt', 'alarm', 'info', 'pruefung', 'aufgabe'].includes(art)) { console.error('--art muss neu, behoben, geaendert, erledigt, alarm, info, pruefung oder aufgabe sein.'); process.exit(1); }
+if (!KANAELE[ziel]) { console.error('--ziel muss alle, vip, manager, admin, alarm, todo oder projekt sein.'); process.exit(1); }
+if (!['neu', 'behoben', 'geaendert', 'erledigt', 'alarm', 'info', 'pruefung', 'aufgabe', 'projekt'].includes(art)) { console.error('--art muss neu, behoben, geaendert, erledigt, alarm, info, pruefung, aufgabe oder projekt sein.'); process.exit(1); }
 if (!titel || !text) { console.error('--titel und --text sind noetig.'); process.exit(1); }
 
 async function ruf(weg, methode = 'GET', koerper) {
@@ -97,7 +102,7 @@ async function kanalFinden() {
     || (ziel === 'manager' && r.name.toLowerCase().endsWith(' manager'))
   )).map((r) => r.id);
 
-  const istAdmin = ziel === 'admin' || ziel === 'alarm' || ziel === 'todo';
+  const istAdmin = ziel === 'admin' || ziel === 'alarm' || ziel === 'todo' || ziel === 'projekt';
   const kategorieName = istAdmin ? 'Admin' : 'Updates';
   let kategorie = kanaele.find((k) => k.type === 4 && k.name.toLowerCase() === kategorieName.toLowerCase())?.id ?? null;
   if (!kategorie) kategorie = (await ruf(`/guilds/${SERVER}/channels`, 'POST', { name: kategorieName, type: 4 })).id;
@@ -123,20 +128,20 @@ const kanal = await kanalFinden();
  * (30.9.2026): "Alles, was fuer den Admin ist, kann auf Deutsch sein. Aber
  * alles, was fuer jeden ist, soll Englisch sein. Ich verstehe Englisch nicht."
  */
-const fuerAdmin = ziel === 'admin' || ziel === 'alarm' || ziel === 'todo';
+const fuerAdmin = ziel === 'admin' || ziel === 'alarm' || ziel === 'todo' || ziel === 'projekt';
 const vorsatz = (fuerAdmin ? {
   neu: 'NEU', behoben: 'BEHOBEN', geaendert: 'GEÄNDERT', erledigt: 'ERLEDIGT', alarm: 'ALARM', info: 'INFO',
-  pruefung: 'SEITENPRÜFUNG', aufgabe: 'FÜR DICH ZU TUN',
+  pruefung: 'SEITENPRÜFUNG', aufgabe: 'FÜR DICH ZU TUN', projekt: 'CLAUDE ARBEITET AN',
 } : {
   neu: 'NEW', behoben: 'FIXED', geaendert: 'CHANGED', erledigt: 'DONE', alarm: 'ALERT', info: 'INFO',
-  pruefung: 'SITE CHECK', aufgabe: 'ADMIN TO DO',
+  pruefung: 'SITE CHECK', aufgabe: 'ADMIN TO DO', projekt: 'IN PROGRESS',
 })[art];
 const zeitText = fuerAdmin
   ? new Date().toLocaleString('de-CH', { timeZone: 'Europe/Zurich', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) + ' Uhr'
   : new Date().toISOString().slice(0, 16).replace('T', ' ') + ' UTC';
 // Pruefberichte der ganzen Seite orange (so gewuenscht, nicht das uebliche Blau),
 // Auftraege an den Admin gelb, Alarme rot.
-const farbe = art === 'alarm' ? 0xef4444 : art === 'pruefung' ? 0xf97316 : art === 'aufgabe' ? 0xeab308 : FARBE;
+const farbe = art === 'alarm' ? 0xef4444 : art === 'pruefung' ? 0xf97316 : art === 'aufgabe' ? 0xeab308 : art === 'projekt' ? 0xa855f7 : FARBE;
 const nachricht = {
   embeds: [{
     title: `${vorsatz} · ${titel}`.slice(0, 256),
