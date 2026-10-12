@@ -13,6 +13,11 @@ import { useT } from '@/app/components/SprachProvider';
 import { useZugang } from '@/app/lib/zugang';
 import Kachel from './Kachel';
 import Multiview from './Multiview';
+import PovVideo from './PovVideo';
+import {
+  EINSTELLUNGEN_STANDARD, SCHLUESSEL_EINSTELLUNGEN, ladeJson, speichereJson, type MvEinstellungen,
+} from './mvTypen';
+import type { BannerEinst, StatsEinst } from './PovVideo';
 import { sichtbarerTakt } from '@/app/lib/takt';
 interface Streamer {
   twitch: string;
@@ -95,7 +100,39 @@ export default function Home() {
   const [isMounted, setIsMounted] = useState(false);
   const [folders, setFolders] = useState<Folder[]>([]);
   const [activeFolderId, setActiveFolderId] = useState<string>('fortnite-eu');
-  const [activeStreamerTwitch, setActiveStreamerTwitch] = useState<string>('');
+  const [activeStreamerTwitch, setActiveStreamerTwitchRoh] = useState<string>('');
+  /**
+   * Das Pro-POV, das gerade in der Einzelansicht laeuft (Kennung) - leer: ein Twitch-Stream.
+   *
+   * Der Betreiber (12.10.2026): auch in der Einzelansicht sollen die Profis zu sehen sein, die ihn als VIP freigegeben
+   * haben. Wer einen Streamer waehlt, verlaesst das POV wieder - deshalb geht jede Wahl durch diese eine Funktion.
+   */
+  const [aktivPov, setAktivPov] = useState<string>('');
+  const setActiveStreamerTwitch = useCallback((v: string) => { setAktivPov(''); setActiveStreamerTwitchRoh(v); }, []);
+  /** Banner und Statistik auf dem POV: dieselben Einstellungen wie in der Multiview (gemeinsam im Browser gespeichert). */
+  const [mvEinst, setMvEinst] = useState<MvEinstellungen>(EINSTELLUNGEN_STANDARD);
+  useEffect(() => {
+    setMvEinst({ ...EINSTELLUNGEN_STANDARD, ...ladeJson<Partial<MvEinstellungen>>(SCHLUESSEL_EINSTELLUNGEN, {}) });
+  }, []);
+  const aendereMvEinst = useCallback((teil: Partial<MvEinstellungen>) => {
+    setMvEinst((alt) => { const n = { ...alt, ...teil }; speichereJson(SCHLUESSEL_EINSTELLUNGEN, { ...n, _v: 2 }); return n; });
+  }, []);
+  const aendereBannerSolo = useCallback((teil: Partial<BannerEinst>) => {
+    aendereMvEinst({
+      ...(teil.an !== undefined ? { povBanner: teil.an } : {}),
+      ...(teil.ort !== undefined ? { povBannerOrt: teil.ort } : {}),
+      ...(teil.mitBild !== undefined ? { povBannerBild: teil.mitBild } : {}),
+      ...(teil.groesse !== undefined ? { povBannerGroesse: teil.groesse } : {}),
+    });
+  }, [aendereMvEinst]);
+  const aendereStatsSolo = useCallback((teil: Partial<StatsEinst>) => {
+    aendereMvEinst({
+      ...(teil.an !== undefined ? { povStats: teil.an } : {}),
+      ...(teil.ort !== undefined ? { povStatsOrt: teil.ort } : {}),
+      ...(teil.mitBild !== undefined ? { povStatsBild: teil.mitBild } : {}),
+      ...(teil.groesse !== undefined ? { povStatsGroesse: teil.groesse } : {}),
+    });
+  }, [aendereMvEinst]);
   const [showChat, setShowChat] = useState<boolean>(true);
   /**
    * Kachelansicht statt eines einzelnen Streams.
@@ -1226,7 +1263,7 @@ const response = await fetch(getApiUrl(`/api/search?q=${encodeURIComponent(twitc
   }, [kachelnGezeigt, flaeche]);
   const currentDashboardUser = verifiedUser?.trim().toLowerCase() || '';
   const twitchChatUsername = activeStreamerTwitch?.trim().toLowerCase() || '';
-  const canShowTwitchChat = Boolean(showChat && currentHost && activeStreamerTwitch);
+  const canShowTwitchChat = Boolean(showChat && currentHost && activeStreamerTwitch && !aktivPov);
 
   const filteredFolders = folders;
 
@@ -1797,9 +1834,13 @@ const response = await fetch(getApiUrl(`/api/search?q=${encodeURIComponent(twitc
     );
   }
 
+  // Das POV, das in der Einzelansicht laeuft - mit den Angaben, die die Seitenleiste auch kennt.
+  const aktivPovInfo = aktivPov ? povs.find((x) => x.ident === aktivPov) : undefined;
+
   return (
-    <div className="h-screen w-full bg-zinc-950 text-white max-w-[2000px] mx-auto px-4 md:px-6 font-sans flex flex-col gap-2 relative overflow-auto pb-8 ${(previewMode && tourMode) ? 'pointer-events-none' : ''}">
-      <div className="flex items-center justify-between gap-3">
+    <div className="h-screen w-full bg-[#09090b] text-white mx-auto px-3 font-sans flex flex-col gap-2 relative overflow-auto pb-4 ${(previewMode && tourMode) ? 'pointer-events-none' : ''}">
+      {/* Kein grosser Titel mehr: die Multiview hat keinen, und beide Ansichten sollen wie eine Seite wirken (Betreiber, 12.10.2026). */}
+      <div className="hidden">
         <div>
           <h1 className="text-xl font-semibold text-white"><T>Streamer Dashboard</T></h1>
           {/*
@@ -1833,11 +1874,11 @@ const response = await fetch(getApiUrl(`/api/search?q=${encodeURIComponent(twitc
           </div>
         </div>
       )}
-<div className={`flex-1 grid grid-cols-1 gap-2 items-stretch min-h-0 ${showFolderPanel ? 'lg:grid-cols-[450px_minmax(0,1fr)]' : 'lg:grid-cols-1'}`}>
+<div className={`flex-1 grid grid-cols-1 gap-2 items-stretch min-h-0 ${showFolderPanel ? 'lg:grid-cols-[340px_minmax(0,1fr)]' : 'lg:grid-cols-1'}`}>
         
         <div data-tour="sidebar" className={`${showFolderPanel
           ? (ordnerAufHandy ? 'block' : 'hidden lg:block')
-          : 'hidden'} relative flex flex-col gap-6 bg-zinc-900/30 p-4 rounded-xl border border-zinc-900 transition-all duration-300`}>
+          : 'hidden'} relative flex flex-col gap-5 bg-[#111113] p-4 rounded-xl border border-[#27272a] transition-all duration-300`}>
           <button
             onClick={toggleFolderPanel}
             className="absolute top-5 right-3 z-10 flex h-8 w-8 items-center justify-center rounded-2xl border border-zinc-700 bg-zinc-950/95 shadow-sm shadow-black/20 transition hover:bg-zinc-900"
@@ -1849,6 +1890,57 @@ const response = await fetch(getApiUrl(`/api/search?q=${encodeURIComponent(twitc
               </svg>
             </span>
           </button>
+            {/*
+              * Der Ordner der Profis - blau, ohne Bearbeiten.
+              *
+              * Hier stehen die Profis, die den Besucher als VIP freigegeben haben (der Server liefert nur die), auch wenn sie
+              * gerade nicht senden: man sieht, dass der Zugang da ist, und dass sie offline sind. Hinzufuegen oder Entfernen
+              * gibt es nicht - das bestimmen die Profis in ihrem Dashboard. Dasselbe wie die Pro-POVs der Multiview.
+              */}
+          {povs.length > 0 && (
+            <div className="rounded-xl border border-sky-500/30 bg-sky-500/5 p-3">
+              <h2 className="mb-2 flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-sky-400">
+                <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="currentColor" aria-hidden>
+                  <path d="M3 7a2 2 0 0 1 2-2h3.9l1.7 2H19a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7z" />
+                </svg>
+                <T>Pro-POVs</T>
+                <span className="font-normal tracking-normal text-sky-300/70">
+                  {povs.length}{povs.some((x) => x.live) ? ` · ${povs.filter((x) => x.live).length} live` : ''}
+                </span>
+              </h2>
+              <ul className="space-y-1">
+                {povs.map((x) => (
+                  <li key={x.ident}>
+                    <button type="button"
+                      onClick={() => setAktivPov(x.ident)}
+                      className={`flex w-full items-center gap-2 rounded-lg border px-2 py-1.5 text-left transition ${aktivPov === x.ident
+                        ? 'border-sky-400 bg-sky-500/15' : 'border-sky-500/30 hover:border-sky-400/70 hover:bg-sky-500/10'}`}>
+                      {x.bild
+                        // eslint-disable-next-line @next/next/no-img-element
+                        ? <img src={x.bild} alt="" className="h-6 w-6 shrink-0 rounded-full object-cover" />
+                        : <span className="h-6 w-6 shrink-0 rounded-full border border-sky-500/40" />}
+                      <span className="min-w-0 flex-1 truncate text-xs font-semibold text-sky-300">{x.name}</span>
+                      {x.live
+                        ? <span className="flex shrink-0 items-center gap-1 text-[10px] font-semibold text-red-500"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-red-500" />LIVE</span>
+                        : <span className="shrink-0 text-[9px] uppercase tracking-wider text-slate-500"><T>offline</T></span>}
+                      {x.discord && (
+                        <span className="flex shrink-0 items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-semibold text-indigo-300 ring-1 ring-indigo-400/40">
+                          <span className={`h-1.5 w-1.5 rounded-full ${x.discord.streamt ? 'animate-pulse bg-red-500' : 'bg-indigo-400'}`} />
+                          {x.discord.streamt ? t('Discord LIVE') : 'Discord'}
+                        </span>
+                      )}
+                    </button>
+                    {aktivPov === x.ident && x.discord?.link && (
+                      <a href={x.discord.link} target="_blank" rel="noreferrer"
+                        className="mt-1 block px-2 text-[11px] text-indigo-300 underline-offset-2 hover:underline">
+                        <T>In Discord ansehen</T>{x.discord.kanal ? ` — #${x.discord.kanal}` : ''}
+                      </a>
+                    )}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
             {/* Favorites-Sektion */}
           {favoriteStreamers.length > 0 && (
             <div className="border-t border-zinc-800 pt-4">
@@ -2419,9 +2511,9 @@ const response = await fetch(getApiUrl(`/api/search?q=${encodeURIComponent(twitc
               </button>
             </div>
           </div>
-          <div className={`grid grid-cols-1 gap-4 items-stretch min-h-0 h-full ${showChat ? 'md:grid-cols-[1fr_420px]' : 'md:grid-cols-1'}`} data-stream-container>
+          <div className={`grid grid-cols-1 gap-4 items-stretch min-h-0 h-full ${showChat && !aktivPov ? 'md:grid-cols-[1fr_420px]' : 'md:grid-cols-1'}`} data-stream-container>
             <div className="order-1 md:order-1 flex-1 h-full min-w-0 min-h-0">
-              <div data-tour="preview" className="flex flex-col flex-1 h-full transition-all bg-zinc-950 rounded-3xl overflow-hidden min-h-0">
+              <div data-tour="preview" className="flex flex-col flex-1 h-full transition-all bg-black rounded-xl overflow-hidden min-h-0">
                   {/*
                     * Eine Flaeche fuer beide Ansichten.
                     *
@@ -2433,7 +2525,21 @@ const response = await fetch(getApiUrl(`/api/search?q=${encodeURIComponent(twitc
                     * verborgenen Kacheln. Die Player bleiben dieselben
                     * Elemente und laufen durch.
                     */}
-                  {!spielerPool.length ? (
+                  {aktivPovInfo ? (
+                    <div className="relative h-full w-full bg-black">
+                      <PovVideo key={aktivPovInfo.ident} pro={aktivPovInfo.ident} name={aktivPovInfo.name} stumm={false}
+                        banner={{
+                          einst: { an: mvEinst.povBanner, ort: mvEinst.povBannerOrt, mitBild: mvEinst.povBannerBild, groesse: mvEinst.povBannerGroesse },
+                          name: aktivPovInfo.name, bild: aktivPovInfo.bild,
+                        }}
+                        aendereBanner={aendereBannerSolo}
+                        stats={aktivPovInfo.stats ? {
+                          einst: { an: mvEinst.povStats, ort: mvEinst.povStatsOrt, mitBild: mvEinst.povStatsBild, groesse: mvEinst.povStatsGroesse },
+                          name: aktivPovInfo.name, bild: aktivPovInfo.bild,
+                        } : undefined}
+                        aendereStats={aendereStatsSolo} />
+                    </div>
+                  ) : !spielerPool.length ? (
                     mehrfach ? (
                       <div className="flex h-full w-full flex-col items-center
                                       justify-center gap-3 bg-zinc-950 p-6 text-center">
