@@ -36,7 +36,8 @@ const TYP_NAME: Record<Typ, string> = { fncs: 'FNCS', performance: 'Performance'
 
 /** Das Bild je Kapitel - Saisonbilder, die im Werkzeug liegen. Wo keins da ist, steht die Nummer. */
 const KAPITEL_BILD: Record<number, string> = {
-  7: '/saisonbilder/CH7S4.jpg', 6: '/saisonbilder/CH6S4.webp', 5: '/saisonbilder/CH5S4.jpg', 2: '/saisonbilder/Chapter 2 Remix.jpg',
+  7: '/saisonbilder/CH7S4.jpg', 6: '/saisonbilder/CH6S4.webp', 5: '/saisonbilder/CH5S4.jpg', 4: '/saisonbilder/CH4.jpg',
+  3: '/saisonbilder/CH3.jpg', 2: '/saisonbilder/Chapter 2 Remix.jpg', 1: '/saisonbilder/CH1.jpg',
 };
 
 const DATUM = new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Europe/Brussels' });

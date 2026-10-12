@@ -4,6 +4,7 @@ import { cupNameAusKennung, rundenName } from '@/lib/rundenName';
 import { mapsVerzeichnis, type MapEintrag, type MapTyp } from '@/lib/mapsVerzeichnis';
 import { gecacht, holeTop } from '@/lib/epicCups';
 import { liesJson } from '@/lib/ablage';
+import { saisonName } from '@/lib/szeneStats';
 import { GET as prLesen } from '../power-rankings/route';
 
 /*
@@ -137,7 +138,7 @@ export async function GET(request: Request) {
   try { maps = (await mapsVerzeichnis()).length; } catch { /* ohne Zahl */ }
 
   const antwort = {
-    ok: true, saison: start.saison ?? null, spieltage: start.grundlage?.spieltage?.length ?? null,
+    ok: true, saison: start.saison ?? null, saisonName: start.saison ? saisonName(start.saison) : null, spieltage: start.grundlage?.spieltage?.length ?? null,
     spieler, cups, maps, regionen, rangliste,
   };
   merker = { bis: Date.now() + 10 * 60_000, antwort };

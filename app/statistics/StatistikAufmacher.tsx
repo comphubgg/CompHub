@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import T from '@/app/components/T';
 import Rollzahl from '@/app/components/Rollzahl';
 import TeamFlagge from '@/components/TeamFlagge';
@@ -34,19 +34,23 @@ const CSS = `
 @media (prefers-reduced-motion: reduce) { .sa-an { animation: none !important; } }
 `;
 
-/** Wird das Element gesehen? */
-function useSichtbar<E extends HTMLElement>(): [React.RefObject<E | null>, boolean] {
-  const ref = useRef<E | null>(null);
+/**
+ * Wird das Element gesehen? Gibt eine Ref-Funktion zurueck: sie haengt den Beobachter erst an, wenn das Element
+ * wirklich da ist (die Kacheln erscheinen erst, wenn ihre Daten geladen sind). Nach drei Sekunden gilt es als gesehen,
+ * damit nichts unsichtbar bleibt.
+ */
+function useSichtbar<E extends HTMLElement>(): [(el: E | null) => void, boolean] {
+  const [el, setEl] = useState<E | null>(null);
   const [drin, setDrin] = useState(false);
   useEffect(() => {
-    const el = ref.current;
-    if (!el) return undefined;
-    if (typeof IntersectionObserver === 'undefined') { void Promise.resolve().then(() => setDrin(true)); return undefined; }
+    if (!el || drin) return undefined;
+    const spaet = window.setTimeout(() => setDrin(true), 3000);
+    if (typeof IntersectionObserver === 'undefined') { setDrin(true); return () => window.clearTimeout(spaet); }
     const b = new IntersectionObserver(([e]) => { if (e.isIntersecting) { setDrin(true); b.disconnect(); } }, { rootMargin: '-40px' });
     b.observe(el);
-    return () => b.disconnect();
-  }, []);
-  return [ref, drin];
+    return () => { b.disconnect(); window.clearTimeout(spaet); };
+  }, [el, drin]);
+  return [setEl, drin];
 }
 
 const platzFarbe = (p: number | null) => {

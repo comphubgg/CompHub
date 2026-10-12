@@ -44,7 +44,7 @@ interface VZeile { rang: number; punkte: number; siege: number; elims: number; s
 interface VCup { titel: string; cup: string; typ: string; bild: string | null; datum: number | null; region: string; saisonKurz: string; zeilen: VZeile[] }
 interface VRegion { region: string; name: string; land: string | null; elims: number }
 interface VRang { rang: number; name: string; land: string | null; wertung: number; delta: number }
-interface Vitrine { ok: boolean; saison: string | null; spieler: VSpieler[]; cups: VCup[]; maps: number; regionen: VRegion[]; rangliste: VRang[] }
+interface Vitrine { ok: boolean; saison: string | null; saisonName?: string | null; spieler: VSpieler[]; cups: VCup[]; maps: number; regionen: VRegion[]; rangliste: VRang[] }
 interface SolosFenster { windowId: string; name: string; art: string; spieler: Array<{ id: string; anzeige: string; land: string | null }> }
 
 const DATUM = new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', timeZone: 'Europe/Brussels' });
@@ -235,7 +235,7 @@ function GlobalKarte({ daten, fertig }: { daten: Vitrine | null; fertig: boolean
         <div ref={setHalter} onMouseEnter={() => setHalt(true)} onMouseLeave={() => setHalt(false)}>
           <p className="mb-2 flex justify-between text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-500">
             <span><T>Meiste Eliminierungen · Bester je Region</T></span>
-            {daten?.saison && <span>{daten.saison}</span>}
+            {(daten?.saisonName || daten?.saison) && <span>{daten.saisonName || daten.saison}</span>}
           </p>
           <ul className="space-y-1.5">
             {regionen.map((r, k) => (
