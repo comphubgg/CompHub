@@ -113,12 +113,29 @@ export async function GET(request: Request) {
   const alle = (start.profile ?? []).flatMap((p) => p.spieler);
   const spieler = [...alle].sort((a, b) => (b.elims ?? 0) - (a.elims ?? 0)).slice(0, 30).map(schlank);
 
-  // Je Region der Beste nach Eliminierungen - die Balken der "Global"-Karte.
-  const regionen = (start.profile ?? [])
+  // Je Region der Beste nach Eliminierungen - die Balken der "Global"-Karte. Der Betreiber (12.10.2026): "die Liste an
+  // Most Eliminations nur fuer diese Season" - also die Eliminierungen der laufenden Saison in dieser Region, nicht die
+  // Gesamtwerte der Profile. Fehlt die Saisonliste, bleibt es bei den Profilen.
+  let regionen = (start.profile ?? [])
     .map((p) => ({ region: p.region, bester: [...p.spieler].sort((a, b) => (b.elims ?? 0) - (a.elims ?? 0))[0] }))
     .filter((r) => r.bester && (r.bester.elims ?? 0) > 0)
     .map((r) => ({ region: r.region, name: r.bester.anzeige || r.bester.name, land: r.bester.land ?? null, elims: r.bester.elims ?? 0 }))
     .sort((a, b) => b.elims - a.elims);
+  if (start.saison) {
+    try {
+      const sa = await abgelegteAntwort<{ listen?: Array<{ feld: string; plaetze?: Array<Zeile & { jeRegion?: Record<string, { elims?: number }> }> }> }>(
+        `szene|ansicht=start&saison=${start.saison}`);
+      const je = new Map<string, { region: string; name: string; land: string | null; elims: number }>();
+      for (const z of sa?.listen?.find((l) => l.feld === 'elims')?.plaetze ?? []) {
+        for (const [r, w] of Object.entries(z.jeRegion ?? {})) {
+          const n = w?.elims ?? 0;
+          if (n > (je.get(r)?.elims ?? 0)) je.set(r, { region: r, name: z.anzeige || z.name, land: z.land ?? null, elims: n });
+        }
+      }
+      const saisonweit = [...je.values()].sort((a, b) => b.elims - a.elims);
+      if (saisonweit.length >= 3) regionen = saisonweit;
+    } catch { /* ohne Saisonliste bleiben die Profilwerte */ }
+  }
 
   let cups: VCup[] = [];
   try { cups = await cupsHolen(); } catch { /* ohne Cups bleibt die Karte leer */ }

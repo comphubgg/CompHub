@@ -54,7 +54,7 @@ export default function StatistikZahlen() {
       <div className="relative grid grid-cols-2 gap-y-6 text-center lg:grid-cols-4 lg:divide-x lg:divide-white/[0.07]">
         {eintraege.map(([titel, wert]) => (
           <div key={titel} className="px-2">
-            <p className="text-3xl font-black text-slate-50 sm:text-4xl xl:text-5xl">
+            <p className="text-3xl font-black text-slate-50 sm:text-4xl 2xl:text-5xl">
               <Rollzahl wert={wert} los={sichtbar && fertig} ort={ort} />
             </p>
             <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500"><T>{titel}</T></p>
