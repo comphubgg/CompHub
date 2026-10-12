@@ -251,6 +251,12 @@ export function useTierList(listId: string, mode: 'solo' | 'duo' | 'trio') {
     saveList({ entries: entries.filter(entry => entry.id !== entryId) });
   };
 
+  /** Mehrere Eintraege auf einmal entfernen - einzeln wuerde jeder Aufruf die Liste vom Anfang an ueberschreiben. */
+  const loescheEintraege = (ids: Set<string>) => {
+    if (!ids.size) return;
+    setListState(prev => ({ ...prev, entries: prev.entries.filter((e: any) => !ids.has(e.id)), updatedAt: Date.now() }));
+  };
+
   const clearList = () => {
     saveList({ entries: [] });
   };
@@ -379,6 +385,7 @@ export function useTierList(listId: string, mode: 'solo' | 'duo' | 'trio') {
     addEntries,
     addEntry,
     deleteEntry,
+    loescheEintraege,
     clearList,
     resetTierAssignments,
     removeEntry,

@@ -330,6 +330,8 @@ export default function TierListPage() {
             id: `trio-${t.schluessel}`,
             player1: spieler(a), player2: spieler(b), player3: spieler(c),
             region: String(t.region ?? 'EU'),
+            // bestaetigt oder ein Trio, das sich ausprobiert - nur bei den aktuellen Trios gesetzt.
+            ...(t.status ? { status: String(t.status) } : {}),
           },
         };
       }));
@@ -392,6 +394,22 @@ export default function TierListPage() {
     if (!neu.length) return;
     tierListState.addEntries(neu.map((t) => ({ id: generateId(), data: t.data, vonPool: true })));
   }, [mode, trioPool, tierListState.entries, entfernt, isGuest]);
+
+  /*
+   * Alte Trios aus der eigenen Liste raeumen.
+   *
+   * Der Betreiber (12.10.2026): "alle alten anderen Trios" raus, es standen "viel zu viele Leute" darin. Was aus dem
+   * Pool in die Liste kam (vonPool) und dort nicht mehr im Pool steht, geht wieder - aber nur, wenn es noch ohne Stufe
+   * im Pool liegt. Wer ein altes Trio selbst eingestuft hat, behaelt es; das ist seine Arbeit.
+   */
+  useEffect(() => {
+    if (mode !== 'trio' || isGuest || !trioPool?.length) return;
+    const alt = new Set<string>();
+    for (const e of tierListState.entries as any[]) {
+      if (e.isTrio && e.vonPool && !e.tier && !trioPoolSchluessel.has(getTrioKey(e.data))) alt.add(e.id);
+    }
+    if (alt.size) tierListState.loescheEintraege(alt);
+  }, [mode, isGuest, trioPool, trioPoolSchluessel, tierListState.entries]);
 
   // Static list ID Sync
   useEffect(() => {

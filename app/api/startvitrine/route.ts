@@ -86,13 +86,13 @@ export async function GET(request: Request) {
     sieger: k.spitze ? { name: k.spitze.anzeige || k.spitze.name, land: k.spitze.land ?? null, elims: k.spitze.elims ?? 0 } : null,
   }));
 
-  // Die besten Trios des letzten Cups: kleinste Platzzahl zuerst.
+  // Die bestaetigten Trios zuerst (siehe lib/triosAktuell), dann die, die sich ausprobieren.
   let trios: Array<{ spieler: Array<{ name: string; land: string | null }>; region: string | null; platz: number | null }> = [];
   try {
-    const j = await (await triosLesen()).json() as { trios?: Array<{ spieler: Array<{ name: string; land?: string }>; region?: string; platz?: number }> };
+    const j = await (await triosLesen()).json() as { trios?: Array<{ spieler: Array<{ name: string; land?: string }>; region?: string; platz?: number; status?: string }> };
     trios = (j.trios ?? [])
-      .filter((t) => t.spieler?.length === 3 && typeof t.platz === 'number')
-      .sort((a, b) => (a.platz ?? 999) - (b.platz ?? 999))
+      .filter((t) => t.spieler?.length === 3 && (t.region ?? 'EU') === 'EU')
+      .sort((a, b) => Number(b.status === 'bestaetigt') - Number(a.status === 'bestaetigt'))
       .slice(0, 6)
       .map((t) => ({ spieler: t.spieler.map((s) => ({ name: s.name, land: s.land ?? null })), region: t.region ?? null, platz: t.platz ?? null }));
   } catch { /* ohne Trios bleibt die Karte leer */ }

@@ -3,6 +3,8 @@ import fs from '@/lib/ablageFs';
 import path from 'path';
 import { istAdminAnfrage } from '@/lib/adminPruefung';
 import { DATEN_ORT } from '@/lib/datenOrt';
+import { liesJson } from '@/lib/ablage';
+import { TRIOS_AKTUELL } from '@/lib/triosAktuell';
 
 /*
  * Die Trios der Tierlist - fuer alle Konten gemeinsam.
@@ -43,7 +45,9 @@ interface Trio {
   schluessel: string;
   spieler: Mitglied[];
   region?: string;
-  quelle: 'admin' | 'auto';
+  quelle: 'admin' | 'auto' | 'aktuell';
+  /** Nur bei "aktuell": bestaetigt oder ein Trio, das sich ausprobiert. */
+  status?: 'bestaetigt' | 'testet';
   cup?: string;
   platz?: number;
   wann?: string;
@@ -86,15 +90,43 @@ async function liesAuto(): Promise<{ trios: Trio[]; stand: number | null }> {
   return autoMerker;
 }
 
+/**
+ * Die aktuellen Trios (lib/triosAktuell) mit Anzeigenamen und Land aus den Profilen des Werkzeugs.
+ *
+ * Ein Profil kennt den Anzeigenamen und das Land zur Konto-Id; fehlt es, steht der Name aus der Aufstellung da.
+ */
+async function liesAktuelle(): Promise<Trio[]> {
+  let profile: Record<string, { anzeige?: string; name?: string; land?: string }> = {};
+  try { profile = await liesJson('spieler-profile.json', {}); } catch { /* ohne Profile: Namen der Aufstellung */ }
+  const raus: Trio[] = [];
+  for (const t of TRIOS_AKTUELL) {
+    const spieler: Mitglied[] = t.ids.map((id, i) => {
+      const pr = profile[id];
+      const land = (pr?.land ?? '').toUpperCase();
+      return { id, name: pr?.anzeige || pr?.name || t.namen[i], ...(land ? { land } : {}) };
+    });
+    const schluessel = schluesselVon(spieler.map((s) => s.name));
+    if (schluessel) raus.push({ schluessel, spieler, region: t.region, quelle: 'aktuell', status: t.status });
+  }
+  return raus;
+}
+
+/*
+ * Was in der Trio-Tierlist steht: die aktuellen Trios und das, was der Admin selbst angelegt hat.
+ *
+ * Die vom stuendlichen Lauf errechneten Trios (tierlist_trios_auto.json) gehen nicht mehr in die Liste: aus allen Trios
+ * der letzten Spieltage wurden "viel zu viele Leute" (Betreiber, 12.10.2026). Das Skript rechnet sie weiter, sie werden
+ * nur nicht mehr gezeigt.
+ */
 export async function GET() {
-  const [eigene, auto] = await Promise.all([liesEigene(), liesAuto()]);
+  const [eigene, aktuell, auto] = await Promise.all([liesEigene(), liesAktuelle(), liesAuto()]);
   const gesehen = new Set(eigene.map((t) => t.schluessel));
-  const trios = [...eigene, ...auto.trios.filter((t) => t.schluessel && !gesehen.has(t.schluessel))];
+  const trios = [...eigene, ...aktuell.filter((t) => t.schluessel && !gesehen.has(t.schluessel))];
   return NextResponse.json({
     success: true,
     trios,
     eigene: eigene.length,
-    automatisch: auto.trios.length,
+    aktuell: aktuell.length,
     stand: auto.stand,
   }, { headers: { 'Cache-Control': 'no-store' } });
 }
