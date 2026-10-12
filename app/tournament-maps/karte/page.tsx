@@ -57,6 +57,7 @@ export default function KartenSeite() {
   const [wahlBild, setWahlBild] = useState<string | null>(null);
   const [auswahl, setAuswahl] = useState<Array<{ u: string; titel: string }>>([]);
   const [speichert, setSpeichert] = useState(false);
+  const [bilderOffen, setBilderOffen] = useState(false);
 
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
@@ -148,12 +149,20 @@ export default function KartenSeite() {
           {wochen.length > 1 && (
             <div className="mt-5 flex flex-wrap gap-1 rounded-2xl border border-white/[0.07] bg-black/30 p-1.5">
               {wochen.map((w) => (
-                <Link key={w.windowId} replace
-                  href={`/tournament-maps/karte?t=${encodeURIComponent(w.turnierId)}&r=${encodeURIComponent(w.region)}&w=${encodeURIComponent(w.windowId)}`}
+                /*
+                 * Ein Klick wechselt den Spieltag direkt auf der Seite: Karte, Teams, Leaderboard und Tierlist werden neu
+                 * geholt, die Adresse zieht nach. Als blosser Link aenderte sich nur die Adresse - der Betreiber:
+                 * "es aendert was in der URL, aber es aendert die Map nicht."
+                 */
+                <button key={w.windowId} type="button"
+                  onClick={() => {
+                    setParams({ t: w.turnierId, r: w.region, w: w.windowId });
+                    window.history.replaceState(null, '', `/tournament-maps/karte?t=${encodeURIComponent(w.turnierId)}&r=${encodeURIComponent(w.region)}&w=${encodeURIComponent(w.windowId)}`);
+                  }}
                   className={`rounded-lg px-3 py-2 text-[11px] font-bold uppercase tracking-wider transition ${w.windowId === params?.w
                     ? 'bg-white text-zinc-900' : 'text-slate-400 hover:bg-white/[0.06] hover:text-slate-100'}`}>
                   {w.fenster}{w.datum ? <span className="ml-1.5 font-semibold opacity-60">{KURZ.format(new Date(w.datum))}</span> : null}
-                </Link>
+                </button>
               ))}
             </div>
           )}
@@ -176,17 +185,34 @@ export default function KartenSeite() {
               {reiter === 'karte' && (
                 <div>
                   {zugang.admin && auswahl.length > 0 && (
-                    <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-slate-400">
-                      <span className="font-semibold uppercase tracking-wider text-amber-300/80">Admin</span>
-                      <label className="flex items-center gap-2">
-                        <T>Kartenbild</T>
-                        <select value={wahlBild ?? ''} disabled={speichert} onChange={(e) => void bildSpeichern(e.target.value)}
-                          className="rounded-lg border border-zinc-800 bg-zinc-900 px-2 py-1 text-slate-200 outline-none focus:border-sky-500">
-                          <option value="">{t('Standard der Spielversion')}</option>
-                          {auswahl.map((a) => <option key={a.u} value={a.u}>{a.titel}</option>)}
-                        </select>
-                      </label>
-                      {speichert && <span><T>Speichert …</T></span>}
+                    <div className="mb-3">
+                      <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
+                        <span className="font-semibold uppercase tracking-wider text-amber-300/80">Admin</span>
+                        <button type="button" onClick={() => setBilderOffen((v) => !v)}
+                          className="rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 font-semibold text-slate-200 transition hover:border-sky-500/60">
+                          <T>Kartenbild wählen</T>
+                        </button>
+                        {wahlBild && (
+                          <button type="button" disabled={speichert} onClick={() => void bildSpeichern('')}
+                            className="rounded-lg border border-white/10 px-3 py-1.5 text-slate-400 transition hover:border-rose-500/60 hover:text-rose-300">
+                            <T>Standard der Spielversion</T>
+                          </button>
+                        )}
+                        {speichert && <span><T>Speichert …</T></span>}
+                      </div>
+                      {bilderOffen && (
+                        <div className="mt-2 grid grid-cols-4 gap-2 rounded-xl border border-white/[0.08] bg-black/30 p-2 sm:grid-cols-6 lg:grid-cols-8">
+                          {auswahl.map((a) => (
+                            <button key={a.u} type="button" disabled={speichert} title={a.titel}
+                              onClick={() => { void bildSpeichern(a.u); setBilderOffen(false); }}
+                              className={`group overflow-hidden rounded-lg border text-left transition ${wahlBild === a.u ? 'border-sky-400' : 'border-white/10 hover:border-sky-500/60'}`}>
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={encodeURI(a.u)} alt="" loading="lazy" className="aspect-square w-full object-cover" />
+                              <span className="block truncate px-1.5 py-1 text-[9px] font-semibold uppercase tracking-wide text-slate-400">{a.titel}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
                     </div>
                   )}
                   <Karte f={fenster} bild={bild} rotAb={teamSpiel ? 3 : 2} />

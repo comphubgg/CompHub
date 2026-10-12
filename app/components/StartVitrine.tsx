@@ -33,7 +33,7 @@ const CSS = `
   backdrop-filter: blur(18px); -webkit-backdrop-filter: blur(18px); box-shadow: 0 10px 40px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.06); }
 .vit-karte { border: 1px solid rgba(255,255,255,.07); background: rgba(9,9,11,.55); }
 .vit-gold { border: 1px solid rgba(245,197,66,.28); background: linear-gradient(160deg, rgba(245,197,66,.09), rgba(9,9,11,.55)); }
-.vit-scheibe { transition: flex-grow .6s cubic-bezier(.2,.8,.2,1), filter .4s, opacity .45s, margin .6s; }
+.vit-scheibe { transition: flex-grow .65s cubic-bezier(.2,.8,.2,1), filter .4s, opacity .3s, margin .65s; }
 @media (prefers-reduced-motion: reduce) { .vit-an { animation: none !important; } .vit-scheibe { transition: none; } }
 `;
 
@@ -294,7 +294,7 @@ function MapsSpalte({ anzahl }: { anzahl: number }) {
   /** Ein Klick laesst die anderen verschwinden; der gewaehlte fuellt den Streifen, dann geht es zur Seite. */
   const waehle = (k: number, typ: string) => {
     setGewaehlt(k);
-    window.setTimeout(() => router.push(`/tournament-maps?typ=${typ}`), 520);
+    window.setTimeout(() => router.push(`/tournament-maps?typ=${typ}`), 1100);
   };
 
   return (
@@ -354,25 +354,31 @@ const STUFEN = [
   { buchstabe: 'B', farbe: 'bg-amber-400', rand: 'border-amber-400/40' },
 ];
 
-/** Die Tierlist als drei Saeulen mit Gesichtern - bewusst anders als eine Zeilenliste. */
+/** Spieler, die auf dem Vorbild schon in der Vorschau stehen - hier bewusst andere (hoechstens einer, zwei davon). */
+const NICHT_IN_DER_VORSCHAU = new Set(['peterbot', 'vico', 'rax', 'kami', 'mero', 'veno', 'bugha', 'shxrk', 'queasy']);
+
+/** Die Tierlist wie eine Tierlist: Stufe um Stufe untereinander, links der Buchstabe, rechts die Spieler. */
 function TierlistKarte({ daten, fertig }: { daten: Vitrine | null; fertig: boolean }) {
-  const liste = daten?.spieler ?? [];
+  const alle = daten?.spieler ?? [];
+  const frei = alle.filter((s) => !NICHT_IN_DER_VORSCHAU.has(s.name.toLowerCase()));
+  // Genug andere? Dann nur sie; sonst mit dem Rest auffuellen.
+  const liste = frei.length >= 9 ? frei : [...frei, ...alle.filter((s) => !frei.includes(s))];
   return (
     <Karte titel="Tierlist" href="/tierlist" symbol={SYM.stufen}>
       {liste.length < 9 ? <Hinweis geladen={fertig} /> : (
         <>
-          <div className="grid grid-cols-3 gap-2">
+          <div className="space-y-1.5">
             {STUFEN.map((st, r) => (
-              <div key={st.buchstabe} className={`vit-an overflow-hidden rounded-xl border bg-black/30 ${st.rand}`}
-                style={{ animation: `vit-rein .5s ${r * 120}ms cubic-bezier(.2,.8,.2,1) both` }}>
-                <div className={`flex items-center justify-center py-1 text-base font-black text-zinc-950 ${st.farbe}`}>{st.buchstabe}</div>
-                <div className="space-y-1.5 p-2">
+              <div key={st.buchstabe} className={`vit-an flex items-stretch overflow-hidden rounded-xl border bg-black/30 ${st.rand}`}
+                style={{ animation: `vit-rechts .5s ${r * 120}ms cubic-bezier(.2,.8,.2,1) both` }}>
+                <span className={`flex w-12 shrink-0 items-center justify-center text-xl font-black text-zinc-950 ${st.farbe}`}>{st.buchstabe}</span>
+                <div className="flex min-w-0 flex-1 flex-wrap gap-1.5 p-2">
                   {liste.slice(r * 3, r * 3 + 3).map((s) => (
-                    <div key={s.id} className="flex items-center gap-2">
+                    <span key={s.id} className="flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-zinc-900/70 py-1 pl-1 pr-2">
                       <Gesicht name={s.name} bild={s.bild} px={26} />
-                      <span className="min-w-0 flex-1 truncate text-[10px] font-bold uppercase text-slate-200">{s.name}</span>
+                      <span className="text-[10px] font-bold uppercase text-slate-100">{s.name}</span>
                       <TeamFlagge groesse={11} laender={[s.land ?? undefined]} />
-                    </div>
+                    </span>
                   ))}
                 </div>
               </div>
@@ -385,20 +391,22 @@ function TierlistKarte({ daten, fertig }: { daten: Vitrine | null; fertig: boole
   );
 }
 
-/** Die Globals Solos - als goldenes Extra, mit den Heats. */
+/** Die Globals Solos - als goldenes Extra: alle Heats nebeneinander, so breit wie die Spalte, mit acht Spielern je Heat. */
 function SoloKarte({ heats, fertig }: { heats: SolosFenster[] | null; fertig: boolean }) {
-  const zeigen = (heats ?? []).filter((h) => h.spieler.length).slice(0, 3);
+  const zeigen = (heats ?? []).filter((h) => h.spieler.length).slice(0, 4);
   return (
     <Karte titel="Globals Solos" href="/globals-solos" symbol={SYM.flamme} gold>
       {zeigen.length === 0 ? (heats && fertig ? <p className="py-4 text-center text-xs text-slate-500"><T>Noch keine Heats eingeteilt.</T></p> : <Hinweis geladen={fertig} />) : (
-        <div className="grid grid-cols-3 gap-1.5">
+        <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.min(zeigen.length, 2)}, minmax(0, 1fr))` }}>
           {zeigen.map((h, k) => (
-            <div key={h.windowId} className="vit-an rounded-lg border border-amber-400/15 bg-black/30 p-2"
+            <div key={h.windowId} className="vit-an rounded-xl border border-amber-400/15 bg-black/30 p-3"
               style={{ animation: `vit-rein .5s ${k * 130}ms cubic-bezier(.2,.8,.2,1) both` }}>
-              <p className="mb-1 text-[9px] font-semibold uppercase tracking-[0.14em] text-amber-300/80">{h.name}</p>
-              {h.spieler.slice(0, 3).map((s) => (
-                <p key={s.id} className="flex items-center gap-1 truncate py-0.5 text-[10px] font-bold uppercase text-slate-200">
-                  <TeamFlagge groesse={11} laender={[s.land ?? undefined]} /><span className="truncate">{s.anzeige}</span>
+              <p className="mb-2 flex items-baseline justify-between text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-300/80">
+                <span>{h.name}</span><span className="tabular-nums text-slate-500">{h.spieler.length}</span>
+              </p>
+              {h.spieler.slice(0, 8).map((s) => (
+                <p key={s.id} className="flex items-center gap-2 truncate py-1 text-[11px] font-bold uppercase text-slate-200">
+                  <TeamFlagge groesse={13} laender={[s.land ?? undefined]} /><span className="truncate">{s.anzeige}</span>
                 </p>
               ))}
             </div>

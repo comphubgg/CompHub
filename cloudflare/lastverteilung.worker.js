@@ -49,9 +49,18 @@ const ZUHAUSE = [/^\/api\/pov\/(senden|strom|segment)/];
  */
 const ERST_DAHEIM = true;
 
-/** Antwortet der Tunnel nicht? (530 = Tunnel nicht erreichbar, 502/504 = niemand dahinter, 520-527 = Ursprungsfehler) */
-function tunnelAus(status) {
-  return status === 530 || status === 502 || status === 504 || (status >= 520 && status <= 527);
+/**
+ * Antwortet der Tunnel nicht? (530 = Tunnel nicht erreichbar, 502/504 = niemand dahinter, 520-527 = Ursprungsfehler)
+ *
+ * Aber nur, wenn die Antwort von Cloudflare selbst kommt - das ist eine HTML-Fehlerseite. Antwortet unsere eigene Seite
+ * mit 502 und JSON (etwa "Epic nennt keine Auszahlungstabelle"), ist der Rechner da und die Seite nur gerade ohne Daten:
+ * dann wird nicht auf Netlify umgeleitet. Das war der Grund fuer "Page couldn't load" und "Usage exceeded" (12.10.2026).
+ */
+function tunnelAus(status, antwort) {
+  if (status === 530) return true;
+  const typ = (antwort && antwort.headers.get('Content-Type')) || '';
+  const vonCloudflare = /text\/html/i.test(typ);
+  return vonCloudflare && (status === 502 || status === 504 || (status >= 520 && status <= 527));
 }
 
 /** Eine kleine, stabile Zahl aus einem Text (FNV-1a). */
@@ -99,8 +108,8 @@ export default {
       try {
         const daheim = await fetch(new Request(request.url, {
           method: request.method, headers: request.headers, body: koerper, redirect: 'manual',
-        }), { signal: AbortSignal.timeout(8000) });
-        if (!tunnelAus(daheim.status)) return daheim;
+        }), { signal: AbortSignal.timeout(55000) });
+        if (!tunnelAus(daheim.status, daheim)) return daheim;
       } catch { /* Tunnel oder Rechner aus - weiter zu Netlify */ }
     }
 

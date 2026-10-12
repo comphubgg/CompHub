@@ -390,7 +390,6 @@ export default function AdminDashboardPage() {
               */}
             <Ebenen admin={istAdmin || rolle === 'admin' || zugang.admin}
               vip={zugang.vip || rolle === 'manager' || zugang.manager}
-              globals={eigeneRechte.includes('globals') || zugang.rechte.includes('globals')}
               pro={zugang.pro || rolle === 'pro'} />
 
             {/*

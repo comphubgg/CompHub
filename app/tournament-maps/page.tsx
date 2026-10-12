@@ -18,6 +18,7 @@ import Link from 'next/link';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import LadeSchirm from '@/app/components/LadeSchirm';
+import { regionFarbe } from '@/lib/regionFarbe';
 
 type Typ = 'fncs' | 'performance' | 'division' | 'reload' | 'sonst';
 
@@ -79,10 +80,12 @@ function Kachel({ e, i }: { e: Eintrag; i: number }) {
       </div>
       <div className="px-3 pb-3 pt-2.5">
         <p className="min-h-[2.6em] text-center text-[13px] font-bold leading-snug tracking-wide text-slate-100">{e.titel.replace(/\s*·\s*/g, ' – ').toUpperCase()}</p>
+        {/* Kleine Marken: die Region in ihrer Farbe, die Saison als Umriss, Art und Spieltag grau. */}
         <div className="mt-2 flex flex-wrap justify-center gap-1">
-          {[e.saisonKurz, TYP_NAME[e.typ], e.fenster].filter(Boolean).map((h) => (
-            <span key={h} className="rounded bg-white/[0.06] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-400">#{h.replace(/\s+/g, '')}</span>
-          ))}
+          <span className={`rounded border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${regionFarbe(e.region).marke}`}>{e.region}</span>
+          {e.saisonKurz && <span className="rounded border border-white/25 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-300">{e.saisonKurz}</span>}
+          <span className="rounded bg-white/[0.07] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-400">{TYP_NAME[e.typ]}</span>
+          {e.fenster && <span className="rounded bg-white/[0.07] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-400">{e.fenster}</span>}
         </div>
         <p className="mt-1.5 border-t border-zinc-800 pt-1.5 text-center text-[11px] text-slate-500">{e.datum ? DATUM.format(new Date(e.datum)) : ''}</p>
       </div>

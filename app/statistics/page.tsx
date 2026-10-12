@@ -19,6 +19,7 @@
 
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import StatistikZahlen from './StatistikZahlen';
+import StatistikAufmacher from './StatistikAufmacher';
 import { useSearchParams } from 'next/navigation';
 import TeamFlagge from '@/components/TeamFlagge';
 import { ohneZierrat } from '@/lib/homoglyph';
@@ -3786,188 +3787,13 @@ export default function StatistikSeite() {
           {bereich === 'start' && (
             <>
               <StatistikZahlen />
-              {kacheln[kachelNr] && (() => {
-                const k = kacheln[kachelNr];
-                return (
-                  <>
-                    <p className="mb-2 text-[10px] font-semibold uppercase
-                                  tracking-[0.18em] text-slate-500">
-                      <T>Letzte Turniere</T>
-                    </p>
-
-                    <section className="relative mb-6 overflow-hidden rounded-xl border
-                                        border-zinc-800 bg-zinc-950/60">
-                      {/* Die Linie liegt auf der Karte, nicht ueber ihr.
-                          Sie laeuft in zehn Sekunden von links nach rechts;
-                          ist sie durch, kommt der naechste Spieltag.
-                          Frueher stand sie als eigene Zeile ueber dem Inhalt -
-                          dadurch begann das Bild drei Pixel tiefer, mitten im
-                          Rundungsbogen der Ecke, und dort blieb ein dunkler
-                          Keil stehen. Jetzt schwebt sie darueber, und die Ecke
-                          bleibt eine saubere Rundung. */}
-                      {/* Nur der gefuellte Teil ist zu sehen.
-                          Vorher lag darunter eine dunkle Bahn ueber die ganze
-                          Breite - die sah aus wie ein schwarzer Streifen, der
-                          sich vor das Bild schiebt. Ohne Bahn bleibt eine
-                          Linie, die einfach nach rechts waechst. */}
-                      <div className="absolute inset-x-0 top-0 z-10 h-[2px]">
-                        <div key={kachelNr} className="h-full bg-sky-500 animate-fuellen" />
-                      </div>
-
-                      <div className="grid lg:grid-cols-[260px_1fr]"
-                        onMouseEnter={() => setKachelHalt(true)}
-                        onMouseLeave={() => setKachelHalt(false)}>
-                        {/* Der Spieler links, wie im Vorbild */}
-                        {/* Das Bild fuellt die Karte ueber die volle Hoehe.
-                            Mit self-start endete es dort, wo sein Verhaeltnis
-                            von vier zu fuenf aufhoert - darunter blieb ein
-                            dunkler Rest der Karte stehen. */}
-                        <button onClick={() => oeffne(k.spitze)}
-                          className="group relative overflow-hidden bg-zinc-900
-                                     text-left">
-                          {/* Alle Bilder liegen uebereinander und werden nur
-                              ein- und ausgeblendet.
-                              Vorher wurde beim Wechsel die Adresse des einen
-                              Bildes ausgetauscht - dabei ist das alte sofort
-                              weg, und bis das neue geladen und gezeichnet ist,
-                              steht dort ein schwarzes Feld. Wenn alle Bilder
-                              von Anfang an im Dokument haengen, ist keines
-                              mehr zu laden und der Wechsel ist ein reines
-                              Ueberblenden. */}
-                          {/* Hochkant, nicht quadratisch.
-                              Vorher richtete sich die Hoehe nach der Spalte
-                              daneben - bei 260 Pixeln Breite kam damit ein
-                              nahezu quadratischer Ausschnitt heraus, in dem
-                              vom Spieler wenig und vom Hintergrund viel zu
-                              sehen war. Ein festes Verhaeltnis von vier zu
-                              fuenf haelt den Rahmen immer gleich, egal wie
-                              hoch der Inhalt daneben ausfaellt. */}
-                          <div className="relative h-full min-h-[300px] w-full">
-                            {kacheln.map((kk, i) => (
-                              kk.spitze.bild ? (
-                                /* eslint-disable-next-line @next/next/no-img-element */
-                                <img key={kk.spitze.epicId + i} src={kk.spitze.bild} alt=""
-                                  aria-hidden={i !== kachelNr}
-                                  style={{ objectPosition: 'center 25%' }}
-                                  className={`absolute inset-0 h-full w-full object-cover
-                                              transition-opacity duration-500
-                                              group-hover:scale-105 ${i === kachelNr
-                                    ? 'opacity-100' : 'opacity-0'}`} />
-                              ) : null
-                            ))}
-                            {!k.spitze.bild && (
-                              <div className="flex h-full items-center justify-center
-                                              text-4xl text-zinc-700">?</div>
-                            )}
-                          </div>
-                          {/* Bei mehreren Spielern je Spieltag sagt die Marke,
-                              der wievielte es ist - "TOP" waere bei Platz drei
-                              schlicht falsch. */}
-                          <span className={`absolute right-3 top-3 rounded px-2 py-0.5
-                                            text-[10px] font-bold tracking-wider
-                                            text-white ${(k.platz ?? 1) === 1
-                              ? 'bg-sky-500' : 'bg-zinc-700'}`}>
-                            {(k.platz ?? 1) === 1 ? 'TOP' : `#${k.platz}`}
-                          </span>
-                          <span className="absolute bottom-3 left-3 flex items-center gap-2">
-                            <TeamFlagge groesse={22}
-                              laender={[k.spitze.land ?? undefined]} />
-                            <span className="text-base font-bold tracking-wide text-white">
-                              {grossName(k.spitze.anzeige, k.spitze.gepflegt)}
-                            </span>
-                          </span>
-                        </button>
-
-                        <div>
-                          <div className="border-b border-zinc-800 px-5 py-4">
-                            <p className="text-[10px] font-semibold uppercase
-                                          tracking-[0.18em] text-slate-500">
-                              <T>Turnier</T>
-                            </p>
-                            <h2 className="mt-0.5 text-xl font-bold text-slate-50">
-                              {turnierTitel(k.turnier.name)}
-                            </h2>
-                            <div className="mt-2 flex flex-wrap items-center gap-2">
-                              {[saisonTitel, datumText(k.turnier.datum, sprache),
-                                k.turnier.region]
-                                .filter(Boolean).map((t) => (
-                                  <span key={t} className="rounded border border-zinc-800
-                                                           bg-zinc-900/60 px-2 py-0.5
-                                                           text-[11px] text-slate-400">
-                                    <T>{t}</T>
-                                  </span>
-                                ))}
-                              {/*
-                                * Mit wem er angetreten ist.
-                                *
-                                * Der Betreiber: "dass zumindest immer die
-                                * Teammates da sind." Epic gibt sie zu jedem
-                                * Spieltag heraus; auf der Kachel fehlten sie
-                                * als einzige Angabe, die einen Duo-Spieltag
-                                * ueberhaupt erklaert.
-                                */}
-                              {k.stand?.mitspieler.map((m) => (
-                                <span key={m.epicId}
-                                  className="flex items-center gap-1.5 rounded border
-                                             border-zinc-800 bg-zinc-900/60 px-2 py-0.5
-                                             text-[11px] text-slate-300">
-                                  <TeamFlagge groesse={12}
-                                    laender={[m.land ?? undefined]} />
-                                  {grossName(m.name)}
-                                </span>
-                              ))}
-                            </div>
-                          </div>
-
-                          <div className="grid gap-px bg-zinc-800/60 sm:grid-cols-3">
-                            {/* Dieselben sechs Felder in derselben Anordnung
-                                wie im Vorbild. An erster Stelle steht dort
-                                das Rating; hier steht die Schadensquote, die
-                                ihm am naechsten kommt und sich nachrechnen
-                                laesst. */}
-                            {/*
-                              * Platz und Punkte zuerst.
-                              *
-                              * Der Betreiber: "die Ranks nicht da, die Points
-                              * nicht da, wo das das Wichtigste ist
-                              * eigentlich." Sie entscheiden den Spieltag;
-                              * Schadensquote und Kopftreffer sind das, was
-                              * danach kommt. Beide stehen in derselben
-                              * gespiegelten Bestenliste, aus der auch die
-                              * Turniertabelle im Profil ihren Platz nimmt.
-                              */}
-                            {([
-                              ['Platz', k.stand ? `${k.stand.platz}.` : '—'],
-                              ['Punkte', k.stand
-                                ? zahl(k.stand.punkte, 0, sprache) : '—'],
-                              ['Eliminierungen', zahl(k.spitze.elims, 0, sprache)],
-                              ['Schaden', zahl(k.spitze.damage, 0, sprache)],
-                              ['Schadensquote', zahl(k.spitze.quote, 2, sprache)],
-                              ['Material', zahl(k.spitze.mats, 0, sprache)],
-                              ['Kopftreffer', zahl(k.spitze.headshots, 0, sprache)],
-                              ['Treffer', zahl(k.spitze.hits, 0, sprache)],
-                              ['Bauteile', zahl(k.spitze.builds, 0, sprache)],
-                            ] as Array<[string, string]>).map(([l, v]) => (
-                              // Feste Hoehe und kein Umbruch: der Betreiber
-                              // wollte, dass die Karte "immer gleich" hoch
-                              // ist. Eine laengere Beschriftung - auf
-                              // Deutsch etwa "Schadensquote" - darf die
-                              // Reihe nicht auseinanderziehen.
-                              <div key={l} className="h-[78px] bg-zinc-950 px-5 py-3.5">
-                                <p className="truncate text-[10px] font-semibold
-                                              uppercase tracking-[0.14em]
-                                              text-slate-500"><T>{l}</T></p>
-                                <p className="mt-0.5 truncate text-2xl font-bold
-                                              tabular-nums text-slate-50">{v}</p>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    </section>
-                  </>
-                );
-              })()}
+              {/* Aufmacher: das letzte Turnier mit dem Tagesbesten, der FNCS-Kalender, die Regionen (Betreiber, 12.10.2026). */}
+              <StatistikAufmacher
+                kachel={kacheln[0] ?? null}
+                titel={kacheln[0] ? turnierTitel(kacheln[0].turnier.name) : ''}
+                meta={kacheln[0] ? [saisonTitel, datumText(kacheln[0].turnier.datum, sprache), kacheln[0].turnier.region] : []}
+                zuTurnieren={() => setBereich('turniere')}
+                oeffneSpieler={(id, name) => { void oeffneKonto(id, name); }} />
 
               <p className="mb-2 text-[10px] font-semibold uppercase
                             tracking-[0.18em] text-slate-500">

@@ -57,11 +57,12 @@ const FUER_ALLE: Ziel[] = [
   { href: '/predictions', titel: 'Prognosen', text: 'Tipp auf den Ausgang', symbol: 'prognose' },
 ];
 
+/** Was es nur hier gibt. Mein Archiv und Profil stehen darunter auf der Seite selbst, das Chatarchiv braucht nur der Admin. */
 const NUR_HIER: Ziel[] = [
-  { href: '#mein-archiv', titel: 'Mein Archiv', text: 'Deine gespeicherten Overlays, Tierlists und Prognosen', symbol: 'archiv', anker: true },
-  { href: '/messages', titel: 'Chatarchiv', text: 'Alle Gespräche, auch die abgeschlossenen', symbol: 'chat' },
   { href: '/contact', titel: 'Kontakt', text: 'Etwas kaputt, fehlt oder besser zu machen? Schreib es dem Betreiber', symbol: 'kontakt' },
-  { href: '#profil', titel: 'Profil', text: 'Bild, Twitch-Kanal und Adresse', symbol: 'profil', anker: true },
+];
+const NUR_HIER_ADMIN: Ziel[] = [
+  { href: '/messages', titel: 'Chatarchiv', text: 'Alle Gespräche, auch die abgeschlossenen', symbol: 'chat' },
 ];
 
 const TON: Record<Ton, { rahmen: string; kachel: string; titel: string; symbol: string; marke: string; pille: string }> = {
@@ -85,8 +86,8 @@ const TON: Record<Ton, { rahmen: string; kachel: string; titel: string; symbol: 
   },
 };
 
-function Gruppe({ ton, titel, marke, beschreibung, ziele, start = 0 }: {
-  ton: Ton; titel: string; marke: string; beschreibung: string; ziele: Ziel[]; start?: number;
+function Gruppe({ ton, titel, marke, beschreibung, ziele, start = 0, gesperrt = false }: {
+  ton: Ton; titel: string; marke: string; beschreibung: string; ziele: Ziel[]; start?: number; gesperrt?: boolean;
 }) {
   const f = TON[ton];
   return (
@@ -112,8 +113,9 @@ function Gruppe({ ton, titel, marke, beschreibung, ziele, start = 0 }: {
               <span className="mt-0.5 block text-xs leading-snug text-slate-500"><T>{z.text}</T></span>
             </>
           );
-          const klasse = `eb-an group block rounded-xl border bg-zinc-950/50 p-3 transition ${f.kachel}`;
+          const klasse = `eb-an group block rounded-xl border bg-zinc-950/50 p-3 transition ${gesperrt ? 'pointer-events-none opacity-40' : f.kachel}`;
           const stil = { animation: `eb-rein .45s ${(start + i) * 45}ms cubic-bezier(.2,.8,.2,1) both` };
+          if (gesperrt) return <div key={z.href} className={klasse} style={stil} aria-disabled>{inhalt}</div>;
           return z.anker
             ? <a key={z.href} href={z.href} className={klasse} style={stil}>{inhalt}</a>
             : <Link key={z.href} href={z.href} className={klasse} style={stil}>{inhalt}</Link>;
@@ -123,25 +125,31 @@ function Gruppe({ ton, titel, marke, beschreibung, ziele, start = 0 }: {
   );
 }
 
-export default function Ebenen({ admin, vip, globals, pro }: {
-  admin: boolean; vip: boolean; globals: boolean; pro: boolean;
+export default function Ebenen({ admin, vip, pro }: {
+  admin: boolean; vip: boolean; globals?: boolean; pro: boolean;
 }) {
+  /*
+   * Fuer jeden VIP dasselbe: die Overlays und die Globals (2026 und Solos). Der Betreiber (12.10.2026): "Grand-Sachen
+   * sind eigentlich fuer jeden VIP immer sichtbar. Und Overlays auch fuer jeden VIP." Wer kein VIP ist, sieht die
+   * Gruppe trotzdem - ausgegraut -, damit klar ist, was sie bringt.
+   */
   const vipZiele: Ziel[] = [
     { href: '/overlays', titel: 'Overlays', text: 'Einblendungen für deinen Stream — aus denselben Turnierdaten', symbol: 'overlay' },
-    ...((globals || admin) ? [{ href: '/globals', titel: 'Globals 2026', text: 'Overlays, Teams, Karte und Prognose zur Global Championship', symbol: 'globals' }] : []),
+    { href: '/globals', titel: 'Globals 2026', text: 'Overlays, Teams, Karte und Prognose zur Global Championship', symbol: 'globals' },
+    { href: '/globals-solos', titel: 'Globals Solos', text: 'Qualifizierte, Heats und Karten der FNCS Solos', symbol: 'solos' },
     ...((pro || admin) ? [{ href: '/pov', titel: 'POV', text: 'Dein Bild live an die freigegebenen Zuschauer senden', symbol: 'pov' }] : []),
   ];
+  const hier = [...NUR_HIER, ...(admin ? NUR_HIER_ADMIN : [])];
+  const darfVip = vip || admin;
   return (
     <div className="space-y-3">
       <style>{CSS}</style>
       <Gruppe ton="alle" titel="Für alle" marke="Offen für jeden" ziele={FUER_ALLE}
         beschreibung="Steht auch ohne Konto in der Leiste." />
-      {(vip || admin) && (
-        <Gruppe ton="vip" titel="VIP" marke="Nur für VIP" ziele={vipZiele} start={FUER_ALLE.length}
-          beschreibung="Sichtbar nur für dich — die Overlays für deinen Stream." />
-      )}
-      <Gruppe ton="hier" titel="Nur im Dashboard" marke="Nur hier" ziele={NUR_HIER} start={FUER_ALLE.length + vipZiele.length}
-        beschreibung="Das gibt es nirgends sonst — dein Archiv, die Gespräche, dein Profil." />
+      <Gruppe ton="vip" titel="VIP" marke="Nur für VIP" ziele={vipZiele} start={FUER_ALLE.length} gesperrt={!darfVip}
+        beschreibung={darfVip ? 'Sichtbar nur für dich — die Overlays und die Globals.' : 'Für VIPs freigeschaltet — die Overlays und die Globals.'} />
+      <Gruppe ton="hier" titel="Nur im Dashboard" marke="Nur hier" ziele={hier} start={FUER_ALLE.length + vipZiele.length}
+        beschreibung="Das gibt es nirgends sonst." />
     </div>
   );
 }

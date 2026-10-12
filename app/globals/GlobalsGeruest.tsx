@@ -78,7 +78,8 @@ export default function GlobalsGeruest({ aktiv, breit, children }: {
    * der Admin hat ihn ohnehin - die Adminrolle schliesst jedes kleinere
    * Recht ein, ohne dass ihm jemand etwas anhaken muesste.
    */
-  const darfHinein = zugang.admin || zugang.rechte.includes('globals');
+  // Jeder VIP darf hinein (Betreiber, 12.10.2026: "Grand-Sachen sind eigentlich fuer jeden VIP immer sichtbar"); das Recht "globals" gilt weiter fuer Manager.
+  const darfHinein = zugang.admin || zugang.vip || zugang.rechte.includes('globals');
 
   if (!darfHinein) {
     return (

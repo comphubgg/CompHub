@@ -67,12 +67,12 @@ export default function CupTierlist({ windowId, teams }: { windowId: string; tea
   if (!teams.length) return <p className="text-sm text-slate-500"><T>Zu diesem Spieltag gibt es noch keine Teams.</T></p>;
 
   return (
-    <div>
+    <div className="max-w-[1100px]">
       <div className="mb-3 flex items-center gap-3 text-xs text-slate-500">
         <button type="button" onClick={() => speichern({})} className="rounded-md border border-white/10 bg-white/[0.04] px-3 py-1 font-semibold text-slate-300 transition hover:border-sky-500/60"><T>Zurücksetzen</T></button>
         <span><T>Team ziehen oder antippen, dann die Stufe antippen — ein gesetztes Team antippen nimmt es wieder heraus.</T></span>
       </div>
-      <div className="grid gap-4 lg:grid-cols-[1fr_300px]">
+      <div className="grid gap-4 lg:grid-cols-[1fr_270px]">
         <div className="space-y-1.5">
           {STUFEN.map((st) => {
             const drin = teams.filter((x) => zu[x.id] === st.k);
@@ -82,7 +82,7 @@ export default function CupTierlist({ windowId, teams }: { windowId: string; tea
                 onDrop={(e) => { e.preventDefault(); const id = e.dataTransfer.getData('text/plain') || zieht; if (id && nachId.has(id)) setze(id, st.k); setZieht(null); }}
                 onClick={() => { if (gewaehlt) setze(gewaehlt, st.k); }}>
                 <span className={`flex w-14 shrink-0 items-center justify-center text-xl font-black text-zinc-950 ${st.farbe}`}>{st.k}</span>
-                <div className="grid flex-1 grid-cols-1 gap-1.5 p-2 sm:grid-cols-2 xl:grid-cols-3">
+                <div className="grid flex-1 grid-cols-1 content-start gap-1.5 p-2 sm:grid-cols-2">
                   {drin.map((x) => <TeamChip key={x.id} t={x} onKlick={() => setze(x.id, null)} onZiehen={setZieht} />)}
                 </div>
               </div>

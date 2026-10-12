@@ -27,6 +27,27 @@ const AUSWAHL: Array<{ u: string; titel: string }> = [
   { u: '/maps/CH7S3/Battle Royal CH7 S3.jpg', titel: 'Battle Royale · Chapter 7 Season 3' },
   { u: '/maps/CH7S3/reload - Slurpush.png', titel: 'Reload · Slurp Rush' },
   { u: '/maps/CH7S3/reload - Strong hold.png', titel: 'Reload · Elite Stronghold' },
+  // Die Karten aus dem Archiv des Betreibers (12.10.2026), noch ohne Saison im Namen - der Admin waehlt sie am Bild.
+  { u: '/maps/archiv/karte-01.jpg', titel: 'Archiv · Karte 1' },
+  { u: '/maps/archiv/karte-02.jpg', titel: 'Archiv · Karte 2' },
+  { u: '/maps/archiv/karte-03.jpg', titel: 'Archiv · Karte 3' },
+  { u: '/maps/archiv/karte-04.jpg', titel: 'Archiv · Karte 4' },
+  { u: '/maps/archiv/karte-05.jpg', titel: 'Archiv · Karte 5' },
+  { u: '/maps/archiv/karte-06.jpg', titel: 'Archiv · Karte 6' },
+  { u: '/maps/archiv/karte-07.jpg', titel: 'Archiv · Karte 7' },
+  { u: '/maps/archiv/karte-08.jpg', titel: 'Archiv · Karte 8' },
+  { u: '/maps/archiv/karte-09.jpg', titel: 'Archiv · Karte 9' },
+  { u: '/maps/archiv/karte-10.jpg', titel: 'Archiv · Karte 10' },
+  { u: '/maps/archiv/karte-11.jpg', titel: 'Archiv · Karte 11' },
+  { u: '/maps/archiv/karte-12.jpg', titel: 'Archiv · Karte 12' },
+  { u: '/maps/archiv/karte-13.jpg', titel: 'Archiv · Karte 13' },
+  { u: '/maps/archiv/karte-14.jpg', titel: 'Archiv · Karte 14' },
+  { u: '/maps/archiv/karte-15.jpg', titel: 'Archiv · Karte 15' },
+  { u: '/maps/archiv/karte-16.jpg', titel: 'Archiv · Karte 16' },
+  { u: '/maps/archiv/karte-17.jpg', titel: 'Archiv · Karte 17' },
+  { u: '/maps/archiv/karte-18.jpg', titel: 'Archiv · Karte 18' },
+  { u: '/maps/archiv/karte-19.jpg', titel: 'Archiv · Karte 19' },
+  { u: '/maps/archiv/karte-20.jpg', titel: 'Archiv · Karte 20' },
 ];
 
 const vorrat = new Map<string, { bis: number; typ: string; daten: ArrayBuffer }>();

@@ -388,17 +388,6 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
               ? (n) => onRename(player1Name, n) : undefined} />
         )}
       </div>
-      {isTrioEntry && (entryData as any).status && (
-        // Bestaetigt: Schloss. Probiert sich aus: Uhr.
-        <span title={(entryData as any).status === 'bestaetigt' ? 'Confirmed' : 'Trying out'}
-          style={{ marginLeft: 'auto', opacity: 0.7, lineHeight: 0, color: '#94a3b8' }}>
-          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-            {(entryData as any).status === 'bestaetigt'
-              ? <><rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V8a4 4 0 0 1 8 0v3" /></>
-              : <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>}
-          </svg>
-        </span>
-      )}
       {/* Stift und Kreuz sieht nur der Admin.
           Wer sich anmeldet, ohne Admin zu sein, legt sich seine eigene
           Auswahl an - an den offiziellen Eintraegen aendert er nichts.

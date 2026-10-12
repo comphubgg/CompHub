@@ -110,7 +110,7 @@ export async function GET(request: Request) {
   if (!start) return NextResponse.json({ ok: false, spieler: [], cups: [], regionen: [], maps: 0 }, { status: 200 });
 
   const alle = (start.profile ?? []).flatMap((p) => p.spieler);
-  const spieler = [...alle].sort((a, b) => (b.elims ?? 0) - (a.elims ?? 0)).slice(0, 14).map(schlank);
+  const spieler = [...alle].sort((a, b) => (b.elims ?? 0) - (a.elims ?? 0)).slice(0, 30).map(schlank);
 
   // Je Region der Beste nach Eliminierungen - die Balken der "Global"-Karte.
   const regionen = (start.profile ?? [])

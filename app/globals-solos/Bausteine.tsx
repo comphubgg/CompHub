@@ -231,7 +231,7 @@ export function Karte({ f, bild, rotAb = 2 }: {
     <div>
       <div ref={flaeche}
         className={`${kartenSchrift.variable} relative mx-auto aspect-square w-full select-none overflow-hidden
-                    rounded-xl border border-white/[0.06] bg-zinc-950 ${gezoomt ? 'cursor-grab active:cursor-grabbing' : ''}`}
+                    rounded-xl border border-white/[0.06] bg-[#0b2f83] ${gezoomt ? 'cursor-grab active:cursor-grabbing' : ''}`}
         style={{ containerType: 'inline-size', maxWidth: 'min(100%, calc(100vh - 7rem))' }}
         onDoubleClick={(e) => {
           // Doppelklick: in Stufen an die Form heran (app/lib/kartenZoom), ohne Form ein Schritt an die Stelle.
