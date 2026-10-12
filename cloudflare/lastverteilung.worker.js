@@ -8,6 +8,8 @@
  * stellt beide bereit) und lesen dieselben Daten - es ist egal, auf welcher ein Besucher landet.
  *
  * So verteilt der Worker:
+ *   - Standard (ERST_DAHEIM): zuerst der Rechner daheim, Netlify nur als Reserve - das spart die Punkte. Umgestellt auf
+ *     false, verteilt der Worker so:
  *   - Jeder Besucher bekommt je nach Adresse (IP) fest die eine oder die andere Seite - so bleibt der Zwischenspeicher
  *     warm und die Hälfte der Anfragen geht an jedes Konto.
  *   - Antwortet seine Seite mit einem Fehler (503 "Site not available" bei aufgebrauchten Punkten, 5xx, 402), fragt der
@@ -39,6 +41,18 @@ const SEITEN = [
  * ohne dass der Worker noch einmal anspringt. Ist der Rechner aus, fallen genau diese Pfade aus, alles andere nicht.
  */
 const ZUHAUSE = [/^\/api\/pov\/(senden|strom|segment)/];
+
+/**
+ * true:  zuerst der Rechner daheim (kostet keine Punkte), nur wenn er nicht antwortet (Tunnel aus, Rechner aus) die
+ *        beiden Netlify-Seiten - so sparen die 300 Punkte je Konto fuer die Zeiten, in denen der Rechner wirklich fehlt.
+ * false: von Anfang an je die Haelfte auf Konto 1 und 2 (der Rechner daheim nur fuer das Live-POV).
+ */
+const ERST_DAHEIM = true;
+
+/** Antwortet der Tunnel nicht? (530 = Tunnel nicht erreichbar, 502/504 = niemand dahinter, 520-527 = Ursprungsfehler) */
+function tunnelAus(status) {
+  return status === 530 || status === 502 || status === 504 || (status >= 520 && status <= 527);
+}
 
 /** Eine kleine, stabile Zahl aus einem Text (FNV-1a). */
 function streuwert(text) {
@@ -79,6 +93,16 @@ export default {
     const ip = request.headers.get('CF-Connecting-IP') || request.headers.get('X-Forwarded-For') || '';
     const erste = streuwert(ip + (request.headers.get('User-Agent') || '')) % SEITEN.length;
     const reihenfolge = [SEITEN[erste], ...SEITEN.filter((_, i) => i !== erste)];
+
+    // Zuerst der Rechner daheim (ein fetch an die eigene Domain geht aus dem Worker direkt durch den Tunnel).
+    if (ERST_DAHEIM) {
+      try {
+        const daheim = await fetch(new Request(request.url, {
+          method: request.method, headers: request.headers, body: koerper, redirect: 'manual',
+        }), { signal: AbortSignal.timeout(8000) });
+        if (!tunnelAus(daheim.status)) return daheim;
+      } catch { /* Tunnel oder Rechner aus - weiter zu Netlify */ }
+    }
 
     let letzte = null;
     for (const seite of reihenfolge) {
