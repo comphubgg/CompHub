@@ -57,21 +57,19 @@ function Spitze({ e }: { e: FncsEreignis }) {
   if (!e.spitze.length) {
     return <p className="mt-3 text-[11px] text-slate-600"><T>Platzierungen werden nachgetragen.</T></p>;
   }
-  // Entweder Preisgeld oder Punkte, nie ein Gemisch (Betreiber, 13.10.2026): gibt es das Preisgeld, steht nur das da; sonst die Punkte.
-  const preis = e.spitze.some((p) => p.preis);
+  // Beides, bei jedem Turnier (Betreiber, 13.10.2026: "Punkte sollte es immer geben, Earnings in 90 Prozent"): fehlt ein Wert, steht ein Strich.
   return (
     <ol className="mt-3 space-y-1.5">
       <li className="flex items-center gap-2.5 text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-600">
-        <span className="w-4" /><span className="min-w-0 flex-1">Team</span><span>{preis ? 'Earnings' : 'PTS'}</span>
+        <span className="w-4" /><span className="min-w-0 flex-1">Team</span><span className="w-11 text-right">PTS</span><span className="w-14 text-right">Earnings</span>
       </li>
       {e.spitze.map((p, i) => (
         <li key={p.rang} className="flex items-center gap-2.5 text-[11px]">
           <span className={`w-4 text-center font-black tabular-nums ${PLATZ_FARBE[i] ?? 'text-slate-500'}`}>{p.rang}</span>
           <TeamFlagge groesse={p.spieler.length > 1 ? 24 : 18} laender={p.spieler.map((x) => x.land)} />
           <span className="min-w-0 flex-1 truncate font-bold uppercase tracking-wide text-slate-100">{p.spieler.map((x) => x.name).join(' · ')}</span>
-          {preis
-            ? <span className="w-14 text-right font-bold tabular-nums text-emerald-400">{p.preis ?? ''}</span>
-            : <span className="w-14 text-right tabular-nums text-sky-400">{p.punkte ?? ''}</span>}
+          <span className="w-11 text-right tabular-nums text-sky-400">{p.punkte ?? '–'}</span>
+          <span className="w-14 text-right font-bold tabular-nums text-emerald-400">{p.preis ?? '–'}</span>
         </li>
       ))}
     </ol>
@@ -288,6 +286,10 @@ export default function FncsSeite() {
         {tab === 'alltime' && (
           <>
             {/* Wie beim Vorbild: FNCS Winners, All-Time Leaderboard, Nationalities, Rekorde in einem Grand Finals. */}
+            <div className="mb-5 rounded-xl border border-sky-500/25 bg-sky-500/[0.06] px-4 py-3">
+              <p className="text-[13px] font-bold text-slate-100"><T>Nur FNCS: diese Zahlen kommen aus den Grand Finals, seit Chapter 5 Season 3.</T></p>
+              <p className="mt-0.5 text-[11px] text-slate-400"><T>Die Titel zählen alle FNCS-Endspiele seit Chapter 1.</T></p>
+            </div>
             {alt && (
               <div className="mb-10 grid gap-4 lg:grid-cols-3">
                 <Tafel titel="FNCS Winners" unter="Titles">

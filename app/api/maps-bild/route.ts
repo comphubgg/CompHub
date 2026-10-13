@@ -42,18 +42,19 @@ const AUSWAHL: Array<{ u: string; titel: string }> = [
   { u: '/maps/archiv/karte-06.jpg', titel: 'Chapter 5 Season 4 · Absolute Doom' },
   { u: '/maps/archiv/karte-07.jpg', titel: 'Chapter 5 Season 1 · Underground' },
   { u: '/maps/archiv/karte-08.jpg', titel: 'Chapter 3 Season 1 · Flipped' },
-  { u: '/maps/archiv/karte-09.jpg', titel: 'Chapter 3 Season 2 · Resistance' },
+  { u: '/maps/archiv/karte-09.jpg', titel: "Chapter 3 Season 3 · Vibin'" },
   { u: '/maps/archiv/karte-10.jpg', titel: 'Chapter 2 Season 6 · Primal' },
-  { u: '/maps/archiv/karte-11.jpg', titel: "Chapter 3 Season 3 · Vibin'" },
+  { u: '/maps/archiv/karte-11.jpg', titel: 'Chapter 3 Season 2 · Resistance' },
   { u: '/maps/archiv/karte-12.jpg', titel: 'Chapter 4 Season 3 · Wilds' },
   { u: '/maps/archiv/karte-13.jpg', titel: 'Chapter 2 Season 4 · Nexus War' },
   { u: '/maps/archiv/karte-14.jpg', titel: 'Chapter 3 Season 4 · Paradise' },
-  { u: '/maps/archiv/karte-15.jpg', titel: 'Chapter 2 Season 5 · Zero Point' },
+  { u: '/maps/archiv/karte-15.jpg', titel: 'Chapter 2 Season 7 · Invasion' },
   { u: '/maps/archiv/karte-16.jpg', titel: 'Chapter 4 Season 2 · MEGA' },
   { u: '/maps/archiv/karte-17.jpg', titel: 'Chapter 4 Season 4 · Last Resort' },
   { u: '/maps/archiv/karte-18.jpg', titel: 'Chapter 2 Season 8 · Cubed' },
   { u: '/maps/archiv/karte-19.jpg', titel: 'Chapter 4 Season 1 · A New Beginning' },
-  { u: '/maps/archiv/karte-20.jpg', titel: 'Chapter 2 Season 7 · Invasion' },
+  { u: '/maps/archiv/karte-20.jpg', titel: 'Chapter 2 Season 5 · Zero Point' },
+  { u: '/maps/archiv/karte-21.webp', titel: "Chapter 6 Season 4 · Shock 'n Awesome" },
 ];
 
 /** Die Kartenbilder, die der Admin im Karten-Werkzeug hochgeladen hat (data/kartenbilder) - auch sie stehen zur Wahl. */

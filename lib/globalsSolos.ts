@@ -63,8 +63,10 @@ export interface SolosTeam {
   rang: number | null;
   punkte: number | null;
   siege: number | null;
-  /** Nur bei von Hand gepflegten Bestenlisten (lib/alteMaps). */
+  /** Nur bei von Hand gepflegten und archivierten Bestenlisten (lib/alteMaps, lib/fncsBestenlisten). */
   elims?: number | null;
+  /** Gespielte Matches - nur bei archivierten Bestenlisten. */
+  spiele?: number | null;
 }
 
 export interface SolosGruppe {

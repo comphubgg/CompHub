@@ -72,23 +72,64 @@ if (katalog === null || katalog > 3) probleme.push(`Cup-Katalog: Antwort ${stund
 const start = juengste(/^szene_ansicht=start/);
 if (start === null || start > 6) probleme.push(`Startansicht: Antwort ${stunden(start)} alt.`);
 
-if (!probleme.length) { console.log('  Lauf in Ordnung - nichts gemeldet.'); process.exit(0); }
-console.log('  Probleme:', probleme.join(' | '));
-if (!TOKEN) { console.log('  Kein Bot-Token - nicht gemeldet.'); process.exit(0); }
-
+/*
+ * Eine Nachricht je Problem, nicht je Lauf (Betreiber, 13.10.2026: "stuendlich Lauf ... Antwort 15 alt - was bedeutet das?").
+ * Der Lauf rechnet jede Stunde nach; stand die Startansicht schon 15 Stunden still, stuende dieselbe Meldung vierundzwanzigmal im
+ * Kanal. Darum bekommt das Problem einen Schluessel (ohne Zahlen). Steht dieselbe Meldung schon im Kanal, wird sie nur aktualisiert
+ * - ein Bearbeiten laeutet nicht. Neu gemeldet wird nur, was neu ist. Ist wieder alles in Ordnung, wird die offene Meldung gruen
+ * und als behoben markiert.
+ */
+const KENNUNG = 'comphub-lauf-alarm';
+const schluessel = probleme.map((p) => p.replace(/"[^"]*"/g, '"?"').replace(/[0-9]+([.,][0-9]+)? ?(min|h)\b/g, 'N')).sort().join('|');
 const h = { Authorization: `Bot ${TOKEN}`, 'Content-Type': 'application/json' };
-const kanaele = await (await fetch(`${API}/guilds/${SERVER}/channels`, { headers: h })).json();
-const kanal = Array.isArray(kanaele) ? kanaele.find((k) => k.type === 0 && k.name === 'admin-alarm') : null;
-if (!kanal) { console.log('  Kanal #admin-alarm fehlt - nicht gemeldet.'); process.exit(0); }
-await fetch(`${API}/channels/${kanal.id}/messages`, {
-  method: 'POST', headers: h,
-  body: JSON.stringify({
-    embeds: [{
-      title: 'ALARM · stündlicher Lauf',
-      description: probleme.map((p) => `- ${p}`).join('\n') + (U.LAUF_URL ? `\n\n[Protokoll](${U.LAUF_URL})` : ''),
-      color: 0xef4444,
-      footer: { text: new Date().toISOString().slice(0, 16).replace('T', ' ') + ' UTC' },
-    }],
-  }),
-});
-console.log('  In #admin-alarm gemeldet.');
+const holen = async (url, opt) => { try { const r = await fetch(url, { headers: h, ...opt }); return r.ok ? await r.json() : null; } catch { return null; } };
+const jetzt = new Date().toISOString().slice(0, 16).replace('T', ' ') + ' UTC';
+const text = (liste) => liste.map((p) => `- ${p}`).join('\n') + (U.LAUF_URL ? `\n\n[Protokoll](${U.LAUF_URL})` : '');
+
+if (!probleme.length) console.log('  Lauf in Ordnung - nichts neu gemeldet.');
+else console.log('  Probleme:', probleme.join(' | '));
+
+if (!TOKEN) console.log('  Kein Bot-Token - nicht gemeldet.');
+else {
+  const kanaele = await holen(`${API}/guilds/${SERVER}/channels`);
+  const kanal = Array.isArray(kanaele) ? kanaele.find((k) => k.type === 0 && k.name === 'admin-alarm') : null;
+  if (!kanal) console.log('  Kanal #admin-alarm fehlt - nicht gemeldet.');
+  else {
+    // Die letzte Meldung dieses Laufs: unsere eigene, mit der Kennung im Fuss.
+    const letzte = await holen(`${API}/channels/${kanal.id}/messages?limit=30`);
+    const offen = Array.isArray(letzte)
+      ? letzte.find((m) => (m.embeds ?? []).some((e) => String(e.footer?.text ?? '').includes(`${KENNUNG}:`)))
+      : null;
+    const offenSchluessel = offen ? String(offen.embeds[0].footer.text).split(`${KENNUNG}:`)[1]?.split(' · ')[0]?.trim() : null;
+    const bearbeite = (m, embed) => holen(`${API}/channels/${kanal.id}/messages/${m.id}`, { method: 'PATCH', body: JSON.stringify({ embeds: [embed] }) });
+
+    if (!probleme.length) {
+      if (offen && offenSchluessel && offenSchluessel !== 'behoben') {
+        await bearbeite(offen, {
+          title: 'BEHOBEN · stündlicher Lauf', color: 0x22c55e,
+          description: `${offen.embeds[0].description}\n\nSeit ${jetzt} wieder in Ordnung.`,
+          footer: { text: `${KENNUNG}:behoben · ${jetzt}` },
+        });
+        console.log('  Offene Meldung als behoben markiert.');
+      }
+    } else if (offen && offenSchluessel === schluessel) {
+      await bearbeite(offen, {
+        title: 'ALARM · stündlicher Lauf', color: 0xef4444,
+        description: `${text(probleme)}\n\nBesteht weiter - diese Meldung wird nur aktualisiert, nicht neu gesendet.`,
+        footer: { text: `${KENNUNG}:${schluessel} · ${jetzt}` },
+      });
+      console.log('  Dieselbe Meldung steht schon im Kanal - aktualisiert, nicht neu gesendet.');
+    } else {
+      await holen(`${API}/channels/${kanal.id}/messages`, {
+        method: 'POST',
+        body: JSON.stringify({
+          embeds: [{
+            title: 'ALARM · stündlicher Lauf', color: 0xef4444, description: text(probleme),
+            footer: { text: `${KENNUNG}:${schluessel} · ${jetzt}` },
+          }],
+        }),
+      });
+      console.log('  Neues Problem in #admin-alarm gemeldet.');
+    }
+  }
+}

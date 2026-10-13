@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { fensterFuer } from '@/lib/globalsSolos';
 import { mapsVerzeichnis } from '@/lib/mapsVerzeichnis';
-import { ALT, alteFenster } from '@/lib/alteMaps';
+import { ALT, alteFenster, inselFuer } from '@/lib/alteMaps';
 import { fncsPlatzierungen } from '@/lib/fncsEreignisse';
 
 /*
@@ -33,6 +33,9 @@ export async function GET(request: Request) {
     // Ein Finale an zwei Tagen (Epics Archiv): die Seite zeigt Day 1 / Day 2 / Combined.
     const e = (await mapsVerzeichnis()).find((x) => x.turnierId === t && x.windowId === w);
     const platzierungen = e ? await fncsPlatzierungen(e).catch(() => []) : [];
+    // Nennt Noble fuer das Fenster nur die allgemeine, immer aktuelle Spielkarte (fortnite-api.com), steht dort bei einem alten Event die falsche
+    // Insel (Global Championship 2025 zeigte die Insel von heute): dann gilt die Insel der Saison des Events.
+    if (e && (!f.fenster.bild || f.fenster.bild.includes('fortnite-api.com/images/map'))) f.fenster.bild = inselFuer(e.saison);
     return NextResponse.json({ ok: true, ...f, tage: (e?.tage ?? []).map((d) => ({ name: d.name, windowId: d.windowId })), platzierungen }, { headers: { 'Cache-Control': 'public, max-age=60, s-maxage=120' } });
   } catch (e) {
     return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 502, headers: { 'Cache-Control': 'no-store' } });

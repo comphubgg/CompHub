@@ -55,15 +55,17 @@ export function RangAusTeams({ teams, schmal = false }: { teams: SolosTeam[]; /*
   const zeilen = teams.filter((x) => x.rang !== null).sort((a, b) => (a.rang ?? 0) - (b.rang ?? 0));
   const mitSiege = !schmal && zeilen.some((x) => x.siege != null);
   const mitElims = !schmal && zeilen.some((x) => x.elims != null);
+  const mitSpiele = !schmal && zeilen.some((x) => x.spiele != null);
   if (!zeilen.length) return <p className="text-sm text-slate-500"><T>Für diesen Spieltag liegt noch keine Bestenliste vor.</T></p>;
   return (
     <div className="overflow-hidden rounded-xl border border-white/[0.08] bg-zinc-900/40">
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-white/[0.08] text-left text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-            <th className="w-10 px-3 py-2">#</th><th className="px-3 py-2"><T>Team</T></th><th className="w-16 px-3 py-2 text-right">Pts</th>
-            {mitSiege && <th className="w-14 px-3 py-2 text-right" title="Victory Royales">VR</th>}
+            <th className="w-10 px-3 py-2">#</th><th className="px-3 py-2"><T>Team</T></th><th className="w-16 px-3 py-2 text-right">{schmal ? 'Pts' : 'Points'}</th>
+            {mitSiege && <th className="w-14 px-3 py-2 text-right" title="Victory Royales">Wins</th>}
             {mitElims && <th className="w-16 px-3 py-2 text-right">Elims</th>}
+            {mitSpiele && <th className="w-20 px-3 py-2 text-right">Matches</th>}
           </tr>
         </thead>
         <tbody>
@@ -81,6 +83,7 @@ export function RangAusTeams({ teams, schmal = false }: { teams: SolosTeam[]; /*
               <td className="px-3 py-2 text-right font-bold tabular-nums text-slate-100">{z.punkte ?? ''}</td>
               {mitSiege && <td className="px-3 py-2 text-right tabular-nums text-slate-300">{z.siege ?? ''}</td>}
               {mitElims && <td className="px-3 py-2 text-right tabular-nums text-slate-300">{z.elims ?? ''}</td>}
+              {mitSpiele && <td className="px-3 py-2 text-right tabular-nums text-slate-300">{z.spiele ?? ''}</td>}
             </tr>
           ))}
         </tbody>
@@ -168,9 +171,10 @@ export function RangTabelle({ eventId, windowId, windows, laender, anzeigen, sch
         <thead>
           <tr className="border-b border-white/[0.08] text-left text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
             <th className="w-10 px-3 py-2">#</th><th className="px-3 py-2"><T>Team</T></th>
-            <th className="w-16 px-3 py-2 text-right">Pts</th>
-            {!schmal && <th className="w-14 px-3 py-2 text-right" title="Victory Royales">VR</th>}
+            <th className="w-16 px-3 py-2 text-right">{schmal ? 'Pts' : 'Points'}</th>
+            {!schmal && <th className="w-14 px-3 py-2 text-right" title="Victory Royales">Wins</th>}
             {!schmal && <th className="w-16 px-3 py-2 text-right">Elims</th>}
+            {!schmal && <th className="w-20 px-3 py-2 text-right">Matches</th>}
           </tr>
         </thead>
         <tbody>
@@ -188,6 +192,7 @@ export function RangTabelle({ eventId, windowId, windows, laender, anzeigen, sch
               <td className="px-3 py-2 text-right font-bold tabular-nums text-slate-100">{z.points}</td>
               {!schmal && <td className="px-3 py-2 text-right tabular-nums text-slate-300">{z.wins}</td>}
               {!schmal && <td className="px-3 py-2 text-right tabular-nums text-slate-300">{z.elims}</td>}
+              {!schmal && <td className="px-3 py-2 text-right tabular-nums text-slate-300">{z.games}</td>}
             </tr>
           ))}
         </tbody>

@@ -294,12 +294,14 @@ export function Karte({ f, bild, rotAb = 2 }: {
                 style={{
                   left: `${r.links}%`, top: `${r.oben}%`,
                   width: `${r.breite}%`, height: `${r.hoehe}%`,
-                  justifyContent: anzahl === 1 ? 'center' : 'space-between',
+                  // Ein Team allein auf der Stelle: die Namen stehen dicht untereinander in der Mitte (Betreiber, 13.10.2026), nicht auf die Stelle verteilt.
+                  justifyContent: sp.teams <= 1 || anzahl === 1 ? 'center' : 'space-between',
                   paddingBlock: 'calc(0.45cqw / var(--z, 1))',
                 }}>
                 {sp.spieler.map((name, i) => {
-                  const yProz = anzahl === 1
-                    ? r.oben + r.hoehe / 2
+                  const gedraengt = sp.teams <= 1 || anzahl === 1;
+                  const yProz = gedraengt
+                    ? r.oben + r.hoehe / 2 + (i - (anzahl - 1) / 2) * groesse * 1.12
                     : r.oben + r.hoehe * (0.1 + 0.8 * (i / (anzahl - 1)));
                   const spanne = sp.form === 'rechteck' ? null : spanneBei(sp.punkte, yProz);
                   const versatz = spanne && r.breite > 0 ? ((spanne.mitte - mitteX) / r.breite) * 100 : 0;

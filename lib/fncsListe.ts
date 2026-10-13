@@ -3,6 +3,7 @@ import path from 'node:path';
 import { DATEN_ORT } from '@/lib/datenOrt';
 import { namensSchluessel } from '@/lib/homoglyph';
 import { FNCS_FAKTEN } from '@/lib/fncsFakten';
+import { archivListe } from '@/lib/fncsBestenlisten';
 import type { MapEintrag } from '@/lib/mapsVerzeichnis';
 
 /*
@@ -79,7 +80,12 @@ export async function landVonName(): Promise<(name: string) => string | null> {
   return (name) => karte.get(namensSchluessel(name)) ?? null;
 }
 
-export interface ListenTeam { rang: number; spieler: Array<{ id: string; name: string; land: string | null }> }
+export interface ListenTeam {
+  rang: number;
+  /** Punkte, Siege, Eliminierungen, Spiele - nur aus den archivierten Bestenlisten (lib/fncsBestenlisten). */
+  punkte?: number; siege?: number; elims?: number; spiele?: number;
+  spieler: Array<{ id: string; name: string; land: string | null }>;
+}
 
 /** Die Laender, deren Spieler in der Region Europa spielen - die Liste mischt alle Regionen, ihre Endspiele haben je einen Ersten, Zweiten ... */
 const EUROPA = new Set('AL AD AT BY BE BA BG HR CY CZ DK EE FI FR DE GR HU IS IE IT XK LV LI LT LU MT MD MC ME NL MK NO PL PT RO RU SM RS SK SI ES SE CH UA GB TR GE AM AZ IL'.split(' '));
@@ -110,6 +116,9 @@ export async function listeTeams(key: string): Promise<ListenTeam[]> {
  * europaeisches Land), die ersten fuenf Teams sind darum immer die der Eckdaten.
  */
 export async function plaetze(key: string): Promise<ListenTeam[]> {
+  // Die archivierte Bestenliste (ganze Teams, Punkte, Siege, Eliminierungen, Spiele) geht vor: die Spielerliste unten kennt nur den Platz.
+  const archiv = await archivListe(key);
+  if (archiv?.length) return archiv;
   const fakt = FNCS_FAKTEN[key];
   const liste = await listeTeams(key);
   if (!fakt) return liste;

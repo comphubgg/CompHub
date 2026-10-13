@@ -5,6 +5,7 @@ import type { MapEintrag } from '@/lib/mapsVerzeichnis';
 import { cupBild, type MapTyp } from '@/lib/mapsTyp';
 import { GET as bestenliste } from '@/app/api/cup-leaderboard/route';
 import { endspielArt, schluesselVon, plaetze } from '@/lib/fncsListe';
+import { hatArchiv } from '@/lib/fncsBestenlisten';
 
 /*
  * Die Karten ohne Landepunkte: alle Cups, zu denen Noble Practice nichts fuehrt.
@@ -283,19 +284,21 @@ function ausKatalog(archiv: ArchivEintrag[], typVon: (n: string) => MapTyp): Alt
 }
 
 /*
- * Die Insel je Saison - die Karten, die der Betreiber geschickt hat (13.10.2026). Sicher belegt: Chapter 6 Season 3 (der Abgleich
- * mit Noble Practice trifft die Karte auf den Pixel) und Chapter 3 Season 3 (Vergleich mit dem Screenshot vom Vorbild). Die uebrigen
- * Zuordnungen folgen der Inselform und der Reihenfolge der Veraenderungen; Saisons ohne eigene Karte zeigen einen Hinweis statt
- * einer falschen Insel. Der Admin kann jede Insel je Spieltag oder je Saison tauschen (Verwaltung der alten Maps).
+ * Die Insel je Saison - die Karten, die der Betreiber geschickt hat (13.10.2026). Abgeglichen mit den Saisonkarten von EU Competitive
+ * (Bildvergleich, Abstand der verkleinerten Bilder): Chapter 2 Season 4 bis 8 (5 und 7 vertauscht gegenueber dem ersten Stand),
+ * Chapter 3 Season 2 bis 4 (2 und 3 vertauscht), Chapter 4 Season 1 bis 4, Chapter 5 Season 2 bis 4 und Chapter 6 Season 1 bis 4
+ * stimmen mit dem Vorbild ueberein; Chapter 2 Season 6, Chapter 3 Season 1 und Chapter 5 Season 1 zeigen dieselbe Insel in einem
+ * anderen Stand der Saison. Saisons ohne eigene Karte (Chapter 1, Chapter 2 Remix) zeigen einen Hinweis statt einer falschen Insel.
+ * Der Admin kann jede Insel je Spieltag oder je Saison tauschen (Verwaltung der alten Maps).
  */
 export const KEINE_KARTE = '/maps/archiv/keine-karte.png';
-const K = (n: number) => `/maps/archiv/karte-${String(n).padStart(2, '0')}.jpg`;
+const K = (n: number, ext = 'jpg') => `/maps/archiv/karte-${String(n).padStart(2, '0')}.${ext}`;
 export const INSEL_JE_SAISON: Record<string, string> = {
-  S14: K(13), S15: K(15), S16: K(10), S17: K(20), S18: K(18),
-  S19: K(8), S20: K(9), S21: K(11), S22: K(14),
+  S14: K(13), S15: K(20), S16: K(10), S17: K(15), S18: K(18),
+  S19: K(8), S20: K(11), S21: K(9), S22: K(14),
   S23: K(19), S24: K(16), S25: K(12), S26: K(17),
   S28: K(7), S29: K(4), S30: K(2), S31: K(6),
-  S33: K(1), S34: K(3), S36: K(5),
+  S33: K(1), S34: K(3), S36: K(5), S37: K(21, 'webp'),
 };
 export const inselFuer = (saison: string): string => INSEL_JE_SAISON[saison] ?? KEINE_KARTE;
 
@@ -394,6 +397,18 @@ async function teamsFuer(e: MapEintrag, daten: AltFensterDaten | undefined, tag 
   const kontext = await spielerKontext();
   const spieler = (id: string, roh: string, land?: string): SolosSpieler => kontext(id, roh, land);
   const eigene = daten?.teams ?? [];
+  // Ein FNCS-Endspiel mit archivierter Bestenliste (lib/fncsBestenlisten): ganze Teams mit Punkten, Siegen, Eliminierungen und Spielen.
+  if (!eigene.length && daten?.epicAn !== false) {
+    const a = endspielArt(e);
+    const schluessel = a ? schluesselVon(e.saison, a.art) : '';
+    const archiv = schluessel && hatArchiv(schluessel) ? await plaetze(schluessel) : [];
+    if (archiv.length) {
+      return archiv.map((t) => ({
+        id: `a${t.rang}`, spieler: t.spieler.map((s) => spieler(s.id, s.name, s.land ?? undefined)), rang: t.rang,
+        punkte: t.punkte ?? null, siege: t.siege ?? null, elims: t.elims ?? null, spiele: t.spiele ?? null,
+      }));
+    }
+  }
   if (!eigene.length && e.eventId && daten?.epicAn !== false) {
     try {
       return (await epicZeilen(e, tag)).map((en) => ({

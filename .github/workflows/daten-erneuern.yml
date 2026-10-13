@@ -507,7 +507,13 @@ jobs:
           # ihm der Lauf, ohne dass eine einzige Antwort erneuert wurde.
           # Mit zehn Gigabyte bricht stattdessen nur der Server ab (der Teil
           # kommt ein zweites Mal dran), der Rechner bleibt am Leben.
-          NODE_OPTIONS: --max-old-space-size=10240
+          # 13.10.2026: trotzdem starb der Rechner in rund jedem siebten Lauf
+          # (zwei Mails von GitHub je Absturz, "Run failed: Daten erneuern").
+          # Der Server sass dann bei 7 bis 9 GB mit 8 bis 11 GB Auslagerung.
+          # Jetzt: sieben Gigabyte Heap und acht statt vier Portionen - der
+          # Server bleibt kleiner, und bricht er doch ab, kommt nur seine Portion
+          # (ein Achtel) ein zweites Mal dran.
+          NODE_OPTIONS: --max-old-space-size=7168
         run: |
           set +e
           # Auslagerungsdatei: faengt Spitzen ab, statt dass der Laufrechner
@@ -559,16 +565,16 @@ jobs:
           node scripts/globals-preisgeld-eintragen.mjs http://localhost:3000 2>&1 | tail -3
           node scripts/preisgeld-aus-katalog.mjs http://localhost:3000 2>&1 | tail -2
           stoppen
-          for TEIL in 1 2 3 4; do
+          for TEIL in 1 2 3 4 5 6 7 8; do
             for VERSUCH in 1 2; do
               starten
               # Das Protokoll laeuft live mit (tee): wird der Teil abgeschossen,
               # steht im Lauf trotzdem, welche Abfrage zuletzt dran war.
-              timeout 1500 node scripts/antworten-vorrechnen.mjs http://localhost:3000 --teil=$TEIL/4 2>&1 | tee /tmp/teil.log | sed -u 's/^/  [teil '"$TEIL"'] /'
+              timeout 1200 node scripts/antworten-vorrechnen.mjs http://localhost:3000 --teil=$TEIL/8 2>&1 | tee /tmp/teil.log | sed -u 's/^/  [teil '"$TEIL"'] /'
               LEBT=nein; kill -0 $SERVER 2>/dev/null && LEBT=ja
               stoppen
               cat /tmp/teil.log >> /tmp/vorrechnen.log
-              echo "Teil $TEIL/4, Versuch $VERSUCH: $(grep -E 'Vorgerechnet' /tmp/teil.log | tr -s ' ')"
+              echo "Teil $TEIL/8, Versuch $VERSUCH: $(grep -E 'Vorgerechnet' /tmp/teil.log | tr -s ' ')"
               [ "$LEBT" = ja ] && break
               echo "::warning::Server in Teil $TEIL abgestuerzt:"
               tail -n 8 /tmp/server.log

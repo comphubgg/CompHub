@@ -167,6 +167,7 @@ export default function KartenSeite() {
                 {meta?.lan && <span className="rounded bg-amber-400 px-1.5 py-0.5 font-black text-zinc-950">LAN</span>}
                 {meta?.saisonKurz && <span>{meta.saisonKurz}{meta.saisonTitel ? ` — ${meta.saisonTitel}` : ''}</span>}
                 {meta?.region && <span className="rounded bg-white/10 px-1.5 py-0.5 text-slate-200">{regionAnzeige(meta)}</span>}
+                {(fenster?.teams ?? []).length > 0 && <span className="rounded bg-white/10 px-1.5 py-0.5 text-slate-200">{(fenster?.teams ?? []).length} <T>Teams</T></span>}
                 {(fenster?.start || meta?.datum) && <span>{LANG.format(new Date(fenster?.start ?? (meta?.datum as number)))}</span>}
                 {zustand && (
                   <span className={`rounded px-1.5 py-0.5 ${zustand === 'live' ? 'bg-red-500/20 text-red-400' : zustand === 'upcoming' ? 'bg-sky-500/20 text-sky-300' : 'bg-white/[0.07] text-slate-400'}`}>

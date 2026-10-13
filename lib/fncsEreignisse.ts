@@ -8,6 +8,7 @@ import { GLOBALS_TAGE } from '@/lib/globalsCup';
 import { liesJson } from '@/lib/ablage';
 import { kernname, namensSchluessel, ohneZierrat } from '@/lib/homoglyph';
 import { endspielArt, schluesselVon, landVonName, plaetze, type Art } from '@/lib/fncsListe';
+import { hatArchiv } from '@/lib/fncsBestenlisten';
 import { FNCS_FAKTEN, faktDatum, type FncsFakt } from '@/lib/fncsFakten';
 
 /*
@@ -25,7 +26,7 @@ import { FNCS_FAKTEN, faktDatum, type FncsFakt } from '@/lib/fncsFakten';
  * Das Preisgeld je Platz kommt immer aus den Eckdaten, wo sie das Event kennen.
  */
 
-export interface FncsSpitze { rang: number; punkte: number | null; preis?: string; spieler: Array<{ name: string; land: string | null }> }
+export interface FncsSpitze { rang: number; punkte: number | null; siege?: number | null; elims?: number | null; spiele?: number | null; preis?: string; spieler: Array<{ name: string; land: string | null }> }
 
 export interface FncsEreignis {
   key: string;
@@ -138,6 +139,18 @@ async function spitzeFuer(k: Kandidat, fakt: FncsFakt | undefined, archiv: Map<s
     };
   }
 
+  // Archivierte Bestenliste (lib/fncsBestenlisten): vollstaendig und gegen die Eckdaten geprueft.
+  const archivKey = schluesselVon(k.e.saison, k.art);
+  if (hatArchiv(archivKey)) {
+    const archiv = await plaetze(archivKey);
+    if (archiv.length) {
+      return {
+        teams: fakt?.teams ?? archiv.length,
+        spitze: mitPreis(archiv.slice(0, 5).map((t) => ({ rang: t.rang, punkte: t.punkte ?? null, spieler: t.spieler.map((s) => ({ name: s.name, land: s.land ?? landName(s.name) })) }))),
+      };
+    }
+  }
+
   // 3. Die Global Championship 2026: der Endstand der Globals-Seite.
   if (/Global_Championship_2026$/.test(k.e.windowId)) {
     let teams: number | null = null;
@@ -167,7 +180,7 @@ async function spitzeFuer(k: Kandidat, fakt: FncsFakt | undefined, archiv: Map<s
   if (liste.length) {
     return {
       teams: fakt?.teams ?? liste.length,
-      spitze: mitPreis(liste.slice(0, 5).map((t) => ({ rang: t.rang, punkte: null, spieler: t.spieler.map((s) => ({ name: s.name, land: s.land })) }))),
+      spitze: mitPreis(liste.slice(0, 5).map((t) => ({ rang: t.rang, punkte: t.punkte ?? null, spieler: t.spieler.map((s) => ({ name: s.name, land: s.land })) }))),
     };
   }
   return { teams: fakt?.teams ?? null, spitze: fakt ? await ausFakten(fakt) : [] };
@@ -194,7 +207,7 @@ export async function fncsPlatzierungen(e: MapEintrag): Promise<FncsSpitze[]> {
   }
   // Die ganze Platzierungsliste aus der Spielerliste der Szene-Quelle (Chapter 1 Season X bis Global Championship 2025).
   const liste = await plaetze(key);
-  if (liste.length) return liste.map((t) => ({ rang: t.rang, punkte: null, preis: preisVon(fakt, t.rang), spieler: t.spieler.map((s) => ({ name: s.name, land: s.land })) }));
+  if (liste.length) return liste.map((t) => ({ rang: t.rang, punkte: t.punkte ?? null, siege: t.siege, elims: t.elims, spiele: t.spiele, preis: preisVon(fakt, t.rang), spieler: t.spieler.map((s) => ({ name: s.name, land: s.land })) }));
   return fakt ? ausFakten(fakt) : [];
 }
 
@@ -258,15 +271,20 @@ export async function fncsEreignisse(): Promise<FncsEreignis[]> {
   }));
   for (const e of aus) { gesehen.add(e.key); raus.push(e); }
 
-  // Endspiele, zu denen die Maps keine Karte fuehren (vor Chapter 2 Season 4): nur aus den Eckdaten.
+  // Endspiele, zu denen die Maps keine Karte fuehren (vor Chapter 2 Season 4): die archivierte Bestenliste, sonst die Eckdaten.
+  const land = await landVonName();
   for (const [schluessel, f] of Object.entries(FNCS_FAKTEN)) {
     if (gesehen.has(schluessel)) continue;
     const [saison, art] = schluessel.split('|') as [string, Art];
+    const archiv = hatArchiv(schluessel) ? await plaetze(schluessel) : [];
+    const spitze = archiv.length
+      ? archiv.slice(0, 5).map((t) => ({ rang: t.rang, punkte: t.punkte ?? null, preis: preisVon(f, t.rang), spieler: t.spieler.map((s) => ({ name: s.name, land: s.land ?? land(s.name) })) }))
+      : await ausFakten(f);
     raus.push({
       key: schluessel, saison, saisonKurz: f.kopf1, saisonTitel: null,
       kopf1: f.kopf1, kopf2: f.kopf2, titel: f.titel, datum: faktDatum(f.datum), lan: !!f.lan, ort: f.ort ?? null,
       region: REGION[art], preisgeld: f.preisgeld, bild: '/cups/fncs-major.webp',
-      turnierId: '', windowId: '', kartenRegion: 'EU', teams: f.teams, spitze: await ausFakten(f),
+      turnierId: '', windowId: '', kartenRegion: 'EU', teams: f.teams, spitze,
     });
   }
 
@@ -324,7 +342,7 @@ export async function fncsRekorde(): Promise<FncsRekorde> {
       }
     } catch { /* dieses Endspiel fehlt dann in der Summe */ }
   }));
-  const top = (f: (t: (typeof alleTeams)[number]) => number): RekordZeile[] => [...alleTeams].sort((a, b) => f(b) - f(a)).slice(0, 10)
+  const top = (f: (t: (typeof alleTeams)[number]) => number): RekordZeile[] => [...alleTeams].sort((a, b) => f(b) - f(a)).slice(0, 8)
     .map((t) => ({ event: t.event, wert: f(t), spieler: t.spieler }));
   const daten: FncsRekorde = {
     ab: 'Chapter 5 Season 3',
