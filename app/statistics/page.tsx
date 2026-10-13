@@ -3800,15 +3800,21 @@ export default function StatistikSeite() {
               {/* Aufmacher: Slider durch die jüngsten Turniere mit dem Besten des Tages, darunter die Regionen (Betreiber, 12.10.2026). */}
               <StatistikAufmacher
                 kacheln={(() => {
-                  // Erst jedes Turnier einmal (das jüngste vorn), dann die weiteren Besten - so wechseln auch die Cups.
-                  const gesehen = new Set<string>();
-                  const erste: typeof kacheln = []; const rest: typeof kacheln = [];
+                  // Erst jeder Cup einmal - bevorzugt der europaeische Beste, das juengste Turnier vorn -, dann die uebrigen Regionen.
+                  // So wechselt der Slider zwischen verschiedenen Cups statt viermal durch dasselbe Turnier in vier Regionen.
+                  const nachCup = new Map<string, typeof kacheln>();
                   for (const kk of kacheln) {
-                    const sl = `${kk.turnier.name}|${kk.turnier.region}`;
-                    (gesehen.has(sl) ? rest : erste).push(kk); gesehen.add(sl);
+                    const cupName = kk.turnier.name;
+                    nachCup.set(cupName, [...(nachCup.get(cupName) ?? []), kk]);
+                  }
+                  const erste: typeof kacheln = []; const rest: typeof kacheln = [];
+                  for (const liste of nachCup.values()) {
+                    const eu = liste.find((x) => x.turnier.region === 'EU') ?? liste[0];
+                    erste.push(eu); rest.push(...liste.filter((x) => x !== eu));
                   }
                   erste.sort((x, y) => (y.turnier.datum ?? 0) - (x.turnier.datum ?? 0));
-                  return [...erste, ...rest].slice(0, 8).map((kk) => ({
+                  rest.sort((x, y) => (y.turnier.datum ?? 0) - (x.turnier.datum ?? 0));
+                  return [...erste, ...rest].slice(0, 10).map((kk) => ({
                     titel: turnierTitel(kk.turnier.name), datumText: datumText(kk.turnier.datum, sprache), saisonText: saisonTitel,
                     region: kk.turnier.region, spitze: kk.spitze, stand: kk.stand ?? null,
                   }));

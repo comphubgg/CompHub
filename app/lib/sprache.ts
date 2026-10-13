@@ -3388,6 +3388,8 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Alle Endspiele der FNCS, die das Archiv kennt - mit Platzierungen und den meisten Eliminierungen.': 'Every FNCS final the archive knows - with placements and the most eliminations.',
   'Die Endspiele ließen sich gerade nicht laden. Bitte gleich noch einmal versuchen.': 'The finals could not be loaded right now. Please try again in a moment.',
   'Noch keine Endspiele.': 'No finals yet.',
+  'Der Endstand ließ sich gerade nicht laden.': 'The final standings could not be loaded right now.',
+  'Endstand nach beiden Tagen': 'Final standings after both days',
   'Statistik': 'Statistics',
   'Bestes einzelnes Spiel (Eliminierungen)': 'Best single game (eliminations)',
   'Punkte pro Spiel': 'Points per game',

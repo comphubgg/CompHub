@@ -106,7 +106,7 @@ const AM_RELEASE: Array<RegExp> = [
   /^(verdienst-archiv|elims-archiv|elims-summen-alt|preisgeld-tabellen|preisgelder|lan-preisgelder|epic-namen|cup-archiv|prognose-felder|lan-konten|team-verlauf)\.json$/,
   // Vom Betreiber gepflegt, von der Seite viel gelesen: als Rueckfall, wenn
   // Supabase nicht antwortet. Gelesen wird zuerst die lebende Kopie dort.
-  /^(prognosen|turnier-karten|karten-vorlagen|spieler-profile|spielerbilder|spieler-namen|orgtags|galerie)\.json$/,
+  /^(prognosen|turnier-karten|karten-vorlagen|alte-maps|maps-bild|spieler-profile|spielerbilder|spieler-namen|orgtags|galerie)\.json$/,
 ];
 
 export function amRelease(name: string): boolean {
