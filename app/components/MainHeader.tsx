@@ -35,6 +35,8 @@ const navItems = [
    * stehen im Dashboard im Schnellzugriff (app/admin/page.tsx) und unter ihrer Adresse /overlays.
    */
   { href: '/tournament-maps', label: 'Maps', schluessel: 'maps' },
+  // Die FNCS-Seite (13.10.2026): alle Endspiele und die Eliminierungen der Grand Finals.
+  { href: '/fncs', label: 'FNCS', schluessel: 'fncs' },
 ];
 
 export default function MainHeader({ sektionenAnfang }: {
