@@ -2,11 +2,12 @@ import { NextResponse } from 'next/server';
 import { gesamtSummen, heimatRegionen } from '@/lib/szeneStats';
 import { liesJson } from '@/lib/ablage';
 import { abgelegteAntwort, CDN_FRIST } from '@/lib/antwortSpeicher';
+import { ARCHIV_MINDEST_MATCHES } from '@/lib/archivRegel';
 
 /*
  * Die vier grossen Zahlen der Statistikseite: Spieler, Spieltage, Eliminierungen, Schaden.
  *
- * Gezaehlt wird, was auch im Spielerarchiv des Werkzeugs steht: Konten mit mindestens zwanzig Matches oder mit einem
+ * Gezaehlt wird, was auch im Spielerarchiv des Werkzeugs steht: Konten mit mindestens zehn Matches (lib/archivRegel) oder mit einem
  * echten Foto (dieselbe Regel wie in der Bilderansicht, /api/szene-stats?ansicht=bilder). Der Betreiber (12.10.2026):
  * die Zahl soll "von mir" sein - in seinem Archiv standen 3.315 Spieler, auf der Seite aber 8.000. Die Konten mit
  * fast keinen Spielen zaehlen nicht mit; alle vier Zahlen beziehen sich auf dieselben Spieler.
@@ -38,7 +39,7 @@ export async function GET() {
       heimatRegionen().catch(() => new Map<string, string>()),
     ]);
     const mitFoto = new Set(bilder.filter((b) => b.echtesFoto).map((b) => b.epicId));
-    const liste = alle.filter((x) => (x.matches ?? 0) >= 20 || mitFoto.has(x.epicId));
+    const liste = alle.filter((x) => (x.matches ?? 0) >= ARCHIV_MINDEST_MATCHES || mitFoto.has(x.epicId));
     if (liste.length) {
       const je = new Map<string, number>();
       for (const x of liste) { const r = heimat.get(x.epicId) || x.regionen?.[0] || ''; if (r) je.set(r, (je.get(r) ?? 0) + 1); }

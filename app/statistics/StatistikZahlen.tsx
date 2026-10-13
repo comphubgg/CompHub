@@ -62,7 +62,7 @@ export default function StatistikZahlen() {
         ))}
       </div>
       <p className="relative mt-5 text-center text-[10px] text-slate-600">
-        <T>Gezählt werden die Spieler im Archiv: ab 20 Matches oder mit Foto.</T>
+        <T>Gezählt werden die Spieler im Archiv: ab 10 Matches oder mit Foto.</T>
       </p>
     </div>
   );

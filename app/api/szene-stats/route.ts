@@ -12,6 +12,7 @@ import {
   clutchFuerSaison,
 } from '@/lib/szeneStats';
 import { DATEN_ORT } from '@/lib/datenOrt';
+import { ARCHIV_MINDEST_MATCHES } from '@/lib/archivRegel';
 import { getToken, loeseNamenAuf } from '@/lib/epicCups';
 import { zwischenspeichern } from '@/lib/zwischenspeicher';
 import { liesJson } from '@/lib/ablage';
@@ -843,7 +844,7 @@ async function berechne(request: Request) {
        * viele hat, ist entweder stark oder lange dabei, und beides macht ihn
        * fuer die Sammlung wichtig.
        *
-       * Konten mit weniger als zwanzig Matches bleiben draussen; sonst
+       * Konten mit weniger als zehn Matches (lib/archivRegel) bleiben draussen; sonst
        * stuenden in der Liste der Fehlenden tausende Karteileichen.
        */
       // Wer ein Foto hat, ist immer dabei - auch mit wenigen Matches.
@@ -854,7 +855,7 @@ async function berechne(request: Request) {
       // einem Konto mit wenig Spielzeit sitzt - und man sucht es, obwohl es
       // laengst da ist.
       const feld = (await gesamtSummen())
-        .filter((x) => x.matches >= 20 || bildZu.get(x.epicId)?.echt)
+        .filter((x) => x.matches >= ARCHIV_MINDEST_MATCHES || bildZu.get(x.epicId)?.echt)
         .sort((a2, b2) => b2.elims - a2.elims);
 
       const spieler = feld.map((x) => {

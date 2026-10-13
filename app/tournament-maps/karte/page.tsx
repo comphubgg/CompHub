@@ -20,6 +20,7 @@ import { Karte } from '@/app/globals-solos/Bausteine';
 import LaenderListe from '@/app/components/LaenderListe';
 import { TeamKarten, RangTabelle, RangAusTeams } from './Mannschaften';
 import CupTierlist from './CupTierlist';
+import CupStatistik from './CupStatistik';
 
 interface Eintrag {
   turnierId: string; region: string; windowId: string; cup: string; fenster: string; titel: string;
@@ -30,9 +31,9 @@ interface Eintrag {
 const KURZ = new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: '2-digit', timeZone: 'Europe/Brussels' });
 const LANG = new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Europe/Brussels' });
 
-type Reiter = 'karte' | 'spieler' | 'leaderboard' | 'tierlist' | 'laender';
+type Reiter = 'karte' | 'spieler' | 'leaderboard' | 'tierlist' | 'statistik' | 'laender';
 const REITER: Array<[Reiter, string]> = [
-  ['karte', 'Map'], ['spieler', 'Spieler'], ['leaderboard', 'Leaderboard'], ['tierlist', 'Tierlist'], ['laender', 'Länder'],
+  ['karte', 'Map'], ['spieler', 'Spieler'], ['leaderboard', 'Leaderboard'], ['tierlist', 'Tierlist'], ['statistik', 'Statistik'], ['laender', 'Länder'],
 ];
 
 /** Beendet, laufend oder kommend - aus Beginn und Ende des Spieltags. */
@@ -237,6 +238,7 @@ export default function KartenSeite() {
                 ? <RangAusTeams teams={fenster.teams ?? []} />
                 : <RangTabelle eventId={meta?.eventId ?? null} windowId={fenster.windowId} laender={laender} />)}
               {reiter === 'tierlist' && <CupTierlist windowId={fenster.windowId} teams={fenster.teams ?? []} />}
+              {reiter === 'statistik' && <CupStatistik eventId={meta?.eventId ?? null} windowId={fenster.windowId} teams={fenster.teams ?? []} vonHand={fenster.quelle === 'hand'} laender={laender} />}
               {reiter === 'laender' && (
                 <div className="max-w-2xl">
                   <h2 className="mb-3 text-lg font-black uppercase tracking-wide text-slate-100"><T>Spieler nach Land</T></h2>
