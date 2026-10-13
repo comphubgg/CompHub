@@ -39,6 +39,9 @@ export default function AlteMapsVerwaltung() {
   const [neuOffen, setNeuOffen] = useState(false);
   const [neu, setNeu] = useState({ cup: '', fenster: '', saison: '', datum: '', lan: false });
   const [status, setStatus] = useState('');
+  const [bildOffen, setBildOffen] = useState(false);
+  const [bilder, setBilder] = useState<Array<{ u: string; titel: string }>>([]);
+  const [bildStatus, setBildStatus] = useState('');
 
   const laden = () => Promise.all([
     fetch('/api/alte-maps?liste=1', { cache: 'no-store' }).then((r) => r.json()),
@@ -92,6 +95,21 @@ export default function AlteMapsVerwaltung() {
       setStatus('Angelegt.'); setNeu({ ...neu, fenster: '' });
       await laden();
     } catch { setStatus('Nicht gespeichert.'); }
+  };
+
+  /** Das Inselbild fuer alle gerade angezeigten Karten setzen - sonst waeren es hundert einzelne Klicks. */
+  const bilderLaden = async () => {
+    setBildOffen((v) => !v); setBildStatus('');
+    if (bilder.length) return;
+    const j = await fetch('/api/maps-bild', { cache: 'no-store' }).then((r) => r.json()).catch(() => null);
+    if (j?.ok) setBilder(j.auswahl ?? []);
+  };
+  const bildFuerAlle = async (u: string) => {
+    if (!sichtbar.length || !window.confirm(`Dieses Kartenbild für alle ${sichtbar.length} angezeigten Karten setzen?`)) return;
+    setBildStatus('…');
+    const r = await fetch('/api/maps-bild', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ws: sichtbar.map((e) => e.windowId), u }) });
+    const j = await r.json().catch(() => ({}));
+    setBildStatus(j?.ok ? `Für ${j.gesetzt} Karten gesetzt.` : (j?.error || 'Nicht gespeichert.'));
   };
 
   const verstecken = async (w: string, versteckt: boolean) => {
@@ -226,7 +244,24 @@ export default function AlteMapsVerwaltung() {
                 </h2>
                 <input value={suche} onChange={(e) => setSuche(e.target.value)} placeholder={t('Karte suchen …')} className={`${feld} w-full max-w-[220px]`} />
                 <label className="flex items-center gap-2 text-xs font-semibold text-slate-400"><input type="checkbox" checked={nurLeere} onChange={(e) => setNurLeere(e.target.checked)} /> <T>nur ohne Formen</T></label>
+                <button type="button" onClick={() => void bilderLaden()} disabled={!sichtbar.length}
+                  className="ml-auto rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-slate-200 transition hover:border-sky-500/60 disabled:opacity-40"><T>Kartenbild für alle hier setzen</T></button>
               </div>
+              {bildOffen && (
+                <div className="mb-3 rounded-xl border border-white/[0.08] bg-black/30 p-2">
+                  <p className="mb-2 px-1 text-[11px] text-slate-400"><T>Eine Insel auswählen - sie gilt danach für alle angezeigten Karten. Einzelne änderst du später im Editor.</T> {bildStatus && <span className="ml-2 font-semibold text-sky-300">{bildStatus}</span>}</p>
+                  <div className="grid grid-cols-4 gap-2 sm:grid-cols-6 lg:grid-cols-10">
+                    {bilder.map((a) => (
+                      <button key={a.u} type="button" title={a.titel} onClick={() => void bildFuerAlle(a.u)}
+                        className="overflow-hidden rounded-lg border border-white/10 text-left transition hover:border-sky-500/60">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={encodeURI(a.u)} alt="" loading="lazy" className="aspect-square w-full object-cover" />
+                        <span className="block truncate px-1.5 py-1 text-[9px] font-semibold uppercase tracking-wide text-slate-400">{a.titel}</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               {sichtbar.length === 0 ? (
                 <p className="rounded-xl border border-white/[0.07] bg-white/[0.03] px-4 py-8 text-center text-sm text-slate-500"><T>Hier steht noch nichts. Mit „Event anlegen“ kommt die erste Karte dazu.</T></p>
               ) : (

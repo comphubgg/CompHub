@@ -94,15 +94,17 @@ export async function GET(request: Request) {
 
 export async function POST(request: Request) {
   if (!await istAdminAnfrage(request)) return NextResponse.json({ ok: false, error: 'Nur für den Admin.' }, { status: 403 });
-  const k = await request.json().catch(() => ({})) as { w?: string; u?: string };
-  const w = String(k.w ?? '').slice(0, 200);
+  const k = await request.json().catch(() => ({})) as { w?: string; ws?: string[]; u?: string };
+  // Ein Fenster (w) oder viele auf einmal (ws) - Letzteres fuer die Verwaltung der alten Maps: dieselbe Insel fuer eine ganze Saison.
+  const ziele = (Array.isArray(k.ws) ? k.ws : [k.w]).map((x) => String(x ?? '').slice(0, 200)).filter(Boolean).slice(0, 400);
+  const w = ziele[0] ?? '';
   const u = String(k.u ?? '');
   if (!w) return NextResponse.json({ ok: false, error: 'Fenster fehlt.' }, { status: 400 });
   if (u && !(EIGEN.test(u) && [...AUSWAHL, ...await hochgeladene()].some((a) => a.u === u))) {
     return NextResponse.json({ ok: false, error: 'Dieses Bild steht nicht zur Wahl.' }, { status: 400 });
   }
   const wahl = await liesJson<Record<string, string>>(DATEI, {});
-  if (u) wahl[w] = u; else delete wahl[w];
+  for (const z of ziele) { if (u) wahl[z] = u; else delete wahl[z]; }
   await schreibJson(DATEI, wahl);
-  return NextResponse.json({ ok: true, u: u || null }, { headers: { 'Cache-Control': 'no-store' } });
+  return NextResponse.json({ ok: true, u: u || null, gesetzt: ziele.length }, { headers: { 'Cache-Control': 'no-store' } });
 }
