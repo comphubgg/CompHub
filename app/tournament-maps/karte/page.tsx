@@ -21,7 +21,7 @@ import { useZugang } from '@/app/lib/zugang';
 import type { SolosFenster } from '@/lib/globalsSolos';
 import { Karte } from '@/app/globals-solos/Bausteine';
 import LaenderListe from '@/app/components/LaenderListe';
-import { TeamKarten, RangTabelle, RangAusTeams } from './Mannschaften';
+import { TeamKarten, RangTabelle, RangAusTeams, Platzierungen, type PlatzZeile } from './Mannschaften';
 import CupTierlist from './CupTierlist';
 
 interface Eintrag {
@@ -59,6 +59,8 @@ export default function KartenSeite() {
   /** Bei einem Finale an zwei Tagen: welcher Tag gerade gilt ("gesamt", "1", "2"). */
   const [tag, setTag] = useState('gesamt');
   const [tage, setTage] = useState<Array<{ name: string; windowId: string }>>([]);
+  /** Die ersten Plaetze eines FNCS-Endspiels (Eckdaten) - fuer Events, zu denen Epic keine Bestenliste mehr fuehrt. */
+  const [platzierungen, setPlatzierungen] = useState<PlatzZeile[]>([]);
   const [liste, setListe] = useState<Eintrag[]>([]);
   const [fehler, setFehler] = useState('');
   const [reiter, setReiter] = useState<Reiter>('karte');
@@ -77,7 +79,7 @@ export default function KartenSeite() {
   // Ein anderer Spieltag: alles zurueck auf Anfang (die Karte wird neu geholt, der Tag steht wieder auf "gesamt").
   useEffect(() => {
     if (!params) return;
-    setFenster(null); setFehler(''); setTag('gesamt'); setTage([]);
+    setFenster(null); setFehler(''); setTag('gesamt'); setTage([]); setPlatzierungen([]);
   }, [params]);
 
   // Die Karte samt Teams - ein anderer Tag holt nur die Teams neu, die Karte bleibt stehen.
@@ -86,7 +88,7 @@ export default function KartenSeite() {
     let weg = false;
     fetch(`/api/maps-karte?t=${encodeURIComponent(params.t)}&r=${encodeURIComponent(params.r)}&w=${encodeURIComponent(params.w)}&tag=${encodeURIComponent(tag)}`, { cache: 'no-store' })
       .then((x) => x.json())
-      .then((j) => { if (weg) return; if (j?.ok) { setFenster(j.fenster); setTage(j.tage ?? []); } else setFehler(j?.error || 'Die Karte ließ sich nicht laden.'); })
+      .then((j) => { if (weg) return; if (j?.ok) { setFenster(j.fenster); setTage(j.tage ?? []); setPlatzierungen(j.platzierungen ?? []); } else setFehler(j?.error || 'Die Karte ließ sich nicht laden.'); })
       .catch(() => { if (!weg) setFehler('Die Karte ließ sich nicht laden.'); });
     return () => { weg = true; };
   }, [params, tag]);
@@ -118,6 +120,14 @@ export default function KartenSeite() {
   const teamSpiel = (fenster?.teams ?? []).some((x) => x.spieler.length > 1);
   const bild = wahlBild ?? fenster?.bild ?? null;
   const zustand = stand(meta, fenster);
+  /** Gibt es zu dieser Karte keine Bestenliste (weder Epic noch vom Admin), stehen die ersten Plaetze aus den Eckdaten da. */
+  const nurPlatzierungen = platzierungen.length > 0 && !(fenster?.teams ?? []).some((x) => x.rang != null) && !(!meta?.alt && meta?.eventId);
+  /** Welche Epic-Fenster die Bestenliste gerade zusammenrechnet: bei zwei Tagen alle ("gesamt") oder der gewaehlte. */
+  const tageFenster = useMemo(() => {
+    if (tage.length < 2) return [] as string[];
+    const nr = Number(tag);
+    return Number.isInteger(nr) && nr >= 1 && nr <= tage.length ? [tage[nr - 1].windowId] : tage.map((d) => d.windowId);
+  }, [tage, tag]);
 
   const bildSpeichern = useCallback(async (u: string) => {
     if (!params) return;
@@ -261,16 +271,23 @@ export default function KartenSeite() {
                     <aside className="lg:sticky lg:top-4">
                       <h2 className="mb-2 text-sm font-black uppercase tracking-[0.14em] text-slate-300"><T>Leaderboard</T></h2>
                       <div className="max-h-[80vh] overflow-y-auto rounded-xl">
-                        <RangAusTeams teams={fenster.teams ?? []} schmal />
+                        {nurPlatzierungen ? <Platzierungen zeilen={platzierungen} schmal />
+                          : !meta?.alt && meta?.eventId
+                          ? <RangTabelle eventId={meta.eventId} windowId={tageFenster.length === 1 ? tageFenster[0] : fenster.windowId}
+                              windows={tageFenster.length > 1 ? tageFenster : undefined} laender={laender} schmal
+                              anzeigen={new Map((fenster.teams ?? []).flatMap((x) => x.spieler.map((s) => [s.id, s.anzeige] as const)))} />
+                          : <RangAusTeams teams={fenster.teams ?? []} schmal />}
                       </div>
                     </aside>
                   </div>
                 </div>
               )}
               {reiter === 'spieler' && <TeamKarten teams={fenster.teams ?? []} />}
-              {reiter === 'leaderboard' && (meta?.alt
+              {reiter === 'leaderboard' && (nurPlatzierungen ? <Platzierungen zeilen={platzierungen} />
+                : meta?.alt
                 ? <RangAusTeams teams={fenster.teams ?? []} />
-                : <RangTabelle eventId={meta?.eventId ?? null} windowId={fenster.windowId} laender={laender}
+                : <RangTabelle eventId={meta?.eventId ?? null} windowId={tageFenster.length === 1 ? tageFenster[0] : fenster.windowId}
+                    windows={tageFenster.length > 1 ? tageFenster : undefined} laender={laender}
                     anzeigen={new Map((fenster.teams ?? []).flatMap((x) => x.spieler.map((s) => [s.id, s.anzeige] as const)))} />)}
               {reiter === 'tierlist' && <CupTierlist windowId={fenster.windowId} teams={fenster.teams ?? []} />}
               {reiter === 'laender' && (

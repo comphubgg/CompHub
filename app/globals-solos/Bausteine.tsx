@@ -256,6 +256,7 @@ export function Karte({ f, bild, rotAb = 2 }: {
         <div ref={ebene} className="absolute inset-0 origin-top-left" style={{ '--z': 1 } as React.CSSProperties}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={kartenQuelle(bild)} alt={t('Karte')} draggable={false}
+            onError={(ev) => { const el = ev.currentTarget; if (!el.dataset.ersatz) { el.dataset.ersatz = '1'; el.src = fortniteKarte(false); } }}
             className="pointer-events-none absolute inset-0 h-full w-full object-cover" />
 
           {/* thecomphub.com, wie auf jeder Karte - unter den Formen. */}

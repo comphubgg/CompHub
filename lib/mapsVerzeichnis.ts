@@ -90,6 +90,16 @@ export async function mapsVerzeichnis(): Promise<MapEintrag[]> {
   const imArchiv = new Map<string, ArchivEintrag>();
   for (const a of archiv) if (a.windowId) imArchiv.set(a.windowId, a);
 
+  /** Nobles Finale traegt beide Tage in einem Fenster (..._Final_EU); Epics Archiv fuehrt Day 1 und Day 2 - daraus kommen Bestenliste und Tag-Umschalter. */
+  const tageVon = (wid: string) => {
+    const m = /^(S\d+_FNCSMajor\d)_Final_EU$/.exec(wid);
+    if (!m) return null;
+    const t1 = imArchiv.get(`${m[1]}_Final_Day1_EU`);
+    const t2 = imArchiv.get(`${m[1]}_Final_Day2_EU`);
+    if (!t1?.eventId || !t1.windowId || !t2?.windowId) return null;
+    return { eventId: t1.eventId, begin: t1.begin, end: t2.end, tage: [t1, t2].map((x, i) => ({ name: `Day ${i + 1}`, windowId: x.windowId as string, eventId: x.eventId ?? null })) };
+  };
+
   const liste: MapEintrag[] = [];
   let versteckt: MapEintrag[] = [];
   await Promise.all(turniere.flatMap((t) => (t.regions ?? []).map(async (r) => {
@@ -97,6 +107,7 @@ export async function mapsVerzeichnis(): Promise<MapEintrag[]> {
       const d = await detail(t.id, r.code);
       for (const w of d.tournamentData?.windows ?? []) {
         const a = imArchiv.get(w.windowId);
+        const tv = a ? null : tageVon(w.windowId);
         const typ = typVon(`${t.tournamentName} ${a?.titel ?? ''}`);
         const saison = (w.windowId.match(/^(S\d+)_/) ?? [])[1] ?? '';
         const datum = w.startDate ? Date.parse(w.startDate) : (a?.begin ?? null);
@@ -106,7 +117,8 @@ export async function mapsVerzeichnis(): Promise<MapEintrag[]> {
           datum: Number.isFinite(datum as number) ? datum : null,
           saison, saisonKurz: '', saisonName: '',
           typ, bild: cupBild(`${t.tournamentName} ${a?.titel ?? ''}`) ?? a?.bild ?? BILD_JE_TYP[typ],
-          eventId: a?.eventId ?? null, ende: w.endDate ? Date.parse(w.endDate) : (a?.end ?? null),
+          eventId: a?.eventId ?? tv?.eventId ?? null, ende: w.endDate ? Date.parse(w.endDate) : (a?.end ?? tv?.end ?? null),
+          tage: tv?.tage,
         });
       }
     } catch { /* dieses Turnier ueberspringen */ }

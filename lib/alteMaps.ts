@@ -212,6 +212,31 @@ function epicKennungen(saison: string, titel: string): string[] {
 
 interface ArchivEintrag { windowId?: string; eventId?: string; titel?: string; bild?: string; begin?: number; end?: number; region?: string }
 
+const tag = (j: number, m: number, d: number) => Date.UTC(j, m - 1, d, 12);
+/**
+ * Die Tage der alten Endspiele - oeffentliche Tatsachen (an welchem Tag das Finale gespielt wurde). Wo Epics Archiv ein Fenster
+ * fuehrt, gilt dessen Beginn; fuer die uebrigen Spieltage steht kein Datum da.
+ */
+const DATUM_KATALOG: Record<string, number> = {
+  'S14|FNCS Grand Finals': tag(2020, 11, 1),
+  'S15|FNCS Grand Finals': tag(2021, 3, 14),
+  'S16|FNCS Grand Finals': tag(2021, 5, 30),
+  'S17|FNCS All-Star Showdown': tag(2021, 6, 26),
+  'S17|FNCS Grand Finals': tag(2021, 9, 5),
+  'S18|FNCS Grand Finals': tag(2021, 10, 31),
+  'S18|FNCS Grand Royale': tag(2021, 11, 21),
+  'S19|FNCS Grand Finals': tag(2022, 3, 6),
+  'S20|FNCS Grand Finals': tag(2022, 5, 29),
+  'S21|FNCS Grand Finals': tag(2022, 8, 14),
+  'S22|FNCS Invitational 2022': tag(2022, 11, 13),
+  'S23|FNCS Grand Finals': tag(2023, 3, 4),
+  'S24|FNCS Grand Finals': tag(2023, 5, 14),
+  'S25|FNCS Grand Finals': tag(2023, 8, 13),
+  'S26|FNCS Global Championship 2023 Grand Finals': tag(2023, 10, 16),
+  'S28|FNCS Grand Finals': tag(2024, 2, 25),
+  'S29|FNCS Grand Finals': tag(2024, 5, 19),
+};
+
 /** Der Spieltag aus dem Namen der Karte: alles hinter dem Cup-Namen ("Finals - Week 8"); ohne Rest "Finals". */
 function spieltagVon(cup: string, titel: string): string {
   const rest = titel.startsWith(cup) ? titel.slice(cup.length).replace(/^[\s-]+/, '') : titel;
@@ -242,7 +267,7 @@ function ausKatalog(archiv: ArchivEintrag[], typVon: (n: string) => MapTyp): Alt
       raus.push({
         windowId: wid, turnierId: `${ALT}${k.saison}-${slug(k.cup)}`,
         cup: k.cup, fenster: spieltagVon(k.cup, titel), titel, saison: k.saison, typ,
-        datum: ohneDatum ? null : (erste?.begin ?? null), ende: ohneDatum ? null : (gefunden[gefunden.length - 1]?.end ?? null),
+        datum: ohneDatum ? null : (erste?.begin ?? DATUM_KATALOG[`${k.saison}|${titel}`] ?? null), ende: ohneDatum ? null : (gefunden[gefunden.length - 1]?.end ?? null),
         eventId,
         bild: cupBild(titel) ?? cupBild(k.cup) ?? (typ === 'fncs' ? '/cups/fncs-major.webp' : epicBild),
         lan: k.lan, reihe, quelle: 'katalog',

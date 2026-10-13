@@ -89,25 +89,74 @@ export function RangAusTeams({ teams, schmal = false }: { teams: SolosTeam[]; /*
   );
 }
 
+export interface PlatzZeile { rang: number; punkte: number | null; preis?: string; spieler: Array<{ name: string; land: string | null }> }
+
+/** Die ersten Plaetze eines Endspiels (Eckdaten): Platz, Team mit Flaggen, Punkte oder Preisgeld - fuer Events ohne Bestenliste bei Epic. */
+export function Platzierungen({ zeilen, schmal = false }: { zeilen: PlatzZeile[]; schmal?: boolean }) {
+  if (!zeilen.length) return <p className="text-sm text-slate-500"><T>Für diesen Spieltag liegt noch keine Bestenliste vor.</T></p>;
+  const mitPunkte = zeilen.some((z) => z.punkte != null);
+  const mitPreis = zeilen.some((z) => z.preis);
+  return (
+    <div className="overflow-hidden rounded-xl border border-white/[0.08] bg-zinc-900/40">
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="border-b border-white/[0.08] text-left text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+            <th className="w-10 px-3 py-2">#</th><th className="px-3 py-2"><T>Team</T></th>
+            {mitPunkte && <th className="w-16 px-3 py-2 text-right">Pts</th>}
+            {mitPreis && <th className={`px-3 py-2 text-right ${schmal ? 'w-16' : 'w-24'}`}><T>Preisgeld</T></th>}
+          </tr>
+        </thead>
+        <tbody>
+          {zeilen.map((z) => (
+            <tr key={z.rang} className="border-b border-white/[0.04]">
+              <td className={`px-3 py-2 text-[11px] font-black tabular-nums ${z.rang === 1 ? 'text-amber-300' : 'text-slate-500'}`}>{z.rang}</td>
+              <td className="px-3 py-2">
+                <span className="flex items-center gap-2.5">
+                  <TeamFlagge groesse={z.spieler.length > 1 ? 28 : 20} laender={z.spieler.map((p) => p.land)} />
+                  <span className="flex flex-col text-[11px] font-bold uppercase leading-[1.25] text-slate-100">
+                    {z.spieler.map((p) => <span key={p.name}>{p.name}</span>)}
+                  </span>
+                </span>
+              </td>
+              {mitPunkte && <td className="px-3 py-2 text-right font-bold tabular-nums text-slate-100">{z.punkte ?? ''}</td>}
+              {mitPreis && <td className="px-3 py-2 text-right font-bold tabular-nums text-emerald-400">{z.preis ?? ''}</td>}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 interface Zeile {
   rank: number; points: number; wins: number; elims: number; games: number;
   players: Array<{ id: string; name?: string; displayName?: string }>;
 }
 
 /** Die Bestenliste: Platz, das ganze Team mit Flaggen, Punkte, Siege (VR) und Eliminierungen. */
-export function RangTabelle({ eventId, windowId, laender, anzeigen }: { eventId: string | null; windowId: string; laender: Map<string, string | null>; /** Die Namen, wie das Werkzeug sie kennt (ohne Orgtag), je Konto. */ anzeigen?: Map<string, string> }) {
+export function RangTabelle({ eventId, windowId, windows, laender, anzeigen, schmal = false }: {
+  eventId: string | null; windowId: string;
+  /** Mehrere Spieltage zusammen (Day 1 + Day 2): ihre Fenster-Kennungen - dann gilt windowId nicht. */
+  windows?: string[];
+  laender: Map<string, string | null>;
+  /** Die Namen, wie das Werkzeug sie kennt (ohne Orgtag), je Konto. */ anzeigen?: Map<string, string>;
+  /** Die schmale Fassung neben der Karte: nur Platz, Team und Punkte. */ schmal?: boolean;
+}) {
+  const fensterSchluessel = windows && windows.length > 1 ? windows.join(',') : '';
   const [zeilen, setZeilen] = useState<Zeile[] | null>(null);
   const [fehler, setFehler] = useState(false);
 
   useEffect(() => {
     if (!eventId) { setFehler(true); return undefined; }
     let weg = false;
-    fetch(`/api/cup-leaderboard?event=${encodeURIComponent(eventId)}&window=${encodeURIComponent(windowId)}&limit=100`, { cache: 'no-store' })
+    setZeilen(null); setFehler(false);
+    const ziel = fensterSchluessel ? `windows=${encodeURIComponent(fensterSchluessel)}` : `window=${encodeURIComponent(windowId)}`;
+    fetch(`/api/cup-leaderboard?event=${encodeURIComponent(eventId)}&${ziel}&limit=100`, { cache: 'no-store' })
       .then((r) => r.json())
       .then((j) => { if (weg) return; if (Array.isArray(j?.entries)) setZeilen(j.entries); else setFehler(true); })
       .catch(() => { if (!weg) setFehler(true); });
     return () => { weg = true; };
-  }, [eventId, windowId]);
+  }, [eventId, windowId, fensterSchluessel]);
 
   if (fehler) return <p className="text-sm text-slate-500"><T>Für diesen Spieltag liegt noch keine Bestenliste vor.</T></p>;
   if (!zeilen) return <LadeSchirm />;
@@ -118,8 +167,10 @@ export function RangTabelle({ eventId, windowId, laender, anzeigen }: { eventId:
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-white/[0.08] text-left text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
-            <th className="w-12 px-3 py-2">#</th><th className="px-3 py-2"><T>Team</T></th>
-            <th className="w-16 px-3 py-2 text-right">Pts</th><th className="w-14 px-3 py-2 text-right" title="Victory Royales">VR</th><th className="w-16 px-3 py-2 text-right">Elims</th>
+            <th className="w-10 px-3 py-2">#</th><th className="px-3 py-2"><T>Team</T></th>
+            <th className="w-16 px-3 py-2 text-right">Pts</th>
+            {!schmal && <th className="w-14 px-3 py-2 text-right" title="Victory Royales">VR</th>}
+            {!schmal && <th className="w-16 px-3 py-2 text-right">Elims</th>}
           </tr>
         </thead>
         <tbody>
@@ -135,8 +186,8 @@ export function RangTabelle({ eventId, windowId, laender, anzeigen }: { eventId:
                 </span>
               </td>
               <td className="px-3 py-2 text-right font-bold tabular-nums text-slate-100">{z.points}</td>
-              <td className="px-3 py-2 text-right tabular-nums text-slate-300">{z.wins}</td>
-              <td className="px-3 py-2 text-right tabular-nums text-slate-300">{z.elims}</td>
+              {!schmal && <td className="px-3 py-2 text-right tabular-nums text-slate-300">{z.wins}</td>}
+              {!schmal && <td className="px-3 py-2 text-right tabular-nums text-slate-300">{z.elims}</td>}
             </tr>
           ))}
         </tbody>

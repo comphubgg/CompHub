@@ -76,7 +76,16 @@ export async function GET(request: Request) {
       return new NextResponse(da.daten, { headers: { 'Content-Type': da.typ, 'Cache-Control': 'public, max-age=86400, s-maxage=604800' } });
     }
     try {
-      const r = await fetch(u, { signal: AbortSignal.timeout(20_000) });
+      let r = await fetch(u, { signal: AbortSignal.timeout(20_000) });
+      // Gibt es die Karte genau dieser Spielversion nicht, gilt die einer anderen Ausgabe derselben Saison (gleiche Insel, kleine Aenderungen).
+      const ver = /^(https:\/\/nobleprac\.com\/maps\/)(\d+)\.(\d+)(\/map\.png)$/i.exec(u);
+      if (!r.ok && ver) {
+        for (const minor of ['00', '10', '11', '20', '21', '30', '31', '40', '41', '50']) {
+          if (minor === ver[3]) continue;
+          const ersatz = await fetch(`${ver[1]}${ver[2]}.${minor}${ver[4]}`, { signal: AbortSignal.timeout(20_000) }).catch(() => null);
+          if (ersatz?.ok) { r = ersatz; break; }
+        }
+      }
       if (!r.ok) return NextResponse.json({ ok: false, error: 'Bild nicht erreichbar.' }, { status: 502 });
       const daten = await r.arrayBuffer();
       const typ = r.headers.get('content-type') ?? 'image/png';

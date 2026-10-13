@@ -182,13 +182,26 @@ function fensterAus(w: { windowId: string; name: string; startDate?: string; end
     start: w.startDate ?? null, end: w.endDate ?? null,
     spieler,
     teams: teamListe,
-    bild: d?.windowData?.map?.withoutPOINames ?? null,
+    bild: saubereKarte(d?.windowData?.map?.withoutPOINames),
     formen: formen.map((f) => ({
       punkte: f.punkte,
       spieler: f.teams.flatMap((t) => t.ids.map((id) => nachId.get(id)?.anzeige ?? '')).filter(Boolean),
       teams: f.teams.length,
     })),
   };
+}
+
+/**
+ * Das Kartenbild ohne fremdes Logo.
+ *
+ * Der Betreiber (13.10.2026): "bei der Global Championship ist die Map von Noble drin, mit dem Noble-Logo und allem. Mein Logo muss
+ * dort sein, nicht Noble. Es darf nirgendwo ein Noble-Logo drin sein." Das Bild, das Noble je Fenster nennt (map-10.png), traegt
+ * ihr Logo und ein Wasserzeichen quer ueber die Insel. Die Karte der Spielversion selbst liegt daneben als map.png - ohne beides.
+ * Das Wasserzeichen der Seite ("thecomphub.com") legt die Kartenansicht darueber.
+ */
+export function saubereKarte(url?: string | null): string | null {
+  if (!url) return null;
+  return url.replace(/\/map-\d+\.png$/i, '/map.png');
 }
 
 /** Das Fenster irgendeines Noble-Turniers - fuer die Maps-Seiten (jeder Cup, jede Karte). */
