@@ -38,7 +38,9 @@ export async function GET(req: NextRequest) {
     const grund = req.nextUrl.searchParams.get('error_description')
       || req.nextUrl.searchParams.get('error') || '';
     const anhang = grund ? `&grund=${encodeURIComponent(grund.slice(0, 200))}` : '';
-    return zurueck(`/account?epic=abgebrochen${anhang}`);
+    const abbruch = zurueck(`/account?epic=abgebrochen${anhang}`);
+    abbruch.cookies.set('epic_oauth_art', '', { path: '/', maxAge: 0 });
+    return abbruch;
   }
   if (!state || !gemerkt || state.length !== gemerkt.length
       || !crypto.timingSafeEqual(Buffer.from(state), Buffer.from(gemerkt))) {
@@ -56,7 +58,7 @@ export async function GET(req: NextRequest) {
       body: new URLSearchParams({
         grant_type: 'authorization_code',
         code,
-        scope: 'basic_profile',
+        scope: req.cookies.get('epic_oauth_art')?.value === 'freunde' ? 'basic_profile friends_list' : 'basic_profile',
         redirect_uri: `${dienstWurzel(req)}/api/auth/epic/callback`,
       }),
     });
@@ -73,6 +75,26 @@ export async function GET(req: NextRequest) {
     epicId = epicId.replace(/-/g, '').toLowerCase();
     if (!/^[0-9a-f]{32}$/.test(epicId)) return zurueck('/account?epic=profil');
 
+    // Der Weg "Freunde freigeben" (app/api/auth/epic/freunde): dasselbe Epic-Konto, dazu die Freundesliste mit Epics Zustimmung.
+    if (req.cookies.get('epic_oauth_art')?.value === 'freunde') {
+      const loeschen = (a: NextResponse) => {
+        a.cookies.set('epic_oauth_state', '', { path: '/', maxAge: 0 });
+        a.cookies.set('epic_oauth_art', '', { path: '/', maxAge: 0 });
+        return a;
+      };
+      if (!konto.epicVerifiziert || konto.epicId !== epicId) return loeschen(zurueck('/account?epic=freunde-anderes-konto'));
+      const liste = await fetch(`https://api.epicgames.dev/epic/friends/v1/${epicId}/friends`, {
+        headers: { Authorization: `Bearer ${token.access_token ?? ''}` },
+      });
+      if (!liste.ok) return loeschen(zurueck('/account?epic=freunde-fehler'));
+      const roh = await liste.json().catch(() => null) as unknown;
+      const eintraege: unknown[] = Array.isArray(roh) ? roh : Array.isArray((roh as { friends?: unknown[] } | null)?.friends) ? (roh as { friends: unknown[] }).friends : [];
+      const ids = [...new Set(eintraege.map((f) => String(typeof f === 'string' ? f : ((f as { accountId?: string; id?: string })?.accountId ?? (f as { id?: string })?.id ?? ''))
+        .replace(/-/g, '').toLowerCase()).filter((x) => /^[0-9a-f]{32}$/.test(x)))];
+      await aendern(konto.id, { epicFreunde: ids, epicFreundeStand: Date.now() });
+      return loeschen(zurueck('/account?epic=freunde'));
+    }
+
     const anderes = await nachEpicId(epicId);
     if (anderes && anderes.id !== konto.id) return zurueck('/account?epic=vergeben');
     if (konto.epicId && konto.epicId !== epicId && !konto.epicVerifiziert) {
@@ -83,6 +105,7 @@ export async function GET(req: NextRequest) {
     await aendern(konto.id, { epicId, epicVerifiziert: true });
     const antwort = zurueck('/account?epic=verbunden');
     antwort.cookies.set('epic_oauth_state', '', { path: '/', maxAge: 0 });
+    antwort.cookies.set('epic_oauth_art', '', { path: '/', maxAge: 0 });
     return antwort;
   } catch {
     return zurueck('/account?epic=unerwartet');

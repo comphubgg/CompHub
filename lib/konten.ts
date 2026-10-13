@@ -65,6 +65,13 @@ export interface Konto {
   /** Hat Epic selbst bestaetigt, dass das Konto diesem Spieler gehoert (Verknuepfung ueber "Mit Epic Games verbinden")? */
   epicVerifiziert?: boolean;
   /**
+   * Die Epic-Freunde (Konto-Ids), die der Spieler fuer das Freunde-Leaderboard freigegeben hat - mit Epic-Zustimmung "friends_list" geholt
+   * (app/api/auth/epic/freunde). Nur die Ids, kein Name; die Namen stehen ohnehin in jeder Bestenliste.
+   */
+  epicFreunde?: string[];
+  /** Wann die Freundesliste zuletzt geholt wurde (ms). */
+  epicFreundeStand?: number;
+  /**
    * Was dieses Konto darf.
    *
    * Ohne Angabe ist es ein gewoehnlicher Nutzer.

@@ -49,6 +49,8 @@ export const SEKTIONEN: Sektion[] = [
   { schluessel: 'overlays', pfad: '/overlays', titel: 'Overlays' },
   { schluessel: 'maps', pfad: '/tournament-maps', titel: 'Maps' },
   { schluessel: 'fncs', pfad: '/fncs', titel: 'FNCS' },
+  // Die Replay-Seiten (13.10.2026): jedes ausgewertete Game zum Abspielen, in 2D und 3D.
+  { schluessel: 'replays', pfad: '/replays', titel: 'Replays' },
   // Die Globals-Seiten fuer VIPs (Teams, Karte, Prognosen, Overlays). Seit 11.10.2026 schaltbar: offline heisst fuer
   // alle ausser dem Admin weg, nicht geloescht.
   { schluessel: 'globals', pfad: '/globals', titel: 'Globals (VIP)' },

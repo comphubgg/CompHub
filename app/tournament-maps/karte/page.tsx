@@ -62,6 +62,8 @@ export default function KartenSeite() {
   const [tage, setTage] = useState<Array<{ name: string; windowId: string }>>([]);
   /** Die ersten Plaetze eines FNCS-Endspiels (Eckdaten) - fuer Events, zu denen Epic keine Bestenliste mehr fuehrt. */
   const [platzierungen, setPlatzierungen] = useState<PlatzZeile[]>([]);
+  /** Gibt es zu diesem Spieltag ausgewertete Replays (Seite /replays)? */
+  const [hatReplays, setHatReplays] = useState(false);
   const [liste, setListe] = useState<Eintrag[]>([]);
   const [fehler, setFehler] = useState('');
   const [reiter, setReiter] = useState<Reiter>('karte');
@@ -101,6 +103,14 @@ export default function KartenSeite() {
       .then((x) => x.json())
       .then((j) => { if (!weg && j?.ok) { setWahlBild(j.u ?? null); setAuswahl(j.auswahl ?? []); } })
       .catch(() => { /* ohne Wahl gilt das Bild der Spielversion */ });
+    return () => { weg = true; };
+  }, [params]);
+
+  useEffect(() => {
+    if (!params) return undefined;
+    let weg = false;
+    setHatReplays(false);
+    fetch(`/api/replay?tag=${encodeURIComponent(params.w)}`).then((x) => { if (!weg && x.ok) setHatReplays(true); }).catch(() => { /* ohne Auskunft kein Knopf */ });
     return () => { weg = true; };
   }, [params]);
 
@@ -167,6 +177,9 @@ export default function KartenSeite() {
                 {meta?.lan && <span className="rounded bg-amber-400 px-1.5 py-0.5 font-black text-zinc-950">LAN</span>}
                 {meta?.saisonKurz && <span>{meta.saisonKurz}{meta.saisonTitel ? ` — ${meta.saisonTitel}` : ''}</span>}
                 {meta?.region && <span className="rounded bg-white/10 px-1.5 py-0.5 text-slate-200">{regionAnzeige(meta)}</span>}
+                {hatReplays && params && (
+                  <Link href={`/replays/${encodeURIComponent(params.w)}`} className="rounded bg-sky-500 px-1.5 py-0.5 font-black text-white transition hover:bg-sky-400">▶ Replays</Link>
+                )}
                 {(fenster?.teams ?? []).length > 0 && <span className="rounded bg-white/10 px-1.5 py-0.5 text-slate-200">{(fenster?.teams ?? []).length} <T>Teams</T></span>}
                 {(fenster?.start || meta?.datum) && <span>{LANG.format(new Date(fenster?.start ?? (meta?.datum as number)))}</span>}
                 {zustand && (

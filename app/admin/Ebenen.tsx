@@ -54,6 +54,7 @@ const FUER_ALLE: Ziel[] = [
   { href: '/tierlist', titel: 'Tierlist', text: 'Spieler und Trios einsortieren', symbol: 'tierlist' },
   { href: '/tournament-maps', titel: 'Maps', text: 'Wo die Teams gelandet sind — jeder Cup', symbol: 'karte' },
   { href: '/fncs', titel: 'FNCS', text: 'Alle Endspiele und die Eliminierungen der Grand Finals', symbol: 'events' },
+  { href: '/replays', titel: 'Replays', text: 'Jedes Game zum Abspielen: Zone, Eliminierungen, 2D und 3D', symbol: 'karte' },
   { href: '/globals-solos', titel: 'Globals Solos', text: 'Qualifizierte, Heats und Karten der FNCS Solos', symbol: 'solos' },
   { href: '/predictions', titel: 'Prognosen', text: 'Tipp auf den Ausgang', symbol: 'prognose' },
 ];

@@ -37,6 +37,8 @@ const navItems = [
   { href: '/tournament-maps', label: 'Maps', schluessel: 'maps' },
   // Die FNCS-Seite (13.10.2026): alle Endspiele und die Eliminierungen der Grand Finals.
   { href: '/fncs', label: 'FNCS', schluessel: 'fncs' },
+  // Die Replay-Seiten (13.10.2026): jedes ausgewertete Game zum Abspielen.
+  { href: '/replays', label: 'Replays', schluessel: 'replays' },
 ];
 
 export default function MainHeader({ sektionenAnfang }: {

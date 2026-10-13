@@ -41,6 +41,8 @@ export async function GET(req: NextRequest) {
     state,
   });
   const antwort = NextResponse.redirect(`https://www.epicgames.com/id/authorize?${params.toString()}`);
+  // Ein liegengebliebener Freunde-Weg darf das normale Verknuepfen nicht auf die Freundesliste umstellen.
+  antwort.cookies.set('epic_oauth_art', '', { path: '/', maxAge: 0 });
   antwort.cookies.set('epic_oauth_state', state, {
     httpOnly: true, sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',

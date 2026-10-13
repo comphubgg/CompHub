@@ -31,6 +31,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
     ['/overlays', 0.4, 'monthly'],
     ['/tournament-maps', 0.5, 'weekly'],
     ['/fncs', 0.5, 'weekly'],
+    ['/replays', 0.6, 'daily'],
     ['/privacy', 0.2, 'yearly'],
     ['/terms', 0.2, 'yearly'],
   ];

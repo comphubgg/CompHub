@@ -224,6 +224,8 @@ export default function KontoSeite() {
   /** Was Epic nach der Rueckkehr gemeldet hat (verbunden, abgebrochen, vergeben ...). */
   const [epicMeldung, setEpicMeldung] = useState('');
   const [epicTrennFehler, setEpicTrennFehler] = useState('');
+  /** Wie viele Epic-Freunde fuer das Freunde-Leaderboard freigegeben sind (null: noch nicht geladen). */
+  const [freunde, setFreunde] = useState<{ anzahl: number; stand: number | null } | null>(null);
   /** Zuletzt nachgeschlagene Spieler - haengt am Konto, nicht am Browser. */
   const [spielerVerlauf, setSpielerVerlauf] =
     useState<Array<{ id: string; name: string }>>([]);
@@ -326,6 +328,9 @@ export default function KontoSeite() {
     void fetch('/api/konto/dienste').then((r) => r.json())
       .then((j) => { if (!weg) setEpicBereit(Boolean(j?.dienste?.epic)); })
       .catch(() => { if (!weg) setEpicBereit(false); });
+    void fetch('/api/auth/epic/freunde', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null))
+      .then((j) => { if (!weg && j?.ok) setFreunde({ anzahl: (j.ids ?? []).length, stand: j.stand ?? null }); })
+      .catch(() => { /* ohne Auskunft keine Zahl */ });
     try {
       const m = new URLSearchParams(window.location.search).get('epic');
       if (m) setEpicMeldung(m);
@@ -1000,11 +1005,17 @@ export default function KontoSeite() {
             {!nurVip && (
               <section className={kasten}>
                 <h2 className={ueberschrift}><T>Epic Games</T></h2>
-                {epicMeldung && epicMeldung !== 'verbunden' && (
+                {epicMeldung === 'freunde' && (
+                  <p className="mb-3 mt-2 rounded-lg border border-emerald-800 bg-emerald-950/30 px-3 py-2 text-xs text-emerald-300"><T>Deine Epic-Freunde sind freigegeben. Im Leaderboard jedes Cups kannst du jetzt auf Freunde umschalten.</T></p>
+                )}
+                {epicMeldung && epicMeldung !== 'verbunden' && epicMeldung !== 'freunde' && (
                   <p className="mb-3 mt-2 rounded-lg border border-amber-800 bg-amber-950/30 px-3 py-2 text-xs text-amber-300">
                     {epicMeldung === 'abgebrochen' ? <T>Die Verbindung mit Epic wurde abgebrochen.</T>
                       : epicMeldung === 'vergeben' ? <T>Dieses Epic-Konto ist schon mit einem anderen CompHub-Konto verbunden.</T>
                       : epicMeldung === 'zugewiesen' ? <T>Dir wurde bereits ein anderes Epic-Konto zugewiesen. Das gilt, bis der Betreiber es ändert.</T>
+                      : epicMeldung === 'freunde-fehler' ? <T>Epic hat die Freundesliste nicht herausgegeben. Dafür muss die Berechtigung „Friends“ für CompHub bei Epic freigeschaltet sein - der Betreiber kümmert sich darum.</T>
+                      : epicMeldung === 'freunde-anderes-konto' ? <T>Du hast dich bei Epic mit einem anderen Konto angemeldet als dem verbundenen. Bitte melde dich mit dem verbundenen Konto an.</T>
+                      : epicMeldung === 'erst-verbinden' ? <T>Verbinde zuerst dein Epic-Konto, danach kannst du deine Freunde freigeben.</T>
                       : epicMeldung === 'nicht-eingerichtet' ? <T>Die Epic-Verbindung wird gerade eingerichtet. Bis dahin kann dir der Betreiber dein Epic-Konto zuweisen.</T>
                       : <T>Die Verbindung mit Epic hat nicht geklappt. Bitte versuche es noch einmal.</T>}
                   </p>
@@ -1030,6 +1041,22 @@ export default function KontoSeite() {
                         </button>
                       )}
                     </div>
+                    {daten.epicVerifiziert && (
+                      <div className="rounded-lg border border-white/[0.08] bg-zinc-950/60 p-3">
+                        <p className="text-sm font-semibold text-slate-100"><T>Freunde-Leaderboard</T></p>
+                        <p className="mt-1 text-[11px] leading-relaxed text-slate-500">
+                          <T>Gib deine Epic-Freunde frei, dann zeigt jedes Cup-Leaderboard auf Wunsch nur dich und deine Freunde. Epic fragt dich dabei selbst; wir speichern nur die Konto-Nummern, nicht mehr.</T>
+                        </p>
+                        <div className="mt-2 flex flex-wrap items-center gap-3">
+                          <a href="/api/auth/epic/freunde?start=1" className="rounded-lg bg-sky-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-sky-400">
+                            {freunde && freunde.anzahl > 0 ? <T>Freundesliste aktualisieren</T> : <T>Freunde freigeben</T>}
+                          </a>
+                          {freunde && freunde.anzahl > 0 && (
+                            <span className="text-xs text-slate-400">{freunde.anzahl} <T>Freunde freigegeben</T>{freunde.stand ? ` · ${new Date(freunde.stand).toLocaleDateString('en-GB')}` : ''}</span>
+                          )}
+                        </div>
+                      </div>
+                    )}
                     {epicTrennFehler && <p className="text-xs text-rose-400"><T>{epicTrennFehler}</T></p>}
                   </div>
                 ) : (

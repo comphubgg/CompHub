@@ -2277,7 +2277,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
   const sucheTraege = useDeferredValue(suche);
   const suchtGerade = suche !== sucheTraege;
 
-  const gefiltert = useMemo(() => {
+  const gefiltertSuche = useMemo(() => {
     const q = sucheTraege.trim().toLowerCase();
     if (!q) return tabelle;
     /*
@@ -2305,6 +2305,25 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
   const meineId = zugang.epicId;
   const istMein = useCallback((e: { players: Array<{ id?: string }> }) =>
     Boolean(meineId) && e.players.some((p) => String(p.id ?? '').replace(/-/g, '').toLowerCase() === meineId), [meineId]);
+
+  /*
+   * Das Freunde-Leaderboard (Betreiber, 4.10.2026: "zwischen normalem Leaderboard und Friends umschalten, um zu sehen, wie meine Freunde
+   * platziert sind - wie bei Osirion"). Die Freunde gibt der Spieler im Dashboard selbst frei (Epic-Zustimmung, app/api/auth/epic/freunde).
+   */
+  const [freundeIds, setFreundeIds] = useState<Set<string>>(() => new Set());
+  const [freundeGeladen, setFreundeGeladen] = useState(false);
+  const [nurFreunde, setNurFreunde] = useState(false);
+  useEffect(() => {
+    if (!meineId) return undefined;
+    let weg = false;
+    fetch('/api/auth/epic/freunde', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null))
+      .then((j) => { if (!weg) { if (j?.ok) setFreundeIds(new Set<string>(j.ids ?? [])); setFreundeGeladen(true); } })
+      .catch(() => { /* ohne Auskunft bleibt die Liste leer */ });
+    return () => { weg = true; };
+  }, [meineId]);
+  const gefiltert = useMemo(() => (nurFreunde
+    ? gefiltertSuche.filter((e) => istMein(e) || e.players.some((p) => freundeIds.has(String(p.id ?? '').replace(/-/g, '').toLowerCase())))
+    : gefiltertSuche), [nurFreunde, gefiltertSuche, freundeIds, istMein]);
 
   /*
    * Ranked Cups: welche Stufe - wie im Spiel, wo dieselbe Liste ein Menue
@@ -3128,6 +3147,14 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
             <h2 className="text-sm font-semibold text-slate-100"><T>Leaderboard</T></h2>
             <div className="flex items-center gap-3">
               {rangWahl}
+              {meineId && (
+                <div className="inline-flex rounded-lg border border-zinc-800 bg-zinc-900/80 p-0.5 text-xs font-semibold">
+                  <button type="button" onClick={() => { setNurFreunde(false); setSeite(1); }}
+                    className={`rounded-md px-3 py-1 transition ${!nurFreunde ? 'bg-white text-zinc-900' : 'text-slate-400 hover:text-slate-100'}`}><T>Alle</T></button>
+                  <button type="button" onClick={() => { setNurFreunde(true); setSeite(1); }}
+                    className={`rounded-md px-3 py-1 transition ${nurFreunde ? 'bg-white text-zinc-900' : 'text-slate-400 hover:text-slate-100'}`}><T>Freunde</T></button>
+                </div>
+              )}
               {/* Ohne Ladezeichen im Feld. Der Betreiber wollte es gross
                   auf der Bestenliste sehen, nicht klein an der Eingabe -
                   dort verdeckt es beim Tippen ohnehin den Cursor. */}
@@ -3167,6 +3194,12 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
             * Band ueber der Tabelle statt als Schleier darauf - die
             * Bestenliste soll waehrenddessen lesbar bleiben.
             */}
+          {nurFreunde && freundeGeladen && freundeIds.size === 0 && (
+            <p className="border-b border-zinc-800/70 bg-zinc-900/40 px-4 py-2.5 text-xs text-slate-400">
+              <T>Du hast noch keine Epic-Freunde freigegeben.</T>{' '}
+              <a href="/account" className="font-semibold text-sky-300 hover:underline"><T>Im Dashboard freigeben</T> →</a>
+            </p>
+          )}
           {!laedt && (vertieft || suchtGerade) && (
             <div className="flex items-center justify-center gap-3 border-b
                             border-zinc-800/70 bg-zinc-900/40 px-4 py-2.5">
@@ -3264,7 +3297,11 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                           title={landVon(p) ?? 'Herkunft nicht hinterlegt'}
                           className="h-6 w-6 shrink-0 rounded-full object-cover ring-1 ring-white/20" />
                         <div className="min-w-0">
-                          <div className="truncate text-base font-bold text-sky-400">{namenVon(p)}</div>
+                          <div className="flex items-center gap-2">
+                            <span className="truncate text-base font-bold text-sky-400">{namenVon(p)}</span>
+                            <a href={`/statistics?ansicht=suche&q=${encodeURIComponent(namenVon(p))}`} title={t('Statistik dieses Spielers')}
+                              className="shrink-0 rounded border border-white/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 transition hover:border-sky-500 hover:text-sky-300">Stats</a>
+                          </div>
                           {p.logo && <img src={p.logo} alt=""
                             className="mt-0.5 h-3.5 w-auto max-w-16 object-contain opacity-70" />}
                         </div>

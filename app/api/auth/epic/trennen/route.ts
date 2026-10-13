@@ -20,6 +20,6 @@ export async function POST(req: NextRequest) {
       { fehler: 'Diese Verknüpfung hat der Betreiber gesetzt und kann nur von ihm geändert werden.' },
       { status: 403 });
   }
-  await aendern(konto.id, { epicId: '', epicVerifiziert: false });
+  await aendern(konto.id, { epicId: '', epicVerifiziert: false, epicFreunde: [], epicFreundeStand: 0 });
   return NextResponse.json({ ok: true });
 }
