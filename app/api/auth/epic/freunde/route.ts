@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { aendern, kontoAus, nachId } from '@/lib/konten';
 import { holeDienst } from '@/lib/dienstZugaenge';
 import { rueckwegVon } from '@/lib/oeffentlicheAdresse';
+import { EPIC_BEREICHE } from '@/lib/epicBereiche';
 
 // Die Epic-Freundesliste fuer das Freunde-Leaderboard.
 //
@@ -44,7 +45,7 @@ export async function GET(req: NextRequest) {
     const params = new URLSearchParams({
       client_id: CLIENT_ID,
       response_type: 'code',
-      scope: 'basic_profile friends_list',
+      scope: EPIC_BEREICHE,
       redirect_uri: rueckwegVon(req, '/api/auth/epic/callback'),
       state,
     });

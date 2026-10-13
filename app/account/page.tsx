@@ -223,6 +223,8 @@ export default function KontoSeite() {
   const [epicBereit, setEpicBereit] = useState<boolean | null>(null);
   /** Was Epic nach der Rueckkehr gemeldet hat (verbunden, abgebrochen, vergeben ...). */
   const [epicMeldung, setEpicMeldung] = useState('');
+  /** Epics eigene Begruendung, wenn die Verknuepfung abgelehnt wurde (?grund=...). */
+  const [epicGrund, setEpicGrund] = useState('');
   const [epicTrennFehler, setEpicTrennFehler] = useState('');
   /** Wie viele Epic-Freunde fuer das Freunde-Leaderboard freigegeben sind (null: noch nicht geladen). */
   const [freunde, setFreunde] = useState<{ anzahl: number; stand: number | null } | null>(null);
@@ -332,8 +334,10 @@ export default function KontoSeite() {
       .then((j) => { if (!weg && j?.ok) setFreunde({ anzahl: (j.ids ?? []).length, stand: j.stand ?? null }); })
       .catch(() => { /* ohne Auskunft keine Zahl */ });
     try {
-      const m = new URLSearchParams(window.location.search).get('epic');
+      const q = new URLSearchParams(window.location.search);
+      const m = q.get('epic');
       if (m) setEpicMeldung(m);
+      setEpicGrund((q.get('grund') ?? '').slice(0, 200));
     } catch { /* ohne Adresse keine Meldung */ }
     return () => { weg = true; };
   }, []);
@@ -1018,6 +1022,7 @@ export default function KontoSeite() {
                       : epicMeldung === 'erst-verbinden' ? <T>Verbinde zuerst dein Epic-Konto, danach kannst du deine Freunde freigeben.</T>
                       : epicMeldung === 'nicht-eingerichtet' ? <T>Die Epic-Verbindung wird gerade eingerichtet. Bis dahin kann dir der Betreiber dein Epic-Konto zuweisen.</T>
                       : <T>Die Verbindung mit Epic hat nicht geklappt. Bitte versuche es noch einmal.</T>}
+                    {epicGrund && <span className="mt-1 block break-words font-mono text-[11px] text-amber-400/80">Epic: {epicGrund}</span>}
                   </p>
                 )}
                 {daten.epicId ? (

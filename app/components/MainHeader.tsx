@@ -37,8 +37,8 @@ const navItems = [
   { href: '/tournament-maps', label: 'Maps', schluessel: 'maps' },
   // Die FNCS-Seite (13.10.2026): alle Endspiele und die Eliminierungen der Grand Finals.
   { href: '/fncs', label: 'FNCS', schluessel: 'fncs' },
-  // Die Replay-Seiten (13.10.2026): jedes ausgewertete Game zum Abspielen.
-  { href: '/replays', label: 'Replays', schluessel: 'replays' },
+  // Replays stehen bewusst nicht in der Leiste - der Betreiber (14.10.2026): "da oben soll keine Replay-Section sein, das soll nur im
+  // Dashboard sein". Sie liegen im Dashboard (app/admin/Ebenen.tsx) und unter ihren festen Adressen /replays/....
 ];
 
 export default function MainHeader({ sektionenAnfang }: {

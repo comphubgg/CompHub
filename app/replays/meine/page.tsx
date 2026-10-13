@@ -12,6 +12,8 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 import T from '@/app/components/T';
 import LadeSchirm from '@/app/components/LadeSchirm';
+import EpicMeldung from '@/app/components/EpicMeldung';
+import ReplayUmschalter from '../ReplayUmschalter';
 import { useZugang } from '@/app/lib/zugang';
 import { replayDatum, replayUhrzeit, tagName, schoenerTitel, ohneMarke } from '@/lib/replayNamen';
 
@@ -46,11 +48,11 @@ export default function MeineReplays() {
   return (
     <main className="min-h-screen bg-zinc-950 text-slate-100">
       <div className="mx-auto max-w-[1200px] px-4 py-8">
-        <Link href="/replays" className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-300 transition hover:border-sky-500/60">
-          ← <T>Alle Replays</T>
-        </Link>
+        <ReplayUmschalter aktiv="meine" />
         <h1 className="mt-4 text-4xl font-black tracking-tight sm:text-5xl"><T>Meine Replays</T></h1>
         <p className="mt-2 max-w-2xl text-sm text-slate-400"><T>Deine Cups und jede Runde, in der du gespielt hast - zum Abspielen, mit deinem Team markiert.</T></p>
+
+        <div className="mt-4 max-w-xl"><EpicMeldung /></div>
 
         {zugang.laedt && <div className="mt-6"><LadeSchirm /></div>}
 

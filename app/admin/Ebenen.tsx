@@ -54,14 +54,14 @@ const FUER_ALLE: Ziel[] = [
   { href: '/tierlist', titel: 'Tierlist', text: 'Spieler und Trios einsortieren', symbol: 'tierlist' },
   { href: '/tournament-maps', titel: 'Maps', text: 'Wo die Teams gelandet sind — jeder Cup', symbol: 'karte' },
   { href: '/fncs', titel: 'FNCS', text: 'Alle Endspiele und die Eliminierungen der Grand Finals', symbol: 'events' },
-  { href: '/replays', titel: 'Replays', text: 'Jedes Game zum Abspielen: Zone, Eliminierungen, 2D und 3D', symbol: 'karte' },
   { href: '/globals-solos', titel: 'Globals Solos', text: 'Qualifizierte, Heats und Karten der FNCS Solos', symbol: 'solos' },
   { href: '/predictions', titel: 'Prognosen', text: 'Tipp auf den Ausgang', symbol: 'prognose' },
 ];
 
 /** Was es nur hier gibt. Mein Archiv und Profil stehen darunter auf der Seite selbst, das Chatarchiv braucht nur der Admin. */
 const NUR_HIER: Ziel[] = [
-  { href: '/replays/meine', titel: 'Meine Replays', text: 'Deine Cups und jede Runde, die du gespielt hast - zum Abspielen', symbol: 'karte' },
+  // Replays gibt es nur hier (nicht in der Leiste): alle Games zum Abspielen, dort umschaltbar auf "Meine Replays".
+  { href: '/replays', titel: 'Replays', text: 'Jedes Game zum Abspielen - alle Cups oder nur deine eigenen', symbol: 'karte' },
   { href: '/contact', titel: 'Kontakt', text: 'Etwas kaputt, fehlt oder besser zu machen? Schreib es dem Betreiber', symbol: 'kontakt' },
 ];
 const NUR_HIER_ADMIN: Ziel[] = [

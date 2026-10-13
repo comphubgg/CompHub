@@ -4,6 +4,7 @@ import { aendern, kontoAus, nachEpicId, nachId } from '@/lib/konten';
 import { holeDienst } from '@/lib/dienstZugaenge';
 import { dienstWurzel } from '@/lib/oeffentlicheAdresse';
 import { GAST_COOKIE, gastWert } from '@/lib/epicGast';
+import { EPIC_BEREICHE } from '@/lib/epicBereiche';
 
 // Der Rueckweg von Epic Games - die Verknuepfung wird hier festgemacht.
 //
@@ -23,6 +24,18 @@ const COOKIE = 'streamer_dashboard_konto';
 
 function zurueck(ziel: string) {
   return new NextResponse(null, { status: 307, headers: { Location: ziel } });
+}
+
+/** Die Epic-Freunde eines Kontos (Konto-Ids ohne Striche) - oder null, wenn Epic die Liste nicht herausgibt. */
+async function holeFreunde(epicId: string, zugriff: string | undefined): Promise<string[] | null> {
+  const liste = await fetch(`https://api.epicgames.dev/epic/friends/v1/${epicId}/friends`, {
+    headers: { Authorization: `Bearer ${zugriff ?? ''}` },
+  });
+  if (!liste.ok) return null;
+  const roh = await liste.json().catch(() => null) as unknown;
+  const eintraege: unknown[] = Array.isArray(roh) ? roh : Array.isArray((roh as { friends?: unknown[] } | null)?.friends) ? (roh as { friends: unknown[] }).friends : [];
+  return [...new Set(eintraege.map((f) => String(typeof f === 'string' ? f : ((f as { accountId?: string; id?: string })?.accountId ?? (f as { id?: string })?.id ?? ''))
+    .replace(/-/g, '').toLowerCase()).filter((x) => /^[0-9a-f]{32}$/.test(x)))];
 }
 
 export async function GET(req: NextRequest) {
@@ -54,7 +67,8 @@ export async function GET(req: NextRequest) {
   if (!CLIENT_ID || !CLIENT_SECRET) return zurueck(`${heim}?epic=nicht-eingerichtet`);
 
   try {
-    const tokenAntwort = await fetch('https://api.epicgames.dev/epic/oauth/v2/token', {
+    // Der Austausch von Code gegen Token - mit denselben Berechtigungen wie der Hinweg (lib/epicBereiche).
+    const anfordern = (mitBereichen: boolean) => fetch('https://api.epicgames.dev/epic/oauth/v2/token', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/x-www-form-urlencoded',
@@ -63,11 +77,30 @@ export async function GET(req: NextRequest) {
       body: new URLSearchParams({
         grant_type: 'authorization_code',
         code,
-        scope: req.cookies.get('epic_oauth_art')?.value === 'freunde' ? 'basic_profile friends_list' : 'basic_profile',
+        ...(mitBereichen ? { scope: EPIC_BEREICHE } : {}),
         redirect_uri: `${dienstWurzel(req)}/api/auth/epic/callback`,
       }),
     });
-    if (!tokenAntwort.ok) return aufraeumen(zurueck(`${heim}?epic=token`));
+    /** Epics Begruendung aus einer abgelehnten Antwort (nie Zugangsdaten): Fehlercode und Text. */
+    const begruendung = async (a: Response) => {
+      const j = await a.json().catch(() => null) as Record<string, unknown> | null;
+      const teile = [j?.errorCode, j?.error, j?.errorMessage, j?.error_description, j?.message].filter((x) => typeof x === 'string') as string[];
+      return (teile.length ? teile.join(' - ') : `HTTP ${a.status}`).slice(0, 200);
+    };
+    let tokenAntwort = await anfordern(true);
+    let epicGrund = '';
+    if (!tokenAntwort.ok) {
+      epicGrund = await begruendung(tokenAntwort);
+      // Nur wenn Epic an den Berechtigungen im Austausch Anstoss nimmt, noch einmal ohne sie (der Code ist sonst verbraucht).
+      if (/scope/i.test(epicGrund)) {
+        tokenAntwort = await anfordern(false);
+        if (!tokenAntwort.ok) epicGrund = await begruendung(tokenAntwort);
+      }
+    }
+    if (!tokenAntwort.ok) {
+      console.warn(`[epic] Token-Austausch abgelehnt: ${epicGrund}`);
+      return aufraeumen(zurueck(`${heim}?epic=token&grund=${encodeURIComponent(epicGrund)}`));
+    }
     const token = await tokenAntwort.json() as { access_token?: string; account_id?: string };
 
     let epicId = String(token.account_id ?? '');
@@ -89,14 +122,8 @@ export async function GET(req: NextRequest) {
         return a;
       };
       if (!konto.epicVerifiziert || konto.epicId !== epicId) return loeschen(zurueck('/account?epic=freunde-anderes-konto'));
-      const liste = await fetch(`https://api.epicgames.dev/epic/friends/v1/${epicId}/friends`, {
-        headers: { Authorization: `Bearer ${token.access_token ?? ''}` },
-      });
-      if (!liste.ok) return loeschen(zurueck('/account?epic=freunde-fehler'));
-      const roh = await liste.json().catch(() => null) as unknown;
-      const eintraege: unknown[] = Array.isArray(roh) ? roh : Array.isArray((roh as { friends?: unknown[] } | null)?.friends) ? (roh as { friends: unknown[] }).friends : [];
-      const ids = [...new Set(eintraege.map((f) => String(typeof f === 'string' ? f : ((f as { accountId?: string; id?: string })?.accountId ?? (f as { id?: string })?.id ?? ''))
-        .replace(/-/g, '').toLowerCase()).filter((x) => /^[0-9a-f]{32}$/.test(x)))];
+      const ids = await holeFreunde(epicId, token.access_token);
+      if (!ids) return loeschen(zurueck('/account?epic=freunde-fehler'));
       await aendern(konto.id, { epicFreunde: ids, epicFreundeStand: Date.now() });
       return loeschen(zurueck('/account?epic=freunde'));
     }
@@ -116,6 +143,9 @@ export async function GET(req: NextRequest) {
     }
 
     await aendern(konto.id, { epicId, epicVerifiziert: true });
+    // Die Freundesliste kommt mit denselben Berechtigungen mit (lib/epicBereiche) - gleich mitnehmen; scheitert das, bleibt die Verknuepfung gueltig.
+    const freunde = await holeFreunde(epicId, token.access_token).catch(() => null);
+    if (freunde) await aendern(konto.id, { epicFreunde: freunde, epicFreundeStand: Date.now() }).catch(() => undefined);
     // Kam der Spieler von einer Cup-Seite ("Verify with Epic Games"), geht er dorthin zurueck.
     return aufraeumen(zurueck(`${heim}?epic=verbunden`));
   } catch {

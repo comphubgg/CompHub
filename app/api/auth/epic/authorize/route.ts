@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { holeDienst } from '@/lib/dienstZugaenge';
 import { rueckwegVon } from '@/lib/oeffentlicheAdresse';
+import { EPIC_BEREICHE } from '@/lib/epicBereiche';
 
 
 // Der Hinweg zu Epic Games - zum Verknuepfen des eigenen Epic-Kontos.
@@ -35,8 +36,8 @@ export async function GET(req: NextRequest) {
   const params = new URLSearchParams({
     client_id: CLIENT_ID,
     response_type: 'code',
-    // basic_profile: Epic nennt die Konto-Id und den Anzeigenamen - mehr wird nicht verlangt.
-    scope: 'basic_profile',
+    // Alle im Epic-Portal freigeschalteten Berechtigungen auf einmal - sonst meldet Epic "Fehlende Berechtigungen" (lib/epicBereiche).
+    scope: EPIC_BEREICHE,
     redirect_uri: rueckwegVon(req, PFAD),
     state,
   });

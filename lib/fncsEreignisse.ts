@@ -146,7 +146,11 @@ async function spitzeFuer(k: Kandidat, fakt: FncsFakt | undefined, archiv: Map<s
     if (archiv.length) {
       return {
         teams: fakt?.teams ?? archiv.length,
-        spitze: mitPreis(archiv.slice(0, 5).map((t) => ({ rang: t.rang, punkte: t.punkte ?? null, spieler: t.spieler.map((s) => ({ name: s.name, land: s.land ?? landName(s.name) })) }))),
+        // Name und Land wie im Werkzeug sonst: das Profil des Spielers (Konto-Id) geht vor, die Quelle gilt nur, wo es keins gibt.
+        spitze: mitPreis(archiv.slice(0, 5).map((t) => ({
+          rang: t.rang, punkte: t.punkte ?? null, siege: t.siege ?? null, elims: t.elims ?? null, spiele: t.spiele ?? null,
+          spieler: t.spieler.map((s) => { const x = kontext(s.id, s.name, s.land ?? undefined); return { name: rein(x.anzeige), land: x.land ?? s.land ?? landName(s.name) }; }),
+        }))),
       };
     }
   }

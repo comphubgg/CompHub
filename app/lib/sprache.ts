@@ -3389,6 +3389,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Die Endspiele ließen sich gerade nicht laden. Bitte gleich noch einmal versuchen.': 'The finals could not be loaded right now. Please try again in a moment.',
   'Noch keine Endspiele.': 'No finals yet.',
   'Platzierungen werden nachgetragen.': 'Placements will be added.',
+  'Jedes Game zum Abspielen - alle Cups oder nur deine eigenen': 'Every game to play back - all cups or just your own',
   'Meine Replays': 'My replays',
   'Deine Cups und jede Runde, in der du gespielt hast - zum Abspielen, mit deinem Team markiert.': 'Your cups and every round you played - to play back, with your team highlighted.',
   'Melde dich mit Epic Games an, um hier deine eigenen Cups zu sehen.': 'Sign in with Epic Games to see your own cups here.',
