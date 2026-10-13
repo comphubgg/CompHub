@@ -153,6 +153,8 @@ function gewuenscht(name) {
   if (!AM_RELEASE.some((m) => m.test(name))) return false;
   // Clutch-Dateien schreibt allein der Ablauf "Clutch rechnen" ans Release.
   if (/^clutch(-roh)?\//.test(name) && process.env.OHNE_CLUTCH === '1') return false;
+  // Die voll ausgelesenen Replays schreibt allein der Ablauf "Replays voll auslesen".
+  if (/^replay-voll\//.test(name) && process.env.OHNE_REPLAYVOLL === '1') return false;
   if (nur.length && !nur.some((n) => name === n || name.startsWith(`${n}/`))) return false;
   /*
    * Vom Betreiber Gepflegtes nur, wenn es eben frisch aus Supabase kam.

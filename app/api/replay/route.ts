@@ -27,7 +27,13 @@ export async function GET(request: Request) {
     if (match) {
       const e = alle[match];
       if (!e) return NextResponse.json({ error: 'Dieses Match ist nicht ausgewertet.' }, { status: 404 });
-      const daten = await liesJson<Record<string, unknown> | null>(e.datei, null);
+      // Ein Lesefehler der Ablage ist meist ein Augenblick (Netz, Release-Anhang noch im Aufbau): bis zu dreimal versuchen, ehe die Seite
+      // einen Fehler zeigt (Betreiber, 14.10.2026: "kein Replay darf nicht funktionieren").
+      let daten: Record<string, unknown> | null = null;
+      for (let versuch = 0; versuch < 3 && !daten; versuch += 1) {
+        if (versuch) await new Promise((r) => setTimeout(r, 400 * versuch));
+        daten = await liesJson<Record<string, unknown> | null>(e.datei, null).catch(() => null);
+      }
       if (!daten) return NextResponse.json({ error: 'Die Auswertung ist gerade nicht lesbar.' }, { status: 503 });
       // Die Wertung des Cups (Punkte je Platz und je Eliminierung) - damit die Karte zeigen kann, wie viele Punkte ein Team in diesem Game gemacht hat.
       let wertung: { platz: Record<string, number>; elim: number } | null = null;

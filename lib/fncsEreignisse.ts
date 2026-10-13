@@ -113,9 +113,9 @@ async function ausFakten(f: FncsFakt): Promise<FncsSpitze[]> {
 /** Der Endstand der Global Championship 2026 (Globals-Seite): bis zu zehn Teams. */
 async function ausGlobals(): Promise<FncsSpitze[]> {
   const r = await globalsEndstand();
-  const j = await r.json() as { ok?: boolean; teams?: Array<{ rang: number; punkte: number; spieler: Array<{ anzeige: string; land: string | null }> }> };
+  const j = await r.json() as { ok?: boolean; teams?: Array<{ rang: number; punkte: number; elims?: number; siege?: number; spiele?: number; spieler: Array<{ anzeige: string; land: string | null }> }> };
   if (!j.ok || !j.teams?.length) return [];
-  return j.teams.map((t) => ({ rang: t.rang, punkte: t.punkte, spieler: t.spieler.map((s) => ({ name: rein(s.anzeige), land: s.land })) }));
+  return j.teams.map((t) => ({ rang: t.rang, punkte: t.punkte, siege: t.siege, elims: t.elims, spiele: t.spiele, spieler: t.spieler.map((s) => ({ name: rein(s.anzeige), land: s.land })) }));
 }
 
 async function spitzeFuer(k: Kandidat, fakt: FncsFakt | undefined, archiv: Map<string, ArchivEintrag>): Promise<{ teams: number | null; spitze: FncsSpitze[] }> {

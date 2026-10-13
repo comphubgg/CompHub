@@ -37,6 +37,8 @@ export interface RWertung { platz: Record<string, number>; elim: number }
 const BR_SPANNE = 135_000;
 const FARBEN = ['#38bdf8', '#f59e0b', '#a78bfa', '#34d399', '#f472b6', '#fb7185', '#facc15', '#60a5fa', '#2dd4bf', '#c084fc', '#fb923c', '#a3e635'];
 const ohneVorsatz = (n?: string) => String(n ?? '?').replace(/^\s*\[[^\]]*\]\s*/, '').trim() || '?';
+/** Bots (die KI-Gegner, die die Lobby auffuellen) haben keinen Namen und keine Werte - sie stehen als "Bot" da, nicht als Fragezeichen. */
+const nameVon = (p?: { bot?: boolean; name?: string }) => (p?.bot ? 'Bot' : ohneVorsatz(p?.name));
 const uhr = (s: number) => { const v = Math.max(0, Math.round(s)); return `${Math.floor(v / 60)}:${String(v % 60).padStart(2, '0')}`; };
 const GESCHWINDIGKEIT = [1, 4, 16, 64];
 const MAX_ZOOM = 10;
@@ -290,7 +292,7 @@ export default function ReplayAnsicht({ match, kartenBild, titel, wertung, hervo
       name: p?.bot ? 'Bot' : ohneVorsatz(p?.name), farbe: farbeVon(e.opfer), mitspieler: mitspieler.map((s) => ohneVorsatz(s.name)),
       platz: p?.platz && p.platz < 999 ? p.platz : null, kills: p?.kills ?? 0, teamKills,
       punkte: punkteVon(p?.platz, teamKills),
-      von: von && von.id !== p?.id ? ohneVorsatz(von.name) : null, abstand: typeof e.abstand === 'number' && e.abstand > 0 ? Math.round(e.abstand / 100) : null,
+      von: von && von.id !== p?.id ? nameVon(von) : null, abstand: typeof e.abstand === 'number' && e.abstand > 0 ? Math.round(e.abstand / 100) : null,
     };
   };
 
@@ -497,11 +499,11 @@ export default function ReplayAnsicht({ match, kartenBild, titel, wertung, hervo
                           <span className="w-10 shrink-0 text-[11px] tabular-nums text-slate-500">{uhr(e.t - tStart)}</span>
                           <span className="min-w-0 flex-1 text-[12px] leading-snug text-slate-300">
                             {e.art === 'auf' ? (
-                              <><b style={{ color: farbeVon(e.taeter) }}>{taeter ? ohneVorsatz(taeter.name) : t('Teamkamerad')}</b> <span className="text-emerald-400"><T>hilft hoch</T></span> <b style={{ color: farbeVon(e.opfer) }}>{ohneVorsatz(opfer?.name)}</b></>
+                              <><b style={{ color: farbeVon(e.taeter) }}>{taeter ? nameVon(taeter) : t('Teamkamerad')}</b> <span className="text-emerald-400"><T>hilft hoch</T></span> <b style={{ color: farbeVon(e.opfer) }}>{nameVon(opfer)}</b></>
                             ) : (
-                              <>{taeter && taeter.id !== opfer?.id ? <b style={{ color: farbeVon(e.taeter) }}>{ohneVorsatz(taeter.name)}</b> : <span className="text-slate-500"><T>Zone / Sturz</T></span>}
+                              <>{taeter && taeter.id !== opfer?.id ? <b style={{ color: farbeVon(e.taeter) }}>{nameVon(taeter)}</b> : <span className="text-slate-500"><T>Zone / Sturz</T></span>}
                                 {' '}<span className={e.art === 'tot' ? 'text-rose-400' : 'text-amber-300'}>{e.art === 'tot' ? t('eliminiert') : t('knockt')}</span>{' '}
-                                <b style={{ color: farbeVon(e.opfer) }}>{ohneVorsatz(opfer?.name)}</b>
+                                <b style={{ color: farbeVon(e.opfer) }}>{nameVon(opfer)}</b>
                                 {typeof e.abstand === 'number' && e.abstand > 0 && <span className="ml-1 text-[10px] text-slate-600">{Math.round(e.abstand / 100)} m</span>}</>
                             )}
                           </span>

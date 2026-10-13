@@ -1,0 +1,98 @@
+# Server-Replays voll auslesen - Zonen, Kill-Feed, Spieler je Match - alle zehn Minuten.
+#
+# Der Betreiber (14.10.2026): "Wenn ein Cup zu Ende ist, soll eine halbe
+# Stunde danach jede einzelne Runde analysiert sein ... kein Replay darf
+# nicht funktionieren, nicht 99 Prozent, 100."
+#
+# Bis dahin las nur der stuendliche Lauf (daten-erneuern.yml) und hoechstens
+# 24 Matches, eines nach dem anderen. Bei einem Finaltag mit sieben Regionen
+# und dutzenden Runden dauerte das Tage. Jetzt hat das Auslesen einen
+# eigenen Ablauf:
+#   - alle zehn Minuten, dazwischen nie zwei gleichzeitig (der Index
+#     index.json hat genau einen Schreiber)
+#   - vier Matches gleichzeitig, jedes Herunterladen und Auslesen mit
+#     Wiederholungen; was doch scheitert, steht im Index unter "fehler" und
+#     kommt im naechsten Durchgang als Erstes wieder dran
+#   - solange noch etwas offen ist, stoesst sich der Ablauf selbst wieder an
+#
+# Epic haelt ein Replay 31 Tage; was bis dahin nicht gelesen ist, ist fuer
+# immer weg - deshalb lieber zu oft nachsehen als zu selten.
+
+name: Replays voll auslesen
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/10 * * * *'
+
+concurrency:
+  group: replays-voll
+  cancel-in-progress: false
+
+jobs:
+  auslesen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    permissions:
+      contents: write
+      actions: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Abhängigkeiten
+        run: npm ci --omit=optional
+
+      - name: Zugangsdaten
+        run: printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Leser bauen
+        run: dotnet build tools/replay-voll -c Release -v q 2>&1 | tail -3
+
+      - name: Epic-Anmeldung, Spieltage und Stand vom Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          node scripts/daten-sync.mjs --herunterladen --nur epic-auth.json 2>&1 | tail -2
+          node scripts/ablage-github-holen.mjs --ordner epic-spieltage 2>&1 | tail -3
+          node scripts/ablage-github-holen.mjs replay-voll/index.json 2>&1 | tail -2
+
+      - name: Auslesen
+        id: auslesen
+        continue-on-error: true
+        timeout-minutes: 32
+        run: |
+          node scripts/replay-voll-holen.mjs --hoechstens 300 --parallel 4 --minuten 25 2>&1 | tee /tmp/voll.log | tail -60
+
+      - name: Ans Release
+        if: always()
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          [ -d data/replay-voll ] || { echo "Nichts ausgelesen."; exit 0; }
+          node scripts/ablage-github.mjs --nur replay-voll 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -12
+
+      # Blieb etwas offen (Frist erreicht), gleich weiter - nicht erst in zehn Minuten.
+      - name: Weitermachen, solange etwas offen ist
+        if: always()
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          OFFEN=$(grep -oE 'noch offen [0-9]+' /tmp/voll.log 2>/dev/null | tail -1 | grep -oE '[0-9]+' || echo 0)
+          echo "Noch offen: ${OFFEN:-0}"
+          if [ "${OFFEN:-0}" -gt 0 ]; then
+            gh workflow run replays-voll.yml -R "${{ github.repository }}" --ref main \
+              && echo "Naechster Durchgang angestossen."
+          fi
+
+      - name: Zugangsdaten wieder weg
+        if: always()
+        run: rm -f .env.local

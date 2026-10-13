@@ -45,10 +45,19 @@ export default function GameSeite() {
         setTag(j.tag); setGeschwister(j.geschwister ?? []);
         const game = (j.tag as Tag).matches.find((m) => m.nr === nr);
         if (!game) { setFehler('Dieses Game gibt es nicht.'); return; }
-        const rm = await fetch(`/api/replay?match=${encodeURIComponent(game.id)}&v=2`);
-        const mj = await rm.json().catch(() => null);
+        // Ein Fehler der Ablage ist meist ein Augenblick: still bis zu viermal nachfragen, bevor die Seite einen Fehler zeigt.
+        let rm: Response | null = null;
+        let mj: (RMatch & { karte?: string; wertung?: RWertung | null; error?: string }) | null = null;
+        for (let versuch = 0; versuch < 4; versuch += 1) {
+          if (versuch) await new Promise((res) => setTimeout(res, 1500 * versuch));
+          if (weg) return;
+          rm = await fetch(`/api/replay?match=${encodeURIComponent(game.id)}&v=2`).catch(() => null);
+          mj = rm ? await rm.json().catch(() => null) : null;
+          if (rm?.ok && mj) break;
+          if (rm?.status === 404) break; // ein nicht ausgewertetes Match ist auch beim vierten Mal nicht da
+        }
         if (weg) return;
-        if (!rm.ok || !mj) { setFehler(mj?.error ?? 'Die Auswertung ist gerade nicht lesbar.'); return; }
+        if (!rm?.ok || !mj) { setFehler(mj?.error ?? 'Die Auswertung ist gerade nicht lesbar.'); return; }
         setMatch(mj);
       } catch { if (!weg) setFehler('Die Replays ließen sich gerade nicht laden.'); }
     })();

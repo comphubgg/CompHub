@@ -58,9 +58,12 @@ jobs:
       group: daten-erneuern
       cancel-in-progress: false
 
-    # Clutch-Dateien schreibt nur .github/workflows/clutch-rechnen.yml.
+    # Clutch-Dateien schreibt nur .github/workflows/clutch-rechnen.yml,
+    # die voll ausgelesenen Replays nur .github/workflows/replays-voll.yml
+    # (zwei Schreiber an einem Index verlieren sich gegenseitig Eintraege).
     env:
       OHNE_CLUTCH: '1'
+      OHNE_REPLAYVOLL: '1'
     steps:
       - name: Beginn merken
         run: echo "LAUF_BEGINN=$(date +%s)" >> "$GITHUB_ENV"
@@ -280,20 +283,10 @@ jobs:
         continue-on-error: true
         run: node scripts/szene-stats-holen.mjs
 
-      # Die Server-Replays der Finals und LANs voll auslesen - Zonen, Kill-Feed
-      # mit Ort, Spieler - und fuer immer ablegen (scripts/replay-voll-holen.mjs,
-      # Seite /admin/replay). Epic haelt ein Replay nur 31 Tage.
-      - uses: actions/setup-dotnet@v4
-        continue-on-error: true
-        with:
-          dotnet-version: '10.0.x'
-      - name: Replays voll auslesen
-        continue-on-error: true
-        timeout-minutes: 25
-        run: |
-          dotnet build tools/replay-voll -c Release -v q 2>&1 | tail -3
-          node scripts/ablage-github-holen.mjs replay-voll/index.json 2>&1 | tail -2
-          node scripts/replay-voll-holen.mjs --hoechstens 24 2>&1 | tail -30
+      # Die Server-Replays der Finals und LANs voll auszulesen (Zonen, Kill-Feed
+      # mit Ort, Spieler) macht seit dem 14.10.2026 ein eigener Ablauf alle
+      # zehn Minuten: .github/workflows/replays-voll.yml. Hier gab es nur
+      # 24 Matches je Stunde, eines nach dem anderen.
 
       # Die Solo Clutch Points rechnet seit dem 29.9.2026 ein eigener Ablauf
       # fuer jeden Team-Spieltag (.github/workflows/clutch-rechnen.yml).

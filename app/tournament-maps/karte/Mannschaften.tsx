@@ -92,20 +92,27 @@ export function RangAusTeams({ teams, schmal = false }: { teams: SolosTeam[]; /*
   );
 }
 
-export interface PlatzZeile { rang: number; punkte: number | null; preis?: string; spieler: Array<{ name: string; land: string | null }> }
+export interface PlatzZeile { rang: number; punkte: number | null; siege?: number | null; elims?: number | null; spiele?: number | null; preis?: string; spieler: Array<{ name: string; land: string | null }> }
 
 /** Die ersten Plaetze eines Endspiels (Eckdaten): Platz, Team mit Flaggen, Punkte oder Preisgeld - fuer Events ohne Bestenliste bei Epic. */
 export function Platzierungen({ zeilen, schmal = false }: { zeilen: PlatzZeile[]; schmal?: boolean }) {
   if (!zeilen.length) return <p className="text-sm text-slate-500"><T>Für diesen Spieltag liegt noch keine Bestenliste vor.</T></p>;
   const mitPunkte = zeilen.some((z) => z.punkte != null);
   const mitPreis = zeilen.some((z) => z.preis);
+  // Siege, Eliminierungen und Spiele - wo die Quelle sie fuehrt (archivierte Bestenlisten, Epic), nur in der grossen Ansicht.
+  const mitSiege = !schmal && zeilen.some((z) => z.siege != null);
+  const mitElims = !schmal && zeilen.some((z) => z.elims != null);
+  const mitSpiele = !schmal && zeilen.some((z) => z.spiele != null);
   return (
     <div className="overflow-hidden rounded-xl border border-white/[0.08] bg-zinc-900/40">
       <table className="w-full text-sm">
         <thead>
           <tr className="border-b border-white/[0.08] text-left text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
             <th className="w-10 px-3 py-2">#</th><th className="px-3 py-2"><T>Team</T></th>
-            {mitPunkte && <th className="w-16 px-3 py-2 text-right">Pts</th>}
+            {mitPunkte && <th className="w-16 px-3 py-2 text-right">{schmal ? 'Pts' : 'Points'}</th>}
+            {mitSiege && <th className="w-14 px-3 py-2 text-right" title="Victory Royales">Wins</th>}
+            {mitElims && <th className="w-16 px-3 py-2 text-right">Elims</th>}
+            {mitSpiele && <th className="w-20 px-3 py-2 text-right">Matches</th>}
             {mitPreis && <th className={`px-3 py-2 text-right ${schmal ? 'w-16' : 'w-24'}`}><T>Preisgeld</T></th>}
           </tr>
         </thead>
@@ -122,6 +129,9 @@ export function Platzierungen({ zeilen, schmal = false }: { zeilen: PlatzZeile[]
                 </span>
               </td>
               {mitPunkte && <td className="px-3 py-2 text-right font-bold tabular-nums text-slate-100">{z.punkte ?? ''}</td>}
+              {mitSiege && <td className="px-3 py-2 text-right tabular-nums text-slate-300">{z.siege ?? ''}</td>}
+              {mitElims && <td className="px-3 py-2 text-right tabular-nums text-slate-300">{z.elims ?? ''}</td>}
+              {mitSpiele && <td className="px-3 py-2 text-right tabular-nums text-slate-300">{z.spiele ?? ''}</td>}
               {mitPreis && <td className="px-3 py-2 text-right font-bold tabular-nums text-emerald-400">{z.preis ?? ''}</td>}
             </tr>
           ))}

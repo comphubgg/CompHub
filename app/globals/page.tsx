@@ -28,10 +28,10 @@ function tagText(begin: number): string {
   }).format(new Date(begin));
 }
 
-interface EndTeam { rang: number; punkte: number; elims: number; siege: number; spieler: Array<{ id: string; anzeige: string; land: string | null; bild: string | null }> }
+interface EndTeam { rang: number; punkte: number; elims: number; siege: number; spiele?: number; spieler: Array<{ id: string; anzeige: string; land: string | null; bild: string | null }> }
 
 /**
- * Der Endstand - nach beiden Tagen zusammen, die ersten zehn. Das Siegerteam gross, der Rest als Tabelle.
+ * Der Endstand - nach beiden Tagen zusammen, alle Teams. Das Siegerteam gross, der Rest als Tabelle.
  * Betreiber (13.10.2026): die Globals-Seite war "zu simpel" - nur Kacheln. Jetzt steht das Ergebnis oben.
  */
 function Endstand() {
@@ -68,7 +68,7 @@ function Endstand() {
       </div>
       <div className="overflow-hidden rounded-2xl border border-white/[0.08] bg-zinc-900/40">
         <p className="border-b border-white/[0.08] bg-zinc-900/60 px-4 py-2.5 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-400"><T>Endstand nach beiden Tagen</T></p>
-        <ol>
+        <ol className="max-h-[640px] overflow-y-auto">
           {rest.map((x) => (
             <li key={x.rang} className="flex items-center gap-3 border-b border-white/[0.04] px-4 py-2 last:border-b-0">
               <span className="w-5 text-center text-xs font-black tabular-nums text-slate-500">{x.rang}</span>
