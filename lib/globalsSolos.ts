@@ -49,7 +49,12 @@ export interface SolosFenster {
   /** Nur bei den alten Karten (lib/alteMaps): kommen die Teams von Epics Bestenliste oder hat der Admin sie angelegt? */
   quelle?: 'epic' | 'hand';
   /** Die Landepunkte, mit den Anzeigenamen der Spieler darauf - Ecken in Prozent des Kartenbildes. */
-  formen: Array<{ punkte: Array<{ x: number; y: number }>; spieler: string[]; /** Wie viele Teams auf dieser Stelle stehen. */ teams?: number }>;
+  formen: Array<{
+    punkte: Array<{ x: number; y: number }>; spieler: string[];
+    /** Wie viele Teams auf dieser Stelle stehen. */ teams?: number;
+    /** Die Spieler je Team - damit ein Duo oder Trio auf der Karte nebeneinander steht, wenn mehrere Teams auf einer Stelle sind. */
+    gruppen?: string[][];
+  }>;
 }
 
 export interface SolosTeam {
@@ -187,6 +192,7 @@ function fensterAus(w: { windowId: string; name: string; startDate?: string; end
       punkte: f.punkte,
       spieler: f.teams.flatMap((t) => t.ids.map((id) => nachId.get(id)?.anzeige ?? '')).filter(Boolean),
       teams: f.teams.length,
+      gruppen: f.teams.map((t) => t.ids.map((id) => nachId.get(id)?.anzeige ?? '').filter(Boolean)),
     })),
   };
 }

@@ -18,7 +18,7 @@ import Link from 'next/link';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import LadeSchirm from '@/app/components/LadeSchirm';
-import { regionFarbe } from '@/lib/regionFarbe';
+import { regionFarbe, regionAnzeige } from '@/lib/regionFarbe';
 import { useZugang } from '@/app/lib/zugang';
 
 type Typ = 'fncs' | 'performance' | 'division' | 'reload' | 'sonst';
@@ -79,14 +79,14 @@ function Kachel({ e, i }: { e: Eintrag; i: number }) {
           <div className="grid h-full w-full place-items-center bg-gradient-to-br from-sky-950 via-zinc-900 to-zinc-950 text-3xl font-black text-sky-500/40">MAP</div>
         )}
         <span className="absolute left-2 top-2"><StandMarke s={stand(e)} /></span>
-        <span className="absolute right-2 top-2 rounded border border-white/20 bg-black/55 px-1.5 py-0.5 text-[10px] font-bold tracking-wider text-slate-100 backdrop-blur-sm">{e.region}</span>
+        <span className="absolute right-2 top-2 rounded border border-white/20 bg-black/55 px-1.5 py-0.5 text-[10px] font-bold tracking-wider text-slate-100 backdrop-blur-sm">{regionAnzeige(e)}</span>
       </div>
       <div className="px-3 pb-3 pt-2.5">
         <p className="min-h-[2.6em] text-center text-[13px] font-bold leading-snug tracking-wide text-slate-100">{e.titel.replace(/\s*·\s*/g, ' – ').toUpperCase()}</p>
         {/* Kleine Marken: die Region in ihrer Farbe, die Saison als Umriss, Art und Spieltag grau. */}
         <div className="mt-2 flex flex-wrap justify-center gap-1">
           {e.lan && <span className="rounded bg-amber-400 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-zinc-950">LAN</span>}
-          <span className={`rounded border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${regionFarbe(e.region).marke}`}>{e.region}</span>
+          <span className={`rounded border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${regionAnzeige(e) === 'GLOBAL' ? 'border-amber-400/40 bg-amber-400/10 text-amber-200' : regionFarbe(e.region).marke}`}>{regionAnzeige(e)}</span>
           {e.saisonKurz && <span className="rounded border border-white/25 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-300">{e.saisonKurz}</span>}
           <span className="rounded bg-white/[0.07] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-400">{TYP_NAME[e.typ]}</span>
           {e.fenster && <span className="rounded bg-white/[0.07] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-400">{e.fenster}</span>}
@@ -323,7 +323,7 @@ export default function Maps() {
                   <Link href={`/tournament-maps/karte?t=${encodeURIComponent(e.turnierId)}&r=${encodeURIComponent(e.region)}&w=${encodeURIComponent(e.windowId)}`}
                     className="flex items-center gap-3 px-3 py-2.5 text-sm transition hover:bg-sky-500/[0.07]">
                     <span className="w-24 shrink-0 text-[11px] tabular-nums text-slate-500">{e.datum ? DATUM.format(new Date(e.datum)) : ''}</span>
-                    <span className="w-9 shrink-0 rounded bg-white/[0.06] px-1 py-0.5 text-center text-[10px] font-bold text-slate-300">{e.region}</span>
+                    <span className="w-9 shrink-0 rounded bg-white/[0.06] px-1 py-0.5 text-center text-[10px] font-bold text-slate-300">{regionAnzeige(e)}</span>
                     <span className="min-w-0 flex-1 truncate font-semibold text-slate-100">{e.titel}</span>
                     <span className="hidden shrink-0 text-xs text-slate-500 sm:inline">{e.saisonKurz}</span>
                     <span aria-hidden className="text-slate-600">→</span>

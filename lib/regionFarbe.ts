@@ -108,3 +108,11 @@ export function regionFarbe(region?: string | null): RegionFarbe {
 
 /** Die Regionen in der Reihenfolge, in der sie im Werkzeug stehen. */
 export const REGIONEN_REIHE = ['EU', 'NAC', 'NAW', 'BR', 'ASIA', 'ME', 'OCE'];
+
+/**
+ * Was auf einer Karte als Region steht: LAN-Finals, Global Championship, Invitational und Summit sind weltweit - "Global", nicht
+ * "EU" (Betreiber, 13.10.2026: "bei den Globals steht immer Europa, obwohl sie global sind").
+ */
+export function regionAnzeige(e: { region: string; lan?: boolean; cup?: string; titel?: string }): string {
+  return e.lan || /global championship|invitational|summit|world cup|ewc/i.test(`${e.cup ?? ''} ${e.titel ?? ''}`) ? 'GLOBAL' : e.region;
+}

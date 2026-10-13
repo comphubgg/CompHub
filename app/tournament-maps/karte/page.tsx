@@ -18,6 +18,7 @@ import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import LadeSchirm from '@/app/components/LadeSchirm';
 import { useZugang } from '@/app/lib/zugang';
+import { regionAnzeige } from '@/lib/regionFarbe';
 import type { SolosFenster } from '@/lib/globalsSolos';
 import { Karte } from '@/app/globals-solos/Bausteine';
 import LaenderListe from '@/app/components/LaenderListe';
@@ -27,7 +28,7 @@ import CupTierlist from './CupTierlist';
 interface Eintrag {
   turnierId: string; region: string; windowId: string; cup: string; fenster: string; titel: string;
   datum: number | null; ende: number | null; saison: string; saisonKurz: string; saisonName: string; bild: string | null; eventId: string | null;
-  reihe?: number; lan?: boolean; alt?: boolean; saisonTitel?: string;
+  reihe?: number; lan?: boolean; alt?: boolean; saisonTitel?: string; epicFenster?: string;
   tage?: Array<{ name: string; windowId: string; eventId: string | null }>;
 }
 
@@ -117,7 +118,6 @@ export default function KartenSeite() {
     [liste, meta],
   );
   const laender = useMemo(() => new Map((fenster?.spieler ?? []).map((s) => [s.id, s.land])), [fenster]);
-  const teamSpiel = (fenster?.teams ?? []).some((x) => x.spieler.length > 1);
   const bild = wahlBild ?? fenster?.bild ?? null;
   const zustand = stand(meta, fenster);
   /** Gibt es zu dieser Karte keine Bestenliste (weder Epic noch vom Admin), stehen die ersten Plaetze aus den Eckdaten da. */
@@ -166,7 +166,7 @@ export default function KartenSeite() {
               <p className="mt-1 flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
                 {meta?.lan && <span className="rounded bg-amber-400 px-1.5 py-0.5 font-black text-zinc-950">LAN</span>}
                 {meta?.saisonKurz && <span>{meta.saisonKurz}{meta.saisonTitel ? ` — ${meta.saisonTitel}` : ''}</span>}
-                {meta?.region && <span className="rounded bg-white/10 px-1.5 py-0.5 text-slate-200">{meta.region}</span>}
+                {meta?.region && <span className="rounded bg-white/10 px-1.5 py-0.5 text-slate-200">{regionAnzeige(meta)}</span>}
                 {(fenster?.start || meta?.datum) && <span>{LANG.format(new Date(fenster?.start ?? (meta?.datum as number)))}</span>}
                 {zustand && (
                   <span className={`rounded px-1.5 py-0.5 ${zustand === 'live' ? 'bg-red-500/20 text-red-400' : zustand === 'upcoming' ? 'bg-sky-500/20 text-sky-300' : 'bg-white/[0.07] text-slate-400'}`}>
@@ -267,13 +267,13 @@ export default function KartenSeite() {
                     </div>
                   )}
                   <div className="grid gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(320px,1fr)] lg:items-start">
-                    <Karte f={fenster} bild={bild} rotAb={teamSpiel ? 3 : 2} />
+                    <Karte f={fenster} bild={bild} rotAb={2} />
                     <aside className="lg:sticky lg:top-4">
                       <h2 className="mb-2 text-sm font-black uppercase tracking-[0.14em] text-slate-300"><T>Leaderboard</T></h2>
                       <div className="max-h-[80vh] overflow-y-auto rounded-xl">
                         {nurPlatzierungen ? <Platzierungen zeilen={platzierungen} schmal />
                           : !meta?.alt && meta?.eventId
-                          ? <RangTabelle eventId={meta.eventId} windowId={tageFenster.length === 1 ? tageFenster[0] : fenster.windowId}
+                          ? <RangTabelle eventId={meta.eventId} windowId={tageFenster.length === 1 ? tageFenster[0] : (meta?.epicFenster ?? fenster.windowId)}
                               windows={tageFenster.length > 1 ? tageFenster : undefined} laender={laender} schmal
                               anzeigen={new Map((fenster.teams ?? []).flatMap((x) => x.spieler.map((s) => [s.id, s.anzeige] as const)))} />
                           : <RangAusTeams teams={fenster.teams ?? []} schmal />}
@@ -286,7 +286,7 @@ export default function KartenSeite() {
               {reiter === 'leaderboard' && (nurPlatzierungen ? <Platzierungen zeilen={platzierungen} />
                 : meta?.alt
                 ? <RangAusTeams teams={fenster.teams ?? []} />
-                : <RangTabelle eventId={meta?.eventId ?? null} windowId={tageFenster.length === 1 ? tageFenster[0] : fenster.windowId}
+                : <RangTabelle eventId={meta?.eventId ?? null} windowId={tageFenster.length === 1 ? tageFenster[0] : (meta?.epicFenster ?? fenster.windowId)}
                     windows={tageFenster.length > 1 ? tageFenster : undefined} laender={laender}
                     anzeigen={new Map((fenster.teams ?? []).flatMap((x) => x.spieler.map((s) => [s.id, s.anzeige] as const)))} />)}
               {reiter === 'tierlist' && <CupTierlist windowId={fenster.windowId} teams={fenster.teams ?? []} />}

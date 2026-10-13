@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { liesVerzeichnis, summen, saisonName } from '@/lib/szeneStats';
 import { spielerKontext } from '@/lib/globalsSolos';
 import { CDN_FRIST } from '@/lib/antwortSpeicher';
+import { fncsRekorde, fncsEreignisse } from '@/lib/fncsEreignisse';
 
 /*
  * Die FNCS-Seite: Eliminierungen in den Grand Finals der FNCS-Majors, Spieler gegen Major.
@@ -14,6 +15,7 @@ import { CDN_FRIST } from '@/lib/antwortSpeicher';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
+export const maxDuration = 60;
 
 const ENDSPIEL = /FNCS_?Major(\d)_(?:GrandFinal|Final)_?Day(\d)/i;
 
@@ -55,7 +57,23 @@ export async function GET() {
       const k = kontext(x.id, x.name);
       return { id: x.id, name: k.anzeige, land: k.land, bild: k.bild, gesamt: x.gesamt, je: x.je };
     });
-    const antwort = { ok: true, events, spieler, ab: events[0]?.saisonName ?? '' };
+    // Die Titel (FNCS-Sieger) seit Chapter 1 - aus der Spielerliste der Szene-Quelle - und nach Land.
+    // Titel = erste Plaetze in den Endspielen der FNCS-Seite (Grand Finals, Globals, Invitational, Summit) - je Spieler des Siegerteams.
+    const siegerJe = new Map<string, { name: string; land: string | null; titel: number }>();
+    for (const e of await fncsEreignisse()) {
+      for (const sp of e.spitze.find((x) => x.rang === 1)?.spieler ?? []) {
+        const k = sp.name.toLowerCase();
+        const a = siegerJe.get(k) ?? { name: sp.name, land: sp.land, titel: 0 };
+        a.titel += 1; a.land = a.land ?? sp.land; siegerJe.set(k, a);
+      }
+    }
+    const titel = [...siegerJe.values()].sort((a, b) => b.titel - a.titel || a.name.localeCompare(b.name)).map((t) => ({ id: t.name, ...t }));
+    const nachLand = new Map<string, number>();
+    for (const t of titel) if (t.land) nachLand.set(t.land, (nachLand.get(t.land) ?? 0) + t.titel);
+    const laender = [...nachLand.entries()].map(([land, n]) => ({ land, titel: n })).sort((a, b) => b.titel - a.titel);
+    // Punkte, Siege, Eliminierungen und Rekorde der Grand Finals, die Epic noch fuehrt.
+    const rekorde = await fncsRekorde().catch(() => null);
+    const antwort = { ok: true, events, spieler, ab: events[0]?.saisonName ?? '', titel, laender, rekorde };
     merker = { bis: Date.now() + 30 * 60_000, antwort };
     return NextResponse.json(antwort, { headers: { 'Cache-Control': CDN_FRIST } });
   } catch (e) {

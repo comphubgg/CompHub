@@ -69,17 +69,17 @@ export default function CupTierlist({ windowId, teams }: { windowId: string; tea
   if (!teams.length) return <p className="text-sm text-slate-500"><T>Zu diesem Spieltag gibt es noch keine Teams.</T></p>;
 
   return (
-    <div className="max-w-[1100px]">
+    <div>
       <div className="mb-3 flex items-center gap-3 text-xs text-slate-500">
         <button type="button" onClick={() => speichern({})} className="rounded-md border border-white/10 bg-white/[0.04] px-3 py-1 font-semibold text-slate-300 transition hover:border-sky-500/60"><T>Zurücksetzen</T></button>
         <span><T>Team ziehen oder antippen, dann die Stufe antippen — ein gesetztes Team antippen nimmt es wieder heraus.</T></span>
       </div>
-      <div className="grid gap-4 lg:grid-cols-[1fr_270px]">
+      <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-stretch">
         <div className="space-y-1.5">
           {STUFEN.map((st) => {
             const drin = teams.filter((x) => zu[x.id] === st.k);
             return (
-              <div key={st.k} className="flex min-h-[64px] overflow-hidden rounded-xl border border-white/[0.08] bg-zinc-900/40"
+              <div key={st.k} className="flex min-h-[76px] overflow-hidden rounded-xl border border-white/[0.08] bg-zinc-900/40"
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) => { e.preventDefault(); const id = e.dataTransfer.getData('text/plain') || zieht; if (id && nachId.has(id)) setze(id, st.k); setZieht(null); }}
                 onClick={() => { if (gewaehlt) setze(gewaehlt, st.k); }}>
@@ -91,12 +91,15 @@ export default function CupTierlist({ windowId, teams }: { windowId: string; tea
             );
           })}
         </div>
-        <aside className="rounded-xl border border-white/[0.08] bg-zinc-900/40 p-3">
-          <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Pool <span className="text-slate-600">{pool.length}</span></p>
-          <input value={suche} onChange={(e) => setSuche(e.target.value)} placeholder={t('Spieler suchen …')}
-            className="mb-2 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-1.5 text-sm text-slate-100 outline-none placeholder:text-slate-600 focus:border-sky-500" />
-          <div className="flex max-h-[520px] flex-col gap-1.5 overflow-y-auto pr-1">
-            {pool.map((x) => <TeamChip key={x.id} t={x} wie="liste" aktiv={gewaehlt === x.id} onKlick={() => setGewaehlt(gewaehlt === x.id ? null : x.id)} onZiehen={setZieht} />)}
+        {/* Der Pool ist genau so hoch wie die sieben Stufen daneben (Betreiber, 13.10.2026): am Rechner fuellt er die Zeile, die Stufen bestimmen die Hoehe. */}
+        <aside className="relative rounded-xl border border-white/[0.08] bg-zinc-900/40">
+          <div className="flex max-h-[520px] flex-col p-3 lg:absolute lg:inset-0 lg:max-h-none">
+            <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Pool <span className="text-slate-600">{pool.length}</span></p>
+            <input value={suche} onChange={(e) => setSuche(e.target.value)} placeholder={t('Spieler suchen …')}
+              className="mb-2 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-1.5 text-sm text-slate-100 outline-none placeholder:text-slate-600 focus:border-sky-500" />
+            <div className="flex min-h-0 flex-1 flex-col gap-1.5 overflow-y-auto pr-1">
+              {pool.map((x) => <TeamChip key={x.id} t={x} wie="liste" aktiv={gewaehlt === x.id} onKlick={() => setGewaehlt(gewaehlt === x.id ? null : x.id)} onZiehen={setZieht} />)}
+            </div>
           </div>
         </aside>
       </div>

@@ -28,8 +28,12 @@ export const SAISON_TITEL: Record<string, string> = {
   S39: 'Pacific Break', S40: 'Showdown', S41: 'Runners', S42: 'Override',
 };
 
-/** Saisons, die in den Maps nicht vorkommen (OG-Saison und Mini-Saison Galactic Battle). */
-export const SAISON_OHNE_MAPS = new Set(['S27', 'S35']);
+/**
+ * Saisons, die in den Maps nicht vorkommen: die OG-Saison und die Mini-Saison Galactic Battle (S27, S35) - und die Saisons ohne
+ * einen einzigen Cup, zu dem es Informationen gibt (Chapter 1 Season 8 und X, Chapter 2 Season 1 bis 3). Der Betreiber
+ * (13.10.2026): "wenn du dazu keine Infos hast, kannst du die loeschen, leer zu haben ist unnoetig."
+ */
+export const SAISON_OHNE_MAPS = new Set(['S8', 'S10', 'S11', 'S12', 'S13', 'S27', 'S35']);
 
 /*
  * Die Vorschaubilder der Cups - die, die der Betreiber geschickt hat (13.10.2026). Nach dem Namen des Cups; wo keins passt, bleibt

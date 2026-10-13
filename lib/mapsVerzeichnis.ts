@@ -47,6 +47,8 @@ export interface MapEintrag {
   lan?: boolean;
   /** Eine Karte ohne Landepunkte aus dem Archiv - der Admin zeichnet sie von Hand ein (lib/alteMaps). */
   alt?: boolean;
+  /** Das Fenster, unter dem Epic die Bestenliste fuehrt, wenn es anders heisst als das von Noble. */
+  epicFenster?: string;
   /** Ein Finale an zwei Tagen (Day 1, Day 2): die Fenster der Tage. Die Karte ist eine, die Bestenliste hat einen Tag-Umschalter. */
   tage?: Array<{ name: string; windowId: string; eventId: string | null }>;
 }
@@ -90,12 +92,15 @@ export async function mapsVerzeichnis(): Promise<MapEintrag[]> {
   const imArchiv = new Map<string, ArchivEintrag>();
   for (const a of archiv) if (a.windowId) imArchiv.set(a.windowId, a);
 
-  /** Nobles Finale traegt beide Tage in einem Fenster (..._Final_EU); Epics Archiv fuehrt Day 1 und Day 2 - daraus kommen Bestenliste und Tag-Umschalter. */
+  /**
+   * Nobles Finale traegt beide Tage in einem Fenster (..._Final_EU, auch die Solo Series); Epics Archiv fuehrt Day 1 und Day 2 -
+   * daraus kommen Bestenliste und Tag-Umschalter.
+   */
   const tageVon = (wid: string) => {
-    const m = /^(S\d+_FNCSMajor\d)_Final_EU$/.exec(wid);
-    if (!m) return null;
-    const t1 = imArchiv.get(`${m[1]}_Final_Day1_EU`);
-    const t2 = imArchiv.get(`${m[1]}_Final_Day2_EU`);
+    const m = /^(.+)_EU$/.exec(wid);
+    if (!m || /_Day\d$/.test(m[1])) return null;
+    const t1 = imArchiv.get(`${m[1]}_Day1_EU`);
+    const t2 = imArchiv.get(`${m[1]}_Day2_EU`);
     if (!t1?.eventId || !t1.windowId || !t2?.windowId) return null;
     return { eventId: t1.eventId, begin: t1.begin, end: t2.end, tage: [t1, t2].map((x, i) => ({ name: `Day ${i + 1}`, windowId: x.windowId as string, eventId: x.eventId ?? null })) };
   };
@@ -106,7 +111,8 @@ export async function mapsVerzeichnis(): Promise<MapEintrag[]> {
     try {
       const d = await detail(t.id, r.code);
       for (const w of d.tournamentData?.windows ?? []) {
-        const a = imArchiv.get(w.windowId);
+        // Die Last-Chance-Runde heisst bei Noble "Qualifier", im Archiv "Lobby" - dasselbe Fenster.
+        const a = imArchiv.get(w.windowId) ?? imArchiv.get(w.windowId.replace('LastChanceQualifier', 'LastChanceLobby'));
         const tv = a ? null : tageVon(w.windowId);
         const typ = typVon(`${t.tournamentName} ${a?.titel ?? ''}`);
         const saison = (w.windowId.match(/^(S\d+)_/) ?? [])[1] ?? '';
@@ -116,9 +122,10 @@ export async function mapsVerzeichnis(): Promise<MapEintrag[]> {
           cup: t.tournamentName, fenster: w.name, titel: a?.titel || `${t.tournamentName} · ${w.name}`,
           datum: Number.isFinite(datum as number) ? datum : null,
           saison, saisonKurz: '', saisonName: '',
-          typ, bild: cupBild(`${t.tournamentName} ${a?.titel ?? ''}`) ?? a?.bild ?? BILD_JE_TYP[typ],
+          typ, bild: /^S\d+_FNCSMajor\d_Final_EU$/.test(w.windowId) ? '/cups/fncs-grand-finals.webp' : (cupBild(`${t.tournamentName} ${a?.titel ?? ''}`) ?? a?.bild ?? BILD_JE_TYP[typ]),
           eventId: a?.eventId ?? tv?.eventId ?? null, ende: w.endDate ? Date.parse(w.endDate) : (a?.end ?? tv?.end ?? null),
           tage: tv?.tage,
+          epicFenster: a?.windowId && a.windowId !== w.windowId ? a.windowId : undefined,
         });
       }
     } catch { /* dieses Turnier ueberspringen */ }

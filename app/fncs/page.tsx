@@ -15,10 +15,28 @@ import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import LadeSchirm from '@/app/components/LadeSchirm';
 import TeamFlagge from '@/components/TeamFlagge';
-import type { FncsEreignis } from '@/lib/fncsEreignisse';
+import type { FncsEreignis, FncsRekorde } from '@/lib/fncsEreignisse';
 
 interface Ev { key: string; titel: string; saison: string; saisonKurz: string; saisonName: string; tage: string[] }
 interface Sp { id: string; name: string; land: string | null; bild: string | null; gesamt: number; je: Record<string, number> }
+
+interface Titel { id: string; name: string; land: string | null; titel: number }
+type AllTime = { events: Ev[]; spieler: Sp[]; ab: string; titel: Titel[]; laender: Array<{ land: string; titel: number }>; rekorde: FncsRekorde | null };
+
+const landName = (code: string) => { try { return new Intl.DisplayNames(['en'], { type: 'region' }).of(code) ?? code; } catch { return code; } };
+
+/** Eine Tafel der All-Time Stats: Kopfzeile, darunter die Liste (scrollt in sich, ohne Aufklapp-Knopf). */
+function Tafel({ titel, unter, children }: { titel: string; unter?: string; children: React.ReactNode }) {
+  return (
+    <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-zinc-900/40">
+      <p className="border-b border-white/[0.08] bg-zinc-900/60 px-3 py-2">
+        <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-300">{titel}</span>
+        {unter && <span className="ml-2 text-[10px] text-slate-600">{unter}</span>}
+      </p>
+      <div className="max-h-[560px] overflow-y-auto">{children}</div>
+    </section>
+  );
+}
 
 const DATUM = new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Europe/Brussels' });
 const JAHR = new Intl.DateTimeFormat('en-GB', { year: 'numeric', timeZone: 'Europe/Brussels' });
@@ -39,15 +57,21 @@ function Spitze({ e }: { e: FncsEreignis }) {
   if (!e.spitze.length) {
     return <p className="mt-3 text-[11px] text-slate-600"><T>Platzierungen werden nachgetragen.</T></p>;
   }
+  // Entweder Preisgeld oder Punkte, nie ein Gemisch (Betreiber, 13.10.2026): gibt es das Preisgeld, steht nur das da; sonst die Punkte.
+  const preis = e.spitze.some((p) => p.preis);
   return (
     <ol className="mt-3 space-y-1.5">
+      <li className="flex items-center gap-2.5 text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-600">
+        <span className="w-4" /><span className="min-w-0 flex-1">Team</span><span>{preis ? 'Earnings' : 'PTS'}</span>
+      </li>
       {e.spitze.map((p, i) => (
         <li key={p.rang} className="flex items-center gap-2.5 text-[11px]">
           <span className={`w-4 text-center font-black tabular-nums ${PLATZ_FARBE[i] ?? 'text-slate-500'}`}>{p.rang}</span>
           <TeamFlagge groesse={p.spieler.length > 1 ? 24 : 18} laender={p.spieler.map((x) => x.land)} />
           <span className="min-w-0 flex-1 truncate font-bold uppercase tracking-wide text-slate-100">{p.spieler.map((x) => x.name).join(' · ')}</span>
-          {p.punkte != null && <span className="tabular-nums text-sky-400">{p.punkte}</span>}
-          {p.preis && <span className="w-14 text-right font-bold tabular-nums text-emerald-400">{p.preis}</span>}
+          {preis
+            ? <span className="w-14 text-right font-bold tabular-nums text-emerald-400">{p.preis ?? ''}</span>
+            : <span className="w-14 text-right tabular-nums text-sky-400">{p.punkte ?? ''}</span>}
         </li>
       ))}
     </ol>
@@ -159,7 +183,7 @@ export default function FncsSeite() {
   const [fehler, setFehler] = useState(false);
   const [filter, setFilter] = useState<'alle' | 'lan' | 'online'>('alle');
   const [ansicht, setAnsicht] = useState<'board' | 'timeline'>('board');
-  const [alt, setAlt] = useState<{ events: Ev[]; spieler: Sp[]; ab: string } | null>(null);
+  const [alt, setAlt] = useState<AllTime | null>(null);
   const [altFehler, setAltFehler] = useState(false);
   const [sortNach, setSortNach] = useState('gesamt');
   const [suche, setSuche] = useState('');
@@ -179,8 +203,8 @@ export default function FncsSeite() {
   const nrVon = useMemo(() => new Map((liste ?? []).map((e, i) => [e.key, i + 1] as const)), [liste]);
   const aktuellKey = useMemo(() => {
     const neu = (liste ?? [])[(liste?.length ?? 0) - 1];
-    // "Current": das juengste Event, wenn es hoechstens drei Wochen zurueckliegt (oder noch bevorsteht).
-    return neu?.datum && Date.now() - neu.datum < 21 * 86_400_000 ? neu.key : '';
+    // "Current": nur ein Event, das gerade läuft (bis anderthalb Tage nach dem Start) oder noch bevorsteht - nicht ein vergangenes.
+    return neu?.datum && Date.now() < neu.datum + 36 * 3600_000 ? neu.key : '';
   }, [liste]);
   const sichtbar = useMemo(() => [...(liste ?? [])].reverse().filter((e) => filter === 'alle' || (filter === 'lan' ? e.lan : !e.lan)), [liste, filter]);
   const zahl = (f: 'alle' | 'lan' | 'online') => (liste ?? []).filter((e) => f === 'alle' || (f === 'lan' ? e.lan : !e.lan)).length;
@@ -263,6 +287,83 @@ export default function FncsSeite() {
 
         {tab === 'alltime' && (
           <>
+            {/* Wie beim Vorbild: FNCS Winners, All-Time Leaderboard, Nationalities, Rekorde in einem Grand Finals. */}
+            {alt && (
+              <div className="mb-10 grid gap-4 lg:grid-cols-3">
+                <Tafel titel="FNCS Winners" unter="Titles">
+                  <ol>
+                    {alt.titel.map((s, i) => (
+                      <li key={`${s.id}-${s.name}`} className="flex items-center gap-2.5 border-b border-white/[0.04] px-3 py-1.5 last:border-b-0">
+                        <span className="w-6 text-right text-[11px] font-black tabular-nums text-slate-500">{i + 1}</span>
+                        <TeamFlagge groesse={16} laender={[s.land ?? undefined]} />
+                        <span className="min-w-0 flex-1 truncate text-[12px] font-bold uppercase text-slate-100">{s.name}</span>
+                        <span className="text-sm font-black tabular-nums text-amber-300">{s.titel}</span>
+                      </li>
+                    ))}
+                  </ol>
+                </Tafel>
+
+                <Tafel titel="All-Time Leaderboard" unter={alt.rekorde ? t('Seit {n}').replace('{n}', alt.rekorde.ab) : ''}>
+                  {alt.rekorde ? (
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-white/[0.08] text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                          <th className="w-8 px-3 py-2">#</th><th className="px-3 py-2"><T>Spieler</T></th>
+                          <th className="px-2 py-2 text-right">PTS</th><th className="px-2 py-2 text-right">VR</th><th className="px-3 py-2 text-right">Elims</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {alt.rekorde.spieler.map((s, i) => (
+                          <tr key={`${s.name}-${i}`} className="border-b border-white/[0.04]">
+                            <td className="px-3 py-1.5 text-[11px] font-bold tabular-nums text-slate-500">{i + 1}</td>
+                            <td className="px-3 py-1.5"><span className="flex items-center gap-2"><TeamFlagge groesse={16} laender={[s.land ?? undefined]} /><span className="text-[12px] font-bold uppercase text-slate-100">{s.name}</span></span></td>
+                            <td className="px-2 py-1.5 text-right font-bold tabular-nums text-slate-50">{s.punkte.toLocaleString('en-GB')}</td>
+                            <td className="px-2 py-1.5 text-right tabular-nums text-slate-300">{s.siege}</td>
+                            <td className="px-3 py-1.5 text-right tabular-nums text-slate-300">{s.elims.toLocaleString('en-GB')}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  ) : <p className="px-3 py-4 text-xs text-slate-500"><T>Die Aufstellung ließ sich gerade nicht laden. Bitte gleich noch einmal versuchen.</T></p>}
+                </Tafel>
+
+                <Tafel titel="Nationalities" unter="Titles by country">
+                  <ol>
+                    {alt.laender.map((l, i) => (
+                      <li key={l.land} className="flex items-center gap-2.5 border-b border-white/[0.04] px-3 py-1.5 last:border-b-0">
+                        <span className="w-6 text-right text-[11px] font-black tabular-nums text-slate-500">{i + 1}</span>
+                        <TeamFlagge groesse={16} laender={[l.land]} />
+                        <span className="min-w-0 flex-1 truncate text-[12px] font-bold text-slate-100">{landName(l.land)}</span>
+                        <span className="text-sm font-black tabular-nums text-amber-300">{l.titel}</span>
+                      </li>
+                    ))}
+                  </ol>
+                </Tafel>
+              </div>
+            )}
+
+            {alt?.rekorde && (
+              <div className="mb-10 grid gap-4 lg:grid-cols-3">
+                {([['Most points in a single Grand Finals', alt.rekorde.punkte], ['Most Victory Royales in a single Grand Finals', alt.rekorde.siege], ['Most elims in a single Grand Finals', alt.rekorde.elims]] as const).map(([titel, zeilen]) => (
+                  <Tafel key={titel} titel={titel} unter={t('Seit {n}').replace('{n}', alt.rekorde?.ab ?? '')}>
+                    <ol>
+                      {zeilen.map((z, i) => (
+                        <li key={`${z.event}-${i}`} className="flex items-center gap-2.5 border-b border-white/[0.04] px-3 py-1.5 last:border-b-0">
+                          <span className="w-6 text-right text-[11px] font-black tabular-nums text-slate-500">{i + 1}</span>
+                          <TeamFlagge groesse={z.spieler.length > 1 ? 24 : 16} laender={z.spieler.map((x) => x.land)} />
+                          <span className="min-w-0 flex-1">
+                            <span className="block truncate text-[12px] font-bold uppercase text-slate-100">{z.spieler.map((x) => x.name).join(' · ')}</span>
+                            <span className="block text-[10px] text-slate-600">{z.event}</span>
+                          </span>
+                          <span className="text-sm font-black tabular-nums text-sky-400">{z.wert}</span>
+                        </li>
+                      ))}
+                    </ol>
+                  </Tafel>
+                ))}
+              </div>
+            )}
+
             <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
               <div>
                 <h2 className="text-xl font-black tracking-tight"><T>Eliminierungen in den Grand Finals</T></h2>

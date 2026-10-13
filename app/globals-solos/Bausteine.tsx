@@ -101,7 +101,14 @@ export function Karte({ f, bild, rotAb = 2 }: {
     const xs = [...new Set(fo.punkte.map((q) => q.x))];
     const ys = [...new Set(fo.punkte.map((q) => q.y))];
     const rechteck = fo.punkte.length === 4 && xs.length === 2 && ys.length === 2;
-    return { id: `f${i}`, form: rechteck ? 'rechteck' : 'polygon', punkte: fo.punkte, spieler: fo.spieler, teams: fo.teams ?? fo.spieler.length };
+    const teams = fo.teams ?? fo.spieler.length;
+    /*
+     * Die Zeilen auf der Stelle - die Regel von Noble (Betreiber, 13.10.2026): steht nur ein Team darauf (schwarz), steht jeder
+     * Spieler in einer eigenen Zeile untereinander. Stehen mehrere Teams darauf (rot), bekommt jedes Team eine Zeile, und die
+     * Spieler eines Duos oder Trios stehen darin nebeneinander - sonst sieht ein Duo wie zwei Solos aus.
+     */
+    const zeilen = teams > 1 && fo.gruppen?.length ? fo.gruppen.filter((g) => g.length).map((g) => g.join(' ')) : fo.spieler;
+    return { id: `f${i}`, form: rechteck ? 'rechteck' : 'polygon', punkte: fo.punkte, spieler: zeilen, teams };
   }), [f.formen]);
 
   const aufSpot = useMemo(

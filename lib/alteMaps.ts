@@ -4,6 +4,7 @@ import { spielerKontext, type SolosFenster, type SolosSpieler, type SolosTeam } 
 import type { MapEintrag } from '@/lib/mapsVerzeichnis';
 import { cupBild, type MapTyp } from '@/lib/mapsTyp';
 import { GET as bestenliste } from '@/app/api/cup-leaderboard/route';
+import { endspielArt, schluesselVon, plaetze } from '@/lib/fncsListe';
 
 /*
  * Die Karten ohne Landepunkte: alle Cups, zu denen Noble Practice nichts fuehrt.
@@ -269,7 +270,8 @@ function ausKatalog(archiv: ArchivEintrag[], typVon: (n: string) => MapTyp): Alt
         cup: k.cup, fenster: spieltagVon(k.cup, titel), titel, saison: k.saison, typ,
         datum: ohneDatum ? null : (erste?.begin ?? DATUM_KATALOG[`${k.saison}|${titel}`] ?? null), ende: ohneDatum ? null : (gefunden[gefunden.length - 1]?.end ?? null),
         eventId,
-        bild: cupBild(titel) ?? cupBild(k.cup) ?? (typ === 'fncs' ? '/cups/fncs-major.webp' : epicBild),
+        // Die Grand Finals ab Chapter 5 haben ihr eigenes Vorschaubild (Betreiber, 13.10.2026); aeltere das rote "MAJOR".
+        bild: cupBild(titel) ?? cupBild(k.cup) ?? (typ === 'fncs' ? (titel === 'FNCS Grand Finals' && Number(k.saison.slice(1)) >= 28 ? '/cups/fncs-grand-finals.webp' : '/cups/fncs-major.webp') : epicBild),
         lan: k.lan, reihe, quelle: 'katalog',
         tage: gefunden.length > 1
           ? gefunden.map((a, i) => ({ name: `Day ${i + 1}`, windowId: a.windowId as string, eventId: a.eventId ?? null }))
@@ -401,6 +403,16 @@ async function teamsFuer(e: MapEintrag, daten: AltFensterDaten | undefined, tag 
       }));
     } catch { return []; }
   }
+  // Ein FNCS-Endspiel ohne Epic-Bestenliste (vor Chapter 5 Season 3): die Platzierungsliste der Szene-Quelle - Teams, Spieler, Flaggen.
+  if (!eigene.length && !e.eventId && daten?.epicAn !== false) {
+    const a = endspielArt(e);
+    const liste = a ? await plaetze(schluesselVon(e.saison, a.art)) : [];
+    if (liste.length) {
+      return liste.map((t) => ({
+        id: `l${t.rang}`, spieler: t.spieler.map((s) => spieler(s.id, s.name, s.land ?? undefined)), rang: t.rang, punkte: null, siege: null,
+      }));
+    }
+  }
   return eigene.map((t) => ({
     id: t.id,
     spieler: t.spieler.map((p, i) => spieler(p.epicId || `${t.id}-${i}`, p.name, p.land)),
@@ -422,7 +434,7 @@ export async function alteFenster(e: MapEintrag, tag = 'gesamt'): Promise<{ turn
   for (const t of teams) for (const p of t.spieler) alle.set(p.id, p);
   const formen = (daten?.formen ?? []).map((f) => {
     const dabei = f.teamIds.map((id) => nachId.get(id)).filter((t): t is SolosTeam => !!t);
-    return { punkte: f.punkte, spieler: dabei.flatMap((t) => t.spieler.map((p) => p.anzeige)), teams: dabei.length };
+    return { punkte: f.punkte, spieler: dabei.flatMap((t) => t.spieler.map((p) => p.anzeige)), teams: dabei.length, gruppen: dabei.map((t) => t.spieler.map((p) => p.anzeige)) };
   });
   return {
     turnier: e.cup,

@@ -3390,6 +3390,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Noch keine Endspiele.': 'No finals yet.',
   'Platzierungen werden nachgetragen.': 'Placements will be added.',
   'Spieler {n}': 'Player {n}',
+  'Seit {n}': 'Since {n}',
   'Seiten tauschen': 'Swap sides',
   'Auswahl': 'Selection',
   'Alle Cups': 'All cups',
