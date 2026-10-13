@@ -95,7 +95,7 @@ interface Zeile {
 }
 
 /** Die Bestenliste: Platz, das ganze Team mit Flaggen, Punkte, Siege (VR) und Eliminierungen. */
-export function RangTabelle({ eventId, windowId, laender }: { eventId: string | null; windowId: string; laender: Map<string, string | null> }) {
+export function RangTabelle({ eventId, windowId, laender, anzeigen }: { eventId: string | null; windowId: string; laender: Map<string, string | null>; /** Die Namen, wie das Werkzeug sie kennt (ohne Orgtag), je Konto. */ anzeigen?: Map<string, string> }) {
   const [zeilen, setZeilen] = useState<Zeile[] | null>(null);
   const [fehler, setFehler] = useState(false);
 
@@ -130,7 +130,7 @@ export function RangTabelle({ eventId, windowId, laender }: { eventId: string | 
                 <span className="flex items-center gap-2.5">
                   <TeamFlagge groesse={z.players.length > 1 ? 28 : 20} laender={z.players.map((p) => laender.get(p.id) ?? undefined)} />
                   <span className="flex flex-col text-[11px] font-bold uppercase leading-[1.25] text-slate-100">
-                    {z.players.map((p) => <span key={p.id}>{p.displayName || p.name || '—'}</span>)}
+                    {z.players.map((p) => <span key={p.id}>{anzeigen?.get(p.id) || p.displayName || p.name || '—'}</span>)}
                   </span>
                 </span>
               </td>

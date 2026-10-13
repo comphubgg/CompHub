@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { GET as bestenliste } from '../cup-leaderboard/route';
-import { spielerKontext } from '@/lib/globalsSolos';
-import { GLOBALS_EVENT } from '@/lib/globalsCup';
+import { GLOBALS_EVENT, GLOBALS_TAGE } from '@/lib/globalsCup';
+import { globalsTeams } from '@/lib/globalsTeams';
 
 /*
  * Der Endstand der Global Championship: die ersten Plaetze nach beiden Tagen zusammen - mit den Namen, wie das Werkzeug
@@ -24,12 +24,15 @@ export async function GET() {
     const r = await bestenliste(new Request(`http://localhost/api/cup-leaderboard?event=${GLOBALS_EVENT}&window=gesamt&limit=20`));
     const j = await r.json() as { entries?: Eintrag[] };
     if (!r.ok || !Array.isArray(j.entries) || !j.entries.length) throw new Error('Epic liefert den Endstand gerade nicht.');
-    const kontext = await spielerKontext();
+    // Epic legt fuers LAN eigene Konten an ("[FNCSGC26] HavoK SwizzY") - das Feld ordnet sie dem echten Spieler zu (lib/globalsTeams).
+    const feld = await globalsTeams(GLOBALS_TAGE[0].windowId);
+    const nachId = new Map(feld.teams.flatMap((t) => t.spieler.map((s) => [s.turnierId, s] as const)));
     const teams = j.entries.slice(0, 10).map((e) => ({
       rang: e.rank, punkte: e.points, elims: e.elims, siege: e.wins,
       spieler: e.players.map((p) => {
-        const k = kontext(p.id, (p.name ?? '').replace(/^\[[^\]]*\]\s*/, ''));
-        return { id: p.id, anzeige: k.anzeige, land: k.land, bild: k.bild };
+        const f = nachId.get(p.id);
+        const roh = (p.name ?? '').replace(/\[[^\]]*\]\s*/g, '').trim();
+        return { id: p.id, anzeige: f?.anzeige || roh, land: f?.land ?? null, bild: f?.bild ?? null };
       }),
     }));
     const antwort = { ok: true, teams };

@@ -14,6 +14,7 @@ import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import LadeSchirm from '@/app/components/LadeSchirm';
 import TeamFlagge from '@/components/TeamFlagge';
+import { kernname, ohneZierrat } from '@/lib/homoglyph';
 
 interface Eintrag {
   turnierId: string; region: string; windowId: string; cup: string; fenster: string; titel: string;
@@ -53,6 +54,9 @@ function gruppiere(liste: Eintrag[]): Gruppe[] {
   return raus.sort((a, b) => Number(b.saison.replace(/\D/g, '')) - Number(a.saison.replace(/\D/g, '')) || (b.eintraege[0]?.datum ?? 0) - (a.eintraege[0]?.datum ?? 0));
 }
 
+/** Ein Name ohne Turniermarke und Orgtag - wie auf den Kacheln der Tierlist ("BIG Vicobuca" wird "vicobuca"). */
+const rein = (n: string) => ohneZierrat(kernname(n)).trim() || n;
+
 /** Die ersten drei Plaetze des letzten Tages - von Epics Bestenliste, wo es eine gibt. */
 function Spitze({ e }: { e: Eintrag }) {
   const [top, setTop] = useState<Platz[] | null>(null);
@@ -74,7 +78,7 @@ function Spitze({ e }: { e: Eintrag }) {
       {top?.map((p) => (
         <p key={p.rank} className="flex items-center gap-2 text-[11px]">
           <span className={`w-4 text-center font-black tabular-nums ${p.rank === 1 ? 'text-amber-300' : 'text-slate-500'}`}>{p.rank}</span>
-          <span className="min-w-0 flex-1 truncate font-bold uppercase text-slate-200">{p.players.map((x) => x.displayName || x.name || '—').join(' · ')}</span>
+          <span className="min-w-0 flex-1 truncate font-bold uppercase text-slate-200">{p.players.map((x) => rein(x.displayName || x.name || '—')).join(' · ')}</span>
           <span className="tabular-nums text-sky-400">{p.points}</span>
         </p>
       ))}

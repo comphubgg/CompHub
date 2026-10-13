@@ -236,7 +236,8 @@ export default function KartenSeite() {
               {reiter === 'spieler' && <TeamKarten teams={fenster.teams ?? []} />}
               {reiter === 'leaderboard' && (meta?.alt && (fenster.quelle === 'hand' || !meta.eventId)
                 ? <RangAusTeams teams={fenster.teams ?? []} />
-                : <RangTabelle eventId={meta?.eventId ?? null} windowId={fenster.windowId} laender={laender} />)}
+                : <RangTabelle eventId={meta?.eventId ?? null} windowId={fenster.windowId} laender={laender}
+                    anzeigen={new Map((fenster.teams ?? []).flatMap((x) => x.spieler.map((s) => [s.id, s.anzeige] as const)))} />)}
               {reiter === 'tierlist' && <CupTierlist windowId={fenster.windowId} teams={fenster.teams ?? []} />}
               {reiter === 'statistik' && <CupStatistik eventId={meta?.eventId ?? null} windowId={fenster.windowId} teams={fenster.teams ?? []} vonHand={fenster.quelle === 'hand'} laender={laender} />}
               {reiter === 'laender' && (

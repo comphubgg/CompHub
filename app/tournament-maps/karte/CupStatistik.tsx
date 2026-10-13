@@ -22,8 +22,6 @@ interface Zeile {
 }
 interface Eintrag { team: string; ids: string[]; wert: number; zusatz?: string }
 
-const nameDe = (z: Zeile) => z.players.map((p) => p.displayName || p.name || '—').join(' · ');
-
 function Liste({ titel, zeilen, einheit, laender }: { titel: string; zeilen: Eintrag[]; einheit?: string; laender: Map<string, string | null> }) {
   if (!zeilen.length) return null;
   return (
@@ -47,6 +45,8 @@ function Liste({ titel, zeilen, einheit, laender }: { titel: string; zeilen: Ein
 export default function CupStatistik({ eventId, windowId, teams, vonHand, laender }: {
   eventId: string | null; windowId: string; teams: SolosTeam[]; vonHand: boolean; laender: Map<string, string | null>;
 }) {
+  // Die Namen, wie das Werkzeug sie kennt - ohne Orgtag und Turniermarke (Epic: "BIG Vicobuca").
+  const anzeigen = useMemo(() => new Map(teams.flatMap((x) => x.spieler.map((s) => [s.id, s.anzeige] as const))), [teams]);
   const [zeilen, setZeilen] = useState<Zeile[] | null>(null);
   const [fehler, setFehler] = useState(false);
 
@@ -70,7 +70,7 @@ export default function CupStatistik({ eventId, windowId, teams, vonHand, laende
 
   const listen = useMemo(() => {
     if (!zeilen?.length) return null;
-    const eintrag = (z: Zeile, wert: number, zusatz?: string): Eintrag => ({ team: nameDe(z), ids: z.players.map((p) => p.id), wert, zusatz });
+    const eintrag = (z: Zeile, wert: number, zusatz?: string): Eintrag => ({ team: z.players.map((p) => anzeigen.get(p.id) || p.displayName || p.name || '—').join(' · '), ids: z.players.map((p) => p.id), wert, zusatz });
     const top = (f: (z: Zeile) => number | null, n = 8, absteigend = true, zusatz?: (z: Zeile) => string | undefined) =>
       zeilen.map((z) => ({ z, w: f(z) })).filter((x): x is { z: Zeile; w: number } => x.w !== null && Number.isFinite(x.w))
         .sort((a, b) => (absteigend ? b.w - a.w : a.w - b.w)).slice(0, n).map((x) => eintrag(x.z, x.w, zusatz?.(x.z)));
@@ -85,7 +85,7 @@ export default function CupStatistik({ eventId, windowId, teams, vonHand, laende
       spiel: top(bestesSpiel),
       punkteProSpiel: top((z) => (z.games > 0 ? Math.round((z.points / z.games) * 10) / 10 : null)),
     };
-  }, [zeilen]);
+  }, [zeilen, anzeigen]);
 
   if (fehler) return <p className="text-sm text-slate-500"><T>Für diesen Spieltag liegt noch keine Bestenliste vor.</T></p>;
   if (!zeilen) return <LadeSchirm />;
