@@ -103,7 +103,10 @@ export async function GET(req: NextRequest) {
     }
 
     await aendern(konto.id, { epicId, epicVerifiziert: true });
-    const antwort = zurueck('/account?epic=verbunden');
+    // Kam der Spieler von einer Cup-Seite ("Verify with Epic Games"), geht er dorthin zurueck.
+    const rueck = req.cookies.get('epic_rueck')?.value ?? '';
+    const antwort = zurueck(/^\/[a-z0-9/_-]*$/i.test(rueck) && !rueck.startsWith('//') ? `${rueck}?epic=verbunden` : '/account?epic=verbunden');
+    antwort.cookies.set('epic_rueck', '', { path: '/', maxAge: 0 });
     antwort.cookies.set('epic_oauth_state', '', { path: '/', maxAge: 0 });
     antwort.cookies.set('epic_oauth_art', '', { path: '/', maxAge: 0 });
     return antwort;

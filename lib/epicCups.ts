@@ -74,6 +74,9 @@ export interface CupMatch {
   metallVerbaut?: number;
   zutatVerbaut?: number;
   tiebreaker?: number;
+  /** Punkte dieses Spiels fuer die Platzierung bzw. fuer Eliminierungen - aus Epics Punkteaufschluesselung gerechnet (lib/epicCups, formeEintrag). */
+  punktePlatz?: number;
+  punkteElim?: number;
   [key: string]: unknown;
 }
 
@@ -106,6 +109,9 @@ export interface CupEintrag {
   teamId: string | null;
   matches: CupMatch[];
   players: CupSpieler[];
+  /** Die Punkte aus Platzierungen und die aus Eliminierungen - Epics Aufschluesselung. */
+  punktePlatz?: number;
+  punkteElims?: number;
   page?: number;
 }
 
@@ -472,6 +478,8 @@ interface RohEintrag {
   pointsEarned: number;
   teamId?: string;
   teamAccountIds?: string[];
+  /** Epics Aufschluesselung der Punkte: je Stufe "PLACEMENT_STAT_INDEX:12" bzw. "TEAM_ELIMS_STAT_INDEX:1" Punkte und wie oft erreicht. */
+  pointBreakdown?: Record<string, { pointsEarned?: number; timesAchieved?: number }>;
   sessionHistory?: Array<{
     sessionId?: string; endTime?: string;
     trackedStats?: Record<string, number>;
@@ -520,6 +528,31 @@ function formeEintrag(e: RohEintrag, namen: Record<string, string>): CupEintrag 
     matches.push(m);
   }
 
+  /*
+   * Punkte aus Platzierung und aus Eliminierungen.
+   *
+   * Epic nennt je Stufe, wie oft sie erreicht wurde und wie viele Punkte das gab ("PLACEMENT_STAT_INDEX:12": Platz 12 oder besser,
+   * "TEAM_ELIMS_STAT_INDEX:1": je Eliminierung). Daraus der Wert je Erreichen; ein Spiel mit Platz p hat alle Stufen ab p erreicht.
+   * So laesst sich auch je Spiel sagen, wie viele Punkte aus der Platzierung und wie viele aus Eliminierungen kamen (Osirion zeigt beides).
+   */
+  const stufen = new Map<number, number>();
+  let elimWert = 0, punktePlatz = 0, punkteElims = 0;
+  for (const [k, v] of Object.entries(e.pointBreakdown ?? {})) {
+    const [typ, nr] = k.split(':');
+    const wert = v.timesAchieved ? (v.pointsEarned ?? 0) / v.timesAchieved : 0;
+    if (/PLACEMENT_STAT_INDEX$/.test(typ)) { stufen.set(Number(nr), wert); punktePlatz += v.pointsEarned ?? 0; }
+    else if (/TEAM_ELIMS_STAT_INDEX$/.test(typ)) { elimWert = wert; punkteElims += v.pointsEarned ?? 0; }
+  }
+  if (stufen.size || elimWert) {
+    for (const m of matches) {
+      if (typeof m.placement === 'number') {
+        const p = m.placement;
+        m.punktePlatz = +[...stufen.entries()].reduce((a, [n, w]) => (n >= p ? a + w : a), 0).toFixed(2);
+      }
+      if (typeof m.elims === 'number') m.punkteElim = +(m.elims * elimWert).toFixed(2);
+    }
+  }
+
   const games = hist.length;
   const punkte = e.pointsEarned ?? 0;
   return {
@@ -533,6 +566,8 @@ function formeEintrag(e: RohEintrag, namen: Record<string, string>): CupEintrag 
     // Tode = gespielte Runden ohne Sieg. Naeher kommt Epic nicht heran.
     kd: games - wins > 0 ? +(elims / (games - wins)).toFixed(2) : elims,
     teamId: e.teamId ?? null,
+    punktePlatz: stufen.size ? +punktePlatz.toFixed(2) : undefined,
+    punkteElims: elimWert ? +punkteElims.toFixed(2) : undefined,
     matches,
     players: (e.teamAccountIds ?? []).map((id) => ({
       id, name: namen[id] || id.slice(0, 8),

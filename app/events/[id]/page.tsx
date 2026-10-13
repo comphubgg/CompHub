@@ -15,6 +15,7 @@ import TeamFlagge, { flaggenPfad } from '@/components/TeamFlagge';
 
 import T from '@/app/components/T';
 import LadeSchirm from '@/app/components/LadeSchirm';
+import SpielerDetail from './SpielerDetail';
 import { regionFarbe } from '@/lib/regionFarbe';
 import { useT, useSprache } from '@/app/components/SprachProvider';
 import { kartenTitel } from '@/lib/rundenName';
@@ -4144,6 +4145,11 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
           * Vorbild, in den eigenen Farben (app/components/StatKacheln).
           * Darunter bleibt die ganze Tabelle mit Suche.
           */}
+        {/* Player Stats wie bei Osirion: Konto waehlen oder verifizieren, Spieler suchen, die Werte des Spielers (Betreiber, 13.10.2026). */}
+        {(reiter === 'spieler' || (soloCup && reiter === 'teams')) && lbFenster && (
+          <SpielerDetail eventId={lbFenster.eventId} windowId={lbFenster.windowId} rueckPfad={`/events/${id}`} />
+        )}
+
         {reiter === 'spieler' && !soloCup && !!spielerWerte?.spieler.length && (
           <div className="mb-4">
             <SpielerStatsUebersicht
