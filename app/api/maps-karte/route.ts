@@ -24,7 +24,7 @@ export async function GET(request: Request) {
     if (t.startsWith(ALT)) {
       const e = (await mapsVerzeichnis()).find((x) => x.turnierId === t && x.windowId === w);
       if (!e) return NextResponse.json({ ok: false, error: 'Dieses Fenster gibt es nicht.' }, { status: 404, headers: { 'Cache-Control': 'no-store' } });
-      return NextResponse.json({ ok: true, ...await alteFenster(e) }, { headers: { 'Cache-Control': 'no-store' } });
+      return NextResponse.json({ ok: true, ...await alteFenster(e, p.get('tag') ?? 'gesamt') }, { headers: { 'Cache-Control': 'no-store' } });
     }
     const f = await fensterFuer(t, r, w);
     if (!f) return NextResponse.json({ ok: false, error: 'Dieses Fenster gibt es nicht.' }, { status: 404, headers: { 'Cache-Control': 'no-store' } });

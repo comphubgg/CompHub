@@ -1,7 +1,7 @@
 import { alleTurniere, detail } from '@/lib/nobleKarte';
 import { liesJson } from '@/lib/ablage';
 import { saisonName, SAISON_NAMEN } from '@/lib/szeneStats';
-import { typVon, type MapTyp } from '@/lib/mapsTyp';
+import { typVon, cupBild, SAISON_TITEL, SAISON_OHNE_MAPS, type MapTyp } from '@/lib/mapsTyp';
 import { alteEintraege } from '@/lib/alteMaps';
 
 export { typVon };
@@ -33,6 +33,8 @@ export interface MapEintrag {
   /** "CH7 S4" */
   saisonKurz: string;
   saisonName: string;
+  /** Der Name der Saison ("Vibin'"), wo es einen gibt. */
+  saisonTitel?: string;
   typ: MapTyp;
   bild: string | null;
   /** Epics Ereignis-Kennung - fuer die Bestenliste (leer, wo das Cup-Archiv das Fenster nicht kennt). */
@@ -45,6 +47,8 @@ export interface MapEintrag {
   lan?: boolean;
   /** Eine Karte ohne Landepunkte aus dem Archiv - der Admin zeichnet sie von Hand ein (lib/alteMaps). */
   alt?: boolean;
+  /** Ein Finale an zwei Tagen (Day 1, Day 2): die Fenster der Tage. Die Karte ist eine, die Bestenliste hat einen Tag-Umschalter. */
+  tage?: Array<{ name: string; windowId: string; eventId: string | null }>;
 }
 
 /** "Chapter 7 Season 4" -> "CH7 S4"; Namen wie "The Simpsons" bleiben, wie sie sind. */
@@ -58,7 +62,7 @@ const BILD_JE_TYP: Record<MapTyp, string | null> = {
   performance: '/tournaments/Fortnite Performance Evaluation.jpg',
   division: '/tournaments/FNCS Division 1.jpg',
   fncs: '/cups/fncs-global-championship-2026-hd.jpg',
-  reload: '/tournaments/Reload Elite Series Finals.jpg',
+  reload: '/cups/reload-road-to-ewc.webp',
   sonst: null,
 };
 
@@ -101,7 +105,7 @@ export async function mapsVerzeichnis(): Promise<MapEintrag[]> {
           cup: t.tournamentName, fenster: w.name, titel: a?.titel || `${t.tournamentName} · ${w.name}`,
           datum: Number.isFinite(datum as number) ? datum : null,
           saison, saisonKurz: '', saisonName: '',
-          typ, bild: a?.bild ?? BILD_JE_TYP[typ],
+          typ, bild: cupBild(`${t.tournamentName} ${a?.titel ?? ''}`) ?? a?.bild ?? BILD_JE_TYP[typ],
           eventId: a?.eventId ?? null, ende: w.endDate ? Date.parse(w.endDate) : (a?.end ?? null),
         });
       }
@@ -131,17 +135,26 @@ export async function mapsVerzeichnis(): Promise<MapEintrag[]> {
       const dran = [...folge].reverse().find(([, b]) => b <= (e.datum as number));
       if (dran) e.saison = dran[0];
     }
-    if (e.saison) { e.saisonName = saisonName(e.saison); e.saisonKurz = kurzName(e.saisonName); }
+    if (e.saison) { e.saisonName = saisonName(e.saison); e.saisonKurz = kurzName(e.saisonName); e.saisonTitel = SAISON_TITEL[e.saison]; }
   }
 
-  liste.sort((a, b) => (b.datum ?? 0) - (a.datum ?? 0) || (b.reihe ?? 0) - (a.reihe ?? 0));
-  merker = { bis: Date.now() + 15 * 60_000, liste, versteckt };
-  return liste;
+  /*
+   * Reihenfolge: die neueste Saison zuerst; darin nach Datum - und in Saisons, die ganz aus dem Katalog kommen (kein Datum
+   * belegt), in der Aufstellung des Vorbilds (reihe). Chapter 4 Season OG und Galactic Battle gibt es hier nicht.
+   */
+  const nr = (e: MapEintrag) => Number(e.saison.slice(1)) || 0;
+  const mitNoble = new Set(liste.filter((e) => !e.alt).map((e) => e.saison));
+  const sichtbar = liste.filter((e) => !SAISON_OHNE_MAPS.has(e.saison));
+  sichtbar.sort((a, b) => nr(b) - nr(a)
+    || (mitNoble.has(a.saison) ? (b.datum ?? 0) - (a.datum ?? 0) : 0)
+    || (b.reihe ?? 0) - (a.reihe ?? 0) || (b.datum ?? 0) - (a.datum ?? 0));
+  merker = { bis: Date.now() + 15 * 60_000, liste: sichtbar, versteckt };
+  return sichtbar;
 }
 
 /* ------------------------------------------------------------------ Kapitel und Saisons */
 
-export interface SaisonInfo { kennung: string; nr: number; name: string; kurz: string; kapitel: number }
+export interface SaisonInfo { kennung: string; nr: number; name: string; kurz: string; kapitel: number; titel?: string }
 
 /** Zu welchem Kapitel eine Saison gehoert - nach Epics Zaehlung (S8 bis S42). */
 function kapitelVon(nr: number): number {
@@ -149,17 +162,16 @@ function kapitelVon(nr: number): number {
   if (nr <= 18) return 2;
   if (nr <= 22) return 3;
   if (nr <= 27) return 4;
-  if (nr <= 31) return 5;
-  if (nr === 32) return 2; // Chapter 2 Remix
+  if (nr <= 32) return 5; // Chapter 2 Remix steht beim Vorbild unter Chapter 5
   if (nr <= 38) return 6;
   return 7;
 }
 
 /** Alle Saisons von Chapter 1 bis heute, geordnet - auch die ohne Karten (die Seite zeigt sie grau). */
 export function alleSaisons(): SaisonInfo[] {
-  return Object.keys(SAISON_NAMEN).map((k) => {
+  return Object.keys(SAISON_NAMEN).filter((k) => !SAISON_OHNE_MAPS.has(k)).map((k) => {
     const nr = Number(k.slice(1));
     const name = SAISON_NAMEN[k];
-    return { kennung: k, nr, name, kurz: kurzName(name), kapitel: kapitelVon(nr) };
+    return { kennung: k, nr, name, kurz: kurzName(name), kapitel: kapitelVon(nr), titel: SAISON_TITEL[k] };
   }).sort((a, b) => a.nr - b.nr);
 }

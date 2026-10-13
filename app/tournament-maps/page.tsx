@@ -26,9 +26,9 @@ type Typ = 'fncs' | 'performance' | 'division' | 'reload' | 'sonst';
 interface Eintrag {
   turnierId: string; region: string; windowId: string; cup: string; fenster: string; titel: string;
   datum: number | null; ende: number | null; saison: string; saisonKurz: string; saisonName: string; typ: Typ; bild: string | null;
-  reihe?: number; lan?: boolean; alt?: boolean;
+  reihe?: number; lan?: boolean; alt?: boolean; saisonTitel?: string;
 }
-interface Saison { kennung: string; nr: number; name: string; kurz: string; kapitel: number }
+interface Saison { kennung: string; nr: number; name: string; kurz: string; kapitel: number; titel?: string }
 interface Eigene {
   id: string; titel: string; region: string | null; windowId: string | null; datum: number | null; bild: string | null;
 }
@@ -250,7 +250,11 @@ export default function Maps() {
                         return (
                           <button key={s.kennung} type="button" onClick={() => setSaison(s.kennung)}
                             className={`flex items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-left text-[11px] font-bold uppercase tracking-wider transition ${saison === s.kennung ? 'bg-white text-zinc-900' : n ? 'text-slate-300 hover:bg-white/[0.06] hover:text-slate-100' : 'text-slate-600 hover:bg-white/[0.04]'}`}>
-                            <span className="truncate">{s.kurz}</span><span className="tabular-nums opacity-60">{n}</span>
+                            <span className="min-w-0 truncate">
+                              {s.kurz}
+                              {s.titel && <span className="block truncate text-[10px] font-semibold normal-case tracking-normal opacity-70">{s.titel}</span>}
+                            </span>
+                            <span className="tabular-nums opacity-60">{n}</span>
                           </button>
                         );
                       })}
@@ -266,7 +270,10 @@ export default function Maps() {
         <section className="min-w-0 flex-1">
           <div className="mp-glas flex flex-wrap items-center gap-2 rounded-2xl p-3">
             <h2 className="mr-2 text-lg font-black uppercase tracking-wide text-slate-100">
-              {saison ? (saisons.find((s) => s.kennung === saison)?.name ?? '') : (kapitel ? `Chapter ${kapitel}` : '')}
+              {saison ? (() => {
+                const s = saisons.find((x) => x.kennung === saison);
+                return s ? `${s.name}${s.titel ? ` · ${s.titel}` : ''}` : '';
+              })() : (kapitel ? `Chapter ${kapitel}` : '')}
               <span className="ml-2 text-xs font-semibold normal-case tracking-normal text-slate-500">{sichtbar.length}</span>
             </h2>
             <input value={suche} onChange={(e) => setSuche(e.target.value)} placeholder={t('Cup suchen …')}

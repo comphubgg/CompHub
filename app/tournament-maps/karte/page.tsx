@@ -7,6 +7,9 @@
  * TIERLIST, NATIONALITIES; oben stehen alle Spieltage des Cups ("Week 1 - Finals 23.08 ..."), und man wechselt direkt
  * von einem zum anderen. Die Karte muss die richtige zur Spielversion sein (bei Reload die Reload-Karte) - und der
  * Admin kann sie ändern. Alles aus dem Werkzeug selbst (/api/maps-karte, /api/maps-liste, /api/maps-bild).
+ *
+ * 13.10.2026: neben der Karte steht die Bestenliste (wie beim Vorbild), der Statistik-Reiter ist weg, und ein Finale an zwei
+ * Tagen ist eine Karte mit Umschalter Day 1 / Day 2 / Combined.
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
@@ -20,20 +23,20 @@ import { Karte } from '@/app/globals-solos/Bausteine';
 import LaenderListe from '@/app/components/LaenderListe';
 import { TeamKarten, RangTabelle, RangAusTeams } from './Mannschaften';
 import CupTierlist from './CupTierlist';
-import CupStatistik from './CupStatistik';
 
 interface Eintrag {
   turnierId: string; region: string; windowId: string; cup: string; fenster: string; titel: string;
   datum: number | null; ende: number | null; saison: string; saisonKurz: string; saisonName: string; bild: string | null; eventId: string | null;
-  reihe?: number; lan?: boolean; alt?: boolean;
+  reihe?: number; lan?: boolean; alt?: boolean; saisonTitel?: string;
+  tage?: Array<{ name: string; windowId: string; eventId: string | null }>;
 }
 
 const KURZ = new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: '2-digit', timeZone: 'Europe/Brussels' });
 const LANG = new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Europe/Brussels' });
 
-type Reiter = 'karte' | 'spieler' | 'leaderboard' | 'tierlist' | 'statistik' | 'laender';
+type Reiter = 'karte' | 'spieler' | 'leaderboard' | 'tierlist' | 'laender';
 const REITER: Array<[Reiter, string]> = [
-  ['karte', 'Map'], ['spieler', 'Spieler'], ['leaderboard', 'Leaderboard'], ['tierlist', 'Tierlist'], ['statistik', 'Statistik'], ['laender', 'Länder'],
+  ['karte', 'Map'], ['spieler', 'Spieler'], ['leaderboard', 'Leaderboard'], ['tierlist', 'Tierlist'], ['laender', 'Länder'],
 ];
 
 /** Beendet, laufend oder kommend - aus Beginn und Ende des Spieltags. */
@@ -53,6 +56,9 @@ export default function KartenSeite() {
   const zugang = useZugang();
   const [params, setParams] = useState<{ t: string; r: string; w: string } | null>(null);
   const [fenster, setFenster] = useState<SolosFenster | null>(null);
+  /** Bei einem Finale an zwei Tagen: welcher Tag gerade gilt ("gesamt", "1", "2"). */
+  const [tag, setTag] = useState('gesamt');
+  const [tage, setTage] = useState<Array<{ name: string; windowId: string }>>([]);
   const [liste, setListe] = useState<Eintrag[]>([]);
   const [fehler, setFehler] = useState('');
   const [reiter, setReiter] = useState<Reiter>('karte');
@@ -68,14 +74,26 @@ export default function KartenSeite() {
     setParams({ t: tid, r, w });
   }, []);
 
+  // Ein anderer Spieltag: alles zurueck auf Anfang (die Karte wird neu geholt, der Tag steht wieder auf "gesamt").
+  useEffect(() => {
+    if (!params) return;
+    setFenster(null); setFehler(''); setTag('gesamt'); setTage([]);
+  }, [params]);
+
+  // Die Karte samt Teams - ein anderer Tag holt nur die Teams neu, die Karte bleibt stehen.
   useEffect(() => {
     if (!params) return undefined;
     let weg = false;
-    setFenster(null); setFehler('');
-    fetch(`/api/maps-karte?t=${encodeURIComponent(params.t)}&r=${encodeURIComponent(params.r)}&w=${encodeURIComponent(params.w)}`, { cache: 'no-store' })
+    fetch(`/api/maps-karte?t=${encodeURIComponent(params.t)}&r=${encodeURIComponent(params.r)}&w=${encodeURIComponent(params.w)}&tag=${encodeURIComponent(tag)}`, { cache: 'no-store' })
       .then((x) => x.json())
-      .then((j) => { if (weg) return; if (j?.ok) setFenster(j.fenster); else setFehler(j?.error || 'Die Karte ließ sich nicht laden.'); })
+      .then((j) => { if (weg) return; if (j?.ok) { setFenster(j.fenster); setTage(j.tage ?? []); } else setFehler(j?.error || 'Die Karte ließ sich nicht laden.'); })
       .catch(() => { if (!weg) setFehler('Die Karte ließ sich nicht laden.'); });
+    return () => { weg = true; };
+  }, [params, tag]);
+
+  useEffect(() => {
+    if (!params) return undefined;
+    let weg = false;
     fetch(`/api/maps-bild?w=${encodeURIComponent(params.w)}`, { cache: 'no-store' })
       .then((x) => x.json())
       .then((j) => { if (!weg && j?.ok) { setWahlBild(j.u ?? null); setAuswahl(j.auswahl ?? []); } })
@@ -93,7 +111,7 @@ export default function KartenSeite() {
 
   const meta = useMemo(() => liste.find((e) => params && e.windowId === params.w && e.region === params.r) ?? null, [liste, params]);
   const wochen = useMemo(
-    () => liste.filter((e) => meta && e.turnierId === meta.turnierId && e.region === meta.region).sort((a, b) => (a.datum ?? 0) - (b.datum ?? 0) || (a.reihe ?? 0) - (b.reihe ?? 0)),
+    () => liste.filter((e) => meta && e.turnierId === meta.turnierId && e.region === meta.region).sort((a, b) => (a.alt && b.alt ? 0 : (a.datum ?? 0) - (b.datum ?? 0)) || (a.reihe ?? 0) - (b.reihe ?? 0)),
     [liste, meta],
   );
   const laender = useMemo(() => new Map((fenster?.spieler ?? []).map((s) => [s.id, s.land])), [fenster]);
@@ -137,7 +155,7 @@ export default function KartenSeite() {
               <h1 className="text-3xl font-black tracking-tight sm:text-5xl">{titelOben || fenster?.name || t('Karte')}</h1>
               <p className="mt-1 flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
                 {meta?.lan && <span className="rounded bg-amber-400 px-1.5 py-0.5 font-black text-zinc-950">LAN</span>}
-                {meta?.saisonKurz && <span>{meta.saisonKurz}</span>}
+                {meta?.saisonKurz && <span>{meta.saisonKurz}{meta.saisonTitel ? ` — ${meta.saisonTitel}` : ''}</span>}
                 {meta?.region && <span className="rounded bg-white/10 px-1.5 py-0.5 text-slate-200">{meta.region}</span>}
                 {(fenster?.start || meta?.datum) && <span>{LANG.format(new Date(fenster?.start ?? (meta?.datum as number)))}</span>}
                 {zustand && (
@@ -183,6 +201,14 @@ export default function KartenSeite() {
                 <button key={k} type="button" onClick={() => setReiter(k)} className={chip(reiter === k)}><T>{tt}</T></button>
               ))}
             </div>
+
+            {tage.length > 1 && (
+              <div className="mt-4 inline-flex gap-1 rounded-xl border border-white/[0.08] bg-black/30 p-1">
+                {[...tage.map((d, i) => [String(i + 1), d.name] as const), ['gesamt', 'Combined'] as const].map(([k, name]) => (
+                  <button key={k} type="button" onClick={() => setTag(k)} className={chip(tag === k)}>{name}</button>
+                ))}
+              </div>
+            )}
 
             <div className="mt-5">
               {reiter === 'karte' && (
@@ -230,16 +256,23 @@ export default function KartenSeite() {
                       )}
                     </div>
                   )}
-                  <Karte f={fenster} bild={bild} rotAb={teamSpiel ? 3 : 2} />
+                  <div className="grid gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(320px,1fr)] lg:items-start">
+                    <Karte f={fenster} bild={bild} rotAb={teamSpiel ? 3 : 2} />
+                    <aside className="lg:sticky lg:top-4">
+                      <h2 className="mb-2 text-sm font-black uppercase tracking-[0.14em] text-slate-300"><T>Leaderboard</T></h2>
+                      <div className="max-h-[80vh] overflow-y-auto rounded-xl">
+                        <RangAusTeams teams={fenster.teams ?? []} schmal />
+                      </div>
+                    </aside>
+                  </div>
                 </div>
               )}
               {reiter === 'spieler' && <TeamKarten teams={fenster.teams ?? []} />}
-              {reiter === 'leaderboard' && (meta?.alt && (fenster.quelle === 'hand' || !meta.eventId)
+              {reiter === 'leaderboard' && (meta?.alt
                 ? <RangAusTeams teams={fenster.teams ?? []} />
                 : <RangTabelle eventId={meta?.eventId ?? null} windowId={fenster.windowId} laender={laender}
                     anzeigen={new Map((fenster.teams ?? []).flatMap((x) => x.spieler.map((s) => [s.id, s.anzeige] as const)))} />)}
               {reiter === 'tierlist' && <CupTierlist windowId={fenster.windowId} teams={fenster.teams ?? []} />}
-              {reiter === 'statistik' && <CupStatistik eventId={meta?.eventId ?? null} windowId={fenster.windowId} teams={fenster.teams ?? []} vonHand={fenster.quelle === 'hand'} laender={laender} />}
               {reiter === 'laender' && (
                 <div className="max-w-2xl">
                   <h2 className="mb-3 text-lg font-black uppercase tracking-wide text-slate-100"><T>Spieler nach Land</T></h2>

@@ -38,10 +38,18 @@ async function bereinigt<T extends { entries?: unknown[]; totalPages?: number }>
  * beide Tage zusammengerechnet." Abgesagte Runden sind schon abgezogen.
  */
 async function globalsGesamt() {
-  const tage = await Promise.all(GLOBALS_TAGE.map(async (t) => {
-    const d = await gecacht(`bereich|${GLOBALS_EVENT}|${t.windowId}|0|2`, TTL,
-      () => holeBereich(GLOBALS_EVENT, t.windowId, 0, 2));
-    return bereinigt(d, GLOBALS_EVENT, t.windowId);
+  return tageGesamt(GLOBALS_EVENT, GLOBALS_TAGE.map((t) => t.windowId));
+}
+
+/**
+ * Mehrere Spieltage eines Events zusammengerechnet (Day 1 + Day 2): Punkte, Siege, Eliminierungen und Spiele je Team addiert,
+ * neu nach Punkten gereiht. Die Globals sind der Sonderfall mit eigenem Aufruf; ?windows=a,b macht es fuer jedes Finale.
+ */
+async function tageGesamt(event: string, windows: string[]) {
+  const tage = await Promise.all(windows.map(async (w) => {
+    const d = await gecacht(`bereich|${event}|${w}|0|2`, TTL,
+      () => holeBereich(event, w, 0, 2));
+    return bereinigt(d, event, w);
   }));
   const nach = new Map<string, CupEintrag>();
   for (const d of tage) {
@@ -65,9 +73,9 @@ async function globalsGesamt() {
   }).sort((a, b) => b.points - a.points || b.wins - a.wins || b.avgElims - a.avgElims || a.avgPlace - b.avgPlace);
   eintraege.forEach((e, i) => { e.rank = i + 1; });
   return {
-    eventId: GLOBALS_EVENT, windowId: 'gesamt', page: 0, totalPages: 1,
+    eventId: event, windowId: 'gesamt', page: 0, totalPages: 1,
     updated: tage.map((d) => d.updated).filter(Boolean).sort().pop() ?? '',
-    liveSessions: null, entries: eintraege, zusammengerechnet: GLOBALS_TAGE.map((t) => t.windowId),
+    liveSessions: null, entries: eintraege, zusammengerechnet: windows,
     punkteUnsicher: tage.some((d) => d.punkteUnsicher),
   };
 }
@@ -103,8 +111,9 @@ async function holeRoh(request: Request) {
   const { searchParams } = new URL(request.url);
   const event = searchParams.get('event');
   const window_ = searchParams.get('window');
+  const mehrere = (searchParams.get('windows') ?? '').split(',').map((s) => s.trim()).filter(Boolean);
 
-  if (!event || !window_) {
+  if (!event || (!window_ && mehrere.length < 2)) {
     return NextResponse.json(
       { error: 'event und window sind noetig' },
       { status: 400 },
@@ -118,6 +127,9 @@ async function holeRoh(request: Request) {
   const limit = Math.min(parseInt(searchParams.get('limit') ?? '100', 10) || 100, 10_000);
 
   try {
+    // Mehrere Spieltage zusammen (Day 1 + Day 2 eines Finales).
+    if (mehrere.length > 1) return NextResponse.json(await ergaenzeBilder(await tageGesamt(event, mehrere)));
+    if (!window_) return NextResponse.json({ error: 'window fehlt' }, { status: 400 });
     // Das Finale der Globals: beide Tage zusammen (siehe globalsGesamt).
     if (istGlobalsEvent(event) && !istGlobalsFenster(window_)) {
       const daten = await globalsGesamt();
