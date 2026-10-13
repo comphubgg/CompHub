@@ -131,10 +131,6 @@ export default function Maps() {
   const [saison, setSaison] = useState('');
   const [ansicht, setAnsicht] = useState<'kacheln' | 'liste'>('kacheln');
   const zugang = useZugang();
-  const [neuOffen, setNeuOffen] = useState(false);
-  const [neu, setNeu] = useState({ cup: '', fenster: '', saison: '', datum: '', lan: false });
-  const [neuStatus, setNeuStatus] = useState('');
-  const [versteckte, setVersteckte] = useState<Array<{ windowId: string; titel: string; saisonKurz: string }>>([]);
 
   useEffect(() => {
     try { const a = localStorage.getItem('maps_ansicht'); if (a === 'liste' || a === 'kacheln') setAnsicht(a); } catch { /* ohne Speicher */ }
@@ -152,33 +148,6 @@ export default function Maps() {
       .catch(() => { /* ohne eigene Karten bleibt es bei den anderen */ });
     return () => { weg = true; };
   }, []);
-
-  /** Die Liste neu holen - nach dem Anlegen eines Events. */
-  const neuLaden = () => fetch('/api/maps-liste', { cache: 'no-store' }).then((r) => r.json())
-    .then((j) => { if (j?.ok) { setEintraege(j.eintraege); setSaisons(j.saisons ?? []); } }).catch(() => { /* bleibt, wie es war */ });
-
-  useEffect(() => {
-    if (!zugang.admin || !neuOffen) return;
-    fetch('/api/alte-maps?versteckte=1', { cache: 'no-store' }).then((r) => r.json())
-      .then((j) => { if (j?.ok) setVersteckte(j.versteckte ?? []); }).catch(() => { /* ohne die Liste */ });
-  }, [zugang.admin, neuOffen, eintraege]);
-
-  const zurueckholen = async (w: string) => {
-    await fetch('/api/alte-maps', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ aktion: 'verstecken', w, versteckt: false }) });
-    setVersteckte((v) => v.filter((x) => x.windowId !== w));
-    await neuLaden();
-  };
-
-  const eventAnlegen = async () => {
-    setNeuStatus('…');
-    try {
-      const r = await fetch('/api/alte-maps', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ aktion: 'neu', ...neu }) });
-      const j = await r.json();
-      if (!j?.ok) { setNeuStatus(j?.error || 'Nicht gespeichert.'); return; }
-      setNeuStatus('Angelegt.'); setNeu({ ...neu, fenster: '' });
-      await neuLaden();
-    } catch { setNeuStatus('Nicht gespeichert.'); }
-  };
 
   /** Wie viele Karten je Saison. */
   const zahlJe = useMemo(() => {
@@ -308,10 +277,9 @@ export default function Maps() {
               ))}
             </div>
             {zugang.admin && (
-              <button type="button" onClick={() => { setNeuOffen((v) => !v); setNeuStatus(''); if (!neu.saison && saison) setNeu((n) => ({ ...n, saison })); }}
-                className="rounded-lg border border-amber-400/40 bg-amber-400/10 px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-amber-200 transition hover:border-amber-300">
-                + <T>Event anlegen</T>
-              </button>
+              <Link href="/admin/alte-maps" className="rounded-lg border border-amber-400/40 bg-amber-400/10 px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-amber-200 transition hover:border-amber-300">
+                <T>Alte Maps verwalten</T> →
+              </Link>
             )}
             <div className="ml-auto flex gap-1.5">
               {([['kacheln', 'Board'], ['liste', 'List']] as const).map(([k, titel]) => (
@@ -319,49 +287,6 @@ export default function Maps() {
               ))}
             </div>
           </div>
-
-          {zugang.admin && neuOffen && (
-            <div className="mp-glas mt-3 rounded-2xl p-4">
-              <p className="text-xs text-slate-400"><T>Ein Event ohne Landepunkte anlegen. Danach öffnest du es und zeichnest die Landepunkte selbst ein.</T></p>
-              <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-[1.4fr_1.2fr_1fr_1fr_auto]">
-                <input value={neu.cup} onChange={(e) => setNeu({ ...neu, cup: e.target.value })} list="alte-cups" placeholder={t('Cup, z. B. Elite Cup')}
-                  className="rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-600 focus:border-sky-500" />
-                <datalist id="alte-cups">{[...new Set((eintraege ?? []).map((x) => x.cup))].slice(0, 80).map((c) => <option key={c} value={c} />)}</datalist>
-                <input value={neu.fenster} onChange={(e) => setNeu({ ...neu, fenster: e.target.value })} placeholder={t('Spieltag, z. B. Week 3 - Finals')}
-                  className="rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-600 focus:border-sky-500" />
-                <select value={neu.saison} onChange={(e) => setNeu({ ...neu, saison: e.target.value })}
-                  className="rounded-lg border border-zinc-800 bg-zinc-900/60 px-2 py-2 text-sm text-slate-100 outline-none focus:border-sky-500">
-                  <option value="">{t('Saison wählen')}</option>
-                  {[...saisons].reverse().map((s) => <option key={s.kennung} value={s.kennung}>{s.name}</option>)}
-                </select>
-                <input type="date" value={neu.datum} onChange={(e) => setNeu({ ...neu, datum: e.target.value })}
-                  className="rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-2 text-sm text-slate-100 outline-none focus:border-sky-500" />
-                <label className="flex items-center gap-2 text-xs font-semibold text-slate-300">
-                  <input type="checkbox" checked={neu.lan} onChange={(e) => setNeu({ ...neu, lan: e.target.checked })} /> LAN
-                </label>
-              </div>
-              <div className="mt-3 flex items-center gap-3">
-                <button type="button" disabled={!neu.cup.trim() || !neu.fenster.trim() || !neu.saison} onClick={() => void eventAnlegen()}
-                  className="rounded-lg bg-white px-4 py-2 text-sm font-bold text-zinc-900 transition hover:bg-sky-100 disabled:opacity-40"><T>Anlegen</T></button>
-                {neuStatus && <span className="text-xs text-slate-400">{neuStatus}</span>}
-              </div>
-              {versteckte.length > 0 && (
-                <div className="mt-4 border-t border-white/[0.08] pt-3">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500"><T>Versteckte Karten</T> · {versteckte.length}</p>
-                  <ul className="mt-2 flex flex-wrap gap-1.5">
-                    {versteckte.map((v) => (
-                      <li key={v.windowId}>
-                        <button type="button" onClick={() => void zurueckholen(v.windowId)} title={t('Zurückholen')}
-                          className="rounded-md border border-white/10 bg-white/[0.04] px-2.5 py-1 text-[11px] font-semibold text-slate-300 transition hover:border-sky-500/60">
-                          ↩ {v.titel}
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-            </div>
-          )}
 
           {fehler && (
             <p className="mt-6 rounded-xl border border-rose-500/30 bg-rose-500/5 px-4 py-3 text-sm text-rose-300">

@@ -46,6 +46,8 @@ export interface SolosFenster {
   teams?: SolosTeam[];
   /** Das Kartenbild zu diesem Spieltag (die Karte der Spielversion, bei Reload die Reload-Karte). */
   bild?: string | null;
+  /** Nur bei den alten Karten (lib/alteMaps): kommen die Teams von Epics Bestenliste oder hat der Admin sie angelegt? */
+  quelle?: 'epic' | 'hand';
   /** Die Landepunkte, mit den Anzeigenamen der Spieler darauf - Ecken in Prozent des Kartenbildes. */
   formen: Array<{ punkte: Array<{ x: number; y: number }>; spieler: string[]; /** Wie viele Teams auf dieser Stelle stehen. */ teams?: number }>;
 }
@@ -56,6 +58,8 @@ export interface SolosTeam {
   rang: number | null;
   punkte: number | null;
   siege: number | null;
+  /** Nur bei von Hand gepflegten Bestenlisten (lib/alteMaps). */
+  elims?: number | null;
 }
 
 export interface SolosGruppe {

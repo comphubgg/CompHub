@@ -3,13 +3,14 @@ import { werSchreibt, darfKarteAendern } from '@/lib/werSchreibt';
 import { mapsVerzeichnis, vergissVerzeichnis, versteckteKarten } from '@/lib/mapsVerzeichnis';
 import { typVon } from '@/lib/mapsTyp';
 import { SAISON_NAMEN } from '@/lib/szeneStats';
-import { ALT, aendereAltStore, alteBearbeitung, type AltEreignis, type AltForm, type AltTeam } from '@/lib/alteMaps';
+import { ALT, aendereAltStore, alteBearbeitung, alteZahlen, type AltEreignis, type AltForm, type AltMeta, type AltTeam } from '@/lib/alteMaps';
 
 /*
  * Die alten Karten bearbeiten - nur Admin (lib/alteMaps).
  *
- *   GET  ?t=<Turnier>&w=<Fenster>   Teams, gespeicherte Formen und ob die Teams von Hand kommen
- *   POST { aktion: 'speichern', w, formen, teams? }
+ *   GET  ?liste=1                   alle alten Karten (auch die versteckten) mit Zahlen - fuer die Verwaltung
+ *   GET  ?t=<Turnier>&w=<Fenster>   was der Admin an dieser Karte angelegt hat (Teams, Formen, Angaben)
+ *   POST { aktion: 'speichern', w, formen?, teams?, epicAn?, meta? }
  *   POST { aktion: 'neu', cup, fenster, saison, datum?, lan? }      ein eigenes Event anlegen
  *   POST { aktion: 'verstecken', w, versteckt }                      eine Karte aus der Liste nehmen oder zurueckholen
  *   POST { aktion: 'loeschen', w }                                   ein selbst angelegtes Event loeschen
@@ -59,7 +60,26 @@ function pruefeTeams(x: unknown): AltTeam[] | null {
       : [];
     if (!spieler.length) continue;
     const zahl = (v: unknown) => (v === null || v === '' || v === undefined || !Number.isFinite(Number(v)) ? null : Number(v));
-    raus.push({ id: text(t.id, 60) || `hand-${raus.length}`, spieler, rang: zahl(t.rang), punkte: zahl(t.punkte) });
+    const r = t as { siege?: unknown; elims?: unknown };
+    raus.push({ id: text(t.id, 60) || `hand-${raus.length}`, spieler, rang: zahl(t.rang), punkte: zahl(t.punkte), siege: zahl(r.siege), elims: zahl(r.elims) });
+  }
+  return raus;
+}
+
+function pruefeMeta(x: unknown): AltMeta | null {
+  if (!x || typeof x !== 'object') return null;
+  const m = x as Record<string, unknown>;
+  const raus: AltMeta = {};
+  if (m.cup !== undefined) { const c = text(m.cup, 80); if (c) raus.cup = c; }
+  if (m.fenster !== undefined) { const f = text(m.fenster, 80); if (f) raus.fenster = f; }
+  if (m.datum !== undefined) {
+    if (m.datum === null || m.datum === '') raus.datum = null;
+    else { const d = typeof m.datum === 'number' ? m.datum : Date.parse(String(m.datum)); if (Number.isFinite(d)) raus.datum = d; }
+  }
+  if (m.lan !== undefined) raus.lan = !!m.lan;
+  if (m.bild !== undefined) {
+    const b = String(m.bild ?? '').trim();
+    raus.bild = !b ? null : (/^https:\/\//.test(b) || /^\/[\w./ %()-]+$/.test(b)) ? b.slice(0, 400) : null;
   }
   return raus;
 }
@@ -72,10 +92,16 @@ export async function GET(request: Request) {
     const liste = await versteckteKarten();
     return NextResponse.json({ ok: true, versteckte: liste.map((e) => ({ windowId: e.windowId, titel: e.titel, saisonKurz: e.saison })) }, { headers: NEIN });
   }
+  if (p.get('liste') === '1') {
+    const [sichtbar, versteckt, zahlen] = await Promise.all([mapsVerzeichnis(), versteckteKarten(), alteZahlen()]);
+    const eintraege = [...sichtbar.filter((e) => e.alt), ...versteckt].map((e) => ({ ...e, versteckt: !!zahlen[e.windowId]?.versteckt }));
+    return NextResponse.json({ ok: true, eintraege, zahlen }, { headers: NEIN });
+  }
   const [t, w] = [p.get('t') ?? '', p.get('w') ?? ''];
-  const e = (await mapsVerzeichnis()).find((x) => x.turnierId === t && x.windowId === w);
+  const alle = [...await mapsVerzeichnis(), ...await versteckteKarten()];
+  const e = alle.find((x) => x.turnierId === t && x.windowId === w);
   if (!e || !e.alt) return NextResponse.json({ ok: false, error: 'Diese Karte gibt es nicht oder sie ist nicht von Hand zu bearbeiten.' }, { status: 404, headers: NEIN });
-  return NextResponse.json({ ok: true, ...await alteBearbeitung(e) }, { headers: NEIN });
+  return NextResponse.json({ ok: true, eintrag: e, ...await alteBearbeitung(e) }, { headers: NEIN });
 }
 
 export async function POST(request: Request) {
@@ -86,15 +112,29 @@ export async function POST(request: Request) {
   const w = text(k.w, 160);
 
   if (aktion === 'speichern') {
-    const formen = pruefeFormen(k.formen);
-    if (!w || !formen) return NextResponse.json({ ok: false, error: 'Die Formen sind nicht lesbar.' }, { status: 400, headers: NEIN });
+    if (!w) return NextResponse.json({ ok: false, error: 'Fenster fehlt.' }, { status: 400, headers: NEIN });
+    const formen = k.formen === undefined ? undefined : pruefeFormen(k.formen);
+    if (formen === null) return NextResponse.json({ ok: false, error: 'Die Formen sind nicht lesbar.' }, { status: 400, headers: NEIN });
     const teams = k.teams === undefined ? undefined : pruefeTeams(k.teams);
     if (teams === null) return NextResponse.json({ ok: false, error: 'Die Teams sind nicht lesbar.' }, { status: 400, headers: NEIN });
-    const e = (await mapsVerzeichnis()).find((x) => x.windowId === w && x.alt);
-    if (!e) return NextResponse.json({ ok: false, error: 'Diese Karte gibt es nicht.' }, { status: 404, headers: NEIN });
+    const meta = k.meta === undefined ? undefined : pruefeMeta(k.meta);
+    if (meta === null) return NextResponse.json({ ok: false, error: 'Die Angaben sind nicht lesbar.' }, { status: 400, headers: NEIN });
+    const alle = [...await mapsVerzeichnis(), ...await versteckteKarten()];
+    if (!alle.some((x) => x.windowId === w && x.alt)) return NextResponse.json({ ok: false, error: 'Diese Karte gibt es nicht.' }, { status: 404, headers: NEIN });
     const r = await aendereAltStore((s) => {
       const alt = s.fenster[w] ?? {};
-      s.fenster[w] = { ...alt, formen, ...(teams && !e.eventId ? { teams } : {}) };
+      s.fenster[w] = {
+        ...alt,
+        ...(formen ? { formen } : {}),
+        ...(teams ? { teams } : {}),
+        ...(typeof k.epicAn === 'boolean' ? { epicAn: k.epicAn } : {}),
+        ...(meta ? { meta: { ...(alt.meta ?? {}), ...meta } } : {}),
+      };
+      // Formen, die auf geloeschte Teams zeigen, verlieren den Verweis.
+      if (teams && s.fenster[w].formen) {
+        const ids = new Set(teams.map((t) => t.id));
+        s.fenster[w].formen = s.fenster[w].formen!.map((f) => ({ ...f, teamIds: f.teamIds.filter((i) => ids.has(i)) }));
+      }
     });
     if (!r.ok) return NextResponse.json({ ok: false, error: r.grund }, { status: 503, headers: NEIN });
     vergissVerzeichnis();

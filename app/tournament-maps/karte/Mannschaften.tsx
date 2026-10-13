@@ -53,6 +53,8 @@ export function TeamKarten({ teams }: { teams: SolosTeam[] }) {
 /** Die Bestenliste eines von Hand angelegten Events: nur, was der Admin eingetragen hat (Platz, Team, Punkte). */
 export function RangAusTeams({ teams }: { teams: SolosTeam[] }) {
   const zeilen = teams.filter((x) => x.rang !== null).sort((a, b) => (a.rang ?? 0) - (b.rang ?? 0));
+  const mitSiege = zeilen.some((x) => x.siege != null);
+  const mitElims = zeilen.some((x) => x.elims != null);
   if (!zeilen.length) return <p className="text-sm text-slate-500"><T>Für diesen Spieltag liegt noch keine Bestenliste vor.</T></p>;
   return (
     <div className="overflow-hidden rounded-xl border border-white/[0.08] bg-zinc-900/40">
@@ -60,6 +62,8 @@ export function RangAusTeams({ teams }: { teams: SolosTeam[] }) {
         <thead>
           <tr className="border-b border-white/[0.08] text-left text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
             <th className="w-12 px-3 py-2">#</th><th className="px-3 py-2"><T>Team</T></th><th className="w-20 px-3 py-2 text-right">Pts</th>
+            {mitSiege && <th className="w-14 px-3 py-2 text-right" title="Victory Royales">VR</th>}
+            {mitElims && <th className="w-16 px-3 py-2 text-right">Elims</th>}
           </tr>
         </thead>
         <tbody>
@@ -75,6 +79,8 @@ export function RangAusTeams({ teams }: { teams: SolosTeam[] }) {
                 </span>
               </td>
               <td className="px-3 py-2 text-right font-bold tabular-nums text-slate-100">{z.punkte ?? ''}</td>
+              {mitSiege && <td className="px-3 py-2 text-right tabular-nums text-slate-300">{z.siege ?? ''}</td>}
+              {mitElims && <td className="px-3 py-2 text-right tabular-nums text-slate-300">{z.elims ?? ''}</td>}
             </tr>
           ))}
         </tbody>

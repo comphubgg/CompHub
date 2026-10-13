@@ -97,6 +97,9 @@ const NUR_ADMIN: Ziel[] = [
   // Client-Id und Secret der Anmeldedienste - Geheimnisse, also nur Admin.
   { href: '/admin/services', titel: 'Anmeldedienste',
     text: 'Twitch, Discord und Google einrichten' },
+  // Die Maps ohne Landepunkte aus dem Archiv: Formen, Teams und Leaderboard je Karte von Hand (13.10.2026).
+  { href: '/admin/alte-maps', titel: 'Alte Maps',
+    text: 'Karten von Hand pflegen: Formen, Teams, Leaderboard' },
 ];
 
 const ADMIN_ZIELE: Ziel[] = [

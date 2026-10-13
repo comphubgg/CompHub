@@ -110,14 +110,6 @@ export default function KartenSeite() {
     } finally { setSpeichert(false); }
   }, [params]);
 
-  /** Die Karte aus der Liste nehmen (sie bleibt gespeichert und laesst sich in der Verwaltung zurueckholen). */
-  const verstecken = useCallback(async () => {
-    if (!params || !window.confirm('Diese Karte aus der Liste nehmen?')) return;
-    const r = await fetch('/api/alte-maps', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ aktion: 'verstecken', w: params.w, versteckt: true }) });
-    const j = await r.json().catch(() => ({}));
-    if (j?.ok) window.location.href = meta?.saison ? `/tournament-maps?saison=${meta.saison}` : '/tournament-maps';
-  }, [params, meta]);
-
   const titelOben = meta?.cup || '';
   const chip = (an: boolean) => `rounded-lg px-4 py-2 text-xs font-bold uppercase tracking-[0.12em] transition ${an
     ? 'bg-white text-zinc-900' : 'text-slate-400 hover:text-slate-100'}`;
@@ -197,13 +189,13 @@ export default function KartenSeite() {
                   {zugang.admin && meta?.alt && params && (
                     <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-amber-400/25 bg-amber-400/[0.06] px-3 py-2 text-xs">
                       <span className="font-semibold uppercase tracking-wider text-amber-300/90">Admin</span>
-                      <Link href={`/tournament-maps/bearbeiten?t=${encodeURIComponent(params.t)}&r=${encodeURIComponent(params.r)}&w=${encodeURIComponent(params.w)}`}
+                      <Link href={`/admin/alte-maps/bearbeiten?t=${encodeURIComponent(params.t)}&r=${encodeURIComponent(params.r)}&w=${encodeURIComponent(params.w)}`}
                         className="rounded-lg bg-amber-400 px-3 py-1.5 font-bold text-zinc-950 transition hover:bg-amber-300">
-                        <T>Landepunkte bearbeiten</T>
+                        <T>Diese Karte bearbeiten</T>
                       </Link>
-                      <button type="button" onClick={() => void verstecken()} className="rounded-lg border border-white/10 px-3 py-1.5 font-semibold text-slate-300 transition hover:border-rose-500/60 hover:text-rose-300">
-                        <T>Aus der Liste nehmen</T>
-                      </button>
+                      <Link href="/admin/alte-maps" className="rounded-lg border border-white/10 px-3 py-1.5 font-semibold text-slate-300 transition hover:border-sky-500/60">
+                        <T>Alle alten Maps</T>
+                      </Link>
                     </div>
                   )}
                   {zugang.admin && auswahl.length > 0 && (
@@ -241,7 +233,7 @@ export default function KartenSeite() {
                 </div>
               )}
               {reiter === 'spieler' && <TeamKarten teams={fenster.teams ?? []} />}
-              {reiter === 'leaderboard' && (meta?.alt && !meta.eventId
+              {reiter === 'leaderboard' && (meta?.alt && (fenster.quelle === 'hand' || !meta.eventId)
                 ? <RangAusTeams teams={fenster.teams ?? []} />
                 : <RangTabelle eventId={meta?.eventId ?? null} windowId={fenster.windowId} laender={laender} />)}
               {reiter === 'tierlist' && <CupTierlist windowId={fenster.windowId} teams={fenster.teams ?? []} />}

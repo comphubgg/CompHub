@@ -47,8 +47,20 @@ export interface AltTeam {
   spieler: Array<{ name: string; epicId?: string; land?: string }>;
   rang?: number | null;
   punkte?: number | null;
+  /** Victory Royales und Eliminierungen - fuer die von Hand gepflegte Bestenliste. */
+  siege?: number | null;
+  elims?: number | null;
 }
-export interface AltFensterDaten { formen?: AltForm[]; teams?: AltTeam[]; versteckt?: boolean }
+/** Was der Admin an den Angaben eines Events aendern kann (Titel, Datum, LAN, Kartenbild der Kachel). */
+export interface AltMeta { cup?: string; fenster?: string; datum?: number | null; lan?: boolean; bild?: string | null }
+export interface AltFensterDaten {
+  formen?: AltForm[];
+  teams?: AltTeam[];
+  versteckt?: boolean;
+  /** Epics Bestenliste und Teams anzeigen, solange der Admin noch keine eigenen Teams angelegt hat (Standard: ja). */
+  epicAn?: boolean;
+  meta?: AltMeta;
+}
 export interface AltStore { ereignisse: AltEreignis[]; fenster: Record<string, AltFensterDaten> }
 
 const DATEI = 'alte-maps.json';
@@ -162,7 +174,19 @@ export async function alleAlteEreignisse(
   const ids = new Set<string>([...nobleFenster, ...eigene.map((e) => e.windowId)]);
   const katalog = ausKatalog(typVon).filter((e) => !ids.has(e.windowId));
   const aus = ausArchiv(archiv, ids, typVon, bildJeTyp);
-  return [...aus, ...katalog, ...eigene];
+  // Was der Admin an einem Event geaendert hat, gilt vor dem, was aus Archiv oder Katalog kommt.
+  return [...aus, ...katalog, ...eigene].map((e) => {
+    const m = s.fenster?.[e.windowId]?.meta;
+    if (!m) return e;
+    return {
+      ...e,
+      ...(m.cup ? { cup: m.cup } : {}),
+      ...(m.fenster ? { fenster: m.fenster } : {}),
+      ...(m.datum !== undefined ? { datum: m.datum } : {}),
+      ...(m.lan !== undefined ? { lan: m.lan } : {}),
+      ...(m.bild !== undefined ? { bild: m.bild } : {}),
+    };
+  });
 }
 
 /** Das Bild des Kapitels, wo ein Event kein eigenes hat (die Kapitelbilder der Maps-Seite). */
@@ -196,11 +220,15 @@ export async function alteEintraege(
 
 const iso = (ms: number | null) => (ms ? new Date(ms).toISOString() : null);
 
-/** Die Teams eines Events: aus Epics Bestenliste, wo es eine gibt, sonst aus dem, was der Admin eingetippt hat. */
+/**
+ * Die Teams eines Events: was der Admin angelegt hat. Hat er noch keins angelegt und gibt es zum Event Epics Bestenliste
+ * (und hat er sie nicht abgeschaltet), steht vorerst diese da - sobald das erste eigene Team da ist, gilt nur noch seins.
+ */
 async function teamsFuer(e: MapEintrag, daten: AltFensterDaten | undefined): Promise<SolosTeam[]> {
   const kontext = await spielerKontext();
   const spieler = (id: string, roh: string, land?: string): SolosSpieler => kontext(id, roh, land);
-  if (e.eventId) {
+  const eigene = daten?.teams ?? [];
+  if (!eigene.length && e.eventId && daten?.epicAn !== false) {
     try {
       const top = await gecacht(`alt|top|${e.windowId}`, 10 * 60_000, () => holeTop(e.eventId as string, e.windowId, 100));
       return top.entries.map((en) => ({
@@ -210,11 +238,16 @@ async function teamsFuer(e: MapEintrag, daten: AltFensterDaten | undefined): Pro
       }));
     } catch { return []; }
   }
-  return (daten?.teams ?? []).map((t) => ({
+  return eigene.map((t) => ({
     id: t.id,
     spieler: t.spieler.map((p, i) => spieler(p.epicId || `${t.id}-${i}`, p.name, p.land)),
-    rang: t.rang ?? null, punkte: t.punkte ?? null, siege: null,
+    rang: t.rang ?? null, punkte: t.punkte ?? null, siege: t.siege ?? null, elims: t.elims ?? null,
   }));
+}
+
+/** Zeigt die Seite fuer dieses Event gerade Epics Daten (kein eigenes Team, Epic nicht abgeschaltet)? */
+export function zeigtEpic(e: MapEintrag, daten: AltFensterDaten | undefined): boolean {
+  return !(daten?.teams?.length) && !!e.eventId && daten?.epicAn !== false;
 }
 
 export async function alteFenster(e: MapEintrag): Promise<{ turnier: string; fenster: SolosFenster }> {
@@ -232,21 +265,34 @@ export async function alteFenster(e: MapEintrag): Promise<{ turnier: string; fen
     turnier: e.cup,
     fenster: {
       windowId: e.windowId, name: e.fenster, art: 'finale', start: iso(e.datum), end: iso(e.ende),
-      spieler: [...alle.values()], teams, bild: null, formen,
+      spieler: [...alle.values()], teams, bild: null, formen, quelle: zeigtEpic(e, daten) ? 'epic' : 'hand',
     },
   };
 }
 
-/** Fuer den Editor: Teams (fertig aufgeloest), gespeicherte Formen und ob die Teams von Hand kommen. */
-export async function alteBearbeitung(e: MapEintrag) {
+/** Fuer den Editor: ausschliesslich das, was der Admin selbst angelegt hat - es wird nichts hineingeladen. */
+export async function alteBearbeitung(e: MapEintrag & { quelle?: string }) {
   const s = await liesAltStore();
   const daten = s.fenster?.[e.windowId];
-  const teams = await teamsFuer(e, daten);
   return {
-    manuell: !e.eventId,
-    teams: teams.map((t) => ({ id: t.id, spieler: t.spieler.map((p) => ({ name: p.anzeige, epicId: p.id, land: p.land })), rang: t.rang, punkte: t.punkte })),
-    rohTeams: daten?.teams ?? [],
+    teams: daten?.teams ?? [],
     formen: daten?.formen ?? [],
     versteckt: !!daten?.versteckt,
+    hatEpic: !!e.eventId,
+    epicAn: daten?.epicAn !== false,
+    meta: {
+      cup: e.cup, fenster: e.fenster, datum: e.datum, lan: !!e.lan, bild: e.bild,
+    },
+    eigenesEvent: (s.ereignisse ?? []).some((x) => x.windowId === e.windowId),
   };
+}
+
+/** Die Uebersicht fuer die Verwaltung: Zahlen je Karte, damit man sieht, wo schon etwas drinsteht. */
+export async function alteZahlen(): Promise<Record<string, { formen: number; teams: number; rang: number; versteckt: boolean }>> {
+  const s = await liesAltStore();
+  const raus: Record<string, { formen: number; teams: number; rang: number; versteckt: boolean }> = {};
+  for (const [w, d] of Object.entries(s.fenster ?? {})) {
+    raus[w] = { formen: d.formen?.length ?? 0, teams: d.teams?.length ?? 0, rang: (d.teams ?? []).filter((t) => t.rang != null).length, versteckt: !!d.versteckt };
+  }
+  return raus;
 }
