@@ -61,6 +61,7 @@ const FUER_ALLE: Ziel[] = [
 
 /** Was es nur hier gibt. Mein Archiv und Profil stehen darunter auf der Seite selbst, das Chatarchiv braucht nur der Admin. */
 const NUR_HIER: Ziel[] = [
+  { href: '/replays/meine', titel: 'Meine Replays', text: 'Deine Cups und jede Runde, die du gespielt hast - zum Abspielen', symbol: 'karte' },
   { href: '/contact', titel: 'Kontakt', text: 'Etwas kaputt, fehlt oder besser zu machen? Schreib es dem Betreiber', symbol: 'kontakt' },
 ];
 const NUR_HIER_ADMIN: Ziel[] = [

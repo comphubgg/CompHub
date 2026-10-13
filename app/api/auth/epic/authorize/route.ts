@@ -2,34 +2,29 @@ import crypto from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { holeDienst } from '@/lib/dienstZugaenge';
 import { rueckwegVon } from '@/lib/oeffentlicheAdresse';
-import { kontoAus, nachId } from '@/lib/konten';
+
 
 // Der Hinweg zu Epic Games - zum Verknuepfen des eigenen Epic-Kontos.
 //
 // Anders als Discord, Twitch und Google ist das hier keine Anmeldung, sondern
 // ein Beweis: wer bei Epic eingeloggt ist und zustimmt, bekommt von Epic die
 // Konto-Id mitgeteilt. Genau diese Id steht in jedem Replay und in jeder
-// Bestenliste. Deshalb braucht der Weg ein CompHub-Konto (wer sich verknuepft,
-// muss schon eingeloggt sein) und liefert eine Id, die niemand eintippen oder
+// Bestenliste. Mit CompHub-Konto wird die Id am Konto gespeichert (Dashboard); ohne Konto
+// gilt sie als signierter Cookie (lib/epicGast). Beides liefert eine Id, die niemand eintippen oder
 // verfaelschen kann.
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 const PFAD = '/api/auth/epic/callback';
-const COOKIE = 'streamer_dashboard_konto';
 
 /** Wohin es nach der Verknuepfung zurueckgeht: nur eine Adresse dieser Seite, ohne Anhang (wie die Anmeldung es auch verlangt). */
 const sichererPfad = (p: string | null) => (p && /^\/[a-z0-9/_-]*$/i.test(p) && !p.startsWith('//') ? p : '');
 
 export async function GET(req: NextRequest) {
+  // Auch ohne CompHub-Konto: wer sich nur bei Epic verifiziert, sieht seine Werte (der Rueckweg legt dann einen signierten Cookie an,
+  // lib/epicGast) - der Betreiber (13.10.2026): "ich soll nicht auf die Login-Page kommen, sondern zu Epic".
   const zurueck = sichererPfad(req.nextUrl.searchParams.get('zurueck'));
-  const kontoId = kontoAus(req.cookies.get(COOKIE)?.value);
-  const konto = kontoId ? await nachId(kontoId) : null;
-  if (!konto || konto.gesperrt) {
-    // Wer von einer Cup-Seite kommt, geht nach der Anmeldung dorthin zurueck und kann von dort verifizieren.
-    return new NextResponse(null, { status: 307, headers: { Location: zurueck ? `/sign-in?weiter=${encodeURIComponent(zurueck)}` : '/sign-in' } });
-  }
 
   const { id: CLIENT_ID } = await holeDienst('epic');
   if (!CLIENT_ID) {

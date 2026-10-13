@@ -11,6 +11,7 @@ import {
 import { sendeMail, versandDa } from '@/lib/mail';
 import { ueberHttps } from '@/lib/vipCookie';
 import { merkeAnmeldung as merkeAnwesenheit, merkeAbmeldung } from '@/lib/anwesenheit';
+import { GAST_COOKIE, gastAus } from '@/lib/epicGast';
 
 // Registrieren, anmelden, abmelden - und wer gerade angemeldet ist.
 //
@@ -111,12 +112,15 @@ async function setzeSitzung(
 }
 
 export async function GET() {
-  const wert = (await cookies()).get(COOKIE)?.value;
+  const laden = await cookies();
+  const wert = laden.get(COOKIE)?.value;
+  // Wer sich nur bei Epic verifiziert hat (ohne CompHub-Konto), traegt seine Konto-Id signiert im Cookie - siehe lib/epicGast.
+  const gastEpicId = gastAus(laden.get(GAST_COOKIE)?.value);
   const id = kontoAus(wert);
-  if (!id) return NextResponse.json({ angemeldet: false, konto: null });
+  if (!id) return NextResponse.json({ angemeldet: false, konto: null, gastEpicId });
 
   const konto = await nachId(id);
-  if (!konto) return NextResponse.json({ angemeldet: false, konto: null });
+  if (!konto) return NextResponse.json({ angemeldet: false, konto: null, gastEpicId });
 
   /*
    * Ein gesperrtes Konto gilt als abgemeldet - und zwar hier, an der
@@ -125,7 +129,7 @@ export async function GET() {
    */
   if (konto.gesperrt) {
     return NextResponse.json({
-      angemeldet: false, konto: null, gesperrt: true,
+      angemeldet: false, konto: null, gesperrt: true, gastEpicId,
     });
   }
 

@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server';
 import { liesJson } from '@/lib/ablage';
 import { zwischenspeichern } from '@/lib/zwischenspeicher';
-import { replayIndex, nachSpieltag, cupKurz } from '@/lib/replayVoll';
+import { replayIndex, nachSpieltag, cupKurz, meineCups } from '@/lib/replayVoll';
+import { holeSeite } from '@/lib/epicCups';
 
 /*
  * Die voll ausgelesenen Replays (scripts/replay-voll-holen.mjs) fuer die Seiten /replays und /admin/replay.
@@ -28,7 +29,18 @@ export async function GET(request: Request) {
       if (!e) return NextResponse.json({ error: 'Dieses Match ist nicht ausgewertet.' }, { status: 404 });
       const daten = await liesJson<Record<string, unknown> | null>(e.datei, null);
       if (!daten) return NextResponse.json({ error: 'Die Auswertung ist gerade nicht lesbar.' }, { status: 503 });
-      return zwischenspeichern(NextResponse.json({ ...daten, info: e }, { headers: { 'Cache-Control': 'public, max-age=3600' } }), 86_400);
+      // Die Wertung des Cups (Punkte je Platz und je Eliminierung) - damit die Karte zeigen kann, wie viele Punkte ein Team in diesem Game gemacht hat.
+      let wertung: { platz: Record<string, number>; elim: number } | null = null;
+      try {
+        const s = await holeSeite(e.eventId, e.windowId, 0, true);
+        if (Object.keys(s.wertung.platz).length || s.wertung.elim) wertung = s.wertung;
+      } catch { /* ohne Wertung zeigt die Karte keine Punkte */ }
+      return zwischenspeichern(NextResponse.json({ ...daten, info: e, wertung }, { headers: { 'Cache-Control': 'public, max-age=3600' } }), 86_400);
+    }
+    // Meine Cups: die Games, in denen dieses Epic-Konto steht (Seite /replays/meine).
+    const meine = (p.get('meine') ?? '').replace(/-/g, '').toLowerCase();
+    if (/^[0-9a-f]{32}$/.test(meine)) {
+      return NextResponse.json(await meineCups(meine, alle), { headers: { 'Cache-Control': 'no-store' } });
     }
     const liste = nachSpieltag(alle);
 

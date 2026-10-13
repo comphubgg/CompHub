@@ -12,7 +12,7 @@ import T from '@/app/components/T';
 import LadeSchirm from '@/app/components/LadeSchirm';
 import { fortniteKarte } from '@/lib/bildAdressen';
 import { replayDatum, replayUhrzeit, tagName, ohneMarke, schoenerTitel } from '@/lib/replayNamen';
-import ReplayAnsicht, { type RMatch } from '../../ReplayAnsicht';
+import ReplayAnsicht, { type RMatch, type RWertung } from '../../ReplayAnsicht';
 
 interface Game { id: string; nr: number; beginn?: string; sieger?: string[] }
 interface Tag { windowId: string; titel: string; region: string; season: string; matches: Game[] }
@@ -24,8 +24,13 @@ export default function GameSeite() {
   const nr = Number(params?.nr);
   const [tag, setTag] = useState<Tag | null>(null);
   const [geschwister, setGeschwister] = useState<Geschwister[]>([]);
-  const [match, setMatch] = useState<(RMatch & { karte?: string }) | null>(null);
+  const [match, setMatch] = useState<(RMatch & { karte?: string; wertung?: RWertung | null }) | null>(null);
   const [fehler, setFehler] = useState('');
+  /** Aus "Meine Cups": das Epic-Konto, dessen Team in dieser Ansicht von Anfang an markiert ist (?spieler=...). */
+  const [hervorheben, setHervorheben] = useState('');
+  useEffect(() => {
+    try { setHervorheben((new URLSearchParams(window.location.search).get('spieler') ?? '').toLowerCase()); } catch { /* ohne Adresse keine Markierung */ }
+  }, [tagId, nr]);
 
   useEffect(() => {
     if (!tagId || !Number.isInteger(nr)) return undefined;
@@ -40,7 +45,7 @@ export default function GameSeite() {
         setTag(j.tag); setGeschwister(j.geschwister ?? []);
         const game = (j.tag as Tag).matches.find((m) => m.nr === nr);
         if (!game) { setFehler('Dieses Game gibt es nicht.'); return; }
-        const rm = await fetch(`/api/replay?match=${encodeURIComponent(game.id)}`);
+        const rm = await fetch(`/api/replay?match=${encodeURIComponent(game.id)}&v=2`);
         const mj = await rm.json().catch(() => null);
         if (weg) return;
         if (!rm.ok || !mj) { setFehler(mj?.error ?? 'Die Auswertung ist gerade nicht lesbar.'); return; }
@@ -85,7 +90,7 @@ export default function GameSeite() {
               {(game.sieger ?? []).length > 0 && <span className="text-amber-300">🏆 {(game.sieger ?? []).map(ohneMarke).join(' · ')}</span>}
             </p>
             <div className="mt-5">
-              <ReplayAnsicht match={match} kartenBild={kartenBild} titel={`Game ${game.nr}`} />
+              <ReplayAnsicht match={match} kartenBild={kartenBild} titel={`Game ${game.nr}`} wertung={match.wertung} hervorheben={hervorheben || undefined} />
             </div>
             <p className="mt-8 text-[11px] text-slate-600"><T>Diese Adresse bleibt dauerhaft gleich.</T> <code className="text-slate-500">/replays/{tag.windowId}/{game.nr}</code></p>
           </>

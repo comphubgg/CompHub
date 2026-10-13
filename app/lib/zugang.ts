@@ -80,7 +80,7 @@ export function useZugang(): Zugang {
     let vipZugangOhneRecht = false;
 
     try {
-      const j = (await geteilterAbruf<{ angemeldet?: boolean; konto?: { name?: string; rolle?: 'admin' | 'manager' | 'pro' | null; rechte?: string[]; vip?: boolean; epicId?: string | null } }>('/api/konto')).daten;
+      const j = (await geteilterAbruf<{ angemeldet?: boolean; gastEpicId?: string; konto?: { name?: string; rolle?: 'admin' | 'manager' | 'pro' | null; rechte?: string[]; vip?: boolean; epicId?: string | null } }>('/api/konto')).daten;
       if (j?.angemeldet) {
         kontoName = String(j.konto?.name ?? '');
         rolle = j.konto?.rolle ?? null;
@@ -88,6 +88,8 @@ export function useZugang(): Zugang {
         vipKonto = Boolean(j.konto?.vip);
         epicId = String(j.konto?.epicId ?? '').replace(/-/g, '').toLowerCase();
       }
+      // Ein Gast, der sich bei Epic verifiziert hat: seine Konto-Id gilt (lib/epicGast), ein Konto bei uns braucht es dafuer nicht.
+      else if (j?.gastEpicId) epicId = String(j.gastEpicId).toLowerCase();
     } catch { /* ohne Auskunft gilt: kein Konto */ }
 
     try {

@@ -473,7 +473,7 @@ const STAT_NAMEN: Record<string, string> = {
   IngredientExpended: 'zutatVerbaut',
 };
 
-interface RohEintrag {
+export interface RohEintrag {
   rank: number;
   pointsEarned: number;
   teamId?: string;
@@ -484,6 +484,26 @@ interface RohEintrag {
     sessionId?: string; endTime?: string;
     trackedStats?: Record<string, number>;
   }>;
+}
+
+/**
+ * Die Wertung eines Fensters: wie viele Punkte ein Platz (je Stufe "Platz n oder besser") und eine Eliminierung geben. Aus den Aufschluesselungen
+ * der Eintraege einer Seite - jede Stufe, die irgendein Team erreicht hat, nennt ihren Wert. Damit lassen sich die Punkte jedes einzelnen
+ * Games rechnen (Replay-Seiten: "wie viele Punkte hat dieses Team in diesem Game gemacht").
+ */
+export function wertungAus(eintraege: RohEintrag[]): { platz: Record<string, number>; elim: number } {
+  const platz: Record<string, number> = {};
+  let elim = 0;
+  for (const e of eintraege) {
+    for (const [k, v] of Object.entries(e.pointBreakdown ?? {})) {
+      if (!v.timesAchieved) continue;
+      const wert = (v.pointsEarned ?? 0) / v.timesAchieved;
+      const [typ, nr] = k.split(':');
+      if (/PLACEMENT_STAT_INDEX$/.test(typ)) platz[nr] = wert;
+      else if (/TEAM_ELIMS_STAT_INDEX$/.test(typ)) elim = wert;
+    }
+  }
+  return { platz, elim };
 }
 
 function formeEintrag(e: RohEintrag, namen: Record<string, string>): CupEintrag {
@@ -622,6 +642,7 @@ async function holeSeiteRoh(eventId: string, windowId: string, page = 0, ohneNam
     totalPages: data.totalPages,
     updated: data.updatedTime,
     liveSessions: data.liveSessions ?? null,
+    wertung: wertungAus(entries),
     entries: entries.map((e) => formeEintrag(e, namen)),
   };
 }

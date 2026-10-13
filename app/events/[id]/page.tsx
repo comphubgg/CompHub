@@ -4145,9 +4145,12 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
           * Vorbild, in den eigenen Farben (app/components/StatKacheln).
           * Darunter bleibt die ganze Tabelle mit Suche.
           */}
-        {/* Player Stats wie bei Osirion: Konto waehlen oder verifizieren, Spieler suchen, die Werte des Spielers (Betreiber, 13.10.2026). */}
-        {(reiter === 'spieler' || (soloCup && reiter === 'teams')) && lbFenster && (
-          <SpielerDetail eventId={lbFenster.eventId} windowId={lbFenster.windowId} rueckPfad={`/events/${id}`} />
+        {/*
+          * Solo Stats bei einem Solo-Cup, sonst Team Stats - wie bei Osirion: Konto waehlen oder verifizieren, Spieler suchen, die Werte des
+          * Spielers und bei einem Team seiner Mitspieler nebeneinander. Unter "Player Stats" gibt es diese Suche nicht (Betreiber, 13.10.2026).
+          */}
+        {reiter === 'teams' && lbFenster && (
+          <SpielerDetail eventId={lbFenster.eventId} windowId={lbFenster.windowId} rueckPfad={`/events/${id}`} solo={soloCup} />
         )}
 
         {reiter === 'spieler' && !soloCup && !!spielerWerte?.spieler.length && (

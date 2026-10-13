@@ -2,19 +2,24 @@ import { NextResponse } from 'next/server';
 import { findeSpieler, holeSeite, getToken, loeseNamenAuf, type CupEintrag } from '@/lib/epicCups';
 import { szeneFenster } from '@/lib/szeneStats';
 import { zwischenspeichern } from '@/lib/zwischenspeicher';
+import { replayTag } from '@/lib/replaySchlank';
+import { liesJson } from '@/lib/ablage';
+import { spielerKontext } from '@/lib/globalsSolos';
 
 /*
- * Die Werte eines einzelnen Spielers in einem Cup - fuer die Ansicht "Player Stats" auf der Cup-Seite (wie bei Osirion).
+ * Die Werte eines Spielers - und seines Teams - in einem Cup, fuer die Ansichten "Solo Stats" und "Team Stats" auf der Cup-Seite (wie bei
+ * Osirion: bei einem Team stehen die Mitspieler nebeneinander).
  *
  *   GET ?event=&window=&q=NAME         -> Treffer in der Bestenliste (bis zu zehn), zum Auswaehlen
- *   GET ?event=&window=&id=EPIC-ID     -> alles zu diesem Spieler
+ *   GET ?event=&window=&id=EPIC-ID     -> der Spieler, sein Team (mitglieder) und die Werte jedes Mitglieds
  *
  * Quellen, jede mit dem, was sie wirklich hat:
  *   - Epics Bestenliste (jeder Cup): Platz, Punkte - getrennt nach Platzierung und Eliminierungen -, je Spiel Platz, Eliminierungen,
- *     Ueberlebenszeit; bei manchen Cups auch Schaden, Kopftreffer, Heilung, Strecke.
- *   - Die Szene-Quelle (die Spieltage, die sie fuehrt, vor allem Finals): Schaden, Treffer, Schuesse, Heilung, Material, Sturm, Strecke ...
- *     Je Spieltag zusammen, nicht je Spiel.
- * Was keine der beiden Quellen kennt (Edit-Werte, Surge-Treffer, Reboots einzeln), liefert diese Schnittstelle nicht - die Ansicht sagt es.
+ *     Ueberlebenszeit je TEAM; bei manchen Cups auch Schaden, Kopftreffer, Heilung, Strecke.
+ *   - Die Szene-Quelle (die Spieltage, die sie fuehrt, vor allem Finals): je SPIELER Schaden, Treffer, Schuesse, Heilung, Material, Sturm,
+ *     Strecke ... Je Spieltag zusammen, nicht je Spiel.
+ *   - Die Replays (die Spieltage, die ausgewertet sind): je SPIELER Eliminierungen, Knocks, Tode und - wo gelesen - Schaden, Treffer, Kopftreffer.
+ * Was keine Quelle kennt (Edit-Werte, Surge-Treffer, Reboots einzeln), liefert diese Schnittstelle nicht - die Ansicht sagt es.
  */
 
 export const dynamic = 'force-dynamic';
@@ -22,6 +27,8 @@ export const runtime = 'nodejs';
 export const maxDuration = 60;
 
 const normId = (s: string) => s.replace(/-/g, '').toLowerCase();
+
+export interface ReplayWerte { kills: number; knocks: number; tode: number | null; spiele: number | null; damage?: number; damageTaken?: number; hits?: number; headshots?: number }
 
 export async function GET(request: Request) {
   const p = new URL(request.url).searchParams;
@@ -37,22 +44,26 @@ export async function GET(request: Request) {
       const r = await findeSpieler(event, fenster, [q], [], 40);
       const treffer = r.entries.flatMap((e) => e.players
         .filter((pl) => pl.name.toLowerCase().includes(q.toLowerCase()))
-        .map((pl) => ({ id: pl.id, name: pl.name, rank: e.rank, points: e.points })))
+        .map((pl) => ({ id: pl.id, name: pl.name, rank: e.rank, points: e.points, team: e.players.filter((x) => x.id !== pl.id).map((x) => x.name) })))
         .slice(0, 10);
       return NextResponse.json({ ok: true, treffer, gesucht: r.scannedPages, seiten: r.totalPages }, { headers: { 'Cache-Control': 'no-store' } });
     }
 
     const r = await findeSpieler(event, fenster, [], [id], 60);
     const eintrag: CupEintrag | undefined = r.entries[0];
+    const ids = eintrag ? eintrag.players.map((x) => normId(x.id)) : [id];
 
-    // Der Name: aus der Bestenliste, sonst frisch bei Epic (wer den Cup nicht gespielt hat, steht dort nicht).
-    let name = eintrag?.players.find((x) => normId(x.id) === id)?.name ?? '';
-    if (!name) {
+    // Namen: aus der Bestenliste, sonst frisch bei Epic (wer den Cup nicht gespielt hat, steht dort nicht).
+    const namen = new Map<string, string>();
+    for (const x of eintrag?.players ?? []) namen.set(normId(x.id), x.name);
+    if (ids.some((i) => !namen.get(i))) {
       try {
         const { token } = await getToken();
-        name = (await loeseNamenAuf([id], token))[id] ?? '';
+        const frisch = await loeseNamenAuf(ids.filter((i) => !namen.get(i)), token);
+        for (const [i, n] of Object.entries(frisch)) if (n && n !== i.slice(0, 8)) namen.set(normId(i), n);
       } catch { /* ohne Namen bleibt die Id */ }
     }
+    const name = namen.get(id) ?? '';
 
     // Wie viele Teilnehmer der Cup hat - fuer "Top x %".
     let gesamt = 0; let aktualisiert: string | null = null;
@@ -66,24 +77,49 @@ export async function GET(request: Request) {
       } else gesamt = proSeite;
     } catch { /* ohne Gesamtzahl keine Prozentangabe */ }
 
-    // Die Szene-Quelle, wo sie diesen Spieltag fuehrt.
-    let szene: Record<string, number> | null = null; let szeneStand: string | null = null; let szeneMatches = 0;
+    // Die Szene-Quelle und die Replays - je Spieler.
+    const szeneVon = new Map<string, Record<string, number>>();
+    let szeneStand: string | null = null; let szeneMatches = 0;
     try {
       const sz = await szeneFenster([fenster]);
-      const s = sz?.spieler.find((x) => normId(x.epicId) === id);
-      if (s) {
+      for (const s of sz?.spieler ?? []) {
         const werte: Record<string, number> = {};
         for (const [k, v] of Object.entries(s)) if (typeof v === 'number') werte[k] = v;
-        szene = werte; szeneStand = sz?.aktualisiert ?? null; szeneMatches = sz?.matches ?? 0;
+        szeneVon.set(normId(s.epicId), werte);
       }
+      szeneStand = sz?.aktualisiert ?? null; szeneMatches = sz?.matches ?? 0;
     } catch { /* ohne Szene-Quelle bleibt es bei Epics Werten */ }
 
+    const saison = /^(S\d+)_/i.exec(fenster)?.[1]?.toUpperCase() ?? '';
+    const rep = saison ? await replayTag(saison, fenster).catch(() => null) : null;
+    const clutch = await liesJson<{ schaden?: Record<string, { dmg: number; erlitten: number; treffer: number; krit: number }> } | null>(`clutch/${fenster}.json`, null).catch(() => null);
+
+    const kontext = await spielerKontext().catch(() => null);
+    const mitglieder = ids.map((i) => {
+      const roh = namen.get(i) ?? '';
+      const k = kontext?.(i, roh);
+      let replay: ReplayWerte | null = null;
+      if (rep) {
+        const e = rep.spieler.find((x) => normId(x.epicId) === i);
+        const d = clutch?.schaden?.[i];
+        replay = {
+          kills: e?.kills ?? 0, knocks: e?.knocks ?? 0, tode: e ? e.gestorben : null, spiele: e ? e.matches : null,
+          ...(d ? { damage: Math.round(d.dmg), damageTaken: Math.round(d.erlitten), hits: d.treffer, headshots: d.krit } : {}),
+        };
+      }
+      return {
+        id: i, name: k?.anzeige || roh || i.slice(0, 8), land: k?.land ?? null, ich: i === id,
+        szene: szeneVon.get(i) ?? null, replay,
+      };
+    });
+
     const antwort = {
-      ok: true, id, name, dabei: !!eintrag,
+      ok: true, id, name: mitglieder.find((m) => m.ich)?.name || name, dabei: !!eintrag,
       rank: eintrag?.rank ?? null, gesamt,
       top: eintrag && gesamt ? +((eintrag.rank / gesamt) * 100).toFixed(1) : null,
       eintrag: eintrag ?? null,
-      aktualisiert, szene, szeneStand, szeneMatches,
+      mitglieder,
+      aktualisiert, szeneStand, szeneMatches,
     };
     return zwischenspeichern(NextResponse.json(antwort, { headers: { 'Cache-Control': 'no-store' } }), 60);
   } catch (e) {

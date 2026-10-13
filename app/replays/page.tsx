@@ -46,7 +46,10 @@ export default function ReplaysSeite() {
   return (
     <main className="min-h-screen bg-zinc-950 text-slate-100">
       <div className="mx-auto max-w-[1400px] px-4 py-8">
-        <h1 className="text-4xl font-black tracking-tight sm:text-5xl"><T>Replays</T></h1>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <h1 className="text-4xl font-black tracking-tight sm:text-5xl"><T>Replays</T></h1>
+          <Link href="/replays/meine" className="rounded-lg bg-sky-500 px-4 py-2 text-sm font-bold text-white transition hover:bg-sky-400"><T>Meine Replays</T></Link>
+        </div>
         <p className="mt-2 max-w-2xl text-sm text-slate-400">
           <T>Jedes Game eines ausgewerteten Cups mit Zone, Eliminierungen, Knocks und der Zahl der Lebenden - zum Abspielen, in 2D und 3D. Die Adressen bleiben dauerhaft gleich.</T>
         </p>
