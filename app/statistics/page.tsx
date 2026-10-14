@@ -304,13 +304,13 @@ interface VerlaufZeile {
 }
 
 const BEREICHE: Array<[Bereich, string]> = [
-  ['start', 'Übersicht'],
-  ['turniere', 'Turniere'],
+  ['start', 'Highlights'],
+  ['turniere', 'Cups'],
   ['regional', 'Regionen'],
   ['spieler', 'Spieler'],
   ['jahr', String(JAHR)],
   // Die E-Sports-Organisationen (Organisationen.tsx).
-  ['orgs', 'Organisationen'],
+  ['orgs', 'Orgs'],
 ];
 
 /**
@@ -321,7 +321,7 @@ const BEREICHE: Array<[Bereich, string]> = [
  * Kopf-an-Kopf-Zahlen darin - sieht jeder.
  */
 const VIP_BEREICHE: Array<[Bereich, string]> = [
-  ['vergleich', 'Vergleich'],
+  ['vergleich', 'Duell'],
 ];
 
 /**
@@ -3075,8 +3075,15 @@ export default function StatistikSeite() {
       const treffer = ((j.spieler ?? []) as Spieler[]).find((x) => x.epicId === epicId);
       if (treffer) { oeffne(treffer, 'verdienst'); return; }
     } catch { /* dann mit Id und Namen */ }
+    // Das Werkzeug kennt das Konto nicht: den Namen holt es bei Epic (der Betreiber: so, wie Epic Games den Namen herausgibt).
+    let epicName = name; let anzeigeName = name;
+    try {
+      const e = await (await fetch(`/api/epic-name?id=${encodeURIComponent(epicId)}`)).json();
+      if (e?.epicName) epicName = e.epicName;
+      if (e?.anzeige) anzeigeName = e.anzeige;
+    } catch { /* dann bleibt, was uebergeben wurde */ }
     oeffne({
-      epicId, name, anzeige: name, namen: [name], land: null, x: null, regionen: [], heimat: '',
+      epicId, name: epicName, anzeige: anzeigeName, namen: [epicName], land: null, x: null, regionen: [], heimat: '',
       bild: null, events: 0, matches: 0, elims: 0, assists: 0, reboots: 0, shots: 0, hits: 0,
       headshots: 0, damage: 0, damageTaken: 0, heals: 0, stormDamage: 0, fallDamage: 0, mats: 0,
       builds: 0, distanz: 0, timeInStorm: 0, timeAlive: 0, quote: 0, genauigkeit: 0,
@@ -3525,6 +3532,24 @@ export default function StatistikSeite() {
     return () => clearTimeout(zeiger);
   }, [wartet]);
 
+  /*
+   * Die Bereiche als Leiste unter dem Kopf (Betreiber, 14.10.2026: eigene Anordnung statt der Seitenleiste links). Sie steht auch bei
+   * offenem Profil da, damit man von dort mit einem Klick in jeden Bereich kommt.
+   */
+  const bereichsLeiste = (
+    <nav aria-label={t('Statistiken')}
+      className="mb-6 flex max-w-full gap-1 overflow-x-auto rounded-2xl border border-zinc-800 bg-zinc-900 p-1 shadow-sm [scrollbar-width:none]">
+      {sichtbareBereiche.map(([wert, titel]) => (
+        <button key={wert} type="button" onClick={() => wechsleBereich(wert)} aria-current={bereich === wert ? 'page' : undefined}
+          className={`flex shrink-0 items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition ${bereich === wert
+            ? 'bg-sky-500 text-white shadow-sm' : 'text-slate-400 hover:bg-zinc-800 hover:text-slate-100'}`}>
+          <Zeichen art={wert} />
+          <T>{titel}</T>
+        </button>
+      ))}
+    </nav>
+  );
+
   return (
     <main className="min-h-screen bg-zinc-950 text-slate-100">
       {/* Ein Ladeschirm ueber allem, solange Profil, Jahr oder Liste geholt
@@ -3532,120 +3557,18 @@ export default function StatistikSeite() {
       {schirmSichtbar && <LadeSchirm />}
       <div className="mx-auto flex max-w-[1600px] gap-5 px-4 py-6">
 
-        {/* ---------------------------------------------- linke Leiste */}
-        <aside className="hidden w-56 shrink-0 lg:block">
-          <nav className="space-y-0.5">
-            {sichtbareBereiche.map(([wert, titel]) => (
-              <button key={wert} onClick={() => wechsleBereich(wert)}
-                className={`flex w-full items-center gap-2.5 rounded-lg px-3 py-2.5
-                            text-sm transition ${bereich === wert
-                              ? 'bg-zinc-900/80 font-medium text-slate-100'
-                              : 'text-slate-400 hover:bg-zinc-900/40 hover:text-slate-200'}`}>
-                <span className={bereich === wert ? 'text-slate-300' : 'text-slate-600'}>
-                  <Zeichen art={wert} />
-                </span>
-                <T>{titel}</T>
-              </button>
-            ))}
-            {/* Wer sein Epic-Konto verknuepft hat, kommt mit einem Klick zu den eigenen Werten (wie bei Osirion). */}
-            {zugang.epicId && (
-              <button onClick={() => { void oeffneKonto(zugang.epicId, zugang.name); }}
-                className="mt-2 flex w-full items-center gap-2.5 rounded-lg border border-sky-500/40 bg-sky-500/10 px-3 py-2.5 text-sm font-medium text-sky-300 transition hover:bg-sky-500/20">
-                <span className="grid h-4 w-4 place-items-center text-sky-400" aria-hidden>★</span>
-                <T>Meine Stats</T>
-              </button>
-            )}
-          </nav>
-
-          {/* Die laufende Bestenliste - ohne Kasten, direkt in der Leiste */}
-          {seitenliste && (
-            <div className="mt-7 border-t border-zinc-900 pt-4">
-              <p className="px-3 text-[10px] font-semibold uppercase
-                            tracking-[0.16em] text-slate-500">
-                <T>Meiste Eliminierungen</T>
-              </p>
-              <p className="mb-2 px-3 text-[10px] text-slate-600">
-                {saisonTitel} <T>· alle Regionen</T>
-              </p>
-              {/*
-                * Der Nachweis: was gezaehlt ist, steht dabei und laesst
-                * sich aufklappen. Je Spieler, aus Replays, nur Finals -
-                * der Betreiber wollte auf der Seite sehen, dass es stimmt.
-                */}
-              {grundlage && (
-                <div className="mb-2 px-3">
-                  <button type="button"
-                    onClick={() => setGrundlageOffen((o) => !o)}
-                    className="text-left text-[10px] leading-snug text-slate-500
-                               transition hover:text-sky-400">
-                    {grundlage.spieltage.length} <T>Spieltage gezählt</T>
-                    {' · '}<T>je Spieler, aus Replays, Opens und Finals</T>
-                    {' '}{grundlageOffen ? '▴' : '▾'}
-                  </button>
-                  {grundlageOffen && (
-                    <ul className="mt-1 max-h-72 space-y-0.5 overflow-y-auto
-                                   border-l border-zinc-800 pl-2">
-                      {grundlage.spieltage.map((s, i) => (
-                        <li key={i} className="text-[10px] leading-snug text-slate-500">
-                          <span className="text-slate-400">{s.region}</span>
-                          {' · '}{s.name}
-                          {s.datum ? ` · ${new Date(s.datum).toLocaleDateString(
-                            sprache === 'de' ? 'de-DE' : 'en-GB',
-                            { day: '2-digit', month: '2-digit' })}` : ''}
-                          {/* Wie viele Matches des Tages wirklich drin sind -
-                              ein halb ausgewerteter Tag soll als solcher
-                              erkennbar sein. */}
-                          {s.quelle === 'eigene' && s.ausgewertet !== null && (
-                            <span className="text-slate-600">
-                              {' · '}{s.ausgewertet}{s.gesamt ? `/${s.gesamt}` : ''}
-                              {' '}<T>Matches</T>
-                            </span>
-                          )}
-                          {s.quelle === 'szene' && (
-                            <span className="text-slate-600"> · <T>Szene-Quelle</T></span>
-                          )}
-                        </li>
-                      ))}
-                    </ul>
-                  )}
-                  <p className="mt-1 text-[10px] leading-snug text-slate-600">
-                    <T>Die übrigen Listen (Schaden, Treffer, Material) nur aus
-                    Finals — dazu haben die Replays keine Werte.</T>
-                  </p>
-                </div>
-              )}
-              <div>
-                {seitenliste.plaetze.slice(0, 15).map((sp, i) => (
-                  <button key={sp.epicId} onClick={() => oeffne(sp)}
-                    className="flex w-full items-center gap-2 rounded px-3 py-[5px]
-                               text-left transition hover:bg-zinc-900/50">
-                    <span className="w-4 shrink-0 text-right text-[11px] tabular-nums
-                                     text-slate-600">{i + 1}</span>
-                    <TeamFlagge groesse={14} laender={[sp.land ?? undefined]} />
-                    <span className="min-w-0 flex-1 truncate text-[11px] font-medium
-                                     text-slate-300">
-                      {grossName(sp.anzeige, sp.gepflegt)}
-                    </span>
-                    <RegionMarke region={sp.heimat || sp.regionen[0] || ''} />
-                    <span className="w-6 shrink-0 text-right text-[11px] font-bold
-                                     tabular-nums text-slate-200">
-                      {zahl(sp.elims, 0, sprache)}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-        </aside>
-
         {/* ---------------------------------------------- rechter Inhalt */}
         <div className="min-w-0 flex-1">
+          {(offen || volleListe) && bereichsLeiste}
           {/* Ist ein Profil offen, steht es hier anstelle des Inhalts. */}
           {!offen && !volleListe && (<>
 
           {/* Kopf mit Saison und Bereichen fuer schmale Schirme */}
-          <div className="mb-5 flex flex-wrap items-center gap-3">
-            <h1 className="text-xl font-semibold text-slate-100"><T>Statistiken</T></h1>
+          <div className="mb-5 flex flex-wrap items-end gap-x-4 gap-y-3">
+            <div className="mr-2">
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-sky-500"><T>Zahlen & Rekorde</T></p>
+              <h1 className="mt-1 text-4xl font-extrabold tracking-tight text-slate-100 sm:text-5xl"><T>Statistiken</T></h1>
+            </div>
             <select value={saison} onChange={(e) => setSaison(e.target.value)}
               className="rounded-lg border border-zinc-800 bg-zinc-900/80 px-3 py-1.5
                          text-sm text-slate-200 outline-none focus:border-sky-500">
@@ -3764,34 +3687,9 @@ export default function StatistikSeite() {
               </span>
             )}
 
-            {/*
-              * Die Reiter duerfen umbrechen.
-              *
-              * In einer Zeile waren sie 454 Pixel breit - und weil eine Seite
-              * nicht schmaler wird als ihr breitestes Stueck, zoomte das
-              * Telefon die ganze Seite heraus, bis sie hineinpasste. Schrift,
-              * Bilder, Tabellen: alles wurde kleiner, und genau das war das
-              * "man erkennt nichts". Als Admin kommen noch Reiter dazu, dann
-              * war es noch schlimmer.
-              */}
-            <div className="flex flex-wrap gap-1 lg:hidden">
-              {sichtbareBereiche.map(([wert, titel]) => (
-                <button key={wert} onClick={() => wechsleBereich(wert)}
-                  className={`shrink-0 rounded-lg border px-2.5 py-1.5 text-xs transition ${
-                    bereich === wert
-                      ? 'border-sky-500 bg-sky-500/10 text-sky-400'
-                      : 'border-zinc-800 text-slate-400'}`}>
-                  <T>{titel}</T>
-                </button>
-              ))}
-              {zugang.epicId && (
-                <button onClick={() => { void oeffneKonto(zugang.epicId, zugang.name); }}
-                  className="shrink-0 rounded-lg border border-sky-500/50 bg-sky-500/10 px-2.5 py-1.5 text-xs text-sky-300">
-                  ★ <T>Meine Stats</T>
-                </button>
-              )}
-            </div>
           </div>
+
+          {bereichsLeiste}
 
           {/* ------------------------------------------------- Übersicht */}
           {bereich === 'start' && (
@@ -3824,13 +3722,80 @@ export default function StatistikSeite() {
                 zuSpielern={() => wechsleBereich('spieler')}
                 oeffneSpieler={(id, name) => { void oeffneKonto(id, name); }} />
 
+              {/*
+                * Die Elim-Rangliste (war die Liste in der linken Leiste): die ersten fuenfzehn in drei Spalten. Der Nachweis, was gezaehlt ist,
+                * bleibt aufklappbar - der Betreiber wollte auf der Seite sehen, dass es stimmt: je Spieler, aus Replays, nur Finals.
+                */}
+              {seitenliste && (
+                <section className="mb-8 rounded-3xl border border-zinc-800 bg-zinc-900 p-5 shadow-sm sm:p-6">
+                  <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
+                    <div>
+                      <h2 className="schrift-anzeige text-xl font-bold text-slate-100"><T>Meiste Eliminierungen</T></h2>
+                      <p className="mt-0.5 text-xs text-slate-500">{saisonTitel} <T>· alle Regionen</T></p>
+                    </div>
+                    <button type="button"
+                      onClick={() => {
+                        setVolleListe({
+                          titel: seitenliste.titel, zusatz: saisonTitel, zeilen: seitenliste.plaetze,
+                          feld: seitenliste.feld as keyof Spieler, nachkomma: seitenliste.nachkomma ?? 0, einheit: seitenliste.einheit ?? '',
+                        });
+                        setListenTiefe(50);
+                      }}
+                      className="rounded-full border border-zinc-700 px-3 py-1 text-xs font-semibold text-slate-400 transition hover:border-sky-500 hover:text-sky-500">
+                      <T>Alle anzeigen</T> →
+                    </button>
+                    {grundlage && (
+                      <button type="button" onClick={() => setGrundlageOffen((o) => !o)}
+                        className="basis-full text-left text-xs text-slate-500 transition hover:text-sky-500">
+                        {grundlage.spieltage.length} <T>Spieltage gezählt</T>{' · '}<T>je Spieler, aus Replays, Opens und Finals</T>{' '}{grundlageOffen ? '▴' : '▾'}
+                      </button>
+                    )}
+                  </div>
+                  {grundlage && grundlageOffen && (
+                    <ul className="mt-3 max-h-72 space-y-0.5 overflow-y-auto rounded-xl bg-zinc-950 p-3">
+                      {grundlage.spieltage.map((sp, i) => (
+                        <li key={i} className="text-xs leading-snug text-slate-500">
+                          <span className="text-slate-400">{sp.region}</span>{' · '}{sp.name}
+                          {sp.datum ? ` · ${new Date(sp.datum).toLocaleDateString(sprache === 'de' ? 'de-DE' : 'en-GB', { day: '2-digit', month: '2-digit' })}` : ''}
+                          {/* Wie viele Matches des Tages wirklich drin sind - ein halb ausgewerteter Tag soll als solcher erkennbar sein. */}
+                          {sp.quelle === 'eigene' && sp.ausgewertet !== null && (
+                            <span className="text-slate-600">{' · '}{sp.ausgewertet}{sp.gesamt ? `/${sp.gesamt}` : ''}{' '}<T>Matches</T></span>
+                          )}
+                          {sp.quelle === 'szene' && <span className="text-slate-600"> · <T>Szene-Quelle</T></span>}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {grundlage && (
+                    <p className="mt-2 text-xs leading-snug text-slate-500">
+                      <T>Die übrigen Listen (Schaden, Treffer, Material) nur aus Finals — dazu haben die Replays keine Werte.</T>
+                    </p>
+                  )}
+                  <ol className="mt-4 md:columns-3 md:gap-x-8">
+                    {seitenliste.plaetze.slice(0, 15).map((sp, i) => (
+                      <li key={sp.epicId} className="break-inside-avoid">
+                        <button type="button" onClick={() => oeffne(sp)}
+                          className="flex w-full items-center gap-2.5 rounded-xl px-2 py-2 text-left transition hover:bg-zinc-800/70">
+                          <span className="w-6 shrink-0 text-right text-sm font-bold tabular-nums text-slate-500">{i + 1}</span>
+                          <TeamFlagge groesse={18} laender={[sp.land ?? undefined]} />
+                          <span className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-100">{grossName(sp.anzeige, sp.gepflegt)}</span>
+                          <RegionMarke region={sp.heimat || sp.regionen[0] || ''} />
+                          <span className="w-9 shrink-0 text-right text-sm font-extrabold tabular-nums text-slate-100">{zahl(sp.elims, 0, sprache)}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ol>
+                </section>
+              )}
+
               <p className="mb-2 text-[10px] font-semibold uppercase
                             tracking-[0.18em] text-slate-500">
                 {alleSaisons ? t('Bestenlisten über alle Saisons')
                   : `${t('Bestenlisten der Saison')} ${saisonTitel}`}
               </p>
               <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                {listen.map((l) => (
+                {/* Die Elim-Liste steht oben als eigene, breite Karte - hier nicht noch einmal. */}
+                {listen.filter((l) => l.feld !== 'elims').map((l) => (
                   <div key={l.feld}
                     className="overflow-hidden rounded-xl border border-zinc-800
                                bg-zinc-950/60">
@@ -5351,89 +5316,102 @@ export default function StatistikSeite() {
           {/* Ohne Rahmen: es ist die Seite selbst, kein Kasten auf der Seite. */}
           <div className="w-full">
 
-            {/* Kopf */}
-            <div className="flex flex-wrap items-center gap-3 px-7 pt-7">
-              <TeamFlagge groesse={40} laender={[offen.land ?? undefined]} />
-              <h2 className="text-3xl font-bold tracking-wide text-slate-50">
-                {grossName(offen.anzeige, offen.gepflegt)}
-              </h2>
-              {(offen.heimat || offen.regionen?.[0]) && (
-                <RegionMarke region={offen.heimat || offen.regionen[0]} />
+            {/*
+              * Der Kopf (Betreiber, 14.10.2026): das Foto steht gross hinter dem Namen und blendet zur Seite hin in die Karte aus - wie bei den
+              * Spitzenreitern der Rangliste. Gesicht und Hals bleiben frei; ohne Foto steht nur der Text da.
+              */}
+            <section className="relative isolate overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 shadow-sm">
+              {offen.bild && (
+                <>
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={offen.bild} alt="" className="foto-maske-rechts absolute inset-y-0 right-0 -z-10 h-full w-full object-cover md:w-[58%]"
+                    style={{ objectPosition: 'center top' }} />
+                  <span aria-hidden className="foto-folie absolute inset-0 -z-10 md:hidden" />
+                </>
               )}
-              {offen.x && (
-                <a href={`https://x.com/${offen.x}`} target="_blank" rel="noreferrer"
-                  className="text-xs text-slate-500 transition hover:text-sky-400">
-                  @{offen.x}
-                </a>
-              )}
-              {/* Die Marken.
-                  Sie erscheinen nur, wenn es sie zu diesem Spieler wirklich
-                  gibt - wer nie eine FNCS gewonnen hat, bekommt hier auch
-                  keinen leeren Kasten. Ein Druck darauf oeffnet die Liste
-                  dahinter. */}
-              <div className="ml-auto flex flex-wrap items-stretch gap-2">
-                {((fncs?.titel ?? 0) > 0 || lanErgebnisse.some((l) => l.platz <= 3)) && (
-                  <button onClick={() => setMarke('fncs')}
-                    className="rounded-lg border border-amber-500/50 bg-amber-500/10
-                               px-3 py-2 text-center transition
-                               hover:border-amber-400 hover:bg-amber-500/20">
-                    <span className="flex items-center justify-center gap-0.5
-                                     text-amber-400">
-                      {[...Array(Math.min(fncs!.titel, 8))].map((_, i) =>
-                        <Pokal key={i} />)}
-                      {fncs!.titel > 8 && (
-                        <span className="ml-1 text-[11px] font-bold">
-                          ×{fncs!.titel}
-                        </span>
-                      )}
-                    </span>
-                    <span className="mt-1 block text-[9px] font-semibold uppercase
-                                     tracking-[0.16em] text-amber-400/90">
-                      <T>FNCS-Sieger</T>
-                    </span>
-                  </button>
-                )}
+              <div className={`flex min-h-[20rem] flex-col justify-between gap-8 p-6 sm:p-8 ${offen.bild ? 'md:min-h-[24rem] md:max-w-[62%]' : ''}`}>
+                <button onClick={profilSchliessen}
+                  className="w-fit rounded-full border border-zinc-700 bg-zinc-950/60 px-4 py-1.5 text-xs font-semibold text-slate-400 backdrop-blur transition hover:border-sky-500/60 hover:text-sky-500">
+                  ← <T>Zurück</T>
+                </button>
 
-                {tagesbest.length > 0 && (
-                  <button onClick={() => setMarke('tage')}
-                    className="rounded-lg border border-sky-500/50 bg-sky-500/10
-                               px-3 py-2 text-center transition
-                               hover:border-sky-400 hover:bg-sky-500/20">
-                    <span className="flex max-w-[132px] flex-wrap items-center
-                                     justify-center gap-0.5 text-sky-400">
-                      {[...Array(Math.min(tagesbest.length, 12))].map((_, i) =>
-                        <Stern key={i} />)}
-                      {tagesbest.length > 12 && (
-                        <span className="ml-1 text-[11px] font-bold">
-                          ×{tagesbest.length}
-                        </span>
-                      )}
-                    </span>
-                    <span className="mt-1 block text-[9px] font-semibold uppercase
-                                     tracking-[0.16em] text-sky-400/90">
-                      <T>Tagesbester</T>
-                    </span>
-                  </button>
-                )}
+                <div>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <TeamFlagge groesse={34} laender={[offen.land ?? undefined]} />
+                    {(offen.heimat || offen.regionen?.[0]) && (
+                      <RegionMarke region={offen.heimat || offen.regionen[0]} />
+                    )}
+                    {offen.x && (
+                      <a href={`https://x.com/${offen.x}`} target="_blank" rel="noreferrer"
+                        className="text-xs text-slate-500 transition hover:text-sky-500">
+                        @{offen.x}
+                      </a>
+                    )}
+                  </div>
+                  <h2 className="schrift-anzeige mt-3 break-words text-4xl font-extrabold leading-[1.05] tracking-tight text-slate-100 sm:text-5xl">
+                    {grossName(offen.anzeige, offen.gepflegt)}
+                  </h2>
+                  <p className="mt-2 text-sm text-slate-500">
+                    {offen.events
+                      ? `${zahl(offen.events, 0, sprache)} ${t('Spieltage')} · ${zahl(offen.matches, 0, sprache)} ${t('Matches')}`
+                      : t('Werte werden geladen …')}
+                  </p>
 
-                {/* Hier stand die Karte "Bester Spieltag".
-                    Sie ist weggefallen: direkt daneben zeigt die Marke
-                    "Tagesbester" schon, an wie vielen Spieltagen niemand
-                    mehr Eliminierungen hatte, und die Bestmarke selbst
-                    steht weiter unten bei den Rekorden. Zweimal dieselbe
-                    Aussage nebeneinander macht die Kopfzeile nur voller. */}
+                  {/* Die Marken.
+                      Sie erscheinen nur, wenn es sie zu diesem Spieler wirklich gibt - wer nie eine FNCS gewonnen hat, bekommt hier auch
+                      keinen leeren Kasten. Ein Druck darauf oeffnet die Liste dahinter. */}
+                  <div className="mt-5 flex flex-wrap items-stretch gap-2">
+                    {((fncs?.titel ?? 0) > 0 || lanErgebnisse.some((l) => l.platz <= 3)) && (
+                      <button onClick={() => setMarke('fncs')}
+                        className="rounded-xl border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-center backdrop-blur transition hover:border-amber-400 hover:bg-amber-500/20">
+                        <span className="flex items-center justify-center gap-0.5 text-amber-500">
+                          {[...Array(Math.min(fncs!.titel, 8))].map((_, i) => <Pokal key={i} />)}
+                          {fncs!.titel > 8 && <span className="ml-1 text-[11px] font-bold">×{fncs!.titel}</span>}
+                        </span>
+                        <span className="mt-1 block text-[9px] font-semibold uppercase tracking-[0.16em] text-amber-500/90"><T>FNCS-Sieger</T></span>
+                      </button>
+                    )}
+                    {tagesbest.length > 0 && (
+                      <button onClick={() => setMarke('tage')}
+                        className="rounded-xl border border-sky-500/50 bg-sky-500/10 px-3 py-2 text-center backdrop-blur transition hover:border-sky-400 hover:bg-sky-500/20">
+                        <span className="flex max-w-[132px] flex-wrap items-center justify-center gap-0.5 text-sky-500">
+                          {[...Array(Math.min(tagesbest.length, 12))].map((_, i) => <Stern key={i} />)}
+                          {tagesbest.length > 12 && <span className="ml-1 text-[11px] font-bold">×{tagesbest.length}</span>}
+                        </span>
+                        <span className="mt-1 block text-[9px] font-semibold uppercase tracking-[0.16em] text-sky-500/90"><T>Tagesbester</T></span>
+                      </button>
+                    )}
+                    {/* Hier stand die Karte "Bester Spieltag": die Marke "Tagesbester" zeigt schon, an wie vielen Spieltagen niemand mehr
+                        Eliminierungen hatte, und die Bestmarke selbst steht weiter unten bei den Rekorden. */}
+                  </div>
+
+                  {/*
+                    * Epics eigenes Ranked-System: die einzige Angabe im Profil, die nicht aus einem Turnier stammt - und die einzige, die es zu
+                    * jedem Spieler gibt. Die Stufe steht als Zahl, nicht als Name: Epics Rangsaisons haben unterschiedlich viele Stufen
+                    * (achtzehn, zweiundzwanzig, einhunderteins), ein Name wie "Diamant III" passt nur zur ersten; die Zahl stimmt immer.
+                    */}
+                  {ranked && ranked.some((r) => rangArt(r.rankingType)) && (
+                    <div className="mt-4 flex flex-wrap items-center gap-2">
+                      <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500"><T>Ranked</T></span>
+                      {ranked.filter((r) => rangArt(r.rankingType)).slice(0, 4).map((r) => (
+                        <span key={r.trackguid} className="inline-flex items-baseline gap-2 rounded-full border border-zinc-700 bg-zinc-950/60 px-3 py-1 text-xs backdrop-blur">
+                          <span className="uppercase tracking-wider text-slate-500">{rangArt(r.rankingType)}</span>
+                          {r.ranking !== null ? (
+                            <b className="tabular-nums text-amber-500">#{zahl(r.ranking, 0, sprache)}</b>
+                          ) : (
+                            <b className="text-slate-300"><T>Stufe</T> {r.division}{r.stufen ? <span className="font-normal text-slate-500">{' / '}{r.stufen}</span> : null}</b>
+                          )}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
-              <button onClick={profilSchliessen}
-                className="rounded-md border border-zinc-800 px-3 py-1.5 text-xs
-                           text-slate-400 transition hover:border-sky-500/60
-                           hover:text-sky-400">
-                ← <T>Zurück</T>
-              </button>
-            </div>
+            </section>
 
             {/* Pflege - nur fuer den Admin */}
             {istAdmin && (
-              <div className="mx-7 mt-4 flex flex-wrap items-center gap-2 rounded-lg
+              <div className="mt-4 flex flex-wrap items-center gap-2 rounded-lg
                               border border-zinc-800 bg-zinc-900/40 px-3 py-2">
                 <span className="text-[10px] font-semibold uppercase tracking-[0.14em]
                                  text-slate-500"><T>Pflege</T></span>
@@ -5497,85 +5475,7 @@ export default function StatistikSeite() {
               </div>
             )}
 
-            {/* Bild und die grossen Zahlen.
-                Die Zahlen stehen nebeneinander, getrennt durch senkrechte
-                Linien statt in einem dichten Raster - so hat jede Zahl Luft
-                um sich und die Reihe liest sich in einem Zug. */}
-            <div className="flex flex-wrap gap-7 px-7 py-6">
-              <div className="w-[215px] shrink-0">
-                <div className="aspect-[4/5] overflow-hidden rounded-lg border
-                                border-zinc-800 bg-zinc-900">
-                  {offen.bild ? (
-                    /* eslint-disable-next-line @next/next/no-img-element */
-                    <img src={offen.bild} alt=""
-                      className="h-full w-full object-cover object-top" />
-                  ) : (
-                    <div className="flex h-full items-center justify-center text-4xl
-                                    text-zinc-700">?</div>
-                  )}
-                </div>
-                <p className="mt-2 text-center text-[11px] text-slate-600">
-                  {offen.events
-                    ? `${zahl(offen.events, 0, sprache)} ${t('Spieltage')}`
-                      + ` · ${zahl(offen.matches, 0, sprache)} ${t('Matches')}`
-                    : t('Werte werden geladen …')}
-                </p>
-
-                {/*
-                  * Epics eigenes Ranked-System.
-                  *
-                  * Die einzige Angabe im Profil, die nicht aus einem Turnier
-                  * stammt - und die einzige, die es zu jedem Spieler gibt,
-                  * auch zu einem, der nie in einem Cup stand. Die
-                  * Schnittstelle dafuer lag fertig im Werkzeug und wurde von
-                  * niemandem gerufen.
-                  */}
-                {ranked && ranked.some((r) => rangArt(r.rankingType)) && (
-                  <div className="mt-3 space-y-1">
-                    <p className="text-center text-[10px] font-semibold uppercase
-                                  tracking-[0.16em] text-slate-600">
-                      <T>Ranked</T>
-                    </p>
-                    {/*
-                      * Stufe als Zahl, nicht als Name.
-                      *
-                      * Epics laufende Rangsaisons haben unterschiedlich viele
-                      * Stufen - achtzehn, zweiundzwanzig, einhundertundeine.
-                      * Ein Name wie "Diamant III" passt nur zur ersten; auf
-                      * die anderen uebertragen waere er geraten. Die Zahl
-                      * stimmt immer, und wie viele es insgesamt sind, steht
-                      * daneben.
-                      */}
-                    {ranked.filter((r) => rangArt(r.rankingType)).slice(0, 4).map((r) => (
-                      <div key={r.trackguid}
-                        className="flex items-baseline justify-between gap-2 rounded-lg
-                                   border border-zinc-800 bg-zinc-900/40 px-2.5 py-1.5">
-                        <span className="truncate text-[10px] uppercase tracking-wider
-                                         text-slate-500">
-                          {rangArt(r.rankingType)}
-                        </span>
-                        {r.ranking !== null ? (
-                          <span className="whitespace-nowrap text-[11px] font-semibold
-                                           tabular-nums text-amber-400">
-                            #{zahl(r.ranking, 0, sprache)}
-                          </span>
-                        ) : (
-                          <span className="whitespace-nowrap text-[11px] font-semibold
-                                           text-slate-300">
-                            <T>Stufe</T> {r.division}
-                            {r.stufen ? (
-                              <span className="font-normal text-slate-600">
-                                {' / '}{r.stufen}
-                              </span>
-                            ) : null}
-                          </span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
+            <div className="mt-4">
               {/* Die Kennzahlen des ganzen Zeitraums, nicht die eines Cups.
                   Das Vorbild fuehrt hier Rating, Power Ranking, Regional und
                   Global Ranking, Eliminierungen, Schaden und FNCS Grand
@@ -5584,7 +5484,7 @@ export default function StatistikSeite() {
                   Berechnungen. An ihrer Stelle steht die Schadensquote, die
                   sich nachrechnen laesst. Die beiden Raenge sind abgezaehlt -
                   aus derselben Liste, die die Seite ohnehin fuehrt. */}
-              <div className="flex min-w-0 flex-1 flex-wrap items-stretch">
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
                 {([
                   /*
                    * Die Unterzeilen werden hier zusammengesetzt und muessen
@@ -5622,18 +5522,12 @@ export default function StatistikSeite() {
                       lanErgebnisse.filter((l) => l.platz === 1).length
                         ? `${lanErgebnisse.filter((l) => l.platz === 1).length} LAN` : '']
                       .filter(Boolean).join(' · ')],
-                ] as Array<[string, string, string]>).map(([l, v, unten], i) => (
-                  // Schmal genug, dass die Reihe in einer Zeile bleibt: bricht
-                  // sie um, steht die letzte Zahl allein neben einer leeren
-                  // Flaeche, und genau das sollte hier weg.
-                  <div key={l}
-                    className={`min-w-[112px] flex-1 basis-0 px-4 py-3 ${i > 0
-                      ? 'border-l border-zinc-800' : ''}`}>
-                    <p className="text-[10px] font-semibold uppercase tracking-[0.16em]
-                                  text-slate-500"><T>{l}</T></p>
-                    <p className="mt-1.5 text-2xl font-bold tabular-nums text-slate-50">{v}</p>
+                ] as Array<[string, string, string]>).map(([l, v, unten]) => (
+                  <div key={l} className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4 shadow-sm">
+                    <p className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-slate-500"><T>{l}</T></p>
+                    <p className="schrift-anzeige mt-1.5 text-3xl font-extrabold tabular-nums text-slate-100">{v}</p>
                     {unten && (
-                      <p className="mt-1 text-[10px] text-slate-600">{unten}</p>
+                      <p className="mt-1 text-xs text-slate-500">{unten}</p>
                     )}
                   </div>
                 ))}
@@ -5644,17 +5538,18 @@ export default function StatistikSeite() {
                 Dort steht beim Vorbild "Season" mit einem Waehler - genau
                 dort sucht man ihn, weil die Zahlen darunter davon abhaengen. */}
             <div className="flex flex-wrap items-center gap-6 border-b border-zinc-800
-                            px-7">
+                            px-1">
               {/* Nach dem Vorbild eucompetitive (Betreiber, 28.9.2026): Overview,
                   Stats, Tournament Results, FNCS, Achievements - dazu Earnings
                   und die Bilder. "Alle Werte" und "Leistung" sind zu "Stats"
                   zusammengelegt. */}
-              {([['uebersicht', 'Übersicht'],
-                 ['werte', 'Stats'],
-                 ['turniere', 'Turnierergebnisse'],
+              {([['uebersicht', 'Überblick'],
+                 // Die Zahlen nur, wo es welche gibt - ein Konto ohne ausgewertete Matches zeigt keine Seite voller Nullen (Betreiber, 14.10.2026).
+                 ...(offen.matches > 0 ? [['werte', 'Zahlen']] : []),
+                 ['turniere', 'Ergebnisse'],
                  ['fncs', 'FNCS'],
-                 ['erfolge', 'Erfolge'],
-                 ['verdienst', 'Verdienst'],
+                 ['erfolge', 'Meilensteine'],
+                 ['verdienst', 'Preisgeld'],
                  ...(teamVerlauf.length ? [['teams', 'Teamverlauf']] : []),
                  /*
                   * Das Archiv nur, wenn es etwas gibt. Der Betreiber: "wenn
@@ -5662,7 +5557,7 @@ export default function StatistikSeite() {
                   * das Player Archiv auch nicht angezeigt werden, auch kein
                   * leeres." Der Admin sieht es immer, zum Hochladen.
                   */
-                 ...((archivAnzahl > 0 || istAdmin) ? [['archiv', 'Bilderarchiv']] : [])] as Array<[SpielerReiter, string]>)
+                 ...((archivAnzahl > 0 || istAdmin) ? [['archiv', 'Galerie']] : [])] as Array<[SpielerReiter, string]>)
                 .map(([w, titel]) => (
                 // "titel" statt "t": der Uebersetzer heisst hier ebenfalls t,
                 // und ihn in einer Schleife zu beschatten ist eine Falle fuer

@@ -71,3 +71,8 @@ html[data-bewegung="aus"] *, html[data-bewegung="aus"] *::before, html[data-bewe
  */
 .foto-folie { background: linear-gradient(to top, rgba(7,11,19,.94) 0%, rgba(7,11,19,.72) 34%, rgba(7,11,19,.18) 70%, rgba(7,11,19,.05) 100%); }
 html[data-modus="hell"] .foto-folie { background: linear-gradient(to top, rgba(210,216,226,.96) 0%, rgba(210,216,226,.78) 34%, rgba(210,216,226,.2) 70%, rgba(210,216,226,.04) 100%); }
+
+/* Profilkopf: das Foto blendet zur linken Seite hin in die Karte aus (nur ab Tablet-Breite; darunter liegt es unter der Foto-Folie). */
+@media (min-width: 768px) {
+  .foto-maske-rechts { -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 42%); mask-image: linear-gradient(to right, transparent 0%, #000 42%); }
+}

@@ -151,7 +151,7 @@ export default function RanglisteNeu() {
                 {s.bild && (
                   <>
                     {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={s.bild} alt="" loading="eager" className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-105" style={{ objectPosition: 'center 12%' }} />
+                    <img src={s.bild} alt="" loading="eager" className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-105" style={{ objectPosition: 'center top' }} />
                     <span aria-hidden className="foto-folie absolute inset-0" />
                   </>
                 )}
