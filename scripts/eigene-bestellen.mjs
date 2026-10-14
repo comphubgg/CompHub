@@ -45,7 +45,8 @@ for (const ordner of fs.readdirSync(SPIELTAGE)) {
     for (const id of dabei) {
       const team = t.teams.find((x) => (x.spieler ?? []).includes(id));
       if (!team) continue;
-      if (fs.existsSync(path.join(STATS, t.windowId, `${id}.json`))) continue;
+      // Ein Ergebnis in der heutigen Fassung reicht (Fassung 2: Tode = Spiele ohne Sieg); aeltere werden neu gerechnet.
+      try { if (JSON.parse(fs.readFileSync(path.join(STATS, t.windowId, `${id}.json`), 'utf8')).version >= 2) continue; } catch { /* noch keins */ }
       const ziel = path.join(ANFRAGEN, `${t.windowId}__${id}.json`);
       if (fs.existsSync(ziel)) continue;
       fs.mkdirSync(ANFRAGEN, { recursive: true });

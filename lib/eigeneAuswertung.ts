@@ -40,7 +40,7 @@ export interface SpielerErgebnis {
 }
 
 export interface Ergebnis {
-  version: 1; eventId: string; windowId: string; gerechnet: string;
+  version: number; eventId: string; windowId: string; gerechnet: string;
   /** Wie viele Sitzungen bestellt waren und wie viele sich lesen liessen. */
   sitzungen: number; gelesen: number; fehlend?: string[]; grund?: string;
   spieler: Record<string, SpielerErgebnis>;

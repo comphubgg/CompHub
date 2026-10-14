@@ -27,6 +27,8 @@ const STATS = path.join(DATEN, 'eigene-stats');
 const WERKZEUG = path.join(process.cwd(), 'tools', 'replay-voll', 'bin', 'Release', 'net10.0', 'ReplayVoll.dll');
 const FRIST_MS = 31 * 864e5;
 const EVENTS = 'https://events-public-service-live.ol.epicgames.com';
+/** Fassung der Zaehlweise: ein Ergebnis mit niedrigerer Fassung wird neu gerechnet (2: Tode = Spiele ohne Sieg, wie Epic sie fuer K/D zaehlt). */
+const VERSION = 2;
 
 const arg = process.argv.slice(2);
 const zahl = (name, standard) => { const i = arg.indexOf(name); const v = i >= 0 ? Number(arg[i + 1]) : NaN; return Number.isFinite(v) && v > 0 ? v : standard; };
@@ -34,6 +36,8 @@ const warte = (ms) => new Promise((r) => setTimeout(r, ms));
 const liesJson = (p) => { try { return JSON.parse(fs.readFileSync(p, 'utf8')); } catch { return null; } };
 const norm = (s) => String(s ?? '').replace(/-/g, '').toLowerCase();
 const ergebnisDatei = (w, id) => path.join(STATS, w, `${id}.json`);
+/** Gibt es ein Ergebnis in der heutigen Fassung? */
+const fertigDa = (w, id) => (liesJson(ergebnisDatei(w, id))?.version ?? 0) >= VERSION;
 
 /**
  * Alle Bestellungen, zu denen es noch kein Ergebnis gibt und deren Replays bei Epic noch liegen koennen.
@@ -47,7 +51,7 @@ function offene() {
     if (!a?.windowId || !a?.eventId || !/^[0-9a-f]{32}$/.test(a.epicId ?? '')) continue;
     if (!(Array.isArray(a.sitzungen) && a.sitzungen.length) && !a.auto) continue;
     if (Date.now() - Math.max(a.zeit ?? 0, a.datum ?? 0) > FRIST_MS) continue;
-    if (fs.existsSync(ergebnisDatei(a.windowId, a.epicId))) continue;
+    if (fertigDa(a.windowId, a.epicId)) continue;
     raus.push(a);
   }
   const wann = (a) => a.datum ?? a.zeit ?? 0;
@@ -161,8 +165,9 @@ function zaehle(m, team, summen) {
     s.spiele += 1;
     s.kills += p.kills ?? 0;
     s.knocks += feed.filter((f) => f.art === 'unten' && f.taeter === p.id).length;
-    const gestorben = feed.some((f) => f.art === 'tot' && f.opfer === p.id) || (typeof p.platz === 'number' && p.platz > 1 && p.platz < 999);
-    if (gestorben) s.tode += 1;
+    // Tode = Spiele ohne Sieg: so zaehlt Epic fuer K/D (Eliminierungen durch Spiele minus Siege). Wer gewonnen hat, ist nicht gestorben.
+    const gewonnen = p.platz === 1 || (m.sieger != null && p.team === m.sieger);
+    if (!gewonnen) s.tode += 1;
     const d = (m.schaden ?? []).find((x) => x.id === p.id);
     if (d) {
       s.dmg += d.gemachtOhneBoden ?? d.gemacht ?? 0; s.dmgAlle += d.gemacht ?? 0; s.erlitten += d.genommen ?? 0;
@@ -200,7 +205,7 @@ for (const a of todo) {
       console.log(`    Sitzungen: ${String(e.message).slice(0, 120)}`);
       // Nur "steht nicht in der Bestenliste" ist endgueltig (die Liste war gekappt); alles andere kann ein Aussetzer sein.
       if (e.endgueltig) {
-        lege(a, [a.epicId], { version: 1, eventId: a.eventId, windowId: a.windowId, gerechnet: new Date().toISOString(), sitzungen: 0, gelesen: 0, grund: 'Dieses Konto steht in Epics Bestenliste dieses Cups nicht.', spieler: {} });
+        lege(a, [a.epicId], { version: VERSION, eventId: a.eventId, windowId: a.windowId, gerechnet: new Date().toISOString(), sitzungen: 0, gelesen: 0, grund: 'Dieses Konto steht in Epics Bestenliste dieses Cups nicht.', spieler: {} });
         fertig += 1;
       } else spaeter += 1;
       continue;
@@ -210,7 +215,7 @@ for (const a of todo) {
   if (!team.includes(a.epicId)) team.push(a.epicId);
   // Aelter als 31 Tage: das Replay ist bei Epic weg.
   if (ende && Date.now() - ende > FRIST_MS) {
-    lege(a, team, { version: 1, eventId: a.eventId, windowId: a.windowId, gerechnet: new Date().toISOString(), sitzungen: sitzungen.length, gelesen: 0, grund: 'Die Replays dieses Cups sind bei Epic schon gelöscht.', spieler: {} });
+    lege(a, team, { version: VERSION, eventId: a.eventId, windowId: a.windowId, gerechnet: new Date().toISOString(), sitzungen: sitzungen.length, gelesen: 0, grund: 'Die Replays dieses Cups sind bei Epic schon gelöscht.', spieler: {} });
     fertig += 1; console.log('    Replays bei Epic gelöscht'); continue;
   }
 
@@ -228,7 +233,7 @@ for (const a of todo) {
   // Nichts gelesen: die Replays erscheinen erst einige Minuten nach der Runde - erst zwei Stunden nach dem letzten Spiel gilt es als "nicht abrufbar".
   if (gelesen === 0 && Date.now() - ende < 2 * 3600_000) { spaeter += 1; console.log('    nichts lesbar - spaeter noch einmal'); continue; }
   lege(a, team, {
-    version: 1, eventId: a.eventId, windowId: a.windowId, gerechnet: new Date().toISOString(),
+    version: VERSION, eventId: a.eventId, windowId: a.windowId, gerechnet: new Date().toISOString(),
     sitzungen: sitzungen.length, gelesen,
     ...(fehlend.length ? { fehlend } : {}),
     ...(gelesen === 0 ? { grund: 'Die Replays dieses Cups lassen sich bei Epic nicht mehr abrufen.' } : {}),
