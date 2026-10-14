@@ -24,11 +24,13 @@ import { createRequire } from 'node:module';
 const DATEN = process.env.COMPHUB_DATEN || path.join(process.cwd(), 'data');
 const ANFRAGEN = path.join(DATEN, 'eigene-anfragen');
 const STATS = path.join(DATEN, 'eigene-stats');
-const WERKZEUG = path.join(process.cwd(), 'tools', 'replay-voll', 'bin', 'Release', 'net10.0', 'ReplayVoll.dll');
+// Zum Pruefen auf einem Rechner mit anderem Aufbau: REPLAYVOLL_DLL und DOTNET_BIN (im Ablauf nicht gesetzt).
+const WERKZEUG = process.env.REPLAYVOLL_DLL || path.join(process.cwd(), 'tools', 'replay-voll', 'bin', 'Release', 'net10.0', 'ReplayVoll.dll');
+const DOTNET = process.env.DOTNET_BIN || 'dotnet';
 const FRIST_MS = 31 * 864e5;
 const EVENTS = 'https://events-public-service-live.ol.epicgames.com';
-/** Fassung der Zaehlweise: ein Ergebnis mit niedrigerer Fassung wird neu gerechnet (2: Tode = Spiele ohne Sieg, wie Epic sie fuer K/D zaehlt). */
-const VERSION = 2;
+/** Fassung der Zaehlweise: ein Ergebnis mit niedrigerer Fassung wird neu gerechnet (2: Tode = Spiele ohne Sieg, wie Epic sie fuer K/D zaehlt; 3: dazu die Zeit im Sturm). */
+const VERSION = 3;
 
 const arg = process.argv.slice(2);
 const zahl = (name, standard) => { const i = arg.indexOf(name); const v = i >= 0 ? Number(arg[i + 1]) : NaN; return Number.isFinite(v) && v > 0 ? v : standard; };
@@ -142,7 +144,7 @@ async function leseSitzung(id) {
     fs.writeFileSync(tmp, puffer);
     return await mitWiederholung(async () => {
       try {
-        const { stdout } = await dotnet('dotnet', [WERKZEUG, tmp], { maxBuffer: 256 * 1024 * 1024, timeout: 10 * 60_000 });
+        const { stdout } = await dotnet(DOTNET, [WERKZEUG, tmp], { maxBuffer: 256 * 1024 * 1024, timeout: 10 * 60_000 });
         return JSON.parse(stdout);
       } catch (e) {
         const ende = String(e.stderr ?? '').split('\n').map((x) => x.trim()).filter(Boolean).slice(-2).join(' | ');
@@ -161,7 +163,7 @@ function zaehle(m, team, summen) {
   for (const konto of team) {
     const p = (m.spieler ?? []).find((x) => !x.bot && norm(x.epic) === konto);
     if (!p) continue;
-    const s = summen[konto] ??= { name: p.name, spiele: 0, kills: 0, knocks: 0, tode: 0, dmg: 0, dmgAlle: 0, erlitten: 0, treffer: 0, krit: 0, schild: 0 };
+    const s = summen[konto] ??= { name: p.name, spiele: 0, kills: 0, knocks: 0, tode: 0, dmg: 0, dmgAlle: 0, erlitten: 0, treffer: 0, krit: 0, schild: 0, sturm: 0 };
     s.spiele += 1;
     s.kills += p.kills ?? 0;
     s.knocks += feed.filter((f) => f.art === 'unten' && f.taeter === p.id).length;
@@ -173,6 +175,8 @@ function zaehle(m, team, summen) {
       s.dmg += d.gemachtOhneBoden ?? d.gemacht ?? 0; s.dmgAlle += d.gemacht ?? 0; s.erlitten += d.genommen ?? 0;
       s.treffer += d.treffer ?? 0; s.krit += d.krit ?? 0; s.schild += d.schild ?? 0;
     }
+    // Zeit im Sturm in Sekunden (Leser, Feld zusatz; gegen die Szene-Werte eines Finals geprueft).
+    s.sturm += (m.zusatz ?? []).find((x) => x.id === p.id)?.sturmSek ?? 0;
   }
 }
 

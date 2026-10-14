@@ -32,7 +32,7 @@ interface Eintrag {
   damage: number; damageTaken: number; headshots: number; matsGefarmt: number; strecke: number;
   punktePlatz?: number; punkteElims?: number; matches: Match[];
 }
-interface Replay { kills: number | null; knocks: number | null; tode: number | null; spiele: number | null; damage?: number; damageTaken?: number; hits?: number; headshots?: number }
+interface Replay { kills: number | null; knocks: number | null; tode: number | null; spiele: number | null; damage?: number; damageTaken?: number; hits?: number; headshots?: number; sturmSek?: number }
 interface Mitglied { id: string; name: string; land: string | null; ich: boolean; szene: Record<string, number> | null; replay: Replay | null }
 interface Antwort {
   ok: boolean; error?: string; id: string; name: string; dabei: boolean;
@@ -109,7 +109,7 @@ const ZEILEN: Zeile[] = [
   { titel: 'Wood Collected', wert: () => null, zeige: num },
   { titel: 'Stone Collected', wert: () => null, zeige: num },
   { titel: 'Metal Collected', wert: () => null, zeige: num },
-  { titel: 'Time in Storm', wert: (m) => sz(m, 'timeInStorm'), zeige: dauer, rot: true, weniger: true },
+  { titel: 'Time in Storm', wert: (m) => sz(m, 'timeInStorm') ?? (m.replay?.sturmSek ?? null), zeige: dauer, rot: true, weniger: true },
   { titel: 'Storm Damage Taken', wert: (m) => sz(m, 'stormDamage'), zeige: num, rot: true, weniger: true },
   { titel: 'Surge Hits', wert: () => null, zeige: num },
   { titel: 'Distance Traveled', wert: (m, c) => { const a = sz(m, 'distanceOnFoot'); const b = sz(m, 'distanceSkydiving'); return a !== null && b !== null ? a + b : (c.solo ? pos(c.e?.strecke) : null); }, zeige: km, je: (m) => m.strecke },

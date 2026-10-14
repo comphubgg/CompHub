@@ -17,10 +17,44 @@ using Unreal.Core.Contracts;
 using Unreal.Core.Models.Enums;
 using Newtonsoft.Json;
 
+// --typen: was die Bibliothek aus dem Netzwerk-Strom lesen kann (jede Klasse unter NetFieldExports mit ihren Eigenschaften) - zum Suchen nach weiteren Werten.
+if (args.Length > 0 && args[0] == "--bauer") {
+  var bt = typeof(FortniteReplayBuilder);
+  foreach (var m in bt.GetMethods(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)) Console.WriteLine("M " + m.Name + "(" + string.Join(", ", m.GetParameters().Select(p => p.ParameterType.Name + " " + p.Name)) + ")");
+  foreach (var fl in bt.GetFields(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)) Console.WriteLine("F " + fl.Name + " : " + fl.FieldType.ToString().Replace("System.Collections.Generic.", ""));
+  return;
+}
+if (args.Length > 0 && args[0] == "--typen") {
+  foreach (var t in typeof(FortniteReplayReader.Models.PlayerData).Assembly.GetTypes().Where(t => (t.Namespace ?? "").StartsWith("FortniteReplayReader.Models.NetFieldExports")).OrderBy(t => t.FullName)) {
+    var eig = t.GetProperties().Select(p => p.Name).ToList();
+    Console.WriteLine($"{t.Name}: {string.Join(", ", eig)}");
+  }
+  return;
+}
+// --erkunden: zaehlt, welche Gruppen des Netzwerk-Stroms in einem Replay vorkommen, und zeigt Beispiele (zum Suchen nach weiteren Werten je Spieler).
+if (args.Length > 1 && args[0] == "--erkunden") {
+  var erk = new Erkunder();
+  erk.ReadReplay(args[1]);
+  erk.Bericht();
+  return;
+}
 var probe = args.Length > 1 && args[0] == "--probe";
 var datei = probe ? args[1] : args[0];
-var reader = new SchadenLeser();
-var replay = reader.ReadReplay(datei);
+/*
+ * Einzelne Replays bringen die Bibliothek zum Absturz ("Index was outside the bounds of the array" in ReadNetFieldExports, 14.10.2026: drei Matches
+ * der Solo Victory Cup, Runde 2). Ein schwaecherer Lesemodus hilft dabei nicht - ohne den Netzwerk-Strom gibt es keine Spieler. Der Fehler wird deshalb
+ * nur klar gemeldet (Exit-Code 1), statt als Absturz des ganzen Prozesses.
+ */
+SchadenLeser reader;
+FortniteReplay replay;
+try {
+  reader = new SchadenLeser();
+  replay = reader.ReadReplay(datei);
+} catch (Exception e) {
+  Console.Error.WriteLine($"{e.GetType().Name}: {e.Message}");
+  Environment.Exit(1);
+  return;
+}
 var einst = new JsonSerializerSettings { ReferenceLoopHandling = ReferenceLoopHandling.Ignore, NullValueHandling = NullValueHandling.Ignore };
 
 if (probe) {
@@ -83,6 +117,8 @@ foreach (var g in replay.KillFeed.Where(k => k.PlayerId is not null).GroupBy(k =
   reader.AmBoden[g.Key] = liste;
 }
 reader.Zaehle(busAb);
+var zusatz = reader.Zusatz(busAb, R(replay.GameData?.MatchEndTime), replay.PlayerData.Where(p => p.Id is not null && p.DeathTimeDouble is not null).ToDictionary(p => p.Id.Value, p => p.DeathTimeDouble.Value))
+  .Select(kv => new { id = kv.Key, sturmSek = Math.Round(kv.Value.SturmSek, 1) }).ToList();
 var schaden = reader.Je.Select(kv => new {
   id = kv.Key, gemacht = Math.Round(kv.Value.Gemacht), gemachtOhneBoden = Math.Round(reader.OhneBodenGemacht(kv.Key)), gemachtOhneFatal = Math.Round(reader.OhneFatalGemacht(kv.Key)), genommen = Math.Round(kv.Value.Genommen),
   treffer = kv.Value.Treffer, krit = kv.Value.Krit, schild = Math.Round(kv.Value.AufSchild),
@@ -98,7 +134,7 @@ Console.WriteLine(JsonConvert.SerializeObject(new {
   match = gd?.GameSessionId, beginn = gd?.UtcTimeStartedMatch, ende = R(gd?.MatchEndTime),
   playlist = gd?.CurrentPlaylist, runde = gd?.TournamentRound, sieger = gd?.WinningTeam,
   karte = replay.Info?.FriendlyName, laenge = replay.Info?.LengthInMs,
-  spieler, feed, zonen,
+  spieler, feed, zonen, zusatz,
 }, Formatting.None, einst));
 
 /*
@@ -126,6 +162,13 @@ class SchadenLeser : ReplayReader {
   static readonly FieldInfo BauerFeld = typeof(ReplayReader).GetField("Builder", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
   object Bauer => BauerFeld?.GetValue(this);
 
+  // Die Spieler, wie der Leser sie fuehrt: je Kanal des Spielerzustands (dort liegen auch HealthSet und Co.).
+  static readonly FieldInfo SpielerFeld = typeof(FortniteReplayBuilder).GetField("_players", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
+  PlayerData VomZustand(uint kanal) {
+    var b = Bauer;
+    if (b is null || SpielerFeld?.GetValue(b) is not Dictionary<uint, PlayerData> d) return null;
+    return d.TryGetValue(kanal, out var pd) ? pd : null;
+  }
   PlayerData Hole(MethodInfo m, uint wert) {
     var b = Bauer;
     if (m is null || b is null) return null;
@@ -154,6 +197,18 @@ class SchadenLeser : ReplayReader {
   public readonly List<(int id, double t)> Figuren = new();
   readonly HashSet<uint> figurGemeldet = new();
 
+  /*
+   * Zeit im Sturm je Spieler (14.10.2026): PlayerPawn.bIsInAnyStorm mit Zeitstempel, gezaehlt ab dem Start des Busses bis zum Tod, zum Ausscheiden der
+   * Figur oder zum Ende. An den sechs Spielen eines Finals (Division 1 Week 4) gegen die Werte der Szene-Quelle geprueft: 100 von 100 Spielern
+   * innerhalb von 2 % oder 3 Sekunden, mittlere Abweichung 0,9 s.
+   *
+   * Nicht uebernommen, weil die Gegenprobe es nicht traegt: Heilung und Sturmschaden aus HealthSet (zu hoch, Heilen und Schaden greifen sekundlich
+   * ineinander), Schild (im Strom null), Assists und Wiederbelebungen (andere Zaehlweise), Weg (zu wenige Ortsangaben). Aufbau und Materialwerte
+   * (Bauteile, Edits, Farmen) stehen in diesen Replays gar nicht im Strom.
+   */
+  public readonly List<(int id, double t, bool an)> SturmListe = new();
+  readonly Dictionary<uint, int> figurSpieler = new();
+
   protected override void OnChannelOpened(uint channelIndex, Unreal.Core.Models.NetworkGUID actor) {
     base.OnChannelOpened(channelIndex, actor);
     if (actor is not null) kanalAkteur[channelIndex] = actor.Value;
@@ -166,11 +221,17 @@ class SchadenLeser : ReplayReader {
     figurGemeldet.Remove(channelIndex);
     if (kanalAkteur.TryGetValue(channelIndex, out var a) && figurVonAkteur.TryGetValue(a, out var k) && k == channelIndex) figurVonAkteur.Remove(a);
     kanalAkteur.Remove(channelIndex);
+    // Wird eine Figur entfernt (Tod, Reboot), endet auch ihre Zeit im Sturm.
+    if (figurSpieler.Remove(channelIndex, out var fp) && Zeit() is double tc) { SturmListe.Add((fp, tc, false)); }
   }
 
   protected override void OnExportRead(uint channelIndex, INetFieldExportGroup exportGroup) {
     base.OnExportRead(channelIndex, exportGroup);
-    if (exportGroup is FortniteReplayReader.Models.NetFieldExports.PlayerPawn) {
+    if (exportGroup is FortniteReplayReader.Models.NetFieldExports.PlayerPawn pawn) {
+      if (pawn.bIsInAnyStorm is bool st && Zeit() is double tz) {
+        var wer = Hole(VonFigur, channelIndex);
+        if (wer?.Id is int pid2) { figurSpieler[channelIndex] = pid2; SturmListe.Add((pid2, tz, st)); }
+      }
       figurKanaele.Add(channelIndex);
       if (kanalAkteur.TryGetValue(channelIndex, out var akteur)) figurVonAkteur[akteur] = channelIndex;
       // Eine neue Figur fuer einen Spieler: Absprung aus dem Bus oder Reboot.
@@ -232,6 +293,24 @@ class SchadenLeser : ReplayReader {
     return null;
   }
   public int VorDemBus;
+
+  public sealed class Zus { public double SturmSek; }
+  /// Die Zeit im Sturm je Spieler - nach dem Start des Busses, bis zum Tod (tod) oder zum Ende des Matches.
+  public Dictionary<int, Zus> Zusatz(double? busAb, double? ende, Dictionary<int, double> tod) {
+    var raus = new Dictionary<int, Zus>();
+    Zus Z(int id) { if (!raus.TryGetValue(id, out var z)) raus[id] = z = new Zus(); return z; }
+    double Schluss(int id) => tod.TryGetValue(id, out var t) ? t : (ende ?? double.MaxValue);
+    foreach (var g in SturmListe.GroupBy(x => x.id)) {
+      double? seit = null;
+      foreach (var e in g.OrderBy(x => x.t)) {
+        if (e.an && seit is null) seit = Math.Max(e.t, busAb ?? e.t);
+        else if (!e.an && seit is not null) { Z(g.Key).SturmSek += Math.Max(0, Math.Min(e.t, Schluss(g.Key)) - seit.Value); seit = null; }
+      }
+      if (seit is not null) Z(g.Key).SturmSek += Math.Max(0, Schluss(g.Key) - seit.Value);
+    }
+    return raus;
+  }
+
   public void Zaehle(double? busAb) {
     foreach (var e in Liste) {
       if (busAb is not null && e.t is not null && e.t < busAb) { VorDemBus++; continue; }
@@ -247,4 +326,57 @@ class SchadenLeser : ReplayReader {
 
   static readonly FieldInfo ZeitFeld = typeof(FortniteReplayBuilder).GetField("ReplicatedWorldTimeSecondsDouble", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);
   double? Zeit() { try { return ZeitFeld?.GetValue(Bauer) as double?; } catch { return null; } }
+}
+
+/* Erkunden: welche Gruppen kommen vor, wie oft, mit welchen Werten. */
+class Erkunder : ReplayReader {
+  public Erkunder() : base(null, ParseMode.Full) { }
+  readonly Dictionary<string, int> Zaehler = new();
+  readonly Dictionary<string, List<object>> Proben = new();
+  readonly Dictionary<string, Dictionary<string, double>> Stat = new();
+  readonly Dictionary<string, int> Cues = new();
+  readonly Dictionary<string, int> Belegt = new();
+  static readonly string[] Sammeln = { "PlayerDamagedResourceBuilding", "FortClientObservedStat", "BaseBuild", "WoodFloor", "WoodRoof", "StoneWall", "MetalWall", "HealthSet", "FortPlayerState", "Bandages", "Shield", "Medkit", "ChugJug", "FortInventory", "AddMapMarker", "GameplayCueExecuted" };
+  protected override void OnExportRead(uint channelIndex, INetFieldExportGroup exportGroup) {
+    base.OnExportRead(channelIndex, exportGroup);
+    var n = exportGroup.GetType().Name;
+    Zaehler[n] = Zaehler.GetValueOrDefault(n) + 1;
+    // Welche Eigenschaften tragen wirklich Werte (nicht null) - je Gruppe gezaehlt.
+    if (n == "PlayerPawn" || n == "HealthSet" || n == "FortPlayerState" || n == "FortPickup") {
+      foreach (var p in exportGroup.GetType().GetProperties()) {
+        try { if (p.GetValue(exportGroup) is not null) { var k = n + "." + p.Name; Belegt[k] = Belegt.GetValueOrDefault(k) + 1; } } catch { }
+      }
+    }
+    if (n == "FortClientObservedStat") {
+      var t = exportGroup.GetType();
+      var name = t.GetProperty("StatName")?.GetValue(exportGroup)?.ToString() ?? "?";
+      var wert = Convert.ToDouble(t.GetProperty("StatValue")?.GetValue(exportGroup) ?? 0);
+      var d = Stat.TryGetValue(name, out var dd) ? dd : (Stat[name] = new() { ["n"] = 0, ["summe"] = 0, ["max"] = 0 });
+      d["n"]++; d["summe"] += wert; d["max"] = Math.Max(d["max"], wert);
+    }
+    if (n.StartsWith("GameplayCue")) {
+      var tag = exportGroup.GetType().GetProperty("GameplayCueTag")?.GetValue(exportGroup)?.ToString() ?? "?";
+      Cues[n + ":" + tag] = Cues.GetValueOrDefault(n + ":" + tag) + 1;
+    }
+    if (Sammeln.Contains(n)) {
+      if (!Proben.TryGetValue(n, out var l)) Proben[n] = l = new();
+      if (l.Count < 4) l.Add(new { kanal = channelIndex, werte = exportGroup });
+    }
+  }
+  public void Bericht() {
+    var einst = new JsonSerializerSettings { ReferenceLoopHandling = ReferenceLoopHandling.Ignore, NullValueHandling = NullValueHandling.Ignore };
+    Console.WriteLine("== GRUPPEN (Anzahl)");
+    foreach (var kv in Zaehler.OrderByDescending(x => x.Value)) Console.WriteLine($"{kv.Value,8}  {kv.Key}");
+    Console.WriteLine("== FortClientObservedStat (Name: Anzahl, Summe, Max)");
+    foreach (var kv in Stat.OrderBy(x => x.Key)) Console.WriteLine($"  {kv.Key}: n={kv.Value["n"]}, summe={kv.Value["summe"]}, max={kv.Value["max"]}");
+    Console.WriteLine("== GameplayCues");
+    foreach (var kv in Cues.OrderByDescending(x => x.Value).Take(40)) Console.WriteLine($"{kv.Value,8}  {kv.Key}");
+    Console.WriteLine("== BELEGTE EIGENSCHAFTEN (Gruppe.Name: Anzahl der Aktualisierungen mit Wert)");
+    foreach (var kv in Belegt.OrderBy(x => x.Key)) Console.WriteLine($"{kv.Value,8}  {kv.Key}");
+    Console.WriteLine("== PROBEN");
+    foreach (var kv in Proben) {
+      Console.WriteLine("-- " + kv.Key);
+      foreach (var p in kv.Value) { var j = JsonConvert.SerializeObject(p, Formatting.None, einst); Console.WriteLine("   " + (j.Length > 700 ? j[..700] + "..." : j)); }
+    }
+  }
 }

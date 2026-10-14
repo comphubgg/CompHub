@@ -31,7 +31,7 @@ export const maxDuration = 60;
 
 const normId = (s: string) => s.replace(/-/g, '').toLowerCase();
 
-export interface ReplayWerte { kills: number | null; knocks: number | null; tode: number | null; spiele: number | null; damage?: number; damageTaken?: number; hits?: number; headshots?: number }
+export interface ReplayWerte { kills: number | null; knocks: number | null; tode: number | null; spiele: number | null; damage?: number; damageTaken?: number; hits?: number; headshots?: number; sturmSek?: number }
 
 export async function GET(request: Request) {
   const p = new URL(request.url).searchParams;
@@ -122,6 +122,7 @@ export async function GET(request: Request) {
           tode: eigeneKomplett ? o.tode : (replay?.tode ?? null), spiele: eigeneKomplett ? o.spiele : (replay?.spiele ?? o.spiele),
           damage: replay?.damage ?? Math.round(o.dmg), damageTaken: replay?.damageTaken ?? Math.round(o.erlitten),
           hits: replay?.hits ?? o.treffer, headshots: replay?.headshots ?? o.krit,
+          ...(typeof o.sturm === 'number' ? { sturmSek: Math.round(o.sturm) } : {}),
         };
       }
       return {

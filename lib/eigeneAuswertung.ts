@@ -37,6 +37,8 @@ export interface Anfrage {
 export interface SpielerErgebnis {
   name?: string; spiele: number; kills: number; knocks: number; tode: number;
   dmg: number; dmgAlle: number; erlitten: number; treffer: number; krit: number; schild: number;
+  /** Sekunden im Sturm (ab Version 3). */
+  sturm?: number;
 }
 
 export interface Ergebnis {
