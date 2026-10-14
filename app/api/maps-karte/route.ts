@@ -37,7 +37,8 @@ export async function GET(request: Request) {
     // Insel (Global Championship 2025 zeigte die Insel von heute): dann gilt die Insel der Saison des Events.
     if (e && (!f.fenster.bild || f.fenster.bild.includes('fortnite-api.com/images/map'))) f.fenster.bild = inselFuer(e.saison);
     // Formen und Teams, die der Admin selbst eingetragen hat (wo Noble keine fuehrt), gelten vor Nobles.
-    if (e) f.fenster = await mitHandEbene(e, f.fenster);
+    // Antwortet die Ablage nicht, bleibt es bei Nobles Karte - sie faellt nicht aus.
+    if (e) f.fenster = await mitHandEbene(e, f.fenster).catch(() => f.fenster);
     return NextResponse.json({ ok: true, ...f, tage: (e?.tage ?? []).map((d) => ({ name: d.name, windowId: d.windowId })), platzierungen }, { headers: { 'Cache-Control': 'public, max-age=60, s-maxage=120' } });
   } catch (e) {
     return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 502, headers: { 'Cache-Control': 'no-store' } });
