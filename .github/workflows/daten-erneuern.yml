@@ -80,7 +80,12 @@ jobs:
         timeout-minutes: 3
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: gh workflow run daten-erneuern.yml -R "${{ github.repository }}" --ref main && echo "naechster Lauf angestossen"
+        run: |
+          gh workflow run daten-erneuern.yml -R "${{ github.repository }}" --ref main && echo "naechster Lauf angestossen"
+          # Auch die beiden Replay-Ablaeufe: ihr Zehn-Minuten-Takt (cron) wird unter Last von GitHub oft stundenlang uebergangen
+          # (am 14.10.2026 lief "Replays voll auslesen" in drei Stunden einmal). So laufen sie mindestens mit jedem Lauf hier.
+          gh workflow run replays-voll.yml -R "${{ github.repository }}" --ref main && echo "Replays voll angestossen" || true
+          gh workflow run eigene-auswerten.yml -R "${{ github.repository }}" --ref main && echo "Eigene Lobbys angestossen" || true
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4

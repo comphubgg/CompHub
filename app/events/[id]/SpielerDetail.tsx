@@ -32,12 +32,13 @@ interface Eintrag {
   damage: number; damageTaken: number; headshots: number; matsGefarmt: number; strecke: number;
   punktePlatz?: number; punkteElims?: number; matches: Match[];
 }
-interface Replay { kills: number; knocks: number; tode: number | null; spiele: number | null; damage?: number; damageTaken?: number; hits?: number; headshots?: number }
+interface Replay { kills: number | null; knocks: number | null; tode: number | null; spiele: number | null; damage?: number; damageTaken?: number; hits?: number; headshots?: number }
 interface Mitglied { id: string; name: string; land: string | null; ich: boolean; szene: Record<string, number> | null; replay: Replay | null }
 interface Antwort {
   ok: boolean; error?: string; id: string; name: string; dabei: boolean;
   rank: number | null; gesamt: number; top: number | null; eintrag: Eintrag | null;
   mitglieder: Mitglied[]; aktualisiert: string | null; szeneStand: string | null; szeneMatches: number;
+  eigeneAuswertung?: { gelesen: number; sitzungen: number; gerechnet: string; grund: string | null } | null;
 }
 interface Treffer { id: string; name: string; rank: number; points: number; team: string[] }
 
@@ -65,7 +66,7 @@ interface Zeile {
 const pos = (v: number | undefined | null) => (typeof v === 'number' && v > 0 ? v : null);
 const sz = (m: Mitglied, k: string): Wert => (m.szene && typeof m.szene[k] === 'number' ? m.szene[k] : null);
 
-const kills = (m: Mitglied, c: Ctx): Wert => sz(m, 'eliminations') ?? (m.replay ? m.replay.kills : null) ?? (c.solo && c.e ? c.e.elims : null);
+const kills = (m: Mitglied, c: Ctx): Wert => sz(m, 'eliminations') ?? (m.replay?.kills ?? null) ?? (c.solo && c.e ? c.e.elims : null);
 const dmg = (m: Mitglied, c: Ctx): Wert => sz(m, 'damageDealt') ?? (m.replay?.damage ?? null) ?? (c.solo ? pos(c.e?.damage) : null);
 const dmgT = (m: Mitglied, c: Ctx): Wert => sz(m, 'damageTakenFromPlayers') ?? (m.replay?.damageTaken ?? null) ?? (c.solo ? pos(c.e?.damageTaken) : null);
 const treffer = (m: Mitglied): Wert => sz(m, 'hitsToPlayers') ?? (m.replay?.hits ?? null);
@@ -163,6 +164,9 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo }: { 
   const [eigenerName, setEigenerName] = useState('');
   const rahmen = useRef<HTMLDivElement | null>(null);
   const [trennFehler, setTrennFehler] = useState('');
+  /** Die Auswertung der eigenen Lobbys (lib/eigeneAuswertung): bestellt, fertig oder abgewiesen. */
+  const [auswertung, setAuswertung] = useState<{ stand: 'angefragt' | 'fertig' | 'fehler'; fehler?: string } | null>(null);
+  const bestellt = useRef(new Set<string>());
 
   // Draussen klicken schliesst die Liste.
   useEffect(() => {
@@ -205,6 +209,29 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo }: { 
   }, [eventId, windowId]);
 
   useEffect(() => { if (wahl) void laden(wahl.id); }, [wahl, laden]);
+
+  /*
+   * Wer seine eigenen Werte ansieht und in diesem Cup weder Schaden noch Treffer hat, bestellt damit die Auswertung seiner Lobbys (einmal je Cup):
+   * ein paar Replays statt der tausenden des ganzen Cups. Der Ablauf braucht meist 10 bis 30 Minuten; solange fragt die Seite jede Minute nach.
+   */
+  useEffect(() => {
+    if (!daten || !daten.dabei || !zugang.epicId) return;
+    const ich = daten.mitglieder.find((m) => m.id === zugang.epicId);
+    if (!ich) return;
+    if (ich.replay?.damage != null || ich.szene?.damageDealt != null || daten.eigeneAuswertung) { setAuswertung(daten.eigeneAuswertung ? { stand: 'fertig' } : null); return; }
+    const key = `${eventId}|${windowId}|${zugang.epicId}`;
+    if (bestellt.current.has(key)) return;
+    bestellt.current.add(key);
+    fetch('/api/eigene-auswertung', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ eventId, windowId }) })
+      .then((r) => r.json())
+      .then((j) => setAuswertung(j?.ok ? { stand: j.stand === 'fertig' ? 'fertig' : 'angefragt' } : { stand: 'fehler', fehler: j?.error }))
+      .catch(() => setAuswertung({ stand: 'fehler', fehler: 'Die Bestellung ließ sich gerade nicht senden.' }));
+  }, [daten, zugang.epicId, eventId, windowId]);
+  useEffect(() => {
+    if (!wahl || auswertung?.stand !== 'angefragt') return undefined;
+    const uhr = setInterval(() => { void laden(wahl.id, true); }, 60_000);
+    return () => clearInterval(uhr);
+  }, [wahl, auswertung, laden]);
   // Erneuern im Takt, solange der Spieler offen ist - Epic zaehlt waehrend eines Cups weiter.
   useEffect(() => {
     if (!wahl) return undefined;
@@ -213,7 +240,7 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo }: { 
   }, [wahl, laden]);
   useEffect(() => { const u = setInterval(() => setJetzt(Date.now()), 15_000); return () => clearInterval(u); }, []);
   // Anderer Cup oder Spieltag: die Auswahl faellt weg.
-  useEffect(() => { setWahl(null); setDaten(null); setTreffer(null); setSuche(''); setMehr(false); }, [eventId, windowId]);
+  useEffect(() => { setWahl(null); setDaten(null); setTreffer(null); setSuche(''); setMehr(false); setAuswertung(null); }, [eventId, windowId]);
 
   const e = daten?.eintrag ?? null;
   const spiele = e?.matches ?? [];
@@ -383,6 +410,22 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo }: { 
             </div>
           )}
 
+          {/* Die Auswertung der eigenen Lobbys: laeuft, fertig oder nicht moeglich. */}
+          {zugang.epicId && mitglieder.some((m) => m.id === zugang.epicId) && auswertung?.stand === 'angefragt' && (
+            <p className="mt-4 flex items-start gap-2 rounded-xl border border-sky-500/30 bg-sky-500/[0.06] px-3 py-2.5 text-[12px] text-sky-100">
+              <span className="mt-1 h-2 w-2 shrink-0 animate-pulse rounded-full bg-sky-400" />
+              <span><T>Wir werten gerade die Replays deiner Spiele in diesem Cup aus - Schaden, Treffer und Kopftreffer kommen dazu. Das dauert meist 10 bis 30 Minuten; diese Seite aktualisiert sich selbst.</T></span>
+            </p>
+          )}
+          {auswertung?.stand === 'fehler' && auswertung.fehler && (
+            <p className="mt-4 rounded-xl border border-white/[0.08] bg-zinc-900/50 px-3 py-2.5 text-[12px] text-slate-400"><T>{auswertung.fehler}</T></p>
+          )}
+          {daten.eigeneAuswertung && daten.eigeneAuswertung.gelesen < daten.eigeneAuswertung.sitzungen && (
+            <p className="mt-4 rounded-xl border border-white/[0.08] bg-zinc-900/50 px-3 py-2.5 text-[12px] text-slate-400">
+              {daten.eigeneAuswertung.gelesen} / {daten.eigeneAuswertung.sitzungen} <T>Spiele ließen sich auswerten - bei Epic liegen nicht mehr alle Replays. Schaden und Treffer zählen nur diese Spiele.</T>
+            </p>
+          )}
+
           {/* ------------------------------------------------ Tabelle: je Spieler eine Spalte */}
           <div className="mt-4 flex gap-3 overflow-x-auto">
             <div className="w-[170px] shrink-0">
@@ -430,6 +473,8 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo }: { 
           <p className="mt-3 text-[11px] leading-relaxed text-slate-600">
             {mitglieder.some((m) => m.szene)
               ? <><T>Schaden, Treffer, Material, Sturm und Strecke stammen aus der Szene-Quelle und gelten je Spieltag zusammen, nicht je Match.</T> </>
+              : daten.eigeneAuswertung
+                ? <><T>Schaden, Treffer und Kopftreffer sind aus den Replays deiner Lobbys gezählt; Eliminierungen, Zeit und Punkte kommen von Epic.</T> </>
               : mitglieder.some((m) => m.replay)
                 ? <><T>Eliminierungen, Tode, Schaden und Treffer sind aus den ausgewerteten Replays dieses Spieltags gezählt.</T> </>
                 : <><T>Für diesen Cup liefert Epic Platz, Punkte, Eliminierungen und Überlebenszeit je Match; die übrigen Werte gibt es hier nur, wenn eine Quelle sie für diesen Spieltag führt.</T> </>}

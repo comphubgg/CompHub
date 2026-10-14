@@ -111,8 +111,14 @@ async function abarbeiten({ id, tag }) {
     const puffer = await mitWiederholung(`${id} herunterladen`, () => downloadReplay({ matchId: id, dataCount: 100000, checkpointCount: 100000, eventCount: 100000 }), 3);
     fs.writeFileSync(tmp, puffer);
     const m = await mitWiederholung(`${id} auslesen`, async () => {
-      const { stdout } = await dotnet('dotnet', [WERKZEUG, tmp], { maxBuffer: 256 * 1024 * 1024, timeout: 10 * 60_000 });
-      return JSON.parse(stdout);
+      try {
+        const { stdout } = await dotnet('dotnet', [WERKZEUG, tmp], { maxBuffer: 256 * 1024 * 1024, timeout: 10 * 60_000 });
+        return JSON.parse(stdout);
+      } catch (e) {
+        // Der Grund steht am Ende der Fehlerausgabe des Lesers - ohne ihn blieb von "Command failed" nur der Befehl uebrig (14.10.2026).
+        const ende = String(e.stderr ?? '').split('\n').map((x) => x.trim()).filter(Boolean).slice(-2).join(' | ');
+        throw new Error(`${e.killed ? 'Zeit abgelaufen' : `Code ${e.code ?? '?'}`}${e.signal ? ` (${e.signal})` : ''}: ${ende || String(e.message).split('\n')[0].slice(-100)}`);
+      }
     }, 2);
     const monat = (m.beginn ?? new Date(tag.datum ?? Date.now()).toISOString()).slice(0, 7);
     const rel = path.join('replay-voll', monat, tag.windowId, `${id}.json`);

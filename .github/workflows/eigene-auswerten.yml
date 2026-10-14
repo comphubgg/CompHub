@@ -1,0 +1,74 @@
+# Die eigenen Lobbys eines Cups auswerten - fuer Spieler, die sich mit Epic verifiziert haben.
+#
+# Der Betreiber (14.10.2026): in "Player Stats" standen bei normalen Cups nur Eliminierungen, K/D und Ueberlebenszeit, "drei Stats von
+# zwanzig". Epic nennt zu einem offenen Cup nicht mehr, und die Replays aller Lobbys eines grossen Cups (tausende) lassen sich nicht
+# auslesen. Die Replays der Lobbys EINES Spielers schon: ein paar Dateien.
+#
+# Wer seine Stats ansieht, bestellt damit die Auswertung (app/api/eigene-auswertung, eine kleine Datei unter eigene-anfragen/ im
+# Datenarchiv). Dieser Ablauf holt die Bestellungen, liest die Replays mit tools/replay-voll und legt Schaden, Treffer, Kopftreffer,
+# Eliminierungen, Knocks und Tode des ganzen Teams unter eigene-stats/ ab (lib/eigeneAuswertung). Meist ist er nach zehn bis dreissig
+# Minuten fertig; ohne Bestellung tut er fast nichts - der erste Schritt zaehlt nur, was offen ist, und bricht sonst ab (kein
+# Abhaengigkeiten-Install, kein Bau).
+
+name: Eigene Lobbys auswerten
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '*/10 * * * *'
+
+concurrency:
+  group: eigene-auswerten
+  cancel-in-progress: false
+
+jobs:
+  auswerten:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Zugangsdaten
+        run: printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
+
+      # daten-sync braucht keine Pakete - nur Node.
+      - name: Bestellungen und bisherige Ergebnisse holen
+        continue-on-error: true
+        run: node scripts/daten-sync.mjs --herunterladen --nur eigene-anfragen,eigene-stats 2>&1 | tail -3
+
+      - name: Was ist offen?
+        id: offen
+        run: node scripts/eigene-auswerten.mjs --pruefen
+
+      - name: Abhängigkeiten
+        if: steps.offen.outputs.offen != '0'
+        run: npm ci --omit=optional
+
+      - uses: actions/setup-dotnet@v4
+        if: steps.offen.outputs.offen != '0'
+        with:
+          dotnet-version: '10.0.x'
+
+      - name: Leser bauen
+        if: steps.offen.outputs.offen != '0'
+        run: dotnet build tools/replay-voll -c Release -v q 2>&1 | tail -3
+
+      - name: Auswerten
+        if: steps.offen.outputs.offen != '0'
+        timeout-minutes: 48
+        run: node scripts/eigene-auswerten.mjs --minuten 40 --parallel 3 2>&1 | tail -60
+
+      # Jedes Ergebnis ist eine neue Datei, geschrieben nur von diesem Ablauf - das Archiv kennt dabei keine Konflikte.
+      - name: Ergebnisse ins Archiv
+        if: always() && steps.offen.outputs.offen != '0'
+        run: node scripts/daten-sync.mjs --nur eigene-stats 2>&1 | tail -4
+
+      - name: Zugangsdaten wieder weg
+        if: always()
+        run: rm -f .env.local

@@ -5,6 +5,7 @@ import { zwischenspeichern } from '@/lib/zwischenspeicher';
 import { replayTag } from '@/lib/replaySchlank';
 import { liesJson } from '@/lib/ablage';
 import { spielerKontext } from '@/lib/globalsSolos';
+import { leseErgebnis } from '@/lib/eigeneAuswertung';
 
 /*
  * Die Werte eines Spielers - und seines Teams - in einem Cup, fuer die Ansichten "Solo Stats" und "Team Stats" auf der Cup-Seite (wie bei
@@ -19,6 +20,8 @@ import { spielerKontext } from '@/lib/globalsSolos';
  *   - Die Szene-Quelle (die Spieltage, die sie fuehrt, vor allem Finals): je SPIELER Schaden, Treffer, Schuesse, Heilung, Material, Sturm,
  *     Strecke ... Je Spieltag zusammen, nicht je Spiel.
  *   - Die Replays (die Spieltage, die ausgewertet sind): je SPIELER Eliminierungen, Knocks, Tode und - wo gelesen - Schaden, Treffer, Kopftreffer.
+ *   - Die Auswertung der eigenen Lobbys (lib/eigeneAuswertung): wer sich mit Epic verifiziert hat und seine Stats ansieht, bestellt damit die Replays
+ *     seiner Lobbys; Schaden, Treffer und Kopftreffer des ganzen Teams kommen daraus, auch wo der Cup zu gross fuer die Auswertung aller Lobbys ist.
  * Was keine Quelle kennt (Edit-Werte, Surge-Treffer, Reboots einzeln), liefert diese Schnittstelle nicht - die Ansicht sagt es.
  */
 
@@ -28,7 +31,7 @@ export const maxDuration = 60;
 
 const normId = (s: string) => s.replace(/-/g, '').toLowerCase();
 
-export interface ReplayWerte { kills: number; knocks: number; tode: number | null; spiele: number | null; damage?: number; damageTaken?: number; hits?: number; headshots?: number }
+export interface ReplayWerte { kills: number | null; knocks: number | null; tode: number | null; spiele: number | null; damage?: number; damageTaken?: number; hits?: number; headshots?: number }
 
 export async function GET(request: Request) {
   const p = new URL(request.url).searchParams;
@@ -94,6 +97,8 @@ export async function GET(request: Request) {
     const rep = saison ? await replayTag(saison, fenster).catch(() => null) : null;
     const clutch = await liesJson<{ schaden?: Record<string, { dmg: number; erlitten: number; treffer: number; krit: number }> } | null>(`clutch/${fenster}.json`, null).catch(() => null);
 
+    const eigene = await leseErgebnis(fenster, id);
+    const eigeneKomplett = !!eigene && eigene.gelesen >= eigene.sitzungen;
     const kontext = await spielerKontext().catch(() => null);
     const mitglieder = ids.map((i) => {
       const roh = namen.get(i) ?? '';
@@ -105,6 +110,17 @@ export async function GET(request: Request) {
         replay = {
           kills: e?.kills ?? 0, knocks: e?.knocks ?? 0, tode: e ? e.gestorben : null, spiele: e ? e.matches : null,
           ...(d ? { damage: Math.round(d.dmg), damageTaken: Math.round(d.erlitten), hits: d.treffer, headshots: d.krit } : {}),
+        };
+      }
+      // Die eigene Auswertung fuellt, was die anderen Quellen nicht haben. Eliminierungen, Knocks und Tode nur, wenn alle bestellten Lobbys gelesen sind
+      // (sonst stuende eine Teilsumme neben Epics Zahl).
+      const o = eigene?.spieler?.[i];
+      if (o) {
+        replay = {
+          kills: replay?.kills ?? (eigeneKomplett ? o.kills : null), knocks: replay?.knocks ?? (eigeneKomplett ? o.knocks : null),
+          tode: replay?.tode ?? (eigeneKomplett ? o.tode : null), spiele: replay?.spiele ?? o.spiele,
+          damage: replay?.damage ?? Math.round(o.dmg), damageTaken: replay?.damageTaken ?? Math.round(o.erlitten),
+          hits: replay?.hits ?? o.treffer, headshots: replay?.headshots ?? o.krit,
         };
       }
       return {
@@ -120,6 +136,7 @@ export async function GET(request: Request) {
       eintrag: eintrag ?? null,
       mitglieder,
       aktualisiert, szeneStand, szeneMatches,
+      eigeneAuswertung: eigene ? { gelesen: eigene.gelesen, sitzungen: eigene.sitzungen, gerechnet: eigene.gerechnet, grund: eigene.grund ?? null } : null,
     };
     return zwischenspeichern(NextResponse.json(antwort, { headers: { 'Cache-Control': 'no-store' } }), 60);
   } catch (e) {
