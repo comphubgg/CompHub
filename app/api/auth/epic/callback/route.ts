@@ -5,6 +5,7 @@ import { holeDienst } from '@/lib/dienstZugaenge';
 import { dienstWurzel } from '@/lib/oeffentlicheAdresse';
 import { GAST_COOKIE, gastWert } from '@/lib/epicGast';
 import { EPIC_BEREICHE } from '@/lib/epicBereiche';
+import { merkeKonto } from '@/lib/eigeneAuswertung';
 
 // Der Rueckweg von Epic Games - die Verknuepfung wird hier festgemacht.
 //
@@ -127,6 +128,9 @@ export async function GET(req: NextRequest) {
       await aendern(konto.id, { epicFreunde: ids, epicFreundeStand: Date.now() });
       return loeschen(zurueck('/account?epic=freunde'));
     }
+
+    // Wer sich verifiziert, dessen Cups werden von selbst ausgewertet (lib/eigeneAuswertung) - ohne dass er erst jeden Cup oeffnen muss.
+    await merkeKonto(epicId);
 
     // Ohne CompHub-Konto: die Verifizierung gilt als signierter Cookie (lib/epicGast) - wie bei Osirion braucht es kein Konto dafuer.
     if (!konto || konto.gesperrt) {

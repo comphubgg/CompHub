@@ -3,7 +3,7 @@ import { cookies } from 'next/headers';
 import { kontoAus, nachId } from '@/lib/konten';
 import { GAST_COOKIE, gastAus } from '@/lib/epicGast';
 import { findeSpieler } from '@/lib/epicCups';
-import { FRIST_MS, fensterOk, kontoOk, leseAnfrage, leseErgebnis, schreibeAnfrage } from '@/lib/eigeneAuswertung';
+import { FRIST_MS, fensterOk, kontoOk, leseAnfrage, leseErgebnis, merkeKonto, schreibeAnfrage } from '@/lib/eigeneAuswertung';
 
 /*
  * Die Auswertung der eigenen Lobbys eines Cups (lib/eigeneAuswertung).
@@ -49,6 +49,8 @@ export async function POST(request: Request) {
   if (!eventId || eventId.length > 160 || !fensterOk(w)) return NextResponse.json({ ok: false, error: 'Cup fehlt.' }, { status: 400, headers: NEIN });
   const id = await ich();
   if (!kontoOk(id)) return NextResponse.json({ ok: false, error: 'Erst mit Epic verifizieren.' }, { status: 401, headers: NEIN });
+  // Ab jetzt werden auch alle anderen Cups dieses Kontos von selbst ausgewertet.
+  await merkeKonto(id);
 
   if (await leseErgebnis(w, id)) return NextResponse.json({ ok: true, stand: 'fertig' }, { headers: NEIN });
   const alt = await leseAnfrage(w, id);
@@ -66,7 +68,7 @@ export async function POST(request: Request) {
     const team = [...new Set(e.players.map((x) => normId(x.id)).filter(kontoOk))];
     if (!team.includes(id)) team.push(id);
     const zeit = Date.now();
-    await schreibeAnfrage({ eventId, windowId: w, epicId: id, sitzungen, team, zeit });
+    await schreibeAnfrage({ eventId, windowId: w, epicId: id, sitzungen, team, zeit, ...(juengste ? { ende: juengste } : {}) });
     return NextResponse.json({ ok: true, stand: 'angefragt', zeit, sitzungen: sitzungen.length }, { headers: NEIN });
   } catch (e) {
     return NextResponse.json({ ok: false, error: `Die Bestellung ließ sich gerade nicht speichern: ${String((e as Error).message).slice(0, 120)}` }, { status: 503, headers: NEIN });

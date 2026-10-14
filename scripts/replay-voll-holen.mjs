@@ -59,6 +59,8 @@ if (!fs.existsSync(WERKZEUG)) {
 
 const index = liesJson(INDEX, { matches: {} });
 index.fehler ??= {};
+/** Wann ein Fenster zuletzt nach neuen Matches abgefragt wurde - abgeschlossene Tage muessen nicht in jedem Durchgang der Schleife befragt werden. */
+index.geprueft ??= {};
 
 /** Welche Tage: Finals und LANs der letzten 31 Tage aus Epics Spieltagen. */
 function tage() {
@@ -94,8 +96,11 @@ async function aufgaben() {
   const liste = [];
   for (const tag of tage()) {
     if (Date.now() > frist) break;
+    // Ein Tag, der vor mehr als sechs Stunden begann und vor weniger als einer halben Stunde befragt wurde, hat nichts Neues (Epics Schnittstelle nicht jede Minute belasten).
+    if (Date.now() - (tag.datum ?? Date.now()) > 6 * 3600_000 && Date.now() - (index.geprueft[tag.windowId] ?? 0) < 30 * 60_000 && !Object.values(index.fehler).some((x) => x.windowId === tag.windowId)) continue;
     let ids = [];
     try { ids = [...await mitWiederholung(`${tag.windowId} Sitzungen`, () => matchIds(tag.eventId, tag.windowId, 3), 2)]; } catch (e) { console.log(`  ${tag.windowId}: ${e.message}`); continue; }
+    index.geprueft[tag.windowId] = Date.now();
     for (const id of ids) if (!index.matches[id]) liste.push({ id, tag });
   }
   // Array.sort ist stabil: innerhalb der Gruppen bleibt die Reihenfolge nach Tagen erhalten.

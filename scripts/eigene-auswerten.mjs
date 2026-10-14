@@ -1,16 +1,18 @@
 // Die bestellten Auswertungen der eigenen Lobbys abarbeiten (lib/eigeneAuswertung).
 //
-// Wer sich mit Epic verifiziert hat und seine Stats in einem Cup ansieht, bestellt damit die Replays SEINER Lobbys (eine Datei je Fenster und
-// Konto unter eigene-anfragen/). Dieses Skript liest sie mit tools/replay-voll, zaehlt je Spieler seines Teams Schaden, Treffer, Kopftreffer,
-// Eliminierungen, Knocks und Tode und legt das Ergebnis unter eigene-stats/<Fenster>/<Konto>.json ab - unter dem Konto jedes
-// Teammitglieds, gleicher Inhalt.
+// Bestellungen kommen von zwei Seiten (je eine Datei unter eigene-anfragen/, Fenster und Konto im Namen):
+//   - von der Seite: wer seine Stats in einem Cup ansieht, bestellt die Replays seiner Lobbys (mit Sitzungen und Team aus Epics Bestenliste);
+//   - von scripts/eigene-bestellen.mjs: fuer jedes verifizierte Konto jeder Cup der letzten 31 Tage, in dem es steht (ohne Sitzungen -
+//     sie werden hier bei Epic nachgeschlagen).
+// Gelesen wird mit tools/replay-voll; je Spieler des Teams werden Schaden, Treffer, Kopftreffer, Eliminierungen, Knocks und Tode gezaehlt und
+// unter eigene-stats/<Fenster>/<Konto>.json abgelegt - unter dem Konto jedes Teammitglieds, gleicher Inhalt.
 //
 //   node scripts/eigene-auswerten.mjs --pruefen            nur zaehlen, was offen ist (schreibt "offen=N" nach GITHUB_OUTPUT)
-//   node scripts/eigene-auswerten.mjs [--minuten 40] [--parallel 3]
+//   node scripts/eigene-auswerten.mjs [--minuten 40] [--parallel 4]
 //
 // Kein Replay wird erfunden: was sich nicht lesen laesst, steht in "fehlend", und die Seite sagt, wie viele Spiele ausgewertet sind.
-// Ein Ergebnis ohne ein einziges gelesenes Replay wird erst nach zwei Stunden geschrieben - bis dahin gilt ein Aussetzer bei Epic und es
-// wird beim naechsten Lauf noch einmal versucht.
+// Ein Ergebnis ohne ein einziges gelesenes Replay wird erst zwei Stunden nach dem letzten Spiel geschrieben - bis dahin gilt ein Aussetzer
+// bei Epic (die Replays erscheinen erst einige Minuten nach einer Runde) und es wird beim naechsten Durchgang noch einmal versucht.
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -24,30 +26,49 @@ const ANFRAGEN = path.join(DATEN, 'eigene-anfragen');
 const STATS = path.join(DATEN, 'eigene-stats');
 const WERKZEUG = path.join(process.cwd(), 'tools', 'replay-voll', 'bin', 'Release', 'net10.0', 'ReplayVoll.dll');
 const FRIST_MS = 31 * 864e5;
+const EVENTS = 'https://events-public-service-live.ol.epicgames.com';
 
 const arg = process.argv.slice(2);
 const zahl = (name, standard) => { const i = arg.indexOf(name); const v = i >= 0 ? Number(arg[i + 1]) : NaN; return Number.isFinite(v) && v > 0 ? v : standard; };
 const warte = (ms) => new Promise((r) => setTimeout(r, ms));
 const liesJson = (p) => { try { return JSON.parse(fs.readFileSync(p, 'utf8')); } catch { return null; } };
+const norm = (s) => String(s ?? '').replace(/-/g, '').toLowerCase();
+const ergebnisDatei = (w, id) => path.join(STATS, w, `${id}.json`);
 
-/** Alle Bestellungen, zu denen es noch kein Ergebnis gibt und deren Replays bei Epic noch liegen koennen - die aeltesten zuerst. */
+/**
+ * Alle Bestellungen, zu denen es noch kein Ergebnis gibt und deren Replays bei Epic noch liegen koennen.
+ * Zuerst die von der Seite (jemand schaut gerade hin), dann die selbst bestellten - die juengsten Cups zuerst.
+ */
 function offene() {
   const raus = [];
   for (const f of fs.existsSync(ANFRAGEN) ? fs.readdirSync(ANFRAGEN) : []) {
     if (!f.endsWith('.json')) continue;
     const a = liesJson(path.join(ANFRAGEN, f));
-    if (!a?.windowId || !/^[0-9a-f]{32}$/.test(a.epicId ?? '') || !Array.isArray(a.sitzungen) || !a.sitzungen.length) continue;
-    if (Date.now() - (a.zeit ?? 0) > FRIST_MS) continue;
-    if (fs.existsSync(path.join(STATS, a.windowId, `${a.epicId}.json`))) continue;
+    if (!a?.windowId || !a?.eventId || !/^[0-9a-f]{32}$/.test(a.epicId ?? '')) continue;
+    if (!(Array.isArray(a.sitzungen) && a.sitzungen.length) && !a.auto) continue;
+    if (Date.now() - Math.max(a.zeit ?? 0, a.datum ?? 0) > FRIST_MS) continue;
+    if (fs.existsSync(ergebnisDatei(a.windowId, a.epicId))) continue;
     raus.push(a);
   }
-  return raus.sort((x, y) => (x.zeit ?? 0) - (y.zeit ?? 0));
+  const wann = (a) => a.datum ?? a.zeit ?? 0;
+  return raus.sort((x, y) => (x.auto ? 1 : 0) - (y.auto ? 1 : 0) || (x.auto ? wann(y) - wann(x) : wann(x) - wann(y)));
 }
 
 if (arg.includes('--pruefen')) {
   const n = offene().length;
   console.log(`offen=${n}`);
   if (process.env.GITHUB_OUTPUT) fs.appendFileSync(process.env.GITHUB_OUTPUT, `offen=${n}\n`);
+  process.exit(0);
+}
+
+// Nur nachschlagen, ohne zu lesen: welche Sitzungen und welches Team Epic zu den offenen Bestellungen nennt (zum Pruefen).
+if (arg.includes('--sitzungen')) {
+  for (const a of offene()) {
+    try {
+      const r = await sitzungenVon(a);
+      console.log(`${a.windowId} ${a.epicId.slice(0, 8)}: ${r.sitzungen.length} Sitzungen, Team ${r.team.length}, letztes Spiel ${r.ende ? new Date(r.ende).toISOString() : '?'}`);
+    } catch (e) { console.log(`${a.windowId} ${a.epicId.slice(0, 8)}: ${e.message}`); }
+  }
   process.exit(0);
 }
 
@@ -67,6 +88,46 @@ async function mitWiederholung(tun, versuche = 3) {
     try { return await tun(); } catch (e) { letzter = e; if (i < versuche) await warte(2000 * i * i); }
   }
   throw letzter;
+}
+
+/**
+ * Die Sitzungen und das Team eines Kontos in einem Fenster - aus Epics Bestenliste (wie die Seite sie beim Bestellen holt).
+ * Zuerst die Seite, auf der der Platz liegen muss (100 Eintraege je Seite), dann die Nachbarn, zuletzt alle.
+ */
+async function sitzungenVon(a) {
+  const { holeNutzerToken, verwirfNutzerToken } = await import('../lib/replayKern.mjs');
+  let { token, accountId } = await holeNutzerToken();
+  const seite = async (p) => {
+    const url = `${EVENTS}/api/v1/leaderboards/Fortnite/${encodeURIComponent(a.eventId)}/${encodeURIComponent(a.windowId)}/${accountId}?page=${p}&rank=0&teamAccountIds=`;
+    let r = await mitWiederholung(() => fetch(url, { headers: { Authorization: token } }), 2);
+    if (r.status === 401) { verwirfNutzerToken(); ({ token, accountId } = await holeNutzerToken()); r = await fetch(url, { headers: { Authorization: token } }); }
+    if (!r.ok) throw new Error(`Bestenliste HTTP ${r.status}`);
+    return r.json();
+  };
+  const suche = (d) => (d.entries ?? []).find((e) => (e.teamAccountIds ?? []).some((x) => norm(x) === a.epicId));
+  const erste = a.platz ? Math.max(0, Math.floor((a.platz - 1) / 100)) : 0;
+  const probiert = new Set();
+  let gefunden = null; let seiten = 1;
+  for (const p of [erste, erste - 1, erste + 1]) {
+    if (p < 0 || probiert.has(p) || gefunden) continue;
+    probiert.add(p);
+    let d;
+    try { d = await seite(p); } catch (e) { if (p === erste) throw e; continue; }
+    seiten = d.totalPages ?? seiten;
+    gefunden = suche(d);
+  }
+  for (let p = 0; !gefunden && p < Math.min(seiten, 120); p += 1) {
+    if (probiert.has(p)) continue;
+    gefunden = suche(await seite(p));
+    await warte(250);
+  }
+  if (!gefunden) { const e = new Error('nicht in der Bestenliste'); e.endgueltig = true; throw e; }
+  const hist = gefunden.sessionHistory ?? [];
+  return {
+    sitzungen: [...new Set(hist.map((m) => m.sessionId).filter(Boolean))],
+    team: (gefunden.teamAccountIds ?? []).map(norm),
+    ende: Math.max(0, ...hist.map((m) => (m.endTime ? Date.parse(m.endTime) || 0 : 0))),
+  };
 }
 
 /** Ein Replay lesen: die volle Ausgabe des eigenen Lesers (Spieler, Kill-Feed, Schaden) - oder null. */
@@ -94,7 +155,7 @@ async function leseSitzung(id) {
 function zaehle(m, team, summen) {
   const feed = m.feed ?? [];
   for (const konto of team) {
-    const p = (m.spieler ?? []).find((x) => !x.bot && String(x.epic ?? '').toLowerCase() === konto);
+    const p = (m.spieler ?? []).find((x) => !x.bot && norm(x.epic) === konto);
     if (!p) continue;
     const s = summen[konto] ??= { name: p.name, spiele: 0, kills: 0, knocks: 0, tode: 0, dmg: 0, dmgAlle: 0, erlitten: 0, treffer: 0, krit: 0, schild: 0 };
     s.spiele += 1;
@@ -110,42 +171,70 @@ function zaehle(m, team, summen) {
   }
 }
 
+/** Das Ergebnis fuer jedes Teammitglied ablegen (gleicher Inhalt). */
+function lege(a, team, ergebnis) {
+  for (const konto of new Set([...team, a.epicId])) {
+    const ziel = ergebnisDatei(a.windowId, konto);
+    fs.mkdirSync(path.dirname(ziel), { recursive: true });
+    fs.writeFileSync(ziel, JSON.stringify(ergebnis));
+  }
+}
+
 const frist = Date.now() + zahl('--minuten', 40) * 60_000;
-const gleichzeitig = zahl('--parallel', 3);
+const gleichzeitig = zahl('--parallel', 4);
 const todo = offene();
 console.log(`${todo.length} Bestellungen offen; ${gleichzeitig} Replays gleichzeitig.`);
 let fertig = 0; let spaeter = 0;
 
 for (const a of todo) {
-  if (Date.now() > frist) { console.log('Zeit um - der Rest im naechsten Lauf.'); break; }
-  console.log(`  ${a.windowId} ${a.epicId.slice(0, 8)}: ${a.sitzungen.length} Lobbys, Team ${a.team?.length ?? 1}`);
-  const team = [...new Set([...(a.team ?? []), a.epicId])].map((x) => String(x).toLowerCase());
+  if (Date.now() > frist) { console.log('Zeit um - der Rest im naechsten Durchgang.'); break; }
+  console.log(`  ${a.windowId} ${a.epicId.slice(0, 8)}${a.auto ? ' (selbst bestellt)' : ''}`);
+
+  // Selbst bestellte Cups kennen ihre Sitzungen noch nicht: bei Epic nachschlagen.
+  let sitzungen = a.sitzungen ?? []; let team = (a.team ?? []).map(norm); let ende = a.ende ?? a.zeit ?? 0;
+  if (!sitzungen.length) {
+    try {
+      const r = await sitzungenVon(a);
+      sitzungen = r.sitzungen; team = r.team; ende = r.ende || ende;
+    } catch (e) {
+      console.log(`    Sitzungen: ${String(e.message).slice(0, 120)}`);
+      // Nur "steht nicht in der Bestenliste" ist endgueltig (die Liste war gekappt); alles andere kann ein Aussetzer sein.
+      if (e.endgueltig) {
+        lege(a, [a.epicId], { version: 1, eventId: a.eventId, windowId: a.windowId, gerechnet: new Date().toISOString(), sitzungen: 0, gelesen: 0, grund: 'Dieses Konto steht in Epics Bestenliste dieses Cups nicht.', spieler: {} });
+        fertig += 1;
+      } else spaeter += 1;
+      continue;
+    }
+  }
+  if (!sitzungen.length) { spaeter += 1; console.log('    Epic nennt keine Lobbys'); continue; }
+  if (!team.includes(a.epicId)) team.push(a.epicId);
+  // Aelter als 31 Tage: das Replay ist bei Epic weg.
+  if (ende && Date.now() - ende > FRIST_MS) {
+    lege(a, team, { version: 1, eventId: a.eventId, windowId: a.windowId, gerechnet: new Date().toISOString(), sitzungen: sitzungen.length, gelesen: 0, grund: 'Die Replays dieses Cups sind bei Epic schon gelöscht.', spieler: {} });
+    fertig += 1; console.log('    Replays bei Epic gelöscht'); continue;
+  }
+
   const summen = {}; const fehlend = [];
   let naechster = 0;
   const arbeiter = async () => {
-    while (naechster < a.sitzungen.length) {
-      const id = a.sitzungen[naechster++];
+    while (naechster < sitzungen.length) {
+      const id = sitzungen[naechster++];
       const m = await leseSitzung(id);
       if (m) zaehle(m, team, summen); else fehlend.push(id);
     }
   };
-  await Promise.all(Array.from({ length: Math.min(gleichzeitig, a.sitzungen.length) }, arbeiter));
-  const gelesen = a.sitzungen.length - fehlend.length;
-  // Nichts gelesen: ein Aussetzer bei Epic kann nach einer Stunde wieder gut sein - erst nach zwei Stunden gilt es als "nicht abrufbar".
-  if (gelesen === 0 && Date.now() - (a.zeit ?? 0) < 2 * 3600_000) { spaeter += 1; console.log('    nichts lesbar - spaeter noch einmal'); continue; }
-  const ergebnis = {
+  await Promise.all(Array.from({ length: Math.min(gleichzeitig, sitzungen.length) }, arbeiter));
+  const gelesen = sitzungen.length - fehlend.length;
+  // Nichts gelesen: die Replays erscheinen erst einige Minuten nach der Runde - erst zwei Stunden nach dem letzten Spiel gilt es als "nicht abrufbar".
+  if (gelesen === 0 && Date.now() - ende < 2 * 3600_000) { spaeter += 1; console.log('    nichts lesbar - spaeter noch einmal'); continue; }
+  lege(a, team, {
     version: 1, eventId: a.eventId, windowId: a.windowId, gerechnet: new Date().toISOString(),
-    sitzungen: a.sitzungen.length, gelesen,
+    sitzungen: sitzungen.length, gelesen,
     ...(fehlend.length ? { fehlend } : {}),
     ...(gelesen === 0 ? { grund: 'Die Replays dieses Cups lassen sich bei Epic nicht mehr abrufen.' } : {}),
     spieler: summen,
-  };
-  for (const konto of team) {
-    const ziel = path.join(STATS, a.windowId, `${konto}.json`);
-    fs.mkdirSync(path.dirname(ziel), { recursive: true });
-    fs.writeFileSync(ziel, JSON.stringify(ergebnis));
-  }
+  });
   fertig += 1;
-  console.log(`    fertig: ${gelesen}/${a.sitzungen.length} Lobbys, ${Object.keys(summen).length} Spieler`);
+  console.log(`    fertig: ${gelesen}/${sitzungen.length} Lobbys, ${Object.keys(summen).length} Spieler`);
 }
 console.log(`ausgewertet ${fertig}, spaeter ${spaeter}, offen ${offene().length}`);

@@ -1,73 +1,92 @@
-# Die eigenen Lobbys eines Cups auswerten - fuer Spieler, die sich mit Epic verifiziert haben.
+# Die eigenen Lobbys eines Cups auswerten - fuer jeden Spieler, der sich mit Epic verifiziert hat, jeden Cup der letzten 31 Tage.
 #
 # Der Betreiber (14.10.2026): in "Player Stats" standen bei normalen Cups nur Eliminierungen, K/D und Ueberlebenszeit, "drei Stats von
-# zwanzig". Epic nennt zu einem offenen Cup nicht mehr, und die Replays aller Lobbys eines grossen Cups (tausende) lassen sich nicht
-# auslesen. Die Replays der Lobbys EINES Spielers schon: ein paar Dateien.
+# zwanzig" - und eine halbe Stunde nach einem Cup sollte alles fertig sein, fuer jeden einzelnen Cup und jeden einzelnen Account. Epic nennt zu
+# einem offenen Cup nicht mehr, und die Replays aller Lobbys eines grossen Cups (tausende) lassen sich nicht auslesen. Die Replays der Lobbys
+# EINES Spielers schon: ein paar Dateien je Cup.
 #
-# Wer seine Stats ansieht, bestellt damit die Auswertung (app/api/eigene-auswertung, eine kleine Datei unter eigene-anfragen/ im
-# Datenarchiv). Dieser Ablauf holt die Bestellungen, liest die Replays mit tools/replay-voll und legt Schaden, Treffer, Kopftreffer,
-# Eliminierungen, Knocks und Tode des ganzen Teams unter eigene-stats/ ab (lib/eigeneAuswertung). Meist ist er nach zehn bis dreissig
-# Minuten fertig; ohne Bestellung tut er fast nichts - der erste Schritt zaehlt nur, was offen ist, und bricht sonst ab (kein
-# Abhaengigkeiten-Install, kein Bau).
+# Zwei Wege fuehren zu einer Bestellung (lib/eigeneAuswertung):
+#   - wer seine Stats ansieht, bestellt den Cup (app/api/eigene-auswertung);
+#   - jedes verifizierte Konto bekommt von selbst jeden Cup, in dem es steht (scripts/eigene-bestellen.mjs).
+# Gelesen wird mit tools/replay-voll; Schaden, Treffer, Kopftreffer, Eliminierungen, Knocks und Tode des ganzen Teams liegen danach unter
+# eigene-stats/ im Datenarchiv.
+#
+# Als Schleife, nicht im Zehn-Minuten-Takt: GitHub uebergeht geplante Laeufe unter Last stundenlang (dieser Ablauf lief nach dem Anlegen
+# in drei Stunden nie). Der Auftrag bleibt rund fuenfeinhalb Stunden an, schaut alle neunzig Sekunden nach neuen Bestellungen und stoesst am
+# Ende den naechsten Auftrag selbst an (wie "Daten erneuern"). Ein Push an diesen Dateien startet ihn sofort neu; der Zeitplan ist nur der
+# Rueckfall, falls die Kette einmal reisst.
 
 name: Eigene Lobbys auswerten
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/eigene-auswerten.yml'
+      - 'scripts/eigene-*.mjs'
+      - 'scripts/schleife.mjs'
+      - 'tools/replay-voll/**'
   workflow_dispatch:
   schedule:
-    - cron: '*/10 * * * *'
+    - cron: '41 */3 * * *'
 
 concurrency:
   group: eigene-auswerten
-  cancel-in-progress: false
+  # Ein Push (neue Fassung der Skripte) ersetzt den laufenden Auftrag; alle anderen warten, bis der laufende fertig ist.
+  cancel-in-progress: ${{ github.event_name == 'push' }}
 
 jobs:
-  auswerten:
+  schleife:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 350
     permissions:
       contents: read
+      actions: write
     steps:
       - uses: actions/checkout@v4
 
       - uses: actions/setup-node@v4
         with:
           node-version: '22'
+          cache: npm
+
+      - name: Abhängigkeiten
+        run: npm ci --omit=optional
 
       - name: Zugangsdaten
         run: printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
 
-      # daten-sync braucht keine Pakete - nur Node.
-      - name: Bestellungen und bisherige Ergebnisse holen
-        continue-on-error: true
-        run: node scripts/daten-sync.mjs --herunterladen --nur eigene-anfragen,eigene-stats 2>&1 | tail -3
-
-      - name: Was ist offen?
-        id: offen
-        run: node scripts/eigene-auswerten.mjs --pruefen
-
-      - name: Abhängigkeiten
-        if: steps.offen.outputs.offen != '0'
-        run: npm ci --omit=optional
-
       - uses: actions/setup-dotnet@v4
-        if: steps.offen.outputs.offen != '0'
         with:
           dotnet-version: '10.0.x'
 
       - name: Leser bauen
-        if: steps.offen.outputs.offen != '0'
         run: dotnet build tools/replay-voll -c Release -v q 2>&1 | tail -3
 
-      - name: Auswerten
-        if: steps.offen.outputs.offen != '0'
-        timeout-minutes: 48
-        run: node scripts/eigene-auswerten.mjs --minuten 40 --parallel 3 2>&1 | tail -60
+      - name: Epic-Anmeldung und Spieltage
+        continue-on-error: true
+        run: |
+          node scripts/daten-sync.mjs --herunterladen --nur epic-auth.json 2>&1 | tail -2
+          node scripts/ablage-github-holen.mjs --ordner epic-spieltage 2>&1 | tail -3
 
-      # Jedes Ergebnis ist eine neue Datei, geschrieben nur von diesem Ablauf - das Archiv kennt dabei keine Konflikte.
-      - name: Ergebnisse ins Archiv
-        if: always() && steps.offen.outputs.offen != '0'
-        run: node scripts/daten-sync.mjs --nur eigene-stats 2>&1 | tail -4
+      # Jeder Durchgang: Bestellungen und Ergebnisse vom Archiv holen, verifizierte Konten mit ihren Cups abgleichen, auswerten, neue
+      # Ergebnisse hochladen. Die Spieltage (neue Cups) kommen alle dreissig Minuten frisch vom Release.
+      - name: Schleife
+        timeout-minutes: 340
+        run: |
+          node scripts/schleife.mjs --minuten 325 --takt 90 \
+            --schritt "node scripts/daten-sync.mjs --herunterladen --nur eigene-anfragen,eigene-stats,eigene-konten 2>&1 | tail -3" \
+            --schritt "20:node scripts/ablage-github-holen.mjs --ordner epic-spieltage 2>&1 | tail -3" \
+            --schritt "node scripts/eigene-bestellen.mjs 2>&1 | tail -8" \
+            --schritt "node scripts/eigene-auswerten.mjs --minuten 8 --parallel 4 2>&1 | tail -40" \
+            --schritt "node scripts/daten-sync.mjs --nur eigene-stats 2>&1 | tail -4"
+
+      - name: Naechsten Auftrag anstossen
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run eigene-auswerten.yml -R "${{ github.repository }}" --ref main && echo "naechster Auftrag angestossen"
 
       - name: Zugangsdaten wieder weg
         if: always()
