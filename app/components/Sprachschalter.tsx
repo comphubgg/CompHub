@@ -66,7 +66,7 @@ export default function Sprachschalter() {
   const alt = designFuerPfad(pfad ?? '') === 'alt';
 
   const [offen, setOffen] = useState(false);
-  const [modus, setModus] = useState<Modus>('hell');
+  const [modus, setModus] = useState<Modus>('dunkel');
   const [groesse, setGroesse] = useState<Groesse>('normal');
   const [bewegung, setBewegung] = useState<'an' | 'aus'>('an');
   const huelle = useRef<HTMLDivElement>(null);

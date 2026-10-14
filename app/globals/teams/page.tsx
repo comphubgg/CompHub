@@ -447,7 +447,7 @@ export default function GlobalsTeams() {
                            bg-zinc-900/40 text-left transition hover:border-amber-400/50">
                 <div className="grid grid-cols-2">
                   {tm.spieler.slice(0, 2).map((s) => (
-                    <div key={s.turnierId} className="relative aspect-square overflow-hidden">
+                    <div key={s.turnierId} className="foto-dunkel relative aspect-square overflow-hidden">
                       <Foto s={s} klasse="h-full w-full text-3xl transition duration-300 group-hover:scale-105" />
                       <div className="absolute inset-0 bg-gradient-to-t from-black/90 via-black/10 to-transparent" />
                       <div className="absolute inset-x-0 bottom-0 flex items-center gap-1.5 p-2.5">

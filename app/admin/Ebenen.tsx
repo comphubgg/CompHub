@@ -64,9 +64,7 @@ const NUR_HIER: Ziel[] = [
   { href: '/replays', titel: 'Replays', text: 'Jedes Game zum Abspielen - alle Cups oder nur deine eigenen', symbol: 'karte' },
   { href: '/contact', titel: 'Kontakt', text: 'Etwas kaputt, fehlt oder besser zu machen? Schreib es dem Betreiber', symbol: 'kontakt' },
 ];
-const NUR_HIER_ADMIN: Ziel[] = [
-  { href: '/messages', titel: 'Chatarchiv', text: 'Alle Gespräche, auch die abgeschlossenen', symbol: 'chat' },
-];
+const NUR_HIER_ADMIN: Ziel[] = [];
 
 const TON: Record<Ton, { rahmen: string; kachel: string; titel: string; symbol: string; marke: string; pille: string }> = {
   alle: {

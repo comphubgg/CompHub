@@ -135,13 +135,13 @@ export default function StatistikAufmacher({ kacheln, zuTurnieren, zuRegionen, z
           </div>
 
           <button key={`r${nr}`} type="button" onClick={() => oeffneSpieler(k.spitze.epicId, k.spitze.anzeige)}
-            className="sa-an sa-glas group flex min-h-[230px] overflow-hidden rounded-2xl text-left"
+            className="sa-an sa-glas group flex min-h-[300px] overflow-hidden rounded-2xl text-left"
             style={{ animation: heroDrin ? 'sa-rein .5s .08s cubic-bezier(.2,.8,.2,1) both' : undefined }}>
-            <span className="relative block w-[40%] shrink-0 overflow-hidden">
+            <span className="relative block w-[44%] shrink-0 overflow-hidden">
               {k.spitze.bild ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={k.spitze.bild} alt="" className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-105"
-                  style={{ objectPosition: 'center 20%', WebkitMaskImage: 'linear-gradient(to right, #000 62%, transparent)', maskImage: 'linear-gradient(to right, #000 62%, transparent)' }} />
+                  style={{ objectPosition: 'center top', WebkitMaskImage: 'linear-gradient(to right, #000 62%, transparent)', maskImage: 'linear-gradient(to right, #000 62%, transparent)' }} />
               ) : (
                 <span className="absolute inset-0 grid place-items-center bg-gradient-to-br from-sky-950 to-zinc-900 text-6xl font-black text-white/15">{k.spitze.anzeige.slice(0, 1).toUpperCase()}</span>
               )}

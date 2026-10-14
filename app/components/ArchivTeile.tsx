@@ -202,7 +202,7 @@ export function ArchivRaster({ liste, spieler, ohne, istAdmin, aufOeffnen, aufEn
           {bilder.map((b) => (
             <div key={b.id} role="button" tabIndex={0} onClick={() => aufOeffnen(b.id)}
               onKeyDown={(ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); aufOeffnen(b.id); } }}
-              className="group relative block w-full cursor-pointer break-inside-avoid overflow-hidden rounded-xl
+              className="foto-dunkel group relative block w-full cursor-pointer break-inside-avoid overflow-hidden rounded-xl
                          border border-zinc-800 bg-zinc-900 transition hover:border-sky-500 focus:border-sky-500 focus:outline-none">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img src={bildPfad(b)} alt={b.titel ?? ''} loading="lazy"

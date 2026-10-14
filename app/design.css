@@ -70,7 +70,7 @@ html[data-bewegung="aus"] *, html[data-bewegung="aus"] *::before, html[data-bewe
  * helles Blaugrau im hellen. Oben bleibt sie fast klar, damit Gesicht und Hals zu sehen sind; unten ist sie dicht genug fuer die Schrift.
  */
 .foto-folie { background: linear-gradient(to top, rgba(7,11,19,.94) 0%, rgba(7,11,19,.72) 34%, rgba(7,11,19,.18) 70%, rgba(7,11,19,.05) 100%); }
-html[data-modus="hell"] .foto-folie { background: linear-gradient(to top, rgba(210,216,226,.96) 0%, rgba(210,216,226,.78) 34%, rgba(210,216,226,.2) 70%, rgba(210,216,226,.04) 100%); }
+html[data-modus="hell"] .foto-folie { background: linear-gradient(to top, rgba(205,212,223,.94) 0%, rgba(205,212,223,.7) 22%, rgba(205,212,223,.12) 42%, transparent 58%); }
 
 /* Profilkopf: das Foto blendet zur linken Seite hin in die Karte aus (nur ab Tablet-Breite; darunter liegt es unter der Foto-Folie). */
 @media (min-width: 768px) {
@@ -99,4 +99,36 @@ html[data-modus="hell"] .vit-gold { border-color: rgba(176,125,10,.4); backgroun
 html[data-modus="hell"] :is([class*="bg-zinc-950/40"], [class*="bg-zinc-950/50"], [class*="bg-zinc-950/60"], [class*="bg-zinc-950/70"]) {
   background-color: var(--color-zinc-900);
   box-shadow: 0 1px 2px rgba(15, 23, 42, .06), 0 8px 22px rgba(15, 23, 42, .07);
+}
+
+/*
+ * Der Spielerfaecher auf der Statistikseite: fuenf Karten, gerade gezogen, ueberlappend und leicht gedreht (Variablen --d = Abstand von der Mitte,
+ * --i = Reihenfolge). Beim Ueberfahren richtet sich eine Karte auf und kommt nach vorn; ein Klick oeffnet sie gross (.faecher-pop).
+ */
+.faecher { position: relative; display: block; list-style: none; padding: 0; margin: 0; container-type: inline-size; --abstand: 22px; --winkel: 2deg; }
+/* Beim Ueberfahren geht der Faecher von eng zu weit auseinander (Betreiber: "so wie bei EU Competitive") - bis die Karten fast nebeneinander stehen,
+   aber nie breiter als der Platz (cqw = Breite des Faechers; eine Karte ist 9rem breit, fuenf Abstaende dazwischen). */
+.faecher:hover, .faecher:focus-within { --abstand: min(8.7rem, calc((100cqw - 9.5rem) / 5)); --winkel: 3deg; }
+.faecher > li { position: absolute; left: 50%; top: 50%; margin: -6.5rem 0 0 -4.5rem; z-index: var(--i);
+  translate: calc(var(--d) * var(--abstand)) 0; rotate: calc(var(--d) * var(--winkel));
+  transition: rotate .55s cubic-bezier(.2,.8,.2,1), translate .55s cubic-bezier(.2,.8,.2,1); }
+.faecher > li:hover { rotate: 0deg; translate: calc(var(--d) * var(--abstand)) -14px; z-index: 20; }
+@media (max-width: 639px) { .faecher > li { margin: -5.5rem 0 0 -3.5rem; } .faecher:hover, .faecher:focus-within { --abstand: min(5rem, calc((100cqw - 7.5rem) / 5)); } }
+@keyframes faecher-rein { from { opacity: 0; transform: translateY(18px) scale(.94); } to { opacity: 1; transform: none; } }
+@keyframes faecher-aus { from { opacity: 0; } to { opacity: 1; } }
+.faecher-pop { animation: faecher-rein .32s cubic-bezier(.2,.8,.2,1) both; }
+.faecher-schleier { animation: faecher-aus .25s ease both; }
+
+/*
+ * Startseite: die laufende Vorschau im Hintergrund (HeroHintergrund) - drei, vier Bilderreihen gegeneinander; der Schleier in der Farbe des Grundes
+ * haelt die Mitte ruhig fuer die Schrift und blendet unten in den Grund aus.
+ */
+@keyframes hero-lauf { from { transform: translateX(0); } to { transform: translateX(-50%); } }
+.hero-reihe { display: flex; gap: 1rem; width: max-content; animation: hero-lauf var(--dauer, 90s) linear infinite; }
+.hero-reihe.rueck { animation-direction: reverse; }
+@media (prefers-reduced-motion: reduce) { .hero-reihe { animation: none; } }
+.hero-schleier {
+  background:
+    radial-gradient(ellipse 62% 58% at 50% 46%, color-mix(in srgb, var(--color-zinc-950) 88%, transparent) 0%, color-mix(in srgb, var(--color-zinc-950) 62%, transparent) 60%, color-mix(in srgb, var(--color-zinc-950) 28%, transparent) 100%),
+    linear-gradient(to bottom, transparent 62%, var(--color-zinc-950) 100%);
 }

@@ -332,7 +332,7 @@ function MapsSpalte({ anzahl }: { anzahl: number }) {
             <Link key={s.typ} href={`/tournament-maps?typ=${s.typ}`}
               onClick={(e) => { e.preventDefault(); if (gewaehlt === null) waehle(k, s.typ); }}
               onMouseEnter={() => setAuf(k)} onFocus={() => setAuf(k)}
-              className="vit-scheibe group/s relative block overflow-hidden"
+              className="foto-dunkel vit-scheibe group/s relative block overflow-hidden"
               style={{
                 flexGrow: weg ? 0.0001 : fokus ? 1 : an ? 3.2 : 1, flexBasis: 0, minWidth: 0,
                 marginLeft: k && !weg ? '-3.2%' : 0, opacity: weg ? 0 : 1, pointerEvents: weg ? 'none' : 'auto',
@@ -388,16 +388,18 @@ function TierlistKarte({ daten, fertig }: { daten: Vitrine | null; fertig: boole
     <Karte titel="Tierlist" href="/tierlist" symbol={SYM.stufen} glas>
       {liste.length < 9 ? <Hinweis geladen={fertig} /> : (
         <>
-          <div className="space-y-1.5">
+          {/* Die Stufen als drei Spalten nebeneinander (Betreiber, 14.10.2026: "sieht zu krass nach dem Vorbild aus") - oben der Buchstabe, darunter
+              die Spieler untereinander. */}
+          <div className="grid grid-cols-3 gap-2.5">
             {STUFEN.map((st, r) => (
-              <div key={st.buchstabe} className={`vit-an flex items-stretch overflow-hidden rounded-xl border bg-black/30 ${st.rand}`}
-                style={{ animation: `vit-rechts .5s ${r * 120}ms cubic-bezier(.2,.8,.2,1) both` }}>
-                <span className={`flex w-12 shrink-0 items-center justify-center text-xl font-black text-zinc-950 ${st.farbe}`}>{st.buchstabe}</span>
-                <div className="flex min-w-0 flex-1 flex-wrap gap-1.5 p-2">
+              <div key={st.buchstabe} className={`vit-an overflow-hidden rounded-2xl border bg-black/20 ${st.rand}`}
+                style={{ animation: `vit-rein .5s ${r * 120}ms cubic-bezier(.2,.8,.2,1) both` }}>
+                <span className={`flex items-center justify-center py-2 text-2xl font-black text-zinc-950 ${st.farbe}`}>{st.buchstabe}</span>
+                <div className="space-y-1.5 p-2">
                   {liste.slice(r * 3, r * 3 + 3).map((s) => (
-                    <span key={s.id} className="flex items-center gap-1.5 rounded-lg border border-white/[0.08] bg-zinc-900/70 py-1 pl-1 pr-2">
-                      <Gesicht name={s.name} bild={s.bild} px={26} />
-                      <span className="text-[10px] font-bold uppercase text-slate-100">{s.name}</span>
+                    <span key={s.id} className="flex items-center gap-1.5 rounded-xl border border-white/[0.08] bg-zinc-900/70 p-1">
+                      <Gesicht name={s.name} bild={s.bild} px={30} />
+                      <span className="min-w-0 flex-1 truncate text-[10px] font-bold uppercase text-slate-100">{s.name}</span>
                       <TeamFlagge groesse={11} laender={[s.land ?? undefined]} />
                     </span>
                   ))}

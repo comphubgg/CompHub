@@ -6,7 +6,7 @@
  *                Betreiber ausdruecklich "genau so, wie sie ist" behalten will, dazu die Overlays und POV-Seiten, die auf Streams laufen).
  *   data-modus   "hell" oder "dunkel" - die Farbpalette. Im alten Design immer dunkel.
  *
- * Die Wahl des Besuchers steht im Cookie comphub_modus; Voreinstellung ist hell.
+ * Die Wahl des Besuchers steht im Cookie comphub_modus; Voreinstellung ist dunkel (Betreiber, 14.10.2026: "als Main-Einstellung immer Dark").
  */
 
 export type Design = 'neu' | 'alt';
@@ -35,5 +35,5 @@ export const lieseBewegung = (wert: string | undefined | null): 'an' | 'aus' => 
 /** Den Modus aus einem Cookie-Text lesen (Browser: document.cookie). */
 export function lieseModus(cookieText: string): Modus {
   const m = new RegExp(`(?:^|;\\s*)${MODUS_COOKIE}=([^;]+)`).exec(cookieText);
-  return m && decodeURIComponent(m[1]) === 'dunkel' ? 'dunkel' : 'hell';
+  return m && decodeURIComponent(m[1]) === 'hell' ? 'hell' : 'dunkel';
 }

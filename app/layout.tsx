@@ -11,7 +11,6 @@ import type { Sprache } from './lib/sprache';
 import Sprachschalter from './components/Sprachschalter';
 import NeuerStand from './components/NeuerStand';
 import Melden from './components/Melden';
-import ChatFenster from "@/app/components/ChatFenster";
 import PreviewTour from './components/PreviewTour';
 import RouteTransitionLoader from './components/RouteTransitionLoader';
 import Besuchszaehler from './components/Besuchszaehler';
@@ -152,7 +151,7 @@ export default async function RootLayout({
   // Das Design dieses Aufrufs: die Streams-Seite bleibt in der alten Optik, alles andere ist neu; hell oder dunkel nach der Wahl des Besuchers.
   const pfad = (await headers()).get('x-comphub-pfad') ?? '/';
   const design = designFuerPfad(pfad);
-  const modus = design === 'alt' ? 'dunkel' : ((await cookies()).get(MODUS_COOKIE)?.value === 'dunkel' ? 'dunkel' : 'hell');
+  const modus = design === 'alt' ? 'dunkel' : ((await cookies()).get(MODUS_COOKIE)?.value === 'hell' ? 'hell' : 'dunkel');
   // Schriftgroesse und Animationen aus dem Zahnrad unten rechts - normal und "an" tragen keine Angabe.
   const groesse = lieseGroesse((await cookies()).get(GROESSE_COOKIE)?.value);
   const bewegung = lieseBewegung((await cookies()).get(BEWEGUNG_COOKIE)?.value);
@@ -214,9 +213,6 @@ export default async function RootLayout({
           {/* Der Melde-Knopf. Nur fuer angemeldete Konten; er schickt die
               Meldung samt Seite an den Betreiber. */}
           <Melden />
-          {/* Das Gespraech mit dem Betreiber. Links am Rand, damit es dem
-              Sprachschalter unten rechts nicht in die Quere kommt. */}
-          <ChatFenster />
           {/*
             * Zaehlt, dass diese Seite geoeffnet wurde - sichtbar ist davon
             * nichts. Steht hier im Rahmen, damit auch die Wechsel ohne

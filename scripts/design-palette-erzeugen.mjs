@@ -46,5 +46,19 @@ html[data-modus="hell"] {
 ${zeilen.join('\n')}
 }
 `;
-fs.writeFileSync(path.join(process.cwd(), 'app', 'design-hell.css'), css);
+// Die dunkle Palette fuer einzelne Stuecke in der hellen Fassung: .foto-dunkel stellt fuer alles darin die Tailwind-Standardfarben wieder her.
+// Fotos mit Schrift darauf (Spielerkacheln, Spitzenreiter) brauchen einen dunklen Schleier und helle Schrift - in der umgedrehten Palette
+// wuerden aus "from-black/95" und "text-slate-50" ein weisser Schleier und dunkle Schrift (Betreiber, 14.10.2026: "zu viel Weiss, man erkennt wenig").
+const dunkel = [];
+for (const f of [...NEUTRAL, ...FARBEN]) for (const st of STUFEN) dunkel.push(`  --color-${f}-${st}: ${wert(`${f}-${st}`)};`);
+dunkel.push('  --color-white: #fff;', '  --color-black: #000;');
+const cssDunkel = `
+/* Fotos mit Schrift darauf: in der hellen Fassung die dunkle Palette (class="foto-dunkel"). */
+html[data-modus="hell"] .foto-dunkel {
+  color-scheme: dark;
+  color: #f1f5f9;
+${dunkel.join('\n')}
+}
+`;
+fs.writeFileSync(path.join(process.cwd(), 'app', 'design-hell.css'), css + cssDunkel);
 console.log('app/design-hell.css geschrieben:', zeilen.length, 'Farben');

@@ -789,17 +789,38 @@ function DuellTafel({ links, rechts, zeitraum, aufKlick, gross = false, schlicht
         </span>
       </button>
     );
+    // Mit Fotos (Betreiber, 14.10.2026): beide Spieler als Bild links und rechts, zur Mitte hin ausgeblendet, darauf Name und Flagge.
+    const foto = (s: Spieler, rechtsRum: boolean) => (
+      <button type="button" onClick={() => aufKlick?.(s)} disabled={!aufKlick}
+        className={`group absolute inset-y-0 w-[40%] overflow-hidden text-left ${rechtsRum ? 'right-0' : 'left-0'}`}>
+        {s.bild ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={s.bild} alt="" className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-105"
+            style={{ objectPosition: 'center 8%', WebkitMaskImage: `linear-gradient(to ${rechtsRum ? 'left' : 'right'}, #000 40%, transparent)`, maskImage: `linear-gradient(to ${rechtsRum ? 'left' : 'right'}, #000 40%, transparent)` }} />
+        ) : null}
+        <span aria-hidden className="foto-unten absolute inset-0" />
+        <span className={`absolute bottom-3 flex items-center gap-2 ${rechtsRum ? 'right-4 flex-row-reverse' : 'left-4'}`}>
+          <TeamFlagge groesse={22} laender={[s.land ?? undefined]} />
+          <span className="truncate text-xl font-extrabold uppercase tracking-wide text-white drop-shadow sm:text-2xl">{grossName(s.anzeige, s.gepflegt)}</span>
+        </span>
+      </button>
+    );
     return (
-      <div className="rounded-xl border border-zinc-800 bg-zinc-950/60 px-5 py-4">
-        <div className="mb-3 flex items-center gap-4">
-          {kopf(links, false)}
-          <span className="shrink-0 text-center text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-600">{zeitraum}</span>
-          {kopf(rechts, true)}
+      <div className="overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 shadow-[0_10px_30px_rgba(15,23,42,.10)]">
+        <div className="foto-dunkel relative h-60 bg-zinc-800 sm:h-64">
+          {foto(links, false)}
+          {foto(rechts, true)}
+          <div className="absolute inset-x-0 top-3 flex justify-center">
+            <span className="rounded-full bg-[rgba(6,10,18,.6)] px-4 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#cbd5e1] backdrop-blur">{zeitraum}</span>
+          </div>
+          <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-4xl font-black italic text-sky-400 drop-shadow">VS</span>
         </div>
-        {DUELL_WERTE.map(([titel, feld, nk, einheit]) => (
-          <Duellzeile key={feld as string} titel={titel} nachkomma={nk} einheit={einheit}
-            links={Number(links[feld] ?? 0)} rechts={Number(rechts[feld] ?? 0)} />
-        ))}
+        <div className="px-5 py-4">
+          {DUELL_WERTE.map(([titel, feld, nk, einheit]) => (
+            <Duellzeile key={feld as string} titel={titel} nachkomma={nk} einheit={einheit}
+              links={Number(links[feld] ?? 0)} rechts={Number(rechts[feld] ?? 0)} />
+          ))}
+        </div>
       </div>
     );
   }
@@ -1815,29 +1836,27 @@ function ClutchTabelle({ daten, saison, saisonTitel, aufKonto }: {
   const zeilen = (gefunden ?? (offen ? alle.slice(0, sichtbar) : daten.zeilen.slice(0, 10))
     .map((z, i) => ({ z, rang: i + 1 })));
 
+  // Der Balken je Zeile misst gegen die beste Wertung (die Liste ist nach Punkten geordnet).
+  const spitze = Math.max(1, alle[0]?.punkte ?? 1);
+  const MEDAILLE = ['#f5b301', '#9aa6ba', '#cc7a3d'];
   return (
-    <section className="mt-7">
-      <div className="mb-2 flex flex-wrap items-baseline gap-3">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-          <T>Solo Clutch Points</T> · {saisonTitel}
-        </p>
-        <span className="text-[10px] text-slate-600">
-          {t('aus {n} Spieltagen mit Replay-Auswertung').replace('{n}', String(daten.spieltage))}
-        </span>
+    <section className="mt-10">
+      <div className="mb-4 flex flex-wrap items-end gap-x-4 gap-y-2">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-sky-500"><T>Solo Clutch Points</T></p>
+          <h2 className="schrift-anzeige mt-1 text-2xl font-extrabold tracking-tight text-slate-100 sm:text-3xl">{saisonTitel}</h2>
+          <p className="mt-0.5 text-xs text-slate-500">{t('aus {n} Spieltagen mit Replay-Auswertung').replace('{n}', String(daten.spieltage))}</p>
+        </div>
         <input value={suche} onChange={(e) => setSuche(e.target.value)}
           placeholder={t('Spieler suchen …')}
-          className="ml-auto w-44 rounded border border-zinc-800 bg-zinc-950 px-2.5 py-1 text-[12px]
-                     normal-case tracking-normal text-slate-200 outline-none placeholder:text-slate-600
-                     focus:border-sky-500" />
+          className="ml-auto w-48 rounded-full border border-zinc-700 bg-zinc-900 px-4 py-1.5 text-sm text-slate-200 outline-none placeholder:text-slate-500 focus:border-sky-500" />
         <button type="button" onClick={() => { setOffen((o) => !o); setSichtbar(50); }}
-          className="rounded border border-zinc-700 px-3 py-1 text-[11px] font-semibold
-                     uppercase tracking-[0.14em] text-slate-400 transition
-                     hover:border-sky-500 hover:text-sky-400">
+          className="rounded-full border border-zinc-700 bg-zinc-900 px-5 py-1.5 text-xs font-bold uppercase tracking-[0.14em] text-slate-300 transition hover:border-sky-500 hover:text-sky-500">
           {offen ? <T>Weniger</T> : <T>Details</T>}
         </button>
       </div>
-      <div className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950/60">
-        <div className="flex items-center gap-3 border-b border-zinc-800 bg-zinc-900/40 px-4 py-2
+      <div className="overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 shadow-[0_10px_30px_rgba(15,23,42,.10)]">
+        <div className="flex items-center gap-3 border-b border-zinc-800 px-5 py-3
                         text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
           <span className="w-8 shrink-0">#</span>
           <span className="min-w-0 flex-1"><T>Spieler</T></span>
@@ -1846,19 +1865,24 @@ function ClutchTabelle({ daten, saison, saisonTitel, aufKonto }: {
           <span className="hidden w-20 shrink-0 text-right sm:block"><T>Clutch-Spiele</T></span>
           {daten.soloDa && <span className="w-20 shrink-0 text-right"><T>Solo-Zeit</T></span>}
         </div>
-        <div className={`divide-y divide-zinc-900 ${offen || suchen ? 'max-h-[70vh] overflow-y-auto' : ''}`}>
+        <div className={`divide-y divide-zinc-800/70 ${offen || suchen ? 'max-h-[70vh] overflow-y-auto' : ''}`}>
           {zeilen.map(({ z, rang }) => (
             <button key={z.epicId} type="button" onClick={() => aufKonto(z.epicId, z.anzeige)}
-              className="flex w-full items-center gap-3 px-4 py-2.5 text-left transition hover:bg-zinc-900/60">
-              <span className={`w-8 shrink-0 text-sm font-bold tabular-nums ${rang === 1 ? 'text-amber-400' : 'text-slate-600'}`}>{rang}</span>
-              <span className="flex min-w-0 flex-1 items-center gap-2.5 text-[13px]">
-                <TeamFlagge groesse={18} laender={[z.land ?? undefined]} />
-                <span className="truncate font-medium text-slate-200">{grossName(z.anzeige, z.gepflegt)}</span>
+              className="relative flex w-full items-center gap-3 overflow-hidden px-5 py-3 text-left transition hover:bg-zinc-800/50">
+              <span aria-hidden className="absolute inset-y-0 left-0 bg-sky-500/10" style={{ width: `${Math.max(2, (z.punkte / spitze) * 100)}%` }} />
+              <span className="relative w-8 shrink-0">
+                {rang <= 3
+                  ? <span className="grid h-7 w-7 place-items-center rounded-full text-xs font-black text-zinc-950" style={{ background: MEDAILLE[rang - 1] }}>{rang}</span>
+                  : <span className="text-sm font-bold tabular-nums text-slate-500">{rang}</span>}
               </span>
-              <span className="hidden w-16 shrink-0 sm:block">{z.heimat ? <RegionMarke region={z.heimat} /> : null}</span>
-              <span className="w-16 shrink-0 text-right text-[13px] font-bold tabular-nums text-sky-400">{zahl(z.punkte, 0, sprache)}</span>
-              <span className="hidden w-20 shrink-0 text-right text-[13px] tabular-nums text-slate-400 sm:block">{zahl(z.spiele, 0, sprache)}</span>
-              {daten.soloDa && <span className="w-20 shrink-0 text-right text-[13px] tabular-nums text-slate-400">{soloText(z.solo)}</span>}
+              <span className="relative flex min-w-0 flex-1 items-center gap-2.5 text-[13px]">
+                <TeamFlagge groesse={18} laender={[z.land ?? undefined]} />
+                <span className="truncate font-semibold text-slate-100">{grossName(z.anzeige, z.gepflegt)}</span>
+              </span>
+              <span className="relative hidden w-16 shrink-0 sm:block">{z.heimat ? <RegionMarke region={z.heimat} /> : null}</span>
+              <span className="relative w-16 shrink-0 text-right text-[13px] font-extrabold tabular-nums text-sky-500">{zahl(z.punkte, 0, sprache)}</span>
+              <span className="relative hidden w-20 shrink-0 text-right text-[13px] tabular-nums text-slate-400 sm:block">{zahl(z.spiele, 0, sprache)}</span>
+              {daten.soloDa && <span className="relative w-20 shrink-0 text-right text-[13px] tabular-nums text-slate-400">{soloText(z.solo)}</span>}
             </button>
           ))}
           {suchen && vollDa && gefunden && !gefunden.length && (
@@ -1873,7 +1897,7 @@ function ClutchTabelle({ daten, saison, saisonTitel, aufKonto }: {
           {offen && !suchen && vollDa && sichtbar < alle.length && <div ref={ende} className="h-8" />}
         </div>
       </div>
-      <p className="mt-1.5 text-[10px] text-slate-600">
+      <p className="mt-2 text-xs text-slate-500">
         <T>Punkte, die ein Spieler allein im Team holt: Platzierungen und Eliminierungen, nachdem sein Mitspieler ausgeschieden ist. Gezählt aus den Replays.</T>
         {' '}{zahl(daten.gesamt ?? daten.zeilen.length, 0, sprache)} <T>Spieler</T>
       </p>
@@ -1940,6 +1964,145 @@ function Platz({ nr, s, wert, aufKlick, zusatz, mitBild, hervor, aufZeigen }: {
         {wert}
       </span>
     </button>
+  );
+}
+
+/*
+ * Der Spielerfaecher (Betreiber, 14.10.2026): "so eine Art Pop-off unter Stats - wie viele Spieler ich habe, mit Bildern rechts, und wenn ich
+ * drauf druecke, poppt es auf." Links die Zahl der Profile und der Weg zur ganzen Liste, rechts fuenf Spielerkarten wie ein Faecher; eine Karte
+ * gerade gezogen hebt sich beim Ueberfahren, ein Klick oeffnet sie gross mit den Werten - dort geht es weiter ins Profil.
+ */
+function SpielerFaecher({ spieler, aufAlle, aufOeffnen }: { spieler: Spieler[]; aufAlle: () => void; aufOeffnen: (s: Spieler) => void }) {
+  const t = useT();
+  const { sprache } = useSprache();
+  const [anzahl, setAnzahl] = useState<number | null>(null);
+  const [auf, setAuf] = useState<Spieler | null>(null);
+  /*
+   * Die vollen Werte des gewaehlten Spielers. Die Plaetze der Bestenlisten tragen nur die Zahl ihrer eigenen Liste (Eliminierungen) - alles andere
+   * stuende dort als Null, und eine Null waere eine Behauptung. Deshalb wird der Spieler beim Oeffnen ueber die Suche vollstaendig geholt; bis
+   * er da ist (oder wenn er nicht kommt), steht ein Strich.
+   */
+  const [voll, setVoll] = useState<Spieler | null>(null);
+  useEffect(() => {
+    setVoll(null);
+    if (!auf) return undefined;
+    let weg = false;
+    fetch(`/api/szene-stats?ansicht=suche&q=${encodeURIComponent(auf.name)}`).then((r) => r.json())
+      .then((j) => { const x = ((j?.spieler ?? []) as Spieler[]).find((p) => p.epicId === auf.epicId); if (!weg && x) setVoll(x); })
+      .catch(() => { /* dann bleibt der Strich */ });
+    return () => { weg = true; };
+  }, [auf]);
+  useEffect(() => {
+    let weg = false;
+    fetch('/api/statistik-zahlen').then((r) => r.json()).then((j) => { if (!weg && j?.ok && typeof j.spieler === 'number') setAnzahl(j.spieler); }).catch(() => { /* ohne Zahl bleibt ein Strich */ });
+    return () => { weg = true; };
+  }, []);
+  useEffect(() => {
+    if (!auf) return undefined;
+    const taste = (e: KeyboardEvent) => { if (e.key === 'Escape') setAuf(null); };
+    document.addEventListener('keydown', taste);
+    return () => document.removeEventListener('keydown', taste);
+  }, [auf]);
+  /*
+   * Die Spieler des Faechers: Peterbot, Vico, Shxrk, Veno, Pollo, Malibuca (Betreiber, 14.10.2026: "nicht nur NA-Spieler"). Sie werden ueber die
+   * Suche geholt; findet sich fast keiner (Archiv nicht erreichbar), stehen die ersten mit Foto aus der Bestenliste da.
+   */
+  const [gewaehlt, setGewaehlt] = useState<Spieler[]>([]);
+  useEffect(() => {
+    let weg = false;
+    const norm = (v: string) => v.toLowerCase().replace(/[^a-z0-9]/g, '');
+    void Promise.all(['PETERBOT', 'VICO', 'SHXRK', 'VENO', 'POLLO', 'MALIBUCA'].map((n) => fetch(`/api/szene-stats?ansicht=suche&q=${n}`)
+      .then((r) => r.json())
+      .then((j) => {
+        const liste = ((j?.spieler ?? []) as Spieler[]).filter((x) => x.bild);
+        return liste.find((x) => [x.anzeige, x.name, ...(x.namen ?? [])].some((m) => norm(m ?? '') === norm(n))) ?? null;
+      })
+      .catch(() => null)))
+      .then((r) => { if (!weg) setGewaehlt(r.filter((x): x is Spieler => !!x)); });
+    return () => { weg = true; };
+  }, []);
+  const karten = (gewaehlt.length >= 4 ? gewaehlt : spieler.filter((x) => x.bild)).slice(0, 6);
+  if (karten.length < 3) return null;
+  const mitte = (karten.length - 1) / 2;
+  return (
+    <section className="relative mb-10 overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 p-6 shadow-[0_10px_30px_rgba(15,23,42,.10)] sm:p-10">
+      <div aria-hidden className="pointer-events-none absolute -right-20 -top-24 h-80 w-80 rounded-full bg-sky-500/20 blur-[90px]" />
+      <div className="relative grid items-center gap-10 lg:grid-cols-[0.8fr_1.4fr]">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-sky-500"><T>Spieler</T></p>
+          <h2 className="schrift-anzeige mt-2 text-4xl font-extrabold tracking-tight text-slate-100 sm:text-5xl">
+            {anzahl === null ? '—' : zahl(anzahl, 0, sprache)} <T>Spielerprofile.</T>
+          </h2>
+          <p className="mt-3 max-w-md text-base text-slate-400"><T>Werte, Titel, FNCS-Ergebnisse, Mitspieler und Landepunkte zu jedem Spieler im Archiv.</T></p>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <button type="button" onClick={aufAlle}
+              className="rounded-full bg-sky-500 px-6 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-sky-400">
+              <T>Alle Spieler ansehen</T> →
+            </button>
+          </div>
+        </div>
+        <ul className="faecher mx-auto h-[17rem] w-full max-w-3xl">
+          {karten.map((x, i) => (
+            <li key={x.epicId} style={{ ['--d' as string]: i - mitte, ['--i' as string]: i + 1 }}>
+              <button type="button" onClick={() => setAuf(x)} aria-label={x.anzeige}
+                className="foto-dunkel group relative block h-52 w-36 overflow-hidden rounded-2xl border border-white/10 bg-zinc-900 text-left shadow-[0_14px_34px_rgba(2,6,23,.35)] max-sm:h-44 max-sm:w-28">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={x.bild as string} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover object-top transition duration-500 group-hover:scale-105" />
+                <span aria-hidden className="foto-unten absolute inset-0" />
+                <span className="absolute left-2.5 top-2.5"><RegionMarke region={x.heimat || x.regionen[0] || ''} /></span>
+                <span className="absolute inset-x-2.5 bottom-2.5 flex items-center gap-1.5 rounded-xl bg-[rgba(6,10,18,.6)] px-2 py-1.5 backdrop-blur">
+                  <TeamFlagge groesse={16} laender={[x.land ?? undefined]} />
+                  <span className="min-w-0 truncate text-sm font-extrabold uppercase tracking-wide text-[#fff]">{grossName(x.anzeige, x.gepflegt)}</span>
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {auf && (
+        <div className="fixed inset-0 z-[120] grid place-items-center p-4" role="dialog" aria-modal="true" aria-label={auf.anzeige}>
+          <button type="button" aria-label={t('Schließen')} onClick={() => setAuf(null)}
+            className="faecher-schleier absolute inset-0 bg-[rgba(6,10,18,.66)] backdrop-blur-sm" />
+          <div className="faecher-pop foto-dunkel relative flex w-full max-w-3xl overflow-hidden rounded-3xl border border-white/10 bg-zinc-900 shadow-2xl max-sm:flex-col">
+            <div className="relative h-72 shrink-0 sm:h-auto sm:w-[44%]">
+              {auf.bild && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={auf.bild} alt="" className="absolute inset-0 h-full w-full object-cover object-top" />
+              )}
+              <span aria-hidden className="foto-unten absolute inset-0" />
+            </div>
+            <div className="flex min-w-0 flex-1 flex-col p-6 sm:p-8">
+              <div className="flex items-center gap-2">
+                <TeamFlagge groesse={22} laender={[auf.land ?? undefined]} />
+                <RegionMarke region={auf.heimat || auf.regionen[0] || ''} />
+                <button type="button" onClick={() => setAuf(null)} aria-label={t('Schließen')}
+                  className="ml-auto grid h-8 w-8 place-items-center rounded-full text-slate-400 transition hover:bg-zinc-800 hover:text-white">✕</button>
+              </div>
+              <h3 className="schrift-anzeige mt-3 break-words text-3xl font-extrabold uppercase leading-tight tracking-tight text-white sm:text-4xl">
+                {grossName(auf.anzeige, auf.gepflegt)}
+              </h3>
+              <div className="mt-5 grid grid-cols-3 gap-2">
+                {([['Quote', voll ? zahl(voll.quote, 2, sprache) : '—', true], ['Elims', voll ? zahl(voll.elims, 0, sprache) : '—', false], ['Schaden', voll ? zahl(voll.damage, 0, sprache) : '—', false],
+                  ['Matches', voll ? zahl(voll.matches, 0, sprache) : '—', false], ['Kopftreffer', voll ? zahl(voll.headshots, 0, sprache) : '—', false], ['Treffer %', voll ? `${zahl(voll.genauigkeit, 1, sprache)} %` : '—', false]] as Array<[string, string, boolean]>).map(([l, v, farbig]) => (
+                  <div key={l} className="rounded-xl bg-zinc-800/80 px-2 py-3 text-center">
+                    <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-400"><T>{l}</T></p>
+                    <p className={`mt-1 text-lg font-extrabold tabular-nums ${farbig ? 'text-sky-400' : 'text-white'}`}>{v}</p>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-3 text-[11px] text-slate-500"><T>Werte aus dem ganzen Archiv.</T></p>
+              <div className="mt-auto flex flex-wrap gap-3 pt-6">
+                <button type="button" onClick={() => { const x = auf; setAuf(null); aufOeffnen(x); }}
+                  className="rounded-full bg-sky-500 px-6 py-2.5 text-sm font-bold text-white transition hover:bg-sky-400"><T>Profil öffnen</T> →</button>
+                <button type="button" onClick={() => setAuf(null)}
+                  className="rounded-full border border-zinc-600 px-6 py-2.5 text-sm font-bold text-slate-200 transition hover:border-sky-500 hover:text-sky-400"><T>Schließen</T></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
   );
 }
 
@@ -3722,6 +3885,8 @@ export default function StatistikSeite() {
                 zuSpielern={() => wechsleBereich('spieler')}
                 oeffneSpieler={(id, name) => { void oeffneKonto(id, name); }} />
 
+              {seitenliste && <SpielerFaecher spieler={seitenliste.plaetze} aufAlle={() => wechsleBereich('spieler')} aufOeffnen={(x) => oeffne(x)} />}
+
               {/*
                 * Die Elim-Rangliste (war die Liste in der linken Leiste): die ersten fuenfzehn in drei Spalten. Der Nachweis, was gezaehlt ist,
                 * bleibt aufklappbar - der Betreiber wollte auf der Seite sehen, dass es stimmt: je Spieler, aus Replays, nur Finals.
@@ -3793,66 +3958,70 @@ export default function StatistikSeite() {
                 {alleSaisons ? t('Bestenlisten über alle Saisons')
                   : `${t('Bestenlisten der Saison')} ${saisonTitel}`}
               </p>
-              <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-                {/* Die Elim-Liste steht oben als eigene, breite Karte - hier nicht noch einmal. */}
-                {listen.filter((l) => l.feld !== 'elims').map((l) => (
-                  <div key={l.feld}
-                    className="overflow-hidden rounded-xl border border-zinc-800
-                               bg-zinc-950/60">
-                    <p className="flex items-baseline gap-2 border-b border-zinc-800
-                                  bg-zinc-900/40 px-3 py-2 text-[10px] font-semibold
-                                  uppercase tracking-[0.14em] text-slate-400">
-                      <T>{l.titel}</T>
-                      {/*
-                        * Die Untergrenze der Quotenliste - aus der Zahl
-                        * gebaut, damit sie in beiden Sprachen stimmt.
-                        * Vorher kam hier ein fertiger deutscher Satz vom
-                        * Server ("ab 8 Matches") und stand so auch auf der
-                        * englischen Seite.
-                        */}
-                      {!!l.mindestMatches && (
-                        <span className="ml-auto font-normal normal-case
-                                         tracking-normal text-slate-600">
-                          {t('ab {n} Matches')
-                            .replace('{n}', String(l.mindestMatches))}
-                        </span>
+              {/*
+                * Die Bestenlisten (Betreiber, 14.10.2026: "sieht noch nach dem Vorbild aus, ohne Schatten"): je Liste eine Karte mit Schatten, der Erste
+                * gross mit Foto, die Plaetze zwei bis fuenf darunter. Die Elim-Liste steht oben als eigene, breite Karte - hier nicht noch einmal.
+                */}
+              <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+                {listen.filter((l) => l.feld !== 'elims').map((l) => {
+                  const [erster, ...rest] = l.plaetze.slice(0, 5);
+                  const wertVon = (sp: Spieler) => zahl(Number((sp as unknown as Record<string, number>)[l.feld]), l.nachkomma, sprache) + (l.einheit ?? '');
+                  return (
+                    <div key={l.feld} className="overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 shadow-[0_10px_30px_rgba(15,23,42,.10)]">
+                      <div className="flex items-center gap-2 px-5 pt-4">
+                        <h3 className="schrift-anzeige text-base font-extrabold text-slate-100"><T>{l.titel}</T></h3>
+                        {/* Die Untergrenze der Quotenliste - aus der Zahl gebaut, damit sie in beiden Sprachen stimmt. */}
+                        {!!l.mindestMatches && (
+                          <span className="text-[11px] text-slate-500">{t('ab {n} Matches').replace('{n}', String(l.mindestMatches))}</span>
+                        )}
+                        {/* Und das Plus: dieselbe Liste in voller Laenge, wie auf der Cup-Seite und in den Regionen. */}
+                        <button type="button" title={t('Alle anzeigen')}
+                          onClick={() => {
+                            setVolleListe({
+                              titel: l.titel, zusatz: saisonTitel, zeilen: l.plaetze, feld: l.feld as keyof Spieler,
+                              nachkomma: l.nachkomma ?? 0, einheit: l.einheit ?? '',
+                            });
+                            setListenTiefe(50);
+                          }}
+                          className="ml-auto grid h-7 w-7 place-items-center rounded-full border border-zinc-700 text-sm leading-none text-slate-400 transition hover:border-sky-500 hover:text-sky-500">
+                          +
+                        </button>
+                      </div>
+                      {/* Der Erste: das Foto als stehendes Bild (3:4), damit man das Gesicht sieht - daneben Name und Zahl. */}
+                      {erster && (
+                        <button type="button" onClick={() => oeffne(erster)}
+                          className="foto-dunkel group mx-3 mt-3 flex w-[calc(100%-1.5rem)] items-stretch overflow-hidden rounded-2xl bg-zinc-800 text-left">
+                          <span className="relative h-44 w-36 shrink-0 overflow-hidden">
+                            {erster.bild ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={erster.bild} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover object-top transition duration-500 group-hover:scale-105" />
+                            ) : (
+                              <span className="absolute inset-0 grid place-items-center text-5xl font-black text-white/10">{(erster.anzeige || '?').slice(0, 1).toUpperCase()}</span>
+                            )}
+                          </span>
+                          <span className="flex min-w-0 flex-1 flex-col justify-between p-3.5">
+                            <span className="flex items-center gap-2">
+                              <span className="rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-black text-zinc-950">1</span>
+                              <RegionMarke region={erster.heimat || erster.regionen[0] || ''} />
+                            </span>
+                            <span>
+                              <span className="flex items-center gap-1.5">
+                                <TeamFlagge groesse={16} laender={[erster.land ?? undefined]} />
+                                <span className="truncate text-lg font-extrabold uppercase tracking-wide text-white">{grossName(erster.anzeige, erster.gepflegt)}</span>
+                              </span>
+                              <span className="schrift-anzeige mt-1 block text-4xl font-extrabold tabular-nums leading-none text-sky-400">{wertVon(erster)}</span>
+                            </span>
+                          </span>
+                        </button>
                       )}
-                      {/*
-                        * Und das Plus: dieselbe Liste in voller Laenge, wie
-                        * auf der Cup-Seite und in den Regionen. Fuenf
-                        * Plaetze sind ein Blick, fuenfzig sind die Antwort.
-                        */}
-                      <button type="button"
-                        onClick={() => {
-                          setVolleListe({
-                            titel: l.titel, zusatz: saisonTitel,
-                            zeilen: l.plaetze,
-                            feld: l.feld as keyof Spieler,
-                            nachkomma: l.nachkomma ?? 0,
-                            einheit: l.einheit ?? '',
-                          });
-                          setListenTiefe(50);
-                        }}
-                        title={t('Alle anzeigen')}
-                        className={`${l.mindestMatches ? '' : 'ml-auto '}rounded border
-                                    border-zinc-700 px-1.5 text-[11px] leading-4
-                                    text-slate-400 transition hover:border-sky-500
-                                    hover:text-sky-400`}>
-                        +
-                      </button>
-                    </p>
-                    <div className="divide-y divide-zinc-900">
-                      {/* Fuenf je Karte wie im Vorbild - die lange Fassung
-                          steht in der Leiste. */}
-                      {l.plaetze.slice(0, 5).map((s, i) => (
-                        <Platz key={s.epicId} nr={i + 1} s={s}
-                          wert={zahl(Number((s as unknown as Record<string, number>)[l.feld]),
-                            l.nachkomma, sprache) + (l.einheit ?? '')}
-                          aufKlick={() => oeffne(s)} />
-                      ))}
+                      <div className="px-1 pb-2 pt-1">
+                        {rest.map((sp, i) => (
+                          <Platz key={sp.epicId} nr={i + 2} s={sp} wert={wertVon(sp)} aufKlick={() => oeffne(sp)} />
+                        ))}
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
 
               {/* ------------------------------------- Solo Clutch Points */}
@@ -4456,11 +4625,17 @@ export default function StatistikSeite() {
           {/* ------------------------------------------------ Das Jahr */}
           {bereich === 'jahr' && (
             <div>
+              <div className="mb-5">
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-sky-500"><T>Jahresbilanz</T></p>
+                <h2 className="schrift-anzeige mt-1 text-3xl font-extrabold tracking-tight text-slate-100 sm:text-4xl">
+                  {jahrWahl === 'alle' ? t('Alle Zeit') : jahrWahl}
+                </h2>
+              </div>
               <div className="mb-4 flex flex-wrap items-center gap-3">
                 <div className="flex items-center gap-1">
                   {[['alle', t('Alle Zeit')], ['2026', '2026'], ['2025', '2025'], ['2024', '2024'], ['2023', '2023'], ['2022', '2022'], ['2021', '2021'], ['2020', '2020'], ['2019', '2019']].map(([w, titel]) => (
                     <button key={w} onClick={() => setJahrWahl(w)}
-                      className={`rounded-md border px-3 py-1.5 text-sm font-semibold transition ${
+                      className={`rounded-full border px-4 py-1.5 text-sm font-bold transition ${
                         jahrWahl === w
                           ? 'border-sky-500 bg-sky-500/10 text-sky-400'
                           : 'border-zinc-800 text-slate-400 hover:border-zinc-600'}`}>
@@ -4477,7 +4652,7 @@ export default function StatistikSeite() {
                 <div className="ml-auto flex flex-wrap gap-1">
                   {['', ...nachRegionReihe(jahr?.regionen ?? [])].map((r) => (
                     <button key={r || 'alle'} onClick={() => setJahrRegion(r)}
-                      className={`rounded-md border px-2.5 py-1 text-xs font-semibold transition ${
+                      className={`rounded-full border px-3.5 py-1 text-xs font-bold transition ${
                         jahrRegion === r
                           ? (r ? regionFarbe(r).marke : 'border-sky-500 bg-sky-500/10 text-sky-400')
                           : `hover:brightness-125 ${r ? regionFarbe(r).ruhig : 'border-zinc-800 text-slate-400'}`}`}>
@@ -4492,14 +4667,14 @@ export default function StatistikSeite() {
               {jahrWahl !== 'alle' && (jahr?.saisonenDesJahres?.length ?? 0) > 1 && (
                 <div className="mb-3 flex flex-wrap gap-1">
                   <button onClick={() => setJahrSaison('')}
-                    className={`rounded-md border px-2.5 py-1 text-xs font-semibold transition ${
+                    className={`rounded-full border px-3.5 py-1 text-xs font-bold transition ${
                       !jahrSaison ? 'border-sky-500 bg-sky-500/10 text-sky-400'
                         : 'border-zinc-800 text-slate-400 hover:border-zinc-600'}`}>
                     {jahrWahl === 'alle' ? t('Alle Saisons') : t('Ganzes Jahr')}
                   </button>
                   {[...(jahr?.saisonenDesJahres ?? [])].reverse().map((x) => (
                     <button key={x.kennung} onClick={() => setJahrSaison(x.kennung)}
-                      className={`rounded-md border px-2.5 py-1 text-xs font-semibold transition ${
+                      className={`rounded-full border px-3.5 py-1 text-xs font-bold transition ${
                         jahrSaison === x.kennung ? 'border-sky-500 bg-sky-500/10 text-sky-400'
                           : 'border-zinc-800 text-slate-400 hover:border-zinc-600'}`}>
                       {x.name}
@@ -4546,8 +4721,7 @@ export default function StatistikSeite() {
                   {jahr.listen.filter((l) => l.plaetze.length).map((l) => (
                     <section key={l.feld}>
                       <div className="mb-3 flex items-center gap-2">
-                        <p className="text-[10px] font-semibold uppercase tracking-[0.18em]
-                                      text-slate-500">
+                        <p className="text-sm font-bold uppercase tracking-[0.14em] text-slate-300">
                           <T>{l.titel}</T>{' '}
                           {jahrSaison
                             ? (jahr?.saisonenDesJahres?.find((x) => x.kennung === jahrSaison)?.name ?? jahrSaison)
@@ -4595,9 +4769,9 @@ export default function StatistikSeite() {
                         {l.plaetze.slice(0, 6).map((sp, i) => (
                           <button key={sp.epicId}
                             onClick={() => oeffne(sp, l.feld === 'verdienst' ? 'verdienst' : 'uebersicht')}
-                            className="group relative aspect-[3/4] overflow-hidden rounded-xl
-                                       border border-zinc-800 bg-zinc-900 text-left
-                                       transition hover:border-sky-500">
+                            className="foto-dunkel group relative aspect-[3/4] overflow-hidden rounded-2xl
+                                 border border-zinc-800 bg-zinc-900 text-left shadow-[0_8px_24px_rgba(15,23,42,.14)]
+                                 transition duration-300 hover:-translate-y-1 hover:border-sky-500">
                             {sp.bild ? (
                               /* eslint-disable-next-line @next/next/no-img-element */
                               <img src={sp.bild} alt="" loading="lazy"
@@ -4991,39 +5165,46 @@ export default function StatistikSeite() {
           {/* --------------------------------------------------- Spieler */}
           {bereich === 'spieler' && (
             <>
-              <div className="mb-3 flex flex-wrap items-center gap-2">
+              <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.2em] text-sky-500"><T>Archiv</T></p>
+                  <h2 className="schrift-anzeige mt-1 text-3xl font-extrabold tracking-tight text-slate-100 sm:text-4xl"><T>Alle Spieler</T></h2>
+                </div>
+                <p className="text-sm text-slate-500">{zahl(gesamt, 0, sprache)} <T>Spieler</T></p>
+              </div>
+              <div className="mb-6 flex flex-wrap items-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-900 p-2 shadow-sm">
                 <button onClick={() => setRegion('')}
-                  className={`rounded-lg border px-3 py-1.5 text-xs transition ${!region
-                    ? 'border-sky-500 bg-sky-500/10 text-sky-400'
-                    : 'border-zinc-800 text-slate-400 hover:border-zinc-700'}`}>
+                  className={`rounded-full px-4 py-1.5 text-xs font-bold transition ${!region
+                    ? 'bg-sky-500 text-white shadow-sm'
+                    : 'text-slate-400 hover:bg-zinc-800 hover:text-slate-100'}`}>
                   <T>Alle</T>
                 </button>
                 {regionen.map((r) => (
                   <button key={r} onClick={() => setRegion(r)}
-                    className={`rounded-lg border px-3 py-1.5 text-xs transition ${
+                    className={`rounded-full border px-3.5 py-1.5 text-xs font-bold transition ${
                       region === r ? regionFarbe(r).marke
                         : `${regionFarbe(r).ruhig} hover:brightness-125`}`}>
                     {r}
                   </button>
                 ))}
                 <select value={sort} onChange={(e) => setSort(e.target.value)}
-                  className="rounded-lg border border-zinc-800 bg-zinc-900/80 px-3 py-1.5
+                  className="rounded-full border border-zinc-700 bg-zinc-950 px-4 py-1.5
                              text-xs text-slate-200 outline-none focus:border-sky-500">
                   {SORTIERUNG.map(([w, bez]) =>
                     <option key={w} value={w}>{t(bez)}</option>)}
                 </select>
                 <input value={suche} onChange={(e) => setSuche(e.target.value)}
                   placeholder={t('Spieler suchen …')}
-                  className="ml-auto w-52 rounded-lg border border-zinc-800 bg-zinc-900/80
-                             px-3 py-1.5 text-xs text-slate-100 outline-none
-                             placeholder:text-slate-600 focus:border-sky-500" />
-                <div className="flex gap-1 rounded-lg border border-zinc-800 p-1">
+                  className="ml-auto w-52 rounded-full border border-zinc-700 bg-zinc-950
+                             px-4 py-1.5 text-xs text-slate-100 outline-none
+                             placeholder:text-slate-500 focus:border-sky-500" />
+                <div className="flex gap-1 rounded-full bg-zinc-950 p-1">
                   <button onClick={() => setTafel(true)}
-                    className={`rounded px-2.5 py-1 text-xs transition ${tafel
-                      ? 'bg-sky-500/15 text-sky-400' : 'text-slate-500'}`}><T>Kacheln</T></button>
+                    className={`rounded-full px-3.5 py-1 text-xs font-bold transition ${tafel
+                      ? 'bg-sky-500 text-white' : 'text-slate-500'}`}><T>Kacheln</T></button>
                   <button onClick={() => setTafel(false)}
-                    className={`rounded px-2.5 py-1 text-xs transition ${!tafel
-                      ? 'bg-sky-500/15 text-sky-400' : 'text-slate-500'}`}><T>Liste</T></button>
+                    className={`rounded-full px-3.5 py-1 text-xs font-bold transition ${!tafel
+                      ? 'bg-sky-500 text-white' : 'text-slate-500'}`}><T>Liste</T></button>
                 </div>
               </div>
 
@@ -5064,9 +5245,9 @@ export default function StatistikSeite() {
                 <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
                   {gezeigteSpieler.map((sp) => (
                     <button key={sp.epicId} onClick={() => oeffne(sp)}
-                      className="group relative aspect-[3/4] overflow-hidden rounded-xl
-                                 border border-zinc-800 bg-zinc-900 text-left
-                                 transition hover:border-sky-500">
+                      className="foto-dunkel group relative aspect-[3/4] overflow-hidden rounded-2xl
+                                 border border-zinc-800 bg-zinc-900 text-left shadow-[0_8px_24px_rgba(15,23,42,.14)]
+                                 transition duration-300 hover:-translate-y-1 hover:border-sky-500">
                       {sp.bild ? (
                         /* eslint-disable-next-line @next/next/no-img-element */
                         <img src={sp.bild} alt="" loading="lazy"
@@ -5323,6 +5504,9 @@ export default function StatistikSeite() {
             <section className="relative isolate overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 shadow-sm">
               {offen.bild && (
                 <>
+                  {/* Dasselbe Foto verwischt und gross als Grund: so traegt die Flaeche links die Farben des Bildes statt eines grauen Kastens. */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={offen.bild} alt="" aria-hidden className="absolute inset-0 -z-10 h-full w-full scale-150 object-cover opacity-45 blur-3xl" />
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={offen.bild} alt="" className="foto-maske-rechts absolute inset-y-0 right-0 -z-10 h-full w-full object-cover md:w-[46%] xl:w-[40%]"
                     style={{ objectPosition: 'center top' }} />
@@ -5549,7 +5733,7 @@ export default function StatistikSeite() {
                  ['turniere', 'Ergebnisse'],
                  ['fncs', 'FNCS'],
                  ['erfolge', 'Meilensteine'],
-                 ['verdienst', 'Preisgeld'],
+                 ['verdienst', 'Verdienst'],
                  ...(teamVerlauf.length ? [['teams', 'Teamverlauf']] : []),
                  /*
                   * Das Archiv nur, wenn es etwas gibt. Der Betreiber: "wenn

@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import VipInfo from '@/app/components/VipInfo';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import T from '@/app/components/T';
@@ -10,7 +11,6 @@ import { useT } from '@/app/components/SprachProvider';
 import { useZugang } from '@/app/lib/zugang';
 import { BEREICHE as VERWALTUNGSBEREICHE, type Bereich as BereichRecht } from '@/lib/rechte';
 import { liesChatHud, setzeChatHud, CHAT_HUD_EREIGNIS } from '@/app/lib/chatHud';
-import ChatFenster from '@/app/components/ChatFenster';
 import Fusszeile from '@/app/components/Fusszeile';
 
 // Das eigene Konto.
@@ -65,7 +65,6 @@ const BEREICHE: Array<{ wert: Bereich; titel: string }> = [
    * Account, Privacy steht" - und das ist richtig so: ein Gespraech ist
    * ein eigener Ort, kein Anhaengsel der Kontodaten.
    */
-  { wert: 'chat', titel: 'Chat' },
   { wert: 'konto', titel: 'Account' },
   { wert: 'privat', titel: 'Privacy' },
 ];
@@ -827,6 +826,8 @@ export default function KontoSeite() {
               * Nur, wenn es einen Einladungslink gibt - ein leerer Kasten
               * waere ein Versprechen ohne Tuer.
               */}
+            {/* Wer noch kein VIP ist, findet hier, wie man es wird (stand bis 14.10.2026 auf der Startseite). */}
+            {konto && !zugang.vip && <VipInfo />}
             {discordLink && (
               <section className={kasten}>
                 <div className="flex flex-wrap items-center justify-between gap-3">
@@ -877,54 +878,6 @@ export default function KontoSeite() {
         )}
 
         {/* ------------------------------------------------------- Chat */}
-        {bereich === 'chat' && (
-          <div className="space-y-6">
-            {/*
-              * Das Chatsymbol am Rand an- und abschalten.
-              *
-              * Der Betreiber wollte es abstellen koennen: wer eine Karte baut
-              * oder einen Stream nebenher hat, will nichts Schwebendes im
-              * Bild. Das Gespraech bleibt davon unberuehrt - nur der Knopf
-              * verschwindet, und hier kommt er zurueck.
-              */}
-            <section className={kasten}>
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="min-w-0">
-                  <h2 className={`${ueberschrift} mb-1`}><T>Nachrichten</T></h2>
-                  <p className="text-xs leading-relaxed text-slate-500">
-                    <T>Das Chatsymbol am linken Bildschirmrand. Ausgeblendet
-                    bleiben deine Nachrichten erhalten — du siehst nur den Knopf
-                    nicht mehr.</T>
-                  </p>
-                </div>
-                <div className="flex shrink-0 flex-wrap items-center gap-2">
-                <Link href="/messages"
-                  className="rounded-lg bg-sky-500 px-4 py-2 text-sm font-medium
-                             text-white transition hover:bg-sky-400">
-                  <T>Nachrichten öffnen</T>
-                </Link>
-                <button
-                  type="button"
-                  disabled={chatAmRand === null}
-                  onClick={() => setzeChatHud(!chatAmRand)}
-                  className={`shrink-0 rounded-lg border px-4 py-2 text-sm
-                              transition disabled:opacity-40 ${chatAmRand
-                    ? 'border-sky-500 bg-sky-500/10 text-sky-300 hover:bg-sky-500/20'
-                    : 'border-zinc-700 text-slate-300 hover:border-sky-500'}`}>
-                  {chatAmRand === false
-                    ? <T>Symbol einblenden</T>
-                    : <T>Symbol ausblenden</T>}
-                </button>
-                </div>
-              </div>
-            </section>
-
-            {/* Und die Gespraeche gleich hier, statt hinter einem weiteren
-                Klick: der Reiter heisst Chat, also gehoert der Chat hinein. */}
-            <ChatFenster alsSeite />
-          </div>
-        )}
-
         {/* ---------------------------------------------------- Socials */}
         {bereich === 'socials' && (
           <section className={kasten}>

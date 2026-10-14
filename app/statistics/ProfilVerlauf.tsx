@@ -26,11 +26,13 @@ export default function ProfilVerlauf({ zeilen }: { zeilen: VerlaufPunkt[] }) {
   const ort = ortVon(sprache);
   const [zeitraum, setZeitraum] = useState<'letzte' | 'alle'>('letzte');
   const [gross, setGross] = useState(false);
+  /** Der Punkt unter der Maus - zeigt sofort Event, Tag und Werte (frueher nur der traege Browser-Hinweis am Punkt). */
+  const [aktiv, setAktiv] = useState<number | null>(null);
 
   const punkte = useMemo(() => {
     const alle = zeilen
       .filter((z) => (z.werte.damageTakenFromPlayers ?? 0) > 0)
-      .map((z) => ({ event: z.event, datum: z.datum ?? 0, wert: (z.werte.damageDealt ?? 0) / (z.werte.damageTakenFromPlayers ?? 1) }))
+      .map((z) => ({ event: z.event, datum: z.datum ?? 0, wert: (z.werte.damageDealt ?? 0) / (z.werte.damageTakenFromPlayers ?? 1), dealt: z.werte.damageDealt ?? 0, taken: z.werte.damageTakenFromPlayers ?? 0 }))
       .sort((a, b) => a.datum - b.datum);
     const auswahl = gross ? alle.filter((p) => GROSS.test(p.event)) : alle;
     return zeitraum === 'letzte' ? auswahl.slice(-12) : auswahl;
@@ -59,9 +61,12 @@ export default function ProfilVerlauf({ zeilen }: { zeilen: VerlaufPunkt[] }) {
   const zahl = (v: number) => v.toLocaleString(ort, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   // Neu zeichnen, wenn sich die Auswahl aendert.
   const schluessel = `${zeitraum}-${gross}-${punkte.length}`;
+  const ganz = (v: number) => v.toLocaleString(ort, { maximumFractionDigits: 0 });
+  const tag = (ms: number) => (ms ? new Date(ms).toLocaleDateString(ort, { day: 'numeric', month: 'short', year: 'numeric' }) : '');
+  const a = aktiv !== null ? punkte[aktiv] : null;
 
   return (
-    <section className="rounded-xl border border-zinc-800 bg-zinc-950/60">
+    <section className="rounded-3xl border border-zinc-800 bg-zinc-900 shadow-[0_10px_30px_rgba(15,23,42,.10)]">
       <div className="flex flex-wrap items-center gap-3 border-b border-zinc-800 px-4 py-3">
         <h3 className="text-[11px] font-bold uppercase tracking-[0.16em] text-slate-300"><T>Verlauf der Damage Ratio</T></h3>
         {werte.length > 0 && (
@@ -88,7 +93,18 @@ export default function ProfilVerlauf({ zeilen }: { zeilen: VerlaufPunkt[] }) {
         <p className="px-4 py-8 text-center text-xs text-slate-600"><T>Zu wenige Turniere mit Werten für einen Verlauf.</T></p>
       ) : (
         <div className="overflow-x-auto p-3">
-          <svg key={schluessel} viewBox={`0 0 ${B} ${H}`} className="h-auto w-full min-w-[560px]" role="img"
+          <div className="relative min-w-[560px]" onMouseLeave={() => setAktiv(null)}>
+          {/* Das Fenster zum Punkt: Event, Datum, Ratio und die beiden Schadenszahlen, ueber dem Punkt. */}
+          {a && aktiv !== null && (
+            <div className="pointer-events-none absolute z-10 w-56 -translate-x-1/2 rounded-2xl border border-zinc-700 bg-zinc-900 px-3.5 py-2.5 shadow-xl"
+              style={{ left: `${Math.min(88, Math.max(12, (x(aktiv) / B) * 100))}%`, top: `${(y(a.wert) / H) * 100}%`, transform: 'translate(-50%, calc(-100% - 14px))' }}>
+              <p className="truncate text-xs font-bold text-slate-100">{a.event}</p>
+              {a.datum > 0 && <p className="mt-0.5 text-[10px] text-slate-500">{tag(a.datum)}</p>}
+              <p className="mt-1.5 flex items-baseline gap-2"><span className="text-lg font-extrabold tabular-nums text-sky-500">{zahl(a.wert)}</span><span className="text-[10px] font-semibold uppercase tracking-wider text-slate-500"><T>Damage Ratio</T></span></p>
+              <p className="mt-0.5 text-[10px] tabular-nums text-slate-400">{ganz(a.dealt)} <T>ausgeteilt</T> · {ganz(a.taken)} <T>erlitten</T></p>
+            </div>
+          )}
+          <svg key={schluessel} viewBox={`0 0 ${B} ${H}`} className="h-auto w-full" role="img"
             aria-label="Damage Ratio">
             <defs>
               <linearGradient id="verlauf-flaeche" x1="0" x2="0" y1="0" y2="1">
@@ -98,20 +114,24 @@ export default function ProfilVerlauf({ zeilen }: { zeilen: VerlaufPunkt[] }) {
             </defs>
             {stufen.map((v) => (
               <g key={v}>
-                <line x1={RAND.l} x2={B - RAND.r} y1={y(v)} y2={y(v)} stroke="#27272a" strokeWidth={1} />
-                <text x={RAND.l - 6} y={y(v)} textAnchor="end" dominantBaseline="middle" fontSize={11} fill="#64748b">{zahl(v)}</text>
+                <line x1={RAND.l} x2={B - RAND.r} y1={y(v)} y2={y(v)} stroke="var(--color-zinc-800)" strokeWidth={1} />
+                <text x={RAND.l - 6} y={y(v)} textAnchor="end" dominantBaseline="middle" fontSize={11} fill="var(--color-slate-500)">{zahl(v)}</text>
               </g>
             ))}
             <line x1={RAND.l} x2={B - RAND.r} y1={y(schnitt)} y2={y(schnitt)} stroke="#64748b" strokeDasharray="5 5" strokeWidth={1} />
             <path d={flaeche} fill="url(#verlauf-flaeche)" className="verlauf-einblenden" />
             <path d={pfad} fill="none" stroke="#38bdf8" strokeWidth={2.5} pathLength={1} className="verlauf-zeichnen" />
+            {aktiv !== null && <line x1={x(aktiv)} x2={x(aktiv)} y1={RAND.o} y2={H - RAND.u} stroke="#38bdf8" strokeOpacity={0.35} strokeWidth={1} strokeDasharray="3 4" />}
             {punkte.map((p, i) => (
-              <circle key={i} cx={x(i)} cy={y(p.wert)} r={5} fill={p.wert >= schnitt ? '#22c55e' : '#64748b'}
-                stroke="#09090b" strokeWidth={2} className="verlauf-einblenden">
-                <title>{`${p.event} · ${zahl(p.wert)}`}</title>
-              </circle>
+              <g key={i} onMouseEnter={() => setAktiv(i)} onFocus={() => setAktiv(i)} onBlur={() => setAktiv(null)} tabIndex={0} aria-label={`${p.event}: ${zahl(p.wert)}`} className="outline-none">
+                {/* Die unsichtbare, groessere Flaeche: der Punkt ist klein, die Maus muss ihn nicht genau treffen. */}
+                <circle cx={x(i)} cy={y(p.wert)} r={16} fill="transparent" />
+                <circle cx={x(i)} cy={y(p.wert)} r={aktiv === i ? 8 : 5} fill={p.wert >= schnitt ? '#22c55e' : '#64748b'}
+                  stroke="var(--color-zinc-950)" strokeWidth={2} className="verlauf-einblenden transition-all duration-150" />
+              </g>
             ))}
           </svg>
+          </div>
         </div>
       )}
     </section>

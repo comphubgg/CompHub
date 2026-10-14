@@ -91,7 +91,7 @@ function Karte({ e, nr, aktuell, i }: { e: FncsEreignis; nr: number; aktuell: bo
   const stil = { animation: `fncs-rein .5s ${Math.min(i, 12) * 45}ms cubic-bezier(.2,.8,.2,1) both` };
   return (
     <Rahmen link={link} klasse={klasse} stil={stil}>
-      <div className="relative aspect-video overflow-hidden bg-gradient-to-br from-sky-950 via-zinc-900 to-zinc-950">
+      <div className="foto-dunkel relative aspect-video overflow-hidden bg-gradient-to-br from-sky-950 via-zinc-900 to-zinc-950">
         {e.bild && (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={encodeURI(e.bild)} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-105" />

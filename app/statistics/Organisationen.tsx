@@ -111,6 +111,37 @@ function Logo({ org, groesse, runder = false }: { org: OrgAnzeige; groesse: numb
   );
 }
 
+/*
+ * Der Grund hinter dem Kopf der Org-Liste (Betreiber, 14.10.2026: "bei Orgs kannst du so einen Hintergrund machen wie bei der Homepage, einfach mit
+ * verschiedenen Org-Logos"): zwei Reihen Logos laufen langsam gegeneinander, ein Schleier haelt die Mitte fuer die Schrift ruhig.
+ */
+function LogoLauf({ orgs }: { orgs: OrgAnzeige[] }) {
+  const logos = orgs.map((o) => o.logo).filter((l): l is string => !!l);
+  if (logos.length < 3) return null;
+  const reihe = (liste: string[], dauer: number, rueck: boolean) => {
+    const voll = liste.length >= 8 ? liste : [...liste, ...liste, ...liste];
+    return (
+      <div className={`hero-reihe ${rueck ? 'rueck' : ''}`} style={{ ['--dauer' as string]: `${dauer}s` }}>
+        {[...voll, ...voll].map((l, i) => (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img key={i} src={l} alt="" draggable={false} className="h-20 w-20 shrink-0 rounded-2xl bg-white/90 object-contain p-2.5 shadow-md" />
+        ))}
+      </div>
+    );
+  };
+  const haelfte = Math.ceil(logos.length / 2);
+  return (
+    <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 overflow-hidden">
+      <div className="absolute left-1/2 top-1/2 flex w-[170%] -translate-x-1/2 -translate-y-1/2 -rotate-[4deg] flex-col gap-4 opacity-[.55]">
+        {reihe(logos.slice(0, haelfte), 90, false)}
+        {reihe(logos.slice(haelfte).length ? logos.slice(haelfte) : logos, 110, true)}
+        {reihe([...logos].reverse(), 100, false)}
+      </div>
+      <div className="hero-schleier absolute inset-0" />
+    </div>
+  );
+}
+
 /** Das Logo, gross und verwischt, als Grund hinter einer Karte. */
 function Schein({ logo, staerke = 'opacity-[0.16]' }: { logo: string | null; staerke?: string }) {
   if (!logo) return null;
@@ -241,7 +272,7 @@ export default function Organisationen({ aufSpieler }: {
         </button>
 
         {/* ------------------------------------------------- Der Kopf */}
-        <section className="relative overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950">
+        <section className="foto-dunkel relative overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950 shadow-[0_14px_36px_rgba(2,6,23,.28)]">
           {/* Das Banner der Org hinter dem Logo; ohne Banner das verwischte Logo. */}
           {org.banner ? (
             // eslint-disable-next-line @next/next/no-img-element
@@ -302,7 +333,7 @@ export default function Organisationen({ aufSpieler }: {
               <div className="flex flex-wrap gap-2">
                 {([['alle', 'Alle'], ...gruppen] as Array<[Rolle | 'alle', string]>).map(([w, titel]) => (
                   <button key={w} type="button" onClick={() => setKaderFilter(w)}
-                    className={`rounded-lg border px-4 py-1.5 text-sm font-semibold transition ${kaderFilter === w
+                    className={`rounded-full border px-5 py-1.5 text-sm font-bold transition ${kaderFilter === w
                       ? 'border-sky-500 bg-sky-500/10 text-sky-400'
                       : 'border-zinc-800 text-slate-400 hover:border-zinc-600 hover:text-slate-200'}`}>
                     <T>{titel}</T>
@@ -318,7 +349,7 @@ export default function Organisationen({ aufSpieler }: {
                 const klickbar = !!s.epicId;
                 const karte = (
                   <>
-                    <div className="relative aspect-[4/5] overflow-hidden bg-gradient-to-b from-zinc-800 to-zinc-950">
+                    <div className="foto-dunkel relative aspect-[4/5] overflow-hidden bg-gradient-to-b from-zinc-800 to-zinc-950">
                       <SpielerFoto bild={s.bild} name={s.name} />
                       <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-zinc-950 via-zinc-950/85 to-transparent px-4 pb-3 pt-12">
                         <div className="flex items-center gap-2">
@@ -358,12 +389,12 @@ export default function Organisationen({ aufSpieler }: {
                     )}
                   </>
                 );
-                const stil = 'group overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/60 text-left transition';
+                const stil = 'group overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 text-left shadow-[0_8px_24px_rgba(15,23,42,.10)] transition duration-300';
                 return klickbar ? (
                   <div key={`${s.epicId}-${i}`} role="button" tabIndex={0} onClick={() => aufSpieler(s.epicId!, s.name)}
                     onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); aufSpieler(s.epicId!, s.name); } }}
                     title={t('Profil öffnen')}
-                    className={`${stil} cursor-pointer hover:-translate-y-0.5 hover:border-sky-500/70 focus-visible:border-sky-500 focus-visible:outline-none`}>
+                    className={`${stil} cursor-pointer hover:-translate-y-1 hover:border-sky-500/70 focus-visible:border-sky-500 focus-visible:outline-none`}>
                     {karte}
                   </div>
                 ) : (
@@ -452,10 +483,12 @@ export default function Organisationen({ aufSpieler }: {
 
   return (
     <div className="space-y-6">
-      <header className="flex flex-wrap items-end justify-between gap-4">
+      <header className="relative isolate overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 px-6 py-8 shadow-[0_10px_30px_rgba(15,23,42,.10)]">
+        <LogoLauf orgs={daten.orgs} />
+        <div className="relative flex flex-wrap items-end justify-between gap-4">
         <div>
-          <div className="text-xs font-bold uppercase tracking-[0.2em] text-sky-400">Esports · {jahrText}</div>
-          <h2 className="mt-1 text-3xl font-black tracking-tight text-slate-50"><T>Organisationen</T></h2>
+          <div className="text-xs font-bold uppercase tracking-[0.2em] text-sky-500">Esports · {jahrText}</div>
+          <h2 className="schrift-anzeige mt-1 text-3xl font-extrabold tracking-tight text-slate-100 sm:text-4xl"><T>Organisationen</T></h2>
           <p className="mt-1 text-sm text-slate-400">
             {daten.jahr === 'alle'
               ? <T>Preisgeld für die Organisation über alle Jahre: heutige Spieler ab Beitritt, ehemalige für ihre Zeit bei der Organisation</T>
@@ -464,7 +497,7 @@ export default function Organisationen({ aufSpieler }: {
           <div className="mt-3 flex gap-1.5">
             {([['alle', t('Alle Jahre')], ['jahr', '2026']] as Array<['alle' | 'jahr', string]>).map(([w, titel]) => (
               <button key={w} type="button" onClick={() => setZeitraum(w)}
-                className={`rounded-lg border px-3 py-1.5 text-sm font-semibold transition ${zeitraum === w
+                className={`rounded-full border px-4 py-1.5 text-sm font-bold transition ${zeitraum === w
                   ? 'border-sky-500 bg-sky-500/10 text-sky-400'
                   : 'border-zinc-800 text-slate-400 hover:border-zinc-600 hover:text-slate-200'}`}>
                 {titel}
@@ -473,15 +506,16 @@ export default function Organisationen({ aufSpieler }: {
           </div>
         </div>
         <input value={suche} onChange={(e) => setSuche(e.target.value)} placeholder={t('Organisation suchen …')}
-          className="w-full max-w-xs rounded-xl border border-zinc-800 bg-zinc-950 px-4 py-2.5 text-sm text-slate-100
+          className="w-full max-w-xs rounded-full border border-zinc-700 bg-zinc-900 px-5 py-2.5 text-sm text-slate-100
                      outline-none placeholder:text-slate-600 focus:border-sky-500" />
+        </div>
       </header>
 
       {regionen.length > 1 && (
         <div className="flex flex-wrap gap-1.5">
           {['alle', ...regionen].map((r) => (
             <button key={r} type="button" onClick={() => setRegion(r)}
-              className={`rounded-lg border px-3 py-1.5 text-sm font-semibold transition ${r === 'alle'
+              className={`rounded-full border px-4 py-1.5 text-sm font-bold transition ${r === 'alle'
                 ? (region === r ? 'border-sky-500 bg-sky-500/10 text-sky-400'
                   : 'border-zinc-800 text-slate-400 hover:border-zinc-600 hover:text-slate-200')
                 : (region === r ? regionFarbe(r).marke : `${regionFarbe(r).ruhig} hover:brightness-125`)}`}>
@@ -496,8 +530,8 @@ export default function Organisationen({ aufSpieler }: {
         <div className="grid gap-4 md:grid-cols-3">
           {podest.map((o, i) => (
             <button key={o.id} type="button" onClick={() => oeffne(o.id)}
-              className="group relative overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950 p-6 text-left transition
-                         hover:-translate-y-0.5 hover:border-sky-500/70">
+              className="foto-dunkel group relative overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-950 p-6 text-left shadow-[0_14px_36px_rgba(2,6,23,.28)] transition duration-300
+                         hover:-translate-y-1 hover:border-sky-500/70">
               <Schein logo={o.logo} staerke="opacity-[0.22]" />
               <div className="pointer-events-none absolute inset-0 bg-gradient-to-t from-zinc-950 via-zinc-950/60 to-transparent" />
               <div className="relative flex items-start justify-between">
@@ -529,8 +563,8 @@ export default function Organisationen({ aufSpieler }: {
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {rest.map((o) => (
             <button key={o.id} type="button" onClick={() => oeffne(o.id)}
-              className="group relative flex items-center gap-4 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/50 p-4
-                         text-left transition hover:-translate-y-0.5 hover:border-sky-500/60">
+              className="group relative flex items-center gap-4 overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 p-4
+                         text-left shadow-[0_6px_18px_rgba(15,23,42,.08)] transition duration-300 hover:-translate-y-1 hover:border-sky-500/60">
               <Logo org={o} groesse={64} />
               <div className="min-w-0 flex-1">
                 <div className="truncate text-base font-bold text-slate-100">{o.name}</div>

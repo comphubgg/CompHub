@@ -5,7 +5,7 @@ import { useSprache } from '@/app/components/SprachProvider';
 import { ortVon } from '@/app/lib/ort';
 import Link from 'next/link';
 import T from '@/app/components/T';
-import VipSlider from '@/app/components/VipSlider';
+import HeroHintergrund from '@/app/components/HeroHintergrund';
 import Fusszeile from '@/app/components/Fusszeile';
 import TeamFlagge from '@/components/TeamFlagge';
 import DiscordKnopf from '@/app/components/DiscordKnopf';
@@ -240,47 +240,40 @@ export default function Startseite() {
 
   return (
     <main className="min-h-screen bg-zinc-950 text-slate-100">
-      {/* ------------------------------------------------------- Der Kopf */}
-      <section className="relative overflow-hidden px-4 pb-20 pt-24 sm:pt-32">
-        {/* Ein ruhiger Schein hinter dem Logo statt einer Grafik: er traegt
-            die Farbe der Seite, ohne von der Schrift abzulenken. */}
-        <div aria-hidden
-          className="pointer-events-none absolute left-1/2 top-0 h-[560px] w-[900px]
-                     -translate-x-1/2 rounded-full bg-sky-500/[0.07] blur-[120px]" />
+      {/*
+        * Der Kopf (Betreiber, 14.10.2026: "die Homepage ist mir zu simpel"): eine laufende Vorschau der Seite im Hintergrund - Cup-Banner, Karten und
+        * Spielerfotos -, davor Logo, Name und die Wege hinein. Die Abschnitte "Woher die Zahlen", "Mit Konto mehr", die Partnerleiste und "Wie man VIP
+        * wird" sind von hier weg: die VIP-Auskunft steht im Konto (VipInfo), die Quellen in der Fusszeile.
+        */}
+      <section className="relative isolate overflow-hidden px-4 pb-16 pt-28 sm:pt-36">
+        <HeroHintergrund />
 
         <div className="relative mx-auto max-w-4xl text-center">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src="/logos/CompHub-Logo-frei.png" alt=""
-            className="mx-auto mb-8 h-20 w-auto opacity-90 sm:h-24" />
+            className="mx-auto mb-6 h-20 w-auto drop-shadow-xl sm:h-24" />
 
-          <h1 className="text-5xl font-black leading-[0.95] tracking-tight
-                         sm:text-7xl">
+          <h1 className="schrift-anzeige text-6xl font-extrabold leading-[0.95] tracking-tight sm:text-8xl">
             <span className="text-sky-500">COMP</span><span>HUB</span>
           </h1>
 
-          {/* Hier stand "Jedes Turnier. Jeder Spieltag. Jeder Spieler." -
-              das stimmt nicht. Das Archiv beginnt in Chapter 5, und zu
-              einzelnen Cups hat die Quelle nie etwas veroeffentlicht. Eine
-              Startseite, deren erster Satz uebertreibt, macht jede Zahl
-              darunter angreifbar. */}
-          <p className="mx-auto mt-7 max-w-2xl text-base text-slate-300 sm:text-lg">
+          {/* Hier stand "Jedes Turnier. Jeder Spieltag. Jeder Spieler." - das stimmt nicht. Das Archiv beginnt in Chapter 5, und zu einzelnen
+              Cups hat die Quelle nie etwas veroeffentlicht. Eine Startseite, deren erster Satz uebertreibt, macht jede Zahl darunter angreifbar. */}
+          <p className="mx-auto mt-7 max-w-2xl text-lg font-semibold text-slate-200 sm:text-xl">
             <T>Statistiken, Turniere und Streams an einem Ort.</T>
           </p>
-          <p className="mx-auto mt-2 max-w-2xl text-sm text-slate-500">
+          <p className="mx-auto mt-2 max-w-2xl text-sm text-slate-400 sm:text-base">
             <T>Zehn Saisons, sieben Regionen — vom Chapter-5-Archiv bis zum
             Spieltag von gestern.</T>
           </p>
 
           <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
             <Link href="/statistics"
-              className="rounded-xl bg-sky-500 px-6 py-3 text-sm font-semibold
-                         text-white transition hover:bg-sky-400">
+              className="rounded-full bg-sky-500 px-7 py-3 text-sm font-bold text-white shadow-lg shadow-sky-500/20 transition hover:-translate-y-0.5 hover:bg-sky-400">
               <T>Statistiken ansehen</T>
             </Link>
             <Link href="/streams"
-              className="rounded-xl border border-zinc-800 px-6 py-3 text-sm
-                         font-semibold text-slate-300 transition
-                         hover:border-sky-500/60 hover:text-sky-400">
+              className="rounded-full border border-zinc-700 bg-zinc-900/80 px-7 py-3 text-sm font-bold text-slate-200 backdrop-blur transition hover:-translate-y-0.5 hover:border-sky-500/70 hover:text-sky-500">
               <T>Streams öffnen</T>
             </Link>
             {/* Der Weg auf den Server - Updates, Support, Zugang per Knopf. */}
@@ -289,188 +282,38 @@ export default function Startseite() {
         </div>
 
         {/* --------------------------------------------------- Die Zahlen */}
-        <div className="relative mx-auto mt-20 max-w-4xl">
-          {/*
-            * Waehrend geholt wird, liegt ein Schleier darueber - so wie beim
-            * Seitenwechsel auch. Der Betreiber wollte es genau so: "sone Art
-            * Loading Screen, und Hintergrund so transparent."
-            */}
+        <div className="relative mx-auto mt-16 max-w-4xl">
+          {/* Waehrend geholt wird, liegt ein Schleier darueber - wie beim Seitenwechsel auch. */}
           {laedt && (
-            <div className="absolute inset-0 z-10 grid place-items-center
-                            rounded-2xl bg-zinc-950/60 backdrop-blur-[2px]">
-              <span className="h-7 w-7 animate-spin rounded-full border-2
-                               border-zinc-700 border-t-sky-500" />
+            <div className="absolute inset-0 z-10 grid place-items-center rounded-2xl bg-zinc-950/60 backdrop-blur-[2px]">
+              <span className="h-7 w-7 animate-spin rounded-full border-2 border-zinc-700 border-t-sky-500" />
             </div>
           )}
-          <div className={`grid grid-cols-2 divide-zinc-800 rounded-2xl border
-                          border-zinc-800 bg-zinc-900/30 sm:grid-cols-4
-                          sm:divide-x ${laedt ? 'opacity-40' : ''}`}>
+          <div className={`grid grid-cols-2 gap-3 sm:grid-cols-4 ${laedt ? 'opacity-40' : ''}`}>
             {([
               [stand?.spieltage ?? null, 'Spieltage im Archiv'],
               [stand?.saisons ?? null, 'Saisons erfasst'],
               [stand?.regionen ?? null, 'Regionen'],
               [stand?.replays ?? null, 'Matches ausgewertet'],
             ] as Array<[number | null, string]>).map(([wert, titel]) => (
-              <div key={titel} className="px-6 py-8 text-center">
-                <p className="text-3xl font-black tabular-nums text-sky-500
-                              sm:text-4xl"><Rollzahl wert={wert} los={!laedt} ort={ort} /></p>
-                <p className="mt-2 text-[10px] font-semibold uppercase
-                              tracking-[0.16em] text-slate-500">
-                  <T>{titel}</T>
-                </p>
+              <div key={titel} className="rounded-2xl border border-zinc-800 bg-zinc-900/85 px-4 py-6 text-center shadow-[0_10px_30px_rgba(15,23,42,.12)] backdrop-blur">
+                <p className="schrift-anzeige text-3xl font-extrabold tabular-nums text-sky-500 sm:text-4xl"><Rollzahl wert={wert} los={!laedt} ort={ort} /></p>
+                <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500"><T>{titel}</T></p>
               </div>
             ))}
           </div>
-          <p className="mt-3 text-center text-[11px] text-slate-700">
+          <p className="mt-3 text-center text-[11px] text-slate-500">
             <T>Live aus dem eigenen Archiv — keine geschätzten Zahlen.</T>
           </p>
         </div>
       </section>
 
-      {/* ------------------------------------------- Statistics, Maps, More */}
+      {/* ------------------------------------------- Maps, Spieler, Statistik, Mehr */}
       <StartVitrine />
 
       <MeistesPreisgeld ort={ort} />
 
-      {/* ------------------------------------------------- Woher die Daten */}
-      <section className="border-y border-zinc-900 bg-zinc-900/20 px-4 py-20">
-        <div className="mx-auto max-w-4xl">
-          <Abschnitt>
-            <h2 className="mb-8 text-center text-3xl font-black tracking-tight
-                           sm:text-4xl">
-              <T>Woher die Zahlen kommen</T>
-            </h2>
-            {/* Genannt wird nur, was ohne Absprache genannt werden kann:
-                Epics eigene Schnittstellen. Eine zweite Quelle stand hier
-                zwischenzeitlich mit Namen - die ist wieder heraus, solange
-                mit ihr nichts vereinbart ist. Was sie beitraegt, steht
-                weiterhin da, nur ohne sie zu benennen. */}
-            <div className="grid gap-4 sm:grid-cols-2">
-              {([
-                ['Epic Games', 'Turnierkalender, Bestenlisten, Platzierungen und '
-                  + 'Mitspieler — direkt aus der offiziellen Schnittstelle.'],
-                ['Turnier-Replays', 'Eliminierungen, Knocks und Waffe je Match — '
-                  + 'selbst ausgewertet, aus Epics eigenen Server-Replays.'],
-              ] as Array<[string, string]>).map(([titel, text]) => (
-                <div key={titel}
-                  className="rounded-2xl border border-zinc-800 bg-zinc-950/60 p-6">
-                  <h3 className="text-sm font-bold text-sky-400"><T>{titel}</T></h3>
-                  <p className="mt-2 text-xs leading-relaxed text-slate-500">
-                    <T>{text}</T>
-                  </p>
-                </div>
-              ))}
-            </div>
-            <p className="mt-6 text-center text-xs text-slate-600">
-              <T>Fehlt eine Zahl bei der Quelle, bleibt sie hier leer — statt
-              geschätzt zu werden.</T>
-            </p>
-          </Abschnitt>
-        </div>
-      </section>
-
-      {/* ----------------------------------------------------- Anmeldung */}
-      <section className="px-4 py-24">
-        <Abschnitt className="mx-auto max-w-3xl text-center">
-          <h2 className="text-3xl font-black tracking-tight sm:text-4xl">
-            <T>Mit Konto mehr</T>
-          </h2>
-          <p className="mx-auto mt-4 max-w-xl text-sm leading-relaxed text-slate-400">
-            <T>Ohne Anmeldung ist alles zu sehen. Angemeldet bleiben deine
-            Streamwände, Ordner und Tierlists erhalten — auf jedem Gerät.</T>
-          </p>
-          {/* Beide Knoepfe fuehren zur Anmeldeseite - "Loslegen" fuehrte
-              vorher auf die Streamwand, was ohne Konto nichts brachte, und
-              der Twitch-Knopf direkt zu Twitch, wo mangels Zugangsdaten nur
-              "invalid client" stand. */}
-          <div className="mt-8 flex flex-wrap items-center justify-center gap-3">
-            <Link href="/sign-in"
-              className="rounded-xl bg-sky-500 px-6 py-3 text-sm font-semibold
-                         text-white transition hover:bg-sky-400">
-              <T>Konto anlegen</T>
-            </Link>
-            <Link href="/sign-in"
-              className="rounded-xl border border-zinc-800 px-6 py-3 text-sm
-                         font-semibold text-slate-300 transition
-                         hover:border-sky-500/60 hover:text-sky-400">
-              <T>Anmelden</T>
-            </Link>
-          </div>
-        </Abschnitt>
-      </section>
-
-      {/*
-        * Die Partnerleiste - wer das Werkzeug benutzt.
-        *
-        * Sie steht vor dem Abschnitt darueber, wie man VIP wird: erst
-        * sieht man, wer schon dabei ist, dann liest man, wie man dazu
-        * kommt. Ist niemand ausgewaehlt, zeichnet sie sich selbst nicht.
-        */}
-      <VipSlider />
-
-      {/* ----------------------------------------------------------- VIP */}
-      {/* Die Sprungmarke, auf die der Knopf in der Partnerleiste zielt. */}
-      <section id="vip-zugang"
-        className="scroll-mt-20 border-t border-zinc-900 px-4 py-16">
-        <div className="mx-auto max-w-3xl">
-          <p className="text-xs font-semibold uppercase tracking-[0.2em]
-                        text-sky-400"><T>VIP-Zugang</T></p>
-          <h2 className="mt-3 text-2xl font-bold text-slate-100">
-            <T>Wie man VIP wird</T>
-          </h2>
-          <p className="mt-3 text-sm leading-relaxed text-slate-500">
-            <T>Der VIP-Zugang schaltet die Overlays frei, eigene Ordner auf der
-            Streamseite, die Filter im Turnierkalender und den Vergleich in den
-            Statistiken. Er wird vergeben, nicht gekauft.</T>
-          </p>
-
-          <div className="mt-8 grid gap-4 sm:grid-cols-3">
-            {([
-              ['Reichweite',
-               'Du solltest auf Twitch, X oder YouTube ein Publikum haben — '
-               + 'wie groß, entscheide ich im Einzelfall.'],
-              ['Sichtbarkeit',
-               'Zeig CompHub bei deinen Zuschauern. Ein Overlay im Stream oder '
-               + 'ein Beitrag reicht schon.'],
-              ['Anfrage',
-               'Drück im Discord unter Get Access auf den Knopf und füll das kurze '
-               + 'Formular aus, oder schreib mir auf X. Ich antworte selbst, '
-               + 'angenommen oder abgelehnt, immer mit Grund.'],
-            ] as Array<[string, string]>).map(([titel, text], i) => (
-              <div key={titel}
-                className="rounded-2xl border border-zinc-800 bg-zinc-950/60 p-5">
-                <p className="text-[11px] font-bold tabular-nums text-sky-400">
-                  {i + 1}
-                </p>
-                <h3 className="mt-2 text-sm font-bold text-slate-100">
-                  <T>{titel}</T>
-                </h3>
-                <p className="mt-2 text-xs leading-relaxed text-slate-500">
-                  <T>{text}</T>
-                </p>
-              </div>
-            ))}
-          </div>
-
-          <div className="mt-8 flex flex-wrap items-center gap-3">
-          <DiscordKnopf art="rund" text="Zugang im Discord anfragen" />
-          <a href="https://x.com/CompHub_gg" target="_blank" rel="noreferrer"
-            className="inline-flex items-center gap-2 rounded-full
-                       bg-sky-500 px-5 py-2.5 text-sm font-semibold text-white
-                       transition hover:bg-sky-400">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"
-              aria-hidden>
-              <path d="M18.9 2H22l-7 8 8.2 12H16l-5-7.3L5.3 22H2l7.5-8.6L1.7 2h7.2
-                       l4.5 6.6L18.9 2z" />
-            </svg>
-            <T>Zugang anfragen</T>
-          </a>
-          </div>
-        </div>
-      </section>
-
-      {/* Dieselbe Fusszeile steht unter dem Dashboard - siehe
-          app/components/Fusszeile.tsx. */}
+      {/* Dieselbe Fusszeile steht unter dem Dashboard - siehe app/components/Fusszeile.tsx. */}
       <Fusszeile />
     </main>
   );

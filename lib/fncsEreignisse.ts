@@ -118,7 +118,27 @@ async function ausGlobals(): Promise<FncsSpitze[]> {
   return j.teams.map((t) => ({ rang: t.rang, punkte: t.punkte, siege: t.siege, elims: t.elims, spiele: t.spiele, spieler: t.spieler.map((s) => ({ name: rein(s.anzeige), land: s.land })) }));
 }
 
+/*
+ * Steht statt eines Namens nur eine Konto-Id da (Epic gibt zu alten, geloeschten oder versteckten Konten keinen Namen heraus - so beim FNCS Global
+ * Championship 2024: "2B220D899DE1..." statt der Spieler; Betreiber, 14.10.2026), gelten fuer diese Plaetze die Namen der Eckdaten, wo es sie gibt.
+ * Punkte und Platz bleiben die der Bestenliste. Ohne Eckdaten bleibt es, wie es ist.
+ */
+const NUR_ID = /^[0-9a-f]{8,32}$/i;
 async function spitzeFuer(k: Kandidat, fakt: FncsFakt | undefined, archiv: Map<string, ArchivEintrag>): Promise<{ teams: number | null; spitze: FncsSpitze[] }> {
+  const r = await spitzeFuerRoh(k, fakt, archiv);
+  if (!fakt || !r.spitze.some((t) => t.spieler.some((p) => NUR_ID.test(p.name.trim())))) return r;
+  const land = await landVonName();
+  return {
+    ...r,
+    spitze: r.spitze.map((t) => {
+      if (!t.spieler.some((p) => NUR_ID.test(p.name.trim()))) return t;
+      const f = fakt.top.find((x) => x.rang === t.rang);
+      return f ? { ...t, spieler: f.spieler.map((n) => ({ name: n, land: land(n) })) } : t;
+    }),
+  };
+}
+
+async function spitzeFuerRoh(k: Kandidat, fakt: FncsFakt | undefined, archiv: Map<string, ArchivEintrag>): Promise<{ teams: number | null; spitze: FncsSpitze[] }> {
   const [kontext, landName] = await Promise.all([spielerKontext(), landVonName()]);
   // Das Land: erst das Profil, dann die Spielerliste der Szene-Quelle, dann der Name (LAN-Konten wie "[FNCS24] EXD Peterbot" kennt nur der Name).
   const spieler = (ps: Array<{ id: string; name?: string; displayName?: string }>) => ps.map((p) => {

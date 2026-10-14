@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import T from '@/app/components/T';
 import VIPLoginForm from '../login/VIPLoginForm';
+import HeroHintergrund from '@/app/components/HeroHintergrund';
 import { useT } from '@/app/components/SprachProvider';
 
 // Registrieren und Anmelden.
@@ -192,26 +193,48 @@ export default function Anmelden({ start = 'anmelden' }: {
     } finally { setLaeuft(false); }
   }
 
-  const feld = 'w-full rounded-lg border border-zinc-800 bg-zinc-950 px-4 py-2.5 '
-    + 'text-sm text-slate-100 outline-none placeholder:text-slate-600 '
-    + 'focus:border-sky-500';
+  const feld = 'w-full rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-3 '
+    + 'text-sm text-slate-100 outline-none placeholder:text-slate-500 '
+    + 'transition focus:border-sky-500 focus:ring-2 focus:ring-sky-500/20';
 
   return (
-    <main className="flex min-h-screen items-center justify-center bg-zinc-950 px-4 py-16">
-      <div className="w-full max-w-md">
+    <main className="relative isolate flex min-h-screen items-center justify-center overflow-hidden bg-zinc-950 px-4 py-16">
+      {/* Dieselbe laufende Vorschau wie auf der Startseite: Cup-Banner, Karten und Spielerfotos hinter dem Formular. */}
+      <HeroHintergrund />
+      <div className="relative grid w-full max-w-5xl items-center gap-12 lg:grid-cols-[1fr_28rem]">
+        <div className="hidden lg:block">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logos/CompHub-Logo-frei.png" alt="" className="mb-6 h-16 w-auto drop-shadow-xl" />
+          <h1 className="schrift-anzeige text-5xl font-extrabold leading-[1.02] tracking-tight text-slate-100">
+            <T>Komm rein.</T>
+          </h1>
+          <p className="mt-4 max-w-md text-lg text-slate-300"><T>Dein Konto für den Fortnite-Wettkampf: Statistiken, Turniere und Streams an einem Ort.</T></p>
+          <ul className="mt-8 space-y-3 text-sm text-slate-300">
+            {['Deine Streamwände, Ordner und Tierlists bleiben erhalten — auf jedem Gerät.', 'Updates, Support und Zugang direkt im Discord.', 'Kostenlos — ohne Konto bleibt alles zu sehen.'].map((z) => (
+              <li key={z} className="flex items-start gap-3">
+                <span aria-hidden className="mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-full bg-sky-500 text-[11px] font-black text-white">✓</span>
+                <span><T>{z}</T></span>
+              </li>
+            ))}
+          </ul>
+        </div>
+      <div className="w-full rounded-3xl border border-zinc-800 bg-zinc-900/90 p-7 shadow-[0_24px_60px_rgba(15,23,42,.28)] backdrop-blur-xl sm:p-8">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/logos/CompHub-Logo-frei.png" alt=""
-          className="mx-auto mb-6 h-12 w-auto opacity-80" />
+          className="mx-auto mb-6 h-12 w-auto opacity-90 lg:hidden" />
+        <h2 className="schrift-anzeige mb-5 hidden text-2xl font-extrabold tracking-tight text-slate-100 lg:block">
+          {reiter === 'registrieren' ? <T>Konto anlegen</T> : reiter === 'vip' ? <T>VIP-Zugang</T> : <T>Anmelden</T>}
+        </h2>
 
         {/* ----------------------------------------------------- Reiter */}
-        <div className="mb-6 flex rounded-xl border border-zinc-800 p-1">
+        <div className="mb-6 flex rounded-full bg-zinc-950 p-1">
           {([['anmelden', 'Anmelden'], ['registrieren', 'Registrieren'],
              ['vip', 'VIP']] as
             Array<['anmelden' | 'registrieren' | 'vip', string]>).map(([w, titel]) => (
             <button key={w} onClick={() => { setReiter(w); setFehler(''); }}
-              className={`flex-1 rounded-lg py-2 text-sm font-semibold transition
+              className={`flex-1 rounded-full py-2 text-sm font-bold transition
                           ${reiter === w
-                ? 'bg-sky-500 text-white' : 'text-slate-400 hover:text-slate-200'}`}>
+                ? 'bg-sky-500 text-white shadow-sm' : 'text-slate-400 hover:text-slate-200'}`}>
               <T>{titel}</T>
             </button>
           ))}
@@ -314,8 +337,8 @@ export default function Anmelden({ start = 'anmelden' }: {
           )}
 
           <button type="submit" disabled={laeuft}
-            className="w-full rounded-lg bg-sky-500 py-2.5 text-sm font-semibold
-                       text-white transition hover:bg-sky-400
+            className="w-full rounded-full bg-sky-500 py-3 text-sm font-bold
+                       text-white shadow-lg shadow-sky-500/20 transition hover:-translate-y-0.5 hover:bg-sky-400
                        disabled:cursor-not-allowed disabled:opacity-40">
             {laeuft ? <T>einen Moment …</T>
               : reiter === 'registrieren' ? <T>Konto anlegen</T> : <T>Anmelden</T>}
@@ -371,9 +394,9 @@ export default function Anmelden({ start = 'anmelden' }: {
             }
             return (
               <a key={a.schluessel} href={a.pfad} title={titel}
-                className="flex h-16 w-16 items-center justify-center rounded-xl
-                           border border-zinc-800 bg-zinc-900/40 transition
-                           hover:border-sky-500 hover:bg-zinc-900">
+                className="flex h-16 w-16 items-center justify-center rounded-2xl
+                           border border-zinc-700 bg-zinc-950 transition
+                           hover:-translate-y-0.5 hover:border-sky-500">
                 <img src={a.logo} alt={a.titel} className="h-7 w-7 object-contain" />
               </a>
             );
@@ -391,6 +414,7 @@ export default function Anmelden({ start = 'anmelden' }: {
             ← <T>zur Startseite</T>
           </Link>
         </p>
+      </div>
       </div>
     </main>
   );

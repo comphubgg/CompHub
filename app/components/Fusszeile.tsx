@@ -151,6 +151,13 @@ export default function Fusszeile() {
           Inhabern.</T>
         </p>
       </div>
+      {/* Woher die Zahlen kommen (stand bis 14.10.2026 als eigener Abschnitt auf der Startseite). Genannt wird nur, was ohne Absprache genannt
+          werden kann: Epics eigene Schnittstellen und die selbst ausgewerteten Turnier-Replays. */}
+      <div className="mx-auto mt-4 max-w-5xl text-center text-[11px] leading-relaxed text-slate-600 sm:text-left">
+        <p>
+          <T>Die Zahlen: Turnierkalender, Bestenlisten, Platzierungen und Mitspieler aus Epics offizieller Schnittstelle; Eliminierungen, Knocks und Waffe je Match selbst ausgewertet aus Epics Server-Replays. Fehlt eine Zahl bei der Quelle, bleibt sie leer — statt geschätzt zu werden.</T>
+        </p>
+      </div>
     </footer>
   );
 }
