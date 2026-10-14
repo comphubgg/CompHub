@@ -32,7 +32,7 @@ interface Eintrag {
   damage: number; damageTaken: number; headshots: number; matsGefarmt: number; strecke: number;
   punktePlatz?: number; punkteElims?: number; matches: Match[];
 }
-interface Replay { kills: number | null; knocks: number | null; tode: number | null; spiele: number | null; damage?: number; damageTaken?: number; hits?: number; headshots?: number; sturmSek?: number }
+interface Replay { kills: number | null; knocks: number | null; tode: number | null; spiele: number | null; damage?: number; damageTaken?: number; hits?: number; headshots?: number; sturmSek?: number; wiederbelebt?: number; rebootet?: number }
 interface Mitglied { id: string; name: string; land: string | null; ich: boolean; szene: Record<string, number> | null; replay: Replay | null }
 interface Antwort {
   ok: boolean; error?: string; id: string; name: string; dabei: boolean;
@@ -51,7 +51,7 @@ function dauer(s: number): string {
 const km = (cm: number) => `${(cm / 100000).toFixed(1)}km`;
 
 type Wert = number | null;
-interface Ctx { e: Eintrag | null; solo: boolean }
+interface Ctx { e: Eintrag | null; solo: boolean; mitglieder: Mitglied[]; echtSolo: boolean }
 interface Zeile {
   titel: string;
   wert: (m: Mitglied, c: Ctx) => Wert;
@@ -70,6 +70,20 @@ const kills = (m: Mitglied, c: Ctx): Wert => sz(m, 'eliminations') ?? (m.replay?
 const dmg = (m: Mitglied, c: Ctx): Wert => sz(m, 'damageDealt') ?? (m.replay?.damage ?? null) ?? (c.solo ? pos(c.e?.damage) : null);
 const dmgT = (m: Mitglied, c: Ctx): Wert => sz(m, 'damageTakenFromPlayers') ?? (m.replay?.damageTaken ?? null) ?? (c.solo ? pos(c.e?.damageTaken) : null);
 const treffer = (m: Mitglied): Wert => sz(m, 'hitsToPlayers') ?? (m.replay?.hits ?? null);
+/*
+ * Wiederbelebungen (14.10.2026): "Got Revived" zaehlt, wie oft der Spieler vom Boden wieder aufstand, "Got Rebooted", wie oft er nach dem Tod zurueckkam -
+ * beides aus dem Kill-Feed der Replays (Ursache 50). Die Szene-Quelle fuehrt nur die Summe (rebootsAndRevives); die Replay-Zaehlung liegt an vier
+ * Finals bei 99 von 100 Spielern genau darauf. "Players Revived" und "Players Rebooted" sind die Zahlen des Mitspielers - nur im Duo eindeutig
+ * (ab drei Spielern sagt das Replay nicht, wer geholfen hat). In einem Solo-Cup gibt es keinen Mitspieler: alles null.
+ */
+const wiederbelebt = (m: Mitglied): Wert => m.replay?.wiederbelebt ?? null;
+const reboots = (m: Mitglied): Wert => m.replay?.rebootet ?? null;
+const vomMitspieler = (m: Mitglied, c: Ctx, wert: (x: Mitglied) => Wert): Wert => {
+  if (c.echtSolo) return 0;
+  if (c.mitglieder.length !== 2) return null;
+  const anderer = c.mitglieder.find((x) => x.id !== m.id);
+  return anderer ? wert(anderer) : null;
+};
 const kopf = (m: Mitglied, c: Ctx): Wert => sz(m, 'headshots') ?? (m.replay?.headshots ?? null) ?? (c.solo ? pos(c.e?.headshots) : null);
 
 const ZEILEN: Zeile[] = [
@@ -98,10 +112,10 @@ const ZEILEN: Zeile[] = [
   { titel: 'Shots', wert: (m) => sz(m, 'shots'), zeige: num },
   { titel: 'Overall Accuracy', wert: (m) => { const s = sz(m, 'shots'); const h = sz(m, 'hitsToPlayers'); return s && h !== null ? (h / s) * 100 : null; }, zeige: pct },
   { titel: 'Weakpoint Accuracy', wert: (m, c) => { const h = treffer(m); const k = kopf(m, c); return h && k !== null ? (k / h) * 100 : null; }, zeige: pct },
-  { titel: 'Players Revived', wert: () => null, zeige: num },
-  { titel: 'Got Revived', wert: () => null, zeige: num },
-  { titel: 'Players Rebooted', wert: () => null, zeige: num },
-  { titel: 'Got Rebooted', wert: () => null, zeige: num },
+  { titel: 'Players Revived', wert: (m, c) => vomMitspieler(m, c, wiederbelebt), zeige: num },
+  { titel: 'Got Revived', wert: (m, c) => (c.echtSolo ? 0 : wiederbelebt(m)), zeige: num },
+  { titel: 'Players Rebooted', wert: (m, c) => vomMitspieler(m, c, reboots), zeige: num },
+  { titel: 'Got Rebooted', wert: (m, c) => (c.echtSolo ? 0 : reboots(m)), zeige: num },
   { titel: 'Wood Farmed', wert: (m, c) => sz(m, 'woodFarmed') ?? (c.solo ? pos(c.e?.matches.reduce((a, x) => a + (x.holzGefarmt ?? 0), 0)) : null), zeige: num, je: (m) => m.holzGefarmt },
   { titel: 'Stone Farmed', wert: (m, c) => sz(m, 'stoneFarmed') ?? (c.solo ? pos(c.e?.matches.reduce((a, x) => a + (x.steinGefarmt ?? 0), 0)) : null), zeige: num, je: (m) => m.steinGefarmt },
   { titel: 'Metal Farmed', wert: (m, c) => sz(m, 'metalFarmed') ?? (c.solo ? pos(c.e?.matches.reduce((a, x) => a + (x.metallGefarmt ?? 0), 0)) : null), zeige: num, je: (m) => m.metallGefarmt },
@@ -248,7 +262,7 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo }: { 
   const nr = useMemo(() => spiele.map((_m, i) => i + 1), [spiele]);
   const mitglieder = daten?.mitglieder ?? [];
   const team = !solo && mitglieder.length > 1;
-  const ctx: Ctx = { e, solo: !team };
+  const ctx: Ctx = { e, solo: !team, mitglieder, echtSolo: solo };
   const verifizieren = `/api/auth/epic/authorize?zurueck=${encodeURIComponent(rueckPfad)}`;
   const trennen = async () => {
     setTrennFehler('');

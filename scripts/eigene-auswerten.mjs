@@ -29,8 +29,8 @@ const WERKZEUG = process.env.REPLAYVOLL_DLL || path.join(process.cwd(), 'tools',
 const DOTNET = process.env.DOTNET_BIN || 'dotnet';
 const FRIST_MS = 31 * 864e5;
 const EVENTS = 'https://events-public-service-live.ol.epicgames.com';
-/** Fassung der Zaehlweise: ein Ergebnis mit niedrigerer Fassung wird neu gerechnet (2: Tode = Spiele ohne Sieg, wie Epic sie fuer K/D zaehlt; 3: dazu die Zeit im Sturm). */
-const VERSION = 3;
+/** Fassung der Zaehlweise: ein Ergebnis mit niedrigerer Fassung wird neu gerechnet (2: Tode = Spiele ohne Sieg, wie Epic sie fuer K/D zaehlt; 3: dazu die Zeit im Sturm; 4: dazu Wiederbelebungen und Reboots). */
+const VERSION = 4;
 
 const arg = process.argv.slice(2);
 const zahl = (name, standard) => { const i = arg.indexOf(name); const v = i >= 0 ? Number(arg[i + 1]) : NaN; return Number.isFinite(v) && v > 0 ? v : standard; };
@@ -163,7 +163,7 @@ function zaehle(m, team, summen) {
   for (const konto of team) {
     const p = (m.spieler ?? []).find((x) => !x.bot && norm(x.epic) === konto);
     if (!p) continue;
-    const s = summen[konto] ??= { name: p.name, spiele: 0, kills: 0, knocks: 0, tode: 0, dmg: 0, dmgAlle: 0, erlitten: 0, treffer: 0, krit: 0, schild: 0, sturm: 0 };
+    const s = summen[konto] ??= { name: p.name, spiele: 0, kills: 0, knocks: 0, tode: 0, dmg: 0, dmgAlle: 0, erlitten: 0, treffer: 0, krit: 0, schild: 0, sturm: 0, wiederbelebt: 0, rebootet: 0 };
     s.spiele += 1;
     s.kills += p.kills ?? 0;
     s.knocks += feed.filter((f) => f.art === 'unten' && f.taeter === p.id).length;
@@ -176,7 +176,11 @@ function zaehle(m, team, summen) {
       s.treffer += d.treffer ?? 0; s.krit += d.krit ?? 0; s.schild += d.schild ?? 0;
     }
     // Zeit im Sturm in Sekunden (Leser, Feld zusatz; gegen die Szene-Werte eines Finals geprueft).
-    s.sturm += (m.zusatz ?? []).find((x) => x.id === p.id)?.sturmSek ?? 0;
+    const zu = (m.zusatz ?? []).find((x) => x.id === p.id);
+    s.sturm += zu?.sturmSek ?? 0;
+    // Wie oft er vom Boden wiederbelebt (gegen "rebootsAndRevives" der Szene-Quelle an drei Finals geprueft) und per Reboot zurueckgeholt wurde (Kill-Feed).
+    s.wiederbelebt += zu?.wiederbelebt ?? 0;
+    s.rebootet += zu?.rebootet ?? 0;
   }
 }
 

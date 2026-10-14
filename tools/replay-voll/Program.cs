@@ -117,8 +117,22 @@ foreach (var g in replay.KillFeed.Where(k => k.PlayerId is not null).GroupBy(k =
   reader.AmBoden[g.Key] = liste;
 }
 reader.Zaehle(busAb);
-var zusatz = reader.Zusatz(busAb, R(replay.GameData?.MatchEndTime), replay.PlayerData.Where(p => p.Id is not null && p.DeathTimeDouble is not null).ToDictionary(p => p.Id.Value, p => p.DeathTimeDouble.Value))
-  .Select(kv => new { id = kv.Key, sturmSek = Math.Round(kv.Value.SturmSek, 1) }).ToList();
+// Ursache 50 im Kill-Feed heisst "zurueck im Spiel". Wiederbelebt: der Spieler lag davor am Boden (letzter Eintrag "umgehauen"); rebootet: er war davor
+// tot (Reboot am Van, "aufgestanden"; in Modi mit Wiederkehr wie Reload der Neustart nach dem Tod).
+var wiederbelebt = new Dictionary<int, int>(); var rebootet = new Dictionary<int, int>();
+foreach (var g in replay.KillFeed.Where(k => k.PlayerId is not null).GroupBy(k => k.PlayerId.Value)) {
+  var vorher = "";
+  foreach (var k in g.OrderBy(k => k.ReplicatedWorldTimeSecondsDouble ?? 0)) {
+    var art = k.IsRevived ? "auf" : k.IsDowned ? "unten" : "tot";
+    if (art == "auf" || (art == "tot" && k.DeathCause == 50)) {
+      if (art == "tot" && vorher == "unten") wiederbelebt[g.Key] = wiederbelebt.GetValueOrDefault(g.Key) + 1;
+      else rebootet[g.Key] = rebootet.GetValueOrDefault(g.Key) + 1;
+    }
+    vorher = art;
+  }
+}
+var zusatz = reader.Zusatz(busAb, R(replay.GameData?.MatchEndTime), replay.PlayerData.Where(p => p.Id is not null && p.DeathTimeDouble is not null).ToDictionary(p => p.Id.Value, p => p.DeathTimeDouble.Value), wiederbelebt, rebootet)
+  .Select(kv => new { id = kv.Key, sturmSek = Math.Round(kv.Value.SturmSek, 1), wiederbelebt = kv.Value.Wiederbelebt, rebootet = kv.Value.Rebootet }).ToList();
 var schaden = reader.Je.Select(kv => new {
   id = kv.Key, gemacht = Math.Round(kv.Value.Gemacht), gemachtOhneBoden = Math.Round(reader.OhneBodenGemacht(kv.Key)), gemachtOhneFatal = Math.Round(reader.OhneFatalGemacht(kv.Key)), genommen = Math.Round(kv.Value.Genommen),
   treffer = kv.Value.Treffer, krit = kv.Value.Krit, schild = Math.Round(kv.Value.AufSchild),
@@ -202,9 +216,17 @@ class SchadenLeser : ReplayReader {
    * Figur oder zum Ende. An den sechs Spielen eines Finals (Division 1 Week 4) gegen die Werte der Szene-Quelle geprueft: 100 von 100 Spielern
    * innerhalb von 2 % oder 3 Sekunden, mittlere Abweichung 0,9 s.
    *
-   * Nicht uebernommen, weil die Gegenprobe es nicht traegt: Heilung und Sturmschaden aus HealthSet (zu hoch, Heilen und Schaden greifen sekundlich
-   * ineinander), Schild (im Strom null), Assists und Wiederbelebungen (andere Zaehlweise), Weg (zu wenige Ortsangaben). Aufbau und Materialwerte
-   * (Bauteile, Edits, Farmen) stehen in diesen Replays gar nicht im Strom.
+   * Wiederbelebt und Rebootet (14.10.2026): der Kill-Feed fuehrt beides mit der Ursache 50 - ein Spieler, der vom Boden wieder aufsteht (Eintrag "tot"
+   * mit Ursache 50, kein Tod), und einer, der nach seinem Tod per Reboot zurueckkommt (Eintrag "auf"). Gegen "rebootsAndRevives" der Szene-Quelle
+   * (die Summe aus beidem, gezaehlt beim Zurueckgeholten) an drei Finals geprueft: Duo EU 47 gegen 46, 99 von 100 Spielern genau gleich; Duo NAC
+   * 61 gegen 62, 99 von 100; Trio-Event NAC 91 gegen 92, 98 von 99; Solo 0 gegen 0.
+   *
+   * Nicht uebernommen, weil die Gegenprobe es nicht traegt: Heilung (nur bei Duo-Finals passend, Solo 16 %, Trio 9 % daneben), Sturmschaden aus
+   * Sturmzeit mal Rate (4,6 % mittlere Abweichung, die Raten je Phase lassen sich nicht sauber festlegen), Schaden erlitten aus HealthSet, Schild
+   * (im Strom null), Assists (je nach Zeitfenster 40 bis 68 von 100 Spielern genau, keine eindeutige Zaehlweise), Weg (zu wenige Ortsangaben:
+   * die Positionen der Figuren sind in EncryptedPawnReplayData verschluesselt). Aufbau, Edits, Material und Schuesse stehen in diesen Replays nicht
+   * im lesbaren Strom (ein 3,5 MB grosser Ereignisblock "sessionG0" je Match ist nicht lesbar und unbekannten Inhalts - ihn zu entschluesseln ist nicht
+   * Sache dieses Werkzeugs).
    */
   public readonly List<(int id, double t, bool an)> SturmListe = new();
   readonly Dictionary<uint, int> figurSpieler = new();
@@ -294,11 +316,14 @@ class SchadenLeser : ReplayReader {
   }
   public int VorDemBus;
 
-  public sealed class Zus { public double SturmSek; }
-  /// Die Zeit im Sturm je Spieler - nach dem Start des Busses, bis zum Tod (tod) oder zum Ende des Matches.
-  public Dictionary<int, Zus> Zusatz(double? busAb, double? ende, Dictionary<int, double> tod) {
+  public sealed class Zus { public double SturmSek; public int Wiederbelebt, Rebootet; }
+  /// Die Zeit im Sturm je Spieler - nach dem Start des Busses, bis zum Tod (tod) oder zum Ende des Matches; dazu wie oft er vom Boden wiederbelebt
+  /// (wiederbelebt) und nach dem Tod per Reboot zurueckgeholt (rebootet) wurde - aus dem Kill-Feed, Ursache 50.
+  public Dictionary<int, Zus> Zusatz(double? busAb, double? ende, Dictionary<int, double> tod, Dictionary<int, int> wiederbelebt, Dictionary<int, int> rebootet) {
     var raus = new Dictionary<int, Zus>();
     Zus Z(int id) { if (!raus.TryGetValue(id, out var z)) raus[id] = z = new Zus(); return z; }
+    foreach (var kv in wiederbelebt) Z(kv.Key).Wiederbelebt = kv.Value;
+    foreach (var kv in rebootet) Z(kv.Key).Rebootet = kv.Value;
     double Schluss(int id) => tod.TryGetValue(id, out var t) ? t : (ende ?? double.MaxValue);
     foreach (var g in SturmListe.GroupBy(x => x.id)) {
       double? seit = null;

@@ -39,6 +39,8 @@ export interface SpielerErgebnis {
   dmg: number; dmgAlle: number; erlitten: number; treffer: number; krit: number; schild: number;
   /** Sekunden im Sturm (ab Version 3). */
   sturm?: number;
+  /** Wie oft er vom Boden wiederbelebt wurde, und wie oft per Reboot zurueckgeholt (ab Version 4). */
+  wiederbelebt?: number; rebootet?: number;
 }
 
 export interface Ergebnis {

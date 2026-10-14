@@ -96,7 +96,14 @@ function schadenAus(roh) {
     for (const s of roh.schaden ?? []) {
       const k = epicVon.get(s.id);
       if (!k) continue;
-      raus[k] = { dmg: s.gemachtOhneBoden ?? s.gemacht, dmgAlle: s.gemacht, erlitten: s.genommen, treffer: s.treffer, krit: s.krit };
+      raus[k] = { dmg: s.gemachtOhneBoden ?? s.gemacht, dmgAlle: s.gemacht, erlitten: s.genommen, treffer: s.treffer, krit: s.krit, sturm: 0, wiederbelebt: 0, rebootet: 0 };
+    }
+    // Zeit im Sturm, Wiederbelebungen und Reboots (Leser, Feld zusatz; gegen die Szene-Werte an vier Finals geprueft). Nur, wo der Leser sie fuehrt.
+    for (const z of roh.zusatz ?? []) {
+      const k = epicVon.get(z.id);
+      if (!k) continue;
+      const d = raus[k] ??= { dmg: 0, dmgAlle: 0, erlitten: 0, treffer: 0, krit: 0, sturm: 0, wiederbelebt: 0, rebootet: 0 };
+      d.sturm += z.sturmSek ?? 0; d.wiederbelebt += z.wiederbelebt ?? 0; d.rebootet += z.rebootet ?? 0;
     }
     return raus;
   } catch (e) { console.log(`    Schaden: ${String(e.message).slice(0, 120)}`); return null; }
@@ -140,7 +147,7 @@ async function tag(eventId, windowId, idsVorab = null) {
       for (const [k, v] of soloMatch) solo[k] = (solo[k] ?? 0) + Math.round(v);
       const sch = schadenAus(voll);
       for (const [k, v] of Object.entries(sch ?? {})) {
-        const d = schaden[k] ?? { dmg: 0, dmgAlle: 0, erlitten: 0, treffer: 0, krit: 0 };
+        const d = schaden[k] ?? { dmg: 0, dmgAlle: 0, erlitten: 0, treffer: 0, krit: 0, sturm: 0, wiederbelebt: 0, rebootet: 0 };
         for (const f of Object.keys(d)) d[f] += v[f] ?? 0;
         schaden[k] = d;
       }
@@ -164,7 +171,7 @@ async function tag(eventId, windowId, idsVorab = null) {
     fs.writeFileSync(path.join(rohOrdner, `${windowId}.json`), JSON.stringify({ eventId, windowId, regeln, matches: rohMatches }));
   }
   fs.writeFileSync(path.join(ZIEL, `${windowId}.json`), JSON.stringify({
-    version: 2, eventId, windowId, gerechnet: new Date().toISOString(), regeln, matches, summe, spiele,
+    version: 3, eventId, windowId, gerechnet: new Date().toISOString(), regeln, matches, summe, spiele,
     ...(Object.keys(solo).length ? { solo } : {}),
     ...(Object.keys(schaden).length ? { schaden } : {}),
   }, null, 1));
@@ -213,9 +220,9 @@ if (arg[0] === '--alle') {
           : (weg.zeit ?? 0) > Math.max(Date.now() - 864e5, FEHLER_BIS));
         // Schon gerechnet - es sei denn, der Schaden fehlt noch (Dateien von vor dem 29.9.2026).
         const vorhanden = (() => { try { return JSON.parse(fs.readFileSync(path.join(ZIEL, `${t.windowId}.json`), 'utf8')); } catch { return null; } })();
-        // Neu gerechnet wird auch, was noch nach der alten Clutch-Regel steht (vor Version 2).
+        // Neu gerechnet wird auch, was noch nach der alten Clutch-Regel steht (vor Version 2) oder ohne Sturmzeit, Wiederbelebungen und Reboots (vor Version 3).
         const mitRoh = fs.existsSync(path.join(DATEN, 'clutch-roh', `${t.windowId}.json`));
-        if ((vorhanden && vorhanden.schaden && vorhanden.version >= 2 && mitRoh) || gilt) continue;
+        if ((vorhanden && vorhanden.schaden && vorhanden.version >= 3 && mitRoh) || gilt) continue;
         tage.push({ eventId: t.eventId, windowId: t.windowId, datum: t.datum ?? 0 });
       } catch { /* eine kaputte Datei haelt nichts auf */ }
     }

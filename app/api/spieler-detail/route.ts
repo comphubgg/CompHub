@@ -31,7 +31,7 @@ export const maxDuration = 60;
 
 const normId = (s: string) => s.replace(/-/g, '').toLowerCase();
 
-export interface ReplayWerte { kills: number | null; knocks: number | null; tode: number | null; spiele: number | null; damage?: number; damageTaken?: number; hits?: number; headshots?: number; sturmSek?: number }
+export interface ReplayWerte { kills: number | null; knocks: number | null; tode: number | null; spiele: number | null; damage?: number; damageTaken?: number; hits?: number; headshots?: number; sturmSek?: number; wiederbelebt?: number; rebootet?: number }
 
 export async function GET(request: Request) {
   const p = new URL(request.url).searchParams;
@@ -95,7 +95,7 @@ export async function GET(request: Request) {
 
     const saison = /^(S\d+)_/i.exec(fenster)?.[1]?.toUpperCase() ?? '';
     const rep = saison ? await replayTag(saison, fenster).catch(() => null) : null;
-    const clutch = await liesJson<{ schaden?: Record<string, { dmg: number; erlitten: number; treffer: number; krit: number }> } | null>(`clutch/${fenster}.json`, null).catch(() => null);
+    const clutch = await liesJson<{ schaden?: Record<string, { dmg: number; erlitten: number; treffer: number; krit: number; sturm?: number; wiederbelebt?: number; rebootet?: number }> } | null>(`clutch/${fenster}.json`, null).catch(() => null);
 
     // Fenster und Konto werden zu einem Dateinamen - nur das Uebliche zulassen.
     const eigene = fensterOk(fenster) && kontoOk(id) ? await leseErgebnis(fenster, id) : null;
@@ -111,6 +111,7 @@ export async function GET(request: Request) {
         replay = {
           kills: e?.kills ?? 0, knocks: e?.knocks ?? 0, tode: e ? e.gestorben : null, spiele: e ? e.matches : null,
           ...(d ? { damage: Math.round(d.dmg), damageTaken: Math.round(d.erlitten), hits: d.treffer, headshots: d.krit } : {}),
+          ...(d && typeof d.sturm === 'number' ? { sturmSek: Math.round(d.sturm), wiederbelebt: d.wiederbelebt ?? 0, rebootet: d.rebootet ?? 0 } : {}),
         };
       }
       // Die eigene Auswertung fuellt, was die anderen Quellen nicht haben. Eliminierungen, Knocks und Tode nur, wenn alle bestellten Lobbys gelesen sind
@@ -123,6 +124,7 @@ export async function GET(request: Request) {
           damage: replay?.damage ?? Math.round(o.dmg), damageTaken: replay?.damageTaken ?? Math.round(o.erlitten),
           hits: replay?.hits ?? o.treffer, headshots: replay?.headshots ?? o.krit,
           ...(typeof o.sturm === 'number' ? { sturmSek: Math.round(o.sturm) } : {}),
+          ...(typeof o.wiederbelebt === 'number' ? { wiederbelebt: o.wiederbelebt, rebootet: o.rebootet ?? 0 } : {}),
         };
       }
       return {
