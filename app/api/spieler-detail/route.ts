@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { findeSpieler, holeSeite, getToken, loeseNamenAuf, type CupEintrag } from '@/lib/epicCups';
+import { findeSpieler, holeSeite, getToken, loeseNamenAuf, MAX_PAGES, type CupEintrag } from '@/lib/epicCups';
 import { szeneFenster } from '@/lib/szeneStats';
 import { zwischenspeichern } from '@/lib/zwischenspeicher';
 import { replayTag } from '@/lib/replaySchlank';
@@ -52,7 +52,7 @@ export async function GET(request: Request) {
       return NextResponse.json({ ok: true, treffer, gesucht: r.scannedPages, seiten: r.totalPages }, { headers: { 'Cache-Control': 'no-store' } });
     }
 
-    const r = await findeSpieler(event, fenster, [], [id], 60);
+    const r = await findeSpieler(event, fenster, [], [id], MAX_PAGES);
     const eintrag: CupEintrag | undefined = r.entries[0];
     const ids = eintrag ? eintrag.players.map((x) => normId(x.id)) : [id];
 
@@ -118,8 +118,8 @@ export async function GET(request: Request) {
       const o = eigene?.spieler?.[i];
       if (o) {
         replay = {
-          kills: replay?.kills ?? (eigeneKomplett ? o.kills : null), knocks: replay?.knocks ?? (eigeneKomplett ? o.knocks : null),
-          tode: replay?.tode ?? (eigeneKomplett ? o.tode : null), spiele: replay?.spiele ?? o.spiele,
+          kills: eigeneKomplett ? o.kills : (replay?.kills ?? null), knocks: eigeneKomplett ? o.knocks : (replay?.knocks ?? null),
+          tode: eigeneKomplett ? o.tode : (replay?.tode ?? null), spiele: eigeneKomplett ? o.spiele : (replay?.spiele ?? o.spiele),
           damage: replay?.damage ?? Math.round(o.dmg), damageTaken: replay?.damageTaken ?? Math.round(o.erlitten),
           hits: replay?.hits ?? o.treffer, headshots: replay?.headshots ?? o.krit,
         };

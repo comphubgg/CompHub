@@ -772,12 +772,15 @@ export async function findeSpieler(
     }
   }
   if (treffer.size < gesucht) {
-    for (let p = 0; p < maxPages; p++) {
-      const res = await holeSeite(eventId, windowId, p);
-      scanned++;
-      sammle(res);
-      if (treffer.size >= gesucht) break;
-      if (p + 1 >= totalPages) break;
+    // Die erste Seite nennt die Seitenzahl; den Rest in Staffeln zu zehn gleichzeitig - ein Cup mit zehntausend Teams hat hundert Seiten, und wer
+    // auf Platz 9000 steht, wartete nacheinander gelesen so lange, dass er als "nicht dabei" galt (Betreiber, 14.10.2026).
+    sammle(await holeSeite(eventId, windowId, 0));
+    scanned++;
+    const grenze = Math.min(maxPages, totalPages);
+    for (let p = 1; p < grenze && treffer.size < gesucht; p += 10) {
+      const staffel: Array<ReturnType<typeof holeSeite>> = [];
+      for (let k = p; k < Math.min(p + 10, grenze); k++) staffel.push(holeSeite(eventId, windowId, k));
+      for (const res of await Promise.all(staffel)) { scanned++; sammle(res); }
     }
   }
 

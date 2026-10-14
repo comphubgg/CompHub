@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { kontoAus, nachId } from '@/lib/konten';
 import { GAST_COOKIE, gastAus } from '@/lib/epicGast';
-import { findeSpieler } from '@/lib/epicCups';
+import { findeSpieler, MAX_PAGES } from '@/lib/epicCups';
 import { FRIST_MS, fensterOk, kontoOk, leseAnfrage, leseErgebnis, merkeKonto, schreibeAnfrage } from '@/lib/eigeneAuswertung';
 
 /*
@@ -57,7 +57,7 @@ export async function POST(request: Request) {
   if (alt) return NextResponse.json({ ok: true, stand: 'angefragt', zeit: alt.zeit }, { headers: NEIN });
 
   try {
-    const r = await findeSpieler(eventId, w, [], [id], 60);
+    const r = await findeSpieler(eventId, w, [], [id], MAX_PAGES);
     const e = r.entries[0];
     if (!e) return NextResponse.json({ ok: false, error: 'Du stehst in diesem Cup nicht in der Bestenliste.' }, { status: 404, headers: NEIN });
     const sitzungen = [...new Set(e.matches.map((m) => m.sessionId).filter((s): s is string => !!s))].slice(0, 30);
