@@ -55,6 +55,9 @@ jobs:
             # Neue Kartenversionen bei fortnite.gg suchen (lib/kartenUpdates) - taeglich, ein Fund geht als Meldung an den Admin.
             curl -s -w ' [Karten-Updates: %{http_code}]' -m 120 -H "Authorization: Bearer $GEHEIM" "https://www.thecomphub.com/api/cron/karten-updates" || true
             echo
+            # Die Posts des Tages anlegen und dem Admin in #admin-posts melden (lib/tagesposts) - einmal am Tag, ein zweiter Lauf aendert nichts.
+            curl -s -w ' [Tagesposts: %{http_code}]' -m 120 -H "Authorization: Bearer $GEHEIM" "https://www.thecomphub.com/api/cron/posts" || true
+            echo
           fi
 
       # CompHub auf neuen Discord-Servern einrichten (Kanal #comphub-dashboard) und Live-Meldungen von POVs

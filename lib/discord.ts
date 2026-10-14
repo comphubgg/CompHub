@@ -1859,7 +1859,7 @@ export async function schickeUpdate(
  *   #admin-alarm     was von selbst schiefgeht: der stuendliche Lauf,
  *                    veraltete Staende, die Ablage
  */
-const ADMIN_KANAELE = { log: 'admin-log', aufgaben: 'admin-aufgaben', alarm: 'admin-alarm' } as const;
+const ADMIN_KANAELE = { log: 'admin-log', aufgaben: 'admin-aufgaben', alarm: 'admin-alarm', posts: 'admin-posts' } as const;
 
 export async function richteAdminEin(
   schritte: AufbauZeile[], fehler: AufbauZeile[],
@@ -1870,6 +1870,7 @@ export async function richteAdminEin(
     ['log', 'Every task, every fix - the full log'],
     ['aufgaben', 'Open tasks - one message, kept up to date'],
     ['alarm', 'Alerts: hourly run, stale data, storage'],
+    ['posts', 'Daily post ideas for X - ready to copy, with images'],
   ];
   for (const [k, thema] of plan) {
     // "manager" mit leerer Rollenliste heisst: nur Admin und Bot.
@@ -1897,6 +1898,35 @@ export async function schickeAlarm(
       title: `ALARM · ${titel}`.slice(0, 256),
       description: text.slice(0, 4000),
       color: 0xef4444,
+      footer: { text: new Date().toLocaleString('de-CH', { timeZone: 'Europe/Zurich' }) + ' Uhr' },
+    }],
+  });
+  return idAus(gesendet) ? { ok: true } : { ok: false, grund: 'abgelehnt' };
+}
+
+/**
+ * Die taegliche Meldung mit den Posts des Tages (#admin-posts, nur Admin): drei Titel und der Link auf die Seite des Tages (lib/tagesposts).
+ * Der Betreiber (14.10.2026): eine Nachricht "von Claude, nicht von CompHub" - der Bot schickt sie, der Absender im Kopf der Karte ist Claude.
+ */
+export async function schickePosts(
+  { titel, zeilen, url }: { titel: string; zeilen: string[]; url: string },
+): Promise<{ ok: boolean; grund?: string }> {
+  if (!discordDa()) return { ok: false, grund: 'kein-token' };
+  let kanaele = await alleKanaele();
+  let kanal = kanaele.find((k) => k.type === 0 && gleich(k.name, ADMIN_KANAELE.posts));
+  if (!kanal) {
+    await richteAdminEin([], []);
+    kanaele = await alleKanaele();
+    kanal = kanaele.find((k) => k.type === 0 && gleich(k.name, ADMIN_KANAELE.posts));
+  }
+  if (!kanal) return { ok: false, grund: 'kein-kanal' };
+  const gesendet = await ruf(`/channels/${kanal.id}/messages`, 'POST', {
+    embeds: [{
+      author: { name: 'Claude · Tagesposts' },
+      title: titel.slice(0, 256),
+      url,
+      description: `${zeilen.map((z, i) => `**${i + 1}.** ${z}`).join('\n')}\n\nText zum Kopieren und Bilder zum Herunterladen: ${url}`.slice(0, 4000),
+      color: 0x38bdf8,
       footer: { text: new Date().toLocaleString('de-CH', { timeZone: 'Europe/Zurich' }) + ' Uhr' },
     }],
   });

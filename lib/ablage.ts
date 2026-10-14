@@ -266,7 +266,17 @@ function waehle(): Speicher {
    */
   if (process.env.COMPHUB_NUR_LESEN === '1') {
     const echt = gewaehlt;
-    gewaehlt = { ...echt, schreib: async () => {}, loesche: async () => {} };
+    // Geschriebenes bleibt nur im Arbeitsspeicher dieses Prozesses und wird von ihm wieder gelesen - so laesst sich zum Beispiel die Erzeugung der
+    // Tagesposts gegen die echten Daten durchspielen, ohne dass etwas im echten Stand landet. Beim Beenden ist alles weg.
+    // Ueber globalThis, weil der Entwicklungsserver jede Route als eigenes Bauteil laedt - ohne das saehe die eine Route nicht, was die andere schrieb.
+    const gl = globalThis as { __comphubLuft?: Map<string, Buffer | null> };
+    const luft = (gl.__comphubLuft ??= new Map<string, Buffer | null>());
+    gewaehlt = {
+      ...echt,
+      lies: async (n) => (luft.has(n) ? (luft.get(n) ?? null) : echt.lies(n)),
+      schreib: async (n, d) => { luft.set(n, d); },
+      loesche: async (n) => { luft.set(n, null); },
+    };
   }
   return gewaehlt;
 }
