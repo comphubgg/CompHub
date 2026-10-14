@@ -138,3 +138,19 @@ html[data-design="neu"] :is(div, section, article, aside)[class*="rounded-xl"][c
     radial-gradient(ellipse 62% 58% at 50% 46%, color-mix(in srgb, var(--color-zinc-950) 88%, transparent) 0%, color-mix(in srgb, var(--color-zinc-950) 62%, transparent) 60%, color-mix(in srgb, var(--color-zinc-950) 28%, transparent) 100%),
     linear-gradient(to bottom, transparent 62%, var(--color-zinc-950) 100%);
 }
+
+/*
+ * Die Admin-Seiten (Betreiber, 14.10.2026): gemeinsame Feinarbeit fuer alles unter /admin (Rahmen: app/admin/AdminRahmen.tsx). Ein heller Schein oben,
+ * rundere Eingabefelder mit Leuchtrand, Hauptknoepfe als Kapseln, Tafeln etwas runder, Tabellenzeilen mit Hover.
+ */
+.admin-neu main { background-image: radial-gradient(ellipse 70% 30rem at 50% -8rem, rgba(14, 165, 233, .13), transparent 70%); background-repeat: no-repeat; }
+.admin-neu :is(input:not([type="checkbox"], [type="radio"], [type="range"], [type="color"], [type="file"]), select, textarea) { border-radius: .75rem; }
+.admin-neu :is(input, select, textarea):focus-visible { outline: none; box-shadow: 0 0 0 3px rgba(14, 165, 233, .28); }
+.admin-neu :is(button, a)[class*="bg-sky-500"]:not([class*="bg-sky-500/"]), .admin-neu :is(button, a)[class*="bg-sky-600"]:not([class*="bg-sky-600/"]) {
+  border-radius: 9999px; box-shadow: 0 4px 14px rgba(14, 165, 233, .28);
+}
+.admin-neu :is(div, section, article)[class*="rounded-lg"][class*="border"]:not([class*="absolute"]):not([class*="fixed"]) { border-radius: 1rem; }
+.admin-neu table tbody tr { transition: background-color .15s ease; }
+.admin-neu table tbody tr:hover { background-color: rgba(14, 165, 233, .06); }
+.admin-leiste { scrollbar-width: none; }
+.admin-leiste::-webkit-scrollbar { display: none; }

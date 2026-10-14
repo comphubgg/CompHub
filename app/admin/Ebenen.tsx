@@ -92,29 +92,29 @@ function Gruppe({ ton, titel, marke, beschreibung, ziele, start = 0, gesperrt = 
 }) {
   const f = TON[ton];
   return (
-    <section className={`rounded-2xl border bg-gradient-to-br from-white/[0.04] to-transparent p-4 ${f.rahmen}`}>
+    <section className={`rounded-3xl border bg-zinc-900 bg-gradient-to-br from-white/[0.04] to-transparent p-5 shadow-[0_10px_30px_rgba(15,23,42,.14)] ${f.rahmen}`}>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <h2 className={`text-sm font-black uppercase tracking-[0.14em] ${f.marke}`}><T>{titel}</T></h2>
+        <h2 className={`text-base font-extrabold uppercase tracking-[0.14em] ${f.marke}`}><T>{titel}</T></h2>
         <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${f.pille}`}><T>{marke}</T></span>
         <p className="w-full text-xs text-slate-500 sm:ml-1 sm:w-auto"><T>{beschreibung}</T></p>
       </div>
-      <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         {ziele.map((z, i) => {
           const inhalt = (
             <>
-              <span className={`mb-2 flex h-8 w-8 items-center justify-center rounded-lg ${f.symbol}`}>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              <span className={`mb-3 flex h-10 w-10 items-center justify-center rounded-xl ${f.symbol}`}>
+                <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
                   {SYMBOL[z.symbol]}
                 </svg>
               </span>
-              <span className={`flex items-center justify-between gap-2 text-sm font-semibold text-slate-100 transition ${f.titel}`}>
+              <span className={`flex items-center justify-between gap-2 text-[15px] font-bold text-slate-100 transition ${f.titel}`}>
                 <T>{z.titel}</T>
                 <span aria-hidden className="text-slate-600 transition group-hover:translate-x-0.5">→</span>
               </span>
-              <span className="mt-0.5 block text-xs leading-snug text-slate-500"><T>{z.text}</T></span>
+              <span className="mt-1 block text-xs leading-snug text-slate-400"><T>{z.text}</T></span>
             </>
           );
-          const klasse = `eb-an group block rounded-xl border bg-zinc-950/50 p-3 transition ${gesperrt ? 'pointer-events-none opacity-40' : f.kachel}`;
+          const klasse = `eb-an group block rounded-2xl border bg-zinc-950/50 p-4 transition ${gesperrt ? 'pointer-events-none opacity-40' : `hover:-translate-y-0.5 ${f.kachel}`}`;
           const stil = { animation: `eb-rein .45s ${(start + i) * 45}ms cubic-bezier(.2,.8,.2,1) both` };
           if (gesperrt) return <div key={z.href} className={klasse} style={stil} aria-disabled>{inhalt}</div>;
           return z.anker
@@ -143,7 +143,7 @@ export default function Ebenen({ admin, vip, pro }: {
   const hier = [...NUR_HIER, ...(admin ? NUR_HIER_ADMIN : [])];
   const darfVip = vip || admin;
   return (
-    <div className="space-y-3">
+    <div className="space-y-4">
       <style>{CSS}</style>
       <Gruppe ton="alle" titel="Für alle" marke="Offen für jeden" ziele={FUER_ALLE}
         beschreibung="Steht auch ohne Konto in der Leiste." />

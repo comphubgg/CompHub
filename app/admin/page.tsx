@@ -344,28 +344,35 @@ export default function AdminDashboardPage() {
     <main className="min-h-screen bg-zinc-950 text-slate-100">
       <div className="mx-auto max-w-[1400px] px-4 py-6">
 
-        {/* Kopf: eine Zeile statt eines Blocks. */}
-        <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h1 className="text-xl font-semibold text-slate-100"><T>Dashboard</T></h1>
-            <p className="mt-0.5 text-sm text-slate-500">
-              {laedt ? t('Wird geladen …') : (profile.displayName || t('Ohne Namen'))}
+        {/* Kopf (neues Design, 14.10.2026): grosse Flaeche mit Leuchten, dem Namen gross und dem Abmelden als Kapsel. */}
+        <section className="relative mb-5 overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 px-6 py-7 shadow-[0_10px_30px_rgba(15,23,42,.18)] sm:px-8">
+          <span aria-hidden className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-sky-500/25 blur-3xl" />
+          <span aria-hidden className="pointer-events-none absolute -bottom-28 left-1/3 h-56 w-56 rounded-full bg-indigo-500/15 blur-3xl" />
+          <div className="relative flex flex-wrap items-center gap-4">
+            <span className="grid h-16 w-16 shrink-0 place-items-center overflow-hidden rounded-2xl border border-zinc-700 bg-zinc-950/60 text-2xl font-extrabold uppercase text-slate-300">
+              {profile.avatarUrl
+                // eslint-disable-next-line @next/next/no-img-element
+                ? <img src={profile.avatarUrl} alt="" className="h-full w-full object-cover" />
+                : (profile.displayName || '?').trim().charAt(0)}
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-sky-500"><T>Dashboard</T></p>
+              <h1 className="truncate text-3xl font-extrabold text-white sm:text-4xl">
+                {laedt ? t('Wird geladen …') : (profile.displayName || t('Ohne Namen'))}
+              </h1>
               {accountStatus && (
-                <span className="ml-2 rounded-md bg-sky-500/10 px-1.5 py-0.5
-                                 text-[11px] font-medium text-sky-400">
+                <span className="mt-1.5 inline-block rounded-full border border-sky-500/30 bg-sky-500/10 px-2.5 py-0.5 text-xs font-semibold text-sky-400">
                   {accountStatus}
                 </span>
               )}
-            </p>
+            </div>
+            <button type="button"
+              onClick={() => { window.location.href = '/api/auth/logout'; }}
+              className="rounded-full border border-zinc-700 px-4 py-2 text-sm font-semibold text-slate-300 transition hover:border-rose-500/60 hover:text-rose-400">
+              <T>Abmelden</T>
+            </button>
           </div>
-          <button type="button"
-            onClick={() => { window.location.href = '/api/auth/logout'; }}
-            className="rounded-lg border border-zinc-800 px-3 py-1.5 text-sm
-                       text-slate-400 transition hover:border-rose-500/60
-                       hover:text-rose-400">
-            <T>Abmelden</T>
-          </button>
-        </div>
+        </section>
 
         {/* Der Hinweis fuer den Stream: ein schmaler Streifen statt einer
             bildschirmfuellenden Tuer. Er warnt vor demselben und kostet

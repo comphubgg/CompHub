@@ -424,7 +424,7 @@ export default function Vergleich({ saisons, sprache }: { saisons: Array<{ kennu
   };
   const belegt = new Set([...links, ...rechts].filter(Boolean).map((x) => (x as VglSpieler).epicId));
 
-  const knopf = (an: boolean) => `rounded-lg px-4 py-2 text-[11px] font-black uppercase tracking-[0.14em] transition ${an ? 'bg-white text-zinc-900' : 'text-slate-400 hover:text-slate-100'}`;
+  const knopf = (an: boolean) => `rounded-lg px-4 py-2 text-[11px] font-black uppercase tracking-[0.14em] transition ${an ? 'bg-sky-500 text-white shadow' : 'text-slate-400 hover:text-slate-100'}`;
   const saisonName = saison === 'alle' ? t('Alle Saisons') : (saisonListe.find((s) => s.kennung === saison)?.name ?? saison);
   const hatDaten = beideKomplett && (summeL.matches > 0 || summeR.matches > 0);
 

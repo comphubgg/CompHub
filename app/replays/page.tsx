@@ -12,6 +12,7 @@ import { useEffect, useMemo, useState } from 'react';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import LadeSchirm from '@/app/components/LadeSchirm';
+import SeitenKopf from '@/app/components/SeitenKopf';
 import ReplayUmschalter from './ReplayUmschalter';
 import { replayDatum as datum, tagName, ohneMarke, schoenerTitel } from '@/lib/replayNamen';
 
@@ -42,21 +43,19 @@ export default function ReplaysSeite() {
   }, [cups, suche, region]);
 
   const regionen = useMemo(() => REGIONEN.filter((r) => (cups ?? []).some((c) => c.tage.some((d) => d.region === r))), [cups]);
-  const chip = (an: boolean) => `rounded-lg px-3.5 py-2 text-xs font-bold uppercase tracking-[0.12em] transition ${an ? 'bg-white text-zinc-900' : 'text-slate-400 hover:text-slate-100'}`;
+  const chip = (an: boolean) => `rounded-full px-4 py-2 text-xs font-bold uppercase tracking-[0.12em] transition ${an ? 'bg-sky-500 text-white shadow' : 'text-slate-400 hover:text-slate-100'}`;
 
   return (
     <main className="min-h-screen bg-zinc-950 text-slate-100">
       <div className="mx-auto max-w-[1400px] px-4 py-8">
         <ReplayUmschalter aktiv="alle" />
-        <h1 className="mt-4 text-4xl font-black tracking-tight sm:text-5xl"><T>Replays</T></h1>
-        <p className="mt-2 max-w-2xl text-sm text-slate-400">
-          <T>Jedes Game eines ausgewerteten Cups mit Zone, Eliminierungen, Knocks und der Zahl der Lebenden - zum Abspielen, in 2D und 3D. Die Adressen bleiben dauerhaft gleich.</T>
-        </p>
+        <SeitenKopf className="mt-4" marke={<T>Alle Cups</T>} titel={<T>Replays</T>}
+          text={<T>Jedes Game eines ausgewerteten Cups mit Zone, Eliminierungen, Knocks und der Zahl der Lebenden - zum Abspielen, in 2D und 3D. Die Adressen bleiben dauerhaft gleich.</T>} />
 
         <div className="mt-6 flex flex-wrap items-center gap-3">
           <input value={suche} onChange={(e) => setSuche(e.target.value)} placeholder={t('Cup suchen …')}
-            className="w-full max-w-xs rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-600 focus:border-sky-500" />
-          <div className="inline-flex flex-wrap gap-1 rounded-xl border border-white/[0.08] bg-black/30 p-1">
+            className="w-full max-w-xs rounded-full border border-zinc-700 bg-zinc-900 px-4 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-600 focus:border-sky-500" />
+          <div className="inline-flex flex-wrap gap-1 rounded-full border border-zinc-800 bg-zinc-900 p-1">
             <button type="button" onClick={() => setRegion('alle')} className={chip(region === 'alle')}><T>Alle</T></button>
             {regionen.map((r) => <button key={r} type="button" onClick={() => setRegion(r)} className={chip(region === r)}>{r}</button>)}
           </div>
@@ -68,7 +67,7 @@ export default function ReplaysSeite() {
           {cups && sichtbar.length === 0 && <p className="text-sm text-slate-500"><T>Keine Replays in dieser Auswahl.</T></p>}
           <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
             {sichtbar.map((c) => (
-              <section key={c.eventId} className="flex flex-col rounded-2xl border border-white/[0.08] bg-zinc-900/50 p-4">
+              <section key={c.eventId} className="flex flex-col rounded-3xl border border-zinc-800 bg-zinc-900 p-5 shadow-[0_10px_30px_rgba(15,23,42,.14)]">
                 <p className="flex items-baseline justify-between gap-2">
                   <span className="min-w-0 truncate text-[15px] font-bold text-slate-50">{schoenerTitel(c.titel)}</span>
                   <span className="shrink-0 text-[11px] text-slate-500">{c.season} · {datum(c.beginn)}</span>
@@ -77,7 +76,7 @@ export default function ReplaysSeite() {
                   {c.tage.map((d, i) => (
                     <li key={d.windowId}>
                       <Link href={`/replays/${encodeURIComponent(d.windowId)}`}
-                        className="flex items-center gap-2.5 rounded-lg border border-white/[0.06] px-3 py-2 text-[12px] transition hover:border-sky-500 hover:bg-zinc-900">
+                        className="flex items-center gap-2.5 rounded-xl border border-zinc-800 px-3 py-2 text-[12px] transition hover:border-sky-500 hover:bg-zinc-800">
                         <span className="rounded bg-white/10 px-1.5 py-0.5 text-[10px] font-black uppercase tracking-wider text-slate-200">{d.region}</span>
                         <span className="font-semibold text-slate-200">{c.tage.filter((x) => x.region === d.region).length > 1 ? tagName(d.windowId, i) : datum(d.beginn)}</span>
                         <span className="min-w-0 flex-1 truncate text-[11px] uppercase text-slate-500">{d.sieger.map(ohneMarke).join(' · ')}</span>

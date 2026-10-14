@@ -428,7 +428,7 @@ export default function ReplayAnsicht({ match, kartenBild, titel, wertung, hervo
               <div className="ml-auto flex items-center gap-1">
                 {GESCHWINDIGKEIT.map((g) => (
                   <button key={g} type="button" onClick={() => setTempo(g)}
-                    className={`rounded-md px-2.5 py-1.5 text-xs font-bold tabular-nums transition ${tempo === g ? 'bg-white text-zinc-900' : 'text-slate-400 hover:text-slate-100'}`}>{g}×</button>
+                    className={`rounded-md px-2.5 py-1.5 text-xs font-bold tabular-nums transition ${tempo === g ? 'bg-sky-500 text-white shadow' : 'text-slate-400 hover:text-slate-100'}`}>{g}×</button>
                 ))}
               </div>
             </div>
@@ -437,7 +437,7 @@ export default function ReplayAnsicht({ match, kartenBild, titel, wertung, hervo
             <div className="mt-2 flex flex-wrap items-center gap-2 text-xs">
               {(['2D', '3D'] as const).map((m) => (
                 <button key={m} type="button" onClick={() => setDreiD(m === '3D')}
-                  className={`rounded-lg px-3 py-1.5 font-bold transition ${(m === '3D') === dreiD ? 'bg-white text-zinc-900' : 'border border-white/10 text-slate-400 hover:text-slate-100'}`}>{m}</button>
+                  className={`rounded-lg px-3 py-1.5 font-bold transition ${(m === '3D') === dreiD ? 'bg-sky-500 text-white shadow' : 'border border-white/10 text-slate-400 hover:text-slate-100'}`}>{m}</button>
               ))}
               <label className="ml-2 flex cursor-pointer items-center gap-1.5 text-slate-400">
                 <input type="checkbox" checked={knocks} onChange={(e) => setKnocks(e.target.checked)} className="accent-sky-400" /> <T>Knocks zeigen</T>
@@ -484,7 +484,7 @@ export default function ReplayAnsicht({ match, kartenBild, titel, wertung, hervo
           <div className="flex gap-1 border-b border-white/[0.08] p-1.5">
             {([['feed', 'Kill-Feed'], ['teams', 'Teams'], ['spieler', 'Spieler']] as const).map(([k, name]) => (
               <button key={k} type="button" onClick={() => setReiter(k)}
-                className={`rounded-lg px-3.5 py-2 text-xs font-bold uppercase tracking-[0.12em] transition ${reiter === k ? 'bg-white text-zinc-900' : 'text-slate-400 hover:text-slate-100'}`}><T>{name}</T></button>
+                className={`rounded-lg px-3.5 py-2 text-xs font-bold uppercase tracking-[0.12em] transition ${reiter === k ? 'bg-sky-500 text-white shadow' : 'text-slate-400 hover:text-slate-100'}`}><T>{name}</T></button>
             ))}
           </div>
           <div className="max-h-[640px] overflow-y-auto">

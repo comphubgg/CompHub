@@ -316,7 +316,7 @@ export default function AlteMapBearbeiten() {
             <div className="mt-5 inline-flex flex-wrap gap-1 rounded-xl border border-white/[0.08] bg-black/30 p-1">
               {REITER.map(([k, titel]) => (
                 <button key={k} type="button" onClick={() => setReiter(k)}
-                  className={`rounded-lg px-4 py-2 text-xs font-bold uppercase tracking-[0.12em] transition ${reiter === k ? 'bg-white text-zinc-900' : 'text-slate-400 hover:text-slate-100'}`}>
+                  className={`rounded-lg px-4 py-2 text-xs font-bold uppercase tracking-[0.12em] transition ${reiter === k ? 'bg-sky-500 text-white shadow' : 'text-slate-400 hover:text-slate-100'}`}>
                   <T>{titel}</T>{k === 'teams' && <span className="ml-1.5 opacity-60">{teams.length}</span>}{k === 'formen' && <span className="ml-1.5 opacity-60">{formen.length}</span>}
                 </button>
               ))}
@@ -435,7 +435,7 @@ export default function AlteMapBearbeiten() {
                   <p className="mt-1 text-xs text-slate-500"><T>Eine Zeile pro Team, die Namen mit & getrennt. Jeder Name wird im Archiv gesucht: gibt es genau einen Treffer, kommen Flagge und Konto dazu.</T></p>
                   <textarea value={masse} onChange={(e) => setMasse(e.target.value)} rows={10} placeholder={'Sky & Scroll\nVico & Malibuca\nPeterbot & Pollo'} className={`${FELD} mt-3 w-full font-mono`} />
                   <div className="mt-3 flex items-center gap-3">
-                    <button type="button" onClick={() => void masseHinzu()} disabled={!masse.trim()} className="rounded-lg bg-white px-4 py-2 text-sm font-bold text-zinc-900 transition hover:bg-sky-100 disabled:opacity-40"><T>Teams anlegen</T></button>
+                    <button type="button" onClick={() => void masseHinzu()} disabled={!masse.trim()} className="rounded-lg bg-sky-500 px-4 py-2 text-sm font-bold text-white transition hover:bg-sky-400 disabled:opacity-40"><T>Teams anlegen</T></button>
                     {teams.length > 0 && <button type="button" onClick={alleWeg} className="ml-auto text-xs font-semibold text-slate-500 transition hover:text-rose-300"><T>Alle löschen</T></button>}
                   </div>
                 </div>

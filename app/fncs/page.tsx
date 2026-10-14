@@ -234,7 +234,7 @@ export default function FncsSeite() {
     return v >= c ? 'bg-emerald-800 text-white' : v >= b ? 'bg-emerald-500/80 text-white' : v >= a ? 'bg-amber-400/90 text-zinc-950' : 'bg-rose-500/80 text-white';
   };
 
-  const reiter = (an: boolean) => `rounded-lg px-5 py-2 text-xs font-bold uppercase tracking-[0.12em] transition ${an ? 'bg-white text-zinc-900' : 'text-slate-400 hover:text-slate-100'}`;
+  const reiter = (an: boolean) => `rounded-lg px-5 py-2 text-xs font-bold uppercase tracking-[0.12em] transition ${an ? 'bg-sky-500 text-white shadow' : 'text-slate-400 hover:text-slate-100'}`;
 
   return (
     <main className="min-h-screen bg-zinc-950 text-slate-100">

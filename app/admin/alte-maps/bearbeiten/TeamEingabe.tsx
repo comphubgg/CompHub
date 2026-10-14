@@ -125,7 +125,7 @@ export default function TeamEingabe({ max, unbekannt = false, onTeam, loese }: {
               className="flex h-7 w-7 items-center justify-center rounded-md border border-sky-500/50 bg-sky-500/10 text-base font-bold text-sky-200 transition hover:bg-sky-500/25 focus:outline-none focus:ring-2 focus:ring-sky-500">+</button>
           )}
           <button type="button" onClick={() => void anlegen()} disabled={!gewaehlt.length && !text.trim()}
-            className="ml-auto rounded-md bg-white px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-zinc-900 transition hover:bg-sky-100 disabled:opacity-30">
+            className="ml-auto rounded-md bg-sky-500 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-white transition hover:bg-sky-400 disabled:opacity-30">
             <T>Anlegen</T>
           </button>
         </div>

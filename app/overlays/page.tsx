@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import T from '@/app/components/T';
+import SeitenKopf from '@/app/components/SeitenKopf';
 import LadeSchirm from '@/app/components/LadeSchirm';
 import { useZugang } from '@/app/lib/zugang';
 import { Vorschau } from './Teile';
@@ -109,22 +110,19 @@ export default function OverlaysSeite() {
   return (
     <main className="flex-1 bg-zinc-950 px-4 py-8 text-slate-200">
       <div className="mx-auto max-w-[1300px]">
-        <h1 className="text-2xl font-semibold text-slate-100"><T>Overlays</T></h1>
-        <p className="mt-1 max-w-2xl text-sm leading-relaxed text-slate-400">
-          <T>Such dir die Art aus, die du brauchst. Die Adresse in OBS bleibt immer dieselbe — was du einstellst, ist im Stream nach wenigen Sekunden zu sehen.</T>
-        </p>
+        <SeitenKopf marke={<T>Für deinen Stream</T>} titel={<T>Overlays</T>}
+          text={<T>Such dir die Art aus, die du brauchst. Die Adresse in OBS bleibt immer dieselbe — was du einstellst, ist im Stream nach wenigen Sekunden zu sehen.</T>} />
 
         <div className="mt-6 grid gap-5 lg:grid-cols-3">
           {arten(duo).map((o) => (
             <section key={o.pfad}
-              className="flex flex-col rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
+              className="flex flex-col rounded-3xl border border-zinc-800 bg-zinc-900 p-5 shadow-[0_10px_30px_rgba(15,23,42,.14)] transition hover:-translate-y-0.5">
               <Vorschau src={o.vorschau} hoehe={o.hoehe} klebt={false} />
-              <h2 className="text-lg font-semibold text-slate-100"><T>{o.titel}</T></h2>
+              <h2 className="text-xl font-extrabold text-slate-100"><T>{o.titel}</T></h2>
               <p className="mt-1 flex-1 text-sm leading-relaxed text-slate-500"><T>{o.was}</T></p>
               <Link href={o.pfad}
-                className="mt-4 inline-block self-start rounded-lg border border-sky-500/40
-                           bg-sky-500/10 px-5 py-2.5 text-sm font-semibold text-sky-400
-                           transition hover:bg-sky-500/20">
+                className="mt-4 inline-block self-start rounded-full bg-sky-500 px-6 py-2.5 text-sm font-bold text-white
+                           transition hover:bg-sky-400">
                 <T>Auswählen</T>
               </Link>
             </section>
@@ -134,7 +132,7 @@ export default function OverlaysSeite() {
           <T>Die Vorschauen zeigen Beispielwerte.</T>
         </p>
         <Link href="/admin#archiv"
-          className="mt-4 inline-block rounded-lg border border-zinc-800 bg-zinc-900/40 px-4 py-2.5 text-sm
+          className="mt-4 inline-block rounded-full border border-zinc-700 bg-zinc-900 px-5 py-2.5 text-sm
                      text-slate-300 transition hover:border-sky-500 hover:text-sky-400">
           <T>Deine gespeicherten Overlays: Dashboard → Mein Archiv</T>
         </Link>

@@ -17,6 +17,7 @@ import { useSearchParams } from 'next/navigation';
 import { namensSchluessel } from '@/lib/homoglyph';
 import TeamFlagge, { flaggenPfad } from '@/components/TeamFlagge';
 import T from '@/app/components/T';
+import SeitenKopf from '@/app/components/SeitenKopf';
 import { useT, useSprache } from '@/app/components/SprachProvider';
 import LadeSchirm from '@/app/components/LadeSchirm';
 import {
@@ -359,22 +360,15 @@ export default function Prognosen() {
 
   return (
     <main className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6">
-      <div className="mb-5 flex flex-wrap items-center gap-3">
-        <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500"><T>Prognosen</T></p>
-          <h1 className="text-2xl font-black tracking-tight sm:text-3xl">
-            {prognose ? prognose.titel : <T>Prognosen</T>}
-          </h1>
-        </div>
-        {prognosen.length > 0 && (
+      <SeitenKopf className="mb-5" marke={<T>Prognosen</T>} titel={prognose ? prognose.titel : <T>Prognosen</T>}
+        rechts={prognosen.length > 0 ? (
           <select value={gewaehlt} onChange={(e) => { setGewaehlt(e.target.value); setKartenNr(0); }}
-            className="ml-auto rounded-lg border border-zinc-800 bg-zinc-900/80 px-3 py-2 text-sm text-slate-200">
+            className="rounded-full border border-zinc-700 bg-zinc-950/60 px-4 py-2 text-sm text-slate-200 outline-none focus:border-sky-500">
             {prognosen.map((p) => (
               <option key={p.id} value={p.id}>{p.cupTitel} · {p.gruppe || p.titel}</option>
             ))}
           </select>
-        )}
-      </div>
+        ) : undefined} />
 
       {!prognosen.length ? (
         <p className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-8 text-center text-sm text-slate-500">
@@ -383,11 +377,11 @@ export default function Prognosen() {
       ) : (
         <div className="flex gap-4">
           {/* Die Leiste links - schmal, einklappbar. */}
-          <aside className={`shrink-0 self-start rounded-xl border border-zinc-800 bg-zinc-950/60 p-2 ${leisteOffen ? 'w-48' : 'w-14'}`}>
+          <aside className={`shrink-0 self-start rounded-3xl border border-zinc-800 bg-zinc-900 p-2 shadow-[0_8px_24px_rgba(15,23,42,.14)] ${leisteOffen ? 'w-48' : 'w-14'}`}>
             {ABSCHNITTE.map(([wert, titel, pfad]) => (
               <button key={wert} onClick={() => setAbschnitt(wert)} title={t(titel)}
-                className={`mb-1 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-left text-sm transition ${
-                  abschnitt === wert ? 'bg-sky-500/10 text-sky-400' : 'text-slate-400 hover:bg-zinc-900 hover:text-slate-200'}`}>
+                className={`mb-1 flex w-full items-center gap-3 rounded-2xl px-3 py-2.5 text-left text-sm transition ${
+                  abschnitt === wert ? 'bg-sky-500 text-white shadow' : 'text-slate-400 hover:bg-zinc-800 hover:text-slate-200'}`}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                   strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden className="shrink-0">
                   <path d={pfad} />

@@ -183,28 +183,28 @@ export default function AdminZentrale({ werkzeuge, zeigeLaeufe, teil = 'alles' }
 
   const Kennzahl = ({ wert, titel, href, ernst }: { wert: string; titel: string; href: string; ernst: boolean }) => (
     <Link href={href}
-      className={`rounded-xl border px-4 py-3 transition hover:bg-zinc-900/70 ${
+      className={`rounded-2xl border px-4 py-4 transition hover:-translate-y-0.5 hover:bg-zinc-900/70 ${
         ernst ? 'border-amber-500/40 bg-amber-500/[0.06]' : 'border-zinc-800 bg-zinc-900/40'}`}>
-      <span className={`block text-3xl font-bold tabular-nums ${ernst ? 'text-amber-300' : 'text-emerald-400'}`}>{wert}</span>
+      <span className={`schrift-anzeige block text-4xl font-extrabold tabular-nums ${ernst ? 'text-amber-300' : 'text-emerald-400'}`}>{wert}</span>
       <span className="mt-0.5 block text-xs text-slate-400"><T>{titel}</T></span>
     </Link>
   );
 
   return (
-    <section className={teil === 'status' ? '' : 'rounded-xl border border-sky-500/25 bg-zinc-950/60 p-5'}>
+    <section className={teil === 'status' ? '' : 'rounded-3xl border border-zinc-800 bg-zinc-900 p-6 shadow-[0_10px_30px_rgba(15,23,42,.14)]'}>
       <div className="flex flex-wrap items-baseline gap-2">
-        {teil !== 'status' && <h2 className="text-base font-semibold text-slate-100">{teil === 'werkzeuge' ? <T>Admin-Werkzeuge</T> : <T>Admin-Zentrale</T>}</h2>}
+        {teil !== 'status' && <h2 className="text-xl font-extrabold text-slate-100">{teil === 'werkzeuge' ? <T>Admin-Werkzeuge</T> : <T>Admin-Zentrale</T>}</h2>}
         {teil !== 'status' && <span className="text-xs text-slate-500"><T>sichtbar nur für dich</T></span>}
         {zeigeLaeufe && teil !== 'werkzeuge' && (
           <span className="ml-auto flex flex-wrap items-center gap-2">
             {stand && <span className="text-[11px] text-slate-600"><T>Stand</T> {stand}</span>}
             <button type="button" onClick={() => laden(true)} disabled={laedt}
-              className="rounded-md border border-zinc-700 px-2.5 py-1 text-[11px] text-slate-400 transition
+              className="rounded-full border border-zinc-700 px-3.5 py-1.5 text-[11px] font-semibold text-slate-300 transition
                          hover:border-sky-500 hover:text-sky-400 disabled:opacity-50">
               {laedt ? <T>Wird geladen …</T> : <T>Aktualisieren</T>}
             </button>
             <button type="button" onClick={() => void allesAktualisieren()} disabled={alles === 'laeuft'}
-              className="rounded-md border border-sky-500/50 bg-sky-500/10 px-2.5 py-1 text-[11px] font-semibold text-sky-300
+              className="rounded-full border border-sky-500/50 bg-sky-500/10 px-3.5 py-1.5 text-[11px] font-bold text-sky-300
                          transition hover:bg-sky-500/20 disabled:opacity-50">
               {alles === 'laeuft' ? <T>Wird gestartet …</T> : <T>Alles aktualisieren</T>}
             </button>
@@ -226,13 +226,13 @@ export default function AdminZentrale({ werkzeuge, zeigeLaeufe, teil = 'alles' }
           )}
           <div className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-4">
             {(daten?.jobs ?? Array.from({ length: 8 }, () => null)).map((j, i) => {
-              if (!j) return <div key={i} className="h-[74px] animate-pulse rounded-xl border border-zinc-800 bg-zinc-900/40" />;
+              if (!j) return <div key={i} className="h-[74px] animate-pulse rounded-2xl border border-zinc-800 bg-zinc-900/40" />;
               const a = AMPEL[j.ampel];
               const l = j.aktiv ?? j.letzter;
               return (
                 <a key={j.schluessel} href={l?.url ?? undefined} target="_blank" rel="noreferrer"
                   title={t(j.was)}
-                  className={`rounded-xl border bg-zinc-900/40 px-3.5 py-3 transition hover:bg-zinc-900/70 ${a.rand}`}>
+                  className={`rounded-2xl border bg-zinc-900/40 px-4 py-3.5 transition hover:-translate-y-0.5 hover:bg-zinc-900/70 ${a.rand}`}>
                   <span className="flex items-center gap-2">
                     <span className={`h-2.5 w-2.5 shrink-0 rounded-full ${a.punkt} ${j.aktiv ? 'animate-pulse' : ''}`} />
                     <span className="text-sm font-semibold text-slate-100"><T>{j.name}</T></span>
@@ -258,8 +258,8 @@ export default function AdminZentrale({ werkzeuge, zeigeLaeufe, teil = 'alles' }
             <Kennzahl wert={daten ? String(offenPost) : '…'} titel="Meldungen im Posteingang" href="/admin/contact" ernst={offenPost > 0} />
             <Kennzahl wert={replays ? String(replayOffen) : '…'} titel="Replays in der Frist noch offen" href="/admin/replays" ernst={replayOffen > Math.max(50, (replays?.imFristGesamt ?? 0) * 0.005)} />
             <Kennzahl wert={daten ? String(probleme) : '…'} titel="Läufe mit Problem" href="#" ernst={probleme > 0} />
-            <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 px-4 py-3">
-              <span className="block text-3xl font-bold tabular-nums text-sky-400">
+            <div className="rounded-2xl border border-zinc-800 bg-zinc-900/40 px-4 py-4">
+              <span className="schrift-anzeige block text-4xl font-extrabold tabular-nums text-sky-400">
                 {replays && replays.gesamt ? `${(replays.ausgewertet / replays.gesamt * 100).toFixed(1)}%` : '…'}
               </span>
               <span className="mt-0.5 block text-xs text-slate-400"><T>aller Replays ausgewertet</T></span>
@@ -303,7 +303,7 @@ export default function AdminZentrale({ werkzeuge, zeigeLaeufe, teil = 'alles' }
                 const langsam = z.jetzt > Math.max(3000, 2.5 * z.median);
                 const farbe = langsam ? '#fbbf24' : '#38bdf8';
                 return (
-                  <div key={z.titel} className={`rounded-xl border bg-zinc-900/40 px-3.5 py-2.5 ${langsam ? 'border-amber-500/40' : 'border-zinc-800'}`}>
+                  <div key={z.titel} className={`rounded-2xl border bg-zinc-900/40 px-4 py-3 ${langsam ? 'border-amber-500/40' : 'border-zinc-800'}`}>
                     <span className="flex items-baseline justify-between gap-2">
                       <span className="truncate text-[13px] font-medium text-slate-200">{z.titel}</span>
                       <span className={`shrink-0 text-sm font-semibold tabular-nums ${langsam ? 'text-amber-300' : 'text-slate-100'}`}>
@@ -335,9 +335,14 @@ export default function AdminZentrale({ werkzeuge, zeigeLaeufe, teil = 'alles' }
               <div className="mt-2 grid gap-2 sm:grid-cols-2">
                 {g.ziele.map((z) => (
                   <Link key={z.href} href={z.href}
-                    className={`group relative rounded-lg border border-zinc-800 bg-zinc-900/40 px-3.5 py-3 transition ${g.kachel}`}>
-                    <span className="block text-[15px] font-semibold text-slate-100"><T>{z.titel}</T></span>
-                    <span className="mt-0.5 block text-xs leading-snug text-slate-500"><T>{z.text}</T></span>
+                    className={`group relative flex items-start gap-3 rounded-2xl border border-zinc-800 bg-zinc-950/50 p-4 transition hover:-translate-y-0.5 ${g.kachel}`}>
+                    {/* Die Marke in der Farbe der Gruppe: der Anfangsbuchstabe des Werkzeugs. Fest dunkle Schrift, damit sie in beiden Fassungen lesbar bleibt. */}
+                    <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl text-base font-black text-[#0b1220] ${g.punkt}`}>{z.titel.slice(0, 1)}</span>
+                    <span className="min-w-0 flex-1">
+                      <span className="block text-[15px] font-bold text-slate-100"><T>{z.titel}</T></span>
+                      <span className="mt-0.5 block text-xs leading-snug text-slate-400"><T>{z.text}</T></span>
+                    </span>
+                    <span aria-hidden className="self-center text-slate-600 transition group-hover:translate-x-0.5 group-hover:text-slate-300">→</span>
                     {z.href === '/admin/contact' && offenPost > 0 && (
                       <span className="absolute right-2.5 top-2.5 rounded-full bg-rose-500 px-2 py-0.5 text-[11px] font-bold text-white">
                         {offenPost}

@@ -700,21 +700,24 @@ export default function KontoSeite() {
 
   return (
     <main className="min-h-screen bg-zinc-950 px-4 py-10 text-slate-100">
-      <div className="mx-auto max-w-3xl">
+      <div className="mx-auto max-w-5xl">
 
-        {/* ------------------------------------------------------- Kopf */}
-        <div className="mb-8 flex flex-wrap items-center gap-4">
-          <div className="grid h-14 w-14 shrink-0 place-items-center overflow-hidden
-                          rounded-full border border-zinc-700 bg-slate-800
-                          text-xl font-semibold uppercase text-slate-100">
+        {/* ------------------------------------------------------- Kopf (neues Design, 14.10.2026: Flaeche mit Leuchten, grosser Name) */}
+        <section className="relative mb-6 overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 p-6 shadow-[0_10px_30px_rgba(15,23,42,.18)] sm:p-8">
+        <span aria-hidden className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-sky-500/25 blur-3xl" />
+        <span aria-hidden className="pointer-events-none absolute -bottom-28 left-1/3 h-56 w-56 rounded-full bg-indigo-500/15 blur-3xl" />
+        <div className="relative flex flex-wrap items-center gap-5">
+          <div className="grid h-20 w-20 shrink-0 place-items-center overflow-hidden
+                          rounded-2xl border border-zinc-700 bg-zinc-950/60
+                          text-3xl font-extrabold uppercase text-slate-100">
             {bild
               // eslint-disable-next-line @next/next/no-img-element
               ? <img src={bild} alt="" className="h-full w-full object-cover" />
               : (daten.name || daten.email).trim().charAt(0)}
           </div>
           <div className="min-w-0">
-            <h1 className="truncate text-2xl font-bold">{daten.name}</h1>
-            <p className="truncate text-xs text-slate-500">
+            <h1 className="truncate text-3xl font-extrabold text-white sm:text-4xl">{daten.name}</h1>
+            <p className="truncate text-sm text-slate-400">
               {daten.email}
               {daten.bestaetigt && (
                 /* Der Haken - dieselbe Auszeichnung wie im Posteingang. */
@@ -748,25 +751,26 @@ export default function KontoSeite() {
               </div>
             )}
           </div>
-          <Link href="/" className="ml-auto text-xs text-slate-500 transition
-                                    hover:text-sky-400">
+          <Link href="/" className="ml-auto rounded-full border border-zinc-700 px-4 py-2 text-xs font-semibold text-slate-300 transition
+                                    hover:border-sky-500 hover:text-sky-400">
             ← <T>zur Startseite</T>
           </Link>
         </div>
+        </section>
 
         {/*
           * Die Bereiche stehen links untereinander, nicht oben als Reiter.
           * Auf einem schmalen Fenster klappt die Spalte ueber den Inhalt -
           * dort waere eine feste Seitenspalte nur im Weg.
           */}
-        <div className="grid gap-6 md:grid-cols-[200px_minmax(0,1fr)]">
-          <nav className="flex flex-row flex-wrap gap-1 md:flex-col">
+        <div className="grid gap-6 md:grid-cols-[220px_minmax(0,1fr)]">
+          <nav className="flex h-fit flex-row flex-wrap gap-1 rounded-3xl border border-zinc-800 bg-zinc-900 p-2 shadow-[0_8px_24px_rgba(15,23,42,.14)] md:flex-col">
             {BEREICHE.map((b) => (
               <button key={b.wert} onClick={() => setBereich(b.wert)}
-                className={`rounded-lg px-3 py-2 text-left text-sm font-semibold
+                className={`rounded-2xl px-4 py-2.5 text-left text-sm font-semibold
                             transition ${bereich === b.wert
-                  ? 'bg-sky-500 text-white'
-                  : 'text-slate-400 hover:bg-zinc-900 hover:text-slate-200'}`}>
+                  ? 'bg-sky-500 text-white shadow'
+                  : 'text-slate-400 hover:bg-zinc-800 hover:text-slate-200'}`}>
                 <T>{b.titel}</T>
               </button>
             ))}
@@ -782,11 +786,11 @@ export default function KontoSeite() {
               */}
             {(zugang.admin || zugang.manager) && (
               <button onClick={() => setBereich('werkzeuge')}
-                className={`mt-2 rounded-lg px-3 py-2 text-left text-sm
+                className={`mt-2 rounded-2xl px-4 py-2.5 text-left text-sm
                             font-semibold transition md:mt-4
                             ${bereich === 'werkzeuge'
-                  ? 'bg-sky-500 text-white'
-                  : 'text-slate-400 hover:bg-zinc-900 hover:text-slate-200'}`}>
+                  ? 'bg-sky-500 text-white shadow'
+                  : 'text-slate-400 hover:bg-zinc-800 hover:text-slate-200'}`}>
                 <T>Admin Tools</T>
               </button>
             )}
@@ -805,7 +809,7 @@ export default function KontoSeite() {
               * er eigentlich auf Privacy wollte.
               */}
             <button onClick={abmelden}
-              className="mt-2 rounded-lg border border-zinc-800 px-3 py-2
+              className="mt-2 rounded-2xl border border-zinc-800 px-4 py-2.5
                          text-left text-sm font-semibold text-slate-400
                          transition hover:border-rose-500/60 hover:text-rose-400
                          md:mt-6">

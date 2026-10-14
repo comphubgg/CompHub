@@ -130,7 +130,7 @@ export default function AlteMapsVerwaltung() {
   if (zugang.laedt) return <main className="min-h-screen bg-zinc-950"><LadeSchirm /></main>;
   if (!zugang.admin) return <main className="grid min-h-screen place-items-center bg-zinc-950 px-4 text-sm text-slate-400"><T>Nur für den Admin.</T></main>;
 
-  const feld = 'rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-600 focus:border-sky-500';
+  const feld = 'rounded-xl border border-zinc-700 bg-zinc-950/60 px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-sky-500';
   const zeile = (e: Eintrag) => {
     const z = zahlen[e.windowId];
     const eigen = e.windowId.startsWith('alt_admin_');
@@ -153,14 +153,14 @@ export default function AlteMapsVerwaltung() {
         <td className="px-3 py-2">
           <div className="flex flex-wrap justify-end gap-1.5">
             <Link href={`/admin/alte-maps/bearbeiten?t=${encodeURIComponent(e.turnierId)}&r=${encodeURIComponent(e.region)}&w=${encodeURIComponent(e.windowId)}`}
-              className="rounded-md bg-amber-400 px-3 py-1 text-[11px] font-black text-zinc-950 transition hover:bg-amber-300"><T>Bearbeiten</T></Link>
+              className="rounded-full bg-sky-500 px-3.5 py-1 text-[11px] font-bold text-white transition hover:bg-sky-400"><T>Bearbeiten</T></Link>
             {!e.versteckt && (
               <Link href={`/tournament-maps/karte?t=${encodeURIComponent(e.turnierId)}&r=${encodeURIComponent(e.region)}&w=${encodeURIComponent(e.windowId)}`}
-                className="rounded-md border border-white/10 px-2.5 py-1 text-[11px] font-semibold text-slate-300 transition hover:border-sky-500/60"><T>Ansehen</T></Link>
+                className="rounded-full border border-zinc-700 px-3 py-1 text-[11px] font-semibold text-slate-300 transition hover:border-sky-500 hover:text-sky-400"><T>Ansehen</T></Link>
             )}
             {e.alt && (
               <button type="button" onClick={() => void verstecken(e.windowId, !e.versteckt)}
-                className="rounded-md border border-white/10 px-2.5 py-1 text-[11px] font-semibold text-slate-400 transition hover:border-sky-500/60">
+                className="rounded-full border border-zinc-700 px-3 py-1 text-[11px] font-semibold text-slate-400 transition hover:border-sky-500 hover:text-sky-400">
                 {e.versteckt ? <T>Zeigen</T> : <T>Verstecken</T>}
               </button>
             )}
@@ -174,21 +174,24 @@ export default function AlteMapsVerwaltung() {
   return (
     <main className="min-h-screen bg-zinc-950 text-slate-100">
       <div className="mx-auto max-w-[1500px] px-4 py-6">
-        <div className="flex flex-wrap items-end justify-between gap-3">
-          <div>
-            <Link href="/admin" className="text-[11px] font-bold uppercase tracking-wider text-slate-500 transition hover:text-sky-400">← Dashboard</Link>
-            <h1 className="mt-1 text-3xl font-black tracking-tight sm:text-4xl"><T>Alte Maps</T></h1>
-            <p className="mt-1 max-w-2xl text-sm text-slate-400"><T>Hier pflegst du die Karten von Hand: Landepunkte, Teams und Leaderboard je Karte - ohne etwas zu laden. Auch Karten von Noble Practice stehen hier (Markierung Noble): wo dort keine Landepunkte stehen, zeichnest du sie selbst ein.</T></p>
+        <section className="relative overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 p-6 shadow-[0_10px_30px_rgba(15,23,42,.18)] sm:p-8">
+          <span aria-hidden className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-sky-500/25 blur-3xl" />
+          <div className="relative flex flex-wrap items-end justify-between gap-4">
+            <div>
+              <Link href="/admin" className="text-[11px] font-bold uppercase tracking-wider text-slate-500 transition hover:text-sky-400">← Dashboard</Link>
+              <h1 className="mt-1 text-3xl font-black tracking-tight sm:text-4xl"><T>Alte Maps</T></h1>
+              <p className="mt-1 max-w-2xl text-sm text-slate-400"><T>Hier pflegst du die Karten von Hand: Landepunkte, Teams und Leaderboard je Karte - ohne etwas zu laden. Auch Karten von Noble Practice stehen hier (Markierung Noble): wo dort keine Landepunkte stehen, zeichnest du sie selbst ein.</T></p>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <Link href="/tournament-maps" className="rounded-full border border-zinc-700 px-4 py-2 text-xs font-bold text-slate-300 transition hover:border-sky-500 hover:text-sky-400"><T>Zur öffentlichen Übersicht</T> →</Link>
+              <button type="button" onClick={() => { setNeuOffen((v) => !v); setStatus(''); if (!neu.saison && saison) setNeu((n) => ({ ...n, saison })); }}
+                className="rounded-full bg-sky-500 px-5 py-2 text-xs font-bold text-white transition hover:bg-sky-400">+ <T>Event anlegen</T></button>
+            </div>
           </div>
-          <div className="flex flex-wrap items-center gap-2">
-            <Link href="/tournament-maps" className="rounded-lg border border-white/10 px-3 py-2 text-xs font-bold uppercase tracking-wider text-slate-300 transition hover:border-sky-500/60"><T>Zur öffentlichen Übersicht</T> →</Link>
-            <button type="button" onClick={() => { setNeuOffen((v) => !v); setStatus(''); if (!neu.saison && saison) setNeu((n) => ({ ...n, saison })); }}
-              className="rounded-lg bg-amber-400 px-4 py-2 text-xs font-black uppercase tracking-wider text-zinc-950 transition hover:bg-amber-300">+ <T>Event anlegen</T></button>
-          </div>
-        </div>
+        </section>
 
         {neuOffen && (
-          <div className="mt-4 rounded-2xl border border-white/[0.09] bg-white/[0.03] p-4">
+          <div className="mt-4 rounded-3xl border border-zinc-800 bg-zinc-900 p-5 shadow-[0_10px_30px_rgba(15,23,42,.14)]">
             <p className="text-xs text-slate-400"><T>Ein Event anlegen. Danach öffnest du es mit „Bearbeiten“ und zeichnest Formen, Teams und Leaderboard ein.</T></p>
             <div className="mt-3 grid gap-2 sm:grid-cols-2 lg:grid-cols-[1.4fr_1.2fr_1fr_1fr_auto]">
               <input value={neu.cup} onChange={(e) => setNeu({ ...neu, cup: e.target.value })} list="alte-cups" placeholder={t('Cup, z. B. Elite Cup')} className={feld} />
@@ -203,7 +206,7 @@ export default function AlteMapsVerwaltung() {
             </div>
             <div className="mt-3 flex items-center gap-3">
               <button type="button" disabled={!neu.cup.trim() || !neu.fenster.trim() || !neu.saison} onClick={() => void anlegen()}
-                className="rounded-lg bg-white px-4 py-2 text-sm font-bold text-zinc-900 transition hover:bg-sky-100 disabled:opacity-40"><T>Anlegen</T></button>
+                className="rounded-full bg-sky-500 px-5 py-2 text-sm font-bold text-white transition hover:bg-sky-400 disabled:opacity-40"><T>Anlegen</T></button>
               {status && <span className="text-xs text-slate-400">{status}</span>}
             </div>
           </div>
@@ -215,21 +218,21 @@ export default function AlteMapsVerwaltung() {
         {eintraege && (
           <div className="mt-6 flex flex-col gap-5 lg:flex-row">
             {/* ------------------------------------------------- Menü */}
-            <nav className="shrink-0 lg:w-[230px]">
+            <nav className="h-fit shrink-0 rounded-3xl border border-zinc-800 bg-zinc-900 p-2.5 shadow-[0_10px_30px_rgba(15,23,42,.14)] lg:w-[240px]">
               <ul className="space-y-1">
                 {kapitelListe.map((k) => (
                   <li key={k.nr}>
                     <button type="button" onClick={() => { setKapitel(k.nr); setSaison(''); }}
-                      className={`flex w-full items-center justify-between rounded-lg px-3 py-2 text-left text-sm font-bold transition ${k.nr === kapitel ? 'bg-white text-zinc-900' : 'text-slate-300 hover:bg-white/[0.06]'}`}>
-                      <span>Chapter {k.nr}</span><span className={`text-xs tabular-nums ${k.nr === kapitel ? 'text-zinc-600' : 'text-slate-500'}`}>{k.n}</span>
+                      className={`flex w-full items-center justify-between rounded-xl px-3.5 py-2 text-left text-sm font-bold transition ${k.nr === kapitel ? 'bg-sky-500 text-white shadow' : 'text-slate-300 hover:bg-zinc-800'}`}>
+                      <span>Chapter {k.nr}</span><span className={`text-xs tabular-nums ${k.nr === kapitel ? 'text-sky-100' : 'text-slate-500'}`}>{k.n}</span>
                     </button>
                     {k.nr === kapitel && (
                       <ul className="mb-1 mt-1 space-y-0.5 pl-3">
-                        <li><button type="button" onClick={() => setSaison('')} className={`w-full rounded-md px-2.5 py-1.5 text-left text-[11px] font-bold uppercase tracking-wider ${saison === '' ? 'bg-sky-500/20 text-sky-200' : 'text-slate-400 hover:bg-white/[0.05]'}`}><T>Alle</T></button></li>
+                        <li><button type="button" onClick={() => setSaison('')} className={`w-full rounded-md px-2.5 py-1.5 text-left text-[11px] font-bold uppercase tracking-wider ${saison === '' ? 'bg-sky-500/15 text-sky-400' : 'text-slate-400 hover:bg-zinc-800'}`}><T>Alle</T></button></li>
                         {k.saisons.map((s) => (
                           <li key={s.kennung}>
                             <button type="button" onClick={() => setSaison(s.kennung)}
-                              className={`flex w-full items-center justify-between rounded-md px-2.5 py-1.5 text-left text-[11px] font-bold uppercase tracking-wider ${saison === s.kennung ? 'bg-sky-500/20 text-sky-200' : 'text-slate-400 hover:bg-white/[0.05]'}`}>
+                              className={`flex w-full items-center justify-between rounded-md px-2.5 py-1.5 text-left text-[11px] font-bold uppercase tracking-wider ${saison === s.kennung ? 'bg-sky-500/15 text-sky-400' : 'text-slate-400 hover:bg-zinc-800'}`}>
                               <span>{s.kurz}</span><span className="tabular-nums text-slate-600">{zahlJe.get(s.kennung) ?? 0}</span>
                             </button>
                           </li>
@@ -244,14 +247,14 @@ export default function AlteMapsVerwaltung() {
             {/* ------------------------------------------------- Karten */}
             <section className="min-w-0 flex-1">
               <div className="mb-3 flex flex-wrap items-center gap-3">
-                <h2 className="text-lg font-black uppercase tracking-wide">
+                <h2 className="text-xl font-extrabold tracking-tight">
                   {saison ? (saisons.find((s) => s.kennung === saison)?.name ?? '') : (kapitel ? `Chapter ${kapitel}` : '')}
                   <span className="ml-2 text-xs font-semibold normal-case tracking-normal text-slate-500">{sichtbar.length}</span>
                 </h2>
                 <input value={suche} onChange={(e) => setSuche(e.target.value)} placeholder={t('Karte suchen …')} className={`${feld} w-full max-w-[220px]`} />
                 <label className="flex items-center gap-2 text-xs font-semibold text-slate-400"><input type="checkbox" checked={nurLeere} onChange={(e) => setNurLeere(e.target.checked)} /> <T>nur ohne Formen</T></label>
                 <button type="button" onClick={() => void bilderLaden()} disabled={!sichtbar.length}
-                  className="ml-auto rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-slate-200 transition hover:border-sky-500/60 disabled:opacity-40"><T>Kartenbild für alle hier setzen</T></button>
+                  className="ml-auto rounded-full border border-zinc-700 px-4 py-1.5 text-xs font-semibold text-slate-200 transition hover:border-sky-500 hover:text-sky-400 disabled:opacity-40"><T>Kartenbild für alle hier setzen</T></button>
               </div>
               {bildOffen && (
                 <div className="mb-3 rounded-xl border border-white/[0.08] bg-black/30 p-2">
@@ -273,7 +276,7 @@ export default function AlteMapsVerwaltung() {
               {sichtbar.length === 0 ? (
                 <p className="rounded-xl border border-white/[0.07] bg-white/[0.03] px-4 py-8 text-center text-sm text-slate-500"><T>Hier steht noch nichts. Mit „Event anlegen“ kommt die erste Karte dazu.</T></p>
               ) : (
-                <div className="overflow-x-auto rounded-xl border border-white/[0.08] bg-zinc-900/40">
+                <div className="overflow-x-auto rounded-3xl border border-zinc-800 bg-zinc-900 shadow-[0_10px_30px_rgba(15,23,42,.14)]">
                   <table className="w-full min-w-[720px] text-sm">
                     <thead>
                       <tr className="border-b border-white/[0.08] text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">

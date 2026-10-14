@@ -3692,10 +3692,9 @@ ${name}
                 ? uebs('Wer wo landet. Das Breitbild lässt sich rechts umschalten.')
                 : ausTurnier
                 ? (bearbeitenAn
-                    ? 'Veröffentlichte Turnierkarte — Bearbeiten ist an.'
-                    : 'Veröffentlichte Turnierkarte — nur Ansicht. '
-                      + 'Zum Ändern unten auf „Diese Karte bearbeiten“ klicken.')
-                : 'Formen bleiben je Kartenbild gespeichert, Spieler startest du jedes Mal neu.'}
+                    ? uebs('Veröffentlichte Turnierkarte — Bearbeiten ist an.')
+                    : uebs('Veröffentlichte Turnierkarte — nur Ansicht. Zum Ändern unten auf „Diese Karte bearbeiten“ klicken.'))
+                : uebs('Formen bleiben je Kartenbild gespeichert, Spieler startest du jedes Mal neu.')}
             </p>
             {istAdmin && ausTurnier && !direkt && (
               <button onClick={() => setBearbeitenAn((v) => !v)}
@@ -3778,7 +3777,7 @@ ${name}
           <div className="mb-3 grid gap-3 rounded-xl border border-zinc-800 bg-zinc-900/40 p-3
                           sm:grid-cols-2 lg:grid-cols-6">
             <label className="text-xs text-slate-400">
-              Titel
+              {uebs('Titel')}
               <input value={titel}
                 onChange={(e) => { titelVomNutzer.current = true; setTitel(e.target.value); }}
                 className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2
@@ -3853,14 +3852,14 @@ ${name}
               </select>
             </label>
             <label className="text-xs text-slate-400">
-              Spiele
+              {uebs('Spiele')}
               {/* Freitext, weil Epic nicht mitteilt, welche Runde auf welcher
                   Insel laeuft. Leer heisst: gilt fuer den ganzen Spieltag. */}
               <input value={spiele}
                 onChange={(e) => {
                   setSpiele(e.target.value);
                 }}
-                placeholder="z. B. 1–5"
+                placeholder={uebs('z. B. 1–5')}
                 className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2
                            text-sm text-slate-100 outline-none placeholder:text-slate-600
                            focus:border-sky-500" />
@@ -3963,7 +3962,7 @@ ${name}
               <T>hinzufügen</T>
             </button>
             <label className="text-xs text-slate-400">
-              Kartenbild
+              {uebs('Kartenbild')}
               <select value={bildId}
                 onChange={(e) => {
                   // Eine eigene Wahl fuer diesen Spieltag - die Insel schlaegt sie nicht mehr um.

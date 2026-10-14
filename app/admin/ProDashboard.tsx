@@ -274,21 +274,25 @@ export default function ProDashboard() {
   return (
     <main className="min-h-screen bg-zinc-950 text-slate-100">
       <div className="mx-auto max-w-[1300px] px-4 py-6">
-        <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
-          <div>
-            <h1 className="text-xl font-semibold"><T>Dashboard</T></h1>
-            <p className="mt-0.5 text-sm text-slate-500">{mein?.name ?? ''}
-              <span className="ml-2 rounded-md bg-sky-500/10 px-1.5 py-0.5 text-[11px] font-medium text-sky-400">Pro</span>
-            </p>
+        {/* Kopf im neuen Design (14.10.2026): Flaeche mit Leuchten, Name gross, die Knoepfe als Kapseln. */}
+        <section className="relative mb-5 overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 p-6 shadow-[0_10px_30px_rgba(15,23,42,.18)] sm:p-8">
+        <span aria-hidden className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-sky-500/25 blur-3xl" />
+        <span aria-hidden className="pointer-events-none absolute -bottom-28 left-1/3 h-56 w-56 rounded-full bg-indigo-500/15 blur-3xl" />
+        <div className="relative flex flex-wrap items-end justify-between gap-4">
+          <div className="min-w-0">
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-sky-500"><T>Dashboard</T></p>
+            <h1 className="mt-1 truncate text-3xl font-extrabold text-white sm:text-4xl">{mein?.name ?? ''}
+              <span className="ml-3 rounded-full border border-sky-500/30 bg-sky-500/10 px-2.5 py-0.5 align-middle text-xs font-semibold text-sky-400">Pro</span>
+            </h1>
           </div>
-          <div className="flex items-center gap-3 text-xs text-slate-500">
+          <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
             {stand === 'speichert' && <span><T>speichert …</T></span>}
             {stand === 'gespeichert' && <span className="text-emerald-400"><T>Gespeichert</T></span>}
             {/* Das Programm fuer Windows - im Programm selbst ist der Knopf ueberfluessig. */}
             {!imProgramm && (
               <a href="/api/pov/app"
                 title={t('Das Dashboard als Windows-Programm: läuft im Hintergrund weiter, die Anmeldung bleibt gespeichert.')}
-                className="rounded-md border border-sky-500/50 px-3 py-1.5 text-sky-400 transition hover:bg-sky-500/10">
+                className="rounded-full border border-sky-500/50 px-4 py-2 font-semibold text-sky-400 transition hover:bg-sky-500/10">
                 <T>Programm für Windows laden</T>
               </a>
             )}
@@ -297,22 +301,23 @@ export default function ProDashboard() {
               <button type="button"
                 title={t('Kopiert einen Befehl für die Eingabeaufforderung (cmd): installiert oder aktualisiert das Programm ohne Anmeldung. Das Programm aktualisiert sich danach von selbst.')}
                 onClick={() => { void navigator.clipboard.writeText(installBefehl()).then(() => { setBefehlKopiert(true); window.setTimeout(() => setBefehlKopiert(false), 4000); }).catch(() => undefined); }}
-                className="rounded-md border border-zinc-700 px-3 py-1.5 text-slate-300 transition hover:border-sky-500 hover:text-sky-400">
+                className="rounded-full border border-zinc-700 px-4 py-2 font-semibold text-slate-300 transition hover:border-sky-500 hover:text-sky-400">
                 {befehlKopiert ? <T>Befehl kopiert — in cmd einfügen</T> : <T>Installieren per Befehl</T>}
               </button>
             )}
             {/* Ein gewoehnlicher Link, kein next/link: der wuerde die Adresse vorab laden - und damit abmelden. */}
-            <a href="/api/auth/logout" className="rounded-md border border-zinc-700 px-3 py-1.5 text-slate-300 transition hover:border-sky-500 hover:text-sky-400">
+            <a href="/api/auth/logout" className="rounded-full border border-zinc-700 px-4 py-2 font-semibold text-slate-300 transition hover:border-sky-500 hover:text-sky-400">
               <T>Abmelden</T>
             </a>
           </div>
         </div>
+        </section>
 
-        <div className="mb-5 flex gap-1.5 border-b border-zinc-800">
+        <div className="mb-5 inline-flex gap-1 rounded-full border border-zinc-800 bg-zinc-900 p-1">
           {(['pov', 'settings'] as const).map((k) => (
             <button key={k} type="button" onClick={() => setTab(k)}
-              className={`-mb-px rounded-t-lg border-b-2 px-4 py-2 text-sm font-semibold transition ${tab === k
-                ? 'border-sky-500 text-sky-400' : 'border-transparent text-slate-400 hover:text-slate-200'}`}>
+              className={`rounded-full px-5 py-2 text-sm font-bold transition ${tab === k
+                ? 'bg-sky-500 text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}>
               {k === 'pov' ? 'POV' : t('Einstellungen')}
             </button>
           ))}

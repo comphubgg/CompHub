@@ -33,7 +33,7 @@ export default function SpieltagSeite() {
     return () => { weg = true; };
   }, [tagId]);
 
-  const chip = (an: boolean) => `rounded-lg px-4 py-2 text-xs font-bold uppercase tracking-[0.12em] transition ${an ? 'bg-white text-zinc-900' : 'text-slate-400 hover:text-slate-100'}`;
+  const chip = (an: boolean) => `rounded-lg px-4 py-2 text-xs font-bold uppercase tracking-[0.12em] transition ${an ? 'bg-sky-500 text-white shadow' : 'text-slate-400 hover:text-slate-100'}`;
 
   return (
     <main className="min-h-screen bg-zinc-950 text-slate-100">

@@ -3151,9 +3151,9 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
               {meineId && (
                 <div className="inline-flex rounded-lg border border-zinc-800 bg-zinc-900/80 p-0.5 text-xs font-semibold">
                   <button type="button" onClick={() => { setNurFreunde(false); setSeite(1); }}
-                    className={`rounded-md px-3 py-1 transition ${!nurFreunde ? 'bg-white text-zinc-900' : 'text-slate-400 hover:text-slate-100'}`}><T>Alle</T></button>
+                    className={`rounded-md px-3 py-1 transition ${!nurFreunde ? 'bg-sky-500 text-white shadow' : 'text-slate-400 hover:text-slate-100'}`}><T>Alle</T></button>
                   <button type="button" onClick={() => { setNurFreunde(true); setSeite(1); }}
-                    className={`rounded-md px-3 py-1 transition ${nurFreunde ? 'bg-white text-zinc-900' : 'text-slate-400 hover:text-slate-100'}`}><T>Freunde</T></button>
+                    className={`rounded-md px-3 py-1 transition ${nurFreunde ? 'bg-sky-500 text-white shadow' : 'text-slate-400 hover:text-slate-100'}`}><T>Freunde</T></button>
                 </div>
               )}
               {/* Ohne Ladezeichen im Feld. Der Betreiber wollte es gross
