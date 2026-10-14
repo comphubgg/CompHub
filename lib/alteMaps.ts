@@ -1,6 +1,6 @@
 import { liesJson, schreibJson, ersatzSeit } from '@/lib/ablage';
 import { gecacht, holeTop, type CupEintrag } from '@/lib/epicCups';
-import { spielerKontext, type SolosFenster, type SolosSpieler, type SolosTeam } from '@/lib/globalsSolos';
+import { spielerKontext, fensterFuer, type SolosFenster, type SolosSpieler, type SolosTeam } from '@/lib/globalsSolos';
 import type { MapEintrag } from '@/lib/mapsVerzeichnis';
 import { cupBild, type MapTyp } from '@/lib/mapsTyp';
 import { GET as bestenliste } from '@/app/api/cup-leaderboard/route';
@@ -284,23 +284,50 @@ function ausKatalog(archiv: ArchivEintrag[], typVon: (n: string) => MapTyp): Alt
 }
 
 /*
- * Die Insel je Saison - die Karten, die der Betreiber geschickt hat (13.10.2026). Abgeglichen mit den Saisonkarten von EU Competitive
- * (Bildvergleich, Abstand der verkleinerten Bilder): Chapter 2 Season 4 bis 8 (5 und 7 vertauscht gegenueber dem ersten Stand),
- * Chapter 3 Season 2 bis 4 (2 und 3 vertauscht), Chapter 4 Season 1 bis 4, Chapter 5 Season 2 bis 4 und Chapter 6 Season 1 bis 4
- * stimmen mit dem Vorbild ueberein; Chapter 2 Season 6, Chapter 3 Season 1 und Chapter 5 Season 1 zeigen dieselbe Insel in einem
- * anderen Stand der Saison. Saisons ohne eigene Karte (Chapter 1, Chapter 2 Remix) zeigen einen Hinweis statt einer falschen Insel.
- * Der Admin kann jede Insel je Spieltag oder je Saison tauschen (Verwaltung der alten Maps).
+ * Die Insel je Saison und Spieltag. Das Hinweisbild gilt, wo es keine Karte gibt (Chapter 1 bis auf die Weltmeisterschaft); der Admin kann jede
+ * Insel je Spieltag oder je Saison tauschen (Verwaltung der alten Maps). Die Karten der Saisons selbst stehen darunter.
  */
 export const KEINE_KARTE = '/maps/archiv/keine-karte.png';
-const K = (n: number, ext = 'jpg') => `/maps/archiv/karte-${String(n).padStart(2, '0')}.${ext}`;
+
+/*
+ * Die Karten je Spielversion (14.10.2026): der Betreiber - "bei Chapter 2 Season 4 fehlt oben rechts der blaue Kreis, das ist ein anderes Update;
+ * geh bei fortnite.gg/map-evolution jedes Update durch, vergleiche mit EU Competitive, welche es ist, und nimm die" - Die Bilder kommen von
+ * fortnite.gg/map-evolution (je Patch eine Karte; bei Chapter 1 und 2 ohne den Beschriftungsrand A-H / 1-8). Welche Version zu welcher Saison
+ * und welchem Spieltag gehoert, sagt die Tabelle von EU Competitive (tournamentmaps: je Event ein Kartenbild, meist eins je Saison, in einigen
+ * Saisons mehrere) - jedes ihrer 30 Bilder wurde gegen alle 227 Patch-Karten verglichen (Abstand der verkleinerten Bilder, mit und ohne
+ * Beschriftungsrand); die Karte mit dem kleinsten Abstand gilt. Wo mehrere Patches gleich gut passen (die Karte hat sich nicht veraendert),
+ * steht der juengste. Nicht zu finden ist die Karte des Grand Royale (Chapter 2 Season 8, dort liegt die Insel unter dem Wuerfel-Befall): sie ist
+ * keine Patch-Karte; es steht die Karte der letzten Version der Saison (18.40) da - der Admin kann ein eigenes Bild waehlen.
+ */
+const GG = (patch: string) => `/maps/archiv/gg/gg-${patch.replace(/\s+/g, '-')}.webp`;
 export const INSEL_JE_SAISON: Record<string, string> = {
-  S14: K(13), S15: K(20), S16: K(10), S17: K(15), S18: K(18),
-  S19: K(8), S20: K(11), S21: K(9), S22: K(14),
-  S23: K(19), S24: K(16), S25: K(12), S26: K(17),
-  S28: K(7), S29: K(4), S30: K(2), S31: K(6),
-  S33: K(1), S34: K(3), S36: K(5), S37: K(21, 'webp'),
+  S9: GG('9.00'),
+  S14: GG('14.40'), S15: GG('15.00'), S16: GG('16.40'), S17: GG('17.00'), S18: GG('18.30'),
+  S19: GG('19.00'), S20: GG('20.00'), S21: GG('21.00'), S22: GG('22.00'),
+  S23: GG('23.00'), S24: GG('24.00'), S25: GG('25.00'), S26: GG('26.30'),
+  S28: GG('28.01'), S29: GG('29.10'), S30: GG('30.00'), S31: GG('31.10'), S32: GG('32 week 2'),
+  S33: GG('33.00'), S34: GG('34.00'), S36: GG('36.00'), S37: GG('37.00'),
 };
-export const inselFuer = (saison: string): string => INSEL_JE_SAISON[saison] ?? KEINE_KARTE;
+
+/** Spieltage, deren Karte in der Tabelle von EU Competitive eine andere Version ist als die der Saison (Schluessel: Saison|Titel der Karte). */
+export const INSEL_JE_EVENT: Record<string, string> = {
+  'S18|FNCS Grand Royale': GG('18.40'),
+  // Chapter 3 Season 1: Woche 1 die erste Karte, Woche 2 und 3 die zweite, ab Woche 4 und in den FNCS-Runden die dritte.
+  'S19|Duo Cash Cup Finals - Week 2': GG('19.10'), 'S19|Duo Cash Cup Finals - Week 3': GG('19.10'),
+  ...Object.fromEntries([4, 5, 6, 7, 8].map((w) => [`S19|Duo Cash Cup Finals - Week ${w}`, GG('19.20')])),
+  ...Object.fromEntries(['FNCS Grand Finals', 'FNCS Semi Finals 3', 'FNCS Semi Finals 2', 'FNCS Semi Finals 1', 'FNCS Qualifier 2', 'FNCS Qualifier 1'].map((t) => [`S19|${t}`, GG('19.20')])),
+  // Das Invitational 2022 hat seine eigene Karte (auf der Insel liegt der Schnee anders).
+  'S22|FNCS Invitational 2022': GG('22.30'),
+  // Chapter 6 Season 1: die Karte aenderte sich in der Saison dreimal.
+  'S33|Performance Evaluation Cup - Week 4': GG('33.11'),
+  'S33|Performance Evaluation Cup - Week 6': GG('33.20'), 'S33|Performance Evaluation Cup - Week 7': GG('33.20'),
+  'S33|Performance Evaluation Cup - Week 8': GG('33.20'), 'S33|Performance Evaluation Cup - Week 9': GG('33.20'),
+  'S33|Division 1 Cup Finals - Week 3': GG('33.11'),
+  'S33|Division 1 Cup Finals - Week 4': GG('33.20'), 'S33|Division 1 Cup Finals - Week 5': GG('33.20'),
+};
+
+/** Die Karte eines Spieltags: die Version dieses Spieltags, sonst die der Saison. */
+export const inselFuer = (saison: string, titel?: string): string => (titel && INSEL_JE_EVENT[`${saison}|${titel}`]) || INSEL_JE_SAISON[saison] || KEINE_KARTE;
 
 /* ------------------------------------------------------------------ Verzeichnis */
 
@@ -456,7 +483,7 @@ export async function alteFenster(e: MapEintrag, tag = 'gesamt'): Promise<{ turn
     fenster: {
       windowId: e.windowId, name: e.fenster, art: 'finale', start: iso(e.datum), end: iso(e.ende),
       // Die Insel der Saison (siehe INSEL_JE_SAISON); die Wahl des Admins fuer diese Karte steht auf der Seite darueber.
-      spieler: [...alle.values()], teams, bild: inselFuer(e.saison), formen, quelle: zeigtEpic(e, daten) ? 'epic' : 'hand',
+      spieler: [...alle.values()], teams, bild: inselFuer(e.saison, e.titel), formen, quelle: zeigtEpic(e, daten) ? 'epic' : 'hand',
     },
     tage: (e.tage ?? []).map((t) => ({ name: t.name, windowId: t.windowId })),
   };
@@ -500,12 +527,62 @@ async function teamGroesseVon(e: MapEintrag, vorhanden: AltTeam[]): Promise<numb
   return null;
 }
 
+/**
+ * Die Hand-Ebene des Admins ueber eine Karte, die Noble Practice fuehrt (Betreiber, 14.10.2026: bei den Grand Finals von Major 3 steht
+ * "No landing spots have been entered" - dort muss er Formen und Namen selbst eintragen koennen, wie bei den alten Maps).
+ *
+ * Hat der Admin Formen gespeichert, gelten sie statt Nobles Formen; hat er Teams angelegt, gelten sie statt Nobles Teams (so wie bei den
+ * alten Karten: sobald das erste eigene Team da ist, gilt nur noch seins). Ohne beides bleibt Nobles Karte unberuehrt.
+ */
+export async function mitHandEbene(e: MapEintrag, f: SolosFenster): Promise<SolosFenster> {
+  const s = await liesAltStore();
+  const d = s.fenster?.[e.windowId];
+  const handFormen = d?.formen ?? [];
+  const handTeams = d?.teams ?? [];
+  if (!handFormen.length && !handTeams.length) return f;
+  const kontext = await spielerKontext();
+  const eigene: SolosTeam[] = handTeams.map((t) => ({
+    id: t.id,
+    spieler: t.spieler.map((p, i) => kontext(p.epicId || `${t.id}-${i}`, p.name, p.land)),
+    rang: t.rang ?? null, punkte: t.punkte ?? null, siege: t.siege ?? null, elims: t.elims ?? null,
+  }));
+  const teams = eigene.length ? eigene : (f.teams ?? []);
+  const nachId = new Map(teams.map((t) => [t.id, t]));
+  const alle = new Map<string, SolosSpieler>();
+  for (const t of teams) for (const p of t.spieler) alle.set(p.id, p);
+  const formen = handFormen.length
+    ? handFormen.map((fo) => {
+      const dabei = fo.teamIds.map((id) => nachId.get(id)).filter((t): t is SolosTeam => !!t);
+      return { punkte: fo.punkte, spieler: dabei.flatMap((t) => t.spieler.map((p) => p.anzeige)), teams: dabei.length, gruppen: dabei.map((t) => t.spieler.map((p) => p.anzeige)) };
+    })
+    : f.formen;
+  return { ...f, teams, spieler: eigene.length ? [...alle.values()] : f.spieler, formen, quelle: eigene.length ? 'hand' : f.quelle };
+}
+
 /** Fuer den Editor: ausschliesslich das, was der Admin selbst angelegt hat - es wird nichts hineingeladen. */
 export async function alteBearbeitung(e: MapEintrag & { quelle?: string }) {
   const s = await liesAltStore();
   const daten = s.fenster?.[e.windowId];
+  /*
+   * Bei einer Karte von Noble Practice: deren Teams (zum Auflegen auf Formen - lesen, nicht aendern) und wie viele Landepunkte sie dort hat.
+   * Gespeichert wird weiterhin nur, was der Admin selbst anlegt (mitHandEbene).
+   */
+  let noble: { teams: AltTeam[]; formen: number } | null = null;
+  if (!e.alt) {
+    try {
+      const f = await fensterFuer(e.turnierId, e.region, e.windowId);
+      noble = {
+        teams: (f?.fenster.teams ?? []).map((t) => ({
+          id: t.id, rang: t.rang, punkte: t.punkte, siege: t.siege,
+          spieler: t.spieler.map((p) => ({ name: p.anzeige || p.name, epicId: p.id, ...(p.land ? { land: p.land } : {}) })),
+        })),
+        formen: f?.fenster.formen.length ?? 0,
+      };
+    } catch { noble = { teams: [], formen: 0 }; }
+  }
   return {
-    teamGroesse: await teamGroesseVon(e, daten?.teams ?? []),
+    noble,
+    teamGroesse: await teamGroesseVon(e, daten?.teams?.length ? daten.teams : (noble?.teams ?? [])),
     teams: daten?.teams ?? [],
     formen: daten?.formen ?? [],
     versteckt: !!daten?.versteckt,

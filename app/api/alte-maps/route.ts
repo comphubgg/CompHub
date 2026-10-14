@@ -3,6 +3,7 @@ import { werSchreibt, darfKarteAendern } from '@/lib/werSchreibt';
 import { mapsVerzeichnis, vergissVerzeichnis, versteckteKarten } from '@/lib/mapsVerzeichnis';
 import { typVon } from '@/lib/mapsTyp';
 import { SAISON_NAMEN } from '@/lib/szeneStats';
+import { fensterFuer } from '@/lib/globalsSolos';
 import { ALT, aendereAltStore, alteBearbeitung, alteZahlen, type AltEreignis, type AltForm, type AltMeta, type AltTeam } from '@/lib/alteMaps';
 
 /*
@@ -94,13 +95,14 @@ export async function GET(request: Request) {
   }
   if (p.get('liste') === '1') {
     const [sichtbar, versteckt, zahlen] = await Promise.all([mapsVerzeichnis(), versteckteKarten(), alteZahlen()]);
-    const eintraege = [...sichtbar.filter((e) => e.alt), ...versteckt].map((e) => ({ ...e, versteckt: !!zahlen[e.windowId]?.versteckt }));
+    // Auch die Karten von Noble Practice: wo dort keine Landepunkte stehen (z. B. Grand Finals von Major 3), traegt der Admin sie selbst ein.
+    const eintraege = [...sichtbar, ...versteckt].map((e) => ({ ...e, versteckt: !!zahlen[e.windowId]?.versteckt }));
     return NextResponse.json({ ok: true, eintraege, zahlen }, { headers: NEIN });
   }
   const [t, w] = [p.get('t') ?? '', p.get('w') ?? ''];
   const alle = [...await mapsVerzeichnis(), ...await versteckteKarten()];
   const e = alle.find((x) => x.turnierId === t && x.windowId === w);
-  if (!e || !e.alt) return NextResponse.json({ ok: false, error: 'Diese Karte gibt es nicht oder sie ist nicht von Hand zu bearbeiten.' }, { status: 404, headers: NEIN });
+  if (!e) return NextResponse.json({ ok: false, error: 'Diese Karte gibt es nicht.' }, { status: 404, headers: NEIN });
   return NextResponse.json({ ok: true, eintrag: e, ...await alteBearbeitung(e) }, { headers: NEIN });
 }
 
@@ -120,7 +122,13 @@ export async function POST(request: Request) {
     const meta = k.meta === undefined ? undefined : pruefeMeta(k.meta);
     if (meta === null) return NextResponse.json({ ok: false, error: 'Die Angaben sind nicht lesbar.' }, { status: 400, headers: NEIN });
     const alle = [...await mapsVerzeichnis(), ...await versteckteKarten()];
-    if (!alle.some((x) => x.windowId === w && x.alt)) return NextResponse.json({ ok: false, error: 'Diese Karte gibt es nicht.' }, { status: 404, headers: NEIN });
+    const karte = alle.find((x) => x.windowId === w);
+    if (!karte) return NextResponse.json({ ok: false, error: 'Diese Karte gibt es nicht.' }, { status: 404, headers: NEIN });
+    // Formen duerfen auch auf Teams zeigen, die Noble fuehrt (Karten ohne eigene Teams des Admins).
+    const nobleIds = new Set<string>();
+    if (!karte.alt) {
+      try { for (const t of (await fensterFuer(karte.turnierId, karte.region, karte.windowId))?.fenster.teams ?? []) nobleIds.add(t.id); } catch { /* ohne Noble-Teams */ }
+    }
     const r = await aendereAltStore((s) => {
       const alt = s.fenster[w] ?? {};
       s.fenster[w] = {
@@ -132,7 +140,7 @@ export async function POST(request: Request) {
       };
       // Formen, die auf geloeschte Teams zeigen, verlieren den Verweis.
       if (teams && s.fenster[w].formen) {
-        const ids = new Set(teams.map((t) => t.id));
+        const ids = new Set([...teams.map((t) => t.id), ...nobleIds]);
         s.fenster[w].formen = s.fenster[w].formen!.map((f) => ({ ...f, teamIds: f.teamIds.filter((i) => ids.has(i)) }));
       }
     });
@@ -161,6 +169,10 @@ export async function POST(request: Request) {
 
   if (aktion === 'verstecken') {
     if (!w) return NextResponse.json({ ok: false, error: 'Fenster fehlt.' }, { status: 400, headers: NEIN });
+    // Verstecken gibt es nur bei den alten Karten; die von Noble stehen im Verzeichnis, solange Noble sie fuehrt.
+    if (!(await mapsVerzeichnis()).concat(await versteckteKarten()).some((x) => x.windowId === w && x.alt)) {
+      return NextResponse.json({ ok: false, error: 'Nur alte Karten lassen sich verstecken.' }, { status: 400, headers: NEIN });
+    }
     const r = await aendereAltStore((s) => { s.fenster[w] = { ...(s.fenster[w] ?? {}), versteckt: !!k.versteckt }; });
     if (!r.ok) return NextResponse.json({ ok: false, error: r.grund }, { status: 503, headers: NEIN });
     vergissVerzeichnis();

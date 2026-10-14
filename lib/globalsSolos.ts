@@ -20,6 +20,7 @@ import { DATEN_ORT } from '@/lib/datenOrt';
 import { gecacht, holeTop, listeCups } from '@/lib/epicCups';
 import { detail, jungeTurniere, formenAus, namenRepariert, type RohDetail } from '@/lib/nobleKarte';
 import { spielerbildKlein } from '@/lib/spielerbildKlein';
+import { kernname } from '@/lib/homoglyph';
 
 /** Das Turnier bei Noble: "FNCS Solos" der laufenden Saison. */
 const TURNIER_NAME = /^FNCS Solos$/i;
@@ -126,16 +127,27 @@ export type SpielerVon = (id: string, roh: string, land?: string) => SolosSpiele
  * dieselbe Grundlage, die auch die Statistikseite nimmt. Ein gepflegtes Profil schlaegt sie, Nobles Angabe auch; nur wo beide
  * nichts wissen, springt sie ein. Wo auch sie nichts kennt, bleibt die Weltkugel: ein Land wird nicht geraten.
  */
-let szeneLaender: { bis: number; karte: Map<string, string> } | null = null;
-async function szeneLand(): Promise<Map<string, string>> {
-  if (szeneLaender && szeneLaender.bis > Date.now()) return szeneLaender.karte;
-  const karte = new Map<string, string>();
+/*
+ * Dieselbe Liste kennt auch den Namen, unter dem ein Spieler in der Szene gefuehrt wird ("T3ENY", "VICO") - ohne Orgtag, ohne Startnummer, ohne den
+ * Namen, den er gerade traegt. Betreiber (14.10.2026): auf den Karten und Bestenlisten alter Cups sollen die Spieler stehen, wie sie heissen
+ * und nicht wie sie sich gerade nennen ("HVK TJINO 1!" - gemeint ist Tjino); ein echter Name, "weil du ja nicht weisst, wie sie damals hiessen".
+ */
+let szeneListe: { bis: number; land: Map<string, string>; name: Map<string, string> } | null = null;
+async function szeneAngaben(): Promise<{ land: Map<string, string>; name: Map<string, string> }> {
+  if (szeneListe && szeneListe.bis > Date.now()) return szeneListe;
+  const land = new Map<string, string>();
+  const name = new Map<string, string>();
   try {
-    const roh = JSON.parse(await fs.readFile(path.join(DATEN_ORT, 'szene-quelle', 'spielerliste.json'), 'utf8')) as Array<{ ID?: string; COUNTRY?: string }>;
-    for (const p of roh) if (p.ID && /^[A-Za-z]{2}$/.test(p.COUNTRY ?? '')) karte.set(p.ID, (p.COUNTRY as string).toUpperCase());
+    const roh = JSON.parse(await fs.readFile(path.join(DATEN_ORT, 'szene-quelle', 'spielerliste.json'), 'utf8')) as Array<{ ID?: string; NAME?: string; COUNTRY?: string }>;
+    for (const p of roh) {
+      if (!p.ID) continue;
+      if (/^[A-Za-z]{2}$/.test(p.COUNTRY ?? '')) land.set(p.ID, (p.COUNTRY as string).toUpperCase());
+      const n = String(p.NAME ?? '').trim();
+      if (n) name.set(p.ID, n);
+    }
   } catch { /* ohne Liste bleibt es bei Profil und Noble */ }
-  szeneLaender = { bis: Date.now() + 10 * 60_000, karte };
-  return karte;
+  szeneListe = { bis: Date.now() + 10 * 60_000, land, name };
+  return szeneListe;
 }
 
 /** Wie ein Spieler aus Noble zu unserem Anzeigenamen, Land und Foto kommt (Profile und Spielerbilder des Werkzeugs). */
@@ -143,7 +155,7 @@ export async function spielerKontext(): Promise<SpielerVon> {
   const [profile, bilder, szene] = await Promise.all([
     liesJson<Record<string, Profil>>('spieler-profile.json', {}),
     liesJson<Bildeintrag[]>('spielerbilder.json', []),
-    szeneLand(),
+    szeneAngaben(),
   ]);
   const bildZu = new Map<string, string>();
   for (const b of bilder) if (b.epicId && b.echtesFoto) bildZu.set(b.epicId, spielerbildKlein(b.datei));
@@ -153,8 +165,9 @@ export async function spielerKontext(): Promise<SpielerVon> {
     const nobleLand = land && land !== 'global' ? land.toUpperCase() : null;
     return {
       id, name,
-      anzeige: pr?.anzeige || pr?.name || name,
-      land: (pr?.land || nobleLand || szene.get(id) || '').toUpperCase() || null,
+      // Ein gepflegtes Profil zuerst, dann der Name der Szene-Liste; wo beide fehlen, der Epic-Name ohne Orgtag und Startnummer (nie der rohe).
+      anzeige: pr?.anzeige || szene.name.get(id) || kernname(pr?.name || name) || name,
+      land: (pr?.land || nobleLand || szene.land.get(id) || '').toUpperCase() || null,
       bild: bildZu.get(id) ?? null,
     };
   };

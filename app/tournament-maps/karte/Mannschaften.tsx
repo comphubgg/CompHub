@@ -143,7 +143,7 @@ export function Platzierungen({ zeilen, schmal = false }: { zeilen: PlatzZeile[]
 
 interface Zeile {
   rank: number; points: number; wins: number; elims: number; games: number;
-  players: Array<{ id: string; name?: string; displayName?: string }>;
+  players: Array<{ id: string; name?: string; displayName?: string; anzeige?: string; land?: string | null }>;
 }
 
 /** Die Bestenliste: Platz, das ganze Team mit Flaggen, Punkte, Siege (VR) und Eliminierungen. */
@@ -193,9 +193,9 @@ export function RangTabelle({ eventId, windowId, windows, laender, anzeigen, sch
               <td className="px-3 py-2 text-[11px] font-bold tabular-nums text-slate-500">{z.rank}</td>
               <td className="px-3 py-2">
                 <span className="flex items-center gap-2.5">
-                  <TeamFlagge groesse={z.players.length > 1 ? 28 : 20} laender={z.players.map((p) => laender.get(p.id) ?? undefined)} />
+                  <TeamFlagge groesse={z.players.length > 1 ? 28 : 20} laender={z.players.map((p) => laender.get(p.id) ?? p.land ?? undefined)} />
                   <span className="flex flex-col text-[11px] font-bold uppercase leading-[1.25] text-slate-100">
-                    {z.players.map((p) => <span key={p.id}>{anzeigen?.get(p.id) || p.displayName || p.name || '—'}</span>)}
+                    {z.players.map((p) => <span key={p.id}>{anzeigen?.get(p.id) || p.anzeige || p.displayName || p.name || '—'}</span>)}
                   </span>
                 </span>
               </td>

@@ -237,7 +237,7 @@ export default function KartenSeite() {
             <div className="mt-5">
               {reiter === 'karte' && (
                 <div>
-                  {zugang.admin && meta?.alt && params && (
+                  {zugang.admin && params && (
                     <div className="mb-3 flex flex-wrap items-center gap-2 rounded-xl border border-amber-400/25 bg-amber-400/[0.06] px-3 py-2 text-xs">
                       <span className="font-semibold uppercase tracking-wider text-amber-300/90">Admin</span>
                       <Link href={`/admin/alte-maps/bearbeiten?t=${encodeURIComponent(params.t)}&r=${encodeURIComponent(params.r)}&w=${encodeURIComponent(params.w)}`}
@@ -286,7 +286,7 @@ export default function KartenSeite() {
                       <h2 className="mb-2 text-sm font-black uppercase tracking-[0.14em] text-slate-300"><T>Leaderboard</T></h2>
                       <div className="max-h-[80vh] overflow-y-auto rounded-xl">
                         {nurPlatzierungen ? <Platzierungen zeilen={platzierungen} schmal />
-                          : !meta?.alt && meta?.eventId
+                          : !meta?.alt && meta?.eventId && fenster.quelle !== 'hand'
                           ? <RangTabelle eventId={meta.eventId} windowId={tageFenster.length === 1 ? tageFenster[0] : (meta?.epicFenster ?? fenster.windowId)}
                               windows={tageFenster.length > 1 ? tageFenster : undefined} laender={laender} schmal
                               anzeigen={new Map((fenster.teams ?? []).flatMap((x) => x.spieler.map((s) => [s.id, s.anzeige] as const)))} />
@@ -298,7 +298,7 @@ export default function KartenSeite() {
               )}
               {reiter === 'spieler' && <TeamKarten teams={fenster.teams ?? []} />}
               {reiter === 'leaderboard' && (nurPlatzierungen ? <Platzierungen zeilen={platzierungen} />
-                : meta?.alt
+                : meta?.alt || fenster.quelle === 'hand'
                 ? <RangAusTeams teams={fenster.teams ?? []} />
                 : <RangTabelle eventId={meta?.eventId ?? null} windowId={tageFenster.length === 1 ? tageFenster[0] : (meta?.epicFenster ?? fenster.windowId)}
                     windows={tageFenster.length > 1 ? tageFenster : undefined} laender={laender}

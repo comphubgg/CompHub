@@ -48,6 +48,9 @@ export interface CupSpieler {
   name: string;
   img?: string | null;
   logo?: string | null;
+  /** Der Name, unter dem das Werkzeug den Spieler fuehrt (Profil, Szene-Liste, sonst ohne Orgtag) - nicht der, den er gerade traegt. */
+  anzeige?: string;
+  land?: string | null;
 }
 
 export interface CupMatch {
@@ -1822,6 +1825,8 @@ export async function bilder() {
 
 export async function ergaenzeBilder<T extends { entries: CupEintrag[] }>(daten: T): Promise<T> {
   const b = await bilder();
+  // Der Anzeigename und das Land je Konto - dieselbe Aufloesung wie auf den Karten (lib/globalsSolos). Spaet geladen: globalsSolos laedt diese Datei.
+  const kontext = await import('@/lib/globalsSolos').then((m) => m.spielerKontext()).catch(() => null);
   /*
    * Ein Teamzeichen ueber den Namen - aber nur als ganzes Wort.
    *
@@ -1854,10 +1859,12 @@ export async function ergaenzeBilder<T extends { entries: CupEintrag[] }>(daten:
       ...e,
       players: e.players.map((p) => {
         const ausKonto = p.id ? b.nachKonto.get(String(p.id)) : undefined;
+        const k = kontext && p.id ? kontext(String(p.id), p.name) : null;
         return {
           ...p,
           img: ausKonto ? `/spielerbilder/${encodeURIComponent(ausKonto)}` : null,
           logo: findeLogo(p.name),
+          ...(k ? { anzeige: k.anzeige, land: k.land } : {}),
         };
       }),
     })),

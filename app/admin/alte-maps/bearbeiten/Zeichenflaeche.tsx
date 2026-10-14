@@ -45,14 +45,18 @@ function begrenze(z: number, m: Punkt): Punkt {
 
 const rund = (v: number) => Math.round(Math.min(100, Math.max(0, v)) * 100) / 100;
 const klemme = (p: Punkt): Punkt => ({ x: rund(p.x), y: rund(p.y) });
+/** Die vier Ecken eines Rechtecks aus zwei gegenueberliegenden - in der Reihenfolge, in der der Editor sie zeichnet. */
+const rechteckEcken = (a: Punkt, b: Punkt): Punkt[] => [{ x: a.x, y: a.y }, { x: b.x, y: a.y }, { x: b.x, y: b.y }, { x: a.x, y: b.y }];
 
-export default function Zeichenflaeche({ bild, formen, wahl, modus, onWahl, onNeueForm, onLoeschen, onModus, rotAb = 2 }: {
+export default function Zeichenflaeche({ bild, formen, wahl, modus, onWahl, onNeueForm, onFormAendern, onLoeschen, onModus, rotAb = 2 }: {
   bild: string | null;
   formen: ZForm[];
   wahl: string | null;
   modus: ZModus;
   onWahl: (id: string | null) => void;
   onNeueForm: (punkte: Punkt[]) => void;
+  /** Eine Form wurde verschoben oder an einer Ecke gezogen: ihre neuen Ecken. */
+  onFormAendern: (id: string, punkte: Punkt[]) => void;
   onLoeschen: () => void;
   onModus: (m: ZModus) => void;
   /** Ab wie vielen Teams auf einer Form sie rot wird. */
@@ -77,11 +81,21 @@ export default function Zeichenflaeche({ bild, formen, wahl, modus, onWahl, onNe
   const [ecken, setEcken] = useState<Punkt[]>([]);
   const eckenRef = useRef<Punkt[]>([]);
   const [zeiger, setZeiger] = useState<Punkt | null>(null);
-  const geste = useRef<null | { art: 'rechteck' | 'pan' | 'klick'; sx: number; sy: number; mitte: Punkt; kasten: DOMRect; a?: Punkt }>(null);
+  /*
+   * Die Gesten: 'klick' (noch offen: Klick, Verschieben der gewaehlten Form oder des Ausschnitts), 'form' (die gewaehlte Form wandert),
+   * 'ecke' (eine Ecke der gewaehlten Form wird gezogen), 'rechteck' (ein neues Rechteck) und 'pan' (der Ausschnitt).
+   */
+  const geste = useRef<null | {
+    art: 'rechteck' | 'pan' | 'klick' | 'form' | 'ecke'; sx: number; sy: number; mitte: Punkt; kasten: DOMRect; a?: Punkt;
+    /** Form, die beim Anfassen schon gewaehlt war, mit ihren Ecken von damals. */
+    formId?: string; start?: Punkt[];
+    /** Bei einer Ecke: welche, und beim Rechteck die gegenueberliegende, die stehen bleibt. */
+    index?: number; gegen?: Punkt | null;
+  }>(null);
 
   // Immer der neueste Stand fuer die Handler am Fenster.
-  const stand = useRef({ modus, formen, onWahl, onNeueForm, onLoeschen, onModus });
-  useEffect(() => { stand.current = { modus, formen, onWahl, onNeueForm, onLoeschen, onModus }; });
+  const stand = useRef({ modus, formen, onWahl, onNeueForm, onFormAendern, onLoeschen, onModus });
+  useEffect(() => { stand.current = { modus, formen, onWahl, onNeueForm, onFormAendern, onLoeschen, onModus }; });
 
   const setzeEcken = useCallback((n: Punkt[]) => { eckenRef.current = n; setEcken(n); }, []);
   const setzeZieht = useCallback((z: { a: Punkt; b: Punkt } | null) => { ziehtRef.current = z; setZieht(z); }, []);
@@ -222,11 +236,37 @@ export default function Zeichenflaeche({ bild, formen, wahl, modus, onWahl, onNe
         if (p && g.a) setzeZieht({ a: g.a, b: klemme(p) });
         return;
       }
+      if (g.art === 'ecke') {
+        // Eine Ecke der gewaehlten Form ziehen: beim Rechteck bleibt die gegenueberliegende Ecke stehen, die anderen wandern mit.
+        const p = punktBei(e);
+        const f = g.formId ? stand.current.formen.find((x) => x.id === g.formId) : null;
+        if (!p || !f || !g.formId) return;
+        const q = klemme(p);
+        if (g.gegen) {
+          if (Math.abs(q.x - g.gegen.x) < 0.3 || Math.abs(q.y - g.gegen.y) < 0.3) return;
+          stand.current.onFormAendern(g.formId, rechteckEcken(q, g.gegen));
+        } else {
+          stand.current.onFormAendern(g.formId, f.punkte.map((pt, i) => (i === g.index ? q : pt)));
+        }
+        return;
+      }
       const dx = e.clientX - g.sx, dy = e.clientY - g.sy;
       if (g.art === 'klick') {
         if (Math.hypot(dx, dy) <= 4) return;
-        if (zoomRef.current <= 1) return;
-        g.art = 'pan';
+        // Wer die gewaehlte Form anfasst und zieht, verschiebt sie; sonst (hineingezoomt) den Ausschnitt.
+        if (g.formId && g.start) g.art = 'form';
+        else if (zoomRef.current <= 1) return;
+        else g.art = 'pan';
+      }
+      if (g.art === 'form') {
+        if (!g.formId || !g.start) return;
+        const weite = 100 / zoomRef.current;
+        const xs = g.start.map((q) => q.x), ys = g.start.map((q) => q.y);
+        // Die Form bleibt im Bild.
+        const mx = Math.min(100 - Math.max(...xs), Math.max(-Math.min(...xs), (dx / g.kasten.width) * weite));
+        const my = Math.min(100 - Math.max(...ys), Math.max(-Math.min(...ys), (dy / g.kasten.height) * weite));
+        stand.current.onFormAendern(g.formId, g.start.map((q) => ({ x: rund(q.x + mx), y: rund(q.y + my) })));
+        return;
       }
       const sicht = 100 / zoomRef.current;
       zielZoom.current = null;
@@ -285,7 +325,9 @@ export default function Zeichenflaeche({ bild, formen, wahl, modus, onWahl, onNe
       return;
     }
     if (modus === 'polygon') { polygonPunkt(klemme(p)); return; }
-    geste.current = { art: 'klick', ...start };
+    // Liegt der Zeiger auf der gewaehlten Form, kann aus dem Klick ein Verschieben der Form werden (nach ein paar Pixeln Weg).
+    const unter = formBei(e);
+    geste.current = { art: 'klick', ...start, ...(unter && unter.id === wahl ? { formId: unter.id, start: unter.punkte.map((q) => ({ ...q })) } : {}) };
   };
 
   const bewegtDrueber = (e: React.PointerEvent) => {
@@ -368,6 +410,35 @@ export default function Zeichenflaeche({ bild, formen, wahl, modus, onWahl, onNe
               fill="rgba(56,189,248,.14)" stroke="#38bdf8" vectorEffect="non-scaling-stroke" style={{ strokeWidth: 'calc(2px / var(--z, 1))' }} />
           )}
         </svg>
+
+        {/*
+          * Ziehpunkte der gewaehlten Form, wie im Karten-Werkzeug: jede Ecke hat einen, mit dem sich die Form breiter, schmaler, hoeher oder
+          * niedriger ziehen laesst (beim Rechteck bleibt die gegenueberliegende Ecke stehen). Ziehen in der Form selbst verschiebt sie.
+          * Der Griff ist groesser als der sichtbare Punkt und bleibt beim Zoomen gleich gross (karten-fest).
+          */}
+        {modus === 'waehlen' && gewaehlteForm && gewaehlteForm.punkte.map((q, i) => {
+          const rechteck = gewaehlteForm.punkte.length === 4
+            && new Set(gewaehlteForm.punkte.map((x) => x.x)).size === 2 && new Set(gewaehlteForm.punkte.map((x) => x.y)).size === 2;
+          return (
+            <button key={i} type="button" title={t('Ecke ziehen')} aria-label={t('Ecke ziehen')}
+              onPointerDown={(e) => {
+                if (e.button !== 0) return;
+                e.stopPropagation(); e.preventDefault();
+                const el = flaeche.current;
+                if (!el) return;
+                stopp();
+                geste.current = {
+                  art: 'ecke', sx: e.clientX, sy: e.clientY, mitte: { ...mitteRef.current }, kasten: el.getBoundingClientRect(),
+                  formId: gewaehlteForm.id, index: i, gegen: rechteck ? gewaehlteForm.punkte[(i + 2) % 4] : null,
+                };
+              }}
+              onDoubleClick={(e) => e.stopPropagation()}
+              style={{ left: `${q.x}%`, top: `${q.y}%` }}
+              className="karten-fest absolute z-20 flex h-6 w-6 cursor-grab items-center justify-center">
+              <span className="h-3 w-3 rounded-sm border-2 border-sky-400 bg-zinc-950" />
+            </button>
+          );
+        })}
 
         {/* Die Namen auf den Formen - Alata mit schwarzer Kontur, wie auf jeder Karte. */}
         {spots.map((sp) => {

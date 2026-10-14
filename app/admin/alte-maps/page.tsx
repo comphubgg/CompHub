@@ -19,6 +19,8 @@ import { useZugang } from '@/app/lib/zugang';
 interface Eintrag {
   turnierId: string; region: string; windowId: string; cup: string; fenster: string; titel: string;
   datum: number | null; saison: string; saisonKurz: string; eventId: string | null; reihe?: number; lan?: boolean; versteckt?: boolean;
+  /** Eine alte Karte ohne Landepunkte (von Hand) - sonst eine, die Noble Practice fuehrt. */
+  alt?: boolean;
 }
 interface Saison { kennung: string; nr: number; name: string; kurz: string; kapitel: number }
 interface Zahlen { formen: number; teams: number; rang: number; versteckt: boolean }
@@ -139,6 +141,7 @@ export default function AlteMapsVerwaltung() {
             <span>{e.saisonKurz}</span>
             {e.lan && <span className="rounded bg-amber-400 px-1 py-px font-black text-zinc-950">LAN</span>}
             {e.eventId && <span className="rounded bg-sky-500/15 px-1 py-px text-sky-300">Epic</span>}
+            {!e.alt && <span className="rounded bg-violet-500/20 px-1 py-px text-violet-200">Noble</span>}
             {e.versteckt && <span className="rounded bg-rose-500/20 px-1 py-px text-rose-300">versteckt</span>}
           </p>
         </td>
@@ -154,10 +157,12 @@ export default function AlteMapsVerwaltung() {
               <Link href={`/tournament-maps/karte?t=${encodeURIComponent(e.turnierId)}&r=${encodeURIComponent(e.region)}&w=${encodeURIComponent(e.windowId)}`}
                 className="rounded-md border border-white/10 px-2.5 py-1 text-[11px] font-semibold text-slate-300 transition hover:border-sky-500/60"><T>Ansehen</T></Link>
             )}
-            <button type="button" onClick={() => void verstecken(e.windowId, !e.versteckt)}
-              className="rounded-md border border-white/10 px-2.5 py-1 text-[11px] font-semibold text-slate-400 transition hover:border-sky-500/60">
-              {e.versteckt ? <T>Zeigen</T> : <T>Verstecken</T>}
-            </button>
+            {e.alt && (
+              <button type="button" onClick={() => void verstecken(e.windowId, !e.versteckt)}
+                className="rounded-md border border-white/10 px-2.5 py-1 text-[11px] font-semibold text-slate-400 transition hover:border-sky-500/60">
+                {e.versteckt ? <T>Zeigen</T> : <T>Verstecken</T>}
+              </button>
+            )}
             {eigen && <button type="button" onClick={() => void loeschen(e)} className="rounded-md px-2 py-1 text-[11px] font-semibold text-slate-600 transition hover:bg-rose-500/15 hover:text-rose-300"><T>Löschen</T></button>}
           </div>
         </td>
@@ -172,7 +177,7 @@ export default function AlteMapsVerwaltung() {
           <div>
             <Link href="/admin" className="text-[11px] font-bold uppercase tracking-wider text-slate-500 transition hover:text-sky-400">← Dashboard</Link>
             <h1 className="mt-1 text-3xl font-black tracking-tight sm:text-4xl"><T>Alte Maps</T></h1>
-            <p className="mt-1 max-w-2xl text-sm text-slate-400"><T>Hier pflegst du die Karten von Hand: Landepunkte, Teams und Leaderboard je Karte - ohne etwas zu laden.</T></p>
+            <p className="mt-1 max-w-2xl text-sm text-slate-400"><T>Hier pflegst du die Karten von Hand: Landepunkte, Teams und Leaderboard je Karte - ohne etwas zu laden. Auch Karten von Noble Practice stehen hier (Markierung Noble): wo dort keine Landepunkte stehen, zeichnest du sie selbst ein.</T></p>
           </div>
           <div className="flex flex-wrap items-center gap-2">
             <Link href="/tournament-maps" className="rounded-lg border border-white/10 px-3 py-2 text-xs font-bold uppercase tracking-wider text-slate-300 transition hover:border-sky-500/60"><T>Zur öffentlichen Übersicht</T> →</Link>

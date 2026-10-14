@@ -69,6 +69,8 @@ export default function AlteMapBearbeiten() {
   const [suche, setSuche] = useState('');
   /** Wie viele Spieler ein Team in diesem Cup hat (null: nicht herauszufinden). */
   const [teamGroesse, setTeamGroesse] = useState<number | null>(null);
+  /** Bei einer Karte von Noble Practice: deren Teams (zum Auflegen auf Formen) und wie viele Landepunkte Noble dort hat. */
+  const [noble, setNoble] = useState<{ teams: Team[]; formen: number } | null>(null);
 
   // Teams anlegen
   const [masse, setMasse] = useState('');
@@ -97,6 +99,7 @@ export default function AlteMapBearbeiten() {
       setMeta(b.meta); metaStart.current = b.meta; setEpicAn(b.epicAn !== false); setHatEpic(!!b.hatEpic);
       setEigenesEvent(!!b.eigenesEvent); setVersteckt(!!b.versteckt);
       setTeamGroesse(typeof b.teamGroesse === 'number' ? b.teamGroesse : null);
+      setNoble(b.noble && Array.isArray(b.noble.teams) ? { teams: b.noble.teams, formen: Number(b.noble.formen) || 0 } : null);
       if (bi?.ok) { setBild(bi.u ?? null); setAuswahl(bi.auswahl ?? []); }
       if (ka?.ok) setStandardBild(ka.fenster?.bild ?? null);
       setBereit(true);
@@ -189,11 +192,19 @@ export default function AlteMapBearbeiten() {
     setWahl(null); aendern();
   }, [wahl]);
 
+  /** Eine Form wurde verschoben oder an einer Ecke gezogen. */
+  const formAendern = (id: string, punkte: P[]) => {
+    setFormen((alt) => alt.map((f) => (f.id === id ? { ...f, punkte } : f)));
+    aendern();
+  };
+
   /** Die Formen fuer die Zeichenflaeche: je Form die Spieler der Teams darauf (fuer die Namen auf der Karte). */
+  /** Alle Teams, die sich auf eine Form legen lassen: bei einer Karte von Noble deren Teams, dazu die eigenen. */
+  const pool = useMemo(() => [...(noble?.teams ?? []), ...teams], [noble, teams]);
   const zformen = useMemo((): ZForm[] => formen.map((f) => ({
     id: f.id, punkte: f.punkte,
-    teams: f.teamIds.map((id) => teams.find((x) => x.id === id)?.spieler.map((s) => s.name) ?? []).filter((n) => n.length),
-  })), [formen, teams]);
+    teams: f.teamIds.map((id) => pool.find((x) => x.id === id)?.spieler.map((s) => s.name) ?? []).filter((n) => n.length),
+  })), [formen, pool]);
 
   const formVon = useMemo(() => {
     const m = new Map<string, string>();
@@ -216,6 +227,12 @@ export default function AlteMapBearbeiten() {
     const q = suche.trim().toLowerCase();
     return q ? teams.filter((x) => namenVon(x).toLowerCase().includes(q)) : teams;
   }, [teams, suche]);
+  /** Die Teams neben der Karte (Landepunkte): bei Noble-Karten ohne eigene Teams deren Teams, sonst die eigenen. */
+  const poolSichtbar = useMemo(() => {
+    const q = suche.trim().toLowerCase();
+    const basis = teams.length ? teams : pool;
+    return q ? basis.filter((x) => namenVon(x).toLowerCase().includes(q)) : basis;
+  }, [teams, pool, suche]);
 
   /* ------------------------------------------------------------ Speichern und Angaben */
 
@@ -322,7 +339,7 @@ export default function AlteMapBearbeiten() {
                   <p className="mb-2 text-[11px] text-slate-500">
                     {modus === 'rechteck' && <T>Auf der Karte ziehen, um ein Rechteck zu zeichnen.</T>}
                     {modus === 'polygon' && <T>Punkt für Punkt klicken; auf den ersten Punkt, Doppelklick oder Enter schließt die Form, Rücktaste nimmt den letzten Punkt zurück.</T>}
-                    {modus === 'waehlen' && <T>Eine Form anklicken, dann rechts die Teams darauf legen. Doppelklick fährt die Form an, Entf löscht sie.</T>}
+                    {modus === 'waehlen' && <T>Eine Form anklicken, dann rechts die Teams darauf legen. Die gewählte Form lässt sich ziehen (verschieben); die Punkte an den Ecken ziehen sie größer oder kleiner. Doppelklick fährt die Form an, Entf löscht sie.</T>}
                     {' '}<T>Mausrad zoomt; verschieben mit rechter Maustaste oder Leertaste und Ziehen.</T>
                   </p>
 
@@ -345,8 +362,13 @@ export default function AlteMapBearbeiten() {
                     </div>
                   )}
 
+                  {noble && (
+                    <p className="mb-2 rounded-lg border border-amber-400/25 bg-amber-400/[0.06] px-3 py-2 text-[11px] text-amber-100/90">
+                      <T>Diese Karte führt Noble Practice.</T> {noble.formen > 0 ? `${noble.formen} ` : ''}{noble.formen > 0 ? <T>Landepunkte stehen dort schon - sobald du hier Formen speicherst, gelten nur deine.</T> : <T>Dort stehen keine Landepunkte - zeichne sie hier ein.</T>}
+                    </p>
+                  )}
                   <Zeichenflaeche bild={bild ?? standardBild} formen={zformen} wahl={wahl} modus={modus} onWahl={setWahl}
-                    onNeueForm={hinzuForm} onLoeschen={formWeg} onModus={setModus} />
+                    onNeueForm={hinzuForm} onFormAendern={formAendern} onLoeschen={formWeg} onModus={setModus} />
                   <p className="mt-2 text-[11px] text-slate-600">{formen.length} <T>Formen</T> · {formen.reduce((a, f) => a + f.teamIds.length, 0)} / {teams.length} <T>Teams verteilt</T></p>
                 </div>
 
@@ -358,7 +380,7 @@ export default function AlteMapBearbeiten() {
                     {gewaehlt && gewaehlt.teamIds.length > 0 && (
                       <ul className="mt-2 flex flex-wrap gap-1.5">
                         {gewaehlt.teamIds.map((id) => {
-                          const x = teams.find((tt) => tt.id === id);
+                          const x = pool.find((tt) => tt.id === id);
                           return x ? (
                             <li key={id}>
                               <button type="button" onClick={() => zuordnen(id)} title={t('Von der Form nehmen')}
@@ -377,12 +399,12 @@ export default function AlteMapBearbeiten() {
 
                   <div className="mt-3 rounded-xl border border-white/[0.08] bg-zinc-900/40 p-3">
                     <div className="mb-2 flex items-center justify-between gap-2">
-                      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Teams <span className="text-slate-600">{teams.length}</span></p>
+                      <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Teams <span className="text-slate-600">{teams.length ? teams.length : pool.length}</span></p>
                       <input value={suche} onChange={(e) => setSuche(e.target.value)} placeholder={t('Spieler suchen …')} className="w-40 rounded-lg border border-zinc-800 bg-zinc-950 px-2.5 py-1 text-xs text-slate-100 outline-none placeholder:text-slate-600 focus:border-sky-500" />
                     </div>
-                    {teams.length === 0 && <p className="py-4 text-center text-xs text-slate-500"><T>Noch keine Teams - oben Spieler suchen oder im Reiter „Teams“ viele auf einmal anlegen.</T></p>}
+                    {poolSichtbar.length === 0 && <p className="py-4 text-center text-xs text-slate-500"><T>Noch keine Teams - oben Spieler suchen oder im Reiter „Teams“ viele auf einmal anlegen.</T></p>}
                     <ul className="max-h-[520px] space-y-1.5 overflow-y-auto pr-1">
-                      {sichtbareTeams.map((x) => {
+                      {poolSichtbar.map((x) => {
                         const drauf = formVon.get(x.id);
                         return (
                           <li key={x.id}>
