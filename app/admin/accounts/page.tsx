@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
+import OrgWahl from './OrgWahl';
 import Link from 'next/link';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
@@ -39,6 +40,8 @@ interface Konto {
   id: string;
   name: string;
   rolle: 'admin' | 'manager' | 'pro' | null;
+  /** Die Organisation, die das Konto verwaltet (Esports-Zugang) - sonst null. */
+  org?: string | null;
   rechte: string[];
   epicId: string | null;
   vip: boolean;
@@ -1247,6 +1250,9 @@ ${k.name}`)) return;
                   </select>
                 </label>
               </div>
+
+              {/* Der Esports-Zugang: das Konto einer Organisation zuordnen (nur bei echten Konten, nicht bei Zugangsschluesseln). */}
+              {!k.schluessel && <OrgWahl kontoId={k.id} org={k.org ?? null} />}
 
               {/*
                 * Das Epic-Konto - nur bei "Pro".

@@ -3389,6 +3389,8 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Die Endspiele ließen sich gerade nicht laden. Bitte gleich noch einmal versuchen.': 'The finals could not be loaded right now. Please try again in a moment.',
   'Noch keine Endspiele.': 'No finals yet.',
   'Platzierungen werden nachgetragen.': 'Placements will be added.',
+  'Fehler oder Problem melden': 'Report a bug or problem',
+  'Meiste Eliminierungen in {region}': 'Most eliminations in {region}',
   'Tagesposts': 'Daily posts',
   'Drei Posts für heute: Text kopieren, Bild herunterladen. Alles aus echten Zahlen, ohne Hashtags, nichts kommt doppelt.': 'Three posts for today: copy the text, download the image. All real numbers, no hashtags, nothing repeats.',
   'Für diesen Tag gibt es noch keine Posts.': 'There are no posts for this day yet.',

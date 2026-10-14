@@ -16,6 +16,7 @@ import {
   type Groesse, type Modus,
 } from '@/app/lib/design';
 import { useSprache } from './SprachProvider';
+import { useZugang } from '@/app/lib/zugang';
 
 const merke = (name: string, wert: string) => { document.cookie = `${name}=${wert}; path=/; max-age=31536000; samesite=lax`; };
 
@@ -64,6 +65,7 @@ export default function Sprachschalter() {
   const { sprache, setzeSprache, t } = useSprache();
   const pfad = usePathname();
   const alt = designFuerPfad(pfad ?? '') === 'alt';
+  const zugang = useZugang();
 
   const [offen, setOffen] = useState(false);
   const [modus, setModus] = useState<Modus>('dunkel');
@@ -126,6 +128,16 @@ export default function Sprachschalter() {
           <Zeile titel={t('Animationen')}>
             <Wahl wert={bewegung} setze={stelleBewegung} optionen={[['an', t('An')], ['aus', t('Aus')]]} />
           </Zeile>
+          {/* Der Melde-Knopf lebt hier (Betreiber, 14.10.2026): er schwebte als "Report" unten rechts im Bild. Nur fuer angemeldete Konten, wie die Meldung selbst. */}
+          {zugang.nutzer && (
+            <Zeile titel={t('Hilfe')}>
+              <button type="button" tabIndex={offen ? 0 : -1}
+                onClick={() => { setOffen(false); window.dispatchEvent(new Event('comphub:melden')); }}
+                className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-2 text-xs font-bold text-slate-300 transition hover:border-sky-500 hover:text-sky-500">
+                {t('Fehler oder Problem melden')}
+              </button>
+            </Zeile>
+          )}
         </div>
       </div>
 

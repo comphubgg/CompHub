@@ -689,19 +689,28 @@ async function berechne(request: Request) {
       })).filter((g) => g.spieler.length > 0);
 
       /**
-       * Die Duelle.
+       * Die Duelle (Betreiber, 14.10.2026: "du vergleichst immer nur gerade zwei Spieler, das sollen immer verschiedenste Spieler sein").
        *
-       * Gepaart wird innerhalb einer Region und moeglichst weit oben: wer
-       * gegeneinander antritt, soll auch vergleichbar sein. Ein Duell
-       * zwischen dem Ersten Europas und dem Fuenfzigsten Asiens sagt nichts.
+       * Vorher: Platz 1 gegen 2, 3 gegen 4 ... in der ersten Region, bis die fuenfzehn voll waren - also nur Europa, immer dieselben Paare. Jetzt:
+       * erst die Besten verschiedener Regionen gegeneinander (EU gegen NAC, NAW gegen BR ...), dann in jeder Region die naechsten Plaetze, jeder Spieler
+       * nur einmal; die Reihenfolge wechselt mit dem Tag. Vergleichbar bleibt es - es treten immer Spieler aus der Spitze ihrer Region an.
        */
       const duelle: Array<{ links: unknown; rechts: unknown }> = [];
-      for (const g of profile) {
-        const feld = mitFoto.filter((x) => (heimat.get(x.epicId) ?? '') === g.region);
-        for (let i = 0; i + 1 < feld.length && duelle.length < 15; i += 2) {
-          duelle.push({ links: schmuecken(feld[i]), rechts: schmuecken(feld[i + 1]) });
-        }
-      }
+      const jeRegion = REGIONEN.map((r) => mitFoto.filter((x) => (heimat.get(x.epicId) ?? '') === r).slice(0, 8)).filter((l) => l.length > 0);
+      const vergeben = new Set<string>();
+      const paar = (a?: (typeof mitFoto)[number], b?: (typeof mitFoto)[number]) => {
+        if (!a || !b || vergeben.has(a.epicId) || vergeben.has(b.epicId)) return;
+        vergeben.add(a.epicId); vergeben.add(b.epicId);
+        duelle.push({ links: schmuecken(a), rechts: schmuecken(b) });
+      };
+      const spitzen = jeRegion.map((l) => l[0]);
+      for (let i = 0; i + 1 < spitzen.length; i += 2) paar(spitzen[i], spitzen[i + 1]);
+      for (let rang = 1; rang < 8; rang += 2) for (const l of jeRegion) paar(l[rang], l[rang + 1]);
+      for (const l of jeRegion) paar(l[0], l[1]);
+      // Die Reihenfolge wechselt mit dem Tag (wiederholbar: derselbe Tag ergibt dieselbe Folge).
+      let h = 2166136261;
+      for (const c of new Date().toISOString().slice(0, 10)) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); }
+      for (let i = duelle.length - 1; i > 0; i -= 1) { h ^= h << 13; h ^= h >>> 17; h ^= h << 5; const j = (h >>> 0) % (i + 1); [duelle[i], duelle[j]] = [duelle[j], duelle[i]]; }
 
       return NextResponse.json({
         success: true, quelle: QUELLE,

@@ -792,13 +792,17 @@ function DuellTafel({ links, rechts, zeitraum, aufKlick, gross = false, schlicht
     // Mit Fotos (Betreiber, 14.10.2026): beide Spieler als Bild links und rechts, zur Mitte hin ausgeblendet, darauf Name und Flagge.
     const foto = (s: Spieler, rechtsRum: boolean) => (
       <button type="button" onClick={() => aufKlick?.(s)} disabled={!aufKlick}
-        className={`group absolute inset-y-0 w-[40%] overflow-hidden text-left ${rechtsRum ? 'right-0' : 'left-0'}`}>
+        className={`group absolute inset-y-0 w-[44%] overflow-hidden text-left ${rechtsRum ? 'right-0' : 'left-0'}`}>
         {s.bild ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={s.bild} alt="" className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-105"
-            style={{ objectPosition: 'center 8%', WebkitMaskImage: `linear-gradient(to ${rechtsRum ? 'left' : 'right'}, #000 40%, transparent)`, maskImage: `linear-gradient(to ${rechtsRum ? 'left' : 'right'}, #000 40%, transparent)` }} />
+          <>
+            {/* Dasselbe Foto verwischt als Grund, davor das ganze Foto in voller Hoehe - so sieht man jeden Spieler komplett (Betreiber: "man erkennt ihn nicht"). */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={s.bild} alt="" aria-hidden className="absolute inset-0 h-full w-full scale-125 object-cover opacity-55 blur-2xl" />
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={s.bild} alt="" className={`absolute inset-y-0 h-full w-auto max-w-none object-contain transition duration-500 group-hover:scale-[1.02] ${rechtsRum ? 'right-[8%]' : 'left-[8%]'}`} />
+          </>
         ) : null}
-        <span aria-hidden className="foto-unten absolute inset-0" />
+        <span aria-hidden className="foto-unten absolute inset-0 opacity-70" />
         <span className={`absolute bottom-3 flex items-center gap-2 ${rechtsRum ? 'right-4 flex-row-reverse' : 'left-4'}`}>
           <TeamFlagge groesse={22} laender={[s.land ?? undefined]} />
           <span className="truncate text-xl font-extrabold uppercase tracking-wide text-white drop-shadow sm:text-2xl">{grossName(s.anzeige, s.gepflegt)}</span>
@@ -807,7 +811,7 @@ function DuellTafel({ links, rechts, zeitraum, aufKlick, gross = false, schlicht
     );
     return (
       <div className="overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 shadow-[0_10px_30px_rgba(15,23,42,.10)]">
-        <div className="foto-dunkel relative h-60 bg-zinc-800 sm:h-64">
+        <div className="foto-dunkel relative h-72 bg-zinc-800 sm:h-80">
           {foto(links, false)}
           {foto(rechts, true)}
           <div className="absolute inset-x-0 top-3 flex justify-center">

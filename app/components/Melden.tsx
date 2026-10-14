@@ -44,6 +44,13 @@ export default function Melden() {
   // Beim Oeffnen gleich in das Feld springen - ein Klick weniger.
   useEffect(() => { if (offen) feld.current?.focus(); }, [offen]);
 
+  // Der schwebende Knopf ist weg (Betreiber, 14.10.2026): "in die Settings reinpacken". Das Zahnrad schickt dieses Signal, und die Meldung geht auf.
+  useEffect(() => {
+    const auf = () => setOffen(true);
+    window.addEventListener('comphub:melden', auf);
+    return () => window.removeEventListener('comphub:melden', auf);
+  }, []);
+
   // Mit Escape wieder zu.
   useEffect(() => {
     if (!offen) return;
@@ -94,31 +101,11 @@ export default function Melden() {
     }
   }
 
-  /*
-   * Unten rechts, aber links neben dem Sprachschalter.
-   *
-   * Der ist vierundneunzig Punkte breit und sitzt sechzehn vom Rand; sein
-   * linker Rand liegt damit bei etwa hundertzehn. Bei "right-32", also
-   * hundertachtundzwanzig, bleibt dazwischen Luft - bei "right-24" haette
-   * der Knopf ihn ueberdeckt. Nachgemessen, nicht geschaetzt.
-   */
-  if (!offen) {
-    return (
-      <button onClick={() => setOffen(true)}
-        title={t('Einen Fehler auf dieser Seite melden')}
-        className="fixed bottom-4 right-32 z-[99] rounded-lg border
-                   border-zinc-700 bg-zinc-900/90 px-3 py-1.5 text-xs
-                   font-semibold text-slate-300 shadow-lg shadow-black/30
-                   backdrop-blur transition hover:border-sky-500
-                   hover:text-sky-400">
-        <T>Melden</T>
-      </button>
-    );
-  }
+  if (!offen) return null;
 
   return (
     <div className="fixed bottom-4 right-4 z-[101] w-[min(360px,calc(100vw-2rem))]
-                    rounded-xl border border-zinc-700 bg-zinc-900/97 p-4
+                    rounded-2xl border border-zinc-700 bg-zinc-900 p-4
                     shadow-xl shadow-black/50 backdrop-blur">
       <div className="mb-2 flex items-start justify-between gap-3">
         <div>

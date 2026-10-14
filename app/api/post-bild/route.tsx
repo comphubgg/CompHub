@@ -3,6 +3,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import sharp from 'sharp';
 import { tagesplan } from '@/lib/tagesposts';
+import { fokusVon } from '@/lib/fotoFokus';
 import { kartenBild, type KartenPost } from '@/lib/postKarte';
 
 /*
@@ -124,7 +125,7 @@ export async function GET(request: Request) {
     const werte = (d.werte as Array<[string, string]>) ?? [];
     bild = rahmen(
       <>
-        {foto && <img src={foto} width={720} height={H} style={{ position: 'absolute', left: 0, top: 0, width: 720, height: H, objectFit: 'cover', objectPosition: '50% 0%' }} />}
+        {foto && <img src={foto} width={720} height={H} style={{ position: 'absolute', left: 0, top: 0, width: 720, height: H, objectFit: 'cover', objectPosition: fokusVon(String(d.bild ?? '')) }} />}
         <div style={{ position: 'absolute', left: 0, top: 0, width: 720, height: H, display: 'flex', background: 'linear-gradient(90deg,rgba(10,19,36,0) 55%,#0a1324 100%)' }} />
         <div style={{ position: 'absolute', left: 720, top: 0, width: 880, height: H, display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0 70px' }}>
           <div style={{ display: 'flex', fontSize: 28, color: BLAU, letterSpacing: 4, textTransform: 'uppercase' }}>{`Player · ${d.region ?? 'Global'}`}</div>
@@ -162,8 +163,9 @@ export async function GET(request: Request) {
     );
   } else {
     // Die Werbekarte: grosse Zahl oder Wort links, vier Spielerkarten wie ein Faecher rechts.
-    const fotos = await Promise.all(((d.fotos as unknown[]) ?? []).slice(0, 4).map((f) => bildDaten(f, ursprung, 520)));
-    const karten = fotos.filter((f): f is string => !!f);
+    const quellen = ((d.fotos as unknown[]) ?? []).slice(0, 4);
+    const fotos = await Promise.all(quellen.map((f) => bildDaten(f, ursprung, 520)));
+    const karten = fotos.map((f, i) => ({ f, fokus: fokusVon(String(quellen[i] ?? '')) })).filter((x): x is { f: string; fokus: string } => !!x.f);
     bild = rahmen(
       <>
         <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', padding: '0 64px', width: 860, height: H }}>
@@ -172,7 +174,7 @@ export async function GET(request: Request) {
         </div>
         <div style={{ position: 'absolute', left: 880, top: 140, width: 700, height: 560, display: 'flex' }}>
           {karten.map((k, i) => (
-            <img key={i} src={k} width={220} height={420} style={{ width: 220, height: 420, objectFit: 'cover', objectPosition: '50% 0%', borderRadius: 26, marginLeft: i ? -70 : 0, marginTop: i % 2 ? 60 : 0, border: '3px solid rgba(255,255,255,0.18)', transform: `rotate(${(i - (karten.length - 1) / 2) * 4}deg)` }} />
+            <img key={i} src={k.f} width={220} height={420} style={{ width: 220, height: 420, objectFit: 'cover', objectPosition: k.fokus, borderRadius: 26, marginLeft: i ? -70 : 0, marginTop: i % 2 ? 60 : 0, border: '3px solid rgba(255,255,255,0.18)', transform: `rotate(${(i - (karten.length - 1) / 2) * 4}deg)` }} />
           ))}
         </div>
       </>,

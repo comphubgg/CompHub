@@ -137,11 +137,15 @@ export default function StatistikAufmacher({ kacheln, zuTurnieren, zuRegionen, z
           <button key={`r${nr}`} type="button" onClick={() => oeffneSpieler(k.spitze.epicId, k.spitze.anzeige)}
             className="sa-an sa-glas group flex min-h-[300px] overflow-hidden rounded-2xl text-left"
             style={{ animation: heroDrin ? 'sa-rein .5s .08s cubic-bezier(.2,.8,.2,1) both' : undefined }}>
-            <span className="relative block w-[44%] shrink-0 overflow-hidden">
+            <span className="relative block w-[44%] shrink-0 overflow-hidden bg-zinc-800">
               {k.spitze.bild ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={k.spitze.bild} alt="" className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-105"
-                  style={{ objectPosition: 'center top', WebkitMaskImage: 'linear-gradient(to right, #000 62%, transparent)', maskImage: 'linear-gradient(to right, #000 62%, transparent)' }} />
+                <>
+                  {/* Das ganze Foto in voller Hoehe, dahinter dasselbe verwischt - der Kopf wird nie abgeschnitten (Betreiber, 14.10.2026). */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={k.spitze.bild} alt="" aria-hidden className="absolute inset-0 h-full w-full scale-125 object-cover opacity-60 blur-2xl" />
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={k.spitze.bild} alt="" className="absolute inset-y-0 left-1/2 h-full w-auto max-w-none -translate-x-1/2 object-contain transition duration-700 group-hover:scale-[1.03]" />
+                </>
               ) : (
                 <span className="absolute inset-0 grid place-items-center bg-gradient-to-br from-sky-950 to-zinc-900 text-6xl font-black text-white/15">{k.spitze.anzeige.slice(0, 1).toUpperCase()}</span>
               )}
@@ -157,9 +161,15 @@ export default function StatistikAufmacher({ kacheln, zuTurnieren, zuRegionen, z
                   <TeamFlagge groesse={22} laender={[k.spitze.land ?? undefined]} />
                   <span className="truncate text-3xl font-black uppercase tracking-wide text-slate-50">{k.spitze.anzeige}</span>
                 </span>
-                <span className="mt-2 block text-xs leading-relaxed text-slate-400">
-                  {t('Meiste Eliminierungen in {region} bei {turnier}, {datum}.')
-                    .replace('{region}', k.region).replace('{turnier}', k.titel).replace('{datum}', k.datumText)}
+                <span className="mt-3 block text-[11px] font-bold uppercase tracking-[0.16em] text-sky-500">
+                  {t('Meiste Eliminierungen in {region}').replace('{region}', k.region)}
+                </span>
+                <span className="mt-2 flex flex-wrap gap-1.5">
+                  <span className="inline-flex max-w-full items-center gap-1.5 truncate rounded-full border border-zinc-700 bg-zinc-950/60 px-3 py-1 text-xs font-semibold text-slate-200">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden><path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z" /></svg>
+                    <span className="truncate">{k.titel}</span>
+                  </span>
+                  <span className="rounded-full border border-zinc-700 bg-zinc-950/60 px-3 py-1 text-xs font-semibold text-slate-400">{k.datumText}</span>
                 </span>
               </span>
               <span className="mt-4 grid grid-cols-3 divide-x divide-white/[0.09] border-t border-white/[0.07] pt-3">
