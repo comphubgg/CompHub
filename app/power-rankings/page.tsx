@@ -2,7 +2,7 @@
 
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import PowerRankingsTable from '@/app/components/PowerRankingsTable';
+import RanglisteNeu from '@/app/components/RanglisteNeu';
 
 import T from '@/app/components/T';
 export default function PowerRankingsPage() {
@@ -51,14 +51,15 @@ export default function PowerRankingsPage() {
           </div>
         )}
         {/* Die Fuehrung durch die Vorschau sucht diese Marke. */}
-        <div className="mb-5" data-tour="rankingsHeader">
-          <h1 className="text-xl font-semibold text-slate-100"><T>Power Rankings</T></h1>
-          <p className="mt-1 text-sm text-slate-500">
+        <div className="mb-8 max-w-3xl" data-tour="rankingsHeader">
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-sky-500"><T>Rangliste</T></p>
+          <h1 className="mt-1 text-4xl font-extrabold tracking-tight text-slate-100 sm:text-5xl"><T>Power Rankings</T></h1>
+          <p className="mt-3 text-base text-slate-400">
             <T>Die weltweite Rangliste von Epic — zehntausend Plätze, täglich erneuert.</T>
           </p>
         </div>
 
-        <PowerRankingsTable />
+        <RanglisteNeu />
       </section>
     </main>
   );

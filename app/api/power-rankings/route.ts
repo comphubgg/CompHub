@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { LISTE, erneuereImHintergrund, istAlt, lies } from '@/lib/powerRankings';
 import { gefaltet, namensSchluessel } from '@/lib/homoglyph';
 import { zwischenspeichern } from '@/lib/zwischenspeicher';
+import { spielerKontext } from '@/lib/globalsSolos';
 
 // Die Power Rankings, seitenweise.
 //
@@ -66,6 +67,30 @@ async function holeRoh(request: Request) {
       });
     }
 
+    /*
+     * Der Name, unter dem das Werkzeug den Spieler fuehrt (14.10.2026): Profil, dann die Namensliste der Szene, sonst der Epic-Name ohne Orgtag
+     * und Startnummer - ueber die Konto-Id, nie ueber den Namen (siehe lib/globalsSolos spielerKontext). Epics Name steht daneben weiter da.
+     */
+    const kontext = await spielerKontext();
+    const mit = <T extends { id: string; name: string }>(s: T) => ({ ...s, anzeige: s.id ? kontext(s.id, s.name).anzeige : s.name });
+
+    /*
+     * Die Uebersicht fuer das Kopfstueck der Seite: die ersten drei, die groessten Spruenge nach oben und unten seit der letzten
+     * Fortschreibung (ueber alle zehntausend), und aus welchen Laendern die ersten hundert kommen.
+     */
+    if (p.get('uebersicht') === '1') {
+      const liste = stand.spieler;
+      const auf = liste.filter((s) => s.deltaPlatz > 0).sort((a, b) => b.deltaPlatz - a.deltaPlatz || a.rank - b.rank).slice(0, 8).map(mit);
+      const ab = liste.filter((s) => s.deltaPlatz < 0).sort((a, b) => a.deltaPlatz - b.deltaPlatz || a.rank - b.rank).slice(0, 8).map(mit);
+      const laender: Record<string, number> = {};
+      for (const s of liste.slice(0, 100)) if (s.land) laender[s.land] = (laender[s.land] ?? 0) + 1;
+      return NextResponse.json({
+        success: true, fetchedAt: stand.geholt, total: liste.length,
+        spitze: liste.slice(0, 3).map(mit), aufsteiger: auf, absteiger: ab,
+        laender: Object.entries(laender).sort((a, b) => b[1] - a[1]).slice(0, 8).map(([land, n]) => ({ land, n })),
+      });
+    }
+
     const alle = stand.spieler;
     const gefiltert = suche
       ? alle.filter((s) => s.name.toLowerCase().includes(suche))
@@ -91,7 +116,7 @@ async function holeRoh(request: Request) {
       ersterPlatz: alle[0]?.rank ?? 0,
       letzterPlatz: alle[alle.length - 1]?.rank ?? 0,
       fehlend: alle.length ? alle[alle.length - 1].rank - alle.length : 0,
-      players: gefiltert.slice((jetzt - 1) * proSeite, jetzt * proSeite),
+      players: gefiltert.slice((jetzt - 1) * proSeite, jetzt * proSeite).map(mit),
     });
   } catch (fehler) {
     return NextResponse.json(

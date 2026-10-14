@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import VIPLoginForm from '../login/VIPLoginForm';
+import ModusSchalter from './ModusSchalter';
 
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
@@ -40,6 +41,9 @@ const navItems = [
   // Replays stehen bewusst nicht in der Leiste - der Betreiber (14.10.2026): "da oben soll keine Replay-Section sein, das soll nur im
   // Dashboard sein". Sie liegen im Dashboard (app/admin/Ebenen.tsx) und unter ihren festen Adressen /replays/....
 ];
+
+/** Gehoert dieser Pfad zu diesem Eintrag der Leiste? Unterseiten (/events/xyz) zaehlen zu ihrem Bereich. */
+const istAktiv = (pfad: string | null, href: string) => (href === '/' ? pfad === '/' : !!pfad && (pfad === href || pfad.startsWith(href + '/')));
 
 export default function MainHeader({ sektionenAnfang }: {
   /*
@@ -211,21 +215,17 @@ export default function MainHeader({ sektionenAnfang }: {
   return (
     <header className="sticky top-0 z-50 w-full border-b border-zinc-800 bg-zinc-950/95 backdrop-blur-xl">
       <div className="flex w-full flex-wrap items-center gap-2 px-3 py-2 sm:px-4">
-        <div className="flex min-w-0 items-center gap-2 sm:gap-3">
-          <div className="flex items-center justify-center rounded-lg border border-zinc-800 bg-slate-900/90 p-1 shadow-sm shadow-black/20">
-            <img
-              src="/logos/CompHub-Logo.png"
-              alt="Logo"
-              className="h-9 w-9 rounded-lg object-cover sm:h-11 sm:w-11"
-            />
-          </div>
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-slate-100">CompHub</p>
-            {/* Der Untertitel kostet auf dem Handy nur Breite, die der
-                Anmeldeknopf daneben braucht. */}
-            <p className="hidden text-xs text-slate-500 sm:block">Fortnite Competitive</p>
-          </div>
-        </div>
+        {/* Das Zeichen und der Schriftzug - ohne Kasten, in der Anzeigeschrift des neuen Designs. */}
+        <Link href="/" prefetch={false} className="flex min-w-0 items-center gap-2.5 pr-2 sm:gap-3 sm:pr-6" aria-label="CompHub">
+          <img
+            src="/logos/CompHub-Logo.png"
+            alt=""
+            className="h-9 w-9 rounded-xl object-cover sm:h-10 sm:w-10"
+          />
+          <span className="schrift-anzeige text-[1.4rem] font-extrabold leading-none tracking-tight text-slate-100">
+            Comp<span className="text-sky-500">Hub</span>
+          </span>
+        </Link>
         <div className="flex flex-1 items-center justify-end gap-2 sm:gap-3">
           {isPreviewMode && isTourMode ? (
             <div className="rounded-full border border-slate-700 bg-slate-900/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-sky-300">
@@ -237,7 +237,7 @@ export default function MainHeader({ sektionenAnfang }: {
                 * Ab Tablet die Leiste, darunter der Knopf weiter unten.
                 * Am Desktop aendert sich damit nichts.
                 */}
-              <nav className="hidden flex-wrap items-center gap-2 lg:flex">
+              <nav className="kopf-nav hidden flex-wrap items-center gap-0.5 lg:flex">
                 {navItems.map((item) => {
                   /*
                    * Was ausgeblendet ist, steht hier nicht.
@@ -270,11 +270,12 @@ export default function MainHeader({ sektionenAnfang }: {
                       title={eigen === 'standby' ? t('Standby — nur für dich sichtbar nutzbar')
                         : eigen === 'offline' ? t('Offline — nur du siehst das hier')
                         : undefined}
-                      className={`flex items-center gap-1.5 rounded-lg px-3 py-2
-                                  text-sm transition ${
-                        pathname === item.href
-                          ? 'bg-slate-800 text-slate-100'
-                          : 'text-slate-300 hover:bg-slate-900 hover:text-slate-100'
+                      aria-current={istAktiv(pathname, item.href) ? 'page' : undefined}
+                      className={`flex items-center gap-1.5 px-[0.9rem] py-2.5
+                                  text-[0.95rem] font-semibold transition ${
+                        istAktiv(pathname, item.href)
+                          ? 'text-slate-100'
+                          : 'text-slate-400 hover:text-slate-100'
                       }`}
                     >
                       <T>{item.label}</T>
@@ -318,6 +319,8 @@ export default function MainHeader({ sektionenAnfang }: {
                 </svg>
               </button>
             )}
+
+            {!(isPreviewMode && isTourMode) && <ModusSchalter />}
 
             {/*
               * Die Verwaltung bleibt ein eigener Knopf und erscheint nur dem

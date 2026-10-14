@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist, Geist_Mono, Figtree, Bricolage_Grotesque } from "next/font/google";
 import { Suspense } from "react";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
+import DesignWaechter from "./components/DesignWaechter";
+import { designFuerPfad, MODUS_COOKIE } from "./lib/design";
 import MainHeader from './components/MainHeader';
 import SprachProvider from './components/SprachProvider';
 import { SPRACH_COOKIE } from './lib/sprache';
@@ -18,6 +20,9 @@ import SektionSperre from './components/SektionSperre';
 import SperrSeite from './components/SperrSeite';
 import { sperreFuerAufruf, sektionsLage } from '@/lib/sektionen-server';
 import "./globals.css";
+// Das neue Design (14.10.2026): erst die helle Palette, dann Schrift und Aufbau - nach den Tailwind-Regeln, damit sie gelten.
+import "./design-hell.css";
+import "./design.css";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -28,6 +33,10 @@ const geistMono = Geist_Mono({
   variable: "--font-geist-mono",
   subsets: ["latin"],
 });
+
+// Die Schriften des neuen Designs (14.10.2026): Figtree fuer Fliesstext und Bedienung, Bricolage Grotesque fuer Ueberschriften und Zahlen.
+const figtree = Figtree({ variable: "--font-figtree", subsets: ["latin"], display: "swap" });
+const anzeige = Bricolage_Grotesque({ variable: "--font-anzeige", subsets: ["latin"], display: "swap" });
 
 /**
  * Was Google und die sozialen Netze zu sehen bekommen.
@@ -140,10 +149,18 @@ export default async function RootLayout({
   const sperre = await sperreFuerAufruf();
   const lage = await sektionsLage();
 
+  // Das Design dieses Aufrufs: die Streams-Seite bleibt in der alten Optik, alles andere ist neu; hell oder dunkel nach der Wahl des Besuchers.
+  const pfad = (await headers()).get('x-comphub-pfad') ?? '/';
+  const design = designFuerPfad(pfad);
+  const modus = design === 'alt' ? 'dunkel' : ((await cookies()).get(MODUS_COOKIE)?.value === 'dunkel' ? 'dunkel' : 'hell');
+
   return (
     <html
       lang={sprache}
-      className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      data-design={design}
+      data-modus={modus}
+      suppressHydrationWarning
+      className={`${geistSans.variable} ${geistMono.variable} ${figtree.variable} ${anzeige.variable} h-full antialiased`}
     >
       <head>
         <link rel="stylesheet" href="/fonts/fonts.css" />
@@ -165,6 +182,7 @@ export default async function RootLayout({
             * dabei dauerhaft stehen. Jetzt kostet ein haengender Abruf nur
             * den Inhaltsbereich, und man kann jederzeit woandershin.
             */}
+          <DesignWaechter />
           <MainHeader sektionenAnfang={lage} />
           <PreviewTour />
           <Suspense fallback={<RouteTransitionLoader />}>

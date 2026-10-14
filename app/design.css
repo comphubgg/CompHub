@@ -1,0 +1,53 @@
+/*
+ * Das neue Design (14.10.2026) - Schrift, Aufbau und Feinheiten.
+ *
+ * Hintergrund: Der Betreiber (14.10.2026) will ein eigenstaendiges Erscheinungsbild - eigene Schrift, eigener Aufbau, eigene Begriffe -,
+ * das nur die Inhalte seines Vorbilds teilt. Die Farben kommen aus app/design-hell.css (helle Fassung, umgedrehte Palette) oder aus der
+ * bisherigen dunklen Palette; hier steht, was fuer beide gilt. Alles haengt an html[data-design="neu"] - die Streams-Seite traegt
+ * data-design="alt" und bleibt, wie sie war.
+ */
+
+html[data-design="neu"] body {
+  font-family: var(--font-figtree), ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: 0;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Ueberschriften in der Anzeigeschrift: etwas enger gesetzt, kraeftig. */
+html[data-design="neu"] :is(h1, h2, h3) {
+  font-family: var(--font-anzeige), var(--font-figtree), ui-sans-serif, system-ui, sans-serif;
+  letter-spacing: -0.015em;
+}
+html[data-design="neu"] h1 { font-weight: 800; }
+html[data-design="neu"] :is(h2, h3) { font-weight: 700; }
+
+/* Die Anzeigeschrift auch ausserhalb von Ueberschriften (Schriftzug, grosse Zahlen). */
+.schrift-anzeige { font-family: var(--font-anzeige), var(--font-figtree), ui-sans-serif, system-ui, sans-serif; }
+
+/* Zahlen stehen in Tabellen und Kacheln untereinander - gleich breite Ziffern. */
+html[data-design="neu"] :is(table, .zahl) { font-variant-numeric: tabular-nums; }
+
+/* Rollbalken: in der hellen Fassung hell. */
+html[data-modus="hell"] ::-webkit-scrollbar-track { background: #e8edf5; }
+html[data-modus="hell"] ::-webkit-scrollbar-thumb { background: #b9c3d6; }
+html[data-modus="hell"] ::-webkit-scrollbar-thumb:hover { background: #0ea5e9; }
+html[data-modus="hell"] ::-webkit-scrollbar-corner { background: #e8edf5; }
+html[data-modus="hell"] * { scrollbar-color: #b9c3d6 #e8edf5; }
+
+/* Weicher Wechsel zwischen hell und dunkel - nur wenn der Besucher keine Bewegung abgewaehlt hat. */
+@media (prefers-reduced-motion: no-preference) {
+  html[data-design="neu"] body, html[data-design="neu"] header { transition: background-color .25s ease, color .25s ease; }
+}
+
+/*
+ * Die Kopfzeile des neuen Designs: kein Kasten um die Leiste, sondern Text mit Unterstreichung. Der aktive Eintrag traegt einen
+ * Balken im Blau der Startseite, die uebrigen bekommen ihn beim Ueberfahren.
+ */
+html[data-design="neu"] .kopf-nav a { position: relative; }
+html[data-design="neu"] .kopf-nav a::after {
+  content: ''; position: absolute; left: 0.9rem; right: 0.9rem; bottom: 0.2rem; height: 2px; border-radius: 2px;
+  background: #0ea5e9; transform: scaleX(0); transform-origin: left; transition: transform .22s ease;
+}
+html[data-design="neu"] .kopf-nav a:hover::after,
+html[data-design="neu"] .kopf-nav a[aria-current="page"]::after { transform: scaleX(1); }
