@@ -3,14 +3,15 @@
 /*
  * Maps - die Karten aller Cups, nach Kapitel und Saison geordnet.
  *
- * Der Betreiber (12.10.2026): links eine Leiste mit den Kapiteln 1 bis 7, jedes mit einem Bild; ist ein Kapitel nicht
- * offen, steht sein Bild grau, ist es offen, in Farbe; erst dort sieht man die Saisons. Daneben die Cups mit Bild,
- * Datum, Region und Stand (Ended, Live, Upcoming), sortierbar über FNCS, Performance, Division und Reload, als Kacheln
- * oder Liste. Einen "All time"-Filter gibt es nicht - er wäre viel zu viel. Aufbau und Verhalten wie beim Vorbild, die
- * Optik die eigene (Blau, Glas nur hier).
+ * Gleich bleibt, was die Seite kann (Betreiber, 12.10.2026): Kapitel 1 bis 7 mit Bild (grau, solange sie nicht offen sind), darunter die
+ * Saisons, dann die Cups mit Bild, Datum, Region und Stand (Ended, Live, Upcoming), filterbar nach FNCS, Performance, Division und Reload,
+ * als Kacheln oder Liste. Einen "All time"-Filter gibt es nicht - er wäre viel zu viel.
  *
- * Kapitel ohne Karten stehen trotzdem in der Leiste, grau und mit "0": für sie liegen keine Landepunkte vor, und die
- * Seite tut nicht so, als gäbe es sie.
+ * Neu ist die Anordnung (Betreiber, 14.10.2026: "irgendwie anders anordnen, aber Funktionen, Farben und Tags bleiben"): die Kapitel stehen als
+ * Bildstreifen oben statt als Leiste links, die Saisons als Reihe darunter; die Kachel trägt ihren Titel auf dem Bild statt darunter.
+ *
+ * Kapitel ohne Karten stehen trotzdem im Streifen, grau und mit "0": für sie liegen keine Landepunkte vor, und die Seite tut nicht so,
+ * als gäbe es sie.
  */
 
 import { useEffect, useMemo, useState } from 'react';
@@ -46,8 +47,6 @@ const DATUM = new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short',
 
 const CSS = `
 @keyframes mp-rein { from { opacity: 0; transform: translateY(14px) scale(.985); } to { opacity: 1; transform: none; } }
-.mp-glas { border: 1px solid rgba(255,255,255,.09); background: linear-gradient(160deg, rgba(255,255,255,.05), rgba(255,255,255,.015));
-  backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); box-shadow: 0 10px 36px rgba(0,0,0,.3), inset 0 1px 0 rgba(255,255,255,.05); }
 @media (prefers-reduced-motion: reduce) { .mp-an { animation: none !important; } }
 `;
 
@@ -66,32 +65,32 @@ const StandMarke = ({ s }: { s: 'ended' | 'live' | 'upcoming' }) => (
   </span>
 );
 
+/** Die Kachel: Bild mit Titel darauf, darunter die Marken in einer Zeile und das Datum rechts. */
 function Kachel({ e, i }: { e: Eintrag; i: number }) {
   return (
     <Link href={`/tournament-maps/karte?t=${encodeURIComponent(e.turnierId)}&r=${encodeURIComponent(e.region)}&w=${encodeURIComponent(e.windowId)}`}
-      className="mp-an group overflow-hidden rounded-xl border border-white/[0.08] bg-zinc-900/50 transition hover:-translate-y-0.5 hover:border-sky-500 hover:bg-zinc-900"
+      className="mp-an group overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900 shadow-sm transition duration-300 hover:-translate-y-1 hover:border-sky-500 hover:shadow-lg"
       style={{ animation: `mp-rein .5s ${Math.min(i, 14) * 40}ms cubic-bezier(.2,.8,.2,1) both` }}>
-      <div className="relative aspect-video overflow-hidden bg-zinc-900">
+      <div className="relative aspect-[16/10] overflow-hidden bg-zinc-900">
         {e.bild ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={encodeURI(e.bild)} alt="" loading="lazy" className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
         ) : (
           <div className="grid h-full w-full place-items-center bg-gradient-to-br from-sky-950 via-zinc-900 to-zinc-950 text-3xl font-black text-sky-500/40">MAP</div>
         )}
-        <span className="absolute left-2 top-2"><StandMarke s={stand(e)} /></span>
-        <span className="absolute right-2 top-2 rounded border border-white/20 bg-black/55 px-1.5 py-0.5 text-[10px] font-bold tracking-wider text-slate-100 backdrop-blur-sm">{regionAnzeige(e)}</span>
+        <span aria-hidden className="absolute inset-0 foto-unten" />
+        <span className="absolute left-3 top-3"><StandMarke s={stand(e)} /></span>
+        <span className="absolute right-3 top-3 rounded border border-white/20 bg-black/55 px-1.5 py-0.5 text-[10px] font-bold tracking-wider text-slate-100 backdrop-blur-sm">{regionAnzeige(e)}</span>
+        <p className="schrift-anzeige absolute inset-x-3 bottom-3 line-clamp-2 text-left text-[1.05rem] font-extrabold leading-tight text-[#fff] drop-shadow">{e.titel.replace(/\s*·\s*/g, ' – ')}</p>
       </div>
-      <div className="px-3 pb-3 pt-2.5">
-        <p className="min-h-[2.6em] text-center text-[13px] font-bold leading-snug tracking-wide text-slate-100">{e.titel.replace(/\s*·\s*/g, ' – ').toUpperCase()}</p>
-        {/* Kleine Marken: die Region in ihrer Farbe, die Saison als Umriss, Art und Spieltag grau. */}
-        <div className="mt-2 flex flex-wrap justify-center gap-1">
-          {e.lan && <span className="rounded bg-amber-400 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-zinc-950">LAN</span>}
-          <span className={`rounded border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${regionAnzeige(e) === 'GLOBAL' ? 'border-amber-400/40 bg-amber-400/10 text-amber-200' : regionFarbe(e.region).marke}`}>{regionAnzeige(e)}</span>
-          {e.saisonKurz && <span className="rounded border border-white/25 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-300">{e.saisonKurz}</span>}
-          <span className="rounded bg-white/[0.07] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-400">{TYP_NAME[e.typ]}</span>
-          {e.fenster && <span className="rounded bg-white/[0.07] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-400">{e.fenster}</span>}
-        </div>
-        <p className="mt-1.5 border-t border-zinc-800 pt-1.5 text-center text-[11px] text-slate-500">{e.datum ? DATUM.format(new Date(e.datum)) : ''}</p>
+      {/* Kleine Marken: die Region in ihrer Farbe, die Saison als Umriss, Art und Spieltag grau. */}
+      <div className="flex flex-wrap items-center gap-1 px-3 py-2.5">
+        {e.lan && <span className="rounded bg-amber-400 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-zinc-950">LAN</span>}
+        <span className={`rounded border px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider ${regionAnzeige(e) === 'GLOBAL' ? 'border-amber-400/40 bg-amber-400/10 text-amber-200' : regionFarbe(e.region).marke}`}>{regionAnzeige(e)}</span>
+        {e.saisonKurz && <span className="rounded border border-white/25 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-300">{e.saisonKurz}</span>}
+        <span className="rounded bg-white/[0.07] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-400">{TYP_NAME[e.typ]}</span>
+        {e.fenster && <span className="rounded bg-white/[0.07] px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-slate-400">{e.fenster}</span>}
+        <span className="ml-auto text-[11px] tabular-nums text-slate-500">{e.datum ? DATUM.format(new Date(e.datum)) : ''}</span>
       </div>
     </Link>
   );
@@ -100,20 +99,21 @@ function Kachel({ e, i }: { e: Eintrag; i: number }) {
 function EigeneKachel({ k, i }: { k: Eigene; i: number }) {
   return (
     <Link href={`/maps?id=${encodeURIComponent(k.id)}`}
-      className="mp-an group overflow-hidden rounded-xl border border-white/[0.08] bg-zinc-900/50 transition hover:-translate-y-0.5 hover:border-sky-500 hover:bg-zinc-900"
+      className="mp-an group overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900 shadow-sm transition duration-300 hover:-translate-y-1 hover:border-sky-500 hover:shadow-lg"
       style={{ animation: `mp-rein .5s ${Math.min(i, 14) * 40}ms cubic-bezier(.2,.8,.2,1) both` }}>
-      <div className="relative aspect-video overflow-hidden bg-zinc-900">
+      <div className="relative aspect-[16/10] overflow-hidden bg-zinc-900">
         {k.bild ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img src={k.bild} alt="" loading="lazy" className="h-full w-full object-cover transition duration-500 group-hover:scale-105" />
         ) : <div className="grid h-full w-full place-items-center bg-gradient-to-br from-sky-950 via-zinc-900 to-zinc-950 text-3xl font-black text-sky-500/40">MAP</div>}
+        <span aria-hidden className="absolute inset-0 foto-unten" />
         {k.region && k.region !== 'GLOBAL' && (
-          <span className="absolute right-2 top-2 rounded border border-white/20 bg-black/55 px-1.5 py-0.5 text-[10px] font-bold tracking-wider text-slate-100 backdrop-blur-sm">{k.region}</span>
+          <span className="absolute right-3 top-3 rounded border border-white/20 bg-black/55 px-1.5 py-0.5 text-[10px] font-bold tracking-wider text-slate-100 backdrop-blur-sm">{k.region}</span>
         )}
+        <p className="schrift-anzeige absolute inset-x-3 bottom-3 line-clamp-2 text-left text-[1.05rem] font-extrabold leading-tight text-[#fff] drop-shadow">{k.titel.replace(/\s*·\s*/g, ' – ')}</p>
       </div>
-      <div className="px-3 pb-3 pt-2.5 text-center">
-        <p className="min-h-[2.6em] text-[13px] font-bold leading-snug tracking-wide text-slate-100">{k.titel.replace(/\s*·\s*/g, ' – ').toUpperCase()}</p>
-        <p className="mt-1.5 border-t border-zinc-800 pt-1.5 text-[11px] text-slate-500">{k.datum ? DATUM.format(new Date(k.datum)) : ''}</p>
+      <div className="flex items-center px-3 py-2.5">
+        <span className="ml-auto text-[11px] tabular-nums text-slate-500">{k.datum ? DATUM.format(new Date(k.datum)) : ''}</span>
       </div>
     </Link>
   );
@@ -196,143 +196,138 @@ export default function Maps() {
     return eigene.filter((k) => !(k.windowId && bekannteFenster.has(k.windowId)) && (!q || `${k.titel} ${k.region ?? ''}`.toLowerCase().includes(q)));
   }, [eigene, bekannteFenster, typ, saison, suche, offen, kapitelListe]);
 
-  const chip = (an: boolean) => `rounded-lg px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider transition ${an
-    ? 'bg-sky-500 text-white' : 'border border-white/10 bg-white/[0.03] text-slate-300 hover:border-sky-500/60 hover:text-sky-300'}`;
+  const chip = (an: boolean) => `rounded-full px-4 py-1.5 text-xs font-bold uppercase tracking-wider transition ${an
+    ? 'bg-sky-500 text-white shadow-sm' : 'border border-zinc-700 bg-zinc-900 text-slate-300 hover:border-sky-500/70 hover:text-sky-500'}`;
 
   const gesamt = eintraege?.length ?? 0;
+  const titelZeile = saison
+    ? (() => { const s = saisons.find((x) => x.kennung === saison); return s ? `${s.name}${s.titel ? ` · ${s.titel}` : ''}` : ''; })()
+    : (kapitel ? `Chapter ${kapitel}` : '');
 
   return (
     <main className="min-h-screen bg-zinc-950 text-slate-100">
       <style>{CSS}</style>
-      <div className="relative overflow-hidden border-b border-white/[0.06]">
-        <div aria-hidden className="pointer-events-none absolute left-1/2 top-0 h-72 w-[820px] -translate-x-1/2 rounded-full bg-sky-500/[0.08] blur-[110px]" />
-        <div className="relative mx-auto flex max-w-[1700px] flex-wrap items-end justify-between gap-4 px-4 py-8">
+      <div className="mx-auto max-w-[1500px] px-4 py-8">
+        {/* ---------------------------------------------------------------- Kopf */}
+        <div className="flex flex-wrap items-end justify-between gap-4">
           <div>
-            <h1 className="text-5xl font-black uppercase tracking-tight sm:text-6xl">Maps</h1>
-            <p className="mt-2 max-w-xl text-sm text-slate-400"><T>Wo die Teams gelandet sind — jeder Cup, jede Saison.</T></p>
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-sky-500"><T>Landepunkte</T></p>
+            <h1 className="mt-1 text-4xl font-extrabold tracking-tight sm:text-5xl">Maps</h1>
+            <p className="mt-3 max-w-xl text-base text-slate-400"><T>Wo die Teams gelandet sind — jeder Cup, jede Saison.</T></p>
           </div>
-          {eintraege && <p className="text-sm"><span className="text-3xl font-black tabular-nums text-sky-400">{gesamt.toLocaleString('de-DE')}</span> <span className="ml-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500"><T>Karten</T></span></p>}
+          {eintraege && (
+            <p className="rounded-2xl border border-zinc-800 bg-zinc-900 px-5 py-3 text-right shadow-sm">
+              <span className="schrift-anzeige block text-3xl font-extrabold tabular-nums text-sky-500">{gesamt.toLocaleString('de-DE')}</span>
+              <span className="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-slate-500"><T>Karten</T></span>
+            </p>
+          )}
         </div>
-      </div>
 
-      <div className="mx-auto flex max-w-[1700px] flex-col gap-6 px-4 py-6 lg:flex-row">
-        {/* ----------------------------------------------- Kapitelleiste */}
-        <aside className="shrink-0 lg:w-[230px]">
-          <div className="mp-glas flex gap-2 overflow-x-auto rounded-2xl p-2 lg:flex-col lg:overflow-visible">
-            {kapitelListe.length === 0 && <div className="p-4"><LadeSchirm /></div>}
-            {[...kapitelListe].reverse().map((k) => {
-              const an = k.nr === kapitel;
+        {/* ------------------------------------------------- Kapitel als Bildstreifen */}
+        <div className="mt-7 flex gap-3 overflow-x-auto pb-2" role="tablist" aria-label="Chapter">
+          {kapitelListe.length === 0 && <div className="p-4"><LadeSchirm /></div>}
+          {[...kapitelListe].reverse().map((k) => {
+            const an = k.nr === kapitel;
+            return (
+              <button key={k.nr} type="button" role="tab" aria-selected={an} onClick={() => { setKapitel(k.nr); setSaison(''); }}
+                className={`group relative h-24 w-44 shrink-0 overflow-hidden rounded-2xl border text-left transition duration-300 ${an ? 'border-sky-500 shadow-md ring-2 ring-sky-500/30' : 'border-zinc-800 hover:border-zinc-600'}`}>
+                {KAPITEL_BILD[k.nr] ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={encodeURI(KAPITEL_BILD[k.nr])} alt="" loading="lazy"
+                    className={`absolute inset-0 h-full w-full object-cover transition duration-500 ${an ? 'scale-105' : 'grayscale brightness-[.55] group-hover:brightness-75'}`} />
+                ) : (
+                  <span className={`absolute inset-0 bg-gradient-to-br transition ${an ? 'from-sky-900 to-zinc-900' : 'from-zinc-800 to-zinc-900 grayscale'}`} />
+                )}
+                <span className="absolute inset-0 foto-unten" />
+                <span className="relative flex h-full w-full flex-col justify-end px-3 pb-2.5">
+                  <span className="schrift-anzeige text-base font-extrabold uppercase tracking-wide text-[#fff] drop-shadow">Chapter {k.nr}</span>
+                  <span className="text-[11px] font-semibold tabular-nums text-[#cbd5e1]">{k.n} <T>Karten</T></span>
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* ---------------------------------------------------- Saisonreihe */}
+        {offen && (
+          <div className="mt-4 flex flex-wrap gap-2">
+            <button type="button" onClick={() => setSaison('')} className={chip(saison === '')}><T>Alle</T></button>
+            {offen.saisons.map((s) => {
+              const n = zahlJe.get(s.kennung) ?? 0;
               return (
-                <div key={k.nr} className="shrink-0 lg:shrink">
-                  <button type="button" onClick={() => { setKapitel(k.nr); setSaison(''); }}
-                    className={`group relative flex h-[72px] w-[170px] items-end overflow-hidden rounded-xl border text-left transition lg:w-full ${an ? 'border-sky-400' : 'border-white/[0.08] hover:border-white/25'}`}>
-                    {KAPITEL_BILD[k.nr] ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={encodeURI(KAPITEL_BILD[k.nr])} alt="" loading="lazy"
-                        className={`absolute inset-0 h-full w-full object-cover transition duration-500 ${an ? '' : 'grayscale brightness-[.55] group-hover:brightness-75'}`} />
-                    ) : (
-                      <span className={`absolute inset-0 bg-gradient-to-br transition ${an ? 'from-sky-900 to-zinc-900' : 'from-zinc-800 to-zinc-900 grayscale'}`} />
-                    )}
-                    <span className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
-                    <span className="relative flex w-full items-end justify-between gap-2 px-3 pb-2">
-                      <span className="text-sm font-black uppercase tracking-wide text-white drop-shadow">Chapter {k.nr}</span>
-                      <span className={`rounded px-1.5 py-0.5 text-[10px] font-bold tabular-nums ${k.n ? 'bg-black/55 text-slate-100' : 'bg-black/40 text-slate-500'}`}>{k.n}</span>
-                    </span>
-                  </button>
-                  {an && (
-                    <div className="mt-1.5 flex flex-wrap gap-1 pl-1 lg:flex-col">
-                      <button type="button" onClick={() => setSaison('')}
-                        className={`rounded-md px-2.5 py-1.5 text-left text-[11px] font-bold uppercase tracking-wider transition ${saison === '' ? 'bg-white text-zinc-900' : 'text-slate-400 hover:bg-white/[0.06] hover:text-slate-100'}`}>
-                        <T>Alle</T>
-                      </button>
-                      {k.saisons.map((s) => {
-                        const n = zahlJe.get(s.kennung) ?? 0;
-                        return (
-                          <button key={s.kennung} type="button" onClick={() => setSaison(s.kennung)}
-                            className={`flex items-center justify-between gap-2 rounded-md px-2.5 py-1.5 text-left text-[11px] font-bold uppercase tracking-wider transition ${saison === s.kennung ? 'bg-white text-zinc-900' : n ? 'text-slate-300 hover:bg-white/[0.06] hover:text-slate-100' : 'text-slate-600 hover:bg-white/[0.04]'}`}>
-                            <span className="min-w-0 truncate">
-                              {s.kurz}
-                              {s.titel && <span className="block truncate text-[10px] font-semibold normal-case tracking-normal opacity-70">{s.titel}</span>}
-                            </span>
-                            <span className="tabular-nums opacity-60">{n}</span>
-                          </button>
-                        );
-                      })}
-                    </div>
-                  )}
-                </div>
+                <button key={s.kennung} type="button" onClick={() => setSaison(s.kennung)}
+                  className={`${chip(saison === s.kennung)} ${n || saison === s.kennung ? '' : 'opacity-50'}`}>
+                  {s.kurz}
+                  {s.titel && <span className="ml-1.5 font-semibold normal-case tracking-normal opacity-70">{s.titel}</span>}
+                  <span className="ml-2 tabular-nums opacity-60">{n}</span>
+                </button>
               );
             })}
           </div>
-        </aside>
+        )}
 
-        {/* ------------------------------------------------------ Inhalt */}
-        <section className="min-w-0 flex-1">
-          <div className="mp-glas flex flex-wrap items-center gap-2 rounded-2xl p-3">
-            <h2 className="mr-2 text-lg font-black uppercase tracking-wide text-slate-100">
-              {saison ? (() => {
-                const s = saisons.find((x) => x.kennung === saison);
-                return s ? `${s.name}${s.titel ? ` · ${s.titel}` : ''}` : '';
-              })() : (kapitel ? `Chapter ${kapitel}` : '')}
-              <span className="ml-2 text-xs font-semibold normal-case tracking-normal text-slate-500">{sichtbar.length}</span>
-            </h2>
-            <input value={suche} onChange={(e) => setSuche(e.target.value)} placeholder={t('Cup suchen …')}
-              className="w-full max-w-[200px] rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-1.5 text-sm text-slate-100 outline-none placeholder:text-slate-600 focus:border-sky-500" />
-            <div className="flex flex-wrap gap-1.5">
-              {TYPEN.map(([k, titel]) => (
-                <button key={k} type="button" onClick={() => setTyp(typ === k ? '' : k)} className={chip(typ === k)}>{titel}</button>
-              ))}
-            </div>
-            {zugang.admin && (
-              <Link href="/admin/alte-maps" className="rounded-lg border border-amber-400/40 bg-amber-400/10 px-3 py-1.5 text-xs font-bold uppercase tracking-wider text-amber-200 transition hover:border-amber-300">
-                <T>Alte Maps verwalten</T> →
-              </Link>
-            )}
-            <div className="ml-auto flex gap-1.5">
-              {([['kacheln', 'Board'], ['liste', 'List']] as const).map(([k, titel]) => (
-                <button key={k} type="button" onClick={() => { setAnsicht(k); try { localStorage.setItem('maps_ansicht', k); } catch { /* ohne Speicher */ } }} className={chip(ansicht === k)}>{titel}</button>
-              ))}
-            </div>
+        {/* --------------------------------------------------------- Werkzeugleiste */}
+        <div className="mt-6 flex flex-wrap items-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-900 p-3 shadow-sm">
+          <h2 className="schrift-anzeige mr-2 text-lg font-extrabold text-slate-100">
+            {titelZeile}
+            <span className="ml-2 text-xs font-semibold text-slate-500">{sichtbar.length}</span>
+          </h2>
+          <input value={suche} onChange={(e) => setSuche(e.target.value)} placeholder={t('Cup suchen …')}
+            className="w-full max-w-[200px] rounded-full border border-zinc-700 bg-zinc-950 px-4 py-1.5 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-sky-500" />
+          <div className="flex flex-wrap gap-1.5">
+            {TYPEN.map(([k, titel]) => (
+              <button key={k} type="button" onClick={() => setTyp(typ === k ? '' : k)} className={chip(typ === k)}>{titel}</button>
+            ))}
           </div>
+          {zugang.admin && (
+            <Link href="/admin/alte-maps" className="rounded-full border border-amber-400/40 bg-amber-400/10 px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-amber-200 transition hover:border-amber-300">
+              <T>Alte Maps verwalten</T> →
+            </Link>
+          )}
+          <div className="ml-auto flex gap-1.5">
+            {([['kacheln', t('Kacheln')], ['liste', t('Liste')]] as const).map(([k, titel]) => (
+              <button key={k} type="button" onClick={() => { setAnsicht(k); try { localStorage.setItem('maps_ansicht', k); } catch { /* ohne Speicher */ } }} className={chip(ansicht === k)}>{titel}</button>
+            ))}
+          </div>
+        </div>
 
-          {fehler && (
-            <p className="mt-6 rounded-xl border border-rose-500/30 bg-rose-500/5 px-4 py-3 text-sm text-rose-300">
-              <T>Die Maps ließen sich gerade nicht laden. Bitte gleich noch einmal versuchen.</T>
-            </p>
-          )}
-          {eintraege === null && !fehler && <div className="mt-10"><LadeSchirm /></div>}
+        {fehler && (
+          <p className="mt-6 rounded-xl border border-rose-500/30 bg-rose-500/5 px-4 py-3 text-sm text-rose-300">
+            <T>Die Maps ließen sich gerade nicht laden. Bitte gleich noch einmal versuchen.</T>
+          </p>
+        )}
+        {eintraege === null && !fehler && <div className="mt-10"><LadeSchirm /></div>}
 
-          {eintraege && offen && offen.n === 0 && (
-            <p className="mt-8 rounded-xl border border-white/[0.07] bg-white/[0.03] px-4 py-8 text-center text-sm text-slate-500">
-              <T>Für dieses Kapitel liegen noch keine Karten vor.</T>
-            </p>
-          )}
-          {eintraege && offen && offen.n > 0 && sichtbar.length === 0 && nurEigene.length === 0 && (
-            <p className="mt-8 text-sm text-slate-500"><T>Keine Map gefunden.</T></p>
-          )}
+        {eintraege && offen && offen.n === 0 && (
+          <p className="mt-8 rounded-xl border border-white/[0.07] bg-white/[0.03] px-4 py-8 text-center text-sm text-slate-500">
+            <T>Für dieses Kapitel liegen noch keine Karten vor.</T>
+          </p>
+        )}
+        {eintraege && offen && offen.n > 0 && sichtbar.length === 0 && nurEigene.length === 0 && (
+          <p className="mt-8 text-sm text-slate-500"><T>Keine Map gefunden.</T></p>
+        )}
 
-          {ansicht === 'kacheln' ? (
-            <div key={`${kapitel}|${saison}|${typ}|${suche}`} className="mt-5 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
-              {sichtbar.map((e, i) => <Kachel key={`${e.turnierId}|${e.region}|${e.windowId}`} e={e} i={i} />)}
-              {nurEigene.map((k, i) => <EigeneKachel key={k.id} k={k} i={sichtbar.length + i} />)}
-            </div>
-          ) : (
-            <ul className="mt-5 divide-y divide-white/[0.06] overflow-hidden rounded-xl border border-white/[0.08] bg-zinc-900/40">
-              {sichtbar.map((e) => (
-                <li key={`${e.turnierId}|${e.region}|${e.windowId}`}>
-                  <Link href={`/tournament-maps/karte?t=${encodeURIComponent(e.turnierId)}&r=${encodeURIComponent(e.region)}&w=${encodeURIComponent(e.windowId)}`}
-                    className="flex items-center gap-3 px-3 py-2.5 text-sm transition hover:bg-sky-500/[0.07]">
-                    <span className="w-24 shrink-0 text-[11px] tabular-nums text-slate-500">{e.datum ? DATUM.format(new Date(e.datum)) : ''}</span>
-                    <span className="w-9 shrink-0 rounded bg-white/[0.06] px-1 py-0.5 text-center text-[10px] font-bold text-slate-300">{regionAnzeige(e)}</span>
-                    <span className="min-w-0 flex-1 truncate font-semibold text-slate-100">{e.titel}</span>
-                    <span className="hidden shrink-0 text-xs text-slate-500 sm:inline">{e.saisonKurz}</span>
-                    <span aria-hidden className="text-slate-600">→</span>
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          )}
-        </section>
+        {ansicht === 'kacheln' ? (
+          <div key={`${kapitel}|${saison}|${typ}|${suche}`} className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+            {sichtbar.map((e, i) => <Kachel key={`${e.turnierId}|${e.region}|${e.windowId}`} e={e} i={i} />)}
+            {nurEigene.map((k, i) => <EigeneKachel key={k.id} k={k} i={sichtbar.length + i} />)}
+          </div>
+        ) : (
+          <ul className="mt-5 divide-y divide-zinc-800 overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900 shadow-sm">
+            {sichtbar.map((e) => (
+              <li key={`${e.turnierId}|${e.region}|${e.windowId}`}>
+                <Link href={`/tournament-maps/karte?t=${encodeURIComponent(e.turnierId)}&r=${encodeURIComponent(e.region)}&w=${encodeURIComponent(e.windowId)}`}
+                  className="flex items-center gap-3 px-4 py-3 text-sm transition hover:bg-sky-500/[0.07]">
+                  <span className="w-24 shrink-0 text-[11px] tabular-nums text-slate-500">{e.datum ? DATUM.format(new Date(e.datum)) : ''}</span>
+                  <span className="w-9 shrink-0 rounded bg-white/[0.06] px-1 py-0.5 text-center text-[10px] font-bold text-slate-300">{regionAnzeige(e)}</span>
+                  <span className="min-w-0 flex-1 truncate font-semibold text-slate-100">{e.titel}</span>
+                  <span className="hidden shrink-0 text-xs text-slate-500 sm:inline">{e.saisonKurz}</span>
+                  <span aria-hidden className="text-slate-600">→</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
     </main>
   );

@@ -37,7 +37,7 @@ const LANG = new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: '2-digit'
 
 type Reiter = 'karte' | 'spieler' | 'leaderboard' | 'tierlist' | 'laender';
 const REITER: Array<[Reiter, string]> = [
-  ['karte', 'Map'], ['spieler', 'Spieler'], ['leaderboard', 'Leaderboard'], ['tierlist', 'Tierlist'], ['laender', 'Länder'],
+  ['karte', 'Landepunkte'], ['spieler', 'Teams'], ['leaderboard', 'Rangliste'], ['tierlist', 'Tierlist'], ['laender', 'Länder'],
 ];
 
 /** Beendet, laufend oder kommend - aus Beginn und Ende des Spieltags. */
@@ -150,68 +150,75 @@ export default function KartenSeite() {
   }, [params]);
 
   const titelOben = meta?.cup || '';
-  const chip = (an: boolean) => `rounded-lg px-4 py-2 text-xs font-bold uppercase tracking-[0.12em] transition ${an
-    ? 'bg-white text-zinc-900' : 'text-slate-400 hover:text-slate-100'}`;
+  const chip = (an: boolean) => `rounded-xl px-4 py-2 text-xs font-bold uppercase tracking-[0.12em] transition ${an
+    ? 'bg-sky-500 text-white shadow-sm' : 'text-slate-400 hover:bg-zinc-800 hover:text-slate-100'}`;
 
   return (
     <main className="min-h-screen bg-zinc-950 text-slate-100">
-      <div className="relative overflow-hidden border-b border-white/[0.06]">
-        {meta?.bild && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={encodeURI(meta.bild)} alt="" aria-hidden className="absolute inset-0 h-full w-full scale-110 object-cover opacity-20 blur-xl" />
-        )}
-        <div aria-hidden className="absolute inset-0 bg-gradient-to-b from-zinc-950/30 via-zinc-950/70 to-zinc-950" />
-        <div className="relative mx-auto max-w-[1600px] px-4 py-6">
-          <Link href={meta?.saison ? `/tournament-maps?saison=${meta.saison}` : '/tournament-maps'}
-            className="inline-flex items-center gap-2 rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-[11px] font-bold uppercase tracking-wider text-slate-300 transition hover:border-sky-500/60">
-            ← {meta?.saisonKurz || t('Alle Maps')}
-          </Link>
-          <div className="mt-3 flex flex-wrap items-end gap-4">
-            {meta?.bild && (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={encodeURI(meta.bild)} alt="" className="hidden h-20 w-36 rounded-lg border border-white/10 object-cover shadow-xl sm:block" />
-            )}
-            <div className="min-w-0">
-              <h1 className="text-3xl font-black tracking-tight sm:text-5xl">{titelOben || fenster?.name || t('Karte')}</h1>
-              <p className="mt-1 flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-                {meta?.lan && <span className="rounded bg-amber-400 px-1.5 py-0.5 font-black text-zinc-950">LAN</span>}
-                {meta?.saisonKurz && <span>{meta.saisonKurz}{meta.saisonTitel ? ` — ${meta.saisonTitel}` : ''}</span>}
-                {meta?.region && <span className="rounded bg-white/10 px-1.5 py-0.5 text-slate-200">{regionAnzeige(meta)}</span>}
-                {hatReplays && params && (
-                  <Link href={`/replays/${encodeURIComponent(params.w)}`} className="rounded bg-sky-500 px-1.5 py-0.5 font-black text-white transition hover:bg-sky-400">▶ Replays</Link>
-                )}
-                {(fenster?.teams ?? []).length > 0 && <span className="rounded bg-white/10 px-1.5 py-0.5 text-slate-200">{(fenster?.teams ?? []).length} <T>Teams</T></span>}
-                {(fenster?.start || meta?.datum) && <span>{LANG.format(new Date(fenster?.start ?? (meta?.datum as number)))}</span>}
-                {zustand && (
-                  <span className={`rounded px-1.5 py-0.5 ${zustand === 'live' ? 'bg-red-500/20 text-red-400' : zustand === 'upcoming' ? 'bg-sky-500/20 text-sky-300' : 'bg-white/[0.07] text-slate-400'}`}>
-                    {zustand === 'live' ? 'Live' : zustand === 'upcoming' ? 'Upcoming' : 'Ended'}
-                  </span>
-                )}
-              </p>
-            </div>
-          </div>
+      <div className="mx-auto max-w-[1600px] px-4 pt-6">
+        <Link href={meta?.saison ? `/tournament-maps?saison=${meta.saison}` : '/tournament-maps'}
+          className="inline-flex items-center gap-2 rounded-full border border-zinc-700 bg-zinc-900 px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-slate-300 shadow-sm transition hover:border-sky-500/70 hover:text-sky-500">
+          ← {meta?.saisonKurz || t('Alle Maps')}
+        </Link>
 
-          {wochen.length > 1 && (
-            <div className="mt-5 flex flex-wrap gap-1 rounded-2xl border border-white/[0.07] bg-black/30 p-1.5">
-              {wochen.map((w) => (
-                /*
-                 * Ein Klick wechselt den Spieltag direkt auf der Seite: Karte, Teams, Leaderboard und Tierlist werden neu
-                 * geholt, die Adresse zieht nach. Als blosser Link aenderte sich nur die Adresse - der Betreiber:
-                 * "es aendert was in der URL, aber es aendert die Map nicht."
-                 */
-                <button key={w.windowId} type="button"
-                  onClick={() => {
-                    setParams({ t: w.turnierId, r: w.region, w: w.windowId });
-                    window.history.replaceState(null, '', `/tournament-maps/karte?t=${encodeURIComponent(w.turnierId)}&r=${encodeURIComponent(w.region)}&w=${encodeURIComponent(w.windowId)}`);
-                  }}
-                  className={`rounded-lg px-3 py-2 text-[11px] font-bold uppercase tracking-wider transition ${w.windowId === params?.w
-                    ? 'bg-white text-zinc-900' : 'text-slate-400 hover:bg-white/[0.06] hover:text-slate-100'}`}>
-                  {w.fenster}{w.datum ? <span className="ml-1.5 font-semibold opacity-60">{KURZ.format(new Date(w.datum))}</span> : null}
-                </button>
-              ))}
-            </div>
+        {/*
+          * Der Kopf (Betreiber, 14.10.2026): das Cup-Bild als Bühne unter einem festen dunklen Verlauf, Titel und Marken in fester heller
+          * Schrift darauf - in der hellen wie in der dunklen Fassung gleich. Die Spieltage stehen als Reihe am unteren Rand der Bühne.
+          */}
+        <section className="relative isolate mt-4 overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 shadow-sm">
+          {meta?.bild && (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img src={encodeURI(meta.bild)} alt="" aria-hidden className="absolute inset-0 -z-10 h-full w-full object-cover" />
           )}
-        </div>
+          <span aria-hidden className="foto-hero absolute inset-0 -z-10" />
+          <div className="flex flex-col gap-6 p-6 sm:p-8">
+            <div className="flex flex-wrap items-end gap-5">
+              {meta?.bild && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={encodeURI(meta.bild)} alt="" className="hidden h-24 w-40 rounded-xl border border-[rgba(255,255,255,.18)] object-cover shadow-xl sm:block" />
+              )}
+              <div className="min-w-0">
+                <h1 className="schrift-anzeige text-3xl font-extrabold leading-tight tracking-tight text-[#fff] sm:text-5xl">{titelOben || fenster?.name || t('Karte')}</h1>
+                <p className="mt-2 flex flex-wrap items-center gap-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-[#cbd5e1]">
+                  {meta?.lan && <span className="rounded bg-amber-400 px-1.5 py-0.5 font-black text-[#0b1220]">LAN</span>}
+                  {meta?.saisonKurz && <span>{meta.saisonKurz}{meta.saisonTitel ? ` — ${meta.saisonTitel}` : ''}</span>}
+                  {meta?.region && <span className="rounded bg-[rgba(255,255,255,.16)] px-1.5 py-0.5 text-[#f1f5f9]">{regionAnzeige(meta)}</span>}
+                  {hatReplays && params && (
+                    <Link href={`/replays/${encodeURIComponent(params.w)}`} className="rounded bg-sky-500 px-1.5 py-0.5 font-black text-[#fff] transition hover:bg-sky-400">▶ Replays</Link>
+                  )}
+                  {(fenster?.teams ?? []).length > 0 && <span className="rounded bg-[rgba(255,255,255,.16)] px-1.5 py-0.5 text-[#f1f5f9]">{(fenster?.teams ?? []).length} <T>Teams</T></span>}
+                  {(fenster?.start || meta?.datum) && <span>{LANG.format(new Date(fenster?.start ?? (meta?.datum as number)))}</span>}
+                  {zustand && (
+                    <span className={`rounded px-1.5 py-0.5 ${zustand === 'live' ? 'bg-red-500/30 text-red-300' : zustand === 'upcoming' ? 'bg-sky-500/30 text-sky-200' : 'bg-[rgba(255,255,255,.12)] text-[#cbd5e1]'}`}>
+                      {zustand === 'live' ? 'Live' : zustand === 'upcoming' ? 'Upcoming' : 'Ended'}
+                    </span>
+                  )}
+                </p>
+              </div>
+            </div>
+
+            {wochen.length > 1 && (
+              <div className="flex flex-wrap gap-1 rounded-2xl border border-[rgba(255,255,255,.12)] bg-[rgba(6,10,18,.55)] p-1.5 backdrop-blur">
+                {wochen.map((w) => (
+                  /*
+                   * Ein Klick wechselt den Spieltag direkt auf der Seite: Karte, Teams, Leaderboard und Tierlist werden neu
+                   * geholt, die Adresse zieht nach. Als blosser Link aenderte sich nur die Adresse - der Betreiber:
+                   * "es aendert was in der URL, aber es aendert die Map nicht."
+                   */
+                  <button key={w.windowId} type="button"
+                    onClick={() => {
+                      setParams({ t: w.turnierId, r: w.region, w: w.windowId });
+                      window.history.replaceState(null, '', `/tournament-maps/karte?t=${encodeURIComponent(w.turnierId)}&r=${encodeURIComponent(w.region)}&w=${encodeURIComponent(w.windowId)}`);
+                    }}
+                    className={`rounded-xl px-3 py-2 text-[11px] font-bold uppercase tracking-wider transition ${w.windowId === params?.w
+                      ? 'bg-[#fff] text-[#0b1220]' : 'text-[#cbd5e1] hover:bg-[rgba(255,255,255,.12)] hover:text-[#fff]'}`}>
+                    {w.fenster}{w.datum ? <span className="ml-1.5 font-semibold opacity-60">{KURZ.format(new Date(w.datum))}</span> : null}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+        </section>
       </div>
 
       <div className="mx-auto max-w-[1600px] px-4 py-6">
@@ -220,14 +227,14 @@ export default function KartenSeite() {
 
         {fenster && (
           <>
-            <div className="inline-flex flex-wrap gap-1 rounded-xl border border-white/[0.08] bg-black/30 p-1">
+            <div className="inline-flex max-w-full flex-wrap gap-1 rounded-2xl border border-zinc-800 bg-zinc-900 p-1 shadow-sm">
               {REITER.map(([k, tt]) => (
                 <button key={k} type="button" onClick={() => setReiter(k)} className={chip(reiter === k)}><T>{tt}</T></button>
               ))}
             </div>
 
             {tage.length > 1 && (
-              <div className="mt-4 inline-flex gap-1 rounded-xl border border-white/[0.08] bg-black/30 p-1">
+              <div className="ml-3 mt-4 inline-flex gap-1 rounded-2xl border border-zinc-800 bg-zinc-900 p-1 shadow-sm">
                 {[...tage.map((d, i) => [String(i + 1), d.name] as const), ['gesamt', 'Combined'] as const].map(([k, name]) => (
                   <button key={k} type="button" onClick={() => setTag(k)} className={chip(tag === k)}>{name}</button>
                 ))}
@@ -280,10 +287,10 @@ export default function KartenSeite() {
                       )}
                     </div>
                   )}
-                  <div className="grid gap-4 lg:grid-cols-[minmax(0,1.6fr)_minmax(320px,1fr)] lg:items-start">
+                  <div className="grid gap-5 lg:grid-cols-[minmax(300px,1fr)_minmax(0,1.6fr)] lg:items-start">
                     <Karte f={fenster} bild={bild} rotAb={2} />
-                    <aside className="lg:sticky lg:top-4">
-                      <h2 className="mb-2 text-sm font-black uppercase tracking-[0.14em] text-slate-300"><T>Leaderboard</T></h2>
+                    <aside className="lg:sticky lg:top-4 lg:order-first">
+                      <h2 className="schrift-anzeige mb-2 text-lg font-extrabold text-slate-100"><T>Rangliste</T></h2>
                       <div className="max-h-[80vh] overflow-y-auto rounded-xl">
                         {nurPlatzierungen ? <Platzierungen zeilen={platzierungen} schmal />
                           : !meta?.alt && meta?.eventId && fenster.quelle !== 'hand'

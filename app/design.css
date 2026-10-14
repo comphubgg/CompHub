@@ -76,3 +76,9 @@ html[data-modus="hell"] .foto-folie { background: linear-gradient(to top, rgba(2
 @media (min-width: 768px) {
   .foto-maske-rechts { -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 42%); mask-image: linear-gradient(to right, transparent 0%, #000 42%); }
 }
+
+/* Verlauf unten auf Fotos (Kacheln, Kapitelbilder): bleibt in beiden Fassungen dunkel, die Schrift darauf ist fest weiss. */
+.foto-unten { background: linear-gradient(to top, rgba(6,10,18,.86), rgba(6,10,18,.2) 55%, transparent); }
+
+/* Buehne eines Cups: fester dunkler Verlauf ueber dem Cup-Bild, in beiden Fassungen gleich (die Schrift darauf ist fest hell). */
+.foto-hero { background: linear-gradient(100deg, rgba(6,10,18,.92) 0%, rgba(6,10,18,.76) 45%, rgba(6,10,18,.4) 100%); }
