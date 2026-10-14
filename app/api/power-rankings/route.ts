@@ -72,7 +72,10 @@ async function holeRoh(request: Request) {
      * und Startnummer - ueber die Konto-Id, nie ueber den Namen (siehe lib/globalsSolos spielerKontext). Epics Name steht daneben weiter da.
      */
     const kontext = await spielerKontext();
-    const mit = <T extends { id: string; name: string }>(s: T) => ({ ...s, anzeige: s.id ? kontext(s.id, s.name).anzeige : s.name });
+    const mit = <T extends { id: string; name: string }>(s: T) => {
+      const k = s.id ? kontext(s.id, s.name) : null;
+      return { ...s, anzeige: k ? k.anzeige : s.name, bild: k?.bild ?? null };
+    };
 
     /*
      * Die Uebersicht fuer das Kopfstueck der Seite: die ersten drei, die groessten Spruenge nach oben und unten seit der letzten

@@ -19,6 +19,19 @@ const ALT = /^\/(streams|overlays|pov|pov-ansicht|live-leaderboard|live-replays)
 
 export const designFuerPfad = (pfad: string): Design => (ALT.test(pfad) ? 'alt' : 'neu');
 
+/*
+ * Weitere Anzeige-Einstellungen aus dem Zahnrad unten rechts (14.10.2026) - wie der Modus als Cookie, damit der Rahmen sie schon auf dem
+ * Server liest und nichts umspringt.
+ *   comphub_groesse   "klein" | "gross" (fehlt: normal) - die Grundschrift der ganzen Seite
+ *   comphub_bewegung  "aus" (fehlt: an) - schaltet Uebergaenge und Animationen ab
+ */
+export type Groesse = 'klein' | 'normal' | 'gross';
+export const GROESSE_COOKIE = 'comphub_groesse';
+export const BEWEGUNG_COOKIE = 'comphub_bewegung';
+
+export const lieseGroesse = (wert: string | undefined | null): Groesse => (wert === 'klein' || wert === 'gross' ? wert : 'normal');
+export const lieseBewegung = (wert: string | undefined | null): 'an' | 'aus' => (wert === 'aus' ? 'aus' : 'an');
+
 /** Den Modus aus einem Cookie-Text lesen (Browser: document.cookie). */
 export function lieseModus(cookieText: string): Modus {
   const m = new RegExp(`(?:^|;\\s*)${MODUS_COOKIE}=([^;]+)`).exec(cookieText);

@@ -17,7 +17,7 @@ import { useSprache } from '@/app/components/SprachProvider';
 import { ortVon } from '@/app/lib/ort';
 
 interface Spieler {
-  rank: number; id: string; name: string; anzeige: string; land: string;
+  rank: number; id: string; name: string; anzeige: string; land: string; bild?: string | null;
   wertung: number; bestwert: number; deltaWertung: number; deltaPlatz: number;
 }
 interface Seite {
@@ -145,13 +145,22 @@ export default function RanglisteNeu() {
           {podest.map((s, i) => {
             const platz = s.rank; const farbe = MEDAILLE[Math.min(platz, 3) - 1];
             const mitte = i === 1;
+            // Mit Foto: das Bild ueber die ganze Karte, darauf eine Folie (dunkel oder hell, je nach Design); Gesicht und Hals bleiben oben frei.
             return (
-              <article key={s.id || s.rank} className={`relative overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 shadow-sm ${mitte ? 'px-6 pb-7 pt-8 md:pb-9 md:pt-10' : 'px-6 pb-6 pt-7'}`}>
-                <span aria-hidden className="absolute inset-x-0 top-0 h-1.5" style={{ background: farbe }} />
-                <div className="flex items-start justify-between gap-3">
+              <article key={s.id || s.rank} className={`group relative flex flex-col justify-between overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 shadow-sm ${s.bild ? (mitte ? 'min-h-[27rem]' : 'min-h-[23rem]') : ''} ${mitte ? 'px-6 pb-7 pt-8 md:pb-9 md:pt-10' : 'px-6 pb-6 pt-7'}`}>
+                {s.bild && (
+                  <>
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={s.bild} alt="" loading="eager" className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-105" style={{ objectPosition: 'center 12%' }} />
+                    <span aria-hidden className="foto-folie absolute inset-0" />
+                  </>
+                )}
+                <span aria-hidden className="absolute inset-x-0 top-0 z-10 h-1.5" style={{ background: farbe }} />
+                <div className="relative z-10 flex items-start justify-between gap-3">
                   <span className="schrift-anzeige text-6xl font-extrabold leading-none tracking-tight" style={{ color: farbe }}>{platz}</span>
                   <TeamFlagge groesse={mitte ? 52 : 44} laender={[s.land || undefined]} />
                 </div>
+                <div className="relative z-10">
                 <div className="mt-5"><Name s={s} /></div>
                 <div className="mt-4 flex items-end justify-between gap-3">
                   <div>
@@ -159,6 +168,7 @@ export default function RanglisteNeu() {
                     <p className="schrift-anzeige text-3xl font-extrabold leading-tight tabular-nums text-slate-100">{zahl(s.wertung)}</p>
                   </div>
                   <Bewegung platz={s.deltaPlatz} gross />
+                </div>
                 </div>
               </article>
             );

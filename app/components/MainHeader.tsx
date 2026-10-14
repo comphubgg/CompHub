@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import VIPLoginForm from '../login/VIPLoginForm';
-import ModusSchalter from './ModusSchalter';
 
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
@@ -319,8 +318,6 @@ export default function MainHeader({ sektionenAnfang }: {
                 </svg>
               </button>
             )}
-
-            {!(isPreviewMode && isTourMode) && <ModusSchalter />}
 
             {/*
               * Die Verwaltung bleibt ein eigener Knopf und erscheint nur dem

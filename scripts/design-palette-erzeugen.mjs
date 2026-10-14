@@ -18,9 +18,11 @@ const FARBEN = ['red', 'orange', 'amber', 'yellow', 'lime', 'green', 'emerald', 
 const NEUTRAL = ['slate', 'gray', 'zinc', 'neutral', 'stone'];
 
 // Neutraltoene, hell: Seitengrund (950), Karte (900), Linien (800 bis 700), gedaempfte Schrift (600 bis 400), Text (300 bis 50).
+// Kein Knallweiss (Betreiber, 14.10.2026: "todeshaesslich"): der Grund ist ein gedaempftes Blaugrau, die Karten sind nur eine Stufe heller,
+// und die Schrift ist dunkel genug, dass sie auf dem Grau trotzdem klar lesbar bleibt.
 const NEUTRAL_HELL = {
-  50: '#0e1626', 100: '#17202f', 200: '#243044', 300: '#3a475e', 400: '#566377', 500: '#77839a',
-  600: '#9ba6ba', 700: '#c4ccda', 800: '#dde3ee', 900: '#ffffff', 950: '#f2f5fa',
+  50: '#0c1422', 100: '#16202f', 200: '#222e43', 300: '#36425a', 400: '#4a566c', 500: '#657187',
+  600: '#8591a6', 700: '#aab4c5', 800: '#c3cbd8', 900: '#e2e7ee', 950: '#d2d8e2',
 };
 
 const zeilen = [];
@@ -39,8 +41,8 @@ const css = `/* ERZEUGT von scripts/design-palette-erzeugen.mjs - nicht von Hand
 /* Die helle Fassung des neuen Designs: die Tailwind-Palette umgedreht (siehe Erzeuger). */
 html[data-modus="hell"] {
   color-scheme: light;
-  --background: #f2f5fa;
-  --foreground: #17202f;
+  --background: #d2d8e2;
+  --foreground: #16202f;
 ${zeilen.join('\n')}
 }
 `;

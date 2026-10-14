@@ -3,7 +3,7 @@ import { Geist, Geist_Mono, Figtree, Bricolage_Grotesque } from "next/font/googl
 import { Suspense } from "react";
 import { cookies, headers } from "next/headers";
 import DesignWaechter from "./components/DesignWaechter";
-import { designFuerPfad, MODUS_COOKIE } from "./lib/design";
+import { designFuerPfad, MODUS_COOKIE, GROESSE_COOKIE, BEWEGUNG_COOKIE, lieseGroesse, lieseBewegung } from "./lib/design";
 import MainHeader from './components/MainHeader';
 import SprachProvider from './components/SprachProvider';
 import { SPRACH_COOKIE } from './lib/sprache';
@@ -153,12 +153,17 @@ export default async function RootLayout({
   const pfad = (await headers()).get('x-comphub-pfad') ?? '/';
   const design = designFuerPfad(pfad);
   const modus = design === 'alt' ? 'dunkel' : ((await cookies()).get(MODUS_COOKIE)?.value === 'dunkel' ? 'dunkel' : 'hell');
+  // Schriftgroesse und Animationen aus dem Zahnrad unten rechts - normal und "an" tragen keine Angabe.
+  const groesse = lieseGroesse((await cookies()).get(GROESSE_COOKIE)?.value);
+  const bewegung = lieseBewegung((await cookies()).get(BEWEGUNG_COOKIE)?.value);
 
   return (
     <html
       lang={sprache}
       data-design={design}
       data-modus={modus}
+      data-groesse={groesse === 'normal' ? undefined : groesse}
+      data-bewegung={bewegung === 'aus' ? 'aus' : undefined}
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} ${figtree.variable} ${anzeige.variable} h-full antialiased`}
     >

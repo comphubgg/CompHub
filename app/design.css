@@ -29,11 +29,11 @@ html[data-design="neu"] :is(h2, h3) { font-weight: 700; }
 html[data-design="neu"] :is(table, .zahl) { font-variant-numeric: tabular-nums; }
 
 /* Rollbalken: in der hellen Fassung hell. */
-html[data-modus="hell"] ::-webkit-scrollbar-track { background: #e8edf5; }
-html[data-modus="hell"] ::-webkit-scrollbar-thumb { background: #b9c3d6; }
+html[data-modus="hell"] ::-webkit-scrollbar-track { background: #c9d0dc; }
+html[data-modus="hell"] ::-webkit-scrollbar-thumb { background: #9aa6ba; }
 html[data-modus="hell"] ::-webkit-scrollbar-thumb:hover { background: #0ea5e9; }
-html[data-modus="hell"] ::-webkit-scrollbar-corner { background: #e8edf5; }
-html[data-modus="hell"] * { scrollbar-color: #b9c3d6 #e8edf5; }
+html[data-modus="hell"] ::-webkit-scrollbar-corner { background: #c9d0dc; }
+html[data-modus="hell"] * { scrollbar-color: #9aa6ba #c9d0dc; }
 
 /* Weicher Wechsel zwischen hell und dunkel - nur wenn der Besucher keine Bewegung abgewaehlt hat. */
 @media (prefers-reduced-motion: no-preference) {
@@ -51,3 +51,23 @@ html[data-design="neu"] .kopf-nav a::after {
 }
 html[data-design="neu"] .kopf-nav a:hover::after,
 html[data-design="neu"] .kopf-nav a[aria-current="page"]::after { transform: scaleX(1); }
+
+/*
+ * Einstellungen aus dem Zahnrad unten rechts (Betreiber, 14.10.2026).
+ * Schriftgroesse: Tailwind rechnet in rem, also skaliert die Grundschrift die ganze Seite mit. Gilt nur im neuen Design - die Streams-Seite
+ * bleibt, wie sie ist.
+ */
+html[data-design="neu"][data-groesse="klein"] { font-size: 93.75%; }
+html[data-design="neu"][data-groesse="gross"] { font-size: 112.5%; }
+
+/* Animationen aus: Uebergaenge und Bewegungen fallen weg, der Zustand wechselt sofort. */
+html[data-bewegung="aus"] *, html[data-bewegung="aus"] *::before, html[data-bewegung="aus"] *::after {
+  animation-duration: 0.001ms !important; animation-iteration-count: 1 !important; transition-duration: 0.001ms !important; scroll-behavior: auto !important;
+}
+
+/*
+ * Foto-Folie (Spitzenreiter der Rangliste): das Foto liegt unter einer Folie, die zur Helligkeit passt - dunkel im dunklen Design,
+ * helles Blaugrau im hellen. Oben bleibt sie fast klar, damit Gesicht und Hals zu sehen sind; unten ist sie dicht genug fuer die Schrift.
+ */
+.foto-folie { background: linear-gradient(to top, rgba(7,11,19,.94) 0%, rgba(7,11,19,.72) 34%, rgba(7,11,19,.18) 70%, rgba(7,11,19,.05) 100%); }
+html[data-modus="hell"] .foto-folie { background: linear-gradient(to top, rgba(210,216,226,.96) 0%, rgba(210,216,226,.78) 34%, rgba(210,216,226,.2) 70%, rgba(210,216,226,.04) 100%); }
