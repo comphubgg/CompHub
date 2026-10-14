@@ -5,7 +5,7 @@ import { zwischenspeichern } from '@/lib/zwischenspeicher';
 import { replayTag } from '@/lib/replaySchlank';
 import { liesJson } from '@/lib/ablage';
 import { spielerKontext } from '@/lib/globalsSolos';
-import { leseErgebnis } from '@/lib/eigeneAuswertung';
+import { fensterOk, kontoOk, leseErgebnis } from '@/lib/eigeneAuswertung';
 
 /*
  * Die Werte eines Spielers - und seines Teams - in einem Cup, fuer die Ansichten "Solo Stats" und "Team Stats" auf der Cup-Seite (wie bei
@@ -97,7 +97,8 @@ export async function GET(request: Request) {
     const rep = saison ? await replayTag(saison, fenster).catch(() => null) : null;
     const clutch = await liesJson<{ schaden?: Record<string, { dmg: number; erlitten: number; treffer: number; krit: number }> } | null>(`clutch/${fenster}.json`, null).catch(() => null);
 
-    const eigene = await leseErgebnis(fenster, id);
+    // Fenster und Konto werden zu einem Dateinamen - nur das Uebliche zulassen.
+    const eigene = fensterOk(fenster) && kontoOk(id) ? await leseErgebnis(fenster, id) : null;
     const eigeneKomplett = !!eigene && eigene.gelesen >= eigene.sitzungen;
     const kontext = await spielerKontext().catch(() => null);
     const mitglieder = ids.map((i) => {
