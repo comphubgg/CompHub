@@ -26,6 +26,8 @@ export interface Schreiber {
   /** Das verknuepfte Epic-Konto - nur damit ist "ich selbst" bestimmbar. */
   epicId: string | null;
   name: string | null;
+  /** Die Org, die dieses Konto verwaltet (Esports-Zugang) - sonst null. Der Betreiber hat keine eigene, darf aber jede ansehen. */
+  org: string | null;
 }
 
 export async function werSchreibt(): Promise<Schreiber> {
@@ -33,6 +35,7 @@ export async function werSchreibt(): Promise<Schreiber> {
   let rolle: Rolle = null;
   let epicId: string | null = null;
   let name: string | null = null;
+  let org: string | null = null;
 
   const id = kontoAus(laden.get(KONTO_COOKIE)?.value);
   if (id) {
@@ -42,11 +45,12 @@ export async function werSchreibt(): Promise<Schreiber> {
       rolle = k.rolle ?? null;
       epicId = k.epicId ?? null;
       name = k.name;
+      org = k.org ?? null;
     }
   }
 
   const wert = laden.get(VIP_COOKIE)?.value;
-  if (istBetreiber(wert)) return { rolle: 'admin', epicId, name: name ?? 'admin-juanito' };
+  if (istBetreiber(wert)) return { rolle: 'admin', epicId, name: name ?? 'admin-juanito', org };
 
   const vip = vipAus(wert);
   if (vip) {
@@ -54,7 +58,7 @@ export async function werSchreibt(): Promise<Schreiber> {
     if (!rolle && darf.rolle) rolle = darf.rolle;
     if (!name) name = vip;
   }
-  return { rolle, epicId, name };
+  return { rolle, epicId, name, org };
 }
 
 /** Admin heisst hier: darf die Karte als Ganzes aendern. */

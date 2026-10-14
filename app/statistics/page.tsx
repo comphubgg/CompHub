@@ -5324,12 +5324,12 @@ export default function StatistikSeite() {
               {offen.bild && (
                 <>
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={offen.bild} alt="" className="foto-maske-rechts absolute inset-y-0 right-0 -z-10 h-full w-full object-cover md:w-[58%]"
+                  <img src={offen.bild} alt="" className="foto-maske-rechts absolute inset-y-0 right-0 -z-10 h-full w-full object-cover md:w-[46%] xl:w-[40%]"
                     style={{ objectPosition: 'center top' }} />
                   <span aria-hidden className="foto-folie absolute inset-0 -z-10 md:hidden" />
                 </>
               )}
-              <div className={`flex min-h-[20rem] flex-col justify-between gap-8 p-6 sm:p-8 ${offen.bild ? 'md:min-h-[24rem] md:max-w-[62%]' : ''}`}>
+              <div className={`flex min-h-[22rem] flex-col justify-between gap-8 p-6 sm:p-8 ${offen.bild ? 'md:min-h-[34rem] md:max-w-[62%]' : ''}`}>
                 <button onClick={profilSchliessen}
                   className="w-fit rounded-full border border-zinc-700 bg-zinc-950/60 px-4 py-1.5 text-xs font-semibold text-slate-400 backdrop-blur transition hover:border-sky-500/60 hover:text-sky-500">
                   ← <T>Zurück</T>

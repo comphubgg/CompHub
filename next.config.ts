@@ -28,6 +28,8 @@ const ALTE_ADRESSEN: Array<[string, string]> = [
 ];
 
 const nextConfig: NextConfig = {
+  // forbidden() und unauthorized() (403/401) mit eigenen Fehlerseiten: app/forbidden.tsx, app/unauthorized.tsx.
+  experimental: { authInterrupts: true },
   /*
    * Ein eigenstaendiger Server fuer einen eigenen Host (Dockerfile.web).
    *

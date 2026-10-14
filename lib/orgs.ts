@@ -81,6 +81,8 @@ export interface Org {
   logo: string | null;
   /** Das breite Bild hinter dem Logo auf der Org-Seite (meist das X-Banner der Org). */
   banner: string | null;
+  /** Die Farbe der Org (Hex, "#7c3aed") - das Team-Dashboard und der Roster-Reiter tragen sie. */
+  farbe?: string | null;
   website: string | null;
   /** X-Konto ohne @ */
   x: string | null;
@@ -149,6 +151,7 @@ export function saeubere(o: Partial<Org>): Org {
     name: text(o.name) || 'Unnamed',
     logo: o.logo ? bildAdresse(text(o.logo, 400)) : null,
     banner: o.banner ? bildAdresse(text(o.banner, 400)) : null,
+    farbe: /^#[0-9a-fA-F]{6}$/.test(String(o.farbe ?? '')) ? String(o.farbe).toLowerCase() : null,
     website: /^https?:\/\/[^\s]+\.[^\s]+/.test(web) ? web : null,
     x: konto(o.x),
     youtube: konto(o.youtube),

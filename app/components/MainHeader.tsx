@@ -82,6 +82,8 @@ export default function MainHeader({ sektionenAnfang }: {
   /** Was dieses Konto ist - Admin, Manager, VIP. */
   const [kontoRolle, setKontoRolle] = useState<string | null>(null);
   const [kontoVip, setKontoVip] = useState<boolean>(false);
+  /** Die Org, die dieses Konto verwaltet - dann steht neben dem Bild der Weg ins Team-Dashboard. */
+  const [kontoOrg, setKontoOrg] = useState<string | null>(null);
   const [vipBis, setVipBis] = useState<number | null>(null);
   /** Einmalige Nachricht, wenn das VIP frisch vergeben wurde. */
   const [vipNeu, setVipNeu] = useState<boolean>(false);
@@ -104,13 +106,14 @@ export default function MainHeader({ sektionenAnfang }: {
       try {
         const j = (await geteilterAbruf<{ angemeldet?: boolean; konto?: {
           name?: string; bild?: string; rolle?: string; vip?: boolean;
-          vipBis?: number | null; vipNeu?: boolean;
+          vipBis?: number | null; vipNeu?: boolean; org?: string | null;
         } }>('/api/konto')).daten;
         if (fort) return;
         setKontoName(j?.angemeldet ? (j.konto?.name ?? null) : null);
         setKontoBild(j?.angemeldet ? (j.konto?.bild ?? null) : null);
         setKontoRolle(j?.angemeldet ? (j.konto?.rolle ?? null) : null);
         setKontoVip(Boolean(j?.angemeldet && j.konto?.vip));
+        setKontoOrg(j?.angemeldet ? (j.konto?.org ?? null) : null);
         setVipBis(j?.angemeldet ? (j.konto?.vipBis ?? null) : null);
         setVipNeu(Boolean(j?.angemeldet && j.konto?.vipNeu));
       } catch { /* ohne Auskunft bleibt es beim letzten Stand */ }
@@ -348,6 +351,12 @@ export default function MainHeader({ sektionenAnfang }: {
               * sechsunddreissig Pixeln waere jede Schrift unlesbar. Zwei
               * Marken hoechstens: die Rolle und das VIP.
               */}
+            {angemeldet && kontoOrg && (
+              <Link href="/org" prefetch={false}
+                className="rounded-full border border-violet-500/50 bg-violet-500/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-violet-500 transition hover:bg-violet-500/20">
+                {t('Team')}
+              </Link>
+            )}
             {angemeldet && (kontoRolle || kontoVip) && (
               <span className="flex items-center gap-1">
                 {kontoRolle && (

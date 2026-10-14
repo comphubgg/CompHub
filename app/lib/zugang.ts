@@ -49,6 +49,8 @@ export interface Zugang {
    * naechster Woche umstellen.
    */
   verwaltet: string;
+  /** Die Org, die dieses Konto verwaltet (Esports-Zugang) - leer, wenn keine. */
+  org: string;
   name: string;
   /** Das mit dem Konto verknuepfte Epic-Konto (32 Zeichen) - leer, wenn keines. Damit findet jeder seine eigenen Werte. */
   epicId: string;
@@ -58,7 +60,7 @@ export interface Zugang {
 
 const ANFANG: Zugang = {
   laedt: true, gast: true, nutzer: false, vip: false, admin: false,
-  manager: false, pro: false, rechte: [], verwaltet: '', name: '', epicId: '',
+  manager: false, pro: false, rechte: [], verwaltet: '', org: '', name: '', epicId: '',
   darfBereich: () => false,
 };
 
@@ -76,16 +78,18 @@ export function useZugang(): Zugang {
     let vipKonto = false;
     let epicId = '';
     let verwaltet = '';
+    let org = '';
     /** Ein Zugang, dessen VIP-Frist abgelaufen ist. */
     let vipZugangOhneRecht = false;
 
     try {
-      const j = (await geteilterAbruf<{ angemeldet?: boolean; gastEpicId?: string; konto?: { name?: string; rolle?: 'admin' | 'manager' | 'pro' | null; rechte?: string[]; vip?: boolean; epicId?: string | null } }>('/api/konto')).daten;
+      const j = (await geteilterAbruf<{ angemeldet?: boolean; gastEpicId?: string; konto?: { name?: string; rolle?: 'admin' | 'manager' | 'pro' | null; rechte?: string[]; vip?: boolean; epicId?: string | null; org?: string | null } }>('/api/konto')).daten;
       if (j?.angemeldet) {
         kontoName = String(j.konto?.name ?? '');
         rolle = j.konto?.rolle ?? null;
         rechte = Array.isArray(j.konto?.rechte) ? j.konto.rechte : [];
         vipKonto = Boolean(j.konto?.vip);
+        org = String(j.konto?.org ?? '');
         epicId = String(j.konto?.epicId ?? '').replace(/-/g, '').toLowerCase();
       }
       // Ein Gast, der sich bei Epic verifiziert hat: seine Konto-Id gilt (lib/epicGast), ein Konto bei uns braucht es dafuer nicht.
@@ -136,7 +140,8 @@ export function useZugang(): Zugang {
      * waere eine Falle - niemand kommt auf die Idee, sich selbst noch eine
      * kleinere Stufe zu geben.
      */
-    const ueberVip = admin || rolle === 'manager' || rolle === 'pro';
+    // Ein Esports-Zugang (Org) sieht, was ein VIP sieht - Global Solos, POV-Bereiche, die Filter.
+    const ueberVip = admin || rolle === 'manager' || rolle === 'pro' || Boolean(org);
     const vip = ueberVip
       || (Boolean(vipName) && !vipZugangOhneRecht)
       || vipKonto;
@@ -151,6 +156,7 @@ export function useZugang(): Zugang {
       pro: rolle === 'pro',
       rechte,
       verwaltet,
+      org,
       name: kontoName || vipName,
       epicId,
       darfBereich: (b) => (admin ? true : darf(rolle, rechte, b)),

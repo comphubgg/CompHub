@@ -80,6 +80,20 @@ export async function POST(request: Request) {
   const id = String(koerper.id ?? '').trim();
   if (!id) return NextResponse.json({ fehler: 'keine Id' }, { status: 400 });
 
+  /*
+   * Die Organisation eines Kontos (Esports-Zugang): eigener Weg, damit er nicht mit Rolle und VIP vermischt wird. Nur eine Org, die es gibt.
+   */
+  if (koerper.aktion === 'org') {
+    const org = String(koerper.org ?? '').trim().toLowerCase();
+    if (org) {
+      const { liesOrgs } = await import('@/lib/orgs');
+      if (!(await liesOrgs()).some((o) => o.id === org)) return NextResponse.json({ fehler: 'unbekannte Organisation' }, { status: 400 });
+    }
+    const k = await aendern(id, { org: org || undefined });
+    if (!k) return NextResponse.json({ fehler: 'nicht gefunden' }, { status: 404 });
+    return NextResponse.json({ ok: true, konten: await alleKonten() });
+  }
+
   const roh = koerper.rolle;
   if (roh !== null && roh !== 'admin' && roh !== 'manager' && roh !== 'pro') {
     return NextResponse.json({ fehler: 'unbekannte Rolle' }, { status: 400 });

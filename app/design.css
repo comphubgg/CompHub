@@ -74,7 +74,7 @@ html[data-modus="hell"] .foto-folie { background: linear-gradient(to top, rgba(2
 
 /* Profilkopf: das Foto blendet zur linken Seite hin in die Karte aus (nur ab Tablet-Breite; darunter liegt es unter der Foto-Folie). */
 @media (min-width: 768px) {
-  .foto-maske-rechts { -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 42%); mask-image: linear-gradient(to right, transparent 0%, #000 42%); }
+  .foto-maske-rechts { -webkit-mask-image: linear-gradient(to right, transparent 0%, #000 28%); mask-image: linear-gradient(to right, transparent 0%, #000 28%); }
 }
 
 /* Verlauf unten auf Fotos (Kacheln, Kapitelbilder): bleibt in beiden Fassungen dunkel, die Schrift darauf ist fest weiss. */
@@ -84,10 +84,19 @@ html[data-modus="hell"] .foto-folie { background: linear-gradient(to top, rgba(2
 .foto-hero { background: linear-gradient(100deg, rgba(6,10,18,.92) 0%, rgba(6,10,18,.76) 45%, rgba(6,10,18,.4) 100%); }
 
 /*
- * Glas gibt es im neuen Design nicht mehr (Betreiber, 14.10.2026: zu nah am Vorbild). Die Aufmacher-Karten der Statistik werden feste Karten;
- * auf der Startseite (Vitrine) bleibt das Glas, bekommt in der hellen Fassung aber helle statt dunkler Flaechen.
+ * Das Glas mit dem blauen Schein im Hintergrund und dem Schatten darunter bleibt (Betreiber, 14.10.2026: "das blaue ganz oben, die Ebene mit dem
+ * Schatten dahinter - das finde ich clean"). Auf der Startseite (Vitrine) bekommt es in der hellen Fassung helle statt dunkler Flaechen.
  */
-html[data-design="neu"] .sa-glas { background: var(--color-zinc-900); border-color: var(--color-zinc-800); backdrop-filter: none; -webkit-backdrop-filter: none; box-shadow: 0 1px 2px rgba(0,0,0,.08); }
 html[data-modus="hell"] .vit-glas { border-color: #c3cbd8; background: #e2e7ee; backdrop-filter: none; -webkit-backdrop-filter: none; box-shadow: 0 6px 22px rgba(30,40,60,.10); }
 html[data-modus="hell"] .vit-karte { border-color: #c3cbd8; background: #d5dbe5; }
 html[data-modus="hell"] .vit-gold { border-color: rgba(176,125,10,.4); background: linear-gradient(160deg, rgba(245,197,66,.2), #dfe4ec); }
+
+/*
+ * Helle Fassung: Karten, die auf dunklem Grund nur eine durchscheinende Flaeche in der Seitenfarbe sind (bg-zinc-950/40 bis /70), waeren hier flach
+ * grau auf grau - Betreiber, 14.10.2026: "komplett hell, das passt nicht mit den Flaggen". Sie werden zu echten Karten (eine Stufe heller als
+ * der Grund) mit einem weichen Schatten darunter. Schleier und Kopfzeile (/80 und mehr) bleiben unberuehrt.
+ */
+html[data-modus="hell"] :is([class*="bg-zinc-950/40"], [class*="bg-zinc-950/50"], [class*="bg-zinc-950/60"], [class*="bg-zinc-950/70"]) {
+  background-color: var(--color-zinc-900);
+  box-shadow: 0 1px 2px rgba(15, 23, 42, .06), 0 8px 22px rgba(15, 23, 42, .07);
+}

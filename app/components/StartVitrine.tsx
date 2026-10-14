@@ -8,7 +8,14 @@ import TeamFlagge from '@/components/TeamFlagge';
 import Rollzahl from '@/app/components/Rollzahl';
 
 /*
- * Die Schaukaesten der Startseite: Statistics - Maps - More.
+ * Die Schaukaesten der Startseite.
+ *
+ * Neu angeordnet (Betreiber, 14.10.2026: "Statistics und More sehen eins zu eins aus wie beim Vorbild, das kann man nicht so kopieren - ich
+ * will sie auf jeden Fall auch, aber anders"): oben die Maps gross neben einem Spieler im Rampenlicht (Foto, wechselt von allein), darunter
+ * die Statistik als Reihe aus Turnier, Rangliste und Regionen, zuletzt Tierlist und Globals Solos nebeneinander. Die Karten selbst und ihre
+ * Daten sind dieselben wie vorher; die drei Spalten sind weg.
+ *
+ * (Aelterer Kommentar zur ersten Fassung:)
  *
  * Der Betreiber (12.10.2026) hatte bei einem anderen Statistikangebot gesehen, wie eine Startseite wirken kann, und
  * wollte genau diese Art: drei Spalten, Karten, die von allein rotieren (Spieler, Turniere, Global), ein Kartenstreifen,
@@ -35,10 +42,6 @@ const CSS = `
 .vit-gold { border: 1px solid rgba(245,197,66,.28); background: linear-gradient(160deg, rgba(245,197,66,.09), rgba(9,9,11,.55)); }
 .vit-scheibe { transition: flex-grow .65s cubic-bezier(.2,.8,.2,1), filter .4s, opacity .3s, margin .65s; }
 @media (prefers-reduced-motion: reduce) { .vit-an { animation: none !important; } .vit-scheibe { transition: none; } }
-/* Auf grossen Schirmen alles um gut zehn Prozent kleiner, damit die drei Spalten auf einen Blick passen (Betreiber, 12.10.2026:
-   "ich muss legit ein bisschen scrollen ... von oben nach unten kleiner, breit ist okay"). Die Breite bleibt: der Raster darf
-   um denselben Faktor breiter rechnen. */
-@media (min-width: 1280px) { .vit-raster { zoom: .84; } }
 `;
 
 /* ------------------------------------------------------------------ Typen */
@@ -90,9 +93,11 @@ function Gesicht({ name, bild, px }: { name: string; bild: string | null; px: nu
 }
 
 /** Eine Karte mit Kopf: Symbol, Titel, Pfeil zur ganzen Seite. */
-function Karte({ titel, href, symbol, children, gold = false, className = '' }: { titel: string; href: string; symbol: ReactNode; children: ReactNode; gold?: boolean; className?: string }) {
+function Karte({ titel, href, symbol, children, gold = false, glas = false, className = '' }: { titel: string; href: string; symbol: ReactNode; children: ReactNode; gold?: boolean; glas?: boolean; className?: string }) {
+  // glas: eine eigene, groessere Flaeche (die Reihen der Startseite); sonst die kleine Karte in einer Spalte.
+  const flaeche = gold ? (glas ? 'vit-gold rounded-3xl p-5' : 'vit-gold rounded-2xl p-3.5') : (glas ? 'vit-glas rounded-3xl p-5' : 'vit-karte rounded-2xl p-3.5');
   return (
-    <div className={`${gold ? 'vit-gold' : 'vit-karte'} group/karte rounded-2xl p-3.5 ${className}`}>
+    <div className={`${flaeche} group/karte ${className}`}>
       <Link href={href} className={`mb-2.5 flex items-center justify-between gap-2 transition ${gold ? 'text-amber-200 hover:text-amber-100' : 'text-slate-100 hover:text-sky-400'}`}>
         <span className="flex items-center gap-2 text-sm font-black uppercase tracking-wide">
           <span className={gold ? 'text-amber-300' : 'text-sky-500'}>{symbol}</span><T>{titel}</T>
@@ -123,41 +128,53 @@ const SYM = {
 
 const RAD_MS = 4600;
 
-function SpielerKarte({ daten, fertig }: { daten: Vitrine | null; fertig: boolean }) {
+/** Ein Spieler im Rampenlicht: das Foto gross hinter dem Namen, darunter die Zahlen - wechselt reihum, bleibt stehen, solange die Maus darauf liegt. */
+function SpotlightKarte({ daten, fertig }: { daten: Vitrine | null; fertig: boolean }) {
   const liste = daten?.spieler ?? [];
   const [halt, setHalt] = useState(false);
-  const i = useRad(liste.length, RAD_MS, halt);
+  const i = useRad(liste.length, RAD_MS + 1400, halt);
   const s = liste[i];
   return (
-    <Karte titel="Spieler" href="/statistics" symbol={SYM.spieler}>
-      {!s ? <Hinweis geladen={fertig} /> : (
-        <div onMouseEnter={() => setHalt(true)} onMouseLeave={() => setHalt(false)}>
-          <div key={s.id} className="vit-an" style={{ animation: 'vit-rein .55s cubic-bezier(.2,.8,.2,1) both' }}>
-            <Link href={`/statistics?spieler=${encodeURIComponent(s.name)}`}
-              className="flex items-center gap-3 rounded-xl border border-white/[0.07] bg-black/30 px-3 py-2.5 transition hover:border-sky-500/50">
-              <Gesicht name={s.name} bild={s.bild} px={42} />
-              <TeamFlagge groesse={18} laender={[s.land ?? undefined]} />
-              <span className="min-w-0 flex-1 truncate text-xl font-black uppercase tracking-wide text-slate-50">{s.name}</span>
-              <span className="rounded border border-sky-500/30 bg-sky-500/10 px-1.5 py-0.5 text-[10px] font-bold text-sky-300">{s.region}</span>
+    <div onMouseEnter={() => setHalt(true)} onMouseLeave={() => setHalt(false)}
+      className="vit-glas relative isolate flex min-h-[560px] flex-col justify-end overflow-hidden rounded-3xl">
+      {!s ? <div className="m-auto p-8"><Hinweis geladen={fertig} /></div> : (
+        <>
+          <div key={s.id} className="vit-an absolute inset-0 -z-10" style={{ animation: 'vit-rein .6s cubic-bezier(.2,.8,.2,1) both' }}>
+            {s.bild ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={s.bild} alt="" loading="lazy" className="h-full w-full object-cover" style={{ objectPosition: 'center top' }} />
+            ) : (
+              <span className="absolute inset-0 grid place-items-center bg-gradient-to-br from-sky-950 to-zinc-900 text-9xl font-black text-white/10">{s.name.slice(0, 1).toUpperCase()}</span>
+            )}
+            <span aria-hidden className="foto-unten absolute inset-0" />
+          </div>
+          <div className="p-6">
+            <p className="text-[11px] font-bold uppercase tracking-[0.2em] text-sky-400"><T>Spieler im Rampenlicht</T></p>
+            <Link key={s.id} href={`/statistics?spieler=${encodeURIComponent(s.name)}`} className="vit-an mt-2 block" style={{ animation: 'vit-rein .55s cubic-bezier(.2,.8,.2,1) both' }}>
+              <span className="flex items-center gap-3">
+                <TeamFlagge groesse={30} laender={[s.land ?? undefined]} />
+                <span className="schrift-anzeige min-w-0 truncate text-4xl font-extrabold uppercase tracking-tight text-[#fff] sm:text-5xl">{s.name}</span>
+                <span className="rounded border border-[rgba(255,255,255,.3)] bg-[rgba(255,255,255,.12)] px-1.5 py-0.5 text-[10px] font-bold text-[#e2e8f0]">{s.region}</span>
+              </span>
             </Link>
-            <div className="mt-2 grid grid-cols-3 gap-2">
-              {([['Quote', s.quote.toFixed(2), 'text-emerald-400'], ['Elims', zahl(s.elims), 'text-slate-50'], ['Schaden', zahl(s.schaden), 'text-slate-50']] as const).map(([t, w, farbe]) => (
-                <div key={t} className="rounded-xl border border-white/[0.07] bg-black/30 px-2 py-2.5 text-center">
-                  <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-500"><T>{t}</T></p>
-                  <p className={`mt-0.5 text-xl font-black tabular-nums ${farbe}`}><Rollzahl wert={w} los dauer={900} /></p>
+            <div className="mt-4 grid grid-cols-3 gap-2">
+              {([['Quote', s.quote.toFixed(2), 'text-emerald-400'], ['Elims', zahl(s.elims), 'text-[#fff]'], ['Schaden', zahl(s.schaden), 'text-[#fff]']] as const).map(([t, w, farbe]) => (
+                <div key={t} className="rounded-xl border border-[rgba(255,255,255,.14)] bg-[rgba(6,10,18,.55)] px-2 py-3 text-center backdrop-blur">
+                  <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-[#94a3b8]"><T>{t}</T></p>
+                  <p className={`mt-0.5 text-2xl font-black tabular-nums ${farbe}`}><Rollzahl wert={w} los dauer={900} /></p>
                 </div>
               ))}
             </div>
-          </div>
-          <div className="mt-3 flex items-center gap-3">
-            <div className="h-[3px] flex-1 overflow-hidden rounded-full bg-white/[0.07]">
-              <div key={i} className="vit-an h-full origin-left bg-sky-500" style={{ animation: `vit-fuell ${RAD_MS}ms linear both`, animationPlayState: halt ? 'paused' : 'running' }} />
+            <div className="mt-4 flex items-center gap-3">
+              <div className="h-[3px] flex-1 overflow-hidden rounded-full bg-[rgba(255,255,255,.18)]">
+                <div key={i} className="vit-an h-full origin-left bg-sky-400" style={{ animation: `vit-fuell ${RAD_MS + 1400}ms linear both`, animationPlayState: halt ? 'paused' : 'running' }} />
+              </div>
+              <span className="text-[9px] font-semibold uppercase tracking-[0.14em] text-[#94a3b8]"><T>alle Saisons</T></span>
             </div>
-            <span className="text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-600"><T>alle Saisons</T></span>
           </div>
-        </div>
+        </>
       )}
-    </Karte>
+    </div>
   );
 }
 
@@ -172,7 +189,7 @@ function CupKarte({ daten, fertig }: { daten: Vitrine | null; fertig: boolean })
   const i = useRad(liste.length, CUP_MS, halt);
   const c = liste[i];
   return (
-    <Karte titel="Turniere" href="/events" symbol={SYM.pokal}>
+    <Karte titel="Turniere" href="/events" symbol={SYM.pokal} glas>
       {!c ? <Hinweis geladen={fertig} /> : (
         <div onMouseEnter={() => setHalt(true)} onMouseLeave={() => setHalt(false)}>
           <div key={c.titel} className="vit-an" style={{ animation: 'vit-rein .55s cubic-bezier(.2,.8,.2,1) both' }}>
@@ -234,7 +251,7 @@ function GlobalKarte({ daten, fertig }: { daten: Vitrine | null; fertig: boolean
   const hell = useRad(regionen.length, 2200, halt);
   const max = Math.max(1, ...regionen.map((r) => r.elims));
   return (
-    <Karte titel="Global" href="/statistics" symbol={SYM.welt}>
+    <Karte titel="Global" href="/statistics" symbol={SYM.welt} glas>
       {regionen.length === 0 ? <Hinweis geladen={fertig} /> : (
         <div ref={setHalter} onMouseEnter={() => setHalt(true)} onMouseLeave={() => setHalt(false)}>
           <p className="mb-2 flex justify-between text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-500">
@@ -368,7 +385,7 @@ function TierlistKarte({ daten, fertig }: { daten: Vitrine | null; fertig: boole
   // Genug andere? Dann nur sie; sonst mit dem Rest auffuellen.
   const liste = frei.length >= 9 ? frei : [...frei, ...alle.filter((s) => !frei.includes(s))];
   return (
-    <Karte titel="Tierlist" href="/tierlist" symbol={SYM.stufen}>
+    <Karte titel="Tierlist" href="/tierlist" symbol={SYM.stufen} glas>
       {liste.length < 9 ? <Hinweis geladen={fertig} /> : (
         <>
           <div className="space-y-1.5">
@@ -399,7 +416,7 @@ function TierlistKarte({ daten, fertig }: { daten: Vitrine | null; fertig: boole
 function SoloKarte({ heats, fertig }: { heats: SolosFenster[] | null; fertig: boolean }) {
   const zeigen = (heats ?? []).filter((h) => h.spieler.length).slice(0, 4);
   return (
-    <Karte titel="Globals Solos" href="/globals-solos" symbol={SYM.flamme} gold>
+    <Karte titel="Globals Solos" href="/globals-solos" symbol={SYM.flamme} gold glas>
       {zeigen.length === 0 ? (heats && fertig ? <p className="py-4 text-center text-xs text-slate-500"><T>Noch keine Heats eingeteilt.</T></p> : <Hinweis geladen={fertig} />) : (
         <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.min(zeigen.length, 2)}, minmax(0, 1fr))` }}>
           {zeigen.map((h, k) => (
@@ -425,7 +442,7 @@ function SoloKarte({ heats, fertig }: { heats: SolosFenster[] | null; fertig: bo
 function RangKarte({ daten, fertig }: { daten: Vitrine | null; fertig: boolean }) {
   const liste = daten?.rangliste ?? [];
   return (
-    <Karte titel="Rankings" href="/power-rankings" symbol={SYM.rang}>
+    <Karte titel="Rankings" href="/power-rankings" symbol={SYM.rang} glas>
       {liste.length === 0 ? <Hinweis geladen={fertig} /> : (
         <ul className="space-y-1">
           {liste.map((r, k) => (
@@ -468,28 +485,40 @@ export default function StartVitrine() {
     <section className="relative px-4 py-10 xl:py-8">
       <style>{CSS}</style>
       <div aria-hidden className="pointer-events-none absolute inset-x-0 top-10 mx-auto h-72 max-w-5xl rounded-full bg-sky-500/[0.06] blur-[110px]" />
-      <div className="vit-raster relative mx-auto grid max-w-[1760px] gap-5 xl:max-w-[2100px] xl:grid-cols-[1fr_1.4fr_1fr]">
-        {/* ---------------------------------------------------- Statistics */}
-        <div className="vit-glas rounded-3xl p-6">
-          <h3 className="text-4xl font-black uppercase tracking-tight text-slate-50 sm:text-5xl"><T>Statistiken</T></h3>
-          <p className="mt-1 text-xs leading-relaxed text-slate-400"><T>Aus den Spielwerten jedes Cups — nach jedem Event erneuert.</T></p>
-          <div className="mt-4 space-y-2.5">
-            <SpielerKarte daten={daten} fertig={geladen} />
+      <div className="vit-raster relative mx-auto max-w-[1500px] space-y-10">
+        {/* Oben: die Maps gross, daneben ein Spieler im Rampenlicht */}
+        <div className="grid gap-5 lg:grid-cols-[1.4fr_1fr]">
+          <MapsSpalte anzahl={daten?.maps ?? 0} />
+          <SpotlightKarte daten={daten} fertig={geladen} />
+        </div>
+
+        {/* Die Statistik als Reihe */}
+        <div>
+          <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-sky-500"><T>Aus dem Archiv</T></p>
+              <h3 className="schrift-anzeige mt-1 text-3xl font-extrabold tracking-tight text-slate-100 sm:text-4xl"><T>Statistiken</T></h3>
+            </div>
+            <p className="max-w-md text-sm text-slate-500"><T>Aus den Spielwerten jedes Cups — nach jedem Event erneuert.</T></p>
+          </div>
+          <div className="grid gap-5 lg:grid-cols-3">
             <CupKarte daten={daten} fertig={geladen} />
+            <RangKarte daten={daten} fertig={geladen} />
             <GlobalKarte daten={daten} fertig={geladen} />
           </div>
         </div>
 
-        {/* ---------------------------------------------------------- Maps */}
-        <MapsSpalte anzahl={daten?.maps ?? 0} />
-
-        {/* ----------------------------------------------------------- More */}
-        <div className="vit-glas rounded-3xl p-6">
-          <h3 className="text-4xl font-black uppercase tracking-tight text-slate-50 sm:text-5xl"><T>Mehr</T></h3>
-          <p className="mt-1 text-xs leading-relaxed text-slate-400"><T>Eigene Tierlist bauen, die Rankings ansehen und die Globals Solos verfolgen.</T></p>
-          <div className="mt-4 space-y-2.5">
+        {/* Mitmachen: Tierlist und Globals Solos nebeneinander */}
+        <div>
+          <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
+            <div>
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-sky-500"><T>Zum Mitmachen</T></p>
+              <h3 className="schrift-anzeige mt-1 text-3xl font-extrabold tracking-tight text-slate-100 sm:text-4xl"><T>Mehr</T></h3>
+            </div>
+            <p className="max-w-md text-sm text-slate-500"><T>Eigene Tierlist bauen, die Rankings ansehen und die Globals Solos verfolgen.</T></p>
+          </div>
+          <div className="grid gap-5 lg:grid-cols-2">
             <TierlistKarte daten={daten} fertig={geladen} />
-            <RangKarte daten={daten} fertig={geladen} />
             <SoloKarte heats={heats} fertig={geladen} />
           </div>
         </div>

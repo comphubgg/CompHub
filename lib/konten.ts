@@ -85,6 +85,13 @@ export interface Konto {
    */
   rolle?: 'admin' | 'manager' | 'pro';
   /**
+   * Die Organisation, die dieses Konto verwaltet (Kennung aus lib/orgs) - der Esports-Zugang (Betreiber, 14.10.2026).
+   *
+   * Bewusst keine weitere Rolle neben admin/manager/pro, sondern ein eigenes Feld: es gilt zusaetzlich zu allem anderen und aendert keine
+   * der bestehenden Rechtepruefungen. Es erlaubt genau eines - den Kader dieser einen Org zu pflegen (/org). Setzen kann es nur der Admin.
+   */
+  org?: string;
+  /**
    * Welche Bereiche ein Manager pflegen darf.
    *
    * Nur fuer die Rolle "manager" von Bedeutung: ein Admin darf ohnehin
@@ -471,6 +478,7 @@ export async function alleKonten() {
     id: k.id,
     name: k.name,
     rolle: k.rolle ?? null,
+    org: k.org ?? null,
     rechte: k.rechte ?? [],
     // Fuer die Profirolle: ohne sie kann sich niemand auf einer Karte
     // eintragen, deshalb steht sie in der Verwaltung.
@@ -671,6 +679,7 @@ export function oeffentlich(k: Konto) {
   return {
     id: k.id, email: k.email, name: k.name,
     rolle: k.rolle ?? null,
+    org: k.org ?? null,
     rechte: wirksameRechte(k.rolle, k.rechte, istVip(k)),
     vip: istVip(k),
     vipBis: k.vipBis ?? null,

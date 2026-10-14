@@ -1,9 +1,9 @@
 'use client';
 
-// Unten rechts: der Umschalter zwischen Deutsch und Englisch und daneben das Zahnrad mit den Einstellungen der Seite.
+// Unten rechts: das Zahnrad mit den Einstellungen der Seite - Sprache, Helligkeit, Schriftgroesse, Animationen.
 //
-// Er sitzt fest unten rechts, damit er auf jeder Seite an derselben Stelle ist und beim Scrollen nicht verschwindet. Beide Sprachen stehen
-// nebeneinander statt hinter einem Menue: so sieht man ohne Klick, welche gerade gilt, und ein einziger Klick wechselt.
+// Es sitzt fest unten rechts, damit es auf jeder Seite an derselben Stelle ist und beim Scrollen nicht verschwindet. Der frueher danebenstehende
+// DE/EN-Schalter ist weg (Betreiber, 14.10.2026: "nur noch das Zahnrad"); die Sprache waehlt man in der Tafel.
 //
 // Das Zahnrad (Betreiber, 14.10.2026): die Kopfzeile ist voll, deshalb steht der Hell/Dunkel-Schalter nicht mehr dort, sondern hier in einer
 // kleinen Einstellungstafel - mit Sprache, Helligkeit, Schriftgroesse und Animationen. Alles merkt sich die Seite im Cookie.
@@ -139,18 +139,6 @@ export default function Sprachschalter() {
             <path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z" />
           </svg>
         </button>
-        <div className="flex items-center gap-0.5 rounded-full border border-zinc-700 bg-zinc-950/90 p-1 shadow-lg backdrop-blur">
-          {SPRACHEN.map((s) => (
-            <button key={s.kennung} onClick={() => setzeSprache(s.kennung)}
-              title={s.name} aria-label={s.name}
-              aria-pressed={sprache === s.kennung}
-              className={`rounded-full px-3 py-1 text-xs font-bold tracking-wide transition ${sprache === s.kennung
-                ? 'bg-sky-500 text-white'
-                : 'text-slate-400 hover:text-slate-200'}`}>
-              {s.kurz}
-            </button>
-          ))}
-        </div>
       </div>
     </div>
   );
