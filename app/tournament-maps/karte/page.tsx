@@ -24,6 +24,7 @@ import { Karte } from '@/app/globals-solos/Bausteine';
 import LaenderListe from '@/app/components/LaenderListe';
 import { TeamKarten, RangTabelle, RangAusTeams, Platzierungen, type PlatzZeile } from './Mannschaften';
 import CupTierlist from './CupTierlist';
+import KartenUpdateWahl from '@/app/components/KartenUpdateWahl';
 
 interface Eintrag {
   turnierId: string; region: string; windowId: string; cup: string; fenster: string; titel: string;
@@ -71,6 +72,8 @@ export default function KartenSeite() {
   const [auswahl, setAuswahl] = useState<Array<{ u: string; titel: string }>>([]);
   const [speichert, setSpeichert] = useState(false);
   const [bilderOffen, setBilderOffen] = useState(false);
+  /** Das gewaehlte Bild fuer alle Spieltage der Saison uebernehmen, nicht nur fuer diesen. */
+  const [fuerSaison, setFuerSaison] = useState(false);
 
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
@@ -143,11 +146,12 @@ export default function KartenSeite() {
     if (!params) return;
     setSpeichert(true);
     try {
-      const r = await fetch('/api/maps-bild', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ w: params.w, u }) });
+      const ws = fuerSaison && meta?.saison ? liste.filter((e) => e.saison === meta.saison).map((e) => e.windowId) : [];
+      const r = await fetch('/api/maps-bild', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(ws.length ? { ws, u } : { w: params.w, u }) });
       const j = await r.json();
       if (j?.ok) setWahlBild(j.u ?? null);
     } finally { setSpeichert(false); }
-  }, [params]);
+  }, [params, fuerSaison, liste, meta]);
 
   const titelOben = meta?.cup || '';
   const chip = (an: boolean) => `rounded-xl px-4 py-2 text-xs font-bold uppercase tracking-[0.12em] transition ${an
@@ -284,6 +288,14 @@ export default function KartenSeite() {
                             </button>
                           ))}
                         </div>
+                      )}
+                      <label className="mt-3 flex items-center gap-2 text-xs font-semibold text-slate-400">
+                        <input type="checkbox" checked={fuerSaison} onChange={(e) => setFuerSaison(e.target.checked)} />
+                        <T>Für alle Spieltage dieser Saison übernehmen</T>
+                      </label>
+                      {bilderOffen && (
+                        <KartenUpdateWahl aktuell={wahlBild} vorgabe={meta?.saisonKurz} speichert={speichert}
+                          waehle={(u) => { void bildSpeichern(u); setBilderOffen(false); }} />
                       )}
                     </div>
                   )}

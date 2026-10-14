@@ -52,6 +52,9 @@ jobs:
           if [ "$(date -u +%H)" = "07" ] && [ "$(date -u +%M)" -lt 10 ]; then
             GEHEIM=$(printf '%s' "${{ secrets.ENV_LOCAL }}" | grep '^CRON_SECRET=' | cut -d= -f2- | tr -d '"\r')
             curl -s -o /dev/null -w "VIP-Ablauf: %{http_code}\n" -m 120 -H "Authorization: Bearer $GEHEIM" "https://www.thecomphub.com/api/cron/vip-ablauf" || true
+            # Neue Kartenversionen bei fortnite.gg suchen (lib/kartenUpdates) - taeglich, ein Fund geht als Meldung an den Admin.
+            curl -s -w ' [Karten-Updates: %{http_code}]' -m 120 -H "Authorization: Bearer $GEHEIM" "https://www.thecomphub.com/api/cron/karten-updates" || true
+            echo
           fi
 
       # CompHub auf neuen Discord-Servern einrichten (Kanal #comphub-dashboard) und Live-Meldungen von POVs

@@ -10,6 +10,7 @@
  */
 
 import { useEffect, useMemo, useState } from 'react';
+import KartenUpdateWahl from '@/app/components/KartenUpdateWahl';
 import Link from 'next/link';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
@@ -265,6 +266,8 @@ export default function AlteMapsVerwaltung() {
                       </button>
                     ))}
                   </div>
+                  <KartenUpdateWahl aktuell={null} vorgabe={saison ? saisons.find((s) => s.kennung === saison)?.kurz : undefined}
+                    waehle={(u) => void bildFuerAlle(u)} />
                 </div>
               )}
               {sichtbar.length === 0 ? (

@@ -49,19 +49,20 @@ export default function StatistikZahlen() {
   ];
 
   return (
-    <div ref={halter} className="relative mb-6 overflow-hidden rounded-2xl border border-white/[0.08] bg-gradient-to-br from-white/[0.05] to-white/[0.015] px-4 py-6 shadow-[0_10px_40px_rgba(0,0,0,.3)] backdrop-blur-xl">
-      <div aria-hidden className="pointer-events-none absolute -top-16 left-1/2 h-40 w-[520px] -translate-x-1/2 rounded-full bg-sky-500/10 blur-[80px]" />
-      <div className="relative grid grid-cols-2 gap-y-6 text-center lg:grid-cols-4 lg:divide-x lg:divide-white/[0.07]">
+    <div ref={halter} className="mb-8">
+      {/* Vier einzelne Kacheln statt eines Streifens (Betreiber, 14.10.2026): Beschriftung oben, die rollende Zahl darunter. */}
+      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         {eintraege.map(([titel, wert]) => (
-          <div key={titel} className="px-2">
-            <p className="text-3xl font-black text-slate-50 sm:text-4xl 2xl:text-5xl">
+          <div key={titel} className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5 shadow-sm">
+            <p className="text-[0.68rem] font-semibold uppercase tracking-[0.16em] text-slate-500"><T>{titel}</T></p>
+            <p className="schrift-anzeige mt-2 text-3xl font-extrabold tabular-nums text-slate-100 sm:text-4xl">
               <Rollzahl wert={wert} los={sichtbar && fertig} ort={ort} />
             </p>
-            <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500"><T>{titel}</T></p>
+            <span aria-hidden className="mt-3 block h-1 w-10 rounded-full bg-sky-500" />
           </div>
         ))}
       </div>
-      <p className="relative mt-5 text-center text-[10px] text-slate-600">
+      <p className="mt-3 text-xs text-slate-500">
         <T>Gezählt werden die Spieler im Archiv: ab 10 Matches oder mit Foto.</T>
       </p>
     </div>
