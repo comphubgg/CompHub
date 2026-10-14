@@ -90,7 +90,8 @@ const ZEILEN: Zeile[] = [
   { titel: 'Edit Accuracy', wert: () => null, zeige: pct },
   { titel: 'Avg Edit Time', wert: () => null, zeige: (v) => `${Math.round(v)}ms` },
   { titel: 'Mats Farmed', wert: (m, c) => { const w = sz(m, 'woodFarmed'); const s = sz(m, 'stoneFarmed'); const me = sz(m, 'metalFarmed'); return w !== null && s !== null && me !== null ? w + s + me : (c.solo ? pos(c.e?.matsGefarmt) : null); }, zeige: num, je: (m) => (m.holzGefarmt ?? 0) + (m.steinGefarmt ?? 0) + (m.metallGefarmt ?? 0) || undefined },
-  { titel: 'Time Alive', wert: (m, c) => (c.solo && c.e && c.e.timeAlive ? c.e.timeAlive : sz(m, 'timeAlive')), zeige: dauer, je: (m) => m.timeAlive },
+  // Im Team-Cup zaehlt Epic die Zeit je Team: jedes Mitglied hat sie (wo die Szene-Quelle eine eigene Zeit fuehrt, gilt die).
+  { titel: 'Time Alive', wert: (m, c) => (c.solo && c.e && c.e.timeAlive ? c.e.timeAlive : (sz(m, 'timeAlive') ?? (c.e && c.e.timeAlive ? c.e.timeAlive : null))), zeige: dauer, je: (m) => m.timeAlive },
   { titel: 'Assists', wert: (m) => sz(m, 'assists'), zeige: num },
   { titel: 'Overshield Healed', wert: () => null, zeige: num },
   { titel: 'Hits To Players', wert: (m) => treffer(m), zeige: num },
