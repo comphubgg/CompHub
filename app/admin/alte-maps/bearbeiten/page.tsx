@@ -17,7 +17,8 @@ import { useT } from '@/app/components/SprachProvider';
 import LadeSchirm from '@/app/components/LadeSchirm';
 import TeamFlagge from '@/components/TeamFlagge';
 import { useZugang } from '@/app/lib/zugang';
-import { kartenQuelle } from '@/app/globals-solos/Bausteine';
+import Zeichenflaeche, { type ZForm } from './Zeichenflaeche';
+import TeamEingabe from './TeamEingabe';
 
 interface P { x: number; y: number }
 interface Form { id: string; punkte: P[]; teamIds: string[] }
@@ -29,18 +30,11 @@ type Modus = 'waehlen' | 'rechteck' | 'polygon';
 type Reiter = 'formen' | 'teams' | 'leaderboard' | 'angaben';
 
 const REITER: Array<[Reiter, string]> = [['formen', 'Landepunkte'], ['teams', 'Teams'], ['leaderboard', 'Leaderboard'], ['angaben', 'Angaben']];
-const FARBE_LEER = 'rgba(148,163,184,.25)';
-const rund = (v: number) => Math.round(Math.min(100, Math.max(0, v)) * 100) / 100;
 const neueId = () => `f${Date.now().toString(36)}${Math.floor(Math.random() * 1000).toString(36)}`;
 const teamId = (n: number) => `hand-${Date.now().toString(36)}-${n}-${Math.floor(Math.random() * 1000).toString(36)}`;
 const zahlOder = (v: string): number | null => (v.trim() && Number.isFinite(Number(v)) ? Number(v) : null);
 const namenVon = (t: Team) => t.spieler.map((s) => s.name).join(' & ');
 const tagVon = (ms: number | null) => (ms ? new Date(ms).toISOString().slice(0, 10) : '');
-
-function mitte(punkte: P[]): P {
-  const xs = punkte.map((p) => p.x); const ys = punkte.map((p) => p.y);
-  return { x: (Math.min(...xs) + Math.max(...xs)) / 2, y: (Math.min(...ys) + Math.max(...ys)) / 2 };
-}
 
 const FELD = 'rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-600 focus:border-sky-500';
 const ZAHL = 'w-full rounded-md border border-zinc-800 bg-zinc-950 px-2 py-1 text-right text-sm tabular-nums text-slate-100 outline-none focus:border-sky-500';
@@ -67,20 +61,18 @@ export default function AlteMapBearbeiten() {
   // Landepunkte
   const [wahl, setWahl] = useState<string | null>(null);
   const [modus, setModus] = useState<Modus>('rechteck');
-  const [zieht, setZieht] = useState<{ a: P; b: P } | null>(null);
-  const [eckpunkte, setEckpunkte] = useState<P[]>([]);
-  const [zeiger, setZeiger] = useState<P | null>(null);
+  /** Die Wahl des Admins fuer dieses Kartenbild - und das, was die Ansicht ohne Wahl zeigt (die Insel der Saison). */
   const [bild, setBild] = useState<string | null>(null);
+  const [standardBild, setStandardBild] = useState<string | null>(null);
   const [auswahl, setAuswahl] = useState<Array<{ u: string; titel: string }>>([]);
   const [bilderOffen, setBilderOffen] = useState(false);
   const [suche, setSuche] = useState('');
-  const flaeche = useRef<HTMLDivElement | null>(null);
+  /** Wie viele Spieler ein Team in diesem Cup hat (null: nicht herauszufinden). */
+  const [teamGroesse, setTeamGroesse] = useState<number | null>(null);
 
   // Teams anlegen
-  const [schnell, setSchnell] = useState('');
   const [masse, setMasse] = useState('');
   const [offenesTeam, setOffenesTeam] = useState<string | null>(null);
-  const [vorschlaege, setVorschlaege] = useState<Array<{ name: string; land: string; epicId: string }>>([]);
   const gemerkt = useRef(new Map<string, { land: string; epicId: string }>());
 
   useEffect(() => {
@@ -96,13 +88,17 @@ export default function AlteMapBearbeiten() {
     void Promise.all([
       fetch(`/api/alte-maps?t=${encodeURIComponent(par.t)}&w=${encodeURIComponent(par.w)}`, { cache: 'no-store' }).then((r) => r.json()),
       fetch(`/api/maps-bild?w=${encodeURIComponent(par.w)}`, { cache: 'no-store' }).then((r) => r.json()).catch(() => null),
-    ]).then(([b, bi]) => {
+      // Dasselbe Kartenbild wie die Ansicht: ohne eigene Wahl die Insel der Saison (/api/maps-karte, wie die Karten-Seite sie holt).
+      fetch(`/api/maps-karte?t=${encodeURIComponent(par.t)}&r=${encodeURIComponent(par.r)}&w=${encodeURIComponent(par.w)}&tag=gesamt`, { cache: 'no-store' }).then((r) => r.json()).catch(() => null),
+    ]).then(([b, bi, ka]) => {
       if (weg) return;
       if (!b?.ok) { setFehler(b?.error || 'Die Karte ließ sich nicht laden.'); return; }
       setEintrag(b.eintrag); setTeams(b.teams ?? []); setFormen(b.formen ?? []);
       setMeta(b.meta); metaStart.current = b.meta; setEpicAn(b.epicAn !== false); setHatEpic(!!b.hatEpic);
       setEigenesEvent(!!b.eigenesEvent); setVersteckt(!!b.versteckt);
+      setTeamGroesse(typeof b.teamGroesse === 'number' ? b.teamGroesse : null);
       if (bi?.ok) { setBild(bi.u ?? null); setAuswahl(bi.auswahl ?? []); }
+      if (ka?.ok) setStandardBild(ka.fenster?.bild ?? null);
       setBereit(true);
     }).catch(() => { if (!weg) setFehler('Die Karte ließ sich nicht laden.'); });
     return () => { weg = true; };
@@ -134,30 +130,8 @@ export default function AlteMapBearbeiten() {
     return { name: n };
   }, []);
 
-  const angefangen = (schnell.split(/[&,/]/).pop() ?? '').trim();
-  useEffect(() => {
-    if (angefangen.length < 2) { setVorschlaege([]); return undefined; }
-    let lebt = true;
-    const uhr = setTimeout(() => {
-      fetch(`/api/szene-stats?ansicht=suche&q=${encodeURIComponent(angefangen)}`).then((r) => r.json()).then((j) => {
-        if (!lebt) return;
-        setVorschlaege((j.spieler ?? []).slice(0, 6).map((s: { anzeige?: string; name?: string; land?: string; epicId?: string }) => ({
-          name: s.anzeige || s.name || '', land: s.land ?? '', epicId: s.epicId ?? '',
-        })).filter((x: { name: string }) => x.name));
-      }).catch(() => { /* ohne Vorschlaege */ });
-    }, 250);
-    return () => { lebt = false; clearTimeout(uhr); };
-  }, [angefangen]);
-
-  const nehmen = (v: { name: string; land: string; epicId: string }) => {
-    gemerkt.current.set(v.name.toLowerCase(), { land: v.land, epicId: v.epicId });
-    setSchnell((alt) => {
-      const stuecke = alt.split(/([&,/])/);
-      for (let i = stuecke.length - 1; i >= 0; i -= 1) if (!/^[&,/]$/.test(stuecke[i])) { stuecke[i] = ` ${v.name}`; break; }
-      return stuecke.join('').replace(/^\s+/, '');
-    });
-    setVorschlaege([]);
-  };
+  /** Wie viele Plaetze ein Team hat: die Groesse des Cups, sonst vier. */
+  const platzZahl = teamGroesse ?? 4;
 
   const zeilenZuTeams = async (zeilen: string[]): Promise<Team[]> => {
     const neu: Team[] = [];
@@ -169,10 +143,12 @@ export default function AlteMapBearbeiten() {
     return neu;
   };
 
-  const schnellHinzu = async () => {
-    const z = schnell; setSchnell('');
-    const neu = await zeilenZuTeams([z]);
-    if (neu.length) { setTeams((alt) => [...alt, ...neu]); aendern(); }
+  /** Ein Team aus der Eingabe (Spieler mit Konto und Land): doppelte Teams werden abgewiesen. */
+  const teamHinzu = (spieler: Spieler[]) => {
+    const schluessel = (l: Spieler[]) => l.map((s) => s.name.toLowerCase()).sort().join('|');
+    if (teams.some((x) => schluessel(x.spieler) === schluessel(spieler))) { setStatus('Dieses Team steht schon in der Liste.'); return; }
+    setTeams((alt) => [...alt, { id: teamId(alt.length), spieler: spieler.slice(0, 4), rang: null, punkte: null, siege: null, elims: null }]);
+    aendern(); setStatus('');
   };
   const masseHinzu = async () => {
     const zeilen = masse.split('\n'); setMasse(''); setStatus('Löst die Namen auf …');
@@ -201,64 +177,24 @@ export default function AlteMapBearbeiten() {
 
   /* ------------------------------------------------------------ Zeichnen */
 
-  const punktAus = useCallback((e: { clientX: number; clientY: number }): P | null => {
-    const el = flaeche.current; if (!el) return null;
-    const b = el.getBoundingClientRect();
-    return { x: rund(((e.clientX - b.left) / b.width) * 100), y: rund(((e.clientY - b.top) / b.height) * 100) };
-  }, []);
-
+  // Gezeichnet wird auf der Zeichenflaeche (Zeichenflaeche.tsx); sie meldet fertige Formen, die Wahl und das Loeschen.
   const hinzuForm = (punkte: P[]) => {
     const id = neueId();
     setFormen((alt) => [...alt, { id, punkte, teamIds: [] }]);
     setWahl(id); aendern(); setModus('waehlen');
   };
-  const polygonFertig = useCallback(() => {
-    if (eckpunkte.length >= 3) hinzuForm(eckpunkte);
-    setEckpunkte([]);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [eckpunkte]);
   const formWeg = useCallback(() => {
     if (!wahl) return;
     setFormen((alt) => alt.filter((f) => f.id !== wahl));
     setWahl(null); aendern();
   }, [wahl]);
 
-  useEffect(() => {
-    if (reiter !== 'formen') return undefined;
-    const taste = (e: KeyboardEvent) => {
-      const ziel = (e.target as HTMLElement)?.tagName;
-      if (ziel === 'INPUT' || ziel === 'TEXTAREA') return;
-      if (e.key === 'Escape') { setEckpunkte([]); setZieht(null); setModus('waehlen'); }
-      if (e.key === 'Enter' && modus === 'polygon') polygonFertig();
-      if (e.key === 'Backspace' && modus === 'polygon') { e.preventDefault(); setEckpunkte((p) => p.slice(0, -1)); }
-      if ((e.key === 'Delete' || e.key === 'Backspace') && modus === 'waehlen' && wahl) { e.preventDefault(); formWeg(); }
-    };
-    window.addEventListener('keydown', taste);
-    return () => window.removeEventListener('keydown', taste);
-  }, [reiter, modus, wahl, polygonFertig, formWeg]);
+  /** Die Formen fuer die Zeichenflaeche: je Form die Spieler der Teams darauf (fuer die Namen auf der Karte). */
+  const zformen = useMemo((): ZForm[] => formen.map((f) => ({
+    id: f.id, punkte: f.punkte,
+    teams: f.teamIds.map((id) => teams.find((x) => x.id === id)?.spieler.map((s) => s.name) ?? []).filter((n) => n.length),
+  })), [formen, teams]);
 
-  const abwaerts = (e: React.PointerEvent) => {
-    const p = punktAus(e); if (!p) return;
-    if (modus === 'rechteck') { (e.currentTarget as Element).setPointerCapture?.(e.pointerId); setZieht({ a: p, b: p }); return; }
-    if (modus === 'polygon') {
-      if (eckpunkte.length >= 3 && Math.hypot(p.x - eckpunkte[0].x, p.y - eckpunkte[0].y) < 1.6) { polygonFertig(); return; }
-      setEckpunkte((alt) => [...alt, p]);
-    }
-  };
-  const bewegt = (e: React.PointerEvent) => {
-    const p = punktAus(e); if (!p) return;
-    setZeiger(p);
-    if (zieht) setZieht({ ...zieht, b: p });
-  };
-  const aufwaerts = () => {
-    if (!zieht) return;
-    const { a, b } = zieht; setZieht(null);
-    if (Math.abs(a.x - b.x) < 0.8 || Math.abs(a.y - b.y) < 0.8) return;
-    const [x1, x2] = [Math.min(a.x, b.x), Math.max(a.x, b.x)]; const [y1, y2] = [Math.min(a.y, b.y), Math.max(a.y, b.y)];
-    hinzuForm([{ x: x1, y: y1 }, { x: x2, y: y1 }, { x: x2, y: y2 }, { x: x1, y: y2 }]);
-  };
-
-  const nummer = useMemo(() => new Map(formen.map((f, i) => [f.id, i + 1])), [formen]);
   const formVon = useMemo(() => {
     const m = new Map<string, string>();
     for (const f of formen) for (const id of f.teamIds) m.set(id, f.id);
@@ -336,8 +272,6 @@ export default function AlteMapBearbeiten() {
   if (!zugang.admin) return <main className="grid min-h-screen place-items-center bg-zinc-950 px-4 text-sm text-slate-400"><T>Nur für den Admin.</T></main>;
 
   const oeffentlich = par ? `/tournament-maps/karte?t=${encodeURIComponent(par.t)}&r=${encodeURIComponent(par.r)}&w=${encodeURIComponent(par.w)}` : '/tournament-maps';
-  const farbeVon = (f: Form) => (f.id === wahl ? 'rgba(251,191,36,.45)' : f.teamIds.length === 0 ? FARBE_LEER
-    : f.teamIds.length >= (teams.some((x) => x.spieler.length > 1) ? 3 : 2) ? 'rgba(239,68,68,.45)' : 'rgba(45,212,191,.42)');
   const sortiert = [...teams].sort((a, b) => (a.rang ?? 99999) - (b.rang ?? 99999));
 
   return (
@@ -377,21 +311,19 @@ export default function AlteMapBearbeiten() {
                 <div>
                   <div className="mb-3 flex flex-wrap items-center gap-2">
                     {([['rechteck', 'Rechteck'], ['polygon', 'Freie Form'], ['waehlen', 'Auswählen']] as const).map(([k, titel]) => (
-                      <button key={k} type="button" onClick={() => { setModus(k); setEckpunkte([]); }}
+                      <button key={k} type="button" onClick={() => setModus(k)}
                         className={`rounded-lg px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider transition ${modus === k ? 'bg-sky-500 text-white' : 'border border-white/10 bg-white/[0.03] text-slate-300 hover:border-sky-500/60'}`}>
                         <T>{titel}</T>
                       </button>
                     ))}
-                    {modus === 'polygon' && eckpunkte.length >= 3 && (
-                      <button type="button" onClick={polygonFertig} className="rounded-lg bg-emerald-500 px-3 py-1.5 text-xs font-bold text-white"><T>Form schließen</T> ↵</button>
-                    )}
                     {wahl && <button type="button" onClick={formWeg} className="rounded-lg border border-rose-500/40 px-3 py-1.5 text-xs font-bold text-rose-300 transition hover:bg-rose-500/10"><T>Form löschen</T></button>}
                     <button type="button" onClick={() => setBilderOffen((v) => !v)} className="ml-auto rounded-lg border border-white/10 bg-white/[0.04] px-3 py-1.5 text-xs font-semibold text-slate-200 transition hover:border-sky-500/60"><T>Kartenbild wählen</T></button>
                   </div>
                   <p className="mb-2 text-[11px] text-slate-500">
                     {modus === 'rechteck' && <T>Auf der Karte ziehen, um ein Rechteck zu zeichnen.</T>}
-                    {modus === 'polygon' && <T>Punkt für Punkt klicken; auf den ersten Punkt oder Enter schließt die Form, Rücktaste nimmt den letzten Punkt zurück.</T>}
-                    {modus === 'waehlen' && <T>Eine Form anklicken, dann rechts die Teams darauf legen. Entf löscht die Form.</T>}
+                    {modus === 'polygon' && <T>Punkt für Punkt klicken; auf den ersten Punkt, Doppelklick oder Enter schließt die Form, Rücktaste nimmt den letzten Punkt zurück.</T>}
+                    {modus === 'waehlen' && <T>Eine Form anklicken, dann rechts die Teams darauf legen. Doppelklick fährt die Form an, Entf löscht sie.</T>}
+                    {' '}<T>Mausrad zoomt; verschieben mit rechter Maustaste oder Leertaste und Ziehen.</T>
                   </p>
 
                   {bilderOffen && (
@@ -413,43 +345,15 @@ export default function AlteMapBearbeiten() {
                     </div>
                   )}
 
-                  <div ref={flaeche} className="relative aspect-square w-full max-w-[820px] touch-none select-none overflow-hidden rounded-2xl bg-[#0b2f83] ring-1 ring-white/10"
-                    style={{ cursor: modus === 'waehlen' ? 'default' : 'crosshair' }}
-                    onPointerDown={abwaerts} onPointerMove={bewegt} onPointerUp={aufwaerts} onPointerLeave={() => setZeiger(null)}
-                    onDoubleClick={() => { if (modus === 'polygon') polygonFertig(); }}>
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={kartenQuelle(bild)} alt="" draggable={false} className="pointer-events-none absolute inset-0 h-full w-full" />
-                    <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="absolute inset-0 h-full w-full">
-                      {formen.map((f) => (
-                        <polygon key={f.id} points={f.punkte.map((p) => `${p.x},${p.y}`).join(' ')} fill={farbeVon(f)}
-                          stroke={f.id === wahl ? '#fbbf24' : 'rgba(255,255,255,.75)'} strokeWidth={f.id === wahl ? 2.4 : 1.2} vectorEffect="non-scaling-stroke"
-                          style={{ cursor: modus === 'waehlen' ? 'pointer' : undefined }}
-                          onPointerDown={(e) => { if (modus === 'waehlen') { e.stopPropagation(); setWahl(f.id); } }} />
-                      ))}
-                      {formen.map((f) => {
-                        const m = mitte(f.punkte);
-                        return <text key={`n${f.id}`} x={m.x} y={m.y} textAnchor="middle" dominantBaseline="central" fontSize="2.4" fontWeight="800" fill="#fff"
-                          stroke="rgba(0,0,0,.7)" strokeWidth="0.5" paintOrder="stroke" style={{ pointerEvents: 'none' }}>{nummer.get(f.id)}{f.teamIds.length > 1 ? `·${f.teamIds.length}` : ''}</text>;
-                      })}
-                      {zieht && (
-                        <rect x={Math.min(zieht.a.x, zieht.b.x)} y={Math.min(zieht.a.y, zieht.b.y)} width={Math.abs(zieht.a.x - zieht.b.x)} height={Math.abs(zieht.a.y - zieht.b.y)}
-                          fill="rgba(56,189,248,.25)" stroke="#38bdf8" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
-                      )}
-                      {eckpunkte.length > 0 && (
-                        <>
-                          <polyline points={[...eckpunkte, ...(zeiger ? [zeiger] : [])].map((p) => `${p.x},${p.y}`).join(' ')} fill="rgba(56,189,248,.18)" stroke="#38bdf8" strokeWidth="1.5" vectorEffect="non-scaling-stroke" />
-                          {eckpunkte.map((p, i) => <circle key={i} cx={p.x} cy={p.y} r={i === 0 ? 1.1 : 0.7} fill={i === 0 ? '#34d399' : '#38bdf8'} />)}
-                        </>
-                      )}
-                    </svg>
-                  </div>
+                  <Zeichenflaeche bild={bild ?? standardBild} formen={zformen} wahl={wahl} modus={modus} onWahl={setWahl}
+                    onNeueForm={hinzuForm} onLoeschen={formWeg} onModus={setModus} />
                   <p className="mt-2 text-[11px] text-slate-600">{formen.length} <T>Formen</T> · {formen.reduce((a, f) => a + f.teamIds.length, 0)} / {teams.length} <T>Teams verteilt</T></p>
                 </div>
 
                 <aside className="min-w-0">
                   <div className="rounded-xl border border-white/[0.08] bg-zinc-900/40 p-3">
                     <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
-                      {gewaehlt ? <>{t('Form')} {nummer.get(gewaehlt.id)} · {gewaehlt.teamIds.length} {t('Teams')}</> : <T>Keine Form gewählt</T>}
+                      {gewaehlt ? <><T>Form gewählt</T> · {gewaehlt.teamIds.length} {t('Teams')}</> : <T>Keine Form gewählt</T>}
                     </p>
                     {gewaehlt && gewaehlt.teamIds.length > 0 && (
                       <ul className="mt-2 flex flex-wrap gap-1.5">
@@ -458,7 +362,7 @@ export default function AlteMapBearbeiten() {
                           return x ? (
                             <li key={id}>
                               <button type="button" onClick={() => zuordnen(id)} title={t('Von der Form nehmen')}
-                                className="rounded-md border border-amber-400/40 bg-amber-400/10 px-2 py-1 text-[11px] font-bold uppercase text-amber-100 transition hover:bg-rose-500/20">{namenVon(x).replace(/ & /g, ' · ')} ×</button>
+                                className="rounded-md border border-sky-500/40 bg-sky-500/10 px-2 py-1 text-[11px] font-bold uppercase text-sky-100 transition hover:bg-rose-500/20">{namenVon(x).replace(/ & /g, ' · ')} ×</button>
                             </li>
                           ) : null;
                         })}
@@ -468,21 +372,7 @@ export default function AlteMapBearbeiten() {
 
                   <div className="mt-3 rounded-xl border border-white/[0.08] bg-zinc-900/40 p-3">
                     <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500"><T>Team schnell anlegen</T></p>
-                    <div className="relative mt-2">
-                      <input value={schnell} onChange={(e) => setSchnell(e.target.value)} onKeyDown={(e) => { if (e.key === 'Enter') void schnellHinzu(); }}
-                        placeholder={t('Namen, mit & getrennt, z. B. Sky & Scroll')} className={`${FELD} w-full`} />
-                      {vorschlaege.length > 0 && (
-                        <ul className="absolute z-20 mt-1 w-full overflow-hidden rounded-lg border border-zinc-700 bg-zinc-950 shadow-xl">
-                          {vorschlaege.map((v) => (
-                            <li key={v.epicId || v.name}>
-                              <button type="button" onClick={() => nehmen(v)} className="flex w-full items-center gap-2 px-3 py-1.5 text-left text-sm text-slate-200 hover:bg-zinc-900">
-                                <TeamFlagge groesse={16} laender={[v.land || undefined]} /><span className="truncate">{v.name}</span>
-                              </button>
-                            </li>
-                          ))}
-                        </ul>
-                      )}
-                    </div>
+                    <div className="mt-2"><TeamEingabe max={platzZahl} unbekannt={teamGroesse === null} onTeam={teamHinzu} loese={loese} /></div>
                   </div>
 
                   <div className="mt-3 rounded-xl border border-white/[0.08] bg-zinc-900/40 p-3">
@@ -490,19 +380,19 @@ export default function AlteMapBearbeiten() {
                       <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">Teams <span className="text-slate-600">{teams.length}</span></p>
                       <input value={suche} onChange={(e) => setSuche(e.target.value)} placeholder={t('Spieler suchen …')} className="w-40 rounded-lg border border-zinc-800 bg-zinc-950 px-2.5 py-1 text-xs text-slate-100 outline-none placeholder:text-slate-600 focus:border-sky-500" />
                     </div>
-                    {teams.length === 0 && <p className="py-4 text-center text-xs text-slate-500"><T>Noch keine Teams - oben eintippen oder im Reiter „Teams“ viele auf einmal anlegen.</T></p>}
+                    {teams.length === 0 && <p className="py-4 text-center text-xs text-slate-500"><T>Noch keine Teams - oben Spieler suchen oder im Reiter „Teams“ viele auf einmal anlegen.</T></p>}
                     <ul className="max-h-[520px] space-y-1.5 overflow-y-auto pr-1">
                       {sichtbareTeams.map((x) => {
                         const drauf = formVon.get(x.id);
                         return (
                           <li key={x.id}>
                             <button type="button" onClick={() => zuordnen(x.id)}
-                              className={`flex w-full items-center gap-2 rounded-lg border px-2.5 py-1.5 text-left transition ${drauf === wahl && wahl ? 'border-amber-400/60 bg-amber-400/10' : drauf ? 'border-white/[0.06] bg-zinc-900/40 opacity-60 hover:opacity-100' : 'border-white/[0.08] bg-zinc-900/70 hover:border-sky-500/50'}`}>
+                              className={`flex w-full items-center gap-2 rounded-lg border px-2.5 py-1.5 text-left transition ${drauf === wahl && wahl ? 'border-sky-500/70 bg-sky-500/10' : drauf ? 'border-white/[0.06] bg-zinc-900/40 opacity-60 hover:opacity-100' : 'border-white/[0.08] bg-zinc-900/70 hover:border-sky-500/50'}`}>
                               <TeamFlagge groesse={x.spieler.length > 1 ? 28 : 22} laender={x.spieler.map((s) => s.land ?? undefined)} />
                               <span className="flex min-w-0 flex-col text-[11px] font-bold uppercase leading-[1.25] text-slate-100">
                                 {x.spieler.map((s, i) => <span key={i} className="truncate">{s.name}</span>)}
                               </span>
-                              {drauf && <span className="ml-auto shrink-0 rounded bg-white/10 px-1.5 py-0.5 text-[10px] font-bold text-slate-300">{nummer.get(drauf)}</span>}
+                              {drauf && <span className="ml-auto shrink-0 rounded bg-white/10 px-1.5 py-0.5 text-[10px] font-bold text-slate-300" title={t('Liegt auf einer Form')}>✓</span>}
                             </button>
                           </li>
                         );
@@ -517,7 +407,9 @@ export default function AlteMapBearbeiten() {
             {reiter === 'teams' && (
               <div className="mt-5 grid gap-5 lg:grid-cols-[360px_minmax(0,1fr)]">
                 <div className="rounded-xl border border-white/[0.08] bg-zinc-900/40 p-4">
-                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500"><T>Viele Teams auf einmal</T></p>
+                  <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500"><T>Team anlegen</T></p>
+                  <div className="mb-5 mt-2"><TeamEingabe max={platzZahl} unbekannt={teamGroesse === null} onTeam={teamHinzu} loese={loese} /></div>
+                  <p className="border-t border-white/[0.08] pt-4 text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500"><T>Viele Teams auf einmal</T></p>
                   <p className="mt-1 text-xs text-slate-500"><T>Eine Zeile pro Team, die Namen mit & getrennt. Jeder Name wird im Archiv gesucht: gibt es genau einen Treffer, kommen Flagge und Konto dazu.</T></p>
                   <textarea value={masse} onChange={(e) => setMasse(e.target.value)} rows={10} placeholder={'Sky & Scroll\nVico & Malibuca\nPeterbot & Pollo'} className={`${FELD} mt-3 w-full font-mono`} />
                   <div className="mt-3 flex items-center gap-3">

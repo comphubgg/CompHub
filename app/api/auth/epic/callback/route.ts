@@ -131,7 +131,7 @@ export async function GET(req: NextRequest) {
     // Ohne CompHub-Konto: die Verifizierung gilt als signierter Cookie (lib/epicGast) - wie bei Osirion braucht es kein Konto dafuer.
     if (!konto || konto.gesperrt) {
       const antwort = aufraeumen(zurueck(`${heim}?epic=verbunden`));
-      antwort.cookies.set(GAST_COOKIE, gastWert(epicId), { httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', path: '/', maxAge: 365 * 24 * 3600 });
+      antwort.cookies.set(GAST_COOKIE, gastWert(epicId), { httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', path: '/', maxAge: 400 * 24 * 3600 }); // 400 Tage: mehr erlauben Browser nicht - die Verifizierung bleibt, bis jemand sie trennt
       return antwort;
     }
 

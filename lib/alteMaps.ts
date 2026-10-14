@@ -462,11 +462,50 @@ export async function alteFenster(e: MapEintrag, tag = 'gesamt'): Promise<{ turn
   };
 }
 
+/**
+ * Wie viele Spieler ein Team in diesem Cup hat - Solo (1), Duo (2), Trio (3) oder Squad (4); null, wo sich das nicht herausfinden laesst.
+ *
+ * Der Betreiber (14.10.2026): beim Anlegen eines Teams soll der Editor selbst wissen, ob der Cup Solo, Duo oder Trio ist - und danach genau
+ * so viele Spieler anbieten. Die Quellen, in dieser Reihenfolge: die Teams, die der Admin schon angelegt hat; die Teams der archivierten
+ * Bestenliste oder der Eckdaten dieses Endspiels; Epics Bestenliste; zuletzt der Name ("Duos Reload Cup"). Gezaehlt wird die haeufigste Groesse.
+ */
+async function teamGroesseVon(e: MapEintrag, vorhanden: AltTeam[]): Promise<number | null> {
+  const haeufigste = (zahlen: number[]): number | null => {
+    const z = zahlen.filter((n) => n >= 1 && n <= 4);
+    if (!z.length) return null;
+    const zaehler = new Map<number, number>();
+    for (const n of z) zaehler.set(n, (zaehler.get(n) ?? 0) + 1);
+    return [...zaehler.entries()].sort((a, b) => b[1] - a[1] || b[0] - a[0])[0][0];
+  };
+  const eigene = haeufigste(vorhanden.map((t) => t.spieler.length));
+  if (eigene) return eigene;
+  try {
+    const a = endspielArt(e);
+    const liste = a ? await plaetze(schluesselVon(e.saison, a.art)) : [];
+    const daraus = haeufigste(liste.map((t) => t.spieler.length));
+    if (daraus) return daraus;
+  } catch { /* dann die naechste Quelle */ }
+  if (e.eventId) {
+    try {
+      const zeilen = await epicZeilen(e, 'gesamt');
+      const daraus = haeufigste(zeilen.map((z) => z.players.length));
+      if (daraus) return daraus;
+    } catch { /* dann der Name */ }
+  }
+  const name = `${e.cup} ${e.fenster} ${e.titel ?? ''}`;
+  if (/\bsolos?\b/i.test(name)) return 1;
+  if (/\bduos?\b/i.test(name)) return 2;
+  if (/\btrios?\b/i.test(name)) return 3;
+  if (/\bsquads?\b/i.test(name)) return 4;
+  return null;
+}
+
 /** Fuer den Editor: ausschliesslich das, was der Admin selbst angelegt hat - es wird nichts hineingeladen. */
 export async function alteBearbeitung(e: MapEintrag & { quelle?: string }) {
   const s = await liesAltStore();
   const daten = s.fenster?.[e.windowId];
   return {
+    teamGroesse: await teamGroesseVon(e, daten?.teams ?? []),
     teams: daten?.teams ?? [],
     formen: daten?.formen ?? [],
     versteckt: !!daten?.versteckt,

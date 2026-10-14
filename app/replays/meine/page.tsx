@@ -30,16 +30,24 @@ export default function MeineReplays() {
   useEffect(() => {
     if (!zugang.epicId) return undefined;
     let weg = false; let uhr: ReturnType<typeof setTimeout> | undefined;
+    let misserfolge = 0;
     const holen = () => {
       fetch(`/api/replay?meine=${zugang.epicId}`, { cache: 'no-store' }).then((r) => r.json())
         .then((j: Antwort) => {
           if (weg) return;
-          if (!Array.isArray(j?.cups)) { setFehler(true); return; }
+          if (!Array.isArray(j?.cups)) throw new Error('keine Liste');
+          misserfolge = 0;
           setDaten(j); setFehler(false);
           // Der Aufbau des Verzeichnisses laeuft in Stuecken - solange etwas fehlt, noch einmal fragen.
           if (!j.fertig) uhr = setTimeout(holen, 2500);
         })
-        .catch(() => { if (!weg) setFehler(true); });
+        .catch(() => {
+          if (weg) return;
+          // Kurz nach einem Neustart des Servers oder bei einem Aussetzer der Ablage: still weiter versuchen, erst nach dem sechsten Mal die Meldung zeigen.
+          misserfolge += 1;
+          if (misserfolge >= 6) setFehler(true);
+          uhr = setTimeout(holen, Math.min(2000 * misserfolge, 8000));
+        });
     };
     holen();
     return () => { weg = true; if (uhr) clearTimeout(uhr); };

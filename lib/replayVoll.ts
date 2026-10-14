@@ -1,4 +1,7 @@
-import { liesJson, schreibJson } from '@/lib/ablage';
+import { promises as fsEcht } from 'node:fs';
+import path from 'node:path';
+import { liesJson } from '@/lib/ablage';
+import { DATEN_ORT } from '@/lib/datenOrt';
 
 /*
  * Der Index der voll ausgelesenen Replays (scripts/replay-voll-holen.mjs, ein Eintrag je Game) - gemeinsam fuer die API
@@ -65,9 +68,19 @@ interface SpielerIndex { stand: number; matches: Record<string, string[]> }
 let spielerMerker: SpielerIndex | null = null;
 let aufbauLaeuft: Promise<void> | null = null;
 
+/*
+ * Die Spielerliste je Game liegt als Datei auf dem Rechner des Servers (neben den uebrigen Daten) und nicht in der Ablage: Replays
+ * gehen nur ans Release, ein Schreiben dorthin gibt es von hier aus nicht. Ohne die Datei las der Server nach jedem Neustart alle
+ * Games neu (800 Dateien) - und "Meine Replays" meldete, bis das fertig war, dass es sich nicht laden liess (Betreiber, 14.10.2026).
+ */
+const SPIELER_DATEI = path.join(DATEN_ORT, 'replay-voll-spieler.json');
+
 async function spielerIndex(): Promise<SpielerIndex> {
   if (!spielerMerker) {
-    spielerMerker = await liesJson<SpielerIndex>('replay-voll/_spieler.json', { stand: 0, matches: {} }).catch(() => ({ stand: 0, matches: {} }));
+    let lokal: SpielerIndex | null = null;
+    try { lokal = JSON.parse(await fsEcht.readFile(SPIELER_DATEI, 'utf8')) as SpielerIndex; } catch { /* noch keine Datei */ }
+    spielerMerker = lokal?.matches ? lokal
+      : await liesJson<SpielerIndex>('replay-voll/_spieler.json', { stand: 0, matches: {} }).catch(() => ({ stand: 0, matches: {} }));
     if (!spielerMerker.matches) spielerMerker = { stand: 0, matches: {} };
   }
   return spielerMerker;
@@ -93,7 +106,7 @@ async function baueSpielerIndex(alle: Record<string, IndexEintrag>, frist = 25_0
       };
       await Promise.all(Array.from({ length: 8 }, arbeiter));
       idx.stand = Date.now();
-      try { await schreibJson('replay-voll/_spieler.json', idx); } catch { /* ohne Ablage bleibt es im Speicher */ }
+      try { await fsEcht.mkdir(path.dirname(SPIELER_DATEI), { recursive: true }); await fsEcht.writeFile(SPIELER_DATEI, JSON.stringify(idx)); } catch { /* ohne beschreibbaren Ordner bleibt es im Speicher */ }
     })().finally(() => { aufbauLaeuft = null; });
   }
   await aufbauLaeuft;

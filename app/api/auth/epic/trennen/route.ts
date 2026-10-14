@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { aendern, kontoAus, nachId } from '@/lib/konten';
+import { GAST_COOKIE } from '@/lib/epicGast';
 
 // Die Verknuepfung mit Epic Games wieder loesen.
 //
@@ -9,17 +10,19 @@ import { aendern, kontoAus, nachId } from '@/lib/konten';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
+/** Der Gast-Cookie (Verifizierung ohne Konto) - beim Trennen immer mit weg. */
+const ohneGast = (a: NextResponse) => { a.cookies.set(GAST_COOKIE, '', { path: '/', maxAge: 0 }); return a; };
+
 export async function POST(req: NextRequest) {
   const kontoId = kontoAus(req.cookies.get('streamer_dashboard_konto')?.value);
   const konto = kontoId ? await nachId(kontoId) : null;
-  if (!konto || konto.gesperrt) {
-    return NextResponse.json({ fehler: 'Nicht angemeldet.' }, { status: 401 });
-  }
+  // Ohne CompHub-Konto gibt es nur die Verifizierung im Cookie - die darf jeder loeschen.
+  if (!konto || konto.gesperrt) return ohneGast(NextResponse.json({ ok: true, gast: true }));
   if (!konto.epicVerifiziert) {
     return NextResponse.json(
       { fehler: 'Diese Verknüpfung hat der Betreiber gesetzt und kann nur von ihm geändert werden.' },
       { status: 403 });
   }
   await aendern(konto.id, { epicId: '', epicVerifiziert: false, epicFreunde: [], epicFreundeStand: 0 });
-  return NextResponse.json({ ok: true });
+  return ohneGast(NextResponse.json({ ok: true }));
 }

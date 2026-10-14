@@ -162,6 +162,7 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo }: { 
   const [geholt, setGeholt] = useState(0);
   const [eigenerName, setEigenerName] = useState('');
   const rahmen = useRef<HTMLDivElement | null>(null);
+  const [trennFehler, setTrennFehler] = useState('');
 
   // Draussen klicken schliesst die Liste.
   useEffect(() => {
@@ -221,6 +222,15 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo }: { 
   const team = !solo && mitglieder.length > 1;
   const ctx: Ctx = { e, solo: !team };
   const verifizieren = `/api/auth/epic/authorize?zurueck=${encodeURIComponent(rueckPfad)}`;
+  const trennen = async () => {
+    setTrennFehler('');
+    try {
+      const r = await fetch('/api/auth/epic/trennen', { method: 'POST' });
+      const j = await r.json().catch(() => ({} as { fehler?: string }));
+      if (r.ok) { window.location.reload(); return; }
+      setTrennFehler(j?.fehler || t('Das Trennen hat nicht geklappt.'));
+    } catch { setTrennFehler(t('Das Trennen hat nicht geklappt.')); }
+  };
   const naechste = geholt ? Math.max(0, Math.ceil((geholt + TAKT_MS - jetzt) / 60000)) : null;
   const letzte = vorMinuten(daten?.aktualisiert ?? null, jetzt);
   const zeilen = mehr ? ZEILEN : ZEILEN.slice(0, ZUERST);
@@ -264,10 +274,18 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo }: { 
             <div className="absolute left-0 right-0 z-30 mt-1 overflow-hidden rounded-lg border border-zinc-700 bg-zinc-900 shadow-2xl">
               <p className="bg-sky-600 px-3 py-2 text-sm font-semibold text-white">{t('Konto auswählen')}</p>
               {zugang.epicId ? (
-                <button type="button" onClick={() => { setWahl({ id: zugang.epicId, name: eigenerName || zugang.name || zugang.epicId.slice(0, 8) }); setOffen(false); }}
-                  className="block w-full px-3 py-2.5 text-left text-sm text-slate-100 transition hover:bg-sky-500/10">
-                  {eigenerName || zugang.name || zugang.epicId.slice(0, 8)}
-                </button>
+                <>
+                  <button type="button" onClick={() => { setWahl({ id: zugang.epicId, name: eigenerName || zugang.name || zugang.epicId.slice(0, 8) }); setOffen(false); }}
+                    className="block w-full px-3 py-2.5 text-left text-sm text-slate-100 transition hover:bg-sky-500/10">
+                    {eigenerName || zugang.name || zugang.epicId.slice(0, 8)}
+                  </button>
+                  {/* Die Verifizierung bleibt fuer immer - bis jemand sie hier oder im Dashboard selbst trennt. */}
+                  <button type="button" onClick={() => void trennen()}
+                    className="block w-full border-t border-zinc-800 px-3 py-2 text-left text-xs text-slate-400 transition hover:bg-rose-500/10 hover:text-rose-300">
+                    <T>Verbindung mit Epic trennen</T>
+                  </button>
+                  {trennFehler && <p className="px-3 pb-2 text-[11px] text-rose-300">{trennFehler}</p>}
+                </>
               ) : (
                 <a href={verifizieren} className="flex items-center gap-3 px-3 py-3 transition hover:bg-sky-500/10">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
