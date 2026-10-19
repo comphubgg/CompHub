@@ -9,6 +9,7 @@ import { rahmen as formRahmen, spanneBei, einheitsGroesse, type Punkt, type Spot
 import { kartenSchrift, kartenName, formFarbe, hebeFormHervor } from '@/app/lib/kartenStil';
 import KartenWasserzeichen from '@/app/components/KartenWasserzeichen';
 import { ZOOM_MAX, doppelKlickZiel } from '@/app/lib/kartenZoom';
+import { useKartenVollbild } from '@/app/components/kartenVollbild';
 import type { SolosFenster, SolosSpieler } from '@/lib/globalsSolos';
 
 /*
@@ -95,9 +96,26 @@ export function Karte({ f, bild, rotAb = 2 }: {
   const zielZoom = useRef<number | null>(null);
   const zug = useRef<{ sx: number; sy: number; mitte: Punkt; kasten: DOMRect } | null>(null);
   const [gezoomt, setGezoomt] = useState(false);
-  /** Die Spielersuche (Strg + F): null = zu, sonst der eingetippte Text. */
-  const [suche, setSuche] = useState<string | null>(null);
+  /** Die Spielersuche: der eingetippte Text - er filtert die Liste neben der Karte und hebt die Stellen auf der Karte hervor. */
+  const [suche, setSuche] = useState('');
+  /** Das kleine Suchfenster ueber der Karte (Strg + F oder die Lupe unten rechts). */
+  const [popup, setPopup] = useState(false);
   const sucheFeld = useRef<HTMLInputElement | null>(null);
+  /** Die Stelle, zu der gerade gesprungen wurde - sie leuchtet ein paar Sekunden. */
+  const [leuchte, setLeuchte] = useState<string | null>(null);
+  /** Vollbild: Karte und Liste ueber den ganzen Bildschirm, das Meer bis an den Rand. */
+  const huelle = useRef<HTMLDivElement | null>(null);
+  const [voll, setVoll] = useState(false);
+  const { meer, beiLaden, bildStil } = useKartenVollbild();
+  useEffect(() => {
+    const beiWechsel = () => setVoll(document.fullscreenElement !== null && document.fullscreenElement === huelle.current);
+    document.addEventListener('fullscreenchange', beiWechsel);
+    return () => document.removeEventListener('fullscreenchange', beiWechsel);
+  }, []);
+  const vollbildUmschalten = () => {
+    if (document.fullscreenElement) void document.exitFullscreen();
+    else void huelle.current?.requestFullscreen?.();
+  };
 
   const spots = useMemo(() => f.formen.map((fo, i): Spot & { spieler: string[]; teams: number } => {
     const xs = [...new Set(fo.punkte.map((q) => q.x))];
@@ -118,19 +136,18 @@ export function Karte({ f, bild, rotAb = 2 }: {
 
   /*
    * Wer steht wo? Gesucht wird in allen Namen der Formen (Betreiber, 19.10.2026: "Strg + F, einen Spieler suchen - und die Karte zoomt zu seiner Stelle").
-   * Enter oder ein Klick auf den Treffer springt hin und laesst die Stelle leuchten.
+   * Die Liste neben der Karte zeigt alle Spieler und folgt der Suche; auf der Karte leuchten die Stellen der Treffer. Enter oder ein Klick springt hin.
    */
+  const alleNamen = useMemo(() => f.formen
+    .flatMap((fo, i) => fo.spieler.map((n) => ({ name: n, spot: `f${i}` })))
+    .sort((x, y) => kartenName(x.name).localeCompare(kartenName(y.name))), [f.formen]);
   const treffer = useMemo(() => {
-    const q = (suche ?? '').trim().toLowerCase();
+    const q = suche.trim().toLowerCase();
     if (!q) return [] as Array<{ name: string; spot: string }>;
-    const raus: Array<{ name: string; spot: string }> = [];
-    f.formen.forEach((fo, i) => {
-      for (const n of fo.spieler) {
-        if (n.toLowerCase().includes(q) || kartenName(n).toLowerCase().includes(q)) raus.push({ name: n, spot: `f${i}` });
-      }
-    });
-    return raus.slice(0, 8);
-  }, [suche, f.formen]);
+    return alleNamen.filter((x) => x.name.toLowerCase().includes(q) || kartenName(x.name).toLowerCase().includes(q));
+  }, [suche, alleNamen]);
+  const listeGefiltert = suche.trim() ? treffer : alleNamen;
+  const trefferSpots = useMemo(() => new Set(treffer.map((x) => x.spot)), [treffer]);
   const zeilen = useCallback((name: string) => [kartenName(name)], []);
   const groesse = useMemo(() => einheitsGroesse(spots, aufSpot, zeilen), [spots, aufSpot, zeilen]);
 
@@ -185,6 +202,8 @@ export function Karte({ f, bild, rotAb = 2 }: {
     // Je kleiner die Stelle, desto naeher - aber nie so nah, dass die Umgebung fehlt.
     const z = Math.max(3, Math.min(ZOOM_MAX - 1, 55 / Math.max(r.breite, r.hoehe, 1)));
     gleite(z, { x: r.links + r.breite / 2, y: r.oben + r.hoehe / 2 });
+    setLeuchte(spotId);
+    window.setTimeout(() => setLeuchte((c) => (c === spotId ? null : c)), 3000);
   }, [spots, gleite]);
 
   // Strg + F oeffnet die Suche in der Karte - nur, wenn die Karte im Bild steht und Spieler hat (sonst bleibt es beim Suchen des Browsers).
@@ -197,7 +216,7 @@ export function Karte({ f, bild, rotAb = 2 }: {
       const r = el.getBoundingClientRect();
       if (r.bottom < 0 || r.top > window.innerHeight) return;
       e.preventDefault();
-      setSuche((s) => s ?? '');
+      setPopup(true);
       setTimeout(() => sucheFeld.current?.focus(), 0);
     };
     window.addEventListener('keydown', taste);
@@ -271,145 +290,196 @@ export function Karte({ f, bild, rotAb = 2 }: {
   };
 
   // Ohne Landepunkte steht trotzdem die Insel da - der Hinweis kommt klein darunter (Betreiber, 12.10.2026: "die Map zumindest").
+  const kennzeichen = (sp: { id: string }) => (trefferSpots.has(sp.id) || leuchte === sp.id ? ' ist-treffer' : '');
+  const hatNamen = spots.some((sp) => sp.spieler.length);
   return (
     <div>
-      <div ref={flaeche}
-        className={`${kartenSchrift.variable} relative mx-auto aspect-square w-full select-none overflow-hidden
-                    rounded-xl border border-white/[0.06] bg-[#0b2f83] ${gezoomt ? 'cursor-grab active:cursor-grabbing' : ''}`}
-        style={{ containerType: 'inline-size', maxWidth: 'min(100%, calc(100vh - 7rem))' }}
-        onDoubleClick={(e) => {
-          // Doppelklick: in Stufen an die Form heran (app/lib/kartenZoom), ohne Form ein Schritt an die Stelle.
-          const p = punktBei(e);
-          if (!p) return;
-          zug.current = null;
-          const sp = formBei(e);
-          const ziel = doppelKlickZiel(sp ? formRahmen(sp.punkte) : null, p, zielZoom.current ?? zoomRef.current);
-          gleite(ziel.zoom, ziel.mitte);
-        }}
-        onMouseDown={(e) => {
-          if (e.button !== 0 || zoomRef.current <= 1 || !flaeche.current) return;
-          stopp();
-          zug.current = {
-            sx: e.clientX, sy: e.clientY, mitte: { ...mitteRef.current },
-            kasten: flaeche.current.getBoundingClientRect(),
-          };
-        }}
-        onMouseMove={(e) => {
-          if (zug.current) return;
-          const drunter = formBei(e)?.id ?? null;
-          hebeFormHervor(flaeche.current, hoverRef.current, drunter);
-          hoverRef.current = drunter;
-        }}
-        onMouseLeave={() => {
-          hebeFormHervor(flaeche.current, hoverRef.current, null);
-          hoverRef.current = null;
-        }}>
-        <div ref={ebene} className="absolute inset-0 origin-top-left" style={{ '--z': 1 } as React.CSSProperties}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={kartenQuelle(bild)} alt={t('Karte')} draggable={false}
-            onError={(ev) => { const el = ev.currentTarget; if (!el.dataset.ersatz) { el.dataset.ersatz = '1'; el.src = fortniteKarte(false); } }}
-            className="pointer-events-none absolute inset-0 h-full w-full object-cover" />
+      {/*
+        * Karte und Spielerliste nebeneinander (Betreiber, 19.10.2026: "wie bei EU Competitive und Noble - eine Liste links oder rechts mit Suche, die Liste und die
+        * Karte werden gefiltert, Enter hebt hervor"). Das Vollbild nimmt beides mit; das Bild geht dort bis an den Rand, in der Farbe des Meeres, statt schwarzer Balken.
+        */}
+      <div ref={huelle}
+        className={voll ? 'relative flex h-screen w-screen items-center justify-center' : 'grid gap-4 lg:grid-cols-[minmax(0,1fr)_17rem]'}
+        style={voll ? { background: meer } : undefined}>
+        <div ref={flaeche}
+          className={`${kartenSchrift.variable} relative select-none ${voll ? 'h-screen' : 'mx-auto aspect-square w-full overflow-hidden rounded-xl border border-white/[0.06] bg-[#0b2f83]'} ${gezoomt ? 'cursor-grab active:cursor-grabbing' : ''}`}
+          style={voll
+            ? { containerType: 'inline-size', aspectRatio: '1 / 1', background: 'transparent' }
+            : { containerType: 'inline-size', maxWidth: 'min(100%, calc(100vh - 7rem))' }}
+          onDoubleClick={(e) => {
+            // Doppelklick: in Stufen an die Form heran (app/lib/kartenZoom), ohne Form ein Schritt an die Stelle.
+            const p = punktBei(e);
+            if (!p) return;
+            zug.current = null;
+            const sp = formBei(e);
+            const ziel = doppelKlickZiel(sp ? formRahmen(sp.punkte) : null, p, zielZoom.current ?? zoomRef.current);
+            gleite(ziel.zoom, ziel.mitte);
+          }}
+          onMouseDown={(e) => {
+            if (e.button !== 0 || zoomRef.current <= 1 || !flaeche.current) return;
+            stopp();
+            zug.current = {
+              sx: e.clientX, sy: e.clientY, mitte: { ...mitteRef.current },
+              kasten: flaeche.current.getBoundingClientRect(),
+            };
+          }}
+          onMouseMove={(e) => {
+            if (zug.current) return;
+            const drunter = formBei(e)?.id ?? null;
+            hebeFormHervor(flaeche.current, hoverRef.current, drunter);
+            hoverRef.current = drunter;
+          }}
+          onMouseLeave={() => {
+            hebeFormHervor(flaeche.current, hoverRef.current, null);
+            hoverRef.current = null;
+          }}>
+          <div ref={ebene} className="absolute inset-0 origin-top-left" style={{ '--z': 1 } as React.CSSProperties}>
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={kartenQuelle(bild)} alt={t('Karte')} draggable={false} onLoad={beiLaden}
+              onError={(ev) => { const el = ev.currentTarget; if (!el.dataset.ersatz) { el.dataset.ersatz = '1'; el.src = fortniteKarte(false); } }}
+              style={bildStil(voll)}
+              className="pointer-events-none absolute inset-0 h-full w-full object-cover" />
 
-          {/* thecomphub.com, wie auf jeder Karte - unter den Formen. */}
-          <div className="pointer-events-none absolute inset-0 overflow-hidden"><KartenWasserzeichen /></div>
+            {/* thecomphub.com, wie auf jeder Karte - unter den Formen. */}
+            <div className="pointer-events-none absolute inset-0 overflow-hidden"><KartenWasserzeichen /></div>
 
-          <svg viewBox="0 0 100 100" preserveAspectRatio="none"
-            className="pointer-events-none absolute inset-0 h-full w-full">
+            <svg viewBox="0 0 100 100" preserveAspectRatio="none"
+              className="pointer-events-none absolute inset-0 h-full w-full">
+              {spots.map((sp) => {
+                // Eine Stelle wird erst rot, wenn genug Teams darauf stehen - sonst waere bei einem Finale alles rot.
+                const c = formFarbe(sp.teams >= rotAb ? 2 : sp.spieler.length ? 1 : 0);
+                return (
+                  <polygon key={sp.id} data-form={sp.id}
+                    className={`karten-form${c.rot ? ' ist-rot' : ''}${kennzeichen(sp)}`}
+                    points={sp.punkte.map((q) => `${q.x},${q.y}`).join(' ')}
+                    fill={c.fuellung} stroke={c.rand} vectorEffect="non-scaling-stroke" />
+                );
+              })}
+            </svg>
+
             {spots.map((sp) => {
-              // Eine Stelle wird erst rot, wenn genug Teams darauf stehen - sonst waere bei einem Finale alles rot.
-              const c = formFarbe(sp.teams >= rotAb ? 2 : sp.spieler.length ? 1 : 0);
+              if (!sp.spieler.length) return null;
+              const r = formRahmen(sp.punkte);
+              const anzahl = sp.spieler.length;
+              const mitteX = r.links + r.breite / 2;
               return (
-                <polygon key={sp.id} data-form={sp.id}
-                  className={`karten-form${c.rot ? ' ist-rot' : ''}`}
-                  points={sp.punkte.map((q) => `${q.x},${q.y}`).join(' ')}
-                  fill={c.fuellung} stroke={c.rand} vectorEffect="non-scaling-stroke" />
+                <div key={sp.id} data-form={sp.id}
+                  className={`karten-beschriftung pointer-events-none absolute z-10 flex flex-col items-center text-center${kennzeichen(sp)}`}
+                  style={{
+                    left: `${r.links}%`, top: `${r.oben}%`,
+                    width: `${r.breite}%`, height: `${r.hoehe}%`,
+                    // Ein Team allein auf der Stelle: die Namen stehen dicht untereinander in der Mitte (Betreiber, 13.10.2026), nicht auf die Stelle verteilt.
+                    justifyContent: sp.teams <= 1 || anzahl === 1 ? 'center' : 'space-between',
+                    paddingBlock: 'calc(0.45cqw / var(--z, 1))',
+                  }}>
+                  {sp.spieler.map((name, i) => {
+                    const gedraengt = sp.teams <= 1 || anzahl === 1;
+                    const yProz = gedraengt
+                      ? r.oben + r.hoehe / 2 + (i - (anzahl - 1) / 2) * groesse * 1.12
+                      : r.oben + r.hoehe * (0.1 + 0.8 * (i / (anzahl - 1)));
+                    const spanne = sp.form === 'rechteck' ? null : spanneBei(sp.punkte, yProz);
+                    const versatz = spanne && r.breite > 0 ? ((spanne.mitte - mitteX) / r.breite) * 100 : 0;
+                    return (
+                      <div key={`${name}-${i}`} className="relative" style={versatz ? { left: `${versatz}%` } : undefined}>
+                        <p className="karten-name" style={{ fontSize: `calc(${groesse}cqw / var(--z, 1))` }}>
+                          {kartenName(name)}
+                        </p>
+                      </div>
+                    );
+                  })}
+                </div>
               );
             })}
-          </svg>
+          </div>
 
-          {spots.map((sp) => {
-            if (!sp.spieler.length) return null;
-            const r = formRahmen(sp.punkte);
-            const anzahl = sp.spieler.length;
-            const mitteX = r.links + r.breite / 2;
-            return (
-              <div key={sp.id} data-form={sp.id}
-                className="karten-beschriftung pointer-events-none absolute z-10 flex flex-col items-center text-center"
-                style={{
-                  left: `${r.links}%`, top: `${r.oben}%`,
-                  width: `${r.breite}%`, height: `${r.hoehe}%`,
-                  // Ein Team allein auf der Stelle: die Namen stehen dicht untereinander in der Mitte (Betreiber, 13.10.2026), nicht auf die Stelle verteilt.
-                  justifyContent: sp.teams <= 1 || anzahl === 1 ? 'center' : 'space-between',
-                  paddingBlock: 'calc(0.45cqw / var(--z, 1))',
-                }}>
-                {sp.spieler.map((name, i) => {
-                  const gedraengt = sp.teams <= 1 || anzahl === 1;
-                  const yProz = gedraengt
-                    ? r.oben + r.hoehe / 2 + (i - (anzahl - 1) / 2) * groesse * 1.12
-                    : r.oben + r.hoehe * (0.1 + 0.8 * (i / (anzahl - 1)));
-                  const spanne = sp.form === 'rechteck' ? null : spanneBei(sp.punkte, yProz);
-                  const versatz = spanne && r.breite > 0 ? ((spanne.mitte - mitteX) / r.breite) * 100 : 0;
-                  return (
-                    <div key={`${name}-${i}`} className="relative" style={versatz ? { left: `${versatz}%` } : undefined}>
-                      <p className="karten-name" style={{ fontSize: `calc(${groesse}cqw / var(--z, 1))` }}>
-                        {kartenName(name)}
-                      </p>
-                    </div>
-                  );
-                })}
+          {/* Strg + F: die Suche als kleines Fenster ueber der Karte - das alte Fenster, nur nicht mehr mit einer Lupe in der Ecke. */}
+          {popup && hatNamen && (
+            <div className="absolute left-2 top-2 z-30 w-56 max-w-[70vw]" onMouseDown={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center gap-1">
+                <input ref={sucheFeld} value={suche} spellCheck={false}
+                  onChange={(e) => setSuche(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Escape') { setPopup(false); }
+                    if (e.key === 'Enter' && treffer[0]) springeZu(treffer[0].spot);
+                  }}
+                  placeholder={t('Spieler suchen …')}
+                  className="min-w-0 flex-1 rounded-md border border-white/20 bg-black/75 px-2.5 py-1.5 text-xs text-white outline-none placeholder:text-slate-400 focus:border-sky-400" />
+                <button type="button" aria-label={t('Schließen')} onClick={() => setPopup(false)}
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-black/75 text-slate-300 transition hover:text-white">
+                  <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M5.5 5.5l9 9M14.5 5.5l-9 9" /></svg>
+                </button>
               </div>
-            );
-          })}
-        </div>
+              {suche.trim() && (
+                <ul className="mt-1 overflow-hidden rounded-md bg-black/85 text-xs text-slate-100">
+                  {treffer.length ? treffer.slice(0, 8).map((x) => (
+                    <li key={`${x.spot}-${x.name}`}>
+                      <button type="button" onClick={() => springeZu(x.spot)}
+                        className="block w-full truncate px-2.5 py-1.5 text-left font-semibold uppercase tracking-wide transition hover:bg-sky-500/30">
+                        {kartenName(x.name)}
+                      </button>
+                    </li>
+                  )) : <li className="px-2.5 py-1.5 text-slate-400"><T>Nicht gefunden</T></li>}
+                </ul>
+              )}
+            </div>
+          )}
 
-        {spots.some((sp) => sp.spieler.length) && (
-          <div className="absolute left-2 top-2 z-30" onMouseDown={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
-            {suche === null ? (
+          {gezoomt && (
+            <button type="button" onMouseDown={(e) => e.stopPropagation()}
+              onClick={() => gleite(1, { x: 50, y: 50 })}
+              className="absolute bottom-2 left-2 z-30 rounded-md bg-black/75 px-2.5 py-1 text-[11px] text-slate-200
+                         transition hover:bg-black/90">
+              <T>Ganze Karte</T>
+            </button>
+          )}
+
+          {/* Unten rechts: die Lupe und das Vollbild nebeneinander (Betreiber, 19.10.2026: die Lupe gehoert nicht in die obere Ecke, sondern zum Vollbild). */}
+          <div className="absolute bottom-2 right-2 z-30 flex gap-1.5" onMouseDown={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
+            {hatNamen && (
               <button type="button" title={t('Spieler suchen … (Strg + F)')} aria-label={t('Spieler suchen … (Strg + F)')}
-                onClick={() => { setSuche(''); setTimeout(() => sucheFeld.current?.focus(), 0); }}
-                className="flex h-8 w-8 items-center justify-center rounded-md bg-black/60 text-white transition hover:bg-black/85">
+                onClick={() => { setPopup(true); setTimeout(() => sucheFeld.current?.focus(), 0); }}
+                className="flex h-8 w-8 items-center justify-center rounded-md bg-black/65 text-white transition hover:bg-black/85">
                 <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="8.5" cy="8.5" r="5.5" /><path d="M13 13l4 4" /></svg>
               </button>
-            ) : (
-              <div className="w-56 max-w-[70vw]">
-                <div className="flex items-center gap-1">
-                  <input ref={sucheFeld} value={suche} spellCheck={false}
-                    onChange={(e) => setSuche(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === 'Escape') setSuche(null);
-                      if (e.key === 'Enter' && treffer[0]) springeZu(treffer[0].spot);
-                    }}
-                    placeholder={t('Spieler suchen …')}
-                    className="min-w-0 flex-1 rounded-md border border-white/20 bg-black/75 px-2.5 py-1.5 text-xs text-white outline-none placeholder:text-slate-400 focus:border-sky-400" />
-                  <button type="button" aria-label={t('Schließen')} onClick={() => setSuche(null)}
-                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-black/75 text-slate-300 transition hover:text-white">
-                    <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M5.5 5.5l9 9M14.5 5.5l-9 9" /></svg>
-                  </button>
-                </div>
-                {suche.trim() && (
-                  <ul className="mt-1 overflow-hidden rounded-md bg-black/85 text-xs text-slate-100">
-                    {treffer.length ? treffer.map((x) => (
-                      <li key={`${x.spot}-${x.name}`}>
-                        <button type="button" onClick={() => springeZu(x.spot)}
-                          className="block w-full truncate px-2.5 py-1.5 text-left font-semibold uppercase tracking-wide transition hover:bg-sky-500/30">
-                          {kartenName(x.name)}
-                        </button>
-                      </li>
-                    )) : <li className="px-2.5 py-1.5 text-slate-400"><T>Nicht gefunden</T></li>}
-                  </ul>
-                )}
-              </div>
             )}
+            <button type="button" title={voll ? t('Vollbild verlassen') : t('Vollbild')} aria-label={voll ? t('Vollbild verlassen') : t('Vollbild')}
+              onClick={vollbildUmschalten}
+              className="flex h-8 w-8 items-center justify-center rounded-md bg-black/65 text-white transition hover:bg-black/85">
+              <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+                {voll ? <path d="M8 3v5H3M12 3v5h5M8 17v-5H3M12 17v-5h5" /> : <path d="M3 8V3h5M17 8V3h-5M3 12v5h5M17 12v5h-5" />}
+              </svg>
+            </button>
           </div>
-        )}
+        </div>
 
-        {gezoomt && (
-          <button type="button" onMouseDown={(e) => e.stopPropagation()}
-            onClick={() => gleite(1, { x: 50, y: 50 })}
-            className="absolute bottom-2 left-2 z-30 rounded-md bg-black/75 px-2.5 py-1 text-[11px] text-slate-200
-                       transition hover:bg-black/90">
-            <T>Ganze Karte</T>
-          </button>
+        {/* Die Spielerliste: alle, die auf der Karte stehen - gefiltert nach der Suche; ein Klick springt zur Stelle. */}
+        {hatNamen && (
+          <aside className={voll
+            ? 'absolute bottom-3 right-3 top-3 z-40 flex w-64 flex-col rounded-xl bg-black/70 p-2 backdrop-blur'
+            : 'flex max-h-[min(100vh-7rem,60rem)] min-h-0 flex-col rounded-xl border border-zinc-800 bg-zinc-900 p-2.5 lg:self-stretch'}>
+            <input value={suche} spellCheck={false}
+              onChange={(e) => setSuche(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Escape') setSuche('');
+                if (e.key === 'Enter' && treffer[0]) springeZu(treffer[0].spot);
+              }}
+              placeholder={t('Spieler suchen …')}
+              className="mb-2 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-1.5 text-xs text-slate-100 outline-none placeholder:text-slate-500 focus:border-sky-500" />
+            <p className="mb-1 px-1 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
+              {listeGefiltert.length} <T>Spieler</T>
+            </p>
+            <ul className="min-h-0 flex-1 space-y-px overflow-y-auto pr-0.5">
+              {listeGefiltert.map((x) => (
+                <li key={`${x.spot}-${x.name}`}>
+                  <button type="button" onClick={() => springeZu(x.spot)}
+                    className="flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-xs font-semibold uppercase tracking-wide text-slate-200 transition hover:bg-sky-500/20">
+                    <span className="min-w-0 flex-1 truncate">{kartenName(x.name)}</span>
+                  </button>
+                </li>
+              ))}
+              {!listeGefiltert.length && <li className="px-2 py-2 text-xs text-slate-500"><T>Nicht gefunden</T></li>}
+            </ul>
+          </aside>
         )}
       </div>
       {!f.formen.length && (

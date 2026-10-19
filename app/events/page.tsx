@@ -52,9 +52,74 @@ interface Cup {
   naechsterStart: number | null;
   letzterStart: number | null;
   live: boolean; vorbei: boolean;
+  /** Bei einer Ausgabe einer Reihe: die Kennung der ganzen Reihe (zum Oeffnen) und die Nummer der Ausgabe. */
+  basisId?: string; ausgabe?: number;
 }
 
 /* ================================================================ Einteilung */
+
+/*
+ * Jede Ausgabe einer Reihe ist ein eigener Cup.
+ *
+ * Epic fuehrt die FNCS Division 1 einer Season als einen Cup mit allen Wochen darin - die Kachel stand auf "Live", solange irgendeine Woche lief, und der
+ * Cup der naechsten Woche war nirgends zu sehen. Der Betreiber (19.10.2026): jede Ausgabe soll als eigener Cup erscheinen, auch wenn die laufende noch live
+ * ist. Die Nummer steht in Epics Kennung ("Event3" fuer die offene Runde, "Week3Final" fuer das Finale: beides Ausgabe 3). Eine Reihe wird nur geteilt,
+ * wenn sie mindestens zwei Nummern hat; Fenster ohne Nummer gehen an die zeitlich naechste Ausgabe.
+ */
+function ausgabeVon(windowId: string): { nr: number; art: 'Week' | 'Event' } | null {
+  const w = /Week(\d+)/i.exec(windowId ?? '');
+  if (w) return { nr: Number(w[1]), art: 'Week' };
+  const e = /Event(\d+)/i.exec(windowId ?? '');
+  if (e) return { nr: Number(e[1]), art: 'Event' };
+  return null;
+}
+
+function nachAusgaben(cups: Cup[]): Cup[] {
+  const raus: Cup[] = [];
+  const jetzt = Date.now();
+  for (const c of cups) {
+    if (c.global) { raus.push(c); continue; }
+    const alle = Object.values(c.regionen).flat();
+    const nummern = [...new Set(alle.map((f) => ausgabeVon(f.windowId)?.nr).filter((n): n is number => n !== undefined))];
+    if (nummern.length < 2) { raus.push(c); continue; }
+
+    // Wann jede Ausgabe ungefaehr stattfindet - fuer Fenster ohne Nummer.
+    const mitte = new Map<number, number>();
+    for (const n of nummern) {
+      const zeiten = alle.filter((f) => ausgabeVon(f.windowId)?.nr === n).map((f) => f.begin);
+      mitte.set(n, zeiten.reduce((a, b) => a + b, 0) / zeiten.length);
+    }
+    const art = new Map<number, 'Week' | 'Event'>();
+    for (const f of alle) {
+      const a = ausgabeVon(f.windowId);
+      if (a && (a.art === 'Week' || !art.has(a.nr))) art.set(a.nr, a.art);
+    }
+    const zuNr = (f: Fenster): number => ausgabeVon(f.windowId)?.nr
+      ?? nummern.reduce((best, n) => (Math.abs((mitte.get(n) ?? 0) - f.begin) < Math.abs((mitte.get(best) ?? 0) - f.begin) ? n : best), nummern[0]);
+
+    for (const n of nummern.sort((a, b) => b - a)) {
+      const regionen: Record<string, Fenster[]> = {};
+      for (const [r, liste] of Object.entries(c.regionen)) {
+        const teil = liste.filter((f) => zuNr(f) === n);
+        if (teil.length) regionen[r] = teil;
+      }
+      const fenster = Object.values(regionen).flat();
+      const kommend = fenster.filter((f) => f.begin > jetzt).map((f) => f.begin);
+      const gewesen = fenster.filter((f) => f.begin && f.begin <= jetzt).map((f) => f.begin);
+      raus.push({
+        ...c,
+        id: `${c.id}~${n}`, basisId: c.id, ausgabe: n,
+        titel: `${c.titel} · ${art.get(n) ?? 'Event'} ${n}`,
+        regionen,
+        naechsterStart: kommend.length ? Math.min(...kommend) : null,
+        letzterStart: gewesen.length ? Math.max(...gewesen) : null,
+        live: fenster.some((f) => f.status === 'live'),
+        vorbei: fenster.every((f) => f.status === 'vorbei'),
+      });
+    }
+  }
+  return raus;
+}
 
 /**
  * Die Zeile unter dem Cupnamen: Epics Untertitel, sonst der Zeitraum.
@@ -368,7 +433,7 @@ export default function EventsPage() {
           setFehler(d.error ?? 'nicht ladbar');
         } else {
           gemerkteRegion();
-          setCups(d.cups ?? []);
+          setCups(nachAusgaben(d.cups ?? []));
           setArchiv({ turniere: d.archiv?.turniere ?? 0, tage: d.archiv?.tage ?? 0 });
         }
       } catch (e) { if (!weg) setFehler((e as Error).message); }
@@ -409,7 +474,16 @@ export default function EventsPage() {
       .sort((a, b) => (von(a).naechster ?? 0) - (von(b).naechster ?? 0));
     const vorbeiAlle = gefiltert.filter((c) => von(c).status === 'vorbei')
       .sort((a, b) => (von(b).letzter ?? 0) - (von(a).letzter ?? 0));
-    const aktuelleSaison = Math.max(0, ...cups.map(saisonVon));
+    /*
+     * Die laufende Season ist die hoechste, in der schon etwas stattgefunden hat.
+     *
+     * Mit allen Cups gerechnet, zaehlte die naechste Season mit - ihre Cups stehen im Katalog, sobald Epic sie ankuendigt, aber gespielt ist noch keiner.
+     * Seither (Season 43 seit dem 19.10.) war "Beendet" leer: kein beendeter Cup gehoert zur Season 43, und weil die leere Liste auch das
+     * "Mehr anzeigen" mit versteckte, kam man an keinen heran.
+     */
+    const aktuelleSaison = Math.max(0, ...cups
+      .filter((c) => Object.values(c.regionen).flat().some((f) => f.begin && f.begin <= jetzt))
+      .map(saisonVon));
     // Wer sucht, sucht auch in den aelteren Seasons.
     const vorbei = aeltereZeigen || suche.trim() ? vorbeiAlle
       : vorbeiAlle.filter((c) => saisonVon(c) === aktuelleSaison);
@@ -421,7 +495,8 @@ export default function EventsPage() {
       { schluessel: 'vorbei', titel: 'Beendet', cups: zeig('vorbei') ? vorbei : [],
         // Was die aelteren Seasons noch bringen - fuer "Show more".
         mehr: zeig('vorbei') && !aeltereZeigen && !suche.trim() ? vorbeiAlle.length - vorbei.length : 0 },
-    ].filter((a) => a.cups.length);
+    // Auch ein leerer Abschnitt bleibt, wenn hinter "Mehr anzeigen" noch etwas wartet.
+    ].filter((a) => a.cups.length || ('mehr' in a && a.mehr));
   }, [gefiltert, status, lage, region, jetzt, cups, aeltereZeigen, suche]);
 
   /** Der Kopf: was gerade laeuft, dann was als Naechstes kommt. */
@@ -463,7 +538,13 @@ export default function EventsPage() {
    */
   const oeffnen = (c: Cup) => {
     const regionen = Object.keys(c.regionen);
-    if (c.global || regionen.length <= 1) { router.push(`/events/${c.id}`); return; }
+    const basis = c.basisId ?? c.id;
+    if (c.global || regionen.length <= 1) {
+      const w1 = c.ausgabe !== undefined ? (regionen[0] ? c.regionen[regionen[0]] : []) : [];
+      const f1 = w1.find((x) => laeuft(x, jetzt)) ?? w1.find((x) => x.begin > jetzt) ?? w1[w1.length - 1];
+      router.push(`/events/${basis}${regionen[0] && f1 && c.ausgabe !== undefined ? `?region=${regionen[0]}&fenster=${encodeURIComponent(f1.windowId)}` : ''}`);
+      return;
+    }
     /*
      * Ohne gewaehlte Region fuehrt die Kachel dorthin, wo der Cup gerade laeuft (Betreiber, 19.10.2026: "wenn da Live steht, muss ich in die Region
      * kommen, in der er live ist"); laeuft er nirgends, in die Region, die als Naechste dran ist - Europa nur, wo es selbst live oder als Naechstes dran ist.
@@ -477,8 +558,10 @@ export default function EventsPage() {
       : kommend.length ? (kommend.some((k) => k.x === 'EU') ? 'EU' : kommend[0].x)
       : c.regionen.EU ? 'EU' : regionen[0];
     const liste = c.regionen[r];
-    const w = liste.find((x) => laeuft(x, jetzt)) ?? liste.find((x) => x.begin > jetzt);
-    router.push(`/events/${c.id}?region=${r}${w ? `&fenster=${encodeURIComponent(w.windowId)}` : ''}`);
+    // Bei einer Ausgabe, die schon vorbei ist, das letzte Fenster (das Finale), statt gar keines.
+    const w = liste.find((x) => laeuft(x, jetzt)) ?? liste.find((x) => x.begin > jetzt)
+      ?? (c.ausgabe !== undefined ? liste[liste.length - 1] : undefined);
+    router.push(`/events/${basis}?region=${r}${w ? `&fenster=${encodeURIComponent(w.windowId)}` : ''}`);
   };
 
   return (
@@ -657,7 +740,7 @@ export default function EventsPage() {
               )
             ) : (
               <Kalender cups={gefiltert} sprache={sprache} region={region}
-                oeffnen={(c) => router.push(`/events/${c.id}`)} />
+                oeffnen={oeffnen} />
             )}
           </div>
         </div>

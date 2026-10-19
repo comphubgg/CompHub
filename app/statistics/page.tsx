@@ -6871,10 +6871,8 @@ export default function StatistikSeite() {
         </div>
       </div>
 
-
-
-
-
+      {/* Unten Luft (Betreiber, 19.10.2026: "mach noch mehr Abstand nach unten"): sonst klebt der letzte Block am Seitenende. */}
+      <div aria-hidden className="h-28 sm:h-36" />
     </main>
   );
 }

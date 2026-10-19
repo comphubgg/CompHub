@@ -177,3 +177,6 @@ html[data-modus="hell"] .tierlist-page :is(.tierlist-header, .tier-content, .sid
 html[data-modus="hell"] .tierlist-page :is(img, canvas, video, picture, [style*="background-image"]) { filter: invert(1) hue-rotate(180deg); }
 /* Knoepfe und Regionsmarken mit kraeftiger Farbe: noch einmal umgedreht (in umgekehrter Reihenfolge wie beim Elternteil), damit sie ihre Farbe halten. */
 html[data-modus="hell"] .tierlist-page :is(.nav-button, .admin-btn.active, .btn-confirm, .add-duo-panel .add-btn, .region-chip, .create-panel button, .create-duo-panel button, .create-solo-panel button, .kachel-fertig, .tierlist-button-primary, .admin-edit-btn) { filter: contrast(1.0309) brightness(1.087) hue-rotate(180deg) invert(1); }
+
+/* Der Kartenhintergrund von Maps und FNCS (app/components/KartenHintergrund.tsx) ist dunkel gedacht - im hellen Modus steht er nicht da. */
+html[data-modus="hell"] [data-karten-hg] { display: none; }

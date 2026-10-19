@@ -18,7 +18,7 @@ import {
 
 interface Fenster {
   windowId: string; eventId: string; region: string;
-  status: string; begin: number; istFinale: boolean; playlist?: string;
+  status: string; begin: number; end?: number; istFinale: boolean; playlist?: string;
 }
 interface Cup {
   id: string; titel: string; art: string; global: boolean;
@@ -49,8 +49,10 @@ export interface CupInfo {
  */
 
 /** Wie eine Zeile beschriftet wird - "läuft", "gestern", "morgen". */
-function zeitwort(status: string, begin: number): string {
+function zeitwort(status: string, begin: number, end?: number): string {
   if (status === 'live') return 'läuft';
+  // Gerade zu Ende gegangen: noch eine halbe Stunde in der Liste (die Idee hat gripey.stream - sein Overlay bleibt nach dem Cup noch dreissig Minuten stehen).
+  if (end && Date.now() > end && Date.now() - end <= 30 * 60_000) return 'gerade vorbei';
   const bis = begin - Date.now();
   if (bis > 0 && bis <= 30 * 60_000) return 'gleich';
   const tag = new Date(begin); tag.setHours(0, 0, 0, 0);
@@ -133,7 +135,7 @@ export function CupWahl({ event, window: fenster, onWahl, nurKommende = false }:
             cup: c.titel, stufe,
             titel: [c.titel, stufe, region].filter(Boolean).join(' · '),
             playlist: w.playlist ?? '', istFinale: w.istFinale,
-            wann: zeitwort(w.status, w.begin), live: w.status === 'live',
+            wann: zeitwort(w.status, w.begin, w.end), live: w.status === 'live',
             begin: w.begin,
           });
         }
@@ -156,7 +158,7 @@ export function CupWahl({ event, window: fenster, onWahl, nurKommende = false }:
       // Der Countdown braucht Kommendes - und Laufendes, damit er danach die Zeit seit dem Start zaehlen kann.
       if (nurKommende) return (w.begin > jetzt || w.live) && w.begin <= bis;
       if (nurLaufende && !managerDarfCup(w.begin, w.region, w.live)) return false;
-      if (w.live || w.wann === 'gleich') return true;
+      if (w.live || w.wann === 'gleich' || w.wann === 'gerade vorbei') return true;
       return frueher && w.begin < jetzt && w.begin >= von;
     });
     return sicht.sort((a, b) => Number(b.live) - Number(a.live)

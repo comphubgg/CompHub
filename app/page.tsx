@@ -186,6 +186,36 @@ function Abschnitt({ children, className = '' }: {
   );
 }
 
+/*
+ * Der Hinweis auf den X-Account (Betreiber, 19.10.2026: Werbung fuer seinen Twitter-Account, kein TikTok).
+ *
+ * Ein schmales Band zwischen den Zahlen und der Fusszeile - nicht im Kopf, wo die Wege in die Seite stehen, und nicht in der Fusszeile, wo
+ * der Verweis klein neben dem Kontakt untergeht.
+ */
+function XWerbung() {
+  return (
+    <section className="px-4 py-10">
+      <div className="relative mx-auto flex max-w-5xl flex-wrap items-center gap-5 overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 px-6 py-6 shadow-[0_10px_30px_rgba(15,23,42,.14)] sm:px-8">
+        <span aria-hidden className="pointer-events-none absolute -left-16 -top-20 h-56 w-56 rounded-full bg-sky-500/20 blur-3xl" />
+        <span className="relative grid h-12 w-12 shrink-0 place-items-center rounded-2xl border border-zinc-700 bg-zinc-950 text-slate-100">
+          <svg viewBox="0 0 24 24" className="h-5 w-5" fill="currentColor" aria-hidden>
+            <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+          </svg>
+        </span>
+        <div className="relative min-w-0 flex-1">
+          <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-sky-500">@CompHub_gg</p>
+          <h2 className="mt-0.5 text-xl font-extrabold text-white"><T>Folge CompHub auf X</T></h2>
+          <p className="mt-1 text-sm text-slate-400"><T>Cup-Ergebnisse, Power Rankings und Neuigkeiten von CompHub.</T></p>
+        </div>
+        <a href="https://x.com/CompHub_gg" target="_blank" rel="noreferrer"
+          className="relative rounded-full bg-sky-500 px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-sky-500/20 transition hover:-translate-y-0.5 hover:bg-sky-400">
+          <T>Auf X folgen</T>
+        </a>
+      </div>
+    </section>
+  );
+}
+
 export default function Startseite() {
   const { sprache } = useSprache();
   const [stand, setStand] = useState<Stand | null>(null);
@@ -312,6 +342,8 @@ export default function Startseite() {
       <StartVitrine />
 
       <MeistesPreisgeld ort={ort} />
+
+      <XWerbung />
 
       {/* Dieselbe Fusszeile steht unter dem Dashboard - siehe app/components/Fusszeile.tsx. */}
       <Fusszeile />

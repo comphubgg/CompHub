@@ -31,6 +31,16 @@ export const maxDuration = 60;
 
 const normId = (s: string) => s.replace(/-/g, '').toLowerCase();
 
+/** Die Konten zu einem Namen aus dem Verzeichnis der Szene - leer, wenn es keines kennt oder nicht antwortet. */
+async function kontenZumNamen(origin: string, q: string): Promise<string[]> {
+  try {
+    const r = await fetch(`${origin}/api/szene-stats?ansicht=suche&q=${encodeURIComponent(q)}`, { signal: AbortSignal.timeout(8000), cache: 'no-store' });
+    if (!r.ok) return [];
+    const j = await r.json() as { spieler?: Array<{ epicId?: string }> };
+    return (j.spieler ?? []).map((x) => x.epicId ?? '').filter(Boolean).slice(0, 25);
+  } catch { return []; }
+}
+
 export interface ReplayWerte { kills: number | null; knocks: number | null; tode: number | null; spiele: number | null; damage?: number; damageTaken?: number; hits?: number; headshots?: number; sturmSek?: number; wiederbelebt?: number; rebootet?: number }
 
 export async function GET(request: Request) {
@@ -44,9 +54,22 @@ export async function GET(request: Request) {
   }
   try {
     if (!id) {
-      const r = await findeSpieler(event, fenster, [q], [], 40);
+      /*
+       * Erst ueber die Konten aus dem Verzeichnis, dann ueber den Text - und beide durch die ganze Liste.
+       *
+       * Frueher las die Suche nur die ersten vierzig Seiten (4000 Teams) und suchte darin den Text: wer in einem offenen Cup weiter hinten stand, war "in
+       * diesem Cup nicht gefunden" (Betreiber, 19.10.2026: Spieler an jedem Platz muessen sich finden lassen). Die Konten zum Namen kennt das Verzeichnis; mit ihnen
+       * laeuft die Suche ohne Namensaufloesung durch alle hundert Seiten in wenigen Sekunden (siehe findeSpieler). Nur wer im Verzeichnis fehlt, wird ueber den Text
+       * gesucht - dann gibt es keinen anderen Weg.
+       */
+      const kandidaten = await kontenZumNamen(new URL(request.url).origin, q);
+      let r = kandidaten.length
+        ? await findeSpieler(event, fenster, [], kandidaten, MAX_PAGES)
+        : { entries: [] as CupEintrag[], scannedPages: 0, totalPages: 0 };
+      if (!r.entries.length) r = await findeSpieler(event, fenster, [q], [], 60);
+      const gesucht = new Set(kandidaten.map(normId));
       const treffer = r.entries.flatMap((e) => e.players
-        .filter((pl) => pl.name.toLowerCase().includes(q.toLowerCase()))
+        .filter((pl) => gesucht.has(normId(pl.id)) || pl.name.toLowerCase().includes(q.toLowerCase()))
         .map((pl) => ({ id: pl.id, name: pl.name, rank: e.rank, points: e.points, team: e.players.filter((x) => x.id !== pl.id).map((x) => x.name) })))
         .slice(0, 10);
       return NextResponse.json({ ok: true, treffer, gesucht: r.scannedPages, seiten: r.totalPages }, { headers: { 'Cache-Control': 'no-store' } });

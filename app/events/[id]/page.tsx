@@ -1265,7 +1265,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
       const h = /Heats?Stage_Heat(\d+)|_Heat(\d+)/i.exec(w);
       if (h) return { finale: false, haupt: `Heat ${h[1] ?? h[2]}`, neben: '' };
       if (/LastChanceQualifier/i.test(w)) return { finale: false, haupt: 'Last Chance', neben: 'Qualifier' };
-      if (/LastChanceLobby/i.test(w)) return { finale: false, haupt: 'Last Chance', neben: 'Lobby' };
+      // Die Finalrunde der Last Chance heisst bei Epic "Lobby" - hier Finale (Betreiber, 19.10.2026).
+      if (/LastChanceLobby/i.test(w)) return { finale: true, haupt: 'Last Chance', neben: t('Finale') };
       const fd = /_Final_Day(\d+)/i.exec(w);
       if (fd) return { finale: true, haupt: t('Finale'), neben: `${t('Tag')} ${fd[1]}` };
       return null;

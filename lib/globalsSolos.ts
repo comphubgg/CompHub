@@ -292,7 +292,22 @@ async function stufenFuer(region: string): Promise<SolosStufe[]> {
         raus.set(f.windowId, { windowId: f.windowId, eventId: f.eventId, ...s, status: f.status, begin: f.begin, end: f.end ?? null, qualifiziert: f.qualifiziert });
       }
     }
-    return [...raus.values()].sort((a, b) => a.begin - b.begin);
+    const alle = [...raus.values()].sort((a, b) => a.begin - b.begin);
+    /*
+     * Nur die Reihe, um die es gerade geht.
+     *
+     * Epic kuendigt die naechste Reihe (FNCS Solos Reload, Season 43) schon an, solange die laufende noch nicht zu Ende ist: ihre Qualifier und Heats standen mit
+     * unter "Der Weg", und die Seite meldete vier Heats statt zwei (Betreiber, 19.10.2026). Massgeblich ist die Season, deren Finale noch nicht vorbei ist - die
+     * fruehere, wenn es mehrere gibt; ist alles vorbei, die juengste.
+     */
+    const seasonVon = (s: SolosStufe) => /^S(\d+)_/i.exec(s.windowId)?.[1] ?? '';
+    const seasons = [...new Set(alle.map(seasonVon).filter(Boolean))];
+    if (seasons.length < 2) return alle;
+    const offen = seasons
+      .filter((sn) => alle.some((s) => s.art === 'finale' && seasonVon(s) === sn && s.status !== 'vorbei'))
+      .sort((a, b) => Number(a) - Number(b))[0]
+      ?? [...seasons].sort((a, b) => Number(b) - Number(a))[0];
+    return alle.filter((s) => seasonVon(s) === offen);
   } catch { return []; }
 }
 

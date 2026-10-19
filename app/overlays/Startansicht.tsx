@@ -34,7 +34,7 @@ import { ARTEN } from './OverlayGeruest';
 
 interface Fenster {
   windowId: string; eventId: string; region: string;
-  status: string; begin: number; istFinale: boolean;
+  status: string; begin: number; end?: number; istFinale: boolean;
 }
 interface Cup {
   id: string; titel: string;
@@ -45,6 +45,8 @@ interface Wahl {
   eventId: string; windowId: string; region: string; titel: string;
   /** Die Runde: "Event 3", "Runde 2", "Finale" - oder leer, wenn der Cup nur eine hat. */
   stufe: string;
+  /** Das Ende des Spieltags - fuer "gerade vorbei". */
+  ende: number | null;
   istFinale: boolean; live: boolean; begin: number; erlaubt: boolean;
 }
 
@@ -167,7 +169,7 @@ export default function Startansicht({ onWeiter, art }: {
           gesehen.add(w.windowId);
           raus.push({
             eventId: w.eventId, windowId: w.windowId, region: /_([A-Z]{2,4})$/.exec(w.windowId)?.[1] ?? w.region,
-            titel: c.titel, stufe: stufen.get(w.windowId) ?? '', istFinale: w.istFinale, begin: w.begin,
+            titel: c.titel, stufe: stufen.get(w.windowId) ?? '', ende: w.end ?? null, istFinale: w.istFinale, begin: w.begin,
             live: w.status === 'live', erlaubt,
           });
         }
@@ -203,7 +205,9 @@ export default function Startansicht({ onWeiter, art }: {
       } else {
         const bald = !k.live && k.begin > jetzt && k.begin - jetzt <= 30 * 60_000;
         const vorbei = !k.live && k.begin <= jetzt;
-        if (!k.live && !bald && !(frueher && vorbei)) return false;
+        // Gerade zu Ende gegangen: noch eine halbe Stunde dabei.
+        const frischVorbei = vorbei && k.ende !== null && jetzt > k.ende && jetzt - k.ende <= 30 * 60_000;
+        if (!k.live && !bald && !frischVorbei && !(frueher && vorbei)) return false;
       }
       if (regionFilter && k.region !== regionFilter) return false;
       if (nurWichtige && !k.erlaubt) return false;
@@ -373,7 +377,7 @@ export default function Startansicht({ onWeiter, art }: {
                   <span className="mt-1 block text-[11px] text-slate-500">
                     {k.region}
                     {k.stufe ? ` · ${k.stufe}` : ''}
-                    {` · ${t(wann(k.live ? 'live' : '', k.begin))}`}
+                    {` · ${t(k.ende !== null && !k.live && Date.now() > k.ende && Date.now() - k.ende <= 30 * 60_000 ? 'gerade vorbei' : wann(k.live ? 'live' : '', k.begin))}`}
                     {!k.erlaubt ? ` · ${t('sonstiger Cup')}` : ''}
                   </span>
                 </button>

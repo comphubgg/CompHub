@@ -19,6 +19,7 @@ import Link from 'next/link';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import LadeSchirm from '@/app/components/LadeSchirm';
+import KartenHintergrund from '@/app/components/KartenHintergrund';
 import { regionFarbe, regionAnzeige, REGIONEN_REIHE } from '@/lib/regionFarbe';
 import { useZugang } from '@/app/lib/zugang';
 
@@ -132,6 +133,8 @@ export default function Maps() {
   /** Die Region, nach der gefiltert wird - leer heisst alle (Betreiber, 19.10.2026: Region direkt filtern, ohne erst zu suchen). */
   const [region, setRegion] = useState('');
   const [ansicht, setAnsicht] = useState<'kacheln' | 'liste'>('kacheln');
+  /** Art und Region klappen auf Knopfdruck auf - wie auf der Events-Seite (Betreiber, 19.10.2026: "ausklappbarer Filter wie bei Events"). */
+  const [filterOffen, setFilterOffen] = useState(false);
   const zugang = useZugang();
 
   useEffect(() => {
@@ -220,7 +223,8 @@ export default function Maps() {
     : (kapitel ? `Chapter ${kapitel}` : '');
 
   return (
-    <main className="min-h-screen bg-zinc-950 text-slate-100">
+    <main className="relative isolate min-h-screen bg-zinc-950 text-slate-100">
+      <KartenHintergrund />
       <style>{CSS}</style>
       <div className="mx-auto max-w-[1500px] px-4 py-8">
         {/* ---------------------------------------------------------------- Kopf */}
@@ -295,7 +299,13 @@ export default function Maps() {
                 <T>Alte Maps verwalten</T> →
               </Link>
             )}
-            <div className="ml-auto flex gap-1.5">
+            <button type="button" onClick={() => setFilterOffen((v) => !v)} aria-expanded={filterOffen}
+              className={`ml-auto flex items-center gap-2 rounded-full border px-3.5 py-1 text-[11px] font-bold uppercase tracking-wider transition ${filterOffen
+                ? 'border-sky-500 bg-sky-500/10 text-sky-400' : 'border-zinc-700 bg-zinc-950 text-slate-300 hover:border-sky-500/70 hover:text-sky-500'}`}>
+              <svg viewBox="0 0 24 24" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden><path d="M3 6h18M6 12h12M10 18h4" strokeLinecap="round" /></svg>
+              <T>Filter</T>{(typ ? 1 : 0) + (region ? 1 : 0) > 0 && ` (${(typ ? 1 : 0) + (region ? 1 : 0)})`}
+            </button>
+            <div className="flex gap-1.5">
               {([['kacheln', t('Kacheln')], ['liste', t('Liste')]] as const).map(([k, titel]) => (
                 <button key={k} type="button" onClick={() => { setAnsicht(k); try { localStorage.setItem('maps_ansicht', k); } catch { /* ohne Speicher */ } }} className={chipKlein(ansicht === k)}>{titel}</button>
               ))}
@@ -303,6 +313,7 @@ export default function Maps() {
           </div>
 
           {/* Zweite Zeile: Art und Region - beide direkt waehlbar, die Zahl zeigt, wo es etwas gibt. */}
+          {filterOffen && (
           <div className="flex flex-wrap items-center gap-x-6 gap-y-2.5 border-t border-zinc-800 pt-3">
             <div className="flex flex-wrap items-center gap-1.5">
               <span className="mr-1 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500"><T>Art</T></span>
@@ -328,6 +339,7 @@ export default function Maps() {
               })}
             </div>
           </div>
+          )}
         </div>
 
         {fehler && (

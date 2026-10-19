@@ -9,6 +9,7 @@
  * Alles aus dem eigenen Werkzeug (/api/fncs-ereignisse, /api/fncs-alltime).
  */
 
+import KartenHintergrund from '@/app/components/KartenHintergrund';
 import { useEffect, useMemo, useState } from 'react';
 import { PlatzhalterRund } from '@/app/components/SpielerPlatzhalter';
 import Link from 'next/link';
@@ -247,7 +248,8 @@ export default function FncsSeite() {
   const reiter = (an: boolean) => `rounded-lg px-5 py-2 text-xs font-bold uppercase tracking-[0.12em] transition ${an ? 'bg-sky-500 text-white shadow' : 'text-slate-400 hover:text-slate-100'}`;
 
   return (
-    <main className="min-h-screen bg-zinc-950 text-slate-100">
+    <main className="relative isolate min-h-screen bg-zinc-950 text-slate-100">
+      <KartenHintergrund />
       <div className="relative overflow-hidden border-b border-white/[0.06]">
         <div aria-hidden className="pointer-events-none absolute left-1/2 top-0 h-72 w-[820px] -translate-x-1/2 rounded-full bg-sky-500/[0.08] blur-[110px]" />
         <div className="relative mx-auto flex max-w-[1500px] flex-wrap items-end justify-between gap-4 px-4 py-8">
