@@ -22,6 +22,8 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import T from '@/app/components/T';
 import { fortniteKarte } from '@/lib/bildAdressen';
+import { speichereLeinwand } from '@/app/lib/bildSpeichern';
+import { useT } from '@/app/components/SprachProvider';
 
 interface Zone { naechsterRadius?: number; x?: number; y?: number }
 interface TagKurz { windowId: string; titel: string; matches: Array<{ id: string; nr: number; beginn?: string }> }
@@ -143,17 +145,17 @@ export default function ZonenBild({ tage }: { tage: TagKurz[] }) {
     return () => { weg = true; };
   }, [gezeigt, zonen, titel, tage]);
 
-  const speichern = () => {
+  const t = useT();
+  const [meldung, setMeldung] = useState('');
+  /** Das Bild kopieren (Zwischenablage - Betreiber, 19.10.2026: "Copy Image, dass ich es nicht immer herunterladen muss"); geht das nicht, wird es gespeichert. */
+  const kopieren = async (nurDownload = false) => {
     const c = leinwand.current;
     if (!c) return;
-    c.toBlob((b) => {
-      if (!b) return;
-      const a = document.createElement('a');
-      a.href = URL.createObjectURL(b);
-      a.download = `zones-${titel.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.png`;
-      a.click();
-      setTimeout(() => URL.revokeObjectURL(a.href), 5000);
-    }, 'image/png');
+    try {
+      const r = await speichereLeinwand(c, `zones-${titel.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.png`, nurDownload);
+      setMeldung(r === 'kopiert' ? t('Bild kopiert') : t('Bild gespeichert'));
+    } catch { setMeldung(t('Das Bild ließ sich nicht auslesen.')); }
+    setTimeout(() => setMeldung(''), 4000);
   };
 
   const fehlend = gezeigt.some((t) => t.matches.some((m) => !zonen[m.id]));
@@ -170,8 +172,13 @@ export default function ZonenBild({ tage }: { tage: TagKurz[] }) {
             {w === 'alle' ? <T>{name}</T> : name}
           </button>
         ))}
-        <button type="button" onClick={speichern} disabled={!bereit || fehlend}
-          className="ml-auto rounded-lg bg-sky-500 px-4 py-1.5 text-sm font-semibold text-white transition hover:bg-sky-400 disabled:opacity-50">
+        {meldung && <span className="ml-auto text-xs font-semibold text-emerald-400">{meldung}</span>}
+        <button type="button" onClick={() => void kopieren(false)} disabled={!bereit || fehlend}
+          className={`${meldung ? '' : 'ml-auto '}rounded-lg bg-sky-500 px-4 py-1.5 text-sm font-semibold text-white transition hover:bg-sky-400 disabled:opacity-50`}>
+          <T>Bild kopieren</T>
+        </button>
+        <button type="button" onClick={() => void kopieren(true)} disabled={!bereit || fehlend}
+          className="rounded-lg border border-zinc-700 px-4 py-1.5 text-sm font-semibold text-slate-300 transition hover:border-sky-500 hover:text-sky-400 disabled:opacity-50">
           <T>Bild speichern</T>
         </button>
       </div>

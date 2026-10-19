@@ -57,6 +57,8 @@ function benenne(cups: CupGruppe[]): CupGruppe[] {
     const n = nameAusFenstern(ids);
     return n ? { ...c, titel: n } : c;
   });
+  // Das Bild, das der Betreiber fuer den Mobile Test Cup geschickt hat (19.10.2026).
+  for (let i = 0; i < roh.length; i++) if (/mobiles*tests*cup/i.test(roh[i].titel)) roh[i] = { ...roh[i], bild: '/cups/mobile-test-cup.jpg' };
   const je = new Map<string, number>();
   for (const c of roh) { const k = c.titel.trim().toLowerCase(); je.set(k, (je.get(k) ?? 0) + 1); }
   return roh.map((c) => {

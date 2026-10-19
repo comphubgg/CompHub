@@ -66,7 +66,7 @@ index.geprueft ??= {};
 function tage() {
   if (arg.length >= 2 && !arg[0].startsWith('--')) return [{ eventId: arg[0], windowId: arg[1], datum: Date.now(), titel: arg[1] }];
   const grenze = Date.now() - 31 * 864e5;
-  const raus = [];
+  const alle = [];
   const ordner = path.join(DATEN, 'epic-spieltage');
   for (const s of fs.existsSync(ordner) ? fs.readdirSync(ordner) : []) {
     const o = path.join(ordner, s);
@@ -74,9 +74,26 @@ function tage() {
     for (const f of fs.readdirSync(o).filter((x) => x.endsWith('.json'))) {
       const t = liesJson(path.join(o, f), null);
       if (!t?.windowId || (t.datum ?? 0) < grenze) continue;
-      if (!(t.istFinale || /MannekenPis|Global|LAN|Escargo/i.test(`${t.windowId} ${t.cupId} ${t.titel}`))) continue;
-      raus.push({ eventId: t.eventId, windowId: t.windowId, datum: t.datum, titel: t.titel, region: t.region, season: t.season });
+      alle.push(t);
     }
+  }
+  // Die letzte Runde eines Abends (EventNRoundM mit dem hoechsten M ueber 1) ist das Finale dieses Cups, auch wenn Epic sie nicht "Final" nennt.
+  const hoechste = new Map();
+  const rundeVon = (w) => /^(.*?Event\d+)Round(\d+)/i.exec(w);
+  for (const t of alle) {
+    const m = rundeVon(t.windowId);
+    if (!m) continue;
+    const k = `${t.eventId}|${t.region}|${m[1]}`;
+    hoechste.set(k, Math.max(hoechste.get(k) ?? 0, +m[2]));
+  }
+  const letzteRunde = (t) => {
+    const m = rundeVon(t.windowId);
+    return !!m && +m[2] > 1 && +m[2] === hoechste.get(`${t.eventId}|${t.region}|${m[1]}`);
+  };
+  const raus = [];
+  for (const t of alle) {
+    if (!(t.istFinale || letzteRunde(t) || /MannekenPis|Global|LAN|Escargo/i.test(`${t.windowId} ${t.cupId} ${t.titel}`))) continue;
+    raus.push({ eventId: t.eventId, windowId: t.windowId, datum: t.datum, titel: t.titel, region: t.region, season: t.season });
   }
   // Die juengsten zuerst: dort schaut man zuerst hin; die aeltesten folgen in den naechsten Laeufen.
   return raus.sort((a, b) => (b.datum ?? 0) - (a.datum ?? 0));
