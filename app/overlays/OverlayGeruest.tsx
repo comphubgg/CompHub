@@ -56,9 +56,12 @@ export const ARTEN: Array<{
   /**
    * Nicht in der Auswahl und nicht in der Leiste.
    *
-   * Der Betreiber (1.10.2026) will nur drei Arten sehen: Team Banner,
-   * Leaderboard, Custom. Was jemand frueher von den anderen angelegt hat,
-   * laeuft weiter - die Adresse in OBS und die Seite dazu bleiben.
+   * Der Betreiber (1.10.2026) wollte nur drei Arten sehen: Team Banner,
+   * Leaderboard, Custom. Am 19.10.2026 holte er Cup timer und Qual line
+   * zurueck ("Custom Overlays sind gut, aber mir fehlt ein Timer Overlay und
+   * eine Qual line") - versteckt ist seither nur noch der eigene Text.
+   * Was jemand von einer versteckten Art angelegt hat, laeuft weiter: die
+   * Adresse in OBS und die Seite dazu bleiben.
    */
   versteckt?: boolean;
 }> = [
@@ -80,7 +83,6 @@ export const ARTEN: Array<{
     schluessel: 'timer', pfad: '/overlays/timer', titel: 'Cup timer',
     datei: 'timer.html',
     was: 'Countdown bis zum Start des Spieltags',
-    versteckt: true,
   },
   /*
    * Der Offspawn-Stand. Er holt als einziger nichts von Epic - was dort
@@ -108,7 +110,6 @@ export const ARTEN: Array<{
     schluessel: 'qual', pfad: '/overlays/qual', titel: 'Qual line',
     datei: 'qual.html',
     was: 'Wie viele Punkte es zum Weiterkommen braucht',
-    versteckt: true,
   },
 ];
 

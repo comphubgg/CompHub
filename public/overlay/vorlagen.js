@@ -98,11 +98,16 @@
     {
       id: 'division',
       titel: 'Division Cup',
-      beschreibung: 'Mint und Chromblau - die Division Cups',
+      /*
+       * Neu am 19.10.2026: das Mint und Chromblau gefiel nicht mehr. Jetzt Violett
+       * zu Magenta mit einem dunklen, schraegen Balken und gruenem Akzent (nach
+       * dem Vorbild, das der Betreiber zeigte).
+       */
+      beschreibung: 'Violett zu Magenta, dunkler Balken, gruener Akzent - die Division Cups',
       werte: {
-        grund: '#08203f', grund2: '#2f86d6', schrift: '#ffffff',
-        leise: '#a6f2de', akzent: '#7fd8c0',
-        bild: 'linear-gradient(200deg, rgba(231,240,255,.20) 0 14%, transparent 14.2%), linear-gradient(120deg, #1556b8 0%, #2f86d6 34%, #4fb3b0 68%, #7fd8c0 100%)',
+        grund: '#12061f', grund2: '#7b2cbf', schrift: '#ffffff',
+        leise: '#e3c8ff', akzent: '#6ee05a',
+        bild: 'linear-gradient(162deg, transparent 0 60%, rgba(10,3,24,.64) 60.2% 78%, transparent 78.2%), linear-gradient(118deg, #35106b 0%, #7b2cbf 34%, #c026d3 68%, #ff4fd8 100%)',
       },
     },
     {

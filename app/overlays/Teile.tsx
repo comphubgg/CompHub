@@ -7,7 +7,7 @@ import { ARTEN, overlayAdresse, type OverlayEintrag } from './OverlayGeruest';
 import { useZugang } from '@/app/lib/zugang';
 import {
   managerDarfCup, overlayCupErlaubt, overlayCupRang, overlayRegionRang,
-  overlayZeitraumWeit,
+  overlayZeitraumWeit, rundenBeschriftung,
 } from '@/lib/overlayCups';
 
 /*
@@ -18,11 +18,25 @@ import {
 
 interface Fenster {
   windowId: string; eventId: string; region: string;
-  status: string; begin: number; istFinale: boolean;
+  status: string; begin: number; istFinale: boolean; playlist?: string;
 }
 interface Cup {
   id: string; titel: string; art: string; global: boolean;
   regionen: Record<string, Fenster[]>;
+}
+
+/** Was die Cup-Auswahl ueber den gewaehlten Spieltag weiss - fuer Baukaesten, die mehr brauchen als die Kennung. */
+export interface CupInfo {
+  /** Die Region des Spieltags (EU, NAC ...). */
+  region: string;
+  /** Epics Wiedergabeliste - daraus folgt, ob Solo, Duo oder Trio gespielt wird. */
+  playlist: string;
+  istFinale: boolean;
+  live: boolean;
+  begin: number;
+  /** Cup-Titel und Runde einzeln, ohne Region. */
+  cup: string;
+  stufe: string;
 }
 
 /*
@@ -30,13 +44,15 @@ interface Cup {
  * Regel wie auf der Team-Karte. Hier war frueher eine zweite, etwas andere
  * Fassung; sie liess unter anderem jeden globalen Cup durch.
  *
- * Was der Schalter darunter aufhebt, ist nur die inhaltliche Einschraenkung.
- * Der Zeitraum bleibt: gestern, heute, morgen.
+ * Was der Schalter darunter aufhebt, ist nur die inhaltliche Einschraenkung
+ * (FNCS, Cash, Performance). Der Zeitraum ist eigen: nur was jetzt laeuft.
  */
 
 /** Wie eine Zeile beschriftet wird - "läuft", "gestern", "morgen". */
 function zeitwort(status: string, begin: number): string {
   if (status === 'live') return 'läuft';
+  const bis = begin - Date.now();
+  if (bis > 0 && bis <= 30 * 60_000) return 'gleich';
   const tag = new Date(begin); tag.setHours(0, 0, 0, 0);
   const heute = new Date(); heute.setHours(0, 0, 0, 0);
   const abstand = Math.round((tag.getTime() - heute.getTime()) / 86_400_000);
@@ -46,16 +62,33 @@ function zeitwort(status: string, begin: number): string {
   return '';
 }
 
+interface Zeile {
+  eventId: string; windowId: string; region: string;
+  cup: string; stufe: string; titel: string; playlist: string;
+  istFinale: boolean; wann: string; live: boolean; begin: number;
+}
+
+/**
+ * Die Cup-Auswahl der Overlays.
+ *
+ * Der Betreiber (19.10.2026): zur Wahl stehen nur Cups, die gerade laufen -
+ * keine kommenden -, und nur FNCS, Cash und Performance; fuer Ranked und
+ * Co. schaltet man den Filter aus. Die Runden sind auseinanderzuhalten
+ * ("Last Chance Qualifier" und sein Finale, "Runde 2"). Eine gespeicherte
+ * Adresse bleibt dagegen gueltig, wenn der Cup vorbei ist: sie traegt den
+ * Spieltag fest und zeigt dann die letzten Zahlen.
+ */
 export function CupWahl({ event, window: fenster, onWahl, nurKommende = false }: {
   event: string; window: string;
-  onWahl: (event: string, window: string, titel: string) => void;
+  onWahl: (event: string, window: string, titel: string, info?: CupInfo) => void;
   /**
-   * Nur Spieltage, die noch nicht angefangen haben.
+   * Nur Spieltage, die noch nicht angefangen haben - und die gerade laufen.
    *
-   * Fuer den Countdown: auf einen Spieltag von gestern laesst sich nicht
+   * Fuer den Timer: auf einen Spieltag von gestern laesst sich nicht
    * zaehlen. Der Betreiber wollte das gar nicht erst anbieten - "man soll
    * keine vergangenen Cups auswaehlen koennen" - statt hinterher zu
-   * erklaeren, warum die Vorschau leer bleibt.
+   * erklaeren, warum die Vorschau leer bleibt. Was schon laeuft, bleibt
+   * waehlbar: der Timer zaehlt dann die Zeit seit dem Start.
    */
   nurKommende?: boolean;
 }) {
@@ -65,6 +98,7 @@ export function CupWahl({ event, window: fenster, onWahl, nurKommende = false }:
   const nurLaufende = Boolean(zugang.verwaltet);
   const [cups, setCups] = useState<Cup[] | null>(null);
   const [alle, setAlle] = useState(false);
+  const [frueher, setFrueher] = useState(false);
 
   useEffect(() => {
     // "alle", damit auch der gestrige Spieltag mitkommt: die Voreinstellung
@@ -76,74 +110,74 @@ export function CupWahl({ event, window: fenster, onWahl, nurKommende = false }:
   }, []);
 
   /*
-   * Jedes Fenster von gestern, heute und morgen als eigene Zeile.
+   * Alle Spieltage, die der Cup-Art nach zur Wahl stehen können - mit ihrer Runde.
    *
-   * Frueher stand hier "nur was gerade laeuft". Der Betreiber: "Cup only when
-   * it's running now - das kannst du entfernen. Wenn der Cup heute oder
-   * gestern war, soll er trotzdem angezeigt werden." Eine Tabelle ist nach
-   * dem Cup genauso interessant wie waehrenddessen, und zwischen zwei Runden
-   * laeuft gerade gar nichts - dann stand die Liste leer da.
+   * Noch ohne Zeitfilter: den gewaehlten Spieltag soll die Auswahl auch dann
+   * kennen, wenn er nicht mehr laeuft (gespeichertes Overlay, Adresse).
    */
-  const laufend = useMemo(() => {
-    /*
-     * Eine Woche zurueck, zwei nach vorn - nicht nur gestern bis morgen.
-     *
-     * Der Betreiber: "wenn diese irgendwie live sind oder in der Zukunft
-     * kommen oder gewesen sind, sollte die trotzdem zu sehen sein." Ein
-     * Overlay entsteht oft Tage vor dem Spieltag, und die Tabelle eines Cups
-     * von letzter Woche will er auch noch zeigen koennen.
-     */
-    const { von, bis } = overlayZeitraumWeit();
-    const raus: Array<{
-      eventId: string; windowId: string; region: string;
-      titel: string; istFinale: boolean; wann: string; live: boolean; begin: number;
-    }> = [];
+  const pool = useMemo(() => {
+    const raus: Zeile[] = [];
     // NA Central und NA West teilen sich Fenster: dasselbe windowId steht in beiden Regionen der Liste - es soll nur einmal zur Wahl stehen (und mit seiner eigenen Region).
     const gesehen = new Set<string>();
     for (const c of cups ?? []) {
       if (!alle && !overlayCupErlaubt(c.titel)) continue;
       for (const liste of Object.values(c.regionen ?? {})) {
-        for (const w of liste) {
-          if (w.begin < von || w.begin > bis) continue;
-          if (gesehen.has(w.windowId)) continue;
+        const frisch = (liste ?? []).filter((w) => !gesehen.has(w.windowId));
+        const stufen = rundenBeschriftung(frisch, t);
+        for (const w of frisch) {
           gesehen.add(w.windowId);
-          if (nurKommende && w.begin <= Date.now()) continue;
-          if (nurLaufende
-            && !managerDarfCup(w.begin, w.region, w.status === 'live')) continue;
+          const region = /_([A-Z]{2,4})$/.exec(w.windowId)?.[1] ?? w.region;
+          const stufe = stufen.get(w.windowId) ?? '';
           raus.push({
-            eventId: w.eventId, windowId: w.windowId, region: /_([A-Z]{2,4})$/.exec(w.windowId)?.[1] ?? w.region,
-            titel: c.titel, istFinale: w.istFinale,
+            eventId: w.eventId, windowId: w.windowId, region,
+            cup: c.titel, stufe,
+            titel: [c.titel, stufe, region].filter(Boolean).join(' · '),
+            playlist: w.playlist ?? '', istFinale: w.istFinale,
             wann: zeitwort(w.status, w.begin), live: w.status === 'live',
             begin: w.begin,
           });
         }
       }
     }
-    /*
-     * Laufendes zuerst, dann nach Wichtigkeit.
-     *
-     * Vorher stand hier "dann das Neueste" - und damit lag ein Arena Test Cup
-     * von heute ueber den Grand Finals von morgen. Der Betreiber wollte es
-     * nach Wichtigkeit: die grossen Finals, Division 1, Solo-FNCS,
-     * Performance, Cash und Victory; Europa vor dem Rest. Das Datum
-     * entscheidet erst, wenn zwei Fenster gleich wichtig sind, und dann der
-     * naehere zuerst.
-     */
-    /*
-     * Nach Datum, nicht nach Cup.
-     *
-     * Vorher stand die Wichtigkeit vorn, und damit lagen die Spieltage
-     * derselben Woche wild durcheinander. Der Betreiber wollte es zeitlich:
-     * "es soll nicht nach Division Cup sortieren, sondern nach Datum." Was
-     * laeuft, bleibt trotzdem ganz oben - das ist die Zeile, die er waehrend
-     * eines Streams braucht.
-     */
+    return raus;
+  }, [cups, alle, t]);
+
+  /*
+   * Was in der Liste steht.
+   *
+   * Nur Laufendes - auf Wunsch dazu die letzte Woche. Kommendes nie (ausser
+   * beim Countdown, der nur Kommendes braucht). Laufendes steht oben, dann der
+   * naechste zuerst; unter gleich Nahem Europa vor dem Rest.
+   */
+  const laufend = useMemo(() => {
+    const { von, bis } = overlayZeitraumWeit();
     const jetzt = Date.now();
-    return raus.sort((a, b) => Number(b.live) - Number(a.live)
+    const sicht = pool.filter((w) => {
+      // Der Countdown braucht Kommendes - und Laufendes, damit er danach die Zeit seit dem Start zaehlen kann.
+      if (nurKommende) return (w.begin > jetzt || w.live) && w.begin <= bis;
+      if (nurLaufende && !managerDarfCup(w.begin, w.region, w.live)) return false;
+      if (w.live || w.wann === 'gleich') return true;
+      return frueher && w.begin < jetzt && w.begin >= von;
+    });
+    return sicht.sort((a, b) => Number(b.live) - Number(a.live)
       || Math.abs(a.begin - jetzt) - Math.abs(b.begin - jetzt)
       || overlayRegionRang(a.region) - overlayRegionRang(b.region)
+      || overlayCupRang(a.cup) - overlayCupRang(b.cup)
       || a.titel.localeCompare(b.titel));
-  }, [cups, alle, nurLaufende, nurKommende]);
+  }, [pool, frueher, nurLaufende, nurKommende]);
+
+  /** Der gewaehlte Spieltag steht oben, auch wenn er nicht mehr in der Liste waere. */
+  const angezeigt = useMemo(() => {
+    const da = fenster ? pool.find((w) => w.windowId === fenster) : undefined;
+    return da && !laufend.some((w) => w.windowId === da.windowId) ? [da, ...laufend] : laufend;
+  }, [laufend, pool, fenster]);
+
+  const waehle = useCallback((w: Zeile) => {
+    onWahl(w.eventId, w.windowId, w.titel, {
+      region: w.region, playlist: w.playlist, istFinale: w.istFinale,
+      live: w.live, begin: w.begin, cup: w.cup, stufe: w.stufe,
+    });
+  }, [onWahl]);
 
   /*
    * Kommt der Cup schon aus der Adresse?
@@ -157,43 +191,49 @@ export function CupWahl({ event, window: fenster, onWahl, nurKommende = false }:
    */
   const [ausAdresse, setAusAdresse] = useState(false);
   useEffect(() => {
-    if (ausAdresse || fenster || !laufend.length) return;
+    if (ausAdresse || fenster || !pool.length) return;
     const p = new URLSearchParams(window.location.search);
     const w = p.get('fenster');
     if (!w) return;
-    const treffer = laufend.find((x) => x.windowId === w);
+    const treffer = pool.find((x) => x.windowId === w);
     if (treffer) {
-      onWahl(treffer.eventId, treffer.windowId, `${treffer.titel} · ${treffer.region}`);
+      waehle(treffer);
       setAusAdresse(true);
+    } else if (cups && cups.length && !alle) {
+      // Ein sonstiger Cup (Ranked, Reload ...): der Filter hielt ihn zurueck, also aus.
+      setAlle(true);
     }
-  }, [laufend, fenster, ausAdresse, onWahl]);
+  }, [pool, fenster, ausAdresse, waehle, cups, alle]);
 
   return (
     <div>
-      <label className="text-xs text-slate-400">
-        <T>Cup — nach Datum geordnet</T>
-        <select value={fenster}
-          onChange={(e) => {
-            const w = laufend.find((x) => x.windowId === e.target.value);
-            if (w) onWahl(w.eventId, w.windowId, `${w.titel} · ${w.region}`);
-            else onWahl('', '', '');
-          }}
-          className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950
-                     px-3 py-2 text-sm text-slate-100 outline-none
-                     focus:border-sky-500">
-          <option value="">{t('— auswählen —')}</option>
-          {laufend.map((w) => (
-            <option key={w.windowId} value={w.windowId}>
-              {w.live ? '🔴 ' : ''}{w.titel} · {w.region}
-              {w.istFinale ? ' · Finale' : ''}
-              {' — '}
-              {new Date(w.begin).toLocaleDateString('de-DE',
-                { day: '2-digit', month: '2-digit' })}
-              {w.wann ? ` (${t(w.wann)})` : ''}
-            </option>
-          ))}
-        </select>
-      </label>
+      <p className="text-xs text-slate-400">
+        {nurKommende ? <T>Cup — die nächsten Spieltage</T> : <T>Cup — was gerade läuft</T>}
+      </p>
+
+      <div className="mt-1 max-h-72 space-y-1 overflow-y-auto">
+        {angezeigt.map((w) => (
+          <button key={w.windowId} type="button" onClick={() => waehle(w)}
+            className={`flex w-full items-center gap-2 rounded-lg border px-3 py-2
+                        text-left text-[13px] transition ${w.windowId === fenster
+              ? 'border-sky-500 bg-sky-500/10 text-slate-100'
+              : 'border-zinc-800 text-slate-300 hover:border-zinc-600'}`}>
+            {w.live && (
+              <span className="rounded bg-rose-500 px-1.5 py-0.5 text-[9px] font-bold
+                               uppercase text-white">live</span>
+            )}
+            <span className="min-w-0 flex-1 truncate">
+              {[w.cup, w.stufe].filter(Boolean).join(' · ')}
+            </span>
+            <span className="shrink-0 rounded bg-zinc-800 px-1.5 py-0.5 text-[10px]
+                             font-medium text-slate-300">{w.region}</span>
+            <span className="shrink-0 text-[11px] text-slate-500">
+              {new Date(w.begin).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}
+              {w.wann && !w.live ? ` · ${t(w.wann)}` : ''}
+            </span>
+          </button>
+        ))}
+      </div>
 
       {/*
         * Eine leere Liste braucht eine Begruendung.
@@ -201,20 +241,30 @@ export function CupWahl({ event, window: fenster, onWahl, nurKommende = false }:
         * Ausserhalb der Cup-Zeiten laeuft nichts, und ein leeres Auswahlfeld
         * sieht aus wie ein Fehler im Werkzeug.
         */}
-      {cups && !laufend.length && (
+      {cups && !angezeigt.length && (
         <p className="mt-1.5 text-[11px] leading-relaxed text-amber-500/80">
-          <T>In diesen Tagen läuft kein passender Cup. Die Auswahl füllt sich
-          von selbst, sobald einer ansteht — das Overlay in OBS musst du dafür
-          nicht anfassen.</T>
+          {nurKommende
+            ? <T>In den nächsten Tagen steht kein passender Cup an.</T>
+            : <T>Gerade läuft kein passender Cup. Die Liste füllt sich von selbst,
+              sobald einer startet — das Overlay in OBS musst du dafür nicht
+              anfassen.</T>}
         </p>
       )}
 
-      <label className="mt-1.5 flex items-center gap-2 text-[11px] text-slate-500">
-        <input type="checkbox" checked={alle}
-          onChange={(e) => setAlle(e.target.checked)}
+      <label className="mt-2 flex items-center gap-2 text-[11px] text-slate-500">
+        <input type="checkbox" checked={!alle}
+          onChange={(e) => setAlle(!e.target.checked)}
           className="accent-sky-500" />
-        <T>mehr — auch Ranked, Reload, Mobile und Arenas</T>
+        <T>nur FNCS, Cash Cups und Performance Cups</T>
       </label>
+      {!nurKommende && (
+        <label className="mt-1.5 flex items-center gap-2 text-[11px] text-slate-500">
+          <input type="checkbox" checked={frueher}
+            onChange={(e) => setFrueher(e.target.checked)}
+            className="accent-sky-500" />
+          <T>auch Spieltage der letzten sieben Tage</T>
+        </label>
+      )}
       {event && (
         <p className="mt-1 truncate font-mono text-[10px] text-slate-700">
           {fenster}

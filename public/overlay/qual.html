@@ -195,8 +195,16 @@ html, body {
 
   const STANDARD = {
     event: '', window: '',
-    /** Wie viele weiterkommen - Epics Rangschwelle. */
-    schwelle: 50,
+    /**
+     * Wie viele weiterkommen - Epics Rangschwelle. Null heisst: automatisch
+     * (der Server zaehlt es aus dem Cup: wer in der naechsten Runde antritt,
+     * ist der Kreis, der es geschafft hat). Der Betreiber (19.10.2026): die
+     * Linie soll sich selbst aus dem Cup rechnen und sich von Hand anpassen
+     * lassen.
+     */
+    schwelle: 0,
+    /** Punkte, die auf den Schnitt frueherer Ausgaben aufgeschlagen werden (Betreiber: "Durchschnitt plus etwa fuenf"). */
+    zuschlag: 5,
     wort: 'QUAL ~',
     takt: 15,
     grund: '0 0 0', deckkraft: 0.72,
@@ -227,7 +235,7 @@ html, body {
     try {
       const u = server + '/api/qualifikation?event=' + encodeURIComponent(cfg.event)
         + '&window=' + encodeURIComponent(cfg.window)
-        + '&schwelle=' + encodeURIComponent(cfg.schwelle);
+        + '&schwelle=' + encodeURIComponent(cfg.schwelle > 0 ? cfg.schwelle : '');
       const d = await (await fetch(u, { cache: 'no-store' })).json();
 
       if (!d || (!d.schnitt && !d.tatsaechlich)) {
@@ -239,7 +247,7 @@ html, body {
 
       // Die Schaetzung nur, wenn es fruehere Ausgaben gibt.
       if (d.schnitt) {
-        $('schaetzung').textContent = d.schnitt;
+        $('schaetzung').textContent = d.schnitt + Math.max(0, Number(cfg.zuschlag) || 0);
         $('oben').hidden = false;
       } else {
         $('oben').hidden = true;

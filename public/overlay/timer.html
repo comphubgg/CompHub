@@ -144,7 +144,17 @@ html, body {
      * da sein."
      */
     immer: false,
-  };
+    /*
+     * Was nach dem Start passiert.
+     *
+     * "zaehlt": die Zeit seit dem Start laeuft weiter, mit eigener
+     * Ueberschrift - der Betreiber (19.10.2026) wollte "einen Timer von einem
+     * Cup", der waehrend des Cups nicht einfach verschwindet. "weg": wie
+     * bisher, der Kasten verschwindet, sobald der Cup laeuft. Nach vierzehn
+     * Stunden ist auch "zaehlt" vorbei: ein Spieltag dauert nicht laenger.
+     */
+    nachStart: 'zaehlt',
+    wortLaeuft: 'LIVE FOR',
 
   const $ = (id) => document.getElementById(id);
   let cfg = STANDARD;
@@ -191,6 +201,14 @@ html, body {
      * falsch, und ein falscher Wert im Bild ist schlimmer als keiner.
      */
     if (uebrig <= 0) {
+      if (cfg.nachStart === 'zaehlt' && -uebrig <= 14 * 3600) {
+        $('zeit').textContent = alsZeit(-uebrig);
+        $('wort').textContent = String(cfg.wortLaeuft || 'LIVE FOR');
+        const cz = $('cup');
+        if (cfg.cupZeigen && cfg.cup) { cz.textContent = String(cfg.cup); cz.hidden = false; } else cz.hidden = true;
+        $('karte').classList.add('da');
+        return;
+      }
       if (!cfg.immer) {
         $('karte').classList.remove('da');
         return;

@@ -23,6 +23,8 @@
  * Sie kommen deshalb von allein beide mit, sobald der Cup zugelassen ist.
  */
 
+import { rundenName } from '@/lib/rundenName';
+
 /** Was nie zur Wahl steht, egal was sonst im Titel steht. */
 const NIE = [
   /division\s*[2-9]/i,          // FNCS Division 2 bis 5
@@ -184,4 +186,52 @@ export function overlayZeitraumWeit(): { von: number; bis: number } {
   bis.setDate(bis.getDate() + 14);
   bis.setHours(23, 59, 59, 999);
   return { von: von.getTime(), bis: bis.getTime() };
+}
+
+/*
+ * Wie viele Spieler ein Team in diesem Cup hat.
+ *
+ * Steht in Epics Wiedergabeliste ("..._Solo", "..._Duos", "..._Trios"), und
+ * wo die fehlt, in der Kennung des Spieltags. Der Betreiber (19.10.2026): ein
+ * Solo-Cup zeigt nur Solo, ein Duo-Cup Duo oder Solo, ein Trio-Cup Trio, Duo
+ * oder Solo - und ein einzelner Spieler aus einem Team-Cup zeigt die Werte
+ * seines Teams. Unbekannt heisst zwei: die Duos waren bisher der Standard.
+ */
+export function teamGroesseVon(playlist?: string | null, windowId?: string | null): 1 | 2 | 3 {
+  for (const quelle of [playlist, windowId]) {
+    const q = String(quelle ?? '');
+    if (/trios?/i.test(q)) return 3;
+    if (/duos?/i.test(q)) return 2;
+    if (/solos?/i.test(q)) return 1;
+  }
+  return 2;
+}
+
+/**
+ * Die Runden-Beschriftung fuer alle Spieltage eines Cups in einer Region.
+ *
+ * rundenName liest, was Epic selbst in die Kennung schreibt ("Event3Round2",
+ * "Week3Final"). Bei manchen Cups steht dort nichts: der Last Chance
+ * Qualifier und seine Finalrunde ("Lobby") heissen beide "FNCS Solos Last
+ * Chance Qualifier", und in der Auswahl waren sie nicht zu unterscheiden. Hat
+ * ein Spieltag keine eigene Beschriftung und gibt es in der Region mehrere,
+ * zaehlt hier die Reihenfolge der Anstoesse: "Runde 1", "Runde 2" - das
+ * Finale heisst weiter "Finale".
+ */
+export function rundenBeschriftung(
+  liste: Array<{ windowId: string; istFinale: boolean; begin: number }>,
+  uebs: (s: string) => string = (s) => s,
+): Map<string, string> {
+  const raus = new Map<string, string>();
+  const leer: Array<{ windowId: string; begin: number }> = [];
+  for (const w of liste) {
+    const text = rundenName(w.windowId, w.istFinale, uebs);
+    raus.set(w.windowId, text);
+    if (!text) leer.push(w);
+  }
+  if (liste.length > 1 && leer.length) {
+    leer.sort((a, b) => a.begin - b.begin);
+    leer.forEach((w, i) => raus.set(w.windowId, `${uebs('Runde')} ${i + 1}`));
+  }
+  return raus;
 }

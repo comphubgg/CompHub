@@ -13,7 +13,7 @@ export const THEMEN: Array<{ wert: Thema; titel: string; akzent: string | null }
   { wert: '', titel: 'Standard', akzent: null },
   { wert: 'globals', titel: 'FNCS Globals', akzent: '#f5c542' },
   { wert: 'performance', titel: 'Performance Cup', akzent: '#2ad1cc' },
-  { wert: 'division', titel: 'Division Cup', akzent: '#7fd8c0' },
+  { wert: 'division', titel: 'Division Cup', akzent: '#6ee05a' },
   { wert: 'cash', titel: 'Cash Cup', akzent: '#e879f9' },
   { wert: 'reload', titel: 'Reload', akzent: '#e0b455' },
 ];

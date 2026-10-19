@@ -8,7 +8,7 @@ import LadeSchirm from '@/app/components/LadeSchirm';
 import { useZugang } from '@/app/lib/zugang';
 import {
   managerDarfCup, overlayCupErlaubt, overlayCupRang, overlayRegionRang,
-  overlayZeitraumWeit,
+  overlayZeitraumWeit, rundenBeschriftung,
 } from '@/lib/overlayCups';
 import { ARTEN } from './OverlayGeruest';
 
@@ -22,8 +22,9 @@ import { ARTEN } from './OverlayGeruest';
  * Also drei Schritte statt einem Formular:
  *
  *   1. Was schon da ist - die eigenen Overlays, gross und als Erstes.
- *   2. Ein neues: welcher Cup? Nach Wichtigkeit geordnet, mit einem Knopf
- *      "andere" fuer Ranked, Reload, Mobile und Arenas.
+ *   2. Ein neues: welcher Cup? Nur was gerade laeuft (19.10.2026: "nur live
+ *      Cups, keine kommenden"), standardmaessig nur FNCS, Cash und
+ *      Performance - fuer Ranked, Reload und Co. schaltet man den Filter aus.
  *   3. Welche Art? Team-Karte, Standings oder Qual-Linie.
  *
  * Danach geht es in den Baukasten der gewaehlten Art, mit dem Cup schon
@@ -42,9 +43,9 @@ interface Cup {
 
 interface Wahl {
   eventId: string; windowId: string; region: string; titel: string;
+  /** Die Runde: "Event 3", "Runde 2", "Finale" - oder leer, wenn der Cup nur eine hat. */
+  stufe: string;
   istFinale: boolean; live: boolean; begin: number; erlaubt: boolean;
-  /** Faengt dieser Spieltag heute an? Danach richtet sich die erste Stufe. */
-  heute: boolean;
 }
 
 /** "läuft", "heute", "morgen", "gestern" - oder das Datum. */
@@ -93,17 +94,13 @@ export default function Startansicht({ onWeiter, art }: {
   const [cups, setCups] = useState<Cup[] | null>(null);
   const [neu, setNeu] = useState(false);
   /*
-   * Wie viel von der Cup-Liste offen ist.
+   * Auch Spieltage der letzten Woche zeigen?
    *
-   * 0 - was laeuft, und was heute in Europa ist
-   * 1 - dazu alles von heute, aus allen Regionen
-   * 2 - dazu alles Uebrige aus dem Zeitraum
-   *
-   * Der Betreiber wollte nicht scrollen muessen, bis er ganz unten ankommt:
-   * "zuerst mal alle live, dann die, wo heute sind, und dann nur Europa. Dann
-   * kann man auf show more gehen."
+   * Zur Wahl steht nur, was gerade laeuft (oder in einer halben Stunde
+   * anfaengt) - "keine kommenden Cups" (Betreiber, 19.10.2026). Wer ein
+   * Overlay fuer einen Spieltag von vorgestern braucht, schaltet das hier zu.
    */
-  const [stufe, setStufe] = useState(0);
+  const [frueher, setFrueher] = useState(false);
   const [gewaehlt, setGewaehlt] = useState<Wahl | null>(null);
   /*
    * Die Suche in der Cup-Liste.
@@ -124,9 +121,21 @@ export default function Startansicht({ onWeiter, art }: {
    * gerade offene Stufe.
    */
   const [regionFilter, setRegionFilter] = useState('');
-  const [nurWichtige, setNurWichtige] = useState(false);
+  // Voreingestellt: nur FNCS, Cash und Performance; fuer Ranked und Co. ausschalten.
+  const [nurWichtige, setNurWichtige] = useState(true);
   const [nurFinals, setNurFinals] = useState(false);
   const REGIONEN = ['EU', 'NAC', 'NAW', 'BR', 'ASIA', 'ME', 'OCE'];
+
+  /*
+   * Kommt jemand von der Uebersicht mit "Neues Overlay" (?neu=1), geht es
+   * gleich in die Cup-Wahl - ohne noch einmal auf "Neues Overlay" zu druecken.
+   */
+  useEffect(() => {
+    if (!new URLSearchParams(window.location.search).get('neu')) return;
+    if (ohneCup) onWeiter('', ''); else setNeu(true);
+    // Nur beim Aufschlagen.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     fetch('/api/cup-catalog?modus=alle')
@@ -145,23 +154,21 @@ export default function Startansicht({ onWeiter, art }: {
    */
   const alleKacheln = useMemo(() => {
     const { von, bis } = overlayZeitraumWeit();
-    const heuteVon = new Date(); heuteVon.setHours(0, 0, 0, 0);
-    const heuteBis = new Date(); heuteBis.setHours(23, 59, 59, 999);
     const raus: Wahl[] = [];
     // NA Central und NA West teilen sich Fenster - jedes windowId nur einmal, mit seiner eigenen Region.
     const gesehen = new Set<string>();
     for (const c of cups ?? []) {
       const erlaubt = overlayCupErlaubt(c.titel);
       for (const liste of Object.values(c.regionen ?? {})) {
-        for (const w of liste) {
-          if (w.begin < von || w.begin > bis) continue;
-          if (gesehen.has(w.windowId)) continue;
+        const frisch = (liste ?? []).filter((w) => w.begin >= von && w.begin <= bis && !gesehen.has(w.windowId));
+        // Die Runde je Spieltag - auch wenn Epic sie nicht in die Kennung schreibt (Last Chance Qualifier und sein Finale).
+        const stufen = rundenBeschriftung(liste ?? [], t);
+        for (const w of frisch) {
           gesehen.add(w.windowId);
           raus.push({
             eventId: w.eventId, windowId: w.windowId, region: /_([A-Z]{2,4})$/.exec(w.windowId)?.[1] ?? w.region,
-            titel: c.titel, istFinale: w.istFinale, begin: w.begin,
+            titel: c.titel, stufe: stufen.get(w.windowId) ?? '', istFinale: w.istFinale, begin: w.begin,
             live: w.status === 'live', erlaubt,
-            heute: w.begin >= heuteVon.getTime() && w.begin <= heuteBis.getTime(),
           });
         }
       }
@@ -178,19 +185,26 @@ export default function Startansicht({ onWeiter, art }: {
       || Math.abs(a.begin - jetzt) - Math.abs(b.begin - jetzt)
       || overlayRegionRang(a.region) - overlayRegionRang(b.region)
       || overlayCupRang(a.titel) - overlayCupRang(b.titel));
-  }, [cups]);
+  }, [cups, t]);
 
   /*
-   * Was auf dieser Stufe zu sehen ist.
+   * Was zu sehen ist.
    *
-   * Laufendes immer. Danach oeffnet jede Stufe einen Ring weiter, damit die
-   * erste Ansicht kurz bleibt: sechs Kacheln statt sechzig.
+   * Laufendes und was in einer halben Stunde anfaengt; auf Wunsch dazu die
+   * letzte Woche. Kommendes nie. Die Filter und die Suche wirken darauf.
    */
   const kacheln = useMemo(() => {
     const woerter = suche.trim().toLowerCase().split(/\s+/).filter(Boolean);
-    const gefiltert = regionFilter || nurWichtige || nurFinals;
+    const jetzt = Date.now();
     return alleKacheln.filter((k) => {
-      if (nurLaufende && !managerDarfCup(k.begin, k.region, k.live)) return false;
+      if (nurLaufende) {
+        // Ein Manager hat seine eigene Regel (Europa ab 15 Minuten vorher, sonst zwei Stunden).
+        if (!managerDarfCup(k.begin, k.region, k.live)) return false;
+      } else {
+        const bald = !k.live && k.begin > jetzt && k.begin - jetzt <= 30 * 60_000;
+        const vorbei = !k.live && k.begin <= jetzt;
+        if (!k.live && !bald && !(frueher && vorbei)) return false;
+      }
       if (regionFilter && k.region !== regionFilter) return false;
       if (nurWichtige && !k.erlaubt) return false;
       if (nurFinals && !k.istFinale) return false;
@@ -206,22 +220,18 @@ export default function Startansicht({ onWeiter, art }: {
       if (woerter.length) {
         const zeit = wann(k.live ? 'live' : '', k.begin);
         const imText = [
-          k.titel, k.region, k.istFinale ? 'finals finale' : '',
+          k.titel, k.stufe, k.region, k.istFinale ? 'finals finale' : '',
           new Date(k.begin).toLocaleDateString('de-DE',
             { day: '2-digit', month: '2-digit' }),
           zeit, t(zeit),
         ].join(' ').toLowerCase().split(/[^\p{L}\p{N}.]+/u).filter(Boolean);
         return woerter.every((w) => imText.some((x) => x.startsWith(w)));
       }
-      if (k.live || gefiltert) return true;
-      if (stufe === 0) return k.heute && k.erlaubt && k.region === 'EU';
-      if (stufe === 1) return k.heute && k.erlaubt;
       return true;
     });
-  }, [alleKacheln, stufe, nurLaufende, suche, t, regionFilter, nurWichtige, nurFinals]);
+  }, [alleKacheln, nurLaufende, suche, t, regionFilter, nurWichtige, nurFinals, frueher]);
 
-  const nochDa = alleKacheln.length - kacheln.length;
-  const sucht = suche.trim().length > 0 || Boolean(regionFilter) || nurWichtige || nurFinals;
+  const sucht = suche.trim().length > 0 || Boolean(regionFilter) || nurFinals;
 
   return (
     <div className="flex flex-col gap-8">
@@ -252,18 +262,11 @@ export default function Startansicht({ onWeiter, art }: {
                            text-slate-400">
               <T>Für welchen Cup?</T>
             </h2>
-            {nochDa > 0 && !sucht && (
-              <button onClick={() => setStufe((v) => Math.min(2, v + 1))}
-                className="ml-auto text-[11px] text-slate-500 transition
-                           hover:text-sky-400">
-                <T>mehr anzeigen</T> ({nochDa})
-              </button>
-            )}
-            {stufe > 0 && !sucht && (
-              <button onClick={() => setStufe(0)}
-                className={`text-[11px] text-slate-600 transition
-                           hover:text-slate-300 ${nochDa > 0 ? '' : 'ml-auto'}`}>
-                <T>weniger</T>
+            {!nurLaufende && (
+              <button onClick={() => setFrueher((v) => !v)}
+                className={`ml-auto text-[11px] transition hover:text-sky-400 ${
+                  frueher ? 'text-sky-400' : 'text-slate-500'}`}>
+                {frueher ? <T>nur was läuft</T> : <T>auch die letzte Woche zeigen</T>}
               </button>
             )}
           </div>
@@ -330,9 +333,9 @@ export default function Startansicht({ onWeiter, art }: {
           )}
           {cups && !kacheln.length && !sucht && !nurLaufende && (
             <p className="text-sm leading-relaxed text-amber-500/80">
-              <T>Gerade läuft kein Cup. Mit „mehr anzeigen“ siehst du auch die
-              übrigen Regionen, die kommenden Tage sowie Ranked, Reload, Mobile
-              und Arenas.</T>
+              <T>Gerade läuft kein passender Cup. Schalte den Filter „Nur FNCS,
+              Cash und Performance“ aus, um auch Ranked, Reload, Mobile und
+              Arenas zu sehen, oder zeig die letzte Woche.</T>
             </p>
           )}
 
@@ -369,7 +372,7 @@ export default function Startansicht({ onWeiter, art }: {
                   </span>
                   <span className="mt-1 block text-[11px] text-slate-500">
                     {k.region}
-                    {k.istFinale ? ` · ${t('Finale')}` : ''}
+                    {k.stufe ? ` · ${k.stufe}` : ''}
                     {` · ${t(wann(k.live ? 'live' : '', k.begin))}`}
                     {!k.erlaubt ? ` · ${t('sonstiger Cup')}` : ''}
                   </span>
@@ -398,7 +401,7 @@ export default function Startansicht({ onWeiter, art }: {
             <T>Abbrechen</T>
           </button>
           <span className="min-w-0 truncate text-[11px] text-slate-500">
-            {gewaehlt ? `${gewaehlt.titel} · ${gewaehlt.region}` : ''}
+            {gewaehlt ? [gewaehlt.titel, gewaehlt.stufe, gewaehlt.region].filter(Boolean).join(' · ') : ''}
           </span>
           <button
             onClick={() => gewaehlt && onWeiter(gewaehlt.eventId, gewaehlt.windowId)}

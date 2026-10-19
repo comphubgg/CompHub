@@ -19,7 +19,10 @@ import { CupWahl, MeineListe, Regler, Vorschau, Wahlreihe } from '../Teile';
 
 const STANDARD = {
   event: '', window: '',
-  schwelle: 50,
+  /** Null: automatisch aus dem Cup. */
+  schwelle: 0,
+  /** Punkte, die auf den Schnitt frueherer Ausgaben aufgeschlagen werden. */
+  zuschlag: 5,
   wort: 'QUAL ~',
   takt: 15,
   grund: '0 0 0', deckkraft: 0.72,
@@ -141,18 +144,29 @@ export default function QualSeite() {
               <CupWahl event={cfg.event} window={cfg.window}
                 onWahl={(e, w) => setCfg((alt) => ({ ...alt, event: e, window: w }))} />
 
-              <label className="text-xs text-slate-400">
-                <T>Wie viele kommen weiter</T>
-                <input type="number" min={1} max={5000} value={cfg.schwelle}
-                  onChange={(e) => setz('schwelle', Math.max(1, +e.target.value || 50))}
-                  className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950
-                             px-3 py-2 text-sm text-slate-100 outline-none
-                             focus:border-sky-500" />
+              <div>
+                <Wahlreihe titel="Wie viele kommen weiter" wert={cfg.schwelle > 0 ? 1 : 0}
+                  optionen={[
+                    { wert: 0, titel: 'Automatisch aus dem Cup' },
+                    { wert: 1, titel: 'Von Hand' },
+                  ]}
+                  setzen={(w) => setz('schwelle', w === 0 ? 0 : 50)} />
+                {cfg.schwelle > 0 && (
+                  <input type="number" min={1} max={5000} value={cfg.schwelle}
+                    onChange={(e) => setz('schwelle', Math.max(1, +e.target.value || 50))}
+                    className="mt-2 w-full rounded-lg border border-zinc-800 bg-zinc-950
+                               px-3 py-2 text-sm text-slate-100 outline-none
+                               focus:border-sky-500" />
+                )}
                 <span className="mt-1 block text-[11px] text-slate-600">
-                  <T>Steht als Rangschwelle in Epics Auszahlungstabelle — bei
-                  einem Divisional-Finale etwa Top 50.</T>
+                  {cfg.schwelle > 0
+                    ? <T>Der Platz, bis zu dem es weitergeht — bei einem Divisional-Finale etwa Top 50.</T>
+                    : <T>Gezählt wird, wer in der nächsten Runde desselben Cups antritt. Ist das nicht bekannt, stell es von Hand ein.</T>}
                 </span>
-              </label>
+              </div>
+
+              <Regler titel="Zuschlag auf die Schätzung" wert={cfg.zuschlag} von={0} bis={50}
+                einheit="Punkte" setzen={(n) => setz('zuschlag', n)} />
 
               <label className="text-xs text-slate-400">
                 <T>Wort davor</T>

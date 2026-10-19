@@ -22,6 +22,8 @@ export function rundenName(
   const woche = hol(/Week(\d+)/i);   if (woche) teile.push(`Week ${woche}`);
   const quali = hol(/Qual(\d+)/i);   if (quali) teile.push(`Quali ${quali}`);
   const event = hol(/Event(\d+)/i);  if (event) teile.push(`Event ${event}`);
+  const heat  = hol(/Heats?(\d+)/i); if (heat)  teile.push(`Heat ${heat}`);
+  if (/Fast_?Tracks?/i.test(w)) teile.push('Fast Track');
   const runde = hol(/Round(\d+)/i);  if (runde) teile.push(`${uebs('Runde')} ${runde}`);
   const tag   = hol(/Day(\d+)/i);    if (tag)   teile.push(`${uebs('Tag')} ${tag}`);
   if (istFinale || /Final/i.test(w)) teile.push(uebs('Finale'));

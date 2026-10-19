@@ -23,7 +23,11 @@
     &felder=rank,points,games,elims
     &layout=drei        Trio (drei Spieler): drei | reihe | mitte | kompakt
     &n3=…&f3=…          dritter Name und drittes Foto
+    &form=leiste        die Leiste (ein Spieler, schraeg geschnitten) statt der Karte
+    &akzent=4ade80      Akzentfarbe (hex, ohne #) statt der der Vorlage
+    &team=1             ein einzelner Spieler aus einem Team-Cup: Beschriftung "Team stats"
     &probe=1            nur fuer die Vorschau im Baukasten: Beispieldaten statt Bestenliste
+    &spieler=1          mit probe: wie viele Beispielspieler (1 bis 3)
 -->
 <style>
   :root {
@@ -349,6 +353,14 @@
   .l-werte .w { display: flex; align-items: baseline; gap: calc(7px * var(--skala)); }
   .l-werte .l { font-size: calc(12px * var(--skala)); font-weight: 800; letter-spacing: .1em; color: var(--akzent); text-transform: uppercase; }
   .l-werte .v { font-size: calc(27px * var(--skala)); font-weight: 800; color: var(--schrift); font-variant-numeric: tabular-nums; line-height: 1; }
+  /*
+   * "Team stats": ein einzelner Spieler aus einem Duo- oder Trio-Cup zeigt die Werte seines Teams (team=1). Der Betreiber (19.10.2026): so muss man
+   * es dazuschreiben. Bei der Karte eine kleine Zeile unter dem Namen, bei der Leiste ein Zettel vor den Zahlen.
+   */
+  #teamlabel { display: none; font-size: calc(10px * var(--skala)); font-weight: 800; letter-spacing: .18em; color: var(--akzent); text-transform: uppercase; }
+  body.team #teamlabel { display: block; }
+  #banner.leerlauf #teamlabel { display: none; }
+  .l-werte .tl { font-size: calc(9px * var(--skala)); font-weight: 800; letter-spacing: .12em; line-height: 1.15; color: var(--leise); text-transform: uppercase; text-align: left; }
   #leiste.leerlauf .l-werte { display: none; }
   #leiste.leerlauf .l-hinweis { display: flex; }
 </style>
@@ -359,6 +371,7 @@
   <div class="foto leer" id="foto1"><img id="bild1" alt=""></div>
   <div class="mitte">
     <div class="namen" id="namen">—</div>
+    <div id="teamlabel">Team stats</div>
     <div class="werte" id="werte"></div>
     <div id="hinweis"></div>
   </div>
@@ -563,6 +576,8 @@ if (P.get('abstand')) {
   const a = Math.max(8, Math.min(64, parseInt(P.get('abstand'), 10) || 18));
   document.documentElement.style.setProperty('--abstand', a + 'px');
 }
+const TEAMLABEL = (P.get('team') || '') === '1';
+if (TEAMLABEL) document.body.classList.add('team');
 if (LEISTE) {
   // Die Leiste misst sich an 86 Punkten Hoehe.
   document.body.classList.add('leiste');
@@ -894,6 +909,12 @@ function namenEinpassen() {
 function leisteSpalten() {
   const box = document.getElementById('l-werte');
   if (box.children.length) return;
+  if (TEAMLABEL) {
+    const z = document.createElement('div');
+    z.className = 'tl';
+    z.innerHTML = 'Team<br>stats';
+    box.appendChild(z);
+  }
   for (const f of FELDER) {
     const d = document.createElement('div');
     d.className = 'w';
@@ -1078,6 +1099,10 @@ const PROBE_EINTRAG = LEISTE ? {
     { id: 'probe3', name: 'DEMUS', img: '/spielerbilder/demus.jpg' },
   ],
 };
+
+// Die Vorschau zeigt so viele Beispielspieler, wie im Baukasten gewaehlt sind (spieler=1 bis 3).
+const PROBE_N = parseInt(P.get('spieler'), 10);
+if (PROBE_N >= 1 && PROBE_N < PROBE_EINTRAG.players.length) PROBE_EINTRAG.players = PROBE_EINTRAG.players.slice(0, PROBE_N);
 
 async function tick() {
   baueSpalten();

@@ -34,6 +34,9 @@ const STANDARD = {
   abStunden: 12,
   /** "zwei" = untereinander, "eine" = alles in einer Zeile. */
   anordnung: 'zwei' as 'zwei' | 'eine',
+  /** Nach dem Start: die Zeit seit dem Start weiterzaehlen oder verschwinden. */
+  nachStart: 'zaehlt' as 'zaehlt' | 'weg',
+  wortLaeuft: 'LIVE FOR',
 };
 
 type Config = typeof STANDARD;
@@ -197,8 +200,8 @@ export default function TimerSeite() {
       <div className="mb-5">
         <h1 className="text-xl font-semibold text-slate-100"><T>Cup timer</T></h1>
         <p className="mt-1 text-sm text-slate-500">
-          <T>Ein Countdown bis zum Start des Spieltags. Sobald der Cup läuft,
-          verschwindet er von selbst.</T>
+          <T>Ein Countdown bis zum Start des Spieltags. Danach zählt er auf
+          Wunsch die Zeit seit dem Start weiter — oder verschwindet.</T>
         </p>
       </div>
 
@@ -228,6 +231,17 @@ export default function TimerSeite() {
               </label>
             </div>
 
+            {cfg.nachStart === 'zaehlt' && (
+              <label className="mt-3 block text-xs text-slate-400">
+                <T>Überschrift nach dem Start</T>
+                <input value={cfg.wortLaeuft}
+                  onChange={(e) => setz('wortLaeuft', e.target.value)}
+                  className="mt-1 w-full rounded-lg border border-zinc-800
+                             bg-zinc-950 px-3 py-2 text-sm text-slate-100
+                             outline-none focus:border-sky-500" />
+              </label>
+            )}
+
             {cfg.beginn > 0 && (
               <p className="mt-3 text-[11px] text-sky-400/80">
                 <T>Start</T>{': '}
@@ -242,6 +256,12 @@ export default function TimerSeite() {
               <Wahlreihe titel="Cup-Name darunter" wert={cfg.cupZeigen ? 1 : 0}
                 optionen={[{ wert: 1, titel: 'Ja' }, { wert: 0, titel: 'Nein' }]}
                 setzen={(w) => setz('cupZeigen', w === 1)} />
+              <Wahlreihe titel="Nach dem Start" wert={cfg.nachStart}
+                optionen={[
+                  { wert: 'zaehlt' as const, titel: 'Zeit seit dem Start' },
+                  { wert: 'weg' as const, titel: 'Verschwinden' },
+                ]}
+                setzen={(w) => setz('nachStart', w)} />
               <Wahlreihe titel="Anordnung" wert={cfg.anordnung}
                 optionen={[
                   { wert: 'zwei' as const, titel: 'Untereinander' },

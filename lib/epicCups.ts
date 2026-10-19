@@ -750,6 +750,18 @@ export async function findeSpieler(
   }
 
   const key = `${eventId}|${windowId}|${gesuchteNamen.join(',')}|${[...gesuchteIds].join(',')}`;
+  /*
+   * Nur Konto-Ids gesucht? Dann ohne Namensaufloesung durch die Liste.
+   *
+   * Zu jeder Seite loest holeSeite sonst hundert Konten bei Epic auf - bei
+   * einem Cup mit zehntausend Teams hundert Abfragen, die zudem gedrosselt
+   * werden. Das Banner suchte so ueber die Konten aus dem Verzeichnis
+   * stets die ganze Liste ab und brauchte dafuer halbe Minuten (Betreiber,
+   * 19.10.2026: "das Suchen dauert extrem lange"). Die Ids stehen auch ohne
+   * Namen in jeder Seite; die Namen werden danach nur fuer die Seiten
+   * geholt, auf denen jemand gefunden wurde.
+   */
+  const nurIds = !gesuchteNamen.length;
   const treffer = new Map<number, CupEintrag>();
   const gesucht = gesuchteNamen.length + gesuchteIds.size;
   let scanned = 0, totalPages = 1;
@@ -769,7 +781,7 @@ export async function findeSpieler(
   if (hint !== undefined) {
     for (const p of [hint, hint - 1, hint + 1]) {
       if (p < 0 || p >= MAX_PAGES) continue;
-      sammle(await holeSeite(eventId, windowId, p));
+      sammle(await holeSeite(eventId, windowId, p, nurIds));
       scanned++;
       if (treffer.size >= gesucht) break;
     }
@@ -777,13 +789,28 @@ export async function findeSpieler(
   if (treffer.size < gesucht) {
     // Die erste Seite nennt die Seitenzahl; den Rest in Staffeln zu zehn gleichzeitig - ein Cup mit zehntausend Teams hat hundert Seiten, und wer
     // auf Platz 9000 steht, wartete nacheinander gelesen so lange, dass er als "nicht dabei" galt (Betreiber, 14.10.2026).
-    sammle(await holeSeite(eventId, windowId, 0));
+    sammle(await holeSeite(eventId, windowId, 0, nurIds));
     scanned++;
     const grenze = Math.min(maxPages, totalPages);
     for (let p = 1; p < grenze && treffer.size < gesucht; p += 10) {
       const staffel: Array<ReturnType<typeof holeSeite>> = [];
-      for (let k = p; k < Math.min(p + 10, grenze); k++) staffel.push(holeSeite(eventId, windowId, k));
+      for (let k = p; k < Math.min(p + 10, grenze); k++) staffel.push(holeSeite(eventId, windowId, k, nurIds));
       for (const res of await Promise.all(staffel)) { scanned++; sammle(res); }
+    }
+  }
+
+  // Die Namen nur dort holen, wo jemand gefunden wurde (siehe nurIds).
+  if (nurIds && treffer.size) {
+    const seiten = new Set<number>();
+    for (const e of treffer.values()) seiten.add(e.page ?? 0);
+    try {
+      for (const seite of await Promise.all([...seiten].map((p) => holeSeite(eventId, windowId, p)))) {
+        for (const e of seite.entries) {
+          if (treffer.has(e.rank)) treffer.set(e.rank, { ...e, page: seite.page });
+        }
+      }
+    } catch {
+      // Epic drosselt die Namensabfrage (429): die Treffer bleiben, mit Kennung statt Namen - die Seite ersetzt sie aus dem Verzeichnis.
     }
   }
 

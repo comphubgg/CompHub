@@ -9,7 +9,7 @@
  * Die Farben sind die der Kacheln, die Epic fuer die Cups verwendet (aus den
  * Bildern gelesen, nicht geraten):
  *   Performance Evaluation   Tuerkis, schwarze Akzente
- *   Division Cups            Mint und Chromblau
+ *   Division Cups            Violett zu Magenta, dunkler Balken, gruener Akzent (neu 19.10.2026)
  *   Cash Cups                Blau ueber Violett zu Magenta
  *   Reload                   Nachtblau mit Gold
  * Es sind nur Verlaeufe und Muster aus CSS - keine Grafik von Epic liegt hier.
@@ -32,13 +32,13 @@ body.th-performance {
 }
 
 body.th-division {
-  --akzent: #7fd8c0;
-  --rand: rgba(127, 216, 192, 0.40);
-  --text: #effffa;
-  --titel: #a6f2de;
+  --akzent: #6ee05a;
+  --rand: rgba(110, 224, 90, 0.42);
+  --text: #fbf3ff;
+  --titel: #e3c8ff;
   --muster:
-    linear-gradient(200deg, rgba(231, 240, 255, 0.20) 0 14%, transparent 14.2%),
-    linear-gradient(120deg, #1556b8 0%, #2f86d6 34%, #4fb3b0 68%, #7fd8c0 100%);
+    linear-gradient(162deg, transparent 0 60%, rgba(10, 3, 24, 0.64) 60.2% 78%, transparent 78.2%),
+    linear-gradient(118deg, #35106b 0%, #7b2cbf 34%, #c026d3 68%, #ff4fd8 100%);
 }
 
 body.th-cash {

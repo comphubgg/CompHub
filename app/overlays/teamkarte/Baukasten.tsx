@@ -15,13 +15,11 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import Link from 'next/link';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import OverlayGeruest, { overlayAdresse, useOverlays } from '../OverlayGeruest';
-import { Vorschau } from '../Teile';
-import { overlayCupErlaubt, overlayZeitraum } from '@/lib/overlayCups';
-import { rundenName } from '@/lib/rundenName';
+import { CupWahl, Vorschau, type CupInfo } from '../Teile';
+import { teamGroesseVon } from '@/lib/overlayCups';
 import GlobalsGeruest from '@/app/globals/GlobalsGeruest';
 import GlobalsTagWahl from '@/app/globals/GlobalsTage';
 import {
@@ -29,10 +27,6 @@ import {
 } from '@/lib/globalsCup';
 import FotoWahl from './FotoWahl';
 
-interface Fenster {
-  status: 'live' | 'kommt' | 'vorbei';
-  begin: number; name: string; eventId: string; windowId: string;
-}
 interface Spieler { id: string; name: string; img?: string | null }
 interface Team { rank: number; spieler: Spieler[] }
 
@@ -50,12 +44,10 @@ const VORLAGEN = [
   { id: 'globals', titel: 'FNCS Globals', grund: '#05070f', akzent: '#f5c542', schrift: '#ffd766' },
   // Die Aussehen der anderen Reihen - Farben der Cup-Kacheln, siehe vorlagen.js.
   { id: 'performance', titel: 'Performance Cup', grund: '#14a89b', akzent: '#2ad1cc', schrift: '#ffffff' },
-  { id: 'division', titel: 'Division Cup', grund: '#2f86d6', akzent: '#7fd8c0', schrift: '#ffffff' },
+  { id: 'division', titel: 'Division Cup', grund: '#7b2cbf', akzent: '#6ee05a', schrift: '#ffffff' },
   { id: 'cash', titel: 'Cash Cup', grund: '#5b4fe0', akzent: '#e879f9', schrift: '#ffffff' },
   { id: 'reload', titel: 'Reload', grund: '#0b1740', akzent: '#e0b455', schrift: '#ffffff' },
 ];
-
-const REGIONEN = ['EU', 'NAC', 'NAW', 'BR', 'ASIA', 'ME', 'OCE'];
 
 /** Drei Plaetze: Duo-Cups nutzen zwei, Trio-Cups alle drei. */
 type Drei = [string, string, string];
@@ -147,6 +139,45 @@ function LayoutVorschau({
   );
 }
 
+/** Farben zur Schnellwahl fuer den Akzent - wer eine andere will, nimmt den Farbwaehler daneben. */
+const AKZENTE = ['#38bdf8', '#4ade80', '#facc15', '#fb923c', '#ff3b6b', '#e879f9', '#a78bfa', '#ffffff'];
+
+/**
+ * Die kleine Vorschau einer Form (Karte oder Leiste).
+ *
+ * Das echte Banner mit klar gekennzeichneten Beispieldaten (probe=1),
+ * verkleinert - so sieht man den Unterschied, bevor ein Spieler feststeht.
+ * Die Zahlen sind erfunden und stehen nie in einer Adresse zum Kopieren.
+ */
+function FormVorschau({
+  basis, form, vorlage, klar, akzent,
+}: {
+  basis: string; form: 'karte' | 'leiste'; vorlage: string; klar: number; akzent: string;
+}) {
+  const adresse = useMemo(() => {
+    const p = new URLSearchParams();
+    if (basis) p.set('server', basis);
+    p.set('probe', '1');
+    if (form === 'leiste') p.set('form', 'leiste');
+    p.set('vorlage', vorlage);
+    p.set('klar', String(klar));
+    if (akzent) p.set('akzent', akzent.replace('#', ''));
+    return `${basis}/overlay/banner.html?${p.toString()}`;
+  }, [basis, form, vorlage, klar, akzent]);
+  return (
+    <span className="relative block h-16 w-full overflow-hidden bg-zinc-950">
+      {basis && (
+        <iframe src={adresse} title={form} tabIndex={-1} loading="lazy"
+          className="pointer-events-none absolute left-0 top-0 border-0"
+          style={{ width: 820, height: 200, transform: 'scale(0.4)', transformOrigin: 'top left' }} />
+      )}
+      <span className="absolute bottom-1 right-1.5 rounded bg-black/60 px-1.5 py-0.5 text-[9px] uppercase tracking-wider text-slate-300">
+        <T>Beispiel</T>
+      </span>
+    </span>
+  );
+}
+
 /**
  * Ein Schritt im Baukasten - immer nur einer offen.
  *
@@ -226,14 +257,35 @@ export default function TeamkarteBaukasten({ globals = false }: {
   const [schritt, setSchritt] = useState(1);
 
   const [region, setRegion] = useState(globals ? GLOBALS_REGION : 'EU');
-  const [fenster, setFenster] = useState<Fenster[]>([]);
   // In der Globals-Fassung steht der Spieltag schon beim Aufschlagen fest.
   const [cup, setCup] = useState(globals
     ? `${GLOBALS_EVENT}|${GLOBALS_TAGE[0].windowId}` : '');
-  const [cupSuche, setCupSuche] = useState('');
-  const [alleZeigen, setAlleZeigen] = useState(false);
-  const [ladeFehler, setLadeFehler] = useState<string | null>(null);
-  const [loginNoetig, setLoginNoetig] = useState(false);
+  /** Der lesbare Name des gewaehlten Spieltags (Cup, Runde, Region) - fuer die eingeklappte Ueberschrift. */
+  const [cupName, setCupName] = useState('');
+  /** Was die Cup-Auswahl ueber den Spieltag weiss; daraus folgt, ob Solo, Duo oder Trio gespielt wird. */
+  const [cupInfo, setCupInfo] = useState<CupInfo | null>(null);
+  /** Die Wiedergabeliste eines gespeicherten Overlays - solange die Auswahl nichts Neues gesagt hat. */
+  const [playlistGemerkt, setPlaylistGemerkt] = useState('');
+  /*
+   * Karte oder Leiste.
+   *
+   * Die Karte zeigt ein bis drei Spieler mit Foto; die Leiste (Betreiber,
+   * 19.10.2026, nach einem Vorbild) genau einen, schraeg geschnitten. Sie gilt
+   * nur bei einem Spieler - bei Duos und Trios bleibt es die Karte.
+   */
+  const [form, setForm] = useState<'karte' | 'leiste'>('karte');
+  /** Die Akzentfarbe (#rrggbb) - leer heisst: die der Vorlage. */
+  const [akzent, setAkzent] = useState('');
+  /*
+   * Ob die gespeicherte Adresse an diesem Spieltag haengt.
+   *
+   * Der Betreiber (19.10.2026): eine gespeicherte Adresse soll gueltig
+   * bleiben, wenn der Cup nicht mehr laeuft - und dann die letzten Zahlen
+   * zeigen. Das tut sie, wenn der Spieltag fest drinsteht. Wer dagegen jede
+   * Woche dasselbe Overlay fuer den laufenden Cup will, stellt auf "folgt dem
+   * laufenden Cup der Region" um.
+   */
+  const [fest, setFest] = useState(!globals);
 
   const [teams, setTeams] = useState<Team[]>([]);
   const [teamFuer, setTeamFuer] = useState('');
@@ -278,7 +330,7 @@ export default function TeamkarteBaukasten({ globals = false }: {
    * folgt der Teamgroesse, sobald ein Team gewaehlt ist, und laesst sich
    * daneben von Hand umstellen.
    */
-  const [teamGroesse, setTeamGroesse] = useState<2 | 3>(2);
+  const [teamGroesse, setTeamGroesse] = useState<1 | 2 | 3>(2);
   const [layout, setLayout] = useState<string>('drei');
 
   /*
@@ -297,6 +349,9 @@ export default function TeamkarteBaukasten({ globals = false }: {
     vorlage: string; klar: number; hoehe: number; abstand?: number;
     /** Spieler je Team (2 oder 3) und bei Trios die Anordnung. */
     spieler?: number; layout?: string;
+    /** Karte oder Leiste, Akzentfarbe, und ob der Spieltag fest dran haengt (siehe fest). */
+    form?: string; akzent?: string; fest?: boolean;
+    event?: string; window?: string; cupName?: string; playlist?: string;
     /** Mehrere Duos und ihr Wechseltakt - seit die Adresse fest ist. */
     weitere?: Array<{
       ids: string[]; namen: Drei;
@@ -339,6 +394,8 @@ export default function TeamkarteBaukasten({ globals = false }: {
         abstand: c.abstand,
         weitere: c.weitere,
         wechsel: c.wechsel,
+        form: c.form, akzent: c.akzent, fest: c.fest,
+        event: c.event, window: c.window, cupName: c.cupName, playlist: c.playlist,
       };
     }),
     [vorlagenRoh]);
@@ -404,142 +461,18 @@ export default function TeamkarteBaukasten({ globals = false }: {
   const [eventId, windowId] = useMemo(() => cup.split('|'), [cup]);
 
   /*
-   * Lesbare Cupnamen.
+   * Wie viele Spieler ein Team in diesem Cup hat, und was daraus folgt.
    *
-   * Epic gibt nur Kennungen heraus - "s42_reload_duos_victory". Der Katalog
-   * kennt zu jedem Spielfenster den richtigen Titel; die Runde kommt aus
-   * derselben Stelle wie auf den Event- und Kartenseiten, damit ueberall
-   * dasselbe steht.
+   * Ein Solo-Cup zeigt nur Solo, ein Duo-Cup Duo oder Solo, ein Trio-Cup Trio,
+   * Duo oder Solo (Betreiber, 19.10.2026). Wer weniger Spieler zeigt als das
+   * Team hat, zeigt trotzdem die Werte des Teams - das steht dann als "Team
+   * stats" im Banner.
    */
-  const [katalog, setKatalog] = useState<Record<string, string>>({});
-  useEffect(() => {
-    fetch('/api/cup-catalog?modus=alle')
-      .then((r) => r.json())
-      .then((d: { cups?: Array<{
-        titel?: string;
-        regionen?: Record<string, Array<{ windowId: string }>>;
-      }> }) => {
-        const karte: Record<string, string> = {};
-        for (const c of d.cups ?? []) {
-          for (const liste of Object.values(c.regionen ?? {})) {
-            for (const w of liste ?? []) karte[w.windowId] = c.titel ?? '';
-          }
-        }
-        setKatalog(karte);
-      })
-      .catch(() => {});
-  }, []);
-
-  const lesbarerName = useCallback((w: Fenster) => {
-    const cupName = (katalog[w.windowId] ?? '').split('·')[0].trim();
-    const runde = rundenName(w.windowId, /Final/i.test(w.windowId), t);
-    if (cupName) return [cupName, runde].filter(Boolean).join(' · ');
-    // Kennt der Katalog den Spieltag nicht, wenigstens die Kennung entzerren.
-    return w.name.replace(/[_]+/g, ' ').trim();
-  }, [katalog, t]);
-
-  /* ---------------------------------------------------------- Cups */
-
-  useEffect(() => {
-    let weg = false;
-    void (async () => {
-      setLadeFehler(null);
-      try {
-        const r = await fetch(`/api/cup-events?region=${region}`);
-        const d = await r.json();
-        if (weg) return;
-        if (!r.ok) {
-          setLoginNoetig(Boolean(d.needsLogin));
-          setLadeFehler(d.error ?? 'Cups nicht ladbar');
-          setFenster([]);
-          return;
-        }
-        setLoginNoetig(false);
-        const liste: Fenster[] = d.windows ?? [];
-        setFenster(liste);
-        /*
-         * Vorgewaehlt wird nichts mehr.
-         *
-         * Frueher stand hier der erste laufende Spieltag - und das war
-         * irgendeiner, oft ein Ranked-Fenster, das gar nicht zur Wahl gehoert.
-         * Welcher passt, entscheidet die gefilterte Liste; sie waehlt weiter
-         * unten selbst den ersten aus, sobald der Katalog da ist.
-         */
-        setCup('');
-      } catch (e) {
-        if (!weg) setLadeFehler((e as Error).message);
-      }
-    })();
-    return () => { weg = true; };
-  }, [region]);
-
-  /*
-   * Welche Spieltage zur Wahl stehen.
-   *
-   * Nur Vergangenes und Laufendes - zu einem Cup naechste Woche gibt es keine
-   * Zahlen, und die Liste war mit hundert leeren Terminen zugestellt. Gezeigt
-   * werden acht; wer weiter zurueck will, sucht oder klappt auf. Genau das
-   * hatte der Betreiber verlangt: "es waer geil, wenn man alles sehen koennte.
-   * Aber das ist wie viel zu unuebersichtlich."
-   */
-  const auswahl = useMemo(() => {
-    const q = cupSuche.trim().toLowerCase();
-    const { von, bis } = overlayZeitraum();
-
-    /*
-     * Nur die Cups, die der Betreiber wirklich baut - und nur die von heute
-     * und morgen.
-     *
-     * Welche Cups das sind, steht in lib/overlayCups.ts, zusammen mit seinem
-     * Wortlaut. Hier bleibt nur die Anwendung: erst die Art, dann der
-     * Zeitraum, dann die Suche.
-     */
-    const infrage = fenster
-      .filter((w) => overlayCupErlaubt(katalog[w.windowId]))
-      .filter((w) => !q || lesbarerName(w).toLowerCase().includes(q)
-        || w.name.toLowerCase().includes(q))
-      .sort((a, b) => (a.status === 'live' ? 0 : 1) - (b.status === 'live' ? 0 : 1)
-        || b.begin - a.begin);
-
-    const jetzt = infrage.filter((w) => w.begin >= von && w.begin <= bis);
-    /*
-     * Der Weg zurueck bleibt offen: wer ein Banner fuer den gestrigen Final
-     * braucht, klappt auf oder sucht. Dann faellt die Tagesgrenze weg - die
-     * Art des Cups bleibt aber auch dann gefiltert.
-     */
-    return {
-      alle: infrage,
-      heute: jetzt,
-      zeig: q || alleZeigen ? infrage : jetzt,
-    };
-  }, [fenster, cupSuche, alleZeigen, lesbarerName, katalog]);
-
-  /*
-   * Der erste passende Spieltag, sobald die Liste steht.
-   *
-   * Erst mit dem Katalog laesst sich sagen, welches Fenster ueberhaupt ein
-   * Division-1-, Performance- oder Global-Cup ist. Deshalb faellt die Wahl
-   * hier und nicht schon beim Laden der Fenster.
-   */
-  useEffect(() => {
-    if (cup) return;
-    /*
-     * Kommt der Spieltag aus der Adresse?
-     *
-     * Die Startansicht schickt ihn mit. Ohne diesen Griff stand hier der
-     * erste Cup der Liste statt des gewaehlten - der Betreiber sah in der
-     * eingeklappten Ueberschrift nur "· EU" und im Banner einen Spieltag,
-     * den er gar nicht ausgesucht hatte.
-     */
-    const p = new URLSearchParams(window.location.search);
-    const wunsch = p.get('fenster');
-    if (wunsch) {
-      const treffer = auswahl.alle.find((f) => f.windowId === wunsch);
-      if (treffer) { setCup(`${treffer.eventId}|${treffer.windowId}`); return; }
-    }
-    const erster = auswahl.zeig[0] ?? auswahl.alle[0];
-    if (erster) setCup(`${erster.eventId}|${erster.windowId}`);
-  }, [cup, auswahl]);
+  const cupGroesse = teamGroesseVon(cupInfo?.playlist ?? playlistGemerkt, windowId);
+  const teamHinweis = teamGroesse < cupGroesse;
+  /** Die Leiste zeigt genau einen Spieler. */
+  const leiste = form === 'leiste' && teamGroesse === 1;
+  const vorlageAkzent = VORLAGEN.find((v) => v.id === vorlage)?.akzent ?? '#38bdf8';
 
   /*
    * Ein gespeichertes Overlay zum Bearbeiten holen.
@@ -559,7 +492,16 @@ export default function TeamkarteBaukasten({ globals = false }: {
       setDuo(o.ids.map((id, i) => ({ id, name: o.namen[i] ?? '' })));
       setNamen([o.namen[0] ?? '', o.namen[1] ?? '', o.namen[2] ?? '']);
       setFotos([o.fotos?.[0] ?? '', o.fotos?.[1] ?? '', o.fotos?.[2] ?? '']);
-      setTeamGroesse(o.spieler === 3 || o.ids.length >= 3 ? 3 : 2);
+      setTeamGroesse(o.spieler === 1 || o.spieler === 2 || o.spieler === 3
+        ? o.spieler : o.ids.length >= 3 ? 3 : o.ids.length === 1 ? 1 : 2);
+      setForm(o.form === 'leiste' ? 'leiste' : 'karte');
+      setAkzent(o.akzent ?? '');
+      setFest(o.fest === true && Boolean(o.event && o.window));
+      if (o.event && o.window) {
+        setCup(`${o.event}|${o.window}`);
+        setCupName(o.cupName ?? '');
+        setPlaylistGemerkt(o.playlist ?? '');
+      }
       if (o.layout && TRIO_LAYOUTS.some((l) => l.id === o.layout)) setLayout(o.layout);
       setVorlage(o.vorlage);
       setKlar(o.klar);
@@ -654,18 +596,40 @@ export default function TeamkarteBaukasten({ globals = false }: {
         ids = ausVerzeichnis.map((x) => x.epicId);
       } catch { /* ohne Verzeichnis bleibt die Textsuche */ }
 
-      const [ueberId, ueberText] = await Promise.all([
-        ids.length
-          ? fetch(`${grund}&ids=${encodeURIComponent(ids.join(','))}`).then((r) => r.json())
-          : Promise.resolve({ entries: [] }),
-        fetch(`${grund}&q=${encodeURIComponent(q)}`).then((r) => r.json()),
-      ]);
+      /*
+       * Erst ueber die Konten, den Text nur, wenn das Verzeichnis nichts kennt.
+       *
+       * Beides zugleich lief bisher immer durch die ganze Bestenliste, der
+       * Textweg sogar mit Namensaufloesung fuer jede Seite - bei grossen Cups
+       * eine halbe Minute. Der Betreiber (19.10.2026): "das Suchen dauert
+       * extrem lange". Die Konten brauchen keine Namen und sind nach wenigen
+       * Sekunden durch; den Text braucht nur, wer im Verzeichnis fehlt.
+       */
+      let gefunden: Array<{ rank: number; players?: Spieler[] }> = [];
+      if (ids.length) {
+        const r = await fetch(`${grund}&ids=${encodeURIComponent(ids.join(','))}`).then((x) => x.json());
+        gefunden = r.entries ?? [];
+      } else {
+        const r = await fetch(`${grund}&q=${encodeURIComponent(q)}`).then((x) => x.json());
+        gefunden = r.entries ?? [];
+      }
+      if (laufRef.current !== meiner) return;
+
+      /*
+       * Fehlt Epic der Name (die Namensabfrage wird gedrosselt), steht dort die
+       * halbe Kennung; dann gilt der gepflegte Name aus dem Verzeichnis.
+       */
+      const verz = new Map(ausVerzeichnis.map((x) => [x.epicId.toLowerCase(), x.anzeige]));
+      const mitName = (p: Spieler): Spieler => {
+        const gepflegt = verz.get(p.id.toLowerCase());
+        return gepflegt && p.name === p.id.slice(0, 8) ? { ...p, name: gepflegt } : p;
+      };
 
       // Doppelte zusammenlegen: derselbe Platz ist dasselbe Team.
       const nachPlatz = new Map<number, Team>();
-      for (const e of [...(ueberId.entries ?? []), ...(ueberText.entries ?? [])]) {
+      for (const e of gefunden) {
         if (!nachPlatz.has(e.rank)) {
-          nachPlatz.set(e.rank, { rank: e.rank, spieler: e.players ?? [] });
+          nachPlatz.set(e.rank, { rank: e.rank, spieler: (e.players ?? []).map(mitName) });
         }
       }
       if (laufRef.current !== meiner) return;
@@ -698,17 +662,28 @@ export default function TeamkarteBaukasten({ globals = false }: {
     return () => window.clearTimeout(stift);
   }, [teamSuche, eventId, windowId, sucheImTurnier]);
 
-  /** Wechselt zwischen Duo und Trio und stellt die Hoehe auf das Mass der Anordnung. */
-  const stelleTeamGroesse = (g: 2 | 3, l: string = layout) => {
+  /** Die Hoehe, bei der eine Form mit dieser Spielerzahl gut aussieht. */
+  const standardHoehe = (g: 1 | 2 | 3, f: 'karte' | 'leiste', l: string) =>
+    (f === 'leiste' ? 86 : g === 3 ? (TRIO_LAYOUTS.find((x) => x.id === l)?.basis ?? 282) : 108);
+
+  /** Wechselt zwischen einem, zwei und drei Spielern und stellt die Hoehe auf das Mass der Form. */
+  const stelleTeamGroesse = (g: 1 | 2 | 3, l: string = layout) => {
     if (g === teamGroesse) return;
+    // Die Leiste zeigt nur einen Spieler.
+    const f = g === 1 ? form : 'karte';
+    if (f !== form) setForm(f);
     setTeamGroesse(g);
-    setHoehe(g === 3 ? (TRIO_LAYOUTS.find((x) => x.id === l)?.basis ?? 282) : 108);
-    // Ein Duo hat keinen dritten Platz.
-    if (g === 2) {
-      setDuo((alt) => alt.slice(0, 2));
-      setNamen((alt) => [alt[0], alt[1], '']);
-      setFotos((alt) => [alt[0], alt[1], '']);
-    }
+    setHoehe(standardHoehe(g, f, l));
+    // Wer weniger Plaetze hat, hat auch weniger Namen und Fotos.
+    setDuo((alt) => alt.slice(0, g));
+    setNamen((alt) => [alt[0], g > 1 ? alt[1] : '', g > 2 ? alt[2] : ''] as Drei);
+    setFotos((alt) => [alt[0], g > 1 ? alt[1] : '', g > 2 ? alt[2] : ''] as Drei);
+  };
+
+  const waehleForm = (f: 'karte' | 'leiste') => {
+    if (f === form) return;
+    setForm(f);
+    setHoehe(standardHoehe(teamGroesse, f, layout));
   };
 
   const waehleLayout = (l: string) => {
@@ -716,9 +691,26 @@ export default function TeamkarteBaukasten({ globals = false }: {
     setHoehe(TRIO_LAYOUTS.find((x) => x.id === l)?.basis ?? 282);
   };
 
+  /**
+   * Den Spieltag uebernehmen, den die Cup-Auswahl meldet.
+   *
+   * Beim ersten Mal gilt die Teamgroesse des Cups (Trio-Cup: Trio); wer schon
+   * gewaehlt hat, behaelt sie, solange sie in den Cup passt.
+   */
+  const waehleCup = (event: string, window_: string, titel: string, info?: CupInfo) => {
+    if (!event || !window_) { setCup(''); setCupName(''); setCupInfo(null); return; }
+    const erstes = !cup;
+    setCup(`${event}|${window_}`);
+    setCupName(titel);
+    setCupInfo(info ?? null);
+    if (info?.region) setRegion(info.region);
+    const g = teamGroesseVon(info?.playlist, window_);
+    if (erstes || teamGroesse > g) stelleTeamGroesse(g);
+  };
+
   const waehleTeam = (tm: Team) => {
-    // Ein Team mit drei Spielern ist ein Trio; sonst bleibt es beim Duo.
-    const g: 2 | 3 = tm.spieler.length >= 3 ? 3 : 2;
+    // Ein ganzes Team: so viele Spieler, wie es hat - hoechstens so viele, wie der Cup zulaesst.
+    const g = Math.max(1, Math.min(3, tm.spieler.length, cupGroesse)) as 1 | 2 | 3;
     const gewaehlt = tm.spieler.slice(0, g);
     setDuo(gewaehlt);
     setNamen([
@@ -731,27 +723,37 @@ export default function TeamkarteBaukasten({ globals = false }: {
   };
 
   /**
+   * Einen einzelnen Spieler eines Teams dazunehmen.
+   *
+   * Der erste freie Platz; sind alle belegt, ersetzt er den letzten. Wer weniger
+   * Spieler zeigt als das Team hat, waehlt so seine Leute aus - die Werte
+   * bleiben die des Teams (das Banner findet das Team ueber jeden der Spieler).
+   */
+  const nimmSpieler = (neu: Spieler) => {
+    if (duo.some((x) => x.id === neu.id)) return;
+    const platz = teamGroesse;
+    const stelle = duo.length < platz ? duo.length : platz - 1;
+    setDuo((alt) => (alt.length < platz ? [...alt, neu] : [...alt.slice(0, platz - 1), neu]));
+    setNamen((alt) => {
+      const kopie: Drei = [alt[0] ?? '', alt[1] ?? '', alt[2] ?? ''];
+      kopie[stelle] = namensVorschlag(neu.name);
+      return kopie;
+    });
+    setFotos((alt) => {
+      const kopie: Drei = [alt[0] ?? '', alt[1] ?? '', alt[2] ?? ''];
+      kopie[stelle] = '';
+      return kopie;
+    });
+  };
+
+  /**
    * Einen Spieler aus dem Verzeichnis vormerken.
    *
-   * Der erste Platz im Duo, der frei ist; sind beide belegt, ersetzt er den
-   * zweiten. Das Banner zeigt ihn ab jetzt mit "noch nicht in der Liste"
+   * Das Banner zeigt ihn ab jetzt mit "noch nicht in der Liste"
    * und fuellt die Werte, sobald Epic ihn fuehrt.
    */
   const vormerken = (p: { epicId: string; anzeige: string; bild: string | null }) => {
-    const neu: Spieler = { id: p.epicId, name: p.anzeige, img: p.bild };
-    const platz = teamGroesse;
-    setDuo((alt) => {
-      if (alt.some((x) => x.id === neu.id)) return alt;
-      if (alt.length < platz) return [...alt, neu];
-      return [...alt.slice(0, platz - 1), neu];
-    });
-    setNamen((alt) => {
-      const naechster = duo.some((x) => x.id === neu.id) ? -1 : duo.length < platz ? duo.length : platz - 1;
-      if (naechster < 0) return alt;
-      const kopie: Drei = [alt[0] ?? '', alt[1] ?? '', alt[2] ?? ''];
-      kopie[naechster] = namensVorschlag(p.anzeige);
-      return kopie;
-    });
+    nimmSpieler({ id: p.epicId, name: p.anzeige, img: p.bild });
     setTeamSuche('');
     setVerzeichnisFunde([]);
     setSuchInfo('');
@@ -822,7 +824,7 @@ export default function TeamkarteBaukasten({ globals = false }: {
      * Getrennt gehalten, damit eine bestehende Adresse in OBS weiter gilt:
      * wer nur ein Duo zeigt, bekommt genau dieselbe Adresse wie bisher.
      */
-    if (weitere.length && ids.length) {
+    if (!leiste && weitere.length && ids.length) {
       /*
        * Das Duo von oben steht nur einmal in der Reihe.
        *
@@ -855,13 +857,17 @@ export default function TeamkarteBaukasten({ globals = false }: {
     if (fotos[1]) p.set('f2', fotos[1]);
     if (trio && fotos[2]) p.set('f3', fotos[2]);
     if (trio) p.set('layout', layout);
+    if (leiste) p.set('form', 'leiste');
+    if (akzent) p.set('akzent', akzent.replace('#', ''));
+    // Ein einzelner Spieler aus einem Team-Cup: die Werte sind die des Teams.
+    if (teamHinweis) p.set('team', '1');
     p.set('vorlage', vorlage);
     p.set('klar', String(klar));
     p.set('hoehe', String(hoehe));
     if (abstand !== 18) p.set('abstand', String(abstand));
     return `${basis}/overlay/banner.html?${p.toString()}`;
   }, [basis, eventId, windowId, duo, namen, fotos, vorlage, klar, hoehe, abstand,
-    weitere, wechsel, teamGroesse, layout]);
+    weitere, wechsel, teamGroesse, layout, leiste, akzent, teamHinweis]);
 
   /*
    * Die Adresse, die abgelegt wird.
@@ -873,11 +879,14 @@ export default function TeamkarteBaukasten({ globals = false }: {
    */
   const adresseFuerAblage = useMemo(() => {
     const u = new URL(bannerUrl, 'https://x');
-    u.searchParams.delete('event');
-    u.searchParams.delete('window');
-    u.searchParams.set('auto', region);
+    // Fest: der Spieltag bleibt in der Adresse - sie zeigt auch nach dem Cup seine letzten Zahlen.
+    if (!(fest && eventId && windowId)) {
+      u.searchParams.delete('event');
+      u.searchParams.delete('window');
+      u.searchParams.set('auto', region);
+    }
     return basis ? `${basis}${u.pathname}?${u.searchParams.toString()}` : '';
-  }, [bannerUrl, basis, region]);
+  }, [bannerUrl, basis, region, fest, eventId, windowId]);
 
   /**
    * Die Adresse fuer OBS: nach dem Speichern nur noch die Kennung.
@@ -888,6 +897,16 @@ export default function TeamkarteBaukasten({ globals = false }: {
    * Regler.
    */
   const obsAdresse = bearbeiteId ? overlayAdresse('teamkarte', bearbeiteId) : bannerUrl;
+
+  /*
+   * Die Vorschau zeigt Beispieldaten, solange noch kein Spieler gewaehlt ist -
+   * so sieht man Form, Vorlage und Farben schon vorher. Die Adresse zum
+   * Kopieren bekommt das nie.
+   */
+  const vorschauUrl = useMemo(
+    () => (duo.length ? bannerUrl
+      : `${bannerUrl}${bannerUrl.includes('?') ? '&' : '?'}probe=1&spieler=${teamGroesse}`),
+    [bannerUrl, duo.length, teamGroesse]);
 
   const bestenlisteUrl = useMemo(() => {
     const p = new URLSearchParams();
@@ -953,9 +972,7 @@ export default function TeamkarteBaukasten({ globals = false }: {
             <Schritt nummer={1} titel="Cup und Spieltag"
               offen={schritt === 1}
               onOeffnen={() => setSchritt(1)}
-              zusammenfassung={cup
-                ? `${fenster.find((f) => f.windowId === cup)?.name ?? ''} · ${region}`
-                : ''}
+              zusammenfassung={cup ? (cupName || windowId) : ''}
               weiter={cup ? () => setSchritt(2) : undefined}>
               {globals ? (
                 /*
@@ -966,76 +983,16 @@ export default function TeamkarteBaukasten({ globals = false }: {
                 <GlobalsTagWahl fenster={cup.split('|')[1] ?? ''}
                   onTag={(w) => setCup(`${GLOBALS_EVENT}|${w}`)} />
               ) : (
-              <>
-              <div className="mb-3 flex flex-wrap gap-1">
-                {REGIONEN.map((r) => (
-                  <button key={r} onClick={() => setRegion(r)}
-                    className={`rounded-lg border px-3 py-1.5 text-xs font-medium
-                                transition ${r === region
-                      ? 'border-sky-500 bg-sky-500/10 text-sky-300'
-                      : 'border-zinc-800 text-slate-400 hover:border-zinc-600'}`}>
-                    {r}
-                  </button>
-                ))}
-              </div>
-
-              <input value={cupSuche} onChange={(e) => setCupSuche(e.target.value)}
-                placeholder={t('Cup suchen — auch vergangene')}
-                className={`${feld} mb-2`} />
-
-              {ladeFehler && (
-                <p className="rounded-lg border border-amber-800 bg-amber-950/30
-                              px-3 py-2 text-xs text-amber-300">
-                  {ladeFehler}
-                  {loginNoetig && (
-                    <> — <Link href="/admin" className="underline"><T>Epic-Anmeldung</T></Link></>
-                  )}
-                </p>
-              )}
-
-              <div className="space-y-1">
-                {auswahl.zeig.map((w) => {
-                  const wert = `${w.eventId}|${w.windowId}`;
-                  return (
-                    <button key={wert} onClick={() => setCup(wert)}
-                      className={`flex w-full items-center gap-2 rounded-lg border
-                                  px-3 py-2 text-left text-[13px] transition ${wert === cup
-                        ? 'border-sky-500 bg-sky-500/10 text-slate-100'
-                        : 'border-zinc-800 text-slate-300 hover:border-zinc-600'}`}>
-                      {w.status === 'live' && (
-                        <span className="rounded bg-rose-500 px-1.5 py-0.5 text-[9px]
-                                         font-bold uppercase text-white">live</span>
-                      )}
-                      <span className="min-w-0 flex-1 truncate">{lesbarerName(w)}</span>
-                      <span className="shrink-0 text-[11px] text-slate-500">
-                        {new Date(w.begin).toLocaleDateString(undefined,
-                          { day: '2-digit', month: '2-digit' })}
-                      </span>
-                    </button>
-                  );
-                })}
-                {!auswahl.zeig.length && !ladeFehler && (
-                  <p className="py-3 text-center text-xs text-slate-600">
-                    {alleZeigen || cupSuche
-                      ? <T>Kein Spieltag gefunden.</T>
-                      : <T>Heute und morgen läuft kein passender Cup.</T>}
-                  </p>
-                )}
-              </div>
-
-              {!cupSuche && auswahl.alle.length > auswahl.heute.length && (
-                <button onClick={() => setAlleZeigen((v) => !v)}
-                  className="mt-2 text-[11px] text-slate-500 underline hover:text-slate-300">
-                  {alleZeigen ? <T>nur heute zeigen</T>
-                    : <><T>frühere Spieltage zeigen</T>
-                      {' '}({auswahl.alle.length - auswahl.heute.length})</>}
-                </button>
-              )}
-              </>
+                /*
+                 * Dieselbe Auswahl wie bei Leaderboard und Qual line: nur
+                 * laufende Cups, standardmaessig nur FNCS, Cash und
+                 * Performance, mit der Runde in der Zeile.
+                 */
+                <CupWahl event={eventId ?? ''} window={windowId ?? ''} onWahl={waehleCup} />
               )}
             </Schritt>
 
-            <Schritt nummer={2} titel={teamGroesse === 3 ? 'Trio' : 'Duo'}
+            <Schritt nummer={2} titel={teamGroesse === 3 ? 'Trio' : teamGroesse === 2 ? 'Duo' : 'Spieler'}
               offen={schritt === 2}
               gesperrt={!cup}
               onOeffnen={() => setSchritt(2)}
@@ -1043,19 +1000,26 @@ export default function TeamkarteBaukasten({ globals = false }: {
                 ? duo.map((p) => p.name).join(' · ') : ''}
               weiter={duo.length ? () => setSchritt(3) : undefined}>
               <>
-                  {/* Duo oder Trio: zwei gleiche Knoepfe nebeneinander. */}
-                  <div className="mb-3 flex items-center gap-2">
+                  {/* Solo, Duo oder Trio - nur, was der Cup hergibt. */}
+                  <div className="mb-3 flex flex-wrap items-center gap-2">
                     <span className="text-[11px] text-slate-500"><T>Spieler je Team</T></span>
-                    {([2, 3] as const).map((g) => (
+                    {([1, 2, 3] as const).filter((g) => g <= cupGroesse).map((g) => (
                       <button key={g} type="button" onClick={() => stelleTeamGroesse(g)}
                         className={`rounded-lg border px-3 py-1 text-xs font-medium transition ${
                           teamGroesse === g
                             ? 'border-sky-500 bg-sky-500/10 text-slate-100'
                             : 'border-zinc-800 text-slate-400 hover:border-zinc-600'}`}>
-                        {g === 2 ? <T>Duo</T> : <T>Trio</T>}
+                        {g === 1 ? <T>Solo</T> : g === 2 ? <T>Duo</T> : <T>Trio</T>}
                       </button>
                     ))}
                   </div>
+                  {teamHinweis && (
+                    <p className="mb-2 rounded-lg border border-sky-900/60 bg-sky-950/20 px-3 py-2
+                                  text-[11px] leading-relaxed text-sky-200/80">
+                      <T>In diesem Cup spielen Teams. Das Banner zeigt die Werte des
+                      Teams und trägt dafür die Zeile „Team stats“.</T>
+                    </p>
+                  )}
                   {/* Die Suche steht sofort da und laeuft beim Tippen los -
                       nach einer kurzen Pause, damit nicht jeder Tastendruck
                       die ganze Bestenliste abfragt. */}
@@ -1084,7 +1048,38 @@ export default function TeamkarteBaukasten({ globals = false }: {
                   )}
 
                   <div className="max-h-64 space-y-1 overflow-y-auto">
-                    {treffer.map((tm) => (
+                    {treffer.map((tm) => (tm.spieler.length > teamGroesse ? (
+                      /* Weniger Spieler gezeigt als das Team hat: jeder einzeln waehlbar. */
+                      <div key={tm.rank}
+                        className="flex flex-wrap items-center gap-1.5 rounded-lg border
+                                   border-zinc-800 px-3 py-2 text-[13px] text-slate-300">
+                        <span className="w-8 shrink-0 text-[11px] text-slate-500">
+                          #{tm.rank}
+                        </span>
+                        {tm.spieler.map((s) => (
+                          <button key={s.id} type="button" onClick={() => nimmSpieler(s)}
+                            className={`flex items-center gap-1.5 rounded-md border px-2 py-1
+                                        text-[12px] transition hover:border-sky-700 ${
+                              duo.some((x) => x.id === s.id)
+                                ? 'border-sky-500 bg-sky-500/10 text-slate-100'
+                                : 'border-zinc-800'}`}>
+                            {s.img ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={s.img} alt="" className="h-5 w-5 shrink-0 rounded object-cover"
+                                onError={(e) => {
+                                  (e.currentTarget as HTMLImageElement).style.display = 'none';
+                                }} />
+                            ) : null}
+                            {namensVorschlag(s.name)}
+                          </button>
+                        ))}
+                        {funde && (
+                          <span className="ml-auto shrink-0 text-[10px] text-slate-600">
+                            <T>gespielt</T>
+                          </span>
+                        )}
+                      </div>
+                    ) : (
                       <button key={tm.rank} onClick={() => waehleTeam(tm)}
                         className="flex w-full items-center gap-2 rounded-lg border
                                    border-zinc-800 px-3 py-2 text-left text-[13px]
@@ -1119,7 +1114,7 @@ export default function TeamkarteBaukasten({ globals = false }: {
                           </span>
                         )}
                       </button>
-                    ))}
+                    )))}
                     {/* Aus dem Verzeichnis, wenn die Bestenliste nichts hat -
                         vor dem Cup, oder weil er noch nicht gespielt hat. */}
                     {!treffer.length && verzeichnisFunde.map((p) => (
@@ -1184,7 +1179,7 @@ export default function TeamkarteBaukasten({ globals = false }: {
                 * folgt danach - und das Banner wechselt im eingestellten
                 * Takt mit einem Uebergang durch.
                 */}
-              {duo.length > 0 && (
+              {duo.length > 0 && !leiste && (
                 <div className="mt-4 rounded-lg border border-zinc-800 p-3">
                   <div className="mb-2 flex items-center justify-between gap-2">
                     <span className="text-[11px] text-slate-400">
@@ -1258,6 +1253,35 @@ export default function TeamkarteBaukasten({ globals = false }: {
               gesperrt={!cup}
               onOeffnen={() => setSchritt(3)}
               weiter={() => setSchritt(4)}>
+              {/*
+                * Karte oder Leiste - nur bei einem Spieler.
+                *
+                * Die Leiste (Betreiber, 19.10.2026, nach einem Vorbild) zeigt
+                * genau einen Spieler; bei Duo und Trio gibt es nur die Karte.
+                */}
+              {teamGroesse === 1 && (
+                <div className="mb-5">
+                  <p className="mb-2 text-xs font-semibold text-slate-300"><T>Form</T></p>
+                  <div className="grid gap-2 sm:grid-cols-2">
+                    {([
+                      { id: 'karte', titel: 'Team-Karte', was: 'Foto, Name und Zahlen in einer Karte — wie beim Duo.' },
+                      { id: 'leiste', titel: 'Leiste', was: 'Ein Spieler, schräg geschnitten, mit TOP, PTS und GAMES in der Akzentfarbe.' },
+                    ] as const).map((f) => (
+                      <button key={f.id} type="button" onClick={() => waehleForm(f.id)}
+                        className={`overflow-hidden rounded-lg border text-left transition ${
+                          form === f.id ? 'border-sky-500 bg-sky-500/5' : 'border-zinc-800 hover:border-zinc-600'}`}>
+                        <FormVorschau basis={basis} form={f.id} vorlage={vorlage}
+                          klar={klar} akzent={akzent} />
+                        <span className="block px-3 pb-2 pt-1.5">
+                          <span className="block text-[13px] font-medium text-slate-200">{t(f.titel)}</span>
+                          <span className="block text-[11px] leading-snug text-slate-500">{t(f.was)}</span>
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {teamGroesse === 3 && (
                 <div className="mb-5">
                   <p className="mb-2 text-xs font-semibold text-slate-300"><T>Anordnung</T></p>
@@ -1302,6 +1326,36 @@ export default function TeamkarteBaukasten({ globals = false }: {
                 ))}
               </div>
 
+              {/*
+                * Die Akzentfarbe in jeder Farbe.
+                *
+                * Der Betreiber (19.10.2026) zum gruenen Streifen des Vorbilds:
+                * "diese gruene Farbe in jede Farbe anpassbar". Sie faerbt die
+                * Beschriftungen (TOP, PTS, GAMES), den Rand der Leiste und die
+                * hervorgehobene Zahl der Karte.
+                */}
+              <div className="mb-4">
+                <p className="mb-1.5 text-[11px] text-slate-500"><T>Akzentfarbe</T></p>
+                <div className="flex flex-wrap items-center gap-1.5">
+                  <button type="button" onClick={() => setAkzent('')}
+                    className={`rounded-lg border px-2.5 py-1 text-[11px] transition ${
+                      !akzent ? 'border-sky-500 bg-sky-500/10 text-slate-100'
+                        : 'border-zinc-800 text-slate-400 hover:border-zinc-600'}`}>
+                    <T>wie die Vorlage</T>
+                  </button>
+                  {AKZENTE.map((c) => (
+                    <button key={c} type="button" aria-label={c} onClick={() => setAkzent(c)}
+                      className={`h-7 w-7 rounded-full border-2 transition ${
+                        akzent.toLowerCase() === c ? 'border-white' : 'border-transparent hover:border-zinc-500'}`}
+                      style={{ background: c }} />
+                  ))}
+                  <input type="color" value={akzent || vorlageAkzent}
+                    onChange={(e) => setAkzent(e.target.value)}
+                    aria-label={t('Eigene Farbe')}
+                    className="h-7 w-9 cursor-pointer rounded border border-zinc-700 bg-transparent p-0" />
+                </div>
+              </div>
+
               <label className="mb-3 block text-[11px] text-slate-500">
                 <T>Wie deckend die Mitte ist</T>
                 <span className="ml-2 tabular-nums text-slate-300">{klar}%</span>
@@ -1310,7 +1364,7 @@ export default function TeamkarteBaukasten({ globals = false }: {
                   className="mt-1 w-full accent-sky-500" />
               </label>
 
-              <label className="mb-3 block text-[11px] text-slate-500">
+              <label className={`mb-3 ${leiste ? 'hidden' : 'block'} text-[11px] text-slate-500`}>
                 <T>Abstand zwischen Bild und Text</T>
                 <span className="ml-2 tabular-nums text-slate-300">{abstand} px</span>
                 {/* Von der Voreinstellung nach oben statt in beide
@@ -1349,6 +1403,38 @@ export default function TeamkarteBaukasten({ globals = false }: {
               offen={schritt === 4}
               gesperrt={!cup || !duo.length}
               onOeffnen={() => setSchritt(4)}>
+              {/*
+                * Fest an diesem Spieltag oder dem laufenden Cup folgen.
+                *
+                * Fest ist die Voreinstellung: die Adresse bleibt gueltig, wenn
+                * der Cup vorbei ist, und zeigt dann seine letzten Zahlen.
+                */}
+              {!globals && cup && (
+                <div className="mb-3 space-y-1.5 text-[12px] text-slate-300">
+                  <label className="flex cursor-pointer items-start gap-2">
+                    <input type="radio" name="fest" checked={fest} onChange={() => setFest(true)}
+                      className="mt-0.5 accent-sky-500" />
+                    <span>
+                      <T>Dieser Spieltag bleibt fest</T>
+                      <span className="block text-[11px] text-slate-500">
+                        <T>Die Adresse bleibt gültig, auch wenn der Cup vorbei ist — sie zeigt dann
+                        die letzten Zahlen.</T>
+                      </span>
+                    </span>
+                  </label>
+                  <label className="flex cursor-pointer items-start gap-2">
+                    <input type="radio" name="fest" checked={!fest} onChange={() => setFest(false)}
+                      className="mt-0.5 accent-sky-500" />
+                    <span>
+                      <T>Folgt dem laufenden Cup der Region</T>
+                      <span className="block text-[11px] text-slate-500">
+                        <T>Für ein Overlay, das du jede Woche weiter benutzt: es springt von selbst auf den
+                        nächsten Spieltag.</T>
+                      </span>
+                    </span>
+                  </label>
+                </div>
+              )}
               <div className="flex flex-wrap gap-2">
                 <input value={neuerTitel}
                   onChange={(e) => setNeuerTitel(e.target.value)}
@@ -1370,6 +1456,9 @@ export default function TeamkarteBaukasten({ globals = false }: {
                         fotos,
                         spieler: teamGroesse, layout,
                         vorlage, klar, hoehe, abstand,
+                        form, akzent, fest,
+                        event: eventId, window: windowId, cupName,
+                        playlist: cupInfo?.playlist ?? playlistGemerkt,
                         // Mehrere Duos und der Wechseltakt gehoeren dazu,
                         // sonst zeigt die feste Adresse nur das erste.
                         weitere, wechsel,
@@ -1390,9 +1479,12 @@ export default function TeamkarteBaukasten({ globals = false }: {
                 </button>
               </div>
               <p className="mt-1.5 text-[11px] leading-relaxed text-slate-500">
-                <T>Gespeichert werden Duo und Aussehen, nicht der Spieltag. Die
-                Adresse zeigt immer auf den laufenden Spieltag deiner Region,
-                also steht sie beim nächsten Turnier noch richtig.</T>
+                {fest && !globals
+                  ? <T>Gespeichert werden Spieltag, Spieler und Aussehen. Die Adresse
+                    bleibt gültig und zeigt nach dem Cup seine letzten Zahlen.</T>
+                  : <T>Gespeichert werden Duo und Aussehen, nicht der Spieltag. Die
+                    Adresse zeigt immer auf den laufenden Spieltag deiner Region,
+                    also steht sie beim nächsten Turnier noch richtig.</T>}
               </p>
               {abgelegt && (
                 <p className="mt-2 text-[11px] text-emerald-400">
@@ -1469,7 +1561,7 @@ export default function TeamkarteBaukasten({ globals = false }: {
                   der Vorschau mittig - so sieht man es ganz, ohne zu
                   schieben. Die Spalte klebt schon; die Vorschau selbst
                   muss es nicht. */}
-              <Vorschau src={bannerUrl} hoehe={hoehe + 16} klebt={false} />
+              <Vorschau src={vorschauUrl} hoehe={hoehe + 16} klebt={false} />
 
               <div className="mt-3 flex gap-2">
                 <input readOnly value={obsAdresse}
