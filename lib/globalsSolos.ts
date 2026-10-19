@@ -18,6 +18,7 @@ import path from 'node:path';
 import { liesJson } from '@/lib/ablage';
 import { DATEN_ORT } from '@/lib/datenOrt';
 import { gecacht, holeTop, listeCups } from '@/lib/epicCups';
+import { GET as katalogAbruf } from '@/app/api/cup-catalog/route';
 import { detail, jungeTurniere, formenAus, namenRepariert, type RohDetail } from '@/lib/nobleKarte';
 import { spielerbildKlein } from '@/lib/spielerbildKlein';
 import { kernname } from '@/lib/homoglyph';
@@ -82,7 +83,24 @@ export interface SolosGruppe {
   spieler: Array<SolosSpieler & { rang: number | null; punkte: number | null }>;
 }
 
+/** Eine Stufe auf dem Weg ins Finale - Qualifier, Fast Tracks, Heats, Last Chance, Finale. Alles aus Epics Katalog, nichts erfunden. */
+export interface SolosStufe {
+  windowId: string;
+  eventId: string;
+  name: string;
+  art: 'qualifier' | 'fasttrack' | 'heat' | 'lcq' | 'lcq-finale' | 'finale';
+  status: 'live' | 'kommt' | 'vorbei';
+  begin: number;
+  end: number | null;
+  /** Wie viele weiterkommen - aus Epics Auszahlungstabelle (Top N); fehlt, wo Epic keine Schwelle fuehrt. */
+  qualifiziert?: number;
+  /** Wohin es weitergeht. */
+  ziel: 'finale' | 'heats' | 'naechste-runde' | 'lcq-finale' | null;
+}
+
 export interface SolosDaten {
+  /** Die Stufen dieser Region in zeitlicher Reihenfolge. */
+  stufen: SolosStufe[];
   /** Die Region, fuer die diese Daten gelten. */
   region: string;
   /** Woher die Spieler stammen: Noble Practice (Europa, mit Landepunkten) oder Epics Bestenlisten (alle anderen Regionen). */
@@ -98,6 +116,8 @@ interface Profil { anzeige?: string; name?: string; land?: string }
 interface Bildeintrag { datei: string; epicId: string; echtesFoto?: boolean }
 
 function artVon(name: string): FensterArt {
+  // Die Last-Chance-Runden fuehren ins Finale, sind aber nicht das Finale.
+  if (/last chance|lcq/i.test(name)) return 'qualifier';
   if (/final/i.test(name)) return 'finale';
   if (/heat/i.test(name)) return 'heat';
   if (/fast track|last chance|qualif/i.test(name)) return 'qualifier';
@@ -112,9 +132,9 @@ async function eventZu(windowId: string, region: string = REGION): Promise<strin
   } catch { return null; }
 }
 
-async function ergebnisse(windowId: string, region: string = REGION): Promise<Map<string, { rang: number; punkte: number }>> {
+async function ergebnisse(windowId: string, region: string = REGION, eventId?: string): Promise<Map<string, { rang: number; punkte: number }>> {
   const karte = new Map<string, { rang: number; punkte: number }>();
-  const event = await eventZu(windowId, region);
+  const event = eventId ?? await eventZu(windowId, region);
   if (!event) return karte;
   try {
     const roh = await gecacht(`solos|top|${windowId}`, 2 * 60_000, () => holeTop(event, windowId, 100, true));
@@ -243,6 +263,39 @@ export async function fensterFuer(turnierId: string, region: string, windowId: s
   return { turnier: uebersicht.tournamentData?.tournamentName ?? '', fenster: fensterAus(w, d, spielerVon) };
 }
 
+/** Wie ein Spieltag auf der Seite heisst - aus Epics Kennung. */
+function stufeVon(windowId: string): { name: string; art: SolosStufe['art']; ziel: SolosStufe['ziel'] } | null {
+  let m = /Heat(\d+)/i.exec(windowId); if (m) return { name: `Heat ${m[1]}`, art: 'heat', ziel: 'finale' };
+  if (/FastTracks/i.test(windowId)) return { name: 'Fast Tracks', art: 'fasttrack', ziel: 'finale' };
+  if (/LastChanceQualifier/i.test(windowId)) return { name: 'Last Chance Qualifier', art: 'lcq', ziel: 'lcq-finale' };
+  if (/LastChanceLobby/i.test(windowId)) return { name: 'Last Chance Finals', art: 'lcq-finale', ziel: 'finale' };
+  m = /Final_Day(\d)/i.exec(windowId); if (m) return { name: `Finals Day ${m[1]}`, art: 'finale', ziel: null };
+  m = /Qualifiers_Qual(\d)Round(\d)(?:Day(\d))?/i.exec(windowId);
+  if (m) return { name: `Qualifier ${m[1]} · Round ${m[2]}${m[3] ? ` Day ${m[3]}` : ''}`, art: 'qualifier', ziel: m[2] === '3' ? 'heats' : 'naechste-runde' };
+  return null;
+}
+
+/** Die Stufen von FNCS Solos in einer Region, aus Epics Katalog (Schwellen aus der Auszahlungstabelle). Zehn Minuten im Speicher. */
+async function stufenFuer(region: string): Promise<SolosStufe[]> {
+  try {
+    // Der Katalog des Werkzeugs (Epics aktuelle Events + das Archiv): auch die Fast Tracks und Qualifier, die Epic selbst nicht mehr fuehrt.
+    type KatalogFenster = { windowId: string; eventId: string; status: 'live' | 'kommt' | 'vorbei'; begin: number; end?: number; qualifiziert?: number };
+    const katalog = await gecacht('solos|katalog-gesamt', 10 * 60_000, async () => (await (await katalogAbruf(new Request('http://localhost/api/cup-catalog?modus=standard'))).json()) as { cups?: Array<{ id: string; regionen?: Record<string, KatalogFenster[]> }> });
+    const raus = new Map<string, SolosStufe>();
+    const ende = new RegExp(`_${region}$`);
+    for (const c of katalog.cups ?? []) {
+      if (!/fncssolos/i.test(c.id)) continue;
+      for (const f of Object.values(c.regionen ?? {}).flat()) {
+        if (!/FNCSSolo/i.test(f.windowId) || !ende.test(f.windowId) || raus.has(f.windowId)) continue;
+        const s = stufeVon(f.windowId);
+        if (!s) continue;
+        raus.set(f.windowId, { windowId: f.windowId, eventId: f.eventId, ...s, status: f.status, begin: f.begin, end: f.end ?? null, qualifiziert: f.qualifiziert });
+      }
+    }
+    return [...raus.values()].sort((a, b) => a.begin - b.begin);
+  } catch { return []; }
+}
+
 /** Das saubere Kartenbild, das Noble zu dieser Zeit fuehrt - das Fenster eines europaeischen Turniers, das dem Datum am naechsten liegt (hoechstens 25 Tage entfernt). */
 async function nobleKartenbildNahe(datum: number): Promise<string | null> {
   try {
@@ -298,14 +351,14 @@ export async function vitalFenster(o: { windowId: string; name: string; region: 
 }
 
 /** Wer im Finale steht und wie er dorthin kam: ueber einen Heat, ueber ein Qualifier-Fenster (Fast Tracks, Last Chance) oder sonst. */
-async function herkunftAus(fenster: SolosFenster[], region: string): Promise<SolosGruppe[]> {
+async function herkunftAus(fenster: SolosFenster[], region: string, eventVon?: Map<string, string>): Promise<SolosGruppe[]> {
   /* ------------------------------------------------------ Wer kam woher */
   // Das Finale kann an zwei Tagen laufen - jeder Spieler zaehlt einmal.
   const finale = [...new Map(fenster.filter((f) => f.art === 'finale').flatMap((f) => f.spieler).map((s) => [s.id, s])).values()];
   const heats = fenster.filter((f) => f.art === 'heat');
   const qualis = fenster.filter((f) => f.art === 'qualifier');
   const ergebnisseJe = new Map<string, Map<string, { rang: number; punkte: number }>>();
-  await Promise.all(qualis.map(async (q) => { ergebnisseJe.set(q.windowId, await ergebnisse(q.windowId, region)); }));
+  await Promise.all(qualis.map(async (q) => { ergebnisseJe.set(q.windowId, await ergebnisse(q.windowId, region, eventVon?.get(q.windowId))); }));
 
   const gruppen = new Map<string, SolosGruppe>();
   const zu = (kopf: { quelle: string; windowId: string | null; art: FensterArt }) => {
@@ -355,10 +408,11 @@ export async function globalsSolos(region: string = REGION): Promise<SolosDaten 
   const fenster: SolosFenster[] = einzeln.map(({ w, d }) => fensterAus(w, d, spielerVon))
     .sort((a, b) => String(a.start ?? '').localeCompare(String(b.start ?? '')));
 
-  const qualifiziert = await herkunftAus(fenster, REGION);
+  const stufenEu = await stufenFuer(REGION);
+  const qualifiziert = await herkunftAus(fenster, REGION, new Map(stufenEu.map((s) => [s.windowId, s.eventId])));
 
   return {
-    region: REGION, quelle: 'noble',
+    region: REGION, quelle: 'noble', stufen: stufenEu,
     turnier: { id: turnier.id, name: turnier.tournamentName },
     stand: new Date().toISOString(),
     fenster,
@@ -385,10 +439,10 @@ function fensterName(windowId: string): string | null {
  */
 async function globalsSolosEpic(region: string): Promise<SolosDaten | null> {
   if (!(SOLOS_REGIONEN as readonly string[]).includes(region)) return null;
-  const katalog = await gecacht(`solos|katalog|${region}`, 10 * 60_000, () => listeCups(region));
-  const ende = new RegExp(`_${region}$`);
-  const fenster0 = katalog.windows
-    .filter((w) => /FNCSSolo/i.test(w.windowId) && ende.test(w.windowId) && fensterName(w.windowId))
+  const stufen = await stufenFuer(region);
+  const fenster0 = stufen
+    .filter((s) => s.art !== 'qualifier')
+    .map((s) => ({ windowId: s.windowId, eventId: s.eventId, status: s.status, begin: s.begin, end: s.end ?? undefined }))
     .sort((a, b) => a.begin - b.begin);
   if (!fenster0.length) return null;
   const spielerVon = await spielerKontext();
@@ -396,6 +450,7 @@ async function globalsSolosEpic(region: string): Promise<SolosDaten | null> {
   const fenster = await Promise.all(fenster0.map(async (w): Promise<SolosFenster> => {
     const name = fensterName(w.windowId) as string;
     const art = artVon(name);
+    if (!name) throw new Error('Fenster ohne Namen');
     let eintraege: Array<{ rank: number; points?: number; wins?: number; players?: Array<{ id: string; name?: string; displayName?: string }> }> = [];
     if (w.status !== 'kommt') {
       try {
@@ -437,9 +492,9 @@ async function globalsSolosEpic(region: string): Promise<SolosDaten | null> {
     }));
   }
 
-  const qualifiziert = await herkunftAus(fenster, region);
+  const qualifiziert = await herkunftAus(fenster, region, new Map(stufen.map((s) => [s.windowId, s.eventId])));
   return {
-    region, quelle: 'epic',
+    region, quelle: 'epic', stufen,
     turnier: { id: 'S42-FNCSSolos', name: 'FNCS Solos' },
     stand: new Date().toISOString(),
     fenster, qualifiziert,

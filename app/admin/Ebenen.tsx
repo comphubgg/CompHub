@@ -54,12 +54,13 @@ const FUER_ALLE: Ziel[] = [
   { href: '/tierlist', titel: 'Tierlist', text: 'Spieler und Trios einsortieren', symbol: 'tierlist' },
   { href: '/tournament-maps', titel: 'Maps', text: 'Wo die Teams gelandet sind — jeder Cup', symbol: 'karte' },
   { href: '/fncs', titel: 'FNCS', text: 'Alle Endspiele und die Eliminierungen der Grand Finals', symbol: 'events' },
-  { href: '/globals-solos', titel: 'Globals Solos', text: 'Qualifizierte, Heats und Karten der FNCS Solos', symbol: 'solos' },
   { href: '/predictions', titel: 'Prognosen', text: 'Tipp auf den Ausgang', symbol: 'prognose' },
 ];
 
 /** Was es nur hier gibt. Mein Archiv und Profil stehen darunter auf der Seite selbst, das Chatarchiv braucht nur der Admin. */
 const NUR_HIER: Ziel[] = [
+  // FNCS Solos (Betreiber, 19.10.2026): fuer jeden offen, aber nur hier im Dashboard - nicht in der Leiste.
+  { href: '/globals-solos', titel: 'FNCS Solos', text: 'Alle Regionen: Qualifizierte, Heats, Last Chance, Finale und die Karte jedes Spieltags', symbol: 'solos' },
   // Replays gibt es nur hier (nicht in der Leiste): alle Games zum Abspielen, dort umschaltbar auf "Meine Replays".
   { href: '/replays', titel: 'Replays', text: 'Jedes Game zum Abspielen - alle Cups oder nur deine eigenen', symbol: 'karte' },
   { href: '/contact', titel: 'Kontakt', text: 'Etwas kaputt, fehlt oder besser zu machen? Schreib es dem Betreiber', symbol: 'kontakt' },
@@ -137,7 +138,6 @@ export default function Ebenen({ admin, vip, pro }: {
   const vipZiele: Ziel[] = [
     { href: '/overlays', titel: 'Overlays', text: 'Einblendungen für deinen Stream — aus denselben Turnierdaten', symbol: 'overlay' },
     { href: '/globals', titel: 'Globals 2026', text: 'Overlays, Teams, Karte und Prognose zur Global Championship', symbol: 'globals' },
-    { href: '/globals-solos', titel: 'Globals Solos', text: 'Qualifizierte, Heats und Karten der FNCS Solos', symbol: 'solos' },
     ...((pro || admin) ? [{ href: '/pov', titel: 'POV', text: 'Dein Bild live an die freigegebenen Zuschauer senden', symbol: 'pov' }] : []),
   ];
   const hier = [...NUR_HIER, ...(admin ? NUR_HIER_ADMIN : [])];

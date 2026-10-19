@@ -32,6 +32,7 @@ import Link from 'next/link';
 
 import T from '@/app/components/T';
 import { regionFarbe } from '@/lib/regionFarbe';
+import { stufeKurz } from '@/lib/cupTitel';
 import { useSprache } from '@/app/components/SprachProvider';
 import LadeSchirm from '@/app/components/LadeSchirm';
 import type { Sprache } from '@/app/lib/sprache';
@@ -136,6 +137,8 @@ interface Lage {
   letzter: number | null;
   /** Bei "Alle Regionen": wo es gerade laeuft oder als Naechstes losgeht. */
   wo: string | null;
+  /** Welche Stufe gerade laeuft oder als Naechste kommt ("Heat 2", "Fast Tracks") - wo die Kennung sie nennt. */
+  stufe?: string | null;
 }
 
 /*
@@ -175,11 +178,11 @@ function lageVon(c: Cup, region: string, jetzt: number): Lage {
   const regionen = (liste: Fenster[]) => [...new Set(liste.map((w) => w.region))];
   if (live.length) {
     return { status: 'live', naechster: kommend[0]?.begin ?? null, letzter: live[0].begin,
-      wo: region === 'alle' && !c.global ? regionen(live).join(' · ') : null };
+      wo: region === 'alle' && !c.global ? regionen(live).join(' · ') : null, stufe: stufeKurz(live[0].windowId) };
   }
   if (kommend.length) {
     return { status: 'kommt', naechster: kommend[0].begin, letzter: gewesen[0]?.begin ?? null,
-      wo: region === 'alle' && !c.global ? kommend[0].region : null };
+      wo: region === 'alle' && !c.global ? kommend[0].region : null, stufe: stufeKurz(kommend[0].windowId) };
   }
   return { status: 'vorbei', naechster: null, letzter: gewesen[0]?.begin ?? null, wo: null };
 }
@@ -247,7 +250,8 @@ function Marke({ lage, t }: { lage: Lage; t: (s: string) => string }) {
       : lage.letzter ? vergangen(lage.letzter, t) : t('beendet');
   // Bei "Alle Regionen" dazu, wo - sonst liest sich ein Live in Brasilien
   // wie ein Live in Europa.
-  const text = lage.wo ? `${grund} · ${lage.wo}` : grund;
+  // Dazu die Stufe, wo es eine gibt: "LIVE · HEAT 2", "IN 2 H · HEAT 1 · OCE".
+  const text = [grund, lage.stufe, lage.wo].filter(Boolean).join(' · ');
   return (
     <span className={`inline-flex items-center gap-1 rounded-full bg-black/70 px-2 py-0.5 text-[9px]
                       font-bold uppercase tracking-wider ring-1 ring-white/15 backdrop-blur-sm ${

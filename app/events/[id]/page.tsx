@@ -16,6 +16,7 @@ import TeamFlagge, { flaggenPfad } from '@/components/TeamFlagge';
 import T from '@/app/components/T';
 import LadeSchirm from '@/app/components/LadeSchirm';
 import SpielerDetail from './SpielerDetail';
+import { zielName } from '@/lib/cupTitel';
 import { regionFarbe } from '@/lib/regionFarbe';
 import { useT, useSprache } from '@/app/components/SprachProvider';
 import { kartenTitel } from '@/lib/rundenName';
@@ -2667,7 +2668,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
               (fenster.qualifiziert || qual?.schwelle)
                 ? [t('Qualifizieren sich'),
                   `${t('Top')} ${(fenster.qualifiziert
-                    ?? qual?.schwelle ?? 0).toLocaleString(ort)}`
+                    ?? qual?.schwelle ?? 0).toLocaleString(ort)}${zielName(fenster.windowId) ? ` → ${zielName(fenster.windowId)}` : ''}`
                   /*
                    * Ist der Spieltag vorbei, steht hier die Zahl, die es
                    * wirklich gekostet hat - ohne "etwa". Ein Durchschnitt
@@ -3531,7 +3532,10 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                                                hover:text-amber-300">
                                     <T>qualifizieren sich für das Finale</T>
                                   </button>
-                                ) : <T>qualifizieren sich</T>}
+                                ) : zielName(fenster.windowId) === 'Grand Finals' ? <T>qualifizieren sich für die Grand Finals</T>
+                                  : zielName(fenster.windowId) === 'Heats' ? <T>qualifizieren sich für die Heats</T>
+                                  : zielName(fenster.windowId) === 'Last Chance Finals' ? <T>qualifizieren sich für das Last Chance Finale</T>
+                                  : <T>qualifizieren sich</T>}
                               </span>
                               <span aria-hidden className="h-px flex-1
                                                            bg-amber-500/30" />

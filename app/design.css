@@ -172,3 +172,5 @@ html:not([data-dash-chat="an"]) [data-dash-spalten] { grid-template-columns: min
  */
 html[data-modus="hell"] .tierlist-page { filter: invert(1) hue-rotate(180deg) brightness(.9) contrast(.96); }
 html[data-modus="hell"] .tierlist-page :is(img, canvas, video, picture, [style*="background-image"]) { filter: invert(1) hue-rotate(180deg); }
+/* Die kraeftigen Farben (Stufen S bis F, Knoepfe, Regionen) kommen durch das Umdrehen verfaelscht heraus - Rot wurde Pink, Orange ein anderes Orange (Betreiber, 19.10.2026). Sie werden noch einmal umgedreht und behalten so genau ihre Farbe. */
+html[data-modus="hell"] .tierlist-page :is(.tier-label, .nav-button, .admin-btn.active, .btn-confirm, .add-duo-panel .add-btn, .region-chip, .create-panel button, .create-duo-panel button, .create-solo-panel button, .kachel-fertig, .tierlist-button-primary, .admin-edit-btn) { filter: invert(1) hue-rotate(180deg) brightness(1.11) contrast(1.04); }

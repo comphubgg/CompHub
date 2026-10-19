@@ -30,6 +30,27 @@ export function fensterZusatz(windowId?: string | null): string | null {
   return null;
 }
 
+/** Kurzname der Stufe aus der Fensterkennung - fuer die Marke "LIVE · HEAT 2" (Betreiber, 19.10.2026: man soll sehen, welcher Heat live ist). */
+export function stufeKurz(windowId?: string | null): string | null {
+  if (!windowId) return null;
+  let m = /Heat(\d+)/i.exec(windowId); if (m) return `Heat ${m[1]}`;
+  if (/FastTrack/i.test(windowId)) return 'Fast Tracks';
+  if (/LastChanceQualifier/i.test(windowId)) return 'LCQ';
+  if (/LastChanceLobby/i.test(windowId)) return 'LCQ Finals';
+  m = /Final_Day(\d)/i.exec(windowId); if (m) return `Finals Day ${m[1]}`;
+  if (/_Final_|FinalDay/i.test(windowId)) return 'Finals';
+  return null;
+}
+
+/** Wohin ein Spieltag fuehrt, wo sich das aus der Kennung ergibt: "Grand Finals", "Last Chance Finals" oder "Heats" (die Qualifier der FNCS Solos). */
+export function zielName(windowId?: string | null): 'Grand Finals' | 'Last Chance Finals' | 'Heats' | null {
+  if (!windowId) return null;
+  if (/LastChanceQualifier/i.test(windowId)) return 'Last Chance Finals';
+  if (/FastTrack|HeatsStage|LastChanceLobby/i.test(windowId)) return 'Grand Finals';
+  if (/Qualifiers_Qual\dRound3/i.test(windowId)) return 'Heats';
+  return null;
+}
+
 /**
  * Der Titel eines Spieltags, so, dass man ihn erkennt: bei Heats die Nummer ("FNCS Solos Heats" -> "FNCS Solos Heat 2"), bei Zero Build der Zusatz.
  * Steht beides schon im Titel, bleibt er, wie er ist.

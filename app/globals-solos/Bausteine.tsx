@@ -98,8 +98,6 @@ export function Karte({ f, bild, rotAb = 2 }: {
   const [gezoomt, setGezoomt] = useState(false);
   /** Die Spielersuche (Strg + F): null = zu, sonst der eingetippte Text. */
   const [suche, setSuche] = useState<string | null>(null);
-  /** Die Stelle, zu der die Suche gerade gesprungen ist - sie leuchtet. */
-  const [gefunden, setGefunden] = useState<string | null>(null);
   const sucheFeld = useRef<HTMLInputElement | null>(null);
 
   const spots = useMemo(() => f.formen.map((fo, i): Spot & { spieler: string[]; teams: number } => {
@@ -188,7 +186,6 @@ export function Karte({ f, bild, rotAb = 2 }: {
     // Je kleiner die Stelle, desto naeher - aber nie so nah, dass die Umgebung fehlt.
     const z = Math.max(3, Math.min(ZOOM_MAX - 1, 55 / Math.max(r.breite, r.hoehe, 1)));
     gleite(z, { x: r.links + r.breite / 2, y: r.oben + r.hoehe / 2 });
-    setGefunden(spotId);
   }, [spots, gleite]);
 
   // Strg + F oeffnet die Suche in der Karte - nur, wenn die Karte im Bild steht und Spieler hat (sonst bleibt es beim Suchen des Browsers).
@@ -329,11 +326,6 @@ export function Karte({ f, bild, rotAb = 2 }: {
                   fill={c.fuellung} stroke={c.rand} vectorEffect="non-scaling-stroke" />
               );
             })}
-            {gefunden && spots.filter((sp) => sp.id === gefunden).map((sp) => (
-              <polygon key={`treffer-${sp.id}`} className="animate-pulse motion-reduce:animate-none"
-                points={sp.punkte.map((q) => `${q.x},${q.y}`).join(' ')}
-                fill="rgba(250,204,21,.18)" stroke="#facc15" strokeWidth={3} vectorEffect="non-scaling-stroke" />
-            ))}
           </svg>
 
           {spots.map((sp) => {
@@ -383,14 +375,14 @@ export function Karte({ f, bild, rotAb = 2 }: {
               <div className="w-56 max-w-[70vw]">
                 <div className="flex items-center gap-1">
                   <input ref={sucheFeld} value={suche} spellCheck={false}
-                    onChange={(e) => { setSuche(e.target.value); setGefunden(null); }}
+                    onChange={(e) => setSuche(e.target.value)}
                     onKeyDown={(e) => {
-                      if (e.key === 'Escape') { setSuche(null); setGefunden(null); }
+                      if (e.key === 'Escape') setSuche(null);
                       if (e.key === 'Enter' && treffer[0]) springeZu(treffer[0].spot);
                     }}
                     placeholder={t('Spieler suchen …')}
                     className="min-w-0 flex-1 rounded-md border border-white/20 bg-black/75 px-2.5 py-1.5 text-xs text-white outline-none placeholder:text-slate-400 focus:border-sky-400" />
-                  <button type="button" aria-label={t('Schließen')} onClick={() => { setSuche(null); setGefunden(null); }}
+                  <button type="button" aria-label={t('Schließen')} onClick={() => setSuche(null)}
                     className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md bg-black/75 text-slate-300 transition hover:text-white">
                     <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M5.5 5.5l9 9M14.5 5.5l-9 9" /></svg>
                   </button>
@@ -414,7 +406,7 @@ export function Karte({ f, bild, rotAb = 2 }: {
 
         {gezoomt && (
           <button type="button" onMouseDown={(e) => e.stopPropagation()}
-            onClick={() => { gleite(1, { x: 50, y: 50 }); setGefunden(null); }}
+            onClick={() => gleite(1, { x: 50, y: 50 })}
             className="absolute bottom-2 left-2 z-30 rounded-md bg-black/75 px-2.5 py-1 text-[11px] text-slate-200
                        transition hover:bg-black/90">
             <T>Ganze Karte</T>
