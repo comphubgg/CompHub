@@ -18,6 +18,7 @@
 // Ebenso fehlen die Spielerfotos: das sind lizenzierte Pressebilder.
 
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
+import SpielerPlatzhalter from '@/app/components/SpielerPlatzhalter';
 import StatistikZahlen from './StatistikZahlen';
 import StatistikAufmacher from './StatistikAufmacher';
 import { useSearchParams } from 'next/navigation';
@@ -793,7 +794,7 @@ function Treppchen({ drei, wertVon, aufKlick }: { drei: Array<{ sp: Spieler; nr:
               // eslint-disable-next-line @next/next/no-img-element
               <img src={sp.bild} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-105" />
             ) : (
-              <span className="absolute inset-0 grid place-items-center text-6xl font-black text-white/10">{(sp.anzeige || '?').slice(0, 1).toUpperCase()}</span>
+              <SpielerPlatzhalter name={(sp.anzeige || '?')} />
             )}
             <span aria-hidden className="foto-unten absolute inset-0" />
             <span className={`absolute left-2.5 top-2.5 grid h-7 w-7 place-items-center rounded-full text-xs font-black text-[#0b1220] ${MEDAILLE[nr] ?? 'bg-slate-300'}`}>{nr}</span>
@@ -850,7 +851,7 @@ function DuellTafel({ links, rechts, zeitraum, aufKlick, gross = false, schlicht
           // eslint-disable-next-line @next/next/no-img-element
           <img src={s.bild} alt={s.anzeige} className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]" />
         ) : (
-          <span className="absolute inset-0 grid place-items-center bg-zinc-700 text-5xl font-black text-slate-400/40">{(s.anzeige || '?').slice(0, 1).toUpperCase()}</span>
+          <SpielerPlatzhalter name={(s.anzeige || '?')} />
         )}
       </button>
     );
@@ -1815,7 +1816,7 @@ function ListenKarte({ liste, aufVoll, aufSpieler }: {
               // eslint-disable-next-line @next/next/no-img-element
               <img src={erster.bild} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover object-top transition duration-500 group-hover:scale-105" />
             ) : (
-              <span className="absolute inset-0 grid place-items-center text-4xl font-black text-slate-400/30">{(erster.anzeige || '?').slice(0, 1).toUpperCase()}</span>
+              <SpielerPlatzhalter name={(erster.anzeige || '?')} />
             )}
             <span aria-hidden className="absolute inset-y-0 right-0 w-8 bg-gradient-to-r from-transparent to-zinc-800/70" />
           </span>
@@ -4088,7 +4089,7 @@ export default function StatistikSeite() {
                               // eslint-disable-next-line @next/next/no-img-element
                               <img src={erster.bild} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover object-top transition duration-500 group-hover:scale-105" />
                             ) : (
-                              <span className="absolute inset-0 grid place-items-center text-5xl font-black text-slate-400/30">{(erster.anzeige || '?').slice(0, 1).toUpperCase()}</span>
+                              <SpielerPlatzhalter name={(erster.anzeige || '?')} />
                             )}
                             <span aria-hidden className="absolute inset-y-0 right-0 w-8 bg-gradient-to-r from-transparent to-zinc-800/70" />
                           </span>
@@ -4943,7 +4944,7 @@ export default function StatistikSeite() {
                           // eslint-disable-next-line @next/next/no-img-element
                           <img src={sp.bild} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-105" />
                         ) : (
-                          <span className="absolute inset-0 grid place-items-center text-5xl font-black text-white/10">{(sp.anzeige || '?').slice(0, 1).toUpperCase()}</span>
+                          <SpielerPlatzhalter name={(sp.anzeige || '?')} />
                         )}
                         <span aria-hidden className="foto-unten absolute inset-0" />
                         <span className="absolute left-2.5 top-2.5"><RegionMarke region={regionAktiv} /></span>

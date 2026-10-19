@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
+import SpielerPlatzhalter, { PlatzhalterRund } from '@/app/components/SpielerPlatzhalter';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import T from '@/app/components/T';
@@ -90,7 +91,7 @@ function Gesicht({ name, bild, px }: { name: string; bild: string | null; px: nu
   return bild
     // eslint-disable-next-line @next/next/no-img-element
     ? <img src={bild} alt="" loading="lazy" style={{ width: px, height: px, objectPosition: fokusVon(bild) }} className="shrink-0 rounded-full border border-white/15 object-cover" />
-    : <span style={{ width: px, height: px }} className="flex shrink-0 items-center justify-center rounded-full border border-white/10 bg-zinc-900 text-xs font-bold text-slate-500">{name.slice(0, 1).toUpperCase()}</span>;
+    : <PlatzhalterRund name={name} groesse={px} />;
 }
 
 /** Eine Karte mit Kopf: Symbol, Titel, Pfeil zur ganzen Seite. */
@@ -145,7 +146,7 @@ function SpotlightKarte({ daten, fertig }: { daten: Vitrine | null; fertig: bool
               // eslint-disable-next-line @next/next/no-img-element
               <img src={s.bild} alt="" loading="lazy" className="h-full w-full object-cover" style={{ objectPosition: fokusVon(s.bild) }} />
             ) : (
-              <span className="absolute inset-0 grid place-items-center bg-gradient-to-br from-sky-950 to-zinc-900 text-9xl font-black text-white/10">{s.name.slice(0, 1).toUpperCase()}</span>
+              <SpielerPlatzhalter name={s.name} />
             )}
             <span aria-hidden className="foto-unten absolute inset-0" />
           </div>

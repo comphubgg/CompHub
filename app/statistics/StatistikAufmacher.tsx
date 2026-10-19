@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import SpielerPlatzhalter from '@/app/components/SpielerPlatzhalter';
 import T from '@/app/components/T';
 import Rollzahl from '@/app/components/Rollzahl';
 import TeamFlagge from '@/components/TeamFlagge';
@@ -145,7 +146,7 @@ export default function StatistikAufmacher({ kacheln, zuTurnieren, zuRegionen, z
                   <img src={k.spitze.bild} alt="" className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-[1.03]" />
                 </>
               ) : (
-                <span className="absolute inset-0 grid place-items-center bg-gradient-to-br from-sky-950 to-zinc-900 text-6xl font-black text-white/15">{k.spitze.anzeige.slice(0, 1).toUpperCase()}</span>
+                <SpielerPlatzhalter name={k.spitze.anzeige} />
               )}
             </span>
             <span className="flex min-w-0 flex-1 flex-col justify-between p-5">

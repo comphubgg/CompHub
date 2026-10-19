@@ -47,16 +47,26 @@ export interface FncsEreignis {
   turnierId: string; windowId: string; kartenRegion: string;
   teams: number | null;
   spitze: FncsSpitze[];
+  /** Fuer den Filter: EU, NAC, NAW, BR, ME, ASIA, OCE oder GLOBAL. */
+  regionCode: string;
 }
 
 /** Ein Name ohne Turniermarke, Orgtag und Fremdalphabet-Zwillinge - wie auf den Kacheln der Tierlist ("[FNCS24] EXD Peterbot" wird "peterbot"). */
 const rein = (n: string) => ohneZierrat(kernname(n)).trim() || n;
 
-interface Kandidat { e: MapEintrag; art: Art; jahr?: string }
+interface Kandidat { e: MapEintrag; art: Art; jahr?: string; /** Gesetzt bei den Grand Finals der uebrigen Regionen - die Archive und Eckdaten gelten nur fuer Europa. */ region?: string }
+
+/** Die Grand Finals der Majors in den anderen Regionen (Betreiber, 19.10.2026: "auch noch die anderen Grands"). */
+const ANDERE_GRANDS = /^S\d+_FNCSMajor\d_Final_(NAC|NAW|ME|OCE|BR|ASIA)$/;
 
 function kandidaten(liste: MapEintrag[]): Kandidat[] {
   const raus: Kandidat[] = [];
-  for (const e of liste) { const a = endspielArt(e); if (a) raus.push({ e, ...a }); }
+  for (const e of liste) {
+    const a = endspielArt(e);
+    if (a) { raus.push({ e, ...a }); continue; }
+    const m = !e.alt ? ANDERE_GRANDS.exec(e.windowId) : null;
+    if (m) raus.push({ e, art: 'gf', region: m[1] });
+  }
   return raus;
 }
 
@@ -161,7 +171,7 @@ async function spitzeFuerRoh(k: Kandidat, fakt: FncsFakt | undefined, archiv: Ma
 
   // Archivierte Bestenliste (lib/fncsBestenlisten): vollstaendig und gegen die Eckdaten geprueft.
   const archivKey = schluesselVon(k.e.saison, k.art);
-  if (hatArchiv(archivKey)) {
+  if (!k.region && hatArchiv(archivKey)) {
     const archiv = await plaetze(archivKey);
     if (archiv.length) {
       return {
@@ -200,7 +210,7 @@ async function spitzeFuerRoh(k: Kandidat, fakt: FncsFakt | undefined, archiv: Ma
   }
 
   // 4. Die Spielerliste der Szene-Quelle (ganze Platzierungsliste), dann die Eckdaten.
-  const liste = await plaetze(schluesselVon(k.e.saison, k.art));
+  const liste = k.region ? [] : await plaetze(schluesselVon(k.e.saison, k.art));
   if (liste.length) {
     return {
       teams: fakt?.teams ?? liste.length,
@@ -266,8 +276,9 @@ export async function fncsEreignisse(): Promise<FncsEreignis[]> {
 
   // Alle Events gleichzeitig - jedes fragt Epic einzeln, nacheinander dauerte der erste Aufruf eine halbe Minute.
   const aus = await Promise.all(kandidaten(liste).map(async (k): Promise<FncsEreignis> => {
-    const schluessel = schluesselVon(k.e.saison, k.art);
-    const fakt = FNCS_FAKTEN[schluessel];
+    // Je Region ein eigener Schluessel; die Eckdaten und Archive gibt es nur fuer das europaeische Event.
+    const schluessel = k.region ? `${schluesselVon(k.e.saison, k.art)}|${k.region}` : schluesselVon(k.e.saison, k.art);
+    const fakt = k.region ? undefined : FNCS_FAKTEN[schluessel];
     let teams: number | null = null; let spitze: FncsSpitze[] = [];
     try { ({ teams, spitze } = await spitzeFuer(k, fakt, archiv)); } catch { fehler = true; }
     let preisgeld = fakt?.preisgeld ?? null;
@@ -289,7 +300,7 @@ export async function fncsEreignisse(): Promise<FncsEreignis[]> {
       key: schluessel, saison: k.e.saison, saisonKurz: k.e.saisonKurz, saisonTitel: k.e.saisonTitel ?? null,
       kopf1, kopf2: KOPF2[k.art], titel, datum: k.e.datum ?? (fakt ? faktDatum(fakt.datum) : null),
       lan: !!k.e.lan || !!fakt?.lan || k.art === 'summit' || k.art === 'gc', ort: fakt?.ort ?? null,
-      region: REGION[k.art], preisgeld, bild: k.e.bild,
+      region: k.region ?? REGION[k.art], regionCode: k.region ?? (REGION[k.art] === 'Global' ? 'GLOBAL' : 'EU'), preisgeld, bild: k.e.bild,
       turnierId: k.e.turnierId, windowId: k.e.windowId, kartenRegion: k.e.region, teams, spitze,
     };
   }));
@@ -307,7 +318,7 @@ export async function fncsEreignisse(): Promise<FncsEreignis[]> {
     raus.push({
       key: schluessel, saison, saisonKurz: f.kopf1, saisonTitel: null,
       kopf1: f.kopf1, kopf2: f.kopf2, titel: f.titel, datum: faktDatum(f.datum), lan: !!f.lan, ort: f.ort ?? null,
-      region: REGION[art], preisgeld: f.preisgeld, bild: '/cups/fncs-major.webp',
+      region: REGION[art], regionCode: REGION[art] === 'Global' ? 'GLOBAL' : 'EU', preisgeld: f.preisgeld, bild: '/cups/fncs-major.webp',
       turnierId: '', windowId: '', kartenRegion: 'EU', teams: f.teams, spitze,
     });
   }

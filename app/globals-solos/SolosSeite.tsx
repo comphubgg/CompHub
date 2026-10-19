@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import SpielerPlatzhalter, { PlatzhalterRund } from '@/app/components/SpielerPlatzhalter';
 import Link from 'next/link';
 import T from '@/app/components/T';
 import { useT, useSprache } from '@/app/components/SprachProvider';
@@ -40,31 +41,21 @@ function Foto({ s, px = 36 }: { s: SolosSpieler; px?: number }) {
     ? <img src={s.bild} alt="" loading="lazy" style={{ width: px, height: px, objectPosition: fokusVon(s.bild) }}
         className="shrink-0 rounded-full border border-zinc-700 object-cover" />
     : (
-      <span style={{ width: px, height: px }}
-        className="flex shrink-0 items-center justify-center rounded-full border border-zinc-700 bg-zinc-800 text-xs font-bold text-slate-400">
-        {s.anzeige.slice(0, 1).toUpperCase()}
-      </span>
+      <PlatzhalterRund name={s.anzeige} groesse={px} />
     );
 }
 
 /** Das Bild eines Spielers als abgerundetes Quadrat in der Breite des Elternelements. */
 function Bild({ s }: { s: SolosSpieler }) {
   return (
-    <span className="block aspect-square w-full overflow-hidden rounded-lg bg-zinc-800">
+    <span className="relative block aspect-square w-full overflow-hidden rounded-lg bg-zinc-800">
       {s.bild
         // eslint-disable-next-line @next/next/no-img-element
         ? <img src={s.bild} alt="" loading="lazy" style={{ objectPosition: fokusVon(s.bild) }} className="h-full w-full object-cover" />
-        : <span className={`flex h-full w-full items-center justify-center bg-gradient-to-br text-sm font-black text-sky-200/60 ${tonVon(s.anzeige)}`}>{initialenVon(s.anzeige)}</span>}
+        : <SpielerPlatzhalter name={s.anzeige} />}
     </span>
   );
 }
-
-/** Die Anfangsbuchstaben eines Namens - zwei, wenn es mehrere Woerter sind. */
-const initialenVon = (n: string) => n.trim().split(/\s+/).slice(0, 2).map((w) => Array.from(w)[0] ?? '').join('').toUpperCase() || '?';
-
-/** Ein Blauton je Name aus der Reihe der Startseite: ohne Foto sieht jeder Spieler anders aus, und keiner fremd. */
-const TON = ['from-sky-900/60 to-zinc-800', 'from-blue-900/60 to-zinc-800', 'from-indigo-900/60 to-zinc-800', 'from-cyan-900/50 to-zinc-800', 'from-slate-700/60 to-zinc-800'];
-const tonVon = (n: string) => TON[Array.from(n).reduce((a, c) => a + c.charCodeAt(0), 0) % TON.length];
 
 /**
  * Ein Spieler als Kachel: grosses, sauberes Quadrat - und der Name steht immer darunter, auch ohne Foto
@@ -74,11 +65,11 @@ const tonVon = (n: string) => TON[Array.from(n).reduce((a, c) => a + c.charCodeA
 function Kachel({ s, unter, auf, klein }: { s: SolosSpieler; unter?: string; auf?: () => void; klein?: boolean }) {
   const inhalt = (
     <>
-      <div className="aspect-square w-full overflow-hidden rounded-xl bg-zinc-800">
+      <div className="relative aspect-square w-full overflow-hidden rounded-xl bg-zinc-800">
         {s.bild
           // eslint-disable-next-line @next/next/no-img-element
           ? <img src={s.bild} alt="" loading="lazy" style={{ objectPosition: fokusVon(s.bild) }} className="h-full w-full object-cover" />
-          : <span className={`flex h-full w-full items-center justify-center bg-gradient-to-br font-black tracking-tight text-sky-200/60 ${klein ? 'text-lg' : 'text-2xl'} ${tonVon(s.anzeige)}`}>{initialenVon(s.anzeige)}</span>}
+          : <SpielerPlatzhalter name={s.anzeige} />}
       </div>
       <p className="flex min-w-0 items-start gap-1.5 text-[11px] font-bold uppercase leading-tight text-slate-100">
         <span className="mt-px shrink-0"><TeamFlagge groesse={12} laender={[s.land ?? undefined]} /></span>
@@ -100,7 +91,7 @@ const RASTER = 'grid grid-cols-3 gap-x-3 gap-y-5 sm:grid-cols-4 lg:grid-cols-6 x
 function NurName({ s, unter, auf }: { s: SolosSpieler; unter?: string; auf?: () => void }) {
   const inhalt = (
     <>
-      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br text-xs font-black text-sky-200/70 ${tonVon(s.anzeige)}`}>{initialenVon(s.anzeige)}</span>
+      <PlatzhalterRund name={s.anzeige} groesse={36} eckig />
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-1.5"><TeamFlagge groesse={13} laender={[s.land ?? undefined]} /><span className="truncate text-xs font-bold uppercase text-slate-100">{s.anzeige}</span></span>
         {unter && <span className="block text-[10px] font-semibold tabular-nums text-slate-500">{unter}</span>}

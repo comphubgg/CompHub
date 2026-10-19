@@ -61,6 +61,8 @@ export async function GET() {
     // Titel = erste Plaetze in den Endspielen der FNCS-Seite (Grand Finals, Globals, Invitational, Summit) - je Spieler des Siegerteams.
     const siegerJe = new Map<string, { name: string; land: string | null; titel: number }>();
     for (const e of await fncsEreignisse()) {
+      // Die Titel zaehlen die europaeischen Grand Finals, die Globals, das Invitational und die Summit - nicht die Majors der anderen Regionen.
+      if (e.regionCode !== 'EU' && e.regionCode !== 'GLOBAL') continue;
       for (const sp of e.spitze.find((x) => x.rang === 1)?.spieler ?? []) {
         const k = sp.name.toLowerCase();
         const a = siegerJe.get(k) ?? { name: sp.name, land: sp.land, titel: 0 };

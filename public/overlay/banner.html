@@ -295,6 +295,62 @@
   #banner.trio.l-kompakt .spalte .l { font-size: calc(10px * var(--skala)); }
   #banner.trio.l-kompakt .spalte .v { font-size: calc(26px * var(--skala)); }
   #banner.trio.l-reihe .spalte .v { font-size: calc(38px * var(--skala)); }
+
+  /*
+   * Die Leiste: ein Spieler, schraeg geschnitten (form=leiste).
+   *
+   * Der Betreiber (19.10.2026) nach einem Vorbild: links das Foto, daneben ein schraeger Balken mit dem Namen in kursiver Schrift auf einer helleren
+   * Platte, darunter ein dunkler Streifen mit TOP, PTS und GAMES - die Beschriftung in der Akzentfarbe, der Balken endet in einer Spitze mit Rand
+   * in derselben Farbe. Gebraucht wird sie fuer einen einzigen Spieler (1v1, Solo, ein Profi aus dem Team). Die Deckkraft (klar) gilt fuer beide Flaechen,
+   * der Akzent laesst sich ueber "akzent=" in jede Farbe stellen. Alle Masse haengen an --skala wie bei der Karte; die Hoehe 86 ist der Entwurf.
+   */
+  #leiste { display: none; }
+  body.leiste #banner { display: none !important; }
+  body.leiste #leiste {
+    display: inline-flex; align-items: stretch; height: var(--hoehe);
+    filter: drop-shadow(0 calc(3px * var(--skala)) calc(7px * var(--skala)) rgba(0, 0, 0, .45));
+    opacity: 0; transform: translateY(6px);
+    transition: opacity .35s ease, transform .35s ease;
+  }
+  body.leiste #leiste.da { opacity: 1; transform: none; }
+  .l-foto {
+    position: relative; flex: 0 0 auto; width: calc(var(--hoehe) * 0.94);
+    background: var(--grund2); overflow: hidden;
+    clip-path: polygon(0 0, 100% 0, calc(100% - 12px * var(--skala)) 100%, 0 100%);
+  }
+  .l-foto img { position: absolute; left: 0; top: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 18%; display: block; }
+  .l-foto.leer { display: none; }
+  /* Der Balken: aussen die Akzentfarbe als Rand, innen die beiden Flaechen. */
+  .l-block {
+    display: flex; margin-left: calc(-10px * var(--skala));
+    padding: calc(2.5px * var(--skala));
+    background: linear-gradient(90deg, color-mix(in srgb, var(--akzent) 70%, #000), var(--akzent));
+    clip-path: polygon(calc(13px * var(--skala)) 0, calc(100% - 28px * var(--skala)) 0, 100% 50%, calc(100% - 28px * var(--skala)) 100%, 0 100%);
+  }
+  .l-innen {
+    display: flex; flex-direction: column; flex: 1 1 auto;
+    min-width: calc(var(--hoehe) * 2.5); max-width: calc(var(--hoehe) * 5.4);
+    clip-path: polygon(calc(11px * var(--skala)) 0, calc(100% - 27px * var(--skala)) 0, calc(100% - 1px) 50%, calc(100% - 27px * var(--skala)) 100%, 0 100%);
+  }
+  .l-name {
+    flex: 0 0 46%; display: flex; align-items: center; justify-content: center;
+    padding: 0 calc(40px * var(--skala)) 0 calc(28px * var(--skala));
+    background: color-mix(in srgb, color-mix(in srgb, var(--schrift) 32%, var(--grund)) calc(var(--klar) * 100%), transparent);
+    color: var(--schrift); font-style: italic; font-weight: 800; letter-spacing: .05em;
+    font-size: calc(30px * var(--skala)); text-transform: uppercase;
+    white-space: nowrap; overflow: hidden;
+  }
+  .l-werte, .l-hinweis {
+    flex: 1 1 auto; display: flex; align-items: center; justify-content: center;
+    gap: calc(22px * var(--skala)); padding: 0 calc(40px * var(--skala)) 0 calc(24px * var(--skala));
+    background: color-mix(in srgb, var(--grund) calc(var(--klar) * 100%), transparent);
+  }
+  .l-hinweis { display: none; font-size: calc(13px * var(--skala)); color: var(--leise); }
+  .l-werte .w { display: flex; align-items: baseline; gap: calc(7px * var(--skala)); }
+  .l-werte .l { font-size: calc(12px * var(--skala)); font-weight: 800; letter-spacing: .1em; color: var(--akzent); text-transform: uppercase; }
+  .l-werte .v { font-size: calc(27px * var(--skala)); font-weight: 800; color: var(--schrift); font-variant-numeric: tabular-nums; line-height: 1; }
+  #leiste.leerlauf .l-werte { display: none; }
+  #leiste.leerlauf .l-hinweis { display: flex; }
 </style>
 </head>
 <body>
@@ -313,6 +369,18 @@
     <div class="t-stats" id="t-stats">
       <div class="t-namen" id="t-namen"></div>
       <div id="t-hinweis"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Die Leiste: ein Spieler, schraeg geschnitten (form=leiste, siehe CSS oben). -->
+<div id="leiste">
+  <div class="l-foto leer" id="l-foto"><img id="l-bild" alt=""></div>
+  <div class="l-block">
+    <div class="l-innen">
+      <div class="l-name" id="l-name">—</div>
+      <div class="l-werte" id="l-werte"></div>
+      <div class="l-hinweis" id="l-hinweis"></div>
     </div>
   </div>
 </div>
@@ -384,6 +452,8 @@
 })();
 
 const P = new URLSearchParams(location.search);
+/** Die Leiste statt der Karte: ein Spieler, schraeg geschnitten (siehe CSS). */
+const LEISTE = (P.get('form') || '').trim() === 'leiste';
 const SERVER = P.get('server') || '';
 let EVENT = P.get('event') || '';
 let FENSTER = P.get('window') || '';
@@ -454,7 +524,7 @@ let teamNr = 0;
 const letzterTreffer = new Map();
 let letzteAntwort = null;
 const SUCHE = (P.get('q') || '').trim();
-const FELDER = (P.get('felder') || 'rank,points,games,elims').split(',').filter(Boolean);
+const FELDER = (P.get('felder') || (LEISTE ? 'rank,points,games' : 'rank,points,games,elims')).split(',').filter(Boolean);
 const TAKT = Math.max(10, parseInt(P.get('every') || '30', 10)) * 1000;
 
 const BESCHRIFTUNG = {
@@ -474,12 +544,15 @@ const TRIO_BASIS = { drei: 282, mitte: 302, reihe: 150, kompakt: 96 };
 const PROBE = P.get('probe') === '1';
 const GROESSTES_TEAM = Math.max(IDS.length, ...TEAMS.map(t => t.length), 0);
 const LAYOUT = TRIO_BASIS[(P.get('layout') || '').trim()] ? (P.get('layout') || '').trim() : 'drei';
-const TRIO_MODE = (GROESSTES_TEAM >= 3 || PROBE) && (GROESSTES_TEAM >= 3 || !!P.get('layout'));
+const TRIO_MODE = !LEISTE && (GROESSTES_TEAM >= 3 || PROBE) && (GROESSTES_TEAM >= 3 || !!P.get('layout'));
 /** Der Massstab aus der eingestellten Hoehe - passeGroesseAn() schrumpft nur von hier aus weiter. */
 let TRIO_START = 1;
 
 // Vorlage und Deckkraft aus der Adresse.
 Vorlagen.anwenden(document.documentElement, P.get('vorlage'));
+// Die Akzentfarbe laesst sich in jede Farbe stellen (Betreiber, 19.10.2026: "diese gruene Farbe in jede Farbe anpassbar").
+const AKZENT = (P.get('akzent') || '').trim();
+if (/^#?[0-9a-f]{3}([0-9a-f]{3})?$/i.test(AKZENT)) document.documentElement.style.setProperty('--akzent', AKZENT.charAt(0) === '#' ? AKZENT : '#' + AKZENT);
 if (P.get('klar')) {
   const k = Math.max(0, Math.min(100, parseInt(P.get('klar'), 10) || 0));
   document.documentElement.style.setProperty('--klar', String(k / 100));
@@ -490,7 +563,13 @@ if (P.get('abstand')) {
   const a = Math.max(8, Math.min(64, parseInt(P.get('abstand'), 10) || 18));
   document.documentElement.style.setProperty('--abstand', a + 'px');
 }
-if (P.get('hoehe')) {
+if (LEISTE) {
+  // Die Leiste misst sich an 86 Punkten Hoehe.
+  document.body.classList.add('leiste');
+  const h = parseInt(P.get('hoehe'), 10) || 86;
+  document.documentElement.style.setProperty('--hoehe', h + 'px');
+  document.documentElement.style.setProperty('--skala', String(Math.round(Math.max(0.4, Math.min(2.6, h / 86)) * 100) / 100));
+} else if (P.get('hoehe')) {
   /*
    * Die Hoehe zieht die ganze Karte mit, nicht nur ihren Rahmen.
    *
@@ -811,6 +890,69 @@ function namenEinpassen() {
   }
 }
 
+/** Die Leiste: die Spalten (TOP, PTS, GAMES ...) einmal bauen. */
+function leisteSpalten() {
+  const box = document.getElementById('l-werte');
+  if (box.children.length) return;
+  for (const f of FELDER) {
+    const d = document.createElement('div');
+    d.className = 'w';
+    d.innerHTML = '<span class="l"></span><span class="v" data-f="' + f + '">–</span>';
+    d.firstChild.textContent = BESCHRIFTUNG[f] || f;
+    box.appendChild(d);
+  }
+}
+
+/** Die Leiste in der Breite halten: wird sie zu breit fuers Bild, schrumpft alles gleichmaessig; der Name passt sich seiner Platte an. */
+function leisteEinpassen() {
+  const l = document.getElementById('leiste');
+  const wurzel = document.documentElement.style;
+  const h = parseInt(P.get('hoehe'), 10) || 86;
+  let skala = Math.max(0.4, Math.min(2.6, h / 86));
+  wurzel.setProperty('--skala', String(skala));
+  let schutz = 0;
+  while (l.scrollWidth > document.documentElement.clientWidth && skala > 0.4 && schutz < 30) {
+    skala -= 0.04; schutz += 1;
+    wurzel.setProperty('--skala', skala.toFixed(2));
+  }
+  textEinpassen(document.getElementById('l-name'));
+}
+
+/** Ein Hinweis statt der Zahlen (noch nicht in der Liste, nicht eingerichtet, Server weg). */
+function leisteHinweis(name, text) {
+  const l = document.getElementById('leiste');
+  document.getElementById('l-name').textContent = name;
+  document.getElementById('l-hinweis').textContent = text;
+  l.classList.add('leerlauf', 'da');
+  leisteEinpassen();
+}
+
+/** Die Leiste zeichnen: Name, Foto (Gesicht mittig) und die Zahlen des Spielers. */
+async function zeichneLeiste(e, spieler, gesetzt, gewaehltesFoto) {
+  const l = document.getElementById('leiste');
+  l.classList.remove('leerlauf');
+  document.getElementById('l-name').textContent = anzeigeName(spieler && spieler.name, gesetzt);
+  leisteSpalten();
+  for (const f of FELDER) {
+    const el = document.querySelector('#l-werte [data-f="' + f + '"]');
+    if (!el) continue;
+    const txt = (f === 'rank' || f === 'bestPlace') && ohnePlatz(e) ? '–' : alsText(f, e ? e[f] : null);
+    el.textContent = txt.replace(/^#/, '');
+  }
+  await ladeGesichter();
+  const bild = await fotoNachName(spieler, gesetzt, gewaehltesFoto);
+  const foto = document.getElementById('l-foto');
+  const img = document.getElementById('l-bild');
+  const voll = bild ? (bild.startsWith('http') ? bild : SERVER + bild) : '';
+  if (voll) {
+    foto.classList.remove('leer');
+    if (img.getAttribute('src') !== voll) { img.removeAttribute('style'); img.onload = () => zuschneiden(img); img.src = voll; }
+    else if (img.complete) zuschneiden(img);
+  } else foto.classList.add('leer');
+  leisteEinpassen();
+  l.classList.add('da');
+}
+
 async function zeichne(sanft) {
   const d = letzteAntwort;
   if (!d) return;
@@ -872,6 +1014,7 @@ async function zeichne(sanft) {
   }
 
   if (!e) {
+    if (LEISTE) { leisteHinweis(g1 || SUCHE || 'Player', 'not in the leaderboard yet'); return; }
     document.getElementById('namen').textContent = g1 || SUCHE || 'Duo';
     namenEinpassen();
     document.getElementById('hinweis').textContent = 'not in the leaderboard yet';
@@ -888,6 +1031,11 @@ async function zeichne(sanft) {
     ? ids.map(id => (e.players || []).find(p => p.id === id)).filter(Boolean)
     : (e.players || []);
   const liste = spieler.length ? spieler : (e.players || []);
+
+  if (LEISTE) {
+    await zeichneLeiste(e, liste[0], g1, aktuelleFotos()[0]);
+    return;
+  }
 
   if (TRIO_MODE) {
     await zeichneTrio(liste, [g1, g2, g3], aktuelleFotos());
@@ -919,7 +1067,10 @@ async function zeichne(sanft) {
 }
 
 /** Beispieldaten nur fuer die Vorschau im Baukasten (?probe=1) - nie fuer OBS. */
-const PROBE_EINTRAG = {
+const PROBE_EINTRAG = LEISTE ? {
+  rank: 2, points: 162, games: 4, elims: 9,
+  players: [{ id: 'probe1', name: 'RAX', img: '/spielerbilder/malibuca.jpg' }],
+} : {
   rank: 1, points: 304, games: 6, elims: 25,
   players: [
     { id: 'probe1', name: 'MALIBUCA', img: '/spielerbilder/malibuca.jpg' },
@@ -934,6 +1085,7 @@ async function tick() {
   await findeSpieltag();
   const alle = TEAMS.length ? TEAMS.flat() : IDS;
   if (!EVENT || !FENSTER || (!alle.length && !SUCHE)) {
+    if (LEISTE) { leisteHinweis('Not set up', 'Pick a cup and a player in the configurator'); return; }
     document.getElementById('namen').textContent = 'Not set up';
     namenEinpassen();
     document.getElementById('hinweis').textContent = 'Pick a cup and players in the configurator';
@@ -948,6 +1100,7 @@ async function tick() {
     letzteAntwort = await (await fetch(u)).json();
     await zeichne(false);
   } catch {
+    if (LEISTE) { leisteHinweis('Server', 'Server not reachable'); return; }
     document.getElementById('hinweis').textContent = 'Server not reachable';
     banner.classList.add('leerlauf', 'da');
   }

@@ -10,12 +10,14 @@
  */
 
 import { useEffect, useMemo, useState } from 'react';
+import { PlatzhalterRund } from '@/app/components/SpielerPlatzhalter';
 import Link from 'next/link';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import LadeSchirm from '@/app/components/LadeSchirm';
 import TeamFlagge from '@/components/TeamFlagge';
 import type { FncsEreignis, FncsRekorde } from '@/lib/fncsEreignisse';
+import { regionFarbe, REGIONEN_REIHE } from '@/lib/regionFarbe';
 
 interface Ev { key: string; titel: string; saison: string; saisonKurz: string; saisonName: string; tage: string[] }
 interface Sp { id: string; name: string; land: string | null; bild: string | null; gesamt: number; je: Record<string, number> }
@@ -180,6 +182,8 @@ export default function FncsSeite() {
   const [liste, setListe] = useState<FncsEreignis[] | null>(null);
   const [fehler, setFehler] = useState(false);
   const [filter, setFilter] = useState<'alle' | 'lan' | 'online'>('alle');
+  /** Die Region, nach der gefiltert wird - leer heisst alle. Ein Knopf steht nur da, wo es Events gibt. */
+  const [region, setRegion] = useState('');
   const [ansicht, setAnsicht] = useState<'board' | 'timeline'>('board');
   const [alt, setAlt] = useState<AllTime | null>(null);
   const [altFehler, setAltFehler] = useState(false);
@@ -204,8 +208,14 @@ export default function FncsSeite() {
     // "Current": nur ein Event, das gerade läuft (bis anderthalb Tage nach dem Start) oder noch bevorsteht - nicht ein vergangenes.
     return neu?.datum && Date.now() < neu.datum + 36 * 3600_000 ? neu.key : '';
   }, [liste]);
-  const sichtbar = useMemo(() => [...(liste ?? [])].reverse().filter((e) => filter === 'alle' || (filter === 'lan' ? e.lan : !e.lan)), [liste, filter]);
-  const zahl = (f: 'alle' | 'lan' | 'online') => (liste ?? []).filter((e) => f === 'alle' || (f === 'lan' ? e.lan : !e.lan)).length;
+  const sichtbar = useMemo(() => [...(liste ?? [])].reverse().filter((e) => (filter === 'alle' || (filter === 'lan' ? e.lan : !e.lan)) && (!region || e.regionCode === region)), [liste, filter, region]);
+  /** Wie viele Events je Region - Regionen mit null haben keinen Knopf, bis dort ein Event dazukommt. */
+  const zahlRegion = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const e of liste ?? []) m.set(e.regionCode, (m.get(e.regionCode) ?? 0) + 1);
+    return m;
+  }, [liste]);
+  const zahl = (f: 'alle' | 'lan' | 'online') => (liste ?? []).filter((e) => (f === 'alle' || (f === 'lan' ? e.lan : !e.lan)) && (!region || e.regionCode === region)).length;
   const chip = (an: boolean) => `rounded-lg px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider transition ${an
     ? 'bg-sky-500 text-white' : 'border border-white/10 bg-white/[0.03] text-slate-300 hover:border-sky-500/60 hover:text-sky-300'}`;
   const zeilen = useMemo(() => {
@@ -267,6 +277,21 @@ export default function FncsSeite() {
                   </button>
                 ))}
               </div>
+              {/* Die Region: nur, wo es Events gibt - dazu kommt der Knopf von selbst, sobald dort eines ist. */}
+              {[...zahlRegion.keys()].length > 1 && (
+                <div className="flex flex-wrap gap-1.5" role="group" aria-label="Region">
+                  <button type="button" onClick={() => setRegion('')} className={chip(region === '')}><T>Alle Regionen</T></button>
+                  {[...REGIONEN_REIHE, 'GLOBAL'].filter((r) => (zahlRegion.get(r) ?? 0) > 0 || r === region).map((r) => {
+                    const farbe = regionFarbe(r);
+                    return (
+                      <button key={r} type="button" onClick={() => setRegion(region === r ? '' : r)}
+                        className={`rounded-lg border px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider transition ${region === r ? farbe.marke : `bg-white/[0.03] ${farbe.ruhig}`}`}>
+                        {r === 'GLOBAL' ? 'Global' : r}<span className="ml-1.5 opacity-60">{zahlRegion.get(r) ?? 0}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
               <div className="ml-auto flex gap-1.5">
                 {([['board', 'Board'], ['timeline', 'Timeline']] as const).map(([k, titel]) => (
                   <button key={k} type="button" onClick={() => setAnsicht(k)} className={chip(ansicht === k)}>{titel}</button>
@@ -276,11 +301,11 @@ export default function FncsSeite() {
             {fehler && <p className="rounded-xl border border-rose-500/30 bg-rose-500/5 px-4 py-3 text-sm text-rose-300"><T>Die Endspiele ließen sich gerade nicht laden. Bitte gleich noch einmal versuchen.</T></p>}
             {!liste && !fehler && <LadeSchirm />}
             {liste && ansicht === 'board' && (
-              <div key={filter} className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+              <div key={`${filter}|${region}`} className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
                 {sichtbar.map((e, i) => <Karte key={e.key} e={e} nr={nrVon.get(e.key) ?? 0} aktuell={e.key === aktuellKey} i={i} />)}
               </div>
             )}
-            {liste && ansicht === 'timeline' && <Zeitstrahl key={filter} liste={sichtbar} nrVon={nrVon} aktuellKey={aktuellKey} />}
+            {liste && ansicht === 'timeline' && <Zeitstrahl key={`${filter}|${region}`} liste={sichtbar} nrVon={nrVon} aktuellKey={aktuellKey} />}
             {liste && sichtbar.length === 0 && <p className="text-sm text-slate-500"><T>Noch keine Endspiele.</T></p>}
           </>
         )}
@@ -415,7 +440,7 @@ export default function FncsSeite() {
                             {s.bild
                               // eslint-disable-next-line @next/next/no-img-element
                               ? <img src={s.bild} alt="" loading="lazy" className="h-7 w-7 rounded-full border border-white/15 object-cover object-top" />
-                              : <span className="flex h-7 w-7 items-center justify-center rounded-full border border-white/10 bg-zinc-900 text-[10px] font-bold text-slate-500">{s.name.slice(0, 1).toUpperCase()}</span>}
+                              : <PlatzhalterRund name={s.name} groesse={28} />}
                             <TeamFlagge groesse={14} laender={[s.land ?? undefined]} />
                             <span className="text-[12px] font-bold uppercase tracking-wide text-slate-100">{s.name}</span>
                           </span>

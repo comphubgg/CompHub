@@ -13,6 +13,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import SpielerPlatzhalter from '@/app/components/SpielerPlatzhalter';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import TeamFlagge from '@/components/TeamFlagge';
@@ -178,7 +179,7 @@ function Foto({ s, rechts, klein }: { s: VglSpieler; rechts: boolean; klein: boo
       {s.bild
         // eslint-disable-next-line @next/next/no-img-element
         ? <img src={s.bild} alt="" className="absolute inset-0 h-full w-full object-cover object-top" />
-        : <span className="absolute inset-0 grid place-items-center text-4xl font-black text-zinc-700">{s.anzeige.slice(0, 1).toUpperCase()}</span>}
+        : <SpielerPlatzhalter name={s.anzeige} />}
       <span aria-hidden className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/90 to-transparent" />
       <span className={`absolute inset-x-0 bottom-0 flex items-center gap-1.5 px-2.5 pb-2 ${rechts ? 'justify-end' : ''}`}>
         <TeamFlagge groesse={14} laender={[s.land ?? undefined]} />

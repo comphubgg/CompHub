@@ -313,7 +313,8 @@ export default function Maps() {
             <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Region">
               <span className="mr-1 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500"><T>Region</T></span>
               <button type="button" onClick={() => setRegion('')} className={chipKlein(region === '')}><T>Alle</T></button>
-              {[...REGIONEN_REIHE, ...(zahlRegion.has('GLOBAL') ? ['GLOBAL'] : [])].map((r) => {
+              {/* Regionen ohne Karten haben keinen Knopf - er erscheint von selbst, sobald dort eine Karte dazukommt (Betreiber, 19.10.2026). Die gewaehlte bleibt, damit man sie abwaehlen kann. */}
+              {[...REGIONEN_REIHE, 'GLOBAL'].filter((r) => (zahlRegion.get(r) ?? 0) > 0 || r === region).map((r) => {
                 const n = zahlRegion.get(r) ?? 0;
                 const an = region === r;
                 const farbe = regionFarbe(r);

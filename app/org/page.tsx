@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
+import SpielerPlatzhalter, { PlatzhalterRund } from '@/app/components/SpielerPlatzhalter';
 import Link from 'next/link';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
@@ -150,7 +151,7 @@ export default function OrgSeite() {
                   {x.bild
                     // eslint-disable-next-line @next/next/no-img-element
                     ? <img src={x.bild} alt="" className="h-10 w-10 rounded-lg object-cover" />
-                    : <span className="grid h-10 w-10 place-items-center rounded-lg bg-zinc-800 text-sm font-bold text-slate-400">{x.anzeige.slice(0, 1).toUpperCase()}</span>}
+                    : <PlatzhalterRund name={x.anzeige} groesse={40} eckig />}
                   <span className="min-w-0 flex-1 truncate text-sm font-bold uppercase text-slate-100">{x.anzeige}</span>
                   <span className="text-xs font-bold" style={{ color: farbe }}>+ <T>Hinzufügen</T></span>
                 </button>
@@ -186,7 +187,7 @@ export default function OrgSeite() {
                       {bild
                         // eslint-disable-next-line @next/next/no-img-element
                         ? <img src={bild} alt="" className="absolute inset-0 h-full w-full object-cover" style={{ objectPosition: '50% 12%' }} />
-                        : <span className="absolute inset-0 grid place-items-center text-5xl font-black text-white/15">{s.name.slice(0, 1).toUpperCase()}</span>}
+                        : <SpielerPlatzhalter name={s.name} />}
                       <span aria-hidden className="foto-unten absolute inset-0 opacity-80" />
                       <span className="absolute bottom-3 left-4 right-4 truncate text-xl font-extrabold uppercase tracking-wide text-white drop-shadow">{s.name}</span>
                     </div>

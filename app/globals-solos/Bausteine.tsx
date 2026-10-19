@@ -1,6 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { PlatzhalterRund } from '@/app/components/SpielerPlatzhalter';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import { fortniteKarte } from '@/lib/bildAdressen';
@@ -40,9 +41,7 @@ export function Gesicht({ s, gross }: { s: SolosSpieler; gross?: boolean }) {
     // eslint-disable-next-line @next/next/no-img-element
     ? <img src={s.bild} alt="" loading="lazy" className={`${px} shrink-0 rounded-full border border-amber-400/30 object-cover object-top`} />
     : (
-      <span className={`${px} flex shrink-0 items-center justify-center rounded-full border border-zinc-700 bg-zinc-900 text-xs font-semibold text-slate-500`}>
-        {s.anzeige.slice(0, 1).toUpperCase()}
-      </span>
+      <PlatzhalterRund name={s.anzeige} groesse={gross ? 48 : 32} />
     );
 }
 
