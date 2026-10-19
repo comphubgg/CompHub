@@ -20,7 +20,7 @@ import { useT } from '@/app/components/SprachProvider';
 // Seite auf den Reiter "Registrieren" und traegt die Adresse gleich ein.
 
 interface Dienste {
-  dienste: { twitch: boolean; discord: boolean; google: boolean; email: boolean };
+  dienste: { twitch: boolean; discord: boolean; google: boolean; epic: boolean; email: boolean };
   woher: Record<string, string>;
 }
 
@@ -31,6 +31,9 @@ const ANBIETER = [
     pfad: '/api/auth/discord/authorize', logo: '/icons/discord.png' },
   { schluessel: 'google' as const, titel: 'Google',
     pfad: '/api/auth/google/authorize', logo: '/icons/google.svg' },
+  // Epic verifiziert das Spielerkonto (und meldet an, wenn es schon einem CompHub-Konto gehoert) - danach geht es zur Statistik.
+  { schluessel: 'epic' as const, titel: 'Epic Games',
+    pfad: '/api/auth/epic/authorize?zurueck=/statistics', logo: '/icons/epic.svg' },
 ];
 
 /**
@@ -371,9 +374,10 @@ export default function Anmelden({ start = 'anmelden' }: {
              * "ausgegraut". Nur ein klares Nein der Auskunft graut aus.
              */
             const bereit = dienste ? dienste.dienste[a.schluessel] : true;
-            const titel = reiter === 'registrieren'
-              ? `${t('Registrieren mit')} ${a.titel}`
-              : `${t('Anmelden mit')} ${a.titel}`;
+            const titel = a.schluessel === 'epic' ? t('Mit Epic Games verifizieren')
+              : reiter === 'registrieren'
+                ? `${t('Registrieren mit')} ${a.titel}`
+                : `${t('Anmelden mit')} ${a.titel}`;
 
             /*
              * Nicht eingerichtete Dienste bleiben sichtbar, aber tot - und

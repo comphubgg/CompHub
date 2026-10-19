@@ -1,6 +1,8 @@
 import crypto from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
-import { aendern, kontoAus, nachEpicId, nachId } from '@/lib/konten';
+import { aendern, kontoAus, merkeAnmeldung, nachEpicId, nachId, SITZUNG_TAGE, sitzungFuer } from '@/lib/konten';
+import { altesHostCookieWeg, sitzungsDomain } from '@/lib/cookieDomain';
+import { ueberHttps } from '@/lib/vipCookie';
 import { holeDienst } from '@/lib/dienstZugaenge';
 import { dienstWurzel } from '@/lib/oeffentlicheAdresse';
 import { GAST_COOKIE, gastWert } from '@/lib/epicGast';
@@ -131,6 +133,26 @@ export async function GET(req: NextRequest) {
 
     // Wer sich verifiziert, dessen Cups werden von selbst ausgewertet (lib/eigeneAuswertung) - ohne dass er erst jeden Cup oeffnen muss.
     await merkeKonto(epicId);
+
+    /*
+     * Von der Anmeldeseite (Betreiber, 19.10.2026: "auf der Login-Seite Epic zum Verifizieren"): gehoert diese Epic-Id schon einem verifizierten
+     * CompHub-Konto, ist der Besucher damit angemeldet - wie bei Discord und Twitch. Sonst bleibt es bei der Verifizierung ohne Konto.
+     */
+    if (!konto) {
+      const eigenes = await nachEpicId(epicId);
+      if (eigenes && !eigenes.gesperrt && eigenes.epicVerifiziert) {
+        await merkeAnmeldung(eigenes.id);
+        const eingeloggt = aufraeumen(zurueck(heim));
+        altesHostCookieWeg(eingeloggt, req, COOKIE);
+        eingeloggt.cookies.set(COOKIE, sitzungFuer(eigenes.id), {
+          ...sitzungsDomain(req),
+          httpOnly: true, sameSite: 'lax', path: '/',
+          secure: ueberHttps(req),
+          maxAge: SITZUNG_TAGE * 24 * 3600,
+        });
+        return eingeloggt;
+      }
+    }
 
     // Ohne CompHub-Konto: die Verifizierung gilt als signierter Cookie (lib/epicGast) - wie bei Osirion braucht es kein Konto dafuer.
     if (!konto || konto.gesperrt) {

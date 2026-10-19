@@ -37,7 +37,7 @@ export async function GET() {
     twitch: tw.woher !== 'fehlt',
     discord: dc.woher !== 'fehlt',
     google: go.woher !== 'fehlt',
-    // Epic ist keine Anmeldung, sondern die Verknuepfung des Spielerkontos.
+    // Epic verifiziert das Spielerkonto; wer schon ein verknuepftes CompHub-Konto hat, ist damit auch angemeldet.
     epic: ep.woher !== 'fehlt',
     // E-Mail und Passwort brauchen niemanden von aussen - das laeuft immer.
     email: true,
@@ -50,6 +50,7 @@ export async function GET() {
       twitch: 'dev.twitch.tv/console/apps',
       discord: 'discord.com/developers/applications',
       google: 'console.cloud.google.com/apis/credentials',
+      epic: 'dev.epicgames.com/portal',
     },
   });
 }

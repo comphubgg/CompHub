@@ -3389,6 +3389,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Die Endspiele ließen sich gerade nicht laden. Bitte gleich noch einmal versuchen.': 'The finals could not be loaded right now. Please try again in a moment.',
   'Noch keine Endspiele.': 'No finals yet.',
   'Platzierungen werden nachgetragen.': 'Placements will be added.',
+  'Mit Epic Games verifizieren': 'Verify with Epic Games',
   'Spielerprofil': 'Player profile',
   'Fotos und Videos zu Events und Spielern. Gezeigt wird alles im Reiter Spielerarchiv des Profils; jede Eingabe speichert sich selbst.': 'Photos and videos for events and players. Everything shows in the Player archive tab of the profile; every entry saves itself.',
   'Logos, Siegergrafiken und Streamausschnitte, nach Turnier oder Spieler abgelegt. Beim Bauen eines Beitrags findest du sie hier wieder.': 'Logos, winner graphics and stream clips, filed by tournament or player. You will find them again when you build a post.',
