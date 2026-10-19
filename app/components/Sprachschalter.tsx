@@ -105,7 +105,7 @@ export default function Sprachschalter() {
   };
 
   return (
-    <div ref={huelle} style={{ zIndex: alt ? 400 : 100 }} className="fixed bottom-4 right-4 flex flex-col items-end gap-2">
+    <div ref={huelle} style={{ zIndex: alt ? 400 : 100 }} className={`fixed right-4 flex flex-col items-end gap-2 ${pfad?.startsWith('/streams') ? 'bottom-[7.5rem] sm:bottom-4' : 'bottom-4'}`}>
       {/* Die Tafel: bleibt im Dokument und blendet nur ein - so laeuft das Auf- und Zuklappen weich. */}
       <div role="dialog" aria-label={t('Einstellungen')} aria-hidden={!offen}
         className={`w-72 origin-bottom-right rounded-2xl border border-zinc-800 bg-zinc-900 p-4 shadow-2xl transition duration-200 ${offen
