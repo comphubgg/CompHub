@@ -83,7 +83,7 @@ const festeVor = (liste: MvStream[]) => [...liste.filter((s) => s.fest), ...list
 export const CSS = `
 @layer components {
   .mv-root{--mv-bg:#09090b;--mv-panel:#111113;--mv-rand:#27272a;--mv-text:#f4f4f5;--mv-mute:#a1a1aa;--mv-hover:#1f1f23;background:var(--mv-bg);color:var(--mv-text)}
-  .mv-root.mv-hell{--mv-bg:#f4f4f5;--mv-panel:#ffffff;--mv-rand:#e4e4e7;--mv-text:#18181b;--mv-mute:#52525b;--mv-hover:#f4f4f5}
+  .mv-root.mv-hell,html[data-modus="hell"] .mv-root{--mv-bg:#f4f4f5;--mv-panel:#ffffff;--mv-rand:#e4e4e7;--mv-text:#18181b;--mv-mute:#52525b;--mv-hover:#e9e9ec}
   .mv-fl{background:var(--mv-panel);color:var(--mv-text);border-color:var(--mv-rand)}
   input.mv-fl,select.mv-fl{background:var(--mv-bg)}
   .mv-rand{border-color:var(--mv-rand)}
@@ -660,7 +660,7 @@ export default function Multiview(props: MultiviewProps) {
   const bearbeite = bearbeiteId ? streams.find((s) => s.id === bearbeiteId) : undefined;
 
   return (
-    <div className={`mv-root fixed bottom-0 left-0 right-0 z-[300] overflow-hidden ${einst.dunkel ? '' : 'mv-hell'}
+    <div className={`mv-root fixed bottom-0 left-0 right-0 z-[300] overflow-hidden 
       ${zieh ? 'mv-ziehen select-none' : ''}`}
       style={{ top: oben }}>
       <style>{CSS}</style>

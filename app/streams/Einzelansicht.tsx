@@ -7,6 +7,7 @@ import Kachel from './Kachel';
 import PovVideo from './PovVideo';
 import type { BannerEinst, StatsEinst } from './PovVideo';
 import { CSS } from './Multiview';
+import { useHell } from '@/app/lib/useHell';
 import { kanalAusEingabe, type MvEinstellungen } from './mvTypen';
 
 /*
@@ -108,6 +109,7 @@ function Knopf({ titel, klick, aktiv, gefahr, children }: {
 
 export default function Einzelansicht(p: Props) {
   const t = useT();
+  const hell = useHell();
   const [oben, setOben] = useState(0);
   /*
    * Die Ordnerliste: auf einem breiten Bildschirm daneben, auf einem schmalen darueber - und immer zuklappbar.
@@ -474,13 +476,13 @@ export default function Einzelansicht(p: Props) {
             )}
           </div>
           {zeigeChat && (
-            <div data-tour="chat" className="flex h-[480px] w-full shrink-0 flex-col overflow-hidden rounded-xl border border-zinc-900 bg-zinc-950 shadow-2xl md:h-full md:w-[360px]">
-              <div className="flex items-center justify-between border-b border-zinc-900 bg-zinc-950/90 px-3 py-2 text-[10px] font-bold uppercase tracking-widest text-zinc-400">
+            <div data-tour="chat" className="mv-fl mv-rand flex h-[480px] w-full shrink-0 flex-col overflow-hidden rounded-xl border shadow-2xl md:h-full md:w-[360px]">
+              <div className="mv-rand mv-mute flex items-center justify-between border-b px-3 py-2 text-[10px] font-bold uppercase tracking-widest">
                 <span> Chat: {chatName || 'None'}</span>
               </div>
-              <div className="min-h-0 flex-1 overflow-hidden bg-zinc-950">
+              <div className="mv-fl min-h-0 flex-1 overflow-hidden">
                 <iframe title={`Twitch chat für ${chatName}`} className="h-full w-full"
-                  src={`https://www.twitch.tv/embed/${chatName}/chat?parent=${p.host}&darkpopout`} />
+                  src={`https://www.twitch.tv/embed/${chatName}/chat?parent=${p.host}${hell ? '' : '&darkpopout'}`} />
               </div>
             </div>
           )}

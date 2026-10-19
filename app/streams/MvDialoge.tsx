@@ -199,9 +199,7 @@ export function EinstellungenFenster({ einst, aendern, kuerzel, zu }: {
         </>
       )}
 
-      <Abschnitt titel={t('Darstellung')} />
-      <Zeile symbol={<Strich d="M16 12A7 7 0 0 1 8 4a7 7 0 1 0 8 8z" />} text={t('Dunkler Modus')}
-        an={einst.dunkel} aendern={(v) => aendern({ dunkel: v })} />
+      <p className="mv-mute mt-4 text-[11px] leading-snug"><T>Hell oder dunkel schaltest du mit dem Zahnrad unten rechts — es gilt für die ganze Seite.</T></p>
 
       <button type="button" onClick={kuerzel}
         className="mv-fl mv-hover mt-5 flex w-full items-center gap-2 rounded-md border px-3 py-2 text-sm transition">

@@ -3389,6 +3389,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Die Endspiele ließen sich gerade nicht laden. Bitte gleich noch einmal versuchen.': 'The finals could not be loaded right now. Please try again in a moment.',
   'Noch keine Endspiele.': 'No finals yet.',
   'Platzierungen werden nachgetragen.': 'Placements will be added.',
+  'Hell oder dunkel schaltest du mit dem Zahnrad unten rechts — es gilt für die ganze Seite.': 'Switch between light and dark with the gear at the bottom right — it applies to the whole site.',
   'Der Weg': 'The road',
   'Last Chance': 'Last Chance',
   'Kommt': 'Upcoming',
