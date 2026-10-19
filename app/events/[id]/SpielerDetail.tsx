@@ -86,47 +86,42 @@ const vomMitspieler = (m: Mitglied, c: Ctx, wert: (x: Mitglied) => Wert): Wert =
 };
 const kopf = (m: Mitglied, c: Ctx): Wert => sz(m, 'headshots') ?? (m.replay?.headshots ?? null) ?? (c.solo ? pos(c.e?.headshots) : null);
 
-const ZEILEN: Zeile[] = [
-  { titel: 'Eliminations', wert: kills, zeige: num, je: (m) => m.elims },
+/*
+ * Die Werte, die es bei jedem Spieler gibt (Betreiber, 19.10.2026: "nur die wichtigsten Stats - Points, Matches, Wins, Average Time Alive, Average Placement,
+ * Average Points, Eliminations, Average Eliminations und K/D; Schaden nur, wo er stimmt - und fuer jeden Spieler dieselben, keine Zeilen mit Strichen").
+ * Alle aus Epics Bestenliste, deshalb bei jedem Platz da. Kopftreffer, Material, Heilung, Genauigkeit und Bauen fehlen bewusst: keine Quelle fuehrt sie fuer
+ * jeden Spieler verlaesslich.
+ */
+const elimsVon = (m: Mitglied, c: Ctx): Wert => kills(m, c) ?? (c.e ? c.e.elims : null);
+const KERN: Zeile[] = [
+  { titel: 'Points', wert: (_m, c) => (c.e ? c.e.points : null), zeige: num, je: (m) => ((m.punktePlatz ?? 0) + (m.punkteElim ?? 0)) || undefined },
+  { titel: 'Matches', wert: (_m, c) => (c.e ? c.e.games : null), zeige: num },
+  { titel: 'Wins', wert: (_m, c) => (c.e ? c.e.wins : null), zeige: num, je: (m) => m.wins },
+  { titel: 'Avg Time Alive', wert: (_m, c) => (c.e && c.e.games && c.e.timeAlive ? c.e.timeAlive / c.e.games : null), zeige: dauer, je: (m) => m.timeAlive },
+  { titel: 'Avg Placement', wert: (_m, c) => {
+    const p = (c.e?.matches ?? []).map((x) => x.placement).filter((v): v is number => typeof v === 'number' && v > 0);
+    return p.length ? p.reduce((s, v) => s + v, 0) / p.length : null;
+  }, zeige: (v) => v.toFixed(2), je: (m) => m.placement, weniger: true },
+  { titel: 'Avg Points', wert: (_m, c) => (c.e && c.e.games ? c.e.points / c.e.games : null), zeige: (v) => v.toFixed(1) },
+  { titel: 'Eliminations', wert: elimsVon, zeige: num, je: (m) => m.elims },
+  { titel: 'Avg Eliminations', wert: (m, c) => { const k = elimsVon(m, c); return k !== null && c.e && c.e.games ? k / c.e.games : null; }, zeige: (v) => v.toFixed(2) },
+  { titel: 'K/D Ratio', wert: (m, c) => {
+    if (m.replay && m.replay.tode !== null) return kills(m, c) !== null ? (kills(m, c) as number) / Math.max(1, m.replay.tode) : null;
+    const k = elimsVon(m, c);
+    return k !== null && c.e && c.e.games ? k / Math.max(1, c.e.games - c.e.wins) : null;
+  }, zeige: (v) => v.toFixed(2) },
+];
+
+/** Dazu nur, was fuer alle Spieler der Ansicht vorliegt - sonst stuenden bei dem einen Zeilen, die dem anderen fehlen. */
+const ZUSATZ: Zeile[] = [
   { titel: 'Damage To Players', wert: dmg, zeige: num, je: (m) => m.damage },
   { titel: 'Damage From Players', wert: dmgT, zeige: num, je: (m) => m.damageTaken, rot: true, weniger: true },
   { titel: 'Damage Ratio', wert: (m, c) => { const a = dmg(m, c); const b = dmgT(m, c); return a !== null && b ? a / b : null; }, zeige: (v) => v.toFixed(2) },
-  { titel: 'K/D Ratio', wert: (m, c) => {
-    if (m.replay && m.replay.tode !== null) return kills(m, c) !== null ? (kills(m, c) as number) / Math.max(1, m.replay.tode) : null;
-    if (c.solo) return c.e && c.e.games ? c.e.kd : null;
-    const k = kills(m, c);
-    return k !== null && c.e ? k / Math.max(1, c.e.games - c.e.wins) : null;
-  }, zeige: (v) => v.toFixed(2) },
-  { titel: 'Health Healed', wert: (m) => sz(m, 'healthHealed'), zeige: num },
-  { titel: 'Shield Healed', wert: (m) => sz(m, 'shieldHealed'), zeige: num },
-  { titel: 'Player Accuracy', wert: (m) => { const s = sz(m, 'shots'); const h = sz(m, 'hitsToPlayers'); return s && h !== null ? (h / s) * 100 : null; }, zeige: pct },
-  { titel: 'Headshots', wert: kopf, zeige: num, je: (m) => m.headshots },
-  { titel: 'Edit Accuracy', wert: () => null, zeige: pct },
-  { titel: 'Avg Edit Time', wert: () => null, zeige: (v) => `${Math.round(v)}ms` },
-  { titel: 'Mats Farmed', wert: (m, c) => { const w = sz(m, 'woodFarmed'); const s = sz(m, 'stoneFarmed'); const me = sz(m, 'metalFarmed'); return w !== null && s !== null && me !== null ? w + s + me : (c.solo ? pos(c.e?.matsGefarmt) : null); }, zeige: num, je: (m) => (m.holzGefarmt ?? 0) + (m.steinGefarmt ?? 0) + (m.metallGefarmt ?? 0) || undefined },
-  // Im Team-Cup zaehlt Epic die Zeit je Team: jedes Mitglied hat sie (wo die Szene-Quelle eine eigene Zeit fuehrt, gilt die).
-  { titel: 'Time Alive', wert: (m, c) => (c.solo && c.e && c.e.timeAlive ? c.e.timeAlive : (sz(m, 'timeAlive') ?? (c.e && c.e.timeAlive ? c.e.timeAlive : null))), zeige: dauer, je: (m) => m.timeAlive },
-  { titel: 'Assists', wert: (m) => sz(m, 'assists'), zeige: num },
-  { titel: 'Overshield Healed', wert: () => null, zeige: num },
-  { titel: 'Hits To Players', wert: (m) => treffer(m), zeige: num },
-  { titel: 'Shots', wert: (m) => sz(m, 'shots'), zeige: num },
-  { titel: 'Overall Accuracy', wert: (m) => { const s = sz(m, 'shots'); const h = sz(m, 'hitsToPlayers'); return s && h !== null ? (h / s) * 100 : null; }, zeige: pct },
-  { titel: 'Weakpoint Accuracy', wert: (m, c) => { const h = treffer(m); const k = kopf(m, c); return h && k !== null ? (k / h) * 100 : null; }, zeige: pct },
+  { titel: 'Time in Storm', wert: (m) => sz(m, 'timeInStorm') ?? (m.replay?.sturmSek ?? null), zeige: dauer, rot: true, weniger: true },
   { titel: 'Players Revived', wert: (m, c) => vomMitspieler(m, c, wiederbelebt), zeige: num },
   { titel: 'Got Revived', wert: (m, c) => (c.echtSolo ? 0 : wiederbelebt(m)), zeige: num },
   { titel: 'Players Rebooted', wert: (m, c) => vomMitspieler(m, c, reboots), zeige: num },
   { titel: 'Got Rebooted', wert: (m, c) => (c.echtSolo ? 0 : reboots(m)), zeige: num },
-  { titel: 'Wood Farmed', wert: (m, c) => sz(m, 'woodFarmed') ?? (c.solo ? pos(c.e?.matches.reduce((a, x) => a + (x.holzGefarmt ?? 0), 0)) : null), zeige: num, je: (m) => m.holzGefarmt },
-  { titel: 'Stone Farmed', wert: (m, c) => sz(m, 'stoneFarmed') ?? (c.solo ? pos(c.e?.matches.reduce((a, x) => a + (x.steinGefarmt ?? 0), 0)) : null), zeige: num, je: (m) => m.steinGefarmt },
-  { titel: 'Metal Farmed', wert: (m, c) => sz(m, 'metalFarmed') ?? (c.solo ? pos(c.e?.matches.reduce((a, x) => a + (x.metallGefarmt ?? 0), 0)) : null), zeige: num, je: (m) => m.metallGefarmt },
-  { titel: 'Mats Collected', wert: () => null, zeige: num },
-  { titel: 'Wood Collected', wert: () => null, zeige: num },
-  { titel: 'Stone Collected', wert: () => null, zeige: num },
-  { titel: 'Metal Collected', wert: () => null, zeige: num },
-  { titel: 'Time in Storm', wert: (m) => sz(m, 'timeInStorm') ?? (m.replay?.sturmSek ?? null), zeige: dauer, rot: true, weniger: true },
-  { titel: 'Storm Damage Taken', wert: (m) => sz(m, 'stormDamage'), zeige: num, rot: true, weniger: true },
-  { titel: 'Surge Hits', wert: () => null, zeige: num },
-  { titel: 'Distance Traveled', wert: (m, c) => { const a = sz(m, 'distanceOnFoot'); const b = sz(m, 'distanceSkydiving'); return a !== null && b !== null ? a + b : (c.solo ? pos(c.e?.strecke) : null); }, zeige: km, je: (m) => m.strecke },
 ];
 
 /** Wie viele Zeilen zuerst zu sehen sind - der Rest steht hinter "More" (wie bei Osirion). */
@@ -283,7 +278,10 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo, star
   };
   const naechste = geholt ? Math.max(0, Math.ceil((geholt + TAKT_MS - jetzt) / 60000)) : null;
   const letzte = vorMinuten(daten?.aktualisiert ?? null, jetzt);
-  const zeilen = mehr ? ZEILEN : ZEILEN.slice(0, ZUERST);
+  // Kern bei jedem; Zusatz nur, wo es fuer alle Spieler der Ansicht einen Wert gibt.
+  const zeilen = useMemo(() => [...KERN, ...ZUSATZ.filter((z) => mitglieder.length > 0 && mitglieder.every((m) => z.wert(m, ctx) !== null))],
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [mitglieder, e, solo]);
 
   const kumPlatz = useMemo(() => { let a = 0; return spiele.map((m) => (a += m.punktePlatz ?? 0)); }, [spiele]);
   const kumElim = useMemo(() => { let a = 0; return spiele.map((m) => (a += m.punkteElim ?? 0)); }, [spiele]);
@@ -488,9 +486,6 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo, star
                 ))}
               </div>
             )}
-          </div>
-          <div className="mt-2 text-center">
-            <button type="button" onClick={() => setMehr((v) => !v)} className="text-[12px] font-semibold text-slate-400 transition hover:text-slate-100">{mehr ? 'Less ▴' : 'More ▾'}</button>
           </div>
 
           <p className="mt-3 text-[11px] leading-relaxed text-slate-600">
