@@ -67,6 +67,21 @@ export function useAuth(): UseAuthReturn {
             }
           }
 
+          /*
+           * Ein CompHub-Konto (Registrierung, Twitch, Discord, Google) zaehlt ebenso (Betreiber, 19.10.2026: in der Tierlist liess sich nichts anlegen -
+           * sie kannte nur den alten VIP-Schluessel und hielt jedes Konto fuer einen Gast).
+           */
+          try {
+            const kr = await fetch('/api/konto', { cache: 'no-store', credentials: 'same-origin' });
+            if (kr.ok) {
+              const k = await kr.json() as { angemeldet?: boolean; konto?: { id?: string; name?: string } };
+              if (k?.angemeldet && k.konto?.name) {
+                if (mounted) setUser({ id: String(k.konto.id ?? k.konto.name), name: String(k.konto.name), provider: 'discord' });
+                return;
+              }
+            }
+          } catch { /* dann gilt: kein Konto */ }
+
           if (mounted) setUser(null);
           clearStaleAuth();
         } catch (e) {

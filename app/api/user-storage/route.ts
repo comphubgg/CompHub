@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import path from 'path';
 import fs from '@/lib/ablageFs';
 import { DATEN_ORT } from '@/lib/datenOrt';
+import { kontoAus } from '@/lib/konten';
 
 const STORAGE_DIR = path.join(DATEN_ORT, 'user-storage');
 
@@ -14,6 +15,19 @@ function parseCookies(cookieHeader?: string | null) {
     result[k.trim()] = decodeURIComponent((rest || []).join('=').trim() || '');
   }
   return result;
+}
+
+/**
+ * Wessen Ablage das ist: der alte VIP-Zugang (Cookie streamer_dashboard_user_login), sonst das CompHub-Konto, sonst "guest" (Betreiber, 19.10.2026: die
+ * Tierlist und die eigenen Ordner gingen bei Konten ins Leere). Der Wert kommt aus einem Cookie und wird zum Dateinamen - deshalb nur harmlose Zeichen,
+ * sonst liesse sich mit "../" eine fremde Datei beschreiben.
+ */
+function loginVon(request: NextRequest): string {
+  const cookies = parseCookies(request.headers.get('cookie') || '');
+  const alt = (cookies['streamer_dashboard_user_login'] || '').trim();
+  if (alt) return alt.toLowerCase().replace(/[^a-z0-9_.@-]/g, '_').replace(/^\.+/, '_').slice(0, 80) || 'guest';
+  const konto = kontoAus(cookies['streamer_dashboard_konto']);
+  return konto ? `konto-${konto.replace(/[^a-z0-9_-]/gi, '_').slice(0, 60)}` : 'guest';
 }
 
 async function readUserFile(login: string) {
@@ -34,9 +48,7 @@ async function writeUserFile(login: string, data: Record<string, unknown>) {
 
 export async function GET(request: NextRequest) {
   try {
-    const cookieHeader = request.headers.get('cookie') || '';
-    const cookies = parseCookies(cookieHeader);
-    const login = (cookies['streamer_dashboard_user_login'] || 'guest').trim() || 'guest';
+    const login = loginVon(request);
 
     const { searchParams } = new URL(request.url);
     const key = searchParams.get('key');
@@ -55,9 +67,7 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const cookieHeader = request.headers.get('cookie') || '';
-    const cookies = parseCookies(cookieHeader);
-    const login = (cookies['streamer_dashboard_user_login'] || 'guest').trim() || 'guest';
+    const login = loginVon(request);
 
     const body = await request.json();
     const key = body?.key;

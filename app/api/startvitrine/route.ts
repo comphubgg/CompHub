@@ -3,6 +3,7 @@ import { abgelegteAntwort, ohneDateien, CDN_FRIST } from '@/lib/antwortSpeicher'
 import { cupNameAusKennung, rundenName } from '@/lib/rundenName';
 import { mapsVerzeichnis, type MapEintrag, type MapTyp } from '@/lib/mapsVerzeichnis';
 import { gecacht, holeTop } from '@/lib/epicCups';
+import { spielerKontext } from '@/lib/globalsSolos';
 import { liesJson } from '@/lib/ablage';
 import { saisonName } from '@/lib/szeneStats';
 import { GET as prLesen } from '../power-rankings/route';
@@ -87,14 +88,19 @@ async function cupsHolen(): Promise<VCup[]> {
     if (e) wahl.push(e);
   }
   const profile = await liesJson<Record<string, { anzeige?: string; name?: string; land?: string }>>('spieler-profile.json', {}).catch(() => ({} as Record<string, { anzeige?: string; name?: string; land?: string }>));
+  // Der echte Name zu jedem Konto (Betreiber, 19.10.2026: Namen aus Zahlen "stimmen nicht - das musst du herausfinden"): Profil, Szene-Liste, sonst Epics Name ohne Orgtag.
+  const kontext = await spielerKontext();
   const raus: VCup[] = [];
   await Promise.all(wahl.map(async (e) => {
     try {
-      const top = await gecacht(`vitrine|top|${e.windowId}`, 15 * 60_000, () => holeTop(e.eventId as string, e.windowId, 8, true));
+      const top = await gecacht(`vitrine|top|${e.windowId}`, 15 * 60_000, () => holeTop(e.eventId as string, e.windowId, 8, false));
       const zeilen: CupZeile[] = ((top as { entries?: Array<{ rank: number; points: number; wins: number; elims: number; players: Array<{ id: string; name?: string }> }> }).entries ?? [])
         .slice(0, 6).map((z) => ({
           rang: z.rank, punkte: z.points, siege: z.wins, elims: z.elims,
-          spieler: z.players.map((p) => ({ name: profile[p.id]?.anzeige || profile[p.id]?.name || (p.name && p.name !== p.id ? p.name : p.id.slice(0, 6)), land: (profile[p.id]?.land ?? '').toUpperCase() || null })),
+          spieler: z.players.map((p) => {
+            const k = kontext(p.id, p.name && p.name !== p.id ? p.name : '');
+            return { name: k.anzeige && !/^[0-9a-f]{8,32}$/i.test(k.anzeige) ? k.anzeige : (p.name && !/^[0-9a-f]{8,32}$/i.test(p.name) ? p.name : '—'), land: (profile[p.id]?.land ?? k.land ?? '').toUpperCase() || null };
+          }),
         }));
       if (zeilen.length) raus.push({ titel: e.titel, cup: e.cup, typ: e.typ, bild: e.bild, datum: e.datum, region: e.region, saisonKurz: e.saisonKurz, zeilen });
     } catch { /* ohne Bestenliste faellt dieser Cup weg */ }
