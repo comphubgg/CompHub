@@ -116,6 +116,55 @@ export function testbildStrom(qualitaet: Qualitaet, name: string): MediaStream {
 }
 
 /*
+ * Das Mikrofon dazu.
+ *
+ * Der Betreiber (19.10.2026): ein Profi soll sein Mikrofon mitsenden koennen - und stumm schalten und wieder einschalten, ohne das Teilen zu
+ * unterbrechen. Der Spielton (Systemaudio) und das Mikrofon laufen ueber WebAudio in eine Spur; "stumm" setzt nur die Lautstaerke des Mikrofons auf null,
+ * die Spur bleibt, darum gibt es weder eine Luecke noch einen Neustart des Rekorders.
+ */
+interface MikroSteuerung { stumm: boolean; setzeStumm: (b: boolean) => void; ende: () => void }
+let mikro: MikroSteuerung | null = null;
+const mikroHoerer = new Set<(m: { da: boolean; stumm: boolean }) => void>();
+const meldeMikro = () => mikroHoerer.forEach((f) => f({ da: Boolean(mikro), stumm: mikro?.stumm ?? false }));
+
+export function mikroStand(): { da: boolean; stumm: boolean } { return { da: Boolean(mikro), stumm: mikro?.stumm ?? false }; }
+export function abonniereMikro(f: (m: { da: boolean; stumm: boolean }) => void): () => void { mikroHoerer.add(f); return () => { mikroHoerer.delete(f); }; }
+export function setzeMikroStumm(stumm: boolean): void { mikro?.setzeStumm(stumm); }
+
+/** Das Mikrofon in den Ton mischen: gibt den Strom mit der gemischten Spur zurueck. Wirft, wenn das Mikrofon nicht freigegeben wird. */
+export async function mitMikrofon(strom: MediaStream, stummAnfang = false): Promise<MediaStream> {
+  const roh = await navigator.mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true, channelCount: 1 } });
+  const ac = new AudioContext({ sampleRate: 48000 });
+  void ac.resume().catch(() => undefined);
+  const ziel = ac.createMediaStreamDestination();
+  const spiel = strom.getAudioTracks()[0];
+  if (spiel) ac.createMediaStreamSource(new MediaStream([spiel])).connect(ziel);
+  const laut = ac.createGain();
+  laut.gain.value = stummAnfang ? 0 : 1;
+  ac.createMediaStreamSource(roh).connect(laut);
+  laut.connect(ziel);
+  let beendet = false;
+  const ende = () => {
+    if (beendet) return;
+    beendet = true;
+    roh.getTracks().forEach((x) => x.stop());
+    void ac.close().catch(() => undefined);
+    if (mikro === steuerung) { mikro = null; meldeMikro(); }
+  };
+  const steuerung: MikroSteuerung = {
+    stumm: stummAnfang,
+    setzeStumm: (b) => { steuerung.stumm = b; laut.gain.setTargetAtTime(b ? 0 : 1, ac.currentTime, 0.015); meldeMikro(); },
+    ende,
+  };
+  mikro?.ende();
+  mikro = steuerung;
+  meldeMikro();
+  // Endet das Bild (Teilen beendet), geht auch das Mikrofon aus - sonst bliebe es offen.
+  strom.getVideoTracks().forEach((v) => v.addEventListener('ended', ende));
+  return new MediaStream([...strom.getVideoTracks(), ...ziel.stream.getAudioTracks()]);
+}
+
+/*
  * Das Teilen haengt am Modul, nicht an der Seite: wechselt der Profi im Dashboard von POV zu Einstellungen oder
  * in eine andere Seite der Webseite, laeuft es weiter. Nur Tab schliessen oder Neuladen beendet es.
  */

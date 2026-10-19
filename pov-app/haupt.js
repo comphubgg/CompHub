@@ -14,7 +14,7 @@
 //
 // Im Programm steckt kein Schluessel und keine Zugangsdaten: wer es hat, kommt ohne Anmeldung nicht weiter.
 
-const { app, BrowserWindow, Tray, Menu, shell, session, desktopCapturer, ipcMain, nativeImage, dialog, powerSaveBlocker } = require('electron');
+const { app, BrowserWindow, Tray, Menu, shell, session, desktopCapturer, ipcMain, nativeImage, dialog, powerSaveBlocker, globalShortcut } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
 
@@ -36,6 +36,11 @@ let schlaf = null;
 let autoQuelle = false;
 /** Die Fassung, die schon geladen ist und beim naechsten Moment ohne Uebertragung installiert wird. */
 let updateBereit = null;
+/** Das Mikrofon: ob es mitgesendet wird und ob es stumm ist (die Seite meldet es). */
+let mikroDa = false;
+let mikroStumm = false;
+const MIKRO_TASTE = 'CommandOrControl+Alt+M';
+const mikroUmschalten = () => { if (mikroDa && fenster && !fenster.isDestroyed()) fenster.webContents.send('pov:mikro-umschalten'); };
 
 const sperre = app.requestSingleInstanceLock();
 if (!sperre) { app.quit(); }
@@ -180,6 +185,7 @@ function aktualisiereAblage() {
     { label: live ? '● Du bist live' : 'Nicht live', enabled: false },
     { type: 'separator' },
     { label: 'CompHub POV öffnen', click: zeigeFenster },
+    { label: mikroDa ? (mikroStumm ? 'Mikrofon ist stumm – einschalten (Strg+Alt+M)' : 'Mikrofon ist an – stumm schalten (Strg+Alt+M)') : 'Mikrofon: wird nicht gesendet', enabled: mikroDa, click: mikroUmschalten },
     {
       label: 'Mit Windows starten', type: 'checkbox', checked: app.getLoginItemSettings().openAtLogin,
       click: (m) => app.setLoginItemSettings({ openAtLogin: m.checked, args: ['--versteckt'] }),
@@ -203,6 +209,11 @@ ipcMain.on('pov:auto', (_e, an) => {
   autoQuelle = Boolean(an);
   // Nur fuer diesen einen Start: bleibt es liegen, soll das naechste Mal von Hand wieder gefragt werden.
   if (autoQuelle) setTimeout(() => { autoQuelle = false; }, 30_000);
+});
+
+ipcMain.on('pov:mikro-stand', (_e, da, stumm) => {
+  mikroDa = Boolean(da); mikroStumm = Boolean(stumm);
+  aktualisiereAblage();
 });
 
 ipcMain.on('pov:live', (_e, an) => {
@@ -267,7 +278,10 @@ if (sperre) {
     baueFenster(versteckt);
     baueAblage();
     richteUpdatesEin();
+    // Die Tastenkombination gilt auch, wenn das Spiel vorn ist (Betreiber, 19.10.2026: Mikrofon stumm schalten koennen).
+    try { globalShortcut.register(MIKRO_TASTE, mikroUmschalten); } catch { /* Tastenkombination belegt */ }
   });
+  app.on('will-quit', () => { try { globalShortcut.unregisterAll(); } catch { /* egal */ } });
   app.on('before-quit', () => { wirklichBeenden = true; });
   // Das Fenster ist nur weggelegt - das Programm bleibt, bis es ueber den Infobereich beendet wird.
   app.on('window-all-closed', () => { /* bleibt */ });

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import type { PovPro, PovQualitaet } from '@/lib/pov';
-import { QUALITAET, abonniere, holeAktiv, startSenden, testbildStrom, type Zustand } from '@/app/pov/sender';
+import { QUALITAET, abonniere, abonniereMikro, holeAktiv, mikroStand, mitMikrofon, setzeMikroStumm, startSenden, testbildStrom, type Zustand } from '@/app/pov/sender';
 
 /*
  * Das Dashboard eines Profis.
@@ -68,6 +68,22 @@ export default function ProDashboard() {
    * Sprachkanal streamt. Im Browser fragt der Bildschirm-Dialog immer, dort bleibt es bei einem Knopf.
    */
   const [autoDiscord, setAutoDiscord] = useState(true);
+  /** Das Mikrofon mitsenden (gemerkt) und sein Stand waehrend der Uebertragung. */
+  const [mitMikro, setMitMikro] = useState(false);
+  const [mikro, setMikro] = useState(mikroStand);
+  useEffect(() => {
+    try { setMitMikro(localStorage.getItem('comphub_pov_mikro') === '1'); } catch { /* ohne Speicher: aus */ }
+    return abonniereMikro(setMikro);
+  }, []);
+  // Im Programm: die Tastenkombination schaltet das Mikrofon um, auch wenn das Fenster nicht vorn ist; das Symbol im Infobereich zeigt den Stand.
+  useEffect(() => {
+    const app = (window as unknown as { comphubApp?: { onMikro?: (f: () => void) => void; mikroStand?: (da: boolean, stumm: boolean) => void } }).comphubApp;
+    app?.mikroStand?.(mikro.da, mikro.stumm);
+  }, [mikro.da, mikro.stumm]);
+  useEffect(() => {
+    const app = (window as unknown as { comphubApp?: { onMikro?: (f: () => void) => void } }).comphubApp;
+    app?.onMikro?.(() => { const m = mikroStand(); if (m.da) setzeMikroStumm(!m.stumm); });
+  }, []);
   const autoSitzung = useRef(false);
   const autoGestartet = useRef(false);
   useEffect(() => {
@@ -188,7 +204,12 @@ export default function ProDashboard() {
         } as MediaTrackConstraints,
         ...({ systemAudio: 'include', selfBrowserSurface: 'exclude', surfaceSwitching: 'include' } as object),
       });
-      startSenden(strom, mein.qualitaet);
+      let sendeStrom = strom;
+      if (mitMikro) {
+        try { sendeStrom = await mitMikrofon(strom); }
+        catch { setFehler(t('Das Mikrofon ließ sich nicht öffnen — es wird ohne Mikrofon gesendet. Erlaube den Zugriff in der Adresszeile bzw. in den Windows-Datenschutz-Einstellungen.')); }
+      }
+      startSenden(sendeStrom, mein.qualitaet);
     } catch (e) {
       const name = (e as DOMException).name;
       // "Abbrechen" im Auswahlfenster ist kein Fehler.
@@ -364,6 +385,21 @@ export default function ProDashboard() {
         {mein && tab === 'pov' && (
           <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_380px]">
             <div className="space-y-5">
+              {/* ------------------------------------------- So funktioniert es */}
+              <details open className="group rounded-xl border border-zinc-800 bg-zinc-900/40 p-5">
+                <summary className="flex cursor-pointer list-none items-center justify-between text-sm font-semibold">
+                  <T>So funktioniert dein POV</T>
+                  <span aria-hidden className="text-slate-500 transition group-open:rotate-180">⌄</span>
+                </summary>
+                <ol className="mt-3 space-y-2.5 text-xs leading-relaxed text-slate-400">
+                  <li><b className="text-slate-200"><T>Programm holen.</T></b> <T>Lade das Windows-Programm oder kopiere den Befehl oben. Es läuft im Hintergrund weiter und aktualisiert sich selbst, nie während einer Übertragung.</T></li>
+                  <li><b className="text-slate-200"><T>Freigeben.</T></b> <T>Rechts hakst du die VIPs an, die dein POV sehen dürfen. Nur sie sehen es, nicht öffentlich und nicht auf Twitch.</T></li>
+                  <li><b className="text-slate-200"><T>Live gehen.</T></b> <T>„Bild teilen und live gehen“, den Bildschirm wählen und „Systemaudio teilen“ anhaken. Gehst du auf Discord live, startet das Programm das Teilen von selbst. Das Programm muss dafür laufen: Discord gibt ihm das Bild nicht heraus, es teilt denselben Bildschirm gleichzeitig.</T></li>
+                  <li><b className="text-slate-200"><T>Mikrofon, wenn du willst.</T></b> <T>Häkchen setzen, dann wird deine Stimme zum Spielton gemischt. Stumm schalten geht mit dem Knopf hier und im Programm mit Strg + Alt + M, auch mitten im Spiel.</T></li>
+                  <li><b className="text-slate-200"><T>Wer es sieht.</T></b> <T>Freigegebene VIPs finden dein POV auf der Streams-Seite im Ordner „Pro-POVs“.</T></li>
+                </ol>
+              </details>
+
               {/* ------------------------------------------- Bild teilen */}
               <section className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-5">
                 <h2 className="text-sm font-semibold"><T>Dein POV</T></h2>
@@ -421,6 +457,31 @@ export default function ProDashboard() {
                     )}
                     {teilen?.art === 'fehler' && <p className="mt-0.5 text-rose-300">{teilen.text}</p>}
                   </div>
+                </div>
+
+                {/* Das Mikrofon: vor dem Teilen ein Haken, waehrend der Uebertragung ein Knopf zum Stummschalten. */}
+                <div className="mt-4 flex flex-wrap items-center gap-3">
+                  {!teilt ? (
+                    <label className="flex cursor-pointer items-center gap-2 text-xs text-slate-300">
+                      <input type="checkbox" checked={mitMikro} className="accent-sky-500"
+                        onChange={(e) => { setMitMikro(e.target.checked); try { localStorage.setItem('comphub_pov_mikro', e.target.checked ? '1' : '0'); } catch { /* ohne Speicher */ } }} />
+                      <T>Mein Mikrofon mitsenden</T>
+                      <span className="text-slate-500"><T>(mitten in der Übertragung stumm schaltbar)</T></span>
+                    </label>
+                  ) : mikro.da ? (
+                    <button type="button" onClick={() => setzeMikroStumm(!mikro.stumm)}
+                      className={`inline-flex items-center gap-2 rounded-full border px-4 py-1.5 text-xs font-bold transition ${mikro.stumm
+                        ? 'border-red-500/60 bg-red-500/10 text-red-300 hover:bg-red-500/20' : 'border-emerald-500/50 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20'}`}>
+                      <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                        <rect x="7" y="2" width="6" height="10" rx="3" /><path d="M4 9.5a6 6 0 0 0 12 0M10 15.5V18" />
+                        {mikro.stumm && <path d="M3 3l14 14" />}
+                      </svg>
+                      {mikro.stumm ? <T>Mikrofon ist stumm — einschalten</T> : <T>Mikrofon ist an — stumm schalten</T>}
+                    </button>
+                  ) : (
+                    <span className="text-[11px] text-slate-500"><T>Ohne Mikrofon</T></span>
+                  )}
+                  {imProgramm && mikro.da && <span className="text-[11px] text-slate-500"><T>Im Programm auch mit Strg + Alt + M, selbst im Spiel.</T></span>}
                 </div>
 
                 {teilt && (
