@@ -1,13 +1,6 @@
-'use client';
+import { redirect } from 'next/navigation';
 
-import GlobalsSolosGeruest from '../GlobalsSolosGeruest';
-import SolosKarte from './SolosKarte';
-
-/** Die Karte der Solos. */
-export default function SolosMap() {
-  return (
-    <GlobalsSolosGeruest aktiv="/globals-solos/map">
-      {({ daten }) => <SolosKarte daten={daten} />}
-    </GlobalsSolosGeruest>
-  );
+/** Die Seite gibt es nicht mehr einzeln - alles steht im Reiter "karte" von /globals-solos. */
+export default function Weiter() {
+  redirect('/globals-solos?tab=karte');
 }

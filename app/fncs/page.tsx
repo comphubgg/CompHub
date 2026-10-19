@@ -248,6 +248,8 @@ export default function FncsSeite() {
           <div className="inline-flex gap-1 rounded-xl border border-white/[0.08] bg-black/30 p-1">
             <button type="button" onClick={() => setTab('events')} className={reiter(tab === 'events')}>Events</button>
             <button type="button" onClick={() => setTab('alltime')} className={reiter(tab === 'alltime')}>All-Time Stats</button>
+            {/* FNCS Solos: eine eigene Seite fuer alle Regionen (Heats, Last Chance, Finale, Karte). */}
+            <Link href="/globals-solos" className={reiter(false)}>Solos</Link>
           </div>
         </div>
       </div>
