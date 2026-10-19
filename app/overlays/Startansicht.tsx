@@ -148,13 +148,17 @@ export default function Startansicht({ onWeiter, art }: {
     const heuteVon = new Date(); heuteVon.setHours(0, 0, 0, 0);
     const heuteBis = new Date(); heuteBis.setHours(23, 59, 59, 999);
     const raus: Wahl[] = [];
+    // NA Central und NA West teilen sich Fenster - jedes windowId nur einmal, mit seiner eigenen Region.
+    const gesehen = new Set<string>();
     for (const c of cups ?? []) {
       const erlaubt = overlayCupErlaubt(c.titel);
       for (const liste of Object.values(c.regionen ?? {})) {
         for (const w of liste) {
           if (w.begin < von || w.begin > bis) continue;
+          if (gesehen.has(w.windowId)) continue;
+          gesehen.add(w.windowId);
           raus.push({
-            eventId: w.eventId, windowId: w.windowId, region: w.region,
+            eventId: w.eventId, windowId: w.windowId, region: /_([A-Z]{2,4})$/.exec(w.windowId)?.[1] ?? w.region,
             titel: c.titel, istFinale: w.istFinale, begin: w.begin,
             live: w.status === 'live', erlaubt,
             heute: w.begin >= heuteVon.getTime() && w.begin <= heuteBis.getTime(),

@@ -97,14 +97,18 @@ export default function MeineOverlays({ nurArt = '' }: { nurArt?: string }) {
       wert: string; titel: string; live: boolean;
       rang: number; region: number; begin: number; vorbei: boolean;
     }> = [];
+    const gesehen = new Set<string>();
     for (const c of cups ?? []) {
       if (!overlayCupErlaubt(c.titel)) continue;
       for (const fenster of Object.values(c.regionen ?? {})) {
         for (const w of fenster) {
           if (w.begin < von || w.begin > bis) continue;
+          if (gesehen.has(w.windowId)) continue;
+          gesehen.add(w.windowId);
+          const reg = /_([A-Z]{2,4})$/.exec(w.windowId)?.[1] ?? w.region;
           raus.push({
             wert: `${w.eventId}|${w.windowId}`,
-            titel: `${c.titel} · ${w.region}${w.istFinale ? ' · Finale' : ''}`,
+            titel: `${c.titel} · ${reg}${w.istFinale ? ' · Finale' : ''}`,
             live: w.status === 'live',
             rang: overlayCupRang(c.titel),
             region: overlayRegionRang(w.region),

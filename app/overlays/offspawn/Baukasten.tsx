@@ -6,7 +6,8 @@ import { useT } from '@/app/components/SprachProvider';
 import OverlayGeruest, {
   overlayAdresse, useOverlays, type OverlayEintrag,
 } from '../OverlayGeruest';
-import { MeineListe, Regler, Vorschau, Wahlreihe } from '../Teile';
+import { Regler, Vorschau, Wahlreihe } from '../Teile';
+import Ablauf, { FertigSchritt, Vorlagen, type Vorlage } from '../Ablauf';
 import { THEMEN, themaAkzent, deckkraftFuer, type Thema } from '../themen';
 import GlobalsGeruest from '@/app/globals/GlobalsGeruest';
 
@@ -64,6 +65,27 @@ const FARBEN: Array<{ wert: string; titel: string }> = [
   { wert: '#34d399', titel: 'Grün' },
   { wert: '#a78bfa', titel: 'Violett' },
 ];
+
+/**
+ * Die fertigen Looks (Schritt "Vorlage"). Dazu die Looks der Cup-Reihen aus themen.ts: ihr Akzent wird die Farbe der Namen.
+ */
+const VORLAGEN_BASIS: Array<Vorlage<Config>> = [
+  { schluessel: 'klassisch', titel: 'Klassisch', text: 'Schwarz mit weißen Namen — das gewohnte Bild.',
+    setzt: { thema: '' as Thema, grund: '0 0 0', deckkraft: 0.72, farbe1: '#ffffff', farbe2: '#ffffff', schrift: 30, ecken: 12 } },
+  { schluessel: 'blau-rot', titel: 'Blau gegen Rot', text: 'Jedes Team in seiner Farbe — gut für 1v1 und 2v2.',
+    setzt: { thema: '' as Thema, grund: '12 20 38', deckkraft: 0.8, farbe1: '#38bdf8', farbe2: '#f43f5e', schrift: 30, ecken: 14 } },
+  { schluessel: 'gold', titel: 'Gold', text: 'Beide Namen in Gold auf Schwarz.',
+    setzt: { thema: '' as Thema, grund: '0 0 0', deckkraft: 0.75, farbe1: '#f5c542', farbe2: '#f5c542', schrift: 30, ecken: 12 } },
+  { schluessel: 'gross', titel: 'Groß', text: 'Große Schrift, runde Ecken — für Offspawns, die man aus der Ferne lesen soll.',
+    setzt: { thema: '' as Thema, grund: '0 0 0', deckkraft: 0.72, farbe1: '#ffffff', farbe2: '#ffffff', schrift: 52, ecken: 20 } },
+  { schluessel: 'sauber', titel: 'Sauber', text: 'Anthrazit, fast deckend, schlichte Ecken.',
+    setzt: { thema: '' as Thema, grund: '24 24 27', deckkraft: 0.92, farbe1: '#ffffff', farbe2: '#ffffff', schrift: 26, ecken: 8 } },
+];
+const VORLAGEN_THEMEN: Array<Vorlage<Config>> = THEMEN.filter((x) => x.wert).map((x) => ({
+  schluessel: `thema-${x.wert}`, titel: x.titel, text: 'Das Aussehen dieser Cup-Reihe.',
+  setzt: { thema: x.wert, deckkraft: deckkraftFuer(x.wert, 0.72), farbe1: themaAkzent(x.wert) ?? '#ffffff', farbe2: themaAkzent(x.wert) ?? '#ffffff' },
+}));
+const VORLAGEN_ALLE: Array<Vorlage<Config>> = [...VORLAGEN_BASIS, ...VORLAGEN_THEMEN];
 
 /**
  * Der Baukasten des freien Overlays - 1v1s, 2v2s, alles von Hand.
@@ -180,6 +202,14 @@ export default function OffspawnBaukasten({ globals = false }: {
     setCfg({ ...start, ...(o.config as Partial<Config>) });
   }
 
+  /** Ein neues Overlay beginnen: leerer Stand, Standardaussehen. */
+  function neu() {
+    setId(null);
+    setName(globals ? 'Globals Overlay' : 'Custom overlay');
+    setCfg(start);
+    setSchmutzig(false);
+  }
+
   const [ausAdresseGeladen, setAusAdresseGeladen] = useState(false);
   useEffect(() => {
     if (ausAdresseGeladen || !liste) return;
@@ -234,174 +264,166 @@ export default function OffspawnBaukasten({ globals = false }: {
 
       <Vorschau src={vorschau} hoehe={220} />
 
-      <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_360px]">
-        <div className="space-y-4">
+      <Ablauf schritte={[
+        /* ------------------------------------------------ 1 Teams und Stand */
+        {
+          schluessel: 'stand', titel: 'Teams und Stand',
+          hinweis: 'Gib den Teams einen Namen, such ihre Fotos und zähl den Stand mit + und −. Ist das Overlay einmal gespeichert, steht jeder Klick sofort im Stream.',
+          inhalt: (
+            <div className="space-y-4">
+              <div className="grid gap-4 sm:grid-cols-2">
+                {([['punkte1', 'name1', 'farbe1'], ['punkte2', 'name2', 'farbe2']] as const)
+                  .map(([pk, nk, fk]) => (
+                    <div key={pk} className="rounded-lg border border-zinc-800
+                                             bg-zinc-950/60 p-3">
+                      <input value={cfg[nk] as string}
+                        onChange={(e) => setz(nk, e.target.value)}
+                        placeholder={t('Teamname')}
+                        className={`${feld} text-center font-semibold`}
+                        style={{ color: cfg[fk] as string }} />
 
-          {/* ------------------------------------------------ Der Stand */}
-          <section className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
-            <h2 className="mb-3 text-sm font-semibold text-slate-100">
-              <T>Der Stand</T>
-            </h2>
-
-            <div className="grid gap-4 sm:grid-cols-2">
-              {([['punkte1', 'name1', 'farbe1'], ['punkte2', 'name2', 'farbe2']] as const)
-                .map(([pk, nk, fk]) => (
-                  <div key={pk} className="rounded-lg border border-zinc-800
-                                           bg-zinc-950/60 p-3">
-                    <input value={cfg[nk] as string}
-                      onChange={(e) => setz(nk, e.target.value)}
-                      placeholder={t('Teamname')}
-                      className={`${feld} text-center font-semibold`}
-                      style={{ color: cfg[fk] as string }} />
-
-                    {/*
-                      * Spieler suchen - fuer den Namen und das Bild.
-                      *
-                      * Ein Offspawn haengt an keinem Cup; gesucht wird
-                      * deshalb im Verzeichnis, nicht in einer Bestenliste.
-                      */}
-                    <div className="relative mt-2">
-                      <input
-                        value={suche?.seite === (pk === 'punkte1' ? 1 : 2)
-                          ? suche.text : ''}
-                        onChange={(e) => setSuche({
-                          seite: pk === 'punkte1' ? 1 : 2, text: e.target.value,
-                        })}
-                        placeholder={t('Foto hinzufügen — Spieler suchen')}
-                        className={`${feld} text-xs`} />
-                      {suche?.seite === (pk === 'punkte1' ? 1 : 2)
-                        && funde.length > 0 && (
-                        <div className="absolute left-0 right-0 z-20 mt-1
-                                        overflow-hidden rounded-lg border
-                                        border-zinc-700 bg-zinc-950 shadow-xl">
-                          {funde.map((f) => (
-                            <button key={f.epicId} type="button"
-                              disabled={!f.bild}
-                              onClick={() => uebernimm(pk === 'punkte1' ? 1 : 2, f)}
-                              className="flex w-full items-center gap-2 px-2 py-1.5
-                                         text-left text-xs text-slate-300
-                                         hover:bg-zinc-900 disabled:cursor-not-allowed
-                                         disabled:opacity-50">
-                              {f.bild
-                                // eslint-disable-next-line @next/next/no-img-element
-                                ? <img src={f.bild} alt=""
-                                  className="h-7 w-7 shrink-0 rounded-sm
-                                             object-cover" />
-                                : <span className="h-7 w-7 shrink-0 rounded-sm
-                                                   bg-zinc-800" />}
-                              <span className="min-w-0 flex-1 truncate">
-                                {f.anzeige}
-                              </span>
-                              {/* Damit niemand einen Spieler ohne Foto
-                                  waehlt und sich dann wundert. */}
-                              {!f.bild && (
-                                <span className="shrink-0 text-[10px]
-                                                 text-slate-600">
-                                  <T>kein Foto</T>
+                      {/*
+                        * Spieler suchen - fuer den Namen und das Bild.
+                        *
+                        * Ein Offspawn haengt an keinem Cup; gesucht wird
+                        * deshalb im Verzeichnis, nicht in einer Bestenliste.
+                        */}
+                      <div className="relative mt-2">
+                        <input
+                          value={suche?.seite === (pk === 'punkte1' ? 1 : 2)
+                            ? suche.text : ''}
+                          onChange={(e) => setSuche({
+                            seite: pk === 'punkte1' ? 1 : 2, text: e.target.value,
+                          })}
+                          placeholder={t('Foto hinzufügen — Spieler suchen')}
+                          className={`${feld} text-xs`} />
+                        {suche?.seite === (pk === 'punkte1' ? 1 : 2)
+                          && funde.length > 0 && (
+                          <div className="absolute left-0 right-0 z-20 mt-1
+                                          overflow-hidden rounded-lg border
+                                          border-zinc-700 bg-zinc-950 shadow-xl">
+                            {funde.map((f) => (
+                              <button key={f.epicId} type="button"
+                                disabled={!f.bild}
+                                onClick={() => uebernimm(pk === 'punkte1' ? 1 : 2, f)}
+                                className="flex w-full items-center gap-2 px-2 py-1.5
+                                           text-left text-xs text-slate-300
+                                           hover:bg-zinc-900 disabled:cursor-not-allowed
+                                           disabled:opacity-50">
+                                {f.bild
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  ? <img src={f.bild} alt=""
+                                    className="h-7 w-7 shrink-0 rounded-sm
+                                               object-cover" />
+                                  : <span className="h-7 w-7 shrink-0 rounded-sm
+                                                     bg-zinc-800" />}
+                                <span className="min-w-0 flex-1 truncate">
+                                  {f.anzeige}
                                 </span>
-                              )}
-                            </button>
+                                {/* Damit niemand einen Spieler ohne Foto
+                                    waehlt und sich dann wundert. */}
+                                {!f.bild && (
+                                  <span className="shrink-0 text-[10px]
+                                                   text-slate-600">
+                                    <T>kein Foto</T>
+                                  </span>
+                                )}
+                              </button>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Die Fotos dieser Seite - jedes mit einem x zum
+                          Entfernen. Bis zu vier. */}
+                      {fotosVon(cfg, pk === 'punkte1' ? 1 : 2).length > 0 && (
+                        <div className="mt-2 flex flex-wrap items-center justify-center gap-1.5">
+                          {fotosVon(cfg, pk === 'punkte1' ? 1 : 2).map((pfad, i) => (
+                            <span key={`${pfad}-${i}`} className="relative">
+                              {/* eslint-disable-next-line @next/next/no-img-element */}
+                              <img src={pfad} alt=""
+                                className="h-10 w-10 rounded-sm object-cover" />
+                              <button type="button"
+                                title={t('Foto entfernen')}
+                                onClick={() => {
+                                  const seite = pk === 'punkte1' ? 1 : 2;
+                                  setzeFotos(seite, fotosVon(cfg, seite).filter((_, k) => k !== i));
+                                }}
+                                className="absolute -right-1.5 -top-1.5 grid h-4 w-4 place-items-center
+                                           rounded-full bg-zinc-900 text-[10px] leading-none
+                                           text-slate-300 ring-1 ring-zinc-700 transition
+                                           hover:bg-rose-600 hover:text-white">
+                                ×
+                              </button>
+                            </span>
                           ))}
+                          <span className="text-[10px] text-slate-600">
+                            {fotosVon(cfg, pk === 'punkte1' ? 1 : 2).length}/4
+                          </span>
                         </div>
                       )}
-                    </div>
-
-                    {/* Die Fotos dieser Seite - jedes mit einem x zum
-                        Entfernen. Bis zu vier. */}
-                    {fotosVon(cfg, pk === 'punkte1' ? 1 : 2).length > 0 && (
-                      <div className="mt-2 flex flex-wrap items-center justify-center gap-1.5">
-                        {fotosVon(cfg, pk === 'punkte1' ? 1 : 2).map((pfad, i) => (
-                          <span key={`${pfad}-${i}`} className="relative">
-                            {/* eslint-disable-next-line @next/next/no-img-element */}
-                            <img src={pfad} alt=""
-                              className="h-10 w-10 rounded-sm object-cover" />
-                            <button type="button"
-                              title={t('Foto entfernen')}
-                              onClick={() => {
-                                const seite = pk === 'punkte1' ? 1 : 2;
-                                setzeFotos(seite, fotosVon(cfg, seite).filter((_, k) => k !== i));
-                              }}
-                              className="absolute -right-1.5 -top-1.5 grid h-4 w-4 place-items-center
-                                         rounded-full bg-zinc-900 text-[10px] leading-none
-                                         text-slate-300 ring-1 ring-zinc-700 transition
-                                         hover:bg-rose-600 hover:text-white">
-                              ×
-                            </button>
-                          </span>
-                        ))}
-                        <span className="text-[10px] text-slate-600">
-                          {fotosVon(cfg, pk === 'punkte1' ? 1 : 2).length}/4
+                      <div className="mt-3 flex items-center justify-center gap-3">
+                        <button onClick={() => zaehle(pk, -1)}
+                          className="h-11 w-11 rounded-lg border border-zinc-800
+                                     text-lg font-bold text-slate-300 transition
+                                     hover:border-sky-500 hover:text-sky-300">
+                          −
+                        </button>
+                        <span className="w-14 text-center text-3xl font-black
+                                         tabular-nums text-slate-100">
+                          {cfg[pk] as number}
                         </span>
+                        <button onClick={() => zaehle(pk, 1)}
+                          className="h-11 w-11 rounded-lg bg-sky-500 text-lg
+                                     font-bold text-white transition
+                                     hover:bg-sky-400">
+                          +
+                        </button>
                       </div>
-                    )}
-                    <div className="mt-3 flex items-center justify-center gap-3">
-                      <button onClick={() => zaehle(pk, -1)}
-                        className="h-11 w-11 rounded-lg border border-zinc-800
-                                   text-lg font-bold text-slate-300 transition
-                                   hover:border-sky-500 hover:text-sky-300">
-                        −
-                      </button>
-                      <span className="w-14 text-center text-3xl font-black
-                                       tabular-nums text-slate-100">
-                        {cfg[pk] as number}
-                      </span>
-                      <button onClick={() => zaehle(pk, 1)}
-                        className="h-11 w-11 rounded-lg bg-sky-500 text-lg
-                                   font-bold text-white transition
-                                   hover:bg-sky-400">
-                        +
-                      </button>
                     </div>
-                  </div>
-                ))}
+                  ))}
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2">
+                <label className="block">
+                  <span className="text-xs text-slate-400"><T>Überschrift</T></span>
+                  <input value={cfg.kopf}
+                    onChange={(e) => setz('kopf', e.target.value)}
+                    className={`${feld} mt-1`} />
+                </label>
+                <Wahlreihe titel="Überschrift zeigen" wert={cfg.kopfZeigen ? 1 : 0}
+                  optionen={[{ wert: 1, titel: 'Ja' }, { wert: 0, titel: 'Nein' }]}
+                  setzen={(w) => setz('kopfZeigen', w === 1)} />
+              </div>
             </div>
+          ),
+        },
 
+        /* ------------------------------------------------------- 2 Vorlage */
+        /* Unter /globals ist das Aussehen gesetzt und steht nicht zur Wahl. */
+        ...(globals ? [] : [{
+          schluessel: 'vorlage', titel: 'Vorlage',
+          hinweis: 'Such dir einen fertigen Look aus — ein Klick, und die Vorschau oben zeigt ihn. Die Farben der Teams kannst du im nächsten Schritt einzeln ändern.',
+          inhalt: (
+            <Vorlagen<Config> vorlagen={VORLAGEN_ALLE} basis={cfg}
+              vorschauUrl={(c) => `/overlay/offspawn.html?vorschau=${encodeURIComponent(JSON.stringify(c))}`}
+              gilt={(v) => Object.entries(v.setzt).every(([k, w]) => (cfg as Record<string, unknown>)[k] === w)}
+              waehle={(v) => { setCfg((a) => ({ ...a, ...v.setzt })); setSchmutzig(true); }} />
+          ),
+        }]),
 
-            <div className="mt-3 grid gap-3 sm:grid-cols-2">
-              <label className="block">
-                <span className="text-xs text-slate-400"><T>Überschrift</T></span>
-                <input value={cfg.kopf}
-                  onChange={(e) => setz('kopf', e.target.value)}
-                  className={`${feld} mt-1`} />
-              </label>
-              <Wahlreihe titel="Überschrift zeigen" wert={cfg.kopfZeigen ? 1 : 0}
-                optionen={[{ wert: 1, titel: 'Ja' }, { wert: 0, titel: 'Nein' }]}
-                setzen={(w) => setz('kopfZeigen', w === 1)} />
-            </div>
-          </section>
-
-          {/*
-            * Kein eigener Text mehr an dieser Stelle.
-            *
-            * Er war ein Balken unter dem Stand; der Betreiber wollte ihn
-            * hier nicht: "dieser Custom Text kommt bei Offspawn raus, das
-            * gibt's nicht, fertig, weg." Er ist jetzt ein eigenes Overlay
-            * unter /overlays/text.
-            */}
-
-          {/* ----------------------------------------------- Aussehen */}
-          <section className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
-            <h2 className="mb-3 text-sm font-semibold text-slate-100">
-              <T>Aussehen</T>
-            </h2>
-            <div className="grid gap-3 sm:grid-cols-2">
+        /* --------------------------------------------------- 3 Feinschliff */
+        {
+          schluessel: 'fein', titel: 'Feinschliff',
+          hinweis: 'Optional: Farben, Größe, Breite und Schärfe. Wer mit der Vorlage zufrieden ist, geht gleich weiter.',
+          inhalt: (
+            <div className="grid gap-4 sm:grid-cols-2">
               <Wahlreihe titel="Farbe links" wert={cfg.farbe1} optionen={FARBEN}
                 setzen={(w) => setz('farbe1', w)} />
               <Wahlreihe titel="Farbe rechts" wert={cfg.farbe2} optionen={FARBEN}
                 setzen={(w) => setz('farbe2', w)} />
               <Wahlreihe titel="Grundfarbe" wert={cfg.grund} optionen={GRUENDE}
                 setzen={(w) => setz('grund', w)} />
-              {/* Das Aussehen der Global Championship - siehe offspawn.html.
-                  Unter /globals ist es gesetzt und steht nicht zur Wahl. */}
-              {!globals && <Wahlreihe titel="Thema" wert={cfg.thema}
-                optionen={THEMEN.map((x) => ({ wert: x.wert, titel: x.titel }))}
-                setzen={(w) => setCfg((a) => ({
-                  ...a, thema: w,
-                  deckkraft: deckkraftFuer(w, a.deckkraft),
-                  // Zum Thema gehoert sein Akzent als Farbe der Namen - nur, wo noch Weiss steht.
-                  farbe1: w && themaAkzent(w) && a.farbe1 === '#ffffff' ? themaAkzent(w)! : a.farbe1,
-                  farbe2: w && themaAkzent(w) && a.farbe2 === '#ffffff' ? themaAkzent(w)! : a.farbe2,
-                }))} />}
               <Regler titel="Schriftgröße" wert={cfg.schrift} von={14} bis={80}
                 einheit="px" setzen={(n) => setz('schrift', n)} />
               <Regler titel="Ecken" wert={cfg.ecken} von={0} bis={28}
@@ -433,65 +455,47 @@ export default function OffspawnBaukasten({ globals = false }: {
                 von={0} bis={1} schritt={0.02}
                 setzen={(n) => setz('deckkraft', n)} />
             </div>
-          </section>
-        </div>
+          ),
+        },
 
-        <div className="space-y-4">
-          <section className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
-            <div className="mb-3 flex flex-wrap items-center gap-2">
-              <input value={name} onChange={(e) => setName(e.target.value)}
-                placeholder={t('Name im Dashboard')}
-                className="min-w-0 flex-1 rounded-lg border border-zinc-800
-                           bg-zinc-950 px-3 py-2 text-sm text-slate-100
-                           outline-none focus:border-sky-500" />
-              <button onClick={() => void sichern()}
-                className="rounded-lg bg-sky-500 px-4 py-2 text-sm font-semibold
-                           text-white transition hover:bg-sky-400">
-                {gespeichert ? t('gespeichert') : (id ? t('Übernehmen') : t('Anlegen'))}
-              </button>
-            </div>
-            {fehler && <p className="mb-2 text-xs text-rose-400">{fehler}</p>}
-            {id && schmutzig && (
-              <p className="mb-2 text-[11px] text-amber-500/90">
-                <T>Nicht übernommen — im Stream steht noch der vorige Stand.</T>
-              </p>
-            )}
-
-            {/*
-              * Warum es in OBS unscharf aussieht - und was dagegen hilft.
-              *
-              * Eine Browserquelle ist dort ein Bild in genau der Groesse, die
-              * eingetragen ist; wer sie in der Szene groesser zieht,
-              * vergroessert ein fertiges Bild. Drei Zeilen sagen, wie man das
-              * vermeidet.
-              */}
-            {cfg.massstab === 2 && (
-              <p className="mb-3 text-[11px] leading-relaxed text-sky-400/80">
-                <T>Trag die Browser-Quelle in OBS mit der doppelten Breite und
-                Höhe ein und zieh sie in der Szene auf 50 % — dann wird nichts
-                hochgerechnet und alles ist scharf.</T>
-              </p>
-            )}
-            {cfg.massstab !== 2 && (
-              <p className="mb-3 text-[11px] leading-relaxed text-slate-500">
-                <T>Unscharf in OBS? Zieh die Quelle in der Szene nie größer,
-                als sie eingetragen ist. Mit „Schärfe: Doppelt“ wird alles
-                doppelt so groß gezeichnet — Quelle doppelt so groß eintragen,
-                in der Szene auf 50 %.</T>
-              </p>
-            )}
-            {id && (
-              <input readOnly value={overlayAdresse('offspawn', id)}
-                onFocus={(e) => e.currentTarget.select()}
-                className="w-full rounded-lg border border-zinc-800 bg-zinc-950
-                           px-3 py-2 font-mono text-[11px] text-slate-400" />
-            )}
-          </section>
-
-          <MeineListe liste={liste} typ="offspawn" offen={id}
-            waehlen={waehlen} entfernen={entfernen} />
-        </div>
-      </div>
+        /* ---------------------------------------------------------- 4 Fertig */
+        {
+          schluessel: 'fertig', titel: 'Fertig',
+          hinweis: 'Gib dem Overlay einen Namen, speichere es und kopiere die Adresse für OBS. Danach schaltet jeder Klick auf + und − den Stand direkt im Stream.',
+          inhalt: (
+            <FertigSchritt typ="offspawn" id={id} name={name} setName={setName} sichern={() => void sichern()}
+              gespeichert={gespeichert} schmutzig={schmutzig} fehler={fehler} neu={neu}
+              liste={liste} waehlen={waehlen} entfernen={(x) => { void entfernen(x); if (x === id) neu(); }}
+              listeTitel={t('Meine Overlays')}
+              zusatz={(
+                <>
+                  {/*
+                    * Warum es in OBS unscharf aussieht - und was dagegen hilft.
+                    *
+                    * Eine Browserquelle ist dort ein Bild in genau der Groesse, die
+                    * eingetragen ist; wer sie in der Szene groesser zieht,
+                    * vergroessert ein fertiges Bild. Drei Zeilen sagen, wie man das
+                    * vermeidet.
+                    */}
+                  {cfg.massstab === 2 ? (
+                    <p className="text-[11px] leading-relaxed text-sky-400/80">
+                      <T>Trag die Browser-Quelle in OBS mit der doppelten Breite und
+                      Höhe ein und zieh sie in der Szene auf 50 % — dann wird nichts
+                      hochgerechnet und alles ist scharf.</T>
+                    </p>
+                  ) : (
+                    <p className="text-[11px] leading-relaxed text-slate-500">
+                      <T>Unscharf in OBS? Zieh die Quelle in der Szene nie größer,
+                      als sie eingetragen ist. Mit „Schärfe: Doppelt“ wird alles
+                      doppelt so groß gezeichnet — Quelle doppelt so groß eintragen,
+                      in der Szene auf 50 %.</T>
+                    </p>
+                  )}
+                </>
+              )} />
+          ),
+        },
+      ]} />
     </>
   );
 

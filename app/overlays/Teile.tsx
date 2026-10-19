@@ -98,16 +98,20 @@ export function CupWahl({ event, window: fenster, onWahl, nurKommende = false }:
       eventId: string; windowId: string; region: string;
       titel: string; istFinale: boolean; wann: string; live: boolean; begin: number;
     }> = [];
+    // NA Central und NA West teilen sich Fenster: dasselbe windowId steht in beiden Regionen der Liste - es soll nur einmal zur Wahl stehen (und mit seiner eigenen Region).
+    const gesehen = new Set<string>();
     for (const c of cups ?? []) {
       if (!alle && !overlayCupErlaubt(c.titel)) continue;
       for (const liste of Object.values(c.regionen ?? {})) {
         for (const w of liste) {
           if (w.begin < von || w.begin > bis) continue;
+          if (gesehen.has(w.windowId)) continue;
+          gesehen.add(w.windowId);
           if (nurKommende && w.begin <= Date.now()) continue;
           if (nurLaufende
             && !managerDarfCup(w.begin, w.region, w.status === 'live')) continue;
           raus.push({
-            eventId: w.eventId, windowId: w.windowId, region: w.region,
+            eventId: w.eventId, windowId: w.windowId, region: /_([A-Z]{2,4})$/.exec(w.windowId)?.[1] ?? w.region,
             titel: c.titel, istFinale: w.istFinale,
             wann: zeitwort(w.status, w.begin), live: w.status === 'live',
             begin: w.begin,
