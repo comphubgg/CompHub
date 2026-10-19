@@ -294,9 +294,25 @@ jobs:
           WERKZEUG_URL: https://www.thecomphub.com
         run: node scripts/platzierungen-holen.mjs 2>&1 | tee /tmp/platzierungen.log | tail -20
 
+      # Auch die Platzierungen gleich ans Release (siehe "Spieltage ans Release"): sie standen bis zum 19.10.2026 auf dem Stand vom 11.10., weil sie erst am Ende
+      # des Laufs - nach den Replays - drankamen, und das Ende kam nie.
+      - name: Platzierungen ans Release
+        continue-on-error: true
+        timeout-minutes: 8
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/ablage-github.mjs --nur platzierungen --hoechstens 80 --minuten 6 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -8
+
       - name: Werte der Szene holen
         continue-on-error: true
         run: node scripts/szene-stats-holen.mjs
+
+      - name: Werte der Szene ans Release
+        continue-on-error: true
+        timeout-minutes: 8
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/ablage-github.mjs --nur szene-stats --nur szene-quelle --hoechstens 60 --minuten 6 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -8
 
       # Die Server-Replays der Finals und LANs voll auszulesen (Zonen, Kill-Feed
       # mit Ort, Spieler) macht seit dem 14.10.2026 ein eigener Ablauf alle
@@ -328,6 +344,15 @@ jobs:
         continue-on-error: true
         timeout-minutes: 6
         run: node scripts/power-rankings-holen.mjs 2>&1 | tail -8
+
+      # Die Weltrangliste sofort ans Release: die Seite zeigte am 19.10.2026 den Stand vom 11.10. ("seit neun Tagen nicht aktualisiert"), weil sie erst am Ende des Laufs
+      # hochkam. Eine einzige Datei - dieser Schritt dauert Sekunden.
+      - name: Weltrangliste ans Release
+        continue-on-error: true
+        timeout-minutes: 5
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/ablage-github.mjs --nur power-rankings 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -6
 
       # Dasselbe wie im Live-Ablauf: ohne diese Adresse sucht das Skript das
       # Werkzeug auf localhost, findet dort nichts und holt nichts. Der Bau
