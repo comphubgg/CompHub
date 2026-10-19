@@ -947,6 +947,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
 
   /** Welcher Reiter im Preis-Block offen ist. */
   const [preisReiter, setPreisReiter] = useState<'preis' | 'wertung'>('preis');
+  /** Wie viele Punkte ein Platz der Auszahlungstabelle gerade braucht (Rang -> Punkte), live aus Epics Bestenliste. */
+  const [schwellen, setSchwellen] = useState<Record<string, number>>({});
   /** Welche Kennzahl in voller Laenge offen ist. */
   const [offeneListe, setOffeneListe] = useState<Bestenliste | null>(null);
   const [listenTiefe, setListenTiefe] = useState(50);
@@ -1418,6 +1420,24 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
   }, [fenster, finaleJetzt]);
 
   const laeuftGerade = fenster?.status === 'live';
+
+  /*
+   * Die Punkte, die ein Platz gerade braucht (Betreiber, 19.10.2026: bei Skin-Cups "Top 1000 mit den Punkten, die es live braucht, wie bei Fortnite Tracker").
+   * Gelesen wird die Bestenliste an genau den Plaetzen der Auszahlungstabelle; waehrend der Cup laeuft, jede Minute neu.
+   */
+  useEffect(() => {
+    const raenge = [...new Set([...(preise?.gegenstaende ?? []), ...(preise?.geld ?? [])]
+      .filter((g) => g.art === 'rank').map((g) => g.schwelle))].filter((n) => n >= 1 && n <= 10_000);
+    if (!fenster || !raenge.length || fenster.status === 'kommt') { setSchwellen({}); return undefined; }
+    let weg = false;
+    const holen = () => fetch(`/api/cup-schwellen?event=${encodeURIComponent(fenster.eventId)}&window=${encodeURIComponent(fenster.windowId)}&raenge=${raenge.join(',')}`)
+      .then((r) => r.json())
+      .then((j) => { if (!weg && j?.ok) setSchwellen(j.stand ?? {}); })
+      .catch(() => { /* ohne Auskunft steht keine Zahl da */ });
+    void holen();
+    const uhr = fenster.status === 'live' ? setInterval(() => { void holen(); }, 60_000) : undefined;
+    return () => { weg = true; if (uhr) clearInterval(uhr); };
+  }, [fenster, preise]);
 
   /**
    * Die Turnierstatistik zum Finale.
@@ -2718,18 +2738,18 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
             )}
 
             {preisReiter === 'wertung' && (preise.wertung?.length ?? 0) > 0 ? (
-              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+              <div className="flex flex-wrap gap-1.5">
                 {(preise.wertung ?? []).map((w, i) => (
                   <div key={`${w.was}-${w.schwelle}-${i}`}
-                    className="flex items-center justify-between rounded-lg border
-                               border-zinc-800 bg-zinc-950/60 px-3 py-2">
-                    <span className="text-xs text-slate-400">
+                    className="flex items-center gap-2 rounded-full border
+                               border-zinc-800 bg-zinc-950/60 px-3 py-1">
+                    <span className="text-[11px] text-slate-400">
                       {w.was === 'Placement' && w.regel === 'lte'
                         ? (w.schwelle === 1 ? <T>Sieg</T>
                           : <><T>Platz</T> {w.schwelle}</>)
                         : w.was === 'Elimination' ? <T>je Elimination</T> : w.was}
                     </span>
-                    <span className="text-sm font-semibold text-sky-400">+{w.punkte}</span>
+                    <span className="text-xs font-semibold text-sky-400">+{w.punkte}</span>
                   </div>
                 ))}
               </div>
@@ -2777,7 +2797,9 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                         * Die Spanne steckt in der Summe oben, nicht in der
                         * Zeile.
                         */}
-                      {g.art === 'rank' ? <>Top {g.schwelle}</>
+                      {g.art === 'rank' ? <>Top {g.schwelle}{schwellen[String(g.schwelle)] != null && (
+                        <span className="ml-1.5 text-[10px] font-semibold tabular-nums text-sky-400">{schwellen[String(g.schwelle)].toLocaleString(ort)} <T>Punkte</T></span>
+                      )}</>
                         : g.art === 'percentile'
                           ? <><T>beste</T> {(g.schwelle * 100).toFixed(0)} %</>
                           : <>{g.schwelle.toLocaleString(ort)} <T>Punkte</T></>}
@@ -2842,8 +2864,14 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                   }, new Map<string, typeof preise.gegenstaende>()).values()].map((gruppe) => (
                     <div key={`${gruppe[0].art}-${gruppe[0].schwelle}`}
                       className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-2">
-                      <div className="mb-1.5 px-1 text-sm font-bold text-sky-400">
+                      <div className="mb-1.5 flex items-baseline gap-2 px-1 text-sm font-bold text-sky-400">
                         {schwellenText(gruppe[0].art, gruppe[0].schwelle)}
+                        {gruppe[0].art === 'rank' && schwellen[String(gruppe[0].schwelle)] != null && (
+                          <span className="text-xs font-semibold tabular-nums text-emerald-400">
+                            {schwellen[String(gruppe[0].schwelle)].toLocaleString(ort)} <T>Punkte</T>
+                            {laeuftGerade && <span className="ml-1.5 text-[9px] font-black uppercase tracking-wider text-red-400">live</span>}
+                          </span>
+                        )}
                       </div>
                       <div className="space-y-1.5">
                         {gruppe.map((g) => (
