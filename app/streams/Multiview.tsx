@@ -210,6 +210,13 @@ export interface MultiviewProps {
   /** Womit die Wand beim allerersten Oeffnen beginnt (danach gilt, was gespeichert ist). */
   start: string[];
   ordner: MvOrdner[];
+  /** Angeheftete Streamer: stehen in jeder Liste oben. */
+  favoriten: string[];
+  favoritUmschalten: (twitch: string) => void;
+  /** Kanal -> Anzeigename (nur was umbenannt wurde). */
+  namen: Record<string, string>;
+  /** Fehlt fuer Gaeste: ohne Konto laesst sich nichts umbenennen. */
+  streamerUmbenennen?: (twitch: string, name: string) => void;
   /** Wer in den Ordnern gerade sendet - fuer die Zaehler dort. */
   ordnerLive: Record<string, boolean>;
   /** Die POVs, die dieser Besucher sehen darf (Profis haben sie freigegeben). */
@@ -718,6 +725,7 @@ export default function Multiview(props: MultiviewProps) {
       <Seitenleiste offen={seite} zu={() => setSeite(false)} streams={streams} live={liveAlle} pov={pov}
         aktionen={aktionen} qualitaetAlle={qualitaetAlle} ordner={props.ordner} darfOrdner={props.darfOrdner}
         ordnerSpeichern={props.ordnerSpeichern} zuOrdner={props.zuOrdner} verschiebeVor={verschiebeVor}
+        favoriten={props.favoriten} favoritUmschalten={props.favoritUmschalten} namen={props.namen} streamerUmbenennen={props.streamerUmbenennen}
         aufWand={aufWand} offlineAlle={einst.offlineAlle} povs={props.povs}
         kannAusOrdner={props.kannAusOrdner} ausOrdner={props.ausOrdner}
         einzelAnsicht={props.zurEinzelansicht} einstellungen={() => setDialog('einstellungen')}

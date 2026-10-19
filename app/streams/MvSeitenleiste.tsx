@@ -28,6 +28,10 @@ interface Props {
   aktionen: MvAktionen;
   qualitaetAlle: string;
   ordner: MvOrdner[];
+  favoriten: string[];
+  favoritUmschalten: (twitch: string) => void;
+  namen: Record<string, string>;
+  streamerUmbenennen?: (twitch: string, name: string) => void;
   /** Darf Ordner anlegen und Streamer in Ordner legen (VIP oder Admin). */
   darfOrdner: boolean;
   ordnerSpeichern: (name: string, kanaele: string[]) => void;
@@ -113,6 +117,10 @@ function OrdnerAbschnitt({ p }: { p: Props }) {
   const [neuerKanal, setNeuerKanal] = useState('');
   const [neuFehler, setNeuFehler] = useState(false);
   const [ordnerName, setOrdnerName] = useState<string | null>(null);
+  /** Der Streamer, dessen Name gerade geaendert wird. */
+  const [umbenennen, setUmbenennen] = useState<{ twitch: string; name: string } | null>(null);
+  const anzeige = (k: string) => p.namen[k] || k;
+  const angeheftet = (k: string) => p.favoriten.includes(k);
 
   const gewaehlt = wahl.filter((id) => p.ordner.some((o) => o.id === id));
   const alleGewaehlt = p.ordner.length > 0 && gewaehlt.length === p.ordner.length;
@@ -162,7 +170,9 @@ function OrdnerAbschnitt({ p }: { p: Props }) {
           {p.ordner.map((o) => {
             const sende = o.streamers.filter((x) => sendet(x.twitch)).length;
             const offen = auf === o.id;
-            const liste = [...o.streamers].sort((x, y) => Number(sendet(y.twitch)) - Number(sendet(x.twitch)));
+            // Angeheftete stehen immer oben, danach die, die gerade senden.
+            const liste = [...o.streamers].sort((x, y) => Number(angeheftet(y.twitch)) - Number(angeheftet(x.twitch))
+              || Number(sendet(y.twitch)) - Number(sendet(x.twitch)));
             return (
               <li key={o.id} className="mv-rand rounded-lg border">
                 <div className="flex items-center gap-1.5 px-2 py-1.5">
@@ -203,9 +213,31 @@ function OrdnerAbschnitt({ p }: { p: Props }) {
                         return (
                           <li key={x.twitch} className="group mv-hover flex items-center gap-1.5 rounded px-1.5 py-1">
                             <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${live ? 'bg-red-500' : 'bg-zinc-600'}`} />
-                            <span className={`min-w-0 flex-1 truncate text-xs ${live ? 'font-semibold' : 'mv-mute'}`}>{x.twitch}</span>
+                            {umbenennen?.twitch === x.twitch ? (
+                              <input autoFocus value={umbenennen.name} placeholder={x.twitch}
+                                onChange={(e) => setUmbenennen({ twitch: x.twitch, name: e.target.value })}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Enter') { p.streamerUmbenennen?.(x.twitch, umbenennen.name); setUmbenennen(null); }
+                                  if (e.key === 'Escape') setUmbenennen(null);
+                                }}
+                                onBlur={() => { p.streamerUmbenennen?.(x.twitch, umbenennen.name); setUmbenennen(null); }}
+                                className="mv-fl min-w-0 flex-1 rounded-md border px-2 py-0.5 text-xs outline-none focus:border-sky-500" />
+                            ) : (
+                              <span title={p.namen[x.twitch] ? x.twitch : undefined}
+                                className={`min-w-0 flex-1 truncate text-xs ${live ? 'font-semibold' : 'mv-mute'}`}>{anzeige(x.twitch)}</span>
+                            )}
                             {live && (stand?.viewers ?? 0) > 0 && <span className="mv-mute shrink-0 text-[10px]">{kurz(stand!.viewers)}</span>}
                             {!live && bekannt(x.twitch) && <span className="mv-mute shrink-0 text-[9px] uppercase tracking-wider">offline</span>}
+                            <Knopf titel={angeheftet(x.twitch) ? t('Favorit entfernen') : t('Als Favorit merken')} aktiv={angeheftet(x.twitch)}
+                              klick={() => p.favoritUmschalten(x.twitch)}>
+                              <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill={angeheftet(x.twitch) ? 'currentColor' : 'none'} stroke="currentColor"
+                                strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d={D.nadel} /></svg>
+                            </Knopf>
+                            {p.streamerUmbenennen && umbenennen?.twitch !== x.twitch && (
+                              <Knopf titel={t('Streamer umbenennen')} klick={() => setUmbenennen({ twitch: x.twitch, name: p.namen[x.twitch] ?? x.twitch })}>
+                                <Zeichen d={D.stift} klein />
+                              </Knopf>
+                            )}
                             <Knopf titel={aufWand ? t('Steht auf der Wand') : t('Auf die Wand holen')} aktiv={aufWand}
                               klick={() => a.kanalZeigen(x.twitch)}>
                               <Zeichen d={aufWand ? D.auge : D.plus} klein />

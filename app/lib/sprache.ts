@@ -3389,6 +3389,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Die Endspiele ließen sich gerade nicht laden. Bitte gleich noch einmal versuchen.': 'The finals could not be loaded right now. Please try again in a moment.',
   'Noch keine Endspiele.': 'No finals yet.',
   'Platzierungen werden nachgetragen.': 'Placements will be added.',
+  'Streamer umbenennen': 'Rename streamer',
   'Antwort verschickt.': 'Reply sent.',
   'Antwort senden': 'Send reply',
   'Antwort an den Absender (geht per E-Mail, auf Englisch)': 'Reply to the sender (goes out by email, in English)',

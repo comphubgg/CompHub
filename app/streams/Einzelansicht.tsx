@@ -39,6 +39,10 @@ interface Props {
   live: Record<string, boolean>;
   favoriten: string[];
   favoritUmschalten: (twitch: string) => void;
+  /** Kanal -> Anzeigename (nur was umbenannt wurde). */
+  namen: Record<string, string>;
+  /** Fehlt fuer Gaeste: ohne Konto laesst sich nichts umbenennen. */
+  streamerUmbenennen?: (twitch: string, name: string) => void;
   aktiv: string;
   waehleStreamer: (twitch: string) => void;
   aktivPov: string;
@@ -128,6 +132,9 @@ export default function Einzelansicht(p: Props) {
   const [neuFehler, setNeuFehler] = useState(false);
   const [umbenennen, setUmbenennen] = useState<{ id: string; name: string } | null>(null);
   const [suche, setSuche] = useState('');
+  /** Der Streamer, dessen Name gerade geaendert wird. */
+  const [streamerName, setStreamerName] = useState<{ twitch: string; name: string } | null>(null);
+  const anzeige = (k: string) => p.namen[k] || k;
   /** Ist der Ordner "POVs" (die Profis, die einen freigegeben haben) der gewaehlte? Gemerkt wie die Leiste. */
   const [povOrdner, setPovOrdner] = useState(false);
   useEffect(() => {
@@ -170,9 +177,27 @@ export default function Einzelansicht(p: Props) {
       <li key={`${ordnerId ?? 'fav'}:${twitch}`}
         className={`group mv-hover flex items-center gap-1.5 rounded px-1.5 py-1 ${gewaehlt ? 'bg-sky-500/10 ring-1 ring-inset ring-sky-500/40' : ''}`}>
         <span className={`h-1.5 w-1.5 shrink-0 rounded-full ${live ? 'bg-red-500' : 'bg-zinc-600'}`} />
-        <button type="button" onClick={() => { p.waehleStreamer(twitch); schmalZu(); }}
-          className={`min-w-0 flex-1 truncate text-left text-xs ${live ? 'font-semibold' : 'mv-mute'}`}>{twitch}</button>
+        {streamerName?.twitch === twitch ? (
+          <input autoFocus value={streamerName.name} placeholder={twitch}
+            onChange={(e) => setStreamerName({ twitch, name: e.target.value })}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') { p.streamerUmbenennen?.(twitch, streamerName.name); setStreamerName(null); }
+              if (e.key === 'Escape') setStreamerName(null);
+            }}
+            onBlur={() => { p.streamerUmbenennen?.(twitch, streamerName.name); setStreamerName(null); }}
+            className="mv-fl min-w-0 flex-1 rounded-md border px-2 py-0.5 text-xs outline-none focus:border-sky-500" />
+        ) : (
+          <button type="button" onClick={() => { p.waehleStreamer(twitch); schmalZu(); }} title={p.namen[twitch] ? twitch : undefined}
+            className={`min-w-0 flex-1 truncate text-left text-xs ${live ? 'font-semibold' : 'mv-mute'}`}>{anzeige(twitch)}</button>
+        )}
         {!live && bekannt(twitch) && <span className="mv-mute shrink-0 text-[9px] uppercase tracking-wider">offline</span>}
+        {p.streamerUmbenennen && streamerName?.twitch !== twitch && (
+          <span className="flex shrink-0 opacity-0 transition-opacity focus-within:opacity-100 group-hover:opacity-100">
+            <Knopf titel={t('Streamer umbenennen')} klick={() => setStreamerName({ twitch, name: p.namen[twitch] ?? twitch })}>
+              <Zeichen d={D.stift} klein />
+            </Knopf>
+          </span>
+        )}
         <Knopf titel={fav ? t('Favorit entfernen') : t('Als Favorit merken')} aktiv={fav} klick={() => p.favoritUmschalten(twitch)}>
           <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill={fav ? 'currentColor' : 'none'} stroke="currentColor"
             strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d={D.nadel} /></svg>
@@ -367,8 +392,10 @@ export default function Einzelansicht(p: Props) {
               className="mv-fl mb-2 w-full rounded-md border px-2 py-1 text-[11px] outline-none focus:border-sky-500" />
             {(() => {
               const liste = [...gewaehlterOrdner.streamers]
-                .filter((x) => !q || x.twitch.toLowerCase().includes(q))
-                .sort((x, y) => Number(sendet(y.twitch)) - Number(sendet(x.twitch)));
+                .filter((x) => !q || x.twitch.toLowerCase().includes(q) || anzeige(x.twitch).toLowerCase().includes(q))
+                // Angeheftete stehen immer oben, danach die, die gerade senden.
+                .sort((x, y) => Number(p.favoriten.includes(y.twitch)) - Number(p.favoriten.includes(x.twitch))
+                  || Number(sendet(y.twitch)) - Number(sendet(x.twitch)));
               return (
                 <>
                   {liste.length === 0 && <p className="mv-mute py-1 text-center text-[11px]"><T>Der Ordner ist leer</T></p>}

@@ -10,6 +10,8 @@ const STREAMERS_FILE = path.join(DATEN_ORT, 'streamers.json');
 type StreamerData = {
   twitch: string;
   twitter: string;
+  /** Wie der Streamer in den Listen heissen soll (vom Admin umbenannt) - sonst gilt der Kanalname. */
+  anzeige?: string;
 };
 
 type FolderData = {
@@ -115,6 +117,7 @@ export async function POST(request: NextRequest) {
         ? folder.streamers.map((streamer: any) => ({
             twitch: String(streamer.twitch || '').trim().toLowerCase(),
             twitter: String(streamer.twitter || '').trim() || String(streamer.twitch || '').trim().toLowerCase(),
+            ...(String(streamer.anzeige || '').trim() ? { anzeige: String(streamer.anzeige).trim().slice(0, 40) } : {}),
           }))
         : [],
     }));

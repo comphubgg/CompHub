@@ -23,6 +23,8 @@ interface Streamer {
   twitch: string;
   twitter: string;
   createdBy?: string;
+  /** Anzeigename in den Listen (vom Admin gesetzt, gilt fuer alle). */
+  anzeige?: string;
 }
 
 interface Folder {
@@ -530,6 +532,17 @@ export default function Home() {
   
   // Favorites-System
   const [favoriteStreamers, setFavoriteStreamers] = useState<string[]>([]);
+  /**
+   * Eigene Namen fuer Streamer in den Listen (Betreiber, 19.10.2026: "im Ordner kann ich die Spieler nicht umbenennen - das soll moeglich sein").
+   * Der Admin benennt fuer alle um (der Name steht im Ordner), jedes andere Konto nur fuer sich (hier, im Browser und beim Konto).
+   */
+  const [eigeneNamen, setEigeneNamen] = useState<Record<string, string>>({});
+  const namenKarte = useMemo(() => {
+    const k: Record<string, string> = {};
+    for (const f of folders) for (const s of f.streamers) if (s.anzeige) k[s.twitch] = s.anzeige;
+    for (const [tw, n] of Object.entries(eigeneNamen)) if (n) k[tw] = n;
+    return k;
+  }, [folders, eigeneNamen]);
   
   // Notifications
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
@@ -895,6 +908,15 @@ const response = await fetch(getApiUrl(`/api/search?q=${encodeURIComponent(twitc
       } else {
         setFavoriteStreamers([]);
       }
+
+      // Eigene Namen fuer Streamer (pro Konto)
+      try {
+        const roh = localStorage.getItem(getUserStorageKey('multihub_namen'));
+        setEigeneNamen(roh ? JSON.parse(roh) : {});
+      } catch { setEigeneNamen({}); }
+      void loadUserStorageCloud<Record<string, string>>('multihub_namen').then((c) => {
+        if (c && typeof c === 'object') setEigeneNamen((alt) => ({ ...c, ...alt }));
+      });
 
       // Lade Layout Config
       const savedLayout = localStorage.getItem('multihub_layout_config');
@@ -1415,6 +1437,29 @@ const response = await fetch(getApiUrl(`/api/search?q=${encodeURIComponent(twitc
     localStorage.setItem(getUserStorageKey('multihub_favorites'), JSON.stringify(updated));
   };
 
+  /** Einen Streamer in den Listen umbenennen; leer = zurueck auf den Kanalnamen. */
+  const streamerUmbenennen = (twitch: string, name: string) => {
+    if (isGuest) return;
+    const neu = name.trim().slice(0, 40);
+    const speichereNamen = (karte: Record<string, string>) => {
+      setEigeneNamen(karte);
+      try { localStorage.setItem(getUserStorageKey('multihub_namen'), JSON.stringify(karte)); } catch { /* ohne Speicher */ }
+      void saveUserStorageCloud('multihub_namen', karte);
+    };
+    if (isAdmin) {
+      // Der Admin benennt fuer alle um: der Name steht im Ordner.
+      persistFolders(folders.map((f) => ({
+        ...f,
+        streamers: f.streamers.map((s) => (s.twitch === twitch
+          ? { ...s, anzeige: neu && neu.toLowerCase() !== twitch ? neu : undefined }
+          : s)),
+      })));
+      if (eigeneNamen[twitch]) speichereNamen({ ...eigeneNamen, [twitch]: '' });
+      return;
+    }
+    speichereNamen({ ...eigeneNamen, [twitch]: neu.toLowerCase() === twitch ? '' : neu });
+  };
+
   // Notifications initialisieren / Toggle
   const toggleNotifications = () => {
     const newState = !notificationsEnabled;
@@ -1800,6 +1845,10 @@ const response = await fetch(getApiUrl(`/api/search?q=${encodeURIComponent(twitc
         host={currentHost}
         start={mvStart}
         ordner={folders}
+        favoriten={favoriteStreamers}
+        favoritUmschalten={toggleFavorite}
+        namen={namenKarte}
+        streamerUmbenennen={isGuest ? undefined : streamerUmbenennen}
         ordnerLive={liveStatusMap}
         povs={povs}
         darfOrdner={!isGuest && (darfOrdner || isAdmin)}
@@ -1855,6 +1904,8 @@ const response = await fetch(getApiUrl(`/api/search?q=${encodeURIComponent(twitc
       live={liveStatusMap}
       favoriten={favoriteStreamers}
       favoritUmschalten={toggleFavorite}
+      namen={namenKarte}
+      streamerUmbenennen={isGuest ? undefined : streamerUmbenennen}
       aktiv={activeStreamerTwitch}
       waehleStreamer={handleStreamerClick}
       aktivPov={aktivPov}
