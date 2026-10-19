@@ -6,6 +6,7 @@ import { useRouter } from 'next/navigation';
 import T from '@/app/components/T';
 import TeamFlagge from '@/components/TeamFlagge';
 import Rollzahl from '@/app/components/Rollzahl';
+import { fokusVon } from '@/lib/fotoFokus';
 
 /*
  * Die Schaukaesten der Startseite.
@@ -88,7 +89,7 @@ const zahl = (n: number) => n.toLocaleString('de-DE');
 function Gesicht({ name, bild, px }: { name: string; bild: string | null; px: number }) {
   return bild
     // eslint-disable-next-line @next/next/no-img-element
-    ? <img src={bild} alt="" loading="lazy" style={{ width: px, height: px }} className="shrink-0 rounded-full border border-white/15 object-cover object-top" />
+    ? <img src={bild} alt="" loading="lazy" style={{ width: px, height: px, objectPosition: fokusVon(bild) }} className="shrink-0 rounded-full border border-white/15 object-cover" />
     : <span style={{ width: px, height: px }} className="flex shrink-0 items-center justify-center rounded-full border border-white/10 bg-zinc-900 text-xs font-bold text-slate-500">{name.slice(0, 1).toUpperCase()}</span>;
 }
 
@@ -142,7 +143,7 @@ function SpotlightKarte({ daten, fertig }: { daten: Vitrine | null; fertig: bool
           <div key={s.id} className="vit-an absolute inset-0 -z-10" style={{ animation: 'vit-rein .6s cubic-bezier(.2,.8,.2,1) both' }}>
             {s.bild ? (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={s.bild} alt="" loading="lazy" className="h-full w-full object-cover" style={{ objectPosition: 'center top' }} />
+              <img src={s.bild} alt="" loading="lazy" className="h-full w-full object-cover" style={{ objectPosition: fokusVon(s.bild) }} />
             ) : (
               <span className="absolute inset-0 grid place-items-center bg-gradient-to-br from-sky-950 to-zinc-900 text-9xl font-black text-white/10">{s.name.slice(0, 1).toUpperCase()}</span>
             )}

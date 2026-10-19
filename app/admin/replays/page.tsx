@@ -1,8 +1,8 @@
 'use client';
 
 import { useCallback, useEffect, useState } from 'react';
-import Link from 'next/link';
 import T from '@/app/components/T';
+import SeitenKopf from '@/app/components/SeitenKopf';
 import { useT } from '@/app/components/SprachProvider';
 
 // Die Replay-Verwaltung.
@@ -257,13 +257,8 @@ export default function ReplayVerwaltung() {
   return (
     <main className="min-h-screen bg-zinc-950 px-4 py-8 text-slate-100">
       <div className="mx-auto max-w-[1200px]">
-        <div className="mb-6 flex items-baseline gap-4">
-          <h1 className="text-2xl font-bold"><T>Replay-Verwaltung</T></h1>
-          <Link href="/admin"
-            className="text-xs text-slate-500 transition hover:text-sky-400">
-            ← <T>Zurück zum Dashboard</T>
-          </Link>
-        </div>
+        <SeitenKopf className="mb-6" marke={<T>Replays</T>} titel={<T>Replay-Verwaltung</T>}
+          text={<T>Welche Spieltage ausgewertet sind, was noch fehlt und welche Replays gerade gelesen werden.</T>} />
 
         <Ueberblick fenster={fenster} />
 

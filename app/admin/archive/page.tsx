@@ -16,6 +16,7 @@ import { useSearchParams } from 'next/navigation';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import LadeSchirm from '@/app/components/LadeSchirm';
+import SeitenKopf from '@/app/components/SeitenKopf';
 import { videoArt, type GalerieEintrag, type GalerieEvent } from '@/lib/galerieTypen';
 import {
   ArchivVideo, CupWahl, SpielerSuche as SpielerWahl, bildPfad, type SpielerAngabe,
@@ -201,20 +202,13 @@ export default function ArchivVerwaltung() {
     <main className="mx-auto max-w-[1500px] px-4 py-6 sm:px-6">
       {(istAdmin === null || (!daten && !meldung)) && <LadeSchirm />}
       {laedtHoch && <LadeSchirm text={`${t('Wird hochgeladen')} · ${fortschritt}`} />}
-      <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
-        <div>
-          <p className="text-[10px] font-semibold uppercase tracking-[0.22em] text-slate-500">Admin</p>
-          <h1 className="text-2xl font-bold tracking-tight text-slate-50"><T>Archiv pflegen</T></h1>
-        </div>
-        <div className="flex items-center gap-2">
-          <Link href="/statistics" className="rounded-md border border-zinc-800 px-3 py-1.5 text-xs text-slate-400 transition hover:border-sky-500 hover:text-sky-400">
+      <SeitenKopf className="mb-5" marke={<T>Spielerprofil</T>} titel={<T>Archiv pflegen</T>}
+        text={<T>Fotos und Videos zu Events und Spielern. Gezeigt wird alles im Reiter Spielerarchiv des Profils; jede Eingabe speichert sich selbst.</T>}
+        rechts={
+          <Link href="/statistics" className="rounded-full border border-zinc-700 px-4 py-2 text-xs font-bold text-slate-300 transition hover:border-sky-500 hover:text-sky-400">
             <T>Zu den Profilen</T> ↗
           </Link>
-          <Link href="/admin" className="rounded-md border border-zinc-800 px-3 py-1.5 text-xs text-slate-400 transition hover:border-sky-500 hover:text-sky-400">
-            ← Admin
-          </Link>
-        </div>
-      </div>
+        } />
       {meldung && (
         <p className="mb-4 rounded-lg border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-xs text-amber-300">{meldung}</p>
       )}

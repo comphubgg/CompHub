@@ -17,9 +17,9 @@
  * Betreibers bei 75,7 % / 22,5 %.
  */
 
-import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 import T from '@/app/components/T';
+import SeitenKopf from '@/app/components/SeitenKopf';
 import { useT } from '@/app/components/SprachProvider';
 import { fortniteKarte } from '@/lib/bildAdressen';
 import ZonenBild from './ZonenBild';
@@ -181,13 +181,8 @@ export default function ReplaySeite() {
   return (
     <main className="min-h-screen bg-zinc-950 px-4 py-8 text-slate-100">
       <div className="mx-auto max-w-[1500px]">
-        <div className="mb-6 flex flex-wrap items-baseline gap-4">
-          <h1 className="text-3xl font-black tracking-tight"><T>Replay-Auswertung</T></h1>
-          <Link href="/admin" className="text-sm text-slate-500 transition hover:text-sky-400">← <T>Dashboard</T></Link>
-          <p className="w-full max-w-3xl text-sm text-slate-400">
-            <T>Jedes Game der Finals und LANs aus Epics Server-Replays: die Zonen, jede Elim und jeder Knock mit Ort und Zeit, die Teams. Der Server liest neue Games stündlich aus und bewahrt sie auf, auch wenn Epic das Replay nach 31 Tagen löscht.</T>
-          </p>
-        </div>
+        <SeitenKopf className="mb-6" marke={<T>Replays</T>} titel={<T>Replay-Auswertung</T>}
+          text={<T>Jedes Game der Finals und LANs aus Epics Server-Replays: die Zonen, jede Elim und jeder Knock mit Ort und Zeit, die Teams. Der Server liest neue Games stündlich aus und bewahrt sie auf, auch wenn Epic das Replay nach 31 Tagen löscht.</T>} />
 
         {fehler && <p className="mb-4 rounded-xl border border-rose-700/60 bg-rose-950/40 px-4 py-3 text-sm text-rose-200">{fehler}</p>}
         {tage && !tage.length && !fehler && (

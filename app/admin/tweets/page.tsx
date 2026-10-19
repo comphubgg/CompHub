@@ -12,6 +12,7 @@ import { MARKE } from '@/lib/marke';
 import { kernname, namensSchluessel } from '@/lib/homoglyph';
 
 import T from '@/app/components/T';
+import SeitenKopf from '@/app/components/SeitenKopf';
 import { useSprache } from '@/app/components/SprachProvider';
 import { speichereAdresse } from '@/app/lib/bildSpeichern';
 interface Fenster {
@@ -775,14 +776,14 @@ function Schritt({ nr, titel, hinweis, children }: {
   nr: number; titel: string; hinweis?: string; children: React.ReactNode;
 }) {
   return (
-    <section className="mb-3 rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
-      <div className="mb-3 flex flex-wrap items-baseline gap-2">
-        <span className="flex h-5 w-5 shrink-0 items-center justify-center
-                         rounded-full bg-sky-500/15 text-[11px] font-bold
-                         text-sky-400">
+    <section className="mb-4 rounded-2xl border border-zinc-800 bg-zinc-900 p-5 shadow-[0_6px_20px_rgba(15,23,42,.12)]">
+      <div className="mb-4 flex flex-wrap items-center gap-2.5">
+        <span className="flex h-7 w-7 shrink-0 items-center justify-center
+                         rounded-full bg-sky-500 text-xs font-bold
+                         text-white">
           {nr}
         </span>
-        <h2 className="text-sm font-semibold text-slate-100">{titel}</h2>
+        <h2 className="text-base font-bold text-slate-100">{titel}</h2>
         {hinweis && <span className="text-xs text-slate-500">{hinweis}</span>}
       </div>
       {children}
@@ -3108,24 +3109,20 @@ export default function TweetSeite() {
     <main className="flex-1 bg-zinc-950 px-4 py-6 text-slate-200">
       <div className="mx-auto max-w-[1500px]">
 
-        <div className="mb-5 flex flex-wrap items-start justify-between gap-3">
-          <div>
-            <h1 className="text-xl font-semibold text-slate-100"><T>Beitrag erstellen</T></h1>
-            <p className="mt-1 text-sm text-slate-500">
-              <T>Cup wählen, Vorlage wählen — Text und Grafik entstehen aus den Turnierdaten von Epic.</T>
-            </p>
-          </div>
-          <button onClick={() => setBefehleOffen(true)}
-            title={t('Alles, was das Kurzbefehl-Feld versteht')}
-            className="shrink-0 rounded-lg border border-zinc-700 px-3 py-1.5 text-xs
-                       text-slate-300 transition hover:border-sky-500 hover:text-sky-400">
-            ⌘ Befehle
-            <span className="ml-1.5 rounded-full bg-zinc-800 px-1.5 py-0.5
-                             text-[10px] font-semibold text-slate-400">
-              {befehlsZahl}
-            </span>
-          </button>
-        </div>
+        <SeitenKopf className="mb-5" marke={<T>Beiträge</T>} titel={<T>Beitrag erstellen</T>}
+          text={<T>Cup wählen, Vorlage wählen — Text und Grafik entstehen aus den Turnierdaten von Epic.</T>}
+          rechts={
+            <button onClick={() => setBefehleOffen(true)}
+              title={t('Alles, was das Kurzbefehl-Feld versteht')}
+              className="shrink-0 rounded-full border border-zinc-700 px-4 py-2 text-xs font-bold
+                         text-slate-300 transition hover:border-sky-500 hover:text-sky-400">
+              ⌘ Befehle
+              <span className="ml-1.5 rounded-full bg-zinc-800 px-1.5 py-0.5
+                               text-[10px] font-semibold text-slate-400">
+                {befehlsZahl}
+              </span>
+            </button>
+          } />
 
         {/* ------------------------------------------ Schritt 1: Vorlage */}
         <Schritt nr={1} titel={t('Was soll es werden?')}>

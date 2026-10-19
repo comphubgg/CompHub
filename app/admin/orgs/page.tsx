@@ -12,9 +12,9 @@
  * Oberflaeche selbst; gespeichert wird von allein; Loeschen fragt nach.
  */
 
-import Link from 'next/link';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import T from '@/app/components/T';
+import SeitenKopf from '@/app/components/SeitenKopf';
 import { useT } from '@/app/components/SprachProvider';
 
 type Rolle = 'pro' | 'academy' | 'creator';
@@ -295,19 +295,14 @@ export default function OrgsAdmin() {
   return (
     <main className="min-h-screen bg-zinc-950 text-slate-100">
       <div className="mx-auto max-w-6xl px-6 py-10">
-      <div className="mb-2 flex flex-wrap items-baseline gap-3">
-        <h1 className="text-2xl font-bold text-slate-100"><T>E-Sports-Teams</T></h1>
-        <span className="text-xs text-slate-500">{orgs.length} <T>Organisationen</T></span>
-        {stand && (
-          <span className={`text-xs ${/nicht|not/i.test(stand) ? 'text-rose-400' : 'text-emerald-400'}`}>{stand}</span>
-        )}
-        <Link href="/admin" className="ml-auto text-xs text-slate-500 transition hover:text-sky-400">
-          ← <T>zum Verwaltungsbereich</T>
-        </Link>
-      </div>
-      <p className="mb-8 text-sm text-slate-500">
-        <T>Erscheint in der Statistik unter Organizations. Spieler hängen an ihrem Epic-Konto; ohne Konto stehen sie ohne Profil und ohne Preisgeld da.</T>
-      </p>
+      <SeitenKopf className="mb-8" marke={<T>Statistik</T>} titel={<T>E-Sports-Teams</T>}
+        text={<T>Erscheint in der Statistik unter Organizations. Spieler hängen an ihrem Epic-Konto; ohne Konto stehen sie ohne Profil und ohne Preisgeld da.</T>}
+        rechts={<>
+          <span className="rounded-full border border-zinc-700 px-3 py-1 text-xs font-semibold text-slate-300">{orgs.length} <T>Organisationen</T></span>
+          {stand && (
+            <span className={`text-xs ${/nicht|not/i.test(stand) ? 'text-rose-400' : 'text-emerald-400'}`}>{stand}</span>
+          )}
+        </>} />
 
       {fehler ? (
         <p className="rounded-xl border border-amber-800/60 bg-amber-950/20 p-5 text-sm text-amber-200">{fehler}</p>
