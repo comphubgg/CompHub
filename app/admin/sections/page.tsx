@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import T from '@/app/components/T';
+import SeitenKopf from '@/app/components/SeitenKopf';
 import { useT } from '@/app/components/SprachProvider';
 import { HINWEISE, SEKTIONEN, type Staende, type Zustand } from '@/lib/sektionen';
 
@@ -102,16 +103,8 @@ export default function SektionenSeite() {
 
   return (
     <main className="mx-auto max-w-4xl px-6 py-10">
-      <div className="mb-8 flex flex-wrap items-baseline gap-3">
-        <h1 className="text-2xl font-bold text-slate-100"><T>Sections</T></h1>
-        <span className="text-xs text-slate-600">
-          {SEKTIONEN.length} <T>Bereiche</T>
-        </span>
-        <Link href="/admin" className="ml-auto text-xs text-slate-500 transition
-                                       hover:text-sky-400">
-          ← <T>zum Verwaltungsbereich</T>
-        </Link>
-      </div>
+      <SeitenKopf className="mb-6" marke={<T>Sichtbarkeit</T>} titel={<T>Sections</T>}
+        rechts={<span className="rounded-full border border-zinc-700 px-3 py-1 text-xs font-semibold text-slate-300">{SEKTIONEN.length} <T>Bereiche</T></span>} />
 
       <p className="mb-6 text-[11px] leading-relaxed text-slate-600">
         <T>Du selbst kommst in jeden Bereich, egal was hier steht — auch in

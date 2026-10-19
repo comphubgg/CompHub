@@ -12,6 +12,7 @@
 
 import { useCallback, useEffect, useState } from 'react';
 import T from '@/app/components/T';
+import SeitenKopf from '@/app/components/SeitenKopf';
 
 interface Stand {
   dienst: 'twitch' | 'discord' | 'google' | 'epic';
@@ -63,12 +64,8 @@ export default function DienstePage() {
   return (
     <main className="flex-1 bg-zinc-950 px-4 py-6 text-slate-200">
       <div className="mx-auto max-w-3xl">
-        <h1 className="text-xl font-semibold text-slate-100">
-          <T>Anmeldedienste</T>
-        </h1>
-        <p className="mb-5 mt-1 text-sm text-slate-500">
-          <T>Client-Id und Secret einfügen — ohne Datei und ohne Neustart.</T>
-        </p>
+        <SeitenKopf className="mb-5" marke={<T>Anmeldung</T>} titel={<T>Anmeldedienste</T>}
+          text={<T>Client-Id und Secret einfügen — ohne Datei und ohne Neustart.</T>} />
 
         {fehler && (
           <p className="mb-4 rounded-lg border border-amber-800 bg-amber-950/30 px-3

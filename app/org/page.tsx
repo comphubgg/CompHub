@@ -98,7 +98,7 @@ export default function OrgSeite() {
   if (fehler || !org) {
     return (
       <main className="mx-auto max-w-xl px-4 py-24 text-center">
-        <h1 className="text-3xl font-extrabold text-white"><T>Team</T></h1>
+        <h1 className="text-3xl font-extrabold text-white"><T>Dein Team</T></h1>
         <p className="mt-4 text-sm text-slate-400">{t(fehler ?? 'Dieses Konto verwaltet keine Organisation.')}</p>
         <Link href="/account" className="mt-6 inline-block rounded-full bg-sky-500 px-5 py-2 text-sm font-bold text-white hover:bg-sky-400"><T>Zum Konto</T></Link>
       </main>

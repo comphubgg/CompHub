@@ -360,9 +360,10 @@ export default function AdminDashboardPage() {
               <h1 className="truncate text-3xl font-extrabold text-white sm:text-4xl">
                 {laedt ? t('Wird geladen …') : (profile.displayName || t('Ohne Namen'))}
               </h1>
-              {accountStatus && (
+              {/* Ein Admin ist kein "VIP User" (Betreiber, 19.10.2026) - er traegt die Marke "Admin". */}
+              {(zugang.admin || accountStatus) && (
                 <span className="mt-1.5 inline-block rounded-full border border-sky-500/30 bg-sky-500/10 px-2.5 py-0.5 text-xs font-semibold text-sky-400">
-                  {accountStatus}
+                  {zugang.admin ? 'Admin' : accountStatus}
                 </span>
               )}
             </div>
@@ -391,7 +392,7 @@ export default function AdminDashboardPage() {
           </div>
         )}
 
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]">
+        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]" data-dash-spalten>
           <div className="space-y-4">
 
             {/*
@@ -530,7 +531,7 @@ export default function AdminDashboardPage() {
               * ausgegrauten Knoepfen sah dagegen aus, als fehle etwas.
               */}
             {accessKey && (
-            <section className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
+            <section data-dash="schluessel" className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
               <h2 className="text-sm font-semibold text-slate-100"><T>Zugangsschlüssel</T></h2>
               <div className="mt-3 flex flex-wrap items-center gap-3">
                 <code className="min-w-0 flex-1 truncate rounded-lg border border-zinc-800
@@ -601,7 +602,7 @@ export default function AdminDashboardPage() {
             )}
 
             {/* Mein Archiv - das private Archiv jedes Kontos (Overlays, Tierlists, ...) */}
-            <div id="mein-archiv" className="scroll-mt-20"><MeinArchiv /></div>
+            <div id="mein-archiv" data-dash="archiv" className="scroll-mt-20"><MeinArchiv /></div>
           </div>
 
           {/*
@@ -613,7 +614,7 @@ export default function AdminDashboardPage() {
             * haben.
             */}
           {!verwaltet && (
-          <section className="rounded-xl border border-zinc-800 bg-zinc-950/60">
+          <section data-dash="chat" className="rounded-xl border border-zinc-800 bg-zinc-950/60">
             <header className="flex items-center justify-between gap-3 border-b
                                border-zinc-800 px-4 py-2.5">
               <h2 className="truncate text-sm font-semibold text-slate-100">

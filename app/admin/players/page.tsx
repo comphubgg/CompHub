@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import T from '@/app/components/T';
+import SeitenKopf from '@/app/components/SeitenKopf';
 import { useT } from '@/app/components/SprachProvider';
 import { namensSchluessel } from '@/lib/homoglyph';
 
@@ -314,26 +315,8 @@ export default function PlayerCenter() {
   return (
     <main className="min-h-screen bg-zinc-950 px-4 py-8 text-slate-100">
       <div className="mx-auto max-w-[1400px]">
-        <div className="mb-6 flex flex-wrap items-baseline gap-4">
-          <h1 className="text-2xl font-bold"><T>Player Center</T></h1>
-          {/* Zwei Wege zurueck: der Browserverlauf fuer den Weg, den man
-              gekommen ist, und der feste Link ins Dashboard. Wer ueber einen
-              Lesezeichen-Link hier landet, hat keinen Verlauf. */}
-          <button onClick={() => window.history.back()}
-            className="rounded-lg border border-zinc-800 px-3 py-1 text-xs
-                       text-slate-400 transition hover:border-sky-500/60
-                       hover:text-sky-400">
-            ← <T>zurück</T>
-          </button>
-          <Link href="/admin"
-            className="text-xs text-slate-500 transition hover:text-sky-400">
-            <T>Dashboard</T>
-          </Link>
-          <span className="ml-auto text-xs text-slate-600">
-            <T>Flagge und @-Konto hängen an der Konto-ID, nicht am Namen —
-            ein Namenswechsel ändert nichts.</T>
-          </span>
-        </div>
+        <SeitenKopf className="mb-6" marke={<T>Spieler pflegen</T>} titel={<T>Player Center</T>}
+          text={<T>Flagge und @-Konto hängen an der Konto-ID, nicht am Namen — ein Namenswechsel ändert nichts.</T>} />
 
         {/* Was noch nicht beim Server ist - unuebersehbar, solange es das gibt. */}
         {wartend > 0 && (
@@ -352,10 +335,10 @@ export default function PlayerCenter() {
         <div className="mb-3 flex flex-wrap items-center gap-1.5">
           {REGIONEN.map((r) => (
             <button key={r} onClick={() => waehle(setRegion)(r)}
-              className={`rounded-lg border px-3 py-1.5 text-xs font-semibold
+              className={`rounded-full border px-4 py-1.5 text-xs font-bold
                           transition ${region === r
-                ? 'border-sky-500 bg-sky-500/15 text-sky-400'
-                : 'border-zinc-800 text-slate-500 hover:text-slate-300'}`}>
+                ? 'border-sky-500 bg-sky-500/15 text-sky-500'
+                : 'border-zinc-700 text-slate-400 hover:text-slate-200'}`}>
               <T>{r}</T>
               <span className="ml-1.5 font-normal tabular-nums text-slate-600">
                 {jeRegion[r] ?? '–'}
@@ -370,17 +353,17 @@ export default function PlayerCenter() {
             onChange={(e) => waehle(setSuche)(e.target.value)}
             placeholder={t('Name, alter Name oder Konto-ID')}
             spellCheck={false}
-            className="w-72 max-w-full rounded-lg border border-zinc-800
-                       bg-zinc-900/80 px-3 py-1.5 text-xs text-slate-100
+            className="w-72 max-w-full rounded-full border border-zinc-700
+                       bg-zinc-900 px-4 py-2 text-xs text-slate-100
                        outline-none placeholder:text-slate-600
                        focus:border-sky-500" />
 
           <span className="flex flex-wrap items-center gap-1">
             <button onClick={() => waehle(setFilter)(new Set<Filterart>())}
-              className={`rounded-md border px-2 py-0.5 text-[11px] transition
+              className={`rounded-full border px-3 py-1 text-[11px] font-semibold transition
                           ${!filter.size
-                ? 'border-sky-500 bg-sky-500/15 text-sky-400'
-                : 'border-zinc-800 text-slate-500 hover:text-slate-300'}`}>
+                ? 'border-sky-500 bg-sky-500/15 text-sky-500'
+                : 'border-zinc-700 text-slate-400 hover:text-slate-200'}`}>
               <T>alle</T>
             </button>
 
@@ -404,10 +387,10 @@ export default function PlayerCenter() {
                   }
                   waehle(setFilter)(naechster);
                 }}
-                className={`rounded-md border px-2 py-0.5 text-[11px] transition
+                className={`rounded-full border px-3 py-1 text-[11px] font-semibold transition
                             ${filter.has(f.wert)
-                  ? 'border-sky-500 bg-sky-500/15 text-sky-400'
-                  : 'border-zinc-800 text-slate-500 hover:text-slate-300'}`}>
+                  ? 'border-sky-500 bg-sky-500/15 text-sky-500'
+                  : 'border-zinc-700 text-slate-400 hover:text-slate-200'}`}>
                 <T>{f.titel}</T>
               </button>
             ))}
@@ -446,9 +429,9 @@ export default function PlayerCenter() {
           </p>
         ) : (
           <>
-            <div className="overflow-hidden rounded-xl border border-zinc-800">
+            <div className="overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 shadow-[0_10px_30px_rgba(15,23,42,.12)]">
               <table className="w-full text-xs">
-                <thead className="bg-zinc-900/70">
+                <thead className="bg-zinc-950/40">
                   <tr className="text-[10px] uppercase tracking-wider text-slate-500">
                     <th className="px-3 py-2 text-left font-medium"><T>Spieler</T></th>
                     <th className="px-3 py-2 text-center font-medium"><T>Flagge</T></th>
@@ -462,20 +445,20 @@ export default function PlayerCenter() {
                   {gezeigt.slice(0, menge).map((s) => {
                     const auf = offen === s.epicId;
                     return (
-                      <tr key={s.epicId}
-                        className={`border-t border-zinc-900 ${auf
-                          ? 'bg-sky-950/30' : 'hover:bg-zinc-900/40'}`}>
-                        <td className="px-3 py-1.5">
+                      <tr key={s.epicId} onClick={() => { if (!auf) oeffnen(s); }}
+                        className={`border-t border-zinc-800 ${auf
+                          ? 'bg-sky-500/10' : 'cursor-pointer hover:bg-sky-500/5'}`}>
+                        <td className="px-3 py-2.5">
                           <span className="flex items-center gap-2">
                             {s.foto ? (
                               /* eslint-disable-next-line @next/next/no-img-element */
                               <img src={s.foto} alt="" loading="lazy"
-                                className="h-7 w-7 shrink-0 rounded object-cover
+                                className="h-9 w-9 shrink-0 rounded-full object-cover
                                            object-top" />
                             ) : (
-                              <span className="flex h-7 w-7 shrink-0 items-center
-                                               justify-center rounded bg-zinc-900
-                                               text-[11px] text-zinc-700">?</span>
+                              <span className="flex h-9 w-9 shrink-0 items-center
+                                               justify-center rounded-full bg-zinc-800
+                                               text-[11px] text-slate-500">?</span>
                             )}
                             <span className="min-w-0 flex-1">
                               {auf ? (
@@ -555,8 +538,8 @@ export default function PlayerCenter() {
                           {auf ? (
                             <span className="flex items-center justify-end gap-2">
                               <button onClick={() => void speichern(s)}
-                                className="rounded bg-sky-500 px-2.5 py-0.5 text-[11px]
-                                           font-medium text-white transition
+                                className="rounded-full bg-sky-500 px-4 py-1.5 text-[11px]
+                                           font-bold text-white transition
                                            hover:bg-sky-400 disabled:opacity-40">
                                 <T>speichern</T>
                               </button>
@@ -567,10 +550,10 @@ export default function PlayerCenter() {
                               </button>
                             </span>
                           ) : (
-                            <button onClick={() => oeffnen(s)}
-                              className="rounded border border-zinc-800 px-2.5 py-0.5
-                                         text-[11px] text-slate-500 transition
-                                         hover:border-sky-500/60 hover:text-sky-400">
+                            <button onClick={(e) => { e.stopPropagation(); oeffnen(s); }}
+                              className="rounded-full border border-zinc-700 px-4 py-1.5
+                                         text-[11px] font-semibold text-slate-300 transition
+                                         hover:border-sky-500 hover:text-sky-500">
                               <T>bearbeiten</T>
                             </button>
                           )}

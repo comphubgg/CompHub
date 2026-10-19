@@ -53,8 +53,20 @@ function alsBlob(leinwand: HTMLCanvasElement): Promise<Blob> {
 export async function speichereLeinwand(
   leinwand: HTMLCanvasElement,
   dateiname: string,
-): Promise<void> {
+  /** Immer herunterladen, nie in die Zwischenablage. */
+  nurDownload = false,
+): Promise<'kopiert' | 'gespeichert'> {
   const blob = await alsBlob(leinwand);
+  /*
+   * Zuerst in die Zwischenablage (Betreiber, 19.10.2026: "nicht immer herunterladen, ich will es kopieren - ich will nicht unendlich Dateien haben").
+   * Geht das nicht (Browser ohne Bildzugriff auf die Zwischenablage), wird es wie bisher heruntergeladen.
+   */
+  if (!nurDownload) {
+    try {
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })]);
+      return 'kopiert';
+    } catch { /* dann der Download */ }
+  }
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
@@ -69,6 +81,7 @@ export async function speichereLeinwand(
     // wenn der Browser sie holen will.
     setTimeout(() => URL.revokeObjectURL(url), 60_000);
   }
+  return 'gespeichert';
 }
 
 /**

@@ -336,8 +336,6 @@ export default function AdminZentrale({ werkzeuge, zeigeLaeufe, teil = 'alles' }
                 {g.ziele.map((z) => (
                   <Link key={z.href} href={z.href}
                     className={`group relative flex items-start gap-3 rounded-2xl border border-zinc-800 bg-zinc-950/50 p-4 transition hover:-translate-y-0.5 ${g.kachel}`}>
-                    {/* Die Marke in der Farbe der Gruppe: der Anfangsbuchstabe des Werkzeugs. Fest dunkle Schrift, damit sie in beiden Fassungen lesbar bleibt. */}
-                    <span className={`grid h-10 w-10 shrink-0 place-items-center rounded-xl text-base font-black text-[#0b1220] ${g.punkt}`}>{z.titel.slice(0, 1)}</span>
                     <span className="min-w-0 flex-1">
                       <span className="block text-[15px] font-bold text-slate-100"><T>{z.titel}</T></span>
                       <span className="mt-0.5 block text-xs leading-snug text-slate-400"><T>{z.text}</T></span>

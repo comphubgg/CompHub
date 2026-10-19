@@ -26,7 +26,7 @@ export interface KartenPost {
 const SEITE = 'https://www.thecomphub.com';
 
 /** Grundfarbe je Land (Flaggenfarbe) - fuer die Ecken. Unbekanntes Land: Grau. */
-const FARBE: Record<string, string> = {
+export const FARBE: Record<string, string> = {
   FR: '#2a5cff', ES: '#f1bf00', DE: '#ffcc00', PL: '#dc143c', GB: '#c8102e', US: '#3c5fb4', SE: '#2a8fd6', NO: '#ba0c2f', DK: '#e0283c',
   NL: '#ff7a00', IT: '#1fae5b', BE: '#fdda24', PT: '#1f8a3a', TR: '#e30a17', BR: '#18b04f', MX: '#1f9d5b', CA: '#ff3b30', AT: '#ed2939',
   CH: '#d52b1e', CZ: '#2a63b8', FI: '#2f6fe0', RU: '#d52b1e', RO: '#fcd116', UA: '#2a7be0', GR: '#2a7bd6', JP: '#e0143c', KR: '#cd2e3a',
@@ -74,7 +74,7 @@ export async function kartenKandidaten(): Promise<KartenPost[]> {
   try {
     const jetzt = Date.now();
     const liste = (await mapsVerzeichnis())
-      .filter((e) => !e.turnierId.startsWith(ALT) && e.datum && (e.ende ?? (e.datum as number) + 4 * 3600_000) < jetzt && jetzt - (e.datum as number) < 30 * 86_400_000)
+      .filter((e) => !e.turnierId.startsWith(ALT) && e.datum && (e.ende ?? (e.datum as number) + 4 * 3600_000) < jetzt && jetzt - (e.datum as number) < 48 * 3600_000)
       .sort((a, b) => (b.datum ?? 0) - (a.datum ?? 0)).slice(0, 5);
     for (const e of liste) {
       try {

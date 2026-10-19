@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import T from '@/app/components/T';
+import SeitenKopf from '@/app/components/SeitenKopf';
 import { useT } from '@/app/components/SprachProvider';
 
 /*
@@ -97,20 +98,8 @@ export default function WechselnSeite() {
   return (
     <main className="flex-1 bg-zinc-950 px-4 py-6 text-slate-200">
       <div className="mx-auto max-w-3xl">
-        <Link href="/admin"
-          className="text-[11px] text-slate-500 transition hover:text-sky-400">
-          ← <T>zurück zu den Admin-Werkzeugen</T>
-        </Link>
-
-        <h1 className="mt-3 text-xl font-semibold text-slate-100">
-          <T>In einen Zugang wechseln</T>
-        </h1>
-        <p className="mt-1 text-sm leading-relaxed text-slate-500">
-          <T>Ein Klick, und du siehst, was dieser Zugang sieht — seine
-          Overlays, seine Rechte. Zurück geht es nur über eine neue Anmeldung;
-          ein Cookie, das deine Adminrechte heimlich mitführt, wäre ein
-          zweiter Schlüssel zur Verwaltung.</T>
-        </p>
+        <SeitenKopf className="mb-5" marke={<T>Testen</T>} titel={<T>In einen Zugang wechseln</T>}
+          text={<T>Ein Klick, und du siehst, was dieser Zugang sieht — seine Overlays, seine Rechte. Zurück geht es nur über eine neue Anmeldung; ein Cookie, das deine Adminrechte heimlich mitführt, wäre ein zweiter Schlüssel zur Verwaltung.</T>} />
 
         <input value={suche} onChange={(e) => setSuche(e.target.value)}
           placeholder={t('Namen suchen')}

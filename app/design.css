@@ -154,3 +154,12 @@ html[data-design="neu"] :is(div, section, article, aside)[class*="rounded-xl"][c
 .admin-neu table tbody tr:hover { background-color: rgba(14, 165, 233, .06); }
 .admin-leiste { scrollbar-width: none; }
 .admin-leiste::-webkit-scrollbar { display: none; }
+
+/*
+ * Die Anzeige des Dashboards (Betreiber, 19.10.2026): was dort zu sehen ist, stellt man im Zahnrad ein (app/lib/dashAnsicht). Die Teile tragen
+ * data-dash="<teil>"; der Twitch-Chat ist von Anfang an aus, und mit ihm faellt seine Spalte weg.
+ */
+html[data-dash-alle="aus"] [data-dash="alle"], html[data-dash-vip="aus"] [data-dash="vip"], html[data-dash-hier="aus"] [data-dash="hier"],
+html[data-dash-schluessel="aus"] [data-dash="schluessel"], html[data-dash-archiv="aus"] [data-dash="archiv"] { display: none; }
+html:not([data-dash-chat="an"]) [data-dash="chat"] { display: none; }
+html:not([data-dash-chat="an"]) [data-dash-spalten] { grid-template-columns: minmax(0, 1fr); }

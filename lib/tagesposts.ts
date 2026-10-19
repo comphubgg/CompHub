@@ -1,6 +1,7 @@
 import { liesJson, schreibJson } from '@/lib/ablage';
 import { GET as vitrine } from '@/app/api/startvitrine/route';
 import { GET as statistikZahlen } from '@/app/api/statistik-zahlen/route';
+import { GET as szeneStart } from '@/app/api/szene-stats/route';
 import { kernname, ohneZierrat } from '@/lib/homoglyph';
 import { kartenKandidaten } from '@/lib/postKarte';
 
@@ -18,7 +19,7 @@ import { kartenKandidaten } from '@/lib/postKarte';
  * Die Texte sind englisch (die Szene schreibt englisch) und tragen keine Hashtags.
  */
 
-export type PostArt = 'cup' | 'spieler' | 'ranking' | 'promo' | 'update' | 'karte';
+export type PostArt = 'cup' | 'duell' | 'rekord' | 'ranking' | 'promo' | 'update' | 'karte';
 
 export interface TagesPost {
   nr: number;
@@ -65,14 +66,22 @@ interface VCup { titel: string; cup: string; typ: string; bild: string | null; d
 interface VRang { rang: number; name: string; land: string | null; wertung: number; delta: number }
 interface Vitrine { ok?: boolean; saison?: string | null; saisonName?: string | null; spieler?: VSpieler[]; cups?: VCup[]; maps?: number; rangliste?: VRang[] }
 
-async function datenLage(): Promise<{ v: Vitrine; zahlen: { spieler?: number | null; spieltage?: number | null; elims?: number | null; matches?: number | null } }> {
+interface SSpieler { epicId: string; anzeige: string; land: string | null; bild: string | null; heimat?: string; elims: number; damage: number; quote: number; headshots: number; hits: number; matches: number }
+interface SStart { listen?: Array<{ feld: string; plaetze: SSpieler[] }>; duelle?: Array<{ links: SSpieler; rechts: SSpieler }> }
+type Zahlen = { spieler?: number | null; spieltage?: number | null; elims?: number | null; matches?: number | null };
+
+async function datenLage(): Promise<{ v: Vitrine; zahlen: Zahlen; s: SStart }> {
   const lies = async <T,>(f: () => Promise<Response>): Promise<T> => { try { return await (await f()).json() as T; } catch { return {} as T; } };
-  const [v, zahlen] = await Promise.all([
+  const [v, zahlen, s] = await Promise.all([
     lies<Vitrine>(() => vitrine(new Request(`${SEITE}/api/startvitrine`))),
-    lies<{ spieler?: number | null; spieltage?: number | null; elims?: number | null; matches?: number | null }>(() => statistikZahlen()),
+    lies<Zahlen>(() => statistikZahlen()),
+    lies<SStart>(() => szeneStart(new Request(`${SEITE}/api/szene-stats?ansicht=start`))),
   ]);
-  return { v, zahlen };
+  return { v, zahlen, s };
 }
+
+/** Wie frisch ein Cup sein muss, um einen Post zu bekommen (Betreiber, 19.10.2026: kein Post ueber einen Cup, der Tage her ist). */
+const FRISCH_MS = 48 * 3600_000;
 
 const gross = (n: string) => n.toUpperCase();
 const zahl = (n: number, nk = 0) => n.toLocaleString('en-US', { minimumFractionDigits: nk, maximumFractionDigits: nk });
@@ -82,7 +91,7 @@ const teamName = (z: VZeile) => z.spieler.map((p) => gross(rein(p.name))).join('
 const ordinal = (n: number) => `${n}${n % 100 >= 11 && n % 100 <= 13 ? 'th' : ({ 1: 'st', 2: 'nd', 3: 'rd' } as Record<number, string>)[n % 10] ?? 'th'}`;
 
 /** Alle Posts, die heute moeglich sind - jeder mit festem Schluessel. */
-function kandidaten(datum: string, v: Vitrine, zahlen: { spieler?: number | null; spieltage?: number | null; elims?: number | null; matches?: number | null }, karten: Array<Omit<TagesPost, 'nr' | 'art'>> = []): TagesPost[] {
+function kandidaten(datum: string, v: Vitrine, zahlen: Zahlen, s: SStart, karten: Array<Omit<TagesPost, 'nr' | 'art'>> = []): TagesPost[] {
   const raus: Omit<TagesPost, 'nr'>[] = [];
   // Kartenbilder mit den Laendern (lib/postKarte): die Kartenposts der juengsten Cups.
   for (const k of karten) raus.push({ ...k, art: 'karte' });
@@ -90,6 +99,8 @@ function kandidaten(datum: string, v: Vitrine, zahlen: { spieler?: number | null
   // Cups: nur mit mindestens drei Plaetzen, und nur, was die Bestenliste hergibt.
   for (const c of v.cups ?? []) {
     if (c.zeilen.length < 3) continue;
+    // Nur, was gerade erst war: ein Cup von vor vier Tagen ist keine Nachricht mehr.
+    if (!c.datum || Date.now() - c.datum > FRISCH_MS) continue;
     const [e, z, d] = c.zeilen;
     const titel = c.titel.replace(/\s*·\s*/g, ' - ');
     const teile = [`${teamName(e)} ${c.zeilen[0].spieler.length > 1 ? 'win' : 'wins'} ${titel}`];
@@ -103,12 +114,42 @@ function kandidaten(datum: string, v: Vitrine, zahlen: { spieler?: number | null
     });
   }
 
-  // Spieler: mit Foto und echten Werten der Saison.
-  for (const s of (v.spieler ?? []).filter((x) => x.bild && x.elims > 0 && x.matches > 0).slice(0, 14)) {
+  /*
+   * Kopf an Kopf (Betreiber, 19.10.2026: "keine Posts ueber Quoten ueber irgendwelche Matches - das interessiert niemanden; es soll um ein Turnier gehen,
+   * um allgemeine Stats oder um Head to Head"): die Duelle, die die Statistikseite zeigt - zwei Spieler mit Foto, die Zahlen nebeneinander. Je Paar ein
+   * Schluessel; das Paar kommt nur einmal.
+   */
+  for (const d of s.duelle ?? []) {
+    const a = d.links; const b = d.rechts;
+    if (!a?.bild || !b?.bild || !a.epicId || !b.epicId) continue;
+    const A = gross(rein(a.anzeige)); const B = gross(rein(b.anzeige));
+    const werte: Array<[string, string, string]> = [
+      ['Eliminations', zahl(a.elims), zahl(b.elims)], ['Damage', zahl(a.damage), zahl(b.damage)],
+      ['Headshots', zahl(a.headshots), zahl(b.headshots)], ['Damage ratio', a.quote.toFixed(2), b.quote.toFixed(2)],
+    ];
     raus.push({
-      art: 'spieler', schluessel: `spieler:${s.id}`, titel: `Spieler: ${gross(s.name)}`,
-      text: `${gross(s.name)} (${s.region || 'Global'}): ${zahl(s.elims)} eliminations, ${zahl(s.schaden)} damage and a ${s.quote.toFixed(2)} damage ratio over ${zahl(s.matches)} matches.\n\nEvery number from Epic's leaderboards and the match replays.\n\n${SEITE}/statistics?spieler=${encodeURIComponent(s.name)}`,
-      bild: { art: 'spieler', name: gross(s.name), region: s.region, land: s.land, bild: s.bild, werte: [['Eliminations', zahl(s.elims)], ['Damage', zahl(s.schaden)], ['Damage ratio', s.quote.toFixed(2)]] },
+      art: 'duell', schluessel: `duell:${[a.epicId, b.epicId].sort().join('|')}`, titel: `Head to head: ${A} vs ${B}`,
+      text: `${A} vs ${B}\n\n${werte.map(([l, x, y]) => `${l}: ${x} - ${y}`).join('\n')}\n\nCompare any two players: ${SEITE}/statistics`,
+      bild: { art: 'duell', links: { name: A, land: a.land, bild: a.bild }, rechts: { name: B, land: b.land, bild: b.bild }, werte },
+    });
+  }
+
+  /*
+   * Die Spitze einer Bestenliste (allgemeine Stats): die ersten Drei mit Foto, Zahl dahinter. Nur, wenn alle drei ein Foto haben, und die Liste
+   * ist die der Saison - es steht, was dort steht, mit Quelle auf der Seite.
+   */
+  const SPITZEN: Array<[string, string, (x: SSpieler) => string]> = [
+    ['elims', 'Most eliminations', (x) => zahl(x.elims)], ['damage', 'Most damage dealt', (x) => zahl(x.damage)], ['quote', 'Best damage ratio', (x) => x.quote.toFixed(2)],
+  ];
+  for (const [feld, titel, fmt] of SPITZEN) {
+    const liste = (s.listen ?? []).find((l) => l.feld === feld)?.plaetze ?? [];
+    const drei = liste.slice(0, 3);
+    if (drei.length < 3 || drei.some((x) => !x.bild)) continue;
+    const saison = v.saisonName ?? 'this season';
+    raus.push({
+      art: 'rekord', schluessel: `rekord:${feld}:${drei.map((x) => x.epicId).join('|')}`, titel: `Bestenliste: ${titel}`,
+      text: `${titel}, ${saison}:\n\n${drei.map((x, i) => `${i + 1}. ${gross(rein(x.anzeige))} - ${fmt(x)}`).join('\n')}\n\nAll lists, every region: ${SEITE}/statistics`,
+      bild: { art: 'rekord', titel, saison, drei: drei.map((x, i) => ({ rang: i + 1, name: gross(rein(x.anzeige)), land: x.land, bild: x.bild, wert: fmt(x) })) },
     });
   }
 
@@ -179,11 +220,14 @@ export async function tagesplan(datum: string, anlegen = true): Promise<Tagespla
   const da = await liesJson<Tagesplan | null>(planName(datum), null);
   if (da || !anlegen) return da;
 
-  const { v, zahlen } = await datenLage();
+  const { v, zahlen, s } = await datenLage();
   const karten = await kartenKandidaten();
   const verlauf = await liesJson<string[]>(VERLAUF, []);
   const benutzt = new Set(verlauf);
-  const frei = mischen(kandidaten(datum, v, zahlen, karten).filter((k) => !benutzt.has(k.schluessel)), datum);
+  // Was heute frisch ist (Cup-Ergebnis, Karte vom Cup), steht vorn; der Rest wechselt mit dem Tag.
+  const alle = kandidaten(datum, v, zahlen, s, karten).filter((k) => !benutzt.has(k.schluessel));
+  const frischeAuswahl = alle.filter((k) => k.art === 'cup' || k.art === 'karte');
+  const frei = [...frischeAuswahl, ...mischen(alle.filter((k) => k.art !== 'cup' && k.art !== 'karte'), datum)];
   const gewaehlt: TagesPost[] = [];
   // Erst je Art einen, dann auffuellen.
   const arten = new Set<PostArt>();
@@ -200,11 +244,11 @@ export async function tagesplan(datum: string, anlegen = true): Promise<Tagespla
 export async function postErsetzen(datum: string, nr: number): Promise<Tagesplan | null> {
   const plan = await tagesplan(datum, false);
   if (!plan || !plan.posts[nr]) return plan;
-  const { v, zahlen } = await datenLage();
+  const { v, zahlen, s } = await datenLage();
   const karten = await kartenKandidaten();
   const verlauf = await liesJson<string[]>(VERLAUF, []);
   const benutzt = new Set([...verlauf, ...plan.posts.map((p) => p.schluessel)]);
-  const frei = mischen(kandidaten(datum, v, zahlen, karten).filter((k) => !benutzt.has(k.schluessel)), `${datum}|${nr}|${Date.now()}`);
+  const frei = mischen(kandidaten(datum, v, zahlen, s, karten).filter((k) => !benutzt.has(k.schluessel)), `${datum}|${nr}|${Date.now()}`);
   // Moeglichst dieselbe Art - wer "Cup" ersetzt, will wieder einen Cup.
   const neu = frei.find((k) => k.art === plan.posts[nr].art) ?? frei[0];
   if (!neu) return plan;

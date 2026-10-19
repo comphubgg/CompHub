@@ -18,7 +18,7 @@ import { useZugang } from '@/app/lib/zugang';
 interface Post { nr: number; art: string; schluessel: string; titel: string; text: string }
 interface Plan { datum: string; posts: Post[] }
 
-const ART: Record<string, string> = { cup: 'Cup', spieler: 'Player', ranking: 'Ranking', promo: 'Promo', update: 'Update', karte: 'Map' };
+const ART: Record<string, string> = { cup: 'Cup', spieler: 'Player', duell: 'Head to head', rekord: 'Leaders', ranking: 'Ranking', promo: 'Promo', update: 'Update', karte: 'Map' };
 
 const tagVersatz = (datum: string, tage: number) => new Date(Date.parse(`${datum}T12:00:00Z`) + tage * 86_400_000).toISOString().slice(0, 10);
 
@@ -28,6 +28,7 @@ export default function PostsDesTages() {
   const [plan, setPlan] = useState<Plan | null | undefined>(undefined);
   const [fehler, setFehler] = useState('');
   const [kopiert, setKopiert] = useState<number | null>(null);
+  const [bildKopiert, setBildKopiert] = useState<number | null>(null);
   const [ersetzt, setErsetzt] = useState<number | null>(null);
   const [stand, setStand] = useState(0);
 
@@ -44,6 +45,17 @@ export default function PostsDesTages() {
 
   const kopieren = async (p: Post) => {
     try { await navigator.clipboard.writeText(p.text); setKopiert(p.nr); setTimeout(() => setKopiert(null), 1800); } catch { /* ohne Zwischenablage kann man den Text markieren */ }
+  };
+  /* Das Bild in die Zwischenablage (Betreiber, 19.10.2026: "nicht immer herunterladen, ich will es kopieren"); geht das im Browser nicht, wird es heruntergeladen. */
+  const bildKopieren = async (p: Post) => {
+    const adresse = `/api/post-bild?datum=${datum}&nr=${p.nr}&v=${stand}`;
+    try {
+      const blob = await (await fetch(adresse)).blob();
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob.type === 'image/png' ? blob : new Blob([blob], { type: 'image/png' }) })]);
+      setBildKopiert(p.nr); setTimeout(() => setBildKopiert(null), 1800);
+    } catch {
+      const a = document.createElement('a'); a.href = adresse; a.download = `comphub-${datum}-${p.nr + 1}.png`; a.click();
+    }
   };
   const anderen = async (nr: number) => {
     setErsetzt(nr);
@@ -64,7 +76,7 @@ export default function PostsDesTages() {
           <div>
             <p className="text-xs font-bold uppercase tracking-[0.2em] text-sky-500"><T>Tagesposts</T></p>
             <h1 className="schrift-anzeige mt-1 text-4xl font-extrabold tracking-tight sm:text-5xl">{datum}</h1>
-            <p className="mt-2 max-w-xl text-sm text-slate-400"><T>Drei Posts für heute: Text kopieren, Bild herunterladen. Alles aus echten Zahlen, ohne Hashtags, nichts kommt doppelt.</T></p>
+            <p className="mt-2 max-w-xl text-sm text-slate-400"><T>Drei Posts für heute: Text und Bild kopieren, in X einfügen. Alles aus echten Zahlen, ohne Hashtags, nichts kommt doppelt.</T></p>
           </div>
           <div className="flex gap-2">
             <Link href={`/posts/${tagVersatz(datum, -1)}`} className="rounded-full border border-zinc-700 bg-zinc-900 px-4 py-2 text-xs font-bold text-slate-300 transition hover:border-sky-500 hover:text-sky-500">← {tagVersatz(datum, -1)}</Link>
@@ -83,10 +95,10 @@ export default function PostsDesTages() {
               <div>
                 {/* eslint-disable-next-line @next/next/no-img-element */}
                 <img src={`/api/post-bild?datum=${datum}&nr=${p.nr}&v=${stand}`} alt="" className="w-full rounded-2xl border border-zinc-800 bg-zinc-950" />
-                <a href={`/api/post-bild?datum=${datum}&nr=${p.nr}`} download={`comphub-${datum}-${p.nr + 1}.png`}
+                <button type="button" onClick={() => void bildKopieren(p)}
                   className="mt-3 inline-block rounded-full border border-zinc-700 px-4 py-2 text-xs font-bold text-slate-300 transition hover:border-sky-500 hover:text-sky-500">
-                  <T>Bild herunterladen</T>
-                </a>
+                  {bildKopiert === p.nr ? <T>Bild kopiert ✓</T> : <T>Bild kopieren</T>}
+                </button>
               </div>
               <div className="flex min-w-0 flex-col">
                 <div className="flex items-center gap-2">

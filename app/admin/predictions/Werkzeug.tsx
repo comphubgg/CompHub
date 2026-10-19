@@ -25,6 +25,7 @@ import { gefaltet, namensSchluessel } from '@/lib/homoglyph';
 import TeamFlagge from '@/components/TeamFlagge';
 
 import T from '@/app/components/T';
+import SeitenKopf from '@/app/components/SeitenKopf';
 import { useT } from '@/app/components/SprachProvider';
 import { MARKE } from '@/lib/marke';
 import { inselAusPlaylist } from '@/lib/inseln';
@@ -1905,7 +1906,20 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
     <Huelle className={globals ? 'text-slate-200' : 'flex-1 bg-zinc-950 px-2 py-6 text-slate-200 sm:px-3'}>
       <div className="mx-auto w-full">
 
-        <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+        {/* Im Admin-Bereich mit dem gemeinsamen Seitenkopf (19.10.2026); unter /globals bleibt die schlichte Zeile. */}
+        {!globals && (
+          <SeitenKopf className="mb-5" marke={<T>Prognosen</T>} titel={<T>Predictions</T>}
+            text={cupId
+              ? <T>Teams von rechts auf die Plätze ziehen — oder klicken für den nächsten freien.</T>
+              : <T>Ein kommendes großes Finale wählen — das Feld kommt aus Epics Qualifikation.</T>}
+            rechts={cupId ? (
+              <button onClick={zielAbwaehlen}
+                className="rounded-full border border-zinc-700 px-4 py-2 text-xs font-bold text-slate-300 transition hover:border-sky-500 hover:text-sky-400">
+                ← <T>Anderes Event wählen</T>
+              </button>
+            ) : undefined} />
+        )}
+        <div className={`mb-4 flex flex-wrap items-end justify-between gap-3 ${globals ? '' : 'hidden'}`}>
           <div>
             <h1 className="text-xl font-semibold text-slate-100">
               {globals ? 'Global Championship (2026)' : 'Predictions'}

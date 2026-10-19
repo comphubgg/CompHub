@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import T from '@/app/components/T';
+import SeitenKopf from '@/app/components/SeitenKopf';
 import { useT } from '@/app/components/SprachProvider';
 import LadeSchirm from '@/app/components/LadeSchirm';
 
@@ -292,18 +293,8 @@ export default function VipZugaengeSeite() {
   return (
     <main className="min-h-screen bg-zinc-950 text-slate-100">
       <div className="mx-auto max-w-4xl px-4 py-6">
-        <div className="mb-4 flex flex-wrap items-baseline justify-between gap-3">
-          <div>
-            <h1 className="text-xl font-semibold"><T>VIP-Zugänge</T></h1>
-            <p className="mt-0.5 text-sm text-slate-500">
-              <T>Jeder Zugang mit Frist, Chat und Löschen. Was die Person erreicht, schickt der CompHub-Bot.</T>
-            </p>
-          </div>
-          <Link href="/admin" prefetch={false}
-            className="text-sm text-slate-500 transition hover:text-sky-400">
-            ← <T>zu den Admin-Werkzeugen</T>
-          </Link>
-        </div>
+        <SeitenKopf className="mb-5" marke={<T>Zugänge</T>} titel={<T>VIP-Zugänge</T>}
+          text={<T>Jeder Zugang mit Frist, Chat und Löschen. Was die Person erreicht, schickt der CompHub-Bot.</T>} />
 
         {!erlaubt ? (
           <p className="rounded-lg border border-zinc-800 bg-zinc-900/40 px-4 py-3 text-sm text-slate-400">

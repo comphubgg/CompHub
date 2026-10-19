@@ -463,7 +463,8 @@ export default function KartenSeite(
    * man stattdessen hundert, stehen fuenfzig Teams auf der Karte, die dort
    * gar nicht antreten.
    */
-  const [teamGrenze, setTeamGrenze] = useState(50);
+  /** 0 = automatisch: so viele Teams, wie in ein Finale passen (100 Spieler geteilt durch die Teamgroesse - bei Trios 33, bei Duos 50). */
+  const [teamGrenze, setTeamGrenze] = useState(0);
   const [status, setStatus] = useState('');
   /*
    * Kam die Kartenliste aus der Ersatzkopie? Dann steht es gross da - ein
@@ -1456,7 +1457,7 @@ export default function KartenSeite(
     if (!f) return;
     setLaedtTeams(true); setStatus('');
     try {
-      const grenze = Math.max(1, Math.min(500, teamGrenze));
+      const grenze = teamGrenze > 0 ? Math.max(1, Math.min(500, teamGrenze)) : 100;
       const holen = async (ev: string, w: string) => {
         const a = await fetch(
           `/api/cup-leaderboard?event=${encodeURIComponent(ev)}`
@@ -1482,7 +1483,7 @@ export default function KartenSeite(
           if (roh.length) woher = ` — die besten ${roh.length} der Vorrunde`;
         }
       }
-      const liste: KartenTeam[] = roh.map((e, i) => {
+      const alleTeams: KartenTeam[] = roh.map((e, i) => {
         const ids = (e.players ?? []).map((p) => p.id ?? '');
         return {
           // Nicht der Platz - der wandert beim naechsten Laden.
@@ -1493,6 +1494,9 @@ export default function KartenSeite(
           farbe: FARBEN[i % FARBEN.length],
         };
       }).filter((t) => t.spieler.length);
+      // Betreiber, 19.10.2026: bei Trios qualifizieren sich nur 33 Teams (99 Spieler), nicht fuenfzig - erst die Teamgroesse feststellen, dann abschneiden.
+      const groesse = Math.max(0, ...alleTeams.map((t) => t.spieler.length));
+      const liste = teamGrenze > 0 || !groesse ? alleTeams : alleTeams.slice(0, Math.max(1, Math.floor(100 / groesse)));
       // Teams von "Generate map" bleiben stehen, auch wenn sie nicht (mehr) in der Rangliste sind.
       setTeams((alt) => {
         const noble = alt.filter((t) => t.quelle === 'noble');
@@ -3172,15 +3176,16 @@ ${name}
       g.restore();
     }
 
+    let wie: 'kopiert' | 'gespeichert';
     try {
-      await speichereLeinwand(
+      wie = await speichereLeinwand(
         c, `${titel.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.png`);
     } catch (e) {
       setStatus(`${uebs('ging nicht')}: ${
         uebs(e instanceof Error ? e.message : String(e))}`);
       return;
     }
-    setStatus(uebs('Bild gespeichert'));
+    setStatus(wie === 'kopiert' ? uebs('Bild kopiert') : uebs('Bild gespeichert'));
   }
 
   /* -------------------------------------------------------------- Anzeige */
@@ -3578,7 +3583,7 @@ ${name}
               aktiv={werkzeug === 'rechteck'}
               onClick={() => { setWerkzeug(werkzeug === 'rechteck' ? null : 'rechteck'); setRohbau([]); }} />
             <span className="my-1 h-px bg-zinc-700" />
-            <Werkzeugknopf titel="Als Bild speichern" kind={Ikone.bild} onClick={alsBild} />
+            <Werkzeugknopf titel={uebs('Bild kopieren')} kind={Ikone.bild} onClick={alsBild} />
           </>
         )}
       </div>
@@ -3731,6 +3736,15 @@ ${name}
               </p>
             ) : null}
             <p>{spots.length} <T>Spots</T> · {teams.length} <T>Teams</T></p>
+            {/* Ganz klein, ohne Text (Betreiber, 19.10.2026): holt Formen und Spieler dieses Spieltags noch einmal von Noble. */}
+            {istAdmin && darfBauen && fensterId && (
+              <button type="button" onClick={() => void generiereKarte()} disabled={nobleLaeuft}
+                title={uebs('Formen und Spieler dieses Spieltags von Noble übernehmen. Auch zum Aktualisieren kurz vor dem Cup.')}
+                aria-label={uebs('Von Noble aktualisieren')}
+                className="mt-1 inline-grid h-6 w-6 place-items-center rounded-full border border-zinc-700 text-slate-400 transition hover:border-sky-500 hover:text-sky-400 disabled:opacity-40">
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className={nobleLaeuft ? 'animate-spin' : ''}><path d="M21 12a9 9 0 1 1-3-6.7" /><path d="M21 3v6h-6" /></svg>
+              </button>
+            )}
           </div>
           )}
         </div>
@@ -3774,15 +3788,8 @@ ${name}
         )}
 
         {istAdmin && !direkt && (
-          <div className="mb-3 grid gap-3 rounded-xl border border-zinc-800 bg-zinc-900/40 p-3
-                          sm:grid-cols-2 lg:grid-cols-6">
-            <label className="text-xs text-slate-400">
-              {uebs('Titel')}
-              <input value={titel}
-                onChange={(e) => { titelVomNutzer.current = true; setTitel(e.target.value); }}
-                className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2
-                           text-sm text-slate-100 outline-none focus:border-sky-500" />
-            </label>
+          <div className="mb-3 grid gap-3 rounded-3xl border border-zinc-800 bg-zinc-900 p-4 shadow-[0_10px_30px_rgba(15,23,42,.12)]
+                          sm:grid-cols-2 lg:grid-cols-4">
             {/* Suchen und Auswaehlen in einem Feld. Vorher standen Suchfeld,
                 Klappliste und Zaehlung untereinander - diese Spalte war dadurch
                 dreimal so hoch wie die anderen und die ganze Leiste sass schief. */}
@@ -3851,6 +3858,42 @@ ${name}
                 ))}
               </select>
             </label>
+            {/* Formen und Spieler von Noble Practice - nur wer bauen darf. */}
+            {darfBauen && (
+              <button onClick={() => void generiereKarte()} disabled={!fensterId || nobleLaeuft}
+                title={uebs('Formen und Spieler dieses Spieltags von Noble übernehmen. Auch zum Aktualisieren kurz vor dem Cup.')}
+                className="self-end rounded-lg bg-sky-500 px-4 py-2 text-sm font-semibold
+                           text-white transition hover:bg-sky-400 disabled:opacity-40">
+                {nobleLaeuft ? 'lädt…' : spots.length ? uebs('Von Noble aktualisieren') : 'Generate map'}
+              </button>
+            )}
+            <div className="flex flex-col items-stretch justify-end gap-1">
+              <button onClick={() => sichern(false)}
+                className="rounded-lg bg-sky-500 px-4 py-2 text-sm font-medium text-white
+                           transition hover:bg-sky-400">
+                <T>Speichern</T>
+              </button>
+              {/* Ohne diese Zeile waere ein stilles Speichern von einem
+                  stillen Verlieren nicht zu unterscheiden. */}
+              {selbstGesichert && (
+                <span className="text-center text-[10px] text-emerald-500">
+                  <T>von selbst gesichert</T>{' '}
+                  {new Date(selbstGesichert).toLocaleTimeString('de-DE')}
+                </span>
+              )}
+            </div>
+
+            {/* Alles Weitere eingeklappt (Betreiber, 19.10.2026: "das ist mir zu kompliziert") - oben bleiben Cup, Spieltag, von Noble holen und Speichern. */}
+            <details className="col-span-full rounded-2xl border border-zinc-800 bg-zinc-950/40 px-4 py-2.5">
+              <summary className="cursor-pointer select-none text-xs font-semibold text-slate-400 transition hover:text-slate-200"><T>Weitere Optionen</T></summary>
+              <div className="mt-3 grid gap-3 pb-1 sm:grid-cols-2 lg:grid-cols-4">
+            <label className="text-xs text-slate-400">
+              {uebs('Titel')}
+              <input value={titel}
+                onChange={(e) => { titelVomNutzer.current = true; setTitel(e.target.value); }}
+                className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2
+                           text-sm text-slate-100 outline-none focus:border-sky-500" />
+            </label>
             <label className="text-xs text-slate-400">
               {uebs('Spiele')}
               {/* Freitext, weil Epic nicht mitteilt, welche Runde auf welcher
@@ -3866,7 +3909,7 @@ ${name}
             </label>
             <label className="text-xs text-slate-400">
               <T>Nur die besten</T>
-              <input value={teamGrenze} inputMode="numeric"
+              <input value={teamGrenze || ''} inputMode="numeric" placeholder="auto"
                 onChange={(e) => {
                   const n = parseInt(e.target.value, 10);
                   setTeamGrenze(Number.isFinite(n) ? n : 0);
@@ -3885,15 +3928,6 @@ ${name}
                          text-slate-100 transition hover:bg-zinc-700 disabled:opacity-40">
               {laedtTeams ? 'lädt…' : 'Teams laden'}
             </button>
-            {/* Formen und Spieler von Noble Practice - nur wer bauen darf. */}
-            {darfBauen && (
-              <button onClick={() => void generiereKarte()} disabled={!fensterId || nobleLaeuft}
-                title={uebs('Formen und Spieler dieses Spieltags von Noble übernehmen. Auch zum Aktualisieren kurz vor dem Cup.')}
-                className="self-end rounded-lg bg-sky-500 px-4 py-2 text-sm font-semibold
-                           text-white transition hover:bg-sky-400 disabled:opacity-40">
-                {nobleLaeuft ? 'lädt…' : spots.length ? uebs('Von Noble aktualisieren') : 'Generate map'}
-              </button>
-            )}
             {darfBauen && nobleListe && (
               <label className="text-xs text-slate-400">
                 <T>Spieltag bei Noble</T>
@@ -4015,80 +4049,8 @@ ${name}
                 );
               })()}
             </label>
-            <div className="flex flex-col items-stretch justify-end gap-1">
-              <button onClick={() => sichern(false)}
-                className="rounded-lg bg-sky-500 px-4 py-2 text-sm font-medium text-white
-                           transition hover:bg-sky-400">
-                <T>Speichern</T>
-              </button>
-              {/* Ohne diese Zeile waere ein stilles Speichern von einem
-                  stillen Verlieren nicht zu unterscheiden. */}
-              {selbstGesichert && (
-                <span className="text-center text-[10px] text-emerald-500">
-                  <T>von selbst gesichert</T>{' '}
-                  {new Date(selbstGesichert).toLocaleTimeString('de-DE')}
-                </span>
-              )}
-            </div>
-
-            {/*
-              * Eine fremde Karte als Pause darunterlegen.
-              *
-              * Strg+V genuegt; der Knopf ist fuer alle, bei denen die
-              * Zwischenablage nicht mitspielt. Das Bild bleibt im Browser -
-              * es wird nirgends hochgeladen und ist beim Neuladen fort.
-              */}
-            {istAdmin && (
-              <div className="flex flex-col items-stretch justify-end gap-1">
-                {!pause ? (
-                  <label className="cursor-pointer rounded-lg border border-dashed
-                                    border-zinc-700 px-4 py-2 text-center text-[11px]
-                                    text-slate-400 transition hover:border-sky-600
-                                    hover:text-sky-400">
-                    <T>Fremde Karte einfügen (Strg+V)</T>
-                    <input type="file" accept="image/*" className="hidden"
-                      onChange={(e) => {
-                        const d = e.target.files?.[0];
-                        if (!d) return;
-                        const leser = new FileReader();
-                        leser.onload = () => setPause(String(leser.result));
-                        leser.readAsDataURL(d);
-                      }} />
-                  </label>
-                ) : (
-                  <>
-                    <div className="flex items-center gap-2">
-                      <input type="range" min={10} max={100} value={pauseKlar}
-                        onChange={(e) => setPauseKlar(Number(e.target.value))}
-                        className="w-28 accent-sky-500" />
-                      <button onClick={() => setPause(null)}
-                        className="rounded-lg border border-zinc-700 px-2 py-1
-                                   text-[11px] text-slate-400 transition
-                                   hover:border-red-500 hover:text-red-400">
-                        <T>Vorlage weg</T>
-                      </button>
-                    </div>
-                    {/*
-                      * Nur die Spieler aus dem Bild holen.
-                      *
-                      * Die Vorlage dient zum Abpausen der Formen; die Namen
-                      * darauf abzutippen war der Rest der Arbeit. Der Knopf
-                      * nimmt ihn ab, ohne etwas an der Karte zu aendern -
-                      * was er findet, kommt erst als Vorschlag.
-                      */}
-                    <button onClick={() => void bildLesen()} disabled={Boolean(lesen)}
-                      className="rounded-lg border border-sky-800 bg-sky-950/40 px-2 py-1
-                                 text-[11px] text-sky-300 transition hover:border-sky-500
-                                 disabled:opacity-50">
-                      {lesen || uebs('Spieler aus dem Bild lesen')}
-                    </button>
-                    <span className="text-center text-[10px] text-slate-500">
-                      <T>Vorlage liegt darunter — zeichne deine Formen darüber.</T>
-                    </span>
-                  </>
-                )}
               </div>
-            )}
+            </details>
           </div>
         )}
 
@@ -4411,15 +4373,14 @@ ${name}
             Karte stand dann mittig in ihrer Spalte, die Listen klebten aussen
             am Rand, und dazwischen blieben je gut zweihundert Punkte leer.
             Jetzt liegt der freie Platz aussen, wo er nicht stoert. */}
-        <div className={`grid gap-4 lg:mx-auto lg:w-fit ${direkt
-          ? 'lg:grid-cols-[auto_360px]' : 'lg:grid-cols-[224px_auto_360px]'}`}>
-
-          {/* Die linke Spalte faellt beim direkten Weg ganz weg - eine leere
-              Spalte wuerde die Karte trotzdem aus der Mitte schieben. */}
-          {!direkt && (
-          <div className="flex flex-col gap-3">
-          {/* Alle Turnierkarten - auch die ausgeblendeten */}
-          {istAdmin && !direkt && (gespeicherte.length > 0 || offeneFinals.length > 0) && (
+        {/* Die gespeicherten Karten stehen nicht mehr links neben der Karte (Betreiber, 19.10.2026: "viel zu unuebersichtlich"), sondern eingeklappt darueber. */}
+        {istAdmin && !direkt && (gespeicherte.length > 0 || offeneFinals.length > 0) && (
+          <details className="mx-auto mb-3 max-w-3xl rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-2.5">
+            <summary className="cursor-pointer select-none text-xs font-semibold text-slate-400 transition hover:text-slate-200">
+              <T>Gespeicherte Karten</T> ({gespeicherte.length})
+            </summary>
+            <div className="mt-3">
+          {(
             <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-3">
               <h2 className="mb-1 text-sm font-semibold text-slate-100">
                 Turnierkarten ({gespeicherte.length})
@@ -4511,9 +4472,14 @@ ${name}
               )}
             </div>
           )}
-          </div>
-          )}
 
+            </div>
+          </details>
+        )}
+        <div className="grid gap-4 lg:mx-auto lg:w-fit lg:grid-cols-[auto_360px]">
+
+          {/* Die linke Spalte faellt beim direkten Weg ganz weg - eine leere
+              Spalte wuerde die Karte trotzdem aus der Mitte schieben. */}
           {/* Ohne Rahmen und Polsterung: beides kostete Hoehe, ohne etwas
               beizutragen - die Karte bringt ihre eigene Kante schon mit. */}
           <div ref={kartenSpalte}>

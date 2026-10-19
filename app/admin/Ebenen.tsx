@@ -92,7 +92,7 @@ function Gruppe({ ton, titel, marke, beschreibung, ziele, start = 0, gesperrt = 
 }) {
   const f = TON[ton];
   return (
-    <section className={`rounded-3xl border bg-zinc-900 bg-gradient-to-br from-white/[0.04] to-transparent p-5 shadow-[0_10px_30px_rgba(15,23,42,.14)] ${f.rahmen}`}>
+    <section data-dash={ton} className={`rounded-3xl border bg-zinc-900 bg-gradient-to-br from-white/[0.04] to-transparent p-5 shadow-[0_10px_30px_rgba(15,23,42,.14)] ${f.rahmen}`}>
       <div className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <h2 className={`text-base font-extrabold uppercase tracking-[0.14em] ${f.marke}`}><T>{titel}</T></h2>
         <span className={`rounded-full border px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider ${f.pille}`}><T>{marke}</T></span>

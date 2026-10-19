@@ -10,6 +10,7 @@ import { SPRACH_COOKIE } from './lib/sprache';
 import type { Sprache } from './lib/sprache';
 import Sprachschalter from './components/Sprachschalter';
 import FotoFokus from './components/FotoFokus';
+import DashAnsicht from './components/DashAnsicht';
 import NeuerStand from './components/NeuerStand';
 import Melden from './components/Melden';
 import PreviewTour from './components/PreviewTour';
@@ -208,6 +209,7 @@ export default async function RootLayout({
           </Suspense>
           <Sprachschalter />
           <FotoFokus />
+          <DashAnsicht />
           {/* Der Hinweis, dass eine neue Fassung bereitsteht. Er steht im
               Rahmen, damit er auf jeder Seite erscheint - ein Tab, der einen
               Turniertag lang offen liegt, soll das erfahren. */}

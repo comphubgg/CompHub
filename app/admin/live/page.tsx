@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
 import T from '@/app/components/T';
+import SeitenKopf from '@/app/components/SeitenKopf';
 import { useT } from '@/app/components/SprachProvider';
 
 /*
@@ -172,18 +173,8 @@ export default function LivePage() {
   return (
     <main className="min-h-screen bg-zinc-950 text-slate-100">
       <div className="mx-auto max-w-4xl px-4 py-6">
-        <div className="mb-4 flex flex-wrap items-baseline justify-between gap-3">
-          <div>
-            <h1 className="text-xl font-semibold"><T>Live</T></h1>
-            <p className="mt-0.5 text-sm text-slate-500">
-              <T>Wer gerade da ist und wer sich wann angemeldet hat.</T>
-            </p>
-          </div>
-          <Link href="/admin" prefetch={false}
-            className="text-sm text-slate-500 transition hover:text-sky-400">
-            ← <T>zu den Admin-Werkzeugen</T>
-          </Link>
-        </div>
+        <SeitenKopf className="mb-5" marke={<T>Betrieb</T>} titel={<T>Live</T>}
+          text={<T>Wer gerade da ist und wer sich wann angemeldet hat.</T>} />
 
         {fehler && (
           <p className="rounded-lg border border-rose-900/60 bg-rose-950/30 px-4

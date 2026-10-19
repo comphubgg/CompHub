@@ -66,7 +66,8 @@ export default function GlobalsSolosGeruest({ aktiv, children }: {
 
   return (
     <main className="flex-1 bg-zinc-950 text-slate-200">
-      <div className="relative overflow-hidden border-b border-amber-500/25">
+      {/* Dunkle Insel: der Kopf bleibt auch im Hell-Modus dunkel und lesbar (Betreiber, 19.10.2026: "man erkennt nicht mal den Text"). */}
+      <div className="foto-dunkel relative overflow-hidden border-b border-amber-500/25">
         <div aria-hidden className="absolute inset-0 bg-cover bg-center opacity-40" style={{ backgroundImage: "url('/overlay/globals/fncs-breit.jpg')" }} />
         <div aria-hidden className="absolute inset-0" style={{ background: `linear-gradient(90deg, ${BLAU}55, transparent 55%), rgba(0,0,0,.72)` }} />
         <div className="relative mx-auto max-w-[1500px] px-4 py-6">
@@ -82,7 +83,7 @@ export default function GlobalsSolosGeruest({ aktiv, children }: {
               const an = s.pfad === '/globals-solos' ? hier === s.pfad : hier === s.pfad || hier.startsWith(`${s.pfad}/`);
               return (
                 <Link key={s.pfad} href={s.pfad} title={t(s.was)}
-                  className={`rounded-lg px-3.5 py-2 text-sm transition ${an
+                  className={`rounded-full px-4 py-2 text-sm transition ${an
                     ? 'bg-amber-400/15 font-semibold text-amber-200 ring-1 ring-amber-400/40'
                     : 'text-slate-300 hover:bg-white/5 hover:text-amber-200'}`}>
                   <T>{s.titel}</T>

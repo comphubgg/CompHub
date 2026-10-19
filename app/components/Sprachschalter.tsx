@@ -17,6 +17,7 @@ import {
 } from '@/app/lib/design';
 import { useSprache } from './SprachProvider';
 import { useZugang } from '@/app/lib/zugang';
+import { DASH_TEILE, liesDash, setzeDash } from '@/app/lib/dashAnsicht';
 
 const merke = (name: string, wert: string) => { document.cookie = `${name}=${wert}; path=/; max-age=31536000; samesite=lax`; };
 
@@ -66,8 +67,11 @@ export default function Sprachschalter() {
   const pfad = usePathname();
   const alt = designFuerPfad(pfad ?? '') === 'alt';
   const zugang = useZugang();
+  /** Die Anzeige des Dashboards (nur dort eingeblendet): was zu sehen ist - siehe app/lib/dashAnsicht. */
+  const [dash, setDash] = useState<Record<string, boolean>>({});
 
   const [offen, setOffen] = useState(false);
+  useEffect(() => { if (offen) setDash(liesDash()); }, [offen]);
   const [modus, setModus] = useState<Modus>('dunkel');
   const [groesse, setGroesse] = useState<Groesse>('normal');
   const [bewegung, setBewegung] = useState<'an' | 'aus'>('an');
@@ -128,6 +132,20 @@ export default function Sprachschalter() {
           <Zeile titel={t('Animationen')}>
             <Wahl wert={bewegung} setze={stelleBewegung} optionen={[['an', t('An')], ['aus', t('Aus')]]} />
           </Zeile>
+          {pfad === '/admin' && (
+            <Zeile titel={t('Dashboard')} hinweis={t('Was hier zu sehen ist')}>
+              <div className="flex flex-wrap gap-1.5">
+                {DASH_TEILE.map(([teil, titel]) => (
+                  <button key={teil} type="button" tabIndex={offen ? 0 : -1} aria-pressed={!!dash[teil]}
+                    onClick={() => setDash(setzeDash(teil, !dash[teil]))}
+                    className={`rounded-full border px-3 py-1 text-xs font-bold transition ${dash[teil]
+                      ? 'border-sky-500 bg-sky-500/15 text-sky-500' : 'border-zinc-700 text-slate-500 hover:text-slate-300'}`}>
+                    {t(titel)}
+                  </button>
+                ))}
+              </div>
+            </Zeile>
+          )}
           {/* Der Melde-Knopf lebt hier (Betreiber, 14.10.2026): er schwebte als "Report" unten rechts im Bild. Nur fuer angemeldete Konten, wie die Meldung selbst. */}
           {zugang.nutzer && (
             <Zeile titel={t('Hilfe')}>

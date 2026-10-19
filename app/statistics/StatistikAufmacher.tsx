@@ -135,16 +135,14 @@ export default function StatistikAufmacher({ kacheln, zuTurnieren, zuRegionen, z
           </div>
 
           <button key={`r${nr}`} type="button" onClick={() => oeffneSpieler(k.spitze.epicId, k.spitze.anzeige)}
-            className="sa-an sa-glas group flex min-h-[300px] overflow-hidden rounded-2xl text-left"
+            className="sa-an sa-glas group flex min-h-[340px] overflow-hidden rounded-2xl text-left"
             style={{ animation: heroDrin ? 'sa-rein .5s .08s cubic-bezier(.2,.8,.2,1) both' : undefined }}>
-            <span className="relative block w-[44%] shrink-0 overflow-hidden bg-zinc-800">
+            <span className="relative block w-[36%] max-w-[260px] shrink-0 overflow-hidden bg-zinc-800">
               {k.spitze.bild ? (
                 <>
-                  {/* Das ganze Foto in voller Hoehe, dahinter dasselbe verwischt - der Kopf wird nie abgeschnitten (Betreiber, 14.10.2026). */}
+                  {/* Nur das Foto, ohne Rand (Betreiber, 19.10.2026: "es darf nur das Bild da sein"): schmaler und hoeher statt quadratisch, der Ausschnitt folgt dem Gesicht. */}
                   {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={k.spitze.bild} alt="" aria-hidden className="absolute inset-0 h-full w-full scale-125 object-cover opacity-60 blur-2xl" />
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={k.spitze.bild} alt="" className="absolute inset-y-0 left-1/2 h-full w-auto max-w-none -translate-x-1/2 object-contain transition duration-700 group-hover:scale-[1.03]" />
+                  <img src={k.spitze.bild} alt="" className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover:scale-[1.03]" />
                 </>
               ) : (
                 <span className="absolute inset-0 grid place-items-center bg-gradient-to-br from-sky-950 to-zinc-900 text-6xl font-black text-white/15">{k.spitze.anzeige.slice(0, 1).toUpperCase()}</span>

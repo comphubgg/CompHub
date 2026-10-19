@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import T from '@/app/components/T';
+import SeitenKopf from '@/app/components/SeitenKopf';
 import { useT } from '@/app/components/SprachProvider';
 
 /*
@@ -150,20 +151,15 @@ export default function VipsSeite() {
 
   return (
     <main className="mx-auto max-w-4xl px-6 py-10">
-      <div className="mb-2 flex flex-wrap items-baseline gap-3">
-        <h1 className="text-2xl font-bold text-slate-100"><T>VIPs</T></h1>
-        <span className="text-xs text-slate-600">
-          {vips.filter((v) => v.aktiv).length} <T>auf der Startseite</T>
-        </span>
-        {stand && (
-          <span className={`text-xs ${/nicht|Fehler|error/i.test(stand)
-            ? 'text-rose-400' : 'text-emerald-400'}`}>{stand}</span>
-        )}
-        <Link href="/admin" className="ml-auto text-xs text-slate-500 transition
-                                       hover:text-sky-400">
-          ← <T>zum Verwaltungsbereich</T>
-        </Link>
-      </div>
+      <SeitenKopf className="mb-4" marke={<T>Startseite</T>} titel={<T>VIPs</T>}
+        rechts={<>
+          <span className="rounded-full border border-zinc-700 px-3 py-1 text-xs font-semibold text-slate-300">
+            {vips.filter((v) => v.aktiv).length} <T>auf der Startseite</T>
+          </span>
+          {stand && (
+            <span className={`text-xs ${/nicht|Fehler|error/i.test(stand) ? 'text-rose-400' : 'text-emerald-400'}`}>{stand}</span>
+          )}
+        </>} />
 
       <p className="mb-8 text-[11px] leading-relaxed text-slate-600">
         <T>Wer hier steht, erscheint unten auf der Startseite — mit Bild, Namen

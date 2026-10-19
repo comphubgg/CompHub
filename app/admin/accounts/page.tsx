@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import OrgWahl from './OrgWahl';
 import Link from 'next/link';
 import T from '@/app/components/T';
+import SeitenKopf from '@/app/components/SeitenKopf';
 import { useT } from '@/app/components/SprachProvider';
 import { BEREICHE, VIP_BEREICHE } from '@/lib/rechte';
 
@@ -1027,6 +1028,11 @@ ${k.name}`)) return;
       || k.id.toLowerCase().includes(q));
   }, [konten, suche]);
 
+  // Aufgeklappte Konten (Betreiber, 19.10.2026: "weniger scrollen, einfacher zuteilen"): zu sehen sind nur Name und Marken, der Rest klappt auf Klick auf.
+  const [offeneKarten, setOffeneKarten] = useState<Set<string>>(() => new Set());
+  const kartenUmschalten = (id: string) => setOffeneKarten((a) => { const n = new Set(a); if (n.has(id)) n.delete(id); else n.add(id); return n; });
+  const istOffen = (id: string) => offeneKarten.has(id) || (suche.trim().length > 0 && gefiltert.length <= 2);
+
   if (laedt) {
     return (
       <main className="min-h-screen bg-zinc-950 px-4 py-20 text-center">
@@ -1054,16 +1060,8 @@ ${k.name}`)) return;
     <main className="min-h-screen bg-zinc-950 px-4 py-10 text-slate-100">
       <div className="mx-auto max-w-4xl">
 
-        <div className="mb-6 flex flex-wrap items-baseline gap-4">
-          <h1 className="text-2xl font-bold"><T>Konten</T></h1>
-          <span className="text-xs text-slate-600">
-            {konten.length} <T>angelegt</T>
-          </span>
-          <Link href="/admin" className="ml-auto text-xs text-slate-500
-                                         transition hover:text-sky-400">
-            ← <T>zur Verwaltung</T>
-          </Link>
-        </div>
+        <SeitenKopf className="mb-5" marke={<T>Nutzer und Zugang</T>} titel={<T>Konten</T>}
+          rechts={<span className="rounded-full border border-zinc-700 px-3 py-1 text-xs font-semibold text-slate-300">{konten.length} <T>angelegt</T></span>} />
 
         <p className="mb-6 text-[11px] leading-relaxed text-slate-600">
           <T>Hier stehen keine privaten Daten — keine Adressen, keine
@@ -1094,8 +1092,13 @@ ${k.name}`)) return;
         <div className="space-y-3">
           {gefiltert.map((k) => (
             <div key={k.id}
-              className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
-              <div className="mb-3 flex flex-wrap items-center gap-3">
+              className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4 shadow-[0_6px_20px_rgba(15,23,42,.10)]">
+              <div className={`flex flex-wrap items-center gap-3 ${istOffen(k.id) ? 'mb-3' : ''}`}>
+                <button type="button" onClick={() => kartenUmschalten(k.id)} aria-expanded={istOffen(k.id)}
+                  title={istOffen(k.id) ? t('Zuklappen') : t('Aufklappen')}
+                  className="grid h-7 w-7 place-items-center rounded-full border border-zinc-700 text-xs text-slate-400 transition hover:border-sky-500 hover:text-sky-400">
+                  {istOffen(k.id) ? '▾' : '▸'}
+                </button>
                 <span className="text-sm font-semibold text-slate-100">
                   {k.name}
                 </span>
@@ -1201,6 +1204,7 @@ ${k.name}`)) return;
                 </div>
               </div>
 
+              {istOffen(k.id) && (<>
               <div className="grid gap-3 sm:grid-cols-2">
                 <label>
                   <span className="mb-1 block text-[10px] uppercase
@@ -1429,6 +1433,7 @@ ${k.name}`)) return;
                   </span>
                 )}
               </div>
+              </>)}
             </div>
           ))}
         </div>

@@ -620,6 +620,14 @@ function turnierTitel(roh: string) {
   return `${kapitel}${turnierName(roh)}`.trim();
 }
 
+/** Wie turnierTitel, aber Kapitel und Cup getrennt: "Chapter 6 Season 1 · FNCS Division 1 Finals Week 4" (Hover im Schadensverlauf). */
+function verlaufTitel(roh: string) {
+  if (!roh) return roh;
+  const m = /^CH(\d+)S(\d+)(?=[A-Z_])/i.exec(roh);
+  const rest = turnierName(roh);
+  return m ? `Chapter ${m[1]} Season ${m[2]} · ${rest}` : rest;
+}
+
 /**
  * Die Reihenfolge der Saisons.
  *
@@ -764,6 +772,50 @@ const DUELL_WERTE: Array<[string, keyof Spieler, number, string]> = [
 ];
 
 /**
+ * Die ersten Drei einer Liste mit Foto (Betreiber, 19.10.2026: "zu jeder Statistik immer die passenden Top 3, und zu jeder Region"). Der Erste steht
+ * in der Mitte und etwas hoeher; die Karten tragen Foto, Medaille, Name und die Zahl der Liste. Die Fotos sitzen in dunkler Folie, der Text darauf ist
+ * fest hell - das gilt in beiden Fassungen, wie bei den Spielerkarten sonst.
+ */
+function Treppchen({ drei, wertVon, aufKlick }: { drei: Array<{ sp: Spieler; nr: number }>; wertVon: (s: Spieler) => string; aufKlick: (s: Spieler) => void }) {
+  const { sprache } = useSprache();
+  void sprache;
+  if (drei.length < 3) return null;
+  const reihe = [drei[1], drei[0], drei[2]];
+  const MEDAILLE: Record<number, string> = { 1: 'bg-amber-400', 2: 'bg-slate-300', 3: 'bg-orange-400' };
+  return (
+    <div className="mx-auto grid max-w-3xl grid-cols-3 items-end gap-2 px-3 pb-3 pt-4 sm:gap-4 sm:px-5">
+      {reihe.map(({ sp, nr }, i) => {
+        const mitte = i === 1;
+        return (
+          <button key={sp.epicId} type="button" onClick={() => aufKlick(sp)}
+            className={`foto-dunkel group relative overflow-hidden rounded-2xl border border-white/10 bg-zinc-800 text-left shadow-[0_12px_30px_rgba(2,6,23,.25)] transition hover:-translate-y-1 ${mitte ? 'aspect-[3/4] sm:aspect-[4/5]' : 'aspect-[3/4]'}`}>
+            {sp.bild ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={sp.bild} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+            ) : (
+              <span className="absolute inset-0 grid place-items-center text-6xl font-black text-white/10">{(sp.anzeige || '?').slice(0, 1).toUpperCase()}</span>
+            )}
+            <span aria-hidden className="foto-unten absolute inset-0" />
+            <span className={`absolute left-2.5 top-2.5 grid h-7 w-7 place-items-center rounded-full text-xs font-black text-[#0b1220] ${MEDAILLE[nr] ?? 'bg-slate-300'}`}>{nr}</span>
+            <span className="absolute right-2.5 top-2.5"><RegionMarke region={sp.heimat || sp.regionen?.[0] || ''} /></span>
+            <span className="absolute inset-x-3 bottom-3 block">
+              <span className="flex items-center gap-1.5">
+                <TeamFlagge groesse={16} laender={[sp.land ?? undefined]} />
+                <span className="min-w-0 truncate text-sm font-extrabold uppercase tracking-wide text-[#fff] sm:text-lg">{grossName(sp.anzeige, sp.gepflegt)}</span>
+              </span>
+              <span className={`schrift-anzeige mt-0.5 block font-extrabold tabular-nums leading-none text-sky-400 ${mitte ? 'text-3xl sm:text-4xl' : 'text-2xl sm:text-3xl'}`}>{wertVon(sp)}</span>
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Die Spieltage der LANs (Globals, Majors, Summit ...): sie gehoeren in die Heimatregion jedes Spielers, der dort antrat - nicht in die Region des Veranstaltungsorts. */
+const LAN_FENSTER = /^(MannekenPis|Dinosauron|BambiRaptor|Escargo|Bratwurst|Acrocanthosaurus)_(?:Finals_)?Day(d+)$/i;
+
+/**
  * Zwei Spieler nebeneinander.
  *
  * Dieselbe Ansicht auf der Startseite und im Vergleich - dort wechselt sie
@@ -789,35 +841,37 @@ function DuellTafel({ links, rechts, zeitraum, aufKlick, gross = false, schlicht
         </span>
       </button>
     );
-    // Mit Fotos (Betreiber, 14.10.2026): beide Spieler als Bild links und rechts, zur Mitte hin ausgeblendet, darauf Name und Flagge.
+    // Mit Fotos (Betreiber, 19.10.2026): das Foto ganz am Rand, links der linke, rechts der rechte Spieler - ohne Rahmen und ohne verwischten Grund.
+    // Der Rest der Kopfflaeche hat die Farbe von "VS"; der Name steht in der Mitte der Hoehe neben dem Foto (links: rechts vom Bild, rechts: links vom Bild).
     const foto = (s: Spieler, rechtsRum: boolean) => (
       <button type="button" onClick={() => aufKlick?.(s)} disabled={!aufKlick}
-        className={`group absolute inset-y-0 w-[44%] overflow-hidden text-left ${rechtsRum ? 'right-0' : 'left-0'}`}>
+        className={`group relative h-full w-[36%] max-w-[240px] shrink-0 overflow-hidden ${rechtsRum ? 'order-last' : ''}`}>
         {s.bild ? (
-          <>
-            {/* Dasselbe Foto verwischt als Grund, davor das ganze Foto in voller Hoehe - so sieht man jeden Spieler komplett (Betreiber: "man erkennt ihn nicht"). */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={s.bild} alt="" aria-hidden className="absolute inset-0 h-full w-full scale-125 object-cover opacity-55 blur-2xl" />
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={s.bild} alt="" className={`absolute inset-y-0 h-full w-auto max-w-none object-contain transition duration-500 group-hover:scale-[1.02] ${rechtsRum ? 'right-[8%]' : 'left-[8%]'}`} />
-          </>
-        ) : null}
-        <span aria-hidden className="foto-unten absolute inset-0 opacity-70" />
-        <span className={`absolute bottom-3 flex items-center gap-2 ${rechtsRum ? 'right-4 flex-row-reverse' : 'left-4'}`}>
-          <TeamFlagge groesse={22} laender={[s.land ?? undefined]} />
-          <span className="truncate text-xl font-extrabold uppercase tracking-wide text-white drop-shadow sm:text-2xl">{grossName(s.anzeige, s.gepflegt)}</span>
-        </span>
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={s.bild} alt={s.anzeige} className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]" />
+        ) : (
+          <span className="absolute inset-0 grid place-items-center bg-zinc-700 text-5xl font-black text-slate-400/40">{(s.anzeige || '?').slice(0, 1).toUpperCase()}</span>
+        )}
+      </button>
+    );
+    const nameVon = (s: Spieler, rechtsRum: boolean) => (
+      <button type="button" onClick={() => aufKlick?.(s)} disabled={!aufKlick}
+        className={`flex min-w-0 flex-1 flex-col justify-center gap-2 px-3 sm:px-6 ${rechtsRum ? 'items-end text-right' : 'items-start text-left'} ${aufKlick ? 'cursor-pointer transition hover:text-sky-500' : ''}`}>
+        <TeamFlagge groesse={24} laender={[s.land ?? undefined]} />
+        <span className="max-w-full break-words text-xl font-extrabold uppercase leading-tight tracking-wide text-slate-100 sm:text-3xl">{grossName(s.anzeige, s.gepflegt)}</span>
       </button>
     );
     return (
       <div className="overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 shadow-[0_10px_30px_rgba(15,23,42,.10)]">
-        <div className="foto-dunkel relative h-72 bg-zinc-800 sm:h-80">
+        <div className="relative flex h-72 items-stretch bg-zinc-800 sm:h-80">
           {foto(links, false)}
+          {nameVon(links, false)}
+          <span className="flex shrink-0 items-center px-1 text-3xl font-black italic text-sky-500 sm:px-4 sm:text-5xl">VS</span>
+          {nameVon(rechts, true)}
           {foto(rechts, true)}
-          <div className="absolute inset-x-0 top-3 flex justify-center">
-            <span className="rounded-full bg-[rgba(6,10,18,.6)] px-4 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-[#cbd5e1] backdrop-blur">{zeitraum}</span>
+          <div className="pointer-events-none absolute inset-x-0 top-3 flex justify-center">
+            <span className="rounded-full bg-zinc-900/80 px-4 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-300 backdrop-blur">{zeitraum}</span>
           </div>
-          <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 text-4xl font-black italic text-sky-400 drop-shadow">VS</span>
         </div>
         <div className="px-5 py-4">
           {DUELL_WERTE.map(([titel, feld, nk, einheit]) => (
@@ -1976,7 +2030,7 @@ function Platz({ nr, s, wert, aufKlick, zusatz, mitBild, hervor, aufZeigen }: {
  * drauf druecke, poppt es auf." Links die Zahl der Profile und der Weg zur ganzen Liste, rechts fuenf Spielerkarten wie ein Faecher; eine Karte
  * gerade gezogen hebt sich beim Ueberfahren, ein Klick oeffnet sie gross mit den Werten - dort geht es weiter ins Profil.
  */
-function SpielerFaecher({ spieler, aufAlle, aufOeffnen }: { spieler: Spieler[]; aufAlle: () => void; aufOeffnen: (s: Spieler) => void }) {
+function SpielerFaecher({ spieler, schaden, aufAlle, aufOeffnen }: { spieler: Spieler[]; /** Schaden je Konto-Id aus der Schadensliste - die Elim-Liste traegt ihn nicht. */ schaden: Map<string, number>; aufAlle: () => void; aufOeffnen: (s: Spieler) => void }) {
   const t = useT();
   const { sprache } = useSprache();
   const [anzahl, setAnzahl] = useState<number | null>(null);
@@ -2008,59 +2062,59 @@ function SpielerFaecher({ spieler, aufAlle, aufOeffnen }: { spieler: Spieler[]; 
     return () => document.removeEventListener('keydown', taste);
   }, [auf]);
   /*
-   * Die Spieler des Faechers: Peterbot, Vico, Shxrk, Veno, Pollo, Malibuca (Betreiber, 14.10.2026: "nicht nur NA-Spieler"). Sie werden ueber die
-   * Suche geholt; findet sich fast keiner (Archiv nicht erreichbar), stehen die ersten mit Foto aus der Bestenliste da.
+   * Die Spieler (Betreiber, 19.10.2026): "von jeder Region zwei Spieler mit Profilbild, von Anfang an aufgeklappt, der Name gross, ein, zwei kleine Werte" -
+   * statt des Faechers aus sechs Namen. Genommen werden aus der Elim-Rangliste je Heimatregion die ersten beiden mit Foto; die Reihenfolge der Regionen ist fest.
    */
-  const [gewaehlt, setGewaehlt] = useState<Spieler[]>([]);
-  useEffect(() => {
-    let weg = false;
-    const norm = (v: string) => v.toLowerCase().replace(/[^a-z0-9]/g, '');
-    void Promise.all(['PETERBOT', 'VICO', 'SHXRK', 'VENO', 'POLLO', 'MALIBUCA'].map((n) => fetch(`/api/szene-stats?ansicht=suche&q=${n}`)
-      .then((r) => r.json())
-      .then((j) => {
-        const liste = ((j?.spieler ?? []) as Spieler[]).filter((x) => x.bild);
-        return liste.find((x) => [x.anzeige, x.name, ...(x.namen ?? [])].some((m) => norm(m ?? '') === norm(n))) ?? null;
-      })
-      .catch(() => null)))
-      .then((r) => { if (!weg) setGewaehlt(r.filter((x): x is Spieler => !!x)); });
-    return () => { weg = true; };
-  }, []);
-  const karten = (gewaehlt.length >= 4 ? gewaehlt : spieler.filter((x) => x.bild)).slice(0, 6);
-  if (karten.length < 3) return null;
-  const mitte = (karten.length - 1) / 2;
+  const REGIONEN_REIHE = ['EU', 'NAC', 'NAW', 'BR', 'ME', 'ASIA', 'OCE'];
+  const karten = useMemo(() => {
+    const mit = spieler.filter((x) => x.bild);
+    const raus: Spieler[] = [];
+    for (const r of REGIONEN_REIHE) raus.push(...mit.filter((x) => (x.heimat || x.regionen[0] || '') === r).slice(0, 2));
+    return raus;
+  }, [spieler]);
+  if (karten.length < 4) return null;
   return (
     <section className="relative mb-10 overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 p-6 shadow-[0_10px_30px_rgba(15,23,42,.10)] sm:p-10">
       <div aria-hidden className="pointer-events-none absolute -right-20 -top-24 h-80 w-80 rounded-full bg-sky-500/20 blur-[90px]" />
-      <div className="relative grid items-center gap-10 lg:grid-cols-[0.8fr_1.4fr]">
-        <div>
-          <p className="text-xs font-bold uppercase tracking-[0.2em] text-sky-500"><T>Spieler</T></p>
-          <h2 className="schrift-anzeige mt-2 text-4xl font-extrabold tracking-tight text-slate-100 sm:text-5xl">
-            {anzahl === null ? '—' : zahl(anzahl, 0, sprache)} <T>Spielerprofile.</T>
-          </h2>
-          <p className="mt-3 max-w-md text-base text-slate-400"><T>Werte, Titel, FNCS-Ergebnisse, Mitspieler und Landepunkte zu jedem Spieler im Archiv.</T></p>
-          <div className="mt-6 flex flex-wrap gap-3">
-            <button type="button" onClick={aufAlle}
-              className="rounded-full bg-sky-500 px-6 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-sky-400">
-              <T>Alle Spieler ansehen</T> →
-            </button>
+      <div className="relative">
+        <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
+          <div>
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-sky-500"><T>Spieler</T></p>
+            <h2 className="schrift-anzeige mt-2 text-4xl font-extrabold tracking-tight text-slate-100 sm:text-5xl">
+              {anzahl === null ? '—' : zahl(anzahl, 0, sprache)} <T>Spielerprofile.</T>
+            </h2>
+            <p className="mt-3 max-w-xl text-base text-slate-400"><T>Werte, Titel, FNCS-Ergebnisse, Mitspieler und Landepunkte zu jedem Spieler im Archiv.</T></p>
           </div>
+          <button type="button" onClick={aufAlle}
+            className="rounded-full bg-sky-500 px-6 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-sky-400">
+            <T>Alle Spieler ansehen</T> →
+          </button>
         </div>
-        <ul className="faecher mx-auto h-[17rem] w-full max-w-3xl">
-          {karten.map((x, i) => (
-            <li key={x.epicId} style={{ ['--d' as string]: i - mitte, ['--i' as string]: i + 1 }}>
-              <button type="button" onClick={() => setAuf(x)} aria-label={x.anzeige}
-                className="foto-dunkel group relative block h-52 w-36 overflow-hidden rounded-2xl border border-white/10 bg-zinc-900 text-left shadow-[0_14px_34px_rgba(2,6,23,.35)] max-sm:h-44 max-sm:w-28">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={x.bild as string} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover object-top transition duration-500 group-hover:scale-105" />
-                <span aria-hidden className="foto-unten absolute inset-0" />
-                <span className="absolute left-2.5 top-2.5"><RegionMarke region={x.heimat || x.regionen[0] || ''} /></span>
-                <span className="absolute inset-x-2.5 bottom-2.5 flex items-center gap-1.5 rounded-xl bg-[rgba(6,10,18,.6)] px-2 py-1.5 backdrop-blur">
-                  <TeamFlagge groesse={16} laender={[x.land ?? undefined]} />
-                  <span className="min-w-0 truncate text-sm font-extrabold uppercase tracking-wide text-[#fff]">{grossName(x.anzeige, x.gepflegt)}</span>
-                </span>
-              </button>
-            </li>
-          ))}
+        {/* Von jeder Region die Besten, gleich aufgeklappt: das Foto gross, der Name gross, darunter zwei kleine Werte. */}
+        <ul className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-flow-col lg:grid-cols-7 lg:grid-rows-2">
+          {karten.map((x) => {
+            const dmg = schaden.get(x.epicId);
+            return (
+              <li key={x.epicId}>
+                <button type="button" onClick={() => setAuf(x)} aria-label={x.anzeige}
+                  className="foto-dunkel group relative block aspect-[3/4] w-full overflow-hidden rounded-2xl border border-white/10 bg-zinc-900 text-left shadow-[0_12px_30px_rgba(2,6,23,.28)] transition hover:-translate-y-1">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={x.bild as string} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+                  <span aria-hidden className="foto-unten absolute inset-0" />
+                  <span className="absolute left-2.5 top-2.5"><RegionMarke region={x.heimat || x.regionen[0] || ''} /></span>
+                  <span className="absolute inset-x-3 bottom-3 block">
+                    <span className="flex items-center gap-1.5">
+                      <TeamFlagge groesse={16} laender={[x.land ?? undefined]} />
+                      <span className="min-w-0 truncate text-base font-extrabold uppercase tracking-wide text-[#fff] drop-shadow sm:text-lg">{grossName(x.anzeige, x.gepflegt)}</span>
+                    </span>
+                    <span className="mt-1 block text-[11px] font-semibold tabular-nums text-[#cbd5e1]">
+                      {zahl(x.elims, 0, sprache)} <T>Elims</T>{dmg ? ` · ${zahl(Math.round(dmg / 1000), 0, sprache)}k ${t('Schaden')}` : ''}
+                    </span>
+                  </span>
+                </button>
+              </li>
+            );
+          })}
         </ul>
       </div>
 
@@ -2068,7 +2122,7 @@ function SpielerFaecher({ spieler, aufAlle, aufOeffnen }: { spieler: Spieler[]; 
         <div className="fixed inset-0 z-[120] grid place-items-center p-4" role="dialog" aria-modal="true" aria-label={auf.anzeige}>
           <button type="button" aria-label={t('Schließen')} onClick={() => setAuf(null)}
             className="faecher-schleier absolute inset-0 bg-[rgba(6,10,18,.66)] backdrop-blur-sm" />
-          <div className="faecher-pop foto-dunkel relative flex w-full max-w-3xl overflow-hidden rounded-3xl border border-white/10 bg-zinc-900 shadow-2xl max-sm:flex-col">
+          <div className="faecher-pop relative flex w-full max-w-3xl overflow-hidden rounded-3xl border border-zinc-700 bg-zinc-900 shadow-2xl max-sm:flex-col">
             <div className="relative h-72 shrink-0 sm:h-auto sm:w-[44%]">
               {auf.bild && (
                 // eslint-disable-next-line @next/next/no-img-element
@@ -2081,9 +2135,9 @@ function SpielerFaecher({ spieler, aufAlle, aufOeffnen }: { spieler: Spieler[]; 
                 <TeamFlagge groesse={22} laender={[auf.land ?? undefined]} />
                 <RegionMarke region={auf.heimat || auf.regionen[0] || ''} />
                 <button type="button" onClick={() => setAuf(null)} aria-label={t('Schließen')}
-                  className="ml-auto grid h-8 w-8 place-items-center rounded-full text-slate-400 transition hover:bg-zinc-800 hover:text-white">✕</button>
+                  className="ml-auto grid h-8 w-8 place-items-center rounded-full text-slate-400 transition hover:bg-zinc-800 hover:text-slate-100">✕</button>
               </div>
-              <h3 className="schrift-anzeige mt-3 break-words text-3xl font-extrabold uppercase leading-tight tracking-tight text-white sm:text-4xl">
+              <h3 className="schrift-anzeige mt-3 break-words text-3xl font-extrabold uppercase leading-tight tracking-tight text-slate-100 sm:text-4xl">
                 {grossName(auf.anzeige, auf.gepflegt)}
               </h3>
               <div className="mt-5 grid grid-cols-3 gap-2">
@@ -2091,7 +2145,7 @@ function SpielerFaecher({ spieler, aufAlle, aufOeffnen }: { spieler: Spieler[]; 
                   ['Matches', voll ? zahl(voll.matches, 0, sprache) : '—', false], ['Kopftreffer', voll ? zahl(voll.headshots, 0, sprache) : '—', false], ['Treffer %', voll ? `${zahl(voll.genauigkeit, 1, sprache)} %` : '—', false]] as Array<[string, string, boolean]>).map(([l, v, farbig]) => (
                   <div key={l} className="rounded-xl bg-zinc-800/80 px-2 py-3 text-center">
                     <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-400"><T>{l}</T></p>
-                    <p className={`mt-1 text-lg font-extrabold tabular-nums ${farbig ? 'text-sky-400' : 'text-white'}`}>{v}</p>
+                    <p className={`mt-1 text-lg font-extrabold tabular-nums ${farbig ? 'text-sky-500' : 'text-slate-100'}`}>{v}</p>
                   </div>
                 ))}
               </div>
@@ -3582,7 +3636,8 @@ export default function StatistikSeite() {
    * Laufbahn sehen, deshalb laesst sich das dort aufklappen.
    */
   const verlaufHeimat = useMemo(
-    () => (heimatRegion ? verlauf.filter((z) => z.region === heimatRegion) : verlauf),
+    // LANs zaehlen immer mit (Betreiber, 19.10.2026: "eine LAN gehoert automatisch auch in seine Region - das ist ein wichtiger Cup").
+    () => (heimatRegion ? verlauf.filter((z) => z.region === heimatRegion || LAN_FENSTER.test(z.windowId)) : verlauf),
     [verlauf, heimatRegion]);
 
   /**
@@ -3595,7 +3650,7 @@ export default function StatistikSeite() {
    */
   const letzteDrei = useMemo(() => {
     const heimatEpic = heimatRegion
-      ? epicZeilen.filter((z) => z.region === heimatRegion) : epicZeilen;
+      ? epicZeilen.filter((z) => z.region === heimatRegion || LAN_FENSTER.test(z.windowId)) : epicZeilen;
     return [...verlaufHeimat, ...heimatEpic]
       .sort((a, b) => (b.datum ?? 0) - (a.datum ?? 0))
       .slice(0, 3);
@@ -3603,7 +3658,7 @@ export default function StatistikSeite() {
 
   /** Wie viele Spieltage ausserhalb der Heimat liegen - fuer den Knopf. */
   const fremdeSpieltage = (verlauf.length - verlaufHeimat.length)
-    + epicZeilen.filter((z) => heimatRegion && z.region !== heimatRegion).length;
+    + epicZeilen.filter((z) => heimatRegion && z.region !== heimatRegion && !LAN_FENSTER.test(z.windowId)).length;
 
   /**
    * Was die Turnierliste zeigt.
@@ -3615,7 +3670,7 @@ export default function StatistikSeite() {
    */
   const turnierZeilen = useMemo(() => {
     const heimatEpic = heimatRegion
-      ? epicZeilen.filter((z) => z.region === heimatRegion) : epicZeilen;
+      ? epicZeilen.filter((z) => z.region === heimatRegion || LAN_FENSTER.test(z.windowId)) : epicZeilen;
     const zusammen = alleRegionen
       ? [...verlauf, ...epicZeilen]
       : [...verlaufHeimat, ...heimatEpic];
@@ -3861,7 +3916,7 @@ export default function StatistikSeite() {
           {/* ------------------------------------------------- Übersicht */}
           {bereich === 'start' && (
             <>
-              <StatistikZahlen />
+              {seitenliste && <SpielerFaecher spieler={seitenliste.plaetze} schaden={new Map((listen.find((l) => l.feld === 'damage')?.plaetze ?? []).map((x) => [x.epicId, x.damage]))} aufAlle={() => wechsleBereich('spieler')} aufOeffnen={(x) => oeffne(x)} />}
               {/* Aufmacher: Slider durch die jüngsten Turniere mit dem Besten des Tages, darunter die Regionen (Betreiber, 12.10.2026). */}
               <StatistikAufmacher
                 kacheln={(() => {
@@ -3888,8 +3943,6 @@ export default function StatistikSeite() {
                 zuRegionen={() => wechsleBereich('regional')}
                 zuSpielern={() => wechsleBereich('spieler')}
                 oeffneSpieler={(id, name) => { void oeffneKonto(id, name); }} />
-
-              {seitenliste && <SpielerFaecher spieler={seitenliste.plaetze} aufAlle={() => wechsleBereich('spieler')} aufOeffnen={(x) => oeffne(x)} />}
 
               {/*
                 * Die Elim-Rangliste (war die Liste in der linken Leiste): die ersten fuenfzehn in drei Spalten. Der Nachweis, was gezaehlt ist,
@@ -3994,14 +4047,15 @@ export default function StatistikSeite() {
                       {/* Der Erste: das Foto als stehendes Bild (3:4), damit man das Gesicht sieht - daneben Name und Zahl. */}
                       {erster && (
                         <button type="button" onClick={() => oeffne(erster)}
-                          className="foto-dunkel group mx-3 mt-3 flex w-[calc(100%-1.5rem)] items-stretch overflow-hidden rounded-2xl bg-zinc-800 text-left">
+                          className="group mx-3 mt-3 flex w-[calc(100%-1.5rem)] items-stretch overflow-hidden rounded-2xl border border-zinc-700 bg-zinc-800/70 text-left">
                           <span className="relative h-44 w-36 shrink-0 overflow-hidden">
                             {erster.bild ? (
                               // eslint-disable-next-line @next/next/no-img-element
                               <img src={erster.bild} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover object-top transition duration-500 group-hover:scale-105" />
                             ) : (
-                              <span className="absolute inset-0 grid place-items-center text-5xl font-black text-white/10">{(erster.anzeige || '?').slice(0, 1).toUpperCase()}</span>
+                              <span className="absolute inset-0 grid place-items-center text-5xl font-black text-slate-400/30">{(erster.anzeige || '?').slice(0, 1).toUpperCase()}</span>
                             )}
+                            <span aria-hidden className="absolute inset-y-0 right-0 w-8 bg-gradient-to-r from-transparent to-zinc-800/70" />
                           </span>
                           <span className="flex min-w-0 flex-1 flex-col justify-between p-3.5">
                             <span className="flex items-center gap-2">
@@ -4011,9 +4065,9 @@ export default function StatistikSeite() {
                             <span>
                               <span className="flex items-center gap-1.5">
                                 <TeamFlagge groesse={16} laender={[erster.land ?? undefined]} />
-                                <span className="truncate text-lg font-extrabold uppercase tracking-wide text-white">{grossName(erster.anzeige, erster.gepflegt)}</span>
+                                <span className="truncate text-lg font-extrabold uppercase tracking-wide text-slate-100">{grossName(erster.anzeige, erster.gepflegt)}</span>
                               </span>
-                              <span className="schrift-anzeige mt-1 block text-4xl font-extrabold tabular-nums leading-none text-sky-400">{wertVon(erster)}</span>
+                              <span className="schrift-anzeige mt-1 block text-4xl font-extrabold tabular-nums leading-none text-sky-500">{wertVon(erster)}</span>
                             </span>
                           </span>
                         </button>
@@ -4061,6 +4115,9 @@ export default function StatistikSeite() {
                     aufKlick={oeffne} gross schlicht />
                 </section>
               )}
+
+              {/* Die Gesamtzahlen (Spieler, Spieltage, Eliminierungen, Schaden) stehen ganz unten - Betreiber, 19.10.2026: "das will man nicht unbedingt als Erstes sehen". */}
+              <StatistikZahlen />
             </>
           )}
 
@@ -4488,7 +4545,7 @@ export default function StatistikSeite() {
                     {turniere.length ? t('Nichts gefunden.') : t('Wird geladen …')}
                   </p>
                 ) : tafel ? (
-                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
                     {gefiltert.map((t) => {
                       const art = turnierArt(t.name);
                       return (
@@ -4498,21 +4555,16 @@ export default function StatistikSeite() {
                                      hover:border-sky-500">
                           {/* Epics eigene Grafik, wo eine zum Cup passt -
                               sonst die Farbflaeche mit der Turnierart. */}
-                          {t.bild ? (
-                            <div className="relative h-28 overflow-hidden">
-                              {/* eslint-disable-next-line @next/next/no-img-element */}
-                              <img src={t.bild} alt="" loading="lazy"
-                                className="h-full w-full object-cover" />
-                            </div>
-                          ) : (
-                            <div className={`flex h-28 items-center justify-center
-                                             bg-gradient-to-br ${art.farbe}`}>
-                              <span className="px-3 text-center text-lg font-black
-                                               tracking-wide text-white/90">
-                                {art.wort}
-                              </span>
-                            </div>
-                          )}
+                          {/* Das Vorschaubild in seinem Seitenverhaeltnis (16:9) statt als flacher Streifen (Betreiber, 19.10.2026: "weniger breit, dass man das Thumbnail mehr erkennt");
+                              ist es nicht da oder kaputt, steht die Farbflaeche mit der Turnierart darunter. */}
+                          <div className={`relative aspect-video overflow-hidden bg-gradient-to-br ${art.farbe}`}>
+                            <span className="absolute inset-0 flex items-center justify-center px-3 text-center text-lg font-black tracking-wide text-white/90">{art.wort}</span>
+                            {t.bild && (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={t.bild} alt="" loading="lazy" onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                                className="absolute inset-0 h-full w-full object-cover" />
+                            )}
+                          </div>
                           <div className="p-3">
                             <div className="mb-2 flex flex-wrap gap-1">
                               <RegionMarke region={t.region} />
@@ -4704,13 +4756,6 @@ export default function StatistikSeite() {
                   * Spieltag. Das steht dabei, damit niemand die Zahl fuer
                   * die eigenen Eliminierungen haelt.
                   */}
-                {(() => {
-                  const te = jahr?.listen.find((l) => l.feld === 'teamElims');
-                  return te?.plaetze.length ? (
-                    <> <T>Team-Eliminierungen aus Epics Bestenlisten: die Eliminierungen des ganzen Teams je Spieltag, für jedes Mitglied gezählt; erfasst sind je Spieltag die besten 500 Teams</T>
-                      {te.spieltageEpic ? <> ({zahl(te.spieltageEpic, 0, sprache)} <T>Spieltage</T>)</> : null}.</>
-                  ) : null;
-                })()}
               </p>
 
               {jahrLaedt && !jahr ? (
@@ -4722,7 +4767,8 @@ export default function StatistikSeite() {
                 </p>
               ) : jahr && (
                 <div className="space-y-8">
-                  {jahr.listen.filter((l) => l.plaetze.length).map((l) => (
+                  {/* Ohne "Meiste Team-Eliminierungen" und "Beste Schadensquote ab 10 Matches" (Betreiber, 19.10.2026): keiner der Spieler darin hat ein Foto. */}
+                  {jahr.listen.filter((l) => l.plaetze.length && l.feld !== 'teamElims' && l.feld !== 'quote').map((l) => (
                     <section key={l.feld}>
                       <div className="mb-3 flex items-center gap-2">
                         <p className="text-sm font-bold uppercase tracking-[0.14em] text-slate-300">
@@ -5212,6 +5258,20 @@ export default function StatistikSeite() {
                 </div>
               </div>
 
+              {/* Die ersten Drei der gewaehlten Liste und Region, mit Foto (Betreiber, 19.10.2026) - wechselt mit Sortierung, Region und Saison. */}
+              {!fehler && !suche && gezeigteSpieler.length >= 3 && (
+                <div className="mb-5 overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 shadow-[0_10px_30px_rgba(15,23,42,.12)]">
+                  <p className="px-5 pt-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
+                    {t(SORTIERUNG.find(([w]) => w === sort)?.[1] ?? 'Meiste Eliminierungen')} · {region || t('alle Regionen')}
+                  </p>
+                  <Treppchen drei={gezeigteSpieler.slice(0, 3).map((sp, i) => ({ sp, nr: i + 1 }))} aufKlick={(sp) => oeffne(sp)}
+                    wertVon={(sp) => {
+                      const nk = sort === 'quote' ? 2 : (sort === 'genauigkeit' || sort === 'elimsProMatch' || sort === 'damageProMatch') ? 1 : 0;
+                      return zahl(Number((sp as unknown as Record<string, number>)[sort] ?? 0), nk, sprache) + (sort === 'genauigkeit' ? ' %' : '');
+                    }} />
+                </div>
+              )}
+
               {fehler ? (
                 <p className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-8
                               text-center text-sm text-rose-400">{fehler}</p>
@@ -5295,8 +5355,8 @@ export default function StatistikSeite() {
                   ))}
                 </div>
               ) : (
-                <div className="overflow-hidden rounded-xl border border-zinc-800
-                                bg-zinc-950/60">
+                <div className="overflow-hidden rounded-3xl border border-zinc-800
+                                bg-zinc-900 shadow-[0_10px_30px_rgba(15,23,42,.10)]">
                   <div className="overflow-x-auto">
                     <table className="w-full text-sm">
                       <thead>
@@ -5389,15 +5449,15 @@ export default function StatistikSeite() {
           ? (q ? gefiltert : gefiltert.slice((seite - 1) * JE_SEITE, seite * JE_SEITE))
           : ((listenTiefe && !q) ? gefiltert.slice(0, listenTiefe) : gefiltert);
         return (
-          <div className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950">
+          <div className="overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 shadow-[0_10px_30px_rgba(15,23,42,.12)]">
             <header className="flex flex-wrap items-center gap-3 border-b border-zinc-800
-                               px-4 py-3">
+                               px-4 py-3.5">
               <button onClick={() => setVolleListe(null)}
-                className="rounded-md border border-zinc-800 px-2.5 py-1 text-xs text-slate-400
+                className="rounded-full border border-zinc-700 px-3.5 py-1.5 text-xs font-semibold text-slate-400
                            transition hover:border-sky-500 hover:text-sky-400">
                 ← <T>Zurück</T>
               </button>
-              <h3 className="text-sm font-semibold text-slate-100">
+              <h3 className="schrift-anzeige text-lg font-extrabold text-slate-100">
                 <T>{volleListe.titel}</T>
                 {volleListe.zusatz && (
                   <span className="ml-2 font-normal text-slate-500">{volleListe.zusatz}</span>
@@ -5409,8 +5469,8 @@ export default function StatistikSeite() {
               {volleListe.zeilen.length > 100 && (
                 <input value={listenSuche} onChange={(e) => setListenSuche(e.target.value)}
                   placeholder={t('Spieler suchen …')} autoFocus
-                  className="mx-auto w-56 rounded-lg border border-zinc-800 bg-zinc-900/80
-                             px-3 py-1 text-xs text-slate-100 outline-none focus:border-sky-500" />
+                  className="mx-auto w-56 rounded-full border border-zinc-700 bg-zinc-950/60
+                             px-4 py-1.5 text-xs text-slate-100 outline-none focus:border-sky-500" />
               )}
               {istGeld ? (
                 /* Blaettern: Seite 1, 2, 3 ... je hundert. */
@@ -5441,10 +5501,10 @@ export default function StatistikSeite() {
                 <div className="ml-auto flex items-center gap-1">
                   {([50, 100, 0] as const).map((n) => (
                     <button key={n} onClick={() => setListenTiefe(n)}
-                      className={`rounded-md border px-2.5 py-1 text-xs transition ${
+                      className={`rounded-full border px-3.5 py-1.5 text-xs font-semibold transition ${
                         listenTiefe === n
-                          ? 'border-sky-500 bg-sky-500/10 text-sky-400'
-                          : 'border-zinc-800 text-slate-400 hover:border-zinc-600'}`}>
+                          ? 'border-sky-500 bg-sky-500/10 text-sky-500'
+                          : 'border-zinc-700 text-slate-400 hover:border-zinc-500'}`}>
                       {n === 0 ? t('Alle') : `Top ${n}`}
                     </button>
                   ))}
@@ -5455,7 +5515,7 @@ export default function StatistikSeite() {
               <div className="flex flex-wrap gap-1 border-b border-zinc-900 px-4 py-2">
                 {['', ...regionen].map((r) => (
                   <button key={r || 'alle'} onClick={() => { setListenRegion(r); setListenSeite(1); }}
-                    className={`rounded-md border px-2.5 py-1 text-xs font-semibold transition ${
+                    className={`rounded-full border px-3.5 py-1.5 text-xs font-semibold transition ${
                       listenRegion === r
                         ? (r ? regionFarbe(r).marke : 'border-sky-500 bg-sky-500/10 text-sky-400')
                         : `hover:brightness-125 ${r ? regionFarbe(r).ruhig : 'border-zinc-800 text-slate-400'}`}`}>
@@ -5463,6 +5523,13 @@ export default function StatistikSeite() {
                   </button>
                 ))}
               </div>
+            )}
+            {/* Die ersten Drei der Auswahl (nach Region gefiltert) mit Foto - nur auf der ersten Seite und ohne Suche. */}
+            {!q && (!istGeld || seite === 1) && (
+              <Treppchen drei={gefiltert.slice(0, 3)} aufKlick={(sp) => oeffne(sp, volleListe.feld === 'verdienst' ? 'verdienst' : 'uebersicht')}
+                wertVon={(sp) => (volleListe.format === 'zeit' ? alsZeit(Number(sp[volleListe.feld]))
+                  : volleListe.format === 'km' ? `${zahl(Number(sp[volleListe.feld]) / 1000, 1, sprache)} km`
+                  : zahl(Number(sp[volleListe.feld]), volleListe.nachkomma, sprache) + volleListe.einheit)} />
             )}
             {istElims && (
               <p className="border-b border-zinc-900 px-4 py-2 text-[11px] text-slate-500">
@@ -5998,7 +6065,7 @@ export default function StatistikSeite() {
                     </div>
                   ))}
                 </div>
-                  <ProfilVerlauf zeilen={verlauf} />
+                  <ProfilVerlauf zeilen={verlauf.map((z) => ({ ...z, event: verlaufTitel(z.event) }))} />
                   {/* Die drei Staerkefelder.
                       Der Wert eines Feldes ist der Schnitt seiner Raenge - und
                       darunter steht, woraus er entsteht. Nichts daran ist
