@@ -165,12 +165,15 @@ html:not([data-dash-chat="an"]) [data-dash="chat"] { display: none; }
 html:not([data-dash-chat="an"]) [data-dash-spalten] { grid-template-columns: minmax(0, 1fr); }
 
 /*
- * Die Tierlist im Hell-Modus (Betreiber, 19.10.2026: "die Tierlist ist immer noch schwarz"). Ihr Stylesheet (app/tierlist/styles/tierlist.css) ist
- * durchgehend dunkel geschrieben; statt es Zeile fuer Zeile umzuschreiben, wird die Seite im Hell-Modus umgekehrt (Hell/Dunkel getauscht, Farbtoene
- * zurueckgedreht) und etwas abgedunkelt, damit sie zum gedaempften Hell der Seite passt. Bilder, Flaggen und Zeichnungen werden zurueckgekehrt, damit
- * Fotos und Tierfarben ihre Farben behalten.
+ * Die Tierlist im Hell-Modus (Betreiber, 19.10.2026: "die Tierlist ist immer noch schwarz" - und danach: "sieht todeshaesslich aus, Rot ist Pink, Orange ein anderes
+ * Orange"). Ihr Stylesheet (app/tierlist/styles/tierlist.css) ist durchgehend dunkel geschrieben; statt es Zeile fuer Zeile umzuschreiben, werden die dunklen
+ * Flaechen im Hell-Modus umgekehrt (Hell/Dunkel getauscht, Farbtoene zurueckgedreht) und etwas abgedunkelt. Die Stufenfelder S bis F bleiben dabei
+ * AUSSERHALB des Filters und behalten genau ihre Farben - ein Filter auf der ganzen Seite verfaelschte jede kraeftige Farbe (Rot, Gelb) unwiederbringlich.
  */
-html[data-modus="hell"] .tierlist-page { filter: invert(1) hue-rotate(180deg) brightness(.9) contrast(.96); }
+html[data-modus="hell"] .tierlist-page { background: #eceef2; color: #111; }
+html[data-modus="hell"] .tierlist-page .tierlist-panel { background: #eceef2; border-color: rgba(0, 0, 0, .08); }
+html[data-modus="hell"] .tierlist-page :is(.tierlist-header, .tier-content, .sidebar) { filter: invert(1) hue-rotate(180deg) brightness(.92) contrast(.97); }
+/* Bilder, Flaggen und Zeichnungen in diesen Flaechen werden zurueckgekehrt, damit Fotos ihre Farben behalten. */
 html[data-modus="hell"] .tierlist-page :is(img, canvas, video, picture, [style*="background-image"]) { filter: invert(1) hue-rotate(180deg); }
-/* Die kraeftigen Farben (Stufen S bis F, Knoepfe, Regionen) kommen durch das Umdrehen verfaelscht heraus - Rot wurde Pink, Orange ein anderes Orange (Betreiber, 19.10.2026). Sie werden noch einmal umgedreht und behalten so genau ihre Farbe. */
-html[data-modus="hell"] .tierlist-page :is(.tier-label, .nav-button, .admin-btn.active, .btn-confirm, .add-duo-panel .add-btn, .region-chip, .create-panel button, .create-duo-panel button, .create-solo-panel button, .kachel-fertig, .tierlist-button-primary, .admin-edit-btn) { filter: invert(1) hue-rotate(180deg) brightness(1.11) contrast(1.04); }
+/* Knoepfe und Regionsmarken mit kraeftiger Farbe: noch einmal umgedreht (in umgekehrter Reihenfolge wie beim Elternteil), damit sie ihre Farbe halten. */
+html[data-modus="hell"] .tierlist-page :is(.nav-button, .admin-btn.active, .btn-confirm, .add-duo-panel .add-btn, .region-chip, .create-panel button, .create-duo-panel button, .create-solo-panel button, .kachel-fertig, .tierlist-button-primary, .admin-edit-btn) { filter: contrast(1.0309) brightness(1.087) hue-rotate(180deg) invert(1); }
