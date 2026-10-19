@@ -87,3 +87,4 @@ neustart.txt
 
 # Das gebaute POV-Programm (liegt am Release "pov-app", nicht im Repository)
 dist-pov/
+vorschau.pid
