@@ -24,6 +24,28 @@ function WerLauscht {
         Select-Object -ExpandProperty OwningProcess -Unique)
 }
 
+# Die Verknuepfungen, die der Bau fuer Pakete mit Programmteil anlegt (.next\node_modules\sharp-<Pruefsumme>), durch echte Ordner ersetzen.
+#
+# Turbopack bindet sharp ueber einen Alias mit Pruefsumme ein und legt dazu eine Verknuepfung (Junction) an. Der oeffentliche Server laeuft unter dem Systemkonto
+# (Waechter), und dort fand Node den Alias durch die Verknuepfung nicht: jede Schnittstelle, die sharp braucht, gab 500 "Internal Server Error" - die Posts des Tages,
+# die Beitragsbilder, die Org-Logos (Betreiber, 19.10.2026). Ein echter Ordner mit einer Zeile, die auf das Paket zeigt, wird dagegen ueberall gefunden.
+$Alias = Join-Path $Projekt '.next\node_modules'
+if (Test-Path $Alias) {
+    foreach ($e in (Get-ChildItem -Path $Alias -Force)) {
+        if (-not ($e.Attributes -band [IO.FileAttributes]::ReparsePoint)) { continue }
+        $ziel = @($e.Target)[0]
+        if (-not $ziel) { continue }
+        $name = $e.Name
+        $e.Delete()
+        $ordner = Join-Path $Alias $name
+        New-Item -ItemType Directory -Path $ordner -Force | Out-Null
+        $zielJs = ($ziel -replace '\\', '/')
+        Set-Content -Path (Join-Path $ordner 'index.js') -Value "module.exports = require('$zielJs');" -Encoding ascii
+        Set-Content -Path (Join-Path $ordner 'package.json') -Value "{`"name`":`"$name`",`"main`":`"index.js`"}" -Encoding ascii
+        Write-Host "Verknuepfung $name durch einen echten Ordner ersetzt."
+    }
+}
+
 $alteKennung = WerLauscht
 
 Write-Host 'Alten Server beenden ...'
