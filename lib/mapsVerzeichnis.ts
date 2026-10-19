@@ -4,6 +4,7 @@ import { saisonName, SAISON_NAMEN } from '@/lib/szeneStats';
 import { typVon, cupBild, SAISON_TITEL, SAISON_OHNE_MAPS, type MapTyp } from '@/lib/mapsTyp';
 import { titelMit } from '@/lib/cupTitel';
 import { alteEintraege } from '@/lib/alteMaps';
+import { istVitalRegion, regionAusKennung, vitalTurniere } from '@/lib/vitalScrims';
 
 export { typVon };
 export type { MapTyp };
@@ -50,6 +51,8 @@ export interface MapEintrag {
   alt?: boolean;
   /** Das Fenster, unter dem Epic die Bestenliste fuehrt, wenn es anders heisst als das von Noble. */
   epicFenster?: string;
+  /** Die Kennung des Turniers bei Vital Scrims - dort kommen die Landepunkte der Regionen her, die Noble nicht fuehrt (NA Central, NA West, Middle East, Ozeanien). */
+  vitalId?: string;
   /** Ein Finale an zwei Tagen (Day 1, Day 2): die Fenster der Tage. Die Karte ist eine, die Bestenliste hat einen Tag-Umschalter. */
   tage?: Array<{ name: string; windowId: string; eventId: string | null }>;
 }
@@ -69,7 +72,100 @@ const BILD_JE_TYP: Record<MapTyp, string | null> = {
   sonst: null,
 };
 
-interface ArchivEintrag { windowId?: string; eventId?: string; titel?: string; bild?: string; begin?: number; end?: number; region?: string }
+interface ArchivEintrag { id?: string; windowId?: string; eventId?: string; titel?: string; bild?: string; begin?: number; end?: number; region?: string }
+
+/** Der Name eines Vital-Turniers ohne die Region am Ende ("Solo FNCS Heats (NAC)" -> "Solo FNCS Heats"). */
+const ohneRegion = (n: string) => n.replace(/\s*\((?:NAC|NAW|NA-?West|NA-?Central|ME|OCE|BR|ASIA|EU)\)\s*$/i, '').trim();
+
+/** Wie ein Spieltag heisst, wo nur Epics Kennung ihn nennt. */
+function stufeAus(windowId: string): string {
+  let m = /Heat(\d+)/i.exec(windowId); if (m) return `Heat ${m[1]}`;
+  if (/FastTrack/i.test(windowId)) return 'Fast Tracks';
+  if (/LastChance|LCQ/i.test(windowId)) return 'LCQ';
+  if (/Final/i.test(windowId)) return 'Finals';
+  m = /Round(d)/i.exec(windowId); if (m) return m[1] === '1' ? 'Open' : 'Finals';
+  return '';
+}
+
+/**
+ * Die Karten der Regionen, die Noble nicht fuehrt - von Vital Scrims (lib/vitalScrims). Zu jedem Turnier dort gehoert, wo Epics Archiv einen Spieltag derselben
+ * Region zur selben Zeit kennt, genau dieser Spieltag (damit Bestenliste und Spielerwerte dranhaengen); wo nicht, steht das Turnier allein.
+ * Hat Noble zu dem Spieltag ein europaeisches Gegenstueck, gehoert die Karte zum selben Cup (Fast Tracks, Heats, Finals ... zusammen).
+ */
+async function vitalEintraege(noble: MapEintrag[], archiv: ArchivEintrag[]): Promise<MapEintrag[]> {
+  const turniere = await vitalTurniere();
+  if (!turniere.length) return [];
+  const nobleNach = new Map(noble.map((e) => [e.windowId, e]));
+  // Epics Archiv fuehrt dasselbe Fenster mehrfach, mit leicht verschobenen Zeiten (NA Central und NA West teilen sich manche) - jede Zeit zaehlt.
+  const epic = new Map<string, ArchivEintrag>();
+  const zeiten = new Map<string, number[]>();
+  for (const a of archiv) {
+    const w = a.windowId ?? '';
+    if (!w || !a.begin || !istVitalRegion(regionAusKennung(w)) || /Qualifiers_/.test(w)) continue;
+    if (!epic.has(w)) epic.set(w, a);
+    zeiten.set(w, [...(zeiten.get(w) ?? []), a.begin]);
+  }
+  const raus: MapEintrag[] = [];
+  const benutzt = new Set<string>();
+
+  const eintrag = (v: (typeof turniere)[number], a: ArchivEintrag | null, d2: ArchivEintrag | null): MapEintrag => {
+    const synthetisch = !a;
+    const wid = a ? (d2 ? (a.windowId as string).replace('_Day1_', '_') : (a.windowId as string)) : `vital_${v.id}`;
+    const euId = wid.replace(/_[A-Z]{2,4}$/, '_EU');
+    // Die Last-Chance-Runde heisst bei Noble "Qualifier", im Archiv "Lobby" - dasselbe Fenster.
+    const eu = a ? (nobleNach.get(euId) ?? nobleNach.get(euId.replace('LastChanceLobby', 'LastChanceQualifier'))) : undefined;
+    // Epic nennt manche Cups nur "Fortnite" - dann gilt der Name, den Vital fuehrt.
+    const epicTitel = a?.titel && !/^fortnite$/i.test(a.titel.trim()) ? a.titel : '';
+    const cup = eu?.cup ?? ohneRegion(epicTitel || v.name);
+    const titel = titelMit(epicTitel || ohneRegion(v.name), a ? wid : '');
+    const typ = typVon(`${cup} ${a?.titel ?? ''} ${v.name}`);
+    const saison = (wid.match(/^(S\d+)_/) ?? [])[1] ?? '';
+    return {
+      turnierId: eu?.turnierId ?? `vital-${synthetisch ? v.id : (a?.id ?? v.id)}`,
+      region: v.region, windowId: wid, vitalId: v.id,
+      cup, fenster: eu?.fenster ?? (stufeAus(wid) || 'Cup'), titel,
+      datum: a?.begin ?? v.start, saison, saisonKurz: '', saisonName: '', typ,
+      bild: cupBild(`${cup} ${a?.titel ?? ''}`) ?? a?.bild ?? v.bild ?? BILD_JE_TYP[typ],
+      eventId: a?.eventId ?? null, ende: d2?.end ?? a?.end ?? v.ende,
+      tage: d2 && a ? [a, d2].map((x, i) => ({ name: `Day ${i + 1}`, windowId: x.windowId as string, eventId: x.eventId ?? null })) : undefined,
+    };
+  };
+
+  /*
+   * Zu einem Vital-Turnier gehoert der Spieltag, der zur selben Zeit laeuft UND denselben Namen traegt: parallel laufen oft mehrere Cups (Reload, Street Fighter,
+   * Ranked ...), die Zeit allein ordnet also falsch zu. Verglichen werden die bedeutungstragenden Woerter des Vital-Namens mit Epics Titel und Kennung.
+   */
+  const sauber = (s: string) => s.toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim();
+  const STOPP = new Set(['cup', 'the', 'of', 'and', 'nac', 'naw', 'me', 'oce', 'na', 'central', 'west', 'series', 'practice', 'battle', 'royale', 'br', 'zero', 'build']);
+  const woerter = (n: string) => sauber(n).split(' ').filter((t) => t.length > 1 && !STOPP.has(t)).map((t) => t.replace(/s$/, ''));
+  const heuhaufen = (x: ArchivEintrag) => sauber(`${x.titel ?? ''} ${(x.windowId ?? '').replace(/([a-z])([A-Z])/g, '$1 $2')}`).replace(/ /g, '');
+  const wertung = (v: (typeof turniere)[number], x: ArchivEintrag) => {
+    const w = woerter(v.name);
+    const h = heuhaufen(x);
+    return { treffer: w.filter((t) => h.includes(t)).length, von: w.length };
+  };
+
+  for (const v of turniere) {
+    if (!istVitalRegion(v.region)) continue;
+    const imZeitraum = [...epic.values()].filter((x) => regionAusKennung(x.windowId as string) === v.region
+      && (zeiten.get(x.windowId as string) ?? []).some((z) => z >= v.start - 1_800_000 && z <= v.ende + 1_800_000) && !benutzt.has(x.windowId as string));
+    const bewertet = imZeitraum.map((x) => ({ x, ...wertung(v, x), abstand: Math.abs((x.begin as number) - v.start) }))
+      .filter((k) => k.treffer >= 2 && k.treffer >= k.von / 2)
+      .sort((p, q) => q.treffer - p.treffer || p.abstand - q.abstand);
+    const beste = bewertet[0];
+    if (!beste) { raus.push(eintrag(v, null, null)); continue; }
+    // Finale an zwei Tagen: Day 1 und Day 2 sind ein Eintrag; trifft der zweite Tag allein, steht er fuer sich.
+    let a = beste.x;
+    const w = a.windowId as string;
+    if (/_Day2_/.test(w) && epic.has(w.replace('_Day2_', '_Day1_')) && !benutzt.has(w.replace('_Day2_', '_Day1_'))) a = epic.get(w.replace('_Day2_', '_Day1_')) as ArchivEintrag;
+    const wid = a.windowId as string;
+    benutzt.add(wid);
+    const d2 = /_Day1_/.test(wid) ? (epic.get(wid.replace('_Day1_', '_Day2_')) ?? null) : null;
+    if (d2) benutzt.add(d2.windowId as string);
+    raus.push(eintrag(v, a, d2));
+  }
+  return raus;
+}
 
 let merker: { bis: number; liste: MapEintrag[]; versteckt: MapEintrag[] } | null = null;
 
@@ -131,6 +227,9 @@ export async function mapsVerzeichnis(): Promise<MapEintrag[]> {
       }
     } catch { /* dieses Turnier ueberspringen */ }
   })));
+
+  // NA Central, NA West, Middle East und Ozeanien: die Landepunkte kommen von Vital Scrims.
+  try { liste.push(...await vitalEintraege(liste, archiv)); } catch { /* ohne Vital bleibt es bei Noble */ }
 
   /*
    * Die Karten ohne Landepunkte: Events aus Epics Archiv, zu denen Noble nichts fuehrt (vor Juli 2025), und die alten

@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server';
 import { istAdminAnfrage } from '@/lib/adminPruefung';
 import { nobleFenster, nobleKarte } from '@/lib/nobleKarte';
+import { vitalAlsNoble } from '@/lib/vitalScrims';
 
 /*
  * Die Formen und Spieler eines Turniers von Noble Practice - fuer "Generate map" auf der Turnierkarte.
@@ -31,11 +32,13 @@ export async function GET(request: Request) {
     const kennung = (p.get('window') ?? '').trim();
     if (!kennung) return NextResponse.json({ ok: false, error: 'Kein Spieltag gewählt.' }, { status: 400, headers: nie });
     const wunsch = { titel: (p.get('titel') ?? '').trim() || undefined, begin: Number(p.get('begin')) || undefined };
-    const karte = await nobleKarte(kennung, p.get('turnier') ?? undefined, p.get('region') ?? undefined, wunsch);
+    let karte = await nobleKarte(kennung, p.get('turnier') ?? undefined, p.get('region') ?? undefined, wunsch);
+    // Noble fuehrt nur Europa: fuer NA Central, NA West, Middle East und Ozeanien kommen die Landepunkte von Vital Scrims.
+    if (!karte) karte = await vitalAlsNoble(kennung, wunsch.begin, Number(p.get('ende')) || null, p.get('region') ?? undefined);
     if (!karte) {
       return NextResponse.json({
         ok: false, nichtGefunden: true,
-        error: 'Noble führt diesen Spieltag (noch) nicht. Wähle ihn aus der Liste von Noble.',
+        error: 'Weder Noble noch Vital führen diesen Spieltag (noch). Wähle ihn aus der Liste von Noble.',
       }, { status: 404, headers: nie });
     }
     return NextResponse.json({ ok: true, ...karte, stand: new Date().toISOString() }, { headers: nie });

@@ -21,6 +21,7 @@ import { gecacht, holeTop, listeCups } from '@/lib/epicCups';
 import { detail, jungeTurniere, formenAus, namenRepariert, type RohDetail } from '@/lib/nobleKarte';
 import { spielerbildKlein } from '@/lib/spielerbildKlein';
 import { kernname } from '@/lib/homoglyph';
+import { istVitalRegion, vitalFormen, vitalFuer, vitalKarte, vitalTurniere } from '@/lib/vitalScrims';
 
 /** Das Turnier bei Noble: "FNCS Solos" der laufenden Saison. */
 const TURNIER_NAME = /^FNCS Solos$/i;
@@ -242,6 +243,60 @@ export async function fensterFuer(turnierId: string, region: string, windowId: s
   return { turnier: uebersicht.tournamentData?.tournamentName ?? '', fenster: fensterAus(w, d, spielerVon) };
 }
 
+/** Das saubere Kartenbild, das Noble zu dieser Zeit fuehrt - das Fenster eines europaeischen Turniers, das dem Datum am naechsten liegt (hoechstens 25 Tage entfernt). */
+async function nobleKartenbildNahe(datum: number): Promise<string | null> {
+  try {
+    const turniere = await jungeTurniere(14);
+    const kandidaten: Array<{ abstand: number; t: string; w: string }> = [];
+    await Promise.all(turniere.map(async (t) => {
+      try {
+        const d = await detail(t.id, 'EU');
+        for (const w of d.tournamentData?.windows ?? []) {
+          const s = w.startDate ? Date.parse(w.startDate) : NaN;
+          if (Number.isFinite(s)) kandidaten.push({ abstand: Math.abs(s - datum), t: t.id, w: w.windowId });
+        }
+      } catch { /* dieses Turnier ueberspringen */ }
+    }));
+    kandidaten.sort((a, b) => a.abstand - b.abstand);
+    const nah = kandidaten[0];
+    if (!nah || nah.abstand > 25 * 86_400_000) return null;
+    const d = await detail(nah.t, 'EU', nah.w);
+    return saubereKarte(d.windowData?.map?.withoutPOINames);
+  } catch { return null; }
+}
+
+/**
+ * Das Fenster einer Region, die Noble nicht fuehrt (NA Central, NA West, Middle East, Ozeanien): die Landepunkte von Vital Scrims (lib/vitalScrims), die Spieler
+ * mit Land und Foto wie bei Noble. Das Kartenbild ist das saubere von Noble zur selben Zeit - Vitals eigenes traegt ein Wasserzeichen.
+ */
+export async function vitalFenster(o: { windowId: string; name: string; region: string; begin: number; ende?: number | null; vitalId?: string }): Promise<{ turnier: string; fenster: SolosFenster } | null> {
+  const liste = await vitalTurniere();
+  const v = o.vitalId ? (liste.find((t) => t.id === o.vitalId) ?? null) : await vitalFuer(o.region, o.begin, o.ende);
+  if (!v) return null;
+  const karte = await vitalKarte(v.id, v.ende < Date.now());
+  if (!karte) return null;
+  const spielerVon = await spielerKontext();
+  const sp = (s: { id: string; name: string }) => spielerVon(s.id, s.name);
+  const { formen } = vitalFormen(karte, (id, roh) => sp({ id, name: roh }).anzeige);
+  const spieler: SolosSpieler[] = [];
+  const bekannt = new Set<string>();
+  const teams: SolosTeam[] = [];
+  for (const t of karte.teams) {
+    const m = t.spieler.map(sp);
+    for (const s of m) if (!bekannt.has(s.id)) { bekannt.add(s.id); spieler.push(s); }
+    teams.push({ id: t.id, spieler: m, rang: null, punkte: null, siege: null });
+  }
+  return {
+    turnier: v.name,
+    fenster: {
+      windowId: o.windowId, name: o.name, art: artVon(o.name),
+      start: new Date(v.start).toISOString(), end: new Date(v.ende).toISOString(),
+      spieler, teams, bild: await nobleKartenbildNahe(o.begin),
+      formen: formen.map((fo) => ({ punkte: fo.punkte, spieler: fo.teams.flatMap((t) => t.namen), teams: fo.teams.length, gruppen: fo.teams.map((t) => t.namen) })),
+    },
+  };
+}
+
 /** Wer im Finale steht und wie er dorthin kam: ueber einen Heat, ueber ein Qualifier-Fenster (Fast Tracks, Last Chance) oder sonst. */
 async function herkunftAus(fenster: SolosFenster[], region: string): Promise<SolosGruppe[]> {
   /* ------------------------------------------------------ Wer kam woher */
@@ -367,6 +422,20 @@ async function globalsSolosEpic(region: string): Promise<SolosDaten | null> {
       spieler, teams, formen: [],
     };
   }));
+
+  // Landepunkte: Noble fuehrt nur Europa - die anderen Regionen kommen von Vital Scrims.
+  if (istVitalRegion(region)) {
+    await Promise.all(fenster.map(async (f, i) => {
+      try {
+        const v = await vitalFenster({ windowId: f.windowId, name: f.name, region, begin: fenster0[i].begin, ende: fenster0[i].end });
+        if (!v) return;
+        f.formen = v.fenster.formen;
+        f.bild = v.fenster.bild;
+        // Ein Fenster, das Epic noch nicht fuehrt (der Heat laeuft noch nicht), zeigt trotzdem die Spieler, die Vital schon eingeteilt hat.
+        if (!f.spieler.length) { f.spieler = v.fenster.spieler; f.teams = v.fenster.teams; }
+      } catch { /* ohne Vital bleibt das Fenster ohne Landepunkte */ }
+    }));
+  }
 
   const qualifiziert = await herkunftAus(fenster, region);
   return {

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
-import { fensterFuer } from '@/lib/globalsSolos';
+import { fensterFuer, vitalFenster } from '@/lib/globalsSolos';
+import { istVitalRegion } from '@/lib/vitalScrims';
 import { mapsVerzeichnis } from '@/lib/mapsVerzeichnis';
 import { ALT, alteFenster, inselFuer, mitHandEbene } from '@/lib/alteMaps';
 import { fncsPlatzierungen } from '@/lib/fncsEreignisse';
@@ -28,7 +29,11 @@ export async function GET(request: Request) {
       const platzierungen = await fncsPlatzierungen(e).catch(() => []);
       return NextResponse.json({ ok: true, ...await alteFenster(e, p.get('tag') ?? 'gesamt'), platzierungen }, { headers: { 'Cache-Control': 'no-store' } });
     }
-    const f = await fensterFuer(t, r, w);
+    // NA Central, NA West, Middle East und Ozeanien: die Landepunkte kommen von Vital Scrims, nicht von Noble.
+    const vitalEintrag = istVitalRegion(r) ? (await mapsVerzeichnis()).find((x) => x.turnierId === t && x.windowId === w && x.region === r) : undefined;
+    const f = vitalEintrag
+      ? await vitalFenster({ windowId: vitalEintrag.windowId, name: vitalEintrag.fenster || vitalEintrag.titel, region: r, begin: vitalEintrag.datum ?? 0, ende: vitalEintrag.ende, vitalId: vitalEintrag.vitalId })
+      : await fensterFuer(t, r, w);
     if (!f) return NextResponse.json({ ok: false, error: 'Dieses Fenster gibt es nicht.' }, { status: 404, headers: { 'Cache-Control': 'no-store' } });
     // Ein Finale an zwei Tagen (Epics Archiv): die Seite zeigt Day 1 / Day 2 / Combined.
     const e = (await mapsVerzeichnis()).find((x) => x.turnierId === t && x.windowId === w);
