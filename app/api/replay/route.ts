@@ -55,10 +55,12 @@ export async function GET(request: Request) {
       const t = liste.find((x) => x.windowId === tag);
       if (!t) return NextResponse.json({ error: 'Zu diesem Spieltag gibt es keine ausgewerteten Replays.' }, { status: 404 });
       // Die anderen Tage desselben Cups, in der Reihenfolge ihres Beginns (Day 1, Day 2 ...) - fuer die Leiste oben.
-      const geschwister = liste.filter((x) => x.eventId === t.eventId && x.region === t.region)
-        .sort((a, b) => String(a.matches[0]?.beginn ?? '').localeCompare(String(b.matches[0]?.beginn ?? '')))
-        .map((x) => ({ windowId: x.windowId, matches: x.matches.length }));
-      return zwischenspeichern(NextResponse.json({ tag: t, geschwister }, { headers: { 'Cache-Control': 'no-store' } }), 120);
+      const tage = liste.filter((x) => x.eventId === t.eventId && x.region === t.region)
+        .sort((a, b) => String(a.matches[0]?.beginn ?? '').localeCompare(String(b.matches[0]?.beginn ?? '')));
+      const geschwister = tage.map((x) => ({ windowId: x.windowId, matches: x.matches.length }));
+      // Die Tage mit ihren Games (Kennung, Nummer, Beginn) - fuer die Zonen-Uebersicht des Cups.
+      const zonenTage = tage.map((x) => ({ windowId: x.windowId, titel: x.titel, matches: x.matches.map((m) => ({ id: m.id, nr: m.nr, beginn: m.beginn })) }));
+      return zwischenspeichern(NextResponse.json({ tag: t, geschwister, zonenTage }, { headers: { 'Cache-Control': 'no-store' } }), 120);
     }
 
     if (p.get('uebersicht')) {

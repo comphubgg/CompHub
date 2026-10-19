@@ -94,6 +94,23 @@ export default function ReplaySeite() {
   const [tagMatches, setTagMatches] = useState<Record<string, Match>>({});
   const [phase, setPhase] = useState<number>(20000);
   const [mitKnocks, setMitKnocks] = useState(true);
+  /** Die Cups, deren Zonen-Uebersicht VIPs sehen duerfen (Betreiber, 19.10.2026: "jeweils freischalten fuer die VIPs"). */
+  const [frei, setFrei] = useState<string[]>([]);
+  const [freiMeldung, setFreiMeldung] = useState('');
+
+  const freigabeSetzen = async (eventId: string, an: boolean) => {
+    setFreiMeldung('');
+    try {
+      const r = await fetch('/api/replay-zonen-frei', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ eventId, frei: an }) });
+      const j = await r.json().catch(() => null);
+      if (!r.ok || !Array.isArray(j?.frei)) { setFreiMeldung(j?.error ?? t('Keine Verbindung zum Server.')); return; }
+      setFrei(j.frei);
+    } catch { setFreiMeldung(t('Keine Verbindung zum Server.')); }
+  };
+
+  useEffect(() => {
+    fetch('/api/replay-zonen-frei').then((r) => r.json()).then((j) => { if (Array.isArray(j?.frei)) setFrei(j.frei); }).catch(() => {});
+  }, []);
 
   useEffect(() => {
     fetch('/api/auth/check-admin').then((r) => r.json()).then((j) => setErlaubt(j?.isAdmin === true)).catch(() => setErlaubt(false));
@@ -222,6 +239,18 @@ export default function ReplaySeite() {
 
             <section className="min-w-0 space-y-5">
               {/* ---- Zonen eines ganzen Tages ---- */}
+              {tag?.eventId && !matchWahl && turnierTage.length > 0 && (
+                <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-zinc-800 bg-zinc-900/40 px-4 py-3">
+                  <label className="flex cursor-pointer items-center gap-3 text-sm font-semibold text-slate-200">
+                    <input type="checkbox" checked={frei.includes(tag.eventId)} onChange={(e) => void freigabeSetzen(tag.eventId!, e.target.checked)} className="h-4 w-4 accent-sky-500" />
+                    <T>Zonen-Übersicht dieses Cups für VIPs freigeben</T>
+                  </label>
+                  <span className={`rounded-full px-2.5 py-0.5 text-xs font-bold ${frei.includes(tag.eventId) ? 'bg-emerald-500/15 text-emerald-300' : 'bg-zinc-800 text-slate-400'}`}>
+                    {frei.includes(tag.eventId) ? <T>Für VIPs sichtbar</T> : <T>Nur für dich sichtbar</T>}
+                  </span>
+                  {freiMeldung && <span className="text-xs font-semibold text-rose-300">{freiMeldung}</span>}
+                </div>
+              )}
               {tag && !matchWahl && turnierTage.length > 0 && <ZonenBild key={turnierTage.map((x) => x.windowId).join('|')} tage={turnierTage} />}
               {tag && !matchWahl && (
                 <>

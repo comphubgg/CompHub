@@ -10,17 +10,23 @@ import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import T from '@/app/components/T';
 import LadeSchirm from '@/app/components/LadeSchirm';
+import ZonenBild from '@/app/admin/replay/ZonenBild';
+import { useZugang } from '@/app/lib/zugang';
 import { replayDatum, replayUhrzeit, tagName, ohneMarke, schoenerTitel } from '@/lib/replayNamen';
 
 interface Game { id: string; nr: number; beginn?: string; ende?: number; sieger?: string[]; spieler?: number; zonen?: number }
 interface Tag { windowId: string; eventId: string; titel: string; region: string; season: string; matches: Game[] }
 interface Geschwister { windowId: string; matches: number }
+interface ZonenTag { windowId: string; titel: string; matches: Array<{ id: string; nr: number; beginn?: string }> }
 
 export default function SpieltagSeite() {
   const params = useParams<{ tag: string }>();
   const tagId = decodeURIComponent(String(params?.tag ?? ''));
+  const zugang = useZugang();
   const [tag, setTag] = useState<Tag | null>(null);
   const [geschwister, setGeschwister] = useState<Geschwister[]>([]);
+  const [zonenTage, setZonenTage] = useState<ZonenTag[]>([]);
+  const [zonenFrei, setZonenFrei] = useState<string[]>([]);
   const [fehler, setFehler] = useState('');
 
   useEffect(() => {
@@ -28,10 +34,20 @@ export default function SpieltagSeite() {
     let weg = false;
     setTag(null); setFehler('');
     fetch(`/api/replay?tag=${encodeURIComponent(tagId)}`).then(async (r) => ({ ok: r.ok, j: await r.json().catch(() => null) }))
-      .then(({ ok, j }) => { if (weg) return; if (ok && j?.tag) { setTag(j.tag); setGeschwister(j.geschwister ?? []); } else setFehler(j?.error ?? 'Die Replays ließen sich gerade nicht laden.'); })
+      .then(({ ok, j }) => { if (weg) return; if (ok && j?.tag) { setTag(j.tag); setGeschwister(j.geschwister ?? []); setZonenTage(j.zonenTage ?? []); } else setFehler(j?.error ?? 'Die Replays ließen sich gerade nicht laden.'); })
       .catch(() => { if (!weg) setFehler('Die Replays ließen sich gerade nicht laden.'); });
     return () => { weg = true; };
   }, [tagId]);
+
+  // Welche Cups der Admin fuer VIPs freigegeben hat - nur fragen, wer es sehen koennte.
+  useEffect(() => {
+    if (!zugang.vip) return undefined;
+    let weg = false;
+    fetch('/api/replay-zonen-frei').then((r) => r.json()).then((j) => { if (!weg && Array.isArray(j?.frei)) setZonenFrei(j.frei); }).catch(() => {});
+    return () => { weg = true; };
+  }, [zugang.vip]);
+
+  const zonenSichtbar = Boolean(tag && zonenTage.length && zugang.vip && (zugang.admin || zonenFrei.includes(tag.eventId)));
 
   const chip = (an: boolean) => `rounded-lg px-4 py-2 text-xs font-bold uppercase tracking-[0.12em] transition ${an ? 'bg-sky-500 text-white shadow' : 'text-slate-400 hover:text-slate-100'}`;
 
@@ -58,6 +74,13 @@ export default function SpieltagSeite() {
                 {geschwister.map((g, i) => (
                   <Link key={g.windowId} href={`/replays/${encodeURIComponent(g.windowId)}`} className={chip(g.windowId === tag.windowId)}>{tagName(g.windowId, i)}</Link>
                 ))}
+              </div>
+            )}
+
+            {zonenSichtbar && (
+              <div className="mt-6">
+                <ZonenBild key={zonenTage.map((x) => x.windowId).join('|')} tage={zonenTage} />
+                <p className="mt-2 text-[11px] text-slate-500"><T>Die Zonen aller Games dieses Cups als Bild - für VIPs freigegeben.</T></p>
               </div>
             )}
 
