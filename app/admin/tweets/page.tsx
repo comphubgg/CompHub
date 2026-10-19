@@ -8,7 +8,14 @@
 // geschaetzt und nichts ergaenzt.
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { rundenBeschriftung } from '@/lib/overlayCups';
 import { MARKE } from '@/lib/marke';
+
+/*
+ * Kurzbefehl-Feld und "Uebernehmen & eigene Bilder" sind aus dem Werkzeug genommen (Betreiber, 19.10.2026: "das ist alles viel zu kompliziert, die Kurzbefehle und
+ * den Import brauche ich nicht"). Der Code bleibt; mit true kommen beide zurueck.
+ */
+const KURZBEFEHL_UND_IMPORT_SICHTBAR = false;
 import { kernname, namensSchluessel } from '@/lib/homoglyph';
 
 import T from '@/app/components/T';
@@ -889,6 +896,8 @@ export default function TweetSeite() {
   const [anzahlRoh, setAnzahlRoh] = useState('7');
   /** Auch die aelteren Spieltage zeigen, nicht nur die letzten zwoelf. */
   const [alleSpieltage, setAlleSpieltage] = useState(false);
+  /** Die Region, fuer die der Beitrag gemacht wird (Betreiber, 19.10.2026: statt "Matchday" die Region waehlen). */
+  const [regionWahl, setRegionWahl] = useState('');
   /** Filter fuer die Cup-Liste - sie wird schnell zwanzig Zeilen lang. */
   const [cupSuche, setCupSuche] = useState('');
 
@@ -1429,8 +1438,10 @@ export default function TweetSeite() {
     // Die laufenden zuerst. Einen eigenen Filter dafuer gibt es nicht
     // mehr: sie stehen oben und tragen einen roten Punkt, und damit ist die
     // Frage "laeuft das gerade?" beantwortet, ohne einen Knopf dafuer.
-    const live = cups.filter(laeuft);
-    const vorbei = cups.filter(gelaufen)
+    // Ranked Cups gehoeren nicht in einen Beitrag (Betreiber, 19.10.2026).
+    const brauchbar = cups.filter((c) => !/\branked\b/i.test(c.titel));
+    const live = brauchbar.filter(laeuft);
+    const vorbei = brauchbar.filter(gelaufen)
       // Zuletzt gelaufene zuerst - danach sucht man am haeufigsten.
       .sort((a, b) => (b.letzterStart ?? 0) - (a.letzterStart ?? 0));
     return { live, vorbei };
@@ -2326,10 +2337,12 @@ export default function TweetSeite() {
   }, [vorlage, eigeneRegion, eigeneSuche]);
 
   const cupName = cup?.titel ?? '';
-  const tagName = aktuellesFenster
-    ? (aktuellesFenster.istFinale ? 'Finale' : new Date(aktuellesFenster.begin)
-        .toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' }))
-    : '';
+  /*
+   * Kein Datum im Beitrag und nach Moeglichkeit keine Gedankenstriche (Betreiber, 19.10.2026: "kein AI-Strich", "das Datum braucht es nicht").
+   * Nur das Finale bleibt als Wort stehen; die Spielzahl ("after 6 games") nennt nur das Grand Final.
+   */
+  const tagName = aktuellesFenster?.istFinale ? 'Finals' : '';
+  const grandFinal = Boolean(aktuellesFenster?.istFinale);
 
   /** Der Vorschlag zur gewaehlten Vorlage - englisch, wie die Beitraege. */
   const vorlagenText = useMemo(() => {
@@ -2357,7 +2370,7 @@ export default function TweetSeite() {
     }
 
     if (!stats) return '';
-    const kopf = `${cupName}${tagName ? ` — ${tagName}` : ''}`;
+    const kopf = `${cupName}${tagName ? ` · ${tagName}` : ''}`;
     const NL = '\n';
     /*
      * Die freie Zusatzzeile ist gegangen.
@@ -2393,7 +2406,7 @@ export default function TweetSeite() {
           : k.wert.toLocaleString('en-US');
         return `${k.liste.symbol} ${spaltenName(k.liste.titel)}: ${wert} (#${k.platz})`;
       });
-      return `${mitFlagge(karteSpieler.name, karteSpieler.id)} — ${kopf}${zusatz}`.trim()
+      return `${mitFlagge(karteSpieler.name, karteSpieler.id)}: ${kopf}${zusatz}`.trim()
         + NL + NL + zeilen.join(NL);
     }
 
@@ -2440,7 +2453,7 @@ export default function TweetSeite() {
 
       const region = aktuellesFenster?.region && aktuellesFenster.region !== 'GLOBAL'
         ? ` (${aktuellesFenster.region})` : '';
-      return `🏆 ${cupName}${region}${tagName ? ` — ${tagName}` : ''}`
+      return `🏆 ${cupName}${region}${tagName ? ` · ${tagName}` : ''}`
         + NL + `${liste.symbol} ${liste.titel}`
         + (mitKlammer ? ` (${zweitTitel})` : '')
         + zusatz + NL + NL + zeilen.join(NL);
@@ -2469,7 +2482,7 @@ export default function TweetSeite() {
         }).filter(Boolean)
         .sort((a, b) => a!.platz - b!.platz)
         .map((x) => x!.text);
-      return `${namen} — ${kopf}${zusatz}`.trim() + NL + NL
+      return `${namen}: ${kopf}${zusatz}`.trim() + NL + NL
         + `Finished #${e.rank} with ${e.points} points` + NL
         + zeilen.join(NL);
     }
@@ -2484,7 +2497,7 @@ export default function TweetSeite() {
           const wert = b.einheit ? `${p.wert} ${b.einheit}` : p.wert.toLocaleString('en-US');
           return `${b.symbol} ${b.titel}: ${namen} (${wert})`.replace(/\s+/g, ' ');
         }).filter(Boolean);
-      return `${kopf} — Stats Recap${zusatz}${NL}${NL}${zeilen.join(NL)}`;
+      return `${kopf}: Stats Recap${zusatz}${NL}${NL}${zeilen.join(NL)}`;
     }
 
     if (vorlage === 'auswahl') {
@@ -2512,7 +2525,7 @@ export default function TweetSeite() {
           .slice(0, auswahl.grenze ?? 10);
 
         if (!roh.length) {
-          return `${auswahl.titel} — ${kopf}${zusatz}${NL}${NL}`
+          return `${auswahl.titel}: ${kopf}${zusatz}${NL}${NL}`
             + 'Zu diesem Spieltag liegen keine Einzelwerte vor.';
         }
 
@@ -2535,7 +2548,7 @@ export default function TweetSeite() {
 
         const region = aktuellesFenster?.region && aktuellesFenster.region !== 'GLOBAL'
           ? ` (${aktuellesFenster.region})` : '';
-        return `🏆 ${cupName}${region}${tagName ? ` — ${tagName}` : ''}`
+        return `🏆 ${cupName}${region}${tagName ? ` · ${tagName}` : ''}`
           + NL + `📊 ${auswahl.titel}`
           + (mitKlammer && auswahl.soloKlammerTitel ? ` (${auswahl.soloKlammerTitel})` : '')
           + zusatz + NL + NL + zeilen.join(NL);
@@ -2553,15 +2566,15 @@ export default function TweetSeite() {
           || (a.rank - b.rank))
         .slice(0, auswahl.grenze ?? Infinity);
       if (!treffer.length) {
-        return `${auswahl.titel} — ${kopf}${zusatz}${NL}${NL}`
+        return `${auswahl.titel}: ${kopf}${zusatz}${NL}${NL}`
           + 'Nobody in this field matches.';
       }
       const zeilen = treffer.map((e) => {
         const namen = e.players.map((p) => mitFlagge(p.name, p.id)).join(' + ');
-        return `#${e.rank} ${namen} — ${auswahl.wert(e, auswahlHilfe)}`
+        return `#${e.rank} ${namen}: ${auswahl.wert(e, auswahlHilfe)}`
           .replace(/\s+/g, ' ');
       });
-      return `${auswahl.titel} (${treffer.length}) — ${kopf}${zusatz}`
+      return `${auswahl.titel} (${treffer.length}): ${kopf}${zusatz}`
         + NL + NL + zeilen.join(NL);
     }
 
@@ -2574,9 +2587,9 @@ export default function TweetSeite() {
     const zeilen = eintraege.slice(0, anzahl).map((e, i) => {
       const namen = e.players.map((p) => mitFlagge(p.name, p.id)).join(' + ');
       const marke = PLATZZEICHEN[i] ?? `${i + 1}.`;
-      return `${marke} ${namen} — ${e.points} pts`.replace(/\s+/g, ' ');
+      return `${marke} ${namen}: ${e.points} pts`.replace(/\s+/g, ' ');
     });
-    return `${kopf} — Standings after ${stats.spiele} games${zusatz}`
+    return `${kopf}: Standings${grandFinal ? ` after ${stats.spiele} games` : ''}${zusatz}`
       + NL + NL + zeilen.join(NL);
   }, [stats, eintraege, vorlage, anzahl, gewaehlteListen, cupName, tagName,
       mitKonto, mitFlagge, spotlight, aktiveListen,
@@ -3208,24 +3221,50 @@ export default function TweetSeite() {
               )}
             </label>
 
+            {/*
+              * Region statt Spieltag.
+              *
+              * Der Betreiber (19.10.2026): "bei Matchday soll Region stehen". Gewaehlt wird die Region; der Spieltag dazu ist der laufende, sonst der
+              * zuletzt gelaufene. Hat die Region mehrere Runden (Finals Tag 1 und 2, Heats), steht darunter eine zweite Auswahl - ohne Datum.
+              */}
             <label className="text-xs text-slate-400">
-              <T>Spieltag</T>
-              <select value={fensterId} onChange={(e) => setFensterId(e.target.value)}
+              <T>Region</T>
+              <select value={aktuellesFenster?.region ?? regionWahl}
+                onChange={(e) => {
+                  const r = e.target.value;
+                  setRegionWahl(r);
+                  const erste = spieltage.liste.find((f) => f.region === r);
+                  setFensterId(erste ? erste.windowId : '');
+                }}
                 disabled={!fenster.length}
                 className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950
                            px-3 py-2 text-sm text-slate-100 outline-none
                            focus:border-sky-500 disabled:opacity-40">
                 <option value="">{t('— auswählen —')}</option>
-                {spieltage.liste.map((f) => (
-                  <option key={f.windowId} value={f.windowId}>
-                    {f.status === 'live' ? '🔴 ' : ''}{f.region}
-                    {' · '}
-                    {new Date(f.begin).toLocaleDateString('de-DE',
-                      { day: '2-digit', month: '2-digit' })}
-                    {f.istFinale ? ' · Finale' : ''}
+                {[...new Set(spieltage.liste.map((f) => f.region))].map((r) => (
+                  <option key={r} value={r}>
+                    {spieltage.liste.some((f) => f.region === r && f.status === 'live') ? '🔴 ' : ''}{r}
                   </option>
                 ))}
               </select>
+              {(() => {
+                const region = aktuellesFenster?.region ?? regionWahl;
+                const runden = spieltage.liste.filter((f) => f.region === region);
+                if (runden.length < 2) return null;
+                const namen = rundenBeschriftung(runden, t);
+                return (
+                  <select value={fensterId} onChange={(e) => setFensterId(e.target.value)}
+                    className="mt-1 w-full rounded-lg border border-zinc-800 bg-zinc-950
+                               px-3 py-2 text-sm text-slate-100 outline-none
+                               focus:border-sky-500">
+                    {runden.map((f) => (
+                      <option key={f.windowId} value={f.windowId}>
+                        {f.status === 'live' ? '🔴 ' : ''}{namen.get(f.windowId) || t('Runde')}
+                      </option>
+                    ))}
+                  </select>
+                );
+              })()}
               {spieltage.mehr > 0 && (
                 <button type="button" onClick={() => setAlleSpieltage(true)}
                   className="mt-1 text-[11px] text-slate-500 underline
@@ -3269,7 +3308,7 @@ export default function TweetSeite() {
         )}
 
         {/* ---------------------------------------- Schritt 3: Kurzbefehl */}
-        {stats && (
+        {KURZBEFEHL_UND_IMPORT_SICHTBAR && stats && (
         <Schritt nr={3} titel={t('Kurzbefehl')}
           hinweis={t('Ein Name, eine Kennzahl oder eine Platzzahl — Enter drückt ab.')}>
           <input value={befehl}
@@ -3742,7 +3781,7 @@ export default function TweetSeite() {
             )}
 
             {/* Fremden Beitrag uebernehmen und eigene Bilder dazulegen. */}
-            <div className="mb-4 rounded-xl border border-zinc-800 bg-zinc-900/40 p-3">
+            <div hidden={!KURZBEFEHL_UND_IMPORT_SICHTBAR} className="mb-4 rounded-xl border border-zinc-800 bg-zinc-900/40 p-3">
               <button type="button"
                 onClick={() => setImportOffen((a) => !a)}
                 className="flex w-full items-center justify-between gap-2 text-left">

@@ -195,6 +195,8 @@ export default function Home() {
   const [twitchSearchQuery, setTwitchSearchQuery] = useState('');
   const [twitchSearchResults, setTwitchSearchResults] = useState<any[]>([]);
   const [liveStatusMap, setLiveStatusMap] = useState<{ [key: string]: boolean }>({});
+  /** Der Titel des laufenden Streams je Kanal (klein) - fuer den Titelfilter in der Seitenleiste. */
+  const [liveTitelMap, setLiveTitelMap] = useState<{ [key: string]: string }>({});
   const liveStatusAbortRef = useRef<AbortController | null>(null);
   const DEFAULT_STREAM_VOLUME = 0.45;
   const [streamVolume, setStreamVolume] = useState<number>(DEFAULT_STREAM_VOLUME);
@@ -610,12 +612,15 @@ const response = await fetch(getApiUrl(`/api/search?q=${encodeURIComponent(twitc
       if (!response.ok) return;
       const liveData = await response.json();
       const newStatusMap: { [key: string]: boolean } = {};
+      const newTitelMap: { [key: string]: string } = {};
 
       usernames.forEach(name => {
         const normalizedName = normalizeLiveStatusUsername(name);
         newStatusMap[normalizedName] = liveData[normalizedName]?.isLive || false;
+        newTitelMap[normalizedName] = liveData[normalizedName]?.isLive ? String(liveData[normalizedName]?.title ?? '') : '';
       });
       setLiveStatusMap(prev => ({ ...prev, ...newStatusMap }));
+      setLiveTitelMap(prev => ({ ...prev, ...newTitelMap }));
     } catch (error) {
       console.error('Failed to load live status:', error);
     }
@@ -1902,6 +1907,7 @@ const response = await fetch(getApiUrl(`/api/search?q=${encodeURIComponent(twitc
         if (id) localStorage.setItem('multihub_last_folder', id); else localStorage.removeItem('multihub_last_folder');
       }}
       live={liveStatusMap}
+      liveTitel={liveTitelMap}
       favoriten={favoriteStreamers}
       favoritUmschalten={toggleFavorite}
       namen={namenKarte}

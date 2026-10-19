@@ -2,7 +2,8 @@ import { t } from "@/app/lib/i18n";
 import { detectTwitchLiveStatusFromHtml } from "@/app/lib/liveStatus";
 import { twitchToken, erneuereTwitchToken, twitchEingerichtet } from "@/lib/twitchToken";
 
-type Status = { isLive: boolean; viewers: number };
+/** title: der Titel des laufenden Streams - fuer den Titelfilter der Streams-Seite (Betreiber, 19.10.2026: nach "LCQ" und Co. filtern). */
+type Status = { isLive: boolean; viewers: number; title?: string };
 
 // Kurzes Gedaechtnis, damit dieselbe Frage nicht mehrfach hintereinander
 // bei Twitch landet. Ein Stream wechselt nicht sekuendlich den Zustand.
@@ -67,7 +68,7 @@ export async function POST(req: Request) {
       return Response.json(await ueberSeite(usernames));
     }
 
-    const result: { [key: string]: { isLive: boolean; viewers: number } } = {};
+    const result: { [key: string]: Status } = {};
 
     // Twitch API limits to 100 per request
     const chunks = [];
@@ -112,18 +113,18 @@ export async function POST(req: Request) {
         }
 
         const data = await response.json();
-        const liveUsers = new Map<string, number>();
+        const liveUsers = new Map<string, { viewers: number; title: string }>();
 
         // Map live users to viewer count
         (data.data || []).forEach((stream: any) => {
-          liveUsers.set(stream.user_login.toLowerCase(), stream.viewer_count || 0);
+          liveUsers.set(stream.user_login.toLowerCase(), { viewers: stream.viewer_count || 0, title: String(stream.title ?? '') });
         });
 
         // Set results
         chunk.forEach((name: string) => {
-          const viewers = liveUsers.get(name.toLowerCase());
-          if (viewers !== undefined) {
-            result[name.toLowerCase()] = { isLive: true, viewers };
+          const treffer = liveUsers.get(name.toLowerCase());
+          if (treffer !== undefined) {
+            result[name.toLowerCase()] = { isLive: true, viewers: treffer.viewers, title: treffer.title };
           } else {
             result[name.toLowerCase()] = { isLive: false, viewers: 0 };
           }

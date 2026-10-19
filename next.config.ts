@@ -31,6 +31,16 @@ const nextConfig: NextConfig = {
   // forbidden() und unauthorized() (403/401) mit eigenen Fehlerseiten: app/forbidden.tsx, app/unauthorized.tsx.
   experimental: { authInterrupts: true },
   /*
+   * sharp nicht mit eigenem Alias einbinden.
+   *
+   * Turbopack nimmt sharp (ein Paket mit Programmteil) von sich aus aus dem Bau heraus und verweist im Server auf einen Alias mit Pruefsumme
+   * ("sharp-20c6a5da84e2135f"), den es als Verknuepfung unter .next/node_modules anlegt. Auf dem oeffentlichen Server (laeuft unter dem
+   * Systemkonto) fand Node diesen Alias nicht: jede Schnittstelle, die sharp braucht, antwortete mit 500 "Internal Server Error" - die Posts des Tages
+   * (/api/posts, /api/post-bild), die Beitragsbilder und die Org-Logos (Betreiber, 19.10.2026). Steht das Paket hier, wird es unter seinem Namen
+   * aus node_modules geladen.
+   */
+  serverExternalPackages: ['sharp'],
+  /*
    * Ein eigenstaendiger Server fuer einen eigenen Host (Dockerfile.web).
    *
    * Am 27.9.2026 hat Vercel die Seite wegen aufgebrauchter Rechenzeit

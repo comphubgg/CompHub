@@ -38,6 +38,8 @@ interface Props {
   waehleOrdner: (id: string) => void;
   /** Twitch-Name (klein) -> sendet gerade. */
   live: Record<string, boolean>;
+  /** Twitch-Name (klein) -> Titel des laufenden Streams. */
+  liveTitel?: Record<string, string>;
   favoriten: string[];
   favoritUmschalten: (twitch: string) => void;
   /** Kanal -> Anzeigename (nur was umbenannt wurde). */
@@ -134,6 +136,11 @@ export default function Einzelansicht(p: Props) {
   const [neuFehler, setNeuFehler] = useState(false);
   const [umbenennen, setUmbenennen] = useState<{ id: string; name: string } | null>(null);
   const [suche, setSuche] = useState('');
+  /*
+   * Nach dem Titel des Streams filtern (Betreiber, 19.10.2026: "wenn bei einem Streamer LCQ im Titel steht, spielt er den laufenden Cup").
+   * Ein Stichwort in der Liste - die Knoepfe darunter setzen die ueblichen. Nur wer gerade sendet und dieses Wort im Titel hat, bleibt.
+   */
+  const [titelFilter, setTitelFilter] = useState('');
   /** Der Streamer, dessen Name gerade geaendert wird. */
   const [streamerName, setStreamerName] = useState<{ twitch: string; name: string } | null>(null);
   const anzeige = (k: string) => p.namen[k] || k;
@@ -392,9 +399,23 @@ export default function Einzelansicht(p: Props) {
             <input value={suche} onChange={(e) => setSuche(e.target.value)} spellCheck={false}
               placeholder={t('Streamer suchen …')}
               className="mv-fl mb-2 w-full rounded-md border px-2 py-1 text-[11px] outline-none focus:border-sky-500" />
+            <div className="mb-2">
+              <input value={titelFilter} onChange={(e) => setTitelFilter(e.target.value)} spellCheck={false}
+                placeholder={t('Im Stream-Titel suchen …')}
+                className="mv-fl w-full rounded-md border px-2 py-1 text-[11px] outline-none focus:border-sky-500" />
+              <div className="mt-1 flex flex-wrap gap-1">
+                {['LCQ', 'Heat', 'Fast Track', 'FNCS', 'Cash', 'Division', 'Finals'].map((w) => (
+                  <button key={w} type="button" onClick={() => setTitelFilter((a) => (a.trim().toLowerCase() === w.toLowerCase() ? '' : w))}
+                    className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold transition ${titelFilter.trim().toLowerCase() === w.toLowerCase() ? 'border-sky-500 bg-sky-500/15 text-sky-400' : 'mv-mute mv-hover'}`}>
+                    {w}
+                  </button>
+                ))}
+              </div>
+            </div>
             {(() => {
               const liste = [...gewaehlterOrdner.streamers]
                 .filter((x) => !q || x.twitch.toLowerCase().includes(q) || anzeige(x.twitch).toLowerCase().includes(q))
+                .filter((x) => !titelFilter.trim() || (sendet(x.twitch) && (p.liveTitel?.[x.twitch.toLowerCase()] ?? '').toLowerCase().includes(titelFilter.trim().toLowerCase())))
                 // Angeheftete stehen immer oben, danach die, die gerade senden.
                 .sort((x, y) => Number(p.favoriten.includes(y.twitch)) - Number(p.favoriten.includes(x.twitch))
                   || Number(sendet(y.twitch)) - Number(sendet(x.twitch)));

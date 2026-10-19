@@ -2344,9 +2344,23 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
       .catch(() => { /* ohne Auskunft bleibt die Liste leer */ });
     return () => { weg = true; };
   }, [meineId]);
-  const gefiltert = useMemo(() => (nurFreunde
-    ? gefiltertSuche.filter((e) => istMein(e) || e.players.some((p) => freundeIds.has(String(p.id ?? '').replace(/-/g, '').toLowerCase())))
-    : gefiltertSuche), [nurFreunde, gefiltertSuche, freundeIds, istMein]);
+  /*
+   * Freunde: nur die Freunde, dazu der Spieler selbst - und jedes Team einmal.
+   *
+   * Ohne freigegebene Freunde blieb sonst nur der eigene Eintrag stehen ("das Friends Leaderboard zeigt nur mich, mehrfach"; Betreiber, 19.10.2026): eine Liste,
+   * die aussieht, als wuerden Freunde fehlen. Jetzt bleibt sie leer, und der Hinweis darunter sagt, dass noch keine Freunde freigegeben sind.
+   */
+  const gefiltert = useMemo(() => {
+    if (!nurFreunde) return gefiltertSuche;
+    if (freundeIds.size === 0) return [];
+    const gesehen = new Set<number>();
+    return gefiltertSuche.filter((e) => {
+      if (gesehen.has(e.rank)) return false;
+      const ok = istMein(e) || e.players.some((p) => freundeIds.has(String(p.id ?? '').replace(/-/g, '').toLowerCase()));
+      if (ok) gesehen.add(e.rank);
+      return ok;
+    });
+  }, [nurFreunde, gefiltertSuche, freundeIds, istMein]);
 
   /*
    * Ranked Cups: welche Stufe - wie im Spiel, wo dieselbe Liste ein Menue

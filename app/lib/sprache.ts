@@ -3389,6 +3389,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Die Endspiele ließen sich gerade nicht laden. Bitte gleich noch einmal versuchen.': 'The finals could not be loaded right now. Please try again in a moment.',
   'Noch keine Endspiele.': 'No finals yet.',
   'Platzierungen werden nachgetragen.': 'Placements will be added.',
+  'Im Stream-Titel suchen …': 'Search the stream title …',
   'gerade vorbei': 'just ended',
   'Folge CompHub auf X': 'Follow CompHub on X',
   'Cup-Ergebnisse, Power Rankings und Neuigkeiten von CompHub.': 'Cup results, power rankings and news from CompHub.',
