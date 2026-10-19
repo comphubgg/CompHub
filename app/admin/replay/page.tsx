@@ -89,6 +89,12 @@ export default function ReplaySeite() {
   const [tage, setTage] = useState<Tag[] | null>(null);
   const [fehler, setFehler] = useState('');
   const [tagWahl, setTagWahl] = useState<string | null>(null);
+  /*
+   * Nur die wichtigen Cups, mit Suche (Betreiber, 19.10.2026: "Zonen und Auswertungen nur fuer die wichtigen Cups - Division, Performance, Finals, FNCS -, mit einer Suche,
+   * nicht fuer den Reload Duo Cash Cup"). Der Schalter hebt die Auswahl auf.
+   */
+  const [nurWichtige, setNurWichtige] = useState(true);
+  const [cupSuche, setCupSuche] = useState('');
   const [matchWahl, setMatchWahl] = useState<string | null>(null);
   const [match, setMatch] = useState<Match | null>(null);
   const [tagMatches, setTagMatches] = useState<Record<string, Match>>({});
@@ -122,6 +128,13 @@ export default function ReplaySeite() {
     }).catch(() => { setFehler(t('Keine Verbindung zum Server.')); setTage([]); });
   }, [t]);
 
+  const sichtbareTage = useMemo(() => {
+    const q = cupSuche.trim().toLowerCase();
+    return (tage ?? []).filter((x) => {
+      if (nurWichtige && !(/fncs|division|performance|grand|global|championship/i.test(x.titel) || (/finals?/i.test(x.titel) && !/reload|cash|ranked|victory/i.test(x.titel)))) return false;
+      return !q || `${x.titel} ${x.region}`.toLowerCase().includes(q);
+    });
+  }, [tage, nurWichtige, cupSuche]);
   const tag = tage?.find((x) => x.windowId === tagWahl) ?? null;
   // Alle Tage desselben Turniers, der Reihe nach - fuer das Zonen-Bild.
   const turnierTage = useMemo(() => (tag && tage
@@ -212,7 +225,17 @@ export default function ReplaySeite() {
           <div className="grid gap-6 lg:grid-cols-[18rem_1fr]">
             {/* Die Spieltage, darunter die Games des gewaehlten. */}
             <aside className="space-y-2">
-              {tage.map((x) => (
+              <input value={cupSuche} onChange={(e) => setCupSuche(e.target.value)} spellCheck={false}
+                placeholder={t('Cup suchen …')}
+                className="w-full rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-600 focus:border-sky-500" />
+              <label className="flex cursor-pointer items-center gap-2 px-1 text-xs text-slate-400">
+                <input type="checkbox" checked={nurWichtige} onChange={(e) => setNurWichtige(e.target.checked)} className="accent-sky-500" />
+                <T>nur Division, Performance, Finals und FNCS</T>
+              </label>
+              {sichtbareTage.length === 0 && (
+                <p className="rounded-xl border border-zinc-800 bg-zinc-900/40 px-4 py-6 text-center text-xs text-slate-500"><T>Nichts gefunden.</T></p>
+              )}
+              {sichtbareTage.map((x) => (
                 <div key={x.windowId} className={`rounded-xl border ${x.windowId === tagWahl ? 'border-sky-500/70 bg-sky-500/10' : 'border-zinc-800 bg-zinc-900/40'}`}>
                   <button onClick={() => { setTagWahl(x.windowId); setMatchWahl(null); }} className="w-full px-4 py-3 text-left">
                     <span className="block text-sm font-bold text-slate-100">{x.titel}</span>

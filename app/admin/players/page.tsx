@@ -4,7 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import T from '@/app/components/T';
 import SeitenKopf from '@/app/components/SeitenKopf';
-import { useT } from '@/app/components/SprachProvider';
+import { useT, useSprache } from '@/app/components/SprachProvider';
 import { namensSchluessel } from '@/lib/homoglyph';
 
 // Das Player Center.
@@ -95,6 +95,15 @@ function mitAenderung(s: Spieler, a: Aenderung): Spieler {
   };
 }
 
+/*
+ * Die Laender, fuer die ein Flaggenbild im Ordner liegt (public/flags). Die Auswahl in der Zeile zeigt Kuerzel und Landesnamen - tippen muss man nichts
+ * (Betreiber, 19.10.2026: der Flaggen-Picker braucht Hilfe).
+ */
+const FLAGGEN_CODES = 'ae al ar at au ba be bg bh br by ca ch cn co cz de dk ee eg es fi fr gb gr hr hu ie il in ir is it jp kr kw lb lt lv mc md mk mx ng nl no nz om pe pl pt ro rs ru sa se si sk sy tr ua us ve ye'.split(' ');
+const landName = (code: string, sprache: string) => {
+  try { return new Intl.DisplayNames([sprache === 'en' ? 'en' : 'de'], { type: 'region' }).of(code.toUpperCase()) ?? code; } catch { return code; }
+};
+
 /** Das Flaggenbild aus dem eigenen Ordner - Windows hat keine Flaggenschrift. */
 function Flagge({ land }: { land: string }) {
   if (!land || !/^[A-Za-z]{2}$/.test(land)) {
@@ -108,6 +117,7 @@ function Flagge({ land }: { land: string }) {
 
 export default function PlayerCenter() {
   const t = useT();
+  const { sprache } = useSprache();
   const [istAdmin, setIstAdmin] = useState<boolean | null>(null);
   const [region, setRegion] = useState('EU');
   const [alle, setAlle] = useState<Spieler[]>([]);
@@ -492,14 +502,17 @@ export default function PlayerCenter() {
 
                         <td className="px-3 py-1.5 text-center">
                           {auf ? (
-                            <input value={eLand}
-                              onChange={(e) => setELand(e.target.value.toUpperCase())}
-                              onKeyDown={(e) => { if (e.key === 'Enter') void speichern(s); }}
-                              maxLength={2} placeholder="DE" spellCheck={false}
-                              className="w-12 rounded border border-zinc-700
-                                         bg-zinc-950 px-1 py-0.5 text-center
-                                         text-xs uppercase text-slate-100
-                                         outline-none focus:border-sky-500" />
+                            <span className="inline-flex items-center gap-1.5">
+                              {eLand && FLAGGEN_CODES.includes(eLand.toLowerCase()) && <Flagge land={eLand} />}
+                              <select value={FLAGGEN_CODES.includes(eLand.toLowerCase()) ? eLand.toUpperCase() : ''}
+                                onChange={(e) => setELand(e.target.value.toUpperCase())}
+                                className="max-w-[9.5rem] rounded border border-zinc-700 bg-zinc-950 px-1 py-0.5 text-xs text-slate-100 outline-none focus:border-sky-500">
+                                <option value="">{t('— kein Land —')}</option>
+                                {FLAGGEN_CODES.map((c) => (
+                                  <option key={c} value={c.toUpperCase()}>{c.toUpperCase()} · {landName(c, sprache)}</option>
+                                ))}
+                              </select>
+                            </span>
                           ) : (
                             <span title={s.landQuelle === 'quelle'
                               ? t('aus der Szene-Quelle — noch nicht bestätigt')

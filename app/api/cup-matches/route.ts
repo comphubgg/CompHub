@@ -96,8 +96,14 @@ function merkeStand(runde: string, jetzt: number): number {
 /** Wann zu diesem Spieltag zuletzt eine laufende Runde gesehen wurde. */
 const zuletztLive = new Map<string, number>();
 
-/** Solange nach der letzten Ausscheidung gilt eine Lobby als laufend. */
-const LIVE_FENSTER = 20 * 60_000;
+/*
+ * Solange nach der letzten Ausscheidung gilt eine Lobby als laufend.
+ *
+ * Bis 19.10.2026 zwanzig Minuten - und ein Match dauert selbst nur rund zwanzig: eine Runde stand noch vierzig Minuten nach ihrem Beginn auf "laeuft",
+ * lange nachdem das Finale gespielt war (Betreiber: "bei Matches steht 40 Minuten live"). In einer laufenden Lobby scheidet alle paar Sekunden ein Team aus,
+ * auch wenn wir nur einen Ausschnitt der Liste sehen, liegen selten mehr als drei, vier Minuten dazwischen. Acht Minuten lassen reichlich Spielraum.
+ */
+const LIVE_FENSTER = 8 * 60_000;
 
 interface Zeile {
   platz: number | null;

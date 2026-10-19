@@ -1322,6 +1322,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
      */
     // Hat der Admin das Angebot fuer diesen Spieltag weggenommen, bleibt es weg.
     if (ohneKarte.includes(fenster.windowId)) return kartenHier;
+    // Der Bereich erscheint nur, wo es eine Karte mit Formen gibt (Betreiber, 19.10.2026); die bereitliegende leere Karte zum Anlegen sieht nur der Admin.
+    if (!istAdmin) return kartenHier;
     // Ohne Bestenliste gibt es keine Teams zum Verteilen - eine Karte waere
     // ein leeres Versprechen.
     if (fenster.eventId.startsWith('manuell_')) return kartenHier;
@@ -1340,7 +1342,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
       href: `/maps?event=${encodeURIComponent(fenster.eventId)}`
         + `&window=${encodeURIComponent(fenster.windowId)}`,
     }];
-  }, [kartenHier, fenster, tage, fensterNamen, cup, ohneKarte, t]);
+  }, [kartenHier, fenster, tage, fensterNamen, cup, ohneKarte, t, istAdmin]);
 
   /**
    * Lohnt sich die Statistik zu diesem Spieltag?
@@ -3031,7 +3033,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
               <span className="ml-1.5 text-slate-500">{archivAnzahl}</span>
             </button>
           )}
-          {istAdmin && archivAnzahl === 0 && cup?.art !== 'ranked' && (
+          {/* Zum Anlegen nur bei Global- und LAN-Events (Betreiber, 19.10.2026). */}
+          {istAdmin && archivAnzahl === 0 && cup?.art !== 'ranked' && cup?.global && (
             <a href={`/admin/archive?event=${encodeURIComponent(id)}`}
               title={t('Archiv zu diesem Cup anlegen')}
               className="rounded-lg px-3 py-1.5 text-xs font-medium text-slate-600

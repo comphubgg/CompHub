@@ -1313,12 +1313,19 @@ export async function cupsGruppiert(regionen: readonly string[] = REGIONEN) {
           ? ausEpic
           : (nameAusFenstern((ev.eventWindows ?? []).map((w) => w.eventWindowId))
             ?? (ausEpic || id));
+        /*
+         * FNCS Solos Reload: Epic nennt dafuer noch weder Bild noch ordentlichen Titel ("FNCSSolo Reload Qualifiers Cup").
+         * Der Betreiber (19.10.2026): das Bild des Reload-EWC-Pokals nehmen, bis ein eigenes da ist, und den Namen mit Leerzeichen schreiben.
+         * Sobald Epic ein Bild liefert, gilt dieses (o?.bild geht vor).
+         */
+        const solosReload = /fncssolos?_?reload/i.test(id) || /FNCSSolos?\s*Reload/i.test(titel);
+        const titelSchoen = solosReload ? titel.replace(/FNCSSolos?/i, 'FNCS Solos') : titel;
         g = {
           id,
-          titel,
+          titel: titelSchoen,
           untertitel: o?.untertitel,
           beschreibung: o?.beschreibung,
-          bild: o?.bild,
+          bild: o?.bild ?? (solosReload ? '/cups/reload-road-to-ewc.webp' : undefined),
           farbe: o?.farbe,
           art: bestimmeArt(id, titel, ev.metadata?.tournamentType as string | undefined),
           // Ein Event, das selbst mehrere Regionen auffuehrt und keine
