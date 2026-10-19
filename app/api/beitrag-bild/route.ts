@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { istKennungName } from '@/lib/kennungName';
 import fs from '@/lib/ablageFs';
 import path from 'path';
 import sharp from 'sharp';
@@ -68,7 +69,7 @@ async function anzeigeNamen(): Promise<Map<string, string>> {
     const roh = JSON.parse(await fs.readFile(
       path.join(DATEN_ORT, 'szene-quelle', 'spielerliste.json'), 'utf8')) as
       Array<{ ID?: string; NAME?: string }>;
-    for (const p of roh) if (p.ID && p.NAME) karte.set(p.ID, p.NAME);
+    for (const p of roh) if (p.ID && p.NAME && !istKennungName(p.NAME, p.ID)) karte.set(p.ID, p.NAME);
   } catch { /* keine Kopie da */ }
 
   try {

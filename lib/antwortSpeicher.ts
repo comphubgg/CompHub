@@ -30,6 +30,7 @@
  */
 
 import { after } from 'next/server';
+import { kennungNamenErsetzen } from '@/lib/kennungName';
 import { liesJson, schreibJson, speicher } from '@/lib/ablage';
 
 /*
@@ -136,7 +137,7 @@ async function liesAblage<T>(name: string, frischMs: number): Promise<Ablage<T> 
   }
   try {
     const zeile = await liesJson<Ablage<T> | null>(name, null);
-    if (zeile && typeof zeile.zeit === 'number') merkeImVorrat(name, { zeile, geholt: jetzt });
+    if (zeile && typeof zeile.zeit === 'number') { kennungNamenErsetzen(zeile.wert); merkeImVorrat(name, { zeile, geholt: jetzt }); }
     return zeile;
   } catch (e) {
     if (da) return da.zeile as Ablage<T>;

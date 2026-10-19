@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { istKennungName } from '@/lib/kennungName';
 import fs from '@/lib/ablageFs';
 import path from 'path';
 import { gesamtSummen } from '@/lib/szeneStats';
@@ -150,7 +151,7 @@ async function liesSzene(): Promise<Map<string, { name: string; land: string }>>
       path.join(DATEN_ORT, 'szene-quelle', 'spielerliste.json'), 'utf8')) as
       Array<{ ID?: string; NAME?: string; COUNTRY?: string }>;
     for (const p of roh) {
-      if (!p.ID || !p.NAME) continue;
+      if (!p.ID || !p.NAME || istKennungName(p.NAME, p.ID)) continue;
       karte.set(p.ID, { name: p.NAME, land: (p.COUNTRY || '').toUpperCase() });
     }
   } catch { /* keine Kopie da */ }

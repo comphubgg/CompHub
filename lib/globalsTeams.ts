@@ -1,4 +1,5 @@
 import fs from '@/lib/ablageFs';
+import { istKennungName } from '@/lib/kennungName';
 import path from 'path';
 import { DATEN_ORT } from '@/lib/datenOrt';
 import { kernname, namensSchluessel } from '@/lib/homoglyph';
@@ -135,7 +136,7 @@ function zuordnung(quellen: {
   }
   for (const b of bilder) if (b.echtesFoto) for (const n of [b.name, b.turniername]) add(ausFoto, n, b.epicId);
   for (const [id, e] of Object.entries(namen)) for (const n of [...(e.namen ?? []), e.haupt]) add(ausNamen, n, id);
-  for (const s of szene) if (s.ID) add(ausSzene, s.NAME, s.ID);
+  for (const s of szene) if (s.ID && !istKennungName(s.NAME, s.ID)) add(ausSzene, s.NAME, s.ID);
 
   const mitFoto = new Set(bilder.filter((b) => b.echtesFoto).map((b) => b.epicId));
   const person = (id: string) => (profile[id]?.anzeige || profile[id]?.name || '').toLowerCase().trim();
@@ -192,7 +193,7 @@ export async function globalsTeams(fenster: string) {
   }
   const szene = new Map<string, { name: string; land: string }>();
   for (const s of szeneRoh) {
-    if (s.ID && s.NAME) {
+    if (s.ID && s.NAME && !istKennungName(s.NAME, s.ID)) {
       szene.set(s.ID, { name: s.NAME, land: (s.COUNTRY || '').toUpperCase() });
     }
   }

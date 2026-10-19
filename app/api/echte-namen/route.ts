@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { istKennungName } from '@/lib/kennungName';
 import fs from '@/lib/ablageFs';
 import path from 'path';
 import { DATEN_ORT } from '@/lib/datenOrt';
@@ -65,7 +66,7 @@ function quellen(): Promise<Quellen> {
       liesJson<Record<string, { haupt?: string }>>('spieler-namen.json', {}),
     ]);
     const szene = new Map<string, string>();
-    for (const s of szeneRoh) if (s.ID && s.NAME) szene.set(s.ID, s.NAME);
+    for (const s of szeneRoh) if (s.ID && s.NAME && !istKennungName(s.NAME, s.ID)) szene.set(s.ID, s.NAME);
     return { profile, szene, verzeichnis };
   })();
   vorrat = { bis: Date.now() + 5 * 60_000, quellen: q };

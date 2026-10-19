@@ -1,4 +1,5 @@
 import { liesJson, schreibJson } from '@/lib/ablage';
+import { istKennungName } from '@/lib/kennungName';
 import { GET as katalogAbruf } from '@/app/api/cup-catalog/route';
 import { GET as bestenlisteAbruf } from '@/app/api/cup-leaderboard/route';
 import { kernname, ohneZierrat } from '@/lib/homoglyph';
@@ -58,7 +59,7 @@ async function profilKarte(): Promise<{ profile: Map<string, Profil>; szene: Map
   const szene = new Map<string, { name: string; land: string }>();
   try {
     const roh = await liesJson<Array<{ ID?: string; NAME?: string; COUNTRY?: string }>>('szene-quelle/spielerliste.json', []);
-    for (const p of roh) if (p.ID && p.NAME) szene.set(p.ID.toLowerCase(), { name: p.NAME, land: p.COUNTRY ?? '' });
+    for (const p of roh) if (p.ID && p.NAME && !istKennungName(p.NAME, p.ID)) szene.set(p.ID.toLowerCase(), { name: p.NAME, land: p.COUNTRY ?? '' });
   } catch { /* keine Kopie */ }
   return { profile, szene };
 }
