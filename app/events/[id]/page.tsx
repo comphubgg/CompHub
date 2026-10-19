@@ -3329,7 +3329,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                         <div className="min-w-0">
                           <div className="flex items-center gap-2">
                             <span className="truncate text-base font-bold text-sky-400">{namenVon(p)}</span>
-                            <a href={`/statistics?ansicht=suche&q=${encodeURIComponent(namenVon(p))}`} title={t('Statistik dieses Spielers')}
+                            <a href={`/statistics?ansicht=suche&q=${encodeURIComponent(namenVon(p))}${/^[0-9a-f]{32}$/i.test(String(p.id)) ? `&id=${p.id}` : ''}`} title={t('Statistik dieses Spielers')}
                               className="shrink-0 rounded border border-white/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-400 transition hover:border-sky-500 hover:text-sky-300">Stats</a>
                           </div>
                           {p.logo && <img src={p.logo} alt=""

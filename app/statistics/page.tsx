@@ -2621,6 +2621,26 @@ export default function StatistikSeite() {
     }
 
     /*
+     * "?ansicht=suche&q=<Name>[&id=<Konto>]" - der Link "Stats" neben einem Spieler in einer Bestenliste (Betreiber, 19.10.2026: er landete immer auf der
+     * Startseite der Statistik). Mit Konto-Id oeffnet das Profil dieses Kontos, sonst das beste Ergebnis der Suche nach dem Namen.
+     */
+    const frage = suchParameter?.get('q') ?? '';
+    const kontoId = (suchParameter?.get('id') ?? '').toLowerCase();
+    if (suchParameter?.get('ansicht') === 'suche' && (frage || kontoId)) {
+      setBereich('spieler');
+      void (async () => {
+        try {
+          if (/^[0-9a-f]{32}$/.test(kontoId)) { await oeffneKonto(kontoId, frage); return; }
+          const r = await (await fetch(`/api/szene-stats?ansicht=suche&q=${encodeURIComponent(frage)}`)).json();
+          const liste = (r.spieler ?? []) as Spieler[];
+          const klein = frage.trim().toLowerCase();
+          const treffer = liste.find((x) => x.anzeige.toLowerCase() === klein || x.namen.some((n) => n.toLowerCase() === klein)) ?? liste[0];
+          if (treffer) oeffne(treffer); else setSuche(frage);
+        } catch { setSuche(frage); }
+      })();
+    }
+
+    /*
      * Die Schloesser - beim Aufruf und danach alle zehn Sekunden.
      *
      * Der Betreiber: "wenn ich als Admin auf 'visible for no one' druecke,
