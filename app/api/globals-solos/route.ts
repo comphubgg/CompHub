@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { globalsSolos } from '@/lib/globalsSolos';
+import { SOLOS_REGIONEN } from '@/lib/solosRegionen';
 import { leereNoble } from '@/lib/nobleKarte';
 import { istAdminAnfrage } from '@/lib/adminPruefung';
 
@@ -16,12 +17,15 @@ export const runtime = 'nodejs';
 export const maxDuration = 60;
 
 export async function GET(request: Request) {
-  const frisch = new URL(request.url).searchParams.get('frisch') === '1';
+  const suche = new URL(request.url).searchParams;
+  const frisch = suche.get('frisch') === '1';
+  const wunsch = (suche.get('region') ?? 'EU').toUpperCase();
+  const region = (SOLOS_REGIONEN as readonly string[]).includes(wunsch) ? wunsch : 'EU';
   if (frisch && await istAdminAnfrage(request)) leereNoble();
   try {
-    const daten = await globalsSolos();
+    const daten = await globalsSolos(region);
     if (!daten) {
-      return NextResponse.json({ ok: false, error: 'Noble führt FNCS Solos gerade nicht.' },
+      return NextResponse.json({ ok: false, error: region === 'EU' ? 'Noble führt FNCS Solos gerade nicht.' : 'Epic führt FNCS Solos in dieser Region gerade nicht.' },
         { status: 404, headers: { 'Cache-Control': 'no-store' } });
     }
     return NextResponse.json({ ok: true, ...daten },

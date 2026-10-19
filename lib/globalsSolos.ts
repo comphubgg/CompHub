@@ -26,6 +26,9 @@ import { kernname } from '@/lib/homoglyph';
 const TURNIER_NAME = /^FNCS Solos$/i;
 const REGION = 'EU';
 
+export { SOLOS_REGIONEN, type SolosRegion } from '@/lib/solosRegionen';
+import { SOLOS_REGIONEN } from '@/lib/solosRegionen';
+
 export interface SolosSpieler {
   id: string;
   name: string;
@@ -79,6 +82,10 @@ export interface SolosGruppe {
 }
 
 export interface SolosDaten {
+  /** Die Region, fuer die diese Daten gelten. */
+  region: string;
+  /** Woher die Spieler stammen: Noble Practice (Europa, mit Landepunkten) oder Epics Bestenlisten (alle anderen Regionen). */
+  quelle: 'noble' | 'epic';
   turnier: { id: string; name: string };
   stand: string;
   fenster: SolosFenster[];
@@ -97,16 +104,16 @@ function artVon(name: string): FensterArt {
 }
 
 /** Epics Ereignis-Kennung zu einer Fenster-Kennung - aus Epics eigenem Katalog. */
-async function eventZu(windowId: string): Promise<string | null> {
+async function eventZu(windowId: string, region: string = REGION): Promise<string | null> {
   try {
-    const k = await gecacht('solos|katalog', 10 * 60_000, () => listeCups(REGION));
+    const k = await gecacht(`solos|katalog|${region}`, 10 * 60_000, () => listeCups(region));
     return k.windows.find((w) => w.windowId === windowId)?.eventId ?? null;
   } catch { return null; }
 }
 
-async function ergebnisse(windowId: string): Promise<Map<string, { rang: number; punkte: number }>> {
+async function ergebnisse(windowId: string, region: string = REGION): Promise<Map<string, { rang: number; punkte: number }>> {
   const karte = new Map<string, { rang: number; punkte: number }>();
-  const event = await eventZu(windowId);
+  const event = await eventZu(windowId, region);
   if (!event) return karte;
   try {
     const roh = await gecacht(`solos|top|${windowId}`, 2 * 60_000, () => holeTop(event, windowId, 100, true));
@@ -235,29 +242,15 @@ export async function fensterFuer(turnierId: string, region: string, windowId: s
   return { turnier: uebersicht.tournamentData?.tournamentName ?? '', fenster: fensterAus(w, d, spielerVon) };
 }
 
-export async function globalsSolos(): Promise<SolosDaten | null> {
-  const turniere = await jungeTurniere(12);
-  const turnier = turniere.find((t) => TURNIER_NAME.test(t.tournamentName));
-  if (!turnier) return null;
-
-  const uebersicht = await detail(turnier.id, REGION);
-  const fensterListe = uebersicht.tournamentData?.windows ?? [];
-  const einzeln = await Promise.all(fensterListe.map(async (w) => {
-    try { return { w, d: await detail(turnier.id, REGION, w.windowId) as RohDetail }; }
-    catch { return { w, d: null }; }
-  }));
-
-  const spielerVon = await spielerKontext();
-
-  const fenster: SolosFenster[] = einzeln.map(({ w, d }) => fensterAus(w, d, spielerVon))
-    .sort((a, b) => String(a.start ?? '').localeCompare(String(b.start ?? '')));
-
+/** Wer im Finale steht und wie er dorthin kam: ueber einen Heat, ueber ein Qualifier-Fenster (Fast Tracks, Last Chance) oder sonst. */
+async function herkunftAus(fenster: SolosFenster[], region: string): Promise<SolosGruppe[]> {
   /* ------------------------------------------------------ Wer kam woher */
-  const finale = fenster.filter((f) => f.art === 'finale').flatMap((f) => f.spieler);
+  // Das Finale kann an zwei Tagen laufen - jeder Spieler zaehlt einmal.
+  const finale = [...new Map(fenster.filter((f) => f.art === 'finale').flatMap((f) => f.spieler).map((s) => [s.id, s])).values()];
   const heats = fenster.filter((f) => f.art === 'heat');
   const qualis = fenster.filter((f) => f.art === 'qualifier');
   const ergebnisseJe = new Map<string, Map<string, { rang: number; punkte: number }>>();
-  await Promise.all(qualis.map(async (q) => { ergebnisseJe.set(q.windowId, await ergebnisse(q.windowId)); }));
+  await Promise.all(qualis.map(async (q) => { ergebnisseJe.set(q.windowId, await ergebnisse(q.windowId, region)); }));
 
   const gruppen = new Map<string, SolosGruppe>();
   const zu = (kopf: { quelle: string; windowId: string | null; art: FensterArt }) => {
@@ -285,10 +278,101 @@ export async function globalsSolos(): Promise<SolosDaten | null> {
     return reihenfolge(a) - reihenfolge(b);
   });
 
+
+  return qualifiziert;
+}
+
+export async function globalsSolos(region: string = REGION): Promise<SolosDaten | null> {
+  if (region !== REGION) return globalsSolosEpic(region);
+  const turniere = await jungeTurniere(12);
+  const turnier = turniere.find((t) => TURNIER_NAME.test(t.tournamentName));
+  if (!turnier) return null;
+
+  const uebersicht = await detail(turnier.id, REGION);
+  const fensterListe = uebersicht.tournamentData?.windows ?? [];
+  const einzeln = await Promise.all(fensterListe.map(async (w) => {
+    try { return { w, d: await detail(turnier.id, REGION, w.windowId) as RohDetail }; }
+    catch { return { w, d: null }; }
+  }));
+
+  const spielerVon = await spielerKontext();
+
+  const fenster: SolosFenster[] = einzeln.map(({ w, d }) => fensterAus(w, d, spielerVon))
+    .sort((a, b) => String(a.start ?? '').localeCompare(String(b.start ?? '')));
+
+  const qualifiziert = await herkunftAus(fenster, REGION);
+
   return {
+    region: REGION, quelle: 'noble',
     turnier: { id: turnier.id, name: turnier.tournamentName },
     stand: new Date().toISOString(),
     fenster,
     qualifiziert,
+  };
+}
+
+/* ------------------------------------------------------------------ Andere Regionen */
+
+/** Wie ein Fenster auf der Seite heisst - aus Epics Kennung ("S42_FNCSSolo_HeatsStage_Heat2_NAC" -> "Heat 2"). */
+function fensterName(windowId: string): string | null {
+  let m = /Heat(\d+)/i.exec(windowId); if (m) return `Heat ${m[1]}`;
+  if (/FastTracks/i.test(windowId)) return 'Fast Tracks';
+  if (/LastChanceQualifier/i.test(windowId)) return 'Last Chance Qualifier';
+  if (/LastChanceLobby/i.test(windowId)) return 'Last Chance Finals';
+  m = /Final_Day(\d)/i.exec(windowId); if (m) return `Finals Day ${m[1]}`;
+  return null;
+}
+
+/**
+ * FNCS Solos einer anderen Region: Noble fuehrt nur Europa, hier kommen die Spieler jedes Heats, der Fast Tracks, der Last Chance und der Finals aus Epics
+ * eigenen Bestenlisten (Betreiber, 19.10.2026: "bei den Heats eine Region waehlen koennen"). Wer in einem Heat steht, ist dort gestartet - ein Heat, der noch nicht
+ * gespielt wurde, hat deshalb noch keine Spieler. Landepunkte gibt es hier keine (die kennt nur Noble).
+ */
+async function globalsSolosEpic(region: string): Promise<SolosDaten | null> {
+  if (!(SOLOS_REGIONEN as readonly string[]).includes(region)) return null;
+  const katalog = await gecacht(`solos|katalog|${region}`, 10 * 60_000, () => listeCups(region));
+  const ende = new RegExp(`_${region}$`);
+  const fenster0 = katalog.windows
+    .filter((w) => /FNCSSolo/i.test(w.windowId) && ende.test(w.windowId) && fensterName(w.windowId))
+    .sort((a, b) => a.begin - b.begin);
+  if (!fenster0.length) return null;
+  const spielerVon = await spielerKontext();
+
+  const fenster = await Promise.all(fenster0.map(async (w): Promise<SolosFenster> => {
+    const name = fensterName(w.windowId) as string;
+    const art = artVon(name);
+    let eintraege: Array<{ rank: number; points?: number; wins?: number; players?: Array<{ id: string; name?: string; displayName?: string }> }> = [];
+    if (w.status !== 'kommt') {
+      try {
+        const roh = await gecacht(`solos|spieler|${w.windowId}`, w.status === 'vorbei' ? 20 * 60_000 : 2 * 60_000, () => holeTop(w.eventId, w.windowId, 200, false));
+        eintraege = (roh as { entries?: typeof eintraege }).entries ?? [];
+      } catch { /* ohne Bestenliste bleibt das Fenster ohne Spieler */ }
+    }
+    const spieler: SolosSpieler[] = [];
+    const teams: SolosTeam[] = [];
+    const bekannt = new Set<string>();
+    for (const e of eintraege) {
+      const sp: SolosSpieler[] = [];
+      for (const p of e.players ?? []) {
+        if (!p.id) continue;
+        const s = spielerVon(p.id, p.displayName || p.name || '');
+        sp.push(s);
+        if (!bekannt.has(p.id)) { bekannt.add(p.id); spieler.push(s); }
+      }
+      if (sp.length) teams.push({ id: String(e.rank), spieler: sp, rang: e.rank, punkte: e.points ?? null, siege: e.wins ?? null });
+    }
+    return {
+      windowId: w.windowId, name, art,
+      start: new Date(w.begin).toISOString(), end: w.end ? new Date(w.end).toISOString() : null,
+      spieler, teams, formen: [],
+    };
+  }));
+
+  const qualifiziert = await herkunftAus(fenster, region);
+  return {
+    region, quelle: 'epic',
+    turnier: { id: 'S42-FNCSSolos', name: 'FNCS Solos' },
+    stand: new Date().toISOString(),
+    fenster, qualifiziert,
   };
 }

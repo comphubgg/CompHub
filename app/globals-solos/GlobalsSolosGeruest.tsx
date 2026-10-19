@@ -7,7 +7,9 @@ import { useT } from '@/app/components/SprachProvider';
 import LadeSchirm from '@/app/components/LadeSchirm';
 import { useZugang } from '@/app/lib/zugang';
 import { sichtbarerTakt } from '@/app/lib/takt';
+import { SOLOS_REGIONEN } from '@/lib/solosRegionen';
 import type { SolosDaten } from '@/lib/globalsSolos';
+import { regionAnzeige } from '@/lib/regionFarbe';
 import { BLAU, datum, uhr } from './Bausteine';
 
 /*
@@ -38,18 +40,30 @@ export default function GlobalsSolosGeruest({ aktiv, children }: {
   const [daten, setDaten] = useState<SolosDaten | null>(null);
   const [fehler, setFehler] = useState('');
   const [laedt, setLaedt] = useState(true);
+  /** Die gewaehlte Region (Betreiber, 19.10.2026: bei den Heats eine Region waehlen koennen) - gemerkt im Browser. */
+  const [region, setRegionRoh] = useState<string>('EU');
+  useEffect(() => {
+    try {
+      const alt = localStorage.getItem('solos_region');
+      if (alt && (SOLOS_REGIONEN as readonly string[]).includes(alt)) setRegionRoh(alt);
+    } catch { /* ohne Speicher */ }
+  }, []);
+  const setRegion = (r: string) => {
+    setRegionRoh(r); setDaten(null); setFehler('');
+    try { localStorage.setItem('solos_region', r); } catch { /* ohne Speicher */ }
+  };
 
   const holen = useCallback(async (frisch: boolean) => {
     setLaedt(true);
     try {
-      const r = await fetch(`/api/globals-solos${frisch ? '?frisch=1' : ''}`, { cache: 'no-store' });
+      const r = await fetch(`/api/globals-solos?region=${encodeURIComponent(region)}${frisch ? '&frisch=1' : ''}`, { cache: 'no-store' });
       const j = await r.json() as ({ ok: true } & SolosDaten) | { ok: false; error?: string };
       if (!r.ok || !j.ok) throw new Error(('error' in j && j.error) || 'nicht ladbar');
       setDaten(j); setFehler('');
     } catch (e) {
       setFehler((e as Error).message);
     } finally { setLaedt(false); }
-  }, []);
+  }, [region]);
 
   useEffect(() => {
     void holen(false);
@@ -72,7 +86,7 @@ export default function GlobalsSolosGeruest({ aktiv, children }: {
         <div aria-hidden className="absolute inset-0" style={{ background: `linear-gradient(90deg, ${BLAU}55, transparent 55%), rgba(0,0,0,.72)` }} />
         <div className="relative mx-auto max-w-[1500px] px-4 py-6">
           <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-amber-300/80">
-            FNCS Solos · EU
+            FNCS Solos · {regionAnzeige({ region })}
           </p>
           <h1 className="mt-1 text-2xl font-black tracking-tight sm:text-3xl" style={{ color: '#ffd766' }}>
             FNCS Globals Solos 2026
@@ -95,6 +109,19 @@ export default function GlobalsSolosGeruest({ aktiv, children }: {
       </div>
 
       <div className="mx-auto max-w-[1500px] space-y-8 px-4 py-6">
+        <div className="flex flex-wrap gap-1.5" role="tablist" aria-label={t('Region')}>
+          {SOLOS_REGIONEN.map((r) => (
+            <button key={r} type="button" role="tab" aria-selected={region === r} onClick={() => setRegion(r)}
+              className={`rounded-full border px-3.5 py-1.5 text-xs font-bold transition ${region === r
+                ? 'border-amber-400/60 bg-amber-400/15 text-amber-200'
+                : 'border-zinc-800 text-slate-400 hover:border-zinc-600 hover:text-slate-200'}`}>
+              {regionAnzeige({ region: r })}
+            </button>
+          ))}
+        </div>
+        {daten && daten.quelle === 'epic' && (
+          <p className="text-[11px] text-slate-500"><T>Für diese Region kommen die Spieler aus Epics Bestenlisten: ein Heat zeigt seine Spieler, sobald er läuft. Landepunkte führt nur Noble (Europa).</T></p>
+        )}
         <div className="flex flex-wrap items-center gap-3 text-xs text-slate-500">
           <span>
             <T>Die Seite erneuert sich alle zwei Minuten.</T>

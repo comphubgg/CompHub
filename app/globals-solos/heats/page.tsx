@@ -30,13 +30,17 @@ export default function SolosHeats() {
                       <p className="mt-3 text-xs text-slate-500"><T>Noch keine Spieler eingetragen.</T></p>
                     ) : (
                       <ol className="mt-3 grid gap-x-4 gap-y-1 sm:grid-cols-2">
-                        {h.spieler.map((s, i) => (
-                          <li key={s.id} className="flex items-center gap-2 rounded px-1 py-1 text-sm">
-                            <span className="w-5 shrink-0 text-right text-[10px] tabular-nums text-slate-600">{i + 1}</span>
-                            <TeamFlagge groesse={14} laender={[s.land ?? undefined]} />
-                            <span className="truncate text-slate-200">{s.anzeige}</span>
-                          </li>
-                        ))}
+                        {h.spieler.map((s, i) => {
+                          const platz = h.teams?.find((x) => x.spieler.some((p) => p.id === s.id));
+                          return (
+                            <li key={s.id} className="flex items-center gap-2 rounded px-1 py-1 text-sm">
+                              <span className="w-5 shrink-0 text-right text-[10px] tabular-nums text-slate-600">{platz?.rang ?? i + 1}</span>
+                              <TeamFlagge groesse={14} laender={[s.land ?? undefined]} />
+                              <span className="min-w-0 flex-1 truncate text-slate-200">{s.anzeige}</span>
+                              {platz?.punkte != null && <span className="shrink-0 text-[11px] tabular-nums text-slate-500">{platz.punkte}</span>}
+                            </li>
+                          );
+                        })}
                       </ol>
                     )}
                   </div>
