@@ -5,6 +5,8 @@ import fs from '@/lib/ablageFs';
 import path from 'path';
 import { istAdminAnfrage } from '@/lib/adminPruefung';
 import { DATEN_ORT } from '@/lib/datenOrt';
+import { gecacht } from '@/lib/epicCups';
+import { GET as katalogAbruf } from '@/app/api/cup-catalog/route';
 
 // Die Replay-Verwaltung.
 //
@@ -70,6 +72,8 @@ interface Fensterzustand {
   titel?: string; datum?: number;
   /** Aus den abgelegten Auswertungen erschlossen, nicht vom Sammler geführt. */
   erschlossen?: boolean;
+  /** Der Sammler hat dieses Fenster noch nicht begonnen - es steht nur im Katalog. */
+  wartet?: boolean;
   matches: Record<string, MatchZustand>;
 }
 
@@ -146,6 +150,45 @@ async function alleFenster() {
     }
   }
   raus.sort((a, b) => (b.datum ?? 0) - (a.datum ?? 0));
+  return raus;
+}
+
+/**
+ * Fenster, die laut Katalog ausgewertet werden sollen, der Sammler aber noch nicht begonnen hat.
+ *
+ * Der Sammler arbeitet das aelteste zuerst (dessen Frist laeuft als erste ab); ein frisches Fenster hat deshalb zunaechst keine Zustandsdatei und stand
+ * in der Verwaltung gar nicht da - beim Elite Kado Thorne Cup fehlte so NA Central, obwohl er mitgezaehlt wird (Betreiber, 19.10.2026). Dieselben
+ * Regeln wie beim Sammler (lib/replayRegel): welche Cups, welche Runden, innerhalb der Frist von 31 Tagen.
+ */
+async function wartendeFenster(vorhanden: Set<string>) {
+  type KFenster = { windowId?: string; eventId?: string; status?: string; begin?: number; end?: number; istFinale?: boolean };
+  type KCup = { id: string; titel: string; regionen?: Record<string, KFenster[]> };
+  const raus: Array<Fensterzustand & { zaehler: Record<string, number>; gesamt: number; runde: string }> = [];
+  try {
+    const regel = await import('@/lib/replayRegel.mjs');
+    const katalog = await gecacht('replays|katalog-wartend', 10 * 60_000, async () =>
+      (await (await katalogAbruf(new Request('http://localhost/api/cup-catalog?modus=alle'))).json()) as { cups?: KCup[] });
+    const grenze = Date.now() - 31 * 864e5;
+    for (const cup of katalog.cups ?? []) {
+      const r = regel.replayRegel(cup) as string;
+      if (r === 'nichts') continue;
+      for (const liste of Object.values(cup.regionen ?? {})) {
+        const finals = r === 'nurFinals' ? (regel.endrunden(liste) as Set<string>) : null;
+        for (const w of liste) {
+          if (w.status !== 'vorbei' || !w.windowId || vorhanden.has(w.windowId)) continue;
+          if (finals && !finals.has(w.windowId)) continue;
+          const ende = w.end ?? w.begin ?? 0;
+          const season = /^(S\d+)_/i.exec(w.windowId)?.[1]?.toUpperCase();
+          if (!season || ende < grenze) continue;
+          const region = /_([A-Z]{2,4})$/.exec(w.windowId)?.[1];
+          raus.push({
+            season, windowId: w.windowId, matches: {}, zaehler: {}, gesamt: 0, wartet: true,
+            eventId: w.eventId, region, titel: cup.titel, datum: ende, runde: rundeName(w.windowId, region),
+          } as Fensterzustand & { zaehler: Record<string, number>; gesamt: number; runde: string });
+        }
+      }
+    }
+  } catch { /* ohne Katalog bleibt es bei den begonnenen Fenstern */ }
   return raus;
 }
 
@@ -258,7 +301,10 @@ async function berechne(request: Request) {
     return NextResponse.json({ error: 'noch nicht ausgewertet' }, { status: 404 });
   }
 
-  return NextResponse.json({ success: true, fenster: await alleFenster() });
+  const begonnen = await alleFenster();
+  const wartend = await wartendeFenster(new Set(begonnen.map((f) => String(f.windowId))));
+  const alle = [...begonnen, ...wartend].sort((a, b) => (b.datum ?? 0) - (a.datum ?? 0));
+  return NextResponse.json({ success: true, fenster: alle });
 }
 
 /**

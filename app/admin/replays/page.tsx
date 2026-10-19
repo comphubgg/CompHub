@@ -24,6 +24,8 @@ interface Fenster {
   runde?: string;
   /** Aus den abgelegten Auswertungen erschlossen, nicht vom Sammler geführt. */
   erschlossen?: boolean;
+  /** Der Sammler hat dieses Fenster noch nicht begonnen. */
+  wartet?: boolean;
 }
 
 interface Match {
@@ -554,6 +556,12 @@ export default function ReplayVerwaltung() {
                     <span className="text-[11px] text-slate-600">
                       {f.datum ? new Date(f.datum).toLocaleDateString('de-DE') : ''}
                     </span>
+                    {f.wartet && (
+                      <span className="rounded border border-sky-500/40 bg-sky-500/10 px-1.5 py-0.5 text-[10px] text-sky-400"
+                        title={t('Der Sammler arbeitet das älteste Fenster zuerst; dieses ist vorgemerkt und kommt als Nächstes dran.')}>
+                        <T>vorgemerkt</T>
+                      </span>
+                    )}
                     {f.erschlossen && (
                       <span className="rounded border border-amber-600/40
                                        bg-amber-500/10 px-1.5 py-0.5 text-[10px]
@@ -581,7 +589,7 @@ export default function ReplayVerwaltung() {
                            Antwort und sieht sonst aus wie ein Fehler. */
                         <span className="text-[11px] text-slate-600"
                           title={t('Epic hat zu diesem Spieltag keine Match-Kennungen herausgegeben.')}>
-                          <T>keine Matches</T>
+                          {f.wartet ? <T>noch nicht begonnen</T> : <T>keine Matches</T>}
                         </span>
                       )}
                     </span>
