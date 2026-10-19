@@ -1795,27 +1795,48 @@ function ListenKarte({ liste, aufVoll, aufSpieler }: {
 }) {
   const t = useT();
   const { sprache } = useSprache();
+  // Dieselbe Karte wie die Bestenlisten der Uebersicht (Betreiber, 19.10.2026: "sieht noch nicht nach meinem neuen Stil aus"): der Erste mit Foto, darunter die Plaetze.
+  const [erster, ...rest] = liste.zeilen.slice(0, 5);
+  const wertVon = (sp: Spieler) => zahl(Number(sp[liste.feld]), liste.nachkomma ?? 0, sprache) + (liste.einheit ?? '');
   return (
-    <div className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-950/60">
-      <p className="flex items-center gap-2 border-b border-zinc-800 bg-zinc-900/40
-                    px-3 py-2 text-[10px] font-semibold uppercase tracking-[0.14em]
-                    text-slate-400">
-        <T>{liste.titel}</T>
+    <div className="overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 shadow-[0_10px_30px_rgba(15,23,42,.10)]">
+      <div className="flex items-center gap-2 px-5 pt-4">
+        <h3 className="schrift-anzeige text-base font-extrabold text-slate-100"><T>{liste.titel}</T></h3>
         {liste.zeilen.length > 5 && (
-          <button onClick={aufVoll}
-            title={t('Alle {n} anzeigen').replace('{n}', String(liste.zeilen.length))}
-            className="ml-auto rounded border border-zinc-700 px-1.5 text-[11px]
-                       leading-4 text-slate-400 transition hover:border-sky-500
-                       hover:text-sky-400">
-            +
-          </button>
+          <button onClick={aufVoll} title={t('Alle {n} anzeigen').replace('{n}', String(liste.zeilen.length))}
+            className="ml-auto grid h-7 w-7 place-items-center rounded-full border border-zinc-700 text-sm leading-none text-slate-400 transition hover:border-sky-500 hover:text-sky-500">+</button>
         )}
-      </p>
-      <div className="divide-y divide-zinc-900">
-        {liste.zeilen.slice(0, 5).map((sp, i) => (
-          <Platz key={sp.epicId} nr={i + 1} s={sp}
-            wert={zahl(Number(sp[liste.feld]), liste.nachkomma ?? 0, sprache) + (liste.einheit ?? '')}
-            aufKlick={() => aufSpieler(sp)} />
+      </div>
+      {erster && (
+        <button type="button" onClick={() => aufSpieler(erster)}
+          className="group mx-3 mt-3 flex w-[calc(100%-1.5rem)] items-stretch overflow-hidden rounded-2xl border border-zinc-700 bg-zinc-800/70 text-left">
+          <span className="relative h-36 w-28 shrink-0 overflow-hidden">
+            {erster.bild ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={erster.bild} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover object-top transition duration-500 group-hover:scale-105" />
+            ) : (
+              <span className="absolute inset-0 grid place-items-center text-4xl font-black text-slate-400/30">{(erster.anzeige || '?').slice(0, 1).toUpperCase()}</span>
+            )}
+            <span aria-hidden className="absolute inset-y-0 right-0 w-8 bg-gradient-to-r from-transparent to-zinc-800/70" />
+          </span>
+          <span className="flex min-w-0 flex-1 flex-col justify-between p-3">
+            <span className="flex items-center gap-2">
+              <span className="rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-black text-zinc-950">1</span>
+              <RegionMarke region={erster.heimat || erster.regionen[0] || ''} />
+            </span>
+            <span>
+              <span className="flex items-center gap-1.5">
+                <TeamFlagge groesse={16} laender={[erster.land ?? undefined]} />
+                <span className="truncate text-base font-extrabold uppercase tracking-wide text-slate-100">{grossName(erster.anzeige, erster.gepflegt)}</span>
+              </span>
+              <span className="schrift-anzeige mt-1 block text-3xl font-extrabold tabular-nums leading-none text-sky-500">{wertVon(erster)}</span>
+            </span>
+          </span>
+        </button>
+      )}
+      <div className="px-1 pb-2 pt-1">
+        {rest.map((sp, i) => (
+          <Platz key={sp.epicId} nr={i + 2} s={sp} wert={wertVon(sp)} aufKlick={() => aufSpieler(sp)} />
         ))}
       </div>
     </div>
@@ -2069,52 +2090,46 @@ function SpielerFaecher({ spieler, schaden, aufAlle, aufOeffnen }: { spieler: Sp
   const karten = useMemo(() => {
     const mit = spieler.filter((x) => x.bild);
     const raus: Spieler[] = [];
-    for (const r of REGIONEN_REIHE) raus.push(...mit.filter((x) => (x.heimat || x.regionen[0] || '') === r).slice(0, 2));
+    // Einer je Region (Betreiber, 19.10.2026: zwei Reihen Fotos untereinander sahen nicht sauber aus - zurueck zum Faecher, nur mit einem je Region).
+    for (const r of REGIONEN_REIHE) raus.push(...mit.filter((x) => (x.heimat || x.regionen[0] || '') === r).slice(0, 1));
     return raus;
   }, [spieler]);
   if (karten.length < 4) return null;
+  const mitte = (karten.length - 1) / 2;
   return (
     <section className="relative mb-10 overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 p-6 shadow-[0_10px_30px_rgba(15,23,42,.10)] sm:p-10">
       <div aria-hidden className="pointer-events-none absolute -right-20 -top-24 h-80 w-80 rounded-full bg-sky-500/20 blur-[90px]" />
-      <div className="relative">
-        <div className="flex flex-wrap items-end justify-between gap-x-8 gap-y-4">
-          <div>
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-sky-500"><T>Spieler</T></p>
-            <h2 className="schrift-anzeige mt-2 text-4xl font-extrabold tracking-tight text-slate-100 sm:text-5xl">
-              {anzahl === null ? '—' : zahl(anzahl, 0, sprache)} <T>Spielerprofile.</T>
-            </h2>
-            <p className="mt-3 max-w-xl text-base text-slate-400"><T>Werte, Titel, FNCS-Ergebnisse, Mitspieler und Landepunkte zu jedem Spieler im Archiv.</T></p>
+      <div className="relative grid items-center gap-10 lg:grid-cols-[0.8fr_1.4fr]">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-sky-500"><T>Spieler</T></p>
+          <h2 className="schrift-anzeige mt-2 text-4xl font-extrabold tracking-tight text-slate-100 sm:text-5xl">
+            {anzahl === null ? '—' : zahl(anzahl, 0, sprache)} <T>Spielerprofile.</T>
+          </h2>
+          <p className="mt-3 max-w-md text-base text-slate-400"><T>Werte, Titel, FNCS-Ergebnisse, Mitspieler und Landepunkte zu jedem Spieler im Archiv.</T></p>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <button type="button" onClick={aufAlle}
+              className="rounded-full bg-sky-500 px-6 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-sky-400">
+              <T>Alle Spieler ansehen</T> →
+            </button>
           </div>
-          <button type="button" onClick={aufAlle}
-            className="rounded-full bg-sky-500 px-6 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-sky-400">
-            <T>Alle Spieler ansehen</T> →
-          </button>
         </div>
-        {/* Von jeder Region die Besten, gleich aufgeklappt: das Foto gross, der Name gross, darunter zwei kleine Werte. */}
-        <ul className="mt-8 grid grid-cols-2 gap-3 sm:grid-cols-4 lg:grid-flow-col lg:grid-cols-7 lg:grid-rows-2">
-          {karten.map((x) => {
-            const dmg = schaden.get(x.epicId);
-            return (
-              <li key={x.epicId}>
-                <button type="button" onClick={() => setAuf(x)} aria-label={x.anzeige}
-                  className="foto-dunkel group relative block aspect-[3/4] w-full overflow-hidden rounded-2xl border border-white/10 bg-zinc-900 text-left shadow-[0_12px_30px_rgba(2,6,23,.28)] transition hover:-translate-y-1">
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={x.bild as string} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-105" />
-                  <span aria-hidden className="foto-unten absolute inset-0" />
-                  <span className="absolute left-2.5 top-2.5"><RegionMarke region={x.heimat || x.regionen[0] || ''} /></span>
-                  <span className="absolute inset-x-3 bottom-3 block">
-                    <span className="flex items-center gap-1.5">
-                      <TeamFlagge groesse={16} laender={[x.land ?? undefined]} />
-                      <span className="min-w-0 truncate text-base font-extrabold uppercase tracking-wide text-[#fff] drop-shadow sm:text-lg">{grossName(x.anzeige, x.gepflegt)}</span>
-                    </span>
-                    <span className="mt-1 block text-[11px] font-semibold tabular-nums text-[#cbd5e1]">
-                      {zahl(x.elims, 0, sprache)} <T>Elims</T>{dmg ? ` · ${zahl(Math.round(dmg / 1000), 0, sprache)}k ${t('Schaden')}` : ''}
-                    </span>
-                  </span>
-                </button>
-              </li>
-            );
-          })}
+        {/* Der Faecher: eine Karte je Region; beim Ueberfahren geht er auseinander, ein Klick oeffnet die Karte gross. */}
+        <ul className="faecher mx-auto h-[17rem] w-full max-w-3xl" style={{ ['--n' as string]: karten.length - 1 }}>
+          {karten.map((x, i) => (
+            <li key={x.epicId} style={{ ['--d' as string]: i - mitte, ['--i' as string]: i + 1 }}>
+              <button type="button" onClick={() => setAuf(x)} aria-label={x.anzeige}
+                className="foto-dunkel group relative block h-52 w-36 overflow-hidden rounded-2xl border border-white/10 bg-zinc-900 text-left shadow-[0_14px_34px_rgba(2,6,23,.35)] max-sm:h-44 max-sm:w-28">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={x.bild as string} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+                <span aria-hidden className="foto-unten absolute inset-0" />
+                <span className="absolute left-2.5 top-2.5"><RegionMarke region={x.heimat || x.regionen[0] || ''} /></span>
+                <span className="absolute inset-x-2.5 bottom-2.5 flex items-center gap-1.5 rounded-xl bg-[rgba(6,10,18,.6)] px-2 py-1.5 backdrop-blur">
+                  <TeamFlagge groesse={16} laender={[x.land ?? undefined]} />
+                  <span className="min-w-0 truncate text-sm font-extrabold uppercase tracking-wide text-[#fff]">{grossName(x.anzeige, x.gepflegt)}</span>
+                </span>
+              </button>
+            </li>
+          ))}
         </ul>
       </div>
 
@@ -4688,13 +4703,13 @@ export default function StatistikSeite() {
                 </h2>
               </div>
               <div className="mb-4 flex flex-wrap items-center gap-3">
-                <div className="flex items-center gap-1">
+                <div className="flex max-w-full items-center gap-1 overflow-x-auto rounded-full border border-zinc-800 bg-zinc-900 p-1 shadow-sm [scrollbar-width:none]">
                   {[['alle', t('Alle Zeit')], ['2026', '2026'], ['2025', '2025'], ['2024', '2024'], ['2023', '2023'], ['2022', '2022'], ['2021', '2021'], ['2020', '2020'], ['2019', '2019']].map(([w, titel]) => (
                     <button key={w} onClick={() => setJahrWahl(w)}
-                      className={`rounded-full border px-4 py-1.5 text-sm font-bold transition ${
+                      className={`shrink-0 rounded-full px-4 py-1.5 text-sm font-bold transition ${
                         jahrWahl === w
-                          ? 'border-sky-500 bg-sky-500/10 text-sky-400'
-                          : 'border-zinc-800 text-slate-400 hover:border-zinc-600'}`}>
+                          ? 'bg-sky-500 text-white shadow-sm'
+                          : 'text-slate-400 hover:text-slate-100'}`}>
                       {titel}
                     </button>
                   ))}
@@ -4705,10 +4720,10 @@ export default function StatistikSeite() {
                   </span>
                 )}
                 {/* Region - dieselben Marken wie in der Spielerliste. */}
-                <div className="ml-auto flex flex-wrap gap-1">
+                <div className="ml-auto flex flex-wrap gap-1.5">
                   {['', ...nachRegionReihe(jahr?.regionen ?? [])].map((r) => (
                     <button key={r || 'alle'} onClick={() => setJahrRegion(r)}
-                      className={`rounded-full border px-3.5 py-1 text-xs font-bold transition ${
+                      className={`rounded-full border px-4 py-1.5 text-xs font-bold transition ${
                         jahrRegion === r
                           ? (r ? regionFarbe(r).marke : 'border-sky-500 bg-sky-500/10 text-sky-400')
                           : `hover:brightness-125 ${r ? regionFarbe(r).ruhig : 'border-zinc-800 text-slate-400'}`}`}>
@@ -4721,18 +4736,18 @@ export default function StatistikSeite() {
                   Nicht bei "Alle Zeit": der Betreiber - "All time ist All time
                   seit Chapter 1, das sollen alle sein, alle Spieler." */}
               {jahrWahl !== 'alle' && (jahr?.saisonenDesJahres?.length ?? 0) > 1 && (
-                <div className="mb-3 flex flex-wrap gap-1">
+                <div className="mb-4 flex flex-wrap gap-1 rounded-2xl border border-zinc-800 bg-zinc-900 p-1.5 shadow-sm">
                   <button onClick={() => setJahrSaison('')}
-                    className={`rounded-full border px-3.5 py-1 text-xs font-bold transition ${
-                      !jahrSaison ? 'border-sky-500 bg-sky-500/10 text-sky-400'
-                        : 'border-zinc-800 text-slate-400 hover:border-zinc-600'}`}>
+                    className={`rounded-full px-4 py-1.5 text-xs font-bold transition ${
+                      !jahrSaison ? 'bg-sky-500 text-white shadow-sm'
+                        : 'text-slate-400 hover:text-slate-100'}`}>
                     {jahrWahl === 'alle' ? t('Alle Saisons') : t('Ganzes Jahr')}
                   </button>
                   {[...(jahr?.saisonenDesJahres ?? [])].reverse().map((x) => (
                     <button key={x.kennung} onClick={() => setJahrSaison(x.kennung)}
-                      className={`rounded-full border px-3.5 py-1 text-xs font-bold transition ${
-                        jahrSaison === x.kennung ? 'border-sky-500 bg-sky-500/10 text-sky-400'
-                          : 'border-zinc-800 text-slate-400 hover:border-zinc-600'}`}>
+                      className={`rounded-full px-4 py-1.5 text-xs font-bold transition ${
+                        jahrSaison === x.kennung ? 'bg-sky-500 text-white shadow-sm'
+                          : 'text-slate-400 hover:text-slate-100'}`}>
                       {x.name}
                     </button>
                   ))}
@@ -4771,13 +4786,13 @@ export default function StatistikSeite() {
                   {jahr.listen.filter((l) => l.plaetze.length && l.feld !== 'teamElims' && l.feld !== 'quote').map((l) => (
                     <section key={l.feld}>
                       <div className="mb-3 flex items-center gap-2">
-                        <p className="text-sm font-bold uppercase tracking-[0.14em] text-slate-300">
+                        <h3 className="schrift-anzeige text-xl font-extrabold text-slate-100">
                           <T>{l.titel}</T>{' '}
                           {jahrSaison
                             ? (jahr?.saisonenDesJahres?.find((x) => x.kennung === jahrSaison)?.name ?? jahrSaison)
                             : jahrWahl === 'alle' ? <T>aller Zeiten</T> : <T>in diesem Jahr</T>}
                           {l.mindestMatches ? <> · <T>ab</T> {l.mindestMatches} <T>Matches</T></> : null}
-                        </p>
+                        </h3>
                         {l.plaetze.length > 6 && (
                           <button onClick={async () => {
                             const zusatz = (jahrSaison ? (jahr?.saisonenDesJahres?.find((x) => x.kennung === jahrSaison)?.name ?? jahrSaison)
@@ -4808,9 +4823,9 @@ export default function StatistikSeite() {
                             setListenSeite(1);
                           }}
                             title={t('Alle {n} anzeigen').replace('{n}', String(l.plaetze.length))}
-                            className="rounded border border-zinc-700 px-1.5 text-[11px]
-                                       leading-4 text-slate-400 transition hover:border-sky-500
-                                       hover:text-sky-400">
+                            className="grid h-7 w-7 place-items-center rounded-full border border-zinc-700 text-sm
+                                       leading-none text-slate-400 transition hover:border-sky-500
+                                       hover:text-sky-500">
                             +
                           </button>
                         )}
@@ -4874,10 +4889,10 @@ export default function StatistikSeite() {
 
           {bereich === 'regional' && (
             <>
-              <div className="mb-4 flex flex-wrap items-center gap-1.5">
+              <div className="mb-6 flex flex-wrap items-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-900 p-2 shadow-sm">
                 {regionen.map((r) => (
                   <button key={r} onClick={() => setRegion(r)}
-                    className={`rounded-lg border px-3 py-1.5 text-xs transition ${
+                    className={`rounded-full border px-5 py-1.5 text-sm font-bold transition ${
                       regionAktiv === r ? regionFarbe(r).marke
                         : `${regionFarbe(r).ruhig} hover:brightness-125`}`}>
                     {r}
@@ -4897,67 +4912,45 @@ export default function StatistikSeite() {
               ) : (
                 <>
                   {/* Die fuenf staerksten der Saison - mit Bild wie im Vorbild */}
-                  <p className="mb-2 text-[10px] font-semibold uppercase
-                                tracking-[0.18em] text-slate-500">
-                    <T>Die stärksten der Saison</T>
-                    <span className="ml-2 font-normal normal-case tracking-normal
-                                     text-slate-600"><T>nach Eliminierungen</T></span>
-                  </p>
+                  <p className="text-xs font-bold uppercase tracking-[0.2em] text-sky-500"><T>nach Eliminierungen</T></p>
+                  <h2 className="schrift-anzeige mb-4 mt-1 text-3xl font-extrabold tracking-tight text-slate-100"><T>Die stärksten der Saison</T></h2>
                   <div className="mb-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-3
                                   xl:grid-cols-5">
                     {regionFeld.slice(0, 5).map((sp) => (
                       <button key={sp.epicId} onClick={() => oeffne(sp)}
-                        className="group overflow-hidden rounded-xl border border-zinc-800
-                                   bg-zinc-950/60 text-left transition hover:border-sky-500">
-                        <div className="flex items-center gap-2 px-3 py-2.5">
-                          <TeamFlagge groesse={18} laender={[sp.land ?? undefined]} />
-                          <span className="min-w-0 flex-1 truncate text-sm font-bold
-                                           uppercase tracking-wide text-slate-100">
-                            {grossName(sp.anzeige, sp.gepflegt)}
+                        className="foto-dunkel group relative aspect-[3/4] overflow-hidden rounded-2xl border border-white/10 bg-zinc-900 text-left shadow-[0_10px_26px_rgba(2,6,23,.28)] transition hover:-translate-y-1">
+                        {sp.bild ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={sp.bild} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+                        ) : (
+                          <span className="absolute inset-0 grid place-items-center text-5xl font-black text-white/10">{(sp.anzeige || '?').slice(0, 1).toUpperCase()}</span>
+                        )}
+                        <span aria-hidden className="foto-unten absolute inset-0" />
+                        <span className="absolute left-2.5 top-2.5"><RegionMarke region={regionAktiv} /></span>
+                        <span className="absolute inset-x-3 bottom-3 block">
+                          <span className="flex items-center gap-1.5">
+                            <TeamFlagge groesse={16} laender={[sp.land ?? undefined]} />
+                            <span className="min-w-0 truncate text-base font-extrabold uppercase tracking-wide text-[#fff] drop-shadow">{grossName(sp.anzeige, sp.gepflegt)}</span>
                           </span>
-                          <RegionMarke region={regionAktiv} />
-                        </div>
-                        <div className="relative aspect-[4/5] overflow-hidden bg-zinc-900">
-                          {sp.bild ? (
-                            /* eslint-disable-next-line @next/next/no-img-element */
-                            <img src={sp.bild} alt="" loading="lazy"
-                              className="h-full w-full object-cover object-top
-                                         transition group-hover:scale-105" />
-                          ) : (
-                            <div className="flex h-full items-center justify-center
-                                            text-3xl text-zinc-700">?</div>
-                          )}
-                        </div>
-                        <div className="grid grid-cols-2 gap-px bg-zinc-800/60">
-                          {([
-                            ['Elims', zahl(sp.elims, 0, sprache)],
-                            ['Schaden', zahl(sp.damage, 0, sprache)],
-                            ['Quote', zahl(sp.quote, 2, sprache)],
-                            ['Kopftreffer', zahl(sp.headshots, 0, sprache)],
-                            ['Material', zahl(sp.mats, 0, sprache)],
-                            ['Bauteile', zahl(sp.builds, 0, sprache)],
-                            ['Treffer', zahl(sp.hits, 0, sprache)],
-                            ['Spieltage', zahl(sp.events, 0, sprache)],
-                          ] as Array<[string, string]>).map(([l, v]) => (
-                            <div key={l} className="bg-zinc-950 px-2.5 py-1.5">
-                              <p className="text-[8px] uppercase tracking-wider
-                                            text-slate-600"><T>{l}</T></p>
-                              <p className="text-xs font-bold tabular-nums
-                                            text-sky-400">{v}</p>
-                            </div>
-                          ))}
-                        </div>
+                          <span className="mt-1.5 grid grid-cols-3 gap-1 rounded-xl bg-[rgba(6,10,18,.55)] px-2 py-1.5 text-center backdrop-blur">
+                            {([['Elims', zahl(sp.elims, 0, sprache)], ['Schaden', kurzZahl(sp.damage, sprache)], ['Quote', zahl(sp.quote, 2, sprache)]] as Array<[string, string]>).map(([l, v]) => (
+                              <span key={l} className="min-w-0">
+                                <span className="block truncate text-[8px] font-semibold uppercase text-[#94a3b8]"><T>{l}</T></span>
+                                <span className="block truncate text-xs font-bold tabular-nums text-[#38bdf8]">{v}</span>
+                              </span>
+                            ))}
+                          </span>
+                        </span>
                       </button>
                     ))}
                   </div>
 
                   {/* Die Saison als Ganzes */}
-                  <p className="mb-2 text-[10px] font-semibold uppercase
-                                tracking-[0.18em] text-slate-500">
+                  <h2 className="schrift-anzeige mb-4 text-3xl font-extrabold tracking-tight text-slate-100">
                     {alleSaisons ? t('alle Saisons')
-                      : `${t('Saison')} ${saisonTitel}`} — {regionAktiv}
-                  </p>
-                  <div className="mb-7 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                      : `${t('Saison')} ${saisonTitel}`} <span className="text-sky-500">· {regionAktiv}</span>
+                  </h2>
+                  <div className="mb-9 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
                     {listenAus(regionFeld).map((l) => (
                       <ListenKarte key={l.titel} liste={l}
                         aufVoll={() => {
@@ -4979,10 +4972,7 @@ export default function StatistikSeite() {
                     return (
                       <section key={r.name} className="mb-7">
                         <div className="mb-2 flex flex-wrap items-center gap-2">
-                          <p className="text-[10px] font-semibold uppercase
-                                        tracking-[0.18em] text-slate-400">
-                            {r.name}
-                          </p>
+                          <h2 className="schrift-anzeige text-2xl font-extrabold tracking-tight text-slate-100">{r.name}</h2>
                           <div className="ml-auto flex flex-wrap gap-1">
                             {r.tage.map((t) => (
                               <button key={t.windowId}
@@ -4990,10 +4980,10 @@ export default function StatistikSeite() {
                                   setReihenWahl((a) => ({ ...a, [r.name]: t.windowId }));
                                   void ladeReihe(r.name, r.tage, t.windowId);
                                 }}
-                                className={`rounded-md border px-2 py-1 text-[11px]
+                                className={`rounded-full border px-3 py-1 text-[11px] font-semibold
                                             transition ${wahl === t.windowId
-                                  ? 'border-sky-500 bg-sky-500/10 text-sky-400'
-                                  : 'border-zinc-800 text-slate-500 hover:border-zinc-700'}`}>
+                                  ? 'border-sky-500 bg-sky-500/10 text-sky-500'
+                                  : 'border-zinc-700 text-slate-400 hover:border-zinc-500'}`}>
                                 {kurzTurnier(t.name)}
                               </button>
                             ))}
@@ -5002,10 +4992,10 @@ export default function StatistikSeite() {
                                 setReihenWahl((a) => ({ ...a, [r.name]: '' }));
                                 void ladeReihe(r.name, r.tage, '');
                               }}
-                              className={`rounded-md border px-2 py-1 text-[11px]
+                              className={`rounded-full border px-3 py-1 text-[11px] font-semibold
                                           transition ${!wahl
-                                ? 'border-sky-500 bg-sky-500/10 text-sky-400'
-                                : 'border-zinc-800 text-slate-500 hover:border-zinc-700'}`}>
+                                ? 'border-sky-500 bg-sky-500/10 text-sky-500'
+                                : 'border-zinc-700 text-slate-400 hover:border-zinc-500'}`}>
                               <T>Gesamt</T>
                             </button>
                           </div>
@@ -5014,7 +5004,7 @@ export default function StatistikSeite() {
                         {!feld.length ? (
                           <div className="h-24 animate-pulse rounded-xl bg-zinc-900/40" />
                         ) : (
-                          <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
+                          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
                             {listenAus(feld).slice(0, 6).map((l) => (
                               <ListenKarte key={r.name + l.titel} liste={l}
                                 aufVoll={() => {

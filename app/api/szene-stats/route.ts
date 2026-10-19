@@ -450,7 +450,9 @@ async function holeRoh(request: Request) {
       const antwort = await berechne(request);
       if (!antwort.ok) throw new Error(`Antwort ${antwort.status}`);
       return await antwort.json() as unknown;
-    }, undefined, !archivWeit);
+    }, url.searchParams.has('spieler') ? 15 * 60_000 : undefined, !archivWeit,
+      // Das Profil eines Spielers: nach 15 Minuten im Hintergrund erneuert, nach drei Stunden nie mehr alt ausgeliefert.
+      url.searchParams.has('spieler') ? 3 * 3_600_000 : undefined);
     return NextResponse.json(wert, {
       headers: { 'Cache-Control': CDN_FRIST },
     });

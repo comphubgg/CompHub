@@ -49,6 +49,10 @@ jobs:
         if: always()
         run: |
           curl -s -o /dev/null -w "Seite: %{http_code} %{time_total}s\n" -m 90 "https://www.thecomphub.com/api/auth/verify?wach=$(date +%s)" || true
+          # Zu jedem seit einer halben Stunde beendeten Spieltag den fertigen Ergebnis-Post anlegen (lib/ergebnisPosts) - alle zehn Minuten.
+          GEHEIM_E=$(printf '%s' "${{ secrets.ENV_LOCAL }}" | grep '^CRON_SECRET=' | cut -d= -f2- | tr -d '"\r')
+          curl -s -w ' [Ergebnis-Posts: %{http_code}]' -m 150 -H "Authorization: Bearer $GEHEIM_E" "https://www.thecomphub.com/api/cron/ergebnis-posts" || true
+          echo
           if [ "$(date -u +%H)" = "07" ] && [ "$(date -u +%M)" -lt 10 ]; then
             GEHEIM=$(printf '%s' "${{ secrets.ENV_LOCAL }}" | grep '^CRON_SECRET=' | cut -d= -f2- | tr -d '"\r')
             curl -s -o /dev/null -w "VIP-Ablauf: %{http_code}\n" -m 120 -H "Authorization: Bearer $GEHEIM" "https://www.thecomphub.com/api/cron/vip-ablauf" || true

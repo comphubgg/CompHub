@@ -1859,7 +1859,7 @@ export async function schickeUpdate(
  *   #admin-alarm     was von selbst schiefgeht: der stuendliche Lauf,
  *                    veraltete Staende, die Ablage
  */
-const ADMIN_KANAELE = { log: 'admin-log', aufgaben: 'admin-aufgaben', alarm: 'admin-alarm', posts: 'admin-posts' } as const;
+const ADMIN_KANAELE = { log: 'admin-log', aufgaben: 'admin-aufgaben', alarm: 'admin-alarm', posts: 'admin-posts', support: 'admin-support' } as const;
 
 export async function richteAdminEin(
   schritte: AufbauZeile[], fehler: AufbauZeile[],
@@ -1871,6 +1871,7 @@ export async function richteAdminEin(
     ['aufgaben', 'Open tasks - one message, kept up to date'],
     ['alarm', 'Alerts: hourly run, stale data, storage'],
     ['posts', 'Daily post ideas for X - ready to copy, with images'],
+    ['support', 'Messages from the contact form - answer on the site or by email'],
   ];
   for (const [k, thema] of plan) {
     // "manager" mit leerer Rollenliste heisst: nur Admin und Bot.
@@ -1898,6 +1899,34 @@ export async function schickeAlarm(
       title: `ALARM · ${titel}`.slice(0, 256),
       description: text.slice(0, 4000),
       color: 0xef4444,
+      footer: { text: new Date().toLocaleString('de-CH', { timeZone: 'Europe/Zurich' }) + ' Uhr' },
+    }],
+  });
+  return idAus(gesendet) ? { ok: true } : { ok: false, grund: 'abgelehnt' };
+}
+
+/**
+ * Eine neue Meldung aus dem Kontaktformular (#admin-support, nur Admin) - Betreiber, 19.10.2026: "mach das auch in Discord: ein Support-Kanal nur fuer mich;
+ * ich druecke auf den Link und komme zur Anfrage, um dort zu antworten - oder antworte per E-Mail, wenn ich auf dem Handy bin."
+ */
+export async function schickeSupport(
+  { thema, absender, adresse, text, url }: { thema: string; absender: string; adresse: string; text: string; url: string },
+): Promise<{ ok: boolean; grund?: string }> {
+  if (!discordDa()) return { ok: false, grund: 'kein-token' };
+  let kanaele = await alleKanaele();
+  let kanal = kanaele.find((k) => k.type === 0 && gleich(k.name, ADMIN_KANAELE.support));
+  if (!kanal) {
+    await richteAdminEin([], []);
+    kanaele = await alleKanaele();
+    kanal = kanaele.find((k) => k.type === 0 && gleich(k.name, ADMIN_KANAELE.support));
+  }
+  if (!kanal) return { ok: false, grund: 'kein-kanal' };
+  const gesendet = await ruf(`/channels/${kanal.id}/messages`, 'POST', {
+    embeds: [{
+      title: `${thema} · ${absender || 'someone'}`.slice(0, 256),
+      url,
+      description: `${text.slice(0, 1500)}${text.length > 1500 ? ' …' : ''}\n\n[Open and answer on the site](${url})${adresse ? ` · ${adresse}` : ''}`.slice(0, 4000),
+      color: 0xf59e0b,
       footer: { text: new Date().toLocaleString('de-CH', { timeZone: 'Europe/Zurich' }) + ' Uhr' },
     }],
   });

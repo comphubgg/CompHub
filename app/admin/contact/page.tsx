@@ -14,6 +14,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
+import SeitenKopf from '@/app/components/SeitenKopf';
 
 interface Meldung {
   id: string; zeit: number; thema: string; eigenesThema: string;
@@ -37,6 +38,12 @@ export default function KontaktVerwaltung() {
   const [erlaubt, setErlaubt] = useState<boolean | null>(null);
   const [zeigeErledigte, setZeigeErledigte] = useState(false);
   const [gross, setGross] = useState<string | null>(null);
+  /** Die Meldung, zu der der Link aus Discord oder der Mail fuehrt (?gespraech=<id>), und die Antworten, die gerade getippt werden. */
+  const [ziel, setZiel] = useState('');
+  const [antworten, setAntworten] = useState<Record<string, string>>({});
+  const [sendet, setSendet] = useState<string | null>(null);
+  const [antwortStand, setAntwortStand] = useState<Record<string, string>>({});
+  useEffect(() => { setZiel(new URLSearchParams(window.location.search).get('gespraech') ?? ''); }, []);
 
   const holen = useCallback(async () => {
     try {
@@ -49,6 +56,30 @@ export default function KontaktVerwaltung() {
   }, []);
 
   useEffect(() => { void holen(); }, [holen]);
+  // Zur Meldung aus dem Link springen, sobald sie da ist.
+  useEffect(() => {
+    if (!ziel || !meldungen.some((m) => m.id === ziel)) return;
+    document.getElementById(`meldung-${ziel}`)?.scrollIntoView({ block: 'center' });
+  }, [ziel, meldungen]);
+
+  async function antwortSenden(id: string) {
+    const text = (antworten[id] ?? '').trim();
+    if (text.length < 2) return;
+    setSendet(id); setAntwortStand((a) => ({ ...a, [id]: '' }));
+    try {
+      const r = await fetch('/api/kontakt', {
+        method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, antwort: text }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (r.ok) {
+        setMeldungen(j.meldungen ?? []);
+        setAntworten((a) => ({ ...a, [id]: '' }));
+        setAntwortStand((a) => ({ ...a, [id]: t('Antwort verschickt.') }));
+      } else setAntwortStand((a) => ({ ...a, [id]: j.fehler ?? t('Das hat nicht geklappt.') }));
+    } catch { setAntwortStand((a) => ({ ...a, [id]: t('Das hat nicht geklappt.') })); }
+    finally { setSendet(null); }
+  }
 
   async function setzeErledigt(id: string, wert: boolean) {
     const r = await fetch('/api/kontakt', {
@@ -86,10 +117,10 @@ export default function KontaktVerwaltung() {
   const erledigte = meldungen.filter((m) => m.erledigt);
 
   const karte = (m: Meldung) => (
-    <article key={m.id}
-      className={`rounded-xl border p-4 ${m.erledigt
+    <article key={m.id} id={`meldung-${m.id}`}
+      className={`rounded-2xl border p-4 shadow-[0_6px_20px_rgba(15,23,42,.10)] ${m.erledigt
         ? 'border-zinc-900 bg-zinc-950/40 opacity-60'
-        : 'border-zinc-800 bg-zinc-900/40'}`}>
+        : m.id === ziel ? 'border-sky-500 bg-zinc-900 ring-1 ring-sky-500/40' : 'border-zinc-800 bg-zinc-900'}`}>
 
       <div className="mb-2 flex flex-wrap items-center gap-2">
         <span className={`rounded-full border px-2 py-0.5 text-[10px]
@@ -141,6 +172,23 @@ export default function KontaktVerwaltung() {
                    py-1.5 text-xs text-slate-300 outline-none
                    placeholder:text-slate-700 focus:border-sky-500" />
 
+      {/* Direkt antworten: geht per Mail an den Absender (Antworten kommen in dein Postfach), die Meldung gilt danach als erledigt. */}
+      {m.vonEmail && !m.erledigt && (
+        <div className="mb-3">
+          <textarea value={antworten[m.id] ?? ''} rows={3}
+            onChange={(e) => setAntworten((a) => ({ ...a, [m.id]: e.target.value }))}
+            placeholder={t('Antwort an den Absender (geht per E-Mail, auf Englisch)')}
+            className="w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-slate-200 outline-none placeholder:text-slate-600 focus:border-sky-500" />
+          <div className="mt-1.5 flex items-center gap-3">
+            <button onClick={() => void antwortSenden(m.id)} disabled={sendet === m.id || (antworten[m.id] ?? '').trim().length < 2}
+              className="rounded-full bg-sky-500 px-5 py-1.5 text-xs font-bold text-white transition hover:bg-sky-400 disabled:opacity-40">
+              {sendet === m.id ? <T>wird gesendet …</T> : <T>Antwort senden</T>}
+            </button>
+            {antwortStand[m.id] && <span className="text-xs text-slate-400">{antwortStand[m.id]}</span>}
+          </div>
+        </div>
+      )}
+
       <div className="flex flex-wrap gap-2">
         <button onClick={() => void setzeErledigt(m.id, !m.erledigt)}
           className={`rounded-lg border px-3 py-1 text-[11px] transition ${m.erledigt
@@ -161,12 +209,8 @@ export default function KontaktVerwaltung() {
   return (
     <main className="flex-1 bg-zinc-950 px-4 py-8">
       <div className="mx-auto max-w-3xl">
-        <h1 className="text-2xl font-bold text-slate-50"><T>Kontakt</T></h1>
-        <p className="mb-6 mt-1 text-sm text-slate-500">
-          {offene.length === 0
-            ? <T>Nichts Offenes.</T>
-            : <>{offene.length} <T>offen</T></>}
-        </p>
+        <SeitenKopf className="mb-6" marke={<T>Posteingang</T>} titel={<T>Kontakt</T>}
+          text={offene.length === 0 ? <T>Nichts Offenes.</T> : <>{offene.length} <T>offen</T></>} />
 
         {offene.length > 0 && (
           <div className="space-y-3">{offene.map(karte)}</div>

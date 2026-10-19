@@ -1,11 +1,12 @@
 import { NextResponse } from 'next/server';
 import {
-  gecacht, cupsGruppiert, REGIONEN, REGION_TEXT, STANDARD_ARTEN,
+  nameAusFenstern, gecacht, cupsGruppiert, REGIONEN, REGION_TEXT, STANDARD_ARTEN,
   schreibeArchiv, leseArchiv, archivCups, EpicLoginNoetig,
   type CupArt, type CupGruppe,
 } from '@/lib/epicCups';
 import { AblageNichtErreichbar, fertigeAntwort, FRISCH_LIVE_MS } from '@/lib/antwortSpeicher';
 import { globalsVereint } from '@/lib/globalsCup';
+import { groesseAus } from '@/lib/cupTitel';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -39,6 +40,30 @@ function zustaendeJetzt(cups: CupGruppe[]): CupGruppe[] {
       }
     }
     return { ...c, regionen, live, vorbei, naechsterStart: live ? c.naechsterStart : naechster };
+  });
+}
+
+/*
+ * Namen, an denen man die Kacheln unterscheidet (Betreiber, 19.10.2026: zweimal "Performance Evaluation" am selben Tag, einmal gar nur "Fortnite").
+ *
+ * Epic fuehrt die Performance Evaluation als zwei Reihen - Duos in drei Regionen, Trios in zweien - und nennt die eine nur "Fortnite". Ein Titel
+ * "Fortnite" wird aus den Fensterkennungen gelesen; tragen mehrere Cups denselben Titel, steht die Teamgroesse dahinter ("... Cup · Duos").
+ */
+function benenne(cups: CupGruppe[]): CupGruppe[] {
+  const erstes = (c: CupGruppe) => Object.values(c.regionen ?? {}).flat()[0];
+  const roh = cups.map((c) => {
+    if (c.titel.trim().toLowerCase() !== 'fortnite') return c;
+    const ids = Object.values(c.regionen ?? {}).flat().map((w) => w.windowId);
+    const n = nameAusFenstern(ids);
+    return n ? { ...c, titel: n } : c;
+  });
+  const je = new Map<string, number>();
+  for (const c of roh) { const k = c.titel.trim().toLowerCase(); je.set(k, (je.get(k) ?? 0) + 1); }
+  return roh.map((c) => {
+    if ((je.get(c.titel.trim().toLowerCase()) ?? 0) < 2) return c;
+    const w = erstes(c);
+    const g = groesseAus(w?.playlist, w?.eventId, c.id);
+    return g && !new RegExp(g, 'i').test(c.titel) ? { ...c, titel: `${c.titel} · ${g}` } : c;
   });
 }
 
@@ -114,7 +139,7 @@ export async function GET(request: Request) {
      */
     const ausArchiv = await archivCups(new Set(alle.map((c) => c.id)));
     // Die Globals als ein Eintrag (Kumulativ, Day 1, Day 2) - lib/globalsCup.
-    const zusammen = globalsVereint([...alle, ...ausArchiv]);
+    const zusammen = benenne(globalsVereint([...alle, ...ausArchiv]));
 
     /*
      * Von den Divisionen zaehlt nur die erste.

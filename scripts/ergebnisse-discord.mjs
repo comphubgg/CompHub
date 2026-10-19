@@ -1,5 +1,6 @@
 /*
- * #results: die ersten zehn jedes Finales, von selbst nach dem Ende.
+ * #results: die ersten zehn jedes Finales - und jedes Open (Betreiber, 19.10.2026: "da sollen auch die Opens der Performance Evaluation und der Solo-FNCS
+ * stehen") -, von selbst nach dem Ende.
  *
  * Laeuft im stuendlichen Lauf gegen dessen eigenen Server (wie
  * admin-zahlen-discord.mjs). Genommen werden die Finals der
@@ -68,7 +69,21 @@ function tagName(windowId) {
   return '';
 }
 
-/** Die Finals, die jetzt dran sind. */
+/** Der Name eines Spieltags, so, dass man ihn erkennt: Heat-Nummer, Fast Track, LCQ, Event-Runde. */
+function fensterName(windowId, finale, hoechsteRunde) {
+  const w = String(windowId);
+  let m = w.match(/Heat(\d+)/i); if (m) return `Heat ${m[1]}`;
+  if (/FastTrack/i.test(w)) return 'Fast Track';
+  if (/LastChance|LCQ/i.test(w)) return 'Last Chance Qualifier';
+  m = w.match(/Week(\d+)Final/i); if (m) return `Week ${m[1]} Finals`;
+  m = w.match(/Event(\d+)Round(\d+)/i);
+  if (m) return finale ? `Event ${m[1]} Finals` : `Event ${m[1]} · Open${hoechsteRunde > 2 ? ` Round ${m[2]}` : ''}`;
+  m = w.match(/Day(\d+)/i); if (m) return `Day ${m[1]}`;
+  if (/Final/i.test(w)) return 'Finals';
+  return '';
+}
+
+/** Die Spieltage (Finals und Opens), die jetzt dran sind. */
 function finals(katalog) {
   const jetzt = Date.now();
   const raus = [];
@@ -89,7 +104,7 @@ function finals(katalog) {
         // Bei einem LAN (Globals) ist jeder Tag Teil des Finales.
         const finale = cup.global || f.istFinale || /final/i.test(f.windowId)
           || (m && +m[2] === hoechste.get(m[1]) && +m[2] > 1);
-        if (finale) raus.push({ cup, region, f });
+        raus.push({ cup, region, f, finale: !!finale, hoechste: m ? hoechste.get(m[1]) ?? 0 : 0 });
       }
     }
   }
@@ -98,10 +113,10 @@ function finals(katalog) {
 
 async function main() {
   if (!TOKEN) { console.log('Kein Bot-Token.'); return; }
-  const katalog = await holeJson('/api/cup-catalog');
+  const katalog = await holeJson('/api/cup-catalog?modus=standard');
   if (!katalog) { console.log('Cup-Katalog antwortet nicht - nichts gepostet.'); return; }
   const liste = finals(katalog);
-  if (!liste.length) { console.log('Kein Finale in den letzten 36 Stunden.'); return; }
+  if (!liste.length) { console.log('Kein Spieltag in den letzten 36 Stunden.'); return; }
 
   const kanaele = await ruf(`/guilds/${SERVER_ID}/channels`);
   const kanal = kanaele.find((k) => k.type === 0 && k.name === KANAL);
@@ -114,7 +129,7 @@ async function main() {
     .map((t) => t.slice('result:'.length)));
 
   let gepostet = 0;
-  for (const { cup, region, f } of liste) {
+  for (const { cup, region, f, finale, hoechste } of liste) {
     if (schon.has(f.windowId)) continue;
     const lb = await holeJson(`/api/cup-leaderboard?event=${encodeURIComponent(f.eventId)}&window=${encodeURIComponent(f.windowId)}`);
     const zehn = (lb?.entries ?? []).slice(0, 10);
@@ -132,7 +147,8 @@ async function main() {
       teile.push(`${e.elims} elims`);
       return `\`${String(e.rank).padStart(2)}.\` **${namen}** · ${teile.join(' · ')}`;
     });
-    const titel = `🏆 ${cup.titel}${tagName(f.windowId) ? ` · ${tagName(f.windowId)}` : ''} · ${region}`;
+    const name = fensterName(f.windowId, finale, hoechste) || tagName(f.windowId);
+    const titel = `${finale ? '🏆' : '🎯'} ${cup.titel}${name ? ` · ${name}` : ''} · ${region}`;
     const koerper = {
       embeds: [{
         title: titel.slice(0, 256),
@@ -149,7 +165,7 @@ async function main() {
     gepostet += 1;
     await new Promise((r) => setTimeout(r, 1500));
   }
-  console.log(`${liste.length} Finals geprueft, ${gepostet} neu gepostet.`);
+  console.log(`${liste.length} Spieltage geprueft, ${gepostet} neu gepostet.`);
 }
 
 main().catch((e) => { console.error(e.message); process.exitCode = 1; });

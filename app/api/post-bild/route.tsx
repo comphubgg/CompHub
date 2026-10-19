@@ -74,6 +74,14 @@ export async function GET(request: Request) {
   if (!post) return new Response('kein Post', { status: 404 });
   const ursprung = new URL(request.url).origin;
   const d = post.bild as Record<string, unknown>;
+  // Das Ergebnis eines Cups: das Fotomosaik der Besten (dasselbe Bild, das der Betreiber sonst unter seine Beitraege legt - /api/beitrag-bild).
+  if (d.art === 'ergebnis') {
+    const ids = ((d.ids as string[]) ?? []).filter((x) => /^[0-9a-f]{32}$/.test(x));
+    if (!ids.length) return new Response('keine Fotos', { status: 404 });
+    const r = await fetch(`${ursprung}/api/beitrag-bild?ids=${ids.join(',')}`, { signal: AbortSignal.timeout(30_000) }).catch(() => null);
+    if (!r?.ok) return new Response('Mosaik nicht erreichbar', { status: 502 });
+    return new Response(await r.arrayBuffer(), { headers: { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=3600' } });
+  }
   const [logo, bricolage, figtree] = await Promise.all([
     bildDaten('/logos/CompHub-Logo-frei.png', ursprung, 200), schrift('Bricolage Grotesque', 800), schrift('Figtree', 700),
   ]);

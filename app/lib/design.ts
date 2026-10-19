@@ -15,7 +15,7 @@ export type Modus = 'hell' | 'dunkel';
 export const MODUS_COOKIE = 'comphub_modus';
 
 /** Seiten, die in der bisherigen Optik bleiben. */
-const ALT = /^\/(streams|overlays|pov|pov-ansicht|live-leaderboard|live-replays)(\/|$)/;
+const ALT = /^\/(streams|pov-ansicht|live-leaderboard|live-replays)(\/|$)/;
 
 export const designFuerPfad = (pfad: string): Design => (ALT.test(pfad) ? 'alt' : 'neu');
 

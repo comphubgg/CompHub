@@ -18,7 +18,7 @@ import { useZugang } from '@/app/lib/zugang';
 interface Post { nr: number; art: string; schluessel: string; titel: string; text: string }
 interface Plan { datum: string; posts: Post[] }
 
-const ART: Record<string, string> = { cup: 'Cup', spieler: 'Player', duell: 'Head to head', rekord: 'Leaders', ranking: 'Ranking', promo: 'Promo', update: 'Update', karte: 'Map' };
+const ART: Record<string, string> = { ergebnis: 'Result', cup: 'Cup', spieler: 'Player', duell: 'Head to head', rekord: 'Leaders', ranking: 'Ranking', promo: 'Promo', update: 'Update', karte: 'Map' };
 
 const tagVersatz = (datum: string, tage: number) => new Date(Date.parse(`${datum}T12:00:00Z`) + tage * 86_400_000).toISOString().slice(0, 10);
 

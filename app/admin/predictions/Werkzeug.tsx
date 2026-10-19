@@ -483,6 +483,8 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
   /** Bei den Globals: LAN-Konto -> Schluessel des Teams im Feld. */
   const [lanZuKey, setLanZuKey] = useState<Record<string, string>>({});
   const [turnierListeOffen, setTurnierListeOffen] = useState(false);
+  /** "Von Noble holen" laeuft gerade. */
+  const [nobleLaeuft, setNobleLaeuft] = useState(false);
   const [karteNr, setKarteNr] = useState(0);
   const [kartenTitel, setKartenTitel] = useState('');
   const [benenntKarte, setBenenntKarte] = useState(false);
@@ -1623,6 +1625,57 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
    * Sie startet leer und holt ihre Formen aus der Vorlage - die Reihenfolge
    * der Teams bleibt davon unberuehrt, die gilt fuer den ganzen Spieltag.
    */
+  /**
+   * Formen und Spieler dieses Finales von Noble Practice holen (Betreiber, 19.10.2026: "wenn ich eine Map habe, kann ich sie auch hier kurz von Noble rueberholen -
+   * ein Reload-Knopf - und die Spielerliste direkt ausfuellen"). Die Formen ersetzen die der gerade sichtbaren Karte, die Zuordnung (wer in welcher Form steht)
+   * kommt von Noble; Teams, die im Feld fehlen, werden dort mit ihren Namen ergaenzt. Dieselbe Quelle wie "Generate map" im Karten-Werkzeug.
+   */
+  async function vonNobleHolen() {
+    if (!ziel) { setStatus(uebs('Erst einen Cup wählen')); return; }
+    setNobleLaeuft(true);
+    try {
+      const q = `window=${encodeURIComponent(ziel.windowId)}&titel=${encodeURIComponent(cup?.titel ?? '')}&begin=${ziel.begin}`;
+      const r = await fetch(`/api/noble-karte?${q}`, { cache: 'no-store' });
+      const j = await r.json() as {
+        ok?: boolean; error?: string; nichtGefunden?: boolean;
+        formen?: Array<{ punkte: Punkt[]; teams: Array<{ ids: string[]; namen: string[] }> }>;
+        ohneForm?: Array<{ ids: string[]; namen: string[] }>;
+      };
+      if (!r.ok || !j.ok) { setStatus(j.nichtGefunden ? uebs('Noble kennt diesen Spieltag nicht.') : (j.error ?? uebs('Noble nicht erreichbar'))); return; }
+      if (!(j.formen ?? []).length) { setStatus(uebs('Noble kennt diesen Spieltag, hat aber noch keine Formen.')); return; }
+
+      const imFeld = [...feld];
+      const keyVon = (e: { ids: string[]; namen: string[] }) => {
+        const ids = e.ids.filter(Boolean);
+        const bekannt = imFeld.find((t) => ids.length > 0 && t.ids.some((x) => ids.includes(x)));
+        if (bekannt) return bekannt.key;
+        const key = [...(ids.length ? ids : e.namen)].sort().join('|');
+        imFeld.push({ key, namen: e.namen, ids, herkunft: ['Noble'], besterPlatz: 999, region: ziel.region });
+        return key;
+      };
+      const jetzt = Date.now().toString(36);
+      const neueSpots: Spot[] = [];
+      const neuAufSpot: Record<string, string[]> = {};
+      (j.formen ?? []).forEach((fo, i) => {
+        const xs = [...new Set(fo.punkte.map((p) => p.x))];
+        const ys = [...new Set(fo.punkte.map((p) => p.y))];
+        const rechteck = fo.punkte.length === 4 && xs.length === 2 && ys.length === 2;
+        const id = `noble-${jetzt}-${i}`;
+        neueSpots.push({
+          id, form: rechteck ? 'rechteck' : 'polygon',
+          punkte: rechteck ? rechteckPunkte({ x: Math.min(...xs), y: Math.min(...ys) }, { x: Math.max(...xs), y: Math.max(...ys) }) : fo.punkte,
+        });
+        neuAufSpot[id] = fo.teams.map(keyVon);
+      });
+      for (const e of j.ohneForm ?? []) keyVon(e);
+      setSpots(neueSpots); setAufSpot(neuAufSpot);
+      if (imFeld.length !== feld.length) setFeld(imFeld);
+      setStatus(`${neueSpots.length} ${uebs('Formen von Noble übernommen')}${imFeld.length !== feld.length ? ` · ${imFeld.length - feld.length} ${uebs('Teams ins Feld ergänzt')}` : ''}`);
+    } catch (e) {
+      setStatus((e as Error).message);
+    } finally { setNobleLaeuft(false); }
+  }
+
   function karteAnlegen() {
     const liste = mitAktueller();
     const neu: Karte = {
@@ -2320,6 +2373,12 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
                         ⬠ Freie Form
                       </button>
                     </div>
+                    <button onClick={() => void vonNobleHolen()} disabled={nobleLaeuft || !ziel}
+                      title={uebs('Formen und Spieler dieses Finales von Noble holen - ersetzt die Formen dieser Karte')}
+                      className="inline-flex items-center gap-1 rounded-lg border border-sky-600 px-2 py-1 text-[11px] text-sky-300 hover:bg-sky-950/40 disabled:opacity-40">
+                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" className={nobleLaeuft ? 'animate-spin' : ''}><path d="M21 12a9 9 0 1 1-3-6.7" /><path d="M21 3v6h-6" /></svg>
+                      {nobleLaeuft ? uebs('lädt …') : 'Noble'}
+                    </button>
                     <button onClick={speichern}
                       title={uebs('Formen, Karte und Zuordnung in dieser Prognose festhalten')}
                       className="rounded-lg border border-emerald-600 px-2 py-1 text-[11px]

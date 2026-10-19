@@ -9,6 +9,7 @@ import MeineOverlays from './MeineOverlays';
 import Startansicht from './Startansicht';
 import LadeSchirm from '@/app/components/LadeSchirm';
 import VipVorhang from './VipVorhang';
+import SeitenKopf from '@/app/components/SeitenKopf';
 
 /*
  * Das gemeinsame Geruest der Overlay-Seiten.
@@ -218,61 +219,44 @@ export default function OverlayGeruest({ aktiv, children }: {
 
   return (
     <main className={`flex-1 bg-zinc-950 text-slate-200 ${eingebettet ? 'px-4 py-4' : 'px-4 py-6'}`}>
-      <div className="mx-auto flex max-w-[1500px] flex-col gap-6 lg:flex-row">
+      <div className="mx-auto flex max-w-[1500px] flex-col gap-5">
 
-        {/* Die Leiste. Sie steht auf jeder Overlay-Seite gleich - nur im Studio nicht. */}
-        {!eingebettet && <aside className="w-full shrink-0 lg:w-56">
-          <p className="mb-2 px-2 text-[10px] font-semibold uppercase
-                        tracking-[0.18em] text-slate-600">
-            <T>Overlays</T>
-          </p>
-          <nav className="flex flex-wrap gap-1 lg:flex-col">
-            {/*
-              * Die Auswahl der drei Arten mit Vorschau. Das "Studio" mit dem
-              * Stream-Bild gibt es nicht mehr: der Betreiber wollte jede Art
-              * wieder einzeln, mit Vorschau - ohne Bildschirm als Vorlage.
-              */}
-            <Link href="/overlays"
-              className="rounded-lg border border-sky-500/40 bg-sky-500/10 px-3 py-2 text-sm
-                         font-semibold text-sky-400 transition hover:bg-sky-500/20">
-              <T>Overview</T>
-            </Link>
-            {ARTEN.filter((a) => !a.versteckt || a.schluessel === aktiv).map((a) => (
-              <Link key={a.schluessel} href={a.pfad}
-                title={t(a.was)}
-                className={`rounded-lg px-3 py-2 text-sm transition ${
-                  aktiv === a.schluessel
-                    ? 'bg-zinc-900 font-semibold text-sky-400'
-                    : 'text-slate-400 hover:bg-zinc-900/60 hover:text-slate-200'}`}>
-                {a.titel}
+        {/*
+          * Neu angeordnet (Betreiber, 19.10.2026: "wenn ich das naechste Mal reingehe, soll es komplett anders aussehen"): oben der Kopf mit der Erklaerung,
+          * darunter die Arten als Kapseln statt einer Leiste links, die eigenen Overlays als eingeklapptes Feld - und darunter erst der Baukasten.
+          */}
+        {!eingebettet && (
+          <>
+            <SeitenKopf marke={<T>Für deinen Stream</T>}
+              titel={<>{ARTEN.find((a) => a.schluessel === aktiv)?.titel ?? t('Overlays')}</>}
+              text={<T>Die Adresse in OBS bleibt immer dieselbe. Was du hier umstellst, ist im Stream nach wenigen Sekunden zu sehen — ohne die Browserquelle anzufassen.</T>}
+              rechts={
+                <Link href="/admin#archiv"
+                  className="rounded-full border border-zinc-700 px-4 py-2 text-xs font-bold text-slate-300 transition hover:border-sky-500 hover:text-sky-400">
+                  <T>Deine gespeicherten Overlays: Dashboard → Mein Archiv</T>
+                </Link>
+              } />
+            <nav className="flex flex-wrap gap-1 self-start rounded-full border border-zinc-800 bg-zinc-900 p-1 shadow-sm">
+              <Link href="/overlays"
+                className="rounded-full px-5 py-2 text-sm font-bold text-slate-400 transition hover:text-slate-100">
+                <T>Overview</T>
               </Link>
-            ))}
-          </nav>
-
-          <p className="mt-6 px-2 text-[11px] leading-relaxed text-slate-600">
-            <T>Die Adresse in OBS bleibt immer dieselbe. Was du hier umstellst,
-            ist im Stream nach wenigen Sekunden zu sehen — ohne die
-            Browserquelle anzufassen.</T>
-          </p>
-
-          {/*
-            * Ein eigener Abschnitt mit mehr Luft darueber - so wollte es der
-            * Betreiber. Er steht auf jeder Overlay-Seite gleich, denn was
-            * jemand angelegt hat, gehoert nicht zu einer Art, sondern zu ihm.
-            */}
-          {/*
-            * Auf der Startseite steht die Liste gross in der Mitte - hier
-            * waere sie zweimal dasselbe.
-            */}
-          {imBaukasten && <MeineOverlays nurArt={aktiv} />}
-
-          {/* Alles, was gespeichert ist, steht im Dashboard unter "Mein Archiv". */}
-          <Link href="/admin#archiv"
-            className="mt-5 block rounded-lg border border-zinc-800 bg-zinc-900/40 px-3 py-2 text-xs
-                       text-slate-400 transition hover:border-sky-500 hover:text-sky-400">
-            <T>Deine gespeicherten Overlays: Dashboard → Mein Archiv</T>
-          </Link>
-        </aside>}
+              {ARTEN.filter((a) => !a.versteckt || a.schluessel === aktiv).map((a) => (
+                <Link key={a.schluessel} href={a.pfad} title={t(a.was)}
+                  className={`rounded-full px-5 py-2 text-sm font-bold transition ${
+                    aktiv === a.schluessel ? 'bg-sky-500 text-white shadow' : 'text-slate-400 hover:text-slate-100'}`}>
+                  {a.titel}
+                </Link>
+              ))}
+            </nav>
+            {imBaukasten && (
+              <details className="rounded-2xl border border-zinc-800 bg-zinc-900 px-4 py-2.5">
+                <summary className="cursor-pointer select-none text-xs font-semibold text-slate-400 transition hover:text-slate-200"><T>Deine Overlays</T></summary>
+                <div className="mt-3 max-w-xl"><MeineOverlays nurArt={aktiv} /></div>
+              </details>
+            )}
+          </>
+        )}
 
         <div className="min-w-0 flex-1">
           {imBaukasten ? (

@@ -287,6 +287,11 @@ export async function fertigeAntwort<T>(
    * dort, wo die Dateien liegen; hier wird dann nur gelesen.
    */
   hintergrund = true,
+  /**
+   * Eine Antwort, die aelter ist als das, wird nicht mehr "erst einmal alt" ausgeliefert, sondern gleich neu gerechnet (Betreiber, 19.10.2026: das Profil zeigte
+   * beim ersten Aufruf Zahlen von vor Stunden - "stimmt nicht mit EU Competitive ueberein"; erst der zweite Aufruf hatte die frischen).
+   */
+  spaetestensMs?: number,
 ): Promise<T> {
   const name = nameVon(schluessel);
   /*
@@ -332,18 +337,20 @@ export async function fertigeAntwort<T>(
     if (jetzt - abgelegt.zeit < frischMs) return abgelegt.wert;
     if (!hintergrund && ohneDateien()) return abgelegt.wert;
 
-    // Zu alt: trotzdem ausliefern, im Hintergrund erneuern.
-    if (!laufend.has(schluessel)) {
-      laufend.add(schluessel);
-      nachDerAntwort(async () => {
-        try {
-          const wert = await rechne();
-          await merkeAntwort(name, { zeit: Date.now(), wert });
-        } catch { /* dann bleibt der alte Stand stehen */ }
-        finally { laufend.delete(schluessel); }
-      });
+    // Zu alt: trotzdem ausliefern, im Hintergrund erneuern - ausser, sie ist aelter als die Grenze: dann wird gleich neu gerechnet (unten).
+    if (!(spaetestensMs && jetzt - abgelegt.zeit > spaetestensMs)) {
+      if (!laufend.has(schluessel)) {
+        laufend.add(schluessel);
+        nachDerAntwort(async () => {
+          try {
+            const wert = await rechne();
+            await merkeAntwort(name, { zeit: Date.now(), wert });
+          } catch { /* dann bleibt der alte Stand stehen */ }
+          finally { laufend.delete(schluessel); }
+        });
+      }
+      return abgelegt.wert;
     }
-    return abgelegt.wert;
   }
 
   // Gar nichts da - hier muss gewartet werden. Fragt waehrenddessen ein

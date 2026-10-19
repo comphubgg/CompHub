@@ -114,12 +114,12 @@ html[data-design="neu"] :is(div, section, article, aside)[class*="rounded-xl"][c
 .faecher { position: relative; display: block; list-style: none; padding: 0; margin: 0; container-type: inline-size; --abstand: 56px; --winkel: 2.5deg; }
 /* Beim Ueberfahren geht der Faecher von eng zu weit auseinander (Betreiber: "so wie bei EU Competitive") - bis die Karten fast nebeneinander stehen,
    aber nie breiter als der Platz (cqw = Breite des Faechers; eine Karte ist 9rem breit, fuenf Abstaende dazwischen). */
-.faecher:hover, .faecher:focus-within { --abstand: min(8.7rem, calc((100cqw - 9.5rem) / 5)); --winkel: 3deg; }
+.faecher:hover, .faecher:focus-within { --abstand: min(8.7rem, calc((100cqw - 9.5rem) / var(--n, 5))); --winkel: 3deg; }
 .faecher > li { position: absolute; left: 50%; top: 50%; margin: -6.5rem 0 0 -4.5rem; z-index: var(--i);
   translate: calc(var(--d) * var(--abstand)) 0; rotate: calc(var(--d) * var(--winkel));
   transition: rotate .55s cubic-bezier(.2,.8,.2,1), translate .55s cubic-bezier(.2,.8,.2,1); }
 .faecher > li:hover { rotate: 0deg; translate: calc(var(--d) * var(--abstand)) -14px; z-index: 20; }
-@media (max-width: 639px) { .faecher { --abstand: 30px; } .faecher > li { margin: -5.5rem 0 0 -3.5rem; } .faecher:hover, .faecher:focus-within { --abstand: min(5rem, calc((100cqw - 7.5rem) / 5)); } }
+@media (max-width: 639px) { .faecher { --abstand: 30px; } .faecher > li { margin: -5.5rem 0 0 -3.5rem; } .faecher:hover, .faecher:focus-within { --abstand: min(5rem, calc((100cqw - 7.5rem) / var(--n, 5))); } }
 @keyframes faecher-rein { from { opacity: 0; transform: translateY(18px) scale(.94); } to { opacity: 1; transform: none; } }
 @keyframes faecher-aus { from { opacity: 0; } to { opacity: 1; } }
 .faecher-pop { animation: faecher-rein .32s cubic-bezier(.2,.8,.2,1) both; }
@@ -163,3 +163,12 @@ html[data-dash-alle="aus"] [data-dash="alle"], html[data-dash-vip="aus"] [data-d
 html[data-dash-schluessel="aus"] [data-dash="schluessel"], html[data-dash-archiv="aus"] [data-dash="archiv"] { display: none; }
 html:not([data-dash-chat="an"]) [data-dash="chat"] { display: none; }
 html:not([data-dash-chat="an"]) [data-dash-spalten] { grid-template-columns: minmax(0, 1fr); }
+
+/*
+ * Die Tierlist im Hell-Modus (Betreiber, 19.10.2026: "die Tierlist ist immer noch schwarz"). Ihr Stylesheet (app/tierlist/styles/tierlist.css) ist
+ * durchgehend dunkel geschrieben; statt es Zeile fuer Zeile umzuschreiben, wird die Seite im Hell-Modus umgekehrt (Hell/Dunkel getauscht, Farbtoene
+ * zurueckgedreht) und etwas abgedunkelt, damit sie zum gedaempften Hell der Seite passt. Bilder, Flaggen und Zeichnungen werden zurueckgekehrt, damit
+ * Fotos und Tierfarben ihre Farben behalten.
+ */
+html[data-modus="hell"] .tierlist-page { filter: invert(1) hue-rotate(180deg) brightness(.9) contrast(.96); }
+html[data-modus="hell"] .tierlist-page :is(img, canvas, video, picture, [style*="background-image"]) { filter: invert(1) hue-rotate(180deg); }

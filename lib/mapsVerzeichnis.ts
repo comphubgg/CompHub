@@ -2,6 +2,7 @@ import { alleTurniere, detail } from '@/lib/nobleKarte';
 import { liesJson } from '@/lib/ablage';
 import { saisonName, SAISON_NAMEN } from '@/lib/szeneStats';
 import { typVon, cupBild, SAISON_TITEL, SAISON_OHNE_MAPS, type MapTyp } from '@/lib/mapsTyp';
+import { titelMit } from '@/lib/cupTitel';
 import { alteEintraege } from '@/lib/alteMaps';
 
 export { typVon };
@@ -119,7 +120,7 @@ export async function mapsVerzeichnis(): Promise<MapEintrag[]> {
         const datum = w.startDate ? Date.parse(w.startDate) : (a?.begin ?? null);
         liste.push({
           turnierId: t.id, region: r.code, windowId: w.windowId,
-          cup: t.tournamentName, fenster: w.name, titel: a?.titel || `${t.tournamentName} · ${w.name}`,
+          cup: t.tournamentName, fenster: w.name, titel: titelMit(a?.titel || `${t.tournamentName} · ${w.name}`, w.windowId),
           datum: Number.isFinite(datum as number) ? datum : null,
           saison, saisonKurz: '', saisonName: '',
           typ, bild: /^S\d+_FNCSMajor\d_Final_EU$/.test(w.windowId) ? '/cups/fncs-grand-finals.webp' : (cupBild(`${t.tournamentName} ${a?.titel ?? ''}`) ?? a?.bild ?? BILD_JE_TYP[typ]),

@@ -7,6 +7,7 @@ import { istBetreiber, vipAus } from '@/lib/vipCookie';
 import { zugangNach, rechteVon } from '@/lib/vipZugaenge';
 import { alle, lege, aendere, entferne } from '@/lib/kontakt';
 import { sendeMail, betreiberAdresse } from '@/lib/mail';
+import { schickeSupport } from '@/lib/discord';
 
 /*
  * Das Kontaktformular.
@@ -140,7 +141,7 @@ export async function POST(request: Request) {
      */
     knopf: {
       titel: 'Open in the tool',
-      ziel: `https://thecomphub.com/messages?gespraech=${m.id}`,
+      ziel: `https://www.thecomphub.com/admin/contact?gespraech=${m.id}`,
     },
     /*
      * Die Bildschirmausschnitte gehen mit.
@@ -155,6 +156,12 @@ export async function POST(request: Request) {
     })),
   });
 
+  // Und in den Support-Kanal von Discord (nur Admin) - mit dem Link zur Antwort auf der Seite.
+  void schickeSupport({
+    thema: betreff, absender: m.vonName, adresse: m.vonEmail, text: m.text,
+    url: `https://www.thecomphub.com/admin/contact?gespraech=${m.id}`,
+  }).catch(() => undefined);
+
   return NextResponse.json({ ok: true, id: m.id, bilder: m.bilder.length });
 }
 
@@ -165,6 +172,26 @@ export async function PATCH(request: Request) {
   const k = await request.json().catch(() => ({}));
   const id = String(k.id ?? '').trim();
   if (!id) return NextResponse.json({ fehler: 'keine Id' }, { status: 400 });
+
+  /*
+   * Antworten (Betreiber, 19.10.2026): der Text geht als Mail an die Adresse des Absenders - Antworten gehen dann an das Postfach des Betreibers -,
+   * die Meldung gilt danach als erledigt und die Notiz haelt fest, was geantwortet wurde. Englisch, wie jede verschickte Mail.
+   */
+  const antwort = String(k.antwort ?? '').trim();
+  if (antwort) {
+    const meldung = (await alle()).find((x) => x.id === id);
+    if (!meldung) return NextResponse.json({ fehler: 'nicht gefunden' }, { status: 404 });
+    if (!meldung.vonEmail) return NextResponse.json({ fehler: 'Diese Meldung hat keine Adresse - keine Antwort per Mail moeglich.' }, { status: 400 });
+    const ok = await sendeMail({
+      an: meldung.vonEmail, antwortAn: betreiberAdresse(),
+      betreff: `Re: ${meldung.eigenesThema || 'Your message to CompHub'}`,
+      etikett: 'Reply', text: antwort, zitat: meldung.text,
+    });
+    if (!ok) return NextResponse.json({ fehler: 'Die Mail ließ sich nicht verschicken.' }, { status: 502 });
+    const notiz = `${meldung.notiz ? `${meldung.notiz}\n` : ''}Replied ${new Date().toLocaleDateString('en-GB')}: ${antwort.slice(0, 200)}`;
+    await aendere(id, { erledigt: true, notiz });
+    return NextResponse.json({ ok: true, gesendet: true, meldungen: await alle() });
+  }
 
   const m = await aendere(id, {
     erledigt: k.erledigt === undefined ? undefined : Boolean(k.erledigt),

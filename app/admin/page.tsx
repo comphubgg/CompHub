@@ -29,6 +29,7 @@ import { bereichVonPfad } from '@/lib/rechte';
 import Nutzungszahlen from '@/app/components/Nutzungszahlen';
 import Fusszeile from '@/app/components/Fusszeile';
 import MeinArchiv from './MeinArchiv';
+import KontoInhalt from '../account/KontoInhalt';
 import AdminZentrale from './AdminZentrale';
 import Klappbar from './Klappbar';
 import OfflineSeiten from './OfflineSeiten';
@@ -163,6 +164,12 @@ export default function AdminDashboardPage() {
   const [eigeneRechte, setEigeneRechte] = useState<string[]>([]);
   const zugang = useZugang();
   const [warnungWeg, setWarnungWeg] = useState(false);
+  /** Dashboard oder Kontodaten - /account?tab=konto oeffnet gleich die Kontodaten. */
+  const [tab, setTab] = useState<'dashboard' | 'konto'>('dashboard');
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    if (p.get('tab') === 'konto' || window.location.hash === '#konto') setTab('konto');
+  }, []);
 
   useEffect(() => {
     fetch('/api/profile')
@@ -374,6 +381,19 @@ export default function AdminDashboardPage() {
             </button>
           </div>
         </section>
+
+        {/* Zwei Reiter, wenn es ein Konto gibt: das Dashboard und die Kontodaten (Profil, Account, Privacy). */}
+        {zugang.nutzer && (
+          <div className="mb-5 inline-flex gap-1 rounded-full border border-zinc-800 bg-zinc-900 p-1">
+            {([['dashboard', 'Dashboard'], ['konto', 'Konto']] as const).map(([k, titel]) => (
+              <button key={k} type="button" onClick={() => setTab(k)}
+                className={`rounded-full px-5 py-2 text-sm font-bold transition ${tab === k ? 'bg-sky-500 text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}>
+                <T>{titel}</T>
+              </button>
+            ))}
+          </div>
+        )}
+        {tab === 'konto' && zugang.nutzer ? <KontoInhalt eingebettet /> : (<>
 
         {/* Der Hinweis fuer den Stream: ein schmaler Streifen statt einer
             bildschirmfuellenden Tuer. Er warnt vor demselben und kostet
@@ -685,6 +705,7 @@ export default function AdminDashboardPage() {
             </Klappbar>
           </div>
         )}
+        </>)}
       </div>
 
       {/*

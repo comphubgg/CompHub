@@ -1,0 +1,42 @@
+import crypto from 'crypto';
+import { NextResponse } from 'next/server';
+import { ergebnisPostsAnlegen } from '@/lib/ergebnisPosts';
+import { heuteDatum, postSeite } from '@/lib/tagesposts';
+import { schickePosts } from '@/lib/discord';
+
+/*
+ * Alle zehn Minuten (Ablauf "Discord live"): zu jedem seit einer halben Stunde beendeten Spieltag den fertigen Ergebnis-Post anlegen (lib/ergebnisPosts) und dem
+ * Admin in #admin-posts Bescheid geben. Geschuetzt wie die anderen Anstoesse von aussen: CRON_SECRET oder der Bot-Schluessel. Ein Spieltag bekommt nur einen
+ * Post - ein zweiter Lauf findet nichts Neues und meldet nichts.
+ */
+
+function gleich(a: string, b: string): boolean {
+  const x = Buffer.from(a); const y = Buffer.from(b);
+  return x.length === y.length && crypto.timingSafeEqual(x, y);
+}
+
+export const dynamic = 'force-dynamic';
+export const runtime = 'nodejs';
+export const maxDuration = 120;
+
+export async function GET(request: Request) {
+  const bearer = (request.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '').trim();
+  const schluessel = [process.env.CRON_SECRET, process.env.DISCORD_BOT_TOKEN].map((x) => (x ?? '').trim()).filter(Boolean);
+  if (!bearer || !schluessel.some((k) => gleich(bearer, k))) return NextResponse.json({ fehler: 'nicht erlaubt' }, { status: 401 });
+  try {
+    // ?stunden=48 (nur zum Ausprobieren/Nachholen): wie weit zurueck gesucht wird, hoechstens drei Tage.
+    const stunden = Math.min(72, Math.max(1, Number(new URL(request.url).searchParams.get('stunden')) || 12));
+    const neu = await ergebnisPostsAnlegen(6, stunden);
+    if (!neu.length) return NextResponse.json({ ok: true, neu: 0 });
+    // Zum Ausprobieren (COMPHUB_NUR_LESEN=1): zeigen, nichts nach Discord schicken.
+    if (process.env.COMPHUB_NUR_LESEN === '1') return NextResponse.json({ ok: true, probe: true, neu: neu.length, posts: neu });
+    const r = await schickePosts({
+      titel: `Neue Ergebnis-Posts (${neu.length}) - ${heuteDatum()}`,
+      zeilen: neu.map((p) => p.titel),
+      url: postSeite(heuteDatum()),
+    });
+    return NextResponse.json({ ok: true, neu: neu.length, gemeldet: r.ok, grund: r.grund });
+  } catch (e) {
+    return NextResponse.json({ ok: false, fehler: (e as Error).message }, { status: 503 });
+  }
+}

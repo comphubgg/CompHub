@@ -1039,7 +1039,7 @@ export interface CupGruppe {
  * "S42_PerformanceEvaluation_Event1Round1_EU" wird "Performance Evaluation".
  * Erfunden wird dabei nichts, die Worte stehen so in den Daten.
  */
-function nameAusFenstern(fensterIds: string[]): string | null {
+export function nameAusFenstern(fensterIds: string[]): string | null {
   for (const roh of fensterIds) {
     // Aufbau: Saison _ Name _ EventNRundeN _ Region
     const teile = roh.split('_');
