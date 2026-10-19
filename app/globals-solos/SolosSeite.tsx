@@ -47,6 +47,95 @@ function Foto({ s, px = 36 }: { s: SolosSpieler; px?: number }) {
     );
 }
 
+/** Das Bild eines Spielers als abgerundetes Quadrat in der Breite des Elternelements. */
+function Bild({ s }: { s: SolosSpieler }) {
+  return (
+    <span className="block aspect-square w-full overflow-hidden rounded-lg bg-zinc-800">
+      {s.bild
+        // eslint-disable-next-line @next/next/no-img-element
+        ? <img src={s.bild} alt="" loading="lazy" style={{ objectPosition: fokusVon(s.bild) }} className="h-full w-full object-cover" />
+        : <span className={`flex h-full w-full items-center justify-center bg-gradient-to-br text-sm font-black text-sky-200/60 ${tonVon(s.anzeige)}`}>{initialenVon(s.anzeige)}</span>}
+    </span>
+  );
+}
+
+/** Die Anfangsbuchstaben eines Namens - zwei, wenn es mehrere Woerter sind. */
+const initialenVon = (n: string) => n.trim().split(/\s+/).slice(0, 2).map((w) => Array.from(w)[0] ?? '').join('').toUpperCase() || '?';
+
+/** Ein Blauton je Name aus der Reihe der Startseite: ohne Foto sieht jeder Spieler anders aus, und keiner fremd. */
+const TON = ['from-sky-900/60 to-zinc-800', 'from-blue-900/60 to-zinc-800', 'from-indigo-900/60 to-zinc-800', 'from-cyan-900/50 to-zinc-800', 'from-slate-700/60 to-zinc-800'];
+const tonVon = (n: string) => TON[Array.from(n).reduce((a, c) => a + c.charCodeAt(0), 0) % TON.length];
+
+/**
+ * Ein Spieler als Kachel: grosses, sauberes Quadrat - und der Name steht immer darunter, auch ohne Foto
+ * (Betreiber, 19.10.2026: "groessere, cleane Bilder, und man muss erkennen, wer es ist, auch ohne Bild"; die kleinen Kreise sah man nicht).
+ * Ohne Foto steht ein Feld mit den Anfangsbuchstaben in einem Blauton, nie ein leerer Kreis.
+ */
+function Kachel({ s, unter, auf, klein }: { s: SolosSpieler; unter?: string; auf?: () => void; klein?: boolean }) {
+  const inhalt = (
+    <>
+      <div className="aspect-square w-full overflow-hidden rounded-xl bg-zinc-800">
+        {s.bild
+          // eslint-disable-next-line @next/next/no-img-element
+          ? <img src={s.bild} alt="" loading="lazy" style={{ objectPosition: fokusVon(s.bild) }} className="h-full w-full object-cover" />
+          : <span className={`flex h-full w-full items-center justify-center bg-gradient-to-br font-black tracking-tight text-sky-200/60 ${klein ? 'text-lg' : 'text-2xl'} ${tonVon(s.anzeige)}`}>{initialenVon(s.anzeige)}</span>}
+      </div>
+      <p className="flex min-w-0 items-start gap-1.5 text-[11px] font-bold uppercase leading-tight text-slate-100">
+        <span className="mt-px shrink-0"><TeamFlagge groesse={12} laender={[s.land ?? undefined]} /></span>
+        <span className="line-clamp-2 min-w-0 break-words">{s.anzeige}</span>
+      </p>
+      {unter && <p className="-mt-1 text-[10px] font-semibold tabular-nums text-slate-500">{unter}</p>}
+    </>
+  );
+  const klasse = 'flex min-w-0 flex-col gap-2 text-left';
+  return auf
+    ? <button type="button" onClick={auf} title={s.anzeige} className={`${klasse} rounded-xl p-1 -m-1 transition hover:bg-sky-500/[0.07]`}>{inhalt}</button>
+    : <div title={s.anzeige} className={klasse}>{inhalt}</div>;
+}
+
+/** Das Raster fuer Kacheln - je breiter die Seite, desto mehr in einer Reihe. */
+const RASTER = 'grid grid-cols-3 gap-x-3 gap-y-5 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8';
+
+/** Ein Spieler ohne Foto: der Name zuerst, mit Flagge und - wo es sie gibt - Platz und Punkten; kein leeres Quadrat. */
+function NurName({ s, unter, auf }: { s: SolosSpieler; unter?: string; auf?: () => void }) {
+  const inhalt = (
+    <>
+      <span className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br text-xs font-black text-sky-200/70 ${tonVon(s.anzeige)}`}>{initialenVon(s.anzeige)}</span>
+      <span className="min-w-0 flex-1">
+        <span className="flex items-center gap-1.5"><TeamFlagge groesse={13} laender={[s.land ?? undefined]} /><span className="truncate text-xs font-bold uppercase text-slate-100">{s.anzeige}</span></span>
+        {unter && <span className="block text-[10px] font-semibold tabular-nums text-slate-500">{unter}</span>}
+      </span>
+    </>
+  );
+  const klasse = 'flex min-w-0 items-center gap-2.5 rounded-xl border border-zinc-800 bg-zinc-900 px-2.5 py-2 text-left';
+  return auf
+    ? <button type="button" onClick={auf} title={s.anzeige} className={`${klasse} transition hover:border-sky-500/50`}>{inhalt}</button>
+    : <div title={s.anzeige} className={klasse}>{inhalt}</div>;
+}
+
+/**
+ * Die Spielerliste einer Stufe: wer ein Foto hat, steht als grosse Kachel vorn; die uebrigen darunter als Namensfelder.
+ * So sieht man jedes Foto gross, und ein Spieler ohne Foto wird nicht zu einem leeren Quadrat (Betreiber, 19.10.2026: "man erkennt die Spieler nicht").
+ */
+function Spielerliste<S extends SolosSpieler>({ spieler, auf, unter, klein }: { spieler: S[]; auf?: (s: S) => void; unter?: (s: S) => string | undefined; klein?: boolean }) {
+  const mit = spieler.filter((x) => x.bild);
+  const ohne = spieler.filter((x) => !x.bild);
+  return (
+    <div className="space-y-5">
+      {mit.length > 0 && (
+        <div className={klein ? 'grid grid-cols-3 gap-x-2.5 gap-y-4 sm:grid-cols-4 lg:grid-cols-5' : RASTER}>
+          {mit.map((x) => <Kachel key={x.id} s={x} klein={klein} auf={auf ? () => auf(x) : undefined} unter={unter?.(x)} />)}
+        </div>
+      )}
+      {ohne.length > 0 && (
+        <div className={`grid gap-1.5 ${klein ? 'grid-cols-2 sm:grid-cols-3' : 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5'} ${mit.length ? 'border-t border-zinc-800 pt-4' : ''}`}>
+          {ohne.map((x) => <NurName key={x.id} s={x} auf={auf ? () => auf(x) : undefined} unter={unter?.(x)} />)}
+        </div>
+      )}
+    </div>
+  );
+}
+
 function Karte2({ children, className = '' }: { children: ReactNode; className?: string }) {
   return <section className={`rounded-2xl border border-zinc-800 bg-zinc-900 p-5 shadow-[0_8px_24px_rgba(15,23,42,.10)] ${className}`}>{children}</section>;
 }
@@ -166,28 +255,6 @@ function Weg({ daten, auf }: { daten: SolosDaten; auf: (r: Reiter) => void }) {
   );
 }
 
-/**
- * Eine Spielerkachel: grosses, sauberes Quadrat - und der Name steht immer darunter, auch ohne Foto
- * (Betreiber, 19.10.2026: "groessere, cleane Bilder, und man muss erkennen, wer es ist, auch ohne Bild").
- */
-function Kachel({ s }: { s: SolosSpieler }) {
-  const initialen = s.anzeige.trim().split(/\s+/).slice(0, 2).map((w) => Array.from(w)[0] ?? '').join('').toUpperCase() || '?';
-  return (
-    <div className="flex min-w-0 flex-col gap-2" title={s.anzeige}>
-      <div className="aspect-square w-full overflow-hidden rounded-xl bg-zinc-800">
-        {s.bild
-          // eslint-disable-next-line @next/next/no-img-element
-          ? <img src={s.bild} alt="" loading="lazy" style={{ objectPosition: fokusVon(s.bild) }} className="h-full w-full object-cover" />
-          : <span className="flex h-full w-full items-center justify-center text-2xl font-black tracking-tight text-slate-500">{initialen}</span>}
-      </div>
-      <p className="flex min-w-0 items-start gap-1.5 text-[11px] font-bold uppercase leading-tight text-slate-200">
-        <span className="mt-px shrink-0"><TeamFlagge groesse={12} laender={[s.land ?? undefined]} /></span>
-        <span className="line-clamp-2 min-w-0 break-words">{s.anzeige}</span>
-      </p>
-    </div>
-  );
-}
-
 function FinalistenKurz({ daten, auf }: { daten: SolosDaten; auf: () => void }) {
   const alle = daten.qualifiziert.flatMap((g) => g.spieler);
   // Wer ein Foto hat, steht vorn; die Reihenfolge sonst bleibt.
@@ -199,7 +266,7 @@ function FinalistenKurz({ daten, auf }: { daten: SolosDaten; auf: () => void }) 
         <h2 className="text-lg font-extrabold text-slate-100"><T>Schon im Grand Final</T> <span className="ml-1 text-sky-400 tabular-nums">{alle.length}</span></h2>
         <button type="button" onClick={auf} className="text-xs font-semibold text-sky-400 hover:underline"><T>Alle ansehen</T> →</button>
       </div>
-      <div className="mt-5 grid grid-cols-3 gap-x-3 gap-y-5 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8">
+      <div className={`mt-5 ${RASTER}`}>
         {gezeigt.map((s) => <Kachel key={s.id} s={s} />)}
         {mehr > 0 && (
           <button type="button" onClick={auf} className="flex min-w-0 flex-col gap-2 text-left">
@@ -234,32 +301,22 @@ function Qualifiziert({ daten, oeffne }: { daten: SolosDaten; oeffne: (s: SolosS
         {daten.qualifiziert.length === 0 ? (
           <p className="mt-4 rounded-xl border border-zinc-800 px-4 py-8 text-center text-sm text-slate-500"><T>Noch hat sich niemand qualifiziert.</T></p>
         ) : (
-          <div className="mt-5 grid gap-4 lg:grid-cols-2">
+          <div className="mt-5 space-y-5">
             {daten.qualifiziert.map((g) => {
               const n = wegName(g, t);
               const regel = /fast/i.test(g.quelle) && ftSchwelle ? `Top ${ftSchwelle}` : null;
               return (
-                <div key={g.windowId ?? g.quelle} className="rounded-2xl border border-zinc-800 bg-zinc-950/40 p-4">
+                <div key={g.windowId ?? g.quelle} className="rounded-2xl border border-zinc-800 bg-zinc-950/40 p-5">
                   <div className="flex flex-wrap items-center gap-2">
-                    <h3 className="text-sm font-extrabold text-slate-100">{n.titel}</h3>
+                    <h3 className="text-base font-extrabold text-slate-100">{n.titel}</h3>
                     <span className="rounded-full bg-sky-500/15 px-2.5 py-0.5 text-[11px] font-bold tabular-nums text-sky-400">{g.spieler.length}</span>
                     {regel && <span className="rounded-full border border-sky-500/40 px-2.5 py-0.5 text-[11px] font-semibold text-sky-400">{regel} → {t('Grand Finals')}</span>}
                   </div>
                   <p className="mt-0.5 text-[11px] text-slate-500">{n.text}</p>
-                  <ul className="mt-3 grid gap-1.5 sm:grid-cols-2">
-                    {g.spieler.map((s) => (
-                      <li key={s.id}>
-                        <button type="button" onClick={() => oeffne(s, g.windowId ?? '')}
-                          className="flex w-full items-center gap-2.5 rounded-xl border border-zinc-800 bg-zinc-900 px-2.5 py-2 text-left transition hover:border-sky-500/50">
-                          <Foto s={s} px={34} />
-                          <span className="min-w-0 flex-1">
-                            <span className="flex items-center gap-1.5"><TeamFlagge groesse={13} laender={[s.land ?? undefined]} /><span className="truncate text-xs font-bold uppercase text-slate-100">{s.anzeige}</span></span>
-                            {s.rang !== null && <span className="block text-[10px] tabular-nums text-slate-500">#{s.rang}{s.punkte !== null ? ` · ${s.punkte} ${t('Punkte')}` : ''}</span>}
-                          </span>
-                        </button>
-                      </li>
-                    ))}
-                  </ul>
+                  <div className="mt-4">
+                    <Spielerliste spieler={g.spieler} auf={(sp) => oeffne(sp, g.windowId ?? '')}
+                      unter={(sp) => (sp.rang !== null ? `#${sp.rang}${sp.punkte !== null ? ` · ${sp.punkte} ${t('Punkte')}` : ''}` : undefined)} />
+                  </div>
                 </div>
               );
             })}
@@ -275,13 +332,7 @@ function Qualifiziert({ daten, oeffne }: { daten: SolosDaten; oeffne: (s: SolosS
             {heats.map((h) => (
               <div key={h.windowId} className="rounded-2xl border border-zinc-800 bg-zinc-950/40 p-4">
                 <p className="text-sm font-extrabold text-slate-100">{h.name} <span className="ml-1 text-xs font-semibold text-slate-500">{h.spieler.length}</span></p>
-                <div className="mt-2 flex max-h-44 flex-wrap gap-1 overflow-y-auto">
-                  {h.spieler.map((s) => (
-                    <span key={s.id} className="inline-flex items-center gap-1 rounded-full bg-zinc-800 px-2 py-0.5 text-[10px] font-bold uppercase text-slate-300">
-                      <TeamFlagge groesse={10} laender={[s.land ?? undefined]} />{s.anzeige}
-                    </span>
-                  ))}
-                </div>
+                <div className="mt-3 max-h-[26rem] overflow-y-auto pr-1"><Spielerliste spieler={h.spieler} klein /></div>
               </div>
             ))}
           </div>
@@ -317,16 +368,16 @@ function Tafel({ f, finalisten, ziel, oeffne }: {
                 return (
                   <tr key={r.id} onClick={oeffne && r.spieler[0] ? () => oeffne(r.spieler[0]) : undefined}
                     className={`border-t border-zinc-800/70 transition hover:bg-sky-500/[0.06] ${oeffne ? 'cursor-pointer' : ''}`}>
-                    <td className="px-3 py-1.5 text-[11px] font-bold tabular-nums text-slate-500">{r.rang}</td>
-                    <td className="px-3 py-1.5">
-                      <span className="flex items-center gap-2.5">
-                        <Foto s={r.spieler[0]} px={26} />
+                    <td className="px-3 py-2 text-sm font-black tabular-nums text-slate-400">{r.rang}</td>
+                    <td className="px-3 py-2">
+                      <span className="flex items-center gap-3">
+                        <span className="w-10 shrink-0"><Bild s={r.spieler[0]} /></span>
                         <TeamFlagge groesse={14} laender={r.spieler.map((s) => s.land ?? undefined)} />
-                        <span className="min-w-0 truncate text-xs font-bold uppercase text-slate-100">{r.spieler.map((s) => s.anzeige).join(' · ')}</span>
+                        <span className="min-w-0 truncate text-sm font-bold uppercase text-slate-100">{r.spieler.map((s) => s.anzeige).join(' · ')}</span>
                         {drin && ziel && <span className="shrink-0 rounded-full bg-sky-500/15 px-2 py-0.5 text-[9px] font-black uppercase tracking-wider text-sky-400">→ {ziel}</span>}
                       </span>
                     </td>
-                    <td className="px-3 py-1.5 text-right text-sm font-extrabold tabular-nums text-slate-100">{r.punkte ?? ''}</td>
+                    <td className="px-3 py-2 text-right text-base font-extrabold tabular-nums text-slate-100">{r.punkte ?? ''}</td>
                   </tr>
                 );
               })}
@@ -335,17 +386,7 @@ function Tafel({ f, finalisten, ziel, oeffne }: {
         </div>
       ) : f.spieler.length > 0 ? (
         <div className="mt-3 max-h-[34rem] overflow-y-auto">
-          <ul className="grid gap-1.5 sm:grid-cols-2 lg:grid-cols-3">
-            {f.spieler.map((s) => (
-              <li key={s.id}>
-                <button type="button" disabled={!oeffne} onClick={() => oeffne?.(s)} className="flex w-full items-center gap-2.5 rounded-xl border border-zinc-800 bg-zinc-950/40 px-2.5 py-2 text-left transition hover:border-sky-500/50">
-                  <Foto s={s} px={30} />
-                  <TeamFlagge groesse={13} laender={[s.land ?? undefined]} />
-                  <span className="min-w-0 truncate text-xs font-bold uppercase text-slate-100">{s.anzeige}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
+          <Spielerliste spieler={f.spieler} auf={oeffne} klein />
         </div>
       ) : (
         <p className="mt-3 rounded-xl border border-zinc-800 px-4 py-8 text-center text-sm text-slate-500">{t('Noch keine Spieler eingetragen.')}</p>
@@ -364,6 +405,8 @@ export default function SolosSeite() {
   const [fehler, setFehler] = useState('');
   const [laedt, setLaedt] = useState(true);
   const [wahlKarte, setWahlKarte] = useState('');
+  /** Region und Reiter aus der Adresse sind gelesen - vorher wird nichts geholt (sonst ginge zuerst eine Abfrage fuer Europa hinaus). */
+  const [bereit, setBereit] = useState(false);
   /** Der Spieler, dessen Werte gerade im Fenster stehen. */
   const [panel, setPanel] = useState<{ id: string; name: string; windowId: string } | null>(null);
 
@@ -376,6 +419,7 @@ export default function SolosSeite() {
       const re = p.get('tab') as Reiter | null;
       if (re && REITER.some(([k]) => k === re)) setReiter(re);
     } catch { /* ohne Speicher */ }
+    setBereit(true);
   }, []);
   const waehle = (r: string, re: Reiter) => {
     setRegion(r); setReiter(re);
@@ -387,19 +431,24 @@ export default function SolosSeite() {
     } catch { /* ohne Speicher */ }
   };
 
-  const holen = useCallback(async () => {
+  /** Eine Antwort, die zu einer anderen Region gehoert als der gerade gewaehlten, wird verworfen - sonst ueberschrieb die langsame Antwort der Startregion (EU) die der gewaehlten. */
+  const holen = useCallback(async (veraltet: () => boolean) => {
     try {
       const r = await fetch(`/api/globals-solos?region=${encodeURIComponent(region)}`, { cache: 'no-store' });
       const j = await r.json() as ({ ok: true } & SolosDaten) | { ok: false; error?: string };
+      if (veraltet()) return;
       if (!r.ok || !j.ok) throw new Error(('error' in j && j.error) || 'nicht ladbar');
       setDaten(j); setFehler('');
-    } catch (e) { setFehler((e as Error).message); } finally { setLaedt(false); }
+    } catch (e) { if (!veraltet()) setFehler((e as Error).message); } finally { if (!veraltet()) setLaedt(false); }
   }, [region]);
   useEffect(() => {
+    if (!bereit) return undefined;
+    let weg = false;
     setDaten(null); setFehler(''); setLaedt(true);
-    void holen();
-    return sichtbarerTakt(() => { void holen(); }, 120_000);
-  }, [holen]);
+    void holen(() => weg);
+    const ende = sichtbarerTakt(() => { void holen(() => weg); }, 120_000);
+    return () => { weg = true; if (typeof ende === 'function') ende(); };
+  }, [holen, bereit]);
 
   const finalisten = useMemo(() => new Set(daten?.qualifiziert.flatMap((g) => g.spieler.map((s) => s.id)) ?? []), [daten]);
   const eventVon = (windowId: string) => daten?.stufen.find((s) => s.windowId === windowId)?.eventId ?? '';

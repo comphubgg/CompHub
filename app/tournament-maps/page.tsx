@@ -19,7 +19,7 @@ import Link from 'next/link';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import LadeSchirm from '@/app/components/LadeSchirm';
-import { regionFarbe, regionAnzeige } from '@/lib/regionFarbe';
+import { regionFarbe, regionAnzeige, REGIONEN_REIHE } from '@/lib/regionFarbe';
 import { useZugang } from '@/app/lib/zugang';
 
 type Typ = 'fncs' | 'performance' | 'division' | 'reload' | 'sonst';
@@ -129,6 +129,8 @@ export default function Maps() {
   const [typ, setTyp] = useState<Typ | ''>('');
   const [kapitel, setKapitel] = useState(0);
   const [saison, setSaison] = useState('');
+  /** Die Region, nach der gefiltert wird - leer heisst alle (Betreiber, 19.10.2026: Region direkt filtern, ohne erst zu suchen). */
+  const [region, setRegion] = useState('');
   const [ansicht, setAnsicht] = useState<'kacheln' | 'liste'>('kacheln');
   const zugang = useZugang();
 
@@ -171,6 +173,8 @@ export default function Maps() {
     const p = new URLSearchParams(window.location.search);
     const w = p.get('typ');
     if (w && TYPEN.some(([k]) => k === w)) setTyp(w as Typ);
+    const rg = (p.get('region') ?? '').toUpperCase();
+    if (rg && [...REGIONEN_REIHE, 'GLOBAL'].includes(rg)) setRegion(rg);
     const s = p.get('saison');
     const ausAdresse = s ? saisons.find((x) => x.kennung === s) : null;
     if (ausAdresse) { setKapitel(ausAdresse.kapitel); setSaison(ausAdresse.kennung); return; }
@@ -180,7 +184,8 @@ export default function Maps() {
 
   const offen = kapitelListe.find((k) => k.nr === kapitel) ?? null;
 
-  const sichtbar = useMemo(() => {
+  /** Alles, was Kapitel, Saison, Art und Suche durchlaesst - noch ohne Region; daraus kommen die Zahlen an den Regionsknoepfen. */
+  const ohneRegion = useMemo(() => {
     const q = suche.trim().toLowerCase();
     const kennungen = new Set((offen?.saisons ?? []).map((s) => s.kennung));
     return (eintraege ?? []).filter((e) => kennungen.has(e.saison)
@@ -188,16 +193,26 @@ export default function Maps() {
       && (!typ || e.typ === typ)
       && (!q || `${e.titel} ${e.cup} ${e.fenster} ${e.region} ${e.saisonKurz}`.toLowerCase().includes(q)));
   }, [eintraege, offen, saison, typ, suche]);
+  const sichtbar = useMemo(() => (region ? ohneRegion.filter((e) => regionAnzeige(e) === region) : ohneRegion), [ohneRegion, region]);
+  const zahlRegion = useMemo(() => {
+    const m = new Map<string, number>();
+    for (const e of ohneRegion) m.set(regionAnzeige(e), (m.get(regionAnzeige(e)) ?? 0) + 1);
+    return m;
+  }, [ohneRegion]);
 
   const bekannteFenster = useMemo(() => new Set((eintraege ?? []).map((e) => e.windowId)), [eintraege]);
   const nurEigene = useMemo(() => {
-    if (typ || saison || (offen && offen.nr !== Math.max(...kapitelListe.filter((k) => k.n > 0).map((k) => k.nr), 0))) return [];
+    if (typ || saison || region || (offen && offen.nr !== Math.max(...kapitelListe.filter((k) => k.n > 0).map((k) => k.nr), 0))) return [];
     const q = suche.trim().toLowerCase();
     return eigene.filter((k) => !(k.windowId && bekannteFenster.has(k.windowId)) && (!q || `${k.titel} ${k.region ?? ''}`.toLowerCase().includes(q)));
-  }, [eigene, bekannteFenster, typ, saison, suche, offen, kapitelListe]);
+  }, [eigene, bekannteFenster, typ, saison, region, suche, offen, kapitelListe]);
 
   const chip = (an: boolean) => `rounded-full px-4 py-1.5 text-xs font-bold uppercase tracking-wider transition ${an
     ? 'bg-sky-500 text-white shadow-sm' : 'border border-zinc-700 bg-zinc-900 text-slate-300 hover:border-sky-500/70 hover:text-sky-500'}`;
+
+  /** Kleinere Knoepfe fuer die Filterzeile - die grossen bleiben Kapiteln und Saisons. */
+  const chipKlein = (an: boolean) => `rounded-full px-3 py-1 text-[11px] font-bold uppercase tracking-wider transition ${an
+    ? 'bg-sky-500 text-white shadow-sm' : 'border border-zinc-700 bg-zinc-950 text-slate-300 hover:border-sky-500/70 hover:text-sky-500'}`;
 
   const gesamt = eintraege?.length ?? 0;
   const titelZeile = saison
@@ -267,27 +282,50 @@ export default function Maps() {
         )}
 
         {/* --------------------------------------------------------- Werkzeugleiste */}
-        <div className="mt-6 flex flex-wrap items-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-900 p-3 shadow-sm">
-          <h2 className="schrift-anzeige mr-2 text-lg font-extrabold text-slate-100">
-            {titelZeile}
-            <span className="ml-2 text-xs font-semibold text-slate-500">{sichtbar.length}</span>
-          </h2>
-          <input value={suche} onChange={(e) => setSuche(e.target.value)} placeholder={t('Cup suchen …')}
-            className="w-full max-w-[200px] rounded-full border border-zinc-700 bg-zinc-950 px-4 py-1.5 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-sky-500" />
-          <div className="flex flex-wrap gap-1.5">
-            {TYPEN.map(([k, titel]) => (
-              <button key={k} type="button" onClick={() => setTyp(typ === k ? '' : k)} className={chip(typ === k)}>{titel}</button>
-            ))}
+        <div className="mt-6 space-y-3 rounded-2xl border border-zinc-800 bg-zinc-900 p-3 shadow-sm">
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="schrift-anzeige mr-2 text-lg font-extrabold text-slate-100">
+              {titelZeile}
+              <span className="ml-2 text-xs font-semibold text-slate-500">{sichtbar.length}</span>
+            </h2>
+            <input value={suche} onChange={(e) => setSuche(e.target.value)} placeholder={t('Cup suchen …')}
+              className="w-full max-w-[220px] rounded-full border border-zinc-700 bg-zinc-950 px-4 py-1.5 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-sky-500" />
+            {zugang.admin && (
+              <Link href="/admin/alte-maps" className="rounded-full border border-amber-400/40 bg-amber-400/10 px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-amber-200 transition hover:border-amber-300">
+                <T>Alte Maps verwalten</T> →
+              </Link>
+            )}
+            <div className="ml-auto flex gap-1.5">
+              {([['kacheln', t('Kacheln')], ['liste', t('Liste')]] as const).map(([k, titel]) => (
+                <button key={k} type="button" onClick={() => { setAnsicht(k); try { localStorage.setItem('maps_ansicht', k); } catch { /* ohne Speicher */ } }} className={chipKlein(ansicht === k)}>{titel}</button>
+              ))}
+            </div>
           </div>
-          {zugang.admin && (
-            <Link href="/admin/alte-maps" className="rounded-full border border-amber-400/40 bg-amber-400/10 px-4 py-1.5 text-xs font-bold uppercase tracking-wider text-amber-200 transition hover:border-amber-300">
-              <T>Alte Maps verwalten</T> →
-            </Link>
-          )}
-          <div className="ml-auto flex gap-1.5">
-            {([['kacheln', t('Kacheln')], ['liste', t('Liste')]] as const).map(([k, titel]) => (
-              <button key={k} type="button" onClick={() => { setAnsicht(k); try { localStorage.setItem('maps_ansicht', k); } catch { /* ohne Speicher */ } }} className={chip(ansicht === k)}>{titel}</button>
-            ))}
+
+          {/* Zweite Zeile: Art und Region - beide direkt waehlbar, die Zahl zeigt, wo es etwas gibt. */}
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-2.5 border-t border-zinc-800 pt-3">
+            <div className="flex flex-wrap items-center gap-1.5">
+              <span className="mr-1 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500"><T>Art</T></span>
+              {TYPEN.map(([k, titel]) => (
+                <button key={k} type="button" onClick={() => setTyp(typ === k ? '' : k)} className={chipKlein(typ === k)}>{titel}</button>
+              ))}
+            </div>
+            <div className="flex flex-wrap items-center gap-1.5" role="group" aria-label="Region">
+              <span className="mr-1 text-[10px] font-bold uppercase tracking-[0.16em] text-slate-500"><T>Region</T></span>
+              <button type="button" onClick={() => setRegion('')} className={chipKlein(region === '')}><T>Alle</T></button>
+              {[...REGIONEN_REIHE, ...(zahlRegion.has('GLOBAL') ? ['GLOBAL'] : [])].map((r) => {
+                const n = zahlRegion.get(r) ?? 0;
+                const an = region === r;
+                const farbe = regionFarbe(r);
+                return (
+                  <button key={r} type="button" onClick={() => setRegion(an ? '' : r)} disabled={!n && !an}
+                    className={`rounded-full border px-3 py-1 text-[11px] font-bold uppercase tracking-wider transition disabled:cursor-not-allowed disabled:opacity-35 ${an ? farbe.marke : `bg-zinc-950 ${farbe.ruhig}`}`}>
+                    {r === 'GLOBAL' ? 'Global' : r}
+                    <span className="ml-1.5 tabular-nums opacity-60">{n}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         </div>
 
@@ -308,7 +346,7 @@ export default function Maps() {
         )}
 
         {ansicht === 'kacheln' ? (
-          <div key={`${kapitel}|${saison}|${typ}|${suche}`} className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
+          <div key={`${kapitel}|${saison}|${typ}|${region}|${suche}`} className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">
             {sichtbar.map((e, i) => <Kachel key={`${e.turnierId}|${e.region}|${e.windowId}`} e={e} i={i} />)}
             {nurEigene.map((k, i) => <EigeneKachel key={k.id} k={k} i={sichtbar.length + i} />)}
           </div>
