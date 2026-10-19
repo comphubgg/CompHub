@@ -178,8 +178,20 @@ export async function versteckteKarten(): Promise<MapEintrag[]> {
   return merker?.versteckt ?? [];
 }
 
-/** Alle Fenster aller Noble-Turniere, neueste zuerst. Fuenfzehn Minuten im Speicher. */
+let bauLaeuft: Promise<MapEintrag[]> | null = null;
+
+/**
+ * Alle Fenster aller Noble-Turniere und der Vital-Regionen, neueste zuerst. Fuenfzehn Minuten im Speicher - und danach nicht mehr mit Wartezeit: ist der Stand
+ * abgelaufen, bekommt der Besucher sofort den alten, waehrend im Hintergrund der neue entsteht (das Verzeichnis braucht ueber eine halbe Minute zum Bauen).
+ */
 export async function mapsVerzeichnis(): Promise<MapEintrag[]> {
+  if (merker && merker.bis > Date.now()) return merker.liste;
+  if (!bauLaeuft) bauLaeuft = baueVerzeichnis().finally(() => { bauLaeuft = null; });
+  if (merker) { bauLaeuft.catch(() => undefined); return merker.liste; }
+  return bauLaeuft;
+}
+
+async function baueVerzeichnis(): Promise<MapEintrag[]> {
   if (merker && merker.bis > Date.now()) return merker.liste;
 
   const [turniere, archiv] = await Promise.all([

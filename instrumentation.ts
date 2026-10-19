@@ -77,12 +77,15 @@ export async function register() {
    * kurz nach dem Start, statt dass der erste Besucher davor wartet. Danach
    * die Uebersichten, die fast jeder zuerst oeffnet.
    */
-  const intern = process.env.COMPHUB_INTERN_URL;
+  // Ohne eigene Angabe gilt im Betrieb (next start) der eigene Anschluss - der PC-Server laeuft auf 3100 (PORT), damit das Verzeichnis der Maps schon beim Start entsteht.
+  const intern = process.env.COMPHUB_INTERN_URL || (process.env.NODE_ENV === 'production' ? `http://127.0.0.1:${process.env.PORT || 3100}` : '');
   if (intern) {
     const aufwaermen = async () => {
       for (const weg of [
         '/api/szene-stats?spieler=02c93e4588f241baa6cb5040632326b4',
         '/api/cup-catalog?modus=alle',
+        '/api/maps-liste',
+        '/api/globals-solos?region=EU',
       ]) {
         await fetch(`${intern}${weg}`, { cache: 'no-store', signal: AbortSignal.timeout(180_000) }).catch(() => {});
       }
