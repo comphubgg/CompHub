@@ -27,37 +27,15 @@
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
+import { tagFuer, tagsFuer } from '../lib/releaseTags.mjs';
 
 const PROJEKT = process.cwd();
 const DATEN = path.join(PROJEKT, 'data');
 const REPO = process.env.COMPHUB_GITHUB_REPO || 'comphubgg/CompHub';
-// Je Ordner ein Release - siehe lib/ablageGithub.ts, tagFuer.
-function tagFuer(name) {
-  if (/^akten\//.test(name)) return 'daten-akten';
-  if (/^(epic-spieltage|szene-quelle|power-rankings)\//.test(name)) return 'daten-spieltage';
-  if (/^platzierungen\//.test(name)) return 'daten-platzierungen';
-  if (/^szene-stats\//.test(name)) return 'daten-szene';
-  if (/^tournament-leaderboards\//.test(name)) return 'daten-leaderboards';
-  if (/^replays\//.test(name)) return 'daten-replays';
-  // Solo Clutch Points: eigenes Release, geschrieben nur vom Ablauf "Clutch rechnen"
-  // (zwei Schreiber an einem Manifest verlieren sich gegenseitig Eintraege).
-  if (/^clutch\//.test(name)) return 'daten-clutch';
-  if (/^clutch-roh\//.test(name)) return 'daten-clutch-roh';
-  if (name === 'team-verlauf.json') return 'daten-teams';
-  // Die Scrims (scripts/scrims-holen.mjs): die Tagesdateien je Monat ein
-  // Release - ein Release fasst hoechstens tausend Anhaenge, und es kommen
-  // rund fuenfzehn am Tag dazu. Das Verzeichnis aller Sessions liegt fuer sich.
-  { const m = name.match(/^scrims\/(\d{4}-\d{2})-\d{2}\//); if (m) return `daten-scrims-${m[1]}`; }
-  if (/^scrims\//.test(name)) return 'daten-scrims';
-  // Voll ausgelesene Replays je Monat (scripts/replay-voll-holen.mjs), das
-  // Verzeichnis selbst am allgemeinen Release.
-  { const m = name.match(/^replay-voll\/(\d{4}-\d{2})\//); if (m) return `daten-replayvoll-${m[1]}`; }
-  // Die schlanken Replay-Werte fuer die Seite (scripts/replays-schlank.mjs),
-  // je Saison ein Release - daten-replays ist mit 863 Anhaengen fast voll.
-  { const m = name.match(/^replays-schlank\/(S\d+)\//i); if (m) return `daten-replays-schlank-${m[1].toLowerCase()}`; }
-  return 'daten';
-}
+// Je Ordner ein Release, bei den grossen ab Saison 42 je Saison eins - lib/releaseTags.mjs.
 const API = 'https://api.github.com';
+/** Ab so vielen Anhaengen gilt ein Release als voll (die Obergrenze liegt bei tausend, das Verzeichnis zaehlt mit). */
+const VOLL = 998;
 const GLEICHZEITIG = 4;
 /*
  * Abstand zwischen zwei Anfragen, die etwas anlegen oder loeschen.
@@ -89,6 +67,17 @@ const probe = argumente.includes('--probe');
 const heilen = werte('--heilen');
 // Auch hochladen, was laut Manifest schon so liegt - wenn das Manifest luegt.
 const erzwingen = argumente.includes('--erzwingen');
+/*
+ * Ein Deckel und ein Zeitrahmen je Lauf (19.10.2026).
+ *
+ * GitHub erlaubt Anhaenge anlegen, loeschen und umbenennen nur etwa fuenfhundertmal je Stunde (dazu achtzig je Minute); ein ersetzter Anhang kostet
+ * drei Anfragen. Der Stundenlauf hat aber jeden Tag mehr geaenderte Dateien, als in einer Stunde durchgehen - und weil die Antworten alphabetisch zuerst
+ * kamen, warteten Spieltage, Platzierungen, Weltrangliste und Profile seit dem 11.10. vergeblich: die Seite zeigte neun Tage alte Zahlen, die Weltrangliste
+ * stand auf dem 11.10. Jetzt gibt es eine Reihenfolge nach Wichtigkeit und Alter (siehe unten), und mit --hoechstens N und --minuten M hoert ein Lauf von
+ * selbst auf, statt in die Frist des Auftrags zu laufen. Was nicht drankam, kommt im naechsten Lauf als Erstes dran.
+ */
+const HOECHSTENS = Number(wert('--hoechstens')) || 0;
+const FRIST = Number(wert('--minuten')) ? Date.now() + Number(wert('--minuten')) * 60_000 : 0;
 
 function umgebung() {
   const raus = {};
@@ -296,7 +285,7 @@ async function verzeichnisLesen(tag, vorhandene) {
   let wieder = 0;
   for (const [name, a] of vorhandene) {
     if (name === 'manifest.json' || name.endsWith('.neu') || verzeichnis[name]) continue;
-    if (tagFuer(ablageName(name)) !== tag) continue;
+    if (!tagsFuer(ablageName(name)).includes(tag)) continue;
     verzeichnis[name] = { summe: null, groesse: a.size, zeit: a.updated_at, wiederhergestellt: true };
     wieder += 1;
   }
@@ -313,7 +302,21 @@ async function verzeichnisLesen(tag, vorhandene) {
  * Lauf wird beim naechsten Mal ueberschrieben.
  */
 async function hochladen(releaseId, vorhandene, name, daten) {
-  const alt = vorhandene.get(name);
+  let alt = vorhandene.get(name);
+  /*
+   * Ein volles Release (tausend Anhaenge, GitHubs Obergrenze) hat keinen Platz
+   * fuer die ".neu"-Kopie neben der alten Fassung. Dann bleibt nur: die alte
+   * loeschen und die neue unter dem richtigen Namen anlegen - fuer ein paar
+   * Sekunden fehlt die Datei, aber sie bleibt ersetzbar. Genau daran
+   * scheiterten seit dem 11.10.2026 die Weltrangliste und die Replay-Staende.
+   */
+  if (alt && vorhandene.size >= VOLL) {
+    await gedrosselt();
+    const weg = await api(`/repos/${REPO}/releases/assets/${alt.id}`, { method: 'DELETE' });
+    if (!weg.ok && weg.status !== 404) throw new Error(`loeschen ${name}: ${weg.status}`);
+    vorhandene.delete(name);
+    alt = undefined;
+  }
   const zwischenname = alt ? `${name}.neu` : name;
   const rest = vorhandene.get(zwischenname);
   if (rest) { await gedrosselt(); await api(`/repos/${REPO}/releases/assets/${rest.id}`, { method: 'DELETE' }); }
@@ -401,6 +404,20 @@ async function main() {
     const rel = await releaseFuer(tagFuer(name));
     if (!erzwingen && rel.manifestAlt[anhang]?.summe === summe && rel.vorhandene.has(anhang)) continue;
     /*
+     * Umzug ins Saison-Release: was im alten Release schon genau so liegt und
+     * im neuen noch nie war, bleibt dort (der Leser findet es dort). Sonst
+     * wuerden die ersten Laeufe nach dem Umzug jede Datei der laufenden Saison
+     * noch einmal hochladen - bei den Replays hunderte Megabyte.
+     */
+    if (!erzwingen && !rel.manifestAlt[anhang]) {
+      let schonDa = false;
+      for (const alt of tagsFuer(name).slice(1)) {
+        const r = await releaseFuer(alt);
+        if (r.manifestAlt[anhang]?.summe === summe && r.vorhandene.has(anhang)) { schonDa = true; break; }
+      }
+      if (schonDa) continue;
+    }
+    /*
      * Eine fertige Antwort nie mit einem aelteren Stand ueberschreiben.
      *
      * Der Laufrechner und der Betreiber-Rechner laden beide hoch. Am
@@ -432,10 +449,48 @@ async function main() {
     aufgaben.push({ rel, anhang, daten, summe, inhaltZeit: 0 });
   }
 
+  /*
+   * Reihenfolge: zuerst das Kleine und Wichtige, dann nach Alter.
+   *
+   * 0  Weltrangliste, Spieltage, Platzierungen, Cup-Archiv, Namen, Preisgelder - klein, und woran Seiten haengen
+   * 1  die fertigen Antworten
+   * 2  alles Uebrige (Werte der Szene, Replay-Auswertungen ...)
+   * 3  die Profil-Buendel (gross)
+   * Innerhalb einer Gruppe geht das zuerst hoch, was am laengsten nicht mehr hochgeladen wurde - so kommt alles der Reihe nach dran, auch wenn ein Lauf nicht
+   * alles schafft. Ist ein Deckel gesetzt, bekommt jede Gruppe einen Anteil (Gruppe 0 ganz, der Rest 40 / 35 / 25 Prozent); was eine Gruppe nicht braucht, geht weiter.
+   */
+  const gruppeVon = (a) => (/^(power-rankings|epic-spieltage|platzierungen|cup-archiv|epic-namen|preisgeld|lan-)/.test(a.anhang) ? 0
+    : /^antworten/.test(a.anhang) ? 1 : /^akten/.test(a.anhang) ? 3 : 2);
+  const alterVon = (a) => Date.parse(a.rel.manifestAlt[a.anhang]?.zeit ?? '') || 0;
+  aufgaben.sort((x, y) => gruppeVon(x) - gruppeVon(y) || alterVon(x) - alterVon(y));
+  let zurueckgestellt = 0;
+  if (HOECHSTENS && aufgaben.length > HOECHSTENS) {
+    const nach = [[], [], [], []];
+    for (const a of aufgaben) nach[gruppeVon(a)].push(a);
+    const rest = Math.max(0, HOECHSTENS - nach[0].length);
+    const anteil = [nach[0].length, Math.round(rest * 0.4), Math.round(rest * 0.35), 0];
+    anteil[3] = rest - anteil[1] - anteil[2];
+    const gewaehlt = new Set();
+    let uebrig = 0;
+    for (let g = 0; g < 4; g += 1) {
+      const k = Math.min(nach[g].length, anteil[g] + uebrig);
+      uebrig = anteil[g] + uebrig - k;
+      for (const a of nach[g].slice(0, k)) gewaehlt.add(a);
+    }
+    // Was an Anteilen uebrig blieb, geht an die Gruppen, die noch mehr haetten.
+    for (let g = 0; g < 4 && uebrig > 0; g += 1) {
+      for (const a of nach[g]) { if (uebrig <= 0) break; if (!gewaehlt.has(a)) { gewaehlt.add(a); uebrig -= 1; } }
+    }
+    zurueckgestellt = aufgaben.length - gewaehlt.size;
+    const auswahl = aufgaben.filter((a) => gewaehlt.has(a));
+    aufgaben.length = 0;
+    aufgaben.push(...auswahl);
+  }
+
   const umfang = aufgaben.reduce((s, a) => s + a.daten.length, 0);
   console.log('');
   for (const rel of releases.values()) console.log(`  Release   : ${REPO} #${rel.tag} (${rel.vorhandene.size} Anhaenge vorhanden)`);
-  console.log(`  Dateien   : ${alle.length} passend, ${aufgaben.length} zu uebertragen`);
+  console.log(`  Dateien   : ${alle.length} passend, ${aufgaben.length} zu uebertragen${zurueckgestellt ? ` (${zurueckgestellt} weitere kommen im naechsten Lauf dran)` : ''}`);
   console.log(`  Umfang    : ${(umfang / 1024 / 1024).toFixed(1)} MB`);
   if (nur.length) console.log(`  Nur       : ${nur.join(', ')}`);
   if (neuerAls) console.log(`  Nur juenger als: ${neuerAls} Minuten`);
@@ -478,6 +533,7 @@ async function main() {
   let manifestLaeuft = Promise.resolve();
   const arbeiter = async () => {
     while (naechste < aufgaben.length) {
+      if (FRIST && Date.now() > FRIST) break;
       const a = aufgaben[naechste++];
       try {
         await hochladen(a.rel.release.id, a.rel.vorhandene, a.anhang, a.daten);
@@ -506,6 +562,7 @@ async function main() {
     await manifestSchreiben(rel);
   }
   console.log('');
+  if (FRIST && naechste < aufgaben.length) console.log(`  Zeitrahmen aufgebraucht - ${aufgaben.length - naechste} Dateien kommen im naechsten Lauf dran.`);
   console.log(`  Uebertragen : ${fertig}`);
   console.log(`  Gescheitert : ${schief}`);
   for (const f of fehler.slice(0, 20)) console.log(`    - ${f}`);

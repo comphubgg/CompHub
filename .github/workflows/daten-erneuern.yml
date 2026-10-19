@@ -415,7 +415,12 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          node scripts/ablage-github.mjs 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -30
+          # Hoechstens 100 Dateien und 14 Minuten je Lauf, das Wichtigste zuerst
+          # (Weltrangliste, Spieltage, Platzierungen, dann Antworten, Werte der
+          # Szene, Profile - je nach Alter). Ohne Deckel kamen die Antworten
+          # alphabetisch zuerst dran und schoben alles andere stundenlang
+          # beiseite; siehe scripts/ablage-github.mjs.
+          node scripts/ablage-github.mjs --hoechstens 100 --minuten 14 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -30
 
       # Einmalig (28.9.2026, 20:24 UTC): ein versehentlich gestarteter
       # Hochladelauf vom Entwicklerrechner ersetzte am Release 17 Dateien durch
@@ -649,7 +654,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          node scripts/ablage-github.mjs 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -60
+          node scripts/ablage-github.mjs --hoechstens 100 --minuten 20 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -60
 
       - name: Datenordner sichern
         # Auch nach einem Fehlschlag - siehe oben.

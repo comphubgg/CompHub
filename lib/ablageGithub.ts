@@ -1,4 +1,5 @@
 import type { Speicher } from '@/lib/ablage';
+import { tagFuer as tagFuerRegel, tagsFuer as tagsFuerRegel } from '@/lib/releaseTags.mjs';
 
 /*
  * Die zweite Ablage: GitHub Releases.
@@ -34,37 +35,13 @@ import type { Speicher } from '@/lib/ablage';
 const REPO = process.env.COMPHUB_GITHUB_REPO || 'comphubgg/CompHub';
 
 /*
- * Ein Release traegt nur gut tausend Anhaenge (GitHub lehnt darueber mit
- * "Validation Failed" ab). Deshalb je Ordner ein eigenes Release; der Tag
- * ergibt sich aus dem Namen der Datei. Gleiche Regel in scripts/ablage-github.mjs.
+ * Ein Release traegt nur tausend Anhaenge (GitHub lehnt darueber mit
+ * "Validation Failed" ab). Deshalb je Ordner ein eigenes Release, und bei den
+ * grossen Ordnern ab Saison 42 je Saison eins; der Tag ergibt sich aus dem
+ * Namen der Datei. Eine Regel fuer Seite und Skripte: lib/releaseTags.mjs.
  */
-export function tagFuer(name: string): string {
-  if (/^akten\//.test(name)) return 'daten-akten';
-  if (/^(epic-spieltage|szene-quelle|power-rankings)\//.test(name)) return 'daten-spieltage';
-  if (/^platzierungen\//.test(name)) return 'daten-platzierungen';
-  if (/^szene-stats\//.test(name)) return 'daten-szene';
-  if (/^tournament-leaderboards\//.test(name)) return 'daten-leaderboards';
-  if (/^replays\//.test(name)) return 'daten-replays';
-  // Solo Clutch Points: eigenes Release, geschrieben nur vom Ablauf "Clutch rechnen"
-  // (zwei Schreiber an einem Manifest verlieren sich gegenseitig Eintraege).
-  if (/^clutch\//.test(name)) return 'daten-clutch';
-  if (/^clutch-roh\//.test(name)) return 'daten-clutch-roh';
-  // Die Team-Historie der Spieler (scripts/team-verlauf-holen.mjs) - eigenes
-  // Release, geschrieben nur von diesem Ablauf.
-  if (name === 'team-verlauf.json') return 'daten-teams';
-  // Die Scrims: Tagesdateien je Monat ein Release (hoechstens tausend
-  // Anhaenge je Release), das Verzeichnis fuer sich - scripts/scrims-holen.mjs.
-  const monat = name.match(/^scrims\/(\d{4}-\d{2})-\d{2}\//);
-  if (monat) return `daten-scrims-${monat[1]}`;
-  if (/^scrims\//.test(name)) return 'daten-scrims';
-  // Voll ausgelesene Replays je Monat (scripts/replay-voll-holen.mjs), das
-  // Verzeichnis selbst am allgemeinen Release.
-  { const m = name.match(/^replay-voll\/(\d{4}-\d{2})\//); if (m) return `daten-replayvoll-${m[1]}`; }
-  // Die schlanken Replay-Werte fuer die Seite (scripts/replays-schlank.mjs),
-  // je Saison ein Release - daten-replays ist mit 863 Anhaengen fast voll.
-  { const m = name.match(/^replays-schlank\/(S\d+)\//i); if (m) return `daten-replays-schlank-${m[1].toLowerCase()}`; }
-  return 'daten';
-}
+export const tagFuer: (name: string) => string = tagFuerRegel;
+const tagsFuer: (name: string) => string[] = tagsFuerRegel;
 const basis = (tag: string) => `https://github.com/${REPO}/releases/download/${tag}/`;
 
 /**
@@ -246,7 +223,12 @@ async function lies(name: string): Promise<Buffer | null> {
     const a = buendel[akte.id];
     return a === undefined ? null : Buffer.from(JSON.stringify(a, null, 1), 'utf8');
   }
-  const wert = await holeAnhang(anhangName(name), tagFuer(name));
+  // Erst das Saison-Release, dann das alte: was vor dem Umzug dort lag, bleibt lesbar.
+  let wert: Buffer | null = null;
+  for (const tag of tagsFuer(name)) {
+    wert = await holeAnhang(anhangName(name), tag);
+    if (wert) break;
+  }
   // Clutch-Dateien lagen bis zum 29.9.2026 am allgemeinen Release.
   if (!wert && /^clutch\//.test(name)) return holeAnhang(anhangName(name), 'daten');
   return wert;
@@ -281,7 +263,8 @@ async function manifestNamen(tag: string): Promise<string[]> {
 /** Die Namen direkt unterhalb eines Ordners - wie readdir, aus dem Manifest. */
 async function liste(ordner: string): Promise<string[]> {
   const praefix = ordner.replace(/\/+$/, '') + '/';
-  const namen = await manifestNamen(tagFuer(praefix));
+  const namen: string[] = [];
+  for (const tag of tagsFuer(praefix)) namen.push(...await manifestNamen(tag));
   const raus = new Set<string>();
   for (const n of namen) {
     if (!n.startsWith(praefix)) continue;

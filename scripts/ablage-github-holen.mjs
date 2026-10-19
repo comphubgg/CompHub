@@ -24,6 +24,7 @@
 import { createHash } from 'node:crypto';
 import fs from 'node:fs';
 import path from 'node:path';
+import { tagsFuer } from '../lib/releaseTags.mjs';
 
 const DATEN = path.join(process.cwd(), 'data');
 const REPO = process.env.COMPHUB_GITHUB_REPO || 'comphubgg/CompHub';
@@ -32,23 +33,7 @@ const ablageName = (anhang) => anhang.replace(/-eq-/g, '=').replace(/__/g, '/');
 // Dieselbe Kuerzung wie in scripts/ablage-github.mjs - sonst passt nie etwas.
 const pruefsumme = (daten) => createHash('sha256').update(daten).digest('hex').slice(0, 24);
 
-// Je Ordner ein Release - siehe scripts/ablage-github.mjs, tagFuer.
-function tagFuer(name) {
-  if (/^akten\//.test(name)) return 'daten-akten';
-  if (/^(epic-spieltage|szene-quelle|power-rankings)\//.test(name)) return 'daten-spieltage';
-  if (/^platzierungen\//.test(name)) return 'daten-platzierungen';
-  if (/^szene-stats\//.test(name)) return 'daten-szene';
-  if (/^tournament-leaderboards\//.test(name)) return 'daten-leaderboards';
-  if (/^replays\//.test(name)) return 'daten-replays';
-  // Solo Clutch Points: eigenes Release, geschrieben nur vom Ablauf "Clutch rechnen"
-  // (zwei Schreiber an einem Manifest verlieren sich gegenseitig Eintraege).
-  if (/^clutch\//.test(name)) return 'daten-clutch';
-  if (/^clutch-roh\//.test(name)) return 'daten-clutch-roh';
-  if (name === 'team-verlauf.json') return 'daten-teams';
-  { const m = name.match(/^scrims\/(\d{4}-\d{2})-\d{2}\//); if (m) return `daten-scrims-${m[1]}`; }
-  if (/^scrims\//.test(name)) return 'daten-scrims';
-  return 'daten';
-}
+// Je Ordner ein Release, bei den grossen ab Saison 42 je Saison eins - lib/releaseTags.mjs.
 
 async function holen(tag, anhang) {
   const r = await fetch(`https://github.com/${REPO}/releases/download/${tag}/` + encodeURIComponent(anhang), {
@@ -70,14 +55,26 @@ async function manifestVon(tag) {
   return m;
 }
 
+/** Das erste Release der Reihe, dessen Verzeichnis die Datei kennt (sonst das letzte). */
+async function quelleVon(name) {
+  const anhang = anhangName(name);
+  const tags = tagsFuer(name);
+  for (const tag of tags) {
+    const m = await manifestVon(tag);
+    if (m[anhang]) return { tag, manifest: m };
+  }
+  const tag = tags[tags.length - 1];
+  return { tag, manifest: await manifestVon(tag) };
+}
+
 /** Eine Datei holen, wenn das Release eine andere Fassung hat als die Platte. */
-async function eine(name, manifest) {
+async function eine(name, tag, manifest) {
   const anhang = anhangName(name);
   const ziel = path.join(DATEN, name);
   const dort = manifest[anhang]?.summe;
   const hier = fs.existsSync(ziel) ? pruefsumme(fs.readFileSync(ziel)) : null;
   if (dort && hier === dort) return 'gleich';
-  const daten = await holen(tagFuer(name), anhang);
+  const daten = await holen(tag, anhang);
   if (!daten) return 'fehlt';
   if (hier && pruefsumme(daten) === hier) return 'gleich';
   fs.mkdirSync(path.dirname(ziel), { recursive: true });
@@ -97,7 +94,8 @@ async function main() {
   let geholt = 0; let gleich = 0; let fehlt = 0; let kaputt = 0;
   for (const name of namen) {
     try {
-      const was = await eine(name, await manifestVon(tagFuer(name)));
+      const q = await quelleVon(name);
+      const was = await eine(name, q.tag, q.manifest);
       if (was === 'gleich') { gleich += 1; console.log(`  =  ${name} (unveraendert)`); }
       else if (was === 'fehlt') { fehlt += 1; console.log(`  -  ${name} (nicht am Release)`); }
       else { geholt += 1; console.log(`  +  ${name} (${Math.round(was / 1024)} KB)`); }
@@ -111,15 +109,25 @@ async function main() {
    */
   for (const o of ordner) {
     const praefix = o.replace(/\/+$/, '') + '/';
-    const tag = tagFuer(praefix);
-    const manifest = await manifestVon(tag);
-    const alle = Object.keys(manifest).filter((a) => a !== 'manifest.json' && !a.endsWith('.neu'))
-      .map(ablageName).filter((n) => n.startsWith(praefix) || (praefix === 'akten/' && /^akten__[0-9a-f]{2}\.json$/.test(n)));
-    console.log(`  Ordner ${praefix}: ${alle.length} am Release (${tag})`);
+    const tags = tagsFuer(praefix);
+    // Name -> das erste Release der Reihe, das ihn kennt (das Saison-Release geht vor).
+    const woher = new Map();
+    for (const tag of tags) {
+      const manifest = await manifestVon(tag);
+      for (const a of Object.keys(manifest)) {
+        if (a === 'manifest.json' || a.endsWith('.neu')) continue;
+        const n = ablageName(a);
+        if (!(n.startsWith(praefix) || (praefix === 'akten/' && /^akten__[0-9a-f]{2}\.json$/.test(n)))) continue;
+        if (!woher.has(n)) woher.set(n, { tag, manifest });
+      }
+    }
+    const alle = [...woher.keys()];
+    console.log(`  Ordner ${praefix}: ${alle.length} am Release (${[...new Set([...woher.values()].map((w) => w.tag))].join(', ') || tags[0]})`);
     let naechste = 0;
     const arbeiter = async () => {
       while (naechste < alle.length) {
         const name = alle[naechste++];
+        const { tag, manifest } = woher.get(name);
         try {
           if (praefix === 'akten/') {
             // Ein Buendel: nur laden, wenn die Summe eine andere ist als beim letzten Mal.
@@ -137,7 +145,7 @@ async function main() {
             geholt += 1;
             continue;
           }
-          const was = await eine(name, manifest);
+          const was = await eine(name, tag, manifest);
           if (was === 'gleich') gleich += 1; else if (was === 'fehlt') fehlt += 1; else geholt += 1;
         } catch (e) { kaputt += 1; console.log(`  !  ${name}: ${e.message}`); }
         if ((geholt + gleich + fehlt + kaputt) % 100 === 0) console.log(`     ${geholt} geholt, ${gleich} unveraendert ...`);
