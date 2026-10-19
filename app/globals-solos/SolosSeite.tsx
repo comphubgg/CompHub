@@ -166,19 +166,47 @@ function Weg({ daten, auf }: { daten: SolosDaten; auf: (r: Reiter) => void }) {
   );
 }
 
+/**
+ * Eine Spielerkachel: grosses, sauberes Quadrat - und der Name steht immer darunter, auch ohne Foto
+ * (Betreiber, 19.10.2026: "groessere, cleane Bilder, und man muss erkennen, wer es ist, auch ohne Bild").
+ */
+function Kachel({ s }: { s: SolosSpieler }) {
+  const initialen = s.anzeige.trim().split(/\s+/).slice(0, 2).map((w) => Array.from(w)[0] ?? '').join('').toUpperCase() || '?';
+  return (
+    <div className="flex min-w-0 flex-col gap-2" title={s.anzeige}>
+      <div className="aspect-square w-full overflow-hidden rounded-xl bg-zinc-800">
+        {s.bild
+          // eslint-disable-next-line @next/next/no-img-element
+          ? <img src={s.bild} alt="" loading="lazy" style={{ objectPosition: fokusVon(s.bild) }} className="h-full w-full object-cover" />
+          : <span className="flex h-full w-full items-center justify-center text-2xl font-black tracking-tight text-slate-500">{initialen}</span>}
+      </div>
+      <p className="flex min-w-0 items-start gap-1.5 text-[11px] font-bold uppercase leading-tight text-slate-200">
+        <span className="mt-px shrink-0"><TeamFlagge groesse={12} laender={[s.land ?? undefined]} /></span>
+        <span className="line-clamp-2 min-w-0 break-words">{s.anzeige}</span>
+      </p>
+    </div>
+  );
+}
+
 function FinalistenKurz({ daten, auf }: { daten: SolosDaten; auf: () => void }) {
   const alle = daten.qualifiziert.flatMap((g) => g.spieler);
+  // Wer ein Foto hat, steht vorn; die Reihenfolge sonst bleibt.
+  const gezeigt = [...alle.filter((s) => s.bild), ...alle.filter((s) => !s.bild)].slice(0, 15);
+  const mehr = alle.length - gezeigt.length;
   return (
     <Karte2>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 className="text-lg font-extrabold text-slate-100"><T>Schon im Grand Final</T> <span className="ml-1 text-sky-400 tabular-nums">{alle.length}</span></h2>
         <button type="button" onClick={auf} className="text-xs font-semibold text-sky-400 hover:underline"><T>Alle ansehen</T> →</button>
       </div>
-      <div className="mt-4 flex flex-wrap gap-1.5">
-        {alle.slice(0, 40).map((s) => (
-          <span key={s.id} title={s.anzeige} className="inline-flex"><Foto s={s} px={40} /></span>
-        ))}
-        {alle.length > 40 && <span className="flex h-10 items-center rounded-full bg-zinc-800 px-3 text-xs font-bold text-slate-400">+{alle.length - 40}</span>}
+      <div className="mt-5 grid grid-cols-3 gap-x-3 gap-y-5 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8">
+        {gezeigt.map((s) => <Kachel key={s.id} s={s} />)}
+        {mehr > 0 && (
+          <button type="button" onClick={auf} className="flex min-w-0 flex-col gap-2 text-left">
+            <span className="flex aspect-square w-full items-center justify-center rounded-xl border border-sky-500/40 bg-sky-500/10 text-2xl font-black tabular-nums text-sky-400">+{mehr}</span>
+            <span className="text-[11px] font-bold uppercase leading-tight text-sky-400"><T>Alle ansehen</T></span>
+          </button>
+        )}
       </div>
     </Karte2>
   );

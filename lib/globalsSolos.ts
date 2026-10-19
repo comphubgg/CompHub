@@ -22,7 +22,7 @@ import { GET as katalogAbruf } from '@/app/api/cup-catalog/route';
 import { detail, jungeTurniere, formenAus, namenRepariert, type RohDetail } from '@/lib/nobleKarte';
 import { spielerbildKlein } from '@/lib/spielerbildKlein';
 import { kernname } from '@/lib/homoglyph';
-import { istVitalRegion, vitalFormen, vitalFuer, vitalKarte, vitalTurniere } from '@/lib/vitalScrims';
+import { istVitalRegion, vitalFormen, vitalFuer, vitalKarte, vitalTurniere, vitalNachStufe } from '@/lib/vitalScrims';
 
 /** Das Turnier bei Noble: "FNCS Solos" der laufenden Saison. */
 const TURNIER_NAME = /^FNCS Solos$/i;
@@ -324,7 +324,7 @@ async function nobleKartenbildNahe(datum: number): Promise<string | null> {
  */
 export async function vitalFenster(o: { windowId: string; name: string; region: string; begin: number; ende?: number | null; vitalId?: string }): Promise<{ turnier: string; fenster: SolosFenster } | null> {
   const liste = await vitalTurniere();
-  const v = o.vitalId ? (liste.find((t) => t.id === o.vitalId) ?? null) : await vitalFuer(o.region, o.begin, o.ende);
+  const v = o.vitalId ? (liste.find((t) => t.id === o.vitalId) ?? null) : (await vitalFuer(o.region, o.begin, o.ende) ?? await vitalNachStufe(o.region, o.windowId, o.begin));
   if (!v) return null;
   const karte = await vitalKarte(v.id, v.ende < Date.now());
   if (!karte) return null;

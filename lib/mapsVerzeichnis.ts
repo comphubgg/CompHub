@@ -4,7 +4,9 @@ import { saisonName, SAISON_NAMEN } from '@/lib/szeneStats';
 import { typVon, cupBild, SAISON_TITEL, SAISON_OHNE_MAPS, type MapTyp } from '@/lib/mapsTyp';
 import { titelMit } from '@/lib/cupTitel';
 import { alteEintraege } from '@/lib/alteMaps';
-import { istVitalRegion, regionAusKennung, vitalTurniere } from '@/lib/vitalScrims';
+import { istVitalRegion, regionAusKennung, solosStufe, vitalTurniere } from '@/lib/vitalScrims';
+import { gecacht } from '@/lib/epicCups';
+import { GET as katalogAbruf } from '@/app/api/cup-catalog/route';
 
 export { typVon };
 export type { MapTyp };
@@ -74,6 +76,30 @@ const BILD_JE_TYP: Record<MapTyp, string | null> = {
 
 interface ArchivEintrag { id?: string; windowId?: string; eventId?: string; titel?: string; bild?: string; begin?: number; end?: number; region?: string }
 
+/**
+ * Die Fenster aus Epics Live-Katalog, mit den Zeiten, die Epic heute nennt.
+ *
+ * Das gespeicherte Archiv (cup-archiv.json) haelt die Zeit, zu der ein Fenster zuerst angekuendigt wurde. Bei den FNCS Solos hat Epic die Zeiten
+ * danach geaendert - NA West und Ozeanien standen vier Stunden daneben -, und die Heats dieser Regionen fanden so zu Vital nicht zusammen
+ * (Betreiber, 19.10.2026: "Solo FNCS Heats fuer andere Regionen wie OCE ... musst du auch finden"). Der Katalog kommt zuerst; das Archiv bleibt als Rueckfall.
+ */
+async function frischeFenster(): Promise<ArchivEintrag[]> {
+  type KFenster = { windowId?: string; eventId?: string; begin?: number; end?: number; region?: string };
+  type KCup = { id: string; titel: string; bild?: string; regionen?: Record<string, KFenster[]> };
+  const k = await gecacht('maps|katalog-frisch', 10 * 60_000, async () =>
+    (await (await katalogAbruf(new Request('http://localhost/api/cup-catalog?modus=standard'))).json()) as { cups?: KCup[] });
+  const raus: ArchivEintrag[] = [];
+  for (const c of k.cups ?? []) {
+    for (const [region, fenster] of Object.entries(c.regionen ?? {})) {
+      for (const w of fenster) {
+        if (!w.windowId || !w.begin) continue;
+        raus.push({ id: c.id, windowId: w.windowId, eventId: w.eventId, titel: c.titel, bild: c.bild, begin: w.begin, end: w.end, region: w.region ?? region });
+      }
+    }
+  }
+  return raus;
+}
+
 /** Der Name eines Vital-Turniers ohne die Region am Ende ("Solo FNCS Heats (NAC)" -> "Solo FNCS Heats"). */
 const ohneRegion = (n: string) => n.replace(/\s*\((?:NAC|NAW|NA-?West|NA-?Central|ME|OCE|BR|ASIA|EU)\)\s*$/i, '').trim();
 
@@ -107,6 +133,8 @@ async function vitalEintraege(noble: MapEintrag[], archiv: ArchivEintrag[]): Pro
   }
   const raus: MapEintrag[] = [];
   const benutzt = new Set<string>();
+  /** Vital-Turniere, zu denen die Zeit keinen Spieltag fand - die Nachlese sucht sie noch ueber den Namen der Stufe. */
+  const offen: Array<(typeof turniere)[number]> = [];
 
   const eintrag = (v: (typeof turniere)[number], a: ArchivEintrag | null, d2: ArchivEintrag | null): MapEintrag => {
     const synthetisch = !a;
@@ -153,7 +181,7 @@ async function vitalEintraege(noble: MapEintrag[], archiv: ArchivEintrag[]): Pro
       .filter((k) => k.treffer >= 2 && k.treffer >= k.von / 2)
       .sort((p, q) => q.treffer - p.treffer || p.abstand - q.abstand);
     const beste = bewertet[0];
-    if (!beste) { raus.push(eintrag(v, null, null)); continue; }
+    if (!beste) { raus.push(eintrag(v, null, null)); offen.push(v); continue; }
     // Finale an zwei Tagen: Day 1 und Day 2 sind ein Eintrag; trifft der zweite Tag allein, steht er fuer sich.
     let a = beste.x;
     const w = a.windowId as string;
@@ -163,6 +191,25 @@ async function vitalEintraege(noble: MapEintrag[], archiv: ArchivEintrag[]): Pro
     const d2 = /_Day1_/.test(wid) ? (epic.get(wid.replace('_Day1_', '_Day2_')) ?? null) : null;
     if (d2) benutzt.add(d2.windowId as string);
     raus.push(eintrag(v, a, d2));
+  }
+
+  /*
+   * Nachlese ueber die Stufe (nur FNCS Solos): Vital datiert manche Fenster falsch - der Fast Track in Ozeanien steht dort am 4.10. statt am 10.10., die
+   * Spieler sind dieselben (99 von 99 aus Epics Bestenliste). Gibt es in der Region genau einen noch freien Spieltag derselben Stufe
+   * (Fast Track, Heat 1, Heat 2) innerhalb von zwei Wochen, gehoert das Turnier dazu.
+   */
+  for (const v of offen) {
+    if (!/solo/i.test(v.name)) continue;
+    const schluessel = solosStufe(v.name);
+    if (!schluessel) continue;
+    const kandidaten = [...epic.values()].filter((x) => regionAusKennung(x.windowId as string) === v.region && !benutzt.has(x.windowId as string)
+      && /fncssolo/i.test(String(x.windowId).replace(/_/g, '')) && solosStufe(x.windowId as string) === schluessel
+      && Math.abs((x.begin as number) - v.start) <= 14 * 86_400_000);
+    if (kandidaten.length !== 1) continue;
+    const a = kandidaten[0];
+    benutzt.add(a.windowId as string);
+    const i = raus.findIndex((e) => e.vitalId === v.id);
+    if (i >= 0) raus[i] = eintrag(v, a, null);
   }
   return raus;
 }
@@ -241,7 +288,10 @@ async function baueVerzeichnis(): Promise<MapEintrag[]> {
   })));
 
   // NA Central, NA West, Middle East und Ozeanien: die Landepunkte kommen von Vital Scrims.
-  try { liste.push(...await vitalEintraege(liste, archiv)); } catch { /* ohne Vital bleibt es bei Noble */ }
+  try {
+    const frisch = await frischeFenster().catch(() => [] as ArchivEintrag[]);
+    liste.push(...await vitalEintraege(liste, [...frisch, ...archiv]));
+  } catch { /* ohne Vital bleibt es bei Noble */ }
 
   /*
    * Die Karten ohne Landepunkte: Events aus Epics Archiv, zu denen Noble nichts fuehrt (vor Juli 2025), und die alten

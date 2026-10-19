@@ -191,6 +191,29 @@ export async function vitalFuer(region: string, begin: number, ende?: number | n
   return ausw(liste.filter((t) => t.start <= begin && begin - t.start <= 36 * 3_600_000));
 }
 
+/**
+ * Die Stufe eines FNCS-Solos-Spieltags, wie Vital und Epic sie nennen: "fast" (Fast Track) oder "heat1"/"heat2" - sonst leer.
+ */
+export function solosStufe(text: string): string {
+  const t = text.replace(/([a-z])([A-Z])/g, '$1 $2').replace(/_/g, ' ');
+  if (/fast\s*tracks?/i.test(t)) return 'fast';
+  const h = /heats?\s*(\d)/i.exec(t);
+  return h ? `heat${h[1]}` : '';
+}
+
+/**
+ * Das Vital-Turnier derselben Stufe, wenn die Zeit keines findet: Vital datiert manche Fenster falsch (der Fast Track in Ozeanien steht dort am 4.10.
+ * statt am 10.10., mit denselben Spielern). Gilt nur, wenn es in der Region genau eines gibt, das hoechstens zwei Wochen entfernt liegt.
+ */
+export async function vitalNachStufe(region: string, windowId: string, begin: number): Promise<VitalTurnier | null> {
+  if (!istVitalRegion(region) || !Number.isFinite(begin)) return null;
+  const schluessel = solosStufe(windowId);
+  if (!schluessel) return null;
+  const treffer = (await vitalTurniere()).filter((t) => t.region === region && /solo/i.test(t.name) && solosStufe(t.name) === schluessel
+    && Math.abs(t.start - begin) <= 14 * 86_400_000);
+  return treffer.length === 1 ? treffer[0] : null;
+}
+
 /* ------------------------------------------------------------------ Umrechnung */
 
 /**
