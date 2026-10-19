@@ -37,6 +37,17 @@ const ARCHIV = path.join(process.cwd(), 'data', 'szene-stats');
 const ABLAGE = path.join(process.cwd(), 'data', 'epic-spieltage');
 
 const neu = process.argv.slice(2).includes('--neu');
+/*
+ * Ein Zeitrahmen statt "bis alles durch ist" (19.10.2026).
+ *
+ * Ein offener Cup hat zehntausend Teams; sein Fenster mit limit=10000 zu holen dauert gut anderthalb Minuten. Von gut dreihundert
+ * Fenstern in zwei Wochen schaffte der Schritt im stuendlichen Lauf deshalb nie alle - er wurde nach 15 Minuten abgebrochen, und
+ * alles, was in dieser Zeit schon geholt war, kam nie ans Release: seit dem 3.10. kamen keine neuen Spieltage mehr an. Jetzt:
+ * die Finals zuerst (klein, wichtig), dann die neuesten; drei Abfragen gleichzeitig; und nach SPIELTAGE_MINUTEN (11) hoert der
+ * Schritt von selbst auf, damit er fertig wird und das Geholte hochgeladen werden kann. Was fehlt, kommt im naechsten Lauf dran.
+ */
+const ENDE = Date.now() + (Number(process.env.SPIELTAGE_MINUTEN) || 11) * 60_000;
+const GLEICHZEITIG = 3;
 const warte = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /** Die Saison steckt im Namen des Fensters: S42_FNCSDivisionalCup_… */
@@ -46,7 +57,7 @@ function saisonAus(windowId, cupId) {
 }
 
 async function json(url) {
-  const antwort = await fetch(url);
+  const antwort = await fetch(url, { signal: AbortSignal.timeout(240_000) });
   if (!antwort.ok) throw new Error(`HTTP ${antwort.status}`);
   const daten = await antwort.json();
   if (daten.error) throw new Error(daten.error);
@@ -98,32 +109,32 @@ async function main() {
     }
   }
 
-  console.log(`${offen.length} vergangene Fenster ohne Datei der Quelle`);
-  let geholt = 0; let vorhanden = 0; let leer = 0; const fehler = [];
+  // Die Finals zuerst, dann die neuesten.
+  offen.sort((a, b) => Number(Boolean(b.istFinale)) - Number(Boolean(a.istFinale)) || (b.begin ?? 0) - (a.begin ?? 0));
 
-  for (const w of offen) {
+  console.log(`${offen.length} vergangene Fenster ohne Datei der Quelle`);
+  let geholt = 0; let vorhanden = 0; let leer = 0; let zurueck = 0; const fehler = [];
+
+  async function bearbeite(w) {
     const ordner = path.join(ABLAGE, w.season);
     const datei = path.join(ordner, `${w.windowId}.json`);
     if (!neu) {
-      try { await fs.access(datei); vorhanden++; continue; } catch { /* fehlt */ }
+      try { await fs.access(datei); vorhanden++; return; } catch { /* fehlt */ }
     }
+    const adresse = `${BASIS}/api/cup-leaderboard`
+      + `?event=${encodeURIComponent(w.eventId)}`
+      + `&window=${encodeURIComponent(w.windowId)}&limit=10000`;
 
     let daten;
     try {
-      daten = await json(`${BASIS}/api/cup-leaderboard`
-        + `?event=${encodeURIComponent(w.eventId)}`
-        + `&window=${encodeURIComponent(w.windowId)}&limit=10000`);
+      daten = await json(adresse);
     } catch {
       await warte(2500);
-      try {
-        daten = await json(`${BASIS}/api/cup-leaderboard`
-          + `?event=${encodeURIComponent(w.eventId)}`
-          + `&window=${encodeURIComponent(w.windowId)}&limit=10000`);
-      } catch (err2) { fehler.push(`${w.windowId}: ${err2.message}`); continue; }
+      try { daten = await json(adresse); } catch (err2) { fehler.push(`${w.windowId}: ${err2.message}`); return; }
     }
 
     const eintraege = daten.entries ?? [];
-    if (!eintraege.length) { leer++; await warte(400); continue; }
+    if (!eintraege.length) { leer++; await warte(400); return; }
 
     // Der Beginn des Spieltags: die frueheste Match-Endzeit, sonst der
     // geplante Start aus dem Katalog.
@@ -157,6 +168,16 @@ async function main() {
       + ` - ${teams.length} Teams`);
     await warte(400);
   }
+
+  let naechstes = 0;
+  const arbeiter = async () => {
+    while (naechstes < offen.length) {
+      if (Date.now() > ENDE) { zurueck = offen.length - naechstes; return; }
+      await bearbeite(offen[naechstes++]);
+    }
+  };
+  await Promise.all(Array.from({ length: GLEICHZEITIG }, arbeiter));
+  if (zurueck) console.log(`Zeitrahmen aufgebraucht - ${zurueck} Fenster kommen im naechsten Lauf dran.`);
 
   console.log(`\nFertig: ${geholt} geholt, ${vorhanden} lagen schon,`
     + ` ${leer} ohne Bestenliste`);

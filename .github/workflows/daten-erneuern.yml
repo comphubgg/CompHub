@@ -243,6 +243,19 @@ jobs:
           WERKZEUG_URL: https://www.thecomphub.com
         run: node scripts/epic-spieltage-holen.mjs 2>&1 | tail -20
 
+      # Die neuen Spieltage sofort ans Release, nicht erst mit dem grossen Hochladen am Ende.
+      #
+      # Der Schritt oben brach seit dem 3.10.2026 jede Stunde nach 15 Minuten ab (sein Zeitrahmen fehlte), und die grossen Upload-Schritte
+      # weiter unten brechen nach 25 bzw. 45 Minuten ab, weil GitHub nur achtzig Anlegen/Loeschen je Minute zulaesst und hunderte
+      # Replay-Aggregate davor stehen. Dazwischen lag jedes Mal alles, was geholt war - und kam nie an. Dieser Schritt ist klein (nur
+      # der Ordner epic-spieltage, wenige neue Dateien) und kommt deshalb immer durch; die Replay-Auswahl und die Profile lesen von dort.
+      - name: Spieltage ans Release
+        continue-on-error: true
+        timeout-minutes: 10
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/ablage-github.mjs --nur epic-spieltage 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -8
+
       # Alte Spieltage suchen, die Epics Liste nicht mehr nennt - je Lauf
       # ein Stueck (1500 Abfragen, gut zehn Minuten), das Gedaechtnis liegt
       # im Zwischenspeicher (_gesucht.json). Was gefunden wird, laedt der

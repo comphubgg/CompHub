@@ -52,7 +52,7 @@ const gleichzeitig = zahl('--parallel', 4);
 const frist = Date.now() + zahl('--minuten', 20) * 60_000;
 const warte = (ms) => new Promise((r) => setTimeout(r, ms));
 
-if (!fs.existsSync(WERKZEUG)) {
+if (!fs.existsSync(WERKZEUG) && !arg.includes('--liste')) {
   console.log(`Leser fehlt (${WERKZEUG}) - erst: dotnet build tools/replay-voll -c Release`);
   process.exit(0);
 }
@@ -62,8 +62,42 @@ index.fehler ??= {};
 /** Wann ein Fenster zuletzt nach neuen Matches abgefragt wurde - abgeschlossene Tage muessen nicht in jedem Durchgang der Schleife befragt werden. */
 index.geprueft ??= {};
 
-/** Welche Tage: Finals und LANs der letzten 31 Tage aus Epics Spieltagen. */
-function tage() {
+/**
+ * Die Fenster der letzten 31 Tage aus dem Live-Katalog der Seite.
+ *
+ * Betreiber (19.10.2026): von jedem kuenftigen Cup sollen die Zonen da sein. Die gespeicherten Spieltage (epic-spieltage) hinken aber
+ * hinterher - der stuendliche Lauf holt sie nur, wenn sein Schritt "Spieltage holen" in den fuenfzehn Minuten fertig wird, und der
+ * brach seit dem 3.10. jede Stunde ab. Der Katalog kennt jedes Fenster sofort; was dort als Finale gilt, wird ohne Umweg gelesen.
+ */
+async function katalogFenster(grenze) {
+  const basis = (process.env.WERKZEUG_URL || 'https://www.thecomphub.com').replace(/\/+$/, '');
+  try {
+    const r = await fetch(`${basis}/api/cup-catalog?modus=alle`, { signal: AbortSignal.timeout(90_000), headers: { 'User-Agent': 'comphub-replays' } });
+    if (!r.ok) throw new Error(`HTTP ${r.status}`);
+    const k = await r.json();
+    const raus = [];
+    for (const cup of k.cups ?? []) {
+      for (const [region, fenster] of Object.entries(cup.regionen ?? {})) {
+        for (const w of fenster) {
+          if (w.status !== 'vorbei' || !w.windowId || !w.eventId || String(w.eventId).startsWith('manuell_')) continue;
+          const beginn = Number(w.begin ?? w.end ?? 0);
+          if (!beginn || beginn < grenze) continue;
+          raus.push({
+            eventId: w.eventId, windowId: w.windowId, region, datum: beginn, titel: cup.titel, cupId: cup.id,
+            season: /^(S\d+)_/i.exec(w.windowId)?.[1]?.toUpperCase() ?? '', istFinale: Boolean(w.istFinale) || Boolean(cup.global),
+          });
+        }
+      }
+    }
+    return raus;
+  } catch (e) {
+    console.log(`Katalog nicht erreichbar (${String(e?.message ?? e).slice(0, 80)}) - es gelten die gespeicherten Spieltage.`);
+    return [];
+  }
+}
+
+/** Welche Tage: Finals und LANs der letzten 31 Tage, aus den gespeicherten Spieltagen und dem Live-Katalog. */
+async function tage() {
   if (arg.length >= 2 && !arg[0].startsWith('--')) return [{ eventId: arg[0], windowId: arg[1], datum: Date.now(), titel: arg[1] }];
   const grenze = Date.now() - 31 * 864e5;
   const alle = [];
@@ -77,6 +111,14 @@ function tage() {
       alle.push(t);
     }
   }
+  // Ein Fenster zaehlt einmal (die Kennung nennt die Region mit); die Angaben des Katalogs gelten, Datum und Finale-Merkmal bleiben, wenn der gespeicherte Tag sie kennt.
+  const nachFenster = new Map(alle.map((t) => [t.windowId, t]));
+  for (const t of await katalogFenster(grenze)) {
+    const alt = nachFenster.get(t.windowId);
+    nachFenster.set(t.windowId, alt ? { ...alt, ...t, datum: alt.datum ?? t.datum, istFinale: Boolean(alt.istFinale || t.istFinale) } : t);
+  }
+  alle.length = 0;
+  alle.push(...nachFenster.values());
   // Die letzte Runde eines Abends (EventNRoundM mit dem hoechsten M ueber 1) ist das Finale dieses Cups, auch wenn Epic sie nicht "Final" nennt.
   const hoechste = new Map();
   const rundeVon = (w) => /^(.*?Event\d+)Round(\d+)/i.exec(w);
@@ -111,7 +153,7 @@ async function mitWiederholung(name, tun, versuche = 3) {
 /** Alle noch fehlenden Matches aller Tage - die zuletzt gescheiterten zuerst, danach nach Tagen, neueste zuerst. */
 async function aufgaben() {
   const liste = [];
-  for (const tag of tage()) {
+  for (const tag of await tage()) {
     if (Date.now() > frist) break;
     // Ein Tag, der vor mehr als sechs Stunden begann und vor weniger als einer halben Stunde befragt wurde, hat nichts Neues (Epics Schnittstelle nicht jede Minute belasten).
     if (Date.now() - (tag.datum ?? Date.now()) > 6 * 3600_000 && Date.now() - (index.geprueft[tag.windowId] ?? 0) < 30 * 60_000 && !Object.values(index.fehler).some((x) => x.windowId === tag.windowId)) continue;
@@ -164,6 +206,13 @@ async function abarbeiten({ id, tag }) {
   } finally { fs.rmSync(tmp, { force: true }); }
 }
 
+// --liste: nur zeigen, welche Tage gelesen wuerden (zum Pruefen der Auswahl).
+if (arg.includes('--liste')) {
+  const t = await tage();
+  for (const x of t) console.log(`${new Date(x.datum ?? 0).toISOString().slice(0, 16)} ${String(x.region ?? '').padEnd(4)} ${x.windowId}`);
+  console.log(`${t.length} Tage`);
+  process.exit(0);
+}
 const alle = await aufgaben();
 console.log(`${alle.length} Matches fehlen noch (${Object.keys(index.fehler).length} davon schon einmal gescheitert); ${gleichzeitig} gleichzeitig, hoechstens ${hoechstens}.`);
 let naechster = 0;
