@@ -345,16 +345,22 @@ export async function fncsRekorde(): Promise<FncsRekorde> {
     const fenster = tage.length > 1 ? tage.map((t) => t.windowId) : [k.e.windowId];
     const eventId = k.e.eventId;
     if (!eventId) return;
+    const fakt = FNCS_FAKTEN[schluesselVon(k.e.saison, k.art)];
     try {
       const ziel = fenster.length > 1 ? `windows=${fenster.map(encodeURIComponent).join(',')}` : `window=${encodeURIComponent(fenster[0])}`;
       const zeilen = await ausBestenliste(`http://localhost/api/cup-leaderboard?event=${encodeURIComponent(eventId)}&${ziel}&limit=100`);
       const label = k.art === 'gc' ? `${k.jahr} Global Championship` : `${k.e.saisonKurz} Grand Finals`;
       for (const z of zeilen) {
-        const spieler = z.players.map((p) => {
+        let spieler = z.players.map((p) => {
           const x = kontext(p.id, p.displayName || p.name || '');
           const name = rein(x.anzeige);
           return { name, land: x.land ?? land(name) };
         });
+        // Epic nennt zu alten oder geloeschten Konten keinen Namen - dann steht dort die Konto-Id ("2B220D899DE1..."). Fuer diese Plaetze gelten die Namen der Eckdaten.
+        if (spieler.some((s) => NUR_ID.test(s.name.trim()))) {
+          const f = fakt?.top.find((x) => x.rang === z.rank);
+          if (f) spieler = f.spieler.map((n) => ({ name: n, land: land(n) }));
+        }
         const punkte = z.points ?? 0; const siege = z.wins ?? 0; const elims = z.elims ?? 0;
         alleTeams.push({ event: label, punkte, siege, elims, spieler });
         for (const s of spieler) {

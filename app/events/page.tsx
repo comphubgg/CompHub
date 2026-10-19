@@ -249,14 +249,14 @@ function Marke({ lage, t }: { lage: Lage; t: (s: string) => string }) {
   // wie ein Live in Europa.
   const text = lage.wo ? `${grund} · ${lage.wo}` : grund;
   return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full bg-black/70 px-2.5 py-1 text-[10px]
+    <span className={`inline-flex items-center gap-1 rounded-full bg-black/70 px-2 py-0.5 text-[9px]
                       font-bold uppercase tracking-wider ring-1 ring-white/15 backdrop-blur-sm ${
       s === 'live' ? 'text-white' : s === 'kommt' ? 'text-sky-300' : 'text-slate-400'}`}>
       {s === 'live' && (
-        <span className="relative flex h-2 w-2">
+        <span className="relative flex h-1.5 w-1.5">
           <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-sky-400 opacity-75
                            motion-reduce:animate-none" />
-          <span className="relative inline-flex h-2 w-2 rounded-full bg-sky-400" />
+          <span className="relative inline-flex h-1.5 w-1.5 rounded-full bg-sky-400" />
         </span>
       )}
       {text}
@@ -460,7 +460,17 @@ export default function EventsPage() {
   const oeffnen = (c: Cup) => {
     const regionen = Object.keys(c.regionen);
     if (c.global || regionen.length <= 1) { router.push(`/events/${c.id}`); return; }
+    /*
+     * Ohne gewaehlte Region fuehrt die Kachel dorthin, wo der Cup gerade laeuft (Betreiber, 19.10.2026: "wenn da Live steht, muss ich in die Region
+     * kommen, in der er live ist"); laeuft er nirgends, in die Region, die als Naechste dran ist - Europa nur, wo es selbst live oder als Naechstes dran ist.
+     */
+    const live = regionen.filter((x) => c.regionen[x].some((w) => laeuft(w, jetzt)));
+    const kommend = regionen
+      .map((x) => ({ x, begin: Math.min(...c.regionen[x].filter((w) => w.begin > jetzt).map((w) => w.begin)) }))
+      .filter((k) => Number.isFinite(k.begin)).sort((a, b) => a.begin - b.begin);
     const r = region !== 'alle' && c.regionen[region] ? region
+      : live.length ? (live.includes('EU') ? 'EU' : live[0])
+      : kommend.length ? (kommend.some((k) => k.x === 'EU') ? 'EU' : kommend[0].x)
       : c.regionen.EU ? 'EU' : regionen[0];
     const liste = c.regionen[r];
     const w = liste.find((x) => laeuft(x, jetzt)) ?? liste.find((x) => x.begin > jetzt);
@@ -701,7 +711,7 @@ function Abschnitt({ titel, cups, oeffnen, lageZu, mehr = 0, mehrZeigen }: {
                   <Bild c={c} klasse="h-full w-full transition duration-300 group-hover:scale-105" />
                   <div className="absolute inset-0 bg-gradient-to-t from-zinc-950/80 via-transparent to-transparent" />
                   <div className="absolute left-2 top-2"><Marke lage={lageZu(c)} t={t} /></div>
-                  <span className="absolute right-2 top-2 rounded-full bg-black/70 px-2.5 py-1 text-[10px]
+                  <span className="absolute right-2 top-2 rounded-full bg-black/70 px-2 py-0.5 text-[9px]
                                    font-semibold uppercase tracking-wider text-slate-200 ring-1 ring-white/10">
                     {c.global ? t('global') : istMobile(c) ? t('Mobile')
                       : `${regionen.length} ${t(regionen.length === 1 ? 'Region' : 'Regionen')}`}

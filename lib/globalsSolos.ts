@@ -143,7 +143,8 @@ async function szeneAngaben(): Promise<{ land: Map<string, string>; name: Map<st
       if (!p.ID) continue;
       if (/^[A-Za-z]{2}$/.test(p.COUNTRY ?? '')) land.set(p.ID, (p.COUNTRY as string).toUpperCase());
       const n = String(p.NAME ?? '').trim();
-      if (n) name.set(p.ID, n);
+      // Bei einigen Konten steht in der Liste nur die Konto-Id statt eines Namens (376 von ueber 4000) - das ist kein Name.
+      if (n && !/^[0-9a-f]{32}$/i.test(n)) name.set(p.ID, n);
     }
   } catch { /* ohne Liste bleibt es bei Profil und Noble */ }
   szeneListe = { bis: Date.now() + 10 * 60_000, land, name };

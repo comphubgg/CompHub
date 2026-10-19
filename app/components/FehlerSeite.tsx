@@ -4,6 +4,7 @@ import Link from 'next/link';
 import T from '@/app/components/T';
 import { FEHLER } from '@/app/lib/fehler';
 import { MARKE } from '@/lib/marke';
+import HeroHintergrund from '@/app/components/HeroHintergrund';
 
 /*
  * Die eine Fehlerseite fuer alle Codes (Betreiber, 14.10.2026): das Logo, der Code gross, was passiert ist, eine Entschuldigung, die Wege
@@ -14,9 +15,11 @@ import { MARKE } from '@/lib/marke';
 export default function FehlerSeite({ code, wiederholen }: { code: number; wiederholen?: () => void }) {
   const art = FEHLER[code] ?? FEHLER[500];
   return (
-    <main className="relative flex min-h-[calc(100vh-4.5rem)] items-center justify-center overflow-hidden px-4 py-16">
+    <main className="relative isolate flex min-h-[calc(100vh-4.5rem)] items-center justify-center overflow-hidden px-4 py-16">
+      {/* Derselbe Hintergrund wie die Anmeldeseite (Betreiber, 19.10.2026: "die 404-Seite soll so aussehen wie das Anmelden"). */}
+      <HeroHintergrund />
       <div aria-hidden className="pointer-events-none absolute left-1/2 top-1/3 h-80 w-[640px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-sky-500/[0.14] blur-[110px]" />
-      <div className="relative w-full max-w-2xl text-center">
+      <div className="relative w-full max-w-2xl rounded-3xl border border-zinc-800 bg-zinc-900/80 px-6 py-10 text-center shadow-[0_24px_60px_rgba(15,23,42,.28)] backdrop-blur-xl sm:px-10">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={MARKE.logo} alt="CompHub" className="mx-auto h-16 w-16 rounded-2xl object-cover shadow-lg" />
         <p className="schrift-anzeige mt-6 bg-gradient-to-b from-sky-400 to-sky-600 bg-clip-text text-[7.5rem] font-extrabold leading-none tracking-tight text-transparent sm:text-[10rem]">
