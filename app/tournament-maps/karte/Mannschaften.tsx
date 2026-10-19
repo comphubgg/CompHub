@@ -147,7 +147,9 @@ interface Zeile {
 }
 
 /** Die Bestenliste: Platz, das ganze Team mit Flaggen, Punkte, Siege (VR) und Eliminierungen. */
-export function RangTabelle({ eventId, windowId, windows, laender, anzeigen, schmal = false }: {
+export function RangTabelle({ eventId, windowId, windows, laender, anzeigen, schmal = false, aufKlick }: {
+  /** Ein Klick auf eine Zeile: der erste Spieler des Teams (sein Team steht im Fenster daneben). */
+  aufKlick?: (p: { id: string; name: string }) => void;
   eventId: string | null; windowId: string;
   /** Mehrere Spieltage zusammen (Day 1 + Day 2): ihre Fenster-Kennungen - dann gilt windowId nicht. */
   windows?: string[];
@@ -189,7 +191,9 @@ export function RangTabelle({ eventId, windowId, windows, laender, anzeigen, sch
         </thead>
         <tbody>
           {zeilen.slice(0, 100).map((z) => (
-            <tr key={z.rank} className="border-b border-white/[0.04] transition hover:bg-sky-500/[0.05]">
+            <tr key={z.rank}
+              onClick={aufKlick && z.players[0] ? () => aufKlick({ id: z.players[0].id, name: anzeigen?.get(z.players[0].id) || z.players[0].anzeige || z.players[0].displayName || z.players[0].name || '' }) : undefined}
+              className={`border-b border-white/[0.04] transition hover:bg-sky-500/[0.05] ${aufKlick ? 'cursor-pointer' : ''}`}>
               <td className="px-3 py-2 text-[11px] font-bold tabular-nums text-slate-500">{z.rank}</td>
               <td className="px-3 py-2">
                 <span className="flex items-center gap-2.5">

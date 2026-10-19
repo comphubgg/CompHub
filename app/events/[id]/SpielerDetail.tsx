@@ -161,7 +161,13 @@ function vorMinuten(iso: string | null, jetzt: number): string | null {
 
 const TAKT_MS = 5 * 60_000;
 
-export default function SpielerDetail({ eventId, windowId, rueckPfad, solo }: { eventId: string; windowId: string; rueckPfad: string; solo: boolean }) {
+export default function SpielerDetail({ eventId, windowId, rueckPfad, solo, startSpieler, kompakt = false }: {
+  eventId: string; windowId: string; rueckPfad: string; solo: boolean;
+  /** Ein Spieler, der gleich geoeffnet sein soll (Klick auf die Bestenliste). */
+  startSpieler?: { id: string; name: string } | null;
+  /** Ohne Konto-Auswahl und Suche - nur die Werte des vorgegebenen Spielers (das Fenster ueber der Bestenliste). */
+  kompakt?: boolean;
+}) {
   const t = useT();
   const zugang = useZugang();
   const [offen, setOffen] = useState(false);
@@ -256,6 +262,8 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo }: { 
   useEffect(() => { const u = setInterval(() => setJetzt(Date.now()), 15_000); return () => clearInterval(u); }, []);
   // Anderer Cup oder Spieltag: die Auswahl faellt weg.
   useEffect(() => { setWahl(null); setDaten(null); setTreffer(null); setSuche(''); setMehr(false); setAuswertung(null); }, [eventId, windowId]);
+  // Ein vorgegebener Spieler gilt nach dem Zuruecksetzen oben.
+  useEffect(() => { if (startSpieler) setWahl(startSpieler); }, [startSpieler, eventId, windowId]);
 
   const e = daten?.eintrag ?? null;
   const spiele = e?.matches ?? [];
@@ -305,7 +313,7 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo }: { 
       <EpicMeldung />
 
       {/* ------------------------------------------------ Auswahl und Suche */}
-      <div className="flex flex-wrap items-start gap-3" ref={rahmen}>
+      <div className={kompakt ? 'hidden' : 'flex flex-wrap items-start gap-3'} ref={rahmen}>
         <div className="relative w-64">
           <button type="button" onClick={() => setOffen((o) => !o)}
             className={`flex w-full items-center justify-between rounded-lg border bg-zinc-900/80 px-3 py-2 text-left text-sm font-semibold text-slate-100 transition ${offen ? 'border-sky-400' : 'border-zinc-700 hover:border-sky-500/60'}`}>
@@ -365,7 +373,7 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo }: { 
       </div>
 
       {/* ------------------------------------------------ Der Spieler und sein Team */}
-      {!wahl && <p className="mt-4 text-sm text-slate-500"><T>Wähle ein Konto oder suche einen Spieler, um seine Werte in diesem Cup zu sehen.</T></p>}
+      {!wahl && !kompakt && <p className="mt-4 text-sm text-slate-500"><T>Wähle ein Konto oder suche einen Spieler, um seine Werte in diesem Cup zu sehen.</T></p>}
       {wahl && laedt && <div className="mt-4"><LadeSchirm /></div>}
       {wahl && fehler && !laedt && <p className="mt-4 rounded-xl border border-rose-500/30 bg-rose-500/5 px-4 py-3 text-sm text-rose-300"><T>{fehler}</T></p>}
       {wahl && daten && !laedt && !daten.dabei && (

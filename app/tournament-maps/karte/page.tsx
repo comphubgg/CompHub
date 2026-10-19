@@ -25,6 +25,7 @@ import LaenderListe from '@/app/components/LaenderListe';
 import { TeamKarten, RangTabelle, RangAusTeams, Platzierungen, type PlatzZeile } from './Mannschaften';
 import CupTierlist from './CupTierlist';
 import KartenUpdateWahl from '@/app/components/KartenUpdateWahl';
+import SpielerDetail from '@/app/events/[id]/SpielerDetail';
 
 interface Eintrag {
   turnierId: string; region: string; windowId: string; cup: string; fenster: string; titel: string;
@@ -74,6 +75,14 @@ export default function KartenSeite() {
   const [bilderOffen, setBilderOffen] = useState(false);
   /** Das gewaehlte Bild fuer alle Spieltage der Saison uebernehmen, nicht nur fuer diesen. */
   const [fuerSaison, setFuerSaison] = useState(false);
+  /** Der Spieler, dessen Werte und Match-Verlauf gerade im Fenster stehen (Klick auf die Rangliste). */
+  const [panel, setPanel] = useState<{ id: string; name: string } | null>(null);
+  useEffect(() => {
+    if (!panel) return undefined;
+    const taste = (e: KeyboardEvent) => { if (e.key === 'Escape') setPanel(null); };
+    window.addEventListener('keydown', taste);
+    return () => window.removeEventListener('keydown', taste);
+  }, [panel]);
 
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
@@ -308,6 +317,7 @@ export default function KartenSeite() {
                           : !meta?.alt && meta?.eventId && fenster.quelle !== 'hand'
                           ? <RangTabelle eventId={meta.eventId} windowId={tageFenster.length === 1 ? tageFenster[0] : (meta?.epicFenster ?? fenster.windowId)}
                               windows={tageFenster.length > 1 ? tageFenster : undefined} laender={laender} schmal
+                              aufKlick={tageFenster.length > 1 ? undefined : setPanel}
                               anzeigen={new Map((fenster.teams ?? []).flatMap((x) => x.spieler.map((s) => [s.id, s.anzeige] as const)))} />
                           : <RangAusTeams teams={fenster.teams ?? []} schmal />}
                       </div>
@@ -321,6 +331,7 @@ export default function KartenSeite() {
                 ? <RangAusTeams teams={fenster.teams ?? []} />
                 : <RangTabelle eventId={meta?.eventId ?? null} windowId={tageFenster.length === 1 ? tageFenster[0] : (meta?.epicFenster ?? fenster.windowId)}
                     windows={tageFenster.length > 1 ? tageFenster : undefined} laender={laender}
+                    aufKlick={tageFenster.length > 1 ? undefined : setPanel}
                     anzeigen={new Map((fenster.teams ?? []).flatMap((x) => x.spieler.map((s) => [s.id, s.anzeige] as const)))} />)}
               {reiter === 'tierlist' && <CupTierlist windowId={fenster.windowId} teams={fenster.teams ?? []} />}
               {reiter === 'laender' && (
@@ -333,6 +344,21 @@ export default function KartenSeite() {
           </>
         )}
       </div>
+
+      {panel && meta?.eventId && fenster && tageFenster.length <= 1 && (
+        <div className="fixed inset-0 z-[500] flex items-start justify-center overflow-y-auto bg-black/70 p-4 backdrop-blur-sm" onClick={() => setPanel(null)}>
+          <div className="relative my-8 w-full max-w-4xl rounded-2xl border border-zinc-800 bg-zinc-950 p-5 shadow-2xl" onClick={(e) => e.stopPropagation()}>
+            <button type="button" aria-label={t('Schließen')} onClick={() => setPanel(null)}
+              className="absolute right-3 top-3 flex h-8 w-8 items-center justify-center rounded-full border border-zinc-700 text-slate-400 transition hover:border-sky-500 hover:text-white">
+              <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M5.5 5.5l9 9M14.5 5.5l-9 9" /></svg>
+            </button>
+            <p className="mb-3 pr-10 text-xs font-bold uppercase tracking-[0.18em] text-sky-400"><T>Match-Verlauf</T> · {meta.titel}</p>
+            <SpielerDetail eventId={meta.eventId} windowId={tageFenster.length === 1 ? tageFenster[0] : (meta.epicFenster ?? fenster.windowId)}
+              rueckPfad="/tournament-maps/karte" solo={(fenster.teams ?? []).every((x) => x.spieler.length <= 1)}
+              startSpieler={panel} kompakt />
+          </div>
+        </div>
+      )}
     </main>
   );
 }
