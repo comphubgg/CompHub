@@ -32,9 +32,10 @@ jobs:
           python-version: '3.12'
       - name: Werkzeuge
         run: |
-          pip install --quiet edge-tts numpy playwright
+          # ffmpeg bringt imageio-ffmpeg als fertige Datei mit - auf dem Runner ist keines vorinstalliert.
+          pip install --quiet edge-tts numpy playwright imageio-ffmpeg
           python -m playwright install --with-deps chromium
-          ffmpeg -version | head -1
+          python -c "import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())"
       - name: Video bauen
         run: python scripts/tiktok/tagesvideo.py --ausgabe tiktok-out
       - name: Ans Release hängen
