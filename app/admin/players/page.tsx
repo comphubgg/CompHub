@@ -100,6 +100,7 @@ function mitAenderung(s: Spieler, a: Aenderung): Spieler {
  * (Betreiber, 19.10.2026: der Flaggen-Picker braucht Hilfe).
  */
 const FLAGGEN_CODES = 'ae al ar at au ba be bg bh br by ca ch cn co cz de dk ee eg es fi fr gb gr hr hu ie il in ir is it jp kr kw lb lt lv mc md mk mx ng nl no nz om pe pl pt ro rs ru sa se si sk sy tr ua us ve ye'.split(' ');
+const FLAGGEN_LISTE: string[] = FLAGGEN_CODES.filter(Boolean);
 const landName = (code: string, sprache: string) => {
   try { return new Intl.DisplayNames([sprache === 'en' ? 'en' : 'de'], { type: 'region' }).of(code.toUpperCase()) ?? code; } catch { return code; }
 };
@@ -145,6 +146,8 @@ export default function PlayerCenter() {
   const [eX, setEX] = useState('');
   /** Der Anzeigename - was im Beitrag steht, wenn kein @-Konto da ist. */
   const [eName, setEName] = useState('');
+  /** Die Suche in der Flaggenauswahl. */
+  const [landSuche, setLandSuche] = useState('');
   /** Noch nicht bestaetigte Aenderungen, je Konto - siehe AUSSTEHEND. */
   const [ausstehend, setAusstehend] = useState<Record<string, Aenderung>>({});
   const [sendeFehler, setSendeFehler] = useState('');
@@ -244,6 +247,7 @@ export default function PlayerCenter() {
 
   const oeffnen = (s: Spieler) => {
     setOffen(s.epicId);
+    setLandSuche('');
     // Die Flagge aus der Quelle wird vorbelegt: sonst muesste man abtippen,
     // was danebensteht - und ein leeres Feld beim Speichern loeschte sie.
     setELand(s.land);
@@ -322,9 +326,23 @@ export default function PlayerCenter() {
     );
   }
 
+  /** Der Spieler, der gerade rechts bearbeitet wird. */
+  const gewaehlt = offen ? alle.find((x) => x.epicId === offen) ?? null : null;
+  const landTreffer = (() => {
+    const lq = landSuche.trim().toLowerCase();
+    return FLAGGEN_LISTE.filter((c) => !lq || c.includes(lq) || landName(c, sprache).toLowerCase().includes(lq));
+  })();
+  /** Speichern und gleich den Naechsten der Liste oeffnen - zum Durchgehen mit dem Filter "ohne Flagge". */
+  const speichernUndWeiter = (s: Spieler) => {
+    const i = gezeigt.findIndex((x) => x.epicId === s.epicId);
+    const naechster = i >= 0 ? gezeigt[i + 1] : undefined;
+    speichern(s);
+    if (naechster) oeffnen(naechster);
+  };
+
   return (
     <main className="min-h-screen bg-zinc-950 px-4 py-8 text-slate-100">
-      <div className="mx-auto max-w-[1400px]">
+      <div className="mx-auto max-w-[1500px]">
         <SeitenKopf className="mb-6" marke={<T>Spieler pflegen</T>} titel={<T>Player Center</T>}
           text={<T>Flagge und @-Konto hängen an der Konto-ID, nicht am Namen — ein Namenswechsel ändert nichts.</T>} />
 
@@ -347,10 +365,10 @@ export default function PlayerCenter() {
             <button key={r} onClick={() => waehle(setRegion)(r)}
               className={`rounded-full border px-4 py-1.5 text-xs font-bold
                           transition ${region === r
-                ? 'border-sky-500 bg-sky-500/15 text-sky-500'
-                : 'border-zinc-700 text-slate-400 hover:text-slate-200'}`}>
+                ? 'border-sky-500 bg-sky-500 text-white'
+                : 'border-zinc-700 bg-zinc-900 text-slate-400 hover:text-slate-200'}`}>
               <T>{r}</T>
-              <span className="ml-1.5 font-normal tabular-nums text-slate-600">
+              <span className="ml-1.5 font-normal tabular-nums opacity-70">
                 {jeRegion[r] ?? '–'}
               </span>
             </button>
@@ -358,7 +376,7 @@ export default function PlayerCenter() {
         </div>
 
         {/* ------------------------------------------ Suche und Filter */}
-        <div className="mb-4 flex flex-wrap items-center gap-2">
+        <div className="mb-5 flex flex-wrap items-center gap-2">
           <input value={suche}
             onChange={(e) => waehle(setSuche)(e.target.value)}
             placeholder={t('Name, alter Name oder Konto-ID')}
@@ -372,8 +390,8 @@ export default function PlayerCenter() {
             <button onClick={() => waehle(setFilter)(new Set<Filterart>())}
               className={`rounded-full border px-3 py-1 text-[11px] font-semibold transition
                           ${!filter.size
-                ? 'border-sky-500 bg-sky-500/15 text-sky-500'
-                : 'border-zinc-700 text-slate-400 hover:text-slate-200'}`}>
+                ? 'border-sky-500 bg-sky-500 text-white'
+                : 'border-zinc-700 bg-zinc-900 text-slate-400 hover:text-slate-200'}`}>
               <T>alle</T>
             </button>
 
@@ -399,8 +417,8 @@ export default function PlayerCenter() {
                 }}
                 className={`rounded-full border px-3 py-1 text-[11px] font-semibold transition
                             ${filter.has(f.wert)
-                  ? 'border-sky-500 bg-sky-500/15 text-sky-500'
-                  : 'border-zinc-700 text-slate-400 hover:text-slate-200'}`}>
+                  ? 'border-sky-500 bg-sky-500 text-white'
+                  : 'border-zinc-700 bg-zinc-900 text-slate-400 hover:text-slate-200'}`}>
                 <T>{f.titel}</T>
               </button>
             ))}
@@ -417,7 +435,7 @@ export default function PlayerCenter() {
             <input type="number" min={1} value={mindestens}
               onChange={(e) =>
                 waehle(setMindestens)(Math.max(1, Number(e.target.value) || 1))}
-              className="w-16 rounded border border-zinc-800 bg-zinc-900/80 px-2
+              className="w-16 rounded border border-zinc-800 bg-zinc-900 px-2
                          py-1 text-center text-xs text-slate-100 outline-none
                          focus:border-sky-500" />
             <T>Matches</T>
@@ -428,166 +446,162 @@ export default function PlayerCenter() {
           </span>
         </div>
 
-        {/* ------------------------------------------------------- Liste */}
-        {laedt ? (
-          <p className="py-10 text-center text-xs text-slate-600">
-            <T>Wird geladen …</T>
-          </p>
-        ) : !gezeigt.length ? (
-          <p className="py-10 text-center text-xs text-slate-600">
-            <T>Niemand passt dazu.</T>
-          </p>
-        ) : (
-          <>
-            <div className="overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 shadow-[0_10px_30px_rgba(15,23,42,.12)]">
-              <table className="w-full text-xs">
-                <thead className="bg-zinc-950/40">
-                  <tr className="text-[10px] uppercase tracking-wider text-slate-500">
-                    <th className="px-3 py-2 text-left font-medium"><T>Spieler</T></th>
-                    <th className="px-3 py-2 text-center font-medium"><T>Flagge</T></th>
-                    <th className="px-3 py-2 text-left font-medium"><T>@-Konto</T></th>
-                    <th className="px-3 py-2 text-right font-medium"><T>Matches</T></th>
-                    <th className="px-3 py-2 text-right font-medium"><T>Elims</T></th>
-                    <th className="px-3 py-2 text-right font-medium" />
-                  </tr>
-                </thead>
-                <tbody>
+        {/*
+          * Zwei Haelften (Betreiber, 20.10.2026: "das Player Center ist immer noch nicht angenehm"): links die Spieler als grosse Fotos mit Name darunter, wie sie
+          * auch sonst in den Listen stehen; rechts, immer sichtbar, das Feld zum Bearbeiten - mit einer Flaggenauswahl, in der man das Land am Bild und an seinem
+          * Namen erkennt, statt ein Kuerzel zu kennen. Statt einer Zeile, die sich aufklappt und die Tabelle verschiebt.
+          */}
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-start">
+          <div>
+            {laedt ? (
+              <p className="py-10 text-center text-xs text-slate-600"><T>Wird geladen …</T></p>
+            ) : !gezeigt.length ? (
+              <p className="py-10 text-center text-xs text-slate-600"><T>Niemand passt dazu.</T></p>
+            ) : (
+              <>
+                <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5">
                   {gezeigt.slice(0, menge).map((s) => {
                     const auf = offen === s.epicId;
                     return (
-                      <tr key={s.epicId} onClick={() => { if (!auf) oeffnen(s); }}
-                        className={`border-t border-zinc-800 ${auf
-                          ? 'bg-sky-500/10' : 'cursor-pointer hover:bg-sky-500/5'}`}>
-                        <td className="px-3 py-2.5">
-                          <span className="flex items-center gap-2">
-                            {s.foto ? (
-                              /* eslint-disable-next-line @next/next/no-img-element */
-                              <img src={s.foto} alt="" loading="lazy"
-                                className="h-9 w-9 shrink-0 rounded-full object-cover
-                                           object-top" />
-                            ) : (
-                              <span className="flex h-9 w-9 shrink-0 items-center
-                                               justify-center rounded-full bg-zinc-800
-                                               text-[11px] text-slate-500">?</span>
-                            )}
-                            <span className="min-w-0 flex-1">
-                              {auf ? (
-                                <input value={eName}
-                                  onChange={(e) => setEName(e.target.value)}
-                                  onKeyDown={(e) => {
-                                    if (e.key === 'Enter') void speichern(s);
-                                  }}
-                                  placeholder={s.turniername}
-                                  spellCheck={false}
-                                  className="w-full rounded border border-zinc-700
-                                             bg-zinc-950 px-2 py-0.5 text-xs
-                                             text-slate-100 outline-none
-                                             focus:border-sky-500" />
-                              ) : (
-                                <span className="block truncate text-slate-200">
-                                  {s.name}
-                                </span>
-                              )}
-                              {/* Der Turniername darunter, sobald er abweicht -
-                                  so ist zu sehen, wovon der Anzeigename kommt
-                                  und unter welchem Namen der Spieler antrat. */}
-                              {(auf || s.name !== s.turniername) && (
-                                <span className="block truncate text-[10px] text-slate-600">
-                                  {s.turniername}
-                                </span>
-                              )}
+                      <button key={s.epicId} type="button" onClick={() => oeffnen(s)}
+                        className={`group rounded-2xl border bg-zinc-900 p-2 text-left transition ${auf
+                          ? 'border-sky-500 ring-2 ring-sky-500/40' : 'border-zinc-800 hover:border-zinc-600'}`}>
+                        <span className="relative block aspect-square overflow-hidden rounded-xl bg-zinc-800">
+                          {s.foto ? (
+                            /* eslint-disable-next-line @next/next/no-img-element */
+                            <img src={s.foto} alt="" loading="lazy" className="h-full w-full object-cover object-top" />
+                          ) : (
+                            <span className="flex h-full w-full items-center justify-center bg-gradient-to-br from-zinc-800 to-zinc-900 p-2 text-center text-sm font-black uppercase leading-tight tracking-wide text-slate-400">
+                              {s.name}
                             </span>
+                          )}
+                          <span className="absolute left-1.5 top-1.5 flex h-6 min-w-[2rem] items-center justify-center rounded bg-black/65 px-1">
+                            {s.land ? <Flagge land={s.land} /> : <span className="text-[10px] font-bold text-amber-300">?</span>}
                           </span>
-                        </td>
-
-                        <td className="px-3 py-1.5 text-center">
-                          {auf ? (
-                            <span className="inline-flex items-center gap-1.5">
-                              {eLand && FLAGGEN_CODES.includes(eLand.toLowerCase()) && <Flagge land={eLand} />}
-                              <select value={FLAGGEN_CODES.includes(eLand.toLowerCase()) ? eLand.toUpperCase() : ''}
-                                onChange={(e) => setELand(e.target.value.toUpperCase())}
-                                className="max-w-[9.5rem] rounded border border-zinc-700 bg-zinc-950 px-1 py-0.5 text-xs text-slate-100 outline-none focus:border-sky-500">
-                                <option value="">{t('— kein Land —')}</option>
-                                {FLAGGEN_CODES.map((c) => (
-                                  <option key={c} value={c.toUpperCase()}>{c.toUpperCase()} · {landName(c, sprache)}</option>
-                                ))}
-                              </select>
-                            </span>
-                          ) : (
-                            <span title={s.landQuelle === 'quelle'
-                              ? t('aus der Szene-Quelle — noch nicht bestätigt')
-                              : s.landQuelle === 'gepflegt' ? t('von Hand gepflegt') : ''}
-                              className={s.landQuelle === 'quelle' ? 'opacity-60' : ''}>
-                              <Flagge land={s.land} />
-                            </span>
-                          )}
-                        </td>
-
-                        <td className="px-3 py-1.5">
-                          {auf ? (
-                            <input value={eX}
-                              onChange={(e) => setEX(e.target.value)}
-                              onKeyDown={(e) => { if (e.key === 'Enter') void speichern(s); }}
-                              placeholder={t('ohne @')} spellCheck={false}
-                              className="w-44 rounded border border-zinc-700
-                                         bg-zinc-950 px-2 py-0.5 text-xs
-                                         text-slate-100 outline-none
-                                         focus:border-sky-500" />
-                          ) : s.x ? (
-                            <span className="text-sky-400">@{s.x}</span>
-                          ) : (
-                            <span className="text-slate-700">–</span>
-                          )}
-                        </td>
-
-                        <td className="px-3 py-1.5 text-right tabular-nums text-slate-500">
-                          {zahl(s.matches)}
-                        </td>
-                        <td className="px-3 py-1.5 text-right tabular-nums text-slate-500">
-                          {zahl(s.elims)}
-                        </td>
-
-                        <td className="px-3 py-1.5 text-right">
-                          {auf ? (
-                            <span className="flex items-center justify-end gap-2">
-                              <button onClick={() => void speichern(s)}
-                                className="rounded-full bg-sky-500 px-4 py-1.5 text-[11px]
-                                           font-bold text-white transition
-                                           hover:bg-sky-400 disabled:opacity-40">
-                                <T>speichern</T>
-                              </button>
-                              <button onClick={() => setOffen(null)}
-                                className="text-[11px] text-slate-500 transition
-                                           hover:text-slate-300">
-                                <T>abbrechen</T>
-                              </button>
-                            </span>
-                          ) : (
-                            <button onClick={(e) => { e.stopPropagation(); oeffnen(s); }}
-                              className="rounded-full border border-zinc-700 px-4 py-1.5
-                                         text-[11px] font-semibold text-slate-300 transition
-                                         hover:border-sky-500 hover:text-sky-500">
-                              <T>bearbeiten</T>
-                            </button>
-                          )}
-                        </td>
-                      </tr>
+                        </span>
+                        <span className="mt-2 block truncate text-[13px] font-bold text-slate-100">{s.name}</span>
+                        <span className="block truncate text-[11px]">
+                          {s.x ? <span className="text-sky-400">@{s.x}</span> : <span className="text-slate-600"><T>kein @-Konto</T></span>}
+                        </span>
+                      </button>
                     );
                   })}
-                </tbody>
-              </table>
-            </div>
+                </div>
 
-            {gezeigt.length > menge && (
-              <button onClick={() => setMenge((m) => m + SCHRITT)}
-                className="mt-3 w-full rounded-lg border border-zinc-800 py-2
-                           text-xs text-slate-400 transition
-                           hover:border-sky-500/60 hover:text-sky-400">
-                <T>weitere anzeigen</T> ({zahl(gezeigt.length - menge)})
-              </button>
+                {gezeigt.length > menge && (
+                  <button onClick={() => setMenge((m) => m + SCHRITT)}
+                    className="mt-3 w-full rounded-lg border border-zinc-800 bg-zinc-900 py-2
+                               text-xs text-slate-400 transition
+                               hover:border-sky-500/60 hover:text-sky-400">
+                    <T>weitere anzeigen</T> ({zahl(gezeigt.length - menge)})
+                  </button>
+                )}
+              </>
             )}
-          </>
-        )}
+          </div>
+
+          {/* ------------------------------------------------ Bearbeiten */}
+          <aside className="rounded-3xl border border-zinc-800 bg-zinc-900 p-5 shadow-[0_10px_30px_rgba(15,23,42,.12)] lg:sticky lg:top-20">
+            {!gewaehlt ? (
+              <div className="py-10 text-center">
+                <p className="text-sm font-bold text-slate-200"><T>Spieler wählen</T></p>
+                <p className="mx-auto mt-2 max-w-[28ch] text-xs leading-relaxed text-slate-500">
+                  <T>Links einen Spieler anklicken. Tipp: den Filter „ohne Flagge“ setzen und mit „Speichern und weiter“ der Reihe nach durchgehen.</T>
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                <div className="flex items-start gap-4">
+                  <span className="block h-24 w-24 shrink-0 overflow-hidden rounded-2xl bg-zinc-800">
+                    {gewaehlt.foto ? (
+                      /* eslint-disable-next-line @next/next/no-img-element */
+                      <img src={gewaehlt.foto} alt="" className="h-full w-full object-cover object-top" />
+                    ) : (
+                      <span className="flex h-full w-full items-center justify-center p-1 text-center text-xs font-black uppercase leading-tight text-slate-500">{gewaehlt.name}</span>
+                    )}
+                  </span>
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-lg font-black text-slate-50">{gewaehlt.name}</span>
+                    <span className="mt-0.5 block truncate text-[11px] text-slate-500">{gewaehlt.turniername}</span>
+                    <span className="mt-2 flex flex-wrap gap-x-3 gap-y-0.5 text-[11px] tabular-nums text-slate-400">
+                      <span>{zahl(gewaehlt.matches)} <T>Matches</T></span>
+                      <span>{zahl(gewaehlt.events)} <T>Spieltage</T></span>
+                      <span>{zahl(gewaehlt.elims)} <T>Elims</T></span>
+                    </span>
+                  </span>
+                </div>
+
+                <label className="block">
+                  <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-slate-500"><T>Anzeigename</T></span>
+                  <input value={eName} onChange={(e) => setEName(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') speichernUndWeiter(gewaehlt); }}
+                    placeholder={gewaehlt.turniername} spellCheck={false}
+                    className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-sky-500" />
+                </label>
+
+                <label className="block">
+                  <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-slate-500"><T>@-Konto</T></span>
+                  <span className="flex items-center rounded-lg border border-zinc-700 bg-zinc-950 focus-within:border-sky-500">
+                    <span className="pl-3 text-sm text-slate-500">@</span>
+                    <input value={eX} onChange={(e) => setEX(e.target.value.replace(/^@/, ''))}
+                      onKeyDown={(e) => { if (e.key === 'Enter') speichernUndWeiter(gewaehlt); }}
+                      placeholder={t('ohne @')} spellCheck={false}
+                      className="min-w-0 flex-1 bg-transparent px-1.5 py-2 text-sm text-slate-100 outline-none" />
+                  </span>
+                </label>
+
+                <div>
+                  <div className="mb-1.5 flex items-center justify-between">
+                    <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500"><T>Flagge</T></span>
+                    <span className="flex items-center gap-2 text-xs text-slate-300">
+                      {eLand && FLAGGEN_CODES.includes(eLand.toLowerCase()) ? (
+                        <>
+                          <Flagge land={eLand} />
+                          <span className="font-semibold">{eLand.toUpperCase()} · {landName(eLand.toLowerCase(), sprache)}</span>
+                          <button type="button" onClick={() => setELand('')} className="text-[11px] text-slate-500 underline hover:text-rose-400"><T>kein Land</T></button>
+                        </>
+                      ) : <span className="text-slate-600">—</span>}
+                    </span>
+                  </div>
+                  <input value={landSuche} onChange={(e) => setLandSuche(e.target.value)} spellCheck={false}
+                    placeholder={t('Land suchen …')}
+                    className="mb-2 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-1.5 text-xs text-slate-100 outline-none placeholder:text-slate-600 focus:border-sky-500" />
+                  <div className="grid max-h-56 grid-cols-5 gap-1.5 overflow-y-auto pr-1">
+                    {landTreffer.map((c) => (
+                      <button key={c} type="button" onClick={() => setELand(c.toUpperCase())} title={`${c.toUpperCase()} · ${landName(c, sprache)}`}
+                        className={`flex flex-col items-center gap-1 rounded-lg border px-1 py-1.5 transition ${eLand.toLowerCase() === c
+                          ? 'border-sky-500 bg-sky-500/15' : 'border-zinc-800 bg-zinc-950 hover:border-zinc-600'}`}>
+                        <Flagge land={c} />
+                        <span className="text-[10px] font-bold uppercase text-slate-400">{c}</span>
+                      </button>
+                    ))}
+                    {!landTreffer.length && <p className="col-span-5 py-3 text-center text-xs text-slate-600"><T>Niemand passt dazu.</T></p>}
+                  </div>
+                </div>
+
+                {gewaehlt.namen.filter((n) => n !== gewaehlt.name && n !== gewaehlt.turniername).length > 0 && (
+                  <p className="text-[11px] leading-relaxed text-slate-500">
+                    <T>Früher aufgetreten als</T>: {gewaehlt.namen.filter((n) => n !== gewaehlt.name && n !== gewaehlt.turniername).slice(0, 6).join(' · ')}
+                  </p>
+                )}
+
+                <div className="flex flex-wrap items-center gap-2 pt-1">
+                  <button type="button" onClick={() => speichernUndWeiter(gewaehlt)}
+                    className="rounded-full bg-sky-500 px-5 py-2 text-xs font-bold text-white transition hover:bg-sky-400">
+                    <T>Speichern und weiter</T>
+                  </button>
+                  <button type="button" onClick={() => speichern(gewaehlt)}
+                    className="rounded-full border border-zinc-700 px-4 py-2 text-xs font-semibold text-slate-300 transition hover:border-sky-500 hover:text-sky-400">
+                    <T>speichern</T>
+                  </button>
+                  <button type="button" onClick={() => setOffen(null)} className="text-[11px] text-slate-500 transition hover:text-slate-300">
+                    <T>abbrechen</T>
+                  </button>
+                </div>
+              </div>
+            )}
+          </aside>
+        </div>
       </div>
     </main>
   );

@@ -705,7 +705,7 @@ export default function KontoSeite({ eingebettet = false }: { eingebettet?: bool
 
   return (
     <Huelle className={eingebettet ? 'text-slate-100' : 'min-h-screen bg-zinc-950 px-4 py-10 text-slate-100'}>
-      <div className="mx-auto max-w-5xl">
+      <div className={eingebettet ? 'w-full' : 'mx-auto max-w-5xl'}>
 
         {/* ------------------------------------------------------- Kopf (neues Design, 14.10.2026: Flaeche mit Leuchten, grosser Name) */}
         {!eingebettet && (
@@ -766,210 +766,35 @@ export default function KontoSeite({ eingebettet = false }: { eingebettet?: bool
         )}
 
         {/*
-          * Die Bereiche stehen links untereinander, nicht oben als Reiter.
-          * Auf einem schmalen Fenster klappt die Spalte ueber den Inhalt -
-          * dort waere eine feste Seitenspalte nur im Weg.
+          * Zwei Spalten statt Seitenleiste und Reitern (Betreiber, 20.10.2026: "passt den Account komplett an - nicht nur der Style, auch was drin ist und wie
+          * es eingebaut ist"). Links, was dich ausmacht: dein Epic-Konto, dein Bild, dein Name, dein Passwort. Rechts, was um dein Konto herum liegt: der Weg zum Discord,
+          * deine Socials, die Konto-Id, die verknuepften Dienste - und ganz unten das Loeschen. Das Kontaktformular steht nicht mehr hier, sondern im Dashboard
+          * bei "Nur im Dashboard".
           */}
-        <div className="grid gap-6 md:grid-cols-[220px_minmax(0,1fr)]">
-          <nav className="flex h-fit flex-row flex-wrap gap-1 rounded-3xl border border-zinc-800 bg-zinc-900 p-2 shadow-[0_8px_24px_rgba(15,23,42,.14)] md:flex-col">
-            {BEREICHE.map((b) => (
-              <button key={b.wert} onClick={() => setBereich(b.wert)}
-                className={`rounded-2xl px-4 py-2.5 text-left text-sm font-semibold
-                            transition ${bereich === b.wert
-                  ? 'bg-sky-500 text-white shadow'
-                  : 'text-slate-400 hover:bg-zinc-800 hover:text-slate-200'}`}>
-                <T>{b.titel}</T>
-              </button>
-            ))}
-
-            {/*
-              * Admin Tools - nur fuer den, der eine Rolle hat.
-              *
-              * Vorher stand hier ein schmaler Verweis "Verwaltung →", und
-              * zwar fuer jeden VIP. Wer Adminrechte bekam, sah davon nichts
-              * Eigenes und fragte zu Recht, wo denn nun die Werkzeuge
-              * seien. Jetzt ist es ein Bereich wie die anderen, abgesetzt,
-              * und dahinter stehen die Werkzeuge mit ihrer Aufgabe.
-              */}
-            {!eingebettet && (zugang.admin || zugang.manager) && (
-              <button onClick={() => setBereich('werkzeuge')}
-                className={`mt-2 rounded-2xl px-4 py-2.5 text-left text-sm
-                            font-semibold transition md:mt-4
-                            ${bereich === 'werkzeuge'
-                  ? 'bg-sky-500 text-white shadow'
-                  : 'text-slate-400 hover:bg-zinc-800 hover:text-slate-200'}`}>
-                <T>Admin Tools</T>
-              </button>
-            )}
-
-            {/*
-              * Abmelden gehoert hierher, zu Socials, Chat, Account und
-              * Privacy.
-              *
-              * Vorher stand es ganz unten am Seitenende. Der Betreiber wollte
-              * es "dort, wo Social, Chat, Account, Privacy steht" - und das
-              * ist richtig: es ist eine Sache, die man mit seinem Konto tut,
-              * wie die anderen auch, und dort sucht man sie.
-              *
-              * Abgesetzt und in Rot, denn es ist kein Bereich zum Ansehen,
-              * sondern ein Griff mit Folgen - niemand soll ihn treffen, weil
-              * er eigentlich auf Privacy wollte.
-              */}
-            <button onClick={abmelden}
-              className="mt-2 rounded-2xl border border-zinc-800 px-4 py-2.5
-                         text-left text-sm font-semibold text-slate-400
-                         transition hover:border-rose-500/60 hover:text-rose-400
-                         md:mt-6">
-              <T>Abmelden</T>
-            </button>
-          </nav>
-
-          <div>
-
-        {/* ------------------------------------------------------ Stats */}
-        {bereich === 'konto' && (
-          <div className="space-y-6">
-            {/*
-              * Der Weg auf den Discord-Server.
-              *
-              * Der Betreiber: "join our Discord ... am besten im Dashboard,
-              * nicht auf der Taskleiste, sobald man sich registriert hat."
-              * Nur, wenn es einen Einladungslink gibt - ein leerer Kasten
-              * waere ein Versprechen ohne Tuer.
-              */}
-            {/* Wer noch kein VIP ist, findet hier, wie man es wird (stand bis 14.10.2026 auf der Startseite). */}
-            {konto && !zugang.vip && <VipInfo />}
-            {discordLink && (
-              <section className={kasten}>
-                <div className="flex flex-wrap items-center justify-between gap-3">
-                  <div>
-                    <h2 className={`${ueberschrift} mb-1`}><T>Join our Discord</T></h2>
-                    <p className="text-xs leading-relaxed text-slate-500">
-                      <T>Updates zu jedem neuen Feature, Support-Tickets, VIP- und Manager-Zugang per Knopfdruck, und die Community rund um Fortnite Competitive.</T>
-                    </p>
-                  </div>
-                  <a href={discordLink} target="_blank" rel="noreferrer"
-                    className="rounded-lg border border-sky-500 bg-sky-500/10 px-4 py-2 text-sm font-semibold text-sky-400 transition hover:bg-sky-500/20">
-                    <T>Discord öffnen</T> ↗
-                  </a>
-                </div>
-              </section>
-            )}
-            {/* Zuerst das eigene Turnier: welcher Cup, welche Runde, welcher
-                Tag, welche Region - und der Weg hindurch. Die Suche nach
-                fremden Spielern steht bewusst darunter; wer seine eigenen
-                Werte sehen will, soll niemanden eintippen muessen. */}
-            {/*
-              * Der Weg zum Kontaktformular.
-              *
-              * Steht bewusst oben und nicht am Seitenende: wer etwas melden
-              * will, hat meist gerade einen Fehler vor sich und sucht nicht
-              * lange. Ein eigener Menuepunkt in der Kopfleiste waere zu viel
-              * - dort stehen die Inhalte, nicht das eigene Konto.
-              */}
-            <section className={kasten}>
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div>
-                  <h2 className={`${ueberschrift} mb-1`}><T>Kontakt</T></h2>
-                  <p className="text-xs leading-relaxed text-slate-500">
-                    <T>Etwas geht nicht, fehlt oder ließe sich besser machen?
-                    Schreib es dem Betreiber — mit Screenshot, wenn du magst.</T>
-                  </p>
-                </div>
-                <Link href="/contact"
-                  className="shrink-0 rounded-lg bg-sky-500 px-4 py-2 text-sm
-                             font-medium text-white transition hover:bg-sky-400">
-                  <T>Schreiben</T>
-                </Link>
-              </div>
-            </section>
-
-
-          </div>
-        )}
-
-        {/* ------------------------------------------------------- Chat */}
-        {/* ---------------------------------------------------- Socials */}
-        {bereich === 'socials' && (
-          <section className={kasten}>
-            <h2 className={ueberschrift}><T>Meine Socials</T></h2>
-            <p className="mb-4 text-[11px] text-slate-600">
-              <T>Nur an deinem eigenen Konto — im Werkzeug selbst werden keine
-              fremden Social-Konten ausgestellt.</T>
-            </p>
-            <div className="grid gap-3 sm:grid-cols-2">
-              {SOCIALS.map((s) => (
-                <label key={s.schluessel}>
-                  <span className="mb-1 block text-[11px] text-slate-500">
-                    {s.titel}
-                  </span>
-                  <input value={socials[s.schluessel] ?? ''}
-                    onChange={(e) => setSocials((v) => ({
-                      ...v, [s.schluessel]: e.target.value,
-                    }))}
-                    placeholder={`${s.vorsatz}${t('Name')}`}
-                    className={feld} />
-                </label>
-              ))}
-            </div>
-          </section>
-        )}
-
-        {/* ------------------------------------------------------ Konto */}
-        {bereich === 'konto' && (
-          <div className="space-y-6">
-            <section className={kasten}>
-              <h2 className={ueberschrift}><T>Profilbild</T></h2>
-              <p className="mb-4 text-[11px] text-slate-600">
-                <T>Wird auf 256 Pixel verkleinert und quadratisch
-                zugeschnitten.</T>
+        {/*
+          * Der Stand deines Kontos auf einen Blick: was steht, was fehlt. Wer etwas noch nicht hat, sieht es hier gleich - und die Karte darunter macht es fertig.
+          */}
+        <section className="mb-5 grid gap-px overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-800 sm:grid-cols-2 lg:grid-cols-4">
+          {([
+            [t('E-Mail'), daten.email || '—', nurVip ? '' : daten.bestaetigt ? t('bestätigt') : t('nicht bestätigt'), nurVip || daten.bestaetigt],
+            [t('Epic Games'), daten.epicId ? (meinEpicName || '…') : t('nicht verbunden'), daten.epicId ? (daten.epicVerifiziert ? t('von Epic bestätigt') : t('vom Betreiber zugewiesen')) : '', !!daten.epicId],
+            [t('Passwort'), nurVip ? '—' : daten.hatPasswort ? t('Passwort ist gesetzt') : t('noch keines'), '', nurVip || daten.hatPasswort],
+            [t('Dabei seit'), daten.angelegt ? new Date(daten.angelegt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—',
+              zugang.admin ? 'Admin' : zugang.manager ? 'Manager' : zugang.vip ? 'VIP' : '', true],
+          ] as Array<[string, string, string, boolean]>).map(([titel, wert, zusatz, gut]) => (
+            <div key={titel} className="bg-zinc-900 px-4 py-3.5">
+              <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">{titel}</p>
+              <p className="mt-1 flex items-center gap-2 truncate text-sm font-bold text-slate-100">
+                <span aria-hidden className={`h-2 w-2 shrink-0 rounded-full ${gut ? 'bg-emerald-400' : 'bg-amber-400'}`} />
+                <span className="truncate">{wert}</span>
               </p>
-              <div className="flex flex-wrap items-center gap-4">
-                <div className="grid h-20 w-20 shrink-0 place-items-center
-                                overflow-hidden rounded-full border border-zinc-700
-                                bg-slate-800 text-2xl font-semibold uppercase
-                                text-slate-100">
-                  {bild
-                    // eslint-disable-next-line @next/next/no-img-element
-                    ? <img src={bild} alt="" className="h-full w-full object-cover" />
-                    : (name || daten.email).trim().charAt(0)}
-                </div>
-                <input ref={dateiFeld} type="file" accept="image/*" hidden
-                  onChange={(e) => {
-                    const d = e.target.files?.[0];
-                    if (d) bildWaehlen(d);
-                    e.target.value = '';
-                  }} />
-                <button onClick={() => dateiFeld.current?.click()}
-                  className="rounded-lg border border-zinc-700 px-4 py-2 text-sm
-                             text-slate-200 transition hover:border-sky-500
-                             hover:text-sky-400">
-                  <T>Bild wählen</T>
-                </button>
-                {bild && (
-                  <button onClick={() => setBild(null)}
-                    className="text-xs text-slate-500 transition hover:text-rose-400">
-                    <T>entfernen</T>
-                  </button>
-                )}
-              </div>
-            </section>
+              {zusatz && <p className="mt-0.5 text-[11px] text-slate-500">{zusatz}</p>}
+            </div>
+          ))}
+        </section>
 
-            {daten.id && (
-              <section className={kasten}>
-                <h2 className={ueberschrift}><T>Meine Konto-Id</T></h2>
-                <p className="mb-3 mt-1 text-[11px] leading-relaxed text-slate-600">
-                  <T>Die nennst du, wenn du VIP oder andere Rechte anfragst.
-                  Sie verrät nichts über dich — sie benennt nur dein Konto.</T>
-                </p>
-                <code className="block select-all rounded-lg border border-zinc-800
-                                 bg-zinc-950 px-3 py-2.5 font-mono text-xs
-                                 text-slate-300">
-                  {daten.id}
-                </code>
-              </section>
-            )}
-
+        <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
+          <div className="space-y-5">
             {!nurVip && (
               <section className={kasten}>
                 <h2 className={ueberschrift}><T>Epic Games</T></h2>
@@ -1050,6 +875,43 @@ export default function KontoSeite({ eingebettet = false }: { eingebettet?: bool
             )}
 
             <section className={kasten}>
+              <h2 className={ueberschrift}><T>Profilbild</T></h2>
+              <p className="mb-4 text-[11px] text-slate-600">
+                <T>Wird auf 256 Pixel verkleinert und quadratisch
+                zugeschnitten.</T>
+              </p>
+              <div className="flex flex-wrap items-center gap-4">
+                <div className="grid h-20 w-20 shrink-0 place-items-center
+                                overflow-hidden rounded-full border border-zinc-700
+                                bg-slate-800 text-2xl font-semibold uppercase
+                                text-slate-100">
+                  {bild
+                    // eslint-disable-next-line @next/next/no-img-element
+                    ? <img src={bild} alt="" className="h-full w-full object-cover" />
+                    : (name || daten.email).trim().charAt(0)}
+                </div>
+                <input ref={dateiFeld} type="file" accept="image/*" hidden
+                  onChange={(e) => {
+                    const d = e.target.files?.[0];
+                    if (d) bildWaehlen(d);
+                    e.target.value = '';
+                  }} />
+                <button onClick={() => dateiFeld.current?.click()}
+                  className="rounded-lg border border-zinc-700 px-4 py-2 text-sm
+                             text-slate-200 transition hover:border-sky-500
+                             hover:text-sky-400">
+                  <T>Bild wählen</T>
+                </button>
+                {bild && (
+                  <button onClick={() => setBild(null)}
+                    className="text-xs text-slate-500 transition hover:text-rose-400">
+                    <T>entfernen</T>
+                  </button>
+                )}
+              </div>
+            </section>
+
+            <section className={kasten}>
               <h2 className={ueberschrift}><T>Anzeigename</T></h2>
               {nurVip ? (
                 <>
@@ -1102,11 +964,67 @@ export default function KontoSeite({ eingebettet = false }: { eingebettet?: bool
               </div>
             </section>
           </div>
+
+          <div className="space-y-5">
+            {/* Wer noch kein VIP ist, findet hier, wie man es wird (stand bis 14.10.2026 auf der Startseite). */}
+            {konto && !zugang.vip && <VipInfo />}
+            {discordLink && (
+              <section className={kasten}>
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <div>
+                    <h2 className={`${ueberschrift} mb-1`}><T>Join our Discord</T></h2>
+                    <p className="text-xs leading-relaxed text-slate-500">
+                      <T>Updates zu jedem neuen Feature, Support-Tickets, VIP- und Manager-Zugang per Knopfdruck, und die Community rund um Fortnite Competitive.</T>
+                    </p>
+                  </div>
+                  <a href={discordLink} target="_blank" rel="noreferrer"
+                    className="rounded-lg border border-sky-500 bg-sky-500/10 px-4 py-2 text-sm font-semibold text-sky-400 transition hover:bg-sky-500/20">
+                    <T>Discord öffnen</T> ↗
+                  </a>
+                </div>
+              </section>
+            )}
+
+            {(
+          <section className={kasten}>
+            <h2 className={ueberschrift}><T>Meine Socials</T></h2>
+            <p className="mb-4 text-[11px] text-slate-600">
+              <T>Nur an deinem eigenen Konto — im Werkzeug selbst werden keine
+              fremden Social-Konten ausgestellt.</T>
+            </p>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {SOCIALS.map((s) => (
+                <label key={s.schluessel}>
+                  <span className="mb-1 block text-[11px] text-slate-500">
+                    {s.titel}
+                  </span>
+                  <input value={socials[s.schluessel] ?? ''}
+                    onChange={(e) => setSocials((v) => ({
+                      ...v, [s.schluessel]: e.target.value,
+                    }))}
+                    placeholder={`${s.vorsatz}${t('Name')}`}
+                    className={feld} />
+                </label>
+              ))}
+            </div>
+          </section>
         )}
 
-        {/* ---------------------------------------------------- Privat */}
-        {bereich === 'privat' && (
-          <div className="space-y-6">
+            {daten.id && (
+              <section className={kasten}>
+                <h2 className={ueberschrift}><T>Meine Konto-Id</T></h2>
+                <p className="mb-3 mt-1 text-[11px] leading-relaxed text-slate-600">
+                  <T>Die nennst du, wenn du VIP oder andere Rechte anfragst.
+                  Sie verrät nichts über dich — sie benennt nur dein Konto.</T>
+                </p>
+                <code className="block select-all rounded-lg border border-zinc-800
+                                 bg-zinc-950 px-3 py-2.5 font-mono text-xs
+                                 text-slate-300">
+                  {daten.id}
+                </code>
+              </section>
+            )}
+
             <section className={kasten}>
               <h2 className={ueberschrift}><T>Verknüpfte Dienste</T></h2>
               <p className="mt-3 text-xs text-slate-400">
@@ -1145,10 +1063,9 @@ export default function KontoSeite({ eingebettet = false }: { eingebettet?: bool
               )}
             </section>
           </div>
-        )}
+        </div>
 
-        {/* ----------------------------------------------- Admin Tools */}
-        {bereich === 'werkzeuge' && (
+{!eingebettet && (zugang.admin || zugang.manager) ? (
           <div className="space-y-6">
             <section className={kasten}>
               <h2 className={ueberschrift}><T>Deine Rolle</T></h2>
@@ -1228,10 +1145,10 @@ export default function KontoSeite({ eingebettet = false }: { eingebettet?: bool
               <T>zur Übersicht der Verwaltung</T> →
             </Link>
           </div>
-        )}
+        ) : null}
 
         {/* ---------------------------------------------------- Sichern */}
-        {bereich !== 'privat' && bereich !== 'werkzeuge' && nurVip && (
+        {nurVip && (
           <p className="mt-6 rounded-lg border border-zinc-800 bg-zinc-900/40
                         px-4 py-3 text-[11px] leading-relaxed text-slate-500">
             <T>Du bist über den VIP-Schlüssel angemeldet, hast aber kein
@@ -1240,7 +1157,7 @@ export default function KontoSeite({ eingebettet = false }: { eingebettet?: bool
           </p>
         )}
 
-        {bereich !== 'privat' && bereich !== 'werkzeuge' && !nurVip && (
+        {!nurVip && (
           <div className="mt-6 flex items-center gap-3">
             <button onClick={speichern}
               className="rounded-lg bg-sky-500 px-5 py-2.5 text-sm font-semibold
@@ -1251,7 +1168,12 @@ export default function KontoSeite({ eingebettet = false }: { eingebettet?: bool
           </div>
         )}
 
-          </div>
+        <div className="mt-8 flex flex-wrap items-center justify-between gap-3 border-t border-zinc-800 pt-5">
+          <p className="text-[11px] text-slate-600"><T>Abmelden beendet nur diese Sitzung.</T></p>
+          <button onClick={abmelden}
+            className="rounded-lg border border-zinc-800 px-4 py-2 text-sm font-semibold text-slate-400 transition hover:border-rose-500/60 hover:text-rose-400">
+            <T>Abmelden</T>
+          </button>
         </div>
 
 
