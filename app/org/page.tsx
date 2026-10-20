@@ -5,6 +5,7 @@ import SpielerPlatzhalter, { PlatzhalterRund } from '@/app/components/SpielerPla
 import Link from 'next/link';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
+import OrgPov from './OrgPov';
 
 /*
  * Team (Betreiber, 14.10.2026): der Zugang einer Organisation. Ein Konto, das der Admin einer Org zugeordnet hat, pflegt hier den Kader dieser einen Org -
@@ -136,6 +137,9 @@ export default function OrgSeite() {
       </section>
 
       {meldung && <p role="alert" className="mt-4 rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-2 text-sm text-red-400">{t(meldung)}</p>}
+
+      {/* Die POVs des Teams - das Wichtigste der Org (Betreiber, 20.10.2026): einstellen, wer sie sehen darf */}
+      <OrgPov orgParam={orgParam} farbe={farbe} />
 
       {/* Spieler hinzufuegen */}
       <section className="mt-6 rounded-3xl border border-zinc-800 bg-zinc-900 p-5 shadow-[0_10px_30px_rgba(15,23,42,.18)]">
