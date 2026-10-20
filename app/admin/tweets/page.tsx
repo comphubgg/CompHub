@@ -175,6 +175,8 @@ const SPIELER_KENNZAHLEN: Array<{
 
 type Vorlage = 'rueckblick' | 'qualifiziert' | 'endstand' | 'spieler'
   | 'bestenliste' | 'spielerkarte' | 'auswahl'
+  /* Bekannte Spieler, die den Cut verpasst haben. */
+  | 'verpasst'
   /* Ohne Cup: freier Titel, Spieler von Hand. */
   | 'eigene';
 
@@ -628,6 +630,8 @@ const VORLAGEN: Array<{ wert: Vorlage; titel: string; hinweis: string }> = [
   { wert: 'rueckblick',   titel: 'Stats Recap',    hinweis: 'Spitzenwert je Kennzahl' },
   { wert: 'spieler',      titel: 'Team Spotlight', hinweis: 'Alle Werte eines Teams' },
   { wert: 'spielerkarte', titel: 'Player Card',    hinweis: 'Alle Werte eines Spielers' },
+  // Bekannte Spieler (Power Rankings), die nicht weitergekommen sind - mit Flagge, wie der Betreiber es wollte (20.10.2026).
+  { wert: 'verpasst',     titel: 'Missed the cut', hinweis: 'Bekannte Spieler, die nicht weitergekommen sind' },
   // Die einzige Vorlage, die keinen Cup braucht.
   { wert: 'eigene',       titel: 'Own list',       hinweis: 'Freier Titel, Spieler von Hand' },
 ];
@@ -989,6 +993,19 @@ export default function TweetSeite() {
    * gepflegtes Profil steht - was von Hand eingetragen wurde, gilt weiter.
    */
   const [szeneLaender, setSzeneLaender] = useState<Record<string, string>>({});
+
+  /**
+   * Steht hinter einem Spieler sein X-Konto ("@shxrk") oder nur sein Name ("Shxrk")? Der Betreiber (20.10.2026): "dann kann ich als Admin entscheiden,
+   * ob er mit Twitter-Handle oder nur der Name des Spielers". Gilt fuer jede Zeile des Beitrags; gemerkt wird es in diesem Browser.
+   */
+  const [mitX, setMitX] = useState(true);
+  useEffect(() => {
+    try { if (window.localStorage.getItem('beitrag-mit-x') === '0') setMitX(false); } catch { /* ohne Speicher bleibt es beim Handle */ }
+  }, []);
+  const mitXSetzen = (an: boolean) => {
+    setMitX(an);
+    try { window.localStorage.setItem('beitrag-mit-x', an ? '1' : '0'); } catch { /* nur eine Bequemlichkeit */ }
+  };
 
   /* Das Fotomosaik unter dem Beitrag - drei bis fuenf Portraits nebeneinander. */
   const [mosaikAnzahl, setMosaikAnzahl] = useState(5);
@@ -1541,6 +1558,51 @@ export default function TweetSeite() {
     } finally { setLaedt(false); }
   }, [aktuellesFenster]);
 
+  /*
+   * "Missed the cut": Wer aus den Power Rankings (die ersten 150) spielte diesen Spieltag und landete hinter der Qualifikationslinie?
+   * Die Linie ("Top 300") steht in Epics Angaben (/api/qualifikation); wo sie fehlt, tippt der Admin sie ein. Die Plaetze der bekannten
+   * Konten kommen ueber ihre Konto-Ids aus der Bestenliste - nichts wird geschaetzt.
+   */
+  const [verpasst, setVerpasst] = useState<{ cut: number | null; zeilen: Array<{ id: string; name: string; rang: number; punkte: number; bekanntheit: number }>; laedt: boolean; fehler: string }>(
+    { cut: null, zeilen: [], laedt: false, fehler: '' });
+  const [verpasstCutText, setVerpasstCutText] = useState('');
+  useEffect(() => {
+    if (vorlage !== 'verpasst' || !aktuellesFenster) return undefined;
+    const f = aktuellesFenster;
+    let weg = false;
+    setVerpasst({ cut: null, zeilen: [], laedt: true, fehler: '' });
+    (async () => {
+      try {
+        const [rk, ql] = await Promise.all([
+          fetch('/api/power-rankings?page=1&pageSize=150').then((r) => r.json()),
+          fetch(`/api/qualifikation?window=${encodeURIComponent(f.windowId)}&region=${encodeURIComponent(f.region && f.region !== 'GLOBAL' ? f.region : 'EU')}`)
+            .then((r) => r.json()).catch(() => null),
+        ]);
+        const bekannte = ((rk?.players ?? []) as Array<{ id?: string; name: string; anzeige?: string }>).filter((x) => x.id);
+        if (!bekannte.length) throw new Error('Die Power Rankings liegen gerade nicht vor.');
+        const lb = await fetch(`/api/cup-leaderboard?event=${encodeURIComponent(f.eventId)}&window=${encodeURIComponent(f.windowId)}`
+          + `&ids=${bekannte.map((x) => x.id).join(',')}`).then((r) => r.json());
+        if (weg) return;
+        const nachId = new Map(bekannte.map((x) => [x.id as string, x]));
+        const zeilen: Array<{ id: string; name: string; rang: number; punkte: number; bekanntheit: number }> = [];
+        for (const e of ((lb?.entries ?? []) as Eintrag[])) {
+          for (const p of e.players) {
+            const b = p.id ? nachId.get(p.id) : undefined;
+            if (b) zeilen.push({ id: b.id as string, name: b.anzeige || b.name, rang: e.rank, punkte: e.points, bekanntheit: bekannte.indexOf(b) });
+          }
+        }
+        setVerpasst({ cut: Number(ql?.schwelle) > 0 ? Number(ql.schwelle) : null, zeilen, laedt: false, fehler: '' });
+      } catch (e) {
+        if (!weg) setVerpasst({ cut: null, zeilen: [], laedt: false, fehler: (e as Error).message });
+      }
+    })();
+    return () => { weg = true; };
+  }, [vorlage, aktuellesFenster]);
+  const verpasstCut = Number(verpasstCutText) > 0 ? Number(verpasstCutText) : (verpasst.cut ?? 0);
+  const verpasstTreffer = useMemo(
+    () => (verpasstCut ? verpasst.zeilen.filter((z) => z.rang > verpasstCut).sort((a, b) => a.bekanntheit - b.bekanntheit).slice(0, 10) : []),
+    [verpasst.zeilen, verpasstCut]);
+
   /**
    * Ist das ein Solo-Cup?
    *
@@ -2072,8 +2134,8 @@ export default function TweetSeite() {
   /** Name samt X-Konto, sofern eines hinterlegt ist. */
   const mitKonto = useCallback((name: string, id?: string) => {
     const p = findeProfil(name, id);
-    return p?.x ? `@${p.x}` : kurzName(p?.anzeige || name);
-  }, [findeProfil]);
+    return p?.x && mitX ? `@${p.x}` : kurzName(p?.anzeige || name);
+  }, [findeProfil, mitX]);
 
   /**
    * Das Herkunftsland eines Spielers.
@@ -2131,8 +2193,8 @@ export default function TweetSeite() {
     // Ohne hinterlegtes Land die Weltkugel - so steht in jeder Zeile ein
     // Zeichen und der Name rutscht nicht aus der Reihe.
     const f = flagge(landFuer(name, id)) || String.fromCodePoint(0x1f310);
-    return `${f} ${p?.x ? `@${p.x}` : kurzName(p?.anzeige || name)}`.trim();
-  }, [findeProfil, landFuer]);
+    return `${f} ${p?.x && mitX ? `@${p.x}` : kurzName(p?.anzeige || name)}`.trim();
+  }, [findeProfil, landFuer, mitX]);
 
 
   /**
@@ -2383,6 +2445,18 @@ export default function TweetSeite() {
      */
     const zusatz = '';
 
+    if (vorlage === 'verpasst') {
+      if (verpasst.laedt) return 'Suche läuft …';
+      if (verpasst.fehler) return verpasst.fehler;
+      if (!verpasstCut) return 'Bis zu welchem Platz kommt man weiter? Oben die Zahl eintragen.';
+      const regionText = aktuellesFenster?.region && aktuellesFenster.region !== 'GLOBAL' ? ` (${aktuellesFenster.region})` : '';
+      if (!verpasstTreffer.length) {
+        return `Missed the cut: ${kopf}${regionText}${NL}${NL}Nobody from the Power Rankings top 150 finished outside the top ${verpasstCut}.`;
+      }
+      const zeilen = verpasstTreffer.map((z) => `${mitFlagge(z.name, z.id)}: #${z.rang}`.replace(/\s+/g, ' '));
+      return `🚫 Notable players who missed the cut${NL}🏆 ${kopf}${regionText}${NL}Top ${verpasstCut} advance${NL}${NL}${zeilen.join(NL)}`;
+    }
+
     if (vorlage === 'spielerkarte') {
       if (!karteSpieler) {
         return `${kopf}${zusatz}${NL}${NL}`
@@ -2593,6 +2667,7 @@ export default function TweetSeite() {
       + NL + NL + zeilen.join(NL);
   }, [stats, eintraege, vorlage, anzahl, gewaehlteListen, cupName, tagName,
       mitKonto, mitFlagge, spotlight, aktiveListen,
+      verpasst, verpasstCut, verpasstTreffer, aktuellesFenster,
       profile, karteSpieler, karteWerte, tabellenSpalten, auswahl,
       auswahlHilfe,
       // Die eigene Liste - ohne diese drei bliebe der Text stehen, waehrend
@@ -2825,6 +2900,7 @@ export default function TweetSeite() {
     if (vorlage === 'eigene') {
       return eigeneWahl.map((x) => x.epicId).slice(0, 10);
     }
+    if (vorlage === 'verpasst') return verpasstTreffer.map((z) => z.id);
 
     /*
      * Beim Team Spotlight genau die Spieler dieses Teams, jeder fuer sich.
@@ -2879,7 +2955,7 @@ export default function TweetSeite() {
     if (raus.length < 12) for (const e of eintraege) gruppe(e.players.map((x) => x.id));
 
     return raus.slice(0, 20);
-  }, [aktiveListen, gewaehlteListen, eintraege, vorlage, eigeneWahl, spotlight]);
+  }, [aktiveListen, gewaehlteListen, eintraege, vorlage, eigeneWahl, spotlight, verpasstTreffer]);
 
   /** Beim Team Spotlight so viele Gesichter, wie das Team Spieler hat. */
   const bildAnzahl = vorlage === 'spieler'
@@ -3170,6 +3246,17 @@ export default function TweetSeite() {
           <p className="mt-2 text-xs text-slate-500">
             <T>{VORLAGEN.find((v) => v.wert === vorlage)?.hinweis ?? ''}</T>
           </p>
+          {/* Namen im Text: mit X-Konto oder nur der Name. */}
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <span className="text-[11px] font-semibold uppercase tracking-wider text-slate-500"><T>Namen im Text</T></span>
+            {([[true, 'Mit X-Konto'], [false, 'Nur der Name']] as const).map(([an, titel]) => (
+              <button key={String(an)} type="button" onClick={() => mitXSetzen(an)}
+                className={`rounded-lg border px-3 py-1.5 text-xs font-medium transition ${mitX === an
+                  ? 'border-sky-500 bg-sky-500 text-white' : 'border-zinc-800 text-slate-400 hover:border-zinc-700 hover:text-slate-200'}`}>
+                <T>{titel}</T>
+              </button>
+            ))}
+          </div>
         </Schritt>
 
         {/* --------------------------------- Schritt 2: Cup, Spieltag, Plätze
@@ -3687,6 +3774,24 @@ export default function TweetSeite() {
                     })}
                   </div>
                 )}
+              </div>
+            )}
+
+            {vorlage === 'verpasst' && (
+              <div className="mb-4 rounded-xl border border-zinc-800 bg-zinc-900/40 p-3">
+                <div className="flex flex-wrap items-center gap-3">
+                  <label className="flex items-center gap-2 text-xs text-slate-400">
+                    <T>Weiter kommen die ersten</T>
+                    <input value={verpasstCutText} onChange={(e) => setVerpasstCutText(e.target.value.replace(/\D/g, '').slice(0, 5))}
+                      placeholder={verpasst.cut ? String(verpasst.cut) : '300'} inputMode="numeric"
+                      className="w-20 rounded-lg border border-zinc-800 bg-zinc-950 px-2.5 py-1.5 text-sm text-slate-100 outline-none focus:border-sky-500" />
+                  </label>
+                  <span className="text-[11px] text-slate-500">
+                    {verpasst.laedt ? <T>Suche läuft …</T>
+                      : verpasst.fehler ? verpasst.fehler
+                        : <>{verpasst.zeilen.length} <T>der ersten 150 der Power Rankings spielten mit</T> · {verpasstTreffer.length} <T>davon hinter der Linie</T></>}
+                  </span>
+                </div>
               </div>
             )}
 

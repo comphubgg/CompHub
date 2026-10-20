@@ -596,9 +596,9 @@ export default function Multiview(props: MultiviewProps) {
           body: JSON.stringify({ usernames: kanaele.split(',') }),
         });
         if (!r.ok || weg) return;
-        const j = await r.json() as Record<string, { isLive?: boolean; viewers?: number }>;
+        const j = await r.json() as Record<string, { isLive?: boolean; viewers?: number; title?: string }>;
         const neuer: LiveStand = {};
-        for (const k of kanaele.split(',')) neuer[k] = { isLive: !!j[k]?.isLive, viewers: j[k]?.viewers ?? 0 };
+        for (const k of kanaele.split(',')) neuer[k] = { isLive: !!j[k]?.isLive, viewers: j[k]?.viewers ?? 0, title: j[k]?.isLive ? String(j[k]?.title ?? '') : '' };
         if (!weg) setLive((alt) => ({ ...alt, ...neuer }));
       } catch { /* beim naechsten Takt wieder */ }
       finally { if (!weg) setLiveFertig(true); }

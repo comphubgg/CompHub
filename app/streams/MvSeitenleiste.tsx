@@ -119,14 +119,23 @@ function OrdnerAbschnitt({ p }: { p: Props }) {
   const [ordnerName, setOrdnerName] = useState<string | null>(null);
   /** Der Streamer, dessen Name gerade geaendert wird. */
   const [umbenennen, setUmbenennen] = useState<{ twitch: string; name: string } | null>(null);
+  /**
+   * Nach dem Titel des laufenden Streams filtern (Betreiber, 19.10.2026): wer "LCQ" im Titel hat, spielt wirklich den Last Chance Qualifier und nicht
+   * einen anderen Cup, der gleichzeitig laeuft. Mit Filter zaehlen und laden nur die, die senden UND deren Titel passt.
+   */
+  const [titelFilter, setTitelFilter] = useState('');
   const anzeige = (k: string) => p.namen[k] || k;
   const angeheftet = (k: string) => p.favoriten.includes(k);
 
   const gewaehlt = wahl.filter((id) => p.ordner.some((o) => o.id === id));
   const alleGewaehlt = p.ordner.length > 0 && gewaehlt.length === p.ordner.length;
   const kanaeleVon = (ids: string[]) => [...new Set(
-    p.ordner.filter((o) => ids.includes(o.id)).flatMap((o) => o.streamers.map((x) => x.twitch)))];
+    p.ordner.filter((o) => ids.includes(o.id)).flatMap((o) => o.streamers.map((x) => x.twitch)))].filter((k) => passt(k));
   const sendet = (k: string) => p.live[k]?.isLive === true;
+  const passt = (k: string) => {
+    const q = titelFilter.trim().toLowerCase();
+    return !q || (sendet(k) && (p.live[k]?.title ?? '').toLowerCase().includes(q));
+  };
   const bekannt = (k: string) => p.live[k] !== undefined;
 
   const umschalten = (id: string) => setWahl((alt) => (alt.includes(id) ? alt.filter((x) => x !== id) : [...alt, id]));
@@ -145,6 +154,20 @@ function OrdnerAbschnitt({ p }: { p: Props }) {
             <T>alle wählen</T>
           </label>
         )}
+      </div>
+
+      <div className="mb-2">
+        <input value={titelFilter} onChange={(e) => setTitelFilter(e.target.value)} spellCheck={false}
+          placeholder={t('Im Stream-Titel suchen …')}
+          className="mv-fl w-full rounded-md border px-2 py-1 text-[11px] outline-none focus:border-sky-500" />
+        <div className="mt-1 flex flex-wrap gap-1">
+          {['LCQ', 'Heat', 'Fast Track', 'Finals', 'Solo', 'Duo', 'Reload', 'Performance', 'Division', 'Cash'].map((w) => (
+            <button key={w} type="button" onClick={() => setTitelFilter((a) => (a.trim().toLowerCase() === w.toLowerCase() ? '' : w))}
+              className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold transition ${titelFilter.trim().toLowerCase() === w.toLowerCase() ? 'border-sky-500 bg-sky-500/15 text-sky-400' : 'mv-mute mv-hover'}`}>
+              {w}
+            </button>
+          ))}
+        </div>
       </div>
 
       {gewaehlt.length > 0 && (
@@ -168,10 +191,10 @@ function OrdnerAbschnitt({ p }: { p: Props }) {
       ) : (
         <ul className="space-y-1">
           {p.ordner.map((o) => {
-            const sende = o.streamers.filter((x) => sendet(x.twitch)).length;
+            const sende = o.streamers.filter((x) => sendet(x.twitch) && passt(x.twitch)).length;
             const offen = auf === o.id;
             // Angeheftete stehen immer oben, danach die, die gerade senden.
-            const liste = [...o.streamers].sort((x, y) => Number(angeheftet(y.twitch)) - Number(angeheftet(x.twitch))
+            const liste = [...o.streamers].filter((x) => passt(x.twitch)).sort((x, y) => Number(angeheftet(y.twitch)) - Number(angeheftet(x.twitch))
               || Number(sendet(y.twitch)) - Number(sendet(x.twitch)));
             return (
               <li key={o.id} className="mv-rand rounded-lg border">
@@ -192,12 +215,12 @@ function OrdnerAbschnitt({ p }: { p: Props }) {
                   )}
                   <button type="button" disabled={!sende} className={kleinKnopf}
                     title={t('Die Wand durch alle ersetzen, die in diesem Ordner gerade senden')}
-                    onClick={() => a.ordnerLaden(o.streamers.map((x) => x.twitch), 'live')}>
+                    onClick={() => a.ordnerLaden(o.streamers.map((x) => x.twitch).filter((k) => passt(k)), 'live')}>
                     <T>Live</T>
                   </button>
                   <button type="button" disabled={!o.streamers.length} className={kleinKnopf}
                     title={t('Alle aus dem Ordner zur Wand hinzufügen, auch Offline')}
-                    onClick={() => a.ordnerLaden(o.streamers.map((x) => x.twitch), 'alle')}>
+                    onClick={() => a.ordnerLaden(o.streamers.map((x) => x.twitch).filter((k) => passt(k)), 'alle')}>
                     <T>Alle</T>
                   </button>
                 </div>

@@ -36,6 +36,13 @@ import { useZugang } from '@/app/lib/zugang';
  */
 const KARTEN_REGIONEN = ['EU', 'NAC'];
 
+/**
+ * Wie viele Punkte auf den Schnitt der frueheren Ausgaben aufgeschlagen werden, wenn die Seite sagt, wo die Qualifikationslinie voraussichtlich liegt.
+ * Der Betreiber (20.10.2026): "du nimmst nicht den Durchschnitt, sondern den Durchschnitt plus um die 5 bis 10 Punkte - plus 5 waere am besten".
+ * Dieselbe Zahl nimmt die Qualifikationslinie der Overlays (app/overlays/qual).
+ */
+const QUAL_ZUSCHLAG = 5;
+
 interface Fenster {
   status: 'live' | 'kommt' | 'vorbei';
   begin: number;
@@ -271,9 +278,11 @@ interface Eintrag {
  * bleibt.
  */
 const SpielKachel = memo(function SpielKachel({
-  sp, offen, eineLobby, ort, dauer, namenVon, oeffnen,
+  sp, offen, eineLobby, ort, dauer, namenVon, oeffnen, replay,
 }: {
   sp: Spiel;
+  /** Gibt es zu diesem Match eine eigene Seite (Replay mit allen Spielern)? */
+  replay: boolean;
   offen: boolean;
   eineLobby: boolean;
   ort: string;
@@ -340,9 +349,10 @@ const SpielKachel = memo(function SpielKachel({
         </span>
       </div>
 
-      {/* Zweite Zeile: wie lange sie laeuft. */}
-      <p className="mt-0.5 text-[11px] text-slate-500">
-        <T>Dauer</T> {dauerText(dauer)}
+      {/* Zweite Zeile: wie lange sie laeuft - und, wo es eine gibt, der Hinweis auf die Match-Seite. */}
+      <p className="mt-0.5 flex items-center justify-between gap-2 text-[11px] text-slate-500">
+        <span><T>Dauer</T> {dauerText(dauer)}</span>
+        {replay && <span className="rounded bg-sky-500/15 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-sky-300">Replay</span>}
       </p>
 
       {/* Dritte Zeile: wer noch drin ist - oder wer gewann. */}
@@ -682,6 +692,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
   const [absageFehler, setAbsageFehler] = useState('');
   const [spieleLaedt, setSpieleLaedt] = useState(false);
   const [offenesSpiel, setOffenesSpiel] = useState<string | null>(null);
+  /** Match-ID -> Nummer der Replay-Seite, fuer die Matches dieses Spieltags mit mindestens 80 Spielern. */
+  const [matchSeiten, setMatchSeiten] = useState<Record<string, number>>({});
   /**
    * Wie viele Runden gerade gezeigt werden.
    *
@@ -1773,6 +1785,21 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     return () => { weg = true; };
   }, [reiter, lbFenster, spiele, tabelle.length, vertieft, spieleBasis, nachladen]);
 
+  /*
+   * Welche Matches eine eigene Seite haben (Replay-Auswertung mit allen Spielern, Zonen, Kill-Feed). Gefragt wird, wenn die Runden da sind
+   * und wenn sich ihre Zahl aendert - ein laufender Spieltag bekommt ja stuendlich neue ausgewertete Matches.
+   */
+  const rundenZahl = spiele?.length ?? 0;
+  useEffect(() => {
+    if (reiter !== 'runden' || !lbFenster || !rundenZahl) { setMatchSeiten({}); return undefined; }
+    let weg = false;
+    fetch(`/api/replay?fenster=${encodeURIComponent(lbFenster.windowId)}`)
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => { if (!weg) setMatchSeiten(j?.matches ?? {}); })
+      .catch(() => { if (!weg) setMatchSeiten({}); });
+    return () => { weg = true; };
+  }, [reiter, lbFenster, rundenZahl]);
+
   /** Wie viele Lobbys gerade laufen. */
   const laufende = useMemo(
     () => (spiele ?? []).filter((x) => x.live).length, [spiele]);
@@ -2696,7 +2723,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                     ? ` · ${qual.tatsaechlich.toLocaleString(ort)} ${t('Punkte')}`
                       + (qual.laeuft ? ` (${t('gerade')})` : '')
                     : qual?.schnitt
-                      ? ` · ${t('etwa')} ${qual.schnitt.toLocaleString(ort)} ${t('Punkte')}`
+                      ? ` · ${t('etwa')} ${(qual.schnitt + QUAL_ZUSCHLAG).toLocaleString(ort)} ${t('Punkte')}`
                       : '')]
                 : [soloCup ? t('Spieler') : t('Teams'),
                   tabelle.length ? tabelle.length.toLocaleString(ort) : '–'],
@@ -2706,6 +2733,35 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                 <div className="mt-0.5 text-sm font-semibold text-slate-100">{v}</div>
               </div>
             ))}
+          </div>
+        )}
+
+        {/*
+          * Die Prognose, solange der Spieltag noch nicht vorbei ist: der Schnitt der letzten Ausgaben desselben Cups an genau dieser Rangschwelle plus
+          * ein kleiner Zuschlag. Die Ausgaben stehen darunter, damit die Zahl nachpruefbar bleibt - gerechnet, nicht geraten.
+          */}
+        {fenster && fenster.status !== 'vorbei' && qual?.schnitt && qual.ausgaben.some((a) => typeof a.punkte === 'number') && (
+          <div className="mb-5 rounded-xl border border-sky-700/40 bg-sky-950 px-4 py-3">
+            <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
+              <span className="text-[10px] font-semibold uppercase tracking-wider text-sky-300"><T>Prognose</T></span>
+              <span className="text-xl font-black tabular-nums text-slate-50">~{(qual.schnitt + QUAL_ZUSCHLAG).toLocaleString(ort)} <T>Punkte</T></span>
+              {(fenster.qualifiziert || qual.schwelle) && (
+                <span className="text-[11px] text-slate-300">
+                  <T>für</T> {t('Top')} {(fenster.qualifiziert ?? qual.schwelle ?? 0).toLocaleString(ort)}
+                  {zielName(fenster.windowId) ? ` → ${zielName(fenster.windowId)}` : ''}
+                </span>
+              )}
+              {fenster.status === 'live' && typeof qual.tatsaechlich === 'number' && (
+                <span className="text-[11px] text-slate-300"><T>gerade</T> {qual.tatsaechlich.toLocaleString(ort)} <T>Punkte</T></span>
+              )}
+            </div>
+            <p className="mt-1.5 text-[11px] leading-relaxed text-slate-400">
+              <T>Schnitt der letzten Ausgaben</T> {qual.schnitt.toLocaleString(ort)} + {QUAL_ZUSCHLAG}
+              {' · '}
+              {qual.ausgaben.filter((a) => typeof a.punkte === 'number').map((a) => (
+                `${new Date(a.datum).toLocaleDateString(ort, { day: 'numeric', month: 'short' })}: ${(a.punkte as number).toLocaleString(ort)}`
+              )).join(' · ')}
+            </p>
           </div>
         )}
 
@@ -4114,7 +4170,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                   <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                     {gezeigt.map((sp) => (
                       <Fragment key={sp.id}>
-                      <SpielKachel sp={sp} offen={sp.id === offenesSpiel}
+                      <SpielKachel sp={sp} offen={sp.id === offenesSpiel} replay={!!matchSeiten[sp.id]}
                         eineLobby={eineLobby} ort={ort} dauer={dauerVon(sp)}
                         namenVon={namenVon} oeffnen={setOffenesSpiel} />
                       {sp.id === offenesSpiel && (
@@ -4134,6 +4190,14 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                                   : 'border-rose-800/70 text-rose-300 hover:border-rose-500'}`}>
                                 {sp.abgesagt ? <T>Absage zurücknehmen</T> : <T>Match absagen</T>}
                               </button>
+                            </div>
+                          )}
+                          {lbFenster && matchSeiten[sp.id] && (
+                            <div className="mb-2 flex justify-end">
+                              <Link href={`/replays/${encodeURIComponent(lbFenster.windowId)}/${matchSeiten[sp.id]}`}
+                                className="inline-flex items-center gap-1.5 rounded-lg border border-sky-600/60 bg-sky-950 px-3 py-1.5 text-xs font-semibold text-sky-200 transition hover:border-sky-400">
+                                <T>Match-Seite öffnen</T> →
+                              </Link>
                             </div>
                           )}
                           {aufstellung(sp)}

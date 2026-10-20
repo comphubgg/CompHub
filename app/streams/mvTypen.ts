@@ -29,7 +29,8 @@ export interface MvStream {
   qualitaet: string;
 }
 
-export type LiveStand = Record<string, { isLive: boolean; viewers: number }>;
+/** title: der Titel des laufenden Streams - danach laesst sich filtern, wer wirklich einen bestimmten Cup spielt. */
+export type LiveStand = Record<string, { isLive: boolean; viewers: number; title?: string }>;
 
 export interface MvEinstellungen {
   ziehenUeberall: boolean;

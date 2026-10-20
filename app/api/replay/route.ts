@@ -10,6 +10,7 @@ import { holeSeite } from '@/lib/epicCups';
  *   GET                -> alle ausgewerteten Matches, nach Spieltag gruppiert (Admin-Seite)
  *   GET ?uebersicht=1  -> Cups mit ihren Spieltagen, schlank (Seite /replays)
  *   GET ?tag=FENSTER   -> ein Spieltag mit seinen Games und die anderen Tage desselben Cups (Seiten /replays/<Tag>)
+ *   GET ?fenster=FENSTER -> welche Matches des Spieltags eine eigene Seite haben (Match-ID -> Game-Nummer, nur ab 80 Spielern)
  *   GET ?match=ID      -> ein Match: Zonen, Kill-Feed mit Ort, Spieler
  *
  * Ein ausgewertetes Match aendert sich nie mehr - Vercels bzw. Cloudflares Zwischenspeicher darf es lange halten; die Liste waechst
@@ -49,6 +50,18 @@ export async function GET(request: Request) {
       return NextResponse.json(await meineCups(meine, alle), { headers: { 'Cache-Control': 'no-store' } });
     }
     const liste = nachSpieltag(alle);
+
+    /*
+     * Eine eigene Seite je Match gibt es nur, wo das Replay den ganzen Lobby-Inhalt hat: der Betreiber (20.10.2026) - "mindestens 80 Leute
+     * drin, sonst gibt es ja keinen Sinn". Die Nummer ist die der Seite /replays/<Fenster>/<Nummer>.
+     */
+    const fenster = p.get('fenster');
+    if (fenster) {
+      const t = liste.find((x) => x.windowId === fenster);
+      const matches: Record<string, number> = {};
+      for (const m of t?.matches ?? []) if ((m.spieler ?? 0) >= 80) matches[m.id] = m.nr;
+      return zwischenspeichern(NextResponse.json({ windowId: fenster, matches }, { headers: { 'Cache-Control': 'no-store' } }), 120);
+    }
 
     const tag = p.get('tag');
     if (tag) {
