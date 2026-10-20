@@ -74,7 +74,9 @@ def zahl_wort(n):
 def drehbuch(d):
     zeilen = sorted(d["zeilen"], key=lambda z: -z["rang"])  # Platz 5 zuerst
     region = REGION.get(d["region"], d["region"])
-    szenen = [{"id": "intro", "text": f"Fresh results. {re.sub(r'[^A-Za-z0-9 .,&-]', ' ', d['titel'])}, {region}. Here are the top five."}]
+    # Vorspann: der Cup, dann Spieltag und Stufe ("Performance Evaluation Cup Trios, Event 8, Finals, Europe"), wie sie auch gross im Bild stehen.
+    wer = ", ".join(x for x in (d.get("cupName") or d["titel"], d.get("spieltag"), d.get("stufe"), region) if x)
+    szenen = [{"id": "intro", "text": f"Fresh results. {re.sub(r'[^A-Za-z0-9 .,&-]', ' ', wer)}. Here are the top five."}]
     for z in zeilen:
         wort = ZAHL.get(z["rang"], str(z["rang"]))
         pt = zahl_wort(z["punkte"])
@@ -230,8 +232,10 @@ def text_zum_kopieren(d):
     z = sorted(d["zeilen"], key=lambda x: x["rang"])
     zeilen = [f"{x['rang']}. {' & '.join(x['namen'])} - {x['punkte']} pts" for x in z]
     region = d["region"]
-    return (f"🏆 {d['titel']} ({region}) - top 5\n\n" + "\n".join(zeilen)
-            + f"\n\nFull results, maps and stats: thecomphub.com\n\n#fortnite #fortnitecompetitive #fncs #esports #comphub")
+    kopf = d["titel"] if not d.get("cupName") else " · ".join(x for x in (d["cupName"], " ".join(y for y in (d.get("spieltag"), d.get("stufe")) if y)) if x)
+    modus = {"Solos": "#solos", "Duos": "#duos", "Trios": "#trios", "Squads": "#squads"}.get(d.get("modus") or "", "")
+    return (f"🏆 {kopf} ({region}) - top 5\n\n" + "\n".join(zeilen)
+            + f"\n\nFull results, maps and stats: thecomphub.com\n\n#fortnite #fortnitecompetitive #fncs #esports #comphub" + (f" {modus}" if modus else ""))
 
 
 def main():
@@ -276,7 +280,7 @@ def main():
         if r.returncode:
             raise SystemExit("Video fehlgeschlagen:\n" + r.stderr[-1500:])
 
-    info = {"stimme": tl.get("stimme"), "datum": datum, "titel": d["titel"], "region": d["region"], "cupDatum": d.get("datum"), "dauer": round(tl["gesamt"], 1), "text": text_zum_kopieren(d),
+    info = {"stimme": tl.get("stimme"), "datum": datum, "titel": d["titel"], "cupName": d.get("cupName"), "spieltag": d.get("spieltag"), "stufe": d.get("stufe"), "modus": d.get("modus"), "marken": d.get("marken") or [], "region": d["region"], "cupDatum": d.get("datum"), "dauer": round(tl["gesamt"], 1), "text": text_zum_kopieren(d),
             "seite": d.get("seite"), "video": mp4.name, "mb": round(mp4.stat().st_size / 1e6, 1)}
     (aus / f"tiktok-{datum}.json").write_text(json.dumps(info, ensure_ascii=False, indent=1), encoding="utf-8")
     print(f"fertig: {mp4.name} ({info['mb']} MB, {info['dauer']} s)", flush=True)

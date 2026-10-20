@@ -2,7 +2,7 @@ import { GET as katalogAbruf } from '@/app/api/cup-catalog/route';
 import { GET as bestenlisteAbruf } from '@/app/api/cup-leaderboard/route';
 import { GET as rosterAbruf } from '@/app/api/cup-roster/route';
 import { kernname, ohneZierrat } from '@/lib/homoglyph';
-import { titelMit } from '@/lib/cupTitel';
+import { titelMit, groesseAus, istZeroBuild } from '@/lib/cupTitel';
 import { spielerbildKlein } from '@/lib/spielerbildKlein';
 import { finale, fensterName, profilKarte, type KatalogCup, type KatalogFenster } from '@/lib/ergebnisPosts';
 
@@ -34,7 +34,18 @@ export interface TiktokDaten {
   grund?: string;
   eventId?: string;
   windowId?: string;
+  /** Die volle Zeile (Cup + Spieltag) - fuer den Text zum Kopieren. */
   titel?: string;
+  /** Der Cup selbst, gross im Video ("Performance Evaluation Cup Trios"). */
+  cupName?: string;
+  /** Der Spieltag darunter ("Event 8", "Heat 3", "Last Chance Qualifier") - leer, wenn die Kennung keinen hergibt. */
+  spieltag?: string;
+  /** "Finals" oder "Open" (leer bei Heats und Qualifiern). */
+  stufe?: string;
+  /** Teamgroesse nach den echten Teams der Bestenliste: Solos, Duos, Trios, Squads. */
+  modus?: string;
+  /** Die Marken unter der Kopfzeile: Modus, Spieltag, Stufe. */
+  marken?: string[];
   region?: string;
   finale?: boolean;
   /** Englisches Datum, z. B. "20 Oct 2026". */
@@ -49,6 +60,11 @@ const MONATE = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 function sprechbar(n: string): string {
   const a = n.normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
   return /[A-Za-z]{2}/.test(a) ? a : 'a player';
+}
+
+/** Fuer die Stimme: "a", "a and b", "a, b and c". */
+function aufzaehlung(l: string[]): string {
+  return l.length < 2 ? (l[0] ?? '') : `${l.slice(0, -1).join(', ')} and ${l[l.length - 1]}`;
 }
 
 interface Eintrag { rank: number; points: number; players?: Array<{ id?: string; name: string }> }
@@ -105,7 +121,7 @@ export async function tiktokDaten(): Promise<TiktokDaten> {
           const datei = decodeURIComponent(img.replace(/^\/spielerbilder\//, ''));
           return `${SEITE}${spielerbildKlein(datei)}`;
         });
-        return { rang: e.rank || i + 1, namen, gesprochen: namen.map(sprechbar).join(' and '), punkte: e.points, laender, fotos };
+        return { rang: e.rank || i + 1, namen, gesprochen: aufzaehlung(namen.map(sprechbar)), punkte: e.points, laender, fotos };
       });
       const mitFoto = zeilen.reduce((n, z) => n + z.fotos.filter(Boolean).length, 0);
       if (!bester || (k.istFinale && !bester.k.istFinale) || (k.istFinale === bester.k.istFinale && mitFoto > bester.mitFoto + 1)) bester = { k, zeilen, mitFoto };
@@ -118,9 +134,25 @@ export async function tiktokDaten(): Promise<TiktokDaten> {
   const basis = titelMit(k.cup.titel, k.f.windowId);
   const name = /heat \d|last chance/i.test(basis) ? '' : fensterName(k.f.windowId, k.istFinale);
   const titel = `${basis}${name && !basis.toLowerCase().includes(name.toLowerCase()) ? ` ${name}` : ''}`;
+
+  // Kopfzeile des Videos (Betreiber, 20.10.2026): oben der Cup gross ("Performance Evaluation Cup Trios"), darunter der Spieltag ("Event 8"), darunter die Stufe ("Finals") und
+  // dazu Marken fuer Modus und Spieltag. Die Teamgroesse kommt aus den echten Teams der Bestenliste - ein Trio-Cup zeigt Dreierteams, nie einen Einzelspieler dazwischen.
+  const teamGroesse = Math.max(...zeilen.map((z) => z.namen.length));
+  const aus = groesseAus(k.f.windowId, k.cup.titel);
+  const modus = ({ 1: 'Solos', 2: 'Duos', 3: 'Trios', 4: 'Squads' } as Record<number, string>)[teamGroesse] ?? (aus === 'Solo' ? 'Solos' : aus ?? '');
+  const voll = fensterName(k.f.windowId, k.istFinale);
+  const teile = /^(.*?)\s*(Finals?|Open)$/i.exec(voll);
+  let spieltag = (teile ? teile[1] : voll).trim();
+  let stufe = teile ? (/^final/i.test(teile[2]) ? 'Finals' : 'Open') : '';
+  let cupName = (k.cup.titel ?? '').replace(/\s+/g, ' ').trim();
+  if (istZeroBuild(k.f.windowId) && !istZeroBuild(cupName)) cupName += ' Zero Build';
+  // Steht der Spieltag oder die Stufe schon im Cup-Namen ("FNCS Solos Last Chance Qualifier", "FNCS Grand Finals"), kommt sie nicht noch einmal darunter.
+  if (spieltag && cupName.toLowerCase().includes(spieltag.toLowerCase())) spieltag = '';
+  if (stufe && new RegExp(stufe === 'Finals' ? 'final' : stufe, 'i').test(cupName)) stufe = '';
+  const marken = [modus, spieltag, stufe].filter((m, i, a) => m && a.findIndex((x) => x.toLowerCase() === m.toLowerCase()) === i);
   const d = new Date(k.f.end ?? jetzt);
   return {
-    eventId: k.f.eventId, windowId: k.f.windowId, titel, region: k.region, finale: k.istFinale,
+    eventId: k.f.eventId, windowId: k.f.windowId, titel, cupName, spieltag, stufe, modus, marken, region: k.region, finale: k.istFinale,
     datum: `${d.getUTCDate()} ${MONATE[d.getUTCMonth()]} ${d.getUTCFullYear()}`,
     seite: `${SEITE}/events/${encodeURIComponent(k.cup.id)}`,
     zeilen,
