@@ -107,8 +107,11 @@ async function zeichne(leinwand: HTMLCanvasElement, d: RueckblickDaten, titel: s
   if ('letterSpacing' in c) (c as unknown as { letterSpacing: string }).letterSpacing = '8px';
   c.fillText(titel.toUpperCase(), 64, 100);
   if ('letterSpacing' in c) (c as unknown as { letterSpacing: string }).letterSpacing = '0px';
-  c.fillStyle = '#e2e8f0'; c.font = `700 40px ${schrift}`;
-  c.fillText(d.zeitraum, 64, 156, 520);
+  // Ein langer Zeitraum ("Chapter 5 Season 3 to Chapter 7 Season 4") wird kleiner gesetzt statt gequetscht.
+  let zg = 40;
+  c.fillStyle = '#e2e8f0'; c.font = `700 ${zg}px ${schrift}`;
+  while (c.measureText(d.zeitraum).width > 560 && zg > 24) { zg -= 2; c.font = `700 ${zg}px ${schrift}`; }
+  c.fillText(d.zeitraum, 64, 156);
 
   // Name, so groß, wie es in die Breite passt
   const name = d.name.toUpperCase();
