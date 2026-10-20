@@ -53,6 +53,9 @@ jobs:
           GEHEIM_E=$(printf '%s' "${{ secrets.ENV_LOCAL }}" | grep '^CRON_SECRET=' | cut -d= -f2- | tr -d '"\r')
           curl -s -w ' [Ergebnis-Posts: %{http_code}]' -m 150 -H "Authorization: Bearer $GEHEIM_E" "https://www.thecomphub.com/api/cron/ergebnis-posts" || true
           echo
+          # Neue Cups im Katalog als Beitrag mit Grafik nach #news (lib/newsPosts) - alle zehn Minuten.
+          curl -s -w ' [News: %{http_code}]' -m 150 -H "Authorization: Bearer $GEHEIM_E" "https://www.thecomphub.com/api/cron/news" || true
+          echo
           if [ "$(date -u +%H)" = "07" ] && [ "$(date -u +%M)" -lt 10 ]; then
             GEHEIM=$(printf '%s' "${{ secrets.ENV_LOCAL }}" | grep '^CRON_SECRET=' | cut -d= -f2- | tr -d '"\r')
             curl -s -o /dev/null -w "VIP-Ablauf: %{http_code}\n" -m 120 -H "Authorization: Bearer $GEHEIM" "https://www.thecomphub.com/api/cron/vip-ablauf" || true

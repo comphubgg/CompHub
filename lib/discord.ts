@@ -1994,6 +1994,42 @@ export async function schickeBeitragMitBild(
   } catch { return { ok: false, grund: 'netz' }; }
 }
 
+/**
+ * Eine Neuigkeit mit Grafik nach #news (Betreiber, 11.10.2026): sichtbar fuer alle, nur der Bot schreibt. Fehlt der Kanal, wird er angelegt. Die Grafik wird geholt und als Anhang
+ * mitgeschickt, damit sie auch bleibt, wenn die Adresse einmal nicht mehr antwortet.
+ */
+export async function schickeNews(
+  { titel, text, url, bildUrl }: { titel: string; text: string; url: string; bildUrl: string },
+): Promise<{ ok: boolean; grund?: string }> {
+  const token = (process.env.DISCORD_BOT_TOKEN ?? '').trim();
+  if (!token) return { ok: false, grund: 'kein-token' };
+  let kanaele = await alleKanaele();
+  let kanal = kanaele.find((k) => k.type === 0 && gleich(k.name, COMMUNITY_KANAELE.news));
+  if (!kanal) {
+    await richteCommunityEin([], []);
+    kanaele = await alleKanaele();
+    kanal = kanaele.find((k) => k.type === 0 && gleich(k.name, COMMUNITY_KANAELE.news));
+  }
+  if (!kanal) return { ok: false, grund: 'kein-kanal' };
+  let bild: Uint8Array | null = null;
+  try {
+    const r = await fetch(bildUrl, { signal: AbortSignal.timeout(60_000) });
+    if (r.ok) bild = new Uint8Array(await r.arrayBuffer());
+  } catch { /* ohne Grafik geht der Beitrag trotzdem hinaus */ }
+  const embed: Record<string, unknown> = { title: titel.slice(0, 256), url, description: text.slice(0, 3000), color: FARBE, footer: { text: 'CompHub · Competitive news' } };
+  try {
+    if (bild) {
+      const form = new FormData();
+      form.append('payload_json', JSON.stringify({ embeds: [{ ...embed, image: { url: 'attachment://news.png' } }], attachments: [{ id: 0, filename: 'news.png' }] }));
+      form.append('files[0]', new Blob([bild as BlobPart], { type: 'image/png' }), 'news.png');
+      const r = await fetch(`${API}/channels/${kanal.id}/messages`, { method: 'POST', headers: { Authorization: `Bot ${token}` }, body: form });
+      return r.ok ? { ok: true } : { ok: false, grund: `abgelehnt (${r.status})` };
+    }
+    const gesendet = await ruf(`/channels/${kanal.id}/messages`, 'POST', { embeds: [embed] });
+    return idAus(gesendet) ? { ok: true } : { ok: false, grund: 'abgelehnt' };
+  } catch { return { ok: false, grund: 'netz' }; }
+}
+
 /* --------------------------------------------------------- Community */
 
 /*
@@ -2010,7 +2046,7 @@ export async function schickeBeitragMitBild(
  *   #manager-chat   Chat fuer die Manager
  */
 export const COMMUNITY_KANAELE = {
-  ankuendigungen: 'announcements', live: 'live-now', ergebnisse: 'results',
+  ankuendigungen: 'announcements', news: 'news', live: 'live-now', ergebnisse: 'results',
   lounge: 'vip-lounge', manager: 'manager-chat',
 } as const;
 
@@ -2021,6 +2057,10 @@ const COMMUNITY_TEXTE: Record<keyof typeof COMMUNITY_KANAELE, { thema: string; g
   ankuendigungen: {
     thema: 'News and announcements from CompHub',
     gruss: 'Announcements from CompHub land here: new features, events and anything worth knowing. Only the team posts in this channel.',
+  },
+  news: {
+    thema: 'Competitive Fortnite news: new cups and updates',
+    gruss: 'New cups on the Fortnite competitive schedule land here, with the graphic and a link to the leaderboards and maps. Posted automatically by the bot.',
   },
   live: {
     thema: 'CompHub VIP streamers who are live right now',
@@ -2052,6 +2092,7 @@ export async function richteCommunityEin(
   const rollen = await zugangsRollen();
   const plan: Array<[keyof typeof COMMUNITY_KANAELE, Sichtbar, string[], boolean]> = [
     ['ankuendigungen', 'alle', [], false],
+    ['news', 'alle', [], false],
     ['live', 'alle', [], false],
     ['ergebnisse', 'alle', [], false],
     ['lounge', 'vip', rollen.vip, true],
