@@ -194,11 +194,25 @@ function antwortSumme(daten) {
 
 /* ------------------------------------------------------------ GitHub */
 
+/*
+ * Das Kontingent der Anwendung.
+ *
+ * Das GITHUB_TOKEN eines Ablaufs darf nur tausend Anfragen je Stunde stellen - und zwar alle Ablaeufe des Projekts zusammen. Am 19.10.2026 war es schon
+ * um 21:12 leer ("API rate limit exceeded for installation"), und jeder Hochlader wartete dann je Anfrage dreimal dreissig Sekunden, rechnete jede Wiederholung
+ * als weitere Anfrage und kam trotzdem nie durch. Jetzt merkt sich der Hochlader, wie viel noch uebrig ist (Kopf x-ratelimit-remaining), und hoert bei null von selbst auf;
+ * ein Austausch im vollen Release (erst loeschen, dann anlegen) beginnt nur, wenn genug uebrig ist, um ihn zu Ende zu bringen.
+ */
+let kontingentRest = Infinity;
+let kontingentAus = false;
+
 async function api(pfad, init = {}, versuche = 3) {
   for (let v = 1; ; v++) {
     const r = await fetch(pfad.startsWith('http') ? pfad : `${API}${pfad}`, {
       ...init, headers: { ...KOPF, ...(init.headers || {}) }, signal: AbortSignal.timeout(120_000),
     });
+    const rest = Number(r.headers.get('x-ratelimit-remaining'));
+    if (Number.isFinite(rest) && r.headers.get('x-ratelimit-remaining') !== null) kontingentRest = rest;
+    if (r.status === 403 && r.headers.get('x-ratelimit-remaining') === '0') { kontingentAus = true; return r; }
     if (r.ok || r.status === 404 || v >= versuche) return r;
     // Sekundaere Rate-Grenze oder Wackler: kurz warten, noch einmal.
     const warte = r.status === 403 || r.status === 429 ? 30_000 : 3_000;
@@ -311,6 +325,7 @@ async function hochladen(releaseId, vorhandene, name, daten) {
    * scheiterten seit dem 11.10.2026 die Weltrangliste und die Replay-Staende.
    */
   if (alt && vorhandene.size >= VOLL) {
+    if (kontingentRest < 30) throw new Error('Kontingent knapp - Austausch im vollen Release uebersprungen (die alte Datei bleibt liegen)');
     await gedrosselt();
     const weg = await api(`/repos/${REPO}/releases/assets/${alt.id}`, { method: 'DELETE' });
     if (!weg.ok && weg.status !== 404) throw new Error(`loeschen ${name}: ${weg.status}`);
@@ -462,7 +477,13 @@ async function main() {
   const gruppeVon = (a) => (/^(power-rankings|epic-spieltage|platzierungen|cup-archiv|epic-namen|preisgeld|lan-)/.test(a.anhang) ? 0
     : /^antworten/.test(a.anhang) ? 1 : /^akten/.test(a.anhang) ? 3 : 2);
   const alterVon = (a) => Date.parse(a.rel.manifestAlt[a.anhang]?.zeit ?? '') || 0;
-  aufgaben.sort((x, y) => gruppeVon(x) - gruppeVon(y) || alterVon(x) - alterVon(y));
+  /*
+   * Innerhalb einer Gruppe: erst, was es noch gar nicht gibt, dann, was sich nachweislich geaendert hat, zuletzt, was das Verzeichnis nur kennt, ohne seine Summe zu
+   * haben ("wieder ins Verzeichnis aufgenommen") - das ist meist unveraendert und wird vor dem Hochladen mit dem Anhang verglichen. Vorher standen diese alten
+   * Dateien (Saison 30 bis 33) wegen ihres Alters ganz vorn und verbrauchten das Kontingent, waehrend die neuen Spieltage warteten.
+   */
+  const rangVon = (a) => { const m = a.rel.manifestAlt[a.anhang]; return !m ? 0 : m.summe ? 1 : 2; };
+  aufgaben.sort((x, y) => gruppeVon(x) - gruppeVon(y) || rangVon(x) - rangVon(y) || alterVon(x) - alterVon(y));
   let zurueckgestellt = 0;
   if (HOECHSTENS && aufgaben.length > HOECHSTENS) {
     const nach = [[], [], [], []];
@@ -502,7 +523,7 @@ async function main() {
     return;
   }
 
-  let fertig = 0; let schief = 0; const fehler = [];
+  let fertig = 0; let schief = 0; let gleichGeblieben = 0; let kontingentMeldung = false; const fehler = [];
   let naechste = 0;
   /*
    * Das Manifest nicht erst ganz am Ende schreiben.
@@ -534,8 +555,29 @@ async function main() {
   const arbeiter = async () => {
     while (naechste < aufgaben.length) {
       if (FRIST && Date.now() > FRIST) break;
+      if (kontingentAus || kontingentRest < 12) {
+        if (!kontingentMeldung) { kontingentMeldung = true; console.log('\n  Kontingent aufgebraucht - der Rest kommt im naechsten Lauf dran.'); }
+        break;
+      }
       const a = aufgaben[naechste++];
       try {
+        const alt = a.rel.vorhandene.get(a.anhang);
+        const m = a.rel.manifestAlt[a.anhang];
+        if (alt && m && !m.summe && alt.size === a.daten.length) {
+          // Gleiche Groesse, Summe unbekannt: den Anhang ueber den Download-Link lesen (zaehlt nicht gegen das Kontingent) und vergleichen.
+          const roh = await anhangLesen(alt).catch(() => null);
+          if (roh) {
+            const dort = /^antworten__/.test(a.anhang) ? antwortSumme(roh) : pruefsumme(roh);
+            if (dort === a.summe) {
+              a.rel.manifest[a.anhang] = { summe: a.summe, groesse: a.daten.length, zeit: m.zeit ?? new Date().toISOString(), ...(a.inhaltZeit ? { inhaltZeit: a.inhaltZeit } : {}) };
+              a.rel.fertig += 1;
+              a.rel.eigene.add(a.anhang);
+              gleichGeblieben += 1;
+              process.stdout.write(`\r  ${String(fertig + schief + gleichGeblieben).padStart(5)}/${aufgaben.length}  ${a.anhang.slice(0, 56).padEnd(56)}`);
+              continue;
+            }
+          }
+        }
         await hochladen(a.rel.release.id, a.rel.vorhandene, a.anhang, a.daten);
         a.rel.manifest[a.anhang] = {
           summe: a.summe, groesse: a.daten.length, zeit: new Date().toISOString(),
@@ -563,6 +605,7 @@ async function main() {
   }
   console.log('');
   if (FRIST && naechste < aufgaben.length) console.log(`  Zeitrahmen aufgebraucht - ${aufgaben.length - naechste} Dateien kommen im naechsten Lauf dran.`);
+  if (gleichGeblieben) console.log(`  Unveraendert (nur im Verzeichnis nachgetragen): ${gleichGeblieben}`);
   console.log(`  Uebertragen : ${fertig}`);
   console.log(`  Gescheitert : ${schief}`);
   for (const f of fehler.slice(0, 20)) console.log(`    - ${f}`);
