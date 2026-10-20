@@ -2,7 +2,7 @@ import crypto from 'crypto';
 import { NextResponse } from 'next/server';
 import { ergebnisPostsAnlegen } from '@/lib/ergebnisPosts';
 import { heuteDatum, postSeite } from '@/lib/tagesposts';
-import { schickePosts } from '@/lib/discord';
+import { schickePosts, schickeBeitragMitBild } from '@/lib/discord';
 
 /*
  * Alle zehn Minuten (Ablauf "Discord live"): zu jedem seit einer halben Stunde beendeten Spieltag den fertigen Ergebnis-Post anlegen (lib/ergebnisPosts) und dem
@@ -35,7 +35,20 @@ export async function GET(request: Request) {
       zeilen: neu.map((p) => p.titel),
       url: postSeite(heuteDatum()),
     });
-    return NextResponse.json({ ok: true, neu: neu.length, gemeldet: r.ok, grund: r.grund });
+    // Dazu je Post das fertige Bild (Fotomosaik der Besten) mit dem Text zum Kopieren - das Ergebnisbild nach jedem Spieltag (Idee 5).
+    let bilder = 0;
+    for (const p of neu) {
+      const ids = (p.bild as { ids?: string[] } | undefined)?.ids ?? [];
+      if (!ids.length) continue;
+      try {
+        const b = await fetch(`https://www.thecomphub.com/api/beitrag-bild?ids=${ids.join(',')}`, { signal: AbortSignal.timeout(60_000) });
+        if (!b.ok) continue;
+        const png = new Uint8Array(await b.arrayBuffer());
+        const s = await schickeBeitragMitBild({ titel: p.titel, text: p.text, url: postSeite(heuteDatum()), bild: png, dateiname: `ergebnis-${heuteDatum()}-${bilder + 1}.png` });
+        if (s.ok) bilder += 1;
+      } catch { /* ohne Bild bleibt die Meldung oben */ }
+    }
+    return NextResponse.json({ ok: true, neu: neu.length, gemeldet: r.ok, grund: r.grund, bilder });
   } catch (e) {
     return NextResponse.json({ ok: false, fehler: (e as Error).message }, { status: 503 });
   }

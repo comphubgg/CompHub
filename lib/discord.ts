@@ -1962,6 +1962,38 @@ export async function schickePosts(
   return idAus(gesendet) ? { ok: true } : { ok: false, grund: 'abgelehnt' };
 }
 
+/**
+ * Ein fertiger Beitrag samt Bild nach #admin-posts (Betreiber, 1.10.2026, Idee 5: "fertiges Ergebnisbild nach jedem Finale"): das Bild liegt als Anhang in der Nachricht -
+ * zum Speichern oder Kopieren -, darunter der Text zum Kopieren. Wie schickePosts schreibt der Bot als "Claude".
+ */
+export async function schickeBeitragMitBild(
+  { titel, text, url, bild, dateiname }: { titel: string; text: string; url: string; bild: Uint8Array; dateiname: string },
+): Promise<{ ok: boolean; grund?: string }> {
+  const token = (process.env.DISCORD_BOT_TOKEN ?? '').trim();
+  if (!token) return { ok: false, grund: 'kein-token' };
+  const kanaele = await alleKanaele();
+  const kanal = kanaele.find((k) => k.type === 0 && gleich(k.name, ADMIN_KANAELE.posts));
+  if (!kanal) return { ok: false, grund: 'kein-kanal' };
+  const form = new FormData();
+  form.append('payload_json', JSON.stringify({
+    embeds: [{
+      author: { name: 'Claude · Ergebnis-Post' },
+      title: titel.slice(0, 256),
+      url,
+      description: `\`\`\`\n${text.slice(0, 1800)}\n\`\`\`\nBild zum Speichern: Rechtsklick auf das Bild.`.slice(0, 4000),
+      color: 0x38bdf8,
+      image: { url: `attachment://${dateiname}` },
+      footer: { text: new Date().toLocaleString('de-CH', { timeZone: 'Europe/Zurich' }) + ' Uhr' },
+    }],
+    attachments: [{ id: 0, filename: dateiname }],
+  }));
+  form.append('files[0]', new Blob([bild as BlobPart], { type: 'image/png' }), dateiname);
+  try {
+    const r = await fetch(`${API}/channels/${kanal.id}/messages`, { method: 'POST', headers: { Authorization: `Bot ${token}` }, body: form });
+    return r.ok ? { ok: true } : { ok: false, grund: `abgelehnt (${r.status})` };
+  } catch { return { ok: false, grund: 'netz' }; }
+}
+
 /* --------------------------------------------------------- Community */
 
 /*
