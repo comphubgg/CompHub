@@ -12,6 +12,10 @@ import { zugangNach, rechteVon } from '@/lib/vipZugaenge';
  * Gebaut wird auf GitHub, nicht im Browser: Seite schließen, neu laden oder wechseln bricht nichts ab. Die Seite fragt deshalb bei jedem Öffnen den Stand des Laufs ab
  * ("lauf") und zeigt ihn, bis das Video da ist.
  *
+ * Fehler, die von GitHub kommen, gehen mit Status 200 und { ok: false, fehler } hinaus - nie als 5xx/429: der Lastverteiler vor der Seite (cloudflare/lastverteilung.worker.js)
+ * hält solche Status für einen Ausfall, schaltet auf die zweite Auslieferung um und liefert statt unserer Meldung eine Fehlerseite. Genau daran scheiterte der Knopf
+ * am 20.10.2026 ("Das hat nicht geklappt"), als GitHub das Stundenlimit meldete. Ist es das Limit, steht in "frei", ab wann es wieder geht.
+ *
  *   GET  -> { ok, videos: [{ datum, titel, region, dauer, mb, text, seite, video }], lauf }, neueste zuerst
  *           lauf = null | { status: 'queued'|'in_progress'|'completed', ergebnis, seit, adresse } - der jüngste Lauf des Ablaufs
  *   POST { aktion: 'neu' } -> startet den Ablauf von Hand (braucht ein GitHub-Token mit Recht auf Actions); läuft schon einer, wird kein zweiter gestartet
@@ -40,9 +44,26 @@ async function pruefe(): Promise<NextResponse | null> {
     if (await istAdmin()) return null;
     return NextResponse.json({ ok: false, fehler: 'Dafür brauchst du Admin-Rechte.' }, { status: 403 });
   } catch {
-    return NextResponse.json({ ok: false, fehler: 'Die Anmeldung lässt sich gerade nicht prüfen - die Ablage antwortet nicht. Gleich noch einmal versuchen.' }, { status: 503 });
+    return hin('Die Anmeldung lässt sich gerade nicht prüfen - die Ablage antwortet nicht. Gleich noch einmal versuchen.');
   }
 }
+
+/** Antwort auf einen Fehler von GitHub oder der Ablage: Status 200, damit der Lastverteiler sie nicht für einen Ausfall hält. */
+function hin(fehler: string, extra: Record<string, unknown> = {}) {
+  return NextResponse.json({ ok: false, fehler, ...extra }, { headers: { 'Cache-Control': 'no-store' } });
+}
+
+/** GitHub meldet sein Stundenlimit als 403/429 mit x-ratelimit-remaining: 0 - und wann es wieder frei ist. */
+function grenze(r: Response) {
+  if (r.status !== 403 && r.status !== 429) return null;
+  if (r.headers.get('x-ratelimit-remaining') !== '0' && !r.headers.get('retry-after')) return null;
+  const reset = Number(r.headers.get('x-ratelimit-reset')) * 1000;
+  const warte = Number(r.headers.get('retry-after')) * 1000;
+  const frei = reset > Date.now() ? reset : warte > 0 ? Date.now() + warte : Date.now() + 15 * 60_000;
+  return { grenze: true, frei };
+}
+
+const GRENZE_TEXT = 'GitHub hat sein Stundenlimit erreicht - das Video lässt sich gerade nicht starten.';
 
 const kopf = () => ({
   'User-Agent': 'comphub-tiktok', Accept: 'application/vnd.github+json',
@@ -73,7 +94,7 @@ export async function GET() {
       juengsterLauf(),
     ]);
     if (r.status === 404) return NextResponse.json({ ok: true, videos: [], lauf });
-    if (!r.ok) return NextResponse.json({ ok: false, fehler: `GitHub antwortet mit ${r.status}` }, { status: 502 });
+    if (!r.ok) { const g = grenze(r); return g ? hin(GRENZE_TEXT, g) : hin(`GitHub antwortet mit ${r.status}`); }
     const rel = await r.json() as { assets?: Array<{ name: string; size: number }> };
     const assets = rel.assets ?? [];
     const jsons = assets.filter((a) => a.name.endsWith('.json')).sort((a, b) => b.name.localeCompare(a.name)).slice(0, 30);
@@ -89,7 +110,7 @@ export async function GET() {
       } catch { return null; }
     }))).filter(Boolean);
     return NextResponse.json({ ok: true, videos, lauf }, { headers: { 'Cache-Control': 'no-store' } });
-  } catch { return NextResponse.json({ ok: false, fehler: 'GitHub antwortet gerade nicht.' }, { status: 503 }); }
+  } catch { return hin('GitHub antwortet gerade nicht.'); }
 }
 
 export async function POST(request: Request) {
@@ -97,7 +118,7 @@ export async function POST(request: Request) {
   if (nein) return nein;
   const k = await request.json().catch(() => ({})) as { aktion?: string };
   if (k.aktion !== 'neu') return NextResponse.json({ ok: false, fehler: 'Unbekannte Aktion.' }, { status: 400 });
-  if (!process.env.GITHUB_TOKEN) return NextResponse.json({ ok: false, fehler: 'Auf dem Server fehlt GITHUB_TOKEN.' }, { status: 501 });
+  if (!process.env.GITHUB_TOKEN) return hin('Auf dem Server fehlt GITHUB_TOKEN.');
   try {
     // Läuft schon einer, wird kein zweiter gestartet - die Seite zeigt dessen Stand.
     const bisher = await juengsterLauf();
@@ -105,7 +126,7 @@ export async function POST(request: Request) {
     const r = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/${ABLAUF}/dispatches`, {
       method: 'POST', headers: { ...kopf(), 'Content-Type': 'application/json' }, body: JSON.stringify({ ref: 'main' }), signal: AbortSignal.timeout(20_000),
     });
-    if (r.status !== 204) return NextResponse.json({ ok: false, fehler: `GitHub hat den Start abgelehnt (${r.status}).` }, { status: 502 });
+    if (r.status !== 204) { const g = grenze(r); return g ? hin(GRENZE_TEXT, g) : hin(`GitHub hat den Start abgelehnt (${r.status}).`); }
     return NextResponse.json({ ok: true, schon: false });
-  } catch { return NextResponse.json({ ok: false, fehler: 'GitHub antwortet gerade nicht.' }, { status: 503 }); }
+  } catch { return hin('GitHub antwortet gerade nicht.'); }
 }

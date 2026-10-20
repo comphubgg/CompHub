@@ -25,12 +25,18 @@ function merke(ms: number) {
   try { if (ms) localStorage.setItem(MERKER, String(ms)); else localStorage.removeItem(MERKER); } catch { /* ohne Speicher geht es auch */ }
 }
 
-async function antwort(r: Response): Promise<{ ok?: boolean; fehler?: string; error?: string; videos?: Video[]; lauf?: Lauf | null; schon?: boolean }> {
+async function antwort(r: Response): Promise<{ ok?: boolean; fehler?: string; error?: string; videos?: Video[]; lauf?: Lauf | null; schon?: boolean; grenze?: boolean; frei?: number }> {
   try { return await r.json(); } catch { return { fehler: `HTTP ${r.status}` }; }
 }
 
 export default function TiktokSeite() {
   const t = useT();
+  /** Der Fehlertext aus der Antwort - beim GitHub-Limit mit der Uhrzeit, ab der es wieder geht. */
+  const meldung = useCallback((j: { fehler?: string; error?: string; grenze?: boolean; frei?: number }, status: number, sonst: string) => {
+    const text = t(j.fehler ?? j.error ?? '') || `${sonst} (${status})`;
+    if (j.grenze && j.frei) return `${text} ${t('Wieder frei ab')} ${new Date(j.frei).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}.`;
+    return text;
+  }, [t]);
   const [liste, setListe] = useState<Video[] | null>(null);
   const [fehler, setFehler] = useState('');
   const [stand, setStand] = useState('');
@@ -44,14 +50,14 @@ export default function TiktokSeite() {
     try {
       const r = await fetch('/api/admin/tiktok', { cache: 'no-store' });
       const j = await antwort(r);
-      if (!r.ok || !j.ok) { setFehler(t(j.fehler ?? j.error ?? '') || `${t('Die Liste ließ sich nicht laden.')} (${r.status})`); return; }
+      if (!r.ok || !j.ok) { setFehler(meldung(j, r.status, t('Die Liste ließ sich nicht laden.'))); return; }
       setFehler(''); setListe(j.videos ?? []); setLauf(j.lauf ?? null);
       const gestartet = gemerkt();
       // Der neue Lauf ist aufgelistet (oder der Knopfdruck liegt zu lange zurück): das Warten ist vorbei.
       if (gestartet && (j.lauf && Date.parse(j.lauf.seit) >= gestartet - 60_000 || Date.now() - gestartet > 120_000)) { merke(0); setWartet(0); }
       else setWartet(gestartet);
     } catch { setFehler(t('Die Liste ließ sich nicht laden.')); }
-  }, [t]);
+  }, [t, meldung]);
   useEffect(() => { void Promise.resolve().then(holen); }, [holen]);
 
   const baut = (lauf && lauf.status !== 'completed') || wartet > 0;
@@ -78,7 +84,7 @@ export default function TiktokSeite() {
     try {
       const r = await fetch('/api/admin/tiktok', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ aktion: 'neu' }) });
       const j = await antwort(r);
-      if (!r.ok || !j.ok) { setStand(t(j.fehler ?? j.error ?? '') || `${t('Das hat nicht geklappt.')} (${r.status})`); return; }
+      if (!r.ok || !j.ok) { setStand(meldung(j, r.status, t('Das hat nicht geklappt.'))); return; }
       setStand(j.schon ? t('Es läuft schon eine Erstellung - hier siehst du ihren Stand.') : t('Gestartet - in etwa zehn Minuten ist das Video hier. Du kannst die Seite schließen.'));
       const jetztMs = Date.now();
       if (!j.schon) { merke(jetztMs); setWartet(jetztMs); }
