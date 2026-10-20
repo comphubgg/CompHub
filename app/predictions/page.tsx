@@ -359,7 +359,8 @@ export default function Prognosen() {
   if (!geladen) return <LadeSchirm />;
 
   return (
-    <main className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6">
+    <main className="min-h-screen bg-zinc-950 text-slate-100">
+    <div className="mx-auto max-w-[1600px] px-4 py-6 sm:px-6">
       <SeitenKopf className="mb-5" marke={<T>Prognosen</T>} titel={prognose ? prognose.titel : <T>Prognosen</T>}
         rechts={prognosen.length > 0 ? (
           <select value={gewaehlt} onChange={(e) => { setGewaehlt(e.target.value); setKartenNr(0); }}
@@ -720,6 +721,7 @@ export default function Prognosen() {
           </section>
         </div>
       )}
+    </div>
     </main>
   );
 }

@@ -3389,6 +3389,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Die Endspiele ließen sich gerade nicht laden. Bitte gleich noch einmal versuchen.': 'The finals could not be loaded right now. Please try again in a moment.',
   'Noch keine Endspiele.': 'No finals yet.',
   'Platzierungen werden nachgetragen.': 'Placements will be added.',
+  'Alle Regionen: Qualifizierte, Heats, Last Chance, Finale und die Karte jedes Spieltags': 'All regions: qualified players, heats, Last Chance, finals and the map of every match day',
   'Die neue Adresse gilt erst, wenn du in der Mail, die dorthin geht, auf den Knopf klickst.': 'The new address only counts once you click the button in the email sent to it.',
   'Wartet auf die Bestätigung:': 'Waiting for confirmation:',
   'neue E-Mail-Adresse': 'new email address',
