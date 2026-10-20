@@ -9,7 +9,7 @@ Ergebnis in out/: tiktok-<Datum>.mp4 und tiktok-<Datum>.json (Titel, Text zum Ko
 
 Gebraucht: Python 3.10+, edge-tts, numpy, playwright (+ Chromium), ffmpeg im Pfad (oder imageio-ffmpeg).
 """
-import argparse, asyncio, functools, http.server, json, re, shutil, socketserver, subprocess, sys, tempfile, threading, time, urllib.request
+import argparse, asyncio, functools, http.server, json, os, re, shutil, socketserver, subprocess, sys, tempfile, threading, time, urllib.request
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -68,25 +68,86 @@ def drehbuch(d):
     return szenen
 
 
-async def sprechen(szenen, ordner, ff):
+PIPER_MODELL = "https://huggingface.co/rhasspy/piper-voices/resolve/main/en/en_US/ryan/high/en_US-ryan-high.onnx"
+
+
+def piper_modell(ordner):
+    """Das Stimmmodell von Piper (offline, kostenlos) - wird nur geholt, wenn edge-tts nicht antwortet."""
+    modell = ordner / "ryan.onnx"
+    if not modell.exists():
+        for ende, ziel in ((".onnx", modell), (".onnx.json", ordner / "ryan.onnx.json")):
+            urllib.request.urlretrieve(PIPER_MODELL.replace(".onnx", ende) if ende != ".onnx" else PIPER_MODELL, ziel)
+    return modell
+
+
+def worte_ohne_zeiten(text, d):
+    """Piper liefert keine Wortzeiten: sie werden nach Laenge der Woerter auf die Sprechdauer verteilt (Satzzeichen bekommen eine kleine Pause)."""
+    woerter = text.split()
+    gewicht = [len(w) + (5 if w[-1] in ".,;:!?" else 0) + 1 for w in woerter]
+    summe = sum(gewicht)
+    t, raus = 0.0, []
+    for w, g in zip(woerter, gewicht):
+        dauer_w = d * g / summe
+        raus.append({"w": w, "t": round(t, 3), "d": round(dauer_w * (0.82 if w[-1] in ".,;:!?" else 0.95), 3)})
+        t += dauer_w
+    return raus
+
+
+async def eine_stimme_edge(text, mp3):
     import edge_tts
+    woerter = []
+    c = edge_tts.Communicate(text, STIMME, rate=TEMPO, boundary="WordBoundary")
+    with open(mp3, "wb") as f:
+        async for chunk in c.stream():
+            if chunk["type"] == "audio":
+                f.write(chunk["data"])
+            elif chunk["type"] == "WordBoundary":
+                woerter.append({"w": chunk["text"], "t": chunk["offset"] / 1e7, "d": chunk["duration"] / 1e7})
+    if not woerter:
+        raise RuntimeError("edge-tts lieferte keine Woerter")
+    return woerter
+
+
+async def sprechen(szenen, ordner, ff):
+    """Je Szene eine Tondatei und die Wortzeiten. Zuerst Microsofts Stimme (edge-tts); antwortet sie nicht (manche Rechenzentren werden abgewiesen), springt Piper ein."""
+    stimme = "piper" if os.environ.get("TIKTOK_STIMME") == "piper" else "edge"   # TIKTOK_STIMME=piper: zum Ausprobieren des Rueckfalls
+    if stimme == "piper":
+        return await sprechen_piper(szenen, ordner, ff)
     tl, beginn = [], 0.0
     for s in szenen:
-        mp3 = ordner / f"{s['id']}.mp3"
-        woerter = []
-        c = edge_tts.Communicate(s["text"], STIMME, rate=TEMPO, boundary="WordBoundary")
-        with open(mp3, "wb") as f:
-            async for chunk in c.stream():
-                if chunk["type"] == "audio":
-                    f.write(chunk["data"])
-                elif chunk["type"] == "WordBoundary":
-                    woerter.append({"w": chunk["text"], "t": chunk["offset"] / 1e7, "d": chunk["duration"] / 1e7})
-        d = dauer(ff, mp3)
+        woerter = None
+        if stimme == "edge":
+            for versuch in range(3):
+                try:
+                    datei = ordner / f"{s['id']}.mp3"
+                    woerter = await eine_stimme_edge(s["text"], datei)
+                    break
+                except Exception as e:  # noqa: BLE001
+                    print("edge-tts:", s["id"], "Versuch", versuch + 1, str(e)[:80], flush=True)
+                    await asyncio.sleep(8)
+            if woerter is None:
+                print("edge-tts antwortet nicht - Piper uebernimmt (alle Szenen mit derselben Stimme).", flush=True)
+                stimme = "piper"
+                tl, beginn = [], 0.0
+                return await sprechen_piper(szenen, ordner, ff)
+        d = dauer(ff, datei)
         laenge = max(VOR + d + NACH, s.get("mindestens", 0))
-        tl.append({"id": s["id"], "start": round(beginn, 3), "laenge": round(laenge, 3), "audio": mp3.name, "audioStart": VOR, "audioDauer": round(d, 3), "woerter": woerter})
+        tl.append({"id": s["id"], "start": round(beginn, 3), "laenge": round(laenge, 3), "audio": datei.name, "audioStart": VOR, "audioDauer": round(d, 3), "woerter": woerter})
         beginn += laenge - 0.5
-    gesamt = beginn + 0.5
-    return {"fps": FPS, "gesamt": round(gesamt, 3), "szenen": tl}
+    return {"fps": FPS, "gesamt": round(beginn + 0.5, 3), "szenen": tl, "stimme": "edge-tts"}
+
+
+async def sprechen_piper(szenen, ordner, ff):
+    modell = piper_modell(ordner)
+    tl, beginn = [], 0.0
+    for s in szenen:
+        wav = ordner / f"{s['id']}.wav"
+        subprocess.run([sys.executable, "-m", "piper", "-m", str(modell), "-f", str(wav)], input=s["text"].encode("utf-8"), check=True, capture_output=True)
+        d = dauer(ff, wav)
+        laenge = max(VOR + d + NACH, s.get("mindestens", 0))
+        tl.append({"id": s["id"], "start": round(beginn, 3), "laenge": round(laenge, 3), "audio": wav.name, "audioStart": VOR, "audioDauer": round(d, 3), "woerter": worte_ohne_zeiten(s["text"], d)})
+        beginn += laenge - 0.5
+    return {"fps": FPS, "gesamt": round(beginn + 0.5, 3), "szenen": tl, "stimme": "piper"}
 
 
 def server(port):
@@ -184,7 +245,7 @@ def main():
         if r.returncode:
             raise SystemExit("Video fehlgeschlagen:\n" + r.stderr[-1500:])
 
-    info = {"datum": datum, "titel": d["titel"], "region": d["region"], "cupDatum": d.get("datum"), "dauer": round(tl["gesamt"], 1), "text": text_zum_kopieren(d),
+    info = {"stimme": tl.get("stimme"), "datum": datum, "titel": d["titel"], "region": d["region"], "cupDatum": d.get("datum"), "dauer": round(tl["gesamt"], 1), "text": text_zum_kopieren(d),
             "seite": d.get("seite"), "video": mp4.name, "mb": round(mp4.stat().st_size / 1e6, 1)}
     (aus / f"tiktok-{datum}.json").write_text(json.dumps(info, ensure_ascii=False, indent=1), encoding="utf-8")
     print(f"fertig: {mp4.name} ({info['mb']} MB, {info['dauer']} s)", flush=True)
