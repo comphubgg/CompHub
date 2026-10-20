@@ -16,6 +16,7 @@ import { regionAnzeige } from '@/lib/regionFarbe';
 import { SOLOS_REGIONEN } from '@/lib/solosRegionen';
 import type { SolosDaten, SolosFenster, SolosGruppe, SolosSpieler, SolosStufe } from '@/lib/globalsSolos';
 import { Karte } from './Bausteine';
+import WegPlan from './WegPlan';
 
 /*
  * FNCS Solos - die Seite, komplett neu (Betreiber, 19.10.2026: "komplett neu, nicht mal aehnlich - in meinem neuen Stil, in Weiss und in Schwarz gut,
@@ -143,18 +144,6 @@ function Karte2({ children, className = '' }: { children: ReactNode; className?:
   return <section className={`rounded-2xl border border-zinc-800 bg-zinc-900 p-5 shadow-[0_8px_24px_rgba(15,23,42,.10)] ${className}`}>{children}</section>;
 }
 
-function Marke({ stand }: { stand: 'live' | 'vorbei' | 'kommt' }) {
-  const klasse = stand === 'live' ? 'bg-sky-500 text-white' : stand === 'kommt' ? 'border border-sky-500/50 text-sky-400' : 'bg-zinc-800 text-slate-400';
-  return (
-    <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${klasse}`}>
-      {stand === 'live' && <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-white" />}
-      {stand === 'live' ? <T>Live</T> : stand === 'kommt' ? <T>Kommt</T> : <T>Vorbei</T>}
-    </span>
-  );
-}
-
-const stand = (ss: SolosStufe[]): 'live' | 'vorbei' | 'kommt' => (ss.some((s) => s.status === 'live') ? 'live' : ss.length && ss.every((s) => s.status === 'vorbei') ? 'vorbei' : 'kommt');
-
 function useZeit() {
   const { sprache } = useSprache();
   const ort = sprache === 'de' ? 'de-DE' : 'en-GB';
@@ -166,92 +155,14 @@ function useZeit() {
 
 /* ------------------------------------------------------------------ Der Weg */
 
-function Stufe({ titel, stufen, zahl, regel, ziel, an, auf }: {
-  titel: string; stufen: SolosStufe[]; zahl?: number; regel?: string; ziel?: string; an?: boolean; auf?: () => void;
-}) {
-  const zeit = useZeit();
-  const erste = [...stufen].sort((a, b) => a.begin - b.begin)[0];
-  return (
-    <button type="button" onClick={auf} disabled={!auf}
-      className={`group flex min-w-[10.5rem] flex-1 flex-col rounded-2xl border p-4 text-left transition ${an
-        ? 'border-sky-500/60 bg-sky-950' : 'border-zinc-800 bg-zinc-900 hover:border-sky-500/40'} ${auf ? 'cursor-pointer' : 'cursor-default'}`}>
-      <span className="flex items-start justify-between gap-2">
-        <span className="text-sm font-extrabold text-slate-100">{titel}</span>
-        <Marke stand={stand(stufen)} />
-      </span>
-      {erste && <span className="mt-1 text-[11px] text-slate-500">{zeit(erste.begin)}{stufen.length > 1 ? ` · ${stufen.length}×` : ''}</span>}
-      <span className="mt-3 flex flex-wrap gap-1.5">
-        {zahl !== undefined && zahl > 0 && (
-          <span className="rounded-full bg-zinc-800 px-2.5 py-0.5 text-[11px] font-semibold tabular-nums text-slate-300">{zahl} <T>Spieler</T></span>
-        )}
-        {regel && <span className="rounded-full border border-sky-500/40 px-2.5 py-0.5 text-[11px] font-semibold text-sky-400">{regel}</span>}
-      </span>
-      {ziel && <span className="mt-2 text-[11px] font-semibold text-slate-400">→ {ziel}</span>}
-    </button>
-  );
-}
-
-function Pfeil() {
-  return (
-    <svg viewBox="0 0 20 20" className="hidden h-5 w-5 shrink-0 self-center text-slate-600 sm:block" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-      <path d="M7 4l6 6-6 6" />
-    </svg>
-  );
-}
-
-function Bahn({ titel, children }: { titel: string; children: ReactNode }) {
-  return (
-    <div>
-      <p className="mb-2 text-[11px] font-bold uppercase tracking-[0.16em] text-slate-500">{titel}</p>
-      <div className="flex flex-col gap-2 sm:flex-row sm:items-stretch">{children}</div>
-    </div>
-  );
-}
-
 function Weg({ daten, auf }: { daten: SolosDaten; auf: (r: Reiter) => void }) {
-  const t = useT();
-  const stufen = daten.stufen;
-  const von = (art: SolosStufe['art']) => stufen.filter((s) => s.art === art);
-  const spieler = (ids: string[]) => ids.reduce((a, id) => a + (daten.fenster.find((f) => f.windowId === id)?.spieler.length ?? 0), 0);
-  const quals = von('qualifier');
-  const schwellen = [...new Set(quals.map((q) => q.qualifiziert).filter((n): n is number => !!n))].sort((a, b) => b - a);
-  const fts = von('fasttrack'); const heats = von('heat'); const lcq = von('lcq'); const lcqF = von('lcq-finale'); const finale = von('finale');
   const finalisten = daten.qualifiziert.reduce((a, g) => a + g.spieler.length, 0);
-  const ftSchwelle = fts.find((s) => s.qualifiziert)?.qualifiziert;
-  const lcqSchwelle = lcq.find((s) => s.qualifiziert)?.qualifiziert;
-  const nachKennung = (ss: SolosStufe[]) => ss.map((s) => s.windowId);
-
-  const grand = (
-    <Stufe titel={t('Grand Finals')} stufen={finale} zahl={finalisten} an auf={() => auf('finale')} />
-  );
   return (
     <div className="space-y-5">
       <Karte2>
         <h2 className="text-lg font-extrabold text-slate-100"><T>Der Weg ins Grand Final</T></h2>
-        <p className="mt-1 max-w-2xl text-sm text-slate-400"><T>Drei Wege führen ins Finale. Jede Stufe zeigt, wo sie steht und wie viele weiterkommen — die Zahlen stammen aus Epics Auszahlungstabellen.</T></p>
-        <div className="mt-5 space-y-5">
-          {(quals.length > 0 || heats.length > 0) && (
-            <Bahn titel={t('Über die Qualifier')}>
-              {quals.length > 0 && <><Stufe titel={t('Qualifier')} stufen={quals} regel={schwellen.length ? schwellen.map((n) => `Top ${n.toLocaleString()}`).join(' → ') : undefined} ziel={t('Heats')} /><Pfeil /></>}
-              <Stufe titel={t('Heats')} stufen={heats} zahl={spieler(nachKennung(heats))} regel={heats.length ? `${heats.length} Heats` : undefined} ziel={t('Grand Finals')} an auf={() => auf('heats')} />
-              <Pfeil />{grand}
-            </Bahn>
-          )}
-          {fts.length > 0 && (
-            <Bahn titel={t('Direkt: Fast Tracks')}>
-              <Stufe titel="Fast Tracks" stufen={fts} zahl={spieler(nachKennung(fts))} regel={ftSchwelle ? `Top ${ftSchwelle}` : undefined} ziel={t('Grand Finals')} an auf={() => auf('qualifiziert')} />
-              <Pfeil />{grand}
-            </Bahn>
-          )}
-          {lcq.length > 0 && (
-            <Bahn titel={t('Last Chance')}>
-              <Stufe titel="Last Chance Qualifier" stufen={lcq} zahl={spieler(nachKennung(lcq))} regel={lcqSchwelle ? `Top ${lcqSchwelle}` : undefined} ziel={t('Last Chance Finals')} an auf={() => auf('lastchance')} />
-              <Pfeil />
-              <Stufe titel="Last Chance Finals" stufen={lcqF} zahl={spieler(nachKennung(lcqF))} ziel={t('Grand Finals')} an auf={() => auf('lastchance')} />
-              <Pfeil />{grand}
-            </Bahn>
-          )}
-        </div>
+        <p className="mt-1 max-w-3xl text-sm text-slate-400"><T>Jeder Pfeil ist eine Epic-Marke: die Belohnung einer Runde ist die Zugangsbedingung der nächsten. Die Zahlen stammen aus Epics Bestenlisten und Auszahlungstabellen.</T></p>
+        <div className="mt-5"><WegPlan region={daten.region} /></div>
       </Karte2>
       {finalisten > 0 && <FinalistenKurz daten={daten} auf={() => auf('qualifiziert')} />}
     </div>
