@@ -106,6 +106,7 @@ const NUR_ADMIN: Ziel[] = [
 const ADMIN_ZIELE: Ziel[] = [
   { href: '/maps', titel: 'Karten', text: 'Turnierkarten bauen' },
   { href: '/admin/tweets', titel: 'Beiträge', text: 'Statistik-Posts erstellen' },
+  { href: '/admin/tiktok', titel: 'TikTok', text: 'Das tägliche Video zum Herunterladen' },
   { href: '/admin/predictions', titel: 'Prognosen', text: 'Vorhersagen zeichnen' },
   { href: '/admin/replays', titel: 'Replays', text: 'Turnier-Replays nachsehen' },
   // Das Zonen-Bild zum Posten und je Game Zonen und Kills (29.9.2026: "sag

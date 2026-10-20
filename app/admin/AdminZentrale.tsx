@@ -52,7 +52,7 @@ const GRUPPEN: Array<{
 }> = [
   { id: 'inhalte', titel: 'Inhalte', punkt: 'bg-sky-400', titelFarbe: 'text-sky-300',
     kachel: 'hover:border-sky-500/70 hover:bg-sky-500/[0.06]',
-    hrefs: ['/maps', '/admin/alte-maps', '/admin/tweets', '/admin/predictions', '/admin/archive', '/admin/assets'] },
+    hrefs: ['/maps', '/admin/alte-maps', '/admin/tweets', '/admin/tiktok', '/admin/predictions', '/admin/archive', '/admin/assets'] },
   { id: 'spieler', titel: 'Spieler & Teams', punkt: 'bg-emerald-400', titelFarbe: 'text-emerald-300',
     kachel: 'hover:border-emerald-500/70 hover:bg-emerald-500/[0.06]',
     hrefs: ['/admin/players', '/admin/orgs', '/admin/vips'] },

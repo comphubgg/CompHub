@@ -1,0 +1,64 @@
+# Das tägliche TikTok-Video (Betreiber, 20.10.2026): ein kurzes Hochformat-Video mit den fünf Ersten des Cups, der zuletzt zu Ende ging - englische Stimme, Musik,
+# Untertitel (scripts/tiktok/tagesvideo.py). Das fertige Video geht als Anhang ans Release "tiktok" und steht im Admin-Bereich unter /admin/tiktok zum Herunterladen
+# bereit (dazu der Text zum Kopieren); eine Meldung kommt nach #admin-log. Hochgeladen wird von Hand - TikTok erlaubt Programmen das Hochladen nicht ohne Freigabe.
+# Gibt es an einem Tag keinen beendeten Cup, entsteht kein Video. Kostenlos: GitHub Actions, etwa 6 bis 10 Minuten je Lauf.
+
+name: TikTok-Tagesvideo
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '45 7 * * *'
+
+concurrency:
+  group: tiktok-tag
+  cancel-in-progress: false
+
+jobs:
+  video:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Werkzeuge
+        run: |
+          pip install --quiet edge-tts numpy playwright
+          python -m playwright install --with-deps chromium
+          ffmpeg -version | head -1
+      - name: Video bauen
+        run: python scripts/tiktok/tagesvideo.py --ausgabe tiktok-out
+      - name: Ans Release hängen
+        id: hoch
+        run: |
+          shopt -s nullglob
+          dateien=(tiktok-out/*.mp4 tiktok-out/*.json)
+          if [ ${#dateien[@]} -eq 0 ]; then echo "erzeugt=false" >> "$GITHUB_OUTPUT"; echo "Kein Video heute."; exit 0; fi
+          gh release view tiktok >/dev/null 2>&1 || gh release create tiktok --title "TikTok-Tagesvideos" --notes "Die täglichen Videos (scripts/tiktok). Nicht von Hand ändern." --latest=false
+          gh release upload tiktok "${dateien[@]}" --clobber
+          # Nach 60 Tagen aufräumen - ein Release fasst höchstens 1000 Anhänge.
+          grenze=$(date -u -d '60 days ago' +%Y-%m-%d)
+          gh release view tiktok --json assets --jq '.assets[].name' | while read -r n; do
+            tag=$(echo "$n" | grep -oE '[0-9]{4}-[0-9]{2}-[0-9]{2}' | head -1)
+            if [ -n "$tag" ] && [[ "$tag" < "$grenze" ]]; then gh release delete-asset tiktok "$n" -y || true; fi
+          done
+          echo "erzeugt=true" >> "$GITHUB_OUTPUT"
+      - name: Meldung nach Discord
+        if: steps.hoch.outputs.erzeugt == 'true'
+        run: |
+          printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
+          titel=$(python -c "import json,glob; print(json.load(open(sorted(glob.glob('tiktok-out/*.json'))[-1]))['titel'])")
+          node scripts/discord-update.mjs --ziel admin --art neu --titel "TikTok-Video von heute ist fertig" --text "$titel - zum Herunterladen und Hochladen: https://www.thecomphub.com/admin/tiktok" 2>&1 | tail -1
+          rm -f .env.local
+      - name: Zugangsdaten wieder weg
+        if: always()
+        run: rm -f .env.local

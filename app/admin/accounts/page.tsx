@@ -807,6 +807,24 @@ function VipZugaenge() {
   );
 }
 
+/**
+ * Die Filter der Kontenliste (Betreiber, 20.10.2026): "Filter zwischen Orgs, normalen Usern, von mir generierten Usern, VIP und Pro".
+ * Ein Konto kann in mehreren stehen (ein Pro mit VIP zaehlt bei beiden); "Normal" ist, wer keine Besonderheit hat.
+ */
+type FilterArt = 'alle' | 'normal' | 'vip' | 'pro' | 'manager' | 'admin' | 'org' | 'erzeugt' | 'gesperrt';
+const FILTER: Array<{ wert: FilterArt; titel: string; was: string; passt: (k: Konto) => boolean }> = [
+  { wert: 'alle', titel: 'Alle', was: 'Jedes Konto und jeder Zugang.', passt: () => true },
+  { wert: 'normal', titel: 'Normale Nutzer', was: 'Selbst registriert, ohne VIP, Rolle oder Organisation.',
+    passt: (k) => k.art !== 'schluessel' && !k.vip && !k.rolle && !k.org },
+  { wert: 'vip', titel: 'VIP', was: 'Mit laufendem VIP (Streamer und Creator).', passt: (k) => k.vip },
+  { wert: 'pro', titel: 'Pro', was: 'Profis - sie teilen ihr POV und tragen sich auf den Karten ein.', passt: (k) => k.rolle === 'pro' },
+  { wert: 'manager', titel: 'Manager', was: 'Dürfen die Bereiche, die du angehakt hast.', passt: (k) => k.rolle === 'manager' },
+  { wert: 'admin', titel: 'Admin', was: 'Dürfen alles.', passt: (k) => k.rolle === 'admin' },
+  { wert: 'org', titel: 'Orgs', was: 'Konten, die eine Organisation verwalten (Kader, Farbe).', passt: (k) => Boolean(k.org) },
+  { wert: 'erzeugt', titel: 'Von mir erzeugt', was: 'Zugänge mit Schlüssel, die du selbst angelegt hast (ohne Registrierung).', passt: (k) => k.art === 'schluessel' },
+  { wert: 'gesperrt', titel: 'Gesperrt', was: 'Gesperrte Konten und stillgelegte Zugänge.', passt: (k) => Boolean(k.gesperrt) },
+];
+
 export default function KontenSeite() {
   const t = useT();
   const [konten, setKonten] = useState<Konto[]>([]);
@@ -816,6 +834,21 @@ export default function KontenSeite() {
   const [nichtErreichbar, setNichtErreichbar] = useState(false);
   const [suche, setSuche] = useState('');
   const [stand, setStand] = useState('');
+  const [filter, setFilter] = useState<FilterArt>('alle');
+  // Ein Link wie /admin/accounts?filter=org oeffnet gleich die richtige Liste.
+  useEffect(() => {
+    const w = new URLSearchParams(window.location.search).get('filter');
+    const treffer = FILTER.find((x) => x.wert === w);
+    if (treffer) setFilter(treffer.wert);
+  }, []);
+  const waehleFilter = (w: FilterArt) => {
+    setFilter(w);
+    try {
+      const u = new URL(window.location.href);
+      if (w === 'alle') u.searchParams.delete('filter'); else u.searchParams.set('filter', w);
+      window.history.replaceState(null, '', u.toString());
+    } catch { /* ohne Adresszeile bleibt es beim Zustand */ }
+  };
 
   const holen = useCallback(async () => {
     try {
@@ -1020,13 +1053,17 @@ ${k.name}`)) return;
     } catch (e) { setStand((e as Error).message); }
   }
 
+  const zahlen = useMemo(() => Object.fromEntries(
+    FILTER.map((x) => [x.wert, konten.filter(x.passt).length])) as Record<FilterArt, number>, [konten]);
   const gefiltert = useMemo(() => {
     const q = suche.trim().toLowerCase();
-    if (!q) return konten;
+    const art = FILTER.find((x) => x.wert === filter) ?? FILTER[0];
+    const liste = konten.filter(art.passt);
+    if (!q) return liste;
     // Auch nach der Id suchen: der Nutzer nennt sie, wenn er etwas beantragt.
-    return konten.filter((k) => k.name.toLowerCase().includes(q)
+    return liste.filter((k) => k.name.toLowerCase().includes(q)
       || k.id.toLowerCase().includes(q));
-  }, [konten, suche]);
+  }, [konten, suche, filter]);
 
   // Aufgeklappte Konten (Betreiber, 19.10.2026: "weniger scrollen, einfacher zuteilen"): zu sehen sind nur Name und Marken, der Rest klappt auf Klick auf.
   const [offeneKarten, setOffeneKarten] = useState<Set<string>>(() => new Set());
@@ -1071,6 +1108,18 @@ ${k.name}`)) return;
 
         <VipZugaenge />
 
+        <div className="mb-2 flex flex-wrap gap-1.5" role="tablist" aria-label={t('Konten filtern')}>
+          {FILTER.map((x) => (
+            <button key={x.wert} type="button" role="tab" aria-selected={filter === x.wert} onClick={() => waehleFilter(x.wert)}
+              className={`rounded-full border px-3 py-1.5 text-xs font-semibold transition ${filter === x.wert
+                ? 'border-sky-500 bg-sky-500/15 text-sky-400'
+                : 'border-zinc-800 bg-zinc-900 text-slate-400 hover:border-sky-500/60 hover:text-slate-200'}`}>
+              <T>{x.titel}</T>
+              <span className={`ml-1.5 tabular-nums ${filter === x.wert ? 'text-sky-300' : 'text-slate-600'}`}>{zahlen[x.wert]}</span>
+            </button>
+          ))}
+        </div>
+        <p className="mb-3 text-[11px] text-slate-500"><T>{(FILTER.find((x) => x.wert === filter) ?? FILTER[0]).was}</T></p>
         <input value={suche} onChange={(e) => setSuche(e.target.value)}
           placeholder={t('Nach Name oder Konto-Id suchen …')}
           className={`${feld} mb-4`} />
@@ -1084,7 +1133,7 @@ ${k.name}`)) return;
         {!gefiltert.length && !nichtErreichbar && (
           <p className="py-10 text-center text-xs text-slate-600">
             {konten.length
-              ? <T>Kein Konto passt zur Suche.</T>
+              ? (filter === 'alle' ? <T>Kein Konto passt zur Suche.</T> : <T>In dieser Gruppe ist niemand (oder niemand passt zur Suche).</T>)
               : <T>Noch hat sich niemand registriert.</T>}
           </p>
         )}
@@ -1113,6 +1162,11 @@ ${k.name}`)) return;
                                    font-semibold uppercase tracking-wider
                                    text-sky-400">
                     {k.rolle}
+                  </span>
+                )}
+                {k.org && (
+                  <span className="rounded-full border border-emerald-500/50 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wider text-emerald-400">
+                    Org · {k.org}
                   </span>
                 )}
                 {k.vip && (

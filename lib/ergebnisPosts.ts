@@ -19,21 +19,21 @@ const SEITE = 'https://www.thecomphub.com';
 const VERLAUF = 'posts-verlauf.json';
 const EU = 'EU';
 
-interface KatalogFenster { windowId: string; eventId: string; status?: string; end?: number; istFinale?: boolean }
-interface KatalogCup { id: string; titel: string; art: string; global?: boolean; regionen?: Record<string, KatalogFenster[]> }
+export interface KatalogFenster { windowId: string; eventId: string; status?: string; end?: number; istFinale?: boolean }
+export interface KatalogCup { id: string; titel: string; art: string; global?: boolean; regionen?: Record<string, KatalogFenster[]> }
 interface Eintrag { rank: number; points: number; wins?: number; elims?: number; players?: Array<{ id?: string; name: string }> }
 
-interface Profil { x?: string; land?: string; anzeige?: string; name?: string }
+export interface Profil { x?: string; land?: string; anzeige?: string; name?: string }
 
 /** Das Fenster ist ein Finale, oder - bei Event/Runde - die hoechste Runde des Abends. */
-function finale(cup: KatalogCup, f: KatalogFenster, fenster: KatalogFenster[]): boolean {
+export function finale(cup: KatalogCup, f: KatalogFenster, fenster: KatalogFenster[]): boolean {
   const m = /Event(\d+)Round(\d+)/i.exec(f.windowId);
   const hoechste = (e: string) => Math.max(0, ...fenster.map((x) => { const n = /Event(\d+)Round(\d+)/i.exec(x.windowId); return n && n[1] === e ? +n[2] : 0; }));
   return !!cup.global || !!f.istFinale || /final/i.test(f.windowId) || (!!m && +m[2] === hoechste(m[1]) && +m[2] > 1);
 }
 
 /** Wie der Spieltag heisst: Heat, Fast Track, LCQ, Event/Runde. */
-function fensterName(windowId: string, istFinale: boolean): string {
+export function fensterName(windowId: string, istFinale: boolean): string {
   let m = /Heat(\d+)/i.exec(windowId); if (m) return `Heat ${m[1]}`;
   if (/FastTrack/i.test(windowId)) return 'Fast Track';
   if (/LastChance|LCQ/i.test(windowId)) return 'Last Chance Qualifier';
@@ -49,7 +49,7 @@ const flagge = (land?: string | null) => (land && /^[A-Za-z]{2}$/.test(land)
 
 const PLATZ = ['🥇', '🥈', '🥉', '4️⃣', '5️⃣', '6️⃣', '7️⃣', '8️⃣', '9️⃣', '🔟'];
 
-async function profilKarte(): Promise<{ profile: Map<string, Profil>; szene: Map<string, { name: string; land: string }> }> {
+export async function profilKarte(): Promise<{ profile: Map<string, Profil>; szene: Map<string, { name: string; land: string }> }> {
   const profile = new Map<string, Profil>();
   try {
     const roh = await liesJson<Record<string, Profil & { id?: string; epicId?: string }> | Array<Profil & { id?: string; epicId?: string }>>('spieler-profile.json', {});
