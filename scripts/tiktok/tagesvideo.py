@@ -41,13 +41,14 @@ def dauer(ff, pfad):
 def daten_holen(base, datei):
     if datei:
         return json.loads(Path(datei).read_text(encoding="utf-8"))
-    for versuch in range(4):
+    # Die Ablage kann gedrosselt sein (GitHub-Limit je Stunde): bis zu zehn Versuche im Abstand von drei Minuten.
+    for versuch in range(10):
         try:
             with urllib.request.urlopen(urllib.request.Request(base + "/api/tiktok-daten", headers={"User-Agent": "comphub-tiktok"}), timeout=150) as r:
                 return json.loads(r.read().decode("utf-8"))
         except Exception as e:  # noqa: BLE001
             print("Daten: Versuch", versuch + 1, "fehlgeschlagen:", str(e)[:100], flush=True)
-            time.sleep(8)
+            time.sleep(180)
     raise SystemExit("Die Daten waren nicht zu holen.")
 
 

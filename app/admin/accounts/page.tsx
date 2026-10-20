@@ -825,6 +825,60 @@ const FILTER: Array<{ wert: FilterArt; titel: string; was: string; passt: (k: Ko
   { wert: 'gesperrt', titel: 'Gesperrt', was: 'Gesperrte Konten und stillgelegte Zugänge.', passt: (k) => Boolean(k.gesperrt) },
 ];
 
+/**
+ * Das Org-Feld der Kontenliste (Betreiber, 20.10.2026: "ein Admin-Org-Panel"): welche Organisation hat welches Konto, wer pflegt sie, wie viele Spieler stehen im Kader.
+ * Organisationen ohne Konto stehen darunter - dort fehlt nur noch die Zuordnung (im Konto der Person, Feld "Esports-Team"). Ein Klick auf den Namen oeffnet die Team-Seite
+ * dieser Org (/org?org=...), auf der der Admin selbst alles aendern darf.
+ */
+interface OrgZeile { id: string; name: string; logo: string | null; farbe?: string | null; spieler: unknown[] }
+function OrgUebersicht({ konten }: { konten: Konto[] }) {
+  const t = useT();
+  const [orgs, setOrgs] = useState<OrgZeile[] | null>(null);
+  const [alle, setAlle] = useState(false);
+  useEffect(() => {
+    let weg = false;
+    void fetch('/api/orgs', { cache: 'no-store' }).then((r) => r.json())
+      .then((j) => { if (!weg) setOrgs(Array.isArray(j?.orgs) ? j.orgs : []); })
+      .catch(() => { if (!weg) setOrgs([]); });
+    return () => { weg = true; };
+  }, []);
+  if (!orgs) return null;
+  const mitKonto = orgs.filter((o) => konten.some((k) => k.org === o.id));
+  const ohne = orgs.filter((o) => !konten.some((k) => k.org === o.id));
+  const zeile = (o: OrgZeile, verwalter: Konto[]) => (
+    <div key={o.id} className="flex flex-wrap items-center gap-3 border-t border-zinc-800 px-4 py-2.5 first:border-t-0">
+      <span className="grid h-9 w-9 place-items-center overflow-hidden rounded-lg bg-zinc-950" style={o.farbe ? { boxShadow: `inset 0 0 0 2px ${o.farbe}` } : undefined}>
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        {o.logo ? <img src={o.logo} alt="" className="h-full w-full object-contain p-0.5" /> : <span className="text-xs font-bold text-slate-600">{o.name.slice(0, 1)}</span>}
+      </span>
+      <a href={`/org?org=${encodeURIComponent(o.id)}`} className="text-sm font-semibold text-slate-100 transition hover:text-sky-400">{o.name}</a>
+      <span className="text-[11px] text-slate-500">{o.spieler.length} <T>Spieler</T></span>
+      <span className="ml-auto text-xs text-slate-400">
+        {verwalter.length ? verwalter.map((k) => k.name).join(', ') : <span className="text-slate-600"><T>kein Konto zugeordnet</T></span>}
+      </span>
+    </div>
+  );
+  return (
+    <section className="mb-5 overflow-hidden rounded-2xl border border-emerald-500/30 bg-zinc-900">
+      <header className="flex flex-wrap items-center gap-3 px-4 py-3">
+        <h2 className="text-sm font-extrabold uppercase tracking-[0.16em] text-emerald-300"><T>Organisationen</T></h2>
+        <span className="text-[11px] text-slate-500">{mitKonto.length} <T>mit Konto</T> · {ohne.length} <T>ohne Konto</T></span>
+        <a href="/admin/orgs" className="ml-auto text-xs font-semibold text-sky-400 transition hover:text-sky-300"><T>Organisationen anlegen und pflegen</T> →</a>
+      </header>
+      {mitKonto.length === 0 && <p className="border-t border-zinc-800 px-4 py-4 text-xs text-slate-500"><T>Noch keine Organisation hat ein Konto. Öffne das Konto der Person und wähle im Feld „Esports-Team“ die Organisation.</T></p>}
+      {mitKonto.map((o) => zeile(o, konten.filter((k) => k.org === o.id)))}
+      {ohne.length > 0 && (
+        <div className="border-t border-zinc-800">
+          <button type="button" onClick={() => setAlle((a) => !a)} className="w-full px-4 py-2.5 text-left text-xs font-semibold text-slate-400 transition hover:text-slate-200" aria-expanded={alle}>
+            {alle ? '▾' : '▸'} {t('Organisationen ohne Konto')} ({ohne.length})
+          </button>
+          {alle && ohne.map((o) => zeile(o, []))}
+        </div>
+      )}
+    </section>
+  );
+}
+
 export default function KontenSeite() {
   const t = useT();
   const [konten, setKonten] = useState<Konto[]>([]);
@@ -1120,6 +1174,7 @@ ${k.name}`)) return;
           ))}
         </div>
         <p className="mb-3 text-[11px] text-slate-500"><T>{(FILTER.find((x) => x.wert === filter) ?? FILTER[0]).was}</T></p>
+        {filter === 'org' && <OrgUebersicht konten={konten} />}
         <input value={suche} onChange={(e) => setSuche(e.target.value)}
           placeholder={t('Nach Name oder Konto-Id suchen …')}
           className={`${feld} mb-4`} />

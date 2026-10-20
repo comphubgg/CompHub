@@ -57,7 +57,9 @@ interface Roster { teams?: Array<{ rank: number; points: number; spieler: Array<
 export async function tiktokDaten(): Promise<TiktokDaten> {
   const jetzt = Date.now();
   let katalog: { cups?: KatalogCup[] } = {};
-  try { katalog = await (await katalogAbruf(new Request(`${SEITE}/api/cup-catalog?modus=standard`))).json(); } catch { return { keinCup: true, grund: 'Katalog nicht erreichbar' }; }
+  try { katalog = await (await katalogAbruf(new Request(`${SEITE}/api/cup-catalog?modus=standard`))).json(); } catch { throw new Error('Katalog nicht erreichbar'); }
+  // Antwortet die Ablage nicht (zum Beispiel gedrosselt), kommt kein Katalog - das ist kein 'heute kein Cup', sondern ein Ausfall: der Aufrufer versucht es spaeter noch einmal.
+  if (!Array.isArray(katalog.cups)) throw new Error('Katalog nicht erreichbar');
 
   const kandidaten: Array<{ cup: KatalogCup; region: string; f: KatalogFenster; istFinale: boolean }> = [];
   for (const cup of katalog.cups ?? []) {
