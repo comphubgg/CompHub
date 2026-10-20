@@ -301,58 +301,88 @@
   #banner.trio.l-reihe .spalte .v { font-size: calc(38px * var(--skala)); }
 
   /*
-   * Die Leiste: ein Spieler, schraeg geschnitten (form=leiste).
+   * Die Leiste: ein Spieler (form=leiste).
    *
-   * Der Betreiber (19.10.2026) nach einem Vorbild: links das Foto, daneben ein schraeger Balken mit dem Namen in kursiver Schrift auf einer helleren
-   * Platte, darunter ein dunkler Streifen mit TOP, PTS und GAMES - die Beschriftung in der Akzentfarbe, der Balken endet in einer Spitze mit Rand
-   * in derselben Farbe. Gebraucht wird sie fuer einen einzigen Spieler (1v1, Solo, ein Profi aus dem Team). Die Deckkraft (klar) gilt fuer beide Flaechen,
-   * der Akzent laesst sich ueber "akzent=" in jede Farbe stellen. Alle Masse haengen an --skala wie bei der Karte; die Hoehe 86 ist der Entwurf.
+   * Der Betreiber (20.10.2026) nach seinem Vorbild (Banner "RAX"): links das Foto auf einem Verlauf in der Akzentfarbe, daneben ein dunkler Balken mit Spitze.
+   * Oben die Namensplatte - von fast Schwarz zu leuchtender Akzentfarbe, mit heller Kante unten und Glanz oben -, der Name in kursiver Chromschrift; unten der
+   * dunkle Streifen mit TOP, PTS und GAMES: Beschriftung in der Akzentfarbe, Zahlen ebenfalls Chrom mit Schatten. Nicht zwei glatte Flaechen, sondern Verlauf,
+   * Glanz, Kante und Leuchten. Gebraucht wird sie fuer einen einzigen Spieler (1v1, Solo, ein Profi aus dem Team). Die Deckkraft (klar) gilt fuer die
+   * Flaechen, die Akzentfarbe laesst sich ueber "akzent=" in jede Farbe stellen. Alle Masse haengen an --skala wie bei der Karte; die Hoehe 86 ist der Entwurf.
    */
-  #leiste { display: none; }
+  #leiste { display: none; --spitze: calc(var(--hoehe) * 0.44); --kopf: 46%; --a: calc(var(--klar) * 100%); }
   body.leiste #banner { display: none !important; }
   body.leiste #leiste {
     display: inline-flex; align-items: stretch; height: var(--hoehe);
-    filter: drop-shadow(0 calc(3px * var(--skala)) calc(7px * var(--skala)) rgba(0, 0, 0, .45));
+    filter: drop-shadow(0 0 calc(7px * var(--skala)) color-mix(in srgb, var(--akzent) 42%, transparent)) drop-shadow(0 calc(4px * var(--skala)) calc(8px * var(--skala)) rgba(0, 0, 0, .55));
     opacity: 0; transform: translateY(6px);
     transition: opacity .35s ease, transform .35s ease;
   }
   body.leiste #leiste.da { opacity: 1; transform: none; }
+  /* Das Foto: ein Verlauf von fast Schwarz zur Akzentfarbe, davor der Spieler. Steht er vor weissem Grund (Studiofoto), wird er freigestellt (Maske per Skript). */
   .l-foto {
-    position: relative; flex: 0 0 auto; width: calc(var(--hoehe) * 0.94);
-    background: var(--grund2); overflow: hidden;
-    clip-path: polygon(0 0, 100% 0, calc(100% - 12px * var(--skala)) 100%, 0 100%);
+    position: relative; flex: 0 0 auto; width: calc(var(--hoehe) * 0.94); z-index: 1; overflow: hidden;
+    background: linear-gradient(180deg, #060606 0%, color-mix(in srgb, var(--akzent) 38%, #000) 60%, var(--akzent) 118%);
   }
   .l-foto img { position: absolute; left: 0; top: 0; width: 100%; height: 100%; object-fit: cover; object-position: center 18%; display: block; }
+  .l-foto::after {
+    content: ''; position: absolute; inset: 0; pointer-events: none;
+    box-shadow: inset calc(-9px * var(--skala)) 0 calc(10px * var(--skala)) rgba(0, 0, 0, .6), inset 0 calc(-3px * var(--skala)) 0 var(--akzent);
+  }
   .l-foto.leer { display: none; }
-  /* Der Balken: aussen die Akzentfarbe als Rand, innen die beiden Flaechen. */
+  /* Der Balken: aussen die Akzentfarbe als leuchtender Rand, innen Namensplatte und Zahlenstreifen. */
   .l-block {
-    display: flex; margin-left: calc(-10px * var(--skala));
-    padding: calc(2.5px * var(--skala));
-    background: linear-gradient(90deg, color-mix(in srgb, var(--akzent) 70%, #000), var(--akzent));
-    clip-path: polygon(calc(13px * var(--skala)) 0, calc(100% - 28px * var(--skala)) 0, 100% 50%, calc(100% - 28px * var(--skala)) 100%, 0 100%);
+    display: flex; margin-left: 0; padding: calc(2px * var(--skala));
+    background: linear-gradient(90deg, color-mix(in srgb, var(--akzent) 55%, #000), var(--akzent) 55%, color-mix(in srgb, var(--akzent) 65%, #fff));
+    clip-path: polygon(0 0, calc(100% - var(--spitze)) 0, 100% 50%, calc(100% - var(--spitze)) 100%, 0 100%);
   }
   .l-innen {
-    display: flex; flex-direction: column; flex: 1 1 auto;
+    position: relative; display: flex; flex-direction: column; flex: 1 1 auto;
     min-width: calc(var(--hoehe) * 2.5); max-width: calc(var(--hoehe) * 5.4);
-    clip-path: polygon(calc(11px * var(--skala)) 0, calc(100% - 27px * var(--skala)) 0, calc(100% - 1px) 50%, calc(100% - 27px * var(--skala)) 100%, 0 100%);
+    clip-path: polygon(0 0, calc(100% - var(--spitze) + 1.5px * var(--skala)) 0, calc(100% - 1px) 50%, calc(100% - var(--spitze) + 1.5px * var(--skala)) 100%, 0 100%);
+    background:
+      linear-gradient(180deg,
+        color-mix(in srgb, #050505 var(--a), transparent) 0%,
+        color-mix(in srgb, color-mix(in srgb, var(--akzent) 20%, #050505) var(--a), transparent) 42%,
+        color-mix(in srgb, color-mix(in srgb, var(--akzent) 82%, #000) var(--a), transparent) 86%,
+        color-mix(in srgb, var(--akzent) var(--a), transparent) 100%) top / 100% var(--kopf) no-repeat,
+      linear-gradient(180deg, color-mix(in srgb, #181818 var(--a), transparent), color-mix(in srgb, #050505 var(--a), transparent));
+  }
+  /* Der Glanz oben auf der Namensplatte und die helle Kante zwischen Platte und Streifen. */
+  .l-innen::before {
+    content: ''; position: absolute; left: 0; right: 0; top: 0; height: var(--kopf); pointer-events: none; z-index: 2;
+    background: radial-gradient(ellipse at 32% 0%, rgba(255, 255, 255, .13), rgba(255, 255, 255, 0) 58%), linear-gradient(180deg, rgba(255, 255, 255, .07), rgba(255, 255, 255, 0) 50%);
+  }
+  .l-innen::after {
+    content: ''; position: absolute; left: 0; right: 0; top: calc(var(--kopf) - 2px * var(--skala)); height: calc(2px * var(--skala)); pointer-events: none; z-index: 2;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0), color-mix(in srgb, var(--akzent) 35%, #fff) 14%, #fff 50%, color-mix(in srgb, var(--akzent) 35%, #fff) 86%, rgba(255, 255, 255, 0));
   }
   .l-name {
-    flex: 0 0 46%; display: flex; align-items: center; justify-content: center;
-    padding: 0 calc(40px * var(--skala)) 0 calc(28px * var(--skala));
-    background: color-mix(in srgb, color-mix(in srgb, var(--schrift) 32%, var(--grund)) calc(var(--klar) * 100%), transparent);
-    color: var(--schrift); font-style: italic; font-weight: 800; letter-spacing: .05em;
-    font-size: calc(30px * var(--skala)); text-transform: uppercase;
+    position: relative; z-index: 1; flex: 0 0 var(--kopf); display: flex; align-items: center; justify-content: center;
+    padding: 0 calc(var(--spitze) * 0.9) 0 calc(20px * var(--skala));
+    font-style: italic; font-weight: 900; letter-spacing: .03em; font-size: calc(34px * var(--skala)); text-transform: uppercase;
     white-space: nowrap; overflow: hidden;
+    color: transparent; -webkit-text-fill-color: transparent;
+    background-image: linear-gradient(180deg, #ffffff 0%, #ececec 34%, #8a8a8a 50%, #d6d6d6 66%, #ffffff 100%);
+    -webkit-background-clip: text; background-clip: text;
+    filter: drop-shadow(0 calc(2px * var(--skala)) 0 rgba(0, 0, 0, .65)) drop-shadow(0 0 calc(6px * var(--skala)) rgba(0, 0, 0, .45));
   }
   .l-werte, .l-hinweis {
-    flex: 1 1 auto; display: flex; align-items: center; justify-content: center;
-    gap: calc(22px * var(--skala)); padding: 0 calc(40px * var(--skala)) 0 calc(24px * var(--skala));
-    background: color-mix(in srgb, var(--grund) calc(var(--klar) * 100%), transparent);
+    position: relative; z-index: 1; flex: 1 1 auto; display: flex; align-items: center; justify-content: space-evenly;
+    gap: calc(14px * var(--skala)); padding: 0 calc(var(--spitze) * 0.8) 0 calc(18px * var(--skala));
   }
-  .l-hinweis { display: none; font-size: calc(13px * var(--skala)); color: var(--leise); }
-  .l-werte .w { display: flex; align-items: baseline; gap: calc(7px * var(--skala)); }
-  .l-werte .l { font-size: calc(12px * var(--skala)); font-weight: 800; letter-spacing: .1em; color: var(--akzent); text-transform: uppercase; }
-  .l-werte .v { font-size: calc(27px * var(--skala)); font-weight: 800; color: var(--schrift); font-variant-numeric: tabular-nums; line-height: 1; }
+  .l-hinweis { display: none; font-size: calc(13px * var(--skala)); color: #cbd5e1; font-style: italic; }
+  .l-werte .w { display: flex; align-items: baseline; gap: calc(8px * var(--skala)); }
+  .l-werte .l {
+    font-size: calc(13px * var(--skala)); font-weight: 900; font-style: italic; letter-spacing: .06em; color: var(--akzent); text-transform: uppercase;
+    text-shadow: 0 0 calc(8px * var(--skala)) color-mix(in srgb, var(--akzent) 70%, transparent);
+  }
+  .l-werte .v {
+    font-size: calc(30px * var(--skala)); font-weight: 900; font-style: italic; font-variant-numeric: tabular-nums; line-height: 1;
+    color: transparent; -webkit-text-fill-color: transparent;
+    background-image: linear-gradient(180deg, #ffffff 0%, #e4e4e4 38%, #8c8c8c 52%, #cdcdcd 70%, #f4f4f4 100%);
+    -webkit-background-clip: text; background-clip: text;
+    filter: drop-shadow(0 calc(2px * var(--skala)) 0 rgba(0, 0, 0, .65));
+  }
   /*
    * "Team stats": ein einzelner Spieler aus einem Duo- oder Trio-Cup zeigt die Werte seines Teams (team=1). Der Betreiber (19.10.2026): so muss man
    * es dazuschreiben. Bei der Karte eine kleine Zeile unter dem Namen, bei der Leiste ein Zettel vor den Zahlen.
@@ -360,7 +390,7 @@
   #teamlabel { display: none; font-size: calc(10px * var(--skala)); font-weight: 800; letter-spacing: .18em; color: var(--akzent); text-transform: uppercase; }
   body.team #teamlabel { display: block; }
   #banner.leerlauf #teamlabel { display: none; }
-  .l-werte .tl { font-size: calc(9px * var(--skala)); font-weight: 800; letter-spacing: .12em; line-height: 1.15; color: var(--leise); text-transform: uppercase; text-align: left; }
+  .l-werte .tl { font-size: calc(9px * var(--skala)); font-weight: 800; letter-spacing: .12em; line-height: 1.15; color: #aab4c4; text-transform: uppercase; text-align: left; }
   #leiste.leerlauf .l-werte { display: none; }
   #leiste.leerlauf .l-hinweis { display: flex; }
 </style>
@@ -948,6 +978,66 @@ function leisteHinweis(name, text) {
   leisteEinpassen();
 }
 
+/**
+ * Steht das Foto vor weissem Grund (Studiofoto)? Dann wird der Spieler freigestellt: vom Bildrand aus wird alles Weisse, das zusammenhaengt, durchsichtig
+ * gemacht (als Maske am Foto, das Bild selbst bleibt) und der Spieler steht auf dem Verlauf der Akzentfarbe - wie beim Vorbild des Betreibers. Fotos mit
+ * dunklem Hintergrund bleiben, wie sie sind. Liegt das Bild auf einem fremden Server ohne Freigabe, laesst es sich nicht auslesen - dann bleibt es unveraendert.
+ */
+function fotoWeiss(img) {
+  const k = img.parentElement;
+  const aus = () => { k.classList.remove('weiss'); img.style.webkitMaskImage = ''; img.style.maskImage = ''; };
+  try {
+    const nw = img.naturalWidth; const nh = img.naturalHeight;
+    if (!nw || !nh) return aus();
+    const w = Math.min(nw, 320); const h = Math.max(1, Math.round(nh * w / nw));
+    const c = document.createElement('canvas'); c.width = w; c.height = h;
+    const x = c.getContext('2d', { willReadFrequently: true });
+    x.drawImage(img, 0, 0, w, h);
+    const bild = x.getImageData(0, 0, w, h);
+    const d = bild.data;
+    const weiss = (p) => (255 - d[p]) + (255 - d[p + 1]) + (255 - d[p + 2]) < 48;
+    // Nur wenn die Ecken oben weiss sind, ist es ein Studiofoto.
+    const ecken = [0, w - 1, (h >> 1) * w, (h >> 1) * w + w - 1].filter((i) => weiss(i * 4)).length;
+    if (ecken < 3) return aus();
+    const weg = new Uint8Array(w * h);
+    const stapel = [];
+    const rein = (i) => { if (!weg[i] && weiss(i * 4)) { weg[i] = 1; stapel.push(i); } };
+    for (let i = 0; i < w; i++) { rein(i); rein((h - 1) * w + i); }
+    for (let j = 0; j < h; j++) { rein(j * w); rein(j * w + w - 1); }
+    while (stapel.length) {
+      const i = stapel.pop(); const px = i % w;
+      if (px > 0) rein(i - 1);
+      if (px < w - 1) rein(i + 1);
+      if (i >= w) rein(i - w);
+      if (i < w * (h - 1)) rein(i + w);
+    }
+    let entfernt = 0; for (let i = 0; i < weg.length; i++) entfernt += weg[i];
+    // Frisst das Freistellen fast das ganze Bild (weisse Kleidung, weisser Rahmen), lieber gar nicht.
+    if (entfernt < w * h * 0.04 || entfernt > w * h * 0.8) return aus();
+    // Rand weich: Pixel neben der entfernten Flaeche werden je nach Helligkeit teiltransparent.
+    const m = c.getContext('2d').createImageData(w, h);
+    for (let j = 0; j < h; j++) {
+      for (let i = 0; i < w; i++) {
+        const n = j * w + i; const p = n * 4;
+        let a = 255;
+        if (weg[n]) a = 0;
+        else if ((i > 0 && weg[n - 1]) || (i < w - 1 && weg[n + 1]) || (j > 0 && weg[n - w]) || (j < h - 1 && weg[n + w])) {
+          const hell = (d[p] + d[p + 1] + d[p + 2]) / 3;
+          a = Math.max(0, Math.min(255, Math.round((205 - hell) * 4.25)));
+        }
+        m.data[p + 3] = a;
+      }
+    }
+    const z = document.createElement('canvas'); z.width = w; z.height = h;
+    z.getContext('2d').putImageData(m, 0, 0);
+    const url = 'url(' + z.toDataURL('image/png') + ')';
+    img.style.webkitMaskImage = url; img.style.maskImage = url;
+    img.style.webkitMaskSize = '100% 100%'; img.style.maskSize = '100% 100%';
+    img.style.webkitMaskRepeat = 'no-repeat'; img.style.maskRepeat = 'no-repeat';
+    k.classList.add('weiss');
+  } catch { aus(); }
+}
+
 /** Die Leiste zeichnen: Name, Foto (Gesicht mittig) und die Zahlen des Spielers. */
 async function zeichneLeiste(e, spieler, gesetzt, gewaehltesFoto) {
   const l = document.getElementById('leiste');
@@ -967,8 +1057,8 @@ async function zeichneLeiste(e, spieler, gesetzt, gewaehltesFoto) {
   const voll = bild ? (bild.startsWith('http') ? bild : SERVER + bild) : '';
   if (voll) {
     foto.classList.remove('leer');
-    if (img.getAttribute('src') !== voll) { img.removeAttribute('style'); img.onload = () => zuschneiden(img); img.src = voll; }
-    else if (img.complete) zuschneiden(img);
+    if (img.getAttribute('src') !== voll) { img.removeAttribute('style'); img.onload = () => { zuschneiden(img); fotoWeiss(img); }; img.src = voll; }
+    else if (img.complete) { zuschneiden(img); fotoWeiss(img); }
   } else foto.classList.add('leer');
   leisteEinpassen();
   l.classList.add('da');
