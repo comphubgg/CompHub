@@ -39,6 +39,7 @@ import { useSprache, useT } from '@/app/components/SprachProvider';
 import { useZugang } from '@/app/lib/zugang';
 import { sichtbarerTakt } from '@/app/lib/takt';
 import Vergleich from './Vergleich';
+import RueckblickBild from './RueckblickBild';
 /**
  * In welcher Reihenfolge die Regionen stehen.
  *
@@ -3770,6 +3771,49 @@ export default function StatistikSeite() {
   const rangZusatz = (rang?.alleSaisons && profilSaison !== 'alle')
     ? ` · ${t('alle Saisons')}` : '';
 
+  /**
+   * Die sechs Kennzahlen im Kopf des Profils - das Bild "Rückblick als Bild" (RueckblickBild) zeigt dieselben.
+   * Die Unterzeilen werden hier zusammengesetzt und müssen deshalb selbst übersetzt werden: ein fertiger Satz geht an <T> vorbei.
+   */
+  const kennzahlen: Array<[string, string, string]> = !offen ? [] : [
+                  /*
+                   * Die Unterzeilen werden hier zusammengesetzt und muessen
+                   * deshalb selbst uebersetzt werden - ein fertiger Satz
+                   * geht an <T> vorbei. Genau daran lag es, dass hier noch
+                   * "besser als 89 %", "von 1.705 in EU" und "2 Titel"
+                   * standen, obwohl oben Englisch eingestellt war.
+                   */
+                  ['Schadensquote', zahl(offen.quote, 2, sprache),
+                    perzentile
+                      ? t('besser als {n} %').replace('{n}', String(perzentile.quote))
+                      : t('ausgeteilt zu erlitten')],
+                  ['Regionaler Rang', rang?.regional ? `#${rang.regional}` : '—',
+                    rang?.regional
+                      ? t('von {n} in {region}')
+                        .replace('{n}', zahl(rang.regionalVon, 0, sprache))
+                        .replace('{region}', rang.region) + rangZusatz
+                      : ''],
+                  ['Globaler Rang', rang ? `#${rang.global}` : '—',
+                    rang
+                      ? t('von {n} Spielern').replace('{n}', zahl(rang.globalVon, 0, sprache))
+                        + rangZusatz
+                      : ''],
+                  ['Eliminierungen', zahl(offen.elims, 0, sprache),
+                    `${zahl(offen.elimsProMatch, 2, sprache)} ${t('je Match')}`],
+                  ['Schaden', zahl(offen.damage, 0, sprache),
+                    `${zahl(offen.damageProMatch, 0, sprache)} ${t('je Match')}`],
+                  /* Titel: FNCS-Siege aus der offenen Spielerliste plus LAN-Siege
+                     (Summit, Reload Elite Championship) - der Betreiber: "Vico hat
+                     andere Cups gewonnen, die Summit LAN zum Beispiel, das soll da
+                     drin sein." */
+                  ['Titel',
+                    String((fncs?.titel ?? 0) + lanErgebnisse.filter((l) => l.platz === 1).length),
+                    [fncs && fncs.titel > 0 ? `${fncs.titel} FNCS` : '',
+                      lanErgebnisse.filter((l) => l.platz === 1).length
+                        ? `${lanErgebnisse.filter((l) => l.platz === 1).length} LAN` : '']
+                      .filter(Boolean).join(' · ')],
+                ];
+
   /** Die laufende Bestenliste in der Leiste. */
   const seitenliste = useMemo(() => listen.find((l) => l.feld === 'elims'), [listen]);
 
@@ -5751,44 +5795,7 @@ export default function StatistikSeite() {
                   sich nachrechnen laesst. Die beiden Raenge sind abgezaehlt -
                   aus derselben Liste, die die Seite ohnehin fuehrt. */}
               <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
-                {([
-                  /*
-                   * Die Unterzeilen werden hier zusammengesetzt und muessen
-                   * deshalb selbst uebersetzt werden - ein fertiger Satz
-                   * geht an <T> vorbei. Genau daran lag es, dass hier noch
-                   * "besser als 89 %", "von 1.705 in EU" und "2 Titel"
-                   * standen, obwohl oben Englisch eingestellt war.
-                   */
-                  ['Schadensquote', zahl(offen.quote, 2, sprache),
-                    perzentile
-                      ? t('besser als {n} %').replace('{n}', String(perzentile.quote))
-                      : t('ausgeteilt zu erlitten')],
-                  ['Regionaler Rang', rang?.regional ? `#${rang.regional}` : '—',
-                    rang?.regional
-                      ? t('von {n} in {region}')
-                        .replace('{n}', zahl(rang.regionalVon, 0, sprache))
-                        .replace('{region}', rang.region) + rangZusatz
-                      : ''],
-                  ['Globaler Rang', rang ? `#${rang.global}` : '—',
-                    rang
-                      ? t('von {n} Spielern').replace('{n}', zahl(rang.globalVon, 0, sprache))
-                        + rangZusatz
-                      : ''],
-                  ['Eliminierungen', zahl(offen.elims, 0, sprache),
-                    `${zahl(offen.elimsProMatch, 2, sprache)} ${t('je Match')}`],
-                  ['Schaden', zahl(offen.damage, 0, sprache),
-                    `${zahl(offen.damageProMatch, 0, sprache)} ${t('je Match')}`],
-                  /* Titel: FNCS-Siege aus der offenen Spielerliste plus LAN-Siege
-                     (Summit, Reload Elite Championship) - der Betreiber: "Vico hat
-                     andere Cups gewonnen, die Summit LAN zum Beispiel, das soll da
-                     drin sein." */
-                  ['Titel',
-                    String((fncs?.titel ?? 0) + lanErgebnisse.filter((l) => l.platz === 1).length),
-                    [fncs && fncs.titel > 0 ? `${fncs.titel} FNCS` : '',
-                      lanErgebnisse.filter((l) => l.platz === 1).length
-                        ? `${lanErgebnisse.filter((l) => l.platz === 1).length} LAN` : '']
-                      .filter(Boolean).join(' · ')],
-                ] as Array<[string, string, string]>).map(([l, v, unten]) => (
+                {kennzahlen.map(([l, v, unten]) => (
                   <div key={l} className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4 shadow-sm">
                     <p className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-slate-500"><T>{l}</T></p>
                     <p className="schrift-anzeige mt-1.5 text-3xl font-extrabold tabular-nums text-slate-100">{v}</p>
@@ -5798,6 +5805,22 @@ export default function StatistikSeite() {
                   </div>
                 ))}
               </div>
+              {/* Das Bild zum Teilen: dieselben sechs Zahlen, für den Zeitraum, der unten gewählt ist. Erst wenn es etwas zu zeigen gibt. */}
+              {!profilLaedt && !profilFehler && offen.events > 0 && (
+                <div className="mt-3 flex justify-end">
+                  <RueckblickBild daten={{
+                    name: grossName(offen.anzeige, offen.gepflegt),
+                    bild: offen.echtesFoto ? offen.bild : null,
+                    land: offen.land,
+                    region: offen.heimat || offen.regionen?.[0] || null,
+                    zeitraum: profilSaison === 'alle' ? archivTitel
+                      : profilSaison.startsWith('jahr:') ? profilSaison.slice(5)
+                        : (saisons.find((x) => x.kennung === profilSaison)?.name ?? profilSaison),
+                    kacheln: kennzahlen.map(([l, v, u]) => [t(l), v, u] as [string, string, string]),
+                    zeile: `${zahl(offen.events, 0, sprache)} ${t('Spieltage')} · ${zahl(offen.matches, 0, sprache)} ${t('Matches')}`,
+                  }} />
+                </div>
+              )}
             </div>
 
             {/* Reiter, rechts daneben der Zeitraum.
