@@ -2901,6 +2901,11 @@ export default function TweetSeite() {
       return eigeneWahl.map((x) => x.epicId).slice(0, 10);
     }
     if (vorlage === 'verpasst') return verpasstTreffer.map((z) => z.id);
+    // Die Player Card zeigt das Foto des gewaehlten Spielers - von selbst, sobald er gewaehlt ist.
+    if (vorlage === 'spielerkarte') {
+      const id = karteSpieler?.id;
+      return id && /^[0-9a-f]{32}$/i.test(id) ? [id] : [];
+    }
 
     /*
      * Beim Team Spotlight genau die Spieler dieses Teams, jeder fuer sich.
@@ -2955,10 +2960,10 @@ export default function TweetSeite() {
     if (raus.length < 12) for (const e of eintraege) gruppe(e.players.map((x) => x.id));
 
     return raus.slice(0, 20);
-  }, [aktiveListen, gewaehlteListen, eintraege, vorlage, eigeneWahl, spotlight, verpasstTreffer]);
+  }, [aktiveListen, gewaehlteListen, eintraege, vorlage, eigeneWahl, spotlight, verpasstTreffer, karteSpieler]);
 
   /** Beim Team Spotlight so viele Gesichter, wie das Team Spieler hat. */
-  const bildAnzahl = vorlage === 'spieler'
+  const bildAnzahl = vorlage === 'spieler' || vorlage === 'spielerkarte'
     ? Math.max(2, mosaikIds.length) : mosaikAnzahl;
 
   /**

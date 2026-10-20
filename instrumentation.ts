@@ -85,6 +85,7 @@ export async function register() {
         '/api/szene-stats?spieler=02c93e4588f241baa6cb5040632326b4',
         '/api/cup-catalog?modus=alle',
         '/api/maps-liste',
+        '/api/fncs-ereignisse',
         '/api/globals-solos?region=EU',
       ]) {
         await fetch(`${intern}${weg}`, { cache: 'no-store', signal: AbortSignal.timeout(180_000) }).catch(() => {});

@@ -282,8 +282,19 @@ async function ewcTag(tag: number): Promise<FncsSpitze[]> {
 
 let merker: { bis: number; liste: FncsEreignis[] } | null = null;
 
+/**
+ * Die Liste - sofort, wenn schon einmal gebaut: ist der Stand abgelaufen, bekommt der Besucher den alten, und im Hintergrund entsteht der neue
+ * (der Aufbau braucht eine halbe Minute; die FNCS-Seite zeigte nach jeder Veroeffentlichung und alle fuenfzehn Minuten so lange das Ladezeichen).
+ */
+let bauLaeuft: Promise<FncsEreignis[]> | null = null;
 export async function fncsEreignisse(): Promise<FncsEreignis[]> {
   if (merker && merker.bis > Date.now()) return merker.liste;
+  if (!bauLaeuft) bauLaeuft = baueEreignisse().finally(() => { bauLaeuft = null; });
+  if (merker) { bauLaeuft.catch(() => undefined); return merker.liste; }
+  return bauLaeuft;
+}
+
+async function baueEreignisse(): Promise<FncsEreignis[]> {
   const [liste, archivListe] = await Promise.all([
     mapsVerzeichnis(),
     liesJson<ArchivEintrag[]>('cup-archiv.json', []).catch(() => [] as ArchivEintrag[]),
