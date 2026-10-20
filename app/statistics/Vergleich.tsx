@@ -41,11 +41,24 @@ const n0 = (x: number | undefined) => (Number.isFinite(x) ? (x as number) : 0);
 const FARBE_LINKS = '#e2e8f0';
 const FARBE_RECHTS = '#38bdf8';
 
-/** Spieltage, an denen alle Mitglieder einer Seite gespielt haben - mit den Zeilen je Mitglied. */
-function gemeinsam(zeilenJe: Zeile[][]): Map<string, Zeile[]> {
+/**
+ * Spieltage einer Seite - mit den Zeilen je Mitglied.
+ *
+ * Zusammen (Standard): nur die Spieltage, an denen alle Mitglieder gespielt haben. Solo-Werte (Betreiber, 20.10.2026: "beides soll moeglich und einstellbar sein"):
+ * jeder Spieler mit allen seinen Spieltagen, auch wenn er mit anderen gespielt hat; ein Spieltag zaehlt, sobald einer der Seite dort gespielt hat.
+ */
+function gemeinsam(zeilenJe: Zeile[][], solo = false): Map<string, Zeile[]> {
   const raus = new Map<string, Zeile[]>();
-  if (!zeilenJe.length || zeilenJe.some((z) => !z.length)) return raus;
+  if (!zeilenJe.length) return raus;
+  if (!solo && zeilenJe.some((z) => !z.length)) return raus;
   const nach = zeilenJe.map((z) => new Map(z.filter((x) => x.werte && !x.nurEpic).map((x) => [x.windowId, x] as const)));
+  if (solo) {
+    for (const w of new Set(nach.flatMap((m) => [...m.keys()]))) {
+      const da = nach.map((m) => m.get(w)).filter((x): x is Zeile => !!x);
+      if (da.length) raus.set(w, da);
+    }
+    return raus;
+  }
   for (const [w, z] of nach[0]) {
     const alle = nach.map((m) => m.get(w));
     if (alle.every(Boolean)) raus.set(w, alle as Zeile[]);
@@ -53,11 +66,12 @@ function gemeinsam(zeilenJe: Zeile[][]): Map<string, Zeile[]> {
   return raus;
 }
 
-function summiere(tage: Array<[string, Zeile[]]>): Summe {
+/** Zusammen gespielt zaehlen die Matches einmal (alle spielten dieselben); als Solo-Werte zaehlt jedes Match jedes Spielers - die Quoten und "je Match" sind dann Werte je Spieler. */
+function summiere(tage: Array<[string, Zeile[]]>, solo = false): Summe {
   const s: Summe = { matches: 0, elims: 0, damage: 0, genommen: 0, headshots: 0, hits: 0, shots: 0, zeit: 0, builds: 0, mats: 0, reboots: 0, spieltage: 0 };
   for (const [, mitglieder] of tage) {
     s.spieltage += 1;
-    s.matches += Math.max(...mitglieder.map((z) => n0(z.werte?.matchesPlayed)));
+    s.matches += solo ? mitglieder.reduce((a, z) => a + n0(z.werte?.matchesPlayed), 0) : Math.max(...mitglieder.map((z) => n0(z.werte?.matchesPlayed)));
     for (const z of mitglieder) {
       const w = z.werte ?? {};
       s.elims += n0(w.eliminations); s.damage += n0(w.damageDealt); s.genommen += n0(w.damageTakenFromPlayers);
@@ -369,8 +383,17 @@ export default function Vergleich({ saisons, sprache }: { saisons: Array<{ kennu
   const [eventsOffen, setEventsOffen] = useState(false);
   const [daten, setDaten] = useState<Record<string, Zeile[]>>({});
   const [laedt, setLaedt] = useState(false);
+  // Wie ein Team gezaehlt wird: nur zusammen gespielte Spieltage - oder jeder mit allen eigenen (Solo-Werte). Wird sich gemerkt.
+  const [zaehlung, setZaehlung] = useState<'zusammen' | 'solo'>(() => {
+    try { return typeof window !== 'undefined' && window.localStorage.getItem('comphub_vergleich_zaehlung') === 'solo' ? 'solo' : 'zusammen'; } catch { return 'zusammen'; }
+  });
+  const waehleZaehlung = (z: 'zusammen' | 'solo') => {
+    setZaehlung(z); setOhne(new Set());
+    try { window.localStorage.setItem('comphub_vergleich_zaehlung', z); } catch { /* ohne Speicher gilt die Wahl bis zum Neuladen */ }
+  };
 
   const n = ANZAHL[modus];
+  const solo = n > 1 && zaehlung === 'solo';
   const mitL = links.slice(0, n).filter((x): x is VglSpieler => !!x);
   const mitR = rechts.slice(0, n).filter((x): x is VglSpieler => !!x);
   const beideKomplett = mitL.length === n && mitR.length === n;
@@ -391,8 +414,8 @@ export default function Vergleich({ saisons, sprache }: { saisons: Array<{ kennu
   }, [ids, saison, daten]);
 
   const zeilenVon = useCallback((s: VglSpieler) => (daten[`${s.epicId}|${saison}`] ?? []).filter((z) => nrVon(z.season) >= ERSTE_SAISON), [daten, saison]);
-  const tageL = useMemo(() => gemeinsam(mitL.map(zeilenVon)), [mitL, zeilenVon]);
-  const tageR = useMemo(() => gemeinsam(mitR.map(zeilenVon)), [mitR, zeilenVon]);
+  const tageL = useMemo(() => gemeinsam(mitL.map(zeilenVon), solo), [mitL, zeilenVon, solo]);
+  const tageR = useMemo(() => gemeinsam(mitR.map(zeilenVon), solo), [mitR, zeilenVon, solo]);
 
   // Die Cups, die zur Wahl stehen: alle Spieltage, an denen mindestens eine Seite gespielt hat.
   const events = useMemo(() => {
@@ -402,8 +425,8 @@ export default function Vergleich({ saisons, sprache }: { saisons: Array<{ kennu
   }, [tageL, tageR]);
   const aktiv = (w: string) => !ohne.has(w);
 
-  const summeL = useMemo(() => summiere([...tageL].filter(([w]) => aktiv(w))), [tageL, ohne]); // eslint-disable-line react-hooks/exhaustive-deps
-  const summeR = useMemo(() => summiere([...tageR].filter(([w]) => aktiv(w))), [tageR, ohne]); // eslint-disable-line react-hooks/exhaustive-deps
+  const summeL = useMemo(() => summiere([...tageL].filter(([w]) => aktiv(w)), solo), [tageL, ohne, solo]); // eslint-disable-line react-hooks/exhaustive-deps
+  const summeR = useMemo(() => summiere([...tageR].filter(([w]) => aktiv(w)), solo), [tageR, ohne, solo]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const nameVon = (s: Array<VglSpieler | null>) => s.slice(0, n).filter(Boolean).map((x) => (x as VglSpieler).anzeige).join(' + ');
   const nameL = nameVon(links); const nameR = nameVon(rechts);
@@ -412,9 +435,9 @@ export default function Vergleich({ saisons, sprache }: { saisons: Array<{ kennu
   const k = KURVEN.find((x) => x.key === kurve) ?? KURVEN[0];
   const formPunkte: Punkt[] = useMemo(() => events.filter((e) => aktiv(e.windowId)).map((e) => ({
     fenster: e.windowId, event: e.event, datum: e.datum,
-    a: tageL.has(e.windowId) ? k.wert(summiere([[e.windowId, tageL.get(e.windowId) as Zeile[]]])) : null,
-    b: tageR.has(e.windowId) ? k.wert(summiere([[e.windowId, tageR.get(e.windowId) as Zeile[]]])) : null,
-  })), [events, tageL, tageR, k, ohne]); // eslint-disable-line react-hooks/exhaustive-deps
+    a: tageL.has(e.windowId) ? k.wert(summiere([[e.windowId, tageL.get(e.windowId) as Zeile[]]], solo)) : null,
+    b: tageR.has(e.windowId) ? k.wert(summiere([[e.windowId, tageR.get(e.windowId) as Zeile[]]], solo)) : null,
+  })), [events, tageL, tageR, k, ohne, solo]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const zuruecksetzen = () => { setLinks([null, null, null]); setRechts([null, null, null]); setOhne(new Set()); setSaison('alle'); setAnsicht('board'); };
   const tauschen = () => { setLinks(rechts); setRechts(links); };
@@ -467,6 +490,13 @@ export default function Vergleich({ saisons, sprache }: { saisons: Array<{ kennu
               <button key={k2} type="button" onClick={() => wechsleModus(k2)} className={knopf(modus === k2)}>{titel}</button>
             ))}
           </div>
+          {n > 1 && (
+            <div className="inline-flex gap-1 rounded-xl border border-white/[0.08] bg-black/30 p-1" role="group" aria-label={t('Zählung')}>
+              {([['zusammen', 'Zusammen gespielt'], ['solo', 'Solo-Werte']] as const).map(([k2, titel]) => (
+                <button key={k2} type="button" onClick={() => waehleZaehlung(k2)} aria-pressed={zaehlung === k2} className={knopf(zaehlung === k2)}>{t(titel)}</button>
+              ))}
+            </div>
+          )}
           <button type="button" onClick={zuruecksetzen}
             className="rounded-xl border border-white/[0.1] bg-white/[0.04] px-4 py-2.5 text-[11px] font-black uppercase tracking-[0.14em] text-slate-300 transition hover:border-rose-500/60 hover:text-rose-300">Reset</button>
           <label className="flex items-center gap-2 rounded-xl border border-white/[0.1] bg-white/[0.04] px-3.5 py-1.5 text-xs font-bold">
@@ -510,15 +540,19 @@ export default function Vergleich({ saisons, sprache }: { saisons: Array<{ kennu
               {saisonName}
               {laedt && <span className="ml-2 text-sky-400"><T>lädt …</T></span>}
             </span>
+            {n > 1 && <span className="text-[11px] text-slate-600">{solo ? t('Jeder Spieler mit allen seinen Spieltagen - Werte je Spieler, auch wenn er mit anderen gespielt hat.') : t('Nur Spieltage, an denen alle zusammen gespielt haben.')}</span>}
           </div>
 
           <div className="mt-3">
             {!hatDaten && !laedt ? (
               <div className="rounded-2xl border border-white/[0.08] bg-white/[0.02] px-6 py-12 text-center">
                 <p className="text-sm text-slate-400">
-                  {n === 1 ? t('Mindestens einer der beiden ist im gewählten Zeitraum nicht angetreten.') : t('Dieses Team hat im gewählten Zeitraum nicht zusammen gespielt.')}
+                  {n === 1 ? t('Mindestens einer der beiden ist im gewählten Zeitraum nicht angetreten.') : solo ? t('Keiner dieser Spieler ist im gewählten Zeitraum angetreten.') : t('Dieses Team hat im gewählten Zeitraum nicht zusammen gespielt.')}
                 </p>
                 <p className="mt-1 text-[11px] text-slate-600"><T>Spielwerte gibt es ab Chapter 5 Season 3. Oben eine andere Saison wählen oder jemand anderen suchen.</T></p>
+                {n > 1 && !solo && (
+                  <button type="button" onClick={() => waehleZaehlung('solo')} className="mt-4 rounded-lg border border-sky-500/50 px-4 py-2 text-xs font-bold text-sky-400 transition hover:bg-sky-500/10"><T>Mit Solo-Werten vergleichen</T></button>
+                )}
               </div>
             ) : ansicht === 'board' ? <Board links={summeL} rechts={summeR} nameL={nameL} nameR={nameR} loc={loc} />
               : ansicht === 'radar' ? <Radar links={summeL} rechts={summeR} nameL={nameL} nameR={nameR} />
@@ -531,7 +565,7 @@ export default function Vergleich({ saisons, sprache }: { saisons: Array<{ kennu
               <p className="mb-3 text-center text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-500">{saisonName} · <T>Platzierungen</T></p>
               <div className="max-h-[420px] overflow-y-auto">
                 {events.filter((e) => aktiv(e.windowId)).slice().reverse().map((e) => {
-                  const pl = (tage: Map<string, Zeile[]>) => { const z = tage.get(e.windowId)?.[0]; return z?.platz ?? null; };
+                  const pl = (tage: Map<string, Zeile[]>) => { const p = (tage.get(e.windowId) ?? []).map((z) => z.platz).filter((x): x is number => typeof x === 'number'); return p.length ? Math.min(...p) : null; };
                   const a = pl(tageL); const b = pl(tageR);
                   const farbe = (x: number | null, y: number | null) => (x === null ? 'text-slate-700' : y === null || x < y ? 'font-black text-emerald-400' : x === y ? 'font-bold text-slate-200' : 'font-semibold text-slate-400');
                   return (
