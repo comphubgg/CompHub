@@ -110,6 +110,7 @@
     position: relative;
   }
   .foto img {
+    position: absolute; left: 0; top: 0;
     width: 100%; height: 100%;
     object-fit: cover; object-position: center 18%;
     display: block;
@@ -726,7 +727,9 @@ function anzeigeName(roh, gesetzt) {
 function zeigeFoto(kasten, bild, pfad) {
   if (!pfad) { kasten.classList.add('leer'); return false; }
   const voll = pfad.startsWith('http') ? pfad : SERVER + pfad;
-  if (bild.getAttribute('src') !== voll) bild.src = voll;
+  // Wie bei Leiste und Trio: das Gesicht mittig und gross genug (zuschneiden), nicht nur "oben anfangen" - sonst sass der Kopf im schmalen Duo-Rahmen am Rand.
+  if (bild.getAttribute('src') !== voll) { bild.removeAttribute('style'); bild.onload = () => zuschneiden(bild); bild.src = voll; }
+  else if (bild.complete) zuschneiden(bild);
   kasten.classList.remove('leer');
   return true;
 }
@@ -871,8 +874,13 @@ function zuschneiden(img) {
   const [fx, fy, fh] = (GESICHTER && GESICHTER[datei]) || [0.5, 0.3, 0.2];
   // Das Gesicht (Augen bis Kinn) fuellt ein Drittel der Rahmenhoehe: der ganze Kopf mit Haaren und ein Stueck Schulter bleiben im Bild (Betreiber: "mehr vom Gesicht, groessere Umrandung").
   const smin = Math.max(W / nw, H / nh);
-  const s = Math.max(smin, Math.min(0.33 * H / (fh * nh), 1.6));
-  const links = Math.min(0, Math.max(W - nw * s, W / 2 - fx * nw * s));
+  let s = Math.max(smin, Math.min(0.33 * H / (fh * nh), 1.6));
+  // Der Kopf liegt in der Mitte des Rahmens (Betreiber, 20.10.2026: "der Kopf immer mittig und gut sichtbar"): sitzt das Gesicht nahe am Bildrand, wuerde die
+  // Begrenzung unten es seitlich festhalten. Dann wird so weit herangezoomt, dass es sich bis in die Mitte schieben laesst - hoechstens auf das 2,2-fache des
+  // kleinstmoeglichen Ausschnitts, damit das Foto nicht zerfaellt.
+  const randNaehe = Math.max(Math.min(fx, 1 - fx), 0.05);
+  s = Math.max(s, Math.min(W / (2 * nw * randNaehe), s * 1.35));
+  const links =Math.min(0, Math.max(W - nw * s, W / 2 - fx * nw * s));
   const oben = Math.min(0, Math.max(H - nh * s, 0.47 * H - fy * nh * s));
   const st = img.style;
   st.objectFit = 'fill';
@@ -1165,6 +1173,7 @@ async function zeichne(sanft) {
   namenEinpassen();
 
   const [w1, w2] = aktuelleFotos();
+  await ladeGesichter();
   const [f1, f2] = await Promise.all([
     fotoNachName(liste[0], g1, w1),
     fotoNachName(liste[1], g2, w2),
