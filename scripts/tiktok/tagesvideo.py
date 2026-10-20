@@ -52,13 +52,32 @@ def daten_holen(base, datei):
     raise SystemExit("Die Daten waren nicht zu holen.")
 
 
+_EINER = ["zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen",
+          "sixteen", "seventeen", "eighteen", "nineteen"]
+_ZEHNER = ["", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"]
+
+
+def zahl_wort(n):
+    """Eine Zahl als englische Woerter - damit die Stimme "1058" nicht wie eine Jahreszahl ("ten fifty-eight") liest."""
+    n = int(n)
+    if n < 20:
+        return _EINER[n]
+    if n < 100:
+        return _ZEHNER[n // 10] + ("-" + _EINER[n % 10] if n % 10 else "")
+    if n < 1000:
+        return _EINER[n // 100] + " hundred" + (" " + zahl_wort(n % 100) if n % 100 else "")
+    if n < 1_000_000:
+        return zahl_wort(n // 1000) + " thousand" + (" " + zahl_wort(n % 1000) if n % 1000 else "")
+    return str(n)
+
+
 def drehbuch(d):
     zeilen = sorted(d["zeilen"], key=lambda z: -z["rang"])  # Platz 5 zuerst
     region = REGION.get(d["region"], d["region"])
     szenen = [{"id": "intro", "text": f"Fresh results. {re.sub(r'[^A-Za-z0-9 .,&-]', ' ', d['titel'])}, {region}. Here are the top five."}]
     for z in zeilen:
         wort = ZAHL.get(z["rang"], str(z["rang"]))
-        pt = z["punkte"]
+        pt = zahl_wort(z["punkte"])
         if z["rang"] == 1:
             text = f"And the winner. {z['gesprochen']}, with {pt} points."
         else:
