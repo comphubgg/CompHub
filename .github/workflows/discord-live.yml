@@ -51,6 +51,8 @@ jobs:
           curl -s -o /dev/null -w "Seite: %{http_code} %{time_total}s\n" -m 90 "https://www.thecomphub.com/api/auth/verify?wach=$(date +%s)" || true
           # Zu jedem seit einer halben Stunde beendeten Spieltag den fertigen Ergebnis-Post anlegen (lib/ergebnisPosts) - alle zehn Minuten.
           GEHEIM_E=$(printf '%s' "${{ secrets.ENV_LOCAL }}" | grep '^CRON_SECRET=' | cut -d= -f2- | tr -d '"\r')
+          # Ohne CRON_SECRET in der Umgebung gilt der Bot-Schluessel - die Seite nimmt beide (app/api/cron/*).
+          [ -z "$GEHEIM_E" ] && GEHEIM_E=$(printf '%s' "${{ secrets.ENV_LOCAL }}" | grep '^DISCORD_BOT_TOKEN=' | cut -d= -f2- | tr -d '"\r')
           curl -s -w ' [Ergebnis-Posts: %{http_code}]' -m 150 -H "Authorization: Bearer $GEHEIM_E" "https://www.thecomphub.com/api/cron/ergebnis-posts" || true
           echo
           # Neue Cups im Katalog als Beitrag mit Grafik nach #news (lib/newsPosts) - alle zehn Minuten.
@@ -58,6 +60,7 @@ jobs:
           echo
           if [ "$(date -u +%H)" = "07" ] && [ "$(date -u +%M)" -lt 10 ]; then
             GEHEIM=$(printf '%s' "${{ secrets.ENV_LOCAL }}" | grep '^CRON_SECRET=' | cut -d= -f2- | tr -d '"\r')
+            [ -z "$GEHEIM" ] && GEHEIM=$GEHEIM_E
             curl -s -o /dev/null -w "VIP-Ablauf: %{http_code}\n" -m 120 -H "Authorization: Bearer $GEHEIM" "https://www.thecomphub.com/api/cron/vip-ablauf" || true
             # Neue Kartenversionen bei fortnite.gg suchen (lib/kartenUpdates) - taeglich, ein Fund geht als Meldung an den Admin.
             curl -s -w ' [Karten-Updates: %{http_code}]' -m 120 -H "Authorization: Bearer $GEHEIM" "https://www.thecomphub.com/api/cron/karten-updates" || true
