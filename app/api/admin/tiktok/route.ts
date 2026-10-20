@@ -116,15 +116,33 @@ export async function GET() {
 export async function POST(request: Request) {
   const nein = await pruefe();
   if (nein) return nein;
-  const k = await request.json().catch(() => ({})) as { aktion?: string };
+  const k = await request.json().catch(() => ({})) as { aktion?: string; anfrage?: { vorlage?: string; region?: string; liste?: string; jahr?: number; name?: string } };
   if (k.aktion !== 'neu') return NextResponse.json({ ok: false, fehler: 'Unbekannte Aktion.' }, { status: 400 });
+  // Ein eigenes Video: die Bestellung wird geprueft und als Abfrage an den Ablauf gegeben (lib/tiktokAnfrage). Ohne Bestellung entsteht das Video zum letzten Cup.
+  let abfrage = '';
+  if (k.anfrage?.vorlage) {
+    const a = k.anfrage;
+    const jahr = Math.round(Number(a.jahr) || new Date().getUTCFullYear());
+    if (jahr < 2019 || jahr > new Date().getUTCFullYear()) return NextResponse.json({ ok: false, fehler: 'Das Jahr gibt es in den Statistiken nicht.' }, { status: 400 });
+    if (a.vorlage === 'top5') {
+      const region = String(a.region ?? '').toUpperCase();
+      if (region && !['EU', 'NAC', 'NAW', 'BR', 'ASIA', 'ME', 'OCE'].includes(region)) return NextResponse.json({ ok: false, fehler: 'Diese Region gibt es nicht.' }, { status: 400 });
+      const liste = String(a.liste ?? 'verdienst');
+      if (!['verdienst', 'elims', 'teamElims', 'damage', 'hits', 'headshots', 'builds', 'quote'].includes(liste)) return NextResponse.json({ ok: false, fehler: 'Diese Liste gibt es nicht.' }, { status: 400 });
+      abfrage = `vorlage=top5&region=${region}&liste=${liste}&jahr=${jahr}`;
+    } else if (a.vorlage === 'spieler') {
+      const name = String(a.name ?? '').trim().slice(0, 40);
+      if (name.length < 2 || !/^[\p{L}\p{N} _.'\-]+$/u.test(name)) return NextResponse.json({ ok: false, fehler: 'Bitte einen Spielernamen eintragen.' }, { status: 400 });
+      abfrage = `vorlage=spieler&name=${encodeURIComponent(name)}&jahr=${jahr}`;
+    } else return NextResponse.json({ ok: false, fehler: 'Diese Art Video gibt es nicht.' }, { status: 400 });
+  }
   if (!process.env.GITHUB_TOKEN) return hin('Auf dem Server fehlt GITHUB_TOKEN.');
   try {
     // Läuft schon einer, wird kein zweiter gestartet - die Seite zeigt dessen Stand.
     const bisher = await juengsterLauf();
     if (laeuft(bisher)) return NextResponse.json({ ok: true, schon: true, lauf: bisher });
     const r = await fetch(`https://api.github.com/repos/${REPO}/actions/workflows/${ABLAUF}/dispatches`, {
-      method: 'POST', headers: { ...kopf(), 'Content-Type': 'application/json' }, body: JSON.stringify({ ref: 'main' }), signal: AbortSignal.timeout(20_000),
+      method: 'POST', headers: { ...kopf(), 'Content-Type': 'application/json' }, body: JSON.stringify({ ref: 'main', ...(abfrage ? { inputs: { anfrage: abfrage } } : {}) }), signal: AbortSignal.timeout(20_000),
     });
     if (r.status !== 204) { const g = grenze(r); return g ? hin(GRENZE_TEXT, g) : hin(`GitHub hat den Start abgelehnt (${r.status}).`); }
     return NextResponse.json({ ok: true, schon: false });

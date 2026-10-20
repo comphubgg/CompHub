@@ -78,12 +78,19 @@ ZEILEN.slice().reverse().forEach((z, i) => {           // i = 0 -> Platz 5 (unte
     fl = mk('span', null, nm);
   } else {
     const b = mk('b', null, nm, z.namen.join(' & ')); b.style.fontSize = (z.namen.join(' & ').length > 30 ? 34 : z.namen.join(' & ').length > 20 ? 40 : 50) + 'px';
+    // Eine Zeile dazu, wieso dieser Platz (eigene Videos): "$451,875 in 57 events - #1 in prize money".
+    if (z.beschreibung) mk('div', 'besch', nm, z.beschreibung);
     fl = mk('span', null, nm);
-    z.laender.filter((l) => /^[A-Za-z]{2}$/.test(l)).slice(0, 3).forEach((l) => { const im = mk('img', null, fl); im.src = BASIS + '/public/flags/' + l.toLowerCase() + '.png'; im.onerror = () => im.remove(); });
+    // Mit Beschreibung ist kein Platz fuer die Flaggen-Zeile (zwei Zeilen Text) - die Flagge steht dann nur im Namen-Kopf der Cup-Videos.
+    if (z.beschreibung) fl.style.display = 'none';
+    else z.laender.filter((l) => /^[A-Za-z]{2}$/.test(l)).slice(0, 3).forEach((l) => { const im = mk('img', null, fl); im.src = BASIS + '/public/flags/' + l.toLowerCase() + '.png'; im.onerror = () => im.remove(); });
   }
-  if (erster && gr === 1) { const w = mk('em', null, fl, 'WINNER'); w.style.cssText = 'font-style:normal;font-size:22px;font-weight:900;letter-spacing:.2em;color:#fbbf24;align-self:center;margin-left:' + (gr > 1 ? 0 : 8) + 'px;'; }
-  const pt = mk('div', 'pt', r, '<span>0</span><small>PTS</small>');
+  if (erster && gr === 1 && !z.beschreibung) { const w = mk('em', null, fl, 'WINNER'); w.style.cssText = 'font-style:normal;font-size:22px;font-weight:900;letter-spacing:.2em;color:#fbbf24;align-self:center;margin-left:' + (gr > 1 ? 0 : 8) + 'px;'; }
+  // Eigene Videos (Top 5 des Jahres, Spieler-Rueckblick): die Zahl rechts kann ein Betrag mit Zeichen davor sein ("$451,875") oder fester Text ("#1"), die Bezeichnung darunter wechselt.
+  const einheit = z.einheit || 'PTS';
+  const pt = mk('div', 'pt', r, '<span>' + (z.wertText ? z.wertText : (z.praefix || '') + '0') + '</span><small>' + einheit + '</small>');
   const zahl = pt.querySelector('span');
+  if ((z.wertText || String(z.punkte)).length + (z.praefix || '').length > 7) pt.style.fontSize = '44px';
 
   // Aufdecken: der leere Platz fuellt sich, wenn die Stimme die Zeile beginnt.
   const a = info.start + .2;
@@ -94,7 +101,7 @@ ZEILEN.slice().reverse().forEach((z, i) => {           // i = 0 -> Platz 5 (unte
     if (an !== r.__an) { r.classList.toggle('leer', !an); r.__an = an; }
     if (an) {
       const u = clamp((t - (a + .35)) / 1.1, 0, 1);
-      zahl.textContent = PUNKTE(Math.round(z.punkte * EASE.out(u)));
+      if (!z.wertText) zahl.textContent = (z.praefix || '') + PUNKTE(Math.round(z.punkte * EASE.out(u)));
     }
   });
   if (erster) { tr(r, 's', a + .6, a + 1.0, 1, 1.04, 'soft'); tr(r, 's', a + 1.0, a + 1.5, 1.04, 1, 'soft'); }

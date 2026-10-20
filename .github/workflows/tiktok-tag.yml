@@ -7,6 +7,11 @@ name: TikTok-Tagesvideo
 
 on:
   workflow_dispatch:
+    inputs:
+      anfrage:
+        description: 'Eigenes Video: Abfrage fuer /api/tiktok-daten (leer = der letzte Cup)'
+        required: false
+        default: ''
   schedule:
     - cron: '45 7 * * *'
 
@@ -37,6 +42,8 @@ jobs:
           python -m playwright install --with-deps chromium
           python -c "import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())"
       - name: Video bauen
+        env:
+          TIKTOK_ANFRAGE: ${{ github.event.inputs.anfrage }}
         run: python scripts/tiktok/tagesvideo.py --ausgabe tiktok-out
       - name: Ans Release hängen
         id: hoch

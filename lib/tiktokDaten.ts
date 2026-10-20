@@ -27,6 +27,12 @@ export interface TiktokZeile {
   punkte: number;
   laender: string[];
   fotos: Array<string | null>;
+  /* Eigene Videos (lib/tiktokAnfrage): fester Text statt der Zahl ("#1"), ein Zeichen davor ("$"), die Bezeichnung darunter, eine Zeile "wieso" und der gesprochene Satz. */
+  wertText?: string;
+  praefix?: string;
+  einheit?: string;
+  beschreibung?: string;
+  satz?: string;
 }
 
 export interface TiktokDaten {
@@ -50,6 +56,13 @@ export interface TiktokDaten {
   finale?: boolean;
   /** Englisches Datum, z. B. "20 Oct 2026". */
   datum?: string;
+  /** Welche Art Video: "letzter" (der letzte Cup, Standard), "top5" oder "spieler". */
+  vorlage?: string;
+  /** Eigene Videos: gesprochener Einstieg und Schluss, der fertige Text zum Kopieren und ein Name fuer die Datei. */
+  introSatz?: string;
+  outroSatz?: string;
+  text?: string;
+  dateiName?: string;
   seite?: string;
   zeilen?: TiktokZeile[];
 }

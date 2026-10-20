@@ -38,13 +38,15 @@ def dauer(ff, pfad):
     return int(h) * 3600 + int(mi) * 60 + float(s)
 
 
-def daten_holen(base, datei):
+def daten_holen(base, datei, anfrage=""):
     if datei:
         return json.loads(Path(datei).read_text(encoding="utf-8"))
+    # Mit "anfrage" (z. B. "vorlage=top5&region=EU&liste=verdienst&jahr=2026") kommt ein eigenes Video statt des letzten Cups - siehe /admin/tiktok.
+    adresse = base + "/api/tiktok-daten" + ("?" + anfrage.lstrip("?") if anfrage else "")
     # Die Ablage kann gedrosselt sein (GitHub-Limit je Stunde): bis zu zehn Versuche im Abstand von drei Minuten.
     for versuch in range(10):
         try:
-            with urllib.request.urlopen(urllib.request.Request(base + "/api/tiktok-daten", headers={"User-Agent": "comphub-tiktok"}), timeout=150) as r:
+            with urllib.request.urlopen(urllib.request.Request(adresse, headers={"User-Agent": "comphub-tiktok"}), timeout=150) as r:
                 return json.loads(r.read().decode("utf-8"))
         except Exception as e:  # noqa: BLE001
             print("Daten: Versuch", versuch + 1, "fehlgeschlagen:", str(e)[:100], flush=True)
@@ -76,16 +78,18 @@ def drehbuch(d):
     region = REGION.get(d["region"], d["region"])
     # Vorspann: der Cup, dann Spieltag und Stufe ("Performance Evaluation Cup Trios, Event 8, Finals, Europe"), wie sie auch gross im Bild stehen.
     wer = ", ".join(x for x in (d.get("cupName") or d["titel"], d.get("spieltag"), d.get("stufe"), region) if x)
-    szenen = [{"id": "intro", "text": f"Fresh results. {re.sub(r'[^A-Za-z0-9 .,&-]', ' ', wer)}. Here are the top five."}]
+    szenen = [{"id": "intro", "text": d.get("introSatz") or f"Fresh results. {re.sub(r'[^A-Za-z0-9 .,&-]', ' ', wer)}. Here are the top five."}]
     for z in zeilen:
         wort = ZAHL.get(z["rang"], str(z["rang"]))
-        pt = zahl_wort(z["punkte"])
-        if z["rang"] == 1:
+        pt = zahl_wort(z["punkte"]) if z.get("punkte") is not None else ""
+        if z.get("satz"):
+            text = z["satz"]
+        elif z["rang"] == 1:
             text = f"And the winner. {z['gesprochen']}, with {pt} points."
         else:
             text = f"Number {wort}. {z['gesprochen']}, with {pt} points."
         szenen.append({"id": f"r{z['rang']}", "text": text})
-    szenen.append({"id": "outro", "text": "Full results, maps and stats on thecomphub dot com. A new recap every day.", "mindestens": 6.5})
+    szenen.append({"id": "outro", "text": d.get("outroSatz") or "Full results, maps and stats on thecomphub dot com. A new recap every day.", "mindestens": 6.5})
     return szenen
 
 
@@ -229,6 +233,8 @@ def mischen(ff, tl, ordner, musik, ton):
 
 
 def text_zum_kopieren(d):
+    if d.get("text"):
+        return d["text"]
     z = sorted(d["zeilen"], key=lambda x: x["rang"])
     zeilen = [f"{x['rang']}. {' & '.join(x['namen'])} - {x['punkte']} pts" for x in z]
     region = d["region"]
@@ -243,11 +249,12 @@ def main():
     ap.add_argument("--ausgabe", default="tiktok-out")
     ap.add_argument("--base", default="https://www.thecomphub.com")
     ap.add_argument("--daten", default=None, help="fertige Daten (JSON) statt der Abfrage - zum Ausprobieren")
+    ap.add_argument("--anfrage", default=os.environ.get("TIKTOK_ANFRAGE", ""), help="Abfrage fuer ein eigenes Video, z. B. vorlage=top5&region=EU&liste=verdienst&jahr=2026")
     a = ap.parse_args()
     aus = Path(a.ausgabe)
     aus.mkdir(parents=True, exist_ok=True)
 
-    d = daten_holen(a.base, a.daten)
+    d = daten_holen(a.base, a.daten, a.anfrage)
     if d.get("keinCup") or not d.get("zeilen"):
         print("kein Video:", d.get("grund", "keine Daten"), flush=True)
         return
@@ -272,7 +279,8 @@ def main():
         t0 = time.time()
         n = rendern(tl, d, frames)
         print(f"Bilder: {n} ({time.time() - t0:.0f}s)", flush=True)
-        mp4 = aus / f"tiktok-{datum}.mp4"
+        kennung = re.sub(r"[^a-z0-9-]+", "-", str(d.get("dateiName") or "").lower()).strip("-")
+        mp4 = aus / f"tiktok-{datum}{'-' + kennung if kennung else ''}.mp4"
         r = subprocess.run([ff, "-y", "-framerate", str(FPS), "-i", str(frames / "f%05d.jpg"), "-i", str(ton),
                             "-vf", "scale=in_range=pc:out_range=tv:out_color_matrix=bt709,format=yuv420p", "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-profile:v", "high",
                             "-colorspace", "bt709", "-color_primaries", "bt709", "-color_trc", "bt709", "-color_range", "tv", "-r", str(FPS),
@@ -280,9 +288,9 @@ def main():
         if r.returncode:
             raise SystemExit("Video fehlgeschlagen:\n" + r.stderr[-1500:])
 
-    info = {"stimme": tl.get("stimme"), "datum": datum, "titel": d["titel"], "cupName": d.get("cupName"), "spieltag": d.get("spieltag"), "stufe": d.get("stufe"), "modus": d.get("modus"), "marken": d.get("marken") or [], "region": d["region"], "cupDatum": d.get("datum"), "dauer": round(tl["gesamt"], 1), "text": text_zum_kopieren(d),
+    info = {"stimme": tl.get("stimme"), "datum": datum, "titel": d["titel"], "cupName": d.get("cupName"), "spieltag": d.get("spieltag"), "stufe": d.get("stufe"), "modus": d.get("modus"), "marken": d.get("marken") or [], "vorlage": d.get("vorlage") or "letzter", "region": d["region"], "cupDatum": d.get("datum"), "dauer": round(tl["gesamt"], 1), "text": text_zum_kopieren(d),
             "seite": d.get("seite"), "video": mp4.name, "mb": round(mp4.stat().st_size / 1e6, 1)}
-    (aus / f"tiktok-{datum}.json").write_text(json.dumps(info, ensure_ascii=False, indent=1), encoding="utf-8")
+    (aus / f"{mp4.stem}.json").write_text(json.dumps(info, ensure_ascii=False, indent=1), encoding="utf-8")
     print(f"fertig: {mp4.name} ({info['mb']} MB, {info['dauer']} s)", flush=True)
 
 

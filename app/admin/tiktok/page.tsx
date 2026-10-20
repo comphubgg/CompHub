@@ -79,10 +79,22 @@ export default function TiktokSeite() {
     vorher.current = k;
   }, [lauf, t]);
 
+  /*
+   * Ein eigenes Video bestellen (Betreiber, 20.10.2026): statt des letzten Cups die besten fuenf Spieler einer Region mit Kurzbeschreibung oder der Rueckblick auf einen Spieler.
+   * Alles, was hier steht, kommt genau so ins Video - die Zahlen sind dieselben wie in den Statistiken.
+   */
+  const [art, setArt] = useState<'letzter' | 'top5' | 'spieler'>('letzter');
+  const [region, setRegion] = useState('EU');
+  const [zahlen, setZahlen] = useState('verdienst');
+  const [jahr, setJahr] = useState(new Date().getFullYear());
+  const [spieler, setSpieler] = useState('');
+
   const neu = async () => {
+    if (art === 'spieler' && spieler.trim().length < 2) { setStand(t('Bitte einen Spielernamen eintragen.')); return; }
     setStand(t('startet …'));
     try {
-      const r = await fetch('/api/admin/tiktok', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ aktion: 'neu' }) });
+      const anfrage = art === 'top5' ? { vorlage: 'top5', region, liste: zahlen, jahr } : art === 'spieler' ? { vorlage: 'spieler', name: spieler.trim(), jahr } : undefined;
+      const r = await fetch('/api/admin/tiktok', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ aktion: 'neu', ...(anfrage ? { anfrage } : {}) }) });
       const j = await antwort(r);
       if (!r.ok || !j.ok) { setStand(meldung(j, r.status, t('Das hat nicht geklappt.'))); return; }
       setStand(j.schon ? t('Es läuft schon eine Erstellung - hier siehst du ihren Stand.') : t('Gestartet - in etwa zehn Minuten ist das Video hier. Du kannst die Seite schließen.'));
@@ -103,8 +115,56 @@ export default function TiktokSeite() {
     <main className="min-h-screen bg-zinc-950 px-4 py-10 text-slate-100">
       <div className="mx-auto max-w-5xl">
         <SeitenKopf className="mb-6" marke={<T>Promotion</T>} titel={<T>TikTok-Videos</T>}
-          text={<T>Jeden Morgen entsteht von selbst ein kurzes Hochformat-Video mit den fünf Ersten des letzten Cups - englische Stimme, Musik, Untertitel. Hier lädst du es herunter und kopierst den Text; hochgeladen wird von Hand.</T>}
-          rechts={<button type="button" disabled={baut} onClick={() => void neu()} className="rounded-xl bg-sky-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-50"><T>Jetzt ein neues bauen</T></button>} />
+          text={<T>Jeden Morgen entsteht von selbst ein kurzes Hochformat-Video mit den fünf Ersten des letzten Cups - englische Stimme, Musik, Untertitel. Hier lädst du es herunter und kopierst den Text; hochgeladen wird von Hand.</T>} />
+        <section className="mb-5 rounded-2xl border border-zinc-800 bg-zinc-900 p-5">
+          <h2 className="text-sm font-bold text-white"><T>Was soll das Video zeigen?</T></h2>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {([['letzter', 'Der letzte Cup'], ['top5', 'Top 5 Spieler'], ['spieler', 'Ein Spieler im Rückblick']] as const).map(([k, n]) => (
+              <button key={k} type="button" onClick={() => setArt(k)} aria-pressed={art === k}
+                className={`rounded-full border px-4 py-1.5 text-sm font-semibold transition ${art === k ? 'border-sky-500 bg-sky-500/15 text-sky-300' : 'border-zinc-700 text-slate-300 hover:border-zinc-500'}`}>
+                {t(n)}
+              </button>
+            ))}
+          </div>
+          {art === 'letzter' && <p className="mt-3 text-xs text-slate-400"><T>Die fünf Ersten des Cups, der zuletzt zu Ende ging - wie jeden Morgen von selbst.</T></p>}
+          {art !== 'letzter' && (
+            <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {art === 'top5' && (
+                <>
+                  <label className="grid gap-1 text-xs text-slate-400"><T>Region</T>
+                    <select value={region} onChange={(e) => setRegion(e.target.value)} className="rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-slate-100">
+                      {[['', 'Alle Regionen'], ['EU', 'Europa (EU)'], ['NAC', 'NA Central'], ['NAW', 'NA West'], ['BR', 'Brasilien'], ['ASIA', 'Asien'], ['ME', 'Mittlerer Osten'], ['OCE', 'Ozeanien']].map(([k, n]) => <option key={k} value={k}>{t(n)}</option>)}
+                    </select>
+                  </label>
+                  <label className="grid gap-1 text-xs text-slate-400"><T>Wonach?</T>
+                    <select value={zahlen} onChange={(e) => setZahlen(e.target.value)} className="rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-slate-100">
+                      {[['verdienst', 'Preisgeld'], ['elims', 'Eliminierungen'], ['teamElims', 'Team-Eliminierungen'], ['damage', 'Schaden'], ['hits', 'Treffer'], ['headshots', 'Kopftreffer'], ['builds', 'Bauteile'], ['quote', 'Schadensquote']].map(([k, n]) => <option key={k} value={k}>{t(n)}</option>)}
+                    </select>
+                  </label>
+                </>
+              )}
+              {art === 'spieler' && (
+                <label className="grid gap-1 text-xs text-slate-400 sm:col-span-2"><T>Spieler</T>
+                  <input value={spieler} onChange={(e) => setSpieler(e.target.value)} placeholder="Shxrk" spellCheck={false}
+                    className="rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-sky-500" />
+                </label>
+              )}
+              <label className="grid gap-1 text-xs text-slate-400"><T>Jahr</T>
+                <select value={jahr} onChange={(e) => setJahr(Number(e.target.value))} className="rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-slate-100">
+                  {Array.from({ length: new Date().getFullYear() - 2022 }, (_, i) => new Date().getFullYear() - i).map((y) => <option key={y} value={y}>{y}</option>)}
+                </select>
+              </label>
+            </div>
+          )}
+          {art === 'top5' && <p className="mt-3 text-xs text-slate-400"><T>Die besten fünf der Statistik-Seite für diese Auswahl - jeder mit einer Zeile, wieso er dort steht (Zahlen und wo er sonst weit oben liegt).</T></p>}
+          {art === 'spieler' && <p className="mt-3 text-xs text-slate-400"><T>Die fünf besten Platzierungen des Spielers in diesem Jahr, mit Cup und Datum, dazu seine Bilanz und das neueste Ergebnis.</T></p>}
+          <div className="mt-4">
+            <button type="button" disabled={baut} onClick={() => void neu()}
+              className="rounded-xl bg-sky-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-50">
+              <T>Video bauen</T>
+            </button>
+          </div>
+        </section>
         {baut && (
           <div className="mb-4 flex items-start gap-3 rounded-2xl border border-sky-500/30 bg-sky-500/10 px-4 py-3">
             <span className="mt-1.5 h-2.5 w-2.5 shrink-0 animate-pulse rounded-full bg-sky-400" aria-hidden />
