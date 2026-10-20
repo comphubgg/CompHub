@@ -72,7 +72,7 @@ export default function AnkuendigungsTweet({ cupName, finale, region, datum, fel
   };
 
   return (
-    <details open className="mb-4 rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
+    <details className="mb-4 rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
       <summary className="cursor-pointer text-sm font-semibold text-slate-100">
         📣 <T>Tweet zur Ankündigung</T>
         <span className="ml-2 text-xs font-normal text-slate-500"><T>Titel wählen, Spieler markieren, kopieren</T></span>

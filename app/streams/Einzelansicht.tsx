@@ -404,7 +404,7 @@ export default function Einzelansicht(p: Props) {
                 placeholder={t('Im Stream-Titel suchen …')}
                 className="mv-fl w-full rounded-md border px-2 py-1 text-[11px] outline-none focus:border-sky-500" />
               <div className="mt-1 flex flex-wrap gap-1">
-                {['LCQ', 'Heat', 'Fast Track', 'FNCS', 'Cash', 'Division', 'Finals'].map((w) => (
+                {['LCQ', 'Heat', 'Fast Track', 'Finals', 'Solo', 'Duo', 'Trio', 'Reload', 'Performance', 'Division', 'Cash'].map((w) => (
                   <button key={w} type="button" onClick={() => setTitelFilter((a) => (a.trim().toLowerCase() === w.toLowerCase() ? '' : w))}
                     className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold transition ${titelFilter.trim().toLowerCase() === w.toLowerCase() ? 'border-sky-500 bg-sky-500/15 text-sky-400' : 'mv-mute mv-hover'}`}>
                     {w}
@@ -415,7 +415,7 @@ export default function Einzelansicht(p: Props) {
             {(() => {
               const liste = [...gewaehlterOrdner.streamers]
                 .filter((x) => !q || x.twitch.toLowerCase().includes(q) || anzeige(x.twitch).toLowerCase().includes(q))
-                .filter((x) => !titelFilter.trim() || (sendet(x.twitch) && (p.liveTitel?.[x.twitch.toLowerCase()] ?? '').toLowerCase().includes(titelFilter.trim().toLowerCase())))
+                .filter((x) => !titelFilter.trim() || (sendet(x.twitch) && (p.liveTitel?.[x.twitch.toLowerCase()] ?? '').toLowerCase().includes(titelFilter.trim().toLowerCase()) || (titelFilter.trim().toLowerCase() === 'lcq' && (p.liveTitel?.[x.twitch.toLowerCase()] ?? '').toLowerCase().includes('last chance'))))
                 // Angeheftete stehen immer oben, danach die, die gerade senden.
                 .sort((x, y) => Number(p.favoriten.includes(y.twitch)) - Number(p.favoriten.includes(x.twitch))
                   || Number(sendet(y.twitch)) - Number(sendet(x.twitch)));

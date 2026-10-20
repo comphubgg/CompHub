@@ -41,7 +41,7 @@ export async function GET(request: Request) {
       const ids = (p.bild as { ids?: string[] } | undefined)?.ids ?? [];
       if (!ids.length) continue;
       try {
-        const b = await fetch(`https://www.thecomphub.com/api/beitrag-bild?ids=${ids.join(',')}`, { signal: AbortSignal.timeout(60_000) });
+        const b = await fetch(`https://www.thecomphub.com/api/beitrag-bild?ids=${ids.join(',')}&anzahl=5`, { signal: AbortSignal.timeout(60_000) });
         if (!b.ok) continue;
         const png = new Uint8Array(await b.arrayBuffer());
         const s = await schickeBeitragMitBild({ titel: p.titel, text: p.text, url: postSeite(heuteDatum()), bild: png, dateiname: `ergebnis-${heuteDatum()}-${bilder + 1}.png` });

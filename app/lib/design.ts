@@ -19,6 +19,12 @@ const ALT = /^\/(streams|pov-ansicht|live-leaderboard|live-replays)(\/|$)/;
 
 export const designFuerPfad = (pfad: string): Design => (ALT.test(pfad) ? 'alt' : 'neu');
 
+/**
+ * Darf diese Seite hell sein? Im neuen Design immer; im alten nur die Streams-Seite selbst (Betreiber, 20.10.2026: "wieso ist die Streams-Seite immer dunkel, wieso kann man sie
+ * nicht auf Light machen?") - die Overlays, POV-Ansicht und Live-Seiten laufen als Quelle in OBS und bleiben dunkel.
+ */
+export const hellMoeglich = (pfad: string): boolean => designFuerPfad(pfad) === 'neu' || /^\/streams(\/|$)/.test(pfad);
+
 /*
  * Weitere Anzeige-Einstellungen aus dem Zahnrad unten rechts (14.10.2026) - wie der Modus als Cookie, damit der Rahmen sie schon auf dem
  * Server liest und nichts umspringt.

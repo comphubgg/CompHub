@@ -86,7 +86,11 @@ async function postZu(cup: KatalogCup, region: string, f: KatalogFenster, istFin
   const basis = titelMit(cup.titel, f.windowId);
   const name = /heat \d|last chance/i.test(basis) ? '' : fensterName(f.windowId, istFinale);
   const titel = `${basis}${name && !basis.toLowerCase().includes(name.toLowerCase()) ? ` ${name}` : ''}${region !== EU ? ` (${region})` : ''}`;
-  const ids = eintraege.slice(0, 3).flatMap((e) => (e.players ?? []).map((p) => (p.id ?? '').toLowerCase())).filter((x, i, a) => /^[0-9a-f]{32}$/.test(x) && a.indexOf(x) === i).slice(0, 5);
+  // Je Team der Besten eine Gruppe ("a|b"): das Mosaik nimmt aus jedem Team einen Spieler mit Foto - fuenf Streifen, wenn es so viele gibt (Betreiber, 20.10.2026: "nimm fuenf Bilder
+  // wie im Beispiel", nicht nur zwei). Die Liste reicht bis Platz 12, weil nicht von jedem ein Foto vorliegt.
+  const ids = eintraege.slice(0, 12)
+    .map((e) => [...new Set((e.players ?? []).map((p) => (p.id ?? '').toLowerCase()).filter((x) => /^[0-9a-f]{32}$/.test(x)))].join('|'))
+    .filter((g, i, a) => g && a.indexOf(g) === i);
   return {
     nr: 0, art: 'ergebnis', schluessel: `ergebnis:${f.windowId}:${region}`,
     titel: `Ergebnis: ${titel}`,

@@ -456,6 +456,13 @@ export default function Multiview(props: MultiviewProps) {
         if (alt.some((s) => !s.fest)) merkeRueck('Wand', alt);
         const fest = alt.filter((s) => s.fest);
         setStreams([...fest, ...sendend.filter((k) => !fest.some((f) => f.kanal === k)).map((k) => neuerStream(k))]);
+      } else if (art === 'dazu') {
+        // Dazu: nur wer gerade sendet - und die Wand bleibt, wie sie ist (Betreiber, 20.10.2026: erst "Solos", dann "LCQ" auf die Wand soll nicht die Solos loeschen).
+        const sendend = gueltig.filter((k) => liveRef.current[k]?.isLive === true);
+        setStreams([
+          ...alt.map((s) => (sendend.includes(s.kanal) && s.versteckt ? { ...s, versteckt: false } : s)),
+          ...sendend.filter((k) => !alt.some((s) => s.kanal === k)).map((k) => neuerStream(k)),
+        ]);
       } else {
         // Alle hinzufuegen: jeder, auch Offline - sonst waere "alle" nicht alle.
         setStreams([

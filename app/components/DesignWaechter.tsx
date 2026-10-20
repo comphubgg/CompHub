@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react';
 import { usePathname } from 'next/navigation';
-import { designFuerPfad, MODUS_COOKIE, lieseModus } from '@/app/lib/design';
+import { designFuerPfad, hellMoeglich, MODUS_COOKIE, lieseModus } from '@/app/lib/design';
 
 /*
  * Haelt die Design-Angaben am <html>-Element beim Seitenwechsel aktuell.
@@ -18,7 +18,7 @@ export default function DesignWaechter() {
     const design = designFuerPfad(pfad ?? '');
     html.dataset.design = design;
     // Die alte Fassung (Streams) ist dunkel; im neuen Design gilt die Wahl des Besuchers.
-    html.dataset.modus = design === 'alt' ? 'dunkel' : lieseModus(document.cookie);
+    html.dataset.modus = hellMoeglich(pfad ?? '') ? lieseModus(document.cookie) : 'dunkel';
   }, [pfad]);
   return null;
 }

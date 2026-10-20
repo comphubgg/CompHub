@@ -120,10 +120,17 @@ function OrdnerAbschnitt({ p }: { p: Props }) {
   /** Der Streamer, dessen Name gerade geaendert wird. */
   const [umbenennen, setUmbenennen] = useState<{ twitch: string; name: string } | null>(null);
   /**
-   * Nach dem Titel des laufenden Streams filtern (Betreiber, 19.10.2026): wer "LCQ" im Titel hat, spielt wirklich den Last Chance Qualifier und nicht
-   * einen anderen Cup, der gleichzeitig laeuft. Mit Filter zaehlen und laden nur die, die senden UND deren Titel passt.
+   * Nach dem Titel des laufenden Streams filtern (Betreiber, 19.10./20.10.2026): wer "LCQ" im Titel hat, spielt wirklich den Last Chance Qualifier und nicht einen anderen Cup, der
+   * gleichzeitig laeuft. Mit Filter zaehlen und laden nur die, die senden UND deren Titel passt.
+   *
+   *  - Mehrere Filter zugleich: mit Umschalt (Shift) angeklickt kommen sie dazu; die Auswahl gilt als "oder" (ein Stream, der Solo ODER LCQ im Titel hat).
+   *  - Eigene Filter: was ins Feld getippt wird, filtert sofort; mit Enter wird es zu einer eigenen Kapsel (zum Beispiel "Skin Cup").
+   *  - Die Filter gelten nur in den angehakten Ordnern (ohne Haken: in allen) - nicht im Streamer-Ordner nebenan.
+   *  - Die Filter lassen sich zuklappen.
    */
-  const [titelFilter, setTitelFilter] = useState('');
+  const [filter, setFilter] = useState<string[]>([]);
+  const [eingabe, setEingabe] = useState('');
+  const [filterAuf, setFilterAuf] = useState(true);
   const anzeige = (k: string) => p.namen[k] || k;
   const angeheftet = (k: string) => p.favoriten.includes(k);
 
@@ -132,18 +139,36 @@ function OrdnerAbschnitt({ p }: { p: Props }) {
   const kanaeleVon = (ids: string[]) => [...new Set(
     p.ordner.filter((o) => ids.includes(o.id)).flatMap((o) => o.streamers.map((x) => x.twitch)))].filter((k) => passt(k));
   const sendet = (k: string) => p.live[k]?.isLive === true;
-  const passt = (k: string) => {
-    const q = titelFilter.trim().toLowerCase();
-    return !q || (sendet(k) && (p.live[k]?.title ?? '').toLowerCase().includes(q));
+  /** Was ein Filterwort im Titel bedeuten darf: "LCQ" heisst auch "Last Chance", "Finals" auch "Final". */
+  const ALIAS: Record<string, string[]> = {
+    lcq: ['lcq', 'last chance'], finals: ['final'], 'fast track': ['fast track', 'fasttrack'], solo: ['solo'], duo: ['duo'], trio: ['trio'],
   };
+  const begriffe = (w: string) => ALIAS[w.trim().toLowerCase()] ?? [w.trim().toLowerCase()];
+  const titelPasst = (k: string, w: string) => { const ti = (p.live[k]?.title ?? '').toLowerCase(); return begriffe(w).some((b) => b && ti.includes(b)); };
+  /** Die gerade wirksamen Filter: die Kapseln plus das, was noch im Feld steht. */
+  const aktive = [...filter, ...(eingabe.trim() ? [eingabe.trim()] : [])];
+  const passt = (k: string) => !aktive.length || (sendet(k) && aktive.some((w) => titelPasst(k, w)));
   const bekannt = (k: string) => p.live[k] !== undefined;
   /*
-   * Ein Ordner je Cup, von allein (Betreiber, 19.10.2026: "Ordner je Cup automatisch"): alle Kanaele aus allen Ordnern, nach dem Titel des laufenden Streams sortiert. Die Kapseln
-   * zeigen, wie viele gerade senden und den Cup im Titel haben; wer eine waehlt, kann genau diese Leute mit einem Druck auf die Wand holen.
+   * Ein Ordner je Cup, von allein (Betreiber, 19.10.2026: "Ordner je Cup automatisch"): die kapseln zeigen, wie viele gerade senden und das Wort im Titel haben - gezaehlt im
+   * Bereich, der gerade gilt (die angehakten Ordner, sonst alle). Wer Kapseln waehlt, holt genau diese Leute mit einem Druck dazu.
    */
   const alleKanaele = [...new Set(p.ordner.flatMap((o) => o.streamers.map((x) => x.twitch)))];
-  const zahlFuer = (w: string) => alleKanaele.filter((k) => sendet(k) && (p.live[k]?.title ?? '').toLowerCase().includes(w.toLowerCase())).length;
-  const treffer = titelFilter.trim() ? alleKanaele.filter((k) => passt(k)) : [];
+  const bereich = gewaehlt.length ? [...new Set(p.ordner.filter((o) => gewaehlt.includes(o.id)).flatMap((o) => o.streamers.map((x) => x.twitch)))] : alleKanaele;
+  const zahlFuer = (w: string) => bereich.filter((k) => sendet(k) && titelPasst(k, w)).length;
+  const treffer = aktive.length ? bereich.filter((k) => passt(k)) : [];
+  const gewaehlteWoerter = new Set(filter.map((w) => w.toLowerCase()));
+  const kapselKlick = (w: string, mehr: boolean) => setFilter((alt) => {
+    const da = alt.some((x) => x.toLowerCase() === w.toLowerCase());
+    if (mehr) return da ? alt.filter((x) => x.toLowerCase() !== w.toLowerCase()) : [...alt, w];
+    return da && alt.length === 1 ? [] : [w];
+  });
+  const eigeneHinzu = () => {
+    const w = eingabe.trim();
+    if (!w) return;
+    setFilter((alt) => (alt.some((x) => x.toLowerCase() === w.toLowerCase()) ? alt : [...alt, w]));
+    setEingabe('');
+  };
 
   const umschalten = (id: string) => setWahl((alt) => (alt.includes(id) ? alt.filter((x) => x !== id) : [...alt, id]));
   const kleinKnopf = 'mv-rand shrink-0 rounded border px-1.5 py-0.5 text-[10px] transition hover:border-sky-500 hover:text-sky-400 disabled:opacity-40';
@@ -164,23 +189,42 @@ function OrdnerAbschnitt({ p }: { p: Props }) {
       </div>
 
       <div className="mb-2">
-        <input value={titelFilter} onChange={(e) => setTitelFilter(e.target.value)} spellCheck={false}
-          placeholder={t('Im Stream-Titel suchen …')}
-          className="mv-fl w-full rounded-md border px-2 py-1 text-[11px] outline-none focus:border-sky-500" />
-        <div className="mt-1 flex flex-wrap gap-1">
-          {['LCQ', 'Heat', 'Fast Track', 'Finals', 'Solo', 'Duo', 'Reload', 'Performance', 'Division', 'Cash'].map((w) => (
-            <button key={w} type="button" onClick={() => setTitelFilter((a) => (a.trim().toLowerCase() === w.toLowerCase() ? '' : w))}
-              className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold transition ${titelFilter.trim().toLowerCase() === w.toLowerCase() ? 'border-sky-500 bg-sky-500/15 text-sky-400' : zahlFuer(w) > 0 ? 'mv-hover' : 'mv-mute mv-hover opacity-60'}`}>
-              {w}{zahlFuer(w) > 0 && <span className="ml-1 tabular-nums text-red-500">{zahlFuer(w)}</span>}
-            </button>
-          ))}
-        </div>
-        {titelFilter.trim() && (
+        <button type="button" onClick={() => setFilterAuf((a) => !a)} aria-expanded={filterAuf}
+          className="mv-mute flex w-full items-center gap-1.5 text-[11px] font-medium">
+          <svg viewBox="0 0 20 20" className={`h-3 w-3 shrink-0 transition ${filterAuf ? 'rotate-90' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 4l6 6-6 6" /></svg>
+          <T>Filter</T>
+          {aktive.length > 0 && <span className="rounded-full bg-sky-500/20 px-1.5 text-[10px] font-semibold text-sky-400">{aktive.length}</span>}
+        </button>
+        {filterAuf && (
+          <div className="mt-1.5">
+            <input value={eingabe} onChange={(e) => setEingabe(e.target.value)} spellCheck={false}
+              onKeyDown={(e) => { if (e.key === 'Enter') eigeneHinzu(); }}
+              placeholder={t('Im Stream-Titel suchen … (Enter = eigener Filter)')}
+              className="mv-fl w-full rounded-md border px-2 py-1 text-[11px] outline-none focus:border-sky-500" />
+            <div className="mt-1 flex flex-wrap gap-1">
+              {['LCQ', 'Heat', 'Fast Track', 'Finals', 'Solo', 'Duo', 'Trio', 'Reload', 'Performance', 'Division', 'Cash', ...filter.filter((w) => !['lcq', 'heat', 'fast track', 'finals', 'solo', 'duo', 'trio', 'reload', 'performance', 'division', 'cash'].includes(w.toLowerCase()))].map((w) => {
+                const an = gewaehlteWoerter.has(w.toLowerCase());
+                return (
+                  <button key={w} type="button" onClick={(e) => kapselKlick(w, e.shiftKey || e.ctrlKey || e.metaKey)}
+                    title={t('Umschalt (Shift) gedrückt: mehrere Filter zugleich')}
+                    className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold transition ${an ? 'border-sky-500 bg-sky-500/15 text-sky-400' : zahlFuer(w) > 0 ? 'mv-hover' : 'mv-mute mv-hover opacity-60'}`}>
+                    {w}{zahlFuer(w) > 0 && <span className="ml-1 tabular-nums text-red-500">{zahlFuer(w)}</span>}
+                  </button>
+                );
+              })}
+              {filter.length > 0 && (
+                <button type="button" onClick={() => setFilter([])} className="mv-mute mv-hover rounded-full px-1.5 py-0.5 text-[10px]"><T>alle löschen</T></button>
+              )}
+            </div>
+            <p className="mv-mute mt-1 text-[10px]">{gewaehlt.length ? t('Gilt in den angehakten Ordnern') : t('Gilt in allen Ordnern')}</p>
+          </div>
+        )}
+        {aktive.length > 0 && (
           <div className="mv-rand mt-2 flex items-center gap-2 rounded-lg border px-2.5 py-2">
             <span className="mv-mute min-w-0 flex-1 text-[11px]">{treffer.length} <T>live mit diesem Titel</T></span>
             <button type="button" disabled={!treffer.length} className={kleinKnopf}
-              title={t('Die Wand durch alle ersetzen, die diesen Cup im Titel haben')}
-              onClick={() => a.ordnerLaden(treffer, 'live')}>
+              title={t('Alle, die gerade senden und diesen Titel haben, zur Wand hinzufügen - die Wand bleibt, wie sie ist')}
+              onClick={() => a.ordnerLaden(treffer, 'dazu')}>
               <T>Auf die Wand</T>
             </button>
           </div>

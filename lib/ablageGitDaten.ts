@@ -182,6 +182,40 @@ async function platteLesen(n: string): Promise<Buffer | null> {
   try { return await fsp.readFile(platteDatei(n)); } catch { return null; }
 }
 
+/*
+ * Ausstehende Schreibvorgaenge: lehnt GitHub ein Schreiben wegen des Stundenkontingents ab, bekommt der Nutzer trotzdem sein "Gespeichert" - der Stand liegt im Speicher und
+ * auf der Platte (_ausstehend) und geht hinaus, sobald das Kontingent wieder frei ist; ein Neustart des Servers dazwischen verliert ihn nicht. (Betreiber, 20.10.2026: das
+ * Kontingent darf die Seite nie wieder lahmlegen.)
+ */
+const ausstehendDatei = (n: string) => path.join(platteOrdner(), '_ausstehend', ...sauber(n).split('/'));
+function ausstehendSichern(n: string, buf: Buffer): void {
+  void (async () => {
+    try { const p = ausstehendDatei(n); await fsp.mkdir(path.dirname(p), { recursive: true }); await fsp.writeFile(p, buf); } catch { /* im Speicher bleibt es trotzdem */ }
+  })();
+}
+function ausstehendLoeschen(n: string): void {
+  void fsp.unlink(ausstehendDatei(n)).catch(() => undefined);
+}
+let wiederhergestellt: Promise<void> | null = null;
+/** Beim ersten Gebrauch nach dem Start: was beim letzten Mal nicht mehr hinausging, wieder auf den Weg bringen. */
+function ausstehendWiederherstellen(): Promise<void> {
+  if (wiederhergestellt) return wiederhergestellt;
+  wiederhergestellt = (async () => {
+    const wurzel = path.join(platteOrdner(), '_ausstehend');
+    const gehe = async (ordner: string, vorne: string): Promise<void> => {
+      let eintraege: import('fs').Dirent[];
+      try { eintraege = await fsp.readdir(ordner, { withFileTypes: true }); } catch { return; }
+      for (const e of eintraege) {
+        const rel = vorne ? `${vorne}/${e.name}` : e.name;
+        if (e.isDirectory()) { await gehe(path.join(ordner, e.name), rel); continue; }
+        try { spaeter(sauber(rel), await fsp.readFile(path.join(ordner, e.name)), 20_000); } catch { /* diese Datei ueberspringen */ }
+      }
+    };
+    await gehe(wurzel, '');
+  })().catch(() => undefined);
+  return wiederhergestellt;
+}
+
 function merkeFehler(e: unknown) {
   letzterFehler = { zeit: Date.now(), text: String((e as Error)?.message ?? e).slice(0, 200) };
 }
@@ -258,6 +292,7 @@ async function leseNeu(name: string, alt: Eintrag | undefined): Promise<Buffer |
 
 async function lies(name: string): Promise<Buffer | null> {
   const n = sauber(name);
+  void ausstehendWiederherstellen();
   const e = cache.get(n);
   if (NUR_SPEICHER.test(n)) return e?.daten ?? null;
   const jetzt = Date.now();
@@ -344,7 +379,7 @@ function spaeter(n: string, daten: Buffer, nachMs: number) {
     if (!d) return;
     const alt = cache.get(n);
     if (alt) cache.set(n, { ...alt, ausstehend: false, sha: alt.sha });
-    void nacheinander(() => schreibeJetzt(n, d)).catch((err) => {
+    void nacheinander(() => schreibeJetzt(n, d)).then(() => ausstehendLoeschen(n)).catch((err) => {
       merkeFehler(err);
       // Nicht verlieren: der Stand bleibt im Speicher, und in einer halben Minute geht es noch einmal.
       spaeter(n, d, 30_000);
@@ -366,7 +401,19 @@ async function schreib(name: string, daten: Buffer): Promise<void> {
   }
   // Gerade ein aelterer Stand vorgemerkt? Der neue ersetzt ihn.
   wartend.delete(n);
-  await nacheinander(() => schreibeJetzt(n, daten));
+  void ausstehendWiederherstellen();
+  try {
+    await nacheinander(() => schreibeJetzt(n, daten));
+    ausstehendLoeschen(n);
+  } catch (e) {
+    // Gedrosselt: nicht als Fehler melden, sondern vormerken (Speicher + Platte) und senden, sobald GitHub wieder annimmt.
+    if (/gedrosselt/i.test(String((e as Error)?.message ?? e))) {
+      ausstehendSichern(n, daten);
+      spaeter(n, daten, Math.max(60_000, gedrosseltBis - Date.now() + 5_000));
+      return;
+    }
+    throw e;
+  }
 }
 
 async function loesche(name: string): Promise<void> {

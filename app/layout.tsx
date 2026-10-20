@@ -3,7 +3,7 @@ import { Geist, Geist_Mono, Figtree, Bricolage_Grotesque } from "next/font/googl
 import { Suspense } from "react";
 import { cookies, headers } from "next/headers";
 import DesignWaechter from "./components/DesignWaechter";
-import { designFuerPfad, MODUS_COOKIE, GROESSE_COOKIE, BEWEGUNG_COOKIE, lieseGroesse, lieseBewegung } from "./lib/design";
+import { designFuerPfad, hellMoeglich, MODUS_COOKIE, GROESSE_COOKIE, BEWEGUNG_COOKIE, lieseGroesse, lieseBewegung } from "./lib/design";
 import MainHeader from './components/MainHeader';
 import SprachProvider from './components/SprachProvider';
 import { SPRACH_COOKIE } from './lib/sprache';
@@ -153,7 +153,7 @@ export default async function RootLayout({
   // Das Design dieses Aufrufs: die Streams-Seite bleibt in der alten Optik, alles andere ist neu; hell oder dunkel nach der Wahl des Besuchers.
   const pfad = (await headers()).get('x-comphub-pfad') ?? '/';
   const design = designFuerPfad(pfad);
-  const modus = design === 'alt' ? 'dunkel' : ((await cookies()).get(MODUS_COOKIE)?.value === 'hell' ? 'hell' : 'dunkel');
+  const modus = !hellMoeglich(pfad) ? 'dunkel' : ((await cookies()).get(MODUS_COOKIE)?.value === 'hell' ? 'hell' : 'dunkel');
   // Schriftgroesse und Animationen aus dem Zahnrad unten rechts - normal und "an" tragen keine Angabe.
   const groesse = lieseGroesse((await cookies()).get(GROESSE_COOKIE)?.value);
   const bewegung = lieseBewegung((await cookies()).get(BEWEGUNG_COOKIE)?.value);

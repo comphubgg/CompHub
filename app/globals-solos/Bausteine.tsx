@@ -136,7 +136,8 @@ export function Karte({ f, bild, rotAb = 2 }: {
 
   /*
    * Wer steht wo? Gesucht wird in allen Namen der Formen (Betreiber, 19.10.2026: "Strg + F, einen Spieler suchen - und die Karte zoomt zu seiner Stelle").
-   * Die Liste neben der Karte zeigt alle Spieler und folgt der Suche; auf der Karte leuchten die Stellen der Treffer. Enter oder ein Klick springt hin.
+   * Die Suche (Strg + F oder die Lupe) hebt die Stellen der Treffer auf der Karte hervor; Enter oder ein Klick springt hin. Eine Liste neben der Karte gibt es nicht mehr
+   * (Betreiber, 20.10.2026: eine Liste reicht, und die steht auf den Cup-Seiten links).
    */
   const alleNamen = useMemo(() => f.formen
     .flatMap((fo, i) => fo.spieler.map((n) => ({ name: n, spot: `f${i}` })))
@@ -146,7 +147,6 @@ export function Karte({ f, bild, rotAb = 2 }: {
     if (!q) return [] as Array<{ name: string; spot: string }>;
     return alleNamen.filter((x) => x.name.toLowerCase().includes(q) || kartenName(x.name).toLowerCase().includes(q));
   }, [suche, alleNamen]);
-  const listeGefiltert = suche.trim() ? treffer : alleNamen;
   const trefferSpots = useMemo(() => new Set(treffer.map((x) => x.spot)), [treffer]);
   const zeilen = useCallback((name: string) => [kartenName(name)], []);
   const groesse = useMemo(() => einheitsGroesse(spots, aufSpot, zeilen), [spots, aufSpot, zeilen]);
@@ -299,7 +299,7 @@ export function Karte({ f, bild, rotAb = 2 }: {
         * Karte werden gefiltert, Enter hebt hervor"). Das Vollbild nimmt beides mit; das Bild geht dort bis an den Rand, in der Farbe des Meeres, statt schwarzer Balken.
         */}
       <div ref={huelle}
-        className={voll ? 'relative flex h-screen w-screen items-center justify-center' : 'grid gap-4 lg:grid-cols-[minmax(0,1fr)_17rem]'}
+        className={voll ? 'relative flex h-screen w-screen items-center justify-center' : 'block'}
         style={voll ? { background: meer } : undefined}>
         <div ref={flaeche}
           className={`${kartenSchrift.variable} relative select-none ${voll ? 'h-screen' : 'mx-auto aspect-square w-full overflow-hidden rounded-xl border border-white/[0.06] bg-[#0b2f83]'} ${gezoomt ? 'cursor-grab active:cursor-grabbing' : ''}`}
@@ -452,35 +452,6 @@ export function Karte({ f, bild, rotAb = 2 }: {
           </div>
         </div>
 
-        {/* Die Spielerliste: alle, die auf der Karte stehen - gefiltert nach der Suche; ein Klick springt zur Stelle. */}
-        {hatNamen && (
-          <aside className={voll
-            ? 'absolute bottom-3 right-3 top-3 z-40 flex w-64 flex-col rounded-xl bg-black/70 p-2 backdrop-blur'
-            : 'flex max-h-[min(100vh-7rem,60rem)] min-h-0 flex-col rounded-xl border border-zinc-800 bg-zinc-900 p-2.5 lg:self-stretch'}>
-            <input value={suche} spellCheck={false}
-              onChange={(e) => setSuche(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Escape') setSuche('');
-                if (e.key === 'Enter' && treffer[0]) springeZu(treffer[0].spot);
-              }}
-              placeholder={t('Spieler suchen …')}
-              className="mb-2 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-1.5 text-xs text-slate-100 outline-none placeholder:text-slate-500 focus:border-sky-500" />
-            <p className="mb-1 px-1 text-[10px] font-bold uppercase tracking-[0.14em] text-slate-500">
-              {listeGefiltert.length} <T>Spieler</T>
-            </p>
-            <ul className="min-h-0 flex-1 space-y-px overflow-y-auto pr-0.5">
-              {listeGefiltert.map((x) => (
-                <li key={`${x.spot}-${x.name}`}>
-                  <button type="button" onClick={() => springeZu(x.spot)}
-                    className="flex w-full items-center gap-2 rounded-md px-2 py-1 text-left text-xs font-semibold uppercase tracking-wide text-slate-200 transition hover:bg-sky-500/20">
-                    <span className="min-w-0 flex-1 truncate">{kartenName(x.name)}</span>
-                  </button>
-                </li>
-              ))}
-              {!listeGefiltert.length && <li className="px-2 py-2 text-xs text-slate-500"><T>Nicht gefunden</T></li>}
-            </ul>
-          </aside>
-        )}
       </div>
       {!f.formen.length && (
         <p className="mt-3 text-center text-xs text-slate-500"><T>Für diesen Spieltag sind noch keine Landepunkte eingetragen.</T></p>

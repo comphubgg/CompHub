@@ -44,7 +44,10 @@ export function useKartenVollbild() {
       g.drawImage(img, w - s, h - s, s, s, 1, 1, 1, 1);
       const d = g.getImageData(0, 0, 2, 2).data;
       const mittel = (k: number) => Math.round((d[k] + d[k + 4] + d[k + 8] + d[k + 12]) / 4);
-      setMeer(`rgb(${mittel(0)}, ${mittel(1)}, ${mittel(2)})`);
+      const [r, g2, b] = [mittel(0), mittel(1), mittel(2)];
+      // Sind die Ecken des Bildes schwarz oder grau (manche Karten haben dunkle Raender), bleibt das uebliche Blau: der Hintergrund soll wie ueberall blau sein (Betreiber, 20.10.2026).
+      const blau = b > r + 25 && b > g2 + 10 && b > 70;
+      if (blau) setMeer(`rgb(${r}, ${g2}, ${b})`);
     } catch { /* dann bleibt das Standard-Blau */ }
   }, []);
 

@@ -176,7 +176,7 @@ export interface MvAktionen {
   alleNeuLaden: () => void;
   alleQualitaet: (qualitaet: string) => void;
   /** 'live': die Wand durch die Sendenden ersetzen. 'alle': jeden hinzufuegen, auch Offline. */
-  ordnerLaden: (kanaele: string[], art: 'live' | 'alle') => void;
+  ordnerLaden: (kanaele: string[], art: 'live' | 'alle' | 'dazu') => void;
   /** Einen einzelnen Kanal aus einem Ordner auf die Wand holen (auch offline). */
   kanalZeigen: (kanal: string) => void;
   /** Ein Pro-POV auf die Wand holen. */

@@ -12,7 +12,7 @@ import { useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { SPRACHEN } from '@/app/lib/sprache';
 import {
-  BEWEGUNG_COOKIE, GROESSE_COOKIE, MODUS_COOKIE, designFuerPfad, lieseModus,
+  BEWEGUNG_COOKIE, GROESSE_COOKIE, MODUS_COOKIE, designFuerPfad, hellMoeglich, lieseModus,
   type Groesse, type Modus,
 } from '@/app/lib/design';
 import { useSprache } from './SprachProvider';
@@ -66,6 +66,7 @@ export default function Sprachschalter() {
   const { sprache, setzeSprache, t } = useSprache();
   const pfad = usePathname();
   const alt = designFuerPfad(pfad ?? '') === 'alt';
+  const immerDunkel = !hellMoeglich(pfad ?? '');
   const zugang = useZugang();
   /** Die Anzeige des Dashboards (nur dort eingeblendet): was zu sehen ist - siehe app/lib/dashAnsicht. */
   const [dash, setDash] = useState<Record<string, boolean>>({});
@@ -121,8 +122,8 @@ export default function Sprachschalter() {
           <Zeile titel={t('Sprache')}>
             <Wahl wert={sprache} setze={setzeSprache} optionen={SPRACHEN.map((s) => [s.kennung, s.name] as [typeof sprache, string])} />
           </Zeile>
-          <Zeile titel={t('Helligkeit')} hinweis={alt ? t('Diese Seite ist immer dunkel') : undefined}>
-            <Wahl wert={modus} setze={stelleModus} aus={alt}
+          <Zeile titel={t('Helligkeit')} hinweis={immerDunkel ? t('Diese Seite ist immer dunkel') : undefined}>
+            <Wahl wert={modus} setze={stelleModus} aus={immerDunkel}
               optionen={[['hell', t('Hell'), Sonne], ['dunkel', t('Dunkel'), Mond]]} />
           </Zeile>
           <Zeile titel={t('Schriftgröße')}>

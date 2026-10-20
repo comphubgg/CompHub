@@ -424,6 +424,16 @@ export async function globalsSolos(region: string = REGION): Promise<SolosDaten 
     .sort((a, b) => String(a.start ?? '').localeCompare(String(b.start ?? '')));
 
   const stufenEu = await stufenFuer(REGION);
+  /*
+   * Noble nennt beide Last-Chance-Tage schlicht "LCQ". Es sind zwei verschiedene Spieltage (Betreiber, 20.10.2026): gestern das Last Chance Qualifier mit den Top 70, die in die Lobby
+   * kommen, heute die Last Chance Finals mit hundert Spielern - die Namen kommen deshalb aus Epics Stufen, nach dem Beginn zugeordnet.
+   */
+  for (const fe of fenster) {
+    const beginn = Date.parse(fe.start ?? '');
+    if (!Number.isFinite(beginn) || !/last chance|lcq/i.test(fe.name)) continue;
+    const st = stufenEu.filter((x) => x.art === 'lcq' || x.art === 'lcq-finale').sort((a, b) => Math.abs(a.begin - beginn) - Math.abs(b.begin - beginn))[0];
+    if (st && Math.abs(st.begin - beginn) < 4 * 3_600_000) fe.name = st.name;
+  }
   const qualifiziert = await herkunftAus(fenster, REGION, new Map(stufenEu.map((s) => [s.windowId, s.eventId])));
 
   return {
@@ -457,7 +467,7 @@ async function globalsSolosEpic(region: string): Promise<SolosDaten | null> {
   const stufen = await stufenFuer(region);
   const fenster0 = stufen
     .filter((s) => s.art !== 'qualifier')
-    .map((s) => ({ windowId: s.windowId, eventId: s.eventId, status: s.status, begin: s.begin, end: s.end ?? undefined }))
+    .map((s) => ({ windowId: s.windowId, eventId: s.eventId, status: s.status, begin: s.begin, end: s.end ?? undefined, art: s.art, weiter: s.qualifiziert }))
     .sort((a, b) => a.begin - b.begin);
   if (!fenster0.length) return null;
   const spielerVon = await spielerKontext();
@@ -473,6 +483,8 @@ async function globalsSolosEpic(region: string): Promise<SolosDaten | null> {
         eintraege = (roh as { entries?: typeof eintraege }).entries ?? [];
       } catch { /* ohne Bestenliste bleibt das Fenster ohne Spieler */ }
     }
+    // Das Last Chance Qualifier hat zehntausende Starter: gezeigt werden die, die weitergekommen sind (Top 70), nicht die ersten 200 der Bestenliste.
+    if (w.art === 'lcq' && w.status === 'vorbei' && w.weiter) eintraege = eintraege.filter((e) => e.rank <= (w.weiter as number));
     const spieler: SolosSpieler[] = [];
     const teams: SolosTeam[] = [];
     const bekannt = new Set<string>();
@@ -499,7 +511,16 @@ async function globalsSolosEpic(region: string): Promise<SolosDaten | null> {
       try {
         const v = await vitalFenster({ windowId: f.windowId, name: f.name, region, begin: fenster0[i].begin, ende: fenster0[i].end });
         if (!v) return;
-        f.formen = v.fenster.formen;
+        // Vital fuehrt alle Angemeldeten (auch Nachrueckende, die nie spielten): steht fuer den Spieltag schon Epics Bestenliste da, bleiben auf der Karte nur deren Spieler -
+        // sonst standen bei der Lobby mit hundert Plaetzen 130 Namen auf der Karte (Betreiber, 20.10.2026).
+        const norm = (n: string) => n.toLowerCase().replace(/[^a-z0-9]+/g, '');
+        const echt = new Set(f.spieler.map((x) => norm(x.anzeige)));
+        f.formen = f.spieler.length && f.formen.length === 0
+          ? v.fenster.formen.map((fo) => {
+            const behalten = (n: string) => echt.has(norm(n));
+            return { ...fo, spieler: fo.spieler.filter(behalten), gruppen: fo.gruppen?.map((g) => g.filter(behalten)).filter((g) => g.length), teams: Math.max(1, fo.gruppen?.map((g) => g.filter(behalten)).filter((g) => g.length).length ?? fo.teams ?? 1) };
+          })
+          : v.fenster.formen;
         f.bild = v.fenster.bild;
         // Ein Fenster, das Epic noch nicht fuehrt (der Heat laeuft noch nicht), zeigt trotzdem die Spieler, die Vital schon eingeteilt hat.
         if (!f.spieler.length) { f.spieler = v.fenster.spieler; f.teams = v.fenster.teams; }

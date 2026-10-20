@@ -3299,6 +3299,60 @@ ${name}
     return () => window.removeEventListener('paste', rein);
   }, [istAdmin]);
 
+  /*
+   * Die Werkzeugleiste rechts. Sie liegt ueber der Zeichenflaeche - ohne das Abfangen wuerde jeder Knopfdruck zugleich einen Punkt setzen. Im Breitbild sitzt sie ganz
+   * rechts am Rand (Betreiber, 20.10.2026: "nicht so mittig beim Rand der Map, sondern ganz am Rand rechts"), sonst in der Karte.
+   */
+  const werkzeugleiste = (klasse: string) => (
+        <div
+          onMouseDown={(e) => e.stopPropagation()}
+          onMouseUp={(e) => e.stopPropagation()}
+          className={klasse}>
+          <Werkzeugknopf titel={vollbild ? 'Breitbild verlassen' : 'Breitbild'} kind={Ikone.vollbild}
+            aktiv={vollbild} onClick={() => setVollbild((v) => !v)} />
+          {/* Zurueck auf die ganze Karte - nach dem Hineinzoomen der Knopf,
+              den man zuerst sucht. Ein Schalter fuer die Spielernamen stand hier
+              einmal daneben; die Karte ohne Namen zu zeigen ist aber genau das,
+              wofuer niemand herkommt. */}
+          <Werkzeugknopf titel="Ansicht zurücksetzen — wieder mittig, ohne Zoom"
+            kind={Ikone.mittig}
+            onClick={() => gleiteZu(1, { x: 50, y: 50 })} />
+
+          {istAdmin && (
+            <>
+              <span className="my-1 h-px bg-zinc-700" />
+              <Werkzeugknopf titel={gesperrt ? 'Karte entsperren' : 'Karte sperren'}
+                kind={Ikone.schloss} aktiv={gesperrt} onClick={() => setGesperrt((v) => !v)} />
+              {/*
+                * Der Papierkorb tut, was gerade naheliegt.
+                *
+                * Ist eine Form offen, loescht er genau diese - der Betreiber:
+                * "wenn ich in der Form bin, gerade am Bearbeiten, und auf
+                * dieses Loeschzeichen druecke, dass es dann nicht All Players
+                * removed, sondern nur die Form removed". Sonst nimmt er alle
+                * Spieler von der Karte, aber erst nach einer Rueckfrage: "Das
+                * ist mir schon zehnmal passiert ... ich war schon fast fertig
+                * und ja, GG's." Und beides laesst sich mit Strg+Z zurueckholen.
+                */}
+              <Werkzeugknopf
+                titel={gewaehlterSpot && darfBauen
+                  ? 'Diese Form löschen (Strg+Z holt sie zurück)'
+                  : 'Alle Spieler entfernen (Formen bleiben)'}
+                kind={Ikone.muell}
+                gefahr onClick={muellEimer} />
+              <Werkzeugknopf titel="Freie Form zeichnen" kind={Ikone.polygon}
+                aktiv={werkzeug === 'polygon'}
+                onClick={() => { setWerkzeug(werkzeug === 'polygon' ? null : 'polygon'); setRohbau([]); }} />
+              <Werkzeugknopf titel="Rechteck zeichnen" kind={Ikone.rechteck}
+                aktiv={werkzeug === 'rechteck'}
+                onClick={() => { setWerkzeug(werkzeug === 'rechteck' ? null : 'rechteck'); setRohbau([]); }} />
+              <span className="my-1 h-px bg-zinc-700" />
+              <Werkzeugknopf titel={uebs('Bild kopieren')} kind={Ikone.bild} onClick={alsBild} />
+            </>
+          )}
+        </div>
+  );
+
   const kartenFlaeche = (
     <div
       ref={flaeche}
@@ -3537,56 +3591,8 @@ ${name}
 
       </div>{/* Ende der Zoom-Ebene - die Leiste unten bleibt an ihrem Platz */}
 
-      {/* Werkzeugleiste rechts in der Karte. Die Leiste liegt ueber der
-          Zeichenflaeche - ohne das Abfangen wuerde jeder Knopfdruck zugleich
-          einen Punkt setzen. */}
-      <div
-        onMouseDown={(e) => e.stopPropagation()}
-        onMouseUp={(e) => e.stopPropagation()}
-        className="absolute right-2 top-2 z-30 flex flex-col gap-1.5">
-        <Werkzeugknopf titel={vollbild ? 'Breitbild verlassen' : 'Breitbild'} kind={Ikone.vollbild}
-          aktiv={vollbild} onClick={() => setVollbild((v) => !v)} />
-        {/* Zurueck auf die ganze Karte - nach dem Hineinzoomen der Knopf,
-            den man zuerst sucht. Ein Schalter fuer die Spielernamen stand hier
-            einmal daneben; die Karte ohne Namen zu zeigen ist aber genau das,
-            wofuer niemand herkommt. */}
-        <Werkzeugknopf titel="Ansicht zurücksetzen — wieder mittig, ohne Zoom"
-          kind={Ikone.mittig}
-          onClick={() => gleiteZu(1, { x: 50, y: 50 })} />
-
-        {istAdmin && (
-          <>
-            <span className="my-1 h-px bg-zinc-700" />
-            <Werkzeugknopf titel={gesperrt ? 'Karte entsperren' : 'Karte sperren'}
-              kind={Ikone.schloss} aktiv={gesperrt} onClick={() => setGesperrt((v) => !v)} />
-            {/*
-              * Der Papierkorb tut, was gerade naheliegt.
-              *
-              * Ist eine Form offen, loescht er genau diese - der Betreiber:
-              * "wenn ich in der Form bin, gerade am Bearbeiten, und auf
-              * dieses Loeschzeichen druecke, dass es dann nicht All Players
-              * removed, sondern nur die Form removed". Sonst nimmt er alle
-              * Spieler von der Karte, aber erst nach einer Rueckfrage: "Das
-              * ist mir schon zehnmal passiert ... ich war schon fast fertig
-              * und ja, GG's." Und beides laesst sich mit Strg+Z zurueckholen.
-              */}
-            <Werkzeugknopf
-              titel={gewaehlterSpot && darfBauen
-                ? 'Diese Form löschen (Strg+Z holt sie zurück)'
-                : 'Alle Spieler entfernen (Formen bleiben)'}
-              kind={Ikone.muell}
-              gefahr onClick={muellEimer} />
-            <Werkzeugknopf titel="Freie Form zeichnen" kind={Ikone.polygon}
-              aktiv={werkzeug === 'polygon'}
-              onClick={() => { setWerkzeug(werkzeug === 'polygon' ? null : 'polygon'); setRohbau([]); }} />
-            <Werkzeugknopf titel="Rechteck zeichnen" kind={Ikone.rechteck}
-              aktiv={werkzeug === 'rechteck'}
-              onClick={() => { setWerkzeug(werkzeug === 'rechteck' ? null : 'rechteck'); setRohbau([]); }} />
-            <span className="my-1 h-px bg-zinc-700" />
-            <Werkzeugknopf titel={uebs('Bild kopieren')} kind={Ikone.bild} onClick={alsBild} />
-          </>
-        )}
-      </div>
+      {/* Die Werkzeugleiste: im Breitbild liegt sie ganz rechts am Rand des Fensters (siehe unten), sonst am rechten Rand der Karte. */}
+      {!vollbild && werkzeugleiste('absolute right-2 top-2 z-30 flex flex-col gap-1.5')}
 
       {zoom > 1.02 && (
         <button onClick={() => zoomeAuf(1)}
@@ -3641,6 +3647,7 @@ ${name}
             style={{ height: 'calc(100vh - 9rem)' }}>
             {kartenFlaeche}
           </div>
+          {werkzeugleiste('absolute right-3 top-3 z-40 flex flex-col gap-1.5')}
           {/* Hinaus wie hinein: der Knopf oben schaltet auch zurueck, aber
               nach dem Breitziehen sucht man ihn unten an der Kante. */}
           <button onClick={() => setVollbild(false)} title={uebs('Breitbild verlassen')}
