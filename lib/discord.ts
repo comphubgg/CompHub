@@ -1943,6 +1943,8 @@ export async function schickePosts(
   if (!discordDa()) return { ok: false, grund: 'kein-token' };
   let kanaele = await alleKanaele();
   let kanal = kanaele.find((k) => k.type === 0 && gleich(k.name, ADMIN_KANAELE.posts));
+  // Kam die Kanalliste gar nicht (Discord drosselt), wird nichts angelegt - sonst entstehen Doppelte (20.10.2026).
+  if (!kanal && !kanaele.length) return { ok: false, grund: 'discord-nicht-erreichbar' };
   if (!kanal) {
     await richteAdminEin([], []);
     kanaele = await alleKanaele();
@@ -2005,6 +2007,7 @@ export async function schickeNews(
   if (!token) return { ok: false, grund: 'kein-token' };
   let kanaele = await alleKanaele();
   let kanal = kanaele.find((k) => k.type === 0 && gleich(k.name, COMMUNITY_KANAELE.news));
+  if (!kanal && !kanaele.length) return { ok: false, grund: 'discord-nicht-erreichbar' };
   if (!kanal) {
     await richteCommunityEin([], []);
     kanaele = await alleKanaele();
