@@ -23,7 +23,7 @@ interface Antwort {
 }
 
 const PODEST = [
-  { ring: 'ring-amber-300/70', schein: 'from-amber-400/25', zahl: 'text-amber-200' },
+  { ring: 'ring-sky-300/70', schein: 'from-sky-400/25', zahl: 'text-sky-200' },
   { ring: 'ring-slate-300/50', schein: 'from-slate-300/15', zahl: 'text-slate-100' },
   { ring: 'ring-orange-400/50', schein: 'from-orange-500/15', zahl: 'text-orange-200' },
 ];
@@ -54,21 +54,21 @@ export default function GlobalsPreisgeld() {
   return (
     <GlobalsGeruest aktiv="/globals/prizepool">
       {fehler ? (
-        <p className="rounded-lg border border-amber-800 bg-amber-950/30 px-4 py-3 text-sm text-amber-300">
+        <p className="rounded-lg border border-sky-800 bg-sky-950/30 px-4 py-3 text-sm text-sky-300">
           <T>Epic nennt das Preisgeld gerade nicht - bitte gleich noch einmal laden.</T>
-          <span className="ml-2 text-amber-300/60">({fehler})</span>
+          <span className="ml-2 text-sky-300/60">({fehler})</span>
         </p>
       ) : !daten ? (
         <LadeSchirm />
       ) : (
         <div className="space-y-6">
           {/* ------------------------------------------------ Der Topf */}
-          <section className="relative overflow-hidden rounded-2xl border border-amber-500/25
+          <section className="relative overflow-hidden rounded-2xl border border-sky-500/25
                               bg-zinc-950 px-6 py-8 text-center">
             <div aria-hidden className="absolute inset-0"
               style={{ background: `radial-gradient(60% 80% at 50% 0%, ${FNCS_BLAU}40, transparent 70%)` }} />
             <div className="relative">
-              <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-amber-300/80">
+              <p className="text-[11px] font-semibold uppercase tracking-[0.3em] text-sky-300/80">
                 <T>Preisgeld</T>
               </p>
               <p className="mt-2 text-5xl font-black tracking-tight tabular-nums sm:text-6xl"
@@ -111,9 +111,9 @@ export default function GlobalsPreisgeld() {
             {daten.plaetze.slice(3).map((p) => (
               <div key={p.platz}
                 className="flex items-center gap-4 rounded-xl border border-zinc-800 bg-zinc-900/40
-                           px-4 py-3 transition hover:border-amber-500/40">
+                           px-4 py-3 transition hover:border-sky-500/40">
                 <span className="grid h-10 w-14 shrink-0 place-items-center rounded-lg bg-zinc-950
-                                 text-sm font-black tabular-nums text-amber-200/90">
+                                 text-sm font-black tabular-nums text-sky-200/90">
                   {ordnung(p.platz)}
                 </span>
                 <span className="min-w-0 flex-1">

@@ -49,12 +49,12 @@ function Endstand() {
   const [sieger, ...rest] = teams;
   return (
     <section className="mb-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
-      <div className="relative overflow-hidden rounded-2xl border border-amber-400/30 bg-gradient-to-br from-amber-400/[0.14] via-zinc-900/60 to-zinc-950 p-6">
-        <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-amber-300/90"><T>Sieger</T></p>
+      <div className="relative overflow-hidden rounded-2xl border border-sky-400/30 bg-gradient-to-br from-sky-400/[0.14] via-zinc-900/60 to-zinc-950 p-6">
+        <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-sky-300/90"><T>Sieger</T></p>
         <div className="mt-4 flex items-center gap-4">
           <TeamFlagge groesse={52} laender={sieger.spieler.map((p) => p.land ?? undefined)} />
           <div className="min-w-0">
-            {sieger.spieler.map((p) => <p key={p.id} className="truncate text-3xl font-black uppercase leading-tight tracking-tight text-amber-100">{p.anzeige}</p>)}
+            {sieger.spieler.map((p) => <p key={p.id} className="truncate text-3xl font-black uppercase leading-tight tracking-tight text-sky-100">{p.anzeige}</p>)}
           </div>
         </div>
         <div className="mt-6 grid grid-cols-3 divide-x divide-white/10 border-t border-white/10 pt-4">
@@ -87,22 +87,16 @@ function Endstand() {
 export default function GlobalsStart() {
   return (
     <GlobalsGeruest aktiv="/globals">
-      <p className="mb-5 max-w-2xl text-sm leading-relaxed text-slate-400">
-        <T>Alles zur Global Championship an einem Ort — die Einblendungen für
-        deinen Stream, das Feld, die Karte und der Tipp auf den Ausgang. Die
-        Overlays kennen nur dieses Turnier; einen Cup auszuwählen gibt es hier
-        nicht.</T>
-      </p>
-
+      {/* Die Beschreibung steht schon im Seitenkopf (GlobalsGeruest). */}
       <Endstand />
 
       <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
         {GLOBALS_SEITEN.map((s) => (
           <Link key={s.pfad} href={s.pfad}
-            className="group rounded-xl border border-amber-500/20 bg-zinc-900/40 p-4
-                       transition hover:border-amber-400/60 hover:bg-amber-500/[0.06]">
-            <p className="text-base font-semibold text-amber-200
-                          group-hover:text-amber-100">
+            className="group rounded-xl border border-sky-500/20 bg-zinc-900/40 p-4
+                       transition hover:border-sky-400/60 hover:bg-sky-500/[0.06]">
+            <p className="text-base font-semibold text-sky-200
+                          group-hover:text-sky-100">
               <T>{s.titel}</T>
             </p>
             <p className="mt-1 text-xs leading-relaxed text-slate-500">
@@ -117,8 +111,8 @@ export default function GlobalsStart() {
         <div className="mt-3 flex flex-wrap gap-2">
           {GLOBALS_TAGE.map((tag) => (
             <span key={tag.windowId}
-              className="rounded-lg border border-amber-500/25 bg-zinc-950/60
-                         px-3 py-1.5 text-xs text-amber-200/90">
+              className="rounded-lg border border-sky-500/25 bg-zinc-950/60
+                         px-3 py-1.5 text-xs text-sky-200/90">
               {tag.titel} · {tagText(tag.begin)}
             </span>
           ))}

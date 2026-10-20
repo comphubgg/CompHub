@@ -525,8 +525,8 @@ export default function GlobalsMap() {
       {karten === null ? (
         <LadeSchirm />
       ) : fehler ? (
-        <p className="rounded-lg border border-amber-800 bg-amber-950/30 px-4 py-3
-                      text-sm text-amber-300">{fehler}</p>
+        <p className="rounded-lg border border-sky-800 bg-sky-950/30 px-4 py-3
+                      text-sm text-sky-300">{fehler}</p>
       ) : !karte ? (
         <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-5">
           <h2 className="text-base font-semibold text-slate-100">
@@ -540,9 +540,9 @@ export default function GlobalsMap() {
                 landet, entscheidest du.</T>
               </p>
               <Link href={neuAdresse}
-                className="mt-4 inline-block rounded-lg border border-amber-500/40
-                           bg-amber-400/10 px-4 py-2 text-sm font-semibold
-                           text-amber-200 transition hover:bg-amber-400/20">
+                className="mt-4 inline-block rounded-lg border border-sky-500/40
+                           bg-sky-400/10 px-4 py-2 text-sm font-semibold
+                           text-sky-200 transition hover:bg-sky-400/20">
                 <T>Karte anlegen</T>
               </Link>
             </>
@@ -555,8 +555,8 @@ export default function GlobalsMap() {
       ) : (
         <>
           {ausErsatz && (
-            <p className="mb-4 rounded-lg border border-amber-600/60 bg-amber-950/40 px-4 py-3
-                          text-sm text-amber-200">
+            <p className="mb-4 rounded-lg border border-sky-600/60 bg-sky-950/40 px-4 py-3
+                          text-sm text-sky-200">
               <T>Die Ablage antwortet gerade nicht. Du siehst die letzte Sicherung, und die kann älter sein. Die Karte ist nicht verloren und steht gleich wieder aktuell da.</T>
             </p>
           )}
@@ -565,7 +565,7 @@ export default function GlobalsMap() {
               <button key={k.id} type="button" onClick={() => setOffen(i)}
                 className={`rounded-lg border px-3 py-2 text-sm transition ${
                   i === offen
-                    ? 'border-amber-400/60 bg-amber-400/15 font-semibold text-amber-200'
+                    ? 'border-sky-400/60 bg-sky-400/15 font-semibold text-sky-200'
                     : 'border-zinc-800 text-slate-300 hover:border-zinc-700'}`}>
                 {/*
                   * Kein "Battle Royale · Day 1": die Karte ist fuer beide
@@ -585,7 +585,7 @@ export default function GlobalsMap() {
               <Link href={`/maps?id=${encodeURIComponent(karte.id)}`}
                 className="ml-auto rounded-lg border border-zinc-800 px-3 py-2
                            text-xs text-slate-400 transition
-                           hover:border-amber-400/60 hover:text-amber-200">
+                           hover:border-sky-400/60 hover:text-sky-200">
                 <T>Im Karten-Werkzeug öffnen</T>
               </Link>
             )}
@@ -613,7 +613,7 @@ export default function GlobalsMap() {
                 {liste.map((g) => (
                   <div key={g.region || 'ohne'}>
                     <p className="mb-1 text-[10px] font-bold uppercase tracking-wider
-                                  text-amber-300/80">
+                                  text-sky-300/80">
                       {g.region || <T>Ohne Region</T>}
                       <span className="ml-1.5 font-normal text-slate-600">{g.zeilen.length}</span>
                     </p>

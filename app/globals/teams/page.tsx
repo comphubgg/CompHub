@@ -172,7 +172,7 @@ function RegionenRaster({ teams, oeffnen }: { teams: Team[]; oeffnen: (t: Team) 
         {gruppen.map((g) => (
           <div key={g.kurz} className="rounded-xl border border-zinc-800 bg-zinc-900/50 p-3">
             <div className="mb-2 flex items-center gap-2 border-b border-zinc-800 pb-2">
-              <span className="rounded-md bg-amber-400/15 px-2 py-0.5 text-xs font-black text-amber-200">
+              <span className="rounded-md bg-sky-400/15 px-2 py-0.5 text-xs font-black text-sky-200">
                 {g.kurz}
               </span>
               <span className="min-w-0 flex-1 truncate text-sm font-bold text-slate-100">{g.name}</span>
@@ -236,7 +236,7 @@ function DuoAnsicht({ team, schliessen }: { team: Team; schliessen: () => void }
     <div className="fixed inset-0 z-[80] flex items-start justify-center overflow-y-auto
                     bg-black/75 p-4 backdrop-blur-sm sm:items-center"
       onClick={schliessen}>
-      <div className="w-full max-w-3xl overflow-hidden rounded-2xl border border-amber-500/30
+      <div className="w-full max-w-3xl overflow-hidden rounded-2xl border border-sky-500/30
                       bg-zinc-950 shadow-2xl"
         onClick={(e) => e.stopPropagation()}>
 
@@ -264,7 +264,7 @@ function DuoAnsicht({ team, schliessen }: { team: Team; schliessen: () => void }
               dann nur in irgendeiner Reihenfolge. */}
           {team.spiele > 0 && (
             <span className="absolute left-3 top-3 rounded-lg bg-black/70 px-2.5 py-1
-                             text-sm font-bold text-amber-300">
+                             text-sm font-bold text-sky-300">
               #{team.rang}
             </span>
           )}
@@ -277,7 +277,7 @@ function DuoAnsicht({ team, schliessen }: { team: Team; schliessen: () => void }
 
         {/* Ihre gemeinsamen Cups dieser Saison */}
         <div className="p-4">
-          <h3 className="mb-3 text-sm font-semibold text-amber-200">
+          <h3 className="mb-3 text-sm font-semibold text-sky-200">
             <T>Zusammen gespielt — diese Saison</T>
           </h3>
           {zeilen === null ? (
@@ -313,7 +313,7 @@ function DuoAnsicht({ team, schliessen }: { team: Team; schliessen: () => void }
                       <td className="max-w-[260px] truncate py-2 pr-2 text-slate-200">{z.titel}</td>
                       <td className="py-2 pr-2 text-slate-500">{datum(z.datum)}</td>
                       <td className={`py-2 pr-2 text-right font-semibold ${
-                        z.platz && z.platz <= 3 ? 'text-amber-300' : 'text-slate-200'}`}>
+                        z.platz && z.platz <= 3 ? 'text-sky-300' : 'text-slate-200'}`}>
                         {z.platz ? `#${z.platz}` : '–'}
                       </td>
                       <td className="py-2 pr-2 text-right text-slate-300">{z.punkte ?? '–'}</td>
@@ -391,14 +391,14 @@ export default function GlobalsTeams() {
           placeholder={t('Spieler suchen')}
           className="w-full max-w-xs rounded-lg border border-zinc-800 bg-zinc-950
                      px-3 py-2 text-sm text-slate-100 outline-none
-                     placeholder:text-slate-600 focus:border-amber-400/60" />
+                     placeholder:text-slate-600 focus:border-sky-400/60" />
       </div>
 
       {teams === null ? (
         <LadeSchirm />
       ) : fehler ? (
-        <p className="rounded-lg border border-amber-800 bg-amber-950/30 px-4 py-3
-                      text-sm text-amber-300">
+        <p className="rounded-lg border border-sky-800 bg-sky-950/30 px-4 py-3
+                      text-sm text-sky-300">
           {fehler}
         </p>
       ) : !teams.length ? (
@@ -421,7 +421,7 @@ export default function GlobalsTeams() {
                 .map(([k, titel]) => (
                   <button key={k} type="button" onClick={() => setAnsicht(k)}
                     className={`rounded-md px-3 py-1 text-xs font-semibold transition ${ansicht === k
-                      ? 'bg-amber-400/15 text-amber-200'
+                      ? 'bg-sky-400/15 text-sky-200'
                       : 'text-slate-400 hover:text-slate-100'}`}>
                     <T>{titel}</T>
                   </button>
@@ -444,7 +444,7 @@ export default function GlobalsTeams() {
             {gezeigt.map((tm) => (
               <button key={tm.rang} type="button" onClick={() => setOffen(tm)}
                 className="group relative overflow-hidden rounded-xl border border-zinc-800
-                           bg-zinc-900/40 text-left transition hover:border-amber-400/50">
+                           bg-zinc-900/40 text-left transition hover:border-sky-400/50">
                 <div className="grid grid-cols-2">
                   {tm.spieler.slice(0, 2).map((s) => (
                     <div key={s.turnierId} className="foto-dunkel relative aspect-square overflow-hidden">
@@ -460,7 +460,7 @@ export default function GlobalsTeams() {
                 {/* Vor dem ersten Match keine Platzierung (siehe DuoAnsicht). */}
                 {tm.spiele > 0 && (
                   <span className="absolute left-2 top-2 rounded-md bg-black/70 px-2 py-0.5
-                                   text-xs font-bold tabular-nums text-amber-300">
+                                   text-xs font-bold tabular-nums text-sky-300">
                     #{tm.rang}
                   </span>
                 )}

@@ -27,6 +27,8 @@ interface Fenster {
   /** Fehlt bei nachgetragenen Turnieren. */
   end?: number;
   eventId: string; windowId: string; region: string; istFinale: boolean;
+  /** Welche Marken dieser Spieltag bis zu welchem Platz vergibt - die Linie, ab der man weiter ist. */
+  marken?: Array<{ token: string; bis: number }>;
 }
 interface Cup {
   id: string; titel: string; art: string; global: boolean;
@@ -1568,49 +1570,118 @@ export default function TweetSeite() {
   }, [aktuellesFenster]);
 
   /*
-   * "Missed the cut": Wer aus den Power Rankings (die ersten 150) spielte diesen Spieltag und landete hinter der Qualifikationslinie?
-   * Die Linie ("Top 300") steht in Epics Angaben (/api/qualifikation); wo sie fehlt, tippt der Admin sie ein. Die Plaetze der bekannten
-   * Konten kommen ueber ihre Konto-Ids aus der Bestenliste - nichts wird geschaetzt.
+   * "Missed the cut" (Betreiber, 20.10.2026): alle bekannten Spieler des GANZEN Cups, die nicht weitgekommen sind - kein Top 10, und nicht nur ein Spieltag:
+   * "Notable Players to have not qualified Solo FNCS Grand Finals" und darunter jeder Name.
+   *
+   * Bekannt heisst: unter den ersten 200 der Power Rankings. Ihre Plaetze kommen ueber die Konto-Ids aus den Bestenlisten.
+   *
+   *  - Ist der gewaehlte Cup ein Finale (FNCS Solos Finals), zaehlen alle gespielten Spieltage der Reihe davor in dieser Region (Qualifiers, Heats, Fast Track, Last Chance):
+   *    wer dort mitspielte und im Finale nicht steht, hat es nicht geschafft. Das Feld des Finales kommt aus dessen Bestenliste und aus Epics Marken (/api/prognose-feld).
+   *  - Sonst zaehlen die Spieltage dieses Cups: wer in keinem ueber die Linie ("Top 300", /api/qualifikation) kam, ist nicht weiter. Was der Admin oben eintippt,
+   *    ersetzt die Linie.
+   *
+   * Nichts wird geschaetzt.
    */
-  const [verpasst, setVerpasst] = useState<{ cut: number | null; zeilen: Array<{ id: string; name: string; rang: number; punkte: number; bekanntheit: number }>; laedt: boolean; fehler: string }>(
-    { cut: null, zeilen: [], laedt: false, fehler: '' });
+  const [verpasst, setVerpasst] = useState<{
+    modus: 'cut' | 'serie'; cut: number | null; spieltage: number; qualifiziert: string[];
+    zeilen: Array<{ id: string; name: string; raenge: number[]; cuts: Array<number | null>; zeiten: number[]; bekanntheit: number }>;
+    laedt: boolean; fehler: string;
+  }>({ modus: 'cut', cut: null, spieltage: 0, qualifiziert: [], zeilen: [], laedt: false, fehler: '' });
   const [verpasstCutText, setVerpasstCutText] = useState('');
   useEffect(() => {
-    if (vorlage !== 'verpasst' || !aktuellesFenster) return undefined;
-    const f = aktuellesFenster;
+    if (vorlage !== 'verpasst' || !aktuellesFenster || !cup) return undefined;
+    const region = aktuellesFenster.region;
+    const gespielt = (w: { region: string; status: string; eventId: string }) => w.region === region && w.status !== 'kommt' && !String(w.eventId).startsWith('manuell_');
+    // "s42_fncssolos_final" und "s42_fncssolos_qual" gehoeren zur Reihe "s42_fncssolos"; "s42_fncssolos_reload_*" zu "s42_fncssolos_reload".
+    const reihe = (id: string) => id.replace(/_(finals?|grands?|qual|qualifiers|heats|fasttrack|lcq|lastchance\w*)$/i, '');
+    const istFinale = /final/i.test(cup.id) && !/lastchance/i.test(cup.id);
+    const vorher = istFinale
+      ? cups.filter((c) => c.id !== cup.id && reihe(c.id) === reihe(cup.id))
+        .flatMap((c) => Object.entries(c.regionen).flatMap(([r, liste]) => liste.map((w) => ({ ...w, region: r })))).filter(gespielt).slice(0, 40)
+      : [];
+    const modus: 'cut' | 'serie' = istFinale && vorher.length ? 'serie' : 'cut';
+    const spieltage = modus === 'serie' ? vorher : fenster.filter(gespielt).slice(0, 14);
     let weg = false;
-    setVerpasst({ cut: null, zeilen: [], laedt: true, fehler: '' });
+    setVerpasst({ modus, cut: null, spieltage: 0, qualifiziert: [], zeilen: [], laedt: true, fehler: '' });
     (async () => {
       try {
-        const [rk, ql] = await Promise.all([
-          fetch('/api/power-rankings?page=1&pageSize=150').then((r) => r.json()),
-          fetch(`/api/qualifikation?window=${encodeURIComponent(f.windowId)}&region=${encodeURIComponent(f.region && f.region !== 'GLOBAL' ? f.region : 'EU')}`)
-            .then((r) => r.json()).catch(() => null),
-        ]);
+        const rk = await fetch('/api/power-rankings?page=1&pageSize=200').then((r) => r.json());
         const bekannte = ((rk?.players ?? []) as Array<{ id?: string; name: string; anzeige?: string }>).filter((x) => x.id);
         if (!bekannte.length) throw new Error('Die Power Rankings liegen gerade nicht vor.');
-        const lb = await fetch(`/api/cup-leaderboard?event=${encodeURIComponent(f.eventId)}&window=${encodeURIComponent(f.windowId)}`
-          + `&ids=${bekannte.map((x) => x.id).join(',')}`).then((r) => r.json());
-        if (weg) return;
+        const ids = bekannte.map((x) => x.id).join(',');
         const nachId = new Map(bekannte.map((x) => [x.id as string, x]));
-        const zeilen: Array<{ id: string; name: string; rang: number; punkte: number; bekanntheit: number }> = [];
-        for (const e of ((lb?.entries ?? []) as Eintrag[])) {
-          for (const p of e.players) {
-            const b = p.id ? nachId.get(p.id) : undefined;
-            if (b) zeilen.push({ id: b.id as string, name: b.anzeige || b.name, rang: e.rank, punkte: e.points, bekanntheit: bekannte.indexOf(b) });
+        const zeilen = new Map<string, { id: string; name: string; raenge: number[]; cuts: Array<number | null>; zeiten: number[]; bekanntheit: number }>();
+        const liesListe = async (w: { eventId: string; windowId: string }) => {
+          const lb = await fetch(`/api/cup-leaderboard?event=${encodeURIComponent(w.eventId)}&window=${encodeURIComponent(w.windowId)}&ids=${ids}`)
+            .then((r) => r.json()).catch(() => null);
+          return (lb?.entries ?? []) as Eintrag[];
+        };
+        let schwelleGewaehlt: number | null = null;
+        for (let i = 0; i < spieltage.length; i += 3) {
+          const stapel = spieltage.slice(i, i + 3);
+          const antworten = await Promise.all(stapel.map(async (w) => {
+            const [eintraege, ql] = await Promise.all([
+              liesListe(w),
+              modus === 'cut'
+                ? fetch(`/api/qualifikation?window=${encodeURIComponent(w.windowId)}&region=${encodeURIComponent(w.region && w.region !== 'GLOBAL' ? w.region : 'EU')}`).then((r) => r.json()).catch(() => null)
+                : Promise.resolve(null),
+            ]);
+            // Die Linie laut Auszahlungstabelle - fehlt sie dort, gilt, wie viele Marken der Spieltag vergibt (Qualifikationsrunden: "bis Platz 1000").
+            const ausMarken = ((w as { marken?: Array<{ bis: number }> }).marken ?? []).reduce((n, m) => n + (m.bis > 0 ? m.bis : 0), 0);
+            return { w, eintraege, linie: Number(ql?.schwelle) > 0 ? Number(ql.schwelle) : (ausMarken > 0 ? ausMarken : null) };
+          }));
+          if (weg) return;
+          for (const { w, eintraege, linie } of antworten) {
+            if (w.windowId === aktuellesFenster.windowId) schwelleGewaehlt = linie;
+            for (const e of eintraege) {
+              for (const p of e.players) {
+                const b = p.id ? nachId.get(p.id) : undefined;
+                if (!b) continue;
+                const z = zeilen.get(b.id as string) ?? { id: b.id as string, name: b.anzeige || b.name, raenge: [], cuts: [], zeiten: [], bekanntheit: bekannte.indexOf(b) };
+                z.raenge.push(e.rank); z.cuts.push(linie); z.zeiten.push(w.begin ?? 0);
+                zeilen.set(z.id, z);
+              }
+            }
           }
         }
-        setVerpasst({ cut: Number(ql?.schwelle) > 0 ? Number(ql.schwelle) : null, zeilen, laedt: false, fehler: '' });
+        // Wer im Finale steht: die Bestenliste der gespielten Tage und das Feld laut Epics Marken.
+        const qualifiziert = new Set<string>();
+        if (modus === 'serie') {
+          for (const w of fenster.filter(gespielt)) for (const e of await liesListe(w)) for (const p of e.players) if (p.id) qualifiziert.add(p.id);
+          const ersteFinale = fenster.find((w) => w.region === region && !String(w.eventId).startsWith('manuell_'));
+          if (ersteFinale) {
+            const feld = await fetch(`/api/prognose-feld?event=${encodeURIComponent(ersteFinale.eventId)}&window=${encodeURIComponent(ersteFinale.windowId)}&region=${encodeURIComponent(region)}`)
+              .then((r) => r.json()).catch(() => null) as { teams?: Array<{ ids?: string[] }> } | null;
+            for (const t of feld?.teams ?? []) for (const id of t.ids ?? []) if (id) qualifiziert.add(id);
+          }
+        }
+        if (weg) return;
+        setVerpasst({ modus, cut: schwelleGewaehlt, spieltage: spieltage.length, qualifiziert: [...qualifiziert], zeilen: [...zeilen.values()], laedt: false, fehler: '' });
       } catch (e) {
-        if (!weg) setVerpasst({ cut: null, zeilen: [], laedt: false, fehler: (e as Error).message });
+        if (!weg) setVerpasst({ modus, cut: null, spieltage: 0, qualifiziert: [], zeilen: [], laedt: false, fehler: (e as Error).message });
       }
     })();
     return () => { weg = true; };
-  }, [vorlage, aktuellesFenster]);
-  const verpasstCut = Number(verpasstCutText) > 0 ? Number(verpasstCutText) : (verpasst.cut ?? 0);
-  const verpasstTreffer = useMemo(
-    () => (verpasstCut ? verpasst.zeilen.filter((z) => z.rang > verpasstCut).sort((a, b) => a.bekanntheit - b.bekanntheit).slice(0, 10) : []),
-    [verpasst.zeilen, verpasstCut]);
+  }, [vorlage, aktuellesFenster, fenster, cup, cups]);
+  const verpasstManuell = Number(verpasstCutText) > 0 ? Number(verpasstCutText) : 0;
+  const verpasstCut = verpasstManuell || (verpasst.cut ?? 0);
+  /** Gibt es etwas, woran sich "weitergekommen" pruefen laesst - eine Linie oder das Feld des Finales? */
+  const verpasstLinie = verpasst.modus === 'serie'
+    ? verpasst.qualifiziert.length > 0
+    : (verpasstManuell > 0 || verpasst.zeilen.some((z) => z.cuts.some(Boolean)));
+  const verpasstTreffer = useMemo(() => {
+    if (verpasst.modus === 'serie') {
+      const drin = new Set(verpasst.qualifiziert);
+      return verpasst.zeilen.filter((z) => !drin.has(z.id)).sort((a, b) => a.bekanntheit - b.bekanntheit);
+    }
+    // Entscheidend ist der letzte Spieltag, den jemand in diesem Cup gespielt hat: lag er dort hinter der Linie, ist er nicht weitergekommen. Wer in einer frueheren
+    // Runde weiter war und danach nicht mehr auftaucht, ist weiter - er spielt in einem anderen Cup oder Tag weiter.
+    return verpasst.zeilen.filter((z) => {
+      const letzte = z.raenge.reduce((bi, _, i) => (z.zeiten[i] >= z.zeiten[bi] ? i : bi), 0);
+      const c = verpasstManuell || z.cuts[letzte];
+      return !!c && z.raenge[letzte] > c;
+    }).sort((a, b) => a.bekanntheit - b.bekanntheit);
+  }, [verpasst.zeilen, verpasst.modus, verpasst.qualifiziert, verpasstManuell]);
 
   /**
    * Ist das ein Solo-Cup?
@@ -2440,6 +2511,23 @@ export default function TweetSeite() {
       return [kopfZeile, zeilen.join(NL)].filter(Boolean).join(NL + NL);
     }
 
+    if (vorlage === 'verpasst') {
+      const NL = '\n';
+      if (verpasst.laedt) return 'Suche läuft …';
+      if (verpasst.fehler) return verpasst.fehler;
+      if (!verpasstLinie) return verpasst.modus === 'serie' ? 'Für dieses Finale steht noch kein Feld fest.' : 'Bis zu welchem Platz kommt man weiter? Oben die Zahl eintragen.';
+      const regionText = aktuellesFenster?.region && aktuellesFenster.region !== 'GLOBAL' ? ` (${aktuellesFenster.region})` : '';
+      if (!verpasstTreffer.length) {
+        return `Nobody from the Power Rankings top 200 missed out on ${cupName}${regionText}.`;
+      }
+      // Wie im Beispiel des Betreibers: eine Zeile, dann jeder bekannte Name untereinander - der ganze Cup, nicht nur zehn.
+      return `Notable Players to have not qualified ${cupName}${regionText}💔:${NL}${NL}${verpasstTreffer.map((z) => {
+        // Wie im Beispiel des Betreibers: "Swizzy", nicht "swizzy" - rein kleingeschriebene Namen bekommen einen grossen Anfangsbuchstaben.
+        const n = z.name.replace(/\s+/g, ' ').trim();
+        return n === n.toLowerCase() && /^[a-z]/.test(n) ? n[0].toUpperCase() + n.slice(1) : n;
+      }).join(NL)}`;
+    }
+
     if (!stats) return '';
     const kopf = `${cupName}${tagName ? ` · ${tagName}` : ''}`;
     const NL = '\n';
@@ -2453,18 +2541,6 @@ export default function TweetSeite() {
      * unveraendert bauen.
      */
     const zusatz = '';
-
-    if (vorlage === 'verpasst') {
-      if (verpasst.laedt) return 'Suche läuft …';
-      if (verpasst.fehler) return verpasst.fehler;
-      if (!verpasstCut) return 'Bis zu welchem Platz kommt man weiter? Oben die Zahl eintragen.';
-      const regionText = aktuellesFenster?.region && aktuellesFenster.region !== 'GLOBAL' ? ` (${aktuellesFenster.region})` : '';
-      if (!verpasstTreffer.length) {
-        return `Missed the cut: ${kopf}${regionText}${NL}${NL}Nobody from the Power Rankings top 150 finished outside the top ${verpasstCut}.`;
-      }
-      const zeilen = verpasstTreffer.map((z) => `${mitFlagge(z.name, z.id)}: #${z.rang}`.replace(/\s+/g, ' '));
-      return `🚫 Notable players who missed the cut${NL}🏆 ${kopf}${regionText}${NL}Top ${verpasstCut} advance${NL}${NL}${zeilen.join(NL)}`;
-    }
 
     if (vorlage === 'spielerkarte') {
       if (!karteSpieler) {
@@ -3798,7 +3874,7 @@ export default function TweetSeite() {
               <div className="mb-4 rounded-xl border border-zinc-800 bg-zinc-900/40 p-3">
                 <div className="flex flex-wrap items-center gap-3">
                   <label className="flex items-center gap-2 text-xs text-slate-400">
-                    <T>Weiter kommen die ersten</T>
+                    <T>Weiter kommen die ersten (leer: laut Epic)</T>
                     <input value={verpasstCutText} onChange={(e) => setVerpasstCutText(e.target.value.replace(/\D/g, '').slice(0, 5))}
                       placeholder={verpasst.cut ? String(verpasst.cut) : '300'} inputMode="numeric"
                       className="w-20 rounded-lg border border-zinc-800 bg-zinc-950 px-2.5 py-1.5 text-sm text-slate-100 outline-none focus:border-sky-500" />
@@ -3806,7 +3882,7 @@ export default function TweetSeite() {
                   <span className="text-[11px] text-slate-500">
                     {verpasst.laedt ? <T>Suche läuft …</T>
                       : verpasst.fehler ? verpasst.fehler
-                        : <>{verpasst.zeilen.length} <T>der ersten 150 der Power Rankings spielten mit</T> · {verpasstTreffer.length} <T>davon hinter der Linie</T></>}
+                        : <>{verpasst.zeilen.length} <T>der ersten 200 der Power Rankings spielten in diesem Cup mit</T> · {verpasstTreffer.length} <T>davon kamen nicht weiter</T> · {verpasst.spieltage} <T>Spieltage gelesen</T></>}
                   </span>
                 </div>
               </div>

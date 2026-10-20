@@ -86,7 +86,7 @@ export default function GlobalsTagWahl({
               onClick={() => { onTag(tag.windowId); onAlle?.([]); }}
               className={`rounded-lg border px-3 py-2 text-sm transition ${
                 an
-                  ? 'border-amber-400/60 bg-amber-400/15 font-semibold text-amber-200'
+                  ? 'border-sky-400/60 bg-sky-400/15 font-semibold text-sky-200'
                   : 'border-zinc-800 text-slate-300 hover:border-zinc-700'}`}>
               {tag.titel}
               <span className="ml-2 text-[11px] text-slate-500">
@@ -102,7 +102,7 @@ export default function GlobalsTagWahl({
             onClick={() => onAlle(tage.map((x) => x.windowId))}
             className={`rounded-lg border px-3 py-2 text-sm transition ${
               gesamt
-                ? 'border-amber-400/60 bg-amber-400/15 font-semibold text-amber-200'
+                ? 'border-sky-400/60 bg-sky-400/15 font-semibold text-sky-200'
                 : 'border-zinc-800 text-slate-300 hover:border-zinc-700'}`}>
             <T>Beide Tage</T>
             <span className="ml-2 text-[11px] text-slate-500"><T>zusammen</T></span>

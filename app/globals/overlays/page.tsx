@@ -112,18 +112,18 @@ export default function GlobalsOverlays() {
       <div className="grid gap-4 lg:grid-cols-3">
         {overlays(duo).map((o) => (
           <section key={o.pfad}
-            className="rounded-xl border border-amber-500/20 bg-zinc-900/40 p-3">
+            className="rounded-xl border border-sky-500/20 bg-zinc-900/40 p-3">
             <Vorschau src={o.vorschau} hoehe={o.hoehe} klebt={false} />
-            <h2 className="text-base font-semibold text-amber-200">
+            <h2 className="text-base font-semibold text-sky-200">
               <T>{o.titel}</T>
             </h2>
             <p className="mt-1 text-xs leading-relaxed text-slate-500">
               <T>{o.was}</T>
             </p>
             <Link href={o.pfad}
-              className="mt-3 inline-block rounded-lg border border-amber-500/40
-                         bg-amber-400/10 px-4 py-2 text-sm font-semibold
-                         text-amber-200 transition hover:bg-amber-400/20">
+              className="mt-3 inline-block rounded-lg border border-sky-500/40
+                         bg-sky-400/10 px-4 py-2 text-sm font-semibold
+                         text-sky-200 transition hover:bg-sky-400/20">
               <T>Einstellen</T>
             </Link>
           </section>

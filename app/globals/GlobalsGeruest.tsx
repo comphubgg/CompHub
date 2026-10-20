@@ -6,7 +6,7 @@ import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import { useZugang } from '@/app/lib/zugang';
 import LadeSchirm from '@/app/components/LadeSchirm';
-import { GLOBALS_TITEL } from '@/lib/globalsCup';
+import SeitenKopf from '@/app/components/SeitenKopf';
 
 /*
  * Das Geruest der Globals-Seiten.
@@ -103,51 +103,30 @@ export default function GlobalsGeruest({ aktiv, breit, children }: {
   }
 
   return (
-    <main className="flex-1 bg-zinc-950 text-slate-200">
+    <main className="relative isolate flex-1 bg-zinc-950 text-slate-200">
       {/*
-        * Die Kopfzeile des Turniers.
-        *
-        * Dasselbe Bild, das auch hinter den Overlays liegt: Epics Banner,
-        * aus dem Logo und Schrift heraus sind. Darueber dieselbe schwarze
-        * Folie - so gehoert die Seite sichtbar zum Overlay-Aussehen.
+        * Aussehen wie die Solo-Seite (Betreiber, 20.10.2026: "die soll auch aussehen wie die Solo-Seite" und "Globals 2026" als Titel): der gemeinsame Seitenkopf mit
+        * dem Blau der Startseite, darunter die Reiter als Pillen. Frueher stand hier ein goldener Kopf mit Banner.
         */}
-      {/* Dunkle Insel: der Kopf bleibt auch im Hell-Modus dunkel und lesbar (Betreiber, 19.10.2026: "man erkennt nicht mal den Text"). */}
-      <div className="foto-dunkel relative overflow-hidden border-b border-amber-500/25">
-        <div aria-hidden
-          className="absolute inset-0 bg-cover bg-center opacity-40"
-          style={{ backgroundImage: "url('/overlay/globals/fncs-breit.jpg')" }} />
-        <div aria-hidden
-          className="absolute inset-0"
-          style={{ background: `linear-gradient(90deg, ${FNCS_BLAU}55, transparent 55%), rgba(0,0,0,.72)` }} />
+      <div className={`mx-auto space-y-5 py-6 ${breit ? 'w-full px-2 sm:px-3' : 'max-w-[1500px] px-4'}`}>
+        <Link href="/account" className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 transition hover:text-sky-400">
+          <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 4l-6 6 6 6" /></svg><T>Dashboard</T>
+        </Link>
+        <SeitenKopf marke={<T>FNCS · Antwerpen · 26.–27.09.2026</T>} titel={<>Globals <span className="text-sky-500">2026</span></>}
+          text={<T>Die FNCS Global Championship an einem Ort: Overlays für deinen Stream, das Feld, die Karte, der Tipp auf den Ausgang und das Preisgeld.</T>} />
 
-        <div className="relative mx-auto max-w-[1500px] px-4 py-6">
-          <p className="text-[10px] font-semibold uppercase tracking-[0.28em]
-                        text-amber-300/80">
-            VIP · 26.–27.09.2026
-          </p>
-          <h1 className="mt-1 text-2xl font-black tracking-tight sm:text-3xl"
-            style={{ color: '#ffd766' }}>
-            {GLOBALS_TITEL}
-          </h1>
+        <nav className="flex w-fit max-w-full flex-wrap gap-1 rounded-full border border-zinc-800 bg-zinc-900 p-1 shadow-sm">
+          {GLOBALS_SEITEN.map((s) => {
+            const an = hier === s.pfad || hier.startsWith(`${s.pfad}/`);
+            return (
+              <Link key={s.pfad} href={s.pfad} title={t(s.was)}
+                className={`rounded-full px-4 py-2 text-sm font-bold transition ${an ? 'bg-sky-500 text-white shadow' : 'text-slate-400 hover:text-slate-100'}`}>
+                <T>{s.titel}</T>
+              </Link>
+            );
+          })}
+        </nav>
 
-          <nav className="mt-4 flex flex-wrap gap-1.5">
-            {GLOBALS_SEITEN.map((s) => {
-              const an = hier === s.pfad || hier.startsWith(`${s.pfad}/`);
-              return (
-                <Link key={s.pfad} href={s.pfad} title={t(s.was)}
-                  className={`rounded-full px-4 py-2 text-sm transition ${
-                    an
-                      ? 'bg-amber-400/15 font-semibold text-amber-200 ring-1 ring-amber-400/40'
-                      : 'text-slate-300 hover:bg-white/5 hover:text-amber-200'}`}>
-                  <T>{s.titel}</T>
-                </Link>
-              );
-            })}
-          </nav>
-        </div>
-      </div>
-
-      <div className={`mx-auto py-6 ${breit ? 'w-full px-2 sm:px-3' : 'max-w-[1500px] px-4'}`}>
         {children}
       </div>
     </main>
