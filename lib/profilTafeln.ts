@@ -41,6 +41,16 @@ export function fncsFinalTag(windowId: string): number | null {
   return Number(/Day(\d+)/i.exec(windowId)?.[1] ?? 1);
 }
 
+/**
+ * Ist das (ein Tag) das Finale der FNCS Solos - "S42_FNCSSolo_Final_Day2_EU"? Der Betreiber (20.10.2026): die FNCS Solos, die laufenden und die kommenden, sind auch FNCS
+ * und gehoeren in die FNCS-Tafel des Profils. Qualifier, Fast Track, Heats und Last Chance sind keine Finals.
+ */
+export function fncsSoloFinalTag(windowId: string): number | null {
+  if (!/FNCSSolo/i.test(windowId) || !/Final/i.test(windowId)) return null;
+  if (/Qualif|Heat|LastChance|FastTrack/i.test(windowId)) return null;
+  return Number(/Day(\d+)/i.exec(windowId)?.[1] ?? 1);
+}
+
 /** "S19" -> "CH3 S1" (aus saisonKurz "CH3S1"). */
 export const mitLeerzeichen = (kurz: string) => kurz.toUpperCase().replace(/^(CH\d+)(S\d+)$/, '$1 $2');
 
@@ -60,6 +70,8 @@ export function fncsTafel(opt: {
   kennungVon: (label: string) => string | undefined;
   /** Saisons, in denen es ein FNCS-Finale gab, das die Quelle noch nicht fuehrt. */
   weitereFinals: string[];
+  /** Saisons, in denen das Finale der FNCS Solos gespielt wurde - wer dort nicht stand, bekommt DNQ. */
+  solosFinals?: string[];
   /**
    * Wer in der Liste der Quelle bei diesem Eintrag denselben Platz hat.
    *
@@ -122,6 +134,19 @@ export function fncsTafel(opt: {
   for (const kennung of opt.weitereFinals) {
     const l = label(kennung);
     if (!raus.has(l)) raus.set(l, { saison: l, platz: 0, typ: 'ONLINE', mitspieler: [], datum: null, schluessel: nr(kennung) });
+  }
+  // 2b) Das Finale der FNCS Solos je Saison: Platz des Spielers (letzter Finaltag), sonst DNQ.
+  const soloJeSaison = new Map<string, ProfilZeile & { tag: number }>();
+  for (const z of zeilen) {
+    const tag = fncsSoloFinalTag(z.windowId);
+    if (!tag) continue;
+    const da = soloJeSaison.get(z.season);
+    if (!da || tag > da.tag) soloJeSaison.set(z.season, { ...z, tag });
+  }
+  for (const kennung of new Set([...(opt.solosFinals ?? []), ...soloJeSaison.keys()])) {
+    const z = soloJeSaison.get(kennung);
+    const l = `${label(kennung)} SOLOS`;
+    raus.set(l, { saison: l, platz: z?.platz ?? 0, typ: 'ONLINE', mitspieler: [], datum: z?.datum ?? null, schluessel: nr(kennung) + 0.6 });
   }
   // 3) Die LANs der FNCS.
   for (const e of lans) {

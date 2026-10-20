@@ -38,6 +38,10 @@ interface Konto {
   id: string; email: string; name: string; bestaetigt: boolean;
   dienste: string[]; epicId: string | null; epicVerifiziert?: boolean; hatPasswort: boolean;
   socials: Record<string, string>; bild: string | null; angelegt: string;
+  /** Der Epic-Name aus der letzten Verbindung. */
+  epicName?: string | null;
+  /** Eine neue Adresse, die auf die Bestaetigung wartet. */
+  neueEmail?: string | null;
 }
 
 interface VerlaufZeile {
@@ -180,6 +184,10 @@ export default function KontoSeite({ eingebettet = false }: { eingebettet?: bool
    */
   const [bestaetigungLaeuft, setBestaetigungLaeuft] = useState(false);
   const [bestaetigungHinweis, setBestaetigungHinweis] = useState('');
+  /** Die E-Mail-Adresse aendern: neue Adresse, das Passwort zur Bestaetigung, und was der Server sagt. */
+  const [neueMail, setNeueMail] = useState('');
+  const [mailPw, setMailPw] = useState('');
+  const [mailStand, setMailStand] = useState('');
 
   const [chatAmRand, setChatAmRand] = useState<boolean | null>(null);
   /** Die Bestaetigungsmail noch einmal anfordern. */
@@ -636,6 +644,21 @@ export default function KontoSeite({ eingebettet = false }: { eingebettet?: bool
     leser.readAsDataURL(datei);
   }
 
+  async function emailAendern() {
+    setMailStand(t('einen Moment …'));
+    try {
+      const r = await fetch('/api/konto', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ was: 'email-aendern', email: neueMail, passwort: mailPw }),
+      });
+      const j = await r.json();
+      if (!r.ok) { setMailStand(t(j?.fehler ?? 'nicht gespeichert')); return; }
+      setMailStand(t(j?.hinweis ?? 'Die Mail ist unterwegs.'));
+      setKonto((k) => (k ? { ...k, neueEmail: neueMail.trim().toLowerCase() } : k));
+      setNeueMail(''); setMailPw('');
+    } catch (e) { setMailStand((e as Error).message); }
+  }
+
   async function passwortSetzen() {
     setPwStand(t('speichert …'));
     try {
@@ -818,7 +841,7 @@ export default function KontoSeite({ eingebettet = false }: { eingebettet?: bool
                   <div className="mt-3 space-y-3">
                     <p className="flex flex-wrap items-center gap-2 text-sm text-slate-200">
                       <span className="h-2 w-2 rounded-full bg-emerald-400" />
-                      <span className="font-semibold">{meinEpicName || '…'}</span>
+                      <span className="font-semibold">{daten.epicName || meinEpicName || '…'}</span>
                       <span className="rounded bg-emerald-500/10 px-2 py-0.5 text-[10px] uppercase tracking-wider text-emerald-400">
                         {daten.epicVerifiziert ? <T>Von Epic bestätigt</T> : <T>Vom Betreiber zugewiesen</T>}
                       </span>
@@ -828,13 +851,31 @@ export default function KontoSeite({ eingebettet = false }: { eingebettet?: bool
                         className="rounded-lg bg-sky-500 px-4 py-2 text-sm font-medium text-white transition hover:bg-sky-400">
                         <T>Meine Stats öffnen</T>
                       </Link>
-                      {daten.epicVerifiziert && (
+                      {daten.epicVerifiziert ? (
                         <button type="button" onClick={() => void epicTrennen()}
                           className="text-xs text-slate-500 underline transition hover:text-rose-400">
                           <T>Verbindung lösen</T>
                         </button>
+                      ) : epicBereit && (
+                        <a href="/api/auth/epic/authorize?zurueck=/account"
+                          className="rounded-lg border border-sky-500/60 px-4 py-2 text-sm font-medium text-sky-300 transition hover:bg-sky-500/10">
+                          <T>Mit Epic bestätigen</T>
+                        </a>
                       )}
                     </div>
+                    {/* Umbenannt oder ein anderes Konto? Neu laden holt den aktuellen Namen von Epic, "anderes Konto" verlangt die Anmeldung bei Epic noch einmal. */}
+                    {epicBereit && (
+                      <div className="flex flex-wrap items-center gap-2">
+                        <a href="/api/auth/epic/authorize?zurueck=/account"
+                          className="rounded-lg border border-zinc-700 px-3 py-1.5 text-xs font-semibold text-slate-300 transition hover:border-sky-500 hover:text-sky-400">
+                          ↻ <T>Neu laden</T>
+                        </a>
+                        <a href="/api/auth/epic/authorize?anderes=1&zurueck=/account"
+                          className="rounded-lg border border-zinc-700 px-3 py-1.5 text-xs font-semibold text-slate-300 transition hover:border-sky-500 hover:text-sky-400">
+                          <T>Anderes Epic-Konto verbinden</T>
+                        </a>
+                      </div>
+                    )}
                     {daten.epicVerifiziert && (
                       <div className="rounded-lg border border-white/[0.08] bg-zinc-950/60 p-3">
                         <p className="text-sm font-semibold text-slate-100"><T>Freunde-Leaderboard</T></p>
@@ -1009,6 +1050,36 @@ export default function KontoSeite({ eingebettet = false }: { eingebettet?: bool
             </div>
           </section>
         )}
+
+            {!nurVip && (
+              <section className={kasten}>
+                <h2 className={ueberschrift}><T>E-Mail-Adresse</T></h2>
+                <p className="mb-3 mt-1 text-[11px] leading-relaxed text-slate-600">
+                  <T>Die neue Adresse gilt erst, wenn du in der Mail, die dorthin geht, auf den Knopf klickst.</T>
+                </p>
+                <p className="mb-3 text-sm text-slate-200">{daten.email}</p>
+                {daten.neueEmail && (
+                  <p className="mb-3 rounded-lg border border-amber-800 bg-amber-950/30 px-3 py-2 text-xs text-amber-300">
+                    <T>Wartet auf die Bestätigung:</T> {daten.neueEmail}
+                  </p>
+                )}
+                <div className="space-y-3">
+                  <input type="email" value={neueMail} onChange={(e) => setNeueMail(e.target.value)}
+                    placeholder={t('neue E-Mail-Adresse')} autoComplete="email" className={feld} />
+                  {daten.hatPasswort && (
+                    <input type="password" value={mailPw} onChange={(e) => setMailPw(e.target.value)}
+                      placeholder={t('Passwort zur Bestätigung')} autoComplete="current-password" className={feld} />
+                  )}
+                  <div className="flex items-center gap-3">
+                    <button onClick={emailAendern} disabled={!neueMail.includes('@')}
+                      className="rounded-lg border border-zinc-700 px-4 py-2 text-sm text-slate-200 transition hover:border-sky-500 hover:text-sky-400 disabled:opacity-40">
+                      <T>Adresse ändern</T>
+                    </button>
+                    {mailStand && <span className="text-xs text-slate-500">{mailStand}</span>}
+                  </div>
+                </div>
+              </section>
+            )}
 
             {daten.id && (
               <section className={kasten}>

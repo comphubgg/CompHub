@@ -249,7 +249,8 @@ export default function FncsSeite() {
 
   return (
     <main className="relative isolate min-h-screen bg-zinc-950 text-slate-100">
-      <KartenHintergrund cups={FNCS_BILDER} />
+      {/* Nur oben hinter dem Titel und nur bei den Events - nicht bei All-Time Stats (Betreiber, 20.10.2026). */}
+      {tab === 'events' && <KartenHintergrund cups={FNCS_BILDER} hoehe={300} />}
       <div className="relative overflow-hidden border-b border-white/[0.06]">
         <div aria-hidden className="pointer-events-none absolute left-1/2 top-0 h-72 w-[820px] -translate-x-1/2 rounded-full bg-sky-500/[0.08] blur-[110px]" />
         <div className="relative mx-auto flex max-w-[1500px] flex-wrap items-end justify-between gap-4 px-4 py-8">

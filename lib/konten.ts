@@ -60,6 +60,13 @@ export interface Konto {
    * reicht, um eine Mail zu lesen.
    */
   zuruecksetzung?: { schluessel: string; bis: number };
+  /**
+   * Ein offener Wechsel der E-Mail-Adresse: die neue Adresse gilt erst, wenn der Schluessel aus der Mail an sie eingeloest ist (24 Stunden).
+   * Der Betreiber (20.10.2026): E-Mail, Passwort und Epic-Konto sollen im Account aenderbar sein.
+   */
+  neueEmail?: { email: string; schluessel: string; bis: number };
+  /** Der Epic-Name, wie Epic ihn bei der letzten Verbindung nannte - "neu laden" holt ihn frisch. */
+  epicName?: string;
   /** Das eigene Epic-Konto - dann zeigt das Profil die eigenen Werte. */
   epicId?: string;
   /** Hat Epic selbst bestaetigt, dass das Konto diesem Spieler gehoert (Verknuepfung ueber "Mit Epic Games verbinden")? */
@@ -696,6 +703,8 @@ export function oeffentlich(k: Konto) {
     hatPasswort: Boolean(k.passwort),
     epicId: k.epicId ?? null,
     epicVerifiziert: Boolean(k.epicVerifiziert),
+    epicName: k.epicName ?? null,
+    neueEmail: k.neueEmail && k.neueEmail.bis > Date.now() ? k.neueEmail.email : null,
     spielerVerlauf: k.spielerVerlauf ?? [],
     bannerVorlagen: k.bannerVorlagen ?? [],
     socials: k.socials ?? {},
@@ -717,12 +726,41 @@ export async function bestaetigeMitSchluessel(schluessel: string): Promise<Konto
   const k = schluessel.trim();
   if (!k) return null;
   const liste = await lies();
+  // Ein Wechsel der Adresse: der Schluessel ging an die NEUE Adresse - mit ihm gilt sie.
+  const wechsel = liste.find((x) => x.neueEmail?.schluessel === k && x.neueEmail.bis > Date.now());
+  if (wechsel?.neueEmail) {
+    const neu = wechsel.neueEmail.email.trim().toLowerCase();
+    if (liste.some((x) => x.id !== wechsel.id && x.email === neu)) return null;
+    wechsel.email = neu;
+    wechsel.bestaetigt = true;
+    delete wechsel.neueEmail;
+    await schreibe(liste);
+    return wechsel;
+  }
   const konto = liste.find((x) => x.bestaetigung === k);
   if (!konto) return null;
   konto.bestaetigt = true;
   delete konto.bestaetigung;
   await schreibe(liste);
   return konto;
+}
+
+/**
+ * Den Wechsel der E-Mail-Adresse eroeffnen. Die Adresse aendert sich noch nicht: sie gilt erst, wenn der Schluessel aus der Mail, die an die NEUE Adresse geht,
+ * eingeloest ist - sonst liesse sich ein Konto auf ein fremdes Postfach umstellen.
+ */
+export async function eroeffneEmailWechsel(id: string, email: string): Promise<{ schluessel: string } | { fehler: string }> {
+  const neu = email.trim().toLowerCase();
+  if (!emailTaugt(neu)) return { fehler: 'Diese Adresse sieht nicht richtig aus.' };
+  const liste = await lies();
+  const konto = liste.find((x) => x.id === id);
+  if (!konto) return { fehler: 'Konto nicht gefunden.' };
+  if (konto.email === neu) return { fehler: 'Das ist schon deine Adresse.' };
+  if (liste.some((x) => x.id !== id && x.email === neu)) return { fehler: 'Zu dieser Adresse gibt es schon ein Konto.' };
+  const schluessel = crypto.randomBytes(24).toString('hex');
+  konto.neueEmail = { email: neu, schluessel, bis: Date.now() + 24 * 3600_000 };
+  await schreibe(liste);
+  return { schluessel };
 }
 
 /** Einen frischen Bestaetigungsschluessel - etwa, wenn die Mail nicht ankam. */

@@ -246,8 +246,11 @@ function OrdnerAbschnitt({ p }: { p: Props }) {
                                 onBlur={() => { p.streamerUmbenennen?.(x.twitch, umbenennen.name); setUmbenennen(null); }}
                                 className="mv-fl min-w-0 flex-1 rounded-md border px-2 py-0.5 text-xs outline-none focus:border-sky-500" />
                             ) : (
-                              <span title={p.namen[x.twitch] ? x.twitch : undefined}
-                                className={`min-w-0 flex-1 truncate text-xs ${live ? 'font-semibold' : 'mv-mute'}`}>{anzeige(x.twitch)}</span>
+                              <span title={stand?.title || (p.namen[x.twitch] ? x.twitch : undefined)} className="min-w-0 flex-1">
+                                <span className={`block truncate text-xs ${live ? 'font-semibold' : 'mv-mute'}`}>{anzeige(x.twitch)}</span>
+                                {/* Was er gerade sendet - dort steht oft, welchen Cup er spielt (LCQ, Heat ...). */}
+                                {live && stand?.title && <span className="mv-mute block truncate text-[10px]">{stand.title}</span>}
+                              </span>
                             )}
                             {live && (stand?.viewers ?? 0) > 0 && <span className="mv-mute shrink-0 text-[10px]">{kurz(stand!.viewers)}</span>}
                             {!live && bekannt(x.twitch) && <span className="mv-mute shrink-0 text-[9px] uppercase tracking-wider">offline</span>}

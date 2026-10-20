@@ -69,6 +69,7 @@ jobs:
           node scripts/daten-sync.mjs --herunterladen --nur epic-auth.json 2>&1 | tail -2
           node scripts/ablage-github-holen.mjs --ordner epic-spieltage 2>&1 | tail -3
           node scripts/ablage-github-holen.mjs replay-voll/index.json 2>&1 | tail -2
+          node scripts/ablage-github-holen.mjs replay-voll/_spieler.json 2>&1 | tail -1
 
       # Jeder Durchgang: neue Matches auslesen, Ergebnis und Index ans Release. Die Spieltage (neue Finals) kommen alle dreissig Minuten frisch.
       - name: Schleife
@@ -79,6 +80,7 @@ jobs:
           node scripts/schleife.mjs --minuten 325 --takt 240 \
             --schritt "8:node scripts/ablage-github-holen.mjs --ordner epic-spieltage 2>&1 | tail -3" \
             --schritt "node scripts/replay-voll-holen.mjs --hoechstens 300 --parallel 4 --minuten 6 2>&1 | tail -40" \
+            --schritt "node scripts/replay-spieler-index.mjs --hoechstens 400 2>&1 | tail -2" \
             --schritt "[ -d data/replay-voll ] && node scripts/ablage-github.mjs --nur replay-voll 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -8 || true"
 
       - name: Naechsten Auftrag anstossen

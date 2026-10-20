@@ -17,7 +17,7 @@ import { ARCHIV_MINDEST_MATCHES } from '@/lib/archivRegel';
 import { getToken, loeseNamenAuf } from '@/lib/epicCups';
 import { zwischenspeichern } from '@/lib/zwischenspeicher';
 import { liesJson } from '@/lib/ablage';
-import { fncsTafel, andereErfolge, fncsFinalTag, mitLeerzeichen, type ProfilZeile } from '@/lib/profilTafeln';
+import { fncsTafel, andereErfolge, fncsFinalTag, fncsSoloFinalTag, mitLeerzeichen, type ProfilZeile } from '@/lib/profilTafeln';
 import { spielerbildKlein } from '@/lib/spielerbildKlein';
 
 /**
@@ -1287,9 +1287,10 @@ async function berechne(request: Request) {
       const weitereFinals = [...new Set(verzeichnis
         .filter((e) => fncsFinalTag(e.windowId) && Number(e.season.slice(1)) > letzteQuelle)
         .map((e) => e.season))];
+      const solosFinals = [...new Set(verzeichnis.filter((e) => fncsSoloFinalTag(e.windowId)).map((e) => e.season))];
       const tafelRoh = fncsTafel({
         quelle: fncs?.saisons ?? [], zeilen: profilZeilen, lan: lanFuerTafel, spieler,
-        label: labelVon,
+        label: labelVon, solosFinals,
         kennungVon: (l) => kennungZu.get(l.replace(/\s+/g, '').toUpperCase()),
         weitereFinals,
         gleicherPlatz: (saison, platz) => szeneListe

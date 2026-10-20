@@ -131,6 +131,21 @@ async function ausTabelle(fensterId: string): Promise<{ pool: number; proRang: (
   return pool > 0 ? { pool, proRang } : null;
 }
 
+/*
+ * Das Preisgeld der LAN-Events aus data/lan-preisgelder.json: je Spieler ein Betrag und sein Platz - bei der Global Championship 2026 traegt der stuendliche Lauf sie
+ * selbst ein (scripts/globals-preisgeld-eintragen.mjs, aus Epics Auszahlungstabelle). Betreiber, 20.10.2026: "die Earnings pro Spieler fuer die FNCS Global
+ * Championship - dann hast du ueberall die Earnings". Ein Team bekommt die Summe seiner Spieler, das Event die Summe aller.
+ */
+async function ausLanPreisgeld(kennung: string): Promise<{ pool: number; proRang: (rang: number) => number | null } | null> {
+  const roh = await liesJson<{ eintraege?: Array<{ kennung: string; spieler?: Array<{ platz: number; betrag: number }> }> }>('lan-preisgelder.json', {}).catch(() => ({} as { eintraege?: Array<{ kennung: string; spieler?: Array<{ platz: number; betrag: number }> }> }));
+  const e = (roh.eintraege ?? []).find((x) => x.kennung === kennung);
+  if (!e?.spieler?.length) return null;
+  const je = new Map<number, number>();
+  let pool = 0;
+  for (const sp of e.spieler) { je.set(sp.platz, (je.get(sp.platz) ?? 0) + sp.betrag); pool += sp.betrag; }
+  return pool > 0 ? { pool, proRang: (rang) => je.get(rang) ?? null } : null;
+}
+
 /** Die ersten Plaetze aus den Eckdaten, mit Flaggen. */
 async function ausFakten(f: FncsFakt): Promise<FncsSpitze[]> {
   const land = await landVonName();
@@ -321,6 +336,11 @@ async function baueEreignisse(): Promise<FncsEreignis[]> {
     if (!fakt) {
       const wid = (k.e.tage ?? []).length ? (k.e.tage ?? [])[(k.e.tage ?? []).length - 1].windowId : k.e.windowId;
       const t = await ausTabelle(wid).catch(() => null);
+      const lan = !t && /Global_Championship_2026$/.test(k.e.windowId) ? await ausLanPreisgeld('fncs-global-championship-2026') : null;
+      if (lan) {
+        preisgeld = geld(lan.pool);
+        spitze = spitze.map((p) => ({ ...p, preis: p.preis ?? (lan.proRang(p.rang) != null ? geld(lan.proRang(p.rang) as number) : undefined) }));
+      }
       if (t) {
         // Seit Chapter 7 (Duos) nennt die Tabelle den Betrag je Spieler: Major 1 (S40) stimmt mit der Tabelle mal zwei auf den Dollar
         // mit dem veroeffentlichten Preisgeld ueberein (592.000 gegen 295.750 x 2). Bei den Trios davor gilt sie je Team.

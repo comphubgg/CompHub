@@ -224,7 +224,7 @@ export default function Maps() {
 
   return (
     <main className="relative isolate min-h-screen bg-zinc-950 text-slate-100">
-      <KartenHintergrund cups={CUP_BILDER} />
+      <KartenHintergrund cups={CUP_BILDER} hoehe={300} />
       <style>{CSS}</style>
       <div className="mx-auto max-w-[1500px] px-4 py-8">
         {/* ---------------------------------------------------------------- Kopf */}

@@ -115,6 +115,14 @@ export async function GET(req: NextRequest) {
     }
     epicId = epicId.replace(/-/g, '').toLowerCase();
     if (!/^[0-9a-f]{32}$/.test(epicId)) return aufraeumen(zurueck(`${heim}?epic=profil`));
+    // Der Name, den Epic gerade fuehrt - wer sich umbenannt hat, sieht ihn nach "Neu laden" hier.
+    let epicName = '';
+    if (token.access_token) {
+      try {
+        const info = await fetch('https://api.epicgames.dev/epic/oauth/v2/userInfo', { headers: { Authorization: `Bearer ${token.access_token}` } });
+        if (info.ok) epicName = String(((await info.json()) as { preferred_username?: string }).preferred_username ?? '').slice(0, 60);
+      } catch { /* dann bleibt der Name aus dem Verzeichnis */ }
+    }
 
     // Der Weg "Freunde freigeben" (app/api/auth/epic/freunde): dasselbe Epic-Konto, dazu die Freundesliste mit Epics Zustimmung.
     if (req.cookies.get('epic_oauth_art')?.value === 'freunde') {
@@ -168,7 +176,7 @@ export async function GET(req: NextRequest) {
       return aufraeumen(zurueck(`${heim}?epic=zugewiesen`));
     }
 
-    await aendern(konto.id, { epicId, epicVerifiziert: true });
+    await aendern(konto.id, { epicId, epicVerifiziert: true, ...(epicName ? { epicName } : {}) });
     // Die Freundesliste kommt mit denselben Berechtigungen mit (lib/epicBereiche) - gleich mitnehmen; scheitert das, bleibt die Verknuepfung gueltig.
     const freunde = await holeFreunde(epicId, token.access_token).catch(() => null);
     if (freunde) await aendern(konto.id, { epicFreunde: freunde, epicFreundeStand: Date.now() }).catch(() => undefined);

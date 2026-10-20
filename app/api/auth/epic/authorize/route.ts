@@ -32,6 +32,8 @@ export async function GET(req: NextRequest) {
     return new NextResponse(null, { status: 307, headers: { Location: '/account?epic=nicht-eingerichtet' } });
   }
 
+  // Anderes Epic-Konto verbinden (Betreiber, 20.10.2026): Epic soll die Anmeldung noch einmal verlangen, statt das bereits eingeloggte Konto zu nehmen.
+  const anderes = req.nextUrl.searchParams.get('anderes') === '1';
   const state = crypto.randomUUID();
   const params = new URLSearchParams({
     client_id: CLIENT_ID,
@@ -40,6 +42,7 @@ export async function GET(req: NextRequest) {
     scope: EPIC_BEREICHE,
     redirect_uri: rueckwegVon(req, PFAD),
     state,
+    ...(anderes ? { prompt: 'login' } : {}),
   });
   const antwort = NextResponse.redirect(`https://www.epicgames.com/id/authorize?${params.toString()}`);
   // Ein liegengebliebener Freunde-Weg darf das normale Verknuepfen nicht auf die Freundesliste umstellen.

@@ -75,13 +75,23 @@ let aufbauLaeuft: Promise<void> | null = null;
  */
 const SPIELER_DATEI = path.join(DATEN_ORT, 'replay-voll-spieler.json');
 
+/** Wann die Spielerliste vom Release das naechste Mal geholt wird. */
+let releaseBis = 0;
+
+/*
+ * Zwei Quellen, zusammengelegt: die Liste, die der GitHub-Ablauf der Replays pflegt (scripts/replay-spieler-index.mjs, replay-voll/_spieler.json - eine Datei, schnell da),
+ * und was dieser Server selbst nachgelesen hat. Der Betreiber (20.10.2026): "Meine Replays" lud tausendzweihundert Replays und fand keines - der Server las jedes Game einzeln.
+ */
 async function spielerIndex(): Promise<SpielerIndex> {
   if (!spielerMerker) {
     let lokal: SpielerIndex | null = null;
     try { lokal = JSON.parse(await fsEcht.readFile(SPIELER_DATEI, 'utf8')) as SpielerIndex; } catch { /* noch keine Datei */ }
-    spielerMerker = lokal?.matches ? lokal
-      : await liesJson<SpielerIndex>('replay-voll/_spieler.json', { stand: 0, matches: {} }).catch(() => ({ stand: 0, matches: {} }));
-    if (!spielerMerker.matches) spielerMerker = { stand: 0, matches: {} };
+    spielerMerker = lokal?.matches ? lokal : { stand: 0, matches: {} };
+  }
+  if (Date.now() > releaseBis) {
+    releaseBis = Date.now() + 10 * 60_000;
+    const rel = await liesJson<SpielerIndex>('replay-voll/_spieler.json', { stand: 0, matches: {} }).catch(() => null);
+    if (rel?.matches) for (const [id, ids] of Object.entries(rel.matches)) if (!spielerMerker.matches[id]) spielerMerker.matches[id] = ids;
   }
   return spielerMerker;
 }

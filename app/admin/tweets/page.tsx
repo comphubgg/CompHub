@@ -34,6 +34,15 @@ interface Cup {
   live: boolean; vorbei: boolean;
   naechsterStart: number | null; letzterStart: number | null;
 }
+/**
+ * Die Anfangszeiten der Spieltage, die schon begonnen haben. Ein kommender Termin darf den Cup nicht datieren: der FNCS Solos Last Chance Qualifier stand mit
+ * "21.10." in der Liste, obwohl er am 19. und 20. lief - der Betreiber (20.10.2026) suchte ihn unter dem gestrigen Tag und fand ihn nicht.
+ */
+function begonneneZeiten(c: Cup): number[] {
+  const alle = Object.values(c.regionen).flat();
+  const gelaufen = alle.filter((f) => f.status !== 'kommt').map((f) => f.begin);
+  return gelaufen.length ? gelaufen : alle.map((f) => f.begin);
+}
 interface Platz {
   rank: number; spieler: string[]; wert: number; roh: number;
   /** Epic-Konto-IDs in derselben Reihenfolge wie die Namen. */
@@ -1485,7 +1494,7 @@ export default function TweetSeite() {
     const live = sichtbareCups.live.filter(passt);
     const monate = new Map<string, { titel: string; cups: Cup[] }>();
     for (const c of sichtbareCups.vorbei.filter(passt)) {
-      const zeiten = Object.values(c.regionen).flat().map((f) => f.begin);
+      const zeiten = begonneneZeiten(c);
       const wann = zeiten.length ? new Date(Math.max(...zeiten)) : null;
       const schluessel = wann
         ? `${wann.getFullYear()}-${String(wann.getMonth()).padStart(2, '0')}`
@@ -1510,7 +1519,7 @@ export default function TweetSeite() {
 
   /** Wann lief dieser Cup zuletzt? Fuer die Beschriftung in der Liste. */
   const wann = (c: Cup) => {
-    const zeiten = Object.values(c.regionen).flat().map((f) => f.begin);
+    const zeiten = begonneneZeiten(c);
     if (!zeiten.length) return '';
     return new Date(Math.max(...zeiten))
       .toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' });
@@ -3218,6 +3227,8 @@ export default function TweetSeite() {
             </button>
           } />
 
+        {/* Schritt 1 und 2 nebeneinander (Betreiber, 20.10.2026: die Post-Section neu - weniger Scrollen): links was es werden soll, rechts der Cup. */}
+        <div className="grid gap-x-4 xl:grid-cols-[minmax(320px,2fr)_minmax(0,3fr)] xl:items-start">
         {/* ------------------------------------------ Schritt 1: Vorlage */}
         <Schritt nr={1} titel={t('Was soll es werden?')}>
           <div className="flex flex-wrap gap-1.5">
@@ -3398,6 +3409,7 @@ export default function TweetSeite() {
           </div>
         </Schritt>
         )}
+        </div>
 
         {/* ---------------------------------------- Schritt 3: Kurzbefehl */}
         {KURZBEFEHL_UND_IMPORT_SICHTBAR && stats && (

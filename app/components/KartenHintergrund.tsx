@@ -1,15 +1,12 @@
 'use client';
 
 /*
- * Der Hintergrund der Seiten Maps, FNCS und Solos: die laufenden Reihen der Startseite, ueber die ganze Seite und beim Scrollen stehen bleibend.
+ * Das Band hinter der Ueberschrift der Seiten FNCS (Events) und Maps: die laufenden Reihen der Startseite - Karten und Vorschaubilder der Cups -, 90 Prozent Schwarz
+ * darueber und unten ausgeblendet. Der Betreiber (19./20.10.2026): zuerst "ueber die ganze Seite, auch beim Scrollen", dann "nur oben, da wo FNCS steht - hinter den
+ * Karten braucht es das gar nicht". Es sind dieselben Bilder und dieselbe Bewegung wie im Kopf der Startseite (HeroHintergrund, .hero-reihe in design.css). Im hellen
+ * Modus steht es nicht da (Regel in design.css).
  *
- * Der Betreiber (19.10.2026): "bei Maps und FNCS den Hintergrund wie auf der Homepage - die animierten Maps mit den Spots -, darueber 90 Prozent Schwarz,
- * ueber die ganze Seite, auch beim Scrollen." Es sind dieselben Bilder und dieselbe Bewegung wie im Kopf der Startseite (HeroHintergrund, Klasse
- * .hero-reihe in design.css); die Folie darueber ist fast schwarz, damit Tabellen und Kacheln lesbar bleiben. Im hellen Modus steht er nicht da (Regel in design.css).
- *
- * Am 20.10.2026 dazu: "im Hintergrund sollen FNCS-Thumbnails sein und Maps" - die Reihen mischen die Karten mit den Vorschaubildern der Cups (cups), nach je zwei Karten eines.
- *
- * Gebraucht wird ein Elternelement mit "relative isolate": dann liegt dieser Hintergrund ueber dessen Farbe und unter allem, was darin steht.
+ * Gebraucht wird ein Elternelement mit "relative isolate": dann liegt das Band ueber dessen Farbe und unter allem, was darin steht.
  */
 
 const KARTEN = ['42.30.webp', '41.30.webp', '40.40.jpg', '39.51.jpg', '37.50.jpg', '34.40.jpg?3', '31.40.jpg?3', '26.30.jpg?3', '36.30.jpg?3', '33.40.jpg?3']
@@ -45,26 +42,29 @@ function Reihe({ bilder, dauer, rueck = false }: { bilder: string[]; dauer: numb
       {[...bilder, ...bilder].map((src, i) => (
         // eslint-disable-next-line @next/next/no-img-element
         <img key={`${src}-${i}`} src={src} alt="" loading="lazy" draggable={false}
-          className="h-44 w-72 shrink-0 rounded-2xl object-cover shadow-lg sm:h-56 sm:w-96" />
+          className="h-36 w-60 shrink-0 rounded-2xl object-cover shadow-lg sm:h-40 sm:w-72" />
       ))}
     </div>
   );
 }
 
-export default function KartenHintergrund({ cups = [] }: { cups?: string[] }) {
+/**
+ * hoehe: wie weit das Band nach unten reicht (Pixel). Am 20.10.2026 wollte der Betreiber den Hintergrund nur oben, hinter der Ueberschrift - nicht hinter den
+ * Karten: "hinter den Events braucht es das gar nicht". Das Band blendet unten in das Schwarz der Seite aus.
+ */
+export default function KartenHintergrund({ cups = [], hoehe = 340 }: { cups?: string[]; hoehe?: number }) {
   const a = mischen(KARTEN, cups, 0);
   const b = mischen([...KARTEN.slice(3), ...KARTEN.slice(0, 3)].reverse(), cups, 3);
   const c = mischen([...KARTEN.slice(6), ...KARTEN.slice(0, 6)], cups, 5);
-  const d = mischen([...KARTEN].reverse(), cups, 1);
   return (
-    <div aria-hidden data-karten-hg className="pointer-events-none fixed inset-0 -z-10 overflow-hidden">
-      <div className="absolute left-1/2 top-1/2 flex w-[170%] -translate-x-1/2 -translate-y-1/2 -rotate-[5deg] flex-col gap-5">
+    <div aria-hidden data-karten-hg className="pointer-events-none absolute inset-x-0 top-0 -z-10 overflow-hidden" style={{ height: hoehe }}>
+      <div className="absolute left-1/2 top-0 flex w-[170%] -translate-x-1/2 -translate-y-6 -rotate-[4deg] flex-col gap-4">
         <Reihe bilder={a} dauer={120} />
         <Reihe bilder={b} dauer={140} rueck />
         <Reihe bilder={c} dauer={130} />
-        <Reihe bilder={d} dauer={150} rueck />
       </div>
       <div className="absolute inset-0 bg-black/90" />
+      <div className="absolute inset-x-0 bottom-0 h-24 bg-gradient-to-b from-transparent to-zinc-950" />
     </div>
   );
 }

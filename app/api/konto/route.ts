@@ -6,7 +6,7 @@ import {
   kontenVonAnschlussLetzteStunde, raeumeUnbestaetigte,
   merkeIp, nachEmail, nachId, oeffentlich, passwortStimmt, passwortTaugt,
   setzePasswort, SITZUNG_TAGE, sitzungFuer, vipBestaetigen,
-  neuerBestaetigungsschluessel, eroeffneRuecksetzung, setzePasswortMitSchluessel,
+  neuerBestaetigungsschluessel, eroeffneRuecksetzung, setzePasswortMitSchluessel, eroeffneEmailWechsel,
 } from '@/lib/konten';
 import { sendeMail, versandDa } from '@/lib/mail';
 import { ueberHttps } from '@/lib/vipCookie';
@@ -275,6 +275,28 @@ export async function POST(request: Request) {
         : versandDa()
           ? 'Der Versand klemmt gerade. Versuch es in ein paar Minuten noch einmal.'
           : 'Auf diesem Rechner ist kein Mailversand eingerichtet — es fehlt die Datei .env.local.',
+    });
+  }
+
+  /* ------------------------------------------- E-Mail-Adresse aendern */
+  if (was === 'email-aendern') {
+    const id = kontoAus((await cookies()).get(COOKIE)?.value);
+    if (!id) return NextResponse.json({ fehler: 'nicht angemeldet' }, { status: 401 });
+    const konto = await nachId(id);
+    if (!konto) return NextResponse.json({ fehler: 'nicht gefunden' }, { status: 404 });
+    // Wer ein Passwort hat, bestaetigt den Wechsel damit; Konten ohne Passwort (Anmeldung ueber Discord, Twitch, Google) kommen allein mit dem Link an der neuen Adresse durch.
+    if (konto.passwort && !passwortStimmt(String(koerper.passwort ?? ''), konto.passwort)) {
+      return NextResponse.json({ fehler: 'Das Passwort stimmt nicht.' }, { status: 400 });
+    }
+    const ergebnis = await eroeffneEmailWechsel(id, String(koerper.email ?? ''));
+    if ('fehler' in ergebnis) return NextResponse.json({ fehler: ergebnis.fehler }, { status: 400 });
+    const neu = String(koerper.email ?? '').trim().toLowerCase();
+    const ging = await schickeBestaetigung(request, neu, konto.name, ergebnis.schluessel);
+    return NextResponse.json({
+      ok: ging,
+      hinweis: ging
+        ? 'Die Mail ist an die neue Adresse unterwegs. Die Adresse wechselt, sobald du dort auf den Knopf klickst.'
+        : 'Der Versand klemmt gerade. Versuch es in ein paar Minuten noch einmal.',
     });
   }
 
