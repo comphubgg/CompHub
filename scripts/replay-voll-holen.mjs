@@ -138,8 +138,10 @@ async function tage() {
     if (!(t.istFinale || letzteRunde(t) || /MannekenPis|Global|LAN|Escargo|FNCSSolo(?!Qualifiers)/i.test(`${t.windowId} ${t.cupId} ${t.titel}`))) continue;
     raus.push({ eventId: t.eventId, windowId: t.windowId, datum: t.datum, titel: t.titel, region: t.region, season: t.season });
   }
-  // Die juengsten zuerst: dort schaut man zuerst hin; die aeltesten folgen in den naechsten Laeufen.
-  return raus.sort((a, b) => (b.datum ?? 0) - (a.datum ?? 0));
+  // Die juengsten zuerst: dort schaut man zuerst hin; die aeltesten folgen in den naechsten Laeufen. Die Qualifier der FNCS Solos (tausende Lobbys) kommen nach allem anderen:
+  // der Betreiber (20.10.2026) vermisste zuerst Performance Cups und Solo Cups, und die liegen sonst hinter hunderten Qualifier-Lobbys.
+  const spaet = (t) => (/Qualifiers_/i.test(t.windowId) ? 1 : 0);
+  return raus.sort((a, b) => spaet(a) - spaet(b) || (b.datum ?? 0) - (a.datum ?? 0));
 }
 
 /** Eine Aufgabe mehrmals versuchen, mit wachsender Pause - Epic und das Netz sind nicht immer sofort bereit. */
