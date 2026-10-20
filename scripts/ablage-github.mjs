@@ -90,8 +90,30 @@ function umgebung() {
   }
   return { ...raus, ...process.env };
 }
-const TOKEN = umgebung().GITHUB_TOKEN || umgebung().GH_TOKEN || '';
+/*
+ * Welches Token.
+ *
+ * In den Ablaeufen heisst die Umgebungsvariable GITHUB_TOKEN der Zugang des Ablaufs selbst - und der darf nur tausend Anfragen je Stunde stellen, alle Ablaeufe des
+ * Projekts zusammen ("API rate limit exceeded for installation"). Der stuendliche Lauf, der Replay-Lauf (index.json, jede Runde) und die Eigene-Lobbys-Ablaeufe teilen
+ * sich dieses Kontingent: am 19./20.10.2026 scheiterte fast jedes Hochladen daran, die Replay-Uebersicht blieb auf dem Stand von Anfang Oktober stehen (es fehlten
+ * Performance Cups und Solo-Cups). Das Konto des Betreibers hat fuenftausend je Stunde, ganz fuer sich. Sein Zugang steht in .env.local (im Ablauf aus dem Geheimnis
+ * ENV_LOCAL geschrieben) - der gilt zuerst, die Umgebung erst, wenn er fehlt oder nicht angenommen wird.
+ */
+const dateiToken = (() => {
+  try {
+    const m = fs.readFileSync(path.join(PROJEKT, '.env.local'), 'utf8').match(/^GITHUB_TOKEN=(.*)$/m);
+    return m ? m[1].trim() : '';
+  } catch { return ''; }
+})();
+const umgebungsToken = umgebung().GITHUB_TOKEN || umgebung().GH_TOKEN || '';
+let TOKEN = dateiToken || umgebungsToken;
 if (!TOKEN) { console.error('GITHUB_TOKEN fehlt (Umgebung oder .env.local).'); process.exit(1); }
+if (dateiToken && umgebungsToken && dateiToken !== umgebungsToken) {
+  try {
+    const r = await fetch('https://api.github.com/rate_limit', { headers: { Authorization: `Bearer ${dateiToken}`, 'User-Agent': 'comphub-ablage' }, signal: AbortSignal.timeout(20_000) });
+    if (!r.ok) { TOKEN = umgebungsToken; console.log(`  Zugang aus .env.local nicht angenommen (${r.status}) - es gilt der des Ablaufs.`); }
+  } catch { TOKEN = umgebungsToken; }
+}
 
 const KOPF = {
   Authorization: `Bearer ${TOKEN}`,

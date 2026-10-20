@@ -1325,7 +1325,7 @@ export async function cupsGruppiert(regionen: readonly string[] = REGIONEN) {
           titel: titelSchoen,
           untertitel: o?.untertitel,
           beschreibung: o?.beschreibung,
-          bild: o?.bild ?? (solosReload ? '/cups/reload-road-to-ewc.webp' : undefined),
+          bild: o?.bild ?? (solosReload ? '/cups/fncs-solo-reload.webp' : undefined),
           farbe: o?.farbe,
           art: bestimmeArt(id, titel, ev.metadata?.tournamentType as string | undefined),
           // Ein Event, das selbst mehrere Regionen auffuehrt und keine

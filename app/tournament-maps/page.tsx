@@ -19,7 +19,7 @@ import Link from 'next/link';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import LadeSchirm from '@/app/components/LadeSchirm';
-import KartenHintergrund from '@/app/components/KartenHintergrund';
+import KartenHintergrund, { CUP_BILDER } from '@/app/components/KartenHintergrund';
 import { regionFarbe, regionAnzeige, REGIONEN_REIHE } from '@/lib/regionFarbe';
 import { useZugang } from '@/app/lib/zugang';
 
@@ -224,7 +224,7 @@ export default function Maps() {
 
   return (
     <main className="relative isolate min-h-screen bg-zinc-950 text-slate-100">
-      <KartenHintergrund />
+      <KartenHintergrund cups={CUP_BILDER} />
       <style>{CSS}</style>
       <div className="mx-auto max-w-[1500px] px-4 py-8">
         {/* ---------------------------------------------------------------- Kopf */}
@@ -350,7 +350,7 @@ export default function Maps() {
         {eintraege === null && !fehler && <div className="mt-10"><LadeSchirm /></div>}
 
         {eintraege && offen && offen.n === 0 && (
-          <p className="mt-8 rounded-xl border border-white/[0.07] bg-white/[0.03] px-4 py-8 text-center text-sm text-slate-500">
+          <p className="mt-8 rounded-xl border border-white/[0.07] bg-zinc-900 px-4 py-8 text-center text-sm text-slate-500">
             <T>Für dieses Kapitel liegen noch keine Karten vor.</T>
           </p>
         )}

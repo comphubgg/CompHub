@@ -80,6 +80,23 @@ const REGION: Record<Art, string> = { gf: 'Europe', gc: 'Global', invitational: 
 interface Zeile { rank: number; points: number; wins?: number; elims?: number; players: Array<{ id: string; name?: string; displayName?: string }> }
 interface ArchivEintrag { windowId?: string; eventId?: string }
 
+/*
+ * Events, deren Bestenliste Epic beim letzten Versuch nicht herausgab - die Liste merkt sich dann nur eine Minute statt einer Viertelstunde, und was zuletzt gut
+ * ankam, bleibt stehen. Am 20.10.2026 standen auf der echten Seite bei allen Grand Finals der uebrigen Regionen weder Teams noch Platzierungen ("Placements will be added"),
+ * obwohl dieselbe Bestenliste ueber die Adresse sofort kam: der einzelne Fehlschlag beim Aufbau blieb unbemerkt in der Liste stehen.
+ */
+const ausgefallen = new Set<string>();
+const letzteGute = new Map<string, { teams: number | null; spitze: FncsSpitze[] }>();
+
+async function mitWiederholung<T>(f: () => Promise<T>, versuche = 3): Promise<T> {
+  for (let v = 1; ; v += 1) {
+    try { return await f(); } catch (e) {
+      if (v >= versuche) throw e;
+      await new Promise((r) => setTimeout(r, 1200 * v));
+    }
+  }
+}
+
 async function ausBestenliste(url: string): Promise<Zeile[]> {
   const r = await bestenliste(new Request(url));
   const j = await r.json() as { entries?: Zeile[] };
@@ -199,14 +216,18 @@ async function spitzeFuerRoh(k: Kandidat, fakt: FncsFakt | undefined, archiv: Ma
   if (eventId) {
     try {
       const ziel = fenster.length > 1 ? `windows=${fenster.map(encodeURIComponent).join(',')}` : `window=${encodeURIComponent(fenster[0])}`;
-      const zeilen = await ausBestenliste(`http://localhost/api/cup-leaderboard?event=${encodeURIComponent(eventId)}&${ziel}&limit=100`);
+      const zeilen = await mitWiederholung(() => ausBestenliste(`http://localhost/api/cup-leaderboard?event=${encodeURIComponent(eventId)}&${ziel}&limit=100`));
       if (zeilen.length) {
         return {
           teams: zeilen.length,
           spitze: mitPreis(zeilen.slice(0, 5).map((z) => ({ rang: z.rank, punkte: z.points, spieler: spieler(z.players) }))),
         };
       }
-    } catch { /* dann gelten die Eckdaten */ }
+    } catch (e) {
+      // Dann gelten die Eckdaten - und der naechste Aufbau der Liste kommt schon nach einer Minute.
+      ausgefallen.add(k.e.windowId);
+      console.error(`[fncs] Bestenliste ${k.e.windowId} ausgefallen: ${(e as Error).message}`);
+    }
   }
 
   // 4. Die Spielerliste der Szene-Quelle (ganze Platzierungsliste), dann die Eckdaten.
@@ -281,6 +302,10 @@ export async function fncsEreignisse(): Promise<FncsEreignis[]> {
     const fakt = k.region ? undefined : FNCS_FAKTEN[schluessel];
     let teams: number | null = null; let spitze: FncsSpitze[] = [];
     try { ({ teams, spitze } = await spitzeFuer(k, fakt, archiv)); } catch { fehler = true; }
+    if (ausgefallen.delete(k.e.windowId)) fehler = true;
+    const gut = letzteGute.get(schluessel);
+    if (spitze.length) letzteGute.set(schluessel, { teams, spitze });
+    else if (gut) ({ teams, spitze } = gut);
     let preisgeld = fakt?.preisgeld ?? null;
     if (!fakt) {
       const wid = (k.e.tage ?? []).length ? (k.e.tage ?? [])[(k.e.tage ?? []).length - 1].windowId : k.e.windowId;

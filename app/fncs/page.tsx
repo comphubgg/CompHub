@@ -9,7 +9,7 @@
  * Alles aus dem eigenen Werkzeug (/api/fncs-ereignisse, /api/fncs-alltime).
  */
 
-import KartenHintergrund from '@/app/components/KartenHintergrund';
+import KartenHintergrund, { FNCS_BILDER } from '@/app/components/KartenHintergrund';
 import { useEffect, useMemo, useState } from 'react';
 import { PlatzhalterRund } from '@/app/components/SpielerPlatzhalter';
 import Link from 'next/link';
@@ -31,8 +31,8 @@ const landName = (code: string) => { try { return new Intl.DisplayNames(['en'], 
 /** Eine Tafel der All-Time Stats: Kopfzeile, darunter die Liste (scrollt in sich, ohne Aufklapp-Knopf). */
 function Tafel({ titel, unter, children }: { titel: string; unter?: string; children: React.ReactNode }) {
   return (
-    <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-zinc-900/40">
-      <p className="border-b border-white/[0.08] bg-zinc-900/60 px-3 py-2">
+    <section className="overflow-hidden rounded-xl border border-white/[0.08] bg-zinc-900">
+      <p className="border-b border-white/[0.08] bg-zinc-800 px-3 py-2">
         <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-300">{titel}</span>
         {unter && <span className="ml-2 text-[10px] text-slate-600">{unter}</span>}
       </p>
@@ -90,7 +90,7 @@ function Fakt({ titel, wert }: { titel: string; wert: string }) {
 
 function Karte({ e, nr, aktuell, i }: { e: FncsEreignis; nr: number; aktuell: boolean; i: number }) {
   const link = kartenLink(e);
-  const klasse = `mp-an group flex flex-col overflow-hidden rounded-2xl border border-white/[0.08] bg-zinc-900/50 transition ${link ? 'hover:-translate-y-0.5 hover:border-sky-500 hover:bg-zinc-900' : ''}`;
+  const klasse = `mp-an group flex flex-col overflow-hidden rounded-2xl border border-white/[0.08] bg-zinc-900 transition ${link ? 'hover:-translate-y-0.5 hover:border-sky-500 hover:bg-zinc-800' : ''}`;
   const stil = { animation: `fncs-rein .5s ${Math.min(i, 12) * 45}ms cubic-bezier(.2,.8,.2,1) both` };
   return (
     <Rahmen link={link} klasse={klasse} stil={stil}>
@@ -148,7 +148,7 @@ function Zeitstrahl({ liste, nrVon, aktuellKey }: { liste: FncsEreignis[]; nrVon
             {evs.map((e) => {
               const sieger = e.spitze[0];
               const link = kartenLink(e);
-              const klasse = `group relative flex flex-wrap items-center gap-x-4 gap-y-1 rounded-xl border border-white/[0.07] bg-zinc-900/40 px-4 py-3 transition ${link ? 'hover:border-sky-500/60 hover:bg-zinc-900/70' : ''}`;
+              const klasse = `group relative flex flex-wrap items-center gap-x-4 gap-y-1 rounded-xl border border-white/[0.07] bg-zinc-900 px-4 py-3 transition ${link ? 'hover:border-sky-500/60 hover:bg-zinc-800' : ''}`;
               return (
                 <Rahmen key={e.key} link={link} klasse={klasse}>
                   <span aria-hidden className={`absolute -left-[28px] top-1/2 h-2.5 w-2.5 -translate-y-1/2 rounded-full border-2 border-zinc-950 ${e.key === aktuellKey ? 'bg-red-400' : e.lan ? 'bg-amber-400' : 'bg-sky-500'}`} />
@@ -218,7 +218,7 @@ export default function FncsSeite() {
   }, [liste]);
   const zahl = (f: 'alle' | 'lan' | 'online') => (liste ?? []).filter((e) => (f === 'alle' || (f === 'lan' ? e.lan : !e.lan)) && (!region || e.regionCode === region)).length;
   const chip = (an: boolean) => `rounded-lg px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider transition ${an
-    ? 'bg-sky-500 text-white' : 'border border-white/10 bg-white/[0.03] text-slate-300 hover:border-sky-500/60 hover:text-sky-300'}`;
+    ? 'bg-sky-500 text-white' : 'border border-white/10 bg-zinc-900 text-slate-300 hover:border-sky-500/60 hover:text-sky-300'}`;
   const zeilen = useMemo(() => {
     if (!alt) return [];
     const q = suche.trim().toLowerCase();
@@ -249,7 +249,7 @@ export default function FncsSeite() {
 
   return (
     <main className="relative isolate min-h-screen bg-zinc-950 text-slate-100">
-      <KartenHintergrund />
+      <KartenHintergrund cups={FNCS_BILDER} />
       <div className="relative overflow-hidden border-b border-white/[0.06]">
         <div aria-hidden className="pointer-events-none absolute left-1/2 top-0 h-72 w-[820px] -translate-x-1/2 rounded-full bg-sky-500/[0.08] blur-[110px]" />
         <div className="relative mx-auto flex max-w-[1500px] flex-wrap items-end justify-between gap-4 px-4 py-8">
@@ -257,7 +257,7 @@ export default function FncsSeite() {
             <h1 className="text-5xl font-black uppercase tracking-tight sm:text-6xl">FNCS</h1>
             <p className="mt-2 max-w-xl text-sm text-slate-400"><T>Alle Endspiele der FNCS, die das Archiv kennt - mit Platzierungen und den meisten Eliminierungen.</T></p>
           </div>
-          <div className="inline-flex gap-1 rounded-xl border border-white/[0.08] bg-black/30 p-1">
+          <div className="inline-flex gap-1 rounded-xl border border-white/[0.08] bg-zinc-950 p-1">
             <button type="button" onClick={() => setTab('events')} className={reiter(tab === 'events')}>Events</button>
             <button type="button" onClick={() => setTab('alltime')} className={reiter(tab === 'alltime')}>All-Time Stats</button>
             {/* FNCS Solos: eine eigene Seite fuer alle Regionen (Heats, Last Chance, Finale, Karte). */}
@@ -286,10 +286,10 @@ export default function FncsSeite() {
                   {[...REGIONEN_REIHE, 'GLOBAL'].filter((r) => (zahlRegion.get(r) ?? 0) > 0 || r === region).map((r) => {
                     const farbe = regionFarbe(r);
                     return (
-                      <button key={r} type="button" onClick={() => setRegion(region === r ? '' : r)}
-                        className={`rounded-lg border px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider transition ${region === r ? farbe.marke : `bg-white/[0.03] ${farbe.ruhig}`}`}>
+                      <span key={r} className="inline-flex rounded-lg bg-zinc-950"><button type="button" onClick={() => setRegion(region === r ? '' : r)}
+                        className={`rounded-lg border px-3.5 py-1.5 text-xs font-bold uppercase tracking-wider transition ${region === r ? farbe.marke : `bg-zinc-900 ${farbe.ruhig}`}`}>
                         {r === 'GLOBAL' ? 'Global' : r}<span className="ml-1.5 opacity-60">{zahlRegion.get(r) ?? 0}</span>
-                      </button>
+                      </button></span>
                     );
                   })}
                 </div>
@@ -300,7 +300,7 @@ export default function FncsSeite() {
                 ))}
               </div>
             </div>
-            {fehler && <p className="rounded-xl border border-rose-500/30 bg-rose-500/5 px-4 py-3 text-sm text-rose-300"><T>Die Endspiele ließen sich gerade nicht laden. Bitte gleich noch einmal versuchen.</T></p>}
+            {fehler && <p className="rounded-xl border border-rose-500/30 bg-rose-950 px-4 py-3 text-sm text-rose-300"><T>Die Endspiele ließen sich gerade nicht laden. Bitte gleich noch einmal versuchen.</T></p>}
             {!liste && !fehler && <LadeSchirm />}
             {liste && ansicht === 'board' && (
               <div key={`${filter}|${region}`} className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
@@ -315,7 +315,7 @@ export default function FncsSeite() {
         {tab === 'alltime' && (
           <>
             {/* Wie beim Vorbild: FNCS Winners, All-Time Leaderboard, Nationalities, Rekorde in einem Grand Finals. */}
-            <div className="mb-5 rounded-xl border border-sky-500/25 bg-sky-500/[0.06] px-4 py-3">
+            <div className="mb-5 rounded-xl border border-sky-500/25 bg-sky-950 px-4 py-3">
               <p className="text-[13px] font-bold text-slate-100"><T>Nur FNCS: diese Zahlen kommen aus den Grand Finals, seit Chapter 5 Season 3.</T></p>
               <p className="mt-0.5 text-[11px] text-slate-400"><T>Die Titel zählen alle FNCS-Endspiele seit Chapter 1.</T></p>
             </div>
@@ -403,9 +403,9 @@ export default function FncsSeite() {
                 </p>
               </div>
               <input value={suche} onChange={(e) => setSuche(e.target.value)} placeholder={t('Spieler suchen …')}
-                className="w-full max-w-[240px] rounded-lg border border-zinc-800 bg-zinc-900/60 px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-600 focus:border-sky-500" />
+                className="w-full max-w-[240px] rounded-lg border border-zinc-800 bg-zinc-800 px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-600 focus:border-sky-500" />
             </div>
-            {altFehler && <p className="rounded-xl border border-rose-500/30 bg-rose-500/5 px-4 py-3 text-sm text-rose-300"><T>Die Aufstellung ließ sich gerade nicht laden. Bitte gleich noch einmal versuchen.</T></p>}
+            {altFehler && <p className="rounded-xl border border-rose-500/30 bg-rose-950 px-4 py-3 text-sm text-rose-300"><T>Die Aufstellung ließ sich gerade nicht laden. Bitte gleich noch einmal versuchen.</T></p>}
             {!alt && !altFehler && <LadeSchirm />}
             {alt && (
               <p className="mb-2 flex flex-wrap items-center gap-3 text-[11px] text-slate-500">
@@ -417,7 +417,7 @@ export default function FncsSeite() {
               </p>
             )}
             {alt && (
-              <div className="overflow-x-auto rounded-xl border border-white/[0.08] bg-zinc-900/40">
+              <div className="overflow-x-auto rounded-xl border border-white/[0.08] bg-zinc-900">
                 <table className="w-full min-w-[720px] text-sm">
                   <thead>
                     <tr className="border-b border-white/[0.08] text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">

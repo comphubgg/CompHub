@@ -7,7 +7,7 @@ import T from '@/app/components/T';
 import { useT, useSprache } from '@/app/components/SprachProvider';
 import SeitenKopf from '@/app/components/SeitenKopf';
 import LadeSchirm from '@/app/components/LadeSchirm';
-import KartenHintergrund from '@/app/components/KartenHintergrund';
+import KartenHintergrund, { CUP_BILDER } from '@/app/components/KartenHintergrund';
 import TeamFlagge from '@/components/TeamFlagge';
 import LaenderListe from '@/app/components/LaenderListe';
 import SpielerDetail from '@/app/events/[id]/SpielerDetail';
@@ -175,7 +175,7 @@ function Stufe({ titel, stufen, zahl, regel, ziel, an, auf }: {
   return (
     <button type="button" onClick={auf} disabled={!auf}
       className={`group flex min-w-[10.5rem] flex-1 flex-col rounded-2xl border p-4 text-left transition ${an
-        ? 'border-sky-500/60 bg-sky-500/10' : 'border-zinc-800 bg-zinc-950/40 hover:border-sky-500/40'} ${auf ? 'cursor-pointer' : 'cursor-default'}`}>
+        ? 'border-sky-500/60 bg-sky-950' : 'border-zinc-800 bg-zinc-900 hover:border-sky-500/40'} ${auf ? 'cursor-pointer' : 'cursor-default'}`}>
       <span className="flex items-start justify-between gap-2">
         <span className="text-sm font-extrabold text-slate-100">{titel}</span>
         <Marke stand={stand(stufen)} />
@@ -310,7 +310,7 @@ function Qualifiziert({ daten, oeffne }: { daten: SolosDaten; oeffne: (s: SolosS
               const n = wegName(g, t);
               const regel = /fast/i.test(g.quelle) && ftSchwelle ? `Top ${ftSchwelle}` : null;
               return (
-                <div key={g.windowId ?? g.quelle} className="rounded-2xl border border-zinc-800 bg-zinc-950/40 p-5">
+                <div key={g.windowId ?? g.quelle} className="rounded-2xl border border-zinc-800 bg-zinc-900 p-5">
                   <div className="flex flex-wrap items-center gap-2">
                     <h3 className="text-base font-extrabold text-slate-100">{n.titel}</h3>
                     <span className="rounded-full bg-sky-500/15 px-2.5 py-0.5 text-[11px] font-bold tabular-nums text-sky-400">{g.spieler.length}</span>
@@ -334,7 +334,7 @@ function Qualifiziert({ daten, oeffne }: { daten: SolosDaten; oeffne: (s: SolosS
           <p className="mt-1 text-sm text-slate-400"><T>Wer sich über die Qualifier in einen Heat gespielt hat. Das Ergebnis der Heats steht im Reiter Heats.</T></p>
           <div className="mt-4 grid gap-4 md:grid-cols-2">
             {heats.map((h) => (
-              <div key={h.windowId} className="rounded-2xl border border-zinc-800 bg-zinc-950/40 p-4">
+              <div key={h.windowId} className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4">
                 <p className="text-sm font-extrabold text-slate-100">{h.name} <span className="ml-1 text-xs font-semibold text-slate-500">{h.spieler.length}</span></p>
                 <div className="mt-3 max-h-[26rem] overflow-y-auto pr-1"><Spielerliste spieler={h.spieler} klein /></div>
               </div>
@@ -467,7 +467,7 @@ export default function SolosSeite() {
 
   return (
     <main className="relative isolate flex-1 bg-zinc-950 text-slate-200">
-      <KartenHintergrund />
+      <KartenHintergrund cups={CUP_BILDER} />
       <div className="mx-auto max-w-[1300px] space-y-5 px-4 py-6">
         <Link href="/account" className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 transition hover:text-sky-400">
           <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 4l-6 6 6 6" /></svg><T>Dashboard</T>

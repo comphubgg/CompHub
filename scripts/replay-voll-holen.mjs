@@ -134,7 +134,8 @@ async function tage() {
   };
   const raus = [];
   for (const t of alle) {
-    if (!(t.istFinale || letzteRunde(t) || /MannekenPis|Global|LAN|Escargo/i.test(`${t.windowId} ${t.cupId} ${t.titel}`))) continue;
+    // Dazu die FNCS Solos mit Heats, Fast Track und Last Chance (nicht die Qualifier mit zehntausenden Spielern): der Betreiber (20.10.2026) vermisste sie in den Replays.
+    if (!(t.istFinale || letzteRunde(t) || /MannekenPis|Global|LAN|Escargo|FNCSSolo(?!Qualifiers)/i.test(`${t.windowId} ${t.cupId} ${t.titel}`))) continue;
     raus.push({ eventId: t.eventId, windowId: t.windowId, datum: t.datum, titel: t.titel, region: t.region, season: t.season });
   }
   // Die juengsten zuerst: dort schaut man zuerst hin; die aeltesten folgen in den naechsten Laeufen.
