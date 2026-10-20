@@ -120,7 +120,11 @@ export async function GET(request: Request) {
 
     // Jeden Durchlauf mitschreiben, damit die Vergangenheit waechst.
     // Epic selbst haelt vergangene Cups nur wenige Tage vor.
-    const neuImArchiv = await schreibeArchiv(alle);
+    // Das Archiv ist ein Zusatz: scheitert sein Schreiben (GitHub drosselt, 20.10.2026), darf das die Liste nicht kippen - vorher stand auf dem Events-Tab
+    // "Ablage (GitHub) gedrosselt bis ..." statt der Cups.
+    let neuImArchiv = 0;
+    let archivFehler = false;
+    try { neuImArchiv = await schreibeArchiv(alle); } catch { archivFehler = true; }
 
     // "alle" laesst jede Art durch, die beiden anderen Modi zeigen die
     // Standard-Arten - "aktuell" zusaetzlich nur, was noch bevorsteht.
@@ -139,7 +143,8 @@ export async function GET(request: Request) {
      * gewesen, in die er gehoert. Was vorbei ist, faellt unten ohnehin
      * durch die Pruefung.
      */
-    const ausArchiv = await archivCups(new Set(alle.map((c) => c.id)));
+    let ausArchiv: Awaited<ReturnType<typeof archivCups>> = [];
+    try { ausArchiv = await archivCups(new Set(alle.map((c) => c.id))); } catch { archivFehler = true; }
     // Die Globals als ein Eintrag (Kumulativ, Day 1, Day 2) - lib/globalsCup.
     const zusammen = benenne(globalsVereint([...alle, ...ausArchiv]));
 
@@ -169,11 +174,14 @@ export async function GET(request: Request) {
     const proArt: Record<string, number> = {};
     for (const c of zusammen) proArt[c.art] = (proArt[c.art] ?? 0) + 1;
 
-    const archiv = await leseArchiv();
+    let archiv: Awaited<ReturnType<typeof leseArchiv>> = [];
+    try { archiv = await leseArchiv(); } catch { archivFehler = true; }
 
     return NextResponse.json({
       cups,
       proArt,
+      // Wahr, wenn das Archiv der vergangenen Cups gerade nicht gelesen werden konnte - die laufenden und kommenden stehen trotzdem da.
+      ...(archivFehler ? { archivFehler: true } : {}),
       regionen: Object.fromEntries(regionen.map((r) => [r, REGION_TEXT[r] ?? r])),
       live: alle.filter((c) => c.live).length,
       archiv: (() => {

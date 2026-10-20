@@ -100,8 +100,15 @@ interface Eintrag {
   geaendert: number | null;
   /** Zum Sammeln vorgemerkt, noch nicht im Archiv. */
   ausstehend?: boolean;
+  /** Wann DIESER Server die Datei zuletzt geschrieben hat - solange das nicht lange her ist, liest er sie nicht ueber das CDN (siehe leseNeu). */
+  geschrieben?: number;
 }
 
+/**
+ * Bis wann GitHub die API-Anfragen dieses Schluessels gedrosselt hat (ms). Solange das gilt, geht keine weitere Anfrage hinaus: sie wuerde nur abgelehnt (und frueher
+ * wiederholten die Schreibversuche das jede halbe Minute, 28 Mal in 18 Minuten). Gelesen wird in der Zeit ueber das CDN (raw.githubusercontent.com), das nicht zaehlt.
+ */
+let gedrosseltBis = 0;
 const cache = new Map<string, Eintrag>();
 const verzeichnisse = new Map<string, { namen: string[]; bis: number; etag?: string | null }>();
 /** Wie viele Anfragen seit dem Start mit welchem Ergebnis hinausgingen ("GET 200", "GET 304", "GET 404", "PUT 200" ...) - zeigt, wer das Stundenkontingent verbraucht. */
@@ -131,6 +138,7 @@ const blobSha = (b: Buffer) => crypto.createHash('sha1').update(`blob ${b.length
 async function anfrage(weg: string, init: RequestInit & { frist?: number } = {}): Promise<Response> {
   const t = token();
   if (!t) throw new Error('Ablage nicht eingerichtet: DATEN_TOKEN fehlt in der Umgebung.');
+  if (Date.now() < gedrosseltBis) throw new Error(`Ablage (GitHub) gedrosselt bis ${new Date(gedrosseltBis).toISOString().slice(11, 16)} UTC`);
   const { frist = LESEN_MS, headers, ...rest } = init;
   const r = await fetch(`${API}${weg}`, {
     ...rest,
@@ -147,6 +155,9 @@ async function anfrage(weg: string, init: RequestInit & { frist?: number } = {})
     // Zu viele Anfragen: GitHub nennt, wann es wieder geht.
     const wieder = Number(r.headers.get('x-ratelimit-reset') ?? 0) * 1000;
     if (r.headers.get('x-ratelimit-remaining') === '0' || r.status === 429) {
+      // Genau bis zum genannten Zeitpunkt nichts mehr schicken (hoechstens eine Stunde, mindestens eine Minute).
+      const bis = wieder > Date.now() ? wieder : Date.now() + 5 * 60_000;
+      gedrosseltBis = Math.min(Math.max(bis, Date.now() + 60_000), Date.now() + 3_600_000);
       throw new Error(`Ablage (GitHub) gedrosselt${wieder ? ` bis ${new Date(wieder).toISOString().slice(11, 16)} UTC` : ''}`);
     }
   }
@@ -177,10 +188,45 @@ function merkeFehler(e: unknown) {
 
 /* ------------------------------------------------------------- Lesen */
 
+/*
+ * Gelesen wird ueber raw.githubusercontent.com, nicht ueber die API: dort zaehlt keine Anfrage gegen das Stundenkontingent des Schluessels - der Betreiber (20.10.2026):
+ * "Ablage (GitHub) gedrosselt bis 16:33 UTC ... das darf nie wieder passieren". Das Kontingent verbrauchten die Replay-Schleifen auf GitHub (Hochladen, Loeschen,
+ * Umbenennen je Datei) - derselbe Schluessel wie hinter der Seite. Nachteil des CDN: bis zu fuenf Minuten alt. Deshalb nicht fuer Dateien, die dieser Server in den
+ * letzten sechs Minuten selbst geschrieben hat (sonst kaeme eine alte Fassung zurueck) - und bei jedem Fehler geht es ueber die API wie bisher.
+ */
+const RAW = 'https://raw.githubusercontent.com';
+const RAW_SPERRE_MS = 6 * 60_000;
+
+async function leseUeberCdn(name: string, alt: Eintrag | undefined): Promise<{ status: number; buf?: Buffer; etag?: string | null } | null> {
+  const t = token();
+  if (!t) return null;
+  const kopf: Record<string, string> = { Authorization: `token ${t}`, 'User-Agent': 'comphub-ablage' };
+  if (alt?.etag?.startsWith('cdn:')) kopf['If-None-Match'] = alt.etag.slice(4);
+  try {
+    const r = await fetch(`${RAW}/${repo()}/${ZWEIG}/${pfad(name)}`, { headers: kopf, cache: 'no-store', signal: AbortSignal.timeout(LESEN_MS) });
+    if (r.status === 200) return { status: 200, buf: Buffer.from(await r.arrayBuffer()), etag: r.headers.get('etag') };
+    if (r.status === 304 || r.status === 404) return { status: r.status };
+    return null; // alles andere: die API versuchen
+  } catch { return null; }
+}
+
 async function leseNeu(name: string, alt: Eintrag | undefined): Promise<Buffer | null> {
   const jetzt = Date.now();
+  // Erst das CDN - ausser fuer eben selbst Geschriebenes.
+  if (!(alt && (alt.ausstehend || (alt.geschrieben && jetzt - alt.geschrieben < RAW_SPERRE_MS)))) {
+    const c = await leseUeberCdn(name, alt);
+    if (c?.status === 304 && alt) { alt.geprueft = jetzt; return alt.daten; }
+    if (c?.status === 404) { cache.set(name, { daten: null, sha: null, etag: null, geprueft: jetzt, geaendert: null }); return null; }
+    if (c?.status === 200 && c.buf) {
+      const buf = c.buf;
+      cache.set(name, { daten: buf, sha: blobSha(buf), etag: c.etag ? `cdn:${c.etag}` : null, geprueft: jetzt, geaendert: alt?.geaendert ?? null });
+      platteSichern(name, buf);
+      return buf;
+    }
+  }
   const kopf: Record<string, string> = { Accept: 'application/vnd.github.raw+json' };
-  if (alt?.etag) kopf['If-None-Match'] = alt.etag;
+  // Der ETag der CDN-Antwort passt nicht zur API: fuer die API nur den, den sie selbst geliefert hat.
+  if (alt?.etag && !alt.etag.startsWith('cdn:')) kopf['If-None-Match'] = alt.etag;
   let r: Response;
   try {
     r = await anfrage(`/repos/${repo()}/contents/${pfad(name)}?ref=${ZWEIG}`, { headers: kopf });
@@ -256,7 +302,7 @@ async function schreibeJetzt(n: string, daten: Buffer): Promise<void> {
   for (let versuch = 0; versuch < 4; versuch += 1) {
     if (sha === undefined || versuch > 0) sha = await holeSha(n);
     if (sha === neuSha) {
-      cache.set(n, { daten, sha, etag: null, geprueft: Date.now(), geaendert: e?.geaendert ?? Date.now() });
+      cache.set(n, { daten, sha, etag: null, geprueft: Date.now(), geaendert: e?.geaendert ?? Date.now(), geschrieben: Date.now() });
       return;
     }
     const r = await anfrage(`/repos/${repo()}/contents/${pfad(n)}`, {
@@ -270,7 +316,7 @@ async function schreibeJetzt(n: string, daten: Buffer): Promise<void> {
     if (r.ok) {
       const j = await r.json() as { content?: { sha?: string }; commit?: { committer?: { date?: string } } };
       const wann = Date.parse(j.commit?.committer?.date ?? '') || Date.now();
-      cache.set(n, { daten, sha: j.content?.sha ?? neuSha, etag: null, geprueft: Date.now(), geaendert: wann });
+      cache.set(n, { daten, sha: j.content?.sha ?? neuSha, etag: null, geprueft: Date.now(), geaendert: wann, geschrieben: Date.now() });
       verzeichnisVergessen(n);
       zuletztGeschrieben.set(n, Date.now());
       return;

@@ -1456,6 +1456,19 @@ export interface ArchivEintrag {
   gesehen: string;
 }
 
+/**
+ * Das Archiv zum Weiterschreiben: fehlt die Datei, ist es leer - jeder andere Fehler (Ablage antwortet nicht) wird weitergereicht. Mit dem stillen leseArchiv()
+ * waere bei einem Ausfall "leer" herausgekommen, und schreibeArchiv haette dann ein Archiv mit nur den heutigen Cups ueber das ganze gespeicherte geschrieben.
+ */
+async function leseArchivStreng(): Promise<ArchivEintrag[]> {
+  let roh: string;
+  try { roh = await fs.readFile(ARCHIV, 'utf8'); } catch (e) {
+    if ((e as NodeJS.ErrnoException)?.code === 'ENOENT') return [];
+    throw e;
+  }
+  return bereinigeArchiv(JSON.parse(roh) as ArchivEintrag[]);
+}
+
 export async function leseArchiv(): Promise<ArchivEintrag[]> {
   try { return bereinigeArchiv(JSON.parse(await fs.readFile(ARCHIV, 'utf8')) as ArchivEintrag[]); }
   catch { return []; }
@@ -1618,7 +1631,7 @@ export async function schreibeArchiv(cups: CupGruppe[]): Promise<number> {
   // Auf Vercel ist das Dateisystem schreibgeschuetzt.
   if (process.env.VERCEL || process.env.NEXT_PUBLIC_VERCEL_ENV) return 0;
 
-  const vorhanden = await leseArchiv();
+  const vorhanden = await leseArchivStreng();
   const nachSchluessel = new Map(vorhanden.map((e) => [e.windowId + '|' + e.region, e]));
   const jetzt = new Date().toISOString();
   let neu = 0;
