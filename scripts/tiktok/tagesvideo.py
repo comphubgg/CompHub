@@ -117,14 +117,16 @@ async def sprechen(szenen, ordner, ff):
     for s in szenen:
         woerter = None
         if stimme == "edge":
-            for versuch in range(3):
+            for versuch in range(2):
                 try:
                     datei = ordner / f"{s['id']}.mp3"
-                    woerter = await eine_stimme_edge(s["text"], datei)
+                    woerter = await asyncio.wait_for(eine_stimme_edge(s["text"], datei), timeout=45)
                     break
-                except Exception as e:  # noqa: BLE001
-                    print("edge-tts:", s["id"], "Versuch", versuch + 1, str(e)[:80], flush=True)
-                    await asyncio.sleep(8)
+                except BaseException as e:  # noqa: BLE001 - auch ein Zeitablauf (TimeoutError) zaehlt als "keine Antwort"
+                    if isinstance(e, (KeyboardInterrupt, SystemExit)):
+                        raise
+                    print("edge-tts:", s["id"], "Versuch", versuch + 1, type(e).__name__, str(e)[:80], flush=True)
+                    await asyncio.sleep(5)
             if woerter is None:
                 print("edge-tts antwortet nicht - Piper uebernimmt (alle Szenen mit derselben Stimme).", flush=True)
                 stimme = "piper"
@@ -170,12 +172,18 @@ def rendern(tl, daten, frames, port=8791):
         s = ctx.new_page()
         s.on("pageerror", lambda e: print("[FEHLER]", e, flush=True))
         s.add_init_script("window.TIMELINE = " + json.dumps(tl) + "; window.DATEN = " + json.dumps(daten) + "; window.BASIS = ''; window.FORMAT = 'hoch';")
-        s.goto(f"http://127.0.0.1:{port}/scripts/tiktok/film-tag.html", wait_until="load")
-        s.wait_for_function("window.bereit === true", timeout=180000)
+        s.goto(f"http://127.0.0.1:{port}/scripts/tiktok/film-tag.html", wait_until="domcontentloaded", timeout=60000)
+        # Bilder, die nicht kommen (Foto-Adresse antwortet nicht), halten die Seite nicht ewig auf: nach 90 Sekunden wird trotzdem gezeichnet.
+        try:
+            s.wait_for_function("window.bereit === true", timeout=90000)
+        except Exception as e:  # noqa: BLE001
+            print("Seite nicht ganz bereit, es geht trotzdem los:", str(e)[:80], flush=True)
         n = int(tl["gesamt"] * FPS) + 1
         for i in range(n):
             s.evaluate(f"render({i / FPS})")
             s.screenshot(path=str(frames / f"f{i:05d}.jpg"), type="jpeg", quality=92)
+            if i % 300 == 0:
+                print(f"  Bild {i}/{n}", flush=True)
         b.close()
     return n
 
@@ -226,7 +234,9 @@ def main():
 
     with tempfile.TemporaryDirectory(prefix="tiktok-") as tmp:
         tmp = Path(tmp)
+        t0 = time.time()
         tl = asyncio.run(sprechen(drehbuch(d), tmp, ff))
+        print(f"Stimme: {tl.get('stimme')} ({time.time() - t0:.0f}s), Film {tl['gesamt']:.1f}s", flush=True)
         tlpfad = tmp / "timeline.json"
         tlpfad.write_text(json.dumps(tl), encoding="utf-8")
         musik = tmp / "musik.wav"
@@ -235,8 +245,10 @@ def main():
         mischen(ff, tl, tmp, musik, ton)
         frames = tmp / "frames"
         frames.mkdir()
+        print("Musik und Ton fertig, Bilder werden gezeichnet ...", flush=True)
+        t0 = time.time()
         n = rendern(tl, d, frames)
-        print("Bilder:", n, flush=True)
+        print(f"Bilder: {n} ({time.time() - t0:.0f}s)", flush=True)
         mp4 = aus / f"tiktok-{datum}.mp4"
         r = subprocess.run([ff, "-y", "-framerate", str(FPS), "-i", str(frames / "f%05d.jpg"), "-i", str(ton),
                             "-vf", "scale=in_range=pc:out_range=tv:out_color_matrix=bt709,format=yuv420p", "-c:v", "libx264", "-preset", "medium", "-crf", "20", "-profile:v", "high",
