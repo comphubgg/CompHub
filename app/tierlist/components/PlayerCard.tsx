@@ -8,6 +8,14 @@ import { getPrimaryRegion, isDuo, isTrio, cleanPlayerName } from '../utils/helpe
 import { kernname, ohneZierrat } from '@/lib/homoglyph';
 
 import { useT } from '@/app/components/SprachProvider';
+import { useBilder } from './BilderKontext';
+
+/** Silhouette fuer Spieler ohne Foto - dieselbe wie in den Videos. */
+const SILHOUETTE = (
+  <svg className="silhouette" viewBox="0 0 24 24" fill="currentColor" aria-hidden>
+    <circle cx="12" cy="8.5" r="4.2" /><path d="M3.6 21c.5-4.4 3.9-7 8.4-7s7.9 2.6 8.4 7z" />
+  </svg>
+);
 interface PlayerCardProps {
   entry: TierListEntry;
   variant?: 'list' | 'pool';
@@ -276,6 +284,23 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
   const cardClass = `${variant === 'pool' ? 'pool-duo-card' : 'duo-card'} ${isDuoEntry ? '' : 'solo-entry'}`;
 
   const isOwner = eigener;
+
+  /*
+   * Mit Fotos (Betreiber, 20.10.2026): je Spieler ein Foto-Teil mit Name und Flagge, Duos und Trios nebeneinander in einer Kachel. Die Fotos holt BilderKontext
+   * gesammelt; solange eines fehlt, steht die Silhouette da.
+   */
+  const { bilder, fotoFuer, vormerken } = useBilder();
+  const bildTeile = [
+    { roh: player1Name, anzeige: anzeige1, land: land1 },
+    ...(isDuoEntry ? [{ roh: player2Name ?? '', anzeige: anzeige2 ?? '', land: land2 }] : []),
+    ...(isTrioEntry ? [{ roh: player3Name ?? '', anzeige: anzeige3 ?? '', land: land3 }] : []),
+  ];
+  const bildSchluessel = bildTeile.map((x) => `${x.anzeige}|${x.roh}`).join('||');
+  React.useEffect(() => {
+    if (bilder) vormerken(bildTeile.flatMap((x) => [x.anzeige, x.roh]));
+    // bildSchluessel steht fuer bildTeile
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bilder, bildSchluessel, vormerken]);
   
   const regionText = displayRegion || 'Unknown';
   const regionClass = String(regionText).toLowerCase();
@@ -309,8 +334,22 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
         event.preventDefault();
         onDrop?.(event);
       }}
-      className={`${cardClass} ${isDragging ? 'dragging' : ''} ${disabled ? 'locked-card' : ''}`}
+      className={`${bilder ? `bild-kachel ${variant === 'pool' ? 'klein' : ''} n${bildTeile.length}` : cardClass} ${isDragging ? 'dragging' : ''} ${disabled ? 'locked-card' : ''}`}
     >
+      {bilder ? bildTeile.map((x, i) => {
+        const foto = fotoFuer(x.anzeige, x.roh);
+        return (
+          <div key={i} className="bild-teil">
+            {foto
+              // eslint-disable-next-line @next/next/no-img-element
+              ? <img src={foto} alt="" draggable={false} loading="lazy" />
+              : SILHOUETTE}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img className="bild-flagge" src={getCountryFlag(x.land)} alt="" draggable={false} />
+            <span className="bild-name">{x.anzeige}</span>
+          </div>
+        );
+      }) : (<>
       <div className={`flag-badge-wrapper${isTrioEntry ? ' flag-trio-gross' : ''}`}>
         {isTrioEntry ? (() => {
           /*
@@ -388,13 +427,14 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
               ? (n) => onRename(player1Name, n) : undefined} />
         )}
       </div>
+      </>)}
       {/* Stift und Kreuz sieht nur der Admin.
           Wer sich anmeldet, ohne Admin zu sein, legt sich seine eigene
           Auswahl an - an den offiziellen Eintraegen aendert er nichts.
           Frueher genuegte "ist der Ersteller", und ein hinzugefuegter
           Spieler liess sich auch von anderen umbenennen. */}
       {bearbeitbar && (onRename || onDelete) && (
-        <div className="admin-card-actions">
+        <div className={bilder ? 'admin-card-actions bild-aktionen' : 'admin-card-actions'}>
           {(onRename || onLand) && (
             <button
               type="button"

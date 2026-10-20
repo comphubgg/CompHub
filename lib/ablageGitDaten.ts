@@ -46,13 +46,20 @@
  */
 
 import crypto from 'crypto';
+import { promises as fsp } from 'fs';
+import os from 'os';
+import path from 'path';
 import type { Speicher } from '@/lib/ablage';
 
 const API = 'https://api.github.com';
 const ZWEIG = 'main';
 const FRISCH_MS = 60_000;
-const NICHT_DA_MS = 30_000;
-const VERZEICHNIS_MS = 30_000;
+// Fehlende Dateien und Ordnerlisten zaehlen bei GitHub voll gegen das Stundenkontingent (nur "nicht geaendert" ist frei) - sie werden deshalb seltener erfragt
+// (20.10.2026: das Kontingent war aufgebraucht, die Seite lieferte Fehler statt Katalog).
+const NICHT_DA_MS = 180_000;
+const VERZEICHNIS_MS = 120_000;
+/** Groesste Datei, die auf die Platte gesichert wird (Fotos u. a. bleiben ausserhalb). */
+const PLATTE_MAX = 1_500_000;
 const LESEN_MS = 15_000;
 const SCHREIBEN_MS = 45_000;
 const ABSTAND_MS = 500;
@@ -96,7 +103,10 @@ interface Eintrag {
 }
 
 const cache = new Map<string, Eintrag>();
-const verzeichnisse = new Map<string, { namen: string[]; bis: number }>();
+const verzeichnisse = new Map<string, { namen: string[]; bis: number; etag?: string | null }>();
+/** Wie viele Anfragen seit dem Start mit welchem Ergebnis hinausgingen ("GET 200", "GET 304", "GET 404", "PUT 200" ...) - zeigt, wer das Stundenkontingent verbraucht. */
+const anfragen: Record<string, number> = {};
+const zaehlerSeit = Date.now();
 const unterwegs = new Map<string, Promise<Buffer | null>>();
 const zuletztGeschrieben = new Map<string, number>();
 const sammelUhren = new Map<string, ReturnType<typeof setTimeout>>();
@@ -131,6 +141,8 @@ async function anfrage(weg: string, init: RequestInit & { frist?: number } = {})
     cache: 'no-store',
     signal: AbortSignal.timeout(frist),
   });
+  const art = `${(rest.method ?? 'GET').toUpperCase()} ${r.status}${weg.includes('/commits?') ? ' commits' : ''}`;
+  anfragen[art] = (anfragen[art] ?? 0) + 1;
   if (r.status === 403 || r.status === 429) {
     // Zu viele Anfragen: GitHub nennt, wann es wieder geht.
     const wieder = Number(r.headers.get('x-ratelimit-reset') ?? 0) * 1000;
@@ -139,6 +151,24 @@ async function anfrage(weg: string, init: RequestInit & { frist?: number } = {})
     }
   }
   return r;
+}
+
+/*
+ * Die letzte bekannte Fassung jeder kleinen Datei liegt auch auf der Platte dieses Rechners. Antwortet GitHub nicht (Stundenkontingent aufgebraucht, Netz weg) und der
+ * Arbeitsspeicher ist leer - etwa nach einem Neustart beim Veroeffentlichen -, dient diese Fassung statt eines Fehlers (Betreiber, 20.10.2026: die Prognose zeigte
+ * "kein grosses Finale", der Knopf "TikTok bauen" scheiterte, weil der Katalog nicht kam). Auf Plattformen ohne beschreibbare Platte (Netlify) schlaegt das Sichern
+ * still fehl und bleibt ohne Wirkung.
+ */
+const platteOrdner = () => path.join(process.env.ABLAGE_ZWISCHEN || path.join(os.tmpdir(), 'comphub-ablage-zwischen'), repo().replace(/\W+/g, '_'), praefix().replace(/\W+/g, '_') || '_');
+const platteDatei = (n: string) => path.join(platteOrdner(), ...sauber(n).split('/'));
+function platteSichern(n: string, buf: Buffer): void {
+  if (buf.length > PLATTE_MAX) return;
+  void (async () => {
+    try { const p = platteDatei(n); await fsp.mkdir(path.dirname(p), { recursive: true }); await fsp.writeFile(p, buf); } catch { /* ohne Platte geht es auch */ }
+  })();
+}
+async function platteLesen(n: string): Promise<Buffer | null> {
+  try { return await fsp.readFile(platteDatei(n)); } catch { return null; }
 }
 
 function merkeFehler(e: unknown) {
@@ -157,6 +187,8 @@ async function leseNeu(name: string, alt: Eintrag | undefined): Promise<Buffer |
   } catch (e) {
     merkeFehler(e);
     if (alt) return alt.daten; // lieber der letzte Stand als ein Fehler
+    const platte = await platteLesen(name);
+    if (platte) { cache.set(name, { daten: platte, sha: blobSha(platte), etag: null, geprueft: jetzt - FRISCH_MS + 20_000, geaendert: null }); return platte; }
     throw e;
   }
   if (r.status === 304 && alt) { alt.geprueft = jetzt; return alt.daten; }
@@ -168,10 +200,13 @@ async function leseNeu(name: string, alt: Eintrag | undefined): Promise<Buffer |
     const e = new Error(`Ablage (GitHub) antwortet ${r.status} bei ${name}`);
     merkeFehler(e);
     if (alt) return alt.daten;
+    const platte = await platteLesen(name);
+    if (platte) { cache.set(name, { daten: platte, sha: blobSha(platte), etag: null, geprueft: jetzt - FRISCH_MS + 20_000, geaendert: null }); return platte; }
     throw e;
   }
   const buf = Buffer.from(await r.arrayBuffer());
   cache.set(name, { daten: buf, sha: blobSha(buf), etag: r.headers.get('etag'), geprueft: jetzt, geaendert: alt?.geaendert ?? null });
+  platteSichern(name, buf);
   return buf;
 }
 
@@ -314,12 +349,14 @@ async function liste(ordner: string): Promise<string[]> {
   if (gemerkt && Date.now() < gemerkt.bis) return gemerkt.namen;
   let r: Response;
   try {
-    r = await anfrage(`/repos/${repo()}/contents/${pfad(o)}?ref=${ZWEIG}`);
+    // Mit dem ETag der letzten Antwort: "nicht geaendert" kostet kein Kontingent.
+    r = await anfrage(`/repos/${repo()}/contents/${pfad(o)}?ref=${ZWEIG}`, gemerkt?.etag ? { headers: { 'If-None-Match': gemerkt.etag } } : {});
   } catch (e) {
     merkeFehler(e);
     if (gemerkt) return gemerkt.namen;
     throw e;
   }
+  if (r.status === 304 && gemerkt) { gemerkt.bis = Date.now() + VERZEICHNIS_MS; return gemerkt.namen; }
   if (r.status === 404) { verzeichnisse.set(k, { namen: [], bis: Date.now() + VERZEICHNIS_MS }); return []; }
   if (!r.ok) {
     if (gemerkt) return gemerkt.namen;
@@ -327,7 +364,7 @@ async function liste(ordner: string): Promise<string[]> {
   }
   const j = await r.json() as Array<{ name: string }> | { name?: string };
   const namen = Array.isArray(j) ? j.map((x) => x.name) : [];
-  verzeichnisse.set(k, { namen, bis: Date.now() + VERZEICHNIS_MS });
+  verzeichnisse.set(k, { namen, bis: Date.now() + VERZEICHNIS_MS, etag: r.headers.get('etag') });
   return namen;
 }
 
@@ -386,5 +423,6 @@ export function gitDatenZustand() {
   return {
     repo: repo(), praefix: praefix() || null, imSpeicher: cache.size,
     vorgemerkt: wartend.size, letzterFehler,
+    anfragen, anfragenSeit: new Date(zaehlerSeit).toISOString(),
   };
 }

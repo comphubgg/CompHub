@@ -20,6 +20,7 @@ import { dataProvider, duoService, playerService, storageService } from './servi
 
 // Components
 import { TierList, Sidebar } from './components';
+import { BilderAnbieter, BilderSchalter } from './components/BilderKontext';
 
 // Types & Utils
 import { TierKey, Player, Duo } from './types';
@@ -1289,6 +1290,7 @@ export default function TierListPage() {
   if (!isMounted) return null;
 
   return (
+    <BilderAnbieter>
     <div className="tierlist-page new">
       <div className="page-wrapper">
         <div className="tierlist-panel">
@@ -1311,6 +1313,7 @@ export default function TierListPage() {
               >
                 <T>Reset</T>
               </button>
+              <BilderSchalter />
               <button
                 type="button"
                 className={`tierlist-button ${mode === 'trio' ? 'tierlist-button-primary' : 'tierlist-button-secondary'}`}
@@ -1443,5 +1446,6 @@ export default function TierListPage() {
         />
       </div>
     </div>
+    </BilderAnbieter>
   );
 }

@@ -18,16 +18,16 @@ import { zwischenspeichern } from '@/lib/zwischenspeicher';
  * Sie erfindet nichts - gibt es keine passende Datei, kommt null zurueck.
  *
  *   GET ?name=Mrsavage   ->  { img: "/spielerbilder/mrsavage.jpg" }
+ *   POST { namen: ["Mrsavage", "tjino", ...] }  ->  { bilder: { "Mrsavage": "/spielerbilder/mrsavage.jpg", "tjino": null } }   (hoechstens 200 Namen; fuer die Tierlist mit Fotos)
  */
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-async function holeRoh(request: Request) {
-  const name = (new URL(request.url).searchParams.get('name') ?? '').trim();
-  if (!name) return NextResponse.json({ img: null });
+type Fotos = Awaited<ReturnType<typeof bilder>>;
 
-  const b = await bilder();
+/** Das Foto zu einem Namen - null, wenn es keines gibt. */
+function finde(b: Fotos, name: string): string | null {
 
   /*
    * Zuerst genau, dann grosszuegig.
@@ -42,10 +42,24 @@ async function holeRoh(request: Request) {
   const genau = b.players.find((p) => namensSchluessel(p.key) === schluessel);
   const treffer = genau
     ?? b.players.find((p) => name.toLowerCase().includes(p.key));
+  return treffer ? `/spielerbilder/${encodeURIComponent(treffer.file)}` : null;
+}
 
-  return NextResponse.json({
-    img: treffer ? `/spielerbilder/${encodeURIComponent(treffer.file)}` : null,
-  });
+async function holeRoh(request: Request) {
+  const name = (new URL(request.url).searchParams.get('name') ?? '').trim();
+  if (!name) return NextResponse.json({ img: null });
+  return NextResponse.json({ img: finde(await bilder(), name) });
+}
+
+/** Mehrere Namen auf einmal: die Tierlist mit Fotos fragt je Seite einmal, nicht je Kachel. */
+export async function POST(request: Request) {
+  const k = await request.json().catch(() => ({})) as { namen?: unknown };
+  const namen = Array.isArray(k.namen) ? k.namen.filter((n): n is string => typeof n === 'string').map((n) => n.trim()).filter(Boolean).slice(0, 200) : [];
+  if (!namen.length) return NextResponse.json({ bilder: {} });
+  const b = await bilder();
+  const aus: Record<string, string | null> = {};
+  for (const n of namen) aus[n] = finde(b, n);
+  return NextResponse.json({ bilder: aus }, { headers: { 'Cache-Control': 'private, max-age=300' } });
 }
 
 /** Fuer alle gleich - Vercels Zwischenspeicher beantwortet Wiederholungen (lib/zwischenspeicher). */

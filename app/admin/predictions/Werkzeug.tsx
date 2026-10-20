@@ -37,6 +37,7 @@ import {
   kartenSchrift, kartenName, formFarbe, hebeFormHervor, useEchteNamen,
 } from '@/app/lib/kartenStil';
 import KartenWasserzeichen from '@/app/components/KartenWasserzeichen';
+import AnkuendigungsTweet from './AnkuendigungsTweet';
 import { useKartenVollbild } from '@/app/components/kartenVollbild';
 import { fortniteKarte as fortniteKartenBild, eigeneKarte as eigenesKartenBild } from '@/lib/bildAdressen';
 interface Fenster {
@@ -89,8 +90,11 @@ const KEINE_FINALS = new Set(['ranked', 'mobile', 'skin', 'sonstige']);
  * Feldes kommt aus den Auszahlungstabellen der Vorrunden ("Platz 1 bis 50
  * bekommen die Marke"); Solo Victory Cups mit viertausend Qualifizierten
  * fallen so heraus, Division-1-Finals mit fuenfzig bleiben.
+ *
+ * Mit "vergangen" die Finals, die schon gespielt sind (Betreiber, 20.10.2026: "fuer die Predictions sollen auch vergangene Cups moeglich sein, nicht nur die neuen").
+ * Ein Finale mit zwei Tagen, von denen einer noch aussteht, zaehlt als kommend und taucht in der anderen Ansicht nicht auf.
  */
-function finalsAus(cups: Cup[]): Finale[] {
+function finalsAus(cups: Cup[], vergangen = false): Finale[] {
   // Wer vergibt welche Marke bis zu welchem Platz - ueber alle Cups.
   const vergeber = new Map<string, Array<{ f: Fenster; bis: number }>>();
   for (const c of cups) {
@@ -108,7 +112,6 @@ function finalsAus(cups: Cup[]): Finale[] {
     for (const [region, liste] of Object.entries(c.regionen)) {
       const gruppen = new Map<string, Fenster[]>();
       for (const f of liste) {
-        if (f.status === 'vorbei') continue;
         // Von Hand nachgetragene Turniere (ohne Endzeit) haben bei Epic
         // weder Bestenliste noch Qualifikation - der FNCS Global
         // Championship stand sonst zweimal da, einmal aus dem Archiv und
@@ -121,8 +124,10 @@ function finalsAus(cups: Cup[]): Finale[] {
         const key = tokens.length ? tokens.slice().sort().join('|') : f.windowId;
         (gruppen.get(key) ?? gruppen.set(key, []).get(key)!).push({ ...f, region });
       }
-      for (const fenster of gruppen.values()) {
-        fenster.sort((a, b) => a.begin - b.begin);
+      for (const alle of gruppen.values()) {
+        const offene = alle.filter((f) => f.status !== 'vorbei');
+        const fenster = (vergangen ? (offene.length ? [] : alle) : offene).sort((a, b) => a.begin - b.begin);
+        if (!fenster.length) continue;
         const tokens = echteMarken(fenster[0].tokens);
         const quellen = tokens.flatMap((t) => vergeber.get(t) ?? []);
         const feld = quellen.length ? quellen.reduce((s, q) => s + q.bis, 0) : null;
@@ -141,7 +146,7 @@ function finalsAus(cups: Cup[]): Finale[] {
       }
     }
   }
-  return raus.sort((a, b) => a.begin - b.begin);
+  return raus.sort((a, b) => (vergangen ? b.begin - a.begin : a.begin - b.begin));
 }
 interface Eintrag {
   rank: number; points: number;
@@ -412,6 +417,21 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
   const [istAdmin, setIstAdmin] = useState<boolean | null>(null);
   const [cups, setCups] = useState<Cup[]>([]);
   const [cupsLaden, setCupsLaden] = useState(true);
+  /** Antwortet der Katalog nicht, steht das da - nie "kein Finale" (ein Ausfall darf nicht wie "leer" aussehen). */
+  const [katalogFehler, setKatalogFehler] = useState('');
+  /** Kommende oder schon gespielte Finals zur Auswahl. */
+  const [zeit, setZeit] = useState<'kommend' | 'vergangen'>('kommend');
+  const katalogLaden = useCallback(() => {
+    setCupsLaden(true); setKatalogFehler('');
+    fetch('/api/cup-catalog?modus=alle')
+      .then(async (r) => {
+        const d = await r.json().catch(() => ({} as { cups?: Cup[]; error?: string; fehler?: string }));
+        if (!r.ok || !Array.isArray(d.cups)) throw new Error(String(d.error ?? d.fehler ?? `HTTP ${r.status}`));
+        setCups(d.cups);
+      })
+      .catch((e) => setKatalogFehler((e as Error).message || 'nicht erreichbar'))
+      .finally(() => setCupsLaden(false));
+  }, []);
   const [cupId, setCupId] = useState('');
   /** Das gewaehlte Finale - solange keins gewaehlt ist, stehen die Kacheln. */
   const [ziel, setZiel] = useState<Ziel | null>(null);
@@ -606,9 +626,7 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
   useEffect(() => {
     fetch('/api/auth/check-admin').then((r) => r.json())
       .then((j) => setIstAdmin(j.isAdmin === true)).catch(() => setIstAdmin(false));
-    fetch('/api/cup-catalog?modus=alle').then((r) => r.json())
-      .then((d) => setCups(d.cups ?? [])).catch(() => {})
-      .finally(() => setCupsLaden(false));
+    katalogLaden();
     fetch('/api/spieler-profile').then((r) => r.json())
       .then((j) => setProfile(j.profile ?? {})).catch(() => {});
     // Die eigene Prognose kommt aus dem eigenen Fach. Scheitert das Lesen,
@@ -624,6 +642,7 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
       .then((d) => { setBilder(d.karten ?? []); setInseln(d.inseln ?? {}); }).catch(() => {});
     fetch('/api/flaggen').then((r) => r.json())
       .then((d) => setFlaggen(d.flaggen ?? [])).catch(() => {});
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Die Formen zum gewaehlten Kartenbild. Sie kommen aus derselben Ablage wie
@@ -940,12 +959,12 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
   }
 
   /** Die grossen Finals, die noch kommen oder laufen - je Cup gesammelt fuer die Kacheln. */
-  const finals = useMemo(() => finalsAus(cups), [cups]);
   const kacheln = useMemo(() => {
     const jeCup = new Map<string, Finale[]>();
-    for (const f of finals) (jeCup.get(f.cup.id) ?? jeCup.set(f.cup.id, []).get(f.cup.id)!).push(f);
-    return [...jeCup.values()].sort((a, b) => a[0].begin - b[0].begin);
-  }, [finals]);
+    for (const f of finalsAus(cups, zeit === 'vergangen')) (jeCup.get(f.cup.id) ?? jeCup.set(f.cup.id, []).get(f.cup.id)!).push(f);
+    const liste = [...jeCup.values()].sort((a, b) => (zeit === 'vergangen' ? b[0].begin - a[0].begin : a[0].begin - b[0].begin));
+    return zeit === 'vergangen' ? liste.slice(0, 24) : liste;
+  }, [cups, zeit]);
 
   /**
    * Die Namen eines Teams, so wie sie auf der Karte stehen.
@@ -2014,13 +2033,32 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
           </p>
           )
         )}
+        {!cupId && !globals && !cupsLaden && !katalogFehler && (
+          <div className="mb-4 inline-flex rounded-full border border-zinc-800 p-0.5 text-xs font-semibold">
+            {(['kommend', 'vergangen'] as const).map((z) => (
+              <button key={z} type="button" onClick={() => setZeit(z)}
+                className={`rounded-full px-4 py-1.5 transition ${zeit === z ? 'bg-sky-500 text-white' : 'text-slate-400 hover:text-slate-200'}`}>
+                {z === 'kommend' ? <T>Kommende Finals</T> : <T>Vergangene Finals</T>}
+              </button>
+            ))}
+          </div>
+        )}
         {!cupId && !globals && (
           cupsLaden ? (
             <p className="py-10 text-center text-sm text-slate-500"><T>lädt …</T></p>
+          ) : katalogFehler ? (
+            <div className="mx-auto max-w-xl rounded-xl border border-amber-800 bg-amber-950/30 px-5 py-4 text-center text-sm text-amber-300">
+              <p><T>Der Turnierkatalog antwortet gerade nicht - das heißt nicht, dass kein Finale ansteht. Bitte gleich noch einmal versuchen.</T></p>
+              <p className="mt-1 break-words text-xs text-amber-400/70">{katalogFehler}</p>
+              <button type="button" onClick={katalogLaden}
+                className="mt-3 rounded-lg border border-amber-600 px-4 py-1.5 text-xs font-semibold text-amber-200 transition hover:bg-amber-600/20">
+                <T>Noch einmal laden</T>
+              </button>
+            </div>
           ) : !kacheln.length ? (
             <p className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-6 text-center
                           text-sm text-slate-500">
-              <T>Gerade steht kein großes Finale an.</T>
+              {zeit === 'vergangen' ? <T>Es liegt noch kein vergangenes großes Finale vor.</T> : <T>Gerade steht kein großes Finale an.</T>}
             </p>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
@@ -2125,6 +2163,11 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
               ))}
             </div>
           </div>
+        )}
+
+        {cupId && !globals && ziel && !!plaetze.length && (
+          <AnkuendigungsTweet cupName={cups.find((c) => c.id === cupId)?.titel ?? titel} finale={ziel.name} region={ziel.region}
+            datum={ziel.begin ? tag(ziel.begin) : ''} feld={feld} plaetze={plaetze.length} findeProfil={findeProfil} />
         )}
 
         {/* Reiter: die Prognosen zu diesem Cup - eine je Finale und Region. */}
