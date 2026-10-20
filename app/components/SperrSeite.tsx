@@ -44,7 +44,7 @@ export default function SperrSeite({ angaben }: { angaben: SperrAngaben }) {
     : (angaben.eigenerText || t(vorlage.text));
 
   return (
-    <main className="flex flex-1 items-center justify-center px-6 py-20">
+    <main className="flex min-h-screen flex-1 items-center justify-center bg-zinc-950 px-6 py-20">
       <div className="w-full max-w-xl text-center">
 
         {/* Das Logo, ruhig atmend, mit einem Schein in der Hausfarbe. */}

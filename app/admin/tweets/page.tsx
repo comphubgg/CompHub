@@ -3202,14 +3202,14 @@ export default function TweetSeite() {
 
   if (istAdmin === false) {
     return (
-      <main className="flex-1 bg-zinc-950 px-4 py-16 text-center text-slate-400">
+      <main className="min-h-screen flex-1 bg-zinc-950 px-4 py-16 text-center text-slate-400">
         <p className="text-sm"><T>Dieser Bereich ist dem Adminkonto vorbehalten.</T></p>
       </main>
     );
   }
 
   return (
-    <main className="flex-1 bg-zinc-950 px-4 py-6 text-slate-200">
+    <main className="min-h-screen flex-1 bg-zinc-950 px-4 py-6 text-slate-200">
       <div className="mx-auto max-w-[1500px]">
 
         <SeitenKopf className="mb-5" marke={<T>Beiträge</T>} titel={<T>Beitrag erstellen</T>}

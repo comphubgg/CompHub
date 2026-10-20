@@ -98,16 +98,16 @@ export default function OrgSeite() {
   if (laedt) return <main className="grid min-h-[60vh] place-items-center text-sm text-slate-400"><T>Lädt …</T></main>;
   if (fehler || !org) {
     return (
-      <main className="mx-auto max-w-xl px-4 py-24 text-center">
+      <div className="min-h-screen bg-zinc-950"><main className="mx-auto max-w-xl px-4 py-24 text-center">
         <h1 className="text-3xl font-extrabold text-white"><T>Dein Team</T></h1>
         <p className="mt-4 text-sm text-slate-400">{t(fehler ?? 'Dieses Konto verwaltet keine Organisation.')}</p>
         <Link href="/account" className="mt-6 inline-block rounded-full bg-sky-500 px-5 py-2 text-sm font-bold text-white hover:bg-sky-400"><T>Zum Konto</T></Link>
-      </main>
+      </main></div>
     );
   }
 
   return (
-    <main className="mx-auto max-w-6xl px-4 pb-24 pt-10 sm:px-6" style={{ ['--org' as string]: farbe }}>
+    <div className="min-h-screen bg-zinc-950"><main className="mx-auto max-w-6xl px-4 pb-24 pt-10 sm:px-6" style={{ ['--org' as string]: farbe }}>
       {/* Kopf: Logo, Name, Farbe */}
       <section className="relative overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 p-6 shadow-[0_10px_30px_rgba(15,23,42,.18)] sm:p-8">
         <span aria-hidden className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full opacity-30 blur-3xl" style={{ background: farbe }} />
@@ -232,6 +232,6 @@ export default function OrgSeite() {
           </section>
         );
       })}
-    </main>
+    </main></div>
   );
 }
