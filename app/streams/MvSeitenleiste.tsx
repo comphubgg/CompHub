@@ -137,6 +137,13 @@ function OrdnerAbschnitt({ p }: { p: Props }) {
     return !q || (sendet(k) && (p.live[k]?.title ?? '').toLowerCase().includes(q));
   };
   const bekannt = (k: string) => p.live[k] !== undefined;
+  /*
+   * Ein Ordner je Cup, von allein (Betreiber, 19.10.2026: "Ordner je Cup automatisch"): alle Kanaele aus allen Ordnern, nach dem Titel des laufenden Streams sortiert. Die Kapseln
+   * zeigen, wie viele gerade senden und den Cup im Titel haben; wer eine waehlt, kann genau diese Leute mit einem Druck auf die Wand holen.
+   */
+  const alleKanaele = [...new Set(p.ordner.flatMap((o) => o.streamers.map((x) => x.twitch)))];
+  const zahlFuer = (w: string) => alleKanaele.filter((k) => sendet(k) && (p.live[k]?.title ?? '').toLowerCase().includes(w.toLowerCase())).length;
+  const treffer = titelFilter.trim() ? alleKanaele.filter((k) => passt(k)) : [];
 
   const umschalten = (id: string) => setWahl((alt) => (alt.includes(id) ? alt.filter((x) => x !== id) : [...alt, id]));
   const kleinKnopf = 'mv-rand shrink-0 rounded border px-1.5 py-0.5 text-[10px] transition hover:border-sky-500 hover:text-sky-400 disabled:opacity-40';
@@ -163,11 +170,21 @@ function OrdnerAbschnitt({ p }: { p: Props }) {
         <div className="mt-1 flex flex-wrap gap-1">
           {['LCQ', 'Heat', 'Fast Track', 'Finals', 'Solo', 'Duo', 'Reload', 'Performance', 'Division', 'Cash'].map((w) => (
             <button key={w} type="button" onClick={() => setTitelFilter((a) => (a.trim().toLowerCase() === w.toLowerCase() ? '' : w))}
-              className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold transition ${titelFilter.trim().toLowerCase() === w.toLowerCase() ? 'border-sky-500 bg-sky-500/15 text-sky-400' : 'mv-mute mv-hover'}`}>
-              {w}
+              className={`rounded-full border px-2 py-0.5 text-[10px] font-semibold transition ${titelFilter.trim().toLowerCase() === w.toLowerCase() ? 'border-sky-500 bg-sky-500/15 text-sky-400' : zahlFuer(w) > 0 ? 'mv-hover' : 'mv-mute mv-hover opacity-60'}`}>
+              {w}{zahlFuer(w) > 0 && <span className="ml-1 tabular-nums text-red-500">{zahlFuer(w)}</span>}
             </button>
           ))}
         </div>
+        {titelFilter.trim() && (
+          <div className="mv-rand mt-2 flex items-center gap-2 rounded-lg border px-2.5 py-2">
+            <span className="mv-mute min-w-0 flex-1 text-[11px]">{treffer.length} <T>live mit diesem Titel</T></span>
+            <button type="button" disabled={!treffer.length} className={kleinKnopf}
+              title={t('Die Wand durch alle ersetzen, die diesen Cup im Titel haben')}
+              onClick={() => a.ordnerLaden(treffer, 'live')}>
+              <T>Auf die Wand</T>
+            </button>
+          </div>
+        )}
       </div>
 
       {gewaehlt.length > 0 && (
