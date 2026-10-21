@@ -588,42 +588,43 @@ function KartenKnopf({ karte, aufVerstecken, mitInsel = false }: {
   mitInsel?: boolean;
 }) {
   const t = useT();
+  /*
+   * Gestaltet wie die Spieltags-Kacheln daneben (Betreiber, 21.10.2026: "so sieht es haesslich aus, musst du selber wissen wie"): ein Kasten mit dem Kartenzeichen
+   * links, "Karte" klein darueber und dem Namen gross, ein Pfeil rechts. Das Kreuz fuer den Admin sitzt unauffaellig in der Ecke und zeigt sich beim Darueberfahren.
+   * Nur der Name des Turniers - ohne "Battle Royale" und ohne Tag (Betreiber, 28.9.2026); nur wenn ein Spieltag mehrere Karten hat (Reload-Inseln), steht der Inselname
+   * klein darunter, sonst waeren sie nicht zu unterscheiden.
+   */
+  const name = karte.titel.split('·')[0].trim() || karte.bildTitel || t('Karte öffnen');
+  const zusatz = karte.spiele ? `${t('Spiele')} ${karte.spiele}` : (mitInsel && karte.bildTitel ? karte.bildTitel : '');
   return (
-    <span className="relative inline-flex">
-    <a href={karte.href ?? `/maps?id=${encodeURIComponent(karte.id)}`}
-      className="mb-5 inline-flex items-center gap-2 rounded-xl border border-sky-500
-                 bg-sky-950/40 px-4 py-2.5 text-sm font-medium text-sky-200
-                 transition hover:border-sky-400 hover:bg-sky-900/50">
-      <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor"
-        strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M2.5 5.5 7.5 3l5 2.5L17.5 3v11.5L12.5 17l-5-2.5L2.5 17z" />
-        <path d="M7.5 3v11.5M12.5 5.5V17" />
-      </svg>
-      {/* Nur der Name des Turniers - ohne "Battle Royale" und ohne Tag. Der
-          Betreiber (28.9.2026): "Es soll nie immer Battle Royale einfach dort
-          stehen. Es soll einfach der Titel stehen ... und Tag ist auch
-          egal." Nur wenn ein Spieltag mehrere Karten hat (Reload-Inseln),
-          steht der Inselname klein dahinter, sonst waeren sie nicht zu
-          unterscheiden. */}
-      {karte.titel.split('·')[0].trim() || karte.bildTitel || t('Karte öffnen')}
-      {(karte.spiele || (mitInsel && karte.bildTitel)) && (
-        <span className="text-xs text-sky-400/80">
-          {karte.spiele ? `${t('Spiele')} ${karte.spiele}` : karte.bildTitel}
+    <span className="group relative inline-flex">
+      <a href={karte.href ?? `/maps?id=${encodeURIComponent(karte.id)}`}
+        className="flex min-w-[260px] max-w-[420px] items-center gap-3 rounded-xl border border-zinc-800 bg-zinc-900/40 py-2.5 pl-2.5 pr-4
+                   transition hover:border-sky-500 hover:bg-sky-950/30">
+        <span className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-sky-500/15 text-sky-400">
+          <svg viewBox="0 0 20 20" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="M2.5 5.5 7.5 3l5 2.5L17.5 3v11.5L12.5 17l-5-2.5L2.5 17z" />
+            <path d="M7.5 3v11.5M12.5 5.5V17" />
+          </svg>
         </span>
+        <span className="min-w-0 flex-1 leading-tight">
+          <span className="block text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500"><T>Karte</T></span>
+          <span className="block truncate text-sm font-bold text-slate-100">{name}</span>
+          {zusatz && <span className="block truncate text-[11px] text-sky-400/80">{zusatz}</span>}
+        </span>
+        <svg viewBox="0 0 20 20" className="h-4 w-4 shrink-0 text-slate-500 transition group-hover:translate-x-0.5 group-hover:text-sky-400" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+          <path d="M7 4l6 6-6 6" />
+        </svg>
+      </a>
+      {aufVerstecken && (
+        // Verstecken, nicht loeschen: Formen und Zuordnung bleiben erhalten und die Karte laesst sich im Editor jederzeit wieder hervorholen.
+        <button type="button" onClick={() => aufVerstecken(karte.id)}
+          title={t('Öffentlich ausblenden — die Karte bleibt erhalten')}
+          className="absolute right-1.5 top-1.5 grid h-5 w-5 place-items-center rounded-md text-[12px] leading-none text-slate-600 opacity-0
+                     transition hover:bg-rose-950 hover:text-rose-300 group-hover:opacity-100 focus:opacity-100">
+          ×
+        </button>
       )}
-    </a>
-    {aufVerstecken && (
-      // Verstecken, nicht loeschen: Formen und Zuordnung bleiben erhalten und
-      // die Karte laesst sich im Editor jederzeit wieder hervorholen.
-      <button type="button" onClick={() => aufVerstecken(karte.id)}
-        title={t('Öffentlich ausblenden — die Karte bleibt erhalten')}
-        className="absolute -right-2 -top-2 flex h-5 w-5 items-center justify-center
-                   rounded-full border border-rose-700 bg-zinc-950 text-[11px]
-                   leading-none text-rose-400 transition hover:bg-rose-950
-                   hover:text-rose-200">
-        ×
-      </button>
-    )}
     </span>
   );
 }

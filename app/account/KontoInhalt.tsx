@@ -5,6 +5,7 @@ import VipInfo from '@/app/components/VipInfo';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import T from '@/app/components/T';
+import SpielerPlatzhalter from '@/app/components/SpielerPlatzhalter';
 import MeinErgebnis from './MeinErgebnis';
 import { rundenName } from '@/lib/rundenName';
 import { useT } from '@/app/components/SprachProvider';
@@ -922,14 +923,15 @@ export default function KontoSeite({ eingebettet = false }: { eingebettet?: bool
                 zugeschnitten.</T>
               </p>
               <div className="flex flex-wrap items-center gap-4">
-                <div className="grid h-20 w-20 shrink-0 place-items-center
-                                overflow-hidden rounded-full border border-zinc-700
+                <div className="relative grid h-24 w-24 shrink-0 place-items-center
+                                overflow-hidden rounded-xl border border-zinc-700
                                 bg-slate-800 text-2xl font-semibold uppercase
                                 text-slate-100">
+                  {/* Das Profilbild ist quadratisch mit abgerundeten Ecken, ohne eigenes Bild steht das Platzhalterfoto da: eine Person ohne Gesicht (Betreiber, 21.10.2026). */}
                   {bild
                     // eslint-disable-next-line @next/next/no-img-element
                     ? <img src={bild} alt="" className="h-full w-full object-cover" />
-                    : (name || daten.email).trim().charAt(0)}
+                    : <SpielerPlatzhalter name={name || daten.email} />}
                 </div>
                 <input ref={dateiFeld} type="file" accept="image/*" hidden
                   onChange={(e) => {

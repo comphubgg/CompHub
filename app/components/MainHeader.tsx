@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import VIPLoginForm from '../login/VIPLoginForm';
 
 import T from '@/app/components/T';
+import SpielerPlatzhalter from '@/app/components/SpielerPlatzhalter';
 import { useT } from '@/app/components/SprachProvider';
 import { useSektionen, zustandFuer } from '@/app/lib/sektionen-stand';
 import { sichtbarerTakt, geteilterAbruf, vergissAbruf } from '@/app/lib/takt';
@@ -393,15 +394,16 @@ export default function MainHeader({ sektionenAnfang }: {
                 prefetch={false}
                 title={anzeige}
                 aria-label={`${t('Mein Konto')} — ${anzeige}`}
-                className="grid h-9 w-9 place-items-center overflow-hidden
-                           rounded-full border border-zinc-700 bg-slate-800
+                className="relative grid h-9 w-9 place-items-center overflow-hidden
+                           rounded-lg border border-zinc-700 bg-slate-800
                            text-sm font-semibold uppercase text-slate-100
                            transition hover:border-sky-500"
               >
+                {/* Das Profilbild ist quadratisch mit abgerundeten Ecken, ohne eigenes Bild steht das Platzhalterfoto da: eine Person ohne Gesicht (Betreiber, 21.10.2026). */}
                 {kontoBild
                   // eslint-disable-next-line @next/next/no-img-element
                   ? <img src={kontoBild} alt="" className="h-full w-full object-cover" />
-                  : anzeige.trim().charAt(0)}
+                  : <SpielerPlatzhalter name={anzeige} />}
               </Link>
             ) : (
               <Link

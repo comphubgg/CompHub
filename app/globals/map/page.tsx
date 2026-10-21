@@ -16,6 +16,7 @@ import KartenWasserzeichen from '@/app/components/KartenWasserzeichen';
 import { ZOOM_MAX, doppelKlickZiel } from '@/app/lib/kartenZoom';
 import { useKartenVollbild } from '@/app/components/kartenVollbild';
 import { fortniteKarte, eigeneKarte } from '@/lib/bildAdressen';
+import SpotZahl from '@/app/components/SpotZahl';
 
 /*
  * Eine Form der Turnierkarte.
@@ -376,6 +377,7 @@ function KartenBild({ karte, namenZu, markiert, zeige }: {
                 justifyContent: anzahl === 1 ? 'center' : 'space-between',
                 paddingBlock: 'calc(0.45cqw / var(--z, 1))',
               }}>
+              <SpotZahl n={drauf.reduce((a, k) => a + zeilen(k, true).length, 0)} />
               {drauf.map((key, i) => {
                 const texte = zeilen(key, anzahl === 1);
                 const yProz = anzahl === 1

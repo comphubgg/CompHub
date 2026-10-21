@@ -12,6 +12,7 @@ import { holeSeite } from '@/lib/epicCups';
  *   GET ?tag=FENSTER   -> ein Spieltag mit seinen Games und die anderen Tage desselben Cups (Seiten /replays/<Tag>)
  *   GET ?fenster=FENSTER -> welche Matches des Spieltags eine eigene Seite haben (Match-ID -> Game-Nummer, nur ab 80 Spielern)
  *   GET ?match=ID      -> ein Match: Zonen, Kill-Feed mit Ort, Spieler
+ *   GET ?zonen=FENSTER -> nur die Zonen aller Games eines Spieltags in einer Antwort (fuer das Zonen-Bild; Betreiber, 20.10.2026: "die Zonen sollen schneller laden")
  *
  * Ein ausgewertetes Match aendert sich nie mehr - Vercels bzw. Cloudflares Zwischenspeicher darf es lange halten; die Liste waechst
  * stuendlich.
@@ -19,6 +20,10 @@ import { holeSeite } from '@/lib/epicCups';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
+
+/** Die Zonen je ausgewertetem Match - ein Match aendert sich nie mehr, also bleibt es im Speicher und wird nur einmal gelesen. */
+const ZONEN = new Map<string, unknown[]>();
+const GLEICHZEITIG = 6;
 
 export async function GET(request: Request) {
   const p = new URL(request.url).searchParams;
@@ -61,6 +66,27 @@ export async function GET(request: Request) {
       const matches: Record<string, number> = {};
       for (const m of t?.matches ?? []) if ((m.spieler ?? 0) >= 80) matches[m.id] = m.nr;
       return zwischenspeichern(NextResponse.json({ windowId: fenster, matches }, { headers: { 'Cache-Control': 'no-store' } }), 120);
+    }
+
+    // Nur die Zonen: das Zonen-Bild brauchte bisher je Game eine ganze Antwort (Kill-Feed, Spieler, dazu eine Abfrage der Wertung bei Epic) - bei zwoelf Games war das
+    // zwoelfmal so viel wie noetig. Hier alle Games eines Spieltags zusammen, gleichzeitig gelesen und gemerkt.
+    const zonenFenster = p.get('zonen');
+    if (zonenFenster) {
+      const t = liste.find((x) => x.windowId === zonenFenster);
+      if (!t) return NextResponse.json({ error: 'Zu diesem Spieltag gibt es keine ausgewerteten Replays.' }, { status: 404 });
+      const zonen: Record<string, unknown[]> = {};
+      const offen = t.matches.filter((m) => alle[m.id]);
+      for (let i = 0; i < offen.length; i += GLEICHZEITIG) {
+        await Promise.all(offen.slice(i, i + GLEICHZEITIG).map(async (m) => {
+          if (!ZONEN.has(m.id)) {
+            const d = await liesJson<{ zonen?: unknown[] } | null>(alle[m.id].datei, null).catch(() => null);
+            if (!d) return;   // gerade nicht lesbar: nicht merken, beim naechsten Mal noch einmal
+            ZONEN.set(m.id, Array.isArray(d.zonen) ? d.zonen : []);
+          }
+          zonen[m.id] = ZONEN.get(m.id) ?? [];
+        }));
+      }
+      return zwischenspeichern(NextResponse.json({ windowId: zonenFenster, zonen }, { headers: { 'Cache-Control': 'no-store' } }), 60);
     }
 
     const tag = p.get('tag');

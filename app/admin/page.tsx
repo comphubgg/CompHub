@@ -23,6 +23,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 
 import T from '@/app/components/T';
+import SpielerPlatzhalter from '@/app/components/SpielerPlatzhalter';
 import { useT } from '@/app/components/SprachProvider';
 import { useZugang } from '@/app/lib/zugang';
 import { bereichVonPfad } from '@/lib/rechte';
@@ -456,14 +457,14 @@ export default function AdminDashboardPage() {
                 */}
               <div className={`mt-3 flex-wrap items-center gap-4
                 ${verwaltet ? 'hidden' : 'flex'}`}>
-                <span className="grid h-16 w-16 place-items-center overflow-hidden
-                                 rounded-full border border-zinc-800 bg-zinc-900
+                <span className="relative grid h-20 w-20 place-items-center overflow-hidden
+                                 rounded-xl border border-zinc-800 bg-zinc-900
                                  text-xl font-semibold uppercase text-slate-300">
                   {profile.avatarUrl
                     // eslint-disable-next-line @next/next/no-img-element
                     ? <img src={profile.avatarUrl} alt=""
                         className="h-full w-full object-cover" />
-                    : (profile.displayName || '?').trim().charAt(0)}
+                    : <SpielerPlatzhalter name={profile.displayName || '?'} />}
                 </span>
                 <div>
                   <label className="inline-block cursor-pointer rounded-lg border

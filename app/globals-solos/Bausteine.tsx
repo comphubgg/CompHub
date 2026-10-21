@@ -11,6 +11,7 @@ import KartenWasserzeichen from '@/app/components/KartenWasserzeichen';
 import { ZOOM_MAX, doppelKlickZiel } from '@/app/lib/kartenZoom';
 import { useKartenVollbild } from '@/app/components/kartenVollbild';
 import type { SolosFenster, SolosSpieler } from '@/lib/globalsSolos';
+import SpotZahl from '@/app/components/SpotZahl';
 
 /*
  * FNCS Globals Solos - die Bausteine der Seiten (die Seiten selbst: page.tsx und die Ordner daneben).
@@ -117,7 +118,7 @@ export function Karte({ f, bild, rotAb = 2 }: {
     else void huelle.current?.requestFullscreen?.();
   };
 
-  const spots = useMemo(() => f.formen.map((fo, i): Spot & { spieler: string[]; teams: number } => {
+  const spots = useMemo(() => f.formen.map((fo, i): Spot & { spieler: string[]; teams: number; personen: number } => {
     const xs = [...new Set(fo.punkte.map((q) => q.x))];
     const ys = [...new Set(fo.punkte.map((q) => q.y))];
     const rechteck = fo.punkte.length === 4 && xs.length === 2 && ys.length === 2;
@@ -128,7 +129,7 @@ export function Karte({ f, bild, rotAb = 2 }: {
      * Spieler eines Duos oder Trios stehen darin nebeneinander - sonst sieht ein Duo wie zwei Solos aus.
      */
     const zeilen = teams > 1 && fo.gruppen?.length ? fo.gruppen.filter((g) => g.length).map((g) => g.join(' ')) : fo.spieler;
-    return { id: `f${i}`, form: rechteck ? 'rechteck' : 'polygon', punkte: fo.punkte, spieler: zeilen, teams };
+    return { id: `f${i}`, form: rechteck ? 'rechteck' : 'polygon', punkte: fo.punkte, spieler: zeilen, teams, personen: fo.spieler.length };
   }), [f.formen]);
 
   const aufSpot = useMemo(
@@ -372,6 +373,7 @@ export function Karte({ f, bild, rotAb = 2 }: {
                     justifyContent: sp.teams <= 1 || anzahl === 1 ? 'center' : 'space-between',
                     paddingBlock: 'calc(0.45cqw / var(--z, 1))',
                   }}>
+                  <SpotZahl n={sp.personen} />
                   {sp.spieler.map((name, i) => {
                     const gedraengt = sp.teams <= 1 || anzahl === 1;
                     const yProz = gedraengt

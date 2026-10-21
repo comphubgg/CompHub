@@ -42,15 +42,17 @@ export default function ZonenBild({ tage }: { tage: TagKurz[] }) {
   const [wahl, setWahl] = useState<string>(tage[0]?.windowId ?? 'alle');
   const [zonen, setZonen] = useState<Record<string, Zone[]>>({});
   const [bereit, setBereit] = useState(false);
-  const angefragt = useRef(new Set<string>());
+  const angefragt = useRef(new Map<string, number>());
 
-  // Die Zonen aller Games dieser Tage - je Game genau einmal geholt.
+  // Die Zonen aller Games dieser Tage: je Tag eine Anfrage (nur die Zonen, alle Games zusammen) statt je Game eine ganze Antwort. Kommt ein Game dazu, wird der Tag noch einmal geholt.
   useEffect(() => {
-    const ids = tage.flatMap((t) => t.matches.map((m) => m.id)).filter((id) => !angefragt.current.has(id));
-    if (!ids.length) return;
-    for (const id of ids) angefragt.current.add(id);
-    Promise.all(ids.map((id) => fetch(`/api/replay?match=${id}`).then((r) => r.json()).then((j) => [id, j?.zonen ?? []] as const).catch(() => [id, []] as const)))
-      .then((liste) => setZonen((alt) => ({ ...alt, ...Object.fromEntries(liste) })));
+    const noetig = tage.filter((t) => t.matches.length && angefragt.current.get(t.windowId) !== t.matches.length);
+    if (!noetig.length) return;
+    for (const t of noetig) angefragt.current.set(t.windowId, t.matches.length);
+    Promise.all(noetig.map((t) => fetch(`/api/replay?zonen=${encodeURIComponent(t.windowId)}`).then((r) => r.json())
+      .then((j) => (j?.zonen ?? {}) as Record<string, Zone[]>)
+      .catch(() => { angefragt.current.delete(t.windowId); return {} as Record<string, Zone[]>; })))
+      .then((liste) => setZonen((alt) => Object.assign({}, alt, ...liste)));
   }, [tage]);
 
   const gezeigt = useMemo(() => (wahl === 'alle' ? tage : tage.filter((t) => t.windowId === wahl)), [tage, wahl]);

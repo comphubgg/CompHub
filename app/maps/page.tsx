@@ -26,6 +26,7 @@ import {
 } from '@/app/lib/kartenStil';
 import { ZOOM_MAX, doppelKlickZiel } from '@/app/lib/kartenZoom';
 import KartenWasserzeichen from '@/app/components/KartenWasserzeichen';
+import SpotZahl from '@/app/components/SpotZahl';
 import { sichtbarerTakt } from '@/app/lib/takt';
 import { fortniteKarte, eigeneKarte } from '@/lib/bildAdressen';
 type Form = 'rechteck' | 'polygon';
@@ -3549,6 +3550,7 @@ ${name}
               justifyContent: anzahl === 1 ? 'center' : 'space-between',
               paddingBlock: 'calc(0.45cqw / var(--z, 1))',
             }}>
+            <SpotZahl n={belegt.reduce((a, t) => a + namenVon(t).length, 0)} />
             {gruppen.map((zeilen, i) => {
               const yProz = anzahl === 1
                 ? r.oben + r.hoehe / 2

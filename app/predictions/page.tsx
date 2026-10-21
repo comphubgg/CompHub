@@ -27,7 +27,9 @@ import {
   kartenSchrift, kartenName, formFarbe, hebeFormHervor, useEchteNamen,
 } from '@/app/lib/kartenStil';
 import KartenWasserzeichen from '@/app/components/KartenWasserzeichen';
+import SpotZahl from '@/app/components/SpotZahl';
 import { eigeneKarte } from '@/lib/bildAdressen';
+import { regionVonLaendern } from '@/lib/landRegion';
 
 /* ------------------------------------------------------------ Daten */
 
@@ -245,7 +247,9 @@ export default function Prognosen() {
     if (REGIONEN.includes(team.region)) return team.region;
     // LAN: die Heimatregion des Teams, aus den gepflegten Profilen.
     const r = team.namen.map((n, k) => findeProfil(n, team.ids[k])?.region).find(Boolean);
-    return r ?? '';
+    if (r) return r;
+    // Sonst aus dem Land der Spieler (lib/landRegion) - vorher stand bei den meisten Teams "unbekannt", obwohl jedem Spieler eine Flagge zugeordnet war.
+    return regionVonLaendern(team.namen.map((n, k) => findeProfil(n, team.ids[k])?.land));
   }, [findeProfil]);
 
   const karten = useMemo<Karte[]>(() => {
@@ -571,6 +575,7 @@ export default function Prognosen() {
                             justifyContent: anzahl === 1 ? 'center' : 'space-between',
                             paddingBlock: '0.45cqw',
                           }}>
+                          <SpotZahl n={keys.reduce((a, k) => a + zeilenFuer(k, true).length, 0)} />
                           {keys.map((k, i) => {
                             const texte = zeilenFuer(k, anzahl === 1);
                             if (!texte.length) return null;

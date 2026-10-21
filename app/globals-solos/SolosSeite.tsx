@@ -424,7 +424,7 @@ export default function SolosSeite() {
         )}
         {daten && reiter === 'lastchance' && (
           /* Die Tafeln links, daneben die Laender - so wie beim Finale (Betreiber, 19.10.2026: "Player Countries neben die Liste"). */
-          <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_440px]">
             <div className="grid content-start gap-5 2xl:grid-cols-2">
               {lastChance.length ? lastChance.map((h) => <Tafel key={h.windowId} f={h} finalisten={finalisten} ziel={t('Grand Finals')} oeffne={oeffneIn(h.windowId)} />)
                 : <Karte2 className="2xl:col-span-2"><p className="py-6 text-center text-sm text-slate-500"><T>Noch keine Last Chance eingeteilt.</T></p></Karte2>}
@@ -433,7 +433,7 @@ export default function SolosSeite() {
           </div>
         )}
         {daten && reiter === 'finale' && (
-          <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_320px]">
+          <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_440px]">
             <div className="grid content-start gap-5 2xl:grid-cols-2">
               {finale.length ? finale.map((h) => <Tafel key={h.windowId} f={h} oeffne={oeffneIn(h.windowId)} />)
                 : <Karte2 className="2xl:col-span-2"><p className="py-6 text-center text-sm text-slate-500"><T>Das Finale steht noch nicht fest.</T></p></Karte2>}
