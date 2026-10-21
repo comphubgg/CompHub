@@ -4197,7 +4197,8 @@ export default function StatistikSeite() {
               )}
 
               {/* Die Gesamtzahlen (Spieler, Spieltage, Eliminierungen, Schaden) stehen ganz unten - Betreiber, 19.10.2026: "das will man nicht unbedingt als Erstes sehen". */}
-              <StatistikZahlen />
+              {/* Abstand zur Duell-Tafel darueber (Betreiber, 20.10.2026: "der Abstand hier immer noch nicht gefixt") */}
+              <div className="mt-12"><StatistikZahlen /></div>
             </>
           )}
 

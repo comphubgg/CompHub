@@ -81,8 +81,24 @@ export function BilderAnbieter({ children }: { children: React.ReactNode }) {
   return <Kontext.Provider value={wert}>{children}</Kontext.Provider>;
 }
 
-/** Der Umschalter "Bilder / Ohne Bilder" - sitzt bei den Modus-Knoepfen der Tierlist. */
+/** Der Umschalter "Bilder / Ohne Bilder": ein kleines Zeichen rechts neben der Suche (Betreiber, 20.10.2026: "das Profil an/aus daneben, so klein ein Zeichen"). */
 export function BilderSchalter() {
+  const { bilder, setBilder } = useBilder();
+  const t = useT();
+  return (
+    <button type="button" aria-pressed={bilder} onClick={() => setBilder(!bilder)} className="bilder-icon"
+      title={bilder ? t('Fotos an - zum Ausschalten klicken') : t('Fotos aus - zum Einschalten klicken')}
+      aria-label={t('Spieler mit Fotos oder nur mit Namen anzeigen')}>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+        <circle cx="12" cy="8" r="4" />
+        <path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7" />
+      </svg>
+    </button>
+  );
+}
+
+/** Die frühere breite Fassung - nicht mehr eingebaut. */
+export function BilderSchalterBreit() {
   const { bilder, setBilder } = useBilder();
   const t = useT();
   return (

@@ -105,6 +105,27 @@ def piper_modell(ordner):
     return modell
 
 
+ALIAS = {}   # gesprochener Name (klein) -> Anzeigename; gefuellt aus den Zeilen (Feld "aussprache", lib/aussprache.ts)
+
+
+def aliase_aus(d):
+    for z in d.get("zeilen") or []:
+        for gesprochen, anzeige in z.get("aussprache") or []:
+            ALIAS[gesprochen.lower()] = anzeige
+
+
+def untertitel(woerter):
+    """Die Untertitel zeigen den Namen, wie er geschrieben wird (Shark -> SHXRK), auch wenn die Stimme ihn anders spricht."""
+    if not ALIAS:
+        return woerter
+    raus = []
+    for w in woerter:
+        m = re.match(r"^(.*?)([.,;:!?]*)$", w["w"])
+        kern, satz = m.group(1), m.group(2)
+        raus.append({**w, "w": ALIAS[kern.lower()] + satz} if kern.lower() in ALIAS else w)
+    return raus
+
+
 def worte_ohne_zeiten(text, d):
     """Piper liefert keine Wortzeiten: sie werden nach Laenge der Woerter auf die Sprechdauer verteilt (Satzzeichen bekommen eine kleine Pause)."""
     woerter = text.split()
@@ -159,7 +180,7 @@ async def sprechen(szenen, ordner, ff):
                 return await sprechen_piper(szenen, ordner, ff)
         d = dauer(ff, datei)
         laenge = max(VOR + d + NACH, s.get("mindestens", 0))
-        tl.append({"id": s["id"], "start": round(beginn, 3), "laenge": round(laenge, 3), "audio": datei.name, "audioStart": VOR, "audioDauer": round(d, 3), "woerter": woerter})
+        tl.append({"id": s["id"], "start": round(beginn, 3), "laenge": round(laenge, 3), "audio": datei.name, "audioStart": VOR, "audioDauer": round(d, 3), "woerter": untertitel(woerter)})
         beginn += laenge - 0.5
     return {"fps": FPS, "gesamt": round(beginn + 0.5, 3), "szenen": tl, "stimme": "edge-tts"}
 
@@ -172,7 +193,7 @@ async def sprechen_piper(szenen, ordner, ff):
         subprocess.run([sys.executable, "-m", "piper", "-m", str(modell), "-f", str(wav)], input=s["text"].encode("utf-8"), check=True, capture_output=True)
         d = dauer(ff, wav)
         laenge = max(VOR + d + NACH, s.get("mindestens", 0))
-        tl.append({"id": s["id"], "start": round(beginn, 3), "laenge": round(laenge, 3), "audio": wav.name, "audioStart": VOR, "audioDauer": round(d, 3), "woerter": worte_ohne_zeiten(s["text"], d)})
+        tl.append({"id": s["id"], "start": round(beginn, 3), "laenge": round(laenge, 3), "audio": wav.name, "audioStart": VOR, "audioDauer": round(d, 3), "woerter": untertitel(worte_ohne_zeiten(s["text"], d))})
         beginn += laenge - 0.5
     return {"fps": FPS, "gesamt": round(beginn + 0.5, 3), "szenen": tl, "stimme": "piper"}
 
@@ -259,6 +280,7 @@ def main():
         print("kein Video:", d.get("grund", "keine Daten"), flush=True)
         return
     ff = ffmpeg()
+    aliase_aus(d)
     datum = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     print("Cup:", d["titel"], d["region"], "-", len(d["zeilen"]), "Plaetze", flush=True)
 

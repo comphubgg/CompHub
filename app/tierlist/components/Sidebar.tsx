@@ -5,6 +5,7 @@ import { Region, TierListEntry } from '../types';
 import { SearchBar } from './SearchBar';
 import { PlayerPool } from './PlayerPool';
 import { CreatePanel } from './CreatePanel';
+import { BilderSchalter } from './BilderKontext';
 
 interface SidebarProps {
   // Search state
@@ -90,11 +91,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
     <aside className="sidebar">
       <div className="sidebar-card sidebar-search">
         <div className="sidebar-section-title"></div>
-        <SearchBar
-          value={searchQuery}
-          onChange={onSearchChange}
-          placeholder="Search player..."
-        />
+        <div className="sidebar-search-zeile">
+          <SearchBar
+            value={searchQuery}
+            onChange={onSearchChange}
+            placeholder="Search player..."
+          />
+          <BilderSchalter />
+        </div>
       </div>
 
       <div className="sidebar-card sidebar-pool">

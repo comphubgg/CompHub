@@ -20,7 +20,7 @@ import { dataProvider, duoService, playerService, storageService } from './servi
 
 // Components
 import { TierList, Sidebar } from './components';
-import { BilderAnbieter, BilderSchalter } from './components/BilderKontext';
+import { BilderAnbieter } from './components/BilderKontext';
 
 // Types & Utils
 import { TierKey, Player, Duo } from './types';
@@ -1157,7 +1157,22 @@ export default function TierListPage() {
       const region2 = getRegionFromCountryCode(countryCode2);
       let duo;
       if (isAdmin) {
-        duo = await duoService.createDuo(player1, player2, countryCode1, countryCode2);
+        /*
+         * Sofort anzeigen, das Speichern laeuft im Hintergrund (Betreiber, 20.10.2026: "die hat so viel Delay, bis das Duo hinzugefuegt ist"). Der Server
+         * brauchte bisher einige Sekunden, bis er antwortete - so lange stand das Duo nicht da. Klappt das Speichern nicht, wird es wieder herausgenommen.
+         */
+        duo = {
+          id: `${player1}:${player2}`,
+          player1: { name: player1, countryCode: countryCode1 },
+          player2: { name: player2, countryCode: countryCode2 },
+          region: '',
+        } as any;
+        const duoId = (duo as any).id as string;
+        void duoService.createDuo(player1, player2, countryCode1, countryCode2).then((gespeichert) => {
+          if (gespeichert) return;
+          tierListState.loescheEintraege(new Set([duoId]));
+          if (typeof window !== 'undefined') window.alert(txt('Das Duo ließ sich nicht speichern und wurde wieder entfernt.'));
+        });
       } else {
         duo = {
           id: generateId(),
@@ -1200,26 +1215,37 @@ export default function TierListPage() {
       ...(isAdmin ? {} : { createdBy: currentUser || undefined }),
     };
     if (isAdmin) {
-      const antwort = await fetch('/api/tierlist-trios', {
-        method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          spieler: saubere.map((name, i) => ({
-            name, land: /^[a-z]{2}$/i.test(laender[i]) ? laender[i].toUpperCase() : undefined,
-          })),
-          region: trio.region,
-        }),
-      });
-      if (!antwort.ok) {
-        const j = await antwort.json().catch(() => ({}));
-        throw new Error(j?.error || 'Failed to save trio online');
-      }
-      // Stand er schon einmal in der Entfernt-Liste, gilt das Anlegen als Zuruecknahme.
-      const schluessel = getTrioKey(trio);
-      if (entfernt.has(schluessel)) {
-        await fetch(`/api/tierlist-entfernt?schluessel=${encodeURIComponent(schluessel)}`, { method: 'DELETE' }).catch(() => {});
-        setEntfernt((alt) => { const n = new Set(alt); n.delete(schluessel); return n; });
-      }
-      void trioPoolLaden();
+      // Sofort anzeigen, das Speichern laeuft im Hintergrund (wie beim Duo); schlaegt es fehl, wird das Trio wieder herausgenommen.
+      tierListState.addEntry(trio, 'trio', { localOnly: false, vonHand: true });
+      void (async () => {
+        try {
+          const antwort = await fetch('/api/tierlist-trios', {
+            method: 'POST', headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              spieler: saubere.map((name, i) => ({
+                name, land: /^[a-z]{2}$/i.test(laender[i]) ? laender[i].toUpperCase() : undefined,
+              })),
+              region: trio.region,
+            }),
+          });
+          if (!antwort.ok) {
+            const j = await antwort.json().catch(() => ({}));
+            throw new Error(j?.error || 'Failed to save trio online');
+          }
+          // Stand er schon einmal in der Entfernt-Liste, gilt das Anlegen als Zuruecknahme.
+          const schluessel = getTrioKey(trio);
+          if (entfernt.has(schluessel)) {
+            await fetch(`/api/tierlist-entfernt?schluessel=${encodeURIComponent(schluessel)}`, { method: 'DELETE' }).catch(() => {});
+            setEntfernt((alt) => { const n = new Set(alt); n.delete(schluessel); return n; });
+          }
+          void trioPoolLaden();
+
+        } catch (fehler) {
+          tierListState.loescheEintraege(new Set([trio.id]));
+          if (typeof window !== 'undefined') window.alert((fehler as Error)?.message || txt('Das Trio ließ sich nicht speichern und wurde wieder entfernt.'));
+        }
+      })();
+      return;
     }
     tierListState.addEntry(trio, 'trio', { localOnly: !isAdmin, vonHand: true });
   };
@@ -1313,7 +1339,6 @@ export default function TierListPage() {
               >
                 <T>Reset</T>
               </button>
-              <BilderSchalter />
               <button
                 type="button"
                 className={`tierlist-button ${mode === 'trio' ? 'tierlist-button-primary' : 'tierlist-button-secondary'}`}

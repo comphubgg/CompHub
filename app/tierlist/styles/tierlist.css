@@ -1219,6 +1219,13 @@ button,input,select,textarea{transition:var(--transition)}
 .bild-kachel .bild-name{position:absolute;left:0;right:0;bottom:0;padding:26px 5px 7px;text-align:center;font-size:12px;font-weight:800;letter-spacing:.03em;text-transform:uppercase;line-height:1.1;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;background:linear-gradient(transparent,rgba(0,0,0,.9));text-shadow:0 1px 3px rgba(0,0,0,.8)}
 .bild-kachel.n3 .bild-name{font-size:11px;letter-spacing:.01em}
 .bild-kachel .bild-flagge{position:absolute;top:6px;left:6px;width:24px;height:16px;border-radius:3px;object-fit:cover;box-shadow:0 0 0 1px rgba(255,255,255,.4),0 2px 6px rgba(0,0,0,.5)}
+/* Duos und Trios sind kleiner als Solos (Betreiber, 20.10.2026: "die Duo- und Trio-Bilder irgendwie zu gross"): zwei und drei Fotos nebeneinander wirkten sonst riesig. */
+.bild-kachel.n2,.bild-kachel.n3{height:104px}
+.bild-kachel.n2 .bild-teil{width:78px;flex-basis:78px}
+.bild-kachel.n3 .bild-teil{width:64px;flex-basis:64px}
+.bild-kachel.n2 .bild-name{font-size:11px;padding:20px 4px 6px}
+.bild-kachel.n3 .bild-name{font-size:10px;padding:20px 3px 6px}
+.bild-kachel.n2 .bild-flagge,.bild-kachel.n3 .bild-flagge{width:20px;height:13px;top:5px;left:5px}
 /* In der Liste rechts (Pool): kleiner, damit viele nebeneinander passen. */
 .bild-kachel.klein{height:88px;border-radius:11px}
 .bild-kachel.klein .bild-teil{width:68px;flex-basis:68px}
@@ -1226,7 +1233,16 @@ button,input,select,textarea{transition:var(--transition)}
 .bild-kachel.klein .bild-name{font-size:10px;padding:18px 3px 5px}
 .bild-kachel.klein.n3 .bild-name{font-size:9px}
 .bild-kachel.klein .bild-flagge{width:18px;height:12px;top:4px;left:4px}
-.tierlist-page .duo-pool:has(.bild-kachel){flex-direction:row;flex-wrap:wrap;align-content:flex-start;gap:8px}
+.tierlist-page .duo-pool:has(.bild-kachel){flex-direction:row;flex-wrap:wrap;align-content:flex-start;gap:12px 10px}
+/* Mehr Luft zwischen den Kacheln in den Stufen. */
+.tier-content:has(.bild-kachel){gap:14px 12px;padding:12px 14px}
+/* Der Foto-Schalter: ein kleines rundes Zeichen rechts neben der Suche. */
+.sidebar-search-zeile{display:flex;align-items:center;gap:8px}
+.sidebar-search-zeile .search-wrap{flex:1;min-width:0}
+.bilder-icon{flex:0 0 34px;width:34px;height:34px;border-radius:999px;display:grid;place-items:center;padding:0;border:1px solid var(--border-weak);background:var(--input);color:rgba(255,255,255,.5);cursor:pointer;transition:var(--transition)}
+.bilder-icon:hover{border-color:rgba(56,189,248,.5);color:#fff}
+.bilder-icon[aria-pressed="true"]{background:#0ea5e9;border-color:#0ea5e9;color:#fff}
+.bilder-icon svg{width:16px;height:16px}
 /* Stift und Kreuz liegen bei den Bild-Kacheln oben rechts im Bild und zeigen sich erst beim Darueberfahren. */
 .bild-kachel .bild-aktionen{position:absolute;top:3px;right:3px;margin:0;z-index:3;opacity:0;transition:opacity .15s;background:rgba(0,0,0,.6);border-radius:8px;padding:1px 2px}
 .bild-kachel:hover .bild-aktionen{opacity:1}

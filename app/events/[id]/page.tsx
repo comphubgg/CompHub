@@ -28,6 +28,8 @@ import { fortniteKarte, eigeneKarte } from '@/lib/bildAdressen';
 import SpielerStatsUebersicht from '@/app/components/SpielerStatsUebersicht';
 import AktualisierungsStand from '@/app/components/AktualisierungsStand';
 import { useZugang } from '@/app/lib/zugang';
+import WegPlan from '@/app/globals-solos/WegPlan';
+import { SOLOS_REGIONEN } from '@/lib/solosRegionen';
 /**
  * Regionen, fuer die von selbst eine Karte bereitsteht.
  *
@@ -2572,6 +2574,20 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
               </button>
             ))}
           </div>
+        )}
+        {/*
+          * Der Weg ins Grand Final bei den FNCS Solos (Betreiber, 20.10.2026: "die Roadmap auch unter Events"): derselbe Plan wie auf der Seite FNCS Solos, fuer die
+          * gewaehlte Region - Qualifier, Fast Track, Heats, Last Chance und Finale mit Spielerzahl und Punkteschwelle. Nicht bei den Reload-Reihen: dort gilt eine andere Saison.
+          */}
+        {cup && /fncssolos/i.test(cup.id) && !/reload/i.test(cup.id) && (
+          <section className="mb-5 rounded-2xl border border-zinc-800 bg-zinc-900/50 p-5">
+            <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
+              <h2 className="text-base font-extrabold text-slate-100"><T>Der Weg ins Grand Final</T></h2>
+              <Link href={`/globals-solos?region=${(SOLOS_REGIONEN as readonly string[]).includes(region) ? region : 'EU'}`}
+                className="text-xs font-semibold text-sky-400 hover:underline"><T>Alle Stufen, Spieler und Karte</T> →</Link>
+            </div>
+            <WegPlan region={(SOLOS_REGIONEN as readonly string[]).includes(region) ? region : 'EU'} />
+          </section>
         )}
         {cup?.global && (
           <p className="mb-4 text-xs text-slate-500">

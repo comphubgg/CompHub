@@ -6,7 +6,7 @@ import {
 } from '@/lib/epicCups';
 import { AblageNichtErreichbar, fertigeAntwort, FRISCH_LIVE_MS } from '@/lib/antwortSpeicher';
 import { globalsVereint } from '@/lib/globalsCup';
-import { groesseAus } from '@/lib/cupTitel';
+import { groesseAus, istZeroBuild } from '@/lib/cupTitel';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
@@ -61,11 +61,20 @@ function benenne(cups: CupGruppe[]): CupGruppe[] {
   for (let i = 0; i < roh.length; i++) if (/mobiles*tests*cup/i.test(roh[i].titel)) roh[i] = { ...roh[i], bild: '/cups/mobile-test-cup.jpg' };
   const je = new Map<string, number>();
   for (const c of roh) { const k = c.titel.trim().toLowerCase(); je.set(k, (je.get(k) ?? 0) + 1); }
-  return roh.map((c) => {
+  const benannt = roh.map((c) => {
     if ((je.get(c.titel.trim().toLowerCase()) ?? 0) < 2) return c;
     const w = erstes(c);
     const g = groesseAus(w?.playlist, w?.eventId, c.id);
     return g && !new RegExp(g, 'i').test(c.titel) ? { ...c, titel: `${c.titel} · ${g}` } : c;
+  });
+  /*
+   * Zero Build steht im Titel (Betreiber, 20.10.2026: "bei Zero Build soll im Namen ZB stehen, bei normal einfach normal lassen"). Bisher stand es nur in der kleinen
+   * Zeile darunter - zwei Kacheln hiessen beide "Slender Man Cup · Duos". Gelesen aus Playlist und Kennung, nichts geraten; heisst es schon "Zero Build", bleibt der Titel.
+   */
+  return benannt.map((c) => {
+    const w = erstes(c);
+    const zb = istZeroBuild(w?.playlist, w?.eventId, c.id, (c as { untertitel?: string }).untertitel);
+    return zb && !istZeroBuild(c.titel) ? { ...c, titel: `${c.titel} · ZB` } : c;
   });
 }
 

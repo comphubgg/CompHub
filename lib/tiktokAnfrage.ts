@@ -2,6 +2,7 @@ import { GET as szeneAbruf } from '@/app/api/szene-stats/route';
 import { POST as bildAbruf } from '@/app/api/spielerbild/route';
 import { spielerbildKlein } from '@/lib/spielerbildKlein';
 import type { TiktokDaten, TiktokZeile } from '@/lib/tiktokDaten';
+import { sprechbar, aussprachePaare } from '@/lib/aussprache';
 
 /*
  * Eigene TikTok-Videos (Betreiber, 20.10.2026): "ich will dieses Jahr die besten fuenf Spieler aus Statistics und eine Kurzbeschreibung, wieso sie die besten sind - oder die
@@ -63,12 +64,6 @@ const jahrWort = (y: number) => `${zahlWort(Math.floor(y / 100))} ${y % 100 ? za
 const ORDNUNG = ['zero', 'one', 'two', 'three', 'four', 'five'];
 const tausend = (n: number) => String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ',');
 
-/** Fuer die Stimme: Akzente und Zeichen weg - ein Name nur aus Zeichen wird "a player". */
-function sprechbar(n: string): string {
-  const a = n.normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
-  return /[A-Za-z]{2}/.test(a) ? a : 'a player';
-}
-
 async function szene(abfrage: string): Promise<Record<string, unknown>> {
   const r = await szeneAbruf(new Request(`${SEITE}/api/szene-stats?${abfrage}`));
   const j = await r.json() as Record<string, unknown>;
@@ -127,7 +122,7 @@ export async function topFuenf(o: { region: string; liste: string; jahr: number 
     const wertGesprochen = art.ganz ? art.satz(zahlWort(roh), events) : art.satz(wert.replace('.', ' point '), events);
     const rang = i + 1;
     return {
-      rang, namen: [name], gesprochen, punkte: art.ganz ? roh : 0,
+      rang, namen: [name], gesprochen, aussprache: aussprachePaare([String(p.anzeige || p.name || '')]), punkte: art.ganz ? roh : 0,
       ...(art.ganz ? {} : { wertText: wert }),
       ...(art.praefix ? { praefix: art.praefix } : {}),
       einheit: art.einheit, beschreibung,
@@ -188,7 +183,7 @@ export async function spielerRueckblick(o: { name: string; jahr: number }): Prom
   const zeilen: TiktokZeile[] = beste.map((e, i) => {
     const rang = i + 1;
     return {
-      rang, namen: [NAME], gesprochen: gespr, punkte: 0, wertText: e.platz === 1 ? 'WIN' : `#${e.platz}`, einheit: e.lan ? 'LAN' : 'ONLINE',
+      rang, namen: [NAME], gesprochen: gespr, aussprache: aussprachePaare([anzeige]), punkte: 0, wertText: e.platz === 1 ? 'WIN' : `#${e.platz}`, einheit: e.lan ? 'LAN' : 'ONLINE',
       beschreibung: `${e.titel} · ${tag(e.datum)}`,
       satz: `${rang === 1 ? 'Best result: ' : ''}${e.platz === 1 ? (rang === 1 ? 'a win' : 'A win') : `${rang === 1 ? 'place' : 'Place'} ${zahlWort(e.platz)}`} at ${e.titel.replace(/[^A-Za-z0-9 .,&-]/g, ' ')}.`,
       laender: [land], fotos: [foto],

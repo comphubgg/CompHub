@@ -4,6 +4,7 @@ import { GET as rosterAbruf } from '@/app/api/cup-roster/route';
 import { kernname, ohneZierrat } from '@/lib/homoglyph';
 import { titelMit, groesseAus, istZeroBuild } from '@/lib/cupTitel';
 import { spielerbildKlein } from '@/lib/spielerbildKlein';
+import { sprechbar, aussprachePaare } from '@/lib/aussprache';
 import { finale, fensterName, profilKarte, type KatalogCup, type KatalogFenster } from '@/lib/ergebnisPosts';
 
 /*
@@ -19,6 +20,8 @@ const SEITE = 'https://www.thecomphub.com';
 const STUNDEN = 36;
 
 export interface TiktokZeile {
+  /** Wo die Stimme einen Namen anders spricht, als er geschrieben wird: [gesprochen, Anzeige] - die Untertitel zeigen dann den Anzeigenamen (lib/aussprache). */
+  aussprache?: Array<[string, string]>;
   rang: number;
   /** Anzeigename, grossgeschrieben (Namen stehen auf Karten immer in Grossbuchstaben). */
   namen: string[];
@@ -68,12 +71,6 @@ export interface TiktokDaten {
 }
 
 const MONATE = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-
-/** Fuer die Stimme: Akzente weg, nur Buchstaben und Ziffern - "hÿroxÿ" wird "hyroxy", ein Name nur aus Zeichen wird "a player". */
-function sprechbar(n: string): string {
-  const a = n.normalize('NFKD').replace(/[̀-ͯ]/g, '').replace(/[^A-Za-z0-9 ]+/g, ' ').replace(/\s+/g, ' ').trim();
-  return /[A-Za-z]{2}/.test(a) ? a : 'a player';
-}
 
 /** Fuer die Stimme: "a", "a and b", "a, b and c". */
 function aufzaehlung(l: string[]): string {
@@ -134,7 +131,7 @@ export async function tiktokDaten(): Promise<TiktokDaten> {
           const datei = decodeURIComponent(img.replace(/^\/spielerbilder\//, ''));
           return `${SEITE}${spielerbildKlein(datei)}`;
         });
-        return { rang: e.rank || i + 1, namen, gesprochen: aufzaehlung(namen.map(sprechbar)), punkte: e.points, laender, fotos };
+        return { rang: e.rank || i + 1, namen, gesprochen: aufzaehlung(namen.map(sprechbar)), aussprache: aussprachePaare(namen), punkte: e.points, laender, fotos };
       });
       const mitFoto = zeilen.reduce((n, z) => n + z.fotos.filter(Boolean).length, 0);
       if (!bester || (k.istFinale && !bester.k.istFinale) || (k.istFinale === bester.k.istFinale && mitFoto > bester.mitFoto + 1)) bester = { k, zeilen, mitFoto };
