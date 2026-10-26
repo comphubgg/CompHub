@@ -26,7 +26,6 @@ import {
 } from '@/app/lib/kartenStil';
 import { ZOOM_MAX, doppelKlickZiel } from '@/app/lib/kartenZoom';
 import KartenWasserzeichen from '@/app/components/KartenWasserzeichen';
-import SpotZahl from '@/app/components/SpotZahl';
 import { sichtbarerTakt } from '@/app/lib/takt';
 import { fortniteKarte, eigeneKarte } from '@/lib/bildAdressen';
 type Form = 'rechteck' | 'polygon';
@@ -1542,7 +1541,8 @@ export default function KartenSeite(
           + `&region=${encodeURIComponent(manuell.region)}`
         : `window=${encodeURIComponent(fensterId)}${wunsch}`;
       const r = await fetch(`/api/noble-karte?${q}`, { cache: 'no-store' });
-      const j = await r.json() as {
+      // Kam statt der Antwort eine Fehlerseite (der Server startet gerade neu), steht das da - nicht "Unexpected token '<'" (Betreiber, 26.10.2026).
+      const j = await r.json().catch(() => { throw new Error(uebs('Der Server hat gerade nicht geantwortet (vielleicht startet er neu) - bitte in einer Minute noch einmal.')); }) as {
         ok?: boolean; error?: string; nichtGefunden?: boolean;
         turnier?: { name: string }; fenster?: { name: string };
         formen?: Array<{ punkte: Punkt[]; teams: Array<{ ids: string[]; namen: string[] }> }>;
@@ -3550,7 +3550,6 @@ ${name}
               justifyContent: anzahl === 1 ? 'center' : 'space-between',
               paddingBlock: 'calc(0.45cqw / var(--z, 1))',
             }}>
-            <SpotZahl n={belegt.reduce((a, t) => a + namenVon(t).length, 0)} />
             {gruppen.map((zeilen, i) => {
               const yProz = anzahl === 1
                 ? r.oben + r.hoehe / 2

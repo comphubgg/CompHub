@@ -121,7 +121,22 @@ async function liesAktuelle(): Promise<Trio[]> {
 export async function GET() {
   const [eigene, aktuell, auto] = await Promise.all([liesEigene(), liesAktuelle(), liesAuto()]);
   const gesehen = new Set(eigene.map((t) => t.schluessel));
-  const trios = [...eigene, ...aktuell.filter((t) => t.schluessel && !gesehen.has(t.schluessel))];
+  /*
+   * Ein Spieler steht in genau einem Trio (Betreiber, 26.10.2026: "ein Spieler darf jeweils nur ein Team haben" - in der Liste standen Vico, Malibuca und Peterbot mehrfach in verschiedenen Trios).
+   * Es gilt das Neueste: was der Admin zuletzt angelegt hat, dann die bestaetigten Aufstellungen, dann die, die sich ausprobieren. Ein Trio, das einen schon vergebenen Spieler enthaelt, faellt heraus.
+   */
+  const rang = (t: Trio) => (t.quelle === 'admin' ? 0 : t.status === 'bestaetigt' ? 1 : 2);
+  const kandidaten = [...eigene, ...aktuell.filter((t) => t.schluessel && !gesehen.has(t.schluessel))]
+    .sort((a, b) => rang(a) - rang(b) || (rang(a) === 0 ? String(b.wann ?? '').localeCompare(String(a.wann ?? '')) : 0));
+  const vergeben = new Set<string>();
+  const trios: Trio[] = [];
+  for (const t of kandidaten) {
+    const keys = t.spieler.map((m) => (m.id ? `id:${m.id}` : `n:${namensTeil(m.name)}`));
+    const namen = t.spieler.map((m) => `n:${namensTeil(m.name)}`);
+    if ([...keys, ...namen].some((k) => vergeben.has(k))) continue;
+    [...keys, ...namen].forEach((k) => vergeben.add(k));
+    trios.push(t);
+  }
   return NextResponse.json({
     success: true,
     trios,

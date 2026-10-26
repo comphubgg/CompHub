@@ -32,6 +32,31 @@ export async function register() {
   if (process.env.NEXT_RUNTIME !== 'nodejs') return;
 
   /*
+   * Warum der Server ausfaellt - und dass ein vergessenes catch ihn nicht mehr beendet.
+   *
+   * Der Waechter (scripts/dauerbetrieb.ps1) meldete seit dem 21.10.2026 alle ein bis drei Stunden "Webserver war weg": die Seiten zeigten dann "not reachable right now",
+   * bis er zwei Minuten spaeter wieder stand. Das Protokoll des beendeten Laufs wurde mit dem Neustart ueberschrieben, die Ursache blieb unbekannt. Node beendet sich ab
+   * Version 15, wenn irgendwo ein Versprechen ohne catch scheitert (unhandledRejection) - eine einzige Abfrage bei Epic oder GitHub, die ins Leere laeuft, genuegt.
+   * Mit diesen Haken laeuft der Server weiter, und jeder Fall steht in server-abstuerze.log (Zeit, Art, Stapel), damit er sich beheben laesst.
+   */
+  try {
+    const { appendFileSync, statSync, readFileSync, writeFileSync } = await import('node:fs');
+    const { join } = await import('node:path');
+    const datei = join(process.cwd(), 'server-abstuerze.log');
+    const schreibe = (art: string, e: unknown) => {
+      try {
+        if (statSync(datei).size > 400_000) writeFileSync(datei, readFileSync(datei, 'utf8').slice(-150_000));
+      } catch { /* noch keine Datei */ }
+      try { appendFileSync(datei, `${new Date().toISOString()} ${art}: ${e instanceof Error ? (e.stack ?? e.message) : String(e)}
+`); } catch { /* ohne Protokoll weiter */ }
+    };
+    process.on('unhandledRejection', (e) => schreibe('unhandledRejection', e));
+    process.on('uncaughtException', (e) => schreibe('uncaughtException', e));
+    process.on('exit', (code) => schreibe('exit', `Code ${code}, Speicher ${Math.round(process.memoryUsage().rss / 1048576)} MB`));
+    process.on('SIGTERM', () => schreibe('SIGTERM', 'beendet von aussen'));
+  } catch { /* die Haken sind eine Hilfe, kein Muss */ }
+
+  /*
    * Und nicht dort, wo der Vorgang nach der Antwort wieder einschlaeft.
    *
    * Alles hier drin sind Zeitgeber: um ein Uhr die Rangliste, stuendlich die

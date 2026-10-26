@@ -80,6 +80,8 @@ export default function MainHeader({ sektionenAnfang }: {
   /** Das eigene CompHub-Konto - unabhaengig vom alten VIP-Zugang. */
   const [kontoName, setKontoName] = useState<string | null>(null);
   const [kontoBild, setKontoBild] = useState<string | null>(null);
+  /** Das Profilbild des VIP-Zugangs (Dashboard-Profil), solange kein Konto-Bild da ist - wer nur mit Schluessel hereinkommt, hat sonst nie eines in der Kopfzeile. */
+  const [vipBild, setVipBild] = useState<string | null>(null);
   /** Was dieses Konto ist - Admin, Manager, VIP. */
   const [kontoRolle, setKontoRolle] = useState<string | null>(null);
   const [kontoVip, setKontoVip] = useState<boolean>(false);
@@ -171,6 +173,15 @@ export default function MainHeader({ sektionenAnfang }: {
 
     verifyLogin();
   }, []);
+
+  useEffect(() => {
+    if (!profileName) { setVipBild(null); return undefined; }
+    let fort = false;
+    void geteilterAbruf<{ profile?: { avatarUrl?: string | null } }>('/api/profile').then((r) => {
+      if (!fort && r.ok) setVipBild(r.daten?.profile?.avatarUrl ?? null);
+    }).catch(() => { /* ohne Profil bleibt der Platzhalter */ });
+    return () => { fort = true; };
+  }, [profileName]);
 
   // Vor dem Effekt darunter deklariert - der benutzt den Setzer bereits.
   const [showVipLogin, setShowVipLogin] = useState(false);
@@ -328,16 +339,6 @@ export default function MainHeader({ sektionenAnfang }: {
               * Admin. Frueher stand hier fuer jeden VIP sein Name und fuehrte
               * ebenfalls nach /admin - dorthin gehoert aber nicht jeder.
               */}
-            {profileName?.toLowerCase() === 'admin-juanito' && (
-              <Link
-                href="/admin"
-                prefetch={false}
-                className="rounded-full bg-slate-800 px-3 py-2 text-xs font-semibold
-                           text-slate-100 transition hover:bg-slate-700"
-              >
-                ADMIN
-              </Link>
-            )}
 
             {/*
               * Der Weg zum eigenen Konto - fuer alle, ob VIP oder nicht.
@@ -383,6 +384,14 @@ export default function MainHeader({ sektionenAnfang }: {
             )}
 
             {angemeldet ? (
+              <span className="flex items-stretch overflow-hidden rounded-lg border border-zinc-700 bg-slate-800 transition hover:border-sky-500">
+              {/* Eines statt zwei (Betreiber, 26.10.2026: "ADMIN und das Profilbild sollen eins sein"): die Verwaltung links, das Konto rechts, ein gemeinsamer Rahmen. */}
+              {profileName?.toLowerCase() === 'admin-juanito' && (
+                <Link href="/admin" prefetch={false} title={t('Verwaltung')}
+                  className="flex items-center border-r border-zinc-700 px-3 text-xs font-bold tracking-wide text-slate-100 transition hover:bg-slate-700">
+                  ADMIN
+                </Link>
+              )}
               <Link
                 /*
                  * Wer ein CompHub-Konto hat, landet dort. Wer nur ueber den
@@ -395,16 +404,16 @@ export default function MainHeader({ sektionenAnfang }: {
                 title={anzeige}
                 aria-label={`${t('Mein Konto')} — ${anzeige}`}
                 className="relative grid h-9 w-9 place-items-center overflow-hidden
-                           rounded-lg border border-zinc-700 bg-slate-800
                            text-sm font-semibold uppercase text-slate-100
-                           transition hover:border-sky-500"
+                           transition hover:bg-slate-700"
               >
                 {/* Das Profilbild ist quadratisch mit abgerundeten Ecken, ohne eigenes Bild steht das Platzhalterfoto da: eine Person ohne Gesicht (Betreiber, 21.10.2026). */}
-                {kontoBild
+                {(kontoBild || vipBild)
                   // eslint-disable-next-line @next/next/no-img-element
-                  ? <img src={kontoBild} alt="" className="h-full w-full object-cover" />
+                  ? <img src={kontoBild || vipBild || ''} alt="" className="h-full w-full object-cover" />
                   : <SpielerPlatzhalter name={anzeige} />}
               </Link>
+              </span>
             ) : (
               <Link
                 href="/sign-in"

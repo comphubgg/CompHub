@@ -3853,7 +3853,7 @@ export default function StatistikSeite() {
   );
 
   return (
-    <main className="min-h-screen bg-zinc-950 text-slate-100">
+    <main className="stat-blau min-h-screen bg-zinc-950 text-slate-100">
       {/* Ein Ladeschirm ueber allem, solange Profil, Jahr oder Liste geholt
           werden - nicht nur ein "Loading" in der Ecke. */}
       {schirmSichtbar && <LadeSchirm />}

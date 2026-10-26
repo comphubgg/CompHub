@@ -27,9 +27,9 @@ import {
   kartenSchrift, kartenName, formFarbe, hebeFormHervor, useEchteNamen,
 } from '@/app/lib/kartenStil';
 import KartenWasserzeichen from '@/app/components/KartenWasserzeichen';
-import SpotZahl from '@/app/components/SpotZahl';
 import { eigeneKarte } from '@/lib/bildAdressen';
 import { regionVonLaendern } from '@/lib/landRegion';
+import Tippen from './Tippen';
 
 /* ------------------------------------------------------------ Daten */
 
@@ -108,7 +108,36 @@ function platzWort(n: number, sprache: string) {
 
 /* ------------------------------------------------------------ Seite */
 
-export default function Prognosen() {
+/*
+ * Die Seite hat zwei Gesichter (Betreiber, 21.10.2026): "Call the Final" - jeder tippt selbst, mit Karte, Spielerliste, Reihenfolge und MVP (app/predictions/Tippen) - und die
+ * Prognose des Betreibers, die hier schon stand (Duos, Karte, Bestenliste, Regionen, Nationalitaeten, Preisgeld). Aufgerufen wird zuerst das Tippen.
+ */
+export default function PrognosenSeite() {
+  const [ansicht, setAnsicht] = useState<'tipp' | 'info'>('tipp');
+  const t = useT();
+  useEffect(() => {
+    const p = new URLSearchParams(window.location.search);
+    // Eine Adresse mit ?id= (so verlinkt der Betreiber seine Prognose) oeffnet gleich die Betreiber-Ansicht.
+    if (p.get('id') || p.get('ansicht') === 'info') setAnsicht('info');
+  }, []);
+  return (
+    <>
+      <div className="bg-zinc-950">
+        <div className="mx-auto flex max-w-[1700px] justify-center px-4 pt-4 sm:px-6">
+          <div className="inline-flex gap-1 rounded-full border border-zinc-800 bg-zinc-900 p-1">
+            {([['tipp', t('Selbst tippen')], ['info', t('Prognose des Betreibers')]] as const).map(([k, titel]) => (
+              <button key={k} type="button" onClick={() => setAnsicht(k)} aria-pressed={ansicht === k}
+                className={`rounded-full px-5 py-2 text-sm font-bold transition ${ansicht === k ? 'bg-sky-500 text-white shadow' : 'text-slate-400 hover:text-slate-100'}`}>{titel}</button>
+            ))}
+          </div>
+        </div>
+      </div>
+      {ansicht === 'tipp' ? <Tippen /> : <BetreiberPrognose />}
+    </>
+  );
+}
+
+function BetreiberPrognose() {
   const t = useT();
   const { sprache } = useSprache();
   const parameter = useSearchParams();
@@ -575,7 +604,6 @@ export default function Prognosen() {
                             justifyContent: anzahl === 1 ? 'center' : 'space-between',
                             paddingBlock: '0.45cqw',
                           }}>
-                          <SpotZahl n={keys.reduce((a, k) => a + zeilenFuer(k, true).length, 0)} />
                           {keys.map((k, i) => {
                             const texte = zeilenFuer(k, anzahl === 1);
                             if (!texte.length) return null;

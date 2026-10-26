@@ -135,6 +135,18 @@ if (-not (LauschtJemand $Port)) {
         Notiere "Kein fertiger Bau vorhanden - bitte einmal 'npm run veroeffentlichen' laufen lassen."
     } else {
         Notiere "Webserver auf $Port war weg, wird gestartet."
+        # Was der beendete Lauf noch ausgegeben hat, bleibt erhalten (der Neustart ueberschreibt die beiden Dateien): das Ende von server-fehler.log und server.log wandert
+        # in server-abstuerze.log - dort stehen auch die Haken aus instrumentation.ts. Ohne das blieb die Ursache der Ausfaelle seit dem 21.10.2026 unbekannt.
+        $abst = Join-Path $Projekt 'server-abstuerze.log'
+        foreach ($quelle in 'server-fehler.log', 'server.log') {
+            $p = Join-Path $Projekt $quelle
+            if ((Test-Path $p) -and ((Get-Item $p).Length -gt 0)) {
+                Add-Content -Path $abst -Value ("{0}  --- Ende von {1} (voriger Lauf) ---" -f (Get-Date -Format 'yyyy-MM-dd HH:mm:ss'), $quelle) -Encoding utf8
+                Add-Content -Path $abst -Value (Get-Content $p -Tail 25) -Encoding utf8
+            }
+        }
+        # Genug Arbeitsspeicher fuer grosse Listen (der Rechner hat 32 GB; Nodes Voreinstellung ist deutlich kleiner).
+        $env:NODE_OPTIONS = '--max-old-space-size=6144'
         Start-Process -FilePath 'node.exe' `
             -ArgumentList 'node_modules\next\dist\bin\next', 'start', '-H', '0.0.0.0', '-p', "$Port" `
             -WorkingDirectory $Projekt -WindowStyle Hidden `

@@ -48,7 +48,8 @@ export async function neueCupsFuerNews(max = 3): Promise<NewsBeitrag[]> {
       schluessel: `news:${c.id}`, titel: c.titel,
       text: `New on the schedule: **${c.titel}**.\n${zeile}\nLeaderboards, maps and stats as soon as it starts: ${SEITE}/events/${encodeURIComponent(c.id)}`,
       url: `${SEITE}/events/${encodeURIComponent(c.id)}`,
-      bildUrl: `${SEITE}/api/news-bild?bild=${encodeURIComponent(bild)}&titel=${encodeURIComponent(c.titel)}&zeile=${encodeURIComponent(zeile.slice(0, 90))}&farbe=${encodeURIComponent((c.farbe ?? '#38bdf8').replace('#', ''))}`,
+      // Mit dem offiziellen Vorschaubild des Cups wird genau das gesendet (Betreiber, 26.10.2026: "da muessen echte Grafiken sein, das offizielle Bild"); nur ohne eines entsteht die eigene Karte.
+      bildUrl: bild ? bild : `${SEITE}/api/news-bild?bild=${encodeURIComponent(bild)}&titel=${encodeURIComponent(c.titel)}&zeile=${encodeURIComponent(zeile.slice(0, 90))}&farbe=${encodeURIComponent((c.farbe ?? '#38bdf8').replace('#', ''))}`,
     };
   });
 }

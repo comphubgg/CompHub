@@ -59,6 +59,8 @@ function benenne(cups: CupGruppe[]): CupGruppe[] {
   });
   // Das Bild, das der Betreiber fuer den Mobile Test Cup geschickt hat (19.10.2026).
   for (let i = 0; i < roh.length; i++) if (/mobiles*tests*cup/i.test(roh[i].titel)) roh[i] = { ...roh[i], bild: '/cups/mobile-test-cup.jpg' };
+  // Die Arenas (Cash Cups, Fight Night) fuehrt Epic ohne Vorschaubild - das offizielle Bild der Ankuendigung, das der Betreiber geschickt hat (26.10.2026), steht stattdessen da.
+  for (let i = 0; i < roh.length; i++) if (/arenas?/i.test(roh[i].id) && !roh[i].bild) roh[i] = { ...roh[i], bild: '/cups/arenas-fight-night.webp' };
   const je = new Map<string, number>();
   for (const c of roh) { const k = c.titel.trim().toLowerCase(); je.set(k, (je.get(k) ?? 0) + 1); }
   const benannt = roh.map((c) => {
@@ -68,13 +70,17 @@ function benenne(cups: CupGruppe[]): CupGruppe[] {
     return g && !new RegExp(g, 'i').test(c.titel) ? { ...c, titel: `${c.titel} · ${g}` } : c;
   });
   /*
-   * Zero Build steht im Titel (Betreiber, 20.10.2026: "bei Zero Build soll im Namen ZB stehen, bei normal einfach normal lassen"). Bisher stand es nur in der kleinen
-   * Zeile darunter - zwei Kacheln hiessen beide "Slender Man Cup · Duos". Gelesen aus Playlist und Kennung, nichts geraten; heisst es schon "Zero Build", bleibt der Titel.
+   * Die Spielart steht im Namen, ausgeschrieben wie bei Fortnite Tracker (Betreiber, 26.10.2026: "nicht ZB, sondern Zero Build ausgeschrieben - 'Slender Man Cup Zero Build Reload',
+   * 'Solo Reload Ranked Cup (Zero Build)' -, ein bisschen offensichtlicher und erklaerlicher"; und "bei normal einfach normal lassen"): Zero Build, Reload oder beides in Klammern hinter dem
+   * Titel. Gelesen aus Playlist, Kennung und Untertitel - nichts geraten. Steht das Wort schon im Titel (Epics eigene Namen wie "Solo Reload Ranked Cup (Battle Royale)"), bleibt er.
    */
   return benannt.map((c) => {
     const w = erstes(c);
-    const zb = istZeroBuild(w?.playlist, w?.eventId, c.id, (c as { untertitel?: string }).untertitel);
-    return zb && !istZeroBuild(c.titel) ? { ...c, titel: `${c.titel} · ZB` } : c;
+    const quelle = `${w?.playlist ?? ''} ${w?.eventId ?? ''} ${c.id} ${(c as { untertitel?: string }).untertitel ?? ''}`;
+    const zb = istZeroBuild(quelle);
+    const reload = /reload/i.test(quelle);
+    const fehlt = [zb && !istZeroBuild(c.titel) ? 'Zero Build' : '', reload && !/reload/i.test(c.titel) ? 'Reload' : ''].filter(Boolean);
+    return fehlt.length ? { ...c, titel: `${c.titel} (${fehlt.join(' ')})` } : c;
   });
 }
 

@@ -1885,7 +1885,9 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
   const globalsGeoeffnet = useRef(false);
   useEffect(() => {
     if (!globals || globalsGeoeffnet.current || cupsLaden || !gespeicherteDa || cupId) return;
-    const fin = finalsAus(cups).find((f) => f.fenster.some((w) => w.eventId === GLOBALS_EVENT));
+    // Die Globals sind meist schon gespielt - auch dann oeffnet sich ihre Prognose (Betreiber, 26.10.2026: "das sind vergangene Cups, da muss er ja trotzdem drin sein").
+    const fin = finalsAus(cups).find((f) => f.fenster.some((w) => w.eventId === GLOBALS_EVENT))
+      ?? finalsAus(cups, true).find((f) => f.fenster.some((w) => w.eventId === GLOBALS_EVENT));
     if (!fin) return;
     globalsGeoeffnet.current = true;
     const uhr = setTimeout(() => zielWaehlen(fin), 0);

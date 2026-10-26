@@ -602,6 +602,56 @@ export default function KontoSeite({ eingebettet = false }: { eingebettet?: bool
     return raus;
   }, [cup, spieler, verlauf]);
 
+  /*
+   * Ohne Konto, nur mit VIP-Schluessel (Betreiber, 26.10.2026: "wenn ich das Profilbild auf Account hochlade, speichert es nicht - und wenn ich neu lade, ist es weg"): das Bild und der Name
+   * gehoeren dann dem Profil dieses Zugangs (/api/profile) - dasselbe, das das Dashboard auch pflegt. Es wird hier geladen und beim Speichern dorthin geschrieben, statt ins Leere.
+   */
+  const [vipProfil, setVipProfil] = useState<Record<string, unknown> | null>(null);
+  useEffect(() => {
+    if (laedt || konto || !zugang.vip) return undefined;
+    let weg = false;
+    fetch('/api/profile', { cache: 'no-store' }).then((r) => (r.ok ? r.json() : null)).then((j) => {
+      if (weg || !j?.profile) return;
+      setVipProfil(j.profile);
+      if (j.profile.avatarUrl) setBild(j.profile.avatarUrl);
+      if (j.profile.displayName) setName(j.profile.displayName);
+    }).catch(() => { /* ohne Profil bleibt es bei dem, was auf der Seite steht */ });
+    return () => { weg = true; };
+  }, [laedt, konto, zugang.vip]);
+
+  async function speichernVip() {
+    setStand(t('speichert …'));
+    try {
+      const r = await fetch('/api/profile', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ profile: { ...(vipProfil ?? { twitchChatEnabled: false, socials: { twitch: '' } }), displayName: name || String(vipProfil?.displayName ?? zugang.name ?? ''), avatarUrl: bild } }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) { setStand(j?.error ?? t('nicht gespeichert')); return; }
+      if (j.profile) setVipProfil(j.profile);
+      setStand(t('gespeichert'));
+      setTimeout(() => setStand(''), 2000);
+    } catch (e) { setStand((e as Error).message); }
+  }
+
+  /** Ein CompHub-Konto anlegen, wer bisher nur mit dem VIP-Schluessel hereinkommt - damit gelten E-Mail, Passwort und die Epic-Verknuepfung. */
+  const [neuMail, setNeuMail] = useState('');
+  const [neuPw, setNeuPw] = useState('');
+  const [anlegenStand, setAnlegenStand] = useState('');
+  const geoeffnet = useRef(Date.now());
+  async function kontoAnlegen() {
+    setAnlegenStand(t('einen Moment …'));
+    try {
+      const r = await fetch('/api/konto', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ was: 'registrieren', email: neuMail, passwort: neuPw, name: name || zugang.name, seit: geoeffnet.current, website: '' }),
+      });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) { setAnlegenStand(t(j?.fehler ?? 'Das hat nicht geklappt.')); return; }
+      window.location.reload();
+    } catch (e) { setAnlegenStand((e as Error).message); }
+  }
+
   async function speichern() {
     setStand(t('speichert …'));
     try {
@@ -800,11 +850,11 @@ export default function KontoSeite({ eingebettet = false }: { eingebettet?: bool
           */}
         <section className="mb-5 grid gap-px overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-800 sm:grid-cols-2 lg:grid-cols-4">
           {([
-            [t('E-Mail'), daten.email || '—', nurVip ? '' : daten.bestaetigt ? t('bestätigt') : t('nicht bestätigt'), nurVip || daten.bestaetigt],
+            [t('E-Mail'), nurVip ? t('noch kein Konto') : daten.email || '—', nurVip ? t('unten ein Konto anlegen') : daten.bestaetigt ? t('bestätigt') : t('nicht bestätigt'), !nurVip && daten.bestaetigt],
             [t('Epic Games'), daten.epicId ? (meinEpicName || '…') : t('nicht verbunden'), daten.epicId ? (daten.epicVerifiziert ? t('von Epic bestätigt') : t('vom Betreiber zugewiesen')) : '', !!daten.epicId],
-            [t('Passwort'), nurVip ? '—' : daten.hatPasswort ? t('Passwort ist gesetzt') : t('noch keines'), '', nurVip || daten.hatPasswort],
-            [t('Dabei seit'), daten.angelegt ? new Date(daten.angelegt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—',
-              zugang.admin ? 'Admin' : zugang.manager ? 'Manager' : zugang.vip ? 'VIP' : '', true],
+            [t('Passwort'), nurVip ? t('noch kein Konto') : daten.hatPasswort ? t('Passwort ist gesetzt') : t('noch keines'), nurVip ? t('Zugang nur mit Schlüssel') : '', !nurVip && daten.hatPasswort],
+            [t('Dabei seit'), daten.angelegt ? new Date(daten.angelegt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : nurVip ? t('noch kein Konto') : '—',
+              zugang.admin ? 'Admin' : zugang.manager ? 'Manager' : zugang.vip ? 'VIP' : '', !!daten.angelegt],
           ] as Array<[string, string, string, boolean]>).map(([titel, wert, zusatz, gut]) => (
             <div key={titel} className="bg-zinc-900 px-4 py-3.5">
               <p className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">{titel}</p>
@@ -1222,12 +1272,32 @@ export default function KontoSeite({ eingebettet = false }: { eingebettet?: bool
 
         {/* ---------------------------------------------------- Sichern */}
         {nurVip && (
-          <p className="mt-6 rounded-lg border border-zinc-800 bg-zinc-900/40
-                        px-4 py-3 text-[11px] leading-relaxed text-slate-500">
-            <T>Du bist über den VIP-Schlüssel angemeldet, hast aber kein
-            CompHub-Konto. Werte ansehen geht, Speichern noch nicht — dafür
-            legst du dir eines an, mit derselben Adresse.</T>
-          </p>
+          <>
+            <div className="mt-6 flex items-center gap-3">
+              <button onClick={speichernVip}
+                className="rounded-lg bg-sky-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-400">
+                <T>Bild und Name speichern</T>
+              </button>
+              {stand && <span className="text-xs text-slate-500">{stand}</span>}
+            </div>
+            <section className={`${kasten} mt-6`}>
+              <h2 className={ueberschrift}><T>Konto anlegen</T></h2>
+              <p className="mb-3 mt-1 text-[11px] leading-relaxed text-slate-500">
+                <T>Du bist mit dem VIP-Schlüssel drin, nicht mit einem Konto. Bild und Name speicherst du oben schon jetzt; mit einem Konto kommen E-Mail, Passwort und die Epic-Verknüpfung dazu. Dein Schlüssel und deine Rechte bleiben.</T>
+              </p>
+              <div className="space-y-3">
+                <input type="email" value={neuMail} onChange={(e) => setNeuMail(e.target.value)} placeholder={t('E-Mail-Adresse')} autoComplete="email" className={feld} />
+                <input type="password" value={neuPw} onChange={(e) => setNeuPw(e.target.value)} placeholder={t('Passwort — mindestens acht Zeichen')} autoComplete="new-password" className={feld} />
+                <div className="flex items-center gap-3">
+                  <button onClick={kontoAnlegen} disabled={!neuMail.includes('@') || neuPw.length < 8}
+                    className="rounded-lg border border-zinc-700 px-4 py-2 text-sm text-slate-200 transition hover:border-sky-500 hover:text-sky-400 disabled:opacity-40">
+                    <T>Konto anlegen</T>
+                  </button>
+                  {anlegenStand && <span className="text-xs text-slate-500">{anlegenStand}</span>}
+                </div>
+              </div>
+            </section>
+          </>
         )}
 
         {!nurVip && (

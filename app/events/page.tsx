@@ -631,7 +631,7 @@ export default function EventsPage() {
                     <Bild c={c} klasse="h-full w-full transition duration-300 group-hover:scale-105" />
                     <div className="absolute left-2 top-2"><Marke lage={lageZu(c)} t={t} /></div>
                   </div>
-                  <p className="truncate px-3 py-2.5 text-sm font-bold text-slate-100">{c.titel}</p>
+                  <p className="line-clamp-2 min-h-[3.4rem] px-3 py-2.5 text-sm font-bold leading-snug text-slate-100">{c.titel}</p>
                 </button>
               ))}
             </div>
@@ -805,7 +805,7 @@ function Abschnitt({ titel, cups, oeffnen, lageZu, mehr = 0, mehrZeigen }: {
                   </span>
                 </div>
                 <div className="px-3 pb-3 pt-2">
-                  <h3 className="truncate text-sm font-bold text-slate-100">{c.titel}</h3>
+                  <h3 className="line-clamp-2 text-sm font-bold leading-snug text-slate-100">{c.titel}</h3>
                   <p className="truncate text-xs text-slate-500">{unterzeile(c, sprache, t)}</p>
                 </div>
               </button>
@@ -884,7 +884,7 @@ function Kalender({ cups, sprache, region, oeffnen }: {
                 className="flex w-full items-center gap-3 bg-zinc-950/60 px-3 py-2 text-left transition hover:bg-zinc-900">
                 <Bild c={cup} klasse="h-10 w-16 shrink-0 rounded-md" />
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-bold text-slate-100">{cup.titel}</span>
+                  <span className="block line-clamp-2 text-sm font-bold leading-snug text-slate-100">{cup.titel}</span>
                   <span className="block truncate text-xs text-slate-500">{cup.untertitel}</span>
                 </span>
                 <span className="flex max-w-[55%] flex-wrap justify-end gap-1.5">
