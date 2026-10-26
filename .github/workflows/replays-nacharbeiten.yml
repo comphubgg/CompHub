@@ -29,7 +29,7 @@ on:
 jobs:
   nacharbeiten:
     runs-on: ubuntu-latest
-    timeout-minutes: 75
+    timeout-minutes: 105
     permissions:
       contents: write
     strategy:
@@ -59,6 +59,21 @@ jobs:
         run: |
           node scripts/daten-sync.mjs --herunterladen --nur epic-auth.json 2>&1 | tail -2
           node scripts/ablage-github-holen.mjs --ordner replays 2>&1 | tail -3
+
+      # Fenster, die es noch gar nicht gibt, legt nur dieser Durchgang an (Teil 0, damit nicht vier Rechner dasselbe tun): "--wiederholen" kennt nur schon angelegte
+      # Fenster, der frische Gang nur die der letzten zwoelf Stunden. Seit dem 26.10.2026 zaehlen alle Cups ganz (lib/replayRegel.mjs) - die offenen Runden der
+      # Tage davor (Reload Cash Cup Runde 1 usw.) haetten sonst nie ein Aggregat bekommen. Endet sanft an seiner Frist (SIGTERM), der Stand je Fenster ist gesichert.
+      - name: Fehlende Fenster anlegen
+        if: ${{ matrix.teil == 0 }}
+        continue-on-error: true
+        timeout-minutes: 32
+        env:
+          WERKZEUG_URL: https://www.thecomphub.com
+          MAX_REPLAY_DOWNLOADS: '4'
+          MAX_REPLAY_PARSERS: '3'
+        run: |
+          timeout --signal=TERM 27m node scripts/replays-holen.mjs --frisch 744 2>&1 | grep -v ' \.\.\.$' | tail -40
+          true
 
       - name: Nacharbeiten
         continue-on-error: true
