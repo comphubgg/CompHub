@@ -428,12 +428,51 @@ export async function globalsSolos(region: string = REGION): Promise<SolosDaten 
    * Noble nennt beide Last-Chance-Tage schlicht "LCQ". Es sind zwei verschiedene Spieltage (Betreiber, 20.10.2026): gestern das Last Chance Qualifier mit den Top 70, die in die Lobby
    * kommen, heute die Last Chance Finals mit hundert Spielern - die Namen kommen deshalb aus Epics Stufen, nach dem Beginn zugeordnet.
    */
+  /** Zu welcher Stufe bei Epic gehoert das Fenster von Noble? - fuer die Ergebnisse unten. */
+  const stufeZu = new Map<string, SolosStufe>();
   for (const fe of fenster) {
     const beginn = Date.parse(fe.start ?? '');
-    if (!Number.isFinite(beginn) || !/last chance|lcq/i.test(fe.name)) continue;
-    const st = stufenEu.filter((x) => x.art === 'lcq' || x.art === 'lcq-finale').sort((a, b) => Math.abs(a.begin - beginn) - Math.abs(b.begin - beginn))[0];
-    if (st && Math.abs(st.begin - beginn) < 4 * 3_600_000) fe.name = st.name;
+    if (!Number.isFinite(beginn)) continue;
+    if (/last chance|lcq/i.test(fe.name)) {
+      const st = stufenEu.filter((x) => x.art === 'lcq' || x.art === 'lcq-finale').sort((a, b) => Math.abs(a.begin - beginn) - Math.abs(b.begin - beginn))[0];
+      if (st && Math.abs(st.begin - beginn) < 4 * 3_600_000) { fe.name = st.name; stufeZu.set(fe.windowId, st); }
+      continue;
+    }
+    // Ein Finale mit zwei Tagen: die Stufen innerhalb des Fensters, die juengste, die schon laeuft oder vorbei ist (der letzte Tag zaehlt).
+    const ende = Date.parse(fe.end ?? '');
+    const von = beginn - 3_600_000;
+    const bis = (Number.isFinite(ende) ? ende : beginn + 6 * 3_600_000) + 3_600_000;
+    const st = stufenEu.filter((x) => x.art !== 'qualifier' && x.begin >= von && x.begin <= bis && x.status !== 'kommt').sort((a, b) => b.begin - a.begin)[0];
+    if (st) stufeZu.set(fe.windowId, st);
   }
+  /*
+   * Platzierung und Punkte aus Epics Bestenliste.
+   *
+   * Noble fuehrt sie seit dem Umbau seiner Schnittstelle (26.10.2026) nicht mehr - die Heats zeigten dadurch nur noch Spieler ohne Ergebnis. Die Spieler und ihre
+   * Landepunkte bleiben die von Noble; was Epic fuer dieselbe Stufe meldet, kommt als Tabelle dazu. Wo Noble doch Platzierungen liefert, gilt Noble.
+   */
+  await Promise.all(fenster.map(async (fe) => {
+    const st = stufeZu.get(fe.windowId);
+    if (!st || st.status === 'kommt' || fe.teams?.some((x) => x.rang !== null)) return;
+    try {
+      const roh = await gecacht(`solos|spieler|${st.windowId}`, st.status === 'vorbei' ? 20 * 60_000 : 2 * 60_000, () => holeTop(st.eventId, st.windowId, 200, false));
+      let eintraege = (roh as { entries?: Array<{ rank: number; points?: number; wins?: number; players?: Array<{ id: string; name?: string; displayName?: string }> }> }).entries ?? [];
+      // Das Last Chance Qualifier hat zehntausende Starter: gezeigt werden die, die weitergekommen sind.
+      if (st.art === 'lcq' && st.status === 'vorbei' && st.qualifiziert) eintraege = eintraege.filter((e) => e.rank <= (st.qualifiziert as number));
+      const nachId = new Map(fe.spieler.map((x) => [x.id, x]));
+      const teams: SolosTeam[] = [];
+      for (const e of eintraege) {
+        const sp: SolosSpieler[] = [];
+        for (const p of e.players ?? []) {
+          if (!p.id) continue;
+          const x = nachId.get(p.id) ?? spielerVon(p.id, p.displayName || p.name || '');
+          nachId.set(p.id, x); sp.push(x);
+        }
+        if (sp.length) teams.push({ id: String(e.rank), spieler: sp, rang: e.rank, punkte: e.points ?? null, siege: e.wins ?? null });
+      }
+      if (teams.length) fe.teams = teams;
+    } catch { /* ohne Bestenliste bleibt es bei den Spielern von Noble */ }
+  }));
   const qualifiziert = await herkunftAus(fenster, REGION, new Map(stufenEu.map((s) => [s.windowId, s.eventId])));
 
   return {

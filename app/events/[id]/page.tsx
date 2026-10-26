@@ -29,6 +29,7 @@ import SpielerStatsUebersicht from '@/app/components/SpielerStatsUebersicht';
 import AktualisierungsStand from '@/app/components/AktualisierungsStand';
 import { useZugang } from '@/app/lib/zugang';
 import WegPlan from '@/app/globals-solos/WegPlan';
+import KarteImEvent from './KarteImEvent';
 import { SOLOS_REGIONEN } from '@/lib/solosRegionen';
 /**
  * Regionen, fuer die von selbst eine Karte bereitsteht.
@@ -2676,18 +2677,25 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
         )}
 
         {/* Karte zum Spieltag - erscheint nur, wenn eine hinterlegt ist */}
-        {kartenZumZeigen.length > 0 && (
-          <div className="mb-5 flex flex-wrap gap-2">
-            {kartenZumZeigen.map((k) => (
-              <KartenKnopf key={k.id} karte={k} mitInsel={kartenZumZeigen.length > 1}
-                aufVerstecken={!istAdmin ? undefined
-                  // Eine gespeicherte Karte wird ausgeblendet, ein blosses
-                  // Angebot ganz weggenommen - es gibt ja noch nichts.
-                  : k.href ? () => kartenAngebot(fenster?.windowId ?? '', true)
-                    : verstecke} />
-            ))}
-          </div>
-        )}
+        {kartenZumZeigen.length > 0 && (() => {
+          const knoepfe = (
+            <div className="mb-5 flex flex-wrap gap-2">
+              {kartenZumZeigen.map((k) => (
+                <KartenKnopf key={k.id} karte={k} mitInsel={kartenZumZeigen.length > 1}
+                  aufVerstecken={!istAdmin ? undefined
+                    // Eine gespeicherte Karte wird ausgeblendet, ein blosses
+                    // Angebot ganz weggenommen - es gibt ja noch nichts.
+                    : k.href ? () => kartenAngebot(fenster?.windowId ?? '', true)
+                      : verstecke} />
+              ))}
+            </div>
+          );
+          // Die gespeicherte Karte steht gleich auf der Seite (Betreiber, 26.10.2026); der Knopf bleibt, wo es nur ein Angebot gibt oder noch kein Team verteilt ist.
+          const gespeichert = kartenZumZeigen.filter((k) => !k.href);
+          return gespeichert.length
+            ? <KarteImEvent key={fenster?.windowId} karten={gespeichert} leer={knoepfe} zusatz={istAdmin ? knoepfe : undefined} />
+            : knoepfe;
+        })()}
 
         {/* Eventinfos */}
         {fenster && (

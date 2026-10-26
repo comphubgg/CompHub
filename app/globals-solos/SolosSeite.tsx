@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import SpielerPlatzhalter, { PlatzhalterRund } from '@/app/components/SpielerPlatzhalter';
 import Link from 'next/link';
 import T from '@/app/components/T';
@@ -17,6 +17,7 @@ import { SOLOS_REGIONEN } from '@/lib/solosRegionen';
 import type { SolosDaten, SolosFenster, SolosGruppe, SolosSpieler, SolosStufe } from '@/lib/globalsSolos';
 import { Karte } from './Bausteine';
 import WegPlan from './WegPlan';
+import Preisgeld from './Preisgeld';
 
 /*
  * FNCS Solos - die Seite, komplett neu (Betreiber, 19.10.2026: "komplett neu, nicht mal aehnlich - in meinem neuen Stil, in Weiss und in Schwarz gut,
@@ -27,24 +28,18 @@ import WegPlan from './WegPlan';
  * von Noble Practice (Europa) und Vital Scrims (NA Central, NA West, Middle East, Ozeanien) - fuer Brasilien und Asien gibt es keine Quelle, und das steht dort.
  */
 
-type Reiter = 'weg' | 'qualifiziert' | 'heats' | 'lastchance' | 'finale' | 'karte';
-const REITER: Array<[Reiter, string]> = [
-  ['weg', 'Der Weg'], ['qualifiziert', 'Qualifiziert'], ['heats', 'Heats'], ['lastchance', 'Last Chance'], ['finale', 'Finale'], ['karte', 'Karte'],
-];
+/*
+ * Zwei Zeilen wie bei eucompetitive.com/grands (Betreiber, 26.10.2026: "pass die Solo-FNCS an wie dort"): oben die Stufen - Fast Tracks, Heat 1, Heat 2, Last Chance, Finals -,
+ * darunter, rechts, die Ansicht dieser Stufe: Karte, Bestenliste, Spieler, Laender. Vor den Spieltagen stehen "Der Weg" und "Qualifiziert", am Ende das Preisgeld.
+ */
+type Fest = 'weg' | 'qualifiziert' | 'preisgeld';
+type Ansicht = 'karte' | 'bestenliste' | 'spieler' | 'laender';
+const ANSICHTEN: Array<[Ansicht, string]> = [['karte', 'Karte'], ['bestenliste', 'Bestenliste'], ['spieler', 'Spieler'], ['laender', 'Länder']];
+const ISTFEST = (x: string): x is Fest => x === 'weg' || x === 'qualifiziert' || x === 'preisgeld';
 
 const HAT_KARTE = new Set(['EU', 'NAC', 'NAW', 'ME', 'OCE']);
 
 /* ------------------------------------------------------------------ kleine Bausteine */
-
-function Foto({ s, px = 36 }: { s: SolosSpieler; px?: number }) {
-  return s.bild
-    // eslint-disable-next-line @next/next/no-img-element
-    ? <img src={s.bild} alt="" loading="lazy" style={{ width: px, height: px, objectPosition: fokusVon(s.bild) }}
-        className="shrink-0 rounded-full border border-zinc-700 object-cover" />
-    : (
-      <PlatzhalterRund name={s.anzeige} groesse={px} />
-    );
-}
 
 /** Das Bild eines Spielers als abgerundetes Quadrat in der Breite des Elternelements. */
 function Bild({ s }: { s: SolosSpieler }) {
@@ -128,18 +123,6 @@ function Spielerliste<S extends SolosSpieler>({ spieler, auf, unter, klein }: { 
   );
 }
 
-/** Die Spieler nach Land - schmal neben den Tafeln, beim Scrollen stehen bleibend. */
-function LaenderSpalte({ spieler }: { spieler: SolosSpieler[] }) {
-  return (
-    <aside className="xl:sticky xl:top-4 xl:self-start">
-      <Karte2>
-        <h3 className="text-base font-extrabold text-slate-100"><T>Spieler nach Land</T></h3>
-        <div className="mt-3"><LaenderListe spieler={[...new Map(spieler.map((s) => [s.id, s])).values()]} /></div>
-      </Karte2>
-    </aside>
-  );
-}
-
 function Karte2({ children, className = '' }: { children: ReactNode; className?: string }) {
   return <section className={`rounded-2xl border border-zinc-800 bg-zinc-900 p-5 shadow-[0_8px_24px_rgba(15,23,42,.10)] ${className}`}>{children}</section>;
 }
@@ -155,7 +138,7 @@ function useZeit() {
 
 /* ------------------------------------------------------------------ Der Weg */
 
-function Weg({ daten, auf }: { daten: SolosDaten; auf: (r: Reiter) => void }) {
+function Weg({ daten, auf }: { daten: SolosDaten; auf: (r: 'qualifiziert') => void }) {
   const finalisten = daten.qualifiziert.reduce((a, g) => a + g.spieler.length, 0);
   return (
     <div className="space-y-5">
@@ -314,35 +297,43 @@ function Tafel({ f, finalisten, ziel, oeffne }: {
 export default function SolosSeite() {
   const t = useT();
   const [region, setRegion] = useState<string>('EU');
-  const [reiter, setReiter] = useState<Reiter>('weg');
+  /** Die gewaehlte Stufe: eine der festen oder der Name einer Stufe ("Heat 1", "Finals Day 1") - der Name gilt in jeder Region, die Kennung nicht. */
+  const [stufe, setStufe] = useState<string>('');
+  const [ansicht, setAnsicht] = useState<Ansicht>('karte');
   const [daten, setDaten] = useState<SolosDaten | null>(null);
   const [fehler, setFehler] = useState('');
   const [laedt, setLaedt] = useState(true);
-  const [wahlKarte, setWahlKarte] = useState('');
-  /** Region und Reiter aus der Adresse sind gelesen - vorher wird nichts geholt (sonst ginge zuerst eine Abfrage fuer Europa hinaus). */
+  /** Region und Wunsch aus der Adresse sind gelesen - vorher wird nichts geholt (sonst ginge zuerst eine Abfrage fuer Europa hinaus). */
   const [bereit, setBereit] = useState(false);
+  /** Der Wunsch aus der Adresse (auch die alten Reiter-Namen) - gilt einmal, sobald die Stufen da sind. */
+  const [wunsch, setWunsch] = useState<{ stufe: string; ansicht: string; tab: string } | null>(null);
   /** Der Spieler, dessen Werte gerade im Fenster stehen. */
   const [panel, setPanel] = useState<{ id: string; name: string; windowId: string } | null>(null);
 
-  // Region und Reiter aus der Adresse und aus dem Browser (gemerkt)
+  // Region und Wunsch aus der Adresse und aus dem Browser (gemerkt)
   useEffect(() => {
     try {
       const p = new URLSearchParams(window.location.search);
       const r = (p.get('region') ?? localStorage.getItem('solos_region') ?? '').toUpperCase();
       if ((SOLOS_REGIONEN as readonly string[]).includes(r)) setRegion(r);
-      const re = p.get('tab') as Reiter | null;
-      if (re && REITER.some(([k]) => k === re)) setReiter(re);
-    } catch { /* ohne Speicher */ }
+      setWunsch({ stufe: p.get('stufe') ?? '', ansicht: p.get('ansicht') ?? '', tab: p.get('tab') ?? '' });
+    } catch { setWunsch({ stufe: '', ansicht: '', tab: '' }); }
     setBereit(true);
   }, []);
-  const waehle = (r: string, re: Reiter) => {
-    setRegion(r); setReiter(re);
+  const merke = (r: string, st: string, an: Ansicht | '') => {
     try {
       localStorage.setItem('solos_region', r);
       const u = new URL(window.location.href);
-      u.searchParams.set('region', r); u.searchParams.set('tab', re);
+      u.searchParams.set('region', r); u.searchParams.set('stufe', st); u.searchParams.delete('tab');
+      if (an) u.searchParams.set('ansicht', an); else u.searchParams.delete('ansicht');
       window.history.replaceState(null, '', u.toString());
     } catch { /* ohne Speicher */ }
+  };
+  const waehleRegion = (r: string) => { setRegion(r); setWunsch({ stufe, ansicht, tab: '' }); merke(r, stufe, ISTFEST(stufe) ? '' : ansicht); };
+  const waehleStufe = (st: string, an?: Ansicht) => {
+    const neuAn = an ?? ansicht;
+    setStufe(st); if (an) setAnsicht(an);
+    merke(region, st, ISTFEST(st) ? '' : neuAn);
   };
 
   /** Eine Antwort, die zu einer anderen Region gehoert als der gerade gewaehlten, wird verworfen - sonst ueberschrieb die langsame Antwort der Startregion (EU) die der gewaehlten. */
@@ -364,16 +355,58 @@ export default function SolosSeite() {
     return () => { weg = true; if (typeof ende === 'function') ende(); };
   }, [holen, bereit]);
 
+  // Die Stufen mit eigenem Spieltag - die Fenster der Quelle (Noble in Europa, Epic sonst), in der Reihenfolge, in der sie gespielt werden; die frueheren Qualifier-Runden stehen im Weg.
+  const spieltage = useMemo(() => (daten?.fenster ?? [])
+    .filter((x) => x.art === 'heat' || x.art === 'finale' || /fast|last chance|lcq/i.test(x.name))
+    .sort((a, b) => String(a.start ?? '').localeCompare(String(b.start ?? ''))), [daten]);
+  /** Laeuft die Stufe, kommt sie noch, ist sie vorbei? Epics Stufe mit derselben Kennung - oder die zeitlich naechste (Noble nennt die Fenster anders). */
+  const statusVon = useCallback((x: SolosFenster): SolosStufe['status'] => {
+    const beginn = Date.parse(x.start ?? '');
+    const st = daten?.stufen.find((y) => y.windowId === x.windowId)
+      ?? (Number.isFinite(beginn)
+        ? daten?.stufen.filter((y) => y.art !== 'qualifier').sort((a, b) => Math.abs(a.begin - beginn) - Math.abs(b.begin - beginn)).find((y) => Math.abs(y.begin - beginn) < 6 * 3_600_000)
+        : undefined);
+    return st?.status ?? (Number.isFinite(beginn) && beginn > Date.now() ? 'kommt' : 'vorbei');
+  }, [daten]);
+
+  // Welche Stufe zuerst? Der Wunsch aus der Adresse, sonst die laufende, sonst das Finale mit Landepunkten, sonst der Weg.
+  const gewaehltFuer = useRef('');
+  useEffect(() => {
+    if (!daten || gewaehltFuer.current === region || !wunsch) return;
+    gewaehltFuer.current = region;
+    const nameZu = (wer: (x: SolosFenster) => boolean) => spieltage.find(wer)?.name ?? '';
+    const alt: Record<string, string> = {
+      weg: 'weg', qualifiziert: 'qualifiziert', preisgeld: 'preisgeld',
+      heats: nameZu((x) => x.art === 'heat'),
+      lastchance: nameZu((x) => /last chance|lcq/i.test(x.name)),
+      finale: nameZu((x) => x.art === 'finale'),
+      karte: nameZu((x) => x.art === 'finale'),
+    };
+    let ziel = wunsch.stufe || alt[wunsch.tab] || '';
+    if (ziel && !ISTFEST(ziel) && !spieltage.some((x) => x.name === ziel)) ziel = '';
+    if (!ziel && !wunsch.stufe && !wunsch.tab) {
+      const laufend = spieltage.find((x) => statusVon(x) === 'live');
+      const finaleMitKarte = HAT_KARTE.has(region) ? spieltage.find((x) => x.art === 'finale' && x.formen.length > 0) : undefined;
+      ziel = laufend?.name ?? finaleMitKarte?.name ?? 'weg';
+    }
+    setStufe(ziel || 'weg');
+    const wunschAnsicht = (ANSICHTEN.some(([k]) => k === wunsch.ansicht) ? wunsch.ansicht : wunsch.tab === 'karte' ? 'karte' : '') as Ansicht | '';
+    if (wunschAnsicht) setAnsicht(wunschAnsicht);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [daten, wunsch, spieltage, region, statusVon]);
+
   const finalisten = useMemo(() => new Set(daten?.qualifiziert.flatMap((g) => g.spieler.map((s) => s.id)) ?? []), [daten]);
   const eventVon = (windowId: string) => daten?.stufen.find((s) => s.windowId === windowId)?.eventId ?? '';
   const oeffneIn = (windowId: string) => (s: SolosSpieler) => { if (eventVon(windowId)) setPanel({ id: s.id, name: s.anzeige, windowId }); };
   const live = daten?.stufen.some((s) => s.status === 'live');
-  const art = (a: SolosFenster['art']) => daten?.fenster.filter((f) => f.art === a) ?? [];
-  const lastChance = daten?.fenster.filter((f) => f.art === 'qualifier' && /last chance|lcq/i.test(f.name)) ?? [];
-  const finale = art('finale');
-  const kartenFenster = daten?.fenster ?? [];
-  const aktivKarte = kartenFenster.find((f) => f.windowId === wahlKarte) ?? kartenFenster.find((f) => f.formen.length && f.art === 'finale') ?? kartenFenster.find((f) => f.formen.length) ?? kartenFenster[0];
+  const aktuell = spieltage.find((x) => x.name === stufe);
+  const f = aktuell;
   const panelStufe = panel ? daten?.stufen.find((s) => s.windowId === panel.windowId) : null;
+  const ziel = aktuell && aktuell.art !== 'finale' ? t('Grand Finals') : undefined;
+  // Wie viele der Spieler auf der Karte stehen - wie "Teams 100/100" bei eucompetitive.
+  const aufKarte = f ? new Set(f.formen.flatMap((fo) => fo.spieler)).size : 0;
+
+  const knopf = (aktiv: boolean) => `inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-bold transition ${aktiv ? 'bg-sky-500 text-white shadow' : 'text-slate-400 hover:text-slate-100'}`;
 
   return (
     <main className="relative isolate flex-1 bg-zinc-950 text-slate-200">
@@ -390,7 +423,7 @@ export default function SolosSeite() {
 
         <div className="flex flex-wrap gap-1.5" role="tablist" aria-label={t('Region')}>
           {SOLOS_REGIONEN.map((r) => (
-            <button key={r} type="button" role="tab" aria-selected={region === r} onClick={() => waehle(r, reiter)}
+            <button key={r} type="button" role="tab" aria-selected={region === r} onClick={() => waehleRegion(r)}
               className={`rounded-full border px-4 py-1.5 text-xs font-bold transition ${region === r
                 ? 'border-sky-500 bg-sky-500 text-white shadow' : 'border-zinc-800 bg-zinc-900 text-slate-400 hover:border-sky-500/50 hover:text-slate-100'}`}>
               {regionAnzeige({ region: r })}
@@ -398,74 +431,87 @@ export default function SolosSeite() {
           ))}
         </div>
 
-        <nav className="flex flex-wrap gap-1 self-start rounded-full border border-zinc-800 bg-zinc-900 p-1 shadow-sm">
-          {REITER.map(([k, titel]) => (
-            <button key={k} type="button" onClick={() => waehle(region, k)}
-              className={`rounded-full px-4 py-2 text-sm font-bold transition ${reiter === k ? 'bg-sky-500 text-white shadow' : 'text-slate-400 hover:text-slate-100'}`}>
-              <T>{titel}</T>
+        {/* Erste Zeile: die Stufen */}
+        <nav className="flex flex-wrap items-center gap-1 self-start rounded-2xl border border-zinc-800 bg-zinc-900 p-1.5 shadow-sm" aria-label={t('Stufe')}>
+          <button type="button" onClick={() => waehleStufe('weg')} className={knopf(stufe === 'weg')}><T>Der Weg</T></button>
+          <button type="button" onClick={() => waehleStufe('qualifiziert')} className={knopf(stufe === 'qualifiziert')}><T>Qualifiziert</T></button>
+          {spieltage.length > 0 && <span aria-hidden className="mx-1 h-5 w-px bg-zinc-700" />}
+          {spieltage.map((x) => (
+            <button key={x.windowId} type="button" onClick={() => waehleStufe(x.name, ansicht)} className={knopf(stufe === x.name)}>
+              {statusVon(x) === 'live' && <span className={`h-2 w-2 animate-pulse rounded-full ${stufe === x.name ? 'bg-white' : 'bg-sky-400'}`} />}
+              {x.name}
             </button>
           ))}
+          <span aria-hidden className="mx-1 h-5 w-px bg-zinc-700" />
+          <button type="button" onClick={() => waehleStufe('preisgeld')} className={knopf(stufe === 'preisgeld')}><T>Preisgeld</T></button>
         </nav>
 
-        {laedt && !daten && <LadeSchirm />}
-        {fehler && !daten && !laedt && (
+        {/* Zweite Zeile: die Ansicht der gewaehlten Stufe, rechts */}
+        {aktuell && (
+          <div className="flex justify-end">
+            <nav className="flex flex-wrap gap-1 rounded-full border border-zinc-800 bg-zinc-900 p-1 shadow-sm" aria-label={t('Ansicht')}>
+              {ANSICHTEN.map(([k, titel]) => (
+                <button key={k} type="button" onClick={() => waehleStufe(stufe, k)} className={knopf(ansicht === k)}><T>{titel}</T></button>
+              ))}
+            </nav>
+          </div>
+        )}
+
+        {laedt && !daten && stufe !== 'preisgeld' && <LadeSchirm />}
+        {fehler && !daten && !laedt && stufe !== 'preisgeld' && (
           <p className="rounded-2xl border border-zinc-800 bg-zinc-900 px-5 py-8 text-center text-sm text-slate-400">{fehler}</p>
         )}
 
-        {daten && reiter === 'weg' && <Weg daten={daten} auf={(r) => waehle(region, r)} />}
-        {daten && reiter === 'qualifiziert' && (
-          <Qualifiziert daten={daten} oeffne={(s, w) => { const f = daten.fenster.find((x) => x.windowId === w) ?? daten.fenster.find((x) => x.art === 'finale'); if (f && eventVon(f.windowId)) setPanel({ id: s.id, name: s.anzeige, windowId: f.windowId }); }} />
+        {daten && stufe === 'weg' && <Weg daten={daten} auf={() => waehleStufe('qualifiziert')} />}
+        {daten && stufe === 'qualifiziert' && (
+          <Qualifiziert daten={daten} oeffne={(s, w) => { const ziel2 = daten.fenster.find((x) => x.windowId === w) ?? daten.fenster.find((x) => x.art === 'finale'); if (ziel2 && eventVon(ziel2.windowId)) setPanel({ id: s.id, name: s.anzeige, windowId: ziel2.windowId }); }} />
         )}
-        {daten && reiter === 'heats' && (
-          <div className="grid gap-5 xl:grid-cols-2">
-            {art('heat').length ? art('heat').map((h) => <Tafel key={h.windowId} f={h} finalisten={finalisten} ziel={t('Grand Finals')} oeffne={oeffneIn(h.windowId)} />)
-              : <Karte2 className="xl:col-span-2"><p className="py-6 text-center text-sm text-slate-500"><T>Noch keine Heats eingeteilt.</T></p></Karte2>}
-          </div>
-        )}
-        {daten && reiter === 'lastchance' && (
-          /* Die Tafeln links, daneben die Laender - so wie beim Finale (Betreiber, 19.10.2026: "Player Countries neben die Liste"). */
-          <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_440px]">
-            <div className="grid content-start gap-5 2xl:grid-cols-2">
-              {lastChance.length ? lastChance.map((h) => <Tafel key={h.windowId} f={h} finalisten={finalisten} ziel={t('Grand Finals')} oeffne={oeffneIn(h.windowId)} />)
-                : <Karte2 className="2xl:col-span-2"><p className="py-6 text-center text-sm text-slate-500"><T>Noch keine Last Chance eingeteilt.</T></p></Karte2>}
-            </div>
-            {lastChance.length > 0 && <LaenderSpalte spieler={lastChance.flatMap((f) => f.spieler)} />}
-          </div>
-        )}
-        {daten && reiter === 'finale' && (
-          <div className="grid gap-5 xl:grid-cols-[minmax(0,1fr)_440px]">
-            <div className="grid content-start gap-5 2xl:grid-cols-2">
-              {finale.length ? finale.map((h) => <Tafel key={h.windowId} f={h} oeffne={oeffneIn(h.windowId)} />)
-                : <Karte2 className="2xl:col-span-2"><p className="py-6 text-center text-sm text-slate-500"><T>Das Finale steht noch nicht fest.</T></p></Karte2>}
-            </div>
-            {finale.length > 0 && <LaenderSpalte spieler={finale.flatMap((f) => f.spieler)} />}
-          </div>
-        )}
-        {daten && reiter === 'karte' && (
-          <Karte2>
-            {!HAT_KARTE.has(region) ? (
-              <p className="py-10 text-center text-sm text-slate-500"><T>Für diese Region gibt es keine Quelle für Landepunkte.</T></p>
-            ) : (
-              <>
-                <div className="flex flex-wrap gap-1.5">
-                  {kartenFenster.map((f) => (
-                    <button key={f.windowId} type="button" onClick={() => setWahlKarte(f.windowId)}
-                      className={`rounded-full border px-3.5 py-1.5 text-xs font-bold transition ${aktivKarte?.windowId === f.windowId ? 'border-sky-500 bg-sky-500 text-white' : 'border-zinc-800 text-slate-400 hover:border-sky-500/50 hover:text-slate-100'}`}>
-                      {f.name}{f.formen.length ? '' : ' ·  –'}
-                    </button>
-                  ))}
-                </div>
-                <div className="mt-4">
-                  {aktivKarte && (aktivKarte.formen.length
-                    ? <Karte key={aktivKarte.windowId} f={aktivKarte} bild={aktivKarte.bild} rotAb={2} />
-                    : <p className="py-10 text-center text-sm text-slate-500"><T>Für diesen Spieltag sind noch keine Landepunkte eingetragen.</T></p>)}
-                </div>
-                <p className="mt-3 text-center text-[11px] text-slate-500">
-                  <T>Landepunkte von</T> {daten.quelle === 'noble' ? 'Noble Practice' : 'Vital Scrims'}
-                </p>
-              </>
+        {stufe === 'preisgeld' && <Preisgeld region={region} />}
+
+        {daten && aktuell && (
+          <>
+            {ansicht === 'karte' && (
+              <Karte2>
+                {!HAT_KARTE.has(region) ? (
+                  <p className="py-10 text-center text-sm text-slate-500"><T>Für diese Region gibt es keine Quelle für Landepunkte.</T></p>
+                ) : !f || !f.formen.length ? (
+                  <p className="py-10 text-center text-sm text-slate-500"><T>Für diesen Spieltag sind noch keine Landepunkte eingetragen.</T></p>
+                ) : (
+                  <>
+                    <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                      <span className="inline-flex items-center rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2 text-sm font-extrabold uppercase tracking-wide text-slate-100">FNCS Solos · {aktuell.name}</span>
+                      <span className="rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-2 text-xs font-bold tabular-nums text-slate-300"><T>Spieler</T> {aufKarte}/{f.spieler.length || aufKarte}</span>
+                    </div>
+                    <Karte key={f.windowId} f={f} bild={f.bild} rotAb={2} />
+                    <p className="mt-3 text-center text-[11px] text-slate-500">
+                      <T>Landepunkte von</T> {daten.quelle === 'noble' ? 'Noble Practice' : 'Vital Scrims'}
+                    </p>
+                  </>
+                )}
+              </Karte2>
             )}
-          </Karte2>
+            {ansicht === 'bestenliste' && (f
+              ? <Tafel key={f.windowId} f={f} finalisten={ziel ? finalisten : undefined} ziel={ziel} oeffne={oeffneIn(f.windowId)} />
+              : <Karte2><p className="py-6 text-center text-sm text-slate-500"><T>Noch keine Spieler eingetragen.</T></p></Karte2>)}
+            {ansicht === 'spieler' && (
+              <Karte2>
+                <h3 className="text-base font-extrabold text-slate-100">{aktuell.name} <span className="ml-1 text-sm font-semibold text-slate-500">{f?.spieler.length ?? 0}</span></h3>
+                <div className="mt-4">
+                  {f && f.spieler.length ? <Spielerliste spieler={f.spieler} auf={oeffneIn(f.windowId)} />
+                    : <p className="py-6 text-center text-sm text-slate-500"><T>Noch keine Spieler eingetragen.</T></p>}
+                </div>
+              </Karte2>
+            )}
+            {ansicht === 'laender' && (
+              <Karte2>
+                <h3 className="text-base font-extrabold text-slate-100"><T>Spieler nach Land</T> · {aktuell.name}</h3>
+                <div className="mt-3">
+                  {f && f.spieler.length ? <LaenderListe spieler={[...new Map(f.spieler.map((s) => [s.id, s])).values()]} />
+                    : <p className="py-6 text-center text-sm text-slate-500"><T>Noch keine Spieler eingetragen.</T></p>}
+                </div>
+              </Karte2>
+            )}
+          </>
         )}
       </div>
 

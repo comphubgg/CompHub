@@ -70,6 +70,25 @@ interface KartenTeam {
   quelle?: 'noble';
 }
 
+/**
+ * Hoechstens so viele Teams, wie in ein Spiel passen.
+ *
+ * Betreiber, 26.10.2026: "In Trios koennen maximal 33 Trios sein - ich weiss nicht, wie du da auf 36 kommst." Die Teams kamen aus zwei Quellen (Epics Rangliste und
+ * Noble Practice), und was in der einen anders hiess als in der anderen, stand danach doppelt in der Liste. In einem Spiel treten aber hoechstens hundert Spieler an.
+ * Wer schon auf einer Form steht, bleibt immer; danach gelten zuerst die Teams von Noble (das ist die echte Lobby), zuletzt die der Rangliste.
+ */
+function begrenzeTeams(liste: KartenTeam[], platziert: Set<string>): KartenTeam[] {
+  const groesse = Math.max(0, ...liste.map((t) => t.spieler.length));
+  const grenze = groesse ? Math.floor(100 / groesse) : 0;
+  if (!grenze || liste.length <= grenze) return liste;
+  const rang = (t: KartenTeam) => (platziert.has(t.id) ? 0 : t.quelle === 'noble' ? 1 : 2);
+  const behalten = new Set(
+    liste.map((t, i) => ({ t, i })).sort((a, b) => rang(a.t) - rang(b.t) || a.i - b.i)
+      .slice(0, grenze).map((x) => x.t.id),
+  );
+  return liste.filter((t) => behalten.has(t.id));
+}
+
 /** Dasselbe Team? Gleicher Schluessel oder ein gemeinsames Epic-Konto. */
 function gleichesTeam(a: KartenTeam, b: KartenTeam): boolean {
   return a.id === b.id || (a.ids ?? []).some((x) => x && (b.ids ?? []).includes(x));
@@ -1428,6 +1447,9 @@ export default function KartenSeite(
   const SCHNELL_MS = 30 * 1000;
 
   useEffect(() => { stelleWiederHerRef.current = stelleWiederHer; });
+  /** Die Formen, wie sie gerade stehen - fuer das Nachladen der Teams, das sie nicht als Abhaengigkeit fuehren soll. */
+  const spotsAktuell = useRef<Spot[]>([]);
+  useEffect(() => { spotsAktuell.current = spots; });
 
   /**
    * Die Runde, aus der sich die Teilnehmer dieses Spieltags qualifizieren.
@@ -1502,7 +1524,10 @@ export default function KartenSeite(
         const noble = alt.filter((t) => t.quelle === 'noble');
         if (!noble.length) return liste;
         const gemerkt = liste.map((t) => (noble.some((n) => gleichesTeam(n, t)) ? { ...t, quelle: 'noble' as const } : t));
-        return [...gemerkt, ...noble.filter((n) => !liste.some((t) => gleichesTeam(n, t)))];
+        const zusammen = [...gemerkt, ...noble.filter((n) => !liste.some((t) => gleichesTeam(n, t)))];
+        // Eine eigene Grenze (Feld "Teams") gilt, wie eingegeben; sonst passen hoechstens hundert Spieler ins Spiel.
+        return teamGrenze > 0 ? zusammen
+          : begrenzeTeams(zusammen, new Set(spotsAktuell.current.flatMap((sp) => sp.teams)));
       });
       setStatus(liste.length
         ? `${liste.length} Teams geladen${woher}`
@@ -1619,12 +1644,15 @@ export default function KartenSeite(
         setSpots(neueSpots);
         // Die Teams dieser Karte sind jetzt die von Noble: alte Noble-Teams, die nicht mehr vorkommen, gehen,
         // gefundene Teams der Rangliste werden als zur Karte gehoerig vermerkt, neue kommen dazu.
-        setTeams((alt) => [
-          ...alt
-            .filter((t) => t.quelle !== 'noble' || genutzt.has(t.id))
-            .map((t) => (genutzt.has(t.id) && t.quelle !== 'noble' ? { ...t, quelle: 'noble' as const } : t)),
-          ...neueTeams.filter((n) => !alt.some((t) => t.id === n.id)),
-        ]);
+        setTeams((alt) => {
+          const zusammen = [
+            ...alt
+              .filter((t) => t.quelle !== 'noble' || genutzt.has(t.id))
+              .map((t) => (genutzt.has(t.id) && t.quelle !== 'noble' ? { ...t, quelle: 'noble' as const } : t)),
+            ...neueTeams.filter((n) => !alt.some((t) => t.id === n.id)),
+          ];
+          return teamGrenze > 0 ? zusammen : begrenzeTeams(zusammen, new Set(neueSpots.flatMap((sp) => sp.teams)));
+        });
         setNobleFrage(null);
         setNobleMeldung({
           art: 'ok',
@@ -1651,7 +1679,7 @@ export default function KartenSeite(
     } catch (e) {
       setNobleMeldung({ art: 'fehler', text: (e as Error).message });
     } finally { setNobleLaeuft(false); }
-  }, [fensterId, fenster, cup, spots, teams, profile, merke, uebs]);
+  }, [fensterId, fenster, cup, spots, teams, profile, merke, uebs, teamGrenze]);
 
   /**
    * Die Teamliste erneuert sich waehrend des Cups von selbst.

@@ -151,6 +151,8 @@ export default function PlayerCenter() {
   /** Noch nicht bestaetigte Aenderungen, je Konto - siehe AUSSTEHEND. */
   const [ausstehend, setAusstehend] = useState<Record<string, Aenderung>>({});
   const [sendeFehler, setSendeFehler] = useState('');
+  /** Stand des Foto-Hochladens - mit dem Spieler, zu dem er gehoert. */
+  const [fotoStand, setFotoStand] = useState<{ id: string; text: string } | null>(null);
   const ausstehendRef = useRef<Record<string, Aenderung>>({});
   useEffect(() => {
     const da = liesAusstehend();
@@ -300,6 +302,23 @@ export default function PlayerCenter() {
     const uhr = setInterval(() => { void senden(); }, 20_000);
     return () => clearInterval(uhr);
   }, [wartend, senden]);
+
+  /*
+   * Ein Foto zu diesem Spieler hochladen (Betreiber, 26.10.2026: "wenn ich sie im Player Center hochladen kann, speichert es direkt auch auf GitHub, fuer immer").
+   * Die Schnittstelle legt es im Archiv auf GitHub ab und traegt es unter dem Konto ein - es steht danach sofort ueberall, wo der Spieler ein Foto hat.
+   */
+  const fotoHochladen = useCallback(async (s: Spieler, datei: File) => {
+    setFotoStand({ id: s.epicId, text: t('lädt hoch …') });
+    try {
+      const form = new FormData();
+      form.set('datei', datei); form.set('epicId', s.epicId); form.set('name', s.name);
+      const r = await fetch('/api/spielerbild/hochladen', { method: 'POST', body: form });
+      const j = await r.json().catch(() => ({} as { ok?: boolean; bild?: string; fehler?: string }));
+      if (!r.ok || !j.bild) { setFotoStand({ id: s.epicId, text: String(j.fehler ?? t('Das hat nicht geklappt.')) }); return; }
+      setAlle((vorher) => vorher.map((x) => (x.epicId === s.epicId ? { ...x, foto: j.bild as string } : x)));
+      setFotoStand({ id: s.epicId, text: t('Foto gespeichert - es liegt dauerhaft im GitHub-Archiv.') });
+    } catch { setFotoStand({ id: s.epicId, text: t('Keine Verbindung zum Server.') }); }
+  }, [t]);
 
   const speichern = useCallback((s: Spieler) => {
     const a: Aenderung = {
@@ -528,8 +547,14 @@ export default function PlayerCenter() {
                       <span>{zahl(gewaehlt.events)} <T>Spieltage</T></span>
                       <span>{zahl(gewaehlt.elims)} <T>Elims</T></span>
                     </span>
+                    <label className="mt-2 inline-flex cursor-pointer items-center rounded-full border border-zinc-700 px-3 py-1 text-[11px] font-semibold text-slate-300 transition hover:border-sky-500 hover:text-sky-400">
+                      {gewaehlt.foto ? <T>Foto ersetzen</T> : <T>Foto hochladen</T>}
+                      <input type="file" accept="image/*" className="sr-only"
+                        onChange={(e) => { const d = e.target.files?.[0]; e.target.value = ''; if (d) void fotoHochladen(gewaehlt, d); }} />
+                    </label>
                   </span>
                 </div>
+                {fotoStand && fotoStand.id === gewaehlt.epicId && <p className="text-[11px] leading-relaxed text-slate-400">{fotoStand.text}</p>}
 
                 <label className="block">
                   <span className="mb-1 block text-[11px] font-semibold uppercase tracking-wider text-slate-500"><T>Anzeigename</T></span>

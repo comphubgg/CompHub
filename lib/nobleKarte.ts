@@ -15,7 +15,55 @@
  * 11.10.2026 durch Ueberlagerung: die Formen liegen auf den Landflaechen.
  */
 
-const BASIS = 'https://tournaments.nobleprac.com/api';
+/*
+ * Noble hat seine Schnittstelle umgebaut (gemerkt am 26.10.2026: "/api/tournaments" antwortete mit 404, die Seite der FNCS Solos in Europa und der Knopf "Generate map" liefen
+ * ins Leere). Die Seite von Noble holt ihre Daten jetzt bei
+ *
+ *   GET https://tournaments.nobleprac.com/tournaments                          die Liste (ein Feld, kein Umschlag)
+ *   GET https://tournaments.nobleprac.com/tournaments/<id>?windowId=..&region=..   ein Turnier mit einem Fenster
+ *
+ * Der Rest dieses Werkzeugs rechnet weiter mit der alten Gestalt (RohTurnier, RohDetail) - die Umrechnung steht hier, an einer Stelle. Ohne Anmeldung, ohne besondere Kopfzeile.
+ * Die neue Antwort fuehrt keine Platzierung und keine Punkte mehr; wer die braucht (Ergebnisse der Heats), holt sie aus Epics Bestenlisten.
+ */
+const BASIS = 'https://tournaments.nobleprac.com';
+
+interface NeuTurnier {
+  id: string; name?: string; tournamentName?: string; status?: string; startDate?: string; earliestStart?: string;
+  regions?: Array<string | { code: string }>;
+}
+const alsTurnier = (t: NeuTurnier): RohTurnier => ({
+  id: t.id, tournamentName: t.tournamentName ?? t.name ?? t.id, status: t.status ?? '',
+  earliestStart: t.earliestStart ?? t.startDate,
+  regions: (t.regions ?? []).map((r) => ({ code: typeof r === 'string' ? r : r.code })),
+});
+
+/** Die neue Antwort eines Turniers in die Gestalt, die der Rest des Werkzeugs kennt. */
+interface NeuDetail {
+  tournament?: { id: string; name: string; windows?: RohFenster[] };
+  window?: { id: string; name?: string; region?: string; startDate?: string };
+  teams?: Array<{ teamId: string; coordinates?: Array<[number, number]>; players?: Array<{ accountId: string; displayName?: string; username?: string }>; rank?: number | null; points?: number | null; wins?: number | null }>;
+  map?: { withPOINames?: string; withoutPOINames?: string };
+}
+function alsDetail(n: NeuDetail & Partial<RohDetail>): RohDetail {
+  if (!n.tournament) return n as RohDetail; // schon die alte Gestalt
+  return {
+    tournamentData: { id: n.tournament.id, tournamentName: n.tournament.name, windows: n.tournament.windows },
+    windowData: n.window ? {
+      windowId: n.window.id, windowName: n.window.name, windowFullName: n.window.name,
+      teams: (n.teams ?? []).map((t) => ({
+        teamId: t.teamId, coordinates: t.coordinates, rank: t.rank ?? null, points: t.points ?? null, wins: t.wins ?? null,
+        players: (t.players ?? []).map((p) => ({ accountId: p.accountId, username: p.username ?? p.displayName })),
+      })),
+      map: n.map ? { withPOINames: n.map.withPOINames, withoutPOINames: n.map.withoutPOINames } : undefined,
+    } : undefined,
+  };
+}
+
+/** Die Liste der Turniere - neu ein Feld, frueher ein Umschlag {tournaments: [...]}. */
+async function turnierListe(): Promise<RohTurnier[]> {
+  const j = await hole<NeuTurnier[] | { tournaments?: NeuTurnier[] }>(`${BASIS}/tournaments`);
+  return (Array.isArray(j) ? j : j.tournaments ?? []).map(alsTurnier);
+}
 
 const SUED = -82;
 const NORD = 79;
@@ -86,16 +134,14 @@ export function namenRepariert(roh: string): string {
 
 /** Die jüngsten Turniere von Noble, neueste zuerst. */
 export async function jungeTurniere(anzahl: number): Promise<RohTurnier[]> {
-  const j = await hole<{ tournaments?: RohTurnier[] }>(`${BASIS}/tournaments`);
-  return [...(j.tournaments ?? [])]
+  return [...await turnierListe()]
     .sort((a, b) => String(b.earliestStart ?? '').localeCompare(String(a.earliestStart ?? '')))
     .slice(0, anzahl);
 }
 
 export async function detail(id: string, region: string, windowId?: string): Promise<RohDetail> {
-  const q = `id=${encodeURIComponent(id)}&region=${encodeURIComponent(region)}`
-    + (windowId ? `&windowId=${encodeURIComponent(windowId)}` : '');
-  return hole<RohDetail>(`${BASIS}/tournament?${q}`);
+  const q = `region=${encodeURIComponent(region)}` + (windowId ? `&windowId=${encodeURIComponent(windowId)}` : '');
+  return alsDetail(await hole<NeuDetail & Partial<RohDetail>>(`${BASIS}/tournaments/${encodeURIComponent(id)}?${q}`));
 }
 
 /*
@@ -119,8 +165,7 @@ export function namensTreffer(a: string, b: string): number {
 
 /** Alle Turniere von Noble - es sind nur wenige Dutzend, und die laengsten laufen ueber Monate. */
 export async function alleTurniere(): Promise<RohTurnier[]> {
-  const j = await hole<{ tournaments?: RohTurnier[] }>(`${BASIS}/tournaments`);
-  return [...(j.tournaments ?? [])]
+  return [...await turnierListe()]
     .sort((a, b) => String(b.earliestStart ?? '').localeCompare(String(a.earliestStart ?? '')));
 }
 
