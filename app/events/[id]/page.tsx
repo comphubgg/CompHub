@@ -30,6 +30,7 @@ import AktualisierungsStand from '@/app/components/AktualisierungsStand';
 import { useZugang } from '@/app/lib/zugang';
 import WegPlan from '@/app/globals-solos/WegPlan';
 import KarteImEvent from './KarteImEvent';
+import WegKasten from './WegKasten';
 import { SOLOS_REGIONEN } from '@/lib/solosRegionen';
 /**
  * Regionen, fuer die von selbst eine Karte bereitsteht.
@@ -2582,14 +2583,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
           * gewaehlte Region - Qualifier, Fast Track, Heats, Last Chance und Finale mit Spielerzahl und Punkteschwelle. Nicht bei den Reload-Reihen: dort gilt eine andere Saison.
           */}
         {cup && /fncssolos/i.test(cup.id) && !/reload/i.test(cup.id) && (
-          <section className="mb-5 rounded-2xl border border-zinc-800 bg-zinc-900/50 p-5">
-            <div className="mb-4 flex flex-wrap items-baseline justify-between gap-2">
-              <h2 className="text-base font-extrabold text-slate-100"><T>Der Weg ins Grand Final</T></h2>
-              <Link href={`/globals-solos?region=${(SOLOS_REGIONEN as readonly string[]).includes(region) ? region : 'EU'}`}
-                className="text-xs font-semibold text-sky-400 hover:underline"><T>Alle Stufen, Spieler und Karte</T> →</Link>
-            </div>
-            <WegPlan region={(SOLOS_REGIONEN as readonly string[]).includes(region) ? region : 'EU'} />
-          </section>
+          <WegKasten region={(SOLOS_REGIONEN as readonly string[]).includes(region) ? region : 'EU'} />
         )}
         {cup?.global && (
           <p className="mb-4 text-xs text-slate-500">
@@ -3764,7 +3758,15 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
            * in /api/cup-matches aus Epics eigenen Zahlen hergeleitet, und
            * die Herleitung steht dort beschrieben.
            */
-          const gefiltert = spieleGefiltert;
+          /*
+           * An einem Tag mit vielen Lobbys (Opens) nennt Epic je Lobby nur die Teams der Bestenliste - oft zwei oder drei. Das ist keine Runde, die man ansehen kann
+           * (Betreiber, 26.10.2026: "in jedem Battle-Royale-Match mindestens 80 Spieler, nicht irgendein Game mit zwei, drei"). Gezeigt werden dort nur Lobbys mit
+           * mindestens 80 bekannten Spielern oder mit eigener Replay-Seite; wie viele fehlen, steht in einem Satz.
+           */
+          const spielerIn = (sp: Spiel) => sp.teams.reduce((n, z) => n + z.spieler.length, 0);
+          const vollstaendig = (sp: Spiel) => !!matchSeiten[sp.id] || spielerIn(sp) >= 80;
+          const ausgeblendet = eineLobby ? 0 : spieleGefiltert.filter((sp) => !vollstaendig(sp)).length;
+          const gefiltert = eineLobby ? spieleGefiltert : spieleGefiltert.filter(vollstaendig);
           const gezeigt = gefiltert.slice(0, sichtbareSpiele);
 
           /*
@@ -4187,7 +4189,14 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
 
                 {spiele && spiele.length > 0 && !gefiltert.length && (
                   <p className="p-4 text-center text-sm text-slate-500">
-                    <T>Gerade läuft keine Lobby.</T>
+                    {ausgeblendet > 0
+                      ? <T>An diesem Spieltag laufen tausende Lobbys; Epic nennt je Lobby nur die Teams der Bestenliste. Hier erscheinen nur Lobbys mit mindestens 80 bekannten Spielern oder eigenem Replay.</T>
+                      : <T>Gerade läuft keine Lobby.</T>}
+                  </p>
+                )}
+                {ausgeblendet > 0 && gefiltert.length > 0 && (
+                  <p className="mb-2 text-[11px] leading-relaxed text-slate-500">
+                    {ausgeblendet} <T>Lobbys mit weniger als 80 bekannten Spielern sind ausgeblendet.</T>
                   </p>
                 )}
 

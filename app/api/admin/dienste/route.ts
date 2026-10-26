@@ -19,7 +19,7 @@ export const runtime = 'nodejs';
 
 const KONTO_COOKIE = 'streamer_dashboard_konto';
 const VIP_COOKIE = 'streamer_dashboard_auth';
-const DIENSTE: Dienst[] = ['twitch', 'discord', 'google', 'epic', 'x', 'xzugang'];
+const DIENSTE: Dienst[] = ['twitch', 'discord', 'google', 'epic'];
 
 async function istAdmin(): Promise<boolean> {
   const laden = await cookies();
@@ -45,9 +45,6 @@ const WOHER: Record<Dienst, { seite: string; rueckruf: string }> = {
     rueckruf: '/api/auth/google/callback' },
   epic: { seite: 'dev.epicgames.com/portal',
     rueckruf: '/api/auth/epic/callback' },
-  // Fuer X gibt es keine Rueckrufadresse - die vier Schluessel stehen im Portal unter "Keys and tokens".
-  x: { seite: 'developer.x.com/en/portal/dashboard', rueckruf: '' },
-  xzugang: { seite: 'developer.x.com/en/portal/dashboard', rueckruf: '' },
 };
 
 export async function GET() {
@@ -58,7 +55,7 @@ export async function GET() {
   const stand = await Promise.all(DIENSTE.map(async (d) => {
     const { woher } = await holeDienst(d);
     return { dienst: d, woher, ...WOHER[d],
-      rueckrufVoll: WOHER[d].rueckruf ? basis + WOHER[d].rueckruf : '' };
+      rueckrufVoll: basis + WOHER[d].rueckruf };
   }));
   return NextResponse.json({ dienste: stand });
 }

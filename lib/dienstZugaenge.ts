@@ -19,8 +19,7 @@ import { DATEN_ORT } from './datenOrt';
 
 const DATEI = path.join(DATEN_ORT, 'dienst-zugaenge.json');
 
-/** "x" sind die Schluessel der X-App (API Key + Secret), "xzugang" das Zugriffstoken des Kontos (Token + Secret) - beides braucht das automatische Posten (lib/xPosten). */
-export type Dienst = 'twitch' | 'discord' | 'google' | 'epic' | 'x' | 'xzugang';
+export type Dienst = 'twitch' | 'discord' | 'google' | 'epic';
 
 interface Eintrag { id?: string; secret?: string }
 type Ablage = Partial<Record<Dienst, Eintrag>>;
@@ -43,8 +42,6 @@ const AUS_UMGEBUNG: Record<Dienst, [string | undefined, string | undefined]> = {
   discord: [process.env.DISCORD_CLIENT_ID, process.env.DISCORD_CLIENT_SECRET],
   google: [process.env.GOOGLE_CLIENT_ID, process.env.GOOGLE_CLIENT_SECRET],
   epic: [process.env.EPIC_CLIENT_ID, process.env.EPIC_CLIENT_SECRET],
-  x: [process.env.X_API_KEY, process.env.X_API_SECRET],
-  xzugang: [process.env.X_ACCESS_TOKEN, process.env.X_ACCESS_SECRET],
 };
 
 /** Client-Id und Secret eines Dienstes - Ablage zuerst, dann Umgebung. */

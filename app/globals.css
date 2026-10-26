@@ -306,27 +306,27 @@ html.eingebettet body > button.fixed {
 }
 
 /*
- * Statistik: ein Blauschwarz statt Grau (Betreiber, 26.10.2026: "dieses Grau passt nicht zu dem Schwarz - das gleiche bei Head to Head, da fehlt mir was").
- * Die Karten waren das neutrale Grau der Zinkreihe auf einem fast schwarzen Grund; hier bekommen Flaechen und Linien der Seite einen Hauch des Blaus der Startseite, damit
- * Grund und Karten zusammengehoeren. Nur im dunklen Modus und nur auf der Statistikseite (Klasse stat-blau); im hellen gilt weiter die helle Fassung.
+ * Statistik: neutrales Schwarz statt Grau - und nicht Blau (Betreiber, 26.10.2026: erst "dieses Grau passt nicht zu dem Schwarz", dann "die Statistik ist blau geworden, alles andere
+ * schwarz - passt sie wieder auf dunkel und schwarz an"). Die Karten waren das helle Grau der Zinkreihe auf einem fast schwarzen Grund; hier werden Flaechen und Linien der Seite
+ * so dunkel wie die der uebrigen Seiten, ohne Farbstich. Nur im dunklen Modus und nur auf der Statistikseite (Klasse stat-blau, der Name ist geblieben); im hellen gilt die helle Fassung.
  */
-html[data-modus="dunkel"] .stat-blau.bg-zinc-950 { background-color: #05080f; }
-html[data-modus="dunkel"] .stat-blau .bg-zinc-950 { background-color: #060a12; }
-html[data-modus="dunkel"] .stat-blau .bg-zinc-900 { background-color: #0b111d; }
-html[data-modus="dunkel"] .stat-blau .bg-zinc-800 { background-color: #121b2d; }
-html[data-modus="dunkel"] .stat-blau .bg-zinc-800\/70 { background-color: rgba(17, 27, 46, 0.85); }
-html[data-modus="dunkel"] .stat-blau .bg-zinc-800\/80 { background-color: rgba(17, 27, 46, 0.9); }
-html[data-modus="dunkel"] .stat-blau .bg-zinc-900\/80 { background-color: rgba(11, 17, 29, 0.85); }
-html[data-modus="dunkel"] .stat-blau .bg-zinc-900\/60 { background-color: rgba(11, 17, 29, 0.65); }
-html[data-modus="dunkel"] .stat-blau .bg-zinc-900\/40 { background-color: rgba(11, 17, 29, 0.45); }
-html[data-modus="dunkel"] .stat-blau .bg-zinc-900\/30 { background-color: rgba(11, 17, 29, 0.35); }
-html[data-modus="dunkel"] .stat-blau .bg-zinc-950\/60 { background-color: rgba(5, 8, 15, 0.7); }
-html[data-modus="dunkel"] .stat-blau .border-zinc-800 { border-color: rgba(56, 189, 248, 0.13); }
-html[data-modus="dunkel"] .stat-blau .border-zinc-900 { border-color: rgba(56, 189, 248, 0.07); }
-html[data-modus="dunkel"] .stat-blau .border-zinc-700 { border-color: rgba(56, 189, 248, 0.22); }
+html[data-modus="dunkel"] .stat-blau.bg-zinc-950 { background-color: #070709; }
+html[data-modus="dunkel"] .stat-blau .bg-zinc-950 { background-color: #080809; }
+html[data-modus="dunkel"] .stat-blau .bg-zinc-900 { background-color: #0e0e11; }
+html[data-modus="dunkel"] .stat-blau .bg-zinc-800 { background-color: #17171b; }
+html[data-modus="dunkel"] .stat-blau .bg-zinc-800\/70 { background-color: rgba(23, 23, 27, 0.85); }
+html[data-modus="dunkel"] .stat-blau .bg-zinc-800\/80 { background-color: rgba(23, 23, 27, 0.9); }
+html[data-modus="dunkel"] .stat-blau .bg-zinc-900\/80 { background-color: rgba(14, 14, 17, 0.85); }
+html[data-modus="dunkel"] .stat-blau .bg-zinc-900\/60 { background-color: rgba(14, 14, 17, 0.65); }
+html[data-modus="dunkel"] .stat-blau .bg-zinc-900\/40 { background-color: rgba(14, 14, 17, 0.45); }
+html[data-modus="dunkel"] .stat-blau .bg-zinc-900\/30 { background-color: rgba(14, 14, 17, 0.35); }
+html[data-modus="dunkel"] .stat-blau .bg-zinc-950\/60 { background-color: rgba(8, 8, 9, 0.7); }
+html[data-modus="dunkel"] .stat-blau .border-zinc-800 { border-color: rgba(255, 255, 255, 0.08); }
+html[data-modus="dunkel"] .stat-blau .border-zinc-900 { border-color: rgba(255, 255, 255, 0.05); }
+html[data-modus="dunkel"] .stat-blau .border-zinc-700 { border-color: rgba(255, 255, 255, 0.14); }
 html[data-modus="dunkel"] .stat-blau .border-white\/\[0\.08\],
 html[data-modus="dunkel"] .stat-blau .border-white\/\[0\.1\],
-html[data-modus="dunkel"] .stat-blau .border-white\/\[0\.07\] { border-color: rgba(56, 189, 248, 0.14); }
-html[data-modus="dunkel"] .stat-blau .bg-white\/\[0\.02\] { background-color: rgba(56, 130, 246, 0.04); }
+html[data-modus="dunkel"] .stat-blau .border-white\/\[0\.07\] { border-color: rgba(255, 255, 255, 0.09); }
+html[data-modus="dunkel"] .stat-blau .bg-white\/\[0\.02\] { background-color: rgba(255, 255, 255, 0.02); }
 html[data-modus="dunkel"] .stat-blau .bg-white\/\[0\.04\],
-html[data-modus="dunkel"] .stat-blau .bg-white\/\[0\.05\] { background-color: rgba(56, 130, 246, 0.07); }
+html[data-modus="dunkel"] .stat-blau .bg-white\/\[0\.05\] { background-color: rgba(255, 255, 255, 0.04); }

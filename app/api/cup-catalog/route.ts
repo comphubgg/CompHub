@@ -80,6 +80,8 @@ function benenne(cups: CupGruppe[]): CupGruppe[] {
     const zb = istZeroBuild(quelle);
     const reload = /reload/i.test(quelle);
     const fehlt = [zb && !istZeroBuild(c.titel) ? 'Zero Build' : '', reload && !/reload/i.test(c.titel) ? 'Reload' : ''].filter(Boolean);
+    // Auch die Cups mit Bauen sagen es (Betreiber, 26.10.2026: "ob Zero Build oder nicht Zero Build im Titel"): "(Battle Royale)" - bei den FNCS-Reihen (Championship, Division) ist es ohnehin klar.
+    if (!fehlt.length && !zb && !reload && c.art !== 'championship' && c.art !== 'division' && !/battle royale|\(br\)/i.test(c.titel) && (w?.playlist || w?.eventId)) fehlt.push('Battle Royale');
     return fehlt.length ? { ...c, titel: `${c.titel} (${fehlt.join(' ')})` } : c;
   });
 }

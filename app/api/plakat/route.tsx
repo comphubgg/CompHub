@@ -93,10 +93,12 @@ function flagge(land: string | null, b: Bilder, w = 40, h = 28) {
 }
 
 const marke = (b: Bilder, groesse = 30, url = false) => (
-  <div style={{ display: 'flex', alignItems: 'center', gap: 12, whiteSpace: 'nowrap' }}>
-    {b.logo && <img src={b.logo} width={Math.round(groesse * 1.4)} height={groesse} style={{ objectFit: 'contain' }} />}
-    <div style={{ display: 'flex', fontSize: groesse, fontWeight: 800, letterSpacing: 1 }}><span style={{ color: BLAU }}>COMP</span><span>HUB</span></div>
-    {url && <div style={{ display: 'flex', fontSize: Math.round(groesse * 0.75), color: '#64748b', marginLeft: 6 }}>thecomphub.com</div>}
+  <div style={{ display: 'flex', alignItems: 'center', gap: 12, whiteSpace: 'nowrap', flexShrink: 0 }}>
+    {b.logo && <div style={{ display: 'flex', width: Math.round(groesse * 1.4), height: groesse, flexShrink: 0 }}><img src={b.logo} width={Math.round(groesse * 1.4)} height={groesse} style={{ width: Math.round(groesse * 1.4), height: groesse, objectFit: 'contain' }} /></div>}
+    <div style={{ display: 'flex', fontSize: groesse, fontWeight: 800, letterSpacing: 1, flexShrink: 0 }}>
+      <div style={{ display: 'flex', color: BLAU }}>COMP</div><div style={{ display: 'flex' }}>HUB</div>
+    </div>
+    {url && <div style={{ display: 'flex', fontSize: Math.round(groesse * 0.75), color: '#64748b', marginLeft: 6, flexShrink: 0 }}>thecomphub.com</div>}
   </div>
 );
 
@@ -119,14 +121,42 @@ const grund = (kinder: React.ReactNode) => (
 
 /* ------------------------------------------------------------------ Spieler / Team */
 
+/** Die Fotos eines Teams nebeneinander - jedes in eigener Kachel, hoch genug, dass das Gesicht ganz zu sehen ist (nicht zu schmalen Streifen zerquetscht). */
+function fotoReihe(spieler: PlakatSpieler[], b: Bilder, breite: number, hoehe: number, abstand = 8) {
+  const n = Math.max(1, spieler.length);
+  const fw = Math.floor((breite - abstand * (n - 1)) / n);
+  return (
+    <div style={{ display: 'flex', width: breite, height: hoehe, gap: abstand }}>
+      {spieler.map((s, i) => {
+        const d = b.foto.get(s.id + '|' + (s.bild ?? ''));
+        return (
+          <div key={i} style={{ display: 'flex', position: 'relative', width: fw, height: hoehe, overflow: 'hidden', background: 'linear-gradient(160deg,#17406e 0%,#0d1d35 100%)' }}>
+            {d
+              ? <img src={d} width={fw} height={hoehe} style={{ position: 'absolute', left: 0, top: 0, width: fw, height: hoehe, objectFit: 'cover', objectPosition: fokusVon(s.bild) }} />
+              : (
+                <svg width={fw} height={hoehe} viewBox="0 0 100 100" preserveAspectRatio="xMidYMid slice" style={{ position: 'absolute', left: 0, top: 0 }}>
+                  <circle cx="50" cy="38" r="17" fill="rgba(255,255,255,0.14)" />
+                  <path d="M16 96c0-19 15-33 34-33s34 14 34 33z" fill="rgba(255,255,255,0.14)" />
+                </svg>
+              )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
 function spielerPlakat(t: PlakatTeam, k: { titel: string; stufe: string; region: string; datum: string }, b: Bilder) {
   const n = t.spieler.length;
   const art = n <= 1 ? 'SOLO STATS' : n === 2 ? 'DUO STATS' : 'TRIO STATS';
   const namen = t.spieler.map((s) => nameGross(s.name));
-  const PW = 520; const PH = 804;
-  const fw = Math.floor(PW / Math.max(1, n));
+  // Links die Fotos - so hoch, dass man jedes Gesicht erkennt (Betreiber, 26.10.2026: "man muss die Spieler schon erkennen koennen"); darunter Platz, Flaggen und Namen.
+  const PW = 600; const PH = 804;
+  const FOTOH = n <= 1 ? 500 : n === 2 ? 430 : 400;
+  const RX = 48 + PW + 40; const RB = B - 48 - RX;
+  const kw = Math.floor((RB - 48) / 3);
   const kachel = (l: string, w: string, hell = false, gold = false) => (
-    <div style={{ display: 'flex', flexDirection: 'column', width: 296, height: 150, borderRadius: 22, padding: '22px 24px', justifyContent: 'space-between', background: hell ? 'linear-gradient(135deg,#0ea5e9 0%,#2563eb 100%)' : 'rgba(255,255,255,0.06)', border: hell ? '1px solid rgba(255,255,255,0.3)' : '1px solid rgba(255,255,255,0.12)' }}>
+    <div style={{ display: 'flex', flexDirection: 'column', width: kw, height: 150, borderRadius: 22, padding: '22px 24px', justifyContent: 'space-between', background: hell ? 'linear-gradient(135deg,#0ea5e9 0%,#2563eb 100%)' : 'rgba(255,255,255,0.06)', border: hell ? '1px solid rgba(255,255,255,0.3)' : '1px solid rgba(255,255,255,0.12)' }}>
       <div style={{ display: 'flex', fontSize: 22, fontWeight: 700, letterSpacing: 3, color: hell ? '#e0f2fe' : '#94a3b8' }}>{l}</div>
       <div style={{ display: 'flex', fontFamily: FAMILIE, fontSize: 72, fontWeight: 800, lineHeight: 1, color: gold ? GOLD : '#fff' }}>{w}</div>
     </div>
@@ -135,45 +165,38 @@ function spielerPlakat(t: PlakatTeam, k: { titel: string; stufe: string; region:
   const m = t.matches.slice(0, 12);
   const feld = feldGroesse(n);
   const balkenH = 128;
-  const spalte = m.length ? Math.min(96, Math.floor((892 - 8 * (m.length - 1)) / m.length)) : 70;
-  const nameGr = n === 1 ? (namen[0].length > 14 ? 58 : namen[0].length > 9 ? 72 : 92) : n === 2 ? 50 : 40;
+  const spalte = m.length ? Math.min(96, Math.floor((RB - 44 - 8 * (m.length - 1)) / m.length)) : 70;
+  const nameGr = n === 1 ? (namen[0].length > 14 ? 52 : namen[0].length > 9 ? 62 : 74) : n === 2 ? 46 : 38;
+  const medaille = t.rang <= 3 ? MED[t.rang - 1] : '#fff';
 
   return grund(
     <>
-      {/* links: Foto(s) */}
-      <div style={{ position: 'absolute', left: 48, top: 48, width: PW, height: PH, display: 'flex', borderRadius: 32, overflow: 'hidden', background: '#0f1d38', border: '2px solid rgba(255,255,255,0.14)' }}>
-        {t.spieler.map((s, i) => {
-          const d = b.foto.get(s.id + '|' + (s.bild ?? ''));
-          return (
-            <div key={i} style={{ display: 'flex', position: 'relative', width: fw, height: PH, background: 'linear-gradient(160deg,#17406e 0%,#0d1d35 100%)' }}>
-              {d && <img src={d} width={fw} height={PH} style={{ position: 'absolute', left: 0, top: 0, width: fw, height: PH, objectFit: 'cover', objectPosition: fokusVon(s.bild) }} />}
-            </div>
-          );
-        })}
-        <div style={{ position: 'absolute', left: 0, bottom: 0, width: PW, height: 420, display: 'flex', background: 'linear-gradient(0deg, rgba(4,9,20,0.97) 0%, rgba(4,9,20,0.7) 55%, rgba(4,9,20,0) 100%)' }} />
-        <div style={{ position: 'absolute', left: 28, top: 22, display: 'flex', fontFamily: FAMILIE, fontSize: 118, fontWeight: 800, lineHeight: 1, color: t.rang <= 3 ? MED[t.rang - 1] : '#fff', textShadow: '0 4px 18px rgba(0,0,0,0.65)' }}>{`#${t.rang}`}</div>
-        <div style={{ position: 'absolute', left: 28, right: 28, bottom: 30, display: 'flex', flexDirection: 'column' }}>
-          <div style={{ display: 'flex', marginBottom: 14 }}>{t.spieler.map((s, i) => <div key={i} style={{ display: 'flex' }}>{flagge(s.land, b, 48, 33)}</div>)}</div>
-          {n === 1
-            ? <div style={{ display: 'flex', fontFamily: FAMILIE, fontSize: nameGr, fontWeight: 800, lineHeight: 1.0, textTransform: 'uppercase' }}>{namen[0]}</div>
-            : namen.map((nm, i) => <div key={i} style={{ display: 'flex', fontFamily: FAMILIE, fontSize: nameGr, fontWeight: 800, lineHeight: 1.05, textTransform: 'uppercase' }}>{nm}</div>)}
+      <div style={{ position: 'absolute', left: 48, top: 48, width: PW, height: PH, display: 'flex', flexDirection: 'column', borderRadius: 32, overflow: 'hidden', background: '#0f1d38', border: '2px solid rgba(255,255,255,0.14)' }}>
+        {fotoReihe(t.spieler, b, PW, FOTOH)}
+        <div style={{ position: 'absolute', left: 0, top: FOTOH - 120, width: PW, height: 120, display: 'flex', background: 'linear-gradient(0deg, rgba(15,29,56,0.95) 0%, rgba(15,29,56,0) 100%)' }} />
+        <div style={{ position: 'absolute', left: 28, right: 24, top: FOTOH + 18, bottom: 22, display: 'flex', alignItems: 'center' }}>
+          <div style={{ display: 'flex', width: 210, fontFamily: FAMILIE, fontSize: t.rang >= 10 ? 96 : 128, fontWeight: 800, lineHeight: 1, color: medaille }}>{`#${t.rang}`}</div>
+          <div style={{ display: 'flex', flex: 1, flexDirection: 'column' }}>
+            <div style={{ display: 'flex', marginBottom: 10 }}>{t.spieler.map((s, i) => <div key={i} style={{ display: 'flex' }}>{flagge(s.land, b, 44, 30)}</div>)}</div>
+            {namen.map((nm, i) => <div key={i} style={{ display: 'flex', fontFamily: FAMILIE, fontSize: nameGr, fontWeight: 800, lineHeight: 1.05, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{kuerze(nm, 16)}</div>)}
+          </div>
         </div>
       </div>
 
       {/* rechts: Kopf */}
-      <div style={{ position: 'absolute', left: 616, top: 44, width: 936, height: 150, display: 'flex', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', width: 600 }}>
-          <div style={{ display: 'flex', fontFamily: FAMILIE, fontSize: titelGr(k.titel, 56), fontWeight: 800, lineHeight: 1.05, maxHeight: 118, overflow: 'hidden' }}>{kuerze(k.titel, 56)}</div>
-          <div style={{ display: 'flex', fontSize: 22, fontWeight: 700, color: BLAU, letterSpacing: 3, textTransform: 'uppercase', marginTop: 10, whiteSpace: 'nowrap', overflow: 'hidden' }}>{kuerze([k.stufe, k.region, k.datum].filter(Boolean).join(' · '), 46)}</div>
+      <div style={{ position: 'absolute', left: RX, top: 44, width: RB, height: 150, display: 'flex', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', width: RB - 260 }}>
+          <div style={{ display: 'flex', fontFamily: FAMILIE, fontSize: titelGr(k.titel, 52), fontWeight: 800, lineHeight: 1.05, maxHeight: 112, overflow: 'hidden' }}>{kuerze(k.titel, 56)}</div>
+          <div style={{ display: 'flex', fontSize: 22, fontWeight: 700, color: BLAU, letterSpacing: 3, textTransform: 'uppercase', marginTop: 10, whiteSpace: 'nowrap', overflow: 'hidden' }}>{kuerze([k.stufe, k.region, k.datum].filter(Boolean).join(' · '), 40)}</div>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 14 }}>
+        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 14, flexShrink: 0, width: 250 }}>
           {marke(b, 26)}
           <div style={{ display: 'flex', fontSize: 20, fontWeight: 800, letterSpacing: 4, color: BLAU, border: '2px solid rgba(56,189,248,0.6)', borderRadius: 999, padding: '5px 18px', whiteSpace: 'nowrap' }}>{art}</div>
         </div>
       </div>
 
       {/* sechs Werte */}
-      <div style={{ position: 'absolute', left: 616, top: 214, width: 936, display: 'flex', flexWrap: 'wrap', gap: 24 }}>
+      <div style={{ position: 'absolute', left: RX, top: 214, width: RB, display: 'flex', flexWrap: 'wrap', gap: 24 }}>
         {kachel('POINTS', zahl(t.punkte), true)}
         {kachel('MATCHES', String(t.spiele))}
         {kachel('WINS', String(t.siege), false, t.siege > 0)}
@@ -183,7 +206,7 @@ function spielerPlakat(t: PlakatTeam, k: { titel: string; stufe: string; region:
       </div>
 
       {/* Match fuer Match */}
-      <div style={{ position: 'absolute', left: 616, top: 568, width: 936, height: 284, display: 'flex', flexDirection: 'column', borderRadius: 26, padding: '18px 22px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}>
+      <div style={{ position: 'absolute', left: RX, top: 568, width: RB, height: 284, display: 'flex', flexDirection: 'column', borderRadius: 26, padding: '18px 22px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 20, fontWeight: 700, letterSpacing: 3, color: '#94a3b8' }}>
           <span>GAME BY GAME</span><span style={{ color: '#64748b' }}>PLACE · ELIMS</span>
         </div>
@@ -213,15 +236,16 @@ function spielerPlakat(t: PlakatTeam, k: { titel: string; stufe: string; region:
 function zeile(t: PlakatTeam, b: Bilder, w: number, h: number) {
   const n = t.spieler.length;
   const ph = h - 28;
-  const fb = n === 1 ? ph : n === 2 ? Math.round(ph * 0.72) : Math.round(ph * 0.55);
-  const nameGr = n === 1 ? 36 : n === 2 ? 30 : 24;
+  // Hochkant-Kacheln, so breit, dass das Gesicht ganz drauf ist (nicht zu Streifen gequetscht).
+  const fb = n === 1 ? ph : Math.round(ph * 0.8);
+  const nameGr = n === 1 ? 36 : n === 2 ? 28 : 22;
   return (
     <div key={t.rang} style={{ display: 'flex', alignItems: 'center', width: w, height: h, borderRadius: 24, padding: '0 22px 0 14px', background: t.rang === 1 ? 'linear-gradient(90deg,rgba(245,179,1,0.20) 0%,rgba(255,255,255,0.06) 60%)' : 'rgba(255,255,255,0.06)', border: t.rang === 1 ? '1px solid rgba(245,179,1,0.5)' : '1px solid rgba(255,255,255,0.11)' }}>
       <div style={{ display: 'flex', width: 66, justifyContent: 'center', fontFamily: FAMILIE, fontSize: 46, fontWeight: 800, color: t.rang <= 3 ? MED[t.rang - 1] : '#94a3b8' }}>{t.rang}</div>
-      <div style={{ display: 'flex', gap: 6, marginRight: 18 }}>{t.spieler.map((s, i) => <div key={i} style={{ display: 'flex' }}>{foto(s, b, n === 1 ? ph : fb, n === 1 ? ph : ph, 14)}</div>)}</div>
+      <div style={{ display: 'flex', gap: 5, marginRight: 16, flexShrink: 0 }}>{t.spieler.map((s, i) => <div key={i} style={{ display: 'flex' }}>{foto(s, b, fb, ph, 12)}</div>)}</div>
       <div style={{ display: 'flex', flex: 1, flexDirection: 'column', justifyContent: 'center' }}>
         {t.spieler.map((s, i) => (
-          <div key={i} style={{ display: 'flex', alignItems: 'center', fontSize: nameGr, fontWeight: 700, textTransform: 'uppercase', lineHeight: 1.12 }}>{flagge(s.land, b, 32, 22)}{kuerze(nameGross(s.name), 18)}</div>
+          <div key={i} style={{ display: 'flex', alignItems: 'center', fontSize: nameGr, fontWeight: 700, textTransform: 'uppercase', lineHeight: 1.12 }}>{flagge(s.land, b, 32, 22)}{kuerze(nameGross(s.name), 14)}</div>
         ))}
       </div>
       <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
@@ -233,18 +257,19 @@ function zeile(t: PlakatTeam, b: Bilder, w: number, h: number) {
 }
 
 function standingsPlakat(teams: PlakatTeam[], k: { titel: string; stufe: string; region: string; datum: string }, b: Bilder, anzahl: number) {
-  const liste = teams.slice(0, anzahl);
+  // Immer die Top 10 (Betreiber, 26.10.2026) - wo es weniger gibt, eben weniger.
+  const liste = teams.slice(0, 10);
   const proSpalte = Math.ceil(liste.length / 2);
   const zeilenH = proSpalte > 5 ? 106 : 118;
   const spalten = [liste.slice(0, proSpalte), liste.slice(proSpalte)];
   return grund(
     <>
-      <div style={{ position: 'absolute', left: 48, top: 40, right: 48, height: 140, display: 'flex', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', width: 1100 }}>
+      <div style={{ position: 'absolute', left: 48, top: 40, width: 1504, height: 140, display: 'flex', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', width: 1100, flexShrink: 0 }}>
           <div style={{ display: 'flex', fontFamily: FAMILIE, fontSize: titelGr(k.titel, 68), fontWeight: 800, lineHeight: 1.05, whiteSpace: 'nowrap', overflow: 'hidden' }}>{kuerze(k.titel, 64)}</div>
           <div style={{ display: 'flex', fontSize: 26, fontWeight: 700, color: BLAU, letterSpacing: 4, textTransform: 'uppercase', marginTop: 12, whiteSpace: 'nowrap' }}>{kuerze(['Standings', k.stufe, k.region, k.datum].filter(Boolean).join(' · '), 70)}</div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'flex-start' }}>{marke(b, 30)}</div>
+        <div style={{ display: 'flex', alignItems: 'flex-start', flexShrink: 0, width: 300, justifyContent: 'flex-end' }}>{marke(b, 30)}</div>
       </div>
       <div style={{ position: 'absolute', left: 48, top: 196, right: 48, display: 'flex', gap: 24 }}>
         {spalten.map((sp, i) => (
@@ -259,37 +284,31 @@ function finalePlakat(teams: PlakatTeam[], k: { titel: string; stufe: string; re
   const sieger = teams[0];
   const rest = teams.slice(1, 6);
   const n = sieger?.spieler.length ?? 1;
-  const PW = 640; const PH = 804; const fw = Math.floor(PW / Math.max(1, n));
+  // Die Fotos des Siegers in eigenen Kacheln, hoch genug fuer jedes Gesicht; darunter Flaggen, Namen und Punkte (nicht ueber die Gesichter gelegt).
+  const PW = 640; const PH = 804;
+  const FOTOH = n <= 1 ? 500 : n === 2 ? 430 : 400;
   const namen = (sieger?.spieler ?? []).map((s) => nameGross(s.name));
-  const nameGr = n === 1 ? (namen[0].length > 12 ? 70 : 96) : n === 2 ? 56 : 44;
+  const nameGr = n === 1 ? (namen[0].length > 12 ? 56 : 72) : n === 2 ? 44 : 36;
   return grund(
     <>
-      <div style={{ position: 'absolute', left: 48, top: 48, width: PW, height: PH, display: 'flex', borderRadius: 32, overflow: 'hidden', background: '#0f1d38', border: '2px solid rgba(245,179,1,0.6)' }}>
-        {(sieger?.spieler ?? []).map((s, i) => {
-          const d = b.foto.get(s.id + '|' + (s.bild ?? ''));
-          return (
-            <div key={i} style={{ display: 'flex', position: 'relative', width: fw, height: PH, background: 'linear-gradient(160deg,#17406e 0%,#0d1d35 100%)' }}>
-              {d && <img src={d} width={fw} height={PH} style={{ position: 'absolute', left: 0, top: 0, width: fw, height: PH, objectFit: 'cover', objectPosition: fokusVon(s.bild) }} />}
-            </div>
-          );
-        })}
-        <div style={{ position: 'absolute', left: 0, bottom: 0, width: PW, height: 460, display: 'flex', background: 'linear-gradient(0deg, rgba(4,9,20,0.98) 0%, rgba(4,9,20,0.72) 55%, rgba(4,9,20,0) 100%)' }} />
-        <div style={{ position: 'absolute', left: 30, top: 28, display: 'flex', fontSize: 26, fontWeight: 800, letterSpacing: 8, color: '#0b1220', background: GOLD, borderRadius: 999, padding: '8px 24px' }}>WINNER</div>
-        <div style={{ position: 'absolute', left: 30, right: 30, bottom: 34, display: 'flex', flexDirection: 'column' }}>
-          <div style={{ display: 'flex', marginBottom: 14 }}>{(sieger?.spieler ?? []).map((s, i) => <div key={i} style={{ display: 'flex' }}>{flagge(s.land, b, 54, 37)}</div>)}</div>
-          {namen.map((nm, i) => <div key={i} style={{ display: 'flex', fontFamily: FAMILIE, fontSize: nameGr, fontWeight: 800, lineHeight: 1.02, textTransform: 'uppercase' }}>{nm}</div>)}
-          <div style={{ display: 'flex', alignItems: 'baseline', gap: 14, marginTop: 14 }}>
-            <div style={{ display: 'flex', fontFamily: FAMILIE, fontSize: 80, fontWeight: 800, color: GOLD, lineHeight: 1 }}>{zahl(sieger?.punkte ?? 0)}</div>
-            <div style={{ display: 'flex', fontSize: 30, fontWeight: 700, color: '#cbd5e1' }}>{`PTS · ${sieger?.siege ?? 0} ${sieger?.siege === 1 ? 'WIN' : 'WINS'} · ${sieger?.elims ?? 0} ELIMS`}</div>
+      <div style={{ position: 'absolute', left: 48, top: 48, width: PW, height: PH, display: 'flex', flexDirection: 'column', borderRadius: 32, overflow: 'hidden', background: '#0f1d38', border: '2px solid rgba(245,179,1,0.6)' }}>
+        {fotoReihe(sieger?.spieler ?? [], b, PW, FOTOH)}
+        <div style={{ position: 'absolute', left: 24, top: 22, display: 'flex', fontSize: 26, fontWeight: 800, letterSpacing: 8, color: '#0b1220', background: GOLD, borderRadius: 999, padding: '8px 24px' }}>WINNER</div>
+        <div style={{ position: 'absolute', left: 30, right: 30, top: FOTOH + 20, bottom: 22, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+          <div style={{ display: 'flex', marginBottom: 10 }}>{(sieger?.spieler ?? []).map((s, i) => <div key={i} style={{ display: 'flex' }}>{flagge(s.land, b, 48, 33)}</div>)}</div>
+          {namen.map((nm, i) => <div key={i} style={{ display: 'flex', fontFamily: FAMILIE, fontSize: nameGr, fontWeight: 800, lineHeight: 1.02, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{kuerze(nm, 16)}</div>)}
+          <div style={{ display: 'flex', alignItems: 'baseline', gap: 14, marginTop: 10 }}>
+            <div style={{ display: 'flex', fontFamily: FAMILIE, fontSize: 70, fontWeight: 800, color: GOLD, lineHeight: 1 }}>{zahl(sieger?.punkte ?? 0)}</div>
+            <div style={{ display: 'flex', fontSize: 26, fontWeight: 700, color: '#cbd5e1' }}>{`PTS · ${sieger?.siege ?? 0} ${sieger?.siege === 1 ? 'WIN' : 'WINS'} · ${sieger?.elims ?? 0} ELIMS`}</div>
           </div>
         </div>
       </div>
       <div style={{ position: 'absolute', left: 724, top: 48, width: 828, height: 130, display: 'flex', justifyContent: 'space-between' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', width: 600 }}>
-          <div style={{ display: 'flex', fontFamily: FAMILIE, fontSize: titelGr(k.titel, 54), fontWeight: 800, lineHeight: 1.05, maxHeight: 104, overflow: 'hidden' }}>{kuerze(k.titel, 52)}</div>
-          <div style={{ display: 'flex', fontSize: 22, fontWeight: 700, color: BLAU, letterSpacing: 3, textTransform: 'uppercase', marginTop: 10, whiteSpace: 'nowrap' }}>{kuerze([k.stufe || 'Finals', k.region, k.datum].filter(Boolean).join(' · '), 46)}</div>
+        <div style={{ display: 'flex', flexDirection: 'column', width: 540 }}>
+          <div style={{ display: 'flex', fontFamily: FAMILIE, fontSize: titelGr(k.titel, 50), fontWeight: 800, lineHeight: 1.05, maxHeight: 104, overflow: 'hidden' }}>{kuerze(k.titel, 52)}</div>
+          <div style={{ display: 'flex', fontSize: 22, fontWeight: 700, color: BLAU, letterSpacing: 3, textTransform: 'uppercase', marginTop: 10, whiteSpace: 'nowrap' }}>{kuerze([k.stufe || 'Finals', k.region, k.datum].filter(Boolean).join(' · '), 40)}</div>
         </div>
-        <div style={{ display: 'flex', alignItems: 'flex-start' }}>{marke(b, 24)}</div>
+        <div style={{ display: 'flex', alignItems: 'flex-start', flexShrink: 0, width: 250, justifyContent: 'flex-end' }}>{marke(b, 24)}</div>
       </div>
       <div style={{ position: 'absolute', left: 724, top: 196, display: 'flex', flexDirection: 'column', gap: 11 }}>{rest.map((t) => zeile(t, b, 828, 104))}</div>
       {k.preis && (
@@ -343,7 +362,10 @@ function top5Plakat(d: Top5, b: Bilder) {
 /* ------------------------------------------------------------------ die Abfrage */
 
 export async function GET(request: Request) {
-  if (!await istAdminAnfrage(request)) return new Response('nur fuer den Admin', { status: 403 });
+  // Der Admin - oder der Ablauf der Ergebnis-Posts mit dem Bot-Schluessel/CRON_SECRET im Kopf (Standings-Plakat als Bild des Posts).
+  const bearer = (request.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '').trim();
+  const ablauf = !!bearer && [process.env.CRON_SECRET, process.env.DISCORD_BOT_TOKEN].some((x) => (x ?? '').trim() === bearer);
+  if (!ablauf && !await istAdminAnfrage(request)) return new Response('nur fuer den Admin', { status: 403 });
   const p = new URL(request.url).searchParams;
   const ursprung = new URL(request.url).origin;
   const art = p.get('art') ?? 'spieler';
@@ -388,7 +410,7 @@ export async function GET(request: Request) {
       if (!event || !windows.length) return Response.json({ ok: false, fehler: 'event und window fehlen' }, { status: 200 });
       const suche = (p.get('q') ?? '').trim();
       const teamId = p.get('team') ?? '';
-      const anzahl = art === 'standings' ? Math.min(Math.max(Number(p.get('anzahl') ?? 10) || 10, 4), 10) : 8;
+      const anzahl = 10;
       let teams = await plakatTeams({ ursprung, event, windows, limit: art === 'spieler' && (teamId || suche) ? 200 : 30 });
       if (!teams.length) return Response.json({ ok: false, fehler: 'Zu diesem Spieltag gibt es noch keine Bestenliste.' }, { status: 200 });
       if (art === 'spieler') {

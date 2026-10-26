@@ -89,9 +89,12 @@ export function BilderSchalter() {
     <button type="button" aria-pressed={bilder} onClick={() => setBilder(!bilder)} className="bilder-icon"
       title={bilder ? t('Fotos an - zum Ausschalten klicken') : t('Fotos aus - zum Einschalten klicken')}
       aria-label={t('Spieler mit Fotos oder nur mit Namen anzeigen')}>
+      {/* Das uebliche Bild-Zeichen (Rahmen, Sonne, Berg) - ohne Fotos mit einem Strich quer darueber: das Standardzeichen fuer "keine Bilder" (Betreiber, 26.10.2026: "nicht die Person, sondern das normale No-Picture-Zeichen"). */}
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-        <circle cx="12" cy="8" r="4" />
-        <path d="M4 21c0-4.4 3.6-7 8-7s8 2.6 8 7" />
+        <rect x="3" y="4" width="18" height="16" rx="2.5" />
+        <circle cx="8.5" cy="9.5" r="1.6" />
+        <path d="M21 16l-5-5-8 9" />
+        {!bilder && <path d="M3 3l18 18" />}
       </svg>
     </button>
   );

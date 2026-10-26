@@ -619,12 +619,12 @@ export default function KontoSeite({ eingebettet = false }: { eingebettet?: bool
     return () => { weg = true; };
   }, [laedt, konto, zugang.vip]);
 
-  async function speichernVip() {
+  async function speichernVip(neuesBild?: string) {
     setStand(t('speichert …'));
     try {
       const r = await fetch('/api/profile', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ profile: { ...(vipProfil ?? { twitchChatEnabled: false, socials: { twitch: '' } }), displayName: name || String(vipProfil?.displayName ?? zugang.name ?? ''), avatarUrl: bild } }),
+        body: JSON.stringify({ profile: { ...(vipProfil ?? { twitchChatEnabled: false, socials: { twitch: '' } }), displayName: name || String(vipProfil?.displayName ?? zugang.name ?? ''), avatarUrl: neuesBild ?? bild } }),
       });
       const j = await r.json().catch(() => ({}));
       if (!r.ok) { setStand(j?.error ?? t('nicht gespeichert')); return; }
@@ -652,12 +652,12 @@ export default function KontoSeite({ eingebettet = false }: { eingebettet?: bool
     } catch (e) { setAnlegenStand((e as Error).message); }
   }
 
-  async function speichern() {
+  async function speichern(neuesBild?: string) {
     setStand(t('speichert …'));
     try {
       const r = await fetch('/api/konto', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ was: 'aendern', name, socials, bild }),
+        body: JSON.stringify({ was: 'aendern', name, socials, bild: neuesBild ?? bild }),
       });
       const j = await r.json();
       if (!r.ok) { setStand(j?.fehler ?? t('nicht gespeichert')); return; }
@@ -688,7 +688,10 @@ export default function KontoSeite({ eingebettet = false }: { eingebettet?: bool
         stift.drawImage(roh,
           (roh.width - kante) / 2, (roh.height - kante) / 2, kante, kante,
           0, 0, K, K);
-        setBild(flaeche.toDataURL('image/webp', 0.85));
+        const neu = flaeche.toDataURL('image/webp', 0.85);
+        setBild(neu);
+        // Gleich speichern (Betreiber, 26.10.2026: "ich lade ein Profilbild hoch, lade die Seite neu - und es ist weg"): wer das Bild waehlt und neu laedt, ohne "Speichern" zu druecken, verlor es.
+        void (nurVip ? speichernVip(neu) : speichern(neu));
       };
       roh.src = String(leser.result);
     };
@@ -1274,7 +1277,7 @@ export default function KontoSeite({ eingebettet = false }: { eingebettet?: bool
         {nurVip && (
           <>
             <div className="mt-6 flex items-center gap-3">
-              <button onClick={speichernVip}
+              <button onClick={() => void speichernVip()}
                 className="rounded-lg bg-sky-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-400">
                 <T>Bild und Name speichern</T>
               </button>
@@ -1302,7 +1305,7 @@ export default function KontoSeite({ eingebettet = false }: { eingebettet?: bool
 
         {!nurVip && (
           <div className="mt-6 flex items-center gap-3">
-            <button onClick={speichern}
+            <button onClick={() => void speichern()}
               className="rounded-lg bg-sky-500 px-5 py-2.5 text-sm font-semibold
                          text-white transition hover:bg-sky-400">
               <T>speichern</T>

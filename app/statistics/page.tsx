@@ -3852,6 +3852,80 @@ export default function StatistikSeite() {
     </nav>
   );
 
+  /** Die Suche nach einem Spieler - sie steht immer oben rechts, auch im Profil und in der vollen Liste (Betreiber, 26.10.2026). */
+  const kopfSuchfeld = (
+    <div className="relative ml-auto w-56 sm:w-72">
+      <input value={kopfSuche}
+        onChange={(e) => {
+          setKopfSuche(e.target.value);
+          // In der Bilderansicht ist dasselbe Feld der Filter fuer
+          // das Raster - zwei Suchfelder nebeneinander waren eines
+          // zu viel.
+          if (bereich === 'bilder') {
+            setGalerieSuche(e.target.value);
+            setGalerieMenge(400);
+          } else {
+            setKopfOffen(true);
+          }
+        }}
+        onFocus={() => setKopfOffen(bereich !== 'bilder')}
+        onBlur={() => setTimeout(() => setKopfOffen(false), 150)}
+        onKeyDown={(e) => {
+          // Eingabetaste oeffnet den ersten Treffer - schneller als
+          // zur Maus zu greifen.
+          if (e.key === 'Enter' && kopfTreffer[0]) {
+            oeffne(kopfTreffer[0]);
+            setKopfSuche(''); setKopfOffen(false);
+          }
+          if (e.key === 'Escape') { setKopfSuche(''); setKopfOffen(false); }
+        }}
+        placeholder={bereich === 'bilder'
+          ? t('Name suchen — oder DE, FR, GB') : t('Spieler suchen …')}
+        title={bereich === 'bilder'
+          ? t('Klein geschrieben sucht im Namen, groß geschrieben '
+            + 'nach Ländern: DE,FR,GB') : undefined}
+        className="w-full rounded-lg border border-zinc-800 bg-zinc-900/80 px-3
+                   py-1.5 text-sm text-slate-100 outline-none
+                   placeholder:text-slate-600 focus:border-sky-500" />
+
+      {kopfOffen && bereich !== 'bilder' && kopfTreffer.length > 0 && (
+        <div className="absolute right-0 z-40 mt-1 w-full overflow-hidden
+                        rounded-lg border border-zinc-700 bg-zinc-950
+                        shadow-2xl">
+          {kopfTreffer.map((sp) => (
+            <button key={sp.epicId}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                oeffne(sp); setKopfSuche(''); setKopfOffen(false);
+              }}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left
+                         transition hover:bg-zinc-900">
+              {sp.bild ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img src={sp.bild} alt="" loading="lazy"
+                  className="h-8 w-8 shrink-0 rounded object-cover
+                             object-top" />
+              ) : (
+                <span className="flex h-8 w-8 shrink-0 items-center
+                                 justify-center rounded bg-zinc-900
+                                 text-xs text-zinc-700">?</span>
+              )}
+              <TeamFlagge groesse={16} laender={[sp.land ?? undefined]} />
+              <span className="min-w-0 flex-1 truncate text-xs font-semibold
+                               uppercase tracking-wide text-slate-100">
+                {grossName(sp.anzeige, sp.gepflegt)}
+              </span>
+              {sp.heimat && <RegionMarke region={sp.heimat} />}
+              <span className="shrink-0 text-[10px] text-slate-600">
+                {zahl(sp.matches, 0, sprache)} <T>Matches</T>
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
   return (
     <main className="stat-blau min-h-screen bg-zinc-950 text-slate-100">
       {/* Ein Ladeschirm ueber allem, solange Profil, Jahr oder Liste geholt
@@ -3861,7 +3935,12 @@ export default function StatistikSeite() {
 
         {/* ---------------------------------------------- rechter Inhalt */}
         <div className="min-w-0 flex-1">
-          {(offen || volleListe) && bereichsLeiste}
+          {(offen || volleListe) && (
+            <div className="mb-6 flex flex-wrap items-center gap-3">
+              <div className="min-w-0 max-w-full">{bereichsLeiste}</div>
+              {kopfSuchfeld}
+            </div>
+          )}
           {/* Ist ein Profil offen, steht es hier anstelle des Inhalts. */}
           {!offen && !volleListe && (<>
 
@@ -3884,76 +3963,7 @@ export default function StatistikSeite() {
                 daneben - ein Name soll gefunden werden, ohne dass man vorher
                 weiss, wann derjenige zuletzt gespielt hat. Ein Klick auf
                 einen Treffer oeffnet direkt sein Profil. */}
-            <div className="relative ml-auto w-56 sm:w-72">
-              <input value={kopfSuche}
-                onChange={(e) => {
-                  setKopfSuche(e.target.value);
-                  // In der Bilderansicht ist dasselbe Feld der Filter fuer
-                  // das Raster - zwei Suchfelder nebeneinander waren eines
-                  // zu viel.
-                  if (bereich === 'bilder') {
-                    setGalerieSuche(e.target.value);
-                    setGalerieMenge(400);
-                  } else {
-                    setKopfOffen(true);
-                  }
-                }}
-                onFocus={() => setKopfOffen(bereich !== 'bilder')}
-                onBlur={() => setTimeout(() => setKopfOffen(false), 150)}
-                onKeyDown={(e) => {
-                  // Eingabetaste oeffnet den ersten Treffer - schneller als
-                  // zur Maus zu greifen.
-                  if (e.key === 'Enter' && kopfTreffer[0]) {
-                    oeffne(kopfTreffer[0]);
-                    setKopfSuche(''); setKopfOffen(false);
-                  }
-                  if (e.key === 'Escape') { setKopfSuche(''); setKopfOffen(false); }
-                }}
-                placeholder={bereich === 'bilder'
-                  ? t('Name suchen — oder DE, FR, GB') : t('Spieler suchen …')}
-                title={bereich === 'bilder'
-                  ? t('Klein geschrieben sucht im Namen, groß geschrieben '
-                    + 'nach Ländern: DE,FR,GB') : undefined}
-                className="w-full rounded-lg border border-zinc-800 bg-zinc-900/80 px-3
-                           py-1.5 text-sm text-slate-100 outline-none
-                           placeholder:text-slate-600 focus:border-sky-500" />
-
-              {kopfOffen && bereich !== 'bilder' && kopfTreffer.length > 0 && (
-                <div className="absolute right-0 z-40 mt-1 w-full overflow-hidden
-                                rounded-lg border border-zinc-700 bg-zinc-950
-                                shadow-2xl">
-                  {kopfTreffer.map((sp) => (
-                    <button key={sp.epicId}
-                      onMouseDown={(e) => e.preventDefault()}
-                      onClick={() => {
-                        oeffne(sp); setKopfSuche(''); setKopfOffen(false);
-                      }}
-                      className="flex w-full items-center gap-2 px-3 py-2 text-left
-                                 transition hover:bg-zinc-900">
-                      {sp.bild ? (
-                        /* eslint-disable-next-line @next/next/no-img-element */
-                        <img src={sp.bild} alt="" loading="lazy"
-                          className="h-8 w-8 shrink-0 rounded object-cover
-                                     object-top" />
-                      ) : (
-                        <span className="flex h-8 w-8 shrink-0 items-center
-                                         justify-center rounded bg-zinc-900
-                                         text-xs text-zinc-700">?</span>
-                      )}
-                      <TeamFlagge groesse={16} laender={[sp.land ?? undefined]} />
-                      <span className="min-w-0 flex-1 truncate text-xs font-semibold
-                                       uppercase tracking-wide text-slate-100">
-                        {grossName(sp.anzeige, sp.gepflegt)}
-                      </span>
-                      {sp.heimat && <RegionMarke region={sp.heimat} />}
-                      <span className="shrink-0 text-[10px] text-slate-600">
-                        {zahl(sp.matches, 0, sprache)} <T>Matches</T>
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
+            {kopfSuchfeld}
             {/*
              * Das Schloss - siehe Sichtbar oben. Nur der Betreiber sieht es:
              * ein kleines Symbol ohne Text, gruen (alle), gelb (VIPs), rot

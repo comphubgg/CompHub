@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import VIPLoginForm from '../login/VIPLoginForm';
 
 import T from '@/app/components/T';
@@ -74,6 +74,9 @@ export default function MainHeader({ sektionenAnfang }: {
    * sie hinter einem Knopf und klappen bei Bedarf auf.
    */
   const [menueOffen, setMenueOffen] = useState(false);
+  /** Das Menue hinter dem Profilbild (Konto, Dashboard, Admin, Abmelden) - ein Element statt vieler Knoepfe nebeneinander. */
+  const [kontoMenue, setKontoMenue] = useState(false);
+  const kontoBox = useRef<HTMLDivElement | null>(null);
 
   const [profileName, setProfileName] = useState<string | null>(null);
   const [authStatus, setAuthStatus] = useState<'unknown' | 'loading' | 'authorized' | 'unauthorized'>('unknown');
@@ -224,7 +227,15 @@ export default function MainHeader({ sektionenAnfang }: {
    * Ohne das bliebe es offen ueber der neuen Seite stehen - man haette
    * angetippt, was man wollte, saehe aber weiter nur die Liste.
    */
-  useEffect(() => { setMenueOffen(false); }, [pathname]);
+  useEffect(() => { setMenueOffen(false); setKontoMenue(false); }, [pathname]);
+  // Ein Klick daneben oder Escape schliesst das Kontomenue.
+  useEffect(() => {
+    if (!kontoMenue) return undefined;
+    const aus = (e: MouseEvent) => { if (kontoBox.current && !kontoBox.current.contains(e.target as Node)) setKontoMenue(false); };
+    const esc = (e: KeyboardEvent) => { if (e.key === 'Escape') setKontoMenue(false); };
+    document.addEventListener('mousedown', aus); document.addEventListener('keydown', esc);
+    return () => { document.removeEventListener('mousedown', aus); document.removeEventListener('keydown', esc); };
+  }, [kontoMenue]);
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-zinc-800 bg-zinc-950/95 backdrop-blur-xl">
@@ -353,67 +364,48 @@ export default function MainHeader({ sektionenAnfang }: {
               * sechsunddreissig Pixeln waere jede Schrift unlesbar. Zwei
               * Marken hoechstens: die Rolle und das VIP.
               */}
-            {angemeldet && kontoOrg && (
-              <Link href="/org" prefetch={false}
-                className="rounded-full border border-violet-500/50 bg-violet-500/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-violet-500 transition hover:bg-violet-500/20">
-                {t('Team')}
-              </Link>
-            )}
-            {angemeldet && (kontoRolle || kontoVip) && (
-              <span className="flex items-center gap-1">
-                {kontoRolle && (
-                  <span className="rounded-full border border-sky-500/50
-                                   bg-sky-500/10 px-2 py-0.5 text-[10px]
-                                   font-bold uppercase tracking-wider
-                                   text-sky-400">
-                    {kontoRolle}
-                  </span>
-                )}
-                {kontoVip && (
-                  <span className="rounded-full border border-amber-500/50
-                                   bg-amber-500/10 px-2 py-0.5 text-[10px]
-                                   font-bold uppercase tracking-wider
-                                   text-amber-400"
-                    title={vipBis
-                      ? `${t('läuft bis')} ${new Date(vipBis).toLocaleDateString('de-DE')}`
-                      : t('ohne Ende')}>
-                    VIP
-                  </span>
-                )}
-              </span>
-            )}
-
             {angemeldet ? (
-              <span className="flex items-stretch overflow-hidden rounded-lg border border-zinc-700 bg-slate-800 transition hover:border-sky-500">
-              {/* Eines statt zwei (Betreiber, 26.10.2026: "ADMIN und das Profilbild sollen eins sein"): die Verwaltung links, das Konto rechts, ein gemeinsamer Rahmen. */}
-              {profileName?.toLowerCase() === 'admin-juanito' && (
-                <Link href="/admin" prefetch={false} title={t('Verwaltung')}
-                  className="flex items-center border-r border-zinc-700 px-3 text-xs font-bold tracking-wide text-slate-100 transition hover:bg-slate-700">
-                  ADMIN
-                </Link>
-              )}
-              <Link
-                /*
-                 * Wer ein CompHub-Konto hat, landet dort. Wer nur ueber den
-                 * VIP-Schluessel drin ist, hat keines - fuer den ist die
-                 * Verwaltung das Dashboard. Sonst liefe der Klick auf
-                 * /konto und von dort direkt weiter zur Anmeldung.
-                 */
-                href={kontoName ? '/account' : '/vip'}
-                prefetch={false}
-                title={anzeige}
-                aria-label={`${t('Mein Konto')} — ${anzeige}`}
-                className="relative grid h-9 w-9 place-items-center overflow-hidden
-                           text-sm font-semibold uppercase text-slate-100
-                           transition hover:bg-slate-700"
-              >
-                {/* Das Profilbild ist quadratisch mit abgerundeten Ecken, ohne eigenes Bild steht das Platzhalterfoto da: eine Person ohne Gesicht (Betreiber, 21.10.2026). */}
-                {(kontoBild || vipBild)
-                  // eslint-disable-next-line @next/next/no-img-element
-                  ? <img src={kontoBild || vipBild || ''} alt="" className="h-full w-full object-cover" />
-                  : <SpielerPlatzhalter name={anzeige} />}
-              </Link>
-              </span>
+              <div ref={kontoBox} className="relative">
+                {/*
+                  * Ein Zeichen statt vieler (Betreiber, 26.10.2026: "ADMIN, Profilbild, Rolle - das verstehe ich nicht, es soll eins sein"): das Profilbild. Dahinter liegt ein Menue mit
+                  * Namen, Rolle, Konto, Dashboard, Verwaltung und Abmelden. Ohne eigenes Bild steht das Platzhalterfoto da.
+                  */}
+                <button type="button" onClick={() => setKontoMenue((o) => !o)} aria-haspopup="menu" aria-expanded={kontoMenue}
+                  title={anzeige} aria-label={`${t('Mein Konto')} — ${anzeige}`}
+                  className="relative grid h-9 w-9 place-items-center overflow-hidden rounded-lg border border-zinc-700 bg-slate-800 text-sm font-semibold uppercase text-slate-100 transition hover:border-sky-500">
+                  {(kontoBild || vipBild)
+                    // eslint-disable-next-line @next/next/no-img-element
+                    ? <img src={kontoBild || vipBild || ''} alt="" className="h-full w-full object-cover" />
+                    : <SpielerPlatzhalter name={anzeige} />}
+                </button>
+                {kontoMenue && (
+                  <div role="menu" className="absolute right-0 top-full z-[60] mt-2 w-64 overflow-hidden rounded-xl border border-zinc-700 bg-zinc-950 shadow-2xl">
+                    <div className="border-b border-zinc-800 px-4 py-3">
+                      <p className="truncate text-sm font-bold text-slate-100">{anzeige}</p>
+                      {(kontoRolle || kontoVip || kontoOrg) && (
+                        <p className="mt-1.5 flex flex-wrap gap-1">
+                          {kontoRolle && <span className="rounded-full border border-sky-500/50 bg-sky-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-sky-400">{kontoRolle}</span>}
+                          {kontoVip && (
+                            <span className="rounded-full border border-amber-500/50 bg-amber-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-amber-400"
+                              title={vipBis ? `${t('läuft bis')} ${new Date(vipBis).toLocaleDateString('de-DE')}` : t('ohne Ende')}>VIP</span>
+                          )}
+                          {kontoOrg && <span className="rounded-full border border-violet-500/50 bg-violet-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-violet-400">{t('Team')}</span>}
+                        </p>
+                      )}
+                    </div>
+                    <div className="py-1.5 text-sm">
+                      <Link role="menuitem" href={kontoName ? '/account' : '/vip'} prefetch={false} className="block px-4 py-2 text-slate-200 transition hover:bg-zinc-900 hover:text-sky-400"><T>Mein Konto</T></Link>
+                      {(profileName || kontoRolle || kontoVip) && (
+                        <Link role="menuitem" href="/admin" prefetch={false} className="block px-4 py-2 text-slate-200 transition hover:bg-zinc-900 hover:text-sky-400">{(profileName?.toLowerCase() === 'admin-juanito' || kontoRolle === 'admin') ? <T>Verwaltung</T> : <T>Dashboard</T>}</Link>
+                      )}
+                      {kontoOrg && (
+                        <Link role="menuitem" href="/org" prefetch={false} className="block px-4 py-2 text-slate-200 transition hover:bg-zinc-900 hover:text-sky-400">{t('Team')}</Link>
+                      )}
+                      <button type="button" role="menuitem" onClick={handleLogout} className="block w-full border-t border-zinc-800 px-4 py-2 text-left text-slate-400 transition hover:bg-zinc-900 hover:text-rose-400"><T>Abmelden</T></button>
+                    </div>
+                  </div>
+                )}
+              </div>
             ) : (
               <Link
                 href="/sign-in"

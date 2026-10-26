@@ -44,6 +44,8 @@ export function fensterName(windowId: string, istFinale: boolean): string {
   return istFinale ? 'Finals' : '';
 }
 
+const heuteDatumKurz = (ms?: number) => { const d = new Date(ms ?? Date.now()); return `${d.getUTCDate()} ${['JAN', 'FEB', 'MAR', 'APR', 'MAY', 'JUN', 'JUL', 'AUG', 'SEP', 'OCT', 'NOV', 'DEC'][d.getUTCMonth()]} ${d.getUTCFullYear()}`; };
+
 const flagge = (land?: string | null) => (land && /^[A-Za-z]{2}$/.test(land)
   ? [...land.toUpperCase()].map((c) => String.fromCodePoint(127397 + c.charCodeAt(0))).join('') : '');
 
@@ -95,7 +97,8 @@ async function postZu(cup: KatalogCup, region: string, f: KatalogFenster, istFin
     nr: 0, art: 'ergebnis', schluessel: `ergebnis:${f.windowId}:${region}`,
     titel: `Ergebnis: ${titel}`,
     text: `${titel} Standings 👀\n\n${zeilen.join('\n')}\n\nFull leaderboard: ${SEITE}/events/${encodeURIComponent(cup.id)}`,
-    bild: { art: 'ergebnis', ids },
+    // Dazu alles, was das Standings-Plakat braucht (app/api/plakat) - das Bild des Posts sind die Top 10 mit Profilbildern und Flaggen, nicht mehr das Fotomosaik.
+    bild: { art: 'ergebnis', ids, event: f.eventId, window: f.windowId, region, titel: basis, stufe: [name].filter(Boolean).join(' '), datum: heuteDatumKurz(f.end) },
   };
 }
 

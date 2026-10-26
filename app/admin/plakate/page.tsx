@@ -106,7 +106,6 @@ export default function PlakatSeite() {
     if (datum) q.set('datum', datum);
     if (preis) q.set('preis', preis);
     if (art === 'spieler' && spieler.trim()) q.set('q', spieler.trim());
-    if (art === 'standings') q.set('anzahl', String(anzahl));
     return `/api/plakat?${q.toString()}`;
   }, [art, fenster, tage, titel, stufe, region, datum, preis, spieler, anzahl, liste, jahr, topRegion]);
 
@@ -235,10 +234,6 @@ export default function PlakatSeite() {
                 {art === 'spieler' && (
                   <label className="block"><span className={beschriftung}><T>Spieler oder Team</T></span>
                     <input value={spieler} onChange={(e) => setSpieler(e.target.value)} placeholder={t('Name tippen — ohne Eingabe der Erste')} spellCheck={false} className={feld} /></label>
-                )}
-                {art === 'standings' && (
-                  <label className="block"><span className={beschriftung}><T>Plätze</T> · {anzahl}</span>
-                    <input type="range" min={4} max={10} value={anzahl} onChange={(e) => setAnzahl(Number(e.target.value))} className="w-full accent-sky-500" /></label>
                 )}
               </>
             )}
