@@ -33,6 +33,8 @@ export async function geldErzaehlen(
   let tab: Awaited<ReturnType<typeof tabelleFuer>> = null;
   try { tab = await tabelleFuer(k.f.windowId, k.region); } catch { /* ohne Tabelle erzaehlt das Video nur die Betraege */ }
   const nachPunkten = tab?.art === 'punkte';
+  // Die Punkte, wie sie gespielt wurden - die Zeile zeigt danach den Betrag (die Zahl rechts zaehlt hoch, mit "$" davor).
+  const pkt = zeilen.map((z) => z.punkte);
 
   zeilen.forEach((z, i) => {
     const je = werte[i];
@@ -41,18 +43,17 @@ export async function geldErzaehlen(
     const team = je * anzahl;
     const mehrere = anzahl > 1;
     z.praefix = '$';
-    z.wertText = team.toLocaleString('en-US');
     z.einheit = mehrere ? 'TEAM EARNINGS' : 'EARNINGS';
     const kopfSatz = z.rang === 1 ? 'And the winner.' : `Number ${PLATZWORT[z.rang] ?? z.rang}.`;
     const geld = mehrere ? `each, ${dollar(team)} for the team` : 'in prize money';
     if (nachPunkten) {
       // 100 Punkte sind ein Sieg (Performance und Victory Cups) - der Betrag haengt an den Punkten.
-      const siege = z.punkte >= 100 ? Math.floor(z.punkte / 100) : 0;
+      const siege = pkt[i] >= 100 ? Math.floor(pkt[i] / 100) : 0;
       const sieg = siege === 0 ? '' : siege === 1 ? ': a win' : `: ${zahlWort(siege)} wins`;
-      if (je > 0) z.satz = `${kopfSatz} ${z.gesprochen}, with ${z.punkte} points${sieg}. That is ${dollar(je)} ${geld}.`;
+      if (je > 0) z.satz = `${kopfSatz} ${z.gesprochen}, with ${pkt[i]} points${sieg}. That is ${dollar(je)} ${geld}.`;
       else z.satz = `${kopfSatz} ${z.gesprochen}. No win this time, but one of the most consistent ${mehrere ? 'teams' : 'players'} of the day.`;
     } else if (je > 0) {
-      z.satz = `${kopfSatz} ${z.gesprochen}, with ${z.punkte} points, and ${dollar(je)} ${geld}.`;
+      z.satz = `${kopfSatz} ${z.gesprochen}, with ${pkt[i]} points, and ${dollar(je)} ${geld}.`;
     }
   });
 
@@ -63,12 +64,14 @@ export async function geldErzaehlen(
     ? `${spiel}. In this cup every win is worth one hundred points, and one hundred points pays ${dollar(proSieg)} per player. So here the points are the prize money. These are the top five.`
     : `${spiel}. Prize money was on the line - here is who took it home. These are the top five.`;
 
-  const nachRang = zeilen.map((z, i) => ({ z, je: werte[i] })).sort((a, b) => a.z.rang - b.z.rang);
+  const nachRang = zeilen.map((z, i) => ({ z, je: werte[i], p: pkt[i] })).sort((a, b) => a.z.rang - b.z.rang);
+  // Jetzt erst zeigt die Zeile den Betrag: die Zahl rechts ist das Geld des Teams.
+  zeilen.forEach((z, i) => { const je = werte[i]; if (je !== null) z.punkte = je * Math.max(1, z.namen.length); });
   const text = [
     `🏆 ${[kopf.cupName, [kopf.spieltag, kopf.stufe].filter(Boolean).join(' ')].filter(Boolean).join(' · ')} (${k.region}) - top 5 and what they earned`, '',
-    ...nachRang.map(({ z, je }) => {
+    ...nachRang.map(({ z, je, p }) => {
       const team = je === null ? null : je * Math.max(1, z.namen.length);
-      const geld = team === null ? `${z.punkte} pts` : `${dollar(team)}${z.namen.length > 1 && je ? ` (${dollar(je)} each)` : ''} · ${z.punkte} pts`;
+      const geld = team === null ? `${p} pts` : `${dollar(team)}${z.namen.length > 1 && je ? ` (${dollar(je)} each)` : ''} · ${p} pts`;
       return `${z.rang}. ${z.namen.join(' & ')} - ${geld}`;
     }),
     '', 'Full results, maps and prize money: thecomphub.com', '',

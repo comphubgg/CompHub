@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import T from '@/app/components/T';
 import SeitenKopf from '@/app/components/SeitenKopf';
 import { useT } from '@/app/components/SprachProvider';
+import KartenPlakat from './KartenPlakat';
 
 /*
  * Plakate - ein Bild fuer Spieler, Standings, Finals und Top 5, mit Beitragstext zum Kopieren (Betreiber, 21.10.2026: "ein Plakat fuer alles unter Posts, in meinem Stil").
@@ -12,8 +13,8 @@ import { useT } from '@/app/components/SprachProvider';
  * Spieltage (mehrere Tage eines Finales rechnen sich zusammen), den Spieler oder das Team und sieht gleich das Bild. Herunterladen, als Bild kopieren oder den Text zum Beitrag nehmen.
  */
 
-type Art = 'spieler' | 'standings' | 'finale' | 'top5';
-const ARTEN: Array<[Art, string]> = [['spieler', 'Spieler'], ['standings', 'Standings'], ['finale', 'Finale'], ['top5', 'Top 5']];
+type Art = 'spieler' | 'standings' | 'finale' | 'top5' | 'karte';
+const ARTEN: Array<[Art, string]> = [['spieler', 'Spieler'], ['standings', 'Standings'], ['finale', 'Finale'], ['top5', 'Top 5'], ['karte', 'Karte']];
 
 interface Fenster { status: string; begin: number; end?: number; eventId: string; windowId: string; region: string; istFinale: boolean }
 interface Cup { id: string; titel: string; regionen: Record<string, Fenster[]> }
@@ -90,6 +91,7 @@ export default function PlakatSeite() {
   };
 
   const adresse = useMemo(() => {
+    if (art === 'karte') return '';
     const q = new URLSearchParams({ art });
     if (art === 'top5') {
       q.set('region', topRegion); q.set('liste', liste); q.set('jahr', String(jahr));
@@ -167,6 +169,7 @@ export default function PlakatSeite() {
           ))}
         </nav>
 
+        {art === 'karte' ? <KartenPlakat /> : (
         <div className="grid gap-6 lg:grid-cols-[22rem_1fr]">
           <section className="space-y-4 rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5">
             {art === 'top5' ? (
@@ -281,6 +284,7 @@ export default function PlakatSeite() {
             </div>
           </section>
         </div>
+        )}
       </div>
     </main>
   );

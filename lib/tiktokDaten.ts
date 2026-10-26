@@ -85,7 +85,7 @@ interface Roster { teams?: Array<{ rank: number; points: number; spieler: Array<
  * Der Cup fuer das Video. "ohne" nennt Fenster, zu denen es schon ein Video gibt (Betreiber, 26.10.2026: "du erstellst sie ein bisschen zu spaet") - so darf der Ablauf stuendlich
  * schauen, und jedes Finale bekommt sein Video kurz nach dem Ende, ohne dass derselbe Cup noch einmal drankommt.
  */
-export async function tiktokDaten(opt: { ohne?: string[] } = {}): Promise<TiktokDaten> {
+export async function tiktokDaten(opt: { ohne?: string[]; nur?: string } = {}): Promise<TiktokDaten> {
   const jetzt = Date.now();
   let katalog: { cups?: KatalogCup[] } = {};
   try { katalog = await (await katalogAbruf(new Request(`${SEITE}/api/cup-catalog?modus=standard`))).json(); } catch { throw new Error('Katalog nicht erreichbar'); }
@@ -98,7 +98,8 @@ export async function tiktokDaten(opt: { ohne?: string[] } = {}): Promise<Tiktok
     for (const [region, fenster] of Object.entries(cup.regionen ?? {})) {
       for (const f of fenster) {
         if (f.status !== 'vorbei' || !f.end || String(f.eventId).startsWith('manuell_')) continue;
-        if (f.end > jetzt - 30 * 60_000 || f.end < jetzt - STUNDEN * 3_600_000) continue;
+        // Mit "nur" (ein bestimmtes Fenster, etwa fuer ein nachgeholtes Video oder zum Ausprobieren) zaehlt die Frist von 36 Stunden nicht.
+        if (opt.nur) { if (f.windowId !== opt.nur) continue; } else if (f.end > jetzt - 30 * 60_000 || f.end < jetzt - STUNDEN * 3_600_000) continue;
         if (opt.ohne?.includes(f.windowId)) continue;
         kandidaten.push({ cup, region, f, istFinale: finale(cup, f, fenster) });
       }
