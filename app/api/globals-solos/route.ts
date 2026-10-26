@@ -3,6 +3,7 @@ import { globalsSolos } from '@/lib/globalsSolos';
 import { SOLOS_REGIONEN } from '@/lib/solosRegionen';
 import { leereNoble } from '@/lib/nobleKarte';
 import { istAdminAnfrage } from '@/lib/adminPruefung';
+import { ueberdauernd } from '@/lib/ueberdauernd';
 
 /*
  * Die Daten der Seite "Globals Solos": Finalisten nach Herkunft, die Heats und die Karten.
@@ -23,7 +24,11 @@ export async function GET(request: Request) {
   const region = (SOLOS_REGIONEN as readonly string[]).includes(wunsch) ? wunsch : 'EU';
   if (frisch && await istAdminAnfrage(request)) leereNoble();
   try {
-    const daten = await globalsSolos(region);
+    // Die Kurzfassung der Startseite kommt nach einem Neustart sofort aus der letzten guten Antwort (lib/ueberdauernd); frisch gerechnet wird im Hintergrund.
+    const kurzAnfrage = suche.get('kurz') === '1' && !frisch;
+    const daten = kurzAnfrage
+      ? await ueberdauernd(`globals-solos-${region}`, 2 * 60_000, 24 * 3600_000, () => globalsSolos(region))
+      : await globalsSolos(region);
     if (!daten) {
       return NextResponse.json({ ok: false, error: region === 'EU' ? 'Noble führt FNCS Solos gerade nicht.' : 'Epic führt FNCS Solos in dieser Region gerade nicht.' },
         { status: 404, headers: { 'Cache-Control': 'no-store' } });

@@ -7,6 +7,7 @@ import { spielerKontext } from '@/lib/globalsSolos';
 import { liesJson } from '@/lib/ablage';
 import { saisonName } from '@/lib/szeneStats';
 import { GET as prLesen } from '../power-rankings/route';
+import { ueberdauernd } from '@/lib/ueberdauernd';
 
 /*
  * Die Schaukaesten der Startseite - ein paar Kilobyte statt der ganzen Startansicht.
@@ -35,8 +36,6 @@ interface Start {
   kacheln?: Kachel[];
   grundlage?: { spieltage?: unknown[] };
 }
-
-let merker: { bis: number; antwort: unknown } | null = null;
 
 async function startHolen(request: Request): Promise<Start | null> {
   try {
@@ -109,12 +108,9 @@ async function cupsHolen(): Promise<VCup[]> {
   return raus.sort((a, b) => reihenfolge.indexOf(a.typ) - reihenfolge.indexOf(b.typ));
 }
 
-export async function GET(request: Request) {
-  if (merker && merker.bis > Date.now()) {
-    return NextResponse.json(merker.antwort, { headers: { 'Cache-Control': CDN_FRIST } });
-  }
+async function rechnen(request: Request) {
   const start = await startHolen(request);
-  if (!start) return NextResponse.json({ ok: false, spieler: [], cups: [], regionen: [], maps: 0 }, { status: 200 });
+  if (!start) return null;
 
   const alle = (start.profile ?? []).flatMap((p) => p.spieler);
   const spieler = [...alle].sort((a, b) => (b.elims ?? 0) - (a.elims ?? 0)).slice(0, 30).map(schlank);
@@ -165,6 +161,15 @@ export async function GET(request: Request) {
     ok: true, saison: start.saison ?? null, saisonName: start.saison ? saisonName(start.saison) : null, spieltage: start.grundlage?.spieltage?.length ?? null,
     spieler, cups, maps, regionen, rangliste,
   };
-  merker = { bis: Date.now() + 10 * 60_000, antwort };
+  return antwort;
+}
+
+/*
+ * Nach jedem Neustart brauchte die erste Antwort bis zu 40 Sekunden (Cloudflare gab 502/504, die Karten der Startseite standen auf "nicht erreichbar", 26.10.2026). Die letzte gute
+ * Antwort liegt jetzt auch auf der Platte: sie kommt sofort, frisch gerechnet wird im Hintergrund (lib/ueberdauernd).
+ */
+export async function GET(request: Request) {
+  const antwort = await ueberdauernd('startvitrine', 10 * 60_000, 24 * 3600_000, () => rechnen(request));
+  if (!antwort) return NextResponse.json({ ok: false, spieler: [], cups: [], regionen: [], maps: 0 }, { status: 200 });
   return NextResponse.json(antwort, { headers: { 'Cache-Control': CDN_FRIST } });
 }
