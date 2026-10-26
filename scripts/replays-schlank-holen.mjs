@@ -14,7 +14,7 @@ import { spawnSync } from 'node:child_process';
 
 const arg = process.argv.slice(2);
 const wert = (name, standard) => { const i = arg.indexOf(name); return i >= 0 && arg[i + 1] ? arg[i + 1] : standard; };
-const HOECHSTENS = Number(wert('--hoechstens', 60));
+const HOECHSTENS = Number(wert('--hoechstens', 40));
 const SAISON = String(wert('--saison', 'S42')).toUpperCase();
 const REPO = process.env.COMPHUB_GITHUB_REPO || 'comphubgg/CompHub';
 const nr = SAISON.replace(/\D/g, '');
@@ -25,7 +25,12 @@ async function manifest(tag) {
   return r.json();
 }
 
-const aggregate = await manifest(`daten-replays-s${nr}`);
+// Die Auswertungen liegen im Saison-Release und in den Ueberlauf-Releases (-b, -c, siehe lib/releaseTags.mjs); gilt die juengste Fassung.
+const aggregate = {};
+for (const tag of [`daten-replays-s${nr}`, `daten-replays-s${nr}-b`, `daten-replays-s${nr}-c`]) {
+  const m = await manifest(tag).catch((e) => { if (tag.endsWith(`s${nr}`)) throw e; return {}; });
+  for (const [k, v] of Object.entries(m)) if (!aggregate[k] || (Date.parse(v.zeit ?? '') || 0) > (Date.parse(aggregate[k].zeit ?? '') || 0)) aggregate[k] = v;
+}
 const schlank = await manifest(`daten-replays-schlank-s${nr}`).catch(() => ({}));
 
 const noetig = [];
@@ -35,7 +40,8 @@ for (const [anhang, m] of Object.entries(aggregate)) {
   const s = schlank[`replays-schlank__${t[1]}__${t[2]}.json`];
   const agg = Date.parse(m.zeit ?? '') || 0;
   const sl = Date.parse(s?.zeit ?? '') || 0;
-  if (!s || agg - sl > 10 * 60_000) noetig.push({ fenster: t[2], saison: t[1], agg, fehlt: !s });
+  // Eine vorhandene schlanke Fassung gilt als veraltet, wenn die Auswertung mehr als drei Stunden juenger ist (laufende Cups bekommen sie in der Live-Schleife)
+  if (!s || agg - sl > 3 * 3600_000) noetig.push({ fenster: t[2], saison: t[1], agg, fehlt: !s });
 }
 // Frisches zuerst; was ganz fehlt, vor dem, was nur veraltet ist.
 noetig.sort((a, b) => (b.fehlt - a.fehlt) || (b.agg - a.agg));
