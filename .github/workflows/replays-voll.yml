@@ -25,6 +25,8 @@ on:
       - 'scripts/replay-voll-holen.mjs'
       - 'scripts/schleife.mjs'
       - 'lib/replayKern.mjs'
+      - 'lib/releaseTags.mjs'
+      - 'scripts/replay-voll-abgleich.mjs'
       - 'tools/replay-voll/**'
   workflow_dispatch:
   schedule:
@@ -78,6 +80,7 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           node scripts/schleife.mjs --minuten 325 --takt 240 \
+            --schritt "40:node scripts/replay-voll-abgleich.mjs 2>&1 | tail -3" \
             --schritt "8:node scripts/ablage-github-holen.mjs --ordner epic-spieltage 2>&1 | tail -3" \
             --schritt "node scripts/replay-voll-holen.mjs --hoechstens 300 --parallel 4 --minuten 6 2>&1 | tail -40" \
             --schritt "node scripts/replay-spieler-index.mjs --hoechstens 400 2>&1 | tail -2" \

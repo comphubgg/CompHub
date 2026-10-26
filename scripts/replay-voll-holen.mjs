@@ -25,6 +25,13 @@
 //   - ein Zeitrahmen (--minuten) statt einer festen Zahl: gelesen wird,
 //     solange Zeit ist; --hoechstens ist nur noch ein Deckel
 //
+// Am 26.10.2026 gegen das Festfahren (Betreiber: "es soll innerhalb einer Stunde nach dem Cup alles analysiert sein"): bis dahin kamen die
+// gescheiterten Matches in jedem Durchgang ZUERST dran - 73 Stueck, einzelne mit 318 Versuchen. Drei Ursachen blockierten die vier Arbeiter:
+//   - der Leser hing bei einzelnen Replays endlos (zehn Minuten Frist, zwei Versuche, je Match zwanzig Minuten Arbeiter weg)
+//   - Replays, die Epic nach 31 Tagen geloescht hat ("folder_not_found"), wurden hunderte Male neu angefragt
+//   - Leser-Abstuerze der Bibliothek (IndexOutOfRange) sind bei jedem Versuch dieselben
+// Jetzt: frische Matches zuerst; jeder Fehler hat eine Art (weg / leser / zeitweise) und einen Zeitpunkt, vor dem er nicht wiederholt wird.
+//
 //   node scripts/replay-voll-holen.mjs [--hoechstens 200] [--parallel 4] [--minuten 20]
 //   node scripts/replay-voll-holen.mjs <eventId> <windowId>   ein Tag, egal wie alt
 
@@ -51,6 +58,41 @@ const hoechstens = zahl('--hoechstens', 200);
 const gleichzeitig = zahl('--parallel', 4);
 const frist = Date.now() + zahl('--minuten', 20) * 60_000;
 const warte = (ms) => new Promise((r) => setTimeout(r, ms));
+/** Hoch setzen, wenn der Leser sich aendert (neue Bibliothek, behobener Fehler): Leser-Fehler werden dann einmal neu versucht. */
+const LESER_STAND = '2026-10-26';
+const LESER_SEKUNDEN = 150;
+const STUNDE = 3600_000;
+
+/** Welcher Art ein Fehler ist - davon haengt ab, ob und wann es sich lohnt, das Match noch einmal anzufassen. */
+function fehlerArt(text) {
+  if (/folder_not_found|not_allowed|NotFound|HTTP 404/i.test(text)) return 'weg';
+  if (/IndexOutOfRange|Zeitlimit|Zeit abgelaufen|SIGTERM|Code 3|NullReference|ArgumentOutOfRange|InvalidOperation|OutOfMemory|KeyNotFound|Code 1:/i.test(text)) return 'leser';
+  return 'zeitweise';
+}
+
+/**
+ * Wann ein gescheitertes Match wieder dran ist (null = nie mehr).
+ *   weg:       Epic hat das Replay (noch) nicht - frisch kann es noch kommen (10 Min, 30 Min, 1,5 h, dann alle 6 h), nach dem Ablauf der 31 Tage nie
+ *   leser:     Absturz oder Haenger der Bibliothek - bei gleichem Leser immer wieder derselbe; zwei Wiederholungen im Abstand von 12 und 24 Stunden, danach nur
+ *              noch, wenn LESER_STAND steigt
+ *   zeitweise: Netz, Epic ueberlastet - 5 Minuten, wachsend bis 2 Stunden, ohne Ende
+ */
+function naechsterVersuch(f, datum) {
+  const letzter = Date.parse(f.zeit) || Date.now();
+  const n = f.versuche ?? 1;
+  const alt = datum ? Date.now() - datum : 0;
+  if (f.art === 'weg') {
+    if (alt > 31 * 864e5 - 2 * STUNDE || n > 14) return null;
+    return letzter + Math.min(6 * STUNDE, 10 * 60_000 * 3 ** Math.min(n - 1, 4));
+  }
+  if (f.art === 'leser') {
+    // Ein Eintrag aus einer frueheren Leserfassung wird einmal neu versucht - ausser er ist aus der Zeit vor dieser Regel (ohne Stand) und hat schon dutzende Versuche hinter sich.
+    if (f.stand && f.stand !== LESER_STAND) return letzter;
+    if (n >= 3) return null;
+    return letzter + 12 * STUNDE * n;
+  }
+  return letzter + Math.min(2 * STUNDE, 5 * 60_000 * 2 ** Math.min(n - 1, 6));
+}
 
 if (!fs.existsSync(WERKZEUG) && !arg.includes('--liste')) {
   console.log(`Leser fehlt (${WERKZEUG}) - erst: dotnet build tools/replay-voll -c Release`);
@@ -134,6 +176,10 @@ async function tage() {
   };
   const raus = [];
   for (const t of alle) {
+    // Offene Qualifier mit tausenden Lobbys (Last Chance Qualifier, FNCS Solo Qualifiers) liest dieser Leser nicht mehr: 160 MB je Lobby, und die Release-Anhaenge
+    // (tausend je Release) und das Hochladen (rund fuenfhundert je Stunde) reichten nie - im Oktober 2026 fuellten sie das Release und verdraengten die Finals. Ihre
+    // Spielerwerte kommen aus dem schlanken Sammler (replays-holen.mjs, Kills, Knocks, Tode je Spieler fuer alle Lobbys).
+    if (/LastChanceQualifier|FNCSSoloQualifiers_/i.test(t.windowId)) continue;
     // Dazu die FNCS Solos mit Heats, Fast Track und Last Chance (nicht die Qualifier mit zehntausenden Spielern): der Betreiber (20.10.2026) vermisste sie in den Replays.
     if (!(t.istFinale || letzteRunde(t) || /MannekenPis|Global|LAN|Escargo|FNCSSolo(?!Qualifiers)/i.test(`${t.windowId} ${t.cupId} ${t.titel}`))) continue;
     raus.push({ eventId: t.eventId, windowId: t.windowId, datum: t.datum, titel: t.titel, region: t.region, season: t.season });
@@ -148,25 +194,43 @@ async function tage() {
 async function mitWiederholung(name, tun, versuche = 3) {
   let letzter;
   for (let i = 1; i <= versuche; i += 1) {
-    try { return await tun(); } catch (e) { letzter = e; if (i < versuche) await warte(2000 * i * i); }
+    try { return await tun(); } catch (e) { letzter = e; if (e?.dauerhaft) break; if (i < versuche) await warte(2000 * i * i); }
   }
   throw new Error(`${name}: ${String(letzter?.message ?? letzter).slice(0, 160)}`);
 }
 
-/** Alle noch fehlenden Matches aller Tage - die zuletzt gescheiterten zuerst, danach nach Tagen, neueste zuerst. */
+let aufgegeben = 0; let wartend = 0;
+/** Hat dieser Tag einen gescheiterten Match, der jetzt wieder dran ist? Nur dann lohnt die Abfrage trotz einer frischen Pruefung. */
+const faelligerFehler = (tag) => Object.values(index.fehler).some((x) => {
+  if (x.windowId !== tag.windowId) return false;
+  x.art ??= fehlerArt(x.fehler ?? '');
+  const w = naechsterVersuch(x, tag.datum);
+  return w !== null && w <= Date.now();
+});
+/** Alle noch fehlenden und faelligen Matches aller Tage - frische zuerst (nach Tagen, neueste zuerst), danach die wiederholbaren Fehlschlaege. */
 async function aufgaben() {
   const liste = [];
   for (const tag of await tage()) {
     if (Date.now() > frist) break;
     // Ein Tag, der vor mehr als sechs Stunden begann und vor weniger als einer halben Stunde befragt wurde, hat nichts Neues (Epics Schnittstelle nicht jede Minute belasten).
-    if (Date.now() - (tag.datum ?? Date.now()) > 6 * 3600_000 && Date.now() - (index.geprueft[tag.windowId] ?? 0) < 30 * 60_000 && !Object.values(index.fehler).some((x) => x.windowId === tag.windowId)) continue;
+    if (Date.now() - (tag.datum ?? Date.now()) > 6 * 3600_000 && Date.now() - (index.geprueft[tag.windowId] ?? 0) < 30 * 60_000 && !faelligerFehler(tag)) continue;
     let ids = [];
     try { ids = [...await mitWiederholung(`${tag.windowId} Sitzungen`, () => matchIds(tag.eventId, tag.windowId, 3), 2)]; } catch (e) { console.log(`  ${tag.windowId}: ${e.message}`); continue; }
     index.geprueft[tag.windowId] = Date.now();
-    for (const id of ids) if (!index.matches[id]) liste.push({ id, tag });
+    for (const id of ids) {
+      if (index.matches[id]) continue;
+      const f = index.fehler[id];
+      if (f) {
+        f.art ??= fehlerArt(f.fehler ?? '');
+        const wann = naechsterVersuch(f, tag.datum);
+        if (wann === null) { aufgegeben += 1; continue; }
+        if (wann > Date.now()) { wartend += 1; continue; }
+      }
+      liste.push({ id, tag });
+    }
   }
-  // Array.sort ist stabil: innerhalb der Gruppen bleibt die Reihenfolge nach Tagen erhalten.
-  return liste.sort((a, b) => (index.fehler[b.id] ? 1 : 0) - (index.fehler[a.id] ? 1 : 0));
+  // Frische Matches vor den wiederholten (Betreiber, 26.10.2026: der Cup soll binnen einer Stunde ausgewertet sein); Array.sort ist stabil, die Reihenfolge nach Tagen bleibt.
+  return liste.sort((a, b) => (index.fehler[a.id] ? 1 : 0) - (index.fehler[b.id] ? 1 : 0));
 }
 
 const speichereIndex = () => { fs.mkdirSync(ZIEL, { recursive: true }); fs.writeFileSync(INDEX, JSON.stringify(index)); };
@@ -175,16 +239,22 @@ let erledigt = 0; let gescheitert = 0;
 async function abarbeiten({ id, tag }) {
   const tmp = path.join(os.tmpdir(), `voll-${id}.replay`);
   try {
-    const puffer = await mitWiederholung(`${id} herunterladen`, () => downloadReplay({ matchId: id, dataCount: 100000, checkpointCount: 100000, eventCount: 100000 }), 3);
+    const puffer = await mitWiederholung(`${id} herunterladen`, async () => {
+      try { return await downloadReplay({ matchId: id, dataCount: 100000, checkpointCount: 100000, eventCount: 100000 }); }
+      catch (e) { if (fehlerArt(String(e?.message ?? e)) === 'weg') e.dauerhaft = true; throw e; }
+    }, 3);
     fs.writeFileSync(tmp, puffer);
     const m = await mitWiederholung(`${id} auslesen`, async () => {
       try {
-        const { stdout } = await dotnet('dotnet', [WERKZEUG, tmp], { maxBuffer: 256 * 1024 * 1024, timeout: 10 * 60_000 });
+        const { stdout } = await dotnet('dotnet', [WERKZEUG, tmp], { maxBuffer: 256 * 1024 * 1024, timeout: (LESER_SEKUNDEN + 45) * 1000, env: { ...process.env, REPLAY_SEKUNDEN: String(LESER_SEKUNDEN) } });
         return JSON.parse(stdout);
       } catch (e) {
         // Der Grund steht am Ende der Fehlerausgabe des Lesers - ohne ihn blieb von "Command failed" nur der Befehl uebrig (14.10.2026).
         const ende = String(e.stderr ?? '').split('\n').map((x) => x.trim()).filter(Boolean).slice(-2).join(' | ');
-        throw new Error(`${e.killed ? 'Zeit abgelaufen' : `Code ${e.code ?? '?'}`}${e.signal ? ` (${e.signal})` : ''}: ${ende || String(e.message).split('\n')[0].slice(-100)}`);
+        const fehler = new Error(`${e.killed ? 'Zeit abgelaufen' : `Code ${e.code ?? '?'}`}${e.signal ? ` (${e.signal})` : ''}: ${ende || String(e.message).split('\n')[0].slice(-100)}`);
+        // Haenger und Abstuerze der Bibliothek sind bei jedem Versuch dieselben - nicht sofort noch einmal.
+        fehler.dauerhaft = e.killed || e.code === 3 || /IndexOutOfRange|NullReference|ArgumentOutOfRange|KeyNotFound/.test(ende);
+        throw fehler;
       }
     }, 2);
     const monat = (m.beginn ?? new Date(tag.datum ?? Date.now()).toISOString()).slice(0, 7);
@@ -203,7 +273,8 @@ async function abarbeiten({ id, tag }) {
     console.log(`  ${tag.windowId} ${id}: ${(puffer.length / 1e6).toFixed(0)} MB, ${index.matches[id].spieler} Spieler, ${index.matches[id].zonen} Zonen`);
   } catch (e) {
     gescheitert += 1;
-    index.fehler[id] = { versuche: (index.fehler[id]?.versuche ?? 0) + 1, fehler: String(e.message).slice(0, 200), zeit: new Date().toISOString(), windowId: tag.windowId };
+    const text = String(e.message).slice(0, 200);
+    index.fehler[id] = { versuche: (index.fehler[id]?.versuche ?? 0) + 1, fehler: text, art: fehlerArt(text), stand: LESER_STAND, zeit: new Date().toISOString(), windowId: tag.windowId };
     speichereIndex();
     console.log(`  ${tag.windowId} ${id}: GESCHEITERT (Versuch ${index.fehler[id].versuche}) ${String(e.message).slice(0, 160)}`);
   } finally { fs.rmSync(tmp, { force: true }); }
@@ -217,7 +288,7 @@ if (arg.includes('--liste')) {
   process.exit(0);
 }
 const alle = await aufgaben();
-console.log(`${alle.length} Matches fehlen noch (${Object.keys(index.fehler).length} davon schon einmal gescheitert); ${gleichzeitig} gleichzeitig, hoechstens ${hoechstens}.`);
+console.log(`${alle.length} Matches fehlen noch und sind dran (${alle.filter((x) => index.fehler[x.id]).length} davon Wiederholungen); ${wartend} Fehlschlaege warten auf ihre Zeit, ${aufgegeben} aufgegeben; ${gleichzeitig} gleichzeitig, hoechstens ${hoechstens}.`);
 let naechster = 0;
 const arbeiter = async () => {
   while (naechster < alle.length && erledigt + gescheitert < hoechstens && Date.now() < frist) {

@@ -112,9 +112,12 @@ async function main() {
     const angefasst = angefassteFenster();
     const auswerten = angefasst.length
       ? schritt('replays-aggregieren.mjs', angefasst) : 0;
+    // Die Seite liest je Spieltag nur die schlanke Fassung (lib/replaySchlank) - sie entsteht hier gleich mit, statt erst im stuendlichen Gesamtlauf, der sie seit dem
+    // 11.10.2026 nicht mehr ans Release brachte (Betreiber, 26.10.: "No replays analysed" bei Cups, die Tage zurueckliegen).
+    if (angefasst.length) schritt('replays-schlank.mjs', angefasst);
     // Ans Release, nicht mehr nach Supabase (seit dem 22.9.2026 - siehe
     // lib/ablageGithub, nurRelease). Die Seite liest die Auswertung von dort.
-    const hochladen = schritt('ablage-github.mjs', ['--neuer-als', '5', '--nur', 'replays']);
+    const hochladen = schritt('ablage-github.mjs', ['--neuer-als', '5', '--nur', 'replays', '--nur', 'replays-schlank']);
 
     verlauf.push({
       zeit: new Date().toISOString(), live,

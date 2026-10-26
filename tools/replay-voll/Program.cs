@@ -47,9 +47,16 @@ var datei = probe ? args[1] : args[0];
  */
 SchadenLeser reader;
 FortniteReplay replay;
+/*
+ * Eine Wache gegen haengende Replays (26.10.2026): einzelne Matches (FNCS Solo Last Chance NAW) hielten den Leser ueber zehn Minuten fest, ohne zu enden - vier
+ * Matches nacheinander blockierten so die ganze Schleife. Nach REPLAY_SEKUNDEN (Standard 150, ein gewoehnliches Match braucht 3 bis 10) endet der Prozess mit Code 3.
+ */
+var grenzeSek = int.TryParse(Environment.GetEnvironmentVariable("REPLAY_SEKUNDEN"), out var gs0) && gs0 > 0 ? gs0 : 150;
+var wache = new System.Threading.Timer(_ => { Console.Error.WriteLine($"Zeitlimit: der Leser kam in {grenzeSek} s nicht zum Ende"); Environment.Exit(3); }, null, grenzeSek * 1000, Timeout.Infinite);
 try {
   reader = new SchadenLeser();
   replay = reader.ReadReplay(datei);
+  wache.Dispose();
 } catch (Exception e) {
   Console.Error.WriteLine($"{e.GetType().Name}: {e.Message}");
   Environment.Exit(1);
@@ -163,7 +170,8 @@ Console.WriteLine(JsonConvert.SerializeObject(new {
  * Treffer auf Mitspieler und auf Nicht-Spieler zaehlen nicht.
  */
 class SchadenLeser : ReplayReader {
-  public SchadenLeser() : base(null, ParseMode.Full) { }
+  static readonly ParseMode Modus = Enum.TryParse<ParseMode>(Environment.GetEnvironmentVariable("REPLAY_MODUS"), true, out var pm) ? pm : ParseMode.Full;
+  public SchadenLeser() : base(null, Modus) { }
 
   public sealed class Schaden { public double Gemacht, Genommen, AufSchild; public int Treffer, Krit; }
   public readonly Dictionary<int, Schaden> Je = new();

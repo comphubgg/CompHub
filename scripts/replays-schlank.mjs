@@ -14,7 +14,7 @@
 //
 // Neu geschrieben wird nur, wo die Auswertung neuer ist als die schlanke Fassung.
 //
-//   node scripts/replays-schlank.mjs
+//   node scripts/replays-schlank.mjs [fenster ...]   ohne Angabe alle Fenster der Platte, sonst nur die genannten (die Live-Schleife nennt die frisch angefassten)
 
 import fs from 'node:fs';
 import path from 'node:path';
@@ -22,12 +22,14 @@ import path from 'node:path';
 const QUELLE = path.join(process.cwd(), 'data', 'replays');
 const ZIEL = path.join(process.cwd(), 'data', 'replays-schlank');
 
+const nurDiese = new Set(process.argv.slice(2).filter((a) => !a.startsWith('--')));
 let neu = 0; let gleich = 0; let kaputt = 0;
 for (const saison of fs.existsSync(QUELLE) ? fs.readdirSync(QUELLE) : []) {
   if (!/^S\d+$/i.test(saison)) continue;
   const ordner = path.join(QUELLE, saison);
   if (!fs.statSync(ordner).isDirectory()) continue;
   for (const fenster of fs.readdirSync(ordner)) {
+    if (nurDiese.size && !nurDiese.has(fenster)) continue;
     const agg = path.join(ordner, fenster, '_aggregat.json');
     if (!fs.existsSync(agg)) continue;
     const ziel = path.join(ZIEL, saison, `${fenster}.json`);
