@@ -105,18 +105,21 @@ export async function register() {
   // Ohne eigene Angabe gilt im Betrieb (next start) der eigene Anschluss - der PC-Server laeuft auf 3100 (PORT), damit das Verzeichnis der Maps schon beim Start entsteht.
   const intern = process.env.COMPHUB_INTERN_URL || (process.env.NODE_ENV === 'production' ? `http://127.0.0.1:${process.env.PORT || 3100}` : '');
   if (intern) {
+    /*
+     * Zuerst, was die Startseite braucht - gleichzeitig, nicht der Reihe nach (Betreiber, 26.10.2026: "die Homepage laedt allgemein ein bisschen zu lange"): nach jedem Neustart
+     * brauchte der erste Besucher sechzehn Sekunden fuer die Schaukaesten. Danach die uebrigen Uebersichten nacheinander.
+     */
+    const rufe = (weg: string) => fetch(`${intern}${weg}`, { cache: 'no-store', signal: AbortSignal.timeout(180_000) }).catch(() => {});
     const aufwaermen = async () => {
-      for (const weg of [
-        '/api/szene-stats?spieler=02c93e4588f241baa6cb5040632326b4',
+      await Promise.all([
+        '/api/startvitrine',
+        '/api/globals-solos?region=EU&kurz=1',
         '/api/cup-catalog?modus=alle',
-        '/api/maps-liste',
-        '/api/fncs-ereignisse',
-        '/api/globals-solos?region=EU',
-      ]) {
-        await fetch(`${intern}${weg}`, { cache: 'no-store', signal: AbortSignal.timeout(180_000) }).catch(() => {});
-      }
+        '/api/szene-stats?spieler=02c93e4588f241baa6cb5040632326b4',
+      ].map(rufe));
+      for (const weg of ['/api/maps-liste', '/api/fncs-ereignisse', '/api/globals-solos?region=EU']) await rufe(weg);
     };
-    setTimeout(() => { void aufwaermen(); }, 20_000).unref?.();
+    setTimeout(() => { void aufwaermen(); }, 4_000).unref?.();
   }
 
   if (process.env.VERCEL || process.env.COMPHUB_KEIN_HINTERGRUND) {
