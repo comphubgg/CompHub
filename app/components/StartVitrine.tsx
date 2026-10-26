@@ -481,7 +481,8 @@ export default function StartVitrine() {
     const j = (a: string) => fetch(a, { signal: AbortSignal.timeout(20_000), cache: 'no-store' }).then((r) => r.json());
     void Promise.allSettled([
       j('/api/startvitrine').then((v: Vitrine) => { if (v?.ok) setDaten(v); }),
-      j('/api/globals-solos').then((v: { ok?: boolean; fenster?: SolosFenster[] }) => { if (v?.ok) setHeats((v.fenster ?? []).filter((f) => f.art === 'heat')); }),
+      // Kurzfassung (nur die Heats) und eine zweite Chance: der erste Aufruf nach einem Neustart rechnet laenger als die Frist.
+      j('/api/globals-solos?kurz=1').catch(() => j('/api/globals-solos?kurz=1')).then((v: { ok?: boolean; fenster?: SolosFenster[] }) => { if (v?.ok) setHeats((v.fenster ?? []).filter((f) => f.art === 'heat')); }),
     ]).finally(() => setGeladen(true));
   }, []);
 

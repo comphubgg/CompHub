@@ -28,6 +28,11 @@ export async function GET(request: Request) {
       return NextResponse.json({ ok: false, error: region === 'EU' ? 'Noble führt FNCS Solos gerade nicht.' : 'Epic führt FNCS Solos in dieser Region gerade nicht.' },
         { status: 404, headers: { 'Cache-Control': 'no-store' } });
     }
+    // Die Startseite braucht nur die Heats mit je acht Spielern (?kurz=1): ein paar Kilobyte statt 230 - sie war an der Groesse und der Wartezeit gescheitert ("Not reachable right now", 26.10.2026).
+    if (suche.get('kurz') === '1') {
+      const heats = daten.fenster.filter((f) => f.art === 'heat').map((f) => ({ windowId: f.windowId, name: f.name, art: f.art, start: f.start, end: f.end, spieler: f.spieler.slice(0, 8), teams: [], formen: [] }));
+      return NextResponse.json({ ok: true, region: daten.region, fenster: heats }, { headers: { 'Cache-Control': 'public, max-age=60, s-maxage=120' } });
+    }
     return NextResponse.json({ ok: true, ...daten },
       { headers: { 'Cache-Control': 'public, max-age=30, s-maxage=60' } });
   } catch (e) {
