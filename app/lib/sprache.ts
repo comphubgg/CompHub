@@ -3389,6 +3389,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Die Endspiele ließen sich gerade nicht laden. Bitte gleich noch einmal versuchen.': 'The finals could not be loaded right now. Please try again in a moment.',
   'Noch keine Endspiele.': 'No finals yet.',
   'Platzierungen werden nachgetragen.': 'Placements will be added.',
+  'In dieser Auswertung hat niemand allein Punkte geholt.': 'Nobody won points alone in this analysis.',
   'An diesem Spieltag laufen tausende Lobbys; Epic nennt je Lobby nur die Teams der Bestenliste. Hier erscheinen nur Lobbys mit mindestens 80 bekannten Spielern oder eigenem Replay.': 'Thousands of lobbies run on this match day, and Epic only names the teams of the leaderboard for each lobby. Only lobbies with at least 80 known players or their own replay appear here.',
   'Lobbys mit weniger als 80 bekannten Spielern sind ausgeblendet.': 'lobbies with fewer than 80 known players are hidden.',
   'Spieltag mit Karte': 'Match day with a map',

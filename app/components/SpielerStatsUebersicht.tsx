@@ -160,6 +160,8 @@ export default function SpielerStatsUebersicht({ spieler, matches, aktualisiert,
   const leerText = (f: string): string => {
     if (teamWerte) return t('Epic liefert diesen Wert für diesen Cup nicht mit.');
     if (f === 'elims') return t('Liegt für diesen Cup nicht vor');
+    // Gerechnet, aber keiner hat allein Punkte geholt (z. B. ein Cup, in dem nur der Sieg zaehlt): das ist ein Ergebnis, kein Rueckstand (Betreiber, 26.10.2026).
+    if (f === 'clutch' && spieler.some((s) => typeof s.clutch === 'number')) return t('In dieser Auswertung hat niemand allein Punkte geholt.');
     return alterTage !== null && alterTage <= 31
       ? t('Wird aus den Replays nachgetragen, sobald sie ausgewertet sind')
       : t('Dieser Wert kommt aus den Server-Replays. Epic löscht sie nach 31 Tagen — für diesen Cup wurden sie nicht aufgezeichnet.');

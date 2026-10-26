@@ -1,35 +1,42 @@
-# Die schlanken Replay-Werte fuer die Seite - eigenstaendig und alle halbe Stunde.
+# Die schlanken Replay-Werte fuer die Seite - als Schleife, die sich selbst weiter anstoesst.
 #
 # Der Betreiber (26.10.2026): bei einem Cup vom 22.10. stand "No replays analysed", obwohl die Auswertungen da waren. Die Seite liest je Spieltag nur die
 # schlanke Fassung (lib/replaySchlank.ts); die entstand bisher nur im stuendlichen Gesamtlauf (daten-erneuern.yml) und kam an dessen gedeckeltem Hochladen
 # nicht vorbei: die juengste lag am 15.10.2026 noch auf dem Stand vom 11.10.
 #
-# Hier ein kleiner, eigener Ablauf: Verzeichnisse der Releases vergleichen, nur die Spieltage holen, deren schlanke Fassung fehlt oder veraltet ist, die
-# schlanken Dateien anlegen, hochladen. Ein Durchgang dauert Minuten; was nicht in einen Durchgang passt, kommt im naechsten dran.
+# Erst als Zeitplan alle 30 Minuten - GitHub fuehrte ihn an diesem Tag ein einziges Mal aus. Deshalb jetzt wie "Replays voll auslesen": der Auftrag bleibt
+# gut fuenf Stunden an, wiederholt alle zehn Minuten seine Schritte und stoesst am Ende den naechsten selbst an; ein Push an diesen Dateien startet ihn
+# sofort neu, der Zeitplan ist nur der Rueckfall.
+#
+# Jeder Durchgang: Verzeichnisse der Releases vergleichen, nur die Spieltage holen, deren schlanke Fassung fehlt oder veraltet ist, die schlanken Dateien
+# anlegen, hochladen. Ohne Arbeit dauert ein Durchgang Sekunden.
 
 name: Replays schlank
 
 on:
   workflow_dispatch:
   schedule:
-    - cron: '7,37 * * * *'
+    - cron: '7 */2 * * *'
   push:
     branches: [main]
     paths:
       - '.github/workflows/replays-schlank.yml'
       - 'scripts/replays-schlank-holen.mjs'
       - 'scripts/replays-schlank.mjs'
+      - 'scripts/schleife.mjs'
+      - 'lib/releaseTags.mjs'
 
 concurrency:
   group: replays-schlank
-  cancel-in-progress: false
+  cancel-in-progress: ${{ github.event_name == 'push' }}
 
 jobs:
   schlank:
     runs-on: ubuntu-latest
-    timeout-minutes: 40
+    timeout-minutes: 340
     permissions:
       contents: write
+      actions: write
     steps:
       - uses: actions/checkout@v4
 
@@ -44,15 +51,21 @@ jobs:
       - name: Zugangsdaten
         run: printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
 
-      - name: Auswertungen holen, schlank anlegen
-        run: node scripts/replays-schlank-holen.mjs --hoechstens 80 2>&1 | tail -30
-
-      - name: Ans Release
+      - name: Schleife
+        timeout-minutes: 330
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          ls data/replays-schlank/S42 2>/dev/null | wc -l
-          node scripts/ablage-github.mjs --nur replays-schlank 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -12
+          node scripts/schleife.mjs --minuten 320 --takt 600 \
+            --schritt "node scripts/replays-schlank-holen.mjs --hoechstens 40 2>&1 | tail -8" \
+            --schritt "[ -d data/replays-schlank ] && node scripts/ablage-github.mjs --nur replays-schlank --neuer-als 30 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -6 || true"
+
+      - name: Naechsten Auftrag anstossen
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run replays-schlank.yml -R "${{ github.repository }}" --ref main && echo "naechster Auftrag angestossen"
 
       - name: Zugangsdaten wieder weg
         if: always()
