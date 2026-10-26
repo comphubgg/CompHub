@@ -1125,7 +1125,8 @@ const response = await fetch(getApiUrl(`/api/search?q=${encodeURIComponent(twitc
     discord?: { streamt: boolean; kanal: string | null; link: string | null } | null;
   }>>([]);
   useEffect(() => {
-    if (!zugang.vip) return undefined;
+    // Auch Angemeldete ohne VIP: die Profis koennen ihr POV fuer alle freigeben (der Server liefert nur, was fuer diesen Besucher gilt).
+    if (!zugang.vip && !zugang.nutzer) return undefined;
     let weg = false;
     const holen = () => {
       fetch('/api/pov?modus=sichtbar', { cache: 'no-store' })
@@ -1137,7 +1138,7 @@ const response = await fetch(getApiUrl(`/api/search?q=${encodeURIComponent(twitc
     // Alle zwanzig Sekunden: so zeigt sich auch "Live auf Discord" zeitnah (der Server merkt sich die Antwort von Discord zwoelf Sekunden).
     const abbau = sichtbarerTakt(holen, 20_000);
     return () => { weg = true; abbau(); };
-  }, [zugang.vip]);
+  }, [zugang.vip, zugang.nutzer]);
 
   /*
    * Die Vorschlaege unter dem Suchfeld.

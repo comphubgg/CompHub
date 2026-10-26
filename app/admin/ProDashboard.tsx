@@ -521,6 +521,15 @@ export default function ProDashboard() {
                 <span className="text-xs tabular-nums text-slate-500">{vips.filter(gewaehlt).length} / {vips.length}</span>
               </div>
               <p className="mt-1 text-xs text-slate-500"><T>Alle VIPs von CompHub. Hake einzeln an, wer dein POV auf der Streams-Seite sehen darf.</T></p>
+              {/* Fuer alle: jeder, der auf CompHub angemeldet ist, darf zusehen (Betreiber, 26.10.2026). */}
+              <label className={`mt-3 flex cursor-pointer items-start gap-3 rounded-lg border px-3 py-2.5 transition ${mein.fuerAlle
+                ? 'border-sky-500/50 bg-sky-500/10' : 'border-zinc-800 hover:border-zinc-600'}`}>
+                <input type="checkbox" checked={mein.fuerAlle === true} onChange={() => aendere({ fuerAlle: !mein.fuerAlle })} className="mt-0.5 accent-sky-500" />
+                <span className="min-w-0 flex-1">
+                  <span className="block text-sm font-semibold"><T>Für alle freigeben</T></span>
+                  <span className="block text-[11px] leading-snug text-slate-500"><T>Jeder, der auf CompHub angemeldet ist, darf dein POV ansehen — nicht nur die angehakten VIPs. Nicht Angemeldete sehen es nie.</T></span>
+                </span>
+              </label>
               <input value={suche} onChange={(e) => setSuche(e.target.value)} spellCheck={false} placeholder={t('VIP suchen …')} className={`mt-3 ${feld}`} />
               <div className="mt-2 flex gap-3 text-[11px]">
                 <button type="button" className="text-slate-400 transition hover:text-sky-400"

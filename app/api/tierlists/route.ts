@@ -207,7 +207,14 @@ export async function POST(request: NextRequest) {
     const currentListId = body?.currentListId ?? null;
 
     const bisher = await readTierlistsFile(wer);
-    const einwand = wirktWieVersehen(lists, bisher.lists ?? []);
+    /*
+     * Eine Liste ausdruecklich loeschen (Dashboard, Mein Archiv): die uebrigen Listen muessen dafuer genau so bleiben, wie sie waren - es darf nur etwas fehlen,
+     * nichts Neues und nichts Geaendertes. Dann ist der Schwund Absicht und kein ueberschriebener Zwischenspeicher.
+     */
+    const vorher = new Map((bisher.lists ?? []).map((l: any) => [l?.listId, JSON.stringify(l)]));
+    const nurWeggelassen = body?.absichtlich === true && lists.length < (bisher.lists ?? []).length
+      && lists.every((l: any) => vorher.get(l?.listId) === JSON.stringify(l));
+    const einwand = nurWeggelassen ? null : wirktWieVersehen(lists, bisher.lists ?? []);
     if (einwand) {
       console.warn('tierlists POST abgelehnt:', einwand);
       return NextResponse.json({ success: false, error: einwand }, { status: 409 });

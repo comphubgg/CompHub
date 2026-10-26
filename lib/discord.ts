@@ -1859,7 +1859,7 @@ export async function schickeUpdate(
  *   #admin-alarm     was von selbst schiefgeht: der stuendliche Lauf,
  *                    veraltete Staende, die Ablage
  */
-const ADMIN_KANAELE = { log: 'admin-log', aufgaben: 'admin-aufgaben', alarm: 'admin-alarm', posts: 'admin-posts', support: 'admin-support' } as const;
+const ADMIN_KANAELE = { log: 'admin-log', aufgaben: 'admin-aufgaben', alarm: 'admin-alarm', posts: 'admin-posts', support: 'admin-support', joins: 'admin-joins' } as const;
 
 export async function richteAdminEin(
   schritte: AufbauZeile[], fehler: AufbauZeile[],
@@ -1872,6 +1872,7 @@ export async function richteAdminEin(
     ['alarm', 'Alerts: hourly run, stale data, storage'],
     ['posts', 'Daily post ideas for X - ready to copy, with images'],
     ['support', 'Messages from the contact form - answer on the site or by email'],
+    ['joins', 'Everyone who joins the server - and whether the welcome message arrived'],
   ];
   for (const [k, thema] of plan) {
     // "manager" mit leerer Rollenliste heisst: nur Admin und Bot.
@@ -3405,4 +3406,195 @@ export async function werkzeugEinrichten(): Promise<{ ok: boolean; text: string 
   await anpinnen(kanal, id);
   const befehl = await befehleEinrichten();
   return { ok: true, text: `Panel in <#${kanal}> · ${befehl.text}` };
+}
+
+
+/* ------------------------------------------------------------ Willkommen */
+
+/*
+ * Wer dem Server beitritt (Betreiber, 23.10.2026: "wenn jemand in den Discord joint: ein Welcome-Channel, eine private Welcome-DM mit dem, was er im Discord machen
+ * kann und wie die Seite funktioniert, und ein Channel, wo man immer sehen kann, wer joint").
+ *
+ * Der Bot bekommt keine Beitritts-Ereignisse (dafuer braeuchte er eine dauernde Verbindung); alle zehn Minuten (Ablauf "Discord live", /api/cron/willkommen) vergleicht dieser Lauf
+ * die Mitgliederliste des Servers mit der gemerkten. Wer neu ist, bekommt die Willkommensnachricht privat, und #admin-joins meldet den Beitritt. Beim ersten Lauf wird nur der
+ * Bestand vermerkt - niemand der schon da ist bekommt nachtraeglich eine Nachricht.
+ *
+ * Voraussetzung: im Entwicklerportal von Discord ist beim Bot der "Server Members Intent" eingeschaltet (kostenlos, ein Schalter). Fehlt er, antwortet Discord mit 403, und der
+ * Lauf meldet das einmal am Tag in #admin-alarm.
+ */
+
+const MITGLIEDER_DATEI = path.join(DATEN_ORT, 'discord-mitglieder.json');
+
+interface MitgliederStand {
+  /** Alle Kennungen, die der letzte Lauf kannte. */
+  ids: string[];
+  /** Wen der Bot begruesst hat (Kennung -> wann) - jeder genau einmal. */
+  begruesst: Record<string, string>;
+  gestartet: string;
+  /** Wann zuletzt vor dem fehlenden Intent gewarnt wurde. */
+  intentWarnung?: string;
+}
+
+async function liesMitglieder(): Promise<MitgliederStand | null> {
+  try { return JSON.parse(await fs.readFile(MITGLIEDER_DATEI, 'utf8')) as MitgliederStand; }
+  catch (e) {
+    // Nur "gibt es noch nicht" heisst: erster Lauf. Ein Ausfall der Ablage waere sonst ein neuer Anfang - und jeder bekaeme die Begruessung noch einmal.
+    if ((e as NodeJS.ErrnoException)?.code === 'ENOENT') return null;
+    throw e;
+  }
+}
+async function schreibMitglieder(d: MitgliederStand): Promise<void> {
+  await fs.mkdir(path.dirname(MITGLIEDER_DATEI), { recursive: true });
+  await fs.writeFile(MITGLIEDER_DATEI, JSON.stringify(d, null, 1), 'utf8');
+}
+
+interface RohMitglied { user?: { id: string; username?: string; global_name?: string | null; bot?: boolean }; joined_at?: string; nick?: string | null }
+
+/** Alle Mitglieder des Servers - null, wenn Discord sie nicht herausgibt (Intent fehlt). */
+async function alleMitglieder(): Promise<RohMitglied[] | null> {
+  const raus: RohMitglied[] = [];
+  let nach = '0';
+  for (let seite = 0; seite < 20; seite += 1) {
+    const k = await ruf(`/guilds/${SERVER}/members?limit=1000&after=${nach}`, 'GET');
+    if (!Array.isArray(k)) return seite === 0 ? null : raus;
+    const liste = k as RohMitglied[];
+    raus.push(...liste);
+    if (liste.length < 1000) break;
+    nach = liste[liste.length - 1].user?.id ?? nach;
+  }
+  return raus;
+}
+
+/** Die Willkommensnachricht - englisch, wie alles fuer Mitglieder. Kanaele als Verweis, wo sie bekannt sind. */
+export function willkommenText(name: string, kanal: (n: string) => string) {
+  return {
+    title: `Welcome to CompHub, ${name}`,
+    description: [
+      'CompHub is competitive Fortnite in one place: leaderboards, maps with landing spots, player stats, tier lists and tools for streamers - all at **https://www.thecomphub.com**.',
+      '',
+      'Everything on the site is free to look at. A free account saves your tier lists and settings.',
+    ].join('\n'),
+    color: FARBE,
+    fields: [
+      {
+        name: 'On the site',
+        value: [
+          '**Events** - every cup with live leaderboards, the map with where everyone lands, and replays',
+          '**Statistics** - players, orgs, regions and prize money, season by season',
+          '**Tierlist** and **Predictions** - rank the players yourself, call the final',
+          '**Streams** - watch several streamers at once',
+        ].join('\n'),
+      },
+      {
+        name: 'On this server',
+        value: [
+          `${kanal('news')} - new cups the moment they appear`,
+          `${kanal('results')} - the top 10 of every finals`,
+          `${kanal('updates')} - what is new on CompHub`,
+          `${kanal('get-access')} - ask for VIP or manager access (overlays for OBS and extra views)`,
+          `${kanal('support')} - questions, bugs and ideas`,
+        ].join('\n'),
+      },
+    ],
+    footer: { text: 'thecomphub.com' },
+  };
+}
+
+function kanalVerweis(kanaele: RoherKanal[]) {
+  return (n: string) => {
+    const k = kanaele.find((x) => x.type === 0 && gleich(x.name, n));
+    return k ? `<#${k.id}>` : `#${n}`;
+  };
+}
+
+/**
+ * Den Willkommenstext in #welcome stellen - nur, wenn dort noch nichts steht (zweimal derselbe Aushang waere Unfug).
+ */
+export async function willkommenKanalFuellen(): Promise<{ ok: boolean; text: string }> {
+  if (!discordDa()) return { ok: false, text: 'no bot token' };
+  const kanaele = await alleKanaele();
+  const kanal = kanaele.find((k) => k.type === 0 && gleich(k.name, 'welcome'));
+  if (!kanal) return { ok: false, text: '#welcome does not exist' };
+  const da = await ruf(`/channels/${kanal.id}/messages?limit=5`, 'GET');
+  if (Array.isArray(da) && da.length) return { ok: true, text: '#welcome already has a message - left as it is' };
+  const t = willkommenText('traveller', kanalVerweis(kanaele));
+  const gesendet = await ruf(`/channels/${kanal.id}/messages`, 'POST', {
+    embeds: [{ ...t, title: 'Welcome to CompHub', description: t.description + '\n\nNew here? Have a look at the channels below - the bot also sends you a short guide by direct message when you join.' }],
+  });
+  return idAus(gesendet) ? { ok: true, text: 'Welcome text posted in #welcome' } : { ok: false, text: 'The welcome text could not be posted' };
+}
+
+/** Eine private Nachricht an einen Nutzer - false, wenn er keine Nachrichten von Servermitgliedern zulaesst. */
+async function privatSenden(nutzerId: string, einbettung: Record<string, unknown>): Promise<boolean> {
+  const chat = await ruf('/users/@me/channels', 'POST', { recipient_id: nutzerId });
+  const id = idAus(chat);
+  if (!id) return false;
+  const gesendet = await ruf(`/channels/${id}/messages`, 'POST', { embeds: [einbettung] });
+  return Boolean(idAus(gesendet));
+}
+
+export async function willkommenLauf(): Promise<{ ok: boolean; neu?: number; grund?: string; bestand?: number }> {
+  if (!discordDa()) return { ok: false, grund: 'kein-token' };
+  const mitglieder = await alleMitglieder();
+  const alt = await liesMitglieder();
+  const jetzt = new Date().toISOString();
+  if (!mitglieder) {
+    // Discord gibt die Liste nicht heraus: der Server-Members-Intent des Bots ist aus. Einmal am Tag sagen, nicht alle zehn Minuten.
+    const zuletzt = alt?.intentWarnung ? Date.parse(alt.intentWarnung) : 0;
+    if (Date.now() - zuletzt > 24 * 3_600_000) {
+      await schickeAlarm({
+        titel: 'Neue Mitglieder werden nicht erkannt',
+        text: 'Discord gibt die Mitgliederliste nicht heraus. Im Entwicklerportal (discord.com/developers/applications → CompHub → Bot → Privileged Gateway Intents) '
+          + 'den Schalter **Server Members Intent** einschalten - kostenlos, ein Klick. Danach erkennt der Bot jeden neuen Beitritt, schickt die Willkommensnachricht und meldet ihn in #admin-joins.',
+      });
+      await schreibMitglieder({ ids: alt?.ids ?? [], begruesst: alt?.begruesst ?? {}, gestartet: alt?.gestartet ?? jetzt, intentWarnung: jetzt });
+    }
+    return { ok: false, grund: 'members-intent' };
+  }
+  const echte = mitglieder.filter((m) => m.user && !m.user.bot);
+  const kanaele = await alleKanaele();
+  let joinKanal = kanaele.find((k) => k.type === 0 && gleich(k.name, ADMIN_KANAELE.joins));
+  if (!joinKanal) {
+    await richteAdminEin([], []);
+    joinKanal = (await alleKanaele()).find((k) => k.type === 0 && gleich(k.name, ADMIN_KANAELE.joins));
+  }
+
+  // Erster Lauf: nur den Bestand merken.
+  if (!alt) {
+    await schreibMitglieder({ ids: echte.map((m) => m.user!.id), begruesst: {}, gestartet: jetzt });
+    if (joinKanal) {
+      await ruf(`/channels/${joinKanal.id}/messages`, 'POST', {
+        embeds: [{ title: 'Join tracking started', description: `From now on every new member shows up here. Members at the start: **${echte.length}**.`, color: FARBE, footer: { text: new Date().toLocaleString('de-CH', { timeZone: 'Europe/Zurich' }) + ' Uhr' } }],
+      });
+    }
+    return { ok: true, neu: 0, bestand: echte.length };
+  }
+
+  const bekannt = new Set(alt.ids);
+  const neue = echte.filter((m) => !bekannt.has(m.user!.id));
+  const begruesst = { ...alt.begruesst };
+  const verweis = kanalVerweis(kanaele);
+  for (const m of neue) {
+    const u = m.user!;
+    const name = m.nick || u.global_name || u.username || 'there';
+    let dm = false;
+    if (!begruesst[u.id]) {
+      dm = await privatSenden(u.id, willkommenText(name, verweis));
+      begruesst[u.id] = jetzt;
+    }
+    if (joinKanal) {
+      await ruf(`/channels/${joinKanal.id}/messages`, 'POST', {
+        embeds: [{
+          title: 'New member',
+          description: `<@${u.id}> (${u.username ?? u.id}) joined.`,
+          color: FARBE,
+          fields: [{ name: 'Welcome message', value: dm ? 'sent by direct message' : 'could not be sent (direct messages closed)', inline: true }, { name: 'Members now', value: String(echte.length), inline: true }],
+          footer: { text: new Date().toLocaleString('de-CH', { timeZone: 'Europe/Zurich' }) + ' Uhr' },
+        }],
+      });
+    }
+  }
+  // Wer gegangen ist, bleibt in der Liste der Begruessten (kommt er zurueck, bekommt er die Nachricht nicht noch einmal); die Liste der Mitglieder ist der aktuelle Stand.
+  await schreibMitglieder({ ids: echte.map((m) => m.user!.id), begruesst, gestartet: alt.gestartet });
+  return { ok: true, neu: neue.length, bestand: echte.length };
 }

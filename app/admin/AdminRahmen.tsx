@@ -20,6 +20,7 @@ const WERKZEUGE: Array<[string, string]> = [
   ['/admin/tweets', 'Beiträge'],
   ['/posts', 'Tagesposts'],
   ['/admin/tiktok', 'TikTok'],
+  ['/admin/plakate', 'Plakate'],
   ['/maps', 'Karten'],
   ['/admin/alte-maps', 'Alte Maps'],
   ['/admin/predictions', 'Prognosen'],

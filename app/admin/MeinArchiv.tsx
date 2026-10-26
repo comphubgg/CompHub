@@ -31,6 +31,8 @@ interface Zeile {
   oeffnen: { href: string; text: string };
   /** Nur Overlays: die Adresse fuer OBS und das Loeschen. */
   overlay?: { id: string; typ: string };
+  /** Nur Tierlists: das Loeschen (Betreiber, 26.10.2026: "Overlays und Tierlists sollte man im Dashboard loeschen koennen"). */
+  tierlist?: { id: string; spieler: number; eingestuft: number };
 }
 
 const DATUM = new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
@@ -79,6 +81,7 @@ export default function MeinArchiv() {
         schluessel: l.listId, titel: l.listName || 'Tierlist',
         zusatz: `${l.modus ? ({ solo: 'Solo', duo: 'Duos', trio: 'Trios' }[l.modus]) + ' · ' : ''}${gesetzt} / ${gesamt} ${t('eingestuft')}`,
         datum: l.updatedAt ?? null,
+        tierlist: { id: l.listId, spieler: gesamt, eingestuft: gesetzt },
         // Direkt im gespeicherten Modus: /tierlist/solos, /duos oder /trios.
         oeffnen: {
           href: `/tierlist${l.modus ? '/' + ({ solo: 'solos', duo: 'duos', trio: 'trios' }[l.modus]) : ''}?liste=${encodeURIComponent(l.listId)}`,
@@ -102,6 +105,23 @@ export default function MeinArchiv() {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ id: z.overlay.id, loeschen: true }),
     }).catch(() => {});
+    laden();
+  }
+
+  /** Eine gespeicherte Tierlist entfernen - nach Rueckfrage, die nennt, was verschwindet. */
+  async function loeschenTier(z: Zeile) {
+    const tl = z.tierlist;
+    if (!tl) return;
+    if (!window.confirm(t('Diese Tierlist wirklich löschen?') + `\n\n${z.titel} · ${tl.spieler} ${t('Einträge')}, ${tl.eingestuft} ${t('eingestuft')}\n${t('Das lässt sich nicht rückgängig machen.')}`)) return;
+    try {
+      // Frisch holen: geloescht wird aus dem Stand, wie er jetzt auf dem Konto liegt, nicht aus dem, den diese Seite vor einer Weile gesehen hat.
+      const j = await (await fetch('/api/tierlists', { cache: 'no-store' })).json() as { lists?: Array<{ listId: string }>; currentListId?: string | null };
+      const rest = (j.lists ?? []).filter((l) => l.listId !== tl.id);
+      await fetch('/api/tierlists', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lists: rest, currentListId: j.currentListId === tl.id ? (rest[0]?.listId ?? null) : (j.currentListId ?? null), absichtlich: true }),
+      });
+    } catch { /* der Abschnitt laedt unten neu und zeigt, was wirklich noch da ist */ }
     laden();
   }
 
@@ -146,9 +166,9 @@ export default function MeinArchiv() {
                            text-sky-400 transition hover:bg-sky-500/20">
                 <T>{z.oeffnen.text}</T>
               </Link>
-              {z.overlay && (
-                <button type="button" onClick={() => void loeschen(z)} title={t('Löschen')}
-                  className="rounded-md px-1.5 py-1 text-[11px] text-slate-600 transition hover:text-rose-400">
+              {(z.overlay || z.tierlist) && (
+                <button type="button" onClick={() => void (z.overlay ? loeschen(z) : loeschenTier(z))} title={t('Löschen')}
+                  className="rounded-md border border-zinc-700 px-2.5 py-1 text-[11px] text-slate-400 transition hover:border-rose-500 hover:text-rose-400">
                   <T>Löschen</T>
                 </button>
               )}

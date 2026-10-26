@@ -53,6 +53,11 @@ export interface PovPro {
   /** Wer zusehen darf - Kennungen wie bei "ident". */
   erlaubt: string[];
   /**
+   * Fuer jeden freigegeben (Betreiber, 26.10.2026: "die Pros koennten das POV fuer alle oeffentlich machen - jeder, der auf der Webseite ist und sich eingeloggt hat, kann es
+   * angucken"). Gilt fuer jeden Angemeldeten (Konto oder Zugang); wer nicht angemeldet ist, sieht auch hier nichts. Die Liste "erlaubt" bleibt daneben bestehen.
+   */
+  fuerAlle?: boolean;
+  /**
    * Frueher ein Discord-Webhook des Profis. Der Betreiber (11.10.2026): keine Webhooks je Kanal - Ankuendigungen
    * laufen jetzt ueber den Bot (siehe "gilden"). Das Feld bleibt nur fuer alte Eintraege und wird nicht mehr benutzt.
    */
@@ -276,6 +281,7 @@ export function bereinige(alt: PovPro, teil: Record<string, unknown>, gueltigeVi
   if (Array.isArray(teil.erlaubt)) {
     neu.erlaubt = [...new Set((teil.erlaubt as unknown[]).map(String).filter((x) => gueltigeVips.has(x)))];
   }
+  if (typeof teil.fuerAlle === 'boolean') neu.fuerAlle = teil.fuerAlle;
   if (Array.isArray(teil.gilden)) {
     // Nur Server-Kennungen; ob der Bot dort sitzt, prueft die Ankuendigung beim Live-Gehen.
     neu.gilden = [...new Set((teil.gilden as unknown[]).map(String).filter((x) => /^\d{15,25}$/.test(x)))].slice(0, 50);

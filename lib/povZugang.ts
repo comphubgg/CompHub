@@ -15,7 +15,8 @@ async function darfZusehen(proIdent: string, idents: string[], rolle: string | n
   if (rolle === 'admin' || idents.includes(ADMIN_LINK)) return true;
   if (idents.includes(proIdent)) return true;
   const pro = (await liesPros())[proIdent];
-  return !!pro && pro.erlaubt.some((e) => idents.includes(e));
+  // Fuer alle freigegeben: jeder Angemeldete darf zusehen (die Pruefung auf "angemeldet" macht der Aufrufer - ohne Kennung kommt niemand hierher).
+  return !!pro && (pro.fuerAlle === true || pro.erlaubt.some((e) => idents.includes(e)));
 }
 
 export async function pruefeZuschauer(

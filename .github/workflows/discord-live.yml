@@ -58,6 +58,9 @@ jobs:
           # Neue Cups im Katalog als Beitrag mit Grafik nach #news (lib/newsPosts) - alle zehn Minuten.
           curl -s -w ' [News: %{http_code}]' -m 150 -H "Authorization: Bearer $GEHEIM_E" "https://www.thecomphub.com/api/cron/news" || true
           echo
+          # Wer neu auf den Discord-Server gekommen ist: Willkommensnachricht privat und eine Meldung in #admin-joins (lib/discord willkommenLauf) - alle zehn Minuten.
+          curl -s -w ' [Willkommen: %{http_code}]' -m 150 -H "Authorization: Bearer $GEHEIM_E" "https://www.thecomphub.com/api/cron/willkommen" || true
+          echo
           if [ "$(date -u +%H)" = "07" ] && [ "$(date -u +%M)" -lt 10 ]; then
             GEHEIM=$(printf '%s' "${{ secrets.ENV_LOCAL }}" | grep '^CRON_SECRET=' | cut -d= -f2- | tr -d '"\r')
             [ -z "$GEHEIM" ] && GEHEIM=$GEHEIM_E

@@ -54,10 +54,10 @@ export async function GET(request: Request) {
     }, { headers: nie });
   }
 
-  // sichtbar
-  if (!ich.vip) return NextResponse.json({ ok: true, pros: [] }, { headers: nie });
+  // sichtbar - jeder Angemeldete sieht die POVs, die fuer alle freigegeben sind; die Liste der Freigegebenen gilt weiter wie bisher.
+  if (!ich.idents.length) return NextResponse.json({ ok: true, pros: [] }, { headers: nie });
   const sichtbar = Object.values(alle)
-    .filter((p) => ich.rolle === 'admin' || p.erlaubt.some((e) => ich.idents.includes(e)));
+    .filter((p) => ich.rolle === 'admin' || p.fuerAlle === true || (ich.vip && p.erlaubt.some((e) => ich.idents.includes(e))));
   const pros = await Promise.all(sichtbar.map(async (p) => {
     // Sitzt der Profi in einem Discord-Sprachkanal? Nur das, was ein freigegebener Zuschauer braucht.
     const dId = p.discordId || (await standardDiscordId(p.ident)) || '';
