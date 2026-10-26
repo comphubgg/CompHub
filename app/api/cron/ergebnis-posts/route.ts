@@ -2,7 +2,8 @@ import crypto from 'crypto';
 import { NextResponse } from 'next/server';
 import { ergebnisPostsAnlegen } from '@/lib/ergebnisPosts';
 import { heuteDatum, postSeite } from '@/lib/tagesposts';
-import { schickePosts, schickeBeitragMitBild } from '@/lib/discord';
+import { schickePosts, schickeBeitragMitBild, schickeAlarm } from '@/lib/discord';
+import { xAutopost } from '@/lib/xPosten';
 
 /*
  * Alle zehn Minuten (Ablauf "Discord live"): zu jedem seit einer halben Stunde beendeten Spieltag den fertigen Ergebnis-Post anlegen (lib/ergebnisPosts) und dem
@@ -37,18 +38,29 @@ export async function GET(request: Request) {
     });
     // Dazu je Post das fertige Bild (Fotomosaik der Besten) mit dem Text zum Kopieren - das Ergebnisbild nach jedem Spieltag (Idee 5).
     let bilder = 0;
+    let aufX = 0;
     for (const p of neu) {
       const ids = (p.bild as { ids?: string[] } | undefined)?.ids ?? [];
-      if (!ids.length) continue;
+      let png: Uint8Array | null = null;
+      if (ids.length) {
+        try {
+          const b = await fetch(`https://www.thecomphub.com/api/beitrag-bild?ids=${ids.join(',')}&anzahl=5`, { signal: AbortSignal.timeout(60_000) });
+          if (b.ok) {
+            png = new Uint8Array(await b.arrayBuffer());
+            const s = await schickeBeitragMitBild({ titel: p.titel, text: p.text, url: postSeite(heuteDatum()), bild: png, dateiname: `ergebnis-${heuteDatum()}-${bilder + 1}.png` });
+            if (s.ok) bilder += 1;
+          }
+        } catch { /* ohne Bild bleibt die Meldung oben */ }
+      }
+      // Auf X, wenn der Admin es eingeschaltet hat (Schluessel "ergebnis:<windowId>:<Region>"). Ein Fehler dort haelt nichts auf - er kommt als Alarm.
       try {
-        const b = await fetch(`https://www.thecomphub.com/api/beitrag-bild?ids=${ids.join(',')}&anzahl=5`, { signal: AbortSignal.timeout(60_000) });
-        if (!b.ok) continue;
-        const png = new Uint8Array(await b.arrayBuffer());
-        const s = await schickeBeitragMitBild({ titel: p.titel, text: p.text, url: postSeite(heuteDatum()), bild: png, dateiname: `ergebnis-${heuteDatum()}-${bilder + 1}.png` });
-        if (s.ok) bilder += 1;
-      } catch { /* ohne Bild bleibt die Meldung oben */ }
+        const region = p.schluessel.split(':')[2] ?? '';
+        const x = await xAutopost({ schluessel: p.schluessel, region, text: p.text, png });
+        if (x.ok && !x.uebersprungen) aufX += 1;
+        if (!x.ok) await schickeAlarm({ titel: 'X-Beitrag nicht gesendet', text: `${p.titel}: ${x.grund ?? 'unbekannt'}\nDer fertige Beitrag steht in #admin-posts zum Kopieren.` });
+      } catch { /* der Beitrag steht in #admin-posts */ }
     }
-    return NextResponse.json({ ok: true, neu: neu.length, gemeldet: r.ok, grund: r.grund, bilder });
+    return NextResponse.json({ ok: true, neu: neu.length, gemeldet: r.ok, grund: r.grund, bilder, aufX });
   } catch (e) {
     return NextResponse.json({ ok: false, fehler: (e as Error).message }, { status: 503 });
   }

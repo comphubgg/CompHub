@@ -1,7 +1,8 @@
-# Das tägliche TikTok-Video (Betreiber, 20.10.2026): ein kurzes Hochformat-Video mit den fünf Ersten des Cups, der zuletzt zu Ende ging - englische Stimme, Musik,
+# Das TikTok-Video zum letzten Cup (Betreiber, 20.10.2026; ab 26.10.2026 stündlich, weil es "ein bisschen zu spät" kam): ein kurzes Hochformat-Video mit den fünf Ersten des Cups, der zuletzt zu Ende ging - englische Stimme, Musik,
 # Untertitel (scripts/tiktok/tagesvideo.py). Das fertige Video geht als Anhang ans Release "tiktok" und steht im Admin-Bereich unter /admin/tiktok zum Herunterladen
 # bereit (dazu der Text zum Kopieren); eine Meldung kommt nach #admin-log. Hochgeladen wird von Hand - TikTok erlaubt Programmen das Hochladen nicht ohne Freigabe.
-# Gibt es an einem Tag keinen beendeten Cup, entsteht kein Video. Kostenlos: GitHub Actions, etwa 6 bis 10 Minuten je Lauf.
+# Jede Stunde schaut der erste Schritt (wenige Sekunden), ob ein Cup seit einer halben Stunde zu Ende ist, zu dem es noch kein Video gibt (die Fenster der schon gebauten Videos
+# stehen in ihren JSON-Dateien am Release). Nur dann wird das Video gebaut - 6 bis 10 Minuten; sonst endet der Lauf gleich. Kostenlos: GitHub Actions (öffentliches Archiv).
 
 name: TikTok-Tagesvideo
 
@@ -13,7 +14,7 @@ on:
         required: false
         default: ''
   schedule:
-    - cron: '45 7 * * *'
+    - cron: '50 * * * *'
 
 concurrency:
   group: tiktok-tag
@@ -29,24 +30,51 @@ jobs:
       GH_TOKEN: ${{ github.token }}
     steps:
       - uses: actions/checkout@v4
+      - name: Prüfen, ob es etwas Neues gibt
+        id: pruefen
+        env:
+          ANFRAGE: ${{ github.event.inputs.anfrage }}
+        run: |
+          # Ein bestelltes Video (Top 5, Spieler-Rückblick): immer bauen, die Abfrage holt der Bau selbst.
+          if [ -n "$ANFRAGE" ]; then echo "bauen=true" >> "$GITHUB_OUTPUT"; exit 0; fi
+          mkdir -p bisher
+          if gh release view tiktok >/dev/null 2>&1; then gh release download tiktok -p '*.json' -D bisher --clobber || true; fi
+          ohne=$(cat bisher/*.json 2>/dev/null | grep -o '"windowId": *"[^"]*"' | cut -d'"' -f4 | sort -u | paste -sd, -)
+          curl -s -m 170 -A "comphub-tiktok" -o daten.json "https://www.thecomphub.com/api/tiktok-daten?ohne=${ohne}" || true
+          if grep -q '"zeilen"' daten.json 2>/dev/null && ! grep -q '"keinCup":true' daten.json; then
+            echo "Neu:"; head -c 200 daten.json; echo; echo "bauen=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Nichts Neues:"; head -c 300 daten.json 2>/dev/null; echo; echo "bauen=false" >> "$GITHUB_OUTPUT"
+          fi
       - uses: actions/setup-node@v4
+        if: steps.pruefen.outputs.bauen == 'true'
         with:
           node-version: '22'
       - uses: actions/setup-python@v5
+        if: steps.pruefen.outputs.bauen == 'true'
         with:
           python-version: '3.12'
       - name: Werkzeuge
+        if: steps.pruefen.outputs.bauen == 'true'
         run: |
           # ffmpeg bringt imageio-ffmpeg als fertige Datei mit - auf dem Runner ist keines vorinstalliert.
           pip install --quiet edge-tts numpy playwright imageio-ffmpeg piper-tts
           python -m playwright install --with-deps chromium
           python -c "import imageio_ffmpeg; print(imageio_ffmpeg.get_ffmpeg_exe())"
       - name: Video bauen
+        if: steps.pruefen.outputs.bauen == 'true'
         env:
           TIKTOK_ANFRAGE: ${{ github.event.inputs.anfrage }}
-        run: python scripts/tiktok/tagesvideo.py --ausgabe tiktok-out
+        run: |
+          # Der planmäßige Lauf nimmt die Daten, die der erste Schritt geholt hat (derselbe Cup, keine zweite Abfrage); ein bestelltes Video holt seine eigenen.
+          if [ -z "$TIKTOK_ANFRAGE" ] && [ -s daten.json ]; then
+            python scripts/tiktok/tagesvideo.py --ausgabe tiktok-out --daten daten.json
+          else
+            python scripts/tiktok/tagesvideo.py --ausgabe tiktok-out
+          fi
       - name: Ans Release hängen
         id: hoch
+        if: steps.pruefen.outputs.bauen == 'true'
         run: |
           shopt -s nullglob
           dateien=(tiktok-out/*.mp4 tiktok-out/*.json)

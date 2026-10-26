@@ -20,7 +20,8 @@ export async function GET(request: Request) {
     const jahr = Number(p.get('jahr')) || new Date().getUTCFullYear();
     if (vorlage === 'top5') return NextResponse.json(await topFuenf({ region: (p.get('region') ?? '').toUpperCase(), liste: p.get('liste') ?? 'verdienst', jahr }), { headers: { 'Cache-Control': 'no-store' } });
     if (vorlage === 'spieler') return NextResponse.json(await spielerRueckblick({ name: p.get('name') ?? '', jahr }), { headers: { 'Cache-Control': 'no-store' } });
-    return zwischenspeichern(NextResponse.json(await tiktokDaten(), { headers: { 'Cache-Control': 'no-store' } }), 300);
+    const ohne = (p.get('ohne') ?? '').split(',').map((x) => x.trim()).filter(Boolean).slice(0, 300);
+    return zwischenspeichern(NextResponse.json(await tiktokDaten({ ohne }), { headers: { 'Cache-Control': 'no-store' } }), 300);
   } catch (e) {
     return NextResponse.json({ keinCup: true, grund: (e as Error).message }, { status: 503 });
   }

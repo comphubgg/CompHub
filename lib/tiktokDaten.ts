@@ -6,6 +6,7 @@ import { titelMit, groesseAus, istZeroBuild } from '@/lib/cupTitel';
 import { spielerbildKlein } from '@/lib/spielerbildKlein';
 import { sprechbar, aussprachePaare } from '@/lib/aussprache';
 import { finale, fensterName, profilKarte, type KatalogCup, type KatalogFenster } from '@/lib/ergebnisPosts';
+import { geldErzaehlen, type GeldErzaehlt } from '@/lib/tiktokGeld';
 
 /*
  * Die Daten fuer das tägliche TikTok-Video (Betreiber, 20.10.2026: "das automatische TikTok generieren ... jeden Tag oder jeden zweiten").
@@ -80,7 +81,11 @@ function aufzaehlung(l: string[]): string {
 interface Eintrag { rank: number; points: number; players?: Array<{ id?: string; name: string }> }
 interface Roster { teams?: Array<{ rank: number; points: number; spieler: Array<{ id: string; name: string; img: string | null }> }> }
 
-export async function tiktokDaten(): Promise<TiktokDaten> {
+/**
+ * Der Cup fuer das Video. "ohne" nennt Fenster, zu denen es schon ein Video gibt (Betreiber, 26.10.2026: "du erstellst sie ein bisschen zu spaet") - so darf der Ablauf stuendlich
+ * schauen, und jedes Finale bekommt sein Video kurz nach dem Ende, ohne dass derselbe Cup noch einmal drankommt.
+ */
+export async function tiktokDaten(opt: { ohne?: string[] } = {}): Promise<TiktokDaten> {
   const jetzt = Date.now();
   let katalog: { cups?: KatalogCup[] } = {};
   try { katalog = await (await katalogAbruf(new Request(`${SEITE}/api/cup-catalog?modus=standard`))).json(); } catch { throw new Error('Katalog nicht erreichbar'); }
@@ -94,6 +99,7 @@ export async function tiktokDaten(): Promise<TiktokDaten> {
       for (const f of fenster) {
         if (f.status !== 'vorbei' || !f.end || String(f.eventId).startsWith('manuell_')) continue;
         if (f.end > jetzt - 30 * 60_000 || f.end < jetzt - STUNDEN * 3_600_000) continue;
+        if (opt.ohne?.includes(f.windowId)) continue;
         kandidaten.push({ cup, region, f, istFinale: finale(cup, f, fenster) });
       }
     }
@@ -161,7 +167,10 @@ export async function tiktokDaten(): Promise<TiktokDaten> {
   if (stufe && new RegExp(stufe === 'Finals' ? 'final' : stufe, 'i').test(cupName)) stufe = '';
   const marken = [modus, spieltag, stufe].filter((m, i, a) => m && a.findIndex((x) => x.toLowerCase() === m.toLowerCase()) === i);
   const d = new Date(k.f.end ?? jetzt);
+  // Mit Geld erzaehlt: was die Punkte bedeuten und was dabei herauskam (veraendert die Zeilen und liefert Einstieg und Text).
+  const geld = await geldErzaehlen(k, zeilen, { cupName, spieltag, stufe }).catch((): GeldErzaehlt => ({}));
   return {
+    ...geld,
     eventId: k.f.eventId, windowId: k.f.windowId, titel, cupName, spieltag, stufe, modus, marken, region: k.region, finale: k.istFinale,
     datum: `${d.getUTCDate()} ${MONATE[d.getUTCMonth()]} ${d.getUTCFullYear()}`,
     seite: `${SEITE}/events/${encodeURIComponent(k.cup.id)}`,

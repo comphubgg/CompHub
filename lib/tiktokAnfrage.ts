@@ -139,7 +139,7 @@ export async function topFuenf(o: { region: string; liste: string; jahr: number 
     vorlage: 'top5', titel, cupName: `Top 5 ${regionText} Players`, spieltag: art.titel, stufe: '', modus: '', marken: [o.region || 'World', String(o.jahr), art.kurz.toUpperCase()],
     region: o.region || 'WORLD', datum: `Season ${o.jahr}`, seite: `${SEITE}/statistics`, zeilen,
     introSatz: `The top five players of ${regionSpruch} in ${jahrWort(o.jahr)}, ranked by ${art.kurz}. All numbers from the CompHub statistics.`,
-    outroSatz: 'Every player, every region and every cup, on thecomphub dot com. Tell us who we should cover next.',
+    outroSatz: 'Every player, every region and every cup, on the comp hub dot com. Tell us who we should cover next.',
     text, dateiName: `top5-${(o.region || 'world').toLowerCase()}-${feld}-${o.jahr}`,
   } as TiktokDaten;
 }
@@ -199,7 +199,7 @@ export async function spielerRueckblick(o: { name: string; jahr: number }): Prom
     marken: [String(o.jahr), ...((sp.regionen as string[] | undefined) ?? []).slice(0, 2)], region: (sp.regionen as string[] | undefined)?.[0] ?? 'EU', datum: `Season ${o.jahr}`,
     seite: `${SEITE}/statistics?spieler=${encodeURIComponent(anzeige)}`, zeilen,
     introSatz: `${gespr} in ${jahrWort(o.jahr)}. ${zahlWort(Number(sp.events ?? 0)).replace(/^./, (c) => c.toUpperCase())} events, ${zahlWort(Number(sp.matches ?? 0))} matches${rang.regional ? `, ranked number ${zahlWort(rang.regional)} in ${REGION_GESPROCHEN[rang.region ?? 'EU'] ?? 'the region'}` : ''}. Here are the best placements.`,
-    outroSatz: `Latest result: place ${zahlWort(neueste.platz)} at ${neueste.titel.replace(/[^A-Za-z0-9 .,&-]/g, ' ')}. More stats on thecomphub dot com.`,
+    outroSatz: `Latest result: place ${zahlWort(neueste.platz)} at ${neueste.titel.replace(/[^A-Za-z0-9 .,&-]/g, ' ')}. More stats on the comp hub dot com.`,
     text, dateiName: `spieler-${gespr.toLowerCase().replace(/\s+/g, '-')}-${o.jahr}`,
   } as TiktokDaten;
 }

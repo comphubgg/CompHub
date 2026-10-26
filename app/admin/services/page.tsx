@@ -15,7 +15,7 @@ import T from '@/app/components/T';
 import SeitenKopf from '@/app/components/SeitenKopf';
 
 interface Stand {
-  dienst: 'twitch' | 'discord' | 'google' | 'epic';
+  dienst: 'twitch' | 'discord' | 'google' | 'epic' | 'x' | 'xzugang';
   woher: 'eingetragen' | 'umgebung' | 'fehlt';
   seite: string;
   rueckrufVoll: string;
@@ -26,6 +26,14 @@ const LOGO: Record<string, string> = {
   discord: '/icons/discord.png',
   google: '/icons/google.svg',
   epic: '/icons/epic.svg',
+  x: '/icons/twitter.svg',
+  xzugang: '/icons/twitter.svg',
+};
+
+/** Wie die zwei Felder eines Dienstes heissen und wie er angezeigt wird. */
+const FELDER: Record<string, { id: string; secret: string; name?: string }> = {
+  x: { id: 'API Key', secret: 'API Key Secret', name: 'X · App' },
+  xzugang: { id: 'Access Token', secret: 'Access Token Secret', name: 'X · Konto' },
 };
 
 export default function DienstePage() {
@@ -33,6 +41,17 @@ export default function DienstePage() {
   const [fehler, setFehler] = useState('');
   const [eingabe, setEingabe] = useState<Record<string, { id: string; secret: string }>>({});
   const [laeuft, setLaeuft] = useState('');
+  /** Das automatische Posten auf X: Schalter, Regionen, und ob die vier Schluessel stehen. */
+  const [xAuto, setXAuto] = useState<{ an: boolean; regionen: string[]; bereit: boolean } | null>(null);
+  const xLaden = useCallback(() => {
+    fetch('/api/admin/x-autopost', { cache: 'no-store' }).then((r) => r.json()).then((j) => { if (j?.ok) setXAuto({ an: j.an, regionen: j.regionen, bereit: j.bereit }); }).catch(() => {});
+  }, []);
+  useEffect(() => { xLaden(); }, [xLaden, stand]);
+  async function xAendern(teil: { an?: boolean; regionen?: string[] }) {
+    const r = await fetch('/api/admin/x-autopost', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(teil) });
+    const j = await r.json().catch(() => null);
+    if (j?.ok) setXAuto({ an: j.an, regionen: j.regionen, bereit: j.bereit });
+  }
 
   const laden = useCallback(() => {
     fetch('/api/admin/dienste')
@@ -81,7 +100,7 @@ export default function DienstePage() {
                 <div className="mb-3 flex items-center gap-3">
                   <img src={LOGO[d.dienst]} alt="" className="h-6 w-6 object-contain" />
                   <span className="text-sm font-semibold capitalize text-slate-100">
-                    {d.dienst}
+                    {FELDER[d.dienst]?.name ?? d.dienst}
                   </span>
                   <span className={`rounded px-2 py-0.5 text-[10px] uppercase
                                     tracking-wider ${d.woher === 'fehlt'
@@ -97,14 +116,14 @@ export default function DienstePage() {
                   <input value={werte.id} spellCheck={false}
                     onChange={(e) => setEingabe((v) => ({
                       ...v, [d.dienst]: { ...werte, id: e.target.value } }))}
-                    placeholder="Client ID"
+                    placeholder={FELDER[d.dienst]?.id ?? 'Client ID'}
                     className="rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2
                                font-mono text-xs text-slate-100 outline-none
                                placeholder:text-slate-600 focus:border-sky-500" />
                   <input value={werte.secret} spellCheck={false} type="password"
                     onChange={(e) => setEingabe((v) => ({
                       ...v, [d.dienst]: { ...werte, secret: e.target.value } }))}
-                    placeholder="Client Secret"
+                    placeholder={FELDER[d.dienst]?.secret ?? 'Client Secret'}
                     className="rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-2
                                font-mono text-xs text-slate-100 outline-none
                                placeholder:text-slate-600 focus:border-sky-500" />
@@ -135,14 +154,48 @@ export default function DienstePage() {
                   <T>Holen bei</T>{' '}
                   <a href={`https://${d.seite}`} target="_blank" rel="noreferrer"
                     className="text-sky-400 underline">{d.seite}</a>
-                  {' · '}<T>dort als Rückruf eintragen:</T>{' '}
-                  <code className="rounded bg-zinc-950 px-1 py-0.5 text-slate-300">
-                    {d.rueckrufVoll}
-                  </code>
+                  {d.rueckrufVoll ? (
+                    <>
+                      {' · '}<T>dort als Rückruf eintragen:</T>{' '}
+                      <code className="rounded bg-zinc-950 px-1 py-0.5 text-slate-300">
+                        {d.rueckrufVoll}
+                      </code>
+                    </>
+                  ) : d.dienst === 'x' || d.dienst === 'xzugang' ? (
+                    <>{' · '}<T>unter „Keys and tokens“ — die App braucht das Recht „Read and write“, das Zugriffstoken muss danach neu erzeugt werden.</T></>
+                  ) : null}
                 </p>
               </div>
             );
           })}
+          {/* Das automatische Posten: aus, bis der Admin es einschaltet. */}
+          {xAuto && (
+            <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
+              <div className="flex flex-wrap items-center gap-3">
+                <span className="text-sm font-semibold text-slate-100"><T>Automatisch auf X posten</T></span>
+                <span className={`rounded px-2 py-0.5 text-[10px] uppercase tracking-wider ${xAuto.an ? 'bg-emerald-500/10 text-emerald-400' : 'bg-zinc-800 text-slate-500'}`}>
+                  {xAuto.an ? <T>an</T> : <T>aus</T>}
+                </span>
+                {!xAuto.bereit && <span className="text-[11px] text-amber-300"><T>Es fehlen noch Schlüssel (X · App und X · Konto).</T></span>}
+              </div>
+              <p className="mt-2 text-[11px] leading-relaxed text-slate-500">
+                <T>Nach jedem beendeten Spieltag geht der fertige Ergebnis-Post (Text mit @-Konten und das Bild der Besten) von selbst auf X, wenn der Schalter an ist. Europa bekommt auch die Opens, die anderen Regionen nur die Finals. Der Beitrag steht außerdem wie bisher in #admin-posts.</T>
+              </p>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <button type="button" onClick={() => void xAendern({ an: !xAuto.an })} disabled={!xAuto.bereit && !xAuto.an}
+                  className="rounded-lg bg-sky-500 px-3 py-1.5 text-xs font-medium text-white transition hover:bg-sky-400 disabled:opacity-40">
+                  {xAuto.an ? <T>Ausschalten</T> : <T>Einschalten</T>}
+                </button>
+                {['EU', 'NAC', 'NAW', 'BR', 'ASIA', 'ME', 'OCE'].map((r) => (
+                  <label key={r} className={`flex cursor-pointer items-center gap-1.5 rounded-full border px-3 py-1 text-[11px] font-bold transition ${xAuto.regionen.includes(r) ? 'border-sky-500 bg-sky-500/10 text-sky-300' : 'border-zinc-700 text-slate-400 hover:border-zinc-500'}`}>
+                    <input type="checkbox" className="sr-only" checked={xAuto.regionen.includes(r)}
+                      onChange={() => void xAendern({ regionen: xAuto.regionen.includes(r) ? xAuto.regionen.filter((x) => x !== r) : [...xAuto.regionen, r] })} />
+                    {r}
+                  </label>
+                ))}
+              </div>
+            </div>
+          )}
           {stand?.length === 0 && !fehler && (
             <p className="text-sm text-slate-500"><T>Nichts zu zeigen.</T></p>
           )}

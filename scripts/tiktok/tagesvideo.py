@@ -89,7 +89,7 @@ def drehbuch(d):
         else:
             text = f"Number {wort}. {z['gesprochen']}, with {pt} points."
         szenen.append({"id": f"r{z['rang']}", "text": text})
-    szenen.append({"id": "outro", "text": d.get("outroSatz") or "Full results, maps and stats on thecomphub dot com. A new recap every day.", "mindestens": 6.5})
+    szenen.append({"id": "outro", "text": d.get("outroSatz") or "Full results, maps and stats on the comp hub dot com. That is the comp hub dot com. A new recap every day.", "mindestens": 6.5})
     return szenen
 
 
@@ -114,8 +114,25 @@ def aliase_aus(d):
             ALIAS[gesprochen.lower()] = anzeige
 
 
+def adresse_zusammen(woerter):
+    """Gesprochen "the comp hub dot com", angezeigt thecomphub.com: die fuenf Woerter werden zu einem Untertitel-Wort (Zeit von Beginn bis Ende)."""
+    raus, i = [], 0
+    while i < len(woerter):
+        zeile = [re.sub(r"[^a-z]", "", w["w"].lower()) for w in woerter[i:i + 5]]
+        if zeile == ["the", "comp", "hub", "dot", "com"]:
+            ende = woerter[i + 4]
+            satz = re.match(r"^.*?([.,;:!?]*)$", ende["w"]).group(1)
+            raus.append({"w": "thecomphub.com" + satz, "t": woerter[i]["t"], "d": round(ende["t"] + ende["d"] - woerter[i]["t"], 3)})
+            i += 5
+        else:
+            raus.append(woerter[i])
+            i += 1
+    return raus
+
+
 def untertitel(woerter):
     """Die Untertitel zeigen den Namen, wie er geschrieben wird (Shark -> SHXRK), auch wenn die Stimme ihn anders spricht."""
+    woerter = adresse_zusammen(woerter)
     if not ALIAS:
         return woerter
     raus = []
@@ -310,7 +327,7 @@ def main():
         if r.returncode:
             raise SystemExit("Video fehlgeschlagen:\n" + r.stderr[-1500:])
 
-    info = {"stimme": tl.get("stimme"), "datum": datum, "titel": d["titel"], "cupName": d.get("cupName"), "spieltag": d.get("spieltag"), "stufe": d.get("stufe"), "modus": d.get("modus"), "marken": d.get("marken") or [], "vorlage": d.get("vorlage") or "letzter", "region": d["region"], "cupDatum": d.get("datum"), "dauer": round(tl["gesamt"], 1), "text": text_zum_kopieren(d),
+    info = {"stimme": tl.get("stimme"), "datum": datum, "titel": d["titel"], "cupName": d.get("cupName"), "spieltag": d.get("spieltag"), "stufe": d.get("stufe"), "modus": d.get("modus"), "marken": d.get("marken") or [], "vorlage": d.get("vorlage") or "letzter", "region": d["region"], "cupDatum": d.get("datum"), "dauer": round(tl["gesamt"], 1), "windowId": d.get("windowId"), "text": text_zum_kopieren(d),
             "seite": d.get("seite"), "video": mp4.name, "mb": round(mp4.stat().st_size / 1e6, 1)}
     (aus / f"{mp4.stem}.json").write_text(json.dumps(info, ensure_ascii=False, indent=1), encoding="utf-8")
     print(f"fertig: {mp4.name} ({info['mb']} MB, {info['dauer']} s)", flush=True)
