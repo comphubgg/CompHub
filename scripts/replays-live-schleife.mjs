@@ -37,6 +37,9 @@ const TAKT_S = arg('--takt', 60);
 const PROTOKOLL = path.join(process.cwd(), 'data', 'replays', '_live-lauf.json');
 
 const warte = (ms) => new Promise((r) => setTimeout(r, ms));
+/** Wie oft hochgeladen wird: die schlanke Fassung (fuer die Seite) alle 5, die grosse Auswertung alle 15 Durchgaenge. */
+const JE_SCHLANK = 5;
+const JE_AGGREGAT = 15;
 
 /** Wie viele Cups laut Katalog gerade laufen - oder null, wenn die Seite nicht antwortet. */
 async function laufendeCups() {
@@ -117,7 +120,13 @@ async function main() {
     if (angefasst.length) schritt('replays-schlank.mjs', angefasst);
     // Ans Release, nicht mehr nach Supabase (seit dem 22.9.2026 - siehe
     // lib/ablageGithub, nurRelease). Die Seite liest die Auswertung von dort.
-    const hochladen = schritt('ablage-github.mjs', ['--neuer-als', '5', '--nur', 'replays', '--nur', 'replays-schlank']);
+    /*
+     * Hochgeladen wird nicht mehr jede Minute (Aufgabe 144: GitHub erlaubt rund 500 anlegende Anfragen je Stunde, ein ersetzter Anhang kostet zwei).
+     * Die Seite braucht nur die schlanke Fassung (hoechstens ein paar MB): sie geht alle fuenf Minuten hoch; die grosse Auswertung (bis 54 MB, nur fuer das
+     * Weiterrechnen auf einem anderen Rechner) alle fuenfzehn. Am Ende der Schleife geht alles noch einmal hoch.
+     */
+    const hochladen = (durchgang % JE_AGGREGAT === 1 ? schritt('ablage-github.mjs', ['--neuer-als', '20', '--nur', 'replays']) : 0)
+      || (durchgang % JE_SCHLANK === 1 ? schritt('ablage-github.mjs', ['--neuer-als', '10', '--nur', 'replays-schlank']) : 0);
 
     verlauf.push({
       zeit: new Date().toISOString(), live,
@@ -126,8 +135,8 @@ async function main() {
     });
     protokoll({ art: 'schleife', durchgaenge: durchgang, verlauf: verlauf.slice(-30) });
 
-    // Das Protokoll selbst mit hochladen, damit es aussen lesbar ist.
-    schritt('ablage-github.mjs', ['--neuer-als', '2', '--nur', 'replays/_live-lauf.json']);
+    // Das Protokoll selbst mit hochladen, damit es aussen lesbar ist (alle fuenf Durchgaenge).
+    if (durchgang % JE_SCHLANK === 1) schritt('ablage-github.mjs', ['--neuer-als', '10', '--nur', 'replays/_live-lauf.json']);
 
     const rest = TAKT_S * 1000 - (Date.now() - t0);
     if (rest > 0) await warte(rest);
@@ -136,7 +145,9 @@ async function main() {
   console.log(`\nSchleife beendet nach ${durchgang} Durchgaengen, `
     + `${Math.round((Date.now() - beginn) / 60_000)} Minuten.`);
   protokoll({ art: 'schleife', durchgaenge: durchgang, beendet: true, verlauf: verlauf.slice(-30) });
-  schritt('ablage-github.mjs', ['--neuer-als', '2', '--nur', 'replays/_live-lauf.json']);
+  // Zum Schluss alles, was seit dem letzten Hochladen dazukam.
+  schritt('ablage-github.mjs', ['--neuer-als', '30', '--nur', 'replays', '--nur', 'replays-schlank']);
+  schritt('ablage-github.mjs', ['--neuer-als', '10', '--nur', 'replays/_live-lauf.json']);
 }
 
 main().catch((e) => {
