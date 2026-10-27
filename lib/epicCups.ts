@@ -1947,6 +1947,20 @@ function aufraeumen() {
   }
 }
 
+const letzteFrische = new Map<string, number>();
+/**
+ * Ein VIP laedt einen Cup von Hand neu (Knopf neben "Alle/Freunde", Betreiber 27.10.2026): alle Zwischenspeicher dieses Spieltags werden verworfen, die naechsten Abfragen
+ * gehen wieder zu Epic. Hoechstens einmal je fuenfzehn Sekunden und Spieltag - wer den Knopf haemmert (oder die Adresse aufruft), ueberrennt Epic damit nicht.
+ */
+export function frischeFuer(fenster: string): boolean {
+  if (!fenster || fenster.length > 120) return false;
+  const jetzt = Date.now();
+  if (jetzt - (letzteFrische.get(fenster) ?? 0) < 15_000) return false;
+  letzteFrische.set(fenster, jetzt);
+  for (const k of [...cache.keys()]) if (k.includes(fenster)) cache.delete(k);
+  return true;
+}
+
 export async function gecacht<T>(key: string, ttl: number, hole: () => Promise<T>): Promise<T> {
   aufraeumen();
   const hit = cache.get(key);

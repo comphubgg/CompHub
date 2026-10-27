@@ -7,7 +7,7 @@ import { szeneFenster, epicTag } from '@/lib/szeneStats';
 import { liesLanKonten } from '@/lib/lanKonten';
 import { liesJson } from '@/lib/ablage';
 import { GLOBALS_TAGE, istGlobalsEvent, istGlobalsFenster } from '@/lib/globalsCup';
-import { replayTag } from '@/lib/replaySchlank';
+import { replayTag, verwerfeReplayTage } from '@/lib/replaySchlank';
 
 /*
  * Ohne Replays: die Werte der Szene-Quelle.
@@ -198,6 +198,7 @@ async function letzterLauf() {
 async function holeRoh(request: Request) {
   const p = new URL(request.url).searchParams;
   const fenster = p.get('window');
+  if (p.get('frisch') === '1') verwerfeReplayTage();
   if (!fenster) {
     return NextResponse.json({ error: 'window ist noetig' }, { status: 400 });
   }

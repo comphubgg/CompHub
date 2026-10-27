@@ -672,6 +672,16 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
   const [statistik, setStatistik] = useState<Bestenliste[]>([]);
   /** Wann Epic die Bestenliste zuletzt fortgeschrieben hat - "zuletzt aktualisiert". */
   const [statistikStand, setStatistikStand] = useState<string | null>(null);
+  /*
+   * Von Hand neu laden (Betreiber, 27.10.2026: "fuer die VIPs ein kleines Reload-Zeichen neben Alle und Freunde - da druecke ich drauf und der ganze Cup mit Statistik, Matches und
+   * Leaderboard geht auf den neuesten Stand, und die Uhrzeit wird auch neu"). neuNr stoesst Spielerwerte und Statistik an, handFrischBis laesst die Abrufe der naechsten
+   * Sekunden an der Zwischenspeicherung vorbei (frisch=1), handStand ist die Uhrzeit des letzten Knopfdrucks.
+   */
+  const [neuNr, setNeuNr] = useState(0);
+  const [handLaedt, setHandLaedt] = useState(false);
+  const [handStand, setHandStand] = useState<number | null>(null);
+  const handFrischBis = useRef(0);
+  const spielerNeuGesehen = useRef(0);
   /**
    * Spieltage, zu denen bewusst keine Karte angeboten wird.
    *
@@ -1474,12 +1484,12 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     if (!lbFenster || !zeigeStatistik) { setStatistik([]); return; }
     let weg = false;
     fetch(`/api/cup-stats?event=${encodeURIComponent(lbFenster.eventId)}`
-        + `&window=${encodeURIComponent(lbFenster.windowId)}&top=5`)
+        + `&window=${encodeURIComponent(lbFenster.windowId)}&top=5${Date.now() < handFrischBis.current ? '&frisch=1' : ''}`)
       .then((r) => r.json())
       .then((d) => { if (!weg) { setStatistik(d.bestenlisten ?? []); setStatistikStand(d.aktualisiert ?? null); } })
       .catch(() => { if (!weg) setStatistik([]); });
     return () => { weg = true; };
-  }, [lbFenster, zeigeStatistik]);
+  }, [lbFenster, zeigeStatistik, neuNr]);
 
   // Die Profile einmal holen - sie aendern sich waehrend eines Cups nicht.
   useEffect(() => {
@@ -1772,7 +1782,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
        * Finale zehntausend Plaetze zu verlangen.
        */
       + `&window=${encodeURIComponent(lbFenster.windowId)}`
-      + `&limit=${Math.min(MAX_PLAETZE, Math.max(500, tabelle.length))}`)
+      + `&limit=${Math.min(MAX_PLAETZE, Math.max(500, tabelle.length))}`
+      + (Date.now() < handFrischBis.current ? '&frisch=1' : ''))
       .then((r) => r.json())
       .then((j) => {
         if (weg) return;
@@ -2016,17 +2027,20 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
   }, [reiter, fenster, spielerWerte?.gekuerzt, spielerSuche]);
 
   useEffect(() => {
-    if (reiter !== 'spieler' || !fenster || spielerWerte) return;
+    // Ein Druck auf den Reload-Knopf holt die Werte noch einmal - still, ohne dass die Liste verschwindet.
+    const vonHand = neuNr !== spielerNeuGesehen.current;
+    if (reiter !== 'spieler' || !fenster || (spielerWerte && !vonHand)) return;
+    spielerNeuGesehen.current = neuNr;
     let weg = false;
-    setSpielerLaedt(true);
+    if (!spielerWerte) setSpielerLaedt(true);
     fetch(`/api/cup-spieler?window=${encodeURIComponent(fenster.windowId)}`
-      + `&event=${encodeURIComponent(fenster.eventId)}`)
+      + `&event=${encodeURIComponent(fenster.eventId)}${Date.now() < handFrischBis.current ? '&frisch=1' : ''}`)
       .then((r) => r.json())
-      .then((j) => { if (!weg) setSpielerWerte(j?.error ? null : j); })
-      .catch(() => { if (!weg) setSpielerWerte(null); })
+      .then((j) => { if (!weg && !(j?.error && spielerWerte)) setSpielerWerte(j?.error ? null : j); })
+      .catch(() => { if (!weg && !spielerWerte) setSpielerWerte(null); })
       .finally(() => { if (!weg) setSpielerLaedt(false); });
     return () => { weg = true; };
-  }, [reiter, fenster, spielerWerte]);
+  }, [reiter, fenster, spielerWerte, neuNr]);
 
   /*
    * Zu jedem Team dieses Spieltags der gepflegte Twitch-Kanal.
@@ -2183,7 +2197,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
      */
     const holeStueck = async (von: number, seiten: number) => {
       const r = await fetch(`/api/cup-leaderboard?event=${encodeURIComponent(f.eventId)}`
-        + `&window=${encodeURIComponent(f.windowId)}&von=${von}&seiten=${seiten}`);
+        + `&window=${encodeURIComponent(f.windowId)}&von=${von}&seiten=${seiten}${von === 0 && Date.now() < handFrischBis.current ? '&frisch=1' : ''}`);
       const d = await r.json();
       if (!r.ok) throw new Error(d.error ?? 'nicht ladbar');
       return d as { entries?: Eintrag[]; updated?: string; totalPages?: number };
@@ -2360,6 +2374,23 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
   // Das eigene Team: wer sein Epic-Konto verknuepft hat, sieht sich in der Tabelle hervorgehoben (wie bei Osirion).
   const zugang = useZugang();
   const meineId = zugang.epicId;
+  /** Der Reload-Knopf fuer VIPs: Bestenliste, Runden, Spielerwerte und Statistik des gewaehlten Spieltags auf den neuesten Stand. */
+  const vonHandNeu = useCallback(() => {
+    if (!lbFenster || handLaedt) return;
+    handFrischBis.current = Date.now() + 45_000;
+    setHandLaedt(true);
+    setNeuNr((n) => n + 1);
+    setNachladen((n) => n + 1);
+    void laden(lbFenster).finally(() => { setHandStand(Date.now()); setHandLaedt(false); });
+  }, [lbFenster, handLaedt, laden]);
+  const handKnopf = (zugang.vip || zugang.admin) && lbFenster && lbFenster.status !== 'kommt' ? (
+    <button type="button" onClick={vonHandNeu} disabled={handLaedt}
+      title={handStand ? `${t('Zuletzt neu geladen:')} ${new Date(handStand).toLocaleTimeString(ort)}` : t('Bestenliste, Matches und Statistik auf den neuesten Stand bringen')}
+      aria-label={t('Neu laden')}
+      className="grid h-7 w-7 shrink-0 place-items-center rounded-md border border-zinc-800 bg-zinc-900/80 text-slate-400 transition hover:border-sky-500 hover:text-sky-400 disabled:opacity-60">
+      <svg viewBox="0 0 20 20" className={`h-3.5 w-3.5 ${handLaedt ? 'animate-spin' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M16 10a6 6 0 1 1-1.8-4.3" /><path d="M16 3.5v3.7h-3.7" /></svg>
+    </button>
+  ) : null;
   const istMein = useCallback((e: { players: Array<{ id?: string }> }) =>
     Boolean(meineId) && e.players.some((p) => String(p.id ?? '').replace(/-/g, '').toLowerCase() === meineId), [meineId]);
 
@@ -3307,6 +3338,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                     className={`rounded-md px-3 py-1 transition ${nurFreunde ? 'bg-sky-500 text-white shadow' : 'text-slate-400 hover:text-slate-100'}`}><T>Freunde</T></button>
                 </div>
               )}
+              {handKnopf}
               {/* Ohne Ladezeichen im Feld. Der Betreiber wollte es gross
                   auf der Bestenliste sehen, nicht klein an der Eingabe -
                   dort verdeckt es beim Tippen ohnehin den Cursor. */}
@@ -4133,6 +4165,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
               <div className="flex flex-wrap items-center gap-3">
                 {/* Auch hier die Stufe - die Runden gehoeren zur gewaehlten Liste. */}
                 {rangWahl}
+                {handKnopf}
                 {/* Der Filter, den der Betreiber wollte: laufend oder nicht. */}
                 {spiele && spiele.length > 0 && (
                   <div className="flex gap-1 rounded-lg border border-zinc-800
@@ -4363,6 +4396,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                 <T>Spieler-Stats</T>
               </h2>
               <div className="flex items-center gap-3">
+                {handKnopf}
                 <input value={spielerSuche}
                   onChange={(e) => setSpielerSuche(e.target.value)}
                   placeholder={t('Spieler suchen …')}

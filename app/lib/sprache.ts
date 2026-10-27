@@ -3389,6 +3389,8 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Die Endspiele ließen sich gerade nicht laden. Bitte gleich noch einmal versuchen.': 'The finals could not be loaded right now. Please try again in a moment.',
   'Noch keine Endspiele.': 'No finals yet.',
   'Platzierungen werden nachgetragen.': 'Placements will be added.',
+  'Zuletzt neu geladen:': 'Last reloaded:',
+  'Bestenliste, Matches und Statistik auf den neuesten Stand bringen': 'Bring leaderboard, matches and stats up to date',
   'Fragen, Ideen oder etwas funktioniert nicht? Schreib mir auf Discord oder per E-Mail - ich antworte so schnell ich kann.': 'Questions, ideas or something not working? Write to me on Discord or by email - I will reply as fast as I can.',
   'Der schnellste Weg - auch für Zugänge und VIP.': 'The fastest way - also for access and VIP.',
   'Für alles, was länger wird.': 'For anything that takes longer.',

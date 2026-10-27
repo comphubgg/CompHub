@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import {
-  gecacht, holeTop, holeBereich, findeSpieler, ergaenzeBilder, EpicLoginNoetig,
+  gecacht, holeTop, holeBereich, findeSpieler, ergaenzeBilder, EpicLoginNoetig, frischeFuer,
 } from '@/lib/epicCups';
 import { zwischenspeichern } from '@/lib/zwischenspeicher';
 import { abgesagtFuer, ohneAbgesagte } from '@/lib/abgesagt';
@@ -112,6 +112,8 @@ async function holeRoh(request: Request) {
   const event = searchParams.get('event');
   const window_ = searchParams.get('window');
   const mehrere = (searchParams.get('windows') ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+  // Von Hand neu geladen (VIP-Knopf): die Zwischenspeicher dieses Spieltags verwerfen.
+  if (searchParams.get('frisch') === '1') for (const w of window_ ? [window_] : mehrere) frischeFuer(w);
 
   if (!event || (!window_ && mehrere.length < 2)) {
     return NextResponse.json(

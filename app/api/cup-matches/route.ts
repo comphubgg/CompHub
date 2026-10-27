@@ -3,7 +3,7 @@ import { NextResponse } from 'next/server';
 import fs from '@/lib/ablageFs';
 import { DATEN_ORT } from '@/lib/datenOrt';
 import {
-  gecacht, holeTop, getToken, loeseNamenAuf, EpicLoginNoetig, type CupEintrag,
+  gecacht, holeTop, getToken, loeseNamenAuf, EpicLoginNoetig, frischeFuer, type CupEintrag,
 } from '@/lib/epicCups';
 import {
   holeKatalog, punkteFuerRunde, regionAus, wertungVon, type WertungsRegel,
@@ -252,6 +252,7 @@ async function holeRoh(request: Request) {
   const p = new URL(request.url).searchParams;
   const event = p.get('event');
   const window_ = p.get('window');
+  if (p.get('frisch') === '1' && window_) frischeFuer(window_);
   // Bis zum ganzen Feld: eine Lobby einer Qualifikation zieht sich durch
   // die gesamte Bestenliste, und eine halbe Aufstellung waere schlimmer
   // als gar keine.

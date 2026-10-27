@@ -35,6 +35,9 @@ export interface ReplayTag {
 // Tages fragen meist kurz nacheinander.
 const merker = new Map<string, { tag: ReplayTag | null; bis: number }>();
 
+/** Der Speicher einer Minute wird verworfen, wenn ein VIP von Hand neu laedt. */
+export function verwerfeReplayTage() { merker.clear(); }
+
 export async function replayTag(saison: string, windowId: string): Promise<ReplayTag | null> {
   const schluessel = `${saison}|${windowId}`;
   const gemerkt = merker.get(schluessel);

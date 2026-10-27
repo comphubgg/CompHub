@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { gecacht, holeTop, EpicLoginNoetig, type CupEintrag } from '@/lib/epicCups';
+import { gecacht, holeTop, EpicLoginNoetig, frischeFuer, type CupEintrag } from '@/lib/epicCups';
 import { zwischenspeichern } from '@/lib/zwischenspeicher';
 import { istGlobalsFinale, globalsTage, globalsStand, summiereTage } from '@/lib/globalsGesamt';
 
@@ -61,6 +61,7 @@ async function holeRoh(request: Request) {
   const { searchParams } = new URL(request.url);
   const event = searchParams.get('event');
   const window_ = searchParams.get('window');
+  if (searchParams.get('frisch') === '1' && window_) frischeFuer(window_);
   const limit = Math.min(parseInt(searchParams.get('limit') ?? '100', 10) || 100, 10_000);
   const proListe = Math.min(parseInt(searchParams.get('top') ?? '5', 10) || 5, 25);
 
