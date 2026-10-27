@@ -12,7 +12,6 @@ import Sprachschalter from './components/Sprachschalter';
 import FotoFokus from './components/FotoFokus';
 import DashAnsicht from './components/DashAnsicht';
 import NeuerStand from './components/NeuerStand';
-import Melden from './components/Melden';
 import PreviewTour from './components/PreviewTour';
 import RouteTransitionLoader from './components/RouteTransitionLoader';
 import Besuchszaehler from './components/Besuchszaehler';
@@ -216,7 +215,7 @@ export default async function RootLayout({
           <NeuerStand />
           {/* Der Melde-Knopf. Nur fuer angemeldete Konten; er schickt die
               Meldung samt Seite an den Betreiber. */}
-          <Melden />
+          {/* Kein Melde-Formular mehr (Betreiber, 27.10.2026): Kontakt nur ueber Discord oder E-Mail, siehe /contact. */}
           {/*
             * Zaehlt, dass diese Seite geoeffnet wurde - sichtbar ist davon
             * nichts. Steht hier im Rahmen, damit auch die Wechsel ohne

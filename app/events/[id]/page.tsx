@@ -743,7 +743,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
    */
   const [reiter, setReiter] =
     useState<'liste' | 'runden' | 'spieler' | 'teams' | 'streams'
-      | 'about' | 'archiv' | 'preis'>('liste');
+      | 'about' | 'archiv' | 'preis' | 'weg' | 'karte'>('liste');
 
   /*
    * Das Archiv zu diesem Cup - Fotos und Videos vom Event (lib/galerie).
@@ -2493,11 +2493,16 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
    * Duo-Cup kommt und dort auf diesem Reiter stand, landete sonst auf einer
    * leeren Seite ohne Knopf zurueck.
    */
+  // Die Reiter "Weg ins Grand Final" und "Karte" gibt es nur, wo es sie gibt (FNCS Solos ohne Reload; eine hinterlegte Karte).
+  const wegDa = !!cup && /fncssolos/i.test(cup.id) && !/reload/i.test(cup.id);
+  const kartenAnzahl = kartenZumZeigen.length;
   useEffect(() => {
     if (soloCup && reiter === 'spieler') setReiter('teams');
     // Ranked Cups haben diese Reiter nicht - siehe die Leiste unten.
     if (cup?.art === 'ranked' && ['spieler', 'archiv'].includes(reiter)) setReiter('liste');
-  }, [soloCup, reiter, cup?.art]);
+    if (reiter === 'weg' && !wegDa) setReiter('liste');
+    if (reiter === 'karte' && kartenAnzahl === 0) setReiter('liste');
+  }, [soloCup, reiter, cup?.art, wegDa, kartenAnzahl]);
 
   if (fehler) {
     return (
@@ -2582,9 +2587,6 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
           * Der Weg ins Grand Final bei den FNCS Solos (Betreiber, 20.10.2026: "die Roadmap auch unter Events"): derselbe Plan wie auf der Seite FNCS Solos, fuer die
           * gewaehlte Region - Qualifier, Fast Track, Heats, Last Chance und Finale mit Spielerzahl und Punkteschwelle. Nicht bei den Reload-Reihen: dort gilt eine andere Saison.
           */}
-        {cup && /fncssolos/i.test(cup.id) && !/reload/i.test(cup.id) && (
-          <WegKasten region={(SOLOS_REGIONEN as readonly string[]).includes(region) ? region : 'EU'} />
-        )}
         {cup?.global && (
           <p className="mb-4 text-xs text-slate-500">
             <T>Gemeinsames Leaderboard über alle Regionen — dieses Turnier wird nicht regional getrennt gewertet.</T>
@@ -2670,26 +2672,6 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
           </div>
         )}
 
-        {/* Karte zum Spieltag - erscheint nur, wenn eine hinterlegt ist */}
-        {kartenZumZeigen.length > 0 && (() => {
-          const knoepfe = (
-            <div className="mb-5 flex flex-wrap gap-2">
-              {kartenZumZeigen.map((k) => (
-                <KartenKnopf key={k.id} karte={k} mitInsel={kartenZumZeigen.length > 1}
-                  aufVerstecken={!istAdmin ? undefined
-                    // Eine gespeicherte Karte wird ausgeblendet, ein blosses
-                    // Angebot ganz weggenommen - es gibt ja noch nichts.
-                    : k.href ? () => kartenAngebot(fenster?.windowId ?? '', true)
-                      : verstecke} />
-              ))}
-            </div>
-          );
-          // Die gespeicherte Karte steht gleich auf der Seite (Betreiber, 26.10.2026); der Knopf bleibt, wo es nur ein Angebot gibt oder noch kein Team verteilt ist.
-          const gespeichert = kartenZumZeigen.filter((k) => !k.href);
-          return gespeichert.length
-            ? <KarteImEvent key={fenster?.windowId} karten={gespeichert} leer={knoepfe} zusatz={istAdmin ? knoepfe : undefined} />
-            : knoepfe;
-        })()}
 
         {/* Eventinfos */}
         {fenster && (
@@ -3069,6 +3051,27 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
             * den uebrigen Reitern - der Betreiber wollte unter Events sehen,
             * "wie man sich qualifizieren kann".
             */}
+          {/* Weg ins Grand Final und Karte: gleichberechtigte Reiter neben Leaderboard, Matches usw.; About bleibt ganz hinten (Betreiber, 27.10.2026). */}
+          {wegDa && (
+            <button
+              onClick={() => setReiter('weg')}
+              className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                reiter === 'weg'
+                  ? 'bg-sky-500/10 text-sky-400'
+                  : 'text-slate-400 hover:text-slate-200'}`}>
+              <T>Der Weg ins Grand Final</T>
+            </button>
+            )}
+          {kartenAnzahl > 0 && (
+            <button
+              onClick={() => setReiter('karte')}
+              className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+                reiter === 'karte'
+                  ? 'bg-sky-500/10 text-sky-400'
+                  : 'text-slate-400 hover:text-slate-200'}`}>
+              <T>Karte</T>
+            </button>
+            )}
           {preise?.vorhanden && (preise.geld.length > 0 || preise.gegenstaende.length > 0) && (
             <button
               onClick={() => setReiter('preis')}
@@ -3079,14 +3082,6 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
               <T>Preispool</T>
             </button>
           )}
-          <button
-            onClick={() => setReiter('about')}
-            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
-              reiter === 'about'
-                ? 'bg-sky-500/10 text-sky-400'
-                : 'text-slate-400 hover:text-slate-200'}`}>
-            About
-          </button>
 
           {/*
             * Das Archiv des Events - Fotos und Videos, siehe CupArchiv.
@@ -3118,6 +3113,16 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
             </a>
           )}
 
+          {/* About steht immer ganz hinten. */}
+          <button
+            onClick={() => setReiter('about')}
+            className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
+              reiter === 'about'
+                ? 'bg-sky-500/10 text-sky-400'
+                : 'text-slate-400 hover:text-slate-200'}`}>
+            About
+          </button>
+
           {/*
             * Der kurze Weg in das Beitragswerkzeug.
             *
@@ -3147,6 +3152,30 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
 
         </div>
 
+
+        {/* ------------------------------------------------- Weg ins Grand Final und Karte (Reiter, 27.10.2026) */}
+        {reiter === 'weg' && wegDa && (
+          <WegKasten alsReiter region={(SOLOS_REGIONEN as readonly string[]).includes(region) ? region : 'EU'} />
+        )}
+        {reiter === 'karte' && kartenZumZeigen.length > 0 && (() => {
+          const knoepfe = (
+            <div className="mb-5 flex flex-wrap gap-2">
+              {kartenZumZeigen.map((k) => (
+                <KartenKnopf key={k.id} karte={k} mitInsel={kartenZumZeigen.length > 1}
+                  aufVerstecken={!istAdmin ? undefined
+                    // Eine gespeicherte Karte wird ausgeblendet, ein blosses
+                    // Angebot ganz weggenommen - es gibt ja noch nichts.
+                    : k.href ? () => kartenAngebot(fenster?.windowId ?? '', true)
+                      : verstecke} />
+              ))}
+            </div>
+          );
+          // Die gespeicherte Karte steht gleich auf der Seite (Betreiber, 26.10.2026); der Knopf bleibt, wo es nur ein Angebot gibt oder noch kein Team verteilt ist.
+          const gespeichert = kartenZumZeigen.filter((k) => !k.href);
+          return gespeichert.length
+            ? <KarteImEvent key={fenster?.windowId} alsReiter karten={gespeichert} leer={knoepfe} zusatz={istAdmin ? knoepfe : undefined} />
+            : knoepfe;
+        })()}
 
         {/* ------------------------------------------------- About */}
         {/*

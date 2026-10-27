@@ -71,7 +71,7 @@ const NUR_HIER: Ziel[] = [
   { href: '/globals-solos', titel: 'FNCS Solos', text: 'Alle Regionen: Qualifizierte, Heats, Last Chance, Finale und die Karte jedes Spieltags', symbol: 'solos' },
   // Replays gibt es nur hier (nicht in der Leiste): alle Games zum Abspielen, dort umschaltbar auf "Meine Replays".
   { href: '/replays', titel: 'Replays', text: 'Jedes Game zum Abspielen - alle Cups oder nur deine eigenen', symbol: 'karte' },
-  { href: '/contact', titel: 'Kontakt', text: 'Etwas kaputt, fehlt oder besser zu machen? Schreib es dem Betreiber', symbol: 'kontakt' },
+  { href: '/contact', titel: 'Kontakt', text: 'Per Discord oder E-Mail erreichst du den Betreiber', symbol: 'kontakt' },
 ];
 const NUR_HIER_ADMIN: Ziel[] = [];
 

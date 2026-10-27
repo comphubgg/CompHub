@@ -82,6 +82,7 @@ export async function GET() {
       quelle: 'Epic Games (payoutTables)',
     }, { headers: { 'Cache-Control': 'public, s-maxage=3600, stale-while-revalidate=86400' } });
   } catch (e) {
-    return NextResponse.json({ error: (e as Error).message }, { status: 502 });
+    // Kein 5xx (Cloudflare machte daraus eine HTML-Seite, die Seite zeigte "Unexpected token") - die Seite liest "error".
+    return NextResponse.json({ error: (e as Error).message });
   }
 }

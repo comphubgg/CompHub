@@ -138,6 +138,10 @@ export async function GET() {
     return NextResponse.json({ players: playerMap, regions: { NAC_PLAYERS: [], EU_PLAYERS: [] }, duos: duoList });
   } catch (error: any) {
     console.error(t('error_reading_players', 'Error reading players:'), error);
+    // Ein Netzfehler zu Supabase ist kein Grund, die Spielerliste zu verweigern: die Datei steht daneben.
+    if (USE_DISK_FALLBACK) {
+      try { return NextResponse.json(await readPlayersFile()); } catch { /* unten der Fehler */ }
+    }
     return NextResponse.json({ error: error.message || t('failed_to_read_players', 'Failed to read players') }, { status: 500 });
   }
 }

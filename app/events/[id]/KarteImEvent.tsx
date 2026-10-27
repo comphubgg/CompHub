@@ -24,11 +24,12 @@ interface Stand {
   teams?: Array<{ id: string; spieler: string[] }>;
 }
 
-export default function KarteImEvent({ karten, leer, zusatz }: { karten: Eintrag[]; leer: ReactNode; zusatz?: ReactNode }) {
+export default function KarteImEvent({ karten, leer, zusatz, alsReiter }: { karten: Eintrag[]; leer: ReactNode; zusatz?: ReactNode; alsReiter?: boolean }) {
   const t = useT();
   const [wahl, setWahl] = useState(0);
   /** Zugeklappt, bis man es oeffnet (Betreiber, 26.10.2026: "nicht sofort anzeigen, sondern nur wenn man es aufklappt"). */
-  const [offen, setOffen] = useState(false);
+  // Als Reiter der Event-Seite (27.10.2026) steht die Karte gleich offen.
+  const [offen, setOffen] = useState(Boolean(alsReiter));
   const aktuell = karten[Math.min(wahl, karten.length - 1)];
   // Eine Karte nach der anderen im Speicher halten, damit ein Wechsel zwischen den Inseln sofort steht.
   const [staende, setStaende] = useState<Record<string, Stand>>({});
@@ -92,11 +93,11 @@ export default function KarteImEvent({ karten, leer, zusatz }: { karten: Eintrag
               <T>Eigene Seite öffnen</T> →
             </Link>
           )}
-          <button type="button" onClick={() => setOffen((o) => !o)} aria-expanded={offen}
+          {!alsReiter && <button type="button" onClick={() => setOffen((o) => !o)} aria-expanded={offen}
             className="inline-flex items-center gap-1.5 rounded-full border border-zinc-700 px-3.5 py-1.5 text-xs font-semibold text-slate-300 transition hover:border-sky-500 hover:text-sky-400">
             {offen ? <T>Ausblenden</T> : <T>Anzeigen</T>}
             <svg viewBox="0 0 20 20" className={`h-3.5 w-3.5 transition ${offen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 8l5 5 5-5" /></svg>
-          </button>
+          </button>}
         </div>
       </div>
       {offen && karten.length > 1 && (

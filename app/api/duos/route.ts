@@ -49,6 +49,11 @@ export async function GET() {
     return NextResponse.json({ success: true, duos: duoRows, extracted_at: new Date().toISOString() });
   } catch (err: any) {
     console.error('Error reading duos:', err);
+    // Netzfehler zu Supabase: die Datei daneben antwortet statt eines 500ers.
+    try {
+      const duoRows = await readDuosFile();
+      return NextResponse.json({ success: true, duos: duoRows, extracted_at: new Date().toISOString() });
+    } catch { /* unten der Fehler */ }
     return NextResponse.json({ success: false, error: err?.message || String(err) }, { status: 500 });
   }
 }
