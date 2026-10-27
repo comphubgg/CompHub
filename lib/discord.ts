@@ -3570,18 +3570,39 @@ export async function willkommenLauf(): Promise<{ ok: boolean; neu?: number; gru
     return { ok: true, neu: 0, bestand: echte.length };
   }
 
-  const bekannt = new Set(alt.ids);
-  const neue = echte.filter((m) => !bekannt.has(m.user!.id));
+  /*
+   * Wer begruesst wird (27.10.2026 neu, Betreiber: "die Willkommensnachricht darf nicht mehrmals kommen - nur wenn man neu joint oder geht und wieder joint; ich habe sie schon zweimal bekommen").
+   *
+   * Vorher entschied die Liste der zuletzt bekannten Mitglieder, wer "neu" ist. Schrieb ein Lauf sie nicht an die Ablage zurueck (Schreibkonflikt, Neustart des Servers) oder sah ein Lauf
+   * nur einen Teil der Mitglieder, galten die uebrigen beim naechsten Mal als neu - und bekamen die Nachricht noch einmal. Jetzt entscheidet allein der Beitritt selbst:
+   *   - Discord nennt zu jedem Mitglied den Zeitpunkt seines Beitritts (joined_at); wer geht und wiederkommt, bekommt einen neuen
+   *   - begruesst wird nur, wer in den letzten zwoelf Stunden beigetreten ist UND wessen Beitritt noch nicht vermerkt ist (begruesst[id] = joined_at)
+   *   - der Vermerk wird VOR dem Senden geschrieben; gelingt das nicht, wird nichts gesendet (lieber einmal zu wenig als zweimal)
+   * So bekommt niemand die Nachricht, nur weil ein Lauf etwas verloren hat - alte Mitglieder sind nie "neu".
+   */
+  const FRIST = 12 * 3_600_000;
+  const neue = echte.filter((m) => {
+    const dabei = Date.parse(m.joined_at ?? '');
+    if (!Number.isFinite(dabei) || Date.now() - dabei > FRIST) return false;
+    // Ein Vermerk gilt, wenn er den Beitritt nennt oder (alte Vermerke) jünger als der Beitritt ist: dann wurde nach diesem Beitritt begrüßt.
+    const vermerkt = alt.begruesst[m.user!.id];
+    return !(vermerkt && Date.parse(vermerkt) >= dabei);
+  });
   const begruesst = { ...alt.begruesst };
+  for (const m of neue) begruesst[m.user!.id] = m.joined_at as string;
+  if (neue.length) {
+    try {
+      await schreibMitglieder({ ids: echte.map((m) => m.user!.id), begruesst, gestartet: alt.gestartet });
+    } catch (e) {
+      console.warn('[willkommen] Vermerk nicht geschrieben - es wird nichts gesendet:', (e as Error).message);
+      return { ok: false, grund: 'vermerk', bestand: echte.length };
+    }
+  }
   const verweis = kanalVerweis(kanaele);
   for (const m of neue) {
     const u = m.user!;
     const name = m.nick || u.global_name || u.username || 'there';
-    let dm = false;
-    if (!begruesst[u.id]) {
-      dm = await privatSenden(u.id, willkommenText(name, verweis));
-      begruesst[u.id] = jetzt;
-    }
+    const dm = await privatSenden(u.id, willkommenText(name, verweis));
     if (joinKanal) {
       await ruf(`/channels/${joinKanal.id}/messages`, 'POST', {
         embeds: [{
@@ -3594,7 +3615,7 @@ export async function willkommenLauf(): Promise<{ ok: boolean; neu?: number; gru
       });
     }
   }
-  // Wer gegangen ist, bleibt in der Liste der Begruessten (kommt er zurueck, bekommt er die Nachricht nicht noch einmal); die Liste der Mitglieder ist der aktuelle Stand.
+  // Die Mitgliederliste ist nur noch Zahl und Auskunft; die Vermerke der Begruessten bleiben, auch wenn jemand geht (kommt er zurueck, ist sein joined_at ein neues).
   await schreibMitglieder({ ids: echte.map((m) => m.user!.id), begruesst, gestartet: alt.gestartet });
   return { ok: true, neu: neue.length, bestand: echte.length };
 }

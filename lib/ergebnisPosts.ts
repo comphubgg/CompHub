@@ -23,7 +23,7 @@ export interface KatalogFenster { windowId: string; eventId: string; status?: st
 export interface KatalogCup { id: string; titel: string; art: string; global?: boolean; regionen?: Record<string, KatalogFenster[]> }
 interface Eintrag { rank: number; points: number; wins?: number; elims?: number; players?: Array<{ id?: string; name: string }> }
 
-export interface Profil { x?: string; land?: string; anzeige?: string; name?: string }
+export interface Profil { x?: string; land?: string; anzeige?: string; name?: string; /** Wie die Stimme im TikTok-Video den Namen spricht (lib/aussprache), vom Betreiber eingetragen. */ aussprache?: string }
 
 /** Das Fenster ist ein Finale, oder - bei Event/Runde - die hoechste Runde des Abends. */
 export function finale(cup: KatalogCup, f: KatalogFenster, fenster: KatalogFenster[]): boolean {

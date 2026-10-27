@@ -4,7 +4,8 @@ import { GET as rosterAbruf } from '@/app/api/cup-roster/route';
 import { kernname, ohneZierrat } from '@/lib/homoglyph';
 import { titelMit, groesseAus, istZeroBuild } from '@/lib/cupTitel';
 import { spielerbildKlein } from '@/lib/spielerbildKlein';
-import { sprechbar, aussprachePaare } from '@/lib/aussprache';
+import { sprechbar, aussprachePaare, setzeAussprachen } from '@/lib/aussprache';
+import { zahlWort } from '@/lib/tiktokAnfrage';
 import { finale, fensterName, profilKarte, type KatalogCup, type KatalogFenster } from '@/lib/ergebnisPosts';
 import { geldErzaehlen, type GeldErzaehlt } from '@/lib/tiktokGeld';
 
@@ -37,6 +38,15 @@ export interface TiktokZeile {
   einheit?: string;
   beschreibung?: string;
   satz?: string;
+  /** Die Punkte, wie Epic sie fuehrt (die Zahl rechts kann im Video ein Geldbetrag sein). */
+  pkt?: number;
+  /** In welchen Spielen das Team gewonnen hat (Nummer in der Reihenfolge des Spielendes), und seine Eliminierungen. */
+  siegSpiele?: number[];
+  elims?: number;
+  /** Ein Satz mehr fuer die Stimme (Siege, Eliminierungen) - wird an den Satz der Zeile gehaengt. */
+  zusatz?: string;
+  /** Eine kleine Zeile unter der Zahl rechts im Bild ("100 PTS · WINS G2, G4 · 11 ELIMS"). */
+  untertitel?: string;
 }
 
 export interface TiktokDaten {
@@ -78,7 +88,7 @@ function aufzaehlung(l: string[]): string {
   return l.length < 2 ? (l[0] ?? '') : `${l.slice(0, -1).join(', ')} and ${l[l.length - 1]}`;
 }
 
-interface Eintrag { rank: number; points: number; players?: Array<{ id?: string; name: string }> }
+interface Eintrag { rank: number; points: number; players?: Array<{ id?: string; name: string }>; elims?: number; matches?: Array<{ placement?: number | null; elims?: number; endTime?: string }> }
 interface Roster { teams?: Array<{ rank: number; points: number; spieler: Array<{ id: string; name: string; img: string | null }> }> }
 
 /**
@@ -111,6 +121,8 @@ export async function tiktokDaten(opt: { ohne?: string[]; nur?: string } = {}): 
   kandidaten.sort((a, b) => Number(b.istFinale) - Number(a.istFinale) || Number(b.region === 'EU') - Number(a.region === 'EU') || (b.f.end ?? 0) - (a.f.end ?? 0));
 
   const karte = await profilKarte();
+  // Vom Betreiber eingetragene Aussprachen (Feld "aussprache" im Spielerprofil) gelten fuer genau diesen Namen.
+  setzeAussprachen([...karte.profile.values()].flatMap((p) => (p.aussprache ? [[ohneZierrat(kernname(p.anzeige || p.name || '')), p.aussprache] as [string, string]] : [])));
   let bester: { k: (typeof kandidaten)[number]; zeilen: TiktokZeile[]; mitFoto: number } | null = null;
   for (const k of kandidaten.slice(0, 5)) {
     try {
@@ -138,7 +150,17 @@ export async function tiktokDaten(opt: { ohne?: string[]; nur?: string } = {}): 
           const datei = decodeURIComponent(img.replace(/^\/spielerbilder\//, ''));
           return `${SEITE}${spielerbildKlein(datei)}`;
         });
-        return { rang: e.rank || i + 1, namen, gesprochen: aufzaehlung(namen.map(sprechbar)), aussprache: aussprachePaare(namen), punkte: e.points, laender, fotos };
+        // In welchen Spielen gewonnen wurde: die Spiele nach Spielende geordnet, Platz 1 ist ein Sieg.
+        const spiele = [...(e.matches ?? [])].sort((a, b) => (Date.parse(a.endTime ?? '') || 0) - (Date.parse(b.endTime ?? '') || 0));
+        const siegSpiele = spiele.map((m, j) => (m.placement === 1 ? j + 1 : 0)).filter((n) => n > 0);
+        const elims = typeof e.elims === 'number' ? e.elims : spiele.reduce((s, m) => s + (m.elims ?? 0), 0);
+        const satzTeile: string[] = [];
+        if (siegSpiele.length) satzTeile.push(`Wins in ${aufzaehlung(siegSpiele.map((n) => `game ${zahlWort(n)}`))}.`);
+        if (elims > 0) satzTeile.push(`${zahlWort(elims)} elimination${elims === 1 ? '' : 's'} in total.`);
+        return {
+          rang: e.rank || i + 1, namen, gesprochen: aufzaehlung(namen.map(sprechbar)), aussprache: aussprachePaare(namen), punkte: e.points, laender, fotos,
+          pkt: e.points, siegSpiele, elims, zusatz: satzTeile.join(' '),
+        } as TiktokZeile;
       });
       const mitFoto = zeilen.reduce((n, z) => n + z.fotos.filter(Boolean).length, 0);
       if (!bester || (k.istFinale && !bester.k.istFinale) || (k.istFinale === bester.k.istFinale && mitFoto > bester.mitFoto + 1)) bester = { k, zeilen, mitFoto };
@@ -170,6 +192,15 @@ export async function tiktokDaten(opt: { ohne?: string[]; nur?: string } = {}): 
   const d = new Date(k.f.end ?? jetzt);
   // Mit Geld erzaehlt: was die Punkte bedeuten und was dabei herauskam (veraendert die Zeilen und liefert Einstieg und Text).
   const geld = await geldErzaehlen(k, zeilen, { cupName, spieltag, stufe }).catch((): GeldErzaehlt => ({}));
+  // Die kleine Zeile unter der Zahl: im Geld-Video steht rechts der Betrag, dort kommen die Punkte hierher; sonst Siege und Eliminierungen.
+  for (const z of zeilen) {
+    const teile = [
+      geld.introSatz && typeof z.pkt === 'number' ? `${z.pkt} PTS` : '',
+      z.siegSpiele?.length ? `WINS ${z.siegSpiele.map((n) => `G${n}`).join(', ')}` : '',
+      z.elims ? `${z.elims} ELIMS` : '',
+    ].filter(Boolean);
+    z.untertitel = teile.join(' · ');
+  }
   return {
     ...geld,
     eventId: k.f.eventId, windowId: k.f.windowId, titel, cupName, spieltag, stufe, modus, marken, region: k.region, finale: k.istFinale,

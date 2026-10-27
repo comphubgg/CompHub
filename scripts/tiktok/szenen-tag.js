@@ -90,6 +90,7 @@ ZEILEN.slice().reverse().forEach((z, i) => {           // i = 0 -> Platz 5 (unte
   const einheit = z.einheit || 'PTS';
   const pt = mk('div', 'pt', r, '<span>' + (z.wertText ? z.wertText : (z.praefix || '') + '0') + '</span><small>' + einheit + '</small>');
   const zahl = pt.querySelector('span');
+  if (z.untertitel) mk('small', 'sub', pt, z.untertitel);
   if ((z.wertText || String(z.punkte)).length + (z.praefix || '').length > 7) pt.style.fontSize = '44px';
 
   // Aufdecken: der leere Platz fuellt sich, wenn die Stimme die Zeile beginnt.

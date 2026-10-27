@@ -88,6 +88,9 @@ def drehbuch(d):
             text = f"And the winner. {z['gesprochen']}, with {pt} points."
         else:
             text = f"Number {wort}. {z['gesprochen']}, with {pt} points."
+        # Dazu, was das Team in den Spielen geholt hat (Siege mit Spielnummer, Eliminierungen) - nicht nur Platz und Punkte vorlesen (Betreiber, 27.10.2026).
+        if z.get("zusatz"):
+            text = f"{text} {z['zusatz']}"
         szenen.append({"id": f"r{z['rang']}", "text": text})
     szenen.append({"id": "outro", "text": d.get("outroSatz") or "Full results, maps and stats on the comp hub dot com. That is the comp hub dot com. A new recap every day.", "mindestens": 6.5})
     return szenen
