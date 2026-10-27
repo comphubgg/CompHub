@@ -89,3 +89,6 @@ neustart.txt
 dist-pov/
 vorschau.pid
 video-werkstatt/
+
+__pycache__/
+*.pyc
