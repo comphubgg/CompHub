@@ -85,7 +85,7 @@ def drehbuch(d):
         if z.get("satz"):
             text = z["satz"]
         elif z["rang"] == 1:
-            text = f"And the winner. {z['gesprochen']}, with {pt} points."
+            text = f"{d.get('erstSatz') or 'And the winner.'} {z['gesprochen']}, with {pt} points."
         else:
             text = f"Number {wort}. {z['gesprochen']}, with {pt} points."
         # Dazu, was das Team in den Spielen geholt hat (Siege mit Spielnummer, Eliminierungen) - nicht nur Platz und Punkte vorlesen (Betreiber, 27.10.2026).

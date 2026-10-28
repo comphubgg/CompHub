@@ -61,7 +61,9 @@ async function holeRoh(request: Request) {
   const { searchParams } = new URL(request.url);
   const event = searchParams.get('event');
   const window_ = searchParams.get('window');
-  if (searchParams.get('frisch') === '1' && window_) frischeFuer(window_);
+  // Mehrere Tage eines Finales zusammen (?windows=a,b - Betreiber, 28.10.2026: kumulatives Turnier).
+  const tageListe = (searchParams.get('windows') ?? '').split(',').map((s) => s.trim()).filter(Boolean).slice(0, 6);
+  if (searchParams.get('frisch') === '1') for (const w of window_ ? [window_, ...tageListe] : tageListe) frischeFuer(w);
   const limit = Math.min(parseInt(searchParams.get('limit') ?? '100', 10) || 100, 10_000);
   const proListe = Math.min(parseInt(searchParams.get('top') ?? '5', 10) || 5, 25);
 
@@ -76,18 +78,20 @@ async function holeRoh(request: Request) {
    */
   const nurListe = (searchParams.get('liste') ?? '').trim();
 
-  if (!event || !window_) {
+  if (!event || (!window_ && tageListe.length < 2)) {
     return NextResponse.json({ error: 'event und window sind noetig' }, { status: 400 });
   }
 
   try {
     // Das Finale der Globals hat keine eigene Bestenliste: beide Tage zusammen.
     const finale = istGlobalsFinale(event, window_);
-    const einzeln = finale ? null : await gecacht(`stats|${event}|${window_}|${limit}`, TTL,
+    const summe = tageListe.length > 1;
+    const tageDaten = summe ? await Promise.all(tageListe.map((w) => gecacht(`stats|${event}|${w}|${limit}`, TTL, () => holeTop(event, w, limit)))) : null;
+    const einzeln = finale || summe || !window_ ? null : await gecacht(`stats|${event}|${window_}|${limit}`, TTL,
       () => holeTop(event, window_, limit));
-    const eintraege = finale ? summiereTage(await globalsTage(limit)) : einzeln!.entries;
+    const eintraege = tageDaten ? summiereTage(tageDaten.map((d) => d.entries as CupEintrag[])) : finale ? summiereTage(await globalsTage(limit)) : einzeln!.entries;
     // Wann Epic die Bestenliste zuletzt fortgeschrieben hat - fuer "zuletzt aktualisiert".
-    const aktualisiert = finale ? await globalsStand(limit) : einzeln!.updated ?? null;
+    const aktualisiert = tageDaten ? (tageDaten.map((d) => d.updated ?? '').sort().pop() || null) : finale ? await globalsStand(limit) : einzeln!.updated ?? null;
 
     const bestenlisten = KATEGORIEN.filter((k) =>
       !nurListe || k.schluessel === nurListe).map((k) => {

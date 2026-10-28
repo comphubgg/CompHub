@@ -85,6 +85,23 @@ interface Fenster {
  *
  * Steht etwas nicht in der Playlist, steht es hier auch nicht.
  */
+/**
+ * Die Tage eines mehrtaegigen Finales (Day 1, Day 2 ...) in einer Region - daraus entsteht die Kachel "Kumulativ": beide Tage zusammen entscheiden den Sieger
+ * (Betreiber, 28.10.2026: "bei den FNCS Solos Finals gibt es Day 1 und Day 2 und beide zusammen das kumulative Turnier - man muss umschalten koennen"). Die Globals haben
+ * ihre eigene Kachel (anzeige "Kumulativ") und bleiben aussen vor.
+ */
+function kumTageVon(tage: Fenster[]): Fenster[] {
+  if (tage.some((x) => x.anzeige === 'Kumulativ')) return [];
+  const gruppen = new Map<string, Fenster[]>();
+  for (const x of tage) {
+    if (!/Day\d+/i.test(x.windowId) || !(x.istFinale || /final/i.test(x.windowId))) continue;
+    const k = x.windowId.replace(/Day\d+/i, 'Day#');
+    gruppen.set(k, [...(gruppen.get(k) ?? []), x]);
+  }
+  const wahl = [...gruppen.values()].filter((g) => g.length > 1).sort((a, b) => b.length - a.length)[0];
+  return wahl ? [...wahl].sort((a, b) => a.begin - b.begin) : [];
+}
+
 function spieltagAus(playlist?: string) {
   const p = playlist ?? '';
   const insel = inselAusPlaylist(p);
@@ -682,6 +699,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
   const [handStand, setHandStand] = useState<number | null>(null);
   const handFrischBis = useRef(0);
   const spielerNeuGesehen = useRef(0);
+  /** Die Gesamtwertung aller Tage eines mehrtaegigen Finales ist gewaehlt (Kachel "Kumulativ"). */
+  const [kumAktiv, setKumAktiv] = useState(false);
   /**
    * Spieltage, zu denen bewusst keine Karte angeboten wird.
    *
@@ -1233,6 +1252,14 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     () => (cup && region ? cup.regionen[region] ?? [] : []),
     [cup, region]);
 
+  // Kumulativ: die Tage eines mehrtaegigen Finales zusammen - gewaehlt nur, wenn mindestens ein Tag gespielt wird oder gespielt ist.
+  const kumTage = useMemo(() => kumTageVon(tage), [tage]);
+  const kumDa = kumTage.length > 1 && kumTage.some((x) => x.status !== 'kommt');
+  const kumLetzter = useMemo(() => [...kumTage].reverse().find((x) => x.status !== 'kommt') ?? kumTage[0], [kumTage]);
+  /** Die Fensterkennungen, ueber die gerechnet wird - null, solange ein einzelner Tag gewaehlt ist. */
+  const summenFenster = useMemo(() => (kumAktiv && kumDa ? kumTage.filter((x) => x.status !== 'kommt').map((x) => x.windowId) : null), [kumAktiv, kumDa, kumTage]);
+  const summenText = summenFenster ? summenFenster.map(encodeURIComponent).join(',') : '';
+
   /**
    * Wie heisst welches Spielfenster?
    *
@@ -1484,12 +1511,12 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     if (!lbFenster || !zeigeStatistik) { setStatistik([]); return; }
     let weg = false;
     fetch(`/api/cup-stats?event=${encodeURIComponent(lbFenster.eventId)}`
-        + `&window=${encodeURIComponent(lbFenster.windowId)}&top=5${Date.now() < handFrischBis.current ? '&frisch=1' : ''}`)
+        + `&window=${encodeURIComponent(lbFenster.windowId)}&top=5${summenFenster ? `&windows=${summenText}` : ''}${Date.now() < handFrischBis.current ? '&frisch=1' : ''}`)
       .then((r) => r.json())
       .then((d) => { if (!weg) { setStatistik(d.bestenlisten ?? []); setStatistikStand(d.aktualisiert ?? null); } })
       .catch(() => { if (!weg) setStatistik([]); });
     return () => { weg = true; };
-  }, [lbFenster, zeigeStatistik, neuNr]);
+  }, [lbFenster, zeigeStatistik, neuNr, summenFenster, summenText]);
 
   // Die Profile einmal holen - sie aendern sich waehrend eines Cups nicht.
   useEffect(() => {
@@ -1702,12 +1729,15 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
      */
     // Bei den Globals zuerst die Wertung beider Tage zusammen.
     const kumuliert = tage.find((f) => f.anzeige === 'Kumulativ' && f.status !== 'kommt');
-    setFenster(
-      tage.find((f) => f.status === 'live')
+    const gewaehlt = tage.find((f) => f.status === 'live')
       ?? kumuliert
       ?? [...tage].reverse().find((f) => f.status === 'vorbei')
       ?? tage.find((f) => f.status === 'kommt')
-      ?? tage[0]);
+      ?? tage[0];
+    setFenster(gewaehlt);
+    // Ein mehrtaegiges Finale, dessen Tage alle gespielt sind: gleich die Gesamtwertung zeigen - der Sieger ist der beider Tage zusammen.
+    const kt = kumTageVon(tage);
+    setKumAktiv(kt.length > 1 && kt.every((x) => x.status === 'vorbei') && !!gewaehlt && kt.some((x) => x.windowId === gewaehlt.windowId));
   }, [tage, ausAdresse.fenster]);
 
 
@@ -1722,7 +1752,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     setSichtbareSpiele(ERSTE_SPIELE); setSpielSuche(''); setSpieleBasis(0);
     setSpieleFeldGrenze(false);
     setSpielerWerte(null); setLive(null);
-  }, [fenster]);
+  }, [fenster, kumAktiv]);
 
   /*
    * Die Runden werden geholt, sobald der Bereich offen ist - ohne Knopf.
@@ -1781,7 +1811,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
        * geladen. Danach richtet sich die Anfrage, statt bei jedem kleinen
        * Finale zehntausend Plaetze zu verlangen.
        */
-      + `&window=${encodeURIComponent(lbFenster.windowId)}`
+      + (summenFenster ? `&windows=${summenText}` : `&window=${encodeURIComponent(lbFenster.windowId)}`)
       + `&limit=${Math.min(MAX_PLAETZE, Math.max(500, tabelle.length))}`
       + (Date.now() < handFrischBis.current ? '&frisch=1' : ''))
       .then((r) => r.json())
@@ -1799,7 +1829,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
       .catch(() => { if (!weg && !spiele) setSpiele([]); })
       .finally(() => { if (!weg) setSpieleLaedt(false); });
     return () => { weg = true; };
-  }, [reiter, lbFenster, spiele, tabelle.length, vertieft, spieleBasis, nachladen]);
+  }, [reiter, lbFenster, spiele, tabelle.length, vertieft, spieleBasis, nachladen, summenFenster, summenText]);
 
   /*
    * Welche Matches eine eigene Seite haben (Replay-Auswertung mit allen Spielern, Zonen, Kill-Feed). Gefragt wird, wenn die Runden da sind
@@ -1809,12 +1839,13 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
   useEffect(() => {
     if (reiter !== 'runden' || !lbFenster || !rundenZahl) { setMatchSeiten({}); return undefined; }
     let weg = false;
-    fetch(`/api/replay?fenster=${encodeURIComponent(lbFenster.windowId)}`)
-      .then((r) => (r.ok ? r.json() : null))
-      .then((j) => { if (!weg) setMatchSeiten(j?.matches ?? {}); })
+    // Gesamtwertung: die Match-Seiten aller Tage zusammen.
+    Promise.all((summenFenster ?? [lbFenster.windowId]).map((w) => fetch(`/api/replay?fenster=${encodeURIComponent(w)}`)
+      .then((r) => (r.ok ? r.json() : null)).catch(() => null)))
+      .then((js) => { if (!weg) setMatchSeiten(Object.assign({}, ...js.map((j) => j?.matches ?? {}))); })
       .catch(() => { if (!weg) setMatchSeiten({}); });
     return () => { weg = true; };
-  }, [reiter, lbFenster, rundenZahl]);
+  }, [reiter, lbFenster, rundenZahl, summenFenster]);
 
   /** Wie viele Lobbys gerade laufen. */
   const laufende = useMemo(
@@ -2018,13 +2049,13 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     let weg = false;
     const uhr = setTimeout(() => {
       fetch(`/api/cup-spieler?window=${encodeURIComponent(fenster.windowId)}`
-        + `&event=${encodeURIComponent(fenster.eventId)}&q=${encodeURIComponent(q)}`)
+        + `&event=${encodeURIComponent(fenster.eventId)}&q=${encodeURIComponent(q)}${summenFenster ? `&windows=${summenText}` : ''}`)
         .then((r) => r.json())
         .then((j) => { if (!weg) setSpielerTreffer(j?.spieler ?? []); })
         .catch(() => { if (!weg) setSpielerTreffer([]); });
     }, 350);
     return () => { weg = true; clearTimeout(uhr); };
-  }, [reiter, fenster, spielerWerte?.gekuerzt, spielerSuche]);
+  }, [reiter, fenster, spielerWerte?.gekuerzt, spielerSuche, summenFenster, summenText]);
 
   useEffect(() => {
     // Ein Druck auf den Reload-Knopf holt die Werte noch einmal - still, ohne dass die Liste verschwindet.
@@ -2034,13 +2065,13 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     let weg = false;
     if (!spielerWerte) setSpielerLaedt(true);
     fetch(`/api/cup-spieler?window=${encodeURIComponent(fenster.windowId)}`
-      + `&event=${encodeURIComponent(fenster.eventId)}${Date.now() < handFrischBis.current ? '&frisch=1' : ''}`)
+      + `&event=${encodeURIComponent(fenster.eventId)}${summenFenster ? `&windows=${summenText}` : ''}${Date.now() < handFrischBis.current ? '&frisch=1' : ''}`)
       .then((r) => r.json())
       .then((j) => { if (!weg && !(j?.error && spielerWerte)) setSpielerWerte(j?.error ? null : j); })
       .catch(() => { if (!weg && !spielerWerte) setSpielerWerte(null); })
       .finally(() => { if (!weg) setSpielerLaedt(false); });
     return () => { weg = true; };
-  }, [reiter, fenster, spielerWerte, neuNr]);
+  }, [reiter, fenster, spielerWerte, neuNr, summenFenster, summenText]);
 
   /*
    * Zu jedem Team dieses Spieltags der gepflegte Twitch-Kanal.
@@ -2149,7 +2180,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
   }, []);
 
   // ---- Leaderboard ---------------------------------------------------
-  const laden = useCallback(async (f: Fenster) => {
+  const laden = useCallback(async (f: Fenster, tageListe?: string[] | null) => {
     setLaedt(true); setOffen(null);
     /*
      * Von Hand nachgetragene Turniere haben keine Bestenliste.
@@ -2196,8 +2227,12 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
      * bleibt die vorige stehen.
      */
     const holeStueck = async (von: number, seiten: number) => {
-      const r = await fetch(`/api/cup-leaderboard?event=${encodeURIComponent(f.eventId)}`
-        + `&window=${encodeURIComponent(f.windowId)}&von=${von}&seiten=${seiten}${von === 0 && Date.now() < handFrischBis.current ? '&frisch=1' : ''}`);
+      const frisch = von === 0 && Date.now() < handFrischBis.current ? '&frisch=1' : '';
+      // Mehrere Tage eines Finales zusammen: Epics Bestenlisten der Tage werden addiert (Punkte, Siege, Eliminierungen) und neu gereiht.
+      const r = await fetch(tageListe && tageListe.length > 1
+        ? `/api/cup-leaderboard?event=${encodeURIComponent(f.eventId)}&windows=${tageListe.map(encodeURIComponent).join(',')}${frisch}`
+        : `/api/cup-leaderboard?event=${encodeURIComponent(f.eventId)}`
+          + `&window=${encodeURIComponent(f.windowId)}&von=${von}&seiten=${seiten}${frisch}`);
       const d = await r.json();
       if (!r.ok) throw new Error(d.error ?? 'nicht ladbar');
       return d as { entries?: Eintrag[]; updated?: string; totalPages?: number };
@@ -2293,10 +2328,10 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
    */
   useEffect(() => {
     if (!laeuftGerade || !lbFenster) return undefined;
-    return sichtbarerTakt(() => { void laden(lbFenster); }, 60_000);
-  }, [laeuftGerade, lbFenster, laden]);
+    return sichtbarerTakt(() => { void laden(lbFenster, summenFenster); }, 60_000);
+  }, [laeuftGerade, lbFenster, laden, summenFenster]);
 
-  useEffect(() => { if (lbFenster) laden(lbFenster); }, [lbFenster, laden]);
+  useEffect(() => { if (lbFenster) laden(lbFenster, summenFenster); }, [lbFenster, laden, summenFenster]);
 
   /**
    * Ein Match absagen oder die Absage zuruecknehmen - nur der Admin, mit
@@ -2313,12 +2348,13 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     try {
       const r = await fetch('/api/cup-matches/absagen', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ windowId: lbFenster.windowId, sessionId: sp.id, abgesagt: ja }),
+        // In der Gesamtwertung traegt jedes Match sein Fenster (der Tag, zu dem es gehoert).
+        body: JSON.stringify({ windowId: (sp as { fenster?: string }).fenster ?? lbFenster.windowId, sessionId: sp.id, abgesagt: ja }),
       });
       const j = await r.json().catch(() => null);
       if (!r.ok) { setAbsageFehler(j?.error ?? `HTTP ${r.status}`); return; }
       setSpiele((v) => (v ? v.map((x) => (x.id === sp.id ? { ...x, abgesagt: ja } : x)) : v));
-      void laden(lbFenster);
+      void laden(lbFenster, summenFenster);
     } catch { setAbsageFehler(t('Keine Verbindung zum Server.')); }
   };
 
@@ -2329,8 +2365,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     // Leaderboard seltener aufgefrischt, statt die Quelle im Minutentakt
     // mit hundert Anfragen zu belegen.
     const takt = tabelle.length > 1000 ? 180_000 : 45_000;
-    return sichtbarerTakt(() => { void laden(lbFenster); }, takt);
-  }, [lbFenster, laden, tabelle.length]);
+    return sichtbarerTakt(() => { void laden(lbFenster, summenFenster); }, takt);
+  }, [lbFenster, laden, tabelle.length, summenFenster]);
 
   /*
    * Getippt wird sofort, gefiltert eine Spur spaeter.
@@ -2381,8 +2417,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     setHandLaedt(true);
     setNeuNr((n) => n + 1);
     setNachladen((n) => n + 1);
-    void laden(lbFenster).finally(() => { setHandStand(Date.now()); setHandLaedt(false); });
-  }, [lbFenster, handLaedt, laden]);
+    void laden(lbFenster, summenFenster).finally(() => { setHandStand(Date.now()); setHandLaedt(false); });
+  }, [lbFenster, handLaedt, laden, summenFenster]);
   const handKnopf = (zugang.vip || zugang.admin) && lbFenster && lbFenster.status !== 'kommt' ? (
     <button type="button" onClick={vonHandNeu} disabled={handLaedt}
       title={handStand ? `${t('Zuletzt neu geladen:')} ${new Date(handStand).toLocaleTimeString(ort)}` : t('Bestenliste, Matches und Statistik auf den neuesten Stand bringen')}
@@ -2645,11 +2681,29 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
         {tage.length > 0 && (
           <div className="mb-5 flex items-stretch gap-2">
             <div className="flex flex-1 gap-2 overflow-x-auto pb-1">
+            {/* Kumulativ: beide Tage eines Finales zusammen - der Sieger ist der der Gesamtwertung (Betreiber, 28.10.2026). */}
+            {kumDa && (
+              <button key="kumulativ"
+                onClick={() => { setKumAktiv(true); setFenster(kumLetzter); setSeite(1); }}
+                className={`min-w-[132px] shrink-0 rounded-xl border px-3 py-2.5 text-left transition ${kumAktiv
+                  ? 'border-sky-500 bg-sky-950/40'
+                  : 'border-zinc-800 bg-zinc-900/40 hover:border-zinc-700'}`}>
+                <div className="flex items-center gap-1.5">
+                  <span className="text-xs font-semibold text-slate-100"><T>Kumulativ</T></span>
+                  {kumTage.some((x) => x.status === 'live') && <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />}
+                </div>
+                <div className="mt-0.5 text-[11px] font-medium text-sky-400/80">
+                  {kumTage.map((x, j) => `${t('Tag')} ${/Day(\d+)/i.exec(x.windowId)?.[1] ?? j + 1}`).join(' + ')}
+                </div>
+                <div className="mt-0.5 text-[11px] text-slate-400">{kumTage.length === 2 ? <T>Beide Tage zusammen</T> : <T>Alle Tage zusammen</T>}</div>
+                <div className="text-[11px] text-slate-500">{tag(kumTage[0].begin, ort)}</div>
+              </button>
+            )}
             {tage.map((f, i) => {
-              const aktiv = fenster?.windowId === f.windowId;
+              const aktiv = !kumAktiv && fenster?.windowId === f.windowId;
               return (
                 <button key={f.windowId}
-                  onClick={() => { setFenster(f); setSeite(1); }}
+                  onClick={() => { setKumAktiv(false); setFenster(f); setSeite(1); }}
                   className={`min-w-[132px] shrink-0 rounded-xl border px-3 py-2.5 text-left
                               transition ${aktiv
                                 ? 'border-sky-500 bg-sky-950/40'
@@ -3327,7 +3381,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
         <section className="rounded-xl border border-zinc-800 bg-zinc-950/60">
           <header className="flex flex-wrap items-center justify-between gap-3 border-b
                              border-zinc-800 px-4 py-3">
-            <h2 className="text-sm font-semibold text-slate-100"><T>Leaderboard</T></h2>
+            <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-100"><T>Leaderboard</T>{summenFenster && <span className="rounded-full border border-sky-500/40 bg-sky-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-sky-300"><T>Kumulativ</T> · {summenFenster.map((w, j) => `${t('Tag')} ${/Day(\d+)/i.exec(w)?.[1] ?? j + 1}`).join(' + ')}</span>}</h2>
             <div className="flex items-center gap-3">
               {rangWahl}
               {meineId && (

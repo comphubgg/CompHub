@@ -85,7 +85,7 @@ ZEILEN.slice().reverse().forEach((z, i) => {           // i = 0 -> Platz 5 (unte
     if (z.beschreibung) fl.style.display = 'none';
     else z.laender.filter((l) => /^[A-Za-z]{2}$/.test(l)).slice(0, 3).forEach((l) => { const im = mk('img', null, fl); im.src = BASIS + '/public/flags/' + l.toLowerCase() + '.png'; im.onerror = () => im.remove(); });
   }
-  if (erster && gr === 1 && !z.beschreibung) { const w = mk('em', null, fl, 'WINNER'); w.style.cssText = 'font-style:normal;font-size:22px;font-weight:900;letter-spacing:.2em;color:#fbbf24;align-self:center;margin-left:' + (gr > 1 ? 0 : 8) + 'px;'; }
+  if (erster && gr === 1 && !z.beschreibung) { const w = mk('em', null, fl, DATEN.erstBadge || 'WINNER'); w.style.cssText = 'font-style:normal;font-size:22px;font-weight:900;letter-spacing:.2em;color:#fbbf24;align-self:center;margin-left:' + (gr > 1 ? 0 : 8) + 'px;'; }
   // Eigene Videos (Top 5 des Jahres, Spieler-Rueckblick): die Zahl rechts kann ein Betrag mit Zeichen davor sein ("$451,875") oder fester Text ("#1"), die Bezeichnung darunter wechselt.
   const einheit = z.einheit || 'PTS';
   const pt = mk('div', 'pt', r, '<span>' + (z.wertText ? z.wertText : (z.praefix || '') + '0') + '</span><small>' + einheit + '</small>');

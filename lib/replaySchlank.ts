@@ -38,6 +38,32 @@ const merker = new Map<string, { tag: ReplayTag | null; bis: number }>();
 /** Der Speicher einer Minute wird verworfen, wenn ein VIP von Hand neu laedt. */
 export function verwerfeReplayTage() { merker.clear(); }
 
+/**
+ * Die Replay-Werte mehrerer Tage eines Finales zusammen (Betreiber, 28.10.2026: "beide Tage zusammen ergeben das kumulative Turnier"): Spiele, Kills, Knocks, Tode je Spieler addiert.
+ * Die Plaetze der Teams gelten je Tag und werden hier nicht uebernommen.
+ */
+export async function replayTage(saison: string, windowIds: string[]): Promise<ReplayTag | null> {
+  const teile = (await Promise.all(windowIds.map((w) => replayTag(saison, w)))).filter((x): x is ReplayTag => !!x);
+  if (!teile.length) return null;
+  const nach = new Map<string, ReplaySpieler>();
+  for (const t of teile) {
+    for (const s of t.spieler) {
+      const da = nach.get(s.epicId);
+      if (!da) { nach.set(s.epicId, { ...s }); continue; }
+      da.matches += s.matches; da.kills += s.kills; da.knocks += s.knocks; da.gestorben += s.gestorben; da.umgehauen += s.umgehauen;
+    }
+  }
+  const zahl = (f: (t: ReplayTag) => number | null) => teile.reduce((a, t) => a + (f(t) ?? 0), 0);
+  return {
+    matches: zahl((t) => t.matches), elims: teile.some((t) => t.elims !== null) ? zahl((t) => t.elims) : null, quelle: teile[0].quelle,
+    gerechnet: teile.map((t) => t.gerechnet ?? '').sort().pop() || null,
+    rundenGesamt: teile.some((t) => t.rundenGesamt !== null) ? zahl((t) => t.rundenGesamt) : null,
+    spielerGesamt: nach.size,
+    spieler: [...nach.values()].sort((a, b) => b.kills - a.kills || b.knocks - a.knocks),
+    teams: teile[teile.length - 1].teams.map((x) => ({ ...x, platz: undefined })), lobbys: {},
+  };
+}
+
 export async function replayTag(saison: string, windowId: string): Promise<ReplayTag | null> {
   const schluessel = `${saison}|${windowId}`;
   const gemerkt = merker.get(schluessel);

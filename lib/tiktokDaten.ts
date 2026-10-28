@@ -6,6 +6,7 @@ import { titelMit, groesseAus, istZeroBuild } from '@/lib/cupTitel';
 import { spielerbildKlein } from '@/lib/spielerbildKlein';
 import { sprechbar, aussprachePaare, setzeAussprachen } from '@/lib/aussprache';
 import { zahlWort } from '@/lib/tiktokAnfrage';
+import { kumulativeTage, tagNummer } from '@/lib/kumulativ';
 import { finale, fensterName, profilKarte, type KatalogCup, type KatalogFenster } from '@/lib/ergebnisPosts';
 import { geldErzaehlen, type GeldErzaehlt } from '@/lib/tiktokGeld';
 
@@ -78,6 +79,9 @@ export interface TiktokDaten {
   text?: string;
   dateiName?: string;
   seite?: string;
+  /** Wie der Erste angesagt wird ("And the winner." - nach Tag 1 eines mehrtaegigen Finales dagegen "In the lead after day one.") und das Wort im Bild (WINNER / LEADER). */
+  erstSatz?: string;
+  erstBadge?: string;
   zeilen?: TiktokZeile[];
 }
 
@@ -123,17 +127,7 @@ export async function tiktokDaten(opt: { ohne?: string[]; nur?: string } = {}): 
   const karte = await profilKarte();
   // Vom Betreiber eingetragene Aussprachen (Feld "aussprache" im Spielerprofil) gelten fuer genau diesen Namen.
   setzeAussprachen([...karte.profile.values()].flatMap((p) => (p.aussprache ? [[ohneZierrat(kernname(p.anzeige || p.name || '')), p.aussprache] as [string, string]] : [])));
-  let bester: { k: (typeof kandidaten)[number]; zeilen: TiktokZeile[]; mitFoto: number } | null = null;
-  for (const k of kandidaten.slice(0, 5)) {
-    try {
-      const lb = await (await bestenlisteAbruf(new Request(`${SEITE}/api/cup-leaderboard?event=${encodeURIComponent(k.f.eventId)}&window=${encodeURIComponent(k.f.windowId)}`))).json() as { entries?: Eintrag[] };
-      const eintraege = (lb.entries ?? []).slice(0, 5);
-      if (eintraege.length < 5) continue;
-      const ro = await (await rosterAbruf(new Request(`${SEITE}/api/cup-roster?event=${encodeURIComponent(k.f.eventId)}&window=${encodeURIComponent(k.f.windowId)}&limit=10`))).json() as Roster;
-      const bild = new Map<string, string>();
-      for (const t of ro.teams ?? []) for (const s of t.spieler) if (s.img) bild.set(s.id.toLowerCase(), s.img);
-
-      const zeilen: TiktokZeile[] = eintraege.map((e, i) => {
+  const baueZeilen = (eintraege: Eintrag[], bild: Map<string, string>): TiktokZeile[] => eintraege.map((e, i) => {
         const spieler = e.players ?? [];
         const namen = spieler.map((p) => {
           const id = (p.id ?? '').toLowerCase();
@@ -156,12 +150,23 @@ export async function tiktokDaten(opt: { ohne?: string[]; nur?: string } = {}): 
         const elims = typeof e.elims === 'number' ? e.elims : spiele.reduce((s, m) => s + (m.elims ?? 0), 0);
         const satzTeile: string[] = [];
         if (siegSpiele.length) satzTeile.push(`Wins in ${aufzaehlung(siegSpiele.map((n) => `game ${zahlWort(n)}`))}.`);
-        if (elims > 0) satzTeile.push(`${zahlWort(elims)} elimination${elims === 1 ? '' : 's'} in total.`);
+        if (elims > 0) { const w = zahlWort(elims); satzTeile.push(`${w[0].toUpperCase()}${w.slice(1)} elimination${elims === 1 ? '' : 's'} in total.`); }
         return {
           rang: e.rank || i + 1, namen, gesprochen: aufzaehlung(namen.map(sprechbar)), aussprache: aussprachePaare(namen), punkte: e.points, laender, fotos,
           pkt: e.points, siegSpiele, elims, zusatz: satzTeile.join(' '),
         } as TiktokZeile;
-      });
+  });
+  let bester: { k: (typeof kandidaten)[number]; zeilen: TiktokZeile[]; mitFoto: number } | null = null;
+  for (const k of kandidaten.slice(0, 5)) {
+    try {
+      const lb = await (await bestenlisteAbruf(new Request(`${SEITE}/api/cup-leaderboard?event=${encodeURIComponent(k.f.eventId)}&window=${encodeURIComponent(k.f.windowId)}`))).json() as { entries?: Eintrag[] };
+      const eintraege = (lb.entries ?? []).slice(0, 5);
+      if (eintraege.length < 5) continue;
+      const ro = await (await rosterAbruf(new Request(`${SEITE}/api/cup-roster?event=${encodeURIComponent(k.f.eventId)}&window=${encodeURIComponent(k.f.windowId)}&limit=10`))).json() as Roster;
+      const bild = new Map<string, string>();
+      for (const t of ro.teams ?? []) for (const s of t.spieler) if (s.img) bild.set(s.id.toLowerCase(), s.img);
+
+      const zeilen = baueZeilen(eintraege, bild);
       const mitFoto = zeilen.reduce((n, z) => n + z.fotos.filter(Boolean).length, 0);
       if (!bester || (k.istFinale && !bester.k.istFinale) || (k.istFinale === bester.k.istFinale && mitFoto > bester.mitFoto + 1)) bester = { k, zeilen, mitFoto };
       if (k.istFinale && mitFoto >= 3) break;
@@ -169,7 +174,39 @@ export async function tiktokDaten(opt: { ohne?: string[]; nur?: string } = {}): 
   }
   if (!bester) return { keinCup: true, grund: 'Kein beendeter Cup mit mindestens fuenf Plaetzen' };
 
-  const { k, zeilen } = bester;
+  const { k } = bester;
+  let zeilen = bester.zeilen;
+  /*
+   * Mehrtaegige Finals (Betreiber, 28.10.2026: "bei den FNCS Solos Finals gibt es Day 1 und Day 2 - beide Tage zusammen sind das kumulative Turnier, und der gewinnt; alles andere ist
+   * Fake-Info"): Nach Tag 1 ist der Erste nicht der Sieger, sondern fuehrt - und es wird kein Preisgeld erzaehlt. Nach dem letzten Tag zaehlt die Gesamtwertung beider Tage.
+   */
+  const tageGruppe = kumulativeTage(k.cup.regionen?.[k.region] ?? []);
+  const inGruppe = tageGruppe.length > 1 && tageGruppe.some((x) => x.windowId === k.f.windowId);
+  const hoechsterTag = Math.max(0, ...tageGruppe.map((x) => tagNummer(x.windowId)));
+  const gesamtWertung = inGruppe && tagNummer(k.f.windowId) === hoechsterTag && tageGruppe.every((x) => x.status === 'vorbei');
+  let erstSatz: string | undefined;
+  let erstBadge: string | undefined;
+  if (inGruppe && gesamtWertung) {
+    try {
+      const lb = await (await bestenlisteAbruf(new Request(`${SEITE}/api/cup-leaderboard?event=${encodeURIComponent(k.f.eventId)}&windows=${tageGruppe.map((x) => encodeURIComponent(x.windowId)).join(',')}`))).json() as { entries?: Eintrag[] };
+      const eintraege = (lb.entries ?? []).slice(0, 5);
+      if (eintraege.length >= 5) {
+        const ro = await (await rosterAbruf(new Request(`${SEITE}/api/cup-roster?event=${encodeURIComponent(k.f.eventId)}&window=${encodeURIComponent(k.f.windowId)}&limit=10`))).json() as Roster;
+        const bild = new Map<string, string>();
+        for (const t of ro.teams ?? []) for (const sp of t.spieler) if (sp.img) bild.set(sp.id.toLowerCase(), sp.img);
+        zeilen = baueZeilen(eintraege, bild);
+        erstSatz = 'And the tournament winner.';
+      }
+    } catch (e) { throw new Error(`Gesamtwertung nicht erreichbar: ${(e as Error).message}`); }
+    // Ohne Gesamtwertung kein Video: der Ablauf versucht es in der naechsten Stunde noch einmal (ein Tageswert als "Sieger" waere Fake-Info).
+    if (erstSatz === undefined) throw new Error('Gesamtwertung nicht erreichbar: weniger als fuenf Plaetze');
+  }
+  const gesamtDa = inGruppe && gesamtWertung && erstSatz !== undefined;
+  if (inGruppe && !gesamtDa) {
+    const n = tagNummer(k.f.windowId);
+    erstSatz = `In the lead after day ${zahlWort(n)}.`;
+    erstBadge = 'LEADER';
+  }
   const basis = titelMit(k.cup.titel, k.f.windowId);
   const name = /heat \d|last chance/i.test(basis) ? '' : fensterName(k.f.windowId, k.istFinale);
   const titel = `${basis}${name && !basis.toLowerCase().includes(name.toLowerCase()) ? ` ${name}` : ''}`;
@@ -181,7 +218,7 @@ export async function tiktokDaten(opt: { ohne?: string[]; nur?: string } = {}): 
   const modus = ({ 1: 'Solos', 2: 'Duos', 3: 'Trios', 4: 'Squads' } as Record<number, string>)[teamGroesse] ?? (aus === 'Solo' ? 'Solos' : aus ?? '');
   const voll = fensterName(k.f.windowId, k.istFinale);
   const teile = /^(.*?)\s*(Finals?|Open)$/i.exec(voll);
-  let spieltag = (teile ? teile[1] : voll).trim();
+  let spieltag = gesamtDa ? 'Cumulative' : (teile ? teile[1] : voll).trim();
   let stufe = teile ? (/^final/i.test(teile[2]) ? 'Finals' : 'Open') : '';
   let cupName = (k.cup.titel ?? '').replace(/\s+/g, ' ').trim();
   if (istZeroBuild(k.f.windowId) && !istZeroBuild(cupName)) cupName += ' Zero Build';
@@ -191,7 +228,8 @@ export async function tiktokDaten(opt: { ohne?: string[]; nur?: string } = {}): 
   const marken = [modus, spieltag, stufe].filter((m, i, a) => m && a.findIndex((x) => x.toLowerCase() === m.toLowerCase()) === i);
   const d = new Date(k.f.end ?? jetzt);
   // Mit Geld erzaehlt: was die Punkte bedeuten und was dabei herauskam (veraendert die Zeilen und liefert Einstieg und Text).
-  const geld = await geldErzaehlen(k, zeilen, { cupName, spieltag, stufe }).catch((): GeldErzaehlt => ({}));
+  // Nach Tag 1 eines mehrtaegigen Finales gibt es noch kein Preisgeld zu erzaehlen.
+  const geld = inGruppe && !gesamtDa ? ({} as GeldErzaehlt) : await geldErzaehlen(k, zeilen, { cupName, spieltag, stufe, erstSatz }).catch((): GeldErzaehlt => ({}));
   // Die kleine Zeile unter der Zahl: im Geld-Video steht rechts der Betrag, dort kommen die Punkte hierher; sonst Siege und Eliminierungen.
   for (const z of zeilen) {
     const teile = [
@@ -203,7 +241,8 @@ export async function tiktokDaten(opt: { ohne?: string[]; nur?: string } = {}): 
   }
   return {
     ...geld,
-    eventId: k.f.eventId, windowId: k.f.windowId, titel, cupName, spieltag, stufe, modus, marken, region: k.region, finale: k.istFinale,
+    erstSatz, erstBadge,
+    eventId: k.f.eventId, windowId: k.f.windowId, titel: gesamtDa ? `${titel} · Cumulative` : titel, cupName, spieltag, stufe, modus, marken, region: k.region, finale: k.istFinale,
     datum: `${d.getUTCDate()} ${MONATE[d.getUTCMonth()]} ${d.getUTCFullYear()}`,
     seite: `${SEITE}/events/${encodeURIComponent(k.cup.id)}`,
     zeilen,

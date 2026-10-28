@@ -13,7 +13,7 @@ import { abgesagtFuer } from '@/lib/abgesagt';
 import { replayTag } from '@/lib/replaySchlank';
 import { ohneDateien } from '@/lib/antwortSpeicher';
 import { istGlobalsFinale } from '@/lib/globalsGesamt';
-import { GLOBALS_EVENT, GLOBALS_TAGE } from '@/lib/globalsCup';
+import { GLOBALS_EVENT, GLOBALS_TAGE, tagTitel } from '@/lib/globalsCup';
 
 // Die einzelnen Runden eines Spieltags.
 //
@@ -727,9 +727,43 @@ async function globalsMatches(request: Request) {
   });
 }
 
+/**
+ * Die Matches mehrerer Tage eines Finales in einer Liste (?windows=a,b, Betreiber 28.10.2026: kumulatives Turnier) - wie bei den Globals: jeder Tag wird wie sonst gerechnet, jedes Match
+ * traegt seinen Tag und sein Fenster, die Liste bleibt nach Zeit geordnet.
+ */
+async function tageMatches(request: Request, event: string, windows: string[]) {
+  const teile = await Promise.all(windows.map(async (w) => {
+    const u = new URL(request.url);
+    u.searchParams.set('event', event);
+    u.searchParams.set('window', w);
+    u.searchParams.delete('windows');
+    const r = await holeRoh(new Request(u));
+    return { w, r, j: await r.clone().json() as Record<string, unknown> & { spiele?: Array<{ ende?: string | null }> } };
+  }));
+  const kaputt = teile.find((x) => !x.r.ok);
+  if (kaputt) return kaputt.r;
+  const zahl = (k: string) => teile.reduce((a, x) => a + (Number(x.j[k]) || 0), 0);
+  const spiele = teile
+    .flatMap(({ w, j }) => (j.spiele ?? []).map((s) => ({ ...s, tag: tagTitel(w), fenster: w })))
+    .sort((a, b) => (b.ende ?? '').localeCompare(a.ende ?? ''));
+  return NextResponse.json({
+    ...teile[teile.length - 1].j,
+    spiele,
+    teams: Math.max(...teile.map((x) => Number(x.j.teams) || 0)),
+    feldGrenze: teile.some((x) => x.j.feldGrenze === true),
+    nachgetragen: zahl('nachgetragen'),
+    plaetzeAusReplay: zahl('plaetzeAusReplay'),
+    mitEigenen: zahl('mitEigenen'),
+    mitPunkten: teile.every((x) => x.j.mitPunkten === true),
+    zusammengerechnet: windows,
+  });
+}
+
 /** Fuer alle gleich - Vercels Zwischenspeicher beantwortet Wiederholungen (lib/zwischenspeicher). */
 export async function GET(request: Request) {
   const p = new URL(request.url).searchParams;
+  const tageListe = (p.get('windows') ?? '').split(',').map((s) => s.trim()).filter(Boolean).slice(0, 6);
+  if (tageListe.length > 1 && p.get('event')) return zwischenspeichern(await tageMatches(request, p.get('event') as string, tageListe), 60);
   if (istGlobalsFinale(p.get('event'), p.get('window'))) {
     return zwischenspeichern(await globalsMatches(request), 60);
   }

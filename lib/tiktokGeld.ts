@@ -20,7 +20,7 @@ export interface GeldErzaehlt { introSatz?: string; text?: string }
 export async function geldErzaehlen(
   k: { cup: KatalogCup; region: string; f: KatalogFenster; istFinale: boolean },
   zeilen: TiktokZeile[],
-  kopf: { cupName: string; spieltag: string; stufe: string },
+  kopf: { cupName: string; spieltag: string; stufe: string; erstSatz?: string },
 ): Promise<GeldErzaehlt> {
   const werte = await Promise.all(zeilen.map(async (z) => {
     try {
@@ -44,7 +44,7 @@ export async function geldErzaehlen(
     const mehrere = anzahl > 1;
     z.praefix = '$';
     z.einheit = mehrere ? 'TEAM EARNINGS' : 'EARNINGS';
-    const kopfSatz = z.rang === 1 ? 'And the winner.' : `Number ${PLATZWORT[z.rang] ?? z.rang}.`;
+    const kopfSatz = z.rang === 1 ? (kopf.erstSatz ?? 'And the winner.') : `Number ${PLATZWORT[z.rang] ?? z.rang}.`;
     const geld = mehrere ? `each, ${dollar(team)} for the team` : 'in prize money';
     if (nachPunkten) {
       // 100 Punkte sind ein Sieg (Performance und Victory Cups) - der Betrag haengt an den Punkten.

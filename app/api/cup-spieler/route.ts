@@ -7,7 +7,7 @@ import { szeneFenster, epicTag } from '@/lib/szeneStats';
 import { liesLanKonten } from '@/lib/lanKonten';
 import { liesJson } from '@/lib/ablage';
 import { GLOBALS_TAGE, istGlobalsEvent, istGlobalsFenster } from '@/lib/globalsCup';
-import { replayTag, verwerfeReplayTage } from '@/lib/replaySchlank';
+import { replayTag, replayTage, verwerfeReplayTage } from '@/lib/replaySchlank';
 
 /*
  * Ohne Replays: die Werte der Szene-Quelle.
@@ -207,7 +207,9 @@ async function holeRoh(request: Request) {
 
   // Das Finale der Globals: beide Tage (siehe ausSzene).
   const event = p.get('event');
-  const tage = istGlobalsEvent(event, fenster) && !istGlobalsFenster(fenster)
+  // Mehrere Tage eines Finales zusammen (?windows=a,b, Betreiber 28.10.2026: kumulatives Turnier); sonst nur der Spieltag - oder bei den Globals ihre zwei Tage.
+  const tageWunsch = (p.get('windows') ?? '').split(',').map((s) => s.trim()).filter(Boolean).slice(0, 6);
+  const tage = tageWunsch.length > 1 ? tageWunsch : istGlobalsEvent(event, fenster) && !istGlobalsFenster(fenster)
     ? GLOBALS_TAGE.map((t) => t.windowId) : [fenster];
 
   /*
@@ -219,7 +221,7 @@ async function holeRoh(request: Request) {
    * Replays allein (Kills, Knocks, Tode).
    */
   const [anzeige, land] = await Promise.all([namen(), laender()]);
-  const rep = tage.length === 1 && saison ? await replayTag(saison, fenster) : null;
+  const rep = tage.length === 1 && saison ? await replayTag(saison, fenster) : (tageWunsch.length > 1 && saison ? await replayTage(saison, tageWunsch) : null);
   const szene = await ausSzene(tage, anzeige, land).catch(() => null);
   if (szene) {
     if (rep?.spieler.length) {
@@ -304,10 +306,24 @@ async function holeRoh(request: Request) {
    * (.github/workflows/clutch-rechnen.yml, jeder Team-Spieltag bis 60
    * Matches). Der Betreiber: "Clutch Points muessen immer dort sein."
    */
-  const clutchDatei = await liesJson<{
+  type ClutchDatei = {
     summe?: Record<string, number>;
     schaden?: Record<string, { dmg: number; erlitten: number; treffer: number; krit: number }>;
-  } | null>(`clutch/${fenster}.json`, null).catch(() => null);
+  } | null;
+  const clutchEinzeln = (w: string) => liesJson<ClutchDatei>(`clutch/${w}.json`, null).catch(() => null);
+  // Mehrere Tage zusammen: Clutch-Punkte und Schaden je Spieler addiert.
+  const clutchDatei: ClutchDatei = tage.length > 1
+    ? (await Promise.all(tage.map(clutchEinzeln))).reduce<ClutchDatei>((a, c) => {
+      if (!c) return a;
+      const raus = a ?? { summe: {}, schaden: {} };
+      for (const [id, v] of Object.entries(c.summe ?? {})) raus.summe![id] = (raus.summe![id] ?? 0) + v;
+      for (const [id, d] of Object.entries(c.schaden ?? {})) {
+        const da = raus.schaden![id] ?? { dmg: 0, erlitten: 0, treffer: 0, krit: 0 };
+        raus.schaden![id] = { dmg: da.dmg + d.dmg, erlitten: da.erlitten + d.erlitten, treffer: da.treffer + d.treffer, krit: da.krit + d.krit };
+      }
+      return raus;
+    }, null)
+    : await clutchEinzeln(fenster);
   // Leer bei Solo-Tagen (dort gibt es keine Clutch-Punkte) - dann gar keine Zahl.
   const clutchVon = clutchDatei?.summe && Object.keys(clutchDatei.summe).length
     ? new Map(Object.entries(clutchDatei.summe)) : null;
