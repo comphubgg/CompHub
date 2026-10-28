@@ -122,6 +122,12 @@ if (!fs.existsSync(WERKZEUG) && !arg.includes('--liste')) {
  * liest dieser Leser gar nicht.
  */
 const MASSEN = /LastChanceQualifier|FNCSSoloQualifiers_/i;
+/**
+ * Seit 28.10.2026 gibt der Leser jeden Treffer aus ("wer hat wen angeschossen" in der Replay-Ansicht). Abgelegte Spiele ohne diese Liste werden einmal neu
+ * gelesen, solange Epic sie hat.
+ */
+const ohneTreffer = (m, datum) => Boolean(m) && !m.mitTreffer && !MASSEN.test(m.windowId ?? '')
+  && Date.now() - (Date.parse(m.beginn ?? '') || datum || 0) < 29 * 864e5;
 const teilgelesen = (m, datum) => Boolean(m) && m.ende == null && !m.vollstaendig && !m.unvollstaendig && !MASSEN.test(m.windowId ?? '')
   && Date.now() - (Date.parse(m.beginn ?? '') || datum || 0) < 29 * 864e5;
 /**
@@ -254,7 +260,7 @@ async function aufgaben() {
     try { ids = [...await mitWiederholung(`${tag.windowId} Sitzungen`, () => matchIds(tag.eventId, tag.windowId, 3), 2)]; } catch (e) { console.log(`  ${tag.windowId}: ${e.message}`); continue; }
     index.geprueft[tag.windowId] = Date.now();
     for (const id of ids) {
-      if (index.matches[id] && !teilgelesen(index.matches[id], tag.datum)) continue;
+      if (index.matches[id] && !teilgelesen(index.matches[id], tag.datum) && !ohneTreffer(index.matches[id], tag.datum)) continue;
       const f = index.fehler[id];
       if (f) {
         f.art ??= fehlerArt(f.fehler ?? '');
@@ -312,6 +318,7 @@ async function abarbeiten({ id, tag }) {
       spieler: (m.spieler ?? []).filter((p) => !p.bot).length, zonen: (m.zonen ?? []).length,
       // Pruefmarke (28.10.2026): vollstaendig = Laenge gegen Epics Metadaten geprueft; unvollstaendig = Epic hat es nie ganz geliefert, genommen, wie es ist.
       laenge: m.laenge ?? null, ...(grund ? { unvollstaendig: true } : { vollstaendig: true }),
+      ...(Array.isArray(m.treffer) ? { mitTreffer: true } : {}),
     };
     delete index.fehler[id];
     speichereIndex();

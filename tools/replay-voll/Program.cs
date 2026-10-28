@@ -147,7 +147,8 @@ var schaden = reader.Je.Select(kv => new {
 
 var gd = replay.GameData;
 Console.WriteLine(JsonConvert.SerializeObject(new {
-  version = 2,
+  version = 3,
+  treffer = reader.TrefferListe(busAb),
   schaden, schadenEreignisse = reader.Ereignisse, schadenZugeordnet = reader.Zugeordnet, schadenVorDemBus = reader.VorDemBus, schadenAufBoden = reader.AufBoden,
   busAb,
   figuren = reader.Figuren.Select(f => new { id = f.id, t = Math.Round(f.t, 1) }).ToList(),
@@ -355,6 +356,18 @@ class SchadenLeser : ReplayReader {
       if (e.schild) s1.AufSchild += e.hoehe;
       Fuer(e.an).Genommen += e.hoehe;
     }
+  }
+
+  /// Jeder zugeordnete Treffer nach dem Bus, kompakt fuer die Replay-Ansicht ("wer hat wen angeschossen", Betreiber 28.10.2026):
+  /// [Zeit, Schuetze, Ziel, Schaden, Kopftreffer 0/1, Ziel am Boden 0/1, toedlich 0/1].
+  public List<double[]> TrefferListe(double? busAb) {
+    var raus = new List<double[]>();
+    foreach (var e in Liste) {
+      if (e.t is not double t || (busAb is not null && t < busAb)) continue;
+      bool amBoden = AmBoden.TryGetValue(e.an, out var zeiten) && zeiten.Any(z => t >= z.ab && t <= z.bis);
+      raus.Add(new[] { Math.Round(t, 1), e.von, e.an, Math.Round(e.hoehe), e.krit ? 1 : 0, amBoden ? 1 : 0, e.fatal ? 1 : 0 });
+    }
+    return raus;
   }
 
   static readonly FieldInfo ZeitFeld = typeof(FortniteReplayBuilder).GetField("ReplicatedWorldTimeSecondsDouble", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance);

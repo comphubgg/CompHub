@@ -29,6 +29,8 @@ export interface REreignis { t: number; opfer?: number; taeter?: number; art: 'a
 export interface RZone { radius?: number; naechsterRadius?: number; x?: number; y?: number; schrumpftAb?: number; schrumpftBis?: number }
 export interface RMatch {
   spieler: RSpieler[]; feed: REreignis[]; zonen: RZone[]; sieger?: number; ende?: number; beginn?: string; playlist?: string; runde?: number;
+  /** Jeder zugeordnete Treffer (Leser ab 28.10.2026): [Zeit, Schuetze, Ziel, Schaden, Kopftreffer, Ziel am Boden, toedlich]. */
+  treffer?: number[][];
 }
 /** Wie viele Punkte ein Platz und eine Eliminierung in diesem Cup geben - aus Epics Punkteaufschluesselung (lib/epicCups, wertungAus). */
 export interface RWertung { platz: Record<string, number>; elim: number }
@@ -130,7 +132,7 @@ export default function ReplayAnsicht({ match, kartenBild, titel, wertung, hervo
   const [dreiD, setDreiD] = useState(false);
   const [knocks, setKnocks] = useState(true);
   const [teamWahl, setTeamWahl] = useState<number | null>(null);
-  const [reiter, setReiter] = useState<'feed' | 'teams' | 'spieler'>('feed');
+  const [reiter, setReiter] = useState<'feed' | 'treffer' | 'teams' | 'spieler'>('feed');
   useEffect(() => {
     setZeit(tStart); setLaeuft(false);
     const eigen = hervorheben ? match.spieler.find((s) => s.epic === hervorheben)?.team : undefined;
@@ -208,6 +210,17 @@ export default function ReplayAnsicht({ match, kartenBild, titel, wertung, hervo
 
   // Eliminierungen und Knocks bis jetzt.
   const bisJetzt = useMemo(() => feed.filter((e) => e.t <= zeit), [feed, zeit]);
+  /*
+   * Wer wen angeschossen hat (Betreiber, 28.10.2026: "wie bei Osirion ... wer wen angeschossen hat"): jeder Treffer aus dem Replay bis zur gewaehlten Zeit,
+   * dazu der Schaden je Spieler bis hierhin (ohne Treffer auf schon Umgehauene - wie die Damage-Werte der Seite). Lebenspunkte und Loot stehen nicht im Replay.
+   */
+  const treffer = useMemo(() => [...(match.treffer ?? [])].sort((a, b) => a[0] - b[0]), [match.treffer]);
+  const trefferBis = useMemo(() => treffer.filter((h) => h[0] <= zeit), [treffer, zeit]);
+  const schadenBis = useMemo(() => {
+    const m = new Map<number, number>();
+    for (const h of trefferBis) if (!h[5]) m.set(h[1], (m.get(h[1]) ?? 0) + h[3]);
+    return m;
+  }, [trefferBis]);
   const tote = bisJetzt.filter((e) => e.art === 'tot' && aufKarte(e));
   const gerade = bisJetzt.filter((e) => e.art === 'unten' && aufKarte(e) && zeit - e.t < KNOCK_DAUER);
   const farbeVon = (id?: number) => FARBEN[(nachId.get(id ?? -1)?.team ?? 0) % FARBEN.length];
@@ -482,7 +495,7 @@ export default function ReplayAnsicht({ match, kartenBild, titel, wertung, hervo
         {/* ------------------------------------------------ Seitenleiste */}
         <aside className="rounded-2xl border border-white/[0.08] bg-zinc-900/40 lg:sticky lg:top-4">
           <div className="flex gap-1 border-b border-white/[0.08] p-1.5">
-            {([['feed', 'Kill-Feed'], ['teams', 'Teams'], ['spieler', 'Spieler']] as const).map(([k, name]) => (
+            {([['feed', 'Kill-Feed'], ...(treffer.length ? [['treffer', 'Treffer'] as const] : []), ['teams', 'Teams'], ['spieler', 'Spieler']] as const).map(([k, name]) => (
               <button key={k} type="button" onClick={() => setReiter(k)}
                 className={`rounded-lg px-3.5 py-2 text-xs font-bold uppercase tracking-[0.12em] transition ${reiter === k ? 'bg-sky-500 text-white shadow' : 'text-slate-400 hover:text-slate-100'}`}><T>{name}</T></button>
             ))}
@@ -506,6 +519,30 @@ export default function ReplayAnsicht({ match, kartenBild, titel, wertung, hervo
                                 <b style={{ color: farbeVon(e.opfer) }}>{nameVon(opfer)}</b>
                                 {typeof e.abstand === 'number' && e.abstand > 0 && <span className="ml-1 text-[10px] text-slate-600">{Math.round(e.abstand / 100)} m</span>}</>
                             )}
+                          </span>
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : <p className="px-4 py-6 text-sm text-slate-500"><T>Bis hierhin ist noch nichts passiert. Drück auf Abspielen.</T></p>
+            )}
+
+            {reiter === 'treffer' && (
+              trefferBis.length ? (
+                <ul>
+                  {[...trefferBis].reverse().slice(0, 120).map((h, i) => {
+                    const von = nachId.get(h[1]); const an = nachId.get(h[2]);
+                    return (
+                      <li key={`${h[0]}-${i}`} className="border-b border-white/[0.04]">
+                        <button type="button" onClick={() => springe(h[0])} className="flex w-full items-center gap-2.5 px-3 py-1.5 text-left transition hover:bg-sky-500/[0.06]">
+                          <span className="w-10 shrink-0 text-[11px] tabular-nums text-slate-500">{uhr(h[0] - tStart)}</span>
+                          <span className="min-w-0 flex-1 truncate text-[12px] leading-snug text-slate-300">
+                            <b style={{ color: farbeVon(h[1]) }}>{nameVon(von)}</b> <span className="text-slate-500">→</span> <b style={{ color: farbeVon(h[2]) }}>{nameVon(an)}</b>
+                            {h[5] ? <span className="ml-1 text-[10px] text-amber-300/80"><T>am Boden</T></span> : null}
+                          </span>
+                          <span className={`shrink-0 text-[12px] font-bold tabular-nums ${h[6] ? 'text-rose-400' : h[4] ? 'text-amber-300' : 'text-slate-200'}`}>
+                            {h[3]}{h[4] ? <span className="ml-0.5 text-[10px]">HS</span> : null}
                           </span>
                         </button>
                       </li>
@@ -541,7 +578,7 @@ export default function ReplayAnsicht({ match, kartenBild, titel, wertung, hervo
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-white/[0.08] text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
-                    <th className="w-9 px-3 py-2">#</th><th className="px-2 py-2"><T>Spieler</T></th><th className="px-2 py-2 text-right">Elims</th><th className="px-3 py-2 text-right"><T>Ausgeschieden</T></th>
+                    <th className="w-9 px-3 py-2">#</th><th className="px-2 py-2"><T>Spieler</T></th><th className="px-2 py-2 text-right">Elims</th>{treffer.length > 0 && <th className="px-2 py-2 text-right">Damage</th>}<th className="px-3 py-2 text-right"><T>Ausgeschieden</T></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -550,6 +587,7 @@ export default function ReplayAnsicht({ match, kartenBild, titel, wertung, hervo
                       <td className="px-3 py-1.5 text-[11px] font-bold tabular-nums text-slate-500">{s.platz && s.platz < 999 ? s.platz : '–'}</td>
                       <td className="px-2 py-1.5 text-[12px] font-bold uppercase text-slate-100">{ohneVorsatz(s.name)}</td>
                       <td className="px-2 py-1.5 text-right tabular-nums text-slate-300">{s.kills ?? 0}</td>
+                      {treffer.length > 0 && <td className="px-2 py-1.5 text-right tabular-nums text-slate-300">{Math.round(schadenBis.get(s.id) ?? 0).toLocaleString()}</td>}
                       <td className="px-3 py-1.5 text-right tabular-nums text-slate-400">{typeof s.tod === 'number' ? uhr(s.tod - tStart) : <T>Sieger</T>}</td>
                     </tr>
                   ))}
