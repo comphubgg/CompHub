@@ -29,8 +29,8 @@ const WERKZEUG = process.env.REPLAYVOLL_DLL || path.join(process.cwd(), 'tools',
 const DOTNET = process.env.DOTNET_BIN || 'dotnet';
 const FRIST_MS = 31 * 864e5;
 const EVENTS = 'https://events-public-service-live.ol.epicgames.com';
-/** Fassung der Zaehlweise: ein Ergebnis mit niedrigerer Fassung wird neu gerechnet (2: Tode = Spiele ohne Sieg, wie Epic sie fuer K/D zaehlt; 3: dazu die Zeit im Sturm; 4: dazu Wiederbelebungen und Reboots). */
-const VERSION = 4;
+/** Fassung der Zaehlweise: ein Ergebnis mit niedrigerer Fassung wird neu gerechnet (2: Tode = Spiele ohne Sieg, wie Epic sie fuer K/D zaehlt; 3: dazu die Zeit im Sturm; 4: dazu Wiederbelebungen und Reboots; 5: Schaden mit der dauerhaften Zuordnung Figur -> Spieler im Leser, 28.10.2026 - Median 97,7 % statt 90,9 % von Epics Wert). */
+const VERSION = 5;
 
 const arg = process.argv.slice(2);
 const zahl = (name, standard) => { const i = arg.indexOf(name); const v = i >= 0 ? Number(arg[i + 1]) : NaN; return Number.isFinite(v) && v > 0 ? v : standard; };
