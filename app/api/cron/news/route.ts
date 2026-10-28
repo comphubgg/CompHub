@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import { NextResponse } from 'next/server';
-import { neueCupsFuerNews } from '@/lib/newsPosts';
+import { neueCupsFuerNews, rankingFuerNews } from '@/lib/newsPosts';
 import { schickeNews } from '@/lib/discord';
 
 /*
@@ -23,6 +23,9 @@ export async function GET(request: Request) {
   if (!bearer || !schluessel.some((k) => gleich(bearer, k))) return NextResponse.json({ fehler: 'nicht erlaubt' }, { status: 401 });
   try {
     const neu = await neueCupsFuerNews(3);
+    // Dazu ein Power-Ranking-Update, wenn Epic die Rangliste neu berechnet hat (lib/newsPosts).
+    const ranking = await rankingFuerNews().catch(() => null);
+    if (ranking) neu.push(ranking);
     if (!neu.length) return NextResponse.json({ ok: true, neu: 0 });
     // Zum Ausprobieren (COMPHUB_NUR_LESEN=1): zeigen, nichts nach Discord schicken.
     if (process.env.COMPHUB_NUR_LESEN === '1') return NextResponse.json({ ok: true, probe: true, neu: neu.length, beitraege: neu });
