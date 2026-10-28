@@ -81,6 +81,8 @@ type SpielerReiter = 'uebersicht' | 'leistung' | 'werte' | 'turniere' | 'fncs' |
 interface LanErgebnis {
   kennung: string; name: string; season: string; fenster: string; ort: string | null;
   platz: number; betrag: number; waehrung: string;
+  /** Tag der LAN (ms) und die Mitspieler auf demselben Platz - seit 29.10.2026 (lib/szeneStats, lanErgebnisse). */
+  datum?: number | null; mit?: Array<{ epicId: string; name: string }>;
 }
 
 interface Spieler {
@@ -6471,12 +6473,25 @@ export default function StatistikSeite() {
                               </tr>
                             </thead>
                             <tbody>
-                              {lanGezeigt.map((l) => (
+                              {/*
+                                * LAN-Zeilen und Online-Cups zusammen nach Datum (29.10.2026: die LANs standen alle oben, der World Cup 2019 vor dem Cup von gestern).
+                                * Eine LAN ohne bekannten Tag steht am Anfang ihrer Saison.
+                                */}
+                              {[...lanGezeigt.map((l) => ({ d: l.datum ?? 0, l, z: null as (typeof gezeigt)[number] | null })),
+                                ...gezeigt.map((z) => ({ d: z.datum ?? 0, l: null as LanErgebnis | null, z }))]
+                                .sort((a, b) => b.d - a.d)
+                                .map(({ l, z }) => (l ? (
                                 <tr key={l.kennung} className="border-b border-zinc-900">
                                   <td className="px-3 py-2 text-slate-200">
                                     {l.name}
                                     <span className="ml-2 rounded bg-amber-500/15 px-1.5 py-0.5
-                                                     text-[9px] font-semibold uppercase text-amber-400">LAN</span>
+                                                     text-[9px] font-semibold uppercase text-amber-400">LAN{l.ort ? ` · ${l.ort}` : ''}</span>
+                                    {l.datum ? (
+                                      <span className="ml-2 whitespace-nowrap text-[10px] tabular-nums text-slate-600">
+                                        {new Date(l.datum).toLocaleDateString(sprache === 'de' ? 'de-DE' : 'en-GB',
+                                          { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                                      </span>
+                                    ) : null}
                                   </td>
                                   <td className="px-3 py-2 text-center text-slate-500">
                                     {saisons.find((x) => x.kennung === l.season)?.name ?? saisonNamen[l.season] ?? SAISON_NAMEN_KURZ[l.season] ?? l.season}
@@ -6485,13 +6500,18 @@ export default function StatistikSeite() {
                                     {l.platz}.
                                   </td>
                                   <td className="px-3 py-2 text-right text-slate-700">—</td>
-                                  <td className="px-3 py-2 text-slate-700">—</td>
+                                  <td className="px-3 py-2">
+                                    {l.mit?.length ? (
+                                      <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                        {l.mit.map((m) => <span key={m.epicId} className="text-[11px] text-slate-300">{grossName(m.name)}</span>)}
+                                      </span>
+                                    ) : <span className="text-slate-700">—</span>}
+                                  </td>
                                   <td className="px-3 py-2 text-right font-semibold tabular-nums text-emerald-400">
                                     ${zahl(l.betrag, 0, sprache)}
                                   </td>
                                 </tr>
-                              ))}
-                              {gezeigt.map((z) => {
+                              ) : z ? (() => {
                                 const lan = lanErgebnisse.find((l) => l.season === z.season
                                   && (l.kennung.includes('reload') ? /escargo/i.test(z.windowId) : /bratwurst|summit/i.test(z.windowId)));
                                 return (
@@ -6540,7 +6560,7 @@ export default function StatistikSeite() {
                                     </td>
                                   </tr>
                                 );
-                              })}
+                              })() : null))}
                             </tbody>
                           </table>
                         </div>
