@@ -82,6 +82,9 @@ export interface TiktokDaten {
   /** Wie der Erste angesagt wird ("And the winner." - nach Tag 1 eines mehrtaegigen Finales dagegen "In the lead after day one.") und das Wort im Bild (WINNER / LEADER). */
   erstSatz?: string;
   erstBadge?: string;
+  /** Das Kaertchen im Vorspann (sonst "Fresh results") und die Marke ueber der Rangliste (sonst "Top 5") - fuer die Prognose nach Tag 1 (lib/tiktokPrognose). */
+  chip?: string;
+  brettMarke?: string;
   zeilen?: TiktokZeile[];
 }
 

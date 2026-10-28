@@ -28,7 +28,7 @@ szene('intro', (S) => {
   const mitte = mk('div', 'abs', S.el); mitte.style.cssText = 'left:0;right:0;top:0;bottom:240px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:26px;text-align:center;padding:0 60px;';
   const logo = mk('img', null, mitte); logo.src = LOGO; logo.style.cssText = 'width:200px;';
   S.tr(logo, 's', .1, 1.0, .55, 1, 'back'); S.tr(logo, 'o', .1, .6, 0, 1, 'lin');
-  const c = mk('div', 'marken mitte', mitte); mk('span', 'chip', c, 'Fresh results'); MARKEN.forEach((m) => mk('span', 'marke' + (/^finals?$/i.test(m) ? ' gold' : ''), c, m));
+  const c = mk('div', 'marken mitte', mitte); mk('span', 'chip', c, DATEN.chip || 'Fresh results'); MARKEN.forEach((m) => mk('span', 'marke' + (/^finals?$/i.test(m) ? ' gold' : ''), c, m));
   S.tr(c, 'o', .45, .9, 0, 1, 'lin'); S.tr(c, 'y', .45, 1.1, 30, 0, 'out5');
   const h = kin(mitte, CUP, 'h2', S, .7, { per: .09 }); h.style.textAlign = 'center'; h.style.fontSize = Math.min(GROESSE + 8, 112) + 'px';
   h.querySelectorAll('.ln').forEach((l) => { l.style.whiteSpace = 'normal'; });
@@ -45,7 +45,7 @@ tr(brett, 'o', tStart - .1, tStart + .4, 0, 1, 'lin');
 tr(brett, 'o', ABSPANN.start - .25, ABSPANN.start + .25, 1, 0, 'lin');
 
 const kopf = mk('div', 'kopf', brett);
-{ const z = marken(kopf); z.insertBefore(mk('span', 'marke grau', null, 'Top 5'), z.firstChild); }
+{ const z = marken(kopf); z.insertBefore(mk('span', 'marke grau', null, DATEN.brettMarke || 'Top 5'), z.firstChild); }
 const titel = mk('div', 'titel', kopf, CUP); titel.style.fontSize = GROESSE + 'px';
 zeilenUnterTitel(kopf);
 

@@ -39,7 +39,7 @@ jobs:
           if [ -n "$ANFRAGE" ]; then echo "bauen=true" >> "$GITHUB_OUTPUT"; exit 0; fi
           mkdir -p bisher
           if gh release view tiktok >/dev/null 2>&1; then gh release download tiktok -p '*.json' -D bisher --clobber || true; fi
-          ohne=$(cat bisher/*.json 2>/dev/null | grep -o '"windowId": *"[^"]*"' | cut -d'"' -f4 | sort -u | paste -sd, -)
+          ohne=$(cat bisher/*.json 2>/dev/null | grep -o '"windowId": *"[^"]*"' | cut -d'"' -f4 | sort -u | paste -sd, - | sed "s/#/%23/g")
           curl -s -m 170 -A "comphub-tiktok" -o daten.json "https://www.thecomphub.com/api/tiktok-daten?ohne=${ohne}" || true
           if grep -q '"zeilen"' daten.json 2>/dev/null && ! grep -q '"keinCup":true' daten.json; then
             echo "Neu:"; head -c 200 daten.json; echo; echo "bauen=true" >> "$GITHUB_OUTPUT"

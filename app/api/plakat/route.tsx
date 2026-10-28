@@ -6,7 +6,11 @@ import { istAdminAnfrage } from '@/lib/adminPruefung';
 import { fokusVon } from '@/lib/fotoFokus';
 import { plakatTeams, plakatText, feldGroesse, type PlakatTeam, type PlakatSpieler } from '@/lib/plakatDaten';
 import { topFuenf } from '@/lib/tiktokAnfrage';
-import { verdienstPosten, type VerdienstPosten } from '@/lib/szeneStats';
+import { GET as szeneAbruf } from '@/app/api/szene-stats/route';
+import { lanEintraege } from '@/lib/preisgeld';
+import { jahrVonSaison } from '@/lib/saisonJahre';
+import { liesVerdienstArchiv } from '@/lib/verdienstArchiv';
+import { cupNameAusKennung } from '@/lib/rundenName';
 import { spielerKontext } from '@/lib/globalsSolos';
 import { liesJson } from '@/lib/ablage';
 
@@ -367,8 +371,9 @@ function top5Plakat(d: Top5, b: Bilder) {
 
 /*
  * Das Preisgeld eines Spielers Jahr fuer Jahr (Aufgabe 160, Betreiber 26.10.2026: "Earnings-Zeitstrahl 2019 bis 2026 wie bei Swizzy").
- * Dieselben Posten wie die Jahreslisten der Statistik (lib/szeneStats, verdienstPosten): Epics Auszahlungstabellen je Spieltag, die
- * Verdienst-Akte seit 2019 und die LAN-Preislisten. Was dort fehlt, fehlt auch hier - geschaetzt wird nichts.
+ * Je Jahr die Zahl aus der Preisgeld-Liste der Statistik ("Meistes Preisgeld", vom stuendlichen Lauf vorgerechnet - Epics Spieltage liest der
+ * Server selbst nicht), dazu LANs, die dort noch nicht zaehlen, weil ihre Preisliste nicht ganz zugeordnet ist, wo dieser Spieler zugeordnet ist.
+ * Die groessten Zahltage kommen aus der Verdienst-Akte, dem Profil und den LAN-Listen. Geschaetzt wird nichts.
  */
 const ERSTES_JAHR = 2019;
 
@@ -395,15 +400,38 @@ async function kontoZu(q: string): Promise<string | null> {
   return treffer.length === 1 ? treffer[0][0] : null;
 }
 
-async function zeitstrahlDaten(id: string): Promise<Zeitstrahl> {
+async function zeitstrahlDaten(id: string, ursprung: string): Promise<Zeitstrahl> {
   const bis = new Date().getUTCFullYear();
   const jahre: Zeitstrahl['jahre'] = [];
-  const posten: VerdienstPosten[] = [];
   for (let jahr = ERSTES_JAHR; jahr <= bis; jahr += 1) {
-    const p = (await verdienstPosten(jahr, new Set([id])))[id] ?? [];
-    posten.push(...p);
-    jahre.push({ jahr, betrag: p.reduce((a, x) => a + x.betrag, 0) });
+    const r = await szeneAbruf(new Request(`${ursprung}/api/szene-stats?ansicht=jahr&jahr=${jahr}&liste=verdienst`) as never);
+    const j = await r.json() as { plaetze?: Array<{ epicId: string; verdienst?: number }> };
+    if (!Array.isArray(j.plaetze)) throw new Error(`Die Preisgeld-Liste ${jahr} ist gerade nicht erreichbar.`);
+    jahre.push({ jahr, betrag: j.plaetze.find((x) => x.epicId === id)?.verdienst ?? 0 });
   }
+  // Die groessten Zahltage: ein Spieltag zaehlt einmal (der hoechste Betrag je Fenster).
+  const posten = new Map<string, { titel: string; datum: number | null; betrag: number }>();
+  const dazu = (w: string, x: { titel: string; datum: number | null; betrag: number }) => { if (x.betrag > (posten.get(w)?.betrag ?? 0)) posten.set(w, x); };
+  for (const e of (await liesVerdienstArchiv()).konten[id] ?? []) dazu(e[0], { titel: cupNameAusKennung(e[0]) || e[0], datum: Date.parse(e[2]) || null, betrag: e[5] });
+  for (const e of await lanEintraege()) {
+    const x = e.spieler.find((sp) => sp.epicId === id);
+    if (!x) continue;
+    dazu(e.fenster, { titel: e.name, datum: e.datum ? Date.parse(e.datum) : null, betrag: x.betrag });
+    // LANs, die die Jahresliste noch nicht zaehlt (Preisliste nicht ganz zugeordnet) - fuer diesen Spieler ist der Betrag belegt.
+    if (e.offen?.length) { const jj = jahre.find((j) => j.jahr === jahrVonSaison(e.season)); if (jj) jj.betrag += x.betrag; }
+  }
+  try {
+    const pr = await (await szeneAbruf(new Request(`${ursprung}/api/szene-stats?spieler=${id}`) as never)).json() as {
+      verlauf?: Array<{ event?: string; windowId: string; datum?: number | null; verdienst?: number | null }>;
+      epicZeilen?: Array<{ windowId: string; datum?: number | null; verdienst?: number | null }>;
+    };
+    const zeilen: Array<{ event?: string; windowId: string; datum?: number | null; verdienst?: number | null }> = [...(pr.verlauf ?? []), ...(pr.epicZeilen ?? [])];
+    for (const z of zeilen) {
+      if (!z.verdienst) continue;
+      const lesbar = z.event && /\s/.test(z.event) ? z.event : cupNameAusKennung(z.windowId) || z.windowId;
+      dazu(z.windowId, { titel: lesbar, datum: z.datum ?? null, betrag: z.verdienst });
+    }
+  } catch { /* ohne Profil bleiben Akte und LANs */ }
   const kontext = await spielerKontext();
   const profil = kontext(id, '');
   // Ein Foto in voller Groesse statt des kleinen Vorschaubilds.
@@ -412,7 +440,7 @@ async function zeitstrahlDaten(id: string): Promise<Zeitstrahl> {
   return {
     name: profil.anzeige || profil.name || id.slice(0, 8), land: profil.land, bild: datei ? `/spielerbilder/${encodeURIComponent(datei)}` : profil.bild,
     jahre, gesamt: jahre.reduce((a, j) => a + j.betrag, 0),
-    groesste: [...posten].sort((a, b) => b.betrag - a.betrag).slice(0, 3).map((x) => ({ titel: x.titel, datum: x.datum, betrag: x.betrag })),
+    groesste: [...posten.values()].sort((a, b) => b.betrag - a.betrag).slice(0, 3),
   };
 }
 
@@ -513,7 +541,7 @@ export async function GET(request: Request) {
     if (art === 'earnings') {
       const id = await kontoZu((p.get('id') ?? p.get('q') ?? '').trim());
       if (!id) return Response.json({ ok: false, fehler: 'Diesen Spieler finde ich nicht - Namen wie im Profil eingeben.' }, { status: 200 });
-      const d = await zeitstrahlDaten(id);
+      const d = await zeitstrahlDaten(id, ursprung);
       if (!d.gesamt) return Response.json({ ok: false, fehler: 'Zu diesem Spieler ist kein Preisgeld bekannt.' }, { status: 200 });
       const bestes = d.jahre.reduce((a, j) => (j.betrag > a.betrag ? j : a), d.jahre[0]);
       text = `${d.name}: $${zahl(d.gesamt)} in prize money since ${d.jahre.find((j) => j.betrag > 0)?.jahr ?? ERSTES_JAHR} - best year ${bestes.jahr} with $${zahl(bestes.betrag)}.`;

@@ -134,6 +134,11 @@ export async function POST(request: Request) {
       const name = String(a.name ?? '').trim().slice(0, 40);
       if (name.length < 2 || !/^[\p{L}\p{N} _.'\-]+$/u.test(name)) return NextResponse.json({ ok: false, fehler: 'Bitte einen Spielernamen eintragen.' }, { status: 400 });
       abfrage = `vorlage=spieler&name=${encodeURIComponent(name)}&jahr=${jahr}`;
+    } else if (a.vorlage === 'prognose') {
+      // Prognose fuer den naechsten Tag eines mehrtaegigen Finales (lib/tiktokPrognose) - je Region.
+      const region = String(a.region ?? 'EU').toUpperCase();
+      if (!['EU', 'NAC', 'NAW', 'BR', 'ASIA', 'ME', 'OCE'].includes(region)) return NextResponse.json({ ok: false, fehler: 'Diese Region gibt es nicht.' }, { status: 400 });
+      abfrage = `vorlage=prognose&region=${region}`;
     } else return NextResponse.json({ ok: false, fehler: 'Diese Art Video gibt es nicht.' }, { status: 400 });
   }
   if (!process.env.GITHUB_TOKEN) return hin('Auf dem Server fehlt GITHUB_TOKEN.');

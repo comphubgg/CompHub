@@ -83,7 +83,7 @@ export default function TiktokSeite() {
    * Ein eigenes Video bestellen (Betreiber, 20.10.2026): statt des letzten Cups die besten fuenf Spieler einer Region mit Kurzbeschreibung oder der Rueckblick auf einen Spieler.
    * Alles, was hier steht, kommt genau so ins Video - die Zahlen sind dieselben wie in den Statistiken.
    */
-  const [art, setArt] = useState<'letzter' | 'top5' | 'spieler'>('letzter');
+  const [art, setArt] = useState<'letzter' | 'top5' | 'spieler' | 'prognose'>('letzter');
   const [region, setRegion] = useState('EU');
   const [zahlen, setZahlen] = useState('verdienst');
   const [jahr, setJahr] = useState(new Date().getFullYear());
@@ -93,7 +93,7 @@ export default function TiktokSeite() {
     if (art === 'spieler' && spieler.trim().length < 2) { setStand(t('Bitte einen Spielernamen eintragen.')); return; }
     setStand(t('startet …'));
     try {
-      const anfrage = art === 'top5' ? { vorlage: 'top5', region, liste: zahlen, jahr } : art === 'spieler' ? { vorlage: 'spieler', name: spieler.trim(), jahr } : undefined;
+      const anfrage = art === 'top5' ? { vorlage: 'top5', region, liste: zahlen, jahr } : art === 'spieler' ? { vorlage: 'spieler', name: spieler.trim(), jahr } : art === 'prognose' ? { vorlage: 'prognose', region: region || 'EU' } : undefined;
       const r = await fetch('/api/admin/tiktok', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ aktion: 'neu', ...(anfrage ? { anfrage } : {}) }) });
       const j = await antwort(r);
       if (!r.ok || !j.ok) { setStand(meldung(j, r.status, t('Das hat nicht geklappt.'))); return; }
@@ -119,7 +119,7 @@ export default function TiktokSeite() {
         <section className="mb-5 rounded-2xl border border-zinc-800 bg-zinc-900 p-5">
           <h2 className="text-sm font-bold text-white"><T>Was soll das Video zeigen?</T></h2>
           <div className="mt-3 flex flex-wrap gap-2">
-            {([['letzter', 'Der letzte Cup'], ['top5', 'Top 5 Spieler'], ['spieler', 'Ein Spieler im Rückblick']] as const).map(([k, n]) => (
+            {([['letzter', 'Der letzte Cup'], ['top5', 'Top 5 Spieler'], ['spieler', 'Ein Spieler im Rückblick'], ['prognose', 'Prognose für den nächsten Tag']] as const).map(([k, n]) => (
               <button key={k} type="button" onClick={() => setArt(k)} aria-pressed={art === k}
                 className={`rounded-full border px-4 py-1.5 text-sm font-semibold transition ${art === k ? 'border-sky-500 bg-sky-500/15 text-sky-300' : 'border-zinc-700 text-slate-300 hover:border-zinc-500'}`}>
                 {t(n)}
@@ -129,6 +129,13 @@ export default function TiktokSeite() {
           {art === 'letzter' && <p className="mt-3 text-xs text-slate-400"><T>Die fünf Ersten des Cups, der zuletzt zu Ende ging - wie jeden Morgen von selbst.</T></p>}
           {art !== 'letzter' && (
             <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+              {art === 'prognose' && (
+                <label className="grid gap-1 text-xs text-slate-400"><T>Region</T>
+                  <select value={region || 'EU'} onChange={(e) => setRegion(e.target.value)} className="rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-slate-100">
+                    {[['EU', 'Europa (EU)'], ['NAC', 'NA Central'], ['NAW', 'NA West'], ['BR', 'Brasilien'], ['ASIA', 'Asien'], ['ME', 'Mittlerer Osten'], ['OCE', 'Ozeanien']].map(([k, n]) => <option key={k} value={k}>{t(n)}</option>)}
+                  </select>
+                </label>
+              )}
               {art === 'top5' && (
                 <>
                   <label className="grid gap-1 text-xs text-slate-400"><T>Region</T>
@@ -149,15 +156,16 @@ export default function TiktokSeite() {
                     className="rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-slate-100 outline-none focus:border-sky-500" />
                 </label>
               )}
-              <label className="grid gap-1 text-xs text-slate-400"><T>Jahr</T>
+              {art !== 'prognose' && <label className="grid gap-1 text-xs text-slate-400"><T>Jahr</T>
                 <select value={jahr} onChange={(e) => setJahr(Number(e.target.value))} className="rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-slate-100">
                   {Array.from({ length: new Date().getFullYear() - 2022 }, (_, i) => new Date().getFullYear() - i).map((y) => <option key={y} value={y}>{y}</option>)}
                 </select>
-              </label>
+              </label>}
             </div>
           )}
           {art === 'top5' && <p className="mt-3 text-xs text-slate-400"><T>Die besten fünf der Statistik-Seite für diese Auswahl - jeder mit einer Zeile, wieso er dort steht (Zahlen und wo er sonst weit oben liegt).</T></p>}
           {art === 'spieler' && <p className="mt-3 text-xs text-slate-400"><T>Die fünf besten Platzierungen des Spielers in diesem Jahr, mit Cup und Datum, dazu seine Bilanz und das neueste Ergebnis.</T></p>}
+          {art === 'prognose' && <p className="mt-3 text-xs text-slate-400"><T>Nach Tag 1 eines mehrtägigen Finales: wer das Turnier gewinnt, hochgerechnet aus den echten Zahlen des Tages (Punkte je Spiel ohne das beste Spiel, Siege, Top-10-Platzierungen), mit Begründung je Spieler. Für Europa entsteht sie nach dem Tag-1-Video von selbst.</T></p>}
           <div className="mt-4">
             <button type="button" disabled={baut} onClick={() => void neu()}
               className="rounded-xl bg-sky-500 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-sky-400 disabled:cursor-not-allowed disabled:opacity-50">

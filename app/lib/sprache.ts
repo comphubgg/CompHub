@@ -3389,6 +3389,8 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Die Endspiele ließen sich gerade nicht laden. Bitte gleich noch einmal versuchen.': 'The finals could not be loaded right now. Please try again in a moment.',
   'Noch keine Endspiele.': 'No finals yet.',
   'Platzierungen werden nachgetragen.': 'Placements will be added.',
+  'Prognose für den nächsten Tag': 'Prediction for the next day',
+  'Nach Tag 1 eines mehrtägigen Finales: wer das Turnier gewinnt, hochgerechnet aus den echten Zahlen des Tages (Punkte je Spiel ohne das beste Spiel, Siege, Top-10-Platzierungen), mit Begründung je Spieler. Für Europa entsteht sie nach dem Tag-1-Video von selbst.': 'After day 1 of a multi-day final: who wins the tournament, projected from the real numbers of the day (points per game without the best game, wins, top-10 finishes), with reasoning per player. For Europe it is created automatically after the day 1 video.',
   'Earnings-Zeitstrahl': 'Earnings timeline',
   'Name wie im Profil, z. B. Peterbot': 'Name as in the profile, e.g. Peterbot',
   'Preisgeld je Jahr seit 2019 aus Epics Auszahlungstabellen und den LAN-Preislisten - dieselben Zahlen wie in der Statistik.': 'Prize money per year since 2019 from Epic payout tables and the LAN prize lists - the same figures as in the statistics.',
