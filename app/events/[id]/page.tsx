@@ -2762,15 +2762,18 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
         {fenster && (
           <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
             {([
-              [t('Beginn'), `${tag(fenster.begin, ort)}, ${uhr(fenster.begin, ort)}`],
+              // Gesamtwertung: von Beginn des ersten bis Ende des letzten Tages, alle Spiele beider Tage.
+              [t('Beginn'), summenFenster ? `${tag(kumTage[0].begin, ort)}, ${uhr(kumTage[0].begin, ort)}` : `${tag(fenster.begin, ort)}, ${uhr(fenster.begin, ort)}`],
               [t('Ende'), typeof fenster.end === 'number'
                 ? `${tag(fenster.end, ort)}, ${uhr(fenster.end, ort)}` : '—'],
               // Ohne Epics Obergrenze (LANs wie die Globals) zaehlt, was
               // gespielt ist - die hoechste Matchzahl der Bestenliste. Dort
               // stand "unbegrenzt", obwohl es zwoelf Games waren.
-              [t('Spiele'), fenster.matchCap
-                ? String(fenster.matchCap)
-                : fenster.status !== 'kommt' && gespielteRunden ? String(gespielteRunden) : t('unbegrenzt')],
+              [t('Spiele'), summenFenster && kumTage.every((x) => x.matchCap)
+                ? String(kumTage.filter((x) => summenFenster.includes(x.windowId)).reduce((a, x) => a + (x.matchCap ?? 0), 0))
+                : fenster.matchCap
+                  ? String(fenster.matchCap)
+                  : fenster.status !== 'kommt' && gespielteRunden ? String(gespielteRunden) : t('unbegrenzt')],
               // Die genaue Zahl, nicht die gerundete: dieselbe Groesse steht
               // im Kopf des Leaderboards, und dort stand 1476, waehrend hier
               // "1.000" behauptet wurde.

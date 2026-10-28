@@ -280,7 +280,7 @@ function standingsPlakat(teams: PlakatTeam[], k: { titel: string; stufe: string;
   );
 }
 
-function finalePlakat(teams: PlakatTeam[], k: { titel: string; stufe: string; region: string; datum: string; preis: string }, b: Bilder) {
+function finalePlakat(teams: PlakatTeam[], k: { titel: string; stufe: string; region: string; datum: string; preis: string; wort?: string }, b: Bilder) {
   const sieger = teams[0];
   const rest = teams.slice(1, 6);
   const n = sieger?.spieler.length ?? 1;
@@ -293,7 +293,7 @@ function finalePlakat(teams: PlakatTeam[], k: { titel: string; stufe: string; re
     <>
       <div style={{ position: 'absolute', left: 48, top: 48, width: PW, height: PH, display: 'flex', flexDirection: 'column', borderRadius: 32, overflow: 'hidden', background: '#0f1d38', border: '2px solid rgba(245,179,1,0.6)' }}>
         {fotoReihe(sieger?.spieler ?? [], b, PW, FOTOH)}
-        <div style={{ position: 'absolute', left: 24, top: 22, display: 'flex', fontSize: 26, fontWeight: 800, letterSpacing: 8, color: '#0b1220', background: GOLD, borderRadius: 999, padding: '8px 24px' }}>WINNER</div>
+        <div style={{ position: 'absolute', left: 24, top: 22, display: 'flex', fontSize: 26, fontWeight: 800, letterSpacing: 8, color: '#0b1220', background: GOLD, borderRadius: 999, padding: '8px 24px' }}>{k.wort ?? 'WINNER'}</div>
         <div style={{ position: 'absolute', left: 30, right: 30, top: FOTOH + 20, bottom: 22, display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
           <div style={{ display: 'flex', marginBottom: 10 }}>{(sieger?.spieler ?? []).map((s, i) => <div key={i} style={{ display: 'flex' }}>{flagge(s.land, b, 48, 33)}</div>)}</div>
           {namen.map((nm, i) => <div key={i} style={{ display: 'flex', fontFamily: FAMILIE, fontSize: nameGr, fontWeight: 800, lineHeight: 1.02, textTransform: 'uppercase', whiteSpace: 'nowrap' }}>{kuerze(nm, 16)}</div>)}
@@ -431,7 +431,9 @@ export async function GET(request: Request) {
         await lade(teams.flatMap((t) => t.spieler));
         text = plakatText({ art, titel: kopf.titel, stufe: kopf.stufe, teams });
         if (nurText) return Response.json({ ok: true, text, teams });
-        bild = art === 'finale' ? finalePlakat(teams, kopf, b) : standingsPlakat(teams, kopf, b, anzahl);
+        // Ein einzelner Tag eines mehrtaegigen Finales (Day 1): der Erste fuehrt, er hat nicht gewonnen - gewonnen hat, wer beide Tage zusammen vorn liegt (Betreiber, 28.10.2026).
+        const einTagEinerReihe = windows.length === 1 && /Day\d+/i.test(windows[0]);
+        bild = art === 'finale' ? finalePlakat(teams, { ...kopf, wort: einTagEinerReihe ? 'LEADER' : 'WINNER' }, b) : standingsPlakat(teams, kopf, b, anzahl);
       }
     }
     const antwort = new ImageResponse(bild, { width: B, height: H, fonts });
