@@ -85,7 +85,7 @@ jobs:
             --schritt "8:node scripts/ablage-github-holen.mjs --ordner epic-spieltage 2>&1 | tail -3" \
             --schritt "node scripts/replay-voll-holen.mjs --hoechstens 300 --parallel 4 --minuten 6 2>&1 | tail -40" \
             --schritt "node scripts/replay-spieler-index.mjs --hoechstens 400 2>&1 | tail -2" \
-            --schritt "[ -d data/replay-voll ] && node scripts/ablage-github.mjs --nur replay-voll --neuer-als 20 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -8 || true"
+            --schritt "[ -d data/replay-voll ] && node scripts/ablage-github.mjs --nur replay-voll --neuer-als 20 --stempel replay-voll 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -8 || true"
 
       - name: Naechsten Auftrag anstossen
         if: ${{ !cancelled() }}

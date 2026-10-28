@@ -84,7 +84,7 @@ jobs:
             --schritt "timeout --signal=TERM 20m node scripts/replays-holen.mjs --frisch 744 --teil ${{ matrix.teil }}/8 2>&1 | grep -v ' \.\.\.$' | tail -12; true" \
             --schritt "node scripts/replays-holen.mjs --wiederholen --teil ${{ matrix.teil }}/8 --minuten 25 --ohne-frische 12 2>&1 | grep -v ' \.\.\.$' | tail -12" \
             --schritt "node scripts/replays-aggregieren.mjs 2>&1 | tail -6" \
-            --schritt "node scripts/ablage-github.mjs --nur replays --neuer-als 60 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -8"
+            --schritt "node scripts/ablage-github.mjs --nur replays --neuer-als 60 --stempel replays 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -8"
 
       - name: Naechsten Auftrag anstossen
         if: ${{ !cancelled() && matrix.teil == 0 }}

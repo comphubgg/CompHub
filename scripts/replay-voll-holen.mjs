@@ -126,7 +126,8 @@ const MASSEN = /LastChanceQualifier|FNCSSoloQualifiers_/i;
  * Seit 28.10.2026 gibt der Leser jeden Treffer aus ("wer hat wen angeschossen" in der Replay-Ansicht). Abgelegte Spiele ohne diese Liste werden einmal neu
  * gelesen, solange Epic sie hat.
  */
-const ohneTreffer = (m, datum) => Boolean(m) && !m.mitTreffer && !MASSEN.test(m.windowId ?? '')
+// mitTreffer 2 (28.10.2026, nachts): Spiele, die bis dahin "mit Treffer" gelesen wurden, deren Datei aber wegen "--neuer-als 20" nie ans Release kam, werden einmal neu gelesen.
+const ohneTreffer = (m, datum) => Boolean(m) && m.mitTreffer !== 2 && !MASSEN.test(m.windowId ?? '')
   && Date.now() - (Date.parse(m.beginn ?? '') || datum || 0) < 29 * 864e5;
 const teilgelesen = (m, datum) => Boolean(m) && m.ende == null && !m.vollstaendig && !m.unvollstaendig && !MASSEN.test(m.windowId ?? '')
   && Date.now() - (Date.parse(m.beginn ?? '') || datum || 0) < 29 * 864e5;
@@ -318,7 +319,7 @@ async function abarbeiten({ id, tag }) {
       spieler: (m.spieler ?? []).filter((p) => !p.bot).length, zonen: (m.zonen ?? []).length,
       // Pruefmarke (28.10.2026): vollstaendig = Laenge gegen Epics Metadaten geprueft; unvollstaendig = Epic hat es nie ganz geliefert, genommen, wie es ist.
       laenge: m.laenge ?? null, ...(grund ? { unvollstaendig: true } : { vollstaendig: true }),
-      ...(Array.isArray(m.treffer) ? { mitTreffer: true } : {}),
+      ...(Array.isArray(m.treffer) ? { mitTreffer: 2 } : {}),
     };
     delete index.fehler[id];
     speichereIndex();

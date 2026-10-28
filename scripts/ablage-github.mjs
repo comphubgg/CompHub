@@ -10,6 +10,9 @@
 //   node scripts/ablage-github.mjs                    alles, was sich geaendert hat
 //   node scripts/ablage-github.mjs --nur antworten    nur ein Ordner (mehrfach moeglich)
 //   node scripts/ablage-github.mjs --neuer-als 120    nur Dateien der letzten 120 Minuten
+//   node scripts/ablage-github.mjs --neuer-als 20 --stempel replay-voll
+//                                                     alles seit dem letzten vollstaendig geglueckten Durchgang
+//                                                     (ohne Stempel: die letzten 20 Minuten)
 //   node scripts/ablage-github.mjs --probe            zeigen, nicht uebertragen
 //   node scripts/ablage-github.mjs --erzwingen        auch, was laut Manifest schon so liegt
 //
@@ -61,7 +64,17 @@ const argumente = process.argv.slice(2);
 const wert = (name) => { const i = argumente.indexOf(name); return i >= 0 ? argumente[i + 1] : undefined; };
 const werte = (name) => argumente.flatMap((a, i) => (a === name && argumente[i + 1] ? [argumente[i + 1]] : []));
 const nur = werte('--nur');
-const neuerAls = Number(wert('--neuer-als') || 0);
+/*
+ * --stempel: die Zeitgrenze ist der letzte Durchgang, in dem alles hochging (28.10.2026). Mit "--neuer-als 20" allein gingen Dateien verloren: scheiterte ein
+ * Durchgang (Kontingent, Zeitrahmen, Deckel), waren seine Dateien beim naechsten aelter als zwanzig Minuten und kamen nie mehr hoch - der Replay-Index meldete
+ * 75 neu gelesene Spiele mit Trefferliste, am Release lagen die alten Fassungen. Der Stempel liegt neben den Daten und wird erst nach einem fehlerfreien
+ * Durchgang ohne Zurueckgestelltes gesetzt, auf dessen Beginn.
+ */
+const stempelName = wert('--stempel');
+const STEMPEL = stempelName ? path.join(PROJEKT, 'data', `.hochgeladen-${stempelName.replace(/[^a-z0-9-]/gi, '')}`) : null;
+const BEGINN = Date.now();
+const stempelZeit = (() => { try { return STEMPEL ? fs.statSync(STEMPEL).mtimeMs : 0; } catch { return 0; } })();
+const neuerAls = stempelZeit ? Math.max(Number(wert('--neuer-als') || 0), (BEGINN - stempelZeit) / 60_000 + 2) : Number(wert('--neuer-als') || 0);
 const probe = argumente.includes('--probe');
 /** --heilen daten-replays: nur das Verzeichnis dieses Releases wiederherstellen. */
 const heilen = werte('--heilen');
@@ -651,6 +664,10 @@ async function main() {
   console.log(`  Gescheitert : ${schief}`);
   for (const f of fehler.slice(0, 20)) console.log(`    - ${f}`);
   console.log('');
+  // Alles ging hoch: der naechste Durchgang braucht nur, was ab jetzt entsteht.
+  if (STEMPEL && !probe && !schief && !zurueckgestellt && !(FRIST && naechste < aufgaben.length)) {
+    try { fs.writeFileSync(STEMPEL, ''); fs.utimesSync(STEMPEL, new Date(BEGINN), new Date(BEGINN)); } catch { /* ohne Stempel bleibt --neuer-als */ }
+  }
   process.exit(schief ? 1 : 0);
 }
 

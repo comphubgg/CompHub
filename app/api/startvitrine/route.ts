@@ -87,23 +87,29 @@ async function cupsHolen(): Promise<VCup[]> {
    */
   const FRISCH = 21 * 864e5;
   const neueste = [...fertig].sort((a, b) => (b.datum ?? 0) - (a.datum ?? 0));
-  const wahl: MapEintrag[] = [];
+  const frisch = neueste.filter((x) => jetzt - (x.datum ?? 0) < FRISCH);
+  /*
+   * Je Art eine Liste von Kandidaten: Europa zuerst, wenn dieselbe Art dort am selben Wochenende lief (die Seite ist vor allem fuer EU), dann die anderen Regionen nach
+   * Datum - hat einer keine Bestenliste (der EU-Performance-Cup vom 22.10. kam leer), springt der naechste ein. Fehlen Arten, fuellen andere frische Cups auf; jeder
+   * Cup nur einmal (nicht dasselbe Finale aus zwei Regionen).
+   */
+  const gruppen: MapEintrag[][] = [];
   for (const typ of ['performance', 'division', 'fncs', 'reload'] as MapTyp[]) {
-    // Europa zuerst, wenn dieselbe Art dort am selben Wochenende lief (die Seite ist vor allem fuer EU) - sonst der neueste Cup.
-    const top = neueste.find((x) => x.typ === typ);
-    const e = neueste.find((x) => x.typ === typ && x.region === 'EU' && (top?.datum ?? 0) - (x.datum ?? 0) < 2 * 864e5) ?? top;
-    if (e && jetzt - (e.datum ?? 0) < FRISCH) wahl.push(e);
+    const art = frisch.filter((x) => x.typ === typ);
+    if (!art.length) continue;
+    const eu = art.filter((x) => x.region === 'EU' && (art[0].datum ?? 0) - (x.datum ?? 0) < 2 * 864e5);
+    gruppen.push([...eu, ...art.filter((x) => !eu.includes(x))].slice(0, 4));
   }
-  for (const e of neueste) {
-    if (wahl.length >= 4) break;
-    // Jeder Cup nur einmal - nicht dasselbe Finale aus zwei Regionen.
-    if (!wahl.includes(e) && !wahl.some((w) => w.titel === e.titel || w.cup === e.cup)) wahl.push(e);
+  for (const e of frisch) {
+    if (gruppen.length >= 4) break;
+    if (!gruppen.some((g) => g.some((w) => w.titel === e.titel || w.typ === e.typ))) gruppen.push([e]);
   }
   const profile = await liesJson<Record<string, { anzeige?: string; name?: string; land?: string }>>('spieler-profile.json', {}).catch(() => ({} as Record<string, { anzeige?: string; name?: string; land?: string }>));
   // Der echte Name zu jedem Konto (Betreiber, 19.10.2026: Namen aus Zahlen "stimmen nicht - das musst du herausfinden"): Profil, Szene-Liste, sonst Epics Name ohne Orgtag.
   const kontext = await spielerKontext();
   const raus: VCup[] = [];
-  await Promise.all(wahl.map(async (e) => {
+  await Promise.all(gruppen.map(async (gruppe) => {
+   for (const e of gruppe) {
     try {
       /*
        * Mehrtaegige Finals (FNCS Solos) fuehrt das Kartenverzeichnis unter einer Kennung ohne Tag ("S42_FNCSSolo_Final_NAW") - eine
@@ -118,7 +124,7 @@ async function cupsHolen(): Promise<VCup[]> {
           if (((t as { entries?: unknown[] }).entries ?? []).length) { top = t; break; }
         } catch { /* naechster Tag */ }
       }
-      if (!top) return;
+      if (!top) continue;
       const zeilen: CupZeile[] = ((top as { entries?: Array<{ rank: number; points: number; wins: number; elims: number; players: Array<{ id: string; name?: string }> }> }).entries ?? [])
         .slice(0, 6).map((z) => ({
           rang: z.rank, punkte: z.points, siege: z.wins, elims: z.elims,
@@ -127,8 +133,9 @@ async function cupsHolen(): Promise<VCup[]> {
             return { name: k.anzeige && !/^[0-9a-f]{8,32}$/i.test(k.anzeige) ? k.anzeige : (p.name && !/^[0-9a-f]{8,32}$/i.test(p.name) ? p.name : '—'), land: (profile[p.id]?.land ?? k.land ?? '').toUpperCase() || null };
           }),
         }));
-      if (zeilen.length) raus.push({ titel: e.titel, cup: e.cup, typ: e.typ, bild: e.bild, datum: e.datum, region: e.region, saisonKurz: e.saisonKurz, zeilen });
-    } catch { /* ohne Bestenliste faellt dieser Cup weg */ }
+      if (zeilen.length) { raus.push({ titel: e.titel, cup: e.cup, typ: e.typ, bild: e.bild, datum: e.datum, region: e.region, saisonKurz: e.saisonKurz, zeilen }); return; }
+    } catch { /* ohne Bestenliste der naechste Kandidat */ }
+   }
   }));
   const reihenfolge = ['performance', 'division', 'fncs', 'reload'];
   return raus.sort((a, b) => reihenfolge.indexOf(a.typ) - reihenfolge.indexOf(b.typ));
