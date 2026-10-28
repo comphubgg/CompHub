@@ -1,6 +1,7 @@
 import { EVENTS, getToken, verwirfToken, gecacht } from '@/lib/epicCups';
 import { holeKatalog } from '@/lib/cupWertung';
 import { globalsSolos, type SolosStufe } from '@/lib/globalsSolos';
+import { ueberdauernd } from '@/lib/ueberdauernd';
 
 /*
  * Der Weg ins Grand Final von FNCS Solos - Runde fuer Runde mit Spielerzahl, Punkteschwelle und den Marken, die Epic vergibt.
@@ -173,9 +174,20 @@ function knotenAus(id: WegKennung, gruppe: WegKnoten['gruppe'], ss: SolosStufe[]
   };
 }
 
-/** Der Plan einer Region - anderthalb Minuten gemerkt, damit ein Besucher nach dem anderen nicht jedes Mal bei Epic nachfragt. */
-export function wegBauen(region: string): Promise<WegDaten | null> {
-  return gecacht(`weg|plan|${region}`, 90_000, () => wegBauenRoh(region));
+/**
+ * Der Plan einer Region - anderthalb Minuten gemerkt, damit ein Besucher nach dem anderen nicht jedes Mal bei Epic nachfragt.
+ *
+ * Betreiber (28.10.2026): "Die Road to Grand Finals muss ein bisschen schneller gehen." Der Plan fragt Epic nach dutzenden Bestenlisten-Seiten (Spielerzahl je
+ * Runde per Suche ueber bis zu hundert Seiten); ohne Zwischenspeicher dauerte das ueber 39 Sekunden (NAC: 503). Jetzt kommt der letzte gute Plan sofort von der
+ * Platte (lib/ueberdauernd), frisch gerechnet wird im Hintergrund. Ein Plan, bei dem Epic mehrfach nichts lieferte, ersetzt keinen guten.
+ */
+export async function wegBauen(region: string): Promise<WegDaten | null> {
+  const frisch = () => gecacht(`weg|plan|${region}`, 90_000, () => wegBauenRoh(region));
+  const gut = await ueberdauernd(`solos-weg-${region}`, 90_000, 7 * 24 * 3600_000, async () => {
+    const p = await frisch();
+    return p && p.fehler.length > 2 ? null : p;
+  });
+  return gut ?? frisch();
 }
 
 async function wegBauenRoh(region: string): Promise<WegDaten | null> {
