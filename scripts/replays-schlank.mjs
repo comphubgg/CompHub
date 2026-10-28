@@ -9,7 +9,7 @@
 //
 // Hier entsteht deshalb data/replays-schlank/<S>/<window>.json:
 //   spieler: [[epicId, matches, kills, knocks, gestorben, umgehauen], ...]
-//            nur wer etwas geholt hat (Kill oder Knock), nach Kills geordnet
+//            bis 3000 Spieler alle, darueber nur wer etwas geholt hat (Kill oder Knock), nach Kills geordnet
 //   spielerGesamt, matches, elims, quelle, gerechnet, rundenGesamt, teams, lobbys
 //
 // Neu geschrieben wird nur, wo die Auswertung neuer ist als die schlanke Fassung.
@@ -43,8 +43,11 @@ for (const saison of fs.existsSync(QUELLE) ? fs.readdirSync(QUELLE) : []) {
     const echte = (a.spieler ?? []).filter((s) => s.epicId && s.epicId !== 'bot').map((s) => ({ ...s, kills: Math.max(0, (s.kills ?? 0) - selbst(s)) }));
     const selbstVon = new Map((a.spieler ?? []).map((s) => [s.epicId, selbst(s)]));
     const teams = (a.teams ?? []).map((t) => ({ ...t, kills: Math.max(0, (t.kills ?? 0) - (t.spieler ?? []).reduce((x, id) => x + (selbstVon.get(id) ?? 0), 0)) }));
+    // Bei Finals und kleinen Runden alle Spieler, auch ohne Kill und Knock (28.10.2026: in den Player Stats fehlten sie ganz, obwohl Schaden und Clutch
+    // fuer sie gerechnet sind). Nur offene Runden mit tausenden Spielern behalten die Kurzliste - dort riss die ganze Liste den Server um (siehe oben).
+    const alle = echte.length <= 3000;
     const spieler = echte
-      .filter((s) => (s.kills ?? 0) > 0 || (s.knocks ?? 0) > 0)
+      .filter((s) => alle || (s.kills ?? 0) > 0 || (s.knocks ?? 0) > 0)
       .sort((x, y) => (y.kills ?? 0) - (x.kills ?? 0) || (y.knocks ?? 0) - (x.knocks ?? 0))
       .map((s) => [s.epicId, s.matches ?? 0, s.kills ?? 0, s.knocks ?? 0, s.gestorben ?? 0, s.umgehauen ?? 0]);
     let rundenGesamt = null;
