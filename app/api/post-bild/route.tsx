@@ -5,6 +5,7 @@ import sharp from 'sharp';
 import { tagesplan } from '@/lib/tagesposts';
 import { fokusVon } from '@/lib/fotoFokus';
 import { FARBE, type KartenPost } from '@/lib/postKarte';
+import { zonenBild } from '@/lib/zonenBild';
 
 /*
  * Das Bild zu einem Post des Tages (lib/tagesposts): 1600 x 900, im Stil der Seite - dunkler Grund, Blau, Anzeigeschrift.
@@ -74,6 +75,12 @@ export async function GET(request: Request) {
   if (!post) return new Response('kein Post', { status: 404 });
   const ursprung = new URL(request.url).origin;
   const d = post.bild as Record<string, unknown>;
+  // Die Zonen eines Finales (lib/zonenBild) - alle Tage zusammen, wie im Admin-Werkzeug.
+  if (d.art === 'zonen') {
+    const z = await zonenBild(String(d.window ?? ''), { alleTage: true, ursprung }).catch(() => null);
+    if (!z) return new Response('keine Zonen', { status: 404 });
+    return new Response(new Uint8Array(z.png), { headers: { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=3600' } });
+  }
   // Das Ergebnis eines Cups: das Fotomosaik der Besten (dasselbe Bild, das der Betreiber sonst unter seine Beitraege legt - /api/beitrag-bild).
   if (d.art === 'ergebnis') {
     const ids = ((d.ids as string[]) ?? []).filter((x) => /^[0-9a-f]{32}(\|[0-9a-f]{32})*$/.test(x));

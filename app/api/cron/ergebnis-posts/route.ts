@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { NextResponse } from 'next/server';
-import { ergebnisPostsAnlegen } from '@/lib/ergebnisPosts';
+import { ergebnisPostsAnlegen, zonenPostsAnlegen } from '@/lib/ergebnisPosts';
+import { zonenBild } from '@/lib/zonenBild';
 import { heuteDatum, postSeite } from '@/lib/tagesposts';
 import { schickePosts, schickeBeitragMitBild } from '@/lib/discord';
 
@@ -27,7 +28,19 @@ export async function GET(request: Request) {
     // ?stunden=48 (nur zum Ausprobieren/Nachholen): wie weit zurueck gesucht wird, hoechstens drei Tage.
     const stunden = Math.min(72, Math.max(1, Number(new URL(request.url).searchParams.get('stunden')) || 12));
     const neu = await ergebnisPostsAnlegen(6, stunden);
-    if (!neu.length) return NextResponse.json({ ok: true, neu: 0 });
+    // Dazu die Zonen-Bilder der Finals, sobald alle Games ausgewertet sind (lib/ergebnisPosts, zonenPostsAnlegen) - eigener Post mit Bild.
+    let zonen = 0;
+    if (process.env.COMPHUB_NUR_LESEN !== '1') {
+      for (const p of await zonenPostsAnlegen().catch(() => [])) {
+        try {
+          const z = await zonenBild(String((p.bild as { window?: string }).window ?? ''), { alleTage: true });
+          if (!z) continue;
+          const s = await schickeBeitragMitBild({ titel: p.titel, text: p.text, url: postSeite(heuteDatum()), bild: new Uint8Array(z.png), dateiname: `zonen-${heuteDatum()}-${zonen + 1}.png` });
+          if (s.ok) zonen += 1;
+        } catch { /* der Post steht trotzdem im Plan des Tages */ }
+      }
+    }
+    if (!neu.length) return NextResponse.json({ ok: true, neu: 0, zonen });
     // Zum Ausprobieren (COMPHUB_NUR_LESEN=1): zeigen, nichts nach Discord schicken.
     if (process.env.COMPHUB_NUR_LESEN === '1') return NextResponse.json({ ok: true, probe: true, neu: neu.length, posts: neu });
     const r = await schickePosts({
@@ -61,7 +74,7 @@ export async function GET(request: Request) {
         } catch { /* ohne Bild bleibt die Meldung oben */ }
       }
     }
-    return NextResponse.json({ ok: true, neu: neu.length, gemeldet: r.ok, grund: r.grund, bilder });
+    return NextResponse.json({ ok: true, neu: neu.length, gemeldet: r.ok, grund: r.grund, bilder, zonen });
   } catch (e) {
     return NextResponse.json({ ok: false, fehler: (e as Error).message }, { status: 503 });
   }

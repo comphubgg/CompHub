@@ -4,6 +4,7 @@ import { spielerbildKlein } from '@/lib/spielerbildKlein';
 import type { TiktokDaten, TiktokZeile } from '@/lib/tiktokDaten';
 import { sprechbar, aussprachePaare } from '@/lib/aussprache';
 import { liesGalerie } from '@/lib/galerie';
+import { jahrVonSaison } from '@/lib/saisonJahre';
 
 /*
  * Eigene TikTok-Videos (Betreiber, 20.10.2026): "ich will dieses Jahr die besten fuenf Spieler aus Statistics und eine Kurzbeschreibung, wieso sie die besten sind - oder die
@@ -162,14 +163,16 @@ export async function spielerRueckblick(o: { name: string; jahr: number }): Prom
   type Ergebnis = { titel: string; platz: number; datum: number; lan: boolean; mit: string[] };
   const gesehen = new Set<string>();
   const alle: Ergebnis[] = [];
-  const dazu = (titel: string, platz: number, datum: number, lan: boolean, mit: Mit[] = []) => {
+  const dazu = (titel: string, platz: number, datum: number, lan: boolean, mit: Mit[] = [], jahr?: number) => {
     const k = `${titel}|${datum}`;
-    if (!titel || !(platz > 0) || jahrVon(datum) !== o.jahr || gesehen.has(k)) return;
+    if (!titel || !(platz > 0) || (jahr ?? jahrVon(datum)) !== o.jahr || gesehen.has(k)) return;
     gesehen.add(k);
     alle.push({ titel, platz, datum, lan, mit: mit.map((m) => String(m?.name ?? '').trim()).filter((n) => n && !/^[0-9a-f]{8,32}$/i.test(n)) });
   };
   for (const e of (p.erfolge ?? []) as Array<{ titel: string; platz: number; datum: number; typ?: string; mitspieler?: Mit[] }>) dazu(e.titel, e.platz, e.datum, e.typ === 'LAN', e.mitspieler);
   for (const e of (p.epicZeilen ?? []) as Array<{ titel?: string; platz?: number; datum?: number; windowId?: string; mitspieler?: Mit[] }>) dazu(String(e.titel || e.windowId || ''), Number(e.platz), Number(e.datum), false, e.mitspieler);
+  // Die LANs (Globals, Summit, EWC, World Cup ...): im Profil stehen sie nur in der FNCS-Tafel, nicht bei den Erfolgen - ohne sie fehlte Peterbots zweiter Platz beim Summit.
+  for (const e of (p.lan ?? []) as Array<{ name: string; platz: number; datum?: number | null; season: string; mit?: Mit[] }>) dazu(e.name, e.platz, e.datum ?? 0, true, e.mit ?? [], e.datum ? undefined : jahrVonSaison(e.season));
   // Die Bezeichnung "S39_SoloVictoryCup_..." ist kein Titel: nur lesbare Namen kommen ins Video.
   const lesbar = alle.filter((e) => !/^S\d+_/.test(e.titel));
   if (lesbar.length < 3) return { keinCup: true, grund: `Zu wenige Platzierungen von ${q} in ${o.jahr} (${lesbar.length})` };
@@ -181,15 +184,16 @@ export async function spielerRueckblick(o: { name: string; jahr: number }): Prom
   const gewicht = (e: Ergebnis) => {
     const t = e.titel.toLowerCase();
     if (e.lan || /global championship|globals|world cup|summit|elite series championship|ewc/.test(t)) return 100;
-    if (/fncs/.test(t) && /grand final|major/.test(t)) return 80;
-    if (/fncs/.test(t) && /solo/.test(t) && /final/.test(t)) return 70;
-    if (/division 1|performance|reload elite|last chance/.test(t) && /final/.test(t)) return 50;
-    if (/victory|cash cup|vcc|ranked|practice/.test(t)) return 10;
-    return 30;
+    // Zuerst, was wenig zaehlt - "FNCS Division 1 Practice ... Finals" ist ein Uebungscup, auch wenn "Finals" im Namen steht.
+    if (/victory|cash cup|vcc|ranked|practice/.test(t)) return 8;
+    if (/fncs/.test(t) && /grand final|major/.test(t)) return 70;
+    if (/fncs/.test(t) && /solo/.test(t) && /final/.test(t)) return 60;
+    if (/division 1|performance|reload elite|last chance/.test(t) && /final/.test(t)) return 30;
+    return 20;
   };
-  const wert = (e: Ergebnis) => gewicht(e) / (1 + Math.log2(e.platz));
-  const wichtig = lesbar.filter((e) => gewicht(e) > 10);
-  const auswahl = wichtig.length >= 5 ? wichtig : [...wichtig, ...lesbar.filter((e) => gewicht(e) <= 10).sort((a, b) => wert(b) - wert(a)).slice(0, 5 - wichtig.length)];
+  const wert = (e: Ergebnis) => gewicht(e) / (1 + 0.5 * Math.log2(e.platz));
+  const wichtig = lesbar.filter((e) => gewicht(e) > 8);
+  const auswahl = wichtig.length >= 5 ? wichtig : [...wichtig, ...lesbar.filter((e) => gewicht(e) <= 8).sort((a, b) => wert(b) - wert(a)).slice(0, 5 - wichtig.length)];
   const beste = auswahl.slice().sort((a, b) => wert(b) - wert(a) || b.datum - a.datum).slice(0, 5);
   const neueste = lesbar.slice().sort((a, b) => b.datum - a.datum)[0];
   const tag = (ms: number) => { const d = new Date(ms); return `${d.getUTCDate()} ${MONATE[d.getUTCMonth()]}`; };
@@ -213,7 +217,7 @@ export async function spielerRueckblick(o: { name: string; jahr: number }): Prom
     const mit = e.mit.length ? ` with ${e.mit.map((n) => sprechbar(n)).join(' and ')}` : '';
     return {
       rang, namen: [NAME], gesprochen: gespr, aussprache: aussprachePaare([anzeige, ...e.mit]), punkte: 0, wertText: e.platz === 1 ? 'WIN' : `#${e.platz}`, einheit: e.lan ? 'LAN' : 'ONLINE',
-      beschreibung: `${e.titel}${e.mit.length ? ` · w/ ${e.mit.join(' & ')}` : ''} · ${tag(e.datum)}`,
+      beschreibung: [e.titel, e.mit.length ? `w/ ${e.mit.join(' & ')}` : '', e.datum ? tag(e.datum) : ''].filter(Boolean).join(' · '),
       satz: `${rang === 1 ? 'Biggest result: ' : ''}${e.platz === 1 ? (rang === 1 ? 'a win' : 'A win') : `${rang === 1 ? 'place' : 'Place'} ${zahlWort(e.platz)}`} at ${e.titel.replace(/[^A-Za-z0-9 .,&-]/g, ' ')}${mit}.`,
       laender: [land], fotos: [archiv.length ? archiv[i % archiv.length] : foto],
     } as TiktokZeile;

@@ -5,6 +5,8 @@ import { GET as bestenlisteAbruf } from '@/app/api/cup-leaderboard/route';
 import { kernname, ohneZierrat } from '@/lib/homoglyph';
 import { heuteDatum, type Tagesplan, type TagesPost } from '@/lib/tagesposts';
 import { titelMit } from '@/lib/cupTitel';
+import { zonenTage } from '@/lib/zonenBild';
+import { kumulativeTage, tagNummer } from '@/lib/kumulativ';
 
 /*
  * Der Post zu jedem gelaufenen Cup (Betreiber, 19.10.2026): "immer nach einem Cup automatisch die Top 10 mit Profilbildern, fuer Twitter direkt fertig - und die
@@ -100,6 +102,62 @@ async function postZu(cup: KatalogCup, region: string, f: KatalogFenster, istFin
     // Dazu alles, was das Standings-Plakat braucht (app/api/plakat) - das Bild des Posts sind die Top 10 mit Profilbildern und Flaggen, nicht mehr das Fotomosaik.
     bild: { art: 'ergebnis', ids, event: f.eventId, window: f.windowId, region, titel: basis, stufe: [name].filter(Boolean).join(' '), datum: heuteDatumKurz(f.end) },
   };
+}
+
+/**
+ * Zonen-Posts (Aufgabe 128, Betreiber 19.10.2026: "Zonenbilder fuer Finals" automatisch): nach jedem EU-Finale - bei mehreren Tagen nach dem letzten - ein Post mit
+ * dem Zonen-Bild aller Games (lib/zonenBild), sobald jedes Game ausgewertet ist: so viele Games mit Zone, wie die Besten der Bestenliste gespielt haben. Bis dahin
+ * wartet der Post; nach 48 Stunden nicht mehr.
+ */
+export async function zonenPostsAnlegen(max = 2): Promise<TagesPost[]> {
+  const jetzt = Date.now();
+  let katalog: { cups?: KatalogCup[] } = {};
+  try { katalog = await (await katalogAbruf(new Request(`${SEITE}/api/cup-catalog?modus=standard`))).json(); } catch { return []; }
+  const verlauf = await liesJson<string[]>(VERLAUF, []);
+  const benutzt = new Set(verlauf);
+  const neu: TagesPost[] = [];
+  for (const cup of katalog.cups ?? []) {
+    if (neu.length >= max) break;
+    if (cup.art !== 'championship' && cup.art !== 'division') continue;
+    const fenster = cup.regionen?.[EU] ?? [];
+    const gruppe = kumulativeTage(fenster.map((x) => ({ ...x, istFinale: x.istFinale ?? /final/i.test(x.windowId) })));
+    for (const f of fenster) {
+      if (f.status !== 'vorbei' || !f.end || String(f.eventId).startsWith('manuell_') || !finale(cup, f, fenster)) continue;
+      if (f.end > jetzt - 45 * 60_000 || f.end < jetzt - 48 * 3_600_000) continue;
+      // Bei mehrtaegigen Finals nur nach dem letzten Tag, mit allen Tagen im Bild.
+      if (gruppe.length > 1 && gruppe.some((x) => x.windowId === f.windowId)
+        && (tagNummer(f.windowId) !== Math.max(...gruppe.map((x) => tagNummer(x.windowId))) || gruppe.some((x) => x.status !== 'vorbei'))) continue;
+      const schluessel = `zonen:${f.windowId}`;
+      if (benutzt.has(schluessel)) continue;
+      const tage = await zonenTage(f.windowId).catch(() => []);
+      if (!tage.length) continue;
+      // Vollstaendig? Je Tag so viele ausgewertete Games, wie der Erste der Bestenliste gespielt hat.
+      let vollstaendig = true;
+      for (const t of tage) {
+        try {
+          const r = await bestenlisteAbruf(new Request(`${SEITE}/api/cup-leaderboard?event=${encodeURIComponent(f.eventId)}&window=${encodeURIComponent(t.windowId)}`));
+          const j = await r.json() as { entries?: Array<{ matches?: unknown[] }> };
+          const soll = Math.max(0, ...(j.entries ?? []).slice(0, 10).map((e) => (e.matches ?? []).length));
+          if (!soll || t.matches.length < soll) vollstaendig = false;
+        } catch { vollstaendig = false; }
+      }
+      if (!vollstaendig) continue;
+      const basis = titelMit(cup.titel, f.windowId).replace(/\s*Day\s*\d+\s*$/i, '');
+      neu.push({
+        nr: 0, art: 'zonen', schluessel, titel: `Zonen: ${basis}`,
+        text: `${basis} - zones of every game 🗺️\n\n${tage.length > 1 ? `${tage.map((t, i) => `Day ${tagNummer(t.windowId) || i + 1} ${['⚫', '🔴', '🟣'][i] ?? ''}`).join(' · ')}\n` : ''}🟡 = where the zone moved next\n\nFull results: ${SEITE}/events/${encodeURIComponent(cup.id)}`,
+        bild: { art: 'zonen', window: f.windowId, tage: tage.map((t) => t.windowId) },
+      });
+    }
+  }
+  if (!neu.length) return [];
+  const datum = heuteDatum();
+  const name = `posts-${datum}.json`;
+  const plan = await liesJson<Tagesplan | null>(name, null) ?? { datum, erstellt: Date.now(), posts: [] };
+  for (const p of neu) plan.posts.push({ ...p, nr: plan.posts.length });
+  await schreibJson(name, plan);
+  await schreibJson(VERLAUF, [...verlauf, ...neu.map((p) => p.schluessel)].slice(-600));
+  return plan.posts.slice(-neu.length);
 }
 
 /**

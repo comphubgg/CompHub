@@ -19,7 +19,7 @@ import { kartenKandidaten } from '@/lib/postKarte';
  * Die Texte sind englisch (die Szene schreibt englisch) und tragen keine Hashtags.
  */
 
-export type PostArt = 'cup' | 'ergebnis' | 'duell' | 'rekord' | 'ranking' | 'promo' | 'update' | 'karte';
+export type PostArt = 'cup' | 'ergebnis' | 'duell' | 'rekord' | 'ranking' | 'promo' | 'update' | 'karte' | 'zonen';
 
 export interface TagesPost {
   nr: number;

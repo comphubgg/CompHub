@@ -1943,10 +1943,22 @@ export async function tagesVerdienst(seit: number) {
 
 /** Die LAN-Ergebnisse eines Kontos - Platz und Preisgeld je LAN. */
 export async function lanErgebnisse(epicId: string) {
-  const raus: Array<{ kennung: string; name: string; season: string; fenster: string; ort: string | null; platz: number; betrag: number; waehrung: string }> = [];
+  const raus: Array<{ kennung: string; name: string; season: string; fenster: string; ort: string | null; platz: number; betrag: number; waehrung: string;
+    /** Tag der LAN (ms) - aus der Datei oder dem Cup-Archiv; und die Mitspieler (gleicher Platz) mit ihrem Namen aus der Liste. Fuer den TikTok-Rueckblick. */
+    datum: number | null; mit: Array<{ epicId: string; name: string }> }> = [];
+  let archivTag: Map<string, number> | null = null;
   for (const e of await lanEintraege()) {
     const s = e.spieler.find((x) => x.epicId === epicId);
-    if (s) raus.push({ kennung: e.kennung, name: e.name, season: e.season, fenster: e.fenster, ort: e.ort ?? null, platz: s.platz, betrag: s.betrag, waehrung: e.waehrung ?? 'USD' });
+    if (!s) continue;
+    if (!e.datum && !archivTag) {
+      archivTag = new Map();
+      for (const f of await liesJson<Array<{ windowId?: string; begin?: number }>>('cup-archiv.json', []).catch(() => [])) if (f.windowId && typeof f.begin === 'number') archivTag.set(f.windowId, f.begin);
+    }
+    raus.push({
+      kennung: e.kennung, name: e.name, season: e.season, fenster: e.fenster, ort: e.ort ?? null, platz: s.platz, betrag: s.betrag, waehrung: e.waehrung ?? 'USD',
+      datum: e.datum ? Date.parse(e.datum) : archivTag?.get(e.fenster) ?? null,
+      mit: e.spieler.filter((x) => x.platz === s.platz && x.epicId !== epicId).map((x) => ({ epicId: x.epicId, name: x.name ?? '' })),
+    });
   }
   return raus.sort((a, b) => a.platz - b.platz);
 }

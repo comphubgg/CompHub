@@ -6,6 +6,7 @@ import { istAdminAnfrage } from '@/lib/adminPruefung';
 import { fokusVon } from '@/lib/fotoFokus';
 import { plakatTeams, plakatText, feldGroesse, type PlakatTeam, type PlakatSpieler } from '@/lib/plakatDaten';
 import { topFuenf } from '@/lib/tiktokAnfrage';
+import { zonenBild } from '@/lib/zonenBild';
 import { GET as szeneAbruf } from '@/app/api/szene-stats/route';
 import { lanEintraege } from '@/lib/preisgeld';
 import { jahrVonSaison } from '@/lib/saisonJahre';
@@ -22,6 +23,7 @@ import { liesJson } from '@/lib/ablage';
  *   GET ?art=standings&event=..&windows=..&anzahl=10                 die Besten einer Bestenliste mit Foto, Punkten, Siegen, Eliminierungen
  *   GET ?art=finale&event=..&windows=..&preis=$253,500               der Sieger gross, dahinter die naechsten Plaetze
  *   GET ?art=top5&region=EU&liste=verdienst&jahr=2026                Top 5 einer Statistik (wie das TikTok-Video)
+ *   GET ?art=zonen&window=<Spieltag>&alle=1                         die Zonen jedes Games (alle=1: alle Tage des Finales, Tag 1 schwarz, Tag 2 rot)
  *   GET ?art=earnings&q=<Name>|&id=<Konto>                           Preisgeld eines Spielers Jahr fuer Jahr seit 2019 (Zeitstrahl wie bei Swizzy)
  *   &titel=..&stufe=..&region=..&datum=..                            die Kopfzeilen (kommen von der Seite /admin/plakate)
  *   &format=json                                                     statt des Bildes ein Beitragstext mit den X-Konten (und die Teams)
@@ -522,6 +524,12 @@ export async function GET(request: Request) {
   };
 
   try {
+    if (art === 'zonen') {
+      const z = await zonenBild(p.get('window') ?? '', { alleTage: p.get('alle') === '1', ursprung });
+      if (!z) return Response.json({ ok: false, fehler: 'Zu diesem Spieltag gibt es keine ausgewerteten Replays.' }, { status: 200 });
+      if (nurText) return Response.json({ ok: true, text: `${z.titel} - zones of every game`, games: z.games, mitZone: z.mitZone });
+      return new Response(new Uint8Array(z.png), { headers: { 'Content-Type': 'image/png', 'Cache-Control': 'private, max-age=120' } });
+    }
     // Fotos, Flaggen, Logo und Schriften
     const [logo, bricolage, figtree] = await Promise.all([bildDaten('/logos/CompHub-Logo-frei.png', ursprung, 200), schrift('Bricolage Grotesque', 800), schrift('Figtree', 700)]);
     const fonts = [
