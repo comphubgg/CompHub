@@ -69,7 +69,11 @@ export interface LanEintrag {
   /** Wo die LAN stattfand - fuer die Marke in den Turnierlisten. */
   ort?: string;
   quelle?: string; waehrung?: string;
+  /** Tag der LAN (YYYY-MM-DD) - fuer die LANs vor 2024, deren Fenster in keinem Archiv steht (scripts/lan-preisgeld-alt.mjs). */
+  datum?: string;
   spieler: Array<{ epicId: string; name?: string; platz: number; betrag: number }>;
+  /** Namen der Preisliste, die noch keinem Konto zugeordnet sind - mit Platz und Betrag; eintragen geht von Hand. */
+  offen?: Array<{ quellName: string; platz: number; betrag: number }>;
 }
 
 let lan: { liste: LanEintrag[]; bis: number } | null = null;
@@ -92,14 +96,29 @@ export async function lanVerdienst(windowId: string, epicId: string): Promise<Ve
   return null;
 }
 
-/** Alle LAN-Betraege je Konto fuer die genannten Saisons - fuer die Jahresliste. */
+/**
+ * Alle LAN-Betraege je Konto fuer die genannten Saisons - fuer die Jahresliste.
+ *
+ * Nur LANs, deren Preisliste ganz zugeordnet ist. Beim World Cup 2019 fehlen
+ * die Konten der meisten Spieler (keine Bestenliste, viele Namen heute
+ * vergeben); zaehlte er mit, stuende Bugha mit drei Millionen in der Liste und
+ * psalm ohne seine 1,8 - eine Rangliste, die stimmig aussieht und falsch ist.
+ * Welche LANs fehlen, nennt lanUnvollstaendig; im Profil zaehlt das Geld.
+ */
 export async function lanSummen(saisons: string[]): Promise<Map<string, number>> {
   const summe = new Map<string, number>();
   for (const e of await lanEintraege()) {
-    if (!saisons.includes(e.season)) continue;
+    if (!saisons.includes(e.season) || e.offen?.length) continue;
     for (const s of e.spieler) summe.set(s.epicId, (summe.get(s.epicId) ?? 0) + s.betrag);
   }
   return summe;
+}
+
+/** Die LANs der Saisons, die (noch) nicht in die Jahresliste zaehlen: Name, offene und alle Spieler. */
+export async function lanUnvollstaendig(saisons: string[]): Promise<Array<{ name: string; offen: number; gesamt: number }>> {
+  return (await lanEintraege())
+    .filter((e) => saisons.includes(e.season) && e.offen?.length)
+    .map((e) => ({ name: e.name, offen: e.offen!.length, gesamt: e.offen!.length + e.spieler.length }));
 }
 
 /*

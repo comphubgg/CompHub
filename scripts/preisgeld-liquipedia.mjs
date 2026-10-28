@@ -30,6 +30,7 @@ import path from 'path';
 import os from 'os';
 import { execFile } from 'child_process';
 import { promisify } from 'util';
+import { fileURLToPath } from 'url';
 
 const ausfuehren = promisify(execFile);
 
@@ -54,7 +55,7 @@ let zuletzt = 0;
  * antwortet - der Unterschied liegt im Fingerabdruck der Verbindung. curl
  * gibt es auf Windows und auf den GitHub-Rechnern.
  */
-async function api(params) {
+export async function api(params) {
   const url = `${API}?${new URLSearchParams({ ...params, format: 'json' })}`;
   for (let versuch = 0; versuch < 8; versuch++) {
     const pause = 2500 - (Date.now() - zuletzt);
@@ -95,7 +96,7 @@ async function seitenMit(praefix) {
 }
 
 /** Der Quelltext einer Seite - aus dem Zwischenspeicher, sonst von Liquipedia. */
-async function quelltext(titel) {
+export async function quelltext(titel) {
   await fs.mkdir(ZWISCHEN, { recursive: true });
   const datei = path.join(ZWISCHEN, titel.replace(/[^A-Za-z0-9]+/g, '_') + '.txt');
   try { return await fs.readFile(datei, 'utf8'); } catch { /* holen */ }
@@ -218,7 +219,7 @@ function templates(text, nameRe) {
 }
 
 /** Ein Betrag "120,000" oder "4.350" -> 120000. */
-function betrag(s) {
+export function betrag(s) {
   const z = (s ?? '').replace(/[^0-9.]/g, '');
   if (!z) return null;
   const n = Number(z);
@@ -245,7 +246,7 @@ function opponentNamen(block) {
  * ({{DuoPrizePool|{{Slot|usdprize=..|{{Opponent..}}}}}}) und die alte
  * ({{prize pool slot trio |place=1 |usdprize=..|Name|..}}).
  */
-function preisliste(text) {
+export function preisliste(text) {
   const teamGroesse = { Solo: 1, Duo: 2, Trio: 3, Squad: 4, Team: null };
   let groesse = null;
   const plaetze = []; // { platz, betrag, namen }
@@ -269,7 +270,8 @@ function preisliste(text) {
     for (const s of templates(rest, 'Slot')) {
       const usd = betrag(s.block.match(/usdprize=([^|}]*)/)?.[1]);
       const platzAngabe = Number(s.block.match(/\|place=(\d+)/)?.[1]);
-      const gegner = templates(s.block, '\\d*Opponent');
+      // Auch {{SoloOpponent|p1=..}} - ein Spieler ohne Partner (Globals 2023, letzter bezahlter Platz).
+      const gegner = templates(s.block, '(?:\\d*|Solo|Duo|Trio|Squad)Opponent');
       const anzahl = Math.max(1, gegner.length);
       const platz = platzAngabe || naechster;
       for (let k = 0; k < anzahl; k++) {
@@ -291,6 +293,9 @@ function preisliste(text) {
       const platz = Number(teile.find((t) => /^\s*place\s*=/.test(t))?.split('=')[1]);
       const usd = betrag(teile.find((t) => /^\s*usdprize\s*=/.test(t))?.split('=')[1]);
       const namen = teile.slice(1).filter((t) => !t.includes('=') && t.trim()).map((t) => t.trim());
+      // Eine Sonderpraemie in der alten Schreibweise ("|award=Most Eliminations|usdprize=10,000|..." - Gamers8 2023) ist kein Platz.
+      const praemie = teile.find((t) => /^\s*award\s*=/.test(t));
+      if (praemie) { praemien.push({ titel: praemie.split('=')[1].trim(), betrag: usd, namen }); continue; }
       plaetze.push({ platz: platz || plaetze.length + 1, betrag: usd, namen });
     }
   }
@@ -307,7 +312,7 @@ function preisliste(text) {
 /* ------------------------------------------------------------ Kontrolle */
 
 /** Schrift vereinheitlichen: kyrillische Doppelgaenger, Sonderzeichen. */
-function schlicht(s) {
+export function schlicht(s) {
   const tausch = { 'а': 'a', 'е': 'e', 'о': 'o', 'р': 'p', 'с': 'c', 'у': 'y', 'х': 'x', 'к': 'k', 'і': 'i', 'ѕ': 's', 'Т': 'T', 'М': 'M', 'К': 'K', 'ǃ': '', 'ÿ': 'y', 'ó': 'o', 'ü': 'u', 'é': 'e', 'ö': 'o', 'ä': 'a', 'î': 'i', 'ú': 'u' };
   return (s ?? '').split('').map((c) => tausch[c] ?? c).join('').toLowerCase().replace(/[^a-z0-9]/g, '');
 }
@@ -460,4 +465,7 @@ async function main() {
   }
 }
 
-main().catch((e) => { console.error('Fehlgeschlagen:', e.message); process.exit(1); });
+// Nur als Programm gestartet laufen - scripts/lan-preisgeld-alt.mjs leiht sich die Lese-Helfer.
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main().catch((e) => { console.error('Fehlgeschlagen:', e.message); process.exit(1); });
+}

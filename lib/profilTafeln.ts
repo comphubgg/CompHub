@@ -101,7 +101,8 @@ export function fncsTafel(opt: {
     // Die Reload Elite Series Championship lief beim Esports World Cup - fuer
     // den Betreiber (29.9.2026) "auch ein FNCS".
     : EWC.test(e.name) ? `EWC ${/(\d{4})/.exec(e.name)?.[1] ?? ''}`.trim()
-      : `${label(e.season)} MID SUMMIT`);
+      : /invitational/i.test(e.name) ? `INVITATIONAL ${/(\d{4})/.exec(e.name)?.[1] ?? ''}`.trim()
+        : `${label(e.season)} MID SUMMIT`);
   const lanTeam = (e: LanListe) => {
     const ich = e.spieler.find((s) => s.epicId === spieler);
     return ich ? { platz: ich.platz, mit: e.spieler.filter((s) => s.platz === ich.platz && s.epicId !== spieler).map((s) => s.epicId) } : null;

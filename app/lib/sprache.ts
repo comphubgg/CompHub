@@ -3389,6 +3389,8 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Die Endspiele ließen sich gerade nicht laden. Bitte gleich noch einmal versuchen.': 'The finals could not be loaded right now. Please try again in a moment.',
   'Noch keine Endspiele.': 'No finals yet.',
   'Platzierungen werden nachgetragen.': 'Placements will be added.',
+  'nicht mitgezählt': 'not counted',
+  'Spielern sind noch keinem Konto zugeordnet.': 'players are not yet matched to an account.',
   'am Boden': 'downed',
   'Werte je Spieler kommen aus den Server-Replays. Epic löscht sie nach 31 Tagen - für diesen Cup wurden sie nicht mehr gelesen.': 'Values per player come from the server replays. Epic deletes them after 31 days - for this cup they were not read in time.',
   'Die Replays dieses Spieltags werden gerade ausgewertet:': 'The replays of this match day are being analysed:',

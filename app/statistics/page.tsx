@@ -2254,6 +2254,7 @@ export default function StatistikSeite() {
   interface JahrListe {
     feld: string; titel: string; nachkomma: number; einheit: string | null;
     mindestMatches: number | null; plaetze: Spieler[]; spieltageMitRegel?: number;
+    lanOhneZuordnung?: Array<{ name: string; offen: number; gesamt: number }>;
     /** Team-Eliminierungen: wie viele Spieltage von Epics Bestenlisten darin stecken. */
     spieltageEpic?: number;
   }
@@ -4841,6 +4842,10 @@ export default function StatistikSeite() {
                   <> ({zahl(jahr.listen[0].spieltageMitRegel ?? 0, 0, sprache)} <T>von</T>{' '}
                     {zahl(jahr.spieltage, 0, sprache)} <T>Spieltagen</T>)</>
                 )}.
+                {/* LANs ohne volle Zuordnung zaehlen nicht mit - das steht dabei, mit der Zahl der fehlenden Spieler (lib/preisgeld, lanSummen). */}
+                {(jahr?.listen[0]?.lanOhneZuordnung ?? []).map((l) => (
+                  <span key={l.name}>{' '}{l.name}: <T>nicht mitgezählt</T> - {zahl(l.offen, 0, sprache)} <T>von</T> {zahl(l.gesamt, 0, sprache)} <T>Spielern sind noch keinem Konto zugeordnet.</T></span>
+                ))}
                 {/*
                   * Was "Team-Eliminierungen" heisst - Epic fuehrt je Team,
                   * nicht je Spieler, und nur die besten 500 Teams je

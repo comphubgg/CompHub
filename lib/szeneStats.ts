@@ -24,7 +24,7 @@ import type { ReplayWert } from '@/lib/replayWerte';
 import { liesJson, schreibJson } from '@/lib/ablage';
 import { fertigeAntwort, ohneDateien } from '@/lib/antwortSpeicher';
 import { istGrossesTurnier as grossesTurnier, istFinaleTag } from '@/lib/turnierArt';
-import { verdienst, lanSummen, lanEintraege } from '@/lib/preisgeld';
+import { verdienst, lanSummen, lanEintraege, lanUnvollstaendig } from '@/lib/preisgeld';
 import { liesVerdienstArchiv, archivEintraege, eintragJahr } from '@/lib/verdienstArchiv';
 import { teamElimsListe } from '@/lib/elimsArchiv';
 import { cupNameAusKennung, rundenName } from '@/lib/rundenName';
@@ -1751,6 +1751,8 @@ export async function jahresListen(jahr: number, region?: string, nurSaison?: st
       }),
     /** Wie viele der Spieltage ueberhaupt eine Preisgeldregel haben. */
     spieltageMitRegel: mitRegel,
+    /** LANs dieses Zeitraums, deren Preisliste noch nicht ganz Konten zugeordnet ist - sie zaehlen hier nicht (lib/preisgeld, lanSummen). */
+    lanOhneZuordnung: await lanUnvollstaendig(saisons),
   };
   /*
    * Je Platz die Team-Eliminierungen, dazu Matches und Spieltage aus
@@ -1884,7 +1886,7 @@ export async function verdienstPosten(jahr: number, ids: Set<string>): Promise<R
     if (!saisons.includes(e.season)) continue;
     for (const s of e.spieler) {
       if (!ids.has(s.epicId)) continue;
-      dazu(s.epicId, { datum: lanTag.get(e.fenster) ?? datumVon.get(e.fenster) ?? null, betrag: s.betrag, titel: e.name, windowId: e.fenster });
+      dazu(s.epicId, { datum: lanTag.get(e.fenster) ?? datumVon.get(e.fenster) ?? (e.datum ? Date.parse(e.datum) : null), betrag: s.betrag, titel: e.name, windowId: e.fenster });
     }
   }
   for (const liste of Object.values(raus)) liste.sort((a, b) => (b.datum ?? 0) - (a.datum ?? 0));
