@@ -2702,24 +2702,6 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
         {tage.length > 0 && (
           <div className="mb-5 flex items-stretch gap-2">
             <div className="flex flex-1 gap-2 overflow-x-auto pb-1">
-            {/* Kumulativ: beide Tage eines Finales zusammen - der Sieger ist der der Gesamtwertung (Betreiber, 28.10.2026). */}
-            {kumDa && (
-              <button key="kumulativ"
-                onClick={() => { setKumAktiv(true); setFenster(kumLetzter); setSeite(1); }}
-                className={`min-w-[132px] shrink-0 rounded-xl border px-3 py-2.5 text-left transition ${kumAktiv
-                  ? 'border-sky-500 bg-sky-950/40'
-                  : 'border-zinc-800 bg-zinc-900/40 hover:border-zinc-700'}`}>
-                <div className="flex items-center gap-1.5">
-                  <span className="text-xs font-semibold text-slate-100"><T>Kumulativ</T></span>
-                  {kumTage.some((x) => x.status === 'live') && <span className="h-1.5 w-1.5 rounded-full bg-rose-500" />}
-                </div>
-                <div className="mt-0.5 text-[11px] font-medium text-sky-400/80">
-                  {kumTage.map((x, j) => `${t('Tag')} ${/Day(\d+)/i.exec(x.windowId)?.[1] ?? j + 1}`).join(' + ')}
-                </div>
-                <div className="mt-0.5 text-[11px] text-slate-400">{kumTage.length === 2 ? <T>Beide Tage zusammen</T> : <T>Alle Tage zusammen</T>}</div>
-                <div className="text-[11px] text-slate-500">{tag(kumTage[0].begin, ort)}</div>
-              </button>
-            )}
             {tage.map((f, i) => {
               const aktiv = !kumAktiv && fenster?.windowId === f.windowId;
               return (
@@ -3269,6 +3251,33 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
 
         </div>
 
+
+        {/*
+          * Ansicht Cumulative / Session wie bei Fortnite Tracker (Betreiber, 28.10.2026: "ein Button ... pro Tag oder kumulativ, und nicht, als ob es ein eigener
+          * Tag ist"). Bei mehrtaegigen Finals ueber Leaderboard, Matches, Player Stats, Team Stats und Karte; Session zeigt den Tag, der oben gewaehlt ist.
+          */}
+        {kumDa && ['liste', 'runden', 'spieler', 'teams', 'karte'].includes(reiter) && (
+          <div className="mb-4 flex flex-wrap items-center gap-3">
+            <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500"><T>Ansicht</T></span>
+            <div className="inline-flex rounded-lg border border-zinc-800 bg-zinc-900/70 p-0.5">
+              <button type="button"
+                onClick={() => { setKumAktiv(true); setFenster(kumLetzter); setSeite(1); }}
+                className={`rounded-md px-3.5 py-1.5 text-xs font-bold transition ${kumAktiv ? 'bg-sky-500 text-white' : 'text-slate-300 hover:text-white'}`}>
+                <T>Kumulativ</T>
+              </button>
+              <button type="button"
+                onClick={() => { if (kumAktiv) { setKumAktiv(false); setFenster(kumLetzter); setSeite(1); } }}
+                className={`rounded-md px-3.5 py-1.5 text-xs font-bold transition ${!kumAktiv ? 'bg-sky-500 text-white' : 'text-slate-300 hover:text-white'}`}>
+                Session
+              </button>
+            </div>
+            <span className="text-xs text-slate-400">
+              {kumAktiv
+                ? kumTage.filter((x) => x.status !== 'kommt').map((x, j) => `${t('Tag')} ${/Day(\d+)/i.exec(x.windowId)?.[1] ?? j + 1}`).join(' + ')
+                : (() => { const i = tage.findIndex((x) => x.windowId === fenster?.windowId); return i >= 0 ? (fensterNamen[i]?.neben || fensterNamen[i]?.haupt || '') : ''; })()}
+            </span>
+          </div>
+        )}
 
         {/* ------------------------------------------------- Weg ins Grand Final und Karte (Reiter, 27.10.2026) */}
         {reiter === 'weg' && wegDa && (

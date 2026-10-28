@@ -629,6 +629,17 @@ jobs:
           mkdir -p data/antworten
           BEREIT=$BEREIT node scripts/lauf-protokoll.mjs
 
+      # Die Akten (je Spieler Turniere und Earnings, gebuendelt) gleich nach dem Vorrechnen ans Release (28.10.2026): bis dahin gingen sie erst mit dem
+      # Zwischenstand des naechsten Laufs hoch - der ist auf 100 Dateien begrenzt und wurde oft abgebrochen; seit dem 11.10. kam keine Akte mehr an, die
+      # Profile zeigten keine Earnings nach Ende September (Betreiber: "die neuesten Earnings sind vom 27.09.").
+      - name: Akten ans Release
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        timeout-minutes: 15
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/ablage-github.mjs --nur akten --minuten 12 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -8
+
       - name: Ergebnis nach Supabase
         # "--neuer-als 120" nimmt nur, was dieser Lauf geschrieben hat. Die
         # Zeitspanne ist grosszuegiger als die Laufzeit, damit auch ein langer
