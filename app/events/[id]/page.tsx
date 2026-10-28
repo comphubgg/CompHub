@@ -202,6 +202,9 @@ interface SpielZeile {
 /** Eine einzelne Runde des Spieltags. */
 interface Spiel {
   id: string;
+  /** Gesamtwertung mehrerer Tage: der Tag ("Day 1") und sein Fenster, zu dem dieses Match gehoert. */
+  tag?: string;
+  fenster?: string;
   nummer: number;
   ende: string | null;
   laengsteLebenszeit: number;
@@ -347,7 +350,7 @@ const SpielKachel = memo(function SpielKachel({
                             tracking-wide ${sp.live
             ? 'text-rose-400' : 'text-slate-300'}`}>
             {sp.live ? <T>Match läuft</T>
-              : eineLobby ? <><T>Runde</T> {sp.nummer}</>
+              : eineLobby ? <>{sp.tag ? `${sp.tag} · ` : ''}<T>Runde</T> {sp.nummer}</>
               : <T>Match beendet</T>}
           </span>
         </span>

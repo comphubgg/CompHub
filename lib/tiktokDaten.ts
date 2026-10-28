@@ -208,7 +208,8 @@ export async function tiktokDaten(opt: { ohne?: string[]; nur?: string } = {}): 
     erstBadge = 'LEADER';
   }
   const basis = titelMit(k.cup.titel, k.f.windowId);
-  const name = /heat \d|last chance/i.test(basis) ? '' : fensterName(k.f.windowId, k.istFinale);
+  const gesamtTitel = inGruppe && gesamtWertung && erstSatz !== undefined;
+  const name = gesamtTitel || /heat \d|last chance/i.test(basis) ? '' : fensterName(k.f.windowId, k.istFinale);
   const titel = `${basis}${name && !basis.toLowerCase().includes(name.toLowerCase()) ? ` ${name}` : ''}`;
 
   // Kopfzeile des Videos (Betreiber, 20.10.2026): oben der Cup gross ("Performance Evaluation Cup Trios"), darunter der Spieltag ("Event 8"), darunter die Stufe ("Finals") und
