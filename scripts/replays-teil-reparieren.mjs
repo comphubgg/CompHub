@@ -123,5 +123,10 @@ for (const k of kandidaten) {
   node('replays-schlank.mjs', k.fenster);
   aufraeumen();
   repariert += 1;
+  // Gleich ans Release, nicht erst am Ende des Laufs: die Seite zeigt den reparierten Spieltag dann nach Minuten statt nach Stunden.
+  if (process.env.GITHUB_TOKEN) {
+    const h = node('ablage-github.mjs', '--nur', `replays/${k.saison}/${k.fenster}`, '--nur', `replays-schlank/${k.saison}/${k.fenster}.json`);
+    console.log(`  hochgeladen: ${String(h.stdout ?? '').split('\n').filter((z) => /Fertig|hochgeladen|Fehler|!/.test(z)).slice(-2).join(' | ').trim() || (h.status === 0 ? 'ok' : `Code ${h.status}`)}`);
+  }
 }
 console.log(`\nRepariert: ${repariert}, belassen: ${belassen}, offen: ${kandidaten.length - repariert - belassen}`);

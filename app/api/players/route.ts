@@ -100,26 +100,16 @@ export async function GET() {
       supabase.from('duos').select('*'),
     ]);
 
-    if (playersError) {
-      if (isSupabaseFallbackError(playersError) && USE_DISK_FALLBACK) {
-        console.warn('Supabase players table unavailable, falling back to local players data');
-        const fileData = await readPlayersFile();
-        return NextResponse.json(fileData);
+    // Jeder Fehler von Supabase (auch Zeitueberschreitung, 28.10.2026: kalt kam nach 7 s eine 500) faellt auf die Datei daneben zurueck - eine 5xx haelt der
+    // Lastverteiler fuer einen Serverausfall und zeigt die Ausweichseite.
+    if (playersError || duosError) {
+      const fehler = playersError ?? duosError;
+      if (USE_DISK_FALLBACK) {
+        console.warn(`Supabase ${isSupabaseFallbackError(fehler) ? 'unavailable' : 'error'} (${fehler?.message}), falling back to local players data`);
+        try { return NextResponse.json(await readPlayersFile()); } catch { /* unten der Fehler */ }
       }
-
-      console.error('Supabase error fetching players', playersError);
-      return NextResponse.json({ error: playersError.message }, { status: 500 });
-    }
-
-    if (duosError) {
-      if (isSupabaseFallbackError(duosError) && USE_DISK_FALLBACK) {
-        console.warn('Supabase duos table unavailable, falling back to local players data');
-        const fileData = await readPlayersFile();
-        return NextResponse.json(fileData);
-      }
-
-      console.error('Supabase error fetching duos', duosError);
-      return NextResponse.json({ error: duosError.message }, { status: 500 });
+      console.error('Supabase error fetching players/duos', fehler);
+      return NextResponse.json({ error: fehler?.message ?? 'Failed to read players' }, { status: 424 });
     }
 
     const playerMap = (players || []).reduce((acc: Record<string, any>, player: any) => {
@@ -142,7 +132,7 @@ export async function GET() {
     if (USE_DISK_FALLBACK) {
       try { return NextResponse.json(await readPlayersFile()); } catch { /* unten der Fehler */ }
     }
-    return NextResponse.json({ error: error.message || t('failed_to_read_players', 'Failed to read players') }, { status: 500 });
+    return NextResponse.json({ error: error.message || t('failed_to_read_players', 'Failed to read players') }, { status: 424 });
   }
 }
 

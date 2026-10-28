@@ -18,9 +18,11 @@ on:
   schedule:
     - cron: '25 */6 * * *'
 
+# Ein Push bricht den laufenden Auftrag ab (sein Hochladen laeuft trotzdem); ein halb neu gelesener Spieltag traegt noch das Aggregat von Fassung 4 und kommt
+# beim naechsten Lauf wieder dran.
 concurrency:
   group: replays-reparieren
-  cancel-in-progress: false
+  cancel-in-progress: ${{ github.event_name == 'push' }}
 
 jobs:
   reparieren:
@@ -52,6 +54,8 @@ jobs:
         continue-on-error: true
         timeout-minutes: 310
         env:
+          # Jeder reparierte Spieltag geht sofort ans Release (scripts/replays-teil-reparieren.mjs).
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           WERKZEUG_URL: https://www.thecomphub.com
           MAX_REPLAY_DOWNLOADS: '4'
           MAX_REPLAY_PARSERS: '3'
