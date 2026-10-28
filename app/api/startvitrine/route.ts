@@ -89,12 +89,15 @@ async function cupsHolen(): Promise<VCup[]> {
   const neueste = [...fertig].sort((a, b) => (b.datum ?? 0) - (a.datum ?? 0));
   const wahl: MapEintrag[] = [];
   for (const typ of ['performance', 'division', 'fncs', 'reload'] as MapTyp[]) {
-    const e = neueste.find((x) => x.typ === typ);
+    // Europa zuerst, wenn dieselbe Art dort am selben Wochenende lief (die Seite ist vor allem fuer EU) - sonst der neueste Cup.
+    const top = neueste.find((x) => x.typ === typ);
+    const e = neueste.find((x) => x.typ === typ && x.region === 'EU' && (top?.datum ?? 0) - (x.datum ?? 0) < 2 * 864e5) ?? top;
     if (e && jetzt - (e.datum ?? 0) < FRISCH) wahl.push(e);
   }
   for (const e of neueste) {
     if (wahl.length >= 4) break;
-    if (!wahl.includes(e) && !wahl.some((w) => w.titel === e.titel && w.region === e.region)) wahl.push(e);
+    // Jeder Cup nur einmal - nicht dasselbe Finale aus zwei Regionen.
+    if (!wahl.includes(e) && !wahl.some((w) => w.titel === e.titel || w.cup === e.cup)) wahl.push(e);
   }
   const profile = await liesJson<Record<string, { anzeige?: string; name?: string; land?: string }>>('spieler-profile.json', {}).catch(() => ({} as Record<string, { anzeige?: string; name?: string; land?: string }>));
   // Der echte Name zu jedem Konto (Betreiber, 19.10.2026: Namen aus Zahlen "stimmen nicht - das musst du herausfinden"): Profil, Szene-Liste, sonst Epics Name ohne Orgtag.
