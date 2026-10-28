@@ -71,9 +71,15 @@ export async function zonenBild(windowId: string, o: { alleTage?: boolean; urspr
   for (const s of games) if (da(s.klein)) teile.push(`<circle cx="${px(s.klein.x)}" cy="${px(s.klein.y)}" r="${pr(KLEIN)}" fill="${GELB}"/>`);
   for (const s of games) if (da(s.gross)) teile.push(`<circle cx="${px(s.gross.x)}" cy="${px(s.gross.y)}" r="${pr(GROSS)}" fill="${s.farbe}"/>`);
   const schrift = 'font-family="Segoe UI, Inter, Arial, sans-serif" font-weight="700"';
+  // Liegen zwei Zonen fast uebereinander, ruecken die Beschriftungen auseinander ("GAMGAME 10" am FNCS-Solos-Finale EU).
+  const gesetzt: Array<{ x: number; y: number }> = [];
+  const hoehe = n * 0.03; const breite = n * 0.13;
   for (const s of games) {
     if (!da(s.gross)) continue;
-    teile.push(`<text x="${px(s.gross.x)}" y="${px(s.gross.y)}" ${schrift} font-size="${Math.round(n * 0.024)}" text-anchor="middle" dominant-baseline="middle" fill="#fff" stroke="rgba(0,0,0,0.55)" stroke-width="${n * 0.004}" paint-order="stroke">GAME ${s.nr}</text>`);
+    const x = px(s.gross.x); let y = px(s.gross.y);
+    for (let i = 0; i < 6 && gesetzt.some((g) => Math.abs(g.x - x) < breite && Math.abs(g.y - y) < hoehe); i += 1) y += hoehe;
+    gesetzt.push({ x, y });
+    teile.push(`<text x="${x}" y="${y}" ${schrift} font-size="${Math.round(n * 0.024)}" text-anchor="middle" dominant-baseline="middle" fill="#fff" stroke="rgba(0,0,0,0.55)" stroke-width="${n * 0.004}" paint-order="stroke">GAME ${s.nr}</text>`);
   }
   teile.push(`<text x="${rand}" y="${n - rand - n * 0.03}" font-family="Segoe UI, Inter, Arial, sans-serif" font-weight="800" font-size="${Math.round(n * 0.05)}" fill="#fff">ZONES</text>`);
   teile.push(`<text x="${rand}" y="${n - rand}" ${schrift} font-size="${Math.round(n * 0.018)}" fill="#38bdf8">${xml(titel)}</text>`);
@@ -82,7 +88,7 @@ export async function zonenBild(windowId: string, o: { alleTage?: boolean; urspr
     tage.forEach((t, i) => {
       const y = n - rand - n * 0.105 + i * n * 0.024;
       teile.push(`<circle cx="${rand + n * 0.007}" cy="${y - n * 0.005}" r="${n * 0.007}" fill="${TAGFARBEN_VOLL[alle.indexOf(t) % TAGFARBEN_VOLL.length]}" stroke="#fff" stroke-width="${n * 0.0015}"/>`);
-      teile.push(`<text x="${rand + n * 0.022}" y="${y}" ${schrift} font-size="${Math.round(n * 0.014)}" fill="#fff">DAY ${tagNummer(t.windowId, alle.indexOf(t))}</text>`);
+      teile.push(`<text x="${rand + n * 0.022}" y="${y}" ${schrift} font-size="${Math.round(n * 0.016)}" fill="#fff" stroke="rgba(0,0,0,0.6)" stroke-width="${n * 0.003}" paint-order="stroke">DAY ${tagNummer(t.windowId, alle.indexOf(t))}</text>`);
     });
   }
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${n}" height="${n}">${teile.join('')}</svg>`;
