@@ -14,6 +14,7 @@ on:
       - '.github/workflows/replays-reparieren.yml'
       - 'scripts/replays-teil-reparieren.mjs'
       - 'scripts/replays-aggregieren.mjs'
+      - 'scripts/ablage-github.mjs'
   workflow_dispatch:
   schedule:
     - cron: '25 */6 * * *'
@@ -61,15 +62,8 @@ jobs:
           MAX_REPLAY_PARSERS: '3'
         run: node scripts/replays-teil-reparieren.mjs --minuten 290 2>&1 | tail -120
 
-      - name: Ans GitHub-Release
-        if: always()
-        continue-on-error: true
-        timeout-minutes: 20
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          node scripts/ablage-github.mjs --nur replays 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -12
-          [ -d data/replays-schlank ] && node scripts/ablage-github.mjs --nur replays-schlank 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -8 || true
+      # Kein Hochladen am Ende: jeder reparierte Spieltag ist schon einzeln oben. Der Vergleich des ganzen Replay-Ordners (rund tausend Dateien) kostete zwanzig
+      # Minuten und hunderte Anfragen aus dem knappen Kontingent (28.10.2026).
 
       - name: Zugangsdaten wieder weg
         if: always()

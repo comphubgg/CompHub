@@ -25,6 +25,7 @@ on:
       - 'scripts/replays-schlank.mjs'
       - 'scripts/schleife.mjs'
       - 'lib/releaseTags.mjs'
+      - 'scripts/ablage-github.mjs'
 
 concurrency:
   group: replays-schlank

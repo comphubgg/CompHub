@@ -112,6 +112,15 @@ if (dateiToken && umgebungsToken && dateiToken !== umgebungsToken) {
   try {
     const r = await fetch('https://api.github.com/rate_limit', { headers: { Authorization: `Bearer ${dateiToken}`, 'User-Agent': 'comphub-ablage' }, signal: AbortSignal.timeout(20_000) });
     if (!r.ok) { TOKEN = umgebungsToken; console.log(`  Zugang aus .env.local nicht angenommen (${r.status}) - es gilt der des Ablaufs.`); }
+    else {
+      /*
+       * Angenommen heisst nicht: noch Anfragen uebrig (28.10.2026). Seit 17:30 war das Kontingent des Betreibers leer (Remaining 0) - die Pruefung hier sah nur
+       * "200" und blieb dabei, und jedes Hochladen aller Ablaeufe scheiterte mit 403, waehrend das Kontingent des Ablaufs unberuehrt blieb. Jetzt gilt der Zugang
+       * des Ablaufs, sobald beim Betreiber weniger als 300 uebrig sind; und laeuft er waehrend des Hochladens leer, wird umgeschaltet (api()).
+       */
+      const rest = Number((await r.json())?.resources?.core?.remaining);
+      if (Number.isFinite(rest) && rest < 300) { TOKEN = umgebungsToken; console.log(`  Zugang aus .env.local hat nur noch ${rest} Anfragen - es gilt der des Ablaufs.`); }
+    }
   } catch { TOKEN = umgebungsToken; }
 }
 
@@ -226,6 +235,7 @@ function antwortSumme(daten) {
  */
 let kontingentRest = Infinity;
 let kontingentAus = false;
+let umgeschaltet = false;
 
 async function api(pfad, init = {}, versuche = 3) {
   for (let v = 1; ; v++) {
@@ -234,7 +244,16 @@ async function api(pfad, init = {}, versuche = 3) {
     });
     const rest = Number(r.headers.get('x-ratelimit-remaining'));
     if (Number.isFinite(rest) && r.headers.get('x-ratelimit-remaining') !== null) kontingentRest = rest;
-    if (r.status === 403 && r.headers.get('x-ratelimit-remaining') === '0') { kontingentAus = true; return r; }
+    if (r.status === 403 && r.headers.get('x-ratelimit-remaining') === '0') {
+      // Der andere Zugang (Betreiber oder Ablauf) hat ein eigenes Kontingent - einmal umschalten und dieselbe Anfrage noch einmal.
+      const anderer = TOKEN === dateiToken ? umgebungsToken : dateiToken;
+      if (anderer && anderer !== TOKEN && !umgeschaltet) {
+        umgeschaltet = true; TOKEN = anderer; KOPF.Authorization = `Bearer ${TOKEN}`; kontingentRest = Infinity;
+        console.log('  Kontingent leer - weiter mit dem anderen Zugang.');
+        continue;
+      }
+      kontingentAus = true; return r;
+    }
     if (r.ok || r.status === 404 || v >= versuche) return r;
     // Sekundaere Rate-Grenze oder Wackler: kurz warten, noch einmal.
     const warte = r.status === 403 || r.status === 429 ? 30_000 : 3_000;

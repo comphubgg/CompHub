@@ -28,6 +28,7 @@ on:
       - 'lib/releaseTags.mjs'
       - 'scripts/replay-voll-abgleich.mjs'
       - 'tools/replay-voll/**'
+      - 'scripts/ablage-github.mjs'
   workflow_dispatch:
   schedule:
     - cron: '17 */3 * * *'
