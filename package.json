@@ -16,7 +16,7 @@
     "exe-klein": "node elektron/bauen.mjs --ohne-daten",
     "pov-app": "node scripts/pov-app-bauen.mjs",
     "pov-app:veroeffentlichen": "node scripts/pov-app-bauen.mjs && node scripts/pov-app-veroeffentlichen.mjs",
-    "veroeffentlichen": "next build && powershell -NoProfile -ExecutionPolicy Bypass -File scripts/neu-veroeffentlichen.ps1"
+    "veroeffentlichen": "node scripts/bauen-daneben.mjs && powershell -NoProfile -ExecutionPolicy Bypass -File scripts/neu-veroeffentlichen.ps1"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.8",

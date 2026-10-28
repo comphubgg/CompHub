@@ -29,7 +29,9 @@ function WerLauscht {
 # Turbopack bindet sharp ueber einen Alias mit Pruefsumme ein und legt dazu eine Verknuepfung (Junction) an. Der oeffentliche Server laeuft unter dem Systemkonto
 # (Waechter), und dort fand Node den Alias durch die Verknuepfung nicht: jede Schnittstelle, die sharp braucht, gab 500 "Internal Server Error" - die Posts des Tages,
 # die Beitragsbilder, die Org-Logos (Betreiber, 19.10.2026). Ein echter Ordner mit einer Zeile, die auf das Paket zeigt, wird dagegen ueberall gefunden.
-$Alias = Join-Path $Projekt '.next\node_modules'
+# Seit 28.10.2026 liegt der neue Bau zuerst in .next-bau (scripts/bauen-daneben.mjs) - dort ersetzen, bevor umgeschaltet wird.
+$BauOrdner = if (Test-Path (Join-Path $Projekt '.next-bau\BUILD_ID')) { '.next-bau' } else { '.next' }
+$Alias = Join-Path $Projekt "$BauOrdner\node_modules"
 if (Test-Path $Alias) {
     foreach ($e in (Get-ChildItem -Path $Alias -Force)) {
         if (-not ($e.Attributes -band [IO.FileAttributes]::ReparsePoint)) { continue }
@@ -78,6 +80,10 @@ if ($nochDa -and $alteKennung -and (Compare-Object $nochDa $alteKennung -SyncWin
     Write-Host ''
     exit 1
 }
+
+# Der alte Server steht: jetzt den neuen Bau an seine Stelle setzen (scripts/bau-umschalten.ps1).
+. (Join-Path $PSScriptRoot 'bau-umschalten.ps1')
+Write-Host (BauUmschalten $Projekt)
 
 Write-Host 'Neuen Server starten ...'
 Start-Process -FilePath 'node.exe' `

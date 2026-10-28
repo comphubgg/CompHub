@@ -28,6 +28,11 @@ const ALTE_ADRESSEN: Array<[string, string]> = [
 ];
 
 const nextConfig: NextConfig = {
+  /*
+   * Gebaut wird daneben (scripts/bauen-daneben.mjs setzt NEXT_DIST_DIR=.next-bau), damit der laufende Server waehrend der zehn Minuten Bauzeit seine
+   * Dateien behaelt - vorher gaben /maps, /replays und andere Seiten bei jedem Veroeffentlichen 500 (28.10.2026). Ausgeliefert wird immer aus .next.
+   */
+  distDir: process.env.NEXT_DIST_DIR || '.next',
   // forbidden() und unauthorized() (403/401) mit eigenen Fehlerseiten: app/forbidden.tsx, app/unauthorized.tsx.
   experimental: { authInterrupts: true },
   /*

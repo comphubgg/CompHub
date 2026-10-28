@@ -15,6 +15,9 @@
 
 # next.js
 /.next/
+/.next-bau/
+/.next-alt/
+/.next-probe/
 /out/
 
 # local app runtime

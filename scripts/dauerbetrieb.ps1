@@ -126,6 +126,9 @@ if (Test-Path $Marke) {
         Stop-Process -Id $id -Force -ErrorAction SilentlyContinue
     }
     for ($i = 0; $i -lt 20 -and (LauschtJemand $Port); $i++) { Start-Sleep -Milliseconds 500 }
+    # Der neue Bau liegt seit 28.10.2026 in .next-bau (gebaut neben dem laufenden) - jetzt, wo der Server steht, an seine Stelle setzen.
+    . (Join-Path $PSScriptRoot 'bau-umschalten.ps1')
+    Notiere (BauUmschalten $Projekt)
 }
 
 # ------------------------------------------------------------- Der Webserver
