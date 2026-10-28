@@ -31,6 +31,10 @@ export interface RMatch {
   spieler: RSpieler[]; feed: REreignis[]; zonen: RZone[]; sieger?: number; ende?: number; beginn?: string; playlist?: string; runde?: number;
   /** Jeder zugeordnete Treffer (Leser ab 28.10.2026): [Zeit, Schuetze, Ziel, Schaden, Kopftreffer, Ziel am Boden, toedlich]. */
   treffer?: number[][];
+  /** Schaden je Spieler ueber das ganze Match (tools/replay-voll): gemacht (ohne Treffer auf Umgehauene), eingesteckt, Treffer, Kopftreffer. */
+  schaden?: Array<{ id: number; gemacht?: number; gemachtOhneBoden?: number; genommen?: number; treffer?: number; krit?: number }>;
+  /** Zeit im Sturm (Sekunden), wie oft vom Boden wiederbelebt, wie oft rebootet. */
+  zusatz?: Array<{ id: number; sturmSek?: number; wiederbelebt?: number; rebootet?: number }>;
 }
 /** Wie viele Punkte ein Platz und eine Eliminierung in diesem Cup geben - aus Epics Punkteaufschluesselung (lib/epicCups, wertungAus). */
 export interface RWertung { platz: Record<string, number>; elim: number }
@@ -622,6 +626,57 @@ export default function ReplayAnsicht({ match, kartenBild, titel, wertung, hervo
           </table>
         </div>
       </section>
+      {/* ------------------------------------------------ Spielerwerte des ganzen Matches */}
+      {(match.schaden?.length || match.zusatz?.length) ? (() => {
+        /*
+         * Was das Replay je Spieler fuer das ganze Match hergibt (Aufgabe 113: "Werte, die nur die Replay-Analyse liefert"): Schaden ausgeteilt und eingesteckt, Treffer,
+         * Kopftreffer, Zeit im Sturm, wie oft wiederbelebt und rebootet. Jede Spalte steht nur da, wenn das Replay sie fuer dieses Match fuehrt - fuer alle Spieler gleich.
+         */
+        const sch = new Map((match.schaden ?? []).map((x) => [x.id, x]));
+        const zu = new Map((match.zusatz ?? []).map((x) => [x.id, x]));
+        const mitSchaden = sch.size > 0; const mitZusatz = zu.size > 0;
+        const zeilen = [...echte].sort((a, b) => (a.platz ?? 999) - (b.platz ?? 999) || (b.kills ?? 0) - (a.kills ?? 0));
+        const sek = (n?: number) => (typeof n === 'number' ? `${Math.floor(n / 60)}:${String(Math.round(n % 60)).padStart(2, '0')}` : '0:00');
+        return (
+          <section className="overflow-hidden rounded-2xl border border-white/[0.08] bg-zinc-900/40">
+            <p className="border-b border-white/[0.08] bg-zinc-900/60 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-300"><T>Spielerwerte des Matches</T></p>
+            <div className="max-h-[32rem] overflow-auto">
+              <table className="w-full text-sm">
+                <thead className="sticky top-0 bg-zinc-900">
+                  <tr className="border-b border-white/[0.08] text-left text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+                    <th className="w-10 px-4 py-2">#</th><th className="px-3 py-2"><T>Spieler</T></th><th className="px-3 py-2 text-right">Elims</th>
+                    {mitSchaden && <><th className="px-3 py-2 text-right">Damage</th><th className="px-3 py-2 text-right"><T>Eingesteckt</T></th><th className="px-3 py-2 text-right"><T>Treffer</T></th><th className="px-3 py-2 text-right"><T>Kopftreffer</T></th></>}
+                    {mitZusatz && <><th className="px-3 py-2 text-right"><T>Im Sturm</T></th><th className="px-3 py-2 text-right"><T>Wiederbelebt</T></th><th className="px-3 py-2 text-right">Reboots</th></>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {zeilen.map((sp) => {
+                    const a = sch.get(sp.id); const z = zu.get(sp.id);
+                    return (
+                      <tr key={sp.id} className={`border-b border-white/[0.04] transition hover:bg-sky-500/[0.05] ${wahlTeam?.spieler.some((x) => x.id === sp.id) ? 'bg-sky-500/[0.08]' : ''}`}>
+                        <td className="px-4 py-1.5 text-[11px] font-bold tabular-nums text-slate-500">{sp.platz && sp.platz < 999 ? sp.platz : '–'}</td>
+                        <td className="px-3 py-1.5 text-[12px] font-bold uppercase" style={{ color: farbeVon(sp.id) }}>{ohneVorsatz(sp.name)}</td>
+                        <td className="px-3 py-1.5 text-right tabular-nums text-slate-200">{sp.kills ?? 0}</td>
+                        {mitSchaden && <>
+                          <td className="px-3 py-1.5 text-right font-semibold tabular-nums text-slate-100">{Math.round(a?.gemachtOhneBoden ?? a?.gemacht ?? 0).toLocaleString()}</td>
+                          <td className="px-3 py-1.5 text-right tabular-nums text-slate-400">{Math.round(a?.genommen ?? 0).toLocaleString()}</td>
+                          <td className="px-3 py-1.5 text-right tabular-nums text-slate-300">{a?.treffer ?? 0}</td>
+                          <td className="px-3 py-1.5 text-right tabular-nums text-amber-300/90">{a?.krit ?? 0}</td>
+                        </>}
+                        {mitZusatz && <>
+                          <td className="px-3 py-1.5 text-right tabular-nums text-slate-300">{sek(z?.sturmSek)}</td>
+                          <td className="px-3 py-1.5 text-right tabular-nums text-slate-300">{z?.wiederbelebt ?? 0}</td>
+                          <td className="px-3 py-1.5 text-right tabular-nums text-slate-300">{z?.rebootet ?? 0}</td>
+                        </>}
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </section>
+        );
+      })() : null}
       {wahlTeam && (
         <p className="text-xs text-slate-400"><T>Markiert</T>: {wahlTeam.spieler.map((s) => ohneVorsatz(s.name)).join(' · ')}</p>
       )}
