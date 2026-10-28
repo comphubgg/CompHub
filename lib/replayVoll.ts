@@ -15,6 +15,8 @@ import { DATEN_ORT } from '@/lib/datenOrt';
 export interface IndexEintrag {
   datei: string; windowId: string; eventId: string; titel?: string; region?: string; season?: string;
   beginn?: string; ende?: number; sieger?: string[]; spieler?: number; zonen?: number;
+  /** Seit 28.10.2026: Laenge des Replays (ms) und ob sie gegen Epics Metadaten geprueft ist (scripts/replay-voll-holen.mjs). */
+  laenge?: number | null; vollstaendig?: boolean; unvollstaendig?: boolean;
 }
 export interface TagMatch extends IndexEintrag { id: string; nr: number }
 export interface Spieltag {

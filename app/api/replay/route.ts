@@ -78,12 +78,15 @@ export async function GET(request: Request) {
       const offen = t.matches.filter((m) => alle[m.id]);
       for (let i = 0; i < offen.length; i += GLEICHZEITIG) {
         await Promise.all(offen.slice(i, i + GLEICHZEITIG).map(async (m) => {
-          if (!ZONEN.has(m.id)) {
+          // Gemerkt je Fassung des Index-Eintrags (28.10.2026): ein halb gelesenes Game wird neu gelesen und bekommt Laenge und Ende - mit der Kennung allein
+          // als Schluessel zeigte die Seite bis zum naechsten Neustart weiter die zwei Zonen der halben Fassung.
+          const schluessel = `${m.id}|${alle[m.id].ende ?? ''}|${alle[m.id].laenge ?? ''}`;
+          if (!ZONEN.has(schluessel)) {
             const d = await liesJson<{ zonen?: unknown[] } | null>(alle[m.id].datei, null).catch(() => null);
             if (!d) return;   // gerade nicht lesbar: nicht merken, beim naechsten Mal noch einmal
-            ZONEN.set(m.id, Array.isArray(d.zonen) ? d.zonen : []);
+            ZONEN.set(schluessel, Array.isArray(d.zonen) ? d.zonen : []);
           }
-          zonen[m.id] = ZONEN.get(m.id) ?? [];
+          zonen[m.id] = ZONEN.get(schluessel) ?? [];
         }));
       }
       return zwischenspeichern(NextResponse.json({ windowId: zonenFenster, zonen }, { headers: { 'Cache-Control': 'no-store' } }), 60);
