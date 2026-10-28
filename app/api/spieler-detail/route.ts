@@ -165,7 +165,7 @@ export async function GET(request: Request) {
       eintrag: eintrag ?? null,
       mitglieder,
       aktualisiert, szeneStand, szeneMatches,
-      eigeneAuswertung: eigene ? { gelesen: eigene.gelesen, sitzungen: eigene.sitzungen, gerechnet: eigene.gerechnet, grund: eigene.grund ?? null } : null,
+      eigeneAuswertung: eigene ? { gelesen: eigene.gelesen, sitzungen: eigene.sitzungen, gerechnet: eigene.gerechnet, grund: eigene.grund ?? null, fassung: eigene.version ?? 0 } : null,
     };
     return zwischenspeichern(NextResponse.json(antwort, { headers: { 'Cache-Control': 'no-store' } }), 60);
   } catch (e) {

@@ -56,6 +56,9 @@ export const kontoOk = (id: string) => /^[0-9a-f]{32}$/.test(id);
 
 export const anfrageName = (w: string, id: string) => `eigene-anfragen/${w}__${id}.json`;
 export const kontoName = (id: string) => `eigene-konten/${id}.json`;
+/** Die Fassung, die scripts/eigene-auswerten.mjs heute schreibt (VERSION dort) - aeltere Ergebnisse werden beim naechsten Ansehen neu bestellt. */
+export const AKTUELLE_FASSUNG = 5;
+
 export const ergebnisName = (w: string, id: string) => `eigene-stats/${w}/${id}.json`;
 
 export const leseErgebnis = (w: string, id: string) => liesJson<Ergebnis | null>(ergebnisName(w, id), null).catch(() => null);

@@ -38,7 +38,7 @@ interface Antwort {
   ok: boolean; error?: string; id: string; name: string; dabei: boolean;
   rank: number | null; gesamt: number; top: number | null; eintrag: Eintrag | null;
   mitglieder: Mitglied[]; aktualisiert: string | null; szeneStand: string | null; szeneMatches: number;
-  eigeneAuswertung?: { gelesen: number; sitzungen: number; gerechnet: string; grund: string | null } | null;
+  eigeneAuswertung?: { gelesen: number; sitzungen: number; gerechnet: string; grund: string | null; fassung?: number } | null;
 }
 interface Treffer { id: string; name: string; rank: number; points: number; team: string[] }
 
@@ -263,7 +263,10 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo, star
     if (!daten || !daten.dabei || !zugang.epicId) return;
     const ich = daten.mitglieder.find((m) => m.id === zugang.epicId);
     if (!ich) return;
-    if (ich.replay?.damage != null || ich.szene?.damageDealt != null || daten.eigeneAuswertung) { setAuswertung(daten.eigeneAuswertung ? { stand: 'fertig' } : null); return; }
+    // Eine Auswertung in aelterer Fassung (Fassung 5 = Damage mit dem verbesserten Leser, 28.10.2026; AKTUELLE_FASSUNG in lib/eigeneAuswertung) wird neu bestellt -
+    // die alten Werte bleiben bis dahin stehen.
+    const veraltet = !!daten.eigeneAuswertung && (daten.eigeneAuswertung.fassung ?? 0) < 5;
+    if (!veraltet && (ich.replay?.damage != null || ich.szene?.damageDealt != null || daten.eigeneAuswertung)) { setAuswertung(daten.eigeneAuswertung ? { stand: 'fertig' } : null); return; }
     const key = `${eventId}|${windowId}|${zugang.epicId}`;
     if (bestellt.current.has(key)) return;
     bestellt.current.add(key);

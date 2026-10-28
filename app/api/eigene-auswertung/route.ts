@@ -3,7 +3,7 @@ import { cookies } from 'next/headers';
 import { kontoAus, nachId } from '@/lib/konten';
 import { GAST_COOKIE, gastAus } from '@/lib/epicGast';
 import { findeSpieler, MAX_PAGES } from '@/lib/epicCups';
-import { FRIST_MS, fensterOk, kontoOk, leseAnfrage, leseErgebnis, merkeKonto, schreibeAnfrage } from '@/lib/eigeneAuswertung';
+import { AKTUELLE_FASSUNG, FRIST_MS, fensterOk, kontoOk, leseAnfrage, leseErgebnis, merkeKonto, schreibeAnfrage } from '@/lib/eigeneAuswertung';
 
 /*
  * Die Auswertung der eigenen Lobbys eines Cups (lib/eigeneAuswertung).
@@ -52,7 +52,8 @@ export async function POST(request: Request) {
   // Ab jetzt werden auch alle anderen Cups dieses Kontos von selbst ausgewertet.
   await merkeKonto(id);
 
-  if (await leseErgebnis(w, id)) return NextResponse.json({ ok: true, stand: 'fertig' }, { headers: NEIN });
+  // Fertig nur in der heutigen Fassung - eine aeltere (z. B. Damage mit dem alten Leser) wird neu bestellt und bis dahin weiter gezeigt.
+  if (((await leseErgebnis(w, id))?.version ?? 0) >= AKTUELLE_FASSUNG) return NextResponse.json({ ok: true, stand: 'fertig' }, { headers: NEIN });
   const alt = await leseAnfrage(w, id);
   if (alt) return NextResponse.json({ ok: true, stand: 'angefragt', zeit: alt.zeit }, { headers: NEIN });
 
