@@ -41,34 +41,40 @@ function rundeName(windowId, region) {
  */
 async function vomRelease() {
   const REPO = process.env.COMPHUB_GITHUB_REPO || 'comphubgg/CompHub';
-  const neueste = new Map();
-  // Nur Saisons bis zur laufenden (bis zu zwei weiter, falls eine neue beginnt) - die Releases kuenftiger gibt es noch nicht.
+  /** Je Datei alle Releases, die sie fuehren - neueste zuerst; fehlt die neueste Kopie, gilt die naechste. */
+  const kopien = new Map();
+  // Das alte Release ohne Saison (daten-replays: S41 und die S42-Spieltage vor der Teilung) gehoert dazu - ohne es fehlten 28.10.2026 rund 7.000
+  // ausgewertete Matches in der Summe der Startseite (354.000 statt 361.000).
   const bis = Math.min(LETZTE_SAISON, ERSTE_GETEILTE_SAISON + 3);
-  for (let n = ERSTE_GETEILTE_SAISON; n <= bis; n += 1) {
-    for (const tag of ['', '-b', '-c', '-d'].map((x) => `daten-replays-s${n}${x}`)) {
-      const r = await fetch(`https://github.com/${REPO}/releases/download/${tag}/manifest.json`, { redirect: 'follow', headers: { 'User-Agent': 'comphub-ablage' } }).catch(() => null);
-      if (!r?.ok) continue;
-      for (const [name, e] of Object.entries(await r.json())) {
-        const m = /^replays__(S\d+)__(.+)___zustand\.json$/.exec(name);
-        if (!m) continue;
-        const zeit = Date.parse(e.zeit ?? '') || 0;
-        if ((neueste.get(name)?.zeit ?? -1) < zeit) neueste.set(name, { tag, zeit, saison: m[1], fenster: m[2] });
-      }
+  const tags = ['daten-replays'];
+  for (let n = ERSTE_GETEILTE_SAISON; n <= bis; n += 1) tags.push(...['', '-b', '-c', '-d'].map((x) => `daten-replays-s${n}${x}`));
+  for (const tag of tags) {
+    const r = await fetch(`https://github.com/${REPO}/releases/download/${tag}/manifest.json`, { redirect: 'follow', headers: { 'User-Agent': 'comphub-ablage' } }).catch(() => null);
+    if (!r?.ok) continue;
+    for (const [name, e] of Object.entries(await r.json())) {
+      const m = /^replays__(S\d+)__(.+)___zustand\.json$/.exec(name);
+      if (!m) continue;
+      const liste = kopien.get(name) ?? [];
+      liste.push({ tag, zeit: Date.parse(e.zeit ?? '') || 0, saison: m[1], fenster: m[2] });
+      kopien.set(name, liste);
     }
   }
-  const liste = [...neueste.entries()];
+  const liste = [...kopien.entries()].map(([name, k]) => [name, k.sort((x, y) => y.zeit - x.zeit)]);
   let i = 0; let geholt = 0;
   await Promise.all(Array.from({ length: 8 }, async () => {
     while (i < liste.length) {
-      const [name, e] = liste[i++];
-      try {
-        const r = await fetch(`https://github.com/${REPO}/releases/download/${e.tag}/${encodeURIComponent(name)}`, { redirect: 'follow', headers: { 'User-Agent': 'comphub-ablage' } });
-        if (!r.ok) continue;
-        const ordner = path.join(ABLAGE, e.saison, e.fenster);
-        await fs.mkdir(ordner, { recursive: true });
-        await fs.writeFile(path.join(ordner, '_zustand.json'), Buffer.from(await r.arrayBuffer()));
-        geholt += 1;
-      } catch { /* dieser eine fehlt in der Uebersicht */ }
+      const [name, k] = liste[i++];
+      for (const e of k) {
+        try {
+          const r = await fetch(`https://github.com/${REPO}/releases/download/${e.tag}/${encodeURIComponent(name)}`, { redirect: 'follow', headers: { 'User-Agent': 'comphub-ablage' } });
+          if (!r.ok) continue;
+          const ordner = path.join(ABLAGE, e.saison, e.fenster);
+          await fs.mkdir(ordner, { recursive: true });
+          await fs.writeFile(path.join(ordner, '_zustand.json'), Buffer.from(await r.arrayBuffer()));
+          geholt += 1;
+          break;
+        } catch { /* naechste Kopie */ }
+      }
     }
   }));
   console.log(`Vom Release: ${geholt} von ${liste.length} Zustaenden geholt.`);
