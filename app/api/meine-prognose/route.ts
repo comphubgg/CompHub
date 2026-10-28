@@ -79,7 +79,7 @@ export async function GET() {
     }
   } catch {
     return NextResponse.json({ fehler: 'Die Ablage antwortet gerade nicht.' },
-      { status: 503, headers: { 'Cache-Control': 'no-store' } });
+      { status: 424, headers: { 'Cache-Control': 'no-store' } });
   }
 }
 
@@ -101,6 +101,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true });
   } catch {
     return NextResponse.json({ fehler: 'Die Ablage antwortet gerade nicht.' },
-      { status: 503, headers: { 'Cache-Control': 'no-store' } });
+      { status: 424, headers: { 'Cache-Control': 'no-store' } });
   }
 }

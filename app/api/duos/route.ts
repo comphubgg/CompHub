@@ -42,7 +42,7 @@ export async function GET() {
       }
 
       console.error('Supabase error fetching duos', error);
-      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+      return NextResponse.json({ success: false, error: error.message }, { status: 424 });
     }
 
     const duoRows = (data || []).map((duo: any) => [duo.player1, duo.player2]);
@@ -54,7 +54,7 @@ export async function GET() {
       const duoRows = await readDuosFile();
       return NextResponse.json({ success: true, duos: duoRows, extracted_at: new Date().toISOString() });
     } catch { /* unten der Fehler */ }
-    return NextResponse.json({ success: false, error: err?.message || String(err) }, { status: 500 });
+    return NextResponse.json({ success: false, error: err?.message || String(err) }, { status: 424 });
   }
 }
 
@@ -73,7 +73,7 @@ export async function POST(request: NextRequest) {
     // Nur auf Vercel aufgeben - dort gibt es keine Platte. Auf dem
     // eigenen Rechner liegt die Datei daneben und wird gelesen.
     if (!supabase && IS_VERCEL && !hasSupabaseConfig()) {
-      return NextResponse.json({ success: false, error: 'Online database not configured' }, { status: 500 });
+      return NextResponse.json({ success: false, error: 'Online database not configured' }, { status: 424 });
     }
 
     if (!supabase) {
@@ -90,13 +90,13 @@ export async function POST(request: NextRequest) {
       }
 
       console.error('Supabase error saving duos', error);
-      return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+      return NextResponse.json({ success: false, error: error.message }, { status: 424 });
     }
 
     return NextResponse.json({ success: true, count: duos.length });
   } catch (err: any) {
     console.error('Error writing duos:', err);
-    return NextResponse.json({ success: false, error: err?.message || String(err) }, { status: 500 });
+    return NextResponse.json({ success: false, error: err?.message || String(err) }, { status: 424 });
   }
 }
 
@@ -119,7 +119,7 @@ export async function DELETE(request: NextRequest) {
     // Nur auf Vercel aufgeben - dort gibt es keine Platte. Auf dem
     // eigenen Rechner liegt die Datei daneben und wird gelesen.
     if (!supabase && IS_VERCEL && !hasSupabaseConfig()) {
-      return NextResponse.json({ success: false, error: 'Online database not configured' }, { status: 500 });
+      return NextResponse.json({ success: false, error: 'Online database not configured' }, { status: 424 });
     }
 
     if (!supabase) {
@@ -149,7 +149,7 @@ export async function DELETE(request: NextRequest) {
             return NextResponse.json({ success: true, count: filtered.length });
           }
           console.error('Supabase error deleting duo', error, reverseResult.error);
-          return NextResponse.json({ success: false, error: error.message || reverseResult.error.message }, { status: 500 });
+          return NextResponse.json({ success: false, error: error.message || reverseResult.error.message }, { status: 424 });
         }
       }
     }
@@ -157,6 +157,6 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ success: true, count: duos.length });
   } catch (err: any) {
     console.error('Error deleting duos:', err);
-    return NextResponse.json({ success: false, error: err?.message || String(err) }, { status: 500 });
+    return NextResponse.json({ success: false, error: err?.message || String(err) }, { status: 424 });
   }
 }

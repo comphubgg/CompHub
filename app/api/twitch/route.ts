@@ -65,6 +65,6 @@ export async function POST(req: Request) {
     return Response.json(result);
   } catch (error) {
     console.error(t('error_in_twitch_route', 'Error in twitch route:'), error);
-    return Response.json({ error: t('internal_server_error', 'Internal server error') }, { status: 500 });
+    return Response.json({ error: t('internal_server_error', 'Internal server error') }, { status: 424 });
   }
 }

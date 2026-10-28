@@ -89,7 +89,7 @@ export async function GET() {
     const supabase = getSupabaseServerClient();
     if (!supabase) {
       if (!USE_DISK_FALLBACK) {
-        return NextResponse.json({ error: t('supabase_not_configured', 'Online database not configured') }, { status: 500 });
+        return NextResponse.json({ error: t('supabase_not_configured', 'Online database not configured') }, { status: 424 });
       }
       const fileData = await readPlayersFile();
       return NextResponse.json(fileData);
@@ -147,7 +147,7 @@ export async function POST(request: NextRequest) {
     // Nur auf Vercel aufgeben - dort gibt es keine Platte. Auf dem
     // eigenen Rechner liegt die Datei daneben und wird gelesen.
     if (!supabase && IS_VERCEL && !hasSupabaseConfig()) {
-      return NextResponse.json({ error: t('supabase_not_configured', 'Online database not configured') }, { status: 500 });
+      return NextResponse.json({ error: t('supabase_not_configured', 'Online database not configured') }, { status: 424 });
     }
 
     if (!supabase) {
@@ -227,7 +227,7 @@ export async function POST(request: NextRequest) {
 
       if (fetchError) {
         console.error('Supabase error fetching existing duos', fetchError);
-        return NextResponse.json({ error: fetchError.message }, { status: 500 });
+        return NextResponse.json({ error: fetchError.message }, { status: 424 });
       }
 
       const exactExists = (existing || []).some((duo: any) => isExactDuo(duo.player1, duo.player2));
@@ -243,7 +243,7 @@ export async function POST(request: NextRequest) {
 
         if (deleteError) {
           console.error('Supabase error deleting existing duos', deleteError);
-          return NextResponse.json({ error: deleteError.message }, { status: 500 });
+          return NextResponse.json({ error: deleteError.message }, { status: 424 });
         }
       }
 
@@ -274,7 +274,7 @@ export async function POST(request: NextRequest) {
         }
 
         console.error('Supabase error saving duo', error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: error.message }, { status: 424 });
       }
 
       return NextResponse.json({ success: true });
@@ -303,13 +303,13 @@ export async function POST(request: NextRequest) {
       }
 
       console.error('Supabase error saving player', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: error.message }, { status: 424 });
     }
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error(t('error_adding_player', 'Error adding player:'), error);
-    return NextResponse.json({ error: error.message || t('failed_to_add_player', 'Failed to add player') }, { status: 500 });
+    return NextResponse.json({ error: error.message || t('failed_to_add_player', 'Failed to add player') }, { status: 424 });
   }
 }
 
@@ -324,12 +324,12 @@ export async function DELETE(request: NextRequest) {
     // Nur auf Vercel aufgeben - dort gibt es keine Platte. Auf dem
     // eigenen Rechner liegt die Datei daneben und wird gelesen.
     if (!supabase && IS_VERCEL && !hasSupabaseConfig()) {
-      return NextResponse.json({ error: t('supabase_not_configured', 'Online database not configured') }, { status: 500 });
+      return NextResponse.json({ error: t('supabase_not_configured', 'Online database not configured') }, { status: 424 });
     }
 
     if (!supabase) {
       if (!USE_DISK_FALLBACK) {
-        return NextResponse.json({ error: t('supabase_not_configured', 'Online database not configured') }, { status: 500 });
+        return NextResponse.json({ error: t('supabase_not_configured', 'Online database not configured') }, { status: 424 });
       }
 
       const fileData = await readPlayersFile();
@@ -360,7 +360,7 @@ export async function DELETE(request: NextRequest) {
 
       if (error) {
         console.error('Supabase error deleting duo', error);
-        return NextResponse.json({ error: error.message }, { status: 500 });
+        return NextResponse.json({ error: error.message }, { status: 424 });
       }
 
       return NextResponse.json({ success: true });
@@ -369,13 +369,13 @@ export async function DELETE(request: NextRequest) {
     const { error } = await supabase.from('players').delete().match({ name: String(name) });
     if (error) {
       console.error('Supabase error deleting player', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: error.message }, { status: 424 });
     }
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error(t('error_deleting_player', 'Error deleting player:'), error);
-    return NextResponse.json({ error: error.message || t('failed_to_delete_player', 'Failed to delete player') }, { status: 500 });
+    return NextResponse.json({ error: error.message || t('failed_to_delete_player', 'Failed to delete player') }, { status: 424 });
   }
 }
 
@@ -391,12 +391,12 @@ export async function PATCH(request: NextRequest) {
     // Nur auf Vercel aufgeben - dort gibt es keine Platte. Auf dem
     // eigenen Rechner liegt die Datei daneben und wird gelesen.
     if (!supabase && IS_VERCEL && !hasSupabaseConfig()) {
-      return NextResponse.json({ error: t('supabase_not_configured', 'Online database not configured') }, { status: 500 });
+      return NextResponse.json({ error: t('supabase_not_configured', 'Online database not configured') }, { status: 424 });
     }
 
     if (!supabase) {
       if (!USE_DISK_FALLBACK) {
-        return NextResponse.json({ error: t('supabase_not_configured', 'Online database not configured') }, { status: 500 });
+        return NextResponse.json({ error: t('supabase_not_configured', 'Online database not configured') }, { status: 424 });
       }
 
       const fileData = await readPlayersFile();
@@ -430,12 +430,12 @@ export async function PATCH(request: NextRequest) {
     const { error } = await supabase.from('players').update(updatePayload).eq('name', oldName);
     if (error) {
       console.error('Supabase error updating player', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return NextResponse.json({ error: error.message }, { status: 424 });
     }
 
     return NextResponse.json({ success: true });
   } catch (error: any) {
     console.error(t('error_updating_player', 'Error updating player:'), error);
-    return NextResponse.json({ error: error.message || t('failed_to_update_player', 'Failed to update player') }, { status: 500 });
+    return NextResponse.json({ error: error.message || t('failed_to_update_player', 'Failed to update player') }, { status: 424 });
   }
 }

@@ -444,7 +444,7 @@ async function holeRoh(request: Request) {
     // Liegt nichts, wartet niemand eine Minute auf eine leere Liste.
     return NextResponse.json(
       { success: false, error: 'Diese Auswertung ist noch nicht vorgerechnet. Der stuendliche Lauf legt sie ab.' },
-      { status: 503, headers: { 'Retry-After': '600' } });
+      { status: 424, headers: { 'Retry-After': '600' } });
   }
   try {
     const wert = await fertigeAntwort(schluessel, async () => {
@@ -462,7 +462,7 @@ async function holeRoh(request: Request) {
     // am Rand behalten. Andere Fehler: dann eben ohne Ablage antworten.
     if (e instanceof AblageNichtErreichbar) {
       return NextResponse.json({ success: false, error: e.message },
-        { status: 503, headers: { 'Retry-After': '120', 'Cache-Control': 'no-store' } });
+        { status: 424, headers: { 'Retry-After': '120', 'Cache-Control': 'no-store' } });
     }
     return berechne(request);
   }
@@ -1628,7 +1628,7 @@ async function berechne(request: Request) {
     });
   } catch (fehler) {
     return NextResponse.json(
-      { success: false, error: (fehler as Error).message }, { status: 500 });
+      { success: false, error: (fehler as Error).message }, { status: 424 });
   }
 }
 

@@ -61,7 +61,7 @@ export async function POST(request: Request) {
     const roh = JSON.parse(await fs.readFile(DATEI, 'utf8')) as { users?: Zugang[] };
     daten = { users: Array.isArray(roh.users) ? roh.users : [] };
   } catch {
-    return NextResponse.json({ fehler: 'nicht lesbar' }, { status: 500 });
+    return NextResponse.json({ fehler: 'nicht lesbar' }, { status: 424 });
   }
 
   const i = daten.users.findIndex(

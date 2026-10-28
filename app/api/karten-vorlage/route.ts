@@ -85,7 +85,7 @@ export async function POST(request: Request) {
   } catch {
     return NextResponse.json({
       error: 'Storage is not answering right now - the template was not saved.',
-    }, { status: 503 });
+    }, { status: 424 });
   }
 
   return NextResponse.json({ ok: true, bild, spots: spots.length });

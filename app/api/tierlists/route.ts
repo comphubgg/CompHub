@@ -132,7 +132,7 @@ export async function GET() {
     console.error('tierlists GET error', error);
     return NextResponse.json(
       { success: false, error: error?.message || String(error) },
-      { status: 500 }
+      { status: 424 }
     );
   }
 }
@@ -231,7 +231,7 @@ export async function POST(request: NextRequest) {
     console.error('tierlists POST error', error);
     return NextResponse.json(
       { success: false, error: error?.message || String(error) },
-      { status: 500 }
+      { status: 424 }
     );
   }
 }

@@ -79,7 +79,7 @@ export async function GET(request: Request) {
     const ids = ((d.ids as string[]) ?? []).filter((x) => /^[0-9a-f]{32}(\|[0-9a-f]{32})*$/.test(x));
     if (!ids.length) return new Response('keine Fotos', { status: 404 });
     const r = await fetch(`${ursprung}/api/beitrag-bild?ids=${ids.join(',')}&anzahl=5`, { signal: AbortSignal.timeout(30_000) }).catch(() => null);
-    if (!r?.ok) return new Response('Mosaik nicht erreichbar', { status: 502 });
+    if (!r?.ok) return new Response('Mosaik nicht erreichbar', { status: 424 });
     return new Response(await r.arrayBuffer(), { headers: { 'Content-Type': 'image/png', 'Cache-Control': 'public, max-age=3600' } });
   }
   const [logo, bricolage, figtree] = await Promise.all([

@@ -50,7 +50,7 @@ export async function GET(request: Request) {
   } catch (e) {
     return NextResponse.json(
       { error: `Der Dienst antwortet nicht: ${(e as Error).message}` },
-      { status: 502 });
+      { status: 424 });
   }
   if (!antwort.ok) {
     return NextResponse.json(
@@ -63,7 +63,7 @@ export async function GET(request: Request) {
   const tw = d.tweet;
   if (!tw) {
     return NextResponse.json({ error: 'Der Dienst lieferte keinen Beitrag.' },
-      { status: 502 });
+      { status: 424 });
   }
 
   const bilder = (tw.media?.photos ?? [])

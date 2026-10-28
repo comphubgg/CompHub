@@ -23,7 +23,7 @@ export async function GET(request: Request) {
     const plan = await tagesplan(datum, datum === heuteDatum());
     return NextResponse.json({ ok: true, plan }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (e) {
-    return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 503 });
+    return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 424 });
   }
 }
 
@@ -35,6 +35,6 @@ export async function POST(request: Request) {
     const plan = await postErsetzen(k.datum, k.nr as number);
     return NextResponse.json({ ok: true, plan }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (e) {
-    return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 503 });
+    return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 424 });
   }
 }

@@ -33,6 +33,6 @@ export async function GET(request: Request) {
     return NextResponse.json({ ok: true, verfuegbar: true, stand: await standFuer(epicId) }, { headers: nie });
   } catch {
     // Epic antwortet nicht: das Overlay behaelt den letzten Stand, statt "kein Cup" zu behaupten.
-    return NextResponse.json({ ok: false, error: 'Epic antwortet nicht.' }, { status: 502, headers: nie });
+    return NextResponse.json({ ok: false, error: 'Epic antwortet nicht.' }, { status: 424, headers: nie });
   }
 }

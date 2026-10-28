@@ -23,6 +23,6 @@ export async function GET(request: Request) {
     const ohne = (p.get('ohne') ?? '').split(',').map((x) => x.trim()).filter(Boolean).slice(0, 300);
     return zwischenspeichern(NextResponse.json(await tiktokDaten({ ohne, nur: (p.get('fenster') ?? '').trim() || undefined }), { headers: { 'Cache-Control': 'no-store' } }), 300);
   } catch (e) {
-    return NextResponse.json({ keinCup: true, grund: (e as Error).message }, { status: 503 });
+    return NextResponse.json({ keinCup: true, grund: (e as Error).message }, { status: 424 });
   }
 }

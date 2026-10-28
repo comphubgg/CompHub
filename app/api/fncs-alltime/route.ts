@@ -79,6 +79,6 @@ export async function GET() {
     merker = { bis: Date.now() + 30 * 60_000, antwort };
     return NextResponse.json(antwort, { headers: { 'Cache-Control': CDN_FRIST } });
   } catch (e) {
-    return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 502, headers: { 'Cache-Control': 'no-store' } });
+    return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 424, headers: { 'Cache-Control': 'no-store' } });
   }
 }

@@ -82,7 +82,7 @@ export async function POST(request: Request) {
   try {
     await fs.writeFile(DATEI, JSON.stringify(karten, null, 2), 'utf8');
   } catch {
-    return NextResponse.json({ error: 'Not saved' }, { status: 500 });
+    return NextResponse.json({ error: 'Not saved' }, { status: 424 });
   }
   return NextResponse.json({ ok: true, team: meins.id, spot: spotId ?? null });
 }

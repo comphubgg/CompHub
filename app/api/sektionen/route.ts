@@ -110,7 +110,7 @@ export async function POST(request: Request) {
     await schreibeStaende(staende);
   } catch (e) {
     return NextResponse.json({ fehler: schreibGrund(e, 'data/sektionen.json') },
-      { status: 500 });
+      { status: 424 });
   }
 
   return NextResponse.json({ ok: true, staende });

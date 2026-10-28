@@ -27,7 +27,7 @@ function getRedirectUri(req: NextRequest) {
 export async function GET(req: NextRequest) {
   const { id: TWITCH_CLIENT_ID } = await holeDienst('twitch');
   if (!TWITCH_CLIENT_ID) {
-    return new NextResponse(t('twitch_oauth_ist_nicht_konfiguriert', 'Twitch OAuth ist nicht konfiguriert.'), { status: 500 });
+    return new NextResponse(t('twitch_oauth_ist_nicht_konfiguriert', 'Twitch OAuth ist nicht konfiguriert.'), { status: 424 });
   }
 
   const state = crypto.randomUUID();

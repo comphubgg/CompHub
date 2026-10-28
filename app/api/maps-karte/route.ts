@@ -46,6 +46,6 @@ export async function GET(request: Request) {
     if (e) f.fenster = await mitHandEbene(e, f.fenster).catch(() => f.fenster);
     return NextResponse.json({ ok: true, ...f, tage: (e?.tage ?? []).map((d) => ({ name: d.name, windowId: d.windowId })), platzierungen }, { headers: { 'Cache-Control': 'public, max-age=60, s-maxage=120' } });
   } catch (e) {
-    return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 502, headers: { 'Cache-Control': 'no-store' } });
+    return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 424, headers: { 'Cache-Control': 'no-store' } });
   }
 }

@@ -57,7 +57,7 @@ export async function GET() {
     return NextResponse.json(data);
   } catch (error) {
     console.error(t('error_reading_streamers', 'Error reading streamers:'), error);
-    return NextResponse.json({ error: t('failed_to_read_streamers', 'Failed to read streamers') }, { status: 500 });
+    return NextResponse.json({ error: t('failed_to_read_streamers', 'Failed to read streamers') }, { status: 424 });
   }
 }
 
@@ -87,7 +87,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, data });
   } catch (error) {
     console.error(t('error_adding_streamer', 'Error adding streamer:'), error);
-    return NextResponse.json({ error: t('failed_to_add_streamer', 'Failed to add streamer') }, { status: 500 });
+    return NextResponse.json({ error: t('failed_to_add_streamer', 'Failed to add streamer') }, { status: 424 });
   }
 }
 
@@ -116,7 +116,7 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ success: true, data });
   } catch (error) {
     console.error(t('error_deleting_streamer', 'Error deleting streamer:'), error);
-    return NextResponse.json({ error: t('failed_to_delete_streamer', 'Failed to delete streamer') }, { status: 500 });
+    return NextResponse.json({ error: t('failed_to_delete_streamer', 'Failed to delete streamer') }, { status: 424 });
   }
 }
 
@@ -143,6 +143,6 @@ export async function PUT(request: NextRequest) {
     return NextResponse.json({ success: true, data });
   } catch (error) {
     console.error(t('error_updating_streamer', 'Error updating streamer:'), error);
-    return NextResponse.json({ error: t('failed_to_update_streamer', 'Failed to update streamer') }, { status: 500 });
+    return NextResponse.json({ error: t('failed_to_update_streamer', 'Failed to update streamer') }, { status: 424 });
   }
 }

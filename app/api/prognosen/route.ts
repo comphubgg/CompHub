@@ -198,7 +198,7 @@ async function liesZumSchreiben(): Promise<Prognose[]> {
 
 const NICHT_GESPEICHERT = () => NextResponse.json({
   error: 'Storage is not answering right now - nothing was saved. Try again in a moment.',
-}, { status: 503 });
+}, { status: 424 });
 
 async function schreib(liste: Prognose[]) {
   await fs.mkdir(path.dirname(DATEI), { recursive: true });

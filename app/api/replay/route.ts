@@ -40,7 +40,7 @@ export async function GET(request: Request) {
         if (versuch) await new Promise((r) => setTimeout(r, 400 * versuch));
         daten = await liesJson<Record<string, unknown> | null>(e.datei, null).catch(() => null);
       }
-      if (!daten) return NextResponse.json({ error: 'Die Auswertung ist gerade nicht lesbar.' }, { status: 503 });
+      if (!daten) return NextResponse.json({ error: 'Die Auswertung ist gerade nicht lesbar.' }, { status: 424 });
       // Die Wertung des Cups (Punkte je Platz und je Eliminierung) - damit die Karte zeigen kann, wie viele Punkte ein Team in diesem Game gemacht hat.
       let wertung: { platz: Record<string, number>; elim: number } | null = null;
       try {
@@ -122,6 +122,6 @@ export async function GET(request: Request) {
 
     return zwischenspeichern(NextResponse.json({ tage: liste }, { headers: { 'Cache-Control': 'no-store' } }), 300);
   } catch {
-    return NextResponse.json({ error: 'Die Ablage antwortet gerade nicht.' }, { status: 503 });
+    return NextResponse.json({ error: 'Die Ablage antwortet gerade nicht.' }, { status: 424 });
   }
 }

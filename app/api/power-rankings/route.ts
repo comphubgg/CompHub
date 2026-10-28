@@ -124,7 +124,7 @@ async function holeRoh(request: Request) {
   } catch (fehler) {
     return NextResponse.json(
       { success: false, error: (fehler as Error).message },
-      { status: 500 },
+      { status: 424 },
     );
   }
 }

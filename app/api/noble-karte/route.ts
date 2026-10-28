@@ -44,6 +44,6 @@ export async function GET(request: Request) {
     return NextResponse.json({ ok: true, ...karte, stand: new Date().toISOString() }, { headers: nie });
   } catch (e) {
     return NextResponse.json({ ok: false, error: `Noble nicht erreichbar: ${(e as Error).message}` },
-      { status: 502, headers: nie });
+      { status: 424, headers: nie });
   }
 }

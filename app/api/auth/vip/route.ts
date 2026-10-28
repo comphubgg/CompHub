@@ -143,8 +143,8 @@ export async function POST(request: NextRequest) {
     const grund = String((error as Error)?.message ?? '');
     if (/Ablage|fetch|abort|timeout/i.test(grund)) {
       return NextResponse.json({ error: 'Storage is not responding right now. Please try again in a minute.' },
-        { status: 503, headers: { 'Cache-Control': 'no-store' } });
+        { status: 424, headers: { 'Cache-Control': 'no-store' } });
     }
-    return NextResponse.json({ error: 'Login failed' }, { status: 500 });
+    return NextResponse.json({ error: 'Login failed' }, { status: 424 });
   }
 }

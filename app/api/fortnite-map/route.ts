@@ -117,6 +117,6 @@ export async function GET(request: Request) {
       anzahlOrte: orte.length,
     });
   } catch (e) {
-    return NextResponse.json({ error: (e as Error).message }, { status: 502 });
+    return NextResponse.json({ error: (e as Error).message }, { status: 424 });
   }
 }

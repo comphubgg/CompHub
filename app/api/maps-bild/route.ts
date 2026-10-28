@@ -122,7 +122,9 @@ export async function GET(request: Request) {
           if (ersatz?.ok) { r = ersatz; break; }
         }
       }
-      if (!r.ok) return NextResponse.json({ ok: false, error: 'Bild nicht erreichbar.' }, { status: 502 });
+      // Fehlt das Bild beim Anbieter, sofort 404 statt 502: eine 5xx haelt der Lastverteiler fuer einen Serverausfall und antwortet erst nach Sekunden
+      // mit seiner Ausweichseite (28.10.2026: /fncs wartete 7,6 s auf eine Karte, die es bei fortnite.gg nicht gibt).
+      if (!r.ok) return NextResponse.json({ ok: false, error: 'Bild nicht erreichbar.' }, { status: 404 });
       let daten = await r.arrayBuffer();
       let typ = r.headers.get('content-type') ?? 'image/png';
       if (breite) {
@@ -138,7 +140,7 @@ export async function GET(request: Request) {
       vorrat.set(schluessel, { bis: Date.now() + 24 * 3600_000, typ, daten });
       return new NextResponse(daten, { headers: { 'Content-Type': typ, 'Cache-Control': 'public, max-age=86400, s-maxage=604800' } });
     } catch {
-      return NextResponse.json({ ok: false, error: 'Bild nicht erreichbar.' }, { status: 502 });
+      return NextResponse.json({ ok: false, error: 'Bild nicht erreichbar.' }, { status: 404 });
     }
   }
 

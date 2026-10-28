@@ -67,7 +67,7 @@ export async function GET() {
     return NextResponse.json({ ok: true, konten });
   } catch {
     return NextResponse.json({ ok: false, fehler: 'Die Ablage antwortet gerade nicht.' },
-      { status: 503, headers: { 'Cache-Control': 'no-store' } });
+      { status: 424, headers: { 'Cache-Control': 'no-store' } });
   }
 }
 

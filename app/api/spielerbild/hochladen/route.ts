@@ -58,7 +58,7 @@ export async function GET(request: Request) {
       },
     });
   } catch {
-    return NextResponse.json({ fehler: 'Storage is not answering right now.' }, { status: 503 });
+    return NextResponse.json({ fehler: 'Storage is not answering right now.' }, { status: 424 });
   }
 }
 
@@ -95,7 +95,7 @@ export async function POST(request: Request) {
   const dateiName = `${kurz}-${ohneKonto ? 'org' : epicId.slice(0, 8)}-${Date.now().toString(36)}.webp`;
   if (ohneKonto) {
     try { await speicher.schreib(ORDNER + dateiName, bild); }
-    catch { return NextResponse.json({ fehler: 'Storage is not answering right now - the photo was not saved.' }, { status: 503 }); }
+    catch { return NextResponse.json({ fehler: 'Storage is not answering right now - the photo was not saved.' }, { status: 424 }); }
     return NextResponse.json({ ok: true, bild: `/spielerbilder/${dateiName}` });
   }
   try {
@@ -106,7 +106,7 @@ export async function POST(request: Request) {
     else liste.push({ datei: dateiName, epicId, name: name || epicId.slice(0, 8), echtesFoto: true });
     await schreibJson('spielerbilder.json', liste);
   } catch {
-    return NextResponse.json({ fehler: 'Storage is not answering right now - the photo was not saved.' }, { status: 503 });
+    return NextResponse.json({ fehler: 'Storage is not answering right now - the photo was not saved.' }, { status: 424 });
   }
   return NextResponse.json({ ok: true, bild: `/spielerbilder/${dateiName}` });
 }

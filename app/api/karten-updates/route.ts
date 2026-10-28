@@ -30,6 +30,6 @@ export async function POST(request: Request) {
     const r = await sucheUndMelde();
     return NextResponse.json({ ok: true, neu: r.neu.map((u) => u.patch), geprueft: r.geprueft, neueste: r.neueste }, { headers: { 'Cache-Control': 'no-store' } });
   } catch (e) {
-    return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 503 });
+    return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 424 });
   }
 }

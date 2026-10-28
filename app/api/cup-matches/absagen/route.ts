@@ -26,6 +26,6 @@ export async function POST(request: Request) {
     const alles = await setzeAbgesagt(windowId, sessionId, k.abgesagt !== false);
     return NextResponse.json({ ok: true, abgesagt: alles[windowId] ?? [] });
   } catch {
-    return NextResponse.json({ error: 'Storage is not answering right now - nothing was changed.' }, { status: 503 });
+    return NextResponse.json({ error: 'Storage is not answering right now - nothing was changed.' }, { status: 424 });
   }
 }

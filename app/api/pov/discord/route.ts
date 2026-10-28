@@ -35,7 +35,7 @@ export async function GET(request: Request) {
         await richteAlleEin(/^(localhost|127\.0\.0\.1|0\.0\.0\.0)/.test(host) ? 'https://www.thecomphub.com' : `https://${host}`);
       }
       const liste = await botGilden();
-      if (!liste) return NextResponse.json({ ok: false, error: 'Discord antwortet nicht.' }, { status: 502, headers: nie });
+      if (!liste) return NextResponse.json({ ok: false, error: 'Discord antwortet nicht.' }, { status: 424, headers: nie });
       const stand = await liesGilden();
       const mein = (await liesPros())[ich.idents[0] ?? ''];
       const aktiv = new Set(mein?.gilden ?? []);
@@ -51,7 +51,7 @@ export async function GET(request: Request) {
         })),
       }, { headers: nie });
     } catch {
-      return NextResponse.json({ ok: false, error: 'Discord antwortet nicht.' }, { status: 502, headers: nie });
+      return NextResponse.json({ ok: false, error: 'Discord antwortet nicht.' }, { status: 424, headers: nie });
     }
   }
   const q = (p.get('q') ?? '').trim();
@@ -59,6 +59,6 @@ export async function GET(request: Request) {
   try {
     return NextResponse.json({ ok: true, treffer: await mitgliederSuchen(q) }, { headers: nie });
   } catch {
-    return NextResponse.json({ ok: false, error: 'Discord antwortet nicht.' }, { status: 502, headers: nie });
+    return NextResponse.json({ ok: false, error: 'Discord antwortet nicht.' }, { status: 424, headers: nie });
   }
 }

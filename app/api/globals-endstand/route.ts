@@ -40,6 +40,6 @@ export async function GET() {
     merker = { bis: Date.now() + 10 * 60_000, antwort };
     return NextResponse.json(antwort, { headers: { 'Cache-Control': 'public, max-age=60, s-maxage=300' } });
   } catch (e) {
-    return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 502, headers: { 'Cache-Control': 'no-store' } });
+    return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 424, headers: { 'Cache-Control': 'no-store' } });
   }
 }

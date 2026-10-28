@@ -50,7 +50,7 @@ export async function GET() {
     return NextResponse.json({ ok: true, discord: discordDa(), zugaenge: await vipUebersicht(), abgelaufen });
   } catch (e) {
     // Nie "keine Zugaenge", wenn die Ablage nur nicht antwortet.
-    return NextResponse.json({ fehler: `Storage is not answering right now (${(e as Error).message}).` }, { status: 503 });
+    return NextResponse.json({ fehler: `Storage is not answering right now (${(e as Error).message}).` }, { status: 424 });
   }
 }
 
@@ -94,6 +94,6 @@ export async function POST(request: Request) {
   } catch (f) {
     return NextResponse.json({
       ok: false, text: `Storage is not answering right now - nothing was changed (${(f as Error).message}).`,
-    }, { status: 503 });
+    }, { status: 424 });
   }
 }

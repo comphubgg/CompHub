@@ -27,7 +27,7 @@ export async function POST(request: Request) {
   if (IS_VERCEL) {
     return NextResponse.json(
       { error: 'Im Deployment schreibgeschuetzt - lokal einstellen und mit ausrollen.' },
-      { status: 501 },
+      { status: 424 },
     );
   }
 

@@ -17,7 +17,7 @@ export async function GET() {
     return NextResponse.json({ frei: await liesZonenFrei() }, { headers: { 'Cache-Control': 'no-store' } });
   } catch {
     // Antwortet die Ablage nicht, darf das nicht wie "nichts freigegeben" aussehen.
-    return NextResponse.json({ error: 'Storage is not answering right now.' }, { status: 503 });
+    return NextResponse.json({ error: 'Storage is not answering right now.' }, { status: 424 });
   }
 }
 
@@ -29,6 +29,6 @@ export async function POST(request: Request) {
   try {
     return NextResponse.json({ ok: true, frei: await setzeZonenFrei(eventId, k.frei !== false) });
   } catch {
-    return NextResponse.json({ error: 'Storage is not answering right now - nothing was changed.' }, { status: 503 });
+    return NextResponse.json({ error: 'Storage is not answering right now - nothing was changed.' }, { status: 424 });
   }
 }

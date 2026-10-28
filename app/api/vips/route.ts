@@ -156,7 +156,7 @@ export async function POST(request: Request) {
         await fs.unlink(path.join(process.cwd(), 'public', vorher)).catch(() => {});
       }
     } catch (e) {
-      return NextResponse.json({ fehler: schreibGrund(e, BILDER) }, { status: 500 });
+      return NextResponse.json({ fehler: schreibGrund(e, BILDER) }, { status: 424 });
     }
     return NextResponse.json({ ok: true, vips: await liesVips() });
   }
@@ -189,7 +189,7 @@ export async function POST(request: Request) {
     try { await schreibeVips(liste); }
     catch (e) {
       return NextResponse.json({ fehler: schreibGrund(e, 'data/homepage-vips.json') },
-        { status: 500 });
+        { status: 424 });
     }
     return NextResponse.json({ ok: true, id: neu.id, vips: await liesVips() });
   }
@@ -231,7 +231,7 @@ export async function POST(request: Request) {
   try { await schreibeVips(liste); }
   catch (e) {
     return NextResponse.json({ fehler: schreibGrund(e, 'data/homepage-vips.json') },
-      { status: 500 });
+      { status: 424 });
   }
   return NextResponse.json({ ok: true, vips: await liesVips() });
 }
@@ -253,7 +253,7 @@ export async function DELETE(request: Request) {
     }
   } catch (e) {
     return NextResponse.json({ fehler: schreibGrund(e, 'data/homepage-vips.json') },
-      { status: 500 });
+      { status: 424 });
   }
   return NextResponse.json({ ok: true, vips: await liesVips() });
 }

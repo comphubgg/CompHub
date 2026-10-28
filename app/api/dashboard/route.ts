@@ -98,7 +98,7 @@ export async function GET() {
     return NextResponse.json(data);
   } catch (error) {
     console.error(t('error_reading_dashboard', 'Error reading dashboard:'), error);
-    return NextResponse.json({ error: t('failed_to_read_dashboard', 'Failed to read dashboard') }, { status: 500 });
+    return NextResponse.json({ error: t('failed_to_read_dashboard', 'Failed to read dashboard') }, { status: 424 });
   }
 }
 
@@ -129,6 +129,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true, data: dashboard });
   } catch (error) {
     console.error(t('error_saving_dashboard', 'Error saving dashboard:'), error);
-    return NextResponse.json({ error: t('failed_to_save_dashboard', 'Failed to save dashboard') }, { status: 500 });
+    return NextResponse.json({ error: t('failed_to_save_dashboard', 'Failed to save dashboard') }, { status: 424 });
   }
 }

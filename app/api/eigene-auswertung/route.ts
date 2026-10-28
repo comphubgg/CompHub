@@ -71,6 +71,6 @@ export async function POST(request: Request) {
     await schreibeAnfrage({ eventId, windowId: w, epicId: id, sitzungen, team, zeit, ...(juengste ? { ende: juengste } : {}) });
     return NextResponse.json({ ok: true, stand: 'angefragt', zeit, sitzungen: sitzungen.length }, { headers: NEIN });
   } catch (e) {
-    return NextResponse.json({ ok: false, error: `Die Bestellung ließ sich gerade nicht speichern: ${String((e as Error).message).slice(0, 120)}` }, { status: 503, headers: NEIN });
+    return NextResponse.json({ ok: false, error: `Die Bestellung ließ sich gerade nicht speichern: ${String((e as Error).message).slice(0, 120)}` }, { status: 424, headers: NEIN });
   }
 }

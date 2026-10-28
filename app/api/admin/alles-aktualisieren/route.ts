@@ -44,7 +44,7 @@ export async function POST(request: Request) {
     return NextResponse.json({
       ok: false,
       fehler: 'Auf dem Server fehlt ein GitHub-Schlüssel (GITHUB_TOKEN oder DATEN_TOKEN). Ohne ihn darf die Seite keine Läufe starten.',
-    }, { status: 500 });
+    }, { status: 424 });
   }
   const laeufe = await Promise.all(LAEUFE.map(async (l) => {
     try {

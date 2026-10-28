@@ -61,7 +61,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({ value: userData[key] ?? null });
   } catch (err: any) {
     console.error('user-storage GET error', err);
-    return NextResponse.json({ error: err?.message || String(err) }, { status: 500 });
+    return NextResponse.json({ error: err?.message || String(err) }, { status: 424 });
   }
 }
 
@@ -80,6 +80,6 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ success: true });
   } catch (err: any) {
     console.error('user-storage POST error', err);
-    return NextResponse.json({ error: err?.message || String(err) }, { status: 500 });
+    return NextResponse.json({ error: err?.message || String(err) }, { status: 424 });
   }
 }

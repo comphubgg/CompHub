@@ -14,7 +14,7 @@ export async function GET(request: Request) {
       eventsPlayed: 0, 
       cashWon: 0,
       error: t('api_key_not_configured', 'API key not configured')
-    }, { status: 500 });
+    }, { status: 424 });
   }
 
   try {

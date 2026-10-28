@@ -101,6 +101,6 @@ export async function GET(request: Request) {
       headers: { 'Cache-Control': 'public, s-maxage=1800, stale-while-revalidate=86400' },
     });
   } catch (e) {
-    return NextResponse.json({ error: (e as Error).message }, { status: 502 });
+    return NextResponse.json({ error: (e as Error).message }, { status: 424 });
   }
 }

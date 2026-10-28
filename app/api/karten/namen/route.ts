@@ -323,6 +323,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ success: true, treffer });
   } catch (fehler) {
     return NextResponse.json(
-      { success: false, fehler: (fehler as Error).message }, { status: 500 });
+      { success: false, fehler: (fehler as Error).message }, { status: 424 });
   }
 }

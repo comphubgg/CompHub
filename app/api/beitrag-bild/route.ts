@@ -180,7 +180,7 @@ export async function GET(request: Request) {
     return NextResponse.json({
       error: 'Das Mosaik ließ sich nicht bauen.',
       hinweis: e instanceof Error ? e.message : String(e),
-    }, { status: 500 });
+    }, { status: 424 });
   }
 }
 

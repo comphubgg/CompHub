@@ -90,7 +90,7 @@ export async function GET(request: Request) {
     orgs = await liesOrgs();
   } catch {
     // Nie "keine Organisationen" bei einem Ausfall - das saehe aus wie weg.
-    return NextResponse.json({ fehler: 'Storage is not answering right now.' }, { status: 503 });
+    return NextResponse.json({ fehler: 'Storage is not answering right now.' }, { status: 424 });
   }
 
   if (ansicht === 'verdienst') {
@@ -180,7 +180,7 @@ export async function POST(request: Request) {
 
   let orgs: Org[];
   try { orgs = await liesOrgs(); } catch {
-    return NextResponse.json({ fehler: 'Storage is not answering right now - nothing was saved.' }, { status: 503 });
+    return NextResponse.json({ fehler: 'Storage is not answering right now - nothing was saved.' }, { status: 424 });
   }
 
   if (koerper.loeschen) {
@@ -204,7 +204,7 @@ export async function POST(request: Request) {
   }
 
   try { await schreibOrgs(orgs); } catch (e) {
-    return NextResponse.json({ fehler: `Not saved: ${(e as Error).message}` }, { status: 503 });
+    return NextResponse.json({ fehler: `Not saved: ${(e as Error).message}` }, { status: 424 });
   }
   return NextResponse.json({ ok: true, orgs });
 }

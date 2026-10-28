@@ -87,7 +87,7 @@ export async function GET(request: Request) {
     console.error(t('tracker_api_error', 'Tracker API error:'), error);
     return Response.json(
       { error: t('failed_to_fetch_tracker_data', 'Failed to fetch tracker data') },
-      { status: 500 }
+      { status: 424 }
     );
   }
 }

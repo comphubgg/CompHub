@@ -37,6 +37,6 @@ export async function GET(request: Request) {
     return NextResponse.json({ ok: true, stand, aktualisiert: erste.updated ?? null, plaetze: erste.totalPages * (proSeite || 0) },
       { headers: { 'Cache-Control': 'public, max-age=20, s-maxage=30' } });
   } catch {
-    return NextResponse.json({ ok: false, error: 'Epic liefert gerade nichts.' }, { status: 502, headers: { 'Cache-Control': 'no-store' } });
+    return NextResponse.json({ ok: false, error: 'Epic liefert gerade nichts.' }, { status: 424, headers: { 'Cache-Control': 'no-store' } });
   }
 }

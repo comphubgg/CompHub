@@ -95,7 +95,7 @@ export async function POST(request: Request) {
       const w = await werkzeugEinrichten();
       return NextResponse.json(w, { status: w.ok ? 200 : 207 });
     } catch (e) {
-      return NextResponse.json({ ok: false, text: (e as Error).message }, { status: 500 });
+      return NextResponse.json({ ok: false, text: (e as Error).message }, { status: 424 });
     }
   }
 

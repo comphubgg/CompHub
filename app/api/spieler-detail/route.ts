@@ -169,6 +169,6 @@ export async function GET(request: Request) {
     };
     return zwischenspeichern(NextResponse.json(antwort, { headers: { 'Cache-Control': 'no-store' } }), 60);
   } catch (e) {
-    return NextResponse.json({ ok: false, error: (e as Error).message || 'Epic liefert gerade nichts.' }, { status: 502, headers: { 'Cache-Control': 'no-store' } });
+    return NextResponse.json({ ok: false, error: (e as Error).message || 'Epic liefert gerade nichts.' }, { status: 424, headers: { 'Cache-Control': 'no-store' } });
   }
 }

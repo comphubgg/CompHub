@@ -29,7 +29,7 @@ function weiterleitung(req: NextRequest) {
 export async function GET(req: NextRequest) {
   const { id: CLIENT_ID } = await holeDienst('discord');
   if (!CLIENT_ID) {
-    return new NextResponse('Discord OAuth ist nicht eingerichtet.', { status: 500 });
+    return new NextResponse('Discord OAuth ist nicht eingerichtet.', { status: 424 });
   }
 
   const state = crypto.randomUUID();

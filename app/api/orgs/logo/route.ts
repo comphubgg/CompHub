@@ -60,7 +60,7 @@ export async function GET(request: Request) {
       },
     });
   } catch {
-    return NextResponse.json({ fehler: 'Storage is not answering right now.' }, { status: 503 });
+    return NextResponse.json({ fehler: 'Storage is not answering right now.' }, { status: 424 });
   }
 }
 
@@ -126,7 +126,7 @@ export async function POST(request: Request) {
     }
     const name = `org-logos/${org}-banner-${Date.now().toString(36)}.webp`;
     try { await speicher.schreib(name, bild); } catch (e) {
-      return NextResponse.json({ fehler: `Not saved: ${(e as Error).message}` }, { status: 503 });
+      return NextResponse.json({ fehler: `Not saved: ${(e as Error).message}` }, { status: 424 });
     }
     return NextResponse.json({ ok: true, banner: orgBild(name) });
   }
@@ -153,7 +153,7 @@ export async function POST(request: Request) {
   try {
     await speicher.schreib(name, bild);
   } catch (e) {
-    return NextResponse.json({ fehler: `Not saved: ${(e as Error).message}` }, { status: 503 });
+    return NextResponse.json({ fehler: `Not saved: ${(e as Error).message}` }, { status: 424 });
   }
   return NextResponse.json({ ok: true, logo: orgBild(name) });
 }

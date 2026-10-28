@@ -72,7 +72,7 @@ export async function POST(request: Request) {
   try {
     await setzeDienst(dienst as Dienst, id ?? '', secret ?? '');
   } catch (e) {
-    return NextResponse.json({ error: (e as Error).message }, { status: 500 });
+    return NextResponse.json({ error: (e as Error).message }, { status: 424 });
   }
   const { woher } = await holeDienst(dienst as Dienst);
   return NextResponse.json({ ok: true, dienst, woher });

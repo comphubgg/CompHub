@@ -9,7 +9,7 @@
  * Gebraucht wird ein Elternelement mit "relative isolate": dann liegt das Band ueber dessen Farbe und unter allem, was darin steht.
  */
 
-const KARTEN = ['42.30.webp', '41.30.webp', '40.40.jpg', '39.51.jpg', '37.50.jpg', '34.40.jpg?3', '31.40.jpg?3', '26.30.jpg?3', '36.30.jpg?3', '33.40.jpg?3']
+const KARTEN = ['42.30.webp', '41.30.webp', '40.40.jpg', '39.51.jpg', '37.50.jpg', '34.40.jpg?3', '31.40.jpg?3', '26.30.jpg?3', '36.30.jpg?3', '33.30.jpg?3']
   .map((n) => `/api/maps-bild?u=${encodeURIComponent(`https://fortnite.gg/img/maps/${n}`)}&b=420`);
 
 /** Die Vorschaubilder der FNCS-Events (public/cups, public/tournaments) - was oben auf den Karten der FNCS-Seite steht. */

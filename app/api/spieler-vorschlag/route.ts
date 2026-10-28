@@ -67,7 +67,7 @@ export async function GET(request: Request) {
     roh = JSON.parse(await fs.readFile(
       path.join(DATEN_ORT, 'spielerbilder.json'), 'utf8'));
   } catch (e) {
-    return NextResponse.json({ error: (e as Error).message }, { status: 500 });
+    return NextResponse.json({ error: (e as Error).message }, { status: 424 });
   }
 
   const feld = roh

@@ -31,7 +31,7 @@ export async function GET(_request: Request, { params }: { params: Promise<{ dat
       if (!r.ok) throw new Error(String(r.status));
       return new Response(await r.text(), { headers: { ...nie, 'Content-Type': 'text/yaml; charset=utf-8' } });
     } catch {
-      return NextResponse.json({ ok: false, error: 'Release nicht erreichbar.' }, { status: 502, headers: nie });
+      return NextResponse.json({ ok: false, error: 'Release nicht erreichbar.' }, { status: 424, headers: nie });
     }
   }
   return NextResponse.redirect(a.url, { status: 302, headers: nie });

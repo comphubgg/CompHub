@@ -40,7 +40,7 @@ export async function GET(request: Request) {
 
   let orgs;
   try { orgs = await liesOrgs(); } catch {
-    return NextResponse.json({ fehler: 'Storage is not answering right now.' }, { status: 503 });
+    return NextResponse.json({ fehler: 'Storage is not answering right now.' }, { status: 424 });
   }
 
   // Die Liquipedia-Seiten dieses Spielers - heutige und ehemalige Eintraege mit seinem Konto.

@@ -46,7 +46,7 @@ export async function GET(req: NextRequest) {
         + 'Beide entstehen in der Google Cloud Console unter '
         + '"APIs und Dienste → Anmeldedaten → OAuth-Client-ID erstellen" '
         + '— oder im Werkzeug unter Admin → Anmeldedienste.',
-    }, { status: 503 });
+    }, { status: 424 });
   }
 
   const state = crypto.randomBytes(16).toString('hex');

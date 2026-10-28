@@ -42,7 +42,7 @@ function fehler(e: unknown) {
   if (e instanceof YuniteFehlt) {
     return NextResponse.json({ error: 'nicht-eingerichtet' }, { status: 200 });
   }
-  return NextResponse.json({ error: (e as Error).message }, { status: 500 });
+  return NextResponse.json({ error: (e as Error).message }, { status: 424 });
 }
 
 export async function GET(request: Request) {
@@ -67,9 +67,9 @@ export async function GET(request: Request) {
       }
       const v = await scrimVerzeichnis();
       // Kein Verzeichnis ist kein "leer": die Seite sagt dann, dass es fehlt.
-      return v ? NextResponse.json(v) : NextResponse.json({ error: 'kein-archiv' }, { status: 503 });
+      return v ? NextResponse.json(v) : NextResponse.json({ error: 'kein-archiv' }, { status: 424 });
     } catch (e) {
-      return NextResponse.json({ error: (e as Error).message }, { status: 502 });
+      return NextResponse.json({ error: (e as Error).message }, { status: 424 });
     }
   }
 
@@ -85,12 +85,12 @@ export async function GET(request: Request) {
   if (searchParams.get('quelle') === 'poyo-heute') {
     try {
       const d = await poyoHeuteDatei();
-      if (!d) return NextResponse.json({ error: 'noch-nicht-gesammelt' }, { status: 503 });
+      if (!d) return NextResponse.json({ error: 'noch-nicht-gesammelt' }, { status: 424 });
       const heute: Record<string, PoyoHeuteDatei['sitzungen']> = {};
       for (const s of d.sitzungen) (heute[s.guildId] ??= []).push(s);
       return NextResponse.json({ heute, fehler: d.fehler, stand: d.stand });
     } catch (e) {
-      return NextResponse.json({ error: (e as Error).message }, { status: 502 });
+      return NextResponse.json({ error: (e as Error).message }, { status: 424 });
     }
   }
   if (searchParams.get('quelle') === 'poyo') {
@@ -123,7 +123,7 @@ export async function GET(request: Request) {
       }));
       return NextResponse.json({ serien });
     } catch (e) {
-      return NextResponse.json({ error: (e as Error).message }, { status: 502 });
+      return NextResponse.json({ error: (e as Error).message }, { status: 424 });
     }
   }
 

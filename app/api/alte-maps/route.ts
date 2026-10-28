@@ -144,7 +144,7 @@ export async function POST(request: Request) {
         s.fenster[w].formen = s.fenster[w].formen!.map((f) => ({ ...f, teamIds: f.teamIds.filter((i) => ids.has(i)) }));
       }
     });
-    if (!r.ok) return NextResponse.json({ ok: false, error: r.grund }, { status: 503, headers: NEIN });
+    if (!r.ok) return NextResponse.json({ ok: false, error: r.grund }, { status: 424, headers: NEIN });
     vergissVerzeichnis();
     return NextResponse.json({ ok: true }, { headers: NEIN });
   }
@@ -162,7 +162,7 @@ export async function POST(request: Request) {
       eventId: null, bild: null, lan: !!k.lan, reihe: nr ? Number(nr[1]) : 1, quelle: 'admin',
     };
     const r = await aendereAltStore((s) => { s.ereignisse.push(ereignis); });
-    if (!r.ok) return NextResponse.json({ ok: false, error: r.grund }, { status: 503, headers: NEIN });
+    if (!r.ok) return NextResponse.json({ ok: false, error: r.grund }, { status: 424, headers: NEIN });
     vergissVerzeichnis();
     return NextResponse.json({ ok: true, ereignis }, { headers: NEIN });
   }
@@ -174,7 +174,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ ok: false, error: 'Nur alte Karten lassen sich verstecken.' }, { status: 400, headers: NEIN });
     }
     const r = await aendereAltStore((s) => { s.fenster[w] = { ...(s.fenster[w] ?? {}), versteckt: !!k.versteckt }; });
-    if (!r.ok) return NextResponse.json({ ok: false, error: r.grund }, { status: 503, headers: NEIN });
+    if (!r.ok) return NextResponse.json({ ok: false, error: r.grund }, { status: 424, headers: NEIN });
     vergissVerzeichnis();
     return NextResponse.json({ ok: true }, { headers: NEIN });
   }
@@ -187,7 +187,7 @@ export async function POST(request: Request) {
       gefunden = s.ereignisse.length < vorher;
       if (gefunden) delete s.fenster[w];
     });
-    if (!r.ok) return NextResponse.json({ ok: false, error: r.grund }, { status: 503, headers: NEIN });
+    if (!r.ok) return NextResponse.json({ ok: false, error: r.grund }, { status: 424, headers: NEIN });
     if (!gefunden) return NextResponse.json({ ok: false, error: 'Nur selbst angelegte Events lassen sich löschen - andere kannst du verstecken.' }, { status: 400, headers: NEIN });
     vergissVerzeichnis();
     return NextResponse.json({ ok: true }, { headers: NEIN });

@@ -45,7 +45,7 @@ export async function GET(request: Request) {
     const org = (await liesOrgs()).find((o) => o.id === w.id);
     if (!org) return NextResponse.json({ ok: false, error: 'Diese Organisation gibt es nicht.' }, { status: 404 });
     return await antwort(org);
-  } catch { return NextResponse.json({ ok: false, error: 'Die Ablage antwortet gerade nicht.' }, { status: 503 }); }
+  } catch { return NextResponse.json({ ok: false, error: 'Die Ablage antwortet gerade nicht.' }, { status: 424 }); }
 }
 
 const NAME = /^[a-z0-9-]+\.webp$/;
@@ -116,5 +116,5 @@ export async function POST(request: Request) {
     orgs[i] = saeubere(org);
     await schreibOrgs(orgs);
     return await antwort(orgs[i]);
-  } catch { return NextResponse.json({ ok: false, error: 'Die Ablage antwortet gerade nicht.' }, { status: 503 }); }
+  } catch { return NextResponse.json({ ok: false, error: 'Die Ablage antwortet gerade nicht.' }, { status: 424 }); }
 }

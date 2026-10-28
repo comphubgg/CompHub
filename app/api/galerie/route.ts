@@ -160,7 +160,7 @@ export async function POST(request: Request) {
      * (YouTube, Twitch, Streamable ...); Bilder gehen weiter als Datei.
      */
     if ((process.env.DATEN_TOKEN || '').trim()) {
-      return NextResponse.json({ error: 'Videos bitte als Link anhaengen (YouTube, Twitch, Streamable ...). Bilder gehen weiter als Datei.' }, { status: 501 });
+      return NextResponse.json({ error: 'Videos bitte als Link anhaengen (YouTube, Twitch, Streamable ...). Bilder gehen weiter als Datei.' }, { status: 424 });
     }
     const id = neueId();
     const videoDatei = `galerie-videos/${id}.${ext}`;
@@ -169,7 +169,7 @@ export async function POST(request: Request) {
       const { hochladeAdresse } = await import('@/lib/ablageSupabase');
       hochladen = await hochladeAdresse(videoDatei);
     } catch (e) {
-      return NextResponse.json({ error: `Hochladen gerade nicht moeglich: ${(e as Error).message.slice(0, 120)}` }, { status: 503 });
+      return NextResponse.json({ error: `Hochladen gerade nicht moeglich: ${(e as Error).message.slice(0, 120)}` }, { status: 424 });
     }
     const eintrag: GalerieEintrag = {
       id, eventId, art: 'video', videoDatei, ausstehend: true,

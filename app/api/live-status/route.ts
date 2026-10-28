@@ -145,6 +145,6 @@ export async function POST(req: Request) {
     return Response.json(result);
   } catch (error) {
     console.error(t('error_in_live_status_route', 'Error in live status route:'), error);
-    return Response.json({}, { status: 500 });
+    return Response.json({}, { status: 424 });
   }
 }

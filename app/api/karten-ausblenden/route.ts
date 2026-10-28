@@ -72,7 +72,7 @@ export async function POST(request: Request) {
     await fs.mkdir(path.dirname(DATEI), { recursive: true });
     await fs.writeFile(DATEI, JSON.stringify([...liste], null, 2), 'utf8');
   } catch (e) {
-    return NextResponse.json({ error: (e as Error).message }, { status: 500 });
+    return NextResponse.json({ error: (e as Error).message }, { status: 424 });
   }
   return NextResponse.json({ ok: true, fenster: [...liste] });
 }

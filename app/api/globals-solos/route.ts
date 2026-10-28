@@ -42,6 +42,6 @@ export async function GET(request: Request) {
       { headers: { 'Cache-Control': 'public, max-age=30, s-maxage=60' } });
   } catch (e) {
     return NextResponse.json({ ok: false, error: `Noble nicht erreichbar: ${(e as Error).message}` },
-      { status: 502, headers: { 'Cache-Control': 'no-store' } });
+      { status: 424, headers: { 'Cache-Control': 'no-store' } });
   }
 }

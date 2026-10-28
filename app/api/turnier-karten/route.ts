@@ -150,7 +150,7 @@ async function kartenZumSchreiben(): Promise<Turnierkarte[] | NextResponse> {
   return NextResponse.json({
     error: 'Storage is not answering right now - nothing was saved, so your current '
       + 'map stays as it is. Try again in a moment.',
-  }, { status: 503 });
+  }, { status: 424 });
 }
 
 async function schreib(karten: Turnierkarte[]) {
@@ -171,7 +171,7 @@ async function schreibOderSage(karten: Turnierkarte[]) {
     return null;
   } catch (e) {
     return NextResponse.json(
-      { error: schreibGrund(e, DATEI) }, { status: 500 });
+      { error: schreibGrund(e, DATEI) }, { status: 424 });
   }
 }
 

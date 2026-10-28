@@ -16,6 +16,6 @@ export async function GET() {
     const ereignisse = await fncsEreignisse();
     return NextResponse.json({ ok: true, ereignisse }, { headers: { 'Cache-Control': CDN_FRIST } });
   } catch (e) {
-    return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 502, headers: { 'Cache-Control': 'no-store' } });
+    return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 424, headers: { 'Cache-Control': 'no-store' } });
   }
 }

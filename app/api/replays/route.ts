@@ -216,7 +216,7 @@ export async function GET(request: Request) {
       } catch { /* nicht erreichbar - unten 503 */ }
       return NextResponse.json(
         { success: false, error: 'Die Uebersicht ist gerade nicht erreichbar.' },
-        { status: 503, headers: { 'Retry-After': '120', 'Cache-Control': 'no-store' } });
+        { status: 424, headers: { 'Retry-After': '120', 'Cache-Control': 'no-store' } });
     }
     try {
       const wert = await fertigeAntwort('replays|uebersicht',
@@ -234,7 +234,7 @@ export async function GET(request: Request) {
     } catch (e) {
       if (e instanceof AblageNichtErreichbar) {
         return NextResponse.json({ success: false, error: e.message },
-          { status: 503, headers: { 'Retry-After': '120', 'Cache-Control': 'no-store' } });
+          { status: 424, headers: { 'Retry-After': '120', 'Cache-Control': 'no-store' } });
       }
       return berechne(request);
     }
@@ -368,6 +368,6 @@ export async function POST(request: Request) {
     return NextResponse.json({
       success: false, stand: kern.ZUSTAND.FEHLGESCHLAGEN,
       error: (e as Error).message,
-    }, { status: 502 });
+    }, { status: 424 });
   }
 }

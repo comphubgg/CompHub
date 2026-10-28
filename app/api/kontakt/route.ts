@@ -187,7 +187,7 @@ export async function PATCH(request: Request) {
       betreff: `Re: ${meldung.eigenesThema || 'Your message to CompHub'}`,
       etikett: 'Reply', text: antwort, zitat: meldung.text,
     });
-    if (!ok) return NextResponse.json({ fehler: 'Die Mail ließ sich nicht verschicken.' }, { status: 502 });
+    if (!ok) return NextResponse.json({ fehler: 'Die Mail ließ sich nicht verschicken.' }, { status: 424 });
     const notiz = `${meldung.notiz ? `${meldung.notiz}\n` : ''}Replied ${new Date().toLocaleDateString('en-GB')}: ${antwort.slice(0, 200)}`;
     await aendere(id, { erledigt: true, notiz });
     return NextResponse.json({ ok: true, gesendet: true, meldungen: await alle() });
