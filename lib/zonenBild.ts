@@ -86,6 +86,8 @@ export async function zonenBild(windowId: string, o: { alleTage?: boolean; urspr
     });
   }
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${n}" height="${n}">${teile.join('')}</svg>`;
-  const png = await sharp(karte).composite([{ input: Buffer.from(svg), top: 0, left: 0 }]).resize(o.breite ?? 1600, o.breite ?? 1600).png().toBuffer();
+  // Erst zeichnen, dann verkleinern - sharp verkleinert sonst vor dem Ueberlagern, und die Zeichnung waere groesser als die Karte.
+  const voll = await sharp(karte).composite([{ input: Buffer.from(svg), top: 0, left: 0 }]).png().toBuffer();
+  const png = await sharp(voll).resize(o.breite ?? 1600, o.breite ?? 1600).png().toBuffer();
   return { png, titel, games: games.length, mitZone: games.filter((s) => da(s.gross)).length, tage: tage.map((t) => ({ windowId: t.windowId, games: t.matches.length })) };
 }

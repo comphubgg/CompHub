@@ -109,7 +109,7 @@ async function postZu(cup: KatalogCup, region: string, f: KatalogFenster, istFin
  * dem Zonen-Bild aller Games (lib/zonenBild), sobald jedes Game ausgewertet ist: so viele Games mit Zone, wie die Besten der Bestenliste gespielt haben. Bis dahin
  * wartet der Post; nach 48 Stunden nicht mehr.
  */
-export async function zonenPostsAnlegen(max = 2): Promise<TagesPost[]> {
+export async function zonenPostsFinden(max = 2): Promise<TagesPost[]> {
   const jetzt = Date.now();
   let katalog: { cups?: KatalogCup[] } = {};
   try { katalog = await (await katalogAbruf(new Request(`${SEITE}/api/cup-catalog?modus=standard`))).json(); } catch { return []; }
@@ -127,7 +127,9 @@ export async function zonenPostsAnlegen(max = 2): Promise<TagesPost[]> {
       // Bei mehrtaegigen Finals nur nach dem letzten Tag, mit allen Tagen im Bild.
       if (gruppe.length > 1 && gruppe.some((x) => x.windowId === f.windowId)
         && (tagNummer(f.windowId) !== Math.max(...gruppe.map((x) => tagNummer(x.windowId))) || gruppe.some((x) => x.status !== 'vorbei'))) continue;
-      const schluessel = `zonen:${f.windowId}`;
+      // "zonen-bild:" - der erste Stand (28.10. nachts) vermerkte den Post schon vor dem Bild; so kommt das Finale noch einmal dran.
+      const schluessel = `zonen-bild:${f.windowId}`;
+      if (neu.some((p) => p.schluessel === schluessel)) continue;
       if (benutzt.has(schluessel)) continue;
       const tage = await zonenTage(f.windowId).catch(() => []);
       if (!tage.length) continue;
@@ -150,14 +152,18 @@ export async function zonenPostsAnlegen(max = 2): Promise<TagesPost[]> {
       });
     }
   }
-  if (!neu.length) return [];
+  return neu;
+}
+
+/** Einen Zonen-Post in den Plan des Tages haengen und als erledigt vermerken - erst, wenn sein Bild verschickt ist (sonst kaeme er nie wieder). */
+export async function zonenPostVermerken(p: TagesPost): Promise<void> {
   const datum = heuteDatum();
   const name = `posts-${datum}.json`;
   const plan = await liesJson<Tagesplan | null>(name, null) ?? { datum, erstellt: Date.now(), posts: [] };
-  for (const p of neu) plan.posts.push({ ...p, nr: plan.posts.length });
+  plan.posts.push({ ...p, nr: plan.posts.length });
   await schreibJson(name, plan);
-  await schreibJson(VERLAUF, [...verlauf, ...neu.map((p) => p.schluessel)].slice(-600));
-  return plan.posts.slice(-neu.length);
+  const verlauf = await liesJson<string[]>(VERLAUF, []);
+  await schreibJson(VERLAUF, [...verlauf, p.schluessel].slice(-600));
 }
 
 /**

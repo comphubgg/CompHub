@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import { NextResponse } from 'next/server';
-import { ergebnisPostsAnlegen, zonenPostsAnlegen } from '@/lib/ergebnisPosts';
+import { ergebnisPostsAnlegen, zonenPostsFinden, zonenPostVermerken } from '@/lib/ergebnisPosts';
 import { zonenBild } from '@/lib/zonenBild';
 import { heuteDatum, postSeite } from '@/lib/tagesposts';
 import { schickePosts, schickeBeitragMitBild } from '@/lib/discord';
@@ -31,13 +31,13 @@ export async function GET(request: Request) {
     // Dazu die Zonen-Bilder der Finals, sobald alle Games ausgewertet sind (lib/ergebnisPosts, zonenPostsAnlegen) - eigener Post mit Bild.
     let zonen = 0;
     if (process.env.COMPHUB_NUR_LESEN !== '1') {
-      for (const p of await zonenPostsAnlegen().catch(() => [])) {
+      for (const p of await zonenPostsFinden().catch(() => [])) {
         try {
           const z = await zonenBild(String((p.bild as { window?: string }).window ?? ''), { alleTage: true });
           if (!z) continue;
           const s = await schickeBeitragMitBild({ titel: p.titel, text: p.text, url: postSeite(heuteDatum()), bild: new Uint8Array(z.png), dateiname: `zonen-${heuteDatum()}-${zonen + 1}.png` });
-          if (s.ok) zonen += 1;
-        } catch { /* der Post steht trotzdem im Plan des Tages */ }
+          if (s.ok) { zonen += 1; await zonenPostVermerken(p); }
+        } catch { /* beim naechsten Lauf noch einmal */ }
       }
     }
     if (!neu.length) return NextResponse.json({ ok: true, neu: 0, zonen });
