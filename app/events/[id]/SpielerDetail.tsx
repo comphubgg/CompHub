@@ -92,7 +92,9 @@ const kopf = (m: Mitglied, c: Ctx): Wert => sz(m, 'headshots') ?? (m.replay?.hea
  * Alle aus Epics Bestenliste, deshalb bei jedem Platz da. Kopftreffer, Material, Heilung, Genauigkeit und Bauen fehlen bewusst: keine Quelle fuehrt sie fuer
  * jeden Spieler verlaesslich.
  */
-const elimsVon = (m: Mitglied, c: Ctx): Wert => kills(m, c) ?? (c.e ? c.e.elims : null);
+// Im Team nie Epics Team-Zahl als Wert eines Spielers (Betreiber, 28.10.2026: "Teamstats, die bei beiden gleich sind, musst du nicht zeigen"); kills()
+// faellt nur im Solo auf die Bestenliste zurueck.
+const elimsVon = (m: Mitglied, c: Ctx): Wert => kills(m, c);
 const KERN: Zeile[] = [
   { titel: 'Points', wert: (_m, c) => (c.e ? c.e.points : null), zeige: num, je: (m) => ((m.punktePlatz ?? 0) + (m.punkteElim ?? 0)) || undefined },
   { titel: 'Matches', wert: (_m, c) => (c.e ? c.e.games : null), zeige: num },
@@ -123,6 +125,33 @@ const ZUSATZ: Zeile[] = [
   { titel: 'Players Rebooted', wert: (m, c) => vomMitspieler(m, c, reboots), zeige: num },
   { titel: 'Got Rebooted', wert: (m, c) => (c.echtSolo ? 0 : reboots(m)), zeige: num },
 ];
+
+/** Werte, die Epic je Team fuehrt: bei einem Team in jeder Spalte gleich - dort stehen sie einmal im Team-Kasten, mit Verlauf je Spiel. */
+const TEAM_TITEL = new Set(['Points', 'Matches', 'Wins', 'Avg Time Alive', 'Avg Placement', 'Avg Points']);
+
+/** Placement- und Eliminationspunkte ueber die Spiele, aufsummiert - gefuellte Flaechen wie bei Osirion, die Beschriftung am Ende der Linie. */
+function PunkteKurve({ platz, elim }: { platz: number[]; elim: number[] }) {
+  const n = platz.length;
+  const max = Math.max(1, ...platz, ...elim);
+  const x = (i: number) => (n > 1 ? (i / (n - 1)) * 300 : 0);
+  const y = (v: number) => 70 - (v / max) * 62;
+  const linie = (w: number[]) => w.map((v, i) => `${i ? 'L' : 'M'}${x(i)},${y(v)}`).join(' ');
+  const flaeche = (w: number[]) => `${linie(w)} L300,70 L0,70 Z`;
+  const oben = (w: number[]) => `${Math.max(0, (y(w[w.length - 1] ?? 0) / 72) * 100 - 14)}%`;
+  return (
+    <div className="relative">
+      <svg viewBox="0 0 300 72" preserveAspectRatio="none" className="h-32 w-full">
+        <path d={flaeche(platz)} fill="#a1a1aa" fillOpacity={0.14} />
+        <path d={linie(platz)} fill="none" stroke="#d4d4d8" strokeWidth={1.6} vectorEffect="non-scaling-stroke" />
+        <path d={flaeche(elim)} fill="#38bdf8" fillOpacity={0.2} />
+        <path d={linie(elim)} fill="none" stroke="#38bdf8" strokeWidth={1.8} vectorEffect="non-scaling-stroke" />
+        <line x1="0" x2="300" y1="70" y2="70" stroke="#52525b" strokeWidth="1" vectorEffect="non-scaling-stroke" />
+      </svg>
+      <span className="absolute right-1 text-[10px] font-semibold text-slate-300" style={{ top: oben(platz) }}>Placement</span>
+      <span className="absolute right-1 text-[10px] font-semibold text-sky-300" style={{ top: oben(elim) }}>Elimination</span>
+    </div>
+  );
+}
 
 /** Wie viele Zeilen zuerst zu sehen sind - der Rest steht hinter "More" (wie bei Osirion). */
 const ZUERST = 13;
@@ -278,17 +307,17 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo, star
   };
   const naechste = geholt ? Math.max(0, Math.ceil((geholt + TAKT_MS - jetzt) / 60000)) : null;
   const letzte = vorMinuten(daten?.aktualisiert ?? null, jetzt);
-  // Kern bei jedem; Zusatz nur, wo es fuer alle Spieler der Ansicht einen Wert gibt.
-  const zeilen = useMemo(() => [...KERN, ...ZUSATZ.filter((z) => mitglieder.length > 0 && mitglieder.every((m) => z.wert(m, ctx) !== null))],
+  // Solo: der Kern immer, Zusatz nur mit Wert. Team: nur, was je Spieler verschieden ist und fuer alle Spieler vorliegt - die Team-Werte stehen im Team-Kasten.
+  const zeilen = useMemo(() => [
+    ...KERN.filter((z) => !team || (!TEAM_TITEL.has(z.titel) && mitglieder.every((m) => z.wert(m, ctx) !== null))),
+    ...ZUSATZ.filter((z) => mitglieder.length > 0 && mitglieder.every((m) => z.wert(m, ctx) !== null)),
+  ],
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [mitglieder, e, solo]);
 
   const kumPlatz = useMemo(() => { let a = 0; return spiele.map((m) => (a += m.punktePlatz ?? 0)); }, [spiele]);
   const kumElim = useMemo(() => { let a = 0; return spiele.map((m) => (a += m.punkteElim ?? 0)); }, [spiele]);
-  const kopfMax = Math.max(1, ...kumPlatz, ...kumElim);
-  const kx = (i: number) => (spiele.length > 1 ? (i / (spiele.length - 1)) * 300 : 0);
-  const ky = (v: number) => 58 - (v / kopfMax) * 52;
-  const linie = (w: number[]) => w.map((v, i) => `${kx(i)},${ky(v)}`).join(' ');
+  const teamReihen = useMemo(() => KERN.filter((z) => TEAM_TITEL.has(z.titel)), []);
 
   /** Der Pfeil eines Werts im Vergleich zu den Mitspielern: vorn gruen nach oben, hinten rot nach unten (bei "weniger ist besser" andersherum). */
   const pfeil = (z: Zeile, werte: Wert[], i: number) => {
@@ -382,54 +411,43 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo, star
 
       {wahl && daten && !laedt && daten.dabei && e && (
         <div className="mt-4 rounded-2xl border border-white/[0.08] bg-zinc-950/70 p-4">
-          {/* Kopf: die Spieler des Teams nebeneinander, darunter Rang, Punkte, Aufteilung */}
-          <div className={`grid items-center gap-x-4 border-b border-white/[0.06] pb-3 ${team ? (mitglieder.length >= 3 ? 'grid-cols-3' : 'grid-cols-2') : 'grid-cols-1'}`}>
-            {mitglieder.map((m) => (
-              <p key={m.id} className="flex items-center justify-center gap-2 text-center text-[15px] font-black tracking-tight text-slate-50">
-                <span className="truncate">{m.name}</span>
-                <TeamFlagge groesse={16} laender={[m.land ?? undefined]} />
-              </p>
-            ))}
-          </div>
-          <div className="mt-3 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+          {/* Oben wie bei Osirion: links der Kopf (Spieler, Rang, Punkte und ihre Aufteilung), rechts der Verlauf der Punkte (Betreiber, 28.10.2026). */}
+          <div className="grid gap-4 lg:grid-cols-2">
             <div>
-              <p className="flex items-baseline gap-2">
-                <span className="text-2xl font-black text-slate-50">Rank #{daten.rank}</span>
-                {daten.top !== null && <span className="text-[12px] font-semibold text-slate-500">Top {daten.top} %</span>}
+              <div className="rounded-xl border border-white/[0.06] bg-zinc-900/40 p-4">
+                <div className={`grid items-center gap-x-4 border-b border-white/[0.06] pb-3 ${team ? (mitglieder.length >= 3 ? 'grid-cols-3' : 'grid-cols-2') : 'grid-cols-1'}`}>
+                  {mitglieder.map((m, i) => (
+                    <p key={m.id} className={`flex items-center justify-center gap-2 text-center text-[14px] font-bold text-slate-50 ${i > 0 ? 'border-l border-white/[0.08]' : ''}`}>
+                      <span className="truncate">{m.name}</span>
+                      <TeamFlagge groesse={16} laender={[m.land ?? undefined]} />
+                    </p>
+                  ))}
+                </div>
+                <div className="mt-3 flex items-baseline justify-between gap-3">
+                  <p className="flex items-baseline gap-2">
+                    <span className="text-2xl font-black text-slate-50">Rank #{daten.rank}</span>
+                    {daten.top !== null && <span className="text-[13px] font-semibold text-slate-400">Top {daten.top} %</span>}
+                  </p>
+                  <p className="text-2xl font-black tabular-nums text-slate-50">{num(e.points)} points</p>
+                </div>
+                <div className="mt-2 space-y-1 border-t border-white/[0.06] pt-2 text-[13px]">
+                  {e.punktePlatz !== undefined && <p className="flex justify-between"><span className="text-slate-400">Placement</span><span className="tabular-nums text-slate-200">{num(e.punktePlatz)} points</span></p>}
+                  {e.punkteElims !== undefined && <p className="flex justify-between"><span className="text-sky-300">Elimination</span><span className="tabular-nums text-slate-200">{num(e.punkteElims)} points</span></p>}
+                </div>
+              </div>
+              <p className="mt-2 flex justify-between px-1 text-[11px] text-slate-500">
+                <span>Last update <b className="text-slate-300">{letzte ?? '–'}</b></span>
+                <span>Next update <b className="text-slate-300">in {naechste ?? '–'} {naechste === 1 ? 'minute' : 'minutes'}</b></span>
               </p>
-              <div className="mt-2 space-y-1 text-[12px]">
-                {e.punktePlatz !== undefined && <p className="flex"><span className="font-semibold text-slate-400">Placement</span></p>}
-                {e.punkteElims !== undefined && <p className="flex"><span className="font-bold text-sky-300">Elimination</span></p>}
-              </div>
             </div>
-            <div className="text-right">
-              <p className="text-2xl font-black tabular-nums text-slate-50">{num(e.points)} points</p>
-              <div className="mt-2 space-y-1 text-[12px] tabular-nums text-slate-300">
-                {e.punktePlatz !== undefined && <p>{num(e.punktePlatz)} points</p>}
-                {e.punkteElims !== undefined && <p>{num(e.punkteElims)} points</p>}
+            {spiele.length > 1 && (e.punktePlatz !== undefined || e.punkteElims !== undefined) && (
+              <div className="flex flex-col justify-end">
+                <PunkteKurve platz={kumPlatz} elim={kumElim} />
+                <p className="flex justify-between text-[10px] tabular-nums text-slate-500">{nr.map((n) => <span key={n}>{n}</span>)}</p>
+                <p className="text-center text-[10px] text-slate-500">Match number</p>
               </div>
-            </div>
+            )}
           </div>
-          <p className="mt-3 flex justify-between text-[11px] text-slate-500">
-            <span>Last update <b className="text-slate-300">{letzte ?? '–'}</b></span>
-            <span>Next update <b className="text-slate-300">in {naechste ?? '–'} {naechste === 1 ? 'minute' : 'minutes'}</b></span>
-          </p>
-
-          {/* Verlauf der Punkte ueber die Matches */}
-          {spiele.length > 1 && (e.punktePlatz !== undefined || e.punkteElims !== undefined) && (
-            <div className="mt-3 rounded-xl border border-white/[0.06] bg-zinc-900/40 px-3 py-2">
-              <svg viewBox="0 0 300 62" preserveAspectRatio="none" className="h-20 w-full">
-                <polyline points={linie(kumPlatz)} fill="none" stroke="#a1a1aa" strokeWidth={1.8} vectorEffect="non-scaling-stroke" />
-                <polyline points={linie(kumElim)} fill="none" stroke="#38bdf8" strokeWidth={2} vectorEffect="non-scaling-stroke" />
-              </svg>
-              <p className="flex justify-between text-[10px] tabular-nums text-slate-600">{nr.map((n) => <span key={n}>{n}</span>)}</p>
-              <p className="mt-0.5 flex items-center justify-center gap-4 text-[10px] text-slate-500">
-                <span><i className="mr-1 inline-block h-[3px] w-4 bg-zinc-400 align-middle" />Placement</span>
-                <span><i className="mr-1 inline-block h-[3px] w-4 bg-sky-400 align-middle" />Elimination</span>
-                <span>Match number</span>
-              </p>
-            </div>
-          )}
 
           {/* Die Auswertung der eigenen Lobbys: laeuft, fertig oder nicht moeglich. */}
           {zugang.epicId && mitglieder.some((m) => m.id === zugang.epicId) && auswertung?.stand === 'angefragt' && (
@@ -447,45 +465,84 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo, star
             </p>
           )}
 
-          {/* ------------------------------------------------ Tabelle: je Spieler eine Spalte */}
-          <div className="mt-4 flex gap-3 overflow-x-auto">
-            <div className="w-[170px] shrink-0">
-              <p className="flex h-[40px] items-center px-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">Stat</p>
-              {zeilen.map((z) => (
-                <p key={z.titel} className="flex h-[34px] items-center px-2 text-[12px] font-semibold text-slate-300">{z.titel}</p>
-              ))}
-            </div>
-            {mitglieder.map((m, i) => (
-              <div key={m.id} className={`min-w-[150px] flex-1 ${kasten} ${m.ich || !team ? 'border-sky-500/70' : 'border-white/[0.06]'}`}>
-                <p className={`flex h-[40px] items-center justify-center border-b border-white/[0.06] px-2 text-center text-[12px] font-bold ${m.ich || !team ? 'text-slate-50' : 'text-slate-400'}`}>
-                  <span className="truncate">{m.name}</span>
-                </p>
-                {zeilen.map((z) => {
-                  const werte = spaltenWerte(z);
-                  const w = werte[i];
-                  return (
-                    <p key={z.titel} className="flex h-[34px] items-center justify-center border-b border-white/[0.03] px-2 text-[12px] last:border-b-0">
-                      {w === null
-                        ? <span className="text-slate-600" title={t('Zu diesem Wert liefert keine Quelle Zahlen für diesen Cup.')}>–</span>
-                        : <><span className={`font-bold tabular-nums ${m.ich || !team ? (z.rot ? 'text-rose-300' : 'text-slate-50') : 'text-slate-400'}`}>{z.zeige(w)}</span>{team ? pfeil(z, werte, i) : null}</>}
-                    </p>
-                  );
-                })}
-              </div>
-            ))}
-            {!team && spiele.length > 1 && (
-              <div className="min-w-[260px] flex-[2]">
-                <div className="flex h-[40px] items-center justify-between text-[10px] tabular-nums text-slate-600">
-                  <span>Match number</span>
-                  <label className="flex cursor-pointer items-center gap-1.5 text-slate-400"><input type="checkbox" checked={kumuliert} onChange={(ev) => setKumuliert(ev.target.checked)} className="accent-sky-400" /> Cumulative</label>
-                </div>
-                {zeilen.map((z) => (
-                  <div key={z.titel} className="flex h-[34px] items-end border-b border-white/[0.03]">
-                    <Welle werte={z.je ? spiele.map((m) => z.je?.(m) ?? 0) : []} rot={z.rot} kumuliert={kumuliert} />
+          <div className="mt-4 grid gap-4 lg:grid-cols-2">
+            {/* ------------------------------------------------ links: je Spieler eine Spalte */}
+            <div>
+              {zeilen.length > 0 ? (
+                <div className="flex gap-2 overflow-x-auto">
+                  <div className="w-[150px] shrink-0">
+                    <p className="flex h-[40px] items-center px-2 text-[13px] font-bold text-slate-200">Stat</p>
+                    {(mehr ? zeilen : zeilen.slice(0, ZUERST)).map((z) => (
+                      <p key={z.titel} className="flex h-[34px] items-center px-2 text-[13px] font-semibold text-slate-300">{z.titel}</p>
+                    ))}
                   </div>
-                ))}
-              </div>
-            )}
+                  {mitglieder.map((m, i) => (
+                    <div key={m.id} className={`min-w-[130px] flex-1 ${kasten} ${m.ich || !team ? 'border-sky-500/70' : 'border-white/[0.06]'}`}>
+                      <p className={`flex h-[40px] items-center justify-center border-b border-white/[0.06] px-2 text-center text-[13px] font-bold ${m.ich || !team ? 'text-slate-50' : 'text-slate-400'}`}>
+                        <span className="truncate">{m.name}</span>
+                      </p>
+                      {(mehr ? zeilen : zeilen.slice(0, ZUERST)).map((z) => {
+                        const werte = spaltenWerte(z);
+                        const w = werte[i];
+                        return (
+                          <p key={z.titel} className="flex h-[34px] items-center justify-center border-b border-white/[0.03] px-2 text-[13px] last:border-b-0">
+                            {w === null
+                              ? <span className="text-slate-600">–</span>
+                              : <><span className={`font-bold tabular-nums ${m.ich || !team ? (z.rot ? 'text-rose-300' : 'text-slate-50') : 'text-slate-400'}`}>{z.zeige(w)}</span>{team ? pfeil(z, werte, i) : null}</>}
+                          </p>
+                        );
+                      })}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="rounded-xl border border-white/[0.06] bg-zinc-900/40 px-4 py-3 text-[12px] text-slate-400">
+                  <T>Werte je Spieler stehen nur in den Replays - für diesen Cup liegen sie noch nicht vor. Epic zählt Punkte, Eliminierungen und Zeit je Team (rechts).</T>
+                </p>
+              )}
+              {zeilen.length > ZUERST && (
+                <button type="button" onClick={() => setMehr((x) => !x)} className="mx-auto mt-2 block text-[12px] font-semibold text-slate-400 transition hover:text-sky-300">
+                  {mehr ? <T>Weniger anzeigen</T> : <T>Mehr anzeigen</T>} {mehr ? '▲' : '▼'}
+                </button>
+              )}
+            </div>
+
+            {/* ------------------------------------------------ rechts: Verlauf je Spiel */}
+            <div>
+              {!team && spiele.length > 1 && (
+                <>
+                  <div className="flex h-[40px] items-center justify-end">
+                    <label className="flex cursor-pointer items-center gap-1.5 text-[12px] text-slate-400"><input type="checkbox" checked={kumuliert} onChange={(ev) => setKumuliert(ev.target.checked)} className="accent-sky-400" /> Cumulative</label>
+                  </div>
+                  {(mehr ? zeilen : zeilen.slice(0, ZUERST)).map((z) => (
+                    <div key={z.titel} className="flex h-[34px] items-end border-b border-white/[0.03]">
+                      <Welle werte={z.je ? spiele.map((m) => z.je?.(m) ?? 0) : []} rot={z.rot} kumuliert={kumuliert} />
+                    </div>
+                  ))}
+                  <p className="flex justify-between text-[10px] tabular-nums text-slate-500">{nr.map((n) => <span key={n}>{n}</span>)}</p>
+                </>
+              )}
+              {team && (
+                <div className="rounded-xl border border-white/[0.06] bg-zinc-900/40">
+                  <div className="flex h-[40px] items-center justify-between border-b border-white/[0.06] px-3">
+                    <span className="text-[13px] font-bold text-slate-200"><T>Team</T></span>
+                    {spiele.length > 1 && <label className="flex cursor-pointer items-center gap-1.5 text-[12px] text-slate-400"><input type="checkbox" checked={kumuliert} onChange={(ev) => setKumuliert(ev.target.checked)} className="accent-sky-400" /> Cumulative</label>}
+                  </div>
+                  {teamReihen.map((z) => {
+                    const w = z.wert(mitglieder[0], ctx);
+                    if (w === null) return null;
+                    return (
+                      <div key={z.titel} className="grid h-[34px] grid-cols-[130px_70px_minmax(0,1fr)] items-center gap-2 border-b border-white/[0.03] px-3 last:border-b-0">
+                        <span className="text-[13px] font-semibold text-slate-300">{z.titel}</span>
+                        <span className="text-right text-[13px] font-bold tabular-nums text-slate-50">{z.zeige(w)}</span>
+                        {z.je && spiele.length > 1 ? <Welle werte={spiele.map((m) => z.je?.(m) ?? 0)} rot={z.rot} kumuliert={kumuliert} /> : <span />}
+                      </div>
+                    );
+                  })}
+                  {spiele.length > 1 && <p className="flex justify-between px-3 pb-1 pl-[218px] text-[10px] tabular-nums text-slate-500">{nr.map((n) => <span key={n}>{n}</span>)}</p>}
+                </div>
+              )}
+            </div>
           </div>
 
           <p className="mt-3 text-[11px] leading-relaxed text-slate-600">
