@@ -214,7 +214,11 @@ function Standleiste({ region, plan, auf }: { region: string; plan: WegDaten; au
           {knoten && knoten.fenster.length > 1 ? ` · ${stand.stand.name}` : ''} — <T>Platz</T> <span className="font-bold tabular-nums">{stand.stand.rang.toLocaleString()}</span>, <span className="tabular-nums">{stand.stand.punkte}</span> pts
         </span>
       )}
-      {epicId && !laedt && !fehler && stand && !stand.stand && (
+      {/* Noch keine Runde gespielt (die naechste Ausgabe steht schon im Plan): dann gibt es keinen Stand - nicht "steht in keiner Liste" (28.10.2026). */}
+      {epicId && !laedt && !fehler && stand && !stand.stand && plan.knoten.every((k) => k.status === 'kommt') && (
+        <span className="text-slate-400"><T>Noch keine Runde gespielt - dein Stand erscheint nach der ersten Runde.</T></span>
+      )}
+      {epicId && !laedt && !fehler && stand && !stand.stand && !plan.knoten.every((k) => k.status === 'kommt') && (
         <span className="text-slate-400">
           {stand.tief ? <T>Dein Konto steht in keiner Bestenliste dieser Region.</T> : <T>Dein Konto steht in keiner Liste ab Runde 3 (Top 1.000).</T>}
           {!stand.tief && <> <button type="button" onClick={() => void tiefer()} className="font-semibold text-sky-400 hover:underline"><T>Runde 1 und 2 und die Last Chance auch durchsuchen</T></button></>}
