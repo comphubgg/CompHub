@@ -5,6 +5,7 @@ import type { TiktokDaten, TiktokZeile } from '@/lib/tiktokDaten';
 import { sprechbar, aussprachePaare } from '@/lib/aussprache';
 import { liesGalerie } from '@/lib/galerie';
 import { jahrVonSaison } from '@/lib/saisonJahre';
+import { kernname, ohneZierrat, lateinisch } from '@/lib/homoglyph';
 
 /*
  * Eigene TikTok-Videos (Betreiber, 20.10.2026): "ich will dieses Jahr die besten fuenf Spieler aus Statistics und eine Kurzbeschreibung, wieso sie die besten sind - oder die
@@ -163,16 +164,32 @@ export async function spielerRueckblick(o: { name: string; jahr: number }): Prom
   type Ergebnis = { titel: string; platz: number; datum: number; lan: boolean; mit: string[] };
   const gesehen = new Set<string>();
   const alle: Ergebnis[] = [];
+  // Die Namen der Mitspieler, wie das Profil sie fuehrt ("POLLO") - die LAN-Listen tragen den rohen Epic-Namen ("FLCN pollo 9!").
+  const namenVon = new Map<string, string>();
+  for (const z of [...((p.erfolge ?? []) as Array<{ mitspieler?: Mit[] }>), ...((p.epicZeilen ?? []) as Array<{ mitspieler?: Mit[] }>)]) {
+    for (const m of z.mitspieler ?? []) if (m?.epicId && m.name && !/^[0-9a-f]{8,32}$/i.test(m.name)) namenVon.set(m.epicId, m.name);
+  }
+  const mitName = (m: Mit) => (m?.epicId && namenVon.get(m.epicId)) || lateinisch(ohneZierrat(kernname(String(m?.name ?? ''))).trim());
   const dazu = (titel: string, platz: number, datum: number, lan: boolean, mit: Mit[] = [], jahr?: number) => {
     const k = `${titel}|${datum}`;
     if (!titel || !(platz > 0) || (jahr ?? jahrVon(datum)) !== o.jahr || gesehen.has(k)) return;
     gesehen.add(k);
-    alle.push({ titel, platz, datum, lan, mit: mit.map((m) => String(m?.name ?? '').trim()).filter((n) => n && !/^[0-9a-f]{8,32}$/i.test(n)) });
+    alle.push({ titel, platz, datum, lan: lan || /\bLAN\b/.test(titel), mit: mit.map(mitName).map((n) => n.toUpperCase()).filter((n) => n && !/^[0-9A-F]{8,32}$/.test(n)) });
+  };
+  /** Dieselbe LAN unter zwei Namen ("Mid Summit LAN" aus Epics Liste, "FNCS Major 1 Summit 2026" aus der LAN-Datei): gleicher Platz und dasselbe Kennwort. */
+  const KENNWORT = /summit|global|elite series championship|world cup|invitational|gamers8|ewc/i;
+  const schonDa = (titel: string, platz: number) => {
+    const w = KENNWORT.exec(titel)?.[0]?.toLowerCase();
+    return w ? alle.find((e) => e.platz === platz && e.titel.toLowerCase().includes(w)) : undefined;
   };
   for (const e of (p.erfolge ?? []) as Array<{ titel: string; platz: number; datum: number; typ?: string; mitspieler?: Mit[] }>) dazu(e.titel, e.platz, e.datum, e.typ === 'LAN', e.mitspieler);
   for (const e of (p.epicZeilen ?? []) as Array<{ titel?: string; platz?: number; datum?: number; windowId?: string; mitspieler?: Mit[] }>) dazu(String(e.titel || e.windowId || ''), Number(e.platz), Number(e.datum), false, e.mitspieler);
   // Die LANs (Globals, Summit, EWC, World Cup ...): im Profil stehen sie nur in der FNCS-Tafel, nicht bei den Erfolgen - ohne sie fehlte Peterbots zweiter Platz beim Summit.
-  for (const e of (p.lan ?? []) as Array<{ name: string; platz: number; datum?: number | null; season: string; mit?: Mit[] }>) dazu(e.name, e.platz, e.datum ?? 0, true, e.mit ?? [], e.datum ? undefined : jahrVonSaison(e.season));
+  for (const e of (p.lan ?? []) as Array<{ name: string; platz: number; datum?: number | null; season: string; mit?: Mit[] }>) {
+    const da = schonDa(e.name, e.platz);
+    if (da) { da.titel = e.name; da.lan = true; continue; }   // der offizielle Name, Datum und Mitspieler vom vorhandenen Eintrag
+    dazu(e.name, e.platz, e.datum ?? 0, true, e.mit ?? [], e.datum ? undefined : jahrVonSaison(e.season));
+  }
   // Die Bezeichnung "S39_SoloVictoryCup_..." ist kein Titel: nur lesbare Namen kommen ins Video.
   const lesbar = alle.filter((e) => !/^S\d+_/.test(e.titel));
   if (lesbar.length < 3) return { keinCup: true, grund: `Zu wenige Platzierungen von ${q} in ${o.jahr} (${lesbar.length})` };
