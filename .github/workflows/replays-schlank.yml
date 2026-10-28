@@ -24,6 +24,7 @@ on:
       - 'scripts/replays-schlank-holen.mjs'
       - 'scripts/replays-schlank.mjs'
       - 'scripts/schleife.mjs'
+      - 'scripts/replay-uebersicht.mjs'
       - 'lib/releaseTags.mjs'
       - 'scripts/ablage-github.mjs'
 
@@ -52,6 +53,8 @@ jobs:
       - name: Zugangsdaten
         run: printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
 
+      # Die Replay-Uebersicht (Startseite: Matches ausgewertet / offen) stuendlich aus den Zustaenden aller Rechner - bis 28.10.2026 schrieb sie nur der
+      # stuendliche Gesamtlauf, und der hing tagelang.
       - name: Schleife
         timeout-minutes: 330
         env:
@@ -59,7 +62,8 @@ jobs:
         run: |
           node scripts/schleife.mjs --minuten 320 --takt 600 \
             --schritt "node scripts/replays-schlank-holen.mjs --hoechstens 40 2>&1 | tail -8" \
-            --schritt "[ -d data/replays-schlank ] && node scripts/ablage-github.mjs --nur replays-schlank --neuer-als 30 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -6 || true"
+            --schritt "[ -d data/replays-schlank ] && node scripts/ablage-github.mjs --nur replays-schlank --neuer-als 30 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -6 || true" \
+            --schritt "6:node scripts/replay-uebersicht.mjs --vom-release 2>&1 | tail -2 && node scripts/ablage-github.mjs --nur antworten/replays_uebersicht.json 2>&1 | tail -2 || true"
 
       - name: Naechsten Auftrag anstossen
         if: ${{ !cancelled() }}

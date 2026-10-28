@@ -215,6 +215,16 @@ const teilIdx = argumente.indexOf('--teil');
 const [teilNr, teilVon] = teilIdx >= 0
   ? String(argumente[teilIdx + 1] ?? '0/1').split('/').map((x) => Math.max(0, Number(x) || 0))
   : [0, 1];
+/**
+ * Welcher Rechner einen Spieltag nimmt - fest nach seiner Kennung, nicht nach dem Platz in der Liste (28.10.2026): die Liste der offenen Spieltage
+ * schrumpft waehrend der Arbeit, und jeder Rechner sieht nur seine eigenen Fortschritte; mit dem Platz fassten bald zwei Rechner denselben Spieltag an
+ * und ueberschrieben einander die Auswertung.
+ */
+const meinTeil = (windowId) => {
+  let h = 0;
+  for (const c of String(windowId)) h = (h * 31 + c.charCodeAt(0)) >>> 0;
+  return teilVon <= 1 || h % teilVon === teilNr % teilVon;
+};
 const minutenIdx = argumente.indexOf('--minuten');
 const minuten = minutenIdx >= 0 ? Math.max(0, Number(argumente[minutenIdx + 1]) || 0) : 0;
 const schluss = minuten ? Date.now() + minuten * 60_000 : Infinity;
@@ -634,7 +644,7 @@ async function wiederholen() {
   // Mehrere Rechner: reihum verteilt. Alle sehen denselben Stand vom
   // Release und sortieren gleich - also nimmt jeder genau seine Spieltage.
   if (teilVon > 1) {
-    const meine = arbeit.filter((_, i) => i % teilVon === teilNr % teilVon);
+    const meine = arbeit.filter((a) => meinTeil(a.windowId));
     console.log(`Teil ${teilNr % teilVon + 1} von ${teilVon}: ${meine.length} von ${arbeit.length} Spieltagen.`);
     arbeit.splice(0, arbeit.length, ...meine);
   }
@@ -743,7 +753,7 @@ async function main() {
   const ziel = nurFenster.length
     ? fenster.filter((f) => nurFenster.includes(f.windowId))
     // Mehrere Rechner (--teil n/4) auch hier reihum (28.10.2026): bis dahin legte nur einer neue Spieltage an, 27 Minuten je Lauf - zu wenig fuer 251 offene.
-    : teilVon > 1 ? fenster.filter((_, i) => i % teilVon === teilNr % teilVon) : fenster;
+    : fenster.filter((f) => meinTeil(f.windowId));
 
   console.log(nurLive
     ? `${fenster.length} Fenster laufen gerade`

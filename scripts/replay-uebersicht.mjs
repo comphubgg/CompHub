@@ -18,6 +18,7 @@
 import { promises as fs } from 'node:fs';
 import path from 'node:path';
 import { ABLAGE, liesZustand, zustandAusOrdner } from '../lib/replayKern.mjs';
+import { ERSTE_GETEILTE_SAISON, LETZTE_SAISON } from '../lib/releaseTags.mjs';
 
 /** Wie app/api/replays: "S42_SoloVictoryCup_Event1Round2_EU" -> "Event 1 Round 2". */
 function rundeName(windowId, region) {
@@ -33,7 +34,48 @@ function rundeName(windowId, region) {
     .trim();
 }
 
+/*
+ * --vom-release (28.10.2026): die Zustaende aller Spieltage erst von den Releases holen (oeffentliche Adressen, kein Kontingent). Die Uebersicht schrieb nur der
+ * stuendliche Lauf, und der hing - die Startseite zeigte tagelang dieselben "361.459 ausgewertet / 8.473 offen". Jetzt rechnet sie die Replay-Schleife
+ * selbst, aus dem Stand aller Rechner.
+ */
+async function vomRelease() {
+  const REPO = process.env.COMPHUB_GITHUB_REPO || 'comphubgg/CompHub';
+  const neueste = new Map();
+  // Nur Saisons bis zur laufenden (bis zu zwei weiter, falls eine neue beginnt) - die Releases kuenftiger gibt es noch nicht.
+  const bis = Math.min(LETZTE_SAISON, ERSTE_GETEILTE_SAISON + 3);
+  for (let n = ERSTE_GETEILTE_SAISON; n <= bis; n += 1) {
+    for (const tag of ['', '-b', '-c', '-d'].map((x) => `daten-replays-s${n}${x}`)) {
+      const r = await fetch(`https://github.com/${REPO}/releases/download/${tag}/manifest.json`, { redirect: 'follow', headers: { 'User-Agent': 'comphub-ablage' } }).catch(() => null);
+      if (!r?.ok) continue;
+      for (const [name, e] of Object.entries(await r.json())) {
+        const m = /^replays__(S\d+)__(.+)___zustand\.json$/.exec(name);
+        if (!m) continue;
+        const zeit = Date.parse(e.zeit ?? '') || 0;
+        if ((neueste.get(name)?.zeit ?? -1) < zeit) neueste.set(name, { tag, zeit, saison: m[1], fenster: m[2] });
+      }
+    }
+  }
+  const liste = [...neueste.entries()];
+  let i = 0; let geholt = 0;
+  await Promise.all(Array.from({ length: 8 }, async () => {
+    while (i < liste.length) {
+      const [name, e] = liste[i++];
+      try {
+        const r = await fetch(`https://github.com/${REPO}/releases/download/${e.tag}/${encodeURIComponent(name)}`, { redirect: 'follow', headers: { 'User-Agent': 'comphub-ablage' } });
+        if (!r.ok) continue;
+        const ordner = path.join(ABLAGE, e.saison, e.fenster);
+        await fs.mkdir(ordner, { recursive: true });
+        await fs.writeFile(path.join(ordner, '_zustand.json'), Buffer.from(await r.arrayBuffer()));
+        geholt += 1;
+      } catch { /* dieser eine fehlt in der Uebersicht */ }
+    }
+  }));
+  console.log(`Vom Release: ${geholt} von ${liste.length} Zustaenden geholt.`);
+}
+
 async function main() {
+  if (process.argv.includes('--vom-release')) await vomRelease();
   const fenster = [];
   let saisons = [];
   try { saisons = await fs.readdir(ABLAGE); } catch { /* nichts da */ }

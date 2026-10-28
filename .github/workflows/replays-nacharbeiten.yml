@@ -1,4 +1,4 @@
-# Den Rueckstand an Replays abarbeiten - auf vier Rechnern zugleich.
+# Den Rueckstand an Replays abarbeiten - auf acht Rechnern zugleich, als Dauerschleife.
 #
 # Am 25.9.2026 warteten 15884 Matches aus siebzehn Spieltagen auf ihre
 # Auswertung. Der stuendliche Lauf gab dafuer neun Minuten her und schaffte
@@ -6,15 +6,16 @@
 # Tagen schaust du dir keine Replays mehr an ... bis seit daher gab es schon
 # richtig viele andere Cups. Die solltest du ja eigentlich alle machen."
 #
-# Deshalb ein eigener Ablauf: alle zwei Stunden vier Rechner, jeder nimmt
-# reihum jeden vierten Spieltag (replays-holen.mjs --teil), arbeitet fuenfzig
-# Minuten und legt dann sauber ab. Zwei Rechner fassen so nie denselben
-# Spieltag an und ueberschreiben einander nichts.
+# 28.10.2026, der Betreiber: "seit mehreren Tagen steht da 8473 still open ... die laufen ab ... baue Agents ein, die das gleichzeitig machen".
+# Gefunden: der Ablauf lief statt alle zwei Stunden nur dreimal am Tag (GitHub uebergeht geplante Laeufe unter Last) und arbeitete je Lauf rund achtzig
+# Minuten; 251 Spieltage der letzten 30 Tage hatten gar keine Auswertung. Jetzt:
+#   - acht Rechner, jeder reihum jeden achten Spieltag (replays-holen.mjs --teil n/8) - zwei Rechner fassen nie denselben an
+#   - jeder bleibt rund fuenfeinhalb Stunden an (scripts/schleife.mjs): neue Spieltage anlegen, Offenes nachholen, rechnen, hochladen - und wieder
+#   - nach jedem Durchgang geht der Stand ans Release, nicht erst am Ende
+#   - am Ende stoesst Teil 0 den naechsten Auftrag selbst an; der Zeitplan ist nur der Rueckfall
 #
-# Die Grenze zu den anderen Ablaeufen: was juenger als zwoelf Stunden ist,
-# gehoert dem Live-Ablauf und dem stuendlichen "frischen" Gang (der auch neue
-# Spieltage erst anlegt). Hier nur, was aelter ist - bis zur Frist von
-# einunddreissig Tagen, nach der Epic die Replays loescht.
+# Die Grenze zu den anderen Ablaeufen: was juenger als zwoelf Stunden ist, gehoert dem Live-Ablauf und dem stuendlichen "frischen" Gang. Hier alles bis
+# zur Frist von einunddreissig Tagen, nach der Epic die Replays loescht.
 #
 # Supabase wird nur fuer die Epic-Anmeldung gefragt (eine kleine Datei). Der
 # Stand je Spieltag kommt vom Release und geht dorthin zurueck.
@@ -22,20 +23,25 @@
 name: Replays nacharbeiten
 
 on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/replays-nacharbeiten.yml'
   workflow_dispatch:
   schedule:
-    - cron: '40 */2 * * *'   # alle zwei Stunden, vierzig nach
+    - cron: '40 */3 * * *'
 
 jobs:
   nacharbeiten:
     runs-on: ubuntu-latest
-    timeout-minutes: 105
+    timeout-minutes: 350
     permissions:
       contents: write
+      actions: write
     strategy:
       fail-fast: false
       matrix:
-        teil: [0, 1, 2, 3]
+        teil: [0, 1, 2, 3, 4, 5, 6, 7]
     # Je Teil nie zwei Laeufe zugleich - und einen laufenden nie abwuergen.
     concurrency:
       group: replays-nacharbeiten-${{ matrix.teil }}
@@ -60,71 +66,30 @@ jobs:
           node scripts/daten-sync.mjs --herunterladen --nur epic-auth.json 2>&1 | tail -2
           node scripts/ablage-github-holen.mjs --ordner replays 2>&1 | tail -3
 
-      # Fenster, die es noch gar nicht gibt, legen seit dem 28.10.2026 alle vier Rechner an, jeder reihum seinen Teil (--teil; vorher nur Teil 0 - 251 Spieltage
-      # der letzten 30 Tage blieben ohne Auswertung): "--wiederholen" kennt nur schon angelegte
-      # Fenster, der frische Gang nur die der letzten zwoelf Stunden. Seit dem 26.10.2026 zaehlen alle Cups ganz (lib/replayRegel.mjs) - die offenen Runden der
-      # Tage davor (Reload Cash Cup Runde 1 usw.) haetten sonst nie ein Aggregat bekommen. Endet sanft an seiner Frist (SIGTERM), der Stand je Fenster ist gesichert.
-      - name: Fehlende Fenster anlegen
+      # Je Durchgang: neue Spieltage anlegen (hoechstens 20 Minuten, endet sanft mit SIGTERM - der Stand je Spieltag ist gesichert), offene Matches der
+      # schon angelegten nachholen (25 Minuten), rechnen, hochladen.
+      - name: Schleife
         continue-on-error: true
-        timeout-minutes: 32
-        env:
-          WERKZEUG_URL: https://www.thecomphub.com
-          MAX_REPLAY_DOWNLOADS: '4'
-          MAX_REPLAY_PARSERS: '3'
-        run: |
-          timeout --signal=TERM 27m node scripts/replays-holen.mjs --frisch 744 --teil ${{ matrix.teil }}/4 2>&1 | grep -v ' \.\.\.$' | tail -40
-          true
-
-      - name: Nacharbeiten
-        continue-on-error: true
-        timeout-minutes: 58
-        env:
-          WERKZEUG_URL: https://www.thecomphub.com
-          MAX_REPLAY_DOWNLOADS: '4'
-          MAX_REPLAY_PARSERS: '3'
-        run: |
-          node scripts/replays-holen.mjs --wiederholen --teil ${{ matrix.teil }}/4 \
-            --minuten 50 --ohne-frische 12 2>&1 | grep -v ' \.\.\.$' | tail -40
-
-      - name: Auswerten
-        continue-on-error: true
-        timeout-minutes: 8
-        run: node scripts/replays-aggregieren.mjs 2>&1 | tail -15
-
-      - name: Ans GitHub-Release
-        if: always()
-        continue-on-error: true
-        timeout-minutes: 8
+        timeout-minutes: 335
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          WERKZEUG_URL: https://www.thecomphub.com
+          MAX_REPLAY_DOWNLOADS: '4'
+          MAX_REPLAY_PARSERS: '3'
         run: |
-          node scripts/ablage-github.mjs --nur replays 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -12
+          node scripts/schleife.mjs --minuten 315 --takt 60 \
+            --schritt "timeout --signal=TERM 20m node scripts/replays-holen.mjs --frisch 744 --teil ${{ matrix.teil }}/8 2>&1 | grep -v ' \.\.\.$' | tail -12; true" \
+            --schritt "node scripts/replays-holen.mjs --wiederholen --teil ${{ matrix.teil }}/8 --minuten 25 --ohne-frische 12 2>&1 | grep -v ' \.\.\.$' | tail -12" \
+            --schritt "node scripts/replays-aggregieren.mjs 2>&1 | tail -6" \
+            --schritt "node scripts/ablage-github.mjs --nur replays 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -8"
+
+      - name: Naechsten Auftrag anstossen
+        if: ${{ !cancelled() && matrix.teil == 0 }}
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run replays-nacharbeiten.yml -R "${{ github.repository }}" --ref main && echo "naechster Auftrag angestossen"
 
       - name: Zugangsdaten wieder weg
         if: always()
         run: rm -f .env.local
-
-  # Solange etwas liegen blieb, gleich weiter - nicht erst, wenn GitHub den
-  # naechsten geplanten Lauf irgendwann anstoesst (am 28.9.2026 kamen statt
-  # zwoelf Laeufen am Tag vier). Der Betreiber: "wieso machst du bei den
-  # Replays immer noch nicht weiter?" Ist alles erledigt, endet die Kette.
-  weiter:
-    needs: nacharbeiten
-    if: always() && !cancelled()
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    permissions:
-      actions: write
-      contents: read
-    steps:
-      - name: Weitermachen, solange etwas liegen blieb
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          if gh run view ${{ github.run_id }} -R "${{ github.repository }}" --log 2>/dev/null \
-              | grep -q "fuer den naechsten Lauf liegen gelassen"; then
-            gh workflow run replays-nacharbeiten.yml -R "${{ github.repository }}" --ref main \
-              && echo "Es blieb etwas liegen - naechster Durchgang angestossen."
-          else
-            echo "Nichts liegen geblieben - keine Kette."
-          fi
