@@ -16,6 +16,7 @@
 //
 // Was hier gerechnet wird, laesst sich dagegen aus den Dateien nachrechnen.
 
+import { kernname, ohneZierrat, lateinisch } from '@/lib/homoglyph';
 import { JAHR_SAISONS, jahrVonSaison } from './saisonJahre';
 import fs from '@/lib/ablageFs';
 import path from 'path';
@@ -1957,7 +1958,8 @@ export async function lanErgebnisse(epicId: string) {
     raus.push({
       kennung: e.kennung, name: e.name, season: e.season, fenster: e.fenster, ort: e.ort ?? null, platz: s.platz, betrag: s.betrag, waehrung: e.waehrung ?? 'USD',
       datum: e.datum ? Date.parse(e.datum) : archivTag?.get(e.fenster) ?? null,
-      mit: e.spieler.filter((x) => x.platz === s.platz && x.epicId !== epicId).map((x) => ({ epicId: x.epicId, name: x.name ?? '' })),
+      // Der Name ohne Orgtag und Zierrat ("XP42 Braydz" -> "Braydz") - die LAN-Listen tragen den rohen Epic-Namen.
+      mit: e.spieler.filter((x) => x.platz === s.platz && x.epicId !== epicId).map((x) => ({ epicId: x.epicId, name: lateinisch(ohneZierrat(kernname(x.name ?? '')).trim() || (x.name ?? '')) })),
     });
   }
   return raus.sort((a, b) => a.platz - b.platz);
