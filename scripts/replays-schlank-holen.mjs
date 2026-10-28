@@ -34,7 +34,9 @@ for (const tag of [`daten-replays-s${nr}`, `daten-replays-s${nr}-b`, `daten-repl
 const schlank = await manifest(`daten-replays-schlank-s${nr}`).catch(() => ({}));
 
 // Schlanke Fassungen von vor diesem Stand zaehlten Selbst-Eliminierungen als Kill (siehe replays-schlank.mjs, v2) - sie werden einmal alle neu gebaut.
-const SCHLANK_STAND = Date.parse('2026-10-28T21:00:00Z');
+const SCHLANK_STAND = Date.parse('2026-10-28T19:15:00Z');
+// Davon hoechstens zehn je Durchgang: jede neue Fassung ist ein Hochladen, und das Schreibkontingent der Ablaeufe ist knapp (Aufgabe 144).
+const STAND_JE_DURCHGANG = 10;
 const noetig = [];
 for (const [anhang, m] of Object.entries(aggregate)) {
   const t = /^replays__(S\d+)__(.+)___aggregat\.json$/i.exec(anhang);
@@ -43,13 +45,15 @@ for (const [anhang, m] of Object.entries(aggregate)) {
   const agg = Date.parse(m.zeit ?? '') || 0;
   const sl = Date.parse(s?.zeit ?? '') || 0;
   // Eine vorhandene schlanke Fassung gilt als veraltet, wenn die Auswertung mehr als drei Stunden juenger ist (laufende Cups bekommen sie in der Live-Schleife)
-  if (!s || agg - sl > 3 * 3600_000 || sl < SCHLANK_STAND) noetig.push({ fenster: t[2], saison: t[1], agg, fehlt: !s });
+  const veraltet = !s || agg - sl > 3 * 3600_000;
+  if (veraltet || sl < SCHLANK_STAND) noetig.push({ fenster: t[2], saison: t[1], agg, fehlt: !s, nurStand: !veraltet });
 }
 // Frisches zuerst; was ganz fehlt, vor dem, was nur veraltet ist.
 noetig.sort((a, b) => (b.fehlt - a.fehlt) || (b.agg - a.agg));
-console.log(`${noetig.length} Spieltage mit fehlender oder veralteter schlanker Fassung (${noetig.filter((x) => x.fehlt).length} ganz ohne); heute dran: ${Math.min(HOECHSTENS, noetig.length)}.`);
+console.log(`${noetig.length} Spieltage mit fehlender oder veralteter schlanker Fassung (${noetig.filter((x) => x.fehlt).length} ganz ohne, ${noetig.filter((x) => x.nurStand).length} nur wegen Fassung v2 - davon ${STAND_JE_DURCHGANG} je Durchgang).`);
 
-const heute = noetig.slice(0, HOECHSTENS);
+let standDran = 0;
+const heute = noetig.filter((x) => !x.nurStand || (standDran += 1) <= STAND_JE_DURCHGANG).slice(0, HOECHSTENS);
 const namen = heute.flatMap((x) => [`replays/${x.saison}/${x.fenster}/_aggregat.json`, `replays/${x.saison}/${x.fenster}/_zustand.json`]);
 for (let i = 0; i < namen.length; i += 30) {
   const r = spawnSync(process.execPath, ['scripts/ablage-github-holen.mjs', ...namen.slice(i, i + 30)], { stdio: ['ignore', 'pipe', 'inherit'], encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });

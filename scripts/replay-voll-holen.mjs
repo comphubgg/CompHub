@@ -62,7 +62,14 @@ const arg = process.argv.slice(2);
 const zahl = (name, standard) => { const i = arg.indexOf(name); const v = i >= 0 ? Number(arg[i + 1]) : NaN; return Number.isFinite(v) && v > 0 ? v : standard; };
 const hoechstens = zahl('--hoechstens', 200);
 const gleichzeitig = zahl('--parallel', 4);
-const frist = Date.now() + zahl('--minuten', 20) * 60_000;
+const START = Date.now();
+const frist = START + zahl('--minuten', 20) * 60_000;
+/*
+ * Das Auflisten (Sitzungen je Spieltag bei Epic) hat seine eigene, halbe Frist (28.10.2026): vorher teilte es sich die Frist mit dem Lesen. Seit 03:43 dauerte
+ * das Auflisten aller rund 400 Spieltage laenger als die sechs Minuten eines Durchgangs - danach begann kein Arbeiter mehr, nichts wurde gespeichert, auch
+ * nicht der Pruefstand (index.geprueft), und der naechste Durchgang listete wieder alles auf. Jetzt wird nach dem Auflisten gespeichert.
+ */
+const listenFrist = START + Math.max(2, zahl('--minuten', 20) / 2) * 60_000;
 const warte = (ms) => new Promise((r) => setTimeout(r, ms));
 /** Hoch setzen, wenn der Leser sich aendert (neue Bibliothek, behobener Fehler): Leser-Fehler werden dann einmal neu versucht. */
 const LESER_STAND = '2026-10-26';
@@ -240,7 +247,7 @@ const faelligerFehler = (tag) => Object.values(index.matches).some((m) => m.wind
 async function aufgaben() {
   const liste = [];
   for (const tag of await tage()) {
-    if (Date.now() > frist) break;
+    if (Date.now() > listenFrist) break;
     // Ein Tag, der vor mehr als sechs Stunden begann und vor weniger als einer halben Stunde befragt wurde, hat nichts Neues (Epics Schnittstelle nicht jede Minute belasten).
     if (Date.now() - (tag.datum ?? Date.now()) > 6 * 3600_000 && Date.now() - (index.geprueft[tag.windowId] ?? 0) < 30 * 60_000 && !faelligerFehler(tag)) continue;
     let ids = [];
@@ -327,7 +334,8 @@ if (arg.includes('--liste')) {
   process.exit(0);
 }
 const alle = await aufgaben();
-console.log(`${alle.length} Matches fehlen noch und sind dran (${alle.filter((x) => index.fehler[x.id]).length} davon Wiederholungen); ${wartend} Fehlschlaege warten auf ihre Zeit, ${aufgegeben} aufgegeben; ${gleichzeitig} gleichzeitig, hoechstens ${hoechstens}.`);
+speichereIndex();
+console.log(`Aufgelistet in ${Math.round((Date.now() - START) / 1000)} s. ${alle.length} Matches fehlen noch und sind dran (${alle.filter((x) => index.fehler[x.id]).length} davon Wiederholungen); ${wartend} Fehlschlaege warten auf ihre Zeit, ${aufgegeben} aufgegeben; ${gleichzeitig} gleichzeitig, hoechstens ${hoechstens}.`);
 let naechster = 0;
 const arbeiter = async () => {
   while (naechster < alle.length && erledigt + gescheitert < hoechstens && Date.now() < frist) {
