@@ -459,7 +459,7 @@ function zeitstrahlPlakat(d: Zeitstrahl, b: Bilder) {
       <div style={{ position: 'absolute', left: 0, top: 0, width: 600, height: H, display: 'flex' }}>
         {f && <img src={f} width={600} height={H} style={{ position: 'absolute', left: 0, top: 0, width: 600, height: H, objectFit: 'cover', objectPosition: fokusVon(d.bild) }} />}
         <div style={{ position: 'absolute', left: 0, top: 0, width: 600, height: H, display: 'flex', background: 'linear-gradient(90deg,rgba(4,7,13,0) 35%,rgba(6,12,24,0.92) 88%,#07101f 100%)' }} />
-        <div style={{ position: 'absolute', left: 0, bottom: 0, width: 600, height: 420, display: 'flex', background: 'linear-gradient(180deg,rgba(4,7,13,0) 0%,rgba(4,7,13,0.94) 78%)' }} />
+        <div style={{ position: 'absolute', left: 0, bottom: 0, width: 600, height: 540, display: 'flex', background: 'linear-gradient(180deg,rgba(4,7,13,0) 0%,rgba(4,7,13,0.8) 40%,rgba(4,7,13,0.97) 68%)' }} />
         <div style={{ position: 'absolute', left: 56, top: 56, display: 'flex' }}>{marke(b, 30)}</div>
         <div style={{ position: 'absolute', left: 56, bottom: 70, width: 520, display: 'flex', flexDirection: 'column' }}>
           <div style={{ display: 'flex', fontSize: 24, fontWeight: 700, letterSpacing: 6, color: '#94a3b8' }}>CAREER EARNINGS</div>

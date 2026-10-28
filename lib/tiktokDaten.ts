@@ -1,7 +1,7 @@
 import { GET as katalogAbruf } from '@/app/api/cup-catalog/route';
 import { GET as bestenlisteAbruf } from '@/app/api/cup-leaderboard/route';
 import { GET as rosterAbruf } from '@/app/api/cup-roster/route';
-import { kernname, ohneZierrat } from '@/lib/homoglyph';
+import { kernname, ohneZierrat, lateinisch } from '@/lib/homoglyph';
 import { titelMit, groesseAus, istZeroBuild } from '@/lib/cupTitel';
 import { spielerbildKlein } from '@/lib/spielerbildKlein';
 import { sprechbar, aussprachePaare, setzeAussprachen } from '@/lib/aussprache';
@@ -135,7 +135,7 @@ export async function tiktokDaten(opt: { ohne?: string[]; nur?: string } = {}): 
         const namen = spieler.map((p) => {
           const id = (p.id ?? '').toLowerCase();
           const pr = karte.profile.get(id); const sz = karte.szene.get(id);
-          return (ohneZierrat(kernname(pr?.anzeige || pr?.name || sz?.name || p.name)).trim() || p.name).toUpperCase();
+          return lateinisch(ohneZierrat(kernname(pr?.anzeige || pr?.name || sz?.name || p.name)).trim() || p.name).toUpperCase();
         });
         const laender = spieler.map((p) => {
           const id = (p.id ?? '').toLowerCase();

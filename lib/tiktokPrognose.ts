@@ -1,7 +1,7 @@
 import { GET as katalogAbruf } from '@/app/api/cup-catalog/route';
 import { GET as bestenlisteAbruf } from '@/app/api/cup-leaderboard/route';
 import { GET as rosterAbruf } from '@/app/api/cup-roster/route';
-import { kernname, ohneZierrat } from '@/lib/homoglyph';
+import { kernname, ohneZierrat, lateinisch } from '@/lib/homoglyph';
 import { spielerbildKlein } from '@/lib/spielerbildKlein';
 import { sprechbar, aussprachePaare, setzeAussprachen } from '@/lib/aussprache';
 import { zahlWort } from '@/lib/tiktokAnfrage';
@@ -111,8 +111,14 @@ export async function tagZweiPrognose(opt: { ohne?: string[]; nur?: string; regi
     const elims = typeof e.elims === 'number' ? e.elims : spiele.reduce((s, m) => s + (m.elims ?? 0), 0);
     const plaetze = spiele.map((m) => m.placement).filter((p): p is number => typeof p === 'number');
     const schnittPlatz = plaetze.length ? plaetze.reduce((a, b) => a + b, 0) / plaetze.length : null;
-    return { e, spiele: spiele.length, form, schnitt, bestes, siege, top10, elims, schnittPlatz, hoch: Math.round(e.points + spieleJeTag * form) };
+    return { e, spiele: spiele.length, form, schnitt, bestes, siege, top10, elims, schnittPlatz, hoch: 0 };
   });
+  /*
+   * Halb eigene Form, halb Schnitt des Felds. Am FNCS-Solos-Finale EU (27./28.10.2026) nachgemessen: die reine Form des Tages rechnete den Fuehrenden auf 485 Punkte
+   * hoch, gewonnen wurde mit 452 - starke Tage gleichen sich am zweiten Tag aus. Der Schnitt des Felds sind die Formwerte der besten vierzig.
+   */
+  const feldForm = gerechnet.reduce((a, g) => a + g.form, 0) / Math.max(1, gerechnet.length);
+  for (const g of gerechnet) g.hoch = Math.round(g.e.points + spieleJeTag * (0.5 * g.form + 0.5 * feldForm));
   const prognose = [...gerechnet].sort((a, b) => b.hoch - a.hoch || a.e.rank - b.e.rank).slice(0, 5);
   const fuehrend = feld[0];
 
@@ -133,7 +139,7 @@ export async function tagZweiPrognose(opt: { ohne?: string[]; nur?: string; regi
     const namen = spieler.map((p) => {
       const id = (p.id ?? '').toLowerCase();
       const pr = karte.profile.get(id); const sz = karte.szene.get(id);
-      return (ohneZierrat(kernname(pr?.anzeige || pr?.name || sz?.name || p.name)).trim() || p.name).toUpperCase();
+      return lateinisch(ohneZierrat(kernname(pr?.anzeige || pr?.name || sz?.name || p.name)).trim() || p.name).toUpperCase();
     });
     const laender = spieler.map((p) => karte.profile.get((p.id ?? '').toLowerCase())?.land || karte.szene.get((p.id ?? '').toLowerCase())?.land || '');
     const fotos = spieler.map((p) => {
@@ -149,7 +155,8 @@ export async function tagZweiPrognose(opt: { ohne?: string[]; nur?: string; regi
       ? `Leads after ${tagWort} with ${zahlWort(g.e.points)} points${vorsprung > 0 ? `, ${zahlWort(vorsprung)} clear of second` : ''}.`
       :`Sits ${ordnungWort(g.e.rank)} after ${tagWort} with ${zahlWort(g.e.points)} points, ${zahlWort(abstand)} behind the lead.`);
     if (g.siege.length) saetze.push(`${g.siege.length === 1 ? 'A win' : `${gross(zahlWort(g.siege.length))} wins`} already, in game ${g.siege.map((n) => zahlWort(n)).join(' and game ')}.`);
-    if (g.spiele) saetze.push(`${gross(zahlWort(g.top10))} top ten finish${g.top10 === 1 ? '' : 'es'} in ${zahlWort(g.spiele)} games, ${zahlWort(g.elims)} elimination${g.elims === 1 ? '' : 's'}.`);
+    if (g.spiele && g.top10) saetze.push(`${gross(zahlWort(g.top10))} top ten finish${g.top10 === 1 ? '' : 'es'} in ${zahlWort(g.spiele)} games, ${zahlWort(g.elims)} elimination${g.elims === 1 ? '' : 's'}.`);
+    else if (g.spiele) saetze.push(`No top ten finish yet, but ${zahlWort(g.elims)} elimination${g.elims === 1 ? '' : 's'} in ${zahlWort(g.spiele)} games.`);
     if (g.bestes !== null && g.spiele >= 3) {
       saetze.push(`Take away the best game and it is still ${zahlWort(Math.round(g.form))} points a game.`);
     } else saetze.push(`That is ${zahlWort(Math.round(g.schnitt))} points a game.`);
@@ -185,9 +192,9 @@ export async function tagZweiPrognose(opt: { ohne?: string[]; nur?: string; regi
     datum: `${d.getUTCDate()} ${MONATE[d.getUTCMonth()]} ${d.getUTCFullYear()}`,
     seite: `${SEITE}/events/${encodeURIComponent(k.cup.id)}`,
     chip: 'Prediction', brettMarke: 'Projected',
-    introSatz: `${cupName.replace(/[^A-Za-z0-9 .,&-]/g, ' ')}, ${regionWort}. Day ${zahlWort(naechsterNr)} prediction. Who wins it all? Here is our top five, projected from ${tagWort} form: points per game without each player's best game, times the ${zahlWort(spieleJeTag)} games still to play.`,
+    introSatz: `${cupName.replace(/[^A-Za-z0-9 .,&-]/g, ' ')}, ${regionWort}. Day ${zahlWort(naechsterNr)} prediction. Who wins it all? Here is our top five, projected from ${tagWort} form: points per game without each player's best game, blended with the field average, over the ${zahlWort(spieleJeTag)} games still to play.`,
     outroSatz: 'A projection from real day one numbers, not a result. Live standings, maps and stats on the comp hub dot com.',
-    text: `${cupName} ${k.region} - Day ${naechsterNr} prediction 🔮\n\nProjected from ${tagKurz.toLowerCase()} form (points per game without each player's best game x ${spieleJeTag} games to play):\n${zeilen.map((z) => `${z.rang}. ${z.namen.join(' & ')} - ${z.wertText} pts projected (${z.beschreibung})`).join('\n')}\n\nWho is your pick? Live standings on thecomphub.com\n${hashtags}`,
+    text: `${cupName} ${k.region} - Day ${naechsterNr} prediction 🔮\n\nProjected from ${tagKurz.toLowerCase()} form (points per game without each player's best game, blended with the field average, x ${spieleJeTag} games to play):\n${zeilen.map((z) => `${z.rang}. ${z.namen.join(' & ')} - ${z.wertText} pts projected (${z.beschreibung})`).join('\n')}\n\nWho is your pick? Live standings on thecomphub.com\n${hashtags}`,
     dateiName: `prognose-${k.region.toLowerCase()}-day${naechsterNr}`,
     zeilen,
   } as TiktokDaten;

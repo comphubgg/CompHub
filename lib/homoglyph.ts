@@ -34,6 +34,14 @@ export function vergleichbar(text: string): string {
     .toLowerCase();
 }
 
+/**
+ * Fremdalphabet-Zwillinge auf Latein zurueckfuehren, Gross- und Kleinschreibung bleibt - fuer Namen, die angezeigt oder vorgelesen werden ("PАBLOWINGU" mit
+ * kyrillischem A war im TikTok-Video "P Blowingu").
+ */
+export function lateinisch(text: string): string {
+  return [...text.normalize('NFKC')].map((z) => ZWILLINGE[z] ?? z).join('');
+}
+
 /** Ist das erste Wort eine Organisation und kein Namensbestandteil? */
 function istOrgtag(wort: string): boolean {
   const rein = wort.toLowerCase().replace(/[^a-z0-9]/g, '');

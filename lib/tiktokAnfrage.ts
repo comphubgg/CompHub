@@ -3,6 +3,7 @@ import { POST as bildAbruf } from '@/app/api/spielerbild/route';
 import { spielerbildKlein } from '@/lib/spielerbildKlein';
 import type { TiktokDaten, TiktokZeile } from '@/lib/tiktokDaten';
 import { sprechbar, aussprachePaare } from '@/lib/aussprache';
+import { liesGalerie } from '@/lib/galerie';
 
 /*
  * Eigene TikTok-Videos (Betreiber, 20.10.2026): "ich will dieses Jahr die besten fuenf Spieler aus Statistics und eine Kurzbeschreibung, wieso sie die besten sind - oder die
@@ -157,20 +158,39 @@ export async function spielerRueckblick(o: { name: string; jahr: number }): Prom
   const p = await szene(`ansicht=profil&spieler=${gleich.epicId}&jahr=${o.jahr}`);
   const sp = (p.spieler ?? {}) as Platz & { namen?: string[]; regionen?: string[]; events?: number; matches?: number; anzeige?: string; land?: string };
   const jahrVon = (ms: unknown) => (typeof ms === 'number' ? new Date(ms).getUTCFullYear() : 0);
-  type Ergebnis = { titel: string; platz: number; datum: number; lan: boolean };
+  type Mit = { epicId?: string; name?: string };
+  type Ergebnis = { titel: string; platz: number; datum: number; lan: boolean; mit: string[] };
   const gesehen = new Set<string>();
   const alle: Ergebnis[] = [];
-  const dazu = (titel: string, platz: number, datum: number, lan: boolean) => {
+  const dazu = (titel: string, platz: number, datum: number, lan: boolean, mit: Mit[] = []) => {
     const k = `${titel}|${datum}`;
     if (!titel || !(platz > 0) || jahrVon(datum) !== o.jahr || gesehen.has(k)) return;
-    gesehen.add(k); alle.push({ titel, platz, datum, lan });
+    gesehen.add(k);
+    alle.push({ titel, platz, datum, lan, mit: mit.map((m) => String(m?.name ?? '').trim()).filter((n) => n && !/^[0-9a-f]{8,32}$/i.test(n)) });
   };
-  for (const e of (p.erfolge ?? []) as Array<{ titel: string; platz: number; datum: number; typ?: string }>) dazu(e.titel, e.platz, e.datum, e.typ === 'LAN');
-  for (const e of (p.epicZeilen ?? []) as Array<{ titel?: string; platz?: number; datum?: number; windowId?: string }>) dazu(String(e.titel || e.windowId || ''), Number(e.platz), Number(e.datum), false);
+  for (const e of (p.erfolge ?? []) as Array<{ titel: string; platz: number; datum: number; typ?: string; mitspieler?: Mit[] }>) dazu(e.titel, e.platz, e.datum, e.typ === 'LAN', e.mitspieler);
+  for (const e of (p.epicZeilen ?? []) as Array<{ titel?: string; platz?: number; datum?: number; windowId?: string; mitspieler?: Mit[] }>) dazu(String(e.titel || e.windowId || ''), Number(e.platz), Number(e.datum), false, e.mitspieler);
   // Die Bezeichnung "S39_SoloVictoryCup_..." ist kein Titel: nur lesbare Namen kommen ins Video.
   const lesbar = alle.filter((e) => !/^S\d+_/.test(e.titel));
   if (lesbar.length < 3) return { keinCup: true, grund: `Zu wenige Platzierungen von ${q} in ${o.jahr} (${lesbar.length})` };
-  const beste = lesbar.slice().sort((a, b) => a.platz - b.platz || b.datum - a.datum).slice(0, 5);
+  /*
+   * Was in einem Jahresrueckblick zaehlt (Aufgabe 149, Betreiber 21.10.2026): "Globals, FNCS und LAN-Events, nicht Solo-VCC-Siege". Jedes Ergebnis bekommt ein Gewicht nach
+   * der Art des Turniers, und das mal einem Faktor nach dem Platz (Sieg 1, Platz 2 die Haelfte, Platz 10 knapp ein Viertel) - ein zehnter Platz bei den Globals steht so vor
+   * einem Sieg in einem Victory Cup. Victory Cups, Cash Cups und Ranked kommen nur ins Video, wenn sonst keine fuenf Ergebnisse da sind.
+   */
+  const gewicht = (e: Ergebnis) => {
+    const t = e.titel.toLowerCase();
+    if (e.lan || /global championship|globals|world cup|summit|elite series championship|ewc/.test(t)) return 100;
+    if (/fncs/.test(t) && /grand final|major/.test(t)) return 80;
+    if (/fncs/.test(t) && /solo/.test(t) && /final/.test(t)) return 70;
+    if (/division 1|performance|reload elite|last chance/.test(t) && /final/.test(t)) return 50;
+    if (/victory|cash cup|vcc|ranked|practice/.test(t)) return 10;
+    return 30;
+  };
+  const wert = (e: Ergebnis) => gewicht(e) / (1 + Math.log2(e.platz));
+  const wichtig = lesbar.filter((e) => gewicht(e) > 10);
+  const auswahl = wichtig.length >= 5 ? wichtig : [...wichtig, ...lesbar.filter((e) => gewicht(e) <= 10).sort((a, b) => wert(b) - wert(a)).slice(0, 5 - wichtig.length)];
+  const beste = auswahl.slice().sort((a, b) => wert(b) - wert(a) || b.datum - a.datum).slice(0, 5);
   const neueste = lesbar.slice().sort((a, b) => b.datum - a.datum)[0];
   const tag = (ms: number) => { const d = new Date(ms); return `${d.getUTCDate()} ${MONATE[d.getUTCMonth()]}`; };
 
@@ -180,17 +200,26 @@ export async function spielerRueckblick(o: { name: string; jahr: number }): Prom
   const foto = absolut((gleich as { bild?: string }).bild) ?? absolut((sp as { bild?: string }).bild)
     ?? await fotoFuer([anzeige, String(gleich.name ?? ''), ...(((sp as { namen?: string[] }).namen ?? []).slice(0, 4))]);
   const land = String(sp.land ?? gleich.land ?? '');
+  // Bilder aus dem Spielerarchiv (Aufgabe 149: "Profilbilder und Bilder aus dem Spielerarchiv zeigen"): je Zeile ein anderes, wo es welche gibt - sonst das Profilfoto.
+  const archiv: string[] = [];
+  try {
+    const g = await liesGalerie();
+    for (const b of (g.eintraege ?? []) as Array<{ art?: string; datei?: string; spieler?: string[]; erstellt?: number }>) {
+      if (b.art === 'bild' && b.datei && (b.spieler ?? []).includes(String(gleich.epicId))) archiv.push(`${SEITE}/api/galerie?bild=${encodeURIComponent(b.datei)}`);
+    }
+  } catch { /* ohne Archiv das Profilfoto */ }
   const zeilen: TiktokZeile[] = beste.map((e, i) => {
     const rang = i + 1;
+    const mit = e.mit.length ? ` with ${e.mit.map((n) => sprechbar(n)).join(' and ')}` : '';
     return {
-      rang, namen: [NAME], gesprochen: gespr, aussprache: aussprachePaare([anzeige]), punkte: 0, wertText: e.platz === 1 ? 'WIN' : `#${e.platz}`, einheit: e.lan ? 'LAN' : 'ONLINE',
-      beschreibung: `${e.titel} · ${tag(e.datum)}`,
-      satz: `${rang === 1 ? 'Best result: ' : ''}${e.platz === 1 ? (rang === 1 ? 'a win' : 'A win') : `${rang === 1 ? 'place' : 'Place'} ${zahlWort(e.platz)}`} at ${e.titel.replace(/[^A-Za-z0-9 .,&-]/g, ' ')}.`,
-      laender: [land], fotos: [foto],
+      rang, namen: [NAME], gesprochen: gespr, aussprache: aussprachePaare([anzeige, ...e.mit]), punkte: 0, wertText: e.platz === 1 ? 'WIN' : `#${e.platz}`, einheit: e.lan ? 'LAN' : 'ONLINE',
+      beschreibung: `${e.titel}${e.mit.length ? ` · w/ ${e.mit.join(' & ')}` : ''} · ${tag(e.datum)}`,
+      satz: `${rang === 1 ? 'Biggest result: ' : ''}${e.platz === 1 ? (rang === 1 ? 'a win' : 'A win') : `${rang === 1 ? 'place' : 'Place'} ${zahlWort(e.platz)}`} at ${e.titel.replace(/[^A-Za-z0-9 .,&-]/g, ' ')}${mit}.`,
+      laender: [land], fotos: [archiv.length ? archiv[i % archiv.length] : foto],
     } as TiktokZeile;
   });
   const rang = (p.rang ?? {}) as { regional?: number; regionalVon?: number; region?: string };
-  const text = [`🏆 ${NAME} in ${o.jahr} - best placements`, '',
+  const text = [`🏆 ${NAME} in ${o.jahr} - biggest results`, '',
     ...zeilen.map((z) => `${z.rang}. ${z.wertText} - ${z.beschreibung}`), '',
     `${sp.events ?? '?'} events, ${sp.matches ?? '?'} matches in ${o.jahr}.`, `Full profile: thecomphub.com/statistics?spieler=${encodeURIComponent(anzeige)}`, '',
     '#fortnite #fortnitecompetitive #fncs #esports #comphub'].join('\n');
@@ -198,7 +227,7 @@ export async function spielerRueckblick(o: { name: string; jahr: number }): Prom
     vorlage: 'spieler', titel: `${NAME} ${o.jahr}`, cupName: `${NAME} · ${o.jahr}`, spieltag: 'Best placements', stufe: '', modus: '',
     marken: [String(o.jahr), ...((sp.regionen as string[] | undefined) ?? []).slice(0, 2)], region: (sp.regionen as string[] | undefined)?.[0] ?? 'EU', datum: `Season ${o.jahr}`,
     seite: `${SEITE}/statistics?spieler=${encodeURIComponent(anzeige)}`, zeilen,
-    introSatz: `${gespr} in ${jahrWort(o.jahr)}. ${zahlWort(Number(sp.events ?? 0)).replace(/^./, (c) => c.toUpperCase())} events, ${zahlWort(Number(sp.matches ?? 0))} matches${rang.regional ? `, ranked number ${zahlWort(rang.regional)} in ${REGION_GESPROCHEN[rang.region ?? 'EU'] ?? 'the region'}` : ''}. Here are the best placements.`,
+    introSatz: `${gespr} in ${jahrWort(o.jahr)}. ${zahlWort(Number(sp.events ?? 0)).replace(/^./, (c) => c.toUpperCase())} events, ${zahlWort(Number(sp.matches ?? 0))} matches${rang.regional ? `, ranked number ${zahlWort(rang.regional)} in ${REGION_GESPROCHEN[rang.region ?? 'EU'] ?? 'the region'}` : ''}. Here are the biggest results of the year.`,
     outroSatz: `Latest result: place ${zahlWort(neueste.platz)} at ${neueste.titel.replace(/[^A-Za-z0-9 .,&-]/g, ' ')}. More stats on the comp hub dot com.`,
     text, dateiName: `spieler-${gespr.toLowerCase().replace(/\s+/g, '-')}-${o.jahr}`,
   } as TiktokDaten;
