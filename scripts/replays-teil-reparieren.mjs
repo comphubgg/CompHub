@@ -103,10 +103,20 @@ for (const k of kandidaten) {
   const vorher = new Set(Object.entries(JSON.parse(zAlt.toString('utf8')).matches).filter(([, m]) => m.stand === 'PARSED').map(([id]) => id));
   const beginn = Date.now();
   console.log(`\n${k.fenster}: ${vorher.size} ausgewertete Matches neu lesen`);
-  const r = node('replays-holen.mjs', '--neu', k.fenster);
-  console.log(String(r.stdout ?? '').split('\n').filter((z) => /Matches|Fertig|offen|Nichts getroffen|Bestenliste/.test(z)).slice(-4).map((z) => `  ${z.trim()}`).join('\n'));
-  const zNeu = lies(zDatei);
-  const neuGelesen = new Set(Object.entries(zNeu?.matches ?? {}).filter(([, m]) => m.stand === 'PARSED' && Date.parse(m.zuletzt ?? '') >= beginn - 60_000).map(([id]) => id));
+  /*
+   * Bis zu dreimal: der Sammler braucht den Cup-Katalog der Seite, um den Spieltag zu finden. Startet der Server gerade neu (Veroeffentlichen), liest er gar nichts
+   * ("Werkzeug antwortet nicht", "Nichts getroffen") - am 28.10.2026 blieb so FNCS Solos Day 1 EU liegen. Dann eine Minute warten und noch einmal.
+   */
+  let neuGelesen = new Set();
+  for (let versuch = 1; versuch <= 3; versuch += 1) {
+    const r = node('replays-holen.mjs', '--neu', k.fenster);
+    console.log(String(r.stdout ?? '').split('\n').filter((z) => /Matches|Fertig|offen|Nichts getroffen|Bestenliste|antwortet/.test(z)).slice(-4).map((z) => `  ${z.trim()}`).join('\n'));
+    const zNeu = lies(zDatei);
+    neuGelesen = new Set(Object.entries(zNeu?.matches ?? {}).filter(([, m]) => m.stand === 'PARSED' && Date.parse(m.zuletzt ?? '') >= beginn - 60_000).map(([id]) => id));
+    if (neuGelesen.size || versuch === 3) break;
+    console.log(`  nichts gelesen (Versuch ${versuch}) - in einer Minute noch einmal`);
+    await new Promise((res) => setTimeout(res, 60_000));
+  }
   const fehlen = [...vorher].filter((id) => !neuGelesen.has(id));
   // Die Einzeldateien gehen nicht ans Release - nach dem Rechnen weg, damit die Platte des Rechners nicht vollaeuft.
   const aufraeumen = () => { for (const d of fs.readdirSync(ordner)) if (!d.startsWith('_')) fs.rmSync(path.join(ordner, d), { force: true }); };
