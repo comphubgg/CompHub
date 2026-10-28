@@ -149,6 +149,7 @@ var gd = replay.GameData;
 Console.WriteLine(JsonConvert.SerializeObject(new {
   version = 3,
   treffer = reader.TrefferListe(busAb),
+  nachgetragen = reader.Nachgetragen,
   schaden, schadenEreignisse = reader.Ereignisse, schadenZugeordnet = reader.Zugeordnet, schadenVorDemBus = reader.VorDemBus, schadenAufBoden = reader.AufBoden,
   busAb,
   figuren = reader.Figuren.Select(f => new { id = f.id, t = Math.Round(f.t, 1) }).ToList(),
@@ -216,6 +217,12 @@ class SchadenLeser : ReplayReader {
   readonly Dictionary<uint, uint> kanalAkteur = new();
   readonly HashSet<uint> figurKanaele = new();
   readonly Dictionary<uint, uint> figurVonAkteur = new();
+  /*
+   * Welche Figur (Akteur-Kennung) zu welchem Spieler gehoerte - dauerhaft (28.10.2026). Trifft ein Schuss eine Figur, deren Kanal gerade geschlossen ist
+   * (sie war fuer die Aufzeichnung kurz nicht relevant), ging der Treffer verloren: an den FNCS Solos Finals Day 2 EU fehlten so im Median 9 % des Schadens.
+   * Die Kennung einer Figur wird nicht fuer ein anderes Objekt wiederverwendet (anders als der Kanal - siehe oben); mit ihr: Median 97,7 % von Epics Wert.
+   */
+  readonly Dictionary<uint, int> spielerVonAkteur = new();
   /// Wann ein Spieler eine neue Figur bekam (Absprung, Reboot) - fuer die Solo Clutch Points.
   public readonly List<(int id, double t)> Figuren = new();
   readonly HashSet<uint> figurGemeldet = new();
@@ -264,7 +271,7 @@ class SchadenLeser : ReplayReader {
         if (wer?.Id is int pid2) { figurSpieler[channelIndex] = pid2; SturmListe.Add((pid2, tz, st)); }
       }
       figurKanaele.Add(channelIndex);
-      if (kanalAkteur.TryGetValue(channelIndex, out var akteur)) figurVonAkteur[akteur] = channelIndex;
+      if (kanalAkteur.TryGetValue(channelIndex, out var akteur)) { figurVonAkteur[akteur] = channelIndex; var wer0 = Hole(VonFigur, channelIndex); if (wer0?.Id is int sid) { spielerVonAkteur[akteur] = sid; teamVonSpieler[sid] = wer0.TeamIndex; } }
       // Eine neue Figur fuer einen Spieler: Absprung aus dem Bus oder Reboot.
       if (!figurGemeldet.Contains(channelIndex)) {
         var wem = Hole(VonFigur, channelIndex);
@@ -278,15 +285,16 @@ class SchadenLeser : ReplayReader {
     Ereignisse++;
     if (c.HitActor is null || c.Magnitude is null || c.Magnitude <= 0) return;
     if (!figurKanaele.Contains(channelIndex)) return;
-    if (!figurVonAkteur.TryGetValue(c.HitActor.Value, out var zielKanal) || !figurKanaele.Contains(zielKanal)) return;
     var von = Hole(VonFigur, channelIndex);
-    var an = Hole(VonFigur, zielKanal);
-    if (von?.Id is null || an?.Id is null || von.Id == an.Id) return;
-    if (von.TeamIndex is not null && von.TeamIndex == an.TeamIndex) return;
+    int? anId = null; int? anTeam = null;
+    if (figurVonAkteur.TryGetValue(c.HitActor.Value, out var zielKanal) && figurKanaele.Contains(zielKanal)) { var an0 = Hole(VonFigur, zielKanal); anId = an0?.Id; anTeam = an0?.TeamIndex; }
+    else if (spielerVonAkteur.TryGetValue(c.HitActor.Value, out var sid2)) { anId = sid2; anTeam = teamVonSpieler.TryGetValue(sid2, out var tv) ? tv : null; Nachgetragen++; }
+    if (von?.Id is null || anId is null || von.Id == anId) return;
+    if (von.TeamIndex is not null && von.TeamIndex == anTeam) return;
     Zugeordnet++;
-    Liste.Add((von.Id.Value, an.Id.Value, c.Magnitude.Value, c.bIsCritical == true, c.bIsShield == true, Zeit(), c.bIsFatal == true));
+    Liste.Add((von.Id.Value, anId.Value, c.Magnitude.Value, c.bIsCritical == true, c.bIsShield == true, Zeit(), c.bIsFatal == true));
     if (Roh.Count < RohZeilen) {
-      Roh.Add($"k={channelIndex} ziel={zielKanal} hit={c.HitActor} mag={c.Magnitude} krit={c.bIsCritical} schild={c.bIsShield} weg={c.bIsShieldDestroyed} fatal={c.bIsFatal} ball={c.bIsBallistic} waffe={c.bWeaponActivate} von={von.Id}/{von.TeamIndex} an={an.Id}/{an.TeamIndex}");
+      Roh.Add($"k={channelIndex} ziel={zielKanal} hit={c.HitActor} mag={c.Magnitude} krit={c.bIsCritical} schild={c.bIsShield} weg={c.bIsShieldDestroyed} fatal={c.bIsFatal} ball={c.bIsBallistic} waffe={c.bWeaponActivate} von={von.Id}/{von.TeamIndex} an={anId}/{anTeam}");
     }
   }
 
@@ -299,6 +307,8 @@ class SchadenLeser : ReplayReader {
    * Gegner da, bevor das Spiel ueberhaupt begonnen hatte.
    */
   public readonly List<(int von, int an, double hoehe, bool krit, bool schild, double? t, bool fatal)> Liste = new();
+  public int Nachgetragen;
+  readonly Dictionary<int, int?> teamVonSpieler = new();
   /// Wann ein Spieler am Boden lag (umgehauen bis aufgestanden oder tot) - aus dem Kill-Feed.
   public Dictionary<int, List<(double ab, double bis)>> AmBoden = new();
   public double OhneBodenGemacht(int id) => ohneBoden.TryGetValue(id, out var v) ? v : 0;

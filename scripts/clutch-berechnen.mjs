@@ -171,7 +171,7 @@ async function tag(eventId, windowId, idsVorab = null) {
     fs.writeFileSync(path.join(rohOrdner, `${windowId}.json`), JSON.stringify({ eventId, windowId, regeln, matches: rohMatches }));
   }
   fs.writeFileSync(path.join(ZIEL, `${windowId}.json`), JSON.stringify({
-    version: 3, eventId, windowId, gerechnet: new Date().toISOString(), regeln, matches, summe, spiele,
+    version: 4, eventId, windowId, gerechnet: new Date().toISOString(), regeln, matches, summe, spiele,
     ...(Object.keys(solo).length ? { solo } : {}),
     ...(Object.keys(schaden).length ? { schaden } : {}),
   }, null, 1));
@@ -222,7 +222,9 @@ if (arg[0] === '--alle') {
         const vorhanden = (() => { try { return JSON.parse(fs.readFileSync(path.join(ZIEL, `${t.windowId}.json`), 'utf8')); } catch { return null; } })();
         // Neu gerechnet wird auch, was noch nach der alten Clutch-Regel steht (vor Version 2) oder ohne Sturmzeit, Wiederbelebungen und Reboots (vor Version 3).
         const mitRoh = fs.existsSync(path.join(DATEN, 'clutch-roh', `${t.windowId}.json`));
-        if ((vorhanden && vorhanden.schaden && vorhanden.version >= 3 && mitRoh) || gilt) continue;
+        // Version 4 (28.10.2026): der Leser ordnet Treffer auf Figuren, deren Kanal gerade zu ist, ueber die Kennung der Figur zu - Damage im Median 97,7 % statt
+        // 90,9 % von Epics Wert (FNCS Solos Day 2 EU). Aeltere Ergebnisse werden einmal neu gerechnet, die neuesten zuerst.
+        if ((vorhanden && vorhanden.schaden && vorhanden.version >= 4 && mitRoh) || gilt) continue;
         tage.push({ eventId: t.eventId, windowId: t.windowId, datum: t.datum ?? 0 });
       } catch { /* eine kaputte Datei haelt nichts auf */ }
     }
