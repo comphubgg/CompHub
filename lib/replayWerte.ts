@@ -181,7 +181,11 @@ async function aggregateLesen(season: string): Promise<AggregatTag[]> {
           eventId: roh.eventId ?? '', region: roh.region ?? '',
           titel: roh.titel ?? w, datum: typeof roh.von === 'number' ? roh.von : null,
           ausgewertet: roh.matches ?? 0, gesamt,
-          spieler: roh.spieler.filter((k) => k.epicId),
+          // Aeltere Aggregate zaehlten Selbst-Eliminierungen (Sturm, Sturz) als Kill; sie stehen in den Opfern des Spielers selbst und werden abgezogen (28.10.2026).
+          spieler: roh.spieler.filter((k) => k.epicId).map((k) => {
+            const selbst = Number((k as { opfer?: Record<string, number> }).opfer?.[k.epicId] ?? 0);
+            return selbst ? { ...k, kills: Math.max(0, (k.kills ?? 0) - selbst) } : k;
+          }),
         } as AggregatTag;
       } catch { return null; }
     }));

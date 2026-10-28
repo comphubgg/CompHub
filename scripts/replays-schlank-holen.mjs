@@ -33,6 +33,8 @@ for (const tag of [`daten-replays-s${nr}`, `daten-replays-s${nr}-b`, `daten-repl
 }
 const schlank = await manifest(`daten-replays-schlank-s${nr}`).catch(() => ({}));
 
+// Schlanke Fassungen von vor diesem Stand zaehlten Selbst-Eliminierungen als Kill (siehe replays-schlank.mjs, v2) - sie werden einmal alle neu gebaut.
+const SCHLANK_STAND = Date.parse('2026-10-28T21:00:00Z');
 const noetig = [];
 for (const [anhang, m] of Object.entries(aggregate)) {
   const t = /^replays__(S\d+)__(.+)___aggregat\.json$/i.exec(anhang);
@@ -41,7 +43,7 @@ for (const [anhang, m] of Object.entries(aggregate)) {
   const agg = Date.parse(m.zeit ?? '') || 0;
   const sl = Date.parse(s?.zeit ?? '') || 0;
   // Eine vorhandene schlanke Fassung gilt als veraltet, wenn die Auswertung mehr als drei Stunden juenger ist (laufende Cups bekommen sie in der Live-Schleife)
-  if (!s || agg - sl > 3 * 3600_000) noetig.push({ fenster: t[2], saison: t[1], agg, fehlt: !s });
+  if (!s || agg - sl > 3 * 3600_000 || sl < SCHLANK_STAND) noetig.push({ fenster: t[2], saison: t[1], agg, fehlt: !s });
 }
 // Frisches zuerst; was ganz fehlt, vor dem, was nur veraltet ist.
 noetig.sort((a, b) => (b.fehlt - a.fehlt) || (b.agg - a.agg));

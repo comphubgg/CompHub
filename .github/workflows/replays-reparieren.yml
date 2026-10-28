@@ -1,0 +1,72 @@
+# Spieltage neu lesen, deren Replay-Auswertung halbe Matches enthaelt - und kleine Spieltage nach der Kill-Regel von Fassung 5 neu rechnen.
+#
+# Der Betreiber (28.10.2026): "dass wirklich alle Stats genau stimmen ... Zone 6 hat es nicht analysiert in beiden Tagen". Der Live-Sammler las Matches mitten im
+# Spiel (FNCS Solos Finals Day 2 EU: 4 von 6 Spielen nur zur Haelfte, 147 statt 560 Kills). Neue Matches prueft er jetzt gegen Epics Metadaten; dieser Ablauf
+# repariert, was schon falsch abgelegt ist (scripts/replays-teil-reparieren.mjs): zuerst die Spieltage mit Teil-Matches (Finals vorn), dann die uebrigen kleinen.
+# Was an einem Lauf nicht fertig wird, kommt beim naechsten dran; ist nichts mehr zu tun, endet er nach wenigen Minuten.
+
+name: Replays reparieren
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/replays-reparieren.yml'
+      - 'scripts/replays-teil-reparieren.mjs'
+      - 'scripts/replays-aggregieren.mjs'
+  workflow_dispatch:
+  schedule:
+    - cron: '25 */6 * * *'
+
+concurrency:
+  group: replays-reparieren
+  cancel-in-progress: false
+
+jobs:
+  reparieren:
+    runs-on: ubuntu-latest
+    timeout-minutes: 350
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Abhängigkeiten
+        run: npm ci --omit=optional
+
+      - name: Zugangsdaten
+        run: printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
+
+      - name: Epic-Anmeldung und Stand vom Release
+        run: |
+          node scripts/daten-sync.mjs --herunterladen --nur epic-auth.json 2>&1 | tail -2
+          node scripts/ablage-github-holen.mjs --ordner replays 2>&1 | tail -3
+          node scripts/ablage-github-holen.mjs --ordner epic-spieltage 2>&1 | tail -3
+
+      - name: Reparieren
+        continue-on-error: true
+        timeout-minutes: 310
+        env:
+          WERKZEUG_URL: https://www.thecomphub.com
+          MAX_REPLAY_DOWNLOADS: '4'
+          MAX_REPLAY_PARSERS: '3'
+        run: node scripts/replays-teil-reparieren.mjs --minuten 290 2>&1 | tail -120
+
+      - name: Ans GitHub-Release
+        if: always()
+        continue-on-error: true
+        timeout-minutes: 20
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          node scripts/ablage-github.mjs --nur replays 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -12
+          [ -d data/replays-schlank ] && node scripts/ablage-github.mjs --nur replays-schlank 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -8 || true
+
+      - name: Zugangsdaten wieder weg
+        if: always()
+        run: rm -f .env.local

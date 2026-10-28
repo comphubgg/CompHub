@@ -32,6 +32,12 @@
 //   - Leser-Abstuerze der Bibliothek (IndexOutOfRange) sind bei jedem Versuch dieselben
 // Jetzt: frische Matches zuerst; jeder Fehler hat eine Art (weg / leser / zeitweise) und einen Zeitpunkt, vor dem er nicht wiederholt wird.
 //
+//
+// Am 28.10.2026 gegen halbe Matches (Betreiber: "Zone 6 hat es nicht analysiert in beiden Tagen"): wer ein Replay herunterlaedt, waehrend das Spiel noch laeuft, bekommt nur den
+// Anfang - das letzte Spiel jedes Finaltags stand mit 2 von 13 Zonen und einem Fuenftel der Kills im Index und galt als fertig. Jetzt fragt der Lauf vorher Epics Metadaten
+// (bIsLive, LengthInMS) und vergleicht danach die Laenge des gelesenen Replays damit; ein Teil-Match gilt als nicht gelesen (Art "teil", kurze Pause) und wird wiederholt.
+// Bereits abgelegte Teil-Matches (ohne Ende, ohne Pruefmarke) werden an Ort und Stelle neu gelesen, solange Epic sie noch hat.
+//
 //   node scripts/replay-voll-holen.mjs [--hoechstens 200] [--parallel 4] [--minuten 20]
 //   node scripts/replay-voll-holen.mjs <eventId> <windowId>   ein Tag, egal wie alt
 
@@ -41,7 +47,7 @@ import os from 'node:os';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { createRequire } from 'node:module';
-import { matchIds } from '../lib/replayKern.mjs';
+import { matchIds, replayVorhanden } from '../lib/replayKern.mjs';
 
 const require = createRequire(import.meta.url);
 const { downloadReplay } = require('fortnite-serverreplay-downloader');
@@ -65,6 +71,7 @@ const STUNDE = 3600_000;
 
 /** Welcher Art ein Fehler ist - davon haengt ab, ob und wann es sich lohnt, das Match noch einmal anzufassen. */
 function fehlerArt(text) {
+  if (/^Unvollstaendig/i.test(text)) return 'teil';
   if (/folder_not_found|not_allowed|NotFound|HTTP 404/i.test(text)) return 'weg';
   if (/IndexOutOfRange|Zeitlimit|Zeit abgelaufen|SIGTERM|Code 3|NullReference|ArgumentOutOfRange|InvalidOperation|OutOfMemory|KeyNotFound|Code 1:/i.test(text)) return 'leser';
   return 'zeitweise';
@@ -76,6 +83,8 @@ function fehlerArt(text) {
  *   leser:     Absturz oder Haenger der Bibliothek - bei gleichem Leser immer wieder derselbe; zwei Wiederholungen im Abstand von 12 und 24 Stunden, danach nur
  *              noch, wenn LESER_STAND steigt
  *   zeitweise: Netz, Epic ueberlastet - 5 Minuten, wachsend bis 2 Stunden, ohne Ende
+ *   teil:      das Replay war beim Laden noch nicht ganz (Spiel laeuft, Epic laedt noch hoch) - 4, 8, 16 Minuten, dann alle 30; nach sechs Versuchen und sechs Stunden
+ *              nimmt abarbeiten() es, wie es ist (Pruefmarke unvollstaendig), damit ein Spiel, das Epic nie vollstaendig meldet, nicht ewig wartet
  */
 function naechsterVersuch(f, datum) {
   const letzter = Date.parse(f.zeit) || Date.now();
@@ -85,6 +94,7 @@ function naechsterVersuch(f, datum) {
     if (alt > 31 * 864e5 - 2 * STUNDE || n > 14) return null;
     return letzter + Math.min(6 * STUNDE, 10 * 60_000 * 3 ** Math.min(n - 1, 4));
   }
+  if (f.art === 'teil') return letzter + Math.min(30 * 60_000, 4 * 60_000 * 2 ** Math.min(n - 1, 4));
   if (f.art === 'leser') {
     // Ein Eintrag aus einer frueheren Leserfassung wird einmal neu versucht - ausser er ist aus der Zeit vor dieser Regel (ohne Stand) und hat schon dutzende Versuche hinter sich.
     if (f.stand && f.stand !== LESER_STAND) return letzter;
@@ -97,6 +107,25 @@ function naechsterVersuch(f, datum) {
 if (!fs.existsSync(WERKZEUG) && !arg.includes('--liste')) {
   console.log(`Leser fehlt (${WERKZEUG}) - erst: dotnet build tools/replay-voll -c Release`);
   process.exit(0);
+}
+
+/**
+ * Ist dieser abgelegte Match nur ein Anfang? Teil-Matches haben kein Ende (MatchEndTime fehlt, solange das Spiel laeuft); Eintraege, die der Lauf selbst auf
+ * Vollstaendigkeit geprueft hat (vollstaendig / unvollstaendig), sind entschieden. Was Epic nicht mehr hat (ab 29 Tagen), ist nicht mehr zu retten; die Massen-Qualifier
+ * liest dieser Leser gar nicht.
+ */
+const MASSEN = /LastChanceQualifier|FNCSSoloQualifiers_/i;
+const teilgelesen = (m, datum) => Boolean(m) && m.ende == null && !m.vollstaendig && !m.unvollstaendig && !MASSEN.test(m.windowId ?? '')
+  && Date.now() - (Date.parse(m.beginn ?? '') || datum || 0) < 29 * 864e5;
+/**
+ * Warum das gelesene Replay nicht das ganze Match ist - null, wenn es vollstaendig ist. Mit Epics Metadaten: Laenge des Replays gegen LengthInMS (ein Teil-Match kam
+ * mit 420 s statt 1436 s). Ohne Metadaten: ein Ende oder die Zonen eines ganzen Matches (zwolf und mehr).
+ */
+function unvollstaendigGrund(m, meta) {
+  if (meta?.LengthInMS && m.laenge) {
+    return m.laenge >= 0.97 * meta.LengthInMS ? null : `${Math.round(m.laenge / 1000)} s von ${Math.round(meta.LengthInMS / 1000)} s`;
+  }
+  return m.ende != null || (m.zonen ?? []).length >= 8 ? null : 'ohne Ende, wenige Zonen';
 }
 
 const index = liesJson(INDEX, { matches: {} });
@@ -201,7 +230,7 @@ async function mitWiederholung(name, tun, versuche = 3) {
 
 let aufgegeben = 0; let wartend = 0;
 /** Hat dieser Tag einen gescheiterten Match, der jetzt wieder dran ist? Nur dann lohnt die Abfrage trotz einer frischen Pruefung. */
-const faelligerFehler = (tag) => Object.values(index.fehler).some((x) => {
+const faelligerFehler = (tag) => Object.values(index.matches).some((m) => m.windowId === tag.windowId && teilgelesen(m, tag.datum)) || Object.values(index.fehler).some((x) => {
   if (x.windowId !== tag.windowId) return false;
   x.art ??= fehlerArt(x.fehler ?? '');
   const w = naechsterVersuch(x, tag.datum);
@@ -218,7 +247,7 @@ async function aufgaben() {
     try { ids = [...await mitWiederholung(`${tag.windowId} Sitzungen`, () => matchIds(tag.eventId, tag.windowId, 3), 2)]; } catch (e) { console.log(`  ${tag.windowId}: ${e.message}`); continue; }
     index.geprueft[tag.windowId] = Date.now();
     for (const id of ids) {
-      if (index.matches[id]) continue;
+      if (index.matches[id] && !teilgelesen(index.matches[id], tag.datum)) continue;
       const f = index.fehler[id];
       if (f) {
         f.art ??= fehlerArt(f.fehler ?? '');
@@ -239,6 +268,12 @@ let erledigt = 0; let gescheitert = 0;
 async function abarbeiten({ id, tag }) {
   const tmp = path.join(os.tmpdir(), `voll-${id}.replay`);
   try {
+    // Epics Metadaten vorab: laeuft das Spiel noch (bIsLive), waere das Replay nur der Anfang - dann gar nicht erst 200 MB laden. Sind die Metadaten nicht erreichbar, gilt die Pruefung am Ende ohne sie.
+    let meta = null;
+    try { meta = (await replayVorhanden(id)).metadaten; } catch { meta = null; }
+    const vorher = index.fehler[id];
+    const geduldAus = (vorher?.art === 'teil' ? vorher.versuche : 0) >= 6 && Date.now() - (tag.datum ?? Date.now()) > 6 * STUNDE;
+    if (meta?.bIsLive && !geduldAus) throw new Error('Unvollstaendig: Epic fuehrt das Replay noch als live');
     const puffer = await mitWiederholung(`${id} herunterladen`, async () => {
       try { return await downloadReplay({ matchId: id, dataCount: 100000, checkpointCount: 100000, eventCount: 100000 }); }
       catch (e) { if (fehlerArt(String(e?.message ?? e)) === 'weg') e.dauerhaft = true; throw e; }
@@ -257,6 +292,8 @@ async function abarbeiten({ id, tag }) {
         throw fehler;
       }
     }, 2);
+    const grund = unvollstaendigGrund(m, meta);
+    if (grund && !geduldAus) throw new Error(`Unvollstaendig: ${grund}`);
     const monat = (m.beginn ?? new Date(tag.datum ?? Date.now()).toISOString()).slice(0, 7);
     const rel = path.join('replay-voll', monat, tag.windowId, `${id}.json`);
     fs.mkdirSync(path.dirname(path.join(DATEN, rel)), { recursive: true });
@@ -266,6 +303,8 @@ async function abarbeiten({ id, tag }) {
       region: tag.region, season: tag.season, beginn: m.beginn, ende: m.ende,
       sieger: (m.spieler ?? []).filter((p) => !p.bot && p.team === m.sieger).map((p) => p.name),
       spieler: (m.spieler ?? []).filter((p) => !p.bot).length, zonen: (m.zonen ?? []).length,
+      // Pruefmarke (28.10.2026): vollstaendig = Laenge gegen Epics Metadaten geprueft; unvollstaendig = Epic hat es nie ganz geliefert, genommen, wie es ist.
+      laenge: m.laenge ?? null, ...(grund ? { unvollstaendig: true } : { vollstaendig: true }),
     };
     delete index.fehler[id];
     speichereIndex();

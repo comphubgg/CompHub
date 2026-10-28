@@ -463,6 +463,16 @@ async function verarbeite(f, matchId, zustand) {
       });
       return 'nicht_vorhanden';
     }
+    /*
+     * Ein Replay, das Epic noch als live fuehrt, ist nur der Anfang des Spiels (28.10.2026: in den FNCS Solos Finals standen die Spiele 2 bis 5 mit 11 bis 27 statt
+     * rund hundert Eliminierungen in der Auswertung - gelesen zehn Minuten nach dem Start). Dann gilt es als noch nicht da und wird nach zehn Minuten wieder
+     * gefragt. Haengt die Live-Marke nach sechs Stunden noch, wird gelesen, was da ist.
+     */
+    const seitStart = Date.now() - (Date.parse(metadaten?.Timestamp ?? '') || Date.now());
+    if (metadaten?.bIsLive && seitStart < 6 * 3600_000) {
+      setze(ZUSTAND.NICHT_VORHANDEN, { erstmals: zustand.matches[matchId]?.erstmals ?? new Date().toISOString(), live: true });
+      return 'nicht_vorhanden';
+    }
     setze(ZUSTAND.VORHANDEN, { zeitpunkt: metadaten.Timestamp ?? null });
 
     setze(ZUSTAND.LAEDT);
@@ -471,6 +481,11 @@ async function verarbeite(f, matchId, zustand) {
 
     setze(ZUSTAND.WERTET_AUS);
     const daten = await leseSchleuse(() => leseMatch(matchId, puffer));
+    // Dasselbe nach dem Lesen: ist das Replay kuerzer als das Spiel laut Epic, wurde es geladen, bevor Epic es fertig abgelegt hatte.
+    if (metadaten?.LengthInMS && daten.dauerMs && daten.dauerMs < 0.97 * metadaten.LengthInMS && seitStart < 6 * 3600_000) {
+      setze(ZUSTAND.NICHT_VORHANDEN, { erstmals: zustand.matches[matchId]?.erstmals ?? new Date().toISOString(), teil: true });
+      return 'nicht_vorhanden';
+    }
 
     /*
      * Bei einem Finale zusaetzlich die Lobby aus dem Replay lesen.
@@ -522,7 +537,7 @@ async function verarbeite(f, matchId, zustand) {
       parserVersion: daten.parserVersion,
       // Nur der Ort, nicht die Datei selbst - so wie gewuenscht.
       pfad: path.relative(process.cwd(), matchPfad(f.season, f.windowId, matchId)),
-      fehler: null,
+      fehler: null, live: undefined, teil: undefined,
     });
     return 'fertig';
   } catch (e) {

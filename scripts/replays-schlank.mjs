@@ -14,6 +14,9 @@
 //
 // Neu geschrieben wird nur, wo die Auswertung neuer ist als die schlanke Fassung.
 //
+// v2 (28.10.2026): Selbst-Eliminierungen (Sturm, Sturz) zaehlen nicht als Kill. Aeltere Auswertungen fuehren sie in den Opfern des Spielers selbst
+// (opfer[eigene Id]); das wird hier abgezogen, ohne ein Replay neu zu lesen. Die Team-Summen ebenso.
+//
 //   node scripts/replays-schlank.mjs [fenster ...]   ohne Angabe alle Fenster der Platte, sonst nur die genannten (die Live-Schleife nennt die frisch angefassten)
 
 import fs from 'node:fs';
@@ -36,7 +39,10 @@ for (const saison of fs.existsSync(QUELLE) ? fs.readdirSync(QUELLE) : []) {
     if (fs.existsSync(ziel) && fs.statSync(ziel).mtimeMs >= fs.statSync(agg).mtimeMs) { gleich += 1; continue; }
     let a;
     try { a = JSON.parse(fs.readFileSync(agg, 'utf8')); } catch { kaputt += 1; continue; }
-    const echte = (a.spieler ?? []).filter((s) => s.epicId && s.epicId !== 'bot');
+    const selbst = (s) => Number(s.opfer?.[s.epicId] ?? 0);
+    const echte = (a.spieler ?? []).filter((s) => s.epicId && s.epicId !== 'bot').map((s) => ({ ...s, kills: Math.max(0, (s.kills ?? 0) - selbst(s)) }));
+    const selbstVon = new Map((a.spieler ?? []).map((s) => [s.epicId, selbst(s)]));
+    const teams = (a.teams ?? []).map((t) => ({ ...t, kills: Math.max(0, (t.kills ?? 0) - (t.spieler ?? []).reduce((x, id) => x + (selbstVon.get(id) ?? 0), 0)) }));
     const spieler = echte
       .filter((s) => (s.kills ?? 0) > 0 || (s.knocks ?? 0) > 0)
       .sort((x, y) => (y.kills ?? 0) - (x.kills ?? 0) || (y.knocks ?? 0) - (x.knocks ?? 0))
@@ -48,10 +54,10 @@ for (const saison of fs.existsSync(QUELLE) ? fs.readdirSync(QUELLE) : []) {
     } catch { /* ohne Zustand */ }
     fs.mkdirSync(path.dirname(ziel), { recursive: true });
     fs.writeFileSync(ziel, JSON.stringify({
-      v: 1, windowId: fenster, season: saison,
+      v: 2, windowId: fenster, season: saison,
       matches: a.matches ?? 0, elims: a.elims ?? null, quelle: a.quelle ?? null, gerechnet: a.gerechnet ?? null,
       rundenGesamt, spielerGesamt: echte.length, spieler,
-      teams: a.teams ?? [], lobbys: a.lobbys ?? {},
+      teams, lobbys: a.lobbys ?? {},
     }));
     neu += 1;
   }

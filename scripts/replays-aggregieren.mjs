@@ -63,8 +63,11 @@ const nurFenster = argumente.filter((a) => !a.startsWith('--'));
  *     ganze Aufstellung mit echter Platzierung.
  * 4 - die Kennungen der enthaltenen Matches ("matchIds"), damit sich ein
  *     Aggregat um Matches ergaenzen laesst, die anderswo liegen.
+ * 5 - Kills wie Epic: keine Selbst-Eliminierung, kein Kill nach dem eigenen
+ *     letzten Tod (28.10.2026). Ein Aggregat traegt die kleinste Fassung
+ *     seiner Teile - eine Ergaenzung macht aus Fassung 4 keine 5.
  */
-const AGGREGAT_FASSUNG = 4;
+const AGGREGAT_FASSUNG = 5;
 const PLATZIERUNGEN = path.join(process.cwd(), 'data', 'platzierungen');
 const EPIC_SPIELTAGE = path.join(process.cwd(), 'data', 'epic-spieltage');
 
@@ -250,9 +253,20 @@ async function fensterRechnen(season, windowId, basis = null, nurDiese = null) {
       }
     }
 
+    /*
+     * Kills so, wie Epic sie zaehlt (28.10.2026 an den sechs Spielen der FNCS Solos Finals Day 2 EU geprueft: 600 von 600 Spielerwerten genau, vorher 590):
+     *   - wer sich selbst ausschaltet (Sturm, Sturz), hat keinen Kill
+     *   - ein Kill, der erst nach dem eigenen letzten Tod gutgeschrieben wird (das Opfer stirbt spaeter am Schaden des schon Ausgeschiedenen), zaehlt nicht.
+     *     Der letzte Tod, nicht der erste: wer rebootet wird oder im Reload wieder einsteigt, darf danach weiter Kills holen.
+     */
+    const letzterTod = {};
+    for (const e of m.elims ?? []) {
+      if (!e.knock && e.opfer && e.zeit !== null && e.zeit !== undefined) letzterTod[e.opfer] = Math.max(letzterTod[e.opfer] ?? -Infinity, e.zeit);
+    }
     for (const e of m.elims ?? []) {
       elimsGesamt++;
-      if (e.taeter && spieler.has(e.taeter)) zaehle(spieler.get(e.taeter), e, 'taeter');
+      const nachTod = e.zeit !== null && e.zeit !== undefined && letzterTod[e.taeter] !== undefined && e.zeit > letzterTod[e.taeter];
+      if (e.taeter && e.taeter !== e.opfer && !nachTod && spieler.has(e.taeter)) zaehle(spieler.get(e.taeter), e, 'taeter');
       if (e.opfer && spieler.has(e.opfer)) zaehle(spieler.get(e.opfer), e, 'opfer');
     }
   }
@@ -295,7 +309,7 @@ async function fensterRechnen(season, windowId, basis = null, nurDiese = null) {
     lobbys,
     /** Welche Matches darin stecken - siehe ganz oben. */
     matchIds: [...matchIds].sort(),
-    aggregatFassung: AGGREGAT_FASSUNG,
+    aggregatFassung: basis ? Math.min(Number(basis.aggregatFassung) || 0, AGGREGAT_FASSUNG) : AGGREGAT_FASSUNG,
   };
 }
 
