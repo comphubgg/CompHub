@@ -792,9 +792,10 @@ export async function findeSpieler(
     sammle(await holeSeite(eventId, windowId, 0, nurIds));
     scanned++;
     const grenze = Math.min(maxPages, totalPages);
-    for (let p = 1; p < grenze && treffer.size < gesucht; p += 10) {
+    // Seit 28.10.2026 zwanzig gleichzeitig (Betreiber: "beim eigenen Account steht Loading ... laedt zu lange"): kalt waren es bis zu sieben Sekunden.
+    for (let p = 1; p < grenze && treffer.size < gesucht; p += 20) {
       const staffel: Array<ReturnType<typeof holeSeite>> = [];
-      for (let k = p; k < Math.min(p + 10, grenze); k++) staffel.push(holeSeite(eventId, windowId, k, nurIds));
+      for (let k = p; k < Math.min(p + 20, grenze); k++) staffel.push(holeSeite(eventId, windowId, k, nurIds));
       for (const res of await Promise.all(staffel)) { scanned++; sammle(res); }
     }
   }

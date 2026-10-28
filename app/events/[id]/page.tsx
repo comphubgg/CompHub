@@ -4454,7 +4454,9 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
           </div>
         )}
 
-        {reiter === 'spieler' && !soloCup && (
+        {/* Ohne Replays steht oben schon die Team-Uebersicht aus Epics Bestenliste - dann kein leerer Kasten darunter (Betreiber, 28.10.2026: "nirgendwo darf
+            es so aussehen"). Er bleibt nur, wenn es gar keine Werte gibt. */}
+        {reiter === 'spieler' && !soloCup && !(spielerWerte && !spielerWerte.vorhanden && teamZeilen.length > 0) && (
           <section className="rounded-xl border border-zinc-800 bg-zinc-950/60">
             <header className="flex flex-wrap items-center justify-between gap-3
                                border-b border-zinc-800 px-4 py-3">

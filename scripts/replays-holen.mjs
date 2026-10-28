@@ -517,7 +517,12 @@ async function verarbeite(f, matchId, zustand) {
      * Stunden (vier Sekunden und einundsechzig Megabyte je Match).
      */
     let lobby = null;
-    if (f.istEndrunde || (f.matchAnzahl ?? 0) <= 500) {
+    /*
+     * Seit dem 28.10.2026 wieder nur in der Endrunde. 251 Spieltage der letzten 30 Tage hatten gar keine Auswertung (Inoxtag Icon Cup EU: "No replays
+     * analysed") - der Sammler kam nicht hinterher, weil er jede offene Runde bis 500 Matches zusaetzlich tief las (61 MB statt 2 MB je Match, dazu Abstuerze
+     * des Lesers). Player Stats brauchen nur die Ereignisse; die Aufstellung mit Platz ist im Finale wichtig, in offenen Runden eine Zugabe.
+     */
+    if (f.istEndrunde) {
       try {
         lobby = await leseSchleuse(() => leseMatchTief(matchId));
       } catch (e) {
@@ -737,7 +742,8 @@ async function main() {
   const { fenster, zuAlt, uebersprungen: nichtWuerdig } = await offeneFenster();
   const ziel = nurFenster.length
     ? fenster.filter((f) => nurFenster.includes(f.windowId))
-    : fenster;
+    // Mehrere Rechner (--teil n/4) auch hier reihum (28.10.2026): bis dahin legte nur einer neue Spieltage an, 27 Minuten je Lauf - zu wenig fuer 251 offene.
+    : teilVon > 1 ? fenster.filter((_, i) => i % teilVon === teilNr % teilVon) : fenster;
 
   console.log(nurLive
     ? `${fenster.length} Fenster laufen gerade`

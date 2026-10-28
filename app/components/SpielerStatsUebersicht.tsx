@@ -147,7 +147,9 @@ export default function SpielerStatsUebersicht({ spieler, matches, aktualisiert,
     const beste = spieler.filter((s) => Number(s[k.feld]) > 0)
       .sort((a, b) => Number(b[k.feld]) - Number(a[k.feld]))[0];
     return { k, beste };
-  });
+  })
+    // Nur Kennzahlen mit einem Wert (Betreiber, 28.10.2026: keine Kachel mit "Epic liefert diesen Wert nicht" - nirgendwo).
+    .filter((x) => x.beste);
 
   const auswahl = 'rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-1.5 text-sm text-slate-200 outline-none focus:border-sky-500';
 
@@ -237,7 +239,7 @@ export default function SpielerStatsUebersicht({ spieler, matches, aktualisiert,
         )}
       </p>
 
-      <StatKacheln spieler={spieler} listen={OSIRION_KACHELN} anzahl={5} leereZeigen leerText={leerText} />
+      <StatKacheln spieler={spieler} listen={OSIRION_KACHELN} anzahl={5} leerText={leerText} />
     </div>
   );
 }
