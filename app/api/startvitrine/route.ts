@@ -81,10 +81,20 @@ async function cupsHolen(): Promise<VCup[]> {
   const liste = await mapsVerzeichnis();
   const jetzt = Date.now();
   const fertig = liste.filter((e) => e.eventId && e.datum && (e.ende ?? (e.datum as number) + 4 * 3600_000) < jetzt);
+  /*
+   * Nur, was frisch ist (28.10.2026): die Karte zeigte als Division den 19.9. - die Divisions waren seit fuenf Wochen vorbei. Eine Art
+   * ohne Cup in den letzten drei Wochen faellt weg; fehlen dann Karten, kommen die naechstneuen Cups anderer Arten dazu.
+   */
+  const FRISCH = 21 * 864e5;
+  const neueste = [...fertig].sort((a, b) => (b.datum ?? 0) - (a.datum ?? 0));
   const wahl: MapEintrag[] = [];
   for (const typ of ['performance', 'division', 'fncs', 'reload'] as MapTyp[]) {
-    const e = fertig.filter((x) => x.typ === typ).sort((a, b) => (b.datum ?? 0) - (a.datum ?? 0))[0];
-    if (e) wahl.push(e);
+    const e = neueste.find((x) => x.typ === typ);
+    if (e && jetzt - (e.datum ?? 0) < FRISCH) wahl.push(e);
+  }
+  for (const e of neueste) {
+    if (wahl.length >= 4) break;
+    if (!wahl.includes(e) && !wahl.some((w) => w.titel === e.titel && w.region === e.region)) wahl.push(e);
   }
   const profile = await liesJson<Record<string, { anzeige?: string; name?: string; land?: string }>>('spieler-profile.json', {}).catch(() => ({} as Record<string, { anzeige?: string; name?: string; land?: string }>));
   // Der echte Name zu jedem Konto (Betreiber, 19.10.2026: Namen aus Zahlen "stimmen nicht - das musst du herausfinden"): Profil, Szene-Liste, sonst Epics Name ohne Orgtag.
@@ -92,7 +102,20 @@ async function cupsHolen(): Promise<VCup[]> {
   const raus: VCup[] = [];
   await Promise.all(wahl.map(async (e) => {
     try {
-      const top = await gecacht(`vitrine|top|${e.windowId}`, 15 * 60_000, () => holeTop(e.eventId as string, e.windowId, 8, false));
+      /*
+       * Mehrtaegige Finals (FNCS Solos) fuehrt das Kartenverzeichnis unter einer Kennung ohne Tag ("S42_FNCSSolo_Final_NAW") - eine
+       * Bestenliste gibt es nur je Tag. Dann gilt der letzte Tag, den Epic kennt.
+       */
+      const kandidaten = [e.windowId, ...['Day3', 'Day2', 'Day1'].map((t) => e.windowId.replace(/_(EU|NAC|NAW|BR|ASIA|ME|OCE)$/, `_${t}_$1`))]
+        .filter((w, i, a) => a.indexOf(w) === i);
+      let top: unknown = null;
+      for (const w of kandidaten) {
+        try {
+          const t = await gecacht(`vitrine|top|${w}`, 15 * 60_000, () => holeTop(e.eventId as string, w, 8, false));
+          if (((t as { entries?: unknown[] }).entries ?? []).length) { top = t; break; }
+        } catch { /* naechster Tag */ }
+      }
+      if (!top) return;
       const zeilen: CupZeile[] = ((top as { entries?: Array<{ rank: number; points: number; wins: number; elims: number; players: Array<{ id: string; name?: string }> }> }).entries ?? [])
         .slice(0, 6).map((z) => ({
           rang: z.rank, punkte: z.points, siege: z.wins, elims: z.elims,

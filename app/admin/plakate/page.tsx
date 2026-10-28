@@ -13,8 +13,8 @@ import KartenPlakat from './KartenPlakat';
  * Spieltage (mehrere Tage eines Finales rechnen sich zusammen), den Spieler oder das Team und sieht gleich das Bild. Herunterladen, als Bild kopieren oder den Text zum Beitrag nehmen.
  */
 
-type Art = 'spieler' | 'standings' | 'finale' | 'top5' | 'karte';
-const ARTEN: Array<[Art, string]> = [['spieler', 'Spieler'], ['standings', 'Standings'], ['finale', 'Finale'], ['top5', 'Top 5'], ['karte', 'Karte']];
+type Art = 'spieler' | 'standings' | 'finale' | 'top5' | 'earnings' | 'karte';
+const ARTEN: Array<[Art, string]> = [['spieler', 'Spieler'], ['standings', 'Standings'], ['finale', 'Finale'], ['top5', 'Top 5'], ['earnings', 'Earnings-Zeitstrahl'], ['karte', 'Karte']];
 
 interface Fenster { status: string; begin: number; end?: number; eventId: string; windowId: string; region: string; istFinale: boolean }
 interface Cup { id: string; titel: string; regionen: Record<string, Fenster[]> }
@@ -97,6 +97,11 @@ export default function PlakatSeite() {
       q.set('region', topRegion); q.set('liste', liste); q.set('jahr', String(jahr));
       return `/api/plakat?${q.toString()}`;
     }
+    if (art === 'earnings') {
+      if (spieler.trim().length < 2) return '';
+      q.set('q', spieler.trim());
+      return `/api/plakat?${q.toString()}`;
+    }
     const f = fenster.find((x) => tage.includes(x.windowId));
     if (!f || !tage.length) return '';
     q.set('event', f.eventId); q.set('windows', tage.join(','));
@@ -171,7 +176,12 @@ export default function PlakatSeite() {
         {art === 'karte' ? <KartenPlakat /> : (
         <div className="grid gap-6 lg:grid-cols-[22rem_1fr]">
           <section className="space-y-4 rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5">
-            {art === 'top5' ? (
+            {art === 'earnings' ? (
+              <label className="block"><span className={beschriftung}><T>Spieler</T></span>
+                <input value={spieler} onChange={(e) => setSpieler(e.target.value)} placeholder={t('Name wie im Profil, z. B. Peterbot')} spellCheck={false} className={feld} />
+                <span className="mt-2 block text-[11px] leading-snug text-slate-500"><T>Preisgeld je Jahr seit 2019 aus Epics Auszahlungstabellen und den LAN-Preislisten - dieselben Zahlen wie in der Statistik.</T></span>
+              </label>
+            ) : art === 'top5' ? (
               <>
                 <label className="block"><span className={beschriftung}><T>Liste</T></span>
                   <select value={liste} onChange={(e) => setListe(e.target.value)} className={feld}>
@@ -247,7 +257,7 @@ export default function PlakatSeite() {
                 : (
                   <p className="px-6 py-24 text-center text-sm text-slate-500">
                     {bauen ? <T>Plakat wird gezeichnet …</T>
-                      : bildFehler || (art === 'top5' ? <T>Das Plakat erscheint hier.</T> : <T>Cup, Region und mindestens einen Spieltag wählen — dann erscheint das Plakat hier.</T>)}
+                      : bildFehler || (art === 'top5' || art === 'earnings' ? <T>Das Plakat erscheint hier.</T> : <T>Cup, Region und mindestens einen Spieltag wählen — dann erscheint das Plakat hier.</T>)}
                   </p>
                 )}
               {bauen && bildUrl && <span className="absolute right-5 top-5 rounded-full bg-zinc-950/80 px-3 py-1 text-[11px] text-slate-300"><T>zeichnet …</T></span>}

@@ -6,6 +6,9 @@ import { istAdminAnfrage } from '@/lib/adminPruefung';
 import { fokusVon } from '@/lib/fotoFokus';
 import { plakatTeams, plakatText, feldGroesse, type PlakatTeam, type PlakatSpieler } from '@/lib/plakatDaten';
 import { topFuenf } from '@/lib/tiktokAnfrage';
+import { verdienstPosten, type VerdienstPosten } from '@/lib/szeneStats';
+import { spielerKontext } from '@/lib/globalsSolos';
+import { liesJson } from '@/lib/ablage';
 
 /*
  * Plakate zum Posten (Betreiber, 21.10.2026): "ein Plakat im eigenen Stil und mit anderer Anordnung fuer Team Stats bzw. Solo Stats, fuer Standings, fuer Finals und andere
@@ -15,6 +18,7 @@ import { topFuenf } from '@/lib/tiktokAnfrage';
  *   GET ?art=standings&event=..&windows=..&anzahl=10                 die Besten einer Bestenliste mit Foto, Punkten, Siegen, Eliminierungen
  *   GET ?art=finale&event=..&windows=..&preis=$253,500               der Sieger gross, dahinter die naechsten Plaetze
  *   GET ?art=top5&region=EU&liste=verdienst&jahr=2026                Top 5 einer Statistik (wie das TikTok-Video)
+ *   GET ?art=earnings&q=<Name>|&id=<Konto>                           Preisgeld eines Spielers Jahr fuer Jahr seit 2019 (Zeitstrahl wie bei Swizzy)
  *   &titel=..&stufe=..&region=..&datum=..                            die Kopfzeilen (kommen von der Seite /admin/plakate)
  *   &format=json                                                     statt des Bildes ein Beitragstext mit den X-Konten (und die Teams)
  *
@@ -359,6 +363,120 @@ function top5Plakat(d: Top5, b: Bilder) {
   );
 }
 
+/* ------------------------------------------------------------------ Earnings-Zeitstrahl */
+
+/*
+ * Das Preisgeld eines Spielers Jahr fuer Jahr (Aufgabe 160, Betreiber 26.10.2026: "Earnings-Zeitstrahl 2019 bis 2026 wie bei Swizzy").
+ * Dieselben Posten wie die Jahreslisten der Statistik (lib/szeneStats, verdienstPosten): Epics Auszahlungstabellen je Spieltag, die
+ * Verdienst-Akte seit 2019 und die LAN-Preislisten. Was dort fehlt, fehlt auch hier - geschaetzt wird nichts.
+ */
+const ERSTES_JAHR = 2019;
+
+interface Zeitstrahl {
+  name: string; land: string | null; bild: string | null;
+  jahre: Array<{ jahr: number; betrag: number }>;
+  gesamt: number;
+  groesste: Array<{ titel: string; datum: number | null; betrag: number }>;
+}
+
+/** Name oder Konto-Id -> Konto: zuerst die Profis mit Foto, dann das Namensverzeichnis. */
+async function kontoZu(q: string): Promise<string | null> {
+  if (/^[0-9a-f]{32}$/i.test(q)) return q.toLowerCase();
+  const k = (x: unknown) => String(x ?? '').normalize('NFKD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z0-9]+/g, '').toLowerCase();
+  const ziel = k(q);
+  if (!ziel) return null;
+  const bilder = await liesJson<Array<{ epicId?: string; name?: string; turniername?: string; matches?: number }>>('spielerbilder.json', []);
+  const genau = bilder.filter((x) => x.epicId && [x.name, x.turniername].some((n) => k(n) === ziel || k(String(n ?? '').replace(/^\S{1,5}\s+/, '').replace(/\s+\d+\D*$/, '')) === ziel));
+  const teil = genau.length ? genau : bilder.filter((x) => x.epicId && [x.name, x.turniername].some((n) => k(n).includes(ziel)));
+  const bester = teil.sort((a, b) => (b.matches ?? 0) - (a.matches ?? 0))[0];
+  if (bester?.epicId) return bester.epicId;
+  const namen = await liesJson<Record<string, string>>('epic-namen.json', {});
+  const treffer = Object.entries(namen).filter(([, n]) => k(n) === ziel);
+  return treffer.length === 1 ? treffer[0][0] : null;
+}
+
+async function zeitstrahlDaten(id: string): Promise<Zeitstrahl> {
+  const bis = new Date().getUTCFullYear();
+  const jahre: Zeitstrahl['jahre'] = [];
+  const posten: VerdienstPosten[] = [];
+  for (let jahr = ERSTES_JAHR; jahr <= bis; jahr += 1) {
+    const p = (await verdienstPosten(jahr, new Set([id])))[id] ?? [];
+    posten.push(...p);
+    jahre.push({ jahr, betrag: p.reduce((a, x) => a + x.betrag, 0) });
+  }
+  const kontext = await spielerKontext();
+  const profil = kontext(id, '');
+  // Ein Foto in voller Groesse statt des kleinen Vorschaubilds.
+  const bilder = await liesJson<Array<{ epicId?: string; datei?: string; echtesFoto?: boolean }>>('spielerbilder.json', []);
+  const datei = bilder.find((x) => x.epicId === id && x.echtesFoto)?.datei;
+  return {
+    name: profil.anzeige || profil.name || id.slice(0, 8), land: profil.land, bild: datei ? `/spielerbilder/${encodeURIComponent(datei)}` : profil.bild,
+    jahre, gesamt: jahre.reduce((a, j) => a + j.betrag, 0),
+    groesste: [...posten].sort((a, b) => b.betrag - a.betrag).slice(0, 3).map((x) => ({ titel: x.titel, datum: x.datum, betrag: x.betrag })),
+  };
+}
+
+const geld = (n: number) => (n >= 1e6 ? `$${(n / 1e6).toFixed(n >= 1e7 ? 1 : 2).replace(/\.?0+$/, '')}M` : n >= 1e3 ? `$${Math.round(n / 1e3)}K` : `$${zahl(n)}`);
+const monat = (ms: number | null) => (ms ? new Date(ms).toLocaleDateString('en-GB', { month: 'short', year: 'numeric' }).toUpperCase() : '');
+
+function zeitstrahlPlakat(d: Zeitstrahl, b: Bilder) {
+  const f = b.foto.get('zeit|foto');
+  const max = Math.max(1, ...d.jahre.map((j) => j.betrag));
+  const bestes = d.jahre.reduce((a, j) => (j.betrag > a.betrag ? j : a), d.jahre[0]);
+  const HOCH = 330; const BREITE = 912; const n = d.jahre.length;
+  const spalte = Math.floor(BREITE / n);
+  return grund(
+    <>
+      {/* Links das Foto, nach rechts in den Grund auslaufend */}
+      <div style={{ position: 'absolute', left: 0, top: 0, width: 600, height: H, display: 'flex' }}>
+        {f && <img src={f} width={600} height={H} style={{ position: 'absolute', left: 0, top: 0, width: 600, height: H, objectFit: 'cover', objectPosition: fokusVon(d.bild) }} />}
+        <div style={{ position: 'absolute', left: 0, top: 0, width: 600, height: H, display: 'flex', background: 'linear-gradient(90deg,rgba(4,7,13,0) 35%,rgba(6,12,24,0.92) 88%,#07101f 100%)' }} />
+        <div style={{ position: 'absolute', left: 0, bottom: 0, width: 600, height: 420, display: 'flex', background: 'linear-gradient(180deg,rgba(4,7,13,0) 0%,rgba(4,7,13,0.94) 78%)' }} />
+        <div style={{ position: 'absolute', left: 56, top: 56, display: 'flex' }}>{marke(b, 30)}</div>
+        <div style={{ position: 'absolute', left: 56, bottom: 70, width: 520, display: 'flex', flexDirection: 'column' }}>
+          <div style={{ display: 'flex', fontSize: 24, fontWeight: 700, letterSpacing: 6, color: '#94a3b8' }}>CAREER EARNINGS</div>
+          <div style={{ display: 'flex', alignItems: 'center', fontFamily: FAMILIE, fontSize: 92, fontWeight: 800, lineHeight: 1, marginTop: 10, textTransform: 'uppercase' }}>{flagge(d.land, b, 64, 44)}{kuerze(nameGross(d.name), 11)}</div>
+          <div style={{ display: 'flex', fontFamily: FAMILIE, fontSize: 104, fontWeight: 800, color: BLAU, lineHeight: 1, marginTop: 14 }}>${zahl(d.gesamt)}</div>
+        </div>
+      </div>
+
+      {/* Rechts die Jahre */}
+      <div style={{ position: 'absolute', left: 640, top: 64, width: BREITE, display: 'flex', flexDirection: 'column' }}>
+        <div style={{ display: 'flex', fontSize: 26, fontWeight: 700, letterSpacing: 5, color: '#94a3b8' }}>PRIZE MONEY BY YEAR</div>
+        <div style={{ display: 'flex', alignItems: 'flex-end', height: HOCH + 70, marginTop: 26, borderBottom: '2px solid rgba(255,255,255,0.14)' }}>
+          {d.jahre.map((j) => {
+            const h = j.betrag > 0 ? Math.max(6, Math.round((j.betrag / max) * HOCH)) : 0;
+            const gold = j.jahr === bestes.jahr && j.betrag > 0;
+            return (
+              <div key={j.jahr} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'flex-end', width: spalte, height: HOCH + 70 }}>
+                <div style={{ display: 'flex', fontSize: 26, fontWeight: 700, color: gold ? GOLD : j.betrag ? '#e2e8f0' : '#475569', marginBottom: 10 }}>{j.betrag ? geld(j.betrag) : '–'}</div>
+                <div style={{ display: 'flex', width: spalte - 34, height: h, borderRadius: '14px 14px 0 0', background: gold ? 'linear-gradient(180deg,#fcd34d 0%,#f5b301 100%)' : 'linear-gradient(180deg,#7dd3fc 0%,#0ea5e9 100%)' }} />
+              </div>
+            );
+          })}
+        </div>
+        <div style={{ display: 'flex', marginTop: 12 }}>
+          {d.jahre.map((j) => (
+            <div key={j.jahr} style={{ display: 'flex', width: spalte, justifyContent: 'center', fontFamily: FAMILIE, fontSize: 30, fontWeight: 800, color: j.jahr === bestes.jahr && j.betrag > 0 ? GOLD : '#cbd5e1' }}>{j.jahr}</div>
+          ))}
+        </div>
+
+        {/* Die drei groessten Zahltage */}
+        <div style={{ display: 'flex', fontSize: 22, fontWeight: 700, letterSpacing: 5, color: '#94a3b8', marginTop: 40 }}>BIGGEST PAYDAYS</div>
+        <div style={{ display: 'flex', gap: 16, marginTop: 14 }}>
+          {d.groesste.map((g, i) => (
+            <div key={i} style={{ display: 'flex', flexDirection: 'column', width: Math.floor((BREITE - 32) / 3), padding: '16px 20px', borderRadius: 20, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.11)' }}>
+              <div style={{ display: 'flex', fontFamily: FAMILIE, fontSize: 40, fontWeight: 800, color: i === 0 ? GOLD : BLAU, lineHeight: 1 }}>${zahl(g.betrag)}</div>
+              <div style={{ display: 'flex', fontSize: 20, fontWeight: 700, marginTop: 8, lineHeight: 1.2 }}>{kuerze(g.titel, 34)}</div>
+              <div style={{ display: 'flex', fontSize: 17, color: '#94a3b8', marginTop: 4 }}>{monat(g.datum)}</div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </>,
+  );
+}
+
 /* ------------------------------------------------------------------ die Abfrage */
 
 export async function GET(request: Request) {
@@ -392,7 +510,18 @@ export async function GET(request: Request) {
 
     let bild: React.ReactElement;
     let text = '';
-    if (art === 'top5') {
+    if (art === 'earnings') {
+      const id = await kontoZu((p.get('id') ?? p.get('q') ?? '').trim());
+      if (!id) return Response.json({ ok: false, fehler: 'Diesen Spieler finde ich nicht - Namen wie im Profil eingeben.' }, { status: 200 });
+      const d = await zeitstrahlDaten(id);
+      if (!d.gesamt) return Response.json({ ok: false, fehler: 'Zu diesem Spieler ist kein Preisgeld bekannt.' }, { status: 200 });
+      const bestes = d.jahre.reduce((a, j) => (j.betrag > a.betrag ? j : a), d.jahre[0]);
+      text = `${d.name}: $${zahl(d.gesamt)} in prize money since ${d.jahre.find((j) => j.betrag > 0)?.jahr ?? ERSTES_JAHR} - best year ${bestes.jahr} with $${zahl(bestes.betrag)}.`;
+      if (nurText) return Response.json({ ok: true, text });
+      b.foto.set('zeit|foto', await bildDaten(d.bild, ursprung, 900));
+      if (d.land) b.flagge.set(d.land.toLowerCase(), await bildDaten(`/flags/${d.land.toLowerCase()}.png`, ursprung, 120));
+      bild = zeitstrahlPlakat(d, b);
+    } else if (art === 'top5') {
       const jahr = Number(p.get('jahr') ?? new Date().getUTCFullYear());
       const d = await topFuenf({ region: (p.get('region') ?? '').toUpperCase(), liste: p.get('liste') ?? 'verdienst', jahr });
       if (d.keinCup || !d.zeilen?.length) return Response.json({ ok: false, fehler: d.grund ?? 'Keine Daten' }, { status: 200 });
