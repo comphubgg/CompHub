@@ -34,7 +34,8 @@ const nextConfig: NextConfig = {
    */
   distDir: process.env.NEXT_DIST_DIR || '.next',
   // forbidden() und unauthorized() (403/401) mit eigenen Fehlerseiten: app/forbidden.tsx, app/unauthorized.tsx.
-  experimental: { authInterrupts: true },
+  // Beim Bau neben dem Server hoechstens NEXT_BAU_CPUS Arbeiter (scripts/bauen-daneben.mjs) - der laufende Server soll antworten koennen.
+  experimental: { authInterrupts: true, ...(Number(process.env.NEXT_BAU_CPUS) > 0 ? { cpus: Number(process.env.NEXT_BAU_CPUS) } : {}) },
   /*
    * sharp nicht mit eigenem Alias einbinden.
    *
