@@ -45,8 +45,8 @@ for (const ordner of fs.readdirSync(SPIELTAGE)) {
     for (const id of dabei) {
       const team = t.teams.find((x) => (x.spieler ?? []).includes(id));
       if (!team) continue;
-      // Ein Ergebnis in der heutigen Fassung reicht (Fassung 4: dazu Wiederbelebungen und Reboots); aeltere werden neu gerechnet.
-      try { if (JSON.parse(fs.readFileSync(path.join(STATS, t.windowId, `${id}.json`), 'utf8')).version >= 4) continue; } catch { /* noch keins */ }
+      // Ein Ergebnis in der heutigen Fassung reicht (Fassung 5: Schaden mit dem verbesserten Leser, 28.10.2026); aeltere werden neu gerechnet.
+      try { if (JSON.parse(fs.readFileSync(path.join(STATS, t.windowId, `${id}.json`), 'utf8')).version >= 5) continue; } catch { /* noch keins */ }
       const ziel = path.join(ANFRAGEN, `${t.windowId}__${id}.json`);
       if (fs.existsSync(ziel)) continue;
       fs.mkdirSync(ANFRAGEN, { recursive: true });
