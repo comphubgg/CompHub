@@ -32,7 +32,7 @@
 // fehl, wird beim naechsten Lauf genau dieser Download wiederholt - nicht
 // das Turnier von vorn.
 
-import { promises as fs, existsSync, readFileSync } from 'fs';
+import { promises as fs, existsSync, readFileSync, readdirSync } from 'fs';
 import path from 'path';
 import { spawnSync } from 'child_process';
 import {
@@ -225,6 +225,26 @@ const meinTeil = (windowId) => {
   for (const c of String(windowId)) h = (h * 31 + c.charCodeAt(0)) >>> 0;
   return teilVon <= 1 || h % teilVon === teilNr % teilVon;
 };
+/*
+ * Vorrang (28.10.2026): Spieltage, die jemand auf der Seite ansieht und die noch keine Auswertung haben, legt die Seite als Anfrage ins Datenarchiv
+ * (lib/replayVorrang.ts, replay-vorrang/<Fenster>.json); der Ablauf holt den Ordner vor jedem Durchgang. Diese Spieltage kommen
+ * vor allen anderen dran. Anfragen aelter als zwei Tage zaehlen nicht mehr.
+ */
+const vorrang = (() => {
+  const raus = new Set();
+  try {
+    const ordner = path.join(process.cwd(), 'data', 'replay-vorrang');
+    for (const d of existsSync(ordner) ? readdirSync(ordner) : []) {
+      if (!d.endsWith('.json')) continue;
+      try {
+        const v = JSON.parse(readFileSync(path.join(ordner, d), 'utf8'));
+        if (v?.windowId && Date.now() - (v.zeit ?? 0) < 2 * 864e5) raus.add(v.windowId);
+      } catch { /* kaputte Anfrage */ }
+    }
+  } catch { /* ohne Vorrang */ }
+  return raus;
+})();
+const vorrangZuerst = (a, b) => (vorrang.has(b.windowId) ? 1 : 0) - (vorrang.has(a.windowId) ? 1 : 0);
 const minutenIdx = argumente.indexOf('--minuten');
 const minuten = minutenIdx >= 0 ? Math.max(0, Number(argumente[minutenIdx + 1]) || 0) : 0;
 const schluss = minuten ? Date.now() + minuten * 60_000 : Infinity;
@@ -639,7 +659,7 @@ async function wiederholen() {
   }
 
   // Das aelteste zuerst: dessen Frist laeuft als naechstes ab.
-  arbeit.sort((a, b) => (a.zustand.datum ?? 0) - (b.zustand.datum ?? 0));
+  arbeit.sort((a, b) => vorrangZuerst(a, b) || (a.zustand.datum ?? 0) - (b.zustand.datum ?? 0));
 
   // Mehrere Rechner: reihum verteilt. Alle sehen denselben Stand vom
   // Release und sortieren gleich - also nimmt jeder genau seine Spieltage.
@@ -753,7 +773,8 @@ async function main() {
   const ziel = nurFenster.length
     ? fenster.filter((f) => nurFenster.includes(f.windowId))
     // Mehrere Rechner (--teil n/4) auch hier reihum (28.10.2026): bis dahin legte nur einer neue Spieltage an, 27 Minuten je Lauf - zu wenig fuer 251 offene.
-    : fenster.filter((f) => meinTeil(f.windowId));
+    : fenster.filter((f) => meinTeil(f.windowId)).sort(vorrangZuerst);
+  if (vorrang.size) console.log(`Vorrang angefragt: ${[...vorrang].join(', ')}`);
 
   console.log(nurLive
     ? `${fenster.length} Fenster laufen gerade`

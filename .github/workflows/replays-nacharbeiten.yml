@@ -78,6 +78,7 @@ jobs:
           MAX_REPLAY_PARSERS: '3'
         run: |
           node scripts/schleife.mjs --minuten 315 --takt 60 \
+            --schritt "node scripts/daten-sync.mjs --herunterladen --nur replay-vorrang 2>&1 | tail -1; true" \
             --schritt "timeout --signal=TERM 20m node scripts/replays-holen.mjs --frisch 744 --teil ${{ matrix.teil }}/8 2>&1 | grep -v ' \.\.\.$' | tail -12; true" \
             --schritt "node scripts/replays-holen.mjs --wiederholen --teil ${{ matrix.teil }}/8 --minuten 25 --ohne-frische 12 2>&1 | grep -v ' \.\.\.$' | tail -12" \
             --schritt "node scripts/replays-aggregieren.mjs 2>&1 | tail -6" \

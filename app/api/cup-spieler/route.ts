@@ -8,6 +8,7 @@ import { liesLanKonten } from '@/lib/lanKonten';
 import { liesJson } from '@/lib/ablage';
 import { GLOBALS_TAGE, istGlobalsEvent, istGlobalsFenster } from '@/lib/globalsCup';
 import { replayTag, replayTage, verwerfeReplayTage } from '@/lib/replaySchlank';
+import { auswertungsStand, vorrangAnfordern } from '@/lib/replayVorrang';
 
 /*
  * Ohne Replays: die Werte der Szene-Quelle.
@@ -231,8 +232,12 @@ async function holeRoh(request: Request) {
     return NextResponse.json({ ...szene, gesamt: szene.spieler.length });
   }
   if (!rep?.spieler.length) {
+    // Noch keine Werte je Spieler: der Spieltag bekommt Vorrang bei den Replay-Rechnern, und die Seite zeigt, wie weit die Auswertung ist (lib/replayVorrang).
+    if (tage.length === 1 && saison) void vorrangAnfordern(fenster, event);
     return NextResponse.json({
       vorhanden: false, spieler: [], runden: 0, lauf: await letzterLauf(),
+      stand: tage.length === 1 && saison ? await auswertungsStand(saison, fenster) : null,
+      vorrang: tage.length === 1 && !!saison,
     });
   }
 

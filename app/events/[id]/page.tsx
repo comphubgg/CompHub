@@ -885,6 +885,9 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     rundenGesamt?: number | null;
     /** Wann der Replay-Sammler zuletzt lief - siehe app/api/cup-spieler. */
     lauf?: { zeitpunkt?: string; art?: string; ok?: boolean; fehler?: string } | null;
+    /** Ohne Replay-Werte: wie weit die Auswertung des Spieltags ist (null = noch nicht begonnen), und ob er Vorrang bekommen hat (lib/replayVorrang). */
+    stand?: { ausgewertet: number; gesamt: number } | null;
+    vorrang?: boolean;
     /** "szene": Werte der Szene-Quelle statt Replays (LAN, siehe app/api/cup-spieler). */
     quelle?: string;
     spieler: Array<{
@@ -2075,6 +2078,21 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
       .finally(() => { if (!weg) setSpielerLaedt(false); });
     return () => { weg = true; };
   }, [reiter, fenster, spielerWerte, neuNr, summenFenster, summenText]);
+
+  // Solange die Replays eines Spieltags ausgewertet werden, alle zwei Minuten nachsehen - die Werte erscheinen dann ohne Neuladen.
+  useEffect(() => {
+    if (reiter !== 'spieler' || !fenster || !spielerWerte || spielerWerte.vorhanden) return undefined;
+    const ende = fenster.end ?? fenster.begin ?? null;
+    if (typeof ende === 'number' && Date.now() - ende > 31 * 86_400_000) return undefined;
+    let weg = false;
+    const uhr = setInterval(() => {
+      fetch(`/api/cup-spieler?window=${encodeURIComponent(fenster.windowId)}&event=${encodeURIComponent(fenster.eventId)}${summenFenster ? `&windows=${summenText}` : ''}`)
+        .then((r) => r.json())
+        .then((j) => { if (!weg && j && !j.error) setSpielerWerte(j); })
+        .catch(() => { /* beim naechsten Mal */ });
+    }, 120_000);
+    return () => { weg = true; clearInterval(uhr); };
+  }, [reiter, fenster, spielerWerte, summenFenster, summenText]);
 
   /*
    * Zu jedem Team dieses Spieltags der gepflegte Twitch-Kanal.
@@ -4449,22 +4467,9 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
               schadenAusReplay={!!(spielerWerte as { schadenAusReplay?: boolean }).schadenAusReplay} />
           </div>
         )}
-        {/* Cups ohne ausgewertete Replays: die Werte aus Epics Bestenliste, je Team - statt eines leeren Reiters. */}
-        {reiter === 'spieler' && !soloCup && !!spielerWerte && !spielerWerte.vorhanden && teamZeilen.length > 0 && (
-          <div className="mb-4">
-            <SpielerStatsUebersicht
-              spieler={teamZeilen}
-              matches={teamZeilen.reduce((m, z) => Math.max(m, z.spiele), 0)}
-              aktualisiert={null}
-              laeuft={laeuftGerade}
-              endeMs={fenster?.end ?? fenster?.begin ?? null}
-              teamWerte />
-          </div>
-        )}
-
-        {/* Ohne Replays steht oben schon die Team-Uebersicht aus Epics Bestenliste - dann kein leerer Kasten darunter (Betreiber, 28.10.2026: "nirgendwo darf
-            es so aussehen"). Er bleibt nur, wenn es gar keine Werte gibt. */}
-        {reiter === 'spieler' && !soloCup && !(spielerWerte && !spielerWerte.vorhanden && teamZeilen.length > 0) && (
+        {/* Unter Player Stats nur Werte je Spieler, nie Epics Team-Werte (Betreiber, 28.10.2026: "bei Player Stats koennen nicht Team Stats sein") - die
+            stehen unter Team Stats. Fehlen die Replays noch, steht im Kasten, wie weit ihre Auswertung ist. */}
+        {reiter === 'spieler' && !soloCup && (
           <section className="rounded-xl border border-zinc-800 bg-zinc-950/60">
             <header className="flex flex-wrap items-center justify-between gap-3
                                border-b border-zinc-800 px-4 py-3">
@@ -4515,11 +4520,32 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
 
             {spielerWerte && !spielerWerte.vorhanden && (
               <div className="p-8 text-center text-sm leading-relaxed text-slate-500">
-                <p>
-                  <T>Zu diesem Spieltag sind noch keine Replays ausgewertet. Erst
-                  daraus lässt sich zählen, wer von einem Duo welche Elim geholt
-                  hat — Epic liefert die Werte nur je Team.</T>
-                </p>
+                {(() => {
+                  const ende = fenster?.end ?? fenster?.begin ?? null;
+                  const abgelaufen = typeof ende === 'number' && Date.now() - ende > 31 * 86_400_000;
+                  if (abgelaufen) {
+                    return <p><T>Werte je Spieler kommen aus den Server-Replays. Epic löscht sie nach 31 Tagen - für diesen Cup wurden sie nicht mehr gelesen.</T></p>;
+                  }
+                  const st = spielerWerte.stand;
+                  return (
+                    <>
+                      <p className="flex items-center justify-center gap-2 text-slate-300">
+                        <span className="h-2 w-2 animate-pulse rounded-full bg-sky-400" />
+                        {st
+                          ? <span><T>Die Replays dieses Spieltags werden gerade ausgewertet:</T> <b className="tabular-nums text-slate-100">{st.ausgewertet.toLocaleString(ort)} / {st.gesamt.toLocaleString(ort)}</b> <T>Spiele</T></span>
+                          : <span><T>Die Auswertung der Replays dieses Spieltags ist angefordert.</T></span>}
+                      </p>
+                      {st && st.gesamt > 0 && (
+                        <div className="mx-auto mt-3 h-1.5 max-w-sm overflow-hidden rounded-full bg-zinc-800">
+                          <div className="h-full rounded-full bg-sky-500" style={{ width: `${Math.min(100, (st.ausgewertet / st.gesamt) * 100)}%` }} />
+                        </div>
+                      )}
+                      <p className="mt-3 text-[12px]">
+                        <T>Werte je Spieler stehen nur in den Replays - Epic zählt nur je Team (siehe Team Stats). Dieser Spieltag wird mit Vorrang gelesen; die Seite aktualisiert sich selbst.</T>
+                      </p>
+                    </>
+                  );
+                })()}
                 {/*
                   * Wann der Sammler zuletzt lief.
                   *
