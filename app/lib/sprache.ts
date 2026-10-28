@@ -3389,6 +3389,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Die Endspiele ließen sich gerade nicht laden. Bitte gleich noch einmal versuchen.': 'The finals could not be loaded right now. Please try again in a moment.',
   'Noch keine Endspiele.': 'No finals yet.',
   'Platzierungen werden nachgetragen.': 'Placements will be added.',
+  'Team je Spiel': 'Team per match',
   'Werte je Spieler stehen nur in den Replays - für diesen Cup liegen sie noch nicht vor. Epic zählt Punkte, Eliminierungen und Zeit je Team (rechts).': 'Values per player only exist in the replays - they are not available for this cup yet. Epic counts points, eliminations and time per team (right).',
   'Noch keine Runde gespielt - dein Stand erscheint nach der ersten Runde.': 'No round played yet - your standing appears after the first round.',
   'Alle Tage zusammen': 'All days combined',

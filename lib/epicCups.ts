@@ -85,6 +85,8 @@ export interface CupMatch {
 
 export interface CupEintrag {
   rank: number;
+  /** Epics Perzentil (0..1) - siehe RohEintrag. */
+  percentile?: number;
   points: number;
   elims: number;
   games: number;
@@ -479,6 +481,8 @@ const STAT_NAMEN: Record<string, string> = {
 export interface RohEintrag {
   rank: number;
   pointsEarned: number;
+  /** Epics Anteil am ganzen Feld (0.023 = Top 2,3 %) - auch jenseits der 10.000 Plaetze, die Epic herausgibt. */
+  percentile?: number;
   teamId?: string;
   teamAccountIds?: string[];
   /** Epics Aufschluesselung der Punkte: je Stufe "PLACEMENT_STAT_INDEX:12" bzw. "TEAM_ELIMS_STAT_INDEX:1" Punkte und wie oft erreicht. */
@@ -579,7 +583,7 @@ function formeEintrag(e: RohEintrag, namen: Record<string, string>): CupEintrag 
   const games = hist.length;
   const punkte = e.pointsEarned ?? 0;
   return {
-    rank: e.rank, points: punkte, elims, games, wins, bestPlace,
+    rank: e.rank, ...(typeof e.percentile === 'number' ? { percentile: e.percentile } : {}), points: punkte, elims, games, wins, bestPlace,
     damage, damageTaken, headshots, timeAlive,
     damageSquad, matsGefarmt, matsVerbaut, strecke, kisten, heilung, schild,
     avgPoints: games ? +(punkte / games).toFixed(2) : 0,

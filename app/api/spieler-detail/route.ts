@@ -159,7 +159,9 @@ export async function GET(request: Request) {
     const antwort = {
       ok: true, id, name: mitglieder.find((m) => m.ich)?.name || name, dabei: !!eintrag,
       rank: eintrag?.rank ?? null, gesamt,
-      top: eintrag && gesamt ? +((eintrag.rank / gesamt) * 100).toFixed(1) : null,
+      // Epics Perzentil (Osirion zeigt dasselbe: Rang 4200 = Top 2,3 %); Rang durch die 10.000 Plaetze der Liste ergab 42 %.
+      top: eintrag && typeof eintrag.percentile === 'number' && eintrag.percentile > 0 ? +(eintrag.percentile * 100).toFixed(1)
+        : eintrag && gesamt ? +((eintrag.rank / gesamt) * 100).toFixed(1) : null,
       eintrag: eintrag ?? null,
       mitglieder,
       aktualisiert, szeneStand, szeneMatches,

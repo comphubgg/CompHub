@@ -2818,7 +2818,15 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                       ? ` · ${t('etwa')} ${(qual.schnitt + QUAL_ZUSCHLAG).toLocaleString(ort)} ${t('Punkte')}`
                       : '')]
                 : [soloCup ? t('Spieler') : t('Teams'),
-                  tabelle.length ? tabelle.length.toLocaleString(ort) : '–'],
+                  (() => {
+                    // Epic gibt hoechstens 10.000 Plaetze heraus; ist die Liste voll, die Feldgroesse aus Epics Perzentil des letzten Platzes (28.10.2026: hier stand
+                    // "10,000", waehrend Osirion Rang 4200 als Top 2,3 % zeigt).
+                    if (tabelle.length < 10_000) return tabelle.length ? tabelle.length.toLocaleString(ort) : '–';
+                    const letzter = tabelle.reduce((a, x) => (x.rank > a.rank ? x : a), tabelle[0]) as { rank: number; percentile?: number };
+                    return letzter.percentile && letzter.percentile > 0
+                      ? `${t('etwa')} ${(Math.round(letzter.rank / letzter.percentile / 100) * 100).toLocaleString(ort)}`
+                      : `${(10_000).toLocaleString(ort)}+`;
+                  })()],
             ] as Array<[string, string]>).map(([l, v]) => (
               <div key={l} className="rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-2.5">
                 <div className="text-[10px] uppercase tracking-wider text-slate-500">{l}</div>

@@ -525,7 +525,7 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo, star
               {team && (
                 <div className="rounded-xl border border-white/[0.06] bg-zinc-900/40">
                   <div className="flex h-[40px] items-center justify-between border-b border-white/[0.06] px-3">
-                    <span className="text-[13px] font-bold text-slate-200"><T>Team</T></span>
+                    <span className="text-[13px] font-bold text-slate-200"><T>Team je Spiel</T></span>
                     {spiele.length > 1 && <label className="flex cursor-pointer items-center gap-1.5 text-[12px] text-slate-400"><input type="checkbox" checked={kumuliert} onChange={(ev) => setKumuliert(ev.target.checked)} className="accent-sky-400" /> Cumulative</label>}
                   </div>
                   {teamReihen.map((z) => {
