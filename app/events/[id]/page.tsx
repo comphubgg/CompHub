@@ -3496,7 +3496,13 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
               for (const s of punkteStufen) if (punkte >= s.schwelle) nachPunkten = s.betrag;
               return nachPunkten;
             };
-            const mitPreis = geldStufen.length > 0 || punkteStufen.length > 0;
+            /*
+             * Mehrtaegige Finals (Day 1 + Day 2): Preisgeld gibt es nur fuer die Gesamtwertung (Betreiber, 28.10.2026: "nur in Kumulativ ... nicht in Day 2
+             * einfach auch, dann ist es ja das Doppelte"). In der Ansicht eines einzelnen Tages steht keine Earnings-Spalte; in Kumulativ gilt die Tabelle des
+             * letzten Tages fuer den Gesamtplatz.
+             */
+            const einTagEinerReihe = kumTage.length > 1 && !summenFenster && kumTage.some((x) => x.windowId === fenster?.windowId);
+            const mitPreis = (geldStufen.length > 0 || punkteStufen.length > 0) && !einTagEinerReihe;
             const waehrung = preise?.waehrung ?? 'USD';
             /*
              * Die Details eines Teams - rechts neben der Liste.

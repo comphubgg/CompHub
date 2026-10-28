@@ -432,8 +432,9 @@ export async function GET(request: Request) {
         text = plakatText({ art, titel: kopf.titel, stufe: kopf.stufe, teams });
         if (nurText) return Response.json({ ok: true, text, teams });
         // Ein einzelner Tag eines mehrtaegigen Finales (Day 1): der Erste fuehrt, er hat nicht gewonnen - gewonnen hat, wer beide Tage zusammen vorn liegt (Betreiber, 28.10.2026).
+        // Preisgeld nur fuer die Gesamtwertung beider Tage, nie unter einem einzelnen Tag (Betreiber, 28.10.2026).
         const einTagEinerReihe = windows.length === 1 && /Day\d+/i.test(windows[0]);
-        bild = art === 'finale' ? finalePlakat(teams, { ...kopf, wort: einTagEinerReihe ? 'LEADER' : 'WINNER' }, b) : standingsPlakat(teams, kopf, b, anzahl);
+        bild = art === 'finale' ? finalePlakat(teams, { ...kopf, wort: einTagEinerReihe ? 'LEADER' : 'WINNER', preis: einTagEinerReihe ? '' : kopf.preis }, b) : standingsPlakat(teams, kopf, b, anzahl);
       }
     }
     const antwort = new ImageResponse(bild, { width: B, height: H, fonts });
