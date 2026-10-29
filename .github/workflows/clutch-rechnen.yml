@@ -34,7 +34,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        teil: [0, 1, 2, 3]
+        teil: [0, 1, 2, 3, 4, 5]   # sechs Rechner (29.10.2026: grosse offene Runden warteten stundenlang)
     steps:
       - uses: actions/checkout@v4
 
@@ -78,7 +78,7 @@ jobs:
         continue-on-error: true
         timeout-minutes: 310
         run: |
-          node scripts/clutch-berechnen.mjs --alle --teil ${{ matrix.teil }}/4 --minuten 300 2>&1 \
+          node scripts/clutch-berechnen.mjs --alle --teil ${{ matrix.teil }}/6 --minuten 300 2>&1 \
             | grep -v 'Spieler mit' | tail -40
 
       - name: Ergebnisse weitergeben
