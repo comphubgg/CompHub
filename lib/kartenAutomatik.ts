@@ -46,6 +46,10 @@ type Stand = Record<string, FensterStand>;
 
 export interface Ziel { cup: CupGruppe; f: CupFensterDetail; region: string; ab: number }
 
+/** Kartentitel immer englisch, wie die von Hand angelegten ("Event 9 · Round 2") - kartenTitel spricht ohne Uebersetzer deutsch. */
+const ENGLISCH: Record<string, string> = { Runde: 'Round', Tag: 'Day', Finale: 'Finals' };
+const titelVon = (z: Ziel) => kartenTitel(z.cup.titel, z.f, (w) => ENGLISCH[w] ?? w) || z.cup.titel;
+
 const kontoSchluessel = (ids: string[]) => {
   const echte = ids.filter(Boolean);
   return echte.length ? `k:${[...echte].sort().join('_')}` : null;
@@ -121,7 +125,7 @@ function baueKarte(
   const gekuerzt = teams.length <= grenze ? teams
     : [...teams.filter((t) => platziert.has(t.id)), ...teams.filter((t) => !platziert.has(t.id))].slice(0, Math.max(grenze, platziert.size));
 
-  const titel = kartenTitel(z.cup.titel, z.f) || z.cup.titel;
+  const titel = titelVon(z);
   const id = alt?.id ?? (`${titel} ${z.f.windowId} ${bild.id || 'br'}`.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'karte');
   const geaendert = Date.now();
   return {
@@ -150,6 +154,16 @@ export async function kartenAutomatik(
   let kartenGeaendert = false;
   const gescheitert: string[] = [];
 
+  // Unberuehrte Karten von hier tragen den aktuellen Titel (die ersten hiessen noch "Runde 2").
+  for (const z of zieleAus(cups)) {
+    const k = karten.find((x) => x.windowId === z.f.windowId && x.region === z.region && x.automatisch && x.automatisch.stand === x.geaendert);
+    if (k && k.titel !== titelVon(z)) {
+      const geaendert = Date.now();
+      karten = karten.map((x) => (x === k ? { ...x, titel: titelVon(z), geaendert, automatisch: { ...k.automatisch!, stand: geaendert } } : x));
+      kartenGeaendert = true;
+    }
+  }
+
   const alle = zieleAus(cups, nachholen).filter((z) => nachholen
     // Nachholen: was vorbei ist (seit hoechstens sechzig Tagen - aelter fuehren die Quellen nicht mehr).
     ? z.f.begin + ZEHN_MIN < jetzt && z.f.begin > jetzt - 60 * 86400_000
@@ -162,7 +176,7 @@ export async function kartenAutomatik(
     if (s && s.zustand !== 'laeuft') continue;
     if (!nachholen && jetzt < z.ab) { lauf.wartet++; continue; }
     lauf.geprueft++;
-    const name = `${kartenTitel(z.cup.titel, z.f) || z.cup.titel} (${z.region})`;
+    const name = `${titelVon(z)} (${z.region})`;
 
     // Eine Karte zu diesem Spieltag, die nicht von hier ist oder seither von Hand geaendert wurde, bleibt.
     const vorhanden = karten.find((k) => k.windowId === z.f.windowId && (k.region ?? z.region) === z.region);

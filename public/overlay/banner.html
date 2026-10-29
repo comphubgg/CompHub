@@ -28,6 +28,7 @@
     &team=1             ein einzelner Spieler aus einem Team-Cup: Beschriftung "Team stats"
     &probe=1            nur fuer die Vorschau im Baukasten: Beispieldaten statt Bestenliste
     &spieler=1          mit probe: wie viele Beispielspieler (1 bis 3)
+    &pspieler=NAME:foto.jpg,…  mit probe: andere Beispielspieler (Name und Foto aus /spielerbilder)
 -->
 <style>
   :root {
@@ -1201,6 +1202,9 @@ const PROBE_EINTRAG = LEISTE ? {
   ],
 };
 
+// Andere Beispielspieler fuer die Vorschau (?pspieler=PETERBOT:peterbot.jpg,POLLO:pollo.jpg) - Name und Foto immer als Paar, nur mit probe=1.
+const PROBE_EIGENE = (P.get('pspieler') || '').split(',').map((x) => x.split(':')).filter(([n, b]) => n && b && /^[\w.() -]+$/.test(b));
+if (PROBE_EIGENE.length) PROBE_EINTRAG.players = PROBE_EIGENE.slice(0, 3).map(([n, b], i) => ({ id: 'probe' + (i + 1), name: n, img: '/spielerbilder/' + b }));
 // Die Vorschau zeigt so viele Beispielspieler, wie im Baukasten gewaehlt sind (spieler=1 bis 3).
 const PROBE_N = parseInt(P.get('spieler'), 10);
 if (PROBE_N >= 1 && PROBE_N < PROBE_EINTRAG.players.length) PROBE_EINTRAG.players = PROBE_EINTRAG.players.slice(0, PROBE_N);
