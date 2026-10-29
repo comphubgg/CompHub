@@ -1,75 +1,54 @@
 # CompHub
 
-Statistiken, Turniere und Streams für kompetitives Fortnite — an einem Ort.
+Stats, tournaments and streams for competitive Fortnite — in one place.
+Live at [thecomphub.com](https://www.thecomphub.com).
 
-Zehn Saisons, sieben Regionen, aus dem Chapter-5-Archiv bis zu den Matches
-von gestern. Alle Zahlen stammen aus echten Quellen: Epics Turnier-API und
-den eigenen Server-Replays. Es wird nichts geschätzt und nichts erfunden;
-was eine Quelle nicht liefert, bleibt leer.
+Every number comes from a real source: Epic's tournament API and our own
+reading of Epic's server replays. Nothing is estimated or made up; what a
+source does not provide stays empty.
 
-## Was drin ist
+## What's inside
 
-| Bereich | Was er kann |
+| Area | What it does |
 |---|---|
-| **Statistiken** | Werte je Spieler und Saison, Regionen, Vergleich zweier Spieler |
-| **Turniere** | Kalender aller Regionen, Leaderboards, Endstände |
-| **Rankings** | Epics weltweite Power Rankings, täglich erneuert |
-| **Streams** | Streamwände mit Kachelansicht, eigene Ordner |
-| **Tierlist** | Spieler und Duos einsortieren, als Bild speichern |
-| **Overlays** | Einblendungen für OBS, frei gestaltbar |
-| **Karten** | Turnierkarten mit Landepunkten |
-| **Beiträge** | Statistik-Posts aus echten Turnierdaten |
+| **Events** | Every cup in every region: live leaderboards, every match, player and team stats |
+| **Replays** | Every match read from Epic's server replays — eliminations, knocks, zones, damage where the full replay is read |
+| **Statistics** | Player profiles, FNCS history, earnings, head-to-head |
+| **Rankings** | Epic's worldwide power rankings, refreshed daily |
+| **Streams** | Stream walls, folders, multiview |
+| **Maps** | Landing spots for finals in almost every region |
+| **Tier list** | Rank players, duos and trios, saved to your account |
+| **VIP** | OBS overlays, Globals pages, pro POVs, match ID finder, Twitch statistics and a Twitch chat bot |
 
-## Woher die Zahlen kommen
+## Where the numbers come from
 
-- **Epic Games** — Turnierkalender, Leaderboards, Platzierungen, Mitspieler.
-  Über die offizielle Schnittstelle.
-- **Server-Replays** — Eliminierungen, Knocks und die verwendete Waffe je
-  Match, selbst ausgewertet. Epic hält Replays 31 Tage; älteres lässt sich
-  nicht nachholen.
-- **eucompetitive.com** — die gespiegelten Einzelwerte je Spieltag.
+- **Epic Games** — tournament calendar, leaderboards, placements, teammates (official API).
+- **Server replays** — eliminations, knocks, weapons and zones per match, read by us.
+  Damage, hits and headshots come from the full replay. Epic keeps replays for 31 days.
+- **eucompetitive.com** — per-match-day values for older events.
 
-Nicht mit Epic Games verbunden.
+Not affiliated with Epic Games.
 
-## Selbst betreiben
+## Running it yourself
 
 ```bash
 npm install
 npm run schnell
 ```
 
-`npm run schnell` baut die fertige Fassung und startet sie auf
-`localhost:3000`. Der Entwicklungsmodus (`npm run dev`) ist deutlich
-langsamer, weil er jede Seite beim ersten Aufruf übersetzt.
+`npm run schnell` builds the production version and starts it on
+`localhost:3000`. Credentials go into `.env.local` (not versioned): Epic
+(tournament data), Twitch and Discord (sign-in, live status) and Google
+(sign-in).
 
-Zugangsdaten gehören in `.env.local` — die Datei ist bewusst nicht
-versioniert. Gebraucht werden Epic (Turnierdaten), Twitch und Discord
-(Anmeldung, Live-Status) und Google (Anmeldung).
+`npm run exe` builds a Windows app that runs the server inside and opens
+CompHub in its own window.
 
-## Als Fensterprogramm
+## What runs on its own
 
-```bash
-npm run exe
-```
+GitHub Actions keep the data fresh: new match days, placements, power
+rankings and replays (a finished cup is read within about half an hour).
 
-Baut eine `.exe`, die den Server im Inneren startet und CompHub in einem
-eigenen Fenster öffnet — ohne Browser, ohne Terminal. Das Kreuz schließt nur
-das Fenster; der Server läuft im Infobereich weiter, damit die Overlays in
-OBS nicht ausgehen.
+## Languages
 
-`npm run exe-klein` baut dieselbe Datei ohne das Archiv (~40 statt ~354 MB);
-der Ordner `data` gehört dann daneben.
-
-## Was von selbst läuft
-
-- **Daten** — stündlich über GitHub Actions: neue Spieltage, Platzierungen,
-  Weltrangliste, Replays. Ein gelaufener Cup steht danach von allein unter
-  Turnieren.
-- **Programm** — eine neue Fassung entsteht, sobald eine Marke gesetzt wird
-  (`git tag v1.2.3 && git push --tags`). Installierte Programme holen sie
-  sich beim nächsten Start selbst.
-
-## Sprachen
-
-Englisch ist die Hauptsprache, Deutsch liegt hinter dem Schalter unten
-rechts. Beide Fassungen sind vollständig.
+English is the main language; German is behind the switch at the bottom right.
