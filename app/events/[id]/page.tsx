@@ -4377,9 +4377,10 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                               </button>
                             </div>
                           )}
-                          {lbFenster && matchSeiten[sp.id] && (
+                          {/* Nur fuer freigeschaltete VIPs und den Admin: das eine Game, zurueck geht es hierher (app/match). */}
+                          {lbFenster && matchSeiten[sp.id] && (zugang.admin || (zugang.vip && zugang.rechte.includes('replays'))) && (
                             <div className="mb-2 flex justify-end">
-                              <Link href={`/replays/${encodeURIComponent(lbFenster.windowId)}/${matchSeiten[sp.id]}`}
+                              <Link href={`/match/${encodeURIComponent(lbFenster.windowId)}/${matchSeiten[sp.id]}?zurueck=${encodeURIComponent(typeof window !== 'undefined' ? window.location.pathname + window.location.search : `/events/${id}`)}`}
                                 className="inline-flex items-center gap-1.5 rounded-lg border border-sky-600/60 bg-sky-950 px-3 py-1.5 text-xs font-semibold text-sky-200 transition hover:border-sky-400">
                                 <T>Match-Seite öffnen</T> →
                               </Link>

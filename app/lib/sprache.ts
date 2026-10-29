@@ -43,6 +43,10 @@ export const SPRACHEN: Array<{ kennung: Sprache; kurz: string; name: string }> =
  */
 const AUF_ENGLISCH: Record<string, string> = {
   // ------------------------------------------------------------ Allgemein
+  'Zurück zur Bestenliste': 'Back to the leaderboard',
+  'Die Replay-Ansicht ist für dein Konto noch nicht freigeschaltet.': 'The replay view is not unlocked for your account yet.',
+  'CompHub schaltet sie je VIP frei - schreib uns kurz auf Discord.': 'CompHub unlocks it per VIP - just message us on Discord.',
+  'Jedes Game eines Cups in 2D und 3D: die Zonen, wie sie gezogen sind, der Kill-Feed und alle Teams.': 'Every game of a cup in 2D and 3D: the zones as they pulled, the kill feed and all teams.',
   'Vorherige Seite': 'Previous page',
   'Nächste Seite': 'Next page',
   'Seite {a} von {b}': 'Page {a} of {b}',

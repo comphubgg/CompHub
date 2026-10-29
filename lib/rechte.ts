@@ -52,6 +52,8 @@ export const VIP_BEREICHE = [
   { schluessel: 'matchfinder', titel: 'Match-ID-Finder', was: 'Favoriten speichern und die laufende Match-ID zum Zuschauen sehen' },
   { schluessel: 'twitchstatistik', titel: 'Twitch-Statistik', was: 'Spitze mit und ohne Raid, Follower, Chatter je Tag, Woche, Monat, Jahr' },
   { schluessel: 'twitchbot', titel: 'Twitch-Bot', was: 'Befehle und Regeln für den eigenen Chat' },
+  // Ein Game aus den Matches eines Cups in 2D/3D mit Zonen und Kill-Feed (app/match) - auch wenn die Replay-Section gesperrt ist.
+  { schluessel: 'replays', titel: 'Replays', was: 'Jedes Game eines Cups in 2D und 3D: Zonen, Kill-Feed, Teams - direkt aus den Matches des Cups' },
 ] as const;
 
 export type VipBereich = typeof VIP_BEREICHE[number]['schluessel'];
