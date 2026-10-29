@@ -1,0 +1,58 @@
+# Die Twitch-Statistik der VIPs sammeln (scripts/twitch-statistik.mjs) - als Dauerlauf, der sich am Ende selbst wieder anstoesst.
+#
+# Der Betreiber (27.10.2026): Tag/Woche/Monat/Jahr/gesamt - Spitze mit und ohne Raid, neue Follower, Chatter, fuer die VIPs, denen er es gibt
+# (/twitch-statistik). Zuschauer jede Minute, Follower alle zehn Minuten, der Chat dauernd (anonym) - deshalb ein Auftrag, der rund fuenfeinhalb Stunden
+# anbleibt, kein Zeitplan im Minutentakt (GitHub uebergeht solche Plaene unter Last). Der Zeitplan ist nur der Rueckfall, falls die Kette reisst.
+
+name: Twitch-Statistik
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/twitch-statistik.yml'
+      - 'scripts/twitch-statistik.mjs'
+  schedule:
+    - cron: '23 */3 * * *'
+
+concurrency:
+  group: twitch-statistik
+  cancel-in-progress: ${{ github.event_name == 'push' }}
+
+jobs:
+  sammeln:
+    runs-on: ubuntu-latest
+    timeout-minutes: 345
+    permissions:
+      contents: read
+      actions: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          sparse-checkout: scripts
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Zugangsdaten
+        run: printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
+
+      - name: Sammeln
+        id: sammeln
+        continue-on-error: true
+        timeout-minutes: 335
+        run: node scripts/twitch-statistik.mjs --minuten 330
+
+      # Ohne eingetragene Kanaele kein naechster Auftrag (der Eintrag auf der Seite stoesst ihn an, der Zeitplan schaut alle drei Stunden nach).
+      - name: Naechsten Auftrag anstossen
+        if: ${{ !cancelled() && steps.sammeln.outputs.kanaele != '0' }}
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run twitch-statistik.yml -R "${{ github.repository }}" --ref main && echo "naechster Auftrag angestossen"
+
+      - name: Zugangsdaten wieder weg
+        if: always()
+        run: rm -f .env.local

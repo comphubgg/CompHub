@@ -147,6 +147,7 @@ export default function Ebenen({ admin, vip, pro }: {
     // Fuer VIPs (29.10.2026): wie POV funktioniert, Pros per Link anmelden, den Bot auf den eigenen Discord holen.
     ...(!pro ? [{ href: admin ? '/pov?ansicht=vip' : '/pov', titel: 'Pro-POVs', text: 'Pros anmelden, ihr POV ansehen, Live-Meldungen auf deinem Discord', symbol: 'pov' }] : []),
     { href: '/match-finder', titel: 'Match-ID-Finder', text: 'In welchem Match deine Favoriten gerade sind - zum Zuschauen im Spiel', symbol: 'events' },
+    { href: '/twitch-statistik', titel: 'Twitch-Statistik', text: 'Deine Streams: Spitze mit und ohne Raid, neue Follower, Chatter', symbol: 'statistik' },
   ];
   const hier = [...NUR_HIER, ...(admin ? NUR_HIER_ADMIN : [])];
   const darfVip = vip || admin;

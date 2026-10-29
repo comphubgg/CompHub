@@ -1,4 +1,4 @@
-# Den Rueckstand an Replays abarbeiten - auf acht Rechnern zugleich, als Dauerschleife.
+# Den Rueckstand an Replays abarbeiten - auf fuenf Rechnern zugleich, als Dauerschleife.
 #
 # Am 25.9.2026 warteten 15884 Matches aus siebzehn Spieltagen auf ihre
 # Auswertung. Der stuendliche Lauf gab dafuer neun Minuten her und schaffte
@@ -10,6 +10,9 @@
 # Gefunden: der Ablauf lief statt alle zwei Stunden nur dreimal am Tag (GitHub uebergeht geplante Laeufe unter Last) und arbeitete je Lauf rund achtzig
 # Minuten; 251 Spieltage der letzten 30 Tage hatten gar keine Auswertung. Jetzt:
 #   - acht Rechner, jeder reihum jeden achten Spieltag (replays-holen.mjs --teil n/8) - zwei Rechner fassen nie denselben an
+#     Seit dem 29.10.2026 fuenf: frische und auf der Seite angefragte Spieltage holt die Schnellspur (replays-schnell.yml, bis zu fuenf Rechner je Cup),
+#     und GitHub laesst hoechstens zwanzig Auftraege zugleich laufen - mit acht Nacharbeitern, vier Clutch-Rechnern und den Schleifen blieb fuer die
+#     Schnellspur kaum Platz.
 #   - jeder bleibt rund fuenfeinhalb Stunden an (scripts/schleife.mjs): neue Spieltage anlegen, Offenes nachholen, rechnen, hochladen - und wieder
 #   - nach jedem Durchgang geht der Stand ans Release, nicht erst am Ende
 #   - am Ende stoesst Teil 0 den naechsten Auftrag selbst an; der Zeitplan ist nur der Rueckfall
@@ -41,7 +44,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        teil: [0, 1, 2, 3, 4, 5, 6, 7]
+        teil: [0, 1, 2, 3, 4]
     # Je Teil nie zwei Laeufe zugleich - und einen laufenden nie abwuergen.
     concurrency:
       group: replays-nacharbeiten-${{ matrix.teil }}
@@ -81,8 +84,8 @@ jobs:
         run: |
           node scripts/schleife.mjs --minuten 315 --takt 300 \
             --schritt "node scripts/daten-sync.mjs --herunterladen --nur replay-vorrang 2>&1 | tail -1; true" \
-            --schritt "timeout --signal=TERM 20m node scripts/replays-holen.mjs --frisch 744 --teil ${{ matrix.teil }}/8 2>&1 | grep -v ' \.\.\.$' | tail -12; true" \
-            --schritt "node scripts/replays-holen.mjs --wiederholen --teil ${{ matrix.teil }}/8 --minuten 25 --ohne-frische 12 2>&1 | grep -v ' \.\.\.$' | tail -12" \
+            --schritt "timeout --signal=TERM 20m node scripts/replays-holen.mjs --frisch 744 --teil ${{ matrix.teil }}/5 2>&1 | grep -v ' \.\.\.$' | tail -12; true" \
+            --schritt "node scripts/replays-holen.mjs --wiederholen --teil ${{ matrix.teil }}/5 --minuten 25 --ohne-frische 12 2>&1 | grep -v ' \.\.\.$' | tail -12" \
             --schritt "node scripts/replays-aggregieren.mjs 2>&1 | tail -6" \
             --schritt "node scripts/ablage-github.mjs --nur replays --neuer-als 60 --stempel replays 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -8"
 
