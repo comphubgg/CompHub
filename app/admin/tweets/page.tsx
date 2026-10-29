@@ -3072,7 +3072,8 @@ export default function TweetSeite() {
       try {
         const r = await fetch(
           `/api/beitrag-bild?ids=${encodeURIComponent(mosaikIds.join(','))}`
-          + `&anzahl=${bildAnzahl}`, { cache: 'no-store' });
+          // Team Spotlight als Banner mit Logo in der Mitte (Beispielbild des Betreibers, 25.9.2026).
+          + `&anzahl=${bildAnzahl}${vorlage === 'spieler' ? '&form=banner' : ''}`, { cache: 'no-store' });
         if (!r.ok) {
           const j = await r.json().catch(() => null);
           if (!weg) { setMosaikUrl(null); setMosaikFehler(j?.hinweis ?? j?.error ?? 'kein Bild'); }
@@ -3099,7 +3100,7 @@ export default function TweetSeite() {
     void Promise.resolve().then(lauf);
 
     return () => { weg = true; };
-  }, [mosaikIds, bildAnzahl]);
+  }, [mosaikIds, bildAnzahl, vorlage]);
 
   /**
    * Das Bild in die Zwischenablage legen.

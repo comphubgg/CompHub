@@ -184,6 +184,47 @@ export async function GET(request: Request) {
   }
 }
 
+/*
+ * Das Team-Spotlight als Banner (?form=banner). Der Betreiber (25.9.2026, mit Beispielbild): "so soll das aussehen ... mit den Profilbildern von dem Team,
+ * diese Formation, so gross und so breit". Die Spieler stehen nebeneinander im Format 3:1, jeder ein gleich breiter Streifen, in der Mitte das CompHub-Logo
+ * mit einem hellen Schein. Bei einer ungeraden Zahl (Trio) stuende das Logo mitten auf einem Gesicht - dann sitzt es kleiner im unteren Drittel.
+ */
+const BANNER_BREITE = 3000;
+const BANNER_HOEHE = 1000;
+const LOGO = path.join(process.cwd(), 'public', 'logos', 'CompHub-Logo-frei.png');
+
+async function banner(gewaehlt: Eintrag[], namen: Map<string, string>, uebersprungen: string[]) {
+  const n = gewaehlt.length;
+  const breite = Math.floor(BANNER_BREITE / n);
+  const lagen: sharp.OverlayOptions[] = await Promise.all(gewaehlt.map(async (e, i) => ({
+    input: await sharp(path.join(BILDER, e.datei))
+      .resize(i === n - 1 ? BANNER_BREITE - breite * (n - 1) : breite, BANNER_HOEHE, { fit: 'cover', position: 'top' })
+      .toBuffer(),
+    left: i * breite, top: 0,
+  })));
+  const ungerade = n % 2 === 1;
+  const logoHoehe = Math.round(BANNER_HOEHE * (ungerade ? 0.24 : 0.34));
+  const logo = await sharp(LOGO).resize({ height: logoHoehe }).png().toBuffer();
+  const logoBreite = (await sharp(logo).metadata()).width ?? logoHoehe;
+  const mitteY = Math.round(BANNER_HOEHE * (ungerade ? 0.78 : 0.5));
+  const schein = Buffer.from(`<svg width="${BANNER_BREITE}" height="${BANNER_HOEHE}" xmlns="http://www.w3.org/2000/svg"><defs>`
+    + '<radialGradient id="s" cx="50%" cy="50%" r="50%"><stop offset="0" stop-color="#ffffff" stop-opacity="0.55"/>'
+    + '<stop offset="0.4" stop-color="#bae6fd" stop-opacity="0.22"/><stop offset="1" stop-color="#000000" stop-opacity="0"/></radialGradient></defs>'
+    + `<ellipse cx="${BANNER_BREITE / 2}" cy="${mitteY}" rx="${Math.round(logoHoehe * 1.9)}" ry="${Math.round(logoHoehe * 1.25)}" fill="url(#s)"/></svg>`);
+  const png = await sharp({ create: { width: BANNER_BREITE, height: BANNER_HOEHE, channels: 3, background: { r: 9, g: 9, b: 11 } } })
+    .composite([...lagen, { input: schein, left: 0, top: 0 },
+      { input: logo, left: Math.round((BANNER_BREITE - logoBreite) / 2), top: Math.round(mitteY - logoHoehe / 2) }])
+    .png({ compressionLevel: 9 }).toBuffer();
+  return new NextResponse(new Uint8Array(png), {
+    headers: {
+      'Content-Type': 'image/png', 'Content-Length': String(png.length),
+      'X-Spieler': encodeURIComponent(gewaehlt.map((e) => namen.get(e.epicId) || e.name).join(' · ')),
+      'X-Uebersprungen': encodeURIComponent(uebersprungen.join(', ')),
+      'Cache-Control': 'no-store',
+    },
+  });
+}
+
 async function baueMosaik(request: Request) {
   const p = new URL(request.url).searchParams;
   /*
@@ -281,6 +322,8 @@ async function baueMosaik(request: Request) {
           ? ` Nicht lesbar: ${uebersprungen.join(', ')}.` : ''),
     }, { status: 422 });
   }
+
+  if (p.get('form') === 'banner') return banner(gewaehlt, namen, uebersprungen);
 
   /*
    * Der Zuschnitt.
