@@ -652,11 +652,30 @@ async function wiederholen() {
 
   let saisons = [];
   try { saisons = await fs.readdir(ABLAGE); } catch { /* nichts da */ }
+  let listenErgaenzt = 0;
   for (const season of saisons) {
     let liste = [];
     try { liste = await fs.readdir(path.join(ABLAGE, season)); } catch { continue; }
     for (const windowId of liste) {
       const zustand = await liesZustand(season, windowId);
+      /*
+       * Einmal die ganze Bestenliste (29.10.2026): bis dahin las der Sammler zehn Seiten, und von offenen Runden fehlten die meisten Matches - das
+       * Inoxtag-Icon-Cup-Fenster EU hatte 3.577 statt 20.691. Jeder Spieltag der Frist, dessen Liste nie ganz gelesen wurde, bekommt die fehlenden
+       * Matches als offen dazu; danach traegt er "idsAlle" und wird nicht mehr gefragt. Nur der eigene Teil (mehrere Rechner).
+       */
+      if (!zustand.idsAlle && zustand.eventId && (zustand.datum ?? 0) >= grenze && meinTeil(windowId)
+        && !(nacharbeit && gehoertSchnellspur(windowId, zustand.datum)) && Date.now() < schluss - 10 * 60_000) {
+        try {
+          const ids = await matchIds(zustand.eventId, windowId);
+          zustand.matches ??= {};
+          let neu = 0;
+          for (const id of ids) if (!zustand.matches[id]) { zustand.matches[id] = { stand: ZUSTAND.OFFEN }; neu += 1; }
+          zustand.idsAlle = new Date().toISOString();
+          await schreibeZustand(season, windowId, zustand);
+          listenErgaenzt += 1;
+          console.log(`  ${windowId}: ganze Bestenliste - ${ids.length} Matches, ${neu} neu dazu`);
+        } catch (e) { console.log(`  ${windowId}: Bestenliste - ${e.message}`); }
+      }
       const offen = Object.entries(zustand.matches ?? {})
         // Fertig ist fertig, und was Epic nicht mehr hat, bekommt es nicht
         // zurueck. Alles andere - fehlgeschlagen, haengengeblieben, nie
@@ -689,6 +708,7 @@ async function wiederholen() {
     arbeit.splice(0, arbeit.length, ...meine);
   }
 
+  if (listenErgaenzt) console.log(`${listenErgaenzt} Spieltage mit der ganzen Bestenliste ergaenzt.`);
   const gesamt = arbeit.reduce((a, x) => a + x.offen.length, 0);
   console.log(`${arbeit.length} Fenster mit ${gesamt} offenen Matches`
     + (ausserhalb ? `, ${ausserhalb} ausserhalb der Frist (${FRIST_TAGE} Tage)` : ''));
@@ -829,7 +849,7 @@ async function planSchreibenLauf(datei) {
       const zustand = await liesZustand(f.season, f.windowId);
       const bekannt = Object.keys(zustand.matches ?? {});
       let ids = bekannt; let idsStand = null;
-      const listeFertig = !f.live && (Date.parse(zustand.idsStand ?? '') || 0) > f.datum + 30 * 60_000;
+      const listeFertig = !f.live && !!zustand.idsAlle && (Date.parse(zustand.idsStand ?? '') || 0) > f.datum + 30 * 60_000;
       if (!listeFertig) {
         try {
           ids = [...new Set([...bekannt, ...await matchIds(f.eventId, f.windowId)])];
@@ -849,7 +869,7 @@ async function planSchreibenLauf(datei) {
       if (!offen.length && !neu.length && !idsStand) continue;
       // Die bisherigen Eintraege der offenen Matches (seit wann "nicht da", wie viele Versuche) - die Leser brauchen sie fuer nochmalFragen.
       const vorher = Object.fromEntries(offen.filter((id) => zustand.matches?.[id]).map((id) => [id, zustand.matches[id]]));
-      plan.push({ ...f, offen, neu, vorher, idsStand, alle: ids.length });
+      plan.push({ ...f, offen, neu, vorher, idsStand, ...(idsStand ? { idsAlle: idsStand } : {}), alle: ids.length });
     }
   };
   await Promise.all(Array.from({ length: 4 }, arbeiter));
@@ -943,6 +963,7 @@ async function planZusammenLauf(datei) {
     Object.assign(zustand, {
       season: f.season, windowId: f.windowId, eventId: f.eventId, region: f.region, titel: f.titel, datum: f.datum,
       ...(f.idsStand ? { idsStand: f.idsStand } : {}),
+      ...(f.idsAlle ? { idsAlle: f.idsAlle } : {}),
     });
     await schreibeZustand(f.season, f.windowId, zustand);
     fertigeFenster.push(f);
