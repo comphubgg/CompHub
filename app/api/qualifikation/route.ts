@@ -134,18 +134,26 @@ async function holeRoh(request: Request) {
    */
   let ausVorlauf = false;
   if (!Number.isFinite(schwelle) || schwelle < 1) {
-    const vorlauf = alle
-      .filter((f) => f.windowId !== dieser.windowId && reihe(f.windowId) === reihe(dieser.windowId) && f.status === 'vorbei')
-      .sort((a, b) => b.begin - a.begin)[0];
-    if (vorlauf?.qualifiziert) { schwelle = vorlauf.qualifiziert; ausVorlauf = true; }
-    else if (vorlauf) {
+    const artVonFenster = (w: string) => cups.find((c) => (c.regionen[region] ?? []).some((f) => f.windowId === w))?.art;
+    const runde1 = (w: string) => /round\s*1(?!\d)/i.test(w);
+    const neueste = (l: typeof alle) => [...l].sort((a, b) => b.begin - a.begin);
+    const kandidaten = [
+      ...neueste(alle.filter((f) => f.windowId !== dieser.windowId && reihe(f.windowId) === reihe(dieser.windowId) && f.status === 'vorbei')),
+      ...neueste(alle.filter((f) => f.windowId !== dieser.windowId && reihe(f.windowId) !== reihe(dieser.windowId) && f.status === 'vorbei'
+        && groesse(f) === groesse(dieser) && stufe(f) === stufe(dieser) && artVonFenster(f.windowId) === artVonFenster(dieser.windowId)
+        && runde1(f.windowId) === runde1(dieser.windowId))),
+    ].slice(0, 4);
+    for (const vorlauf of kandidaten) {
+      if (vorlauf.qualifiziert) { schwelle = vorlauf.qualifiziert; ausVorlauf = true; break; }
       const danach = alle.filter((f) => f.eventId === vorlauf.eventId && f.begin > vorlauf.begin).sort((a, b) => a.begin - b.begin)[0];
-      if (danach) {
-        try {
-          const feld = await gecacht(`feld|${danach.eventId}|${danach.windowId}`, 30 * 60_000, () => holeTop(danach.eventId, danach.windowId, 1000));
-          if (feld.entries.length) { schwelle = feld.entries.length; ausVorlauf = true; }
-        } catch { /* dann der Standard */ }
-      }
+      if (!danach) continue;
+      try {
+        const feld = await gecacht(`feld|${danach.eventId}|${danach.windowId}`, 30 * 60_000, () => holeTop(danach.eventId, danach.windowId, 1000));
+        // Mehr als 1000 im Feld: die Groesse aus Epics Perzentil des letzten geholten Platzes.
+        const letzter = feld.entries[feld.entries.length - 1] as { rank: number; percentile?: number } | undefined;
+        const groesseFeld = feld.entries.length >= 1000 && letzter?.percentile ? Math.round(letzter.rank / letzter.percentile) : feld.entries.length;
+        if (groesseFeld) { schwelle = groesseFeld; ausVorlauf = true; break; }
+      } catch { /* naechster Kandidat */ }
     }
   }
   // Kein willkuerliches "Top 100": ohne Weiterkommen, Belohnung oder Preisgeld gibt es nichts vorherzusagen (Arena-/Test-Cups ohne Finale).
