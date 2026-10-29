@@ -111,13 +111,13 @@ export default function MatchFinder() {
           <span aria-hidden className="pointer-events-none absolute -right-20 -top-24 h-72 w-72 rounded-full bg-sky-500/25 blur-3xl" />
           <div className="relative">
             <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-sky-500">VIP</p>
-            <h1 className="mt-1 text-3xl font-extrabold text-white sm:text-4xl">Match-ID-Finder</h1>
+            <h1 className="mt-1 text-3xl font-extrabold text-white sm:text-4xl"><T>Match-ID-Finder</T></h1>
             <p className="mt-2 max-w-2xl text-sm text-slate-400">
               <T>Speichere Spieler als Favoriten. Läuft ein Cup, siehst du hier, in welchem Match sie gerade sind - Match-ID kopieren und im Spiel zuschauen.</T>
             </p>
             <p className="mt-3 flex flex-wrap items-center gap-2 text-xs">
               {liveCups.length
-                ? <span className="flex items-center gap-1.5 font-semibold text-red-400"><span className="h-2 w-2 animate-pulse rounded-full bg-red-500" />{liveCups.length} <T>Cups laufen gerade</T></span>
+                ? <span className="flex items-center gap-1.5 font-semibold text-red-400"><span className="h-2 w-2 animate-pulse rounded-full bg-red-500" />{liveCups.length} {liveCups.length === 1 ? <T>Cup läuft gerade</T> : <T>Cups laufen gerade</T>}</span>
                 : <span className="text-slate-500"><T>Gerade läuft kein Cup - die Match-IDs erscheinen, sobald einer läuft.</T></span>}
             </p>
           </div>
