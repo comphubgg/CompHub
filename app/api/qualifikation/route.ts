@@ -1,7 +1,17 @@
 import { NextResponse } from 'next/server';
 import {
-  gecacht, holeTop, cupsGruppiert, archivCups, REGIONEN, EpicLoginNoetig,
+  gecacht, holeTop, holeSeite, cupsGruppiert, archivCups, REGIONEN, EpicLoginNoetig,
 } from '@/lib/epicCups';
+
+/**
+ * Die Eintraege um einen Rang - bei tiefen Raengen nur die Seite, auf der er steht (Epic: 100 je Seite), statt aller Seiten davor. Ab Rang 300 lohnt das:
+ * Rang 8000 im FNCS-Qualifier hiess sonst 80 Seiten in einem Zug.
+ */
+async function umRang(eventId: string, windowId: string, rang: number) {
+  if (rang <= 300) return holeTop(eventId, windowId, rang);
+  const seite = await holeSeite(eventId, windowId, Math.floor((rang - 1) / 100), true);
+  return seite;
+}
 import { zwischenspeichern } from '@/lib/zwischenspeicher';
 
 // Wie viele Punkte es voraussichtlich braucht, um weiterzukommen.
@@ -201,7 +211,7 @@ async function holeRoh(request: Request) {
       const board = await gecacht(
         `qualIst|${dieser.eventId}|${dieser.windowId}|${schwelle}|${laeuft ? 'live' : 'fertig'}`,
         laeuft ? 15_000 : 30 * 60_000,
-        () => holeTop(dieser.eventId, dieser.windowId, schwelle));
+        () => umRang(dieser.eventId, dieser.windowId, schwelle));
       const treffer = board.entries.find((e) => e.rank === schwelle);
       // Null Punkte auf dem Platz heisst: noch nichts gespielt, oder Epic
       // fuehrt fuer diesen Cup keine Punkte. Beides ist keine Auskunft.
@@ -238,8 +248,9 @@ async function holeRoh(request: Request) {
     const art = artVon.get(dieser.windowId);
     const g = groesse(dieser);
     const st = stufe(dieser);
+    const r1 = (w: string) => /round\s*1(?!\d)/i.test(w);
     const kandidaten = alle.filter((f) => f.windowId !== window_ && f.status === 'vorbei' && f.begin < dieser.begin
-      && f.begin > dieser.begin - 60 * 864e5 && groesse(f) === g && stufe(f) === st);
+      && f.begin > dieser.begin - 60 * 864e5 && groesse(f) === g && stufe(f) === st && r1(f.windowId) === r1(dieser.windowId));
     // Erst dieselbe Art (Skin-Cup mit Skin-Cups), sonst jede Art derselben Stufe und Teamgroesse.
     const gleicheArt = kandidaten.filter((f) => artVon.get(f.windowId) === art);
     frueher = (gleicheArt.length ? gleicheArt : kandidaten)
@@ -262,7 +273,7 @@ async function holeRoh(request: Request) {
   for (const f of frueher) {
     try {
       const board = await gecacht(`qual|${f.eventId}|${f.windowId}|${schwelle}`,
-        30 * 60_000, () => holeTop(f.eventId, f.windowId, schwelle));
+        30 * 60_000, () => umRang(f.eventId, f.windowId, schwelle));
       // Genau der Rang, der noch weiterkommt.
       const treffer = board.entries.find((e) => e.rank === schwelle)
         // Reicht die Liste nicht ganz hin, gilt der letzte vorhandene Rang -
