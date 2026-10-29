@@ -61,6 +61,8 @@ function lesbar(kennung: string): string {
 }
 
 function benenne(cups: CupGruppe[]): CupGruppe[] {
+  // Epic liefert Titel gelegentlich mit Tabulator oder doppelten Leerzeichen (Arenas Performance Evaluation) - erst glaetten.
+  cups = cups.map((c) => ({ ...c, titel: c.titel.replace(/\s+/g, ' ').trim() }));
   const erstes = (c: CupGruppe) => Object.values(c.regionen ?? {}).flat()[0];
   // Epics Anzeigenamen je Turnierkennung - fuer Eintraege, denen Epic keinen Namen gab, aber ein anderer Eintrag desselben Turniers einen hat.
   const nameJeTurnier = new Map<string, string>();
