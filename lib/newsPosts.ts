@@ -1,3 +1,4 @@
+import crypto from 'crypto';
 import { liesJson, schreibJson } from '@/lib/ablage';
 import { GET as katalogAbruf } from '@/app/api/cup-catalog/route';
 import { kernname, ohneZierrat, lateinisch } from '@/lib/homoglyph';
@@ -14,7 +15,7 @@ const SEITE = 'https://www.thecomphub.com';
 const VERLAUF = 'news-verlauf.json';
 
 interface KatalogCup { id: string; titel: string; bild?: string | null; farbe?: string; art?: string; naechsterStart: number | null; regionen?: Record<string, unknown[]>; live?: boolean; vorbei?: boolean }
-interface Verlauf { gesehen: string[]; start: number; /** Epics Stand der zuletzt gemeldeten Power Rankings. */ ranking?: string }
+interface Verlauf { gesehen: string[]; start: number; /** Pruefsumme der zuletzt gemeldeten Power Rankings ("pr1:..."; frueher Epics Zeitstempel). */ ranking?: string }
 
 export interface NewsBeitrag { schluessel: string; titel: string; text: string; url: string; bildUrl: string }
 
@@ -56,30 +57,35 @@ export async function neueCupsFuerNews(max = 3): Promise<NewsBeitrag[]> {
 }
 
 /*
- * Power-Ranking-Update (Aufgabe 118: "#news ... neue Cups, Power-Ranking-Update usw."): rechnet Epic die weltweite Rangliste neu (power-rankings/global.json,
- * "epicStand"), kommt ein Beitrag mit den ersten fuenf und dem groessten Aufsteiger unter den ersten hundert. Beim ersten Lauf wird nur der Stand vermerkt.
+ * Power-Ranking-Update (Aufgabe 118: "#news ... neue Cups, Power-Ranking-Update usw."): rechnet Epic die weltweite Rangliste neu, kommt ein Beitrag mit den ersten
+ * fuenf, dem groessten Aufsteiger unter den ersten hundert und der Grafik /api/ranking-bild (Top 3 mit Fotos, Flaggen, Plaetze 4-10).
+ *
+ * Seit dem 29.10.2026 nur einmal je echter Aenderung (Betreiber: "wieso sendest du mehrmals die Rankings - nur 1x und nur, wenn Fortnite selbst updatet"):
+ *   - der Stand ist eine Pruefsumme der ersten zehn (Platz, Konto, Punkte), nicht Epics Zeitstempel - der aenderte sich auch bei gleichen Zahlen;
+ *   - die Pruefsumme steht im Link des Beitrags (#u-...), und lib/discord schickeNews sieht in #news nach, ob es diesen Beitrag schon gibt - so kommt
+ *     er auch dann nicht doppelt, wenn das Vermerken im Archiv einmal verloren geht (Neustart).
+ * Ein Verlauf mit altem Stand (Zeitstempel) wird nur umgestellt, ohne zu posten.
  */
-interface PrSpieler { rank: number; name: string; land?: string; wertung: number; deltaPlatz?: number }
+interface PrSpieler { rank: number; id?: string; name: string; land?: string; wertung: number; deltaPlatz?: number }
 const flagge = (land?: string) => (land && /^[a-z]{2}$/i.test(land) ? String.fromCodePoint(...land.toUpperCase().split('').map((z) => 127397 + z.charCodeAt(0))) : '');
 const prName = (n: string) => lateinisch(ohneZierrat(kernname(n)).trim() || n).toUpperCase();
 
 export async function rankingFuerNews(): Promise<NewsBeitrag | null> {
   const pr = await liesJson<{ spieler?: PrSpieler[]; epicStand?: string | number } | null>('power-rankings/global.json', null);
-  if (!pr?.spieler?.length || !pr.epicStand) return null;
+  if (!pr?.spieler || pr.spieler.length < 10) return null;
   const verlauf = await liesJson<Verlauf | null>(VERLAUF, null);
   if (!verlauf) return null;
-  const stand = String(pr.epicStand);
+  const stand = `pr1:${crypto.createHash('sha1').update(pr.spieler.slice(0, 10).map((s) => `${s.rank}:${s.id ?? s.name}:${s.wertung}`).join('|')).digest('hex').slice(0, 12)}`;
   if (verlauf.ranking === stand) return null;
   await schreibJson(VERLAUF, { ...verlauf, ranking: stand } satisfies Verlauf);
-  if (!verlauf.ranking) return null;
+  if (!verlauf.ranking?.startsWith('pr1:')) return null;
   const top = pr.spieler.slice(0, 5);
   const pfeil = (d?: number) => (d && d > 0 ? ` ▲${d}` : d && d < 0 ? ` ▼${-d}` : '');
   const kletterer = pr.spieler.slice(0, 100).filter((s) => (s.deltaPlatz ?? 0) > 0).sort((a, b) => (b.deltaPlatz ?? 0) - (a.deltaPlatz ?? 0))[0];
-  const zeile = `#1 ${prName(top[0].name)} · ${top[0].wertung.toLocaleString('en-US')} pts`;
   return {
     schluessel: `ranking:${stand}`, titel: 'Power Rankings update',
     text: `**Power Rankings updated** 📈\n${top.map((s) => `${s.rank}. ${flagge(s.land)} ${prName(s.name)} - ${s.wertung.toLocaleString('en-US')}${pfeil(s.deltaPlatz)}`).join('\n')}${kletterer ? `\n\nBiggest climber in the top 100: ${flagge(kletterer.land)} ${prName(kletterer.name)} (▲${kletterer.deltaPlatz} to #${kletterer.rank})` : ''}\nFull ranking: ${SEITE}/power-rankings`,
-    url: `${SEITE}/power-rankings`,
-    bildUrl: `${SEITE}/api/news-bild?titel=${encodeURIComponent('Power Rankings')}&zeile=${encodeURIComponent(zeile.slice(0, 90))}&farbe=38bdf8`,
+    url: `${SEITE}/power-rankings#u-${stand.slice(4)}`,
+    bildUrl: `${SEITE}/api/ranking-bild?v=${stand.slice(4)}`,
   };
 }

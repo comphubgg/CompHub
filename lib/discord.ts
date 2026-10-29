@@ -2015,10 +2015,19 @@ export async function schickeNews(
     kanal = kanaele.find((k) => k.type === 0 && gleich(k.name, COMMUNITY_KANAELE.news));
   }
   if (!kanal) return { ok: false, grund: 'kein-kanal' };
+  /*
+   * Der Kanal ist das Gedaechtnis (29.10.2026, Betreiber: "wieso sendest du mehrmals die Rankings"): steht unter den letzten fuenfzig Nachrichten schon ein Beitrag
+   * mit derselben Adresse, geht keiner mehr hinaus - auch wenn das Vermerken im Archiv einmal verloren ging (lib/newsPosts).
+   */
+  try {
+    const alte = await ruf(`/channels/${kanal.id}/messages?limit=50`, 'GET') as unknown;
+    if (Array.isArray(alte) && alte.some((m: { embeds?: Array<{ url?: string }> }) => (m.embeds ?? []).some((e) => e.url === url))) return { ok: true, grund: 'schon-da' };
+  } catch { /* lieber nachsehen koennen - ohne Antwort geht der Beitrag hinaus, wie bisher */ }
   let bild: Uint8Array | null = null;
   try {
     const r = await fetch(bildUrl, { signal: AbortSignal.timeout(60_000) });
-    if (r.ok) bild = new Uint8Array(await r.arrayBuffer());
+    // Nur ein echtes Bild - eine Fehlermeldung als JSON wuerde sonst als kaputter Anhang gesendet.
+    if (r.ok && (r.headers.get('content-type') ?? '').startsWith('image/')) bild = new Uint8Array(await r.arrayBuffer());
   } catch { /* ohne Grafik geht der Beitrag trotzdem hinaus */ }
   const embed: Record<string, unknown> = { title: titel.slice(0, 256), url, description: text.slice(0, 3000), color: FARBE, footer: { text: 'CompHub · Competitive news' } };
   try {
