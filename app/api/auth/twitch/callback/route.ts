@@ -130,6 +130,22 @@ export async function GET(req: NextRequest) {
         profile_image_url?: string }>;
     };
     const nutzer = daten.data?.[0];
+
+    /*
+     * Das Bot-Konto (app/api/twitch-bot/verbinden): kein Anmelden, sondern die Tokens des Bots ablegen (lib/twitchBot) - nur, wenn der Hinweg vom Admin kam.
+     */
+    if (req.cookies.get('twitch_oauth_art')?.value === 'bot') {
+      const voll = token as { access_token: string; refresh_token?: string; expires_in?: number; scope?: string[] };
+      if (!nutzer?.id || !voll.refresh_token) return zurueck(req, '/twitch-bot?fehler=bot-token');
+      const { speichereZugang } = await import('@/lib/twitchBot');
+      await speichereZugang({
+        id: nutzer.id, login: nutzer.login ?? '', access: voll.access_token, refresh: voll.refresh_token,
+        bis: Date.now() + (voll.expires_in ?? 3600) * 1000, scopes: voll.scope ?? [],
+      });
+      const fertig = zurueck(req, '/twitch-bot?bot=verbunden');
+      fertig.cookies.set('twitch_oauth_art', '', { path: '/', maxAge: 0 });
+      return fertig;
+    }
     if (!nutzer?.id) return zurueck(req, '/sign-in?fehler=profil');
 
     // Wer die Freigabe fuer die Adresse verweigert, kann kein Konto bekommen.
