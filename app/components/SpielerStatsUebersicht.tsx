@@ -23,6 +23,7 @@ import { useSprache } from '@/app/components/SprachProvider';
 import { ortVon } from '@/app/lib/ort';
 import StatKacheln, { type KachelListe, type KachelSpieler } from '@/app/components/StatKacheln';
 import AktualisierungsStand from '@/app/components/AktualisierungsStand';
+import StatVollansicht from '@/app/components/StatVollansicht';
 
 /**
  * Die Kennzahlen - erst die zehn des Vorbilds in seiner Reihenfolge (Betreiber, 29.10.2026: "mindestens Damage-Ratio, Damage-to-Player, Eliminations,
@@ -96,8 +97,12 @@ function alsZeit(sek: number, stunden = false): string {
   return h ? `${h}h ${m}m` : `${m}m ${s % 60}s`;
 }
 
-export default function SpielerStatsUebersicht({ spieler, matches, aktualisiert, szene, schadenAusReplay, laeuft, endeMs, teamWerte, gesamt, summen, schadenTeil }: {
+export default function SpielerStatsUebersicht({ spieler, matches, aktualisiert, szene, schadenAusReplay, laeuft, endeMs, teamWerte, gesamt, summen, schadenTeil, quelle, zuDetails }: {
   spieler: KachelSpieler[];
+  /** Die Abfrage dieser Player Stats (/api/cup-spieler?window=...) - damit laedt die Vollansicht einer Kennzahl alle Spieler seitenweise. */
+  quelle?: string;
+  /** Zu den Werten eines Spielers je Match (Reiter mit der Spieler-Suche). */
+  zuDetails?: (s: { id: string; name: string }) => void;
   /** Wie viele Spieler der Spieltag insgesamt hat - die Liste zeigt nur die besten. */
   gesamt?: number | null;
   /** Summen ueber alle Spieler (Schnittstelle /api/cup-spieler); ohne sie zaehlen die Kacheln nur die gezeigte Liste. */
@@ -127,6 +132,8 @@ export default function SpielerStatsUebersicht({ spieler, matches, aktualisiert,
   const [gruppe, setGruppe] = useState('alle');
   const [art, setArt] = useState('summe');
   const [mehr, setMehr] = useState(false);
+  // Eine Kennzahl in voller Laenge - ersetzt die Uebersicht, bis "Zurueck zur Uebersicht" (Betreiber, 29.10.2026: kein Fenster daruebergelegt).
+  const [voll, setVoll] = useState<KachelListe | null>(null);
 
   const zahl = (v: number, n = 0) => v.toLocaleString(ort, { minimumFractionDigits: n, maximumFractionDigits: n });
   const zeigen = (v: number, f?: Format, n = 0) => (f === 'zeit' ? alsZeit(v, true)
@@ -190,6 +197,10 @@ export default function SpielerStatsUebersicht({ spieler, matches, aktualisiert,
       ? t('Wird aus den Replays nachgetragen, sobald sie ausgewertet sind')
       : t('Dieser Wert kommt aus den Server-Replays. Epic löscht sie nach 31 Tagen — für diesen Cup wurden sie nicht aufgezeichnet.');
   };
+
+  if (voll && quelle) {
+    return <StatVollansicht kachel={voll} alle={OSIRION_KACHELN} quelle={quelle} zurueck={() => setVoll(null)} zuDetails={zuDetails} />;
+  }
 
   return (
     <div className="space-y-4">
@@ -266,7 +277,7 @@ export default function SpielerStatsUebersicht({ spieler, matches, aktualisiert,
         )}
       </p>
 
-      <StatKacheln spieler={spieler} listen={OSIRION_KACHELN} anzahl={10} leerText={leerText} vorbild />
+      <StatKacheln spieler={spieler} listen={OSIRION_KACHELN} anzahl={5} leerText={leerText} vorbild aufVoll={quelle ? setVoll : undefined} />
     </div>
   );
 }

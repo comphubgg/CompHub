@@ -776,6 +776,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
   const [reiter, setReiter] =
     useState<'liste' | 'runden' | 'spieler' | 'teams' | 'streams'
       | 'about' | 'archiv' | 'preis' | 'weg' | 'karte'>('liste');
+  // Spieler, der unter "Team Stats" gleich offen sein soll - aus der Vollansicht einer Kennzahl der Player Stats ("Check details").
+  const [detailStart, setDetailStart] = useState<{ id: string; name: string } | null>(null);
 
   /*
    * Das Archiv zu diesem Cup - Fotos und Videos vom Event (lib/galerie).
@@ -4447,7 +4449,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
           * Spielers und bei einem Team seiner Mitspieler nebeneinander. Unter "Player Stats" gibt es diese Suche nicht (Betreiber, 13.10.2026).
           */}
         {reiter === 'teams' && lbFenster && (
-          <SpielerDetail eventId={lbFenster.eventId} windowId={lbFenster.windowId} rueckPfad={`/events/${id}`} solo={soloCup} />
+          <SpielerDetail key={detailStart?.id ?? 'suche'} eventId={lbFenster.eventId} windowId={lbFenster.windowId} rueckPfad={`/events/${id}`} solo={soloCup} startSpieler={detailStart} />
         )}
 
         {reiter === 'spieler' && !soloCup && !!spielerWerte?.spieler.length && (
@@ -4462,7 +4464,9 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
               schadenAusReplay={!!(spielerWerte as { schadenAusReplay?: boolean }).schadenAusReplay}
               gesamt={(spielerWerte as { gesamt?: number }).gesamt ?? null}
               summen={(spielerWerte as { summen?: Record<string, number> | null }).summen ?? null}
-              schadenTeil={(spielerWerte as { schadenTeil?: { teams: number; matches: number } | null }).schadenTeil ?? null} />
+              schadenTeil={(spielerWerte as { schadenTeil?: { teams: number; matches: number } | null }).schadenTeil ?? null}
+              quelle={fenster ? `/api/cup-spieler?window=${encodeURIComponent(fenster.windowId)}&event=${encodeURIComponent(fenster.eventId)}${summenFenster ? `&windows=${summenText}` : ''}` : undefined}
+              zuDetails={(s) => { setDetailStart(s); setReiter('teams'); }} />
           </div>
         )}
         {/* Unter Player Stats nur Werte je Spieler, nie Epics Team-Werte (Betreiber, 28.10.2026: "bei Player Stats koennen nicht Team Stats sein") - die

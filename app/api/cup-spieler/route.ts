@@ -197,6 +197,38 @@ async function letzterLauf() {
   } catch { return null; }
 }
 
+/** Namen bei Epic fuer Konten, die das Verzeichnis nicht kennt (100 je Anfrage, siehe loeseNamenAuf). */
+async function namenNachholen(ids: string[], anzeige: Map<string, string>): Promise<void> {
+  const offen = [...new Set(ids)].filter((id) => id && !anzeige.has(id));
+  if (!offen.length) return;
+  try {
+    const { getToken, loeseNamenAuf } = await import('@/lib/epicCups');
+    const { token } = await getToken();
+    const aufgeloest = await loeseNamenAuf(offen, token);
+    for (const [id, name] of Object.entries(aufgeloest)) {
+      // Was Epic nicht kennt, kommt als gekuerzte Id zurueck - die soll nicht als Name durchgehen.
+      if (name && name !== id.slice(0, 8)) anzeige.set(id, name);
+    }
+  } catch { /* ohne Epic-Anmeldung bleibt die gekuerzte Id stehen */ }
+}
+
+/*
+ * Eine Kennzahl ganz (Betreiber, 29.10.2026: "wenn ich Fullscreen gehe und auf All druecke, soll es wirklich alle laden, also bei Open Cups ...
+ * alle 10.000 Spieler"). Sortiert wird ueber alle Spieler mit einem Wert; heraus geht eine Seite, mit dem Platz in dieser Kennzahl.
+ */
+type Zeile = Record<string, unknown> & { epicId: string };
+const KLEIN_BESSER = new Set<string>([]);
+function seiteVon<T extends Zeile>(alle: T[], feld: string, seite: number, pro: number, treffer: ((z: T) => boolean) | null) {
+  const wert = (z: T) => Number(z[feld === 'elims' ? 'kills' : feld]);
+  const sortiert = alle.filter((z) => Number.isFinite(wert(z)) && wert(z) > 0)
+    .sort((a, b) => (KLEIN_BESSER.has(feld) ? wert(a) - wert(b) : wert(b) - wert(a)))
+    .map((z, i) => ({ ...z, statRang: i + 1 }));
+  const gefiltert = treffer ? sortiert.filter(treffer) : sortiert;
+  const seiten = Math.max(1, Math.ceil(gefiltert.length / pro));
+  const nr = Math.min(Math.max(1, seite), seiten);
+  return { gesamt: sortiert.length, gefunden: gefiltert.length, seiten, seite: nr, zeilen: gefiltert.slice((nr - 1) * pro, nr * pro) };
+}
+
 async function holeRoh(request: Request) {
   const p = new URL(request.url).searchParams;
   const fenster = p.get('window');
@@ -209,6 +241,9 @@ async function holeRoh(request: Request) {
 
   // Das Finale der Globals: beide Tage (siehe ausSzene).
   const event = p.get('event');
+  const kennzahl = (p.get('kennzahl') ?? '').trim();
+  const seite = Number(p.get('seite')) || 1;
+  const pro = Math.min(Math.max(Number(p.get('pro')) || 50, 10), 200);
   // Mehrere Tage eines Finales zusammen (?windows=a,b, Betreiber 28.10.2026: kumulatives Turnier); sonst nur der Spieltag - oder bei den Globals ihre zwei Tage.
   const tageWunsch = (p.get('windows') ?? '').split(',').map((s) => s.trim()).filter(Boolean).slice(0, 6);
   const tage = tageWunsch.length > 1 ? tageWunsch : istGlobalsEvent(event, fenster) && !istGlobalsFenster(fenster)
@@ -236,6 +271,11 @@ async function holeRoh(request: Request) {
         // Im Finale spielt jeder alle Spiele - dort reicht die Zahl der Spiele des Finales (Performance: vier).
         if (x.spiele >= Math.min(5, szene.runden || 5)) Object.assign(x, { elimsJeMatch: x.kills / x.spiele, ...(r ? { kd: x.kills / Math.max(1, r.gestorben) } : {}) });
       }
+    }
+    if (kennzahl) {
+      const q = (p.get('q') ?? '').trim().toLowerCase();
+      return NextResponse.json({ kennzahl, ...seiteVon(szene.spieler.map((x) => ({ ...x, elims: x.kills })), kennzahl, seite, pro,
+        q ? (z) => String(z.name ?? '').toLowerCase().includes(q) : null) });
     }
     return NextResponse.json({ ...szene, gesamt: szene.spieler.length });
   }
@@ -329,6 +369,64 @@ async function holeRoh(request: Request) {
   const ganzGelesen = (id: string, spiele: number) => !teil || (clutchDatei?.spiele?.[id.toLowerCase()] ?? 0) >= spiele;
   const lebenVon = clutchDatei?.leben && Object.keys(clutchDatei.leben).length ? new Map(Object.entries(clutchDatei.leben)) : null;
 
+  /** Alle Werte eines Spielers aus Replays und vollen Replays - ohne Namen und Team (die kommen nur fuer gezeigte Zeilen dazu). */
+  const werte = (x: (typeof rep.spieler)[number]) => ({
+    epicId: x.epicId,
+    spiele: x.matches,
+    kills: x.kills,
+    elims: x.kills,
+    knocks: x.knocks,
+    tode: x.gestorben,
+    umgehauen: x.umgehauen,
+    // Erst ab fuenf Spielen - sonst fuehrt einer mit einem einzigen guten Spiel.
+    ...(x.matches >= 5 ? { elimsJeMatch: x.kills / x.matches, kd: x.kills / Math.max(1, x.gestorben) } : {}),
+    clutch: clutchVon && ganzGelesen(x.epicId, x.matches) ? (clutchVon.get(x.epicId.toLowerCase()) ?? 0) : null,
+    // Ueberlebenszeit ab dem Absprung, ohne die Zeit zwischen Tod und Reboot (lib/clutchLeben.mjs; Median 0,3 % neben der Szene-Quelle).
+    ...(lebenVon && ganzGelesen(x.epicId, x.matches) && lebenVon.has(x.epicId.toLowerCase()) ? { timeAlive: lebenVon.get(x.epicId.toLowerCase()) } : {}),
+    ...(() => {
+      const d = schadenVon?.get(x.epicId.toLowerCase());
+      if (!d || !ganzGelesen(x.epicId, x.matches)) return {};
+      return {
+        damage: Math.round(d.dmg), damageTaken: Math.round(d.erlitten),
+        // Dasselbe Feld wie die Szene-Quelle (quote) - so liest die Kachel "Damage Ratio" beide.
+        damageRatio: d.erlitten > 0 ? d.dmg / d.erlitten : null, quote: d.erlitten > 0 ? d.dmg / d.erlitten : null,
+        hits: d.treffer, headshots: d.krit, schadenAusReplay: true,
+        // Zeit im Sturm und Reboots/Revives aus demselben Lauf (an vier Finals gegen die Szene-Werte geprueft, 95-100 von 100).
+        ...(typeof d.sturm === 'number' ? { timeInStorm: Math.round(d.sturm) } : {}),
+        ...(typeof d.wiederbelebt === 'number' ? { reboots: (d.wiederbelebt ?? 0) + (d.rebootet ?? 0) } : {}),
+      };
+    })(),
+  });
+
+  /** Team (Platz, Mitspieler) fuer eine Menge Spieler. */
+  const teamsFuer = (ids: Set<string>) => {
+    const raus = new Map<string, { partner: string[]; platz: number | null }>();
+    for (const t of rep.teams ?? []) {
+      if (!(t.spieler ?? []).some((id) => ids.has(id))) continue;
+      for (const id of t.spieler ?? []) {
+        raus.set(id, { partner: (t.spieler ?? []).filter((x) => x !== id), platz: typeof t.platz === 'number' ? t.platz : null });
+      }
+    }
+    return raus;
+  };
+
+  // Eine Kennzahl ganz, seitenweise - ueber alle Spieler des Spieltags, nicht nur die gezeigten.
+  if (kennzahl) {
+    const imFeld = q ? new Set(auswahl.map((x) => x.epicId)) : null;
+    const s1 = seiteVon(rep.spieler.map(werte), kennzahl, seite, pro, imFeld ? (z) => imFeld.has(z.epicId) : null);
+    const ids = new Set(s1.zeilen.map((z) => z.epicId));
+    const teams = teamsFuer(ids);
+    await namenNachholen([...ids, ...[...ids].flatMap((id) => teams.get(id)?.partner ?? [])], anzeige);
+    return NextResponse.json({
+      kennzahl, ...s1, schadenTeil: teil,
+      zeilen: s1.zeilen.map((z) => ({
+        ...z, name: anzeige.get(z.epicId) ?? z.epicId.slice(0, 8), land: land.get(z.epicId) ?? '',
+        platz: teams.get(z.epicId)?.platz ?? null,
+        partner: (teams.get(z.epicId)?.partner ?? []).map((id) => anzeige.get(id) ?? id.slice(0, 8)),
+      })),
+    });
+  }
+
   // Die besten nach Eliminierungen - dazu die Spitze bei Knocks, Eliminierungen je Match und K/D (ab fuenf Spielen), damit jede Bestenliste stimmt.
   const gezeigt = (() => {
     const basis = auswahl.slice(0, limit);
@@ -359,70 +457,26 @@ async function holeRoh(request: Request) {
     return basis;
   })();
 
-  const zumTeam = new Map<string, { partner: string[]; platz: number | null }>();
-  const gesucht = new Set(gezeigt.map((x) => x.epicId));
-  for (const t of rep.teams ?? []) {
-    if (!(t.spieler ?? []).some((id) => gesucht.has(id))) continue;
-    for (const id of t.spieler ?? []) {
-      zumTeam.set(id, {
-        partner: (t.spieler ?? []).filter((x) => x !== id),
-        platz: typeof t.platz === 'number' ? t.platz : null,
-      });
-    }
-  }
+  const zumTeam = teamsFuer(new Set(gezeigt.map((x) => x.epicId)));
 
   // Namen bei Epic nur fuer die gezeigten Zeilen und ihre Mitspieler.
   const offen = [...new Set([
     ...gezeigt.map((x) => x.epicId),
     ...gezeigt.flatMap((x) => zumTeam.get(x.epicId)?.partner ?? []),
   ])].filter((id) => id && !anzeige.has(id));
-  if (offen.length) {
-    try {
-      const { getToken, loeseNamenAuf } = await import('@/lib/epicCups');
-      const { token } = await getToken();
-      const aufgeloest = await loeseNamenAuf(offen, token);
-      for (const [id, name] of Object.entries(aufgeloest)) {
-        // Was Epic nicht kennt, kommt als gekuerzte Id zurueck - die soll
-        // nicht als Name durchgehen.
-        if (name && name !== id.slice(0, 8)) anzeige.set(id, name);
-      }
-    } catch { /* ohne Epic-Anmeldung bleibt die gekuerzte Id stehen */ }
-  }
+  await namenNachholen(offen, anzeige);
 
   // Der Platz im ganzen Feld (nach Kills) - auch fuer Treffer einer Suche.
   const rangVon = new Map(rep.spieler.map((x, i) => [x.epicId, i + 1]));
   const spieler = gezeigt.map((x, i) => {
     const team = zumTeam.get(x.epicId);
     return {
+      ...werte(x),
       rang: rangVon ? rangVon.get(x.epicId) ?? null : i + 1,
-      epicId: x.epicId,
       name: anzeige.get(x.epicId) ?? x.epicId.slice(0, 8),
       land: land.get(x.epicId) ?? '',
-      spiele: x.matches,
-      kills: x.kills,
-      knocks: x.knocks,
-      tode: x.gestorben,
-      umgehauen: x.umgehauen,
-      // Erst ab fuenf Spielen - sonst fuehrt einer mit einem einzigen guten Spiel.
-      ...(x.matches >= 5 ? { elimsJeMatch: x.kills / x.matches, kd: x.kills / Math.max(1, x.gestorben) } : {}),
       platz: team?.platz ?? null,
       partner: (team?.partner ?? []).map((id) => anzeige.get(id) ?? id.slice(0, 8)),
-      clutch: clutchVon && ganzGelesen(x.epicId, x.matches) ? (clutchVon.get(x.epicId.toLowerCase()) ?? 0) : null,
-      // Ueberlebenszeit ab dem Absprung, ohne die Zeit zwischen Tod und Reboot (lib/clutchLeben.mjs; Median 0,3 % neben der Szene-Quelle).
-      ...(lebenVon && ganzGelesen(x.epicId, x.matches) && lebenVon.has(x.epicId.toLowerCase()) ? { timeAlive: lebenVon.get(x.epicId.toLowerCase()) } : {}),
-      ...(() => {
-        const d = schadenVon?.get(x.epicId.toLowerCase());
-        if (!d || !ganzGelesen(x.epicId, x.matches)) return {};
-        return {
-          damage: Math.round(d.dmg), damageTaken: Math.round(d.erlitten),
-          // Dasselbe Feld wie die Szene-Quelle (quote) - so liest die Kachel "Damage Ratio" beide.
-          damageRatio: d.erlitten > 0 ? d.dmg / d.erlitten : null, quote: d.erlitten > 0 ? d.dmg / d.erlitten : null,
-          hits: d.treffer, headshots: d.krit, schadenAusReplay: true,
-          // Zeit im Sturm und Reboots/Revives aus demselben Lauf (an vier Finals gegen die Szene-Werte geprueft, 95-100 von 100).
-          ...(typeof d.sturm === 'number' ? { timeInStorm: Math.round(d.sturm) } : {}),
-          ...(typeof d.wiederbelebt === 'number' ? { reboots: (d.wiederbelebt ?? 0) + (d.rebootet ?? 0) } : {}),
-        };
-      })(),
     };
   });
 

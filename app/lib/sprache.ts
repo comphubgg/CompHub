@@ -43,6 +43,12 @@ export const SPRACHEN: Array<{ kennung: Sprache; kurz: string; name: string }> =
  */
 const AUF_ENGLISCH: Record<string, string> = {
   // ------------------------------------------------------------ Allgemein
+  'Vorherige Seite': 'Previous page',
+  'Nächste Seite': 'Next page',
+  'Seite {a} von {b}': 'Page {a} of {b}',
+  'Details in den Spieler-Stats': 'Check details in Player Stats',
+  'Kennwert': 'Value',
+  'Spieler mit einem Wert': 'players with a value',
   'Speichern': 'Save',
   'Gespeichert': 'Saved',
   'gespeichert': 'saved',

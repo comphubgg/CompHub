@@ -66,7 +66,9 @@ function alsZeit(sek: number): string {
 
 type Kachel = KachelListe & { zeilen: KachelSpieler[] };
 
-export default function StatKacheln({ spieler, listen = TURNIER_KACHELN, anzahl = 5, aufKlick, leereZeigen = false, leerText, vorbild = false }: {
+export default function StatKacheln({ spieler, listen = TURNIER_KACHELN, anzahl = 5, aufKlick, leereZeigen = false, leerText, vorbild = false, aufVoll }: {
+  /** Statt des Fensters die ganze Kennzahl als eigene Ansicht (Player Stats, app/components/StatVollansicht). */
+  aufVoll?: (k: KachelListe) => void;
   spieler: KachelSpieler[];
   /**
    * Der Aufbau nach Osirion fuer die Player Stats eines Cups (Betreiber, 29.10.2026: "optisch ziemlich genau so ... einfach in meinen Farben"):
@@ -122,11 +124,11 @@ export default function StatKacheln({ spieler, listen = TURNIER_KACHELN, anzahl 
           {kacheln.map((k) => (
             <div key={k.titel} className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950">
               <div className="flex items-center gap-2 px-4 pb-3 pt-4">
-                <img src="/logos/CompHub-Logo.png" alt="" className="h-6 w-6 shrink-0 object-contain" />
+                <img src="/logos/CompHub-Logo.png" alt="" className="h-7 w-7 shrink-0 rounded-full border border-zinc-700 bg-zinc-900 object-cover p-0.5" />
                 <h3 className="min-w-0 flex-1 truncate text-center text-[15px] font-extrabold uppercase tracking-wide text-slate-50">
                   <T>{k.titel}</T>
                 </h3>
-                <button type="button" onClick={() => setOffen(k)} disabled={!k.zeilen.length}
+                <button type="button" onClick={() => (aufVoll ? aufVoll(k) : setOffen(k))} disabled={!k.zeilen.length}
                   title={`${t('Alle anzeigen')} (${k.zeilen.length})`}
                   className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-zinc-700 text-slate-300
                              transition hover:border-sky-500 hover:text-sky-400 disabled:opacity-30">
@@ -135,18 +137,18 @@ export default function StatKacheln({ spieler, listen = TURNIER_KACHELN, anzahl 
                   </svg>
                 </button>
               </div>
-              <div className="mx-3 mb-3 overflow-hidden rounded-xl border border-zinc-800/80">
-                <div className="flex items-center gap-2.5 bg-zinc-900/80 px-3 py-2 text-[12px] font-semibold text-slate-400">
+              <div className="px-3 pb-3">
+                <div className="flex items-center gap-2.5 rounded-xl border border-zinc-800 bg-zinc-900/80 px-3 py-2 text-[12px] font-semibold text-slate-300">
                   <span className="w-5 shrink-0 text-center">#</span>
-                  <span className="flex-1"><T>Spieler</T></span>
-                  <span className="shrink-0"><T>Wert</T></span>
+                  <span className="flex-1"><T>Spielername</T></span>
+                  <span className="shrink-0"><T>Kennwert</T></span>
                 </div>
                 {k.zeilen.slice(0, anzahl).map((s, i) => (
                   <div key={s.epicId} role={aufKlick ? 'button' : undefined} tabIndex={aufKlick ? 0 : undefined}
                     onClick={aufKlick ? () => aufKlick(s) : undefined}
                     onMouseEnter={() => setMarkiert(s.epicId)}
-                    className={`flex items-center gap-2.5 px-3 py-[7px] transition ${aufKlick ? 'cursor-pointer' : ''} ${markiert === s.epicId
-                      ? 'bg-sky-500/15' : 'odd:bg-zinc-950 even:bg-zinc-900/30'}`}>
+                    className={`mt-0.5 flex items-center gap-2.5 rounded-lg px-3 py-2 transition ${aufKlick ? 'cursor-pointer' : ''} ${markiert === s.epicId
+                      ? 'bg-sky-500/10 ring-1 ring-inset ring-sky-500/60' : ''}`}>
                     <span className={`w-5 shrink-0 text-center text-[13px] tabular-nums ${i === 0 ? 'font-bold text-sky-400' : 'text-slate-400'}`}>{i + 1}</span>
                     <TeamFlagge groesse={18} laender={[s.land || undefined]} />
                     <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-slate-100">{s.name}</span>
