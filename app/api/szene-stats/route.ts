@@ -256,6 +256,24 @@ interface SuchEintrag {
 
 let suchVorrat: { stand: SuchEintrag[]; bis: number } | null = null;
 
+/**
+ * Namen vergleichbar machen: Fortnite-Namen tragen oft Doppelgaenger-Zeichen ("flickzy 10ǃ" mit ǃ statt !, "GоdL" mit kyrillischem о). Beim Suchen
+ * zaehlen sie wie die normalen Buchstaben (Betreiber, 29.10.2026: "flickzy 10!" fand nichts).
+ */
+const DOPPEL: Record<string, string> = { 'ǃ': '!', 'а': 'a', 'е': 'e', 'о': 'o', 'р': 'p', 'с': 'c', 'х': 'x', 'у': 'y', 'і': 'i', 'ј': 'j', 'ѕ': 's', 'к': 'k', 'м': 'm', 'т': 't', 'в': 'b', 'н': 'h' };
+function vergleichbar(s: string): string {
+  return (s ?? '').normalize('NFKC').toLowerCase().replace(/[ǃаеорсхуіјѕкмтвн]/g, (c) => DOPPEL[c] ?? c);
+}
+
+/** Die aktuellen Epic-Namen (epic-namen.json, einmal am Tag fuer alle Pros erneuert) - zehn Minuten im Vorgang. */
+let namenVorrat: { stand: Record<string, string>; bis: number } | null = null;
+async function aktuelleNamen(): Promise<Record<string, string>> {
+  if (namenVorrat && Date.now() < namenVorrat.bis) return namenVorrat.stand;
+  const stand = await liesJson<Record<string, string>>('epic-namen.json', {}).catch(() => ({}));
+  namenVorrat = { stand, bis: Date.now() + 10 * 60_000 };
+  return stand;
+}
+
 async function holeSuchIndex(): Promise<SuchEintrag[]> {
   if (suchVorrat && Date.now() < suchVorrat.bis) return suchVorrat.stand;
 
@@ -829,14 +847,16 @@ async function berechne(request: Request) {
       if (q.length < 2) {
         return NextResponse.json({ success: true, quelle: QUELLE, spieler: [] });
       }
+      // Auch der aktuelle Epic-Name zaehlt (Juu heisst gerade "juuzon ay лол7"), und Doppelgaenger-Zeichen zaehlen wie normale.
+      const qv = vergleichbar(q);
+      const jetzt = await aktuelleNamen();
       const treffer = (await holeSuchIndex())
-        .filter((e) => e.anzeige.toLowerCase().includes(q)
-          || e.namen.some((n) => n.toLowerCase().includes(q)))
-        // Wer mehr gespielt hat, steht oben: bei "twi" ist der gesuchte
-        // Spieler der mit Hunderten Matches, nicht ein gleichnamiges Konto
-        // mit dreien.
-        .sort((a, b) => b.matches - a.matches)
-        .slice(0, 8);
+        .filter((e) => [e.anzeige, e.name, jetzt[e.epicId] ?? '', ...e.namen].some((n) => vergleichbar(n).includes(qv)))
+        // Gepflegte Profile (die Profis) zuerst, dann wer mehr gespielt hat: bei "twi" ist der gesuchte Spieler der mit Hunderten Matches,
+        // nicht ein gleichnamiges Konto mit dreien.
+        .sort((a, b) => Number(b.gepflegt) - Number(a.gepflegt) || b.matches - a.matches)
+        .slice(0, 8)
+        .map((e) => ({ ...e, aktuell: jetzt[e.epicId] ?? null }));
 
       return NextResponse.json({ success: true, quelle: QUELLE, spieler: treffer });
     }

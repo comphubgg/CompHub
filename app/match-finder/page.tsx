@@ -16,6 +16,8 @@ import { loadUserStorageCloud, loadUserStorageValue, saveUserStorageCloud, saveU
  */
 
 interface Favorit { id: string; name: string }
+/** Ein Suchtreffer: Pro-Name, aktueller In-Game-Name und Bild. */
+interface Treffer extends Favorit { ingame?: string | null; bild?: string | null }
 interface FMatch { matchId: string; ende: string | null; platz: number | null; elims: number | null; windowId: string; titel: string }
 interface FLive { matchId: string; quelle: 'bestenliste' | 'sitzung'; windowId: string | null; titel: string | null; playlist: string | null }
 interface FSpieler { live: FLive | null; matches: FMatch[]; rang: number | null; punkte: number | null; windowId: string | null }
@@ -49,7 +51,7 @@ export default function MatchFinder() {
   const [daten, setDaten] = useState<Antwort | null>(null);
   const [fehler, setFehler] = useState('');
   const [suche, setSuche] = useState('');
-  const [treffer, setTreffer] = useState<Favorit[] | null>(null);
+  const [treffer, setTreffer] = useState<Treffer[] | null>(null);
   const [kopiert, setKopiert] = useState('');
   const geladen = useRef(false);
   const darf = zugang.admin || (zugang.vip && zugang.rechte.includes('matchfinder'));
@@ -87,13 +89,19 @@ export default function MatchFinder() {
     let weg = false;
     const uhr = window.setTimeout(async () => {
       const [szene, epic] = await Promise.all([
-        fetch(`/api/szene-stats?ansicht=suche&q=${encodeURIComponent(q)}`).then((r) => r.json()).catch(() => null) as Promise<{ spieler?: Array<{ epicId: string; name: string }> } | null>,
+        fetch(`/api/szene-stats?ansicht=suche&q=${encodeURIComponent(q)}`).then((r) => r.json()).catch(() => null) as Promise<{ spieler?: Array<{ epicId: string; name: string; anzeige?: string; aktuell?: string | null; bild?: string | null }> } | null>,
         q.length >= 3 ? fetch(`/api/match-finder?name=${encodeURIComponent(q)}`).then((r) => r.json()).catch(() => null) as Promise<{ treffer?: Favorit | null } | null> : Promise.resolve(null),
       ]);
       if (weg) return;
-      const liste: Favorit[] = [];
-      if (epic?.treffer?.id) liste.push({ id: epic.treffer.id.toLowerCase(), name: epic.treffer.name });
-      for (const s of szene?.spieler ?? []) if (s.epicId && !liste.some((x) => x.id === s.epicId)) liste.push({ id: s.epicId, name: s.name });
+      // Erst die bekannten Spieler (Pro-Name, Bild, aktueller In-Game-Name), dann - falls noch nicht dabei - das Konto zum genauen Epic-Namen.
+      const liste: Treffer[] = [];
+      for (const s of szene?.spieler ?? []) {
+        if (!s.epicId || liste.some((x) => x.id === s.epicId)) continue;
+        liste.push({ id: s.epicId, name: s.anzeige || s.name, ingame: s.aktuell ?? s.name, bild: s.bild ?? null });
+      }
+      if (epic?.treffer?.id && !liste.some((x) => x.id === epic.treffer!.id.toLowerCase())) {
+        liste.unshift({ id: epic.treffer.id.toLowerCase(), name: epic.treffer.name, ingame: epic.treffer.name, bild: null });
+      }
       setTreffer(liste.slice(0, 8));
     }, 350);
     return () => { weg = true; window.clearTimeout(uhr); };
@@ -212,10 +220,17 @@ export default function MatchFinder() {
                 {treffer.map((x) => {
                   const da = favoriten.some((f) => f.id === x.id);
                   return (
-                    <li key={x.id} className="flex items-center justify-between gap-2 rounded-lg border border-zinc-800 bg-zinc-950/60 px-3 py-2">
-                      <span className="truncate text-sm text-slate-200">{x.name}</span>
+                    <li key={x.id} className="flex items-center justify-between gap-2.5 rounded-lg border border-zinc-800 bg-zinc-950/60 px-2.5 py-2">
+                      {x.bild
+                        // eslint-disable-next-line @next/next/no-img-element
+                        ? <img src={x.bild} alt="" className="h-9 w-9 shrink-0 rounded-md object-cover object-top" />
+                        : <span className="grid h-9 w-9 shrink-0 place-items-center rounded-md bg-zinc-800 text-sm font-bold text-slate-400">{x.name.slice(0, 1).toUpperCase()}</span>}
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-sm font-bold text-slate-100">{x.name}</span>
+                        {x.ingame && x.ingame !== x.name && <span className="block truncate text-[11px] text-slate-500">{x.ingame}</span>}
+                      </span>
                       <button type="button" disabled={da || favoriten.length >= 12}
-                        onClick={() => { speichern([...favoriten, x]); setSuche(''); setTreffer(null); }}
+                        onClick={() => { speichern([...favoriten, { id: x.id, name: x.name }]); setSuche(''); setTreffer(null); }}
                         className="shrink-0 rounded-md bg-sky-500 px-2.5 py-1 text-xs font-semibold text-white transition hover:bg-sky-400 disabled:opacity-40">
                         {da ? t('Favorit') : t('Hinzufügen')}
                       </button>

@@ -27,9 +27,15 @@ export async function GET(request: Request) {
     if (name.length < 3 || name.length > 40) return NextResponse.json({ ok: true, treffer: null }, { headers: nie });
     try {
       const { token } = await getToken();
-      const r = await fetch(`https://account-public-service-prod.ol.epicgames.com/account/api/public/account/displayName/${encodeURIComponent(name)}`,
-        { headers: { Authorization: token }, cache: 'no-store', signal: AbortSignal.timeout(8_000) });
-      const j = r.ok ? await r.json() as { id?: string; displayName?: string } : null;
+      // Fortnite-Namen tragen oft ǃ statt ! - wer "flickzy 10!" tippt, meint "flickzy 10ǃ". Beide Schreibweisen nachschlagen.
+      const varianten = [...new Set([name, name.replace(/!/g, 'ǃ'), name.replace(/ǃ/g, '!')])];
+      let j: { id?: string; displayName?: string } | null = null;
+      for (const v of varianten) {
+        const r = await fetch(`https://account-public-service-prod.ol.epicgames.com/account/api/public/account/displayName/${encodeURIComponent(v)}`,
+          { headers: { Authorization: token }, cache: 'no-store', signal: AbortSignal.timeout(8_000) });
+        j = r.ok ? await r.json() as { id?: string; displayName?: string } : null;
+        if (j?.id) break;
+      }
       return NextResponse.json({ ok: true, treffer: j?.id ? { id: j.id, name: j.displayName ?? name } : null }, { headers: nie });
     } catch {
       return NextResponse.json({ ok: true, treffer: null }, { headers: nie });

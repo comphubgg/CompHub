@@ -310,6 +310,13 @@ jobs:
         continue-on-error: true
         run: node scripts/szene-stats-holen.mjs
 
+      # Einmal am Tag die aktuellen Epic-Namen aller Pros (Betreiber, 29.10.2026: "jeden Tag einmal Username updaten") - fuer die Spielersuche.
+      # Hochgeladen wird epic-namen.json mit dem Zwischenstand ans Release.
+      - name: Pro-Namen erneuern
+        continue-on-error: true
+        timeout-minutes: 6
+        run: node scripts/pro-namen-erneuern.mjs 2>&1 | tail -3
+
       - name: Werte der Szene ans Release
         continue-on-error: true
         timeout-minutes: 8
