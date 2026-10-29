@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import T from '@/app/components/T';
-import { t } from '@/app/lib/i18n';
+import { useT } from '@/app/components/SprachProvider';
 
 /*
  * Der POV-Bereich der VIPs (Betreiber, 27./29.10.2026: "die VIPs sollen auch die POV-Seite sehen, einfach nur wie sie funktioniert + Pros anmelden,
@@ -21,6 +21,7 @@ interface Antwort {
 const karte = 'rounded-xl border border-zinc-800 bg-zinc-900/40 p-5';
 
 export default function VipPov() {
+  const t = useT();
   const [d, setD] = useState<Antwort | null>(null);
   const [fehler, setFehler] = useState('');
   const [hinweis, setHinweis] = useState('');
@@ -84,7 +85,7 @@ export default function VipPov() {
             <section className={karte}>
               <h2 className="text-sm font-semibold"><T>So funktionieren Pro-POVs</T></h2>
               <ol className="mt-3 space-y-2.5 text-xs leading-relaxed text-slate-400">
-                <li><b className="text-slate-200"><T>1. Pro anmelden.</T></b> <T>Erstelle rechts einen Einladungslink und schick ihn deinem Pro. Er meldet sich damit bei CompHub an und bekommt ein Pro-Konto - du darfst sein POV ab dann sehen.</T></li>
+                <li><b className="text-slate-200"><T>1. Pro anmelden.</T></b> <T>Erstelle rechts einen Einladungslink und schick ihn deinem Pro. Sobald er ihn öffnet, hat er sein eigenes Pro-Konto und ist angemeldet - ohne Registrieren. Anmeldename und Passwort stehen in seinem Dashboard, und du darfst sein POV ab dann sehen.</T></li>
                 <li><b className="text-slate-200"><T>2. Der Pro geht live.</T></b> <T>In seinem Dashboard (oder im Windows-Programm) teilt er sein Spielfenster. Das Bild geht nicht über Twitch und ist nicht öffentlich: nur die VIPs, die er freigibt, sehen es. Kein Stream-Sniping, keine Fremden.</T></li>
                 <li><b className="text-slate-200"><T>3. Du schaust zu.</T></b> <T>Auf der Streams-Seite steht sein POV im Ordner „Pro-POVs“ - einzeln oder in der Multiview neben anderen Streams. Das Namensschild stellst du dort in den Einstellungen ein.</T></li>
                 <li><b className="text-slate-200"><T>4. Meldung auf deinem Discord.</T></b> <T>Lade unten den CompHub-Bot auf deinen Server ein und wähle einen Kanal: geht einer deiner Pros live, schreibt der Bot es dort hinein.</T></li>
@@ -197,7 +198,7 @@ export default function VipPov() {
             <section className={karte}>
               <h2 className="text-sm font-semibold"><T>Pro anmelden</T></h2>
               <p className="mt-1 text-xs text-slate-500">
-                <T>Der Link gilt 14 Tage und einmal. Wer ihn annimmt, bekommt ein Pro-Konto, und du siehst sein POV.</T>
+                <T>Wer den Link öffnet, ist sofort in seinem eigenen Pro-Konto - ohne Registrieren und jedes Mal im selben. Ungeöffnet verfällt er nach 14 Tagen; ziehst du ihn zurück, öffnet er nichts mehr.</T>
               </p>
               <form className="mt-4 flex gap-2" onSubmit={(e) => { e.preventDefault(); void senden({ aktion: 'einladen', name: neuName }, t('Link erstellt - kopier ihn und schick ihn deinem Pro.')).then((j) => { if (j) setNeuName(''); }); }}>
                 <input value={neuName} onChange={(e) => setNeuName(e.target.value)} maxLength={40} placeholder={t('Name des Pros (nur für dich)')}

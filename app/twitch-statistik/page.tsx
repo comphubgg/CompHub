@@ -5,8 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import T from '@/app/components/T';
 import LadeSchirm from '@/app/components/LadeSchirm';
 import { useZugang } from '@/app/lib/zugang';
-import { t } from '@/app/lib/i18n';
-import { useSprache } from '@/app/components/SprachProvider';
+import { useSprache, useT } from '@/app/components/SprachProvider';
 
 /*
  * Twitch-Statistik fuer VIPs (Betreiber, 27.10.2026): Tag, Woche, Monat, Jahr, gesamt - Spitze mit und ohne Raid, Durchschnitt, neue Follower, Chatter, Raids.
@@ -40,6 +39,7 @@ const dauer = (min: number) => `${Math.floor(min / 60)}:${String(min % 60).padSt
 
 /** Der Zuschauerverlauf eines Streams als Flaeche, Raids als Marken. */
 function Verlauf({ v }: { v: NonNullable<Auswertung['verlauf']> }) {
+  const t = useT();
   if (v.punkte.length < 2) return <p className="text-xs text-slate-500"><T>Noch zu wenige Werte für einen Verlauf.</T></p>;
   const B = 800; const H = 160; const maxM = v.punkte[v.punkte.length - 1][0] || 1; const maxV = Math.max(...v.punkte.map((p) => p[1]), 1);
   const x = (m: number) => (m / maxM) * B; const y = (z: number) => H - (z / maxV) * (H - 14) - 4;
@@ -73,7 +73,7 @@ function Kachel({ titel, wert, unter, ton }: { titel: string; wert: string; unte
 
 export default function TwitchStatistik() {
   const zugang = useZugang();
-  const { sprache } = useSprache();
+  const { sprache, t } = useSprache();
   const ort = sprache === 'de' ? 'de-DE' : 'en-GB';
   const [d, setD] = useState<Antwort | null>(null);
   const [kanal, setKanal] = useState('');

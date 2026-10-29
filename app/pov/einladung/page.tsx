@@ -4,7 +4,7 @@ import { Suspense, useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import T from '@/app/components/T';
 import LadeSchirm from '@/app/components/LadeSchirm';
-import { t } from '@/app/lib/i18n';
+import { useT } from '@/app/components/SprachProvider';
 
 /*
  * Eine Pro-Einladung oeffnen (lib/povVip). Der Betreiber (29.10.2026): "man soll direkt automatisch in ein Pro-Account geladen werden ... man soll sich nicht
@@ -15,6 +15,7 @@ import { t } from '@/app/lib/i18n';
 interface Info { ok: boolean; vipName?: string; gilt?: boolean; gesperrt?: boolean; schonDrin?: boolean; anderesKonto?: string | null; error?: string }
 
 function Einladung() {
+  const t = useT();
   const code = useSearchParams().get('code') ?? '';
   const [info, setInfo] = useState<Info | null>(null);
   const [fehler, setFehler] = useState('');

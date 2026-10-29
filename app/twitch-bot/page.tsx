@@ -5,7 +5,7 @@ import { useCallback, useEffect, useState } from 'react';
 import T from '@/app/components/T';
 import LadeSchirm from '@/app/components/LadeSchirm';
 import { useZugang } from '@/app/lib/zugang';
-import { t } from '@/app/lib/i18n';
+import { useT } from '@/app/components/SprachProvider';
 
 /*
  * Das Dashboard des CompHub-Twitch-Bots (lib/twitchBot, /api/twitch-bot). Wie Fossabot: Befehle ("!webseite" -> eigene Antwort) und Regeln (Woerter ->
@@ -25,6 +25,7 @@ const karte = 'rounded-xl border border-zinc-800 bg-zinc-900/40 p-5';
 const feld = 'rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-600 focus:border-violet-500';
 
 export default function TwitchBot() {
+  const t = useT();
   const zugang = useZugang();
   const [d, setD] = useState<Antwort | null>(null);
   const [kanal, setKanal] = useState('');

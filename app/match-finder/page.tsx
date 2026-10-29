@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import T from '@/app/components/T';
 import LadeSchirm from '@/app/components/LadeSchirm';
 import { useZugang } from '@/app/lib/zugang';
-import { t } from '@/app/lib/i18n';
+import { useT } from '@/app/components/SprachProvider';
 import { loadUserStorageCloud, loadUserStorageValue, saveUserStorageCloud, saveUserStorageValue } from '@/app/lib/userStorage';
 
 /*
@@ -30,6 +30,7 @@ function uhrzeit(iso: string | null) {
 }
 
 export default function MatchFinder() {
+  const t = useT();
   const zugang = useZugang();
   const [favoriten, setFavoriten] = useState<Favorit[]>([]);
   const [daten, setDaten] = useState<Antwort | null>(null);

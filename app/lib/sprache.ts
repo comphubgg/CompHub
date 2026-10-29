@@ -3389,6 +3389,8 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Die Endspiele ließen sich gerade nicht laden. Bitte gleich noch einmal versuchen.': 'The finals could not be loaded right now. Please try again in a moment.',
   'Noch keine Endspiele.': 'No finals yet.',
   'Platzierungen werden nachgetragen.': 'Placements will be added.',
+  'Erstelle rechts einen Einladungslink und schick ihn deinem Pro. Sobald er ihn öffnet, hat er sein eigenes Pro-Konto und ist angemeldet - ohne Registrieren. Anmeldename und Passwort stehen in seinem Dashboard, und du darfst sein POV ab dann sehen.': 'Create an invite link on the right and send it to your pro. As soon as they open it, they have their own Pro account and are signed in - no sign-up. Their login name and password are in their dashboard, and from then on you can watch their POV.',
+  'Wer den Link öffnet, ist sofort in seinem eigenen Pro-Konto - ohne Registrieren und jedes Mal im selben. Ungeöffnet verfällt er nach 14 Tagen; ziehst du ihn zurück, öffnet er nichts mehr.': 'Whoever opens the link is straight in their own Pro account - no sign-up, and always the same account. Unopened, it expires after 14 days; if you withdraw it, it opens nothing any more.',
   'Du bist jetzt im CompHub-Discord - dein Kanal mit den Zugangsdaten steht unter Pro Access Keys.': 'You are now on the CompHub Discord - your channel with your login data is under Pro Access Keys.',
   'Der Discord-Beitritt hat nicht geklappt. Versuch es noch einmal.': 'Joining Discord did not work. Please try again.',
   'CompHub-News in Discord eingeblendet.': 'CompHub news shown on Discord.',
