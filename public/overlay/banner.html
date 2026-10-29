@@ -1189,13 +1189,15 @@ async function zeichne(sanft) {
 /** Beispieldaten nur fuer die Vorschau im Baukasten (?probe=1) - nie fuer OBS. */
 const PROBE_EINTRAG = LEISTE ? {
   rank: 2, points: 162, games: 4, elims: 9,
-  players: [{ id: 'probe1', name: 'RAX', img: '/spielerbilder/malibuca.jpg' }],
+  // Name und Foto gehoeren zusammen (Betreiber, 29.10.2026: 'nicht fuer irgendwelche Profilbilder RAX nehmen, wenn es nicht RAX ist').
+  players: [{ id: 'probe1', name: 'RAX', img: '/spielerbilder/rax.jpg' }],
 } : {
   rank: 1, points: 304, games: 6, elims: 25,
   players: [
     { id: 'probe1', name: 'MALIBUCA', img: '/spielerbilder/malibuca.jpg' },
     { id: 'probe2', name: 'VICO', img: '/spielerbilder/vico.jpg' },
-    { id: 'probe3', name: 'DEMUS', img: '/spielerbilder/demus.jpg' },
+    // Ein echtes Trio (Tierliste, vom Admin bestaetigt): Malibuca, Vico, RAX.
+    { id: 'probe3', name: 'RAX', img: '/spielerbilder/rax.jpg' },
   ],
 };
 
