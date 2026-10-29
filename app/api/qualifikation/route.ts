@@ -148,9 +148,7 @@ async function holeRoh(request: Request) {
       }
     }
   }
-  // Sonst Top 100 - so hat jeder Cup eine Prognose; die Antwort sagt dazu, dass es der Standard ist.
-  let standard = false;
-  if (!Number.isFinite(schwelle) || schwelle < 1) { schwelle = 100; standard = true; }
+  // Kein willkuerliches "Top 100": ohne Weiterkommen, Belohnung oder Preisgeld gibt es nichts vorherzusagen (Arena-/Test-Cups ohne Finale).
 
   if (!Number.isFinite(schwelle) || schwelle < 1) {
     return NextResponse.json({
@@ -288,7 +286,7 @@ async function holeRoh(request: Request) {
        Epics Auszahlungstabelle zu stammen - das gehoert dazugesagt. */
     hergeleitet,
     /* Die Schwelle ist der letzte Platz mit Belohnung (Skin-Cup), und die Ausgaben stammen aus aehnlichen Cups statt aus demselben. */
-    fuerBelohnung, aehnlich, ausVorlauf, standard,
+    fuerBelohnung, aehnlich, ausVorlauf,
     grundlage: werte.length,
     hinweis: schnitt === null
       ? 'Zu den früheren Ausgaben liegen keine Ergebnisse vor.' : null,

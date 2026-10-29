@@ -950,12 +950,12 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     /** Wahr, wenn die Schwelle aus dem Finalfeld gezaehlt wurde. */
     hergeleitet?: boolean;
     /** Schwelle = letzter Platz mit Belohnung (Skin-Cup); Ausgaben aus aehnlichen Cups statt aus demselben. */
-    fuerBelohnung?: boolean; aehnlich?: boolean; standard?: boolean; ausVorlauf?: boolean;
+    fuerBelohnung?: boolean; aehnlich?: boolean; ausVorlauf?: boolean;
     ausgaben: Array<{ windowId: string; datum: number; punkte: number | null; titel?: string | null }>;
   } | null>(null);
   // Der letzte Platz, der noch eine Belohnung (Skin ...) bekommt - die Schwelle der Prognose bei Cups ohne Qualifikation.
   const belohnungsRang = useMemo(() => {
-    const g = (preise?.gegenstaende ?? []).filter((x) => x.art === 'rank' && x.schwelle >= 1);
+    const g = [...(preise?.gegenstaende ?? []), ...(preise?.geld ?? [])].filter((x) => x.art === 'rank' && x.schwelle >= 1);
     return g.length ? Math.max(...g.map((x) => x.schwelle)) : 0;
   }, [preise]);
   const belohnungsName = useMemo(() => {
@@ -2814,7 +2814,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                * bleibt es bei der Teilnehmerzahl.
                */
               (fenster.qualifiziert || qual?.schwelle)
-                ? [t(qual?.fuerBelohnung && !fenster.qualifiziert ? 'Belohnung bis' : qual?.standard && !fenster.qualifiziert ? 'Prognose für' : 'Qualifizieren sich'),
+                ? [t(qual?.fuerBelohnung && !fenster.qualifiziert ? 'Belohnung bis' : 'Qualifizieren sich'),
                   `${t('Top')} ${(fenster.qualifiziert
                     ?? qual?.schwelle ?? 0).toLocaleString(ort)}${zielName(fenster.windowId) ? ` → ${zielName(fenster.windowId)}` : ''}`
                   /*
@@ -2825,7 +2825,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                    */
                   + (typeof qual?.tatsaechlich === 'number'
                     ? ` · ${qual.tatsaechlich.toLocaleString(ort)} ${t('Punkte')}`
-                      + (qual.laeuft ? ` (${t('gerade')})` : '')
+                      + (qual.laeuft ? ` (${t('gerade')})` + (qual.schnitt ? ` · ${t('Prognose')} ~${(qual.schnitt + QUAL_ZUSCHLAG).toLocaleString(ort)}` : '') : '')
                     : qual?.schnitt
                       ? ` · ${t('etwa')} ${(qual.schnitt + QUAL_ZUSCHLAG).toLocaleString(ort)} ${t('Punkte')}`
                       : '')]
@@ -2840,41 +2840,14 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                       : `${(10_000).toLocaleString(ort)}+`;
                   })()],
             ] as Array<[string, string]>).map(([l, v]) => (
-              <div key={l} className="rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-2.5">
+              <div key={l} className="rounded-xl border border-zinc-800 bg-zinc-900/40 px-3 py-2.5"
+                title={qual?.schnitt && qual.ausgaben.some((a) => typeof a.punkte === 'number') && (l === t('Qualifizieren sich') || l === t('Belohnung bis'))
+                  ? `${qual.aehnlich ? t('Schnitt ähnlicher Cups') : t('Schnitt der letzten Ausgaben')} ${qual.schnitt} + ${QUAL_ZUSCHLAG}: ${qual.ausgaben.filter((a) => typeof a.punkte === 'number').map((a) => `${a.titel ? `${a.titel} ` : ''}${new Date(a.datum).toLocaleDateString(ort, { day: 'numeric', month: 'short' })} ${a.punkte}`).join(' · ')}`
+                  : undefined}>
                 <div className="text-[10px] uppercase tracking-wider text-slate-500">{l}</div>
                 <div className="mt-0.5 text-sm font-semibold text-slate-100">{v}</div>
               </div>
             ))}
-          </div>
-        )}
-
-        {/*
-          * Die Prognose, solange der Spieltag noch nicht vorbei ist: der Schnitt der letzten Ausgaben desselben Cups an genau dieser Rangschwelle plus
-          * ein kleiner Zuschlag. Die Ausgaben stehen darunter, damit die Zahl nachpruefbar bleibt - gerechnet, nicht geraten.
-          */}
-        {fenster && fenster.status !== 'vorbei' && qual?.schnitt && qual.ausgaben.some((a) => typeof a.punkte === 'number') && (
-          <div className="mb-5 rounded-xl border border-sky-700/40 bg-sky-950 px-4 py-3">
-            <div className="flex flex-wrap items-baseline gap-x-4 gap-y-1">
-              <span className="text-[10px] font-semibold uppercase tracking-wider text-sky-300"><T>Prognose</T></span>
-              <span className="text-xl font-black tabular-nums text-slate-50">~{(qual.schnitt + QUAL_ZUSCHLAG).toLocaleString(ort)} <T>Punkte</T></span>
-              {(fenster.qualifiziert || qual.schwelle) && (
-                <span className="text-[11px] text-slate-300">
-                  <T>für</T> {t('Top')} {(fenster.qualifiziert ?? qual.schwelle ?? 0).toLocaleString(ort)}
-                  {qual.fuerBelohnung && belohnungsName ? ` · ${belohnungsName}` : ''}
-                  {zielName(fenster.windowId) ? ` → ${zielName(fenster.windowId)}` : ''}
-                </span>
-              )}
-              {fenster.status === 'live' && typeof qual.tatsaechlich === 'number' && (
-                <span className="text-[11px] text-slate-300"><T>gerade</T> {qual.tatsaechlich.toLocaleString(ort)} <T>Punkte</T></span>
-              )}
-            </div>
-            <p className="mt-1.5 text-[11px] leading-relaxed text-slate-400">
-              {qual.aehnlich ? <T>Schnitt ähnlicher Cups</T> : <T>Schnitt der letzten Ausgaben</T>} {qual.schnitt.toLocaleString(ort)} + {QUAL_ZUSCHLAG}
-              {' · '}
-              {qual.ausgaben.filter((a) => typeof a.punkte === 'number').map((a) => (
-                `${a.titel ? `${a.titel} ` : ''}${new Date(a.datum).toLocaleDateString(ort, { day: 'numeric', month: 'short' })}: ${(a.punkte as number).toLocaleString(ort)}`
-              )).join(' · ')}
-            </p>
           </div>
         )}
 
