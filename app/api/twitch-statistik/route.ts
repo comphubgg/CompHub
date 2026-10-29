@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { alleVips, wer } from '@/lib/pov';
+import { alleVips, vipWerkzeug, wer } from '@/lib/pov';
 import { auswerten, liesDatei, liesKanaele, schreibeKanaele } from '@/lib/twitchStatistik';
 import { twitchToken } from '@/lib/twitchToken';
 
@@ -20,6 +20,7 @@ export async function GET(request: Request) {
   const ich = await wer();
   const admin = ich.rolle === 'admin';
   if (!ich.idents.length || !(ich.vip || admin)) return NextResponse.json({ ok: false, error: 'Nur für VIPs.' }, { status: 403, headers: nie });
+  if (!vipWerkzeug(ich, 'twitchstatistik')) return NextResponse.json({ ok: false, error: 'Für dein Konto nicht freigeschaltet.' }, { status: 403, headers: nie });
   const kanaele = (await liesKanaele()).filter((k) => admin || k.vips.some((v) => ich.idents.includes(v)));
   const p = new URL(request.url).searchParams;
   const gewuenscht = (p.get('kanal') ?? '').toLowerCase();

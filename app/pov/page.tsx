@@ -7,6 +7,7 @@ import { useZugang } from '@/app/lib/zugang';
 import { useEffect } from 'react';
 import ProDashboard from '@/app/admin/ProDashboard';
 import VipPov from '@/app/pov/VipPov';
+import VipVorhang from '@/app/overlays/VipVorhang';
 
 /*
  * Das Dashboard der Profis: nur POV und Einstellungen (Betreiber, 11.10.2026).
@@ -28,6 +29,10 @@ export default function ProSeite() {
    * Der Admin kommt mit ?ansicht=vip ebenfalls dorthin.
    */
   const vipAnsicht = typeof window !== 'undefined' && new URLSearchParams(window.location.search).get('ansicht') === 'vip';
+  // Pro-POVs sind ein VIP-Werkzeug, das der Admin je VIP freischaltet (lib/rechte).
+  if (zugang.vip && !zugang.pro && !zugang.admin && !zugang.rechte.includes('propov')) {
+    return <VipVorhang titel="Pro-POVs sind für dein Konto noch nicht freigeschaltet." text="CompHub schaltet es je VIP frei - schreib uns kurz auf Discord." />;
+  }
   if ((zugang.vip && !zugang.pro && !zugang.admin) || (zugang.admin && vipAnsicht)) return <VipPov />;
   if (!zugang.pro && !zugang.admin) {
     return (

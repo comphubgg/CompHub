@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import T from '@/app/components/T';
 import LadeSchirm from '@/app/components/LadeSchirm';
+import VipVorhang from '@/app/overlays/VipVorhang';
 import { useZugang } from '@/app/lib/zugang';
 import { useT } from '@/app/components/SprachProvider';
 
@@ -34,7 +35,7 @@ export default function TwitchBot() {
   const [fehler, setFehler] = useState('');
   const [hinweis, setHinweis] = useState('');
   const [arbeitet, setArbeitet] = useState(false);
-  const darf = zugang.vip || zugang.admin;
+  const darf = zugang.admin || (zugang.vip && zugang.rechte.includes('twitchbot'));
 
   const laden = useCallback(() => {
     fetch(`/api/twitch-bot${kanal ? `?kanal=${encodeURIComponent(kanal)}` : ''}`, { cache: 'no-store' }).then((r) => r.json())
@@ -64,6 +65,7 @@ export default function TwitchBot() {
   };
 
   if (zugang.laedt) return <LadeSchirm />;
+  if (!darf && zugang.vip) return <VipVorhang titel="Der Twitch-Bot ist für dein Konto noch nicht freigeschaltet." text="CompHub schaltet es je VIP frei - schreib uns kurz auf Discord." />;
   if (!darf) {
     return (
       <main className="grid min-h-screen place-items-center bg-zinc-950 px-4 text-center text-slate-100">
@@ -138,7 +140,13 @@ export default function TwitchBot() {
             <section className={`${karte} mb-5`}>
               <h2 className="text-sm font-semibold"><T>Befehle</T></h2>
               <p className="mt-1 text-xs text-slate-500"><T>Schreibt jemand den Befehl in den Chat, antwortet der Bot mit deinem Text. Platzhalter:</T> <code>{'{user}'}</code> <T>(wer gefragt hat)</T>, <code>{'{args}'}</code> <T>(was nach dem Befehl steht)</T>.</p>
-              <div className="mt-4 space-y-2">
+              <p className="mt-1 text-xs text-slate-500"><T>Ein Befehl beginnt mit !, $ oder ? - zum Beispiel !website oder $discord. Mit / geht es nicht, das gehört Twitch.</T></p>
+              {befehle.length > 0 && (
+                <div className="mt-4 hidden gap-2 px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-500 md:grid md:grid-cols-[140px_minmax(0,1fr)_90px_auto_auto]">
+                  <span><T>Befehl</T></span><span><T>Antwort des Bots</T></span><span title={t('So viele Sekunden muss zwischen zwei Antworten auf denselben Befehl liegen.')}><T>Pause (Sek.)</T></span><span /><span />
+                </div>
+              )}
+              <div className="mt-2 space-y-2">
                 {befehle.map((b, i) => (
                   <div key={i} className="grid gap-2 rounded-lg border border-zinc-800 bg-zinc-950/60 p-3 md:grid-cols-[140px_minmax(0,1fr)_90px_auto_auto]">
                     <input value={b.name} onChange={(ev) => setBefehle(befehle.map((x, j) => (j === i ? { ...x, name: ev.target.value } : x)))} placeholder="!webseite" className={feld} />
@@ -156,8 +164,13 @@ export default function TwitchBot() {
             {/* ------------------------------------------- Regeln */}
             <section className={`${karte} mb-5`}>
               <h2 className="text-sm font-semibold"><T>Regeln</T></h2>
-              <p className="mt-1 text-xs text-slate-500"><T>Steht eines der Wörter in einer Nachricht, greift der Bot ein. Moderatoren und dich selbst lässt er in Ruhe.</T></p>
-              <div className="mt-4 space-y-2">
+              <p className="mt-1 text-xs text-slate-500"><T>Steht eines der Wörter in einer Nachricht, greift der Bot ein. Moderatoren und dich selbst lässt er in Ruhe.</T> <T>Die Dauer gilt nur für den Timeout.</T></p>
+              {regeln.length > 0 && (
+                <div className="mt-4 hidden gap-2 px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-500 md:grid md:grid-cols-[minmax(0,1fr)_150px_110px_minmax(0,0.8fr)_auto]">
+                  <span><T>Wörter</T></span><span><T>Was der Bot tut</T></span><span><T>Dauer (Sek.)</T></span><span><T>Grund</T></span><span />
+                </div>
+              )}
+              <div className="mt-2 space-y-2">
                 {regeln.map((r, i) => (
                   <div key={i} className="grid gap-2 rounded-lg border border-zinc-800 bg-zinc-950/60 p-3 md:grid-cols-[minmax(0,1fr)_150px_110px_minmax(0,0.8fr)_auto]">
                     <input value={Array.isArray(r.woerter) ? r.woerter.join(', ') : r.woerter} onChange={(ev) => setRegeln(regeln.map((x, j) => (j === i ? { ...x, woerter: ev.target.value } : x)))} placeholder={t('Wörter, mit Komma getrennt')} className={feld} />

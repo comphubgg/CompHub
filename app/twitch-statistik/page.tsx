@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useState } from 'react';
 import T from '@/app/components/T';
 import LadeSchirm from '@/app/components/LadeSchirm';
+import VipVorhang from '@/app/overlays/VipVorhang';
 import { useZugang } from '@/app/lib/zugang';
 import { useSprache, useT } from '@/app/components/SprachProvider';
 
@@ -80,7 +81,7 @@ export default function TwitchStatistik() {
   const [wahl, setWahl] = useState<{ art?: Art; einheit?: string }>({});
   const [fehler, setFehler] = useState('');
   const [neu, setNeu] = useState({ login: '', vip: '' });
-  const darf = zugang.vip || zugang.admin;
+  const darf = zugang.admin || (zugang.vip && zugang.rechte.includes('twitchstatistik'));
 
   const laden = useCallback(() => {
     const q = new URLSearchParams();
@@ -116,6 +117,7 @@ export default function TwitchStatistik() {
   };
 
   if (zugang.laedt) return <LadeSchirm />;
+  if (!darf && zugang.vip) return <VipVorhang titel="Die Twitch-Statistik ist für dein Konto noch nicht freigeschaltet." text="CompHub schaltet es je VIP frei - schreib uns kurz auf Discord." />;
   if (!darf) {
     return (
       <main className="grid min-h-screen place-items-center bg-zinc-950 px-4 text-center text-slate-100">

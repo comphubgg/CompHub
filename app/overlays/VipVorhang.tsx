@@ -68,7 +68,11 @@ function Schemen({ art, klasse, verzug }: {
   );
 }
 
-export default function VipVorhang() {
+/**
+ * Ohne Angaben: der Vorhang vor den Overlays (kein VIP). Mit titel/text: ein VIP-Werkzeug, das fuer dieses Konto noch nicht freigeschaltet ist
+ * (lib/rechte VIP_BEREICHE) - dann ohne "Schon VIP? Anmelden".
+ */
+export default function VipVorhang({ titel, text }: { titel?: string; text?: string } = {}) {
   return (
     <main className="relative flex flex-1 overflow-hidden bg-zinc-950 text-slate-200"
       style={HINTERGRUND}>
@@ -102,10 +106,10 @@ export default function VipVorhang() {
           VIP
         </p>
         <h1 className="mt-4 text-balance text-3xl font-black tracking-tight text-slate-50 sm:text-5xl">
-          <T>Die Overlays sind Teil des VIP-Zugangs.</T>
+          <T>{titel ?? 'Die Overlays sind Teil des VIP-Zugangs.'}</T>
         </h1>
         <p className="mt-4 max-w-xl text-sm text-slate-400 sm:text-base">
-          <T>Ranglisten, Teamkarten, Cup-Timer und mehr — live in deinem Stream.</T>
+          <T>{text ?? 'Ranglisten, Teamkarten, Cup-Timer und mehr — live in deinem Stream.'}</T>
         </p>
 
         <div className="mt-10 w-full max-w-md rounded-2xl border border-zinc-800 bg-black/50 p-5
@@ -135,10 +139,12 @@ export default function VipVorhang() {
           </div>
         </div>
 
-        <Link href="/sign-in"
-          className="mt-6 text-xs font-semibold text-slate-500 transition hover:text-sky-400">
-          <T>Schon VIP? Anmelden</T> →
-        </Link>
+        {!titel && (
+          <Link href="/sign-in"
+            className="mt-6 text-xs font-semibold text-slate-500 transition hover:text-sky-400">
+            <T>Schon VIP? Anmelden</T> →
+          </Link>
+        )}
       </div>
     </main>
   );

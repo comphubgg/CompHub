@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import T from '@/app/components/T';
 import LadeSchirm from '@/app/components/LadeSchirm';
+import VipVorhang from '@/app/overlays/VipVorhang';
 import { useZugang } from '@/app/lib/zugang';
 import { useT } from '@/app/components/SprachProvider';
 import { loadUserStorageCloud, loadUserStorageValue, saveUserStorageCloud, saveUserStorageValue } from '@/app/lib/userStorage';
@@ -39,7 +40,7 @@ export default function MatchFinder() {
   const [treffer, setTreffer] = useState<Favorit[] | null>(null);
   const [kopiert, setKopiert] = useState('');
   const geladen = useRef(false);
-  const darf = zugang.vip || zugang.admin;
+  const darf = zugang.admin || (zugang.vip && zugang.rechte.includes('matchfinder'));
 
   // Favoriten: sofort aus dem Browser, dann vom Konto (dort gilt der Stand, der zuletzt gespeichert wurde).
   useEffect(() => {
@@ -91,6 +92,7 @@ export default function MatchFinder() {
   };
 
   if (zugang.laedt) return <LadeSchirm />;
+  if (!darf && zugang.vip) return <VipVorhang titel="Der Match-ID-Finder ist für dein Konto noch nicht freigeschaltet." text="CompHub schaltet es je VIP frei - schreib uns kurz auf Discord." />;
   if (!darf) {
     return (
       <main className="grid min-h-screen place-items-center bg-zinc-950 px-4 text-center text-slate-100">

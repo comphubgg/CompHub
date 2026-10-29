@@ -84,6 +84,13 @@ export interface Wer {
   rolle: 'admin' | 'manager' | 'pro' | null;
   vip: boolean;
   bild: string | null;
+  /** Die angehakten Bereiche (lib/rechte) - u. a. die VIP-Werkzeuge propov, matchfinder, twitchstatistik, twitchbot. */
+  rechte: string[];
+}
+
+/** Darf dieser Besucher ein VIP-Werkzeug nutzen? Der Admin immer, ein VIP nur mit dem Haken (lib/rechte VIP_BEREICHE). */
+export function vipWerkzeug(ich: Wer, bereich: string): boolean {
+  return ich.rolle === 'admin' || (ich.vip && ich.rechte.includes(bereich));
 }
 
 const NAME = /^[a-z0-9_]{3,25}$/;
@@ -105,6 +112,7 @@ export async function wer(): Promise<Wer> {
   let rolle: Wer['rolle'] = null;
   let vip = false;
   let bild: string | null = null;
+  const rechte: string[] = [];
 
   const id = kontoAus(laden.get(KONTO_COOKIE)?.value);
   if (id) {
@@ -115,13 +123,14 @@ export async function wer(): Promise<Wer> {
       rolle = k.rolle ?? null;
       vip = istVip(k) || rolle === 'admin' || rolle === 'manager' || rolle === 'pro';
       bild = (k as { bild?: string | null }).bild ?? null;
+      rechte.push(...((k as { rechte?: string[] }).rechte ?? []));
     }
   }
 
   const wert = laden.get(VIP_COOKIE)?.value;
   if (istBetreiber(wert)) {
     idents.push('z:admin-juanito');
-    return { idents, name: name || 'admin-juanito', rolle: 'admin', vip: true, bild };
+    return { idents, name: name || 'admin-juanito', rolle: 'admin', vip: true, bild, rechte };
   }
   const vipName = vipAus(wert);
   if (vipName) {
@@ -130,9 +139,10 @@ export async function wer(): Promise<Wer> {
     const darf = rechteVon(z);
     if (!rolle && darf.rolle) rolle = darf.rolle;
     if (!name) name = vipName;
+    rechte.push(...(darf.rechte ?? []));
     vip = true;
   }
-  return { idents, name, rolle, vip, bild };
+  return { idents, name, rolle, vip, bild, rechte: [...new Set(rechte)] };
 }
 
 export async function liesPros(): Promise<Record<string, PovPro>> {

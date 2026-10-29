@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { wer } from '@/lib/pov';
+import { vipWerkzeug, wer } from '@/lib/pov';
 import { liesKanaele } from '@/lib/twitchStatistik';
 import { abbestellen, abonnieren, istModerator, liesKanal, liesZugang, speichereKanal, type Befehl, type BotKanal, type Regel } from '@/lib/twitchBot';
 
@@ -23,7 +23,7 @@ const BEISPIEL: Befehl[] = [{ name: '!comphub', antwort: 'Live stats, tournament
 async function meineKanaele() {
   const ich = await wer();
   const admin = ich.rolle === 'admin';
-  if (!ich.idents.length || !(ich.vip || admin)) return null;
+  if (!ich.idents.length || !(ich.vip || admin) || !vipWerkzeug(ich, 'twitchbot')) return null;
   const kanaele = (await liesKanaele()).filter((k) => k.id && (admin || k.vips.some((v) => ich.idents.includes(v))));
   return { admin, kanaele };
 }
@@ -55,8 +55,13 @@ export async function POST(request: Request) {
   const alt = (await liesKanal(k.id)) ?? { id: k.id, login: k.login, an: false, befehle: BEISPIEL, regeln: [], abo: null, geaendert: 0 };
 
   if (b.aktion === 'speichern') {
+    // Das erste Zeichen ist das Befehlszeichen: !, $ oder ? (ohne Angabe !). "/" gehoert Twitch und geht nicht.
     const befehle: Befehl[] = (Array.isArray(b.befehle) ? b.befehle : []).slice(0, 50).map((x) => ({
-      name: `!${sauber(x.name, 26).replace(/^!+/, '').replace(/\s+/g, '').toLowerCase()}`,
+      name: (() => {
+        const roh = sauber(x.name, 26).replace(/\s+/g, '');
+        const zeichen = /^[!$?]/.test(roh) ? roh[0] : '!';
+        return `${zeichen}${roh.replace(/^[!$?/]+/, '').toLowerCase()}`;
+      })(),
       antwort: sauber(x.antwort, 480), cooldownSek: Math.min(3600, Math.max(0, Math.round(Number(x.cooldownSek) || 0))), nurMods: Boolean(x.nurMods),
     })).filter((x) => x.name.length > 1 && x.antwort);
     const regeln: Regel[] = (Array.isArray(b.regeln) ? b.regeln : []).slice(0, 50).map((x) => ({

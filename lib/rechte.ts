@@ -44,6 +44,14 @@ export const VIP_BEREICHE = [
     titel: 'Overlays (Globals 2026)',
     was: 'Leaderboard, Spieler-Banner und freies Overlay im Aussehen der Global Championship',
   },
+  /*
+   * Die VIP-Werkzeuge (29.10.2026) - standardmaessig aus. Der Betreiber: "standard ist nur OVERLAY an, wenn ich manuell als Admin sage mach an, dann haben
+   * die Access auf den Rest". Overlays und Globals hat jeder VIP ohne Haken.
+   */
+  { schluessel: 'propov', titel: 'Pro-POVs', was: 'Pros per Link anmelden, ihr POV ansehen, Live-Meldungen auf dem eigenen Discord' },
+  { schluessel: 'matchfinder', titel: 'Match-ID-Finder', was: 'Favoriten speichern und die laufende Match-ID zum Zuschauen sehen' },
+  { schluessel: 'twitchstatistik', titel: 'Twitch-Statistik', was: 'Spitze mit und ohne Raid, Follower, Chatter je Tag, Woche, Monat, Jahr' },
+  { schluessel: 'twitchbot', titel: 'Twitch-Bot', was: 'Befehle und Regeln für den eigenen Chat' },
 ] as const;
 
 export type VipBereich = typeof VIP_BEREICHE[number]['schluessel'];

@@ -157,10 +157,10 @@ export async function verarbeite(n: Nachricht): Promise<void> {
     }
   }
 
-  // Befehle: "!name" am Anfang der Nachricht.
-  const m = /^!(\S+)/.exec(text);
+  // Befehle: "!name", "$name" oder "?name" am Anfang der Nachricht - das Zeichen gehoert zum Befehl (der Streamer waehlt es; "/" gehoert Twitch).
+  const m = /^([!$?])(\S+)/.exec(text);
   if (!m) return;
-  const befehl = kanal.befehle.find((b) => b.name.replace(/^!/, '').toLowerCase() === m[1].toLowerCase());
+  const befehl = kanal.befehle.find((b) => b.name.toLowerCase() === `${m[1]}${m[2]}`.toLowerCase());
   if (!befehl || (befehl.nurMods && !mod)) return;
   const schluessel = `${kanal.id}|${befehl.name}`;
   if ((abklingen.get(schluessel) ?? 0) > jetzt) return;

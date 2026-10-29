@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { wer } from '@/lib/pov';
+import { vipWerkzeug, wer } from '@/lib/pov';
 import { discordIdVon, einladungenVon, gueltig, neueEinladung, prosVon, zurueckziehen } from '@/lib/povVip';
 import {
   einladungsLink, liesGilden, richteAlleEin, sendeTest, setzeKanal, setzeVipMeldungen, textKanaele, verwalteteGilden,
@@ -26,7 +26,7 @@ let letzterAbgleich = 0;
 
 async function vip() {
   const ich = await wer();
-  return ich.idents.length && (ich.vip || ich.rolle === 'admin') ? ich : null;
+  return ich.idents.length && (ich.vip || ich.rolle === 'admin') && vipWerkzeug(ich, 'propov') ? ich : null;
 }
 
 function seiteVon(request: Request) {

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { wer } from '@/lib/pov';
+import { vipWerkzeug, wer } from '@/lib/pov';
 import { finde } from '@/lib/matchFinder';
 import { getToken } from '@/lib/epicCups';
 
@@ -20,6 +20,7 @@ export async function GET(request: Request) {
   if (!ich.idents.length || !(ich.vip || ich.rolle === 'admin')) {
     return NextResponse.json({ ok: false, error: 'Nur für VIPs.' }, { status: 403, headers: nie });
   }
+  if (!vipWerkzeug(ich, 'matchfinder')) return NextResponse.json({ ok: false, error: 'Für dein Konto nicht freigeschaltet.' }, { status: 403, headers: nie });
   // ?name=<Epic-Name>: das Konto zu einem genauen Anzeigenamen (fuer Spieler, die die Szene-Suche nicht kennt - etwa aus offenen Cups).
   const name = (new URL(request.url).searchParams.get('name') ?? '').trim();
   if (name) {
