@@ -42,7 +42,7 @@ export async function liesStaende(): Promise<Staende> {
   const ersatz = (): Staende => {
     if (vorrat) return vorrat.stand;
     const raus: Staende = {};
-    for (const s of SEKTIONEN) raus[s.schluessel] = { ...STANDARD };
+    for (const s of SEKTIONEN) raus[s.schluessel] = { ...STANDARD, zustand: s.anfang ?? STANDARD.zustand };
     return raus;
   };
   // Die zweite Frage kurz nach einer ausgebliebenen Antwort wartet nicht
@@ -67,8 +67,9 @@ async function liesStaendeRoh(): Promise<Staende> {
     for (const s of SEKTIONEN) {
       const e = roh[s.schluessel];
       raus[s.schluessel] = {
-        zustand: e?.zustand === 'standby' || e?.zustand === 'offline'
-          ? e.zustand : 'online',
+        // Nichts gespeichert: der Anfangszustand des Bereichs (Org-Konten offline), sonst online.
+        zustand: e?.zustand === 'standby' || e?.zustand === 'offline' || e?.zustand === 'online'
+          ? e.zustand : (s.anfang ?? 'online'),
         hinweis: HINWEISE.some((h) => h.schluessel === e?.hinweis)
           ? e!.hinweis : STANDARD.hinweis,
         eigenerTitel: e?.eigenerTitel || undefined,
@@ -81,7 +82,7 @@ async function liesStaendeRoh(): Promise<Staende> {
     // Keine Datei heisst: alles laeuft. Das ist der richtige Ausfallwert -
     // ein Lesefehler darf nicht die ganze Seite sperren.
     const raus: Staende = {};
-    for (const s of SEKTIONEN) raus[s.schluessel] = { ...STANDARD };
+    for (const s of SEKTIONEN) raus[s.schluessel] = { ...STANDARD, zustand: s.anfang ?? STANDARD.zustand };
     return raus;
   }
 }

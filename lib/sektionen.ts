@@ -28,6 +28,8 @@ export interface Sektion {
   pfad: string;
   /** Wie er in der Kopfzeile heisst. */
   titel: string;
+  /** Der Zustand, solange unter /admin/sections nichts fuer ihn gespeichert ist (ohne Angabe: online). */
+  anfang?: Zustand;
 }
 
 /**
@@ -56,7 +58,7 @@ export const SEKTIONEN: Sektion[] = [
   { schluessel: 'globals', pfad: '/globals', titel: 'Globals (VIP)' },
   { schluessel: 'globals-solos', pfad: '/globals-solos', titel: 'Globals Solos' },
   // Die Org-Konten (Kader pflegen). Der Betreiber (29.10.2026): "das ist so nebenbei ... kannst du deaktivieren, bis ich es mal wieder aktiviere".
-  { schluessel: 'org', pfad: '/org', titel: 'Org-Konten' },
+  { schluessel: 'org', pfad: '/org', titel: 'Org-Konten', anfang: 'offline' },
 ];
 
 /**
