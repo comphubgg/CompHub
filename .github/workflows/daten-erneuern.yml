@@ -312,6 +312,12 @@ jobs:
 
       # Einmal am Tag die aktuellen Epic-Namen aller Pros (Betreiber, 29.10.2026: "jeden Tag einmal Username updaten") - fuer die Spielersuche.
       # Hochgeladen wird epic-namen.json mit dem Zwischenstand ans Release.
+      # Die Anmelde-Rueckwege pruefen (Betreiber, 29.10.2026: "die Callbacks immer wieder testen") - bei Fehlern nach #admin-alarm.
+      - name: Anmeldung pruefen
+        continue-on-error: true
+        timeout-minutes: 3
+        run: node scripts/anmeldung-pruefen.mjs --discord 2>&1 | tail -14
+
       - name: Pro-Namen erneuern
         continue-on-error: true
         timeout-minutes: 6

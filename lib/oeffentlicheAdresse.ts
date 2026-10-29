@@ -101,7 +101,19 @@ export function dienstWurzel(req: NextRequest): string {
   return festeAdresse() ?? aus;
 }
 
+/**
+ * Wo ein Dienst den Rueckweg eingetragen hat, wenn es nicht die feste Adresse ist. Twitch kennt nur die Domain ohne www (geprueft 29.10.2026 mit
+ * scripts/anmeldung-pruefen.mjs) - mit www scheiterte jede Twitch-Anmeldung ("the sign-in service aborted").
+ */
+const EINGETRAGEN: Array<[RegExp, string]> = [[/^\/api\/auth\/twitch\//, 'https://thecomphub.com']];
+
 /** Der Rueckweg eines Anmeldedienstes, etwa `/api/auth/google/callback`. */
 export function rueckwegVon(req: NextRequest, pfad: string): string {
-  return `${dienstWurzel(req)}${pfad}`;
+  const wurzel = dienstWurzel(req);
+  // Nur fuer die echte Seite - auf dem eigenen Rechner bleibt localhost.
+  if (/thecomphub\.com$/i.test(wurzel)) {
+    const eigen = EINGETRAGEN.find(([muster]) => muster.test(pfad));
+    if (eigen) return `${eigen[1]}${pfad}`;
+  }
+  return `${wurzel}${pfad}`;
 }

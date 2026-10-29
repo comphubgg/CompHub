@@ -3,6 +3,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { t } from "@/app/lib/i18n";
 import { holeDienst } from '@/lib/dienstZugaenge';
 import { rueckwegVon } from '@/lib/oeffentlicheAdresse';
+import { sitzungsDomain } from '@/lib/cookieDomain';
 
 /*
  * Bei jeder Anfrage neu ausfuehren.
@@ -43,7 +44,9 @@ export async function GET(req: NextRequest) {
 
   const twitchUrl = `https://id.twitch.tv/oauth2/authorize?${params.toString()}`;
   const response = NextResponse.redirect(twitchUrl);
+  // Fuer die ganze Domain: der Rueckweg kommt ueber thecomphub.com ohne www (lib/oeffentlicheAdresse).
   response.cookies.set("twitch_oauth_state", state, {
+    ...sitzungsDomain(req),
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",

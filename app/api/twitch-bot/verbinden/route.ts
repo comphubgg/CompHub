@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { holeDienst } from '@/lib/dienstZugaenge';
 import { rueckwegVon } from '@/lib/oeffentlicheAdresse';
+import { sitzungsDomain } from '@/lib/cookieDomain';
 import { wer } from '@/lib/pov';
 import { BOT_SCOPES } from '@/lib/twitchBot';
 
@@ -24,7 +25,7 @@ export async function GET(req: NextRequest) {
     client_id: id, redirect_uri: rueckwegVon(req, '/api/auth/twitch/callback'), response_type: 'code', scope: BOT_SCOPES, state, force_verify: 'true',
   });
   const antwort = NextResponse.redirect(`https://id.twitch.tv/oauth2/authorize?${params}`);
-  const optionen = { httpOnly: true, sameSite: 'lax' as const, secure: process.env.NODE_ENV === 'production', path: '/', maxAge: 600 };
+  const optionen = { ...sitzungsDomain(req), httpOnly: true, sameSite: 'lax' as const, secure: process.env.NODE_ENV === 'production', path: '/', maxAge: 600 };
   antwort.cookies.set('twitch_oauth_state', state, optionen);
   antwort.cookies.set('twitch_oauth_art', 'bot', optionen);
   return antwort;
