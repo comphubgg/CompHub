@@ -55,6 +55,8 @@ export const SEKTIONEN: Sektion[] = [
   // alle ausser dem Admin weg, nicht geloescht.
   { schluessel: 'globals', pfad: '/globals', titel: 'Globals (VIP)' },
   { schluessel: 'globals-solos', pfad: '/globals-solos', titel: 'Globals Solos' },
+  // Die Org-Konten (Kader pflegen). Der Betreiber (29.10.2026): "das ist so nebenbei ... kannst du deaktivieren, bis ich es mal wieder aktiviere".
+  { schluessel: 'org', pfad: '/org', titel: 'Org-Konten' },
 ];
 
 /**
