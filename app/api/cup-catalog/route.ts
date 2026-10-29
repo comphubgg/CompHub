@@ -49,9 +49,30 @@ function zustaendeJetzt(cups: CupGruppe[]): CupGruppe[] {
  * Epic fuehrt die Performance Evaluation als zwei Reihen - Duos in drei Regionen, Trios in zweien - und nennt die eine nur "Fortnite". Ein Titel
  * "Fortnite" wird aus den Fensterkennungen gelesen; tragen mehrere Cups denselben Titel, steht die Teamgroesse dahinter ("... Cup · Duos").
  */
+/** Sieht der Titel aus wie Epics interne Kennung ("s42_arenas_fightnight")? Dann hat Epic keinen Anzeigenamen geliefert. */
+const istKennung = (t: string) => /^[a-z0-9]+(_[a-z0-9]+)+$/i.test(t.trim());
+
+/** Eine Kennung lesbar: "s42_arenas_fightnight" -> "Arenas Fight Night". Zusammengeschriebene Woerter, die Epic oft so fuehrt, werden getrennt. */
+const ZUSAMMEN: Record<string, string> = { fightnight: 'Fight Night', cashcup: 'Cash Cup', zerobuild: 'Zero Build', lastchance: 'Last Chance', grandfinal: 'Grand Final', grandfinals: 'Grand Finals' };
+function lesbar(kennung: string): string {
+  return kennung.trim().replace(/^s\d+_/i, '').split('_').filter(Boolean)
+    .map((w) => ZUSAMMEN[w.toLowerCase()] ?? (w.length <= 3 && /^(fncs|lcq|ewc|ttv|vcc)$/i.test(w) ? w.toUpperCase() : w[0].toUpperCase() + w.slice(1)))
+    .join(' ');
+}
+
 function benenne(cups: CupGruppe[]): CupGruppe[] {
   const erstes = (c: CupGruppe) => Object.values(c.regionen ?? {}).flat()[0];
+  // Epics Anzeigenamen je Turnierkennung - fuer Eintraege, denen Epic keinen Namen gab, aber ein anderer Eintrag desselben Turniers einen hat.
+  const nameJeTurnier = new Map<string, string>();
+  for (const c of cups) {
+    const ev = erstes(c)?.eventId;
+    if (ev && !istKennung(c.titel) && c.titel.trim().toLowerCase() !== 'fortnite' && !nameJeTurnier.has(ev)) nameJeTurnier.set(ev, c.titel);
+  }
   const roh = cups.map((c) => {
+    if (istKennung(c.titel)) {
+      const ev = erstes(c)?.eventId;
+      return { ...c, titel: (ev && nameJeTurnier.get(ev)) || lesbar(c.titel) };
+    }
     if (c.titel.trim().toLowerCase() !== 'fortnite') return c;
     const ids = Object.values(c.regionen ?? {}).flat().map((w) => w.windowId);
     const n = nameAusFenstern(ids);
