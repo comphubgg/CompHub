@@ -392,16 +392,12 @@ export default function AdminDashboardPage() {
                 </span>
               )}
             </div>
-            <button type="button"
-              onClick={() => { window.location.href = '/api/auth/logout'; }}
-              className="rounded-full border border-zinc-700 px-4 py-2 text-sm font-semibold text-slate-300 transition hover:border-rose-500/60 hover:text-rose-400">
-              <T>Abmelden</T>
-            </button>
+            {/* Abmelden steht in der Seitenleiste ganz unten (Betreiber, 29.10.2026: "nicht oben"). */}
           </div>
         </section>
 
         {/* Seitenleiste links (schmal: Kapseln oben) und daneben der gewaehlte Bereich - siehe app/admin/Seitenleiste. */}
-        <div className="lg:flex lg:items-start lg:gap-5">
+        <div className="lg:flex lg:items-stretch lg:gap-5">
         <Seitenleiste bereich={bereich} setBereich={setBereich}
           vip={zugang.vip || rolle === 'manager' || zugang.manager}
           admin={istAdmin || rolle === 'admin' || zugang.admin}
@@ -435,7 +431,7 @@ export default function AdminDashboardPage() {
             {(bereich === 'start' || bereich === 'vip' || bereich === 'schnell') && (
               <Ebenen teil={bereich} admin={istAdmin || rolle === 'admin' || zugang.admin}
                 vip={zugang.vip || rolle === 'manager' || zugang.manager}
-                pro={zugang.pro || rolle === 'pro'} />
+                pro={zugang.pro || rolle === 'pro'} rechte={zugang.rechte} />
             )}
 
             {/*

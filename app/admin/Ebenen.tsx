@@ -45,6 +45,7 @@ const SYMBOL: Record<string, ReactNode> = {
   chat: <><path d="M4 5h16v11H9l-5 4z" /></>,
   kontakt: <><path d="M4 6h16v12H4z" /><path d="M4 7l8 6 8-6" /></>,
   profil: <><circle cx="12" cy="8" r="4" /><path d="M4 21c1-4 4-6 8-6s7 2 8 6" /></>,
+  tuer: <><path d="M14 4h5v16h-5" /><path d="M10 8l-4 4 4 4M6 12h10" /></>,
   schloss: <><rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V8a4 4 0 018 0v3" /></>,
 };
 
@@ -136,9 +137,11 @@ function HierZeile({ z, i }: { z: Ziel; i: number }) {
  * Seit dem 29.10.2026 je Bereich der Seitenleiste (app/admin/Seitenleiste): "start" = nur im Dashboard + fuer alle, "vip" = die VIP-Werkzeuge,
  * "schnell" = alles als kleine Knoepfe zum schnellen Springen (Fast Actions).
  */
-export default function Ebenen({ admin, vip, pro, teil = 'start' }: {
-  admin: boolean; vip: boolean; globals?: boolean; pro: boolean; teil?: 'start' | 'vip' | 'schnell';
+export default function Ebenen({ admin, vip, pro, rechte = [], teil = 'start' }: {
+  admin: boolean; vip: boolean; globals?: boolean; pro: boolean; rechte?: string[]; teil?: 'start' | 'vip' | 'schnell';
 }) {
+  // Die VIP-Werkzeuge stehen nur da, wenn der Admin sie freigeschaltet hat (lib/rechte) - gesperrte verschwinden statt grau herumzustehen.
+  const frei = (r: string) => admin || rechte.includes(r);
   /*
    * Fuer jeden VIP dasselbe: die Overlays und die Globals (2026 und Solos). Der Betreiber (12.10.2026): "Grand-Sachen
    * sind eigentlich fuer jeden VIP immer sichtbar. Und Overlays auch fuer jeden VIP." Wer kein VIP ist, sieht die
@@ -149,10 +152,10 @@ export default function Ebenen({ admin, vip, pro, teil = 'start' }: {
     { href: '/globals', titel: 'Globals 2026', text: 'Overlays, Teams, Karte und Prognose zur Global Championship', symbol: 'globals' },
     ...((pro || admin) ? [{ href: '/pov', titel: 'POV', text: 'Dein Bild live an die freigegebenen Zuschauer senden', symbol: 'pov' }] : []),
     // Fuer VIPs (29.10.2026): wie POV funktioniert, Pros per Link anmelden, den Bot auf den eigenen Discord holen.
-    ...(!pro ? [{ href: admin ? '/pov?ansicht=vip' : '/pov', titel: 'Pro-POVs', text: 'Pros anmelden, ihr POV ansehen, Live-Meldungen auf deinem Discord', symbol: 'pov' }] : []),
-    { href: '/match-finder', titel: 'Match-ID-Finder', text: 'In welchem Match deine Favoriten gerade sind - zum Zuschauen im Spiel', symbol: 'events' },
-    { href: '/twitch-statistik', titel: 'Twitch-Statistik', text: 'Deine Streams: Spitze mit und ohne Raid, neue Follower, Chatter', symbol: 'statistik' },
-    { href: '/twitch-bot', titel: 'Twitch-Bot', text: 'Befehle und Regeln für deinen Chat - wie Fossabot, rund um die Uhr', symbol: 'chat' },
+    ...(!pro && frei('propov') ? [{ href: admin ? '/pov?ansicht=vip' : '/pov', titel: 'Pro-POVs', text: 'Pros anmelden, ihr POV ansehen, Live-Meldungen auf deinem Discord', symbol: 'pov' }] : []),
+    ...(frei('matchfinder') ? [{ href: '/match-finder', titel: 'Match-ID-Finder', text: 'In welchem Match deine Favoriten gerade sind - zum Zuschauen im Spiel', symbol: 'events' }] : []),
+    ...(frei('twitchstatistik') ? [{ href: '/twitch-statistik', titel: 'Twitch-Statistik', text: 'Deine Streams: Spitze mit und ohne Raid, neue Follower, Chatter', symbol: 'statistik' }] : []),
+    ...(frei('twitchbot') ? [{ href: '/twitch-bot', titel: 'Twitch-Bot', text: 'Befehle und Regeln für deinen Chat - wie Fossabot, rund um die Uhr', symbol: 'chat' }] : []),
   ];
   const hier = [...NUR_HIER, ...(admin ? NUR_HIER_ADMIN : [])];
   const darfVip = vip || admin;
