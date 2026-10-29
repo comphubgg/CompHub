@@ -84,8 +84,12 @@ function alsZeit(sek: number, stunden = false): string {
   return h ? `${h}h ${m}m` : `${m}m ${s % 60}s`;
 }
 
-export default function SpielerStatsUebersicht({ spieler, matches, aktualisiert, szene, schadenAusReplay, laeuft, endeMs, teamWerte }: {
+export default function SpielerStatsUebersicht({ spieler, matches, aktualisiert, szene, schadenAusReplay, laeuft, endeMs, teamWerte, gesamt, summen }: {
   spieler: KachelSpieler[];
+  /** Wie viele Spieler der Spieltag insgesamt hat - die Liste zeigt nur die besten. */
+  gesamt?: number | null;
+  /** Summen ueber alle Spieler (Schnittstelle /api/cup-spieler); ohne sie zaehlen die Kacheln nur die gezeigte Liste. */
+  summen?: Record<string, number> | null;
   /** Wie viele Matches der Spieltag (oder das Turnier) hatte. */
   matches: number;
   /** Wann die Werte zuletzt gerechnet oder von Epic fortgeschrieben wurden. */
@@ -124,17 +128,20 @@ export default function SpielerStatsUebersicht({ spieler, matches, aktualisiert,
     return spieler.filter((s) => typeof s.platz === 'number' && (s.platz as number) >= von && (s.platz as number) <= bis);
   }, [spieler, gruppe]);
 
-  const summe = (f: string) => feld.reduce((a, s) => a + (Number(s[f]) || 0), 0);
-  const spieleSumme = feld.reduce((a, s) => a + (Number(s.spiele) || 0), 0);
+  // Unter "Alle Spieler" zaehlen die Summen der Schnittstelle (alle Spieler des Spieltags), nicht nur die gezeigte Liste.
+  const ganz = gruppe === 'alle' && summen ? summen : null;
+  const anzahl = gruppe === 'alle' && gesamt ? gesamt : feld.length;
+  const summe = (f: string) => (ganz && typeof ganz[f] === 'number' ? ganz[f] : feld.reduce((a, s) => a + (Number(s[f]) || 0), 0));
+  const spieleSumme = ganz && typeof ganz.spiele === 'number' ? ganz.spiele : feld.reduce((a, s) => a + (Number(s.spiele) || 0), 0);
   const teiler = art === 'jeMatch' ? Math.max(1, matches)
-    : art === 'jeSpieler' ? Math.max(1, feld.length)
+    : art === 'jeSpieler' ? Math.max(1, anzahl)
       : art === 'jeSpielerMatch' ? Math.max(1, spieleSumme) : 1;
 
   // "Matches" steht in beiden Sprachen so - ohne Uebersetzung (die kennt
   // "Matches" als Kleinwort im Satz).
   const kacheln: Array<{ titel: string; wert: string; roh?: boolean }> = [
     { titel: 'Matches', wert: zahl(matches), roh: true },
-    { titel: teamWerte ? 'Teams' : 'Spieler', wert: zahl(feld.length) },
+    { titel: teamWerte ? 'Teams' : 'Spieler', wert: zahl(anzahl) },
     ...SUMMEN.filter((s) => vorhanden.has(s.feld)).map((s) => ({
       titel: s.titel,
       wert: zeigen(summe(s.feld) / teiler, s.format, teiler > 1 && s.format !== 'zeit' && s.format !== 'km' ? 1 : 0),

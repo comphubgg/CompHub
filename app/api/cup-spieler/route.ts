@@ -366,6 +366,12 @@ async function holeRoh(request: Request) {
     };
   });
 
+  /** Die Summen ueber alle Spieler des Spieltags (nicht nur die gezeigten) - fuer die Kacheln oben unter "Alle Spieler". */
+  const summen = q ? null : rep.spieler.reduce((a, x) => {
+    a.spiele += x.matches || 0; a.elims += x.kills || 0; a.knocks += x.knocks || 0; a.tode += x.gestorben || 0; a.umgehauen += x.umgehauen || 0;
+    return a;
+  }, { spiele: 0, elims: 0, knocks: 0, tode: 0, umgehauen: 0 });
+
   return NextResponse.json({
     vorhanden: true,
     clutch: !!clutchVon,
@@ -378,6 +384,7 @@ async function holeRoh(request: Request) {
     /** Wie viele Spieler mit Kill oder Knock es insgesamt gibt - gezeigt sind die besten. */
     gesamt: q ? auswahl.length : rep.spieler.length,
     gekuerzt: !q && rep.spieler.length > gezeigt.length,
+    summen,
     suche: q || null,
     hinweis: 'Counted from the replays of this match day, per player.',
   });
