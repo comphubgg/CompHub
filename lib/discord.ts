@@ -3628,3 +3628,102 @@ export async function willkommenLauf(): Promise<{ ok: boolean; neu?: number; gru
   await schreibMitglieder({ ids: echte.map((m) => m.user!.id), begruesst, gestartet: alt.gestartet });
   return { ok: true, neu: neue.length, bestand: echte.length };
 }
+
+/* --------------------------------------------------------- Pros */
+
+/*
+ * Pros auf dem CompHub-Server (Betreiber, 29.10.2026): "wenn man ueber den Link des VIPs joint, ist man automatisch auch im Discord ... das Einzige, was
+ * man als Pro sieht, ist seine Access Key und die Standardsachen wie Welcome und die Anleitung, aber keine News - ausser man will das".
+ *
+ * Discord laesst niemanden ohne eigene Zustimmung auf einen Server: der Pro drueckt im Dashboard einmal "Discord beitreten" (OAuth mit guilds.join,
+ * app/api/pov/discord-beitritt), den Rest macht der Bot: auf den Server holen, Rollen "Pro" und "<name> pro", eigener Kanal unter "Pro Access Keys" mit
+ * Anmeldedaten und Anleitung. Die Rolle "Pro" sieht die oeffentlichen Kanaele nicht (ausser #welcome); die Rolle "Pro News" (Schalter im Dashboard)
+ * macht sie wieder sichtbar.
+ */
+const PRO_KATEGORIE = 'Pro Access Keys';
+const PRO_ROLLE = 'Pro';
+const PRO_NEWS_ROLLE = 'Pro News';
+const PRO_IMMER_SICHTBAR = ['welcome'];
+
+/** Die oeffentlichen Kanaele fuer die Rolle Pro zu, fuer "Pro News" auf - nur, wo es noch nicht eingestellt ist. */
+async function proSichtEinrichten(proRolle: string, newsRolle: string): Promise<number> {
+  const kanaele = await ruf(`/guilds/${SERVER}/channels`, 'GET');
+  if (!Array.isArray(kanaele)) return 0;
+  let n = 0;
+  for (const k of kanaele as Array<RoherKanal & { permission_overwrites?: Array<{ id: string; deny: string }> }>) {
+    if (k.type !== 0 && k.type !== 5) continue;
+    if (PRO_IMMER_SICHTBAR.includes(k.name.toLowerCase())) continue;
+    const ueber = k.permission_overwrites ?? [];
+    const fuerAlle = ueber.find((o) => o.id === SERVER);
+    if (fuerAlle && (BigInt(fuerAlle.deny) & 1024n) !== 0n) continue;
+    if (ueber.some((o) => o.id === proRolle)) continue;
+    await ruf(`/channels/${k.id}/permissions/${proRolle}`, 'PUT', { type: 0, allow: '0', deny: '1024' });
+    await ruf(`/channels/${k.id}/permissions/${newsRolle}`, 'PUT', { type: 0, allow: '1024', deny: '0' });
+    n += 1;
+  }
+  return n;
+}
+
+export async function proBeitreten(p: {
+  discordId: string; zugangToken: string; name: string; login: string; passwort: string; chef: string;
+}): Promise<{ ok: boolean; grund?: string }> {
+  if (!discordDa()) return { ok: false, grund: 'kein-token' };
+  const [proRolle, newsRolle, eigene] = await Promise.all([rolleFuer(PRO_ROLLE), rolleFuer(PRO_NEWS_ROLLE), rolleFuer(`${p.name.toLowerCase()} pro`)]);
+  if (!proRolle || !newsRolle || !eigene) return { ok: false, grund: 'rolle' };
+  // Auf den Server holen (201) - war er schon da (204), bekommt er die Rollen einzeln.
+  await ruf(`/guilds/${SERVER}/members/${p.discordId}`, 'PUT', { access_token: p.zugangToken, roles: [proRolle, eigene] });
+  for (const rolle of [proRolle, eigene]) await ruf(`/guilds/${SERVER}/members/${p.discordId}/roles/${rolle}`, 'PUT');
+  await proSichtEinrichten(proRolle, newsRolle).catch(() => 0);
+
+  // Der eigene Kanal: fuer alle zu, fuer seine Rolle lesbar (eine Ablage, kein Chat).
+  const ablage = await lies();
+  const merk = `pro:${p.name.toLowerCase()}`;
+  let kanal: string | null = ablage[merk]?.kanal ?? null;
+  if (kanal && !(await ruf(`/channels/${kanal}`, 'GET'))) kanal = null;
+  if (!kanal) {
+    const eltern = await kategorieFuer(PRO_KATEGORIE);
+    const ich = await werBinIch();
+    const adminRolle = await adminRolleId();
+    const regeln: Array<Record<string, string | number>> = [
+      { id: SERVER, type: 0, allow: '0', deny: '1024' },
+      { id: eigene, type: 0, allow: LESEN, deny: NICHT_SCHREIBEN },
+      ...(ich ? [{ id: ich, type: 1, allow: VOLLZUGRIFF, deny: '0' }] : []),
+      ...(adminRolle ? [{ id: adminRolle, type: 0, allow: VOLLZUGRIFF, deny: '0' }] : []),
+    ];
+    const name = `${[...p.name.toLowerCase()].map((z) => UMLAUTE[z] ?? z).join('').replace(/[^a-z0-9-]+/g, '-').replace(/^-+|-+$/g, '') || 'pro'}-pro-key`;
+    kanal = idAus(await ruf(`/guilds/${SERVER}/channels`, 'POST', { name, type: 0, parent_id: eltern, permission_overwrites: regeln }));
+    if (!kanal) return { ok: false, grund: 'kanal' };
+    ablage[merk] = { kanal };
+    await schreibe(ablage);
+  }
+  const nachricht = await ruf(`/channels/${kanal}/messages`, 'POST', {
+    content: `<@${p.discordId}>`,
+    embeds: [{
+      title: 'Your CompHub Pro access',
+      color: FARBE,
+      description: [
+        `**Boss:** ${p.chef}`,
+        `**Login name:** \`${p.login}\``,
+        `**Password:** ||\`${p.passwort}\`||`,
+        '',
+        '__How it works__',
+        '1. Open https://www.thecomphub.com/pov (or the CompHub POV app for Windows) and sign in with the data above.',
+        '2. Click "Share screen and go live" and pick your game window. Only the VIPs you approve can watch - not public, not on Twitch.',
+        `3. ${p.chef} can watch from the start; you choose everyone else in your dashboard.`,
+        '',
+        'Want CompHub news, results and live alerts here on Discord too? Turn on "Show CompHub news" in your dashboard.',
+      ].join('\n'),
+    }],
+  });
+  const id = idAus(nachricht);
+  if (id) await anpinnen(kanal, id);
+  return { ok: true };
+}
+
+/** Die oeffentlichen Kanaele fuer diesen Pro ein- oder ausblenden (Rolle "Pro News"). */
+export async function proNews(discordId: string, an: boolean): Promise<boolean> {
+  const rolle = await rolleFuer(PRO_NEWS_ROLLE);
+  if (!rolle) return false;
+  const r = await ruf(`/guilds/${SERVER}/members/${discordId}/roles/${rolle}`, an ? 'PUT' : 'DELETE');
+  return r !== null;
+}

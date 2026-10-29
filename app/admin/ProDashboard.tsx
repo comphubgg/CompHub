@@ -39,6 +39,17 @@ export default function ProDashboard() {
   useEffect(() => {
     fetch('/api/pov/zugang', { cache: 'no-store' }).then((r) => r.json()).then((j) => { if (j?.zugang) setZugangDaten(j.zugang); }).catch(() => undefined);
   }, []);
+  /** Discord (lib/discord proBeitreten): Rueckmeldung nach dem Beitritt und der Schalter fuer die oeffentlichen Kanaele. */
+  const [discordMeldung, setDiscordMeldung] = useState('');
+  useEffect(() => {
+    const d = new URLSearchParams(window.location.search).get('discord');
+    if (d === 'ok') setDiscordMeldung(t('Du bist jetzt im CompHub-Discord - dein Kanal mit den Zugangsdaten steht unter Pro Access Keys.'));
+    else if (d === 'fehler') setDiscordMeldung(t('Der Discord-Beitritt hat nicht geklappt. Versuch es noch einmal.'));
+  }, [t]);
+  const discordNews = async (an: boolean) => {
+    const j = await fetch('/api/pov/discord-beitritt', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ news: an }) }).then((r) => r.json()).catch(() => null);
+    setDiscordMeldung(j?.ok ? (an ? t('CompHub-News in Discord eingeblendet.') : t('CompHub-News in Discord ausgeblendet.')) : t('Das hat nicht geklappt.'));
+  };
   /** Hat der Profi ein eigenes Profilbild gewaehlt? Sonst gilt sein Spielerfoto. */
   const [bildEigen, setBildEigen] = useState(false);
   const [vips, setVips] = useState<Vip[]>([]);
@@ -331,8 +342,20 @@ export default function ProDashboard() {
                     {zugangKopiert === 'pw' ? t('Kopiert') : t('Kopieren')}
                   </button>
                 </span>
+                <span className="flex items-center gap-2">
+                  {mein?.discordId ? (
+                    <>
+                      <span className="text-indigo-300">Discord ✓</span>
+                      <button type="button" onClick={() => void discordNews(true)} className="rounded-md border border-zinc-700 px-2 py-0.5 text-xs text-slate-300 transition hover:border-indigo-400"><T>News anzeigen</T></button>
+                      <button type="button" onClick={() => void discordNews(false)} className="rounded-md border border-zinc-700 px-2 py-0.5 text-xs text-slate-300 transition hover:border-indigo-400"><T>News ausblenden</T></button>
+                    </>
+                  ) : (
+                    <a href="/api/pov/discord-beitritt" className="rounded-md bg-indigo-500 px-3 py-1 text-xs font-semibold text-white transition hover:bg-indigo-400"><T>Discord beitreten</T></a>
+                  )}
+                </span>
               </div>
             )}
+            {discordMeldung && <p className="mt-2 text-xs text-indigo-200">{discordMeldung}</p>}
           </div>
           <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
             {stand === 'speichert' && <span><T>speichert …</T></span>}

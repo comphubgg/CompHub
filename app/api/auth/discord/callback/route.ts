@@ -110,6 +110,29 @@ export async function GET(req: NextRequest) {
     const token = await tokenAntwort.json() as { access_token?: string };
     if (!token.access_token) return zurueck(req, '/sign-in?fehler=token');
 
+    /*
+     * Ein Pro tritt dem CompHub-Discord bei (app/api/pov/discord-beitritt, Cookie discord_oauth_art=pro): kein Anmelden - der Bot holt ihn auf den Server,
+     * gibt die Rollen und legt seinen Kanal mit den Anmeldedaten an (lib/discord proBeitreten).
+     */
+    if (req.cookies.get('discord_oauth_art')?.value === 'pro') {
+      const ich = await (await import('@/lib/pov')).wer();
+      const daten = await (await import('@/lib/povVip')).zugangVon(ich);
+      const nutzer = await (await fetch('https://discord.com/api/users/@me', { headers: { Authorization: `Bearer ${token.access_token}` } })).json().catch(() => null) as { id?: string } | null;
+      if (!daten || !nutzer?.id || ich.rolle !== 'pro') return zurueck(req, '/pov?discord=fehler');
+      const { proBeitreten } = await import('@/lib/discord');
+      const r = await proBeitreten({ discordId: nutzer.id, zugangToken: token.access_token, name: ich.name, login: daten.login, passwort: daten.passwort, chef: daten.chef });
+      if (r.ok) {
+        // Das Discord-Konto am Pro-Eintrag merken: so sieht CompHub, wann er in einem Sprachkanal streamt (lib/povDiscord), und der News-Schalter weiss, wen er meint.
+        const { liesPros, schreibePros } = await import('@/lib/pov');
+        const pros = await liesPros();
+        const eintrag = pros[ich.idents[0] ?? ''];
+        if (eintrag) { eintrag.discordId = nutzer.id; eintrag.aktualisiert = Date.now(); await schreibePros(pros); }
+      }
+      const fertig = zurueck(req, r.ok ? '/pov?discord=ok' : '/pov?discord=fehler');
+      fertig.cookies.set('discord_oauth_art', '', { path: '/', maxAge: 0 });
+      return fertig;
+    }
+
     const nutzerAntwort = await fetch('https://discord.com/api/users/@me', {
       headers: { Authorization: `Bearer ${token.access_token}` },
     });
