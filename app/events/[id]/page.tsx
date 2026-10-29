@@ -950,7 +950,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     /** Wahr, wenn die Schwelle aus dem Finalfeld gezaehlt wurde. */
     hergeleitet?: boolean;
     /** Schwelle = letzter Platz mit Belohnung (Skin-Cup); Ausgaben aus aehnlichen Cups statt aus demselben. */
-    fuerBelohnung?: boolean; aehnlich?: boolean;
+    fuerBelohnung?: boolean; aehnlich?: boolean; standard?: boolean; ausVorlauf?: boolean;
     ausgaben: Array<{ windowId: string; datum: number; punkte: number | null; titel?: string | null }>;
   } | null>(null);
   // Der letzte Platz, der noch eine Belohnung (Skin ...) bekommt - die Schwelle der Prognose bei Cups ohne Qualifikation.
@@ -2814,7 +2814,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                * bleibt es bei der Teilnehmerzahl.
                */
               (fenster.qualifiziert || qual?.schwelle)
-                ? [t(qual?.fuerBelohnung && !fenster.qualifiziert ? 'Belohnung bis' : 'Qualifizieren sich'),
+                ? [t(qual?.fuerBelohnung && !fenster.qualifiziert ? 'Belohnung bis' : qual?.standard && !fenster.qualifiziert ? 'Prognose für' : 'Qualifizieren sich'),
                   `${t('Top')} ${(fenster.qualifiziert
                     ?? qual?.schwelle ?? 0).toLocaleString(ort)}${zielName(fenster.windowId) ? ` → ${zielName(fenster.windowId)}` : ''}`
                   /*

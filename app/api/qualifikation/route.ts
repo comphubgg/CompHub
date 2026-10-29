@@ -38,9 +38,10 @@ function groesse(f: { playlist?: string | null; windowId: string; eventId: strin
   return '?';
 }
 
-/** Die Kennung ohne Season, Region und Durchgangsnummer. */
+/** Die Kennung ohne Season, Region und Durchgangsnummer - auch die Vorsaison zaehlt als dieselbe Reihe (S42 fuer S43). */
 function reihe(windowId: string): string {
   return (windowId ?? '')
+    .replace(/^S\d+_/i, '')
     .replace(/_(EU|NAC|NAW|BR|ASIA|ME|OCE|GLOBAL)$/i, '')
     .replace(/(Event|Week|Qual)\d+/gi, '$1#')
     .toLowerCase();
@@ -110,6 +111,30 @@ async function holeRoh(request: Request) {
   if ((!Number.isFinite(schwelle) || schwelle < 1) && Number.isFinite(belohnung) && belohnung >= 1) {
     schwelle = Math.round(belohnung); fuerBelohnung = true;
   }
+
+  /*
+   * Noch immer keine Schwelle (die erste Runde einer neuen Saison, ein Test-Cup): die der letzten Ausgabe derselben Reihe - Epics Qualifikationsrang dort
+   * oder das Feld der Runde danach. Der Betreiber (29.10.2026): "fuer jeden Cup muss eine Prediction da sein, und das schon von Anfang an".
+   */
+  let ausVorlauf = false;
+  if (!Number.isFinite(schwelle) || schwelle < 1) {
+    const vorlauf = alle
+      .filter((f) => f.windowId !== dieser.windowId && reihe(f.windowId) === reihe(dieser.windowId) && f.status === 'vorbei')
+      .sort((a, b) => b.begin - a.begin)[0];
+    if (vorlauf?.qualifiziert) { schwelle = vorlauf.qualifiziert; ausVorlauf = true; }
+    else if (vorlauf) {
+      const danach = alle.filter((f) => f.eventId === vorlauf.eventId && f.begin > vorlauf.begin).sort((a, b) => a.begin - b.begin)[0];
+      if (danach) {
+        try {
+          const feld = await gecacht(`feld|${danach.eventId}|${danach.windowId}`, 30 * 60_000, () => holeTop(danach.eventId, danach.windowId, 1000));
+          if (feld.entries.length) { schwelle = feld.entries.length; ausVorlauf = true; }
+        } catch { /* dann der Standard */ }
+      }
+    }
+  }
+  // Sonst Top 100 - so hat jeder Cup eine Prognose; die Antwort sagt dazu, dass es der Standard ist.
+  let standard = false;
+  if (!Number.isFinite(schwelle) || schwelle < 1) { schwelle = 100; standard = true; }
 
   if (!Number.isFinite(schwelle) || schwelle < 1) {
     return NextResponse.json({
@@ -245,7 +270,7 @@ async function holeRoh(request: Request) {
        Epics Auszahlungstabelle zu stammen - das gehoert dazugesagt. */
     hergeleitet,
     /* Die Schwelle ist der letzte Platz mit Belohnung (Skin-Cup), und die Ausgaben stammen aus aehnlichen Cups statt aus demselben. */
-    fuerBelohnung, aehnlich,
+    fuerBelohnung, aehnlich, ausVorlauf, standard,
     grundlage: werte.length,
     hinweis: schnitt === null
       ? 'Zu den früheren Ausgaben liegen keine Ergebnisse vor.' : null,
