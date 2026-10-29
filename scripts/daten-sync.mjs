@@ -30,17 +30,23 @@ import process from 'node:process';
 const PROJEKT = path.resolve(import.meta.dirname, '..');
 const DATEN = process.env.COMPHUB_DATEN || path.join(PROJEKT, 'data');
 
-function umgebung() {
+function ausDatei() {
   const raus = {};
   try {
     for (const z of fs.readFileSync(path.join(PROJEKT, '.env.local'), 'utf8').split('\n')) {
       const m = z.match(/^([A-Z_0-9]+)=(.*)$/); if (m) raus[m[1]] = m[2].trim().replace(/^"|"$/g, '');
     }
   } catch { /* keine Datei */ }
-  return { ...raus, ...process.env };
+  return raus;
 }
-const U = umgebung();
-const TOKEN = (U.DATEN_TOKEN || U.GITHUB_TOKEN || '').trim();
+const DATEI = ausDatei();
+const U = { ...DATEI, ...process.env };
+/*
+ * Der Schluessel aus .env.local vor dem der Umgebung (29.10.2026): in den Ablaeufen heisst GITHUB_TOKEN der Zugang des Ablaufs selbst, und der sieht das
+ * private Archiv nicht. "Replays nacharbeiten" setzt ihn fuer das Hochladen - dort holte dieser Abgleich deshalb nie eine Anfrage der Seite
+ * ("Runter: 0 geholt"), und der Vorrang kam nie an.
+ */
+const TOKEN = (U.DATEN_TOKEN || DATEI.GITHUB_TOKEN || U.GITHUB_TOKEN || '').trim();
 const REPO = (U.DATEN_REPO || 'comphubgg/comphub-daten').trim();
 const PRAEFIX = (U.DATEN_PRAEFIX || '').trim().replace(/^\/+|\/+$/g, '');
 const ZWEIG = 'main';

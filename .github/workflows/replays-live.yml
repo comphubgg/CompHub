@@ -19,13 +19,12 @@
 
 name: Replays live
 
+# Seit dem 29.10.2026 nur noch von Hand: GitHub fuehrte den Zehn-Minuten-Plan nur
+# alle drei Stunden aus, und laufende Cups holt jetzt die Schnellspur
+# (replays-schnell.yml, alle zehn Minuten aus der Discord-Live-Kette) - zwei
+# Schreiber an einem Spieltag verloren einander den Stand.
 on:
   workflow_dispatch:
-  schedule:
-    # Alle zehn Minuten. Feiner lohnt nicht: eine Runde dauert rund zwanzig
-    # Minuten, und GitHub haelt geplante Laeufe ohnehin nicht auf die Sekunde
-    # ein.
-    - cron: '*/10 * * * *'
 
 jobs:
   live:

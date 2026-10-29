@@ -1,0 +1,185 @@
+# Replays schnell: jeder Cup binnen einer halben Stunde nach seinem Ende ganz ausgewertet.
+#
+# Der Betreiber (29.10.2026): "ein Cup darf maximal eine halbe Stunde gehen, ein kompletter Cup" - beim Inoxtag Icon Cup EU vom 25.10. stand vier Tage
+# spaeter unter Player Stats noch "The analysis of the replays of this match day has been requested", am Release lag nicht einmal ein Stand. Ein Spieltag
+# gehoerte genau einem der acht Nacharbeits-Rechner, und dessen Gang fuer neue Spieltage fing bei jedem Durchgang beim aeltesten an und wurde nach zwanzig
+# Minuten abgebrochen - neue Cups erreichte er nie. Die Anfrage der Seite (Vorrang) kam dort auch nie an.
+#
+# Jetzt drei Stufen (scripts/replays-holen.mjs, Schnellspur):
+#   planen     welche Spieltage frisch sind (laufen oder seit hoechstens 36 Stunden vorbei) oder auf der Seite angefragt, und welche Matches dort offen sind
+#   lesen      bis zu fuenf Rechner zugleich; jeder nimmt von JEDEM Spieltag jedes fuenfte offene Match
+#   zusammen   ein einziger Rechner arbeitet die Teilstaende in den Stand vom Release ein, rechnet Auswertung und schlanke Fassung und laedt sie hoch -
+#              nur ein Schreiber je Spieltag (acht Schreiber an denselben Dateien verloren einander Anhaenge: "already_exists")
+#
+# Angestossen wird von aussen, nicht vom Zeitplan (GitHub fuehrte "Replays live" statt alle zehn Minuten alle drei Stunden aus): von der Discord-Live-Kette
+# alle zehn Minuten, solange ein Cup laeuft oder eben zu Ende ging (scripts/replays-schnell-anstossen.mjs), und von der Seite, sobald jemand die Player
+# Stats eines Spieltags ohne Auswertung ansieht (lib/replayVorrang.ts). Der Zeitplan ist nur der Rueckfall. Laeuft schon ein Lauf, wartet hoechstens einer.
+
+name: Replays schnell
+
+on:
+  workflow_dispatch:
+    inputs:
+      fenster:
+        description: 'Spieltage (windowId, mit Komma getrennt) zusaetzlich zu den frischen'
+        required: false
+        default: ''
+  push:
+    branches: [main]
+    paths:
+      - '.github/workflows/replays-schnell.yml'
+  schedule:
+    - cron: '*/30 * * * *'
+
+concurrency:
+  group: replays-schnell
+  cancel-in-progress: false
+
+jobs:
+  planen:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    outputs:
+      stuecke: ${{ steps.plan.outputs.stuecke }}
+      arbeit: ${{ steps.plan.outputs.arbeit }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Abhängigkeiten
+        run: npm ci --omit=optional
+
+      - name: Zugangsdaten
+        run: printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
+
+      - name: Epic-Anmeldung und Anfragen der Seite
+        run: node scripts/daten-sync.mjs --herunterladen --nur epic-auth.json,replay-vorrang 2>&1 | tail -2
+
+      - name: Planen
+        id: plan
+        env:
+          WERKZEUG_URL: https://www.thecomphub.com
+          FENSTER: ${{ inputs.fenster }}
+        run: |
+          WAHL=$(printf '%s' "$FENSTER" | tr -c 'A-Za-z0-9_.,-' ' ' | tr ',' ' ')
+          node scripts/replays-holen.mjs --plan-schreiben data/schnell-plan.json --stunden 36 $WAHL 2>&1 | tail -60
+
+      - name: Plan weitergeben
+        if: steps.plan.outputs.arbeit == 'ja'
+        uses: actions/upload-artifact@v4
+        with:
+          name: plan-schnell
+          path: data/schnell-plan.json
+          retention-days: 1
+
+      - name: Zugangsdaten wieder weg
+        if: always()
+        run: rm -f .env.local
+
+  lesen:
+    needs: planen
+    if: needs.planen.outputs.arbeit == 'ja' && needs.planen.outputs.stuecke != '[]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+    strategy:
+      fail-fast: false
+      matrix:
+        stueck: ${{ fromJSON(needs.planen.outputs.stuecke) }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Abhängigkeiten
+        run: npm ci --omit=optional
+
+      - name: Zugangsdaten
+        run: printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
+
+      - name: Epic-Anmeldung
+        run: node scripts/daten-sync.mjs --herunterladen --nur epic-auth.json 2>&1 | tail -2
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: plan-schnell
+          path: data
+
+      # Lesen braucht kaum Rechenzeit (nur die Ereignisse, rund eine Sekunde je Match) - es wartet auf Epic. Deshalb mehr gleichzeitig als in der Nacharbeit.
+      - name: Lesen
+        continue-on-error: true
+        timeout-minutes: 30
+        env:
+          MAX_REPLAY_DOWNLOADS: '10'
+          MAX_REPLAY_PARSERS: '4'
+          MAX_REPLAY_CHECKS: '16'
+        run: node scripts/replays-holen.mjs --aus-plan data/schnell-plan.json --stueck ${{ matrix.stueck }} --minuten 22 2>&1 | tail -40
+
+      # Nur die gelesenen Matches und der Teilstand - nie die Anmeldung (Artefakte oeffentlicher Projekte kann jeder Angemeldete laden).
+      - name: Teilstand weitergeben
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: schnell-${{ matrix.stueck }}
+          path: |
+            data/replays/
+            data/schnell-stueck/
+          if-no-files-found: ignore
+          retention-days: 1
+
+      - name: Zugangsdaten wieder weg
+        if: always()
+        run: rm -f .env.local
+
+  zusammen:
+    needs: [planen, lesen]
+    if: always() && !cancelled() && needs.planen.outputs.arbeit == 'ja'
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+
+      - name: Abhängigkeiten
+        run: npm ci --omit=optional
+
+      - name: Zugangsdaten
+        run: printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: plan-schnell
+          path: data
+
+      - name: Teilstaende zusammenholen
+        continue-on-error: true
+        uses: actions/download-artifact@v4
+        with:
+          pattern: schnell-*
+          path: data
+          merge-multiple: true
+
+      - name: Zusammenfuehren, auswerten, hochladen
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: node scripts/replays-holen.mjs --plan-zusammen data/schnell-plan.json 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -80
+
+      - name: Zugangsdaten wieder weg
+        if: always()
+        run: rm -f .env.local

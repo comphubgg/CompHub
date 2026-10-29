@@ -251,13 +251,31 @@ const schluss = minuten ? Date.now() + minuten * 60_000 : Infinity;
 const frischeIdx = argumente.indexOf('--ohne-frische');
 const ohneFrischeStunden = frischeIdx >= 0 ? Math.max(0, Number(argumente[frischeIdx + 1]) || 0) : 0;
 
-const nurFenster = argumente.filter((a, i) =>
-  !a.startsWith('--')
-  && !(frischIdx >= 0 && i === frischIdx + 1)
-  && !(hoechstensIdx >= 0 && i === hoechstensIdx + 1)
-  && !(teilIdx >= 0 && i === teilIdx + 1)
-  && !(minutenIdx >= 0 && i === minutenIdx + 1)
-  && !(frischeIdx >= 0 && i === frischeIdx + 1));
+/*
+ * Schnellspur (29.10.2026, .github/workflows/replays-schnell.yml). Der Betreiber: "ein Cup darf maximal eine halbe Stunde gehen, ein kompletter Cup" - beim
+ * Inoxtag Icon Cup EU vom 25.10. stand vier Tage spaeter unter Player Stats noch "The analysis ... has been requested", am Release lag nicht einmal ein Stand.
+ * Ein Spieltag gehoerte genau einem der acht Nacharbeits-Rechner, und dessen Gang fuer neue Spieltage fing bei jedem Durchgang beim aeltesten an und wurde
+ * nach zwanzig Minuten abgebrochen - neue Cups erreichte er nie. Jetzt verteilt ein Planer die offenen Matches der frischen und angefragten Spieltage auf
+ * mehrere Rechner (jeder ein Stueck JEDES Spieltags), und ein Zusammenfuehrer schreibt als Einziger Stand, Auswertung und schlanke Fassung:
+ *
+ *   --plan-schreiben DATEI [--stunden 36] [fenster ...]   welche Spieltage, welche Matches offen sind; "stuecke=[0,1,...]" nach GITHUB_OUTPUT
+ *   --aus-plan DATEI --stueck 2/5 [--minuten 22]          dieser Rechner liest jedes fuenfte offene Match (das dritte); Teilstand nach data/schnell-stueck/
+ *   --plan-zusammen DATEI                                  Teilstaende in den Stand vom Release einarbeiten, auswerten, schlank ablegen, hochladen
+ */
+const MIT_WERT = new Set(['--frisch', '--hoechstens', '--teil', '--minuten', '--ohne-frische', '--plan-schreiben', '--aus-plan', '--plan-zusammen',
+  '--stueck', '--stunden']);
+const wertVon = (name) => { const i = argumente.indexOf(name); return i >= 0 ? argumente[i + 1] : undefined; };
+const planSchreiben = wertVon('--plan-schreiben');
+const ausPlan = wertVon('--aus-plan');
+const planZusammen = wertVon('--plan-zusammen');
+const stueckNr = Math.max(0, Number(String(wertVon('--stueck') ?? '0').split('/')[0]) || 0);
+/** So lange nach seinem Ende gehoert ein Spieltag der Schnellspur; die Nacharbeit (mehrere Rechner, --teil) laesst ihn so lange liegen. */
+const SCHNELL_STUNDEN = Math.max(1, Number(wertVon('--stunden')) || 36);
+const nacharbeit = teilVon > 1;
+/** Gehoert der Spieltag gerade der Schnellspur? Frisch zu Ende gegangen oder auf der Seite angefragt. */
+const gehoertSchnellspur = (windowId, datum) => vorrang.has(windowId) || (datum ?? 0) > Date.now() - SCHNELL_STUNDEN * 3600_000;
+
+const nurFenster = argumente.filter((a, i) => !a.startsWith('--') && !MIT_WERT.has(argumente[i - 1]));
 
 /**
  * Eine Schleuse.
@@ -654,6 +672,8 @@ async function wiederholen() {
       }
       // Was eben erst lief, gehoert dem Live-Ablauf.
       if (ohneFrischeStunden && (zustand.datum ?? 0) > Date.now() - ohneFrischeStunden * 3600_000) continue;
+      // Was frisch zu Ende ging oder auf der Seite angefragt ist, gehoert der Schnellspur - zwei Schreiber an einem Stand verlieren einander Matches.
+      if (nacharbeit && gehoertSchnellspur(windowId, zustand.datum)) continue;
       arbeit.push({ season, windowId, zustand, offen });
     }
   }
@@ -746,7 +766,206 @@ Fertig: ${fertig} nachgeholt, ${ohne} ohne Replay, `
   });
 }
 
+/* ------------------------------------------------------------ Schnellspur */
+
+/** Wie viele offene Matches ein Rechner der Schnellspur etwa bekommt, und wie viele Rechner es hoechstens sind (GitHub laesst 20 Auftraege zugleich laufen). */
+const JE_STUECK = 200;
+const STUECKE_MAX = Math.max(1, Number(process.env.SCHNELL_STUECKE) || 5);
+
+/** Ein Teilstand: "<Saison>__<Fenster>__<Stueck>.json". */
+const STUECK_ORDNER = path.join(process.cwd(), 'data', 'schnell-stueck');
+const stueckName = (f, n) => `${f.season}__${f.windowId}__${n}.json`;
+
+/** Dateien vom Release holen (Stand, Auswertung, Teams) - in einem Aufruf, das Verzeichnis jedes Releases wird nur einmal gelesen. */
+function vomRelease(namen) {
+  if (!namen.length) return;
+  const r = spawnSync(process.execPath, [path.join('scripts', 'ablage-github-holen.mjs'), ...namen], { encoding: 'utf8', env: process.env });
+  const zeile = String(r.stdout ?? '').trim().split('\n').pop();
+  if (zeile) console.log(`  Release: ${zeile}`);
+}
+
+async function planSchreibenLauf(datei) {
+  BASIS = await findeBasis();
+  const antwort = await fetch(`${BASIS}/api/cup-catalog?modus=alle`, { signal: AbortSignal.timeout(120_000) });
+  if (!antwort.ok) throw new Error(`Cup-Katalog HTTP ${antwort.status}`);
+  const katalog = await antwort.json();
+  const jetzt = Date.now();
+
+  // Frisch (laeuft oder seit hoechstens SCHNELL_STUNDEN vorbei) oder angefragt - von der Seite (Vorrang) oder beim Anstossen genannt.
+  const kandidaten = [];
+  for (const cup of katalog.cups ?? []) {
+    const regel = replayRegel(cup);
+    if (regel === 'nichts') continue;
+    for (const liste of Object.values(cup.regionen ?? {})) {
+      const finals = regel === 'nurFinals' ? endrunden(liste) : null;
+      const endrundeHier = endrunden(liste);
+      for (const w of liste) {
+        if (w.status !== 'live' && w.status !== 'vorbei') continue;
+        if (finals && !finals.has(w.windowId)) continue;
+        const m = /^(S\d+)_/i.exec(w.windowId);
+        if (!m) continue;
+        const live = w.status === 'live';
+        const ende = live ? jetzt : (w.end ?? w.begin ?? 0);
+        if (ende < jetzt - FRIST_TAGE * 864e5) continue;
+        const angefragt = vorrang.has(w.windowId) || nurFenster.includes(w.windowId);
+        if (!angefragt && ende < jetzt - SCHNELL_STUNDEN * 3600_000) continue;
+        kandidaten.push({
+          season: m[1].toUpperCase(), windowId: w.windowId, eventId: w.eventId, region: w.region, titel: cup.titel,
+          datum: live ? (w.begin ?? jetzt) : ende, live, angefragt, istEndrunde: endrundeHier.has(w.windowId),
+        });
+      }
+    }
+  }
+  console.log(`${kandidaten.length} Spieltage frisch oder angefragt${vorrang.size ? ` (Vorrang: ${[...vorrang].join(', ')})` : ''}.`);
+  vomRelease(kandidaten.map((f) => `replays/${f.season}/${f.windowId}/_zustand.json`));
+
+  // Je Spieltag die offenen Matches. Die Bestenliste wird nur gefragt, solange neue Matches kommen koennen: waehrend des Cups und bis eine halbe Stunde
+  // nach seinem Ende (danach steht die Liste der Matches im Stand, "idsStand").
+  const plan = [];
+  let naechster = 0;
+  const arbeiter = async () => {
+    while (naechster < kandidaten.length) {
+      const f = kandidaten[naechster++];
+      const zustand = await liesZustand(f.season, f.windowId);
+      const bekannt = Object.keys(zustand.matches ?? {});
+      let ids = bekannt; let idsStand = null;
+      const listeFertig = !f.live && (Date.parse(zustand.idsStand ?? '') || 0) > f.datum + 30 * 60_000;
+      if (!listeFertig) {
+        try {
+          ids = [...new Set([...bekannt, ...await matchIds(f.eventId, f.windowId)])];
+          idsStand = new Date().toISOString();
+        } catch (e) {
+          console.log(`  ${f.windowId}: Bestenliste - ${e.message}`);
+          if (!ids.length) continue;
+        }
+      }
+      const offen = ids.filter((id) => {
+        const m = zustand.matches?.[id];
+        if (!m) return true;
+        if (m.stand === ZUSTAND.FERTIG) return false;
+        return m.stand !== ZUSTAND.NICHT_VORHANDEN || nochmalFragen(m);
+      });
+      const neu = ids.filter((id) => !zustand.matches?.[id]);
+      if (!offen.length && !neu.length && !idsStand) continue;
+      // Die bisherigen Eintraege der offenen Matches (seit wann "nicht da", wie viele Versuche) - die Leser brauchen sie fuer nochmalFragen.
+      const vorher = Object.fromEntries(offen.filter((id) => zustand.matches?.[id]).map((id) => [id, zustand.matches[id]]));
+      plan.push({ ...f, offen, neu, vorher, idsStand, alle: ids.length });
+    }
+  };
+  await Promise.all(Array.from({ length: 4 }, arbeiter));
+
+  // Angefragte zuerst, dann was gerade laeuft, dann das zuletzt Beendete.
+  plan.sort((a, b) => Number(b.angefragt) - Number(a.angefragt) || Number(b.live) - Number(a.live) || b.datum - a.datum);
+  const gesamt = plan.reduce((a, f) => a + f.offen.length, 0);
+  const stuecke = gesamt ? Math.min(STUECKE_MAX, Math.max(1, Math.ceil(gesamt / JE_STUECK))) : 0;
+  for (const f of plan) {
+    console.log(`  ${f.windowId.padEnd(52)} ${String(f.offen.length).padStart(5)} offen von ${f.alle}${f.live ? ' (live)' : ''}${f.angefragt ? ' (angefragt)' : ''}`);
+  }
+  console.log(`${gesamt} offene Matches aus ${plan.length} Spieltagen - ${stuecke} Rechner.`);
+  await fs.mkdir(path.dirname(datei), { recursive: true });
+  await fs.writeFile(datei, JSON.stringify({ erstellt: new Date().toISOString(), stuecke, fenster: plan }), 'utf8');
+  if (process.env.GITHUB_OUTPUT) {
+    await fs.appendFile(process.env.GITHUB_OUTPUT,
+      `stuecke=${JSON.stringify(Array.from({ length: stuecke }, (_, i) => i))}\narbeit=${plan.length ? 'ja' : 'nein'}\n`);
+  }
+}
+
+async function ausPlanLauf(datei) {
+  const plan = JSON.parse(readFileSync(datei, 'utf8'));
+  const von = Math.max(1, plan.stuecke || 1);
+  const n = stueckNr % von;
+  // Reihum ueber alle offenen Matches aller Spieltage: jeder Rechner bekommt von jedem Spieltag gleich viel.
+  const fenster = []; const auftraege = [];
+  let i = 0;
+  for (const f of plan.fenster ?? []) {
+    const meine = f.offen.filter(() => (i++ % von) === n);
+    if (!meine.length) continue;
+    const eintrag = { f, zustand: { matches: { ...(f.vorher ?? {}) } }, meine };
+    fenster.push(eintrag);
+    for (const id of meine) auftraege.push({ eintrag, id });
+  }
+  console.log(`Stueck ${n + 1} von ${von}: ${auftraege.length} Matches aus ${fenster.length} Spieltagen; gleichzeitig ${MAX_LADEN} Downloads, ${MAX_LESEN} Auswertungen, ${MAX_PRUEFEN} Abfragen.`);
+
+  const zaehler = { fertig: 0, nicht_vorhanden: 0, fehler: 0, liegen: 0 };
+  let naechster = 0; let getan = 0;
+  const arbeiter = async () => {
+    while (naechster < auftraege.length) {
+      const { eintrag, id } = auftraege[naechster++];
+      if (Date.now() >= schluss) { zaehler.liegen += 1; continue; }
+      const r = await verarbeite(eintrag.f, id, eintrag.zustand);
+      zaehler[r] = (zaehler[r] ?? 0) + 1;
+      getan += 1;
+      if (getan % 100 === 0) console.log(`    ${getan}/${auftraege.length} (${Math.round((Date.now() - beginn) / 1000)} s)`);
+    }
+  };
+  const beginn = Date.now();
+  await Promise.all(Array.from({ length: MAX_LADEN + MAX_LESEN + MAX_PRUEFEN }, arbeiter));
+
+  // Nur die Matches, die dieser Rechner wirklich angefasst hat - was liegen blieb, behaelt seinen Eintrag im Stand vom Release.
+  await fs.mkdir(STUECK_ORDNER, { recursive: true });
+  for (const { f, zustand, meine } of fenster) {
+    const teil = {};
+    for (const id of meine) if (zustand.matches[id] && zustand.matches[id] !== f.vorher?.[id]) teil[id] = zustand.matches[id];
+    await fs.writeFile(path.join(STUECK_ORDNER, stueckName(f, n)), JSON.stringify({ season: f.season, windowId: f.windowId, stueck: n, matches: teil }), 'utf8');
+  }
+  console.log(`Fertig nach ${Math.round((Date.now() - beginn) / 1000)} s: ${zaehler.fertig} ausgewertet, ${zaehler.nicht_vorhanden} ohne Replay (noch nicht oder nicht mehr), `
+    + `${zaehler.fehler} fehlgeschlagen${zaehler.liegen ? `, ${zaehler.liegen} fuer den naechsten Lauf liegen gelassen` : ''}`);
+}
+
+async function planZusammenLauf(datei) {
+  const plan = JSON.parse(readFileSync(datei, 'utf8'));
+  const fenster = plan.fenster ?? [];
+  // Der Stand vom Release, nicht der aus dem Plan: dazwischen kann ein Lauf geschrieben haben. Dazu die Auswertung (wird ergaenzt) und die Teams.
+  vomRelease(fenster.flatMap((f) => [
+    `replays/${f.season}/${f.windowId}/_zustand.json`, `replays/${f.season}/${f.windowId}/_aggregat.json`,
+    `epic-spieltage/${f.season}/${f.windowId}.json`, `platzierungen/${f.season}/${f.windowId}.json`,
+  ]));
+  const teile = existsSync(STUECK_ORDNER) ? readdirSync(STUECK_ORDNER).filter((d) => d.endsWith('.json')) : [];
+  const fertigeFenster = [];
+  for (const f of fenster) {
+    const zustand = await liesZustand(f.season, f.windowId);
+    zustand.matches ??= {};
+    let angefasst = 0;
+    for (const d of teile) {
+      const m = /^(.+?)__(.+)__(\d+)\.json$/.exec(d);
+      if (!m || m[1] !== f.season || m[2] !== f.windowId) continue;
+      try {
+        const t = JSON.parse(readFileSync(path.join(STUECK_ORDNER, d), 'utf8'));
+        Object.assign(zustand.matches, t.matches ?? {});
+        angefasst += Object.keys(t.matches ?? {}).length;
+      } catch { /* kaputter Teilstand - dieses Stueck kommt im naechsten Lauf noch einmal */ }
+    }
+    // Matches, die noch kein Rechner angefasst hat, stehen trotzdem im Stand - so zeigt die Seite "x von y" mit dem richtigen y.
+    for (const id of f.neu ?? []) zustand.matches[id] ??= { stand: ZUSTAND.OFFEN, zuletzt: new Date().toISOString() };
+    if (!angefasst && !(f.neu ?? []).length && !f.idsStand) continue;
+    Object.assign(zustand, {
+      season: f.season, windowId: f.windowId, eventId: f.eventId, region: f.region, titel: f.titel, datum: f.datum,
+      ...(f.idsStand ? { idsStand: f.idsStand } : {}),
+    });
+    await schreibeZustand(f.season, f.windowId, zustand);
+    fertigeFenster.push(f);
+    const werte = Object.values(zustand.matches);
+    console.log(`  ${f.windowId.padEnd(52)} ${werte.filter((x) => x.stand === ZUSTAND.FERTIG).length}/${werte.length} ausgewertet (${angefasst} in diesem Lauf)`);
+  }
+  if (!fertigeFenster.length) { console.log('Nichts zusammenzufuehren.'); return; }
+
+  const namen = fertigeFenster.map((f) => f.windowId);
+  const schritt = (skript, args) => {
+    const r = spawnSync(process.execPath, [path.join('scripts', skript), ...args], { stdio: 'inherit', env: process.env });
+    if (r.status !== 0) console.log(`  ${skript}: Code ${r.status}`);
+  };
+  schritt('replays-aggregieren.mjs', namen);
+  schritt('replays-schlank.mjs', namen);
+  // Hochladen: Stand und Auswertung je Spieltag, dazu die schlanke Fassung, die die Seite liest.
+  schritt('ablage-github.mjs', fertigeFenster.flatMap((f) => [
+    '--nur', `replays/${f.season}/${f.windowId}`, '--nur', `replays-schlank/${f.season}/${f.windowId}.json`,
+  ]));
+}
+
 async function main() {
+  if (planSchreiben) { await planSchreibenLauf(planSchreiben); return; }
+  if (ausPlan) { await ausPlanLauf(ausPlan); return; }
+  if (planZusammen) { await planZusammenLauf(planZusammen); return; }
   if (SPEICHER !== 'local') {
     console.log(`REPLAY_STORAGE=${SPEICHER} ist noch nicht gebaut - es wird lokal abgelegt.`);
   }
@@ -797,7 +1016,14 @@ async function main() {
 
   const angefasst = [];
   for (const f of ziel) {
+    /*
+     * Nacharbeit (mehrere Rechner): frische und angefragte Spieltage gehoeren der Schnellspur, und angelegt wird nur, was noch gar keinen Stand hat - die
+     * Luecken bestehender holt --wiederholen nach. Bis zum 29.10.2026 fragte dieser Gang bei jedem Durchgang die Bestenliste jedes Spieltags der letzten 31
+     * Tage ab, beim aeltesten beginnend, und wurde nach zwanzig Minuten abgebrochen: neue Spieltage erreichte er nie.
+     */
+    if (nacharbeit && gehoertSchnellspur(f.windowId, f.datum)) continue;
     await zustandNachholen(f);
+    if (nacharbeit && Object.keys((await liesZustand(f.season, f.windowId)).matches ?? {}).length) continue;
     const zustand = await liesZustand(f.season, f.windowId);
     zustand.season = f.season; zustand.windowId = f.windowId;
     zustand.eventId = f.eventId; zustand.region = f.region;

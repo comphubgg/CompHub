@@ -188,6 +188,9 @@ function gewuenscht(name) {
   if (/^clutch(-roh)?\//.test(name) && process.env.OHNE_CLUTCH === '1') return false;
   // Die voll ausgelesenen Replays schreibt allein der Ablauf "Replays voll auslesen".
   if (/^replay-voll\//.test(name) && process.env.OHNE_REPLAYVOLL === '1') return false;
+  // Staende, Auswertungen und schlanke Fassungen der Replays schreiben die Replay-Ablaeufe (Schnellspur, Nacharbeit, schlank) - der Stundenlauf hatte alte
+  // Staende aus seinem Zwischenspeicher und haette frische ueberschrieben (29.10.2026).
+  if (/^replays(-schlank)?\//.test(name) && process.env.OHNE_REPLAYS === '1') return false;
   if (nur.length && !nur.some((n) => name === n || name.startsWith(`${n}/`))) return false;
   /*
    * Vom Betreiber Gepflegtes nur, wenn es eben frisch aus Supabase kam.

@@ -26,7 +26,10 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          sparse-checkout: scripts
+          # lib fuer die Regeln, welche Cups Replays bekommen (lib/replayRegel.mjs, Schritt "Replays schnell anstossen").
+          sparse-checkout: |
+            scripts
+            lib
 
       - uses: actions/setup-node@v4
         with:
@@ -103,6 +106,19 @@ jobs:
             printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
             node scripts/discord-update.mjs --ziel alarm --art behoben --titel "Datenlauf steht seit $ALTER Stunden" --text "Der stuendliche Lauf Daten erneuern war zuletzt am $LETZT erfolgreich. Seitdem kommen keine neuen Statistiken auf die Seite. Schau bei GitHub unter Actions nach dem Schritt, der scheitert." || true
             rm -f .env.local
+          fi
+
+      # Die Schnellspur der Replays (replays-schnell.yml): solange ein Cup laeuft oder eben zu Ende ging, alle zehn Minuten ein
+      # Anstoss - ihr eigener Zeitplan wuerde von GitHub ebenso uebergangen wie der von "Replays live" (29.10.2026).
+      - name: Replays schnell anstossen
+        if: always()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          node scripts/replays-schnell-anstossen.mjs
+          if grep -q '^anstossen=ja' "$GITHUB_OUTPUT" 2>/dev/null; then
+            gh workflow run replays-schnell.yml -R "${{ github.repository }}" --ref main && echo "Schnellspur angestossen"
           fi
 
       # GitHub liess den Zeitplan am 28.9.2026 sieben Stunden lang ausfallen.

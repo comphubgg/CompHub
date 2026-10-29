@@ -60,10 +60,13 @@ jobs:
 
     # Clutch-Dateien schreibt nur .github/workflows/clutch-rechnen.yml,
     # die voll ausgelesenen Replays nur .github/workflows/replays-voll.yml
-    # (zwei Schreiber an einem Index verlieren sich gegenseitig Eintraege).
+    # (zwei Schreiber an einem Index verlieren sich gegenseitig Eintraege),
+    # Replay-Staende und schlanke Fassungen nur die Replay-Ablaeufe
+    # (replays-schnell.yml, replays-nacharbeiten.yml, replays-schlank.yml).
     env:
       OHNE_CLUTCH: '1'
       OHNE_REPLAYVOLL: '1'
+      OHNE_REPLAYS: '1'
     steps:
       - name: Beginn merken
         run: echo "LAUF_BEGINN=$(date +%s)" >> "$GITHUB_ENV"
@@ -363,7 +366,13 @@ jobs:
       # danach - Bauen, Vorrechnen, Hochladen - kam nie an die Reihe. Was
       # in dreissig Minuten nicht geholt ist, holt der naechste Lauf; der
       # Stand je Fenster wird alle zweihundert Matches gesichert.
+      # Seit dem 29.10.2026 aus: frische Spieltage gehoeren der Schnellspur
+      # (.github/workflows/replays-schnell.yml - mehrere Rechner je Spieltag,
+      # ein Cup binnen einer halben Stunde), aeltere der Nacharbeit. Hier
+      # hingen sie an diesem Lauf, der stundenlang stehen kann, und sein
+      # Zwischenspeicher haette frische Staende mit alten ueberschrieben.
       - name: Replays holen
+        if: ${{ false }}
         env:
           WERKZEUG_URL: https://www.thecomphub.com
         continue-on-error: true
@@ -394,6 +403,7 @@ jobs:
           true
 
       - name: Replays auswerten
+        if: ${{ false }}
         continue-on-error: true
         timeout-minutes: 10
         run: node scripts/replays-aggregieren.mjs 2>&1 | tee /tmp/aggregieren.log | tail -20
@@ -402,6 +412,7 @@ jobs:
       # Auswertung eines offenen Cups ist bis zu 54 MB und riss auf Render
       # (512 MB) den Server um.
       - name: Replays schlank ablegen
+        if: ${{ false }}
         continue-on-error: true
         timeout-minutes: 10
         run: node scripts/replays-schlank.mjs 2>&1 | tail -3
@@ -410,7 +421,11 @@ jobs:
       # Vorrechnen: scheitert das, stand die Seite tagelang auf "24.000 offen"
       # (scripts/replay-uebersicht.mjs). "Zwischenstand ans GitHub-Release"
       # nimmt die Datei mit.
+      # Seit dem 29.10.2026 aus: die Uebersicht entsteht im Ablauf "Replays
+      # schlank" aus den Staenden am Release (--vom-release); aus dem
+      # Zwischenspeicher dieses Laufs waere sie veraltet.
       - name: Replay-Uebersicht ablegen
+        if: ${{ false }}
         continue-on-error: true
         timeout-minutes: 5
         run: node scripts/replay-uebersicht.mjs 2>&1 | tail -3
