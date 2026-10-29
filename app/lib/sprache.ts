@@ -43,6 +43,7 @@ export const SPRACHEN: Array<{ kennung: Sprache; kurz: string; name: string }> =
  */
 const AUF_ENGLISCH: Record<string, string> = {
   // ------------------------------------------------------------ Allgemein
+  'Scrim beendet': 'Scrim ended',
   'Zurück zur Bestenliste': 'Back to the leaderboard',
   'Die Replay-Ansicht ist für dein Konto noch nicht freigeschaltet.': 'The replay view is not unlocked for your account yet.',
   'CompHub schaltet sie je VIP frei - schreib uns kurz auf Discord.': 'CompHub unlocks it per VIP - just message us on Discord.',

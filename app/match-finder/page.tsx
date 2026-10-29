@@ -20,7 +20,7 @@ interface Favorit { id: string; name: string }
 interface Treffer extends Favorit { ingame?: string | null; bild?: string | null }
 interface FMatch { matchId: string; ende: string | null; platz: number | null; elims: number | null; windowId: string; titel: string }
 interface FLive { matchId: string; quelle: 'bestenliste' | 'sitzung'; windowId: string | null; titel: string | null; playlist: string | null }
-interface FScrim { session: string; server: string; platz: number | null; punkte: number | null; spiele: number; kills: number | null; letztesSpiel: { code: string; ende: string | null; platz: number | null } | null; nurAngemeldet: boolean; link: string }
+interface FScrim { beendet?: boolean; session: string; server: string; platz: number | null; punkte: number | null; spiele: number; kills: number | null; letztesSpiel: { code: string; ende: string | null; platz: number | null } | null; nurAngemeldet: boolean; link: string }
 interface FSpieler { live: FLive | null; matches: FMatch[]; rang: number | null; punkte: number | null; windowId: string | null; scrim?: FScrim | null }
 interface FCup { windowId: string; titel: string; region: string; live: boolean }
 interface Antwort { ok: boolean; error?: string; cups: FCup[]; spieler: Record<string, FSpieler>; roh?: unknown[] }
@@ -182,14 +182,17 @@ export default function MatchFinder() {
                   ) : null}
                   {/* Laufende Scrims (Noble/Yunite): Session, Platz, Punkte, Spiele und die volle Kennung des letzten Spiels. */}
                   {s?.scrim && (
-                    <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3">
-                      <span className="flex items-center gap-1.5 text-sm font-bold text-amber-300"><span className="h-2 w-2 animate-pulse rounded-full bg-amber-400" />{s.scrim.nurAngemeldet ? t('Angemeldet') : 'SCRIM LIVE'}</span>
+                    <div className={`mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border px-4 py-3 ${s.scrim.beendet ? 'border-zinc-700 bg-zinc-900/60' : 'border-amber-500/30 bg-amber-500/10'}`}>
+                      {s.scrim.beendet
+                        ? <span className="text-sm font-bold text-slate-400">{t('Scrim beendet')}</span>
+                        : <span className="flex items-center gap-1.5 text-sm font-bold text-amber-300"><span className="h-2 w-2 animate-pulse rounded-full bg-amber-400" />{s.scrim.nurAngemeldet ? t('Angemeldet') : 'SCRIM LIVE'}</span>}
                       <span className="text-xs text-slate-200">{s.scrim.session} <span className="text-slate-500">· {s.scrim.server}</span></span>
                       {!s.scrim.nurAngemeldet && (
                         <span className="text-xs tabular-nums text-slate-300">#{s.scrim.platz} · {s.scrim.punkte} {t('Punkte')} · {s.scrim.spiele} {t('Spiele')}{s.scrim.kills != null ? ` · ${s.scrim.kills} elims` : ''}</span>
                       )}
                       {s.scrim.letztesSpiel && (
-                        <span className="text-xs text-slate-400">{t('Letztes Spiel')} <code className="rounded bg-zinc-950 px-1.5 py-0.5 font-mono text-slate-200">{s.scrim.letztesSpiel.code}</code> {uhrzeit(s.scrim.letztesSpiel.ende)}{s.scrim.letztesSpiel.platz ? ` · #${s.scrim.letztesSpiel.platz}` : ''}</span>
+                        <span className="text-xs text-slate-400">{t('Letztes Spiel')} <code className="rounded bg-zinc-950 px-1.5 py-0.5 font-mono text-slate-200">{s.scrim.letztesSpiel.code}</code>{' '}<button type="button" onClick={() => kopieren(s.scrim!.letztesSpiel!.code)}
+                            className="rounded border border-zinc-700 px-2 py-0.5 text-[11px] font-semibold text-slate-300 transition hover:border-sky-500 hover:text-sky-400">{kopiert === s.scrim.letztesSpiel.code ? t('Kopiert') : t('Kopieren')}</button> {uhrzeit(s.scrim.letztesSpiel.ende)}{s.scrim.letztesSpiel.platz ? ` · #${s.scrim.letztesSpiel.platz}` : ''}</span>
                       )}
                       <a href={s.scrim.link} target="_blank" rel="noreferrer" className="ml-auto text-xs font-semibold text-amber-300 hover:text-amber-200">{t('Leaderboard bei Noble')} →</a>
                     </div>

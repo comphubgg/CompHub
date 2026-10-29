@@ -2077,10 +2077,18 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     return () => { weg = true; clearTimeout(uhr); };
   }, [reiter, fenster, spielerWerte?.gekuerzt, spielerSuche, summenFenster, summenText]);
 
+  // Vor dem Laden der Spielerwerte bestimmt - Solo-Cups zeigen die Player Stats im Reiter "teams".
+  const soloCup = useMemo(() => {
+    if (tabelle.length > 0) return tabelle.every((e) => e.players.length === 1);
+    const woran = `${cup?.titel ?? ''} ${cup?.untertitel ?? ''} ${id}`.toLowerCase();
+    return /\bsolo/.test(woran);
+  }, [tabelle, cup, id]);
+
   useEffect(() => {
     // Ein Druck auf den Reload-Knopf holt die Werte noch einmal - still, ohne dass die Liste verschwindet.
     const vonHand = neuNr !== spielerNeuGesehen.current;
-    if (reiter !== 'spieler' || !fenster || (spielerWerte && !vonHand)) return;
+    // Bei einem Solo-Cup stehen die Player Stats im Reiter "teams" (dort heisst er Player Stats) - auch dort laden.
+    if ((reiter !== 'spieler' && !(soloCup && reiter === 'teams')) || !fenster || (spielerWerte && !vonHand)) return;
     spielerNeuGesehen.current = neuNr;
     let weg = false;
     if (!spielerWerte) setSpielerLaedt(true);
@@ -2091,7 +2099,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
       .catch(() => { if (!weg && !spielerWerte) setSpielerWerte(null); })
       .finally(() => { if (!weg) setSpielerLaedt(false); });
     return () => { weg = true; };
-  }, [reiter, fenster, spielerWerte, neuNr, summenFenster, summenText]);
+  }, [reiter, fenster, spielerWerte, neuNr, summenFenster, summenText, soloCup]);
 
   // Solange die Replays eines Spieltags ausgewertet werden, alle zwei Minuten nachsehen - die Werte erscheinen dann ohne Neuladen.
   useEffect(() => {
@@ -2583,11 +2591,6 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
    * Reiter. Deshalb zusaetzlich der Name des Cups; "Solo Victory Cup" sagt
    * es ja bereits.
    */
-  const soloCup = useMemo(() => {
-    if (tabelle.length > 0) return tabelle.every((e) => e.players.length === 1);
-    const woran = `${cup?.titel ?? ''} ${cup?.untertitel ?? ''} ${id}`.toLowerCase();
-    return /\bsolo/.test(woran);
-  }, [tabelle, cup, id]);
 
   /*
    * Bei einem Solo-Cup gibt es den Reiter "Spieler-Stats" aus den Replays
@@ -4449,6 +4452,24 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
           * Solo Stats bei einem Solo-Cup, sonst Team Stats - wie bei Osirion: Konto waehlen oder verifizieren, Spieler suchen, die Werte des
           * Spielers und bei einem Team seiner Mitspieler nebeneinander. Unter "Player Stats" gibt es diese Suche nicht (Betreiber, 13.10.2026).
           */}
+        {/* Solo-Cup: oben dieselben Player Stats wie bei Duos und Trios (Betreiber, 29.10.2026: "Playerstats und dein Solo Cup ... wie bei Osirion"). */}
+        {reiter === 'teams' && soloCup && !!spielerWerte?.spieler.length && (
+          <div className="mb-4">
+            <SpielerStatsUebersicht
+              spieler={spielerWerte.spieler.map((s) => ({ ...s, elims: s.kills, quote: s.damageRatio ?? 0 }))}
+              matches={spielerWerte.runden}
+              aktualisiert={spielerWerte.aktualisiert ?? null}
+              szene={spielerWerte.quelle === 'szene'}
+              laeuft={laeuftGerade}
+              endeMs={fenster?.end ?? fenster?.begin ?? null}
+              schadenAusReplay={!!(spielerWerte as { schadenAusReplay?: boolean }).schadenAusReplay}
+              gesamt={(spielerWerte as { gesamt?: number }).gesamt ?? null}
+              summen={(spielerWerte as { summen?: Record<string, number> | null }).summen ?? null}
+              schadenTeil={(spielerWerte as { schadenTeil?: { teams: number; matches: number } | null }).schadenTeil ?? null}
+              quelle={fenster ? `/api/cup-spieler?window=${encodeURIComponent(fenster.windowId)}&event=${encodeURIComponent(fenster.eventId)}${summenFenster ? `&windows=${summenText}` : ''}` : undefined}
+              zuDetails={(sp) => { setDetailStart(sp); }} />
+          </div>
+        )}
         {reiter === 'teams' && lbFenster && (
           <SpielerDetail key={detailStart?.id ?? 'suche'} eventId={lbFenster.eventId} windowId={lbFenster.windowId} rueckPfad={`/events/${id}`} solo={soloCup} startSpieler={detailStart} />
         )}
@@ -4934,7 +4955,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
         )}
 
         {/* Turnierstatistik - nur unter einem Finale */}
-        {reiter === 'teams' && statistik.length > 0 && (
+        {reiter === 'teams' && statistik.length > 0 && !(soloCup && spielerWerte?.spieler.length) && !offeneListe && (
           <section>
             <div className="mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
               <h2 className="text-sm font-semibold text-slate-100">
@@ -4956,34 +4977,36 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
             {statistikStand && Number.isFinite(Date.parse(statistikStand)) && (
               <div className="mb-3"><AktualisierungsStand stand={statistikStand} art={laeuftGerade ? 'laeuft' : 'fertig'} /></div>
             )}
-            <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            {/* Derselbe Aufbau wie die Player Stats (Betreiber, 29.10.2026: "die Team-Stats sollen auch so aussehen ... einfach fuer die Teams angepasst"). */}
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
               {statistik.map((b) => (
                 <div key={b.schluessel}
-                  className="overflow-hidden rounded-xl border border-zinc-800 bg-zinc-900/40">
-                  <p className="flex items-center gap-1.5 border-b border-zinc-800
-                                bg-zinc-900/60 px-3 py-2 text-[11px] font-semibold
-                                uppercase tracking-wider text-slate-300">
-                    <span className="not-italic">{b.symbol}</span>{b.titel}
-                    {/* Die Kachel zeigt fuenf. Dahinter steht das ganze Feld -
-                        dieselbe Sortierung, nur ungekuerzt. */}
-                    {b.alle.length > b.plaetze.length && (
-                      <button type="button"
-                        onClick={() => listeOeffnen(b)}
-                        title={`${t('Alle anzeigen')} (${b.alle.length})`}
-                        className="ml-auto rounded border border-zinc-700 px-1.5
-                                   text-[11px] leading-4 text-slate-400 transition
-                                   hover:border-sky-500 hover:text-sky-400">
-                        +
-                      </button>
-                    )}
-                  </p>
-                  <ol className="divide-y divide-zinc-900">
+                  className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950">
+                  <div className="flex items-center gap-2 px-4 pb-3 pt-4">
+                    <img src="/logos/CompHub-Logo.png" alt="" className="h-7 w-7 shrink-0 rounded-full border border-zinc-700 bg-zinc-900 object-cover p-0.5" />
+                    <h3 className="min-w-0 flex-1 truncate text-center text-[15px] font-extrabold uppercase tracking-wide text-slate-50">{b.titel}</h3>
+                    {/* Die Kachel zeigt fuenf. Dahinter steht das ganze Feld - dieselbe Sortierung, nur ungekuerzt. */}
+                    <button type="button" onClick={() => listeOeffnen(b)} disabled={b.alle.length <= b.plaetze.length}
+                      title={`${t('Alle anzeigen')} (${b.alle.length})`}
+                      className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-zinc-700 text-slate-300
+                                 transition hover:border-sky-500 hover:text-sky-400 disabled:opacity-30">
+                      <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+                        <path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4" />
+                      </svg>
+                    </button>
+                  </div>
+                  <div className="px-3">
+                    <div className="flex items-center gap-2.5 rounded-xl border border-zinc-800 bg-zinc-900/80 px-3 py-2 text-[12px] font-semibold text-slate-300">
+                      <span className="w-5 shrink-0 text-center">#</span>
+                      <span className="flex-1">{soloCup ? <T>Spielername</T> : <T>Team</T>}</span>
+                      <span className="shrink-0"><T>Kennwert</T></span>
+                    </div>
+                  </div>
+                  <ol className="px-3 pb-3">
                     {b.plaetze.map((pl, i) => (
                       <li key={`${b.schluessel}-${pl.rank}-${i}`}
-                        className="flex items-center gap-2 px-3 py-2">
-                        <span className={`w-4 shrink-0 text-right text-[11px] font-bold
-                                          tabular-nums ${i === 0 ? 'text-amber-400'
-                                                                 : 'text-slate-600'}`}>
+                        className="mt-0.5 flex items-center gap-2.5 rounded-lg px-3 py-2">
+                        <span className={`w-5 shrink-0 text-center text-[13px] tabular-nums ${i === 0 ? 'font-bold text-sky-400' : 'text-slate-400'}`}>
                           {i + 1}
                         </span>
                         <TeamFlagge groesse={20}
@@ -5021,11 +5044,14 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
             einem Finale ueber tausend Zeilen, und die haetten die Kachelreihe
             auseinandergerissen. */}
         {offeneListe && (
-          <div className="fixed inset-0 z-50 flex items-start justify-center
-                          bg-black/70 p-4 sm:p-8"
-            onClick={(e) => { if (e.target === e.currentTarget) setOffeneListe(null); }}>
-            <div className="flex max-h-full w-full max-w-2xl flex-col overflow-hidden
-                            rounded-xl border border-zinc-700 bg-zinc-950 shadow-2xl">
+          <div className="mb-4">
+            <button type="button" onClick={() => setOffeneListe(null)}
+              className="mb-3 flex items-center gap-2 rounded-xl border border-zinc-700 bg-zinc-900 px-4 py-2 text-sm font-semibold text-slate-200
+                         transition hover:border-sky-500 hover:text-sky-400">
+              <span aria-hidden="true">←</span> <T>Zurück zur Übersicht</T>
+            </button>
+            <div className="flex max-h-[80vh] w-full flex-col overflow-hidden
+                            rounded-2xl border border-zinc-800 bg-zinc-950">
               <header className="flex flex-wrap items-center gap-3 border-b border-zinc-800
                                  px-4 py-3">
                 <h3 className="flex items-center gap-1.5 text-sm font-semibold text-slate-100">

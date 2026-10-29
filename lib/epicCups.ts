@@ -1263,7 +1263,31 @@ export async function holeMarken(ids: string[]): Promise<Map<string, string[]>> 
   return raus;
 }
 
-async function rohEvents(region: string) {
+type RohEvents = { events?: RohEvent[];
+               templates?: Array<{ eventTemplateId: string; matchCap?: number; playlistId?: string }>;
+               payoutTables?: Record<string, RohAuszahlung[]>;
+               resolvedWindowLocations?: Record<string, string[]> };
+
+/*
+ * Die Events einer Region - wie ein PC und wie ein Handy sie sieht.
+ *
+ * Epic zeigt je Plattform andere Events: am PC heisst ein Mobile Cup "...MobileCupAll" und hat kein einziges Spiel, die echten Spieltage
+ * ("S42_HamiKumaMobileCup_EU", 1.111 Matches auf drei Seiten) sieht nur ein Handy (Betreiber, 29.10.2026: "Osirion hat Mobile-Statistics ...
+ * wieso kann Osirion das und wir nicht"). Beide Listen werden zusammengelegt; ein leeres "All"-Fenster faellt in cupsGruppiert weg.
+ */
+async function rohEvents(region: string): Promise<RohEvents> {
+  const [pc, handy] = await Promise.all([rohEventsFuer(region, 'Windows'), rohEventsFuer(region, 'Android').catch(() => ({} as RohEvents))]);
+  const ids = new Set((pc.events ?? []).map((e) => e.eventId));
+  const vorlagen = new Set((pc.templates ?? []).map((t) => t.eventTemplateId));
+  return {
+    events: [...(pc.events ?? []), ...(handy.events ?? []).filter((e) => !ids.has(e.eventId))],
+    templates: [...(pc.templates ?? []), ...(handy.templates ?? []).filter((t) => !vorlagen.has(t.eventTemplateId))],
+    payoutTables: { ...(handy.payoutTables ?? {}), ...(pc.payoutTables ?? {}) },
+    resolvedWindowLocations: { ...(handy.resolvedWindowLocations ?? {}), ...(pc.resolvedWindowLocations ?? {}) },
+  };
+}
+
+async function rohEventsFuer(region: string, plattform: 'Windows' | 'Android') {
   const { token, accountId } = await getToken();
   return req<{ events?: RohEvent[];
                templates?: Array<{ eventTemplateId: string; matchCap?: number; playlistId?: string }>;
@@ -1275,7 +1299,7 @@ async function rohEvents(region: string) {
                 */
                resolvedWindowLocations?: Record<string, string[]> }>(
     `${EVENTS}/api/v1/events/Fortnite/download/${accountId}` +
-    `?region=${encodeURIComponent(region)}&platform=Windows&teamAccountIds=${accountId}`,
+    `?region=${encodeURIComponent(region)}&platform=${plattform}&teamAccountIds=${accountId}`,
     { headers: { Authorization: token } });
 }
 
@@ -1402,6 +1426,10 @@ export async function cupsGruppiert(regionen: readonly string[] = REGIONEN) {
 
   for (const g of gruppen.values()) {
     for (const r of Object.keys(g.regionen)) {
+      // Das leere PC-Fenster eines Mobile Cups ("...MobileCupAll_EU") faellt weg, wenn das echte (vom Handy aus) zur selben Zeit daneben steht.
+      const liste = g.regionen[r];
+      g.regionen[r] = liste.filter((w) => !(/All(_[A-Z]+)?$/i.test(w.windowId) && /mobile/i.test(w.windowId)
+        && liste.some((x) => x !== w && !/All(_[A-Z]+)?$/i.test(x.windowId) && Math.abs(x.begin - w.begin) < 3 * 3600_000)));
       g.regionen[r].sort((a, b) => a.begin - b.begin);
     }
   }

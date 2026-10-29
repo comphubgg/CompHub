@@ -178,7 +178,9 @@ export default function SpielerStatsUebersicht({ spieler, matches, aktualisiert,
     return { k, beste };
   })
     // Nur Kennzahlen mit einem Wert (Betreiber, 28.10.2026: keine Kachel mit "Epic liefert diesen Wert nicht" - nirgendwo).
-    .filter((x) => x.beste);
+    .filter((x) => x.beste)
+    // Hoechstens zehn - zwei saubere Reihen zu fuenf wie bei Osirion, keine dritte mit zwei Extras (Betreiber, 29.10.2026).
+    .slice(0, 10);
 
   const auswahl = 'rounded-lg border border-zinc-800 bg-zinc-950 px-3 py-1.5 text-sm text-slate-200 outline-none focus:border-sky-500';
 

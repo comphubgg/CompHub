@@ -136,18 +136,27 @@ export const runtime = 'nodejs';
 
 const ABLAGE = path.join(DATEN_ORT, 'replays');
 
-/** Die gepflegten Anzeigenamen - dieselben wie ueberall sonst im Werkzeug. */
+/** Das alte Namensverzeichnis - nur noch, wenn Epic einen Namen nicht herausgibt. */
+async function verzeichnis(): Promise<Map<string, string>> {
+  const karte = new Map<string, string>();
+  try {
+    const roh = JSON.parse(await fs.readFile(path.join(DATEN_ORT, 'spieler-namen.json'), 'utf8')) as Record<string, { haupt?: string; namen?: string[] }>;
+    for (const [id, e] of Object.entries(roh)) { const n = e.haupt || e.namen?.[0]; if (n) karte.set(id, n); }
+  } catch { /* kein Verzeichnis da */ }
+  return karte;
+}
+
+/**
+ * Die Namen der Player Stats: das gepflegte Profil, sonst der heutige Epic-Name, ganz (Betreiber, 29.10.2026: "Edgy Axolo, du hast Edgy Ox ... wieso
+ * wird sein Name immer abgeschnitten" - das alte Verzeichnis fuehrte einen gekuerzten Namen). Die Pros stehen taeglich erneuert in epic-namen.json, alle
+ * anderen fragt namenNachholen bei Epic; erst wenn Epic schweigt, das Verzeichnis.
+ */
 async function namen(): Promise<Map<string, string>> {
   const karte = new Map<string, string>();
   try {
-    const roh = JSON.parse(await fs.readFile(
-      path.join(DATEN_ORT, 'spieler-namen.json'), 'utf8')) as
-      Record<string, { haupt?: string; namen?: string[] }>;
-    for (const [id, e] of Object.entries(roh)) {
-      const n = e.haupt || e.namen?.[0];
-      if (n) karte.set(id, n);
-    }
-  } catch { /* kein Verzeichnis da */ }
+    const roh = JSON.parse(await fs.readFile(path.join(DATEN_ORT, 'epic-namen.json'), 'utf8')) as Record<string, string>;
+    for (const [id, n] of Object.entries(roh)) if (n) karte.set(id, n);
+  } catch { /* noch keine erneuerten Namen */ }
 
   // Ein selbst gepflegtes Profil schlaegt das Verzeichnis - der Betreiber
   // entscheidet, wie jemand heisst.
@@ -210,6 +219,12 @@ async function namenNachholen(ids: string[], anzeige: Map<string, string>): Prom
       if (name && name !== id.slice(0, 8)) anzeige.set(id, name);
     }
   } catch { /* ohne Epic-Anmeldung bleibt die gekuerzte Id stehen */ }
+  // Was Epic nicht herausgab: der Name aus dem alten Verzeichnis, besser als die gekuerzte Id.
+  const fehlt = offen.filter((id) => !anzeige.has(id));
+  if (fehlt.length) {
+    const alt = await verzeichnis();
+    for (const id of fehlt) { const n = alt.get(id); if (n) anzeige.set(id, n); }
+  }
 }
 
 /*

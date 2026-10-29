@@ -23,8 +23,13 @@ const SERVER: Array<[string, string]> = [
 
 export interface ScrimTreffer {
   session: string; server: string; platz: number | null; punkte: number | null; spiele: number; kills: number | null;
-  /** Das letzte Spiel: Noble zeigt nur den Anfang der Kennung. */
+  /** Das letzte Spiel - die Kennung, wie Yunite sie fuehrt (16 Zeichen; Noble zeigt nur vier, eine laengere gibt keiner der beiden heraus). */
   letztesSpiel: { code: string; ende: string | null; platz: number | null } | null;
+  /**
+   * Die Session ist vorbei (Betreiber, 29.10.2026: "da darfst du nicht live stehen ... meistens zwei, drei Runden"): Yunites Ende ist erreicht oder
+   * das letzte Spiel liegt ueber 35 Minuten zurueck. Noble und Yunite fuehren die Session oft noch stundenlang als "laeuft".
+   */
+  beendet: boolean;
   /** Nur angemeldet (Name auf der Scrim-Karte), noch kein gewertetes Spiel. */
   nurAngemeldet: boolean;
   link: string;
@@ -68,20 +73,20 @@ function anmeldungen(sessionId: string): Promise<string[]> {
  * Show Match List ... dann kommt die Match-ID im URL"). Dieselbe Kennung wie bei Noble (nobleprac.com/leaderboards/<id>); Yunites Seite laedt sie
  * ohne Anmeldung von /api/internal/v1/leaderboards/<id>: je Team die Epic-Konten und jedes Game mit sessionId, Platz und Zeit.
  */
-async function yuniteLeaderboard(id: string): Promise<LbTeam[] | null> {
-  const j = await json<{ leaderboard?: Array<{
+async function yuniteLeaderboard(id: string): Promise<{ teams: LbTeam[]; ende: string | null } | null> {
+  const j = await json<{ end?: string; leaderboard?: Array<{
     placement: number; score: number; kills: number; users?: Array<{ epicId?: string }>;
     gameList?: Array<{ sessionId: string; placement: number; timestamp: string }>;
   }> }>(`https://yunite.xyz/api/internal/v1/leaderboards/${encodeURIComponent(id)}`);
   if (!j?.leaderboard) return null;
-  return j.leaderboard.map((t) => ({
+  return { ende: j.end ?? null, teams: j.leaderboard.map((t) => ({
     placement: t.placement, points: t.score, kills: t.kills,
     players: (t.users ?? []).filter((u) => u.epicId).map((u) => ({ accountId: String(u.epicId), displayName: '' })),
     games: (t.gameList ?? []).map((g) => ({ sessionId: g.sessionId, placement: g.placement, timestamp: g.timestamp })),
-  }));
+  })) };
 }
 
-interface LaufendeSession { id: string; name: string; server: string; yunite: string | null; beginn: string; leaderboard: LbTeam[]; angemeldet: string[] }
+interface LaufendeSession { id: string; name: string; server: string; yunite: string | null; beginn: string; ende: string | null; leaderboard: LbTeam[]; angemeldet: string[] }
 
 /** Alle laufenden Noble-Sessions mit Leaderboard und Anmeldungen - 30 Sekunden im Vorrat. */
 export async function laufendeScrims(): Promise<LaufendeSession[]> {
@@ -99,8 +104,8 @@ export async function laufendeScrims(): Promise<LaufendeSession[]> {
         anmeldungen(s.sessionId),
       ]);
       // Yunite fuehrt die volle Spielkennung; nur wenn es nicht antwortet, das Leaderboard von Noble (dort nur die ersten vier Zeichen).
-      const lb = yu ?? (yunite ? (await json<{ leaderboard?: LbTeam[] }>(`https://tournament.nobleprac.com/tournaments/${yunite}`))?.leaderboard ?? [] : []);
-      return { id: s.sessionId, name: s.sessionName, server, yunite, beginn: s.createdAt, leaderboard: lb, angemeldet };
+      const lb = yu?.teams ?? (yunite ? (await json<{ leaderboard?: LbTeam[] }>(`https://tournament.nobleprac.com/tournaments/${yunite}`))?.leaderboard ?? [] : []);
+      return { id: s.sessionId, name: s.sessionName, server, yunite, beginn: s.createdAt, ende: yu?.ende ?? null, leaderboard: lb, angemeldet };
     }));
   });
 }
@@ -118,6 +123,10 @@ export async function scrimsVon(favoriten: Array<{ id: string; namen: string[] }
   const raus: Record<string, ScrimTreffer> = {};
   for (const s of sessions) {
     const link = s.yunite ? `https://nobleprac.com/leaderboards/${s.yunite}` : 'https://nobleprac.com';
+    // Das letzte gewertete Spiel der ganzen Session - liegt es ueber 35 Minuten zurueck (ein Spiel dauert rund 25), ist die Session vorbei.
+    const zuletzt = Math.max(0, ...s.leaderboard.flatMap((t) => t.games.map((g) => Date.parse(g.timestamp) || 0)));
+    const vorbei = (s.ende ? Date.now() > Date.parse(s.ende) : false) || (zuletzt > 0 && Date.now() - zuletzt > 35 * 60_000)
+      || (!zuletzt && Date.now() - Date.parse(s.beginn) > 90 * 60_000);
     for (const f of favoriten) {
       if (raus[f.id] && !raus[f.id].nurAngemeldet) continue;
       const team = s.leaderboard.find((t) => t.players.some((p) => p.accountId?.toLowerCase() === f.id));
@@ -126,7 +135,7 @@ export async function scrimsVon(favoriten: Array<{ id: string; namen: string[] }
         raus[f.id] = {
           session: s.name, server: s.server, platz: team.placement, punkte: team.points, spiele: team.games.length, kills: team.kills,
           letztesSpiel: spiele[0] ? { code: spiele[0].sessionId, ende: spiele[0].timestamp ?? null, platz: spiele[0].placement ?? null } : null,
-          nurAngemeldet: false, link, beginn: s.beginn,
+          nurAngemeldet: false, link, beginn: s.beginn, beendet: vorbei,
         };
         continue;
       }
@@ -137,7 +146,9 @@ export async function scrimsVon(favoriten: Array<{ id: string; namen: string[] }
         return namen.some((n) => w.includes(n) || vergleichbar(a) === n);
       });
       if (angemeldet && !raus[f.id]) {
-        raus[f.id] = { session: s.name, server: s.server, platz: null, punkte: null, spiele: 0, kills: null, letztesSpiel: null, nurAngemeldet: true, link, beginn: s.beginn };
+        // Nur angemeldet und die Session ist vorbei: nicht mehr zeigen.
+        if (vorbei) continue;
+        raus[f.id] = { session: s.name, server: s.server, platz: null, punkte: null, spiele: 0, kills: null, letztesSpiel: null, nurAngemeldet: true, link, beginn: s.beginn, beendet: false };
       }
     }
   }
