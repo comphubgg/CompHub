@@ -142,13 +142,13 @@ export default function TwitchBot() {
               <p className="mt-1 text-xs text-slate-500"><T>Schreibt jemand den Befehl in den Chat, antwortet der Bot mit deinem Text. Platzhalter:</T> <code>{'{user}'}</code> <T>(wer gefragt hat)</T>, <code>{'{args}'}</code> <T>(was nach dem Befehl steht)</T>.</p>
               <p className="mt-1 text-xs text-slate-500"><T>Ein Befehl beginnt mit !, $ oder ? - zum Beispiel !website oder $discord. Mit / geht es nicht, das gehört Twitch.</T></p>
               {befehle.length > 0 && (
-                <div className="mt-4 hidden gap-2 px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-500 md:grid md:grid-cols-[140px_minmax(0,1fr)_90px_auto_auto]">
+                <div className="mt-4 hidden gap-2 px-3 whitespace-nowrap text-[11px] font-semibold uppercase tracking-wider text-slate-500 md:grid md:grid-cols-[160px_minmax(0,1fr)_120px_110px_70px]">
                   <span><T>Befehl</T></span><span><T>Antwort des Bots</T></span><span title={t('So viele Sekunden muss zwischen zwei Antworten auf denselben Befehl liegen.')}><T>Pause (Sek.)</T></span><span /><span />
                 </div>
               )}
               <div className="mt-2 space-y-2">
                 {befehle.map((b, i) => (
-                  <div key={i} className="grid gap-2 rounded-lg border border-zinc-800 bg-zinc-950/60 p-3 md:grid-cols-[140px_minmax(0,1fr)_90px_auto_auto]">
+                  <div key={i} className="grid gap-2 rounded-lg border border-zinc-800 bg-zinc-950/60 p-3 md:grid-cols-[160px_minmax(0,1fr)_120px_110px_70px]">
                     <input value={b.name} onChange={(ev) => setBefehle(befehle.map((x, j) => (j === i ? { ...x, name: ev.target.value } : x)))} placeholder="!webseite" className={feld} />
                     <input value={b.antwort} onChange={(ev) => setBefehle(befehle.map((x, j) => (j === i ? { ...x, antwort: ev.target.value } : x)))} placeholder={t('Antwort des Bots')} className={feld} />
                     <input type="number" min={0} max={3600} value={b.cooldownSek} onChange={(ev) => setBefehle(befehle.map((x, j) => (j === i ? { ...x, cooldownSek: Number(ev.target.value) } : x)))} title={t('Pause in Sekunden')} className={feld} />
@@ -166,13 +166,13 @@ export default function TwitchBot() {
               <h2 className="text-sm font-semibold"><T>Regeln</T></h2>
               <p className="mt-1 text-xs text-slate-500"><T>Steht eines der Wörter in einer Nachricht, greift der Bot ein. Moderatoren und dich selbst lässt er in Ruhe.</T> <T>Die Dauer gilt nur für den Timeout.</T></p>
               {regeln.length > 0 && (
-                <div className="mt-4 hidden gap-2 px-3 text-[11px] font-semibold uppercase tracking-wider text-slate-500 md:grid md:grid-cols-[minmax(0,1fr)_150px_110px_minmax(0,0.8fr)_auto]">
+                <div className="mt-4 hidden gap-2 px-3 whitespace-nowrap text-[11px] font-semibold uppercase tracking-wider text-slate-500 md:grid md:grid-cols-[minmax(0,1fr)_170px_120px_minmax(0,0.8fr)_70px]">
                   <span><T>Wörter</T></span><span><T>Was der Bot tut</T></span><span><T>Dauer (Sek.)</T></span><span><T>Grund</T></span><span />
                 </div>
               )}
               <div className="mt-2 space-y-2">
                 {regeln.map((r, i) => (
-                  <div key={i} className="grid gap-2 rounded-lg border border-zinc-800 bg-zinc-950/60 p-3 md:grid-cols-[minmax(0,1fr)_150px_110px_minmax(0,0.8fr)_auto]">
+                  <div key={i} className="grid gap-2 rounded-lg border border-zinc-800 bg-zinc-950/60 p-3 md:grid-cols-[minmax(0,1fr)_170px_120px_minmax(0,0.8fr)_70px]">
                     <input value={Array.isArray(r.woerter) ? r.woerter.join(', ') : r.woerter} onChange={(ev) => setRegeln(regeln.map((x, j) => (j === i ? { ...x, woerter: ev.target.value } : x)))} placeholder={t('Wörter, mit Komma getrennt')} className={feld} />
                     <select value={r.aktion} onChange={(ev) => setRegeln(regeln.map((x, j) => (j === i ? { ...x, aktion: ev.target.value as Regel['aktion'] } : x)))} className={feld}>
                       <option value="loeschen">{t('Nachricht löschen')}</option>
