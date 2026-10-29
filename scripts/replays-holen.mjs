@@ -653,29 +653,45 @@ async function wiederholen() {
   let saisons = [];
   try { saisons = await fs.readdir(ABLAGE); } catch { /* nichts da */ }
   let listenErgaenzt = 0;
+  /*
+   * Einmal die ganze Bestenliste (29.10.2026): bis dahin las der Sammler zehn Seiten, und von offenen Runden fehlten die meisten Matches - das
+   * Inoxtag-Icon-Cup-Fenster EU hatte 3.577 statt 20.691. Jeder Spieltag der Frist, dessen Liste nie ganz gelesen wurde, bekommt die fehlenden
+   * Matches als offen dazu; danach traegt er "idsAlle". Zuerst die aeltesten (Betreiber: "die gerade so bei 30 Tage sind ... als allererstes"),
+   * nur der eigene Teil (mehrere Rechner), hoechstens bis zehn Minuten vor Schluss.
+   */
+  const nachlesen = [];
+  for (const season of saisons) {
+    let liste = [];
+    try { liste = await fs.readdir(path.join(ABLAGE, season)); } catch { continue; }
+    for (const windowId of liste) {
+      if (!meinTeil(windowId)) continue;
+      const zustand = await liesZustand(season, windowId);
+      if (zustand.idsAlle || !zustand.eventId || (zustand.datum ?? 0) < grenze) continue;
+      if (nacharbeit && gehoertSchnellspur(windowId, zustand.datum)) continue;
+      nachlesen.push({ season, windowId, zustand });
+    }
+  }
+  nachlesen.sort((a, b) => (a.zustand.datum ?? 0) - (b.zustand.datum ?? 0));
+  if (nachlesen.length) console.log(`${nachlesen.length} Spieltage ohne ganze Bestenliste - die aeltesten zuerst.`);
+  for (const { season, windowId, zustand } of nachlesen) {
+    if (Date.now() >= schluss - 10 * 60_000) break;
+    try {
+      const ids = await matchIds(zustand.eventId, windowId);
+      zustand.matches ??= {};
+      let neu = 0;
+      for (const id of ids) if (!zustand.matches[id]) { zustand.matches[id] = { stand: ZUSTAND.OFFEN }; neu += 1; }
+      zustand.idsAlle = new Date().toISOString();
+      await schreibeZustand(season, windowId, zustand);
+      listenErgaenzt += 1;
+      console.log(`  ${windowId}: ganze Bestenliste - ${ids.length} Matches, ${neu} neu dazu`);
+    } catch (e) { console.log(`  ${windowId}: Bestenliste - ${e.message}`); }
+  }
+
   for (const season of saisons) {
     let liste = [];
     try { liste = await fs.readdir(path.join(ABLAGE, season)); } catch { continue; }
     for (const windowId of liste) {
       const zustand = await liesZustand(season, windowId);
-      /*
-       * Einmal die ganze Bestenliste (29.10.2026): bis dahin las der Sammler zehn Seiten, und von offenen Runden fehlten die meisten Matches - das
-       * Inoxtag-Icon-Cup-Fenster EU hatte 3.577 statt 20.691. Jeder Spieltag der Frist, dessen Liste nie ganz gelesen wurde, bekommt die fehlenden
-       * Matches als offen dazu; danach traegt er "idsAlle" und wird nicht mehr gefragt. Nur der eigene Teil (mehrere Rechner).
-       */
-      if (!zustand.idsAlle && zustand.eventId && (zustand.datum ?? 0) >= grenze && meinTeil(windowId)
-        && !(nacharbeit && gehoertSchnellspur(windowId, zustand.datum)) && Date.now() < schluss - 10 * 60_000) {
-        try {
-          const ids = await matchIds(zustand.eventId, windowId);
-          zustand.matches ??= {};
-          let neu = 0;
-          for (const id of ids) if (!zustand.matches[id]) { zustand.matches[id] = { stand: ZUSTAND.OFFEN }; neu += 1; }
-          zustand.idsAlle = new Date().toISOString();
-          await schreibeZustand(season, windowId, zustand);
-          listenErgaenzt += 1;
-          console.log(`  ${windowId}: ganze Bestenliste - ${ids.length} Matches, ${neu} neu dazu`);
-        } catch (e) { console.log(`  ${windowId}: Bestenliste - ${e.message}`); }
-      }
       const offen = Object.entries(zustand.matches ?? {})
         // Fertig ist fertig, und was Epic nicht mehr hat, bekommt es nicht
         // zurueck. Alles andere - fehlgeschlagen, haengengeblieben, nie
