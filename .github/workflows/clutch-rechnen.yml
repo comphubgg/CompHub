@@ -120,6 +120,9 @@ jobs:
       - name: Clutch aus den Rohdaten nach der aktuellen Regel
         continue-on-error: true
         run: node scripts/clutch-neu-rechnen.mjs
+      - name: Ueberlebenszeit aus den Rohdaten
+        continue-on-error: true
+        run: node scripts/clutch-leben.mjs
       - name: Ans Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

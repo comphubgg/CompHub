@@ -34,6 +34,7 @@ import { createRequire } from 'node:module';
 import { holeNutzerToken, matchIds } from '../lib/replayKern.mjs';
 import { leseReplay } from '../lib/replayLeser.mjs';
 import { clutchPunkte, clutchAusVoll } from '../lib/clutch.mjs';
+import { lebenSumme } from '../lib/clutchLeben.mjs';
 
 const require = createRequire(import.meta.url);
 const { downloadReplay } = require('fortnite-serverreplay-downloader');
@@ -199,6 +200,8 @@ async function tag(eventId, windowId, idsVorab = null, teilweise = null) {
     ...(teilweise ? { teilweise } : {}),
     ...(Object.keys(solo).length ? { solo } : {}),
     ...(Object.keys(schaden).length ? { schaden } : {}),
+    // Ueberlebenszeit je Spieler (Time Alive) aus Bus, Kill-Feed und Reboots - lib/clutchLeben.mjs.
+    ...(rohMatches.length ? { leben: lebenSumme(rohMatches) } : {}),
   }, null, 1));
 }
 

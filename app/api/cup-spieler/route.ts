@@ -86,6 +86,7 @@ async function ausSzene(tage: string[], anzeige: Map<string, string>, land: Map<
       // Rechnung wie ueberall im Werkzeug (lib/szeneStats, "quote"). Das Feld
       // "damageRatio" der Quelle passt zu keiner Formel (siehe dort).
       damageRatio: x.damageTakenFromPlayers ? (x.damageDealt ?? 0) / x.damageTakenFromPlayers : null,
+      quote: x.damageTakenFromPlayers ? (x.damageDealt ?? 0) / x.damageTakenFromPlayers : null,
       genauigkeit: x.shots ? ((x.hitsToPlayers ?? 0) / x.shots) * 100 : null,
       clutch: clutchDa ? (clutch.get(x.epicId) ?? 0) : null,
       // Fuer die Kacheln (app/components/StatKacheln) - dieselben Summen wie
@@ -272,6 +273,55 @@ async function holeRoh(request: Request) {
     }
     auswahl = rep.spieler.filter((x) => ids.has(x.epicId));
   }
+  /*
+   * Solo Clutch Points auch hier, wo sie fuer diesen Spieltag gerechnet sind
+   * (.github/workflows/clutch-rechnen.yml, jeder Team-Spieltag bis 60
+   * Matches). Der Betreiber: "Clutch Points muessen immer dort sein."
+   */
+  type ClutchDatei = {
+    summe?: Record<string, number>;
+    schaden?: Record<string, { dmg: number; erlitten: number; treffer: number; krit: number; sturm?: number; wiederbelebt?: number; rebootet?: number }>;
+    /** Ueberlebenszeit je Spieler in Sekunden (scripts/clutch-leben.mjs). */
+    leben?: Record<string, number>;
+    /** Wie viele Spiele je Spieler gelesen sind. */
+    spiele?: Record<string, number>;
+    /** Grosser Spieltag: nur die Matches der besten Teams gelesen (scripts/clutch-berechnen.mjs, TOP_MAX). */
+    teilweise?: { teams: number; matches: number; vonMindestens?: number };
+  } | null;
+  const clutchEinzeln = (w: string) => liesJson<ClutchDatei>(`clutch/${w}.json`, null).catch(() => null);
+  // Mehrere Tage zusammen: Clutch-Punkte und Schaden je Spieler addiert.
+  const clutchDatei: ClutchDatei = tage.length > 1
+    ? (await Promise.all(tage.map(clutchEinzeln))).reduce<ClutchDatei>((a, c) => {
+      // Teilweise gelesene Tage (grosse offene Runden) taugen nicht fuer Summen ueber mehrere Tage.
+      if (!c || c.teilweise) return a;
+      const raus = a ?? { summe: {}, schaden: {}, leben: {} };
+      for (const [id, v] of Object.entries(c.leben ?? {})) raus.leben![id] = (raus.leben![id] ?? 0) + v;
+      for (const [id, v] of Object.entries(c.summe ?? {})) raus.summe![id] = (raus.summe![id] ?? 0) + v;
+      for (const [id, d] of Object.entries(c.schaden ?? {})) {
+        const da = raus.schaden![id] ?? { dmg: 0, erlitten: 0, treffer: 0, krit: 0, sturm: 0, wiederbelebt: 0, rebootet: 0 };
+        raus.schaden![id] = {
+          dmg: da.dmg + d.dmg, erlitten: da.erlitten + d.erlitten, treffer: da.treffer + d.treffer, krit: da.krit + d.krit,
+          sturm: (da.sturm ?? 0) + (d.sturm ?? 0), wiederbelebt: (da.wiederbelebt ?? 0) + (d.wiederbelebt ?? 0), rebootet: (da.rebootet ?? 0) + (d.rebootet ?? 0),
+        };
+      }
+      return raus;
+    }, null)
+    : await clutchEinzeln(fenster);
+  // Leer bei Solo-Tagen (dort gibt es keine Clutch-Punkte) - dann gar keine Zahl.
+  const clutchVon = clutchDatei?.summe && Object.keys(clutchDatei.summe).length
+    ? new Map(Object.entries(clutchDatei.summe)) : null;
+  /*
+   * Schaden, Treffer und Kopftreffer aus den vollen Replays, wo der Spieltag
+   * gelesen ist (tools/replay-voll, SchadenLeser) - gezaehlt ohne Treffer auf
+   * Umgehauene; an den Globals gegen Epics Werte geprueft: im Mittel 6 %
+   * darunter. Die Anzeige sagt, dass es gezaehlt ist.
+   */
+  const schadenVon = clutchDatei?.schaden ? new Map(Object.entries(clutchDatei.schaden)) : null;
+  // Bei einem teilweise gelesenen Spieltag zaehlt ein Wert nur, wenn jedes Spiel dieses Spielers gelesen ist - sonst waere er zu niedrig.
+  const teil = clutchDatei?.teilweise ?? null;
+  const ganzGelesen = (id: string, spiele: number) => !teil || (clutchDatei?.spiele?.[id.toLowerCase()] ?? 0) >= spiele;
+  const lebenVon = clutchDatei?.leben && Object.keys(clutchDatei.leben).length ? new Map(Object.entries(clutchDatei.leben)) : null;
+
   // Die besten nach Eliminierungen - dazu die Spitze bei Knocks, Eliminierungen je Match und K/D (ab fuenf Spielen), damit jede Bestenliste stimmt.
   const gezeigt = (() => {
     const basis = auswahl.slice(0, limit);
@@ -282,6 +332,23 @@ async function holeRoh(request: Request) {
     mit([...rep.spieler].sort((a, b) => b.knocks - a.knocks).slice(0, 25));
     mit([...genug].sort((a, b) => b.kills / b.matches - a.kills / a.matches).slice(0, 25));
     mit([...genug].sort((a, b) => b.kills / Math.max(1, b.gestorben) - a.kills / Math.max(1, a.gestorben)).slice(0, 25));
+    /*
+     * Die Spitze jeder Kennzahl aus den vollen Replays (Betreiber, 29.10.2026: "wieso sind die einzigen Stats Elimination, Knocks ... und KD?").
+     * Bei grossen Tagen sind nur die besten Teams voll gelesen; die Liste oben (nach Kills) traf deren Spieler oft nicht, und die Kacheln blieben leer.
+     */
+    const voll = rep.spieler.filter((x) => ganzGelesen(x.epicId, x.matches));
+    const spitze = (wert: (x: (typeof voll)[number]) => number | null | undefined) =>
+      mit(voll.filter((x) => (wert(x) ?? 0) > 0).sort((a, b) => (wert(b) ?? 0) - (wert(a) ?? 0)).slice(0, 25));
+    const sch = (x: (typeof voll)[number]) => schadenVon?.get(x.epicId.toLowerCase());
+    if (schadenVon) {
+      spitze((x) => sch(x)?.dmg);
+      spitze((x) => { const d = sch(x); return d && d.erlitten > 0 ? d.dmg / d.erlitten : null; });
+      spitze((x) => sch(x)?.treffer);
+      spitze((x) => sch(x)?.sturm);
+      spitze((x) => { const d = sch(x); return d ? (d.wiederbelebt ?? 0) + (d.rebootet ?? 0) : null; });
+    }
+    if (clutchVon) spitze((x) => clutchVon.get(x.epicId.toLowerCase()));
+    if (lebenVon) spitze((x) => lebenVon.get(x.epicId.toLowerCase()));
     return basis;
   })();
 
@@ -317,47 +384,6 @@ async function holeRoh(request: Request) {
 
   // Der Platz im ganzen Feld (nach Kills) - auch fuer Treffer einer Suche.
   const rangVon = new Map(rep.spieler.map((x, i) => [x.epicId, i + 1]));
-  /*
-   * Solo Clutch Points auch hier, wo sie fuer diesen Spieltag gerechnet sind
-   * (.github/workflows/clutch-rechnen.yml, jeder Team-Spieltag bis 60
-   * Matches). Der Betreiber: "Clutch Points muessen immer dort sein."
-   */
-  type ClutchDatei = {
-    summe?: Record<string, number>;
-    schaden?: Record<string, { dmg: number; erlitten: number; treffer: number; krit: number }>;
-    /** Wie viele Spiele je Spieler gelesen sind. */
-    spiele?: Record<string, number>;
-    /** Grosser Spieltag: nur die Matches der besten Teams gelesen (scripts/clutch-berechnen.mjs, TOP_MAX). */
-    teilweise?: { teams: number; matches: number; vonMindestens?: number };
-  } | null;
-  const clutchEinzeln = (w: string) => liesJson<ClutchDatei>(`clutch/${w}.json`, null).catch(() => null);
-  // Mehrere Tage zusammen: Clutch-Punkte und Schaden je Spieler addiert.
-  const clutchDatei: ClutchDatei = tage.length > 1
-    ? (await Promise.all(tage.map(clutchEinzeln))).reduce<ClutchDatei>((a, c) => {
-      // Teilweise gelesene Tage (grosse offene Runden) taugen nicht fuer Summen ueber mehrere Tage.
-      if (!c || c.teilweise) return a;
-      const raus = a ?? { summe: {}, schaden: {} };
-      for (const [id, v] of Object.entries(c.summe ?? {})) raus.summe![id] = (raus.summe![id] ?? 0) + v;
-      for (const [id, d] of Object.entries(c.schaden ?? {})) {
-        const da = raus.schaden![id] ?? { dmg: 0, erlitten: 0, treffer: 0, krit: 0 };
-        raus.schaden![id] = { dmg: da.dmg + d.dmg, erlitten: da.erlitten + d.erlitten, treffer: da.treffer + d.treffer, krit: da.krit + d.krit };
-      }
-      return raus;
-    }, null)
-    : await clutchEinzeln(fenster);
-  // Leer bei Solo-Tagen (dort gibt es keine Clutch-Punkte) - dann gar keine Zahl.
-  const clutchVon = clutchDatei?.summe && Object.keys(clutchDatei.summe).length
-    ? new Map(Object.entries(clutchDatei.summe)) : null;
-  /*
-   * Schaden, Treffer und Kopftreffer aus den vollen Replays, wo der Spieltag
-   * gelesen ist (tools/replay-voll, SchadenLeser) - gezaehlt ohne Treffer auf
-   * Umgehauene; an den Globals gegen Epics Werte geprueft: im Mittel 6 %
-   * darunter. Die Anzeige sagt, dass es gezaehlt ist.
-   */
-  const schadenVon = clutchDatei?.schaden ? new Map(Object.entries(clutchDatei.schaden)) : null;
-  // Bei einem teilweise gelesenen Spieltag zaehlt ein Wert nur, wenn jedes Spiel dieses Spielers gelesen ist - sonst waere er zu niedrig.
-  const teil = clutchDatei?.teilweise ?? null;
-  const ganzGelesen = (id: string, spiele: number) => !teil || (clutchDatei?.spiele?.[id.toLowerCase()] ?? 0) >= spiele;
   const spieler = gezeigt.map((x, i) => {
     const team = zumTeam.get(x.epicId);
     return {
@@ -375,13 +401,19 @@ async function holeRoh(request: Request) {
       platz: team?.platz ?? null,
       partner: (team?.partner ?? []).map((id) => anzeige.get(id) ?? id.slice(0, 8)),
       clutch: clutchVon && ganzGelesen(x.epicId, x.matches) ? (clutchVon.get(x.epicId.toLowerCase()) ?? 0) : null,
+      // Ueberlebenszeit ab dem Absprung, ohne die Zeit zwischen Tod und Reboot (lib/clutchLeben.mjs; Median 0,3 % neben der Szene-Quelle).
+      ...(lebenVon && ganzGelesen(x.epicId, x.matches) && lebenVon.has(x.epicId.toLowerCase()) ? { timeAlive: lebenVon.get(x.epicId.toLowerCase()) } : {}),
       ...(() => {
         const d = schadenVon?.get(x.epicId.toLowerCase());
         if (!d || !ganzGelesen(x.epicId, x.matches)) return {};
         return {
           damage: Math.round(d.dmg), damageTaken: Math.round(d.erlitten),
-          damageRatio: d.erlitten > 0 ? d.dmg / d.erlitten : null,
+          // Dasselbe Feld wie die Szene-Quelle (quote) - so liest die Kachel "Damage Ratio" beide.
+          damageRatio: d.erlitten > 0 ? d.dmg / d.erlitten : null, quote: d.erlitten > 0 ? d.dmg / d.erlitten : null,
           hits: d.treffer, headshots: d.krit, schadenAusReplay: true,
+          // Zeit im Sturm und Reboots/Revives aus demselben Lauf (an vier Finals gegen die Szene-Werte geprueft, 95-100 von 100).
+          ...(typeof d.sturm === 'number' ? { timeInStorm: Math.round(d.sturm) } : {}),
+          ...(typeof d.wiederbelebt === 'number' ? { reboots: (d.wiederbelebt ?? 0) + (d.rebootet ?? 0) } : {}),
         };
       })(),
     };

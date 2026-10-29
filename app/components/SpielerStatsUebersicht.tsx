@@ -24,15 +24,15 @@ import { ortVon } from '@/app/lib/ort';
 import StatKacheln, { type KachelListe, type KachelSpieler } from '@/app/components/StatKacheln';
 import AktualisierungsStand from '@/app/components/AktualisierungsStand';
 
-/** Die zehn Kennzahlen - genau die des Vorbilds. */
+/**
+ * Die Kennzahlen - erst die zehn des Vorbilds in seiner Reihenfolge (Betreiber, 29.10.2026: "mindestens Damage-Ratio, Damage-to-Player, Eliminations,
+ * Solo-Clutch-Points, Time-in-Storm, Time-Alive, Distance-Traveled, Hits to Player, Mats Farmed, Builds Placed ... umso mehr, umso besser"), dann was
+ * es bei uns mehr gibt. Strecke, Material und Bauteile stehen nur in der Szene-Quelle (Finals); die Server-Replays fuehren sie nicht.
+ */
 export const OSIRION_KACHELN: KachelListe[] = [
   { feld: 'quote', titel: 'Schadensquote', nachkomma: 2 },
   { feld: 'damage', titel: 'Schaden an Spielern' },
   { feld: 'elims', titel: 'Eliminierungen' },
-  // Knocks gibt es fuer jeden Spieler jedes Cups (schneller Replay-Abruf) - auch dort, wo Schaden & Co. fehlen.
-  { feld: 'knocks', titel: 'Knocks' },
-  { feld: 'elimsJeMatch', titel: 'Eliminierungen je Match', nachkomma: 2 },
-  { feld: 'kd', titel: 'K/D', nachkomma: 2 },
   { feld: 'clutch', titel: 'Solo Clutch Points' },
   { feld: 'timeInStorm', titel: 'Zeit im Sturm', format: 'zeit' },
   { feld: 'timeAlive', titel: 'Überlebenszeit', format: 'zeit' },
@@ -40,6 +40,14 @@ export const OSIRION_KACHELN: KachelListe[] = [
   { feld: 'hits', titel: 'Treffer an Spielern' },
   { feld: 'mats', titel: 'Gefarmtes Material' },
   { feld: 'builds', titel: 'Gesetzte Bauteile' },
+  // Mehr als beim Vorbild: Knocks gibt es fuer jeden Spieler jedes Cups (schneller Replay-Abruf).
+  { feld: 'knocks', titel: 'Knocks' },
+  { feld: 'elimsJeMatch', titel: 'Eliminierungen je Match', nachkomma: 2 },
+  { feld: 'kd', titel: 'K/D', nachkomma: 2 },
+  { feld: 'headshots', titel: 'Kopftreffer' },
+  { feld: 'reboots', titel: 'Reboots und Revives' },
+  { feld: 'damageTaken', titel: 'Erlittener Schaden' },
+  { feld: 'assists', titel: 'Assists' },
 ];
 
 type Format = 'zahl' | 'zeit' | 'km';
@@ -258,7 +266,7 @@ export default function SpielerStatsUebersicht({ spieler, matches, aktualisiert,
         )}
       </p>
 
-      <StatKacheln spieler={spieler} listen={OSIRION_KACHELN} anzahl={5} leerText={leerText} />
+      <StatKacheln spieler={spieler} listen={OSIRION_KACHELN} anzahl={10} leerText={leerText} vorbild />
     </div>
   );
 }

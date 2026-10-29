@@ -66,8 +66,13 @@ function alsZeit(sek: number): string {
 
 type Kachel = KachelListe & { zeilen: KachelSpieler[] };
 
-export default function StatKacheln({ spieler, listen = TURNIER_KACHELN, anzahl = 5, aufKlick, leereZeigen = false, leerText }: {
+export default function StatKacheln({ spieler, listen = TURNIER_KACHELN, anzahl = 5, aufKlick, leereZeigen = false, leerText, vorbild = false }: {
   spieler: KachelSpieler[];
+  /**
+   * Der Aufbau nach Osirion fuer die Player Stats eines Cups (Betreiber, 29.10.2026: "optisch ziemlich genau so ... einfach in meinen Farben"):
+   * fuenf Spalten, Titel gross und mittig mit dem Logo, Kopfzeile "# Player Value", oben rechts der Knopf fuer die ganze Liste.
+   */
+  vorbild?: boolean;
   listen?: KachelListe[];
   /** Wie viele je Kachel stehen - der Rest hinter dem Plus. */
   anzahl?: number;
@@ -109,6 +114,53 @@ export default function StatKacheln({ spieler, listen = TURNIER_KACHELN, anzahl 
       + (k.einheit ?? ''));
 
   if (!kacheln.length) return null;
+
+  if (vorbild) {
+    return (
+      <>
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5" onMouseLeave={() => setMarkiert(null)}>
+          {kacheln.map((k) => (
+            <div key={k.titel} className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950">
+              <div className="flex items-center gap-2 px-4 pb-3 pt-4">
+                <img src="/logos/CompHub-Logo.png" alt="" className="h-6 w-6 shrink-0 object-contain" />
+                <h3 className="min-w-0 flex-1 truncate text-center text-[15px] font-extrabold uppercase tracking-wide text-slate-50">
+                  <T>{k.titel}</T>
+                </h3>
+                <button type="button" onClick={() => setOffen(k)} disabled={!k.zeilen.length}
+                  title={`${t('Alle anzeigen')} (${k.zeilen.length})`}
+                  className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg border border-zinc-700 text-slate-300
+                             transition hover:border-sky-500 hover:text-sky-400 disabled:opacity-30">
+                  <svg viewBox="0 0 16 16" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="1.6" aria-hidden="true">
+                    <path d="M2 6V2h4M10 2h4v4M14 10v4h-4M6 14H2v-4" />
+                  </svg>
+                </button>
+              </div>
+              <div className="mx-3 mb-3 overflow-hidden rounded-xl border border-zinc-800/80">
+                <div className="flex items-center gap-2.5 bg-zinc-900/80 px-3 py-2 text-[12px] font-semibold text-slate-400">
+                  <span className="w-5 shrink-0 text-center">#</span>
+                  <span className="flex-1"><T>Spieler</T></span>
+                  <span className="shrink-0"><T>Wert</T></span>
+                </div>
+                {k.zeilen.slice(0, anzahl).map((s, i) => (
+                  <div key={s.epicId} role={aufKlick ? 'button' : undefined} tabIndex={aufKlick ? 0 : undefined}
+                    onClick={aufKlick ? () => aufKlick(s) : undefined}
+                    onMouseEnter={() => setMarkiert(s.epicId)}
+                    className={`flex items-center gap-2.5 px-3 py-[7px] transition ${aufKlick ? 'cursor-pointer' : ''} ${markiert === s.epicId
+                      ? 'bg-sky-500/15' : 'odd:bg-zinc-950 even:bg-zinc-900/30'}`}>
+                    <span className={`w-5 shrink-0 text-center text-[13px] tabular-nums ${i === 0 ? 'font-bold text-sky-400' : 'text-slate-400'}`}>{i + 1}</span>
+                    <TeamFlagge groesse={18} laender={[s.land || undefined]} />
+                    <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-slate-100">{s.name}</span>
+                    <span className="shrink-0 text-[13px] font-semibold tabular-nums text-slate-50">{wert(k, Number(s[k.feld]))}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+        {offen && <GanzeListe kachel={offen} wert={wert} zu={() => setOffen(null)} aufKlick={aufKlick} />}
+      </>
+    );
+  }
 
   return (
     <>
