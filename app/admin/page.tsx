@@ -35,6 +35,7 @@ import AdminZentrale from './AdminZentrale';
 import Klappbar from './Klappbar';
 import OfflineSeiten from './OfflineSeiten';
 import Ebenen from './Ebenen';
+import Seitenleiste, { BEREICHE, type Bereich } from './Seitenleiste';
 type ProfileData = {
   displayName: string;
   avatarUrl: string | null;
@@ -167,12 +168,26 @@ export default function AdminDashboardPage() {
   const [eigeneRechte, setEigeneRechte] = useState<string[]>([]);
   const zugang = useZugang();
   const [warnungWeg, setWarnungWeg] = useState(false);
-  /** Dashboard oder Kontodaten - /account?tab=konto oeffnet gleich die Kontodaten. */
-  const [tab, setTab] = useState<'dashboard' | 'konto'>('dashboard');
+  /*
+   * Der Bereich der Seitenleiste (29.10.2026, statt der zwei Reiter Dashboard/Konto): ?bereich=vip usw.; /account, ?tab=konto und #konto oeffnen das Konto.
+   * Der Bereich steht in der Adresse, damit ein Link genau dorthin fuehrt.
+   */
+  const [bereich, setBereichRoh] = useState<Bereich>('start');
   useEffect(() => {
     const p = new URLSearchParams(window.location.search);
-    if (p.get('tab') === 'konto' || window.location.hash === '#konto') setTab('konto');
+    const b = p.get('bereich') as Bereich | null;
+    if (b && BEREICHE.includes(b)) setBereichRoh(b);
+    else if (p.get('tab') === 'konto' || window.location.hash === '#konto' || window.location.pathname.startsWith('/account')) setBereichRoh('konto');
   }, []);
+  const setBereich = (b: Bereich) => {
+    setBereichRoh(b);
+    try {
+      const u = new URL(window.location.href);
+      u.searchParams.set('bereich', b); u.searchParams.delete('tab'); u.hash = '';
+      window.history.replaceState(null, '', u.toString());
+    } catch { /* ohne Adresse */ }
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
 
   useEffect(() => {
     fetch('/api/profile')
@@ -385,23 +400,18 @@ export default function AdminDashboardPage() {
           </div>
         </section>
 
-        {/* Zwei Reiter, wenn es ein Konto gibt: das Dashboard und die Kontodaten (Profil, Account, Privacy). */}
-        {zugang.nutzer && (
-          <div className="mb-5 inline-flex gap-1 rounded-full border border-zinc-800 bg-zinc-900 p-1">
-            {([['dashboard', 'Dashboard'], ['konto', 'Konto']] as const).map(([k, titel]) => (
-              <button key={k} type="button" onClick={() => setTab(k)}
-                className={`rounded-full px-5 py-2 text-sm font-bold transition ${tab === k ? 'bg-sky-500 text-white shadow' : 'text-slate-400 hover:text-slate-200'}`}>
-                <T>{titel}</T>
-              </button>
-            ))}
-          </div>
-        )}
-        {tab === 'konto' && zugang.nutzer ? <KontoInhalt eingebettet /> : (<>
+        {/* Seitenleiste links (schmal: Kapseln oben) und daneben der gewaehlte Bereich - siehe app/admin/Seitenleiste. */}
+        <div className="lg:flex lg:items-start lg:gap-5">
+        <Seitenleiste bereich={bereich} setBereich={setBereich}
+          vip={zugang.vip || rolle === 'manager' || zugang.manager}
+          admin={istAdmin || rolle === 'admin' || zugang.admin}
+          manager={rolle === 'manager' || zugang.manager} />
+        <div className="min-w-0 flex-1">
 
         {/* Der Hinweis fuer den Stream: ein schmaler Streifen statt einer
             bildschirmfuellenden Tuer. Er warnt vor demselben und kostet
             keinen Klick, bevor man ueberhaupt etwas sieht. */}
-        {!warnungWeg && (
+        {!warnungWeg && bereich === 'konto' && accessKey && (
           <div className="mb-4 flex items-start justify-between gap-3 rounded-lg
                           border border-amber-500/25 bg-amber-500/[0.07] px-3 py-2">
             <p className="text-sm text-amber-200/90">
@@ -415,16 +425,18 @@ export default function AdminDashboardPage() {
           </div>
         )}
 
-        <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_380px]" data-dash-spalten>
+        <div className={`grid gap-4 ${bereich === 'start' && !verwaltet ? 'xl:grid-cols-[minmax(0,1fr)_340px]' : ''}`} data-dash-spalten>
           <div className="space-y-4">
 
             {/*
               * Die Werkzeuge nach Stufen: fuer alle, nur fuer VIP, nur hier im Dashboard (Redesign 12.10.2026).
               * Die Overlays stehen nicht mehr in der Leiste, sondern hier bei den VIP-Werkzeugen.
               */}
-            <Ebenen admin={istAdmin || rolle === 'admin' || zugang.admin}
-              vip={zugang.vip || rolle === 'manager' || zugang.manager}
-              pro={zugang.pro || rolle === 'pro'} />
+            {(bereich === 'start' || bereich === 'vip' || bereich === 'schnell') && (
+              <Ebenen teil={bereich} admin={istAdmin || rolle === 'admin' || zugang.admin}
+                vip={zugang.vip || rolle === 'manager' || zugang.manager}
+                pro={zugang.pro || rolle === 'pro'} />
+            )}
 
             {/*
               * Die Admin-Zentrale steht danach: laeuft alles, was wartet auf
@@ -432,12 +444,13 @@ export default function AdminDashboardPage() {
               * Replay-Zahlen sieht nur der Admin; ein Manager bekommt seine
               * Werkzeuge.
               */}
-            {(istAdmin || rolle === 'admin' || rolle === 'manager'
+            {bereich === 'admin' && (istAdmin || rolle === 'admin' || rolle === 'manager'
               || zugang.admin || zugang.manager) && !verwaltet && (
               <AdminZentrale werkzeuge={werkzeuge} teil="werkzeuge"
                 zeigeLaeufe={istAdmin || rolle === 'admin' || zugang.admin} />
             )}
 
+            {bereich === 'konto' && (<>
             {/* Profil */}
             <section id="profil" className="scroll-mt-20 rounded-xl border border-zinc-800 bg-zinc-950/60 p-4">
               <h2 className="text-sm font-semibold text-slate-100"><T>Profil</T></h2>
@@ -624,8 +637,12 @@ export default function AdminDashboardPage() {
             </section>
             )}
 
+            {/* Die Kontodaten (Account, Privacy) gleich darunter - Konto und Dashboard sind eins (29.10.2026). */}
+            {zugang.nutzer && <KontoInhalt eingebettet />}
+            </>)}
+
             {/* Mein Archiv - das private Archiv jedes Kontos (Overlays, Tierlists, ...) */}
-            <div id="mein-archiv" data-dash="archiv" className="scroll-mt-20"><MeinArchiv /></div>
+            {bereich === 'start' && <div id="mein-archiv" data-dash="archiv" className="scroll-mt-20"><MeinArchiv /></div>}
           </div>
 
           {/*
@@ -636,7 +653,7 @@ export default function AdminDashboardPage() {
             * waere der eines anderen. Der Betreiber wollte ihn dort weg
             * haben.
             */}
-          {!verwaltet && (
+          {!verwaltet && bereich === 'start' && (
           <section data-dash="chat" className="rounded-xl border border-zinc-800 bg-zinc-950/60">
             <header className="flex items-center justify-between gap-3 border-b
                                border-zinc-800 px-4 py-2.5">
@@ -695,20 +712,24 @@ export default function AdminDashboardPage() {
           * Auftraege, Ladezeiten) und Usage. Beide zu, bis man draufdrueckt - der Betreiber
           * (11.10.2026): "das eher unten, als eine Linie, die sich oeffnen und zuklappen laesst."
           */}
-        {(istAdmin || rolle === 'admin' || zugang.admin) && (
-          <div className="mt-4 space-y-3">
-            <Klappbar titel="Admin-Center" kennung="admin-center" hinweis="Läuft alles? Was wartet auf dich?">
+        {/* Admin-Statistik: Laeufe, Offline-Seiten, Nutzung - im eigenen Bereich gleich offen (29.10.2026). */}
+        {bereich === 'statistik' && (istAdmin || rolle === 'admin' || zugang.admin) && (
+          <div className="space-y-4">
+            <section className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5">
+              <h2 className="mb-3 text-sm font-extrabold uppercase tracking-[0.16em] text-rose-300"><T>Admin-Center</T></h2>
               <AdminZentrale werkzeuge={werkzeuge} teil="status" zeigeLaeufe />
-            </Klappbar>
+            </section>
+            <section className="rounded-2xl border border-zinc-800 bg-zinc-900/60 p-5">
+              <h2 className="mb-3 text-sm font-extrabold uppercase tracking-[0.16em] text-rose-300"><T>Usage</T></h2>
+              <Nutzungszahlen />
+            </section>
             <Klappbar titel="Offline-Seiten" kennung="offline-seiten" hinweis="Was gerade nicht online ist">
               <OfflineSeiten />
             </Klappbar>
-            <Klappbar titel="Usage" kennung="usage" hinweis="Besucher, Konten, Zugänge">
-              <Nutzungszahlen />
-            </Klappbar>
           </div>
         )}
-        </>)}
+        </div>
+        </div>
       </div>
 
       {/*

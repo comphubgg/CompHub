@@ -48,7 +48,7 @@ const SYMBOL: Record<string, ReactNode> = {
   schloss: <><rect x="5" y="11" width="14" height="9" rx="2" /><path d="M8 11V8a4 4 0 018 0v3" /></>,
 };
 
-const Zeichen = ({ name, groesse = 18 }: { name: string; groesse?: number }) => (
+export const Zeichen = ({ name, groesse = 18 }: { name: string; groesse?: number }) => (
   <svg width={groesse} height={groesse} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
     {SYMBOL[name]}
   </svg>
@@ -96,17 +96,17 @@ function VipKarte({ z, i, gesperrt }: { z: Ziel; i: number; gesperrt: boolean })
     <>
       <span aria-hidden className={`pointer-events-none absolute -right-12 -top-12 h-44 w-44 rounded-full bg-amber-400/10 blur-2xl transition ${gesperrt ? '' : 'group-hover:bg-amber-400/20'}`} />
       <span className="relative flex items-start justify-between">
-        <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-amber-400 text-zinc-950"><Zeichen name={z.symbol} groesse={22} /></span>
+        <span className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-400 text-zinc-950"><Zeichen name={z.symbol} groesse={19} /></span>
         {gesperrt && <span className="text-slate-500"><Zeichen name="schloss" groesse={18} /></span>}
       </span>
-      <h3 className="relative mt-5 text-xl font-black tracking-tight text-slate-50"><T>{z.titel}</T></h3>
-      <p className="relative mt-1 max-w-[34ch] text-sm leading-snug text-slate-400"><T>{z.text}</T></p>
-      <span className="relative mt-auto pt-5 text-[11px] font-bold uppercase tracking-[0.14em] text-amber-300">
+      <h3 className="relative mt-3 text-lg font-black tracking-tight text-slate-50"><T>{z.titel}</T></h3>
+      <p className="relative mt-0.5 max-w-[34ch] text-[13px] leading-snug text-slate-400"><T>{z.text}</T></p>
+      <span className="relative mt-auto pt-3 text-[11px] font-bold uppercase tracking-[0.14em] text-amber-300">
         {gesperrt ? <T>Nur für VIP</T> : <><T>Öffnen</T> →</>}
       </span>
     </>
   );
-  const klasse = `eb-an group relative flex min-h-[184px] flex-col overflow-hidden rounded-3xl border bg-zinc-900 p-5 transition ${gesperrt
+  const klasse = `eb-an group relative flex min-h-[132px] flex-col overflow-hidden rounded-2xl border bg-zinc-900 p-4 transition ${gesperrt
     ? 'pointer-events-none border-white/[0.08] opacity-50' : 'border-amber-500/30 hover:-translate-y-0.5 hover:border-amber-400/70'}`;
   const stil = { animation: `eb-rein .45s ${i * 60}ms cubic-bezier(.2,.8,.2,1) both` };
   if (gesperrt) return <div className={klasse} style={stil} aria-disabled>{inhalt}</div>;
@@ -132,8 +132,12 @@ function HierZeile({ z, i }: { z: Ziel; i: number }) {
     : <Link href={z.href} className={klasse} style={stil}>{inhalt}</Link>;
 }
 
-export default function Ebenen({ admin, vip, pro }: {
-  admin: boolean; vip: boolean; globals?: boolean; pro: boolean;
+/*
+ * Seit dem 29.10.2026 je Bereich der Seitenleiste (app/admin/Seitenleiste): "start" = nur im Dashboard + fuer alle, "vip" = die VIP-Werkzeuge,
+ * "schnell" = alles als kleine Knoepfe zum schnellen Springen (Fast Actions).
+ */
+export default function Ebenen({ admin, vip, pro, teil = 'start' }: {
+  admin: boolean; vip: boolean; globals?: boolean; pro: boolean; teil?: 'start' | 'vip' | 'schnell';
 }) {
   /*
    * Fuer jeden VIP dasselbe: die Overlays und die Globals (2026 und Solos). Der Betreiber (12.10.2026): "Grand-Sachen
@@ -151,26 +155,45 @@ export default function Ebenen({ admin, vip, pro }: {
   ];
   const hier = [...NUR_HIER, ...(admin ? NUR_HIER_ADMIN : [])];
   const darfVip = vip || admin;
+  if (teil === 'schnell') {
+    const alle = [...(darfVip ? vipZiele : []), ...hier, ...FUER_ALLE];
+    return (
+      <section data-dash="schnell">
+        <style>{CSS}</style>
+        <Kopf ton="hier" titel="Schnellzugriff" marke="Ein Klick" text="Alles, was du hier öffnen kannst - ohne Umweg." />
+        <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+          {alle.map((z, i) => (
+            <Link key={z.href + z.titel} href={z.href} title={z.text}
+              className="eb-an group flex flex-col items-center gap-2 rounded-2xl border border-white/[0.08] bg-zinc-900 px-3 py-4 text-center transition hover:border-sky-500/60 hover:bg-zinc-800"
+              style={{ animation: `eb-rein .35s ${i * 25}ms cubic-bezier(.2,.8,.2,1) both` }}>
+              <span className={`flex h-10 w-10 items-center justify-center rounded-xl ${vipZiele.includes(z) ? 'bg-amber-400 text-zinc-950' : 'bg-white/[0.07] text-slate-200 group-hover:text-sky-300'}`}><Zeichen name={z.symbol} groesse={19} /></span>
+              <span className="text-[13px] font-semibold leading-tight text-slate-100"><T>{z.titel}</T></span>
+            </Link>
+          ))}
+        </div>
+      </section>
+    );
+  }
   return (
     <div className="space-y-9">
       <style>{CSS}</style>
 
-      <section data-dash="vip">
+      {teil === 'vip' && <section data-dash="vip">
         <Kopf ton="vip" titel="VIP" marke="Nur für VIP"
           text={darfVip ? 'Sichtbar nur für dich — die Overlays und die Globals.' : 'Für VIPs freigeschaltet — die Overlays und die Globals.'} />
-        <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        <div className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4">
           {vipZiele.map((z, i) => <VipKarte key={z.href} z={z} i={i} gesperrt={!darfVip} />)}
         </div>
-      </section>
+      </section>}
 
-      <section data-dash="hier">
+      {teil === 'start' && <section data-dash="hier">
         <Kopf ton="hier" titel="Nur im Dashboard" marke="Nur hier" text="Das gibt es nirgends sonst." />
         <div className="mt-4 grid gap-2.5 lg:grid-cols-3">
           {hier.map((z, i) => <HierZeile key={z.href} z={z} i={i + vipZiele.length} />)}
         </div>
-      </section>
+      </section>}
 
-      <section data-dash="alle">
+      {teil === 'start' && <section data-dash="alle">
         <Kopf ton="alle" titel="Für alle" marke="Offen für jeden" text="Steht auch ohne Konto in der Leiste." />
         <div className="mt-4 flex flex-wrap gap-2">
           {FUER_ALLE.map((z, i) => (
@@ -182,7 +205,7 @@ export default function Ebenen({ admin, vip, pro }: {
             </Link>
           ))}
         </div>
-      </section>
+      </section>}
     </div>
   );
 }
