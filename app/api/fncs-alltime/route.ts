@@ -3,6 +3,7 @@ import { liesVerzeichnis, summen, saisonName } from '@/lib/szeneStats';
 import { spielerKontext } from '@/lib/globalsSolos';
 import { CDN_FRIST } from '@/lib/antwortSpeicher';
 import { fncsRekorde, fncsEreignisse } from '@/lib/fncsEreignisse';
+import { ueberdauernd } from '@/lib/ueberdauernd';
 
 /*
  * Die FNCS-Seite: Eliminierungen in den Grand Finals der FNCS-Majors, Spieler gegen Major.
@@ -19,11 +20,22 @@ export const maxDuration = 60;
 
 const ENDSPIEL = /FNCS_?Major(\d)_(?:GrandFinal|Final)_?Day(\d)/i;
 
-let merker: { bis: number; antwort: unknown } | null = null;
-
+/*
+ * Ueber lib/ueberdauernd (29.10.2026): die letzte gute Antwort kommt sofort, auch nach einem Neustart und auf der Ausweichseite ohne den PC daheim
+ * (dort lief die Rechnung in Netlifys Frist). Neu gerechnet wird nach dreissig Minuten im Hintergrund.
+ */
 export async function GET() {
-  if (merker && merker.bis > Date.now()) return NextResponse.json(merker.antwort, { headers: { 'Cache-Control': CDN_FRIST } });
   try {
+    const antwort = await ueberdauernd('fncs-alltime', 30 * 60_000, 7 * 864e5, rechnen);
+    if (!antwort) throw new Error('Keine FNCS-Endspiele im Archiv');
+    return NextResponse.json(antwort, { headers: { 'Cache-Control': CDN_FRIST } });
+  } catch (e) {
+    return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 424, headers: { 'Cache-Control': 'no-store' } });
+  }
+}
+
+async function rechnen() {
+  {
     const verz = (await liesVerzeichnis()).filter((e) => e.region === 'EU');
     // Je Major (Saison + Nummer) die beiden Endspieltage.
     const gruppen = new Map<string, { saison: string; nr: number; tage: string[] }>();
@@ -75,10 +87,6 @@ export async function GET() {
     const laender = [...nachLand.entries()].map(([land, n]) => ({ land, titel: n })).sort((a, b) => b.titel - a.titel);
     // Punkte, Siege, Eliminierungen und Rekorde der Grand Finals, die Epic noch fuehrt.
     const rekorde = await fncsRekorde().catch(() => null);
-    const antwort = { ok: true, events, spieler, ab: events[0]?.saisonName ?? '', titel, laender, rekorde };
-    merker = { bis: Date.now() + 30 * 60_000, antwort };
-    return NextResponse.json(antwort, { headers: { 'Cache-Control': CDN_FRIST } });
-  } catch (e) {
-    return NextResponse.json({ ok: false, error: (e as Error).message }, { status: 424, headers: { 'Cache-Control': 'no-store' } });
+    return { ok: true, events, spieler, ab: events[0]?.saisonName ?? '', titel, laender, rekorde };
   }
 }

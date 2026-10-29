@@ -144,6 +144,8 @@ export default function Ebenen({ admin, vip, pro }: {
     { href: '/overlays', titel: 'Overlays', text: 'Einblendungen für deinen Stream — aus denselben Turnierdaten', symbol: 'overlay' },
     { href: '/globals', titel: 'Globals 2026', text: 'Overlays, Teams, Karte und Prognose zur Global Championship', symbol: 'globals' },
     ...((pro || admin) ? [{ href: '/pov', titel: 'POV', text: 'Dein Bild live an die freigegebenen Zuschauer senden', symbol: 'pov' }] : []),
+    // Fuer VIPs (29.10.2026): wie POV funktioniert, Pros per Link anmelden, den Bot auf den eigenen Discord holen.
+    ...(!pro ? [{ href: admin ? '/pov?ansicht=vip' : '/pov', titel: 'Pro-POVs', text: 'Pros anmelden, ihr POV ansehen, Live-Meldungen auf deinem Discord', symbol: 'pov' }] : []),
   ];
   const hier = [...NUR_HIER, ...(admin ? NUR_HIER_ADMIN : [])];
   const darfVip = vip || admin;

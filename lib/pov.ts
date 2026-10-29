@@ -5,7 +5,7 @@ import { istBetreiber, vipAus } from '@/lib/vipCookie';
 import { alleZugaenge, zugangNach, rechteVon } from '@/lib/vipZugaenge';
 import { istLive, liveSeit } from '@/lib/povRelay';
 import { spielerbildKlein } from '@/lib/spielerbildKlein';
-import { kuendigeAn } from '@/lib/discordGilden';
+import { gildenDerVips, kuendigeAn } from '@/lib/discordGilden';
 
 /*
  * Pro-POVs: Profis stellen ihr POV bereit und entscheiden, welche VIP-Streamer es sehen duerfen.
@@ -310,8 +310,13 @@ export function oeffentlichPov(p: PovPro) {
   };
 }
 
-/** Den Discord-Servern des Profis sagen, dass er live ist - ohne dass ein Fehler hier etwas blockiert. */
+/**
+ * Den Discord-Servern des Profis sagen, dass er live ist - ohne dass ein Fehler hier etwas blockiert. Dazu die Server der VIPs, die ihm zusehen duerfen
+ * und dort die Meldungen ihrer Pros eingeschaltet haben (POV-Bereich des VIPs, 29.10.2026).
+ */
 export async function meldeLive(p: PovPro, seite: string): Promise<void> {
-  if (!p.gilden?.length) return;
-  try { await kuendigeAn(p.ident, p.name, p.gilden, seite); } catch { /* die Meldung ist ein Zusatz */ }
+  let gilden = [...(p.gilden ?? [])];
+  try { gilden = [...new Set([...gilden, ...await gildenDerVips(p.erlaubt ?? [])])]; } catch { /* dann nur die eigenen */ }
+  if (!gilden.length) return;
+  try { await kuendigeAn(p.ident, p.name, gilden, seite); } catch { /* die Meldung ist ein Zusatz */ }
 }

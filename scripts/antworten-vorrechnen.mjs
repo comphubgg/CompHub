@@ -135,6 +135,11 @@ function wege(saisons) {
   // ganz vorn: es braucht Sekunden, stand es am Ende, erreichte der Lauf es
   // nie (26.9.2026, Zeitgrenze in der letzten Portion).
   raus.unshift('/api/orgs?ansicht=verdienst');
+  /*
+   * Die Seiten, die auf der Ausweichseite ohne den PC daheim in die Frist liefen (29.10.2026): ihre letzte gute Antwort legt lib/ueberdauernd hier unter
+   * data/antworten/zuletzt_*.json ab, und die geht mit ans Release.
+   */
+  raus.unshift('/api/startvitrine', '/api/fncs-alltime', '/api/fncs-ereignisse', '/api/maps-liste', '/api/globals-solos');
   return raus;
 }
 

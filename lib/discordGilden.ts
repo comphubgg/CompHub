@@ -37,6 +37,11 @@ export interface GildenStand {
   ankuendigung: string;
   /** Eigener Kanal je Profi (Kennung -> Kanal), falls ein Server-Admin das so will. */
   proKanal: Record<string, string>;
+  /**
+   * VIPs, die hier die Live-Meldungen ihrer Pros haben wollen (alle Kennungen des VIPs) - eingestellt im POV-Bereich des VIPs (/pov, 29.10.2026).
+   * Gemeldet werden dann die Pros, die diesen VIP zusehen lassen, auch wenn der Pro den Server nicht selbst eingeschaltet hat.
+   */
+  vips?: string[];
   /** Letzter Fehler bei der Einrichtung ("rechte" = dem Bot fehlt "Kanaele verwalten"). */
   fehler: string;
   eingerichtet: number;
@@ -247,6 +252,66 @@ export async function sendeTest(gildenId: string): Promise<'ok' | 'kein-kanal' |
     }],
   });
   return r.status === 200 || r.status === 201 ? 'ok' : 'fehler';
+}
+
+/* ------------------------------------------------------------------ Server der VIPs */
+
+/*
+ * Der Betreiber (29.10.2026): "der VIP soll den Bot fuer die POV auch auf sein Discord einladen koennen und einstellen". Der VIP laedt CompHub aus
+ * seinem POV-Bereich (/pov) ein und waehlt dort den Kanal fuer die Live-Meldungen seiner Pros. Welche Server er einstellen darf, sieht der Bot an
+ * seinem Discord-Konto - dieselbe Regel wie im Kanal comphub-dashboard: Besitzer, Administrator oder "Server verwalten".
+ */
+const verwaltet = new Map<string, { bis: number; liste: Array<{ id: string; name: string }> }>();
+
+export async function verwalteteGilden(discordId: string): Promise<Array<{ id: string; name: string }>> {
+  if (!/^\d{5,25}$/.test(discordId)) return [];
+  const da = verwaltet.get(discordId);
+  if (da && da.bis > Date.now()) return da.liste;
+  const liste = await botGilden();
+  if (!liste) return [];
+  const raus: Array<{ id: string; name: string }> = [];
+  for (const g of liste) {
+    const info = await bot<{ owner_id?: string; roles?: Array<{ id: string; permissions?: string }> }>(`/guilds/${g.id}`);
+    if (!info.daten) continue;
+    if (info.daten.owner_id === discordId) { raus.push(g); continue; }
+    const m = await bot<{ roles?: string[] }>(`/guilds/${g.id}/members/${discordId}`);
+    if (m.status !== 200 || !m.daten) continue;
+    let rechte = 0n;
+    // Die Rolle @everyone hat die Kennung des Servers.
+    for (const r of info.daten.roles ?? []) {
+      if (r.id === g.id || (m.daten.roles ?? []).includes(r.id)) { try { rechte |= BigInt(r.permissions ?? '0'); } catch { /* kaputtes Bitfeld */ } }
+    }
+    if ((rechte & ADMINISTRATOR) !== 0n || (rechte & SERVER_VERWALTEN) !== 0n) raus.push(g);
+  }
+  verwaltet.set(discordId, { bis: Date.now() + 60_000, liste: raus });
+  return raus;
+}
+
+/** Die Textkanaele eines Servers (Text und Ankuendigung), in der Reihenfolge von Discord. */
+export async function textKanaele(gildenId: string): Promise<Array<{ id: string; name: string }>> {
+  const r = await bot<Array<{ id: string; name: string; type: number; position?: number }>>(`/guilds/${gildenId}/channels`);
+  if (!Array.isArray(r.daten)) return [];
+  return r.daten.filter((c) => c.type === 0 || c.type === 5)
+    .sort((a, b) => (a.position ?? 0) - (b.position ?? 0)).map((c) => ({ id: c.id, name: c.name }));
+}
+
+/** Die Pros dieses VIPs auf diesem Server melden - oder nicht mehr. */
+export async function setzeVipMeldungen(gildenId: string, vipIdents: string[], an: boolean): Promise<GildenStand | null> {
+  const a = await lies();
+  const g = a.gilden[gildenId];
+  if (!g) return null;
+  const v = new Set(g.vips ?? []);
+  for (const id of vipIdents) { if (an) v.add(id); else v.delete(id); }
+  g.vips = [...v];
+  await schreibe(a);
+  return g;
+}
+
+/** Die Server, auf denen einer dieser VIPs die Meldungen seiner Pros haben will. */
+export async function gildenDerVips(vipIdents: string[]): Promise<string[]> {
+  if (!vipIdents.length) return [];
+  const gilden = (await lies()).gilden;
+  return Object.entries(gilden).filter(([, g]) => (g.vips ?? []).some((v) => vipIdents.includes(v))).map(([id]) => id);
 }
 
 /** Darf, wer das abschickt, den Server einstellen? Verwalter oder Administrator (Bitfeld aus der Interaktion). */
