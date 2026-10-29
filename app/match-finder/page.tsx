@@ -191,7 +191,7 @@ export default function MatchFinder() {
                         <span className="text-xs tabular-nums text-slate-300">#{s.scrim.platz} · {s.scrim.punkte} {t('Punkte')} · {s.scrim.spiele} {t('Spiele')}{s.scrim.kills != null ? ` · ${s.scrim.kills} elims` : ''}</span>
                       )}
                       {s.scrim.letztesSpiel && (
-                        <span className="text-xs text-slate-400">{t('Letztes Spiel')} <code className="rounded bg-zinc-950 px-1.5 py-0.5 font-mono text-slate-200">{s.scrim.letztesSpiel.code}</code>{' '}<button type="button" onClick={() => kopieren(s.scrim!.letztesSpiel!.code)}
+                        <span className="text-xs text-slate-400">{t('Letztes Spiel')} · <span title={t('Yunites Kurz-Code des Games - nicht die volle Match-ID. Die gibt Yunite nicht heraus.')}>{t('Yunite-Code')}</span> <code className="rounded bg-zinc-950 px-1.5 py-0.5 font-mono text-slate-200">{s.scrim.letztesSpiel.code}</code>{' '}<button type="button" onClick={() => kopieren(s.scrim!.letztesSpiel!.code)}
                             className="rounded border border-zinc-700 px-2 py-0.5 text-[11px] font-semibold text-slate-300 transition hover:border-sky-500 hover:text-sky-400">{kopiert === s.scrim.letztesSpiel.code ? t('Kopiert') : t('Kopieren')}</button> {uhrzeit(s.scrim.letztesSpiel.ende)}{s.scrim.letztesSpiel.platz ? ` · #${s.scrim.letztesSpiel.platz}` : ''}</span>
                       )}
                       <a href={s.scrim.link} target="_blank" rel="noreferrer" className="ml-auto text-xs font-semibold text-amber-300 hover:text-amber-200">{t('Leaderboard bei Noble')} →</a>
