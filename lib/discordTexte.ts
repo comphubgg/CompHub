@@ -163,6 +163,20 @@ const VIP_LEITFADEN: Beitrag = {
       '**Tierlist** — sort players into tiers. Yours is private: it belongs '
       + 'to your access and nobody else sees it, not even an admin.',
       '',
+      '**Dashboard** — your account and your tools in one place. The bar on '
+      + 'the left switches between Overview, VIP, Quick access and Account.',
+      '',
+      '**Extra tools** — CompHub switches these on per VIP (ask in support):',
+      '• **Pro POVs** — send a pro one link; opening it creates their Pro '
+      + 'account. You watch their POV privately (not on Twitch), and the '
+      + 'CompHub bot can post their live alerts in your own Discord.',
+      '• **Match ID finder** — save favourite players; while a cup runs you '
+      + 'see which match they are in. Copy the match ID and spectate in game.',
+      '• **Twitch statistics** — your streams by day, week, month and year: '
+      + 'peak with and without raids, new followers, chatters, live numbers.',
+      '• **Twitch bot** — commands with your own reply (starting with !, $ or ?) '
+      + 'and rules that delete, time out or ban. Runs around the clock.',
+      '',
       '**Contact & chat archive** — write to the operator from inside the '
       + 'tool; every conversation stays readable afterwards.',
       '',
@@ -214,6 +228,22 @@ const VIP_LEITFADEN: Beitrag = {
       '**Tierlist**',
       'Spieler einsortieren. Deine ist privat, sie gehört deinem Zugang '
       + 'und niemand sonst sieht sie, auch kein Admin.',
+      '',
+      '**Dashboard**',
+      'Dein Konto und deine Werkzeuge an einem Ort. Die Leiste links '
+      + 'wechselt zwischen Übersicht, VIP, Schnellzugriff und Konto.',
+      '',
+      '**Zusätzliche Werkzeuge** (schaltet CompHub je VIP frei, frag im Support)',
+      '• **Pro-POVs**: Du schickst einem Pro einen Link, beim Öffnen hat er '
+      + 'sein Pro-Konto. Sein POV siehst du privat (nicht über Twitch), und '
+      + 'der CompHub-Bot meldet in deinem Discord, wenn er live geht.',
+      '• **Match-ID-Finder**: Lieblingsspieler speichern. Läuft ein Cup, '
+      + 'siehst du, in welchem Match sie sind, kopierst die Match-ID und '
+      + 'schaust im Spiel zu.',
+      '• **Twitch-Statistik**: Deine Streams nach Tag, Woche, Monat und Jahr, '
+      + 'Spitze mit und ohne Raid, neue Follower, Chatter und Live-Zahlen.',
+      '• **Twitch-Bot**: Befehle mit eigener Antwort (beginnend mit !, $ oder ?) '
+      + 'und Regeln, die löschen, timeouten oder bannen. Läuft rund um die Uhr.',
       '',
       '**Kontakt und Chatarchiv**',
       'Schreib dem Betreiber direkt aus dem Werkzeug. Jedes Gespräch '
