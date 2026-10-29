@@ -38,6 +38,15 @@ function groesse(f: { playlist?: string | null; windowId: string; eventId: strin
   return '?';
 }
 
+/** Die Stufe eines Spieltags: offene Runde, Heat, Last Chance oder Finale - verglichen wird nur Gleiches mit Gleichem. */
+function stufe(f: { windowId: string; istFinale?: boolean }): string {
+  const w = f.windowId;
+  if (/lastchance|lcq/i.test(w)) return 'lcq';
+  if (/heat/i.test(w)) return 'heat';
+  if (f.istFinale || /final/i.test(w)) return 'finale';
+  return 'offen';
+}
+
 /** Die Kennung ohne Season, Region und Durchgangsnummer - auch die Vorsaison zaehlt als dieselbe Reihe (S42 fuer S43). */
 function reihe(windowId: string): string {
   return (windowId ?? '')
@@ -222,10 +231,12 @@ async function holeRoh(request: Request) {
   if (!frueher.length) {
     const art = artVon.get(dieser.windowId);
     const g = groesse(dieser);
-    frueher = alle
-      .filter((f) => f.windowId !== window_ && f.status === 'vorbei' && f.begin < dieser.begin
-        && f.begin > dieser.begin - 60 * 864e5
-        && artVon.get(f.windowId) === art && groesse(f) === g && !f.istFinale)
+    const st = stufe(dieser);
+    const kandidaten = alle.filter((f) => f.windowId !== window_ && f.status === 'vorbei' && f.begin < dieser.begin
+      && f.begin > dieser.begin - 60 * 864e5 && groesse(f) === g && stufe(f) === st);
+    // Erst dieselbe Art (Skin-Cup mit Skin-Cups), sonst jede Art derselben Stufe und Teamgroesse.
+    const gleicheArt = kandidaten.filter((f) => artVon.get(f.windowId) === art);
+    frueher = (gleicheArt.length ? gleicheArt : kandidaten)
       .sort((a, b) => b.begin - a.begin)
       .slice(0, AUSGABEN);
     aehnlich = frueher.length > 0;
