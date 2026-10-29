@@ -314,12 +314,17 @@ async function holeRoh(request: Request) {
   type ClutchDatei = {
     summe?: Record<string, number>;
     schaden?: Record<string, { dmg: number; erlitten: number; treffer: number; krit: number }>;
+    /** Wie viele Spiele je Spieler gelesen sind. */
+    spiele?: Record<string, number>;
+    /** Grosser Spieltag: nur die Matches der besten Teams gelesen (scripts/clutch-berechnen.mjs, TOP_MAX). */
+    teilweise?: { teams: number; matches: number; vonMindestens?: number };
   } | null;
   const clutchEinzeln = (w: string) => liesJson<ClutchDatei>(`clutch/${w}.json`, null).catch(() => null);
   // Mehrere Tage zusammen: Clutch-Punkte und Schaden je Spieler addiert.
   const clutchDatei: ClutchDatei = tage.length > 1
     ? (await Promise.all(tage.map(clutchEinzeln))).reduce<ClutchDatei>((a, c) => {
-      if (!c) return a;
+      // Teilweise gelesene Tage (grosse offene Runden) taugen nicht fuer Summen ueber mehrere Tage.
+      if (!c || c.teilweise) return a;
       const raus = a ?? { summe: {}, schaden: {} };
       for (const [id, v] of Object.entries(c.summe ?? {})) raus.summe![id] = (raus.summe![id] ?? 0) + v;
       for (const [id, d] of Object.entries(c.schaden ?? {})) {
@@ -339,6 +344,9 @@ async function holeRoh(request: Request) {
    * darunter. Die Anzeige sagt, dass es gezaehlt ist.
    */
   const schadenVon = clutchDatei?.schaden ? new Map(Object.entries(clutchDatei.schaden)) : null;
+  // Bei einem teilweise gelesenen Spieltag zaehlt ein Wert nur, wenn jedes Spiel dieses Spielers gelesen ist - sonst waere er zu niedrig.
+  const teil = clutchDatei?.teilweise ?? null;
+  const ganzGelesen = (id: string, spiele: number) => !teil || (clutchDatei?.spiele?.[id.toLowerCase()] ?? 0) >= spiele;
   const spieler = gezeigt.map((x, i) => {
     const team = zumTeam.get(x.epicId);
     return {
@@ -353,10 +361,10 @@ async function holeRoh(request: Request) {
       umgehauen: x.umgehauen,
       platz: team?.platz ?? null,
       partner: (team?.partner ?? []).map((id) => anzeige.get(id) ?? id.slice(0, 8)),
-      clutch: clutchVon ? (clutchVon.get(x.epicId.toLowerCase()) ?? 0) : null,
+      clutch: clutchVon && ganzGelesen(x.epicId, x.matches) ? (clutchVon.get(x.epicId.toLowerCase()) ?? 0) : null,
       ...(() => {
         const d = schadenVon?.get(x.epicId.toLowerCase());
-        if (!d) return {};
+        if (!d || !ganzGelesen(x.epicId, x.matches)) return {};
         return {
           damage: Math.round(d.dmg), damageTaken: Math.round(d.erlitten),
           damageRatio: d.erlitten > 0 ? d.dmg / d.erlitten : null,
@@ -385,6 +393,7 @@ async function holeRoh(request: Request) {
     gesamt: q ? auswahl.length : rep.spieler.length,
     gekuerzt: !q && rep.spieler.length > gezeigt.length,
     summen,
+    schadenTeil: teil,
     suche: q || null,
     hinweis: 'Counted from the replays of this match day, per player.',
   });

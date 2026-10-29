@@ -4475,7 +4475,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
               endeMs={fenster?.end ?? fenster?.begin ?? null}
               schadenAusReplay={!!(spielerWerte as { schadenAusReplay?: boolean }).schadenAusReplay}
               gesamt={(spielerWerte as { gesamt?: number }).gesamt ?? null}
-              summen={(spielerWerte as { summen?: Record<string, number> | null }).summen ?? null} />
+              summen={(spielerWerte as { summen?: Record<string, number> | null }).summen ?? null}
+              schadenTeil={(spielerWerte as { schadenTeil?: { teams: number; matches: number } | null }).schadenTeil ?? null} />
           </div>
         )}
         {/* Unter Player Stats nur Werte je Spieler, nie Epics Team-Werte (Betreiber, 28.10.2026: "bei Player Stats koennen nicht Team Stats sein") - die

@@ -68,6 +68,29 @@ async function wertung(eventId, windowId) {
 // Bis 250 Matches: Finals, Division 1 bis 4 und Cash-Cup-Finals (mehrere
 // Lobbys). Offene Runden mit 400 bis 2000 Lobbys bleiben aussen vor.
 const GROSS_MAX = 250;
+/*
+ * Grosse Spieltage (offene Runden mit Tausenden Lobbys, 29.10.2026): statt sie zu ueberspringen, alle Matches der besten Teams - so viele Teams, wie in
+ * TOP_MAX volle Replays passen (rund eine Stunde Rechenzeit). Fuer diese Spieler sind Schaden, Treffer und Clutch-Punkte vollstaendig.
+ */
+const TOP_MAX = 240;
+
+/** Die Matches der besten Teams eines Spieltags, Team fuer Team in Platzierungsfolge, bis `max` erreicht ist. */
+async function topIds(eventId, windowId, max) {
+  const { token, accountId } = await holeNutzerToken();
+  const r = await fetch(`${EVENTS}/api/v1/leaderboards/Fortnite/${encodeURIComponent(eventId)}/${encodeURIComponent(windowId)}/${accountId}?page=0&rank=0&teamAccountIds=`,
+    { headers: { Authorization: token } });
+  if (!r.ok) throw new Error(`Bestenliste HTTP ${r.status}`);
+  const d = await r.json();
+  const ids = new Set();
+  let teams = 0;
+  for (const e of [...(d.entries ?? [])].sort((a, b) => (a.rank ?? 0) - (b.rank ?? 0))) {
+    const neu = [...new Set((e.sessionHistory ?? []).map((m) => m.sessionId).filter((x) => x && !ids.has(x)))];
+    if (ids.size + neu.length > max) break;
+    for (const x of neu) ids.add(x);
+    teams += 1;
+  }
+  return { ids: [...ids], teams };
+}
 
 /*
  * Schaden je Spieler aus demselben Replay - mit dem eigenen Leser
@@ -109,7 +132,7 @@ function schadenAus(roh) {
   } catch (e) { console.log(`    Schaden: ${String(e.message).slice(0, 120)}`); return null; }
 }
 
-async function tag(eventId, windowId, idsVorab = null) {
+async function tag(eventId, windowId, idsVorab = null, teilweise = null) {
   const regeln = await wertung(eventId, windowId);
   // Ohne Wertungstabelle keine Clutch-Punkte - der Schaden zaehlt trotzdem.
   if (!regeln.length) console.log(`  ${windowId}: keine Wertungstabelle - nur Schaden`);
@@ -172,6 +195,8 @@ async function tag(eventId, windowId, idsVorab = null) {
   }
   fs.writeFileSync(path.join(ZIEL, `${windowId}.json`), JSON.stringify({
     version: 4, eventId, windowId, gerechnet: new Date().toISOString(), regeln, matches, summe, spiele,
+    // Nur die Matches der besten Teams gelesen (grosser Spieltag): gezeigt wird ein Wert nur bei Spielern, deren Spiele alle gelesen sind.
+    ...(teilweise ? { teilweise } : {}),
     ...(Object.keys(solo).length ? { solo } : {}),
     ...(Object.keys(schaden).length ? { schaden } : {}),
   }, null, 1));
@@ -216,8 +241,8 @@ if (arg[0] === '--alle') {
         // "Nichts zu rechnen" vom 29./30.9.2026 zaehlt nicht: da scheiterte
         // jedes Match an einem Fehler im Skript ("roh.push is not a function").
         const FEHLER_BIS = Date.parse('2026-09-30T16:30:00Z');
-        const gilt = weg && (zahlText ? Number(zahlText) > GROSS_MAX
-          : (weg.zeit ?? 0) > Math.max(Date.now() - 864e5, FEHLER_BIS));
+        // Seit dem 29.10.2026 wird auch ein grosser Spieltag gerechnet (die Matches der besten Teams) - "N Matches" haelt ihn nicht mehr auf.
+        const gilt = weg && !zahlText && (weg.zeit ?? 0) > Math.max(Date.now() - 864e5, FEHLER_BIS);
         // Schon gerechnet - es sei denn, der Schaden fehlt noch (Dateien von vor dem 29.9.2026).
         const vorhanden = (() => { try { return JSON.parse(fs.readFileSync(path.join(ZIEL, `${t.windowId}.json`), 'utf8')); } catch { return null; } })();
         // Neu gerechnet wird auch, was noch nach der alten Clutch-Regel steht (vor Version 2) oder ohne Sturmzeit, Wiederbelebungen und Reboots (vor Version 3).
@@ -239,12 +264,22 @@ if (arg[0] === '--alle') {
     if (Date.now() > schluss - 60 * 60_000) break;
     let ids = [];
     try { ids = [...await matchIds(t.eventId, t.windowId, 3)]; } catch (e) { console.log(`  ${t.windowId}: ${e.message}`); continue; }
+    let teilweise = null;
     if (ids.length > GROSS_MAX) {
-      merke(t.windowId, `${ids.length} Matches`); gross += 1;
-      console.log(`  ${t.windowId}: ${ids.length} Matches - zu gross, uebersprungen`);
-      continue;
+      try {
+        const top = await topIds(t.eventId, t.windowId, TOP_MAX);
+        if (top.ids.length) {
+          teilweise = { teams: top.teams, matches: top.ids.length, vonMindestens: ids.length };
+          console.log(`  ${t.windowId}: ${ids.length}+ Matches - gelesen werden alle ${top.ids.length} Matches der besten ${top.teams} Teams`);
+          ids = top.ids;
+        }
+      } catch (e) { console.log(`  ${t.windowId}: beste Teams nicht ladbar (${e.message})`); }
+      if (!teilweise) {
+        merke(t.windowId, `grosser Spieltag ohne Bestenliste (${ids.length} Matches)`); gross += 1;
+        continue;
+      }
     }
-    const ok = await tag(t.eventId, t.windowId, ids);
+    const ok = await tag(t.eventId, t.windowId, ids, teilweise);
     // Kein einziges Replay lesbar (bei Epic schon geloescht): nicht endlos neu versuchen.
     if (ok === false) { merke(t.windowId, 'nichts zu rechnen (keine Wertung oder kein Replay)'); gross += 1; continue; }
     fertig += 1;

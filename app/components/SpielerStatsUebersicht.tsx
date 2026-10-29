@@ -84,12 +84,14 @@ function alsZeit(sek: number, stunden = false): string {
   return h ? `${h}h ${m}m` : `${m}m ${s % 60}s`;
 }
 
-export default function SpielerStatsUebersicht({ spieler, matches, aktualisiert, szene, schadenAusReplay, laeuft, endeMs, teamWerte, gesamt, summen }: {
+export default function SpielerStatsUebersicht({ spieler, matches, aktualisiert, szene, schadenAusReplay, laeuft, endeMs, teamWerte, gesamt, summen, schadenTeil }: {
   spieler: KachelSpieler[];
   /** Wie viele Spieler der Spieltag insgesamt hat - die Liste zeigt nur die besten. */
   gesamt?: number | null;
   /** Summen ueber alle Spieler (Schnittstelle /api/cup-spieler); ohne sie zaehlen die Kacheln nur die gezeigte Liste. */
   summen?: Record<string, number> | null;
+  /** Grosser Spieltag: Schaden & Co. nur aus den Matches der besten Teams (vollstaendig fuer deren Spieler). */
+  schadenTeil?: { teams: number; matches: number } | null;
   /** Wie viele Matches der Spieltag (oder das Turnier) hatte. */
   matches: number;
   /** Wann die Werte zuletzt gerechnet oder von Epic fortgeschrieben wurden. */
@@ -142,7 +144,8 @@ export default function SpielerStatsUebersicht({ spieler, matches, aktualisiert,
   const kacheln: Array<{ titel: string; wert: string; roh?: boolean }> = [
     { titel: 'Matches', wert: zahl(matches), roh: true },
     { titel: teamWerte ? 'Teams' : 'Spieler', wert: zahl(anzahl) },
-    ...SUMMEN.filter((s) => vorhanden.has(s.feld)).map((s) => ({
+    // Steht eine Summe ueber alle Spieler bereit, keine Kachel, die nur einen Teil zusammenzaehlt (Schaden gibt es bei grossen Cups nur fuer die besten Teams).
+    ...SUMMEN.filter((s) => vorhanden.has(s.feld) && (!ganz || typeof ganz[s.feld] === 'number')).map((s) => ({
       titel: s.titel,
       wert: zeigen(summe(s.feld) / teiler, s.format, teiler > 1 && s.format !== 'zeit' && s.format !== 'km' ? 1 : 0),
     })),
@@ -239,6 +242,11 @@ export default function SpielerStatsUebersicht({ spieler, matches, aktualisiert,
           </span>
         )}
         {/* Gezaehlt, nicht von Epic - das muss dabeistehen (echte, aber abgeleitete Zahlen). */}
+        {schadenTeil && (
+          <span className="mt-1 block text-slate-500">
+            {t('Schaden, Treffer und Kopftreffer: aus den vollen Replays aller {m} Spiele der besten {n} Teams - für diese Spieler vollständig. Ein volles Replay sind rund 140 MB, alle Lobbys eines offenen Cups wären Hunderte Gigabyte.').replace('{m}', String(schadenTeil.matches)).replace('{n}', String(schadenTeil.teams))}
+          </span>
+        )}
         {schadenAusReplay && (
           <span className="mt-1 block text-slate-600">
             <T>Schaden, Treffer und Kopftreffer aus den Server-Replays gezählt (ohne Treffer auf Umgehauene); im Abgleich mit Epics eigenen Werten im Mittel 6 % niedriger.</T>
