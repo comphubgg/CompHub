@@ -44,7 +44,7 @@ export const SPRACHEN: Array<{ kennung: Sprache; kurz: string; name: string }> =
 const AUF_ENGLISCH: Record<string, string> = {
   // ------------------------------------------------------------ Allgemein
   'Yunite-Code': 'Yunite code',
-  'Yunites Kurz-Code des Games - nicht die volle Match-ID. Die gibt Yunite nicht heraus.': 'Yunite's short code for the game - not the full match ID. Yunite does not publish that.',
+  'Yunites Kurz-Code des Games - nicht die volle Match-ID. Die gibt Yunite nicht heraus.': 'The short Yunite code of the game - not the full match ID. Yunite does not publish that.',
   'Gelbe Linie: die Busroute. Dick: wo man abspringen kann.': 'Yellow line: the bus route. Thick: where you can jump.',
   'Scrim beendet': 'Scrim ended',
   'Zurück zur Bestenliste': 'Back to the leaderboard',
