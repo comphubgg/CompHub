@@ -272,7 +272,18 @@ async function holeRoh(request: Request) {
     }
     auswahl = rep.spieler.filter((x) => ids.has(x.epicId));
   }
-  const gezeigt = auswahl.slice(0, limit);
+  // Die besten nach Eliminierungen - dazu die Spitze bei Knocks, Eliminierungen je Match und K/D (ab fuenf Spielen), damit jede Bestenliste stimmt.
+  const gezeigt = (() => {
+    const basis = auswahl.slice(0, limit);
+    if (q) return basis;
+    const drin = new Set(basis.map((x) => x.epicId));
+    const mit = (liste: typeof auswahl) => { for (const x of liste) if (!drin.has(x.epicId)) { drin.add(x.epicId); basis.push(x); } };
+    const genug = rep.spieler.filter((x) => x.matches >= 5);
+    mit([...rep.spieler].sort((a, b) => b.knocks - a.knocks).slice(0, 25));
+    mit([...genug].sort((a, b) => b.kills / b.matches - a.kills / a.matches).slice(0, 25));
+    mit([...genug].sort((a, b) => b.kills / Math.max(1, b.gestorben) - a.kills / Math.max(1, a.gestorben)).slice(0, 25));
+    return basis;
+  })();
 
   const zumTeam = new Map<string, { partner: string[]; platz: number | null }>();
   const gesucht = new Set(gezeigt.map((x) => x.epicId));
@@ -305,7 +316,7 @@ async function holeRoh(request: Request) {
   }
 
   // Der Platz im ganzen Feld (nach Kills) - auch fuer Treffer einer Suche.
-  const rangVon = q ? new Map(rep.spieler.map((x, i) => [x.epicId, i + 1])) : null;
+  const rangVon = new Map(rep.spieler.map((x, i) => [x.epicId, i + 1]));
   /*
    * Solo Clutch Points auch hier, wo sie fuer diesen Spieltag gerechnet sind
    * (.github/workflows/clutch-rechnen.yml, jeder Team-Spieltag bis 60
@@ -359,6 +370,8 @@ async function holeRoh(request: Request) {
       knocks: x.knocks,
       tode: x.gestorben,
       umgehauen: x.umgehauen,
+      // Erst ab fuenf Spielen - sonst fuehrt einer mit einem einzigen guten Spiel.
+      ...(x.matches >= 5 ? { elimsJeMatch: x.kills / x.matches, kd: x.kills / Math.max(1, x.gestorben) } : {}),
       platz: team?.platz ?? null,
       partner: (team?.partner ?? []).map((id) => anzeige.get(id) ?? id.slice(0, 8)),
       clutch: clutchVon && ganzGelesen(x.epicId, x.matches) ? (clutchVon.get(x.epicId.toLowerCase()) ?? 0) : null,

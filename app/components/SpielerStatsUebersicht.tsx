@@ -31,6 +31,8 @@ export const OSIRION_KACHELN: KachelListe[] = [
   { feld: 'elims', titel: 'Eliminierungen' },
   // Knocks gibt es fuer jeden Spieler jedes Cups (schneller Replay-Abruf) - auch dort, wo Schaden & Co. fehlen.
   { feld: 'knocks', titel: 'Knocks' },
+  { feld: 'elimsJeMatch', titel: 'Eliminierungen je Match', nachkomma: 2 },
+  { feld: 'kd', titel: 'K/D', nachkomma: 2 },
   { feld: 'clutch', titel: 'Solo Clutch Points' },
   { feld: 'timeInStorm', titel: 'Zeit im Sturm', format: 'zeit' },
   { feld: 'timeAlive', titel: 'Überlebenszeit', format: 'zeit' },

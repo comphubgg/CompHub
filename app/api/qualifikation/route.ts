@@ -28,6 +28,16 @@ export const revalidate = 0;
 /** Wie viele fruehere Ausgaben hoechstens herangezogen werden. */
 const AUSGABEN = 3;
 
+/** Die Teamgroesse eines Spieltags aus Playlist und Kennung - fuer den Vergleich mit aehnlichen Cups. */
+function groesse(f: { playlist?: string | null; windowId: string; eventId: string }): string {
+  const q = `${f.playlist ?? ''} ${f.windowId} ${f.eventId}`;
+  if (/solo/i.test(q)) return 'solo';
+  if (/trio/i.test(q)) return 'trio';
+  if (/squad/i.test(q)) return 'squad';
+  if (/duo/i.test(q)) return 'duo';
+  return '?';
+}
+
 /** Die Kennung ohne Season, Region und Durchgangsnummer. */
 function reihe(windowId: string): string {
   return (windowId ?? '')
@@ -41,6 +51,9 @@ async function holeRoh(request: Request) {
   const window_ = p.get('window');
   const region = (p.get('region') ?? 'EU').toUpperCase();
   let schwelle = Number(p.get('schwelle'));
+  /* Der letzte Platz mit einer Belohnung (Skin, Emote ...) aus der Auszahlungstabelle - gilt, wenn es keinen Qualifikationsrang gibt (Skin-Cups). */
+  const belohnung = Number(p.get('belohnung'));
+  let fuerBelohnung = false;
 
   if (!window_) {
     return NextResponse.json({ error: 'window ist noetig' }, { status: 400 });
@@ -92,6 +105,10 @@ async function holeRoh(request: Request) {
         if (feld.entries.length) { schwelle = feld.entries.length; hergeleitet = true; }
       } catch { /* dann bleibt es ohne Auskunft */ }
     }
+  }
+
+  if ((!Number.isFinite(schwelle) || schwelle < 1) && Number.isFinite(belohnung) && belohnung >= 1) {
+    schwelle = Math.round(belohnung); fuerBelohnung = true;
   }
 
   if (!Number.isFinite(schwelle) || schwelle < 1) {
@@ -155,13 +172,32 @@ async function holeRoh(request: Request) {
    * andere Punktzahlen, weil weniger Teams antreten.
    */
   const meine = reihe(window_);
-  const frueher = alle
+  let frueher = alle
     .filter((f) => f.windowId !== window_
       && reihe(f.windowId) === meine
       && f.begin < dieser.begin
       && f.status === 'vorbei')
     .sort((a, b) => b.begin - a.begin)
     .slice(0, AUSGABEN);
+  /*
+   * Kein frueherer Lauf desselben Cups (einmalige Skin-Cups): die letzten Ausgaben aehnlicher Cups - gleiche Art (Skin-Cup, Cash Cup, ...), gleiche
+   * Teamgroesse, gleiche Region, nicht aelter als 60 Tage. Die Titel stehen in der Antwort, damit nachpruefbar bleibt, woher die Zahl kommt.
+   */
+  const artVon = new Map<string, string>();
+  const titelVon = new Map<string, string>();
+  for (const c of cups) for (const f of (c.regionen[region] ?? [])) { artVon.set(f.windowId, c.art); titelVon.set(f.windowId, c.titel); }
+  let aehnlich = false;
+  if (!frueher.length) {
+    const art = artVon.get(dieser.windowId);
+    const g = groesse(dieser);
+    frueher = alle
+      .filter((f) => f.windowId !== window_ && f.status === 'vorbei' && f.begin < dieser.begin
+        && f.begin > dieser.begin - 60 * 864e5
+        && artVon.get(f.windowId) === art && groesse(f) === g && !f.istFinale)
+      .sort((a, b) => b.begin - a.begin)
+      .slice(0, AUSGABEN);
+    aehnlich = frueher.length > 0;
+  }
 
   if (!frueher.length) {
     // Ohne Vorgeschichte bleibt trotzdem, was dieser Spieltag gekostet hat.
@@ -173,7 +209,7 @@ async function holeRoh(request: Request) {
     });
   }
 
-  const ausgaben: Array<{ windowId: string; datum: number; punkte: number | null }> = [];
+  const ausgaben: Array<{ windowId: string; datum: number; punkte: number | null; titel?: string | null }> = [];
   for (const f of frueher) {
     try {
       const board = await gecacht(`qual|${f.eventId}|${f.windowId}|${schwelle}`,
@@ -186,9 +222,10 @@ async function holeRoh(request: Request) {
       ausgaben.push({
         windowId: f.windowId, datum: f.begin,
         punkte: treffer && treffer.rank === schwelle ? treffer.points : null,
+        ...(aehnlich ? { titel: titelVon.get(f.windowId) ?? null } : {}),
       });
     } catch {
-      ausgaben.push({ windowId: f.windowId, datum: f.begin, punkte: null });
+      ausgaben.push({ windowId: f.windowId, datum: f.begin, punkte: null, ...(aehnlich ? { titel: titelVon.get(f.windowId) ?? null } : {}) });
     }
   }
 
@@ -207,6 +244,8 @@ async function holeRoh(request: Request) {
     /* Wahr, wenn die Schwelle aus dem Finalfeld gezaehlt wurde statt aus
        Epics Auszahlungstabelle zu stammen - das gehoert dazugesagt. */
     hergeleitet,
+    /* Die Schwelle ist der letzte Platz mit Belohnung (Skin-Cup), und die Ausgaben stammen aus aehnlichen Cups statt aus demselben. */
+    fuerBelohnung, aehnlich,
     grundlage: werte.length,
     hinweis: schnitt === null
       ? 'Zu den früheren Ausgaben liegen keine Ergebnisse vor.' : null,

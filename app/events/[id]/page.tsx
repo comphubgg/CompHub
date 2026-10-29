@@ -949,8 +949,19 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     laeuft?: boolean;
     /** Wahr, wenn die Schwelle aus dem Finalfeld gezaehlt wurde. */
     hergeleitet?: boolean;
-    ausgaben: Array<{ windowId: string; datum: number; punkte: number | null }>;
+    /** Schwelle = letzter Platz mit Belohnung (Skin-Cup); Ausgaben aus aehnlichen Cups statt aus demselben. */
+    fuerBelohnung?: boolean; aehnlich?: boolean;
+    ausgaben: Array<{ windowId: string; datum: number; punkte: number | null; titel?: string | null }>;
   } | null>(null);
+  // Der letzte Platz, der noch eine Belohnung (Skin ...) bekommt - die Schwelle der Prognose bei Cups ohne Qualifikation.
+  const belohnungsRang = useMemo(() => {
+    const g = (preise?.gegenstaende ?? []).filter((x) => x.art === 'rank' && x.schwelle >= 1);
+    return g.length ? Math.max(...g.map((x) => x.schwelle)) : 0;
+  }, [preise]);
+  const belohnungsName = useMemo(() => {
+    const g = (preise?.gegenstaende ?? []).filter((x) => x.art === 'rank' && x.schwelle === belohnungsRang);
+    return g[0]?.name ?? null;
+  }, [preise, belohnungsRang]);
 
   useEffect(() => {
     let weg = false;
@@ -976,7 +987,8 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     const holen = () => fetch(
       `/api/qualifikation?window=${encodeURIComponent(fenster.windowId)}`
       + `&region=${encodeURIComponent(fenster.region)}`
-      + (fenster.qualifiziert ? `&schwelle=${fenster.qualifiziert}` : ''),
+      + (fenster.qualifiziert ? `&schwelle=${fenster.qualifiziert}` : '')
+      + (belohnungsRang ? `&belohnung=${belohnungsRang}` : ''),
       { cache: 'no-store' })
       .then((r) => r.json())
       .then((j) => {
@@ -996,7 +1008,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
       .catch(() => {});
     holen();
     return () => { weg = true; if (uhr) window.clearTimeout(uhr); };
-  }, [fenster]);
+  }, [fenster, belohnungsRang]);
 
   /** Welcher Reiter im Preis-Block offen ist. */
   const [preisReiter, setPreisReiter] = useState<'preis' | 'wertung'>('preis');
@@ -2802,7 +2814,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                * bleibt es bei der Teilnehmerzahl.
                */
               (fenster.qualifiziert || qual?.schwelle)
-                ? [t('Qualifizieren sich'),
+                ? [t(qual?.fuerBelohnung && !fenster.qualifiziert ? 'Belohnung bis' : 'Qualifizieren sich'),
                   `${t('Top')} ${(fenster.qualifiziert
                     ?? qual?.schwelle ?? 0).toLocaleString(ort)}${zielName(fenster.windowId) ? ` → ${zielName(fenster.windowId)}` : ''}`
                   /*
@@ -2848,6 +2860,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
               {(fenster.qualifiziert || qual.schwelle) && (
                 <span className="text-[11px] text-slate-300">
                   <T>für</T> {t('Top')} {(fenster.qualifiziert ?? qual.schwelle ?? 0).toLocaleString(ort)}
+                  {qual.fuerBelohnung && belohnungsName ? ` · ${belohnungsName}` : ''}
                   {zielName(fenster.windowId) ? ` → ${zielName(fenster.windowId)}` : ''}
                 </span>
               )}
@@ -2856,10 +2869,10 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
               )}
             </div>
             <p className="mt-1.5 text-[11px] leading-relaxed text-slate-400">
-              <T>Schnitt der letzten Ausgaben</T> {qual.schnitt.toLocaleString(ort)} + {QUAL_ZUSCHLAG}
+              {qual.aehnlich ? <T>Schnitt ähnlicher Cups</T> : <T>Schnitt der letzten Ausgaben</T>} {qual.schnitt.toLocaleString(ort)} + {QUAL_ZUSCHLAG}
               {' · '}
               {qual.ausgaben.filter((a) => typeof a.punkte === 'number').map((a) => (
-                `${new Date(a.datum).toLocaleDateString(ort, { day: 'numeric', month: 'short' })}: ${(a.punkte as number).toLocaleString(ort)}`
+                `${a.titel ? `${a.titel} ` : ''}${new Date(a.datum).toLocaleDateString(ort, { day: 'numeric', month: 'short' })}: ${(a.punkte as number).toLocaleString(ort)}`
               )).join(' · ')}
             </p>
           </div>
