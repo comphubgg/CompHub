@@ -59,6 +59,8 @@ jobs:
       NETLIFY_SITE_ID: ${{ matrix.konto == '2' && secrets.NETLIFY_SITE_ID_2 || secrets.NETLIFY_SITE_ID }}
       NEXT_TELEMETRY_DISABLED: '1'
       NODE_OPTIONS: --max-old-space-size=6144
+      # Die Rueckwege der Anmeldedienste sind nur mit www eingetragen (Twitch meldete sonst redirect_mismatch).
+      NEXT_PUBLIC_BASE_URL: https://www.thecomphub.com
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4

@@ -82,7 +82,9 @@ export function wurzelVon(req: NextRequest): string {
 function festeAdresse(): string | null {
   const roh = (process.env.NEXT_PUBLIC_BASE_URL || '').trim().replace(/\/+$/, '');
   if (!roh || /localhost|127\.0\.0\.1/i.test(roh)) return null;
-  return roh;
+  // Immer mit www (29.10.2026): bei Twitch, Discord, Google und Epic ist nur https://www.thecomphub.com/... als Rueckweg eingetragen - ein Bau mit der
+  // nackten Domain (die Ersatzfassung auf Netlify) liess die Anmeldung mit "redirect_mismatch" scheitern.
+  return roh.replace(/^https?:\/\/thecomphub\.com$/i, 'https://www.thecomphub.com');
 }
 
 /**
