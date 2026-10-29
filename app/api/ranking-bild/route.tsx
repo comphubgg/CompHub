@@ -58,9 +58,20 @@ async function schrift(familie: string, gewicht: number): Promise<ArrayBuffer | 
 const zahl = (n: number) => Math.round(n).toLocaleString('en-US');
 const kuerze = (s: string, n: number) => (s.length > n ? `${s.slice(0, n - 1)}…` : s);
 
+/** Ein Dreieck als Zeichnung - die Schriften haben kein ▲/▼ (es kam als leeres Kaestchen). */
+function Pfeil({ hoch, gross, farbe }: { hoch: boolean; gross: number; farbe: string }) {
+  const s = Math.round(gross * 0.62);
+  return (
+    <svg width={s} height={s} viewBox="0 0 10 10" style={{ marginRight: 4 }}>
+      <polygon points={hoch ? '5,1 9.5,9 0.5,9' : '0.5,1 9.5,1 5,9'} fill={farbe} />
+    </svg>
+  );
+}
+
 function Bewegung({ d, gross = 30 }: { d?: number; gross?: number }) {
   if (!d) return <div style={{ display: 'flex', fontSize: gross, color: '#64748b' }}>–</div>;
-  return <div style={{ display: 'flex', fontSize: gross, fontWeight: 700, color: d > 0 ? '#22c55e' : '#ef4444' }}>{d > 0 ? `▲${d}` : `▼${-d}`}</div>;
+  const farbe = d > 0 ? '#22c55e' : '#ef4444';
+  return <div style={{ display: 'flex', alignItems: 'center', fontSize: gross, fontWeight: 700, color: farbe }}><Pfeil hoch={d > 0} gross={gross} farbe={farbe} />{Math.abs(d)}</div>;
 }
 
 export async function GET(request: Request) {
@@ -156,7 +167,7 @@ export async function GET(request: Request) {
                 {foto(kletterer, 72, 72)}
                 <div style={{ display: 'flex', flexDirection: 'column', marginLeft: 16 }}>
                   <div style={{ display: 'flex', fontSize: 18, letterSpacing: 3, color: '#4ade80', fontWeight: 700 }}>BIGGEST CLIMBER · TOP 100</div>
-                  <div style={{ display: 'flex', alignItems: 'center', fontSize: 28, fontWeight: 700, marginTop: 4 }}>{flagge(kletterer, 34, 24)}{kuerze(name(kletterer), 14)}<div style={{ display: 'flex', color: '#4ade80', marginLeft: 12 }}>▲{kletterer.deltaPlatz} → #{kletterer.rank}</div></div>
+                  <div style={{ display: 'flex', alignItems: 'center', fontSize: 28, fontWeight: 700, marginTop: 4 }}>{flagge(kletterer, 34, 24)}{kuerze(name(kletterer), 14)}<div style={{ display: 'flex', alignItems: 'center', color: '#4ade80', marginLeft: 12 }}><Pfeil hoch gross={28} farbe="#4ade80" />{kletterer.deltaPlatz} → #{kletterer.rank}</div></div>
                 </div>
               </div>
             )}
