@@ -43,7 +43,7 @@ function Verlauf({ v }: { v: NonNullable<Auswertung['verlauf']> }) {
   const t = useT();
   if (v.punkte.length < 2) return <p className="text-xs text-slate-500"><T>Noch zu wenige Werte für einen Verlauf.</T></p>;
   const B = 800; const H = 160; const maxM = v.punkte[v.punkte.length - 1][0] || 1; const maxV = Math.max(...v.punkte.map((p) => p[1]), 1);
-  const x = (m: number) => (m / maxM) * B; const y = (z: number) => H - (z / maxV) * (H - 14) - 4;
+  const x = (m: number) => (m / maxM) * B; const y = (z: number) => H - (z / maxV) * (H - 30) - 4; // oben Platz fuer die Beschriftung (Spitze, Raid) - sonst lag die Zahl auf der Kurve
   const linie = v.punkte.map(([m, z], i) => `${i ? 'L' : 'M'}${x(m).toFixed(1)},${y(z).toFixed(1)}`).join(' ');
   const start = Date.parse(v.start);
   return (

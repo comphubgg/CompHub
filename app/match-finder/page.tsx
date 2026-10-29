@@ -25,6 +25,18 @@ interface Antwort { ok: boolean; error?: string; cups: FCup[]; spieler: Record<s
 const SPEICHER = 'match-finder-favoriten';
 const karte = 'rounded-xl border border-zinc-800 bg-zinc-900/40 p-5';
 
+/** Epics Playlist-Kennung lesbar: "Playlist_ShowdownAlt_Duos" -> "Tournament · Duos", "Playlist_PlaygroundV2" -> "Creative / custom lobby". */
+function spielart(p: string | null): string | null {
+  if (!p) return null;
+  const k = p.replace(/^Playlist_/i, '');
+  const groesse = /solo/i.test(k) ? 'Solo' : /duo/i.test(k) ? 'Duos' : /trio/i.test(k) ? 'Trios' : /squad/i.test(k) ? 'Squads' : '';
+  const art = /showdown|tournament|arena/i.test(k) ? 'Tournament'
+    : /playground|creative|custom|private/i.test(k) ? 'Custom lobby / scrim'
+      : /respawn|reload|blastberry|punchberry/i.test(k) ? 'Reload'
+        : /nobuild|nobuildbr/i.test(k) ? 'Zero Build' : 'Match';
+  return [art, groesse].filter(Boolean).join(' · ');
+}
+
 function uhrzeit(iso: string | null) {
   const d = iso ? new Date(iso) : null;
   return d && !Number.isNaN(d.getTime()) ? d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : '';
@@ -147,7 +159,7 @@ export default function MatchFinder() {
                   {s?.live ? (
                     <div className="mt-3 flex flex-wrap items-center gap-3 rounded-lg border border-red-500/30 bg-red-500/10 px-4 py-3">
                       <span className="flex items-center gap-1.5 text-sm font-bold text-red-400"><span className="h-2 w-2 animate-pulse rounded-full bg-red-500" />LIVE</span>
-                      <span className="text-xs text-slate-300">{s.live.titel ?? s.live.playlist ?? t('Im Match')}</span>
+                      <span className="text-xs text-slate-300">{s.live.titel ?? spielart(s.live.playlist) ?? t('Im Match')}</span>
                       <code className="rounded bg-zinc-950 px-2 py-1 font-mono text-xs text-slate-200">{s.live.matchId}</code>
                       <button type="button" onClick={() => kopieren(s.live!.matchId)}
                         className="rounded-md bg-red-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-red-400">
