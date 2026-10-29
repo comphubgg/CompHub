@@ -180,7 +180,7 @@ export default function MatchFinder() {
                   ) : !s?.scrim ? (
                     <p className="mt-3 text-xs text-slate-500">{daten ? <T>Gerade in keinem Match.</T> : <T>Wird geladen …</T>}</p>
                   ) : null}
-                  {/* Laufende Scrims (Noble): Session, Platz, Punkte, Spiele und das letzte Spiel - Noble zeigt von der Spielkennung nur den Anfang. */}
+                  {/* Laufende Scrims (Noble/Yunite): Session, Platz, Punkte, Spiele und die volle Kennung des letzten Spiels. */}
                   {s?.scrim && (
                     <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3">
                       <span className="flex items-center gap-1.5 text-sm font-bold text-amber-300"><span className="h-2 w-2 animate-pulse rounded-full bg-amber-400" />{s.scrim.nurAngemeldet ? t('Angemeldet') : 'SCRIM LIVE'}</span>

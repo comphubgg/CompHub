@@ -7,8 +7,8 @@ import { gecacht } from '@/lib/epicCups';
  * Alles oeffentlich und ohne Anmeldung (so laedt es nobleprac.com selbst):
  *   map.nobleprac.com/api/sessions?guildId=<server>   die Sessions eines Servers, Status "progress" = laeuft
  *   map.nobleprac.com/api/session?id=<session>        dazu die Yunite-Kennung
- *   tournament.nobleprac.com/tournaments/<yunite>     das Session-Leaderboard: je Team Epic-Konten, Platz, Punkte und jedes Spiel
- *                                                     (Spielkennung - Noble zeigt nur die ersten vier Zeichen)
+ *   yunite.xyz/api/internal/v1/leaderboards/<yunite>  das Session-Leaderboard: je Team Epic-Konten, Platz, Punkte und jedes Spiel mit voller
+ *                                                     Spielkennung (Rueckfall: tournament.nobleprac.com/tournaments/<yunite>, nur vier Zeichen)
  *   wss://ws-map.nobleprac.com                        die Anmeldungen auf der Scrim-Karte (Discord-Namen) - schon vor dem ersten Spiel
  *
  * Gelesen wird hoechstens alle 30 Sekunden, fuer alle Favoriten zugleich.
@@ -63,6 +63,24 @@ function anmeldungen(sessionId: string): Promise<string[]> {
   });
 }
 
+/*
+ * Das Session-Leaderboard von Yunite - mit der vollen Spielkennung je Game (Betreiber, 29.10.2026: "die Leaderboard-ID bei Unite hinten reinpacken ...
+ * Show Match List ... dann kommt die Match-ID im URL"). Dieselbe Kennung wie bei Noble (nobleprac.com/leaderboards/<id>); Yunites Seite laedt sie
+ * ohne Anmeldung von /api/internal/v1/leaderboards/<id>: je Team die Epic-Konten und jedes Game mit sessionId, Platz und Zeit.
+ */
+async function yuniteLeaderboard(id: string): Promise<LbTeam[] | null> {
+  const j = await json<{ leaderboard?: Array<{
+    placement: number; score: number; kills: number; users?: Array<{ epicId?: string }>;
+    gameList?: Array<{ sessionId: string; placement: number; timestamp: string }>;
+  }> }>(`https://yunite.xyz/api/internal/v1/leaderboards/${encodeURIComponent(id)}`);
+  if (!j?.leaderboard) return null;
+  return j.leaderboard.map((t) => ({
+    placement: t.placement, points: t.score, kills: t.kills,
+    players: (t.users ?? []).filter((u) => u.epicId).map((u) => ({ accountId: String(u.epicId), displayName: '' })),
+    games: (t.gameList ?? []).map((g) => ({ sessionId: g.sessionId, placement: g.placement, timestamp: g.timestamp })),
+  }));
+}
+
 interface LaufendeSession { id: string; name: string; server: string; yunite: string | null; beginn: string; leaderboard: LbTeam[]; angemeldet: string[] }
 
 /** Alle laufenden Noble-Sessions mit Leaderboard und Anmeldungen - 30 Sekunden im Vorrat. */
@@ -76,11 +94,13 @@ export async function laufendeScrims(): Promise<LaufendeSession[]> {
     return Promise.all(listen.flat().map(async ({ s, server }) => {
       const d = await json<{ sessionData?: { yuniteId?: string } }>(`https://map.nobleprac.com/api/session?id=${s.sessionId}`);
       const yunite = d?.sessionData?.yuniteId ?? null;
-      const [lb, angemeldet] = await Promise.all([
-        yunite ? json<{ leaderboard?: LbTeam[] }>(`https://tournament.nobleprac.com/tournaments/${yunite}`) : Promise.resolve(null),
+      const [yu, angemeldet] = await Promise.all([
+        yunite ? yuniteLeaderboard(yunite) : Promise.resolve(null),
         anmeldungen(s.sessionId),
       ]);
-      return { id: s.sessionId, name: s.sessionName, server, yunite, beginn: s.createdAt, leaderboard: lb?.leaderboard ?? [], angemeldet };
+      // Yunite fuehrt die volle Spielkennung; nur wenn es nicht antwortet, das Leaderboard von Noble (dort nur die ersten vier Zeichen).
+      const lb = yu ?? (yunite ? (await json<{ leaderboard?: LbTeam[] }>(`https://tournament.nobleprac.com/tournaments/${yunite}`))?.leaderboard ?? [] : []);
+      return { id: s.sessionId, name: s.sessionName, server, yunite, beginn: s.createdAt, leaderboard: lb, angemeldet };
     }));
   });
 }

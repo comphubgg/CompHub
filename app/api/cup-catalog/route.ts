@@ -129,6 +129,33 @@ function benenne(cups: CupGruppe[]): CupGruppe[] {
 //   ?arten=division,finals   -> feine Auswahl, sticht den Modus
 //   ?regions=EU,NAC
 
+/*
+ * Ein Spieltag gehoert nur zu der Region, die seine Kennung nennt.
+ *
+ * Epic fuehrt den Duo-Performance-Cup als ein NA-Turnier, das NA Central und NA West offensteht; der Katalog legte dieselben Fenster
+ * ("..._NAC") deshalb unter beiden Regionen ab. Der Betreiber (29.10.2026): auf der Event-Seite stand jeder Tag zweimal, und "Generate map"
+ * waehlte unter NA West einfach NAC. Steht derselbe Spieltag schon unter seiner eigenen Region, faellt die Kopie weg; eine Region ohne
+ * eigene Spieltage verschwindet aus dem Cup.
+ */
+function ohneFremdeFenster(cups: CupGruppe[]): CupGruppe[] {
+  return cups.map((c) => {
+    const regionen = Object.entries(c.regionen ?? {});
+    let geaendert = false;
+    const neu: CupGruppe['regionen'] = {};
+    for (const [r, liste] of regionen) {
+      const eigene = liste.filter((w) => {
+        const endung = /_([A-Z]{2,4})$/.exec(w.windowId)?.[1];
+        const fremd = endung && endung !== r && (REGIONEN as readonly string[]).includes(endung)
+          && (c.regionen?.[endung] ?? []).some((x) => x.windowId === w.windowId);
+        if (fremd) geaendert = true;
+        return !fremd;
+      });
+      if (eigene.length) neu[r] = eigene;
+    }
+    return geaendert ? { ...c, regionen: neu } : c;
+  });
+}
+
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const gewaehlt = (searchParams.get('regions') ?? '').split(',')
@@ -193,7 +220,7 @@ export async function GET(request: Request) {
     let ausArchiv: Awaited<ReturnType<typeof archivCups>> = [];
     try { ausArchiv = await archivCups(new Set(alle.map((c) => c.id))); } catch { archivFehler = true; }
     // Die Globals als ein Eintrag (Kumulativ, Day 1, Day 2) - lib/globalsCup.
-    const zusammen = benenne(globalsVereint([...alle, ...ausArchiv]));
+    const zusammen = ohneFremdeFenster(benenne(globalsVereint([...alle, ...ausArchiv])));
 
     /*
      * Von den Divisionen zaehlt nur die erste.
