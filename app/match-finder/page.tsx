@@ -20,7 +20,8 @@ interface Favorit { id: string; name: string }
 interface Treffer extends Favorit { ingame?: string | null; bild?: string | null }
 interface FMatch { matchId: string; ende: string | null; platz: number | null; elims: number | null; windowId: string; titel: string }
 interface FLive { matchId: string; quelle: 'bestenliste' | 'sitzung'; windowId: string | null; titel: string | null; playlist: string | null }
-interface FSpieler { live: FLive | null; matches: FMatch[]; rang: number | null; punkte: number | null; windowId: string | null }
+interface FScrim { session: string; server: string; platz: number | null; punkte: number | null; spiele: number; kills: number | null; letztesSpiel: { code: string; ende: string | null; platz: number | null } | null; nurAngemeldet: boolean; link: string }
+interface FSpieler { live: FLive | null; matches: FMatch[]; rang: number | null; punkte: number | null; windowId: string | null; scrim?: FScrim | null }
 interface FCup { windowId: string; titel: string; region: string; live: boolean }
 interface Antwort { ok: boolean; error?: string; cups: FCup[]; spieler: Record<string, FSpieler>; roh?: unknown[] }
 
@@ -67,14 +68,16 @@ export default function MatchFinder() {
   const speichern = (liste: Favorit[]) => { setFavoriten(liste); saveUserStorageValue(SPEICHER, liste); void saveUserStorageCloud(SPEICHER, liste); };
 
   const ids = useMemo(() => favoriten.map((f) => f.id).join(','), [favoriten]);
+  const namenParam = useMemo(() => favoriten.map((f) => encodeURIComponent(f.name.replace(/\|/g, ' '))).join('|'), [favoriten]);
   const laden = useCallback(() => {
     if (!ids) { setDaten(null); return; }
-    fetch(`/api/match-finder?ids=${ids}`, { cache: 'no-store' }).then((r) => r.json())
+    fetch(`/api/match-finder?ids=${ids}&namen=${namenParam}`, { cache: 'no-store' }).then((r) => r.json())
       .then((j: Antwort) => { if (j?.ok) { setDaten(j); setFehler(''); } else setFehler(j?.error ? t(j.error) : t('Nicht ladbar')); })
       .catch(() => setFehler(t('Nicht ladbar')));
-  }, [ids]);
+  }, [ids, namenParam]);
   // Waehrend eines Cups alle zwanzig Sekunden, sonst jede Minute.
-  const liveCup = Boolean(daten?.cups.some((c) => c.live));
+  // Auch laufende Scrims zaehlen: dann ebenfalls alle zwanzig Sekunden.
+  const liveCup = Boolean(daten?.cups.some((c) => c.live) || Object.values(daten?.spieler ?? {}).some((s) => s.scrim));
   useEffect(() => {
     if (!darf) return undefined;
     laden();
@@ -174,8 +177,22 @@ export default function MatchFinder() {
                         {kopiert === s.live.matchId ? t('Kopiert') : t('Match-ID kopieren')}
                       </button>
                     </div>
-                  ) : (
+                  ) : !s?.scrim ? (
                     <p className="mt-3 text-xs text-slate-500">{daten ? <T>Gerade in keinem Match.</T> : <T>Wird geladen …</T>}</p>
+                  ) : null}
+                  {/* Laufende Scrims (Noble): Session, Platz, Punkte, Spiele und das letzte Spiel - Noble zeigt von der Spielkennung nur den Anfang. */}
+                  {s?.scrim && (
+                    <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-3">
+                      <span className="flex items-center gap-1.5 text-sm font-bold text-amber-300"><span className="h-2 w-2 animate-pulse rounded-full bg-amber-400" />{s.scrim.nurAngemeldet ? t('Angemeldet') : 'SCRIM LIVE'}</span>
+                      <span className="text-xs text-slate-200">{s.scrim.session} <span className="text-slate-500">· {s.scrim.server}</span></span>
+                      {!s.scrim.nurAngemeldet && (
+                        <span className="text-xs tabular-nums text-slate-300">#{s.scrim.platz} · {s.scrim.punkte} {t('Punkte')} · {s.scrim.spiele} {t('Spiele')}{s.scrim.kills != null ? ` · ${s.scrim.kills} elims` : ''}</span>
+                      )}
+                      {s.scrim.letztesSpiel && (
+                        <span className="text-xs text-slate-400">{t('Letztes Spiel')} <code className="rounded bg-zinc-950 px-1.5 py-0.5 font-mono text-slate-200">{s.scrim.letztesSpiel.code}</code> {uhrzeit(s.scrim.letztesSpiel.ende)}{s.scrim.letztesSpiel.platz ? ` · #${s.scrim.letztesSpiel.platz}` : ''}</span>
+                      )}
+                      <a href={s.scrim.link} target="_blank" rel="noreferrer" className="ml-auto text-xs font-semibold text-amber-300 hover:text-amber-200">{t('Leaderboard bei Noble')} →</a>
+                    </div>
                   )}
                   {s && s.matches.length > 0 && (
                     <div className="mt-3 overflow-x-auto">

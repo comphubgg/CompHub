@@ -1,6 +1,8 @@
 import { findeSpieler, getToken, holeSeite, MAX_PAGES, gecacht } from '@/lib/epicCups';
 import { GET as katalogAbruf } from '@/app/api/cup-catalog/route';
 import { replayRegel } from '@/lib/replayRegel.mjs';
+import { liesJson } from '@/lib/ablage';
+import { scrimsVon, type ScrimTreffer } from '@/lib/scrimsNoble';
 
 /*
  * Der Match-ID-Finder fuer VIPs (Betreiber, 27.10.2026): "wenn man in einem Performance-Open-Cup von einem Spieler seine Match-ID will ... anzeigen, ob live
@@ -17,7 +19,7 @@ import { replayRegel } from '@/lib/replayRegel.mjs';
 
 export interface FinderMatch { matchId: string; ende: string | null; platz: number | null; elims: number | null; windowId: string; titel: string }
 export interface FinderLive { matchId: string; quelle: 'bestenliste' | 'sitzung'; windowId: string | null; titel: string | null; playlist: string | null; seit: string | null }
-export interface FinderSpieler { live: FinderLive | null; matches: FinderMatch[]; rang: number | null; punkte: number | null; windowId: string | null }
+export interface FinderSpieler { live: FinderLive | null; matches: FinderMatch[]; rang: number | null; punkte: number | null; windowId: string | null; scrim?: ScrimTreffer | null }
 export interface FinderCup { windowId: string; eventId: string; titel: string; region: string; live: boolean }
 
 const FINDE = 'https://fngw-mcp-gc-livefn.ol.epicgames.com/fortnite/api/matchmaking/session/findPlayer/';
@@ -92,9 +94,18 @@ async function sitzungVon(id: string): Promise<FinderLive | null> {
 const nichtDabei = new Map<string, number>();
 const NICHT_DABEI_MS = 3 * 60_000;
 
-export async function finde(ids: string[], mitRohwert = false): Promise<{ cups: FinderCup[]; spieler: Record<string, FinderSpieler>; roh?: unknown[] }> {
+export async function finde(ids: string[], mitRohwert = false, namen: Record<string, string> = {}): Promise<{ cups: FinderCup[]; spieler: Record<string, FinderSpieler>; roh?: unknown[] }> {
   const schluessel = `finder|${[...ids].sort().join(',')}|${mitRohwert ? 'roh' : ''}`;
-  return gecacht(schluessel, 15_000, () => findeFrisch(ids, mitRohwert));
+  const [r, scrims] = await Promise.all([
+    gecacht(schluessel, 15_000, () => findeFrisch(ids, mitRohwert)),
+    // Laufende Scrims (Noble): ueber die Epic-Konto-Id im Session-Leaderboard, vor dem ersten Spiel ueber den Namen auf der Anmeldeliste.
+    (async () => {
+      const aktuell = await liesJson<Record<string, string>>('epic-namen.json', {}).catch(() => ({} as Record<string, string>));
+      return scrimsVon(ids.map((id) => ({ id, namen: [namen[id] ?? '', aktuell[id] ?? ''].filter(Boolean) }))).catch(() => ({} as Record<string, ScrimTreffer>));
+    })(),
+  ]);
+  const spieler = Object.fromEntries(Object.entries(r.spieler).map(([id, s]) => [id, { ...s, scrim: scrims[id] ?? null }]));
+  return { ...r, spieler };
 }
 
 async function findeFrisch(ids: string[], mitRohwert: boolean): Promise<{ cups: FinderCup[]; spieler: Record<string, FinderSpieler>; roh?: unknown[] }> {

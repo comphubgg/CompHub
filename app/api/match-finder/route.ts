@@ -45,7 +45,10 @@ export async function GET(request: Request) {
     .map((x) => x.replace(/-/g, '').trim().toLowerCase()).filter((x) => /^[0-9a-f]{32}$/.test(x)))].slice(0, 12);
   if (!ids.length) return NextResponse.json({ ok: true, cups: [], spieler: {} }, { headers: nie });
   try {
-    const r = await finde(ids, ich.rolle === 'admin');
+    // Die Namen der Favoriten (gleiche Reihenfolge wie ids) - fuer die Anmeldelisten der Scrims, die nur Discord-Namen fuehren.
+    const namenListe = (new URL(request.url).searchParams.get('namen') ?? '').split('|');
+    const namen = Object.fromEntries(ids.map((id, i) => [id, (namenListe[i] ?? '').slice(0, 40)]));
+    const r = await finde(ids, ich.rolle === 'admin', namen);
     return NextResponse.json({ ok: true, jetzt: Date.now(), ...r }, { headers: nie });
   } catch {
     // Kein 5xx: der Lastverteiler hielte es fuer einen Ausfall des Servers.
