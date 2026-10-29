@@ -3396,6 +3396,7 @@ export async function werkzeugEinrichten(): Promise<{ ok: boolean; text: string 
         '💬 **Create chat** - pick one or more members; they get a private channel under *Chats* with you.',
         '✉️ **Message as CompHub** - pick a member and write, or use a template; it is posted in their chat as CompHub.',
         '📥 **DM inbox** - mirror what people answered to the bot in direct messages into #admin-dms.',
+        '🎮 **Create pro account** - type the pro\'s name and get their link: opening it creates the Pro account (no sign-up), the pro joins this Discord from their dashboard.',
         '',
         'In any channel: **/comphub** posts your text as CompHub (templates and a period included).',
       ].join('\n'),
@@ -3407,6 +3408,7 @@ export async function werkzeugEinrichten(): Promise<{ ok: boolean; text: string 
         { type: 2, style: 1, label: 'Create chat', custom_id: 'werkzeug:chat', emoji: { name: '💬' } },
         { type: 2, style: 2, label: 'Message as CompHub', custom_id: 'werkzeug:nachricht', emoji: { name: '✉️' } },
         { type: 2, style: 2, label: 'DM inbox', custom_id: 'werkzeug:dms', emoji: { name: '📥' } },
+        { type: 2, style: 3, label: 'Create pro account', custom_id: 'werkzeug:pro', emoji: { name: '🎮' } },
       ],
     }],
   });

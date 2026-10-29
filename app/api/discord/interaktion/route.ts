@@ -555,6 +555,35 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ type: 5, data: { flags: 64 } });
     }
 
+    // Create pro account: erst den Namen ...
+    if (id === 'werkzeug:pro' && d.type === 3) {
+      return NextResponse.json({
+        type: 9,
+        data: {
+          custom_id: 'werkzeug:pro:anlegen', title: 'Create pro account',
+          components: [{ type: 1, components: [{
+            type: 4, custom_id: 'name', style: 1, label: 'Name of the pro', placeholder: 'e.g. Peterbot', min_length: 2, max_length: 40, required: true,
+          }] }],
+        },
+      });
+    }
+    // ... dann den Link (lib/povVip). Chef ist der CompHub-Admin: sein POV erscheint bei ihm, wie bei einem VIP, der einlaedt.
+    if (id === 'werkzeug:pro:anlegen' && d.type === 5) {
+      const name = (felderAus().name ?? '').trim();
+      if (name.length < 2) return nurFuerIhn('Please type the name of the pro.');
+      try {
+        const { neueEinladung } = await import('@/lib/povVip');
+        const e = await neueEinladung({ idents: ['z:admin-juanito'], name: 'CompHub', rolle: 'admin', vip: true, bild: null, rechte: [] }, name);
+        return nurFuerIhn([
+          `Pro account for **${e.name}** is ready. Send this link to the pro:`,
+          `https://www.thecomphub.com/pov/einladung?code=${e.code}`,
+          'Opening it creates their Pro account and signs them in (no sign-up, always the same account). Login name and password are in their dashboard, and they can join this Discord from there with one click.',
+        ].join('\n'));
+      } catch (err) {
+        return nurFuerIhn(err instanceof Error && err.message.startsWith('Höchstens') ? 'At most 20 open invitations at once - withdraw an old one on the POV page first.' : 'That did not work - please try again.');
+      }
+    }
+
     // DM inbox: neue Direktnachrichten nach #admin-dms.
     if (id === 'werkzeug:dms') {
       danach(async () => (await dmsSpiegeln()).text);
