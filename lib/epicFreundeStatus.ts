@@ -31,6 +31,7 @@ interface Zustand {
   verbunden: boolean;
   fehler: string | null;
   start: Promise<void> | null;
+  ping?: ReturnType<typeof setInterval> | null;
 }
 
 const g = globalThis as unknown as { __epicFreunde?: Zustand };
@@ -80,6 +81,11 @@ async function verbinde(): Promise<void> {
   });
   xmpp.on('online', async () => {
     zustand.verbunden = true; zustand.fehler = null;
+    // Ein Lebenszeichen jede Minute - ohne trennt Epic die Verbindung nach rund 90 Sekunden (29.10.2026 gemessen).
+    if (zustand.ping) clearInterval(zustand.ping);
+    zustand.ping = setInterval(() => {
+      void xmpp.send(xml('iq', { type: 'get', id: crypto.randomUUID(), to: 'prod.ol.epicgames.com' }, xml('ping', { xmlns: 'urn:xmpp:ping' }))).catch(() => {});
+    }, 55_000);
     // Unsichtbar-artig "abwesend" melden - noetig, damit Epic die Status der Freunde schickt.
     await xmpp.send(xml('presence', {}, xml('status', {}, JSON.stringify({ Status: '', bIsPlaying: false, bIsJoinable: false, bHasVoiceSupport: false, SessionId: '', Properties: {} })), xml('show', {}, 'away')));
   });
