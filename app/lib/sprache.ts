@@ -43,6 +43,7 @@ export const SPRACHEN: Array<{ kennung: Sprache; kurz: string; name: string }> =
  */
 const AUF_ENGLISCH: Record<string, string> = {
   // ------------------------------------------------------------ Allgemein
+  'Gelbe Linie: die Busroute. Dick: wo man abspringen kann.': 'Yellow line: the bus route. Thick: where you can jump.',
   'Scrim beendet': 'Scrim ended',
   'Zurück zur Bestenliste': 'Back to the leaderboard',
   'Die Replay-Ansicht ist für dein Konto noch nicht freigeschaltet.': 'The replay view is not unlocked for your account yet.',

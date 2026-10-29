@@ -145,8 +145,26 @@ var schaden = reader.Je.Select(kv => new {
   treffer = kv.Value.Treffer, krit = kv.Value.Krit, schild = Math.Round(kv.Value.AufSchild),
 }).ToList();
 
+// Der Bus (Betreiber, 29.10.2026: "die Busroute ... wo der Bus durchgeflogen ist, wo wer rausgesprungen ist"): Start, Flugrichtung (Yaw in Grad),
+// Geschwindigkeit je Sekunde und die Zeiten bis Absprung-Beginn, Absprung-Ende und Flugende (Sekunden ab dem Start des Fluges).
+var bus = (replay.MapData?.BattleBusFlightPaths ?? Enumerable.Empty<FortniteReplayReader.Models.BattleBus>())
+  .Where(b => b.FlightStartLocation is not null)
+  .Select(b => new {
+    x = R(b.FlightStartLocation.X), y = R(b.FlightStartLocation.Y), yaw = R(b.FlightStartRotation?.Yaw), tempo = R(b.FlightSpeed),
+    sprungAb = R(b.TimeTillDropStart), sprungBis = R(b.TimeTillDropEnd), flugBis = R(b.TimeTillFlightEnd), t = R(b.ReplicatedFlightTimestamp),
+  }).Cast<object>().ToList();
+// Leer bei aktuellen Replays - dann aus dem GameState (SchadenLeser.BusWerte).
+if (bus.Count == 0 && reader.BusWerte.TryGetValue("FlightStartLocation", out var startObj) && startObj is Unreal.Core.Models.FVector start) {
+  double? Zahl(string k) => reader.BusWerte.TryGetValue(k, out var v) ? Convert.ToDouble(v) : null;
+  var dreh = reader.BusWerte.TryGetValue("FlightStartRotation", out var dr) && dr is Unreal.Core.Models.FRotator rot ? (double?)rot.Yaw : null;
+  bus.Add(new {
+    x = R(start.X), y = R(start.Y), yaw = R(dreh), tempo = R(Zahl("FlightSpeed")),
+    sprungAb = R(Zahl("TimeTillDropStart")), sprungBis = R(Zahl("TimeTillDropEnd")), flugBis = R(Zahl("TimeTillFlightEnd")), t = R(Zahl("AircraftStartTime")),
+  });
+}
 var gd = replay.GameData;
 Console.WriteLine(JsonConvert.SerializeObject(new {
+  bus = bus.Count > 0 ? bus : null,
   version = 3,
   treffer = reader.TrefferListe(busAb),
   nachgetragen = reader.Nachgetragen,
@@ -263,8 +281,20 @@ class SchadenLeser : ReplayReader {
     if (figurSpieler.Remove(channelIndex, out var fp) && Zeit() is double tc) { SturmListe.Add((fp, tc, false)); }
   }
 
+  /*
+   * Der Bus aus dem Spielzustand (29.10.2026): die Bibliothek fuellt MapData.BattleBusFlightPaths bei aktuellen Replays nicht, der GameState traegt
+   * aber Start, Drehung, Tempo und die Zeiten bis Absprung-Beginn, -Ende und Flugende. Je Eigenschaft gilt der letzte belegte Wert.
+   */
+  public readonly Dictionary<string, object> BusWerte = new();
+  static readonly string[] BusFelder = { "FlightStartLocation", "FlightStartRotation", "FlightSpeed", "TimeTillDropStart", "TimeTillDropEnd", "TimeTillFlightEnd", "AircraftStartTime" };
+
   protected override void OnExportRead(uint channelIndex, INetFieldExportGroup exportGroup) {
     base.OnExportRead(channelIndex, exportGroup);
+    if (exportGroup.GetType().Name == "GameState") {
+      foreach (var f in BusFelder) {
+        try { var v = exportGroup.GetType().GetProperty(f)?.GetValue(exportGroup); if (v is not null) BusWerte[f] = v; } catch { }
+      }
+    }
     if (exportGroup is FortniteReplayReader.Models.NetFieldExports.PlayerPawn pawn) {
       if (pawn.bIsInAnyStorm is bool st && Zeit() is double tz) {
         var wer = Hole(VonFigur, channelIndex);
