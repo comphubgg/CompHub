@@ -1,6 +1,6 @@
 import { NextResponse } from 'next/server';
 import {
-  gecacht, holeTop, cupsGruppiert, REGIONEN, EpicLoginNoetig,
+  gecacht, holeTop, cupsGruppiert, archivCups, REGIONEN, EpicLoginNoetig,
 } from '@/lib/epicCups';
 import { zwischenspeichern } from '@/lib/zwischenspeicher';
 
@@ -70,8 +70,15 @@ async function holeRoh(request: Request) {
       { status: login ? 401 : 502 });
   }
 
+  // Dazu das Archiv: Epic fuehrt die Spieltage der Vorsaison nicht mehr - ohne sie fehlte neuen Saisons jede fruehere Ausgabe.
+  try {
+    const frisch = cups;
+    const archiv = await gecacht('qual-archiv|' + region, 30 * 60_000, () => archivCups(new Set(frisch.map((c) => c.id))));
+    cups = [...frisch, ...archiv];
+  } catch { /* ohne Archiv bleibt es bei Epics Liste */ }
+
   // Alle Spieltage derselben Region, flach.
-  const alle = cups.flatMap((c) => (c.regionen[region] ?? []));
+  const alle = [...new Map(cups.flatMap((c) => (c.regionen[region] ?? [])).map((f) => [f.windowId, f])).values()];
   const dieser = alle.find((f) => f.windowId === window_);
   if (!dieser) {
     return NextResponse.json({
