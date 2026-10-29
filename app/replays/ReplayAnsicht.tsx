@@ -299,25 +299,35 @@ export default function ReplayAnsicht({ match, kartenBild, titel, wertung, hervo
         <rect x="0" y="0" width="100" height="100" fill="#6d28d9" fillOpacity={0.38} mask="url(#sturm-maske)" />
         {kreis(zone.jetzt, { rand: '#e0e7ff', breite: 2.5 })}
         {kreis(zone.ziel, { rand: '#ffffff', breite: 1.5, strich: '4 4' })}
-        {/* Die Busroute (Betreiber, 29.10.2026: "wo der Bus durchgeflogen ist ... wo wer rausgesprungen ist"): duenn die ganze Bahn, dick das Stueck,
-            auf dem man abspringen kann, ein Pfeil fuer die Richtung und waehrend des Flugs der Bus selbst. */}
+        {/* Die Busroute wie im Spiel (Betreiber, 29.10.2026: "so wie in Fortnite, mit so Pfeilen, nicht einfach eine Linie"): eine Kette von
+            Pfeilspitzen in Flugrichtung - kraeftig gelb, wo man abspringen kann, sonst blass -, und waehrend des Flugs der Bus selbst. */}
         {(match.bus ?? []).map((b, i) => {
           if (typeof b.x !== 'number' || typeof b.y !== 'number' || typeof b.yaw !== 'number' || !b.tempo) return null;
           const rad = (b.yaw * Math.PI) / 180;
           const bei = (s: number) => ({ x: b.x! + Math.cos(rad) * b.tempo! * s, y: b.y! + Math.sin(rad) * b.tempo! * s });
           const flug = b.flugBis ?? 50;
-          const ende = bei(flug); const ab = bei(b.sprungAb ?? 0); const bis = bei(b.sprungBis ?? flug);
           const imFlug = typeof match.busAb === 'number' ? zeit - match.busAb : null;
           const jetzt = imFlug !== null && imFlug >= 0 && imFlug <= flug ? bei(imFlug) : null;
-          const pfeil = bei(flug * 0.95); const quer = rad + Math.PI / 2; const lang = welt.spanne * 0.018;
+          // Eine Pfeilspitze alle 3 % der Kartenbreite; Groesse 1,4 % - so dicht wie die Pfeile auf der Karte im Spiel.
+          const abstand = (welt.spanne * 0.03) / b.tempo;
+          const gross = welt.spanne * 0.014; const quer = rad + Math.PI / 2;
+          const spitzen: Array<{ s: number; sprung: boolean }> = [];
+          for (let s = abstand / 2; s <= flug; s += abstand) spitzen.push({ s, sprung: s >= (b.sprungAb ?? 0) && s <= (b.sprungBis ?? flug) });
           return (
-            <g key={`bus${i}`} opacity={imFlug !== null && imFlug > flug + 60 ? 0.55 : 1}>
-              <line x1={pzx(b.x)} y1={pzy(b.y)} x2={pzx(ende.x)} y2={pzy(ende.y)} stroke="#fde047" strokeOpacity={0.7} strokeWidth={1.5} strokeDasharray="5 4" vectorEffect="non-scaling-stroke" />
-              <line x1={pzx(ab.x)} y1={pzy(ab.y)} x2={pzx(bis.x)} y2={pzy(bis.y)} stroke="#facc15" strokeWidth={4.5} strokeLinecap="round" vectorEffect="non-scaling-stroke" />
-              <polygon fill="#facc15"
-                points={[ende, { x: pfeil.x + Math.cos(quer) * lang, y: pfeil.y + Math.sin(quer) * lang }, { x: pfeil.x - Math.cos(quer) * lang, y: pfeil.y - Math.sin(quer) * lang }]
-                  .map((q) => `${pzx(q.x)},${pzy(q.y)}`).join(' ')} />
-              {jetzt && <circle cx={pzx(jetzt.x)} cy={pzy(jetzt.y)} r={1.1} fill="#facc15" stroke="#000" strokeWidth={1} vectorEffect="non-scaling-stroke" />}
+            <g key={`bus${i}`} opacity={imFlug !== null && imFlug > flug + 90 ? 0.6 : 1}>
+              {spitzen.map(({ s, sprung }) => {
+                const m = bei(s);
+                const vorn = { x: m.x + Math.cos(rad) * gross * 0.5, y: m.y + Math.sin(rad) * gross * 0.5 };
+                const hinten = { x: m.x - Math.cos(rad) * gross * 0.5, y: m.y - Math.sin(rad) * gross * 0.5 };
+                const links = { x: hinten.x + Math.cos(quer) * gross * 0.6, y: hinten.y + Math.sin(quer) * gross * 0.6 };
+                const rechts = { x: hinten.x - Math.cos(quer) * gross * 0.6, y: hinten.y - Math.sin(quer) * gross * 0.6 };
+                return (
+                  <polyline key={s} points={[links, vorn, rechts].map((q) => `${pzx(q.x)},${pzy(q.y)}`).join(' ')} fill="none"
+                    stroke={sprung ? '#facc15' : '#ffffff'} strokeOpacity={sprung ? 1 : 0.55} strokeWidth={sprung ? 3.2 : 2.2}
+                    strokeLinecap="round" strokeLinejoin="round" vectorEffect="non-scaling-stroke" />
+                );
+              })}
+              {jetzt && <circle cx={pzx(jetzt.x)} cy={pzy(jetzt.y)} r={1.3} fill="#facc15" stroke="#000" strokeWidth={1.5} vectorEffect="non-scaling-stroke" />}
             </g>
           );
         })}
@@ -500,7 +510,7 @@ export default function ReplayAnsicht({ match, kartenBild, titel, wertung, hervo
               <li className="flex items-start gap-2.5"><span className="mt-0.5 shrink-0"><XZeichen farbe="#38bdf8" gross={18} /></span><span><T>Eliminierung: hier ist ein Spieler ausgeschieden. Die Farbe zeigt sein Team; das Zeichen bleibt stehen.</T></span></li>
               <li className="flex items-start gap-2.5"><span className="mt-1 h-3.5 w-3.5 shrink-0 rounded-full border-2 border-black bg-amber-400" /><span><T>Knock: ein Spieler liegt am Boden. Der Kreis verschwindet nach 12 Sekunden - dann ist er aufgestanden oder ausgeschieden.</T></span></li>
               <li className="flex items-start gap-2.5"><span className="mt-1 h-3.5 w-3.5 shrink-0 rounded-full border-2 border-white" /><span><T>Weißer Ring: die Zone jetzt. Gestrichelt: die nächste Zone.</T></span></li>
-              <li className="flex items-start gap-2.5"><span className="mt-1.5 h-1 w-3.5 shrink-0 rounded bg-yellow-400" /><span><T>Gelbe Linie: die Busroute. Dick: wo man abspringen kann.</T></span></li>
+              <li className="flex items-start gap-2.5"><span className="mt-1.5 h-1 w-3.5 shrink-0 rounded bg-yellow-400" /><span><T>Pfeile: die Busroute. Gelb: wo man abspringen kann.</T></span></li>
               <li className="flex items-start gap-2.5"><span className="mt-1 h-3.5 w-3.5 shrink-0 rounded-sm bg-violet-600/60" /><span><T>Violette Fläche: der Sturm, außerhalb der Zone.</T></span></li>
               <li className="flex items-start gap-2.5"><span className="mt-0.5 h-4 w-1 shrink-0 bg-sky-400" /><span><T>3D: Die Pfosten stehen für Eliminierungen, die Wand ist die Zone.</T></span></li>
               <li className="text-slate-400"><T>Mausrad vergrößert die Karte, Ziehen verschiebt sie, Doppelklick setzt zurück. Fahre über ein Zeichen für Details.</T></li>

@@ -45,7 +45,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   // ------------------------------------------------------------ Allgemein
   'Yunite-Code': 'Yunite code',
   'Yunites Kurz-Code des Games - nicht die volle Match-ID. Die gibt Yunite nicht heraus.': 'The short Yunite code of the game - not the full match ID. Yunite does not publish that.',
-  'Gelbe Linie: die Busroute. Dick: wo man abspringen kann.': 'Yellow line: the bus route. Thick: where you can jump.',
+  'Pfeile: die Busroute. Gelb: wo man abspringen kann.': 'Arrows: the bus route. Yellow: where you can jump.',
   'Scrim beendet': 'Scrim ended',
   'Zurück zur Bestenliste': 'Back to the leaderboard',
   'Die Replay-Ansicht ist für dein Konto noch nicht freigeschaltet.': 'The replay view is not unlocked for your account yet.',

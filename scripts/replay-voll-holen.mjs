@@ -129,6 +129,9 @@ const MASSEN = /LastChanceQualifier|FNCSSoloQualifiers_/i;
 // mitTreffer 2 (28.10.2026, nachts): Spiele, die bis dahin "mit Treffer" gelesen wurden, deren Datei aber wegen "--neuer-als 20" nie ans Release kam, werden einmal neu gelesen.
 const ohneTreffer = (m, datum) => Boolean(m) && m.mitTreffer !== 2 && !MASSEN.test(m.windowId ?? '')
   && Date.now() - (Date.parse(m.beginn ?? '') || datum || 0) < 29 * 864e5;
+// mitBus (29.10.2026): der Leser gibt die Busroute aus (Betreiber: "wo der Bus durchgeflogen ist") - abgelegte Spiele ohne sie werden einmal neu gelesen.
+const ohneBus = (m, datum) => Boolean(m) && m.mitBus !== 1 && !MASSEN.test(m.windowId ?? '')
+  && Date.now() - (Date.parse(m.beginn ?? '') || datum || 0) < 29 * 864e5;
 const teilgelesen = (m, datum) => Boolean(m) && m.ende == null && !m.vollstaendig && !m.unvollstaendig && !MASSEN.test(m.windowId ?? '')
   && Date.now() - (Date.parse(m.beginn ?? '') || datum || 0) < 29 * 864e5;
 /**
@@ -261,7 +264,7 @@ async function aufgaben() {
     try { ids = [...await mitWiederholung(`${tag.windowId} Sitzungen`, () => matchIds(tag.eventId, tag.windowId, 3), 2)]; } catch (e) { console.log(`  ${tag.windowId}: ${e.message}`); continue; }
     index.geprueft[tag.windowId] = Date.now();
     for (const id of ids) {
-      if (index.matches[id] && !teilgelesen(index.matches[id], tag.datum) && !ohneTreffer(index.matches[id], tag.datum)) continue;
+      if (index.matches[id] && !teilgelesen(index.matches[id], tag.datum) && !ohneTreffer(index.matches[id], tag.datum) && !ohneBus(index.matches[id], tag.datum)) continue;
       const f = index.fehler[id];
       if (f) {
         f.art ??= fehlerArt(f.fehler ?? '');
@@ -320,6 +323,8 @@ async function abarbeiten({ id, tag }) {
       // Pruefmarke (28.10.2026): vollstaendig = Laenge gegen Epics Metadaten geprueft; unvollstaendig = Epic hat es nie ganz geliefert, genommen, wie es ist.
       laenge: m.laenge ?? null, ...(grund ? { unvollstaendig: true } : { vollstaendig: true }),
       ...(Array.isArray(m.treffer) ? { mitTreffer: 2 } : {}),
+      // Auch ohne Bus im Replay gilt es als mit dem neuen Leser gelesen - sonst wuerde es endlos neu gelesen.
+      mitBus: 1,
     };
     delete index.fehler[id];
     speichereIndex();
