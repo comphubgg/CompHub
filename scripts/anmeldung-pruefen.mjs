@@ -28,8 +28,9 @@ try {
 
 const SEITEN = ['https://www.thecomphub.com', 'https://lambent-moxie-2dc34a.netlify.app'];
 const DIENSTE = ['twitch', 'discord', 'google', 'epic'];
-// Twitch kennt nur den Rueckweg ohne www (lib/oeffentlicheAdresse, EINGETRAGEN).
-const RUECK = (d) => `https://${d === 'twitch' ? '' : 'www.'}thecomphub.com/api/auth/${d}/callback`;
+// Twitch, Google und Discord kennen nur den Rueckweg ohne www (lib/oeffentlicheAdresse, EINGETRAGEN).
+const OHNE_WWW = ['twitch', 'google', 'discord'];
+const RUECK = (d) => `https://${OHNE_WWW.includes(d) ? '' : 'www.'}thecomphub.com/api/auth/${d}/callback`;
 const probleme = [];
 
 for (const seite of SEITEN) {
@@ -66,6 +67,15 @@ if (env.GOOGLE_CLIENT_ID && env.GOOGLE_CLIENT_SECRET) {
 }
 
 console.log(probleme.length ? `\n${probleme.length} Problem(e)` : '\nAlles in Ordnung');
+try {
+  const r = await fetch(`https://www.thecomphub.com/api/auth/google/authorize`, { redirect: 'manual', signal: AbortSignal.timeout(20_000) });
+  const g = await fetch(r.headers.get('location') ?? '', { redirect: 'manual', signal: AbortSignal.timeout(20_000) });
+  const weiter = g.headers.get('location') ?? '';
+  const fehler = /oauth\/error|authError/i.test(weiter);
+  console.log(`${fehler ? 'FEHL' : 'ok  '} Google-Seite: ${fehler ? 'Fehlerseite (Rueckweg nicht eingetragen)' : 'Kontoauswahl'}`);
+  if (fehler) probleme.push('google: Google zeigt redirect_uri_mismatch');
+} catch (e) { console.log(`?    Google-Seite: ${e.message}`); }
+
 if (probleme.length && process.argv.includes('--discord')) {
   try {
     execFileSync('node', ['scripts/discord-update.mjs', '--ziel', 'alarm', '--art', 'behoben', '--titel', 'Anmeldung gestoert', '--text', probleme.join('\n')], { stdio: 'inherit' });

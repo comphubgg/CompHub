@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { holeDienst } from '@/lib/dienstZugaenge';
 import { rueckwegVon } from '@/lib/oeffentlicheAdresse';
+import { sitzungsDomain } from '@/lib/cookieDomain';
 import { liesPros, wer } from '@/lib/pov';
 import { proNews } from '@/lib/discord';
 
@@ -26,7 +27,7 @@ export async function GET(req: NextRequest) {
     client_id: id, redirect_uri: rueckwegVon(req, '/api/auth/discord/callback'), response_type: 'code', scope: 'identify guilds.join', state, prompt: 'consent',
   });
   const antwort = NextResponse.redirect(`https://discord.com/api/oauth2/authorize?${params}`);
-  const optionen = { httpOnly: true, sameSite: 'lax' as const, secure: process.env.NODE_ENV === 'production', path: '/', maxAge: 600 };
+  const optionen = { ...sitzungsDomain(req), httpOnly: true, sameSite: 'lax' as const, secure: process.env.NODE_ENV === 'production', path: '/', maxAge: 600 };
   antwort.cookies.set('discord_oauth_state', state, optionen);
   antwort.cookies.set('discord_oauth_art', 'pro', optionen);
   return antwort;

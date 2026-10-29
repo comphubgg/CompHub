@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { holeDienst } from '@/lib/dienstZugaenge';
 import { rueckwegVon } from '@/lib/oeffentlicheAdresse';
+import { sitzungsDomain } from '@/lib/cookieDomain';
 
 // Der Hinweg zu Discord.
 //
@@ -46,7 +47,9 @@ export async function GET(req: NextRequest) {
 
   const antwort = NextResponse.redirect(
     `https://discord.com/api/oauth2/authorize?${params.toString()}`);
+  // Fuer www und die Domain ohne www - der Rueckweg kommt ohne www an.
   antwort.cookies.set('discord_oauth_state', state, {
+    ...sitzungsDomain(req),
     httpOnly: true,
     sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',

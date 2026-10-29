@@ -8,7 +8,7 @@ import {
 import { ergaenzeAusDienst } from '@/lib/kontoErgaenzen';
 import { ueberHttps } from '@/lib/vipCookie';
 import { holeDienst } from '@/lib/dienstZugaenge';
-import { dienstWurzel } from '@/lib/oeffentlicheAdresse';
+import { rueckwegVon } from '@/lib/oeffentlicheAdresse';
 
 // Der Rueckweg von Discord.
 //
@@ -41,12 +41,10 @@ const COOKIE = 'streamer_dashboard_konto';
  * "www.thecomphub.com", wenn jemand ueber www hereingekommen ist, und der
  * Tausch scheiterte mit "invalid request".
  */
-function wurzel(req: NextRequest) {
-  return dienstWurzel(req);
-}
 
 function weiterleitung(req: NextRequest) {
-  return `${wurzel(req)}/api/auth/discord/callback`;
+  // Derselbe Rueckweg wie beim Anmelden (ohne www, siehe lib/oeffentlicheAdresse EINGETRAGEN) - sonst lehnt Discord den Tausch ab.
+  return rueckwegVon(req, '/api/auth/discord/callback');
 }
 
 /*

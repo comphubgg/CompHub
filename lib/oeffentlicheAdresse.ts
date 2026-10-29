@@ -104,8 +104,10 @@ export function dienstWurzel(req: NextRequest): string {
 /**
  * Wo ein Dienst den Rueckweg eingetragen hat, wenn es nicht die feste Adresse ist. Twitch kennt nur die Domain ohne www (geprueft 29.10.2026 mit
  * scripts/anmeldung-pruefen.mjs) - mit www scheiterte jede Twitch-Anmeldung ("the sign-in service aborted").
+ * Google ebenso (29.10.2026 im Browser: mit www "Fehler 400: redirect_uri_mismatch", ohne www die Anmeldeseite), Discord meldete mit www
+ * "ungueltiger OAuth2 redirect_uri" - alle drei gehen ueber die Domain ohne www. Die Status-Cookies gelten dafuer fuer beide (sitzungsDomain).
  */
-const EINGETRAGEN: Array<[RegExp, string]> = [[/^\/api\/auth\/twitch\//, 'https://thecomphub.com']];
+const EINGETRAGEN: Array<[RegExp, string]> = [[/^\/api\/auth\/(twitch|google|discord)\//, 'https://thecomphub.com']];
 
 /** Der Rueckweg eines Anmeldedienstes, etwa `/api/auth/google/callback`. */
 export function rueckwegVon(req: NextRequest, pfad: string): string {

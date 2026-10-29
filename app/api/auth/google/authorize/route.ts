@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import crypto from 'crypto';
 import { rueckwegVon } from '@/lib/oeffentlicheAdresse';
+import { sitzungsDomain } from '@/lib/cookieDomain';
 import { holeDienst } from '@/lib/dienstZugaenge';
 
 // Der Weg zu Google.
@@ -64,7 +65,9 @@ export async function GET(req: NextRequest) {
   ziel.searchParams.set('prompt', 'select_account');
 
   const antwort = NextResponse.redirect(ziel.toString());
+  // Fuer www und die Domain ohne www - der Rueckweg kommt ohne www an.
   antwort.cookies.set('google_oauth_state', state, {
+    ...sitzungsDomain(req),
     httpOnly: true, sameSite: 'lax', path: '/', maxAge: 600,
     secure: process.env.NODE_ENV === 'production',
   });
