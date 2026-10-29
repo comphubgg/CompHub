@@ -1,42 +1,47 @@
 'use client';
 
-import Link from 'next/link';
-import { Suspense, useEffect, useState } from 'react';
+import { Suspense, useCallback, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import T from '@/app/components/T';
 import LadeSchirm from '@/app/components/LadeSchirm';
-import { useZugang } from '@/app/lib/zugang';
 import { t } from '@/app/lib/i18n';
 
 /*
- * Eine Pro-Einladung annehmen (lib/povVip): ein VIP hat diesen Link geschickt. Wer angemeldet ist, nimmt mit einem Klick an - das Konto wird Pro, und
- * der VIP sieht sein POV. Ohne Anmeldung geht es erst zur Anmeldung und danach hierher zurueck.
+ * Eine Pro-Einladung oeffnen (lib/povVip). Der Betreiber (29.10.2026): "man soll direkt automatisch in ein Pro-Account geladen werden ... man soll sich nicht
+ * selber einloggen muessen". Der Link legt beim ersten Mal das Pro-Konto an und meldet an, danach meldet er immer in dasselbe Konto an - die Seite geht
+ * gleich weiter zum POV-Dashboard. Nur wenn gerade ein anderes Konto angemeldet ist, fragt sie vorher (sonst waere es ohne Warnung abgemeldet).
  */
+
+interface Info { ok: boolean; vipName?: string; gilt?: boolean; gesperrt?: boolean; schonDrin?: boolean; anderesKonto?: string | null; error?: string }
 
 function Einladung() {
   const code = useSearchParams().get('code') ?? '';
-  const zugang = useZugang();
-  const [info, setInfo] = useState<{ ok: boolean; vipName?: string; gilt?: boolean; angenommen?: boolean; error?: string } | null>(null);
-  const [stand, setStand] = useState<'' | 'laeuft' | 'fertig'>('');
+  const [info, setInfo] = useState<Info | null>(null);
   const [fehler, setFehler] = useState('');
+  const [laeuft, setLaeuft] = useState(false);
+
+  const oeffnen = useCallback(async () => {
+    setLaeuft(true); setFehler('');
+    try {
+      const j = await fetch('/api/pov/einladung', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code }) }).then((r) => r.json());
+      if (j?.ok) { window.location.replace('/pov'); return; }
+      setFehler(j?.fehler ? t(j.fehler) : t('Das hat nicht geklappt.'));
+    } catch { setFehler(t('Das hat nicht geklappt.')); }
+    setLaeuft(false);
+  }, [code]);
 
   useEffect(() => {
     fetch(`/api/pov/einladung?code=${encodeURIComponent(code)}`, { cache: 'no-store' }).then((r) => r.json())
-      .then(setInfo).catch(() => setInfo({ ok: false, error: t('Nicht ladbar') }));
-  }, [code]);
+      .then((j: Info) => {
+        setInfo(j);
+        if (j?.schonDrin) window.location.replace('/pov');
+        else if (j?.ok && j.gilt && !j.anderesKonto) void oeffnen();
+      })
+      .catch(() => setInfo({ ok: false, error: t('Nicht ladbar') }));
+  }, [code, oeffnen]);
 
-  const annehmen = async () => {
-    setStand('laeuft'); setFehler('');
-    try {
-      const j = await fetch('/api/pov/einladung', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code }) }).then((r) => r.json());
-      if (j?.ok) { setStand('fertig'); window.setTimeout(() => { window.location.href = '/pov'; }, 1500); }
-      else { setStand(''); setFehler(j?.fehler || j?.error ? t(j.fehler ?? j.error) : t('Das hat nicht geklappt.')); }
-    } catch { setStand(''); setFehler(t('Das hat nicht geklappt.')); }
-  };
-
-  if (!info || zugang.laedt) return <LadeSchirm />;
-  const angemeldet = zugang.nutzer || zugang.admin;
-  const weiter = `/sign-in?weiter=${encodeURIComponent(`/pov/einladung?code=${code}`)}`;
+  const fertig = info && (!info.ok || !info.gilt || info.anderesKonto || fehler);
+  if (!fertig) return <LadeSchirm />;
 
   return (
     <main className="grid min-h-screen place-items-center bg-zinc-950 px-4 py-10 text-slate-100">
@@ -51,33 +56,27 @@ function Einladung() {
             </>
           ) : !info.gilt ? (
             <>
-              <h1 className="mt-3 text-2xl font-extrabold">{info.angenommen ? <T>Diese Einladung wurde schon angenommen.</T> : <T>Diese Einladung ist abgelaufen.</T>}</h1>
+              <h1 className="mt-3 text-2xl font-extrabold">{info.gesperrt ? <T>Diese Einladung wurde zurückgezogen.</T> : <T>Diese Einladung ist abgelaufen.</T>}</h1>
               <p className="mt-3 text-sm text-slate-400"><T>Frag den VIP, der dir den Link geschickt hat, nach einem neuen.</T></p>
             </>
-          ) : stand === 'fertig' ? (
-            <>
-              <h1 className="mt-3 text-2xl font-extrabold"><T>Du bist jetzt Pro.</T></h1>
-              <p className="mt-3 text-sm text-slate-400"><T>Gleich geht es weiter zu deinem POV-Dashboard.</T></p>
-            </>
-          ) : (
+          ) : info.anderesKonto ? (
             <>
               <h1 className="mt-3 text-2xl font-extrabold">{info.vipName} <T>lädt dich als Pro ein</T></h1>
               <p className="mx-auto mt-3 max-w-sm text-sm leading-relaxed text-slate-400">
-                <T>Mit einem Pro-Konto teilst du dein Spiel live mit den VIPs, die du freigibst - nicht öffentlich und nicht über Twitch. Der einladende VIP darf von Anfang an zusehen; alles Weitere stellst du selbst ein.</T>
+                <T>Du bist gerade als</T> <b className="text-slate-200">{info.anderesKonto}</b> <T>angemeldet. Mit dem Link wirst du davon abgemeldet und in dein Pro-Konto angemeldet.</T>
               </p>
               {fehler && <p className="mt-4 rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-2 text-sm text-rose-300">{fehler}</p>}
-              <div className="mt-6">
-                {angemeldet ? (
-                  <button type="button" onClick={() => void annehmen()} disabled={stand === 'laeuft'}
-                    className="rounded-lg bg-sky-500 px-6 py-3 text-sm font-bold text-white transition hover:bg-sky-400 disabled:opacity-50">
-                    {stand === 'laeuft' ? <T>Wird angenommen …</T> : <T>Einladung annehmen</T>}
-                  </button>
-                ) : (
-                  <Link href={weiter} className="inline-block rounded-lg bg-sky-500 px-6 py-3 text-sm font-bold text-white transition hover:bg-sky-400">
-                    <T>Anmelden und annehmen</T>
-                  </Link>
-                )}
-              </div>
+              <button type="button" onClick={() => void oeffnen()} disabled={laeuft}
+                className="mt-6 rounded-lg bg-sky-500 px-6 py-3 text-sm font-bold text-white transition hover:bg-sky-400 disabled:opacity-50">
+                {laeuft ? <T>Wird angemeldet …</T> : <T>Zum Pro-Konto wechseln</T>}
+              </button>
+            </>
+          ) : (
+            <>
+              <h1 className="mt-3 text-2xl font-extrabold"><T>Das hat nicht geklappt.</T></h1>
+              <p className="mt-4 rounded-lg border border-rose-500/30 bg-rose-500/10 px-4 py-2 text-sm text-rose-300">{fehler}</p>
+              <button type="button" onClick={() => void oeffnen()} disabled={laeuft}
+                className="mt-6 rounded-lg bg-sky-500 px-6 py-3 text-sm font-bold text-white transition hover:bg-sky-400 disabled:opacity-50"><T>Noch einmal versuchen</T></button>
             </>
           )}
         </div>

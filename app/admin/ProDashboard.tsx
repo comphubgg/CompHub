@@ -29,6 +29,16 @@ export default function ProDashboard() {
   const t = useT();
   const [tab, setTab] = useState<'pov' | 'settings'>('pov');
   const [mein, setMein] = useState<PovPro | null>(null);
+  /*
+   * Wer ueber den Einladungslink eines VIPs kam (lib/povVip): sein Chef und seine Anmeldedaten (Betreiber, 29.10.2026: "Passwort und Name sieht man dann im
+   * Dashboard ... im Dashboard steht, wer sein Chef ist").
+   */
+  const [zugangDaten, setZugangDaten] = useState<{ chef: string; login: string; passwort: string } | null>(null);
+  const [passwortSichtbar, setPasswortSichtbar] = useState(false);
+  const [zugangKopiert, setZugangKopiert] = useState('');
+  useEffect(() => {
+    fetch('/api/pov/zugang', { cache: 'no-store' }).then((r) => r.json()).then((j) => { if (j?.zugang) setZugangDaten(j.zugang); }).catch(() => undefined);
+  }, []);
   /** Hat der Profi ein eigenes Profilbild gewaehlt? Sonst gilt sein Spielerfoto. */
   const [bildEigen, setBildEigen] = useState(false);
   const [vips, setVips] = useState<Vip[]>([]);
@@ -305,6 +315,24 @@ export default function ProDashboard() {
             <h1 className="mt-1 truncate text-3xl font-extrabold text-white sm:text-4xl">{mein?.name ?? ''}
               <span className="ml-3 rounded-full border border-sky-500/30 bg-sky-500/10 px-2.5 py-0.5 align-middle text-xs font-semibold text-sky-400">Pro</span>
             </h1>
+            {zugangDaten && (
+              <div className="mt-3 flex flex-wrap items-center gap-x-5 gap-y-2 text-sm">
+                <span className="text-slate-400"><T>Chef</T>: <b className="text-amber-300">{zugangDaten.chef}</b></span>
+                <span className="text-slate-400"><T>Anmeldename</T>: <b className="font-mono text-slate-100">{zugangDaten.login}</b></span>
+                <span className="flex items-center gap-2 text-slate-400">
+                  <T>Passwort</T>: <b className="font-mono text-slate-100">{passwortSichtbar ? zugangDaten.passwort : '••••-••••-••••'}</b>
+                  <button type="button" onClick={() => setPasswortSichtbar((v) => !v)}
+                    className="rounded-md border border-zinc-700 px-2 py-0.5 text-xs text-slate-300 transition hover:border-sky-500 hover:text-sky-400">
+                    {passwortSichtbar ? t('Verbergen') : t('Anzeigen')}
+                  </button>
+                  <button type="button"
+                    onClick={() => { void navigator.clipboard.writeText(zugangDaten.passwort).then(() => { setZugangKopiert('pw'); window.setTimeout(() => setZugangKopiert(''), 2500); }).catch(() => undefined); }}
+                    className="rounded-md border border-zinc-700 px-2 py-0.5 text-xs text-slate-300 transition hover:border-sky-500 hover:text-sky-400">
+                    {zugangKopiert === 'pw' ? t('Kopiert') : t('Kopieren')}
+                  </button>
+                </span>
+              </div>
+            )}
           </div>
           <div className="flex flex-wrap items-center gap-2 text-xs text-slate-500">
             {stand === 'speichert' && <span><T>speichert …</T></span>}

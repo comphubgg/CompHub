@@ -182,7 +182,9 @@ async function durchgang(n) {
       kanalStream.set(k.login.toLowerCase(), st); beitreten(k.login.toLowerCase());
     }
   }
-  // Alle zehn Minuten: Follower-Summe (Tagesstand) und alles ins Archiv.
+  // Alle zehn Minuten: Follower-Summe (Tagesstand) und alles ins Archiv. Waehrend ein Kanal live ist, alle zwei Minuten ins Archiv - die Seite zeigt dann
+  // Live-Werte (Chatter, Nachrichten), die sonst bis zu zehn Minuten alt waeren (Betreiber, 29.10.2026: "live sehen ... live viewer, live chatter").
+  if (live.size && n % 2 === 0 && n % (PROBE ? 2 : 10) !== 0) { schreibeAlle(); sync('--nur', 'twitch-statistik'); }
   if (n % (PROBE ? 2 : 10) === 0) {
     const tag = new Date().toISOString().slice(0, 10);
     for (const k of mitId) {

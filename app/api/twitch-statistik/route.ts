@@ -21,14 +21,16 @@ export async function GET(request: Request) {
   const admin = ich.rolle === 'admin';
   if (!ich.idents.length || !(ich.vip || admin)) return NextResponse.json({ ok: false, error: 'Nur für VIPs.' }, { status: 403, headers: nie });
   const kanaele = (await liesKanaele()).filter((k) => admin || k.vips.some((v) => ich.idents.includes(v)));
-  const gewuenscht = (new URL(request.url).searchParams.get('kanal') ?? '').toLowerCase();
+  const p = new URL(request.url).searchParams;
+  const gewuenscht = (p.get('kanal') ?? '').toLowerCase();
   const k = kanaele.find((x) => x.id === gewuenscht || x.login.toLowerCase() === gewuenscht) ?? kanaele[0];
-  const datei = k?.id ? await liesDatei(k.id) : null;
+  // Noch keine Datei vom Sammler (eben eingetragen): Archiv, TwitchTracker und Live gibt es trotzdem schon.
+  const datei = k?.id ? (await liesDatei(k.id)) ?? { id: k.id, login: k.login, name: k.name ?? k.login, follower: [], streams: [] } : null;
   return NextResponse.json({
     ok: true,
     admin,
     kanaele: kanaele.map((x) => ({ login: x.login, id: x.id ?? null, name: x.name ?? x.login, vipName: x.vipName, seit: x.seit })),
-    auswertung: datei ? auswerten(datei) : null,
+    auswertung: datei ? await auswerten(datei, p.get('art') ?? undefined, p.get('einheit') ?? undefined) : null,
     gewaehlt: k ? (k.id ?? k.login) : null,
     ...(admin ? { vips: (await alleVips()).map((v) => ({ ident: v.ident, name: v.name })) } : {}),
   }, { headers: nie });

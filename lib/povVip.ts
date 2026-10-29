@@ -1,6 +1,6 @@
 import crypto from 'crypto';
 import { liesJson, schreibJson } from '@/lib/ablage';
-import { aendern, nachId } from '@/lib/konten';
+import { aendern, anlegen, nachId, nachName } from '@/lib/konten';
 import { zugangNach } from '@/lib/vipZugaenge';
 import { istLive } from '@/lib/povRelay';
 import { liesPros, schreibePros, sichereProEintrag, type Wer } from '@/lib/pov';
@@ -13,7 +13,12 @@ import { liesPros, schreibePros, sichereProEintrag, type Wer } from '@/lib/pov';
  * oeffnet und sich anmeldet, bekommt die Rolle Pro, und der einladende VIP darf sein POV von Anfang an sehen. Mehr nicht: der Pro entscheidet danach
  * selbst, wer zusehen darf, und der Admin kann die Rolle jederzeit wieder nehmen.
  *
- * Gespeichert im Datenarchiv (pov-einladungen.json), je Einladung ein Eintrag; ein Link gilt vierzehn Tage und einmal.
+ * Gespeichert im Datenarchiv (pov-einladungen.json), je Einladung ein Eintrag.
+ *
+ * Seit dem 29.10.2026 (Betreiber: "man soll direkt automatisch in ein Pro-Account geladen werden, Passwort und Name sieht man dann im Dashboard ... man soll
+ * sich nicht selber einloggen muessen ... mit dem Link kommt man immer auf den gleichen Account ... im Dashboard steht, wer sein Chef ist"): das erste
+ * Oeffnen legt ein eigenes Pro-Konto an (Name, erzeugtes Passwort) und meldet an; jedes weitere Oeffnen meldet in dasselbe Konto an. Der Link ist damit
+ * der Schluessel zu diesem Konto - zieht der VIP ihn zurueck, oeffnet er nichts mehr (das Konto bleibt). Das erste Oeffnen muss binnen vierzehn Tagen sein.
  */
 
 const DATEI = 'pov-einladungen.json';
@@ -28,12 +33,17 @@ export interface ProEinladung {
   name: string;
   erstellt: number;
   angenommen?: { ident: string; name: string; zeit: number };
+  /** Das Konto, das der Link oeffnet - mit den Anmeldedaten, die der Pro in seinem Dashboard sieht. */
+  konto?: { id: string; login: string; passwort: string };
+  /** Vom VIP zurueckgezogen: der Link oeffnet nichts mehr. */
+  gesperrt?: boolean;
 }
 
 const lies = () => liesJson<Record<string, ProEinladung>>(DATEI, {});
 const schreibe = (d: Record<string, ProEinladung>) => schreibJson(DATEI, d);
 
-export const gueltig = (e: ProEinladung) => !e.angenommen && Date.now() - e.erstellt < GUELTIG_MS;
+/** Oeffnet der Link (noch) etwas? Vor dem ersten Oeffnen vierzehn Tage, danach so lange, bis der VIP ihn zurueckzieht. */
+export const gueltig = (e: ProEinladung) => !e.gesperrt && (Boolean(e.konto) || Date.now() - e.erstellt < GUELTIG_MS);
 
 export async function einladungenVon(ich: Wer): Promise<ProEinladung[]> {
   const alle = await lies();
@@ -62,27 +72,52 @@ export async function neueEinladung(ich: Wer, name: string): Promise<ProEinladun
 export async function zurueckziehen(ich: Wer, code: string): Promise<boolean> {
   const alle = await lies();
   const e = alle[code];
-  if (!e || e.angenommen || !e.vip.some((v) => ich.idents.includes(v))) return false;
-  delete alle[code];
+  if (!e || !e.vip.some((v) => ich.idents.includes(v))) return false;
+  // Noch nie geoeffnet: weg damit. Schon ein Konto dahinter: nur sperren - der Pro behaelt sein Konto, der Link oeffnet es nicht mehr.
+  if (e.konto) alle[code] = { ...e, gesperrt: true }; else delete alle[code];
   await schreibe(alle);
   return true;
 }
 
+/** Ein lesbares Passwort ohne leicht verwechselbare Zeichen (0/O, 1/l/I), drei Gruppen zu vier. */
+function neuesProPasswort(): string {
+  const z = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const b = crypto.randomBytes(12);
+  return [0, 4, 8].map((i) => Array.from(b.subarray(i, i + 4), (x) => z[x % z.length]).join('')).join('-');
+}
+
+/** Ein freier Kontoname aus dem Wunschnamen des VIPs (sonst "pro-..."). */
+async function freierName(wunsch: string, code: string): Promise<string> {
+  const basis = wunsch.normalize('NFKD').replace(/[^A-Za-z0-9_.-]/g, '').slice(0, 20) || `pro-${code.slice(0, 6).toLowerCase()}`;
+  for (let i = 0; i < 50; i += 1) {
+    const name = i ? `${basis}${i + 1}` : basis;
+    if (!await nachName(name)) return name;
+  }
+  return `pro-${crypto.randomBytes(4).toString('hex')}`;
+}
+
 /**
- * Eine Einladung annehmen: das Konto wird Pro (eine hoehere Rolle bleibt), und der einladende VIP darf zusehen.
- * Nur mit einem Konto - ein VIP-Zugang hat keine Rolle, die sich hier setzen liesse.
+ * Den Link oeffnen: beim ersten Mal ein eigenes Pro-Konto anlegen (der einladende VIP darf zusehen), danach immer dasselbe Konto. Zurueck kommt die
+ * Konto-Id, mit der die Route die Sitzung setzt.
  */
-export async function annehmen(code: string, kontoId: string): Promise<{ ok: true; vipName: string } | { ok: false; fehler: string }> {
+export async function oeffnen(code: string): Promise<{ ok: true; kontoId: string; neu: boolean } | { ok: false; fehler: string }> {
   const alle = await lies();
   const e = alle[code];
   if (!e) return { ok: false, fehler: 'Diese Einladung gibt es nicht.' };
-  if (!gueltig(e)) return { ok: false, fehler: e.angenommen ? 'Diese Einladung wurde schon angenommen.' : 'Diese Einladung ist abgelaufen.' };
-  const k = await nachId(kontoId);
-  if (!k || k.gesperrt) return { ok: false, fehler: 'Erst anmelden.' };
-  const ident = `k:${k.id}`;
-  if (e.vip.includes(ident)) return { ok: false, fehler: 'Das ist deine eigene Einladung.' };
-  if (!k.rolle) await aendern(k.id, { rolle: 'pro' });
-  await sichereProEintrag(ident, k.name);
+  if (e.gesperrt) return { ok: false, fehler: 'Diese Einladung wurde zurückgezogen.' };
+  if (e.konto) {
+    const k = await nachId(e.konto.id);
+    if (!k || k.gesperrt) return { ok: false, fehler: 'Das Konto zu dieser Einladung gibt es nicht mehr.' };
+    return { ok: true, kontoId: k.id, neu: false };
+  }
+  if (!gueltig(e)) return { ok: false, fehler: 'Diese Einladung ist abgelaufen.' };
+  const name = await freierName(e.name, code);
+  const passwort = neuesProPasswort();
+  const r = await anlegen({ email: `pro-${crypto.randomBytes(6).toString('hex')}@pro.thecomphub.com`, name, passwort, bestaetigt: true });
+  if ('fehler' in r) return { ok: false, fehler: r.fehler };
+  await aendern(r.konto.id, { rolle: 'pro' });
+  const ident = `k:${r.konto.id}`;
+  await sichereProEintrag(ident, name);
   const pros = await liesPros();
   const p = pros[ident];
   if (p) {
@@ -90,10 +125,17 @@ export async function annehmen(code: string, kontoId: string): Promise<{ ok: tru
     p.aktualisiert = Date.now();
     await schreibePros(pros);
   }
-  e.angenommen = { ident, name: k.name, zeit: Date.now() };
+  e.angenommen = { ident, name, zeit: Date.now() };
+  e.konto = { id: r.konto.id, login: name, passwort };
   alle[code] = e;
   await schreibe(alle);
-  return { ok: true, vipName: e.vipName };
+  return { ok: true, kontoId: r.konto.id, neu: true };
+}
+
+/** Fuer das Dashboard des Pros: sein Chef (der einladende VIP) und seine Anmeldedaten - null, wenn er nicht ueber eine Einladung kam. */
+export async function zugangVon(ich: Wer): Promise<{ chef: string; login: string; passwort: string; seit: number } | null> {
+  const e = Object.values(await lies()).find((x) => x.konto && x.angenommen && ich.idents.includes(x.angenommen.ident));
+  return e?.konto ? { chef: e.vipName, login: e.konto.login, passwort: e.konto.passwort, seit: e.angenommen?.zeit ?? e.erstellt } : null;
 }
 
 /** Das Discord-Konto des VIPs - aus dem Konto (mit Discord angemeldet) oder dem VIP-Zugang. Leer, wenn keines. */
