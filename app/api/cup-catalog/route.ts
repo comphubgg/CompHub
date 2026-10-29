@@ -68,7 +68,14 @@ function benenne(cups: CupGruppe[]): CupGruppe[] {
     const ev = erstes(c)?.eventId;
     if (ev && !istKennung(c.titel) && c.titel.trim().toLowerCase() !== 'fortnite' && !nameJeTurnier.has(ev)) nameJeTurnier.set(ev, c.titel);
   }
-  const roh = cups.map((c) => {
+  // Ein Eintrag ohne Namen, dessen Spielfenster alle schon ein benannter Eintrag fuehrt, ist derselbe Cup noch einmal (Fight Night, 29.10.2026).
+  const fensterBenannt = new Set(cups.filter((c) => !istKennung(c.titel)).flatMap((c) => Object.values(c.regionen ?? {}).flat().map((w) => w.windowId)));
+  const ohneDoppelte = cups.filter((c) => {
+    if (!istKennung(c.titel)) return true;
+    const eigene = Object.values(c.regionen ?? {}).flat().map((w) => w.windowId);
+    return !eigene.length || eigene.some((w) => !fensterBenannt.has(w));
+  });
+  const roh = ohneDoppelte.map((c) => {
     if (istKennung(c.titel)) {
       const ev = erstes(c)?.eventId;
       return { ...c, titel: (ev && nameJeTurnier.get(ev)) || lesbar(c.titel) };
