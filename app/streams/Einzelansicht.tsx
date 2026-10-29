@@ -5,6 +5,7 @@ import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import Kachel from './Kachel';
 import PovVideo from './PovVideo';
+import MatchIdAnzeige from './MatchIdAnzeige';
 import type { BannerEinst, StatsEinst } from './PovVideo';
 import { CSS } from './Multiview';
 import { useHell } from '@/app/lib/useHell';
@@ -459,6 +460,8 @@ export default function Einzelansicht(p: Props) {
           <p className="min-w-0 flex-1 truncate text-sm font-semibold">
             {povInfo ? povInfo.name : p.aktiv || ''}
           </p>
+          {/* Die laufende Match-ID dieses Streamers, wo sie bekannt ist (Freund des CompHub-Kontos) - app/streams/MatchIdAnzeige. */}
+          {!povInfo && p.aktiv && <MatchIdAnzeige kanal={p.aktiv} />}
           {/* Chat an oder aus: ein Symbol im Stil der Leiste, kein Text-Knopf. */}
           {!povInfo && p.aktiv && (
             <button type="button" onClick={p.chatUmschalten} aria-pressed={p.chatAn}
