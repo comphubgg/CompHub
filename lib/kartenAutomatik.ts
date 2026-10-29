@@ -3,7 +3,7 @@ import path from 'path';
 import { DATEN_ORT } from '@/lib/datenOrt';
 import { ersatzSeit, liesJson, schreibJson } from '@/lib/ablage';
 import { nobleKarte } from '@/lib/nobleKarte';
-import { vitalAlsNoble, VITAL_REGIONEN } from '@/lib/vitalScrims';
+import { vitalAlsNoble, VITAL_REGIONEN, regionAusKennung } from '@/lib/vitalScrims';
 import { istGrossesTurnier, istFinaleTag } from '@/lib/turnierArt';
 import { kartenTitel } from '@/lib/rundenName';
 import { inselAusPlaylist } from '@/lib/inseln';
@@ -46,6 +46,9 @@ type Stand = Record<string, FensterStand>;
 
 export interface Ziel { cup: CupGruppe; f: CupFensterDetail; region: string; ab: number }
 
+/** Endet die Kennung auf eine Region ("..._NAC"), muss es diese sein; ohne Endung (Globals) passt jede. */
+const passtRegion = (windowId: string, region: string) => { const r = regionAusKennung(windowId); return !r || r === region; };
+
 /** Kartentitel immer englisch, wie die von Hand angelegten ("Event 9 · Round 2") - kartenTitel spricht ohne Uebersetzer deutsch. */
 const ENGLISCH: Record<string, string> = { Runde: 'Round', Tag: 'Day', Finale: 'Finals' };
 const titelVon = (z: Ziel) => kartenTitel(z.cup.titel, z.f, (w) => ENGLISCH[w] ?? w) || z.cup.titel;
@@ -66,7 +69,8 @@ export function zieleAus(cups: CupGruppe[], nurPerformance = false): Ziel[] {
     if (nurPerformance && !/performance/i.test(cup.titel)) continue;
     for (const [region, liste] of Object.entries(cup.regionen ?? {})) {
       if (!(AUTO_REGIONEN as readonly string[]).includes(region)) continue;
-      const sortiert = [...liste].sort((a, b) => a.begin - b.begin);
+      // Nur Spieltage dieser Region: Epic fuehrt beim Duo-Cup unter NA West auch die Fenster von NA Central ("..._NAC").
+      const sortiert = [...liste].filter((f) => passtRegion(f.windowId, region)).sort((a, b) => a.begin - b.begin);
       sortiert.forEach((f, i) => {
         if (!istFinaleTag(cup.titel, f.istFinale, f.windowId)) return;
         const davor = sortiert.slice(0, i).reverse().find((w) => !istFinaleTag(cup.titel, w.istFinale, w.windowId));
@@ -153,6 +157,10 @@ export async function kartenAutomatik(
   const vorher = JSON.stringify(stand);
   let kartenGeaendert = false;
   const gescheitert: string[] = [];
+
+  // Unberuehrte Karten von hier zu einem Spieltag einer anderen Region (der erste Lauf legte NA Central unter NA West an) wieder weg.
+  const falsch = karten.filter((k) => k.automatisch && k.automatisch.stand === k.geaendert && k.region && !passtRegion(k.windowId ?? '', k.region));
+  if (falsch.length) { karten = karten.filter((k) => !falsch.includes(k)); kartenGeaendert = true; }
 
   // Unberuehrte Karten von hier tragen den aktuellen Titel (die ersten hiessen noch "Runde 2").
   for (const z of zieleAus(cups)) {
