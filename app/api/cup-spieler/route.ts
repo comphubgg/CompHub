@@ -227,8 +227,15 @@ async function holeRoh(request: Request) {
   const szene = await ausSzene(tage, anzeige, land).catch(() => null);
   if (szene) {
     if (rep?.spieler.length) {
-      const knocks = new Map(rep.spieler.map((x) => [x.epicId, x.knocks]));
-      for (const x of szene.spieler) x.knocks = knocks.get(x.epicId) ?? x.knocks;
+      const ausRep = new Map(rep.spieler.map((x) => [x.epicId, x]));
+      for (const x of szene.spieler) {
+        const r = ausRep.get(x.epicId);
+        x.knocks = r?.knocks ?? x.knocks;
+        // Wie bei allen anderen Cups: Eliminierungen je Match und K/D (Tode aus den Replays), ab fuenf Spielen.
+        if (r) x.tode = r.gestorben;
+        // Im Finale spielt jeder alle Spiele - dort reicht die Zahl der Spiele des Finales (Performance: vier).
+        if (x.spiele >= Math.min(5, szene.runden || 5)) Object.assign(x, { elimsJeMatch: x.kills / x.spiele, ...(r ? { kd: x.kills / Math.max(1, r.gestorben) } : {}) });
+      }
     }
     return NextResponse.json({ ...szene, gesamt: szene.spieler.length });
   }
