@@ -64,6 +64,9 @@ jobs:
           # Wer neu auf den Discord-Server gekommen ist: Willkommensnachricht privat und eine Meldung in #admin-joins (lib/discord willkommenLauf) - alle zehn Minuten.
           curl -s -w ' [Willkommen: %{http_code}]' -m 150 -H "Authorization: Bearer $GEHEIM_E" "https://www.thecomphub.com/api/cron/willkommen" || true
           echo
+          # Turnierkarten der grossen Finals von selbst (lib/kartenAutomatik): ab dem Ende der offenen Runde alle zehn Minuten neu, zehn Minuten nach Beginn ein letztes Mal - alle zehn Minuten.
+          curl -s -w ' [Turnierkarten: %{http_code}]' -m 290 -H "Authorization: Bearer $GEHEIM_E" "https://www.thecomphub.com/api/cron/karten-automatik" || true
+          echo
           if [ "$(date -u +%H)" = "07" ] && [ "$(date -u +%M)" -lt 10 ]; then
             GEHEIM=$(printf '%s' "${{ secrets.ENV_LOCAL }}" | grep '^CRON_SECRET=' | cut -d= -f2- | tr -d '"\r')
             [ -z "$GEHEIM" ] && GEHEIM=$GEHEIM_E

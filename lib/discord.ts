@@ -1907,6 +1907,27 @@ export async function schickeAlarm(
 }
 
 /**
+ * Ein Auftrag an den Admin in #to-do-for-admin (gelb, deutsch) - fuer das, was eine Automatik nicht allein schafft
+ * (zum Beispiel eine Turnierkarte, die sich nicht von selbst anlegen liess, lib/kartenAutomatik).
+ */
+export async function schickeAdminAufgabe(
+  { titel, text }: { titel: string; text: string },
+): Promise<{ ok: boolean; grund?: string }> {
+  if (!discordDa()) return { ok: false, grund: 'kein-token' };
+  const kanal = (await alleKanaele()).find((k) => k.type === 0 && gleich(k.name, 'to-do-for-admin'));
+  if (!kanal) return { ok: false, grund: 'kein-kanal' };
+  const gesendet = await ruf(`/channels/${kanal.id}/messages`, 'POST', {
+    embeds: [{
+      title: `FÜR DICH ZU TUN · ${titel}`.slice(0, 256),
+      description: text.slice(0, 4000),
+      color: 0xeab308,
+      footer: { text: new Date().toLocaleString('de-CH', { timeZone: 'Europe/Zurich' }) + ' Uhr' },
+    }],
+  });
+  return idAus(gesendet) ? { ok: true } : { ok: false, grund: 'abgelehnt' };
+}
+
+/**
  * Eine neue Meldung aus dem Kontaktformular (#admin-support, nur Admin) - Betreiber, 19.10.2026: "mach das auch in Discord: ein Support-Kanal nur fuer mich;
  * ich druecke auf den Link und komme zur Anfrage, um dort zu antworten - oder antworte per E-Mail, wenn ich auf dem Handy bin."
  */
