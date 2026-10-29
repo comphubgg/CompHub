@@ -19,7 +19,7 @@ interface Favorit { id: string; name: string }
 /** Ein Suchtreffer: Pro-Name, aktueller In-Game-Name und Bild. */
 interface Treffer extends Favorit { ingame?: string | null; bild?: string | null }
 interface FMatch { matchId: string; ende: string | null; platz: number | null; elims: number | null; windowId: string; titel: string }
-interface FLive { matchId: string; quelle: 'bestenliste' | 'sitzung'; windowId: string | null; titel: string | null; playlist: string | null }
+interface FLive { matchId: string; quelle: 'bestenliste' | 'sitzung' | 'freund'; windowId: string | null; titel: string | null; playlist: string | null }
 interface FScrim { beendet?: boolean; session: string; server: string; platz: number | null; punkte: number | null; spiele: number; kills: number | null; letztesSpiel: { code: string; ende: string | null; platz: number | null } | null; nurAngemeldet: boolean; link: string }
 interface FSpieler { live: FLive | null; matches: FMatch[]; rang: number | null; punkte: number | null; windowId: string | null; scrim?: FScrim | null }
 interface FCup { windowId: string; titel: string; region: string; live: boolean }

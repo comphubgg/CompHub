@@ -3,6 +3,7 @@ import { GET as katalogAbruf } from '@/app/api/cup-catalog/route';
 import { replayRegel } from '@/lib/replayRegel.mjs';
 import { liesJson } from '@/lib/ablage';
 import { scrimsVon, type ScrimTreffer } from '@/lib/scrimsNoble';
+import { freundesStatus } from '@/lib/epicFreundeStatus';
 
 /*
  * Der Match-ID-Finder fuer VIPs (Betreiber, 27.10.2026): "wenn man in einem Performance-Open-Cup von einem Spieler seine Match-ID will ... anzeigen, ob live
@@ -18,7 +19,7 @@ import { scrimsVon, type ScrimTreffer } from '@/lib/scrimsNoble';
  */
 
 export interface FinderMatch { matchId: string; ende: string | null; platz: number | null; elims: number | null; windowId: string; titel: string }
-export interface FinderLive { matchId: string; quelle: 'bestenliste' | 'sitzung'; windowId: string | null; titel: string | null; playlist: string | null; seit: string | null }
+export interface FinderLive { matchId: string; quelle: 'bestenliste' | 'sitzung' | 'freund'; windowId: string | null; titel: string | null; playlist: string | null; seit: string | null }
 export interface FinderSpieler { live: FinderLive | null; matches: FinderMatch[]; rang: number | null; punkte: number | null; windowId: string | null; scrim?: ScrimTreffer | null }
 export interface FinderCup { windowId: string; eventId: string; titel: string; region: string; live: boolean }
 
@@ -104,7 +105,16 @@ export async function finde(ids: string[], mitRohwert = false, namen: Record<str
       return scrimsVon(ids.map((id) => ({ id, namen: [namen[id] ?? '', aktuell[id] ?? ''].filter(Boolean) }))).catch(() => ({} as Record<string, ScrimTreffer>));
     })(),
   ]);
-  const spieler = Object.fromEntries(Object.entries(r.spieler).map(([id, s]) => [id, { ...s, scrim: scrims[id] ?? null }]));
+  /*
+   * Kein Turnier-Game, aber ein Freund des CompHub-Kontos in einem Game: die volle Match-ID aus seinem Epic-Status (Scrims, Pubs, Ranked, Custom).
+   * Nur fuer Freunde dieses Kontos - Epic schickt den Status niemandem sonst.
+   */
+  const freunde = await freundesStatus().then((x) => x.freunde).catch(() => new Map());
+  const spieler = Object.fromEntries(Object.entries(r.spieler).map(([id, s]) => {
+    const f = freunde.get(id.toLowerCase());
+    const live = s.live ?? (f?.sessionId ? { matchId: f.sessionId, quelle: 'freund' as const, windowId: null, titel: f.zeile || null, playlist: f.playlist, seit: f.seit } : null);
+    return [id, { ...s, live, scrim: scrims[id] ?? null, freund: freunde.has(id.toLowerCase()) }];
+  }));
   return { ...r, spieler };
 }
 
