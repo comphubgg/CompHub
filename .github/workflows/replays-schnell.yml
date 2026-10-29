@@ -115,14 +115,16 @@ jobs:
           name: plan-schnell
           path: data
 
-      # Lesen braucht kaum Rechenzeit (nur die Ereignisse, rund eine Sekunde je Match) - es wartet auf Epic. Deshalb mehr gleichzeitig als in der Nacharbeit.
+      # Lesen braucht kaum Rechenzeit (2 ms je Match) - es wartet auf Epic: ein Match sind rund zweihundert Ereignis-Dateien, gut 5 s Laden. Deshalb viele
+      # zugleich, und mehr Verbindungen, als die Bibliothek von sich aus nimmt (20 je Prozess - damit blieb es im ersten Lauf bei 0,4 Matches je Sekunde).
       - name: Lesen
         continue-on-error: true
         timeout-minutes: 30
         env:
-          MAX_REPLAY_DOWNLOADS: '10'
+          MAX_REPLAY_DOWNLOADS: '16'
           MAX_REPLAY_PARSERS: '4'
           MAX_REPLAY_CHECKS: '16'
+          MAX_REPLAY_SOCKETS: '128'
         run: node scripts/replays-holen.mjs --aus-plan data/schnell-plan.json --stueck ${{ matrix.stueck }} --minuten 22 2>&1 | tail -40
 
       # Nur die gelesenen Matches und der Teilstand - nie die Anmeldung (Artefakte oeffentlicher Projekte kann jeder Angemeldete laden).
@@ -148,6 +150,7 @@ jobs:
     timeout-minutes: 30
     permissions:
       contents: write
+      actions: write
     steps:
       - uses: actions/checkout@v4
 
@@ -176,9 +179,18 @@ jobs:
           merge-multiple: true
 
       - name: Zusammenfuehren, auswerten, hochladen
+        id: zusammen
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node scripts/replays-holen.mjs --plan-zusammen data/schnell-plan.json 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -80
+
+      # Blieb etwas offen (ein grosser Cup braucht mehr als einen Lauf), gleich weiter - nicht erst beim naechsten Anstoss.
+      - name: Weiter, solange etwas offen ist
+        if: steps.zusammen.outputs.rest != '' && steps.zusammen.outputs.rest != '0'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run replays-schnell.yml -R "${{ github.repository }}" --ref main && echo "naechster Lauf angestossen (${{ steps.zusammen.outputs.rest }} offen)"
 
       - name: Zugangsdaten wieder weg
         if: always()

@@ -922,6 +922,8 @@ async function planZusammenLauf(datei) {
   ]));
   const teile = existsSync(STUECK_ORDNER) ? readdirSync(STUECK_ORDNER).filter((d) => d.endsWith('.json')) : [];
   const fertigeFenster = [];
+  // Was danach noch offen ist (nie angefasst, liegen geblieben, fehlgeschlagen) - dann stoesst der Ablauf gleich den naechsten Lauf an.
+  let rest = 0;
   for (const f of fenster) {
     const zustand = await liesZustand(f.season, f.windowId);
     zustand.matches ??= {};
@@ -945,8 +947,13 @@ async function planZusammenLauf(datei) {
     await schreibeZustand(f.season, f.windowId, zustand);
     fertigeFenster.push(f);
     const werte = Object.values(zustand.matches);
+    // Ein Match, das dreimal scheiterte, haelt die Kette nicht am Laufen - es kommt mit dem naechsten Anstoss wieder dran.
+    rest += werte.filter((x) => x.stand !== ZUSTAND.FERTIG && x.stand !== ZUSTAND.NICHT_VORHANDEN
+      && !(x.stand === ZUSTAND.FEHLGESCHLAGEN && (x.versuche ?? 0) >= 3)).length;
     console.log(`  ${f.windowId.padEnd(52)} ${werte.filter((x) => x.stand === ZUSTAND.FERTIG).length}/${werte.length} ausgewertet (${angefasst} in diesem Lauf)`);
   }
+  console.log(`Noch offen: ${rest}`);
+  if (process.env.GITHUB_OUTPUT) await fs.appendFile(process.env.GITHUB_OUTPUT, `rest=${rest}\n`);
   if (!fertigeFenster.length) { console.log('Nichts zusammenzufuehren.'); return; }
 
   const namen = fertigeFenster.map((f) => f.windowId);
