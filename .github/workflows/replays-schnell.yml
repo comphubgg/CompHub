@@ -29,7 +29,9 @@ on:
     paths:
       - '.github/workflows/replays-schnell.yml'
   schedule:
-    - cron: '*/30 * * * *'
+    # Alle 15 Minuten (29.10.2026): waehrend eines Cups rutschen Teams in die Top 10.000 der Bestenliste und wieder heraus - je oefter gelesen,
+    # desto mehr Lobbys (auch der schwaecheren Spieler) sind erfasst. Epic gibt nie mehr als 10.000 Plaetze heraus.
+    - cron: '*/15 * * * *'
 
 concurrency:
   group: replays-schnell
