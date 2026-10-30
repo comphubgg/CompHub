@@ -52,7 +52,8 @@ const ohneVorsatz = (n?: string) => String(n ?? '?').replace(/^\s*\[[^\]]*\]\s*/
 const nameVon = (p?: { bot?: boolean; name?: string }) => (p?.bot ? 'Bot' : ohneVorsatz(p?.name));
 const uhr = (s: number) => { const v = Math.max(0, Math.round(s)); return `${Math.floor(v / 60)}:${String(v % 60).padStart(2, '0')}`; };
 const GESCHWINDIGKEIT = [1, 4, 16, 64];
-const MAX_ZOOM = 10;
+// 40-fach (Betreiber, 30.10.2026: "zu wenig Zoom ... man erkennt die Spieler gar nicht") - die Zeichen bleiben dabei gleich gross.
+const MAX_ZOOM = 40;
 /** Wie lange der Kreis eines Knocks stehen bleibt (Sekunden). */
 const KNOCK_DAUER = 12;
 
@@ -425,7 +426,7 @@ export default function ReplayAnsicht({ match, kartenBild, titel, wertung, hervo
                 <SchussEbene d={sd} zeit={zeit} pzx={pzx} pzy={pzy} sichtbar={sichtbarTeam} gewaehlt={gewaehlt} />
                 <SpielerPunkte d={sd} zeit={zeit} spieler={echte.map((s) => ({ id: s.id, name: nameVon(s), tod: s.tod, team: s.team }))} pzx={pzx} pzy={pzy}
                   farbeVon={farbeVon} sichtbar={(id) => (gewaehlt !== null ? id === gewaehlt || nachId.get(id ?? -1)?.team === nachId.get(gewaehlt)?.team : sichtbarTeam(id))}
-                  gewaehlt={gewaehlt} waehle={setGewaehlt} namenZeigen={ansicht.z >= 2.5 || teamWahl !== null} />
+                  gewaehlt={gewaehlt} waehle={setGewaehlt} namenZeigen={ansicht.z >= 1.8 || teamWahl !== null} />
 
                 {/* 3D: Pfosten fuer die Eliminierungen */}
                 {dreiD && tote.slice(-80).map((e, i) => (

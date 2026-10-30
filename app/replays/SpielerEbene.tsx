@@ -45,7 +45,7 @@ function bisIndex(liste: number[][], t: number): number {
 }
 
 /** Wo ein Spieler zur Zeit t stand: zwischen zwei bekannten Orten geradlinig, nach dem letzten stehend; vor dem ersten unbekannt. Dazu die Laufrichtung. */
-export function ortBei(liste: number[][] | undefined, t: number): { x: number; y: number; richtung: number | null } | null {
+export function ortBei(liste: number[][] | undefined, t: number): { x: number; y: number; richtung: number | null; alt: number } | null {
   if (!liste?.length) return null;
   const i = bisIndex(liste, t);
   if (i < 0) return null;
@@ -53,9 +53,9 @@ export function ortBei(liste: number[][] | undefined, t: number): { x: number; y
   const vor = b ?? null; const nach = vor ? a : liste[i - 1];
   const richtung = vor && (vor[1] !== a[1] || vor[2] !== a[2]) ? Math.atan2(vor[2] - a[2], vor[1] - a[1]) * 180 / Math.PI
     : nach && (a[1] !== nach[1] || a[2] !== nach[2]) ? Math.atan2(a[2] - nach[2], a[1] - nach[1]) * 180 / Math.PI : null;
-  if (!b) return { x: a[1], y: a[2], richtung };
+  if (!b) return { x: a[1], y: a[2], richtung, alt: t - a[0] };
   const f = (t - a[0]) / Math.max(0.001, b[0] - a[0]);
-  return { x: a[1] + (b[1] - a[1]) * f, y: a[2] + (b[2] - a[2]) * f, richtung };
+  return { x: a[1] + (b[1] - a[1]) * f, y: a[2] + (b[2] - a[2]) * f, richtung, alt: Math.min(t - a[0], b[0] - t) };
 }
 
 /** Der letzte Wert vor t. */
@@ -253,17 +253,17 @@ export function SpielerPunkte({ d, zeit, spieler, pzx, pzy, farbeVon, sichtbar, 
         return (
           <button key={s.id} type="button" data-marker onClick={() => waehle(an ? null : s.id)} aria-label={s.name}
             className="absolute z-20 block border-0 bg-transparent p-1"
-            style={{ left: `${pzx(o.x)}%`, top: `${pzy(o.y)}%`, transform: `translate(-50%, -50%) scale(calc(${an ? 1.35 : 1} / var(--z, 1)))`, opacity: sichtbar(s.id) ? 1 : 0.18 }}>
+            style={{ left: `${pzx(o.x)}%`, top: `${pzy(o.y)}%`, transform: `translate(-50%, -50%) scale(calc(${an ? 1.35 : 1} / var(--z, 1)))`, opacity: sichtbar(s.id) ? 1 : 0.45 }}>
             <span className="relative block">
-              <span className="absolute left-1/2 -translate-x-1/2" style={{ bottom: 'calc(100% + 3px)', width: 26 }}>
+              <span className="absolute left-1/2 -translate-x-1/2" style={{ bottom: 'calc(100% + 3px)', width: 34 }}>
                 <Balken hp={hp} schild={schild} schmal />
               </span>
-              <svg viewBox="0 0 20 20" width={18} height={18} className="block" style={{ transform: `rotate(${winkel}deg)`, filter: an ? 'drop-shadow(0 0 4px #fff)' : 'drop-shadow(0 1px 1px #000)' }}>
-                <path d="M18 10 L3 3 L6.5 10 L3 17 Z" fill={farbeVon(s.id)} stroke={an ? '#fff' : '#000'} strokeWidth="1.6" strokeLinejoin="round" />
+              <svg viewBox="0 0 20 20" width={26} height={26} className="block" style={{ transform: `rotate(${winkel}deg)`, filter: an ? 'drop-shadow(0 0 4px #fff)' : 'drop-shadow(0 1px 1px #000)' }}>
+                <path d="M18 10 L3 3 L6.5 10 L3 17 Z" fill={farbeVon(s.id)} stroke={an ? '#fff' : '#000'} strokeWidth="2" strokeLinejoin="round" />
               </svg>
               {(namenZeigen || an) && (
-                <span className="pointer-events-none absolute left-1/2 top-full mt-0.5 flex -translate-x-1/2 items-center gap-1 whitespace-nowrap rounded bg-black/75 px-1 text-[9px] font-bold leading-tight text-white">
-                  {hand && <Symbol art={artVon(hand).art} gross={11} />}{s.name}
+                <span className="pointer-events-none absolute left-1/2 top-full mt-0.5 flex -translate-x-1/2 items-center gap-1 whitespace-nowrap rounded bg-black/80 px-1.5 py-px text-[11px] font-bold leading-tight text-white">
+                  {hand && <Symbol art={artVon(hand).art} gross={14} />}{s.name}
                 </span>
               )}
             </span>
@@ -284,8 +284,18 @@ export function SchussEbene({ d, zeit, pzx, pzy, sichtbar, gewaehlt }: Pick<Eben
       <svg viewBox="0 0 100 100" preserveAspectRatio="none" className="pointer-events-none absolute inset-0 z-[15] h-full w-full">
         {jetzt.map((s, i) => {
           if (!sichtbar(s[1]) && gewaehlt === null) return null;
-          const von = ortBei(d.orte.get(s[1]), s[0]);
-          if (!von) return null;
+          /*
+           * Die Linie endet am Einschlag. Wo der Schuetze stand, ist nur nahe an einem bekannten Ort sicher (Betreiber, 30.10.2026: "Schussrichtungen
+           * duerfen nur bis zum Gegner gehen, nicht durch die ganze Map"): ist sein Ort aelter als 3 s oder liegt er weiter als 120 m weg, steht nur ein
+           * kurzer Strich (12 m) in Richtung des vermuteten Schuetzen; Treffer auf Bauteile dann gar nicht.
+           */
+          const ort = ortBei(d.orte.get(s[1]), s[0]);
+          if (!ort) return null;
+          const dx = ort.x - s[2]; const dy = ort.y - s[3]; const weit = Math.hypot(dx, dy);
+          const sicher = ort.alt <= 3 && weit <= 12_000;
+          if (!sicher && s[5] === 0) return null;
+          const lang = sicher ? weit : Math.min(weit, 1_200);
+          const von = { x: s[2] + (weit ? (dx / weit) * lang : 0), y: s[3] + (weit ? (dy / weit) * lang : 0) };
           const alter = (zeit - s[0]) / SCHUSS_DAUER;
           const farbe = s[5] === 2 ? '#facc15' : s[5] === 1 ? '#f87171' : '#e2e8f0';
           return (
@@ -304,7 +314,7 @@ export function SchussEbene({ d, zeit, pzx, pzy, sichtbar, gewaehlt }: Pick<Eben
       {loot.map((l, i) => (
         <span key={`l${i}`} className="pointer-events-none absolute z-[25]"
           style={{ left: `${pzx(l[3])}%`, top: `${pzy(l[4])}%`, transform: 'translate(-50%, 40%) scale(calc(1 / var(--z, 1)))', opacity: 1 - (zeit - l[0]) / LOOT_DAUER }}>
-          <Fach roh={d.namen[l[2]] ?? ''} gross={20} />
+          <Fach roh={d.namen[l[2]] ?? ''} gross={26} />
         </span>
       ))}
     </>
