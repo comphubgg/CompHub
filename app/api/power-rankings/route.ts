@@ -72,9 +72,11 @@ async function holeRoh(request: Request) {
      * und Startnummer - ueber die Konto-Id, nie ueber den Namen (siehe lib/globalsSolos spielerKontext). Epics Name steht daneben weiter da.
      */
     const kontext = await spielerKontext();
-    const mit = <T extends { id: string; name: string }>(s: T) => {
+    const mit = <T extends { id: string; name: string; land?: string }>(s: T) => {
       const k = s.id ? kontext(s.id, s.name) : null;
-      return { ...s, anzeige: k ? k.anzeige : s.name, bild: k?.bild ?? null };
+      // Die Flagge aus dem Profil vor Epics Kontoland (30.10.2026: Shxrk stand mit Suedkorea da, Malibuca mit Mexiko - das stellen sie bei Epic selbst ein).
+      // Nur Profis haben eine Flagge (profi-ist-die-konto-id) - Epics Kontoland allein gilt nicht.
+      return { ...s, anzeige: k ? k.anzeige : s.name, bild: k?.bild ?? null, land: (k?.land || '').toLowerCase() };
     };
 
     /*
@@ -86,7 +88,7 @@ async function holeRoh(request: Request) {
       const auf = liste.filter((s) => s.deltaPlatz > 0).sort((a, b) => b.deltaPlatz - a.deltaPlatz || a.rank - b.rank).slice(0, 8).map(mit);
       const ab = liste.filter((s) => s.deltaPlatz < 0).sort((a, b) => a.deltaPlatz - b.deltaPlatz || a.rank - b.rank).slice(0, 8).map(mit);
       const laender: Record<string, number> = {};
-      for (const s of liste.slice(0, 100)) if (s.land) laender[s.land] = (laender[s.land] ?? 0) + 1;
+      for (const s of liste.slice(0, 100).map(mit)) if (s.land) laender[s.land] = (laender[s.land] ?? 0) + 1;
       return NextResponse.json({
         success: true, fetchedAt: stand.geholt, total: liste.length,
         spitze: liste.slice(0, 3).map(mit), aufsteiger: auf, absteiger: ab,

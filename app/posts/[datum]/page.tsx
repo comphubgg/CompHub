@@ -8,6 +8,7 @@
  * (lib/tagesposts); keine Hashtags.
  */
 
+import NurAdminSeite from '@/app/components/NurAdminSeite';
 import { useCallback, useEffect, useState } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
@@ -67,7 +68,7 @@ export default function PostsDesTages() {
   };
 
   if (zugang.laedt) return <main className="min-h-screen bg-zinc-950"><LadeSchirm /></main>;
-  if (!zugang.admin) return <main className="grid min-h-screen place-items-center bg-zinc-950 px-4 text-sm text-slate-400"><T>Nur für den Admin.</T></main>;
+  if (!zugang.admin) return <NurAdminSeite />;
 
   return (
     <main className="min-h-screen bg-zinc-950 px-4 py-10 text-slate-100">

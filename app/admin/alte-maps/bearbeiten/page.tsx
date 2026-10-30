@@ -10,6 +10,7 @@
  * Nichts wird geladen; was hier steht, speichert lib/alteMaps in alte-maps.json und die öffentliche Karte zeigt es sofort.
  */
 
+import NurAdminSeite from '@/app/components/NurAdminSeite';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import Link from 'next/link';
 import T from '@/app/components/T';
@@ -286,7 +287,7 @@ export default function AlteMapBearbeiten() {
   /* ------------------------------------------------------------ Ansicht */
 
   if (zugang.laedt) return <main className="min-h-screen bg-zinc-950"><LadeSchirm /></main>;
-  if (!zugang.admin) return <main className="grid min-h-screen place-items-center bg-zinc-950 px-4 text-sm text-slate-400"><T>Nur für den Admin.</T></main>;
+  if (!zugang.admin) return <NurAdminSeite />;
 
   const oeffentlich = par ? `/tournament-maps/karte?t=${encodeURIComponent(par.t)}&r=${encodeURIComponent(par.r)}&w=${encodeURIComponent(par.w)}` : '/tournament-maps';
   const sortiert = [...teams].sort((a, b) => (a.rang ?? 99999) - (b.rang ?? 99999));

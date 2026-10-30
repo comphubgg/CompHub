@@ -2361,6 +2361,8 @@ const AUF_ENGLISCH: Record<string, string> = {
     'Calendar',
   'Turniere heute':
     'events today',
+  'Turnier heute':
+    'event today',
   'In den nächsten vierzehn Tagen steht nichts an.':
     'Nothing scheduled for the next fourteen days.',
   'Andere':
@@ -2849,8 +2851,8 @@ const AUF_ENGLISCH: Record<string, string> = {
     'That was too fast. Please try again.',
   'Von diesem Anschluss wurden gerade schon mehrere Konten angelegt. Bitte später noch einmal.':
     'Several accounts were just created from this connection. Please try again later.',
-  'Die übrigen Listen (Schaden, Treffer, Material) nur aus Finals — dazu haben die Replays keine Werte.':
-    'The other lists (damage, hits, materials) come from finals only — the replays hold no such values.',
+  'Schaden und Treffer kommen aus den vollen Replays jedes Matches, Material aus den Finals.':
+    'Damage and hits come from the full replay of every match, materials from the finals.',
   'Twitch-Name eingeben, Enter — kommt in die Multiview':
     'type a Twitch name, press Enter — it joins the multiview',
   'Wird gesucht …':
@@ -3618,6 +3620,10 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Earnings-Zeitstrahl': 'Earnings timeline',
   'Chancen': 'Chances',
   'Inventar': 'Inventory',
+  'Dein Dashboard': 'Your dashboard',
+  'Melde dich an, um dein Dashboard zu sehen - mit deinem Konto oder deinem VIP-Schlüssel.': 'Sign in to see your dashboard - with your account or your VIP key.',
+  'Dieser Bereich ist nur für den Admin.': 'This area is for the admin only.',
+  'Hier entstehen Posts und Karten, bevor sie auf der Seite erscheinen.': 'This is where posts and maps are made before they appear on the site.',
   'Die Spieler-Ansicht ist noch in Arbeit: Bewegungen laufen von einem bekannten Ort zum nächsten, der Schild ist geschätzt, Munition fehlt noch und einige neue Waffen haben noch kein Bild.': 'The player view is still in progress: movement runs from one known position to the next, shield is estimated, ammo is still missing and some new weapons have no image yet.',
   'Sturm zieht': 'Storm moving',
   'Sturm in': 'Storm in',

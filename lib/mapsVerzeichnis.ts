@@ -326,6 +326,15 @@ async function baueVerzeichnis(): Promise<MapEintrag[]> {
    * Reihenfolge: die neueste Saison zuerst; darin nach Datum - und in Saisons, die ganz aus dem Katalog kommen (kein Datum
    * belegt), in der Aufstellung des Vorbilds (reihe). Chapter 4 Season OG und Galactic Battle gibt es hier nicht.
    */
+  /*
+   * Steht bei einem Fenster nur das Ersatzbild seiner Art, gilt das echte Bild desselben Turniers aus einer anderen Region (30.10.2026: die EU-Kachel der FNCS
+   * Solos Finals zeigte die Global Championship, NAC/NAW/ME/OCE das Solos-Bild von Epic).
+   */
+  const ersatz = new Set(Object.values(BILD_JE_TYP).filter(Boolean));
+  const echtesBild = new Map<string, string>();
+  for (const e of liste) if (e.bild && !ersatz.has(e.bild) && !echtesBild.has(e.turnierId)) echtesBild.set(e.turnierId, e.bild);
+  for (const e of liste) if ((!e.bild || ersatz.has(e.bild)) && echtesBild.has(e.turnierId)) e.bild = echtesBild.get(e.turnierId) ?? e.bild;
+
   const nr = (e: MapEintrag) => Number(e.saison.slice(1)) || 0;
   const mitNoble = new Set(liste.filter((e) => !e.alt).map((e) => e.saison));
   const sichtbar = liste.filter((e) => !SAISON_OHNE_MAPS.has(e.saison) && !istDemo(e));

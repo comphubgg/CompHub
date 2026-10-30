@@ -125,7 +125,7 @@ export default function StatKacheln({ spieler, listen = TURNIER_KACHELN, anzahl 
             <div key={k.titel} className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950">
               <div className="flex items-center gap-2 px-4 pb-3 pt-4">
                 <img src="/logos/CompHub-Logo.png" alt="" className="h-7 w-7 shrink-0 rounded-full border border-zinc-700 bg-zinc-900 object-cover p-0.5" />
-                <h3 className="min-w-0 flex-1 truncate text-center text-[15px] font-extrabold uppercase tracking-wide text-slate-50">
+                <h3 className="min-w-0 flex-1 text-balance text-center text-[clamp(11px,1.05vw,15px)] font-extrabold uppercase leading-tight tracking-wide text-slate-50">
                   <T>{k.titel}</T>
                 </h3>
                 <button type="button" onClick={() => (aufVoll ? aufVoll(k) : setOffen(k))} disabled={!k.zeilen.length}

@@ -243,11 +243,14 @@ export default function Startseite() {
          * der Ablage und kommen in Bruchteilen einer Sekunde.
          */
         const frist = AbortSignal.timeout(10_000);
-        const [archiv, replays] = await Promise.all([
+        // Dazu gleich die genaue Zahl (?zahl=1, 30.10.2026): die Summe der Spieltage hinkt hinterher - die Seite zeigte 840.004, der Server kannte 861.118.
+        const [archiv, replays, zahl] = await Promise.all([
           fetch('/api/szene-stats', { signal: frist })
             .then((r) => r.json()).catch(() => null),
           fetch('/api/replays', { signal: frist })
             .then((r) => r.json()).catch(() => null),
+          fetch('/api/replays?zahl=1', { signal: frist })
+            .then((r) => r.json()).catch(() => null) as Promise<{ ausgewertet?: number | null } | null>,
         ]);
         // Bleibt die Antwort aus, steht ein Strich - eine Null waere eine Behauptung.
         setStand({
@@ -255,9 +258,9 @@ export default function Startseite() {
           spieltage: archiv?.spieltage ?? null,
           regionen: archiv?.regionen?.length ?? null,
           konten: null,
-          replays: (replays?.fenster ?? []).reduce(
+          replays: Math.max(zahl?.ausgewertet ?? 0, (replays?.fenster ?? []).reduce(
             (n: number, f: { zaehler?: Record<string, number> }) =>
-              n + (f.zaehler?.PARSED ?? 0), 0) || null,
+              n + (f.zaehler?.PARSED ?? 0), 0)) || null,
         });
       } catch { /* dann bleiben die Zahlen aus */ }
       finally { setLaedt(false); }

@@ -4083,7 +4083,7 @@ export default function StatistikSeite() {
                   )}
                   {grundlage && (
                     <p className="mt-2 text-xs leading-snug text-slate-500">
-                      <T>Die übrigen Listen (Schaden, Treffer, Material) nur aus Finals — dazu haben die Replays keine Werte.</T>
+                      <T>Schaden und Treffer kommen aus den vollen Replays jedes Matches, Material aus den Finals.</T>
                     </p>
                   )}
                   <ol className="mt-4 md:columns-3 md:gap-x-8">

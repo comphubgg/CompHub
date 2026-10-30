@@ -504,11 +504,17 @@ export default function EventsPage() {
     const von = (c: Cup) => lage.get(c.id) ?? lageVon(c, region, jetzt);
     const basis = cups.filter((c) => !typenVon(c).has('ranked')
       && (region === 'alle' || c.global || c.regionen[region]));
+    /*
+     * Nach Wichtigkeit (Betreiber: Listen nach Relevanz ordnen; 30.10.2026 standen "Arenas Fight Night" und "Arenas Test Cup" vor FNCS Solos Reload):
+     * FNCS, Globals, Division, Majors und LANs zuerst, Arena-, Test- und Mobile-Cups zuletzt - innerhalb gleicher Wichtigkeit nach Zeit.
+     */
+    const gewicht = (c: Cup) => (/FNCS|Global|Championship|Division|Major|LAN|Elite/i.test(c.titel) ? 0 : /Arena|Test|Fight Night|Mobile/i.test(c.titel) ? 2 : 1);
     return [
-      ...basis.filter((c) => von(c).status === 'live'),
+      ...basis.filter((c) => von(c).status === 'live').sort((a, b) => gewicht(a) - gewicht(b)),
       ...basis.filter((c) => von(c).status === 'kommt')
-        .sort((a, b) => (von(a).naechster ?? 0) - (von(b).naechster ?? 0)),
-    ].slice(0, 4);
+        .sort((a, b) => gewicht(a) - gewicht(b) || (von(a).naechster ?? 0) - (von(b).naechster ?? 0)),
+    // Ein wichtiger Cup, der bald kommt, steht vor einem unwichtigen, der gerade laeuft (stabil sortiert: sonst live vor demnaechst).
+    ].sort((a, b) => gewicht(a) - gewicht(b)).slice(0, 4);
   }, [cups, region, lage, jetzt]);
   /*
    * Das Bild im Kopf: der Cup, der gerade laeuft - sonst der naechste -, und
@@ -713,7 +719,7 @@ export default function EventsPage() {
               ))}
             </div>
             <span className="mr-3 rounded-md bg-zinc-800 px-3 py-1 text-xs text-slate-300">
-              {heute} <T>Turniere heute</T>
+              {heute} {heute === 1 ? <T>Turnier heute</T> : <T>Turniere heute</T>}
             </span>
           </div>
 

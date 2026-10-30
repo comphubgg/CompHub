@@ -9,6 +9,7 @@
  * Platzierungen); von hier aus legt man Events an, versteckt sie oder öffnet den Editor (bearbeiten/page.tsx).
  */
 
+import NurAdminSeite from '@/app/components/NurAdminSeite';
 import { useEffect, useMemo, useState } from 'react';
 import KartenUpdateWahl from '@/app/components/KartenUpdateWahl';
 import Link from 'next/link';
@@ -128,7 +129,7 @@ export default function AlteMapsVerwaltung() {
   };
 
   if (zugang.laedt) return <main className="min-h-screen bg-zinc-950"><LadeSchirm /></main>;
-  if (!zugang.admin) return <main className="grid min-h-screen place-items-center bg-zinc-950 px-4 text-sm text-slate-400"><T>Nur für den Admin.</T></main>;
+  if (!zugang.admin) return <NurAdminSeite />;
 
   const feld = 'rounded-xl border border-zinc-700 bg-zinc-950/60 px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-500 focus:border-sky-500';
   const zeile = (e: Eintrag) => {
