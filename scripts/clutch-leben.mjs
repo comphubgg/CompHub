@@ -18,6 +18,8 @@ for (const f of fs.existsSync(ROH) ? fs.readdirSync(ROH).filter((x) => x.endsWit
   try {
     const roh = JSON.parse(fs.readFileSync(path.join(ROH, f), 'utf8'));
     const datei = JSON.parse(fs.readFileSync(ziel, 'utf8'));
+    // Grosse Spieltage zaehlen die Ueberlebenszeit beim Lesen (scripts/clutch-zusammen.mjs) - die Rohdaten decken dort nur einen Teil ab.
+    if (datei.ohneRohRechnung) { gleich += 1; continue; }
     const leben = lebenSumme(roh.matches);
     if (!Object.keys(leben).length) { ohne += 1; continue; }
     if (JSON.stringify(datei.leben ?? null) === JSON.stringify(leben)) { gleich += 1; continue; }

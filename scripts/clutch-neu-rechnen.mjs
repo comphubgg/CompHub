@@ -34,6 +34,8 @@ function istDuo(matches) {
 }
 
 for (const f of fs.existsSync(ROH) ? fs.readdirSync(ROH).filter((x) => x.endsWith('.json')) : []) {
+  // Grosse Spieltage aus scripts/clutch-zusammen.mjs: die Rohdaten decken nur einen Teil ab - nicht daraus neu rechnen.
+  try { if (JSON.parse(fs.readFileSync(path.join(ZIEL, f), 'utf8')).ohneRohRechnung) continue; } catch { /* noch keine Datei */ }
   const roh = JSON.parse(fs.readFileSync(path.join(ROH, f), 'utf8'));
   let herkunft = null;
   if (!roh.regeln?.length) {
