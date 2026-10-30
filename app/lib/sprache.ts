@@ -3618,6 +3618,8 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Earnings-Zeitstrahl': 'Earnings timeline',
   'Chancen': 'Chances',
   'Inventar': 'Inventory',
+  'Spieler antippen - auf der Karte oder hier.': 'Tap a player - on the map or here.',
+  'Schild geschätzt aus getrunkenen Schilden und Schild-Treffern - das Replay führt ihn nicht.': 'Shield estimated from shields drunk and shield hits - the replay does not record it.',
   'Noch nichts aufgehoben.': 'Nothing picked up yet.',
   'Spieler auf der Karte antippen: Lebenspunkte, Inventar und Treffer.': 'Tap a player on the map: health, inventory and hits.',
   'Gespielter Tag (optional)': 'Played day (optional)',

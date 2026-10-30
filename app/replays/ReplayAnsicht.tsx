@@ -20,7 +20,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent } from 'react';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
-import { SchussEbene, SpielerFenster, SpielerPunkte, useSpielerDaten, type SpielerDaten } from '@/app/replays/SpielerEbene';
+import { AlleSpieler, SchussEbene, SpielerFenster, SpielerPunkte, useSpielerDaten, type SpielerDaten } from '@/app/replays/SpielerEbene';
 
 export interface RSpieler {
   id: number; epic?: string; name?: string; bot?: boolean; team?: number; platz?: number;
@@ -551,7 +551,9 @@ export default function ReplayAnsicht({ match, kartenBild, titel, wertung, hervo
             </div>
           )}
           {sd.da && gewaehlt === null && (
-            <p className="border-b border-white/[0.08] px-4 py-2.5 text-[11px] text-slate-400"><T>Spieler auf der Karte antippen: Lebenspunkte, Inventar und Treffer.</T></p>
+            <div className="border-b border-white/[0.08]">
+              <AlleSpieler d={sd} zeit={zeit} spieler={echte.map((s) => ({ id: s.id, name: nameVon(s), tod: s.tod }))} farbeVon={farbeVon} waehle={setGewaehlt} />
+            </div>
           )}
           <div className="flex gap-1 border-b border-white/[0.08] p-1.5">
             {([['feed', 'Kill-Feed'], ...(treffer.length ? [['treffer', 'Treffer'] as const] : []), ['teams', 'Teams'], ['spieler', 'Spieler']] as const).map(([k, name]) => (

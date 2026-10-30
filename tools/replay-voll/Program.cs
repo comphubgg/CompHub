@@ -47,6 +47,9 @@ if (args.Length > 1 && args[0] == "--orte") {
   if (wf.Value is not null) foreach (var w in wf.Value.Take(10)) Console.WriteLine($"   {wf.Key}: {w}");
   foreach (var kv in op.WaffeVonAkteur.Take(8)) Console.WriteLine($"   akteur {kv.Key}: {kv.Value}");
   Console.WriteLine("== LOOT"); foreach (var l in op.Loot.Take(12)) Console.WriteLine("   " + l);
+  Console.WriteLine($"== PFADE: {op.PfadVonAkteur.Count}");
+  foreach (var g in op.Waffen.Values.SelectMany(l => l.Select(x => uint.TryParse(x.Split('|')[1], out var u) ? u : 0u)).Distinct().Take(25)) Console.WriteLine($"   waffe {g}: {op.PfadVonAkteur.GetValueOrDefault(g) ?? "?"}");
+  foreach (var grp in op.PfadVonAkteur.Values.GroupBy(x => x).OrderByDescending(x => x.Count()).Take(40)) Console.WriteLine($"   {grp.Count(),6} {grp.Key}");
   Console.WriteLine("== PROBEN"); foreach (var p in op.Proben) Console.WriteLine("   " + (p.Length > 500 ? p[..500] : p));
   return;
 }
@@ -195,7 +198,7 @@ Console.WriteLine(JsonConvert.SerializeObject(new {
   karte = replay.Info?.FriendlyName, laenge = replay.Info?.LengthInMs,
   spieler, feed, zonen, zusatz,
   // Fuer die 2D-Ansicht (30.10.2026): Orte [Zeit, x, y] und Lebenspunkte [Zeit, HP] je Spieler, Loot [Zeit, Spieler, Gegenstand, x, y, aufgehoben 1/0].
-  orte = reader.Orte, leben = reader.Leben, loot = reader.Loot, lootNamen = reader.LootNamen, schuesse = reader.Schuesse,
+  orte = reader.Orte, leben = reader.Leben, loot = reader.Loot, lootNamen = reader.LootNamen, schuesse = reader.Schuesse, hand = reader.Hand, waffenNamen = reader.WaffenNamen, blick = reader.Blick,
 }, Formatting.None, einst));
 
 /*
@@ -288,6 +291,39 @@ class SchadenLeser : ReplayReader {
   protected override void OnChannelOpened(uint channelIndex, Unreal.Core.Models.NetworkGUID actor) {
     base.OnChannelOpened(channelIndex, actor);
     if (actor is not null) kanalAkteur[channelIndex] = actor.Value;
+    // Der Bauplan hinter dem Kanal (B_SMG_BoneRattler_Athena_C, DefaultBuildingTool_C ...) - so wird aus PlayerPawn.CurrentWeapon die Waffe in der Hand.
+    try {
+      var ak = Channels[channelIndex]?.Actor;
+      var arch = ak?.GetType().GetProperty("Archetype")?.GetValue(ak);
+      var archWert = arch?.GetType().GetProperty("Value")?.GetValue(arch);
+      var karte = PfadKarte();
+      if (actor is not null && archWert is not null && karte is not null && karte.Contains(archWert)) pfadVonAkteur[actor.Value] = karte[archWert]?.ToString();
+    } catch { }
+  }
+  readonly Dictionary<uint, string> pfadVonAkteur = new();
+  static readonly FieldInfo CacheFeld = typeof(ReplayReader).BaseType?.GetField("_netGuidCache", BindingFlags.NonPublic | BindingFlags.Instance);
+  System.Collections.IDictionary PfadKarte() {
+    var cache = CacheFeld?.GetValue(this);
+    return cache?.GetType().GetProperty("NetGuidToPathName")?.GetValue(cache) as System.Collections.IDictionary;
+  }
+  /// Waffe in der Hand je Spieler [Zeit, Nr in WaffenNamen]; Blickrichtung [Zeit, Yaw in Grad].
+  public readonly Dictionary<int, List<double[]>> Hand = new();
+  public readonly Dictionary<int, List<double[]>> Blick = new();
+  public readonly List<string> WaffenNamen = new();
+  readonly Dictionary<string, int> waffenIndex = new();
+  void HandNotieren(int id, double t, object waffe) {
+    var w = waffe is uint u ? u : waffe?.GetType().GetProperty("Value")?.GetValue(waffe) is uint u2 ? u2 : 0u;
+    if (w == 0 || !pfadVonAkteur.TryGetValue(w, out var pfad) || pfad is null) return;
+    if (!waffenIndex.TryGetValue(pfad, out var nr)) { nr = WaffenNamen.Count; WaffenNamen.Add(pfad); waffenIndex[pfad] = nr; }
+    if (!Hand.TryGetValue(id, out var l)) Hand[id] = l = new();
+    if (l.Count > 0 && l[^1][1] == nr) return;
+    l.Add(new[] { Math.Round(t, 1), nr });
+  }
+  void BlickNotieren(int id, double t, double yaw) {
+    if (!Blick.TryGetValue(id, out var l)) Blick[id] = l = new();
+    var y = Math.Round(((yaw % 360) + 360) % 360);
+    if (l.Count > 0 && (t - l[^1][0] < 0.5 || l[^1][1] == y)) return;
+    l.Add(new[] { Math.Round(t, 1), y });
   }
 
   protected override void OnChannelClosed(uint channelIndex, Unreal.Core.Models.NetworkGUID actor) {
@@ -416,6 +452,12 @@ class SchadenLeser : ReplayReader {
       var ort = PawnLocation?.GetValue(pawn) as Unreal.Core.Models.FVector
         ?? (pawn.ReplicatedMovement is object rm ? rm.GetType().GetProperty("Location")?.GetValue(rm) as Unreal.Core.Models.FVector : null);
       if (ort is not null && Zeit() is double to && Hole(VonFigur, channelIndex)?.Id is int oid) OrtNotieren(oid, to, ort.X, ort.Y);
+      if (Zeit() is double th && Hole(VonFigur, channelIndex)?.Id is int hid) {
+        var cw = pawn.GetType().GetProperty("CurrentWeapon")?.GetValue(pawn);
+        if (cw is not null) HandNotieren(hid, th, cw);
+        var rot = pawn.GetType().GetProperty("Rotation")?.GetValue(pawn) ?? (pawn.ReplicatedMovement is object rm2 ? rm2.GetType().GetProperty("Rotation")?.GetValue(rm2) : null);
+        if (rot?.GetType().GetProperty("Yaw")?.GetValue(rot) is object yw) BlickNotieren(hid, th, Convert.ToDouble(yw));
+      }
       return;
     }
     if (exportGroup.GetType().Name == "HealthSet") { LebenNotieren(channelIndex, exportGroup); return; }
@@ -511,13 +553,13 @@ class SchadenLeser : ReplayReader {
   }
 
   /// Jeder zugeordnete Treffer nach dem Bus, kompakt fuer die Replay-Ansicht ("wer hat wen angeschossen", Betreiber 28.10.2026):
-  /// [Zeit, Schuetze, Ziel, Schaden, Kopftreffer 0/1, Ziel am Boden 0/1, toedlich 0/1].
+  /// [Zeit, Schuetze, Ziel, Schaden, Kopftreffer 0/1, Ziel am Boden 0/1, toedlich 0/1, auf den Schild 0/1].
   public List<double[]> TrefferListe(double? busAb) {
     var raus = new List<double[]>();
     foreach (var e in Liste) {
       if (e.t is not double t || (busAb is not null && t < busAb)) continue;
       bool amBoden = AmBoden.TryGetValue(e.an, out var zeiten) && zeiten.Any(z => t >= z.ab && t <= z.bis);
-      raus.Add(new[] { Math.Round(t, 1), e.von, e.an, Math.Round(e.hoehe), e.krit ? 1 : 0, amBoden ? 1 : 0, e.fatal ? 1 : 0 });
+      raus.Add(new[] { Math.Round(t, 1), e.von, e.an, Math.Round(e.hoehe), e.krit ? 1 : 0, amBoden ? 1 : 0, e.fatal ? 1 : 0, e.schild ? 1 : 0 });
     }
     return raus;
   }

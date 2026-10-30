@@ -40,7 +40,17 @@ class Ortsprobe : ReplayReader {
   protected override void OnChannelOpened(uint channelIndex, Unreal.Core.Models.NetworkGUID actor) {
     base.OnChannelOpened(channelIndex, actor);
     if (actor is not null) kanalAkteur[channelIndex] = actor.Value;
+    // Welches Objekt (Bauplan) hinter dem Kanal steckt - fuer die Waffe in der Hand.
+    try {
+      var kan = Channels[channelIndex]; var ak = kan?.Actor;
+      var arch = ak?.GetType().GetProperty("Archetype")?.GetValue(ak);
+      var archWert = arch?.GetType().GetProperty("Value")?.GetValue(arch);
+      var cache = typeof(ReplayReader).BaseType.GetField("_netGuidCache", BindingFlags.NonPublic | BindingFlags.Instance)?.GetValue(this);
+      var karte = cache?.GetType().GetProperty("NetGuidToPathName")?.GetValue(cache) as System.Collections.IDictionary;
+      if (actor is not null && archWert is not null && karte is not null && karte.Contains(archWert)) PfadVonAkteur[actor.Value] = karte[archWert]?.ToString();
+    } catch (Exception e) { if (Proben.Count < 3) Proben.Add("pfadfehler " + e.Message); }
   }
+  public readonly Dictionary<uint, string> PfadVonAkteur = new();
 
   protected override void OnExportRead(uint ch, INetFieldExportGroup g) {
     base.OnExportRead(ch, g);
@@ -79,6 +89,38 @@ class Ortsprobe : ReplayReader {
       if (item is not null) Probe("loot.item", Text(item));
       if (ziel is not null) { Z("loot.aufgehoben"); if (Loot.Count < 30) Loot.Add($"{t:0.0} kanal={ch} ziel={Text(ziel)} item={Text(item)} pos={Text(get("FinalTossRestLocation") ?? get("LootFinalPosition"))}"); }
       return;
+    }
+  }
+}
+
+static class Innen {
+  // Was der Leser intern ueber Waffen und die Gruppen des Stroms weiss (Probe 30.10.2026).
+  public static void Bericht(ReplayReader r) {
+    var bf = typeof(ReplayReader).GetField("Builder", BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance)?.GetValue(r);
+    foreach (var n in new[] { "_weapons", "_unknownWeapons", "_inventories" }) {
+      var f = typeof(FortniteReplayBuilder).GetField(n, BindingFlags.NonPublic | BindingFlags.Instance)?.GetValue(bf) as System.Collections.IDictionary;
+      Console.WriteLine($"== {n}: {f?.Count}");
+      if (f is null) continue;
+      var i = 0; foreach (System.Collections.DictionaryEntry e in f) { if (i++ >= 5) break; Console.WriteLine($"   {e.Key}: {JsonConvert.SerializeObject(e.Value, new JsonSerializerSettings { ReferenceLoopHandling = ReferenceLoopHandling.Ignore, NullValueHandling = NullValueHandling.Ignore }).Substring(0, 300 > 0 ? Math.Min(300, JsonConvert.SerializeObject(e.Value, new JsonSerializerSettings { ReferenceLoopHandling = ReferenceLoopHandling.Ignore }).Length) : 0)}"); }
+    }
+    // Alle Felder des Basis-Lesers, die nach Zuordnungen von Gruppen oder Pfaden aussehen.
+    for (var t = r.GetType(); t is not null; t = t.BaseType) {
+      foreach (var f in t.GetFields(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly)) {
+        Console.WriteLine($"F {t.Name}.{f.Name} : {f.FieldType.Name}");
+        var v = f.GetValue(r);
+        if (v is null) continue;
+        foreach (var p in v.GetType().GetFields(BindingFlags.NonPublic | BindingFlags.Public | BindingFlags.Instance)) {
+          object pv = null; try { pv = p.GetValue(v); } catch { }
+          if (pv is System.Collections.IDictionary d) {
+            Console.WriteLine($"   {f.Name}.{p.Name}: {d.Count} Eintraege");
+            foreach (System.Collections.DictionaryEntry e in d) {
+              var s = $"{e.Key} {e.Value}";
+              if (s.Contains("Shield", StringComparison.OrdinalIgnoreCase) || s.Contains("HealthSet", StringComparison.OrdinalIgnoreCase) || s.Contains("Weapon", StringComparison.OrdinalIgnoreCase) && s.Contains("Athena", StringComparison.OrdinalIgnoreCase))
+                Console.WriteLine("      " + (s.Length > 200 ? s[..200] : s));
+            }
+          }
+        }
+      }
     }
   }
 }
