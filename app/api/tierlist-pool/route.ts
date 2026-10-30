@@ -94,6 +94,6 @@ async function duoPool(): Promise<PoolEintrag[] | null> {
 export async function GET(request: Request) {
   const modus = new URL(request.url).searchParams.get('modus') === 'duo' ? 'duo' : 'solo';
   const sechsStunden = 6 * 3_600_000;
-  const pool = await ueberdauernd(`tierlist-pool-${modus}`, sechsStunden, 7 * 864e5, () => (modus === 'duo' ? duoPool() : soloPool())).catch(() => null);
+  const pool = await ueberdauernd(`tierlist-pool-v2-${modus}`, sechsStunden, 7 * 864e5, () => (modus === 'duo' ? duoPool() : soloPool())).catch(() => null);
   return NextResponse.json({ ok: Boolean(pool), modus, pool: pool ?? [] }, { headers: { 'Cache-Control': 'public, max-age=300' } });
 }
