@@ -141,7 +141,8 @@ const zeitText = fuerAdmin
   : new Date().toISOString().slice(0, 16).replace('T', ' ') + ' UTC';
 // Pruefberichte der ganzen Seite orange (so gewuenscht, nicht das uebliche Blau),
 // Auftraege an den Admin gelb, Alarme rot.
-const farbe = art === 'alarm' ? 0xef4444 : art === 'pruefung' ? 0xf97316 : art === 'aufgabe' ? 0xeab308 : art === 'projekt' ? 0xa855f7 : FARBE;
+// Erledigt ist gruen (Betreiber, 30.10.2026: "eine gruene Nachricht, everything gemacht").
+const farbe = art === 'erledigt' ? 0x22c55e : art === 'alarm' ? 0xef4444 : art === 'pruefung' ? 0xf97316 : art === 'aufgabe' ? 0xeab308 : art === 'projekt' ? 0xa855f7 : FARBE;
 const nachricht = {
   embeds: [{
     title: `${vorsatz} · ${titel}`.slice(0, 256),
