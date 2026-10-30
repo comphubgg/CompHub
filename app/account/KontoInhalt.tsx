@@ -866,6 +866,14 @@ export default function KontoSeite({ eingebettet = false }: { eingebettet?: bool
                 <span className="truncate">{wert}</span>
               </p>
               {zusatz && <p className="mt-0.5 text-[11px] text-slate-500">{zusatz}</p>}
+              {/* Epic noch nicht verbunden: der Weg dahin direkt hier - auch fuer einen Zugang nur mit Schluessel (Betreiber, 30.10.2026: "steht nirgendwo
+                  Connect your Epic ... im Dashboard steht nur Not connected"). */}
+              {titel === t('Epic Games') && !daten.epicId && epicBereit && (
+                <a href="/api/auth/epic/authorize?zurueck=/account"
+                  className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-sky-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-sky-400">
+                  <img src="/icons/epic.svg" alt="" className="h-3.5 w-3.5" /><T>Mit Epic Games verbinden</T>
+                </a>
+              )}
             </div>
           ))}
         </section>

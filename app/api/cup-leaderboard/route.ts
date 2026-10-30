@@ -3,6 +3,40 @@ import {
   gecacht, holeTop, holeBereich, findeSpieler, ergaenzeBilder, EpicLoginNoetig, frischeFuer,
 } from '@/lib/epicCups';
 import { zwischenspeichern } from '@/lib/zwischenspeicher';
+import nodeFs from 'fs/promises';
+import path from 'path';
+import { DATEN_ORT } from '@/lib/datenOrt';
+
+/*
+ * Die ganze Bestenliste eines fertigen Spieltags auf einmal (Betreiber, 30.10.2026: "dass direkt mindestens die Top 10.000 angezeigt werden ... nicht
+ * loaded 1000, loaded 1500, loaded 2500"). Ein vorbei gegangener Spieltag aendert sich nicht mehr: einmal ganz geholt (hundert Seiten bei Epic, im
+ * Hintergrund), liegt er als Datei auf der Platte des Servers und kommt danach in einer einzigen Antwort. Laufende Spieltage laden weiter in Stufen.
+ */
+const GANZ_ORDNER = path.join(DATEN_ORT, 'vorrat', 'bestenliste-ganz');
+const imBau = new Set<string>();
+const ganzDatei = (w: string) => path.join(GANZ_ORDNER, `${w.replace(/[^\w.-]/g, '_')}.json`);
+async function ganzLesen(w: string) {
+  try { return JSON.parse(await nodeFs.readFile(ganzDatei(w), 'utf8')) as { entries: unknown[]; updated?: string; totalPages?: number }; }
+  catch { return null; }
+}
+function ganzBauen(event: string, w: string) {
+  if (imBau.has(w)) return;
+  imBau.add(w);
+  void (async () => {
+    try {
+      let alle: unknown[] = []; let gesamt = 0; let updated: string | undefined;
+      for (let von = 0; von < 100; von += 25) {
+        const d = await holeBereich(event, w, von, 25) as { entries?: unknown[]; totalPages?: number; updated?: string };
+        alle = alle.concat(d.entries ?? []);
+        gesamt = d.totalPages ?? gesamt; updated ??= d.updated;
+        if (!(d.entries ?? []).length || von + 25 >= (d.totalPages ?? 0)) break;
+      }
+      if (!alle.length) return;
+      await nodeFs.mkdir(GANZ_ORDNER, { recursive: true });
+      await nodeFs.writeFile(ganzDatei(w), JSON.stringify({ entries: alle, totalPages: gesamt, updated: updated ?? new Date().toISOString() }));
+    } catch { /* naechster Aufruf versucht es wieder */ } finally { imBau.delete(w); }
+  })();
+}
 import { abgesagtFuer, ohneAbgesagte } from '@/lib/abgesagt';
 import { holeKatalog, regionAus, wertungVon, type WertungsRegel } from '@/lib/cupWertung';
 import { GLOBALS_EVENT, GLOBALS_TAGE, istGlobalsEvent, istGlobalsFenster } from '@/lib/globalsCup';
@@ -150,6 +184,13 @@ async function holeRoh(request: Request) {
      * aneinander, statt zehntausend Plaetze in einer einzigen Anfrage zu
      * verlangen, die ohnehin in der Zeitgrenze endet.
      */
+    // Ganz (nur fuer vorbei gegangene Spieltage, die Seite fragt es nur dort): aus dem Vorrat - fehlt er, wird er im Hintergrund gebaut.
+    if (searchParams.get('ganz') === '1') {
+      const vorrat = searchParams.get('frisch') === '1' ? null : await ganzLesen(window_);
+      if (!vorrat) { ganzBauen(event, window_); return NextResponse.json({ entries: [], fehlt: true }); }
+      return NextResponse.json(await ergaenzeBilder(await bereinigt(vorrat as { entries: CupEintrag[]; totalPages?: number; updated?: string }, event, window_)));
+    }
+
     const von = parseInt(searchParams.get('von') ?? '', 10);
     if (Number.isFinite(von) && von >= 0) {
       const seiten = Math.min(

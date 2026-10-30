@@ -33,7 +33,7 @@ export default function ProDashboard() {
    * Wer ueber den Einladungslink eines VIPs kam (lib/povVip): sein Chef und seine Anmeldedaten (Betreiber, 29.10.2026: "Passwort und Name sieht man dann im
    * Dashboard ... im Dashboard steht, wer sein Chef ist").
    */
-  const [zugangDaten, setZugangDaten] = useState<{ chef: string; login: string; passwort: string } | null>(null);
+  const [zugangDaten, setZugangDaten] = useState<{ chef: string; login: string; passwort: string; link?: string } | null>(null);
   const [passwortSichtbar, setPasswortSichtbar] = useState(false);
   const [zugangKopiert, setZugangKopiert] = useState('');
   useEffect(() => {
@@ -342,6 +342,18 @@ export default function ProDashboard() {
                     {zugangKopiert === 'pw' ? t('Kopiert') : t('Kopieren')}
                   </button>
                 </span>
+                {/* Passwort vergessen? Der persoenliche Link meldet immer an (Betreiber, 30.10.2026: "wo wollen die das nachgucken?"). */}
+                {zugangDaten.link && (
+                  <span className="flex items-center gap-2 text-slate-400">
+                    <T>Dein Anmelde-Link</T>
+                    <button type="button"
+                      onClick={() => { void navigator.clipboard.writeText(zugangDaten.link!).then(() => { setZugangKopiert('link'); window.setTimeout(() => setZugangKopiert(''), 2500); }).catch(() => undefined); }}
+                      title={t('Passwort vergessen? Dieser Link meldet dich immer an - speichere ihn als Lesezeichen.')}
+                      className="rounded-md border border-zinc-700 px-2 py-0.5 text-xs text-slate-300 transition hover:border-sky-500 hover:text-sky-400">
+                      {zugangKopiert === 'link' ? t('Kopiert') : t('Kopieren')}
+                    </button>
+                  </span>
+                )}
                 <span className="flex items-center gap-2">
                   {mein?.discordId ? (
                     <>

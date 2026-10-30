@@ -118,7 +118,7 @@ export async function GET(req: NextRequest) {
       const nutzer = await (await fetch('https://discord.com/api/users/@me', { headers: { Authorization: `Bearer ${token.access_token}` } })).json().catch(() => null) as { id?: string } | null;
       if (!daten || !nutzer?.id || ich.rolle !== 'pro') return zurueck(req, '/pov?discord=fehler');
       const { proBeitreten } = await import('@/lib/discord');
-      const r = await proBeitreten({ discordId: nutzer.id, zugangToken: token.access_token, name: ich.name, login: daten.login, passwort: daten.passwort, chef: daten.chef });
+      const r = await proBeitreten({ discordId: nutzer.id, zugangToken: token.access_token, name: ich.name, login: daten.login, passwort: daten.passwort, chef: daten.chef, link: daten.link });
       if (r.ok) {
         // Das Discord-Konto am Pro-Eintrag merken: so sieht CompHub, wann er in einem Sprachkanal streamt (lib/povDiscord), und der News-Schalter weiss, wen er meint.
         const { liesPros, schreibePros } = await import('@/lib/pov');

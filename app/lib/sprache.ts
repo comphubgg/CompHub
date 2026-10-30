@@ -43,6 +43,9 @@ export const SPRACHEN: Array<{ kennung: Sprache; kurz: string; name: string }> =
  */
 const AUF_ENGLISCH: Record<string, string> = {
   // ------------------------------------------------------------ Allgemein
+  'Dein Anmelde-Link': 'Your sign-in link',
+  'Passwort vergessen? Dieser Link meldet dich immer an - speichere ihn als Lesezeichen.': 'Forgot your password? This link always signs you in - save it as a bookmark.',
+  'Jetzt freigeben': 'Share now',
   'Yunite-Code': 'Yunite code',
   'Yunites Kurz-Code des Games - nicht die volle Match-ID. Die gibt Yunite nicht heraus.': 'The short Yunite code of the game - not the full match ID. Yunite does not publish that.',
   'Pfeile: die Busroute. Gelb: wo man abspringen kann.': 'Arrows: the bus route. Yellow: where you can jump.',

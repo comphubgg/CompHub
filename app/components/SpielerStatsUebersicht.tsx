@@ -134,6 +134,13 @@ export default function SpielerStatsUebersicht({ spieler, matches, aktualisiert,
   const [mehr, setMehr] = useState(false);
   // Eine Kennzahl in voller Laenge - ersetzt die Uebersicht, bis "Zurueck zur Uebersicht" (Betreiber, 29.10.2026: kein Fenster daruebergelegt).
   const [voll, setVoll] = useState<KachelListe | null>(null);
+  /*
+   * Zehn Kacheln, zwei Reihen zu fuenf - was es darueber hinaus gibt, hinter "Mehr anzeigen" (Betreiber, 30.10.2026: "mehr ist besser ... unter
+   * einem More-Knopf, dass es clean aussieht, nicht einfach drei und fertig").
+   */
+  const [alleKacheln, setAlleKacheln] = useState(false);
+  const mitWerten = useMemo(() => OSIRION_KACHELN.filter((k) => spieler.some((s) => Number(s[k.feld]) > 0)), [spieler]);
+  const gezeigteKacheln = alleKacheln ? mitWerten : mitWerten.slice(0, 10);
 
   const zahl = (v: number, n = 0) => v.toLocaleString(ort, { minimumFractionDigits: n, maximumFractionDigits: n });
   const zeigen = (v: number, f?: Format, n = 0) => (f === 'zeit' ? alsZeit(v, true)
@@ -279,7 +286,15 @@ export default function SpielerStatsUebersicht({ spieler, matches, aktualisiert,
         )}
       </p>
 
-      <StatKacheln spieler={spieler} listen={OSIRION_KACHELN} anzahl={5} leerText={leerText} vorbild aufVoll={quelle ? setVoll : undefined} />
+      <StatKacheln spieler={spieler} listen={gezeigteKacheln} anzahl={5} leerText={leerText} vorbild aufVoll={quelle ? setVoll : undefined} />
+      {mitWerten.length > 10 && (
+        <div className="flex justify-center">
+          <button type="button" onClick={() => setAlleKacheln((x) => !x)}
+            className="rounded-xl border border-zinc-700 bg-zinc-900 px-5 py-2 text-sm font-semibold text-slate-200 transition hover:border-sky-500 hover:text-sky-400">
+            {alleKacheln ? <T>Weniger anzeigen</T> : <>{t('Mehr anzeigen')} ({mitWerten.length - 10})</>}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

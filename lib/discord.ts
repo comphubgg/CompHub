@@ -3688,7 +3688,7 @@ async function proSichtEinrichten(proRolle: string, newsRolle: string): Promise<
 }
 
 export async function proBeitreten(p: {
-  discordId: string; zugangToken: string; name: string; login: string; passwort: string; chef: string;
+  discordId: string; zugangToken: string; name: string; login: string; passwort: string; chef: string; link?: string;
 }): Promise<{ ok: boolean; grund?: string }> {
   if (!discordDa()) return { ok: false, grund: 'kein-token' };
   const [proRolle, newsRolle, eigene] = await Promise.all([rolleFuer(PRO_ROLLE), rolleFuer(PRO_NEWS_ROLLE), rolleFuer(`${p.name.toLowerCase()} pro`)]);
@@ -3728,6 +3728,7 @@ export async function proBeitreten(p: {
         `**Boss:** ${p.chef}`,
         `**Login name:** \`${p.login}\``,
         `**Password:** ||\`${p.passwort}\`||`,
+        ...(p.link ? [`**Forgot the password?** Open your personal link, it always signs you in: ||${p.link}||`] : []),
         '',
         '__How it works__',
         '1. Open https://www.thecomphub.com/pov (or the CompHub POV app for Windows) and sign in with the data above.',

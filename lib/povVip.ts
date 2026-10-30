@@ -73,17 +73,24 @@ export async function zurueckziehen(ich: Wer, code: string): Promise<boolean> {
   const alle = await lies();
   const e = alle[code];
   if (!e || !e.vip.some((v) => ich.idents.includes(v))) return false;
-  // Noch nie geoeffnet: weg damit. Schon ein Konto dahinter: nur sperren - der Pro behaelt sein Konto, der Link oeffnet es nicht mehr.
-  if (e.konto) alle[code] = { ...e, gesperrt: true }; else delete alle[code];
+  // Noch nie geoeffnet: weg damit. Schon ein Konto dahinter: Link und Konto sperren (Betreiber, 30.10.2026: deaktiviert heisst deaktiviert) -
+  // der Admin kann das Konto unter /admin/accounts wieder freigeben.
+  if (e.konto) {
+    alle[code] = { ...e, gesperrt: true };
+    await aendern(e.konto.id, { gesperrt: { seit: Date.now(), grund: 'Einladung vom VIP zurueckgezogen' } }).catch(() => null);
+  } else delete alle[code];
   await schreibe(alle);
   return true;
 }
 
-/** Ein lesbares Passwort ohne leicht verwechselbare Zeichen (0/O, 1/l/I), drei Gruppen zu vier. */
+/**
+ * Ein lesbares Passwort ohne leicht verwechselbare Zeichen (0/O, 1/l/I), zwei Gruppen zu vier (Betreiber, 30.10.2026: "doppelt so lang wie der
+ * normale Access-Key" - das merkt sich keiner). Vergessen ist kein Problem: der Einladungs-Link meldet immer wieder an.
+ */
 function neuesProPasswort(): string {
   const z = 'abcdefghjkmnpqrstuvwxyzABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-  const b = crypto.randomBytes(12);
-  return [0, 4, 8].map((i) => Array.from(b.subarray(i, i + 4), (x) => z[x % z.length]).join('')).join('-');
+  const b = crypto.randomBytes(8);
+  return [0, 4].map((i) => Array.from(b.subarray(i, i + 4), (x) => z[x % z.length]).join('')).join('-');
 }
 
 /** Ein freier Kontoname aus dem Wunschnamen des VIPs (sonst "pro-..."). */
@@ -133,9 +140,10 @@ export async function oeffnen(code: string): Promise<{ ok: true; kontoId: string
 }
 
 /** Fuer das Dashboard des Pros: sein Chef (der einladende VIP) und seine Anmeldedaten - null, wenn er nicht ueber eine Einladung kam. */
-export async function zugangVon(ich: Wer): Promise<{ chef: string; login: string; passwort: string; seit: number } | null> {
+export async function zugangVon(ich: Wer): Promise<{ chef: string; login: string; passwort: string; seit: number; link: string } | null> {
   const e = Object.values(await lies()).find((x) => x.konto && x.angenommen && ich.idents.includes(x.angenommen.ident));
-  return e?.konto ? { chef: e.vipName, login: e.konto.login, passwort: e.konto.passwort, seit: e.angenommen?.zeit ?? e.erstellt } : null;
+  // Der Link meldet jederzeit an - der Ausweg, wenn das Passwort vergessen ist.
+  return e?.konto ? { chef: e.vipName, login: e.konto.login, passwort: e.konto.passwort, seit: e.angenommen?.zeit ?? e.erstellt, link: `https://www.thecomphub.com/pov/einladung?code=${e.code}` } : null;
 }
 
 /** Das Discord-Konto des VIPs - aus dem Konto (mit Discord angemeldet) oder dem VIP-Zugang. Leer, wenn keines. */

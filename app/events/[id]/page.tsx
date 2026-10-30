@@ -2295,6 +2295,18 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     const nochMeins = () => laufNr.current === meiner;
 
     try {
+      // Ein vorbei gegangener Spieltag: die ganze Liste in einer Antwort, wenn der Server sie schon vorraetig hat (app/api/cup-leaderboard, ganz=1).
+      if (f.status === 'vorbei' && !(tageListe && tageListe.length > 1) && Date.now() >= handFrischBis.current) {
+        const g = await fetch(`/api/cup-leaderboard?event=${encodeURIComponent(f.eventId)}&window=${encodeURIComponent(f.windowId)}&ganz=1`)
+          .then((r) => r.json()).catch(() => null) as { entries?: Eintrag[]; updated?: string } | null;
+        if (!nochMeins()) return;
+        if (g?.entries?.length) {
+          setTabelle(g.entries);
+          setStand(`${t('Stand')} ${new Date(g.updated ?? Date.now()).toLocaleTimeString(ort)}`);
+          setLaedt(false);
+          return;
+        }
+      }
       const erste = await holeStueck(0, ERSTE_SEITEN);
       if (!nochMeins()) return;
       const anfang = erste.entries ?? [];
@@ -3467,7 +3479,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
           {nurFreunde && freundeGeladen && freundeIds.size === 0 && (
             <p className="border-b border-zinc-800/70 bg-zinc-900/40 px-4 py-2.5 text-xs text-slate-400">
               <T>Du hast noch keine Epic-Freunde freigegeben.</T>{' '}
-              <a href="/account" className="font-semibold text-sky-300 hover:underline"><T>Im Dashboard freigeben</T> →</a>
+              <a href="/api/auth/epic/freunde?start=1" className="font-semibold text-sky-300 hover:underline"><T>Jetzt freigeben</T> →</a>
             </p>
           )}
           {!laedt && (vertieft || suchtGerade) && (
@@ -4492,8 +4504,9 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
           </div>
         )}
         {/* Unter Player Stats nur Werte je Spieler, nie Epics Team-Werte (Betreiber, 28.10.2026: "bei Player Stats koennen nicht Team Stats sein") - die
-            stehen unter Team Stats. Fehlen die Replays noch, steht im Kasten, wie weit ihre Auswertung ist. */}
-        {reiter === 'spieler' && !soloCup && (
+            stehen unter Team Stats. Fehlen die Replays noch, steht im Kasten, wie weit ihre Auswertung ist. Sind die Werte da, gibt es die alte
+            Tabelle nicht mehr (Betreiber, 30.10.2026: "diese Player-Stats-Liste machst du weg") - die ganze Liste je Kennzahl steckt im Vergroessern-Knopf. */}
+        {reiter === 'spieler' && !soloCup && !spielerWerte?.spieler.length && (
           <section className="rounded-xl border border-zinc-800 bg-zinc-950/60">
             <header className="flex flex-wrap items-center justify-between gap-3
                                border-b border-zinc-800 px-4 py-3">
