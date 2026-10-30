@@ -7,6 +7,7 @@ import { useT } from '@/app/components/SprachProvider';
 import { Karte } from '@/app/globals-solos/Bausteine';
 import { sichtbarerTakt } from '@/app/lib/takt';
 import { eigeneKarte, fortniteKarte } from '@/lib/bildAdressen';
+import { kartenName } from '@/app/lib/kartenStil';
 import type { SolosFenster } from '@/lib/globalsSolos';
 
 /*
@@ -24,7 +25,7 @@ interface Stand {
   teams?: Array<{ id: string; spieler: string[] }>;
 }
 
-export default function KarteImEvent({ karten, leer, zusatz, alsReiter }: { karten: Eintrag[]; leer: ReactNode; zusatz?: ReactNode; alsReiter?: boolean }) {
+export default function KarteImEvent({ karten, leer, alsReiter }: { karten: Eintrag[]; leer: ReactNode; zusatz?: ReactNode; alsReiter?: boolean }) {
   const t = useT();
   const [wahl, setWahl] = useState(0);
   /** Zugeklappt, bis man es oeffnet (Betreiber, 26.10.2026: "nicht sofort anzeigen, sondern nur wenn man es aufklappt"). */
@@ -81,7 +82,7 @@ export default function KarteImEvent({ karten, leer, zusatz, alsReiter }: { kart
   const bild = s?.bildId ? eigeneKarte(s.bildId) : fortniteKarte(false);
   const name = aktuell.titel.split('·')[0].trim() || aktuell.bildTitel || t('Karte');
   return (
-    <section className="mb-5 max-w-[820px]">
+    <section className="mb-5 max-w-[1180px]">
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-2xl border border-zinc-800 bg-zinc-900/50 px-5 py-3">
         <h2 className="text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
           <T>Karte</T> · <span className="normal-case tracking-normal text-slate-300">{name}{aktuell.spiele ? ` · ${t('Spiele')} ${aktuell.spiele}` : ''}</span>
@@ -111,13 +112,26 @@ export default function KarteImEvent({ karten, leer, zusatz, alsReiter }: { kart
           ))}
         </div>
       )}
+      {/*
+        * Nur die Karte und die Spielerliste daneben (Betreiber, 30.10.2026: unter Events -> Cup -> Map keine Karten-Kachel, "einfach nur die Map und die
+        * Spielerliste links/rechts"). Die Kachel zum Bearbeiten (zusatz) steht deshalb hier nicht mehr - bearbeitet wird ueber "Eigene Seite oeffnen".
+        */}
       {offen && (
-        <div className="mt-2 rounded-2xl border border-zinc-800 bg-zinc-900 p-3">
-          <Karte f={fenster} bild={bild} rotAb={2} />
+        <div className="mt-2 grid gap-3 lg:grid-cols-[minmax(0,1fr)_240px]">
+          <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-3">
+            <Karte f={fenster} bild={bild} rotAb={2} />
+          </div>
+          <aside className="rounded-2xl border border-zinc-800 bg-zinc-900 p-3 lg:max-h-[80vh] lg:overflow-y-auto">
+            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500"><T>Spieler</T> · {fenster.formen.reduce((a, fo) => a + fo.spieler.length, 0)}</p>
+            <ul className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs font-semibold text-slate-200 lg:grid-cols-1">
+              {fenster.formen.flatMap((fo) => fo.gruppen ?? fo.spieler.map((n) => [n]))
+                .map((g) => g.map(kartenName).join(' · '))
+                .sort((a, b) => a.localeCompare(b))
+                .map((zeile, i) => <li key={`${zeile}-${i}`} className="truncate">{zeile}</li>)}
+            </ul>
+          </aside>
         </div>
       )}
-      {/* Nur der Admin: ausblenden und die Karte bearbeiten. */}
-      {zusatz && <div className="mt-3">{zusatz}</div>}
     </section>
   );
 }

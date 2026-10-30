@@ -10,6 +10,9 @@ import { kartenSchrift, kartenName, formFarbe, hebeFormHervor } from '@/app/lib/
 import KartenWasserzeichen from '@/app/components/KartenWasserzeichen';
 import { ZOOM_MAX, doppelKlickZiel } from '@/app/lib/kartenZoom';
 import { useKartenVollbild } from '@/app/components/kartenVollbild';
+import { useZugang } from '@/app/lib/zugang';
+import { speichereLeinwand } from '@/app/lib/bildSpeichern';
+import { MARKE } from '@/lib/marke';
 import type { SolosFenster, SolosSpieler } from '@/lib/globalsSolos';
 
 /*
@@ -107,6 +110,8 @@ export function Karte({ f, bild, rotAb = 2 }: {
   const huelle = useRef<HTMLDivElement | null>(null);
   const [voll, setVoll] = useState(false);
   const { meer, beiLaden, bildStil } = useKartenVollbild();
+  const istAdmin = useZugang().admin;
+  const [kopiert, setKopiert] = useState('');
   useEffect(() => {
     const beiWechsel = () => setVoll(document.fullscreenElement !== null && document.fullscreenElement === huelle.current);
     document.addEventListener('fullscreenchange', beiWechsel);
@@ -292,6 +297,48 @@ export function Karte({ f, bild, rotAb = 2 }: {
   // Ohne Landepunkte steht trotzdem die Insel da - der Hinweis kommt klein darunter (Betreiber, 12.10.2026: "die Map zumindest").
   const kennzeichen = (sp: { id: string }) => (trefferSpots.has(sp.id) || leuchte === sp.id ? ' ist-treffer' : '');
   const hatNamen = spots.some((sp) => sp.spieler.length);
+  /** Die Karte als Bild in die Zwischenablage (sonst Download) - nur fuer den Admin (Betreiber, 30.10.2026: "bei jeder Map diese Copy-Funktion am Rand"). */
+  async function alsBild() {
+    const G = 1400;
+    const c = document.createElement('canvas'); c.width = G; c.height = G;
+    const g = c.getContext('2d'); if (!g) return;
+    const lade = (src: string) => new Promise<HTMLImageElement | null>((fertig) => { const b = new Image(); b.crossOrigin = 'anonymous'; b.onload = () => fertig(b); b.onerror = () => fertig(null); b.src = src; });
+    g.fillStyle = '#084687'; g.fillRect(0, 0, G, G);
+    const karte = await lade(kartenQuelle(bild));
+    if (karte) g.drawImage(karte, 0, 0, G, G);
+    const familie = kartenSchrift.style.fontFamily;
+    try { await document.fonts.load(`700 40px ${familie}`); } catch { /* Ersatzschrift */ }
+    for (const sp of spots) {
+      const farbe = formFarbe(sp.teams >= rotAb ? 2 : sp.spieler.length ? 1 : 0);
+      g.beginPath();
+      sp.punkte.forEach((q, i) => { const x = (q.x / 100) * G; const y = (q.y / 100) * G; if (i) g.lineTo(x, y); else g.moveTo(x, y); });
+      g.closePath(); g.fillStyle = farbe.fuellung; g.fill(); g.strokeStyle = farbe.rand; g.lineWidth = 2; g.stroke();
+      if (!sp.spieler.length) continue;
+      const r = formRahmen(sp.punkte);
+      const px = (groesse / 100) * G;
+      g.font = `700 ${px}px ${familie}`; g.textAlign = 'center'; g.textBaseline = 'middle';
+      g.lineWidth = Math.max(2, px * 0.18); g.strokeStyle = 'rgba(0,0,0,0.85)'; g.fillStyle = '#fff';
+      const n = sp.spieler.length; const gedraengt = sp.teams <= 1 || n === 1;
+      sp.spieler.forEach((name, i) => {
+        const yProz = gedraengt ? r.oben + r.hoehe / 2 + (i - (n - 1) / 2) * groesse * 1.12 : r.oben + r.hoehe * (0.1 + 0.8 * (i / (n - 1)));
+        const x = ((r.links + r.breite / 2) / 100) * G; const y = (yProz / 100) * G;
+        g.strokeText(kartenName(name), x, y); g.fillText(kartenName(name), x, y);
+      });
+    }
+    const logo = await lade(MARKE.logoFrei);
+    if (logo?.naturalWidth) {
+      const breite = Math.round(G * 0.13); const hoehe = Math.round(breite * (logo.naturalHeight / logo.naturalWidth)); const rand = Math.round(G * 0.022);
+      g.save(); g.shadowColor = 'rgba(0,0,0,0.55)'; g.shadowBlur = 12; g.drawImage(logo, G - rand - breite, G - rand - hoehe - Math.round(G * 0.02), breite, hoehe); g.restore();
+      g.save(); g.fillStyle = 'rgba(255,255,255,0.85)'; g.font = `600 ${Math.round(G * 0.016)}px Segoe UI, system-ui, sans-serif`; g.textAlign = 'right'; g.textBaseline = 'bottom';
+      g.fillText('thecomphub.com', G - rand, G - Math.round(rand * 0.5)); g.restore();
+    }
+    try {
+      const wie = await speichereLeinwand(c, `${(f.name || 'karte').toLowerCase().replace(/[^a-z0-9]+/g, '-')}.png`);
+      setKopiert(wie === 'kopiert' ? t('Bild kopiert') : t('Bild gespeichert'));
+    } catch { setKopiert(t('ging nicht')); }
+    setTimeout(() => setKopiert(''), 2500);
+  }
+
   return (
     <div>
       {/*
@@ -299,7 +346,7 @@ export function Karte({ f, bild, rotAb = 2 }: {
         * Karte werden gefiltert, Enter hebt hervor"). Das Vollbild nimmt beides mit; das Bild geht dort bis an den Rand, in der Farbe des Meeres, statt schwarzer Balken.
         */}
       <div ref={huelle}
-        className={voll ? 'relative flex h-screen w-screen items-center justify-center' : 'block'}
+        className={voll ? 'relative flex h-screen w-screen items-center justify-center' : 'relative block'}
         style={voll ? { background: meer } : undefined}>
         <div ref={flaeche}
           className={`${kartenSchrift.variable} relative select-none ${voll ? 'h-screen' : 'mx-auto aspect-square w-full overflow-hidden bg-[#084687]'} ${gezoomt ? 'cursor-grab active:cursor-grabbing' : ''}`}
@@ -433,23 +480,30 @@ export function Karte({ f, bild, rotAb = 2 }: {
             </button>
           )}
 
-          {/* Unten rechts: die Lupe und das Vollbild nebeneinander (Betreiber, 19.10.2026: die Lupe gehoert nicht in die obere Ecke, sondern zum Vollbild). */}
-          <div className="absolute bottom-2 right-2 z-30 flex gap-1.5" onMouseDown={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
-            {hatNamen && (
-              <button type="button" title={t('Spieler suchen … (Strg + F)')} aria-label={t('Spieler suchen … (Strg + F)')}
-                onClick={() => { setPopup(true); setTimeout(() => sucheFeld.current?.focus(), 0); }}
-                className="flex h-8 w-8 items-center justify-center rounded-md bg-black/65 text-white transition hover:bg-black/85">
-                <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="8.5" cy="8.5" r="5.5" /><path d="M13 13l4 4" /></svg>
-              </button>
-            )}
-            <button type="button" title={voll ? t('Vollbild verlassen') : t('Vollbild')} aria-label={voll ? t('Vollbild verlassen') : t('Vollbild')}
-              onClick={vollbildUmschalten}
+        </div>
+        {/* Unten rechts ganz am Rand (Betreiber, 30.10.2026: "ganz am Rand", nicht in der Karte): Lupe, Vollbild und fuer den Admin Bild kopieren. */}
+        <div className="absolute bottom-2 right-2 z-40 flex items-center gap-1.5" onMouseDown={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
+          {kopiert && <span className="rounded-md bg-black/75 px-2 py-1 text-[11px] text-slate-200">{kopiert}</span>}
+          {istAdmin && (
+            <button type="button" title={t('Bild kopieren')} aria-label={t('Bild kopieren')} onClick={() => void alsBild()}
               className="flex h-8 w-8 items-center justify-center rounded-md bg-black/65 text-white transition hover:bg-black/85">
-              <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
-                {voll ? <path d="M8 3v5H3M12 3v5h5M8 17v-5H3M12 17v-5h5" /> : <path d="M3 8V3h5M17 8V3h-5M3 12v5h5M17 12v5h-5" />}
-              </svg>
+              <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden><rect x="5" y="4" width="10" height="13" rx="1.5" /><path d="M8 4V2.5h4V4M8 9h4M8 12h4" /></svg>
             </button>
-          </div>
+          )}
+          {hatNamen && (
+            <button type="button" title={t('Spieler suchen … (Strg + F)')} aria-label={t('Spieler suchen … (Strg + F)')}
+              onClick={() => { setPopup(true); setTimeout(() => sucheFeld.current?.focus(), 0); }}
+              className="flex h-8 w-8 items-center justify-center rounded-md bg-black/65 text-white transition hover:bg-black/85">
+              <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><circle cx="8.5" cy="8.5" r="5.5" /><path d="M13 13l4 4" /></svg>
+            </button>
+          )}
+          <button type="button" title={voll ? t('Vollbild verlassen') : t('Vollbild')} aria-label={voll ? t('Vollbild verlassen') : t('Vollbild')}
+            onClick={vollbildUmschalten}
+            className="flex h-8 w-8 items-center justify-center rounded-md bg-black/65 text-white transition hover:bg-black/85">
+            <svg viewBox="0 0 20 20" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+              {voll ? <path d="M8 3v5H3M12 3v5h5M8 17v-5H3M12 17v-5h5" /> : <path d="M3 8V3h5M17 8V3h-5M3 12v5h5M17 12v5h-5" />}
+            </svg>
+          </button>
         </div>
 
       </div>

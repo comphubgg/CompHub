@@ -3334,7 +3334,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
           // Die gespeicherte Karte steht gleich auf der Seite (Betreiber, 26.10.2026); der Knopf bleibt, wo es nur ein Angebot gibt oder noch kein Team verteilt ist.
           const gespeichert = kartenZumZeigen.filter((k) => !k.href);
           return gespeichert.length
-            ? <KarteImEvent key={fenster?.windowId} alsReiter karten={gespeichert} leer={knoepfe} zusatz={istAdmin ? knoepfe : undefined} />
+            ? <KarteImEvent key={fenster?.windowId} alsReiter karten={gespeichert} leer={knoepfe} />
             : knoepfe;
         })()}
 
