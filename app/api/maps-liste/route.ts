@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { mapsVerzeichnis, alleSaisons } from '@/lib/mapsVerzeichnis';
+import { mapsVerzeichnis, alleSaisons, istDemo } from '@/lib/mapsVerzeichnis';
 import { ueberdauernd } from '@/lib/ueberdauernd';
 
 /*
@@ -12,7 +12,9 @@ export const runtime = 'nodejs';
 export async function GET() {
   try {
     // Das letzte gute Verzeichnis sofort - auch ohne den PC daheim (lib/ueberdauernd, 29.10.2026).
-    const eintraege = await ueberdauernd('maps-liste', 10 * 60_000, 7 * 864e5, () => mapsVerzeichnis());
+    // Auch der gespeicherte Stand ohne Demos (er kann von vor dem Filter stammen).
+    const roh = await ueberdauernd('maps-liste', 10 * 60_000, 7 * 864e5, () => mapsVerzeichnis());
+    const eintraege = roh ? roh.filter((e) => !istDemo(e)) : roh;
     return NextResponse.json({ ok: true, eintraege, saisons: alleSaisons() }, {
       headers: { 'Cache-Control': 'public, max-age=60, s-maxage=300' },
     });

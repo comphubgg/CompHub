@@ -225,6 +225,9 @@ export async function versteckteKarten(): Promise<MapEintrag[]> {
   return merker?.versteckt ?? [];
 }
 
+/** Keine Demos (Betreiber, 30.10.2026: "es soll keine Demos geben unter Maps oder sonst wo") - Fenster namens "Demo" sind unfertige Testkarten. */
+export const istDemo = (e: { fenster?: string; windowId: string }) => /^demo$/i.test((e.fenster ?? '').trim()) || /_Demo$/i.test(e.windowId);
+
 let bauLaeuft: Promise<MapEintrag[]> | null = null;
 
 /**
@@ -325,8 +328,6 @@ async function baueVerzeichnis(): Promise<MapEintrag[]> {
    */
   const nr = (e: MapEintrag) => Number(e.saison.slice(1)) || 0;
   const mitNoble = new Set(liste.filter((e) => !e.alt).map((e) => e.saison));
-  // Keine Demos (Betreiber, 30.10.2026: "es soll keine Demos geben unter Maps oder sonst wo") - Fenster namens "Demo" sind unfertige Testkarten.
-  const istDemo = (e: MapEintrag) => /^demo$/i.test((e.fenster ?? '').trim()) || /_Demo$/i.test(e.windowId);
   const sichtbar = liste.filter((e) => !SAISON_OHNE_MAPS.has(e.saison) && !istDemo(e));
   sichtbar.sort((a, b) => nr(b) - nr(a)
     || (mitNoble.has(a.saison) ? (b.datum ?? 0) - (a.datum ?? 0) : 0)
