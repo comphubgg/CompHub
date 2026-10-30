@@ -1,6 +1,6 @@
 import sharp from 'sharp';
 import { GET as replayAbruf } from '@/app/api/replay/route';
-import { fortniteKarte } from '@/lib/bildAdressen';
+import { saisonKarte } from '@/lib/bildAdressen';
 
 /*
  * Das Zonen-Bild eines Finales, auf dem Server gezeichnet (Aufgabe 128, Betreiber 19.10.2026: "Zonenbilder fuer Finals" als automatischer Post).
@@ -44,7 +44,7 @@ export async function zonenBild(windowId: string, o: { alleTage?: boolean; urspr
     if (r.ok) Object.assign(zonen, ((await r.json()) as { zonen?: Record<string, Zone[]> }).zonen ?? {});
   }
 
-  const karteRoh = await fetch(`${o.ursprung ?? SEITE}${fortniteKarte(false)}`, { signal: AbortSignal.timeout(30_000) });
+  const karteRoh = await fetch(`${o.ursprung ?? SEITE}${saisonKarte(windowId)}`, { signal: AbortSignal.timeout(30_000) });
   if (!karteRoh.ok) return null;
   const n = 2048;
   const karte = await sharp(Buffer.from(await karteRoh.arrayBuffer())).resize(n, n).png().toBuffer();

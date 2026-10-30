@@ -18,7 +18,7 @@ import T from '@/app/components/T';
 import LadeSchirm from '@/app/components/LadeSchirm';
 import VipVorhang from '@/app/overlays/VipVorhang';
 import { useZugang } from '@/app/lib/zugang';
-import { fortniteKarte } from '@/lib/bildAdressen';
+import { saisonKarte } from '@/lib/bildAdressen';
 import { replayDatum, replayUhrzeit, ohneMarke, schoenerTitel } from '@/lib/replayNamen';
 import ReplayAnsicht, { type RMatch, type RWertung } from '@/app/replays/ReplayAnsicht';
 
@@ -93,7 +93,7 @@ export default function MatchSeite() {
 
   const game = tag?.matches.find((m) => m.nr === nr) ?? null;
   // Die grosse Insel hat ein Kartenbild; die kleinen Reload-Inseln ("Athena_Empty") nicht - dort gilt ein Raster nach den Daten.
-  const kartenBild = match && /^Athena_Empty/i.test(match.karte ?? '') ? null : fortniteKarte(false);
+  const kartenBild = match && /^Athena_Empty/i.test(match.karte ?? '') ? null : saisonKarte(tagId);
 
   return (
     <main className="min-h-screen bg-zinc-950 text-slate-100">

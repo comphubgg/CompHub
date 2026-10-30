@@ -10,7 +10,7 @@ import { useParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import T from '@/app/components/T';
 import LadeSchirm from '@/app/components/LadeSchirm';
-import { fortniteKarte } from '@/lib/bildAdressen';
+import { saisonKarte } from '@/lib/bildAdressen';
 import { replayDatum, replayUhrzeit, tagName, ohneMarke, schoenerTitel } from '@/lib/replayNamen';
 import ReplayAnsicht, { type RMatch, type RWertung } from '../../ReplayAnsicht';
 
@@ -68,7 +68,7 @@ export default function GameSeite() {
   const tagNr = tag ? Math.max(0, geschwister.findIndex((g) => g.windowId === tag.windowId)) : 0;
   const href = (n: number) => `/replays/${encodeURIComponent(tagId)}/${n}`;
   // Die grosse Insel hat ein Kartenbild; die kleinen Reload-Inseln ("Athena_Empty") nicht - dort gilt ein Raster nach den Daten.
-  const kartenBild = match && /^Athena_Empty/i.test(match.karte ?? '') ? null : fortniteKarte(false);
+  const kartenBild = match && /^Athena_Empty/i.test(match.karte ?? '') ? null : saisonKarte(tagId);
 
   return (
     <main className="min-h-screen bg-zinc-950 text-slate-100">

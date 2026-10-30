@@ -12,6 +12,12 @@
 /** Epics aktuelle Karte - mit oder ohne Ortsnamen (app/api/fortnite-map). */
 export const fortniteKarte = (mitOrten: boolean) => `/bilder/karte-${mitOrten ? 'orte' : 'leer'}.png`;
 
+/** Die Insel der Saison eines Spieltags ("S42_..." -> /bilder/karte-s42.png, lib/saisonKarte) - ohne Saison in der Kennung die Karte von heute. */
+export const saisonKarte = (kennung?: string | null) => {
+  const m = /(?:^|_)S(\d{2,3})_/i.exec(kennung ?? '');
+  return m ? `/bilder/karte-s${m[1]}.png` : fortniteKarte(false);
+};
+
 /** Ein hochgeladenes Kartenbild (app/api/karten-bild). */
 export const eigeneKarte = (id: string) => `/bilder/karten/${encodeURIComponent(id)}.png`;
 
