@@ -13,16 +13,21 @@ import { DATEN_ORT } from '@/lib/datenOrt';
  * Hintergrund), liegt er als Datei auf der Platte des Servers und kommt danach in einer einzigen Antwort. Laufende Spieltage laden weiter in Stufen.
  */
 const GANZ_ORDNER = path.join(DATEN_ORT, 'vorrat', 'bestenliste-ganz');
-const imBau = new Set<string>();
+const imBau = new Map<string, Promise<void>>();
 const ganzDatei = (w: string) => path.join(GANZ_ORDNER, `${w.replace(/[^\w.-]/g, '_')}.json`);
 async function ganzLesen(w: string) {
-  try { return JSON.parse(await nodeFs.readFile(ganzDatei(w), 'utf8')) as { entries: unknown[]; updated?: string; totalPages?: number }; }
-  catch { return null; }
+  try {
+    const p = ganzDatei(w);
+    const d = JSON.parse(await nodeFs.readFile(p, 'utf8')) as { entries: unknown[]; updated?: string; totalPages?: number; gebaut?: number };
+    d.gebaut ??= (await nodeFs.stat(p)).mtimeMs;
+    return d;
+  } catch { return null; }
 }
-function ganzBauen(event: string, w: string) {
-  if (imBau.has(w)) return;
-  imBau.add(w);
-  void (async () => {
+/** Die ganze Liste neu holen - laeuft schon ein Bau fuer diesen Spieltag, wird auf ihn gewartet statt einen zweiten zu starten. */
+function ganzBauen(event: string, w: string): Promise<void> {
+  const laufend = imBau.get(w);
+  if (laufend) return laufend;
+  const bau = (async () => {
     try {
       let alle: unknown[] = []; let gesamt = 0; let updated: string | undefined;
       for (let von = 0; von < 100; von += 25) {
@@ -33,10 +38,13 @@ function ganzBauen(event: string, w: string) {
       }
       if (!alle.length) return;
       await nodeFs.mkdir(GANZ_ORDNER, { recursive: true });
-      await nodeFs.writeFile(ganzDatei(w), JSON.stringify({ entries: alle, totalPages: gesamt, updated: updated ?? new Date().toISOString() }));
+      await nodeFs.writeFile(ganzDatei(w), JSON.stringify({ entries: alle, totalPages: gesamt, updated: updated ?? new Date().toISOString(), gebaut: Date.now() }));
     } catch { /* naechster Aufruf versucht es wieder */ } finally { imBau.delete(w); }
   })();
+  imBau.set(w, bau);
+  return bau;
 }
+const hoechstens = (p: Promise<void>, ms: number) => Promise.race([p, new Promise<void>((r) => setTimeout(r, ms))]);
 import { abgesagtFuer, ohneAbgesagte } from '@/lib/abgesagt';
 import { holeKatalog, regionAus, wertungVon, type WertungsRegel } from '@/lib/cupWertung';
 import { GLOBALS_EVENT, GLOBALS_TAGE, istGlobalsEvent, istGlobalsFenster } from '@/lib/globalsCup';
@@ -184,10 +192,27 @@ async function holeRoh(request: Request) {
      * aneinander, statt zehntausend Plaetze in einer einzigen Anfrage zu
      * verlangen, die ohnehin in der Zeitgrenze endet.
      */
-    // Ganz (nur fuer vorbei gegangene Spieltage, die Seite fragt es nur dort): aus dem Vorrat - fehlt er, wird er im Hintergrund gebaut.
+    /*
+     * Ganz: alle Plaetze in einer Antwort, aus dem Vorrat auf der Platte (Betreiber, 30.10.2026: "diese Ansicht soll nicht kommen, es soll direkt alle 10k
+     * laden, nicht mit der Zeit"). "ab" (ms) sagt, wie frisch der Vorrat sein muss:
+     *   - vorbei gegangener Spieltag: gebaut nach dem Ende (sonst stammt er aus der Zeit, als der Cup noch lief) - fehlt er, wird gewartet;
+     *   - laufender Spieltag: hoechstens zwei Minuten alt - der vorhandene kommt sofort, der neue wird im Hintergrund gebaut.
+     * Fehlt jeder Vorrat, wartet die Antwort auf den Bau (hoechstens 55 s); erst danach "fehlt" und die Seite laedt in Stufen.
+     */
     if (searchParams.get('ganz') === '1') {
-      const vorrat = searchParams.get('frisch') === '1' ? null : await ganzLesen(window_);
-      if (!vorrat) { ganzBauen(event, window_); return NextResponse.json({ entries: [], fehlt: true }); }
+      const ab = Number(searchParams.get('ab')) || 0;
+      const laeuft = searchParams.get('live') === '1';
+      let vorrat = searchParams.get('frisch') === '1' ? null : await ganzLesen(window_);
+      const veraltet = !vorrat || (vorrat.gebaut ?? 0) < ab;
+      if (veraltet) {
+        const bau = ganzBauen(event, window_);
+        if (!vorrat || !laeuft) {
+          await hoechstens(bau, 55_000);
+          vorrat = await ganzLesen(window_);
+          if (!vorrat || (!laeuft && (vorrat.gebaut ?? 0) < ab && imBau.has(window_))) return NextResponse.json({ entries: [], fehlt: true });
+        }
+      }
+      if (!vorrat) return NextResponse.json({ entries: [], fehlt: true });
       const voll = await ergaenzeBilder(await bereinigt(vorrat as { entries: CupEintrag[]; totalPages?: number; updated?: string }, event, window_));
       // Die Spielverlaeufe machen bei 10.000 Plaetzen ueber 20 MB aus - mit dabei nur fuer die ersten 300; den Rest holt die Seite beim Anklicken (ids=).
       return NextResponse.json({ ...voll, entries: (voll.entries as unknown as Array<Record<string, unknown>>).map((x, i) => (i < 300 ? x : { ...x, matches: [], matchesWeg: true })) });

@@ -132,11 +132,18 @@ export async function GET(req: NextRequest) {
         a.cookies.set('epic_oauth_art', '', { path: '/', maxAge: 0 });
         return a;
       };
-      if (!konto.epicVerifiziert || konto.epicId !== epicId) return loeschen(zurueck('/account?epic=freunde-anderes-konto'));
+      // Noch nicht verifiziert: hier gleich mit - solange das Epic-Konto dasselbe ist, das dem CompHub-Konto zugeordnet ist (oder noch keins).
+      if (konto.epicId && konto.epicId !== epicId) return aufraeumen(loeschen(zurueck('/account?epic=freunde-anderes-konto')));
+      if (!konto.epicVerifiziert) {
+        const anderes = await nachEpicId(epicId);
+        if (anderes && anderes.id !== konto.id) return aufraeumen(loeschen(zurueck('/account?epic=vergeben')));
+        await aendern(konto.id, { epicId, epicVerifiziert: true, ...(epicName ? { epicName } : {}) });
+        await merkeKonto(epicId);
+      }
       const ids = await holeFreunde(epicId, token.access_token);
-      if (!ids) return loeschen(zurueck('/account?epic=freunde-fehler'));
+      if (!ids) return aufraeumen(loeschen(zurueck(`${heim}?epic=freunde-fehler`)));
       await aendern(konto.id, { epicFreunde: ids, epicFreundeStand: Date.now() });
-      return loeschen(zurueck('/account?epic=freunde'));
+      return aufraeumen(loeschen(zurueck(`${heim}?epic=freunde`)));
     }
 
     // Wer sich verifiziert, dessen Cups werden von selbst ausgewertet (lib/eigeneAuswertung) - ohne dass er erst jeden Cup oeffnen muss.

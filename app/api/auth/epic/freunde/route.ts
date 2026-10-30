@@ -38,7 +38,7 @@ export async function GET(req: NextRequest) {
   }
 
   if (req.nextUrl.searchParams.get('start')) {
-    if (!k.epicId || !k.epicVerifiziert) return new NextResponse(null, { status: 307, headers: { Location: '/account?epic=erst-verbinden' } });
+    // Ohne Verifizierung nicht mehr erst ins Konto (Betreiber, 30.10.2026: Friends ging "immer noch nicht"): derselbe Weg verifiziert und holt die Freunde.
     const { id: CLIENT_ID } = await holeDienst('epic');
     if (!CLIENT_ID) return new NextResponse(null, { status: 307, headers: { Location: '/account?epic=nicht-eingerichtet' } });
     const state = crypto.randomUUID();
@@ -53,6 +53,9 @@ export async function GET(req: NextRequest) {
     const optionen = { httpOnly: true, sameSite: 'lax' as const, secure: process.env.NODE_ENV === 'production', path: '/', maxAge: 600 };
     antwort.cookies.set('epic_oauth_state', state, optionen);
     antwort.cookies.set('epic_oauth_art', 'freunde', optionen);
+    // Zurueck dorthin, wo der Knopf stand (z. B. die Bestenliste eines Cups) - nur eigene Pfade.
+    const zurueck = req.nextUrl.searchParams.get('zurueck') ?? '';
+    if (zurueck.startsWith('/') && !zurueck.startsWith('//') && zurueck.split('').every((c) => /[a-z0-9/_-]/i.test(c))) antwort.cookies.set('epic_rueck', zurueck, optionen);
     return antwort;
   }
 

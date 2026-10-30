@@ -2320,9 +2320,16 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     const nochMeins = () => laufNr.current === meiner;
 
     try {
-      // Ein vorbei gegangener Spieltag: die ganze Liste in einer Antwort, wenn der Server sie schon vorraetig hat (app/api/cup-leaderboard, ganz=1).
-      if (f.status === 'vorbei' && !(tageListe && tageListe.length > 1) && Date.now() >= handFrischBis.current) {
-        const g = await fetch(`/api/cup-leaderboard?event=${encodeURIComponent(f.eventId)}&window=${encodeURIComponent(f.windowId)}&ganz=1`)
+      /*
+       * Die ganze Liste in einer Antwort (app/api/cup-leaderboard, ganz=1) - vorbei gegangen oder laufend (Betreiber, 30.10.2026: "direkt alle 10k, nicht
+       * mit der Zeit"). Vorbei: der Vorrat muss nach dem Ende gebaut sein; laufend: hoechstens zwei Minuten alt. Nur wenn der Server auch nach dem
+       * Warten keine hat, geht es wie frueher in Stufen weiter.
+       */
+      if (!(tageListe && tageListe.length > 1)) {
+        const laeuftJetzt = f.status !== 'vorbei';
+        const ab = laeuftJetzt ? Date.now() - 2 * 60_000 : (f.end ?? 0) + 10 * 60_000;
+        const frischHand = Date.now() < handFrischBis.current ? '&frisch=1' : '';
+        const g = await fetch(`/api/cup-leaderboard?event=${encodeURIComponent(f.eventId)}&window=${encodeURIComponent(f.windowId)}&ganz=1&ab=${Math.round(ab)}${laeuftJetzt ? '&live=1' : ''}${frischHand}`)
           .then((r) => r.json()).catch(() => null) as { entries?: Eintrag[]; updated?: string } | null;
         if (!nochMeins()) return;
         if (g?.entries?.length) {
@@ -3451,9 +3458,11 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
           <header className="flex flex-wrap items-center justify-between gap-3 border-b
                              border-zinc-800 px-4 py-3">
             <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-100"><T>Leaderboard</T>{summenFenster && <span className="rounded-full border border-sky-500/40 bg-sky-500/10 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-sky-300"><T>Kumulativ</T> · {summenFenster.map((w, j) => `${t('Tag')} ${/Day(\d+)/i.exec(w)?.[1] ?? j + 1}`).join(' + ')}</span>}</h2>
-            <div className="flex items-center gap-3">
+            <div className="flex flex-wrap items-center gap-3">
               {rangWahl}
-              {meineId && (
+              {/* Immer da - auch ohne Anmeldung oder Epic-Verknuepfung (Betreiber, 30.10.2026: "auf meinem Handy sehe ich das gar nicht"); der Hinweis
+                  unter der Liste sagt dann, was fehlt. */}
+              {(
                 <div className="inline-flex rounded-lg border border-zinc-800 bg-zinc-900/80 p-0.5 text-xs font-semibold">
                   <button type="button" onClick={() => { setNurFreunde(false); setSeite(1); }}
                     className={`rounded-md px-3 py-1 transition ${!nurFreunde ? 'bg-sky-500 text-white shadow' : 'text-slate-400 hover:text-slate-100'}`}><T>Alle</T></button>
@@ -3504,7 +3513,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
           {nurFreunde && freundeGeladen && freundeIds.size === 0 && (
             <p className="border-b border-zinc-800/70 bg-zinc-900/40 px-4 py-2.5 text-xs text-slate-400">
               <T>Du hast noch keine Epic-Freunde freigegeben.</T>{' '}
-              <a href="/api/auth/epic/freunde?start=1" className="font-semibold text-sky-300 hover:underline"><T>Jetzt freigeben</T> →</a>
+              <a href={`/api/auth/epic/freunde?start=1&zurueck=${encodeURIComponent(`/events/${id}`)}`} className="font-semibold text-sky-300 hover:underline"><T>Jetzt freigeben</T> →</a>
             </p>
           )}
           {!laedt && (vertieft || suchtGerade) && (
