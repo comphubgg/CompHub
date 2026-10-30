@@ -81,7 +81,8 @@ async function duoPool(): Promise<PoolEintrag[] | null> {
         const kx = p.id ? kontext(p.id, p.name) : null;
         return { name: kx?.anzeige || p.name, land: kx?.land ?? null };
       });
-      if (spieler.length !== 2) continue;
+      // Ohne aufgeloesten Namen (gekuerzte Konto-Id, wenn Epic die Namensabfrage bremst) oder ohne einen bekannten Profi (Flagge) kein Duo - die kennt niemand.
+      if (spieler.length !== 2 || spieler.some((s) => /^[0-9a-f]{8}$/i.test(s.name)) || !spieler.some((s) => s.land)) continue;
       const schluessel = spieler.map((s) => s.name.toLowerCase()).sort().join('|');
       if (gesehen.has(schluessel)) continue;
       gesehen.add(schluessel);
@@ -94,6 +95,6 @@ async function duoPool(): Promise<PoolEintrag[] | null> {
 export async function GET(request: Request) {
   const modus = new URL(request.url).searchParams.get('modus') === 'duo' ? 'duo' : 'solo';
   const sechsStunden = 6 * 3_600_000;
-  const pool = await ueberdauernd(`tierlist-pool-v2-${modus}`, sechsStunden, 7 * 864e5, () => (modus === 'duo' ? duoPool() : soloPool())).catch(() => null);
+  const pool = await ueberdauernd(`tierlist-pool-v3-${modus}`, sechsStunden, 7 * 864e5, () => (modus === 'duo' ? duoPool() : soloPool())).catch(() => null);
   return NextResponse.json({ ok: Boolean(pool), modus, pool: pool ?? [] }, { headers: { 'Cache-Control': 'public, max-age=300' } });
 }
