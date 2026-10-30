@@ -134,7 +134,7 @@ const ohneBus = (m, datum) => Boolean(m) && m.mitBus !== 1 && !MASSEN.test(m.win
   && Date.now() - (Date.parse(m.beginn ?? '') || datum || 0) < 29 * 864e5;
 // mitOrten (30.10.2026): der Leser gibt Orte, Lebenspunkte, Schuesse und Loot je Spieler aus (2D-Ansicht wie bei Osirion) - abgelegte Spiele ohne sie
 // werden einmal neu gelesen, solange Epic sie hat.
-const ohneOrte = (m, datum) => Boolean(m) && m.mitOrten !== 1 && !MASSEN.test(m.windowId ?? '')
+const ohneOrte = (m, datum) => Boolean(m) && m.mitOrten !== 2 && !MASSEN.test(m.windowId ?? '')
   && Date.now() - (Date.parse(m.beginn ?? '') || datum || 0) < 29 * 864e5;
 const teilgelesen = (m, datum) => Boolean(m) && m.ende == null && !m.vollstaendig && !m.unvollstaendig && !MASSEN.test(m.windowId ?? '')
   && Date.now() - (Date.parse(m.beginn ?? '') || datum || 0) < 29 * 864e5;
@@ -329,7 +329,7 @@ async function abarbeiten({ id, tag }) {
       ...(Array.isArray(m.treffer) ? { mitTreffer: 2 } : {}),
       // Auch ohne Bus im Replay gilt es als mit dem neuen Leser gelesen - sonst wuerde es endlos neu gelesen.
       mitBus: 1,
-      ...(m.orte ? { mitOrten: 1 } : {}),
+      ...(m.orte ? { mitOrten: m.hand ? 2 : 1 } : {}),
     };
     delete index.fehler[id];
     speichereIndex();
