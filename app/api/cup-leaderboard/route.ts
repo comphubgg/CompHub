@@ -4,6 +4,7 @@ import {
 } from '@/lib/epicCups';
 import { zwischenspeichern } from '@/lib/zwischenspeicher';
 import nodeFs from 'fs/promises';
+import { gzipSync, gunzipSync } from 'zlib';
 import path from 'path';
 import { DATEN_ORT } from '@/lib/datenOrt';
 
@@ -17,8 +18,11 @@ const imBau = new Map<string, Promise<void>>();
 const ganzDatei = (w: string) => path.join(GANZ_ORDNER, `${w.replace(/[^\w.-]/g, '_')}.json`);
 async function ganzLesen(w: string) {
   try {
-    const p = ganzDatei(w);
-    const d = JSON.parse(await nodeFs.readFile(p, 'utf8')) as { entries: unknown[]; updated?: string; totalPages?: number; gebaut?: number };
+    // Gepackt (seit 30.10.2026 - jeder Spieltag der 31 Tage liegt vorgebaut), aeltere Dateien noch ungepackt.
+    const gz = `${ganzDatei(w)}.gz`;
+    const p = await nodeFs.access(gz).then(() => gz, () => ganzDatei(w));
+    const roh = await nodeFs.readFile(p);
+    const d = JSON.parse((p === gz ? gunzipSync(roh) : roh).toString('utf8')) as { entries: unknown[]; updated?: string; totalPages?: number; gebaut?: number };
     d.gebaut ??= (await nodeFs.stat(p)).mtimeMs;
     return d;
   } catch { return null; }
@@ -38,7 +42,8 @@ function ganzBauen(event: string, w: string): Promise<void> {
       }
       if (!alle.length) return;
       await nodeFs.mkdir(GANZ_ORDNER, { recursive: true });
-      await nodeFs.writeFile(ganzDatei(w), JSON.stringify({ entries: alle, totalPages: gesamt, updated: updated ?? new Date().toISOString(), gebaut: Date.now() }));
+      await nodeFs.writeFile(`${ganzDatei(w)}.gz`, gzipSync(JSON.stringify({ entries: alle, totalPages: gesamt, updated: updated ?? new Date().toISOString(), gebaut: Date.now() })));
+      await nodeFs.rm(ganzDatei(w), { force: true });
     } catch { /* naechster Aufruf versucht es wieder */ } finally { imBau.delete(w); }
   })();
   imBau.set(w, bau);
@@ -204,6 +209,11 @@ async function holeRoh(request: Request) {
       const laeuft = searchParams.get('live') === '1';
       let vorrat = searchParams.get('frisch') === '1' ? null : await ganzLesen(window_);
       const veraltet = !vorrat || (vorrat.gebaut ?? 0) < ab;
+      // Vom Server selbst (instrumentation.ts, vorbauen): nur sicherstellen, dass der Vorrat frisch ist - ohne die Liste zu schicken.
+      if (searchParams.get('vorbauen') === '1') {
+        if (veraltet) await hoechstens(ganzBauen(event, window_), 120_000);
+        return NextResponse.json({ ok: true, gebaut: veraltet });
+      }
       if (veraltet) {
         const bau = ganzBauen(event, window_);
         if (!vorrat || !laeuft) {

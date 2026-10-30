@@ -120,6 +120,46 @@ export async function register() {
       for (const weg of ['/api/maps-liste', '/api/fncs-ereignisse', '/api/globals-solos?region=EU']) await rufe(weg);
     };
     setTimeout(() => { void aufwaermen(); }, 4_000).unref?.();
+
+    /*
+     * Bestenlisten vorbauen (Betreiber, 30.10.2026: "13 Sekunden?! Maximal 3 ... bei anderen Webseiten geht das schneller"). Die ganze Liste eines
+     * Spieltags (bis 10.000 Plaetze, hundert Seiten bei Epic) zu holen dauert gut zehn Sekunden - das soll nie ein Besucher abwarten. Der Server haelt
+     * deshalb selbst fertig auf der Platte (app/api/cup-leaderboard, ganz=1): jede laufende Liste hoechstens drei Minuten alt, jede in den letzten
+     * 31 Tagen beendete einmal nach ihrem Ende (gepackt, rund 1,3 MB je Spieltag). Der Besucher bekommt sie dann in Bruchteilen einer Sekunde.
+     */
+    let baut = false;
+    const vorbauen = async () => {
+      if (baut) return;
+      baut = true;
+      try {
+        const kat = await fetch(`${intern}/api/cup-catalog?modus=alle`, { cache: 'no-store', signal: AbortSignal.timeout(120_000) }).then((r) => r.json()) as {
+          cups?: Array<{ regionen?: Record<string, Array<{ eventId: string; windowId: string; status?: string; end?: number }>> }>;
+        };
+        const jetzt = Date.now();
+        const ziele: Array<{ eventId: string; windowId: string; ab: number; live: boolean }> = [];
+        for (const cup of kat.cups ?? []) {
+          for (const liste of Object.values(cup.regionen ?? {})) {
+            for (const w of liste) {
+              if (w.status === 'live') ziele.push({ eventId: w.eventId, windowId: w.windowId, ab: jetzt - 3 * 60_000, live: true });
+              else if (w.status === 'vorbei' && (w.end ?? 0) > jetzt - 31 * 864e5 && (w.end ?? 0) + 10 * 60_000 < jetzt) {
+                ziele.push({ eventId: w.eventId, windowId: w.windowId, ab: (w.end ?? 0) + 10 * 60_000, live: false });
+              }
+            }
+          }
+        }
+        // Laufende zuerst, dann das zuletzt Beendete.
+        ziele.sort((a, b) => Number(b.live) - Number(a.live) || b.ab - a.ab);
+        let i = 0;
+        await Promise.all(Array.from({ length: 2 }, async () => {
+          while (i < ziele.length) {
+            const z = ziele[i++];
+            await rufe(`/api/cup-leaderboard?event=${encodeURIComponent(z.eventId)}&window=${encodeURIComponent(z.windowId)}&ganz=1&vorbauen=1&ab=${Math.round(z.ab)}`);
+          }
+        }));
+      } catch { /* naechster Takt */ } finally { baut = false; }
+    };
+    setTimeout(() => { void vorbauen(); }, 60_000).unref?.();
+    setInterval(() => { void vorbauen(); }, 60_000).unref?.();
   }
 
   if (process.env.VERCEL || process.env.COMPHUB_KEIN_HINTERGRUND) {
