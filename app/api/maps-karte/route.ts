@@ -7,6 +7,12 @@ import { istVitalRegion } from '@/lib/vitalScrims';
 import { mapsVerzeichnis } from '@/lib/mapsVerzeichnis';
 import { ALT, alteFenster, inselFuer, mitHandEbene } from '@/lib/alteMaps';
 import { fncsPlatzierungen } from '@/lib/fncsEreignisse';
+import { ueberdauernd } from '@/lib/ueberdauernd';
+
+/** Das Verzeichnis aus dem gespeicherten Stand (wie /api/maps-liste) - frisch gebaut braucht es nach einem Neustart ueber 20 s. */
+async function verzeichnis() {
+  return (await ueberdauernd('maps-liste', 10 * 60_000, 7 * 864e5, () => mapsVerzeichnis()).catch(() => null)) ?? mapsVerzeichnis();
+}
 
 /*
  * Die Karte eines Fensters, wie Noble Practice sie fuehrt: die Spieler (mit Land und Foto) und die Landepunkte.
@@ -37,12 +43,12 @@ function datei(schluessel: string) {
 
 async function rechne(t: string, r: string, w: string): Promise<Basis | null> {
   // NA Central, NA West, Middle East und Ozeanien: die Landepunkte kommen von Vital Scrims, nicht von Noble.
-  const vitalEintrag = istVitalRegion(r) ? (await mapsVerzeichnis()).find((x) => x.turnierId === t && x.windowId === w && x.region === r) : undefined;
+  const vitalEintrag = istVitalRegion(r) ? (await verzeichnis()).find((x) => x.turnierId === t && x.windowId === w && x.region === r) : undefined;
   const f = vitalEintrag
     ? await vitalFenster({ windowId: vitalEintrag.windowId, name: vitalEintrag.fenster || vitalEintrag.titel, region: r, begin: vitalEintrag.datum ?? 0, ende: vitalEintrag.ende, vitalId: vitalEintrag.vitalId })
     : await fensterFuer(t, r, w);
   if (!f) return null;
-  const e = (await mapsVerzeichnis()).find((x) => x.turnierId === t && x.windowId === w);
+  const e = (await verzeichnis()).find((x) => x.turnierId === t && x.windowId === w);
   const platzierungen = e ? await fncsPlatzierungen(e).catch(() => []) : [];
   const basis = { f, platzierungen };
   try {
@@ -82,7 +88,7 @@ export async function GET(request: Request) {
   try {
     // Die Karten ohne Landepunkte (Archiv, aeltere Events, vom Admin angelegt) - siehe lib/alteMaps.
     if (t.startsWith(ALT)) {
-      const e = (await mapsVerzeichnis()).find((x) => x.turnierId === t && x.windowId === w);
+      const e = (await verzeichnis()).find((x) => x.turnierId === t && x.windowId === w);
       if (!e) return NextResponse.json({ ok: false, error: 'Dieses Fenster gibt es nicht.' }, { status: 404, headers: { 'Cache-Control': 'no-store' } });
       const platzierungen = await fncsPlatzierungen(e).catch(() => []);
       return NextResponse.json({ ok: true, ...await alteFenster(e, p.get('tag') ?? 'gesamt'), platzierungen }, { headers: { 'Cache-Control': 'no-store' } });
@@ -92,7 +98,7 @@ export async function GET(request: Request) {
     // Eine eigene Kopie: mehrere Aufrufe teilen sich dieselbe Rechnung, und unten wird das Fenster veraendert.
     const { f, platzierungen } = structuredClone(basis);
     // Ein Finale an zwei Tagen (Epics Archiv): die Seite zeigt Day 1 / Day 2 / Combined.
-    const e = (await mapsVerzeichnis()).find((x) => x.turnierId === t && x.windowId === w);
+    const e = (await verzeichnis()).find((x) => x.turnierId === t && x.windowId === w);
     // Nennt Noble fuer das Fenster nur die allgemeine, immer aktuelle Spielkarte (fortnite-api.com), steht dort bei einem alten Event die falsche
     // Insel (Global Championship 2025 zeigte die Insel von heute): dann gilt die Insel der Saison des Events.
     if (e && (!f.fenster.bild || f.fenster.bild.includes('fortnite-api.com/images/map'))) f.fenster.bild = inselFuer(e.saison);
