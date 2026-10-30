@@ -51,7 +51,7 @@ export default function GameSeite() {
         for (let versuch = 0; versuch < 4; versuch += 1) {
           if (versuch) await new Promise((res) => setTimeout(res, 1500 * versuch));
           if (weg) return;
-          rm = await fetch(`/api/replay?match=${encodeURIComponent(game.id)}&v=2`).catch(() => null);
+          rm = await fetch(`/api/replay?match=${encodeURIComponent(game.id)}&v=3`).catch(() => null);
           mj = rm ? await rm.json().catch(() => null) : null;
           if (rm?.ok && mj) break;
           if (rm?.status === 404) break; // ein nicht ausgewertetes Match ist auch beim vierten Mal nicht da

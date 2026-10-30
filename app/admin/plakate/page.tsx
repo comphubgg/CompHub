@@ -13,8 +13,8 @@ import KartenPlakat from './KartenPlakat';
  * Spieltage (mehrere Tage eines Finales rechnen sich zusammen), den Spieler oder das Team und sieht gleich das Bild. Herunterladen, als Bild kopieren oder den Text zum Beitrag nehmen.
  */
 
-type Art = 'spieler' | 'standings' | 'finale' | 'top5' | 'earnings' | 'karte';
-const ARTEN: Array<[Art, string]> = [['spieler', 'Spieler'], ['standings', 'Standings'], ['finale', 'Finale'], ['top5', 'Top 5'], ['earnings', 'Earnings-Zeitstrahl'], ['karte', 'Karte']];
+type Art = 'spieler' | 'standings' | 'finale' | 'top5' | 'earnings' | 'chancen' | 'karte';
+const ARTEN: Array<[Art, string]> = [['spieler', 'Spieler'], ['standings', 'Standings'], ['finale', 'Finale'], ['top5', 'Top 5'], ['earnings', 'Earnings-Zeitstrahl'], ['chancen', 'Chancen'], ['karte', 'Karte']];
 
 interface Fenster { status: string; begin: number; end?: number; eventId: string; windowId: string; region: string; istFinale: boolean }
 interface Cup { id: string; titel: string; regionen: Record<string, Fenster[]> }
@@ -47,6 +47,7 @@ export default function PlakatSeite() {
   const [liste, setListe] = useState('verdienst');
   const [jahr, setJahr] = useState(new Date().getFullYear());
   const [topRegion, setTopRegion] = useState('EU');
+  const [chancenTag, setChancenTag] = useState('');
 
   const [bildUrl, setBildUrl] = useState('');
   const [bildFehler, setBildFehler] = useState('');
@@ -97,6 +98,10 @@ export default function PlakatSeite() {
       q.set('region', topRegion); q.set('liste', liste); q.set('jahr', String(jahr));
       return `/api/plakat?${q.toString()}`;
     }
+    if (art === 'chancen') {
+      if (chancenTag) q.set('window', chancenTag); else q.set('region', topRegion);
+      return `/api/plakat?${q.toString()}`;
+    }
     if (art === 'earnings') {
       if (spieler.trim().length < 2) return '';
       q.set('q', spieler.trim());
@@ -112,7 +117,7 @@ export default function PlakatSeite() {
     if (preis) q.set('preis', preis);
     if (art === 'spieler' && spieler.trim()) q.set('q', spieler.trim());
     return `/api/plakat?${q.toString()}`;
-  }, [art, fenster, tage, titel, stufe, region, datum, preis, spieler, anzahl, liste, jahr, topRegion]);
+  }, [art, fenster, tage, titel, stufe, region, datum, preis, spieler, anzahl, liste, jahr, topRegion, chancenTag]);
 
   const zeichnen = useCallback(async () => {
     if (!adresse) { setBildUrl(''); setText(''); return; }
@@ -181,6 +186,17 @@ export default function PlakatSeite() {
                 <input value={spieler} onChange={(e) => setSpieler(e.target.value)} placeholder={t('Name wie im Profil, z. B. Peterbot')} spellCheck={false} className={feld} />
                 <span className="mt-2 block text-[11px] leading-snug text-slate-500"><T>Preisgeld je Jahr seit 2019 aus Epics Auszahlungstabellen und den LAN-Preislisten - dieselben Zahlen wie in der Statistik.</T></span>
               </label>
+            ) : art === 'chancen' ? (
+              <>
+                <label className="block"><span className={beschriftung}><T>Region</T></span>
+                  <select value={topRegion} onChange={(e) => { setTopRegion(e.target.value); setChancenTag(''); }} className={feld}>
+                    {REGIONEN.filter(Boolean).map((r) => <option key={r} value={r}>{r}</option>)}
+                  </select></label>
+                <label className="block"><span className={beschriftung}><T>Gespielter Tag (optional)</T></span>
+                  <input value={chancenTag} onChange={(e) => setChancenTag(e.target.value.trim())} placeholder="S42_FNCSSolo_Final_Day1_EU" spellCheck={false} className={feld} />
+                  <span className="mt-2 block text-[11px] leading-snug text-slate-500"><T>Wer gewinnt das Finale? Die fünf besten Hochrechnungen nach dem ersten Tag - Punkte je Spiel ohne das beste Spiel, mit dem Schnitt des Felds gemischt. Leer: das Finale, das gerade auf seinen nächsten Tag wartet.</T></span>
+                </label>
+              </>
             ) : art === 'top5' ? (
               <>
                 <label className="block"><span className={beschriftung}><T>Liste</T></span>
@@ -257,7 +273,7 @@ export default function PlakatSeite() {
                 : (
                   <p className="px-6 py-24 text-center text-sm text-slate-500">
                     {bauen ? <T>Plakat wird gezeichnet …</T>
-                      : bildFehler || (art === 'top5' || art === 'earnings' ? <T>Das Plakat erscheint hier.</T> : <T>Cup, Region und mindestens einen Spieltag wählen — dann erscheint das Plakat hier.</T>)}
+                      : bildFehler || (art === 'top5' || art === 'earnings' || art === 'chancen' ? <T>Das Plakat erscheint hier.</T> : <T>Cup, Region und mindestens einen Spieltag wählen — dann erscheint das Plakat hier.</T>)}
                   </p>
                 )}
               {bauen && bildUrl && <span className="absolute right-5 top-5 rounded-full bg-zinc-950/80 px-3 py-1 text-[11px] text-slate-300"><T>zeichnet …</T></span>}

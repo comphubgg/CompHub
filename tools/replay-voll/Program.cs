@@ -32,6 +32,24 @@ if (args.Length > 0 && args[0] == "--typen") {
   return;
 }
 // --erkunden: zaehlt, welche Gruppen des Netzwerk-Stroms in einem Replay vorkommen, und zeigt Beispiele (zum Suchen nach weiteren Werten je Spieler).
+if (args.Length > 1 && args[0] == "--orte") {
+  var op = new Ortsprobe();
+  op.ReadReplay(args[1]);
+  Console.WriteLine("== ZAEHLER"); foreach (var kv in op.Zaehl.OrderBy(x => x.Key)) Console.WriteLine($"{kv.Value,8} {kv.Key}");
+  Console.WriteLine($"== ORTE je Spieler: {op.Orte.Count} Spieler, Median {op.Orte.Values.Select(l => l.Count).OrderBy(x => x).ElementAtOrDefault(op.Orte.Count / 2)} Orte");
+  var bsp = op.Orte.OrderByDescending(kv => kv.Value.Count).FirstOrDefault();
+  if (bsp.Value is not null) foreach (var o in bsp.Value.Take(25)) Console.WriteLine($"   {bsp.Key}: t={o[0]:0.0} x={o[1]:0} y={o[2]:0} z={o[3]:0}");
+  Console.WriteLine($"== LEBEN je Spieler: {op.Leben.Count} Spieler, Median {op.Leben.Values.Select(l => l.Count).OrderBy(x => x).ElementAtOrDefault(op.Leben.Count / 2)} Werte");
+  var lb = op.Leben.OrderByDescending(kv => kv.Value.Count).FirstOrDefault();
+  if (lb.Value is not null) foreach (var o in lb.Value.Take(30)) Console.WriteLine($"   {lb.Key}: t={o[0]:0.0} hp={o[1]} schild={o[2]} max={o[3]}");
+  Console.WriteLine($"== WAFFEN: {op.Waffen.Count} Spieler, {op.WaffeVonAkteur.Count} Waffen-Akteure");
+  var wf = op.Waffen.OrderByDescending(kv => kv.Value.Count).FirstOrDefault();
+  if (wf.Value is not null) foreach (var w in wf.Value.Take(10)) Console.WriteLine($"   {wf.Key}: {w}");
+  foreach (var kv in op.WaffeVonAkteur.Take(8)) Console.WriteLine($"   akteur {kv.Key}: {kv.Value}");
+  Console.WriteLine("== LOOT"); foreach (var l in op.Loot.Take(12)) Console.WriteLine("   " + l);
+  Console.WriteLine("== PROBEN"); foreach (var p in op.Proben) Console.WriteLine("   " + (p.Length > 500 ? p[..500] : p));
+  return;
+}
 if (args.Length > 1 && args[0] == "--erkunden") {
   var erk = new Erkunder();
   erk.ReadReplay(args[1]);
@@ -176,6 +194,8 @@ Console.WriteLine(JsonConvert.SerializeObject(new {
   playlist = gd?.CurrentPlaylist, runde = gd?.TournamentRound, sieger = gd?.WinningTeam,
   karte = replay.Info?.FriendlyName, laenge = replay.Info?.LengthInMs,
   spieler, feed, zonen, zusatz,
+  // Fuer die 2D-Ansicht (30.10.2026): Orte [Zeit, x, y] und Lebenspunkte [Zeit, HP] je Spieler, Loot [Zeit, Spieler, Gegenstand, x, y, aufgehoben 1/0].
+  orte = reader.Orte, leben = reader.Leben, loot = reader.Loot, lootNamen = reader.LootNamen, schuesse = reader.Schuesse,
 }, Formatting.None, einst));
 
 /*
@@ -275,6 +295,7 @@ class SchadenLeser : ReplayReader {
     if (figurKanaele.Contains(channelIndex) && Zeit() is double t) FigurEnde.Add(t);
     figurKanaele.Remove(channelIndex);
     figurGemeldet.Remove(channelIndex);
+    lootNameVonKanal.Remove(channelIndex); lootLageVonKanal.Remove(channelIndex);
     if (kanalAkteur.TryGetValue(channelIndex, out var a) && figurVonAkteur.TryGetValue(a, out var k) && k == channelIndex) figurVonAkteur.Remove(a);
     kanalAkteur.Remove(channelIndex);
     // Wird eine Figur entfernt (Tod, Reboot), endet auch ihre Zeit im Sturm.
@@ -286,6 +307,90 @@ class SchadenLeser : ReplayReader {
    * aber Start, Drehung, Tempo und die Zeiten bis Absprung-Beginn, -Ende und Flugende. Je Eigenschaft gilt der letzte belegte Wert.
    */
   public readonly Dictionary<string, object> BusWerte = new();
+
+  /*
+   * Die 2D-Ansicht wie bei Osirion (Betreiber, 30.10.2026: "mindestens HP und wie man schiesst ... Loot auch"). Am FNCS Solos Finale EU Day 2, Game 1
+   * nachgesehen, was der Strom hergibt:
+   *   Orte       PlayerPawn.Location / ReplicatedMovement - schubweise (Median 79 je Spieler und Match), dazu jeder Ort, an dem er Loot aufhebt.
+   *              Die laufenden Bewegungsdaten stecken verschluesselt in EncryptedPawnReplayData; die Ansicht verbindet die Orte deshalb geradlinig.
+   *   Leben      HealthSet.HealthCurrentValue je Spieler (Median ~190 Werte, jeder Sturm-Tick). Der Schild steht dort immer auf 0 - er fehlt im Strom.
+   *   Loot       FortPickup: Gegenstand (WID_..., Munition, Material), wo er lag, wer ihn aufhob (PickupTarget) und wer ihn fallen liess.
+   * Schuesse sind die Treffer (TrefferListe): Schuetze, Ziel, Schaden, Kopftreffer.
+   */
+  static readonly PropertyInfo PawnLocation = typeof(FortniteReplayReader.Models.NetFieldExports.PlayerPawn).GetProperty("Location");
+  public readonly Dictionary<int, List<double[]>> Orte = new();
+  public readonly Dictionary<int, List<double[]>> Leben = new();
+  public readonly List<double[]> Loot = new();
+  public readonly List<string> LootNamen = new();
+  readonly Dictionary<string, int> lootIndex = new();
+  readonly HashSet<string> lootGesehen = new();
+
+  void OrtNotieren(int id, double t, double x, double y) {
+    if (!Orte.TryGetValue(id, out var l)) Orte[id] = l = new();
+    // Hoechstens ein Ort je Sekunde - die Schuebe liefern Dutzende in einer Sekunde, die Ansicht braucht davon einen.
+    if (l.Count > 0 && t - l[^1][0] < 1) return;
+    l.Add(new[] { Math.Round(t, 1), Math.Round(x), Math.Round(y) });
+  }
+
+  void LebenNotieren(uint kanal, INetFieldExportGroup g) {
+    if (Zeit() is not double t) return;
+    var id = Hole(VonFigur, kanal)?.Id ?? VomZustand(kanal)?.Id;
+    if (id is not int i) return;
+    var hp = g.GetType().GetProperty("HealthCurrentValue")?.GetValue(g);
+    if (hp is null) return;
+    var wert = Math.Round(Convert.ToDouble(hp));
+    if (!Leben.TryGetValue(i, out var l)) Leben[i] = l = new();
+    if (l.Count > 0 && l[^1][1] == wert) return;
+    l.Add(new[] { Math.Round(t, 1), wert });
+  }
+
+  int LootNr(string name) {
+    if (!lootIndex.TryGetValue(name, out var n)) { n = LootNamen.Count; LootNamen.Add(name); lootIndex[name] = n; }
+    return n;
+  }
+
+  /// Aufgehoben: [Zeit, Spieler, Gegenstand, x, y, 1]; fallen gelassen: [..., 0].
+  void LootNotieren(uint kanal, INetFieldExportGroup g) {
+    if (Zeit() is not double t) return;
+    object Wert(string k) { try { return g.GetType().GetProperty(k)?.GetValue(g); } catch { return null; } }
+    var name = Wert("ItemDefinition")?.GetType().GetProperty("Name")?.GetValue(Wert("ItemDefinition")) as string;
+    if (name is not null) lootNameVonKanal[kanal] = name;
+    else lootNameVonKanal.TryGetValue(kanal, out name);
+    var lage = (Wert("FinalTossRestLocation") ?? Wert("LootFinalPosition")) as Unreal.Core.Models.FVector;
+    if (lage is not null) lootLageVonKanal[kanal] = lage;
+    else lootLageVonKanal.TryGetValue(kanal, out lage);
+    void Eintrag(object figur, int auf) {
+      var akteur = figur is uint or int or long ? figur : figur?.GetType().GetProperty("Value")?.GetValue(figur);
+      if (akteur is null || name is null || lage is null) return;
+      if (!spielerVonAkteur.TryGetValue(Convert.ToUInt32(akteur), out var sid)) return;
+      var schluessel = $"{kanal}|{akteur}|{auf}|{name}";
+      if (!lootGesehen.Add(schluessel)) return;
+      Loot.Add(new[] { Math.Round(t, 1), sid, LootNr(name), Math.Round(lage.X), Math.Round(lage.Y), auf });
+      if (auf == 1) OrtNotieren(sid, t, lage.X, lage.Y);
+    }
+    Eintrag(Wert("PickupTarget"), 1);
+    Eintrag(Wert("PawnWhoDroppedPickup"), 0);
+  }
+  /*
+   * Wohin jemand schiesst: jeder Einschlag mit Ort - auf Spieler (Location, dort steht in dem Moment auch das Ziel) und auf Bauteile, Baeume, Autos
+   * (NonPlayerLocation). [Zeit, Schuetze, x, y, Schaden, Art: 0 Bauteil/Umgebung, 1 Spieler, 2 Spieler Kopftreffer].
+   */
+  public readonly List<double[]> Schuesse = new();
+  void SchussNotieren(uint kanal, BatchedDamageCues c) {
+    if (!figurKanaele.Contains(kanal) || Zeit() is not double t) return;
+    if (Hole(VonFigur, kanal)?.Id is not int von) return;
+    if (c.NonPlayerLocation is Unreal.Core.Models.FVector nl && (c.NonPlayerMagnitude ?? 0) > 0)
+      Schuesse.Add(new[] { Math.Round(t, 1), von, Math.Round(nl.X), Math.Round(nl.Y), Math.Round(c.NonPlayerMagnitude ?? 0), 0 });
+    if (c.Location is Unreal.Core.Models.FVector pl && c.HitActor is not null && (c.Magnitude ?? 0) > 0) {
+      var aufSpieler = spielerVonAkteur.TryGetValue(c.HitActor.Value, out var ziel) && ziel != von;
+      Schuesse.Add(new[] { Math.Round(t, 1), von, Math.Round(pl.X), Math.Round(pl.Y), Math.Round(c.Magnitude ?? 0), aufSpieler ? (c.bIsCritical == true ? 2 : 1) : 0 });
+      if (aufSpieler) OrtNotieren(ziel, t, pl.X, pl.Y);
+    }
+  }
+
+  readonly Dictionary<uint, string> lootNameVonKanal = new();
+  readonly Dictionary<uint, Unreal.Core.Models.FVector> lootLageVonKanal = new();
+
   static readonly string[] BusFelder = { "FlightStartLocation", "FlightStartRotation", "FlightSpeed", "TimeTillDropStart", "TimeTillDropEnd", "TimeTillFlightEnd", "AircraftStartTime" };
 
   protected override void OnExportRead(uint channelIndex, INetFieldExportGroup exportGroup) {
@@ -307,12 +412,19 @@ class SchadenLeser : ReplayReader {
         var wem = Hole(VonFigur, channelIndex);
         if (wem?.Id is not null && Zeit() is double tt) { Figuren.Add((wem.Id.Value, tt)); figurGemeldet.Add(channelIndex); }
       }
+      // Orte der Figur fuer die 2D-Ansicht (siehe OrtNotieren).
+      var ort = PawnLocation?.GetValue(pawn) as Unreal.Core.Models.FVector
+        ?? (pawn.ReplicatedMovement is object rm ? rm.GetType().GetProperty("Location")?.GetValue(rm) as Unreal.Core.Models.FVector : null);
+      if (ort is not null && Zeit() is double to && Hole(VonFigur, channelIndex)?.Id is int oid) OrtNotieren(oid, to, ort.X, ort.Y);
       return;
     }
+    if (exportGroup.GetType().Name == "HealthSet") { LebenNotieren(channelIndex, exportGroup); return; }
+    if (exportGroup.GetType().Name == "FortPickup") { LootNotieren(channelIndex, exportGroup); return; }
     // (Lebenspunkte je Figur - FortRegenHealthSet - kommen in diesen Replays
     // nicht vor; geprueft am 29.9.2026. Deshalb kein Kappen auf den Rest.)
     if (exportGroup is not BatchedDamageCues c) return;
     Ereignisse++;
+    SchussNotieren(channelIndex, c);
     if (c.HitActor is null || c.Magnitude is null || c.Magnitude <= 0) return;
     if (!figurKanaele.Contains(channelIndex)) return;
     var von = Hole(VonFigur, channelIndex);

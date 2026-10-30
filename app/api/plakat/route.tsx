@@ -14,6 +14,7 @@ import { liesVerdienstArchiv } from '@/lib/verdienstArchiv';
 import { cupNameAusKennung } from '@/lib/rundenName';
 import { spielerKontext } from '@/lib/globalsSolos';
 import { liesJson } from '@/lib/ablage';
+import { tagZweiPrognose } from '@/lib/tiktokPrognose';
 
 /*
  * Plakate zum Posten (Betreiber, 21.10.2026): "ein Plakat im eigenen Stil und mit anderer Anordnung fuer Team Stats bzw. Solo Stats, fuer Standings, fuer Finals und andere
@@ -25,6 +26,8 @@ import { liesJson } from '@/lib/ablage';
  *   GET ?art=top5&region=EU&liste=verdienst&jahr=2026                Top 5 einer Statistik (wie das TikTok-Video)
  *   GET ?art=zonen&window=<Spieltag>&alle=1                         die Zonen jedes Games (alle=1: alle Tage des Finales, Tag 1 schwarz, Tag 2 rot)
  *   GET ?art=earnings&q=<Name>|&id=<Konto>                           Preisgeld eines Spielers Jahr fuer Jahr seit 2019 (Zeitstrahl wie bei Swizzy)
+ *   GET ?art=chancen&region=EU|&window=<Tag-1-Fenster>               wer das mehrtaegige Finale gewinnt: die fuenf besten Hochrechnungen nach Tag 1 (lib/tiktokPrognose,
+ *                                                                    dieselbe Rechnung wie das Prognose-Video); mit window auch fuer ein schon gespieltes Finale
  *   &titel=..&stufe=..&region=..&datum=..                            die Kopfzeilen (kommen von der Seite /admin/plakate)
  *   &format=json                                                     statt des Bildes ein Beitragstext mit den X-Konten (und die Teams)
  *
@@ -333,14 +336,14 @@ function finalePlakat(teams: PlakatTeam[], k: { titel: string; stufe: string; re
 
 /* ------------------------------------------------------------------ Top 5 einer Statistik */
 
-interface Top5 { titel: string; unter: string; zeilen: Array<{ rang: number; name: string; wert: string; einheit: string; beschreibung: string; land: string | null; bild: string | null }> }
+interface Top5 { titel: string; unter: string; gross?: string; zeilen: Array<{ rang: number; name: string; wert: string; einheit: string; beschreibung: string; land: string | null; bild: string | null }> }
 
 function top5Plakat(d: Top5, b: Bilder) {
   return grund(
     <>
       <div style={{ position: 'absolute', left: 64, top: 64, width: 520, display: 'flex', flexDirection: 'column' }}>
         {marke(b, 30, true)}
-        <div style={{ display: 'flex', fontFamily: FAMILIE, fontSize: 170, fontWeight: 800, lineHeight: 0.95, color: BLAU, marginTop: 70, whiteSpace: 'nowrap' }}>TOP 5</div>
+        <div style={{ display: 'flex', fontFamily: FAMILIE, fontSize: 170, fontWeight: 800, lineHeight: 0.95, color: BLAU, marginTop: 70, whiteSpace: 'nowrap' }}>{d.gross ?? 'TOP 5'}</div>
         <div style={{ display: 'flex', fontFamily: FAMILIE, fontSize: 56, fontWeight: 800, lineHeight: 1.08, marginTop: 24 }}>{d.titel}</div>
         <div style={{ display: 'flex', fontSize: 28, fontWeight: 700, letterSpacing: 4, color: '#94a3b8', textTransform: 'uppercase', marginTop: 18 }}>{d.unter}</div>
       </div>
@@ -557,6 +560,18 @@ export async function GET(request: Request) {
       b.foto.set('zeit|foto', await bildDaten(d.bild, ursprung, 900));
       if (d.land) b.flagge.set(d.land.toLowerCase(), await bildDaten(`/flags/${d.land.toLowerCase()}.png`, ursprung, 120));
       bild = zeitstrahlPlakat(d, b);
+    } else if (art === 'chancen') {
+      const nur = (p.get('window') ?? '').trim();
+      const d = await tagZweiPrognose(nur ? { nur, pruefen: true } : { region: (p.get('region') ?? 'EU').toUpperCase() });
+      if (d.keinCup || !d.zeilen?.length) return Response.json({ ok: false, fehler: d.grund === 'Gerade gibt es kein mehrtaegiges Finale, dessen naechster Tag noch kommt' ? 'Gerade wartet kein mehrtägiges Finale auf seinen nächsten Tag - für ein gespieltes Finale den Tag-1-Spieltag wählen.' : (d.grund ?? 'Keine Daten') }, { status: 200 });
+      const zeilen = d.zeilen.map((z) => ({
+        rang: z.rang, name: z.namen.join(' & '), wert: z.wertText ?? String(z.punkte), einheit: 'PROJECTED', beschreibung: (z.beschreibung ?? '').replace(' pts/game form', '/game'),
+        land: z.laender[0] || null, bild: (z.fotos[0] ?? null) as string | null,
+      }));
+      await Promise.all(zeilen.map(async (z) => { b.foto.set(`top|${z.rang}`, await bildDaten(z.bild, ursprung, 400)); const l = (z.land ?? '').toLowerCase(); if (l && !b.flagge.has(l)) b.flagge.set(l, await bildDaten(`/flags/${l}.png`, ursprung, 120)); }));
+      text = d.text ?? '';
+      if (nurText) return Response.json({ ok: true, text });
+      bild = top5Plakat({ titel: d.cupName || '', unter: `${d.spieltag ?? ''} · ${d.region ?? ''}`, gross: 'PICKS', zeilen }, b);
     } else if (art === 'top5') {
       const jahr = Number(p.get('jahr') ?? new Date().getUTCFullYear());
       const d = await topFuenf({ region: (p.get('region') ?? '').toUpperCase(), liste: p.get('liste') ?? 'verdienst', jahr });

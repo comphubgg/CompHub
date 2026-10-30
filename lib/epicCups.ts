@@ -343,6 +343,8 @@ async function namenSichern(): Promise<void> {
   } catch { /* beim naechsten Mal wieder */ }
 }
 
+let namenGebremstBis = 0;
+
 export async function loeseNamenAuf(ids: string[], token: string) {
   await namenLaden();
 
@@ -368,15 +370,28 @@ export async function loeseNamenAuf(ids: string[], token: string) {
    */
   const GLEICHZEITIG = 4;
 
+  /*
+   * Bremst Epic die Namensabfrage (429, 30.10.2026 gemessen), fiel bisher die ganze Bestenliste aus - die Platzierungen waren da, nur die Namen nicht.
+   * Jetzt ein zweiter Versuch nach kurzer Pause, und danach fehlen nur diese Namen: die Konten stehen mit gekuerzter Id da (nicht im Vorrat, siehe unten)
+   * und bekommen ihren Namen beim naechsten Abruf.
+   */
+  let gebremst = Date.now() < namenGebremstBis;
   const holeGruppe = async (chunk: string[]) => {
     const qs = chunk.map((id) => `accountId=${id}`).join('&');
-    return req<Array<{
+    const hole = () => req<Array<{
       id: string; displayName?: string;
       externalAuths?: Record<string, { externalDisplayName?: string;
                                        authIds?: Array<{ id: string }> }>;
     }>>(`${ACCOUNT}/account/api/public/account?${qs}`, {
       headers: { Authorization: token },
     });
+    if (gebremst) return [];
+    try { return await hole(); } catch (e) {
+      if (!/HTTP 429/.test(String((e as Error)?.message))) throw e;
+      await new Promise((r) => setTimeout(r, 2_000));
+      // Eine Minute lang fragt dann niemand mehr nach Namen - jede weitere Abfrage verlaengert bei Epic nur die Sperre.
+      try { return await hole(); } catch { gebremst = true; namenGebremstBis = Date.now() + 60_000; return []; }
+    }
   };
 
   const bloecke: string[][] = [];

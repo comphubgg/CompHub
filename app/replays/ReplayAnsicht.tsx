@@ -20,6 +20,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent } from 'react';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
+import { SchussEbene, SpielerFenster, SpielerPunkte, useSpielerDaten, type SpielerDaten } from '@/app/replays/SpielerEbene';
 
 export interface RSpieler {
   id: number; epic?: string; name?: string; bot?: boolean; team?: number; platz?: number;
@@ -27,7 +28,7 @@ export interface RSpieler {
 }
 export interface REreignis { t: number; opfer?: number; taeter?: number; art: 'auf' | 'unten' | 'tot'; x?: number; y?: number; abstand?: number }
 export interface RZone { radius?: number; naechsterRadius?: number; x?: number; y?: number; schrumpftAb?: number; schrumpftBis?: number }
-export interface RMatch {
+export interface RMatch extends SpielerDaten {
   spieler: RSpieler[]; feed: REreignis[]; zonen: RZone[]; sieger?: number; ende?: number; beginn?: string; playlist?: string; runde?: number;
   /** Jeder zugeordnete Treffer (Leser ab 28.10.2026): [Zeit, Schuetze, Ziel, Schaden, Kopftreffer, Ziel am Boden, toedlich]. */
   treffer?: number[][];
@@ -141,6 +142,10 @@ export default function ReplayAnsicht({ match, kartenBild, titel, wertung, hervo
   const [knocks, setKnocks] = useState(true);
   const [teamWahl, setTeamWahl] = useState<number | null>(null);
   const [reiter, setReiter] = useState<'feed' | 'treffer' | 'teams' | 'spieler'>('feed');
+  // Der angeklickte Spieler (Lebenspunkte, Inventar, Treffer) - die Spieler laufen ueber die Karte, wo das Replay ihre Orte fuehrt (app/replays/SpielerEbene).
+  const [gewaehlt, setGewaehlt] = useState<number | null>(null);
+  const sd = useSpielerDaten(match);
+  useEffect(() => { setGewaehlt(null); }, [match]);
   useEffect(() => {
     setZeit(tStart); setLaeuft(false);
     const eigen = hervorheben ? match.spieler.find((s) => s.epic === hervorheben)?.team : undefined;
@@ -220,7 +225,7 @@ export default function ReplayAnsicht({ match, kartenBild, titel, wertung, hervo
   const bisJetzt = useMemo(() => feed.filter((e) => e.t <= zeit), [feed, zeit]);
   /*
    * Wer wen angeschossen hat (Betreiber, 28.10.2026: "wie bei Osirion ... wer wen angeschossen hat"): jeder Treffer aus dem Replay bis zur gewaehlten Zeit,
-   * dazu der Schaden je Spieler bis hierhin (ohne Treffer auf schon Umgehauene - wie die Damage-Werte der Seite). Lebenspunkte und Loot stehen nicht im Replay.
+   * dazu der Schaden je Spieler bis hierhin (ohne Treffer auf schon Umgehauene - wie die Damage-Werte der Seite). Lebenspunkte, Orte, Schuesse und Loot: SpielerEbene.
    */
   const treffer = useMemo(() => [...(match.treffer ?? [])].sort((a, b) => a[0] - b[0]), [match.treffer]);
   const trefferBis = useMemo(() => treffer.filter((h) => h[0] <= zeit), [treffer, zeit]);
@@ -417,6 +422,11 @@ export default function ReplayAnsicht({ match, kartenBild, titel, wertung, hervo
                     style={{ left: `${pzx(e.x as number)}%`, top: `${pzy(e.y as number)}%`, width: 16, height: 16, background: farbeVon(e.opfer), transform: 'translate(-50%, -50%) scale(calc(1 / var(--z, 1)))', opacity: sichtbarTeam(e.opfer) ? Math.max(0.25, 1 - (zeit - e.t) / KNOCK_DAUER) : 0.1 }} />
                 ))}
 
+                <SchussEbene d={sd} zeit={zeit} pzx={pzx} pzy={pzy} sichtbar={sichtbarTeam} gewaehlt={gewaehlt} />
+                <SpielerPunkte d={sd} zeit={zeit} spieler={echte.map((s) => ({ id: s.id, name: nameVon(s), tod: s.tod, team: s.team }))} pzx={pzx} pzy={pzy}
+                  farbeVon={farbeVon} sichtbar={(id) => (gewaehlt !== null ? id === gewaehlt || nachId.get(id ?? -1)?.team === nachId.get(gewaehlt)?.team : sichtbarTeam(id))}
+                  gewaehlt={gewaehlt} waehle={setGewaehlt} namenZeigen={ansicht.z >= 2.5 || teamWahl !== null} />
+
                 {/* 3D: Pfosten fuer die Eliminierungen */}
                 {dreiD && tote.slice(-80).map((e, i) => (
                   <button key={`p${i}`} type="button" data-marker aria-label={t('Eliminiert')} {...marker(e)}
@@ -535,6 +545,14 @@ export default function ReplayAnsicht({ match, kartenBild, titel, wertung, hervo
 
         {/* ------------------------------------------------ Seitenleiste */}
         <aside className="rounded-2xl border border-white/[0.08] bg-zinc-900/40 lg:sticky lg:top-4">
+          {gewaehlt !== null && nachId.get(gewaehlt) && (
+            <div className="border-b border-white/[0.08] p-1.5">
+              <SpielerFenster d={sd} zeit={zeit} s={{ id: gewaehlt, name: nameVon(nachId.get(gewaehlt)), tod: nachId.get(gewaehlt)?.tod, kills: nachId.get(gewaehlt)?.kills }} farbe={farbeVon(gewaehlt)} schliessen={() => setGewaehlt(null)} />
+            </div>
+          )}
+          {sd.da && gewaehlt === null && (
+            <p className="border-b border-white/[0.08] px-4 py-2.5 text-[11px] text-slate-400"><T>Spieler auf der Karte antippen: Lebenspunkte, Inventar und Treffer.</T></p>
+          )}
           <div className="flex gap-1 border-b border-white/[0.08] p-1.5">
             {([['feed', 'Kill-Feed'], ...(treffer.length ? [['treffer', 'Treffer'] as const] : []), ['teams', 'Teams'], ['spieler', 'Spieler']] as const).map(([k, name]) => (
               <button key={k} type="button" onClick={() => setReiter(k)}
