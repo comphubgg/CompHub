@@ -2890,7 +2890,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                */
               (/final/i.test(fenster.windowId) && !fenster.qualifiziert && (preise?.gesamt ?? 0) > 0 && (preise?.geld.length ?? 0) > 0)
                 ? [t('Preisgeld'), `${(preise?.gesamt ?? 0).toLocaleString(ort)} ${preise?.waehrung ?? 'USD'}`
-                  + (() => { const erster = preise?.geld.find((x) => x.art === 'rank' && x.schwelle === 1); return erster ? ` · 1. ${erster.betrag.toLocaleString(ort)}` : ''; })()]
+                  + (() => { const erster = preise?.geld.find((x) => x.art === 'rank' && x.schwelle === 1); return erster ? ` · #1 ${erster.betrag.toLocaleString(ort)}` : ''; })()]
               : (fenster.qualifiziert || qual?.schwelle)
                 ? [t(qual?.fuerBelohnung && !fenster.qualifiziert ? 'Belohnung bis' : 'Qualifizieren sich'),
                   `${t('Top')} ${(fenster.qualifiziert
