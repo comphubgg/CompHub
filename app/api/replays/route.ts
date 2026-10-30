@@ -3,6 +3,7 @@ import { liesJson } from '@/lib/ablage';
 import { AblageNichtErreichbar, abgelegteAntwort, CDN_FRIST, fertigeAntwort, FRISCH_LIVE_MS, ohneDateien } from '@/lib/antwortSpeicher';
 import fs from '@/lib/ablageFs';
 import path from 'path';
+import { promises as echtesFs } from 'fs';
 import { istAdminAnfrage } from '@/lib/adminPruefung';
 import { DATEN_ORT } from '@/lib/datenOrt';
 import { gecacht } from '@/lib/epicCups';
@@ -37,6 +38,15 @@ export const maxDuration = 60;
 
 const ABLAGE = path.join(DATEN_ORT, 'replays');
 const NAMEN_DATEI = path.join(DATEN_ORT, 'spieler-namen.json');
+
+/** Der hoechste je gezaehlte Stand je Spieltag (ausgewertete Matches) - auf der eigenen Platte, nicht in der Ablage. */
+const REKORD_DATEI = path.join(process.cwd(), 'replay-rekord.json');
+let rekordMerker: Record<string, number> | null = null;
+async function rekordLaden() {
+  if (rekordMerker) return rekordMerker;
+  try { rekordMerker = JSON.parse(await echtesFs.readFile(REKORD_DATEI, 'utf8')) as Record<string, number>; } catch { rekordMerker = {}; }
+  return rekordMerker;
+}
 
 /**
  * Konto-Ids in lesbare Namen uebersetzen.
@@ -211,7 +221,20 @@ export async function GET(request: Request) {
     const d = await r.json().catch(() => null) as { fenster?: Array<{ zaehler?: Record<string, number> }> } | null;
     if (!d?.fenster) return NextResponse.json({ ausgewertet: null }, { headers: { 'Cache-Control': 'no-store' } });
     const summe = (k: string) => d.fenster!.reduce((n, f) => n + (f.zaehler?.[k] ?? 0), 0);
-    return NextResponse.json({ ausgewertet: summe('PARSED'), offen: summe('PENDING'), zeit: new Date().toISOString() },
+    /*
+     * Nie rueckwaerts (Betreiber, 30.10.2026: 'wieso geht die Zahl einfach runter, 643.939 und auf einmal 634.288'): gezaehlt wird je Spieltag aus den
+     * Dateien am Release; kann eine nicht gelesen werden (GitHub bremst, die Datei wird gerade neu geschrieben), fiel der ganze Spieltag aus der Summe.
+     * Ausgewertete Matches gehen aber nicht verloren - deshalb je Spieltag der hoechste je gesehene Stand, gemerkt in replay-rekord.json.
+     */
+    const rekord = await rekordLaden();
+    let geaendert = false;
+    for (const f of d.fenster as Array<{ windowId?: string; zaehler?: Record<string, number> }>) {
+      const n = f.zaehler?.PARSED ?? 0;
+      if (f.windowId && n > (rekord[f.windowId] ?? 0)) { rekord[f.windowId] = n; geaendert = true; }
+    }
+    if (geaendert) await echtesFs.writeFile(REKORD_DATEI, JSON.stringify(rekord)).catch(() => undefined);
+    const ausgewertet = Math.max(summe('PARSED'), Object.values(rekord).reduce((a, b) => a + b, 0));
+    return NextResponse.json({ ausgewertet, offen: summe('PENDING'), zeit: new Date().toISOString() },
       { headers: { 'Cache-Control': 'public, max-age=30' } });
   }
   if (![...url.searchParams.keys()].length) {

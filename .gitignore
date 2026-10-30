@@ -95,3 +95,4 @@ video-werkstatt/
 
 __pycache__/
 *.pyc
+replay-rekord.json
