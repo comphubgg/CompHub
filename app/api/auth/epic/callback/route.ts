@@ -1,4 +1,6 @@
 import crypto from 'crypto';
+import { appendFileSync } from 'fs';
+import path from 'path';
 import { NextRequest, NextResponse } from 'next/server';
 import { aendern, kontoAus, merkeAnmeldung, nachEpicId, nachId, SITZUNG_TAGE, sitzungFuer } from '@/lib/konten';
 import { altesHostCookieWeg, sitzungsDomain } from '@/lib/cookieDomain';
@@ -26,6 +28,9 @@ export const runtime = 'nodejs';
 const COOKIE = 'streamer_dashboard_konto';
 
 function zurueck(ziel: string) {
+  // Jeder Ausgang ins Protokoll (nur das Ziel mit der Meldung, keine Schluessel) - 30.10.2026: 'Verify with Epic' endete still ohne Verbindung.
+  try { appendFileSync(path.join(process.cwd(), 'epic-anmeldung.log'), `${new Date().toISOString()} -> ${ziel.slice(0, 200)}
+`); } catch { /* ohne Protokoll weiter */ }
   return new NextResponse(null, { status: 307, headers: { Location: ziel } });
 }
 
@@ -133,7 +138,7 @@ export async function GET(req: NextRequest) {
         return a;
       };
       // Noch nicht verifiziert: hier gleich mit - solange das Epic-Konto dasselbe ist, das dem CompHub-Konto zugeordnet ist (oder noch keins).
-      if (konto.epicId && konto.epicId !== epicId) return aufraeumen(loeschen(zurueck('/account?epic=freunde-anderes-konto')));
+      if (konto.epicId && konto.epicId !== epicId && (konto.epicVerifiziert || konto.rolle !== 'admin')) return aufraeumen(loeschen(zurueck('/account?epic=freunde-anderes-konto')));
       if (!konto.epicVerifiziert) {
         const anderes = await nachEpicId(epicId);
         if (anderes && anderes.id !== konto.id && konto.epicId !== epicId) return aufraeumen(loeschen(zurueck('/account?epic=vergeben')));
@@ -182,7 +187,8 @@ export async function GET(req: NextRequest) {
      */
     const anderes = await nachEpicId(epicId);
     if (anderes && anderes.id !== konto.id && konto.epicId !== epicId) return aufraeumen(zurueck(`${heim}?epic=vergeben`));
-    if (konto.epicId && konto.epicId !== epicId && !konto.epicVerifiziert) {
+    // Fuer den Admin selbst gilt, was er bei Epic bestaetigt (30.10.2026) - die Zuweisung haelt nur bei anderen Konten.
+    if (konto.epicId && konto.epicId !== epicId && !konto.epicVerifiziert && konto.rolle !== 'admin') {
       // Der Betreiber hat eine andere Id zugewiesen - die gilt weiter.
       return aufraeumen(zurueck(`${heim}?epic=zugewiesen`));
     }
