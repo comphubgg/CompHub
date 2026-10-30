@@ -58,8 +58,6 @@ interface Kandidat { e: MapEintrag; art: Art; jahr?: string; /** Gesetzt bei den
 
 /** Die Grand Finals der Majors in den anderen Regionen (Betreiber, 19.10.2026: "auch noch die anderen Grands"). */
 const ANDERE_GRANDS = /^S\d+_FNCSMajor\d_Final_(NAC|NAW|ME|OCE|BR|ASIA)$/;
-/** Die FNCS Solos (und Solos Reload) der uebrigen Regionen - Idee 31, Betreiber 30.10.2026. */
-const ANDERE_SOLOS = /^S\d+_FNCSSolo(?:Reload)?_Final_(NAC|NAW|ME|OCE|BR|ASIA)$/;
 
 function kandidaten(liste: MapEintrag[]): Kandidat[] {
   const raus: Kandidat[] = [];
@@ -67,17 +65,15 @@ function kandidaten(liste: MapEintrag[]): Kandidat[] {
     const a = endspielArt(e);
     if (a) { raus.push({ e, ...a }); continue; }
     const m = !e.alt ? ANDERE_GRANDS.exec(e.windowId) : null;
-    if (m) { raus.push({ e, art: 'gf', region: m[1] }); continue; }
-    const s = !e.alt ? ANDERE_SOLOS.exec(e.windowId) : null;
-    if (s) raus.push({ e, art: 'solos', region: s[1] });
+    if (m) raus.push({ e, art: 'gf', region: m[1] });
   }
   return raus;
 }
 
 const KOPF2: Record<Art, string> = {
-  gf: 'GRAND FINALS', gc: 'GLOBAL CHAMPIONSHIP', invitational: 'INVITATIONAL', summit: 'SUMMIT', royale: 'GRAND ROYALE', allstar: 'ALL-STAR SOLO', solos: 'SOLOS FINALS',
+  gf: 'GRAND FINALS', gc: 'GLOBAL CHAMPIONSHIP', invitational: 'INVITATIONAL', summit: 'SUMMIT', royale: 'GRAND ROYALE', allstar: 'ALL-STAR SOLO',
 };
-const REGION: Record<Art, string> = { gf: 'Europe', gc: 'Global', invitational: 'Global', summit: 'Global', royale: 'Europe', allstar: 'Europe', solos: 'Europe' };
+const REGION: Record<Art, string> = { gf: 'Europe', gc: 'Global', invitational: 'Global', summit: 'Global', royale: 'Europe', allstar: 'Europe' };
 
 /* ------------------------------------------------------------------ Platzierungen */
 

@@ -15,7 +15,7 @@ import type { MapEintrag } from '@/lib/mapsVerzeichnis';
  * ohne sich gegenseitig einzubinden.
  */
 
-export type Art = 'gf' | 'gc' | 'invitational' | 'summit' | 'royale' | 'allstar' | 'solos';
+export type Art = 'gf' | 'gc' | 'invitational' | 'summit' | 'royale' | 'allstar';
 
 export const schluesselVon = (saison: string, art: Art) => `${saison}|${art}`;
 
@@ -30,8 +30,6 @@ export function endspielArt(e: MapEintrag): { art: Art; jahr?: string } | null {
     return gc ? { art: 'gc', jahr: gc[1] } : null;
   }
   if (/^S\d+_FNCSMajor\d_Final_EU$/.test(e.windowId)) return { art: 'gf' };
-  // FNCS Solos und Solos Reload zaehlen auch als FNCS-Finale (Idee 31, Betreiber 30.10.2026).
-  if (/^S\d+_FNCSSolo(Reload)?_Final_EU$/.test(e.windowId)) return { art: 'solos' };
   const gc = /^FNCS_Global_Championship_(\d{4})$/.exec(e.windowId);
   if (gc) return { art: 'gc', jahr: gc[1] };
   return e.windowId === 'FNCS_Major_1_Summit_Final' ? { art: 'summit' } : null;

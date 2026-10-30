@@ -44,7 +44,7 @@ async function fotosNachName(): Promise<Map<string, string>> {
 export async function GET() {
   try {
     // Die letzte gute Liste sofort - auch ohne den PC daheim (lib/ueberdauernd, 29.10.2026).
-    const roh = await ueberdauernd('fncs-ereignisse-v2', 30 * 60_000, 7 * 864e5, () => fncsEreignisse());
+    const roh = await ueberdauernd('fncs-ereignisse-v3', 30 * 60_000, 7 * 864e5, () => fncsEreignisse());
     const fotos = await fotosNachName().catch(() => new Map<string, string>());
     const ereignisse = (roh as FncsEreignis[]).map((e) => ({
       ...e,
