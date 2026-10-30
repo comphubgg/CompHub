@@ -3618,6 +3618,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Earnings-Zeitstrahl': 'Earnings timeline',
   'Chancen': 'Chances',
   'Inventar': 'Inventory',
+  'Die Spieler-Ansicht ist noch in Arbeit: Bewegungen laufen von einem bekannten Ort zum nächsten, der Schild ist geschätzt, Munition fehlt noch und einige neue Waffen haben noch kein Bild.': 'The player view is still in progress: movement runs from one known position to the next, shield is estimated, ammo is still missing and some new weapons have no image yet.',
   'Sturm zieht': 'Storm moving',
   'Sturm in': 'Storm in',
   'Letzte Zone': 'Final zone',

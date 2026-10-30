@@ -52,8 +52,8 @@ const ohneVorsatz = (n?: string) => String(n ?? '?').replace(/^\s*\[[^\]]*\]\s*/
 const nameVon = (p?: { bot?: boolean; name?: string }) => (p?.bot ? 'Bot' : ohneVorsatz(p?.name));
 const uhr = (s: number) => { const v = Math.max(0, Math.round(s)); return `${Math.floor(v / 60)}:${String(v % 60).padStart(2, '0')}`; };
 const GESCHWINDIGKEIT = [1, 4, 16, 64];
-// 40-fach (Betreiber, 30.10.2026: "zu wenig Zoom ... man erkennt die Spieler gar nicht") - die Zeichen bleiben dabei gleich gross.
-const MAX_ZOOM = 40;
+// 16-fach, darueber wird das Kartenbild nur Pixel (Betreiber, 30.10.2026: "zu wenig Zoom ... man erkennt die Spieler gar nicht") - die Zeichen bleiben dabei gleich gross.
+const MAX_ZOOM = 16;
 /** Wie lange der Kreis eines Knocks stehen bleibt (Sekunden). */
 const KNOCK_DAUER = 12;
 
@@ -400,7 +400,7 @@ export default function ReplayAnsicht({ match, kartenBild, titel, wertung, hervo
               className="absolute inset-0 transition-transform duration-700 ease-out"
               style={{ transformStyle: 'preserve-3d', transform: dreiD ? 'rotateX(52deg) scale(0.72) translateY(-3%)' : 'none', transformOrigin: '50% 50%' }}>
               <div className="absolute inset-0"
-                style={{ transformStyle: 'preserve-3d', transformOrigin: '0 0', transform: `translate(${ansicht.x}px, ${ansicht.y}px) scale(${ansicht.z})`, '--z': ansicht.z } as CSSProperties}>
+                style={{ transformStyle: 'preserve-3d', transformOrigin: '0 0', transform: `translate(${ansicht.x}px, ${ansicht.y}px) scale(${ansicht.z})`, '--z': ansicht.z, '--zs': Math.pow(ansicht.z, 0.65) } as CSSProperties}>
                 <div className="absolute inset-0 overflow-hidden rounded-xl shadow-2xl">{kartenInhalt}</div>
 
                 {dreiD && zone.jetzt && Array.from({ length: 9 }, (_, k) => (
@@ -447,6 +447,7 @@ export default function ReplayAnsicht({ match, kartenBild, titel, wertung, hervo
               const pille = 'flex items-center gap-1.5 rounded bg-black/75 px-2 py-1 text-[13px] font-bold tabular-nums text-white';
               return (
                 <div className="pointer-events-none absolute left-2 top-2 z-30 flex max-w-[calc(100%-70px)] flex-wrap gap-1">
+                  {sd.da && <span className="flex items-center rounded bg-amber-400 px-2 py-1 text-[12px] font-black tracking-wider text-black">BETA</span>}
                   <span className={pille}><svg viewBox="0 0 20 20" width="14" height="14" fill="currentColor"><circle cx="10" cy="6" r="4" /><path d="M2 19c0-5 4-7 8-7s8 2 8 7z" /></svg>{lebende}/{echte.length}</span>
                   {mitTeams && <span className={pille}><svg viewBox="0 0 20 20" width="14" height="14" fill="currentColor"><circle cx="6" cy="7" r="3" /><circle cx="14" cy="7" r="3" /><path d="M0 18c0-4 3-6 6-6s6 2 6 6zM8 18c0-4 3-6 6-6s6 2 6 6z" /></svg>{teamsLeben}/{teams.length}</span>}
                   <span className={pille}><svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="10" cy="10" r="8" /><path d="M10 5v5l3 2" /></svg>{uhr(zeit - tStart)}</span>
@@ -506,6 +507,13 @@ export default function ReplayAnsicht({ match, kartenBild, titel, wertung, hervo
               );
             })()}
           </div>
+
+          {sd.da && (
+            <p className={`mx-auto mt-3 w-full ${sd.da ? 'max-w-[1150px]' : 'max-w-[860px]'} rounded-xl border border-amber-400/40 bg-amber-400/10 px-4 py-2.5 text-[12px] leading-snug text-amber-100`}>
+              <b className="mr-1.5 rounded bg-amber-400 px-1.5 py-px text-[10px] font-black tracking-wider text-black">BETA</b>
+              <T>Die Spieler-Ansicht ist noch in Arbeit: Bewegungen laufen von einem bekannten Ort zum nächsten, der Schild ist geschätzt, Munition fehlt noch und einige neue Waffen haben noch kein Bild.</T>
+            </p>
+          )}
 
           {/* ------------------------------------------------ Steuerung */}
           <div className={`mx-auto mt-3 w-full ${sd.da ? 'max-w-[1150px]' : 'max-w-[860px]'} rounded-2xl border border-white/[0.08] bg-zinc-900/50 p-3`}>

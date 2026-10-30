@@ -282,19 +282,21 @@ export function SpielerPunkte({ d, zeit, spieler, pzx, pzy, farbeVon, sichtbar, 
         return (
           <button key={s.id} type="button" data-marker onClick={() => waehle(an ? null : s.id)} aria-label={s.name}
             className="absolute z-20 block border-0 bg-transparent p-1"
-            style={{ left: `${pzx(o.x)}%`, top: `${pzy(o.y)}%`, transform: `translate(-50%, -50%) scale(calc(${an ? 1.35 : 1} / var(--z, 1)))`, opacity: sichtbar(s.id) ? 1 : 0.45 }}>
+            // Wachsen mit dem Zoom, nur gedaempft (--zs = Zoom hoch 0,65; Betreiber, 30.10.2026: "die Spieler sind viel zu klein ... beim Zoomen").
+            style={{ left: `${pzx(o.x)}%`, top: `${pzy(o.y)}%`, transform: `translate(-50%, -50%) scale(calc(${an ? 1.2 : 1} * var(--zs, 1) / var(--z, 1)))`, opacity: sichtbar(s.id) ? 1 : 0.45, zIndex: an ? 26 : undefined }}>
             <span className="relative block">
-              <span className="absolute left-1/2 -translate-x-1/2" style={{ bottom: 'calc(100% + 3px)', width: 34 }}>
-                <Balken hp={hp} schild={schild} schmal />
+              {/* Namensschild wie bei Osirion: Name, darunter Schild und Leben - ohne Namen nur die Balken */}
+              <span className="pointer-events-none absolute left-1/2 -translate-x-1/2" style={{ bottom: 'calc(100% + 2px)' }}>
+                {(namenZeigen || an) ? (
+                  <span className="block whitespace-nowrap rounded-sm border border-black/60 bg-black/70 px-1 pb-[2px] pt-px" style={{ minWidth: 64 }}>
+                    <span className="flex items-center gap-1 text-[11px] font-bold leading-tight text-white">{hand && <Symbol art={artVon(hand).art} gross={12} />}{s.name}</span>
+                    <span className="mt-[2px] block"><Balken hp={hp} schild={schild} schmal /></span>
+                  </span>
+                ) : <span className="block" style={{ width: 34 }}><Balken hp={hp} schild={schild} schmal /></span>}
               </span>
-              <svg viewBox="0 0 20 20" width={26} height={26} className="block" style={{ transform: `rotate(${winkel}deg)`, filter: an ? 'drop-shadow(0 0 4px #fff)' : 'drop-shadow(0 1px 1px #000)' }}>
+              <svg viewBox="0 0 20 20" width={24} height={24} className="block" style={{ transform: `rotate(${winkel}deg)`, filter: an ? 'drop-shadow(0 0 4px #fff)' : 'drop-shadow(0 1px 1px #000)' }}>
                 <path d="M18 10 L3 3 L6.5 10 L3 17 Z" fill={farbeVon(s.id)} stroke={an ? '#fff' : '#000'} strokeWidth="2" strokeLinejoin="round" />
               </svg>
-              {(namenZeigen || an) && (
-                <span className="pointer-events-none absolute left-1/2 top-full mt-0.5 flex -translate-x-1/2 items-center gap-1 whitespace-nowrap rounded bg-black/80 px-1.5 py-px text-[11px] font-bold leading-tight text-white">
-                  {hand && <Symbol art={artVon(hand).art} gross={14} />}{s.name}
-                </span>
-              )}
             </span>
           </button>
         );
@@ -337,12 +339,12 @@ export function SchussEbene({ d, zeit, pzx, pzy, sichtbar, gewaehlt }: Pick<Eben
         <span key={`z${i}`} className="pointer-events-none absolute z-30 font-black tabular-nums"
           style={{
             left: `${pzx(s[2])}%`, top: `${pzy(s[3])}%`, fontSize: 11, color: s[5] === 2 ? '#facc15' : '#fff', textShadow: '0 0 3px #000, 0 0 2px #000',
-            transform: `translate(-50%, calc(-100% - ${((zeit - s[0]) / SCHUSS_DAUER) * 14}px)) scale(calc(1 / var(--z, 1)))`, opacity: 1 - (zeit - s[0]) / SCHUSS_DAUER,
+            transform: `translate(-50%, calc(-100% - ${((zeit - s[0]) / SCHUSS_DAUER) * 14}px)) scale(calc(var(--zs, 1) / var(--z, 1)))`, opacity: 1 - (zeit - s[0]) / SCHUSS_DAUER,
           }}>{s[4]}</span>
       ))}
       {loot.map((l, i) => (
         <span key={`l${i}`} className="pointer-events-none absolute z-[25]"
-          style={{ left: `${pzx(l[3])}%`, top: `${pzy(l[4])}%`, transform: 'translate(-50%, 40%) scale(calc(1 / var(--z, 1)))', opacity: 1 - (zeit - l[0]) / LOOT_DAUER }}>
+          style={{ left: `${pzx(l[3])}%`, top: `${pzy(l[4])}%`, transform: 'translate(-50%, 40%) scale(calc(var(--zs, 1) / var(--z, 1)))', opacity: 1 - (zeit - l[0]) / LOOT_DAUER }}>
           <Fach roh={d.namen[l[2]] ?? ''} gross={26} />
         </span>
       ))}
