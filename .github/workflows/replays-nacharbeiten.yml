@@ -79,8 +79,8 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           WERKZEUG_URL: https://www.thecomphub.com
-          MAX_REPLAY_DOWNLOADS: '4'
-          MAX_REPLAY_PARSERS: '3'
+          MAX_REPLAY_DOWNLOADS: '12'   # 30.10.2026: wie die Schnellspur (16) - 4 liess die Rechner warten, 322.000 Matches offen
+          MAX_REPLAY_PARSERS: '4'
         run: |
           node scripts/schleife.mjs --minuten 315 --takt 300 \
             --schritt "node scripts/daten-sync.mjs --herunterladen --nur replay-vorrang 2>&1 | tail -1; true" \

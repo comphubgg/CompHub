@@ -171,7 +171,12 @@ const VIP_LEITFADEN: Beitrag = {
       + 'account. You watch their POV privately (not on Twitch), and the '
       + 'CompHub bot can post their live alerts in your own Discord.',
       '• **Match ID finder** — save favourite players; while a cup runs you '
-      + 'see which match they are in. Copy the match ID and spectate in game.',
+      + 'see which match they are in. Copy the match ID and spectate in game. '
+      + 'For pros who are friends with the CompHub account it also works in '
+      + 'scrims, pubs and ranked - and it shows next to their stream.',
+      '• **Replays** — open any game from the Matches tab of a cup: 2D and 3D '
+      + 'map, the zones as they pulled, the bus route, kill feed, who hit whom, '
+      + 'teams and players. The back button takes you to the leaderboard.',
       '• **Twitch statistics** — your streams by day, week, month and year: '
       + 'peak with and without raids, new followers, chatters, live numbers.',
       '• **Twitch bot** — commands with your own reply (starting with !, $ or ?) '
@@ -239,7 +244,11 @@ const VIP_LEITFADEN: Beitrag = {
       + 'der CompHub-Bot meldet in deinem Discord, wenn er live geht.',
       '• **Match-ID-Finder**: Lieblingsspieler speichern. Läuft ein Cup, '
       + 'siehst du, in welchem Match sie sind, kopierst die Match-ID und '
-      + 'schaust im Spiel zu.',
+      + 'schaust im Spiel zu. Bei Pros, die mit dem CompHub-Konto befreundet '
+      + 'sind, auch bei Scrims, Pubs und Ranked - und direkt neben ihrem Stream.',
+      '• **Replays**: Jedes Game aus dem Reiter Matches eines Cups öffnen - '
+      + 'Karte in 2D und 3D, die Zonen, die Busroute, Kill-Feed, wer wen '
+      + 'getroffen hat, Teams und Spieler. Zurück geht es zur Bestenliste.',
       '• **Twitch-Statistik**: Deine Streams nach Tag, Woche, Monat und Jahr, '
       + 'Spitze mit und ohne Raid, neue Follower, Chatter und Live-Zahlen.',
       '• **Twitch-Bot**: Befehle mit eigener Antwort (beginnend mit !, $ oder ?) '
