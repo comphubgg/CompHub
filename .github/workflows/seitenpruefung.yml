@@ -55,10 +55,6 @@ jobs:
             if [ "$vorher" != "failure" ]; then
               node scripts/discord-update.mjs --ziel alarm --art alarm --titel "Seite gestoert" --text "$(cat seitenpruefung.txt)" 2>&1 | tail -1
             fi
-          else
-            if [ "$vorher" = "failure" ]; then
-              node scripts/discord-update.mjs --ziel alarm --art info --titel "Seite wieder in Ordnung" --text "Alle geprueften Seiten und Schnittstellen antworten wieder." 2>&1 | tail -1
-            fi
           fi
       - name: Zugangsdaten wieder weg
         if: always()

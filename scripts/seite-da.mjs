@@ -80,20 +80,13 @@ const melde = (art, titel, text) => {
   try { execFileSync('node', ['scripts/discord-update.mjs', '--ziel', 'alarm', '--art', art, '--titel', titel, '--text', text], { stdio: 'inherit' }); }
   catch (e) { console.log('Discord:', e.message); }
 };
-const uhr = (iso) => new Date(iso).toLocaleString('de-CH', { timeZone: 'Europe/Zurich', hour: '2-digit', minute: '2-digit', day: '2-digit', month: '2-digit' });
 
 console.log(`${a.ok ? 'DA' : 'WEG'} · HTTP ${a.status} · ${a.ms} ms${a.routing ? ' · render=' + a.routing : ''}${a.cf ? ' · cf=' + a.cf : ''}`);
 
 if (!a.ok && vorher !== 'failure') {
-  melde('alarm', 'Seite ist offline', `${ursache(a)}\n\nAntwort: HTTP ${a.status}${a.routing ? ` · Render: ${a.routing}` : ''}${a.cf ? ` · Cloudflare ${a.cf}` : ''}\nNächste Prüfung in fünf Minuten; gemeldet wird erst wieder, wenn sie zurück ist.`);
+  melde('alarm', 'Seite ist offline', `${ursache(a)}\n\nAntwort: HTTP ${a.status}${a.routing ? ` · Render: ${a.routing}` : ''}${a.cf ? ` · Cloudflare ${a.cf}` : ''}\nNächste Prüfung in fünf Minuten; gemeldet wird nur ein neuer Ausfall.`);
 }
-if (a.ok && vorher === 'failure') {
-  // Wie lange war sie weg: vom Beginn der Reihe fehlgeschlagener Laeufe bis jetzt.
-  let beginn = null;
-  for (const l of echt) { if (l.conclusion === 'failure') beginn = l.created_at; else break; }
-  const min = beginn ? Math.max(1, Math.round((Date.now() - Date.parse(beginn)) / 60_000)) : null;
-  melde('info', 'Seite wieder da', `Die Startseite antwortet wieder (${a.ms} ms).${beginn ? `\nAusfall seit etwa ${uhr(beginn)} Uhr, rund ${min} Minuten.` : ''}`);
-}
+// Wieder da: keine Meldung mehr (Betreiber, 30.10.2026: "Solange sie online ist, ist gut. Wenn sie offline ist, das interessiert mich").
 
 fs.writeFileSync('seite-da.txt', `${a.ok ? 'DA' : 'WEG'} ${a.status}`);
 process.exitCode = a.ok ? 0 : 1;

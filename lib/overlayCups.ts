@@ -65,7 +65,8 @@ export function overlayCupErlaubt(titel: string | undefined | null): boolean {
   if (NIE.some((r) => r.test(s))) return false;
   // Reload ist ein eigener Modus; "Reload Duos Victory Cup" und
   // "Reload ZB Duos Cash Cup" waeren sonst ueber die Cup-Regel hereingekommen.
-  if (/reload/i.test(s) && !/division\s*1\b|grand\s*finals?/i.test(s)) return false;
+  // Ausnahme seit 30.10.2026: die FNCS Solos Reload (ab November; Betreiber: "Reload FNCS Solo ... kannst du eigentlich mit dem auch").
+  if (/reload/i.test(s) && !/division\s*1\b|grand\s*finals?|fncs\s*solos?/i.test(s)) return false;
   return ERLAUBT.some((r) => r.test(s));
 }
 

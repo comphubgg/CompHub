@@ -28,7 +28,7 @@ import T from '@/app/components/T';
 import SeitenKopf from '@/app/components/SeitenKopf';
 import { useT } from '@/app/components/SprachProvider';
 import { MARKE } from '@/lib/marke';
-import { inselAusPlaylist } from '@/lib/inseln';
+import { brBildFuer, inselAusPlaylist } from '@/lib/inseln';
 import { speichereLeinwand } from '@/app/lib/bildSpeichern';
 import { gruppenName } from '@/lib/fensterName';
 import type { FeldErgebnis, FeldHinweis } from '@/lib/prognoseFeld';
@@ -1272,7 +1272,7 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
       .filter((f): f is Fenster => Boolean(f));
     const erstes = (zielFenster?.playlist ? zielFenster : undefined)
       ?? gewaehlt.find((f) => f.playlist) ?? fensterAlle.find((f) => f.playlist);
-    return inselAusPlaylist(erstes?.playlist);
+    return { ...inselAusPlaylist(erstes?.playlist), fenster: zielFenster?.windowId ?? erstes?.windowId ?? null };
   }, [cup, quellen, ziel]);
 
   /*
@@ -1283,7 +1283,7 @@ export default function PrognosenWerkzeug({ globals = false, eigen = false }: {
   const inselnUnterwegs = useRef<Set<string>>(new Set());
   useEffect(() => {
     if (bildVonHand || eigeneKarte || !inselJetzt.schluessel) return;
-    const ziel = inselJetzt.art === 'br' ? (inseln.BR ?? '') : (inseln[inselJetzt.schluessel] ?? null);
+    const ziel = inselJetzt.art === 'br' ? brBildFuer(inseln, inselJetzt.fenster) : (inseln[inselJetzt.schluessel] ?? null);
     if (ziel === null) {
       // Ohne Bild: aus den Spieldateien holen - Name, Karte, Zuordnung.
       const code = inselJetzt.schluessel;

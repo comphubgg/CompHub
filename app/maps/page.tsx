@@ -17,7 +17,7 @@ import { gefaltet, namensSchluessel } from '@/lib/homoglyph';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import { kartenTitel } from '@/lib/rundenName';
-import { inselAusPlaylist } from '@/lib/inseln';
+import { brBildFuer, inselAusPlaylist } from '@/lib/inseln';
 import { istGrossesTurnier } from '@/lib/turnierArt';
 import { speichereLeinwand } from '@/app/lib/bildSpeichern';
 import { leseWoerter } from './bildLesen';
@@ -1260,7 +1260,7 @@ export default function KartenSeite(
     if (karte && !darfFolgen) ziel = karte.bildId ?? '';
     else {
       const insel = inselAusPlaylist(f.playlist);
-      ziel = insel.art === 'br' ? (inseln.BR ?? '')
+      ziel = insel.art === 'br' ? brBildFuer(inseln, f.windowId)
         : insel.art === 'reload' && insel.schluessel ? (inseln[insel.schluessel] ?? null)
           : null;
       /*

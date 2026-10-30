@@ -1,6 +1,7 @@
 import crypto from 'crypto';
 import { NextResponse } from 'next/server';
 import { kartenAutomatik } from '@/lib/kartenAutomatik';
+import { saisonKartenPflegen } from '@/lib/saisonKarte';
 import type { CupGruppe } from '@/lib/epicCups';
 
 /*
@@ -31,8 +32,14 @@ export async function GET(request: Request) {
       fetch(`${basis}/api/karten-bild`, { cache: 'no-store', signal: AbortSignal.timeout(30_000) }).then((r) => r.json()) as Promise<{ karten?: Array<{ id: string; titel: string }>; inseln?: Record<string, string> }>,
     ]);
     if (!katalog.cups?.length) return NextResponse.json({ ok: false, fehler: 'Katalog leer' }, { status: 503 });
-    const lauf = await kartenAutomatik(katalog.cups, bilder.inseln ?? {}, bilder.karten ?? [], url.searchParams.get('nachholen') === '1');
-    return NextResponse.json({ ok: true, ...lauf });
+    // Erst die Insel jeder Saison (neue Season: neue Karte von selbst, alte Karten behalten ihre) - lib/saisonKarte.
+    const fenster = katalog.cups.flatMap((c) => Object.values((c as { regionen?: Record<string, Array<{ windowId: string; begin: number }>> }).regionen ?? {}).flat());
+    const saison = await saisonKartenPflegen(fenster).catch((e) => ({ inseln: bilder.inseln ?? {}, log: [`Fehler: ${(e as Error).message}`] }));
+    const kartenbilder = saison.log.length
+      ? ((await fetch(`${basis}/api/karten-bild`, { cache: 'no-store', signal: AbortSignal.timeout(30_000) }).then((r) => r.json()).catch(() => null)) as typeof bilder | null)?.karten ?? bilder.karten ?? []
+      : bilder.karten ?? [];
+    const lauf = await kartenAutomatik(katalog.cups, saison.inseln, kartenbilder, url.searchParams.get('nachholen') === '1');
+    return NextResponse.json({ ok: true, saison: saison.log, ...lauf });
   } catch (e) {
     return NextResponse.json({ ok: false, fehler: (e as Error).message }, { status: 503 });
   }

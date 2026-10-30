@@ -6,7 +6,7 @@ import { nobleKarte } from '@/lib/nobleKarte';
 import { vitalAlsNoble, VITAL_REGIONEN, regionAusKennung } from '@/lib/vitalScrims';
 import { istGrossesTurnier, istFinaleTag } from '@/lib/turnierArt';
 import { kartenTitel } from '@/lib/rundenName';
-import { inselAusPlaylist } from '@/lib/inseln';
+import { brBildFuer, inselAusPlaylist } from '@/lib/inseln';
 import { schickeAdminAufgabe } from '@/lib/discord';
 import type { CupGruppe, CupFensterDetail } from '@/lib/epicCups';
 import type { Turnierkarte, KartenTeam, Spot } from '@/app/api/turnier-karten/route';
@@ -195,7 +195,7 @@ export async function kartenAutomatik(
     }
 
     const insel = inselAusPlaylist(z.f.playlist);
-    const bildId = insel.art === 'reload' && insel.schluessel ? (inseln[insel.schluessel] ?? '') : (inseln.BR ?? '');
+    const bildId = insel.art === 'reload' && insel.schluessel ? (inseln[insel.schluessel] ?? '') : brBildFuer(inseln, z.f.windowId);
     const bild = { id: bildId, titel: bilder.find((b) => b.id === bildId)?.titel ?? 'Battle Royale' };
 
     let quelle: Awaited<ReturnType<typeof nobleKarte>> | Awaited<ReturnType<typeof vitalAlsNoble>> = null;

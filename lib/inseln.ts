@@ -25,6 +25,21 @@ export interface Insel {
 
 const REGEL = /^Playlist_ShowdownTournament_(?:RE_)?([A-Z][a-z]+[A-Z][a-z]+)(?:NoBuild)?(?:Solo|Duo|Trio|Squad|Octet)/;
 
+/** Epics Saison aus der Kennung eines Spieltags oder Events ("S42_PerformanceEvaluation_..." -> 42), sonst null. */
+export function saisonVon(kennung?: string | null): number | null {
+  const m = /(?:^|_)S(\d{2,3})_/i.exec(kennung ?? '');
+  return m ? Number(m[1]) : null;
+}
+
+/** Unter diesem Schluessel steht in insel-bilder.json die Battle-Royale-Insel einer Saison (lib/saisonKarte). */
+export const brSchluessel = (saison: number) => `BR:S${saison}`;
+
+/** Das Kartenbild fuer Battle Royale an diesem Spieltag: die Insel seiner Saison, sonst die allgemeine Zuordnung, sonst die Karte von heute (''). */
+export function brBildFuer(inseln: Record<string, string>, kennung?: string | null): string {
+  const n = saisonVon(kennung);
+  return (n !== null ? inseln[brSchluessel(n)] : undefined) ?? inseln.BR ?? '';
+}
+
 export function inselAusPlaylist(playlist?: string | null): Insel {
   if (!playlist) return { art: 'unbekannt', schluessel: null };
   const m = playlist.match(REGEL);
