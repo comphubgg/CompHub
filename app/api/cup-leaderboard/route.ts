@@ -188,7 +188,9 @@ async function holeRoh(request: Request) {
     if (searchParams.get('ganz') === '1') {
       const vorrat = searchParams.get('frisch') === '1' ? null : await ganzLesen(window_);
       if (!vorrat) { ganzBauen(event, window_); return NextResponse.json({ entries: [], fehlt: true }); }
-      return NextResponse.json(await ergaenzeBilder(await bereinigt(vorrat as { entries: CupEintrag[]; totalPages?: number; updated?: string }, event, window_)));
+      const voll = await ergaenzeBilder(await bereinigt(vorrat as { entries: CupEintrag[]; totalPages?: number; updated?: string }, event, window_));
+      // Die Spielverlaeufe machen bei 10.000 Plaetzen ueber 20 MB aus - mit dabei nur fuer die ersten 300; den Rest holt die Seite beim Anklicken (ids=).
+      return NextResponse.json({ ...voll, entries: (voll.entries as unknown as Array<Record<string, unknown>>).map((x, i) => (i < 300 ? x : { ...x, matches: [], matchesWeg: true })) });
     }
 
     const von = parseInt(searchParams.get('von') ?? '', 10);

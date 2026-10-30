@@ -281,6 +281,8 @@ interface Eintrag {
   avgPlace: number; avgPoints: number; avgElims: number; kd: number;
   bestPlace: number | null; timeAlive: number; damage: number;
   players: Spieler[]; matches: Match[];
+  /** Ganze Liste (ganz=1): der Spielverlauf kommt erst beim Anklicken (siehe nachMatches). */
+  matchesWeg?: boolean;
 }
 
 /**
@@ -2077,6 +2079,29 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     return () => { weg = true; clearTimeout(uhr); };
   }, [reiter, fenster, spielerWerte?.gekuerzt, spielerSuche, summenFenster, summenText]);
 
+  /*
+   * Spielverlaeufe, die mit der ganzen Liste nicht mitkamen (ab Platz 301): beim Anklicken eines Teams einmal nachholen - ueber die Suche nach
+   * seinen Konten (app/api/cup-leaderboard, ids=). Gemerkt je Platz, bis der Spieltag wechselt.
+   */
+  const [nachMatches, setNachMatches] = useState<Record<number, Match[]>>({});
+  useEffect(() => { setNachMatches({}); }, [lbFenster?.windowId]);
+  useEffect(() => {
+    const e = tabelle.find((x) => x.rank === offen);
+    if (!e?.matchesWeg || nachMatches[e.rank] || !lbFenster) return undefined;
+    let weg = false;
+    const ids = e.players.map((p) => (p as { id?: string }).id).filter(Boolean).join(',');
+    if (!ids) return undefined;
+    fetch(`/api/cup-leaderboard?event=${encodeURIComponent(lbFenster.eventId)}&window=${encodeURIComponent(lbFenster.windowId)}&ids=${encodeURIComponent(ids)}`)
+      .then((r) => r.json())
+      .then((j: { entries?: Eintrag[] }) => {
+        if (weg) return;
+        const treffer = (j.entries ?? []).find((x) => x.rank === e.rank) ?? (j.entries ?? [])[0];
+        setNachMatches((alt) => ({ ...alt, [e.rank]: treffer?.matches ?? [] }));
+      })
+      .catch(() => { if (!weg) setNachMatches((alt) => ({ ...alt, [e.rank]: [] })); });
+    return () => { weg = true; };
+  }, [offen, tabelle, lbFenster, nachMatches]);
+
   // Vor dem Laden der Spielerwerte bestimmt - Solo-Cups zeigen die Player Stats im Reiter "teams".
   const soloCup = useMemo(() => {
     if (tabelle.length > 0) return tabelle.every((e) => e.players.length === 1);
@@ -3556,10 +3581,12 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
               : `${n}. Platz`);
             const teamPanel = (e: Eintrag) => {
               const betrag = mitPreis ? preisFuer(e.rank, e.points) : null;
+              // Ab Platz 301 der ganzen Liste kommt der Spielverlauf erst beim Anklicken (nachMatches).
+              const spieleListe = e.matchesWeg ? (nachMatches[e.rank] ?? []) : e.matches;
               // Game 1 oben, dann der Reihe nach - der Betreiber (29.9.2026):
               // "die oberste Runde ist die erste Runde ... nicht so oberst ist
               // die letzte Runde".
-              const spieleSortiert = e.matches.map((m, k) => ({ m, k }))
+              const spieleSortiert = spieleListe.map((m, k) => ({ m, k }))
                 .sort((a, b) => String(a.m.endTime ?? '').localeCompare(String(b.m.endTime ?? '')) || a.k - b.k)
                 .map((x, i) => ({ ...x, nr: i + 1 }));
               const kachel = (titel: string, wert: string | number, gross = false) => (
@@ -3619,7 +3646,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                   </div>
                   <div className="border-t border-zinc-800 pt-4">
                     <div className="mb-2 text-[10px] font-semibold uppercase tracking-wider text-slate-500">
-                      <T>Spielverlauf</T> · {e.matches.length}
+                      <T>Spielverlauf</T> · {spieleListe.length}
                     </div>
                     <div className="space-y-1.5 lg:max-h-[calc(100vh-24rem)] lg:overflow-y-auto lg:pr-1">
                       {spieleSortiert.map(({ m, nr }) => (
@@ -3643,7 +3670,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                           </div>
                         </div>
                       ))}
-                      {!e.matches.length && <p className="text-xs text-slate-600"><T>Keine Matchdaten.</T></p>}
+                      {!spieleListe.length && <p className="text-xs text-slate-600">{e.matchesWeg && !nachMatches[e.rank] ? <T>Wird geladen …</T> : <T>Keine Matchdaten.</T>}</p>}
                     </div>
                   </div>
                 </div>
