@@ -1002,7 +1002,7 @@ export default function TierListPage() {
      * dann auch, solange es niemand einsortiert hat. Was in einer Stufe
      * steht, bleibt: das ist eine Entscheidung des Nutzers.
      */
-    if (entry.vonPool && !entry.tier && trioPool
+    if (entry.isTrio && entry.vonPool && !entry.tier && trioPool
         && !trioPoolSchluessel.has(getTrioKey(entry.data))) {
       return false;
     }
