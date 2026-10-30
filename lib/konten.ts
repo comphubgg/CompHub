@@ -327,8 +327,10 @@ export async function nachDienst(
 export async function nachEpicId(epicId: string): Promise<Konto | null> {
   const id = epicId.replace(/-/g, '').toLowerCase();
   if (!id) return null;
-  return (await liesZumNachsehen()).find(
-    (k) => (k.epicId ?? '').replace(/-/g, '').toLowerCase() === id) ?? null;
+  // Tragen mehrere Konten dieselbe Id (z. B. ein Pro-Testkonto des Betreibers), zaehlt das bestaetigte, dann das Admin-Konto.
+  const treffer = (await liesZumNachsehen()).filter((k) => (k.epicId ?? '').replace(/-/g, '').toLowerCase() === id);
+  treffer.sort((a, b) => Number(!!b.epicVerifiziert) - Number(!!a.epicVerifiziert) || Number(b.rolle === 'admin') - Number(a.rolle === 'admin'));
+  return treffer[0] ?? null;
 }
 
 /**

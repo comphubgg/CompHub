@@ -136,7 +136,7 @@ export async function GET(req: NextRequest) {
       if (konto.epicId && konto.epicId !== epicId) return aufraeumen(loeschen(zurueck('/account?epic=freunde-anderes-konto')));
       if (!konto.epicVerifiziert) {
         const anderes = await nachEpicId(epicId);
-        if (anderes && anderes.id !== konto.id) return aufraeumen(loeschen(zurueck('/account?epic=vergeben')));
+        if (anderes && anderes.id !== konto.id && konto.epicId !== epicId) return aufraeumen(loeschen(zurueck('/account?epic=vergeben')));
         await aendern(konto.id, { epicId, epicVerifiziert: true, ...(epicName ? { epicName } : {}) });
         await merkeKonto(epicId);
       }
@@ -176,8 +176,12 @@ export async function GET(req: NextRequest) {
       return antwort;
     }
 
+    /*
+     * Hat der Betreiber diesem Konto genau diese Epic-Id zugewiesen, gilt sie hier - auch wenn ein anderes (z. B. ein Pro-Testkonto) sie ebenfalls traegt
+     * (30.10.2026: 'Verify with Epic' fuehrte zurueck, und es stand weiter 'nicht verbunden' - sein Admin-Konto und ein Pro-Testkonto hatten dieselbe Id).
+     */
     const anderes = await nachEpicId(epicId);
-    if (anderes && anderes.id !== konto.id) return aufraeumen(zurueck(`${heim}?epic=vergeben`));
+    if (anderes && anderes.id !== konto.id && konto.epicId !== epicId) return aufraeumen(zurueck(`${heim}?epic=vergeben`));
     if (konto.epicId && konto.epicId !== epicId && !konto.epicVerifiziert) {
       // Der Betreiber hat eine andere Id zugewiesen - die gilt weiter.
       return aufraeumen(zurueck(`${heim}?epic=zugewiesen`));
