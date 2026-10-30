@@ -60,7 +60,11 @@ export async function GET(req: NextRequest) {
   const rueckCookie = req.cookies.get('epic_rueck')?.value ?? '';
   const heim = rueckCookie.startsWith('/') && !rueckCookie.startsWith('//') && rueckCookie.split('').every((c) => /[a-z0-9/_-]/i.test(c)) ? rueckCookie : '/account';
   const aufraeumen = (a: NextResponse) => {
-    for (const k of ['epic_oauth_state', 'epic_oauth_art', 'epic_rueck']) a.cookies.set(k, '', { path: '/', maxAge: 0 });
+    // Beide Fassungen loeschen: nur fuer diese Adresse und fuer beide (mit/ohne www, app/api/auth/epic/freunde).
+    for (const k of ['epic_oauth_state', 'epic_oauth_art', 'epic_rueck']) {
+      a.cookies.set(k, '', { ...sitzungsDomain(req), path: '/', maxAge: 0 });
+      if (sitzungsDomain(req).domain) a.headers.append('Set-Cookie', `${k}=; Path=/; Max-Age=0`);
+    }
     return a;
   };
 

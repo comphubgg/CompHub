@@ -1,4 +1,5 @@
 import crypto from 'crypto';
+import { sitzungsDomain } from '@/lib/cookieDomain';
 import { NextRequest, NextResponse } from 'next/server';
 import { holeDienst } from '@/lib/dienstZugaenge';
 import { rueckwegVon } from '@/lib/oeffentlicheAdresse';
@@ -46,11 +47,14 @@ export async function GET(req: NextRequest) {
   });
   const antwort = NextResponse.redirect(`https://www.epicgames.com/id/authorize?${params.toString()}`);
   // Ein liegengebliebener Freunde-Weg darf das normale Verknuepfen nicht auf die Freundesliste umstellen.
-  antwort.cookies.set('epic_oauth_art', '', { path: '/', maxAge: 0 });
-  if (zurueck) antwort.cookies.set('epic_rueck', zurueck, { httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', path: '/', maxAge: 600 });
-  else antwort.cookies.set('epic_rueck', '', { path: '/', maxAge: 0 });
+  // Fuer beide Adressen (mit und ohne www) - wie app/api/auth/epic/freunde; Epic kommt auf der eingetragenen Adresse zurueck.
+  const dom = sitzungsDomain(req);
+  antwort.cookies.set('epic_oauth_art', '', { ...dom, path: '/', maxAge: 0 });
+  if (dom.domain) antwort.headers.append('Set-Cookie', 'epic_oauth_art=; Path=/; Max-Age=0');
+  if (zurueck) antwort.cookies.set('epic_rueck', zurueck, { ...dom, httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', path: '/', maxAge: 600 });
+  else antwort.cookies.set('epic_rueck', '', { ...dom, path: '/', maxAge: 0 });
   antwort.cookies.set('epic_oauth_state', state, {
-    httpOnly: true, sameSite: 'lax',
+    ...dom, httpOnly: true, sameSite: 'lax',
     secure: process.env.NODE_ENV === 'production',
     path: '/', maxAge: 600,
   });

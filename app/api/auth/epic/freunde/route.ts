@@ -2,6 +2,7 @@ import crypto from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { aendern, kontoAus, nachId } from '@/lib/konten';
 import { vipAus } from '@/lib/vipCookie';
+import { sitzungsDomain } from '@/lib/cookieDomain';
 import { zugangNach } from '@/lib/vipZugaenge';
 import { holeDienst } from '@/lib/dienstZugaenge';
 import { rueckwegVon } from '@/lib/oeffentlicheAdresse';
@@ -61,7 +62,9 @@ export async function GET(req: NextRequest) {
       state,
     });
     const antwort = NextResponse.redirect(`https://www.epicgames.com/id/authorize?${params.toString()}`);
-    const optionen = { httpOnly: true, sameSite: 'lax' as const, secure: process.env.NODE_ENV === 'production', path: '/', maxAge: 600 };
+    // Fuer beide Adressen (mit und ohne www) - Epic kommt auf der eingetragenen zurueck, und das war nicht immer die, auf der der Knopf stand
+    // (30.10.2026: 'Share now' endete mit ?epic=state).
+    const optionen = { ...sitzungsDomain(req), httpOnly: true, sameSite: 'lax' as const, secure: process.env.NODE_ENV === 'production', path: '/', maxAge: 600 };
     antwort.cookies.set('epic_oauth_state', state, optionen);
     antwort.cookies.set('epic_oauth_art', 'freunde', optionen);
     // Zurueck dorthin, wo der Knopf stand (z. B. die Bestenliste eines Cups) - nur eigene Pfade.
