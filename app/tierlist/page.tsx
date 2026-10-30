@@ -446,8 +446,15 @@ export default function TierListPage() {
       const k = mode === 'duo' ? getDuoKey(d) : getSoloKey(d);
       return k && !vorhanden.has(k) && !entfernt.has(k);
     });
-    if (!neu.length) return;
-    tierListState.addEntries(neu.map((d: any) => ({ id: generateId(), data: d, vonPool: true })));
+    if (neu.length) { tierListState.addEntries(neu.map((d: any) => ({ id: generateId(), data: d, vonPool: true }))); return; }
+    // Was aus dem Pool kam, dort nicht mehr steht und noch nicht einsortiert ist, geht wieder (z. B. Duos mit gekuerzten Konto-Ids statt Namen).
+    const imPool = new Set(kandidaten.map((d: any) => (mode === 'duo' ? getDuoKey(d) : getSoloKey(d))));
+    const alt = new Set<string>();
+    for (const e of tierListState.entries as any[]) {
+      if (e.vonPool && !e.tier && !e.isTrio && (mode === 'duo' ? e.isDuo : !e.isDuo)
+        && !imPool.has(mode === 'duo' ? getDuoKey(e.data) : getSoloKey(e.data))) alt.add(e.id);
+    }
+    if (alt.size) tierListState.loescheEintraege(alt);
   }, [mode, soloDuoPool, tierListState.entries, entfernt]);
 
   // Static list ID Sync
