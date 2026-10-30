@@ -355,9 +355,18 @@ async function offeneFenster() {
   const zuAlt = [];
 
   let uebersprungen = 0;
+  /*
+   * REPLAY_NUR_UEBERSPRUNGENE=1 (30.10.2026, der Betreiber: "von jedem einzelnen Cup ... jede einzelne Runde analysieren"): genau umgekehrt - nur die
+   * Spieltage, die die Regeln unten auslassen. Ein eigener Rechner arbeitet sie ab, ohne den anderen einen Spieltag wegzunehmen (ein Schreiber je Spieltag).
+   */
+  const NUR_UEBERSPRUNGENE = process.env.REPLAY_NUR_UEBERSPRUNGENE === '1';
   for (const cup of katalog.cups ?? []) {
     const regel = replayRegel(cup);
-    if (regel === 'nichts') {
+    if (regel === 'nichts' && !NUR_UEBERSPRUNGENE) {
+      uebersprungen += Object.values(cup.regionen ?? {}).flat().length;
+      continue;
+    }
+    if (NUR_UEBERSPRUNGENE && regel !== 'nichts' && regel !== 'nurFinals') {
       uebersprungen += Object.values(cup.regionen ?? {}).flat().length;
       continue;
     }
@@ -375,7 +384,7 @@ async function offeneFenster() {
       for (const w of liste) {
         // Im Live-Lauf genau umgekehrt: nur, was gerade laeuft.
         if (nurLive ? w.status !== 'live' : w.status !== 'vorbei') continue;
-        if (finals && !finals.has(w.windowId)) { uebersprungen++; continue; }
+        if (NUR_UEBERSPRUNGENE ? (finals && finals.has(w.windowId)) : (finals && !finals.has(w.windowId))) { uebersprungen++; continue; }
         /*
          * Bei einem laufenden Fenster gibt es noch kein Ende - dann zaehlt
          * der Beginn. Sonst faellt es durch die Fristpruefung, weil ein
