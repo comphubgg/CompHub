@@ -3751,3 +3751,72 @@ export async function proNews(discordId: string, an: boolean): Promise<boolean> 
   const r = await ruf(`/guilds/${SERVER}/members/${discordId}/roles/${rolle}`, an ? 'PUT' : 'DELETE');
   return r !== null;
 }
+
+/*
+ * Pro- und Org-Konten aus dem Discord verwalten (Betreiber, 29.10.2026): ein Admin-Kanal #pro-accounts mit einer angepinnten Tafel - alle Pros
+ * mit Chef, Stand und Discord, darunter Knoepfe zum Anlegen (Einladungslink im Namen eines VIPs) und Zurueckziehen. Orgs stehen dort als
+ * ausgeschaltet, bis der Betreiber sie wieder einschaltet ("das kannst du deaktivieren, bis ich es mal wieder aktiviere").
+ */
+const PRO_PANEL = 'pro-accounts';
+
+export async function proPanelInhalt(): Promise<Record<string, unknown>> {
+  const { alleEinladungen } = await import('./povVip');
+  const { liesPros } = await import('./pov');
+  const [einladungen, pros] = await Promise.all([alleEinladungen(), liesPros()]);
+  const zeilen = einladungen.slice(0, 25).map((e) => {
+    const p = e.angenommen ? pros[e.angenommen.ident] : undefined;
+    const stand = e.gesperrt ? 'revoked' : e.konto ? (p?.live ? 'LIVE' : 'active') : 'link not opened yet';
+    const discord = p?.discordId ? ` · Discord <@${p.discordId}>` : '';
+    return `**${e.konto?.login ?? e.name}** · boss ${e.vipName} · ${stand}${discord}`;
+  });
+  return {
+    embeds: [{
+      title: 'Pro accounts',
+      color: FARBE,
+      description: [
+        zeilen.length ? zeilen.join('\n') : 'No pro accounts yet.',
+        '',
+        '__Org accounts__: switched off until you turn them back on.',
+      ].join('\n').slice(0, 4000),
+      footer: { text: `${einladungen.filter((e) => e.konto && !e.gesperrt).length} active · updated ${new Date().toLocaleString('de-CH', { timeZone: 'Europe/Zurich' })}` },
+    }],
+    components: [{
+      type: 1,
+      components: [
+        { type: 2, style: 3, label: 'Create pro account', custom_id: 'proadmin:neu' },
+        { type: 2, style: 4, label: 'Revoke pro', custom_id: 'proadmin:weg' },
+        { type: 2, style: 2, label: 'Refresh', custom_id: 'proadmin:liste' },
+      ],
+    }],
+  };
+}
+
+/** Den Kanal #pro-accounts (nur Admin und Bot) mit der Tafel anlegen oder die Tafel erneuern. */
+export async function proPanel(): Promise<{ ok: boolean; kanal?: string }> {
+  if (!discordDa()) return { ok: false };
+  const ablage = await lies();
+  let kanal: string | null = ablage['pro:panel']?.kanal ?? null;
+  if (kanal && !(await ruf(`/channels/${kanal}`, 'GET')) && letzterStatus === 404) kanal = null;
+  if (!kanal) {
+    const eltern = await kategorieFuer('Admin');
+    const ich = await werBinIch();
+    const adminRolle = await adminRolleId();
+    const regeln: Array<Record<string, string | number>> = [
+      { id: SERVER, type: 0, allow: '0', deny: '1024' },
+      ...(ich ? [{ id: ich, type: 1, allow: VOLLZUGRIFF, deny: '0' }] : []),
+      ...(adminRolle ? [{ id: adminRolle, type: 0, allow: VOLLZUGRIFF, deny: '0' }] : []),
+    ];
+    kanal = idAus(await ruf(`/guilds/${SERVER}/channels`, 'POST', { name: PRO_PANEL, type: 0, parent_id: eltern, permission_overwrites: regeln, topic: 'Pro accounts: create, list, revoke. Orgs are switched off.' }));
+    if (!kanal) return { ok: false };
+  }
+  const inhalt = await proPanelInhalt();
+  const alt = ablage['pro:panel']?.nachricht;
+  let nachricht = alt && ablage['pro:panel']?.kanal === kanal ? idAus(await ruf(`/channels/${kanal}/messages/${alt}`, 'PATCH', inhalt)) : null;
+  if (!nachricht) {
+    nachricht = idAus(await ruf(`/channels/${kanal}/messages`, 'POST', inhalt));
+    if (nachricht) await anpinnen(kanal, nachricht);
+  }
+  ablage['pro:panel'] = { kanal, ...(nachricht ? { nachricht } : {}) };
+  await schreibe(ablage);
+  return { ok: true, kanal };
+}

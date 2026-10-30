@@ -3,7 +3,7 @@ import { liesJson, schreibJson } from '@/lib/ablage';
 import { aendern, anlegen, nachId, nachName } from '@/lib/konten';
 import { zugangNach } from '@/lib/vipZugaenge';
 import { istLive } from '@/lib/povRelay';
-import { liesPros, schreibePros, sichereProEintrag, type Wer } from '@/lib/pov';
+import { alleVips, liesPros, schreibePros, sichereProEintrag, type Wer } from '@/lib/pov';
 
 /*
  * Der POV-Bereich der VIPs (/pov).
@@ -170,4 +170,43 @@ export async function prosVon(ich: Wer): Promise<Array<{ ident: string; name: st
     .filter((p) => !ich.idents.includes(p.ident) && ((p.erlaubt ?? []).some((e) => ich.idents.includes(e)) || eingeladen.has(p.ident)))
     .map((p) => ({ ident: p.ident, name: p.name, bild: p.bild, live: istLive(p.ident), fuerAlle: p.fuerAlle === true, eingeladen: eingeladen.has(p.ident) }))
     .sort((a, b) => Number(b.live) - Number(a.live) || a.name.localeCompare(b.name));
+}
+
+/* --------------------------------------------------- Verwaltung aus Discord (#pro-accounts) */
+
+/*
+ * Der Admin legt Pro-Konten auch direkt im Discord an und zieht sie zurueck (Betreiber, 29.10.2026: "da kann ich auch Org-Accounts im Discord
+ * erstellen, dass man das gleich managen kann, oder genauso mit den Pros"). Angelegt wird dieselbe Einladung wie im VIP-Dashboard - im Namen
+ * des genannten VIPs (sein Chef) oder, ohne Namen, des Admins.
+ */
+export async function alleEinladungen(): Promise<ProEinladung[]> {
+  return Object.values(await lies()).sort((a, b) => b.erstellt - a.erstellt);
+}
+
+export const einladungsLink = (code: string) => `https://www.thecomphub.com/pov/einladung?code=${code}`;
+
+export async function einladungFuer(chefName: string, proName: string): Promise<{ ok: true; link: string; chef: string } | { ok: false; fehler: string }> {
+  const name = chefName.trim();
+  if (!proName.trim()) return { ok: false, fehler: 'Please give the pro a name.' };
+  let ich: Wer;
+  if (!name || ['admin', 'admin-juanito', 'juanito'].includes(name.toLowerCase())) {
+    ich = { idents: ['z:admin-juanito'], name: 'admin-juanito', rolle: 'admin', vip: true, bild: null, rechte: [] };
+  } else {
+    const v = (await alleVips()).find((x) => x.name.toLowerCase() === name.toLowerCase());
+    if (!v) return { ok: false, fehler: `There is no VIP called "${chefName}".` };
+    ich = { idents: v.auch, name: v.name, rolle: null, vip: true, bild: null, rechte: [] };
+  }
+  try {
+    const e = await neueEinladung(ich, proName);
+    return { ok: true, link: einladungsLink(e.code), chef: ich.name };
+  } catch (err) { return { ok: false, fehler: (err as Error).message }; }
+}
+
+/** Eine Einladung nach Name oder Anmeldename zurueckziehen - wie der VIP es selbst taete (Link und Konto gesperrt). */
+export async function einladungZurueckziehenNach(suche: string): Promise<{ ok: boolean; text: string }> {
+  const q = suche.trim().toLowerCase();
+  const e = (await alleEinladungen()).find((x) => !x.gesperrt && (x.name.toLowerCase() === q || x.konto?.login.toLowerCase() === q));
+  if (!e) return { ok: false, text: `No active pro invitation called "${suche}".` };
+  const ok = await zurueckziehen({ idents: e.vip, name: e.vipName, rolle: null, vip: true, bild: null, rechte: [] }, e.code);
+  return ok ? { ok: true, text: `Revoked: ${e.name}${e.konto ? ' (account locked)' : ' (link deleted)'}.` } : { ok: false, text: 'That did not work.' };
 }

@@ -5,13 +5,14 @@ import {
 } from '@/lib/vipZugaenge';
 import { darfEinstellen, dashboardNachricht, sendeTest, setzeKanal } from '@/lib/discordGilden';
 import { liesPros } from '@/lib/pov';
+import { einladungFuer, einladungZurueckziehenNach } from '@/lib/povVip';
 import {
   beitragEinbettung, gemerkterKanal, schickeSchluessel,
   ticketOeffnen, ticketSchliessen,
   zugangFormular, zugangAnfrage, zugangEntscheiden, darfEntscheiden,
   anfrageAusNachricht, zugangChat, zugangNachricht, zugangLoeschen, zugangStufe,
   chatErstellen, nachrichtAnMitglied, dmsSpiegeln, alsCompHub, vorlagenText, zeitraumVon, VORLAGEN,
-  type KnopfNachricht,
+  type KnopfNachricht, proPanel, proPanelInhalt,
 } from '@/lib/discord';
 
 /*
@@ -277,6 +278,55 @@ export async function POST(request: NextRequest) {
       return nurFuerIhn(erg === 'ok' ? 'Test message sent.'
         : erg === 'kein-kanal' ? 'Pick the announcement channel first.'
           : 'That did not go through — can CompHub write in that channel?');
+    }
+    return nurFuerIhn('Unknown action.');
+  }
+
+  /* ---------------------------------------------------- Pro-Konten (#pro-accounts, nur Admin) */
+  // Anlegen (Einladungslink im Namen eines VIPs), zurueckziehen, Liste erneuern - lib/discord proPanel, lib/povVip.
+  if (id.startsWith('proadmin:')) {
+    if (!(await darfEntscheiden(nutzer, d.member?.roles ?? []))) return nurFuerIhn('Only the admin can do this.');
+    if (id === 'proadmin:liste') return NextResponse.json({ type: 7, data: await proPanelInhalt() });
+    if (id === 'proadmin:neu') {
+      return NextResponse.json({
+        type: 9,
+        data: {
+          custom_id: 'proadmin:neu:form', title: 'Create pro account',
+          components: [
+            { type: 1, components: [{ type: 4, custom_id: 'name', style: 1, required: true, max_length: 40, label: 'Pro name', placeholder: 'e.g. Pollo' }] },
+            { type: 1, components: [{ type: 4, custom_id: 'chef', style: 1, required: false, max_length: 40, label: 'Boss (VIP name, empty = you)', placeholder: 'e.g. gripey' }] },
+          ],
+        },
+      });
+    }
+    if (id === 'proadmin:weg') {
+      return NextResponse.json({
+        type: 9,
+        data: {
+          custom_id: 'proadmin:weg:form', title: 'Revoke pro',
+          components: [{ type: 1, components: [{ type: 4, custom_id: 'wer', style: 1, required: true, max_length: 40, label: 'Pro name or login' }] }],
+        },
+      });
+    }
+    if (id === 'proadmin:neu:form') {
+      const f = felderAus();
+      danach(async () => {
+        const r = await einladungFuer(f.chef ?? '', f.name ?? '');
+        await proPanel().catch(() => null);
+        return r.ok
+          ? `Pro account for **${(f.name ?? '').trim()}** is ready (boss: ${r.chef}). Send this link to the pro - it creates the account and signs them in:\n${r.link}`
+          : r.fehler;
+      });
+      return NextResponse.json({ type: 5, data: { flags: 64 } });
+    }
+    if (id === 'proadmin:weg:form') {
+      const f = felderAus();
+      danach(async () => {
+        const r = await einladungZurueckziehenNach(f.wer ?? '');
+        await proPanel().catch(() => null);
+        return r.text;
+      });
+      return NextResponse.json({ type: 5, data: { flags: 64 } });
     }
     return nurFuerIhn('Unknown action.');
   }

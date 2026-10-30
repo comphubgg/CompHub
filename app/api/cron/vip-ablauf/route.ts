@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { abgelaufeneVipsLoeschen } from '@/lib/discord';
+import { abgelaufeneVipsLoeschen, proPanel } from '@/lib/discord';
 
 /*
  * Taeglich: Zugaenge loeschen, deren im VIP-Panel gesetzte Frist abgelaufen
@@ -23,7 +23,9 @@ export async function GET(request: Request) {
   if (!erlaubt) return NextResponse.json({ fehler: 'nicht erlaubt' }, { status: 401 });
   try {
     const weg = await abgelaufeneVipsLoeschen();
-    return NextResponse.json({ ok: true, geloescht: weg });
+    // Dazu die Tafel der Pro-Konten in #pro-accounts (lib/discord proPanel) - legt den Kanal beim ersten Mal an, danach nur die Liste neu.
+    const pros = await proPanel().catch(() => ({ ok: false }));
+    return NextResponse.json({ ok: true, geloescht: weg, proPanel: pros.ok });
   } catch (e) {
     return NextResponse.json({ ok: false, fehler: (e as Error).message }, { status: 503 });
   }
