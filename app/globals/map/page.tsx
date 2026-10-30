@@ -288,12 +288,13 @@ function KartenBild({ karte, namenZu, markiert, zeige }: {
   return (
     <div className={vollbild
       ? 'fixed inset-0 z-50 flex items-center justify-center overflow-hidden'
-      : ''}
-      // Im Vollbild geht das Meer bis an den Bildschirmrand (kartenVollbild).
-      style={vollbild ? { background: kartenBild.meer } : undefined}>
+      : 'rounded-3xl border border-[rgba(56,189,248,.35)] p-3 shadow-[0_20px_50px_rgba(8,70,135,.35)] sm:p-5'}
+      // Im Vollbild geht das Meer bis an den Bildschirmrand (kartenVollbild). Sonst auch: die Flaeche um die Karte hat die Farbe ihres Wassers,
+      // kein schwarzer Rahmen (Betreiber, 30.10.2026: "nur ein Blau, das zur Map passt, als ob alles zur Map gehoert, wie bei Noble").
+      style={{ background: kartenBild.meer }}>
     <div ref={flaeche}
       className={`${kartenSchrift.variable} relative mx-auto aspect-square w-full select-none
-                  ${vollbild ? 'overflow-visible' : 'overflow-hidden rounded-xl border border-white/[0.06] bg-zinc-950'}
+                  ${vollbild ? 'overflow-visible' : 'overflow-hidden'}
                   ${gezoomt ? 'cursor-grab active:cursor-grabbing' : ''}`}
       style={{
         containerType: 'inline-size',

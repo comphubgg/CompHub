@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import T from '@/app/components/T';
 import TeamFlagge from '@/components/TeamFlagge';
+import SpielerPlatzhalter from '@/app/components/SpielerPlatzhalter';
 import GlobalsGeruest, { GLOBALS_SEITEN } from './GlobalsGeruest';
 import { GLOBALS_TAGE } from '@/lib/globalsCup';
 
@@ -51,11 +52,21 @@ function Endstand() {
     <section className="mb-6 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.3fr)]">
       <div className="relative overflow-hidden rounded-2xl border border-sky-400/30 bg-gradient-to-br from-sky-400/[0.14] via-zinc-900/60 to-zinc-950 p-6">
         <p className="text-[10px] font-semibold uppercase tracking-[0.28em] text-sky-300/90"><T>Sieger</T></p>
-        <div className="mt-4 flex items-center gap-4">
-          <TeamFlagge groesse={52} laender={sieger.spieler.map((p) => p.land ?? undefined)} />
-          <div className="min-w-0">
-            {sieger.spieler.map((p) => <p key={p.id} className="truncate text-3xl font-black uppercase leading-tight tracking-tight text-sky-100">{p.anzeige}</p>)}
-          </div>
+        {/* Die Sieger mit Foto (Betreiber, 30.10.2026: "Ich LIEBE Bilder") - ohne Foto die Silhouette, Name und Flagge darunter. */}
+        <div className="mt-4 grid grid-cols-2 gap-3">
+          {sieger.spieler.map((p) => (
+            <div key={p.id} className="min-w-0">
+              <div className="relative aspect-square w-full overflow-hidden rounded-2xl border border-sky-400/30 bg-zinc-900">
+                {p.bild
+                  // eslint-disable-next-line @next/next/no-img-element
+                  ? <img src={p.bild} alt="" className="h-full w-full object-cover object-top" />
+                  : <SpielerPlatzhalter name={p.anzeige} />}
+              </div>
+              <p className="mt-2 flex items-center gap-2 text-xl font-black uppercase leading-tight tracking-tight text-sky-100">
+                <TeamFlagge groesse={20} laender={[p.land ?? undefined]} /><span className="truncate">{p.anzeige}</span>
+              </p>
+            </div>
+          ))}
         </div>
         <div className="mt-6 grid grid-cols-3 divide-x divide-white/10 border-t border-white/10 pt-4">
           {([['Punkte', sieger.punkte], ['Eliminierungen', sieger.elims], ['Siege', sieger.siege]] as Array<[string, number]>).map(([l, v], i) => (
