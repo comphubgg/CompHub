@@ -2870,7 +2870,14 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                * des Feldes in der naechsten Runde. Nur wo auch das fehlt,
                * bleibt es bei der Teilnehmerzahl.
                */
-              (fenster.qualifiziert || qual?.schwelle)
+              /*
+               * Ein Finale ohne Weiterkommen: das Preisgeld statt "Belohnung bis Top 100 · 4 Punkte" (Betreiber, 30.10.2026, Idee 24) - bei einem Finale
+               * bekommt jeder etwas, die Schwelle sagt dort nichts.
+               */
+              (/final/i.test(fenster.windowId) && !fenster.qualifiziert && (preise?.gesamt ?? 0) > 0 && (preise?.geld.length ?? 0) > 0)
+                ? [t('Preisgeld'), `${(preise?.gesamt ?? 0).toLocaleString(ort)} ${preise?.waehrung ?? 'USD'}`
+                  + (() => { const erster = preise?.geld.find((x) => x.art === 'rank' && x.schwelle === 1); return erster ? ` · 1. ${erster.betrag.toLocaleString(ort)}` : ''; })()]
+              : (fenster.qualifiziert || qual?.schwelle)
                 ? [t(qual?.fuerBelohnung && !fenster.qualifiziert ? 'Belohnung bis' : 'Qualifizieren sich'),
                   `${t('Top')} ${(fenster.qualifiziert
                     ?? qual?.schwelle ?? 0).toLocaleString(ort)}${zielName(fenster.windowId) ? ` → ${zielName(fenster.windowId)}` : ''}`

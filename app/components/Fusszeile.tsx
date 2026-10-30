@@ -121,16 +121,11 @@ export default function Fusszeile() {
                 contact@thecomphub.com
               </a>
             </li>
-            <li>
-              <a href="mailto:comphubgg@gmail.com"
-                className="text-slate-500 transition hover:text-sky-400">
-                comphubgg@gmail.com
-              </a>
-            </li>
+            {/* Eine Adresse und die schlichte Kontaktseite (Idee 32, 30.10.2026) - kein "Formular": Kontakt laeuft ueber Discord oder Mail. */}
             <li className="pt-1">
               <Link href="/contact"
                 className="text-sky-500 transition hover:text-sky-400">
-                <T>Formular im Werkzeug →</T>
+                <T>Kontakt</T> →
               </Link>
             </li>
           </ul>
