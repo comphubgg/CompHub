@@ -117,18 +117,25 @@ export default function KarteImEvent({ karten, leer, alsReiter }: { karten: Eint
         * Spielerliste links/rechts"). Die Kachel zum Bearbeiten (zusatz) steht deshalb hier nicht mehr - bearbeitet wird ueber "Eigene Seite oeffnen".
         */}
       {offen && (
-        <div className="mt-2 grid gap-3 lg:grid-cols-[minmax(0,1fr)_240px]">
-          <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-3">
+        // Ohne graue Umrandung um die Karte (Betreiber, 30.10.2026); die Liste ist immer genau so hoch wie die Karte und scrollt in sich.
+        <div className="mt-2 grid gap-3 lg:grid-cols-[minmax(0,1fr)_250px]">
+          <div className="overflow-hidden rounded-2xl">
             <Karte f={fenster} bild={bild} rotAb={2} />
           </div>
-          <aside className="rounded-2xl border border-zinc-800 bg-zinc-900 p-3 lg:max-h-[80vh] lg:overflow-y-auto">
-            <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500"><T>Spieler</T> · {fenster.formen.reduce((a, fo) => a + fo.spieler.length, 0)}</p>
-            <ul className="grid grid-cols-2 gap-x-3 gap-y-1 text-xs font-semibold text-slate-200 lg:grid-cols-1">
-              {fenster.formen.flatMap((fo) => fo.gruppen ?? fo.spieler.map((n) => [n]))
-                .map((g) => g.map(kartenName).join(' · '))
-                .sort((a, b) => a.localeCompare(b))
-                .map((zeile, i) => <li key={`${zeile}-${i}`} className="truncate">{zeile}</li>)}
-            </ul>
+          <aside className="relative min-h-[320px] overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/70">
+            <div className="absolute inset-0 flex flex-col">
+              <p className="flex items-center justify-between border-b border-zinc-800 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                <T>Spieler</T><span className="tabular-nums text-slate-300">{fenster.formen.reduce((a, fo) => a + fo.spieler.length, 0)}</span>
+              </p>
+              <ul className="flex-1 overflow-y-auto py-1">
+                {fenster.formen.flatMap((fo) => fo.gruppen ?? fo.spieler.map((n) => [n]))
+                  .map((g) => g.map(kartenName).join(' · '))
+                  .sort((a, b) => a.localeCompare(b))
+                  .map((zeile, i) => (
+                    <li key={`${zeile}-${i}`} className="truncate px-4 py-1.5 text-[12px] font-bold tracking-wide text-slate-100 odd:bg-white/[0.025]">{zeile}</li>
+                  ))}
+              </ul>
+            </div>
           </aside>
         </div>
       )}

@@ -16,9 +16,9 @@ export default function KartenWasserzeichen() {
     <div aria-hidden className="pointer-events-none absolute inset-0 overflow-hidden">
       {/*
         * Das Logo unten rechts wie auf dem kopierten Kartenbild, nur kleiner (Betreiber, 30.10.2026: "das Logo oben mit URL soll nur das Logo sein wie
-        * unten rechts, einfach kleiner"). Zoomt mit der Karte.
+        * unten rechts, einfach kleiner"). Zoomt mit der Karte. Etwas ueber der Ecke, damit die Knoepfe (Kopieren, Lupe, Vollbild) es nicht verdecken.
         */}
-      <div className="absolute bottom-[1.2%] right-[1.6%] flex flex-col items-end opacity-90" style={{ width: '10%' }}>
+      <div className="absolute bottom-[7%] right-[1.6%] flex flex-col items-end opacity-90" style={{ width: '10%' }}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/logos/CompHub-Logo-frei.png" alt="" draggable={false} className="w-full drop-shadow-[0_2px_6px_rgba(0,0,0,0.55)]" />
         <span className="mt-[2%] whitespace-nowrap font-semibold text-white/85 drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)]" style={{ fontSize: '1.15cqw' }}>thecomphub.com</span>
