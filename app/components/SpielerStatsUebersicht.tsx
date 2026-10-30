@@ -97,7 +97,9 @@ function alsZeit(sek: number, stunden = false): string {
   return h ? `${h}h ${m}m` : `${m}m ${s % 60}s`;
 }
 
-export default function SpielerStatsUebersicht({ spieler, matches, aktualisiert, szene, schadenAusReplay, laeuft, endeMs, teamWerte, gesamt, summen, schadenTeil, quelle, zuDetails }: {
+export default function SpielerStatsUebersicht({ spieler, matches, aktualisiert, szene, schadenAusReplay, laeuft, endeMs, teamWerte, gesamt, summen, schadenTeil, plattformen, quelle, zuDetails }: {
+  /** Spieler je Plattform (PC, PlayStation, Xbox, Switch, iOS, Android) aus den vollen Replays - nur bei ganz gelesenem Spieltag. */
+  plattformen?: Record<string, number> | null;
   spieler: KachelSpieler[];
   /** Die Abfrage dieser Player Stats (/api/cup-spieler?window=...) - damit laedt die Vollansicht einer Kennzahl alle Spieler seitenweise. */
   quelle?: string;
@@ -107,8 +109,8 @@ export default function SpielerStatsUebersicht({ spieler, matches, aktualisiert,
   gesamt?: number | null;
   /** Summen ueber alle Spieler (Schnittstelle /api/cup-spieler); ohne sie zaehlen die Kacheln nur die gezeigte Liste. */
   summen?: Record<string, number> | null;
-  /** Grosser Spieltag: Schaden & Co. nur aus den Matches der besten Teams (vollstaendig fuer deren Spieler). */
-  schadenTeil?: { teams: number; matches: number } | null;
+  /** Noch nicht jedes Match voll gelesen: Schaden & Co. nur bei Spielern, deren Spiele alle gelesen sind. */
+  schadenTeil?: { teams: number; matches: number; vonMindestens?: number } | null;
   /** Wie viele Matches der Spieltag (oder das Turnier) hatte. */
   matches: number;
   /** Wann die Werte zuletzt gerechnet oder von Epic fortgeschrieben wurden. */
@@ -276,7 +278,9 @@ export default function SpielerStatsUebersicht({ spieler, matches, aktualisiert,
         {/* Gezaehlt, nicht von Epic - das muss dabeistehen (echte, aber abgeleitete Zahlen). */}
         {schadenTeil && (
           <span className="mt-1 block text-slate-500">
-            {t('Schaden, Treffer und Kopftreffer: aus den vollen Replays aller {m} Spiele der besten {n} Teams - für diese Spieler vollständig. Ein volles Replay sind rund 140 MB, alle Lobbys eines offenen Cups wären Hunderte Gigabyte.').replace('{m}', String(schadenTeil.matches)).replace('{n}', String(schadenTeil.teams))}
+            {schadenTeil.teams > 0
+              ? t('Schaden, Treffer und Kopftreffer: aus den vollen Replays aller {m} Spiele der besten {n} Teams - für diese Spieler vollständig. Ein volles Replay sind rund 140 MB, alle Lobbys eines offenen Cups wären Hunderte Gigabyte.').replace('{m}', String(schadenTeil.matches)).replace('{n}', String(schadenTeil.teams))
+              : t('Schaden, Treffer und Kopftreffer: {m} von {v} Spielen voll gelesen, der Rest folgt. Bis dahin stehen Werte nur bei Spielern, deren Spiele alle gelesen sind.').replace('{m}', schadenTeil.matches.toLocaleString(ort)).replace('{v}', (schadenTeil.vonMindestens ?? schadenTeil.matches).toLocaleString(ort))}
           </span>
         )}
         {schadenAusReplay && (
@@ -287,6 +291,7 @@ export default function SpielerStatsUebersicht({ spieler, matches, aktualisiert,
       </p>
 
       <StatKacheln spieler={spieler} listen={gezeigteKacheln} anzahl={5} leerText={leerText} vorbild aufVoll={quelle ? setVoll : undefined} />
+      {plattformen && <PlattformLeiste werte={plattformen} ort={ort} />}
       {mitWerten.length > 10 && (
         <div className="flex justify-center">
           <button type="button" onClick={() => setAlleKacheln((x) => !x)}
@@ -295,6 +300,41 @@ export default function SpielerStatsUebersicht({ spieler, matches, aktualisiert,
           </button>
         </div>
       )}
+    </div>
+  );
+}
+
+/** Farbe je Plattform - eigene Toene, Blau (PC) wie der Akzent der Seite. */
+const PLATTFORM_FARBE: Record<string, string> = { PC: '#0ea5e9', PlayStation: '#6366f1', Xbox: '#22c55e', Switch: '#ef4444', iOS: '#a1a1aa', Android: '#84cc16', Mac: '#cbd5e1' };
+
+/**
+ * Spieler je Plattform als eine Leiste mit Anteilen (Betreiber, 30.10.2026: Windows, PlayStation, Xbox, Switch, iOS, Android - "wenn es echte Statistiken
+ * sind"). Gezaehlt aus dem Feld Platform der vollen Replays, je Spieler einmal; gezeigt nur bei ganz gelesenem Spieltag (app/api/cup-spieler).
+ */
+function PlattformLeiste({ werte, ort }: { werte: Record<string, number>; ort: string }) {
+  const liste = Object.entries(werte).sort((a, b) => b[1] - a[1]);
+  const summe = liste.reduce((n, [, v]) => n + v, 0);
+  if (!summe) return null;
+  return (
+    <div className="rounded-2xl border border-zinc-800 bg-zinc-900/85 p-5">
+      <div className="mb-3 flex flex-wrap items-baseline justify-between gap-2">
+        <h3 className="text-sm font-bold uppercase tracking-[0.14em] text-slate-300"><T>Plattformen</T></h3>
+        <span className="text-xs text-slate-500">{summe.toLocaleString(ort)} <T>Spieler, aus den Replays</T></span>
+      </div>
+      <div className="flex h-3 w-full overflow-hidden rounded-full bg-zinc-800">
+        {liste.map(([name, n]) => (
+          <span key={name} title={`${name}: ${n.toLocaleString(ort)}`} style={{ width: `${(n / summe) * 100}%`, background: PLATTFORM_FARBE[name] ?? '#64748b' }} />
+        ))}
+      </div>
+      <div className="mt-3 grid grid-cols-2 gap-x-6 gap-y-2 sm:grid-cols-3 lg:grid-cols-6">
+        {liste.map(([name, n]) => (
+          <div key={name} className="flex items-center gap-2 text-sm">
+            <span aria-hidden className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: PLATTFORM_FARBE[name] ?? '#64748b' }} />
+            <span className="font-semibold text-slate-200">{name}</span>
+            <span className="ml-auto tabular-nums text-slate-400">{((n / summe) * 100).toLocaleString(ort, { maximumFractionDigits: 1 })} %</span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

@@ -347,8 +347,10 @@ async function holeRoh(request: Request) {
     leben?: Record<string, number>;
     /** Wie viele Spiele je Spieler gelesen sind. */
     spiele?: Record<string, number>;
-    /** Grosser Spieltag: nur die Matches der besten Teams gelesen (scripts/clutch-berechnen.mjs, TOP_MAX). */
+    /** Noch nicht jedes Match voll gelesen (scripts/clutch-zusammen.mjs) - Werte nur bei Spielern, deren Spiele alle gelesen sind. */
     teilweise?: { teams: number; matches: number; vonMindestens?: number };
+    /** Plattform je Spieler aus den vollen Replays (WIN, PS5, XSX, SWT, IOS ...). */
+    plattform?: Record<string, string>;
   } | null;
   const clutchEinzeln = (w: string) => liesJson<ClutchDatei>(`clutch/${w}.json`, null).catch(() => null);
   // Mehrere Tage zusammen: Clutch-Punkte und Schaden je Spieler addiert.
@@ -383,6 +385,19 @@ async function holeRoh(request: Request) {
   const teil = clutchDatei?.teilweise ?? null;
   const ganzGelesen = (id: string, spiele: number) => !teil || (clutchDatei?.spiele?.[id.toLowerCase()] ?? 0) >= spiele;
   const lebenVon = clutchDatei?.leben && Object.keys(clutchDatei.leben).length ? new Map(Object.entries(clutchDatei.leben)) : null;
+  /*
+   * Plattformen des Spieltags (Betreiber, 30.10.2026: einbauen, wenn es echte Statistiken sind): aus dem Feld Platform jedes vollen Replays, je Spieler
+   * einmal gezaehlt - nur wenn jedes Match gelesen ist; ein halb gelesener Spieltag zeigte ein schiefes Bild.
+   */
+  const plattformen = (() => {
+    const p = tage.length > 1 ? null : clutchDatei?.plattform;
+    if (!p || teil || !Object.keys(p).length) return null;
+    const GRUPPE: Record<string, string> = { WIN: 'PC', MAC: 'Mac', PS5: 'PlayStation', PSN: 'PlayStation', PS4: 'PlayStation', XSX: 'Xbox', XBL: 'Xbox', XB1: 'Xbox',
+      SWT: 'Switch', SWT2: 'Switch', IOS: 'iOS', AND: 'Android' };
+    const raus: Record<string, number> = {};
+    for (const code of Object.values(p)) { const g = GRUPPE[code.toUpperCase()] ?? code; raus[g] = (raus[g] ?? 0) + 1; }
+    return raus;
+  })();
 
   /** Alle Werte eines Spielers aus Replays und vollen Replays - ohne Namen und Team (die kommen nur fuer gezeigte Zeilen dazu). */
   const werte = (x: (typeof rep.spieler)[number]) => ({
@@ -515,6 +530,7 @@ async function holeRoh(request: Request) {
     gekuerzt: !q && rep.spieler.length > gezeigt.length,
     summen,
     schadenTeil: teil,
+    plattformen,
     suche: q || null,
     hinweis: 'Counted from the replays of this match day, per player.',
   });
