@@ -4397,6 +4397,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Platzierungen': 'Placements',
   'Spielwerte gibt es ab Chapter 5 Season 3. Oben eine andere Saison wählen oder jemand anderen suchen.': 'Match stats exist from Chapter 5 Season 3 onward. Pick another season above or search for someone else.',
   'Karte und Leaderboard': 'Map and leaderboard',
+  'Neuestes Endspiel': 'Latest final',
   'Der Endstand ließ sich gerade nicht laden.': 'The final standings could not be loaded right now.',
   'Endstand nach beiden Tagen': 'Final standings after both days',
   'Statistik': 'Statistics',

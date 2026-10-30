@@ -9,6 +9,10 @@
  * Aufruf:
  *   node scripts/discord-ideen.mjs --neu --titel "..." --text "..." [--aufwand klein|mittel|gross]
  *   node scripts/discord-ideen.mjs --auswerten    # was ist angetippt, was ist offen
+ *   ... --neu ... --bild <datei>                  # mit Screenshot (mehrfach erlaubt, bis zu zehn; das erste steht im Kasten)
+ *   node scripts/discord-ideen.mjs --bild-zu <nr> --bild <datei>   # Screenshot unter eine bestehende Idee haengen
+ *
+ * Seit 30.10.2026 kommt zu jedem Beitrag ein Screenshot (Betreiber: "von allem Screenshots immer").
  *
  * Der Kanal #admin-ideen liegt in der Kategorie "Admin" und ist nur fuer
  * Betreiber und Bot sichtbar. Der Bot-Token kommt aus .env.local.
@@ -41,6 +45,22 @@ if (!TOKEN) { console.error('DISCORD_BOT_TOKEN fehlt in .env.local.'); process.e
 const arg = (name, standard = '') => { const i = process.argv.indexOf(name); return i >= 0 ? (process.argv[i + 1] ?? standard) : standard; };
 const hat = (name) => process.argv.includes(name);
 const warte = (ms) => new Promise((r) => setTimeout(r, ms));
+const bilder = process.argv.flatMap((a, i, alle) => (a === '--bild' && alle[i + 1] ? [alle[i + 1]] : [])).slice(0, 10);
+
+/** Eine Nachricht mit Bildern (multipart) - Discord verlangt dafuer payload_json und files[n]. */
+async function mitBildern(weg, koerper) {
+  for (let versuch = 0; versuch < 4; versuch++) {
+    const form = new FormData();
+    form.append('payload_json', JSON.stringify(koerper));
+    bilder.forEach((pfad, i) => form.append(`files[${i}]`, new Blob([fs.readFileSync(pfad)]), path.basename(pfad)));
+    const r = await fetch(`${API}${weg}`, { method: 'POST', headers: { Authorization: `Bot ${TOKEN}` }, body: form });
+    if (r.status === 429) { const j = await r.json().catch(() => ({})); await warte(Math.ceil(((j.retry_after ?? 1) + 0.3) * 1000)); continue; }
+    const j = await r.json().catch(() => null);
+    if (!r.ok) throw new Error(`POST ${weg}: ${r.status} ${JSON.stringify(j).slice(0, 200)}`);
+    return j;
+  }
+  throw new Error(`POST ${weg}: dauernd gedrosselt`);
+}
 
 async function ruf(weg, methode = 'GET', koerper) {
   for (let versuch = 0; versuch < 4; versuch++) {
@@ -116,19 +136,27 @@ if (hat('--auswerten')) {
   if (!titel || !text) { console.error('--titel und --text sind noetig.'); process.exit(1); }
   const aufwand = arg('--aufwand', '');
   const nummer = Math.max(0, ...(await alleIdeen()).map(nummerAus)) + 1;
-  const m = await ruf(`/channels/${kanal}/messages`, 'POST', {
+  const kasten = {
     embeds: [{
       title: `IDEE ${nummer} · ${titel}`.slice(0, 256),
       description: text.slice(0, 3800),
       color: 0xa855f7,
       footer: { text: `${aufwand ? `Aufwand: ${aufwand} · ` : ''}Kostet nichts · ${JA} bauen   ${NEIN} nein` },
+      ...(bilder.length ? { image: { url: `attachment://${path.basename(bilder[0])}` } } : {}),
     }],
-  });
+  };
+  const m = bilder.length ? await mitBildern(`/channels/${kanal}/messages`, kasten) : await ruf(`/channels/${kanal}/messages`, 'POST', kasten);
   for (const e of [JA, NEIN]) {
     await warte(450);
     await ruf(`/channels/${kanal}/messages/${m.id}/reactions/${encodeURIComponent(e)}/@me`, 'PUT');
   }
   console.log(`  Idee ${nummer} in #${KANAL}: ${titel}`);
+} else if (hat('--bild-zu')) {
+  const nr = Number(arg('--bild-zu'));
+  const ziel = (await alleIdeen()).find((m) => nummerAus(m) === nr);
+  if (!ziel || !bilder.length) { console.error('Idee nicht gefunden oder kein --bild.'); process.exit(1); }
+  await mitBildern(`/channels/${kanal}/messages`, { content: arg('--text', ''), message_reference: { message_id: ziel.id } });
+  console.log(`  Screenshot unter Idee ${nr}.`);
 } else {
   console.error('Aufruf: --neu --titel ... --text ... [--aufwand ...]   oder   --auswerten');
   process.exit(1);
