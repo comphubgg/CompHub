@@ -388,7 +388,7 @@ export default function TierListPage() {
    * landet ohne Stufe im Pool.
    */
   useEffect(() => {
-    if (mode !== 'trio' || !trioPool?.length || isGuest) return;
+    if (mode !== 'trio' || !trioPool?.length) return;
     const da = new Set(tierListState.entries
       .filter((e: any) => e.isTrio).map((e: any) => getTrioKey(e.data)));
     const neu = trioPool.filter((t) => t.schluessel && !da.has(t.schluessel) && !entfernt.has(t.schluessel));
@@ -411,6 +411,44 @@ export default function TierListPage() {
     }
     if (alt.size) tierListState.loescheEintraege(alt);
   }, [mode, isGuest, trioPool, trioPoolSchluessel, tierListState.entries]);
+
+  /*
+   * Solos und Duos aus dem gemeinsamen Pool (app/api/tierlist-pool, 30.10.2026) - wie die Trios. Die alte Spielerliste hing an der Supabase-Datenbank,
+   * die nicht mehr antwortet; Solo und Duo standen deshalb oft leer, abgemeldet immer ("auch wenn man ausgeloggt ist, soll da Leute drin sein").
+   * Auch Gaeste bekommen den Pool zum Einsortieren - selbst anlegen koennen sie weiterhin nicht (createDisabled).
+   */
+  const [soloDuoPool, setSoloDuoPool] = useState<{ solo: any[]; duo: any[] } | null>(null);
+  useEffect(() => {
+    let weg = false;
+    const spieler = (p: any, region: string) => ({
+      id: generateId(), name: String(p?.name ?? ''), region,
+      countryCode: p?.land ? String(p.land).toLowerCase() : 'flag-GLOBE',
+    });
+    void Promise.all(['solo', 'duo'].map((m) => fetch(`/api/tierlist-pool?modus=${m}`).then((r) => r.json()).catch(() => null)))
+      .then(([s, d]) => {
+        if (weg) return;
+        setSoloDuoPool({
+          solo: (s?.pool ?? []).map((e: any) => spieler(e.spieler?.[0], e.region ?? 'EU')),
+          duo: (d?.pool ?? []).map((e: any) => ({
+            id: `duo-${generateId()}`, player1: spieler(e.spieler?.[0], e.region ?? 'EU'), player2: spieler(e.spieler?.[1], e.region ?? 'EU'), region: e.region ?? 'EU',
+          })),
+        });
+      });
+    return () => { weg = true; };
+  }, []);
+  useEffect(() => {
+    if (!soloDuoPool || (mode !== 'solo' && mode !== 'duo')) return;
+    const vorhanden = new Set(tierListState.entries
+      .filter((e: any) => !e.isTrio && (mode === 'duo' ? e.isDuo : !e.isDuo))
+      .map((e: any) => (mode === 'duo' ? getDuoKey(e.data) : getSoloKey(e.data))));
+    const kandidaten = mode === 'duo' ? soloDuoPool.duo : soloDuoPool.solo;
+    const neu = kandidaten.filter((d: any) => {
+      const k = mode === 'duo' ? getDuoKey(d) : getSoloKey(d);
+      return k && !vorhanden.has(k) && !entfernt.has(k);
+    });
+    if (!neu.length) return;
+    tierListState.addEntries(neu.map((d: any) => ({ id: generateId(), data: d, vonPool: true })));
+  }, [mode, soloDuoPool, tierListState.entries, entfernt]);
 
   // Static list ID Sync
   useEffect(() => {

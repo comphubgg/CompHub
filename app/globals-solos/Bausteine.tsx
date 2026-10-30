@@ -109,7 +109,7 @@ export function Karte({ f, bild, rotAb = 2 }: {
   /** Vollbild: Karte und Liste ueber den ganzen Bildschirm, das Meer bis an den Rand. */
   const huelle = useRef<HTMLDivElement | null>(null);
   const [voll, setVoll] = useState(false);
-  const { meer, beiLaden, bildStil } = useKartenVollbild();
+  const { meer, beiLaden, bildStil, messen } = useKartenVollbild();
   const istAdmin = useZugang().admin;
   const [kopiert, setKopiert] = useState('');
   useEffect(() => {
@@ -383,7 +383,7 @@ export function Karte({ f, bild, rotAb = 2 }: {
           }}>
           <div ref={ebene} className="absolute inset-0 origin-top-left" style={{ '--z': 1 } as React.CSSProperties}>
             {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img src={kartenQuelle(bild)} alt={t('Karte')} draggable={false} onLoad={beiLaden}
+            <img src={kartenQuelle(bild)} alt={t('Karte')} draggable={false} onLoad={beiLaden} ref={(el) => { if (el?.complete && el.naturalWidth) messen(el); }}
               onError={(ev) => { const el = ev.currentTarget; if (!el.dataset.ersatz) { el.dataset.ersatz = '1'; el.src = fortniteKarte(false); } }}
               style={bildStil(voll)}
               className="pointer-events-none absolute inset-0 h-full w-full object-cover" />

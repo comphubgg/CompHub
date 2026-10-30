@@ -26,8 +26,11 @@ export function useKartenVollbild() {
   const [verhaeltnis, setVerhaeltnis] = useState<number | null>(null);
   const [meer, setMeer] = useState(MEER);
 
-  const beiLaden = useCallback((e: SyntheticEvent<HTMLImageElement>) => {
-    const img = e.currentTarget;
+  /*
+   * Messen auch, wenn das Bild schon aus dem Zwischenspeicher kam (30.10.2026): dann feuert onLoad oft, bevor React zuhoert, das Meer blieb beim
+   * Standard-Blau, und um die Karte stand ein sichtbar anderes Blau. messen() wird deshalb zusaetzlich beim Einhaengen des Bildes aufgerufen.
+   */
+  const messen = useCallback((img: HTMLImageElement) => {
     const w = img.naturalWidth, h = img.naturalHeight;
     if (!w || !h) return;
     setVerhaeltnis(w / h);
@@ -50,6 +53,7 @@ export function useKartenVollbild() {
       if (blau) setMeer(`rgb(${r}, ${g2}, ${b})`);
     } catch { /* dann bleibt das Standard-Blau */ }
   }, []);
+  const beiLaden = useCallback((e: SyntheticEvent<HTMLImageElement>) => messen(e.currentTarget), [messen]);
 
   /** Die Lage des Bildes im Quadrat - im Vollbild in voller Groesse. */
   const bildStil = useCallback((vollbild: boolean): CSSProperties | undefined => {
@@ -59,5 +63,5 @@ export function useKartenVollbild() {
       : { left: 0, width: '100%', top: `${(1 - 1 / verhaeltnis) * 50}%`, height: `${100 / verhaeltnis}%`, maxHeight: 'none' };
   }, [verhaeltnis]);
 
-  return { meer, beiLaden, bildStil };
+  return { meer, beiLaden, bildStil, messen };
 }

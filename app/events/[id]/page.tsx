@@ -304,7 +304,7 @@ interface Eintrag {
  * bleibt.
  */
 const SpielKachel = memo(function SpielKachel({
-  sp, offen, eineLobby, ort, dauer, namenVon, oeffnen, replay,
+  sp, offen, eineLobby, ort, dauer, namenVon, landVon, oeffnen, replay,
 }: {
   sp: Spiel;
   /** Gibt es zu diesem Match eine eigene Seite (Replay mit allen Spielern)? */
@@ -314,6 +314,8 @@ const SpielKachel = memo(function SpielKachel({
   ort: string;
   dauer: number;
   namenVon: (spieler: Spieler) => string;
+  /** Flagge des Spielers (nur Profis) - fuer die Sieger. */
+  landVon?: (spieler: Spieler) => string | undefined;
   oeffnen: Dispatch<SetStateAction<string | null>>;
 }) {
   return (
@@ -412,12 +414,18 @@ const SpielKachel = memo(function SpielKachel({
             <span className="shrink-0 text-slate-500">
               <T>Sieger</T>:
             </span>
-            <span className="min-w-0 truncate">
-              {sp.sieger.map((n, k) => namenVon({
-                name: n,
-                id: sp.teams.find((x) => x.platz === 1)
-                  ?.spieler[k]?.id ?? '',
-              })).join(', ')}
+            {/* Sieger fett mit Flagge (Betreiber, 30.10.2026: "so fett wie jetzt", mit dem Ingame-Namen wie vorher). */}
+            <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
+              {sp.sieger.map((n, k) => {
+                const s = { name: n, id: sp.teams.find((x) => x.platz === 1)?.spieler[k]?.id ?? '' };
+                const land = landVon?.(s);
+                return (
+                  <span key={`${n}-${k}`} className="inline-flex min-w-0 items-center gap-1">
+                    {land && <img src={flaggenPfad(land)} alt="" className="h-[10px] w-[15px] shrink-0 rounded-[2px] object-cover" />}
+                    <b className="truncate font-extrabold tracking-wide text-slate-100">{namenVon(s)}</b>
+                  </span>
+                );
+              })}
             </span>
           </span>
         ) : (
@@ -4408,7 +4416,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                       <Fragment key={sp.id}>
                       <SpielKachel sp={sp} offen={sp.id === offenesSpiel} replay={!!matchSeiten[sp.id]}
                         eineLobby={eineLobby} ort={ort} dauer={dauerVon(sp)}
-                        namenVon={namenVon} oeffnen={setOffenesSpiel} />
+                        namenVon={namenVon} landVon={landVon} oeffnen={setOffenesSpiel} />
                       {sp.id === offenesSpiel && (
                         <div className="sm:col-span-2 lg:col-span-3">
                           {/*
