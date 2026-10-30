@@ -2824,7 +2824,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
 
         {/* Eventinfos */}
         {fenster && (
-          <div className="mb-5 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <div className="mb-5 grid grid-cols-2 gap-3 lg:grid-cols-4">
             {([
               // Gesamtwertung: von Beginn des ersten bis Ende des letzten Tages, alle Spiele beider Tage.
               [t('Beginn'), summenFenster ? `${tag(kumTage[0].begin, ort)}, ${uhr(kumTage[0].begin, ort)}` : `${tag(fenster.begin, ort)}, ${uhr(fenster.begin, ort)}`],
