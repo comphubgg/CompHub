@@ -303,7 +303,7 @@ export function Karte({ f, bild, rotAb = 2 }: {
     const c = document.createElement('canvas'); c.width = G; c.height = G;
     const g = c.getContext('2d'); if (!g) return;
     const lade = (src: string) => new Promise<HTMLImageElement | null>((fertig) => { const b = new Image(); b.crossOrigin = 'anonymous'; b.onload = () => fertig(b); b.onerror = () => fertig(null); b.src = src; });
-    g.fillStyle = '#084687'; g.fillRect(0, 0, G, G);
+    g.fillStyle = meer || '#0b4a9c'; g.fillRect(0, 0, G, G);
     const karte = await lade(kartenQuelle(bild));
     if (karte) g.drawImage(karte, 0, 0, G, G);
     const familie = kartenSchrift.style.fontFamily;
@@ -350,7 +350,7 @@ export function Karte({ f, bild, rotAb = 2 }: {
         className={voll ? 'relative flex h-screen w-screen items-center justify-center' : 'relative block overflow-hidden rounded-2xl pb-12'}
         style={{ background: voll ? meer : (meer || '#084687') }}>
         <div ref={flaeche}
-          className={`${kartenSchrift.variable} relative select-none ${voll ? 'h-screen' : 'mx-auto aspect-square w-full overflow-hidden bg-[#084687]'} ${gezoomt ? 'cursor-grab active:cursor-grabbing' : ''}`}
+          className={`${kartenSchrift.variable} relative select-none ${voll ? 'h-screen' : 'mx-auto aspect-square w-full overflow-hidden bg-transparent'} ${gezoomt ? 'cursor-grab active:cursor-grabbing' : ''}`}
           style={voll
             ? { containerType: 'inline-size', aspectRatio: '1 / 1', background: 'transparent' }
             : { containerType: 'inline-size', maxWidth: 'min(100%, calc(100vh - 7rem))' }}
