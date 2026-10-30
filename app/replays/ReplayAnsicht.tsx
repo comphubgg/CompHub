@@ -20,7 +20,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type MouseEvent as ReactMouseEvent } from 'react';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
-import { AlleSpieler, SchussEbene, SpielerFenster, SpielerPunkte, useSpielerDaten, type SpielerDaten } from '@/app/replays/SpielerEbene';
+import { AlleSpieler, KartenHud, SchussEbene, SpielerFenster, SpielerPunkte, useSpielerDaten, type SpielerDaten } from '@/app/replays/SpielerEbene';
 
 export interface RSpieler {
   id: number; epic?: string; name?: string; bot?: boolean; team?: number; platz?: number;
@@ -146,7 +146,10 @@ export default function ReplayAnsicht({ match, kartenBild, titel, wertung, hervo
   // Der angeklickte Spieler (Lebenspunkte, Inventar, Treffer) - die Spieler laufen ueber die Karte, wo das Replay ihre Orte fuehrt (app/replays/SpielerEbene).
   const [gewaehlt, setGewaehlt] = useState<number | null>(null);
   const sd = useSpielerDaten(match);
-  useEffect(() => { setGewaehlt(null); }, [match]);
+  useEffect(() => {
+    const sieger = match.spieler.find((s) => !s.bot && s.platz === 1);
+    setGewaehlt(match.orte && sieger ? sieger.id : null);
+  }, [match]);
   useEffect(() => {
     setZeit(tStart); setLaeuft(false);
     const eigen = hervorheben ? match.spieler.find((s) => s.epic === hervorheben)?.team : undefined;
@@ -373,11 +376,11 @@ export default function ReplayAnsicht({ match, kartenBild, titel, wertung, hervo
         ))}
       </div>
 
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1.5fr)_minmax(320px,1fr)] lg:items-start">
+      <div className={sd.da ? 'grid gap-5' : 'grid gap-5 lg:grid-cols-[minmax(0,1.5fr)_minmax(320px,1fr)] lg:items-start'}>
         {/* ------------------------------------------------ Karte */}
         <div>
           <div ref={kartenRef}
-            className="relative mx-auto aspect-square w-full max-w-[860px] touch-none select-none overflow-hidden rounded-2xl border border-white/10 bg-sky-950"
+            className={`relative mx-auto aspect-square w-full ${sd.da ? 'max-w-[1150px]' : 'max-w-[860px]'} touch-none select-none overflow-hidden rounded-2xl border border-white/10 bg-sky-950`}
             style={{ perspective: '1300px', cursor: ansicht.z > 1 ? 'grab' : 'default' }}
             onPointerDown={(ev) => {
               if ((ev.target as HTMLElement).closest('[data-marker]') || (ev.target as HTMLElement).closest('[data-knopf]')) return;
@@ -425,7 +428,7 @@ export default function ReplayAnsicht({ match, kartenBild, titel, wertung, hervo
 
                 <SchussEbene d={sd} zeit={zeit} pzx={pzx} pzy={pzy} sichtbar={sichtbarTeam} gewaehlt={gewaehlt} />
                 <SpielerPunkte d={sd} zeit={zeit} spieler={echte.map((s) => ({ id: s.id, name: nameVon(s), tod: s.tod, team: s.team }))} pzx={pzx} pzy={pzy}
-                  farbeVon={farbeVon} sichtbar={(id) => (gewaehlt !== null ? id === gewaehlt || nachId.get(id ?? -1)?.team === nachId.get(gewaehlt)?.team : sichtbarTeam(id))}
+                  farbeVon={farbeVon} sichtbar={sichtbarTeam}
                   gewaehlt={gewaehlt} waehle={setGewaehlt} namenZeigen={ansicht.z >= 1.8 || teamWahl !== null} />
 
                 {/* 3D: Pfosten fuer die Eliminierungen */}
@@ -437,9 +440,37 @@ export default function ReplayAnsicht({ match, kartenBild, titel, wertung, hervo
               </div>
             </div>
 
-            <span className="pointer-events-none absolute left-3 top-3 rounded-lg bg-black/70 px-2.5 py-1 text-xs font-bold uppercase tracking-wide text-slate-100">
-              {titel ?? ''} · {uhr(zeit - tStart)}
-            </span>
+            {(() => {
+              // Oben links wie bei Osirion: wer lebt (bei Duo/Trio/Squad Teams und Spieler getrennt), die Zeit, die Sturmphase und wann der Sturm kommt.
+              const mitTeams = teams.length < echte.length;
+              const naechste = match.zonen.find((z) => (z.schrumpftAb ?? 0) > zeit);
+              const pille = 'flex items-center gap-1.5 rounded bg-black/75 px-2 py-1 text-[13px] font-bold tabular-nums text-white';
+              return (
+                <div className="pointer-events-none absolute left-2 top-2 z-30 flex max-w-[calc(100%-70px)] flex-wrap gap-1">
+                  <span className={pille}><svg viewBox="0 0 20 20" width="14" height="14" fill="currentColor"><circle cx="10" cy="6" r="4" /><path d="M2 19c0-5 4-7 8-7s8 2 8 7z" /></svg>{lebende}/{echte.length}</span>
+                  {mitTeams && <span className={pille}><svg viewBox="0 0 20 20" width="14" height="14" fill="currentColor"><circle cx="6" cy="7" r="3" /><circle cx="14" cy="7" r="3" /><path d="M0 18c0-4 3-6 6-6s6 2 6 6zM8 18c0-4 3-6 6-6s6 2 6 6z" /></svg>{teamsLeben}/{teams.length}</span>}
+                  <span className={pille}><svg viewBox="0 0 20 20" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="10" cy="10" r="8" /><path d="M10 5v5l3 2" /></svg>{uhr(zeit - tStart)}</span>
+                  <span className={pille}><svg viewBox="0 0 20 20" width="14" height="14" fill="currentColor"><path d="M10 1l3 7-3 2 4 9-9-11 4-2-3-5z" /></svg>{zone.phase}/{match.zonen.length}</span>
+                  <span className={pille + ' !font-semibold'}>{zone.schrumpft ? <span className="text-violet-300"><T>Sturm zieht</T></span> : naechste ? <><T>Sturm in</T> {uhr((naechste.schrumpftAb ?? 0) - zeit)}</> : <T>Letzte Zone</T>}</span>
+                </div>
+              );
+            })()}
+
+            {sd.da && (
+              <KartenHud d={sd} zeit={zeit} s={gewaehlt !== null && nachId.get(gewaehlt) ? { id: gewaehlt, name: nameVon(nachId.get(gewaehlt)), tod: nachId.get(gewaehlt)?.tod } : null}
+                farbe={farbeVon(gewaehlt ?? -1)}
+                steuerung={(
+                  <div className="flex items-center gap-1.5 text-xs font-bold">
+                    <button type="button" data-knopf onClick={() => { if (zeit >= tEnde) setZeit(tStart); setLaeuft((l) => !l); }} className="grid h-7 w-7 place-items-center rounded bg-white/15 hover:bg-white/25" aria-label={laeuft ? t('Pause') : t('Abspielen')}>{laeuft ? '❚❚' : '▶'}</button>
+                    <button type="button" data-knopf onClick={() => setTempo(GESCHWINDIGKEIT[Math.max(0, GESCHWINDIGKEIT.indexOf(tempo) - 1)])} className="grid h-7 w-6 place-items-center rounded bg-white/15 hover:bg-white/25" aria-label="-">−</button>
+                    <span className="w-7 text-center tabular-nums">{tempo}×</span>
+                    <button type="button" data-knopf onClick={() => setTempo(GESCHWINDIGKEIT[Math.min(GESCHWINDIGKEIT.length - 1, GESCHWINDIGKEIT.indexOf(tempo) + 1)])} className="grid h-7 w-6 place-items-center rounded bg-white/15 hover:bg-white/25" aria-label="+">+</button>
+                    <span className="tabular-nums">{uhr(zeit - tStart)}</span>
+                    <input type="range" data-knopf min={tStart} max={tEnde} step={1} value={Math.round(zeit)} onChange={(e) => springe(Number(e.target.value))} className="min-w-0 flex-1 accent-white" aria-label={t('Zeit')} />
+                    <span className="tabular-nums text-slate-300">{uhr(tEnde - tStart)}</span>
+                  </div>
+                )} />
+            )}
 
             {/* Zoom */}
             <div className="absolute right-3 top-3 z-20 flex flex-col overflow-hidden rounded-lg border border-white/15 bg-black/70 text-slate-100" data-knopf>
@@ -477,7 +508,7 @@ export default function ReplayAnsicht({ match, kartenBild, titel, wertung, hervo
           </div>
 
           {/* ------------------------------------------------ Steuerung */}
-          <div className="mx-auto mt-3 w-full max-w-[860px] rounded-2xl border border-white/[0.08] bg-zinc-900/50 p-3">
+          <div className={`mx-auto mt-3 w-full ${sd.da ? 'max-w-[1150px]' : 'max-w-[860px]'} rounded-2xl border border-white/[0.08] bg-zinc-900/50 p-3`}>
             <div className="flex flex-wrap items-center gap-2">
               <button type="button" onClick={() => { if (zeit >= tEnde) setZeit(tStart); setLaeuft((l) => !l); }}
                 className="rounded-lg bg-sky-500 px-4 py-2 text-sm font-bold text-white transition hover:bg-sky-400" aria-label={laeuft ? t('Pause') : t('Abspielen')}>
@@ -515,7 +546,7 @@ export default function ReplayAnsicht({ match, kartenBild, titel, wertung, hervo
           </div>
 
           {/* ------------------------------------------------ Legende */}
-          <div className="mx-auto mt-3 w-full max-w-[860px] rounded-2xl border border-white/[0.08] bg-zinc-900/50 p-3">
+          <div className={`mx-auto mt-3 w-full ${sd.da ? 'max-w-[1150px]' : 'max-w-[860px]'} rounded-2xl border border-white/[0.08] bg-zinc-900/50 p-3`}>
             <p className="mb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500"><T>Legende</T></p>
             <ul className="grid gap-x-6 gap-y-2 text-[12px] leading-snug text-slate-300 sm:grid-cols-2">
               <li className="flex items-start gap-2.5"><span className="mt-0.5 shrink-0"><XZeichen farbe="#38bdf8" gross={18} /></span><span><T>Eliminierung: hier ist ein Spieler ausgeschieden. Die Farbe zeigt sein Team; das Zeichen bleibt stehen.</T></span></li>
@@ -529,7 +560,7 @@ export default function ReplayAnsicht({ match, kartenBild, titel, wertung, hervo
           </div>
 
           {/* ------------------------------------------------ Kurve */}
-          <div className="mx-auto mt-3 w-full max-w-[860px] rounded-2xl border border-white/[0.08] bg-zinc-900/50 p-3">
+          <div className={`mx-auto mt-3 w-full ${sd.da ? 'max-w-[1150px]' : 'max-w-[860px]'} rounded-2xl border border-white/[0.08] bg-zinc-900/50 p-3`}>
             <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500"><T>Spieler am Leben im Verlauf</T></p>
             <svg viewBox="0 0 1000 100" preserveAspectRatio="none" className="h-24 w-full cursor-pointer"
               onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); springe(tStart + ((e.clientX - r.left) / r.width) * (tEnde - tStart)); }}>

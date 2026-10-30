@@ -17,8 +17,9 @@
  * Schild senken ihn, ein Treffer aufs Leben heisst: Schild leer. Die Anzeige sagt das dazu.
  */
 
-import { useMemo, type ReactNode } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import T from '@/app/components/T';
+import LOOT_BILDER from '@/app/replays/lootBilder.json';
 
 export interface SpielerDaten {
   orte?: Record<string, number[][]>;
@@ -118,14 +119,42 @@ export function Symbol({ art, gross = 28 }: { art: Art; gross?: number }) {
 }
 
 /** Ein Fach im HUD: das Symbol auf der Farbe der Seltenheit, das Gehaltene weiss umrandet. */
+/*
+ * Echte Bilder der Gegenstaende (Betreiber, 30.10.2026: "Loot hat wirklich echte Bilder"): aus dem Fortnite-Wiki, dessen Seiten die internen Kennungen
+ * (WID_...) fuehren - je Kennung nur zugeordnet, wo die Kennung auf der Seite steht (app/replays/lootBilder.json). Der Browser des Besuchers laedt sie;
+ * fehlt eins oder laedt es nicht, steht das eigene Symbol da.
+ */
+const BILDER = LOOT_BILDER as Record<string, { name: string; bild: string }>;
+const BAUPLAN_ZU_WID: Array<[RegExp, string]> = [
+  [/MiniShield/i, 'WID_Paprika_ShieldSmall'], [/HalfShield/i, 'WID_Paprika_ShieldPot'], [/ConsumableSmall_Medkit/i, 'WID_Paprika_MedBox'],
+  [/ConsumableSmall_Bandages/i, 'WID_Paprika_Bandage'], [/ArcadeWeaponShotgun/i, 'WID_ArcadeShotgun'], [/Assault_Heavy/i, 'WID_Assault_Heavy_Athena'],
+  [/B_Shotgun_Standard/i, 'WID_Shotgun_Standard_Athena'], [/CrimsonMist/i, 'WID_CrimsonMist_TacSG'], [/FiendHunter/i, 'WID_Athena_FiendHunter_Dualies'],
+  [/Pistol_Muster/i, 'WID_Pistol_Muster_S39_Athena'], [/VampireStake/i, 'WID_VampireStake_Shotgun'], [/ShieldFlopper/i, 'WID_Athena_Flopper_Shield'],
+  [/JellyFish/i, 'WID_Athena_Flopper_JellyFish'], [/DuckSnacks/i, 'WID_DuckSnacks'], [/B_Apple/i, 'WID_Athena_Apple'], [/B_Pepper/i, 'WID_Athena_Pepper'],
+  [/CandyCorn/i, 'WID_Athena_CandyCorn'], [/HappyGhost/i, 'WID_Athena_HappyGhost'], [/WitchBroom/i, 'WID_Athena_WitchBroom_Durability'],
+  [/FloppingRabbit.*HighTier/i, 'WID_Athena_FloppingRabbit_HighTier'], [/FloppingRabbit/i, 'WID_Athena_FloppingRabbit'],
+];
+export function bildVon(roh: string): { name: string; bild: string } | null {
+  if (/^(WID|AGID)_/i.test(roh)) {
+    return BILDER[roh] ?? BILDER[roh.replace(/_(C|UC|R|VR|SR|UR|X)(_Ore_T0\d|_T0\d)?$/i, '').replace(/_Ore_T0\d$/i, '')] ?? null;
+  }
+  const w = BAUPLAN_ZU_WID.find(([m]) => m.test(roh));
+  return w ? BILDER[w[1]] ?? null : null;
+}
+
 function Fach({ roh, aktiv, gross = 40 }: { roh: string; aktiv?: boolean; gross?: number }) {
   const { art, name } = artVon(roh);
+  const echt = bildVon(roh);
+  const [kaputt, setKaputt] = useState(false);
   return (
-    <span title={name} className="grid place-items-center rounded-md" style={{
+    <span title={echt?.name ?? name} className="grid place-items-center overflow-hidden rounded-md" style={{
       width: gross, height: gross, background: `linear-gradient(180deg, ${seltenheit(roh)}, #0b1220)`,
       boxShadow: aktiv ? '0 0 0 2px #fff, 0 0 10px rgba(255,255,255,.5)' : 'inset 0 0 0 1px rgba(255,255,255,.18)',
     }}>
-      <Symbol art={art} gross={Math.round(gross * 0.72)} />
+      {echt && !kaputt
+        // eslint-disable-next-line @next/next/no-img-element
+        ? <img src={echt.bild} alt={echt.name} loading="lazy" referrerPolicy="no-referrer" onError={() => setKaputt(true)} className="h-[86%] w-[86%] object-contain drop-shadow" draggable={false} />
+        : <Symbol art={art} gross={Math.round(gross * 0.72)} />}
     </span>
   );
 }
@@ -377,6 +406,33 @@ export function AlleSpieler({ d, zeit, spieler, farbeVon, waehle }: { d: Aufbere
           );
         })}
       </div>
+    </div>
+  );
+}
+
+/** Das HUD unten in der Karte wie bei Osirion: Steuerung, Name, Schild und Leben breit mit Zahl, die Faecher mit Bildern. */
+export function KartenHud({ d, zeit, s, farbe, steuerung }: { d: Aufbereitet; zeit: number; s: { id: number; name: string; tod?: number | null } | null; farbe: string; steuerung: ReactNode }) {
+  const tot = s ? typeof s.tod === 'number' && s.tod <= zeit : false;
+  const hp = s ? (tot ? 0 : hpBei(d.leben.get(s.id), zeit)) : null;
+  const schild = s ? (tot ? 0 : d.schild.size ? wertBei(d.schild.get(s.id), zeit) ?? 0 : null) : null;
+  const aus = s ? ausruestung(d, s.id, zeit) : null;
+  return (
+    <div className="pointer-events-auto absolute bottom-2 left-1/2 z-40 w-[min(560px,calc(100%-16px))] -translate-x-1/2 rounded-lg border border-white/15 bg-black/75 p-1.5 text-white shadow-2xl backdrop-blur-sm" data-knopf>
+      {steuerung}
+      {s && aus && (
+        <>
+          <p className="mt-1.5 flex items-center gap-2 rounded bg-white/10 px-2 py-1 text-base font-bold leading-tight">
+            <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: farbe }} />
+            <span className="truncate">{s.name}</span>
+            {tot && <span className="ml-auto text-[10px] font-bold uppercase text-rose-400"><T>Ausgeschieden</T></span>}
+          </p>
+          <div className="mt-1"><Balken hp={hp} schild={schild} /></div>
+          <div className="mt-1.5 flex flex-wrap gap-1">
+            {aus.faecher.map((roh) => <Fach key={roh} roh={roh} gross={44} aktiv={aus.handArt !== null && artVon(roh).art === aus.handArt} />)}
+            {(aus.handArt === 'bauen' || aus.handArt === 'edit' || aus.handArt === 'hacke') && aus.hand && <Fach roh={aus.hand} gross={44} aktiv />}
+          </div>
+        </>
+      )}
     </div>
   );
 }
