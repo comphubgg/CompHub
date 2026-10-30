@@ -44,6 +44,8 @@ function Tafel({ titel, unter, children }: { titel: string; unter?: string; chil
 const DATUM = new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Europe/Brussels' });
 const JAHR = new Intl.DateTimeFormat('en-GB', { year: 'numeric', timeZone: 'Europe/Brussels' });
 
+/** Die Farbe des Platzes: Gold, Silber, Bronze. */
+const PLATZ_FARBE = ['text-amber-300', 'text-slate-300', 'text-amber-600'];
 
 const kartenLink = (e: FncsEreignis) => (e.turnierId
   ? `/tournament-maps/karte?t=${encodeURIComponent(e.turnierId)}&r=${encodeURIComponent(e.kartenRegion)}&w=${encodeURIComponent(e.windowId)}`
@@ -51,6 +53,79 @@ const kartenLink = (e: FncsEreignis) => (e.turnierId
 
 function Rahmen({ link, klasse, stil, children }: { link: string; klasse: string; stil?: React.CSSProperties; children: React.ReactNode }) {
   return link ? <Link href={link} className={klasse} style={stil}>{children}</Link> : <div className={klasse} style={stil}>{children}</div>;
+}
+
+/** Die ersten drei Plaetze eines Events - das ganze Team mit Flagge, Punkte rechts. */
+function Spitze({ e }: { e: FncsEreignis }) {
+  if (!e.spitze.length) {
+    return <p className="mt-3 text-[11px] text-slate-600"><T>Platzierungen werden nachgetragen.</T></p>;
+  }
+  // Beides, bei jedem Turnier (Betreiber, 13.10.2026: "Punkte sollte es immer geben, Earnings in 90 Prozent"): fehlt ein Wert, steht ein Strich.
+  return (
+    <ol className="mt-3 space-y-1.5">
+      <li className="flex items-center gap-2.5 text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-600">
+        <span className="w-4" /><span className="min-w-0 flex-1">Team</span><span className="w-11 text-right">PTS</span><span className="w-14 text-right">Earnings</span>
+      </li>
+      {e.spitze.map((p, i) => (
+        <li key={p.rang} className="flex items-center gap-2.5 text-[11px]">
+          <span className={`w-4 text-center font-black tabular-nums ${PLATZ_FARBE[i] ?? 'text-slate-500'}`}>{p.rang}</span>
+          <TeamFlagge groesse={p.spieler.length > 1 ? 24 : 18} laender={p.spieler.map((x) => x.land)} />
+          <span className="min-w-0 flex-1 truncate font-bold uppercase tracking-wide text-slate-100">{p.spieler.map((x) => x.name).join(' · ')}</span>
+          <span className="w-11 text-right tabular-nums text-sky-400">{p.punkte ?? '–'}</span>
+          <span className="w-14 text-right font-bold tabular-nums text-emerald-400">{p.preis ?? '–'}</span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+function Fakt({ titel, wert }: { titel: string; wert: string }) {
+  return (
+    <div className="min-w-0">
+      <dt className="text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-500">{titel}</dt>
+      <dd className="mt-0.5 truncate text-sm font-black text-slate-100">{wert}</dd>
+    </div>
+  );
+}
+
+function Karte({ e, nr, aktuell, i }: { e: FncsEreignis; nr: number; aktuell: boolean; i: number }) {
+  const link = kartenLink(e);
+  const klasse = `mp-an group flex flex-col overflow-hidden rounded-2xl border border-white/[0.08] bg-zinc-900 transition ${link ? 'hover:-translate-y-0.5 hover:border-sky-500 hover:bg-zinc-800' : ''}`;
+  const stil = { animation: `fncs-rein .5s ${Math.min(i, 12) * 45}ms cubic-bezier(.2,.8,.2,1) both` };
+  return (
+    <Rahmen link={link} klasse={klasse} stil={stil}>
+      <div className="foto-dunkel relative aspect-video overflow-hidden bg-gradient-to-br from-sky-950 via-zinc-900 to-zinc-950">
+        {e.bild && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={encodeURI(e.bild)} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+        )}
+        <span aria-hidden className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/25 to-transparent" />
+        <div className="absolute left-3 top-3 flex gap-1.5">
+          {aktuell && <span className="rounded border border-red-400/50 bg-red-500/80 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-white">Current</span>}
+          {e.lan && <span className="rounded bg-amber-400 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-zinc-950">LAN</span>}
+          <span className="rounded border border-white/25 bg-black/55 px-1.5 py-0.5 text-[9px] font-black uppercase tracking-wider text-slate-100 backdrop-blur-sm">{e.region}</span>
+        </div>
+        <span className="absolute right-3 top-3 rounded border border-white/20 bg-black/55 px-1.5 py-0.5 text-[11px] font-black tabular-nums text-slate-100 backdrop-blur-sm">#{nr}</span>
+        <div className="absolute inset-x-3 bottom-3">
+          <p className="text-[11px] font-black uppercase tracking-[0.22em] text-sky-300">{e.kopf1}</p>
+          <p className="text-2xl font-black uppercase leading-none tracking-tight text-white drop-shadow sm:text-[26px]">{e.kopf2}</p>
+        </div>
+      </div>
+      <div className="flex flex-1 flex-col p-4">
+        <p className="flex items-baseline justify-between gap-2">
+          <span className="min-w-0 truncate text-[13px] font-bold text-slate-100">{e.titel}</span>
+          <span className="shrink-0 text-[11px] text-slate-500">{e.datum ? DATUM.format(new Date(e.datum)) : ''}</span>
+        </p>
+        <dl className="mt-3 grid grid-cols-3 gap-3 border-y border-white/[0.06] py-3">
+          <Fakt titel="Prize pool" wert={e.preisgeld ?? '–'} />
+          <Fakt titel="Teams" wert={e.teams ? String(e.teams) : '–'} />
+          <Fakt titel={e.lan ? 'Location' : 'Type'} wert={e.lan ? (e.ort ?? 'LAN') : 'Online'} />
+        </dl>
+        <Spitze e={e} />
+        {link && <p className="mt-auto pt-4 text-[11px] font-semibold uppercase tracking-wider text-slate-500 transition group-hover:text-sky-400"><T>Karte und Leaderboard</T> →</p>}
+      </div>
+    </Rahmen>
+  );
 }
 
 /** Ein Spieler der Spitze - mit Foto, wenn das Player Center eines hat (app/api/fncs-ereignisse). */
@@ -173,70 +248,6 @@ function Aufmacher({ e, nr, aktuell }: { e: FncsEreignis; nr: number; aktuell: b
         </div>
       </div>
     </section>
-  );
-}
-
-/** Ein Endspiel in der Liste: Bild als schmale Spalte links, rechts Kopf, Eckdaten und Treppchen. */
-function Karte({ e, nr, aktuell, i }: { e: FncsEreignis; nr: number; aktuell: boolean; i: number }) {
-  const link = kartenLink(e);
-  const klasse = `mp-an group grid overflow-hidden rounded-2xl border border-white/[0.08] bg-zinc-900 sm:grid-cols-[180px_1fr] transition ${link ? 'hover:-translate-y-0.5 hover:border-sky-500/70 hover:shadow-[0_14px_40px_rgba(14,165,233,.12)]' : ''}`;
-  const stil = { animation: `fncs-rein .5s ${Math.min(i, 12) * 40}ms cubic-bezier(.2,.8,.2,1) both` };
-  return (
-    <Rahmen link={link} klasse={klasse} stil={stil}>
-      <div className="foto-dunkel relative min-h-[140px] overflow-hidden bg-gradient-to-br from-sky-950 via-zinc-900 to-zinc-950">
-        {e.bild && (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={encodeURI(e.bild)} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-105" />
-        )}
-        <span aria-hidden className="absolute inset-0 bg-gradient-to-t from-black/85 via-black/20 to-transparent" />
-        <div className="absolute left-2.5 top-2.5"><Marken e={e} aktuell={aktuell} nr={nr} /></div>
-        <div className="absolute inset-x-3 bottom-3">
-          <p className="text-[10px] font-black uppercase tracking-[0.22em] text-sky-300">{e.kopf1}</p>
-          <p className="text-lg font-black uppercase leading-none tracking-tight text-white drop-shadow">{e.kopf2}</p>
-        </div>
-      </div>
-      <div className="flex min-w-0 flex-col p-4">
-        <p className="flex items-baseline justify-between gap-2">
-          <span className="min-w-0 truncate text-[13px] font-bold text-slate-100">{e.titel}</span>
-          <span className="shrink-0 text-[11px] text-slate-500">{e.datum ? DATUM.format(new Date(e.datum)) : ''}</span>
-        </p>
-        <p className="mt-1 flex flex-wrap gap-x-3 text-[11px]">
-          <span><span className="text-slate-500">Prize pool </span><span className="font-bold text-slate-200">{e.preisgeld ?? '–'}</span></span>
-          <span><span className="text-slate-500">Teams </span><span className="font-bold text-slate-200">{e.teams ?? '–'}</span></span>
-          <span className="font-bold text-slate-300">{e.lan ? (e.ort ?? 'LAN') : 'Online'}</span>
-        </p>
-        <div className="mt-3"><Treppchen e={e} /></div>
-        {link && <p className="mt-auto pt-3 text-right text-[11px] font-semibold uppercase tracking-wider text-slate-500 transition group-hover:text-sky-400"><T>Karte und Leaderboard</T> →</p>}
-      </div>
-    </Rahmen>
-  );
-}
-
-/** Die Endspiele nach Jahren: das Jahr gross links (bleibt beim Scrollen stehen), daneben zwei Spalten. */
-function NachJahren({ liste, nrVon, aktuellKey }: { liste: FncsEreignis[]; nrVon: Map<string, number>; aktuellKey: string }) {
-  const jahre = useMemo(() => {
-    const m = new Map<string, FncsEreignis[]>();
-    for (const e of liste) {
-      const j = e.datum ? JAHR.format(new Date(e.datum)) : '–';
-      m.set(j, [...(m.get(j) ?? []), e]);
-    }
-    return [...m.entries()];
-  }, [liste]);
-  let i = 0;
-  return (
-    <div className="space-y-10">
-      {jahre.map(([jahr, evs]) => (
-        <section key={jahr} className="grid gap-4 lg:grid-cols-[120px_1fr]">
-          <div className="lg:sticky lg:top-20 lg:self-start">
-            <p className="text-4xl font-black tabular-nums tracking-tight text-white/90 lg:text-5xl">{jahr}</p>
-            <p className="mt-1 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">{evs.length} {evs.length === 1 ? 'Event' : 'Events'}</p>
-          </div>
-          <div className="grid gap-4 xl:grid-cols-2">
-            {evs.map((e) => <Karte key={e.key} e={e} nr={nrVon.get(e.key) ?? 0} aktuell={e.key === aktuellKey} i={i++} />)}
-          </div>
-        </section>
-      ))}
-    </div>
   );
 }
 
@@ -367,18 +378,8 @@ export default function FncsSeite() {
         <div aria-hidden className="pointer-events-none absolute left-1/2 top-0 h-72 w-[820px] -translate-x-1/2 rounded-full bg-sky-500/[0.08] blur-[110px]" />
         <div className="relative mx-auto flex max-w-[1500px] flex-wrap items-end justify-between gap-4 px-4 py-8">
           <div>
-            <p className="text-[11px] font-black uppercase tracking-[0.34em] text-sky-400">Fortnite Champion Series</p>
-            <h1 className="mt-1 bg-gradient-to-r from-white via-sky-100 to-sky-400 bg-clip-text text-6xl font-black uppercase tracking-tight text-transparent sm:text-7xl">FNCS</h1>
+            <h1 className="text-5xl font-black uppercase tracking-tight sm:text-6xl">FNCS</h1>
             <p className="mt-2 max-w-xl text-sm text-slate-400"><T>Alle Endspiele der FNCS, die das Archiv kennt - mit Platzierungen und den meisten Eliminierungen.</T></p>
-            {liste && (
-              <p className="mt-4 flex flex-wrap gap-2">
-                {([[liste.length, 'Events'], [liste.filter((e) => e.lan).length, 'LAN'], [zahlRegion.size, 'Regions']] as const).map(([n, titel]) => (
-                  <span key={titel} className="rounded-full border border-white/10 bg-zinc-900 px-3 py-1 text-[11px] text-slate-400">
-                    <span className="font-black tabular-nums text-slate-100">{n}</span> {titel}
-                  </span>
-                ))}
-              </p>
-            )}
           </div>
           <div className="inline-flex gap-1 rounded-xl border border-white/[0.08] bg-zinc-950 p-1">
             <button type="button" onClick={() => setTab('events')} className={reiter(tab === 'events')}>Events</button>
@@ -394,7 +395,7 @@ export default function FncsSeite() {
           <>
             <style>{`@keyframes fncs-rein { from { opacity: 0; transform: translateY(14px) scale(.985); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) { .mp-an { animation: none !important; } }`}</style>
-            <div className="mb-8 flex flex-wrap items-center gap-2 rounded-2xl border border-white/[0.08] bg-zinc-900 p-2">
+            <div className="mb-6 flex flex-wrap items-center gap-2">
               <div className="flex flex-wrap gap-1.5">
                 {([['alle', 'Alle'], ['lan', 'LAN'], ['online', 'Online']] as const).map(([k, titel]) => (
                   <button key={k} type="button" onClick={() => setFilter(k)} className={chip(filter === k)}>
@@ -425,12 +426,14 @@ export default function FncsSeite() {
             </div>
             {fehler && <p className="rounded-xl border border-rose-500/30 bg-rose-950 px-4 py-3 text-sm text-rose-300"><T>Die Endspiele ließen sich gerade nicht laden. Bitte gleich noch einmal versuchen.</T></p>}
             {!liste && !fehler && <LadeSchirm />}
-            {/* Neu (30.10.2026, Betreiber: "die FNCS-Grands hast du immer noch nicht optisch updated"): das neueste Endspiel gross mit
-                Treppchen, darunter die uebrigen nach Jahren. */}
+            {/* Das juengste Endspiel gross mit Treppchen und Fotos, darunter alle uebrigen wie bisher (Betreiber, 30.10.2026: "die Idee war geil, aber
+                nur den letzten FNCS-Cup zuerst so anzeigen und darunter, wie es vorher war"). */}
             {liste && ansicht === 'board' && sichtbar.length > 0 && (
               <div key={`${filter}|${region}`}>
                 <Aufmacher e={sichtbar[0]} nr={nrVon.get(sichtbar[0].key) ?? 0} aktuell={sichtbar[0].key === aktuellKey} />
-                <NachJahren liste={sichtbar.slice(1)} nrVon={nrVon} aktuellKey={aktuellKey} />
+                <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+                  {sichtbar.slice(1).map((e, i) => <Karte key={e.key} e={e} nr={nrVon.get(e.key) ?? 0} aktuell={e.key === aktuellKey} i={i} />)}
+                </div>
               </div>
             )}
             {liste && ansicht === 'timeline' && <Zeitstrahl key={`${filter}|${region}`} liste={sichtbar} nrVon={nrVon} aktuellKey={aktuellKey} />}

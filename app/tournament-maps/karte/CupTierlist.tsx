@@ -45,6 +45,11 @@ export default function CupTierlist({ windowId, teams }: { windowId: string; tea
   const [gewaehlt, setGewaehlt] = useState<string | null>(null);
   const [zieht, setZieht] = useState<string | null>(null);
   const [suche, setSuche] = useState('');
+  /*
+   * Eigene Namen fuer die Stufen (Betreiber, 30.10.2026: "S, A, B, C, D, E, F umbenennen - speichert nicht, nur solange es auf der Seite ist"):
+   * bewusst nur im Zustand der Seite, nicht im Browser gemerkt.
+   */
+  const [namen, setNamen] = useState<Partial<Record<Stufe, string>>>({});
 
   useEffect(() => {
     try { setZu(JSON.parse(localStorage.getItem(schluessel(windowId)) ?? '{}')); } catch { setZu({}); }
@@ -72,7 +77,7 @@ export default function CupTierlist({ windowId, teams }: { windowId: string; tea
     <div>
       <div className="mb-3 flex items-center gap-3 text-xs text-slate-500">
         <button type="button" onClick={() => speichern({})} className="rounded-md border border-white/10 bg-white/[0.04] px-3 py-1 font-semibold text-slate-300 transition hover:border-sky-500/60"><T>Zurücksetzen</T></button>
-        <span><T>Team ziehen oder antippen, dann die Stufe antippen — ein gesetztes Team antippen nimmt es wieder heraus.</T></span>
+        <span><T>Team ziehen oder antippen, dann die Stufe antippen — ein gesetztes Team antippen nimmt es wieder heraus.</T> <T>Die Buchstaben lassen sich umbenennen.</T></span>
       </div>
       <div className="grid gap-4 lg:grid-cols-[minmax(0,1fr)_380px] lg:items-stretch">
         <div className="space-y-1.5">
@@ -83,7 +88,19 @@ export default function CupTierlist({ windowId, teams }: { windowId: string; tea
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) => { e.preventDefault(); const id = e.dataTransfer.getData('text/plain') || zieht; if (id && nachId.has(id)) setze(id, st.k); setZieht(null); }}
                 onClick={() => { if (gewaehlt) setze(gewaehlt, st.k); }}>
-                <span className={`flex w-14 shrink-0 items-center justify-center text-xl font-black text-zinc-950 ${st.farbe}`}>{st.k}</span>
+                <span className={`flex w-20 shrink-0 items-center justify-center px-1 ${st.farbe}`} onClick={(e) => e.stopPropagation()}>
+                  {(() => {
+                    const wert = namen[st.k] ?? st.k;
+                    // Je laenger der Name, desto kleiner die Schrift - er bleibt im Feld (Schrift schrumpft mit).
+                    const groesse = wert.length <= 2 ? 'text-xl' : wert.length <= 5 ? 'text-sm' : 'text-[10px]';
+                    return (
+                      <input value={wert} maxLength={16} aria-label={t('Stufe umbenennen')} title={t('Antippen und umbenennen')}
+                        onChange={(e) => setNamen((alt) => ({ ...alt, [st.k]: e.target.value }))}
+                        onBlur={(e) => { if (!e.target.value.trim()) setNamen((alt) => { const neu = { ...alt }; delete neu[st.k]; return neu; }); }}
+                        className={`w-full bg-transparent text-center font-black uppercase leading-tight text-zinc-950 outline-none placeholder:text-zinc-950/50 focus:rounded focus:bg-white/30 ${groesse}`} />
+                    );
+                  })()}
+                </span>
                 <div className="flex flex-1 flex-wrap content-start gap-1.5 p-2">
                   {drin.map((x) => <TeamChip key={x.id} t={x} onKlick={() => setze(x.id, null)} onZiehen={setZieht} />)}
                 </div>
