@@ -46,6 +46,7 @@ jobs:
     outputs:
       stuecke: ${{ steps.plan.outputs.stuecke }}
       arbeit: ${{ steps.plan.outputs.arbeit }}
+      offen: ${{ steps.plan.outputs.offen }}
     steps:
       - uses: actions/checkout@v4
 
@@ -68,6 +69,9 @@ jobs:
         env:
           WERKZEUG_URL: https://www.thecomphub.com
           FENSTER: ${{ inputs.fenster }}
+          # 30.10.2026, der Betreiber: spaetestens eine Stunde nach Cup-Ende alles ausgewertet, auch bei mehreren Cups zugleich - zehn Leser statt fuenf.
+          # Den Platz machen die Nacharbeiter frei (Signal unten, scripts/schnell-vorrang.mjs).
+          SCHNELL_STUECKE: '10'
         run: |
           WAHL=$(printf '%s' "$FENSTER" | tr -c 'A-Za-z0-9_.,-' ' ' | tr ',' ' ')
           node scripts/replays-holen.mjs --plan-schreiben data/schnell-plan.json --stunden 36 $WAHL 2>&1 | tail -60
@@ -123,9 +127,9 @@ jobs:
         continue-on-error: true
         timeout-minutes: 30
         env:
-          MAX_REPLAY_DOWNLOADS: '16'
+          MAX_REPLAY_DOWNLOADS: '24'   # 30.10.2026: 16 -> 24, ein Leser wartete die meiste Zeit auf Epic (364 Matches und 1734 Pruefungen in 25 Minuten)
           MAX_REPLAY_PARSERS: '4'
-          MAX_REPLAY_CHECKS: '16'
+          MAX_REPLAY_CHECKS: '24'
           MAX_REPLAY_SOCKETS: '128'
         run: node scripts/replays-holen.mjs --aus-plan data/schnell-plan.json --stueck ${{ matrix.stueck }} --minuten 22 2>&1 | tail -40
 
@@ -185,6 +189,18 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: node scripts/replays-holen.mjs --plan-zusammen data/schnell-plan.json 2>&1 | tr '\r' '\n' | awk 'NR % 25 == 1 || !/^ *[0-9]+\/[0-9]+ /' | tail -80
+
+      # Das Signal fuer die Nacharbeiter (scripts/schnell-vorrang.mjs): wie viel die Schnellspur offen hat. Viel offen = ein grosser Cup laeuft oder ging
+      # eben zu Ende - dann machen die Nacharbeiter ihre Rechner frei. Ein kleiner Anhang am Release "signale", ohne API lesbar.
+      - name: Signal fuer die Nacharbeiter
+        if: always()
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          printf '{"zeit":"%s","offen":%s,"rest":%s}' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${{ needs.planen.outputs.offen || 0 }}" "${{ steps.zusammen.outputs.rest || 0 }}" > /tmp/schnell-last.json
+          gh release view signale -R "${{ github.repository }}" >/dev/null 2>&1 || gh release create signale -R "${{ github.repository }}" --title "Signale" --notes "Kleine Steuerdateien der Ablaeufe." >/dev/null
+          gh release upload signale /tmp/schnell-last.json --clobber -R "${{ github.repository }}" && cat /tmp/schnell-last.json
 
       # Blieb etwas offen (ein grosser Cup braucht mehr als einen Lauf), gleich weiter - nicht erst beim naechsten Anstoss.
       - name: Weiter, solange etwas offen ist

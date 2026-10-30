@@ -16,6 +16,9 @@ const arg = process.argv.slice(2);
 const wert = (name, standard) => { const i = arg.indexOf(name); return i >= 0 && arg[i + 1] ? Number(arg[i + 1]) : standard; };
 const MINUTEN = wert('--minuten', 325);
 const TAKT_S = wert('--takt', 90);
+// --halt "BEFEHL": vor jedem Durchgang; endet er mit Code 0, hoert die Schleife auf (z. B. weil die Schnellspur die Rechner braucht) und legt
+// ./schleife-halt an (im Arbeitsordner - hashFiles im Workflow sieht nur den) - der Workflow stoesst dann keinen naechsten Auftrag an.
+const haltBefehl = (() => { const i = arg.indexOf('--halt'); return i >= 0 ? arg[i + 1] : null; })();
 const schritte = arg.flatMap((a, i) => (a === '--schritt' && arg[i + 1] ? [arg[i + 1]] : []))
   .map((s) => { const m = /^(\d+):(.*)$/s.exec(s); return m ? { alle: Number(m[1]), befehl: m[2] } : { alle: 1, befehl: s }; });
 if (!schritte.length) { console.error('Kein --schritt angegeben.'); process.exit(1); }
@@ -27,6 +30,11 @@ console.log(`Schleife: hoechstens ${MINUTEN} Minuten, alle ${TAKT_S} Sekunden, $
 
 while (Date.now() - beginn < MINUTEN * 60_000) {
   const t0 = Date.now();
+  if (haltBefehl && spawnSync('sh', ['-c', haltBefehl], { stdio: 'inherit', env: process.env }).status === 0) {
+    console.log('Halt: ein anderer Ablauf hat Vorrang - Schleife endet hier.');
+    (await import('node:fs')).writeFileSync('schleife-halt', new Date().toISOString());
+    break;
+  }
   console.log(`\n=== Durchgang ${durchgang + 1} - ${new Date().toISOString()}`);
   for (const s of schritte) {
     if (durchgang % s.alle !== 0) continue;

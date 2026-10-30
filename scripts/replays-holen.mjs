@@ -902,7 +902,7 @@ async function planSchreibenLauf(datei) {
   await fs.writeFile(datei, JSON.stringify({ erstellt: new Date().toISOString(), stuecke, fenster: plan }), 'utf8');
   if (process.env.GITHUB_OUTPUT) {
     await fs.appendFile(process.env.GITHUB_OUTPUT,
-      `stuecke=${JSON.stringify(Array.from({ length: stuecke }, (_, i) => i))}\narbeit=${plan.length ? 'ja' : 'nein'}\n`);
+      `stuecke=${JSON.stringify(Array.from({ length: stuecke }, (_, i) => i))}\narbeit=${plan.length ? 'ja' : 'nein'}\noffen=${gesamt}\n`);
   }
 }
 
