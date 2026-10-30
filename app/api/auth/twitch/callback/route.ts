@@ -143,6 +143,24 @@ export async function GET(req: NextRequest) {
       fertig.cookies.set('twitch_oauth_art', '', { path: '/', maxAge: 0 });
       return fertig;
     }
+    /*
+     * Ein Streamer fuer die TikTok-Clips (app/api/tiktok-clips/verbinden): kein Anmelden, sondern den Kanal mit seinem Token ablegen (lib/tiktokClips) -
+     * nur mit gueltigem Link des Admins.
+     */
+    if (req.cookies.get('twitch_oauth_art')?.value === 'clips') {
+      const voll = token as { access_token: string; refresh_token?: string; expires_in?: number };
+      const code = req.cookies.get('tiktok_clips_code')?.value ?? '';
+      const { einladungGueltig, streamerSpeichern } = await import('@/lib/tiktokClips');
+      if (!nutzer?.id || !voll.refresh_token || !(await einladungGueltig(code))) return zurueck(req, '/?tiktok-clips=fehler');
+      await streamerSpeichern(code, {
+        login: nutzer.login ?? '', id: nutzer.id, name: nutzer.display_name || nutzer.login || '',
+        access: voll.access_token, refresh: voll.refresh_token, bis: Date.now() + (voll.expires_in ?? 3600) * 1000,
+      });
+      const fertig = zurueck(req, '/?tiktok-clips=verbunden');
+      fertig.cookies.set('twitch_oauth_art', '', { path: '/', maxAge: 0 });
+      fertig.cookies.set('tiktok_clips_code', '', { path: '/', maxAge: 0 });
+      return fertig;
+    }
     if (!nutzer?.id) return zurueck(req, '/sign-in?fehler=profil');
 
     // Wer die Freigabe fuer die Adresse verweigert, kann kein Konto bekommen.

@@ -1,0 +1,56 @@
+# TikToks aus den Twitch-Clips der verbundenen VIP-Streamer (Aufgabe 167, lib/tiktokClips; Betreiber, 27.10.2026, erster Streamer: gripey).
+# Taeglich am Vormittag (die Streams laufen abends): der Server nennt je Streamer die besten Clips der letzten 24 Stunden mit Download-Adresse
+# (app/api/tiktok-clips/auftrag, Twitchs offizielles "Get Clips Download" mit dem Token des Kanals), scripts/tiktok/clips.py schneidet sie hochkant
+# (Facecam oben, Spiel unten, Titel), und sie kommen an dasselbe Release wie die Tagesvideos - so stehen sie in /admin/tiktok zum Herunterladen.
+# Schon geschnittene Clips (windowId clip-<id> in den JSON-Dateien am Release) werden nicht noch einmal gebaut. Kostenlos: GitHub Actions.
+
+name: TikTok-Clips
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: '20 10 * * *'
+
+concurrency:
+  group: tiktok-clips
+  cancel-in-progress: false
+
+jobs:
+  clips:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Auftrag holen
+        id: auftrag
+        run: |
+          printf '%s' "${{ secrets.ENV_LOCAL }}" > .env.local
+          SCHLUESSEL=$(grep '^DISCORD_BOT_TOKEN=' .env.local | cut -d= -f2- | tr -d '"\r')
+          rm -f .env.local
+          mkdir -p bisher
+          if gh release view tiktok >/dev/null 2>&1; then gh release download tiktok -p '*clip*.json' -D bisher --clobber || true; fi
+          ohne=$(cat bisher/*.json 2>/dev/null | grep -o '"windowId": *"clip-[^"]*"' | cut -d'"' -f4 | sed 's/^clip-//' | sort -u | paste -sd, -)
+          curl -s -m 110 -H "Authorization: Bearer $SCHLUESSEL" -o auftrag.json "https://www.thecomphub.com/api/tiktok-clips/auftrag?ohne=${ohne}" || true
+          head -c 600 auftrag.json; echo
+          if grep -q '"url"' auftrag.json 2>/dev/null; then echo "bauen=true" >> "$GITHUB_OUTPUT"; else echo "bauen=false" >> "$GITHUB_OUTPUT"; fi
+      - uses: actions/setup-python@v5
+        if: steps.auftrag.outputs.bauen == 'true'
+        with:
+          python-version: '3.12'
+      - name: Schneiden
+        if: steps.auftrag.outputs.bauen == 'true'
+        run: |
+          pip install --quiet imageio-ffmpeg
+          python scripts/tiktok/clips.py --auftrag auftrag.json --ausgabe tiktok-out
+      - name: Ans Release hängen
+        if: steps.auftrag.outputs.bauen == 'true'
+        run: |
+          shopt -s nullglob
+          dateien=(tiktok-out/*.mp4 tiktok-out/*.json)
+          if [ ${#dateien[@]} -eq 0 ]; then echo "Kein Clip geschnitten."; exit 0; fi
+          gh release view tiktok >/dev/null 2>&1 || gh release create tiktok --title "TikTok-Tagesvideos" --notes "Die täglichen Videos (scripts/tiktok). Nicht von Hand ändern." --latest=false
+          gh release upload tiktok "${dateien[@]}" --clobber

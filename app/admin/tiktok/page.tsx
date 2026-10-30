@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import T from '@/app/components/T';
+import StreamerClips from './StreamerClips';
 import SeitenKopf from '@/app/components/SeitenKopf';
 import { useT } from '@/app/components/SprachProvider';
 
@@ -173,6 +174,7 @@ export default function TiktokSeite() {
             </button>
           </div>
         </section>
+        <StreamerClips />
         {baut && (
           <div className="mb-4 flex items-start gap-3 rounded-2xl border border-sky-500/30 bg-sky-500/10 px-4 py-3">
             <span className="mt-1.5 h-2.5 w-2.5 shrink-0 animate-pulse rounded-full bg-sky-400" aria-hidden />
