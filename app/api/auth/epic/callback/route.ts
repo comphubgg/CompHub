@@ -12,6 +12,7 @@ import { EPIC_BEREICHE } from '@/lib/epicBereiche';
 import { merkeKonto } from '@/lib/eigeneAuswertung';
 import { vipAus } from '@/lib/vipCookie';
 import { zugangEpicSetzen } from '@/lib/vipZugaenge';
+import { vollstaendigeFreunde } from '@/lib/epicFreundeStatus';
 
 // Der Rueckweg von Epic Games - die Verknuepfung wird hier festgemacht.
 //
@@ -41,11 +42,12 @@ async function holeFreunde(epicId: string, zugriff: string | undefined): Promise
   const liste = await fetch(`https://api.epicgames.dev/epic/friends/v1/${epicId}/friends`, {
     headers: { Authorization: `Bearer ${zugriff ?? ''}` },
   });
-  if (!liste.ok) return null;
+  const voll = await vollstaendigeFreunde(epicId).catch(() => null);
+  if (!liste.ok) return voll;
   const roh = await liste.json().catch(() => null) as unknown;
   const eintraege: unknown[] = Array.isArray(roh) ? roh : Array.isArray((roh as { friends?: unknown[] } | null)?.friends) ? (roh as { friends: unknown[] }).friends : [];
-  return [...new Set(eintraege.map((f) => String(typeof f === 'string' ? f : ((f as { accountId?: string; id?: string })?.accountId ?? (f as { id?: string })?.id ?? ''))
-    .replace(/-/g, '').toLowerCase()).filter((x) => /^[0-9a-f]{32}$/.test(x)))];
+  return [...new Set([...(voll ?? []), ...eintraege.map((f) => String(typeof f === 'string' ? f : ((f as { accountId?: string; id?: string })?.accountId ?? (f as { id?: string })?.id ?? ''))
+    .replace(/-/g, '').toLowerCase())].filter((x) => /^[0-9a-f]{32}$/.test(x)))];
 }
 
 export async function GET(req: NextRequest) {

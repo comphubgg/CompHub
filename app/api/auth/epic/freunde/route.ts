@@ -7,6 +7,13 @@ import { zugangNach } from '@/lib/vipZugaenge';
 import { holeDienst } from '@/lib/dienstZugaenge';
 import { rueckwegVon } from '@/lib/oeffentlicheAdresse';
 import { EPIC_BEREICHE } from '@/lib/epicBereiche';
+import { vollstaendigeFreunde } from '@/lib/epicFreundeStatus';
+
+/** Gespeicherte Freigabe plus - fuer das Konto des Betreibers - die ganze Liste von Epic (lib/epicFreundeStatus). */
+async function mitVoller(ids: string[] | undefined, ich: string | null | undefined): Promise<string[]> {
+  const voll = await vollstaendigeFreunde(ich).catch(() => null);
+  return [...new Set([...(ids ?? []), ...(voll ?? [])])];
+}
 
 // Die Epic-Freundesliste fuer das Freunde-Leaderboard.
 //
@@ -40,7 +47,8 @@ export async function GET(req: NextRequest) {
   const z = schluessel ? await zugangNach(schluessel) : null;
   if (!k && z && z.status === 'active') {
     if (!req.nextUrl.searchParams.get('start')) {
-      return NextResponse.json({ ok: true, ids: z.epicFreunde ?? [], stand: z.epicFreundeStand ?? null, ich: z.epicId ?? null }, { headers: { 'Cache-Control': 'no-store' } });
+      const ich = z.epicVerifiziert ? z.epicId ?? null : null;
+      return NextResponse.json({ ok: true, ids: await mitVoller(z.epicFreunde, ich), stand: z.epicFreundeStand ?? null, ich }, { headers: { 'Cache-Control': 'no-store' } });
     }
   }
   if (!k && !(z && z.status === 'active')) {
@@ -75,7 +83,7 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     ok: true,
-    ids: k!.epicFreunde ?? [],
+    ids: await mitVoller(k!.epicFreunde, k!.epicVerifiziert ? k!.epicId : null),
     stand: k!.epicFreundeStand ?? null,
     // Das eigene Konto gehoert zum Freunde-Leaderboard dazu.
     ich: k!.epicId ?? null,

@@ -240,6 +240,14 @@ export default function KontoSeite({ eingebettet = false }: { eingebettet?: bool
   const [epicTrennFehler, setEpicTrennFehler] = useState('');
   /** Wie viele Epic-Freunde fuer das Freunde-Leaderboard freigegeben sind (null: noch nicht geladen). */
   const [freunde, setFreunde] = useState<{ anzahl: number; stand: number | null } | null>(null);
+  // Mit Schluessel und bei Epic bestaetigt: den Spielernamen zur Id nachschlagen (in der Kachel stand sonst nur "…").
+  useEffect(() => {
+    if (konto || !zugang.vip || !zugang.epicId) return;
+    let weg = false;
+    void fetch(`/api/spieler-namen?id=${encodeURIComponent(zugang.epicId)}`).then((r) => r.json())
+      .then((n) => { const wie = n?.haupt || (n?.namen ?? [])[0] || ''; if (!weg && wie) setMeinEpicName(wie); }).catch(() => {});
+    return () => { weg = true; };
+  }, [konto, zugang.vip, zugang.epicId]);
   /** Zuletzt nachgeschlagene Spieler - haengt am Konto, nicht am Browser. */
   const [spielerVerlauf, setSpielerVerlauf] =
     useState<Array<{ id: string; name: string }>>([]);
@@ -362,6 +370,8 @@ export default function KontoSeite({ eingebettet = false }: { eingebettet?: bool
       if (!r.ok) { setEpicTrennFehler(String(j?.fehler ?? 'Nicht gelöst.')); return; }
       setKonto((k) => (k ? { ...k, epicId: null, epicVerifiziert: false } : k));
       setEpicId(''); setMeinEpic(''); setMeinEpicName(''); setEpicMeldung('');
+      // Mit Schluessel kommt der Stand aus der Anmeldung (useZugang) - neu laden, damit die Kachel wieder "nicht verbunden" zeigt.
+      if (!konto) window.location.reload();
     } catch { setEpicTrennFehler('Nicht gelöst.'); }
   }
 
@@ -869,6 +879,22 @@ export default function KontoSeite({ eingebettet = false }: { eingebettet?: bool
               {zusatz && <p className="mt-0.5 text-[11px] text-slate-500">{zusatz}</p>}
               {/* Epic noch nicht verbunden: der Weg dahin direkt hier - auch fuer einen Zugang nur mit Schluessel (Betreiber, 30.10.2026: "steht nirgendwo
                   Connect your Epic ... im Dashboard steht nur Not connected"). */}
+              {/* Mit Schluessel und verbunden: die Kachel ist die einzige Epic-Stelle - also hier Freunde aktualisieren und Verbindung loesen
+                  (Betreiber, 30.10.2026: "nachher steht einfach Connected, dabei steht nirgendwo Disconnect"). */}
+              {titel === t('Epic Games') && nurVip && !!daten.epicId && (
+                <div className="mt-2 flex flex-wrap items-center gap-3">
+                  {epicBereit && (
+                    <a href="/api/auth/epic/freunde?start=1&zurueck=/account"
+                      className="inline-flex items-center gap-1.5 rounded-lg bg-sky-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-sky-400">
+                      {freunde && freunde.anzahl > 0 ? <T>Freundesliste aktualisieren</T> : <T>Freunde freigeben</T>}
+                    </a>
+                  )}
+                  {freunde && freunde.anzahl > 0 && <span className="text-[11px] text-slate-400">{freunde.anzahl} <T>Freunde freigegeben</T></span>}
+                  <button type="button" onClick={() => void epicTrennen()} className="text-[11px] text-slate-500 underline transition hover:text-rose-400">
+                    <T>Verbindung lösen</T>
+                  </button>
+                </div>
+              )}
               {titel === t('Epic Games') && !daten.epicId && epicBereit && (
                 <a href="/api/auth/epic/authorize?zurueck=/account"
                   className="mt-2 inline-flex items-center gap-1.5 rounded-lg bg-sky-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-sky-400">

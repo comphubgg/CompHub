@@ -97,6 +97,31 @@ async function verbinde(): Promise<void> {
   await xmpp.start();
 }
 
+/*
+ * Die ganze Freundesliste - nur fuer das Epic-Konto, mit dem der Server selbst angemeldet ist (das des Betreibers).
+ * Epics offizielle Freigabe (app/api/auth/epic/callback, epic/friends/v1) nennt nur Freunde, die CompHub ebenfalls verbunden haben - am
+ * 30.10.2026 kam fuer den Betreiber genau einer an, obwohl er 116 hat. Fuer sein eigenes Konto fragt der Server deshalb die Freundesliste
+ * direkt ab (zehn Minuten im Speicher). Fuer jedes andere Konto: null.
+ */
+let volleListe: { epicId: string; ids: string[]; bis: number } | null = null;
+export async function vollstaendigeFreunde(epicId: string | null | undefined): Promise<string[] | null> {
+  const gesucht = String(epicId ?? '').replace(/-/g, '').toLowerCase();
+  if (!/^[0-9a-f]{32}$/.test(gesucht)) return null;
+  if (volleListe && volleListe.epicId === gesucht && Date.now() < volleListe.bis) return volleListe.ids;
+  try {
+    const { token, accountId } = await getToken();
+    if (String(accountId).toLowerCase() !== gesucht) return null;
+    const r = await fetch(`https://friends-public-service-prod.ol.epicgames.com/friends/api/v1/${accountId}/summary`, {
+      headers: { Authorization: `Bearer ${String(token).replace(/^bearer\s+/i, '')}` }, signal: AbortSignal.timeout(15_000),
+    });
+    if (!r.ok) return volleListe?.epicId === gesucht ? volleListe.ids : null;
+    const j = await r.json() as { friends?: Array<{ accountId?: string }> };
+    const ids = [...new Set((j.friends ?? []).map((f) => String(f.accountId ?? '').replace(/-/g, '').toLowerCase()).filter((x) => /^[0-9a-f]{32}$/.test(x)))];
+    volleListe = { epicId: gesucht, ids, bis: Date.now() + 10 * 60_000 };
+    return ids;
+  } catch { return volleListe?.epicId === gesucht ? volleListe.ids : null; }
+}
+
 /** Startet die Verbindung, falls noch nicht geschehen - und wartet beim ersten Mal kurz, bis die ersten Status da sind. */
 export async function freundesStatus(): Promise<{ freunde: Map<string, FreundStatus>; verbunden: boolean; fehler: string | null }> {
   if (!zustand.laeuft) {
