@@ -1527,6 +1527,20 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
     return () => { weg = true; if (uhr) clearInterval(uhr); };
   }, [fenster, preise]);
 
+  /*
+   * Bei einem mehrtaegigen Finale in der Gesamtwertung die Punkte je Platz aus der Gesamttabelle (Idee 27, 30.10.2026): Epics Fenster von Tag 2 kennt
+   * nur die Punkte des Tages - dort stand "Top 1 · 279 Punkte", das Leaderboard nannte 452.
+   */
+  const schwellenSicht = useMemo(() => {
+    if (!summenFenster || !tabelle.length) return schwellen;
+    const raus: Record<string, number> = { ...schwellen };
+    for (const k of Object.keys(schwellen)) {
+      const e = tabelle.find((x) => x.rank === Number(k));
+      if (e && typeof e.points === 'number') raus[k] = e.points;
+    }
+    return raus;
+  }, [schwellen, summenFenster, tabelle]);
+
   /**
    * Die Turnierstatistik zum Finale.
    *
@@ -2928,200 +2942,6 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
             Steht nur da, wenn Epic zu diesem Spieltag wirklich eine
             Auszahlungstabelle fuehrt - bei Practice-Cups gibt es keine, und
             eine leere Ueberschrift waere ein falsches Versprechen. */}
-        {/* Seit dem 28.9.2026 ein eigener Reiter neben Leaderboard, Matches
-            und Player Stats (Betreiber: "in der gleichen Liste ... dass man
-            das so pop-upen kann"). */}
-        {reiter === 'preis' && preise?.vorhanden
-          && (preise.geld.length > 0 || preise.gegenstaende.length > 0) && (
-          <section className="mb-5 rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
-            {/*
-              * Zwei Reiter: was es gibt, und wie gepunktet wird.
-              *
-              * Bisher erschienen sie nur bei Preisgeld. Bei einem Skin-Cup
-              * gibt es kein Geld, sondern Gegenstaende - dort blieben die
-              * Punkte deshalb unsichtbar, obwohl es sie gibt. Der Betreiber:
-              * "weil man will ja die Points auch sehen." Jetzt zaehlt jede
-              * Art von Preis, nicht nur die mit Waehrung.
-              *
-              * Ein leerer Reiter entsteht dabei nicht: beide Seiten muessen
-              * etwas zu zeigen haben.
-              */}
-            {(preise.wertung?.length ?? 0) > 0
-              && (preise.geld.length > 0 || preise.gegenstaende.length > 0) && (
-              <div className="mb-3 inline-flex gap-1 rounded-lg border border-zinc-800 p-1">
-                {([['preis', 'Preispool'], ['wertung', 'Punkte']] as const)
-                  .map(([wert, name]) => (
-                    <button key={wert} onClick={() => setPreisReiter(wert)}
-                      className={`rounded px-3 py-1 text-xs transition ${
-                        preisReiter === wert
-                          ? 'bg-sky-500/15 text-sky-400' : 'text-slate-500'}`}>
-                      <T>{name}</T>
-                    </button>
-                  ))}
-              </div>
-            )}
-
-            {preisReiter === 'wertung' && (preise.wertung?.length ?? 0) > 0 ? (
-              <div className="flex flex-wrap gap-1.5">
-                {(preise.wertung ?? []).map((w, i) => (
-                  <div key={`${w.was}-${w.schwelle}-${i}`}
-                    className="flex items-center gap-2 rounded-full border
-                               border-zinc-800 bg-zinc-950/60 px-3 py-1">
-                    <span className="text-[11px] text-slate-400">
-                      {w.was === 'Placement' && w.regel === 'lte'
-                        ? (w.schwelle === 1 ? <T>Sieg</T>
-                          : <><T>Platz</T> {w.schwelle}</>)
-                        : w.was === 'Elimination' ? <T>je Elimination</T> : w.was}
-                    </span>
-                    <span className="text-xs font-semibold text-sky-400">+{w.punkte}</span>
-                  </div>
-                ))}
-              </div>
-            ) : (
-            <>
-            <div className="mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
-              {/* "Preisgeld" nur, wenn es welches gibt. Ein Skin-Cup zahlt
-                  nichts aus; dort stuende sonst eine Ueberschrift ueber
-                  einem leeren Bereich. */}
-              <h2 className="text-sm font-semibold text-slate-100">
-                {preise.geld.length > 0 ? <T>Preisgeld</T> : <T>Preispool</T>}
-              </h2>
-              {/* Die Summe ueber alle Plaetze, nicht ueber die Zeilen der
-                  Tabelle - eine Stufe wie "Platz 21-40" wird zwanzigmal
-                  ausgezahlt. Und der Zusatz gehoert genau einmal daneben:
-                  "je Region" und "je Person" nebeneinander widersprachen
-                  sich. */}
-              {preise.gesamt !== null && (
-                <span className="text-sm font-bold text-emerald-400">
-                  {preise.gesamt.toLocaleString(ort)} {preise.waehrung ?? 'USD'}
-                  <span className="ml-1 text-[11px] font-normal text-slate-500">
-                    {preise.proPerson ? <T>je Person</T> : <T>je Region</T>}
-                  </span>
-                </span>
-              )}
-            </div>
-            {preise.erlaeuterung && (
-              <p className="mb-2 text-[11px] text-slate-500">{preise.erlaeuterung}</p>
-            )}
-
-            {preise.geld.length > 0 && (
-              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-                {preise.geld.map((g) => (
-                  <div key={`${g.art}-${g.schwelle}`}
-                    className="flex items-center justify-between rounded-lg border
-                               border-zinc-800 bg-zinc-950/60 px-3 py-2">
-                    <span className="text-xs text-slate-400">
-                      {/*
-                        * "Top 7" statt "Platz 6-7".
-                        *
-                        * Eine Stufe gilt fuer alle Plaetze bis zu ihrer
-                        * Schwelle - der Sechste bekommt dasselbe wie der
-                        * Siebte. Geschrieben wird trotzdem nur die Schwelle,
-                        * so wie Epic sie ankuendigt und wie es jeder liest.
-                        * Die Spanne steckt in der Summe oben, nicht in der
-                        * Zeile.
-                        */}
-                      {g.art === 'rank' ? <>Top {g.schwelle}{schwellen[String(g.schwelle)] != null && (
-                        <span className="ml-1.5 text-[10px] font-semibold tabular-nums text-sky-400">{schwellen[String(g.schwelle)].toLocaleString(ort)} <T>Punkte</T></span>
-                      )}</>
-                        : g.art === 'percentile'
-                          ? <><T>beste</T> {(g.schwelle * 100).toFixed(0)} %</>
-                          : <>{g.schwelle.toLocaleString(ort)} <T>Punkte</T></>}
-                    </span>
-                    {/* Bei Teams der Betrag je Team gross, darunter je
-                        Spieler - Epics Zahl gilt je Spieler. */}
-                    {preise.proPerson !== false && (teamGroesseAus(fenster?.playlist) ?? 1) > 1 ? (
-                      <span className="text-right leading-tight">
-                        <span className="block text-sm font-semibold text-emerald-400">
-                          {(g.betrag * (teamGroesseAus(fenster?.playlist) ?? 1)).toLocaleString(ort)}{' '}
-                          {preise.waehrung ?? 'USD'}
-                        </span>
-                        <span className="block text-[10px] text-slate-500">
-                          {g.betrag.toLocaleString(ort)} <T>pro Spieler</T>
-                        </span>
-                      </span>
-                    ) : (
-                      <span className="text-sm font-semibold text-emerald-400">
-                        {g.betrag.toLocaleString(ort)} {preise.waehrung ?? 'USD'}
-                      </span>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {preise.gegenstaende.length > 0 && (
-              <div className={preise.geld.length > 0 ? 'mt-3' : ''}>
-                {/* Die Ueberschrift nur, wenn darueber schon Geld steht -
-                    sonst ist sie eine zweite Ueberschrift ueber demselben. */}
-                {preise.geld.length > 0 && (
-                  <h3 className="mb-1.5 text-[11px] uppercase tracking-wider
-                                 text-slate-500">
-                    <T>Gegenstände</T>
-                  </h3>
-                )}
-                {/*
-                  * Kacheln statt einer Zeile aus Pillen.
-                  *
-                  * Bei einem Skin-Cup gewinnt man keinen Betrag, sondern
-                  * genau diese Gegenstaende - und was man gewinnt, erkennt
-                  * man am Bild, nicht am Namen. Das Bild war achtundzwanzig
-                  * Pixel gross und damit ein Fleck. Der Betreiber: "dass man
-                  * dieses Profilbild, also der Skin, 'n bisschen erkennt".
-                  *
-                  * Zwei je Reihe, das Bild links und gross, rechts daneben
-                  * Stufe, Name und Art untereinander - dasselbe Raster wie
-                  * die Preisgeld-Kacheln darueber, damit beides zusammen
-                  * eine Flaeche bleibt.
-                  */}
-                {/*
-                  * Nach Stufe gruppiert, wie bei Fortnite Tracker: eine
-                  * Ueberschrift "Top #200" oder "5 Points", darunter alles,
-                  * was es dafuer gibt - Bild, Name, Art. Vorher stand die
-                  * Stufe an jedem Gegenstand einzeln, fuenfmal "Top #200".
-                  */}
-                <div className="grid items-start gap-3 sm:grid-cols-2">
-                  {[...preise.gegenstaende.reduce((m, g) => {
-                    const k = `${g.art}|${g.schwelle}`;
-                    (m.get(k) ?? m.set(k, []).get(k)!).push(g);
-                    return m;
-                  }, new Map<string, typeof preise.gegenstaende>()).values()].map((gruppe) => (
-                    <div key={`${gruppe[0].art}-${gruppe[0].schwelle}`}
-                      className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-2">
-                      <div className="mb-1.5 flex items-baseline gap-2 px-1 text-sm font-bold text-sky-400">
-                        {schwellenText(gruppe[0].art, gruppe[0].schwelle)}
-                        {gruppe[0].art === 'rank' && schwellen[String(gruppe[0].schwelle)] != null && (
-                          <span className="text-xs font-semibold tabular-nums text-emerald-400">
-                            {schwellen[String(gruppe[0].schwelle)].toLocaleString(ort)} <T>Punkte</T>
-                            {laeuftGerade && <span className="ml-1.5 text-[9px] font-black uppercase tracking-wider text-red-400">live</span>}
-                          </span>
-                        )}
-                      </div>
-                      <div className="space-y-1.5">
-                        {gruppe.map((g) => (
-                          <div key={g.name} className="flex items-center gap-3 rounded-md bg-zinc-900/60 p-1.5">
-                            {g.bild ? (
-                              // eslint-disable-next-line @next/next/no-img-element
-                              <img src={g.bild} alt="" width={48} height={48} loading="lazy"
-                                className="h-12 w-12 shrink-0 rounded-md bg-zinc-900 object-contain"
-                                onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-                            ) : <div className="h-12 w-12 shrink-0 rounded-md bg-zinc-900" />}
-                            <div className="min-w-0">
-                              <div className="truncate text-sm font-semibold text-slate-100">{g.name}</div>
-                              {g.sorte && <div className="text-[11px] text-slate-500">{g.sorte}</div>}
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            )}
-            </>
-            )}
-          </section>
-        )}
 
         {/* Der Block "Wer durfte mitspielen?" ist bewusst entfernt.
             Epic fuehrt in den Zugangskennungen eines Fensters regelmaessig
@@ -3300,6 +3120,201 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
           )}
 
         </div>
+        {/* Der Preis-Reiter unter der Reiterleiste wie alle anderen (Idee 27, 30.10.2026 - vorher stand er darueber und die Leiste rutschte unter den Inhalt). */}
+        {/* Seit dem 28.9.2026 ein eigener Reiter neben Leaderboard, Matches
+            und Player Stats (Betreiber: "in der gleichen Liste ... dass man
+            das so pop-upen kann"). */}
+        {reiter === 'preis' && preise?.vorhanden
+          && (preise.geld.length > 0 || preise.gegenstaende.length > 0) && (
+          <section className="mb-5 rounded-xl border border-zinc-800 bg-zinc-900/40 p-4">
+            {/*
+              * Zwei Reiter: was es gibt, und wie gepunktet wird.
+              *
+              * Bisher erschienen sie nur bei Preisgeld. Bei einem Skin-Cup
+              * gibt es kein Geld, sondern Gegenstaende - dort blieben die
+              * Punkte deshalb unsichtbar, obwohl es sie gibt. Der Betreiber:
+              * "weil man will ja die Points auch sehen." Jetzt zaehlt jede
+              * Art von Preis, nicht nur die mit Waehrung.
+              *
+              * Ein leerer Reiter entsteht dabei nicht: beide Seiten muessen
+              * etwas zu zeigen haben.
+              */}
+            {(preise.wertung?.length ?? 0) > 0
+              && (preise.geld.length > 0 || preise.gegenstaende.length > 0) && (
+              <div className="mb-3 inline-flex gap-1 rounded-lg border border-zinc-800 p-1">
+                {([['preis', 'Preispool'], ['wertung', 'Punkte']] as const)
+                  .map(([wert, name]) => (
+                    <button key={wert} onClick={() => setPreisReiter(wert)}
+                      className={`rounded px-3 py-1 text-xs transition ${
+                        preisReiter === wert
+                          ? 'bg-sky-500/15 text-sky-400' : 'text-slate-500'}`}>
+                      <T>{name}</T>
+                    </button>
+                  ))}
+              </div>
+            )}
+
+            {preisReiter === 'wertung' && (preise.wertung?.length ?? 0) > 0 ? (
+              <div className="flex flex-wrap gap-1.5">
+                {(preise.wertung ?? []).map((w, i) => (
+                  <div key={`${w.was}-${w.schwelle}-${i}`}
+                    className="flex items-center gap-2 rounded-full border
+                               border-zinc-800 bg-zinc-950/60 px-3 py-1">
+                    <span className="text-[11px] text-slate-400">
+                      {w.was === 'Placement' && w.regel === 'lte'
+                        ? (w.schwelle === 1 ? <T>Sieg</T>
+                          : <><T>Platz</T> {w.schwelle}</>)
+                        : w.was === 'Elimination' ? <T>je Elimination</T> : w.was}
+                    </span>
+                    <span className="text-xs font-semibold text-sky-400">+{w.punkte}</span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+            <>
+            <div className="mb-3 flex flex-wrap items-baseline gap-x-3 gap-y-1">
+              {/* "Preisgeld" nur, wenn es welches gibt. Ein Skin-Cup zahlt
+                  nichts aus; dort stuende sonst eine Ueberschrift ueber
+                  einem leeren Bereich. */}
+              <h2 className="text-sm font-semibold text-slate-100">
+                {preise.geld.length > 0 ? <T>Preisgeld</T> : <T>Preispool</T>}
+              </h2>
+              {/* Die Summe ueber alle Plaetze, nicht ueber die Zeilen der
+                  Tabelle - eine Stufe wie "Platz 21-40" wird zwanzigmal
+                  ausgezahlt. Und der Zusatz gehoert genau einmal daneben:
+                  "je Region" und "je Person" nebeneinander widersprachen
+                  sich. */}
+              {preise.gesamt !== null && (
+                <span className="text-sm font-bold text-emerald-400">
+                  {preise.gesamt.toLocaleString(ort)} {preise.waehrung ?? 'USD'}
+                  <span className="ml-1 text-[11px] font-normal text-slate-500">
+                    {preise.proPerson ? <T>je Person</T> : <T>je Region</T>}
+                  </span>
+                </span>
+              )}
+            </div>
+            {preise.erlaeuterung && (
+              <p className="mb-2 text-[11px] text-slate-500">{preise.erlaeuterung}</p>
+            )}
+
+            {preise.geld.length > 0 && (
+              <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                {preise.geld.map((g) => (
+                  <div key={`${g.art}-${g.schwelle}`}
+                    className="flex items-center justify-between rounded-lg border
+                               border-zinc-800 bg-zinc-950/60 px-3 py-2">
+                    <span className="text-xs text-slate-400">
+                      {/*
+                        * "Top 7" statt "Platz 6-7".
+                        *
+                        * Eine Stufe gilt fuer alle Plaetze bis zu ihrer
+                        * Schwelle - der Sechste bekommt dasselbe wie der
+                        * Siebte. Geschrieben wird trotzdem nur die Schwelle,
+                        * so wie Epic sie ankuendigt und wie es jeder liest.
+                        * Die Spanne steckt in der Summe oben, nicht in der
+                        * Zeile.
+                        */}
+                      {g.art === 'rank' ? <>Top {g.schwelle}{schwellenSicht[String(g.schwelle)] != null && (
+                        <span className="ml-1.5 text-[10px] font-semibold tabular-nums text-sky-400">{schwellenSicht[String(g.schwelle)].toLocaleString(ort)} <T>Punkte</T></span>
+                      )}</>
+                        : g.art === 'percentile'
+                          ? <><T>beste</T> {(g.schwelle * 100).toFixed(0)} %</>
+                          : <>{g.schwelle.toLocaleString(ort)} <T>Punkte</T></>}
+                    </span>
+                    {/* Bei Teams der Betrag je Team gross, darunter je
+                        Spieler - Epics Zahl gilt je Spieler. */}
+                    {preise.proPerson !== false && (teamGroesseAus(fenster?.playlist) ?? 1) > 1 ? (
+                      <span className="text-right leading-tight">
+                        <span className="block text-sm font-semibold text-emerald-400">
+                          {(g.betrag * (teamGroesseAus(fenster?.playlist) ?? 1)).toLocaleString(ort)}{' '}
+                          {preise.waehrung ?? 'USD'}
+                        </span>
+                        <span className="block text-[10px] text-slate-500">
+                          {g.betrag.toLocaleString(ort)} <T>pro Spieler</T>
+                        </span>
+                      </span>
+                    ) : (
+                      <span className="text-sm font-semibold text-emerald-400">
+                        {g.betrag.toLocaleString(ort)} {preise.waehrung ?? 'USD'}
+                      </span>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {preise.gegenstaende.length > 0 && (
+              <div className={preise.geld.length > 0 ? 'mt-3' : ''}>
+                {/* Die Ueberschrift nur, wenn darueber schon Geld steht -
+                    sonst ist sie eine zweite Ueberschrift ueber demselben. */}
+                {preise.geld.length > 0 && (
+                  <h3 className="mb-1.5 text-[11px] uppercase tracking-wider
+                                 text-slate-500">
+                    <T>Gegenstände</T>
+                  </h3>
+                )}
+                {/*
+                  * Kacheln statt einer Zeile aus Pillen.
+                  *
+                  * Bei einem Skin-Cup gewinnt man keinen Betrag, sondern
+                  * genau diese Gegenstaende - und was man gewinnt, erkennt
+                  * man am Bild, nicht am Namen. Das Bild war achtundzwanzig
+                  * Pixel gross und damit ein Fleck. Der Betreiber: "dass man
+                  * dieses Profilbild, also der Skin, 'n bisschen erkennt".
+                  *
+                  * Zwei je Reihe, das Bild links und gross, rechts daneben
+                  * Stufe, Name und Art untereinander - dasselbe Raster wie
+                  * die Preisgeld-Kacheln darueber, damit beides zusammen
+                  * eine Flaeche bleibt.
+                  */}
+                {/*
+                  * Nach Stufe gruppiert, wie bei Fortnite Tracker: eine
+                  * Ueberschrift "Top #200" oder "5 Points", darunter alles,
+                  * was es dafuer gibt - Bild, Name, Art. Vorher stand die
+                  * Stufe an jedem Gegenstand einzeln, fuenfmal "Top #200".
+                  */}
+                <div className="grid items-start gap-3 sm:grid-cols-2">
+                  {[...preise.gegenstaende.reduce((m, g) => {
+                    const k = `${g.art}|${g.schwelle}`;
+                    (m.get(k) ?? m.set(k, []).get(k)!).push(g);
+                    return m;
+                  }, new Map<string, typeof preise.gegenstaende>()).values()].map((gruppe) => (
+                    <div key={`${gruppe[0].art}-${gruppe[0].schwelle}`}
+                      className="rounded-lg border border-zinc-800 bg-zinc-950/60 p-2">
+                      <div className="mb-1.5 flex items-baseline gap-2 px-1 text-sm font-bold text-sky-400">
+                        {schwellenText(gruppe[0].art, gruppe[0].schwelle)}
+                        {gruppe[0].art === 'rank' && schwellenSicht[String(gruppe[0].schwelle)] != null && (
+                          <span className="text-xs font-semibold tabular-nums text-emerald-400">
+                            {schwellenSicht[String(gruppe[0].schwelle)].toLocaleString(ort)} <T>Punkte</T>
+                            {laeuftGerade && <span className="ml-1.5 text-[9px] font-black uppercase tracking-wider text-red-400">live</span>}
+                          </span>
+                        )}
+                      </div>
+                      <div className="space-y-1.5">
+                        {gruppe.map((g) => (
+                          <div key={g.name} className="flex items-center gap-3 rounded-md bg-zinc-900/60 p-1.5">
+                            {g.bild ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={g.bild} alt="" width={48} height={48} loading="lazy"
+                                className="h-12 w-12 shrink-0 rounded-md bg-zinc-900 object-contain"
+                                onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                            ) : <div className="h-12 w-12 shrink-0 rounded-md bg-zinc-900" />}
+                            <div className="min-w-0">
+                              <div className="truncate text-sm font-semibold text-slate-100">{g.name}</div>
+                              {g.sorte && <div className="text-[11px] text-slate-500">{g.sorte}</div>}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+            </>
+            )}
+          </section>
+        )}
 
 
         {/*
