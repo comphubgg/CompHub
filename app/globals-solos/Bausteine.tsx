@@ -302,7 +302,7 @@ export function Karte({ f, bild, rotAb = 2 }: {
         className={voll ? 'relative flex h-screen w-screen items-center justify-center' : 'block'}
         style={voll ? { background: meer } : undefined}>
         <div ref={flaeche}
-          className={`${kartenSchrift.variable} relative select-none ${voll ? 'h-screen' : 'mx-auto aspect-square w-full overflow-hidden rounded-xl border border-white/[0.06] bg-[#0b2f83]'} ${gezoomt ? 'cursor-grab active:cursor-grabbing' : ''}`}
+          className={`${kartenSchrift.variable} relative select-none ${voll ? 'h-screen' : 'mx-auto aspect-square w-full overflow-hidden bg-[#084687]'} ${gezoomt ? 'cursor-grab active:cursor-grabbing' : ''}`}
           style={voll
             ? { containerType: 'inline-size', aspectRatio: '1 / 1', background: 'transparent' }
             : { containerType: 'inline-size', maxWidth: 'min(100%, calc(100vh - 7rem))' }}

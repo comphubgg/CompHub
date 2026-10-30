@@ -36,7 +36,9 @@ export async function GET(request: Request) {
     // Die Startseite braucht nur die Heats mit je acht Spielern (?kurz=1): ein paar Kilobyte statt 230 - sie war an der Groesse und der Wartezeit gescheitert ("Not reachable right now", 26.10.2026).
     if (suche.get('kurz') === '1') {
       const heats = daten.fenster.filter((f) => f.art === 'heat').map((f) => ({ windowId: f.windowId, name: f.name, art: f.art, start: f.start, end: f.end, spieler: f.spieler.slice(0, 8), teams: [], formen: [] }));
-      return NextResponse.json({ ok: true, region: daten.region, fenster: heats }, { headers: { 'Cache-Control': 'public, max-age=60, s-maxage=120' } });
+      // Dazu die Stufen mit Stand und Zeit: die Startseite zeigt die Solos nur, solange eine Reihe laeuft (Betreiber, 30.10.2026).
+      const stufen = daten.stufen.map((s) => ({ windowId: s.windowId, name: s.name, art: s.art, status: s.status, begin: s.begin, end: s.end }));
+      return NextResponse.json({ ok: true, region: daten.region, fenster: heats, stufen }, { headers: { 'Cache-Control': 'public, max-age=60, s-maxage=120' } });
     }
     return NextResponse.json({ ok: true, ...daten },
       { headers: { 'Cache-Control': 'public, max-age=30, s-maxage=60' } });

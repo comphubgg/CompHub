@@ -146,7 +146,17 @@ async function rechnen(request: Request) {
   if (!start) return null;
 
   const alle = (start.profile ?? []).flatMap((p) => p.spieler);
-  const spieler = [...alle].sort((a, b) => (b.elims ?? 0) - (a.elims ?? 0)).slice(0, 30).map(schlank);
+  /*
+   * Jeden Tag andere Spieler (Betreiber, 30.10.2026: "pass die Seite so an, dass taeglich was neu ist - z. B. die Spieler-Ansicht in der Tierlist, die Spieler,
+   * von denen du Stats nimmst"): aus den 150 mit den meisten Eliminierungen (mit Foto zuerst) 30 nach dem Datum gemischt - am selben Tag dieselben, morgen andere.
+   */
+  const tag = new Date().toLocaleDateString('en-CA', { timeZone: 'Europe/Berlin' });
+  let saat = [...tag].reduce((h, c) => (Math.imul(h, 31) + c.charCodeAt(0)) >>> 0, 2166136261);
+  const zufall = () => { saat = (Math.imul(saat ^ (saat >>> 15), 2246822507) + 0x9e3779b9) >>> 0; return saat / 4294967296; };
+  const nachElims = [...alle].sort((a, b) => (b.elims ?? 0) - (a.elims ?? 0));
+  const topf = [...nachElims.filter((z) => z.bild), ...nachElims.filter((z) => !z.bild)].slice(0, 150);
+  for (let i = topf.length - 1; i > 0; i--) { const j = Math.floor(zufall() * (i + 1)); [topf[i], topf[j]] = [topf[j], topf[i]]; }
+  const spieler = topf.slice(0, 30).map(schlank);
 
   // Je Region der Beste nach Eliminierungen - die Balken der "Global"-Karte. Der Betreiber (12.10.2026): "die Liste an
   // Most Eliminations nur fuer diese Season" - also die Eliminierungen der laufenden Saison in dieser Region, nicht die

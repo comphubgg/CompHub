@@ -416,29 +416,90 @@ function TierlistKarte({ daten, fertig }: { daten: Vitrine | null; fertig: boole
   );
 }
 
-/** Die Globals Solos - als goldenes Extra: alle Heats nebeneinander, so breit wie die Spalte, mit acht Spielern je Heat. */
-function SoloKarte({ heats, fertig }: { heats: SolosFenster[] | null; fertig: boolean }) {
-  const zeigen = (heats ?? []).filter((h) => h.spieler.length).slice(0, 4);
+interface SolosStufeKurz { windowId: string; name: string; art: string; status: 'live' | 'kommt' | 'vorbei'; begin: number; end: number | null }
+interface FncsKurz { key: string; titel: string; kopf1: string; kopf2: string; bild: string | null; datum: number | null; preisgeld: string | null; spitze: Array<{ rang: number; punkte: number | null; preis?: string; spieler: Array<{ name: string; land: string | null; bild?: string | null }> }> }
+
+/**
+ * Die FNCS Solos - nur, solange eine Reihe laeuft (Betreiber, 30.10.2026: "Globals Solo kannst du auf der Home Page entfernen, ist ja zu Ende -
+ * sobald es aktiv ist, also Heats usw., Solo Reload"). Oben das Bild der Reihe, darunter die Stufen mit Datum und Stand, dazu die Heats mit Spielern.
+ */
+function SoloKarte({ stufen, heats }: { stufen: SolosStufeKurz[]; heats: SolosFenster[] }) {
+  const reload = stufen.some((s) => /reload/i.test(s.windowId));
+  const zeigen = heats.filter((h) => h.spieler.length).slice(0, 2);
   return (
-    <Karte titel="Globals Solos" href="/globals-solos" symbol={SYM.flamme} gold glas>
-      {zeigen.length === 0 ? (heats && fertig ? <p className="py-4 text-center text-xs text-slate-500"><T>Noch keine Heats eingeteilt.</T></p> : <Hinweis geladen={fertig} />) : (
-        <div className="grid gap-2" style={{ gridTemplateColumns: `repeat(${Math.min(zeigen.length, 2)}, minmax(0, 1fr))` }}>
-          {zeigen.map((h, k) => (
-            <div key={h.windowId} className="vit-an rounded-xl border border-amber-400/15 bg-black/30 p-3"
-              style={{ animation: `vit-rein .5s ${k * 130}ms cubic-bezier(.2,.8,.2,1) both` }}>
-              <p className="mb-2 flex items-baseline justify-between text-[10px] font-semibold uppercase tracking-[0.14em] text-amber-300/80">
-                <span>{h.name}</span><span className="tabular-nums text-slate-500">{h.spieler.length}</span>
-              </p>
-              {h.spieler.slice(0, 8).map((s) => (
-                <p key={s.id} className="flex items-center gap-2 truncate py-1 text-[11px] font-bold uppercase text-slate-200">
-                  <TeamFlagge groesse={13} laender={[s.land ?? undefined]} /><span className="truncate">{s.anzeige}</span>
-                </p>
-              ))}
-            </div>
+    <Link href="/globals-solos" className="vit-glas group/karte block overflow-hidden rounded-3xl">
+      <div className="relative aspect-[16/6] overflow-hidden">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src={reload ? '/cups/fncs-solo-reload.webp' : '/cups/fncs-solos.jpg'} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover/karte:scale-105" />
+        <span aria-hidden className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(9,9,11,.95), rgba(9,9,11,.1) 65%)' }} />
+        <span className="absolute bottom-3 left-4 text-xl font-black uppercase tracking-tight text-[#fff] drop-shadow">FNCS Solos{reload ? ' Reload' : ''}</span>
+        {stufen.some((s) => s.status === 'live') && (
+          <span className="absolute right-3 top-3 inline-flex items-center gap-1.5 rounded-full bg-[#ef4444] px-2.5 py-1 text-[10px] font-black uppercase tracking-wider text-[#fff]"><span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#fff]" />Live</span>
+        )}
+      </div>
+      <div className="p-5">
+        <ol className="grid gap-1.5 sm:grid-cols-2">
+          {stufen.slice(0, 8).map((s) => (
+            <li key={s.windowId} className={`flex items-center justify-between gap-2 rounded-lg border px-2.5 py-1.5 text-[11px] ${s.status === 'live' ? 'border-sky-500/60 bg-sky-500/10' : 'border-white/[0.07] bg-black/25'}`}>
+              <span className={`truncate font-bold uppercase ${s.status === 'vorbei' ? 'text-slate-500' : 'text-slate-100'}`}>{s.name}</span>
+              <span className="shrink-0 tabular-nums text-slate-400">{DATUM.format(new Date(s.begin))}</span>
+            </li>
           ))}
-        </div>
-      )}
-    </Karte>
+        </ol>
+        {zeigen.length > 0 && (
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            {zeigen.map((h) => (
+              <div key={h.windowId} className="rounded-xl border border-white/[0.07] bg-black/25 p-2.5">
+                <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-sky-300">{h.name}</p>
+                {h.spieler.slice(0, 5).map((p) => (
+                  <p key={p.id} className="flex items-center gap-1.5 truncate py-0.5 text-[11px] font-bold uppercase text-slate-200"><TeamFlagge groesse={12} laender={[p.land ?? undefined]} /><span className="truncate">{p.anzeige}</span></p>
+                ))}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    </Link>
+  );
+}
+
+/** Ohne laufende Solos: das juengste FNCS-Endspiel gross - Bild, Titel und das Siegertreppchen mit Fotos (wie auf /fncs). */
+function FncsKarte({ e, fertig }: { e: FncsKurz | null; fertig: boolean }) {
+  if (!e) return <Karte titel="FNCS" href="/fncs" symbol={SYM.pokal} glas><Hinweis geladen={fertig} /></Karte>;
+  const reihe = [e.spitze[1], e.spitze[0], e.spitze[2]];
+  return (
+    <Link href="/fncs" className="vit-glas group/karte block overflow-hidden rounded-3xl">
+      <div className="relative aspect-[16/6] overflow-hidden">
+        {e.bild && (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={encodeURI(e.bild)} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover transition duration-700 group-hover/karte:scale-105" />
+        )}
+        <span aria-hidden className="absolute inset-0" style={{ background: 'linear-gradient(to top, rgba(9,9,11,.95), rgba(9,9,11,.1) 65%)' }} />
+        <span className="absolute bottom-3 left-4">
+          <span className="block text-[10px] font-black uppercase tracking-[0.24em] text-[#7dd3fc]">FNCS · {e.kopf1}</span>
+          <span className="block text-xl font-black uppercase tracking-tight text-[#fff] drop-shadow">{e.kopf2}</span>
+        </span>
+        {e.preisgeld && <span className="absolute right-3 top-3 rounded-full bg-[rgba(0,0,0,.6)] px-2.5 py-1 text-[11px] font-black text-[#6ee7b7] backdrop-blur">{e.preisgeld}</span>}
+      </div>
+      <div className="grid grid-cols-3 items-end gap-2 p-5">
+        {reihe.map((p, i) => p && (
+          <div key={p.rang} className="flex min-w-0 flex-col items-center">
+            <span className="flex">
+              {p.spieler.map((s, k) => (
+                <span key={`${s.name}-${k}`} style={{ marginLeft: k ? -10 : 0 }} className="relative h-11 w-11 overflow-hidden rounded-full border-2 border-zinc-950 bg-zinc-800">
+                  {s.bild
+                    // eslint-disable-next-line @next/next/no-img-element
+                    ? <img src={s.bild} alt="" loading="lazy" className="h-full w-full object-cover object-top" />
+                    : <PlatzhalterRund name={s.name} groesse={44} />}
+                </span>
+              ))}
+            </span>
+            <span className="mt-1 line-clamp-2 w-full text-center text-[10px] font-black uppercase leading-tight text-slate-100">{p.spieler.map((s) => s.name).join(' · ')}</span>
+            <span className={`mt-1.5 flex w-full justify-center rounded-t-lg border border-b-0 pt-1 text-sm font-black ${i === 1 ? 'h-12 border-sky-400/60 bg-sky-500/20 text-amber-300' : i === 0 ? 'h-9 border-white/10 bg-white/[0.06] text-slate-300' : 'h-7 border-white/10 bg-white/[0.06] text-amber-600'}`}>{p.rang}</span>
+          </div>
+        ))}
+      </div>
+    </Link>
   );
 }
 
@@ -471,7 +532,10 @@ function RangKarte({ daten, fertig }: { daten: Vitrine | null; fertig: boolean }
 
 export default function StartVitrine() {
   const [daten, setDaten] = useState<Vitrine | null>(null);
-  const [heats, setHeats] = useState<SolosFenster[] | null>(null);
+  const [heats, setHeats] = useState<SolosFenster[]>([]);
+  /** Die Stufen der Solos - nur gesetzt, solange eine Reihe laeuft (live, bald oder bis 18 Stunden nach dem Finale). */
+  const [solos, setSolos] = useState<SolosStufeKurz[] | null>(null);
+  const [fncs, setFncs] = useState<FncsKurz | null>(null);
   const [geladen, setGeladen] = useState(false);
   const geholt = useRef(false);
 
@@ -482,7 +546,16 @@ export default function StartVitrine() {
     void Promise.allSettled([
       j('/api/startvitrine').then((v: Vitrine) => { if (v?.ok) setDaten(v); }),
       // Kurzfassung (nur die Heats) und eine zweite Chance: der erste Aufruf nach einem Neustart rechnet laenger als die Frist.
-      j('/api/globals-solos?kurz=1').catch(() => j('/api/globals-solos?kurz=1')).then((v: { ok?: boolean; fenster?: SolosFenster[] }) => { if (v?.ok) setHeats((v.fenster ?? []).filter((f) => f.art === 'heat')); }),
+      j('/api/globals-solos?kurz=1').catch(() => j('/api/globals-solos?kurz=1')).then((v: { ok?: boolean; fenster?: SolosFenster[]; stufen?: SolosStufeKurz[] }) => {
+        if (!v?.ok) return;
+        setHeats((v.fenster ?? []).filter((f) => f.art === 'heat'));
+        const jetzt = Date.now();
+        const st = v.stufen ?? [];
+        const laeuft = st.some((x) => x.status === 'live' || (x.status === 'kommt' && x.begin - jetzt < 2 * 864e5)
+          || (x.art === 'finale' && x.status === 'vorbei' && x.end !== null && jetzt - x.end < 18 * 3600_000));
+        setSolos(laeuft ? st : null);
+      }),
+      j('/api/fncs-ereignisse').then((v: { ok?: boolean; ereignisse?: FncsKurz[] }) => { if (v?.ok && v.ereignisse?.length) setFncs(v.ereignisse[v.ereignisse.length - 1]); }),
     ]).finally(() => setGeladen(true));
   }, []);
 
@@ -513,18 +586,18 @@ export default function StartVitrine() {
           </div>
         </div>
 
-        {/* Mitmachen: Tierlist und Globals Solos nebeneinander */}
+        {/* Mitmachen: Tierlist und daneben die laufenden FNCS Solos - sonst das juengste FNCS-Endspiel */}
         <div>
           <div className="mb-4 flex flex-wrap items-end justify-between gap-2">
             <div>
               <p className="text-xs font-bold uppercase tracking-[0.2em] text-sky-500"><T>Zum Mitmachen</T></p>
               <h3 className="schrift-anzeige mt-1 text-3xl font-extrabold tracking-tight text-slate-100 sm:text-4xl"><T>Mehr</T></h3>
             </div>
-            <p className="max-w-md text-sm text-slate-500"><T>Eigene Tierlist bauen, die Rankings ansehen und die Globals Solos verfolgen.</T></p>
+            <p className="max-w-md text-sm text-slate-500"><T>Eigene Tierlist bauen und die FNCS verfolgen.</T></p>
           </div>
           <div className="grid gap-5 lg:grid-cols-2">
             <TierlistKarte daten={daten} fertig={geladen} />
-            <SoloKarte heats={heats} fertig={geladen} />
+            {solos ? <SoloKarte stufen={solos} heats={heats} /> : <FncsKarte e={fncs} fertig={geladen} />}
           </div>
         </div>
       </div>

@@ -5,7 +5,6 @@ import SpielerPlatzhalter, { PlatzhalterRund } from '@/app/components/SpielerPla
 import Link from 'next/link';
 import T from '@/app/components/T';
 import { useT, useSprache } from '@/app/components/SprachProvider';
-import SeitenKopf from '@/app/components/SeitenKopf';
 import LadeSchirm from '@/app/components/LadeSchirm';
 import TeamFlagge from '@/components/TeamFlagge';
 import LaenderListe from '@/app/components/LaenderListe';
@@ -399,6 +398,9 @@ export default function SolosSeite() {
   const eventVon = (windowId: string) => daten?.stufen.find((s) => s.windowId === windowId)?.eventId ?? '';
   const oeffneIn = (windowId: string) => (s: SolosSpieler) => { if (eventVon(windowId)) setPanel({ id: s.id, name: s.anzeige, windowId }); };
   const live = daten?.stufen.some((s) => s.status === 'live');
+  // Welche Reihe: die Reload-Solos (Season 43) oder die normalen - fuer das Bild im Kopf. Massgeblich sind die Spieltage der Reiter (Karte, Spieler);
+  // nur ohne sie der Weg - so steht ueber dem Finale der Season 42 nicht schon das Reload-Bild.
+  const reihe = (daten?.fenster.length ? daten.fenster : daten?.stufen ?? []).some((s) => /reload/i.test(s.windowId)) ? 'reload' : 'br';
   const aktuell = spieltage.find((x) => x.name === stufe);
   const f = aktuell;
   const panelStufe = panel ? daten?.stufen.find((s) => s.windowId === panel.windowId) : null;
@@ -414,12 +416,32 @@ export default function SolosSeite() {
         <Link href="/account" className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-500 transition hover:text-sky-400">
           <svg viewBox="0 0 20 20" className="h-3.5 w-3.5" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 4l-6 6 6 6" /></svg><T>Dashboard</T>
         </Link>
-        <SeitenKopf marke={<T>FNCS · Chapter 7 Season 4</T>} titel={<>FNCS Solos <span className="text-sky-500">{regionAnzeige({ region })}</span></>}
-          text={<T>Jede Stufe auf dem Weg ins Grand Final — für jede Region: Qualifier, Fast Tracks, Heats, Last Chance, Finale und die Landepunkte.</T>}
-          rechts={<>
-            {live && <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-500 px-3 py-1 text-xs font-bold uppercase tracking-wider text-white"><span className="h-2 w-2 animate-pulse rounded-full bg-white" /><T>Live</T></span>}
-            {daten && <span className="rounded-full border border-zinc-700 px-3 py-1 text-xs font-semibold text-slate-300">{daten.qualifiziert.reduce((a, g) => a + g.spieler.length, 0)} <T>qualifiziert</T></span>}
-          </>} />
+        {/*
+          * Kopf mit dem Bild der Reihe (Betreiber, 30.10.2026: "Ich LIEBE Bilder - wo ist das Solo-Logo als Header?"): Epics FNCS-Solos-Bild, bei der
+          * Reload-Reihe das Reload-Solo-Bild. Farben fest (#fff, schwarzer Verlauf), damit der Kopf im hellen Modus nicht umgefaerbt wird.
+          */}
+        <section className="relative isolate overflow-hidden rounded-3xl border border-white/[0.08] bg-[#09090b] shadow-[0_20px_50px_rgba(0,0,0,.4)]">
+          {/* Dasselbe Bild verschwommen als Grund, damit Text und Logo auf einer Flaeche stehen. */}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src={reihe === 'reload' ? '/cups/fncs-solo-reload.webp' : '/cups/fncs-solos.jpg'} alt="" aria-hidden className="absolute inset-0 -z-10 h-full w-full scale-110 object-cover opacity-25 blur-2xl" />
+          <div className="grid items-center gap-6 p-5 sm:p-7 lg:grid-cols-[1fr_minmax(0,560px)]">
+            <div className="order-2 lg:order-1">
+              <p className="text-[11px] font-black uppercase tracking-[0.3em] text-[#7dd3fc]">{reihe === 'reload' ? 'FNCS · Reload' : 'FNCS · Battle Royale'}</p>
+              <h1 className="mt-1 text-4xl font-black uppercase leading-[0.95] tracking-tight text-[#fff] sm:text-6xl">
+                FNCS Solos{reihe === 'reload' ? ' Reload' : ''} <span className="text-[#38bdf8]">{regionAnzeige({ region })}</span>
+              </h1>
+              <p className="mt-3 max-w-xl text-sm text-[#cbd5e1]"><T>Jede Stufe auf dem Weg ins Grand Final — für jede Region: Qualifier, Fast Tracks, Heats, Last Chance, Finale und die Landepunkte.</T></p>
+              <div className="mt-4 flex flex-wrap gap-2">
+                {live && <span className="inline-flex items-center gap-1.5 rounded-full bg-[#ef4444] px-3 py-1 text-xs font-bold uppercase tracking-wider text-[#fff]"><span className="h-2 w-2 animate-pulse rounded-full bg-[#fff]" /><T>Live</T></span>}
+                {daten && <span className="rounded-full border border-[rgba(255,255,255,.3)] bg-[rgba(0,0,0,.45)] px-3 py-1 text-xs font-semibold text-[#e2e8f0]">{daten.qualifiziert.reduce((a, g) => a + g.spieler.length, 0)} <T>qualifiziert</T></span>}
+              </div>
+            </div>
+            {/* Das Logo der Reihe ganz, nicht hinter Text versteckt. */}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={reihe === 'reload' ? '/cups/fncs-solo-reload.webp' : '/cups/fncs-solos.jpg'} alt={reihe === 'reload' ? 'FNCS Solos Reload' : 'FNCS Solos'}
+              className="order-1 aspect-video w-full rounded-2xl border border-white/10 object-cover shadow-[0_16px_40px_rgba(0,0,0,.5)] lg:order-2" />
+          </div>
+        </section>
 
         <div className="flex flex-wrap gap-1.5" role="tablist" aria-label={t('Region')}>
           {SOLOS_REGIONEN.map((r) => (
@@ -470,25 +492,27 @@ export default function SolosSeite() {
 
         {daten && aktuell && (
           <>
+            {/*
+              * Die Karte im Meer (Betreiber, 30.10.2026: "diese extra schwarze Umrandung haesslich - nur ein Blau, das zur Map passt, als ob alles zur Map gehoert,
+              * wie bei Noble"): die Flaeche ringsum hat genau die Farbe des Wassers am Kartenrand (#084687), die Karte geht ohne Kante hinein. Woher die
+              * Landepunkte kommen, steht hier nicht mehr - das bleibt unter uns.
+              */}
             {ansicht === 'karte' && (
-              <Karte2>
+              <section className="overflow-hidden rounded-3xl border border-[rgba(56,189,248,.35)] p-3 shadow-[0_20px_50px_rgba(8,70,135,.35)] sm:p-5" style={{ background: '#084687' }}>
                 {!HAT_KARTE.has(region) ? (
-                  <p className="py-10 text-center text-sm text-slate-500"><T>Für diese Region gibt es keine Quelle für Landepunkte.</T></p>
+                  <p className="py-10 text-center text-sm text-[#bfdbfe]"><T>Für diese Region gibt es keine Quelle für Landepunkte.</T></p>
                 ) : !f || !f.formen.length ? (
-                  <p className="py-10 text-center text-sm text-slate-500"><T>Für diesen Spieltag sind noch keine Landepunkte eingetragen.</T></p>
+                  <p className="py-10 text-center text-sm text-[#bfdbfe]"><T>Für diesen Spieltag sind noch keine Landepunkte eingetragen.</T></p>
                 ) : (
                   <>
                     <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
-                      <span className="inline-flex items-center rounded-xl border border-zinc-700 bg-zinc-950 px-4 py-2 text-sm font-extrabold uppercase tracking-wide text-slate-100">FNCS Solos · {aktuell.name}</span>
-                      <span className="rounded-xl border border-zinc-700 bg-zinc-950 px-3 py-2 text-xs font-bold tabular-nums text-slate-300"><T>Spieler</T> {aufKarte}/{f.spieler.length || aufKarte}</span>
+                      <span className="inline-flex items-center rounded-full border border-[rgba(255,255,255,.25)] bg-[rgba(0,0,0,.25)] px-4 py-1.5 text-sm font-extrabold uppercase tracking-wide text-[#fff]">FNCS Solos · {aktuell.name}</span>
+                      <span className="rounded-full border border-[rgba(255,255,255,.25)] bg-[rgba(0,0,0,.25)] px-3 py-1.5 text-xs font-bold tabular-nums text-[#e2e8f0]"><T>Spieler</T> {aufKarte}/{f.spieler.length || aufKarte}</span>
                     </div>
                     <Karte key={f.windowId} f={f} bild={f.bild} rotAb={2} />
-                    <p className="mt-3 text-center text-[11px] text-slate-500">
-                      <T>Landepunkte von</T> {daten.quelle === 'noble' ? 'Noble Practice' : 'Vital Scrims'}
-                    </p>
                   </>
                 )}
-              </Karte2>
+              </section>
             )}
             {ansicht === 'bestenliste' && (f
               ? <Tafel key={f.windowId} f={f} finalisten={ziel ? finalisten : undefined} ziel={ziel} oeffne={oeffneIn(f.windowId)} />
