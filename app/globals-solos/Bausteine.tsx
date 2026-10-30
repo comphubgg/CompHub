@@ -346,8 +346,9 @@ export function Karte({ f, bild, rotAb = 2 }: {
         * Karte werden gefiltert, Enter hebt hervor"). Das Vollbild nimmt beides mit; das Bild geht dort bis an den Rand, in der Farbe des Meeres, statt schwarzer Balken.
         */}
       <div ref={huelle}
-        className={voll ? 'relative flex h-screen w-screen items-center justify-center' : 'relative block'}
-        style={voll ? { background: meer } : undefined}>
+        // Auch ausserhalb des Vollbilds fuellt das Meer die ganze Breite (Betreiber, 30.10.2026: die Knoepfe duerfen nicht aus dem Blauen ragen - "das Blaue groesser").
+        className={voll ? 'relative flex h-screen w-screen items-center justify-center' : 'relative block overflow-hidden rounded-2xl pb-12'}
+        style={{ background: voll ? meer : (meer || '#084687') }}>
         <div ref={flaeche}
           className={`${kartenSchrift.variable} relative select-none ${voll ? 'h-screen' : 'mx-auto aspect-square w-full overflow-hidden bg-[#084687]'} ${gezoomt ? 'cursor-grab active:cursor-grabbing' : ''}`}
           style={voll
