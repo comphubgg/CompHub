@@ -767,7 +767,8 @@ export default function KontoSeite({ eingebettet = false }: { eingebettet?: bool
   const nurVip = !konto && zugang.vip;
   const daten: Konto = konto ?? {
     id: '', email: '', name: zugang.name, bestaetigt: true,
-    dienste: [], epicId: null, hatPasswort: false,
+    // Mit Schluessel: die bei Epic bestaetigte Id (am Zugang bzw. im Epic-Cookie, app/api/konto gastEpicId) - 30.10.2026 stand hier immer "nicht verbunden".
+    dienste: [], epicId: zugang.epicId || null, epicVerifiziert: !!zugang.epicId, hatPasswort: false,
     socials: {}, bild: null, angelegt: '',
   };
   if (!konto && !nurVip) return null;

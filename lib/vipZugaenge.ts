@@ -29,6 +29,11 @@ export interface Zugang {
   rolle?: 'admin' | 'manager' | 'pro';
   rechte?: string[];
   epicId?: string;
+  /** Bei Epic selbst bestaetigt (Anmeldung mit Schluessel, app/api/auth/epic/callback) - mit Name und Freundesliste. */
+  epicVerifiziert?: boolean;
+  epicName?: string;
+  epicFreunde?: string[];
+  epicFreundeStand?: number;
   vipBis?: number;
   /**
    * Die Frist wurde im VIP-Panel gesetzt: laeuft sie ab, wird der Zugang
@@ -99,6 +104,20 @@ export async function alleZugaenge(): Promise<Zugang[]> {
 }
 
 /** Der Zugang zu diesem Anmeldenamen - oder nichts. */
+/**
+ * Epic-Angaben an einen Zugang schreiben (Bestaetigung bei Epic, Freundesliste) - fuer alle, die mit Schluessel statt mit Konto angemeldet sind
+ * (Betreiber, 30.10.2026: "Verify with Epic ... immer noch not connected" - er ist als admin-juanito mit Schluessel angemeldet).
+ */
+export async function zugangEpicSetzen(name: string, werte: Pick<Zugang, 'epicId' | 'epicVerifiziert' | 'epicName' | 'epicFreunde' | 'epicFreundeStand'>): Promise<boolean> {
+  const gesucht = name.trim().toLowerCase();
+  const alle = await alleZugaenge();
+  const z = alle.find((x) => x.username.toLowerCase() === gesucht);
+  if (!z) return false;
+  for (const [k, v] of Object.entries(werte)) if (v !== undefined) (z as unknown as Record<string, unknown>)[k] = v;
+  await schreibeZugaenge(alle);
+  return true;
+}
+
 export async function zugangNach(name: string): Promise<Zugang | null> {
   const gesucht = name.trim().toLowerCase();
   if (!gesucht) return null;

@@ -1,6 +1,8 @@
 import crypto from 'crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { aendern, kontoAus, nachId } from '@/lib/konten';
+import { vipAus } from '@/lib/vipCookie';
+import { zugangNach } from '@/lib/vipZugaenge';
 import { holeDienst } from '@/lib/dienstZugaenge';
 import { rueckwegVon } from '@/lib/oeffentlicheAdresse';
 import { EPIC_BEREICHE } from '@/lib/epicBereiche';
@@ -32,12 +34,21 @@ async function konto(req: NextRequest) {
 
 export async function GET(req: NextRequest) {
   const k = await konto(req);
-  if (!k) {
+  // Mit Schluessel angemeldet: die Freunde stehen am Zugang (app/api/auth/epic/callback).
+  const schluessel = !k ? vipAus(req.cookies.get('streamer_dashboard_auth')?.value) : null;
+  const z = schluessel ? await zugangNach(schluessel) : null;
+  if (!k && z && z.status === 'active') {
+    if (!req.nextUrl.searchParams.get('start')) {
+      return NextResponse.json({ ok: true, ids: z.epicFreunde ?? [], stand: z.epicFreundeStand ?? null, ich: z.epicId ?? null }, { headers: { 'Cache-Control': 'no-store' } });
+    }
+  }
+  if (!k && !(z && z.status === 'active')) {
     if (req.nextUrl.searchParams.get('start')) return new NextResponse(null, { status: 307, headers: { Location: '/sign-in' } });
     return NextResponse.json({ ok: false, ids: [] }, { status: 401, headers: { 'Cache-Control': 'no-store' } });
   }
 
   if (req.nextUrl.searchParams.get('start')) {
+    // (Mit Schluessel: k ist leer, der Zugang z traegt die Bestaetigung - der Callback erkennt ihn am Schluessel-Cookie.)
     // Ohne Verifizierung nicht mehr erst ins Konto (Betreiber, 30.10.2026: Friends ging "immer noch nicht"): derselbe Weg verifiziert und holt die Freunde.
     const { id: CLIENT_ID } = await holeDienst('epic');
     if (!CLIENT_ID) return new NextResponse(null, { status: 307, headers: { Location: '/account?epic=nicht-eingerichtet' } });
@@ -61,10 +72,10 @@ export async function GET(req: NextRequest) {
 
   return NextResponse.json({
     ok: true,
-    ids: k.epicFreunde ?? [],
-    stand: k.epicFreundeStand ?? null,
+    ids: k!.epicFreunde ?? [],
+    stand: k!.epicFreundeStand ?? null,
     // Das eigene Konto gehoert zum Freunde-Leaderboard dazu.
-    ich: k.epicId ?? null,
+    ich: k!.epicId ?? null,
   }, { headers: { 'Cache-Control': 'no-store' } });
 }
 

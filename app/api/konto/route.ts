@@ -9,7 +9,8 @@ import {
   neuerBestaetigungsschluessel, eroeffneRuecksetzung, setzePasswortMitSchluessel, eroeffneEmailWechsel,
 } from '@/lib/konten';
 import { sendeMail, versandDa } from '@/lib/mail';
-import { ueberHttps } from '@/lib/vipCookie';
+import { ueberHttps, vipAus } from '@/lib/vipCookie';
+import { zugangNach } from '@/lib/vipZugaenge';
 import { merkeAnmeldung as merkeAnwesenheit, merkeAbmeldung } from '@/lib/anwesenheit';
 import { GAST_COOKIE, gastAus } from '@/lib/epicGast';
 
@@ -115,7 +116,10 @@ export async function GET() {
   const laden = await cookies();
   const wert = laden.get(COOKIE)?.value;
   // Wer sich nur bei Epic verifiziert hat (ohne CompHub-Konto), traegt seine Konto-Id signiert im Cookie - siehe lib/epicGast.
-  const gastEpicId = gastAus(laden.get(GAST_COOKIE)?.value);
+  // Mit Schluessel angemeldet und bei Epic bestaetigt: dieselbe Auskunft wie beim Gast (lib/vipZugaenge, epicVerifiziert).
+  const schluessel = vipAus(laden.get('streamer_dashboard_auth')?.value);
+  const zugang = schluessel ? await zugangNach(schluessel).catch(() => null) : null;
+  const gastEpicId = gastAus(laden.get(GAST_COOKIE)?.value) ?? (zugang?.epicVerifiziert ? zugang.epicId ?? null : null);
   const id = kontoAus(wert);
   if (!id) return NextResponse.json({ angemeldet: false, konto: null, gastEpicId });
 

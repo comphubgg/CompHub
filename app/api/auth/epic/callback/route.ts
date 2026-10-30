@@ -10,6 +10,8 @@ import { dienstWurzel } from '@/lib/oeffentlicheAdresse';
 import { GAST_COOKIE, gastWert } from '@/lib/epicGast';
 import { EPIC_BEREICHE } from '@/lib/epicBereiche';
 import { merkeKonto } from '@/lib/eigeneAuswertung';
+import { vipAus } from '@/lib/vipCookie';
+import { zugangEpicSetzen } from '@/lib/vipZugaenge';
 
 // Der Rueckweg von Epic Games - die Verknuepfung wird hier festgemacht.
 //
@@ -130,6 +132,21 @@ export async function GET(req: NextRequest) {
     }
 
     // Der Weg "Freunde freigeben" (app/api/auth/epic/freunde): dasselbe Epic-Konto, dazu die Freundesliste mit Epics Zustimmung.
+    // Mit Schluessel angemeldet (kein Konto): Bestaetigung und Freunde gehoeren an den Zugang.
+    const schluesselName = !konto ? vipAus(req.cookies.get('streamer_dashboard_auth')?.value) : null;
+    if (schluesselName) {
+      const freunde = await holeFreunde(epicId, token.access_token).catch(() => null);
+      await zugangEpicSetzen(schluesselName, {
+        epicId, epicVerifiziert: true, ...(epicName ? { epicName } : {}),
+        ...(freunde ? { epicFreunde: freunde, epicFreundeStand: Date.now() } : {}),
+      });
+      await merkeKonto(epicId);
+      const antwort = aufraeumen(zurueck(`${heim}?epic=${freunde ? (req.cookies.get('epic_oauth_art')?.value === 'freunde' ? 'freunde' : 'verbunden') : 'freunde-fehler'}`));
+      antwort.cookies.set('epic_oauth_art', '', { path: '/', maxAge: 0 });
+      antwort.cookies.set(GAST_COOKIE, gastWert(epicId), { httpOnly: true, sameSite: 'lax', secure: process.env.NODE_ENV === 'production', path: '/', maxAge: 400 * 24 * 3600 });
+      return antwort;
+    }
+
     if (req.cookies.get('epic_oauth_art')?.value === 'freunde') {
       if (!konto || konto.gesperrt) return aufraeumen(zurueck('/sign-in'));
       const loeschen = (a: NextResponse) => {
