@@ -5,6 +5,8 @@ import { spielerKontext } from '@/lib/globalsSolos';
 import { abgelegteAntwort } from '@/lib/antwortSpeicher';
 import { ueberdauernd } from '@/lib/ueberdauernd';
 import { finale, type KatalogCup } from '@/lib/ergebnisPosts';
+import { LISTE, lies as prLies } from '@/lib/powerRankings';
+import { regionVonLand } from '@/lib/landRegion';
 
 /*
  * Der gemeinsame Spieler-Pool der Tierlist fuer Solo und Duo - wie die Trios (app/api/tierlist-trios) aus echten Daten statt aus der alten
@@ -23,6 +25,8 @@ export const maxDuration = 120;
 
 const SEITE = 'https://www.thecomphub.com';
 const JE_REGION_SOLO = 25;
+/** Dazu die bekannten Profis aus den Power Rankings (nur mit Profil/Flagge), bis zu so vielen Solos insgesamt. */
+const SOLO_HOECHSTENS = 200;
 const JE_REGION_DUO = 15;
 
 interface Mitglied { name: string; land?: string | null }
@@ -39,6 +43,20 @@ async function soloPool(): Promise<PoolEintrag[] | null> {
       if (!name || gesehen.has(name.toLowerCase())) continue;
       gesehen.add(name.toLowerCase());
       raus.push({ spieler: [{ name, land: s.land ?? null }], region: r.region });
+    }
+  }
+  // Die Besten jeder Region aus dem Archiv sind nur wenige - dazu die Profis aus den Power Rankings, nach ihrem Platz.
+  const pr = await prLies(LISTE).catch(() => null);
+  if (pr?.spieler?.length) {
+    const kontext = await spielerKontext();
+    for (const s of pr.spieler) {
+      if (raus.length >= SOLO_HOECHSTENS) break;
+      const k = s.id ? kontext(s.id, s.name) : null;
+      if (!k?.land) continue;
+      const name = (k.anzeige || s.name || '').trim();
+      if (!name || gesehen.has(name.toLowerCase())) continue;
+      gesehen.add(name.toLowerCase());
+      raus.push({ spieler: [{ name, land: k.land }], region: regionVonLand(k.land) || 'EU' });
     }
   }
   return raus.length ? raus : null;
