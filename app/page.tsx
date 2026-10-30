@@ -343,8 +343,10 @@ export default function Startseite() {
               [stand?.spieltage ?? null, 'Spieltage im Archiv'],
               [stand?.saisons ?? null, 'Saisons erfasst'],
               [stand?.regionen ?? null, 'Regionen'],
-              [stand?.replays ?? null, 'Matches ausgewertet'],
-            ] as Array<[number | null, string]>).map(([wert, titel]) => (
+              // Ab einer Million abgerundet auf die Zehntelmillion mit Plus (Betreiber, 30.10.2026: '1M+, 1.1M+, 1.2M+ usw.').
+              [stand?.replays == null ? null : stand.replays >= 1e6
+                ? `${(Math.floor(stand.replays / 1e5) / 10).toLocaleString(ort, { maximumFractionDigits: 1 })}M+` : stand.replays, 'Matches ausgewertet'],
+            ] as Array<[number | string | null, string]>).map(([wert, titel]) => (
               <div key={titel} className="rounded-2xl border border-zinc-800 bg-zinc-900/85 px-4 py-6 text-center shadow-[0_10px_30px_rgba(15,23,42,.12)] backdrop-blur">
                 <p className="schrift-anzeige text-3xl font-extrabold tabular-nums text-sky-500 sm:text-4xl"><Rollzahl wert={wert} los={!laedt} ort={ort} /></p>
                 <p className="mt-2 flex items-center justify-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">

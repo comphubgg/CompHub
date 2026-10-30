@@ -360,13 +360,16 @@ async function offeneFenster() {
    * Spieltage, die die Regeln unten auslassen. Ein eigener Rechner arbeitet sie ab, ohne den anderen einen Spieltag wegzunehmen (ein Schreiber je Spieltag).
    */
   const NUR_UEBERSPRUNGENE = process.env.REPLAY_NUR_UEBERSPRUNGENE === '1';
+  // Ist der PC des Betreibers an (Lebenszeichen), gehoeren ihm die Spieltage, die die strengen Regeln auslassen - sonst liest GitHub auch sie.
+  const pcAn = NUR_UEBERSPRUNGENE ? true : await pcLeserAktiv();
+  if (pcAn && !NUR_UEBERSPRUNGENE) console.log('PC-Leser ist an - die frueher ausgelassenen Spieltage liest er.');
   for (const cup of katalog.cups ?? []) {
-    const regel = replayRegel(cup);
-    if (regel === 'nichts' && !NUR_UEBERSPRUNGENE) {
+    const regel = replayRegel(cup, true);
+    if (regel === 'nichts' && pcAn && !NUR_UEBERSPRUNGENE) {
       uebersprungen += Object.values(cup.regionen ?? {}).flat().length;
       continue;
     }
-    if (NUR_UEBERSPRUNGENE && regel !== 'nichts' && regel !== 'nurFinals') {
+    if (NUR_UEBERSPRUNGENE && regel === 'alles') {
       uebersprungen += Object.values(cup.regionen ?? {}).flat().length;
       continue;
     }
@@ -384,7 +387,8 @@ async function offeneFenster() {
       for (const w of liste) {
         // Im Live-Lauf genau umgekehrt: nur, was gerade laeuft.
         if (nurLive ? w.status !== 'live' : w.status !== 'vorbei') continue;
-        if (NUR_UEBERSPRUNGENE ? (finals && finals.has(w.windowId)) : (finals && !finals.has(w.windowId))) { uebersprungen++; continue; }
+        const imPcBereich = regel === 'nichts' || Boolean(finals && !finals.has(w.windowId));
+        if (NUR_UEBERSPRUNGENE ? !imPcBereich : (imPcBereich && pcAn)) { uebersprungen++; continue; }
         /*
          * Bei einem laufenden Fenster gibt es noch kein Ende - dann zaehlt
          * der Beginn. Sonst faellt es durch die Fristpruefung, weil ein
@@ -838,15 +842,17 @@ async function planSchreibenLauf(datei) {
 
   // Frisch (laeuft oder seit hoechstens SCHNELL_STUNDEN vorbei) oder angefragt - von der Seite (Vorrang) oder beim Anstossen genannt.
   const kandidaten = [];
+  // Den PC-Bereich (frueher ausgelassene Spieltage) nur auslassen, solange der PC des Betreibers an ist.
+  const pcAn = await pcLeserAktiv();
   for (const cup of katalog.cups ?? []) {
-    const regel = replayRegel(cup);
-    if (regel === 'nichts') continue;
+    const regel = replayRegel(cup, true);
+    if (regel === 'nichts' && pcAn) continue;
     for (const liste of Object.values(cup.regionen ?? {})) {
       const finals = regel === 'nurFinals' ? endrunden(liste) : null;
       const endrundeHier = endrunden(liste);
       for (const w of liste) {
         if (w.status !== 'live' && w.status !== 'vorbei') continue;
-        if (finals && !finals.has(w.windowId)) continue;
+        if (finals && !finals.has(w.windowId) && pcAn) continue;
         const m = /^(S\d+)_/i.exec(w.windowId);
         if (!m) continue;
         const live = w.status === 'live';
@@ -1013,6 +1019,26 @@ async function planZusammenLauf(datei) {
   schritt('ablage-github.mjs', fertigeFenster.flatMap((f) => [
     '--nur', `replays/${f.season}/${f.windowId}`, '--nur', `replays-schlank/${f.season}/${f.windowId}.json`,
   ]));
+}
+
+/*
+ * Ist der PC des Betreibers als Leser an? (Betreiber, 30.10.2026: "mein PC kann das schon machen, solange alle Daten nachher trotzdem auf GitHub landen
+ * ... wenn ich meinen PC ausschalte, soll alles genauso funktionieren.") Der PC (pc-leser.sh) legt alle fuenf Minuten ein Lebenszeichen an den Release
+ * "signale"; ist es hoechstens zwanzig Minuten alt, liest er die frueher ausgelassenen Spieltage und GitHub laesst sie liegen. Fehlt es, liest GitHub
+ * alles. Gelesen ohne API ueber den oeffentlichen Download-Link.
+ */
+let pcLeserMerker = null;
+function pcLeserAktiv() {
+  pcLeserMerker ??= (async () => {
+    try {
+      const repo = process.env.GITHUB_REPOSITORY || 'comphubgg/CompHub';
+      const r = await fetch(`https://github.com/${repo}/releases/download/signale/pc-leser.json`, { signal: AbortSignal.timeout(15_000) });
+      if (!r.ok) return false;
+      const s = await r.json();
+      return Date.now() - Date.parse(s.zeit) < 20 * 60_000;
+    } catch { return false; }
+  })();
+  return pcLeserMerker;
 }
 
 async function main() {
