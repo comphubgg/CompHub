@@ -264,6 +264,25 @@ export default function Startseite() {
     });
   }, []);
 
+  /*
+   * "Matches ausgewertet" live (Betreiber, 30.10.2026: "ich bin AFK auf dieser Seite, ich sehe live, wie die Zahl nach oben geht"): jede Minute die
+   * Zahl nachfragen (app/api/replays?zahl=1); die Ziffern rollen dann vom alten auf den neuen Wert. Nur nach oben - ein Aussetzer setzt sie nicht zurueck.
+   */
+  useEffect(() => {
+    const holen = () => {
+      if (document.hidden) return;
+      fetch('/api/replays?zahl=1', { signal: AbortSignal.timeout(10_000) })
+        .then((r) => r.json())
+        .then((j: { ausgewertet?: number | null }) => {
+          const n = j?.ausgewertet;
+          if (typeof n === 'number' && n > 0) setStand((s) => (s && (s.replays ?? 0) < n ? { ...s, replays: n } : s));
+        })
+        .catch(() => undefined);
+    };
+    const id = window.setInterval(holen, 60_000);
+    return () => window.clearInterval(id);
+  }, []);
+
   // Die Zahlen folgen der eingestellten Sprache. Vorher stand hier fest
   // 'de-DE', und auf Englisch las man "37.004 matches processed".
   const ort = ortVon(sprache);
@@ -328,7 +347,11 @@ export default function Startseite() {
             ] as Array<[number | null, string]>).map(([wert, titel]) => (
               <div key={titel} className="rounded-2xl border border-zinc-800 bg-zinc-900/85 px-4 py-6 text-center shadow-[0_10px_30px_rgba(15,23,42,.12)] backdrop-blur">
                 <p className="schrift-anzeige text-3xl font-extrabold tabular-nums text-sky-500 sm:text-4xl"><Rollzahl wert={wert} los={!laedt} ort={ort} /></p>
-                <p className="mt-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500"><T>{titel}</T></p>
+                <p className="mt-2 flex items-center justify-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+                  {/* Der Punkt sagt: diese Zahl laeuft live mit. */}
+                  {titel === 'Matches ausgewertet' && <span aria-hidden className="h-1.5 w-1.5 animate-pulse rounded-full bg-sky-500" />}
+                  <T>{titel}</T>
+                </p>
               </div>
             ))}
           </div>

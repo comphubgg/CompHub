@@ -202,6 +202,18 @@ async function wartendeFenster(vorhanden: Set<string>) {
  */
 export async function GET(request: Request) {
   const url = new URL(request.url);
+  /*
+   * Nur die Zahl (?zahl=1) - fuer die Startseite, die jede Minute nachfragt, damit "Matches ausgewertet" sichtbar hochzaehlt (Betreiber, 30.10.2026).
+   * Aus derselben Uebersicht wie oben (fuenf Minuten frisch), aber ein paar Bytes statt einer Viertel-Megabyte-Liste.
+   */
+  if (url.searchParams.get('zahl') === '1') {
+    const r = await GET(new Request(new URL('/api/replays', url)));
+    const d = await r.json().catch(() => null) as { fenster?: Array<{ zaehler?: Record<string, number> }> } | null;
+    if (!d?.fenster) return NextResponse.json({ ausgewertet: null }, { headers: { 'Cache-Control': 'no-store' } });
+    const summe = (k: string) => d.fenster!.reduce((n, f) => n + (f.zaehler?.[k] ?? 0), 0);
+    return NextResponse.json({ ausgewertet: summe('PARSED'), offen: summe('PENDING'), zeit: new Date().toISOString() },
+      { headers: { 'Cache-Control': 'public, max-age=30' } });
+  }
   if (![...url.searchParams.keys()].length) {
     /*
      * Ohne Dateien (Vercel) gibt es die Uebersicht nur fertig aus der
