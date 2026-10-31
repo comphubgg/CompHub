@@ -74,8 +74,14 @@ export async function GET() {
       epicId,
     });
   } catch {
+    /*
+     * Eine Stoerung der Ablage ist kein "kein Admin": vorher kam hier Status 200 mit isAdmin false, und dem Betreiber verschwanden alle
+     * Werkzeuge, als haette er keine Rechte. Jetzt 424 mit "stoerung" - die Felder bleiben, damit Aufrufer, die nur isAdmin lesen, nichts
+     * freischalten. Das Dashboard zeigt dazu einen Hinweis.
+     */
     return NextResponse.json({
       isAdmin: false, userName: null, rolle: null, rechte: [], epicId: null,
-    });
+      stoerung: 'Ablage nicht erreichbar',
+    }, { status: 424 });
   }
 }

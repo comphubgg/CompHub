@@ -164,6 +164,7 @@ export default function AdminDashboardPage() {
   const [wechselStand, setWechselStand] = useState('');
   const [accessKey, setAccessKey] = useState('');
   const [istAdmin, setIstAdmin] = useState(false);
+  const [rechteStoerung, setRechteStoerung] = useState(false);
   const [rolle, setRolle] = useState<string | null>(null);
   const [eigeneRechte, setEigeneRechte] = useState<string[]>([]);
   const zugang = useZugang();
@@ -210,7 +211,11 @@ export default function AdminDashboardPage() {
      * CompHub-Konto hatte, sah seine Kacheln nicht.
      */
     fetch('/api/auth/check-admin', { cache: 'no-store' })
-      .then((res) => (res.ok ? res.json() : null))
+      .then((res) => {
+        // 424: die Ablage antwortet nicht - das ist kein "keine Rechte", also sagen statt still Kacheln wegzunehmen.
+        setRechteStoerung(res.status === 424);
+        return res.ok ? res.json() : null;
+      })
       .then((json) => {
         setIstAdmin(json?.isAdmin === true);
         setRolle(json?.rolle ?? null);
@@ -393,6 +398,15 @@ export default function AdminDashboardPage() {
   return (
     <main className="min-h-screen bg-zinc-950 text-slate-100">
       <div className="mx-auto max-w-[1400px] px-4 py-6">
+        {rechteStoerung && (
+          <div role="alert" className="mb-5 flex flex-wrap items-center gap-3 rounded-2xl border border-rose-500/40 bg-rose-500/10 px-5 py-3 text-sm text-rose-200">
+            <span className="flex-1"><T>Deine Rechte lassen sich gerade nicht prüfen – die Ablage antwortet nicht. Darum fehlen vielleicht Kacheln.</T></span>
+            <button type="button" onClick={() => window.location.reload()}
+              className="rounded-xl bg-sky-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky-400">
+              <T>Nochmal versuchen</T>
+            </button>
+          </div>
+        )}
 
         {/* Kopf (neues Design, 14.10.2026): grosse Flaeche mit Leuchten, dem Namen gross und dem Abmelden als Kapsel. */}
         <section className="relative mb-5 overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 px-6 py-7 shadow-[0_10px_30px_rgba(15,23,42,.18)] sm:px-8">
