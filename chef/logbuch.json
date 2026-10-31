@@ -1853,5 +1853,27 @@
     "modell": "Opus",
     "status": "wartet",
     "runde": 5
+  },
+  {
+    "id": "chef-91",
+    "datum": "2026-10-31T21:26:00Z",
+    "titel": "Organisationen: Spielerfotos quadratisch, Name darunter",
+    "kurz": "Statistik → Orgs → Org öffnen: Fotos quadratisch, Name steht darunter statt im Bild.",
+    "markieren": [
+      "css:.foto-dunkel"
+    ],
+    "bereich": "Statistik",
+    "warum": "Die Spielerkarten der Orgs waren hochkant mit dem Namen im Foto – deine Regel ist: große Foto-Quadrate, Name darunter.",
+    "was": "Fotos sind jetzt quadratisch, der Name steht in einem eigenen Feld darunter. Zahlen geprüft: Org-Preisgeld = Summe der Spieler, bei allen 116 Orgs.",
+    "ansehen": [
+      "/statistics?bereich=orgs"
+    ],
+    "commits": [
+      "d0acc78e051202e45da1bde98392d7e65b4913a2"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 5
   }
 ]

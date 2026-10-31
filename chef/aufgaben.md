@@ -21,6 +21,8 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 - [x] **Events-Übersicht geprüft**: Status, Datum, Reihenfolge stimmen (Ausfallhinweis: chef-83).
 - [x] **FNCS-Seite geprüft**: Titel, Plätze, Preisgeld, Mitspieler stimmen mit den Profilen (chef-77, chef-79).
 
+- [ ] **Mshary in zwei Orgs** (Vision Esport seit 22.04.2026 und Scytes seit 05.07.2023) – Scytes braucht vermutlich ein Enddatum. Pflege im Admin (/admin/orgs), Betreiber fragen.
+
 ## Neu entdeckt (Runde 4, 31.10.2026)
 
 - [ ] **Stundenlauf „Daten erneuern“ wartet über eine Stunde auf einen Rechner** _(Daten · Wirkung 5/5, Betrieb)_ - Lauf 1661 steht seit 18:30 UTC auf „pending“, Lauf 1659 brauchte 17:27–20:05 (Antworten vorrechnen allein 1 h 50). Darum ist die Startantwort der Statistik noch alt (Spieltage bis 10.10., Elims-Liste Schaden 0). Passt zu „GitHub-Rechner sind überbucht“ unten - Vorschlag an den Betrieb.
