@@ -1689,7 +1689,65 @@ async function berechne(request: Request) {
 }
 
 /** Fuer alle gleich - Vercels Zwischenspeicher beantwortet Wiederholungen (lib/zwischenspeicher). */
+/*
+ * Clutch-Suche und -Blaettern (chef-27): "&clutch=suche&q=<name>" liefert hoechstens 50 Treffer samt Rang in der ganzen Liste,
+ * "&clutch=seite&ab=<n>" hundert Zeilen ab der n-ten (0 = erste). Vorher lud die Seite dafuer die ganze Liste (rund 3 MB) in den
+ * Browser. Geschnitten wird aus derselben Antwort wie "&clutch=alle" - die liegt vorgerechnet in der Ablage, also gibt es hier
+ * nichts Neues vorzurechnen, und Suche und "Details" zeigen genau dieselben Zahlen. Die Liste bleibt fuenf Minuten im Speicher.
+ */
+type ClutchZeileAus = { anzeige?: string; name?: string } & Record<string, unknown>;
+type ClutchAlle = { success?: boolean; error?: string; quelle?: string; saison?: string;
+  clutch?: { zeilen?: ClutchZeileAus[] } & Record<string, unknown> };
+const clutchVorrat = new Map<string, { bis: number; wert: ClutchAlle }>();
+
+async function clutchTeil(request: Request, modus: 'suche' | 'seite'): Promise<Response> {
+  const url = new URL(request.url);
+  const alleUrl = new URL(url);
+  alleUrl.searchParams.delete('q');
+  alleUrl.searchParams.delete('ab');
+  alleUrl.searchParams.set('clutch', 'alle');
+  const key = alleUrl.search;
+  const gemerkt = clutchVorrat.get(key);
+  let wert: ClutchAlle | null = gemerkt && gemerkt.bis > Date.now() ? gemerkt.wert : null;
+  if (!wert) {
+    try {
+      const r = await GET(new Request(alleUrl.toString(), { headers: request.headers }));
+      wert = await r.json() as ClutchAlle;
+    } catch {
+      wert = null;
+    }
+    if (wert?.success && Array.isArray(wert.clutch?.zeilen)) {
+      clutchVorrat.set(key, { bis: Date.now() + 5 * 60_000, wert });
+    }
+  }
+  // Erwartbare Fehler: 200 mit "error" (der Lastverteiler macht aus 5xx eine Fehlerseite).
+  if (!wert?.success || !Array.isArray(wert.clutch?.zeilen)) {
+    return NextResponse.json({ success: false, error: wert?.error || 'Die Clutch-Liste ist gerade nicht erreichbar.' });
+  }
+  const { zeilen, ...rest } = wert.clutch!;
+  const alle = zeilen as ClutchZeileAus[];
+  const kopf = { success: true, quelle: wert.quelle, saison: wert.saison };
+  if (modus === 'suche') {
+    // Wie bisher im Browser: Kleinschreibung, "enthaelt" im angezeigten Namen; Rang = Platz in der ganzen Liste.
+    const klein = (url.searchParams.get('q') ?? '').trim().toLowerCase();
+    const treffer = klein.length < 2 ? [] : alle
+      .map((z, i) => ({ z, rang: i + 1 }))
+      .filter((x) => String(x.z.anzeige ?? x.z.name ?? '').toLowerCase().includes(klein))
+      .slice(0, 50);
+    return NextResponse.json({ ...kopf, clutch: { ...rest, gesamt: alle.length, treffer } }, {
+      headers: { 'Cache-Control': CDN_FRIST } });
+  }
+  const ab = Math.max(0, Math.floor(Number(url.searchParams.get('ab'))) || 0);
+  return NextResponse.json({ ...kopf, clutch: { ...rest, gesamt: alle.length, ab, zeilen: alle.slice(ab, ab + 100) } }, {
+    headers: { 'Cache-Control': CDN_FRIST } });
+}
+
 export async function GET(request: Request) {
+  {
+    const p = new URL(request.url).searchParams;
+    const modus = p.get('clutch');
+    if (p.get('ansicht') === 'start' && (modus === 'suche' || modus === 'seite')) return clutchTeil(request, modus);
+  }
   const antwort = await holeRoh(request);
   /*
    * Fertige Antworten aus der Zeit vor den kleinen Fotos tragen noch die Adresse des Originals

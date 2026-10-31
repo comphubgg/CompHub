@@ -1884,45 +1884,91 @@ function ClutchTabelle({ daten, saison, saisonTitel, aufKonto }: {
   const [suche, setSuche] = useState('');
   const suchen = suche.trim().length >= 2;
   /*
-   * Die ganze Liste kommt erst auf "Details" oder beim Suchen: in der
-   * Startantwort stehen nur die ersten zehn (rund zwanzigtausend Zeilen
-   * waeren vier Megabyte).
+   * Weitere Zeilen und Treffer kommen erst auf "Details" oder beim Suchen -
+   * und nur in kleinen Stuecken vom Server: in der Startantwort stehen nur
+   * die ersten zehn (rund zwanzigtausend Zeilen waeren drei bis vier
+   * Megabyte). "&clutch=seite&ab=n" liefert hundert Zeilen, "&clutch=suche&q="
+   * hoechstens fuenfzig Treffer samt Rang in der ganzen Liste.
    */
-  const [voll, setVoll] = useState<ClutchZeileAnzeige[] | null>(null);
+  // Eine aeltere Antwort traegt noch alle Zeilen in der Startantwort - dann ist die Liste schon da und wird lokal durchsucht.
+  const vollDa = daten.zeilen.length > 10;
+  const [geladen, setGeladen] = useState<ClutchZeileAnzeige[]>([]);
+  const [gesamtN, setGesamtN] = useState<number | null>(null);
   const [vollFehler, setVollFehler] = useState(false);
+  const laedt = useRef(false);
+  const saisonJetzt = useRef(saison);
   useEffect(() => {
-    if (!(offen || suchen) || voll || daten.zeilen.length > 10) return undefined;
-    let weg = false;
+    saisonJetzt.current = saison;
+    setGeladen([]); setGesamtN(null); setVollFehler(false); laedt.current = false;
+  }, [saison]);
+  const holeSeite = (ab: number) => {
+    if (laedt.current) return;
+    laedt.current = true;
     setVollFehler(false);
-    fetch(`/api/szene-stats?ansicht=start&saison=${encodeURIComponent(saison)}&clutch=alle`)
+    const fuer = saison;
+    fetch(`/api/szene-stats?ansicht=start&saison=${encodeURIComponent(fuer)}&clutch=seite&ab=${ab}`)
       .then((r) => r.json())
-      .then((j) => { if (!weg) { if (Array.isArray(j?.clutch?.zeilen)) setVoll(j.clutch.zeilen); else setVollFehler(true); } })
-      .catch(() => { if (!weg) setVollFehler(true); });
-    return () => { weg = true; };
-  }, [offen, suchen, voll, saison, daten.zeilen.length]);
-  const alle = voll ?? daten.zeilen;
-  // Eine aeltere Antwort traegt noch alle Zeilen in der Startantwort - dann ist die Liste schon da.
-  const vollDa = voll !== null || daten.zeilen.length > 10;
+      .then((j) => {
+        if (saisonJetzt.current !== fuer) return;
+        if (Array.isArray(j?.clutch?.zeilen)) {
+          setGeladen((g) => (g.length === ab ? [...g, ...(j.clutch.zeilen as ClutchZeileAnzeige[])] : g));
+          if (typeof j.clutch.gesamt === 'number') setGesamtN(j.clutch.gesamt);
+        } else setVollFehler(true);
+      })
+      .catch(() => { if (saisonJetzt.current === fuer) setVollFehler(true); })
+      .finally(() => { laedt.current = false; });
+  };
+  useEffect(() => {
+    if (offen && !vollDa && geladen.length === 0 && !vollFehler) holeSeite(0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [offen, vollDa, geladen.length, vollFehler, saison]);
+  const alle = vollDa ? daten.zeilen : geladen;
+  const mehrDa = vollDa ? sichtbar < alle.length : gesamtN !== null && geladen.length < gesamtN;
   // Nach unten gescrollt: die naechsten hundert nachladen.
   useEffect(() => {
     if (!offen || !ende.current) return;
     const o = new IntersectionObserver((e) => {
-      if (e[0]?.isIntersecting) setSichtbar((n) => n + 100);
+      if (!e[0]?.isIntersecting) return;
+      if (vollDa) setSichtbar((n) => n + 100); else holeSeite(geladen.length);
     }, { rootMargin: '200px' });
     o.observe(ende.current);
     return () => o.disconnect();
-  }, [offen, sichtbar, voll, daten.zeilen.length]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [offen, sichtbar, geladen.length, vollDa, mehrDa]);
   const soloText = (s: number | null) => (s === null ? '' : `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, '0')}s`);
   const klein = suche.trim().toLowerCase();
+  // Die Suche fragt den Server (nach 250 ms Ruhe); eine veraltete Anfrage wird abgebrochen.
+  const [treffer, setTreffer] = useState<{ q: string; liste: Array<{ z: ClutchZeileAnzeige; rang: number }> } | null>(null);
+  const [sucheFehler, setSucheFehler] = useState(false);
+  useEffect(() => {
+    if (!suchen || vollDa) return undefined;
+    setSucheFehler(false);
+    const ac = new AbortController();
+    const timer = setTimeout(() => {
+      fetch(`/api/szene-stats?ansicht=start&saison=${encodeURIComponent(saison)}&clutch=suche&q=${encodeURIComponent(klein)}`, { signal: ac.signal })
+        .then((r) => r.json())
+        .then((j) => {
+          if (Array.isArray(j?.clutch?.treffer)) setTreffer({ q: klein, liste: j.clutch.treffer as Array<{ z: ClutchZeileAnzeige; rang: number }> });
+          else setSucheFehler(true);
+        })
+        .catch((e) => { if (e?.name !== 'AbortError') setSucheFehler(true); });
+    }, 250);
+    return () => { clearTimeout(timer); ac.abort(); };
+  }, [suchen, vollDa, klein, saison]);
+  const trefferDa = suchen && !vollDa && treffer !== null && treffer.q === klein;
   // Mit Rang in der ganzen Liste, damit er auch in der Trefferliste stimmt.
-  const gefunden = suchen && vollDa
-    ? alle.map((z, i) => ({ z, rang: i + 1 })).filter((x) => x.z.anzeige.toLowerCase().includes(klein)).slice(0, 50)
+  const gefunden = suchen
+    ? (vollDa
+      ? alle.map((z, i) => ({ z, rang: i + 1 })).filter((x) => x.z.anzeige.toLowerCase().includes(klein)).slice(0, 50)
+      : trefferDa ? treffer.liste : null)
     : null;
-  const zeilen = (gefunden ?? (offen ? alle.slice(0, sichtbar) : daten.zeilen.slice(0, 10))
-    .map((z, i) => ({ z, rang: i + 1 })));
+  const zeilen = (gefunden ?? (suchen ? [] : (offen ? alle.slice(0, vollDa ? sichtbar : alle.length || 10) : daten.zeilen.slice(0, 10))
+    .map((z, i) => ({ z, rang: i + 1 }))));
+  // Solange die ersten hundert noch nicht da sind, steht die Startliste (zehn Zeilen) da.
+  const angezeigt = suchen || !offen || alle.length ? zeilen : daten.zeilen.slice(0, 10).map((z, i) => ({ z, rang: i + 1 }));
 
   // Der Balken je Zeile misst gegen die beste Wertung (die Liste ist nach Punkten geordnet).
-  const spitze = Math.max(1, alle[0]?.punkte ?? 1);
+  const spitze = Math.max(1, daten.zeilen[0]?.punkte ?? alle[0]?.punkte ?? 1);
   const MEDAILLE = ['#f5b301', '#9aa6ba', '#cc7a3d'];
   return (
     <section className="mt-10">
@@ -1951,7 +1997,7 @@ function ClutchTabelle({ daten, saison, saisonTitel, aufKonto }: {
           {daten.soloDa && <span className="w-20 shrink-0 text-right"><T>Solo-Zeit</T></span>}
         </div>
         <div className={`divide-y divide-zinc-800/70 ${offen || suchen ? 'max-h-[70vh] overflow-y-auto' : ''}`}>
-          {zeilen.map(({ z, rang }) => (
+          {angezeigt.map(({ z, rang }) => (
             <button key={z.epicId} type="button" onClick={() => aufKonto(z.epicId, z.anzeige)}
               className="relative flex w-full items-center gap-3 overflow-hidden px-5 py-3 text-left transition hover:bg-zinc-800/50">
               <span aria-hidden className="absolute inset-y-0 left-0 bg-sky-500/10" style={{ width: `${Math.max(2, (z.punkte / spitze) * 100)}%` }} />
@@ -1970,16 +2016,16 @@ function ClutchTabelle({ daten, saison, saisonTitel, aufKonto }: {
               {daten.soloDa && <span className="relative w-20 shrink-0 text-right text-[13px] tabular-nums text-slate-400">{soloText(z.solo)}</span>}
             </button>
           ))}
-          {suchen && vollDa && gefunden && !gefunden.length && (
+          {suchen && gefunden && !gefunden.length && (
             <p className="px-4 py-3 text-center text-[12px] text-slate-500"><T>Kein Spieler gefunden.</T></p>
           )}
-          {(offen || suchen) && !vollDa && !vollFehler && (
+          {((suchen && !gefunden && !sucheFehler) || (offen && !suchen && !vollDa && !alle.length && !vollFehler)) && (
             <p className="px-4 py-3 text-center text-[12px] text-slate-500"><T>Wird geladen …</T></p>
           )}
-          {(offen || suchen) && !vollDa && vollFehler && (
+          {((suchen && !gefunden && sucheFehler) || (offen && !suchen && !vollDa && !alle.length && vollFehler)) && (
             <p className="px-4 py-3 text-center text-[12px] text-rose-300"><T>Die Liste ließ sich gerade nicht laden. Bitte gleich noch einmal versuchen.</T></p>
           )}
-          {offen && !suchen && vollDa && sichtbar < alle.length && <div ref={ende} className="h-8" />}
+          {offen && !suchen && mehrDa && <div ref={ende} className="h-8" />}
         </div>
       </div>
       <p className="mt-2 text-xs text-slate-500">
