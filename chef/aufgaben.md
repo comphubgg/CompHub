@@ -10,6 +10,9 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 
 - [x] **Startseite geprüft**: Matches, Spieltage, Saisons/Regionen, Preisgeld 2026 und Rampenlicht stimmen mit der Statistik überein. Ein Sonderfall (Überschrift „Most Earnings 2027“ über der Allzeit-Liste, wenn die Jahresliste fehlt) wird nicht übernommen: Das ist der Fall aus chef-6, den der Betreiber abgelehnt hat.
 
+- [ ] **Profil: fncs.saisons endet bei GLOBALS 2025, CH7 nur in fncsTafel** - prüfen, ob die Profil-Anzeige CH7-Ergebnisse zeigt.
+- [ ] **FNCS-Ereignisliste: NAC nur für S36, S40, S41** - frühere NAC-Majors fehlen (Datenstand der Quelle).
+
 ## Neu entdeckt (Runde 4, 31.10.2026)
 
 - [ ] **Stundenlauf „Daten erneuern“ wartet über eine Stunde auf einen Rechner** _(Daten · Wirkung 5/5, Betrieb)_ - Lauf 1661 steht seit 18:30 UTC auf „pending“, Lauf 1659 brauchte 17:27–20:05 (Antworten vorrechnen allein 1 h 50). Darum ist die Startantwort der Statistik noch alt (Spieltage bis 10.10., Elims-Liste Schaden 0). Passt zu „GitHub-Rechner sind überbucht“ unten - Vorschlag an den Betrieb.

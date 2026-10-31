@@ -1606,5 +1606,49 @@
     "modell": "Sonnet",
     "status": "wartet",
     "runde": 5
+  },
+  {
+    "id": "chef-77",
+    "datum": "2026-10-31T21:05:00Z",
+    "titel": "FNCS-Siegertafel: Gleichstand nach Stärke statt Alphabet",
+    "kurz": "FNCS → All-Time Stats → FNCS Winners: gleich viele Titel nach Stärke, nicht ABC.",
+    "markieren": [
+      "text:FNCS Winners"
+    ],
+    "bereich": "Statistik",
+    "warum": "Bei 3 Titeln standen HEN, JANNISZ, MERSTACH, Veno, Vico alphabetisch – gegen deine Regel „nie alphabetisch“.",
+    "was": "Bei Gleichstand entscheidet jetzt der Platz in der Eliminierungs-Liste der Grand Finals daneben; wer dort fehlt, kommt danach.",
+    "ansehen": [
+      "/fncs"
+    ],
+    "commits": [
+      "8301bef485105bce0562e8fd2ed965d0b7b17def"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 5
+  },
+  {
+    "id": "chef-79",
+    "datum": "2026-10-31T21:06:00Z",
+    "titel": "FNCS-Siegertafel: Hinweis sagt, welche Titel zählen",
+    "kurz": "FNCS → FNCS Winners: Satz darunter nennt jetzt genau, welche Finals zählen.",
+    "markieren": [
+      "text:Titles count"
+    ],
+    "bereich": "Statistik",
+    "warum": "Dort stand „alle FNCS-Endspiele“, gezählt werden aber nur EU-Grand-Finals, Globals, Invitational und Summit. Darum hat peterbot dort 1 Titel, im Profil 6 (mit NAC).",
+    "was": "Der Satz nennt jetzt genau, was zählt. An den Zahlen ändert sich nichts.",
+    "ansehen": [
+      "/fncs"
+    ],
+    "commits": [
+      "4c502dd7272bf882045851e74cf09b5ed5b349c8"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 5
   }
 ]
