@@ -2156,5 +2156,25 @@
     "modell": "Sonnet (gefunden) + Opus (allgemeiner gemacht)",
     "status": "wartet",
     "runde": 6
+  },
+  {
+    "id": "chef-104",
+    "datum": "2026-10-31T22:07:00Z",
+    "titel": "Vergleich: Radar-Achse Kopftreffer richtig geteilt",
+    "kurz": "Vergleich → Radar: Achse „HEADSHOTS“ teilt nur durch Matches mit Kopftreffer-Daten.",
+    "markieren": [
+      "text:HEADSHOTS"
+    ],
+    "bereich": "Statistik",
+    "warum": "Kopftreffer kennt nur ein Teil der Spieltage; das Radar teilte trotzdem durch alle Matches, so wirkte ein Spieler mit vielen neuen Spieltagen schwächer.",
+    "was": "Die Achse rechnet jetzt wie Bauteile und Material daneben.",
+    "ansehen": [
+      "/statistics?bereich=vergleich"
+    ],
+    "commits": [],
+    "groesse": "klein",
+    "modell": "Opus",
+    "status": "wartet",
+    "runde": 6
   }
 ]
