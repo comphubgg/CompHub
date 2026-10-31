@@ -4,9 +4,10 @@
     "notiz": "",
     "zeit": "2026-10-31T18:39:27.856Z",
     "uebernahme": {
-      "stand": "konflikt",
-      "text": "Passt nicht ohne Weiteres auf den aktuellen Stand der Seite - der Chef loest das in seiner naechsten Runde.",
-      "zeit": "2026-10-31T18:39:36.308Z"
+      "stand": "live",
+      "text": "Auf GitHub (main 50c6c516); die Seite wird neu gebaut und ist in etwa 10 Minuten live. Netlify folgt mit dem nächsten Bau (höchstens alle 6 Stunden).",
+      "zeit": "2026-10-31T18:46:01.612Z",
+      "main": "50c6c516"
     }
   },
   "chef-4": {
