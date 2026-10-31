@@ -695,5 +695,21 @@
     "modell": "Sonnet",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-40",
+    "datum": "2026-10-31T19:40:09Z",
+    "titel": "Spielerliste: Siegertreppchen rundet wie das Profil",
+    "bereich": "Statistik",
+    "warum": "Auf dem Treppchen über der Spielerliste stand „Elims je Match“ mit nur einer Nachkommastelle (3,2 statt 3,22) – zwei Spieler mit 3,22 und 3,19 sahen gleich aus, das Profil zeigte etwas anderes. „Schaden je Match“ stand als „752,0“, obwohl es eine ganze Zahl ist.",
+    "was": "Das Treppchen zeigt jetzt dieselben Stellen wie das Profil: Elims je Match und Quote mit zwei Nachkommastellen, Schaden je Match als ganze Zahl.",
+    "ansehen": [
+      "/statistics?bereich=spieler"
+    ],
+    "commits": [],
+    "groesse": "klein",
+    "modell": "Opus",
+    "status": "wartet",
+    "runde": 1
   }
 ]

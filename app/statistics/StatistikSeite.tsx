@@ -5508,7 +5508,8 @@ export default function StatistikSeite() {
                   </p>
                   <Treppchen drei={gezeigteSpieler.slice(0, 3).map((sp, i) => ({ sp, nr: i + 1 }))} aufKlick={(sp) => oeffne(sp)}
                     wertVon={(sp) => {
-                      const nk = sort === 'quote' ? 2 : (sort === 'genauigkeit' || sort === 'elimsProMatch' || sort === 'damageProMatch') ? 1 : 0;
+                      // Gleiche Nachkommastellen wie im Profil: Quote und Elims je Match zwei, Genauigkeit eine, Schaden je Match ganze Zahl.
+                      const nk = sort === 'quote' || sort === 'elimsProMatch' ? 2 : sort === 'genauigkeit' ? 1 : 0;
                       return zahl(Number((sp as unknown as Record<string, number>)[sort] ?? 0), nk, sprache) + (sort === 'genauigkeit' ? ' %' : '');
                     }} />
                 </div>
