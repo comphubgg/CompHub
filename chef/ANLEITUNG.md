@@ -110,6 +110,11 @@ Arbeit committest du nicht als `[chef-N]`, sondern notierst sie in `aufgaben.md`
 **Alles, was der Betreiber liest (Logbuch, Status, Notizen), schreibst du mit echten Umlauten: ä, ö, ü, ß - also "für", "Größe", "Änderung", nie "fuer", "Groesse", "Aenderung".** Das versteht er sonst nicht immer. Bestehende Einträge mit ue/oe/ae korrigierst du in der nächsten Runde.
 
 **KURZ!** Der Betreiber will so wenig lesen wie möglich: `kurz` ist **ein Satz, höchstens 12 Wörter** - das liest er zuerst und oft nur das.
+**`kurz` sagt, WO man es sieht und WAS anders ist** - nicht nur ein Titel. Schlecht: "Spielerliste nennt die Mindestzahl an Matches".
+Gut: "Spieler → nach Damage ratio sortieren: über dem Treppchen steht jetzt ‚ab 20 Matches‘."
+Sieht man die Änderung nur in einem bestimmten Zustand (Sortierung, Reiter, Klick), muss `ansehen` genau diesen Zustand öffnen (Parameter
+in der Adresse); geht das nicht, steht der nötige Klick im `kurz`. Ist eine Änderung **gar nicht sichtbar** (nur Rechnung, Tempo, Fehlerfall),
+beginnt `kurz` mit "Unsichtbar:" und sagt, was sich für Besucher verbessert (z. B. "Unsichtbar: Statistik lädt 10× schneller.").
 `warum` und `was` je **höchstens ein bis zwei kurze Sätze**. Lieber ein Bild als ein Absatz.
 
 **Bilder:** Auf seinem PC entstehen von jedem Pfad in `ansehen` automatisch ein Bild der echten Seite und eines deiner Fassung, die geänderte

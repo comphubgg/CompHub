@@ -53,9 +53,9 @@ async function stellenVom(seite, markieren) {
 
 async function foto(seite, url) {
   await seite.goto(url, { waitUntil: 'domcontentloaded', timeout: 120_000 });
-  try { await seite.waitForLoadState('networkidle', { timeout: 30_000 }); } catch { /* weiter mit dem, was steht */ }
+  try { await seite.waitForLoadState('networkidle', { timeout: 15_000 }); } catch { /* weiter mit dem, was steht */ }
   await seite.addStyleTag({ content: '*,*::before,*::after{animation:none!important;transition:none!important;caret-color:transparent!important}' }).catch(() => {});
-  await seite.waitForTimeout(2500);
+  await seite.waitForTimeout(1500);
   const hoehe = Math.min(HOEHE_MAX, await seite.evaluate(() => document.documentElement.scrollHeight).catch(() => 900));
   return seite.screenshot({ clip: { x: 0, y: 0, width: BREITE, height: Math.max(600, hoehe) }, fullPage: true });
 }
@@ -127,8 +127,13 @@ async function main() {
   fs.mkdirSync(ZIEL, { recursive: true });
   const browser = await chromium.launch({ headless: true, ...(CHROME ? { executablePath: CHROME } : {}) });
   const kontext = await browser.newContext({ viewport: { width: BREITE, height: 900 }, deviceScaleFactor: 1, locale: 'de-DE' });
-  const seite = await kontext.newPage();
-  for (const e of zuMachen) {
+  // Drei Eintraege zugleich (Betreiber, 31.10.2026: "die Bilder sollen schneller gehen"); die neuesten zuerst.
+  zuMachen.sort((a, b) => String(b.datum).localeCompare(String(a.datum)));
+  let naechster = 0;
+  const arbeiter = async () => {
+    const seite = await kontext.newPage();
+    while (naechster < zuMachen.length) {
+    const e = zuMachen[naechster++];
     const fotos = [];
     for (const [n, pfad] of (e.ansehen ?? []).filter(zeigbar).slice(0, 3).entries()) {
       try {
