@@ -4253,7 +4253,7 @@ export default function StatistikSeite() {
               </span>
               {sp.heimat && <RegionMarke region={sp.heimat} />}
               <span className="shrink-0 text-[10px] text-slate-600">
-                {zahl(sp.matches, 0, sprache)} <T>Matches</T>
+                {sp.matches > 0 ? <>{zahl(sp.matches, 0, sprache)} <T>Matches</T></> : '—'}
               </span>
             </button>
           ))}
@@ -5832,7 +5832,7 @@ export default function StatistikSeite() {
                               </div>
                             </td>
                             <td className="px-3 py-2.5 text-right tabular-nums text-slate-500">
-                              {zahl(sp.matches, 0, sprache)}
+                              {sp.matches > 0 ? zahl(sp.matches, 0, sprache) : '—'}
                             </td>
                             <td className="px-3 py-2.5 text-right font-bold tabular-nums
                                            text-sky-400">{zahl(sp.elims, 0, sprache)}</td>

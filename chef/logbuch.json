@@ -1831,5 +1831,25 @@
     "modell": "Sonnet",
     "status": "wartet",
     "runde": 5
+  },
+  {
+    "id": "chef-89",
+    "datum": "2026-10-31T21:24:00Z",
+    "titel": "Spielerlisten: unbekannte Matches als Strich",
+    "kurz": "Statistik → Jahr 2022: fehlende Matches zeigen „—“ statt „0 Matches“.",
+    "markieren": [
+      "text:Matches"
+    ],
+    "bereich": "Statistik",
+    "warum": "Seit chef-88 stehen bei alten Jahren ohne Szene-Werte keine Karriere-Matches mehr – ohne diese Änderung stünde dort „0 Matches“.",
+    "was": "Dort steht jetzt ein Strich. Gehört zu chef-88 – bitte beide gleich entscheiden.",
+    "ansehen": [
+      "/statistics?bereich=jahr&jahr=2022"
+    ],
+    "commits": [],
+    "groesse": "klein",
+    "modell": "Opus",
+    "status": "wartet",
+    "runde": 5
   }
 ]
