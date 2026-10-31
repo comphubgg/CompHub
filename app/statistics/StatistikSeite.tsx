@@ -4231,7 +4231,7 @@ export default function StatistikSeite() {
                           {sp.datum ? ` · ${new Date(sp.datum).toLocaleDateString(sprache === 'de' ? 'de-DE' : 'en-GB', { day: '2-digit', month: '2-digit' })}` : ''}
                           {/* Wie viele Matches des Tages wirklich drin sind - ein halb ausgewerteter Tag soll als solcher erkennbar sein. */}
                           {sp.quelle === 'eigene' && sp.ausgewertet !== null && (
-                            <span className="text-slate-600">{' · '}{sp.ausgewertet}{sp.gesamt ? `/${sp.gesamt}` : ''}{' '}<T>Matches</T></span>
+                            <span className="text-slate-600">{' · '}{sp.ausgewertet}{/* Eine Gesamtzahl unter der ausgewerteten Zahl ist falsch ("230/64") - dann nur die ausgewertete. */}{sp.gesamt && sp.gesamt >= sp.ausgewertet ? `/${sp.gesamt}` : ''}{' '}<T>Matches</T></span>
                           )}
                           {sp.quelle === 'szene' && <span className="text-slate-600"> · <T>Szene-Quelle</T></span>}
                         </li>

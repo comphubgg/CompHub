@@ -947,5 +947,26 @@
     "markieren": [
       "text:Longest Avg Time Alive"
     ]
+  },
+  {
+    "id": "chef-55",
+    "datum": "2026-10-31T20:20:00Z",
+    "titel": "Spieltag-Liste: keine unmögliche Zahl „230/64 Matches“ mehr",
+    "kurz": "Statistik → „Spieltage gezählt“ aufklappen: PE Cup EU 08.10. zeigt nicht mehr „230/64“.",
+    "markieren": [
+      "text:Spieltage gezählt",
+      "text:Matches"
+    ],
+    "bereich": "Statistik",
+    "warum": "Beim PE Cup EU vom 08.10. stand „230/64 Matches“ – mehr ausgewertet als es überhaupt gab, das ist unmöglich.",
+    "was": "Ist die Gesamtzahl kleiner als die ausgewerteten Matches, ist sie falsch und wird weggelassen; es steht dann nur „230 Matches“.",
+    "ansehen": [
+      "/statistics"
+    ],
+    "commits": [],
+    "groesse": "klein",
+    "modell": "Opus",
+    "status": "wartet",
+    "runde": 4
   }
 ]

@@ -175,7 +175,12 @@ async function aggregateLesen(season: string): Promise<AggregatTag[]> {
             eventId?: string; region?: string; titel?: string; von?: number;
           };
         if (!Array.isArray(roh.spieler) || !roh.spieler.length) return null;
-        const gesamt = gesamtJe.get(w) ?? null;
+        /*
+         * Die Gesamtzahl aus der Uebersicht kann kleiner sein als die ausgewerteten Matches (PE Cup EU 08.10.: 230 ausgewertet,
+         * Gesamtzahl 64) - dann zaehlt sie etwas anderes und ist hier falsch. Lieber keine Gesamtzahl als "230/64".
+         */
+        const gesamtRoh = gesamtJe.get(w) ?? null;
+        const gesamt = gesamtRoh !== null && gesamtRoh >= (roh.matches ?? 0) ? gesamtRoh : null;
         return {
           season, windowId: w,
           eventId: roh.eventId ?? '', region: roh.region ?? '',
