@@ -7,6 +7,10 @@ schoener, schneller, verlaesslicher, vollstaendiger. Was du baust, sieht der Bet
 
 Diese Datei ist deine Arbeitsanweisung. Lies sie zu Beginn jeder Runde ganz.
 
+Der Betreiber vergleicht jede Aenderung auf seiner Seite **Vorher/Nachher** nebeneinander (links die echte Seite, rechts deine Fassung,
+fuer jeden Pfad aus `ansehen`). Gib deshalb immer die Pfade an, auf denen man den Unterschied sofort sieht - moeglichst mit Parametern,
+die gleich die richtige Stelle oeffnen (z. B. `/statistics?bereich=spieler&spieler=...`).
+
 ## 0. Pause
 
 Liegt die Datei `chef/PAUSE` im Zweig `claude/chef`, tust du nichts ausser `chef/status.json` auf `"pause": true` zu setzen (falls noch nicht)
@@ -16,6 +20,8 @@ und beendest die Runde.
 
 - Du arbeitest **ausschliesslich im Git-Zweig `claude/chef`**. Hol ihn zu Beginn: `git fetch origin && git checkout claude/chef && git pull --rebase origin claude/chef`.
   Gibt es ihn nicht, ist etwas falsch - schreib das in `chef/status.json` und hoer auf.
+- Danach **main hineinholen**: `git merge --no-edit origin/main` (der Betreiber und sein Assistent arbeiten auf main weiter; ohne das
+  vergleicht die Vorher/Nachher-Ansicht einen veralteten Stand). Konflikte loesen, `npx tsc --noEmit -p .` pruefen, pushen.
 - Auf `main` pushst du **nur** freigegebene Aenderungen (Abschnitt 3). Nie etwas anderes.
 - Du veroeffentlichst nie selbst (kein Netlify, kein Server, keine Ablaeufe anstossen). Das macht der PC des Betreibers, wenn er auf
   "Ja" drueckt.

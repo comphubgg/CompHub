@@ -41,6 +41,8 @@ export default function ChefSeite() {
   const [sendet, setSendet] = useState<string | null>(null);
   const [notizFuer, setNotizFuer] = useState<string | null>(null);
   const [notiz, setNotiz] = useState('');
+  /** Vorher/Nachher: welche Karte und welcher Pfad gerade nebeneinander offen ist (Betreiber, 31.10.2026: "sehen, was er aendern wuerde und wieso"). */
+  const [vergleich, setVergleich] = useState<{ id: string; pfad: string } | null>(null);
 
   const laden = useCallback(() => fetch('/api/chef', { cache: 'no-store' }).then((r) => r.json())
     .then((j: Antwort) => { if (j.ok) { setDaten(j); setFehler(''); } else setFehler(j.error ?? 'Nicht erreichbar.'); })
@@ -95,10 +97,26 @@ export default function ChefSeite() {
         {!!x.ansehen?.length && (
           <div className="mt-5 flex flex-wrap gap-2">
             {x.ansehen.map((p) => (
-              <a key={p} href={p} target="_blank" rel="noreferrer"
-                className="rounded-full border border-zinc-700 px-4 py-1.5 text-sm font-semibold text-slate-200 transition hover:border-sky-500 hover:text-sky-400">
-                <T>Ansehen</T>: {p} ↗
-              </a>
+              <button key={p} type="button" onClick={() => setVergleich(vergleich?.id === x.id && vergleich.pfad === p ? null : { id: x.id, pfad: p })}
+                className={`rounded-full border px-4 py-1.5 text-sm font-semibold transition ${vergleich?.id === x.id && vergleich.pfad === p ? 'border-sky-500 bg-sky-500/15 text-sky-300' : 'border-zinc-700 text-slate-200 hover:border-sky-500 hover:text-sky-400'}`}>
+                <T>Vorher / Nachher</T>: {p}
+              </button>
+            ))}
+          </div>
+        )}
+        {vergleich?.id === x.id && (
+          <div className="mt-5 grid gap-4 lg:grid-cols-2">
+            {[
+              { titel: t('Vorher - die echte Seite'), url: `https://www.thecomphub.com${vergleich.pfad}` },
+              { titel: t('Nachher - die Fassung des Chefs'), url: vergleich.pfad },
+            ].map((f) => (
+              <div key={f.titel} className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-950">
+                <div className="flex items-center justify-between gap-3 border-b border-zinc-800 px-4 py-2 text-sm">
+                  <span className="font-bold text-slate-200">{f.titel}</span>
+                  <a href={f.url} target="_blank" rel="noreferrer" className="text-sky-400 hover:text-sky-300"><T>Groß öffnen</T> ↗</a>
+                </div>
+                <iframe src={f.url} title={f.titel} loading="lazy" className="h-[36rem] w-full bg-zinc-950" />
+              </div>
             ))}
           </div>
         )}
