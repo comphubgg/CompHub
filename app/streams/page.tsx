@@ -384,6 +384,36 @@ export default function Home() {
   const tourStepCount = tourSteps.length;
   const currentTourStep = tourSteps[tourStep] || tourSteps[0];
 
+  /*
+   * Das Speichern fuer alle kann scheitern - und das darf nicht unsichtbar bleiben.
+   * Sonst sieht die Seite gespeichert aus, und nach dem Neuladen ist die Aenderung weg.
+   * Der Hinweis bleibt, bis ein Speichern gelingt; "Erneut versuchen" wiederholt den letzten Stand.
+   */
+  const [speicherFehler, setSpeicherFehler] = useState<{ status: number } | null>(null);
+  const letzteAdminOrdner = useRef<Folder[] | null>(null);
+  const adminSpeichern = useCallback(async (ordner: Folder[]) => {
+    letzteAdminOrdner.current = ordner;
+    try {
+      // Der Admin schreibt die Grundlage - fuer alle.
+      const response = await fetch('/api/dashboard', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ folders: ordner }),
+      });
+      if (!response.ok) {
+        const errorText = await response.text().catch(() => '');
+        console.error('Failed to save dashboard:', response.status, errorText);
+        setSpeicherFehler({ status: response.status });
+      } else {
+        serverBasis.current = ordner;
+        setSpeicherFehler(null);
+      }
+    } catch (error) {
+      console.error('Failed to save dashboard:', error);
+      setSpeicherFehler({ status: 0 });
+    }
+  }, []);
+
   const persistFolders = useCallback((updatedFolders: Folder[], options?: { activeFolderId?: string; activeStreamerTwitch?: string }) => {
     const normalizedFolders = updatedFolders.map((folder) => ({
       ...folder,
@@ -395,18 +425,7 @@ export default function Home() {
     const saveDashboard = async () => {
       try {
         if (isAdminRef.current) {
-          // Der Admin schreibt die Grundlage - fuer alle.
-          const response = await fetch('/api/dashboard', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ folders: normalizedFolders }),
-          });
-          if (!response.ok) {
-            const errorText = await response.text();
-            console.error('Failed to save dashboard:', response.status, errorText);
-          } else {
-            serverBasis.current = normalizedFolders;
-          }
+          await adminSpeichern(normalizedFolders);
         } else if (authorizedRef.current) {
           // Alle anderen schreiben nur, was ueber die Grundlage hinausgeht.
           await saveUserStorageCloud('multihub_eigene',
@@ -1805,6 +1824,20 @@ const response = await fetch(getApiUrl(`/api/search?q=${encodeURIComponent(twitc
     setTwitchSearchResults([]);
   };
 
+  const speicherLeiste = speicherFehler && (
+    <div role="alert"
+      className="fixed inset-x-3 top-3 z-[200] mx-auto flex max-w-xl flex-wrap items-center gap-3 rounded-xl border border-rose-500/60 bg-rose-950/90 px-4 py-2.5 text-sm font-medium text-rose-200 shadow-lg">
+      <span className="min-w-0 flex-1">
+        {t('Nicht gespeichert – Server antwortet nicht')}
+        {' '}({speicherFehler.status ? `HTTP ${speicherFehler.status}` : t('Keine Verbindung')})
+      </span>
+      <button type="button"
+        onClick={() => { if (letzteAdminOrdner.current) void adminSpeichern(letzteAdminOrdner.current); }}
+        className="rounded-lg bg-sky-500 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-sky-400">
+        {t('Erneut versuchen')}
+      </button>
+    </div>
+  );
   /*
    * Die Mehrfachansicht: eine eigene Wand nach dem Vorbild von viewington.com/watch.
    *
@@ -1819,6 +1852,8 @@ const response = await fetch(getApiUrl(`/api/search?q=${encodeURIComponent(twitc
       : kachelnGezeigt.length ? kachelnGezeigt.map((k) => k.twitch)
       : activeStreamerTwitch ? [activeStreamerTwitch] : [];
     return (
+      <>
+      {speicherLeiste}
       <Multiview
         host={currentHost}
         start={mvStart}
@@ -1860,6 +1895,7 @@ const response = await fetch(getApiUrl(`/api/search?q=${encodeURIComponent(twitc
         }}
         zurEinzelansicht={mehrfachUmschalten}
       />
+      </>
     );
   }
 
@@ -1871,6 +1907,8 @@ const response = await fetch(getApiUrl(`/api/search?q=${encodeURIComponent(twitc
    */
   const darfOrdnerHier = !isGuest && (darfOrdner || isAdmin);
   return (
+    <>
+    {speicherLeiste}
     <Einzelansicht
       host={currentHost}
       ordner={folders}
@@ -1939,5 +1977,6 @@ const response = await fetch(getApiUrl(`/api/search?q=${encodeURIComponent(twitc
       lautstaerke={streamVolume}
       zurMultiview={mehrfachUmschalten}
     />
+    </>
   );
 }

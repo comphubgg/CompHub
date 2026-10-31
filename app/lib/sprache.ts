@@ -4726,6 +4726,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Nicht gelöscht': 'Not deleted',
   'Nicht wiederhergestellt': 'Not restored',
   'Keine Verbindung': 'No connection',
+  'Nicht gespeichert – Server antwortet nicht': 'Not saved – server is not responding',
   'Wie alle': 'Same as all',
   'Kanal ändern': 'Edit channel',
   'Seitenleiste öffnen (Strg + B)': 'Open sidebar (Ctrl + B)',
