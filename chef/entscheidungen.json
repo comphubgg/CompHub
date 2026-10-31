@@ -301,8 +301,9 @@
     "notiz": "",
     "zeit": "2026-10-31T21:14:28.388Z",
     "uebernahme": {
-      "stand": "laeuft",
-      "text": "Wird gerade übernommen …"
+      "stand": "konflikt",
+      "text": "Passt nicht ohne Weiteres auf den aktuellen Stand der Seite (app/statistics/StatistikSeite.tsx) - der Chef löst das in seiner nächsten Runde.",
+      "zeit": "2026-10-31T21:18:02.241Z"
     }
   },
   "chef-68": {
