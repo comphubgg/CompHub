@@ -88,7 +88,9 @@
     ],
     "groesse": "klein",
     "datum": "2026-10-31T18:51:20Z",
-    "commits": [],
+    "commits": [
+      "b990d7986f72171f25bc0bb621ff6cb6efd647ad"
+    ],
     "modell": "Opus",
     "status": "wartet",
     "runde": 1
@@ -106,7 +108,9 @@
     ],
     "groesse": "klein",
     "datum": "2026-10-31T18:52:18Z",
-    "commits": [],
+    "commits": [
+      "2b43fd9b9fe7763b70494c8385aa1b933b17a9a8"
+    ],
     "modell": "Opus",
     "status": "wartet",
     "runde": 1
@@ -122,7 +126,9 @@
     ],
     "groesse": "klein",
     "datum": "2026-10-31T18:54:07Z",
-    "commits": [],
+    "commits": [
+      "cf46af5e411a5c15293a47fe4f0d6ffddc0130ea"
+    ],
     "modell": "Opus",
     "status": "wartet",
     "runde": 1
@@ -138,7 +144,9 @@
     ],
     "groesse": "klein",
     "datum": "2026-10-31T18:54:48Z",
-    "commits": [],
+    "commits": [
+      "3daf185d76798a3a30053da6f6e056b1d82228d3"
+    ],
     "modell": "Opus",
     "status": "wartet",
     "runde": 1
@@ -156,7 +164,9 @@
     ],
     "groesse": "klein",
     "datum": "2026-10-31T18:57:23Z",
-    "commits": [],
+    "commits": [
+      "d4078a0ca2df36195840a6db81e974a5542f939e"
+    ],
     "status": "wartet",
     "runde": 1
   },
@@ -172,7 +182,9 @@
     ],
     "groesse": "klein",
     "datum": "2026-10-31T18:59:02Z",
-    "commits": [],
+    "commits": [
+      "a5174e2aaea40aeff1a6e01434e4a2facd3f32e9"
+    ],
     "modell": "Opus",
     "status": "wartet",
     "runde": 1
@@ -189,7 +201,9 @@
     ],
     "groesse": "klein",
     "datum": "2026-10-31T19:00:30Z",
-    "commits": [],
+    "commits": [
+      "adca7e90fddfa30066108a067931e6239efed744"
+    ],
     "modell": "Opus",
     "status": "wartet",
     "runde": 1
@@ -206,7 +220,9 @@
     ],
     "groesse": "mittel",
     "datum": "2026-10-31T19:01:15Z",
-    "commits": [],
+    "commits": [
+      "249532a6472a85af134d6520b7d5e678c4a5f723"
+    ],
     "status": "wartet",
     "runde": 1
   },
@@ -224,7 +240,9 @@
     ],
     "groesse": "mittel",
     "datum": "2026-10-31T19:01:15Z",
-    "commits": [],
+    "commits": [
+      "300406b5919c44293566ddd47fdf6f99892e700a"
+    ],
     "status": "wartet",
     "runde": 1
   },
@@ -240,7 +258,9 @@
     ],
     "groesse": "klein",
     "datum": "2026-10-31T19:03:39Z",
-    "commits": [],
+    "commits": [
+      "ddffd2a2584db8a59b7e4df7a35288aab8dbf567"
+    ],
     "modell": "Opus",
     "status": "wartet",
     "runde": 1
@@ -256,7 +276,9 @@
     ],
     "groesse": "klein",
     "datum": "2026-10-31T19:04:08Z",
-    "commits": [],
+    "commits": [
+      "52b8ec6e41ce2f7ff8ca50accdc87ab47dee8c4c"
+    ],
     "modell": "Opus",
     "status": "wartet",
     "runde": 1
@@ -274,7 +296,9 @@
     ],
     "groesse": "klein",
     "datum": "2026-10-31T19:04:42Z",
-    "commits": [],
+    "commits": [
+      "a1e12749b7a5664317dcc40f03ba1d1f1e1ceeb8"
+    ],
     "modell": "Opus",
     "status": "wartet",
     "runde": 1
@@ -291,7 +315,45 @@
     ],
     "groesse": "mittel",
     "datum": "2026-10-31T19:05:11Z",
-    "commits": [],
+    "commits": [
+      "63a7625a68b6d73194f6749a624fcc9ffb6c84dd"
+    ],
+    "status": "wartet",
+    "runde": 1
+  },
+  {
+    "id": "chef-15",
+    "titel": "Foto-Eingang: eine kurze Störung kann die Sammlung nicht mehr löschen",
+    "bereich": "Daten",
+    "modell": "Sonnet",
+    "warum": "Wenn der Foto-Befehl neue Spielerfotos schickt, liest die Seite erst die bisherige Liste und hängt die neuen an. Hakte die Ablage beim Lesen kurz, galt die Liste als leer – und beim Speichern blieben nur die neuen Einträge übrig. Bis zu 40.000 gesammelte Foto-Adressen wären weg gewesen. Ein Speicherfehler kam außerdem als „alles gut“ zurück.",
+    "was": "Bei einer Lese- oder Speicherstörung bricht die Seite jetzt ab und meldet „Ablage antwortet nicht – gleich nochmal senden“; die Sammlung bleibt unangetastet. Nur wenn die Liste wirklich noch nicht existiert, wird neu angefangen. Sichtbar nur, wenn eine Störung auftritt.",
+    "ansehen": [
+      "/admin"
+    ],
+    "groesse": "klein",
+    "datum": "2026-10-31T19:05:38Z",
+    "commits": [
+      "7ae03b039bfdf6e83e406c97b6efb173a03c8489"
+    ],
+    "status": "wartet",
+    "runde": 1
+  },
+  {
+    "id": "chef-16",
+    "titel": "Match-Finder: Epic-Ausfall heißt nicht mehr „Spieler nicht gefunden“",
+    "bereich": "Daten",
+    "modell": "Sonnet",
+    "warum": "Antwortete Epic beim Match-Finder nicht (Anmeldung gestört oder zu langsam), kam dieselbe Antwort wie bei einem Tippfehler: niemand gefunden. Der VIP dachte, er habe sich vertippt.",
+    "was": "Bei einem Epic-Ausfall steht jetzt „Epic antwortet gerade nicht“ in einem roten Kasten, dazu ein Knopf „Nochmal versuchen“, der die Suche wiederholt. „Niemand gefunden“ erscheint nur noch, wenn Epic wirklich sagt, dass es den Namen nicht gibt.",
+    "ansehen": [
+      "/match-finder"
+    ],
+    "groesse": "klein",
+    "datum": "2026-10-31T19:05:38Z",
+    "commits": [
+      "562c7b5a26e9d2e80ee7b22be5de2fbace24010f"
+    ],
     "status": "wartet",
     "runde": 1
   }
