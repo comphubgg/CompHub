@@ -142,5 +142,22 @@
     "modell": "Opus",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-7",
+    "titel": "Statistik: weitere Reiter auf dem Handy erkennbar",
+    "bereich": "Statistik",
+    "modell": "Sonnet",
+    "warum": "Die Reiterleiste der Statistik (Highlights, Cups, Regionen, Spieler, 2026, Orgs) lässt sich auf dem Handy seitlich wischen – aber nichts zeigte, dass rechts noch Reiter kommen. Die hinteren waren einfach abgeschnitten.",
+    "was": "Solange rechts (oder links) noch Reiter folgen, liegt dort ein weicher Verlauf mit einem kleinen blauen Pfeil. Der gewählte Reiter rollt beim Öffnen von selbst in die Mitte. Am Computer, wo alles hineinpasst, ändert sich nichts. Zum Ansehen das Browserfenster schmal ziehen.",
+    "ansehen": [
+      "/statistics",
+      "/statistics?bereich=orgs"
+    ],
+    "groesse": "klein",
+    "datum": "2026-10-31T18:57:23Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]
