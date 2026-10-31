@@ -985,7 +985,9 @@
     "ansehen": [
       "/statistics?spieler=peterbot"
     ],
-    "commits": [],
+    "commits": [
+      "e4d25dc5ace29b4dee9b0b782b61b2f8bee2fae0"
+    ],
     "groesse": "klein",
     "modell": "Sonnet",
     "status": "wartet",
