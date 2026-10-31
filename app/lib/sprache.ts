@@ -2249,6 +2249,8 @@ const AUF_ENGLISCH: Record<string, string> = {
     'Nothing found for',
   'gerade':
     'right now',
+  'Stand:':
+    'As of',
   'Spieltage gezählt':
     'match days counted',
   'je Spieler, aus Replays, Opens und Finals':
