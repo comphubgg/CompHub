@@ -3846,6 +3846,19 @@ export default function StatistikSeite() {
    * der Vergleich richten sich alle nach dieser einen Auswahl.
    */
   const alleSaisons = saison === 'alle';
+  /**
+   * Stand der vorgerechneten Saisonlisten: der juengste Spieltag, der wirklich
+   * gezaehlt ist (aus dem Nachweis der Startantwort). Fehlt ein Datum, bleibt
+   * es leer - dann zeigt die Seite nichts an. Mit Region nur deren Spieltage.
+   */
+  const standDatum = useMemo(
+    () => (region: string) => {
+      const tage = (grundlage?.spieltage ?? []).filter((x) => x.datum && (!region || x.region === region));
+      return tage.length ? datumText(Math.max(...tage.map((x) => x.datum as number)), sprache) : '';
+    },
+    [grundlage, sprache],
+  );
+
   const saisonTitel = useMemo(
     () => (saison === 'alle' ? t('alle Saisons')
       : saisons.find((x) => x.kennung === saison)?.name ?? saison),
@@ -4317,7 +4330,7 @@ export default function StatistikSeite() {
                   <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
                     <div>
                       <h2 className="schrift-anzeige text-xl font-bold text-slate-100"><T>Meiste Eliminierungen</T></h2>
-                      <p className="mt-0.5 text-xs text-slate-500">{saisonTitel} <T>· alle Regionen</T></p>
+                      <p className="mt-0.5 text-xs text-slate-500">{saisonTitel} <T>· alle Regionen</T>{standDatum('') && <> · <T>Stand:</T> {standDatum('')}</>}</p>
                     </div>
                     <button type="button"
                       onClick={async () => {
@@ -5589,7 +5602,9 @@ export default function StatistikSeite() {
                   <p className="text-xs font-bold uppercase tracking-[0.2em] text-sky-500"><T>Archiv</T></p>
                   <h2 className="schrift-anzeige mt-1 text-3xl font-extrabold tracking-tight text-slate-100 sm:text-4xl"><T>Alle Spieler</T></h2>
                 </div>
-                <p className="text-sm text-slate-500">{zahl(gesamt, 0, sprache)} <T>Spieler</T></p>
+                <p className="text-sm text-slate-500">{zahl(gesamt, 0, sprache)} <T>Spieler</T>
+                  {standDatum(region) && <span className="block text-right text-xs"><T>Stand:</T> {standDatum(region)}</span>}
+                </p>
               </div>
               <div className="mb-6 flex flex-wrap items-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-900 p-2 shadow-sm">
                 <button onClick={() => setRegion('')}
