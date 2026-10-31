@@ -1914,7 +1914,9 @@
     ],
     "groesse": "klein",
     "modell": "Sonnet",
-    "commits": [],
+    "commits": [
+      "d716eed69cb4c0fed35815a305e2c6aa9d80dc62"
+    ],
     "status": "wartet",
     "runde": 6
   },
@@ -1935,7 +1937,9 @@
     ],
     "groesse": "klein",
     "modell": "Sonnet",
-    "commits": [],
+    "commits": [
+      "ea513de6271e32b8f7f127fc4728fa1a3b3b3049"
+    ],
     "status": "wartet",
     "runde": 6
   },
@@ -1954,7 +1958,9 @@
     "ansehen": [
       "/statistics?spieler=45ce4565b6db452c9419119b12e7eac3&saison=S42"
     ],
-    "commits": [],
+    "commits": [
+      "ed87f949406445ec72c30f8cb43a2e720539ca69"
+    ],
     "groesse": "klein",
     "modell": "Sonnet (gefunden) + Opus (übertragen)",
     "status": "wartet",
