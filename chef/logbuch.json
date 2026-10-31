@@ -368,7 +368,9 @@
     ],
     "groesse": "klein",
     "datum": "2026-10-31T19:07:02Z",
-    "commits": [],
+    "commits": [
+      "5c07480bdd9f6c538abbd26ce2f73cf6312712c9"
+    ],
     "modell": "Opus",
     "status": "wartet",
     "runde": 1
@@ -385,7 +387,9 @@
     ],
     "groesse": "mittel",
     "datum": "2026-10-31T19:11:31Z",
-    "commits": [],
+    "commits": [
+      "a18db8f6e72d6cd97f77aac987a1df62c7e742e7"
+    ],
     "status": "wartet",
     "runde": 1
   },
@@ -401,7 +405,9 @@
     ],
     "groesse": "mittel",
     "datum": "2026-10-31T19:13:06Z",
-    "commits": [],
+    "commits": [
+      "57f1a8d2204ad01a4db4398fdc5c023e4df49330"
+    ],
     "status": "wartet",
     "runde": 1
   },
@@ -417,7 +423,9 @@
     ],
     "groesse": "klein",
     "datum": "2026-10-31T19:13:07Z",
-    "commits": [],
+    "commits": [
+      "56cf9048bc3e51457ea944bfb613f1b0ecfac75a"
+    ],
     "status": "wartet",
     "runde": 1
   },
@@ -432,7 +440,9 @@
     ],
     "groesse": "klein",
     "datum": "2026-10-31T19:14:25Z",
-    "commits": [],
+    "commits": [
+      "c3fc55dcf599bd69928d3d5e32de793c4d075d04"
+    ],
     "modell": "Opus",
     "status": "wartet",
     "runde": 1
@@ -450,7 +460,9 @@
     ],
     "groesse": "klein",
     "datum": "2026-10-31T19:15:15Z",
-    "commits": [],
+    "commits": [
+      "b49d3486c30c2db62fa3303113859f8419fccb35"
+    ],
     "status": "wartet",
     "runde": 1
   },
@@ -466,7 +478,9 @@
     ],
     "groesse": "klein",
     "datum": "2026-10-31T19:15:32Z",
-    "commits": [],
+    "commits": [
+      "034aa84f56d30e114b8c0389dca0488b8769f839"
+    ],
     "status": "wartet",
     "runde": 1
   }

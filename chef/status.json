@@ -1,12 +1,12 @@
 {
-  "letzteRunde": "2026-10-31T18:55:00Z",
-  "macheGerade": "Runde 2 läuft",
+  "letzteRunde": "2026-10-31T19:17:00Z",
+  "macheGerade": "Runde 2 fertig – 21 neue Verbesserungen (chef-5 bis chef-26, ohne chef-2) warten auf deine Entscheidung; chef-1 bis chef-4 sind live.",
   "naechstes": [
-    "Zeitplan-Schnittstellen auf Fehlercodes pruefen",
-    "Alte Schluessel-Uebersetzungen klaeren",
-    "Seitentitel und Ladeschirme je Reiter pruefen"
+    "Saison-Bestenlisten enden am 10.10., Profile haben Spieltage bis 27.10. – mit Zugang zur Ablage prüfen",
+    "Teilen-Vorschau für Spielerprofile und Cup-Seiten (Name und Bild)",
+    "Roboto doppelt geladen, Geist-Vorladen – mit Blick im Browser",
+    "GitHub-Rechner überbucht / Vorrang-Signal (nur als Vorschlag, Abläufe sind tabu)"
   ],
   "pause": false,
-  "modell": "Opus",
-  "laeuftSeit": "2026-10-31T18:47:00Z"
+  "modell": "Opus (Planung, Prüfung, Statistik) + Sonnet (Unteragenten)"
 }
