@@ -106,7 +106,7 @@
   <div class="kopf"><b style="font-size:15px">CompHub · ${neu.length} neue von ${alle.length} Bildern</b>
     <span style="color:#94a3b8">${listeOk ? `${bekannt.size} Namen mit Foto auf CompHub ausgeblendet` : 'CompHub-Liste nicht erreichbar (Seite blockt) - es werden alle gezeigt'} · Klick aufs Bild = abwaehlen</span>
     <span style="flex:1"></span>
-    <button id="ch-los">Herunterladen</button><button class="grau" id="ch-kopie">Liste kopieren</button><button class="grau" id="ch-zu">Schliessen</button></div>
+    <button id="ch-senden" style="background:#22c55e">Alle ${alle.length} an CompHub senden</button><button id="ch-los">Herunterladen</button><button class="grau" id="ch-kopie">Liste kopieren</button><button class="grau" id="ch-zu">Schliessen</button></div>
   <div class="gitter"></div>`;
   document.body.appendChild(box);
   const gitter = box.querySelector('.gitter');
@@ -123,6 +123,31 @@
   const datei = (n) => n.trim().toUpperCase().replace(/[\\/:*?"<>|]+/g, '').replace(/\s+/g, ' ');
 
   box.querySelector('#ch-zu').onclick = () => box.remove();
+  /*
+   * Alle Bilder der Seite an CompHub schicken - auch die, die es schon gibt, damit alle Fotos gleich zugeschnitten werden koennen (Betreiber, 31.10.2026:
+   * "dass ich sie nicht mal downloaden muss"). Geschickt werden nur Namen und Adressen; die Bilder holt CompHub selbst. Blockt die Seite das Senden,
+   * landet die Liste in der Zwischenablage.
+   */
+  box.querySelector('#ch-senden').onclick = async () => {
+    const korrigiert = new Map(karten.map((x) => [x.f.url, x.feld.value.trim()]));
+    const eintraege = alle.map((f) => ({ name: (korrigiert.get(f.url) || f.name || '').toUpperCase(), url: f.url, vorhanden: hat(f.name) }))
+      .filter((e) => e.name && !karten.some((x) => x.f.url === e.url && x.k.classList.contains('aus')));
+    const knopfSenden = box.querySelector('#ch-senden');
+    knopfSenden.textContent = 'Sende ...';
+    try {
+      const r = await fetch('https://www.thecomphub.com/api/fotos-eingang', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ quelle: location.hostname, eintraege }),
+      });
+      const j = await r.json();
+      if (!j.ok) throw new Error(j.fehler || 'abgelehnt');
+      knopfSenden.textContent = `Gesendet: ${j.empfangen} (insgesamt ${j.gesamt})`;
+      alert(`${j.empfangen} Bilder an CompHub gesendet. Claude holt und schneidet sie zu - du musst nichts herunterladen.`);
+    } catch (e) {
+      await navigator.clipboard.writeText(eintraege.map((x) => x.name + String.fromCharCode(9) + x.url).join(String.fromCharCode(10))).catch(() => {});
+      knopfSenden.textContent = 'Senden blockiert - Liste kopiert';
+      alert(`Diese Seite blockt das Senden (${e.message}). Die Liste ist in der Zwischenablage - einfach Claude schicken.`);
+    }
+  };
   box.querySelector('#ch-kopie').onclick = async () => {
     const text = gewaehlt().map((x) => `${datei(x.feld.value)}\t${x.f.url}`).join('\n');
     await navigator.clipboard.writeText(text);
