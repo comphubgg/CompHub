@@ -1553,6 +1553,7 @@ export async function startseite(saison?: string, wieViele = 25, jeTag = 3) {
   const elimsListe = listen.find((l) => l.feld === 'elims');
   if (elimsListe && jeRegion.size) {
     const archivNamen = new Map(saisonFeld.map((s) => [s.epicId, s.name]));
+    const saisonWerte = new Map(saisonFeld.map((s) => [s.epicId, s]));
     const gespeichert = await liesJson<Record<string, string>>('epic-namen.json', {});
     const heimatKarte = await heimatRegionen();
     const plaetze = [...jeRegion.entries()].map(([id, z]) => {
@@ -1595,6 +1596,16 @@ export async function startseite(saison?: string, wieViele = 25, jeTag = 3) {
       s.namen = s.name ? [s.name] : [];
       s.regionen = ohneLan.map(([r]) => r);
       s.elimsProMatch = s.matches ? s.elims / s.matches : 0;
+      /*
+       * Schaden, Treffer, Bauteile und Quote aus derselben Saisonsumme wie die Schadensliste. Vorher standen hier Nullen aus
+       * leereSumme: Peterbot hatte in der Elims-Liste "0 Schaden", in der Schadensliste derselben Antwort 42.853.
+       */
+      const w = saisonWerte.get(id);
+      if (w) {
+        for (const k of ['shots', 'hits', 'headshots', 'damage', 'damageTaken', 'mats', 'builds', 'quote', 'genauigkeit', 'damageProMatch'] as const) {
+          s[k] = w[k];
+        }
+      }
       // Die Aufteilung je Region; die LAN steckt in der Heimat, damit die Summe stimmt.
       const lan = z.get('*');
       const jeRegionSumme: Record<string, RegionSumme> = Object.fromEntries(ohneLan);
