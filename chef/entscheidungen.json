@@ -1,1 +1,11 @@
-{}
+{
+  "chef-1": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T18:39:27.856Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade uebernommen ..."
+    }
+  }
+}
