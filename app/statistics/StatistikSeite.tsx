@@ -1,0 +1,7104 @@
+'use client';
+
+// Der Statistikbereich.
+//
+// Aufgebaut wie das Vorbild aus der Szene: links eine feste Leiste mit den
+// Bereichen und darunter die laufende Bestenliste, rechts der Inhalt. Oben in
+// der Uebersicht der juengste Spieltag als grosse Karte, darunter die
+// Bestenlisten der Saison in einem Raster.
+//
+// Zwei Unterschiede sind Absicht, nicht Nachlaessigkeit:
+//
+//   * Die Akzentfarbe ist das Blau der Startseite, nicht das Gold des
+//     Vorbilds - im Werkzeug gilt durchgehend eine Farbe.
+//   * Es gibt kein "Rating". Es steht in keiner offenen Datei der Quelle, und
+//     eine geratene Formel waere eine erfundene Zahl. Wo dort das Rating die
+//     Kopfzahl ist, stehen hier Eliminierungen - und die Ueberschrift sagt es.
+//
+// Ebenso fehlen die Spielerfotos: das sind lizenzierte Pressebilder.
+
+import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
+import SpielerPlatzhalter from '@/app/components/SpielerPlatzhalter';
+import StatistikZahlen from './StatistikZahlen';
+import StatistikAufmacher from './StatistikAufmacher';
+import { useSearchParams } from 'next/navigation';
+import TeamFlagge from '@/components/TeamFlagge';
+import { ohneZierrat } from '@/lib/homoglyph';
+
+import T from '@/app/components/T';
+import { FncsReiter, ErfolgeReiter, KarriereBest, type TafelZeile, type Erfolg } from './ProfilFncs';
+import { bildPfad } from '@/app/components/ArchivTeile';
+import type { GalerieEintrag } from '@/lib/galerieTypen';
+import ProfilVerlauf from './ProfilVerlauf';
+import { JAHR_SAISONS, jahrVonSaison } from '@/lib/saisonJahre';
+import LadeSchirm from '@/app/components/LadeSchirm';
+import SpielerArchiv from '@/app/components/SpielerArchiv';
+import Organisationen from './Organisationen';
+import { regionFarbe, REGIONEN_REIHE } from '@/lib/regionFarbe';
+import { useSprache, useT } from '@/app/components/SprachProvider';
+import { useZugang } from '@/app/lib/zugang';
+import { sichtbarerTakt } from '@/app/lib/takt';
+import Vergleich from './Vergleich';
+import RueckblickBild from './RueckblickBild';
+/**
+ * In welcher Reihenfolge die Regionen stehen.
+ *
+ * Der Betreiber sitzt in Europa und schaut dort zuerst hin; alphabetisch
+ * sortiert stuende ASIA vorn und EU an dritter Stelle. Was hier nicht
+ * aufgezaehlt ist, folgt dahinter in der Reihenfolge der Quelle.
+ */
+const REGION_REIHE = ['EU', 'NAC', 'NAW'];
+
+function nachRegionReihe(regionen: string[]): string[] {
+  const rang = (r: string) => {
+    const i = REGION_REIHE.indexOf(r);
+    return i === -1 ? REGION_REIHE.length : i;
+  };
+  return [...regionen].sort((a, b) => rang(a) - rang(b));
+}
+
+type Bereich = 'start' | 'turniere' | 'regional' | 'spieler' | 'jahr' | 'orgs' | 'vergleich' | 'bilder';
+
+/** Das Jahr der Jahresansicht - siehe JAHR_SAISONS in lib/szeneStats. */
+const JAHR = 2026;
+
+/**
+ * Wer einen Bereich sehen darf - vom Betreiber je Bereich schaltbar.
+ *
+ * Ein Schloss unten rechts: gruen heisst fuer alle, gelb nur fuer VIPs,
+ * rot nur fuer ihn selbst. Der Betreiber: "Wenn das Schloss gruen ist, ist
+ * es fuer jeden sichtbar; rot nur fuer mich; gelb nur fuer VIPs."
+ */
+type Sichtbar = 'alle' | 'vip' | 'admin';
+const SICHTBAR_STANDARD: Record<Bereich, Sichtbar> = {
+  start: 'alle', turniere: 'alle', regional: 'alle', spieler: 'alle', jahr: 'alle',
+  orgs: 'alle', vergleich: 'vip', bilder: 'admin',
+};
+const SICHTBAR_REIHE: Sichtbar[] = ['alle', 'vip', 'admin'];
+type SpielerReiter = 'uebersicht' | 'leistung' | 'werte' | 'turniere' | 'fncs' | 'erfolge' | 'verdienst' | 'teams' | 'archiv';
+
+/** Ein LAN-Ergebnis mit Preisgeld - aus data/lan-preisgelder.json. */
+interface LanErgebnis {
+  kennung: string; name: string; season: string; fenster: string; ort: string | null;
+  platz: number; betrag: number; waehrung: string;
+  /** Tag der LAN (ms) und die Mitspieler auf demselben Platz - seit 29.10.2026 (lib/szeneStats, lanErgebnisse). */
+  datum?: number | null; mit?: Array<{ epicId: string; name: string }>;
+}
+
+interface Spieler {
+  epicId: string; name: string; anzeige: string; namen: string[];
+  /** Nur in der Elims-Liste der Startansicht: Finals und Opens getrennt. */
+  finalsElims?: number; opensElims?: number; finals?: number; opens?: number;
+  opensMatches?: number;
+  /** Nur in der Preisgeldliste des Jahres. */
+  verdienst?: number;
+  land: string | null; x: string | null; regionen: string[];
+  /** Die Region, in der dieses Konto am haeufigsten gespielt hat. */
+  heimat: string;
+  /** Wurde der Name von Hand gesetzt? Dann gilt er woertlich. */
+  gepflegt?: boolean;
+  /** Ein wirkliches Foto - oder nur die Silhouette? */
+  echtesFoto?: boolean;
+  /** Der Pfad zum Spielerbild - Platzhalter, bis ein echtes Foto daliegt. */
+  bild: string | null;
+  events: number; matches: number;
+  elims: number; assists: number; reboots: number; shots: number; hits: number;
+  headshots: number; damage: number; damageTaken: number; heals: number;
+  stormDamage: number; fallDamage: number; mats: number; builds: number;
+  distanz: number; timeInStorm: number; timeAlive: number;
+  quote: number; genauigkeit: number; elimsProMatch: number; damageProMatch: number;
+}
+
+interface Turnier {
+  region: string; season: string; datei: string; windowId: string;
+  /** Die Kachel "Finals" einer LAN: die Fenster aller Tage, zusammengerechnet. */
+  events?: string[]; gesamt?: boolean;
+  /** Die Tage dieser LAN - zum Umschalten zwischen Tag und Summe. */
+  tage?: Array<{ windowId: string; datei: string; titel: string }>;
+  name: string; spieler: number; matches: number; datum?: number;
+  /** Aus eigenen Daten (Epic + Replays) - und ob dort noch Werte fehlen, weil die Replays noch gelesen werden (lib/szeneEigen). */
+  eigen?: boolean; unvollstaendig?: boolean;
+  /** Eine LAN - mit Namen und Ort, aus der LAN-Datei. */
+  lan?: { name: string | null; ort: string | null } | null;
+  /** Epics eigene Grafik zum Cup, sofern eine passt. */
+  bild?: string | null;
+  /** "CH7 S3" statt "S41". */
+  saisonName?: string;
+  /*
+   * Nur Epic kennt diesen Spieltag - die Szene-Quelle hat ihn noch nicht.
+   *
+   * Dann gibt es Platz, Punkte und Matches, aber keinen Schaden, kein
+   * Material und keine Bauteile. Die Kachel schreibt das dazu, statt eine
+   * Luecke wie eine Null aussehen zu lassen.
+   */
+  nurEpic?: boolean;
+  istFinale?: boolean;
+  eventId?: string;
+}
+
+/** Ein Spieltag samt einem seiner besten Spieler - eine Kachel des Wechslers. */
+interface Kachel {
+  turnier: Turnier;
+  spitze: Spieler;
+  platz?: number;
+  /**
+   * Wie der Spieltag fuer ihn ausging - aus Epics gespiegelter Bestenliste.
+   *
+   * Der Betreiber zur Startkachel: "die Ranks nicht da, die Points nicht da,
+   * wo das das Wichtigste ist eigentlich. Und dass zumindest immer die
+   * Teammates da sind."
+   */
+  stand?: {
+    platz: number;
+    punkte: number;
+    mitspieler: Array<{ epicId: string; name: string; land: string | null }>;
+  } | null;
+}
+
+interface Liste {
+  /** Nur bei der Quotenliste: wie viele Matches jemand haben muss. */
+  mindestMatches?: number | null;
+  feld: string; titel: string; nachkomma: number; einheit: string | null;
+  plaetze: Spieler[];
+  /** Wie viele Plaetze es insgesamt gibt - die Startantwort schickt nur die ersten; der Rest kommt mit "&liste=<feld>". */
+  gesamt?: number;
+}
+
+/**
+ * Eine Rangstufe aus Epics eigenem Ranked-System.
+ *
+ * Anders als die Turnierdaten laesst es sich fuer jeden Spieler abrufen -
+ * die Schnittstelle dafuer lag fertig im Werkzeug und wurde von niemandem
+ * gerufen. Gezeigt wird nur der aktuelle Stand je Spielart, nicht die ganze
+ * Geschichte seit 2023.
+ */
+interface RangStufe {
+  trackguid: string;
+  rankingType: string;
+  /** Die Stufe als Zahl - der Name dazu haengt an der Zahl der Stufen. */
+  division: number;
+  /** Nur an der Spitze vergibt Epic eine Platzziffer. */
+  ranking: number | null;
+  aktualisiert: string | null;
+  gespielt: boolean;
+  /** Wie viele Stufen diese Rangsaison hat - aus der Trackliste. */
+  stufen?: number;
+}
+
+/**
+ * Wie die Spielart heisst.
+ *
+ * Epic vergibt seinen Rangsaisons interne Namen - "RadiantToothpick-solo-
+ * ranked", "ranked-blastberry-combined", "delmar-competitive". Was sich
+ * daraus sicher ablesen laesst, steht hier; alles andere bleibt stehen, wie
+ * Epic es nennt. Eine huebschere Bezeichnung waere geraten.
+ */
+function rangArt(typ: string): string {
+  const k = typ.toLowerCase();
+  if (k.includes('-solo-')) return 'Solo';
+  if (k.includes('-duos-')) return 'Duos';
+  if (k.includes('-trios-')) return 'Trios';
+  if (k.includes('competitive')) return 'Competitive';
+  if (k.includes('-br-') || k.endsWith('-br')) return 'Battle Royale';
+  if (k.includes('-zb-') || k.endsWith('-zb')) return 'Zero Build';
+  if (k.includes('reload')) return 'Reload';
+  if (k.includes('-og-') || k.endsWith('-og')) return 'OG';
+  /*
+   * Bleibt Epics Deckname uebrig, faellt die Zeile weg.
+   *
+   * Epic benennt seine Rangsaisons intern nach Zufallsworten -
+   * "ranked-blastberry-combined", "ranked-squareclub",
+   * "RadiantToothpick-solo-ranked". Kurz stand "Blastberry" im Profil, und
+   * der Betreiber fragte zu Recht, was das sein soll: es ist gar nichts, es
+   * ist Epics Aktenzeichen. Lieber eine Zeile weniger als eine, die niemand
+   * einordnen kann.
+   */
+  return '';
+}
+
+interface Perzentile {
+  elims: number; damage: number; headshots: number; mats: number; builds: number;
+  timeAlive: number; reboots: number; quote: number; genauigkeit: number;
+  feldgroesse: number;
+}
+
+interface FncsSieg {
+  saison: string; turnier?: string;
+  mitspieler?: Mitspieler[];
+  elims?: number; damage?: number; builds?: number; mats?: number;
+}
+
+interface Profilgruppe { region: string; spieler: Spieler[] }
+interface Duell { links: Spieler; rechts: Spieler }
+interface PowerZeile {
+  rank: number; name: string; land: string; wertung: number;
+  deltaPlatz?: number; deltaWertung?: number;
+}
+
+interface Tagessieg {
+  event: string; windowId: string; region: string; season: string;
+  saisonName: string;
+  elims: number; damage: number; builds: number; mats: number; matches: number;
+}
+
+interface Rang {
+  global: number; globalVon: number;
+  regional: number | null; regionalVon: number; region: string;
+  /**
+   * Der Rang zaehlt ueber das ganze Archiv, nicht ueber den gewaehlten
+   * Zeitraum - er kommt aus der fertigen Gesamtliste. Steht oben ein
+   * Zeitraum, schreibt die Karte das dazu.
+   */
+  alleSaisons?: boolean;
+}
+
+interface Fncs {
+  titel: number;
+  saisons: Array<{ saison: string; platz: number }>;
+}
+
+interface Mitspieler { epicId: string; name: string; land: string | null }
+
+interface VerlaufZeile {
+  event: string; windowId: string; region: string; season: string;
+  werte: {
+    eliminations: number; damageDealt: number; damageTakenFromPlayers: number;
+    headshots: number; hitsToPlayers: number; shots: number;
+    assists: number; matchesPlayed: number; timeAlive: number;
+    woodFarmed?: number; stoneFarmed?: number; metalFarmed?: number;
+    woodBuildsPlaced?: number; stoneBuildsPlaced?: number;
+    metalBuildsPlaced?: number;
+  };
+  /** Wann der Spieltag lief, als Zeitstempel. */
+  datum?: number;
+  /**
+   * Diese Zeile stammt allein aus Epics Bestenliste.
+   *
+   * Platz, Mitspieler und Matchzahl sind echt; Schaden, Material, Bauteile
+   * und Eliminierungen gibt Epic je Spieler nicht heraus. Die Spalten
+   * bleiben deshalb leer, statt eine Null oder einen Teamwert zu zeigen.
+   */
+  nurEpic?: boolean;
+  /**
+   * Die Gesamtzeile eines mehrtaegigen LANs (Globals, Summit): beide Tage
+   * zusammen, mit Endplatz und Preisgeld. Sie steht nur in den
+   * Turnierergebnissen und zaehlt in keiner Summe mit.
+   */
+  gesamt?: boolean;
+  /** Schaden aus den vollen Replays gezaehlt (Epic-Zeilen ohne Werte der Quelle). */
+  replaySchaden?: { dmg: number; erlitten: number; treffer: number; krit: number };
+  /**
+   * Preisgeld je Person zu diesem Spieltag - abgeleitet aus Platz oder
+   * Punkten und der gepflegten Tabelle (lib/preisgeld). null, wo keine
+   * Regel gepflegt ist.
+   */
+  verdienst?: number | null;
+  /** Eine LAN - Name und Ort aus der LAN-Datei. */
+  lan?: { name: string | null; ort: string | null } | null;
+  /**
+   * Eigene Eliminierungen aus dem ausgewerteten Replay.
+   *
+   * Nur bei Epic-Zeilen von Belang: dort ist die Spalte sonst leer, weil
+   * Epic die Eliminierungen nur je Team fuehrt. Das Replay zaehlt sie je
+   * Konto und schliesst damit genau diese Luecke.
+   */
+  replayElims?: number;
+  /** Ebenfalls aus dem Replay - steht im Mouseover neben den Elims. */
+  replayKnocks?: number;
+  /** Aus Epics Bestenliste - fehlt, wo Epic das Fenster nicht mehr vorhaelt. */
+  platz: number | null;
+  punkte: number | null;
+  mitspieler: Mitspieler[];
+}
+
+const BEREICHE: Array<[Bereich, string]> = [
+  ['start', 'Highlights'],
+  ['turniere', 'Cups'],
+  ['regional', 'Regionen'],
+  ['spieler', 'Spieler'],
+  ['jahr', String(JAHR)],
+  // Die E-Sports-Organisationen (Organisationen.tsx).
+  ['orgs', 'Orgs'],
+];
+
+/**
+ * Bereiche, die den VIPs vorbehalten sind.
+ *
+ * Der Vergleich ist keine Anzeige, sondern ein Werkzeug: zwei Spieler frei
+ * waehlen und gegeneinanderstellen. Die fertigen Uebersichten - auch die
+ * Kopf-an-Kopf-Zahlen darin - sieht jeder.
+ */
+const VIP_BEREICHE: Array<[Bereich, string]> = [
+  ['vergleich', 'Duell'],
+];
+
+/**
+ * Bereiche, die nur der Admin sieht.
+ *
+ * Die Bilderuebersicht ist ein Werkzeug zum Pflegen, kein Inhalt fuer
+ * Zuschauer: dort steht, von wem ein Foto vorliegt und von wem nicht. Die
+ * Fotos selbst sieht jeder - nur eben dort, wo sie hingehoeren, bei den
+ * Spielern.
+ */
+const ADMIN_BEREICHE: Array<[Bereich, string]> = [
+  ['bilder', 'Bilder'],
+];
+
+/**
+ * Die Zeichen der Leiste.
+ *
+ * Gezeichnete Striche statt Emoji: 🏆 und 👤 kommen aus der Schriftart des
+ * Systems und werden bunt dargestellt - mitten in einer sonst grauen Leiste
+ * ein Farbtupfer, den niemand bestellt hat. Diese hier nehmen die Farbe des
+ * Textes an und bleiben damit immer so ruhig wie ihre Umgebung.
+ */
+function Zeichen({ art }: { art: Bereich }) {
+  const pfade: Record<Bereich, string> = {
+    start: 'M3 9.5 12 3l9 6.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1z',
+    turniere: 'M6 4h12v3a6 6 0 0 1-12 0zM6 6H3v1a4 4 0 0 0 4 4M18 6h3v1a4 4 0 0 1-4 4'
+      + 'M12 13v4M9 21h6M10 17h4',
+    regional: 'M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11z M12 10.5a1.5 1.5 0 1 0 0-3'
+      + 'a1.5 1.5 0 0 0 0 3z',
+    spieler: 'M12 12a4 4 0 1 0 0-8 4 4 0 0 0 0 8z M4 21a8 8 0 0 1 16 0',
+    jahr: 'M4 5h16v15H4z M4 9h16 M8 3v4 M16 3v4 M8 13h2 M14 13h2 M8 17h2 M14 17h2',
+    // Ein Wappenschild - die Organisation.
+    orgs: 'M12 3l7 3v5c0 4.5-3 8.3-7 10-4-1.7-7-5.5-7-10V6z M9 12l2 2 4-4',
+    bilder: 'M3 5h18v14H3z M3 16l5-5 4 4 3-3 6 6',
+    vergleich: 'M12 3v18 M7 8l-4 4 4 4 M17 8l4 4-4 4',
+  };
+  return (
+    <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"
+      className="shrink-0" fill="none" stroke="currentColor" strokeWidth="1.6"
+      strokeLinecap="round" strokeLinejoin="round">
+      <path d={pfade[art]} />
+    </svg>
+  );
+}
+
+/**
+ * Die Bestenlisten einer Cup-Seite.
+ *
+ * Dieselbe Auswahl wie im Vorbild, soweit die Daten sie hergeben. Wo dort
+ * "Highest Rated" und "Lowest Rated" stehen, steht hier die Schadensquote -
+ * die laesst sich aus den Dateien nachrechnen, das Rating nicht.
+ */
+/*
+ * Die Bestenlisten eines Spieltags.
+ *
+ * Die ersten zehn in der Reihenfolge, die der Betreiber vorgegeben hat
+ * (28.9.2026, Discord): Damage Ratio, Damage to Players, Eliminations, Solo
+ * Clutch Points, Time in Storm, Time Alive, Distance Traveled, Hits to
+ * Players, Mats Farmed, Builds Placed. Danach, was es sonst noch gibt.
+ * "format" sagt, wie der Wert zu lesen ist: Sekunden als Zeit, Meter als km.
+ */
+type WertFormat = 'zeit' | 'km';
+const CUP_LISTEN: Array<{
+  feld: keyof Spieler; titel: string; nachkomma?: number; einheit?: string;
+  kleinBesser?: boolean; format?: WertFormat;
+}> = [
+  { feld: 'quote', titel: 'Beste Schadensquote', nachkomma: 2 },
+  { feld: 'damage', titel: 'Meister Schaden' },
+  { feld: 'elims', titel: 'Meiste Eliminierungen' },
+  { feld: 'clutch' as keyof Spieler, titel: 'Meiste Solo Clutch Points' },
+  { feld: 'timeInStorm', titel: 'Längste Zeit im Sturm', format: 'zeit' },
+  { feld: 'timeAlive', titel: 'Längste Überlebenszeit', format: 'zeit' },
+  { feld: 'distanz', titel: 'Längste Strecke', format: 'km' },
+  { feld: 'hits', titel: 'Meiste Treffer' },
+  { feld: 'mats', titel: 'Meistes Material' },
+  { feld: 'builds', titel: 'Meiste Bauteile' },
+  { feld: 'quote', titel: 'Schlechteste Schadensquote', nachkomma: 2, kleinBesser: true },
+  { feld: 'damageTaken', titel: 'Meister Schaden erlitten' },
+  { feld: 'headshots', titel: 'Meiste Kopftreffer' },
+  { feld: 'assists', titel: 'Meiste Assists' },
+  { feld: 'genauigkeit', titel: 'Beste Trefferquote', nachkomma: 1, einheit: ' %' },
+  { feld: 'reboots', titel: 'Meiste Wiederbelebungen' },
+];
+
+/** "47m 3s" / "2h 2m" - Sekunden als Zeit, wie in den Ranglisten ueblich. */
+function alsZeit(sek: number): string {
+  const s = Math.max(0, Math.round(sek));
+  const h = Math.floor(s / 3600); const m = Math.floor((s % 3600) / 60);
+  return h ? `${h}h ${m}m` : `${m}m ${s % 60}s`;
+}
+
+const SORTIERUNG: Array<[string, string]> = [
+  ['elims', 'Meiste Eliminierungen'],
+  ['damage', 'Meister Schaden'],
+  ['elimsProMatch', 'Elims je Match'],
+  ['damageProMatch', 'Schaden je Match'],
+  ['quote', 'Beste Schadensquote'],
+  ['genauigkeit', 'Beste Trefferquote'],
+  ['headshots', 'Meiste Kopftreffer'],
+  ['assists', 'Meiste Assists'],
+  ['mats', 'Meistes Material'],
+  ['builds', 'Meiste Bauteile'],
+  ['matches', 'Meiste Matches'],
+];
+
+/**
+ * Die Art eines Turniers aus seinem Namen.
+ *
+ * Epic liefert zu den aelteren Spieltagen kein Bild mehr - von 402 haben nur
+ * 13 noch eines im Katalog. Statt leerer Kacheln bekommt jede Karte deshalb
+ * eine Flaeche in der Farbe ihrer Turnierart mit dem Namen darauf. Das ist
+ * Gestaltung, keine Behauptung ueber die Daten.
+ */
+function turnierArt(name: string): { wort: string; farbe: string } {
+  const n = name.toLowerCase();
+  if (n.includes('fncs')) return { wort: 'FNCS', farbe: 'from-violet-600/70 to-violet-900/40' };
+  if (n.includes('division')) return { wort: 'DIVISION', farbe: 'from-indigo-600/70 to-indigo-900/40' };
+  if (n.includes('reload')) return { wort: 'RELOAD', farbe: 'from-emerald-600/70 to-emerald-900/40' };
+  if (n.includes('performance')) return { wort: 'PERFORMANCE', farbe: 'from-teal-600/70 to-teal-900/40' };
+  if (n.includes('escargo')) return { wort: 'ESCARGO', farbe: 'from-amber-600/70 to-amber-900/40' };
+  return { wort: 'CUP', farbe: 'from-sky-600/70 to-sky-900/40' };
+}
+
+/**
+ * Der Name, wie er angezeigt wird.
+ *
+ * Durchgehend Grossbuchstaben - so haelt es das Vorbild, und in einer Liste
+ * aus Kuerzeln, Orgtags und Zierzeichen beruhigt es das Bild erheblich.
+ *
+ * Bei einem Turniernamen fallen angehaengte Zierzeichen vorher weg. Bei einem
+ * von Hand gesetzten Namen nicht: was der Nutzer eingetippt hat, steht so da.
+ * Sonst koennte er einen Namen wie "demuś" gar nicht festhalten - das "ś"
+ * gehoert zum Namen, sieht fuer eine Maschine aber aus wie Zierrat.
+ */
+function grossName(name: string, gepflegt = false) {
+  return (gepflegt ? (name || '') : ohneZierrat(name || '')).toUpperCase();
+}
+
+/**
+ * Zu welcher Reihe ein Spieltag gehoert.
+ *
+ * Die Quelle gliedert eine Saison nach Turnierreihen - FNCS, Division 1,
+ * Performance Cup, Reload Elite Series und deren Championship. Die Namen der
+ * Spieltage tragen das mit sich ("FNCS Major 2 - Heat 1", "Escargo Day3"),
+ * also wird die Reihe daraus gelesen statt eine Liste zu pflegen, die bei
+ * jedem neuen Cup nachgezogen werden muesste.
+ */
+function reiheVon(name: string): string {
+  const n = name.toLowerCase();
+  if (/reload elite championship|escargo/.test(n)) return 'RES Championship';
+  if (/reload elite/.test(n)) return 'Reload Elite Series';
+  if (/division/.test(n)) return 'FNCS Division 1';
+  if (/fncs/.test(n)) return 'FNCS';
+  if (/performance/.test(n)) return 'Performance Cup';
+  return 'Weitere';
+}
+
+/** Die Kurzform eines Spieltagsnamens - fuer die Reiter einer Reihe. */
+function kurzTurnier(name: string) {
+  const teile = name.split(' - ');
+  return (teile.length > 1 ? teile.slice(1).join(' · ') : name)
+    .replace(/^Reload Elite Championship\s*/i, '')
+    .trim() || name;
+}
+
+/**
+ * Grosse Zahlen kurz - fuer die schmalen Spalten auf den Profilkarten.
+ *
+ * Dort stehen drei Werte nebeneinander in einer Karte von knapp zweihundert
+ * Punkten Breite; "264.372" passt da nicht und wurde abgeschnitten, was
+ * schlimmer ist als eine gerundete Angabe. Ab zehntausend wird deshalb in
+ * Tausendern gezaehlt, ab einer Million in Millionen - erkennbar gekuerzt,
+ * nicht heimlich beschnitten. Die vollen Zahlen stehen im Profil.
+ */
+function kurzZahl(n: number, sprache: 'de' | 'en' = 'de') {
+  if (!Number.isFinite(n)) return '0';
+  const mio = sprache === 'en' ? 'M' : 'Mio';
+  const tsd = sprache === 'en' ? 'k' : 'Tsd';
+  if (Math.abs(n) >= 1_000_000) return `${zahl(n / 1_000_000, 1, sprache)} ${mio}`;
+  if (Math.abs(n) >= 10_000) return `${zahl(Math.round(n / 1000), 0, sprache)} ${tsd}`;
+  return zahl(n, 0, sprache);
+}
+
+/*
+ * Eine Zahl in der Schreibweise der eingestellten Sprache.
+ *
+ * Deutsch trennt Tausender mit dem Punkt, Englisch mit dem Komma - aus
+ * "3.934 Players" wird sonst mitten auf einer englischen Seite eine Zahl,
+ * die dort wie 3,934 aussieht und falsch gelesen wird. Der Ort wird
+ * uebergeben statt global gesetzt: die Seite wird auch auf dem Server
+ * gezeichnet, und ein gemeinsamer Zustand ueber Anfragen hinweg waere dort
+ * eine Falle.
+ */
+function zahl(n: number, nachkomma = 0, sprache: 'de' | 'en' = 'de') {
+  return (n ?? 0).toLocaleString(sprache === 'en' ? 'en-GB' : 'de-DE', {
+    minimumFractionDigits: nachkomma, maximumFractionDigits: nachkomma,
+  });
+}
+
+function datumText(ms?: number, sprache: 'de' | 'en' = 'de') {
+  if (!ms) return '';
+  // Im Deutschen "24. August 2026", im Englischen "August 24, 2026" - das
+  // macht Intl von selbst richtig, sobald es die Sprache kennt.
+  return new Date(ms).toLocaleDateString(sprache === 'en' ? 'en-US' : 'de-DE',
+    { day: 'numeric', month: 'long', year: 'numeric' });
+}
+
+/** Das Kuerzel der Region als kleine Marke - wie im Vorbild. */
+/**
+ * Gold fuer den Sieger, Blau fuers Podest.
+ *
+ * Stand zweimal im Quelltext, einmal je Tabelle. Jetzt einmal, damit die
+ * Endtabelle eines Spieltags dieselben Farben zeigt wie der Verlauf eines
+ * Spielers - ein Erster soll ueberall gleich aussehen.
+ */
+function platzFarbe(p: number | null) {
+  if (p === null) return 'text-slate-700';
+  if (p === 1) return 'text-amber-400';
+  return p <= 3 ? 'text-sky-400' : 'text-slate-300';
+}
+
+/*
+ * Die Regionsmarke bleibt schlicht.
+ *
+ * Sie war kurz farbig, und der Betreiber hat es wieder abgeraeumt: in den
+ * Bestenlisten stehen fuenfzehn davon untereinander, und fuenfzehn bunte
+ * Kaestchen lesen sich schlechter als fuenfzehn graue. "Wenn's so farblich
+ * ist, sieht das scheisse aus - macht das wieder schwarz, so wie es ganz am
+ * Anfang war."
+ *
+ * Die Farben bleiben dort, wo sie etwas leisten: in den Filterreihen, wo
+ * eine Region gewaehlt wird und sieben Knoepfe nebeneinanderstehen.
+ */
+function RegionMarke({ region }: { region: string }) {
+  return (
+    <span className="shrink-0 rounded bg-zinc-800/80 px-1.5 py-0.5 text-[9px]
+                     font-semibold tracking-wider text-slate-400">
+      {region}
+    </span>
+  );
+}
+
+/** Der Verlauf eines Spielers - dieselbe Tabelle in mehreren Reitern. */
+/**
+ * Turniernamen lesbar machen.
+ *
+ * Die Quelle schreibt aeltere Turniere in einem Wort:
+ * "CH6S2FNCSGrandFinalsDay1". Das Kapitel steht in der Zeile daneben schon,
+ * und die zusammengezogenen Woerter lassen sich an den Grossbuchstaben und
+ * Ziffern trennen. Neuere Namen bringen ihre Leerzeichen selbst mit und
+ * gehen unveraendert durch - deshalb setzt die letzte Regel kein zweites
+ * "-", wo schon eines steht.
+ *
+ * Geaendert wird nur die Schreibweise fuer die Anzeige; gespeichert bleibt
+ * der Name der Quelle.
+ */
+/**
+ * Die Rundenworte in der Sprache der Seite.
+ *
+ * Die Akte traegt die Titel der alten Spieltage auf Deutsch ("Runde 2",
+ * "Tag 1", "Finale") - gebaut auf dem Laufrechner, ohne Sprache. In der
+ * englischen Ansicht stand deshalb "Trios Cash Cup · Event 5 · Runde 2".
+ */
+function rundenWorte(text: string, t: (s: string) => string) {
+  return text
+    .replace(/\bRunde (\d+)/g, (_, n) => `${t('Runde')} ${n}`)
+    .replace(/\bTag (\d+)/g, (_, n) => `${t('Tag')} ${n}`)
+    .replace(/\bFinale\b/g, () => t('Finale'));
+}
+
+function turnierName(roh: string, t?: (s: string) => string) {
+  if (!roh) return roh;
+  if (t) roh = rundenWorte(roh, t);
+  let x = roh.replace(/^CH\d+S\d+/i, '').replace(/_/g, ' ');
+  x = x.replace(/([A-Za-z])(\d)/g, '$1 $2');
+  x = x.replace(/([a-z0-9])([A-Z])/g, '$1 $2');
+  x = x.replace(/(FNCS|LCL|ZB|BR)([A-Z])/g, '$1 $2');
+  // Titel aus der Akte sind schon mit " · " gegliedert - dort kein " - " davor.
+  if (!x.includes(' - ') && !x.includes(' · ')) x = x.replace(/\s+(Day \d+)$/i, ' - $1');
+  x = x.replace(/\s{2,}/g, ' ').trim();
+  return x || roh;
+}
+
+/**
+ * Der Name eines Turniers als Ueberschrift - ausgeschrieben.
+ *
+ * Der Betreiber (29.9.2026): "FNCSLastChanceMajor Final ... alles
+ * zusammengeschrieben. Macht die Namen mal richtig." Wo die Quelle das
+ * Kapitel vorn anhaengt ("CH7S2FNCSDivision1FinalsWeek3"), steht es
+ * ausgeschrieben davor: "Chapter 7 Season 2 FNCS Division 1 Finals Week 3".
+ */
+function turnierTitel(roh: string) {
+  if (!roh) return roh;
+  const m = /^CH(\d+)S(\d+)(?=[A-Z_])/i.exec(roh);
+  const kapitel = m ? `Chapter ${m[1]} Season ${m[2]} ` : '';
+  return `${kapitel}${turnierName(roh)}`.trim();
+}
+
+/** Wie turnierTitel, aber Kapitel und Cup getrennt: "Chapter 6 Season 1 · FNCS Division 1 Finals Week 4" (Hover im Schadensverlauf). */
+function verlaufTitel(roh: string) {
+  if (!roh) return roh;
+  const m = /^CH(\d+)S(\d+)(?=[A-Z_])/i.exec(roh);
+  const rest = turnierName(roh);
+  return m ? `Chapter ${m[1]} Season ${m[2]} · ${rest}` : rest;
+}
+
+/**
+ * Die Reihenfolge der Saisons.
+ *
+ * Gebuendelt wird nach Saison, sortiert wurde bisher nach dem Datum der
+ * Spieltage darin. Das ging schief, solange im Verzeichnis der Abrufzeitpunkt
+ * statt des Turniertags stand: 768 Spieltage aus acht Saisons trugen alle den
+ * 12. Juli 2026, und bei gleichem Wert entscheidet die Lesereihenfolge. So
+ * stand Chapter 7 Season 1 zwischen Chapter 5 und Chapter 6.
+ *
+ * Die Kennung selbst ist eindeutig - S42 kommt nach S41 - und bleibt richtig,
+ * auch wenn zu einem Spieltag einmal kein Datum zu holen ist.
+ */
+function saisonRang(kennung: string) {
+  const m = /^S(\d+)$/i.exec(kennung.trim());
+  return m ? Number(m[1]) : -1;
+}
+
+/**
+ * "CH7 S3" ausgeschrieben.
+ *
+ * Ueber der Turnierliste steht die Saison in voller Laenge, so wie es die
+ * Szene ausspricht - in der Tabelle daneben bleibt die kurze Form.
+ */
+function kapitelName(kurz: string) {
+  const m = /^CH(?:APTER)?\s*(\d+)\s*S(?:EASON)?\s*(\d+)$/i.exec(kurz.trim());
+  return m ? `CHAPTER ${m[1]} SEASON ${m[2]}` : kurz.toUpperCase();
+}
+
+/**
+ * Das Kapitel einer Saison - aus dem Namen ("Chapter 6 Season 2"), und
+ * fuer die Saisons ohne Kapitel im Namen (Remix, Galactic Battle, The
+ * Simpsons) aus der Nummer: S28 bis S32 sind Chapter 5, S33 bis S38
+ * Chapter 6, ab S39 Chapter 7.
+ */
+function kapitelVonSaison(kennung: string, name?: string): number {
+  const m = /^Chapter (\d+)/.exec(name ?? '');
+  if (m) return Number(m[1]);
+  const n = Number((kennung.match(/^S(\d+)$/) ?? [])[1] ?? 0);
+  if (!n) return 1;
+  if (n <= 10) return 1;
+  if (n <= 18) return 2;
+  if (n <= 22) return 3;
+  if (n <= 27) return 4;
+  if (n <= 32) return 5;
+  if (n <= 38) return 6;
+  return 7;
+}
+
+/** Der Name einer Saison ohne ihr Kapitel - "Season 2", "Remix", "The Simpsons". */
+function saisonOhneKapitel(name: string): string {
+  return name.replace(/^Chapter \d+ /, '');
+}
+
+/** Falls eine Kennung wie "S37" durchrutscht - nie nackt anzeigen. */
+const SAISON_NAMEN_KURZ: Record<string, string> = {
+  S30: 'Chapter 5 Season 3', S31: 'Chapter 5 Season 4', S33: 'Chapter 6 Season 1',
+  S34: 'Chapter 6 Season 2', S36: 'Chapter 6 Season 3', S37: 'Chapter 6 Season 4',
+  S39: 'Chapter 7 Season 1', S40: 'Chapter 7 Season 2', S41: 'Chapter 7 Season 3',
+  S42: 'Chapter 7 Season 4',
+};
+
+
+
+/**
+ * Eine Zeile im Duell: links ein Wert, rechts ein Wert, dazwischen der Name.
+ *
+ * Gemessen wird am jeweils groesseren der beiden Werte: der Bessere fuellt
+ * seinen Balken ganz aus, der andere genau so weit, wie sein Wert reicht.
+ *
+ * Zuerst teilten sich die beiden die Breite nach ihrem Anteil an der Summe.
+ * Das sah bei 406 zu 399 aus wie zwei halbleere Balken, obwohl die beiden
+ * fast gleichauf liegen. So dagegen steht daneben ein voller und ein zu
+ * achtundneunzig Prozent gefuellter Balken - man sieht auf einen Blick, wie
+ * knapp es ist.
+ */
+function Duellzeile({ titel, links, rechts, nachkomma = 0, einheit = '' }: {
+  titel: string; links: number; rechts: number;
+  nachkomma?: number; einheit?: string;
+}) {
+  const { sprache } = useSprache();
+  const groesser = Math.max(links, rechts);
+  const anteilLinks = groesser > 0 ? (links / groesser) * 100 : 0;
+  const anteilRechts = groesser > 0 ? (rechts / groesser) * 100 : 0;
+  const linksVorn = links > rechts;
+  const rechtsVorn = rechts > links;
+  return (
+    /*
+      * Auf dem Handy steht die Beschriftung ueber der Zeile.
+      *
+      * Nebeneinander belegten die beiden Zahlen und das Wort in der Mitte
+      * schon 304 Pixel; auf einem 375 Pixel breiten Telefon blieb fuer die
+      * beiden Balken nichts uebrig, und die standen dann als Striche von
+      * null Breite da. Ein Vergleich ohne Balken vergleicht nichts.
+      */
+    <div className="flex flex-wrap items-center gap-2 py-1.5 sm:flex-nowrap sm:gap-3">
+      <span className={`order-2 w-14 shrink-0 text-right text-xs font-semibold
+                        tabular-nums sm:order-none sm:w-20
+                        ${linksVorn ? 'text-sky-400' : 'text-slate-400'}`}>
+        {zahl(links, nachkomma, sprache)}{einheit}
+      </span>
+      {/* Die Bahn bleibt sichtbar, damit man erkennt, wie weit ein Balken
+          von voll entfernt ist. */}
+      <span className="order-3 flex min-w-0 flex-1 justify-end overflow-hidden
+                       rounded-full bg-zinc-900 sm:order-none">
+        <span className={`h-1.5 rounded-full ${linksVorn ? 'bg-sky-400' : 'bg-zinc-600'}`}
+          style={{ width: `${anteilLinks}%` }} />
+      </span>
+      <span className="order-1 w-full shrink-0 text-center text-[10px] font-semibold
+                       uppercase tracking-[0.12em] text-slate-500
+                       sm:order-none sm:w-36"><T>{titel}</T></span>
+      <span className="order-4 flex min-w-0 flex-1 overflow-hidden rounded-full
+                       bg-zinc-900 sm:order-none">
+        <span className={`h-1.5 rounded-full ${rechtsVorn ? 'bg-sky-400' : 'bg-zinc-600'}`}
+          style={{ width: `${anteilRechts}%` }} />
+      </span>
+      <span className={`order-5 w-14 shrink-0 text-xs font-semibold tabular-nums
+                        sm:order-none sm:w-20
+                        ${rechtsVorn ? 'text-sky-400' : 'text-slate-400'}`}>
+        {zahl(rechts, nachkomma, sprache)}{einheit}
+      </span>
+    </div>
+  );
+}
+
+/**
+ * Welche Werte im Duell gegenuebergestellt werden.
+ *
+ * Der Betreiber (1.10.2026): das Head to Head soll klein sein wie bei
+ * eucompetitive - Eliminierungen, Schaden, Kopftreffer, Treffer,
+ * Schadensquote. Elf Zeilen waren eine Tabelle, kein Duell. Das "Avg.
+ * Rating" der Vorlage fehlt mit Absicht: das rechnet nur der Anbieter, und
+ * eine geratene Formel waere eine erfundene Zahl. Die uebrigen Werte
+ * (Assists, Bauteile, Material, Matches, Trefferquote) stehen im
+ * Staerkenprofil und in den Spieltagen darunter.
+ */
+const DUELL_WERTE: Array<[string, keyof Spieler, number, string]> = [
+  ['Eliminierungen', 'elims', 0, ''],
+  ['Schaden', 'damage', 0, ''],
+  ['Kopftreffer', 'headshots', 0, ''],
+  ['Treffer', 'hits', 0, ''],
+  ['Schadensquote', 'quote', 2, ''],
+];
+
+/**
+ * Die ersten Drei einer Liste mit Foto (Betreiber, 19.10.2026: "zu jeder Statistik immer die passenden Top 3, und zu jeder Region"). Der Erste steht
+ * in der Mitte und etwas hoeher; die Karten tragen Foto, Medaille, Name und die Zahl der Liste. Die Fotos sitzen in dunkler Folie, der Text darauf ist
+ * fest hell - das gilt in beiden Fassungen, wie bei den Spielerkarten sonst.
+ */
+function Treppchen({ drei, wertVon, aufKlick }: { drei: Array<{ sp: Spieler; nr: number }>; wertVon: (s: Spieler) => string; aufKlick: (s: Spieler) => void }) {
+  const { sprache } = useSprache();
+  void sprache;
+  if (drei.length < 3) return null;
+  const reihe = [drei[1], drei[0], drei[2]];
+  const MEDAILLE: Record<number, string> = { 1: 'bg-amber-400', 2: 'bg-slate-300', 3: 'bg-orange-400' };
+  return (
+    <div className="mx-auto grid max-w-3xl grid-cols-3 items-end gap-2 px-3 pb-3 pt-4 sm:gap-4 sm:px-5">
+      {reihe.map(({ sp, nr }, i) => {
+        const mitte = i === 1;
+        return (
+          <button key={sp.epicId} type="button" onClick={() => aufKlick(sp)}
+            className={`foto-dunkel group relative overflow-hidden rounded-2xl border border-white/10 bg-zinc-800 text-left shadow-[0_12px_30px_rgba(2,6,23,.25)] transition hover:-translate-y-1 ${mitte ? 'aspect-[3/4] sm:aspect-[4/5]' : 'aspect-[3/4]'}`}>
+            {sp.bild ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={sp.bild} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+            ) : (
+              <SpielerPlatzhalter name={(sp.anzeige || '?')} />
+            )}
+            <span aria-hidden className="foto-unten absolute inset-0" />
+            <span className={`absolute left-2.5 top-2.5 grid h-7 w-7 place-items-center rounded-full text-xs font-black text-[#0b1220] ${MEDAILLE[nr] ?? 'bg-slate-300'}`}>{nr}</span>
+            <span className="absolute right-2.5 top-2.5"><RegionMarke region={sp.heimat || sp.regionen?.[0] || ''} /></span>
+            <span className="absolute inset-x-3 bottom-3 block">
+              <span className="flex items-center gap-1.5">
+                <TeamFlagge groesse={16} laender={[sp.land ?? undefined]} />
+                <span className="min-w-0 truncate text-sm font-extrabold uppercase tracking-wide text-[#fff] sm:text-lg">{grossName(sp.anzeige, sp.gepflegt)}</span>
+              </span>
+              <span className={`schrift-anzeige mt-0.5 block font-extrabold tabular-nums leading-none text-sky-400 ${mitte ? 'text-3xl sm:text-4xl' : 'text-2xl sm:text-3xl'}`}>{wertVon(sp)}</span>
+            </span>
+          </button>
+        );
+      })}
+    </div>
+  );
+}
+
+/** Die Spieltage der LANs (Globals, Majors, Summit ...): sie gehoeren in die Heimatregion jedes Spielers, der dort antrat - nicht in die Region des Veranstaltungsorts. */
+const LAN_FENSTER = /^(MannekenPis|Dinosauron|BambiRaptor|Escargo|Bratwurst|Acrocanthosaurus)_(?:Finals_)?Day(d+)$/i;
+
+/**
+ * Zwei Spieler nebeneinander.
+ *
+ * Dieselbe Ansicht auf der Startseite und im Vergleich - dort wechselt sie
+ * von selbst durch, hier waehlt man beide Seiten selbst aus.
+ */
+function DuellTafel({ links, rechts, zeitraum, aufKlick, gross = false, schlicht = false }: {
+  links: Spieler; rechts: Spieler;
+  /** Woher die Zahlen stammen - Saison oder Zeitraum, steht ueber der Tafel. */
+  zeitraum: string;
+  aufKlick?: (s: Spieler) => void;
+  gross?: boolean;
+  /** Ohne Fotos: nur die beiden Namen oben und die Zahlen darunter (Uebersicht). */
+  schlicht?: boolean;
+}) {
+  if (schlicht) {
+    const kopf = (s: Spieler, rechtsRum: boolean) => (
+      <button type="button" onClick={() => aufKlick?.(s)} disabled={!aufKlick}
+        className={`flex min-w-0 flex-1 items-center gap-2 ${rechtsRum ? 'flex-row-reverse text-right' : ''}
+                    ${aufKlick ? 'cursor-pointer transition hover:text-sky-300' : ''}`}>
+        <TeamFlagge groesse={22} laender={[s.land ?? undefined]} />
+        <span className="truncate text-lg font-black uppercase tracking-wide text-slate-50">
+          {grossName(s.anzeige, s.gepflegt)}
+        </span>
+      </button>
+    );
+    // Mit Fotos (Betreiber, 19.10.2026): das Foto ganz am Rand, links der linke, rechts der rechte Spieler - ohne Rahmen und ohne verwischten Grund.
+    // Der Rest der Kopfflaeche hat die Farbe von "VS"; der Name steht in der Mitte der Hoehe neben dem Foto (links: rechts vom Bild, rechts: links vom Bild).
+    const foto = (s: Spieler, rechtsRum: boolean) => (
+      <button type="button" onClick={() => aufKlick?.(s)} disabled={!aufKlick}
+        className={`group relative h-full w-[36%] max-w-[240px] shrink-0 overflow-hidden ${rechtsRum ? 'order-last' : ''}`}>
+        {s.bild ? (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img src={s.bild} alt={s.anzeige} className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-[1.03]" />
+        ) : (
+          <SpielerPlatzhalter name={(s.anzeige || '?')} />
+        )}
+      </button>
+    );
+    const nameVon = (s: Spieler, rechtsRum: boolean) => (
+      <button type="button" onClick={() => aufKlick?.(s)} disabled={!aufKlick}
+        className={`flex min-w-0 flex-1 flex-col justify-center gap-2 px-3 sm:px-6 ${rechtsRum ? 'items-end text-right' : 'items-start text-left'} ${aufKlick ? 'cursor-pointer transition hover:text-sky-500' : ''}`}>
+        <TeamFlagge groesse={24} laender={[s.land ?? undefined]} />
+        <span className="max-w-full break-words text-xl font-extrabold uppercase leading-tight tracking-wide text-slate-100 sm:text-3xl">{grossName(s.anzeige, s.gepflegt)}</span>
+      </button>
+    );
+    return (
+      <div className="overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 shadow-[0_10px_30px_rgba(15,23,42,.10)]">
+        <div className="relative flex h-72 items-stretch bg-zinc-800 sm:h-80">
+          {foto(links, false)}
+          {nameVon(links, false)}
+          <span className="flex shrink-0 items-center px-1 text-3xl font-black italic text-sky-500 sm:px-4 sm:text-5xl">VS</span>
+          {nameVon(rechts, true)}
+          {foto(rechts, true)}
+          <div className="pointer-events-none absolute inset-x-0 top-3 flex justify-center">
+            <span className="rounded-full bg-zinc-900/80 px-4 py-1 text-[10px] font-semibold uppercase tracking-[0.2em] text-slate-300 backdrop-blur">{zeitraum}</span>
+          </div>
+        </div>
+        <div className="px-5 py-4">
+          {DUELL_WERTE.map(([titel, feld, nk, einheit]) => (
+            <Duellzeile key={feld as string} titel={titel} nachkomma={nk} einheit={einheit}
+              links={Number(links[feld] ?? 0)} rechts={Number(rechts[feld] ?? 0)} />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // Das Bild fuellt die ganze Hoehe der Tafel.
+  //
+  // Vorher hatte es ein festes Seitenverhaeltnis, und weil die Werteliste in
+  // der Mitte hoeher ist, blieb ueber und unter dem Bild ein schwarzer
+  // Streifen stehen. Jetzt spannt sich die Spalte ueber die volle Hoehe und
+  // das Bild wird darin beschnitten - oben ausgerichtet, damit der Kopf
+  // stehen bleibt.
+  const seite = (s: Spieler, rechtsRum: boolean) => (
+    <button onClick={() => aufKlick?.(s)} disabled={!aufKlick}
+      className={`group relative w-[136px] shrink-0 self-stretch overflow-hidden
+                  bg-zinc-900 ${gross ? 'sm:w-[210px]' : ''}
+                  ${aufKlick ? 'cursor-pointer' : ''}`}>
+      {s.bild ? (
+        /* eslint-disable-next-line @next/next/no-img-element */
+        <img src={s.bild} alt=""
+          className="absolute inset-0 h-full w-full object-cover object-top
+                     transition duration-300 group-hover:scale-105" />
+      ) : (
+        <div className="flex h-full items-center justify-center text-3xl
+                        text-zinc-700">?</div>
+      )}
+      <div className={`absolute bottom-0 w-full bg-gradient-to-t from-black/90
+                       to-transparent px-2.5 pb-2 pt-6
+                       ${rechtsRum ? 'text-right' : 'text-left'}`}>
+        <span className={`flex items-center gap-1.5 ${rechtsRum
+          ? 'justify-end' : ''}`}>
+          <TeamFlagge groesse={15} laender={[s.land ?? undefined]} />
+          <span className="min-w-0 truncate text-[11px] font-bold uppercase
+                           tracking-wide text-slate-50">
+            {grossName(s.anzeige, s.gepflegt)}
+          </span>
+        </span>
+      </div>
+    </button>
+  );
+
+  return (
+    <div className="flex items-stretch gap-4 overflow-hidden rounded-xl border
+                    border-zinc-800 bg-zinc-950/60">
+      {seite(links, false)}
+      <div className="min-w-0 flex-1 py-5">
+        {/* Ueber der Tafel steht, woher die Zahlen kommen.
+            Vorher standen dort die Matchzahlen - die sagen nichts darueber,
+            welchen Zeitraum man gerade vergleicht, und genau das ist die
+            erste Frage. Die Matches stehen jetzt als eigene Zeile unten. */}
+        <p className="mb-2 text-center text-[10px] font-semibold uppercase
+                      tracking-[0.2em] text-slate-600">
+          {zeitraum}
+        </p>
+        {DUELL_WERTE.map(([titel, feld, nk, einheit]) => (
+          <Duellzeile key={feld as string} titel={titel} nachkomma={nk} einheit={einheit}
+            links={Number(links[feld] ?? 0)} rechts={Number(rechts[feld] ?? 0)} />
+        ))}
+      </div>
+      {seite(rechts, true)}
+    </div>
+  );
+}
+
+/**
+ * Das Netzdiagramm zweier Spieler.
+ *
+ * Jede Achse wird an dem groesseren der beiden Werte gemessen - der Bessere
+ * beruehrt also immer den Rand. Damit zeigt die Form, wo jemand seine
+ * Staerken hat, nicht wie gross die Zahlen sind; ein gemeinsamer absoluter
+ * Massstab wuerde bei "Material" jede andere Achse platt druecken.
+ */
+function Netz({ links, rechts, namen }: {
+  links: Spieler; rechts: Spieler; namen: [string, string];
+}) {
+  // Die Achsen stehen als Text im SVG - dort hilft kein <T>, also die
+  // Uebersetzung direkt.
+  const t = useT();
+  const { sprache } = useSprache();
+  const [zeigt, setZeigt] = useState<number | null>(null);
+
+  const ACHSEN: Array<[string, keyof Spieler, number, string]> = [
+    ['Eliminierungen', 'elims', 0, ''],
+    ['Schaden', 'damage', 0, ''],
+    ['Schadensquote', 'quote', 2, ''],
+    ['Treffer', 'hits', 0, ''],
+    ['Kopftreffer', 'headshots', 0, ''],
+    ['Trefferquote', 'genauigkeit', 1, ' %'],
+    ['Assists', 'assists', 0, ''],
+    ['Bauteile', 'builds', 0, ''],
+    ['Material', 'mats', 0, ''],
+    ['Matches', 'matches', 0, ''],
+  ];
+  const M = 460, mitte = M / 2, radius = M / 2 - 74, RAND = 96;
+  const punkt = (i: number, anteil: number) => {
+    const winkel = (i / ACHSEN.length) * Math.PI * 2 - Math.PI / 2;
+    return [mitte + Math.cos(winkel) * radius * anteil,
+      mitte + Math.sin(winkel) * radius * anteil];
+  };
+  const anteilVon = (wer: Spieler, f: keyof Spieler) => {
+    const groesser = Math.max(Number(links[f] ?? 0), Number(rechts[f] ?? 0)) || 1;
+    // Nicht ganz bis an den Rand: sonst klebt der Bessere auf der
+    // aeussersten Linie und die Form verliert ihre Kontur.
+    return 0.08 + (Number(wer[f] ?? 0) / groesser) * 0.92;
+  };
+  const bahn = (wer: Spieler) => ACHSEN
+    .map(([, f], i) => punkt(i, anteilVon(wer, f)).join(',')).join(' ');
+
+  return (
+    <div className="relative">
+      {zeigt !== null && (() => {
+        const [titel, feld, nk, einheit] = ACHSEN[zeigt];
+        const [px, py] = punkt(zeigt, Math.max(
+          anteilVon(links, feld), anteilVon(rechts, feld)));
+        const linksProzent = ((px + RAND) / (M + RAND * 2)) * 100;
+        return (
+          <div className="pointer-events-none absolute z-20 whitespace-nowrap
+                          rounded-lg border border-zinc-700 bg-zinc-950/95 px-3 py-2
+                          shadow-xl"
+            style={{
+              left: `${linksProzent}%`,
+              top: `${(py / M) * 100}%`,
+              transform: `translate(${linksProzent < 22 ? '0'
+                : linksProzent > 78 ? '-100%' : '-50%'}, calc(-100% - 12px))`,
+            }}>
+            <p className="mb-1 text-[10px] font-semibold uppercase tracking-[0.14em]
+                          text-slate-500"><T>{titel}</T></p>
+            <p className="flex items-center gap-2 text-[11px] text-slate-400">
+              <span className="h-2 w-2 rounded-full bg-slate-200" />
+              {grossName(namen[0])}
+              <span className="font-semibold tabular-nums text-slate-100">
+                {zahl(Number(links[feld] ?? 0), nk, sprache)}{einheit}
+              </span>
+            </p>
+            <p className="mt-0.5 flex items-center gap-2 text-[11px] text-slate-400">
+              <span className="h-2 w-2 rounded-full bg-sky-400" />
+              {grossName(namen[1])}
+              <span className="font-semibold tabular-nums text-slate-100">
+                {zahl(Number(rechts[feld] ?? 0), nk, sprache)}{einheit}
+              </span>
+            </p>
+          </div>
+        );
+      })()}
+
+      <svg viewBox={`${-RAND} 0 ${M + RAND * 2} ${M}`}
+        className="mx-auto block h-auto w-full max-w-[720px]"
+        role="img" aria-label={t('Netzdiagramm der beiden Spieler')}>
+        {/* Ein feines Netz aus acht Ringen statt vier dicken - so wirkt es
+            leicht und die beiden Formen liegen darauf, statt dagegen
+            anzukaempfen. */}
+        {[0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1].map((r) => (
+          <polygon key={r} fill="none" stroke="currentColor" strokeWidth="0.6"
+            className="text-zinc-800/70"
+            points={ACHSEN.map((_, i) => punkt(i, r).join(',')).join(' ')} />
+        ))}
+        {ACHSEN.map((_, i) => {
+          const [x, y] = punkt(i, 1);
+          return <line key={i} x1={mitte} y1={mitte} x2={x} y2={y}
+            stroke="currentColor" strokeWidth="0.6" className="text-zinc-800/70" />;
+        })}
+
+        <polygon points={bahn(links)} fill="currentColor" fillOpacity="0.07"
+          stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"
+          className="text-slate-200" />
+        <polygon points={bahn(rechts)} fill="currentColor" fillOpacity="0.07"
+          stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round"
+          className="text-sky-400" />
+
+        {ACHSEN.map(([, f], i) => {
+          const [lx, ly] = punkt(i, anteilVon(links, f));
+          const [rx, ry] = punkt(i, anteilVon(rechts, f));
+          return (
+            <g key={i}>
+              <circle cx={lx} cy={ly} r={zeigt === i ? 5.5 : 4}
+                className="fill-slate-200" stroke="#09090b" strokeWidth="1.2" />
+              <circle cx={rx} cy={ry} r={zeigt === i ? 5.5 : 4}
+                className="fill-sky-400" stroke="#09090b" strokeWidth="1.2" />
+            </g>
+          );
+        })}
+
+        {/* Je Achse ein Tortenstueck als Trefferflaeche. */}
+        {ACHSEN.map((_, i) => {
+          const schritt = (Math.PI * 2) / ACHSEN.length;
+          const a0 = (i / ACHSEN.length) * Math.PI * 2 - Math.PI / 2 - schritt / 2;
+          const a1 = a0 + schritt;
+          const R = radius * 1.12;
+          const px0 = mitte + Math.cos(a0) * R, py0 = mitte + Math.sin(a0) * R;
+          const px1 = mitte + Math.cos(a1) * R, py1 = mitte + Math.sin(a1) * R;
+          return (
+            <path key={`griff-${i}`} fill="transparent"
+              d={`M ${mitte} ${mitte} L ${px0} ${py0}`
+                + ` A ${R} ${R} 0 0 1 ${px1} ${py1} Z`}
+              onMouseEnter={() => setZeigt(i)}
+              onMouseLeave={() => setZeigt(null)} />
+          );
+        })}
+
+        {ACHSEN.map(([titel], i) => {
+          const [x, y] = punkt(i, 1.16);
+          return (
+            <text key={titel} x={x} y={y} fontSize="11.5" letterSpacing="0.9"
+              className={zeigt === i ? 'fill-slate-50' : 'fill-slate-300'}
+              fontWeight={700}
+              textAnchor={x < mitte - 4 ? 'end' : x > mitte + 4 ? 'start' : 'middle'}
+              dominantBaseline="middle">{t(titel).toUpperCase()}</text>
+          );
+        })}
+      </svg>
+
+      {/* Die Zuordnung der Farben steht unten in der Mitte, wie beim
+          Vorbild - dort sucht das Auge sie nach dem Bild, nicht davor. */}
+      <div className="mt-2 flex items-center justify-center gap-6">
+        {([[namen[0], 'bg-slate-200'], [namen[1], 'bg-sky-400']] as
+          Array<[string, string]>).map(([n, f]) => (
+          <span key={n} className="flex items-center gap-2 text-[11px]
+                                   font-semibold uppercase tracking-[0.12em]
+                                   text-slate-400">
+            <span className={`h-2 w-2 rounded-full ${f}`} />
+            {grossName(n)}
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Zwei Verlaeufe in einem Bild.
+ *
+ * Die Spieltage der beiden sind nicht dieselben - jeder tritt woanders an.
+ * Gezeichnet wird deshalb ueber die Position im eigenen Verlauf, von links
+ * nach rechts, und die Beschriftung nennt die Zahl der Spieltage. Ein
+ * gemeinsamer Zeitstrahl waere hier eine Behauptung.
+ */
+/**
+ * Aus Punkten eine runde Linie.
+ *
+ * Eine Polylinie knickt an jedem Punkt - bei sechzehn Spieltagen sieht das aus
+ * wie ein Saegeblatt. Hier laufen kubische Bezierkurven durch die Punkte
+ * (Catmull-Rom): die Steigung an einem Punkt ergibt sich aus seinen beiden
+ * Nachbarn. Die Linie geht weiterhin genau durch jeden Messwert - geglaettet
+ * wird nur der Weg dazwischen, nicht die Zahl.
+ */
+function rund(punkte: Array<[number, number]>) {
+  if (punkte.length < 2) return '';
+  let d = `M ${punkte[0][0]} ${punkte[0][1]}`;
+  for (let i = 0; i < punkte.length - 1; i++) {
+    const p0 = punkte[i - 1] ?? punkte[i];
+    const p1 = punkte[i];
+    const p2 = punkte[i + 1];
+    const p3 = punkte[i + 2] ?? p2;
+    d += ` C ${p1[0] + (p2[0] - p0[0]) / 6} ${p1[1] + (p2[1] - p0[1]) / 6},`
+      + ` ${p2[0] - (p3[0] - p1[0]) / 6} ${p2[1] - (p3[1] - p1[1]) / 6},`
+      + ` ${p2[0]} ${p2[1]}`;
+  }
+  return d;
+}
+
+function DoppelLinie({ links, rechts, namen, marken, beschriftung }: {
+  links: number[]; rechts: number[]; namen: [string, string];
+  /** Der Turniername je Punkt, beide Seiten getrennt. */
+  marken: [string[], string[]];
+  beschriftung: string;
+}) {
+  const [zeigt, setZeigt] = useState<[0 | 1, number] | null>(null);
+  if (links.length < 2 && rechts.length < 2) return null;
+
+  const B = 1000, H = 280, obenRand = 22, untenRand = 24;
+  const linksRand = 46, rechtsRand = 18;
+  const alle = [...links, ...rechts];
+  const hoch = Math.max(...alle), tief = Math.min(...alle);
+  const luft = Math.max(1, Math.round((hoch - tief) * 0.14));
+  const oben = hoch + luft, unten = Math.max(0, tief - luft);
+  const spanne = oben - unten || 1;
+
+  const x = (werte: number[], i: number) => linksRand
+    + (werte.length < 2 ? 0.5 : i / (werte.length - 1)) * (B - linksRand - rechtsRand);
+  const y = (v: number) => obenRand
+    + (1 - (v - unten) / spanne) * (H - obenRand - untenRand);
+
+  const marken_ = [0, 1, 2, 3, 4].map((k) => Math.round(unten + (spanne * k) / 4));
+
+  const stellen = (werte: number[]): Array<[number, number]> =>
+    werte.map((v, i) => [x(werte, i), y(v)]);
+
+  const reihen: Array<[0 | 1, number[], string, string]> = [
+    [0, links, 'text-slate-200', 'fill-slate-200'],
+    [1, rechts, 'text-sky-400', 'fill-sky-400'],
+  ];
+
+  return (
+    <div className="relative">
+      {/* Die Zuordnung der Farben oben rechts. */}
+      <div className="mb-2 flex items-center justify-end gap-5">
+        {([[namen[0], 'bg-slate-200'], [namen[1], 'bg-sky-400']] as
+          Array<[string, string]>).map(([n, f]) => (
+          <span key={n} className="flex items-center gap-2 text-[11px]
+                                   font-semibold uppercase tracking-[0.12em]
+                                   text-slate-400">
+            <span className={`h-2 w-2 rounded-full ${f}`} />
+            {grossName(n)}
+          </span>
+        ))}
+      </div>
+
+      {zeigt !== null && (() => {
+        const [welche, i] = zeigt;
+        const werte = welche === 0 ? links : rechts;
+        const px = (x(werte, i) / B) * 100;
+        return (
+          <div className="pointer-events-none absolute z-20 max-w-[280px]
+                          rounded-lg border border-zinc-700 bg-zinc-950/95 px-3 py-2
+                          shadow-xl"
+            style={{
+              left: `${px}%`, top: `${(y(werte[i]) / H) * 100}%`,
+              transform: `translate(${px < 16 ? '0' : px > 84 ? '-100%' : '-50%'},
+                          calc(-100% - 14px))`,
+            }}>
+            {/* Der Turniername statt einer Nummer - "Spieltag 4 von 16" sagt
+                niemandem, welcher Cup das war. */}
+            <p className="mb-1 text-[11px] font-semibold text-slate-100">
+              {marken[welche][i] ?? beschriftung}
+            </p>
+            <p className="flex items-center gap-2 whitespace-nowrap text-[11px]
+                          text-slate-400">
+              <span className={`h-2 w-2 rounded-full ${welche === 0
+                ? 'bg-slate-200' : 'bg-sky-400'}`} />
+              {grossName(namen[welche])}
+              <span className="font-semibold tabular-nums text-slate-100">
+                {werte[i]}
+              </span>
+            </p>
+          </div>
+        );
+      })()}
+
+      <div className="overflow-x-auto">
+        <svg viewBox={`0 0 ${B} ${H}`} className="block h-auto w-full min-w-[560px]"
+          role="img" aria-label={beschriftung}>
+          {marken_.map((m) => (
+            <g key={m}>
+              <line x1={linksRand} x2={B - rechtsRand} y1={y(m)} y2={y(m)}
+                stroke="currentColor" strokeWidth="0.7" className="text-zinc-900" />
+              <text x={linksRand - 10} y={y(m)} fontSize="10" textAnchor="end"
+                dominantBaseline="middle" className="fill-slate-600">{m}</text>
+            </g>
+          ))}
+          {/* Senkrechte Hilfslinien, an der laengeren der beiden Reihen. */}
+          {(links.length >= rechts.length ? links : rechts).map((_, i, feld) => (
+            i % Math.max(1, Math.round(feld.length / 12)) === 0 ? (
+              <line key={i} x1={x(feld, i)} x2={x(feld, i)} y1={obenRand}
+                y2={H - untenRand} stroke="currentColor" strokeWidth="0.7"
+                className="text-zinc-900" />
+            ) : null
+          ))}
+
+          {reihen.map(([welche, werte, farbe, fuellung]) => werte.length > 1 && (
+            <g key={welche}>
+              <path d={`${rund(stellen(werte))} L ${B - rechtsRand} ${H - untenRand}`
+                + ` L ${linksRand} ${H - untenRand} Z`}
+                fill="currentColor" fillOpacity="0.08" className={farbe} />
+              <path d={rund(stellen(werte))} fill="none" stroke="currentColor"
+                strokeWidth="2.2" strokeLinecap="round" className={farbe} />
+              {werte.map((v, i) => (
+                <circle key={i} cx={x(werte, i)} cy={y(v)}
+                  r={zeigt?.[0] === welche && zeigt[1] === i ? 5.5 : 3.6}
+                  className={fuellung} stroke="#09090b" strokeWidth="1.2" />
+              ))}
+              {werte.map((v, i) => (
+                <circle key={`griff-${i}`} cx={x(werte, i)} cy={y(v)} r="15"
+                  fill="transparent"
+                  onMouseEnter={() => setZeigt([welche, i])}
+                  onMouseLeave={() => setZeigt(null)} />
+              ))}
+            </g>
+          ))}
+        </svg>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Wie sich die Spieltage nach Art trennen lassen.
+ *
+ * Die Quelle vergibt keine Kennung fuer die Turnierart - sie steckt nur im
+ * Namen. Die Muster hier sind an den Namen im Archiv geprueft; was auf
+ * keines passt, bleibt trotzdem unter "Alle" sichtbar.
+ */
+const TURNIER_ARTEN: Array<[string, RegExp | null]> = [
+  ['Alle', null],
+  ['Division', /division/i],
+  ['Performance', /performance/i],
+  ['FNCS Finals', /grand\s*final/i],
+  ['FNCS Major', /major|heat|last\s*chance/i],
+  ['Reload', /reload|escargo/i],
+];
+
+/**
+ * Die Spieltage eines Spielers als Liste.
+ *
+ * Nachgebaut nach dem Vorbild: oben der Name mit Flagge und Region, daneben
+ * drei Kennzahlen, darunter Zeile fuer Zeile die Spieltage. Wo dort die
+ * Platzierung steht, stehen hier die Eliminierungen - Platzierungen liefern
+ * die gespiegelten Dateien nicht.
+ */
+function TurnierListe({ wer, zeilen, farbe }: {
+  wer: Spieler; zeilen: VerlaufZeile[]; farbe: 'hell' | 'blau';
+}) {
+  const { sprache } = useSprache();
+  const elims = zeilen.map((z) => z.werte.eliminations);
+  const schnitt = elims.length
+    ? elims.reduce((a, b) => a + b, 0) / elims.length : 0;
+
+  return (
+    <section className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-5">
+      <div className="mb-4 flex flex-wrap items-center gap-3">
+        <span className={`h-2.5 w-2.5 shrink-0 rounded-sm ${farbe === 'hell'
+          ? 'bg-slate-300' : 'bg-sky-400'}`} />
+        <TeamFlagge groesse={20} laender={[wer.land ?? undefined]} />
+        <span className="text-base font-bold uppercase tracking-wide text-slate-50">
+          {grossName(wer.anzeige, wer.gepflegt)}
+        </span>
+        {wer.heimat && <RegionMarke region={wer.heimat} />}
+        <div className="ml-auto flex gap-2">
+          {/*
+            * Alle drei beziehen sich auf die Eliminierungen, nicht auf die
+            * Platzierung - die liefern die gespiegelten Dateien nicht. Bei
+            * Eliminierungen ist mehr besser, deshalb ist der hoechste Wert
+            * der beste. Stuenden hier Plaetze, waere es umgekehrt; genau
+            * das laesst sich ohne Beschriftung verwechseln.
+            */}
+          {([['Schnitt Elims', zahl(schnitt, 1, sprache)],
+             ['Meiste Elims', String(Math.max(0, ...elims))],
+             ['Wenigste Elims', String(elims.length ? Math.min(...elims) : 0)]] as
+            Array<[string, string]>).map(([l, v]) => (
+            <div key={l} className="min-w-[64px] rounded-lg border border-zinc-800
+                                    bg-zinc-900/50 px-3 py-1.5 text-center">
+              <p className="text-sm font-bold tabular-nums text-slate-100">{v}</p>
+              <p className="mt-0.5 text-[9px] font-semibold uppercase
+                            tracking-[0.12em] text-slate-600"><T>{l}</T></p>
+            </div>
+          ))}
+        </div>
+      </div>
+
+      {zeilen.length > 0 && (
+        <div className="mb-1.5 flex items-center gap-3 px-3 text-[9px]
+                        font-semibold uppercase tracking-[0.14em] text-slate-600">
+          <span className="w-10 shrink-0 text-center"><T>Elims</T></span>
+          <span className="min-w-0 flex-1"><T>Spieltag</T></span>
+          <span className="shrink-0"><T>Schaden</T></span>
+        </div>
+      )}
+
+      {!zeilen.length ? (
+        <p className="py-6 text-center text-xs text-slate-600">
+          <T>Keine Spieltage dieser Art.</T>
+        </p>
+      ) : (
+        <div className="space-y-1.5">
+          {zeilen.map((z) => (
+            <div key={z.windowId + z.region}
+              className="flex items-center gap-3 rounded-lg border border-zinc-900
+                         bg-zinc-900/30 px-3 py-2.5">
+              <span className="w-10 shrink-0 rounded bg-zinc-900 py-1 text-center
+                               text-xs font-bold tabular-nums text-sky-400">
+                {z.werte.eliminations}
+              </span>
+              <span className="min-w-0 flex-1 truncate text-[11px] text-slate-300">
+                {turnierName(z.event)}
+                <span className="ml-1.5 text-[10px] text-slate-600">{z.region}</span>
+              </span>
+              <span className="shrink-0 text-[11px] tabular-nums text-slate-500">
+                {zahl(Math.round(z.werte.damageDealt), 0, sprache)}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
+    </section>
+  );
+}
+
+/** Ein Pokal - fuer die Marke der FNCS-Siege. */
+function Pokal({ groesse = 13 }: { groesse?: number }) {
+  return (
+    <svg width={groesse} height={groesse} viewBox="0 0 24 24" fill="none"
+      stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+      strokeLinejoin="round" aria-hidden>
+      <path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0z" />
+      <path d="M17 5h2a2 2 0 0 1 0 4h-2M7 5H5a2 2 0 0 0 0 4h2" />
+    </svg>
+  );
+}
+
+/** Ein Stern - fuer die Marke der Tagessiege. */
+function Stern({ groesse = 11 }: { groesse?: number }) {
+  return (
+    <svg width={groesse} height={groesse} viewBox="0 0 24 24" fill="currentColor"
+      aria-hidden>
+      <path d="M12 2l2.9 6.3 6.9.8-5.1 4.7 1.4 6.8L12 17.3 5.9 20.6l1.4-6.8L2.2 9.1l6.9-.8z" />
+    </svg>
+  );
+}
+
+function VerlaufTabelle({ zeilen, fuss }: {
+  zeilen: VerlaufZeile[];
+  /** Die Zusammenfassung unter der Liste - dieselben Spalten. */
+  fuss?: boolean;
+}) {
+  const { sprache, t } = useSprache();
+
+  /**
+   * Der Spieltag als kurzes Datum neben dem Turniernamen.
+   *
+   * "FNCS Grand Finals - Day 1" sagt nicht, aus welchem Jahr es stammt; in
+   * der Liste eines Spielers stehen mehrere Saisons untereinander. Die Zahl
+   * kommt aus Epics Bestenliste, aus der fruehesten Match-Endzeit des Tages.
+   * Fehlt sie, steht dort nichts - lieber keine Angabe als eine geratene.
+   */
+  const kurzDatum = (t?: number) => (t
+    ? new Date(t).toLocaleDateString(sprache === 'en' ? 'en-GB' : 'de-DE',
+      { day: '2-digit', month: '2-digit', year: '2-digit' })
+    : null);
+
+  const mats = (w: VerlaufZeile['werte']) =>
+    (w.woodFarmed ?? 0) + (w.stoneFarmed ?? 0) + (w.metalFarmed ?? 0);
+  const builds = (w: VerlaufZeile['werte']) =>
+    (w.woodBuildsPlaced ?? 0) + (w.stoneBuildsPlaced ?? 0)
+    + (w.metalBuildsPlaced ?? 0);
+  const quote = (w: VerlaufZeile['werte']) =>
+    w.damageTakenFromPlayers > 0 ? w.damageDealt / w.damageTakenFromPlayers : 0;
+
+  /** Warum eine Spalte leer bleibt - einmal geschrieben, viermal verwendet. */
+  const ohneWert = t('Zu diesem Spieltag hat die Szene-Quelle noch nichts '
+    + 'veröffentlicht. Epics Bestenliste führt Schaden, Material und Bauteile '
+    + 'nicht, und im Replay stehen sie ebenfalls nicht.');
+  const replayHinweis = t('Schaden, Treffer und Kopftreffer aus den Server-Replays gezählt (ohne Treffer auf Umgehauene); im Abgleich mit Epics eigenen Werten im Mittel 6 % niedriger.');
+
+  return (
+    <div className="overflow-x-auto">
+      <table className="w-full text-xs">
+        <thead>
+          <tr className="border-b border-zinc-800 text-[10px] uppercase
+                         tracking-wider text-slate-500">
+            <th className="px-2 py-2 text-left font-medium"><T>Turnier</T></th>
+            <th className="px-2 py-2 text-center font-medium"><T>Region</T></th>
+            <th className="px-2 py-2 text-center font-medium"><T>Platz</T></th>
+            {/* Die Punkte standen bisher nirgends, obwohl Epic sie zu jedem
+                Spieltag herausgibt - und sie sind es, die den Cup
+                entscheiden. Gerade in den Zeilen, in denen sonst nur Striche
+                stehen, ist das der eine Wert, den es wirklich gibt. */}
+            <th className="px-2 py-2 text-right font-medium"><T>Punkte</T></th>
+            {/* Preisgeld, wo eine Tabelle gepflegt ist - der Betreiber:
+                "bei einem Performance Cup Final sind die Points eigentlich
+                Earnings; mach Points und daneben Earnings." Abgeleitet, und
+                die Spalte erscheint nur, wenn es zu einer Zeile etwas gibt. */}
+            {zeilen.some((z) => typeof z.verdienst === 'number') && (
+              <th className="px-2 py-2 text-right font-medium"
+                title={t('Abgeleitet aus Platz beziehungsweise Punkten und der Auszahlungstabelle des Turniers, je Person')}>
+                <T>Verdienst</T>
+              </th>
+            )}
+            <th className="px-2 py-2 text-right font-medium"><T>Matches</T></th>
+            <th className="px-2 py-2 text-right font-medium"><T>Elims</T></th>
+            <th className="px-2 py-2 text-right font-medium"><T>Schaden</T></th>
+            <th className="px-2 py-2 text-right font-medium"><T>Quote</T></th>
+            <th className="px-2 py-2 text-right font-medium"><T>Material</T></th>
+            <th className="px-2 py-2 text-right font-medium"><T>Bauteile</T></th>
+            <th className="px-2 py-2 text-left font-medium"><T>Mitspieler</T></th>
+          </tr>
+        </thead>
+        <tbody>
+          {zeilen.map((z) => (
+            <tr key={z.windowId + z.region} className="border-b border-zinc-900">
+              <td className="px-2 py-2 text-slate-300">
+                {turnierName(z.event)}
+                {z.lan && (
+                  <span className="ml-2 rounded bg-amber-500/15 px-1.5 py-0.5 text-[9px]
+                                   font-semibold uppercase text-amber-400">
+                    LAN{z.lan.ort ? ` · ${z.lan.ort}` : ''}
+                  </span>
+                )}
+                {kurzDatum(z.datum) && (
+                  <span className="ml-2 whitespace-nowrap text-[10px] tabular-nums
+                                   text-slate-600">
+                    {kurzDatum(z.datum)}
+                  </span>
+                )}
+                {/* Woher die Zeile stammt.
+                    Ohne diese Marke stuenden in einer Zeile vier Striche und
+                    niemand wuesste, ob der Spieler nichts erreicht hat oder
+                    ob die Zahlen fehlen. */}
+              </td>
+              <td className="px-2 py-2 text-center">
+                <span className="rounded bg-zinc-900 px-1.5 py-0.5 text-[10px]
+                                 font-semibold tracking-wider text-slate-400">
+                  {z.region}
+                </span>
+              </td>
+              {/* Der Platz kommt aus Epics Bestenliste. Wo Epic das Fenster
+                  nicht mehr vorhaelt, steht ein Strich statt einer Zahl. */}
+              <td className={`px-2 py-2 text-center font-bold tabular-nums
+                              ${platzFarbe(z.platz)}`}>
+                {z.platz !== null ? `${z.platz}.` : '—'}
+              </td>
+              <td className="px-2 py-2 text-right font-semibold tabular-nums
+                             text-slate-300">
+                {z.punkte !== null ? zahl(z.punkte, 0, sprache)
+                  : <span className="text-slate-700">—</span>}
+              </td>
+              {zeilen.some((x) => typeof x.verdienst === 'number') && (
+                <td className="px-2 py-2 text-right font-semibold tabular-nums
+                               text-emerald-400">
+                  {typeof z.verdienst === 'number'
+                    ? `$${zahl(z.verdienst, 0, sprache)}`
+                    : <span className="text-slate-700">—</span>}
+                </td>
+              )}
+              <td className="px-2 py-2 text-right tabular-nums text-slate-500">
+                {z.werte.matchesPlayed || '—'}
+              </td>
+              {/* Bei einer Epic-Zeile bleiben die Einzelwerte leer.
+                  Epic kennt sie nicht: im selben Turnierfenster, das beide
+                  Quellen fuehren, meldet Epic Schaden 0, wo die Quelle
+                  3550,24 fuer denselben Spieler hat. Und die
+                  Eliminierungen dort gelten fuers ganze Team. */}
+              <td className="px-2 py-2 text-right font-semibold tabular-nums
+                             text-sky-400">
+                {/*
+                  * Bei einer Epic-Zeile bleibt die Spalte leer - es sei
+                  * denn, das eigene Replay hat die Eliminierungen gezaehlt.
+                  * Dann steht die Zahl da, gepunktet unterstrichen, damit
+                  * man sieht, dass sie aus einer anderen Quelle stammt als
+                  * die Zahlen der Zeilen darueber.
+                  */}
+                {!z.nurEpic ? z.werte.eliminations
+                  : typeof z.replayElims === 'number' ? (
+                    <span
+                      title={t('Aus dem eigenen Replay dieses Spieltags '
+                        + 'gezählt — Epic gibt Eliminierungen nur je Team '
+                        + 'heraus. Schaden, Material und Bauteile stehen im '
+                        + 'Replay nicht.')
+                        + (typeof z.replayKnocks === 'number'
+                          ? ` · ${z.replayKnocks} ${t('Knocks')}` : '')}
+                      className="cursor-help underline decoration-dotted
+                                 underline-offset-2 decoration-sky-400/50">
+                      {z.replayElims}
+                    </span>
+                  ) : (
+                    <span className="cursor-help text-slate-700"
+                      title={t('Epic gibt Eliminierungen nur je Team heraus, und '
+                        + 'zu diesem Spieltag liegt kein ausgewertetes Replay vor.')}>
+                      —
+                    </span>
+                  )}
+              </td>
+              {/*
+                * Schaden, Quote, Material und Bauteile.
+                *
+                * Die gibt es zu einem reinen Epic-Spieltag nicht: Epics
+                * Bestenliste fuehrt sie nicht, und im Replay stehen sie
+                * ebenfalls nicht - dort sind nur Eliminierungen, Knocks,
+                * Waffe und Zeitpunkt zu holen. Statt eines nackten Strichs
+                * sagt das Feld jetzt im Mouseover, warum es leer ist.
+                * Geraten wird nichts.
+                */}
+              {/* Bei Epic-Zeilen der Schaden aus den eigenen Replays, wo der Tag voll
+                  gelesen ist - gepunktet unterstrichen wie die Elims daneben. */}
+              <td className="px-2 py-2 text-right tabular-nums text-slate-400">
+                {z.nurEpic && z.replaySchaden
+                  ? <span className="cursor-help underline decoration-dotted decoration-sky-400/50 underline-offset-2" title={replayHinweis}>{zahl(z.replaySchaden.dmg, 0, sprache)}</span>
+                  : z.nurEpic
+                    ? <span className="cursor-help text-slate-700" title={ohneWert}>—</span>
+                    : zahl(Math.round(z.werte.damageDealt), 0, sprache)}
+              </td>
+              <td className="px-2 py-2 text-right tabular-nums text-slate-400">
+                {z.nurEpic && z.replaySchaden && z.replaySchaden.erlitten > 0
+                  ? <span className="cursor-help underline decoration-dotted decoration-sky-400/50 underline-offset-2" title={replayHinweis}>{zahl(z.replaySchaden.dmg / z.replaySchaden.erlitten, 2, sprache)}</span>
+                  : z.nurEpic
+                    ? <span className="cursor-help text-slate-700" title={ohneWert}>—</span>
+                    : zahl(quote(z.werte), 2, sprache)}
+              </td>
+              <td className="px-2 py-2 text-right tabular-nums text-slate-400">
+                {z.nurEpic || !mats(z.werte)
+                  ? <span className="cursor-help text-slate-700" title={ohneWert}>—</span>
+                  : zahl(mats(z.werte), 0, sprache)}
+              </td>
+              <td className="px-2 py-2 text-right tabular-nums text-slate-400">
+                {z.nurEpic || !builds(z.werte)
+                  ? <span className="cursor-help text-slate-700" title={ohneWert}>—</span>
+                  : zahl(builds(z.werte), 0, sprache)}
+              </td>
+              <td className="px-2 py-2">
+                {z.mitspieler.length ? (
+                  <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    {z.mitspieler.map((m) => (
+                      <span key={m.epicId} className="flex items-center gap-1">
+                        <TeamFlagge groesse={13} laender={[m.land ?? undefined]} />
+                        <span className="text-[11px] text-slate-300">
+                          {grossName(m.name)}
+                        </span>
+                      </span>
+                    ))}
+                  </span>
+                ) : <span className="text-slate-700">—</span>}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+
+        {/* Die Zusammenfassung.
+            Der Durchschnittsplatz zaehlt nur die Zeilen mit, zu denen es
+            wirklich einen Platz gibt - sonst zoege ein fehlendes Fenster den
+            Schnitt nach unten, ohne dass jemand schlechter gespielt haette. */}
+        {fuss && zeilen.length > 0 && (() => {
+          /* Summiert wird nur ueber Zeilen, die wirklich Werte haben.
+             Eine Epic-Zeile traegt lauter Nullen; sie mitzuzaehlen liesse
+             den Schnitt sinken, ohne dass jemand schlechter gespielt hat.
+             Platz und Matches sind dort echt und zaehlen mit. */
+          // Die Gesamtzeile eines LANs zaehlt nicht mit - ihre Tage stehen schon da.
+          const tage = zeilen.filter((z) => !z.gesamt);
+          const mitWerten = tage.filter((z) => !z.nurEpic);
+          const n = (holen: (z: VerlaufZeile) => number) =>
+            mitWerten.reduce((summe, z) => summe + holen(z), 0);
+          const alleN = (holen: (z: VerlaufZeile) => number) =>
+            tage.reduce((summe, z) => summe + holen(z), 0);
+          const schaden = n((z) => z.werte.damageDealt);
+          const erlitten = n((z) => z.werte.damageTakenFromPlayers);
+          const mitPlatz = tage.filter((z) => z.platz !== null);
+          const schnittPlatz = mitPlatz.length
+            ? mitPlatz.reduce((sum, z) => sum + (z.platz ?? 0), 0) / mitPlatz.length
+            : null;
+          return (
+            <tfoot>
+              <tr className="border-t-2 border-zinc-700 bg-zinc-900/60
+                             text-[11px] font-semibold">
+                <td className="px-2 py-3 text-left uppercase tracking-[0.12em]
+                               text-slate-400">
+                  <T>Zusammenfassung</T>
+                  <span className="ml-1.5 font-normal normal-case tracking-normal
+                                   text-slate-600">
+                    {zeilen.length}{' '}
+                    <T>{zeilen.length === 1 ? 'Spieltag' : 'Spieltage'}</T>
+                  </span>
+                </td>
+                <td />
+                <td className="px-2 py-3 text-center tabular-nums text-slate-300">
+                  {schnittPlatz !== null ? `Ø ${zahl(schnittPlatz, 1, sprache)}` : '—'}
+                </td>
+                <td className="px-2 py-3 text-right tabular-nums text-slate-300">
+                  {zahl(alleN((z) => z.werte.matchesPlayed), 0, sprache)}
+                </td>
+                <td className="px-2 py-3 text-right tabular-nums text-sky-400">
+                  {zahl(n((z) => z.werte.eliminations), 0, sprache)}
+                </td>
+                <td className="px-2 py-3 text-right tabular-nums text-slate-300">
+                  {zahl(Math.round(schaden), 0, sprache)}
+                </td>
+                <td className="px-2 py-3 text-right tabular-nums text-slate-300">
+                  {zahl(erlitten > 0 ? schaden / erlitten : 0, 2, sprache)}
+                </td>
+                <td className="px-2 py-3 text-right tabular-nums text-slate-300">
+                  {zahl(n((z) => mats(z.werte)), 0, sprache)}
+                </td>
+                <td className="px-2 py-3 text-right tabular-nums text-slate-300">
+                  {zahl(n((z) => builds(z.werte)), 0, sprache)}
+                </td>
+                <td />
+              </tr>
+            </tfoot>
+          );
+        })()}
+      </table>
+    </div>
+  );
+}
+
+/**
+ * Ein Balken von null bis hundert.
+ *
+ * Die Zahl ist der Rang im Feld: wie viele Mitspieler liegen unter diesem
+ * Spieler. Achtundneunzig heisst also, dass er achtundneunzig Prozent des
+ * Feldes hinter sich laesst - keine erfundene Bewertung, sondern eine
+ * Abzaehlung.
+ */
+function Balken({ wert, klein = false }: { wert: number; klein?: boolean }) {
+  const farbe = wert >= 85 ? 'bg-sky-400' : wert >= 60 ? 'bg-sky-500/70' : 'bg-slate-600';
+  return (
+    <div className={`overflow-hidden rounded-full bg-zinc-800 ${klein ? 'h-1' : 'h-1.5'}`}>
+      <div className={`profil-balken h-full rounded-full ${farbe}`} style={{ width: `${wert}%` }} />
+    </div>
+  );
+}
+
+/**
+ * Der Verlauf als Linie.
+ *
+ * Von Hand gezeichnetes SVG statt einer Diagrammbibliothek: es ist eine
+ * Linie mit Punkten, dafuer lohnt keine Abhaengigkeit, und so passt sie sich
+ * ohne Umwege der Farbe des Werkzeugs an.
+ */
+function Verlaufslinie({ werte, beschriftung, marken }: {
+  werte: number[]; beschriftung: string;
+  /** Woher der Punkt stammt - eine Beschriftung je Wert. */
+  marken?: string[];
+}) {
+  const { sprache } = useSprache();
+  const [zeigt, setZeigt] = useState<number | null>(null);
+  if (werte.length < 2) return null;
+  const B = 900, H = 190, rand = 28;
+  const hoch = Math.max(...werte);
+  const tief = Math.min(...werte);
+  const spanne = hoch - tief || 1;
+  const x = (i: number) => rand + (i / (werte.length - 1)) * (B - rand * 2);
+  const y = (v: number) => H - rand - ((v - tief) / spanne) * (H - rand * 2);
+  const stellen: Array<[number, number]> = werte.map((v, i) => [x(i), y(v)]);
+  const bahn = rund(stellen);
+  const flaeche = `${bahn} L ${B - rand} ${H - rand} L ${rand} ${H - rand} Z`;
+  const schnitt = werte.reduce((a, b) => a + b, 0) / werte.length;
+
+  /**
+   * Wo der Kasten steht.
+   *
+   * Ueber dem Punkt, solange dort Platz ist. Liegt der Punkt im oberen
+   * Drittel - und das tut der hoechste Wert immer -, klappt der Kasten nach
+   * unten, sonst ragte er aus dem Bild heraus und war nicht zu lesen. Am
+   * linken und rechten Rand rueckt er entsprechend nach innen.
+   */
+  const kasten = (i: number) => {
+    const px = (x(i) / B) * 100;
+    const py = (y(werte[i]) / H) * 100;
+    const unten = py < 38;
+    const waagerecht = px < 18 ? '0' : px > 82 ? '-100%' : '-50%';
+    return {
+      left: `${px}%`,
+      top: `${py}%`,
+      transform: `translate(${waagerecht}, ${unten ? '14px' : 'calc(-100% - 14px)'})`,
+    };
+  };
+
+  return (
+    /* overflow-visible, damit der Kasten nicht am Rand des Kastens
+       abgeschnitten wird - der Rollbalken sitzt eine Ebene tiefer. */
+    <div className="relative">
+      {/* Woher der Punkt stammt.
+          Genau die Frage, die man beim Ansehen einer Linie zuerst hat: welcher
+          Spieltag war das? Der Kasten zeigt neben dem Wert auch den
+          Durchschnitt, damit die Hoehe etwas bedeutet. */}
+      {zeigt !== null && (
+        <div className="pointer-events-none absolute z-20 whitespace-nowrap
+                        rounded-lg border border-zinc-700 bg-zinc-950/95 px-3 py-2
+                        shadow-xl"
+          style={kasten(zeigt)}>
+          {marken?.[zeigt] && (
+            <p className="mb-1 text-[11px] font-semibold text-slate-200">
+              {marken[zeigt]}
+            </p>
+          )}
+          <p className="flex items-center gap-2 text-[11px] text-slate-400">
+            <span className="h-2 w-2 rounded-sm bg-sky-400" />
+            {beschriftung.replace(/ je Spieltag$/, '')}
+            <span className="font-semibold tabular-nums text-slate-100">
+              {werte[zeigt]}
+            </span>
+          </p>
+          <p className="mt-0.5 flex items-center gap-2 text-[11px] text-slate-500">
+            <span className="h-2 w-2 rounded-sm bg-zinc-600" />
+            <T>Durchschnitt</T>
+            <span className="tabular-nums">{zahl(schnitt, 1, sprache)}</span>
+          </p>
+        </div>
+      )}
+      {/* Kein festes Hoehenmass: sonst behaelt das SVG sein Seitenverhaeltnis
+          und steht als schmaler Streifen mitten im Kasten. So folgt die Hoehe
+          der Breite und die Linie laeuft ueber die ganze Flaeche. */}
+      <div className="overflow-x-auto">
+      <svg viewBox={`0 0 ${B} ${H}`} className="block h-auto w-full min-w-[420px]"
+        role="img" aria-label={beschriftung}>
+        <path d={flaeche} fill="currentColor" className="text-sky-500/10" />
+        {/* Der Durchschnitt als gestrichelte Linie - erst dadurch sagt ein
+            Punkt etwas aus. */}
+        <line x1={rand} x2={B - rand} y1={y(schnitt)} y2={y(schnitt)}
+          stroke="currentColor" strokeDasharray="4 4" strokeWidth="1"
+          className="text-zinc-700" />
+        <path d={bahn} fill="none" stroke="currentColor" strokeWidth="2.2"
+          strokeLinecap="round" className="text-sky-400" />
+        {werte.map((v, i) => (
+          <circle key={i} cx={x(i)} cy={y(v)} r={zeigt === i ? 5.5 : 3.5}
+            className="fill-sky-400" />
+        ))}
+        {/* Unsichtbare Flaechen darueber: ein Punkt von dreieinhalb Einheiten
+            ist mit der Maus kaum zu treffen. */}
+        {werte.map((v, i) => (
+          <circle key={`griff-${i}`} cx={x(i)} cy={y(v)} r="16" fill="transparent"
+            onMouseEnter={() => setZeigt(i)} onMouseLeave={() => setZeigt(null)} />
+        ))}
+        <text x={rand} y={12} className="fill-slate-600" fontSize="10">{hoch}</text>
+        <text x={rand} y={H - 6} className="fill-slate-600" fontSize="10">{tief}</text>
+      </svg>
+      </div>
+    </div>
+  );
+}
+
+/** Eine Bestenliste als Karte - Kopf, Pluszeichen, die besten fuenf. */
+function ListenKarte({ liste, aufVoll, aufSpieler }: {
+  liste: { titel: string; feld: keyof Spieler; nachkomma?: number; einheit?: string;
+           zeilen: Spieler[] };
+  aufVoll: () => void;
+  aufSpieler: (s: Spieler) => void;
+}) {
+  const t = useT();
+  const { sprache } = useSprache();
+  // Dieselbe Karte wie die Bestenlisten der Uebersicht (Betreiber, 19.10.2026: "sieht noch nicht nach meinem neuen Stil aus"): der Erste mit Foto, darunter die Plaetze.
+  const [erster, ...rest] = liste.zeilen.slice(0, 5);
+  const wertVon = (sp: Spieler) => zahl(Number(sp[liste.feld]), liste.nachkomma ?? 0, sprache) + (liste.einheit ?? '');
+  return (
+    <div className="overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 shadow-[0_10px_30px_rgba(15,23,42,.10)]">
+      <div className="flex items-center gap-2 px-5 pt-4">
+        <h3 className="schrift-anzeige text-base font-extrabold text-slate-100"><T>{liste.titel}</T></h3>
+        {liste.zeilen.length > 5 && (
+          <button onClick={aufVoll} title={t('Alle {n} anzeigen').replace('{n}', String(liste.zeilen.length))}
+            className="ml-auto grid h-7 w-7 place-items-center rounded-full border border-zinc-700 text-sm leading-none text-slate-400 transition hover:border-sky-500 hover:text-sky-500">+</button>
+        )}
+      </div>
+      {erster && (
+        <button type="button" onClick={() => aufSpieler(erster)}
+          className="group mx-3 mt-3 flex w-[calc(100%-1.5rem)] items-stretch overflow-hidden rounded-2xl border border-zinc-700 bg-zinc-800/70 text-left">
+          <span className="relative h-36 w-28 shrink-0 overflow-hidden">
+            {erster.bild ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={erster.bild} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover object-top transition duration-500 group-hover:scale-105" />
+            ) : (
+              <SpielerPlatzhalter name={(erster.anzeige || '?')} />
+            )}
+            <span aria-hidden className="absolute inset-y-0 right-0 w-8 bg-gradient-to-r from-transparent to-zinc-800/70" />
+          </span>
+          <span className="flex min-w-0 flex-1 flex-col justify-between p-3">
+            <span className="flex items-center gap-2">
+              <span className="rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-black text-zinc-950">1</span>
+              <RegionMarke region={erster.heimat || erster.regionen[0] || ''} />
+            </span>
+            <span>
+              <span className="flex items-center gap-1.5">
+                <TeamFlagge groesse={16} laender={[erster.land ?? undefined]} />
+                <span className="truncate text-base font-extrabold uppercase tracking-wide text-slate-100">{grossName(erster.anzeige, erster.gepflegt)}</span>
+              </span>
+              <span className="schrift-anzeige mt-1 block text-3xl font-extrabold tabular-nums leading-none text-sky-500">{wertVon(erster)}</span>
+            </span>
+          </span>
+        </button>
+      )}
+      <div className="px-1 pb-2 pt-1">
+        {rest.map((sp, i) => (
+          <Platz key={sp.epicId} nr={i + 2} s={sp} wert={wertVon(sp)} aufKlick={() => aufSpieler(sp)} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Die Solo Clutch Points der Saison als Tabelle - wie bei eucompetitive:
+ * Rang, Spieler, Region, Punkte, Solo-Zeit. Zehn Zeilen, darunter "Details"
+ * mit allen Spielern der Saison (Betreiber, 1.10.2026).
+ *
+ * Die Liste laedt beim Scrollen nach, statt tausendsechshundert Zeilen auf
+ * einmal zu zeichnen.
+ */
+interface ClutchZeileAnzeige {
+  epicId: string; anzeige: string; gepflegt: boolean; land: string | null;
+  heimat: string; punkte: number; spiele: number; solo: number | null;
+}
+function ClutchTabelle({ daten, saison, saisonTitel, aufKonto }: {
+  daten: { spieltage: number; soloDa: boolean; gesamt?: number; zeilen: ClutchZeileAnzeige[] };
+  saison: string;
+  saisonTitel: string;
+  aufKonto: (epicId: string, name: string) => void;
+}) {
+  const t = useT();
+  const { sprache } = useSprache();
+  const [offen, setOffen] = useState(false);
+  const [sichtbar, setSichtbar] = useState(50);
+  const ende = useRef<HTMLDivElement | null>(null);
+  /*
+   * Die Suche steht immer da, nicht erst unter "Details".
+   *
+   * Der Betreiber (11.10.2026): "wenn ich auf Details gehe, kommt eine Suchliste,
+   * aber nur dann - sonst nicht." Wer seinen Namen sucht, soll nicht erst die
+   * Tabelle aufklappen muessen. Ab zwei Buchstaben wird die ganze Liste geholt
+   * (siehe unten) und nach dem Namen durchsucht; der Rang bleibt der Rang in
+   * der ganzen Liste, nicht der in der Trefferliste.
+   */
+  const [suche, setSuche] = useState('');
+  const suchen = suche.trim().length >= 2;
+  /*
+   * Weitere Zeilen und Treffer kommen erst auf "Details" oder beim Suchen -
+   * und nur in kleinen Stuecken vom Server: in der Startantwort stehen nur
+   * die ersten zehn (rund zwanzigtausend Zeilen waeren drei bis vier
+   * Megabyte). "&clutch=seite&ab=n" liefert hundert Zeilen, "&clutch=suche&q="
+   * hoechstens fuenfzig Treffer samt Rang in der ganzen Liste.
+   */
+  // Eine aeltere Antwort traegt noch alle Zeilen in der Startantwort - dann ist die Liste schon da und wird lokal durchsucht.
+  const vollDa = daten.zeilen.length > 10;
+  const [geladen, setGeladen] = useState<ClutchZeileAnzeige[]>([]);
+  const [gesamtN, setGesamtN] = useState<number | null>(null);
+  const [vollFehler, setVollFehler] = useState(false);
+  const laedt = useRef(false);
+  const saisonJetzt = useRef(saison);
+  useEffect(() => {
+    saisonJetzt.current = saison;
+    setGeladen([]); setGesamtN(null); setVollFehler(false); laedt.current = false;
+  }, [saison]);
+  const holeSeite = (ab: number) => {
+    if (laedt.current) return;
+    laedt.current = true;
+    setVollFehler(false);
+    const fuer = saison;
+    fetch(`/api/szene-stats?ansicht=start&saison=${encodeURIComponent(fuer)}&clutch=seite&ab=${ab}`)
+      .then((r) => r.json())
+      .then((j) => {
+        if (saisonJetzt.current !== fuer) return;
+        if (Array.isArray(j?.clutch?.zeilen)) {
+          setGeladen((g) => (g.length === ab ? [...g, ...(j.clutch.zeilen as ClutchZeileAnzeige[])] : g));
+          if (typeof j.clutch.gesamt === 'number') setGesamtN(j.clutch.gesamt);
+        } else setVollFehler(true);
+      })
+      .catch(() => { if (saisonJetzt.current === fuer) setVollFehler(true); })
+      .finally(() => { laedt.current = false; });
+  };
+  useEffect(() => {
+    if (offen && !vollDa && geladen.length === 0 && !vollFehler) holeSeite(0);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [offen, vollDa, geladen.length, vollFehler, saison]);
+  const alle = vollDa ? daten.zeilen : geladen;
+  const mehrDa = vollDa ? sichtbar < alle.length : gesamtN !== null && geladen.length < gesamtN;
+  // Nach unten gescrollt: die naechsten hundert nachladen.
+  useEffect(() => {
+    if (!offen || !ende.current) return;
+    const o = new IntersectionObserver((e) => {
+      if (!e[0]?.isIntersecting) return;
+      if (vollDa) setSichtbar((n) => n + 100); else holeSeite(geladen.length);
+    }, { rootMargin: '200px' });
+    o.observe(ende.current);
+    return () => o.disconnect();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [offen, sichtbar, geladen.length, vollDa, mehrDa]);
+  const soloText = (s: number | null) => (s === null ? '' : `${Math.floor(s / 60)}m ${String(s % 60).padStart(2, '0')}s`);
+  const klein = suche.trim().toLowerCase();
+  // Die Suche fragt den Server (nach 250 ms Ruhe); eine veraltete Anfrage wird abgebrochen.
+  const [treffer, setTreffer] = useState<{ q: string; liste: Array<{ z: ClutchZeileAnzeige; rang: number }> } | null>(null);
+  const [sucheFehler, setSucheFehler] = useState(false);
+  useEffect(() => {
+    if (!suchen || vollDa) return undefined;
+    setSucheFehler(false);
+    const ac = new AbortController();
+    const timer = setTimeout(() => {
+      fetch(`/api/szene-stats?ansicht=start&saison=${encodeURIComponent(saison)}&clutch=suche&q=${encodeURIComponent(klein)}`, { signal: ac.signal })
+        .then((r) => r.json())
+        .then((j) => {
+          if (Array.isArray(j?.clutch?.treffer)) setTreffer({ q: klein, liste: j.clutch.treffer as Array<{ z: ClutchZeileAnzeige; rang: number }> });
+          else setSucheFehler(true);
+        })
+        .catch((e) => { if (e?.name !== 'AbortError') setSucheFehler(true); });
+    }, 250);
+    return () => { clearTimeout(timer); ac.abort(); };
+  }, [suchen, vollDa, klein, saison]);
+  const trefferDa = suchen && !vollDa && treffer !== null && treffer.q === klein;
+  // Mit Rang in der ganzen Liste, damit er auch in der Trefferliste stimmt.
+  const gefunden = suchen
+    ? (vollDa
+      ? alle.map((z, i) => ({ z, rang: i + 1 })).filter((x) => x.z.anzeige.toLowerCase().includes(klein)).slice(0, 50)
+      : trefferDa ? treffer.liste : null)
+    : null;
+  const zeilen = (gefunden ?? (suchen ? [] : (offen ? alle.slice(0, vollDa ? sichtbar : alle.length || 10) : daten.zeilen.slice(0, 10))
+    .map((z, i) => ({ z, rang: i + 1 }))));
+  // Solange die ersten hundert noch nicht da sind, steht die Startliste (zehn Zeilen) da.
+  const angezeigt = suchen || !offen || alle.length ? zeilen : daten.zeilen.slice(0, 10).map((z, i) => ({ z, rang: i + 1 }));
+
+  // Der Balken je Zeile misst gegen die beste Wertung (die Liste ist nach Punkten geordnet).
+  const spitze = Math.max(1, daten.zeilen[0]?.punkte ?? alle[0]?.punkte ?? 1);
+  const MEDAILLE = ['#f5b301', '#9aa6ba', '#cc7a3d'];
+  return (
+    <section className="mt-10">
+      <div className="mb-4 flex flex-wrap items-end gap-x-4 gap-y-2">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-sky-500"><T>Solo Clutch Points</T></p>
+          <h2 className="schrift-anzeige mt-1 text-2xl font-extrabold tracking-tight text-slate-100 sm:text-3xl">{saisonTitel}</h2>
+          <p className="mt-0.5 text-xs text-slate-500">{t('aus {n} Spieltagen mit Replay-Auswertung').replace('{n}', String(daten.spieltage))}</p>
+        </div>
+        <input value={suche} onChange={(e) => setSuche(e.target.value)}
+          placeholder={t('Spieler suchen …')}
+          className="ml-auto w-48 rounded-full border border-zinc-700 bg-zinc-900 px-4 py-1.5 text-sm text-slate-200 outline-none placeholder:text-slate-500 focus:border-sky-500" />
+        <button type="button" onClick={() => { setOffen((o) => !o); setSichtbar(50); }}
+          className="rounded-full border border-zinc-700 bg-zinc-900 px-5 py-1.5 text-xs font-bold uppercase tracking-[0.14em] text-slate-300 transition hover:border-sky-500 hover:text-sky-500">
+          {offen ? <T>Weniger</T> : <T>Details</T>}
+        </button>
+      </div>
+      <div className="overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 shadow-[0_10px_30px_rgba(15,23,42,.10)]">
+        <div className="flex items-center gap-3 border-b border-zinc-800 px-5 py-3
+                        text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-500">
+          <span className="w-8 shrink-0">#</span>
+          <span className="min-w-0 flex-1"><T>Spieler</T></span>
+          <span className="hidden w-16 shrink-0 sm:block"><T>Region</T></span>
+          <span className="w-16 shrink-0 text-right"><T>Punkte</T></span>
+          <span className="hidden w-20 shrink-0 text-right sm:block"><T>Clutch-Spiele</T></span>
+          {daten.soloDa && <span className="w-20 shrink-0 text-right"><T>Solo-Zeit</T></span>}
+        </div>
+        <div className={`divide-y divide-zinc-800/70 ${offen || suchen ? 'max-h-[70vh] overflow-y-auto' : ''}`}>
+          {angezeigt.map(({ z, rang }) => (
+            <button key={z.epicId} type="button" onClick={() => aufKonto(z.epicId, z.anzeige)}
+              className="relative flex w-full items-center gap-3 overflow-hidden px-5 py-3 text-left transition hover:bg-zinc-800/50">
+              <span aria-hidden className="absolute inset-y-0 left-0 bg-sky-500/10" style={{ width: `${Math.max(2, (z.punkte / spitze) * 100)}%` }} />
+              <span className="relative w-8 shrink-0">
+                {rang <= 3
+                  ? <span className="grid h-7 w-7 place-items-center rounded-full text-xs font-black text-zinc-950" style={{ background: MEDAILLE[rang - 1] }}>{rang}</span>
+                  : <span className="text-sm font-bold tabular-nums text-slate-500">{rang}</span>}
+              </span>
+              <span className="relative flex min-w-0 flex-1 items-center gap-2.5 text-[13px]">
+                <TeamFlagge groesse={18} laender={[z.land ?? undefined]} />
+                <span className="truncate font-semibold text-slate-100">{grossName(z.anzeige, z.gepflegt)}</span>
+              </span>
+              <span className="relative hidden w-16 shrink-0 sm:block">{z.heimat ? <RegionMarke region={z.heimat} /> : null}</span>
+              <span className="relative w-16 shrink-0 text-right text-[13px] font-extrabold tabular-nums text-sky-500">{zahl(z.punkte, 0, sprache)}</span>
+              <span className="relative hidden w-20 shrink-0 text-right text-[13px] tabular-nums text-slate-400 sm:block">{zahl(z.spiele, 0, sprache)}</span>
+              {daten.soloDa && <span className="relative w-20 shrink-0 text-right text-[13px] tabular-nums text-slate-400">{soloText(z.solo)}</span>}
+            </button>
+          ))}
+          {suchen && gefunden && !gefunden.length && (
+            <p className="px-4 py-3 text-center text-[12px] text-slate-500"><T>Kein Spieler gefunden.</T></p>
+          )}
+          {((suchen && !gefunden && !sucheFehler) || (offen && !suchen && !vollDa && !alle.length && !vollFehler)) && (
+            <p className="px-4 py-3 text-center text-[12px] text-slate-500"><T>Wird geladen …</T></p>
+          )}
+          {((suchen && !gefunden && sucheFehler) || (offen && !suchen && !vollDa && !alle.length && vollFehler)) && (
+            <p className="px-4 py-3 text-center text-[12px] text-rose-300"><T>Die Liste ließ sich gerade nicht laden. Bitte gleich noch einmal versuchen.</T></p>
+          )}
+          {offen && !suchen && mehrDa && <div ref={ende} className="h-8" />}
+        </div>
+      </div>
+      <p className="mt-2 text-xs text-slate-500">
+        <T>Punkte, die ein Spieler allein im Team holt: Platzierungen und Eliminierungen, nachdem sein Mitspieler ausgeschieden ist. Gezählt aus den Replays.</T>
+        {' '}{zahl(daten.gesamt ?? daten.zeilen.length, 0, sprache)} <T>Spieler</T>
+      </p>
+    </section>
+  );
+}
+
+/** Eine Zeile in einer Bestenliste. */
+function Platz({ nr, s, wert, aufKlick, zusatz, mitBild, hervor, aufZeigen }: {
+  nr: number; s: Spieler; wert: string; aufKlick?: () => void;
+  /**
+   * Derselbe Spieler steht gerade unter der Maus - in dieser oder einer
+   * anderen Liste. Der Betreiber (28.9.2026, nach Osirions Vorbild): wer
+   * ueber einen Namen faehrt, sieht in allen Ranglisten, wo der Spieler noch
+   * unter den Top 10 steht - "mit Blau, halt mit meiner Farbe".
+   */
+  hervor?: boolean;
+  aufZeigen?: (an: boolean) => void;
+  /** Eine kleine Zeile unter dem Namen - etwa "Finals 79 · Opens 293". */
+  zusatz?: string;
+  /**
+   * Das Profilbild statt der Flagge, alles eine Nummer groesser - fuer die
+   * Preisgeldliste. Der Betreiber: "anstatt die Flagge machst du ein
+   * Profilbild, ein bisschen groesser." Einen Balken gab es kurz, den
+   * wollte er nicht: "mach diese blauen Balken weg."
+   */
+  mitBild?: boolean;
+}) {
+  return (
+    <button onClick={aufKlick} disabled={!aufKlick}
+      onMouseEnter={aufZeigen ? () => aufZeigen(true) : undefined}
+      onMouseLeave={aufZeigen ? () => aufZeigen(false) : undefined}
+      className={`flex w-full items-center text-left transition
+                  ${mitBild ? 'gap-4 px-4 py-3' : 'gap-3 px-3 py-2'} ${hervor
+                    ? 'rounded-md bg-sky-500/10 ring-1 ring-inset ring-sky-500/70'
+                    : aufKlick ? 'hover:bg-zinc-900/60' : ''}`}>
+      <span className={`shrink-0 font-bold tabular-nums ${mitBild ? 'w-7 text-sm' : 'w-5 text-[11px]'} ${
+        nr === 1 ? 'text-amber-400' : 'text-slate-600'}`}>{nr}</span>
+      {mitBild ? (
+        s.bild ? (
+          /* eslint-disable-next-line @next/next/no-img-element */
+          <img src={s.bild} alt="" loading="lazy"
+            className="h-16 w-16 shrink-0 rounded-lg border border-zinc-800 object-cover object-top" />
+        ) : (
+          <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg
+                           border border-zinc-800 bg-zinc-900 text-xl text-zinc-700">?</span>
+        )
+      ) : (
+        <TeamFlagge groesse={18} laender={[s.land ?? undefined]} />
+      )}
+      <span className="min-w-0 flex-1">
+        <span className={`flex items-center gap-2 ${mitBild ? 'text-base' : 'text-[12px]'}`}>
+          {mitBild && <TeamFlagge groesse={18} laender={[s.land ?? undefined]} />}
+          <span className={`truncate text-slate-200 ${mitBild ? 'font-bold uppercase tracking-wide' : 'font-medium'}`}>
+            {grossName(s.anzeige, s.gepflegt)}
+          </span>
+        </span>
+        {zusatz && (
+          <span className="block truncate text-[10px] tabular-nums text-slate-500">{zusatz}</span>
+        )}
+      </span>
+      <RegionMarke region={s.heimat || s.regionen[0] || ''} />
+      <span className={`shrink-0 font-bold tabular-nums text-sky-400 ${mitBild ? 'text-lg' : 'text-[12px]'}`}>
+        {wert}
+      </span>
+    </button>
+  );
+}
+
+/*
+ * Der Spielerfaecher (Betreiber, 14.10.2026): "so eine Art Pop-off unter Stats - wie viele Spieler ich habe, mit Bildern rechts, und wenn ich
+ * drauf druecke, poppt es auf." Links die Zahl der Profile und der Weg zur ganzen Liste, rechts fuenf Spielerkarten wie ein Faecher; eine Karte
+ * gerade gezogen hebt sich beim Ueberfahren, ein Klick oeffnet sie gross mit den Werten - dort geht es weiter ins Profil.
+ */
+function SpielerFaecher({ spieler, aufAlle, aufOeffnen }: { spieler: Spieler[]; aufAlle: () => void; aufOeffnen: (s: Spieler) => void }) {
+  const t = useT();
+  const { sprache } = useSprache();
+  const [anzahl, setAnzahl] = useState<number | null>(null);
+  const [auf, setAuf] = useState<Spieler | null>(null);
+  /*
+   * Die vollen Werte des gewaehlten Spielers. Die Plaetze der Bestenlisten tragen nur die Zahl ihrer eigenen Liste (Eliminierungen) - alles andere
+   * stuende dort als Null, und eine Null waere eine Behauptung. Deshalb wird der Spieler beim Oeffnen ueber die Suche vollstaendig geholt; bis
+   * er da ist (oder wenn er nicht kommt), steht ein Strich.
+   */
+  const [voll, setVoll] = useState<Spieler | null>(null);
+  useEffect(() => {
+    setVoll(null);
+    if (!auf) return undefined;
+    let weg = false;
+    fetch(`/api/szene-stats?ansicht=suche&q=${encodeURIComponent(auf.name)}`).then((r) => r.json())
+      .then((j) => { const x = ((j?.spieler ?? []) as Spieler[]).find((p) => p.epicId === auf.epicId); if (!weg && x) setVoll(x); })
+      .catch(() => { /* dann bleibt der Strich */ });
+    return () => { weg = true; };
+  }, [auf]);
+  useEffect(() => {
+    let weg = false;
+    fetch('/api/statistik-zahlen').then((r) => r.json()).then((j) => { if (!weg && j?.ok && typeof j.spieler === 'number') setAnzahl(j.spieler); }).catch(() => { /* ohne Zahl bleibt ein Strich */ });
+    return () => { weg = true; };
+  }, []);
+  useEffect(() => {
+    if (!auf) return undefined;
+    const taste = (e: KeyboardEvent) => { if (e.key === 'Escape') setAuf(null); };
+    document.addEventListener('keydown', taste);
+    return () => document.removeEventListener('keydown', taste);
+  }, [auf]);
+  /*
+   * Die Spieler (Betreiber, 19.10.2026): "von jeder Region zwei Spieler mit Profilbild, von Anfang an aufgeklappt, der Name gross, ein, zwei kleine Werte" -
+   * statt des Faechers aus sechs Namen. Genommen werden aus der Elim-Rangliste je Heimatregion die ersten beiden mit Foto; die Reihenfolge der Regionen ist fest.
+   */
+  const REGIONEN_REIHE = ['EU', 'NAC', 'NAW', 'BR', 'ME', 'ASIA', 'OCE'];
+  /*
+   * Fest gesetzte Karten (Betreiber, 31.10.2026: "wo sind die EU-Spieler - mach Shxrk, Vico da hin"). Fuer EU stehen diese beiden statt des
+   * Ersten der Elim-Liste; sie werden ueber die Suche geholt, weil sie nicht in jeder Saison oben in der Liste stehen. Kommt einer nicht,
+   * faellt die Region auf die Elim-Liste zurueck.
+   */
+  const FEST: Record<string, string[]> = { EU: ['Shxrk', 'Vico'] };
+  const [fest, setFest] = useState<Spieler[]>([]);
+  useEffect(() => {
+    let weg = false;
+    const namen = Object.values(FEST).flat();
+    Promise.all(namen.map((n) => fetch(`/api/szene-stats?ansicht=suche&q=${encodeURIComponent(n)}`).then((r) => r.json())
+      .then((j) => ((j?.spieler ?? []) as Spieler[]).find((p) => p.bild && p.anzeige.toLowerCase() === n.toLowerCase()) ?? null)
+      .catch(() => null)))
+      .then((l) => { if (!weg) setFest(l.filter((x): x is Spieler => !!x)); });
+    return () => { weg = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+  const karten = useMemo(() => {
+    const mit = spieler.filter((x) => x.bild);
+    const raus: Spieler[] = [];
+    // Einer je Region (Betreiber, 19.10.2026: zwei Reihen Fotos untereinander sahen nicht sauber aus - zurueck zum Faecher, nur mit einem je Region).
+    for (const r of REGIONEN_REIHE) {
+      const gesetzt = fest.filter((x) => (FEST[r] ?? []).some((n) => n.toLowerCase() === x.anzeige.toLowerCase()));
+      raus.push(...(gesetzt.length ? gesetzt : mit.filter((x) => (x.heimat || x.regionen[0] || '') === r).slice(0, 1)));
+    }
+    return raus;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [spieler, fest]);
+  if (karten.length < 4) return null;
+  const mitte = (karten.length - 1) / 2;
+  return (
+    <section className="relative mb-10 overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 p-6 shadow-[0_10px_30px_rgba(15,23,42,.10)] sm:p-10">
+      <div aria-hidden className="pointer-events-none absolute -right-20 -top-24 h-80 w-80 rounded-full bg-sky-500/20 blur-[90px]" />
+      <div className="relative grid items-center gap-10 lg:grid-cols-[0.8fr_1.4fr]">
+        <div>
+          <p className="text-xs font-bold uppercase tracking-[0.2em] text-sky-500"><T>Spieler</T></p>
+          <h2 className="schrift-anzeige mt-2 text-4xl font-extrabold tracking-tight text-slate-100 sm:text-5xl">
+            {anzahl === null ? '—' : zahl(anzahl, 0, sprache)} <T>Spielerprofile.</T>
+          </h2>
+          <p className="mt-3 max-w-md text-base text-slate-400"><T>Werte, Titel, FNCS-Ergebnisse, Mitspieler und Landepunkte zu jedem Spieler im Archiv.</T></p>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <button type="button" onClick={aufAlle}
+              className="rounded-full bg-sky-500 px-6 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-sky-400">
+              <T>Alle Spieler ansehen</T> →
+            </button>
+          </div>
+        </div>
+        {/* Der Faecher: eine Karte je Region; beim Ueberfahren geht er auseinander, ein Klick oeffnet die Karte gross. */}
+        <ul className="faecher mx-auto h-[17rem] w-full max-w-3xl" style={{ ['--n' as string]: karten.length - 1 }}>
+          {karten.map((x, i) => (
+            <li key={x.epicId} style={{ ['--d' as string]: i - mitte, ['--i' as string]: i + 1 }}>
+              <button type="button" onClick={() => setAuf(x)} aria-label={x.anzeige}
+                className="foto-dunkel group relative block h-52 w-36 overflow-hidden rounded-2xl border border-white/10 bg-zinc-900 text-left shadow-[0_14px_34px_rgba(2,6,23,.35)] max-sm:h-44 max-sm:w-28">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={x.bild as string} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+                <span aria-hidden className="foto-unten absolute inset-0" />
+                <span className="absolute left-2.5 top-2.5"><RegionMarke region={x.heimat || x.regionen[0] || ''} /></span>
+                <span className="absolute inset-x-2.5 bottom-2.5 flex items-center gap-1.5 rounded-xl bg-[rgba(6,10,18,.6)] px-2 py-1.5 backdrop-blur">
+                  <TeamFlagge groesse={16} laender={[x.land ?? undefined]} />
+                  <span className="min-w-0 truncate text-sm font-extrabold uppercase tracking-wide text-[#fff]">{grossName(x.anzeige, x.gepflegt)}</span>
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </div>
+
+      {auf && (
+        <div className="fixed inset-0 z-[120] grid place-items-center p-4" role="dialog" aria-modal="true" aria-label={auf.anzeige}>
+          <button type="button" aria-label={t('Schließen')} onClick={() => setAuf(null)}
+            className="faecher-schleier absolute inset-0 bg-[rgba(6,10,18,.66)] backdrop-blur-sm" />
+          <div className="faecher-pop relative flex w-full max-w-3xl overflow-hidden rounded-3xl border border-zinc-700 bg-zinc-900 shadow-2xl max-sm:flex-col">
+            <div className="relative h-72 shrink-0 sm:h-auto sm:w-[44%]">
+              {auf.bild && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={auf.bild} alt="" className="absolute inset-0 h-full w-full object-cover object-top" />
+              )}
+              <span aria-hidden className="foto-unten absolute inset-0" />
+            </div>
+            <div className="flex min-w-0 flex-1 flex-col p-6 sm:p-8">
+              <div className="flex items-center gap-2">
+                <TeamFlagge groesse={22} laender={[auf.land ?? undefined]} />
+                <RegionMarke region={auf.heimat || auf.regionen[0] || ''} />
+                <button type="button" onClick={() => setAuf(null)} aria-label={t('Schließen')}
+                  className="ml-auto grid h-8 w-8 place-items-center rounded-full text-slate-400 transition hover:bg-zinc-800 hover:text-slate-100">✕</button>
+              </div>
+              <h3 className="schrift-anzeige mt-3 break-words text-3xl font-extrabold uppercase leading-tight tracking-tight text-slate-100 sm:text-4xl">
+                {grossName(auf.anzeige, auf.gepflegt)}
+              </h3>
+              <div className="mt-5 grid grid-cols-3 gap-2">
+                {([['Quote', voll ? zahl(voll.quote, 2, sprache) : '—', true], ['Elims', voll ? zahl(voll.elims, 0, sprache) : '—', false], ['Schaden', voll ? zahl(voll.damage, 0, sprache) : '—', false],
+                  ['Matches', voll ? zahl(voll.matches, 0, sprache) : '—', false], ['Kopftreffer', voll ? zahl(voll.headshots, 0, sprache) : '—', false], ['Treffer %', voll ? `${zahl(voll.genauigkeit, 1, sprache)} %` : '—', false]] as Array<[string, string, boolean]>).map(([l, v, farbig]) => (
+                  <div key={l} className="rounded-xl bg-zinc-800/80 px-2 py-3 text-center">
+                    <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-400"><T>{l}</T></p>
+                    <p className={`mt-1 text-lg font-extrabold tabular-nums ${farbig ? 'text-sky-500' : 'text-slate-100'}`}>{v}</p>
+                  </div>
+                ))}
+              </div>
+              <p className="mt-3 text-[11px] text-slate-500"><T>Werte aus dem ganzen Archiv.</T></p>
+              <div className="mt-auto flex flex-wrap gap-3 pt-6">
+                <button type="button" onClick={() => { const x = auf; setAuf(null); aufOeffnen(x); }}
+                  className="rounded-full bg-sky-500 px-6 py-2.5 text-sm font-bold text-white transition hover:bg-sky-400"><T>Profil öffnen</T> →</button>
+                <button type="button" onClick={() => setAuf(null)}
+                  className="rounded-full border border-zinc-600 px-6 py-2.5 text-sm font-bold text-slate-200 transition hover:border-sky-500 hover:text-sky-400"><T>Schließen</T></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </section>
+  );
+}
+
+/** Zaehlt die Profilabrufe: nur der juengste darf Zustand setzen. */
+let profilAbrufNr = 0;
+
+export default function StatistikSeite() {
+  // Fuer Beschriftungen, die in einem Attribut stehen - dort hilft kein
+  // eingewickelter Text. Die Sprache selbst wird fuer das Datum gebraucht.
+  const { sprache, t } = useSprache();
+  const [bereich, setBereich] = useState<Bereich>('start');
+  const suchParameter = useSearchParams();
+  const [saisons, setSaisons] = useState<Array<{ kennung: string; name: string }>>([]);
+  const [regionen, setRegionen] = useState<string[]>([]);
+
+  const [saison, setSaison] = useState('');
+  const [region, setRegion] = useState('');
+  const [sort, setSort] = useState('elims');
+  const [suche, setSuche] = useState('');
+
+  // Startansicht - mehrere Spieltage, die im Takt durchwechseln
+  const [kacheln, setKacheln] = useState<Kachel[]>([]);
+  const [kachelNr, setKachelNr] = useState(0);
+  /*
+   * Der Wechsel haelt an, solange die Maus auf der Karte liegt.
+   *
+   * Sie wechselt alle zehn Sekunden den Spieler. Wer auf einen Namen klicken
+   * wollte, hatte zweimal schon einen anderen unter dem Zeiger - und landete
+   * beim Falschen. Beim Ueberfahren steht sie jetzt still.
+   */
+  const [kachelHalt, setKachelHalt] = useState(false);
+  const [listen, setListen] = useState<Liste[]>([]);
+  /** Je Region der erste Elim-Spieler mit Foto - die Karten oben; die Startantwort schickt sie extra, weil die Liste nur die ersten Plaetze traegt. */
+  const [faecher, setFaecher] = useState<Spieler[]>([]);
+  /** Die vollen Startlisten, die schon geholt wurden (je Saison und Feld) - ein zweiter Klick braucht keine Anfrage. */
+  const vollGeholt = useRef(new Map<string, Spieler[]>());
+  /** Spieler, die in dieser Sitzung versteckt wurden - sie fehlen auch in einer spaeter geholten vollen Liste. */
+  const versteckteIds = useRef(new Set<string>());
+  /** Solo Clutch Points der Saison - Tabelle unter den Bestenlisten. */
+  const [clutchSaison, setClutchSaison] = useState<{ spieltage: number; soloDa: boolean; gesamt?: number; zeilen: ClutchZeileAnzeige[] } | null>(null);
+  /** Welche Spieltage in den Saisonlisten stecken - siehe Nachweis unten. */
+  const [grundlage, setGrundlage] = useState<{
+    jeSpieler: boolean;
+    spieltage: Array<{ name: string; region: string; datum: number | null;
+      quelle: 'eigene' | 'szene'; ausgewertet: number | null; gesamt: number | null }>;
+  } | null>(null);
+  const [grundlageOffen, setGrundlageOffen] = useState(false);
+  const [profile, setProfile] = useState<Profilgruppe[]>([]);
+  const [profilNr, setProfilNr] = useState(0);
+  const [duelle, setDuelle] = useState<Duell[]>([]);
+  const [duellNr, setDuellNr] = useState(0);
+  const [power, setPower] = useState<PowerZeile[]>([]);
+
+  /* Der Vergleich: zwei selbst gewaehlte Spieler samt ihren Verlaeufen. */
+  const [vglLinks, setVglLinks] = useState<Spieler | null>(null);
+  const [vglRechts, setVglRechts] = useState<Spieler | null>(null);
+  const [vglVerlaufLinks, setVglVerlaufLinks] = useState<VerlaufZeile[]>([]);
+  const [vglVerlaufRechts, setVglVerlaufRechts] = useState<VerlaufZeile[]>([]);
+  const [suchLinks, setSuchLinks] = useState('');
+  const [suchRechts, setSuchRechts] = useState('');
+  const [trefferLinks, setTrefferLinks] = useState<Spieler[]>([]);
+  const [trefferRechts, setTrefferRechts] = useState<Spieler[]>([]);
+  /** Filter ueber beiden Turnierlisten im Vergleich. */
+  const [vglArt, setVglArt] = useState('Alle');
+  /** Der Spieler unter der Maus - leuchtet in allen Ranglisten eines Cups auf. */
+  const [markiert, setMarkiert] = useState<string | null>(null);
+  /** Solo (Profil gegen Profil) oder Duo gegen Duo - siehe KopfAnKopf. */
+  const [vglModus, setVglModus] = useState<'solo' | 'duo'>('solo');
+  const [vglWieViele, setVglWieViele] = useState<number>(5);
+  /** Merker, wenn ein Gewaehlter in der Saison gar nicht angetreten ist. */
+  const [vglLeer, setVglLeer] = useState<[boolean, boolean]>([false, false]);
+
+  // Ob der Nutzer bearbeiten darf
+  const [istAdmin, setIstAdmin] = useState(false);
+  /** Ob die Adminfrage und die Schloesser schon beantwortet sind. */
+  const [adminBekannt, setAdminBekannt] = useState(false);
+  const [schloesserBekannt, setSchloesserBekannt] = useState(false);
+
+  /* ------------------------------------------------------------- Das Jahr */
+  interface JahrListe {
+    feld: string; titel: string; nachkomma: number; einheit: string | null;
+    mindestMatches: number | null; plaetze: Spieler[]; spieltageMitRegel?: number;
+    lanOhneZuordnung?: Array<{ name: string; offen: number; gesamt: number }>;
+    /** Team-Eliminierungen: wie viele Spieltage von Epics Bestenlisten darin stecken. */
+    spieltageEpic?: number;
+  }
+  const [jahr, setJahr] = useState<{
+    jahr: number; saisons: string[]; spieltage: number; regionen: string[];
+    saison?: string | null;
+    saisonenDesJahres?: Array<{ kennung: string; name: string }>;
+    listen: JahrListe[];
+  } | null>(null);
+  const [jahrRegion, setJahrRegion] = useState('');
+  /** Innerhalb des Jahres eine einzelne Saison - leer heisst das ganze Jahr. */
+  const [jahrSaison, setJahrSaison] = useState('');
+  /** 'alle' oder ein Jahr - der Betreiber wollte "All-Time, 2026, 25, 24". */
+  const [jahrWahl, setJahrWahl] = useState<string>(String(JAHR));
+  const [jahrLaedt, setJahrLaedt] = useState(false);
+  /** Antwort ausgeblieben - dann steht ein Hinweis, und es wird neu versucht. */
+  const [jahrFehlt, setJahrFehlt] = useState(false);
+  const [jahrVersuch, setJahrVersuch] = useState(0);
+  /** Schon geholte Jahresantworten, je Auswahl - beim Zurueckwechseln sofort da. */
+  const jahrMerker = useRef(new Map<string, NonNullable<typeof jahr>>());
+  const [sichtbar, setSichtbar] = useState<Record<Bereich, Sichtbar>>(SICHTBAR_STANDARD);
+  /** Wann der Admin das Schloss zuletzt selbst gedreht hat - siehe unten. */
+  const selbstGedreht = useRef(0);
+  /** Das letzte Umschalten wurde nicht gespeichert. */
+  const [schlossFehler, setSchlossFehler] = useState(false);
+  const zugang = useZugang();
+  const [pflegeName, setPflegeName] = useState('');
+  const [pflegeLand, setPflegeLand] = useState('');
+  const [pflegeStand, setPflegeStand] = useState('');
+  /** Sicherheitsfrage vor dem Ausblenden eines Spielers. */
+  const [entfernenFrage, setEntfernenFrage] = useState(false);
+  /** In der Turnierliste auch fremde Regionen zeigen? */
+  const [alleRegionen, setAlleRegionen] = useState(false);
+
+  // Spielerliste
+  const [spieler, setSpieler] = useState<Spieler[]>([]);
+  const [gesamt, setGesamt] = useState(0);
+  const [laedt, setLaedt] = useState(true);
+  const [fehler, setFehler] = useState('');
+
+  // Turnierliste und Regionen
+  const [turniere, setTurniere] = useState<Turnier[]>([]);
+
+  /**
+   * Finale, die gerade laufen oder eben zu Ende gingen.
+   *
+   * Warum es das braucht: die Einzelwerte hier stammen von eucompetitive,
+   * und die veroeffentlicht sie erst ein bis zwei Tage nach einem Cup. Ein
+   * Finale von gestern Abend fehlt deshalb in dieser Liste - fuer den
+   * Betreiber sah es so aus, als haette ich es schlicht vergessen. Epic
+   * selbst fuehrt das Fenster dagegen sofort. Beide Quellen
+   * nebeneinandergelegt laesst sich sagen, was noch fehlt und warum, statt
+   * es stillschweigend auszulassen.
+   */
+  const [laufende, setLaufende] = useState<Array<{
+    titel: string; region: string; windowId: string; live: boolean;
+  }>>([]);
+  /*
+   * Nur die grossen Finale - so ist es voreingestellt.
+   *
+   * Der Betreiber wollte hier Performance Cups, Division-1-Finale, FNCS
+   * Grand Finals und EWC sehen und sonst nichts. Ein Schalter bleibt
+   * trotzdem: die uebrigen Cups liegen im Archiv, sie stehen nur nicht im
+   * Weg. Nichts wird verworfen, nur nicht angezeigt.
+   */
+  /*
+   * Der Schalter dazu ist entfallen.
+   *
+   * Er stand als "alle Spieltage" in der Leiste, und der Betreiber hat ihn
+   * abgeraeumt: "Genauso wie den Filter all match days - weil das
+   * funktioniert ja nicht richtig." Gemeint war nicht, dass er nichts tut,
+   * sondern dass die Liste dahinter niemanden interessiert: gefragt sind
+   * die grossen Finale, und die stehen ohnehin da. Die uebrigen Cups
+   * bleiben im Archiv, sie werden nur nicht angeboten.
+   */
+  const nurGrosse = true;
+  /*
+   * Wie viele Spieltage es so und so gaebe.
+   *
+   * Damit laesst sich sagen, wenn der Schalter gerade nichts bewirkt - in
+   * einer frisch angefangenen Saison ist das der Normalfall, und ohne einen
+   * Hinweis haelt man ihn dann fuer kaputt.
+   */
+  // Regionenseite
+  const [regionFeld, setRegionFeld] = useState<Spieler[]>([]);
+  const [regionLaedt, setRegionLaedt] = useState(false);
+  /** Je Turnierreihe der gewaehlte Spieltag - leer heisst: die ganze Reihe. */
+  const [reihenWahl, setReihenWahl] = useState<Record<string, string>>({});
+  const [reihenFeld, setReihenFeld] = useState<Record<string, Spieler[]>>({});
+
+  // Ein einzelner Cup, aufgeschlagen
+  const [cup, setCup] = useState<Turnier | null>(null);
+  /** Bei einer LAN mit mehreren Tagen: ein Tag oder "gesamt" (die Summe). */
+  const [tagWahl, setTagWahl] = useState('gesamt');
+  /** Der Cup, wie er gerade gezeigt wird - bei einer LAN der gewaehlte Tag. */
+  const cupAktiv = useMemo<Turnier | null>(() => {
+    if (!cup?.tage?.length || tagWahl === 'gesamt') return cup;
+    const tag = cup.tage.find((x) => x.windowId === tagWahl);
+    return tag ? { ...cup, windowId: tag.windowId, datei: tag.datei, events: undefined, gesamt: false } : cup;
+  }, [cup, tagWahl]);
+  const [cupFeld, setCupFeld] = useState<Spieler[]>([]);
+  /*
+   * Wer im Aufmacher eines Cups steht.
+   *
+   * Vorher war das fest der Erste des Spieltags - "da ist nur Charyy
+   * die ganze Zeit". Jetzt gehen die besten fuenf der Reihe nach durch,
+   * im selben Zehn-Sekunden-Takt wie der Wechsel auf der Uebersicht.
+   */
+  const [cupNr, setCupNr] = useState(0);
+  const [cupLaedt, setCupLaedt] = useState(false);
+  /** Die Werte des Spieltags kamen nicht an - das ist nicht dasselbe wie "keine". */
+  const [cupFehler, setCupFehler] = useState(false);
+  /** Welche Kennzahl in voller Laenge offen ist. */
+  /*
+   * Die Endtabelle des Spieltags.
+   *
+   * Der Betreiber: "Unter den Statistiken soll es mir doch einmal genauso
+   * breit wie die ganze Seite ein Leaderboard des Cups anzeigen." Genau das
+   * - Platz, Team, Punkte, Matches -, gelesen aus der gespiegelten
+   * Bestenliste, ohne Epic dafuer zu fragen.
+   */
+  const [spieltagTabelle, setSpieltagTabelle] = useState<{
+    platz: number; punkte: number; matches: number | null; elims: number | null;
+    /** Preisgeld je Person, abgeleitet - siehe lib/preisgeld. */
+    verdienst?: number | null;
+    spieler: Array<{ epicId: string; name: string; land: string }>;
+  }[] | null>(null);
+  const [tabelleLaedt, setTabelleLaedt] = useState(false);
+  /** Ob die Tabelle der Endstand ueber alle Tage eines Finales ist. */
+  const [tabelleGesamt, setTabelleGesamt] = useState(false);
+  const [tabelleSuche, setTabelleSuche] = useState('');
+  const [tabelleTiefe, setTabelleTiefe] = useState(50);
+
+  /*
+   * Welche Kennzahl die Kurve zeigt.
+   *
+   * Sie stand fest auf den Eliminierungen. Der Betreiber wollte auswaehlen
+   * koennen, worum es geht - "um Damage, Ratio, um das und das". Dieselbe
+   * Auswahl gilt fuer die Kurve im Profil und fuer die Doppelkurve im
+   * Vergleich; zwei getrennte Schalter dafuer waeren zwei zu viel.
+   */
+  const KURVEN = [
+    ['eliminations', 'Eliminierungen'],
+    ['damageDealt', 'Schaden'],
+    ['quote', 'Schadensverhältnis'],
+    /*
+     * Die Matchzahl steht hier nicht mehr zur Wahl.
+     *
+     * Der Betreiber: "Es ist obvious, dass jeder seine maximalen Matches
+     * ausgespielt hat oder halt weniger. Also dieser Filter ist unnoetig."
+     * Er hat recht - eine Kurve, die an jedem Spieltag zwischen sechs und
+     * elf steht, sagt ueber einen Spieler nichts.
+     */
+    ['builds', 'Bauteile'],
+    ['mats', 'Material'],
+  ] as const;
+  type KurvenFeld = (typeof KURVEN)[number][0];
+  const [kurve, setKurve] = useState<KurvenFeld>('eliminations');
+
+  const kurveWert = useCallback((w: VerlaufZeile['werte']) => {
+    switch (kurve) {
+      case 'damageDealt': return Math.round(w.damageDealt ?? 0);
+      case 'quote': return w.damageTakenFromPlayers > 0
+        ? Math.round((w.damageDealt / w.damageTakenFromPlayers) * 100) / 100 : 0;
+      case 'builds': return (w.woodBuildsPlaced ?? 0) + (w.stoneBuildsPlaced ?? 0)
+        + (w.metalBuildsPlaced ?? 0);
+      case 'mats': return (w.woodFarmed ?? 0) + (w.stoneFarmed ?? 0)
+        + (w.metalFarmed ?? 0);
+      default: return w.eliminations ?? 0;
+    }
+  }, [kurve]);
+
+  const kurveName = KURVEN.find((k) => k[0] === kurve)?.[1] ?? 'Eliminierungen';
+
+  /** Die Knopfreihe zur Auswahl - einmal geschrieben, zweimal benutzt. */
+  const kurvenWahl = (
+    <div className="flex flex-wrap items-center gap-1">
+      {KURVEN.map(([feld, name]) => (
+        <button key={feld} onClick={() => setKurve(feld)}
+          className={`rounded border px-2 py-0.5 text-[10px] transition ${
+            kurve === feld
+              ? 'border-sky-500 bg-sky-500/10 text-sky-400'
+              : 'border-zinc-800 text-slate-500 hover:border-zinc-700'}`}>
+          <T>{name}</T>
+        </button>
+      ))}
+    </div>
+  );
+
+  const [volleListe, setVolleListe] = useState<{
+    /** Der Kennzahlname - wird uebersetzt. */
+    titel: string;
+    /** Woher die Liste stammt (Saison oder Region) - bleibt, wie es ist. */
+    zusatz?: string;
+    zeilen: Spieler[];
+    feld: keyof Spieler; nachkomma: number; einheit: string; format?: WertFormat } | null>(null);
+  const [listenTiefe, setListenTiefe] = useState(50);
+  /** Die Preisgeldliste blaettert: hundert je Seite, ab eins. */
+  const [listenSeite, setListenSeite] = useState(1);
+  const [listenLaedt, setListenLaedt] = useState(false);
+  /** Die Suche in der vollen Liste - ab zweihundert Eintraegen. */
+  const [listenSuche, setListenSuche] = useState('');
+  const [listenRegion, setListenRegion] = useState('');
+  useEffect(() => {
+    setListenSuche(''); setListenRegion('');
+    if (volleListe && typeof window !== 'undefined') window.scrollTo({ top: 0 });
+  }, [volleListe]);
+
+  /** Karten oder Zeilen - wie im Vorbild umschaltbar. */
+  const [tafel, setTafel] = useState(true);
+  const [turnierSuche, setTurnierSuche] = useState('');
+
+  // Die Galerie aller Spieler mit Foto
+  const [galerie, setGalerie] = useState<Spieler[]>([]);
+  const [galerieSuche, setGalerieSuche] = useState('');
+  /*
+   * Die Fotoliste nach Region.
+   *
+   * Sie liess sich bisher nur nach Laendern durchsuchen ("DE,FR") oder nach
+   * Namen. Der Betreiber wollte die Wettkampfregionen: "Wenn ich EU in die
+   * Suchleiste eingebe, sollten eigentlich auch EU-Spieler kommen." Ein
+   * Land ist nicht dasselbe wie eine Region - ein Deutscher kann in NAC
+   * antreten -, deshalb eine eigene Reihe statt einer Umdeutung der Suche.
+   */
+  const [galerieRegion, setGalerieRegion] = useState('alle');
+  /** In der Bilderansicht: mit Foto, ohne Foto oder alle. */
+  const [galerieFilter, setGalerieFilter] = useState<'mit' | 'ohne' | 'alle'>('mit');
+  /** Wie viele Karten in der Bilderansicht gerade gezeigt werden. */
+  const [galerieMenge, setGalerieMenge] = useState(400);
+
+  /* Die Suche in der Kopfzeile - findet jeden Spieler im Archiv. */
+  const [kopfSuche, setKopfSuche] = useState('');
+  const [kopfTreffer, setKopfTreffer] = useState<Spieler[]>([]);
+  const [kopfOffen, setKopfOffen] = useState(false);
+
+  /**
+   * Den Bereich wechseln und dabei aufraeumen.
+   *
+   * Beim Wechsel bleibt kein alter Suchtext stehen - sonst filtert die
+   * Bilderansicht nach etwas, das man drei Klicks zuvor getippt hat.
+   * Bewusst hier und nicht in einem Effekt: das Aufraeumen gehoert zu der
+   * Handlung, die es ausloest, nicht zu einer Beobachtung hinterher.
+   */
+  const wechsleBereich = useCallback((w: Bereich) => {
+    setBereich(w);
+    setKopfSuche(''); setGalerieSuche(''); setKopfOffen(false);
+    /*
+     * Ein Bereich links schliesst ein offenes Profil und eine offene Liste.
+     * Der Betreiber: "wenn ich im Spielerprofil bin und auf Overview will,
+     * soll das gehen - nicht erst Zurueck druecken."
+     */
+    setOffen(null); setVolleListe(null);
+    if (typeof window !== 'undefined' && window.history.state?.spieler) {
+      window.history.replaceState(null, '', window.location.pathname);
+    }
+  }, []);
+  const [offen, setOffen] = useState<Spieler | null>(null);
+  const [verlauf, setVerlauf] = useState<VerlaufZeile[]>([]);
+  /** Laeuft gerade eine Abfrage fuer das offene Profil? */
+  const [profilLaedt, setProfilLaedt] = useState(false);
+  /** Das Profil kam trotz Wiederholungen nicht - dann eine Meldung statt "nicht angetreten". */
+  const [profilFehler, setProfilFehler] = useState(false);
+  const [spielerReiter, setSpielerReiter] = useState<SpielerReiter>('uebersicht');
+  const [perzentile, setPerzentile] = useState<Perzentile | null>(null);
+  const [fncs, setFncs] = useState<Fncs | null>(null);
+  const [tagesbest, setTagesbest] = useState<Tagessieg[]>([]);
+  const [fncsSiege, setFncsSiege] = useState<FncsSieg[]>([]);
+  const [lanErgebnisse, setLanErgebnisse] = useState<LanErgebnis[]>([]);
+  const [rang, setRang] = useState<Rang | null>(null);
+  /**
+   * Welchen Zeitraum das offene Profil zeigt.
+   *
+   * Unabhaengig von der Auswahl der Seite: wer ein Profil oeffnet, will oft
+   * die ganze Laufbahn sehen und nicht nur die laufende Saison. 'alle' steht
+   * fuer das ganze Archiv.
+   */
+  const [profilSaison, setProfilSaison] = useState<string>('alle');
+  /*
+   * Die Verdienst-Seite hat ihre eigene Wahl: ein Kapitel, darin eine
+   * Saison. Der Betreiber: "Filter machen, zum Beispiel Chapter 7 Season 4,
+   * nachher werden alle Cups ausgelistet, wo er was gewonnen hat" - statt
+   * sechsunddreissig Kaestchen nebeneinander.
+   */
+  const [verdienstKapitel, setVerdienstKapitel] = useState<number>(0);
+  const [verdienstSaison, setVerdienstSaison] = useState<string>('');
+  const [zeitraumOffen, setZeitraumOffen] = useState(false);
+  /** Bei der Verdienst-Wahl: ein ganzes Jahr statt Kapitel oder Saison. */
+  const [verdienstJahr, setVerdienstJahr] = useState<number>(0);
+  /*
+   * Der Teamverlauf - bei welchen Orgs der Spieler war und ist (/api/teamverlauf).
+   * Wie beim Archiv: gibt es nichts, gibt es auch keinen Reiter.
+   */
+  const [teamVerlauf, setTeamVerlauf] = useState<Array<{
+    team: string; org: string | null; logo: string | null; seit: string | null; bis: string | null;
+    aktuell: boolean; hinweis: string | null; rolle: string | null;
+  }>>([]);
+  useEffect(() => {
+    if (!offen?.epicId) { setTeamVerlauf([]); return; }
+    let weg = false;
+    fetch(`/api/teamverlauf?spieler=${encodeURIComponent(offen.epicId)}`, { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((j) => { if (!weg) setTeamVerlauf(Array.isArray(j?.eintraege) ? j.eintraege : []); })
+      .catch(() => { if (!weg) setTeamVerlauf([]); });
+    return () => { weg = true; };
+  }, [offen?.epicId]);
+  /** Wie viele Bilder und Videos das Archiv zu diesem Spieler hat - 0 heisst: kein Reiter. */
+  const [archivAnzahl, setArchivAnzahl] = useState(0);
+  /** Die Bilder davon - ein paar stehen unten in der Uebersicht. */
+  const [archivBilder, setArchivBilder] = useState<GalerieEintrag[]>([]);
+  useEffect(() => {
+    if (!offen?.epicId) { setArchivAnzahl(0); setArchivBilder([]); return; }
+    let weg = false;
+    fetch(`/api/galerie?spieler=${encodeURIComponent(offen.epicId)}`, { cache: 'no-store' })
+      .then((r) => r.json())
+      .then((j) => {
+        if (weg) return;
+        const liste: GalerieEintrag[] = Array.isArray(j?.eintraege) ? j.eintraege : [];
+        setArchivAnzahl(liste.length);
+        setArchivBilder(liste.filter((e) => e.art === 'bild' && e.datei).sort((a, b) => b.erstellt - a.erstellt));
+      })
+      .catch(() => { if (!weg) setArchivAnzahl(0); });
+    return () => { weg = true; };
+  }, [offen?.epicId]);
+  const [saisonBilder, setSaisonBilder] = useState<Record<string, string | null>>({});
+  const [saisonNamen, setSaisonNamen] = useState<Record<string, string>>({});
+  /** Spieltage, zu denen nur Epic etwas hat - ohne Einzelwerte. */
+  const [epicZeilen, setEpicZeilen] = useState<VerlaufZeile[]>([]);
+  /** Jedes FNCS-Finale seit CH1 SX und die Top-3-Plaetze sonst (lib/profilTafeln). */
+  const [fncsTafel, setFncsTafel] = useState<TafelZeile[]>([]);
+  const [erfolge, setErfolge] = useState<Erfolg[]>([]);
+  /** Welche Marke gerade aufgeklappt ist. */
+  const [marke, setMarke] = useState<'fncs' | 'tage' | null>(null);
+  /** Epics Ranked-Stufen des offenen Spielers - der aktuelle Stand je Art. */
+  const [ranked, setRanked] = useState<RangStufe[] | null>(null);
+
+  /* -------------------------------------------------- Grunddaten einmalig */
+  useEffect(() => {
+    fetch('/api/szene-stats')
+      .then((r) => r.json())
+      .then((j) => {
+        setSaisons(j.saisons ?? []);
+        const regionen: string[] = nachRegionReihe(j.regionen ?? []);
+        setRegionen(regionen);
+        // Voreingestellt die Heimatregion statt "alle" - danach sucht er
+        // ohnehin als Erstes, und die Liste ist damit gleich brauchbar.
+        if (regionen.length) setRegion(regionen.includes('EU') ? 'EU' : regionen[0]);
+        if (j.saisons?.length) setSaison(j.saisons[0].kennung);
+      })
+      .catch(() => setFehler(t('Archiv nicht lesbar')));
+
+    fetch('/api/auth/check-admin', { cache: 'no-store' })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => setIstAdmin(j?.isAdmin === true))
+      .catch(() => setIstAdmin(false))
+      .finally(() => setAdminBekannt(true));
+
+    /*
+     * "?bereich=jahr" aus der Startseite - direkt in den Bereich, ohne
+     * Umweg ueber die Uebersicht. Ueber den Router gelesen, nicht ueber
+     * window.location, das beim Seitenwechsel noch die alte Adresse traegt.
+     */
+    const gewuenscht = suchParameter?.get('bereich');
+    if (gewuenscht && ['turniere', 'regional', 'spieler', 'jahr', 'orgs', 'vergleich', 'bilder'].includes(gewuenscht)) {
+      setBereich(gewuenscht as Bereich);
+      const j = suchParameter?.get('jahr');
+      if (j === 'alle') setJahrWahl('alle');
+    }
+
+    /*
+     * "?ansicht=suche&q=<Name>[&id=<Konto>]" - der Link "Stats" neben einem Spieler in einer Bestenliste (Betreiber, 19.10.2026: er landete immer auf der
+     * Startseite der Statistik). Mit Konto-Id oeffnet das Profil dieses Kontos, sonst das beste Ergebnis der Suche nach dem Namen.
+     */
+    const frage = suchParameter?.get('q') ?? '';
+    const kontoId = (suchParameter?.get('id') ?? '').toLowerCase();
+    if (suchParameter?.get('ansicht') === 'suche' && (frage || kontoId)) {
+      setBereich('spieler');
+      void (async () => {
+        try {
+          if (/^[0-9a-f]{32}$/.test(kontoId)) { await oeffneKonto(kontoId, frage); return; }
+          const r = await (await fetch(`/api/szene-stats?ansicht=suche&q=${encodeURIComponent(frage)}`)).json();
+          const liste = (r.spieler ?? []) as Spieler[];
+          const klein = frage.trim().toLowerCase();
+          const treffer = liste.find((x) => x.anzeige.toLowerCase() === klein || x.namen.some((n) => n.toLowerCase() === klein)) ?? liste[0];
+          if (treffer) oeffne(treffer); else setSuche(frage);
+        } catch { setSuche(frage); }
+      })();
+    }
+
+    /*
+     * Die Schloesser - beim Aufruf und danach alle zehn Sekunden.
+     *
+     * Der Betreiber: "wenn ich als Admin auf 'visible for no one' druecke,
+     * soll das live auf der ganzen Webseite fuer jeden gelten." Also fragt
+     * jede offene Seite regelmaessig nach; die Antwort ist ein paar Byte.
+     */
+    /*
+     * Die Antwort kommt aus Vercels Zwischenspeicher (bis zehn Sekunden alt).
+     * Hat der Admin gerade selbst gedreht, gilt eine Minute lang seine
+     * Eingabe - sonst sprang das Schloss kurz auf den alten Stand zurueck.
+     */
+    const schloesserHolen = () => fetch('/api/statistik-sichtbarkeit')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((j) => {
+        if (!j?.bereiche || Date.now() - selbstGedreht.current < 60_000) return;
+        setSichtbar({ ...SICHTBAR_STANDARD, ...j.bereiche }); setSchloesserBekannt(true);
+      })
+      .catch(() => { /* dann gilt der Standard */ });
+    void schloesserHolen();
+    // Alle halbe Minute (nicht alle fuenfzehn Sekunden): bei Netlify kostet jede Anfrage Punkte aus einem knappen Kontingent.
+    return sichtbarerTakt(() => { void schloesserHolen(); }, 30_000);
+  }, []);
+
+  useEffect(() => {
+    if (bereich !== 'jahr') return;
+    let weg = false;
+    const schluessel = `${jahrWahl}|${jahrRegion}|${jahrSaison}`;
+    /*
+     * Was schon einmal geholt wurde, steht sofort - ohne Ladeschirm. Der
+     * Schirm kommt erst, wenn wirklich gewartet wird (nach einer Viertel-
+     * sekunde), und geht weg, sobald die Antwort da ist. Der Betreiber:
+     * "mach sie ganz kurz - wenn sie rein muss, wenn du etwas herunterladen
+     * musst, sonst nicht."
+     */
+    const gemerkt = jahrMerker.current.get(schluessel);
+    if (gemerkt) { setJahr(gemerkt); setJahrLaedt(false); return; }
+    const zeiger = setTimeout(() => { if (!weg) setJahrLaedt(true); }, 250);
+    /*
+     * Bleibt die Antwort aus (Ablage nicht erreichbar, Auswertung noch nicht
+     * vorgerechnet), steht kein leerer Bereich da, sondern ein Satz - und in
+     * zehn Sekunden wird es noch einmal versucht. Der Betreiber sah sonst
+     * "erst die Ladeanimation, dann einfach leer".
+     */
+    let nochmal: ReturnType<typeof setTimeout> | null = null;
+    setJahrFehlt(false);
+    fetch(`/api/szene-stats?ansicht=jahr&jahr=${jahrWahl}`
+      + (jahrRegion ? `&region=${encodeURIComponent(jahrRegion)}` : '')
+      + (jahrSaison ? `&saison=${encodeURIComponent(jahrSaison)}` : ''),
+      { signal: AbortSignal.timeout(12_000) })
+      .then((r) => r.json())
+      .then((j) => {
+        if (weg) return;
+        if (!j?.listen) throw new Error('keine Liste');
+        jahrMerker.current.set(schluessel, j);
+        setJahr(j);
+      })
+      .catch(() => {
+        if (weg) return;
+        setJahrFehlt(true);
+        nochmal = setTimeout(() => { if (!weg) setJahrVersuch((v) => v + 1); }, 10_000);
+      })
+      .finally(() => { clearTimeout(zeiger); if (!weg) setJahrLaedt(false); });
+    return () => { weg = true; clearTimeout(zeiger); if (nochmal) clearTimeout(nochmal); };
+  }, [bereich, jahrRegion, jahrWahl, jahrSaison, jahrVersuch]);
+  useEffect(() => { setJahrSaison(''); }, [jahrWahl]);
+
+  /** Die Bereiche, die dieser Besucher sehen darf. */
+  const sichtbareBereiche = useMemo(() => {
+    const alle: Array<[Bereich, string]> = [...BEREICHE, ...VIP_BEREICHE, ...ADMIN_BEREICHE];
+    return alle.filter(([w]) => {
+      const stufe = sichtbar[w] ?? 'alle';
+      if (istAdmin) return true;
+      if (stufe === 'alle') return true;
+      if (stufe === 'vip') return zugang.vip;
+      return false;
+    });
+  }, [sichtbar, istAdmin, zugang.vip]);
+
+  /*
+   * Ein zugesperrter Bereich gibt es fuer diesen Besucher nicht.
+   *
+   * Kein Hinweis "diese Seite ist gesperrt" - der Betreiber: "man soll
+   * einfach rausgekriegt werden, und sie gibt es dann einfach nicht mehr
+   * als Ansicht." Wer gerade darin steht, landet in der Uebersicht - auch
+   * mitten im Lesen, sobald das Schloss gedreht wurde. Fuer den Admin
+   * existiert sie weiter.
+   */
+  useEffect(() => {
+    if (!schloesserBekannt || !adminBekannt || zugang.laedt) return;
+    if (bereich === 'start') return;
+    if (!sichtbareBereiche.some(([w]) => w === bereich)) setBereich('start');
+  }, [schloesserBekannt, adminBekannt, sichtbareBereiche, bereich, zugang.laedt]);
+
+  /** Das Schloss weiterdrehen: alle -> VIPs -> nur ich -> alle. */
+  const schlossDrehen = useCallback(async () => {
+    const jetzt = sichtbar[bereich] ?? 'alle';
+    const naechste = SICHTBAR_REIHE[(SICHTBAR_REIHE.indexOf(jetzt) + 1) % SICHTBAR_REIHE.length];
+    const neu = { ...sichtbar, [bereich]: naechste };
+    setSichtbar(neu);
+    setSchlossFehler(false);
+    selbstGedreht.current = Date.now();
+    /*
+     * Gespeichert ist erst, was der Server bestaetigt. Vorher stand hier ein
+     * Aufruf ohne Blick auf die Antwort: lehnte der Server ab, zeigte das
+     * Schloss trotzdem den neuen Stand - bis zum Neuladen (30.9.2026).
+     */
+    let ok = false;
+    try {
+      const r = await fetch('/api/statistik-sichtbarkeit', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ bereich, sichtbar: naechste }),
+      });
+      ok = r.ok;
+    } catch { ok = false; }
+    if (!ok) {
+      setSichtbar(sichtbar);
+      selbstGedreht.current = 0;
+      setSchlossFehler(true);
+    }
+  }, [sichtbar, bereich]);
+
+  /* ----------------------------------------------------------- Startseite */
+  useEffect(() => {
+    if (!saison) return;
+    vollGeholt.current.clear();
+    fetch(`/api/szene-stats?ansicht=start&saison=${saison}`)
+      .then((r) => r.json())
+      .then((j) => {
+        setKacheln(j.kacheln ?? []);
+        setKachelNr(0);
+        setListen(j.listen ?? []);
+        setFaecher(j.faecher ?? []);
+        setClutchSaison(j.clutch?.zeilen?.length ? j.clutch : null);
+        setGrundlage(j.grundlage ?? null);
+        setProfile(j.profile ?? []);
+        setDuelle(j.duelle ?? []);
+        setProfilNr(0); setDuellNr(0);
+      })
+      .catch(() => {});
+  }, [saison]);
+
+  /**
+   * Der Wechsel im Kopf.
+   *
+   * Alle zehn Sekunden ein anderer Spieltag mit einem anderen Spieler - so
+   * bleibt die Seite in Bewegung und man sieht mehr als immer denselben
+   * Namen. Gezeigt wird nur, wozu es auch Zahlen gibt.
+   */
+  useEffect(() => {
+    if (kacheln.length < 2 || bereich !== 'start' || kachelHalt) return;
+    const uhr = window.setInterval(
+      () => setKachelNr((n) => (n + 1) % kacheln.length), 10_000);
+    return () => window.clearInterval(uhr);
+  }, [kacheln.length, bereich, kachelHalt]);
+
+  /* Die Duelle wandern einzeln weiter, im Zehn-Sekunden-Takt. */
+  useEffect(() => {
+    if (duelle.length < 2 || bereich !== 'start') return;
+    const t = setInterval(
+      () => setDuellNr((n) => (n + 1) % duelle.length), 10_000);
+    return () => clearInterval(t);
+  }, [duelle.length, bereich]);
+
+  /* Und derselbe Takt fuer den Aufmacher einer Cup-Seite. */
+  const cupWechsel = Math.min(5, cupFeld.length);
+  useEffect(() => {
+    if (cupWechsel < 2 || bereich !== 'turniere') return;
+    const t = setInterval(
+      () => setCupNr((n) => (n + 1) % cupWechsel), 10_000);
+    return () => clearInterval(t);
+  }, [cupWechsel, bereich]);
+
+  /* Ein anderer Cup faengt wieder beim Besten an. */
+  const cupKennung = cup?.windowId ?? '';
+  useEffect(() => { setCupNr(0); }, [cupKennung]);
+
+  /* -------------------------------------------------------- Spielerliste */
+  /*
+   * Holen mit Frist.
+   *
+   * Der Betreiber: "Das geht noch viel zu lange, mach da auch die
+   * Ladeanimation, max 7 Sekunden." Sieben Sekunden sind reichlich fuer eine
+   * Antwort, die vorgerechnet in der Ablage liegt - und die Grenze, ab der
+   * Warten in Aergernis umschlaegt. Laeuft sie ab, bricht der Abruf ab, die
+   * Ladeanzeige verschwindet, und es steht da, was da ist.
+   */
+  const FRIST_MS = 7000;
+  const holeMitFrist = useCallback(async (weg: string) => {
+    const r = await fetch(weg, { signal: AbortSignal.timeout(FRIST_MS) });
+    return r.json();
+  }, []);
+
+  const holeSpieler = useCallback(async () => {
+    if (!saison) return;
+    setLaedt(true); setFehler('');
+    try {
+      const p = new URLSearchParams({ saison, sort, limit: '300' });
+      if (region) p.set('region', region);
+      if (suche.trim()) p.set('q', suche.trim());
+      const j = await holeMitFrist(`/api/szene-stats?${p}`);
+      if (!j.success) throw new Error(j.error ?? 'nicht ladbar');
+      setSpieler(j.spieler ?? []);
+      setGesamt(j.gesamt ?? 0);
+    } catch (e) {
+      setFehler((e as Error).message); setSpieler([]);
+    } finally { setLaedt(false); }
+  }, [saison, region, sort, suche, holeMitFrist]);
+
+  useEffect(() => {
+    if (bereich !== 'spieler') return;
+    const uhr = window.setTimeout(holeSpieler, suche ? 300 : 0);
+    return () => window.clearTimeout(uhr);
+  }, [bereich, holeSpieler, suche]);
+
+  /**
+   * Die Suche in der Kopfzeile.
+   *
+   * Kurz abgewartet, statt bei jedem Tastendruck zu fragen: wer "peterbot"
+   * tippt, loeste sonst neun Abfragen aus, von denen acht schon veraltet
+   * sind, bevor die Antwort da ist.
+   */
+  useEffect(() => {
+    const q = kopfSuche.trim();
+    let weg = false;
+    // Auch das Leeren laeuft ueber den Zeitgeber, nicht sofort im Rumpf des
+    // Effekts: so gibt es nur einen Weg, auf dem sich die Trefferliste
+    // aendert, und React bekommt keine Zustandsaenderung mitten im Zeichnen.
+    const t = setTimeout(async () => {
+      if (q.length < 2) { if (!weg) setKopfTreffer([]); return; }
+      try {
+        const r = await fetch(`/api/szene-stats?ansicht=suche`
+          + `&q=${encodeURIComponent(q)}`);
+        const j = await r.json();
+        if (!weg) setKopfTreffer(j.spieler ?? []);
+      } catch { if (!weg) setKopfTreffer([]); }
+    }, 250);
+    return () => { weg = true; clearTimeout(t); };
+  }, [kopfSuche]);
+
+  /* ----------------------------------------------------------- Vergleich */
+
+  /**
+   * Die Suche im Vergleich.
+   *
+   * Gesucht wird in der oben gewaehlten Saison - dieselbe Auswahl, aus der
+   * auch die Zahlen stammen. Wer in dieser Saison nicht angetreten ist,
+   * taucht nicht auf; dafuer meint jede Zahl dasselbe.
+   */
+  useEffect(() => {
+    const cup = cupAktiv;
+    if (!cup?.windowId) { setSpieltagTabelle(null); return; }
+    let weg = false;
+    setSpieltagTabelle(null); setTabelleSuche(''); setTabelleTiefe(50);
+    setTabelleLaedt(true);
+    fetch(`/api/spieltag-tabelle?window=${encodeURIComponent(cup.windowId)}`
+      + `&saison=${encodeURIComponent(cup.season ?? '')}${cup.gesamt ? '&gesamt=1' : ''}`)
+      .then((r) => r.json())
+      .then((j) => { if (!weg) { setSpieltagTabelle(j?.teams ?? []); setTabelleGesamt(Boolean(j?.gesamt)); } })
+      .catch(() => { if (!weg) setSpieltagTabelle([]); })
+      .finally(() => { if (!weg) setTabelleLaedt(false); });
+    return () => { weg = true; };
+  }, [cupAktiv]);
+
+  const suchen = useCallback(async (text: string, wohin: (t: Spieler[]) => void) => {
+    const q = text.trim();
+    if (q.length < 2) { wohin([]); return; }
+    try {
+      /*
+       * Die eigene Suche des Archivs, nicht die gefilterte Saisonliste.
+       *
+       * Vorher wurde die Liste der gewaehlten Saison durchsucht. In einer
+       * frisch angefangenen Saison steht dort fast niemand - "Vico"
+       * eingetippt fand deshalb keinen Vico, obwohl er im Archiv steht.
+       * "ansicht=suche" sucht ueber das ganze Archiv und ausserdem in allen
+       * Namen, unter denen ein Konto je angetreten ist; deshalb fand der
+       * Turniername ihn und der gepflegte nicht.
+       */
+      const r = await fetch('/api/szene-stats?ansicht=suche'
+        + `&q=${encodeURIComponent(q)}`);
+      const j = await r.json();
+      wohin(j.spieler ?? []);
+    } catch { wohin([]); }
+  }, [saison]);
+
+  /** Zu einem gewaehlten Spieler den Verlauf nachladen. */
+  const vglLaden = useCallback(async (sp: Spieler,
+    wohin: (z: VerlaufZeile[]) => void) => {
+    try {
+      const r = await fetch(`/api/szene-stats?spieler=${sp.epicId}&saison=${saison}`);
+      const j = await r.json();
+      // Ebenfalls nur die Zeilen der Quelle - siehe oben.
+      wohin(j.verlauf ?? []);
+    } catch { wohin([]); }
+  }, [saison]);
+
+  /**
+   * Die Saison umschalten nimmt den Vergleich mit.
+   *
+   * Vorher blieben die Zahlen der beiden stehen, waehrend oben eine andere
+   * Saison gewaehlt war - die Ueberschrift log dann. Jetzt werden beide
+   * Seiten neu geholt, sobald sich die Saison aendert.
+   *
+   * Wer in der neuen Saison gar nicht angetreten ist, bleibt gewaehlt; statt
+   * seiner alten Zahlen steht dann ein Hinweis. Ihn stillschweigend
+   * hinauszuwerfen waere aergerlich, seine alten Zahlen stehen zu lassen
+   * waere falsch.
+   */
+  useEffect(() => {
+    let weg = false;
+    const holen = async (
+      sp: Spieler | null,
+      setzeWer: (s: Spieler | null) => void,
+      setzeVerlauf: (z: VerlaufZeile[]) => void,
+      seite: 0 | 1,
+    ) => {
+      if (!sp) return;
+      try {
+        const r = await fetch(`/api/szene-stats?spieler=${sp.epicId}`
+          + `&saison=${saison}`);
+        const j = await r.json();
+        if (weg) return;
+        /*
+         * Nur die Zeilen der Quelle, nicht die von Epic.
+         *
+         * Der Vergleich stellt Werte gegenueber - Schaden, Material,
+         * Bauteile. Epic kennt davon nichts; seine Spieltage traegen kein
+         * einziges Wertefeld. Sie hier mitzunehmen hiesse, lauter Nullen in
+         * die Kurve zu zeichnen, als haette der Spieler an dem Tag nichts
+         * getan. (Der Versuch ist gemacht worden und hat die Seite auf der
+         * Stelle zerlegt: z.werte war schlicht nicht da.)
+         */
+        setzeVerlauf(j.verlauf ?? []);
+        if (j.spieler) {
+          setzeWer({ ...sp, ...j.spieler });
+          setVglLeer((alt) => (seite === 0
+            ? [false, alt[1]] : [alt[0], false]));
+        } else {
+          setVglLeer((alt) => (seite === 0 ? [true, alt[1]] : [alt[0], true]));
+        }
+      } catch { /* der alte Stand bleibt stehen */ }
+    };
+    void holen(vglLinks, setVglLinks, setVglVerlaufLinks, 0);
+    void holen(vglRechts, setVglRechts, setVglVerlaufRechts, 1);
+    return () => { weg = true; };
+    // Bewusst nur an der Saison haengend: die beiden Spieler stehen hier
+    // schon, und sie in die Abhaengigkeiten zu nehmen liesse den Effekt nach
+    // jedem eigenen Setzen erneut laufen.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [saison]);
+
+  /* ------------------------------------------------------------- Galerie */
+  useEffect(() => {
+    if (bereich !== 'bilder' || !istAdmin || galerie.length) return;
+    fetch('/api/szene-stats?ansicht=bilder')
+      .then((r) => r.json())
+      .then((j) => setGalerie(j.spieler ?? []))
+      .catch(() => setGalerie([]));
+  }, [bereich, istAdmin, galerie.length]);
+
+  /* ------------------------------------------------------------ Turniere */
+  useEffect(() => {
+    if (bereich !== 'turniere' || !saison) return;
+    fetch('/api/szene-stats')
+      .then((r) => r.json())
+      .then(() => fetch(`/api/szene-stats?ansicht=turniere&saison=${saison}`
+        + (nurGrosse ? '' : '&alle=1')))
+      .then((r) => r.json())
+      .then((j) => setTurniere(j.turniere ?? []))
+      .catch(() => setTurniere([]));
+  }, [bereich, saison, nurGrosse]);
+
+  /*
+   * Was Epic schon fuehrt, die Szene-Quelle aber noch nicht.
+   *
+   * Nur Finale, und nur die der letzten drei Tage - was laenger her ist und
+   * immer noch fehlt, ist kein Ladeproblem mehr, sondern eine Luecke, und
+   * die gehoert nicht als "kommt gleich" ausgegeben.
+   */
+  useEffect(() => {
+    if (bereich !== 'turniere') return;
+    let weg = false;
+    fetch('/api/cup-catalog?modus=alle')
+      .then((r) => r.json())
+      .then((j) => {
+        if (weg) return;
+        const drei = Date.now() - 3 * 24 * 3600 * 1000;
+        const raus: Array<{ titel: string; region: string; windowId: string; live: boolean }> = [];
+        for (const c of (j.cups ?? [])) {
+          for (const [region, fenster] of Object.entries(c.regionen ?? {})) {
+            for (const f of (fenster as Array<Record<string, unknown>>)) {
+              /*
+               * "istFinale" allein genuegt nicht: beim Performance
+               * Evaluation Cup steht es auf false, obwohl die zweite Runde
+               * das Finale ist - die Eventseite nennt sie auch so. Ohne
+               * diesen Zusatz fiel genau der Cup durch, um den es ging.
+               */
+              const finalrunde = f.istFinale
+                || /round2/i.test(String(f.windowId ?? ''));
+              if (!finalrunde || f.status === 'kommt') continue;
+              const begin = Number(f.begin ?? 0);
+              if (begin < drei) continue;
+              raus.push({
+                titel: String(c.titel ?? ''), region,
+                windowId: String(f.windowId ?? ''),
+                live: f.status === 'laeuft' || f.status === 'live',
+              });
+            }
+          }
+        }
+        setLaufende(raus);
+      })
+      .catch(() => { if (!weg) setLaufende([]); });
+    return () => { weg = true; };
+  }, [bereich]);
+
+  /* ------------------------------------------------------------ Regionen */
+
+  /** Die gewaehlte Region - ohne Wahl die erste mit Daten. */
+  const regionAktiv = region || regionen[0] || '';
+
+  useEffect(() => {
+    if (bereich !== 'regional' || !saison || !regionAktiv) return;
+    let weg = false;
+    setRegionLaedt(true);
+    setReihenWahl({}); setReihenFeld({});
+    fetch(`/api/szene-stats?saison=${saison}&region=${regionAktiv}&sort=elims&limit=500`)
+      .then((r) => r.json())
+      .then((j) => { if (!weg) setRegionFeld(j.spieler ?? []); })
+      .catch(() => { if (!weg) setRegionFeld([]); })
+      .finally(() => { if (!weg) setRegionLaedt(false); });
+    return () => { weg = true; };
+  }, [bereich, saison, regionAktiv]);
+
+  /** Die Turnierreihen dieser Region, aus den Spieltagen gebuendelt. */
+  const reihen = useMemo(() => {
+    const gruppen = new Map<string, Turnier[]>();
+    for (const t of turniere) {
+      if (t.region !== regionAktiv) continue;
+      const r = reiheVon(t.name);
+      (gruppen.get(r) ?? gruppen.set(r, []).get(r)!).push(t);
+    }
+    return [...gruppen.entries()]
+      .map(([name, tage]) => ({
+        name, tage: tage.sort((a, b) => (a.datum ?? 0) - (b.datum ?? 0)),
+      }))
+      .sort((a, b) => b.tage.length - a.tage.length);
+  }, [turniere, regionAktiv]);
+
+  /** Das Turnierverzeichnis auch fuer die Regionenseite holen. */
+  useEffect(() => {
+    if (bereich !== 'regional' || !saison) return;
+    fetch(`/api/szene-stats?ansicht=turniere&saison=${saison}`
+        + (nurGrosse ? '' : '&alle=1'))
+      .then((r) => r.json())
+      .then((j) => setTurniere(j.turniere ?? []))
+      .catch(() => {});
+  }, [bereich, saison, nurGrosse]);
+
+  /** Eine Reihe (oder einen ihrer Spieltage) nachladen. */
+  const ladeReihe = useCallback(async (name: string, tage: Turnier[], wahl: string) => {
+    const p = new URLSearchParams({ saison, region: regionAktiv, sort: 'elims', limit: '500' });
+    if (wahl) p.set('event', wahl);
+    else p.set('events', tage.map((t) => t.windowId).join(','));
+    try {
+      const j = await (await fetch(`/api/szene-stats?${p}`)).json();
+      setReihenFeld((alt) => ({ ...alt, [name]: j.spieler ?? [] }));
+    } catch {
+      setReihenFeld((alt) => ({ ...alt, [name]: [] }));
+    }
+  }, [saison, regionAktiv]);
+
+  // Beim Aufschlagen jede Reihe einmal als Ganzes laden.
+  useEffect(() => {
+    if (bereich !== 'regional') return;
+    for (const r of reihen) {
+      if (!reihenFeld[r.name]) void ladeReihe(r.name, r.tage, '');
+    }
+    // reihenFeld absichtlich nicht in den Abhaengigkeiten: sonst liefe der
+    // Effekt nach jedem Nachladen erneut.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [bereich, reihen, ladeReihe]);
+
+  /** Aus einem Feld die zwoelf Bestenlisten rechnen. */
+  const listenAus = useCallback((feld: Spieler[]) => CUP_LISTEN.map((k) => {
+    const zeilen = feld
+      .filter((sp) => Number(sp[k.feld]) > 0)
+      .sort((a, b) => (k.kleinBesser
+        ? Number(a[k.feld]) - Number(b[k.feld])
+        : Number(b[k.feld]) - Number(a[k.feld])));
+    return { ...k, zeilen };
+  }).filter((l) => l.zeilen.length), []);
+
+  /**
+   * Das Feld eines einzelnen Spieltags.
+   *
+   * Eine einzige Abfrage genuegt: sie liefert jeden Teilnehmer mit allen
+   * Werten dieses Tages. Die zwoelf Bestenlisten entstehen daraus im Browser,
+   * statt zwoelfmal dasselbe zu holen.
+   */
+  useEffect(() => {
+    const cup = cupAktiv;
+    if (!cup) { setCupFeld([]); return; }
+    let weg = false;
+    setCupLaedt(true);
+    setCupFehler(false);
+    const p = new URLSearchParams({
+      saison: cup.season, region: cup.region,
+      ...(cup.events?.length ? { events: cup.events.join(',') } : { event: cup.windowId }),
+      sort: 'elims', limit: '500',
+    });
+    fetch(`/api/szene-stats?${p}`)
+      .then(async (r) => {
+        const j = await r.json().catch(() => ({}));
+        if (!r.ok || j?.success === false) throw new Error(j?.error ?? `HTTP ${r.status}`);
+        return j;
+      })
+      .then((j) => { if (!weg) setCupFeld(j.spieler ?? []); })
+      .catch(() => { if (!weg) { setCupFeld([]); setCupFehler(true); } })
+      .finally(() => { if (!weg) setCupLaedt(false); });
+    return () => { weg = true; };
+  }, [cupAktiv]);
+
+  /** Die Bestenlisten dieses Spieltags, aus dem geladenen Feld gerechnet. */
+  const cupListen = useMemo(() => CUP_LISTEN.map((k) => {
+    const zeilen = cupFeld
+      .filter((sp) => Number(sp[k.feld]) > 0)
+      .sort((a, b) => (k.kleinBesser
+        ? Number(a[k.feld]) - Number(b[k.feld])
+        : Number(b[k.feld]) - Number(a[k.feld])));
+    return { ...k, zeilen };
+  }).filter((l) => l.zeilen.length), [cupFeld]);
+
+  /* -------------------------------------------------------- Spielerkarte */
+  /**
+   * Die Werte eines Profils fuer einen Zeitraum holen.
+   *
+   * Getrennt vom Oeffnen, weil derselbe Aufruf auch gebraucht wird, wenn im
+   * Profil die Saison umgeschaltet wird - dann bleibt das Fenster offen und
+   * nur die Zahlen wechseln.
+   */
+  const profilLaden = useCallback(async (s: Spieler, zeitraum: string) => {
+    const nr = ++profilAbrufNr;
+    const veraltet = () => nr !== profilAbrufNr;
+    setProfilLaedt(true); setProfilFehler(false);
+    setVerlauf([]); setEpicZeilen([]);
+    setPerzentile(null); setFncs(null); setTagesbest([]); setFncsSiege([]);
+    setLanErgebnisse([]);
+    setRang(null);
+    setFncsTafel([]); setErfolge([]);
+
+    // Aus der Galerie kommt nur das Noetigste - Name, Flagge, Bild. Die
+    // Werte und der Verlauf werden hier nachgeholt und daruebergelegt, damit
+    // die Karte in beiden Faellen dasselbe zeigt.
+    const p = new URLSearchParams({ spieler: s.epicId });
+    // "jahr:2024" ist ein ganzes Jahr, alles andere eine Saison.
+    if (zeitraum.startsWith('jahr:')) p.set('jahr', zeitraum.slice(5));
+    else if (zeitraum !== 'alle') p.set('saison', zeitraum);
+    try {
+      /*
+       * Mit Frist und Wiederholung. Der Betreiber (29.9.2026): Profile
+       * "ziemlich oft in dieser Ladeanimation stuck", erst ein Neuladen half.
+       * Ein Profil, das noch nie geoeffnet wurde, rechnet der kleine Server
+       * erst - das dauert Sekunden, manchmal eine Minute, und ohne Frist
+       * wartete die Seite, bis der Rand nach hundert Sekunden aufgab. Jetzt
+       * fragt sie nach zwanzig Sekunden erneut; der Server haengt die neue
+       * Frage an die laufende Rechnung, und sobald die fertig ist, kommt das
+       * Profil sofort. Nur der juengste Abruf setzt Zustand - wer schnell
+       * ein anderes Profil oeffnet, bekommt nicht die Zahlen des vorigen.
+       */
+      /*
+       * Und laenger als vier Versuche: startet der Server gerade neu (nach
+       * einem Aufspielen gut eine Minute), kommt sofort 502, und vier
+       * Versuche waren nach sechs Sekunden verbraucht - der Betreiber sah
+       * "die ganze Zeit Try Again" (29.9.2026). Jetzt wird bis zu anderthalb
+       * Minuten weiter gefragt, mit wachsendem Abstand.
+       */
+      let j: Awaited<ReturnType<Response['json']>> | null = null;
+      const bis = Date.now() + 90_000;
+      const abstaende = [0, 1500, 3000, 5000, 8000, 10_000];
+      for (let versuch = 0; !j && Date.now() < bis; versuch++) {
+        const warten = abstaende[Math.min(versuch, abstaende.length - 1)];
+        if (warten) await new Promise((w) => setTimeout(w, warten));
+        if (veraltet()) return;
+        try {
+          const r = await fetch(`/api/szene-stats?${p}`, { signal: AbortSignal.timeout(25_000) });
+          if (r.ok) j = await r.json();
+        } catch { /* Frist abgelaufen oder Netz weg - noch einmal */ }
+      }
+      if (veraltet()) return;
+      if (!j) throw new Error('kein Profil');
+      setVerlauf(j.verlauf ?? []);
+      setPerzentile(j.perzentile ?? null);
+      setFncs(j.fncs ?? null);
+      setTagesbest(j.tagesbest ?? []);
+      setFncsSiege(j.fncsSiege ?? []);
+      setLanErgebnisse(j.lan ?? []);
+      setFncsTafel(j.fncsTafel ?? []);
+      setErfolge(j.erfolge ?? []);
+      setRang(j.rang ?? null);
+      setSaisonBilder(j.saisonBilder ?? {});
+      setSaisonNamen(j.saisonNamen ?? {});
+      /* Aus Epics Bestenliste wird eine Zeile derselben Form - mit einer
+         Marke, an der die Tabelle erkennt, dass die Werte fehlen muessen.
+         Die Matchzahl ist keine Schaetzung: bei Duos und Trios spielen alle
+         Mitglieder dieselben Matches. */
+      setEpicZeilen((j.epicZeilen ?? []).map((z: {
+        titel: string; windowId: string; region: string; season: string;
+        datum: number | null; platz: number; punkte: number; matches: number;
+        mitspieler: Mitspieler[];
+        replayElims?: number; replayKnocks?: number;
+        replaySchaden?: { dmg: number; erlitten: number; treffer: number; krit: number };
+        verdienst?: number | null;
+      }) => ({
+        event: z.titel || z.windowId,
+        windowId: z.windowId, region: z.region, season: z.season,
+        datum: z.datum ?? undefined,
+        werte: {
+          eliminations: 0, damageDealt: 0, damageTakenFromPlayers: 0,
+          headshots: 0, hitsToPlayers: 0, shots: 0, assists: 0,
+          matchesPlayed: z.matches, timeAlive: 0,
+        },
+        platz: z.platz, punkte: z.punkte, mitspieler: z.mitspieler,
+        nurEpic: true,
+        replayElims: z.replayElims,
+        replayKnocks: z.replayKnocks,
+        replaySchaden: z.replaySchaden,
+        /*
+         * Das Preisgeld der Epic-Zeilen ging hier verloren - die Verdienst-
+         * Seite zaehlte nur die Zeilen der Szene-Quelle, und Queasy stand
+         * mit 398.688 $ da, waehrend die Jahresliste 1.328.840 $ sagte.
+         */
+        verdienst: typeof z.verdienst === 'number' ? z.verdienst : undefined,
+      })));
+      // Wer im gewaehlten Zeitraum nicht angetreten ist, bekommt Nullen -
+      // nicht die Zahlen des vorigen Zeitraums. Sonst stand im Kopf "0
+      // Spieltage" und daneben trotzdem 737 Matches, und das war schlicht
+      // falsch.
+      setOffen((alt) => {
+        if (alt?.epicId !== s.epicId) return alt;
+        if (j.spieler) {
+          return { ...j.spieler, ...alt, ...j.spieler,
+            bild: alt.bild ?? j.spieler.bild };
+        }
+        const leer: Record<string, number> = {};
+        for (const feld of ['events', 'matches', 'elims', 'assists', 'reboots',
+          'shots', 'hits', 'headshots', 'damage', 'damageTaken', 'heals',
+          'stormDamage', 'fallDamage', 'mats', 'builds', 'distanz',
+          'timeInStorm', 'timeAlive', 'quote', 'genauigkeit', 'elimsProMatch',
+          'damageProMatch']) leer[feld] = 0;
+        return { ...alt, ...leer } as Spieler;
+      });
+    } catch {
+      if (veraltet()) return;
+      setVerlauf([]); setPerzentile(null); setFncs(null); setTagesbest([]);
+      setFncsSiege([]); setRang(null);
+      setSaisonBilder({}); setSaisonNamen({});
+      setProfilFehler(true);
+    } finally {
+      if (!veraltet()) setProfilLaedt(false);
+    }
+  }, []);
+
+  const oeffne = useCallback((s: Spieler, reiter: SpielerReiter = 'uebersicht') => {
+    setOffen(s);
+    // Die Seite faengt oben an - das Profil nimmt den ganzen Inhalt ein.
+    if (typeof window !== 'undefined') window.scrollTo({ top: 0 });
+    setPflegeName(s.anzeige); setPflegeLand(s.land ?? ''); setPflegeStand('');
+    // Aus der Preisgeldliste geht es direkt auf den Verdienst.
+    setSpielerReiter(reiter);
+    setMarke(null); setEntfernenFrage(false); setAlleRegionen(false);
+    // Ein frisch geoeffnetes Profil zeigt die ganze Laufbahn - das ist die
+    // Frage, die man beim Aufschlagen eines Profils zuerst hat.
+    setProfilSaison('alle');
+    setVerdienstKapitel(0); setVerdienstSaison('');
+    void profilLaden(s, 'alle');
+  }, [profilLaden]);
+
+  /*
+   * Ein Profil ueber die Konto-Id oeffnen - aus dem Reiter der
+   * Organisationen. Zuerst in der geladenen Liste, dann ueber die Suche nach
+   * dem Namen (die Konto-Id entscheidet, nie der Name allein). Findet die
+   * Suche das Konto nicht, oeffnet das Profil mit Id und Namen; die Werte
+   * holt es sich dann selbst.
+   */
+  const oeffneKonto = useCallback(async (epicId: string, name: string) => {
+    const da = spieler.find((x) => x.epicId === epicId);
+    if (da) { oeffne(da, 'verdienst'); return; }
+    try {
+      const j = await (await fetch(`/api/szene-stats?ansicht=suche&q=${encodeURIComponent(name)}`)).json();
+      const treffer = ((j.spieler ?? []) as Spieler[]).find((x) => x.epicId === epicId);
+      if (treffer) { oeffne(treffer, 'verdienst'); return; }
+    } catch { /* dann mit Id und Namen */ }
+    // Das Werkzeug kennt das Konto nicht: den Namen holt es bei Epic (der Betreiber: so, wie Epic Games den Namen herausgibt).
+    let epicName = name; let anzeigeName = name;
+    try {
+      const e = await (await fetch(`/api/epic-name?id=${encodeURIComponent(epicId)}`)).json();
+      if (e?.epicName) epicName = e.epicName;
+      if (e?.anzeige) anzeigeName = e.anzeige;
+    } catch { /* dann bleibt, was uebergeben wurde */ }
+    oeffne({
+      epicId, name: epicName, anzeige: anzeigeName, namen: [epicName], land: null, x: null, regionen: [], heimat: '',
+      bild: null, events: 0, matches: 0, elims: 0, assists: 0, reboots: 0, shots: 0, hits: 0,
+      headshots: 0, damage: 0, damageTaken: 0, heals: 0, stormDamage: 0, fallDamage: 0, mats: 0,
+      builds: 0, distanz: 0, timeInStorm: 0, timeAlive: 0, quote: 0, genauigkeit: 0,
+      elimsProMatch: 0, damageProMatch: 0,
+    }, 'verdienst');
+  }, [spieler, oeffne]);
+
+  /*
+   * Der geoeffnete Spieler steht in der Adresse.
+   *
+   * Vorher war ein Profil ein reiner Bildschirmzustand: wer die Seite neu
+   * lud, landete wieder ganz oben in der Liste, und ein Profil liess sich
+   * niemandem schicken. Der Betreiber dazu: "Wenn ich die Seite neu lade,
+   * bin ich nicht mehr auf diesem Statistik-Tool."
+   *
+   * Deshalb wandert der Name in die Adresse - lesbar, nicht als Konto-Id:
+   * "/statistics?spieler=MrSavage" sagt einem Menschen, worauf er klickt,
+   * und laesst sich weitergeben. Geschrieben wird mit replaceState, nicht
+   * mit push: sonst entstuende fuer jedes angesehene Profil ein eigener
+   * Schritt im Verlauf, und der Zurueck-Knopf braeuchte zehn Klicks, um die
+   * Seite zu verlassen.
+   */
+  /*
+   * Hat der Tiefenlink schon seine Chance gehabt?
+   *
+   * Der Merker steht hier oben, weil er beide Effekte betrifft. Ohne ihn
+   * lief es so: der Adress-Effekt kam als erster dran, sah "kein Profil
+   * offen" und loeschte ?spieler=PXMP aus der Adresse - eine Wimper, bevor
+   * der Effekt darunter sie lesen konnte. Neu laden landete deshalb immer
+   * wieder in der Liste, obwohl beide Haelften fuer sich richtig waren.
+   */
+  const ausAdresseGeholt = useRef(false);
+
+  /*
+   * Das Profil zumachen.
+   *
+   * Ueber den Verlauf, wenn es ueber den Verlauf aufgegangen ist: sonst
+   * bliebe der Schritt stehen, und ein Druck auf Zurueck oeffnete es gleich
+   * wieder. Wer direkt mit einem Link hereinkam, hat keinen Schritt hinter
+   * sich - dann wird schlicht geschlossen.
+   */
+  const profilSchliessen = useCallback(() => {
+    if (typeof window !== 'undefined' && window.history.state?.spieler) {
+      window.history.back();
+      return;
+    }
+    setOffen(null);
+  }, []);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    // Solange der Tiefenlink noch nicht dran war, wird nichts geschrieben.
+    if (!ausAdresseGeholt.current) return;
+
+    const p = new URLSearchParams(window.location.search);
+    const ist = p.get('spieler');
+    const soll = offen ? (offen.anzeige || offen.name) : null;
+    if ((soll ?? null) === (ist ?? null)) return;
+    if (soll) p.set('spieler', soll); else p.delete('spieler');
+    const rest = p.toString();
+    const adresse = window.location.pathname + (rest ? `?${rest}` : '');
+
+    /*
+     * Ein Profil zu oeffnen ist ein Schritt, den man zurueckgehen kann.
+     *
+     * Deshalb push statt replace, sobald eines aufgeht: der Zurueck-Knopf
+     * schliesst es dann wieder, statt die ganze Seite zu verlassen. Beim
+     * Wechsel von einem Profil zum naechsten und beim Schliessen wird
+     * ersetzt - sonst saeumten zehn angesehene Spieler den Weg zurueck.
+     */
+    if (!ist && soll) window.history.pushState({ spieler: soll }, '', adresse);
+    else window.history.replaceState(null, '', adresse);
+  }, [offen]);
+
+  /*
+   * Der Zurueck-Knopf schliesst das Profil.
+   *
+   * Ohne das fuehrte er aus der Statistik heraus, obwohl auf dem Schirm nur
+   * ein Fenster darueber lag - und genau das erwartet niemand.
+   */
+  useEffect(() => {
+    const zurueck = () => {
+      const gesucht = new URLSearchParams(window.location.search).get('spieler');
+      if (!gesucht) { setOffen(null); return; }
+      const treffer = spieler.find((x) =>
+        x.epicId === gesucht || (x.anzeige || x.name) === gesucht);
+      if (treffer) oeffne(treffer);
+    };
+    window.addEventListener('popstate', zurueck);
+    return () => window.removeEventListener('popstate', zurueck);
+  }, [spieler, oeffne]);
+
+  /*
+   * Und zurueck: beim Aufruf mit ?spieler=... dieses Profil oeffnen.
+   *
+   * Zuerst in der geladenen Liste nachsehen - meistens steht er dort. Wenn
+   * nicht, wird gezielt danach gesucht: die Liste zeigt nur die ersten
+   * dreihundert eines Zeitraums, und ein weitergegebener Link soll auch
+   * dann aufgehen, wenn der Betreffende gerade nicht darunter ist.
+   */
+  useEffect(() => {
+    if (ausAdresseGeholt.current || typeof window === 'undefined') return;
+    const gesucht = new URLSearchParams(window.location.search).get('spieler');
+    if (!gesucht) { ausAdresseGeholt.current = true; return; }
+    ausAdresseGeholt.current = true;
+
+    /*
+     * Nicht auf die Liste warten, sondern gezielt suchen.
+     *
+     * Die Spielerliste wird erst geladen, wenn der Reiter "Players" offen
+     * ist - auf der Startansicht bleibt sie leer. Wer den Effekt darauf
+     * warten liess, wartete ewig: neu laden landete deshalb immer wieder in
+     * der Uebersicht, obwohl die Adresse stimmte.
+     *
+     * Der Reiter wird gleich mit umgestellt: hinter dem Profil soll die
+     * Liste liegen, aus der es kommt, nicht die Startansicht.
+     */
+    setBereich('spieler');
+
+    const schluessel = (x: string) => String(x).trim().toLowerCase()
+      .replace(/[^a-z0-9]/g, '');
+    const gesuchtK = schluessel(gesucht);
+    const passt = (x: Spieler) => x.epicId === gesucht
+      || schluessel(x.anzeige || '') === gesuchtK
+      || schluessel(x.name || '') === gesuchtK;
+
+    void (async () => {
+      let treffer = spieler.find(passt);
+      if (!treffer) {
+        /*
+         * Ueber die Suche, nicht ueber die Bestenliste.
+         *
+         * Die Bestenliste filtert mit "q" den rohen Epic-Namen. Bei einem
+         * gepflegten Anzeigenamen ist das ein anderer: PXMP heisst dort
+         * "еlite рxmp", und die Suche nach "PXMP" ging ins Leere. Die
+         * Suchansicht kennt beide Namen und liefert dieselben Felder.
+         */
+        try {
+          const j = await (await fetch(
+            `/api/szene-stats?ansicht=suche&q=${encodeURIComponent(gesucht)}`)).json();
+          const liste: Spieler[] = j.spieler ?? [];
+          treffer = liste.find(passt) ?? liste[0];
+        } catch { /* dann bleibt es bei der Liste */ }
+      }
+      if (treffer) oeffne(treffer);
+    })();
+  }, [spieler, oeffne]);
+
+  /** Im offenen Profil den Zeitraum wechseln. */
+  /*
+   * Epics Ranked-Stufen zum offenen Spieler.
+   *
+   * Eine eigene Abfrage, weil sie eine andere Quelle hat als alles andere im
+   * Profil - Epics Rangdienst statt der Turnierdaten. Sie darf ruhig ein paar
+   * hundert Millisekunden brauchen; kommt nichts zurueck, steht die Zeile
+   * einfach nicht da.
+   *
+   * Die Antwort enthaelt jede Rangsaison seit 2023. Behalten wird je Spielart
+   * nur die zuletzt gespielte - alles andere ist Geschichte und gehoert nicht
+   * in einen Kopf, der den heutigen Stand zeigen soll.
+   */
+  useEffect(() => {
+    if (!offen?.epicId) { setRanked(null); return; }
+    let weg = false;
+    setRanked(null);
+    Promise.all([
+      fetch(`/api/cup-ranked?ids=${encodeURIComponent(offen.epicId)}`)
+        .then((r) => r.json()),
+      fetch('/api/cup-ranked?tracks=1').then((r) => r.json()),
+    ])
+      .then(([j, tj]) => {
+        if (weg) return;
+        /*
+         * Nur die Rangsaisons, die gerade laufen.
+         *
+         * Die Antwort enthaelt jede Saison seit 2023 - ein Rang aus dem Jahr
+         * 2023 im Kopf eines Profils waere kein Stand, sondern eine
+         * Erinnerung. Welche gerade laufen, sagt Epic in derselben
+         * Schnittstelle; von dort kommt auch die Zahl der Stufen.
+         */
+        const aktiv = new Map<string, number>();
+        for (const tr of (tj?.tracks ?? []) as Array<
+          { trackguid: string; divisionCount?: number }>) {
+          aktiv.set(tr.trackguid, tr.divisionCount ?? 0);
+        }
+        const alle: RangStufe[] = j?.spieler?.[0]?.ranks ?? [];
+        setRanked(alle
+          .filter((r) => r.gespielt && aktiv.has(r.trackguid))
+          .map((r) => ({ ...r, stufen: aktiv.get(r.trackguid) }))
+          .sort((a, b) => (b.aktualisiert ?? '').localeCompare(a.aktualisiert ?? '')));
+      })
+      .catch(() => { if (!weg) setRanked(null); });
+    return () => { weg = true; };
+  }, [offen?.epicId]);
+
+  const profilZeitraum = useCallback((zeitraum: string) => {
+    setProfilSaison(zeitraum);
+    if (offen) void profilLaden(offen, zeitraum);
+  }, [offen, profilLaden]);
+
+  /**
+   * Namen und Flagge eines Spielers festhalten.
+   *
+   * Geschrieben wird ins gemeinsame Spielerprofil, unter der Konto-Id. Damit
+   * gilt die Aenderung ueberall - im Leaderboard, auf den Turnierkarten, in
+   * den Beitraegen - und sie bleibt, auch wenn der Spieler beim naechsten
+   * Turnier wieder anders heisst.
+   */
+  const pflegeSpeichern = useCallback(async () => {
+    if (!offen) return;
+    setPflegeStand('speichert …');
+    try {
+      const r = await fetch('/api/spieler-profile', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: offen.epicId,
+          name: offen.name,
+          anzeige: pflegeName.trim(),
+          land: pflegeLand.trim().toUpperCase(),
+          x: offen.x ?? '',
+        }),
+      });
+      if (!r.ok) throw new Error(t('fehlgeschlagen'));
+      const j = await r.json();
+      const neu = {
+        ...offen,
+        anzeige: j.profile?.anzeige || j.profile?.name || offen.anzeige,
+        land: j.profile?.land ?? null,
+      };
+      setOffen(neu);
+      // Auch in den offenen Listen sofort nachziehen, damit man die Wirkung
+      // sieht, ohne die Seite neu zu laden.
+      const ersetzen = (x: Spieler) => (x.epicId === neu.epicId ? { ...x, ...neu } : x);
+      setSpieler((alt) => alt.map(ersetzen));
+      setKacheln((alt) => alt.map((k) => ({ ...k, spitze: ersetzen(k.spitze) })));
+      setListen((alt) => alt.map((l) => ({ ...l, plaetze: l.plaetze.map(ersetzen) })));
+      setFaecher((alt) => alt.map(ersetzen));
+      for (const [k, v] of vollGeholt.current) vollGeholt.current.set(k, v.map(ersetzen));
+      setGalerie((alt) => alt.map(ersetzen));
+      setProfile((alt) => alt.map((g) => ({ ...g, spieler: g.spieler.map(ersetzen) })));
+      setDuelle((alt) => alt.map((d) => ({
+        links: ersetzen(d.links), rechts: ersetzen(d.rechts) })));
+      setVglLinks((alt) => (alt ? ersetzen(alt) : alt));
+      setVglRechts((alt) => (alt ? ersetzen(alt) : alt));
+      setPflegeStand(t('gespeichert'));
+    } catch {
+      setPflegeStand(t('nicht gespeichert'));
+    }
+  }, [offen, pflegeName, pflegeLand]);
+
+  /**
+   * Einen Spieler aus der Oberflaeche nehmen.
+   *
+   * Seine Werte im Archiv bleiben unangetastet - er verschwindet nur aus
+   * Listen, Suche und Bilderansicht. Ruecknehmen laesst sich das jederzeit
+   * ueber data/spieler-versteckt.json.
+   */
+  const spielerVerstecken = useCallback(async () => {
+    if (!offen) return;
+    setPflegeStand('speichert …');
+    try {
+      const r = await fetch('/api/spieler-verstecken', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: offen.epicId, name: offen.anzeige }),
+      });
+      if (!r.ok) throw new Error('abgelehnt');
+      // Aus allen offenen Listen sofort herausnehmen, damit man die Wirkung
+      // sieht, ohne die Seite neu zu laden.
+      const weg = (x: Spieler) => x.epicId !== offen.epicId;
+      setSpieler((alt) => alt.filter(weg));
+      setGalerie((alt) => alt.filter(weg));
+      setListen((alt) => alt.map((l) => ({ ...l, plaetze: l.plaetze.filter(weg), gesamt: l.gesamt !== undefined && l.plaetze.some((x) => !weg(x)) ? l.gesamt - 1 : l.gesamt })));
+      setFaecher((alt) => alt.filter(weg));
+      versteckteIds.current.add(offen.epicId);
+      for (const [k, v] of vollGeholt.current) vollGeholt.current.set(k, v.filter(weg));
+      setProfile((alt) => alt.map((g) => ({ ...g, spieler: g.spieler.filter(weg) })));
+      setEntfernenFrage(false);
+      setOffen(null);
+    } catch {
+      setPflegeStand(t('nicht gespeichert'));
+    }
+  }, [offen]);
+
+  const gezeigteSpieler = spieler;
+
+  /** Wie die gewaehlte Saison heisst - "CH7 S3" statt "S41". */
+  /**
+   * Wie der ganze Zeitraum heisst.
+   *
+   * Wo ueber alle Spieltage gerechnet wird, soll nicht "alle" stehen, sondern
+   * welche Saisons das sind - die Liste kommt aus dem Archiv selbst, damit die
+   * Angabe mitwaechst, sobald eine Saison dazukommt.
+   */
+  const archivTitel = useMemo(() => {
+    if (!saisons.length) return t('alle erfassten Spieltage');
+    const namen = [...saisons].map((x) => x.name);
+    const erste = namen[namen.length - 1], letzte = namen[0];
+    return erste === letzte ? erste : `${erste} ${t('bis')} ${letzte}`;
+  }, [saisons, t]);
+
+  /*
+   * "Alle Saisons" ist eine echte Wahl, keine leere.
+   *
+   * Der Betreiber wollte den Filter "all" auch hier oben haben - und zwar
+   * durchgehend: die Bestenlisten, die Turnierliste, die Regionalansicht und
+   * der Vergleich richten sich alle nach dieser einen Auswahl.
+   */
+  const alleSaisons = saison === 'alle';
+  const saisonTitel = useMemo(
+    () => (saison === 'alle' ? t('alle Saisons')
+      : saisons.find((x) => x.kennung === saison)?.name ?? saison),
+    [saisons, saison, t]);
+
+  /* ------------------------------------------------ Region im Profil */
+
+  /**
+   * Die Heimatregion des offenen Spielers.
+   *
+   * Sie steht im Abzug und ist ueber das ganze Archiv ausgezaehlt: es gilt
+   * die Region, in der das Konto am haeufigsten angetreten ist. Ein Europaeer
+   * bleibt damit Europaeer, auch wenn er zweimal in NAC gespielt hat.
+   */
+  const heimatRegion = offen?.heimat || offen?.regionen?.[0] || '';
+
+  /**
+   * Der Verlauf, auf die Heimatregion beschraenkt.
+   *
+   * Warum ueberhaupt: Wenn Vico einmal mit Scoll in NAC antritt, ist das ein
+   * Ausreisser und kein Teil seiner Form. In "Die letzten drei Turniere"
+   * verdraengt so ein Ausflug sonst einen echten EU-Spieltag, und wer die
+   * drei Zeilen ueberfliegt, liest die falsche Region als seine.
+   *
+   * Unter "Turniere" liegt der Fall anders - dort will man die ganze
+   * Laufbahn sehen, deshalb laesst sich das dort aufklappen.
+   */
+  const verlaufHeimat = useMemo(
+    // LANs zaehlen immer mit (Betreiber, 19.10.2026: "eine LAN gehoert automatisch auch in seine Region - das ist ein wichtiger Cup").
+    () => (heimatRegion ? verlauf.filter((z) => z.region === heimatRegion || LAN_FENSTER.test(z.windowId)) : verlauf),
+    [verlauf, heimatRegion]);
+
+  /**
+   * Die drei juengsten Turniere der Heimatregion.
+   *
+   * Auch die, zu denen bisher nur Epic etwas hat. Sonst stuende hier ein
+   * Spieltag von vorletzter Woche, waehrend der Cup von gestern schon
+   * gelaufen und gewertet ist - das Profil sieht dann veraltet aus, obwohl
+   * Platz und Mitspieler feststehen.
+   */
+  const letzteDrei = useMemo(() => {
+    const heimatEpic = heimatRegion
+      ? epicZeilen.filter((z) => z.region === heimatRegion || LAN_FENSTER.test(z.windowId)) : epicZeilen;
+    return [...verlaufHeimat, ...heimatEpic]
+      .sort((a, b) => (b.datum ?? 0) - (a.datum ?? 0))
+      .slice(0, 3);
+  }, [verlaufHeimat, epicZeilen, heimatRegion]);
+
+  /** Wie viele Spieltage ausserhalb der Heimat liegen - fuer den Knopf. */
+  const fremdeSpieltage = (verlauf.length - verlaufHeimat.length)
+    + epicZeilen.filter((z) => heimatRegion && z.region !== heimatRegion && !LAN_FENSTER.test(z.windowId)).length;
+
+  /**
+   * Was die Turnierliste zeigt.
+   *
+   * Zu den Spieltagen der Quelle kommen die, zu denen bisher nur Epic etwas
+   * hat - sonst fehlte ein gelaufener Cup im Profil ganz, obwohl Platz und
+   * Mitspieler feststehen. Sortiert wird ueber beide hinweg nach Datum,
+   * damit sie sich nicht am Ende sammeln.
+   */
+  const turnierZeilen = useMemo(() => {
+    const heimatEpic = heimatRegion
+      ? epicZeilen.filter((z) => z.region === heimatRegion || LAN_FENSTER.test(z.windowId)) : epicZeilen;
+    const zusammen = alleRegionen
+      ? [...verlauf, ...epicZeilen]
+      : [...verlaufHeimat, ...heimatEpic];
+    /*
+     * Mehrtaegige LANs bekommen eine Zeile "Kumulativ" ueber ihren Tagen.
+     *
+     * Der Betreiber (29.9.2026) zu den Globals: "Earnings ist ja klar, das
+     * muss ja kumulativ, da kannst du ja noch eine dritte Zeile machen."
+     * Darin: der Endplatz und das Preisgeld aus der LAN-Liste, die Punkte
+     * und Werte beider Tage zusammen. Das Preisgeld steht dann dort und
+     * nicht mehr am letzten Tag - gezaehlt wird es weiter genau einmal.
+     */
+    const LAN_TAG = /^(MannekenPis|Dinosauron|BambiRaptor|Escargo|Bratwurst|Acrocanthosaurus)_(?:Finals_)?Day(\d+)$/i;
+    const gruppen = new Map<string, VerlaufZeile[]>();
+    for (const z of zusammen) {
+      const m = LAN_TAG.exec(z.windowId);
+      if (!m || z.nurEpic) continue;
+      const k = m[1];
+      gruppen.set(k, [...(gruppen.get(k) ?? []), z]);
+    }
+    const gesamtZeilen: VerlaufZeile[] = [];
+    const ohneGeld = new Set<VerlaufZeile>();
+    for (const [kern, tageDerLan] of gruppen) {
+      if (tageDerLan.length < 2) continue;
+      const lan = lanErgebnisse.find((l) => l.fenster.startsWith(`${kern}_`));
+      const werte = { ...tageDerLan[0].werte } as Record<string, number>;
+      for (const z of tageDerLan.slice(1)) {
+        for (const [k, v] of Object.entries(z.werte)) {
+          if (typeof v === 'number') werte[k] = (werte[k] ?? 0) + v;
+        }
+      }
+      const punkte = tageDerLan.every((z) => typeof z.punkte === 'number')
+        ? tageDerLan.reduce((a, z) => a + (z.punkte ?? 0), 0) : null;
+      const erster = tageDerLan[0];
+      if (lan) for (const z of tageDerLan) ohneGeld.add(z);
+      gesamtZeilen.push({
+        ...erster,
+        event: `${erster.event.replace(/\s*[-·]\s*Day\s*\d+\s*$/i, '')} · ${t('Kumulativ')}`,
+        windowId: `${kern}_Kumulativ`,
+        werte: werte as VerlaufZeile['werte'],
+        datum: Math.max(...tageDerLan.map((z) => z.datum ?? 0)) + 1,
+        platz: lan?.platz ?? null,
+        punkte,
+        verdienst: lan ? lan.betrag : null,
+        mitspieler: tageDerLan.find((z) => z.mitspieler.length)?.mitspieler ?? [],
+        gesamt: true,
+      });
+    }
+    return [...zusammen.map((z) => (ohneGeld.has(z) ? { ...z, verdienst: null } : z)), ...gesamtZeilen]
+      .sort((a, b) => (b.datum ?? 0) - (a.datum ?? 0));
+  }, [verlauf, verlaufHeimat, epicZeilen, alleRegionen, heimatRegion, lanErgebnisse, t]);
+
+  /**
+   * Der Zusatz an den beiden Raengen.
+   *
+   * Sie zaehlen ueber das ganze Archiv - die fertige Gesamtliste liegt
+   * dafuer bereit, waehrend ein Rang je Zeitraum siebenhundert Dateien
+   * kosten wuerde. Steht oben ein Zeitraum, gehoert das dazugeschrieben,
+   * sonst liest sich "#12 von 500" wie der Rang dieses Jahres.
+   */
+  const rangZusatz = (rang?.alleSaisons && profilSaison !== 'alle')
+    ? ` · ${t('alle Saisons')}` : '';
+
+  /**
+   * Die sechs Kennzahlen im Kopf des Profils - das Bild "Rückblick als Bild" (RueckblickBild) zeigt dieselben.
+   * Die Unterzeilen werden hier zusammengesetzt und müssen deshalb selbst übersetzt werden: ein fertiger Satz geht an <T> vorbei.
+   */
+  const kennzahlen: Array<[string, string, string]> = !offen ? [] : [
+                  /*
+                   * Die Unterzeilen werden hier zusammengesetzt und muessen
+                   * deshalb selbst uebersetzt werden - ein fertiger Satz
+                   * geht an <T> vorbei. Genau daran lag es, dass hier noch
+                   * "besser als 89 %", "von 1.705 in EU" und "2 Titel"
+                   * standen, obwohl oben Englisch eingestellt war.
+                   */
+                  ['Schadensquote', zahl(offen.quote, 2, sprache),
+                    perzentile
+                      ? t('besser als {n} %').replace('{n}', String(perzentile.quote))
+                      : t('ausgeteilt zu erlitten')],
+                  ['Regionaler Rang', rang?.regional ? `#${rang.regional}` : '—',
+                    rang?.regional
+                      ? t('von {n} in {region}')
+                        .replace('{n}', zahl(rang.regionalVon, 0, sprache))
+                        .replace('{region}', rang.region) + rangZusatz
+                      : ''],
+                  ['Globaler Rang', rang ? `#${rang.global}` : '—',
+                    rang
+                      ? t('von {n} Spielern').replace('{n}', zahl(rang.globalVon, 0, sprache))
+                        + rangZusatz
+                      : ''],
+                  ['Eliminierungen', zahl(offen.elims, 0, sprache),
+                    `${zahl(offen.elimsProMatch, 2, sprache)} ${t('je Match')}`],
+                  ['Schaden', zahl(offen.damage, 0, sprache),
+                    `${zahl(offen.damageProMatch, 0, sprache)} ${t('je Match')}`],
+                  /* Titel: FNCS-Siege aus der offenen Spielerliste plus LAN-Siege
+                     (Summit, Reload Elite Championship) - der Betreiber: "Vico hat
+                     andere Cups gewonnen, die Summit LAN zum Beispiel, das soll da
+                     drin sein." */
+                  ['Titel',
+                    String((fncs?.titel ?? 0) + lanErgebnisse.filter((l) => l.platz === 1).length),
+                    [fncs && fncs.titel > 0 ? `${fncs.titel} FNCS` : '',
+                      lanErgebnisse.filter((l) => l.platz === 1).length
+                        ? `${lanErgebnisse.filter((l) => l.platz === 1).length} LAN` : '']
+                      .filter(Boolean).join(' · ')],
+                ];
+
+  /** Die laufende Bestenliste in der Leiste. */
+  const seitenliste = useMemo(() => listen.find((l) => l.feld === 'elims'), [listen]);
+
+  /**
+   * Eine Startliste ganz holen.
+   *
+   * Die Startantwort traegt nur die ersten Plaetze (und in "gesamt" die Zahl aller). Hinter "Alle anzeigen" kommt die volle Liste mit
+   * "&liste=<feld>", mit dem Ladeschirm wie beim Jahr. Kommt sie nicht, bleibt es bei dem, was schon da ist - nichts wird erfunden.
+   */
+  const startListeVoll = useCallback(async (l: Liste): Promise<Spieler[]> => {
+    if ((l.gesamt ?? l.plaetze.length) <= l.plaetze.length) return l.plaetze;
+    const schluessel = `${saison}|${l.feld}`;
+    const da = vollGeholt.current.get(schluessel);
+    if (da) return da;
+    setListenLaedt(true);
+    try {
+      const j = await (await fetch(`/api/szene-stats?ansicht=start&saison=${encodeURIComponent(saison)}&liste=${encodeURIComponent(l.feld)}`,
+        { signal: AbortSignal.timeout(20_000) })).json();
+      if (j?.success && Array.isArray(j.plaetze) && j.plaetze.length >= l.plaetze.length) {
+        const zeilen = (j.plaetze as Spieler[]).filter((x) => !versteckteIds.current.has(x.epicId));
+        vollGeholt.current.set(schluessel, zeilen);
+        return zeilen;
+      }
+    } catch { /* dann bleibt es bei den ersten Plaetzen */ }
+    finally { setListenLaedt(false); }
+    return l.plaetze;
+  }, [saison]);
+
+  /*
+   * Der Ladeschirm erst nach einer Viertelsekunde - und nur solange
+   * wirklich gewartet wird. Was aus dem Speicher kommt, zeigt keinen
+   * Schirm; was laenger dauert, zeigt ihn genau so lange, wie es dauert.
+   */
+  const wartet = profilLaedt || (bereich === 'jahr' && jahrLaedt)
+    || (bereich === 'spieler' && laedt && !spieler.length)
+    || (bereich === 'turniere' && cupLaedt && !cupFeld.length)
+    || (bereich === 'regional' && regionLaedt && !regionFeld.length)
+    || (tabelleLaedt && !spieltagTabelle);
+  const [schirmSichtbar, setSchirmSichtbar] = useState(false);
+  useEffect(() => {
+    if (!wartet) { setSchirmSichtbar(false); return; }
+    const zeiger = setTimeout(() => setSchirmSichtbar(true), 250);
+    return () => clearTimeout(zeiger);
+  }, [wartet]);
+
+  /*
+   * Die Bereiche als Leiste unter dem Kopf (Betreiber, 14.10.2026: eigene Anordnung statt der Seitenleiste links). Sie steht auch bei
+   * offenem Profil da, damit man von dort mit einem Klick in jeden Bereich kommt.
+   */
+  /*
+   * Auf dem Handy passen nicht alle Reiter in die Leiste: Solange rechts oder links noch welche
+   * folgen, zeigt ein weicher Verlauf mit Pfeil das an, und der gewaehlte Reiter wird mittig
+   * ins Bild geholt (nur waagerecht, die Seite bleibt stehen).
+   */
+  const leisteRef = useRef<HTMLDivElement>(null);
+  const [leisteMehr, setLeisteMehr] = useState({ links: false, rechts: false });
+  const pruefeLeiste = useCallback(() => {
+    const el = leisteRef.current;
+    if (!el) return;
+    const links = el.scrollLeft > 4;
+    const rechts = el.scrollLeft + el.clientWidth < el.scrollWidth - 4;
+    setLeisteMehr((v) => (v.links === links && v.rechts === rechts ? v : { links, rechts }));
+  }, []);
+  useEffect(() => {
+    const el = leisteRef.current;
+    if (!el) return;
+    pruefeLeiste();
+    const beobachter = new ResizeObserver(pruefeLeiste);
+    beobachter.observe(el);
+    return () => beobachter.disconnect();
+  }, [pruefeLeiste, bereich, sichtbareBereiche.length]);
+  useEffect(() => {
+    const el = leisteRef.current;
+    const knopf = el?.querySelector<HTMLElement>('[aria-current="page"]');
+    if (!el || !knopf) return;
+    const ziel = knopf.offsetLeft - (el.clientWidth - knopf.offsetWidth) / 2;
+    el.scrollTo({ left: Math.max(0, ziel), behavior: 'smooth' });
+  }, [bereich, sichtbareBereiche.length]);
+
+  const bereichsLeiste = (
+    <div className="relative mb-6 max-w-full">
+    <nav ref={leisteRef} onScroll={pruefeLeiste} aria-label={t('Statistiken')}
+      className="flex max-w-full gap-1 overflow-x-auto rounded-2xl border border-zinc-800 bg-zinc-900 p-1 shadow-sm [scrollbar-width:none]">
+      {sichtbareBereiche.map(([wert, titel]) => (
+        <button key={wert} type="button" onClick={() => wechsleBereich(wert)} aria-current={bereich === wert ? 'page' : undefined}
+          className={`flex shrink-0 items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition ${bereich === wert
+            ? 'bg-sky-500 text-white shadow-sm' : 'text-slate-400 hover:bg-zinc-800 hover:text-slate-100'}`}>
+          <Zeichen art={wert} />
+          <T>{titel}</T>
+        </button>
+      ))}
+    </nav>
+    {(['links', 'rechts'] as const).map((seite) => leisteMehr[seite] && (
+      <div key={seite} aria-hidden="true"
+        className={`pointer-events-none absolute inset-y-px flex w-10 items-center ${seite === 'links'
+          ? 'left-px justify-start rounded-l-2xl bg-gradient-to-r pl-1' : 'right-px justify-end rounded-r-2xl bg-gradient-to-l pr-1'} from-zinc-900 via-zinc-900/80 to-transparent`}>
+        <svg viewBox="0 0 20 20" className="h-4 w-4 text-sky-500" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d={seite === 'links' ? 'M12 4l-6 6 6 6' : 'M8 4l6 6-6 6'} />
+        </svg>
+      </div>
+    ))}
+    </div>
+  );
+
+  /** Die Suche nach einem Spieler - sie steht immer oben rechts, auch im Profil und in der vollen Liste (Betreiber, 26.10.2026). */
+  const kopfSuchfeld = (
+    <div className="relative ml-auto w-56 sm:w-72">
+      <input value={kopfSuche}
+        onChange={(e) => {
+          setKopfSuche(e.target.value);
+          // In der Bilderansicht ist dasselbe Feld der Filter fuer
+          // das Raster - zwei Suchfelder nebeneinander waren eines
+          // zu viel.
+          if (bereich === 'bilder') {
+            setGalerieSuche(e.target.value);
+            setGalerieMenge(400);
+          } else {
+            setKopfOffen(true);
+          }
+        }}
+        onFocus={() => setKopfOffen(bereich !== 'bilder')}
+        onBlur={() => setTimeout(() => setKopfOffen(false), 150)}
+        onKeyDown={(e) => {
+          // Eingabetaste oeffnet den ersten Treffer - schneller als
+          // zur Maus zu greifen.
+          if (e.key === 'Enter' && kopfTreffer[0]) {
+            oeffne(kopfTreffer[0]);
+            setKopfSuche(''); setKopfOffen(false);
+          }
+          if (e.key === 'Escape') { setKopfSuche(''); setKopfOffen(false); }
+        }}
+        placeholder={bereich === 'bilder'
+          ? t('Name suchen — oder DE, FR, GB') : t('Spieler suchen …')}
+        title={bereich === 'bilder'
+          ? t('Klein geschrieben sucht im Namen, groß geschrieben '
+            + 'nach Ländern: DE,FR,GB') : undefined}
+        className="w-full rounded-lg border border-zinc-800 bg-zinc-900/80 px-3
+                   py-1.5 text-sm text-slate-100 outline-none
+                   placeholder:text-slate-600 focus:border-sky-500" />
+
+      {kopfOffen && bereich !== 'bilder' && kopfTreffer.length > 0 && (
+        <div className="absolute right-0 z-40 mt-1 w-full overflow-hidden
+                        rounded-lg border border-zinc-700 bg-zinc-950
+                        shadow-2xl">
+          {kopfTreffer.map((sp) => (
+            <button key={sp.epicId}
+              onMouseDown={(e) => e.preventDefault()}
+              onClick={() => {
+                oeffne(sp); setKopfSuche(''); setKopfOffen(false);
+              }}
+              className="flex w-full items-center gap-2 px-3 py-2 text-left
+                         transition hover:bg-zinc-900">
+              {sp.bild ? (
+                /* eslint-disable-next-line @next/next/no-img-element */
+                <img src={sp.bild} alt="" loading="lazy"
+                  className="h-8 w-8 shrink-0 rounded object-cover
+                             object-top" />
+              ) : (
+                <span className="flex h-8 w-8 shrink-0 items-center
+                                 justify-center rounded bg-zinc-900
+                                 text-xs text-zinc-700">?</span>
+              )}
+              <TeamFlagge groesse={16} laender={[sp.land ?? undefined]} />
+              <span className="min-w-0 flex-1 truncate text-xs font-semibold
+                               uppercase tracking-wide text-slate-100">
+                {grossName(sp.anzeige, sp.gepflegt)}
+              </span>
+              {sp.heimat && <RegionMarke region={sp.heimat} />}
+              <span className="shrink-0 text-[10px] text-slate-600">
+                {zahl(sp.matches, 0, sprache)} <T>Matches</T>
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+
+  return (
+    <main className="stat-blau min-h-screen bg-zinc-950 text-slate-100">
+      {/* Ein Ladeschirm ueber allem, solange Profil, Jahr oder Liste geholt
+          werden - nicht nur ein "Loading" in der Ecke. */}
+      {schirmSichtbar && <LadeSchirm />}
+      <div className="mx-auto flex max-w-[1600px] gap-5 px-4 py-6">
+
+        {/* ---------------------------------------------- rechter Inhalt */}
+        <div className="min-w-0 flex-1">
+          {(offen || volleListe) && (
+            <div className="mb-6 flex flex-wrap items-center gap-3">
+              <div className="min-w-0 max-w-full">{bereichsLeiste}</div>
+              {kopfSuchfeld}
+            </div>
+          )}
+          {/* Ist ein Profil offen, steht es hier anstelle des Inhalts. */}
+          {!offen && !volleListe && (<>
+
+          {/* Kopf mit Saison und Bereichen fuer schmale Schirme */}
+          <div className="mb-5 flex flex-wrap items-end gap-x-4 gap-y-3">
+            <div className="mr-2">
+              <p className="text-xs font-bold uppercase tracking-[0.2em] text-sky-500"><T>Zahlen & Rekorde</T></p>
+              <h1 className="mt-1 text-4xl font-extrabold tracking-tight text-slate-100 sm:text-5xl"><T>Statistiken</T></h1>
+            </div>
+            <select value={saison} onChange={(e) => setSaison(e.target.value)}
+              className="rounded-lg border border-zinc-800 bg-zinc-900/80 px-3 py-1.5
+                         text-sm text-slate-200 outline-none focus:border-sky-500">
+              <option value="alle">{t('Alle Saisons')}</option>
+              {saisons.map((s) => (
+                <option key={s.kennung} value={s.kennung}>{s.name}</option>
+              ))}
+            </select>
+            {/* Die Suche.
+                Sie sucht ueber das ganze Archiv, nicht nur ueber die Saison
+                daneben - ein Name soll gefunden werden, ohne dass man vorher
+                weiss, wann derjenige zuletzt gespielt hat. Ein Klick auf
+                einen Treffer oeffnet direkt sein Profil. */}
+            {kopfSuchfeld}
+            {/*
+             * Das Schloss - siehe Sichtbar oben. Nur der Betreiber sieht es:
+             * ein kleines Symbol ohne Text, gruen (alle), gelb (VIPs), rot
+             * (nur er). Der Betreiber: "nicht als HUD, wirklich nur ein
+             * Schlosszeichen, oben rechts". Ein Klick dreht es weiter.
+             */}
+            {istAdmin && bereich !== 'start' && (() => {
+              const stufe = sichtbar[bereich] ?? 'alle';
+              const farbe = stufe === 'alle' ? 'text-emerald-400 hover:bg-emerald-500/10'
+                : stufe === 'vip' ? 'text-amber-400 hover:bg-amber-500/10'
+                : 'text-rose-400 hover:bg-rose-500/10';
+              const titel = stufe === 'alle' ? t('Für alle sichtbar')
+                : stufe === 'vip' ? t('Nur für VIPs sichtbar') : t('Nur für dich sichtbar');
+              return (
+                <button type="button" onClick={schlossDrehen}
+                  title={`${titel} · ${t('Klicken zum Umschalten')}`} aria-label={titel}
+                  className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-lg
+                              transition ${farbe}`}>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"
+                    stroke="currentColor" strokeWidth="2" strokeLinecap="round"
+                    strokeLinejoin="round" aria-hidden>
+                    <rect x="4" y="10" width="16" height="11" rx="2" />
+                    {stufe === 'alle'
+                      ? <path d="M8 10V7a4 4 0 0 1 7.5-2" fill="none" />
+                      : <path d="M8 10V7a4 4 0 0 1 8 0v3" fill="none" />}
+                  </svg>
+                </button>
+              );
+            })()}
+            {istAdmin && schlossFehler && (
+              <span className="text-xs font-semibold text-rose-400">
+                <T>Nicht gespeichert. Bitte noch einmal umschalten.</T>
+              </span>
+            )}
+
+          </div>
+
+          {bereichsLeiste}
+
+          {/* ------------------------------------------------- Übersicht */}
+          {bereich === 'start' && (
+            <>
+              {faecher.length > 0 && <SpielerFaecher spieler={faecher} aufAlle={() => wechsleBereich('spieler')} aufOeffnen={(x) => oeffne(x)} />}
+              {/* Aufmacher: Slider durch die jüngsten Turniere mit dem Besten des Tages, darunter die Regionen (Betreiber, 12.10.2026). */}
+              <StatistikAufmacher
+                kacheln={(() => {
+                  // Erst jeder Cup einmal - bevorzugt der europaeische Beste, das juengste Turnier vorn -, dann die uebrigen Regionen.
+                  // So wechselt der Slider zwischen verschiedenen Cups statt viermal durch dasselbe Turnier in vier Regionen.
+                  const nachCup = new Map<string, typeof kacheln>();
+                  for (const kk of kacheln) {
+                    const cupName = kk.turnier.name;
+                    nachCup.set(cupName, [...(nachCup.get(cupName) ?? []), kk]);
+                  }
+                  const erste: typeof kacheln = []; const rest: typeof kacheln = [];
+                  for (const liste of nachCup.values()) {
+                    const eu = liste.find((x) => x.turnier.region === 'EU') ?? liste[0];
+                    erste.push(eu); rest.push(...liste.filter((x) => x !== eu));
+                  }
+                  erste.sort((x, y) => (y.turnier.datum ?? 0) - (x.turnier.datum ?? 0));
+                  rest.sort((x, y) => (y.turnier.datum ?? 0) - (x.turnier.datum ?? 0));
+                  return [...erste, ...rest].slice(0, 10).map((kk) => ({
+                    titel: turnierTitel(kk.turnier.name), datumText: datumText(kk.turnier.datum, sprache), saisonText: saisonTitel,
+                    region: kk.turnier.region, spitze: kk.spitze, stand: kk.stand ?? null,
+                  }));
+                })()}
+                zuTurnieren={() => setBereich('turniere')}
+                zuRegionen={() => wechsleBereich('regional')}
+                zuSpielern={() => wechsleBereich('spieler')}
+                oeffneSpieler={(id, name) => { void oeffneKonto(id, name); }} />
+
+              {/*
+                * Die Elim-Rangliste (war die Liste in der linken Leiste): die ersten fuenfzehn in drei Spalten. Der Nachweis, was gezaehlt ist,
+                * bleibt aufklappbar - der Betreiber wollte auf der Seite sehen, dass es stimmt: je Spieler, aus Replays, nur Finals.
+                */}
+              {seitenliste && (
+                <section className="mb-8 rounded-3xl border border-zinc-800 bg-zinc-900 p-5 shadow-sm sm:p-6">
+                  <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
+                    <div>
+                      <h2 className="schrift-anzeige text-xl font-bold text-slate-100"><T>Meiste Eliminierungen</T></h2>
+                      <p className="mt-0.5 text-xs text-slate-500">{saisonTitel} <T>· alle Regionen</T></p>
+                    </div>
+                    <button type="button"
+                      onClick={async () => {
+                        const zeilen = await startListeVoll(seitenliste);
+                        setVolleListe({
+                          titel: seitenliste.titel, zusatz: saisonTitel, zeilen,
+                          feld: seitenliste.feld as keyof Spieler, nachkomma: seitenliste.nachkomma ?? 0, einheit: seitenliste.einheit ?? '',
+                        });
+                        setListenTiefe(50);
+                      }}
+                      className="rounded-full border border-zinc-700 px-3 py-1 text-xs font-semibold text-slate-400 transition hover:border-sky-500 hover:text-sky-500">
+                      <T>Alle anzeigen</T> →
+                    </button>
+                    {grundlage && (
+                      <button type="button" onClick={() => setGrundlageOffen((o) => !o)}
+                        className="basis-full text-left text-xs text-slate-500 transition hover:text-sky-500">
+                        {grundlage.spieltage.length} <T>Spieltage gezählt</T>{' · '}<T>je Spieler, aus Replays, Opens und Finals</T>{' '}{grundlageOffen ? '▴' : '▾'}
+                      </button>
+                    )}
+                  </div>
+                  {grundlage && grundlageOffen && (
+                    <ul className="mt-3 max-h-72 space-y-0.5 overflow-y-auto rounded-xl bg-zinc-950 p-3">
+                      {grundlage.spieltage.map((sp, i) => (
+                        <li key={i} className="text-xs leading-snug text-slate-500">
+                          <span className="text-slate-400">{sp.region}</span>{' · '}{sp.name}
+                          {sp.datum ? ` · ${new Date(sp.datum).toLocaleDateString(sprache === 'de' ? 'de-DE' : 'en-GB', { day: '2-digit', month: '2-digit' })}` : ''}
+                          {/* Wie viele Matches des Tages wirklich drin sind - ein halb ausgewerteter Tag soll als solcher erkennbar sein. */}
+                          {sp.quelle === 'eigene' && sp.ausgewertet !== null && (
+                            <span className="text-slate-600">{' · '}{sp.ausgewertet}{sp.gesamt ? `/${sp.gesamt}` : ''}{' '}<T>Matches</T></span>
+                          )}
+                          {sp.quelle === 'szene' && <span className="text-slate-600"> · <T>Szene-Quelle</T></span>}
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  {grundlage && (
+                    <p className="mt-2 text-xs leading-snug text-slate-500">
+                      <T>Schaden und Treffer kommen aus den vollen Replays jedes Matches, Material aus den Finals.</T>
+                    </p>
+                  )}
+                  <ol className="mt-4 md:columns-3 md:gap-x-8">
+                    {seitenliste.plaetze.slice(0, 15).map((sp, i) => (
+                      <li key={sp.epicId} className="break-inside-avoid">
+                        <button type="button" onClick={() => oeffne(sp)}
+                          className="flex w-full items-center gap-2.5 rounded-xl px-2 py-2 text-left transition hover:bg-zinc-800/70">
+                          <span className="w-6 shrink-0 text-right text-sm font-bold tabular-nums text-slate-500">{i + 1}</span>
+                          <TeamFlagge groesse={18} laender={[sp.land ?? undefined]} />
+                          <span className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-100">{grossName(sp.anzeige, sp.gepflegt)}</span>
+                          <RegionMarke region={sp.heimat || sp.regionen[0] || ''} />
+                          <span className="w-9 shrink-0 text-right text-sm font-extrabold tabular-nums text-slate-100">{zahl(sp.elims, 0, sprache)}</span>
+                        </button>
+                      </li>
+                    ))}
+                  </ol>
+                </section>
+              )}
+
+              <p className="mb-2 text-[10px] font-semibold uppercase
+                            tracking-[0.18em] text-slate-500">
+                {alleSaisons ? t('Bestenlisten über alle Saisons')
+                  : `${t('Bestenlisten der Saison')} ${saisonTitel}`}
+              </p>
+              {/*
+                * Die Bestenlisten (Betreiber, 14.10.2026: "sieht noch nach dem Vorbild aus, ohne Schatten"): je Liste eine Karte mit Schatten, der Erste
+                * gross mit Foto, die Plaetze zwei bis fuenf darunter. Die Elim-Liste steht oben als eigene, breite Karte - hier nicht noch einmal.
+                */}
+              <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+                {listen.filter((l) => l.feld !== 'elims').map((l) => {
+                  const [erster, ...rest] = l.plaetze.slice(0, 5);
+                  const wertVon = (sp: Spieler) => zahl(Number((sp as unknown as Record<string, number>)[l.feld]), l.nachkomma, sprache) + (l.einheit ?? '');
+                  return (
+                    <div key={l.feld} className="overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 shadow-[0_10px_30px_rgba(15,23,42,.10)]">
+                      <div className="flex items-center gap-2 px-5 pt-4">
+                        <h3 className="schrift-anzeige text-base font-extrabold text-slate-100"><T>{l.titel}</T></h3>
+                        {/* Die Untergrenze der Quotenliste - aus der Zahl gebaut, damit sie in beiden Sprachen stimmt. */}
+                        {!!l.mindestMatches && (
+                          <span className="text-[11px] text-slate-500">{t('ab {n} Matches').replace('{n}', String(l.mindestMatches))}</span>
+                        )}
+                        {/* Und das Plus: dieselbe Liste in voller Laenge, wie auf der Cup-Seite und in den Regionen. */}
+                        <button type="button" title={t('Alle anzeigen')}
+                          onClick={async () => {
+                            const zeilen = await startListeVoll(l);
+                            setVolleListe({
+                              titel: l.titel, zusatz: saisonTitel, zeilen, feld: l.feld as keyof Spieler,
+                              nachkomma: l.nachkomma ?? 0, einheit: l.einheit ?? '',
+                            });
+                            setListenTiefe(50);
+                          }}
+                          className="ml-auto grid h-7 w-7 place-items-center rounded-full border border-zinc-700 text-sm leading-none text-slate-400 transition hover:border-sky-500 hover:text-sky-500">
+                          +
+                        </button>
+                      </div>
+                      {/* Der Erste: das Foto als stehendes Bild (3:4), damit man das Gesicht sieht - daneben Name und Zahl. */}
+                      {erster && (
+                        <button type="button" onClick={() => oeffne(erster)}
+                          className="group mx-3 mt-3 flex w-[calc(100%-1.5rem)] items-stretch overflow-hidden rounded-2xl border border-zinc-700 bg-zinc-800/70 text-left">
+                          <span className="relative h-44 w-36 shrink-0 overflow-hidden">
+                            {erster.bild ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={erster.bild} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover object-top transition duration-500 group-hover:scale-105" />
+                            ) : (
+                              <SpielerPlatzhalter name={(erster.anzeige || '?')} />
+                            )}
+                            <span aria-hidden className="absolute inset-y-0 right-0 w-8 bg-gradient-to-r from-transparent to-zinc-800/70" />
+                          </span>
+                          <span className="flex min-w-0 flex-1 flex-col justify-between p-3.5">
+                            <span className="flex items-center gap-2">
+                              <span className="rounded-full bg-amber-400 px-2 py-0.5 text-[10px] font-black text-zinc-950">1</span>
+                              <RegionMarke region={erster.heimat || erster.regionen[0] || ''} />
+                            </span>
+                            <span>
+                              <span className="flex items-center gap-1.5">
+                                <TeamFlagge groesse={16} laender={[erster.land ?? undefined]} />
+                                <span className="truncate text-lg font-extrabold uppercase tracking-wide text-slate-100">{grossName(erster.anzeige, erster.gepflegt)}</span>
+                              </span>
+                              <span className="schrift-anzeige mt-1 block text-4xl font-extrabold tabular-nums leading-none text-sky-500">{wertVon(erster)}</span>
+                            </span>
+                          </span>
+                        </button>
+                      )}
+                      <div className="px-1 pb-2 pt-1">
+                        {rest.map((sp, i) => (
+                          <Platz key={sp.epicId} nr={i + 2} s={sp} wert={wertVon(sp)} aufKlick={() => oeffne(sp)} />
+                        ))}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* ------------------------------------- Solo Clutch Points */}
+              {clutchSaison && (
+                <ClutchTabelle daten={clutchSaison} saison={saison} saisonTitel={saisonTitel} aufKonto={oeffneKonto} />
+              )}
+
+              {/* --------------------------------------------- Duelle */}
+              {duelle.length > 0 && (
+                <section className="mt-7">
+                  <div className="mb-2 flex flex-wrap items-baseline gap-3">
+                    <p className="text-[10px] font-semibold uppercase
+                                  tracking-[0.18em] text-slate-500">
+                      <T>Kopf an Kopf</T>
+                    </p>
+                    <span className="text-[10px] text-slate-600">
+                      {duellNr + 1} <T>von</T> {duelle.length}
+                    </span>
+                    <button onClick={() => wechsleBereich('vergleich')}
+                      className="ml-auto text-[10px] font-semibold uppercase
+                                 tracking-[0.14em] text-slate-500 transition
+                                 hover:text-sky-400">
+                      <T>Selbst vergleichen →</T>
+                    </button>
+                  </div>
+                  <div className="mb-3 h-px w-full overflow-hidden bg-zinc-900">
+                    <div key={duellNr} className="h-full w-full bg-sky-500
+                                                  animate-fuellen" />
+                  </div>
+                  <DuellTafel links={duelle[duellNr % duelle.length].links}
+                    rechts={duelle[duellNr % duelle.length].rechts}
+                    zeitraum={archivTitel}
+                    aufKlick={oeffne} gross schlicht />
+                </section>
+              )}
+
+              {/* Die Gesamtzahlen (Spieler, Spieltage, Eliminierungen, Schaden) stehen ganz unten - Betreiber, 19.10.2026: "das will man nicht unbedingt als Erstes sehen". */}
+              {/* Abstand zur Duell-Tafel darueber (Betreiber, 20.10.2026: "der Abstand hier immer noch nicht gefixt") */}
+              <div className="mt-12"><StatistikZahlen /></div>
+            </>
+          )}
+
+          {/* -------------------------------------------------- Turniere */}
+          {/* ------------------------------------------- ein einzelner Cup */}
+          {bereich === 'turniere' && cup && (
+            <>
+              <button onClick={() => { setCup(null); setVolleListe(null); setTagWahl('gesamt'); }}
+                className="mb-3 text-xs text-slate-400 transition hover:text-sky-400">
+                <T>← Zurück zu den Turnieren</T>
+              </button>
+
+              {/* Eine LAN mit mehreren Tagen: jeder Tag fuer sich oder alle zusammen. */}
+              {!!cup.tage?.length && (
+                <div className="mb-4 flex flex-wrap gap-2">
+                  {[...cup.tage.map((x) => [x.windowId, x.titel] as [string, string]), ['gesamt', 'Beide Tage zusammen'] as [string, string]]
+                    .map(([w, titel]) => (
+                      <button key={w} type="button" onClick={() => setTagWahl(w)}
+                        className={`rounded-lg border px-4 py-1.5 text-sm font-semibold transition ${tagWahl === w
+                          ? 'border-sky-500 bg-sky-500/10 text-sky-400'
+                          : 'border-zinc-800 text-slate-400 hover:border-zinc-600 hover:text-slate-200'}`}>
+                        {w === 'gesamt' ? <T>{titel}</T> : titel}
+                      </button>
+                    ))}
+                </div>
+              )}
+
+
+              {/*
+                * Noch nicht ganz fertig gelesen (Betreiber, 31.10.2026): so sagen, statt halbe Zahlen als fertige auszugeben. Spaetestens
+                * einen Tag nach dem Cup-Ende muss der Spieltag vollstaendig sein.
+                */}
+              {cup.eigen && cup.unvollstaendig && (
+                <div className="mb-4 flex items-start gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+                  <span aria-hidden className="mt-0.5 inline-block h-2 w-2 shrink-0 animate-pulse rounded-full bg-amber-400" />
+                  <span>
+                    <b><T>Statistik noch nicht vollständig.</T></b>{' '}
+                    <T>Die Replays dieses Spieltags werden gerade noch ausgewertet - einzelne Werte können noch fehlen. Spätestens 24 Stunden nach Cup-Ende ist alles da.</T>
+                  </span>
+                </div>
+              )}
+
+              {cupLaedt && !cupFeld.length ? (
+                <LadeSchirm />
+              ) : !cupFeld.length ? (
+                <p className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-8
+                              text-center text-sm text-slate-500">
+                  {/* Kam die Antwort nicht an, steht das da - nicht "keine
+                      Werte", das liest sich wie verlorene Daten. */}
+                  {cupFehler
+                    ? <T>Die Werte konnten gerade nicht geladen werden. Bitte gleich noch einmal öffnen.</T>
+                    : <T>Zu diesem Spieltag liegen keine Einzelwerte vor.</T>}
+                </p>
+              ) : (
+                <>
+                  {/*
+                    * Der Aufmacher des Spieltags.
+                    *
+                    * Er wechselt durch die besten fuenf, statt immer
+                    * denselben zu zeigen - der Betreiber hatte zu Recht
+                    * bemaengelt, dass dort "nur Charyy die ganze Zeit"
+                    * stand.
+                    */}
+                  {(() => { const cupKopf = cupFeld[cupNr % Math.max(1, cupWechsel)];
+                    return cupKopf && (
+                    <section className="relative mb-6 overflow-hidden rounded-xl
+                                        border border-zinc-800 bg-zinc-950/60">
+                      {/*
+                        * Der wachsende Streifen ueber dem Aufmacher.
+                        *
+                        * Auf der Uebersicht gibt es ihn seit jeher, hier
+                        * fehlte er - der Aufmacher wechselte alle zehn
+                        * Sekunden den Spieler, ohne dass man es kommen sah.
+                        * Der Betreiber hat genau das vermisst. Derselbe
+                        * Streifen, dieselbe Dauer; der Schluessel setzt ihn
+                        * bei jedem Wechsel wieder auf null.
+                        */}
+                      {cupWechsel > 1 && (
+                        <div className="absolute inset-x-0 top-0 z-10 h-[2px]">
+                          <div key={cupNr} className="h-full bg-sky-500 animate-fuellen" />
+                        </div>
+                      )}
+                      <div className="grid lg:grid-cols-[240px_1fr]">
+                        {/*
+                          * Das Foto liegt absolut in seiner Zelle.
+                          *
+                          * Vorher stand am Bild "h-full min-h-[230px]". Bei
+                          * einem ersetzten Element loest sich height:100%
+                          * in einer Zelle mit automatischer Hoehe zu "auto"
+                          * auf - dann gilt das Seitenverhaeltnis des Fotos.
+                          * Ein Bild von 580x868 wurde bei 240 Punkten
+                          * Breite 359 hoch und zog die ganze Karte mit.
+                          * Genau das hat der Betreiber gesehen: "viel zu
+                          * stark nach unten gezogen".
+                          *
+                          * Mir war es entgangen, weil ich an einem Spieler
+                          * ohne Foto gemessen hatte - der Platzhalter hat
+                          * kein Seitenverhaeltnis.
+                          *
+                          * Absolut gesetzt zaehlt das Bild nicht mehr zur
+                          * Hoehe; die Karte ist so hoch wie ihr Inhalt.
+                          */}
+                        <button onClick={() => oeffne(cupKopf)}
+                          className="group relative min-h-[230px] overflow-hidden
+                                     bg-zinc-900 text-left">
+                          {cupKopf.bild ? (
+                            /* eslint-disable-next-line @next/next/no-img-element */
+                            <img src={cupKopf.bild} alt=""
+                              /*
+                               * Nicht ganz oben, sondern ein Viertel tiefer.
+                               *
+                               * Der Betreiber wollte die Leute "einfach
+                               * mittig ungefaehr". Ich habe drei Ansaetze an
+                               * sechs echten Fotos nebeneinandergelegt: ganz
+                               * oben schneidet bei vieren die Haare an, ganz
+                               * mittig bei vieren den Scheitel. Bei einem
+                               * Viertel sass bei allen sechs der Kopf frei
+                               * im Bild.
+                               */
+                              style={{ objectPosition: 'center 25%' }}
+                              className="absolute inset-0 h-full w-full object-cover
+                                         transition group-hover:scale-105" />
+                          ) : (
+                            <div className="flex h-full min-h-[230px] items-center
+                                            justify-center text-4xl text-zinc-700">?</div>
+                          )}
+                          <span className="absolute right-3 top-3 rounded bg-sky-500 px-2
+                                           py-0.5 text-[10px] font-bold tracking-wider
+                                           text-white"><T>TOP</T></span>
+                          <span className="absolute bottom-3 left-3 flex items-center gap-2">
+                            <TeamFlagge groesse={22}
+                              laender={[cupKopf.land ?? undefined]} />
+                            <span className="text-base font-bold tracking-wide text-white">
+                              {grossName(cupKopf.anzeige, cupKopf.gepflegt)}
+                            </span>
+                          </span>
+                        </button>
+
+                        {/*
+                          * Dieselben sechs Werte in derselben Anordnung wie
+                          * auf der Uebersicht.
+                          *
+                          * Vorher standen hier neun, also drei Reihen - die
+                          * Karte wurde dadurch halb so hoch wie der
+                          * Bildschirm und zog das Foto lang. Der Betreiber
+                          * hat es genau so beschrieben: "unter Statistik,
+                          * Tournament und nachher 'n Tournament ist es so
+                          * langgezogen. Und wenn ich über Overview gehe,
+                          * dann sieht's gut aus."
+                          *
+                          * Verloren geht nichts: Assists, Material und
+                          * Matches stehen als schmale Zeile darunter.
+                          */}
+                        <div>
+                          {/*
+                            * Derselbe Kopf wie auf der Uebersichtskarte.
+                            *
+                            * Er stand vorher ueber der Karte; damit war die
+                            * Cup-Karte siebzig Punkte flacher als die auf
+                            * der Uebersicht und sah anders aus. Jetzt sind
+                            * beide gleich gebaut.
+                            */}
+                          <div className="border-b border-zinc-800 px-5 py-4">
+                            <p className="text-[10px] font-semibold uppercase
+                                          tracking-[0.18em] text-slate-500">
+                              <T>Turnier</T>
+                            </p>
+                            <h2 className="mt-0.5 text-xl font-bold text-slate-50">
+                              {turnierTitel(cup.name)}
+                            </h2>
+                            <div className="mt-2 flex flex-wrap items-center gap-2">
+                              {[cup.region, saisonTitel,
+                                datumText(cup.datum, sprache),
+                                `${zahl(cup.spieler, 0, sprache)} ${t('Spieler')}`,
+                                `${zahl(cup.matches, 0, sprache)} ${t('Matches')}`]
+                                .filter(Boolean).map((x) => (
+                                  <span key={x} className="rounded border border-zinc-800
+                                                           bg-zinc-900/60 px-2 py-0.5
+                                                           text-[11px] text-slate-400">
+                                    {x}
+                                  </span>
+                                ))}
+                            </div>
+                          </div>
+
+                          <div className="grid gap-px bg-zinc-800/60 sm:grid-cols-3">
+                            {([
+                              ['Schadensquote', zahl(cupKopf.quote, 2, sprache)],
+                              ['Eliminierungen', zahl(cupKopf.elims, 0, sprache)],
+                              ['Schaden', zahl(cupKopf.damage, 0, sprache)],
+                              ['Kopftreffer', zahl(cupKopf.headshots, 0, sprache)],
+                              ['Treffer', zahl(cupKopf.hits, 0, sprache)],
+                              ['Bauteile', zahl(cupKopf.builds, 0, sprache)],
+                            ] as Array<[string, string]>).map(([l, v]) => (
+                              // Feste Hoehe und kein Umbruch: der Betreiber
+                              // wollte, dass die Karte "immer gleich" hoch
+                              // ist. Eine laengere Beschriftung - auf
+                              // Deutsch etwa "Schadensquote" - darf die
+                              // Reihe nicht auseinanderziehen.
+                              <div key={l} className="h-[78px] bg-zinc-950 px-5 py-3.5">
+                                <p className="truncate text-[10px] font-semibold
+                                              uppercase tracking-[0.14em]
+                                              text-slate-500"><T>{l}</T></p>
+                                <p className="mt-0.5 truncate text-2xl font-bold
+                                              tabular-nums text-slate-50">{v}</p>
+                              </div>
+                            ))}
+                          </div>
+
+                        </div>
+                      </div>
+                    </section>
+                  ); })()}
+
+                  <p className="mb-2 text-[10px] font-semibold uppercase
+                                tracking-[0.18em] text-slate-500">
+                    <T>Bestenlisten dieses Spieltags</T>
+                  </p>
+                  {/* Fuenf nebeneinander, je die fuenf Besten (29.9.2026, wie auf den
+                      Cup-Seiten: "nur Top 5 ... und dann ein Plus"), in
+                      den eigenen Farben. Wer unter der Maus steht, leuchtet in
+                      jeder Liste auf, in der er vorkommt (siehe Platz). */}
+                  <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5"
+                    onMouseLeave={() => setMarkiert(null)}>
+                    {cupListen.map((l) => (
+                      <div key={l.titel}
+                        className="overflow-hidden rounded-xl border border-zinc-800
+                                   bg-zinc-950/60">
+                        <p className="flex items-center gap-2 border-b border-zinc-800
+                                      bg-zinc-900/40 px-3 py-2 text-[10px] font-semibold
+                                      uppercase tracking-[0.14em] text-slate-400">
+                          <T>{l.titel}</T>
+                          {/* Dahinter das ganze Feld, nicht nur die Spitze. */}
+                          {l.zeilen.length > 5 && (
+                            <button onClick={() => {
+                              setVolleListe({
+                                titel: l.titel, zeilen: l.zeilen, feld: l.feld,
+                                nachkomma: l.nachkomma ?? 0, einheit: l.einheit ?? '', format: l.format,
+                              });
+                              setListenTiefe(50);
+                            }}
+                              title={`Alle ${l.zeilen.length} anzeigen`}
+                              className="ml-auto rounded border border-zinc-700 px-1.5
+                                         text-[11px] leading-4 text-slate-400 transition
+                                         hover:border-sky-500 hover:text-sky-400">
+                              +
+                            </button>
+                          )}
+                        </p>
+                        <div className="divide-y divide-zinc-900">
+                          {l.zeilen.slice(0, 5).map((sp, i) => (
+                            <Platz key={sp.epicId} nr={i + 1} s={sp}
+                              wert={l.format === 'zeit' ? alsZeit(Number(sp[l.feld]))
+                                : l.format === 'km' ? `${zahl(Number(sp[l.feld]) / 1000, 1, sprache)} km`
+                                : zahl(Number(sp[l.feld]), l.nachkomma ?? 0, sprache) + (l.einheit ?? '')}
+                              hervor={markiert === sp.epicId}
+                              aufZeigen={(an) => setMarkiert(an ? sp.epicId : null)}
+                              aufKlick={() => oeffne(sp)} />
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/*
+                    * Die Endtabelle, ueber die ganze Breite.
+                    *
+                    * Die Kacheln darueber beantworten "wer hatte die meisten
+                    * Elims". Diese Tabelle beantwortet die eigentliche Frage
+                    * eines Turniers: wer hat gewonnen. Bei siebenhundert
+                    * Teams gehoert ein Suchfeld dazu, sonst scrollt man.
+                    */}
+                  {(tabelleLaedt || (spieltagTabelle?.length ?? 0) > 0) && (
+                    <section className="mt-6">
+                      <div className="mb-2 flex flex-wrap items-center gap-3">
+                        <p className="text-[10px] font-semibold uppercase
+                                      tracking-[0.18em] text-slate-500">
+                          {tabelleGesamt ? <T>Endstand des Finales über alle Tage</T> : <T>Endstand des Spieltags</T>}
+                        </p>
+                        {spieltagTabelle && (
+                          <span className="text-[11px] text-slate-600">
+                            {zahl(spieltagTabelle.length, 0, sprache)}{' '}
+                            <T>Teams</T>
+                          </span>
+                        )}
+                        <input value={tabelleSuche}
+                          onChange={(e) => setTabelleSuche(e.target.value)}
+                          placeholder={t('Spieler suchen …')}
+                          className="ml-auto w-48 rounded-lg border border-zinc-800
+                                     bg-zinc-900/80 px-3 py-1 text-xs text-slate-100
+                                     outline-none focus:border-sky-500" />
+                      </div>
+
+                      {tabelleLaedt && !spieltagTabelle ? (
+                        <div className="h-40" />
+                      ) : (
+                        <div className="overflow-hidden rounded-xl border border-zinc-800
+                                        bg-zinc-950/60">
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                              <thead>
+                                <tr className="border-b border-zinc-800 text-[10px]
+                                               uppercase tracking-wider text-slate-500">
+                                  <th className="px-4 py-2.5 text-right font-medium">#</th>
+                                  <th className="px-3 py-2.5 text-left font-medium">Team</th>
+                                  <th className="px-3 py-2.5 text-right font-medium">
+                                    <T>Punkte</T>
+                                  </th>
+                                  {(spieltagTabelle ?? []).some((r) => typeof r.verdienst === 'number') && (
+                                    <th className="px-3 py-2.5 text-right font-medium"
+                                      title={t('Abgeleitet aus Platz beziehungsweise Punkten und der Auszahlungstabelle des Turniers, je Person')}>
+                                      <T>Verdienst</T>
+                                    </th>
+                                  )}
+                                  <th className="px-3 py-2.5 text-right font-medium">
+                                    <T>Elims</T>
+                                  </th>
+                                  <th className="px-4 py-2.5 text-right font-medium">
+                                    <T>Matches</T>
+                                  </th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {(() => {
+                                  const q = tabelleSuche.trim().toLowerCase();
+                                  const gefunden = (spieltagTabelle ?? []).filter((r) =>
+                                    !q || r.spieler.some((sp) =>
+                                      sp.name.toLowerCase().includes(q)));
+                                  // Beim Suchen zaehlt das ganze Feld, nicht
+                                  // die ersten fuenfzig.
+                                  const zeigen = q ? gefunden
+                                    : gefunden.slice(0, tabelleTiefe);
+                                  return zeigen.map((r) => (
+                                    <tr key={`${r.platz}-${r.spieler[0]?.epicId ?? ''}`}
+                                      className="border-b border-zinc-900/70 last:border-0">
+                                      <td className={`px-4 py-2 text-right font-bold
+                                                      tabular-nums ${platzFarbe(r.platz)}`}>
+                                        {r.platz}
+                                      </td>
+                                      <td className="px-3 py-2 text-slate-200">
+                                        <span className="flex items-center gap-2">
+                                          <TeamFlagge groesse={18}
+                                            laender={r.spieler.map((sp) =>
+                                              sp.land || undefined)} />
+                                          <span className="truncate">
+                                            {r.spieler.map((sp) => sp.name).join('  +  ')}
+                                          </span>
+                                        </span>
+                                      </td>
+                                      <td className="px-3 py-2 text-right font-semibold
+                                                     tabular-nums text-slate-100">
+                                        {zahl(r.punkte, 0, sprache)}
+                                      </td>
+                                      {(spieltagTabelle ?? []).some((x) => typeof x.verdienst === 'number') && (
+                                        <td className="px-3 py-2 text-right font-semibold
+                                                       tabular-nums text-emerald-400">
+                                          {typeof r.verdienst === 'number'
+                                            ? `$${zahl(r.verdienst, 0, sprache)}` : '—'}
+                                        </td>
+                                      )}
+                                      <td className="px-3 py-2 text-right tabular-nums
+                                                     text-slate-400">
+                                        {r.elims !== null ? zahl(r.elims, 0, sprache) : '—'}
+                                      </td>
+                                      <td className="px-4 py-2 text-right tabular-nums
+                                                     text-slate-500">
+                                        {r.matches !== null ? r.matches : '—'}
+                                      </td>
+                                    </tr>
+                                  ));
+                                })()}
+                              </tbody>
+                            </table>
+                          </div>
+
+                          {!tabelleSuche.trim()
+                            && (spieltagTabelle?.length ?? 0) > tabelleTiefe && (
+                            <button onClick={() => setTabelleTiefe(1e9)}
+                              className="w-full border-t border-zinc-900 px-4 py-2
+                                         text-xs text-slate-400 transition
+                                         hover:text-sky-400">
+                              <T>alle anzeigen</T>{' '}
+                              ({zahl(spieltagTabelle?.length ?? 0, 0, sprache)})
+                            </button>
+                          )}
+                        </div>
+                      )}
+                    </section>
+                  )}
+                </>
+              )}
+            </>
+          )}
+
+          {bereich === 'turniere' && !cup && (() => {
+            const gefiltert = turniere.filter((t) =>
+              (!region || t.region === region)
+              && (!turnierSuche.trim()
+                  || t.name.toLowerCase().includes(turnierSuche.trim().toLowerCase())));
+            return (
+              <>
+                <div className="mb-3 flex flex-wrap items-center gap-2">
+                  <input value={turnierSuche} onChange={(e) => setTurnierSuche(e.target.value)}
+                    placeholder={t('Turnier suchen …')}
+                    className="w-48 rounded-lg border border-zinc-800 bg-zinc-900/80 px-3
+                               py-1.5 text-xs text-slate-100 outline-none
+                               placeholder:text-slate-600 focus:border-sky-500" />
+                  {regionen.map((r) => (
+                    <button key={r} onClick={() => setRegion(r)}
+                      className={`rounded-lg border px-2.5 py-1.5 text-xs transition ${
+                        region === r ? regionFarbe(r).marke
+                          : `${regionFarbe(r).ruhig} hover:brightness-125`}`}>
+                      {r}
+                    </button>
+                  ))}
+                  {/* "Alle" steht hinten: es ist der Sonderfall, nicht der
+                      Einstieg. Vorn stuende es jedes Mal im Weg. */}
+                  <button onClick={() => setRegion('')}
+                    className={`rounded-lg border px-2.5 py-1.5 text-xs transition ${!region
+                      ? 'border-sky-500 bg-sky-500/10 text-sky-400'
+                      : 'border-zinc-800 text-slate-400 hover:border-zinc-700'}`}>
+                    <T>Alle</T>
+                  </button>
+
+                  <div className="flex gap-1 rounded-lg border border-zinc-800 p-1">
+                    <button onClick={() => setTafel(true)}
+                      className={`rounded px-2.5 py-1 text-xs transition ${tafel
+                        ? 'bg-sky-500/15 text-sky-400' : 'text-slate-500'}`}><T>Kacheln</T></button>
+                    <button onClick={() => setTafel(false)}
+                      className={`rounded px-2.5 py-1 text-xs transition ${!tafel
+                        ? 'bg-sky-500/15 text-sky-400' : 'text-slate-500'}`}><T>Liste</T></button>
+                  </div>
+                </div>
+
+
+                {!gefiltert.length ? (
+                  <p className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-8
+                                text-center text-sm text-slate-500">
+                    {turniere.length ? t('Nichts gefunden.') : t('Wird geladen …')}
+                  </p>
+                ) : tafel ? (
+                  <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4 xl:grid-cols-5">
+                    {gefiltert.map((t) => {
+                      const art = turnierArt(t.name);
+                      return (
+                        <button key={t.region + t.datei} onClick={() => setCup(t)}
+                          className="overflow-hidden rounded-xl border border-zinc-800
+                                     bg-zinc-950/60 text-left transition
+                                     hover:border-sky-500">
+                          {/* Epics eigene Grafik, wo eine zum Cup passt -
+                              sonst die Farbflaeche mit der Turnierart. */}
+                          {/* Das Vorschaubild in seinem Seitenverhaeltnis (16:9) statt als flacher Streifen (Betreiber, 19.10.2026: "weniger breit, dass man das Thumbnail mehr erkennt");
+                              ist es nicht da oder kaputt, steht die Farbflaeche mit der Turnierart darunter. */}
+                          <div className={`relative aspect-video overflow-hidden bg-gradient-to-br ${art.farbe}`}>
+                            <span className="absolute inset-0 flex items-center justify-center px-3 text-center text-lg font-black tracking-wide text-white/90">{art.wort}</span>
+                            {t.bild && (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img src={t.bild} alt="" loading="lazy" onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                                className="absolute inset-0 h-full w-full object-cover" />
+                            )}
+                          </div>
+                          <div className="p-3">
+                            <div className="mb-2 flex flex-wrap gap-1">
+                              <RegionMarke region={t.region} />
+                              <RegionMarke region={t.saisonName ?? t.season} />
+                              {t.lan && (
+                                <span className="rounded bg-amber-500/15 px-1.5 py-0.5 text-[9px]
+                                                 font-semibold uppercase tracking-wider text-amber-400">
+                                  LAN{t.lan.ort ? ` · ${t.lan.ort}` : ''}
+                                </span>
+                              )}
+                            </div>
+                            <p className="text-sm font-semibold leading-snug text-slate-100">
+                              {turnierTitel(t.name)}
+                            </p>
+                            <p className="mt-1 text-[11px] text-slate-500">
+                              {datumText(t.datum, sprache)}{' '}
+                              · {zahl(t.spieler, 0, sprache)} <T>Spieler</T>
+                              {' '}· {zahl(t.matches, 0, sprache)} <T>Matches</T>
+                            </p>
+                          </div>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div className="overflow-hidden rounded-xl border border-zinc-800
+                                  bg-zinc-950/60">
+                    {/* Der scrollende Kasten fehlte hier als einziger. Mit dem
+                        overflow-hidden darum lagen Matches und Datum auf einem
+                        Telefon ausserhalb des Bildes und waren nicht mehr
+                        erreichbar - die Tabelle weiter unten macht es laengst
+                        so. */}
+                    <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-zinc-800 text-[10px] uppercase
+                                       tracking-wider text-slate-500">
+                          <th className="px-4 py-3 text-left font-medium"><T>Turnier</T></th>
+                          <th className="px-3 py-3 text-left font-medium"><T>Region</T></th>
+                          <th className="px-3 py-3 text-right font-medium"><T>Spieler</T></th>
+                          <th className="px-3 py-3 text-right font-medium"><T>Matches</T></th>
+                          <th className="px-4 py-3 text-right font-medium"><T>Datum</T></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {gefiltert.map((t) => {
+                          const art = turnierArt(t.name);
+                          return (
+                          <tr key={t.region + t.datei} onClick={() => setCup(t)} tabIndex={0} role="button" onKeyDown={(ev) => { if (ev.target === ev.currentTarget && (ev.key === 'Enter' || ev.key === ' ')) { ev.preventDefault(); setCup(t); } }}
+                            className="cursor-pointer border-b border-zinc-900 transition
+                                       hover:bg-zinc-900/60">
+                            <td className="px-4 py-2.5 text-slate-200">
+                              {/*
+                                * Auch in der Liste das Bild des Turniers.
+                                *
+                                * In den Kacheln stand es immer, in der Liste
+                                * nicht - und der Betreiber erkennt einen Cup
+                                * schneller am Bild als am Namen. Klein und
+                                * vorangestellt, damit die Zeile eine Zeile
+                                * bleibt.
+                                */}
+                              <span className="flex items-center gap-2.5">
+                                {t.bild ? (
+                                  // eslint-disable-next-line @next/next/no-img-element
+                                  <img src={t.bild} alt="" loading="lazy"
+                                    className="h-7 w-12 shrink-0 rounded object-cover" />
+                                ) : (
+                                  <span className={`flex h-7 w-12 shrink-0 items-center
+                                                    justify-center rounded bg-gradient-to-br
+                                                    ${art.farbe} text-[8px] font-black
+                                                    tracking-wide text-white/90`}>
+                                    {art.wort}
+                                  </span>
+                                )}
+                                <span className="min-w-0">
+                              {turnierTitel(t.name)}
+                              {t.nurEpic && (
+                                <span className="ml-2 rounded border
+                                                 border-amber-700/50 px-1.5
+                                                 text-[9px] uppercase
+                                                 tracking-wider text-amber-500/80">
+                                  <T>nur Epic</T>
+                                </span>
+                              )}
+                                </span>
+                              </span>
+                            </td>
+                            <td className="px-3 py-2.5"><RegionMarke region={t.region} /></td>
+                            <td className="px-3 py-2.5 text-right tabular-nums text-slate-400">
+                              {zahl(t.spieler, 0, sprache)}
+                            </td>
+                            <td className="px-3 py-2.5 text-right tabular-nums text-slate-400">
+                              {zahl(t.matches, 0, sprache)}
+                            </td>
+                            <td className="px-4 py-2.5 text-right text-xs text-slate-500">
+                              {datumText(t.datum, sprache)}
+                            </td>
+                          </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                    </div>
+                  </div>
+                )}
+              </>
+            );
+          })()}
+
+          {/* -------------------------------------------------- Regionen */}
+          {/* ---------------------------------------- Organisationen */}
+          {bereich === 'orgs' && <Organisationen aufSpieler={oeffneKonto} />}
+
+          {/* ------------------------------------------------ Das Jahr */}
+          {bereich === 'jahr' && (
+            <div>
+              <div className="mb-5">
+                <p className="text-xs font-bold uppercase tracking-[0.2em] text-sky-500"><T>Jahresbilanz</T></p>
+                <h2 className="schrift-anzeige mt-1 text-3xl font-extrabold tracking-tight text-slate-100 sm:text-4xl">
+                  {jahrWahl === 'alle' ? t('Alle Zeit') : jahrWahl}
+                </h2>
+              </div>
+              <div className="mb-4 flex flex-wrap items-center gap-3">
+                <div className="flex max-w-full items-center gap-1 overflow-x-auto rounded-full border border-zinc-800 bg-zinc-900 p-1 shadow-sm [scrollbar-width:none]">
+                  {[['alle', t('Alle Zeit')], ['2026', '2026'], ['2025', '2025'], ['2024', '2024'], ['2023', '2023'], ['2022', '2022'], ['2021', '2021'], ['2020', '2020'], ['2019', '2019']].map(([w, titel]) => (
+                    <button key={w} onClick={() => setJahrWahl(w)}
+                      className={`shrink-0 rounded-full px-4 py-1.5 text-sm font-bold transition ${
+                        jahrWahl === w
+                          ? 'bg-sky-500 text-white shadow-sm'
+                          : 'text-slate-400 hover:text-slate-100'}`}>
+                      {titel}
+                    </button>
+                  ))}
+                </div>
+                {jahr && (
+                  <span className="text-[11px] text-slate-500">
+                    {zahl(jahr.spieltage, 0, sprache)} <T>Spieltage</T>
+                  </span>
+                )}
+                {/* Region - dieselben Marken wie in der Spielerliste. */}
+                <div className="ml-auto flex flex-wrap gap-1.5">
+                  {['', ...nachRegionReihe(jahr?.regionen ?? [])].map((r) => (
+                    <button key={r || 'alle'} onClick={() => setJahrRegion(r)}
+                      className={`rounded-full border px-4 py-1.5 text-xs font-bold transition ${
+                        jahrRegion === r
+                          ? (r ? regionFarbe(r).marke : 'border-sky-500 bg-sky-500/10 text-sky-400')
+                          : `hover:brightness-125 ${r ? regionFarbe(r).ruhig : 'border-zinc-800 text-slate-400'}`}`}>
+                      {r || t('alle')}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              {/* Die Saisons des Jahres - eine davon waehlen, oder das ganze Jahr.
+                  Nicht bei "Alle Zeit": der Betreiber - "All time ist All time
+                  seit Chapter 1, das sollen alle sein, alle Spieler." */}
+              {jahrWahl !== 'alle' && (jahr?.saisonenDesJahres?.length ?? 0) > 1 && (
+                <div className="mb-4 flex flex-wrap gap-1 rounded-2xl border border-zinc-800 bg-zinc-900 p-1.5 shadow-sm">
+                  <button onClick={() => setJahrSaison('')}
+                    className={`rounded-full px-4 py-1.5 text-xs font-bold transition ${
+                      !jahrSaison ? 'bg-sky-500 text-white shadow-sm'
+                        : 'text-slate-400 hover:text-slate-100'}`}>
+                    {jahrWahl === 'alle' ? t('Alle Saisons') : t('Ganzes Jahr')}
+                  </button>
+                  {[...(jahr?.saisonenDesJahres ?? [])].reverse().map((x) => (
+                    <button key={x.kennung} onClick={() => setJahrSaison(x.kennung)}
+                      className={`rounded-full px-4 py-1.5 text-xs font-bold transition ${
+                        jahrSaison === x.kennung ? 'bg-sky-500 text-white shadow-sm'
+                          : 'text-slate-400 hover:text-slate-100'}`}>
+                      {x.name}
+                    </button>
+                  ))}
+                </div>
+              )}
+              {/* Was gezaehlt ist - ohne Datum im Archiv nach Saisons, siehe
+                  JAHR_SAISONS. Das steht hier, damit niemand ein Kalenderjahr
+                  vermutet, wo ein Kapitel gemeint ist. */}
+              <p className="mb-5 text-[11px] leading-snug text-slate-600">
+                {jahrWahl === 'alle'
+                  ? <T>Alle Spieltage seit Chapter 1.</T>
+                  : <T>Gezählt nach Saisons: ein Jahr sind die Saisons, die in ihm beginnen; ein Kapitel, das Ende November oder im Dezember anfängt, zählt zum Folgejahr.</T>}
+                {' '}<T>Preisgeld nur, wo eine Auszahlungstabelle vorliegt</T>
+                {jahr?.listen[0]?.spieltageMitRegel !== undefined && (
+                  <> ({zahl(jahr.listen[0].spieltageMitRegel ?? 0, 0, sprache)} <T>von</T>{' '}
+                    {zahl(jahr.spieltage, 0, sprache)} <T>Spieltagen</T>)</>
+                )}.
+                {/* LANs ohne volle Zuordnung zaehlen nicht mit - das steht dabei, mit der Zahl der fehlenden Spieler (lib/preisgeld, lanSummen). */}
+                {(jahr?.listen[0]?.lanOhneZuordnung ?? []).map((l) => (
+                  <span key={l.name}>{' '}{l.name}: <T>nicht mitgezählt</T> - {zahl(l.offen, 0, sprache)} <T>von</T> {zahl(l.gesamt, 0, sprache)} <T>Spielern sind noch keinem Konto zugeordnet.</T></span>
+                ))}
+                {/*
+                  * Was "Team-Eliminierungen" heisst - Epic fuehrt je Team,
+                  * nicht je Spieler, und nur die besten 500 Teams je
+                  * Spieltag. Das steht dabei, damit niemand die Zahl fuer
+                  * die eigenen Eliminierungen haelt.
+                  */}
+              </p>
+
+              {jahrLaedt && !jahr ? (
+                <div className="h-64" />
+              ) : jahrFehlt && !jahr ? (
+                <p className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-8
+                              text-center text-sm text-slate-500">
+                  <T>Die Zahlen sind gerade nicht erreichbar. Es wird gleich noch einmal versucht.</T>
+                </p>
+              ) : jahr && (
+                <div className="space-y-8">
+                  {/* Ohne "Meiste Team-Eliminierungen" und "Beste Schadensquote ab 10 Matches" (Betreiber, 19.10.2026): keiner der Spieler darin hat ein Foto. */}
+                  {jahr.listen.filter((l) => l.plaetze.length && l.feld !== 'teamElims' && l.feld !== 'quote').map((l) => (
+                    <section key={l.feld}>
+                      <div className="mb-3 flex items-center gap-2">
+                        <h3 className="schrift-anzeige text-xl font-extrabold text-slate-100">
+                          <T>{l.titel}</T>{' '}
+                          {jahrSaison
+                            ? (jahr?.saisonenDesJahres?.find((x) => x.kennung === jahrSaison)?.name ?? jahrSaison)
+                            : jahrWahl === 'alle' ? <T>aller Zeiten</T> : <T>in diesem Jahr</T>}
+                          {l.mindestMatches ? <> · <T>ab</T> {l.mindestMatches} <T>Matches</T></> : null}
+                        </h3>
+                        {l.plaetze.length > 6 && (
+                          <button onClick={async () => {
+                            const zusatz = (jahrSaison ? (jahr?.saisonenDesJahres?.find((x) => x.kennung === jahrSaison)?.name ?? jahrSaison)
+                              : jahrWahl === 'alle' ? t('Alle Zeit') : jahrWahl) + (jahrRegion ? ` · ${jahrRegion}` : '');
+                            let zeilen = l.plaetze;
+                            /*
+                             * Preisgeld: die ganze Liste, nicht nur die ersten
+                             * zweihundert - der Betreiber: "ich habe ja viel mehr
+                             * Leute in meinem Archiv." Kommt sie nicht, bleiben
+                             * die zweihundert.
+                             */
+                            if (l.feld === 'verdienst') {
+                              setListenLaedt(true);
+                              try {
+                                const p = new URLSearchParams({ ansicht: 'jahr', jahr: jahrWahl, liste: 'verdienst' });
+                                if (jahrRegion) p.set('region', jahrRegion);
+                                if (jahrSaison) p.set('saison', jahrSaison);
+                                const j = await (await fetch(`/api/szene-stats?${p}`)).json();
+                                if (Array.isArray(j.plaetze) && j.plaetze.length >= l.plaetze.length) zeilen = j.plaetze;
+                              } catch { /* dann die zweihundert */ }
+                              setListenLaedt(false);
+                            }
+                            setVolleListe({
+                              titel: l.titel, zusatz, zeilen, feld: l.feld as keyof Spieler,
+                              nachkomma: l.nachkomma, einheit: l.einheit ?? '',
+                            });
+                            setListenTiefe(50);
+                            setListenSeite(1);
+                          }}
+                            title={t('Alle {n} anzeigen').replace('{n}', String(l.plaetze.length))}
+                            className="grid h-7 w-7 place-items-center rounded-full border border-zinc-700 text-sm
+                                       leading-none text-slate-400 transition hover:border-sky-500
+                                       hover:text-sky-500">
+                            +
+                          </button>
+                        )}
+                      </div>
+                      <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-6">
+                        {l.plaetze.slice(0, 6).map((sp, i) => (
+                          <button key={sp.epicId}
+                            onClick={() => oeffne(sp, l.feld === 'verdienst' ? 'verdienst' : 'uebersicht')}
+                            className="foto-dunkel group relative aspect-[3/4] overflow-hidden rounded-2xl
+                                 border border-zinc-800 bg-zinc-900 text-left shadow-[0_8px_24px_rgba(15,23,42,.14)]
+                                 transition duration-300 hover:-translate-y-1 hover:border-sky-500">
+                            {sp.bild ? (
+                              /* eslint-disable-next-line @next/next/no-img-element */
+                              <img src={sp.bild} alt="" loading="lazy"
+                                className="absolute inset-0 h-full w-full object-cover
+                                           object-top transition duration-300
+                                           group-hover:scale-105" />
+                            ) : (
+                              <span className="absolute inset-0 flex items-center justify-center
+                                               text-4xl text-zinc-800">?</span>
+                            )}
+                            <span className={`absolute left-2 top-2 rounded bg-black/70 px-1.5
+                                              py-0.5 text-[10px] font-bold tabular-nums ${
+                                              i === 0 ? 'text-amber-400' : 'text-slate-300'}`}>
+                              {i + 1}
+                            </span>
+                            <span className="absolute right-2 top-2">
+                              <RegionMarke region={sp.heimat || sp.regionen?.[0] || ''} />
+                            </span>
+                            <span className="absolute bottom-0 w-full bg-gradient-to-t
+                                             from-black/95 via-black/70 to-transparent px-3
+                                             pb-2.5 pt-10">
+                              <span className="flex items-center gap-1.5">
+                                <TeamFlagge groesse={16} laender={[sp.land ?? undefined]} />
+                                <span className="min-w-0 truncate text-sm font-bold uppercase
+                                                 tracking-wide text-slate-50">
+                                  {grossName(sp.anzeige, sp.gepflegt)}
+                                </span>
+                              </span>
+                              <span className="mt-1.5 flex items-baseline justify-between
+                                               rounded-lg bg-black/45 px-2 py-1.5
+                                               backdrop-blur-sm">
+                                <span className="text-[9px] font-semibold uppercase text-slate-400">
+                                  <T>{l.titel}</T>
+                                </span>
+                                <span className="text-[15px] font-bold tabular-nums text-sky-400">
+                                  {zahl(Number(sp[l.feld as keyof Spieler] ?? 0), l.nachkomma, sprache)}
+                                  {l.einheit ?? ''}
+                                </span>
+                              </span>
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    </section>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {bereich === 'regional' && (
+            <>
+              <div className="mb-6 flex flex-wrap items-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-900 p-2 shadow-sm">
+                {regionen.map((r) => (
+                  <button key={r} onClick={() => setRegion(r)}
+                    className={`rounded-full border px-5 py-1.5 text-sm font-bold transition ${
+                      regionAktiv === r ? regionFarbe(r).marke
+                        : `${regionFarbe(r).ruhig} hover:brightness-125`}`}>
+                    {r}
+                  </button>
+                ))}
+              </div>
+
+              {regionLaedt && !regionFeld.length ? (
+                <div className="h-64" />
+              ) : !regionFeld.length ? (
+                <p className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-8
+                              text-center text-sm text-slate-500">
+                  Für {regionAktiv} liegen {alleSaisons ? t('über alle Saisons')
+                    : `${t('in der Saison')} ${saisonTitel}`}{' '}
+                  <T>keine Einzelwerte vor.</T>
+                </p>
+              ) : (
+                <>
+                  {/* Die fuenf staerksten der Saison - mit Bild wie im Vorbild */}
+                  <p className="text-xs font-bold uppercase tracking-[0.2em] text-sky-500"><T>nach Eliminierungen</T></p>
+                  <h2 className="schrift-anzeige mb-4 mt-1 text-3xl font-extrabold tracking-tight text-slate-100"><T>Die stärksten der Saison</T></h2>
+                  <div className="mb-7 grid gap-3 sm:grid-cols-2 lg:grid-cols-3
+                                  xl:grid-cols-5">
+                    {regionFeld.slice(0, 5).map((sp) => (
+                      <button key={sp.epicId} onClick={() => oeffne(sp)}
+                        className="foto-dunkel group relative aspect-[3/4] overflow-hidden rounded-2xl border border-white/10 bg-zinc-900 text-left shadow-[0_10px_26px_rgba(2,6,23,.28)] transition hover:-translate-y-1">
+                        {sp.bild ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img src={sp.bild} alt="" loading="lazy" className="absolute inset-0 h-full w-full object-cover transition duration-500 group-hover:scale-105" />
+                        ) : (
+                          <SpielerPlatzhalter name={(sp.anzeige || '?')} />
+                        )}
+                        <span aria-hidden className="foto-unten absolute inset-0" />
+                        <span className="absolute left-2.5 top-2.5"><RegionMarke region={regionAktiv} /></span>
+                        <span className="absolute inset-x-3 bottom-3 block">
+                          <span className="flex items-center gap-1.5">
+                            <TeamFlagge groesse={16} laender={[sp.land ?? undefined]} />
+                            <span className="min-w-0 truncate text-base font-extrabold uppercase tracking-wide text-[#fff] drop-shadow">{grossName(sp.anzeige, sp.gepflegt)}</span>
+                          </span>
+                          <span className="mt-1.5 grid grid-cols-3 gap-1 rounded-xl bg-[rgba(6,10,18,.55)] px-2 py-1.5 text-center backdrop-blur">
+                            {([['Elims', zahl(sp.elims, 0, sprache)], ['Schaden', kurzZahl(sp.damage, sprache)], ['Quote', zahl(sp.quote, 2, sprache)]] as Array<[string, string]>).map(([l, v]) => (
+                              <span key={l} className="min-w-0">
+                                <span className="block truncate text-[8px] font-semibold uppercase text-[#94a3b8]"><T>{l}</T></span>
+                                <span className="block truncate text-xs font-bold tabular-nums text-[#38bdf8]">{v}</span>
+                              </span>
+                            ))}
+                          </span>
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Die Saison als Ganzes */}
+                  <h2 className="schrift-anzeige mb-4 text-3xl font-extrabold tracking-tight text-slate-100">
+                    {alleSaisons ? t('alle Saisons')
+                      : `${t('Saison')} ${saisonTitel}`} <span className="text-sky-500">· {regionAktiv}</span>
+                  </h2>
+                  <div className="mb-9 grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+                    {listenAus(regionFeld).map((l) => (
+                      <ListenKarte key={l.titel} liste={l}
+                        aufVoll={() => {
+                          setVolleListe({
+                            titel: l.titel, zusatz: regionAktiv, zeilen: l.zeilen,
+                            feld: l.feld, nachkomma: l.nachkomma ?? 0,
+                            einheit: l.einheit ?? '',
+                          });
+                          setListenTiefe(50);
+                        }}
+                        aufSpieler={oeffne} />
+                    ))}
+                  </div>
+
+                  {/* Je Turnierreihe ein eigener Block mit seinen Spieltagen */}
+                  {reihen.map((r) => {
+                    const wahl = reihenWahl[r.name] ?? '';
+                    const feld = reihenFeld[r.name] ?? [];
+                    return (
+                      <section key={r.name} className="mb-7">
+                        <div className="mb-2 flex flex-wrap items-center gap-2">
+                          <h2 className="schrift-anzeige text-2xl font-extrabold tracking-tight text-slate-100">{r.name}</h2>
+                          <div className="ml-auto flex flex-wrap gap-1">
+                            {r.tage.map((t) => (
+                              <button key={t.windowId}
+                                onClick={() => {
+                                  setReihenWahl((a) => ({ ...a, [r.name]: t.windowId }));
+                                  void ladeReihe(r.name, r.tage, t.windowId);
+                                }}
+                                className={`rounded-full border px-3 py-1 text-[11px] font-semibold
+                                            transition ${wahl === t.windowId
+                                  ? 'border-sky-500 bg-sky-500/10 text-sky-500'
+                                  : 'border-zinc-700 text-slate-400 hover:border-zinc-500'}`}>
+                                {kurzTurnier(t.name)}
+                              </button>
+                            ))}
+                            <button
+                              onClick={() => {
+                                setReihenWahl((a) => ({ ...a, [r.name]: '' }));
+                                void ladeReihe(r.name, r.tage, '');
+                              }}
+                              className={`rounded-full border px-3 py-1 text-[11px] font-semibold
+                                          transition ${!wahl
+                                ? 'border-sky-500 bg-sky-500/10 text-sky-500'
+                                : 'border-zinc-700 text-slate-400 hover:border-zinc-500'}`}>
+                              <T>Gesamt</T>
+                            </button>
+                          </div>
+                        </div>
+
+                        {!feld.length ? (
+                          <div className="h-24 animate-pulse rounded-xl bg-zinc-900/40" />
+                        ) : (
+                          <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
+                            {listenAus(feld).slice(0, 6).map((l) => (
+                              <ListenKarte key={r.name + l.titel} liste={l}
+                                aufVoll={() => {
+                                  setVolleListe({
+                                    titel: l.titel, zusatz: r.name, zeilen: l.zeilen,
+                                    feld: l.feld, nachkomma: l.nachkomma ?? 0,
+                                    einheit: l.einheit ?? '',
+                                  });
+                                  setListenTiefe(50);
+                                }}
+                                aufSpieler={oeffne} />
+                            ))}
+                          </div>
+                        )}
+                      </section>
+                    );
+                  })}
+                </>
+              )}
+            </>
+          )}
+
+
+          {/* ------------------------------------------------ Vergleich */}
+          {/* Der Vergleich ist eine eigene Komponente (Vergleich.tsx): zwei Spieler, Duos oder Trios, Board / Radar / Form. */}
+          {bereich === 'vergleich' && <Vergleich saisons={saisons} sprache={sprache} />}
+
+          {/* --------------------------------------------------- Bilder */}
+          {bereich === 'bilder' && istAdmin && (() => {
+            const eingabe = galerieSuche.trim();
+            const mitFoto = galerie.filter((sp) => sp.echtesFoto);
+            const ohneFoto = galerie.filter((sp) => !sp.echtesFoto);
+            const grundmenge = galerieFilter === 'mit' ? mitFoto
+              : galerieFilter === 'ohne' ? ohneFoto : galerie;
+
+            /**
+             * Gross geschrieben sucht nach Laendern, klein nach Namen.
+             *
+             * "DE,FR,GB" liefert alle aus Deutschland, Frankreich und
+             * Grossbritannien. "de" dagegen sucht im Namen - und findet
+             * DEMUS, DECKZEE, DEYMO. Die Unterscheidung an der
+             * Grossschreibung festzumachen klingt zunaechst eigen, ist beim
+             * Tippen aber der kuerzeste Weg: kein zweites Feld, kein
+             * Umschalter, und Laenderkuerzel schreibt man ohnehin gross.
+             */
+            const laenderMuster = /^[A-Z]{2}(\s*,\s*[A-Z]{2})*$/;
+            const nachLand = laenderMuster.test(eingabe);
+            const laender = nachLand
+              ? eingabe.split(',').map((x) => x.trim().toLowerCase())
+              : [];
+            const q = eingabe.toLowerCase();
+
+            // Die Region gilt zuerst, danach erst Land oder Name.
+            const nachRegion = galerieRegion === 'alle' ? grundmenge
+              : grundmenge.filter((sp) =>
+                (sp.heimat ?? '').toUpperCase() === galerieRegion);
+
+            const zeigen = !eingabe ? nachRegion
+              : nachLand
+                ? nachRegion.filter((sp) =>
+                  laender.includes((sp.land ?? '').toLowerCase()))
+                : nachRegion.filter((sp) => sp.anzeige.toLowerCase().includes(q));
+            return (
+              <>
+                <div className="mb-3 flex flex-wrap items-center gap-3">
+                  {/* Beide Gruppen sind nach Eliminierungen ueber das ganze
+                      Archiv sortiert: wer oben steht, fehlt am meisten. */}
+                  <div className="flex gap-1 rounded-lg border border-zinc-800 p-1">
+                    {([['mit', t('mit Bild · {n}')
+                          .replace('{n}', zahl(mitFoto.length, 0, sprache))],
+                       ['ohne', t('ohne Bild · {n}')
+                          .replace('{n}', zahl(ohneFoto.length, 0, sprache))],
+                       ['alle', t('alle · {n}')
+                          .replace('{n}', zahl(galerie.length, 0, sprache))]] as
+                      Array<['mit' | 'ohne' | 'alle', string]>).map(([w, t]) => (
+                      <button key={w}
+                        onClick={() => { setGalerieFilter(w); setGalerieMenge(400); }}
+                        className={`rounded px-2.5 py-1 text-xs transition
+                                    ${galerieFilter === w
+                          ? 'bg-sky-500/15 text-sky-400'
+                          : 'text-slate-500 hover:text-slate-300'}`}>
+                        <T>{t}</T>
+                      </button>
+                    ))}
+                  </div>
+                  {/* Die Regionen, in denen wirklich gespielt wird - mit
+                      ihren Farben, damit die Reihe nicht grau in grau ist. */}
+                  <div className="flex flex-wrap items-center gap-1">
+                    {['alle', ...REGIONEN_REIHE].map((r) => (
+                      <button key={r}
+                        onClick={() => { setGalerieRegion(r); setGalerieMenge(400); }}
+                        className={`rounded border px-2 py-0.5 text-[11px] transition ${
+                          galerieRegion === r
+                            ? (r === 'alle'
+                              ? 'border-sky-500 bg-sky-500/10 text-sky-400'
+                              : regionFarbe(r).marke)
+                            : `hover:brightness-125 ${
+                              r === 'alle' ? 'border-zinc-800 text-slate-400'
+                                : regionFarbe(r).ruhig}`}`}>
+                        {r === 'alle' ? <T>alle</T> : r}
+                      </button>
+                    ))}
+                  </div>
+
+                  <p className="text-[11px] text-slate-600">
+                    {nachLand
+                      ? <><T>Länder</T>{' '}{laender.map((x) => x.toUpperCase()).join(', ')}</>
+                      : <T>nach Eliminierungen über alle erfassten Spieltage, ab 20 Matches</T>}
+                    {eingabe && zeigen.length !== grundmenge.length
+                      && <> · {zahl(zeigen.length, 0, sprache)} <T>Treffer</T></>}
+                  </p>
+                  {/* Kein eigenes Suchfeld mehr: das oben in der Kopfzeile
+                      filtert hier das Raster. */}
+                </div>
+
+                {!galerie.length ? (
+                  <div className="grid gap-3 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8">
+                    {[...Array(16)].map((_, i) =>
+                      <div key={i} className="aspect-[4/5] animate-pulse rounded-xl
+                                              bg-zinc-900/60" />)}
+                  </div>
+                ) : (
+                  <div className="grid gap-3 sm:grid-cols-4 lg:grid-cols-6 xl:grid-cols-8">
+                    {zeigen.slice(0, galerieMenge).map((sp, i) => (
+                      <button key={sp.epicId} onClick={() => oeffne(sp)}
+                        className="group overflow-hidden rounded-xl border border-zinc-800
+                                   bg-zinc-950/60 text-left transition
+                                   hover:border-sky-500">
+                        <div className="relative aspect-[4/5] overflow-hidden
+                                        bg-zinc-900">
+                          {sp.bild ? (
+                            /* eslint-disable-next-line @next/next/no-img-element */
+                            <img src={sp.bild} alt="" loading="lazy"
+                              className="h-full w-full object-cover object-top
+                                         transition group-hover:scale-105" />
+                          ) : (
+                            /* Ohne Foto: kein leerer Kasten, sondern die Zahl,
+                               die sagt, warum dieser Spieler hier oben steht. */
+                            <div className="flex h-full flex-col items-center
+                                            justify-center gap-1">
+                              <span className="text-2xl font-bold tabular-nums
+                                               text-zinc-700">
+                                {zahl(sp.elims, 0, sprache)}
+                              </span>
+                              <span className="text-[9px] font-semibold uppercase
+                                               tracking-[0.14em] text-zinc-800">
+                                <T>Elims</T>
+                              </span>
+                            </div>
+                          )}
+                          <span className="absolute left-1.5 top-1.5 rounded
+                                           bg-black/70 px-1.5 py-0.5 text-[9px]
+                                           font-bold tabular-nums text-slate-400">
+                            {i + 1}
+                          </span>
+                          {sp.heimat && (
+                            <span className="absolute right-1.5 top-1.5 rounded
+                                             bg-black/70 px-1.5 py-0.5 text-[9px]
+                                             font-semibold tracking-wider
+                                             text-slate-300">
+                              {sp.heimat}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-1.5 px-2 py-2">
+                          <TeamFlagge groesse={16} laender={[sp.land ?? undefined]} />
+                          <span className="min-w-0 flex-1 truncate text-[11px]
+                                           font-bold uppercase tracking-wide
+                                           text-slate-100">
+                            {grossName(sp.anzeige, sp.gepflegt)}
+                          </span>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+                {zeigen.length > galerieMenge && (
+                  <div className="mt-4 flex items-center justify-center gap-3">
+                    <button onClick={() => setGalerieMenge((n) => n + 400)}
+                      className="rounded-lg border border-zinc-800 bg-zinc-900/60 px-4
+                                 py-2 text-xs font-semibold text-slate-300 transition
+                                 hover:border-sky-500 hover:text-sky-400">
+                      <T>Mehr laden</T>
+                    </button>
+                    <button onClick={() => setGalerieMenge(zeigen.length)}
+                      className="text-xs text-slate-600 transition hover:text-slate-300">
+                      <T>Alle zeigen</T>
+                    </button>
+                    <span className="text-[11px] text-slate-600">
+                      {zahl(galerieMenge, 0, sprache)} <T>von</T> {zahl(zeigen.length, 0, sprache)}
+                    </span>
+                  </div>
+                )}
+              </>
+            );
+          })()}
+
+          {/* --------------------------------------------------- Spieler */}
+          {bereich === 'spieler' && (
+            <>
+              <div className="mb-5 flex flex-wrap items-end justify-between gap-3">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-[0.2em] text-sky-500"><T>Archiv</T></p>
+                  <h2 className="schrift-anzeige mt-1 text-3xl font-extrabold tracking-tight text-slate-100 sm:text-4xl"><T>Alle Spieler</T></h2>
+                </div>
+                <p className="text-sm text-slate-500">{zahl(gesamt, 0, sprache)} <T>Spieler</T></p>
+              </div>
+              <div className="mb-6 flex flex-wrap items-center gap-2 rounded-2xl border border-zinc-800 bg-zinc-900 p-2 shadow-sm">
+                <button onClick={() => setRegion('')}
+                  className={`rounded-full px-4 py-1.5 text-xs font-bold transition ${!region
+                    ? 'bg-sky-500 text-white shadow-sm'
+                    : 'text-slate-400 hover:bg-zinc-800 hover:text-slate-100'}`}>
+                  <T>Alle</T>
+                </button>
+                {regionen.map((r) => (
+                  <button key={r} onClick={() => setRegion(r)}
+                    className={`rounded-full border px-3.5 py-1.5 text-xs font-bold transition ${
+                      region === r ? regionFarbe(r).marke
+                        : `${regionFarbe(r).ruhig} hover:brightness-125`}`}>
+                    {r}
+                  </button>
+                ))}
+                <select value={sort} onChange={(e) => setSort(e.target.value)}
+                  className="rounded-full border border-zinc-700 bg-zinc-950 px-4 py-1.5
+                             text-xs text-slate-200 outline-none focus:border-sky-500">
+                  {SORTIERUNG.map(([w, bez]) =>
+                    <option key={w} value={w}>{t(bez)}</option>)}
+                </select>
+                <input value={suche} onChange={(e) => setSuche(e.target.value)}
+                  placeholder={t('Spieler suchen …')}
+                  className="ml-auto w-52 rounded-full border border-zinc-700 bg-zinc-950
+                             px-4 py-1.5 text-xs text-slate-100 outline-none
+                             placeholder:text-slate-500 focus:border-sky-500" />
+                <div className="flex gap-1 rounded-full bg-zinc-950 p-1">
+                  <button onClick={() => setTafel(true)}
+                    className={`rounded-full px-3.5 py-1 text-xs font-bold transition ${tafel
+                      ? 'bg-sky-500 text-white' : 'text-slate-500'}`}><T>Kacheln</T></button>
+                  <button onClick={() => setTafel(false)}
+                    className={`rounded-full px-3.5 py-1 text-xs font-bold transition ${!tafel
+                      ? 'bg-sky-500 text-white' : 'text-slate-500'}`}><T>Liste</T></button>
+                </div>
+              </div>
+
+              {/* Die ersten Drei der gewaehlten Liste und Region, mit Foto (Betreiber, 19.10.2026) - wechselt mit Sortierung, Region und Saison. */}
+              {!fehler && !suche && gezeigteSpieler.length >= 3 && (
+                <div className="mb-5 overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 shadow-[0_10px_30px_rgba(15,23,42,.12)]">
+                  <p className="px-5 pt-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
+                    {t(SORTIERUNG.find(([w]) => w === sort)?.[1] ?? 'Meiste Eliminierungen')} · {region || t('alle Regionen')}
+                  </p>
+                  <Treppchen drei={gezeigteSpieler.slice(0, 3).map((sp, i) => ({ sp, nr: i + 1 }))} aufKlick={(sp) => oeffne(sp)}
+                    wertVon={(sp) => {
+                      const nk = sort === 'quote' ? 2 : (sort === 'genauigkeit' || sort === 'elimsProMatch' || sort === 'damageProMatch') ? 1 : 0;
+                      return zahl(Number((sp as unknown as Record<string, number>)[sort] ?? 0), nk, sprache) + (sort === 'genauigkeit' ? ' %' : '');
+                    }} />
+                </div>
+              )}
+
+              {fehler ? (
+                <p className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-8
+                              text-center text-sm text-rose-400">{fehler}</p>
+              ) : laedt && !spieler.length ? (
+                /*
+                 * Waehrend geholt wird: die Platzhalter, und darueber derselbe
+                 * drehende Ring wie auf der Startseite. Die pulsenden Kacheln
+                 * allein waren zu leise - auf dem dunklen Grund sah es aus, als
+                 * stehe da einfach nichts. Der Betreiber wollte hier dieselbe
+                 * Ladeanzeige.
+                 */
+                <div className="relative">
+                  <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+                    {[...Array(12)].map((_, i) =>
+                      <div key={i} className="h-64 animate-pulse rounded-xl bg-zinc-900/60" />)}
+                  </div>
+                  <div className="absolute inset-0 grid place-items-start justify-center
+                                  bg-zinc-950/40 pt-24 backdrop-blur-[1px]">
+                    <span className="h-8 w-8 animate-spin rounded-full border-2
+                                     border-zinc-700 border-t-sky-500" />
+                  </div>
+                </div>
+              ) : !gezeigteSpieler.length ? (
+                <p className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-8
+                              text-center text-sm text-slate-500">
+                  {suche
+                    ? t('Kein Spieler gefunden für „{q}“.').replace('{q}', suche)
+                    : t('Keine Daten.')}
+                </p>
+              ) : tafel ? (
+                /* Karten wie die Profilkarten der Startseite: Name und Werte
+                   liegen leicht durchscheinend auf dem Foto, nicht darunter.
+                   Der Betreiber: "pass Bild zwei an wie Bild drei, leicht
+                   transparent." */
+                <div className="grid gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-6">
+                  {gezeigteSpieler.map((sp) => (
+                    <button key={sp.epicId} onClick={() => oeffne(sp)}
+                      className="foto-dunkel group relative aspect-[3/4] overflow-hidden rounded-2xl
+                                 border border-zinc-800 bg-zinc-900 text-left shadow-[0_8px_24px_rgba(15,23,42,.14)]
+                                 transition duration-300 hover:-translate-y-1 hover:border-sky-500">
+                      {sp.bild ? (
+                        /* eslint-disable-next-line @next/next/no-img-element */
+                        <img src={sp.bild} alt="" loading="lazy"
+                          className="absolute inset-0 h-full w-full object-cover
+                                     object-top transition duration-300
+                                     group-hover:scale-105" />
+                      ) : (
+                        <span className="absolute inset-0 flex items-center justify-center
+                                         text-4xl text-zinc-800">?</span>
+                      )}
+                      <span className="absolute left-2 top-2">
+                        <RegionMarke region={sp.heimat || sp.regionen[0] || ''} />
+                      </span>
+                      <span className="absolute bottom-0 w-full bg-gradient-to-t
+                                       from-black/95 via-black/70 to-transparent px-3
+                                       pb-2.5 pt-10">
+                        <span className="flex items-center gap-1.5">
+                          <TeamFlagge groesse={16} laender={[sp.land ?? undefined]} />
+                          <span className="min-w-0 truncate text-sm font-bold uppercase
+                                           tracking-wide text-slate-50">
+                            {grossName(sp.anzeige, sp.gepflegt)}
+                          </span>
+                        </span>
+                        <span className="mt-1.5 flex divide-x divide-white/10 rounded-lg
+                                         bg-black/45 backdrop-blur-sm">
+                          {([['Quote', zahl(sp.quote, 2, sprache), true],
+                             ['Elims', kurzZahl(sp.elims, sprache), false],
+                             ['Schaden', kurzZahl(sp.damage, sprache), false]] as
+                            Array<[string, string, boolean]>).map(([l, v, farbig]) => (
+                              <span key={l} className="min-w-0 flex-1 px-1.5 py-1.5 text-center">
+                                <span className="block truncate text-[9px] font-semibold
+                                                 uppercase text-slate-400"><T>{l}</T></span>
+                                <span className={`mt-0.5 block truncate text-[13px] font-bold
+                                                  tabular-nums ${farbig
+                                  ? 'text-sky-400' : 'text-slate-100'}`}>{v}</span>
+                              </span>
+                            ))}
+                        </span>
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="overflow-hidden rounded-3xl border border-zinc-800
+                                bg-zinc-900 shadow-[0_10px_30px_rgba(15,23,42,.10)]">
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="border-b border-zinc-800 text-[10px] uppercase
+                                       tracking-wider text-slate-500">
+                          <th className="w-12 px-4 py-3 text-right font-medium">#</th>
+                          <th className="px-3 py-3 text-left font-medium"><T>Spieler</T></th>
+                          <th className="px-3 py-3 text-right font-medium"><T>Matches</T></th>
+                          <th className="px-3 py-3 text-right font-medium"><T>Elims</T></th>
+                          <th className="px-3 py-3 text-right font-medium"><T>Schaden</T></th>
+                          <th className="px-3 py-3 text-right font-medium"><T>Quote</T></th>
+                          <th className="px-3 py-3 text-right font-medium"><T>Kopftreffer</T></th>
+                          <th className="px-4 py-3 text-right font-medium"><T>Treffer %</T></th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {gezeigteSpieler.map((sp, i) => (
+                          <tr key={sp.epicId} onClick={() => oeffne(sp)} tabIndex={0} role="button" onKeyDown={(ev) => { if (ev.target === ev.currentTarget && (ev.key === 'Enter' || ev.key === ' ')) { ev.preventDefault(); oeffne(sp); } }}
+                            className="cursor-pointer border-b border-zinc-900 transition
+                                       hover:bg-zinc-900/60">
+                            <td className={`px-4 py-2.5 text-right font-bold tabular-nums ${
+                              i < 3 ? 'text-amber-400' : 'text-slate-600'}`}>{i + 1}</td>
+                            <td className="px-3 py-2.5">
+                              <div className="flex items-center gap-2.5">
+                                <TeamFlagge groesse={20} laender={[sp.land ?? undefined]} />
+                                <span className="truncate font-medium text-slate-200">
+                                  {grossName(sp.anzeige, sp.gepflegt)}
+                                </span>
+                                <RegionMarke region={sp.heimat || sp.regionen.join('/')} />
+                              </div>
+                            </td>
+                            <td className="px-3 py-2.5 text-right tabular-nums text-slate-500">
+                              {zahl(sp.matches, 0, sprache)}
+                            </td>
+                            <td className="px-3 py-2.5 text-right font-bold tabular-nums
+                                           text-sky-400">{zahl(sp.elims, 0, sprache)}</td>
+                            <td className="px-3 py-2.5 text-right tabular-nums text-slate-300">
+                              {zahl(sp.damage, 0, sprache)}
+                            </td>
+                            <td className="px-3 py-2.5 text-right tabular-nums text-slate-300">
+                              {zahl(sp.quote, 2, sprache)}
+                            </td>
+                            <td className="px-3 py-2.5 text-right tabular-nums text-slate-400">
+                              {zahl(sp.headshots, 0, sprache)}
+                            </td>
+                            <td className="px-4 py-2.5 text-right tabular-nums text-slate-400">
+                              {zahl(sp.genauigkeit, 1, sprache)} %
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+              {gesamt > gezeigteSpieler.length && (
+                <p className="mt-2 text-xs text-slate-600">
+                  {zahl(gezeigteSpieler.length, 0, sprache)} <T>von</T> {zahl(gesamt, 0, sprache)} Spielern gezeigt.
+                </p>
+              )}
+            </>
+          )}
+          </>)}
+
+      {/*
+        * Eine Kennzahl in voller Laenge - hinter dem Pluszeichen.
+        *
+        * Als Seite, nicht als Fenster: der Betreiber wollte die Liste "wirklich
+        * als Page". Sie nimmt den Platz des Inhalts ein, die Bereiche links
+        * bleiben, Zurueck fuehrt zur Uebersicht. Mit Regionen, Suche und - bei
+        * den Eliminierungen - der Aufteilung in Finals und Opens, damit die
+        * Zahl nachvollziehbar ist.
+        */}
+      {listenLaedt && <LadeSchirm text={t('Liste wird geladen …')} />}
+      {volleListe && !offen && (() => {
+        const q = listenSuche.trim().toLowerCase();
+        const regionen = nachRegionReihe([...new Set(volleListe.zeilen
+          .map((sp) => sp.heimat || sp.regionen?.[0] || '').filter(Boolean))]);
+        const nummeriert = volleListe.zeilen.map((sp, i) => ({ sp, nr: i + 1 }));
+        const gefiltert = nummeriert
+          .filter(({ sp }) => !listenRegion || (sp.heimat || sp.regionen?.[0] || '') === listenRegion)
+          .filter(({ sp }) => !q || [sp.anzeige, sp.name, ...(sp.namen ?? [])]
+            .some((n) => (n ?? '').toLowerCase().includes(q)));
+        const istElims = volleListe.feld === 'elims';
+        const istGeld = volleListe.feld === 'verdienst';
+        const JE_SEITE = 100;
+        const seiten = istGeld ? Math.max(1, Math.ceil(gefiltert.length / JE_SEITE)) : 1;
+        const seite = Math.min(listenSeite, seiten);
+        const zeigen = istGeld
+          ? (q ? gefiltert : gefiltert.slice((seite - 1) * JE_SEITE, seite * JE_SEITE))
+          : ((listenTiefe && !q) ? gefiltert.slice(0, listenTiefe) : gefiltert);
+        return (
+          <div className="overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 shadow-[0_10px_30px_rgba(15,23,42,.12)]">
+            <header className="flex flex-wrap items-center gap-3 border-b border-zinc-800
+                               px-4 py-3.5">
+              <button onClick={() => setVolleListe(null)}
+                className="rounded-full border border-zinc-700 px-3.5 py-1.5 text-xs font-semibold text-slate-400
+                           transition hover:border-sky-500 hover:text-sky-400">
+                ← <T>Zurück</T>
+              </button>
+              <h3 className="schrift-anzeige text-lg font-extrabold text-slate-100">
+                <T>{volleListe.titel}</T>
+                {volleListe.zusatz && (
+                  <span className="ml-2 font-normal text-slate-500">{volleListe.zusatz}</span>
+                )}
+              </h3>
+              <span className="text-xs text-slate-500">
+                {zahl(gefiltert.length, 0, sprache)} <T>Spieler</T>
+              </span>
+              {volleListe.zeilen.length > 100 && (
+                <input value={listenSuche} onChange={(e) => setListenSuche(e.target.value)}
+                  placeholder={t('Spieler suchen …')} autoFocus
+                  className="mx-auto w-56 rounded-full border border-zinc-700 bg-zinc-950/60
+                             px-4 py-1.5 text-xs text-slate-100 outline-none focus:border-sky-500" />
+              )}
+              {istGeld ? (
+                /* Blaettern: Seite 1, 2, 3 ... je hundert. */
+                seiten > 1 && !q && (
+                  <div className="ml-auto flex items-center gap-1">
+                    <button onClick={() => setListenSeite(Math.max(1, seite - 1))} disabled={seite <= 1}
+                      className="rounded-md border border-zinc-800 px-2.5 py-1 text-xs text-slate-400
+                                 transition hover:border-zinc-600 disabled:opacity-40">‹</button>
+                    {[...Array(seiten)].map((_, i) => i + 1)
+                      .filter((n) => n === 1 || n === seiten || Math.abs(n - seite) <= 2)
+                      .map((n, i, arr) => (
+                        <span key={n} className="flex items-center gap-1">
+                          {i > 0 && arr[i - 1] !== n - 1 && <span className="px-1 text-xs text-slate-600">…</span>}
+                          <button onClick={() => setListenSeite(n)}
+                            className={`rounded-md border px-2.5 py-1 text-xs transition ${
+                              seite === n ? 'border-sky-500 bg-sky-500/10 text-sky-400'
+                                : 'border-zinc-800 text-slate-400 hover:border-zinc-600'}`}>
+                            {n}
+                          </button>
+                        </span>
+                      ))}
+                    <button onClick={() => setListenSeite(Math.min(seiten, seite + 1))} disabled={seite >= seiten}
+                      className="rounded-md border border-zinc-800 px-2.5 py-1 text-xs text-slate-400
+                                 transition hover:border-zinc-600 disabled:opacity-40">›</button>
+                  </div>
+                )
+              ) : (
+                <div className="ml-auto flex items-center gap-1">
+                  {([50, 100, 0] as const).map((n) => (
+                    <button key={n} onClick={() => setListenTiefe(n)}
+                      className={`rounded-full border px-3.5 py-1.5 text-xs font-semibold transition ${
+                        listenTiefe === n
+                          ? 'border-sky-500 bg-sky-500/10 text-sky-500'
+                          : 'border-zinc-700 text-slate-400 hover:border-zinc-500'}`}>
+                      {n === 0 ? t('Alle') : `Top ${n}`}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </header>
+            {regionen.length > 1 && (
+              <div className="flex flex-wrap gap-1 border-b border-zinc-900 px-4 py-2">
+                {['', ...regionen].map((r) => (
+                  <button key={r || 'alle'} onClick={() => { setListenRegion(r); setListenSeite(1); }}
+                    className={`rounded-full border px-3.5 py-1.5 text-xs font-semibold transition ${
+                      listenRegion === r
+                        ? (r ? regionFarbe(r).marke : 'border-sky-500 bg-sky-500/10 text-sky-400')
+                        : `hover:brightness-125 ${r ? regionFarbe(r).ruhig : 'border-zinc-800 text-slate-400'}`}`}>
+                    {r || t('alle')}
+                  </button>
+                ))}
+              </div>
+            )}
+            {/* Die ersten Drei der Auswahl (nach Region gefiltert) mit Foto - nur auf der ersten Seite und ohne Suche. */}
+            {!q && (!istGeld || seite === 1) && (
+              <Treppchen drei={gefiltert.slice(0, 3)} aufKlick={(sp) => oeffne(sp, volleListe.feld === 'verdienst' ? 'verdienst' : 'uebersicht')}
+                wertVon={(sp) => (volleListe.format === 'zeit' ? alsZeit(Number(sp[volleListe.feld]))
+                  : volleListe.format === 'km' ? `${zahl(Number(sp[volleListe.feld]) / 1000, 1, sprache)} km`
+                  : zahl(Number(sp[volleListe.feld]), volleListe.nachkomma, sprache) + volleListe.einheit)} />
+            )}
+            {istElims && (
+              <p className="border-b border-zinc-900 px-4 py-2 text-[11px] text-slate-500">
+                {/* Vorher stand hier "nur Heimatregion" - gezaehlt wird aber ueber alle Regionen und die LAN (lib/szeneStats, Betreiber 1.10.2026). */}
+                <T>Gezählt sind die Finals in allen Regionen samt LAN (Szene-Quelle und eigene Replays). Darunter, getrennt: was in den Opens dazukam.</T>
+              </p>
+            )}
+            <div className="divide-y divide-zinc-900">
+              {zeigen.map(({ sp, nr }) => (
+                <Platz key={sp.epicId} nr={nr} s={sp}
+                  mitBild={istGeld}
+                  wert={volleListe.format === 'zeit' ? alsZeit(Number(sp[volleListe.feld]))
+                    : volleListe.format === 'km' ? `${zahl(Number(sp[volleListe.feld]) / 1000, 1, sprache)} km`
+                    : zahl(Number(sp[volleListe.feld]), volleListe.nachkomma, sprache) + volleListe.einheit}
+                  zusatz={istElims && typeof sp.opensElims === 'number'
+                    ? `${t('Finals')} ${sp.finals ?? 0} · ${t('Opens')}: ${zahl(sp.opensElims ?? 0, 0, sprache)} ${t('Elims')} ${t('in')} ${sp.opens ?? 0} ${t('Spieltagen')}`
+                    : undefined}
+                  aufKlick={() => oeffne(sp, volleListe.feld === 'verdienst' ? 'verdienst' : 'uebersicht')} />
+              ))}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* ------------------------------------------------- Spielerseite */}
+      {offen && (
+        /*
+         * Eine Seite, kein Fenster.
+         *
+         * Das Profil lag als Schicht ueber der Statistik, und dahinter lief
+         * die Liste weiter. Der Betreiber: "mach es wirklich als eine Page,
+         * nicht dass im Hintergrund noch der Rest ist." Jetzt nimmt es den
+         * Platz des Inhalts ein; die Bereiche links bleiben, und Zurueck
+         * fuehrt zur Liste.
+         */
+        <div>
+          {/* Ohne Rahmen: es ist die Seite selbst, kein Kasten auf der Seite. */}
+          <div className="w-full">
+
+            {/*
+              * Der Kopf (Betreiber, 14.10.2026): das Foto steht gross hinter dem Namen und blendet zur Seite hin in die Karte aus - wie bei den
+              * Spitzenreitern der Rangliste. Gesicht und Hals bleiben frei; ohne Foto steht nur der Text da.
+              */}
+            <section className="relative isolate overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 shadow-sm">
+              {offen.bild && (
+                <>
+                  {/* Dasselbe Foto verwischt und gross als Grund: so traegt die Flaeche links die Farben des Bildes statt eines grauen Kastens. */}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={offen.bild} alt="" aria-hidden className="absolute inset-0 -z-10 h-full w-full scale-150 object-cover opacity-45 blur-3xl" />
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={offen.bild} alt="" className="foto-maske-rechts absolute inset-y-0 right-0 -z-10 h-full w-full object-cover md:w-[46%] xl:w-[40%]"
+                    style={{ objectPosition: 'center top' }} />
+                  <span aria-hidden className="foto-folie absolute inset-0 -z-10 md:hidden" />
+                </>
+              )}
+              <div className={`flex min-h-[22rem] flex-col justify-between gap-8 p-6 sm:p-8 ${offen.bild ? 'md:min-h-[34rem] md:max-w-[62%]' : ''}`}>
+                <button onClick={profilSchliessen}
+                  className="w-fit rounded-full border border-zinc-700 bg-zinc-950/60 px-4 py-1.5 text-xs font-semibold text-slate-400 backdrop-blur transition hover:border-sky-500/60 hover:text-sky-500">
+                  ← <T>Zurück</T>
+                </button>
+
+                <div>
+                  <div className="flex flex-wrap items-center gap-3">
+                    <TeamFlagge groesse={34} laender={[offen.land ?? undefined]} />
+                    {(offen.heimat || offen.regionen?.[0]) && (
+                      <RegionMarke region={offen.heimat || offen.regionen[0]} />
+                    )}
+                    {offen.x && (
+                      <a href={`https://x.com/${offen.x}`} target="_blank" rel="noreferrer"
+                        className="text-xs text-slate-500 transition hover:text-sky-500">
+                        @{offen.x}
+                      </a>
+                    )}
+                  </div>
+                  <h2 className="schrift-anzeige mt-3 break-words text-4xl font-extrabold leading-[1.05] tracking-tight text-slate-100 sm:text-5xl">
+                    {grossName(offen.anzeige, offen.gepflegt)}
+                  </h2>
+                  <p className="mt-2 text-sm text-slate-500">
+                    {offen.events
+                      ? `${zahl(offen.events, 0, sprache)} ${t('Spieltage')} · ${zahl(offen.matches, 0, sprache)} ${t('Matches')}`
+                      : t('Werte werden geladen …')}
+                  </p>
+
+                  {/* Die Marken.
+                      Sie erscheinen nur, wenn es sie zu diesem Spieler wirklich gibt - wer nie eine FNCS gewonnen hat, bekommt hier auch
+                      keinen leeren Kasten. Ein Druck darauf oeffnet die Liste dahinter. */}
+                  <div className="mt-5 flex flex-wrap items-stretch gap-2">
+                    {((fncs?.titel ?? 0) > 0 || lanErgebnisse.some((l) => l.platz <= 3)) && (
+                      <button onClick={() => setMarke('fncs')}
+                        className="rounded-xl border border-amber-500/50 bg-amber-500/10 px-3 py-2 text-center backdrop-blur transition hover:border-amber-400 hover:bg-amber-500/20">
+                        <span className="flex items-center justify-center gap-0.5 text-amber-500">
+                          {[...Array(Math.min(fncs!.titel, 8))].map((_, i) => <Pokal key={i} />)}
+                          {fncs!.titel > 8 && <span className="ml-1 text-[11px] font-bold">×{fncs!.titel}</span>}
+                        </span>
+                        <span className="mt-1 block text-[9px] font-semibold uppercase tracking-[0.16em] text-amber-500/90"><T>FNCS-Sieger</T></span>
+                      </button>
+                    )}
+                    {tagesbest.length > 0 && (
+                      <button onClick={() => setMarke('tage')}
+                        className="rounded-xl border border-sky-500/50 bg-sky-500/10 px-3 py-2 text-center backdrop-blur transition hover:border-sky-400 hover:bg-sky-500/20">
+                        <span className="flex max-w-[132px] flex-wrap items-center justify-center gap-0.5 text-sky-500">
+                          {[...Array(Math.min(tagesbest.length, 12))].map((_, i) => <Stern key={i} />)}
+                          {tagesbest.length > 12 && <span className="ml-1 text-[11px] font-bold">×{tagesbest.length}</span>}
+                        </span>
+                        <span className="mt-1 block text-[9px] font-semibold uppercase tracking-[0.16em] text-sky-500/90"><T>Tagesbester</T></span>
+                      </button>
+                    )}
+                    {/* Hier stand die Karte "Bester Spieltag": die Marke "Tagesbester" zeigt schon, an wie vielen Spieltagen niemand mehr
+                        Eliminierungen hatte, und die Bestmarke selbst steht weiter unten bei den Rekorden. */}
+                  </div>
+
+                  {/*
+                    * Epics eigenes Ranked-System: die einzige Angabe im Profil, die nicht aus einem Turnier stammt - und die einzige, die es zu
+                    * jedem Spieler gibt. Die Stufe steht als Zahl, nicht als Name: Epics Rangsaisons haben unterschiedlich viele Stufen
+                    * (achtzehn, zweiundzwanzig, einhunderteins), ein Name wie "Diamant III" passt nur zur ersten; die Zahl stimmt immer.
+                    */}
+                  {ranked && ranked.some((r) => rangArt(r.rankingType)) && (
+                    <div className="mt-4 flex flex-wrap items-center gap-2">
+                      <span className="text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500"><T>Ranked</T></span>
+                      {ranked.filter((r) => rangArt(r.rankingType)).slice(0, 4).map((r) => (
+                        <span key={r.trackguid} className="inline-flex items-baseline gap-2 rounded-full border border-zinc-700 bg-zinc-950/60 px-3 py-1 text-xs backdrop-blur">
+                          <span className="uppercase tracking-wider text-slate-500">{rangArt(r.rankingType)}</span>
+                          {r.ranking !== null ? (
+                            <b className="tabular-nums text-amber-500">#{zahl(r.ranking, 0, sprache)}</b>
+                          ) : (
+                            <b className="text-slate-300"><T>Stufe</T> {r.division}{r.stufen ? <span className="font-normal text-slate-500">{' / '}{r.stufen}</span> : null}</b>
+                          )}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </div>
+            </section>
+
+            {/* Pflege - nur fuer den Admin */}
+            {istAdmin && (
+              <div className="mt-4 flex flex-wrap items-center gap-2 rounded-lg
+                              border border-zinc-800 bg-zinc-900/40 px-3 py-2">
+                <span className="text-[10px] font-semibold uppercase tracking-[0.14em]
+                                 text-slate-500"><T>Pflege</T></span>
+                <input value={pflegeName}
+                  onChange={(e) => { setPflegeName(e.target.value); setPflegeStand(''); }}
+                  placeholder={t('Anzeigename')}
+                  className="w-48 rounded-lg border border-zinc-800 bg-zinc-900/80 px-3
+                             py-1.5 text-xs text-slate-100 outline-none
+                             placeholder:text-slate-600 focus:border-sky-500" />
+                <input value={pflegeLand}
+                  onChange={(e) => { setPflegeLand(e.target.value); setPflegeStand(''); }}
+                  placeholder={t('DE')} maxLength={2}
+                  className="w-14 rounded-lg border border-zinc-800 bg-zinc-900/80 px-3
+                             py-1.5 text-xs uppercase text-slate-100 outline-none
+                             placeholder:text-slate-600 focus:border-sky-500" />
+                <button onClick={pflegeSpeichern}
+                  className="rounded-lg bg-sky-500 px-3 py-1.5 text-xs font-semibold
+                             text-white transition hover:bg-sky-400"><T>Speichern</T></button>
+                {pflegeStand && (
+                  <span className={`text-xs ${pflegeStand === 'gespeichert'
+                    ? 'text-sky-400' : pflegeStand === 'nicht gespeichert'
+                      ? 'text-rose-400' : 'text-slate-500'}`}>{pflegeStand}</span>
+                )}
+                {/* Nur ausblenden, nicht anlegen.
+                    Werte, Platzierungen und Mitspieler kommen aus Epic und
+                    der Quelle - von Hand eingetragene Zahlen koennte niemand
+                    nachpruefen. Herausnehmen dagegen ist eine Entscheidung,
+                    die nur der Admin treffen kann. */}
+                {entfernenFrage ? (
+                  <span className="ml-auto flex items-center gap-2">
+                    <span className="text-[11px] text-slate-400">
+                      <T>Wirklich aus allen Listen nehmen?</T>
+                    </span>
+                    <button onClick={spielerVerstecken}
+                      className="rounded-lg bg-rose-600 px-3 py-1.5 text-xs
+                                 font-semibold text-white transition
+                                 hover:bg-rose-500">
+                      <T>Ja, ausblenden</T>
+                    </button>
+                    <button onClick={() => setEntfernenFrage(false)}
+                      className="text-xs text-slate-500 transition
+                                 hover:text-slate-300">
+                      <T>Abbrechen</T>
+                    </button>
+                  </span>
+                ) : (
+                  <>
+                    <button onClick={() => setEntfernenFrage(true)}
+                      title={t('Der Spieler verschwindet aus Listen, Suche und '
+                        + 'Bildern. Seine Werte im Archiv bleiben erhalten.')}
+                      className="ml-auto rounded-lg border border-zinc-800 px-3 py-1.5
+                                 text-xs text-slate-500 transition
+                                 hover:border-rose-500/60 hover:text-rose-400">
+                      <T>Ausblenden</T>
+                    </button>
+                    <span className="text-[10px] text-slate-600">
+                      <T>Konto</T> {offen.epicId.slice(0, 8)}…
+                    </span>
+                  </>
+                )}
+              </div>
+            )}
+
+            <div className="mt-4">
+              {/* Die Kennzahlen des ganzen Zeitraums, nicht die eines Cups.
+                  Das Vorbild fuehrt hier Rating, Power Ranking, Regional und
+                  Global Ranking, Eliminierungen, Schaden und FNCS Grand
+                  Finals. Drei davon gibt es hier nicht und stehen deshalb
+                  auch nicht da: Rating und Power Ranking sind fremde
+                  Berechnungen. An ihrer Stelle steht die Schadensquote, die
+                  sich nachrechnen laesst. Die beiden Raenge sind abgezaehlt -
+                  aus derselben Liste, die die Seite ohnehin fuehrt. */}
+              <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+                {kennzahlen.map(([l, v, unten]) => (
+                  <div key={l} className="rounded-2xl border border-zinc-800 bg-zinc-900 p-4 shadow-sm">
+                    <p className="text-[0.68rem] font-semibold uppercase tracking-[0.14em] text-slate-500"><T>{l}</T></p>
+                    <p className="schrift-anzeige mt-1.5 text-3xl font-extrabold tabular-nums text-slate-100">{v}</p>
+                    {unten && (
+                      <p className="mt-1 text-xs text-slate-500">{unten}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+              {/* Das Bild zum Teilen: dieselben sechs Zahlen, für den Zeitraum, der unten gewählt ist. Erst wenn es etwas zu zeigen gibt. */}
+              {!profilLaedt && !profilFehler && offen.events > 0 && (
+                <div className="mt-3 flex justify-end">
+                  <RueckblickBild daten={{
+                    name: grossName(offen.anzeige, offen.gepflegt),
+                    bild: offen.echtesFoto ? offen.bild : null,
+                    land: offen.land,
+                    region: offen.heimat || offen.regionen?.[0] || null,
+                    zeitraum: profilSaison === 'alle' ? archivTitel
+                      : profilSaison.startsWith('jahr:') ? profilSaison.slice(5)
+                        : (saisons.find((x) => x.kennung === profilSaison)?.name ?? profilSaison),
+                    kacheln: kennzahlen.map(([l, v, u]) => [t(l), v, u] as [string, string, string]),
+                    zeile: `${zahl(offen.events, 0, sprache)} ${t('Spieltage')} · ${zahl(offen.matches, 0, sprache)} ${t('Matches')}`,
+                  }} />
+                </div>
+              )}
+            </div>
+
+            {/* Reiter, rechts daneben der Zeitraum.
+                Dort steht beim Vorbild "Season" mit einem Waehler - genau
+                dort sucht man ihn, weil die Zahlen darunter davon abhaengen. */}
+            <div className="flex flex-wrap items-center gap-6 border-b border-zinc-800
+                            px-1">
+              {/* Nach dem Vorbild eucompetitive (Betreiber, 28.9.2026): Overview,
+                  Stats, Tournament Results, FNCS, Achievements - dazu Earnings
+                  und die Bilder. "Alle Werte" und "Leistung" sind zu "Stats"
+                  zusammengelegt. */}
+              {([['uebersicht', 'Überblick'],
+                 // Die Zahlen nur, wo es welche gibt - ein Konto ohne ausgewertete Matches zeigt keine Seite voller Nullen (Betreiber, 14.10.2026).
+                 ...(offen.matches > 0 ? [['werte', 'Zahlen']] : []),
+                 ['turniere', 'Ergebnisse'],
+                 ['fncs', 'FNCS'],
+                 ['erfolge', 'Meilensteine'],
+                 ['verdienst', 'Verdienst'],
+                 ...(teamVerlauf.length ? [['teams', 'Teamverlauf']] : []),
+                 /*
+                  * Das Archiv nur, wenn es etwas gibt. Der Betreiber: "wenn
+                  * es keine Bilder, Videos zu einem Player gibt, dann muss
+                  * das Player Archiv auch nicht angezeigt werden, auch kein
+                  * leeres." Der Admin sieht es immer, zum Hochladen.
+                  */
+                 ...((archivAnzahl > 0 || istAdmin) ? [['archiv', 'Galerie']] : [])] as Array<[SpielerReiter, string]>)
+                .map(([w, titel]) => (
+                // "titel" statt "t": der Uebersetzer heisst hier ebenfalls t,
+                // und ihn in einer Schleife zu beschatten ist eine Falle fuer
+                // die naechste Zeile, die ihn drinnen braucht.
+                <button key={w} onClick={() => setSpielerReiter(w)}
+                  className={`-mb-px border-b-2 py-3 text-xs font-semibold uppercase
+                              tracking-[0.12em] transition ${spielerReiter === w
+                    ? 'border-sky-500 text-sky-400'
+                    : 'border-transparent text-slate-500 hover:text-slate-300'}`}>
+                  <T>{titel}</T>
+                </button>
+              ))}
+
+              <label className="ml-auto flex items-center gap-2 py-2">
+                <span className="text-[10px] font-semibold uppercase
+                                 tracking-[0.14em] text-slate-600">
+                  <T>Zeitraum</T>
+                </span>
+                <select value={profilSaison}
+                  onChange={(e) => profilZeitraum(e.target.value)}
+                  className="rounded-lg border border-zinc-800 bg-zinc-900/80 px-3
+                             py-1.5 text-xs text-slate-100 outline-none
+                             focus:border-sky-500">
+                  <option value="alle">{t('Alle Saisons')}</option>
+                  <optgroup label={t('Jahre')}>
+                    {Object.keys(JAHR_SAISONS).map(Number).sort((a, b) => b - a).map((j) => (
+                      <option key={j} value={`jahr:${j}`}>{j}</option>
+                    ))}
+                  </optgroup>
+                  <optgroup label={t('Saisons')}>
+                    {saisons.map((x) => (
+                      <option key={x.kennung} value={x.kennung}>{x.name}</option>
+                    ))}
+                  </optgroup>
+                </select>
+              </label>
+            </div>
+
+            <div className="px-7 py-6">
+              {/* Leise ueber allem: worueber wird hier gerechnet.
+                  Nicht zum Lesen gedacht, sondern zum Nachsehen - wer sich
+                  fragt, ob eine Zahl fuer eine Saison oder fuers ganze
+                  Archiv gilt, findet die Antwort ohne zu suchen. */}
+              <p className="mb-4 text-center text-[10px] tracking-[0.14em]
+                            text-slate-700">
+                {spielerReiter === 'verdienst' ? (() => {
+                  const mitGeld = [...verlauf, ...epicZeilen].filter((z) => (z.verdienst ?? 0) > 0);
+                  const codes = [...new Set([...mitGeld.map((z) => z.season), ...lanErgebnisse.map((l) => l.season)])]
+                    .filter((k) => /^S\d+$/.test(k))
+                    .sort((a, b) => Number(a.slice(1)) - Number(b.slice(1)));
+                  const nameVon = (k: string) => saisons.find((x) => x.kennung === k)?.name ?? saisonNamen[k] ?? SAISON_NAMEN_KURZ[k] ?? k;
+                  const spanne = codes.length
+                    ? (codes.length === 1 ? nameVon(codes[0]) : `${nameVon(codes[0])} ${t('bis')} ${nameVon(codes[codes.length - 1])}`)
+                    : '';
+                  const cups = mitGeld.length + lanErgebnisse.filter((l) =>
+                    !mitGeld.some((z) => z.windowId.split('_')[0] === (l.fenster ?? '').split('_')[0])).length;
+                  return `${spanne}${spanne ? ' · ' : ''}${zahl(cups, 0, sprache)} ${t(cups === 1 ? 'Cup mit Preisgeld' : 'Cups mit Preisgeld')}`;
+                })() : spielerReiter === 'fncs' || spielerReiter === 'erfolge'
+                  ? t('Über alle Zeiten')
+                  : `${profilSaison === 'alle' ? archivTitel
+                    : (saisons.find((x) => x.kennung === profilSaison)?.name
+                      ?? profilSaison)}`
+                    + ` · ${zahl(verlauf.length, 0, sprache)} `
+                    + `${t(verlauf.length === 1 ? 'Spieltag' : 'Spieltage')}`
+                    + `${offen.matches ? ` · ${zahl(offen.matches, 0, sprache)} ${t('Matches')}` : ''}`}
+              </p>
+              {/* "Keine Zeilen" ist nicht dasselbe wie "wird noch geholt".
+                  Vorher stand bei einem Spieler, der in dieser Saison gar
+                  nicht angetreten ist, fuer immer "Wird geladen …" - und man
+                  wartete auf etwas, das nie kommt. */}
+              {profilLaedt ? (
+                <p className="text-xs text-slate-600"><T>Wird geladen …</T></p>
+              ) : profilFehler ? (
+                /* Ein Ausfall ist nicht "nicht angetreten" - das stand sonst da. */
+                <div className="flex flex-col items-center gap-3 py-8 text-center">
+                  <p className="text-sm text-slate-400"><T>Das Profil ließ sich gerade nicht laden.</T></p>
+                  <button type="button" onClick={() => void profilLaden(offen, profilSaison)}
+                    className="rounded-lg bg-sky-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-sky-400">
+                    <T>Nochmal versuchen</T>
+                  </button>
+                </div>
+              ) : !verlauf.length && !epicZeilen.length && spielerReiter !== 'fncs' && spielerReiter !== 'erfolge' ? (
+                /* Auch die Spieltage zaehlen, zu denen bisher nur Epic etwas
+                   hat. Vorher stand hier "nicht angetreten", obwohl zehn
+                   Epic-Spieltage vorlagen - die Quelle veroeffentlicht in
+                   der laufenden Saison nur die Finals und dort nur die
+                   besten hundert. */
+                <p className="py-6 text-center text-xs text-slate-600">
+                  <T>In diesem Zeitraum ist dieser Spieler nicht angetreten.</T>
+                </p>
+              ) : spielerReiter === 'uebersicht' ? (
+                <div className="space-y-7">
+                  <section>
+                    <p className="mb-3 text-[10px] font-semibold uppercase
+                                  tracking-[0.18em] text-slate-500">
+                      <T>Die letzten drei Turniere</T>
+                      {heimatRegion && (
+                        <span className="ml-2 font-normal tracking-normal
+                                         text-slate-600">
+                          {heimatRegion}
+                        </span>
+                      )}
+                    </p>
+                    {letzteDrei.length ? (
+                      <VerlaufTabelle zeilen={letzteDrei} />
+                    ) : (
+                      /* Nur Ausfluege in fremde Regionen im Zeitraum. Sie
+                         hier zu zeigen waere irrefuehrend - der Hinweis
+                         sagt, wo sie stehen. */
+                      <p className="py-4 text-xs text-slate-600">
+                        <T>In der Heimatregion ist dieser Spieler hier nicht
+                        angetreten — seine Spieltage in anderen Regionen stehen
+                        unter „Turniere“.</T>
+                      </p>
+                    )}
+                  </section>
+
+                  {/* Die Werte als Zeilen in drei Spalten - dieselbe Form wie
+                      im Vorbild, ruhiger als ein Raster aus Kaesten. */}
+                  <section>
+                    <div className="mb-3 flex items-baseline gap-3">
+                      <p className="text-[10px] font-semibold uppercase
+                                    tracking-[0.18em] text-slate-500"><T>Werte</T></p>
+                      <span className="ml-auto text-[10px] text-slate-600">
+                        {t('über {n} Spieltage')
+                          .replace('{n}', zahl(offen.events, 0, sprache))}
+                      </span>
+                    </div>
+                    <div className="grid gap-x-8 rounded-lg border border-zinc-800
+                                    bg-zinc-900/30 p-5 sm:grid-cols-2 lg:grid-cols-3">
+                      {([
+                        ['Eliminierungen', zahl(offen.elims, 0, sprache)],
+                        ['Schaden', zahl(offen.damage, 0, sprache)],
+                        ['Schaden erlitten', zahl(offen.damageTaken, 0, sprache)],
+                        ['Schadensquote', zahl(offen.quote, 2, sprache)],
+                        ['Treffer', zahl(offen.hits, 0, sprache)],
+                        ['Schüsse', zahl(offen.shots, 0, sprache)],
+                        ['Trefferquote', `${zahl(offen.genauigkeit, 1, sprache)} %`],
+                        ['Kopftreffer', zahl(offen.headshots, 0, sprache)],
+                        ['Assists', zahl(offen.assists, 0, sprache)],
+                        ['Wiederbelebungen', zahl(offen.reboots, 0, sprache)],
+                        ['Material', zahl(offen.mats, 0, sprache)],
+                        ['Bauteile', zahl(offen.builds, 0, sprache)],
+                        ['Heilung', zahl(offen.heals, 0, sprache)],
+                        ['Sturmschaden', zahl(offen.stormDamage, 0, sprache)],
+                        ['Matches', zahl(offen.matches, 0, sprache)],
+                      ] as Array<[string, string]>).map(([l, v]) => (
+                        <div key={l} className="flex items-baseline justify-between gap-4
+                                                border-b border-zinc-900 py-2.5">
+                          <span className="text-[11px] uppercase tracking-wider
+                                           text-slate-500"><T>{l}</T></span>
+                          <span className="text-sm font-semibold tabular-nums
+                                           text-slate-100">{v}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+
+                  <section>
+                    <p className="mb-3 text-[10px] font-semibold uppercase
+                                  tracking-[0.18em] text-slate-500">
+                      <T>Beste Spieltage</T>
+                      <span className="ml-2 font-normal normal-case tracking-normal
+                                       text-slate-600"><T>nach Eliminierungen</T></span>
+                    </p>
+                    <div className="space-y-2">
+                      {[...verlauf]
+                        .sort((a, b) => b.werte.eliminations - a.werte.eliminations)
+                        .slice(0, 3)
+                        .map((z) => (
+                          <div key={`best-${z.windowId}-${z.region}`}
+                            className="flex items-center gap-4 rounded-lg border
+                                       border-zinc-800 bg-zinc-900/30 px-5 py-3.5">
+                            <span className="w-12 shrink-0 text-center text-2xl font-bold
+                                             tabular-nums text-sky-400">
+                              {z.werte.eliminations}
+                            </span>
+                            <div className="min-w-0 flex-1">
+                              <p className="truncate text-sm text-slate-200">
+                                {turnierName(z.event, t)}
+                              </p>
+                              <p className="mt-0.5 text-[11px] text-slate-500">
+                                {z.season} · {z.region} · {z.werte.matchesPlayed} <T>Matches</T>
+                              </p>
+                            </div>
+                            <span className="shrink-0 text-sm tabular-nums text-slate-400">
+                              {zahl(Math.round(z.werte.damageDealt), 0, sprache)} <T>Schaden</T>
+                            </span>
+                          </div>
+                        ))}
+                    </div>
+                  </section>
+
+                  {/* Die besten FNCS-Platzierungen und ein paar Bilder -
+                      wie beim Vorbild, "plus noch Bilder ganz unten". */}
+                  <KarriereBest tafel={fncsTafel} />
+                  {archivBilder.length > 0 && (
+                    <section>
+                      <div className="mb-3 flex items-center gap-3">
+                        <p className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500"><T>Spielerbilder</T></p>
+                        <button type="button" onClick={() => setSpielerReiter('archiv')}
+                          className="ml-auto text-[11px] text-slate-500 transition hover:text-sky-400">
+                          <T>Alle ansehen</T> →
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+                        {archivBilder.slice(0, 6).map((b) => (
+                          <button key={b.id} type="button" onClick={() => setSpielerReiter('archiv')}
+                            className="aspect-square overflow-hidden rounded-lg border border-zinc-800 transition hover:border-sky-500">
+                            {/* eslint-disable-next-line @next/next/no-img-element */}
+                            <img src={bildPfad(b)} alt={b.titel ?? ''} loading="lazy" className="h-full w-full object-cover" />
+                          </button>
+                        ))}
+                      </div>
+                    </section>
+                  )}
+                </div>
+              ) : spielerReiter === 'werte' || spielerReiter === 'leistung' ? (
+                <div className="space-y-7">
+                <div className="grid gap-x-8 rounded-lg border border-zinc-800
+                                bg-zinc-900/30 p-5 sm:grid-cols-2 lg:grid-cols-3">
+                  {([
+                    ['Eliminierungen', zahl(offen.elims, 0, sprache)],
+                    ['Elims je Match', zahl(offen.elimsProMatch, 2, sprache)],
+                    ['Assists', zahl(offen.assists, 0, sprache)],
+                    ['Wiederbelebungen', zahl(offen.reboots, 0, sprache)],
+                    ['Schaden', zahl(offen.damage, 0, sprache)],
+                    ['Schaden je Match', zahl(offen.damageProMatch, 0, sprache)],
+                    ['Schaden erlitten', zahl(offen.damageTaken, 0, sprache)],
+                    ['Schadensquote', zahl(offen.quote, 2, sprache)],
+                    ['Schüsse', zahl(offen.shots, 0, sprache)],
+                    ['Treffer', zahl(offen.hits, 0, sprache)],
+                    ['Trefferquote', `${zahl(offen.genauigkeit, 1, sprache)} %`],
+                    ['Kopftreffer', zahl(offen.headshots, 0, sprache)],
+                    ['Material', zahl(offen.mats, 0, sprache)],
+                    ['Bauteile', zahl(offen.builds, 0, sprache)],
+                    ['Heilung', zahl(offen.heals, 0, sprache)],
+                    ['Sturmschaden', zahl(offen.stormDamage, 0, sprache)],
+                    ['Fallschaden', zahl(offen.fallDamage, 0, sprache)],
+                    ['Strecke', `${zahl(offen.distanz, 1, sprache)} km`],
+                    ['Spieltage', zahl(offen.events, 0, sprache)],
+                    ['Matches', zahl(offen.matches, 0, sprache)],
+                  ] as Array<[string, string]>).map(([l, v]) => (
+                    <div key={l} className="flex items-baseline justify-between gap-4
+                                            border-b border-zinc-900 py-2.5">
+                      <span className="text-[11px] uppercase tracking-wider
+                                       text-slate-500"><T>{l}</T></span>
+                      <span className="text-sm font-semibold tabular-nums
+                                       text-slate-100">{v}</span>
+                    </div>
+                  ))}
+                </div>
+                  <ProfilVerlauf zeilen={verlauf.map((z) => ({ ...z, event: verlaufTitel(z.event) }))} />
+                  {/* Die drei Staerkefelder.
+                      Der Wert eines Feldes ist der Schnitt seiner Raenge - und
+                      darunter steht, woraus er entsteht. Nichts daran ist
+                      gewichtet oder geheim. */}
+                  {perzentile && (
+                    <section>
+                      <div className="mb-3 flex flex-wrap items-baseline gap-3">
+                        <p className="text-[10px] font-semibold uppercase
+                                      tracking-[0.18em] text-slate-500"><T>Stärkefelder</T></p>
+                        <span className="ml-auto text-[10px] text-slate-600">
+                          <T>Rang je Match unter</T> {zahl(perzentile.feldgroesse, 0, sprache)} <T>Spielern mit mindestens zehn Matches, über alle erfassten Spieltage</T>
+                        </span>
+                      </div>
+                      <div className="grid gap-px overflow-hidden rounded-lg border
+                                      border-zinc-800 bg-zinc-800/60 md:grid-cols-3">
+                        {([
+                          ['Feuerkraft', [['Eliminierungen', perzentile.elims],
+                            ['Schaden', perzentile.damage],
+                            ['Kopftreffer', perzentile.headshots],
+                            ['Trefferquote', perzentile.genauigkeit]]],
+                          ['Aufbau', [['Material', perzentile.mats],
+                            ['Bauteile', perzentile.builds]]],
+                          ['Überleben', [['Zeit am Leben', perzentile.timeAlive],
+                            ['Schadensquote', perzentile.quote],
+                            ['Wiederbelebungen', perzentile.reboots]]],
+                        ] as Array<[string, Array<[string, number]>]>).map(([titel, teile]) => {
+                          const schnitt = Math.round(
+                            teile.reduce((n, t) => n + t[1], 0) / teile.length);
+                          return (
+                            <div key={titel} className="bg-zinc-950 p-5">
+                              <p className="text-[10px] font-semibold uppercase
+                                            tracking-[0.16em] text-slate-500"><T>{titel}</T></p>
+                              <p className="mt-2 flex flex-wrap items-baseline gap-2">
+                                <span className="text-4xl font-bold tabular-nums
+                                                 text-sky-400">{schnitt}</span>
+                                <span className="text-xs text-slate-600">/100</span>
+                              </p>
+                              <p className="mt-1 text-[11px] text-slate-500">
+                                <T>besser als</T> {schnitt} <T>Prozent des Feldes</T>
+                              </p>
+                              <div className="mt-3"><Balken wert={schnitt} /></div>
+                              <div className="mt-4 space-y-2">
+                                {teile.map((t) => (
+                                  <div key={t[0]} className="flex items-center gap-3">
+                                    {/* Auch diese Beschriftungen gehoeren
+                                        uebersetzt - sie standen als einzige
+                                        deutsch in der englischen Ansicht. */}
+                                    <span className="w-28 shrink-0 text-[11px]
+                                                     text-slate-500"><T>{t[0]}</T></span>
+                                    <span className="min-w-0 flex-1">
+                                      <Balken wert={t[1]} klein />
+                                    </span>
+                                    <span className="w-7 shrink-0 text-right text-[11px]
+                                                     font-semibold tabular-nums
+                                                     text-slate-300">{t[1]}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </section>
+                  )}
+
+                  {/* Der Verlauf ueber die Spieltage */}
+                  {verlauf.length > 1 && (
+                    <section>
+                      <div className="mb-3 flex flex-wrap items-baseline gap-3">
+                        <p className="text-[10px] font-semibold uppercase
+                                      tracking-[0.18em] text-slate-500">
+                          <T>{kurveName}</T> <T>je Spieltag</T>
+                        </p>
+                        <span className="text-[11px] text-slate-500">
+                          <T>höchstens</T> {Math.max(...verlauf.map((z) => kurveWert(z.werte)))}
+                          {', '}<T>mindestens</T>{' '}
+                          {Math.min(...verlauf.map((z) => kurveWert(z.werte)))}
+                        </span>
+                        {kurvenWahl}
+                        <span className="ml-auto text-[10px] text-slate-600">
+                          {verlauf.length} <T>Spieltage, ältester links</T>
+                        </span>
+                      </div>
+                      <div className="rounded-lg border border-zinc-800 bg-zinc-900/30 p-4">
+                        <Verlaufslinie
+                          beschriftung={`${t(kurveName)} ${t('je Spieltag')}`}
+                          werte={[...verlauf].reverse().map((z) => kurveWert(z.werte))}
+                          marken={[...verlauf].reverse().map((z) =>
+                            `${turnierName(z.event, t)} · ${z.region}`)} />
+                      </div>
+                    </section>
+                  )}
+
+                  {/* Die Grand Finals */}
+                  {fncs && fncs.saisons.some((x) => x.platz > 0) && (
+                    <section>
+                      <div className="mb-3 flex flex-wrap items-baseline gap-3">
+                        <p className="text-[10px] font-semibold uppercase
+                                      tracking-[0.18em] text-slate-500">
+                          <T>FNCS Grand Finals</T>
+                        </p>
+                        {fncs.titel > 0 && (
+                          <span className="rounded bg-amber-500/10 px-2 py-0.5 text-[11px]
+                                           font-semibold text-amber-400">
+                            {t('{n} Titel').replace('{n}', String(fncs.titel))}
+                          </span>
+                        )}
+                        <span className="ml-auto text-[10px] text-slate-600">
+                          <T>Platzierungen laut Quelle</T>
+                        </span>
+                      </div>
+                      <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-4">
+                        {fncs.saisons.filter((x) => x.platz > 0).map((x) => (
+                          <div key={x.saison}
+                            className="flex items-center justify-between gap-3 rounded-lg
+                                       border border-zinc-800 bg-zinc-900/30 px-3 py-2.5">
+                            <span className="truncate text-[11px] text-slate-400">
+                              {x.saison}
+                            </span>
+                            <span className={`shrink-0 text-sm font-bold tabular-nums ${
+                              x.platz === 1 ? 'text-amber-400'
+                                : x.platz <= 3 ? 'text-sky-400' : 'text-slate-300'}`}>
+                              {x.platz}.
+                            </span>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  )}
+
+                  {/* Auszeichnungen.
+                      Jede Zeile ist eine Abzaehlung aus den Daten, keine
+                      vergebene Ehrung: darum steht unter jeder Zahl, woher
+                      sie kommt. */}
+                  {(() => {
+                    const finals = fncs?.saisons.filter((x) => x.platz > 0) ?? [];
+                    const besteElims = verlauf.length
+                      ? Math.max(...verlauf.map((z) => z.werte.eliminations)) : 0;
+                    const besterSchaden = verlauf.length
+                      ? Math.max(...verlauf.map((z) => z.werte.damageDealt)) : 0;
+
+                    /*
+                      * Die Unterzeilen laufen durch die Uebersetzung.
+                      *
+                      * Sie wurden unten roh ausgegeben, und deshalb stand im
+                      * englischen Werkzeug unter lauter englischen
+                      * Ueberschriften "Siege in den Grand Finals" und
+                      * "Eliminierungen an einem Tag".
+                      */
+                    const zeilen: Array<[string, string, string]> = [];
+                    if (fncs && fncs.titel > 0) zeilen.push(
+                      ['FNCS-Titel', String(fncs.titel), t('Siege in den Grand Finals')]);
+                    if (finals.length) zeilen.push(
+                      ['Grand Finals', String(finals.length), t('erreichte Endrunden')]);
+                    const topZehn = finals.filter((x) => x.platz <= 10).length;
+                    if (topZehn) zeilen.push(
+                      ['Top 10 im Finale', String(topZehn),
+                        t('von {n} Endrunden').replace('{n}', String(finals.length))]);
+                    if (besteElims) zeilen.push(
+                      ['Bester Spieltag', String(besteElims), t('Eliminierungen an einem Tag')]);
+                    if (besterSchaden) zeilen.push(
+                      ['Höchster Schaden', zahl(Math.round(besterSchaden), 0, sprache),
+                        t('an einem Spieltag')]);
+                    const meisteMatches = verlauf.length
+                      ? Math.max(...verlauf.map((z) => z.werte.matchesPlayed)) : 0;
+                    if (meisteMatches) zeilen.push(
+                      ['Längster Spieltag', String(meisteMatches), t('Matches an einem Tag')]);
+                    if (!zeilen.length) return null;
+
+                    return (
+                      <section>
+                        <div className="mb-3 flex flex-wrap items-baseline gap-3">
+                          <p className="text-[10px] font-semibold uppercase
+                                        tracking-[0.18em] text-slate-500">
+                            <T>Auszeichnungen</T>
+                          </p>
+                          <span className="ml-auto text-[10px] text-slate-600">
+                            <T>aus den Daten gezählt, nicht vergeben</T>
+                          </span>
+                        </div>
+                        <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+                          {zeilen.map(([titel, wert, unten]) => (
+                            <div key={titel}
+                              className="rounded-lg border border-zinc-800
+                                         bg-zinc-900/30 px-5 py-4">
+                              <p className="text-[10px] font-semibold uppercase
+                                            tracking-[0.16em] text-slate-500"><T>{titel}</T></p>
+                              <p className="mt-1.5 text-2xl font-bold tabular-nums
+                                            text-slate-50">{wert}</p>
+                              <p className="mt-1 text-[10px] text-slate-600">{unten}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </section>
+                    );
+                  })()}
+
+                  {!perzentile && !fncs && (
+                    <p className="text-xs text-slate-600">
+                      <T>Zu diesem Spieler liegen keine Vergleichswerte vor.</T>
+                    </p>
+                  )}
+                </div>
+              ) : spielerReiter === 'fncs' ? (
+                <FncsReiter tafel={fncsTafel} name={offen.anzeige || offen.name} />
+              ) : spielerReiter === 'erfolge' ? (
+                <ErfolgeReiter tafel={fncsTafel} erfolge={erfolge} />
+              ) : spielerReiter === 'verdienst' ? (
+                /*
+                 * Der Verdienst - jeder Spieltag mit Preisgeld, wann, wo, wie viel.
+                 * Der Betreiber: "eine Art Earnings-Seite im Spieler, wo ich
+                 * wirklich alles aufgelistet bekomme, wann, wo, welcher Cup."
+                 * Online-Cups aus Platz beziehungsweise Punkten und der
+                 * gepflegten Tabelle; LAN-Events je Konto aus der LAN-Datei.
+                 */
+                (() => {
+                  const zeilen = [...verlauf, ...epicZeilen]
+                    .filter((z) => typeof z.verdienst === 'number' && z.verdienst > 0)
+                    .sort((a, b) => (b.datum ?? 0) - (a.datum ?? 0));
+                  // Ein LAN steht entweder als Zeile mit Verdienst da (Epics Fenster
+                  // liegt im Archiv) oder kommt aus der LAN-Datei - nie beides.
+                  // Zugeordnet ueber das Fenster (Escargo, Bratwurst, BambiRaptor,
+                  // Dinosauron), nicht ueber Kuerzel im Namen.
+                  const lanOhneZeile = lanErgebnisse.filter((l) =>
+                    !zeilen.some((z) => z.windowId.split('_')[0] === (l.fenster ?? '').split('_')[0]));
+                  const gesamt = zeilen.reduce((a, z) => a + (z.verdienst ?? 0), 0)
+                    + lanOhneZeile.reduce((a, l) => a + l.betrag, 0);
+                  const nameVon = (k: string) => saisons.find((x) => x.kennung === k)?.name ?? saisonNamen[k] ?? SAISON_NAMEN_KURZ[k] ?? k;
+                  // Je Saison die Summe, je Kapitel die Summe - fuer die Wahl.
+                  const jeSaison = new Map<string, number>();
+                  for (const z of zeilen) jeSaison.set(z.season, (jeSaison.get(z.season) ?? 0) + (z.verdienst ?? 0));
+                  for (const l of lanOhneZeile) jeSaison.set(l.season, (jeSaison.get(l.season) ?? 0) + l.betrag);
+                  const kapitelVon = (k: string) => kapitelVonSaison(k, nameVon(k));
+                  const jeKapitel = new Map<number, number>();
+                  for (const [k, v] of jeSaison) jeKapitel.set(kapitelVon(k), (jeKapitel.get(kapitelVon(k)) ?? 0) + v);
+                  const kapitelListe = [...jeKapitel.keys()].sort((a, b) => b - a);
+                  // Was die Tabelle zeigt: alles, ein Kapitel, eine Saison.
+                  const passt = (k: string) => (verdienstSaison ? k === verdienstSaison
+                    : verdienstKapitel ? kapitelVon(k) === verdienstKapitel
+                      : verdienstJahr ? jahrVonSaison(k) === verdienstJahr : true);
+                  const gezeigt = zeilen.filter((z) => passt(z.season));
+                  const lanGezeigt = lanOhneZeile.filter((l) => passt(l.season));
+                  const summe = gezeigt.reduce((a, z) => a + (z.verdienst ?? 0), 0)
+                    + lanGezeigt.reduce((a, l) => a + l.betrag, 0);
+                  const wahlTitel = verdienstSaison ? nameVon(verdienstSaison)
+                    : verdienstKapitel ? `Chapter ${verdienstKapitel}`
+                      : verdienstJahr ? String(verdienstJahr) : t('Alle Zeit');
+                  // Die Jahre, in denen es Preisgeld gab - neueste zuerst.
+                  const jahre = [...new Set([...jeSaison.keys()].map(jahrVonSaison).filter(Boolean))].sort((a, b) => b - a);
+                  /*
+                   * Ein einziger Waehler, wie "Zeitraum" oben - nur eigens
+                   * gebaut, weil in einem <select> die Gruppenzeile nicht
+                   * waehlbar ist. Der Betreiber: "ich kann auf dieses fett
+                   * gedruckte Chapter 7 druecken, dann tut es mir den ganzen
+                   * Chapter auswaehlen." Darunter, eingerueckt, die Saisons.
+                   */
+                  const waehle = (wert: string) => {
+                    setVerdienstJahr(0);
+                    if (wert.startsWith('s:')) {
+                      const k = wert.slice(2); setVerdienstSaison(k); setVerdienstKapitel(kapitelVon(k));
+                    } else if (wert.startsWith('k:')) { setVerdienstKapitel(Number(wert.slice(2))); setVerdienstSaison(''); }
+                    else if (wert.startsWith('j:')) { setVerdienstKapitel(0); setVerdienstSaison(''); setVerdienstJahr(Number(wert.slice(2))); }
+                    else { setVerdienstKapitel(0); setVerdienstSaison(''); }
+                    setZeitraumOffen(false);
+                  };
+                  const zeile = (aktiv: boolean, fett = false, eingerueckt = false) =>
+                    `block w-full px-3 py-1.5 text-left text-xs transition ${eingerueckt ? 'pl-7' : ''} ${fett ? 'font-bold' : ''} ${
+                      aktiv ? 'bg-sky-500/15 text-sky-400' : 'text-slate-200 hover:bg-zinc-900'}`;
+                  const saisonenVon = (k: number) => [...jeSaison.keys()]
+                    .filter((x) => kapitelVon(x) === k)
+                    .sort((a, b) => Number(b.slice(1)) - Number(a.slice(1)));
+                  return (
+                    <div className="space-y-5">
+                      <div className="flex flex-wrap items-end justify-between gap-6 rounded-lg
+                                      border border-zinc-800 bg-zinc-900/30 p-5">
+                        <div>
+                          <p className="text-[10px] font-semibold uppercase tracking-[0.18em]
+                                        text-slate-500"><T>Verdienst</T> · {wahlTitel}</p>
+                          <p className="mt-1 text-3xl font-bold tabular-nums text-emerald-400">
+                            ${zahl(summe, 0, sprache)}
+                          </p>
+                          {(verdienstKapitel || verdienstSaison || verdienstJahr) ? (
+                            <p className="mt-1 text-[11px] tabular-nums text-slate-500">
+                              <T>Alle Zeit</T>: ${zahl(gesamt, 0, sprache)}
+                            </p>
+                          ) : null}
+                        </div>
+                        <div className="relative flex items-center gap-2">
+                          <span className="text-[10px] font-semibold uppercase tracking-[0.18em] text-slate-500">
+                            <T>Zeitraum</T>
+                          </span>
+                          <button onClick={() => setZeitraumOffen((o) => !o)}
+                            className="flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900/80 px-3
+                                       py-1.5 text-xs text-slate-100 outline-none transition hover:border-zinc-600 focus:border-sky-500">
+                            {wahlTitel}
+                            <span className="text-slate-500">▾</span>
+                          </button>
+                          {zeitraumOffen && (
+                            <>
+                              <div className="fixed inset-0 z-20" onClick={() => setZeitraumOffen(false)} />
+                              <div className="absolute right-0 top-full z-30 mt-1 max-h-96 w-60 overflow-auto rounded-lg
+                                              border border-zinc-700 bg-zinc-950 py-1 shadow-2xl">
+                                <button onClick={() => waehle('')} className={zeile(!verdienstKapitel && !verdienstJahr, true)}>
+                                  <T>Alle Zeit</T>
+                                </button>
+                                {/* Die Jahre - "eine zweite Period mit 2025, 24, 23 ..." */}
+                                {jahre.length > 0 && (
+                                  <div className="mt-1 border-t border-zinc-900 pt-1">
+                                    <p className="px-3 py-1 text-[10px] font-semibold uppercase tracking-[0.14em] text-slate-600"><T>Jahre</T></p>
+                                    {jahre.map((j) => (
+                                      <button key={j} onClick={() => waehle(`j:${j}`)}
+                                        className={zeile(verdienstJahr === j, true, true)}>
+                                        {j}
+                                      </button>
+                                    ))}
+                                  </div>
+                                )}
+                                {kapitelListe.map((k) => (
+                                  <div key={k} className="mt-1 border-t border-zinc-900 pt-1">
+                                    <button onClick={() => waehle(`k:${k}`)}
+                                      className={zeile(verdienstKapitel === k && !verdienstSaison, true)}>
+                                      Chapter {k}
+                                    </button>
+                                    {saisonenVon(k).map((x) => (
+                                      <button key={x} onClick={() => waehle(`s:${x}`)}
+                                        className={zeile(verdienstSaison === x, false, true)}>
+                                        {saisonOhneKapitel(nameVon(x))}
+                                      </button>
+                                    ))}
+                                  </div>
+                                ))}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      {!gezeigt.length && !lanGezeigt.length ? (
+                        <p className="py-6 text-center text-xs text-slate-600">
+                          <T>Zu diesem Spieler ist kein Preisgeld hinterlegt. Preisgeld gibt es nur, wo eine Tabelle gepflegt ist (EU) oder ein LAN-Ergebnis vorliegt.</T>
+                        </p>
+                      ) : (
+                        <div className="overflow-x-auto rounded-lg border border-zinc-800">
+                          <table className="w-full text-xs">
+                            <thead>
+                              <tr className="border-b border-zinc-800 text-[10px] uppercase
+                                             tracking-wider text-slate-500">
+                                <th className="px-3 py-2 text-left font-medium"><T>Turnier</T></th>
+                                <th className="px-3 py-2 text-center font-medium"><T>Region</T></th>
+                                <th className="px-3 py-2 text-center font-medium"><T>Platz</T></th>
+                                <th className="px-3 py-2 text-right font-medium"><T>Punkte</T></th>
+                                <th className="px-3 py-2 text-left font-medium"><T>Mitspieler</T></th>
+                                <th className="px-3 py-2 text-right font-medium"><T>Verdienst</T></th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {/*
+                                * LAN-Zeilen und Online-Cups zusammen nach Datum (29.10.2026: die LANs standen alle oben, der World Cup 2019 vor dem Cup von gestern).
+                                * Eine LAN ohne bekannten Tag steht am Anfang ihrer Saison.
+                                */}
+                              {[...lanGezeigt.map((l) => ({ d: l.datum ?? 0, l, z: null as (typeof gezeigt)[number] | null })),
+                                ...gezeigt.map((z) => ({ d: z.datum ?? 0, l: null as LanErgebnis | null, z }))]
+                                .sort((a, b) => b.d - a.d)
+                                .map(({ l, z }) => (l ? (
+                                <tr key={l.kennung} className="border-b border-zinc-900">
+                                  <td className="px-3 py-2 text-slate-200">
+                                    {l.name}
+                                    <span className="ml-2 rounded bg-amber-500/15 px-1.5 py-0.5
+                                                     text-[9px] font-semibold uppercase text-amber-400">LAN{l.ort ? ` · ${l.ort}` : ''}</span>
+                                    {l.datum ? (
+                                      <span className="ml-2 whitespace-nowrap text-[10px] tabular-nums text-slate-600">
+                                        {new Date(l.datum).toLocaleDateString(sprache === 'de' ? 'de-DE' : 'en-GB',
+                                          { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                                      </span>
+                                    ) : null}
+                                  </td>
+                                  <td className="px-3 py-2 text-center text-slate-500">
+                                    {saisons.find((x) => x.kennung === l.season)?.name ?? saisonNamen[l.season] ?? SAISON_NAMEN_KURZ[l.season] ?? l.season}
+                                  </td>
+                                  <td className={`px-3 py-2 text-center font-bold tabular-nums ${platzFarbe(l.platz)}`}>
+                                    {l.platz}.
+                                  </td>
+                                  <td className="px-3 py-2 text-right text-slate-700">—</td>
+                                  <td className="px-3 py-2">
+                                    {l.mit?.length ? (
+                                      <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                        {l.mit.map((m) => <span key={m.epicId} className="text-[11px] text-slate-300">{grossName(m.name)}</span>)}
+                                      </span>
+                                    ) : <span className="text-slate-700">—</span>}
+                                  </td>
+                                  <td className="px-3 py-2 text-right font-semibold tabular-nums text-emerald-400">
+                                    ${zahl(l.betrag, 0, sprache)}
+                                  </td>
+                                </tr>
+                              ) : z ? (() => {
+                                const lan = lanErgebnisse.find((l) => l.season === z.season
+                                  && (l.kennung.includes('reload') ? /escargo/i.test(z.windowId) : /bratwurst|summit/i.test(z.windowId)));
+                                return (
+                                  <tr key={z.windowId + z.region} className="border-b border-zinc-900">
+                                    <td className="px-3 py-2 text-slate-200">
+                                      {lan ? lan.name : turnierName(z.event, t)}
+                                      {lan && (
+                                        <span className="ml-2 rounded bg-amber-500/15 px-1.5 py-0.5
+                                                         text-[9px] font-semibold uppercase text-amber-400">
+                                          LAN{lan.ort ? ` · ${lan.ort}` : ''}
+                                        </span>
+                                      )}
+                                      {z.datum ? (
+                                        <span className="ml-2 whitespace-nowrap text-[10px] tabular-nums text-slate-600">
+                                          {new Date(z.datum).toLocaleDateString(sprache === 'de' ? 'de-DE' : 'en-GB',
+                                            { day: '2-digit', month: '2-digit', year: '2-digit' })}
+                                        </span>
+                                      ) : null}
+                                    </td>
+                                    <td className="px-3 py-2 text-center">
+                                      <span className="rounded bg-zinc-900 px-1.5 py-0.5 text-[10px]
+                                                       font-semibold tracking-wider text-slate-400">{z.region}</span>
+                                    </td>
+                                    <td className={`px-3 py-2 text-center font-bold tabular-nums ${platzFarbe(lan ? lan.platz : z.platz)}`}>
+                                      {lan ? `${lan.platz}.` : z.platz !== null ? `${z.platz}.` : '—'}
+                                    </td>
+                                    <td className="px-3 py-2 text-right tabular-nums text-slate-400">
+                                      {z.punkte !== null ? zahl(z.punkte, 0, sprache) : '—'}
+                                    </td>
+                                    {/* Mit wem - der Betreiber: "wenn es Solo ist, ein Strich;
+                                        wenn es einen Mate hat, den Mate reinschreiben." */}
+                                    <td className="px-3 py-2">
+                                      {z.mitspieler?.length ? (
+                                        <span className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                          {z.mitspieler.map((m) => (
+                                            <span key={m.epicId} className="flex items-center gap-1">
+                                              <TeamFlagge groesse={13} laender={[m.land ?? undefined]} />
+                                              <span className="text-[11px] text-slate-300">{grossName(m.name)}</span>
+                                            </span>
+                                          ))}
+                                        </span>
+                                      ) : <span className="text-slate-700">—</span>}
+                                    </td>
+                                    <td className="px-3 py-2 text-right font-semibold tabular-nums text-emerald-400">
+                                      ${zahl(z.verdienst ?? 0, 0, sprache)}
+                                    </td>
+                                  </tr>
+                                );
+                              })() : null))}
+                            </tbody>
+                          </table>
+                        </div>
+                      )}
+                      <p className="text-[11px] leading-snug text-slate-600">
+                        <T>Online-Cups: Epics Auszahlungstabelle je Spieltag und Region, angewendet auf Epics Bestenliste nach Platz; bei mehrtägigen Finals zählt der Endstand über alle Tage. LAN-Events: je Person aus veröffentlichten Tabellen. Was hier fehlt, ist nicht hinterlegt, nicht null.</T>
+                      </p>
+                    </div>
+                  );
+                })()
+              ) : spielerReiter === 'teams' ? (
+                /* Der Teamverlauf: heutige Org oben, dann die frueheren nach
+                   Austritt - aus den Kadern der Orgs (Liquipedia). */
+                <div className="space-y-2">
+                  {teamVerlauf.map((e, i) => {
+                    /* Liquipedia kennt auch Teilangaben: "2021-??-??" heisst nur das Jahr. */
+                    const tag = (d: string | null) => {
+                      if (!d) return '?';
+                      const m = /^(\d{4})-(\d{2}|\?\?)-(\d{2}|\?\?)$/.exec(d) ?? /^(\d{4})$/.exec(d);
+                      if (!m) return d;
+                      const ort = sprache === 'en' ? 'en-GB' : 'de-CH';
+                      if (m[3] && m[3] !== '??' && m[2] !== '??') return new Date(`${d}T12:00:00Z`).toLocaleDateString(ort, { day: 'numeric', month: 'short', year: 'numeric' });
+                      if (m[2] && m[2] !== '??') return new Date(`${m[1]}-${m[2]}-01T12:00:00Z`).toLocaleDateString(ort, { month: 'short', year: 'numeric' });
+                      return m[1];
+                    };
+                    return (
+                    <div key={`${e.team}-${e.seit ?? ''}-${i}`}
+                      className="flex items-center gap-4 rounded-xl border border-zinc-800 bg-zinc-950/60 px-4 py-3">
+                      <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg bg-zinc-900">
+                        {e.logo
+                          // eslint-disable-next-line @next/next/no-img-element
+                          ? <img src={e.logo} alt="" className="h-full w-full object-contain p-1" />
+                          : <span className="text-lg font-black text-zinc-600">{e.team.slice(0, 1).toUpperCase()}</span>}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="truncate text-sm font-bold text-slate-100">{e.team}</span>
+                          {e.aktuell && <span className="rounded bg-sky-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-sky-400"><T>Aktuell</T></span>}
+                          {e.rolle && e.rolle !== 'pro' && <span className="text-[11px] text-slate-500">{e.rolle === 'academy' ? 'Academy' : 'Content Creator'}</span>}
+                          {e.hinweis && <span className="text-[11px] text-slate-500">({e.hinweis})</span>}
+                        </div>
+                        <div className="mt-0.5 text-xs text-slate-400">
+                          {tag(e.seit)}{' – '}{e.aktuell ? t('heute') : e.bis ? tag(e.bis) : '?'}
+                        </div>
+                      </div>
+                    </div>
+                    );
+                  })}
+                  <p className="pt-1 text-xs text-slate-500"><T>Quelle: die Kader der Organisationen und Liquipedia. Gezeigt werden nur Organisationen, die CompHub führt.</T></p>
+                </div>
+              ) : spielerReiter === 'archiv' ? (
+                /* Das Archiv des Spielers - Fotos und Videos, allgemein und
+                   je Event. Der Betreiber wollte es genau hier, nicht als
+                   eigene Seite: "wenn ich auf Twi drauf gehe, steht dort
+                   Player Archiv." */
+                <SpielerArchiv epicId={offen.epicId} istAdmin={istAdmin} />
+              ) : (
+                /* Nach Saison gebuendelt, mit Banner darueber und der
+                   Zusammenfassung darunter - so wie es das Vorbild fuehrt. */
+                <div className="space-y-7">
+                  {/* Der Umschalter fuer die Region.
+                      Standard ist die Heimatregion - das ist die Laufbahn,
+                      nach der jemand beurteilt wird. Wer einmal woanders
+                      angetreten ist, findet das hinter dem Plus; steht dort
+                      nichts, erscheint der Knopf gar nicht erst. */}
+                  {heimatRegion && fremdeSpieltage > 0 && (
+                    <div className="flex items-center gap-2">
+                      <button onClick={() => setAlleRegionen(false)}
+                        className={`rounded-lg border px-3 py-1.5 text-xs
+                                    font-semibold transition ${!alleRegionen
+                          ? 'border-sky-500 bg-sky-500/15 text-sky-400'
+                          : 'border-zinc-800 text-slate-500 hover:text-slate-300'}`}>
+                        <T>Nur</T> {heimatRegion}
+                      </button>
+                      <button onClick={() => setAlleRegionen(true)}
+                        className={`rounded-lg border px-3 py-1.5 text-xs
+                                    font-semibold transition ${alleRegionen
+                          ? 'border-sky-500 bg-sky-500/15 text-sky-400'
+                          : 'border-zinc-800 text-slate-500 hover:text-slate-300'}`}>
+                        + <T>Alle Regionen</T>
+                        <span className="ml-1.5 font-normal text-slate-600">
+                          {fremdeSpieltage}
+                        </span>
+                      </button>
+                    </div>
+                  )}
+
+                  {/* Nach Saison absteigend - Chapter 7 Season 4 zuerst,
+                      dann rueckwaerts bis zur aeltesten im Archiv. */}
+                  {[...new Set(turnierZeilen.map((z) => z.season))]
+                    .sort((a, b) => saisonRang(b) - saisonRang(a))
+                    .map((sn) => {
+                    const zeilen = turnierZeilen.filter((z) => z.season === sn);
+                    const bild = saisonBilder[sn];
+                    const regionen = [...new Set(zeilen.map((z) => z.region))];
+                    return (
+                      <section key={sn}>
+                        {/* Das Banner.
+                            Das Bild kommt aus public/saisonbilder/ - liegt zu
+                            der Saison keins da, steht dort ihre kurze
+                            Schreibweise statt einer fremden Cup-Grafik. */}
+                        <div className="mb-3 flex items-stretch gap-3 overflow-hidden
+                                        rounded-lg border border-zinc-800
+                                        bg-zinc-900/40">
+                          {bild ? (
+                            /* eslint-disable-next-line @next/next/no-img-element */
+                            <img src={bild} alt="" className="h-16 w-28 shrink-0
+                                                              object-cover" />
+                          ) : (
+                            <div className="flex h-16 w-20 shrink-0 items-center
+                                            justify-center border-r border-zinc-800
+                                            bg-zinc-900/60 text-xs font-bold
+                                            tracking-widest text-slate-600">
+                              {saisonNamen[sn] ?? sn}
+                            </div>
+                          )}
+                          <div className="min-w-0 flex-1 self-center py-2 pr-4">
+                            <p className="truncate text-sm font-bold uppercase
+                                          tracking-[0.14em] text-slate-100">
+                              {kapitelName(saisonNamen[sn] ?? sn)}
+                            </p>
+                            <p className="mt-0.5 text-[11px] text-slate-500">
+                              {zeilen.filter((z) => !z.gesamt).length}{' '}
+                              {t(zeilen.filter((z) => !z.gesamt).length === 1 ? 'Spieltag' : 'Spieltage')}
+                              {' · '}{regionen.join(' · ')}
+                            </p>
+                          </div>
+                        </div>
+                        <VerlaufTabelle zeilen={zeilen} fuss />
+                      </section>
+                    );
+                  })}
+                </div>
+              )}
+
+              {(offen.namen?.length ?? 0) > 1 && (
+                <p className="mt-7 border-t border-zinc-900 pt-4 text-[11px] text-slate-600">
+                  <T>Trat an als</T> {offen.namen.slice(0, 6).map((n) => grossName(n)).join(' · ')}
+                  {offen.namen.length > 6 && ' ' + t('und {n} weiteren')
+                    .replace('{n}', String(offen.namen.length - 6))}
+                </p>
+              )}
+            </div>
+
+            {/* Was hinter einer Marke steht.
+                Ein eigenes Fenster ueber dem Profil, so wie beim Vorbild: die
+                Liste der Siege, mit dem, was die jeweilige Quelle dazu
+                hergibt. */}
+            {marke && (
+              <div className="fixed inset-0 z-[60] flex items-start justify-center
+                              overflow-y-auto bg-black/80 p-4 sm:p-10"
+                onClick={() => setMarke(null)}>
+                <div className="w-full max-w-3xl rounded-xl border border-zinc-700
+                                bg-zinc-950 shadow-2xl"
+                  onClick={(e) => e.stopPropagation()}>
+                  <div className="flex items-start gap-3 border-b border-zinc-800 px-6
+                                  py-4">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-sm font-bold uppercase tracking-[0.16em]
+                                    text-slate-100">
+                        {marke === 'fncs' ? t('FNCS-Siege') : t('Tagesbester')}
+                      </p>
+                      <p className="mt-1 flex items-center gap-2 text-xs
+                                    text-slate-500">
+                        <TeamFlagge groesse={16} laender={[offen.land ?? undefined]} />
+                        {grossName(offen.anzeige, offen.gepflegt)}
+                      </p>
+                    </div>
+                    <button onClick={() => setMarke(null)}
+                      className="rounded-md border border-zinc-800 px-3 py-1.5 text-xs
+                                 text-slate-400 transition hover:border-rose-500/60
+                                 hover:text-rose-400"><T>Schließen</T></button>
+                  </div>
+
+                  <div className="px-6 py-5">
+                    {marke === 'fncs' ? (
+                      <>
+                        {/* Dieselben Spalten wie beim Vorbild. Gefuellt ist,
+                            was das eigene Archiv hergibt - das reicht bis
+                            CH7 S1 zurueck. Alles davor bleibt ein Strich,
+                            statt eine Zahl zu erfinden. */}
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-xs">
+                            <thead>
+                              <tr className="border-b border-zinc-800 text-[10px]
+                                             uppercase tracking-wider text-slate-500">
+                                <th className="px-2 py-2 text-left font-medium">
+                                  <T>Saison</T>
+                                </th>
+                                <th className="px-2 py-2 text-left font-medium">
+                                  <T>Turnier</T>
+                                </th>
+                                <th className="px-2 py-2 text-left font-medium">
+                                  <T>Mitspieler</T>
+                                </th>
+                                <th className="px-2 py-2 text-right font-medium">
+                                  <T>Elims</T>
+                                </th>
+                                <th className="px-2 py-2 text-right font-medium">
+                                  <T>Schaden</T>
+                                </th>
+                                <th className="px-2 py-2 text-right font-medium">
+                                  <T>Bauteile</T>
+                                </th>
+                                <th className="px-2 py-2 text-right font-medium">
+                                  <T>Material</T>
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {lanErgebnisse.map((l) => (
+                                <tr key={l.kennung} className="border-b border-zinc-900">
+                                  <td className="whitespace-nowrap px-2 py-2.5">
+                                    <span className="font-semibold text-slate-200">
+                                      {saisons.find((x) => x.kennung === l.season)?.name ?? saisonNamen[l.season] ?? SAISON_NAMEN_KURZ[l.season] ?? l.season}
+                                    </span>
+                                    <span className={`ml-2 text-[10px] font-bold ${platzFarbe(l.platz)}`}>
+                                      {l.platz}.
+                                    </span>
+                                  </td>
+                                  <td className="px-2 py-2.5 text-slate-300" colSpan={5}>
+                                    {l.name}
+                                    <span className="ml-2 rounded bg-amber-500/15 px-1.5 py-0.5
+                                                     text-[9px] font-semibold uppercase text-amber-400">LAN</span>
+                                    <span className="ml-2 text-emerald-400">${zahl(l.betrag, 0, sprache)}</span>
+                                  </td>
+                                </tr>
+                              ))}
+                              {fncsSiege.map((x) => {
+                                const strich = (
+                                  <span className="text-slate-700">—</span>);
+                                return (
+                                  <tr key={x.saison}
+                                    className="border-b border-zinc-900">
+                                    <td className="whitespace-nowrap px-2 py-2.5">
+                                      <span className="font-semibold text-slate-200">
+                                        {x.saison}
+                                      </span>
+                                      <span className="ml-2 text-[10px]
+                                                       font-bold text-amber-400">
+                                        1.
+                                      </span>
+                                    </td>
+                                    <td className="px-2 py-2.5 text-slate-300">
+                                      {x.turnier ? turnierName(x.turnier, t) : strich}
+                                    </td>
+                                    <td className="px-2 py-2.5">
+                                      {x.mitspieler?.length ? (
+                                        <span className="flex flex-wrap items-center
+                                                         gap-x-2 gap-y-1">
+                                          {x.mitspieler.map((m) => (
+                                            <span key={m.epicId}
+                                              className="flex items-center gap-1">
+                                              <TeamFlagge groesse={13}
+                                                laender={[m.land ?? undefined]} />
+                                              <span className="text-[11px]
+                                                               text-slate-300">
+                                                {grossName(m.name)}
+                                              </span>
+                                            </span>
+                                          ))}
+                                        </span>
+                                      ) : strich}
+                                    </td>
+                                    <td className="px-2 py-2.5 text-right font-bold
+                                                   tabular-nums text-sky-400">
+                                      {x.elims != null ? zahl(x.elims, 0, sprache) : strich}
+                                    </td>
+                                    <td className="px-2 py-2.5 text-right tabular-nums
+                                                   text-slate-400">
+                                      {x.damage != null ? zahl(x.damage, 0, sprache) : strich}
+                                    </td>
+                                    <td className="px-2 py-2.5 text-right tabular-nums
+                                                   text-slate-400">
+                                      {x.builds != null ? zahl(x.builds, 0, sprache) : strich}
+                                    </td>
+                                    <td className="px-2 py-2.5 text-right tabular-nums
+                                                   text-slate-400">
+                                      {x.mats != null ? zahl(x.mats, 0, sprache) : strich}
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
+                        </div>
+                        <p className="mt-4 border-t border-zinc-900 pt-3 text-[11px]
+                                      text-slate-600">
+                          <T>Saison und Platz stammen aus der offenen Spielerliste. Die Werte daneben kommen aus dem eigenen Archiv und gibt es nur ab CH7 S1 — ältere Titel bleiben deshalb leer. Ein Rating und die Mitspieler stehen in keiner der beiden Quellen.</T>
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-xs">
+                            <thead>
+                              <tr className="border-b border-zinc-800 text-[10px]
+                                             uppercase tracking-wider text-slate-500">
+                                <th className="px-2 py-2 text-left font-medium">
+                                  <T>Saison</T>
+                                </th>
+                                <th className="px-2 py-2 text-left font-medium">
+                                  <T>Turnier</T>
+                                </th>
+                                <th className="px-2 py-2 text-right font-medium">
+                                  <T>Elims</T>
+                                </th>
+                                <th className="px-2 py-2 text-right font-medium">
+                                  <T>Schaden</T>
+                                </th>
+                                <th className="px-2 py-2 text-right font-medium">
+                                  <T>Bauteile</T>
+                                </th>
+                                <th className="px-2 py-2 text-right font-medium">
+                                  <T>Material</T>
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {tagesbest.map((t) => (
+                                <tr key={t.windowId + t.region}
+                                  className="border-b border-zinc-900">
+                                  <td className="whitespace-nowrap px-2 py-2.5
+                                                 text-slate-500">
+                                    {t.saisonName}
+                                    <span className="ml-1.5 text-[10px]
+                                                     text-slate-600">{t.region}</span>
+                                  </td>
+                                  <td className="px-2 py-2.5 font-semibold
+                                                 text-slate-200">
+                                    {turnierName(t.event)}
+                                  </td>
+                                  <td className="px-2 py-2.5 text-right font-bold
+                                                 tabular-nums text-sky-400">
+                                    {t.elims}
+                                  </td>
+                                  <td className="px-2 py-2.5 text-right tabular-nums
+                                                 text-slate-400">
+                                    {zahl(t.damage, 0, sprache)}
+                                  </td>
+                                  <td className="px-2 py-2.5 text-right tabular-nums
+                                                 text-slate-400">
+                                    {zahl(t.builds, 0, sprache)}
+                                  </td>
+                                  <td className="px-2 py-2.5 text-right tabular-nums
+                                                 text-slate-400">
+                                    {zahl(t.mats, 0, sprache)}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                        <p className="mt-4 border-t border-zinc-900 pt-3 text-[11px]
+                                      text-slate-600">
+                          <T>Spieltage, an denen niemand mehr Eliminierungen hatte — gezählt über alle</T> {zahl(tagesbest.length, 0, sprache)} <T>Treffer im eigenen Archiv. Bei Gleichstand zählt es für alle, die oben stehen.</T>
+                        </p>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+        </div>
+      </div>
+
+      {/* Unten Luft (Betreiber, 19.10.2026: "mach noch mehr Abstand nach unten"): sonst klebt der letzte Block am Seitenende. */}
+      <div aria-hidden className="h-28 sm:h-36" />
+    </main>
+  );
+}
