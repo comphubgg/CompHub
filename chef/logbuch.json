@@ -1807,5 +1807,29 @@
     "modell": "Sonnet",
     "status": "wartet",
     "runde": 5
+  },
+  {
+    "id": "chef-87",
+    "datum": "2026-10-31T21:22:00Z",
+    "titel": "Statistik: unbekannte Quote zeigt Strich statt 0,00",
+    "kurz": "Statistik: Quote/Trefferquote ohne Grundlage zeigt „—“ statt „0.00“.",
+    "markieren": [
+      "text:Damage ratio",
+      "text:Accuracy"
+    ],
+    "bereich": "Statistik",
+    "warum": "Fehlte der erlittene Schaden oder die Zahl der Schüsse, stand „0.00“ oder „0 %“ – als hätte der Spieler schlecht gespielt, obwohl der Wert unbekannt ist.",
+    "was": "Profil, Spielerliste, Bestenlisten und Vergleich zeigen dann einen Strich. Eine echte Null bleibt eine Null.",
+    "ansehen": [
+      "/statistics?spieler=45ce4565b6db452c9419119b12e7eac3",
+      "/statistics?bereich=spieler&sort=quote"
+    ],
+    "commits": [
+      "549c3503298bf12c0f4583b51b88a5471cff2a51"
+    ],
+    "groesse": "mittel",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 5
   }
 ]
