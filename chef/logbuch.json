@@ -1938,5 +1938,26 @@
     "commits": [],
     "status": "wartet",
     "runde": 6
+  },
+  {
+    "id": "chef-94",
+    "datum": "2026-10-31T21:30:00Z",
+    "titel": "Profil: Global-Championship-Sieg nicht doppelt als Titel",
+    "kurz": "Profil peterbot: Kachel „Title“ zeigt 6 statt 7 – Globals-Sieg zählte doppelt.",
+    "markieren": [
+      "text:Title",
+      "text:6 FNCS"
+    ],
+    "bereich": "Statistik",
+    "warum": "Der Sieg bei der Global Championship 2024 stand bei den FNCS-Titeln und noch einmal bei den LAN-Siegen.",
+    "was": "Ein Globals-Sieg zählt jetzt nur einmal; andere LAN-Siege (z. B. Summit) zählen weiter dazu.",
+    "ansehen": [
+      "/statistics?spieler=45ce4565b6db452c9419119b12e7eac3&saison=S42"
+    ],
+    "commits": [],
+    "groesse": "klein",
+    "modell": "Sonnet (gefunden) + Opus (übertragen)",
+    "status": "wartet",
+    "runde": 6
   }
 ]
