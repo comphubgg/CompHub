@@ -974,5 +974,14 @@
       "zeit": "2026-10-31T21:51:24.715Z",
       "main": "a6cffb87"
     }
+  },
+  "chef-95": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:51:26.364Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
   }
 }
