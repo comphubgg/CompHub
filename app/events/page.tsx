@@ -516,7 +516,7 @@ export default function EventsPage() {
      * FNCS, Globals, Division, Majors und LANs zuerst, Arena-, Test- und Mobile-Cups zuletzt - innerhalb gleicher Wichtigkeit nach Zeit.
      */
     const gewicht = (c: Cup) => (/FNCS|Global|Championship|Division|Major|LAN|Elite/i.test(c.titel) ? 0 : /Arena|Test|Fight Night|Mobile/i.test(c.titel) ? 2 : 1);
-    return [
+    const vorn = [
       ...basis.filter((c) => von(c).status === 'live').sort((a, b) => gewicht(a) - gewicht(b)),
       ...basis.filter((c) => von(c).status === 'kommt')
         .sort((a, b) => gewicht(a) - gewicht(b) || (von(a).naechster ?? 0) - (von(b).naechster ?? 0)),
@@ -528,6 +528,14 @@ export default function EventsPage() {
        */
       .filter((c, i, a) => a.findIndex((x) => serieVon(x.titel) === serieVon(c.titel)) === i)
       .slice(0, 4);
+    // Kommen weniger als vier, fuellen die zuletzt beendeten wichtigen Cups auf (mit "Beendet"-Marke) - eine halb leere Reihe sah kaputt aus.
+    if (vorn.length < 4) {
+      const zuletzt = basis.filter((c) => von(c).status === 'vorbei' && gewicht(c) < 2 && !vorn.some((v) => serieVon(v.titel) === serieVon(c.titel)))
+        .sort((a, b) => gewicht(a) - gewicht(b) || (von(b).letzter ?? 0) - (von(a).letzter ?? 0))
+        .filter((c, i, a) => a.findIndex((x) => serieVon(x.titel) === serieVon(c.titel)) === i);
+      vorn.push(...zuletzt.slice(0, 4 - vorn.length));
+    }
+    return vorn;
   }, [cups, region, lage, jetzt]);
   /*
    * Das Bild im Kopf: der Cup, der gerade laeuft - sonst der naechste -, und
