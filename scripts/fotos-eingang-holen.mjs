@@ -22,7 +22,7 @@ const fertig = path.join(ordner, 'zugeschnitten');
 await fs.mkdir(roh, { recursive: true });
 await fs.mkdir(fertig, { recursive: true });
 
-const liste = (await liesJson('fotos-eingang.json', [])).filter((e) => !nurNeue || !e.vorhanden);
+const liste = (await liesJson('fotos-eingang.json', [])).filter((e) => e.quelle !== 'test' && (!nurNeue || !e.vorhanden));
 console.log(`${liste.length} Eintraege im Eingang${nurNeue ? ' (nur neue)' : ''}.`);
 const dateiName = (n) => n.toUpperCase().replace(/[^A-Z0-9 ._-]/g, '').replace(/\s+/g, ' ').trim() || 'SPIELER';
 
