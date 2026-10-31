@@ -98,7 +98,7 @@ async function istAdmin(): Promise<boolean> {
   const id = kontoAus(laden.get(KONTO_COOKIE)?.value);
   if (id) {
     const k = await nachId(id);
-    if (k?.rolle === 'admin') return true;
+    if (k && !k.gesperrt && k.rolle === 'admin') return true;
   }
   // Der Betreiber selbst - oder ein Zugang, dem die Adminrolle
   // gegeben wurde. Beides zaehlt gleich.
