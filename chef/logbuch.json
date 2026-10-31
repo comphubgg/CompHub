@@ -1268,7 +1268,8 @@
     "groesse": "mittel",
     "modell": "Opus",
     "status": "vorschlag",
-    "runde": 4
+    "runde": 4,
+    "hinweis": "Nachtrag Runde 5: Nicht nur die Startliste – auch die Spielerliste der Saison ist alt (peterbot 57 statt 83 Matches, Stand etwa 9./10.10.), obwohl Lauf 1659 heute fertig wurde. Der Lauf legt diese Listen offenbar seit drei Wochen nicht mehr neu ab. Bitte deinen Assistenten prüfen lassen, warum (Schlüssel „szene|limit=500|saison=S42|sort=elims“ und die Startantwort)."
   },
   {
     "id": "chef-60",
