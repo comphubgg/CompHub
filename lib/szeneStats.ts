@@ -1778,12 +1778,18 @@ export async function jahresListen(jahr: number, region?: string, nurSaison?: st
     ['Escargo_Day4', 'Bratwurst_Finals_Day3', 'Dinosauron_Day2', 'BambiRaptor_Day2'].includes(e.windowId)).length : 0;
   mitRegel += lanTage;
 
+  /*
+   * Mindestzahl Matches fuer die Quotenliste: ein Zehntel der Matches des aktivsten Spielers, wenigstens 10. Vorher fest 10 - fuer
+   * ein ganzes Jahr sind das zwei Spieltage, und 2026 fuehrten Konten mit 12 Matches die "Beste Schadensquote" vor Spielern mit
+   * dreihundert. Fuer eine einzelne Saison im Jahr wird die Grenze von selbst kleiner. Die Seite zeigt die Zahl an.
+   */
+  const quoteMindest = Math.max(10, Math.round(feld.reduce((m, s) => Math.max(m, s.matches), 0) / 10));
   const listen = KENNZAHLEN.map((k) => ({
     feld: String(k.feld), titel: k.titel, nachkomma: k.nachkomma ?? 0,
     einheit: k.einheit ?? null,
-    mindestMatches: k.feld === 'quote' ? 10 : null,
+    mindestMatches: k.feld === 'quote' ? quoteMindest : null,
     plaetze: [...feld]
-      .filter((s) => (k.feld === 'quote' ? s.matches >= 10 : true))
+      .filter((s) => (k.feld === 'quote' ? s.matches >= quoteMindest : true))
       .sort((a, b) => Number(b[k.feld]) - Number(a[k.feld]))
       .slice(0, LISTEN_LAENGE),
   }));
