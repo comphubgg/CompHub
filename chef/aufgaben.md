@@ -17,6 +17,10 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 - [x] **Global-Kachel 12 Matches** - kein Fehler: Kachel fasst beide Tage zusammen (6+6), so gewollt (28.9.).
 - [ ] **ladeReihe nutzt bei LAN-Sammelkacheln nur den letzten Tag** (latent, S40–S42 nicht betroffen).
 
+- [x] **Preisgeld geprüft**: Jahresliste 2026 und Profile (Vico, Malibuca, Shxrk, T3eny, Pixie) stimmen je Saison auf den Dollar, LAN-Geld ohne Doppelzählung.
+- [x] **Events-Übersicht geprüft**: Status, Datum, Reihenfolge stimmen (Ausfallhinweis: chef-83).
+- [x] **FNCS-Seite geprüft**: Titel, Plätze, Preisgeld, Mitspieler stimmen mit den Profilen (chef-77, chef-79).
+
 ## Neu entdeckt (Runde 4, 31.10.2026)
 
 - [ ] **Stundenlauf „Daten erneuern“ wartet über eine Stunde auf einen Rechner** _(Daten · Wirkung 5/5, Betrieb)_ - Lauf 1661 steht seit 18:30 UTC auf „pending“, Lauf 1659 brauchte 17:27–20:05 (Antworten vorrechnen allein 1 h 50). Darum ist die Startantwort der Statistik noch alt (Spieltage bis 10.10., Elims-Liste Schaden 0). Passt zu „GitHub-Rechner sind überbucht“ unten - Vorschlag an den Betrieb.
