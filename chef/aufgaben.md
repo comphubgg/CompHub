@@ -6,7 +6,7 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 
 - [ ] **Stundenlauf „Daten erneuern“ wartet über eine Stunde auf einen Rechner** _(Daten · Wirkung 5/5, Betrieb)_ - Lauf 1661 steht seit 18:30 UTC auf „pending“, Lauf 1659 brauchte 17:27–20:05 (Antworten vorrechnen allein 1 h 50). Darum ist die Startantwort der Statistik noch alt (Spieltage bis 10.10., Elims-Liste Schaden 0). Passt zu „GitHub-Rechner sind überbucht“ unten - Vorschlag an den Betrieb.
 - [ ] **Viele Statistik-Korrekturen (chef-39, -41, -42, -47 …) wirken erst nach Freigabe** - die Startantwort rechnet der Stundenlauf von main. Der Vorher/Nachher-Vergleich auf localhost zeigt sie nur, wenn localhost selbst rechnet.
-- [ ] **Team-Kacheln (Epic) und Spielerwerte (Replays) zeigen im selben Cup verschiedene Kopftreffer/Schaden** - geprüft: vlc franek hat bei Epic 124 Kopftreffer und 8.094 Schaden, im Replay 13 Kopftreffer, 125 Treffer, 2.829 Schaden. Keine falsche Zuordnung im Code (lib/epicCups), Epic liefert das so. Idee: auf der Cup-Seite klein dazuschreiben, woher welche Zahl kommt („laut Epic“ / „aus den Replays“), statt etwas umzurechnen.
+- [ ] **Team-Kacheln (Epic) und Spielerwerte (Replays) zeigen im selben Cup verschiedene Kopftreffer/Schaden** - geprüft: vlc franek hat bei Epic 124 Kopftreffer und 8.094 Schaden, im Replay 13 Kopftreffer, 125 Treffer, 2.829 Schaden. Keine falsche Zuordnung im Code (lib/epicCups), Epic liefert das so. (chef-59 erledigt) Idee: auf der Cup-Seite klein dazuschreiben, woher welche Zahl kommt („laut Epic“ / „aus den Replays“), statt etwas umzurechnen.
 - [x] **Spielerwerte je Cup: Rang bei Gleichstand** (chef-58) und Team-Kacheln (chef-57).
 - [x] **„230/64 Matches“ in der Spieltag-Liste** (chef-55).
 
@@ -26,7 +26,7 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 - [x] **Spieltag-Tabelle (Endstand zweitägiger Finals): Gleichstand** (chef-54) bekommt denselben Platz, Bestenliste trennt** _(Statistik · Wirkung 3/5)_ - 16 von 100 Teams im FNCS Solo Final EU mit anderem Platz (HEADHURTING212: 32 vs 33). Platz bestimmt das Preisgeld (verdienst). Die gespeicherten Tagesdateien haben keine Siege; Epics Regel: Punkte, Siege, Elims je Spiel, Ø-Platz. Lösung: Siege mitspeichern oder den Endstand aus der Bestenliste (cup-leaderboard windows=) nehmen.
 - [x] **Cup-Statistik „Most Time Alive“ ist die Summe aller Spiele** (chef-50) - belohnt mehr Spiele statt längeres Überleben. Kachel „Ø Lebenszeit je Spiel“ (avgTimeAlive) dazu oder umbenennen.
 - [x] **Profilantwort: timeInStorm/timeAlive ungerundet** (chef-52) (125298.70997…)** - beim Zusammenrechnen runden.
-- [ ] **Ungenutzte Bausteine entfernen** (DemoPanel, NotificationBell, MultiviewDashboard, QuickEditItem) - Vorschlag, braucht Zustimmung.
+- [x] **Ungenutzte Bausteine entfernen** (chef-60, wartet auf deine Entscheidung) (DemoPanel, NotificationBell, MultiviewDashboard, QuickEditItem) - Vorschlag, braucht Zustimmung.
 - [x] **Admin-Texte aus der Übersetzungstabelle für Besucher herauslösen** (chef-46; 215 Texte, der Rest wird auch öffentlich genutzt)
 
 ## Neu entdeckt (Runde 2, 31.10.2026)

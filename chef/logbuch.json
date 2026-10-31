@@ -1165,5 +1165,22 @@
     "modell": "Opus",
     "status": "vorschlag",
     "runde": 4
+  },
+  {
+    "id": "chef-60",
+    "datum": "2026-10-31T20:46:00Z",
+    "titel": "Vier ungenutzte Bausteine entfernt",
+    "kurz": "Unsichtbar: vier nie benutzte Bausteine (279 Zeilen) aus dem Code entfernt.",
+    "bereich": "Technik",
+    "warum": "DemoPanel, NotificationBell, MultiviewDashboard und QuickEditItem werden nirgends eingebunden – toter Code, der beim Weiterbauen verwirrt.",
+    "was": "Die vier Dateien sind gelöscht. Keine Seite benutzt sie, sichtbar ändert sich nichts.",
+    "ansehen": [
+      "/"
+    ],
+    "commits": [],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 4
   }
 ]
