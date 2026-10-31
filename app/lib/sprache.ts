@@ -3556,6 +3556,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Match-ID-Finder': 'Match ID Finder',
   'In welchem Match deine Favoriten gerade sind - zum Zuschauen im Spiel': 'Which match your favourites are in right now - to spectate in game',
   'Epic antwortet gerade nicht.': 'Epic is not responding right now.',
+  'Epic antwortet gerade nicht': 'Epic is not responding right now',
   'Hier siehst du, wie Pro-POVs funktionieren, meldest deine Pros an und lädst den CompHub-Bot auf deinen Discord ein.': 'See how Pro POVs work, sign up your pros and invite the CompHub bot to your Discord.',
   'POVs ansehen': 'Watch POVs',
   'So funktionieren Pro-POVs': 'How Pro POVs work',

@@ -54,6 +54,9 @@ export default function MatchFinder() {
   const [suche, setSuche] = useState('');
   const [treffer, setTreffer] = useState<Treffer[] | null>(null);
   const [kopiert, setKopiert] = useState('');
+  // Epic antwortete bei der Namenssuche nicht - etwas anderes als "niemand gefunden". `nochmal` zaehlt die Wiederholungen.
+  const [epicFehler, setEpicFehler] = useState('');
+  const [nochmal, setNochmal] = useState(0);
   const geladen = useRef(false);
   const darf = zugang.admin || (zugang.vip && zugang.rechte.includes('matchfinder'));
 
@@ -88,14 +91,16 @@ export default function MatchFinder() {
   // Suche: Szene-Liste (Teilname) und dazu der genaue Epic-Name (auch fuer Spieler aus offenen Cups).
   useEffect(() => {
     const q = suche.trim();
-    if (q.length < 2) { setTreffer(null); return undefined; }
+    if (q.length < 2) { setTreffer(null); setEpicFehler(''); return undefined; }
     let weg = false;
     const uhr = window.setTimeout(async () => {
       const [szene, epic] = await Promise.all([
         fetch(`/api/szene-stats?ansicht=suche&q=${encodeURIComponent(q)}`).then((r) => r.json()).catch(() => null) as Promise<{ spieler?: Array<{ epicId: string; name: string; anzeige?: string; aktuell?: string | null; bild?: string | null }> } | null>,
-        q.length >= 3 ? fetch(`/api/match-finder?name=${encodeURIComponent(q)}`).then((r) => r.json()).catch(() => null) as Promise<{ treffer?: Favorit | null } | null> : Promise.resolve(null),
+        q.length >= 3 ? fetch(`/api/match-finder?name=${encodeURIComponent(q)}`).then((r) => r.json()).catch(() => null) as Promise<{ ok?: boolean; error?: string; treffer?: Favorit | null } | null> : Promise.resolve(null),
       ]);
       if (weg) return;
+      // Nur eine echte Antwort ohne Fehler zaehlt; Ausfall oder Zeitueberschreitung zeigt die Meldung mit "Nochmal versuchen".
+      setEpicFehler(q.length >= 3 && (!epic || epic.ok === false) ? (epic?.error ? t(epic.error.replace(/\.$/, '')) : t('Epic antwortet gerade nicht')) : '');
       // Erst die bekannten Spieler (Pro-Name, Bild, aktueller In-Game-Name), dann - falls noch nicht dabei - das Konto zum genauen Epic-Namen.
       const liste: Treffer[] = [];
       for (const s of szene?.spieler ?? []) {
@@ -108,7 +113,8 @@ export default function MatchFinder() {
       setTreffer(liste.slice(0, 8));
     }, 350);
     return () => { weg = true; window.clearTimeout(uhr); };
-  }, [suche]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [suche, nochmal]);
 
   const kopieren = (text: string) => {
     void navigator.clipboard.writeText(text).then(() => { setKopiert(text); window.setTimeout(() => setKopiert(''), 2500); }).catch(() => undefined);
@@ -234,7 +240,14 @@ export default function MatchFinder() {
             <h2 className="text-sm font-semibold"><T>Spieler hinzufügen</T></h2>
             <input value={suche} onChange={(e) => setSuche(e.target.value)} placeholder={t('Name des Spielers')}
               className="mt-3 w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-sm text-slate-100 outline-none placeholder:text-slate-600 focus:border-sky-500" />
-            {treffer && treffer.length === 0 && <p className="mt-3 text-xs text-slate-500"><T>Niemand gefunden. Bei Spielern aus offenen Cups den genauen Epic-Namen eingeben.</T></p>}
+            {epicFehler && (
+              <div className="mt-3 rounded-lg border border-rose-500/40 bg-rose-500/10 px-3 py-2.5">
+                <p className="text-xs text-rose-300">{epicFehler}</p>
+                <button type="button" onClick={() => setNochmal((n) => n + 1)}
+                  className="mt-2 rounded-md bg-sky-500 px-2.5 py-1 text-xs font-semibold text-white transition hover:bg-sky-400"><T>Nochmal versuchen</T></button>
+              </div>
+            )}
+            {treffer && treffer.length === 0 && !epicFehler && <p className="mt-3 text-xs text-slate-500"><T>Niemand gefunden. Bei Spielern aus offenen Cups den genauen Epic-Namen eingeben.</T></p>}
             {treffer && treffer.length > 0 && (
               <ul className="mt-3 space-y-1.5">
                 {treffer.map((x) => {
