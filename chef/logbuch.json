@@ -660,5 +660,22 @@
     "modell": "Sonnet",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-39",
+    "datum": "2026-10-31T19:38:49Z",
+    "titel": "Laufstrecke ab Saison 41 stimmt wieder",
+    "bereich": "Statistik",
+    "warum": "Die Strecke („Strecke“, km) stand ab Saison 41 hundertmal zu klein da. Beispiel Peterbot, Saison 42: 3,4 km in 83 Matches statt rund 340 km. Grund: die neuen Spieltage aus unseren eigenen Replays messen in Metern, die alte Quelle in Zentimetern – gerechnet wurde alles als Zentimeter. Auch die Karrieresumme mischte beides.",
+    "was": "Jede Zeile wird jetzt in ihrer richtigen Einheit umgerechnet. Im Profil und in den Listen steht für S41 und S42 die echte Strecke, die Karrieresumme passt dazu. Ältere Saisons bleiben unverändert. Die Bestenlisten zeigen den neuen Wert nach dem nächsten Stundenlauf.",
+    "ansehen": [
+      "/statistics?spieler=45ce4565b6db452c9419119b12e7eac3&saison=S42",
+      "/statistics?spieler=45ce4565b6db452c9419119b12e7eac3"
+    ],
+    "commits": [],
+    "groesse": "klein",
+    "modell": "Opus (Prüfung: Sonnet)",
+    "status": "wartet",
+    "runde": 1
   }
 ]

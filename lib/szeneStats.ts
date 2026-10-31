@@ -372,6 +372,24 @@ async function liesDatei(e: ArchivEintrag): Promise<Datei | null> {
 
 /* --------------------------------------------------------- Zusammenrechnen */
 
+/**
+ * Die Laufstrecke einer Zeile in Kilometern.
+ *
+ * Die Szene-Quelle zaehlt in Zentimetern, die eigenen Spieltage (Strecke aus den Server-Replays, lib/szeneEigen) in Metern. Vorher
+ * wurde alles als Zentimeter gerechnet: ab S41 stand die Strecke hundertmal zu klein da (Peterbot S42: 3,4 km in 83 Matches statt
+ * rund 340 km). Die Einheit wird je Zeile an der Geschwindigkeit erkannt - gelaufen wird mit 3 bis 7 m/s, also 300 bis 700 cm/s;
+ * gemessen trennt eine Grenze von 30 je Sekunde beide Quellen weit (Meter hoechstens 6,5, Zentimeter mindestens 124). Ohne
+ * Lebenszeit dasselbe je Match (Meter rund 4.000, Zentimeter rund 400.000).
+ */
+function streckeKm(p: { distanceOnFoot?: number; distanceSkydiving?: number; timeAlive?: number; matchesPlayed?: number }): number {
+  const roh = (p.distanceOnFoot || 0) + (p.distanceSkydiving || 0);
+  if (!roh) return 0;
+  const zentimeter = p.timeAlive && p.timeAlive > 0
+    ? roh / p.timeAlive > 30
+    : roh / Math.max(1, p.matchesPlayed || 1) > 50_000;
+  return zentimeter ? roh / 100_000 : roh / 1000;
+}
+
 function leereSumme(epicId: string, name: string): SpielerSumme {
   return {
     epicId, name, namen: [], regionen: [], events: 0, matches: 0,
@@ -466,7 +484,7 @@ export async function summen(filter: Filter = {}) {
       s.mats += (p.woodFarmed || 0) + (p.stoneFarmed || 0) + (p.metalFarmed || 0);
       s.builds += (p.woodBuildsPlaced || 0) + (p.stoneBuildsPlaced || 0)
                 + (p.metalBuildsPlaced || 0);
-      s.distanz += (p.distanceOnFoot || 0) + (p.distanceSkydiving || 0);
+      s.distanz += streckeKm(p);
       s.timeInStorm += p.timeInStorm || 0;
       s.timeAlive += p.timeAlive || 0;
       nachKonto.set(id, s);
@@ -491,8 +509,8 @@ export async function summen(filter: Filter = {}) {
     s.heals = Math.round(s.heals);
     s.stormDamage = Math.round(s.stormDamage);
     s.fallDamage = Math.round(s.fallDamage);
-    // Zentimeter in Kilometer - die Quelle zaehlt in Zentimetern.
-    s.distanz = +(s.distanz / 100_000).toFixed(1);
+    // Schon je Zeile in Kilometer umgerechnet (streckeKm).
+    s.distanz = +s.distanz.toFixed(1);
     return s;
   });
 
@@ -1120,7 +1138,7 @@ export function summeAusVerlauf(
     s.mats += (p.woodFarmed || 0) + (p.stoneFarmed || 0) + (p.metalFarmed || 0);
     s.builds += (p.woodBuildsPlaced || 0) + (p.stoneBuildsPlaced || 0)
               + (p.metalBuildsPlaced || 0);
-    s.distanz += (p.distanceOnFoot || 0) + (p.distanceSkydiving || 0);
+    s.distanz += streckeKm(p);
     s.timeInStorm += p.timeInStorm || 0;
     s.timeAlive += p.timeAlive || 0;
     if (p.username) namen.add(p.username);
@@ -1140,7 +1158,7 @@ export function summeAusVerlauf(
   s.stormDamage = Math.round(s.stormDamage);
   s.fallDamage = Math.round(s.fallDamage);
   // Zentimeter in Kilometer - die Quelle zaehlt in Zentimetern.
-  s.distanz = +(s.distanz / 100_000).toFixed(1);
+  s.distanz = +s.distanz.toFixed(1);
   return s;
 }
 
