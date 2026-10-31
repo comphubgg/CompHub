@@ -27,7 +27,8 @@ const TYPEN: Record<string, string> = {
 export async function GET(request: Request) {
   const laden = await cookies();
   const id = kontoAus(laden.get('streamer_dashboard_konto')?.value);
-  const perKonto = id ? (await nachId(id))?.rolle === 'admin' : false;
+  const konto = id ? await nachId(id) : null;
+  const perKonto = !!konto && !konto.gesperrt && konto.rolle === 'admin';
   const erlaubt = perKonto
     || istBetreiber(laden.get('streamer_dashboard_auth')?.value);
   if (!erlaubt) return new NextResponse('nicht erlaubt', { status: 403 });

@@ -1247,5 +1247,22 @@
     "modell": "Opus",
     "status": "wartet",
     "runde": 4
+  },
+  {
+    "id": "chef-63",
+    "datum": "2026-10-31T20:58:00Z",
+    "titel": "Gesperrte Admins auch an sieben weiteren Stellen abgewiesen",
+    "kurz": "Unsichtbar: ein gesperrtes Admin-Konto kommt nirgends mehr in die Verwaltung.",
+    "bereich": "Sicherheit",
+    "warum": "Sieben Stellen der Verwaltung (u. a. Kontoverwaltung, VIP-Zugänge, TikTok) prüften nur „ist Admin“, nicht „ist gesperrt“ – ein gesperrter Admin kam dort noch hinein.",
+    "was": "Diese sieben Stellen prüfen jetzt genauso wie die übrigen auch die Sperre. Wer Admin ist, bleibt Admin; dein Betreiber-Zugang ist unverändert.",
+    "ansehen": [
+      "/admin"
+    ],
+    "commits": [],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 4
   }
 ]

@@ -31,7 +31,7 @@ const ABLAUF = 'tiktok-tag.yml';
 async function istAdmin(): Promise<boolean> {
   const laden = await cookies();
   const id = kontoAus(laden.get('streamer_dashboard_konto')?.value);
-  if (id) { const k = await nachId(id); if (k?.rolle === 'admin') return true; }
+  if (id) { const k = await nachId(id); if (k && !k.gesperrt && k.rolle === 'admin') return true; }
   const vipName = vipAus(laden.get('streamer_dashboard_auth')?.value);
   if (!vipName) return false;
   if (istBetreiber(laden.get('streamer_dashboard_auth')?.value)) return true;

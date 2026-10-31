@@ -45,7 +45,8 @@ async function darfSehen(): Promise<boolean> {
   }
   const id = kontoAus(laden.get(KONTO_COOKIE)?.value);
   if (!id) return false;
-  return (await nachId(id))?.rolle === 'admin';
+  const k = await nachId(id);
+  return !!k && !k.gesperrt && k.rolle === 'admin';
 }
 
 /** Der Tag eines Zeitstempels in Ortszeit - oder null, wenn er unbrauchbar ist. */
