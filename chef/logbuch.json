@@ -830,5 +830,21 @@
     "modell": "Opus",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-49",
+    "datum": "2026-10-31T19:50:14Z",
+    "titel": "Spielerwerte je Cup: K/D im Solo stimmt mit der Bestenliste überein",
+    "bereich": "Statistik",
+    "warum": "In den Spielerwerten eines Solo-Cups stand ein viel zu hohes K/D, weil unsere Replays nur Tode durch Gegner zählen – Sturm- und Falltode fehlten. Beispiel FNCS Solo Final EU, beide Tage: Shxrk 35 Kills, 6 Tode in 12 Spielen, K/D 5,83. Bestenliste und Statistik-Kacheln derselben Seite sagen 3,2. Auch die Liste „Bestes K/D“ war dadurch falsch sortiert.",
+    "was": "Im Solo ohne Reload zählt jetzt: Wer ein Spiel nicht gewinnt, ist darin gestorben. Die Siege kommen aus Epics Bestenliste. K/D, Tode und die Liste „Bestes K/D“ passen damit zur Bestenliste. Gilt nur für kleine Felder wie Finals; große offene Runden bleiben wie bisher.",
+    "ansehen": [
+      "/events/s42_fncssolos_final"
+    ],
+    "commits": [],
+    "groesse": "klein",
+    "modell": "Opus",
+    "status": "wartet",
+    "runde": 1
   }
 ]

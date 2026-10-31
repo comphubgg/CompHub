@@ -4,6 +4,7 @@ import path from 'path';
 import { DATEN_ORT } from '@/lib/datenOrt';
 import { zwischenspeichern } from '@/lib/zwischenspeicher';
 import { szeneFenster, epicTag } from '@/lib/szeneStats';
+import { gecacht, holeTop, type CupEintrag } from '@/lib/epicCups';
 import { liesLanKonten } from '@/lib/lanKonten';
 import { liesJson } from '@/lib/ablage';
 import { GLOBALS_TAGE, istGlobalsEvent, istGlobalsFenster } from '@/lib/globalsCup';
@@ -309,7 +310,41 @@ async function holeRoh(request: Request) {
    * Replays allein (Kills, Knocks, Tode).
    */
   const [anzeige, land] = await Promise.all([namen(), laender()]);
-  const rep = tage.length === 1 && saison ? await replayTag(saison, fenster) : (tageWunsch.length > 1 && saison ? await replayTage(saison, tageWunsch) : null);
+  const repRoh = tage.length === 1 && saison ? await replayTag(saison, fenster) : (tageWunsch.length > 1 && saison ? await replayTage(saison, tageWunsch) : null);
+  /*
+   * Tode im Solo ohne Reload: die Replays zaehlen nur Tode durch Gegner - Sturm und Fall fehlen. Im Solo stirbt aber jeder in jedem Spiel,
+   * das er nicht gewinnt. Vorher stand deshalb ein viel zu hohes K/D da (FNCS Solo Final EU, beide Tage: Shxrk 35 Kills, 6 Tode in
+   * 12 Spielen -> 5,83; Bestenliste und Kacheln derselben Seite: 3,2). Jetzt: Tode mindestens Spiele minus Siege, die Siege aus Epics
+   * Bestenliste - nur bei kleinen Feldern (Finals), damit grosse offene Runden nicht hunderte Seiten abfragen.
+   */
+  const rep = await (async () => {
+    if (!repRoh?.spieler.length || !event || repRoh.spieler.length > 300 || tage.some((w) => /reload/i.test(w))) return repRoh;
+    if (!repRoh.teams?.length || !repRoh.teams.every((x) => (x.spieler?.length ?? 1) <= 1)) return repRoh;
+    try {
+      const siege = new Map<string, { spiele: number; siege: number }>();
+      for (const w of tage) {
+        const d = await gecacht(`stats|${event}|${w}|300`, 45_000, () => holeTop(event, w, 300));
+        for (const e of (d.entries ?? []) as CupEintrag[]) {
+          if (e.players.length !== 1) continue;
+          const id = e.players[0].id.toLowerCase();
+          const da = siege.get(id) ?? { spiele: 0, siege: 0 };
+          da.spiele += e.games || 0; da.siege += e.wins || 0;
+          siege.set(id, da);
+        }
+      }
+      if (!siege.size) return repRoh;
+      return {
+        ...repRoh,
+        spieler: repRoh.spieler.map((x) => {
+          const s = siege.get(x.epicId.toLowerCase());
+          // Nur wenn Epic dieselbe Zahl an Spielen kennt - sonst passt die Untergrenze nicht zu den gezaehlten Kills.
+          return s && s.spiele === x.matches ? { ...x, gestorben: Math.max(x.gestorben, s.spiele - s.siege) } : x;
+        }),
+      };
+    } catch {
+      return repRoh;
+    }
+  })();
   const szene = await ausSzene(tage, anzeige, land).catch(() => null);
   if (szene) {
     if (rep?.spieler.length) {
