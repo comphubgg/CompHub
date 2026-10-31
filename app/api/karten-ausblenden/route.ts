@@ -1,32 +1,12 @@
 import { NextResponse } from 'next/server';
 import fs from '@/lib/ablageFs';
 import path from 'path';
-import { cookies } from 'next/headers';
-import { kontoAus, nachId } from '@/lib/konten';
-import { istBetreiber, vipAus } from '@/lib/vipCookie';
-import { zugangNach, rechteVon } from '@/lib/vipZugaenge';
 import { DATEN_ORT } from '@/lib/datenOrt';
+import { istAdminAnfrage } from '@/lib/adminPruefung';
 
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-const KONTO_COOKIE = 'streamer_dashboard_konto';
-const VIP_COOKIE = 'streamer_dashboard_auth';
-
-/** Dieselbe Pruefung wie in den uebrigen Verwaltungswegen. */
-async function istAdmin(): Promise<boolean> {
-  const laden = await cookies();
-  const id = kontoAus(laden.get(KONTO_COOKIE)?.value);
-  if (id) {
-    const k = await nachId(id);
-    if (k && !k.gesperrt && k.rolle === 'admin') return true;
-  }
-  const wert = laden.get(VIP_COOKIE)?.value;
-  if (istBetreiber(wert)) return true;
-  const name = vipAus(wert);
-  if (name) return rechteVon(await zugangNach(name)).rolle === 'admin';
-  return false;
-}
 
 // Spieltage, zu denen bewusst keine Karte angeboten wird.
 //
@@ -56,7 +36,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  if (!await istAdmin()) {
+  if (!await istAdminAnfrage()) {
     return NextResponse.json({ error: 'Nur fuer Admins' }, { status: 403 });
   }
   const { windowId, aus } = await request.json() as

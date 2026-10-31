@@ -1,11 +1,8 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { kontoAus, nachId } from '@/lib/konten';
-import { istBetreiber, vipAus } from '@/lib/vipCookie';
-import { zugangNach, rechteVon } from '@/lib/vipZugaenge';
 import { schreibGrund } from '@/lib/schreibfehler';
 import { HINWEISE, SEKTIONEN, type Staende, type Zustand } from '@/lib/sektionen';
 import { liesStaende, schreibeStaende } from '@/lib/sektionen-ablage';
+import { istAdminAnfrage } from '@/lib/adminPruefung';
 
 /*
  * Der Zustand der Hauptbereiche.
@@ -23,25 +20,6 @@ import { liesStaende, schreibeStaende } from '@/lib/sektionen-ablage';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-const KONTO_COOKIE = 'streamer_dashboard_konto';
-const VIP_COOKIE = 'streamer_dashboard_auth';
-
-async function istAdmin(): Promise<boolean> {
-  const laden = await cookies();
-
-  const id = kontoAus(laden.get(KONTO_COOKIE)?.value);
-  if (id) {
-    const k = await nachId(id);
-    if (k && !k.gesperrt && k.rolle === 'admin') return true;
-  }
-
-  const wert = laden.get(VIP_COOKIE)?.value;
-  if (istBetreiber(wert)) return true;
-
-  const name = vipAus(wert);
-  if (name) return rechteVon(await zugangNach(name)).rolle === 'admin';
-  return false;
-}
 
 /*
  * Wie lange Vercels Zwischenspeicher die Staende ausliefert, ohne die
@@ -59,7 +37,7 @@ export async function GET(request: Request) {
       headers: { 'Vercel-CDN-Cache-Control': ZWISCHENSPEICHER, 'CDN-Cache-Control': ZWISCHENSPEICHER, 'Cache-Control': 'no-store' },
     });
   }
-  const [staende, admin] = await Promise.all([liesStaende(), istAdmin()]);
+  const [staende, admin] = await Promise.all([liesStaende(), istAdminAnfrage()]);
   return NextResponse.json({
     ok: true,
     admin,
@@ -70,7 +48,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  if (!await istAdmin()) {
+  if (!await istAdminAnfrage()) {
     return NextResponse.json({ fehler: 'nicht erlaubt' }, { status: 403 });
   }
 

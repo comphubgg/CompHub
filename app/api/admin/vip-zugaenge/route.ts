@@ -1,11 +1,8 @@
+import { istAdminAnfrage } from '@/lib/adminPruefung';
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import fs from '@/lib/ablageFs';
 import path from 'path';
 import crypto from 'crypto';
-import { kontoAus, nachId } from '@/lib/konten';
-import { istBetreiber, vipAus } from '@/lib/vipCookie';
-import { zugangNach, rechteVon } from '@/lib/vipZugaenge';
 import { verankereProfi } from '@/lib/profiVerankern';
 import { rechteBereinigen } from '@/lib/rechte';
 import { modName } from '@/lib/modName';
@@ -42,8 +39,6 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 const DATEI = path.join(DATEN_ORT, 'vip-users.json');
-const KONTO_COOKIE = 'streamer_dashboard_konto';
-const VIP_COOKIE = 'streamer_dashboard_auth';
 
 interface Zugang {
   username: string;
@@ -93,21 +88,6 @@ function namensListe(roh: unknown): string[] {
   return raus;
 }
 
-async function istAdmin(): Promise<boolean> {
-  const laden = await cookies();
-  const id = kontoAus(laden.get(KONTO_COOKIE)?.value);
-  if (id) {
-    const k = await nachId(id);
-    if (k && !k.gesperrt && k.rolle === 'admin') return true;
-  }
-  // Der Betreiber selbst - oder ein Zugang, dem die Adminrolle
-  // gegeben wurde. Beides zaehlt gleich.
-  const vipName = vipAus(laden.get(VIP_COOKIE)?.value);
-  if (!vipName) return false;
-  if (istBetreiber(laden.get(VIP_COOKIE)?.value)) return true;
-  return rechteVon(await zugangNach(vipName)).rolle === 'admin';
-}
-
 async function lies(): Promise<{ users: Zugang[] }> {
   try {
     return JSON.parse(await fs.readFile(DATEI, 'utf8'));
@@ -134,7 +114,7 @@ async function schreibe(daten: { users: Zugang[] }) {
  */
 
 export async function GET(request: Request) {
-  if (!await istAdmin()) {
+  if (!await istAdminAnfrage()) {
     return NextResponse.json({ fehler: 'nicht erlaubt' }, { status: 403 });
   }
   const { users } = await lies();
@@ -172,7 +152,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  if (!await istAdmin()) {
+  if (!await istAdminAnfrage()) {
     return NextResponse.json({ fehler: 'nicht erlaubt' }, { status: 403 });
   }
 
@@ -362,7 +342,7 @@ export async function POST(request: Request) {
  * Stilllegen ins Gehege kommt.
  */
 export async function PUT(request: Request) {
-  if (!await istAdmin()) {
+  if (!await istAdminAnfrage()) {
     return NextResponse.json({ fehler: 'nicht erlaubt' }, { status: 403 });
   }
   const koerper = await request.json().catch(() => ({}));
@@ -467,7 +447,7 @@ export async function PUT(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  if (!await istAdmin()) {
+  if (!await istAdminAnfrage()) {
     return NextResponse.json({ fehler: 'nicht erlaubt' }, { status: 403 });
   }
   const koerper = await request.json().catch(() => ({}));
@@ -483,7 +463,7 @@ export async function PATCH(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  if (!await istAdmin()) {
+  if (!await istAdminAnfrage()) {
     return NextResponse.json({ fehler: 'nicht erlaubt' }, { status: 403 });
   }
   const name = (new URL(request.url).searchParams.get('name') ?? '')

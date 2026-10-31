@@ -75,6 +75,25 @@ export async function istAdminAnfrage(_request?: Request): Promise<boolean> {
 }
 
 /**
+ * Engerer Kreis: nur der Betreiber-Schluessel oder ein CompHub-Konto mit Rolle "admin", das nicht gesperrt ist.
+ * Ein Zugang mit Admin-Rolle zaehlt hier nicht (anders als bei istAdminAnfrage). Fuer die Betriebszahlen
+ * (Statistik-Nutzung, Anwesenheit, Besuche, Kontakt-Bilder), die bisher genau diesen Kreis hatten.
+ * Ein gesperrtes Konto wird immer abgewiesen.
+ */
+export async function istBetreiberOderAdminKonto(): Promise<boolean> {
+  try {
+    const laden = await cookies();
+    if (istBetreiber(laden.get('streamer_dashboard_auth')?.value)) return true;
+    const id = kontoAus(laden.get('streamer_dashboard_konto')?.value);
+    if (!id) return false;
+    const k = await nachId(id);
+    return !!k && !k.gesperrt && k.rolle === 'admin';
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Darf diese Anfrage in einem der Bereiche aendern? Der Admin immer, ein Manager mit dem Recht fuer einen der Bereiche
  * (dieselbe Regel wie darf() in lib/rechte und wie die Oberflaeche ueber /api/auth/check-admin).
  *

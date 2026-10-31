@@ -1,8 +1,6 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { kontoAus, nachId } from '@/lib/konten';
-import { vipAus } from '@/lib/vipCookie';
 import { alleAnwesend, NOCH_DA_MS } from '@/lib/anwesenheit';
+import { istBetreiberOderAdminKonto } from '@/lib/adminPruefung';
 
 /*
  * Wer gerade da ist - nur fuer den Betreiber.
@@ -15,22 +13,9 @@ import { alleAnwesend, NOCH_DA_MS } from '@/lib/anwesenheit';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-const KONTO_COOKIE = 'streamer_dashboard_konto';
-const VIP_COOKIE = 'streamer_dashboard_auth';
-
-async function darfSehen(): Promise<boolean> {
-  const laden = await cookies();
-  if (vipAus(laden.get(VIP_COOKIE)?.value)?.trim().toLowerCase() === 'admin-juanito') {
-    return true;
-  }
-  const id = kontoAus(laden.get(KONTO_COOKIE)?.value);
-  if (!id) return false;
-  const k = await nachId(id);
-  return !!k && !k.gesperrt && k.rolle === 'admin';
-}
 
 export async function GET() {
-  if (!await darfSehen()) {
+  if (!await istBetreiberOderAdminKonto()) {
     return NextResponse.json({ fehler: 'Nicht erlaubt.' }, { status: 403 });
   }
   const liste = await alleAnwesend();

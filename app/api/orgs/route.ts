@@ -1,14 +1,11 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { kontoAus, nachId } from '@/lib/konten';
-import { istBetreiber, vipAus } from '@/lib/vipCookie';
-import { zugangNach, rechteVon } from '@/lib/vipZugaenge';
 import { liesJson } from '@/lib/ablage';
 import {
   liesOrgs, schreibOrgs, saeubere, orgKennung, fuerDieOrg, ORGS_JAHR, type Org, type Posten,
 } from '@/lib/orgs';
 import { abgelegteAntwort, legeAntwortAb, ohneDateien } from '@/lib/antwortSpeicher';
 import { spielerbildKlein } from '@/lib/spielerbildKlein';
+import { istAdminAnfrage } from '@/lib/adminPruefung';
 
 /*
  * Die E-Sports-Organisationen (lib/orgs).
@@ -30,8 +27,6 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 export const maxDuration = 300;
 
-const KONTO_COOKIE = 'streamer_dashboard_konto';
-const VIP_COOKIE = 'streamer_dashboard_auth';
 const SCHLUESSEL = `orgs|verdienst|${ORGS_JAHR}`;
 /*
  * Ueber alle Jahre - wie bei Fortnite Tracker (Betreiber, 30.9.2026): die
@@ -42,20 +37,6 @@ const SCHLUESSEL_ALLE = 'orgs|verdienst|alle';
 
 /** Fuer wen gerechnet wurde (konten) und was sie gewannen (posten - nur Konten mit Geld). */
 interface VerdienstAntwort { zeit: number; konten?: string[]; posten: Record<string, Posten[]> }
-
-async function istAdmin(): Promise<boolean> {
-  const laden = await cookies();
-  const id = kontoAus(laden.get(KONTO_COOKIE)?.value);
-  if (id) {
-    const k = await nachId(id);
-    if (k?.rolle === 'admin' && !k.gesperrt) return true;
-  }
-  const wert = laden.get(VIP_COOKIE)?.value;
-  if (istBetreiber(wert)) return true;
-  const name = vipAus(wert);
-  if (!name) return false;
-  return rechteVon(await zugangNach(name)).rolle === 'admin';
-}
 
 /** Das Preisgeld je Konto neu rechnen - nur, wo die Dateien liegen. */
 async function rechne(orgs: Org[]): Promise<VerdienstAntwort> {
@@ -175,7 +156,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  if (!await istAdmin()) return NextResponse.json({ fehler: 'Only the admin.' }, { status: 403 });
+  if (!await istAdminAnfrage()) return NextResponse.json({ fehler: 'Only the admin.' }, { status: 403 });
   const koerper = await request.json().catch(() => ({})) as { org?: Partial<Org>; loeschen?: string };
 
   let orgs: Org[];

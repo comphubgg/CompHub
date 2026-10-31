@@ -1,11 +1,10 @@
+import { istAdminAnfrage } from '@/lib/adminPruefung';
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import { promises as fs } from 'fs';
 import path from 'path';
 import crypto from 'crypto';
-import { kontoAus, nachId, alleKonten } from '@/lib/konten';
-import { istBetreiber, vipAus } from '@/lib/vipCookie';
-import { zugangNach, rechteVon, alleZugaenge } from '@/lib/vipZugaenge';
+import { alleKonten } from '@/lib/konten';
+import { alleZugaenge } from '@/lib/vipZugaenge';
 import { schreibGrund } from '@/lib/schreibfehler';
 import {
   liesVips, schreibeVips, kontoName, type HomepageVip, type Netz,
@@ -29,26 +28,7 @@ import {
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-const KONTO_COOKIE = 'streamer_dashboard_konto';
-const VIP_COOKIE = 'streamer_dashboard_auth';
 const BILDER = path.join(process.cwd(), 'public', 'vips');
-
-async function istAdmin(): Promise<boolean> {
-  const laden = await cookies();
-
-  const id = kontoAus(laden.get(KONTO_COOKIE)?.value);
-  if (id) {
-    const k = await nachId(id);
-    if (k && !k.gesperrt && k.rolle === 'admin') return true;
-  }
-
-  const wert = laden.get(VIP_COOKIE)?.value;
-  if (istBetreiber(wert)) return true;
-
-  const name = vipAus(wert);
-  if (name) return rechteVon(await zugangNach(name)).rolle === 'admin';
-  return false;
-}
 
 /**
  * Wer ueberhaupt in Frage kommt.
@@ -94,7 +74,7 @@ export async function GET(request: Request) {
     });
   }
 
-  if (!await istAdmin()) {
+  if (!await istAdminAnfrage()) {
     return NextResponse.json({ fehler: 'nicht erlaubt' }, { status: 403 });
   }
 
@@ -107,7 +87,7 @@ export async function GET(request: Request) {
 }
 
 export async function POST(request: Request) {
-  if (!await istAdmin()) {
+  if (!await istAdminAnfrage()) {
     return NextResponse.json({ fehler: 'nicht erlaubt' }, { status: 403 });
   }
 
@@ -237,7 +217,7 @@ export async function POST(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  if (!await istAdmin()) {
+  if (!await istAdminAnfrage()) {
     return NextResponse.json({ fehler: 'nicht erlaubt' }, { status: 403 });
   }
   const id = new URL(request.url).searchParams.get('id') ?? '';

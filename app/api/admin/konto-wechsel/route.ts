@@ -1,10 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { altesHostCookieWeg, sitzungsDomain } from '@/lib/cookieDomain';
-import { cookies } from 'next/headers';
 import crypto from 'crypto';
-import { kontoAus, nachId } from '@/lib/konten';
-import { istBetreiber, vipAus, ueberHttps } from '@/lib/vipCookie';
+import { ueberHttps } from '@/lib/vipCookie';
 import { zugangNach, rechteVon } from '@/lib/vipZugaenge';
+import { istAdminAnfrage } from '@/lib/adminPruefung';
 
 /*
  * Als Admin in einen anderen Zugang wechseln.
@@ -48,22 +47,8 @@ function cookieWert(name: string) {
   return `${klein}:${zeit}:${unterschreibe(`${klein}:${zeit}`)}`;
 }
 
-async function istAdmin(): Promise<boolean> {
-  const laden = await cookies();
-  const id = kontoAus(laden.get(KONTO_COOKIE)?.value);
-  if (id) {
-    const k = await nachId(id);
-    if (k?.rolle === 'admin' && !k.gesperrt) return true;
-  }
-  const wert = laden.get(VIP_COOKIE)?.value;
-  if (istBetreiber(wert)) return true;
-  const name = vipAus(wert);
-  if (!name) return false;
-  return rechteVon(await zugangNach(name)).rolle === 'admin';
-}
-
 export async function POST(request: NextRequest) {
-  if (!await istAdmin()) {
+  if (!await istAdminAnfrage()) {
     return NextResponse.json({ fehler: 'nicht erlaubt' }, { status: 403 });
   }
 

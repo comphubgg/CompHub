@@ -1,9 +1,7 @@
+import { istBetreiberOderAdminKonto } from '@/lib/adminPruefung';
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import fs from '@/lib/ablageFs';
 import path from 'path';
-import { kontoAus, nachId } from '@/lib/konten';
-import { istBetreiber } from '@/lib/vipCookie';
 import { DATEN_ORT } from '@/lib/datenOrt';
 
 /*
@@ -25,12 +23,7 @@ const TYPEN: Record<string, string> = {
 };
 
 export async function GET(request: Request) {
-  const laden = await cookies();
-  const id = kontoAus(laden.get('streamer_dashboard_konto')?.value);
-  const konto = id ? await nachId(id) : null;
-  const perKonto = !!konto && !konto.gesperrt && konto.rolle === 'admin';
-  const erlaubt = perKonto
-    || istBetreiber(laden.get('streamer_dashboard_auth')?.value);
+  const erlaubt = await istBetreiberOderAdminKonto();
   if (!erlaubt) return new NextResponse('nicht erlaubt', { status: 403 });
 
   const datei = new URL(request.url).searchParams.get('datei') ?? '';

@@ -1,7 +1,5 @@
-import { cookies, headers } from 'next/headers';
-import { kontoAus, nachId } from '@/lib/konten';
-import { istBetreiber, vipAus } from '@/lib/vipCookie';
-import { zugangNach, rechteVon } from '@/lib/vipZugaenge';
+import { istAdminAnfrage } from '@/lib/adminPruefung';
+import { headers } from 'next/headers';
 import { SEKTIONEN, sektionVonPfad } from '@/lib/sektionen';
 import { liesStaende } from '@/lib/sektionen-ablage';
 import type { SperrAngaben } from '@/app/components/SperrSeite';
@@ -19,8 +17,6 @@ import type { SperrAngaben } from '@/app/components/SperrSeite';
  * einem Rahmen sonst nicht hinein.
  */
 
-const KONTO_COOKIE = 'streamer_dashboard_konto';
-const VIP_COOKIE = 'streamer_dashboard_auth';
 
 /*
  * Ein Versprechen mit Frist: kommt die Antwort nicht rechtzeitig, gilt der
@@ -36,24 +32,7 @@ async function mitFrist<T>(arbeit: Promise<T>, ms: number, ersatz: T): Promise<T
 }
 
 async function istAdmin(): Promise<boolean> {
-  return mitFrist(istAdminRoh(), 2_500, false);
-}
-
-async function istAdminRoh(): Promise<boolean> {
-  const laden = await cookies();
-
-  const id = kontoAus(laden.get(KONTO_COOKIE)?.value);
-  if (id) {
-    const k = await nachId(id);
-    if (k && !k.gesperrt && k.rolle === 'admin') return true;
-  }
-
-  const wert = laden.get(VIP_COOKIE)?.value;
-  if (istBetreiber(wert)) return true;
-
-  const name = vipAus(wert);
-  if (name) return rechteVon(await zugangNach(name)).rolle === 'admin';
-  return false;
+  return mitFrist(istAdminAnfrage(), 2_500, false);
 }
 
 /** Der Stand aller Bereiche, samt der Frage, ob der Aufrufer Admin ist. */

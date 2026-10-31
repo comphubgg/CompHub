@@ -1,12 +1,11 @@
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import {
-  aendern, alleKonten, kontoAus, nachId, setzeRechte, setzeSperre,
+  aendern, alleKonten, kontoAus, setzeRechte, setzeSperre,
   loesche, setzeBestaetigt } from '@/lib/konten';
-import { istBetreiber, vipAus } from '@/lib/vipCookie';
-import { zugangNach, rechteVon } from '@/lib/vipZugaenge';
 import { rechteBereinigen } from '@/lib/rechte';
 import { verankereProfi } from '@/lib/profiVerankern';
+import { istAdminAnfrage } from '@/lib/adminPruefung';
 
 // Die Kontoverwaltung.
 //
@@ -27,7 +26,6 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 const KONTO_COOKIE = 'streamer_dashboard_konto';
-const VIP_COOKIE = 'streamer_dashboard_auth';
 
 /**
  * Ist der Anfragende Admin?
@@ -35,31 +33,8 @@ const VIP_COOKIE = 'streamer_dashboard_auth';
  * Der VIP-Weg zaehlt mit, solange das Konto des Betreibers nur darueber
  * besteht - sonst koennte er seine eigene Verwaltung nicht oeffnen.
  */
-async function istAdmin(): Promise<boolean> {
-  const laden = await cookies();
-
-  const id = kontoAus(laden.get(KONTO_COOKIE)?.value);
-  if (id) {
-    const k = await nachId(id);
-    if (k && !k.gesperrt && k.rolle === 'admin') return true;
-  }
-
-  /*
-   * Der alte Zugang - mit gepruefter Unterschrift.
-   *
-   * Ein blosser Textvergleich waere hier ein Loch gewesen: der Name steht
-   * im Cookie, und ein Cookie schreibt sich jeder selbst.
-   */
-  // Der Betreiber selbst - oder ein Zugang, dem die Adminrolle
-  // gegeben wurde. Beides zaehlt gleich.
-  const vipName = vipAus(laden.get(VIP_COOKIE)?.value);
-  if (!vipName) return false;
-  if (istBetreiber(laden.get(VIP_COOKIE)?.value)) return true;
-  return rechteVon(await zugangNach(vipName)).rolle === 'admin';
-}
-
 export async function GET() {
-  if (!await istAdmin()) {
+  if (!await istAdminAnfrage()) {
     return NextResponse.json({ fehler: 'nicht erlaubt' }, { status: 403 });
   }
   try {
@@ -72,7 +47,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  if (!await istAdmin()) {
+  if (!await istAdminAnfrage()) {
     return NextResponse.json({ fehler: 'nicht erlaubt' }, { status: 403 });
   }
 
@@ -154,7 +129,7 @@ export async function POST(request: Request) {
 /** Sperren und Freigeben - eigener Weg, damit es nicht mit den Rechten
  *  versehentlich zusammen umgestellt wird. */
 export async function PATCH(request: Request) {
-  if (!await istAdmin()) {
+  if (!await istAdminAnfrage()) {
     return NextResponse.json({ fehler: 'nicht erlaubt' }, { status: 403 });
   }
   const koerper = await request.json().catch(() => ({}));
@@ -192,7 +167,7 @@ export async function PATCH(request: Request) {
  * die Verwaltung nicht mehr hinein, und niemand kann ihn zurueckholen.
  */
 export async function DELETE(request: Request) {
-  if (!await istAdmin()) {
+  if (!await istAdminAnfrage()) {
     return NextResponse.json({ fehler: 'nicht erlaubt' }, { status: 403 });
   }
   const id = (new URL(request.url).searchParams.get('id') ?? '').trim();

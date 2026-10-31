@@ -1,9 +1,6 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { kontoAus, nachId } from '@/lib/konten';
-import { istBetreiber, vipAus } from '@/lib/vipCookie';
-import { zugangNach, rechteVon } from '@/lib/vipZugaenge';
 import { holeDienst, setzeDienst, type Dienst } from '@/lib/dienstZugaenge';
+import { istAdminAnfrage } from '@/lib/adminPruefung';
 
 // Die Zugangsdaten der Anmeldedienste eintragen - ohne Dateien zu bearbeiten.
 //
@@ -17,23 +14,7 @@ import { holeDienst, setzeDienst, type Dienst } from '@/lib/dienstZugaenge';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-const KONTO_COOKIE = 'streamer_dashboard_konto';
-const VIP_COOKIE = 'streamer_dashboard_auth';
 const DIENSTE: Dienst[] = ['twitch', 'discord', 'google', 'epic'];
-
-async function istAdmin(): Promise<boolean> {
-  const laden = await cookies();
-  const id = kontoAus(laden.get(KONTO_COOKIE)?.value);
-  if (id) {
-    const k = await nachId(id);
-    if (k && !k.gesperrt && k.rolle === 'admin') return true;
-  }
-  const wert = laden.get(VIP_COOKIE)?.value;
-  if (istBetreiber(wert)) return true;
-  const name = vipAus(wert);
-  if (name) return rechteVon(await zugangNach(name)).rolle === 'admin';
-  return false;
-}
 
 /** Wohin der Betreiber gehen muss, um die Werte zu holen. */
 const WOHER: Record<Dienst, { seite: string; rueckruf: string }> = {
@@ -48,7 +29,7 @@ const WOHER: Record<Dienst, { seite: string; rueckruf: string }> = {
 };
 
 export async function GET() {
-  if (!await istAdmin()) {
+  if (!await istAdminAnfrage()) {
     return NextResponse.json({ error: 'Admins only' }, { status: 403 });
   }
   const basis = (process.env.NEXT_PUBLIC_BASE_URL || '').replace(/\/+$/, '');
@@ -61,7 +42,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  if (!await istAdmin()) {
+  if (!await istAdminAnfrage()) {
     return NextResponse.json({ error: 'Admins only' }, { status: 403 });
   }
   const { dienst, id, secret } = await request.json() as
