@@ -4,6 +4,7 @@ import { liesOrgs } from '@/lib/orgs';
 import { gesamtSummen, heimatRegionen } from '@/lib/szeneStats';
 import { abgelegteAntwort } from '@/lib/antwortSpeicher';
 import { spielerbildKlein } from '@/lib/spielerbildKlein';
+import { lies as liesPr, LISTE as PR_LISTE } from '@/lib/powerRankings';
 
 /*
  * Ein Team fuer fremde Seiten (31.10.2026): die eigene Webseite einer Organisation holt hier die Werte ihrer Spieler.
@@ -45,13 +46,16 @@ export async function GET(request: Request) {
     const org = orgs.find((o) => o.id === kennung);
     if (!org) return NextResponse.json({ ok: false, reason: 'unbekannte Organisation' }, { status: 404, headers: KOPF });
 
-    const [summen, heimat, bilder, profile, verdienst] = await Promise.all([
+    const [summen, heimat, bilder, profile, verdienst, prStand] = await Promise.all([
       gesamtSummen().catch(() => [] as Awaited<ReturnType<typeof gesamtSummen>>),
       heimatRegionen().catch(() => new Map<string, string>()),
       liesJson<Array<{ epicId?: string; datei?: string; echtesFoto?: boolean }>>('spielerbilder.json', []).catch(() => []),
       liesJson<Record<string, { name?: string; land?: string }>>('spieler-profile.json', {}).catch(() => ({} as Record<string, { name?: string; land?: string }>)),
       abgelegteAntwort<{ konten?: string[]; posten: Record<string, Posten[]> }>('orgs|verdienst|alle').catch(() => null),
+      liesPr(PR_LISTE).catch(() => null),
     ]);
+    // Epics Power Rankings (weltweit, taeglich): fuer jeden Spieler mit Konto mindestens Rang und Punkte - auch ohne Finals im Archiv.
+    const prVon = new Map(((prStand as unknown as { spieler?: Array<{ id: string; rank: number; wertung: number }> } | null)?.spieler ?? []).map((x) => [x.id, x]));
     const summeVon = new Map(summen.map((s) => [s.epicId, s]));
     const bildVon = new Map<string, string>();
     for (const b of bilder) if (b.epicId && b.datei && b.echtesFoto) bildVon.set(b.epicId, spielerbildKlein(b.datei));
@@ -82,6 +86,8 @@ export async function GET(request: Request) {
         // Schaden ausgeteilt / erlitten - KEIN K/D (CompHub fuehrt kein K/D ueber das Archiv).
         damageRatio: runde(s?.quote),
         timeAliveSec: s ? Math.round(s.timeAlive) : null,
+        powerRank: (id && prVon.get(id)?.rank) || null,
+        powerPoints: (id && prVon.get(id)?.wertung) || null,
         // Preisgeld aller Jahre in USD aus den Ergebnissen, die CompHub kennt; null = noch nicht vorgerechnet.
         earnings,
         recentResults: (posten ?? []).slice(0, 10).map((p) => ({

@@ -23,6 +23,7 @@ interface Spieler {
   earnings: number | null; photo: string | null; profileUrl: string | null; x: string | null;
   twitch: string | null; since: string | null; events: number | null; accuracy: number | null; damage: number | null;
   recentResults: Array<{ date: string | null; event: string; prize: number }>;
+  powerRank: number | null; powerPoints: number | null;
 }
 interface Antwort {
   ok: boolean; reason?: string;
@@ -58,7 +59,7 @@ export default function TeamSeite() {
     titel,
     // Wer Werte hat, zuerst - nach Preisgeld, dann Matches; danach die uebrigen.
     liste: (daten?.players ?? []).filter((p) => p.role === r)
-      .sort((a, b) => (b.earnings ?? -1) - (a.earnings ?? -1) || (b.matches ?? -1) - (a.matches ?? -1)),
+      .sort((a, b) => (b.earnings ?? -1) - (a.earnings ?? -1) || (a.powerRank ?? 1e9) - (b.powerRank ?? 1e9) || (b.matches ?? -1) - (a.matches ?? -1)),
   })).filter((g) => g.liste.length), [daten]);
 
   if (!daten) return <LadeSchirm text={t('Team wird geladen')} />;
@@ -115,9 +116,9 @@ export default function TeamSeite() {
                       {p.country && <TeamFlagge laender={[p.country]} groesse={20} />}<span className="truncate">{p.name}</span>
                     </p>
                     <dl className="mt-2 grid grid-cols-3 gap-2 text-center">
-                      <div className="rounded-xl bg-zinc-800/70 px-1 py-2"><dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-500"><T>Preisgeld</T></dt><dd className="text-sm font-bold tabular-nums text-slate-100">{geld(p.earnings)}</dd></div>
+                      <div className="rounded-xl bg-zinc-800/70 px-1 py-2"><dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Earnings</dt><dd className="text-sm font-bold tabular-nums text-slate-100">{geld(p.earnings)}</dd></div>
                       <div className="rounded-xl bg-zinc-800/70 px-1 py-2"><dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">Matches</dt><dd className="text-sm font-bold tabular-nums text-slate-100">{zahl(p.matches)}</dd></div>
-                      <div className="rounded-xl bg-zinc-800/70 px-1 py-2"><dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-500"><T>Elims je Match</T></dt><dd className="text-sm font-bold tabular-nums text-slate-100">{zahl(p.elimsPerMatch, 2)}</dd></div>
+                      <div className="rounded-xl bg-zinc-800/70 px-1 py-2"><dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-500">PR</dt><dd className="text-sm font-bold tabular-nums text-slate-100">{p.powerRank ? `#${zahl(p.powerRank)}` : '—'}</dd></div>
                     </dl>
                   </>
                 );
@@ -150,8 +151,8 @@ export default function TeamSeite() {
                 </h3>
                 <dl className="mt-4 grid grid-cols-3 gap-2 text-center">
                   {([
-                    ['Preisgeld', geld(offen.earnings)], ['Matches', zahl(offen.matches)], ['Turniere', zahl(offen.events)],
-                    ['Elims', zahl(offen.elims)], ['Elims je Match', zahl(offen.elimsPerMatch, 2)], ['Schaden je Match', zahl(offen.damagePerMatch)],
+                    ['Earnings', geld(offen.earnings)], ['Power Ranking', offen.powerRank ? `#${zahl(offen.powerRank)}` : '—'], ['PR-Punkte', zahl(offen.powerPoints)],
+                    ['Matches', zahl(offen.matches)], ['Elims je Match', zahl(offen.elimsPerMatch, 2)], ['Schaden je Match', zahl(offen.damagePerMatch)],
                   ] as Array<[string, string]>).map(([k, v]) => (
                     <div key={k} className="rounded-xl bg-zinc-800/70 px-1 py-2"><dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-500"><T>{k}</T></dt><dd className="text-base font-bold tabular-nums text-slate-100">{v}</dd></div>
                   ))}

@@ -3894,6 +3894,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Noch keine Ergebnisse mit Preisgeld.': 'No prize results yet.',
   'Noch keinem Epic-Konto zugeordnet - deshalb noch keine Werte.': 'Not linked to an Epic account yet - no stats so far.',
   'Volles Profil': 'Full profile',
+  'PR-Punkte': 'PR points',
   'Alle Werte aus offiziellen Turnier-Replays - ein Strich heißt: noch keine gewerteten Spiele.': 'All figures from official tournament replays - a dash means no ranked matches yet.',
   'Werte, Titel, FNCS-Ergebnisse, Mitspieler und Landepunkte zu jedem Spieler im Archiv.': 'Stats, titles, FNCS results, teammates and landing spots for every player in the archive.',
   'Alle Spieler ansehen': 'Browse all players',
