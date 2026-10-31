@@ -743,5 +743,21 @@
     "modell": "Opus",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-44",
+    "datum": "2026-10-31T19:42:31Z",
+    "titel": "Tweet-Werkzeug: Strecke auch bei alten Saisons richtig",
+    "bereich": "Admin",
+    "warum": "Das Tweet-Werkzeug im Admin holt die Spielerwerte eines Spieltags und rechnete die Strecke immer als Meter. Für ältere Saisons liefert die Quelle aber Zentimeter – dort stand die Strecke hundertmal zu groß da.",
+    "was": "Die Einheit wird jetzt je Spieler an der Geschwindigkeit erkannt, genau wie in den Saison-Statistiken (chef-39). Neue Spieltage bleiben unverändert.",
+    "ansehen": [
+      "/admin/tweets"
+    ],
+    "commits": [],
+    "groesse": "klein",
+    "modell": "Opus",
+    "status": "wartet",
+    "runde": 1
   }
 ]

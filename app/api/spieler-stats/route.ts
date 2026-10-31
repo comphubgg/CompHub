@@ -256,6 +256,12 @@ export async function GET(request: Request) {
   return NextResponse.json(antwort(null));
 }
 
+/** Kilometer je Einheit der Quelle: Meter (rund 4 je Sekunde Lebenszeit) oder, in aelteren Saisons, Zentimeter (rund 400). */
+function kmFaktor(p: { distanceOnFoot: number; distanceSkydiving: number; timeAlive: number }): number {
+  const roh = (p.distanceOnFoot || 0) + (p.distanceSkydiving || 0);
+  return p.timeAlive > 0 && roh / p.timeAlive > 30 ? 1 / 100_000 : 1 / 1000;
+}
+
 function antwort(d: Datei | null) {
   if (!d) {
     return {
@@ -302,9 +308,11 @@ function antwort(d: Datei | null) {
       // laesst sich nachrechnen: 42.263 geteilt durch 9.384 Sekunden Lebenszeit
       // sind 4,5 pro Sekunde - Laufgeschwindigkeit in Metern. Zentimeter kaemen
       // auf 4,5 Zentimeter pro Sekunde und waeren offensichtlich falsch.
-      distanz: +(p.distanceOnFoot / 1000).toFixed(1),
+      // Aeltere Saisons der Quelle zaehlen in Zentimetern (bis S40 rund 400 je Sekunde) - die Einheit je Antwort an der Geschwindigkeit
+      // erkennen wie in lib/szeneStats (streckeKm), statt fest Meter anzunehmen.
+      distanz: +(p.distanceOnFoot * kmFaktor(p)).toFixed(1),
       // Zu Fuss plus Gleiter. Beide Strecken stehen einzeln in der Quelle.
-      distanzGesamt: +((p.distanceOnFoot + p.distanceSkydiving) / 1000).toFixed(1),
+      distanzGesamt: +((p.distanceOnFoot + p.distanceSkydiving) * kmFaktor(p)).toFixed(1),
       timeInStorm: Math.round(p.timeInStorm),
       timeAlive: Math.round(p.timeAlive),
       avgLife: p.avgLifeTimeMin,
