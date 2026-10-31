@@ -2,6 +2,18 @@
 
 Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der Bestandsaufnahme vom 31.10.2026 (vier Pruefer, nur gelesen). Der Chef pflegt diese Liste selbst: Erledigtes abhaken (`- [x]`), Neues aufnehmen. Jeder Punkt vor dem Bau selbst am Code nachpruefen - die Pruefer koennen sich geirrt haben.
 
+## Neu entdeckt (Runde 6, 31.10.2026)
+
+- [x] **LAN-Sammelkachel in den Regionen lud nur den letzten Tag** (chef-93) – S37 NAC Globals: 17 statt 33 Elims.
+- [x] **Titel im Profil zählte Globals-Sieg doppelt** (chef-94).
+- [x] **Orgs: Turnierzahl ohne Ehemalige** (chef-95), **FNCS All-Time: Platz bei Suche** (chef-96), **Jahresbilanz „650 von 545“** (chef-97), **„18m 60s“** (chef-98), **LAN-Tag im Turnierkopf** (chef-99), **Vergleich 0 statt Strich** (chef-100), **Aufmacher-Quote Komma** (chef-101), **Bestenlisten Gleichstand** (chef-102).
+- [ ] **Preisgeld 2026 bei shxrk: EU-gefiltert (393.650) größer als alle Regionen (353.450)** _(Statistik · Wirkung 4/5)_ – /api/szene-stats?ansicht=jahr&jahr=2026 mit und ohne region=EU. Ursache unbekannt; Verdacht: Akte-Einträge mit liveFenster-Überspringen oder `if (!v) break;` in jahresListen (lib/szeneStats.ts ~1735).
+- [ ] **Cup-Seite Duo/Trio: Preisgeld-Summe vs. Zeilen je Team** – ein Prüfer meinte, die Summe sei halb so groß wie die Summe der Zeilen. Nicht übernommen: cup-preise setzt proPerson für Epic-Tabellen auf false, der Vorschlag hätte dort nichts geändert. An einem echten Duo-Cup mit Epic-Preisgeld nachmessen.
+- [ ] **Cup-Spielerdetails: Zeile „Elimination“/„Placement“ verschwindet bei 0 Punkten** (8 Spieler im FNCS Solo Final EU) – kosmetisch, 0 zeigen statt ausblenden?
+- [ ] **FNCS All-Time: Gleichstand bei gleichem Gesamtwert ohne Regel** (Einfügereihenfolge).
+- [ ] **Vergleich: Kacheln BUILDS/MATS je Match zeigen 0 ohne Daten** (Vergleich.tsx ~117) – wie chef-100 Strich.
+- [ ] **Startseite S42 weiter veraltet** (21:10 gemessen: peterbot 57 Matches, Schaden der Elims-Liste 0) – siehe chef-61.
+
 ## Neu entdeckt (Runde 5, 31.10.2026)
 
 - [ ] **Auch die Spielerliste S42 ist veraltet, nicht nur die Startantwort** _(Statistik · Wirkung 5/5, Betrieb)_ - /api/szene-stats?saison=S42&sort=elims&limit=300: peterbot 57 Matches / 152 Elims, Profil 83 / 208 (ebenso Veno 56/64, CURVE 48/74). Die Liste endet bei PerformanceEvaluation_Event7Round2; Heat2, Event9, Solo Finals fehlen. Formel und Rundung stimmen (300 Zeilen nachgerechnet). Ursache: vorgerechnete Antwort (Schlüssel szene|limit=500|saison=S42|sort=elims) seit ~9.10. nicht neu abgelegt – gehört zu chef-61.
