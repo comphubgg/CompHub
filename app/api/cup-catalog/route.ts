@@ -123,6 +123,7 @@ function benenne(cups: CupGruppe[]): CupGruppe[] {
 //   ?modus=standard  -> Standard-Cups ueber alle Zeiten, auch vergangene
 //   ?modus=alle      -> wirklich alles, auch Ranked, Mobile und Skin-Cups
 //   ?modus=vorbei    -> nur, was schon gelaufen ist
+//   ?modus=alle-aktuell -> wie "alle" (jede Art, auch kleine Divisionen), aber nur laufend und kommend
 //
 // Ausser bei "aktuell" kommen die Cups aus dem eigenen Archiv dazu: Epics
 // Ereignisliste ist ein rollendes Fenster und laesst Vergangenes fallen.
@@ -203,7 +204,7 @@ export async function GET(request: Request) {
     // "alle" laesst jede Art durch, die beiden anderen Modi zeigen die
     // Standard-Arten - "aktuell" zusaetzlich nur, was noch bevorsteht.
     const erlaubt: CupArt[] = arten.length ? arten
-      : modus === 'alle' ? [] : STANDARD_ARTEN;
+      : modus === 'alle' || modus === 'alle-aktuell' ? [] : STANDARD_ARTEN;
 
     /*
      * Vergangene Cups liegen nur noch im eigenen Archiv - Epic gibt sie nach
@@ -236,8 +237,8 @@ export async function GET(request: Request) {
 
     const passt = (c: CupGruppe) => {
       if (erlaubt.length && !erlaubt.includes(c.art)) return false;
-      if (modus !== 'alle' && kleineDivision(c)) return false;
-      if (modus === 'aktuell') return c.live || c.naechsterStart !== null;
+      if (modus !== 'alle' && modus !== 'alle-aktuell' && kleineDivision(c)) return false;
+      if (modus === 'aktuell' || modus === 'alle-aktuell') return c.live || c.naechsterStart !== null;
       if (modus === 'vorbei') return c.vorbei;
       return true;
     };
