@@ -499,5 +499,23 @@
     "modell": "Opus",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-28",
+    "datum": "2026-10-31T19:31:42Z",
+    "titel": "Tabellen per Tastatur bedienbar, sichtbarer Fokus",
+    "bereich": "Bedienung",
+    "warum": "Klickbare Tabellenzeilen (Bestenlisten, Cup-Ergebnisse, Solos, Scrims) ließen sich nur mit der Maus öffnen, und bei vielen Feldern sah man mit der Tastatur nicht, wo man gerade ist.",
+    "was": "Mit der Tab-Taste springt man jetzt zu einer Zeile und öffnet sie mit Enter oder Leertaste. Das gerade gewählte Element bekommt einen dezenten blauen Rahmen – nur bei Tastaturbedienung, mit der Maus bleibt alles wie vorher.",
+    "ansehen": [
+      "/events",
+      "/scrims",
+      "/statistics?bereich=spieler"
+    ],
+    "commits": [],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 1
   }
 ]

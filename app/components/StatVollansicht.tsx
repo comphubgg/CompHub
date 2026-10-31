@@ -131,7 +131,7 @@ export default function StatVollansicht({ kachel, alle, quelle, zurueck, zuDetai
               </thead>
               <tbody>
                 {(daten?.zeilen ?? []).map((z) => (
-                  <tr key={z.epicId} onClick={() => setGewaehlt(z)}
+                  <tr key={z.epicId} onClick={() => setGewaehlt(z)} tabIndex={0} role="button" onKeyDown={(ev) => { if (ev.target === ev.currentTarget && (ev.key === 'Enter' || ev.key === ' ')) { ev.preventDefault(); setGewaehlt(z); } }}
                     className={`cursor-pointer border-t border-zinc-900 transition ${gewaehlt?.epicId === z.epicId ? 'bg-sky-500/10' : 'hover:bg-zinc-900/60'}`}>
                     <td className={`px-4 py-3.5 text-center tabular-nums ${z.statRang === 1 ? 'font-bold text-sky-400' : 'text-slate-400'}`}>{z.statRang}</td>
                     <td className="px-2 py-3.5">

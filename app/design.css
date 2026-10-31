@@ -180,3 +180,10 @@ html[data-modus="hell"] .tierlist-page :is(.nav-button, .admin-btn.active, .btn-
 
 /* Der Kartenhintergrund von Maps und FNCS (app/components/KartenHintergrund.tsx) ist dunkel gedacht - im hellen Modus steht er nicht da. */
 html[data-modus="hell"] [data-karten-hg] { display: none; }
+
+/*
+ * Tastatur-Fokusring (chef-28): Wer mit Tab durch die Seite geht, sieht, wo er ist - auch bei Feldern mit outline-none.
+ * Diese Datei ist ohne @layer eingebunden und schlaegt damit die Tailwind-Klassen (liegen in @layer utilities). Mit der Maus
+ * (kein :focus-visible) bleibt alles wie vorher. Die Eingabefelder im Admin haben oben ihre eigene, spezifischere Regel.
+ */
+:focus-visible { outline: 2px solid #0ea5e9; outline-offset: 2px; }
