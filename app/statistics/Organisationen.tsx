@@ -349,9 +349,11 @@ export default function Organisationen({ aufSpieler }: {
                 const klickbar = !!s.epicId;
                 const karte = (
                   <>
-                    <div className="foto-dunkel relative aspect-[4/5] overflow-hidden bg-gradient-to-b from-zinc-800 to-zinc-950">
+                    {/* Regel des Betreibers: grosses Foto-Quadrat, der Name darunter. */}
+                    <div className="foto-dunkel relative aspect-square overflow-hidden bg-gradient-to-b from-zinc-800 to-zinc-950">
                       <SpielerFoto bild={s.bild} name={s.name} />
-                      <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-zinc-950 via-zinc-950/85 to-transparent px-4 pb-3 pt-12">
+                    </div>
+                    <div className="bg-zinc-950 px-4 pb-3 pt-3">
                         <div className="flex items-center gap-2">
                           {s.land && <TeamFlagge groesse={18} laender={[s.land]} />}
                           <span className={`truncate text-lg font-extrabold ${klickbar ? 'text-slate-50' : 'text-slate-400'}`}>{s.name}</span>
@@ -360,7 +362,6 @@ export default function Organisationen({ aufSpieler }: {
                           {s.seit ? <>{t('Teil von')} {org.name} {t('seit')} {tag(s.seit)}</>
                             : !klickbar && rolle !== 'creator' ? <T>Kein Konto verknüpft</T> : null}
                         </div>
-                      </div>
                     </div>
                     {/* Kanaele: bei Pros und Academy nur X, bei Creatorn alle. */}
                     {spielerKanaele(s).length > 0 && (
