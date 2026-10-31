@@ -1538,5 +1538,27 @@
     "modell": "Opus",
     "status": "wartet",
     "runde": 5
+  },
+  {
+    "id": "chef-70",
+    "datum": "2026-10-31T20:55:00Z",
+    "titel": "Spielerwerte je Cup: Teamplatz wie in der Bestenliste",
+    "kurz": "Cup-Seite → Player Stats: Teamplatz hinter „mit …“ stimmt jetzt mit Bestenliste.",
+    "markieren": [
+      "text:Player Stats"
+    ],
+    "bereich": "Statistik",
+    "warum": "Beim Inoxtag Icon Cup (Duo) stand ab Platz 18 hinter jedem Team ein um eins zu hoher Platz (18. → „#19“), weil er nur aus den gesammelten Replays gerechnet war.",
+    "was": "Steht das Team in Epics Bestenliste, gilt jetzt deren Platz. Bei Solo-Cups stimmte es schon, dort ändert sich nichts.",
+    "ansehen": [
+      "/events/s42_inoxtag"
+    ],
+    "commits": [
+      "98eb498ea4598312616bd9addfb6f431a8fc02a6"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 5
   }
 ]
