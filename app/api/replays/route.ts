@@ -134,6 +134,20 @@ function rundeName(windowId: string, region?: string) {
     .trim();
 }
 
+/**
+ * Epic loescht Replays nach 31 Tagen. Ein Match, das aelter ist und nicht fertig wurde (nicht PARSED, nicht schon als "ohne Replay" oder
+ * "fehlgeschlagen" festgehalten), kommt nie mehr - es steht dann als ABGELAUFEN da und nicht als "wird geladen". Nur die Anzeige: der gespeicherte
+ * Zustand bleibt unveraendert. Massgeblich ist der Zeitpunkt des Matches, ersatzweise das Datum des Fensters; ohne beides bleibt der Stand stehen.
+ */
+const FRIST_MS = 31 * 864e5;
+const ENDGUELTIG = new Set(['PARSED', 'NOT_AVAILABLE', 'FAILED', 'ABGELAUFEN']);
+function standAnzeige(m: MatchZustand, fensterDatum?: number, jetzt = Date.now()) {
+  if (ENDGUELTIG.has(m.stand)) return m.stand;
+  const t = m.zeitpunkt ? Date.parse(m.zeitpunkt) : NaN;
+  const zeit = Number.isFinite(t) && t > 0 ? t : (fensterDatum ?? 0);
+  return zeit > 0 && zeit < jetzt - FRIST_MS ? 'ABGELAUFEN' : m.stand;
+}
+
 /** Alle Fenster, die schon einmal angefasst wurden. */
 async function alleFenster() {
   const raus: Array<Fensterzustand & {
@@ -149,8 +163,10 @@ async function alleFenster() {
       const z = await liesFenster(season, windowId);
       if (!z) continue;
       const zaehler: Record<string, number> = {};
+      const jetzt = Date.now();
       for (const m of Object.values(z.matches ?? {})) {
-        zaehler[m.stand] = (zaehler[m.stand] ?? 0) + 1;
+        const stand = standAnzeige(m, z.datum, jetzt);
+        zaehler[stand] = (zaehler[stand] ?? 0) + 1;
       }
       raus.push({
         ...z, matches: {}, zaehler,
@@ -292,7 +308,7 @@ async function berechne(request: Request) {
       fenster: { ...z, matches: undefined,
         runde: rundeName(z.windowId ?? fenster, z.region) },
       matches: Object.entries(z.matches ?? {})
-        .map(([matchId, m]) => ({ matchId, ...m }))
+        .map(([matchId, m]) => ({ matchId, ...m, stand: standAnzeige(m, z.datum) }))
         .sort((a, b) => (a.zeitpunkt ?? '').localeCompare(b.zeitpunkt ?? '')),
     });
   }

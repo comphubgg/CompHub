@@ -72,6 +72,7 @@ const FARBE: Record<string, string> = {
   DOWNLOADING: 'text-sky-400 border-sky-500/40 bg-sky-500/10',
   PARSING: 'text-sky-400 border-sky-500/40 bg-sky-500/10',
   PENDING: 'text-amber-400 border-amber-500/40 bg-amber-500/10',
+  ABGELAUFEN: 'text-slate-500 border-zinc-800 bg-zinc-900/60',
   RETRYING: 'text-amber-400 border-amber-500/40 bg-amber-500/10',
 };
 
@@ -80,7 +81,7 @@ function Marke({ stand }: { stand: string }) {
     <span className={`inline-block rounded border px-2 py-0.5 text-[10px]
                       font-semibold uppercase tracking-wider
                       ${FARBE[stand] ?? 'text-slate-400 border-zinc-800'}`}>
-      {stand}
+      {stand === 'ABGELAUFEN' ? <T>Replay bei Epic abgelaufen</T> : stand}
     </span>
   );
 }
@@ -112,7 +113,7 @@ function Ueberblick({ fenster }: { fenster: Fenster[] }) {
       gesamt += n;
       const alt = (f.datum ?? 0) > 0 && (f.datum ?? 0) < frist;
       if (stand === 'PARSED') fertig += n;
-      else if (alt) verloren += n;
+      else if (alt || stand === 'ABGELAUFEN') verloren += n;
       else if (nieDa) ohneReplay += n;
       else offenInFrist += n;
     }
@@ -491,6 +492,7 @@ export default function ReplayVerwaltung() {
               for (const f of fenster) {
                 for (const [stand, n] of Object.entries(f.zaehler)) {
                   summe[stand] = (summe[stand] ?? 0) + n;
+                  if (stand === 'ABGELAUFEN') { verloren += n; continue; }
                   if (!OFFEN.includes(stand)) continue;
                   if ((f.datum ?? 0) && (f.datum ?? 0) < frist) verloren += n; else offen += n;
                 }

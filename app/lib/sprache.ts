@@ -574,6 +574,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'ausgewertet': 'parsed',
   'erschlossen': 'reconstructed',
   'noch offen': 'still open',
+  'Replay bei Epic abgelaufen': 'Replay expired at Epic',
   'ohne Replay': 'without replay',
   'Epic hat zu diesem Spieltag keine Match-Kennungen herausgegeben.':
     'Epic released no match IDs for this match day.',
