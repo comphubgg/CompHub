@@ -53,7 +53,9 @@
   }
 
   const alle = [...funde.values()];
-  const neu = alle.filter((f) => !bekannt.has(key(f.name)));
+  // Auch ohne typische Endungen vergleichen ("SHADOW" gegen "shadow1x").
+  const hat = (n) => { const k = key(n); return bekannt.has(k) || bekannt.has(k.replace(/(1x|fv|fn|ttv|yt|\d+)$/, '')); };
+  const neu = alle.filter((f) => !hat(f.name));
 
   document.getElementById('ch-fotos')?.remove();
   const box = document.createElement('div');
