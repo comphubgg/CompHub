@@ -1666,7 +1666,9 @@
     "ansehen": [
       "/statistics?spieler=45ce4565b6db452c9419119b12e7eac3"
     ],
-    "commits": [],
+    "commits": [
+      "56717b9533d835504b86a7ea689bb4dfcedf487c"
+    ],
     "groesse": "klein",
     "modell": "Opus",
     "status": "wartet",
