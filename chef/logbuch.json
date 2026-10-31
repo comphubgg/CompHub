@@ -33,5 +33,21 @@
     "modell": "Opus",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-3",
+    "datum": "2026-10-31T18:45:00Z",
+    "titel": "Beitrag-Holen im Admin: Fehlermeldung kommt an",
+    "bereich": "Admin",
+    "warum": "Wenn im Admin-Bereich unter Tweets ein Beitrag geholt wird, der geloescht oder privat ist, antwortete der Server so, dass der Lastverteiler eine fremde Fehlerseite daraus machen kann. Statt 'Beitrag nicht lesbar - geloescht, privat oder gesperrt?' stand dann nur ein nichtssagender Fehler da.",
+    "was": "Der Server meldet diesen Fall jetzt so wie alle anderen erwarteten Fehler auch. Im Werkzeug erscheint wieder der klare Hinweis, warum der Beitrag nicht kam.",
+    "ansehen": [
+      "/admin/tweets"
+    ],
+    "commits": [],
+    "groesse": "klein",
+    "modell": "Opus",
+    "status": "wartet",
+    "runde": 1
   }
 ]
