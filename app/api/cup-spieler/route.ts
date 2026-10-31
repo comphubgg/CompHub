@@ -274,7 +274,12 @@ function seiteVon<T extends Zeile>(alle: T[], feld: string, seite: number, pro: 
   const wert = (z: T) => Number(z[feld === 'elims' ? 'kills' : feld]);
   const sortiert = alle.filter((z) => Number.isFinite(wert(z)) && wert(z) > 0)
     .sort((a, b) => (KLEIN_BESSER.has(feld) ? wert(a) - wert(b) : wert(b) - wert(a)))
-    .map((z, i) => ({ ...z, statRang: i + 1 }));
+    // Gleicher Wert, gleicher Rang (1, 2, 2, 4) - wie die Team-Kacheln (chef-57). Vorher zaehlte der Rang nur die Zeilen durch.
+    .map((z, i, a) => ({ z, i, gleich: i > 0 && wert(a[i - 1]) === wert(z) }))
+    .reduce<Array<T & { statRang: number }>>((raus, { z, i, gleich }) => {
+      raus.push({ ...z, statRang: gleich ? raus[i - 1].statRang : i + 1 });
+      return raus;
+    }, []);
   const gefiltert = treffer ? sortiert.filter(treffer) : sortiert;
   const seiten = Math.max(1, Math.ceil(gefiltert.length / pro));
   const nr = Math.min(Math.max(1, seite), seiten);

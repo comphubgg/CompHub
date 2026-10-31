@@ -1101,5 +1101,26 @@
     "modell": "Sonnet",
     "status": "wartet",
     "runde": 4
+  },
+  {
+    "id": "chef-58",
+    "datum": "2026-10-31T20:36:00Z",
+    "titel": "Spielerwerte je Cup: gleicher Wert, gleicher Rang",
+    "kurz": "FNCS Solo Final → Spielerwerte → Vollbild „All“: gleiche Werte teilen sich den Rang.",
+    "markieren": [
+      "text:Rang",
+      "css:table"
+    ],
+    "bereich": "Statistik",
+    "warum": "Wie bei den Team-Kacheln zählte die Spielerliste nur durch: gleiche Werte bekamen verschiedene Ränge.",
+    "was": "Spieler mit gleichem Wert stehen jetzt auf demselben Rang (1, 2, 2, 4), auch bei „Rang #… / …“ im Spielerfeld.",
+    "ansehen": [
+      "/events/s42_fncssolos_final"
+    ],
+    "commits": [],
+    "groesse": "klein",
+    "modell": "Opus",
+    "status": "wartet",
+    "runde": 4
   }
 ]
