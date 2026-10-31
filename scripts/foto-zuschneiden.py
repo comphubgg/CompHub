@@ -50,6 +50,9 @@ def ausschnitt(b, h, g):
     x, y, w, hh = g
     fx, fy = x + w / 2, y + hh / 2
     cb = w / BREITE
+    # Nie winziger als die Haelfte des Fotos: ein sehr kleiner Ausschnitt heisst fast immer, dass die Erkennung etwas anderes fuer ein Gesicht hielt
+    # (NOAHWPLAYS, 31.10.2026: im Profil fotografiert, erkannt wurde das Kinn mit dem Mikrofon). Die Spieler fuellen ihre Fotos meist ohnehin gross.
+    cb = max(cb, min(b, h * 0.8) * 0.5)
     # Nicht groesser als das Foto
     cb = min(cb, b, h * 0.8)
     while True:
