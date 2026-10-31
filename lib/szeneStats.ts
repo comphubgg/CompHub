@@ -690,7 +690,10 @@ const platzCache = new Map<string, {
  */
 function letzterTagEinesFinales(windowId: string): number | null {
   const m = windowId.match(/(?:_Final_Day|SoloSeriesCupFinal_Day|GrandFinalDay)(\d+)_/)
-    ?? windowId.match(/_GrandFinals_[A-Z]+_Day(\d+)$/);
+    ?? windowId.match(/_GrandFinals_[A-Z]+_Day(\d+)$/)
+    // Die Globals (LAN) heissen nur mit Decknamen, z. B. "MannekenPis_Day2" - auch dort Endstand statt Tag 2 allein.
+    // Gemessen an /api/globals-endstand: Shxrk/T3eny Tag 2 allein Platz 1 mit 304, Endstand Platz 2 mit 523.
+    ?? windowId.match(/^[A-Za-z]+_Day(\d+)$/);
   return m && Number(m[1]) >= 2 ? Number(m[1]) : null;
 }
 

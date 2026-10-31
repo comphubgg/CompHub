@@ -2134,5 +2134,27 @@
     "modell": "Opus",
     "status": "wartet",
     "runde": 6
+  },
+  {
+    "id": "chef-103",
+    "datum": "2026-10-31T22:05:00Z",
+    "titel": "Profil: Globals zeigen Endplatz statt Platz von Tag 2",
+    "kurz": "Profil Shxrk → Global Championship 2026, Day 2: Platz 2 / 523 Punkte statt 1 / 304.",
+    "markieren": [
+      "text:Place",
+      "text:Points"
+    ],
+    "bereich": "Statistik",
+    "warum": "Bei der Global Championship stand im Profil nur Platz und Punkte von Tag 2; das Preisgeld daneben gehörte aber zum Endplatz.",
+    "was": "Die Zeile von Tag 2 zeigt jetzt den Endstand beider Tage, wie schon bei den FNCS-Finals. Sichtbar, sobald die Profile neu gerechnet sind.",
+    "ansehen": [
+      "/statistics?spieler=39a4c6ccd9bf46a2bc6f9a3106de22f4&saison=S42",
+      "/statistics?spieler=45ce4565b6db452c9419119b12e7eac3&saison=S42"
+    ],
+    "commits": [],
+    "groesse": "klein",
+    "modell": "Sonnet (gefunden) + Opus (allgemeiner gemacht)",
+    "status": "wartet",
+    "runde": 6
   }
 ]
