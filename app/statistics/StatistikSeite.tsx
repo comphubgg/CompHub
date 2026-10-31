@@ -848,7 +848,7 @@ function Treppchen({ drei, wertVon, aufKlick }: { drei: Array<{ sp: Spieler; nr:
 }
 
 /** Die Spieltage der LANs (Globals, Majors, Summit ...): sie gehoeren in die Heimatregion jedes Spielers, der dort antrat - nicht in die Region des Veranstaltungsorts. */
-const LAN_FENSTER = /^(MannekenPis|Dinosauron|BambiRaptor|Escargo|Bratwurst|Acrocanthosaurus)_(?:Finals_)?Day(d+)$/i;
+const LAN_FENSTER = /^(MannekenPis|Dinosauron|BambiRaptor|Escargo|Bratwurst|Acrocanthosaurus)_(?:Finals_)?Day(\d+)$/i;
 
 /**
  * Zwei Spieler nebeneinander.
