@@ -2223,5 +2223,26 @@
     "modell": "Opus",
     "status": "wartet",
     "runde": 6
+  },
+  {
+    "id": "chef-105",
+    "datum": "2026-10-31T22:10:00Z",
+    "titel": "Cup-Spielerdetails: 0 Elim-Punkte werden gezeigt statt versteckt",
+    "kurz": "Cup-Seite → Spieler ohne Elim-Punkte öffnen: Zeile „Elimination 0 points“ steht jetzt da.",
+    "markieren": [
+      "text:Elimination",
+      "text:Placement"
+    ],
+    "bereich": "Statistik",
+    "warum": "Hatte ein Spieler 0 Elim- oder 0 Platzpunkte, fehlte die Zeile ganz; die Aufteilung der Punkte wirkte unvollständig (8 Spieler im FNCS Solo Final EU).",
+    "was": "Beide Zeilen stehen jetzt immer da, sobald Epic die Aufteilung liefert; der fehlende Teil zählt als 0.",
+    "ansehen": [
+      "/events/s42_fncssolos_reload_finals"
+    ],
+    "commits": [],
+    "groesse": "klein",
+    "modell": "Opus",
+    "status": "wartet",
+    "runde": 6
   }
 ]
