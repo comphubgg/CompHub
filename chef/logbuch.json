@@ -209,5 +209,23 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-10",
+    "titel": "Jede Bereichsseite bekommt eigenen Titel für Google und beim Teilen",
+    "bereich": "Technik",
+    "modell": "Sonnet",
+    "warum": "Alle Seiten trugen denselben Titel („CompHub — Fortnite Competitive …“) und meldeten Google dieselbe Adresse wie die Startseite. Google hielt Statistik, Events, Maps usw. deshalb für Kopien der Startseite und zeigte sie kaum an. Auch geteilte Links sahen überall gleich aus.",
+    "was": "Elf Bereiche (Statistik, Events, Turnier-Maps, Maps, FNCS, Power Rankings, Tierlist, Prognosen, Replays, Streams, Scrims) haben jetzt einen eigenen Titel im Browser-Tab, z. B. „Statistics | CompHub“, und eine eigene kurze Beschreibung beim Teilen. Jede Seite meldet Google ihre eigene Adresse. Am Inhalt der Seiten ändert sich nichts – zu sehen am Namen im Browser-Tab.",
+    "ansehen": [
+      "/statistics",
+      "/events",
+      "/tournament-maps"
+    ],
+    "groesse": "mittel",
+    "datum": "2026-10-31T19:01:15Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]
