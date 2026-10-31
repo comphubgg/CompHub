@@ -142,3 +142,31 @@ export default function KarteImEvent({ karten, leer, alsReiter }: { karten: Eint
     </section>
   );
 }
+
+/*
+ * Noch keine Karte mit Landepunkten (das Turnier kommt erst, oder der Betreiber hat noch kein Team verteilt): trotzdem die Insel in derselben Ansicht
+ * statt des alten Knopf-Kastens (Betreiber, 31.10.2026: "nicht mit so einem Zeichen ... das soll nicht mehr so sein"). Der Knopf zum Anlegen nur fuer den Admin.
+ */
+export function LeereEventKarte({ name, admin }: { name: string; admin?: ReactNode }) {
+  const fenster = useMemo<SolosFenster>(() => ({ windowId: 'leer', name, art: 'finale', start: null, end: null, spieler: [], formen: [] }), [name]);
+  return (
+    <section className="mb-5 max-w-[1180px]">
+      {admin}
+      <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_250px]">
+        <div className="overflow-hidden rounded-2xl">
+          <Karte f={fenster} bild={fortniteKarte(false)} rotAb={2} />
+        </div>
+        <aside className="relative min-h-[320px] overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/70">
+          <div className="absolute inset-0 flex flex-col">
+            <p className="flex items-center justify-between border-b border-zinc-800 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-[0.16em] text-slate-500">
+              <T>Spieler</T><span className="tabular-nums text-slate-300">0</span>
+            </p>
+            <p className="flex flex-1 items-center justify-center px-5 text-center text-[12px] leading-relaxed text-slate-400">
+              <T>Die Landepunkte erscheinen hier, sobald die Karte zu diesem Turnier steht.</T>
+            </p>
+          </div>
+        </aside>
+      </div>
+    </section>
+  );
+}

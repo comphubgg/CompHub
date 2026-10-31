@@ -4519,6 +4519,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Streamer suchen …': 'Search streamers …',
   'Streamer oder Stream-Titel suchen …': 'Search streamers or stream titles …',
   'Statistik noch nicht vollständig.': 'Statistics not complete yet.',
+  'Die Landepunkte erscheinen hier, sobald die Karte zu diesem Turnier steht.': 'The landing spots will appear here as soon as the map for this tournament is ready.',
   'Die Replays dieses Spieltags werden gerade noch ausgewertet - einzelne Werte können noch fehlen. Spätestens 24 Stunden nach Cup-Ende ist alles da.': 'The replays of this match day are still being analysed - some values may still be missing. Everything is in place no later than 24 hours after the cup ends.',
   'Chat an': 'Chat on',
   'Chat aus': 'Chat off',
