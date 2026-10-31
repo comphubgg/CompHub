@@ -89,19 +89,19 @@ function summiere(tage: Array<[string, Zeile[]]>, solo = false): Summe {
   return s;
 }
 
-/** Die Zeilen der Tafel: Titel, Wert, Nachkommastellen, "weniger ist besser". */
+/** Die Zeilen der Tafel: Titel, Wert, Nachkommastellen, "weniger ist besser". Kopftreffer, Bauteile und Material kennen eigene Spieltage nicht (matchesVoll 0): dann Strich statt 0. */
 interface Reihe { key: string; titel: string; wert: (s: Summe) => number | null; nk: number; weniger?: boolean; suffix?: string }
 const REIHEN: Reihe[] = [
   { key: 'elims', titel: 'Eliminierungen', wert: (s) => s.elims, nk: 0 },
   { key: 'damage', titel: 'Schaden', wert: (s) => s.damage, nk: 0 },
   { key: 'quote', titel: 'Schadensquote', wert: (s) => (s.genommen > 0 ? s.damage / s.genommen : null), nk: 2 },
-  { key: 'headshots', titel: 'Kopftreffer', wert: (s) => s.headshots, nk: 0 },
+  { key: 'headshots', titel: 'Kopftreffer', wert: (s) => (s.matchesVoll > 0 ? s.headshots : null), nk: 0 },
   { key: 'hits', titel: 'Treffer auf Spieler', wert: (s) => s.hits, nk: 0 },
   { key: 'genauigkeit', titel: 'Genauigkeit', wert: (s) => (s.shots > 0 ? (s.hitsMitSchuss / s.shots) * 100 : null), nk: 1, suffix: '%' },
   { key: 'dpm', titel: 'Schaden pro Minute', wert: (s) => (s.zeit > 0 ? s.damage / (s.zeit / 60) : null), nk: 0 },
   { key: 'tpm', titel: 'Erlittener Schaden pro Minute', wert: (s) => (s.zeit > 0 ? s.genommen / (s.zeit / 60) : null), nk: 0, weniger: true },
-  { key: 'builds', titel: 'Gesetzte Bauteile', wert: (s) => s.builds, nk: 0 },
-  { key: 'mats', titel: 'Gesammeltes Material', wert: (s) => s.mats, nk: 0 },
+  { key: 'builds', titel: 'Gesetzte Bauteile', wert: (s) => (s.matchesVoll > 0 ? s.builds : null), nk: 0 },
+  { key: 'mats', titel: 'Gesammeltes Material', wert: (s) => (s.matchesVoll > 0 ? s.mats : null), nk: 0 },
   { key: 'reboots', titel: 'Reboots & Revives', wert: (s) => s.reboots, nk: 0 },
   { key: 'matches', titel: 'Gespielte Matches', wert: (s) => s.matches, nk: 0 },
 ];
