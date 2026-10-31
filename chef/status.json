@@ -1,11 +1,11 @@
 {
-  "letzteRunde": "2026-10-31T19:17:00Z",
-  "macheGerade": "Runde 2 fertig – 21 neue Verbesserungen (chef-5 bis chef-26, ohne chef-2) warten auf deine Entscheidung; chef-1 bis chef-4 sind live.",
+  "letzteRunde": "2026-10-31T19:55:00Z",
+  "macheGerade": "Runde 3 fertig – 21 neue Verbesserungen (chef-27 bis chef-49, ohne chef-33 und chef-46) warten auf deine Entscheidung. chef-6 ist auf deinen Wunsch zurückgenommen, chef-5 und chef-10 sind live. Schwerpunkt Statistik: Laufstrecke ab S41 (100× zu klein), Quoten-Listen mit Mindestzahl an Matches, Cup-Gesamtwertung, Solo-K/D, abgesagte Runden.",
   "naechstes": [
-    "Saison-Bestenlisten enden am 10.10., Profile haben Spieltage bis 27.10. – mit Zugang zur Ablage prüfen",
-    "Teilen-Vorschau für Spielerprofile und Cup-Seiten (Name und Bild)",
-    "Roboto doppelt geladen, Geist-Vorladen – mit Blick im Browser",
-    "GitHub-Rechner überbucht / Vorrang-Signal (nur als Vorschlag, Abläufe sind tabu)"
+    "Gleichstand im Endstand zweitägiger Finals (Platz und Preisgeld) wie Epic auflösen",
+    "Nach dem nächsten Stundenlauf prüfen: Saisonlisten mit Finals 26./27.10. und Schaden in der Elims-Liste",
+    "Admin-Übersetzungen nur im Admin laden (kleineres Paket für alle Besucher)",
+    "Cup-Statistik: Ø Lebenszeit je Spiel statt Summe"
   ],
   "pause": false,
   "modell": "Opus (Planung, Prüfung, Statistik) + Sonnet (Unteragenten)",
