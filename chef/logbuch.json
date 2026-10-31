@@ -308,24 +308,27 @@
   },
   {
     "id": "chef-14",
-    "titel": "Startseite: Spielersuche direkt im Kopf",
+    "titel": "Spielersuche als kleine Lupe oben rechts",
     "bereich": "Statistik",
     "modell": "Sonnet",
     "warum": "Wer einen Spieler sucht, musste erst „Statistiken“ öffnen und dort das kleine Suchfeld oben rechts finden. Auf vergleichbaren Seiten ist die Suche das Erste, was man sieht.",
-    "was": "Mitten im Kopf der Startseite, unter „Statistiken, Turniere und Streams an einem Ort“, steht jetzt ein großes Suchfeld. Schon beim Tippen (ab zwei Buchstaben) erscheinen bis zu acht Treffer mit Foto, Flagge und Region; ein Klick oder Enter öffnet das Profil. Pfeiltasten und Escape funktionieren. Ist die Suche gestört, steht „Suche gerade nicht erreichbar“ da – nie fälschlich „Kein Spieler gefunden“. Tipp zum Ansehen: „pete“ eingeben.",
+    "was": "Wie gewünscht: Statt des großen Suchfelds mitten im Kopf der Startseite steht jetzt oben rechts in der Kopfzeile nur ein kleines Lupen-Symbol (neben dem Menü bzw. Konto), auf jeder Seite. Ein Klick öffnet darunter das Suchfeld; Treffer mit Foto, Flagge und Region, ein Klick öffnet das Profil. Escape oder ein Klick daneben schließt es wieder.",
     "ansehen": [
-      "/"
+      "/",
+      "/events"
     ],
     "groesse": "mittel",
-    "datum": "2026-10-31T19:05:11Z",
+    "datum": "2026-10-31T19:53:29Z",
     "commits": [
-      "63a7625a68b6d73194f6749a624fcc9ffb6c84dd"
+      "63a7625a68b6d73194f6749a624fcc9ffb6c84dd",
+      "18697ef21a765773f15a16ee893b5f24b89fc618"
     ],
     "status": "wartet",
-    "runde": 1,
+    "runde": 2,
     "markieren": [
-      "css:input[placeholder*=\"Search a player\"]"
-    ]
+      "css:header button[aria-label]"
+    ],
+    "erledigtAm": "2026-10-31T19:53:29Z"
   },
   {
     "id": "chef-15",
