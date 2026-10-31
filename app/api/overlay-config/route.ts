@@ -14,7 +14,13 @@ import { modName } from '@/lib/modName';
 //   GET  ?id=<kennung>      -> Einstellungen und Stand (oeffentlich)
 //   GET  ?meine=1           -> die eigenen Overlays (angemeldet)
 //   POST { id?, typ, name, config }  -> anlegen oder aendern (Besitzer)
+//   GET  ?geloescht=1       -> die zuletzt geloeschten Overlays (angemeldet)
 //   POST { id, loeschen: true }      -> entfernen (Besitzer)
+//   POST { id, wiederherstellen: true } -> Loeschen zuruecknehmen (Besitzer)
+//
+// Loeschen ist ein Vormerken: der Eintrag bleibt mit "geloeschtAm" sieben Tage
+// liegen und wird beim naechsten Schreiben danach endgueltig entfernt. Die
+// Kennung - und damit die Adresse in OBS - bleibt so wiederherstellbar.
 //
 // Warum das noetig ist: bisher steckte jede Einstellung eines Overlays in
 // seiner Adresse. Wer die Farbe aenderte, bekam eine neue Adresse und musste
@@ -38,6 +44,9 @@ const DATEI = path.join(DATEN_ORT, 'overlays.json');
 
 /** Wie viele Overlays ein Konto anlegen darf - gegen Unfug, nicht gegen ihn. */
 const HOECHSTENS = 60;
+
+/** Wie lange ein geloeschtes Overlay wiederherstellbar bleibt. */
+const GALGENFRIST_MS = 7 * 86_400_000;
 
 export interface OverlayEintrag {
   id: string;
@@ -65,6 +74,8 @@ export interface OverlayEintrag {
    */
   angelegtVon?: string;
   geaendertVon?: string;
+  /** Gesetzt = geloescht (Millisekunden). Der Eintrag bleibt 7 Tage liegen. */
+  geloeschtAm?: number;
 }
 
 /**
@@ -86,6 +97,11 @@ async function lies(): Promise<Record<string, OverlayEintrag>> {
 }
 
 async function schreibe(alles: Record<string, OverlayEintrag>): Promise<void> {
+  // Geloeschtes, das die Frist hinter sich hat, endgueltig entfernen.
+  const grenze = Date.now() - GALGENFRIST_MS;
+  for (const [k, e] of Object.entries(alles)) {
+    if (typeof e.geloeschtAm === 'number' && e.geloeschtAm < grenze) delete alles[k];
+  }
   await fs.mkdir(path.dirname(DATEI), { recursive: true });
   await fs.writeFile(DATEI, JSON.stringify(alles, null, 1), 'utf8');
 }
@@ -154,7 +170,8 @@ export async function GET(request: Request) {
   const id = p.get('id');
   if (id) {
     const e = alles[id];
-    if (!e) {
+    // Ein geloeschtes Overlay ist fuer OBS genauso weg wie ein entferntes.
+    if (!e || e.geloeschtAm) {
       return NextResponse.json({ error: 'Unknown overlay' }, { status: 404 });
     }
     /*
@@ -181,7 +198,7 @@ export async function GET(request: Request) {
     if (!ich) return NextResponse.json({ overlays: [] });
     return NextResponse.json({
       overlays: Object.values(alles)
-        .filter((e) => e.besitzer === ich)
+        .filter((e) => e.besitzer === ich && !e.geloeschtAm)
         .sort((a, b) => b.geaendert.localeCompare(a.geaendert))
         .map((e) => ({
           id: e.id, typ: e.typ, name: e.name, stand: e.stand,
@@ -192,7 +209,19 @@ export async function GET(request: Request) {
     });
   }
 
-  return NextResponse.json({ error: 'id or meine=1 is required' }, { status: 400 });
+  if (p.get('geloescht')) {
+    const ich = await wer();
+    if (!ich) return NextResponse.json({ geloescht: [] });
+    const grenze = Date.now() - GALGENFRIST_MS;
+    return NextResponse.json({
+      geloescht: Object.values(alles)
+        .filter((e) => e.besitzer === ich && e.geloeschtAm && e.geloeschtAm >= grenze)
+        .sort((a, b) => (b.geloeschtAm ?? 0) - (a.geloeschtAm ?? 0))
+        .map((e) => ({ id: e.id, typ: e.typ, name: e.name, geloeschtAm: e.geloeschtAm })),
+    });
+  }
+
+  return NextResponse.json({ error: 'id, meine=1 or geloescht=1 is required' }, { status: 400 });
 }
 
 export async function POST(request: Request) {
@@ -211,9 +240,31 @@ export async function POST(request: Request) {
     if (e.besitzer !== ich) {
       return NextResponse.json({ error: 'Not yours' }, { status: 403 });
     }
-    delete alles[koerper.id];
-    await schreibe(alles);
+    if (!e.geloeschtAm) e.geloeschtAm = Date.now();
+    try {
+      await schreibe(alles);
+    } catch {
+      return NextResponse.json({ error: 'Storage not available' }, { status: 424 });
+    }
     return NextResponse.json({ ok: true });
+  }
+
+  // ------------------------------------------------- Wiederherstellen
+  if (koerper.wiederherstellen && typeof koerper.id === 'string') {
+    const e = alles[koerper.id];
+    if (!e) return NextResponse.json({ error: 'Unknown overlay' }, { status: 404 });
+    if (e.besitzer !== ich) {
+      return NextResponse.json({ error: 'Not yours' }, { status: 403 });
+    }
+    if (e.geloeschtAm) {
+      delete e.geloeschtAm;
+      try {
+        await schreibe(alles);
+      } catch {
+        return NextResponse.json({ error: 'Storage not available' }, { status: 424 });
+      }
+    }
+    return NextResponse.json({ ok: true, id: e.id });
   }
 
   const typ = String(koerper.typ ?? '').trim();
@@ -223,7 +274,7 @@ export async function POST(request: Request) {
     ? koerper.config as Record<string, unknown> : {};
 
   // ------------------------------------------------------------- Aendern
-  if (typeof koerper.id === 'string' && alles[koerper.id]) {
+  if (typeof koerper.id === 'string' && alles[koerper.id] && !alles[koerper.id].geloeschtAm) {
     const e = alles[koerper.id];
     if (e.besitzer !== ich) {
       return NextResponse.json({ error: 'Not yours' }, { status: 403 });
@@ -235,12 +286,16 @@ export async function POST(request: Request) {
     e.geaendert = new Date().toISOString();
     const wers = await schild();
     if (wers) e.geaendertVon = wers;
-    await schreibe(alles);
+    try {
+      await schreibe(alles);
+    } catch {
+      return NextResponse.json({ error: 'Storage not available' }, { status: 424 });
+    }
     return NextResponse.json({ id: e.id, stand: e.stand });
   }
 
   // ------------------------------------------------------------- Anlegen
-  const meine = Object.values(alles).filter((e) => e.besitzer === ich);
+  const meine = Object.values(alles).filter((e) => e.besitzer === ich && !e.geloeschtAm);
   if (meine.length >= HOECHSTENS) {
     return NextResponse.json({
       error: `No more than ${HOECHSTENS} overlays.`,
@@ -263,6 +318,10 @@ export async function POST(request: Request) {
     ...(wer_es_war ? { angelegtVon: wer_es_war, geaendertVon: wer_es_war } : {}),
   };
   alles[neu.id] = neu;
-  await schreibe(alles);
+  try {
+    await schreibe(alles);
+  } catch {
+    return NextResponse.json({ error: 'Storage not available' }, { status: 424 });
+  }
   return NextResponse.json({ id: neu.id, stand: neu.stand });
 }
