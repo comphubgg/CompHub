@@ -333,8 +333,9 @@ function VipZugaenge() {
   /** Einen Zugang endgueltig entfernen. */
   async function entfernen(n: string) {
     if (!window.confirm(
-      t('Diesen Zugang endgültig entfernen? Er kann sich dann nicht mehr anmelden.')
-        .replace('{n}', n))) return;
+      `${t('Diesen Zugang endgültig entfernen? Er kann sich dann nicht mehr anmelden.')}
+
+${n}`)) return;
     await fetch(`/api/admin/vip-zugaenge?name=${encodeURIComponent(n)}`,
       { method: 'DELETE' });
     setZeigt(null);
