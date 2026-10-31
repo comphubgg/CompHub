@@ -1846,7 +1846,9 @@
     "ansehen": [
       "/statistics?bereich=jahr&jahr=2022"
     ],
-    "commits": [],
+    "commits": [
+      "962858f28a17b74c22ccd555b0728b0fd73439f1"
+    ],
     "groesse": "klein",
     "modell": "Opus",
     "status": "wartet",
