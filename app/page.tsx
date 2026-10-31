@@ -251,16 +251,20 @@ export default function Startseite() {
          * Zwischenspeicher). Vorher stand hier die Zahl aus dem Verzeichnis der Szene allein (982) - die Statistik zeigte fuer 2026 aber
          * 1.342 Spieltage, weil dort auch Epics Bestenlisten zaehlen. Ein Jahr wirkte so groesser als das ganze Archiv.
          */
-        const [archiv, replays, zahl, alleZeit] = await Promise.all([
+        const [archiv, zahl, alleZeit] = await Promise.all([
           fetch('/api/szene-stats', { signal: frist })
-            .then((r) => r.json()).catch(() => null),
-          fetch('/api/replays', { signal: frist })
             .then((r) => r.json()).catch(() => null),
           fetch('/api/replays?zahl=1', { signal: frist })
             .then((r) => r.json()).catch(() => null) as Promise<{ ausgewertet?: number | null } | null>,
           fetch('/api/szene-stats?ansicht=jahr&jahr=alle&kurz=1', { signal: frist })
             .then((r) => r.json()).catch(() => null) as Promise<{ success?: boolean; spieltage?: number } | null>,
         ]);
+        /*
+         * Die ganze Replay-Liste (rund 280 KB) nur noch als Ersatz, wenn die fertige Zahl fehlt - vorher kam sie bei jedem Besuch mit,
+         * obwohl daraus nur dieselbe Summe wurde.
+         */
+        const replays = typeof zahl?.ausgewertet === 'number' && zahl.ausgewertet > 0 ? null
+          : await fetch('/api/replays', { signal: frist }).then((r) => r.json()).catch(() => null);
         // Bleibt die Antwort aus, steht ein Strich - eine Null waere eine Behauptung.
         setStand({
           saisons: archiv?.saisons?.length ?? null,

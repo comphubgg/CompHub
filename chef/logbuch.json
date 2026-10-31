@@ -483,5 +483,21 @@
     ],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-32",
+    "datum": "2026-10-31T19:31:12Z",
+    "titel": "Startseite lädt rund 280 KB weniger",
+    "bereich": "Tempo",
+    "warum": "Für die Zahl „Matches ausgewertet“ lud die Startseite bei jedem Besuch zusätzlich die komplette Replay-Liste (rund 280 KB), obwohl es die fertige Zahl schon in einer winzigen Abfrage gibt.",
+    "was": "Die große Liste kommt nur noch, wenn die kleine Abfrage ausfällt. Die Zahl bleibt dieselbe, die Startseite lädt auf dem Handy spürbar weniger.",
+    "ansehen": [
+      "/"
+    ],
+    "commits": [],
+    "groesse": "klein",
+    "modell": "Opus",
+    "status": "wartet",
+    "runde": 1
   }
 ]
