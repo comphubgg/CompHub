@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { liesJson, schreibJson } from '@/lib/ablage';
+import { speicher, schreibJson } from '@/lib/ablage';
 
 /*
  * Der Eingang fuer den Foto-Befehl (tools/fotos-sammeln.js, Knopf "Alle an CompHub senden"; Betreiber, 31.10.2026: "am besten, dass ich sie nicht mal
@@ -14,6 +14,7 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
 const DATEI = 'fotos-eingang.json';
+const STOERUNG = 'Ablage antwortet nicht - gleich nochmal senden';
 const KOPF = {
   'Access-Control-Allow-Origin': '*',
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
@@ -44,14 +45,26 @@ export async function POST(request: Request) {
   }
   if (!neu.length) return NextResponse.json({ ok: false, fehler: 'keine gueltigen Eintraege' }, { status: 400, headers: KOPF });
   // Zusammenfuehren nach Adresse - ein zweiter Durchlauf derselben Seite ersetzt die Namen, statt alles doppelt abzulegen.
-  const alt = await liesJson<Eintrag[]>(DATEI, []).catch(() => [] as Eintrag[]);
+  // Nur eine wirklich fehlende Datei (null) beginnt leer. Ein Lesefehler - oder eine nicht lesbare Datei - bricht ab: sonst zaehlte die Liste als leer und
+  // das Schreiben danach legte bis zu 40.000 gesammelte Adressen unter nur die neuen Eintraege. Kein 5xx/429/402 (Cloudflare), darum 424.
+  let alt: Eintrag[] = [];
+  try {
+    const roh = await speicher.lies(DATEI);
+    if (roh) {
+      const gelesen: unknown = JSON.parse(roh.toString('utf8'));
+      if (!Array.isArray(gelesen)) throw new Error('Eingang ist keine Liste');
+      alt = gelesen as Eintrag[];
+    }
+  } catch {
+    return NextResponse.json({ ok: false, fehler: STOERUNG }, { status: 424, headers: KOPF });
+  }
   const nachUrl = new Map(alt.map((e) => [e.url, e]));
   for (const e of neu) nachUrl.set(e.url, e);
   const alle = [...nachUrl.values()].slice(-40000);
   try {
     await schreibJson(DATEI, alle);
   } catch {
-    return NextResponse.json({ ok: false, fehler: 'Ablage antwortet nicht - gleich nochmal senden' }, { status: 200, headers: KOPF });
+    return NextResponse.json({ ok: false, fehler: STOERUNG }, { status: 424, headers: KOPF });
   }
   return NextResponse.json({ ok: true, empfangen: neu.length, gesamt: alle.length }, { headers: KOPF });
 }
