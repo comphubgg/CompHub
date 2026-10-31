@@ -6,7 +6,9 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 
 - [ ] **Saison-Bestenlisten enden am 10.10., das Profil hat Spieltage bis 27.10.** _(Statistik · Wirkung 5/5)_ - Gemessen: /api/szene-stats?ansicht=start (S42) zeigt Peterbot mit 57 Matches / 152 Elims / 42.853 Schaden, sein Profil (?spieler=45ce4565…&saison=S42) mit 83 / 208 / 59.572. Der jüngste Spieltag in grundlage.spieltage der Startantwort ist vom 10.10. (FNCSSoloFastTracks); im Profil stehen FNCS Solo Heats (18.10.), Finals (26./27.10.) und PE Event 9 (22./23.10.). Vermutung: die vorgerechnete Startantwort ist veraltet oder aggregateSaison/grossesTurnier lässt die neuen eigenen Spieltage weg (lib/szeneStats.ts um Zeile 1440). Mit Zugang zur Ablage prüfen.
 - [ ] **Statistik-Startseite: Listen kürzen** (siehe unten, 1,1 MB) - noch offen, braucht eigenen Abruf für die volle Liste.
-- [ ] **Gleicher Anzeigename für verschiedene Konten** - in den Saisonlisten erscheinen zwei Konten als „RISE“ (NAC e5556b32…, ASIA 635ed9f3… „Riddle RiIse“), weil die Szene-Quelle beiden diesen Namen gibt. Idee: bei Namensgleichheit in einer Liste die Region oder den Epic-Namen klein dahinter zeigen.
+- [x] **Gleicher Anzeigename für verschiedene Konten** (geprüft: die Region steht in jeder Zeile daneben, damit unterscheidbar - kein Umbau nötig) - in den Saisonlisten erscheinen zwei Konten als „RISE“ (NAC e5556b32…, ASIA 635ed9f3… „Riddle RiIse“), weil die Szene-Quelle beiden diesen Namen gibt. Idee: bei Namensgleichheit in einer Liste die Region oder den Epic-Namen klein dahinter zeigen.
+- [ ] **Jahresbilanz: Rang „1 von 8.522“ gegen Perzentile über 4.969 Spieler im selben Profil** - prüfen, ob die zwei Feldgrößen erklärt werden (Perzentile vermutlich mit Mindest-Matches).
+- [ ] **Datum fest britisch auch auf weiteren Seiten** - chef-19 deckt Startseite, Maps, FNCS ab; per grep nach "'en-GB'" weitere Stellen suchen. VIP-Ablaufdatum im Kopf (MainHeader) ist fest deutsch.
 - [ ] **Teilen-Vorschau für Spielerprofile und Cup-Seiten** - chef-10 gibt den Bereichen Titel; Profile (/statistics?spieler=) und /events/[id] bräuchten generateMetadata mit Name und Bild.
 
 ## Zusammenfassung je Bereich
@@ -21,7 +23,7 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 
 ## Offene Punkte
 
-- [ ] **Spielersuche direkt auf der Startseite (und als Lupe oben)** _(Bereich: Besucher-Seiten · Wirkung 5/5 · Aufwand mittel · Risiko niedrig)_
+- [x] **Spielersuche direkt auf der Startseite (und als Lupe oben)** _(Bereich: Besucher-Seiten · Wirkung 5/5 · Aufwand mittel · Risiko niedrig)_
   - Problem: Wer einen Spieler sucht, muss erst „Statistiken“ öffnen und dort das kleine Suchfeld finden (app/statistics/page.tsx:3882, kopfSuchfeld). Der Kopf der Startseite hat nur drei Knöpfe: Statistiken, Streams, Discord (app/page.tsx:325-336). In der Kopfzeile gibt es kein Suchfeld (app/components/MainHeader.tsx:22-42). Bei Fortnite Tracker oder Osirion ist die Suche das Erste, was man sieht. Die Suche selbst funktioniert schon: /api/szene-stats?ansicht=suche&q=pete liefert sofort peterbot.
   - Vorschlag: Ein großes Suchfeld mitten in den Kopf der Startseite, unter den Satz „Statistiken, Turniere und Streams an einem Ort“. Schon beim Tippen erscheinen Treffer mit Foto, Flagge und Region, und ein Klick öffnet das Profil (/statistics?spieler=...). Der Betreiber hat die Kopfzeile als voll bezeichnet (app/components/Sprachschalter.tsx:8). Deshalb dort höchstens ein kleines Lupen-Symbol, das dieselbe Suche als Fenster öffnet, im Handymenü als oberste Zeile. Die vorhandene Such-Schnittstelle wird wiederverwendet.
   - Dateien: app/page.tsx, app/components/MainHeader.tsx, app/statistics/page.tsx
@@ -73,7 +75,7 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
   - Problem: Die Reiterleiste der Statistik (Highlights, Cups, Regionen, Spieler, 2026, Orgs, für VIPs dazu Duell) lässt sich seitlich wischen, die Bildlaufleiste ist aber ausgeblendet (app/statistics/page.tsx:3868: overflow-x-auto [scrollbar-width:none]). Auf einem schmalen Handy sind die hinteren Reiter abgeschnitten, und nichts zeigt, dass es weitergeht.
   - Vorschlag: Am rechten Rand ein weicher Verlauf mit kleinem Pfeil, solange noch Reiter folgen. Der gewählte Reiter rollt beim Öffnen automatisch in die Mitte. Alternativ dürfen die Reiter auf dem Handy in zwei Zeilen umbrechen. Am Desktop ändert sich nichts.
   - Dateien: app/statistics/page.tsx
-- [ ] **Fotos-Eingang kann bei einer Störung die ganze gesammelte Liste überschreiben** _(Bereich: Daten und Verlaesslichkeit · Wirkung 3/5 · Aufwand klein · Risiko niedrig)_
+- [x] **Fotos-Eingang kann bei einer Störung die ganze gesammelte Liste überschreiben** _(Bereich: Daten und Verlaesslichkeit · Wirkung 3/5 · Aufwand klein · Risiko niedrig)_
   - Problem: app/api/fotos-eingang/route.ts:47 liest die bisherige Liste mit '.catch(() => [])'. Hakt die Ablage beim Lesen kurz, gilt die Liste als leer. Klappt das Schreiben danach (Zeile 52), stehen nur noch die neuen Einträge darin, und bis zu 40.000 gesammelte Foto-Adressen sind weg. Außerdem antwortet die Route bei einem Schreibfehler mit Status 200 (Zeile 54).
   - Vorschlag: Bei einem Lesefehler nicht weitermachen, sondern mit 424 'Ablage antwortet nicht - gleich nochmal senden' abbrechen. Nur wenn die Datei wirklich fehlt (liesJson liefert dann den Standardwert), mit einer leeren Liste anfangen. Den Schreibfehler ebenfalls mit 424 melden.
   - Dateien: app/api/fotos-eingang/route.ts
@@ -125,11 +127,11 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
   - Problem: Für „Matches ausgewertet“ holt die Startseite neben /api/replays?zahl=1 (65 Byte, liefert die fertige Zahl „ausgewertet“: 1.033.450) auch die ganze Liste /api/replays: gemessen 284.389 Byte, komprimiert 28 KB (app/page.tsx:262-276). Daraus wird nur eine Ersatzsumme gebildet. Insgesamt lädt die Startseite schon 336 KB Programmcode (komprimiert, 16 Dateien gemessen). Auf dem Handy zählt jedes Stück.
   - Vorschlag: Die große Liste nur noch holen, wenn die kleine Abfrage scheitert. Im Normalfall reicht /api/replays?zahl=1, die Seite fragt sie ohnehin jede Minute neu ab.
   - Dateien: app/page.tsx
-- [ ] **Gleiche Wörter und Datumsformate auf allen Seiten** _(Bereich: Besucher-Seiten · Wirkung 2/5 · Aufwand klein · Risiko niedrig)_
+- [x] **Gleiche Wörter und Datumsformate auf allen Seiten** _(Bereich: Besucher-Seiten · Wirkung 2/5 · Aufwand klein · Risiko niedrig)_
   - Problem: Auf der Maps-Seite stehen die Marken fest auf Englisch „Live / Upcoming / Ended“, auch im deutschen Modus (app/tournament-maps/page.tsx:61-66), während Events dafür „Demnächst / Beendet“ zeigt. Daten sind auf Startseite, Maps und FNCS fest britisch formatiert (StartVitrine.tsx:60, tournament-maps/page.tsx:47, fncs/page.tsx:44). Das VIP-Ablaufdatum in der Kopfzeile ist fest deutsch, auch im englischen Modus (MainHeader.tsx:442).
   - Vorschlag: Die Marken über die Übersetzung schicken (gleiche Wörter wie auf der Events-Seite), und überall dieselbe Datumshilfe aus app/lib/ort.ts verwenden, die der gewählten Sprache folgt.
   - Dateien: app/tournament-maps/page.tsx, app/components/StartVitrine.tsx, app/fncs/page.tsx, app/components/MainHeader.tsx, app/lib/sprache.ts
-- [ ] **Handymenü markiert den aktuellen Bereich nicht immer** _(Bereich: Besucher-Seiten · Wirkung 2/5 · Aufwand klein · Risiko niedrig)_
+- [x] **Handymenü markiert den aktuellen Bereich nicht immer** _(Bereich: Besucher-Seiten · Wirkung 2/5 · Aufwand klein · Risiko niedrig)_
   - Problem: Am Desktop zählt eine Unterseite wie /events/xyz zu „Events“ (istAktiv, app/components/MainHeader.tsx:45). Im Handymenü wird nur bei genau gleicher Adresse markiert (MainHeader.tsx:413: pathname === item.href). Auf einer Cup-Seite oder einer Map-Karte ist im Menü also nichts hervorgehoben. Außerdem nutzt das Handymenü andere Grautöne (bg-slate-800) als der Rest der Seite (zinc).
   - Vorschlag: Im Handymenü dieselbe Regel istAktiv verwenden und die Farben an die übrige Kopfzeile angleichen.
   - Dateien: app/components/MainHeader.tsx
@@ -137,11 +139,11 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
   - Problem: Die Karte „Spieler im Rampenlicht“ zeigt eine Zahl „Quote“, auf Englisch „Ratio“ (app/components/StartVitrine.tsx:180, sprache.ts:306), ohne zu sagen, was sie bedeutet. Beispiel aus /api/startvitrine: SALKO hat 917 Elims in 441 Matches (2,08 je Match), die Ratio zeigt aber 1,2. Ein Besucher kann nicht nachvollziehen, was hier geteilt wird.
   - Vorschlag: Die Kennzahl eindeutig benennen, zum Beispiel „Elims je Tod“, wenn sie das ist, oder ein kleines Info-Zeichen mit einem Satz Erklärung, das in der Statistik genauso aussieht.
   - Dateien: app/components/StartVitrine.tsx, app/api/startvitrine/route.ts, app/lib/sprache.ts
-- [ ] **Admin-Prüfung meldet bei einer Ablage-Störung 'kein Admin'** _(Bereich: Daten und Verlaesslichkeit · Wirkung 2/5 · Aufwand klein · Risiko niedrig)_
+- [x] **Admin-Prüfung meldet bei einer Ablage-Störung 'kein Admin'** _(Bereich: Daten und Verlaesslichkeit · Wirkung 2/5 · Aufwand klein · Risiko niedrig)_
   - Problem: app/api/auth/check-admin/route.ts:76-79 antwortet bei jedem Fehler mit isAdmin false, rolle null, rechte [] und Status 200. Fällt die Ablage kurz aus, verschwinden für den Betreiber und seine Manager alle Admin-Werkzeuge, als hätten sie keine Rechte. Eine Störung sieht damit aus wie 'nichts da', was der Regel 'Ausfall nie wie leer' widerspricht.
   - Vorschlag: Im Fehlerfall mit 424 und 'Ablage nicht erreichbar' antworten. Die Oberfläche behält dann den zuletzt bekannten Stand und zeigt einen Hinweis, statt die Admin-Bereiche auszublenden.
   - Dateien: app/api/auth/check-admin/route.ts
-- [ ] **Match-Finder meldet 'Spieler nicht gefunden', wenn Epic nicht antwortet** _(Bereich: Daten und Verlaesslichkeit · Wirkung 2/5 · Aufwand klein · Risiko niedrig)_
+- [x] **Match-Finder meldet 'Spieler nicht gefunden', wenn Epic nicht antwortet** _(Bereich: Daten und Verlaesslichkeit · Wirkung 2/5 · Aufwand klein · Risiko niedrig)_
   - Problem: app/api/match-finder/route.ts:40-41 antwortet bei einem Fehler der Epic-Anmeldung oder einer Zeitüberschreitung mit ok true und treffer null. Das ist dieselbe Antwort wie 'Diesen Spieler gibt es nicht'. Der VIP denkt dann, er habe sich vertippt.
   - Vorschlag: Fehler von Epic getrennt melden (ok false, Status 424, Text 'Epic antwortet gerade nicht'). Auf der Seite dazu einen Knopf 'nochmal versuchen' zeigen.
   - Dateien: app/api/match-finder/route.ts
