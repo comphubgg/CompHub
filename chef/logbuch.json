@@ -775,5 +775,22 @@
     "modell": "Opus",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-43",
+    "datum": "2026-10-31T19:44:20Z",
+    "titel": "Events-Seite lädt vergangene Cups erst bei Bedarf",
+    "bereich": "Tempo",
+    "warum": "Die Events-Seite lud bei jedem Besuch alle über 300 Cups (rund 1,3 MB, gepackt 87 KB), obwohl fast alle längst vorbei sind und erst auf Wunsch gezeigt werden.",
+    "was": "Zuerst kommen nur laufende und kommende Cups (gepackt nur wenige KB). Die vergangenen lädt die Seite nach, sobald jemand „Beendet“ wählt, den Kalender öffnet oder sucht. Bitte im Vergleich ansehen: in der Ansicht „Alle“ fehlt unten der Abschnitt „Beendet“ dadurch, bis man ihn anwählt – wenn du ihn dort immer willst, sag „ändern“, dann lädt die Seite ihn kurz nach dem Aufbau im Hintergrund nach.",
+    "ansehen": [
+      "/events",
+      "/events?status=vorbei"
+    ],
+    "commits": [],
+    "groesse": "mittel",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 1
   }
 ]

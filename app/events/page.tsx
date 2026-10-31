@@ -382,6 +382,12 @@ export default function EventsPage() {
   const [fehler, setFehler] = useState<string | null>(null);
   const [loginNoetig, setLoginNoetig] = useState(false);
   const [laedt, setLaedt] = useState(true);
+  /*
+   * Vergangene Cups kommen erst auf Wunsch (Absprache mit dem Betreiber): zuerst nur Live und Demnaechst (modus=alle-aktuell, 20 KB statt 1,3 MB).
+   * Sobald "Beendet", der Kalender oder die Suche gebraucht wird, wird einmal der ganze Katalog nachgeladen und bleibt dann.
+   */
+  const [mitVergangenen, setMitVergangenen] = useState(false);
+  const [vergLaedt, setVergLaedt] = useState(false);
 
   const [reiter, setReiter] = useState<'katalog' | 'kalender'>('katalog');
   const [filterOffen, setFilterOffen] = useState(false);
@@ -426,13 +432,14 @@ export default function EventsPage() {
     try { localStorage.setItem('events-region', r); } catch { /* egal */ }
   };
 
-  // Alles auf einmal - gefiltert wird hier, nicht beim Server. Alle fuenf
-  // Minuten frisch, damit neue Fenster und Zeiten von selbst ankommen.
+  // Gefiltert wird hier, nicht beim Server. Alle fuenf Minuten frisch, damit neue Fenster und Zeiten von selbst ankommen.
+  // Erst nur Live und Demnaechst; mit Vergangenen ist es der ganze Katalog (eine Obermenge, daher ohne Doppelte).
   useEffect(() => {
     let weg = false;
-    const holen = async () => {
+    const holen = async (erstesMal: boolean) => {
+      if (mitVergangenen && erstesMal) setVergLaedt(true);
       try {
-        const r = await fetch('/api/cup-catalog?modus=alle');
+        const r = await fetch(`/api/cup-catalog?modus=${mitVergangenen ? 'alle' : 'alle-aktuell'}`);
         const d = await r.json();
         if (weg) return;
         if (!r.ok) {
@@ -440,16 +447,22 @@ export default function EventsPage() {
           setFehler(d.error ?? 'nicht ladbar');
         } else {
           gemerkteRegion();
-          setCups(nachAusgaben(d.cups ?? []));
+          const neu = nachAusgaben(d.cups ?? []);
+          // Schon geladene (kommende) Cups bleiben, was neu kommt, ersetzt Cups gleicher Kennung - keine Doppelten.
+          setCups((alt) => {
+            const je = new Map(alt.map((c) => [c.id, c]));
+            for (const c of neu) je.set(c.id, c);
+            return [...je.values()];
+          });
           setArchiv({ turniere: d.archiv?.turniere ?? 0, tage: d.archiv?.tage ?? 0 });
         }
       } catch (e) { if (!weg) setFehler((e as Error).message); }
-      finally { if (!weg) setLaedt(false); }
+      finally { if (!weg) { setLaedt(false); setVergLaedt(false); } }
     };
-    void holen();
-    const uhr = setInterval(holen, 5 * 60_000);
+    void holen(true);
+    const uhr = setInterval(() => void holen(false), 5 * 60_000);
     return () => { weg = true; clearInterval(uhr); };
-  }, []);
+  }, [mitVergangenen]);
 
   /** Der Stand jedes Cups fuer die gewaehlte Region, jetzt. */
   const lage = useMemo(() => new Map(cups.map((c) => [c.id, lageVon(c, region, jetzt)])), [cups, region, jetzt]);
@@ -550,6 +563,10 @@ export default function EventsPage() {
     return new Set(gefiltert.filter((c) => Object.values(c.regionen).flat()
       .some((f) => new Date(f.begin).toDateString() === tag)).map((c) => c.id)).size;
   }, [gefiltert]);
+
+  // Beendet, Kalender, Suche - oder zu wenige kommende Cups fuer die Kopfreihe (die fuellt sie mit zuletzt beendeten auf).
+  const brauchtVergangene = status === 'vorbei' || reiter === 'kalender' || suche.trim() !== '' || (!laedt && hervor.length < 4);
+  if (brauchtVergangene && !mitVergangenen) setMitVergangenen(true);
 
   const filterZahl = [typ !== 'alle', status !== 'alle', plattform !== 'alle']
     .filter(Boolean).length;
@@ -752,7 +769,7 @@ export default function EventsPage() {
             )}
             {fehler && !loginNoetig && <p className="mb-4 text-sm text-rose-400">{fehler}</p>}
 
-            {laedt ? <LadeSchirm /> : reiter === 'katalog' ? (
+            {laedt || vergLaedt ? <LadeSchirm /> : reiter === 'katalog' ? (
               abschnitte.length ? (
                 <div className="space-y-8">
                   {abschnitte.map((a) => (
