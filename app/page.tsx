@@ -11,6 +11,7 @@ import TeamFlagge from '@/components/TeamFlagge';
 import DiscordKnopf from '@/app/components/DiscordKnopf';
 import StartVitrine from '@/app/components/StartVitrine';
 import Rollzahl from '@/app/components/Rollzahl';
+import Lieblinge from '@/app/components/Lieblinge';
 import LiveDemnaechst from '@/app/components/LiveDemnaechst';
 import StartSuche from '@/app/components/StartSuche';
 
@@ -384,6 +385,8 @@ export default function Startseite() {
       </section>
 
       {/* ------------------------------------------- Maps, Spieler, Statistik, Mehr */}
+      <div className="mx-auto max-w-6xl px-4"><Lieblinge className="pt-10" /></div>
+
       <StartVitrine />
 
       <MeistesPreisgeld ort={ort} />

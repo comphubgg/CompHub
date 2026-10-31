@@ -677,5 +677,23 @@
     "modell": "Opus (Prüfung: Sonnet)",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-37",
+    "datum": "2026-10-31T19:39:44Z",
+    "titel": "Lieblingsspieler merken",
+    "bereich": "Statistik",
+    "warum": "Wer immer wieder dieselben Profis anschaut, musste sie jedes Mal neu suchen – Favoriten gab es nur bei den Streams.",
+    "was": "Im Spielerprofil gibt es jetzt einen Stern neben der Region. Gemerkte Spieler erscheinen als Reihe „Your players“ mit großen Fotos und Namen ganz oben in der Statistik und auf der Startseite, ein Klick öffnet das Profil. Ohne gemerkte Spieler ist die Reihe gar nicht da. Gespeichert wird im Browser, wie bei den Stream-Favoriten.",
+    "ansehen": [
+      "/statistics?spieler=02c93e4588f241baa6cb5040632326b4",
+      "/statistics",
+      "/"
+    ],
+    "commits": [],
+    "groesse": "mittel",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 1
   }
 ]

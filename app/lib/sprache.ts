@@ -42,6 +42,10 @@ export const SPRACHEN: Array<{ kennung: Sprache; kurz: string; name: string }> =
  * Sortiert nach Bereichen, damit sich beim Nachtragen etwas finden laesst.
  */
 const AUF_ENGLISCH: Record<string, string> = {
+  // ------------------------------------------------------------ Lieblingsspieler
+  'Deine Spieler': 'Your players',
+  'Zu „Deine Spieler“ hinzufügen': 'Add to “Your players”',
+  'Aus „Deine Spieler“ entfernen': 'Remove from “Your players”',
   // ------------------------------------------------------------ Allgemein
   'Spieler, aus den Replays': 'players, from the replays',
   'Schaden, Treffer und Kopftreffer: {m} von {v} Spielen voll gelesen, der Rest folgt. Bis dahin stehen Werte nur bei Spielern, deren Spiele alle gelesen sind.': 'Damage, hits and headshots: {m} of {v} matches fully read, the rest follows. Until then, values only show for players whose matches are all read.',

@@ -17,6 +17,8 @@
 //
 // Ebenso fehlen die Spielerfotos: das sind lizenzierte Pressebilder.
 
+import MerkStern from '@/app/components/MerkStern';
+import Lieblinge from '@/app/components/Lieblinge';
 import { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import SpielerPlatzhalter from '@/app/components/SpielerPlatzhalter';
 import StatistikZahlen from './StatistikZahlen';
@@ -4159,6 +4161,7 @@ export default function StatistikSeite() {
           {/* ------------------------------------------------- Übersicht */}
           {bereich === 'start' && (
             <>
+              <Lieblinge className="mb-10" />
               {faecher.length > 0 && <SpielerFaecher spieler={faecher} aufAlle={() => wechsleBereich('spieler')} aufOeffnen={(x) => oeffne(x)} />}
               {/* Aufmacher: Slider durch die jüngsten Turniere mit dem Besten des Tages, darunter die Regionen (Betreiber, 12.10.2026). */}
               <StatistikAufmacher
@@ -5836,6 +5839,7 @@ export default function StatistikSeite() {
                     {(offen.heimat || offen.regionen?.[0]) && (
                       <RegionMarke region={offen.heimat || offen.regionen[0]} />
                     )}
+                    <MerkStern epicId={offen.epicId} name={grossName(offen.anzeige, offen.gepflegt)} bild={offen.bild ?? null} />
                     {offen.x && (
                       <a href={`https://x.com/${offen.x}`} target="_blank" rel="noreferrer"
                         className="text-xs text-slate-500 transition hover:text-sky-500">
