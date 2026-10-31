@@ -18,5 +18,14 @@
       "text": "Passt nicht ohne Weiteres auf den aktuellen Stand der Seite - der Chef loest das in seiner naechsten Runde.",
       "zeit": "2026-10-31T18:39:49.188Z"
     }
+  },
+  "chef-2": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T18:41:02.865Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade uebernommen ..."
+    }
   }
 }
