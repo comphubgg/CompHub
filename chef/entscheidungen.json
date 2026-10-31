@@ -70,8 +70,705 @@
     }
   },
   "chef-14": {
-    "entscheidung": "aendern",
-    "notiz": "Missverständnis (Fehler des Assistenten): Die Suche gehört NICHT in die Kopfzeile/Navigation – die Lupe dort bitte wieder entfernen. Gewünscht ist ein kleines, unauffälliges Suchfeld auf der Seite selbst, oben rechts direkt unter der Kopfzeile (über dem Hintergrund der Startseite, etwa dort, wo rechts oben im Kopfbereich Platz ist). Klein, dezent, nicht fett – es soll nicht ins Auge springen.",
-    "zeit": "2026-10-31T20:00:42.329Z"
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-90": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-91": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-89": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-87": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-88": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-92": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-86": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-84": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-83": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-82": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-78": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-80": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-79": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-77": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-74": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-65": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-73": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-63": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-64": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-70": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-62": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-75": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-68": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-59": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-60": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-72": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-71": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-67": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-56": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-66": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-58": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-57": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-51": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-55": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-54": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-52": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-50": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-46": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-49": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-48": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-47": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-43": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-45": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-44": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-42": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-41": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-40": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-37": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-39": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-36": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-38": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-35": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-34": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-27": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-29": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-31": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-30": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-28": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-32": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-25": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-24": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-26": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-21": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-20": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-22": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-23": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-15": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-16": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-19": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-18": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-17": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-11": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-13": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-12": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-7": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-9": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-8": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:14:28.388Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
   }
 }
