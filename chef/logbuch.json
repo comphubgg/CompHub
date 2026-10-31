@@ -1673,5 +1673,27 @@
     "modell": "Opus",
     "status": "wartet",
     "runde": 5
+  },
+  {
+    "id": "chef-78",
+    "datum": "2026-10-31T21:12:00Z",
+    "titel": "Regionen: Performance-Cup-Reihe zeigt nur ihre eigenen Spieltage",
+    "kurz": "Statistik → Regional → Performance Cup: Zahlen nur noch aus den 8 Cup-Tagen.",
+    "markieren": [
+      "text:Performance Cup"
+    ],
+    "bereich": "Statistik",
+    "warum": "Die Reihe „Performance Cup“ (S42 EU, 8 Tage) zeigte die Zahlen aller 20 EU-Spieltage – Spieler hatten dort bis zu 18 „Spieltage“ und 82 Matches, obwohl es höchstens 32 sein können.",
+    "was": "Reihen bis zwölf Spieltage werden jetzt richtig zusammengezählt. Geht das einmal nicht, steht „gerade nicht erreichbar“ statt falscher Zahlen.",
+    "ansehen": [
+      "/statistics?bereich=regional&saison=S42&region=EU"
+    ],
+    "commits": [
+      "252c05a441f6de89269ceb864f0e1d0bfb8a8e68"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 5
   }
 ]

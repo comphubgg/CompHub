@@ -13,6 +13,10 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 - [x] **Profil: FNCS Grand Finals endeten bei GLOBALS 2025** (chef-80)
 - [ ] **FNCS-Ereignisliste: NAC nur für S36, S40, S41** - frühere NAC-Majors fehlen (Datenstand der Quelle).
 
+- [ ] **Regional: Reihe „FNCS“ mischt Solo Final und Global Championship** - Einteilung prüfen (reiheVon).
+- [ ] **Global-Kachel meldet 12 Matches, jeder Spieler hat 6** (Turnierliste, S42).
+- [ ] **ladeReihe nutzt bei LAN-Sammelkacheln nur den letzten Tag** (latent, S40–S42 nicht betroffen).
+
 ## Neu entdeckt (Runde 4, 31.10.2026)
 
 - [ ] **Stundenlauf „Daten erneuern“ wartet über eine Stunde auf einen Rechner** _(Daten · Wirkung 5/5, Betrieb)_ - Lauf 1661 steht seit 18:30 UTC auf „pending“, Lauf 1659 brauchte 17:27–20:05 (Antworten vorrechnen allein 1 h 50). Darum ist die Startantwort der Statistik noch alt (Spieltage bis 10.10., Elims-Liste Schaden 0). Passt zu „GitHub-Rechner sind überbucht“ unten - Vorschlag an den Betrieb.
