@@ -33,6 +33,6 @@ export async function GET(request: Request) {
     for (const n of neu) if ((await schickeNews(n)).ok) gemeldet += 1;
     return NextResponse.json({ ok: true, neu: neu.length, gemeldet });
   } catch (e) {
-    return NextResponse.json({ ok: false, fehler: (e as Error).message }, { status: 503 });
+    return NextResponse.json({ ok: false, fehler: (e as Error).message }, { status: 424 });
   }
 }

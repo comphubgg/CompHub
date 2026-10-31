@@ -27,6 +27,6 @@ export async function GET(request: Request) {
     const pros = await proPanel().catch(() => ({ ok: false }));
     return NextResponse.json({ ok: true, geloescht: weg, proPanel: pros.ok });
   } catch (e) {
-    return NextResponse.json({ ok: false, fehler: (e as Error).message }, { status: 503 });
+    return NextResponse.json({ ok: false, fehler: (e as Error).message }, { status: 424 });
   }
 }
