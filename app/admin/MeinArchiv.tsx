@@ -5,6 +5,7 @@ import Link from 'next/link';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import { ARTEN, overlayAdresse } from '@/app/overlays/OverlayGeruest';
+import LoeschLeiste, { overlayLoeschen, useLoeschStand } from '@/app/overlays/Loeschen';
 
 /*
  * Mein Archiv - alles, was ein Konto gespeichert hat, an einer Stelle.
@@ -56,7 +57,9 @@ export default function MeinArchiv() {
       .then((j) => setPrognose(Array.isArray(j?.prognosen) && j.prognosen.length > 0))
       .catch(() => setPrognose(false));
   }, []);
-  useEffect(() => { laden(); }, [laden]);
+  // Nach jedem Loeschen/Wiederherstellen (auch aus der Leiste) neu laden.
+  const { version: loeschVersion } = useLoeschStand();
+  useEffect(() => { laden(); }, [laden, loeschVersion]);
 
   const art = (typ: string) => ARTEN.find((a) => a.schluessel === typ);
 
@@ -101,11 +104,7 @@ export default function MeinArchiv() {
   async function loeschen(z: Zeile) {
     if (!z.overlay) return;
     if (!window.confirm(t('Dieses Overlay wirklich löschen? Die Adresse in OBS zeigt danach nichts mehr.'))) return;
-    await fetch('/api/overlay-config', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id: z.overlay.id, loeschen: true }),
-    }).catch(() => {});
-    laden();
+    await overlayLoeschen({ id: z.overlay.id, typ: z.overlay.typ, name: z.titel });
   }
 
   /** Eine gespeicherte Tierlist entfernen - nach Rueckfrage, die nennt, was verschwindet. */
@@ -197,6 +196,7 @@ export default function MeinArchiv() {
           kopfLink={{ href: '/tierlist', text: 'Zur Tierlist' }}
           leer={<T>Noch keine Tierlist gespeichert. Sobald du in der Tierlist Spieler einstufst, speichert sie sich auf deinem Konto und steht hier.</T>} />
       </div>
+      <LoeschLeiste />
 
       {prognose && (
         <div className="mt-6">

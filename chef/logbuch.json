@@ -453,5 +453,21 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-25",
+    "titel": "Admin-Archiv: Overlay-Löschen mit Rückgängig und sichtbarem Fehler",
+    "bereich": "Werkzeuge",
+    "modell": "Sonnet",
+    "warum": "Im Archiv des Dashboards löschte man Overlays noch auf die alte Art: ohne Rückgängig, und ein Fehler wurde verschluckt.",
+    "was": "Auch dort erscheint jetzt nach dem Löschen 10 Sekunden lang „Rückgängig“, darunter „Zuletzt gelöscht“ mit „Wiederherstellen“, und ein Fehler wird rot angezeigt – genau wie unter „Meine Overlays“. Die Rückfrage vor dem Löschen bleibt.",
+    "ansehen": [
+      "/admin"
+    ],
+    "groesse": "klein",
+    "datum": "2026-10-31T19:15:32Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]
