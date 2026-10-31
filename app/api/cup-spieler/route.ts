@@ -387,6 +387,8 @@ async function holeRoh(request: Request) {
     teilweise?: { teams: number; matches: number; vonMindestens?: number };
     /** Plattform je Spieler aus den vollen Replays (WIN, PS5, XSX, SWT, IOS ...). */
     plattform?: Record<string, string>;
+    /** Laufstrecke je Spieler [zu Fuss, Luft] in Metern aus den Positionsproben der Replays (lib/replayPositionen). */
+    strecke?: Record<string, [number, number]>;
   } | null;
   const clutchEinzeln = (w: string) => liesJson<ClutchDatei>(`clutch/${w}.json`, null).catch(() => null);
   // Mehrere Tage zusammen: Clutch-Punkte und Schaden je Spieler addiert.
@@ -424,6 +426,8 @@ async function holeRoh(request: Request) {
   const teil = clutchDatei?.teilweise ?? null;
   const ganzGelesen = (id: string, spiele: number) => !teil || (clutchDatei?.spiele?.[id.toLowerCase()] ?? 0) >= spiele;
   const lebenVon = clutchDatei?.leben && Object.keys(clutchDatei.leben).length ? new Map(Object.entries(clutchDatei.leben)) : null;
+  // Strecke nur fuer einen einzelnen Tag (die Summe mehrerer Tage fuehrt der Zusammenbau oben nicht mit).
+  const streckeVon = tage.length === 1 && clutchDatei?.strecke && Object.keys(clutchDatei.strecke).length ? new Map(Object.entries(clutchDatei.strecke)) : null;
   /*
    * Plattformen des Spieltags (Betreiber, 30.10.2026: einbauen, wenn es echte Statistiken sind): aus dem Feld Platform jedes vollen Replays, je Spieler
    * einmal gezaehlt - nur wenn jedes Match gelesen ist; ein halb gelesener Spieltag zeigte ein schiefes Bild.
@@ -452,6 +456,9 @@ async function holeRoh(request: Request) {
     clutch: clutchVon && ganzGelesen(x.epicId, x.matches) ? (clutchVon.get(x.epicId.toLowerCase()) ?? 0) : null,
     // Ueberlebenszeit ab dem Absprung, ohne die Zeit zwischen Tod und Reboot (lib/clutchLeben.mjs; Median 0,3 % neben der Szene-Quelle).
     ...(lebenVon && ganzGelesen(x.epicId, x.matches) && lebenVon.has(x.epicId.toLowerCase()) ? { timeAlive: lebenVon.get(x.epicId.toLowerCase()) } : {}),
+    // Strecke aus Positionsproben alle 10 s, dazwischen Luftlinie - ein Mindestwert (31.10.2026; die Reihenfolge trifft Osirion, die km liegen darunter).
+    ...(streckeVon && ganzGelesen(x.epicId, x.matches) && streckeVon.has(x.epicId.toLowerCase())
+      ? { distanz: (streckeVon.get(x.epicId.toLowerCase())![0] ?? 0) + (streckeVon.get(x.epicId.toLowerCase())![1] ?? 0) } : {}),
     ...(() => {
       const d = schadenVon?.get(x.epicId.toLowerCase());
       if (!d || !ganzGelesen(x.epicId, x.matches)) return {};
@@ -523,6 +530,7 @@ async function holeRoh(request: Request) {
     }
     if (clutchVon) spitze((x) => clutchVon.get(x.epicId.toLowerCase()));
     if (lebenVon) spitze((x) => lebenVon.get(x.epicId.toLowerCase()));
+    if (streckeVon) spitze((x) => { const v = streckeVon.get(x.epicId.toLowerCase()); return v ? v[0] + v[1] : null; });
     return basis;
   })();
 

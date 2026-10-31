@@ -58,6 +58,11 @@ for (const [w, dateien] of jeTag) {
     addiere(d.spiele, t.spiele);
     if (Object.keys(t.solo ?? {}).length) { d.solo ??= {}; addiere(d.solo, t.solo); }
     if (Object.keys(t.leben ?? {}).length) { d.leben ??= {}; addiere(d.leben, t.leben); }
+    // Laufstrecke je Spieler [zu Fuss, Luft] in Metern (lib/replayPositionen).
+    if (Object.keys(t.strecke ?? {}).length) {
+      d.strecke ??= {};
+      for (const [k, v] of Object.entries(t.strecke)) { const s = d.strecke[k] ?? [0, 0]; d.strecke[k] = [s[0] + (v[0] ?? 0), s[1] + (v[1] ?? 0)]; }
+    }
     if (Object.keys(t.schaden ?? {}).length) {
       d.schaden ??= {};
       for (const [k, v] of Object.entries(t.schaden)) {

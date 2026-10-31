@@ -33,6 +33,8 @@ type Clutch = {
   schaden?: Record<string, { dmg: number; erlitten: number; treffer: number; sturm?: number }>;
   leben?: Record<string, number>;
   spiele?: Record<string, number>;
+  /** [zu Fuss, Luft] in Metern (lib/replayPositionen). */
+  strecke?: Record<string, [number, number]>;
   teilweise?: unknown;
 };
 
@@ -52,6 +54,7 @@ export interface EigeneSpielerZeile {
   username: string; epicId: string;
   eliminations?: number; matchesPlayed: number;
   damageDealt?: number; damageTakenFromPlayers?: number; hitsToPlayers?: number; stormDamage?: number; timeAlive?: number;
+  distanceOnFoot?: number; distanceSkydiving?: number;
 }
 
 /**
@@ -97,6 +100,7 @@ export async function eigeneSpieler(t: EigenerTag): Promise<{ players: EigeneSpi
           ...(typeof d.sturm === 'number' ? { stormDamage: Math.round(d.sturm) } : {}),
         } : {}),
         ...(voll && typeof clutch?.leben?.[k] === 'number' ? { timeAlive: Math.round(clutch.leben[k]) } : {}),
+        ...(voll && clutch?.strecke?.[k] ? { distanceOnFoot: clutch.strecke[k][0], distanceSkydiving: clutch.strecke[k][1] } : {}),
       });
     }
   }

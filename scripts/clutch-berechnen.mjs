@@ -36,6 +36,7 @@ import { holeNutzerToken, matchIds } from '../lib/replayKern.mjs';
 import { leseReplay } from '../lib/replayLeser.mjs';
 import { clutchPunkte, clutchAusVoll } from '../lib/clutch.mjs';
 import { lebenSumme, lebenJeMatch } from '../lib/clutchLeben.mjs';
+import { spurenAusReplay, auswerten as positionenAuswerten } from '../lib/replayPositionen.mjs';
 
 const require = createRequire(import.meta.url);
 const { downloadReplay } = require('fortnite-serverreplay-downloader');
@@ -339,7 +340,8 @@ if (arg[0] === '--plan') {
     // Rohdaten (Kill-Feed, Figuren) nur bei kleinen Spieltagen - bei 20.000 Matches waeren es Gigabytes; die Ueberlebenszeit wird hier gleich gezaehlt.
     const mitRoh = t.gesamt <= GROSS_MAX;
     const teilDatei = path.join(TEIL_ORDNER, `${t.windowId}__${teilNr}.json`);
-    const teil = liesDatei(teilDatei) ?? { eventId: t.eventId, windowId: t.windowId, regeln, gesamt: t.gesamt, matches: [], ohne: [], summe: {}, spiele: {}, schaden: {}, solo: {}, leben: {}, plattform: {}, roh: [] };
+    const teil = liesDatei(teilDatei) ?? { eventId: t.eventId, windowId: t.windowId, regeln, gesamt: t.gesamt, matches: [], ohne: [], summe: {}, spiele: {}, schaden: {}, solo: {}, leben: {}, plattform: {}, strecke: {}, roh: [] };
+    teil.strecke ??= {};
     teil.gesamt = Math.max(teil.gesamt ?? 0, t.gesamt);
     const schonDa = new Set([...teil.matches.map((m) => m.id), ...teil.ohne]);
     const liste = meine.filter((id) => !schonDa.has(id));
@@ -383,6 +385,20 @@ if (arg[0] === '--plan') {
             if (p.plattform) teil.plattform[p.epic] = String(p.plattform);
           }
           for (const [k, v] of lebenJeMatch(roh)) teil.leben[k] = Math.round((teil.leben[k] ?? 0) + v);
+          /*
+           * Laufstrecke und Landeort aus den CharacterSample-Ereignissen derselben Datei (lib/replayPositionen, 31.10.2026) - kein weiterer Abruf.
+           * Strecke je Spieler: [zu Fuss, in der Luft] in Metern; der Landeort je Match nur bei kleinen Spieltagen (mit den Rohdaten).
+           */
+          try {
+            const pos = positionenAuswerten(spurenAusReplay(puffer));
+            const landung = {};
+            for (const [k, v] of Object.entries(pos)) {
+              const s = teil.strecke[k] ?? [0, 0];
+              teil.strecke[k] = [s[0] + v.fuss, s[1] + v.luft];
+              if (v.landung) landung[k] = [v.landung.x, v.landung.y, v.landung.t];
+            }
+            if (Object.keys(landung).length) roh.landung = landung;
+          } catch { /* ohne Positionen bleibt der Rest */ }
           if (mitRoh) teil.roh.push(roh);
           gelesen += 1; seitSpeichern += 1;
           if (seitSpeichern >= 200) { speichern(); seitSpeichern = 0; }
