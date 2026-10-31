@@ -2092,5 +2092,26 @@
     "commits": [],
     "status": "wartet",
     "runde": 6
+  },
+  {
+    "id": "chef-101",
+    "datum": "2026-10-31T21:57:00Z",
+    "titel": "Statistik-Aufmacher: Quote im deutschen Zahlenformat",
+    "kurz": "Statistik oben im Aufmacher, Sprache Deutsch: Quote „1,58“ statt „1.58“.",
+    "markieren": [
+      "css:.sa-glas span.tabular-nums.text-emerald-400",
+      "text:Ratio"
+    ],
+    "bereich": "Statistik",
+    "warum": "Die Kachel schrieb die Quote immer mit Punkt, die Bestenliste direkt darunter mit Komma.",
+    "was": "Die Kachel folgt jetzt der gewählten Sprache wie die Listen. Auf Englisch ändert sich nichts.",
+    "ansehen": [
+      "/statistics"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "commits": [],
+    "status": "wartet",
+    "runde": 6
   }
 ]
