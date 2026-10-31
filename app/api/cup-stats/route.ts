@@ -35,6 +35,8 @@ interface Kategorie {
   /** Umrechnung fuer die Anzeige, etwa Zentimeter in Kilometer. */
   faktor?: number;
   nachkomma?: number;
+  /** Ein Wert je Spiel - zaehlt nur fuer Teams mit mindestens der Haelfte der meisten Spiele, sonst fuehrt ein einziges gutes Spiel. */
+  jeSpiel?: boolean;
   wert: (e: CupEintrag) => number;
 }
 
@@ -57,6 +59,12 @@ const KATEGORIEN: Kategorie[] = [
     faktor: 1 / 100_000, nachkomma: 1, wert: (e) => e.strecke },
   { schluessel: 'timeAlive', symbol: '⏱️',   titel: 'Most Time Alive',   einheit: 'min',
     faktor: 1 / 60, nachkomma: 0, wert: (e) => e.timeAlive },
+  /*
+   * "Most Time Alive" ist die Summe ueber alle Spiele - sie belohnt, wer mehr Spiele hatte. Daneben der Schnitt je Spiel:
+   * wer im einzelnen Spiel am laengsten ueberlebt (Epics Feld avgTimeAlive, ueber mehrere Tage neu gerechnet).
+   */
+  { schluessel: 'avgTimeAlive', symbol: '⏳',  titel: 'Longest Avg Time Alive', einheit: 'min',
+    faktor: 1 / 60, nachkomma: 1, jeSpiel: true, wert: (e) => e.avgTimeAlive },
 ];
 
 /**
@@ -113,9 +121,10 @@ async function holeRoh(request: Request) {
 
     const bestenlisten = KATEGORIEN.filter((k) =>
       !nurListe || k.schluessel === nurListe).map((k) => {
+      const mindestSpiele = k.jeSpiel ? Math.max(1, Math.ceil(eintraege.reduce((m, e) => Math.max(m, e.games || 0), 0) / 2)) : 0;
       const mitWert = eintraege.filter((e) => {
         const v = k.wert(e);
-        return Number.isFinite(v) && v > 0;
+        return Number.isFinite(v) && v > 0 && (e.games || 0) >= mindestSpiele;
       });
       // Liefert das Turnier diese Kennzahl nicht, entfaellt die Kategorie.
       if (!mitWert.length) return null;

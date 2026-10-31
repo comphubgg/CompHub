@@ -924,5 +924,24 @@
     "modell": "Sonnet",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-50",
+    "datum": "2026-10-31T19:54:21Z",
+    "titel": "Cup-Statistik: neue Kachel „Ø Lebenszeit je Spiel“",
+    "bereich": "Statistik",
+    "warum": "Die Kachel „Most Time Alive“ zählt die Lebenszeit über alle Spiele zusammen – sie zeigt also vor allem, wer mehr Spiele hatte, nicht wer länger überlebt (FNCS Solo Final EU: 225 Minuten für 12 Spiele).",
+    "was": "Daneben steht jetzt „Longest Avg Time Alive“: die Lebenszeit je Spiel in Minuten. Damit niemand mit einem einzigen langen Spiel vorne steht, zählen nur Spieler bzw. Teams mit mindestens der Hälfte der meisten Spiele. Die bisherige Kachel bleibt unverändert.",
+    "ansehen": [
+      "/events/s42_fncssolos_final"
+    ],
+    "commits": [],
+    "groesse": "klein",
+    "modell": "Opus",
+    "status": "wartet",
+    "runde": 1,
+    "markieren": [
+      "text:Longest Avg Time Alive"
+    ]
   }
 ]
