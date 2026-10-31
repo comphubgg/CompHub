@@ -53,15 +53,20 @@ interface Datei {
 const cache = new Map<string, { daten: Datei | null; bis: number }>();
 const HALTBAR = 10 * 60_000;
 
-async function hole(region: string, season: string, window_: string): Promise<Datei | null> {
+/** Ergebnis einer Suche: gefunden, nicht vorhanden - oder die Quelle war nicht erreichbar. */
+interface Fund { daten: Datei | null; ausgefallen: boolean }
+
+async function hole(region: string, season: string, window_: string): Promise<Fund> {
   const url = `${BASIS}/${region}/${season}/stats/${encodeURIComponent(window_)}.json`;
   try {
     const r = await fetch(url, { headers: KOPF, cache: 'no-store' });
-    if (!r.ok) return null;
+    // 404: den Spieltag gibt es dort nicht (normal beim Durchprobieren der Regionen). Alles andere ist ein Ausfall.
+    if (r.status === 404) return { daten: null, ausgefallen: false };
+    if (!r.ok) return { daten: null, ausgefallen: true };
     const j = await r.json() as Datei;
-    return Array.isArray(j.players) && j.players.length ? j : null;
+    return { daten: Array.isArray(j.players) && j.players.length ? j : null, ausgefallen: false };
   } catch {
-    return null;
+    return { daten: null, ausgefallen: true };
   }
 }
 
@@ -121,20 +126,27 @@ async function ausArchiv(window_: string, region?: string): Promise<Datei | null
 }
 
 /** Region und Season durchprobieren, bis die Datei zum Spieltag auftaucht. */
-async function suche(window_: string, region?: string, season?: string) {
-  // Das eigene Archiv geht vor.
-  const gespiegelt = await ausArchiv(window_, region);
-  if (gespiegelt) return gespiegelt;
+async function suche(window_: string, region?: string, season?: string): Promise<Fund> {
+  // Das eigene Archiv geht vor. Ist sein Verzeichnis nicht lesbar, wird das nicht
+  // zum Serverfehler: die fremde Quelle bleibt als Weg, und der Ausfall wird gemeldet.
+  let ausgefallen = false;
+  try {
+    const gespiegelt = await ausArchiv(window_, region);
+    if (gespiegelt) return { daten: gespiegelt, ausgefallen: false };
+  } catch {
+    ausgefallen = true;
+  }
 
   const regionen = region ? [region] : REGIONEN;
   const seasons = season ? [season] : SEASONS;
   for (const s of seasons) {
     // Alle Regionen einer Season parallel - das spart spuerbar Zeit.
     const treffer = await Promise.all(regionen.map((r) => hole(r, s, window_)));
-    const gefunden = treffer.find(Boolean);
-    if (gefunden) return gefunden;
+    const gefunden = treffer.find((t) => t.daten);
+    if (gefunden?.daten) return { daten: gefunden.daten, ausgefallen: false };
+    if (treffer.some((t) => t.ausgefallen)) ausgefallen = true;
   }
-  return null;
+  return { daten: null, ausgefallen };
 }
 
 /**
@@ -246,14 +258,15 @@ export async function GET(request: Request) {
     return NextResponse.json(antwort(gemerkt.daten));
   }
 
-  const daten = await suche(window_, region?.toUpperCase(), season?.toUpperCase());
-  cache.set(schluessel, { daten, bis: Date.now() + HALTBAR });
+  const { daten, ausgefallen } = await suche(window_, region?.toUpperCase(), season?.toUpperCase());
+  // Ein Ausfall wird nicht gemerkt: sonst bliebe die Ansicht zehn Minuten leer, obwohl die Quelle laengst wieder antwortet.
+  if (daten || !ausgefallen) cache.set(schluessel, { daten, bis: Date.now() + HALTBAR });
   if (daten) return NextResponse.json(antwort(daten));
 
   // Kennt die fremde Quelle den Spieltag nicht, gelten die eigenen Replays.
   const eigene = await ausReplays(window_, season?.toUpperCase());
   if (eigene) return NextResponse.json(eigene);
-  return NextResponse.json(antwort(null));
+  return NextResponse.json(antwort(null, ausgefallen));
 }
 
 /** Kilometer je Einheit der Quelle: Meter (rund 4 je Sekunde Lebenszeit) oder, in aelteren Saisons, Zentimeter (rund 400). */
@@ -262,12 +275,16 @@ function kmFaktor(p: { distanceOnFoot: number; distanceSkydiving: number; timeAl
   return p.timeAlive > 0 && roh / p.timeAlive > 30 ? 1 / 100_000 : 1 / 1000;
 }
 
-function antwort(d: Datei | null) {
+function antwort(d: Datei | null, ausgefallen = false) {
   if (!d) {
     return {
       vorhanden: false,
+      ausgefallen,
       quelle: QUELLE,
-      hinweis: 'Zu diesem Spieltag liegen dort keine Einzelwerte vor.',
+      // Ein Ausfall darf nicht wie "keine Werte" aussehen.
+      hinweis: ausgefallen
+        ? 'Die Quelle ist gerade nicht erreichbar - das heisst nicht, dass es keine Werte gibt. Bitte spaeter erneut versuchen.'
+        : 'Zu diesem Spieltag liegen dort keine Einzelwerte vor.',
       spieler: [],
     };
   }
