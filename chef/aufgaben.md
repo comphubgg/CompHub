@@ -2,6 +2,13 @@
 
 Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der Bestandsaufnahme vom 31.10.2026 (vier Pruefer, nur gelesen). Der Chef pflegt diese Liste selbst: Erledigtes abhaken (`- [x]`), Neues aufnehmen. Jeder Punkt vor dem Bau selbst am Code nachpruefen - die Pruefer koennen sich geirrt haben.
 
+## Neu entdeckt (Runde 4, 31.10.2026)
+
+- [ ] **Stundenlauf „Daten erneuern“ wartet über eine Stunde auf einen Rechner** _(Daten · Wirkung 5/5, Betrieb)_ - Lauf 1661 steht seit 18:30 UTC auf „pending“, Lauf 1659 brauchte 17:27–20:05 (Antworten vorrechnen allein 1 h 50). Darum ist die Startantwort der Statistik noch alt (Spieltage bis 10.10., Elims-Liste Schaden 0). Passt zu „GitHub-Rechner sind überbucht“ unten - Vorschlag an den Betrieb.
+- [ ] **Viele Statistik-Korrekturen (chef-39, -41, -42, -47 …) wirken erst nach Freigabe** - die Startantwort rechnet der Stundenlauf von main. Der Vorher/Nachher-Vergleich auf localhost zeigt sie nur, wenn localhost selbst rechnet.
+- [ ] **FNCS Solo Final EU Tag 2: vlc franek 124 Kopftreffer in 6 Spielen, Nächster 45** - Ausreißer; prüfen, ob die Quelle (Epic/Replay) hier Treffer statt Kopftreffer liefert.
+- [x] **„230/64 Matches“ in der Spieltag-Liste** (chef-55).
+
 ## Neu entdeckt (Runde 3, 31.10.2026 – Statistik-Prüfung)
 
 - [x] **Strecke ab S41 hundertmal zu klein** (chef-39) - eigene Spieltage in Metern, Szene in Zentimetern.
@@ -11,13 +18,13 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 - [ ] **Live: Elims-Liste der Startantwort trägt Schaden/Quote/Treffer 0 für alle 400 Spieler** _(Statistik · Wirkung 4/5)_ - im Code (lib/szeneStats um Zeile 1600, „saisonWerte“) schon behoben, die vorgerechnete Antwort ist alt. Nach dem nächsten Stundenlauf mit /api/szene-stats?ansicht=start prüfen (listen[feld=elims].plaetze[0].damage muss > 0 sein). Falls weiter 0: herausfinden, warum der Lauf die Startantwort nicht neu ablegt.
 - [ ] **damageProMatch in der Elims-Liste aus der Finals-Summe, matches aus jeRegion** - kann auseinanderlaufen, wenn Opens/LAN in den Matches stecken. In 6 geprüften Zeilen gleich - beobachten.
 - [x] **Spielerliste: Hinweis „ab N Matches“ bei Quoten-Sortierung** (chef-45) - die Antwort trägt jetzt mindestMatches (chef-41); die Oberfläche könnte es wie auf der Startseite anzeigen.
-- [ ] **spieler-stats (Streams-Seite) rechnet Strecke als Meter** - prüfen, aus welcher Quelle; bei Zentimetern dort dasselbe Problem andersherum.
+- [x] **spieler-stats (Streams-Seite) rechnet Strecke als Meter** (Runde 4 geprüft: erkennt die Einheit schon je Zeile an der Geschwindigkeit, kmFaktor - nichts zu tun) - prüfen, aus welcher Quelle; bei Zentimetern dort dasselbe Problem andersherum.
 - [x] **Cup-Gesamtwertung mehrtägig: K/D, Strecke, Heilung … vom ersten Tag** (chef-47).
 - [x] **Cup-Statistik zählt abgesagte Runden mit** (chef-48).
 - [x] **K/D in den Spielerwerten je Cup (cup-spieler) teilt durch zu wenige Tode** (chef-49, für Felder bis 300 Spieler) _(Statistik · Wirkung 4/5)_ - Tode kommen aus den Replays (gestorben) und verpassen Sturm-/Falltode. FNCS Solo Final EU, beide Tage: Shxrk 35 Kills, 6 Tode in 12 Spielen -> K/D 5,83; Bestenliste und Kacheln sagen 3,2 (Elims / (Spiele − Siege)). Im Solo muss Tode = Spiele − Siege sein. Lösung: für Solo ohne Reload die Siege je Spieler aus Epics Bestenliste holen (gecacht wie cup-stats, Schlüssel stats|event|window|limit) und tode = max(gestorben, spiele − siege); nur bei kleinen Feldern (Finals), große Cash Cups nicht abfragen. Danach auch die K/D-Bestenliste (Zeile ~515) auf dieselbe Rechnung.
 - [ ] **Spieltag-Tabelle (Endstand zweitägiger Finals): Gleichstand bekommt denselben Platz, Bestenliste trennt** _(Statistik · Wirkung 3/5)_ - 16 von 100 Teams im FNCS Solo Final EU mit anderem Platz (HEADHURTING212: 32 vs 33). Platz bestimmt das Preisgeld (verdienst). Die gespeicherten Tagesdateien haben keine Siege; Epics Regel: Punkte, Siege, Elims je Spiel, Ø-Platz. Lösung: Siege mitspeichern oder den Endstand aus der Bestenliste (cup-leaderboard windows=) nehmen.
 - [x] **Cup-Statistik „Most Time Alive“ ist die Summe aller Spiele** (chef-50) - belohnt mehr Spiele statt längeres Überleben. Kachel „Ø Lebenszeit je Spiel“ (avgTimeAlive) dazu oder umbenennen.
-- [ ] **Profilantwort: timeInStorm/timeAlive ungerundet (125298.70997…)** - beim Zusammenrechnen runden.
+- [x] **Profilantwort: timeInStorm/timeAlive ungerundet** (chef-52) (125298.70997…)** - beim Zusammenrechnen runden.
 - [ ] **Ungenutzte Bausteine entfernen** (DemoPanel, NotificationBell, MultiviewDashboard, QuickEditItem) - Vorschlag, braucht Zustimmung.
 - [x] **Admin-Texte aus der Übersetzungstabelle für Besucher herauslösen** (chef-46; 215 Texte, der Rest wird auch öffentlich genutzt)
 
@@ -113,7 +120,7 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
   - Problem: Gemessen über /api/replays (1.003 Spieltage): 9.086 Matches stehen auf DOWNLOADING und 181 auf PARSING. 2.025 der DOWNLOADING-Matches und alle 181 PARSING-Matches sind älter als 30 Tage, und Epic löscht Replays nach 31 Tagen. Beispiel: S42_RankedCupSoloReload_Event8_EU mit 601 gelesenen und 2.473 auf DOWNLOADING. scripts/replays-holen.mjs:718-720 zählt Matches außerhalb der Frist nur mit (ausserhalb += ...) und lässt ihren Zustand unverändert. Seite und Morgenbericht zeigen deshalb Arbeit, die nie mehr erledigt wird.
   - Vorschlag: Matches, die nach Ablauf der 31-Tage-Frist nicht fertig sind, beim nächsten Durchgang auf einen eigenen Zustand 'abgelaufen' setzen. Auf der Seite dann ehrlich 'Replay bei Epic abgelaufen' zeigen. Im Morgenbericht zusätzlich melden, wie viele Matches in den nächsten 3 Tagen ablaufen.
   - Dateien: scripts/replays-holen.mjs, lib/replayKern.mjs, app/api/replays/route.ts, scripts/morgenbericht.mjs
-- [ ] **Zwei verschiedene Antworten auf die Frage 'läuft die Seite in der Cloud-Ablage?'** _(Bereich: Daten und Verlaesslichkeit · Wirkung 3/5 · Aufwand klein · Risiko niedrig)_
+- [x] **Zwei verschiedene Antworten auf die Frage 'läuft die Seite in der Cloud-Ablage?'** (Runde 4 geprüft: NICHT umsetzen - der Stundenlauf schreibt die ganze .env.local, hat also vermutlich DATEN_TOKEN und trotzdem die Dateien auf der Platte. Würde ohneDateien() dort wahr, rechnet er die Startantwort nicht mehr vor.) _(Bereich: Daten und Verlaesslichkeit · Wirkung 3/5 · Aufwand klein · Risiko niedrig)_
   - Problem: lib/ablage.ts:192 schaltet auf die Cloud-Ablage, wenn COMPHUB_ABLAGE 'supabase' oder 'github' ist oder DATEN_TOKEN gesetzt ist. Laut Kommentar Zeile 185-189 ist das Absicht: 'nur diese eine Einstellung'. lib/antwortSpeicher.ts:266-268 (ohneDateien) prüft aber nur COMPHUB_ABLAGE === 'supabase'. Setzt der Betreiber wie vorgesehen nur DATEN_TOKEN, hält szeneStats sich für den Stundenlauf. Dann versucht es, Epic-Spieltage von der Platte zu lesen (szeneStats.ts:2154ff., laut Kommentar 390 MB, die den Server schon einmal umgerissen haben), und eigene Spieltage werden ins Verzeichnis gemischt (szeneStats.ts:290).
   - Vorschlag: Eine einzige Funktion 'cloudAblage()' in lib/ablage.ts anbieten, die genau dieselbe Bedingung wie waehle() prüft. ohneDateien() und alle neun Aufrufer (szeneStats, replays, cup-matches, orgs, startvitrine u. a.) sollen sie benutzen.
   - Dateien: lib/ablage.ts, lib/antwortSpeicher.ts, lib/szeneStats.ts
