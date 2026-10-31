@@ -68,5 +68,10 @@
       "zeit": "2026-10-31T19:11:29.937Z",
       "main": "06436b99"
     }
+  },
+  "chef-14": {
+    "entscheidung": "aendern",
+    "notiz": "Die Suche will ich, aber nicht so gro� und fett mitten im Kopf der Startseite. Bitte klein und unauff�llig oben rechts in der Kopfzeile (z. B. nur ein kleines Lupen-Symbol, das beim Klick die Suche �ffnet).",
+    "zeit": "2026-10-31T19:43:40.715Z"
   }
 }
