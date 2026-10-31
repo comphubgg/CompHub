@@ -459,6 +459,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Grundfarbe': 'Background',
   'Deckkraft': 'Opacity',
   'Schriftgröße': 'Font size',
+  'Kopfzeile automatisch ausblenden': 'Auto-hide header',
   'Breite': 'Width',
   'Golden hervorheben': 'Gold highlight',
   'nur Platz 1': 'rank 1 only',

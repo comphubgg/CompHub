@@ -3,7 +3,7 @@ import { Geist, Geist_Mono, Figtree, Bricolage_Grotesque } from "next/font/googl
 import { Suspense } from "react";
 import { cookies, headers } from "next/headers";
 import DesignWaechter from "./components/DesignWaechter";
-import { designFuerPfad, hellMoeglich, MODUS_COOKIE, GROESSE_COOKIE, BEWEGUNG_COOKIE, lieseGroesse, lieseBewegung } from "./lib/design";
+import { designFuerPfad, hellMoeglich, MODUS_COOKIE, GROESSE_COOKIE, BEWEGUNG_COOKIE, KOPFZEILE_COOKIE, lieseGroesse, lieseBewegung, lieseKopfzeile } from "./lib/design";
 import MainHeader from './components/MainHeader';
 import SprachProvider from './components/SprachProvider';
 import { SPRACH_COOKIE } from './lib/sprache';
@@ -158,6 +158,8 @@ export default async function RootLayout({
   const groesse = lieseGroesse((await cookies()).get(GROESSE_COOKIE)?.value);
   const bewegung = lieseBewegung((await cookies()).get(BEWEGUNG_COOKIE)?.value);
 
+  const kopfzeile = lieseKopfzeile((await cookies()).get(KOPFZEILE_COOKIE)?.value);
+
   return (
     <html
       lang={sprache}
@@ -165,6 +167,7 @@ export default async function RootLayout({
       data-modus={modus}
       data-groesse={groesse === 'normal' ? undefined : groesse}
       data-bewegung={bewegung === 'aus' ? 'aus' : undefined}
+      data-kopfzeile={kopfzeile === 'auto' ? 'auto' : undefined}
       suppressHydrationWarning
       className={`${geistSans.variable} ${geistMono.variable} ${figtree.variable} ${anzeige.variable} h-full antialiased`}
     >

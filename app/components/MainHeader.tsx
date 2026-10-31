@@ -3,7 +3,7 @@
 import { ortJetzt } from '@/app/lib/ort';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import VIPLoginForm from '../login/VIPLoginForm';
 
 import T from '@/app/components/T';
@@ -227,11 +227,39 @@ export default function MainHeader({ sektionenAnfang }: {
    */
   useEffect(() => { setMenueOffen(false); }, [pathname]);
 
+  /*
+   * Kopfzeile automatisch ausblenden (Zahnrad): am Desktop macht das allein
+   * das CSS (Maus am oberen Rand oder auf dem Logo). Auf dem Touchscreen gibt
+   * es kein Schweben - dort klappt der erste Tipp auf das Logo die Leiste
+   * auf, statt zu navigieren; ein Tipp daneben klappt sie wieder zu.
+   */
+  const kopfRef = useRef<HTMLElement>(null);
+  // Der Pfad, auf dem aufgeklappt wurde - ein Seitenwechsel klappt damit von selbst wieder zu.
+  const [beruehrtPfad, setBeruehrtPfad] = useState<string | null>(null);
+  const beruehrtOffen = beruehrtPfad !== null && beruehrtPfad === pathname;
+  const logoAntippen = (e: React.MouseEvent) => {
+    if (document.documentElement.dataset.kopfzeile !== 'auto' || !window.matchMedia('(hover: none)').matches || beruehrtOffen) return;
+    e.preventDefault();
+    setBeruehrtPfad(pathname);
+  };
+  useEffect(() => {
+    if (!beruehrtOffen) return undefined;
+    const daneben = (e: PointerEvent) => {
+      if (kopfRef.current && !kopfRef.current.contains(e.target as Node)) setBeruehrtPfad(null);
+    };
+    document.addEventListener('pointerdown', daneben);
+    return () => document.removeEventListener('pointerdown', daneben);
+  }, [beruehrtOffen]);
+
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-zinc-800 bg-zinc-950/95 backdrop-blur-xl">
+    <header ref={kopfRef} data-offen={beruehrtOffen ? 'ja' : undefined}
+      className="kopf sticky top-0 z-50 w-full border-b border-zinc-800 bg-zinc-950/95 backdrop-blur-xl">
+      {/* Nur bei "Kopfzeile automatisch ausblenden" sichtbar (design.css): der Streifen am oberen Rand und der Grund der Leiste, der herunterfaehrt. */}
+      <div className="kopf-streifen" aria-hidden />
+      <div className="kopf-grund border-b border-zinc-800 bg-zinc-950/95 backdrop-blur-xl" aria-hidden />
       <div className="flex w-full flex-wrap items-center gap-2 px-3 py-2 sm:px-4">
         {/* Das Zeichen und der Schriftzug - ohne Kasten, in der Anzeigeschrift des neuen Designs. */}
-        <Link href="/" prefetch={false} className="flex min-w-0 items-center gap-2.5 pr-2 sm:gap-3 sm:pr-6" aria-label="CompHub">
+        <Link href="/" prefetch={false} onClick={logoAntippen} className="kopf-logo flex min-w-0 items-center gap-2.5 pr-2 sm:gap-3 sm:pr-6" aria-label="CompHub">
           <img
             src="/logos/CompHub-Logo-96.webp"
             alt=""
@@ -241,7 +269,7 @@ export default function MainHeader({ sektionenAnfang }: {
             Comp<span className="text-sky-500">Hub</span>
           </span>
         </Link>
-        <div className="flex flex-1 items-center justify-end gap-2 sm:gap-3">
+        <div className="kopf-rest flex flex-1 items-center justify-end gap-2 sm:gap-3">
           {isPreviewMode && isTourMode ? (
             <div className="rounded-full border border-slate-700 bg-slate-900/90 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.24em] text-sky-300">
               <T>Preview tour active</T>
@@ -392,7 +420,7 @@ export default function MainHeader({ sektionenAnfang }: {
         * ist so hoch, dass sie sich mit dem Daumen treffen laesst.
         */}
       {menueOffen && !(isPreviewMode && isTourMode) && (
-        <nav className="border-t border-zinc-800 bg-zinc-950 px-3 py-2 lg:hidden">
+        <nav className="kopf-rest border-t border-zinc-800 bg-zinc-950 px-3 py-2 lg:hidden">
           {navItems.map((item) => {
             const zustand = sektionen.laedt
               ? 'online' : zustandFuer(sektionen, item.schluessel);

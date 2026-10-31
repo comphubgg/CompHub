@@ -12,7 +12,7 @@ import { useEffect, useRef, useState } from 'react';
 import { usePathname } from 'next/navigation';
 import { SPRACHEN } from '@/app/lib/sprache';
 import {
-  BEWEGUNG_COOKIE, GROESSE_COOKIE, MODUS_COOKIE, designFuerPfad, hellMoeglich, lieseModus,
+  BEWEGUNG_COOKIE, GROESSE_COOKIE, KOPFZEILE_COOKIE, MODUS_COOKIE, designFuerPfad, hellMoeglich, lieseModus,
   type Groesse, type Modus,
 } from '@/app/lib/design';
 import { useSprache } from './SprachProvider';
@@ -76,6 +76,7 @@ export default function Sprachschalter() {
   const [modus, setModus] = useState<Modus>('dunkel');
   const [groesse, setGroesse] = useState<Groesse>('normal');
   const [bewegung, setBewegung] = useState<'an' | 'aus'>('an');
+  const [kopfAuto, setKopfAuto] = useState<'auto' | 'aus'>('aus');
   const huelle = useRef<HTMLDivElement>(null);
 
   // Den Stand vom <html>-Element holen (dort hat ihn der Server hingeschrieben).
@@ -84,6 +85,7 @@ export default function Sprachschalter() {
     setModus(lieseModus(document.cookie));
     setGroesse((h.dataset.groesse as Groesse) || 'normal');
     setBewegung(h.dataset.bewegung === 'aus' ? 'aus' : 'an');
+    setKopfAuto(h.dataset.kopfzeile === 'auto' ? 'auto' : 'aus');
   }, []);
 
   // Schliessen: Escape oder ein Klick daneben.
@@ -103,6 +105,11 @@ export default function Sprachschalter() {
   const stelleBewegung = (b: 'an' | 'aus') => {
     merke(BEWEGUNG_COOKIE, b); setBewegung(b);
     if (b === 'an') delete document.documentElement.dataset.bewegung; else document.documentElement.dataset.bewegung = b;
+  };
+
+  const stelleKopfzeile = (k: 'auto' | 'aus') => {
+    merke(KOPFZEILE_COOKIE, k); setKopfAuto(k);
+    if (k === 'aus') delete document.documentElement.dataset.kopfzeile; else document.documentElement.dataset.kopfzeile = 'auto';
   };
 
   return (
@@ -132,6 +139,9 @@ export default function Sprachschalter() {
           </Zeile>
           <Zeile titel={t('Animationen')}>
             <Wahl wert={bewegung} setze={stelleBewegung} optionen={[['an', t('An')], ['aus', t('Aus')]]} />
+          </Zeile>
+          <Zeile titel={t('Kopfzeile automatisch ausblenden')}>
+            <Wahl wert={kopfAuto === 'auto' ? 'an' : 'aus'} setze={(w) => stelleKopfzeile(w === 'an' ? 'auto' : 'aus')} optionen={[['an', t('An')], ['aus', t('Aus')]]} />
           </Zeile>
           {pfad === '/admin' && (
             <Zeile titel={t('Dashboard')} hinweis={t('Was hier zu sehen ist')}>

@@ -1055,5 +1055,26 @@
     "modell": "Sonnet",
     "status": "wartet",
     "runde": 4
+  },
+  {
+    "id": "chef-51",
+    "datum": "2026-10-31T20:30:00Z",
+    "titel": "Einstellung: Kopfzeile automatisch ausblenden",
+    "kurz": "Zahnrad unten rechts → „Auto-hide header“: Leiste verschwindet, fährt bei Maus oben herunter.",
+    "markieren": [
+      "text:Auto-hide header",
+      "css:header"
+    ],
+    "bereich": "Oberfläche",
+    "warum": "Dein Wunsch: Kopfzeile wie die Windows-Taskleiste ausblenden können, Standard aus.",
+    "was": "Neuer Schalter im Zahnrad (Standard aus – dann bleibt alles wie jetzt). An: nur Logo und „CompHub“ oben links; Maus an den oberen Rand oder aufs Logo lässt die Leiste weich herunterfahren. Am Handy öffnet der erste Tipp aufs Logo die Leiste. Die Seite merkt sich die Wahl im Browser wie die anderen Zahnrad-Einstellungen.",
+    "ansehen": [
+      "/"
+    ],
+    "commits": [],
+    "groesse": "mittel",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 4
   }
 ]
