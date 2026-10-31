@@ -1,1 +1,21 @@
-[]
+[
+  {
+    "id": "chef-1",
+    "datum": "2026-10-31T18:55:00Z",
+    "titel": "Englische Fassung fuer 33 Texte nachgetragen",
+    "bereich": "Uebersetzung",
+    "warum": "Auf Englisch standen an einigen Stellen noch deutsche Saetze. Oeffentlich betroffen war der Knopf 'Kartenbild waehlen' auf der Turnierkarten-Seite; der Rest steckte in den Admin-Werkzeugen (Alte Karten, Plakate, Replay-Ansicht, Konten).",
+    "was": "Jeder dieser Texte hat jetzt eine englische Fassung. Wer die Seite auf Englisch nutzt, sieht dort kein Deutsch mehr. Auf Deutsch aendert sich nichts.",
+    "ansehen": [
+      "/tournament-maps",
+      "/admin/alte-maps",
+      "/admin/plakate",
+      "/admin/replay"
+    ],
+    "commits": [],
+    "groesse": "klein",
+    "modell": "Opus",
+    "status": "wartet",
+    "runde": 1
+  }
+]
