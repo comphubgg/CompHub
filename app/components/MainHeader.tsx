@@ -1,5 +1,6 @@
 'use client';
 
+import KopfSuche from '@/app/components/KopfSuche';
 import { ortJetzt } from '@/app/lib/ort';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
@@ -312,6 +313,8 @@ export default function MainHeader({ sektionenAnfang }: {
           )}
 
           <div className="flex items-center gap-2">
+            {/* Die Spielersuche als kleine Lupe (Betreiber, 31.10.2026 zu chef-14: klein und unauffaellig oben rechts). */}
+            {!(isPreviewMode && isTourMode) && <KopfSuche />}
             {/*
               * Der Menueknopf - nur auf schmalen Bildschirmen.
               *

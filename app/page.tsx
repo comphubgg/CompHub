@@ -13,7 +13,6 @@ import StartVitrine from '@/app/components/StartVitrine';
 import Rollzahl from '@/app/components/Rollzahl';
 import Lieblinge from '@/app/components/Lieblinge';
 import LiveDemnaechst from '@/app/components/LiveDemnaechst';
-import StartSuche from '@/app/components/StartSuche';
 
 /** Ein Platz in der Preisgeldliste der Startseite. */
 interface Geldplatz {
@@ -330,7 +329,6 @@ export default function Startseite() {
           <p className="mx-auto mt-7 max-w-2xl text-lg font-semibold text-slate-200 sm:text-xl">
             <T>Statistiken, Turniere und Streams an einem Ort.</T>
           </p>
-          <StartSuche />
           <p className="mx-auto mt-2 max-w-2xl text-sm text-slate-400 sm:text-base">
             <T>Zehn Saisons, sieben Regionen — vom Chapter-5-Archiv bis zum
             Spieltag von gestern.</T>
