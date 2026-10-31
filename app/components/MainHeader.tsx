@@ -1,5 +1,6 @@
 'use client';
 
+import { ortJetzt } from '@/app/lib/ort';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -440,7 +441,7 @@ export default function MainHeader({ sektionenAnfang }: {
             <p className="min-w-0 flex-1 text-sm text-amber-200">
               <T>Du hast VIP bekommen</T>
               {vipBis
-                ? ` — ${t('läuft bis')} ${new Date(vipBis).toLocaleDateString('de-DE')}`
+                ? ` — ${t('läuft bis')} ${new Date(vipBis).toLocaleDateString(ortJetzt())}`
                 : ` — ${t('ohne Ende')}`}
               . <span className="text-amber-200/70">
                 <T>Overlays, eigene Ordner, Turnierfilter und der Vergleich

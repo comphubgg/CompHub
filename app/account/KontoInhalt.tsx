@@ -1,5 +1,6 @@
 'use client';
 
+import { ortJetzt } from '@/app/lib/ort';
 import { useCallback, useEffect, useMemo, useRef, useState, type ElementType } from 'react';
 import VipInfo from '@/app/components/VipInfo';
 import { useRouter } from 'next/navigation';
@@ -867,7 +868,7 @@ export default function KontoSeite({ eingebettet = false }: { eingebettet?: bool
             [t('E-Mail'), nurVip ? t('noch kein Konto') : daten.email || '—', nurVip ? t('unten ein Konto anlegen') : daten.bestaetigt ? t('bestätigt') : t('nicht bestätigt'), !nurVip && daten.bestaetigt],
             [t('Epic Games'), daten.epicId ? (meinEpicName || '…') : t('nicht verbunden'), daten.epicId ? (daten.epicVerifiziert ? t('von Epic bestätigt') : t('vom Betreiber zugewiesen')) : '', !!daten.epicId],
             [t('Passwort'), nurVip ? t('noch kein Konto') : daten.hatPasswort ? t('Passwort ist gesetzt') : t('noch keines'), nurVip ? t('Zugang nur mit Schlüssel') : '', !nurVip && daten.hatPasswort],
-            [t('Dabei seit'), daten.angelegt ? new Date(daten.angelegt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : nurVip ? t('noch kein Konto') : '—',
+            [t('Dabei seit'), daten.angelegt ? new Date(daten.angelegt).toLocaleDateString(ortJetzt(), { day: 'numeric', month: 'short', year: 'numeric' }) : nurVip ? t('noch kein Konto') : '—',
               zugang.admin ? 'Admin' : zugang.manager ? 'Manager' : zugang.vip ? 'VIP' : '', !!daten.angelegt],
           ] as Array<[string, string, string, boolean]>).map(([titel, wert, zusatz, gut]) => (
             <div key={titel} className="bg-zinc-900 px-4 py-3.5">
@@ -976,7 +977,7 @@ export default function KontoSeite({ eingebettet = false }: { eingebettet?: bool
                             {freunde && freunde.anzahl > 0 ? <T>Freundesliste aktualisieren</T> : <T>Freunde freigeben</T>}
                           </a>
                           {freunde && freunde.anzahl > 0 && (
-                            <span className="text-xs text-slate-400">{freunde.anzahl} <T>Freunde freigegeben</T>{freunde.stand ? ` · ${new Date(freunde.stand).toLocaleDateString('en-GB')}` : ''}</span>
+                            <span className="text-xs text-slate-400">{freunde.anzahl} <T>Freunde freigegeben</T>{freunde.stand ? ` · ${new Date(freunde.stand).toLocaleDateString(ortJetzt())}` : ''}</span>
                           )}
                         </div>
                       </div>

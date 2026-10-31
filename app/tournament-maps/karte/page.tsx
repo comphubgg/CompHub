@@ -12,6 +12,7 @@
  * Tagen ist eine Karte mit Umschalter Day 1 / Day 2 / Combined.
  */
 
+import { ortJetzt } from '@/app/lib/ort';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import T from '@/app/components/T';
@@ -34,8 +35,8 @@ interface Eintrag {
   tage?: Array<{ name: string; windowId: string; eventId: string | null }>;
 }
 
-const KURZ = new Intl.DateTimeFormat('de-DE', { day: '2-digit', month: '2-digit', timeZone: 'Europe/Brussels' });
-const LANG = new Intl.DateTimeFormat('en-GB', { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Europe/Brussels' });
+const KURZ = { format: (d: Date) => new Intl.DateTimeFormat(ortJetzt(), { day: '2-digit', month: '2-digit', timeZone: 'Europe/Brussels' }).format(d) };
+const LANG = { format: (d: Date) => new Intl.DateTimeFormat(ortJetzt(), { weekday: 'short', day: '2-digit', month: 'short', year: 'numeric', timeZone: 'Europe/Brussels' }).format(d) };
 
 type Reiter = 'karte' | 'spieler' | 'leaderboard' | 'tierlist' | 'laender';
 const REITER: Array<[Reiter, string]> = [

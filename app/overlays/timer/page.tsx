@@ -1,5 +1,6 @@
 'use client';
 
+import { ortJetzt } from '@/app/lib/ort';
 import { useEffect, useMemo, useState } from 'react';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
@@ -245,7 +246,7 @@ export default function TimerSeite() {
             {cfg.beginn > 0 && (
               <p className="mt-3 text-[11px] text-sky-400/80">
                 <T>Start</T>{': '}
-                {new Date(cfg.beginn).toLocaleString('de-DE')}
+                {new Date(cfg.beginn).toLocaleString(ortJetzt())}
                 {restText ? ` · ${restText}` : ''}
               </p>
             )}

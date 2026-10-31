@@ -1,5 +1,6 @@
 'use client';
 
+import { ortJetzt } from '@/app/lib/ort';
 import { useEffect, useMemo, useState } from 'react';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
@@ -59,7 +60,7 @@ function wann(status: string, begin: number): string {
   if (abstand === 0) return 'heute';
   if (abstand === -1) return 'gestern';
   if (abstand === 1) return 'morgen';
-  return new Date(begin).toLocaleDateString('de-DE',
+  return new Date(begin).toLocaleDateString(ortJetzt(),
     { day: '2-digit', month: '2-digit' });
 }
 
@@ -225,7 +226,7 @@ export default function Startansicht({ onWeiter, art }: {
         const zeit = wann(k.live ? 'live' : '', k.begin);
         const imText = [
           k.titel, k.stufe, k.region, k.istFinale ? 'finals finale' : '',
-          new Date(k.begin).toLocaleDateString('de-DE',
+          new Date(k.begin).toLocaleDateString(ortJetzt(),
             { day: '2-digit', month: '2-digit' }),
           zeit, t(zeit),
         ].join(' ').toLowerCase().split(/[^\p{L}\p{N}.]+/u).filter(Boolean);
@@ -370,7 +371,7 @@ export default function Startansicht({ onWeiter, art }: {
                       */}
                     <span className="ml-auto shrink-0 text-[11px] tabular-nums
                                      text-slate-500">
-                      {new Date(k.begin).toLocaleDateString('de-DE',
+                      {new Date(k.begin).toLocaleDateString(ortJetzt(),
                         { day: '2-digit', month: '2-digit' })}
                     </span>
                   </span>

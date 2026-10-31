@@ -1,5 +1,6 @@
 'use client';
 
+import { ortJetzt } from '@/app/lib/ort';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
@@ -231,7 +232,7 @@ export function CupWahl({ event, window: fenster, onWahl, nurKommende = false }:
             <span className="shrink-0 rounded bg-zinc-800 px-1.5 py-0.5 text-[10px]
                              font-medium text-slate-300">{w.region}</span>
             <span className="shrink-0 text-[11px] text-slate-500">
-              {new Date(w.begin).toLocaleDateString('de-DE', { day: '2-digit', month: '2-digit' })}
+              {new Date(w.begin).toLocaleDateString(ortJetzt(), { day: '2-digit', month: '2-digit' })}
               {w.wann && !w.live ? ` · ${t(w.wann)}` : ''}
             </span>
           </button>

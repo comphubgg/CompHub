@@ -1,5 +1,6 @@
 'use client';
 
+import { ortJetzt } from '@/app/lib/ort';
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import T from '@/app/components/T';
@@ -23,7 +24,7 @@ function tagText(begin: number): string {
    * aber der Tag, an dem er stattfindet. Gerechnet wird deshalb in der Zeit
    * des Turniers - Antwerpen, also Mitteleuropa.
    */
-  return new Intl.DateTimeFormat('de-DE', {
+  return new Intl.DateTimeFormat(ortJetzt(), {
     weekday: 'short', day: '2-digit', month: '2-digit',
     timeZone: 'Europe/Brussels',
   }).format(new Date(begin));

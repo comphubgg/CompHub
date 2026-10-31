@@ -517,5 +517,25 @@
     "modell": "Sonnet",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-30",
+    "datum": "2026-10-31T19:32:15Z",
+    "titel": "Datum folgt der Sprache auch im Kopf und auf weiteren Seiten",
+    "bereich": "Sprache",
+    "warum": "Auf vielen Seiten standen Datum und Zahlen fest auf Deutsch oder fest auf Britisch, egal welche Sprache man gewählt hatte. Das VIP-Ablaufdatum oben im Kopf war immer deutsch.",
+    "was": "Datum, Uhrzeit und Zahlen richten sich jetzt nach der gewählten Sprache – im Kopf der Seite, bei den Maps, den Turnier-Maps, im Konto, bei den Globals und bei den Overlays.",
+    "ansehen": [
+      "/maps",
+      "/tournament-maps",
+      "/globals",
+      "/account",
+      "/overlays"
+    ],
+    "commits": [],
+    "groesse": "mittel",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 1
   }
 ]
