@@ -936,5 +936,14 @@
       "zeit": "2026-10-31T21:48:58.531Z",
       "main": "aef29941"
     }
+  },
+  "chef-100": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:49:10.002Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
   }
 }
