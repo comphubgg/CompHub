@@ -303,6 +303,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Schaden je Match': 'Damage per match',
   'Schaden erlitten': 'Damage taken',
   'Schadensquote': 'Damage ratio',
+  'Deine Rechte lassen sich gerade nicht prüfen – die Ablage antwortet nicht. Darum fehlen vielleicht Kacheln.': 'Your permissions can’t be checked right now – storage isn’t responding. Some tiles may be missing.',
   'Schaden ausgeteilt geteilt durch Schaden eingesteckt': 'Damage dealt divided by damage taken',
   'Quote': 'Ratio',
   'Treffer': 'Hits',

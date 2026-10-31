@@ -356,5 +356,21 @@
     ],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-23",
+    "titel": "Dashboard: Störung der Ablage sieht nicht mehr aus wie „keine Rechte“",
+    "bereich": "Verwaltung",
+    "warum": "Hakte die Ablage kurz, meldete die Rechte-Prüfung einfach „kein Admin“. Dir und deinen Managern verschwanden dann alle Verwaltungskacheln, ohne Hinweis – als hätte man euch die Rechte genommen.",
+    "was": "Die Rechte-Prüfung meldet eine Störung jetzt als Störung. Im Dashboard erscheint dann oben ein roter Hinweis „Deine Rechte lassen sich gerade nicht prüfen – die Ablage antwortet nicht“ mit dem Knopf „Nochmal versuchen“. Freigeschaltet wird dabei nichts zusätzlich. Im Normalfall sieht alles aus wie vorher.",
+    "ansehen": [
+      "/admin"
+    ],
+    "groesse": "klein",
+    "datum": "2026-10-31T19:07:02Z",
+    "commits": [],
+    "modell": "Opus",
+    "status": "wartet",
+    "runde": 1
   }
 ]
