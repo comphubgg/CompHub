@@ -12,7 +12,9 @@ import os from 'os';
 import path from 'path';
 import { execFileSync, spawn } from 'child_process';
 
-const ID = process.argv[2];
+// Eine oder mehrere Ids ("Alle annehmen" schickt alle auf einmal) - nacheinander, nie zwei Uebernahmen zugleich (Sperre unten).
+const IDS = process.argv.slice(2);
+let ID = IDS[0];
 const CHEF_ORDNER = process.cwd();
 const zeit = () => new Date().toISOString();
 const log = (t) => console.log(`${zeit()} ${ID}: ${t}`);
@@ -144,4 +146,14 @@ async function main() {
   ergebnis(stand, text, { main: mainSha });
 }
 
-main().catch((e) => ergebnis('fehler', String(e?.message ?? e).slice(0, 200)));
+// Sperre: laeuft schon eine Uebernahme (anderer Klick), warten - zwei zugleich wuerden sich beim Schieben nach main gegenseitig abweisen.
+const SPERRE = path.join(CHEF_ORDNER, 'chef-uebernahme.lock');
+const alter = () => { try { return Date.now() - fs.statSync(SPERRE).mtimeMs; } catch { return Infinity; } };
+while (alter() < 10 * 60_000) await new Promise((r) => setTimeout(r, 3000));
+fs.writeFileSync(SPERRE, String(process.pid));
+try {
+  for (const id of IDS) {
+    ID = id;
+    await main().catch((e) => ergebnis('fehler', String(e?.message ?? e).slice(0, 200)));
+  }
+} finally { fs.rmSync(SPERRE, { force: true }); }

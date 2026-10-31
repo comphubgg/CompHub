@@ -110,6 +110,23 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: true, hinweis: fehler });
   }
 
+  /*
+   * "Alle annehmen" (Betreiber, 31.10.2026: "ich bin faul"): alle uebergebenen Eintraege auf einmal mit Ja - eine Entscheidungs-Datei, ein
+   * Uebernahme-Lauf, der sie nacheinander nach main bringt, und am Ende ein Bau.
+   */
+  if (Array.isArray((body as { ids?: unknown }).ids)) {
+    const ids = ((body as { ids: unknown[] }).ids).map(String).filter((x) => /^chef-\d+$/.test(x)).slice(0, 100);
+    if (!ids.length) return NextResponse.json({ ok: false, error: 'Keine Einträge gewählt.' });
+    const fehlerAlle = schreibenUndSchieben(`[chef-betreiber] ${ids.length} Einträge: ja`, () => {
+      const alle = lies<Record<string, Record<string, unknown>>>('entscheidungen.json', {});
+      for (const x of ids) alle[x] = { entscheidung: 'ja', notiz: '', zeit: new Date().toISOString(), uebernahme: { stand: 'laeuft', text: 'Wird gerade übernommen …' } };
+      fs.writeFileSync(path.join(CHEF, 'entscheidungen.json'), `${JSON.stringify(alle, null, 2)}\n`);
+    });
+    const log = fs.openSync(path.join(ORDNER, 'chef-uebernahme.log'), 'a');
+    spawn(process.execPath, [path.join(ORDNER, 'scripts', 'chef-uebernahme.mjs'), ...ids], { cwd: ORDNER, detached: true, stdio: ['ignore', log, log], windowsHide: true }).unref();
+    return NextResponse.json({ ok: true, hinweis: fehlerAlle });
+  }
+
   const id = String(body.id ?? '');
   const entscheidung = String(body.entscheidung ?? '');
   if (!/^chef-\d+$/.test(id) || !['ja', 'nein', 'aendern'].includes(entscheidung)) {
@@ -118,7 +135,7 @@ export async function POST(request: Request) {
   const notiz = String(body.notiz ?? '').slice(0, 4000);
   const fehler = schreibenUndSchieben(`[chef-betreiber] ${id}: ${entscheidung}`, () => {
     const alle = lies<Record<string, Record<string, unknown>>>('entscheidungen.json', {});
-    alle[id] = { entscheidung, notiz, zeit: new Date().toISOString(), ...(entscheidung === 'ja' ? { uebernahme: { stand: 'laeuft', text: 'Wird gerade uebernommen ...' } } : {}) };
+    alle[id] = { entscheidung, notiz, zeit: new Date().toISOString(), ...(entscheidung === 'ja' ? { uebernahme: { stand: 'laeuft', text: 'Wird gerade übernommen …' } } : {}) };
     fs.writeFileSync(path.join(CHEF, 'entscheidungen.json'), `${JSON.stringify(alle, null, 2)}\n`);
   });
 

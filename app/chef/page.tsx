@@ -231,6 +231,15 @@ export default function ChefSeite() {
           <p className="mt-6 rounded-2xl bg-amber-500/10 px-5 py-3 text-sm text-amber-300">{fehler || hinweis || t('Neuester Stand ließ sich gerade nicht holen - es gilt der letzte.')}</p>
         )}
 
+        {gruppen.offen.length > 1 && (
+          <div className="mt-10 flex flex-wrap items-center gap-4 rounded-3xl border border-sky-500/30 bg-sky-500/10 px-6 py-5">
+            <p className="text-base text-slate-200"><span className="font-bold">{gruppen.offen.length}</span> <T>Änderungen warten.</T></p>
+            <button type="button" disabled={sendet === 'alle'}
+              onClick={() => { if (window.confirm(t('Alle wartenden Änderungen online stellen?'))) void senden({ ids: gruppen.offen.map((x) => x.id) }, 'alle'); }}
+              className="rounded-full bg-sky-500 px-7 py-2.5 text-base font-bold text-white shadow-sm transition hover:bg-sky-400 disabled:opacity-50"><T>Alle annehmen</T></button>
+            <span className="text-sm text-slate-400"><T>Einzelne vorher mit „Ändern“ oder „Nein“ aussortieren - dann fallen sie hier raus.</T></span>
+          </div>
+        )}
         <Abschnitt titel={t('Wartet auf dich')} liste={gruppen.offen} knoepfe leer={t('Gerade nichts - der Chef arbeitet an den nächsten Verbesserungen.')} />
         <Abschnitt titel={t('Beim Chef in Arbeit')} liste={gruppen.inArbeit} knoepfe={false} />
         <Abschnitt titel={t('Vorschläge ohne Umbau')} liste={gruppen.vorschlaege} knoepfe={false} />
