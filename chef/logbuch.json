@@ -2029,5 +2029,26 @@
     "commits": [],
     "status": "wartet",
     "runde": 6
+  },
+  {
+    "id": "chef-98",
+    "datum": "2026-10-31T21:50:00Z",
+    "titel": "Zeiten zeigen nie mehr „60s“",
+    "kurz": "Cup-Seite → Spieler öffnen: „Avg Time Alive“ zeigt „19m 0s“ statt „18m 60s“.",
+    "markieren": [
+      "text:Avg Time Alive",
+      "text:Time in Storm"
+    ],
+    "bereich": "Statistik",
+    "warum": "Bei Durchschnittszeiten wurden die Sekunden für sich gerundet; aus 1.139,5 Sekunden wurde „18m 60s“ (FNCS Solo Final EU, Tag 1, Platz 19).",
+    "was": "Zeiten werden erst auf ganze Sekunden gerundet und dann geteilt – auf der Cup-Seite, in den Spielerdetails, bei Scrims, im Konto und bei den Replays.",
+    "ansehen": [
+      "/events/s42_fncssolos_reload_finals"
+    ],
+    "commits": [],
+    "groesse": "klein",
+    "modell": "Sonnet (gefunden) + Opus (weitere Stellen)",
+    "status": "wartet",
+    "runde": 6
   }
 ]

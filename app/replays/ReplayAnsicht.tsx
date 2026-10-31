@@ -733,7 +733,7 @@ export default function ReplayAnsicht({ match, kartenBild, titel, wertung, hervo
         const zu = new Map((match.zusatz ?? []).map((x) => [x.id, x]));
         const mitSchaden = sch.size > 0; const mitZusatz = zu.size > 0;
         const zeilen = [...echte].sort((a, b) => (a.platz ?? 999) - (b.platz ?? 999) || (b.kills ?? 0) - (a.kills ?? 0));
-        const sek = (n?: number) => (typeof n === 'number' ? `${Math.floor(n / 60)}:${String(Math.round(n % 60)).padStart(2, '0')}` : '0:00');
+        const sek = (n?: number) => { if (typeof n !== 'number') return '0:00'; const r = Math.round(n); return `${Math.floor(r / 60)}:${String(r % 60).padStart(2, '0')}`; };
         return (
           <section className="overflow-hidden rounded-2xl border border-white/[0.08] bg-zinc-900/40">
             <p className="border-b border-white/[0.08] bg-zinc-900/60 px-4 py-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-300"><T>Spielerwerte des Matches</T></p>

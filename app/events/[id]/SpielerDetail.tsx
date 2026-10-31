@@ -44,9 +44,11 @@ interface Treffer { id: string; name: string; rank: number; points: number; team
 
 const num = (v: number) => Math.round(v).toLocaleString('en-US');
 const pct = (v: number) => `${v.toFixed(2)}%`;
-function dauer(s: number): string {
+function dauer(roh: number): string {
+  // Erst auf ganze Sekunden runden, dann teilen - sonst wird aus 1139,5 s "18m 60s" statt "19m 0s".
+  const s = Math.round(roh);
   const st = Math.floor(s / 3600); const mi = Math.floor((s % 3600) / 60);
-  return st ? `${st}h ${mi}m` : `${mi}m ${Math.round(s % 60)}s`;
+  return st ? `${st}h ${mi}m` : `${mi}m ${s % 60}s`;
 }
 const km = (cm: number) => `${(cm / 100000).toFixed(1)}km`;
 

@@ -46,10 +46,11 @@ interface Eintrag {
 /** Sekunden als "1h 55m" oder "18m 20s" - so wie man es ausspricht. */
 function dauer(s?: number): string | null {
   if (!s || s <= 0) return null;
+  s = Math.round(s); // erst runden, sonst "18m 60s"
   const st = Math.floor(s / 3600);
   const mi = Math.floor((s % 3600) / 60);
   if (st) return `${st}h ${mi}m`;
-  return `${mi}m ${Math.round(s % 60)}s`;
+  return `${mi}m ${s % 60}s`;
 }
 
 /** Null heisst hier "Epic fuehrt dazu nichts" und faellt deshalb weg. */
