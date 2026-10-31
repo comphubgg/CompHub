@@ -81,7 +81,9 @@ async function rechnen() {
         a.titel += 1; a.land = a.land ?? sp.land; siegerJe.set(k, a);
       }
     }
-    const titel = [...siegerJe.values()].sort((a, b) => b.titel - a.titel || a.name.localeCompare(b.name)).map((t) => ({ id: t.name, ...t }));
+    // Bei gleich vielen Titeln entscheidet die Staerke (Platz in der Eliminierungs-Aufstellung der Grand Finals) - nie das Alphabet (Betreiber).
+    const staerke = new Map(spieler.map((x, i) => [x.name.toLowerCase(), i] as const));
+    const titel = [...siegerJe.values()].sort((a, b) => b.titel - a.titel || (staerke.get(a.name.toLowerCase()) ?? 1e6) - (staerke.get(b.name.toLowerCase()) ?? 1e6)).map((t) => ({ id: t.name, ...t }));
     const nachLand = new Map<string, number>();
     for (const t of titel) if (t.land) nachLand.set(t.land, (nachLand.get(t.land) ?? 0) + t.titel);
     const laender = [...nachLand.entries()].map(([land, n]) => ({ land, titel: n })).sort((a, b) => b.titel - a.titel);
