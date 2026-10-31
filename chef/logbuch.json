@@ -1266,5 +1266,26 @@
     "modell": "Sonnet",
     "status": "wartet",
     "runde": 4
+  },
+  {
+    "id": "chef-65",
+    "datum": "2026-10-31T21:00:00Z",
+    "titel": "Statistik → Turniere/Regional: Ausfall heißt nicht mehr ewig „Wird geladen“",
+    "kurz": "Unsichtbar (nur bei Störung): Turnierliste zeigt „Archiv gerade nicht erreichbar“ statt endlos „Lädt“.",
+    "markieren": [
+      "text:The archive is not reachable right now"
+    ],
+    "bereich": "Statistik",
+    "warum": "Kam das Turnierverzeichnis nicht, stand dort für immer „Wird geladen …“.",
+    "was": "Bei einem Ausfall steht jetzt ehrlich „Das Archiv ist gerade nicht erreichbar.“ – in den Reitern Turniere und Regional.",
+    "ansehen": [
+      "/statistics?bereich=turniere",
+      "/statistics?bereich=regional"
+    ],
+    "commits": [],
+    "groesse": "klein",
+    "modell": "Opus",
+    "status": "wartet",
+    "runde": 4
   }
 ]
