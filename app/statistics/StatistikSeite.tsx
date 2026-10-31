@@ -116,7 +116,7 @@ interface Turnier {
   /** Die Kachel "Finals" einer LAN: die Fenster aller Tage, zusammengerechnet. */
   events?: string[]; gesamt?: boolean;
   /** Die Tage dieser LAN - zum Umschalten zwischen Tag und Summe. */
-  tage?: Array<{ windowId: string; datei: string; titel: string }>;
+  tage?: Array<{ windowId: string; datei: string; titel: string; datum?: number | null; spieler?: number; matches?: number }>;
   name: string; spieler: number; matches: number; datum?: number;
   /** Aus eigenen Daten (Epic + Replays) - und ob dort noch Werte fehlen, weil die Replays noch gelesen werden (lib/szeneEigen). */
   eigen?: boolean; unvollstaendig?: boolean;
@@ -2482,7 +2482,9 @@ export default function StatistikSeite() {
   const cupAktiv = useMemo<Turnier | null>(() => {
     if (!cup?.tage?.length || tagWahl === 'gesamt') return cup;
     const tag = cup.tage.find((x) => x.windowId === tagWahl);
-    return tag ? { ...cup, windowId: tag.windowId, datei: tag.datei, events: undefined, gesamt: false } : cup;
+    // Datum, Spielerzahl und Matches des Tages, nicht die der Summe.
+    return tag ? { ...cup, windowId: tag.windowId, datei: tag.datei, events: undefined, gesamt: false,
+      datum: tag.datum ?? cup.datum, spieler: tag.spieler ?? cup.spieler, matches: tag.matches ?? cup.matches } : cup;
   }, [cup, tagWahl]);
   const [cupFeld, setCupFeld] = useState<Spieler[]>([]);
   /*
@@ -4732,10 +4734,10 @@ export default function StatistikSeite() {
                               {turnierTitel(cup.name)}
                             </h2>
                             <div className="mt-2 flex flex-wrap items-center gap-2">
-                              {[cup.region, saisonTitel,
-                                datumText(cup.datum, sprache),
-                                `${zahl(cup.spieler, 0, sprache)} ${t('Spieler')}`,
-                                `${zahl(cup.matches, 0, sprache)} ${t('Matches')}`]
+                              {[cupAktiv?.region ?? cup.region, saisonTitel,
+                                datumText((cupAktiv ?? cup).datum, sprache),
+                                `${zahl((cupAktiv ?? cup).spieler, 0, sprache)} ${t('Spieler')}`,
+                                `${zahl((cupAktiv ?? cup).matches, 0, sprache)} ${t('Matches')}`]
                                 .filter(Boolean).map((x) => (
                                   <span key={x} className="rounded border border-zinc-800
                                                            bg-zinc-900/60 px-2 py-0.5

@@ -2050,5 +2050,26 @@
     "modell": "Sonnet (gefunden) + Opus (weitere Stellen)",
     "status": "wartet",
     "runde": 6
+  },
+  {
+    "id": "chef-99",
+    "datum": "2026-10-31T21:52:00Z",
+    "titel": "LAN-Finale: einzelner Tag zeigt eigene Matches und eigenes Datum",
+    "kurz": "Turniere → FNCS Global Championship 2026 → „Day 1“: Kopf zeigt 6 statt 12 Matches.",
+    "markieren": [
+      "text:6 Matches",
+      "text:Day 1"
+    ],
+    "bereich": "Statistik",
+    "warum": "Wählte man bei der Global Championship einen einzelnen Tag, stand oben weiter die Summe beider Tage (12 Matches, Datum von Tag 2), die Liste darunter hatte aber nur 6 Matches.",
+    "was": "Der Kopf zeigt jetzt Datum, Spieler und Matches des gewählten Tages. Vollständig sichtbar, sobald die Seite neu ausgeliefert ist.",
+    "ansehen": [
+      "/statistics?bereich=turniere&saison=S42"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "commits": [],
+    "status": "wartet",
+    "runde": 6
   }
 ]

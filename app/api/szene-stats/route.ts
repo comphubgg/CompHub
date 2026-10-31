@@ -1116,6 +1116,7 @@ async function berechne(request: Request) {
           tage: sortiert.map((t) => ({
             windowId: t.windowId, datei: t.datei,
             titel: `Day ${/Day\s*(\d+)/i.exec(t.windowId)?.[1] ?? ''}`.trim(),
+            datum: t.datum ?? null, spieler: t.spieler, matches: t.matches,
           })),
           gesamt: true,
         };
