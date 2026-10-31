@@ -3950,9 +3950,40 @@ export default function StatistikSeite() {
    * Die Bereiche als Leiste unter dem Kopf (Betreiber, 14.10.2026: eigene Anordnung statt der Seitenleiste links). Sie steht auch bei
    * offenem Profil da, damit man von dort mit einem Klick in jeden Bereich kommt.
    */
+  /*
+   * Auf dem Handy passen nicht alle Reiter in die Leiste: Solange rechts oder links noch welche
+   * folgen, zeigt ein weicher Verlauf mit Pfeil das an, und der gewaehlte Reiter wird mittig
+   * ins Bild geholt (nur waagerecht, die Seite bleibt stehen).
+   */
+  const leisteRef = useRef<HTMLDivElement>(null);
+  const [leisteMehr, setLeisteMehr] = useState({ links: false, rechts: false });
+  const pruefeLeiste = useCallback(() => {
+    const el = leisteRef.current;
+    if (!el) return;
+    const links = el.scrollLeft > 4;
+    const rechts = el.scrollLeft + el.clientWidth < el.scrollWidth - 4;
+    setLeisteMehr((v) => (v.links === links && v.rechts === rechts ? v : { links, rechts }));
+  }, []);
+  useEffect(() => {
+    const el = leisteRef.current;
+    if (!el) return;
+    pruefeLeiste();
+    const beobachter = new ResizeObserver(pruefeLeiste);
+    beobachter.observe(el);
+    return () => beobachter.disconnect();
+  }, [pruefeLeiste, bereich, sichtbareBereiche.length]);
+  useEffect(() => {
+    const el = leisteRef.current;
+    const knopf = el?.querySelector<HTMLElement>('[aria-current="page"]');
+    if (!el || !knopf) return;
+    const ziel = knopf.offsetLeft - (el.clientWidth - knopf.offsetWidth) / 2;
+    el.scrollTo({ left: Math.max(0, ziel), behavior: 'smooth' });
+  }, [bereich, sichtbareBereiche.length]);
+
   const bereichsLeiste = (
-    <nav aria-label={t('Statistiken')}
-      className="mb-6 flex max-w-full gap-1 overflow-x-auto rounded-2xl border border-zinc-800 bg-zinc-900 p-1 shadow-sm [scrollbar-width:none]">
+    <div className="relative mb-6 max-w-full">
+    <nav ref={leisteRef} onScroll={pruefeLeiste} aria-label={t('Statistiken')}
+      className="flex max-w-full gap-1 overflow-x-auto rounded-2xl border border-zinc-800 bg-zinc-900 p-1 shadow-sm [scrollbar-width:none]">
       {sichtbareBereiche.map(([wert, titel]) => (
         <button key={wert} type="button" onClick={() => wechsleBereich(wert)} aria-current={bereich === wert ? 'page' : undefined}
           className={`flex shrink-0 items-center gap-2 rounded-xl px-4 py-2 text-sm font-semibold transition ${bereich === wert
@@ -3962,6 +3993,16 @@ export default function StatistikSeite() {
         </button>
       ))}
     </nav>
+    {(['links', 'rechts'] as const).map((seite) => leisteMehr[seite] && (
+      <div key={seite} aria-hidden="true"
+        className={`pointer-events-none absolute inset-y-px flex w-10 items-center ${seite === 'links'
+          ? 'left-px justify-start rounded-l-2xl bg-gradient-to-r pl-1' : 'right-px justify-end rounded-r-2xl bg-gradient-to-l pr-1'} from-zinc-900 via-zinc-900/80 to-transparent`}>
+        <svg viewBox="0 0 20 20" className="h-4 w-4 text-sky-500" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d={seite === 'links' ? 'M12 4l-6 6 6 6' : 'M8 4l6 6-6 6'} />
+        </svg>
+      </div>
+    ))}
+    </div>
   );
 
   /** Die Suche nach einem Spieler - sie steht immer oben rechts, auch im Profil und in der vollen Liste (Betreiber, 26.10.2026). */
