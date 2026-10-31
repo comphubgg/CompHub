@@ -1,10 +1,11 @@
 {
   "letzteRunde": "2026-10-31T19:56:00Z",
-  "macheGerade": "Runde 3 fertig – 23 neue Verbesserungen (chef-27 bis chef-50, ohne chef-33) und chef-14 nach deiner Notiz überarbeitet (Lupe oben rechts) warten auf deine Entscheidung. chef-6 ist auf deinen Wunsch zurückgenommen, chef-5 und chef-10 sind live. Schwerpunkt Statistik: Laufstrecke ab S41 (100× zu klein), Quoten-Listen mit Mindestzahl an Matches, Cup-Gesamtwertung, Solo-K/D, abgesagte Runden.",
+  "macheGerade": "Runde 4 läuft",
   "naechstes": [
     "Gleichstand im Endstand zweitägiger Finals (Platz und Preisgeld) wie Epic auflösen",
     "Nach dem nächsten Stundenlauf prüfen: Saisonlisten mit Finals 26./27.10. und Schaden in der Elims-Liste"
   ],
   "pause": false,
-  "modell": "Opus (Planung, Prüfung, Statistik) + Sonnet (Unteragenten)"
+  "modell": "Opus (Planung, Prüfung, Statistik) + Sonnet (Unteragenten)",
+  "laeuftSeit": "2026-10-31T20:00:30Z"
 }
