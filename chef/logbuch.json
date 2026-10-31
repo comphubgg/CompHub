@@ -1225,5 +1225,25 @@
     "modell": "Opus",
     "status": "wartet",
     "runde": 4
+  },
+  {
+    "id": "chef-64",
+    "datum": "2026-10-31T20:55:00Z",
+    "titel": "Statistik-Startseite: Ausfall zeigt einen Hinweis statt leerer Seite",
+    "kurz": "Unsichtbar (nur bei Störung): Statistik zeigt „gerade nicht erreichbar“ statt leer.",
+    "markieren": [
+      "text:The numbers are not reachable right now"
+    ],
+    "bereich": "Statistik",
+    "warum": "Kam die Antwort für die Statistik-Startseite nicht, standen Listen und Kacheln einfach leer da – das sah aus wie „keine Daten“.",
+    "was": "Jetzt steht dort derselbe Satz wie in der Jahresbilanz („gerade nicht erreichbar, es wird gleich noch einmal versucht“), und nach zehn Sekunden lädt die Seite von selbst neu.",
+    "ansehen": [
+      "/statistics"
+    ],
+    "commits": [],
+    "groesse": "klein",
+    "modell": "Opus",
+    "status": "wartet",
+    "runde": 4
   }
 ]

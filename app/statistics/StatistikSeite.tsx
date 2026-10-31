@@ -2355,6 +2355,9 @@ export default function StatistikSeite() {
   const [jahrLaedt, setJahrLaedt] = useState(false);
   /** Antwort ausgeblieben - dann steht ein Hinweis, und es wird neu versucht. */
   const [jahrFehlt, setJahrFehlt] = useState(false);
+  /** Die Startantwort fehlt gerade (und wird alle zehn Sekunden neu versucht). */
+  const [startFehlt, setStartFehlt] = useState(false);
+  const [startVersuch, setStartVersuch] = useState(0);
   const [jahrVersuch, setJahrVersuch] = useState(0);
   /** Schon geholte Jahresantworten, je Auswahl - beim Zurueckwechseln sofort da. */
   const jahrMerker = useRef(new Map<string, NonNullable<typeof jahr>>());
@@ -2852,9 +2855,18 @@ export default function StatistikSeite() {
   useEffect(() => {
     if (!saison) return;
     vollGeholt.current.clear();
+    /*
+     * Faellt die Startantwort aus (Ablage nicht erreichbar, noch nicht vorgerechnet: 424), stand die Startseite bisher einfach leer da.
+     * Jetzt steht derselbe Satz wie in der Jahresbilanz, und nach zehn Sekunden wird es noch einmal versucht.
+     */
+    let weg = false;
+    let nochmal: ReturnType<typeof setTimeout> | null = null;
     fetch(`/api/szene-stats?ansicht=start&saison=${saison}`)
       .then((r) => r.json())
       .then((j) => {
+        if (weg) return;
+        if (!Array.isArray(j?.listen)) throw new Error('keine Liste');
+        setStartFehlt(false);
         setKacheln(j.kacheln ?? []);
         setKachelNr(0);
         setListen(j.listen ?? []);
@@ -2865,8 +2877,13 @@ export default function StatistikSeite() {
         setDuelle(j.duelle ?? []);
         setProfilNr(0); setDuellNr(0);
       })
-      .catch(() => {});
-  }, [saison]);
+      .catch(() => {
+        if (weg) return;
+        setStartFehlt(true);
+        nochmal = setTimeout(() => { if (!weg) setStartVersuch((v) => v + 1); }, 10_000);
+      });
+    return () => { weg = true; if (nochmal) clearTimeout(nochmal); };
+  }, [saison, startVersuch]);
 
   /**
    * Der Wechsel im Kopf.
@@ -4192,6 +4209,12 @@ export default function StatistikSeite() {
                 zuRegionen={() => wechsleBereich('regional')}
                 zuSpielern={() => wechsleBereich('spieler')}
                 oeffneSpieler={(id, name) => { void oeffneKonto(id, name); }} />
+
+              {startFehlt && !listen.length && (
+                <p className="mt-8 rounded-xl border border-zinc-800 bg-zinc-950/60 p-8 text-center text-sm text-slate-500">
+                  <T>Die Zahlen sind gerade nicht erreichbar. Es wird gleich noch einmal versucht.</T>
+                </p>
+              )}
 
               {/*
                 * Die Elim-Rangliste (war die Liste in der linken Leiste): die ersten fuenfzehn in drei Spalten. Der Nachweis, was gezaehlt ist,
