@@ -5229,6 +5229,12 @@ const AUF_ENGLISCH: Record<string, string> = {
     "Zone with radius",
   "Weiße Ringe: die Zonen des Games, je später desto kräftiger. ✖ Elim, ● Knock - in der Farbe des Teams, das ihn geholt hat (Top 8 farbig). Zeigen mit der Maus nennt Zeit, Täter, Opfer und Abstand.":
     "White rings: the zones of the game, stronger the later they are. ✖ elim, ● knock - in the colour of the team that got it (top 8 in colour). Hovering shows time, attacker, victim and distance.",
+  // Turnierkarten und Spieltag (Nachtrag)
+  "aus deinem eigenen Replay": "from your own replay",
+  "Diese Karte bearbeiten": "Edit this map",
+  "Alle alten Maps": "All old maps",
+  "Speichert …": "Saving …",
+  "Alte Maps verwalten": "Manage old maps",
 };
 
 /**
