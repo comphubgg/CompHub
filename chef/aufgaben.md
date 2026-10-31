@@ -9,6 +9,8 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 - [ ] **Team-Kacheln (Epic) und Spielerwerte (Replays) zeigen im selben Cup verschiedene Kopftreffer/Schaden** - geprüft: vlc franek hat bei Epic 124 Kopftreffer und 8.094 Schaden, im Replay 13 Kopftreffer, 125 Treffer, 2.829 Schaden. Keine falsche Zuordnung im Code (lib/epicCups), Epic liefert das so. (chef-59 erledigt) Idee: auf der Cup-Seite klein dazuschreiben, woher welche Zahl kommt („laut Epic“ / „aus den Replays“), statt etwas umzurechnen.
 - [x] **Spielerwerte je Cup: Rang bei Gleichstand** (chef-58) und Team-Kacheln (chef-57).
 - [x] **„230/64 Matches“ in der Spieltag-Liste** (chef-55).
+- [x] **Statistik-Startseite stand bei Ausfall leer da** (chef-64).
+- [ ] **Weitere stille Fehler auf der Statistikseite** - die Regionenseite (Turnierverzeichnis, `ansicht=turniere`) und weitere Abrufe mit `.catch(() => {})` zeigen bei Ausfall nur Leere. Muster aus chef-64 übernehmen.
 
 ## Neu entdeckt (Runde 3, 31.10.2026 – Statistik-Prüfung)
 
