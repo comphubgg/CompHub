@@ -1078,5 +1078,26 @@
     "modell": "Sonnet",
     "status": "wartet",
     "runde": 4
+  },
+  {
+    "id": "chef-57",
+    "datum": "2026-10-31T20:32:00Z",
+    "titel": "Cup-Statistik: gleicher Wert, gleicher Platz",
+    "kurz": "FNCS Solo Final, Statistik-Kacheln: Teams mit gleichem Wert teilen sich den Platz.",
+    "markieren": [
+      "text:Most Eliminations",
+      "text:Most Victory Royales"
+    ],
+    "bereich": "Statistik",
+    "warum": "Die Kacheln zählten nur die Zeilen durch: sechs Teams mit je einem Sieg standen auf Platz 1 bis 6.",
+    "was": "Gleicher Wert heißt jetzt gleicher Platz (1, 2, 2, 4) – in den Kacheln und in der ganzen Liste. Bei den Punkten bleibt Epics offizieller Platz.",
+    "ansehen": [
+      "/events/s42_fncssolos_final"
+    ],
+    "commits": [],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 4
   }
 ]
