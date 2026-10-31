@@ -176,5 +176,22 @@
     "modell": "Opus",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-13",
+    "titel": "Jahresbilanz: „Beste Schadensquote“ nur mit genug Matches",
+    "bereich": "Statistik",
+    "warum": "In der Jahresbilanz 2026 führten bei „Beste Schadensquote“ Konten mit nur 12 Matches (zwei Spieltage) – vor Spielern mit über 300 Matches. Die Mindestzahl war für ein ganzes Jahr fest auf 10 Matches eingestellt, so gewinnt ein einziger guter Abend die Jahreswertung.",
+    "was": "Die Mindestzahl richtet sich jetzt nach dem Zeitraum: ein Zehntel der Matches des aktivsten Spielers, wenigstens 10. Für 2026 sind das rund 100 Matches; wählt man eine einzelne Saison, wird die Grenze von selbst kleiner. Die Zahl steht wie bisher bei der Liste („ab … Matches“). Sichtbar, sobald die Jahreszahlen neu gerechnet werden.",
+    "ansehen": [
+      "/statistics?bereich=jahr&jahr=2026",
+      "/statistics?bereich=jahr&jahr=2025"
+    ],
+    "groesse": "klein",
+    "datum": "2026-10-31T19:00:30Z",
+    "commits": [],
+    "modell": "Opus",
+    "status": "wartet",
+    "runde": 1
   }
 ]
