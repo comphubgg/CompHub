@@ -1007,7 +1007,9 @@
     "ansehen": [
       "/statistics?bereich=turniere"
     ],
-    "commits": [],
+    "commits": [
+      "7c468cf98a37097048db70c23114cb0425e06e5e"
+    ],
     "groesse": "mittel",
     "modell": "Sonnet",
     "status": "wartet",
