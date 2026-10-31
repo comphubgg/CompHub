@@ -304,6 +304,19 @@ async function holeSuchIndex(): Promise<SuchEintrag[]> {
 }
 
 /*
+ * Quoten-Listen (Schadensquote, Genauigkeit, je Match) mit derselben Mindestzahl an Matches wie die Startseite (lib/szeneStats:
+ * die Haelfte der meisten Matches, hoechstens 20, mindestens 3). Vorher stand in der Spielerliste unter "Beste Schadensquote" ein
+ * Spieler mit 16 Matches vorn, waehrend die Startseite fuer dieselbe Saison einen anderen Ersten zeigte. Wer zu wenige Matches hat,
+ * faellt nicht heraus (die Liste bleibt vollstaendig), sondern steht hinter allen, die die Grenze erreichen.
+ */
+const QUOTEN_FELDER = new Set(['quote', 'genauigkeit', 'elimsProMatch', 'damageProMatch']);
+function mindestFuer(zeilen: Array<Record<string, unknown>>, feld: string): number | null {
+  if (!QUOTEN_FELDER.has(feld)) return null;
+  const hoechste = zeilen.reduce((m, z) => Math.max(m, Number(z.matches) || 0), 0);
+  return Math.max(3, Math.min(20, Math.round(hoechste / 2)));
+}
+
+/*
  * Eine Spielerliste, die nicht vorgerechnet liegt, aus einer vorgerechneten ableiten.
  *
  * Der Betreiber (11.10.2026): "Players" in der Statistik laedt endlos. Auf dem Server ohne Dateien
@@ -350,7 +363,10 @@ async function ausGrundliste(url: URL): Promise<Record<string, unknown> | null> 
     || String(z.anzeige ?? '').toLowerCase().includes(suche)
     || String(z.name ?? '').toLowerCase().includes(suche);
   const gefiltert = suche ? grund.spieler.filter(enthaelt) : grund.spieler;
-  const sortiert = [...gefiltert].sort((a, b) => Number(b[feld]) - Number(a[feld]));
+  // Die Mindestzahl richtet sich nach der ganzen Grundliste, nicht nach den Suchtreffern.
+  const mindestMatches = mindestFuer(grund.spieler, feld);
+  const genug = (z: Zeile) => mindestMatches === null || (Number(z.matches) || 0) >= mindestMatches;
+  const sortiert = [...gefiltert].sort((a, b) => Number(genug(b)) - Number(genug(a)) || Number(b[feld]) - Number(a[feld]));
   return {
     success: true,
     quelle: QUELLE,
@@ -358,6 +374,7 @@ async function ausGrundliste(url: URL): Promise<Record<string, unknown> | null> 
     // Ohne Suche zaehlt die ganze Gruppe; mit Suche nur, was in der Grundliste steht.
     gesamt: suche ? gefiltert.length : (grund.gesamt ?? gefiltert.length),
     sort: feld,
+    mindestMatches,
     clutch: Boolean(grund.clutch),
     spieler: sortiert.slice(0, grenze),
     abgeleitet: true,
@@ -1602,8 +1619,11 @@ async function berechne(request: Request) {
       ? alle.filter((s) => s.namen.some((n) => n.toLowerCase().includes(suche)))
       : alle;
 
+    // Quoten mit Mindestzahl an Matches wie auf der Startseite (mindestFuer) - die Grenze aus der ganzen Gruppe, nicht aus den Suchtreffern.
+    const mindestMatches = mindestFuer(alle as unknown as Array<Record<string, unknown>>, feld as string);
+    const genug = (z: { matches: number }) => mindestMatches === null || z.matches >= mindestMatches;
     const sortiert = [...gefiltert].sort((a, b) =>
-      Number(b[feld]) - Number(a[feld]));
+      Number(genug(b)) - Number(genug(a)) || Number(b[feld]) - Number(a[feld]));
 
     const gepflegt = await liesProfile();
     const bildZu = await liesBilder();
@@ -1658,6 +1678,7 @@ async function berechne(request: Request) {
       spieltage,
       gesamt: gefiltert.length,
       sort: feld,
+      mindestMatches,
       clutch: clutchDa,
       spieler: mitProfil,
     });
