@@ -494,7 +494,9 @@
     "ansehen": [
       "/"
     ],
-    "commits": [],
+    "commits": [
+      "cd19d882cb3525c5ae2c91cc44417415cd816a27"
+    ],
     "groesse": "klein",
     "modell": "Opus",
     "status": "wartet",
@@ -512,7 +514,9 @@
       "/scrims",
       "/statistics?bereich=spieler"
     ],
-    "commits": [],
+    "commits": [
+      "b8d33f2f19e79d81b6b6550970107cfbbb17c2bb"
+    ],
     "groesse": "klein",
     "modell": "Sonnet",
     "status": "wartet",
@@ -532,8 +536,46 @@
       "/account",
       "/overlays"
     ],
-    "commits": [],
+    "commits": [
+      "481b0718ee6968a15033a8e082f501eb2d79d586"
+    ],
     "groesse": "mittel",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 1
+  },
+  {
+    "id": "chef-29",
+    "datum": "2026-10-31T19:32:22Z",
+    "titel": "Löschfrage bei Zugängen nennt den Namen",
+    "bereich": "Admin",
+    "warum": "Beim endgültigen Entfernen eines Zugangs stand in der Rückfrage kein Name – man sah nicht, welchen Zugang man gerade löscht.",
+    "was": "Die Rückfrage zeigt jetzt unter dem Fragetext den Namen des Zugangs, wie schon an der zweiten Löschstelle im selben Bereich.",
+    "ansehen": [
+      "/admin/accounts"
+    ],
+    "commits": [
+      "90f3cf6c2848eceee45838d420d40fab4d6f7c29"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 1
+  },
+  {
+    "id": "chef-31",
+    "datum": "2026-10-31T19:32:22Z",
+    "titel": "Cup-Seiten zeigen beim Teilen ihren Namen",
+    "bereich": "Events",
+    "warum": "Wer den Link zu einem Cup in Discord oder auf X teilte oder ihn im Browser-Tab offen hatte, sah nur den allgemeinen CompHub-Titel statt des Cup-Namens.",
+    "was": "Jede Cup-Seite trägt jetzt im Tab und in der Link-Vorschau den echten Namen des Cups, dazu Datum, Regionen und das Cup-Bild. Klappt das Nachschlagen nicht, bleibt es beim normalen Titel – es wird nichts erfunden.",
+    "ansehen": [
+      "/events/s42_arenas_test"
+    ],
+    "commits": [
+      "ee54437ad87a27be9312405ad03443ccb6d3083f"
+    ],
+    "groesse": "klein",
     "modell": "Sonnet",
     "status": "wartet",
     "runde": 1
