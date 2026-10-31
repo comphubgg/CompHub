@@ -231,6 +231,9 @@ export default function SpielerStatsUebersicht({ spieler, matches, aktualisiert,
             </button>
           )}
         </div>
+        {!teamWerte && !szene && (
+          <p className="mb-2 text-[11px] text-slate-500"><T>Aus den Match-Replays</T></p>
+        )}
         <div className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
           {sichtbar.map((k) => (
             <div key={k.titel} className="rounded-lg border border-zinc-800 bg-zinc-900/40 px-3 py-2.5 text-center">
