@@ -2381,7 +2381,17 @@ export default function StatistikSeite() {
   const [spieler, setSpieler] = useState<Spieler[]>([]);
   const [gesamt, setGesamt] = useState(0);
   const [laedt, setLaedt] = useState(true);
-  const [fehler, setFehler] = useState('');
+  /** Die Quelle fehlt gerade (Netz, Server, Frist) - nicht zu verwechseln mit "keine Treffer". */
+  const [spielerFehlt, setSpielerFehlt] = useState(false);
+  const [spielerVersuch, setSpielerVersuch] = useState(0);
+  /** Die Saisonliste (Grunddaten) fehlt gerade; ohne sie laeuft nichts. */
+  const [grundFehlt, setGrundFehlt] = useState(false);
+  const [grundVersuch, setGrundVersuch] = useState(0);
+  /** Regionsfeld und Turnierreihen: Antwort fehlt gerade. */
+  const [regionFehlt, setRegionFehlt] = useState(false);
+  const [regionVersuch, setRegionVersuch] = useState(0);
+  const [reihenFehlt, setReihenFehlt] = useState<Record<string, boolean>>({});
+  const reihenStand = useRef('');
 
   // Turnierliste und Regionen
   const [turniere, setTurniere] = useState<Turnier[]>([]);
@@ -2680,9 +2690,15 @@ export default function StatistikSeite() {
 
   /* -------------------------------------------------- Grunddaten einmalig */
   useEffect(() => {
+    /* Faellt die Saisonliste aus, steht ein Hinweis, und nach zehn Sekunden wird es noch einmal versucht. */
+    let weg = false;
+    let nochmal: ReturnType<typeof setTimeout> | null = null;
     fetch('/api/szene-stats')
       .then((r) => r.json())
       .then((j) => {
+        if (weg) return;
+        if (!Array.isArray(j?.saisons)) throw new Error('keine Saisons');
+        setGrundFehlt(false);
         setSaisons(j.saisons ?? []);
         const regionen: string[] = nachRegionReihe(j.regionen ?? []);
         setRegionen(regionen);
@@ -2691,8 +2707,15 @@ export default function StatistikSeite() {
         if (regionen.length) setRegion(regionen.includes('EU') ? 'EU' : regionen[0]);
         if (j.saisons?.length) setSaison(j.saisons[0].kennung);
       })
-      .catch(() => setFehler(t('Archiv nicht lesbar')));
+      .catch(() => {
+        if (weg) return;
+        setGrundFehlt(true);
+        nochmal = setTimeout(() => { if (!weg) setGrundVersuch((v) => v + 1); }, 10_000);
+      });
+    return () => { weg = true; if (nochmal) clearTimeout(nochmal); };
+  }, [grundVersuch]);
 
+  useEffect(() => {
     fetch('/api/auth/check-admin', { cache: 'no-store' })
       .then((r) => (r.ok ? r.json() : null))
       .then((j) => setIstAdmin(j?.isAdmin === true))
@@ -2938,28 +2961,41 @@ export default function StatistikSeite() {
     return r.json();
   }, []);
 
+  const spielerNr = useRef(0);
   const holeSpieler = useCallback(async () => {
     if (!saison) return;
-    setLaedt(true); setFehler('');
+    const nr = ++spielerNr.current;
+    setLaedt(true);
     try {
       const p = new URLSearchParams({ saison, sort, limit: '300' });
       if (region) p.set('region', region);
       if (suche.trim()) p.set('q', suche.trim());
       const j = await holeMitFrist(`/api/szene-stats?${p}`);
-      if (!j.success) throw new Error(j.error ?? 'nicht ladbar');
-      setSpieler(j.spieler ?? []);
+      if (nr !== spielerNr.current) return;
+      if (!j.success || !Array.isArray(j.spieler)) throw new Error(j.error ?? 'nicht ladbar');
+      setSpielerFehlt(false);
+      setSpieler(j.spieler);
       setGesamt(j.gesamt ?? 0);
       setListenMindest(typeof j.mindestMatches === 'number' ? j.mindestMatches : null);
-    } catch (e) {
-      setFehler((e as Error).message); setSpieler([]); setListenMindest(null);
-    } finally { setLaedt(false); }
+    } catch {
+      if (nr !== spielerNr.current) return;
+      /* Netz-, Server- oder Fristfehler: Ausfall, nicht "keine Treffer". */
+      setSpielerFehlt(true); setSpieler([]); setListenMindest(null);
+    } finally { if (nr === spielerNr.current) setLaedt(false); }
   }, [saison, region, sort, suche, holeMitFrist]);
 
   useEffect(() => {
     if (bereich !== 'spieler') return;
     const uhr = window.setTimeout(holeSpieler, suche ? 300 : 0);
     return () => window.clearTimeout(uhr);
-  }, [bereich, holeSpieler, suche]);
+  }, [bereich, holeSpieler, suche, spielerVersuch]);
+
+  /** Fehlt die Liste, wird nach zehn Sekunden neu gefragt. */
+  useEffect(() => {
+    if (bereich !== 'spieler' || !spielerFehlt) return;
+    const uhr = setTimeout(() => setSpielerVersuch((v) => v + 1), 10_000);
+    return () => clearTimeout(uhr);
+  }, [bereich, spielerFehlt, spielerVersuch]);
 
   /**
    * Die Suche in der Kopfzeile.
@@ -3170,15 +3206,26 @@ export default function StatistikSeite() {
   useEffect(() => {
     if (bereich !== 'regional' || !saison || !regionAktiv) return;
     let weg = false;
+    let nochmal: ReturnType<typeof setTimeout> | null = null;
     setRegionLaedt(true);
-    setReihenWahl({}); setReihenFeld({});
+    setReihenWahl({}); setReihenFeld({}); setReihenFehlt({});
+    reihenStand.current = `${saison}|${regionAktiv}`;
     fetch(`/api/szene-stats?saison=${saison}&region=${regionAktiv}&sort=elims&limit=500`)
       .then((r) => r.json())
-      .then((j) => { if (!weg) setRegionFeld(j.spieler ?? []); })
-      .catch(() => { if (!weg) setRegionFeld([]); })
+      .then((j) => {
+        if (weg) return;
+        if (!Array.isArray(j?.spieler)) throw new Error('keine Liste');
+        setRegionFehlt(false);
+        setRegionFeld(j.spieler);
+      })
+      .catch(() => {
+        if (weg) return;
+        setRegionFeld([]); setRegionFehlt(true);
+        nochmal = setTimeout(() => { if (!weg) setRegionVersuch((v) => v + 1); }, 10_000);
+      })
       .finally(() => { if (!weg) setRegionLaedt(false); });
-    return () => { weg = true; };
-  }, [bereich, saison, regionAktiv]);
+    return () => { weg = true; if (nochmal) clearTimeout(nochmal); };
+  }, [bereich, saison, regionAktiv, regionVersuch]);
 
   /** Die Turnierreihen dieser Region, aus den Spieltagen gebuendelt. */
   const reihen = useMemo(() => {
@@ -3210,11 +3257,18 @@ export default function StatistikSeite() {
     const p = new URLSearchParams({ saison, region: regionAktiv, sort: 'elims', limit: '500' });
     if (wahl) p.set('event', wahl);
     else p.set('events', tage.map((t) => t.windowId).join(','));
+    const stand = `${saison}|${regionAktiv}`;
     try {
       const j = await (await fetch(`/api/szene-stats?${p}`)).json();
-      setReihenFeld((alt) => ({ ...alt, [name]: j.spieler ?? [] }));
+      if (!Array.isArray(j?.spieler)) throw new Error('keine Liste');
+      if (reihenStand.current !== stand) return;
+      setReihenFehlt((alt) => ({ ...alt, [name]: false }));
+      setReihenFeld((alt) => ({ ...alt, [name]: j.spieler }));
     } catch {
-      setReihenFeld((alt) => ({ ...alt, [name]: [] }));
+      if (reihenStand.current !== stand) return;
+      /* Ausfall: Hinweis zeigen und nach zehn Sekunden noch einmal fragen (nur, solange Saison und Region gleich sind). */
+      setReihenFehlt((alt) => ({ ...alt, [name]: true }));
+      setTimeout(() => { if (reihenStand.current === stand) void ladeReihe(name, tage, wahl); }, 10_000);
     }
   }, [saison, regionAktiv]);
 
@@ -5182,6 +5236,11 @@ export default function StatistikSeite() {
 
               {regionLaedt && !regionFeld.length ? (
                 <div className="h-64" />
+              ) : regionFehlt && !regionFeld.length ? (
+                <p className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-8
+                              text-center text-sm text-slate-500">
+                  <T>Die Zahlen sind gerade nicht erreichbar. Es wird gleich noch einmal versucht.</T>
+                </p>
               ) : !regionFeld.length ? (
                 <p className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-8
                               text-center text-sm text-slate-500">
@@ -5281,7 +5340,11 @@ export default function StatistikSeite() {
                           </div>
                         </div>
 
-                        {!feld.length ? (
+                        {!feld.length && reihenFehlt[r.name] ? (
+                          <p className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-6 text-center text-sm text-slate-500">
+                            <T>Die Zahlen sind gerade nicht erreichbar. Es wird gleich noch einmal versucht.</T>
+                          </p>
+                        ) : !feld.length ? (
                           <div className="h-24 animate-pulse rounded-xl bg-zinc-900/40" />
                         ) : (
                           <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
@@ -5529,7 +5592,7 @@ export default function StatistikSeite() {
               </div>
 
               {/* Die ersten Drei der gewaehlten Liste und Region, mit Foto (Betreiber, 19.10.2026) - wechselt mit Sortierung, Region und Saison. */}
-              {!fehler && !suche && gezeigteSpieler.length >= 3 && (
+              {!spielerFehlt && !grundFehlt && !suche && gezeigteSpieler.length >= 3 && (
                 <div className="mb-5 overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 shadow-[0_10px_30px_rgba(15,23,42,.12)]">
                   <p className="px-5 pt-4 text-xs font-bold uppercase tracking-[0.18em] text-slate-400">
                     {t(SORTIERUNG.find(([w]) => w === sort)?.[1] ?? 'Meiste Eliminierungen')} · {region || t('alle Regionen')}
@@ -5544,9 +5607,11 @@ export default function StatistikSeite() {
                 </div>
               )}
 
-              {fehler ? (
+              {grundFehlt || spielerFehlt ? (
                 <p className="rounded-xl border border-zinc-800 bg-zinc-950/60 p-8
-                              text-center text-sm text-rose-400">{fehler}</p>
+                              text-center text-sm text-slate-500">
+                  <T>Die Zahlen sind gerade nicht erreichbar. Es wird gleich noch einmal versucht.</T>
+                </p>
               ) : laedt && !spieler.length ? (
                 /*
                  * Waehrend geholt wird: die Platzhalter, und darueber derselbe
