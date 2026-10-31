@@ -342,6 +342,8 @@ if (arg[0] === '--plan') {
     const teilDatei = path.join(TEIL_ORDNER, `${t.windowId}__${teilNr}.json`);
     const teil = liesDatei(teilDatei) ?? { eventId: t.eventId, windowId: t.windowId, regeln, gesamt: t.gesamt, matches: [], ohne: [], summe: {}, spiele: {}, schaden: {}, solo: {}, leben: {}, plattform: {}, strecke: {}, roh: [] };
     teil.strecke ??= {};
+    // Matches, die in diesem Lauf scheiterten (Download oder Leser) - clutch-zusammen.mjs zaehlt die Fehlversuche ueber die Laeufe.
+    teil.fehler ??= [];
     teil.gesamt = Math.max(teil.gesamt ?? 0, t.gesamt);
     const schonDa = new Set([...teil.matches.map((m) => m.id), ...teil.ohne]);
     const liste = meine.filter((id) => !schonDa.has(id));
@@ -361,7 +363,7 @@ if (arg[0] === '--plan') {
             const { stdout } = await lauf('dotnet', [SCHADEN_LESER, datei], { maxBuffer: 512 * 1024 * 1024 });
             voll = JSON.parse(stdout);
           } catch (e) { console.log(`    ${id}: Leser - ${String(e.message).slice(0, 100)}`); }
-          if (!voll) { fehler += 1; continue; }
+          if (!voll) { fehler += 1; teil.fehler.push(id); continue; }
           const roh = {
             id, busAb: voll.busAb ?? null,
             spieler: (voll.spieler ?? []).map((p) => ({ id: p.id, epic: p.epic, name: p.name, team: p.team, platz: p.platz, bot: p.bot })),
@@ -404,7 +406,7 @@ if (arg[0] === '--plan') {
           if (seitSpeichern >= 200) { speichern(); seitSpeichern = 0; }
         } catch (e) {
           // Kein Replay bei Epic (zu alt, nie abgelegt): merken, damit es nicht jeden Lauf neu versucht wird.
-          if (/folder_not_found|not_allowed|404|not ?found|no ?replay/i.test(String(e?.message))) { teil.ohne.push(id); ohneZahl += 1; } else { fehler += 1; }
+          if (/folder_not_found|not_allowed|404|not ?found|no ?replay/i.test(String(e?.message))) { teil.ohne.push(id); ohneZahl += 1; } else { fehler += 1; teil.fehler.push(id); }
         } finally { fs.rmSync(datei, { force: true }); }
       }
     };

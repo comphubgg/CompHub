@@ -54,6 +54,16 @@ for (const [w, dateien] of jeTag) {
     }
     for (const m of neuHier) { d.matches.push(m); da.add(m.id); }
     for (const id of t.ohne ?? []) if (!da.has(id)) { d.ohne.push(id); da.add(id); }
+    /*
+     * Ein Match, das in drei Laeufen scheitert (Leser stuerzt ab, Download bricht immer wieder), gilt als ohne lesbares Replay (31.10.2026). Vorher
+     * blieb ein Spieltag wegen ein, zwei solcher Matches fuer immer "teilweise" - und jeder Lauf verlor Zeit mit denselben Fehlern.
+     */
+    for (const id of t.fehler ?? []) {
+      if (da.has(id)) continue;
+      d.fehlversuche ??= {};
+      d.fehlversuche[id] = (d.fehlversuche[id] ?? 0) + 1;
+      if (d.fehlversuche[id] >= 3) { d.ohne.push(id); da.add(id); delete d.fehlversuche[id]; }
+    }
     addiere(d.summe, t.summe);
     addiere(d.spiele, t.spiele);
     if (Object.keys(t.solo ?? {}).length) { d.solo ??= {}; addiere(d.solo, t.solo); }

@@ -119,7 +119,8 @@ jobs:
         continue-on-error: true
         timeout-minutes: 310
         env:
-          CLUTCH_GLEICHZEITIG: '4'
+          # 8 statt 4 (31.10.2026): ein Replay braucht ~7 s Download (220 kleine Anfragen, wartet aufs Netz) und ~2 s Leser - 4 zugleich liessen die Kerne leer.
+          CLUTCH_GLEICHZEITIG: '8'
         run: |
           node scripts/clutch-berechnen.mjs --verteilt --aus-plan data/clutch-plan.json \
             --teil ${{ matrix.teil }}/${{ needs.planen.outputs.anzahl }} --minuten 295 2>&1 | grep -v '^    [0-9a-f]\{32\}:' | tail -60
