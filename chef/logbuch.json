@@ -1282,7 +1282,9 @@
       "/statistics?bereich=turniere",
       "/statistics?bereich=regional"
     ],
-    "commits": [],
+    "commits": [
+      "98e9f37c591a360a985c80eca720f144b4d18ead"
+    ],
     "groesse": "klein",
     "modell": "Opus",
     "status": "wartet",
