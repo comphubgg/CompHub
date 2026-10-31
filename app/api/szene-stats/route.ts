@@ -880,7 +880,7 @@ async function berechne(request: Request) {
               const raus: Record<string, unknown> = {};
               for (const k of ['epicId', 'name', 'anzeige', 'gepflegt', 'land', 'x', 'bild',
                 'echtesFoto', 'heimat', 'regionen', 'jeRegion', 'events', 'matches',
-                'elims', 'damage', 'quote', 'hits', 'headshots', 'builds',
+                'elims', 'damage', 'damageTaken', 'shots', 'quote', 'hits', 'headshots', 'builds',
                 'elimsProMatch', 'damageProMatch', 'genauigkeit',
                 'finalsElims', 'opensElims', 'finals', 'opens', 'opensMatches']) {
                 if (x[k] !== undefined) raus[k] = x[k];

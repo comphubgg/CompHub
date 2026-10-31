@@ -24,7 +24,7 @@ export interface AufmacherKachel {
   datumText: string;
   saisonText: string;
   region: string;
-  spitze: { epicId: string; anzeige: string; land?: string | null; bild?: string | null; elims: number; damage: number; quote: number };
+  spitze: { epicId: string; anzeige: string; land?: string | null; bild?: string | null; elims: number; damage: number; quote: number; damageTaken?: number };
   stand?: { platz: number; punkte: number } | null;
 }
 
@@ -172,7 +172,7 @@ export default function StatistikAufmacher({ kacheln, zuTurnieren, zuRegionen, z
                 </span>
               </span>
               <span className="mt-4 grid grid-cols-3 divide-x divide-white/[0.09] border-t border-white/[0.07] pt-3">
-                {([['Quote', k.spitze.quote.toFixed(2), 'text-emerald-400'], ['Eliminierungen', k.spitze.elims, 'text-slate-50'], ['Schaden', k.spitze.damage, 'text-slate-50']] as Array<[string, number | string, string]>).map(([l, v, farbe], i) => (
+                {([['Quote', (k.spitze.damageTaken !== undefined && !(k.spitze.damageTaken > 0) ? '—' : k.spitze.quote.toFixed(2)), 'text-emerald-400'], ['Eliminierungen', k.spitze.elims, 'text-slate-50'], ['Schaden', k.spitze.damage, 'text-slate-50']] as Array<[string, number | string, string]>).map(([l, v, farbe], i) => (
                   <span key={l} className={i === 0 ? 'pr-3' : 'px-3'}>
                     <span className="block text-[9px] font-semibold uppercase tracking-[0.16em] text-slate-500"><T>{l}</T></span>
                     <span className={`mt-1 block text-xl font-black tabular-nums ${farbe}`}><Rollzahl wert={v} los={heroDrin} ort={ort} /></span>

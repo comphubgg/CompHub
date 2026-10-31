@@ -538,6 +538,24 @@ function zahl(n: number, nachkomma = 0, sprache: 'de' | 'en' = 'de') {
   });
 }
 
+/**
+ * Ist dieser Quotient unbekannt (Nenner 0)? Dann steht auf der Seite ein Strich, keine Null: 0,00 hiesse "Schaden ausgeteilt, nichts
+ * erhalten" - gemeint ist aber "dazu liegen keine Zahlen vor" (z. B. Zeilen nur von Epic ohne Replay). Fehlt das Nennerfeld ganz
+ * (schlanke Listenzeile), gilt der Wert als bekannt. Ein echtes 0 (Zaehler 0, Nenner > 0) bleibt 0.
+ */
+function quotientUnbekannt(sp: Partial<Spieler> | null | undefined, feld: string): boolean {
+  if (!sp) return false;
+  if (feld === 'quote') return sp.damageTaken !== undefined && !(sp.damageTaken > 0);
+  if (feld === 'genauigkeit') return sp.shots !== undefined && !(sp.shots > 0);
+  if (feld === 'elimsProMatch' || feld === 'damageProMatch') return sp.matches !== undefined && !(sp.matches > 0);
+  return false;
+}
+/** Wert eines Spielerfeldes als Text - "—" statt 0, wenn der Quotient unbekannt ist. */
+function feldText(sp: Partial<Spieler> | null | undefined, feld: string, nachkomma: number, sprache: 'de' | 'en', einheit = ''): string {
+  if (quotientUnbekannt(sp, feld)) return '—';
+  return zahl(Number((sp as unknown as Record<string, number> | null | undefined)?.[feld] ?? 0), nachkomma, sprache) + einheit;
+}
+
 function datumText(ms?: number, sprache: 'de' | 'en' = 'de') {
   if (!ms) return '';
   // Im Deutschen "24. August 2026", im Englischen "August 24, 2026" - das
@@ -720,9 +738,9 @@ const SAISON_NAMEN_KURZ: Record<string, string> = {
  * achtundneunzig Prozent gefuellter Balken - man sieht auf einen Blick, wie
  * knapp es ist.
  */
-function Duellzeile({ titel, links, rechts, nachkomma = 0, einheit = '' }: {
+function Duellzeile({ titel, links, rechts, nachkomma = 0, einheit = '', linksUnbekannt = false, rechtsUnbekannt = false }: {
   titel: string; links: number; rechts: number;
-  nachkomma?: number; einheit?: string;
+  nachkomma?: number; einheit?: string; linksUnbekannt?: boolean; rechtsUnbekannt?: boolean;
 }) {
   const { sprache } = useSprache();
   const groesser = Math.max(links, rechts);
@@ -743,7 +761,7 @@ function Duellzeile({ titel, links, rechts, nachkomma = 0, einheit = '' }: {
       <span className={`order-2 w-14 shrink-0 text-right text-xs font-semibold
                         tabular-nums sm:order-none sm:w-20
                         ${linksVorn ? 'text-sky-400' : 'text-slate-400'}`}>
-        {zahl(links, nachkomma, sprache)}{einheit}
+        {linksUnbekannt ? '—' : <>{zahl(links, nachkomma, sprache)}{einheit}</>}
       </span>
       {/* Die Bahn bleibt sichtbar, damit man erkennt, wie weit ein Balken
           von voll entfernt ist. */}
@@ -763,7 +781,7 @@ function Duellzeile({ titel, links, rechts, nachkomma = 0, einheit = '' }: {
       <span className={`order-5 w-14 shrink-0 text-xs font-semibold tabular-nums
                         sm:order-none sm:w-20
                         ${rechtsVorn ? 'text-sky-400' : 'text-slate-400'}`}>
-        {zahl(rechts, nachkomma, sprache)}{einheit}
+        {rechtsUnbekannt ? '—' : <>{zahl(rechts, nachkomma, sprache)}{einheit}</>}
       </span>
     </div>
   );
@@ -893,7 +911,8 @@ function DuellTafel({ links, rechts, zeitraum, aufKlick, gross = false, schlicht
         <div className="px-5 py-4">
           {DUELL_WERTE.map(([titel, feld, nk, einheit]) => (
             <Duellzeile key={feld as string} titel={titel} nachkomma={nk} einheit={einheit}
-              links={Number(links[feld] ?? 0)} rechts={Number(rechts[feld] ?? 0)} />
+              links={Number(links[feld] ?? 0)} rechts={Number(rechts[feld] ?? 0)}
+              linksUnbekannt={quotientUnbekannt(links, feld as string)} rechtsUnbekannt={quotientUnbekannt(rechts, feld as string)} />
           ))}
         </div>
       </div>
@@ -951,7 +970,8 @@ function DuellTafel({ links, rechts, zeitraum, aufKlick, gross = false, schlicht
         </p>
         {DUELL_WERTE.map(([titel, feld, nk, einheit]) => (
           <Duellzeile key={feld as string} titel={titel} nachkomma={nk} einheit={einheit}
-            links={Number(links[feld] ?? 0)} rechts={Number(rechts[feld] ?? 0)} />
+            links={Number(links[feld] ?? 0)} rechts={Number(rechts[feld] ?? 0)}
+              linksUnbekannt={quotientUnbekannt(links, feld as string)} rechtsUnbekannt={quotientUnbekannt(rechts, feld as string)} />
         ))}
       </div>
       {seite(rechts, true)}
@@ -1026,14 +1046,14 @@ function Netz({ links, rechts, namen }: {
               <span className="h-2 w-2 rounded-full bg-slate-200" />
               {grossName(namen[0])}
               <span className="font-semibold tabular-nums text-slate-100">
-                {zahl(Number(links[feld] ?? 0), nk, sprache)}{einheit}
+                {quotientUnbekannt(links, feld) ? '—' : <>{zahl(Number(links[feld] ?? 0), nk, sprache)}{einheit}</>}
               </span>
             </p>
             <p className="mt-0.5 flex items-center gap-2 text-[11px] text-slate-400">
               <span className="h-2 w-2 rounded-full bg-sky-400" />
               {grossName(namen[1])}
               <span className="font-semibold tabular-nums text-slate-100">
-                {zahl(Number(rechts[feld] ?? 0), nk, sprache)}{einheit}
+                {quotientUnbekannt(rechts, feld) ? '—' : <>{zahl(Number(rechts[feld] ?? 0), nk, sprache)}{einheit}</>}
               </span>
             </p>
           </div>
@@ -1579,7 +1599,7 @@ function VerlaufTabelle({ zeilen, fuss }: {
                   ? <span className="cursor-help underline decoration-dotted decoration-sky-400/50 underline-offset-2" title={replayHinweis}>{zahl(z.replaySchaden.dmg / z.replaySchaden.erlitten, 2, sprache)}</span>
                   : z.nurEpic
                     ? <span className="cursor-help text-slate-700" title={ohneWert}>—</span>
-                    : zahl(quote(z.werte), 2, sprache)}
+                    : z.werte.damageTakenFromPlayers > 0 ? zahl(quote(z.werte), 2, sprache) : '—'}
               </td>
               <td className="px-2 py-2 text-right tabular-nums text-slate-400">
                 {z.nurEpic || !mats(z.werte)
@@ -1814,7 +1834,7 @@ function ListenKarte({ liste, aufVoll, aufSpieler }: {
   const { sprache } = useSprache();
   // Dieselbe Karte wie die Bestenlisten der Uebersicht (Betreiber, 19.10.2026: "sieht noch nicht nach meinem neuen Stil aus"): der Erste mit Foto, darunter die Plaetze.
   const [erster, ...rest] = liste.zeilen.slice(0, 5);
-  const wertVon = (sp: Spieler) => zahl(Number(sp[liste.feld]), liste.nachkomma ?? 0, sprache) + (liste.einheit ?? '');
+  const wertVon = (sp: Spieler) => feldText(sp, liste.feld as string, liste.nachkomma ?? 0, sprache, liste.einheit ?? '');
   return (
     <div className="overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 shadow-[0_10px_30px_rgba(15,23,42,.10)]">
       <div className="flex items-center gap-2 px-5 pt-4">
@@ -2240,8 +2260,8 @@ function SpielerFaecher({ spieler, aufAlle, aufOeffnen }: { spieler: Spieler[]; 
                 {grossName(auf.anzeige, auf.gepflegt)}
               </h3>
               <div className="mt-5 grid grid-cols-3 gap-2">
-                {([['Quote', voll ? zahl(voll.quote, 2, sprache) : '—', true], ['Elims', voll ? zahl(voll.elims, 0, sprache) : '—', false], ['Schaden', voll ? zahl(voll.damage, 0, sprache) : '—', false],
-                  ['Matches', voll ? zahl(voll.matches, 0, sprache) : '—', false], ['Kopftreffer', voll ? zahl(voll.headshots, 0, sprache) : '—', false], ['Treffer %', voll ? `${zahl(voll.genauigkeit, 1, sprache)} %` : '—', false]] as Array<[string, string, boolean]>).map(([l, v, farbig]) => (
+                {([['Quote', voll ? feldText(voll, 'quote', 2, sprache) : '—', true], ['Elims', voll ? zahl(voll.elims, 0, sprache) : '—', false], ['Schaden', voll ? zahl(voll.damage, 0, sprache) : '—', false],
+                  ['Matches', voll ? zahl(voll.matches, 0, sprache) : '—', false], ['Kopftreffer', voll ? zahl(voll.headshots, 0, sprache) : '—', false], ['Treffer %', voll ? feldText(voll, 'genauigkeit', 1, sprache, ' %') : '—', false]] as Array<[string, string, boolean]>).map(([l, v, farbig]) => (
                   <div key={l} className="rounded-xl bg-zinc-800/80 px-2 py-3 text-center">
                     <p className="text-[9px] font-semibold uppercase tracking-[0.14em] text-slate-400"><T>{l}</T></p>
                     <p className={`mt-1 text-lg font-extrabold tabular-nums ${farbig ? 'text-sky-500' : 'text-slate-100'}`}>{v}</p>
@@ -4033,7 +4053,7 @@ export default function StatistikSeite() {
                    * "besser als 89 %", "von 1.705 in EU" und "2 Titel"
                    * standen, obwohl oben Englisch eingestellt war.
                    */
-                  ['Schadensquote', zahl(offen.quote, 2, sprache),
+                  ['Schadensquote', feldText(offen, 'quote', 2, sprache),
                     perzentile
                       ? t('besser als {n} %').replace('{n}', String(perzentile.quote))
                       : t('ausgeteilt zu erlitten')],
@@ -4049,9 +4069,9 @@ export default function StatistikSeite() {
                         + rangZusatz
                       : ''],
                   ['Eliminierungen', zahl(offen.elims, 0, sprache),
-                    `${zahl(offen.elimsProMatch, 2, sprache)} ${t('je Match')}`],
+                    `${feldText(offen, 'elimsProMatch', 2, sprache)} ${t('je Match')}`],
                   ['Schaden', zahl(offen.damage, 0, sprache),
-                    `${zahl(offen.damageProMatch, 0, sprache)} ${t('je Match')}`],
+                    `${feldText(offen, 'damageProMatch', 0, sprache)} ${t('je Match')}`],
                   /* Titel: FNCS-Siege aus der offenen Spielerliste plus LAN-Siege
                      (Summit, Reload Elite Championship) - der Betreiber: "Vico hat
                      andere Cups gewonnen, die Summit LAN zum Beispiel, das soll da
@@ -4436,7 +4456,7 @@ export default function StatistikSeite() {
               <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
                 {listen.filter((l) => l.feld !== 'elims').map((l) => {
                   const [erster, ...rest] = l.plaetze.slice(0, 5);
-                  const wertVon = (sp: Spieler) => zahl(Number((sp as unknown as Record<string, number>)[l.feld]), l.nachkomma, sprache) + (l.einheit ?? '');
+                  const wertVon = (sp: Spieler) => feldText(sp, l.feld, l.nachkomma, sprache, l.einheit ?? '');
                   return (
                     <div key={l.feld} className="overflow-hidden rounded-3xl border border-zinc-800 bg-zinc-900 shadow-[0_10px_30px_rgba(15,23,42,.10)]">
                       <div className="flex items-center gap-2 px-5 pt-4">
@@ -4721,7 +4741,7 @@ export default function StatistikSeite() {
 
                           <div className="grid gap-px bg-zinc-800/60 sm:grid-cols-3">
                             {([
-                              ['Schadensquote', zahl(cupKopf.quote, 2, sprache)],
+                              ['Schadensquote', feldText(cupKopf, 'quote', 2, sprache)],
                               ['Eliminierungen', zahl(cupKopf.elims, 0, sprache)],
                               ['Schaden', zahl(cupKopf.damage, 0, sprache)],
                               ['Kopftreffer', zahl(cupKopf.headshots, 0, sprache)],
@@ -4788,7 +4808,7 @@ export default function StatistikSeite() {
                             <Platz key={sp.epicId} nr={i + 1} s={sp}
                               wert={l.format === 'zeit' ? alsZeit(Number(sp[l.feld]))
                                 : l.format === 'km' ? `${zahl(Number(sp[l.feld]) / 1000, 1, sprache)} km`
-                                : zahl(Number(sp[l.feld]), l.nachkomma ?? 0, sprache) + (l.einheit ?? '')}
+                                : feldText(sp, l.feld as string, l.nachkomma ?? 0, sprache, l.einheit ?? '')}
                               hervor={markiert === sp.epicId}
                               aufZeigen={(an) => setMarkiert(an ? sp.epicId : null)}
                               aufKlick={() => oeffne(sp)} />
@@ -5291,8 +5311,7 @@ export default function StatistikSeite() {
                                   <T>{l.titel}</T>
                                 </span>
                                 <span className="text-[15px] font-bold tabular-nums text-sky-400">
-                                  {zahl(Number(sp[l.feld as keyof Spieler] ?? 0), l.nachkomma, sprache)}
-                                  {l.einheit ?? ''}
+                                  {quotientUnbekannt(sp, l.feld) ? '—' : <>{zahl(Number(sp[l.feld as keyof Spieler] ?? 0), l.nachkomma, sprache)}{l.einheit ?? ''}</>}
                                 </span>
                               </span>
                             </span>
@@ -5357,7 +5376,7 @@ export default function StatistikSeite() {
                             <span className="min-w-0 truncate text-base font-extrabold uppercase tracking-wide text-[#fff] drop-shadow">{grossName(sp.anzeige, sp.gepflegt)}</span>
                           </span>
                           <span className="mt-1.5 grid grid-cols-3 gap-1 rounded-xl bg-[rgba(6,10,18,.55)] px-2 py-1.5 text-center backdrop-blur">
-                            {([['Elims', zahl(sp.elims, 0, sprache)], ['Schaden', kurzZahl(sp.damage, sprache)], ['Quote', zahl(sp.quote, 2, sprache)]] as Array<[string, string]>).map(([l, v]) => (
+                            {([['Elims', zahl(sp.elims, 0, sprache)], ['Schaden', kurzZahl(sp.damage, sprache)], ['Quote', feldText(sp, 'quote', 2, sprache)]] as Array<[string, string]>).map(([l, v]) => (
                               <span key={l} className="min-w-0">
                                 <span className="block truncate text-[8px] font-semibold uppercase text-[#94a3b8]"><T>{l}</T></span>
                                 <span className="block truncate text-xs font-bold tabular-nums text-[#38bdf8]">{v}</span>
@@ -5689,7 +5708,7 @@ export default function StatistikSeite() {
                     wertVon={(sp) => {
                       // Gleiche Nachkommastellen wie im Profil: Quote und Elims je Match zwei, Genauigkeit eine, Schaden je Match ganze Zahl.
                       const nk = sort === 'quote' || sort === 'elimsProMatch' ? 2 : sort === 'genauigkeit' ? 1 : 0;
-                      return zahl(Number((sp as unknown as Record<string, number>)[sort] ?? 0), nk, sprache) + (sort === 'genauigkeit' ? ' %' : '');
+                      return feldText(sp, sort, nk, sprache, sort === 'genauigkeit' ? ' %' : '');
                     }} />
                 </div>
               )}
@@ -5761,7 +5780,7 @@ export default function StatistikSeite() {
                         </span>
                         <span className="mt-1.5 flex divide-x divide-white/10 rounded-lg
                                          bg-black/45 backdrop-blur-sm">
-                          {([['Quote', zahl(sp.quote, 2, sprache), true],
+                          {([['Quote', feldText(sp, 'quote', 2, sprache), true],
                              ['Elims', kurzZahl(sp.elims, sprache), false],
                              ['Schaden', kurzZahl(sp.damage, sprache), false]] as
                             Array<[string, string, boolean]>).map(([l, v, farbig]) => (
@@ -5821,13 +5840,13 @@ export default function StatistikSeite() {
                               {zahl(sp.damage, 0, sprache)}
                             </td>
                             <td className="px-3 py-2.5 text-right tabular-nums text-slate-300">
-                              {zahl(sp.quote, 2, sprache)}
+                              {feldText(sp, 'quote', 2, sprache)}
                             </td>
                             <td className="px-3 py-2.5 text-right tabular-nums text-slate-400">
                               {zahl(sp.headshots, 0, sprache)}
                             </td>
                             <td className="px-4 py-2.5 text-right tabular-nums text-slate-400">
-                              {zahl(sp.genauigkeit, 1, sprache)} %
+                              {feldText(sp, 'genauigkeit', 1, sprache, ' %')}
                             </td>
                           </tr>
                         ))}
@@ -5953,7 +5972,7 @@ export default function StatistikSeite() {
               <Treppchen drei={gefiltert.slice(0, 3)} aufKlick={(sp) => oeffne(sp, volleListe.feld === 'verdienst' ? 'verdienst' : 'uebersicht')}
                 wertVon={(sp) => (volleListe.format === 'zeit' ? alsZeit(Number(sp[volleListe.feld]))
                   : volleListe.format === 'km' ? `${zahl(Number(sp[volleListe.feld]) / 1000, 1, sprache)} km`
-                  : zahl(Number(sp[volleListe.feld]), volleListe.nachkomma, sprache) + volleListe.einheit)} />
+                  : feldText(sp, volleListe.feld as string, volleListe.nachkomma, sprache, volleListe.einheit))} />
             )}
             {istElims && (
               <p className="border-b border-zinc-900 px-4 py-2 text-[11px] text-slate-500">
@@ -5967,7 +5986,7 @@ export default function StatistikSeite() {
                   mitBild={istGeld}
                   wert={volleListe.format === 'zeit' ? alsZeit(Number(sp[volleListe.feld]))
                     : volleListe.format === 'km' ? `${zahl(Number(sp[volleListe.feld]) / 1000, 1, sprache)} km`
-                    : zahl(Number(sp[volleListe.feld]), volleListe.nachkomma, sprache) + volleListe.einheit}
+                    : feldText(sp, volleListe.feld as string, volleListe.nachkomma, sprache, volleListe.einheit)}
                   zusatz={istElims && typeof sp.opensElims === 'number'
                     ? `${t('Finals')} ${sp.finals ?? 0} · ${t('Opens')}: ${zahl(sp.opensElims ?? 0, 0, sprache)} ${t('Elims')} ${t('in')} ${sp.opens ?? 0} ${t('Spieltagen')}`
                     : undefined}
@@ -6352,10 +6371,10 @@ export default function StatistikSeite() {
                         ['Eliminierungen', zahl(offen.elims, 0, sprache)],
                         ['Schaden', zahl(offen.damage, 0, sprache)],
                         ['Schaden erlitten', zahl(offen.damageTaken, 0, sprache)],
-                        ['Schadensquote', zahl(offen.quote, 2, sprache)],
+                        ['Schadensquote', feldText(offen, 'quote', 2, sprache)],
                         ['Treffer', zahl(offen.hits, 0, sprache)],
                         ['Schüsse', zahl(offen.shots, 0, sprache)],
-                        ['Trefferquote', `${zahl(offen.genauigkeit, 1, sprache)} %`],
+                        ['Trefferquote', feldText(offen, 'genauigkeit', 1, sprache, ' %')],
                         ['Kopftreffer', zahl(offen.headshots, 0, sprache)],
                         ['Assists', zahl(offen.assists, 0, sprache)],
                         ['Wiederbelebungen', zahl(offen.reboots, 0, sprache)],
@@ -6441,16 +6460,16 @@ export default function StatistikSeite() {
                                 bg-zinc-900/30 p-5 sm:grid-cols-2 lg:grid-cols-3">
                   {([
                     ['Eliminierungen', zahl(offen.elims, 0, sprache)],
-                    ['Elims je Match', zahl(offen.elimsProMatch, 2, sprache)],
+                    ['Elims je Match', feldText(offen, 'elimsProMatch', 2, sprache)],
                     ['Assists', zahl(offen.assists, 0, sprache)],
                     ['Wiederbelebungen', zahl(offen.reboots, 0, sprache)],
                     ['Schaden', zahl(offen.damage, 0, sprache)],
-                    ['Schaden je Match', zahl(offen.damageProMatch, 0, sprache)],
+                    ['Schaden je Match', feldText(offen, 'damageProMatch', 0, sprache)],
                     ['Schaden erlitten', zahl(offen.damageTaken, 0, sprache)],
-                    ['Schadensquote', zahl(offen.quote, 2, sprache)],
+                    ['Schadensquote', feldText(offen, 'quote', 2, sprache)],
                     ['Schüsse', zahl(offen.shots, 0, sprache)],
                     ['Treffer', zahl(offen.hits, 0, sprache)],
-                    ['Trefferquote', `${zahl(offen.genauigkeit, 1, sprache)} %`],
+                    ['Trefferquote', feldText(offen, 'genauigkeit', 1, sprache, ' %')],
                     ['Kopftreffer', zahl(offen.headshots, 0, sprache)],
                     ['Material', zahl(offen.mats, 0, sprache)],
                     ['Bauteile', zahl(offen.builds, 0, sprache)],
