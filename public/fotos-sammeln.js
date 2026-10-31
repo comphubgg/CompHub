@@ -1,7 +1,7 @@
 /* CompHub · Spielerfotos sammeln (31.10.2026)
  *
  * In die Browser-Konsole einer beliebigen Seite mit Spielerbildern einfuegen (F12 -> Konsole; Chrome verlangt beim ersten Mal "allow pasting").
- * Vorher einmal ganz nach unten scrollen, damit nachgeladene Bilder da sind.
+ * Knoepfe wie "Show more" klappt es vorher selbst auf, so schnell es geht.
  *
  * Sammelt alle Bilder der Seite, die nach Spielerfoto aussehen, raet den Namen (Alt-Text, Titel, Text der Karte) und zeigt nur die Spieler,
  * die auf thecomphub.com noch kein echtes Foto haben (/api/fotos-bekannt). Namen lassen sich im Fenster korrigieren, Haken abwaehlen.
@@ -9,6 +9,36 @@
  * Laesst eine Seite das Herunterladen nicht zu, steht die Karte rot da: "Liste kopieren" legt NAME + Adresse in die Zwischenablage - das an Claude geben.
  */
 (async () => {
+  /*
+   * Erst alles aufklappen (Betreiber, 31.10.2026: "Show More (9982 more)" - jeder Klick laedt nur zehn nach). Klickt jeden Knopf "Show more",
+   * "Load more", "Mehr anzeigen" ... so schnell es die Seite zulaesst, bis keiner mehr da ist oder nichts mehr dazukommt (hoechstens 3 Minuten).
+   */
+  const MEHR = /^\s*(show|load|see|view)\s+more|^\s*mehr\s+(anzeigen|laden)/i;
+  // Nur Aufklapp-Knoepfe - keine Links, die auf eine andere Seite fuehren ("Show all ->").
+  const knopf = () => [...document.querySelectorAll('button, [role="button"], a:not([href]), a[href="#"]')]
+    .find((el) => MEHR.test(el.innerText || el.textContent || '') && el.offsetParent !== null && !el.disabled);
+  const anzeige = document.createElement('div');
+  anzeige.style.cssText = 'position:fixed;top:12px;right:12px;z-index:2147483647;background:#1d9bf0;color:#fff;font:700 14px system-ui;padding:10px 14px;border-radius:10px';
+  let klicks = 0; const bis = Date.now() + 180_000; let ohneWachstum = 0; const alleElemente = document.getElementsByTagName('*'); let groesse = alleElemente.length;
+  if (knopf()) document.body.appendChild(anzeige);
+  while (Date.now() < bis) {
+    const k = knopf();
+    if (!k) break;
+    k.click(); klicks += 1;
+    anzeige.textContent = `CompHub: klappe auf ... ${klicks} Klicks`;
+    await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
+    const jetzt = alleElemente.length;
+    ohneWachstum = jetzt > groesse ? 0 : ohneWachstum + 1;
+    groesse = jetzt;
+    if (ohneWachstum > 200) await new Promise((r) => setTimeout(r, 300));
+    if (ohneWachstum > 260) break;
+  }
+  anzeige.remove();
+  // Nachgeladene Bilder (loading=lazy) einmal anstossen: einmal ganz runter und zurueck.
+  if (klicks) { window.scrollTo(0, document.body.scrollHeight); await new Promise((r) => setTimeout(r, 1500)); window.scrollTo(0, 0); }
+  for (const img of document.querySelectorAll('img[loading="lazy"]')) img.loading = 'eager';
+  await new Promise((r) => setTimeout(r, klicks ? 2500 : 0));
+
   const LISTE = 'https://www.thecomphub.com/api/fotos-bekannt';
   const key = (n) => String(n || '').normalize('NFKD').toLowerCase().replace(/[^a-z0-9]/g, '');
   let bekannt = new Set(); let listeOk = true;

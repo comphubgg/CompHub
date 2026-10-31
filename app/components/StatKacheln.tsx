@@ -138,7 +138,8 @@ export default function StatKacheln({ spieler, listen = TURNIER_KACHELN, anzahl 
                 </button>
               </div>
               <div className="px-3 pb-3">
-                <div className="flex items-center gap-2.5 rounded-xl border border-zinc-800 bg-zinc-900/80 px-3 py-2 text-[12px] font-semibold text-slate-300">
+                {/* Top 10 wie bei Osirion (Betreiber, 31.10.2026) - dafuer engere Zeilen und kleinere Schrift, sonst wird die Kachel riesig. */}
+                <div className="flex items-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900/80 px-2.5 py-1.5 text-[11px] font-semibold text-slate-300">
                   <span className="w-5 shrink-0 text-center">#</span>
                   <span className="flex-1"><T>Spielername</T></span>
                   <span className="shrink-0"><T>Kennwert</T></span>
@@ -147,12 +148,12 @@ export default function StatKacheln({ spieler, listen = TURNIER_KACHELN, anzahl 
                   <div key={s.epicId} role={aufKlick ? 'button' : undefined} tabIndex={aufKlick ? 0 : undefined}
                     onClick={aufKlick ? () => aufKlick(s) : undefined}
                     onMouseEnter={() => setMarkiert(s.epicId)}
-                    className={`mt-0.5 flex items-center gap-2.5 rounded-lg px-3 py-2 transition ${aufKlick ? 'cursor-pointer' : ''} ${markiert === s.epicId
+                    className={`mt-px flex items-center gap-2 rounded-md px-2.5 py-[3px] transition ${aufKlick ? 'cursor-pointer' : ''} ${markiert === s.epicId
                       ? 'bg-sky-500/10 ring-1 ring-inset ring-sky-500/60' : ''}`}>
-                    <span className={`w-5 shrink-0 text-center text-[13px] tabular-nums ${i === 0 ? 'font-bold text-sky-400' : 'text-slate-400'}`}>{i + 1}</span>
-                    <TeamFlagge groesse={18} laender={[s.land || undefined]} />
-                    <span className="min-w-0 flex-1 truncate text-[13px] font-medium text-slate-100">{s.name}</span>
-                    <span className="shrink-0 text-[13px] font-semibold tabular-nums text-slate-50">{wert(k, Number(s[k.feld]))}</span>
+                    <span className={`w-5 shrink-0 text-center text-[11.5px] tabular-nums ${i === 0 ? 'font-bold text-sky-400' : 'text-slate-400'}`}>{i + 1}</span>
+                    <TeamFlagge groesse={14} laender={[s.land || undefined]} />
+                    <span className="min-w-0 flex-1 truncate text-[12px] font-medium text-slate-100">{s.name}</span>
+                    <span className="shrink-0 text-[12px] font-semibold tabular-nums text-slate-50">{wert(k, Number(s[k.feld]))}</span>
                   </div>
                 ))}
               </div>

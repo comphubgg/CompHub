@@ -46,6 +46,23 @@ async function ausSzene(tage: string[], anzeige: Map<string, string>, land: Map<
   for (const t of teams.values()) for (const id of t.spieler) teamVon.set(id, t);
 
   /*
+   * Solo-Spieltage: die Eliminierungen aus Epics Bestenliste (Betreiber, 31.10.2026, Vergleich mit Osirion beim FNCS-Solos-Finale EU: die
+   * Szene-Quelle fuehrte tjino mit 23, Epic und Osirion mit 27; shxrk 34 statt 35). Bei Solos ist das Team ein Spieler - Epics Zahl gilt je Konto.
+   * Und ohne Reload gibt es im Solo weder Reboot noch Wiederbeleben - die Quelle fuehrte trotzdem vereinzelt "1".
+   */
+  const soloElims = new Map<string, number>();
+  let solo = teams.size > 0;
+  for (const w of tage) {
+    const tag = await epicTag(w);
+    for (const t of tag?.teams ?? []) {
+      if ((t.spieler ?? []).length !== 1) { solo = false; continue; }
+      const id = echtVon(t.spieler[0]);
+      soloElims.set(id, (soloElims.get(id) ?? 0) + (t.teamElims ?? 0));
+    }
+  }
+  const ohneReboots = solo && !tage.some((w) => /reload/i.test(w));
+
+  /*
    * Solo Clutch Points, wo sie gerechnet sind (scripts/clutch-berechnen.mjs):
    * je Tag unter den Konten, die im Replay stehen - bei einem LAN die
    * Turnierkonten, hier auf die echten umgeschrieben.
@@ -77,7 +94,7 @@ async function ausSzene(tage: string[], anzeige: Map<string, string>, land: Map<
       name: nameVon(x.epicId),
       land: land.get(x.epicId) ?? '',
       spiele,
-      kills: x.eliminations ?? 0,
+      kills: solo && soloElims.has(x.epicId) ? soloElims.get(x.epicId)! : x.eliminations ?? 0,
       knocks: 0, tode: 0, umgehauen: 0,
       assists: x.assists ?? 0,
       damage: Math.round(x.damageDealt ?? 0),
@@ -100,7 +117,7 @@ async function ausSzene(tage: string[], anzeige: Map<string, string>, land: Map<
       timeAlive: x.timeAlive ?? 0,
       // Fuer die Uebersicht (Show More) - was die Quelle je Spieler fuehrt.
       shots: x.shots ?? 0,
-      reboots: x.rebootsAndRevives ?? 0,
+      reboots: ohneReboots ? 0 : x.rebootsAndRevives ?? 0,
       fallDamage: Math.round(x.fallDamage ?? 0),
       stormDamage: Math.round(x.stormDamage ?? 0),
       healthHealed: Math.round(x.healthHealed ?? 0),
@@ -381,6 +398,9 @@ async function holeRoh(request: Request) {
    * darunter. Die Anzeige sagt, dass es gezaehlt ist.
    */
   const schadenVon = clutchDatei?.schaden ? new Map(Object.entries(clutchDatei.schaden)) : null;
+  // Im Solo ohne Reload gibt es weder Reboot noch Wiederbeleben (Betreiber, 31.10.2026: "wie kann es in einem Solo-Cup Reboots geben?").
+  const soloOhneReload = !tage.some((w) => /reload/i.test(w))
+    && (rep?.teams?.length ? rep.teams.every((x) => (x.spieler?.length ?? 1) <= 1) : tage.every((w) => /solo/i.test(w)));
   // Bei einem teilweise gelesenen Spieltag zaehlt ein Wert nur, wenn jedes Spiel dieses Spielers gelesen ist - sonst waere er zu niedrig.
   const teil = clutchDatei?.teilweise ?? null;
   const ganzGelesen = (id: string, spiele: number) => !teil || (clutchDatei?.spiele?.[id.toLowerCase()] ?? 0) >= spiele;
@@ -423,7 +443,7 @@ async function holeRoh(request: Request) {
         hits: d.treffer, headshots: d.krit, schadenAusReplay: true,
         // Zeit im Sturm und Reboots/Revives aus demselben Lauf (an vier Finals gegen die Szene-Werte geprueft, 95-100 von 100).
         ...(typeof d.sturm === 'number' ? { timeInStorm: Math.round(d.sturm) } : {}),
-        ...(typeof d.wiederbelebt === 'number' ? { reboots: (d.wiederbelebt ?? 0) + (d.rebootet ?? 0) } : {}),
+        ...(typeof d.wiederbelebt === 'number' && !soloOhneReload ? { reboots: (d.wiederbelebt ?? 0) + (d.rebootet ?? 0) } : {}),
       };
     })(),
   });
@@ -480,7 +500,7 @@ async function holeRoh(request: Request) {
       spitze((x) => { const d = sch(x); return d && d.erlitten > 0 ? d.dmg / d.erlitten : null; });
       spitze((x) => sch(x)?.treffer);
       spitze((x) => sch(x)?.sturm);
-      spitze((x) => { const d = sch(x); return d ? (d.wiederbelebt ?? 0) + (d.rebootet ?? 0) : null; });
+      if (!soloOhneReload) spitze((x) => { const d = sch(x); return d ? (d.wiederbelebt ?? 0) + (d.rebootet ?? 0) : null; });
     }
     if (clutchVon) spitze((x) => clutchVon.get(x.epicId.toLowerCase()));
     if (lebenVon) spitze((x) => lebenVon.get(x.epicId.toLowerCase()));

@@ -331,6 +331,22 @@ async function liesDatei(e: ArchivEintrag): Promise<Datei | null> {
     daten = null;
   }
   /*
+   * Solo-Spieltage: Eliminierungen aus Epics Bestenliste statt aus der Quelle (31.10.2026, FNCS Solos Finals EU: die Quelle fuehrte tjino mit 23,
+   * Epic und Osirion mit 27). Bei Solos ist das Team ein Konto, Epics Zahl gilt also je Spieler. Nur wo Epic den Tag fuehrt - sonst bleibt die Quelle.
+   */
+  if (daten) {
+    try {
+      const tag = await epicTag(e.windowId);
+      if (tag?.teams.length && tag.teams.every((t) => t.spieler.length === 1)) {
+        const elims = new Map(tag.teams.map((t) => [t.spieler[0].toLowerCase(), t.teamElims]));
+        daten = { ...daten, players: daten.players.map((p) => {
+          const v = elims.get((p.epicId ?? '').toLowerCase());
+          return typeof v === 'number' ? { ...p, eliminations: v } : p;
+        }) };
+      }
+    } catch { /* ohne Epic-Tag bleibt die Quelle */ }
+  }
+  /*
    * Nur Gelungenes merken.
    *
    * Ein Fehlschlag - ein kurzer Aussetzer der Ablage - blieb zehn Minuten

@@ -290,7 +290,7 @@ export default function SpielerStatsUebersicht({ spieler, matches, aktualisiert,
         )}
       </p>
 
-      <StatKacheln spieler={spieler} listen={gezeigteKacheln} anzahl={5} leerText={leerText} vorbild aufVoll={quelle ? setVoll : undefined} />
+      <StatKacheln spieler={spieler} listen={gezeigteKacheln} anzahl={10} leerText={leerText} vorbild aufVoll={quelle ? setVoll : undefined} />
       {plattformen && <PlattformLeiste werte={plattformen} ort={ort} />}
       {mitWerten.length > 10 && (
         <div className="flex justify-center">

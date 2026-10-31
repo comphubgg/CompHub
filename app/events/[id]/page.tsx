@@ -414,14 +414,12 @@ const SpielKachel = memo(function SpielKachel({
             <span className="shrink-0 text-slate-500">
               <T>Sieger</T>:
             </span>
-            {/* Sieger fett mit Flagge (Betreiber, 30.10.2026: "so fett wie jetzt", mit dem Ingame-Namen wie vorher). */}
+            {/* Sieger fett, mit dem Ingame-Namen (Betreiber, 30.10.2026: "so fett wie jetzt"); ohne Flagge (31.10.2026: "Flagge weg"). */}
             <span className="flex min-w-0 flex-wrap items-center gap-x-2 gap-y-0.5">
               {sp.sieger.map((n, k) => {
                 const s = { name: n, id: sp.teams.find((x) => x.platz === 1)?.spieler[k]?.id ?? '' };
-                const land = landVon?.(s);
                 return (
                   <span key={`${n}-${k}`} className="inline-flex min-w-0 items-center gap-1">
-                    {land && <img src={flaggenPfad(land)} alt="" className="h-[10px] w-[15px] shrink-0 rounded-[2px] object-cover" />}
                     <b className="truncate font-extrabold tracking-wide text-slate-100">{namenVon(s)}</b>
                   </span>
                 );
