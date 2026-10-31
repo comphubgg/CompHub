@@ -2,6 +2,19 @@
 
 Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der Bestandsaufnahme vom 31.10.2026 (vier Pruefer, nur gelesen). Der Chef pflegt diese Liste selbst: Erledigtes abhaken (`- [x]`), Neues aufnehmen. Jeder Punkt vor dem Bau selbst am Code nachpruefen - die Pruefer koennen sich geirrt haben.
 
+## Neu entdeckt (Runde 3, 31.10.2026 – Statistik-Prüfung)
+
+- [x] **Strecke ab S41 hundertmal zu klein** (chef-39) - eigene Spieltage in Metern, Szene in Zentimetern.
+- [x] **Treppchen rundet anders als das Profil** (chef-40).
+- [x] **Quoten-Listen ohne Mindestzahl an Matches** (chef-41).
+- [x] **Perzentile teilen Material/Bauteile/Kopftreffer durch alle Matches** (chef-42).
+- [ ] **Live: Elims-Liste der Startantwort trägt Schaden/Quote/Treffer 0 für alle 400 Spieler** _(Statistik · Wirkung 4/5)_ - im Code (lib/szeneStats um Zeile 1600, „saisonWerte“) schon behoben, die vorgerechnete Antwort ist alt. Nach dem nächsten Stundenlauf mit /api/szene-stats?ansicht=start prüfen (listen[feld=elims].plaetze[0].damage muss > 0 sein). Falls weiter 0: herausfinden, warum der Lauf die Startantwort nicht neu ablegt.
+- [ ] **damageProMatch in der Elims-Liste aus der Finals-Summe, matches aus jeRegion** - kann auseinanderlaufen, wenn Opens/LAN in den Matches stecken. In 6 geprüften Zeilen gleich - beobachten.
+- [ ] **Spielerliste: Hinweis „ab N Matches“ bei Quoten-Sortierung** - die Antwort trägt jetzt mindestMatches (chef-41); die Oberfläche könnte es wie auf der Startseite anzeigen.
+- [ ] **spieler-stats (Streams-Seite) rechnet Strecke als Meter** - prüfen, aus welcher Quelle; bei Zentimetern dort dasselbe Problem andersherum.
+- [ ] **Ungenutzte Bausteine entfernen** (DemoPanel, NotificationBell, MultiviewDashboard, QuickEditItem) - Vorschlag, braucht Zustimmung.
+- [ ] **Admin-Texte aus der Übersetzungstabelle für Besucher herauslösen** (siehe unten) - als Nächstes, sprache.ts ist jetzt frei.
+
 ## Neu entdeckt (Runde 2, 31.10.2026)
 
 - [ ] **Saison-Bestenlisten enden am 10.10., das Profil hat Spieltage bis 27.10.** _(Statistik · Wirkung 5/5)_ - Runde 3: Die Startantwort hat 50 Szene-Tage (bis 10.10.) und 40 eigene (bis 8.10.); die Finals vom 26./27.10. fehlen. Wahrscheinlich, weil eigene Spieltage bis zur Änderung 17d1ebb auf main erst zählten, wenn jedes Replay gelesen war - nach dem nächsten Stundenlauf neu messen. Gemessen: /api/szene-stats?ansicht=start (S42) zeigt Peterbot mit 57 Matches / 152 Elims / 42.853 Schaden, sein Profil (?spieler=45ce4565…&saison=S42) mit 83 / 208 / 59.572. Der jüngste Spieltag in grundlage.spieltage der Startantwort ist vom 10.10. (FNCSSoloFastTracks); im Profil stehen FNCS Solo Heats (18.10.), Finals (26./27.10.) und PE Event 9 (22./23.10.). Vermutung: die vorgerechnete Startantwort ist veraltet oder aggregateSaison/grossesTurnier lässt die neuen eigenen Spieltage weg (lib/szeneStats.ts um Zeile 1440). Mit Zugang zur Ablage prüfen.
@@ -11,7 +24,7 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 - [x] **Gleicher Anzeigename für verschiedene Konten** (geprüft: die Region steht in jeder Zeile daneben, damit unterscheidbar - kein Umbau nötig) - in den Saisonlisten erscheinen zwei Konten als „RISE“ (NAC e5556b32…, ASIA 635ed9f3… „Riddle RiIse“), weil die Szene-Quelle beiden diesen Namen gibt. Idee: bei Namensgleichheit in einer Liste die Region oder den Epic-Namen klein dahinter zeigen.
 - [x] **Jahresbilanz: Rang „1 von 8.522“ gegen Perzentile über 4.969 Spieler im selben Profil** - prüfen, ob die zwei Feldgrößen erklärt werden (Perzentile vermutlich mit Mindest-Matches). Geprüft: die Seite schreibt dazu „unter … Spielern mit mindestens zehn Matches“ - erklärt.
 - [x] **Datum fest britisch auch auf weiteren Seiten** (erledigt mit chef-30) - chef-19 deckt Startseite, Maps, FNCS ab; per grep nach "'en-GB'" weitere Stellen suchen. VIP-Ablaufdatum im Kopf (MainHeader) ist fest deutsch.
-- [ ] **Teilen-Vorschau für Spielerprofile und Cup-Seiten** (Cup-Seiten erledigt mit chef-31; Spielerprofile offen) - chef-10 gibt den Bereichen Titel; Profile (/statistics?spieler=) und /events/[id] bräuchten generateMetadata mit Name und Bild.
+- [ ] **Teilen-Vorschau für Spielerprofile und Cup-Seiten** (Cup-Seiten chef-31, Spielerprofile chef-36, Sitemap chef-38) - chef-10 gibt den Bereichen Titel; Profile (/statistics?spieler=) und /events/[id] bräuchten generateMetadata mit Name und Bild.
 
 ## Zusammenfassung je Bereich
 
@@ -97,7 +110,7 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
   - Problem: app/layout.tsx:171-173 bindet auf jeder Seite drei Stylesheets ein, die den ersten Bildaufbau blockieren. (a) Font Awesome von cdnjs (19 KB gepackt, eigene Verbindung zu einem fremden Server): Die Suche nach 'fa-' findet in app/, components/, lib/ und public/ null Treffer, auch public/webfonts/fa-*.woff2 ist ungenutzt. (b) Roboto und Roboto Mono kommen doppelt: einmal aus public/fonts/fonts.css (als .ttf von fonts.gstatic.com) und noch einmal über den Google-Fonts-Link. Roboto wird nur in app/tierlist/styles/tierlist.css, app/globals.css:250 (Karten) und app/overlays/text gebraucht. (c) Next lädt vorab vier Schriftfamilien (Geist, Geist Mono, Figtree, Bricolage, siehe Link-Kopfzeile). Geist Sans gilt aber nur noch fürs alte Design der Streams-Seite (app/design.css:10-11 überschreibt sie). (d) Das Logo /logos/CompHub-Logo.png ist ein 512x512-PNG mit 78.828 Byte, wird auf jeder Seite vorgeladen und nur 36-40 px groß angezeigt (app/components/MainHeader.tsx:235).
   - Vorschlag: Font-Awesome-Link und public/webfonts entfernen. Den Google-Fonts-Link streichen und Roboto nur aus einer Quelle laden: lokal als woff2 statt ttf in fonts.css, oder per next/font nur dort, wo Roboto gebraucht wird. Geist Sans mit preload: false einbinden. Für den Kopf eine kleine Logo-Datei anlegen (z. B. 96x96 WebP, wenige KB). Die große PNG bleibt fürs Vorschaubild (og:image). Danach Tierlist, Karten-Overlay und Text-Overlay im Browser kurz ansehen.
   - Dateien: app/layout.tsx, public/fonts/fonts.css, public/webfonts, app/components/MainHeader.tsx, public/logos/CompHub-Logo.png
-- [ ] **Lieblingsspieler merken** (Runde 3 in Arbeit) _(Bereich: Besucher-Seiten · Wirkung 3/5 · Aufwand mittel · Risiko niedrig)_
+- [x] **Lieblingsspieler merken** (chef-37; Stufe 2: mit Konto auf dem Server speichern, wenn es dafür eine Ablage gibt) _(Bereich: Besucher-Seiten · Wirkung 3/5 · Aufwand mittel · Risiko niedrig)_
   - Problem: Fortnite Tracker und Osirion haben Favoriten: Man markiert Spieler und sieht sie beim nächsten Besuch sofort. Bei CompHub gibt es Favoriten nur für Streams (app/streams/Einzelansicht.tsx:48), nicht für Spieler im Profil (Suche nach favorit/merkliste in app/statistics ohne Treffer). Wer einem Profi folgt, muss ihn jedes Mal neu suchen.
   - Vorschlag: Ein Stern im Spielerprofil. Gemerkte Spieler erscheinen auf der Startseite und oben in der Statistik als Reihe mit Foto, Flagge und dem letzten Ergebnis. Mit Konto speichert sich die Liste von selbst am Konto, ohne Konto bleibt sie im Browser.
   - Dateien: app/statistics/page.tsx, app/page.tsx, app/components/StartVitrine.tsx
