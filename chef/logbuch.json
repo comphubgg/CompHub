@@ -1117,7 +1117,9 @@
     "ansehen": [
       "/events/s42_fncssolos_final"
     ],
-    "commits": [],
+    "commits": [
+      "0b19ba4aa07e34ccab1f9514ccc12cfbea18c415"
+    ],
     "groesse": "klein",
     "modell": "Opus",
     "status": "wartet",
