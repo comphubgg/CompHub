@@ -434,8 +434,9 @@ export default function SpielerDetail({ eventId, windowId, rueckPfad, solo, star
                   <p className="text-2xl font-black tabular-nums text-slate-50">{num(e.points)} points</p>
                 </div>
                 <div className="mt-2 space-y-1 border-t border-white/[0.06] pt-2 text-[13px]">
-                  {e.punktePlatz !== undefined && <p className="flex justify-between"><span className="text-slate-400">Placement</span><span className="tabular-nums text-slate-200">{num(e.punktePlatz)} points</span></p>}
-                  {e.punkteElims !== undefined && <p className="flex justify-between"><span className="text-sky-300">Elimination</span><span className="tabular-nums text-slate-200">{num(e.punkteElims)} points</span></p>}
+                  {/* Epic laesst einen Teil weg, wenn er 0 ist (8 Spieler im FNCS Solo Final EU ohne Elim-Punkte): steht der andere da, gilt der fehlende als 0, statt die Zeile zu verstecken. */}
+                  {(e.punktePlatz !== undefined || e.punkteElims !== undefined) && <p className="flex justify-between"><span className="text-slate-400">Placement</span><span className="tabular-nums text-slate-200">{num(e.punktePlatz ?? 0)} points</span></p>}
+                  {(e.punktePlatz !== undefined || e.punkteElims !== undefined) && <p className="flex justify-between"><span className="text-sky-300">Elimination</span><span className="tabular-nums text-slate-200">{num(e.punkteElims ?? 0)} points</span></p>}
                 </div>
               </div>
               <p className="mt-2 flex justify-between px-1 text-[11px] text-slate-500">
