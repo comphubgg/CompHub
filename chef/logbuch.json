@@ -1986,5 +1986,26 @@
     "commits": [],
     "status": "wartet",
     "runde": 6
+  },
+  {
+    "id": "chef-96",
+    "datum": "2026-10-31T21:41:00Z",
+    "titel": "FNCS All-Time: Suche zeigt den echten Platz",
+    "kurz": "FNCS → All-Time Stats → „Tjino“ suchen: Platz 2 statt 1.",
+    "markieren": [
+      "css:main table tbody tr td:first-child",
+      "text:All-Time Stats"
+    ],
+    "bereich": "Statistik",
+    "warum": "Nach einer Suche wurden die Treffer neu durchnummeriert; jeder Gesuchte stand auf Platz 1.",
+    "was": "Der Platz kommt jetzt aus der ganzen Liste, auch während der Suche.",
+    "ansehen": [
+      "/fncs"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "commits": [],
+    "status": "wartet",
+    "runde": 6
   }
 ]

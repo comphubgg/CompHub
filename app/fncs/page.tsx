@@ -347,9 +347,11 @@ export default function FncsSeite() {
   const zeilen = useMemo(() => {
     if (!alt) return [];
     const q = suche.trim().toLowerCase();
+    // Der Platz kommt aus der ganzen Liste, nicht aus den Treffern: wer "Tjino" sucht, sieht seinen echten Platz, nicht die 1.
     return [...alt.spieler]
-      .filter((s) => !q || s.name.toLowerCase().includes(q))
-      .sort((a, b) => (sortNach === 'gesamt' ? b.gesamt - a.gesamt : (b.je[sortNach] ?? -1) - (a.je[sortNach] ?? -1) || b.gesamt - a.gesamt));
+      .sort((a, b) => (sortNach === 'gesamt' ? b.gesamt - a.gesamt : (b.je[sortNach] ?? -1) - (a.je[sortNach] ?? -1) || b.gesamt - a.gesamt))
+      .map((s, i) => ({ ...s, platz: i + 1 }))
+      .filter((s) => !q || s.name.toLowerCase().includes(q));
   }, [alt, sortNach, suche]);
   /**
    * Die Farbe einer Zelle - wie auf dem Vorbild: je Major in vier Stufen, rot (wenige Eliminierungen) bis dunkelgruen (viele).
@@ -565,9 +567,9 @@ export default function FncsSeite() {
                     </tr>
                   </thead>
                   <tbody>
-                    {zeilen.map((s, i) => (
+                    {zeilen.map((s) => (
                       <tr key={s.id} className="border-b border-white/[0.04] transition hover:bg-sky-500/[0.05]">
-                        <td className="px-3 py-1.5 text-[11px] font-bold tabular-nums text-slate-500">{i + 1}</td>
+                        <td className="px-3 py-1.5 text-[11px] font-bold tabular-nums text-slate-500">{s.platz}</td>
                         <td className="px-3 py-1.5">
                           <span className="flex items-center gap-2.5">
                             {s.bild
