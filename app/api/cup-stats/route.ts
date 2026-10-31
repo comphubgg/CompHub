@@ -105,11 +105,20 @@ async function holeRoh(request: Request) {
       const sortiert = [...mitWert].sort((a, b) =>
         k.kleinBesser ? k.wert(a) - k.wert(b) : k.wert(b) - k.wert(a));
 
-      const platz = (e: typeof sortiert[number]) => {
+      /*
+       * Platz in dieser Kennzahl: gleicher angezeigter Wert, gleicher Platz (1, 2, 2, 4). Vorher zaehlte die Kachel nur die Zeilen durch -
+       * zwanzig Teams mit 13 Eliminierungen standen auf 5 bis 24, und die Siege (je 1) auf 1 bis 6. "rank" bleibt Epics Gesamtplatz des Teams.
+       * Bei den Punkten entscheidet Epics Wertung auch bei gleichen Punkten (Tiebreaker), dort gilt der Gesamtplatz.
+       */
+      const zeigen = (e: typeof sortiert[number]) => +(k.faktor ? k.wert(e) * k.faktor : k.wert(e)).toFixed(k.nachkomma ?? 0);
+      const statPlaetze: number[] = [];
+      sortiert.forEach((e, i) => { statPlaetze.push(i > 0 && zeigen(sortiert[i - 1]) === zeigen(e) ? statPlaetze[i - 1] : i + 1); });
+      const platz = (e: typeof sortiert[number], i: number) => {
         const roh = k.wert(e);
         const angezeigt = k.faktor ? roh * k.faktor : roh;
         return {
           rank: e.rank,
+          statPlatz: k.schluessel === 'points' ? e.rank : statPlaetze[i],
           spieler: e.players.map((p) => p.name),
           ids: e.players.map((p) => p.id),
           wert: +angezeigt.toFixed(k.nachkomma ?? 0),

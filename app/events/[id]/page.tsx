@@ -239,7 +239,7 @@ function dauerText(sekunden: number): string {
 }
 
 /** Ein Platz in einer Bestenliste. */
-interface StatPlatz { rank: number; spieler: string[]; ids: string[]; wert: number }
+interface StatPlatz { rank: number; statPlatz?: number; spieler: string[]; ids: string[]; wert: number }
 
 /** Eine Kennzahl mit ihren Plaetzen - so liefert sie /api/cup-stats. */
 interface Bestenliste {
@@ -5127,7 +5127,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                       <li key={`${b.schluessel}-${pl.rank}-${i}`}
                         className="mt-0.5 flex items-center gap-2.5 rounded-lg px-3 py-2">
                         <span className={`w-5 shrink-0 text-center text-[13px] tabular-nums ${i === 0 ? 'font-bold text-sky-400' : 'text-slate-400'}`}>
-                          {i + 1}
+                          {pl.statPlatz ?? i + 1}
                         </span>
                         <TeamFlagge groesse={20}
                           laender={pl.spieler.map((n, k) =>
@@ -5237,7 +5237,7 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                   * Liste ist." Gezaehlt wird deshalb vor dem Filtern.
                   */}
                 {(() => {
-                  const mitPlatz = offeneListe.alle.map((pl, idx) => ({ pl, platz: idx + 1 }));
+                  const mitPlatz = offeneListe.alle.map((pl, idx) => ({ pl, platz: pl.statPlatz ?? idx + 1 }));
                   const s = listenSuche.trim().toLowerCase();
                   return s
                     ? mitPlatz.filter(({ pl }) => pl.spieler.some((n, k) =>
