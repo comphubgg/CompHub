@@ -25,6 +25,6 @@ export async function GET(request: Request) {
     const r = await sucheUndMelde();
     return NextResponse.json({ ok: true, neu: r.neu.map((u) => u.patch), geprueft: r.geprueft, neueste: r.neueste, gemeldet: r.gemeldet });
   } catch (e) {
-    return NextResponse.json({ ok: false, fehler: (e as Error).message }, { status: 503 });
+    return NextResponse.json({ ok: false, fehler: (e as Error).message }, { status: 424 });
   }
 }

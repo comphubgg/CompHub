@@ -612,5 +612,21 @@
     "modell": "Opus",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-35",
+    "datum": "2026-10-31T19:34:59Z",
+    "titel": "Zeitplan-Aufrufe melden Fehler ohne Server-Fehlerseite",
+    "bereich": "Verlässlichkeit",
+    "warum": "Die regelmäßigen Hintergrund-Aufrufe (Ergebnis-Posts, News, Turnierkarten, VIP-Ablauf, Tagesposts) antworteten bei einem Fehler mit „Server nicht verfügbar“ (503). Nach deiner Regel sollen Schnittstellen das nie tun, weil der Cloudflare-Verteiler daraus eine Fehlerseite macht.",
+    "was": "Sie melden einen Fehler jetzt mit einem anderen Code (424). Im Protokoll der Abläufe sieht man den Fehler weiterhin, Cloudflare springt aber nicht mehr an. Besucher merken davon nichts.",
+    "ansehen": [
+      "/"
+    ],
+    "commits": [],
+    "groesse": "klein",
+    "modell": "Opus",
+    "status": "wartet",
+    "runde": 1
   }
 ]

@@ -40,6 +40,6 @@ export async function GET(request: Request) {
     for (const p of Object.values(pros)) await pruefeDiscordLive(p);
     return NextResponse.json({ ok: true, gilden, abgeraeumt });
   } catch (e) {
-    return NextResponse.json({ ok: false, fehler: (e as Error).message }, { status: 503 });
+    return NextResponse.json({ ok: false, fehler: (e as Error).message }, { status: 424 });
   }
 }

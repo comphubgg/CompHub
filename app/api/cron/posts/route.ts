@@ -37,6 +37,6 @@ export async function GET(request: Request) {
     });
     return NextResponse.json({ ok: true, posts: plan.posts.length, gemeldet: r.ok, grund: r.grund });
   } catch (e) {
-    return NextResponse.json({ ok: false, fehler: (e as Error).message }, { status: 503 });
+    return NextResponse.json({ ok: false, fehler: (e as Error).message }, { status: 424 });
   }
 }
