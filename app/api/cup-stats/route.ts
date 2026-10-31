@@ -2,6 +2,8 @@ import { NextResponse } from 'next/server';
 import { gecacht, holeTop, EpicLoginNoetig, frischeFuer, type CupEintrag } from '@/lib/epicCups';
 import { zwischenspeichern } from '@/lib/zwischenspeicher';
 import { istGlobalsFinale, globalsTage, globalsStand, summiereTage } from '@/lib/globalsGesamt';
+import { abgesagtFuer, ohneAbgesagte } from '@/lib/abgesagt';
+import { holeKatalog, regionAus, wertungVon } from '@/lib/cupWertung';
 
 // Bestenlisten je Kennzahl fuer einen Spieltag - die Grundlage fuer die
 // Turnier-Statistikseite und die Beitragsvorlagen.
@@ -57,6 +59,19 @@ const KATEGORIEN: Kategorie[] = [
     faktor: 1 / 60, nachkomma: 0, wert: (e) => e.timeAlive },
 ];
 
+/**
+ * Vom Admin abgesagte Runden herausrechnen (lib/abgesagt), genau wie die Bestenliste (app/api/cup-leaderboard, bereinigt).
+ * Vorher taten es hier nur die Globals-Tage: nach einer Absage zeigten Bestenliste und Tabelle die bereinigten Punkte, die
+ * Statistik-Kacheln derselben Seite zaehlten die abgesagte Runde weiter mit.
+ */
+async function ohneAbgesagteRunden(eintraege: CupEintrag[], event: string, windowId: string, vollstaendig: boolean): Promise<CupEintrag[]> {
+  const abgesagt = await abgesagtFuer(windowId);
+  if (!abgesagt.size) return eintraege;
+  let wertung: Awaited<ReturnType<typeof wertungVon>> = [];
+  try { wertung = wertungVon(await holeKatalog(regionAus(windowId)), windowId, event); } catch { /* ohne Tabelle */ }
+  return ohneAbgesagte(eintraege, abgesagt, wertung, vollstaendig).eintraege;
+}
+
 async function holeRoh(request: Request) {
   const { searchParams } = new URL(request.url);
   const event = searchParams.get('event');
@@ -89,7 +104,10 @@ async function holeRoh(request: Request) {
     const tageDaten = summe ? await Promise.all(tageListe.map((w) => gecacht(`stats|${event}|${w}|${limit}`, TTL, () => holeTop(event, w, limit)))) : null;
     const einzeln = finale || summe || !window_ ? null : await gecacht(`stats|${event}|${window_}|${limit}`, TTL,
       () => holeTop(event, window_, limit));
-    const eintraege = tageDaten ? summiereTage(tageDaten.map((d) => d.entries as CupEintrag[])) : finale ? summiereTage(await globalsTage(limit)) : einzeln!.entries;
+    const eintraege = tageDaten
+      ? summiereTage(await Promise.all(tageDaten.map((d, i) => ohneAbgesagteRunden(d.entries as CupEintrag[], event, tageListe[i], (d.totalPages ?? 1) <= 1))))
+      : finale ? summiereTage(await globalsTage(limit))
+        : await ohneAbgesagteRunden(einzeln!.entries as CupEintrag[], event, window_!, (einzeln!.totalPages ?? 1) <= 1);
     // Wann Epic die Bestenliste zuletzt fortgeschrieben hat - fuer "zuletzt aktualisiert".
     const aktualisiert = tageDaten ? (tageDaten.map((d) => d.updated ?? '').sort().pop() || null) : finale ? await globalsStand(limit) : einzeln!.updated ?? null;
 

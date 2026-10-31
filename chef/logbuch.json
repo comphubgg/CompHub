@@ -814,5 +814,21 @@
     "modell": "Opus",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-48",
+    "datum": "2026-10-31T19:48:52Z",
+    "titel": "Cup-Statistik: abgesagte Runden zählen nicht mehr mit",
+    "bereich": "Statistik",
+    "warum": "Wenn du im Admin eine Runde eines Cups absagst, rechnen Bestenliste und Tabelle sie heraus – die Statistik-Kacheln derselben Cup-Seite (meiste Punkte, Elims, Schaden, K/D …) zählten sie aber weiter mit. Zwei verschiedene Zahlen auf einer Seite.",
+    "was": "Die Kacheln rechnen abgesagte Runden jetzt genauso heraus wie die Bestenliste, für einzelne Tage und für mehrtägige Gesamtwertungen. Ohne Absage ändert sich nichts.",
+    "ansehen": [
+      "/events/s42_fncssolos_final"
+    ],
+    "commits": [],
+    "groesse": "klein",
+    "modell": "Opus",
+    "status": "wartet",
+    "runde": 1
   }
 ]
