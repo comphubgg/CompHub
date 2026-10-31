@@ -1762,5 +1762,27 @@
     "modell": "Opus",
     "status": "wartet",
     "runde": 5
+  },
+  {
+    "id": "chef-86",
+    "datum": "2026-10-31T21:18:00Z",
+    "titel": "Tweet-Werkzeug: Ausfall der Quelle heißt nicht mehr „keine Werte“",
+    "kurz": "Unsichtbar: Admin → Tweets meldet Quellen-Ausfall ehrlich statt „keine Einzelwerte“.",
+    "markieren": [
+      "css:main"
+    ],
+    "bereich": "Admin",
+    "warum": "Fiel die Datenquelle aus, stand im Tweet-Werkzeug „keine Einzelwerte“ (10 Minuten lang zwischengespeichert) oder es kam ein Serverfehler.",
+    "was": "Jetzt steht „Quelle gerade nicht erreichbar“, und der Ausfall wird nicht gespeichert. Die Zahlen selbst stimmen mit dem Spielerprofil überein (geprüft).",
+    "ansehen": [
+      "/admin/tweets"
+    ],
+    "commits": [
+      "8755cd2576499e48524d1b3bce16139bb7862fd9"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 5
   }
 ]
