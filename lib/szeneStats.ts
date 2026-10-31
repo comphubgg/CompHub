@@ -25,6 +25,7 @@ import type { ReplayWert } from '@/lib/replayWerte';
 import { liesJson, schreibJson } from '@/lib/ablage';
 import { fertigeAntwort, ohneDateien } from '@/lib/antwortSpeicher';
 import { istGrossesTurnier as grossesTurnier, istFinaleTag } from '@/lib/turnierArt';
+import { gleichstandWerte, platzeMitGleichstand } from '@/lib/endstandGleichstand';
 import { verdienst, lanSummen, lanEintraege, lanUnvollstaendig } from '@/lib/preisgeld';
 import { liesVerdienstArchiv, archivEintraege, eintragJahr } from '@/lib/verdienstArchiv';
 import { teamElimsListe } from '@/lib/elimsArchiv';
@@ -711,14 +712,16 @@ async function tagesSumme(season: string, windowId: string, tage: number) {
     }
   }
   const liste = [...summe.values()].sort((a, b) => b.punkte - a.punkte);
+  // Gleichstand wie bei Epic trennen (Siege, Elims je Spiel, mittlere Platzierung). Hier nie bei Epic
+  // fragen - nur Vorrat und Gemerktes; fehlt es, bleibt der geteilte Platz (lib/endstandGleichstand).
+  const gleichstand = liste.some((t, i) => i > 0 && t.punkte === liste[i - 1].punkte);
+  const werte = gleichstand ? await gleichstandWerte(windowId, tage, { epic: false }) : null;
   const karte = new Map<string, Platzierung>();
-  let platz = 0;
-  liste.forEach((t, i) => {
-    if (i === 0 || t.punkte !== liste[i - 1].punkte) platz = i + 1;
+  for (const t of platzeMitGleichstand(liste, werte)) {
     for (const id of t.spieler) {
-      karte.set(id, { platz, punkte: t.punkte, mitspieler: t.spieler.filter((x) => x !== id) });
+      karte.set(id, { platz: t.platz, punkte: t.punkte, mitspieler: t.spieler.filter((x) => x !== id) });
     }
-  });
+  }
   return karte;
 }
 

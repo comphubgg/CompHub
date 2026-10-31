@@ -992,5 +992,25 @@
     "modell": "Sonnet",
     "status": "wartet",
     "runde": 4
+  },
+  {
+    "id": "chef-54",
+    "datum": "2026-10-31T20:20:00Z",
+    "titel": "Endstand zweitägiger Finals: Punktgleiche Teams wie bei Epic getrennt",
+    "kurz": "Statistik → Turniere → zweitägiges Finale öffnen: punktgleiche Teams haben jetzt eigene Plätze und Preisgeld.",
+    "markieren": [
+      "css:table"
+    ],
+    "bereich": "Statistik",
+    "warum": "Bei gleichen Punkten stand derselbe Platz da, Epic trennt sie – 16 von 100 Teams lagen daneben, dazu falsches Preisgeld.",
+    "was": "Gleichstand wird wie bei Epic aufgelöst: erst Siege, dann Elims je Spiel, dann mittlere Platzierung. Fehlen diese Zahlen, bleibt der geteilte Platz.",
+    "ansehen": [
+      "/statistics?bereich=turniere"
+    ],
+    "commits": [],
+    "groesse": "mittel",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 4
   }
 ]
