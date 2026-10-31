@@ -1731,6 +1731,8 @@ export async function jahresListen(jahr: number, region?: string, nurSaison?: st
       region: t.region, name: t.titel }));
   const geld = new Map<string, number>();
   let mitRegel = 0;
+  // Spieltage, die nur in der Verdienst-Akte stehen - sie gehoeren in die Zahl der Spieltage, sonst steht "650 von 545" da.
+  let nurAkte = 0;
   for (const e of [...eintraege, ...weitere]) {
     const karte = await platzKarte(e.season, e.windowId);
     if (!karte) continue;
@@ -1782,6 +1784,7 @@ export async function jahresListen(jahr: number, region?: string, nurSaison?: st
       }
     }
     mitRegel += aktenFenster.size;
+    nurAkte = aktenFenster.size;
   }
   // Dazu die LAN-Events - je Konto, aus der gepflegten Datei.
   let lanTage = 0;
@@ -1907,7 +1910,7 @@ export async function jahresListen(jahr: number, region?: string, nurSaison?: st
     // Zahl ist die ehrliche Zahl der Spieltage, wo das Archiv leer ist (2020:
     // "0 Spieltage" neben 937 gezaehlten).
     jahr, region: region ?? null,
-    spieltage: Math.max(eintraege.length + weitere.length, teamElims.spieltage), saisons,
+    spieltage: Math.max(eintraege.length + weitere.length + nurAkte, teamElims.spieltage, mitRegel), saisons,
     saison: saisons.length === 1 && alleSaisons.length > 1 ? saisons[0] : null,
     saisonenDesJahres: alleSaisons.map((k) => ({ kennung: k, name: saisonName(k) })),
     listen: [verdienstListe, teamElimsListeFertig, ...listen],

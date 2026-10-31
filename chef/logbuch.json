@@ -2007,5 +2007,27 @@
     "commits": [],
     "status": "wartet",
     "runde": 6
+  },
+  {
+    "id": "chef-97",
+    "datum": "2026-10-31T21:45:00Z",
+    "titel": "Jahresbilanz: kein „650 von 545 Spieltagen“ mehr",
+    "kurz": "Jahresbilanz 2024: Hinweis unter dem Jahr nennt keine unmögliche Zahl „650 von 545“ mehr.",
+    "markieren": [
+      "css:p.mb-5",
+      "text:Days"
+    ],
+    "bereich": "Statistik",
+    "warum": "Spieltage, die nur in der Preisgeld-Akte stehen, zählten beim Preisgeld mit, aber nicht bei der Zahl der Spieltage.",
+    "was": "Diese Spieltage zählen jetzt überall mit. Dadurch steigt auch die Spieltage-Zahl auf der Startseite um die Jahre vor 2024. Sichtbar erst, wenn der Stundenlauf neu rechnet.",
+    "ansehen": [
+      "/statistics?bereich=jahr&jahr=2024",
+      "/"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "commits": [],
+    "status": "wartet",
+    "runde": 6
   }
 ]
