@@ -605,7 +605,10 @@
     "groesse": "mittel",
     "modell": "Sonnet (Bau) + Opus (Prüfung, Server-Teil neu)",
     "status": "wartet",
-    "runde": 1
+    "runde": 1,
+    "markieren": [
+      "text:Solo Clutch Points"
+    ]
   },
   {
     "id": "chef-34",
@@ -697,7 +700,10 @@
     "groesse": "klein",
     "modell": "Opus (Prüfung: Sonnet)",
     "status": "wartet",
-    "runde": 1
+    "runde": 1,
+    "markieren": [
+      "text:km"
+    ]
   },
   {
     "id": "chef-37",
@@ -717,7 +723,10 @@
     "groesse": "mittel",
     "modell": "Sonnet",
     "status": "wartet",
-    "runde": 1
+    "runde": 1,
+    "markieren": [
+      "text:Your players"
+    ]
   },
   {
     "id": "chef-40",
@@ -735,7 +744,10 @@
     "groesse": "klein",
     "modell": "Opus",
     "status": "wartet",
-    "runde": 1
+    "runde": 1,
+    "markieren": [
+      "css:main .rounded-3xl"
+    ]
   },
   {
     "id": "chef-41",
@@ -807,7 +819,10 @@
     "groesse": "klein",
     "modell": "Opus",
     "status": "wartet",
-    "runde": 1
+    "runde": 1,
+    "markieren": [
+      "text:from 20 matches"
+    ]
   },
   {
     "id": "chef-43",
@@ -826,7 +841,10 @@
     "groesse": "mittel",
     "modell": "Sonnet",
     "status": "wartet",
-    "runde": 1
+    "runde": 1,
+    "markieren": [
+      "css:main"
+    ]
   },
   {
     "id": "chef-47",
@@ -844,7 +862,10 @@
     "groesse": "klein",
     "modell": "Opus",
     "status": "wartet",
-    "runde": 1
+    "runde": 1,
+    "markieren": [
+      "text:K/D"
+    ]
   },
   {
     "id": "chef-48",
@@ -880,7 +901,10 @@
     "groesse": "klein",
     "modell": "Opus",
     "status": "wartet",
-    "runde": 1
+    "runde": 1,
+    "markieren": [
+      "text:K/D"
+    ]
   },
   {
     "id": "chef-46",
@@ -894,7 +918,7 @@
       "/admin"
     ],
     "commits": [
-      "4c4aa44ca36c53a0bccc0bfbc7560fbe2f0b7be6"
+      "f674baa60cdb7c198ae7e9e540a772db16268c54"
     ],
     "groesse": "klein",
     "modell": "Sonnet",
