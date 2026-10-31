@@ -704,6 +704,7 @@ async function wiederholen() {
     let liste = [];
     try { liste = await fs.readdir(path.join(ABLAGE, season)); } catch { continue; }
     for (const windowId of liste) {
+      if (/Arena/i.test(windowId)) continue; // keine Server-Replays, siehe planSchreibenLauf
       const zustand = await liesZustand(season, windowId);
       const offen = Object.entries(zustand.matches ?? {})
         // Fertig ist fertig, und was Epic nicht mehr hat, bekommt es nicht
@@ -853,6 +854,9 @@ async function planSchreibenLauf(datei) {
       for (const w of liste) {
         if (w.status !== 'live' && w.status !== 'vorbei') continue;
         if (finals && !finals.has(w.windowId) && pcAn) continue;
+        // Arena-Matches legt Epic nicht als Server-Replay ab (wie in clutch-berechnen.mjs). Ein angefragter Arenas Cash Cup (13.753 Matches, 0 je
+        // gelesen) stand am 31.10.2026 die ganze Nacht als "8666 offen" im Signal - und die Nacharbeiter machten deshalb stundenlang Platz.
+        if (/Arena/i.test(w.windowId)) continue;
         const m = /^(S\d+)_/i.exec(w.windowId);
         if (!m) continue;
         const live = w.status === 'live';
@@ -913,11 +917,16 @@ async function planSchreibenLauf(datei) {
     console.log(`  ${f.windowId.padEnd(52)} ${String(f.offen.length).padStart(5)} offen von ${f.alle}${f.live ? ' (live)' : ''}${f.angefragt ? ' (angefragt)' : ''}`);
   }
   console.log(`${gesamt} offene Matches aus ${plan.length} Spieltagen - ${stuecke} Rechner.`);
+  // Fuer das Vorrang-Signal (schnell-vorrang.mjs) zaehlt nur echte Arbeit: ein Match, das schon als "kein Replay" im Stand steht, wird bei einem
+  // Spieltag, der laenger als sechs Stunden vorbei ist, nur noch der Ordnung halber nachgefragt (Sekunden) - dafuer sollen acht Nacharbeiter nicht pausieren.
+  const signal = plan.reduce((a, f) => a + ((f.live || f.datum > jetzt - 6 * 3600_000)
+    ? f.offen.length
+    : f.offen.filter((id) => f.vorher?.[id]?.stand !== ZUSTAND.NICHT_VORHANDEN).length), 0);
   await fs.mkdir(path.dirname(datei), { recursive: true });
   await fs.writeFile(datei, JSON.stringify({ erstellt: new Date().toISOString(), stuecke, fenster: plan }), 'utf8');
   if (process.env.GITHUB_OUTPUT) {
     await fs.appendFile(process.env.GITHUB_OUTPUT,
-      `stuecke=${JSON.stringify(Array.from({ length: stuecke }, (_, i) => i))}\narbeit=${plan.length ? 'ja' : 'nein'}\noffen=${gesamt}\n`);
+      `stuecke=${JSON.stringify(Array.from({ length: stuecke }, (_, i) => i))}\narbeit=${plan.length ? 'ja' : 'nein'}\noffen=${signal}\n`);
   }
 }
 

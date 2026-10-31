@@ -269,6 +269,10 @@ export async function getToken() {
     });
   } catch (e) {
     if (a.mode === 'refresh') throw new EpicLoginNoetig('Die Anmeldung ist abgelaufen.');
+    // Ein widerrufener Geraetezugang ist kein Ausfall, sondern ein Fall fuer npm run epic-login - als 500 machte der
+    // Lastverteiler daraus eine Fehlerseite und #admin-alarm meldete "Seite gestoert" (31.10.2026).
+    if (/credentials you are using are invalid|invalid_account_credentials/i.test(String((e as Error)?.message)))
+      throw new EpicLoginNoetig('Der Epic-Geraetezugang ist ungueltig. Einmal ausfuehren: npm run epic-login');
     throw e;
   }
 
