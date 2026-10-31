@@ -30,7 +30,7 @@ interface Geldplatz {
  */
 function MeistesPreisgeld({ ort }: { ort: string }) {
   type Antwort = { jahr: number; plaetze: Geldplatz[]; spieltageMitRegel: number };
-  const diesesJahr = new Date().getUTCFullYear();
+  const jahr = new Date().getUTCFullYear();
   /*
    * Zwei Listen, ein Umschalter: das Jahr und alle Zeit. Der Betreiber:
    * "ein zweiter Block Most Earnings all time - das ist die Zahl, die alle
@@ -40,25 +40,16 @@ function MeistesPreisgeld({ ort }: { ort: string }) {
   const [alle, setAlle] = useState<Antwort | null>(null);
   const [wahl, setWahl] = useState<'jahr' | 'alle'>('jahr');
   useEffect(() => {
-    const hole = (adresse: string) =>
+    const hole = (adresse: string, setz: (a: Antwort) => void) =>
       fetch(adresse, { signal: AbortSignal.timeout(10_000) })
         .then((r) => r.json())
-        .then((j) => (j?.plaetze?.length ? j as Antwort : null))
-        .catch(() => null /* dann fehlt der Abschnitt - besser als leere Karten */);
-    /*
-     * Zum Jahreswechsel ist das neue Jahr noch nicht vorgerechnet (Antwort ohne Plaetze). Dann das Vorjahr - und die Ueberschrift
-     * nennt das Jahr, das wirklich angezeigt wird. Vorher stand ab dem 1.1. die Liste aller Zeiten unter "Meistes Preisgeld 2027".
-     */
-    void hole(`/api/szene-stats?ansicht=jahr&jahr=${diesesJahr}&kurz=1`)
-      .then((j) => j ?? hole(`/api/szene-stats?ansicht=jahr&jahr=${diesesJahr - 1}&kurz=1`))
-      .then((j) => { if (j) setDieses(j); });
-    void hole('/api/szene-stats?ansicht=jahr&jahr=alle&kurz=1').then((j) => { if (j) setAlle(j); });
-  }, [diesesJahr]);
-  // Was wirklich gezeigt wird - fehlt eine Liste, die andere, und die Ueberschrift folgt ihr.
-  const zeigt: 'jahr' | 'alle' = wahl === 'alle' ? (alle ? 'alle' : 'jahr') : (dieses ? 'jahr' : 'alle');
-  const daten = zeigt === 'alle' ? alle : dieses;
+        .then((j) => { if (j?.plaetze?.length) setz(j); })
+        .catch(() => { /* dann fehlt der Abschnitt - besser als leere Karten */ });
+    void hole(`/api/szene-stats?ansicht=jahr&jahr=${jahr}&kurz=1`, setDieses);
+    void hole('/api/szene-stats?ansicht=jahr&jahr=alle&kurz=1', setAlle);
+  }, [jahr]);
+  const daten = wahl === 'alle' ? (alle ?? dieses) : (dieses ?? alle);
   if (!daten) return null;
-  const jahr = dieses?.jahr || diesesJahr;
   return (
     <section className="px-4 py-16">
       <div className="mx-auto max-w-6xl">
@@ -69,7 +60,7 @@ function MeistesPreisgeld({ ort }: { ort: string }) {
                 <T>Preisgeld</T>
               </p>
               <h2 className="mt-1 text-2xl font-black tracking-tight sm:text-3xl">
-                <T>Meistes Preisgeld</T> {zeigt === 'alle' ? <T>aller Zeiten</T> : jahr}
+                <T>Meistes Preisgeld</T> {wahl === 'alle' ? <T>aller Zeiten</T> : jahr}
               </h2>
               {alle && dieses && (
                 <div className="mt-2 flex gap-1.5">
@@ -84,7 +75,7 @@ function MeistesPreisgeld({ ort }: { ort: string }) {
                 </div>
               )}
             </div>
-            <Link href={zeigt === 'alle' ? '/statistics?bereich=jahr&jahr=alle' : `/statistics?bereich=jahr&jahr=${jahr}`}
+            <Link href={wahl === 'alle' ? '/statistics?bereich=jahr&jahr=alle' : '/statistics?bereich=jahr'}
               className="shrink-0 rounded-lg border border-zinc-800 px-3 py-1.5 text-xs
                          font-semibold text-slate-300 transition hover:border-sky-500
                          hover:text-sky-400">

@@ -92,7 +92,7 @@
       "b990d7986f72171f25bc0bb621ff6cb6efd647ad"
     ],
     "modell": "Opus",
-    "status": "wartet",
+    "status": "live",
     "runde": 1
   },
   {
@@ -112,7 +112,7 @@
       "2b43fd9b9fe7763b70494c8385aa1b933b17a9a8"
     ],
     "modell": "Opus",
-    "status": "wartet",
+    "status": "abgelehnt",
     "runde": 1
   },
   {
@@ -243,7 +243,7 @@
     "commits": [
       "300406b5919c44293566ddd47fdf6f99892e700a"
     ],
-    "status": "wartet",
+    "status": "live",
     "runde": 1
   },
   {
