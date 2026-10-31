@@ -436,5 +436,22 @@
     "modell": "Opus",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-24",
+    "titel": "Schnellerer Seitenaufbau: unbenutzte Symbol-Schrift raus, kleines Logo im Kopf",
+    "bereich": "Tempo",
+    "modell": "Sonnet",
+    "warum": "Jede Seite lud vor dem ersten Bild eine Symbol-Schrift (Font Awesome) von einem fremden Server, die nirgends benutzt wird. Und oben links wurde das Logo als 512×512-Bild mit 79 KB geladen, obwohl es nur etwa 40 Pixel groß erscheint.",
+    "was": "Die unbenutzte Symbol-Schrift wird nicht mehr geladen. Das Logo im Kopf ist jetzt eine eigene kleine Datei (96×96, unter 1 KB), die genauso aussieht. Für Vorschaubilder beim Teilen bleibt das große Logo. Die Seite baut sich dadurch etwas schneller auf, vor allem auf dem Handy. Sonst sieht alles aus wie vorher.",
+    "ansehen": [
+      "/",
+      "/statistics"
+    ],
+    "groesse": "klein",
+    "datum": "2026-10-31T19:15:15Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]

@@ -171,7 +171,6 @@ export default async function RootLayout({
       <head>
         <link rel="stylesheet" href="/fonts/fonts.css" />
         <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&family=Roboto+Mono:wght@300;400;700&display=swap" rel="stylesheet" />
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css" />
       </head>
       <body className="min-h-full flex flex-col">
         {/* Die Sprache umschliesst alles - Kopfzeile, Seite und den
