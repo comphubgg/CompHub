@@ -313,6 +313,9 @@ interface VerlaufZeile {
   mitspieler: Mitspieler[];
 }
 
+/** Die Jahre der Jahresbilanz (plus 'alle') - Auswahl oben und Pruefung der Adresse. */
+const JAHRE_WAHL = ['2026', '2025', '2024', '2023', '2022', '2021', '2020', '2019'];
+
 const BEREICHE: Array<[Bereich, string]> = [
   ['start', 'Highlights'],
   ['turniere', 'Cups'],
@@ -2363,6 +2366,8 @@ export default function StatistikSeite() {
   /** Das Turnierverzeichnis kam nicht - dann steht nicht ewig "Wird geladen". */
   const [turniereFehlt, setTurniereFehlt] = useState(false);
   const [jahrVersuch, setJahrVersuch] = useState(0);
+  /** Region/Saison der Jahresbilanz kamen aus der Adresse und sind noch nicht gegen die Antwort geprueft. */
+  const jahrAdresseOffen = useRef(false);
   /** Schon geholte Jahresantworten, je Auswahl - beim Zurueckwechseln sofort da. */
   const jahrMerker = useRef(new Map<string, NonNullable<typeof jahr>>());
   const [sichtbar, setSichtbar] = useState<Record<Bereich, Sichtbar>>(SICHTBAR_STANDARD);
@@ -2743,8 +2748,18 @@ export default function StatistikSeite() {
     const gewuenscht = suchParameter?.get('bereich');
     if (gewuenscht && ['turniere', 'regional', 'spieler', 'jahr', 'orgs', 'vergleich', 'bilder'].includes(gewuenscht)) {
       setBereich(gewuenscht as Bereich);
-      const j = suchParameter?.get('jahr');
-      if (j === 'alle') setJahrWahl('alle');
+      /* Jahresbilanz: "?bereich=jahr&jahr=2025&jregion=EU&jsaison=S37" ("jahr" = alle oder ein Jahr der Auswahl; sonst bleibt der Standard). */
+      if (gewuenscht === 'jahr') {
+        const j = suchParameter?.get('jahr');
+        if (j === 'alle' || (j && JAHRE_WAHL.includes(j))) setJahrWahl(j);
+        const jr = suchParameter?.get('jregion') ?? '';
+        const js = suchParameter?.get('jsaison') ?? '';
+        const gueltigR = /^[A-Za-z]{2,8}$/.test(jr) ? jr : '';
+        const gueltigS = j !== 'alle' && /^S\d{1,3}$/.test(js) ? js : '';
+        if (gueltigR) setJahrRegion(gueltigR);
+        if (gueltigS) setJahrSaison(gueltigS);
+        jahrAdresseOffen.current = !!(gueltigR || gueltigS);
+      }
     }
 
     /*
@@ -2794,7 +2809,10 @@ export default function StatistikSeite() {
   useEffect(() => {
     if (bereich !== 'jahr') return;
     let weg = false;
-    const schluessel = `${jahrWahl}|${jahrRegion}|${jahrSaison}`;
+    /* Kam die Auswahl aus der Adresse, wird erst das Jahr ungefiltert geholt und Region/Saison dagegen geprueft - Unbekanntes faellt weg. */
+    const pruefen = jahrAdresseOffen.current;
+    const [fRegion, fSaison] = pruefen ? ['', ''] : [jahrRegion, jahrSaison];
+    const schluessel = `${jahrWahl}|${fRegion}|${fSaison}`;
     /*
      * Was schon einmal geholt wurde, steht sofort - ohne Ladeschirm. Der
      * Schirm kommt erst, wenn wirklich gewartet wird (nach einer Viertel-
@@ -2814,8 +2832,8 @@ export default function StatistikSeite() {
     let nochmal: ReturnType<typeof setTimeout> | null = null;
     setJahrFehlt(false);
     fetch(`/api/szene-stats?ansicht=jahr&jahr=${jahrWahl}`
-      + (jahrRegion ? `&region=${encodeURIComponent(jahrRegion)}` : '')
-      + (jahrSaison ? `&saison=${encodeURIComponent(jahrSaison)}` : ''),
+      + (fRegion ? `&region=${encodeURIComponent(fRegion)}` : '')
+      + (fSaison ? `&saison=${encodeURIComponent(fSaison)}` : ''),
       { signal: AbortSignal.timeout(12_000) })
       .then((r) => r.json())
       .then((j) => {
@@ -2823,6 +2841,12 @@ export default function StatistikSeite() {
         if (!j?.listen) throw new Error('keine Liste');
         jahrMerker.current.set(schluessel, j);
         setJahr(j);
+        if (pruefen) {
+          jahrAdresseOffen.current = false;
+          if (jahrRegion && !(j.regionen ?? []).includes(jahrRegion)) setJahrRegion('');
+          if (jahrSaison && !(j.saisonenDesJahres ?? []).some((x: { kennung: string }) => x.kennung === jahrSaison)) setJahrSaison('');
+          setJahrVersuch((v) => v + 1);
+        }
       })
       .catch(() => {
         if (weg) return;
@@ -2832,7 +2856,6 @@ export default function StatistikSeite() {
       .finally(() => { clearTimeout(zeiger); if (!weg) setJahrLaedt(false); });
     return () => { weg = true; clearTimeout(zeiger); if (nochmal) clearTimeout(nochmal); };
   }, [bereich, jahrRegion, jahrWahl, jahrSaison, jahrVersuch]);
-  useEffect(() => { setJahrSaison(''); }, [jahrWahl]);
 
   /** Die Bereiche, die dieser Besucher sehen darf. */
   const sichtbareBereiche = useMemo(() => {
@@ -3564,12 +3587,17 @@ export default function StatistikSeite() {
     setze('sort', sort === 'elims' ? null : sort);
     setze('region', region === stdRegion ? null : (region || 'alle'));
     setze('saison', saison === stdSaison ? null : (saison || null));
+    /* Jahresbilanz: eigene Namen (jregion, jsaison), damit sie sich nicht mit region/saison der Spielerliste beissen; nur im Bereich "jahr". */
+    const imJahr = bereich === 'jahr';
+    setze('jahr', imJahr && jahrWahl !== String(JAHR) ? jahrWahl : null);
+    setze('jregion', imJahr && jahrRegion ? jahrRegion : null);
+    setze('jsaison', imJahr && jahrSaison && jahrWahl !== 'alle' ? jahrSaison : null);
     const rest = p.toString();
     const adresse = window.location.pathname + (rest ? `?${rest}` : '');
     if (adresse !== window.location.pathname + window.location.search) {
       window.history.replaceState(window.history.state, '', adresse);
     }
-  }, [listeAusAdresse, bereich, sort, region, saison, regionen, saisons]);
+  }, [listeAusAdresse, bereich, sort, region, saison, regionen, saisons, jahrWahl, jahrRegion, jahrSaison]);
 
   /*
    * Das Profil zumachen.
@@ -5083,8 +5111,8 @@ export default function StatistikSeite() {
               </div>
               <div className="mb-4 flex flex-wrap items-center gap-3">
                 <div className="flex max-w-full items-center gap-1 overflow-x-auto rounded-full border border-zinc-800 bg-zinc-900 p-1 shadow-sm [scrollbar-width:none]">
-                  {[['alle', t('Alle Zeit')], ['2026', '2026'], ['2025', '2025'], ['2024', '2024'], ['2023', '2023'], ['2022', '2022'], ['2021', '2021'], ['2020', '2020'], ['2019', '2019']].map(([w, titel]) => (
-                    <button key={w} onClick={() => setJahrWahl(w)}
+                  {[['alle', t('Alle Zeit')], ...JAHRE_WAHL.map((x) => [x, x])].map(([w, titel]) => (
+                    <button key={w} onClick={() => { setJahrWahl(w); setJahrSaison(''); }}
                       className={`shrink-0 rounded-full px-4 py-1.5 text-sm font-bold transition ${
                         jahrWahl === w
                           ? 'bg-sky-500 text-white shadow-sm'
