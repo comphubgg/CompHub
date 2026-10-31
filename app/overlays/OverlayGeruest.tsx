@@ -6,6 +6,7 @@ import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import { useZugang } from '@/app/lib/zugang';
 import MeineOverlays from './MeineOverlays';
+import { overlayLoeschen, useLoeschStand } from './Loeschen';
 import Startansicht from './Startansicht';
 import LadeSchirm from '@/app/components/LadeSchirm';
 import VipVorhang from './VipVorhang';
@@ -140,7 +141,8 @@ export function useOverlays(typ: string) {
     }
   }, [typ]);
 
-  useEffect(() => { void laden(); }, [laden]);
+  const { version: loeschVersion } = useLoeschStand();
+  useEffect(() => { void laden(); }, [laden, loeschVersion]);
 
   const speichern = useCallback(async (
     eintrag: { id?: string; name: string; config: Record<string, unknown> },
@@ -171,13 +173,10 @@ export function useOverlays(typ: string) {
   }, [typ, laden]);
 
   const entfernen = useCallback(async (id: string) => {
-    await fetch('/api/overlay-config', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, loeschen: true }),
-    }).catch(() => {});
+    const o = liste?.find((x) => x.id === id);
+    await overlayLoeschen({ id, typ, name: o?.name ?? '' });
     await laden();
-  }, [laden]);
+  }, [laden, liste, typ]);
 
   return { liste, fehler, speichern, entfernen, laden };
 }

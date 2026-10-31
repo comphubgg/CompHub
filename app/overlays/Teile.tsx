@@ -5,6 +5,7 @@ import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import { ARTEN, overlayAdresse, type OverlayEintrag } from './OverlayGeruest';
 import { useZugang } from '@/app/lib/zugang';
+import LoeschLeiste from './Loeschen';
 import {
   managerDarfCup, overlayCupErlaubt, overlayCupRang, overlayRegionRang,
   overlayZeitraumWeit, rundenBeschriftung,
@@ -524,14 +525,18 @@ export function MeineListe({ liste, typ, offen, waehlen, entfernen }: {
 
   if (!liste.length) {
     return (
-      <p className="rounded-xl border border-dashed border-zinc-800 px-4 py-6
-                    text-center text-[11px] text-slate-600">
-        <T>Noch keins angelegt. Links einstellen und speichern.</T>
-      </p>
+      <>
+        <p className="rounded-xl border border-dashed border-zinc-800 px-4 py-6
+                      text-center text-[11px] text-slate-600">
+          <T>Noch keins angelegt. Links einstellen und speichern.</T>
+        </p>
+        <LoeschLeiste typ={typ} />
+      </>
     );
   }
 
   return (
+    <>
     <div className="space-y-2">
       {liste.map((o) => (
         <div key={o.id}
@@ -562,5 +567,7 @@ export function MeineListe({ liste, typ, offen, waehlen, entfernen }: {
         </div>
       ))}
     </div>
+    <LoeschLeiste typ={typ} />
+    </>
   );
 }

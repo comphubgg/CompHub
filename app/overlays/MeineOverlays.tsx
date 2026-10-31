@@ -5,6 +5,7 @@ import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import { ARTEN, overlayAdresse, type OverlayEintrag } from './OverlayGeruest';
 import { useZugang } from '@/app/lib/zugang';
+import LoeschLeiste, { overlayLoeschen, useLoeschStand } from './Loeschen';
 import {
   overlayCupErlaubt, overlayCupRang, overlayRegionRang, overlayZeitraumWeit,
 } from '@/lib/overlayCups';
@@ -54,6 +55,7 @@ export default function MeineOverlays({ nurArt = '' }: { nurArt?: string }) {
   /** Bei welchem Overlay die Cup-Liste gerade offen steht. */
   const [cupOffen, setCupOffen] = useState<string | null>(null);
   const [meldung, setMeldung] = useState('');
+  const { version: loeschVersion } = useLoeschStand();
 
   const laden = useCallback(async () => {
     try {
@@ -66,7 +68,7 @@ export default function MeineOverlays({ nurArt = '' }: { nurArt?: string }) {
     }
   }, [nurArt]);
 
-  useEffect(() => { void laden(); }, [laden]);
+  useEffect(() => { void laden(); }, [laden, loeschVersion]);
 
   useEffect(() => {
     fetch('/api/cup-catalog?modus=alle')
@@ -161,12 +163,8 @@ export default function MeineOverlays({ nurArt = '' }: { nurArt?: string }) {
     await laden();
   }, [laden, t]);
 
-  const entfernen = useCallback(async (id: string) => {
-    await fetch('/api/overlay-config', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ id, loeschen: true }),
-    }).catch(() => {});
+  const entfernen = useCallback(async (o: OverlayEintrag) => {
+    await overlayLoeschen(o);
     await laden();
   }, [laden]);
 
@@ -348,7 +346,7 @@ export default function MeineOverlays({ nurArt = '' }: { nurArt?: string }) {
                                  font-medium text-white hover:bg-sky-400">
                       {kopiert === o.id ? <T>Kopiert</T> : <T>Adresse</T>}
                     </button>
-                    <button onClick={() => void entfernen(o.id)}
+                    <button onClick={() => void entfernen(o)}
                       title={t('Löschen')}
                       className="text-slate-600 transition hover:text-rose-400">
                       ×
@@ -483,6 +481,8 @@ export default function MeineOverlays({ nurArt = '' }: { nurArt?: string }) {
           ))}
         </div>
       )}
+
+      <LoeschLeiste typ={nurArt} />
     </section>
   );
 }
