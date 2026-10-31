@@ -1007,5 +1007,23 @@
       "zeit": "2026-10-31T21:52:02.576Z",
       "main": "f1d58fb7"
     }
+  },
+  "chef-103": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:52:11.221Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
+  },
+  "chef-97": {
+    "entscheidung": "ja",
+    "notiz": "",
+    "zeit": "2026-10-31T21:52:11.221Z",
+    "uebernahme": {
+      "stand": "laeuft",
+      "text": "Wird gerade übernommen …"
+    }
   }
 }
