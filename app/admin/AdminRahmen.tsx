@@ -6,6 +6,13 @@ import { usePathname } from 'next/navigation';
 import T from '@/app/components/T';
 import { useT } from '@/app/components/SprachProvider';
 import { useZugang } from '@/app/lib/zugang';
+import { ergaenzeEnglisch } from '@/app/lib/sprache';
+import { ADMIN_AUF_ENGLISCH } from '@/app/lib/spracheAdmin';
+
+// Die Admin-Texte werden erst hier geladen, nicht fuer alle Besucher. Das
+// Eintragen laeuft beim Laden des Moduls - auf dem Server und im Browser vor
+// dem ersten Zeichnen -, damit beide Seiten dasselbe liefern.
+ergaenzeEnglisch(ADMIN_AUF_ENGLISCH);
 
 /*
  * Der Rahmen um alle Admin-Seiten (Betreiber, 14.10.2026: "du hast fuer den Admin gar nichts geaendert ... Posts, Maps ... alles anpassen, auch fuer den
