@@ -4779,8 +4779,10 @@ export default function CupSeite({ params }: { params: Promise<{ id: string }> }
                       })
                       .map((sp0, i) => {
                         const aus = teamAusListe.get(sp0.epicId);
-                        const sp = sp0.platz === null && aus
-                          ? { ...sp0, platz: aus.platz, partner: aus.partner }
+                        // Steht das Team in der geladenen Bestenliste, gilt deren Platz (Epic): der Platz aus den Replays
+                        // rechnet nur mit den gesammelten Spielen und lag bei Duo-Cups ab Platz 18 um eins daneben.
+                        const sp = aus
+                          ? { ...sp0, platz: aus.platz, partner: sp0.platz === null ? aus.partner : sp0.partner }
                           : sp0;
                         return (
                         <tr key={sp.epicId}
