@@ -388,5 +388,37 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-20",
+    "titel": "Overlays: Löschen lässt sich rückgängig machen",
+    "bereich": "Werkzeuge",
+    "modell": "Sonnet",
+    "warum": "Ein Klick auf das kleine „×“ neben „Adresse“ löschte ein Overlay sofort und endgültig. Ein neu angelegtes Overlay bekommt eine andere Adresse – die Quelle im Stream (OBS) blieb dann leer. Schlug das Löschen fehl, sah man davon nichts.",
+    "was": "Nach dem Löschen steht 10 Sekunden lang „Overlay gelöscht“ mit dem Knopf „Rückgängig“. Darunter gibt es die Liste „Zuletzt gelöscht“ mit „Wiederherstellen“ – sieben Tage lang, mit derselben Adresse für OBS. Erst danach ist ein Overlay endgültig weg. Klappt Löschen oder Wiederherstellen nicht, erscheint ein roter Hinweis mit dem Grund (z. B. „Nicht gelöscht – HTTP 403“). Im Stream verschwindet ein gelöschtes Overlay wie bisher.",
+    "ansehen": [
+      "/overlays"
+    ],
+    "groesse": "mittel",
+    "datum": "2026-10-31T19:13:06Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
+  },
+  {
+    "id": "chef-21",
+    "titel": "Streams: fehlgeschlagenes Speichern wird sichtbar gemeldet",
+    "bereich": "Werkzeuge",
+    "modell": "Sonnet",
+    "warum": "Wenn du die Stream-Ordner für alle speicherst und der Server ablehnt, landete das nur unsichtbar im Hintergrund. Auf dem Bildschirm sah alles gespeichert aus; nach dem Neuladen war die Änderung weg.",
+    "was": "Klappt das Speichern nicht, erscheint ein roter Streifen „Nicht gespeichert – Server antwortet nicht (HTTP …)“ mit dem Knopf „Erneut versuchen“. Er bleibt stehen, bis das Speichern geklappt hat. Im Normalfall ändert sich nichts.",
+    "ansehen": [
+      "/streams"
+    ],
+    "groesse": "klein",
+    "datum": "2026-10-31T19:13:07Z",
+    "commits": [],
+    "status": "wartet",
+    "runde": 1
   }
 ]
