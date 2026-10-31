@@ -34,8 +34,9 @@
     "notiz": "",
     "zeit": "2026-10-31T18:42:03.740Z",
     "uebernahme": {
-      "stand": "laeuft",
-      "text": "Wird gerade uebernommen ..."
+      "stand": "konflikt",
+      "text": "Passt nicht ohne Weiteres auf den aktuellen Stand der Seite - der Chef loest das in seiner naechsten Runde.",
+      "zeit": "2026-10-31T18:42:13.765Z"
     }
   }
 }
