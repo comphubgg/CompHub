@@ -5396,7 +5396,7 @@ export default function StatistikSeite() {
                     return (
                       <section key={r.name} className="mb-7">
                         <div className="mb-2 flex flex-wrap items-center gap-2">
-                          <h2 className="schrift-anzeige text-2xl font-extrabold tracking-tight text-slate-100">{r.name}</h2>
+                          <h2 className="schrift-anzeige text-2xl font-extrabold tracking-tight text-slate-100">{t(r.name)}</h2>
                           <div className="ml-auto flex flex-wrap gap-1">
                             {r.tage.map((t) => (
                               <button key={t.windowId}
