@@ -33,12 +33,15 @@ export async function GET(request: Request) {
       for (const v of varianten) {
         const r = await fetch(`https://account-public-service-prod.ol.epicgames.com/account/api/public/account/displayName/${encodeURIComponent(v)}`,
           { headers: { Authorization: token }, cache: 'no-store', signal: AbortSignal.timeout(8_000) });
+        // 404 = den Namen gibt es nicht; jede andere Absage (Anmeldung, Last, Ausfall) ist ein Epic-Ausfall und darf nicht als "nicht gefunden" erscheinen.
+        if (!r.ok && r.status !== 404) throw new Error(`Epic ${r.status}`);
         j = r.ok ? await r.json() as { id?: string; displayName?: string } : null;
         if (j?.id) break;
       }
       return NextResponse.json({ ok: true, treffer: j?.id ? { id: j.id, name: j.displayName ?? name } : null }, { headers: nie });
     } catch {
-      return NextResponse.json({ ok: true, treffer: null }, { headers: nie });
+      // Epic-Ausfall ist nicht "Spieler nicht gefunden". Kein 5xx (Lastverteiler), darum 424.
+      return NextResponse.json({ ok: false, error: 'Epic antwortet gerade nicht', treffer: null }, { status: 424, headers: nie });
     }
   }
   const ids = [...new Set((new URL(request.url).searchParams.get('ids') ?? '').split(',')
