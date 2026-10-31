@@ -186,8 +186,10 @@
     "notiz": "",
     "zeit": "2026-10-31T21:14:28.388Z",
     "uebernahme": {
-      "stand": "laeuft",
-      "text": "Wird gerade übernommen …"
+      "stand": "auf-github",
+      "text": "Auf GitHub (main d71536da). Der Projektordner auf dem PC hatte gerade offene Arbeit - live geht es mit dem nächsten Veröffentlichen. Netlify folgt mit dem nächsten Bau (höchstens alle 6 Stunden).",
+      "zeit": "2026-10-31T21:16:13.347Z",
+      "main": "d71536da"
     }
   },
   "chef-80": {
