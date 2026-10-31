@@ -628,5 +628,21 @@
     "modell": "Opus",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-38",
+    "datum": "2026-10-31T19:36:54Z",
+    "titel": "Google findet Spielerprofile und Cup-Seiten",
+    "bereich": "Statistik",
+    "warum": "Die Liste der Seiten für Suchmaschinen enthielt nur die zwölf festen Hauptseiten. Kein Spielerprofil und keine Cup-Seite stand darin – wer „Peterbot earnings“ googelt, fand CompHub deshalb kaum.",
+    "was": "Die Liste nimmt jetzt alle Spieler aus den Bestenlisten „alle Zeit“ und alle Cup-Seiten auf und erneuert sich alle sechs Stunden. Fällt eine Quelle aus, bleiben die festen Seiten drin – es wird nichts erfunden.",
+    "ansehen": [
+      "/sitemap.xml"
+    ],
+    "commits": [],
+    "groesse": "klein",
+    "modell": "Opus",
+    "status": "wartet",
+    "runde": 1
   }
 ]
