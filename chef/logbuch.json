@@ -75,5 +75,22 @@
     "modell": "Opus",
     "status": "live",
     "runde": 1
+  },
+  {
+    "id": "chef-5",
+    "titel": "Startseite: Zahl der Spieltage passt jetzt zur Statistik",
+    "bereich": "Statistik",
+    "warum": "Oben auf der Startseite stand „982 Spieltage im Archiv“. In der Statistik stehen für 2026 allein aber 1.342 Spieltage. Ein einzelnes Jahr wirkte so größer als das ganze Archiv – zwei Stellen, zwei Zahlen für dieselbe Sache.",
+    "was": "Die Startseite nimmt jetzt dieselbe Zählung wie die Statistik (alle Zeit, mit Epics Bestenlisten): heute rund 4.700 Spieltage. Damit ist die Gesamtzahl immer mindestens so groß wie jedes einzelne Jahr. Fällt die Abfrage aus, bleibt die alte Zahl bzw. ein Strich stehen.",
+    "ansehen": [
+      "/",
+      "/statistics"
+    ],
+    "groesse": "klein",
+    "datum": "2026-10-31T18:51:20Z",
+    "commits": [],
+    "modell": "Opus",
+    "status": "wartet",
+    "runde": 1
   }
 ]

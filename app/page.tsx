@@ -244,18 +244,27 @@ export default function Startseite() {
          */
         const frist = AbortSignal.timeout(10_000);
         // Dazu gleich die genaue Zahl (?zahl=1, 30.10.2026): die Summe der Spieltage hinkt hinterher - die Seite zeigte 840.004, der Server kannte 861.118.
-        const [archiv, replays, zahl] = await Promise.all([
+        /*
+         * Die Zahl der Spieltage kommt aus der Liste "alle Zeit" (dieselbe Antwort wie der Preisgeld-Block unten, also meist schon im
+         * Zwischenspeicher). Vorher stand hier die Zahl aus dem Verzeichnis der Szene allein (982) - die Statistik zeigte fuer 2026 aber
+         * 1.342 Spieltage, weil dort auch Epics Bestenlisten zaehlen. Ein Jahr wirkte so groesser als das ganze Archiv.
+         */
+        const [archiv, replays, zahl, alleZeit] = await Promise.all([
           fetch('/api/szene-stats', { signal: frist })
             .then((r) => r.json()).catch(() => null),
           fetch('/api/replays', { signal: frist })
             .then((r) => r.json()).catch(() => null),
           fetch('/api/replays?zahl=1', { signal: frist })
             .then((r) => r.json()).catch(() => null) as Promise<{ ausgewertet?: number | null } | null>,
+          fetch('/api/szene-stats?ansicht=jahr&jahr=alle&kurz=1', { signal: frist })
+            .then((r) => r.json()).catch(() => null) as Promise<{ success?: boolean; spieltage?: number } | null>,
         ]);
         // Bleibt die Antwort aus, steht ein Strich - eine Null waere eine Behauptung.
         setStand({
           saisons: archiv?.saisons?.length ?? null,
-          spieltage: archiv?.spieltage ?? null,
+          spieltage: Math.max(
+            alleZeit?.success && typeof alleZeit.spieltage === 'number' ? alleZeit.spieltage : 0,
+            typeof archiv?.spieltage === 'number' ? archiv.spieltage : 0) || null,
           regionen: archiv?.regionen?.length ?? null,
           konten: null,
           replays: Math.max(zahl?.ausgewertet ?? 0, (replays?.fenster ?? []).reduce(
