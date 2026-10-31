@@ -1148,5 +1148,22 @@
     "modell": "Sonnet",
     "status": "wartet",
     "runde": 4
+  },
+  {
+    "id": "chef-61",
+    "datum": "2026-10-31T20:42:00Z",
+    "titel": "Vorschlag: Stundenlauf bekommt einen festen Rechner",
+    "kurz": "Unsichtbar: Statistik-Startliste wäre wieder aktuell – Vorschlag für den Betrieb.",
+    "bereich": "Daten",
+    "warum": "Der Lauf „Daten erneuern“ wartet seit 18:30 auf einen freien GitHub-Rechner; der vorige brauchte 2 Std. 40. Darum zeigt die Statistik-Startseite noch Spieltage bis 10.10. und viele meiner Korrekturen kommen nicht an.",
+    "was": "Vorschlag (ohne Änderung, betrifft die Abläufe): dem Stundenlauf immer einen Platz freihalten – Clutch-Rechner von 8 auf 4 senken und dieselbe Pause wie die Nacharbeiter beachten lassen. Sagst du ja, baue ich es nicht selbst; das muss dein Assistent auf main machen.",
+    "ansehen": [
+      "/statistics"
+    ],
+    "commits": [],
+    "groesse": "mittel",
+    "modell": "Opus",
+    "status": "vorschlag",
+    "runde": 4
   }
 ]
