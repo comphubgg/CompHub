@@ -991,8 +991,10 @@
     "notiz": "",
     "zeit": "2026-10-31T21:51:36.771Z",
     "uebernahme": {
-      "stand": "laeuft",
-      "text": "Wird gerade übernommen …"
+      "stand": "live",
+      "text": "Auf GitHub (main 957f2e3c); die Seite wird neu gebaut und ist in etwa 10 Minuten live. Netlify folgt mit dem nächsten Bau (höchstens alle 6 Stunden).",
+      "zeit": "2026-10-31T21:51:49.498Z",
+      "main": "957f2e3c"
     }
   }
 }
