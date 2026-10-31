@@ -91,7 +91,7 @@ async function main() {
      * nicht - ein gewoehnliches cherry-pick meldete deshalb bei jedem Eintrag einen Konflikt (31.10.2026, alle vier ersten Freigaben).
      * Sie werden hier herausgenommen; bleibt danach ein echter Konflikt im Code, uebernimmt der Chef in seiner Runde.
      */
-    const CHEF_PFADE = /^(chef\/|app\/chef\/|app\/api\/chef\/|scripts\/chef-uebernahme)/;
+    const CHEF_PFADE = /^(chef\/|app\/chef\/|app\/api\/chef\/|scripts\/chef-)/;
     let gesetzt = 0;
     for (const sha of commits) {
       try { git(weg, ['cherry-pick', '--no-commit', sha]); } catch { /* Konflikte unten pruefen */ }

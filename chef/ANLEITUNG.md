@@ -11,6 +11,27 @@ Der Betreiber vergleicht jede Aenderung auf seiner Seite **Vorher/Nachher** nebe
 fuer jeden Pfad aus `ansehen`). Gib deshalb immer die Pfade an, auf denen man den Unterschied sofort sieht - moeglichst mit Parametern,
 die gleich die richtige Stelle oeffnen (z. B. `/statistics?bereich=spieler&spieler=...`).
 
+## Dein Auftrag in einem Satz
+
+Der Betreiber (31.10.2026): "Er soll nie stoppen. Wenn ich zurückkomme, erwarte ich 50 Anpassungen, 50 Ideen - außer er sagt, die
+Website ist todesperfekt." Du arbeitest also ohne Leerlauf, so viel und so gut wie möglich.
+
+**Schwerpunkt: die Statistik.** Am meisten liegt dem Betreiber am Herzen, dass die Statistiken einwandfrei funktionieren - richtige Zahlen,
+vollständige Werte, keine leeren oder widersprüchlichen Stellen, schnell, gut lesbar (Statistikseite, Spielerprofile, Cup-Statistiken,
+Bestenlisten, Spielerwerte je Cup). Prüfe dort Zahlen gegen die öffentlichen Antworten der Seite (`/api/...`), suche Widersprüche
+(zwei Stellen zeigen für dasselbe verschiedene Werte), Lücken (Werte fehlen, obwohl die Quelle sie hat) und Fehler im Code. Jede Runde
+mindestens eine Verbesserung an der Statistik.
+
+**Mut zur Gestaltung.** Du darfst auch große Umbauten vorschlagen und bauen: eine andere Anordnung, eine andere Reihenfolge der
+Hauptnavigation (z. B. Events vor Home, Home umbenennen oder weglassen), ein neues Logo, ein neuer Aufbau der Startseite. Bau so etwas als
+eigenen Eintrag, damit der Betreiber es im Vorher/Nachher-Vergleich sieht und einzeln annehmen oder ablehnen kann. Ein Umbau der
+ganzen Seite auf einmal bleibt ein Vorschlag im Logbuch (siehe unten), einzelne Bereiche baust du direkt.
+
+**Tempo.** Nutze die ganze Runde (50 Minuten), hör nie früher auf, solange es etwas zu verbessern gibt. Arbeite parallel: gib bis zu vier
+voneinander unabhängige Aufgaben gleichzeitig an Unteragenten (Agent-Werkzeug, jede in eigenem Arbeitsordner, `isolation: "worktree"`,
+verschiedene Dateien), prüfe jedes Ergebnis selbst und committe jede Verbesserung einzeln als `[chef-N]`. Mehrere kleine, saubere
+Verbesserungen sind besser als eine riesige.
+
 ## 0. Pause
 
 Liegt die Datei `chef/PAUSE` im Zweig `claude/chef`, tust du nichts ausser `chef/status.json` auf `"pause": true` zu setzen (falls noch nicht)
@@ -40,7 +61,7 @@ und beendest die Runde.
 
 ## 3. Ablauf einer Runde
 
-Eine Runde startet jede Stunde und dauert **hoechstens 50 Minuten** - danach sauber abschliessen (Schritt 4), auch mitten in der Liste.
+Alle 20 Minuten wird eine Runde angestoßen; läuft schon eine, beendet sich die neue sofort (Sperre). Eine Runde dauert **höchstens 50 Minuten** - danach sauber abschliessen (Schritt 4), auch mitten in der Liste.
 
 1. Pause pruefen (Abschnitt 0). Dann **Sperre**: steht in `chef/status.json` ein `laeuftSeit`, das juenger als 60 Minuten ist, laeuft
    noch eine andere Runde - sofort beenden, nichts aendern. Sonst `laeuftSeit` auf jetzt setzen, committen (`[chef] Runde beginnt`) und
@@ -62,7 +83,7 @@ Eine Runde startet jede Stunde und dauert **hoechstens 50 Minuten** - danach sau
    - Der Eintrag im Logbuch kommt **in denselben Commit**.
 4. `aufgaben.md` und `status.json` aktualisieren, committen (`[chef] Runde ...`), `git pull --rebase origin claude/chef`, `git push origin HEAD:claude/chef`.
 
-Arbeite so lange, wie die Runde reicht. Lieber drei saubere, fertige Verbesserungen als zehn halbe. Eine angefangene, nicht fertige
+Arbeite so lange, wie die Runde reicht (50 Minuten). Fertige, saubere Verbesserungen zählen - aber hör nicht nach drei auf, wenn Zeit bleibt. Eine angefangene, nicht fertige
 Arbeit committest du nicht als `[chef-N]`, sondern notierst sie in `aufgaben.md`.
 
 ## 4. Logbuch-Eintrag
