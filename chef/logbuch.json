@@ -159,5 +159,22 @@
     "commits": [],
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-12",
+    "titel": "Bestenliste „Meiste Eliminierungen“ trägt jetzt auch Schaden und Quote",
+    "bereich": "Statistik",
+    "warum": "In der Statistik-Antwort der aktuellen Saison stand bei allen 400 Spielern der Elims-Liste „0 Schaden, Quote 0“. Derselbe Spieler hatte in der Schadensliste daneben echte Werte (Peterbot: 0 gegen 42.853). Die Seite hat das bisher an einer Stelle umschifft, an anderen Stellen konnte die Null durchrutschen.",
+    "was": "Die Elims-Liste übernimmt Schaden, Treffer, Bauteile und Schadensquote aus derselben Saisonsumme wie die Schadensliste. Beide Listen zeigen für denselben Spieler jetzt dieselben Werte. Sichtbar wird das, sobald die Statistik das nächste Mal vorgerechnet wird.",
+    "ansehen": [
+      "/statistics",
+      "/statistics?bereich=spieler"
+    ],
+    "groesse": "klein",
+    "datum": "2026-10-31T18:59:02Z",
+    "commits": [],
+    "modell": "Opus",
+    "status": "wartet",
+    "runde": 1
   }
 ]
