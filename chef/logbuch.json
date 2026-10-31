@@ -2,10 +2,10 @@
   {
     "id": "chef-1",
     "datum": "2026-10-31T18:55:00Z",
-    "titel": "Englische Fassung fuer 33 Texte nachgetragen",
+    "titel": "Englische Fassung für 33 Texte nachgetragen",
     "bereich": "Uebersetzung",
     "warum": "Auf Englisch standen an einigen Stellen noch deutsche Saetze. Oeffentlich betroffen war der Knopf 'Kartenbild waehlen' auf der Turnierkarten-Seite; der Rest steckte in den Admin-Werkzeugen (Alte Karten, Plakate, Replay-Ansicht, Konten).",
-    "was": "Jeder dieser Texte hat jetzt eine englische Fassung. Wer die Seite auf Englisch nutzt, sieht dort kein Deutsch mehr. Auf Deutsch aendert sich nichts.",
+    "was": "Jeder dieser Texte hat jetzt eine englische Fassung. Wer die Seite auf Englisch nutzt, sieht dort kein Deutsch mehr. Auf Deutsch ändert sich nichts.",
     "ansehen": [
       "/tournament-maps",
       "/admin/alte-maps",
@@ -17,7 +17,7 @@
     ],
     "groesse": "klein",
     "modell": "Opus",
-    "status": "wartet",
+    "status": "live",
     "runde": 1
   },
   {
@@ -25,8 +25,8 @@
     "datum": "2026-10-31T18:40:00Z",
     "titel": "Registrierung: Hinweis 'zu schnell' kommt im Formular an",
     "bereich": "Konto",
-    "warum": "Wer sich sehr schnell registriert oder von einem Anschluss schon mehrere Konten angelegt hat, bekam vom Server eine Antwort, aus der der Lastverteiler eine fremde Fehlerseite macht. Der Hinweis 'Das ging zu schnell. Bitte noch einmal.' kam so womoeglich nie beim Besucher an.",
-    "was": "Der Server meldet diese beiden Faelle jetzt so, dass die Anmeldeseite sie ganz normal als roten Hinweis unter dem Formular zeigt. Sonst aendert sich an der Registrierung nichts - die Bremsen gegen Bots bleiben gleich streng.",
+    "warum": "Wer sich sehr schnell registriert oder von einem Anschluss schon mehrere Konten angelegt hat, bekam vom Server eine Antwort, aus der der Lastverteiler eine fremde Fehlerseite macht. Der Hinweis 'Das ging zu schnell. Bitte noch einmal.' kam so womöglich nie beim Besucher an.",
+    "was": "Der Server meldet diese beiden Faelle jetzt so, dass die Anmeldeseite sie ganz normal als roten Hinweis unter dem Formular zeigt. Sonst ändert sich an der Registrierung nichts - die Bremsen gegen Bots bleiben gleich streng.",
     "ansehen": [
       "/sign-in"
     ],
@@ -35,8 +35,9 @@
     ],
     "groesse": "klein",
     "modell": "Opus",
-    "status": "wartet",
-    "runde": 1
+    "status": "live",
+    "runde": 1,
+    "hinweis": "Der Betreiber hatte dieselbe Änderung schon selbst auf die Seite gebracht – deshalb der Konflikt. Nichts mehr zu tun, die Änderung ist live."
   },
   {
     "id": "chef-3",
@@ -53,15 +54,15 @@
     ],
     "groesse": "klein",
     "modell": "Opus",
-    "status": "wartet",
+    "status": "live",
     "runde": 1
   },
   {
     "id": "chef-4",
     "datum": "2026-10-31T18:50:00Z",
-    "titel": "Fuenf weitere deutsche Reste auf Englisch",
+    "titel": "Fünf weitere deutsche Reste auf Englisch",
     "bereich": "Uebersetzung",
-    "warum": "Auf der englischen Seite standen noch deutsche Woerter: bei einem Spieltag ueber den eigenen Replay-Werten ('aus deinem eigenen Replay') und auf den Turnierkarten die Knoepfe 'Diese Karte bearbeiten', 'Alle alten Maps', 'Alte Maps verwalten' und 'Speichert ...'.",
+    "warum": "Auf der englischen Seite standen noch deutsche Woerter: bei einem Spieltag über den eigenen Replay-Werten ('aus deinem eigenen Replay') und auf den Turnierkarten die Knoepfe 'Diese Karte bearbeiten', 'Alle alten Maps', 'Alte Maps verwalten' und 'Speichert ...'.",
     "was": "Diese fuenf Stellen erscheinen auf Englisch jetzt englisch. Auf Deutsch bleibt alles, wie es war.",
     "ansehen": [
       "/tournament-maps",
@@ -72,7 +73,7 @@
     ],
     "groesse": "klein",
     "modell": "Opus",
-    "status": "wartet",
+    "status": "live",
     "runde": 1
   }
 ]
