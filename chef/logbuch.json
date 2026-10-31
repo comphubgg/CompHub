@@ -1094,7 +1094,9 @@
     "ansehen": [
       "/events/s42_fncssolos_final"
     ],
-    "commits": [],
+    "commits": [
+      "4a6a10e16fd8da76525ba168db7c6e4a2bff2767"
+    ],
     "groesse": "klein",
     "modell": "Sonnet",
     "status": "wartet",
