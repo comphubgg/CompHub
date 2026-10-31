@@ -4,7 +4,7 @@
     "datum": "2026-10-31T18:55:00Z",
     "titel": "Englische Fassung für 33 Texte nachgetragen",
     "bereich": "Uebersetzung",
-    "warum": "Auf Englisch standen an einigen Stellen noch deutsche Saetze. Oeffentlich betroffen war der Knopf 'Kartenbild waehlen' auf der Turnierkarten-Seite; der Rest steckte in den Admin-Werkzeugen (Alte Karten, Plakate, Replay-Ansicht, Konten).",
+    "warum": "Auf Englisch standen an einigen Stellen noch deutsche Sätze. Oeffentlich betroffen war der Knopf 'Kartenbild wählen' auf der Turnierkarten-Seite; der Rest steckte in den Admin-Werkzeugen (Alte Karten, Plakate, Replay-Ansicht, Konten).",
     "was": "Jeder dieser Texte hat jetzt eine englische Fassung. Wer die Seite auf Englisch nutzt, sieht dort kein Deutsch mehr. Auf Deutsch ändert sich nichts.",
     "ansehen": [
       "/tournament-maps",
@@ -26,7 +26,7 @@
     "titel": "Registrierung: Hinweis 'zu schnell' kommt im Formular an",
     "bereich": "Konto",
     "warum": "Wer sich sehr schnell registriert oder von einem Anschluss schon mehrere Konten angelegt hat, bekam vom Server eine Antwort, aus der der Lastverteiler eine fremde Fehlerseite macht. Der Hinweis 'Das ging zu schnell. Bitte noch einmal.' kam so womöglich nie beim Besucher an.",
-    "was": "Der Server meldet diese beiden Faelle jetzt so, dass die Anmeldeseite sie ganz normal als roten Hinweis unter dem Formular zeigt. Sonst ändert sich an der Registrierung nichts - die Bremsen gegen Bots bleiben gleich streng.",
+    "was": "Der Server meldet diese beiden Fälle jetzt so, dass die Anmeldeseite sie ganz normal als roten Hinweis unter dem Formular zeigt. Sonst ändert sich an der Registrierung nichts - die Bremsen gegen Bots bleiben gleich streng.",
     "ansehen": [
       "/sign-in"
     ],
@@ -44,7 +44,7 @@
     "datum": "2026-10-31T18:45:00Z",
     "titel": "Beitrag-Holen im Admin: Fehlermeldung kommt an",
     "bereich": "Admin",
-    "warum": "Wenn im Admin-Bereich unter Tweets ein Beitrag geholt wird, der geloescht oder privat ist, antwortete der Server so, dass der Lastverteiler eine fremde Fehlerseite daraus machen kann. Statt 'Beitrag nicht lesbar - geloescht, privat oder gesperrt?' stand dann nur ein nichtssagender Fehler da.",
+    "warum": "Wenn im Admin-Bereich unter Tweets ein Beitrag geholt wird, der gelöscht oder privat ist, antwortete der Server so, dass der Lastverteiler eine fremde Fehlerseite daraus machen kann. Statt 'Beitrag nicht lesbar - gelöscht, privat oder gesperrt?' stand dann nur ein nichtssagender Fehler da.",
     "was": "Der Server meldet diesen Fall jetzt so wie alle anderen erwarteten Fehler auch. Im Werkzeug erscheint wieder der klare Hinweis, warum der Beitrag nicht kam.",
     "ansehen": [
       "/admin/tweets"
@@ -62,8 +62,8 @@
     "datum": "2026-10-31T18:50:00Z",
     "titel": "Fünf weitere deutsche Reste auf Englisch",
     "bereich": "Uebersetzung",
-    "warum": "Auf der englischen Seite standen noch deutsche Woerter: bei einem Spieltag über den eigenen Replay-Werten ('aus deinem eigenen Replay') und auf den Turnierkarten die Knoepfe 'Diese Karte bearbeiten', 'Alle alten Maps', 'Alte Maps verwalten' und 'Speichert ...'.",
-    "was": "Diese fuenf Stellen erscheinen auf Englisch jetzt englisch. Auf Deutsch bleibt alles, wie es war.",
+    "warum": "Auf der englischen Seite standen noch deutsche Wörter: bei einem Spieltag über den eigenen Replay-Werten ('aus deinem eigenen Replay') und auf den Turnierkarten die Knöpfe 'Diese Karte bearbeiten', 'Alle alten Maps', 'Alte Maps verwalten' und 'Speichert ...'.",
+    "was": "Diese fünf Stellen erscheinen auf Englisch jetzt englisch. Auf Deutsch bleibt alles, wie es war.",
     "ansehen": [
       "/tournament-maps",
       "/events"
