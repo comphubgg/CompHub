@@ -1154,21 +1154,29 @@ async function berechne(request: Request) {
         return Math.round((drunter / feld.length) * 100);
       };
       /** Denselben Wert je Match - fuer den Spieler wie fuer das Feld. */
-      const jeMatch = (holen: (s: typeof gesamt[number]) => number) =>
-        (s: typeof gesamt[number]) => (s.matches > 0 ? holen(s) / s.matches : 0);
-      const rangJe = (holen: (s: typeof gesamt[number]) => number) => {
+      const jeMatch = (holen: (s: typeof gesamt[number]) => number, nurVolle = false) =>
+        (s: typeof gesamt[number]) => {
+          const n = nurVolle ? (s.matchesVoll ?? s.matches) : s.matches;
+          return n > 0 ? holen(s) / n : 0;
+        };
+      /*
+       * Kopftreffer, Material, Bauteile und Reboots kennen die eigenen Spieltage nicht (lib/szeneStats, matchesVoll) - diese Werte
+       * je Match nur durch die Matches teilen, die sie haben. Vorher zogen die Finals ohne diese Angaben den Schnitt nach unten, und
+       * wer viele eigene Spieltage hatte, rutschte im Vergleich zu Unrecht ab (der Vergleich tat es schon richtig).
+       */
+      const rangJe = (holen: (s: typeof gesamt[number]) => number, nurVolle = false) => {
         if (!gEintrag) return 0;
-        const pro = jeMatch(holen);
+        const pro = jeMatch(holen, nurVolle);
         return rang(pro(gEintrag), pro);
       };
       const perzentile = gEintrag ? {
         elims: rangJe((s) => s.elims),
         damage: rangJe((s) => s.damage),
-        headshots: rangJe((s) => s.headshots),
-        mats: rangJe((s) => s.mats),
-        builds: rangJe((s) => s.builds),
+        headshots: rangJe((s) => s.headshots, true),
+        mats: rangJe((s) => s.mats, true),
+        builds: rangJe((s) => s.builds, true),
         timeAlive: rangJe((s) => s.timeAlive),
-        reboots: rangJe((s) => s.reboots),
+        reboots: rangJe((s) => s.reboots, true),
         // Quote und Trefferquote sind schon Verhaeltnisse - die bleiben, wie
         // sie sind, sonst teilte man zweimal.
         quote: rang(gEintrag.quote, (s) => s.quote),
