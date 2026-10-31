@@ -4,6 +4,7 @@ import fs from '@/lib/ablageFs';
 import path from 'path';
 import { DATEN_ORT } from '@/lib/datenOrt';
 import { liesLanKonten } from '@/lib/lanKonten';
+import { gleichstandWerte, platzeMitGleichstand } from '@/lib/endstandGleichstand';
 
 // Die Endtabelle eines Spieltags - Platz, Team, Punkte, Matches.
 //
@@ -114,14 +115,13 @@ export async function GET(request: Request) {
     }
     if (vollstaendig) {
       const liste = [...summe.values()].sort((a, b) => b.punkte - a.punkte);
-      let platz = 0;
-      daten = {
-        ...daten,
-        teams: liste.map((t, i) => {
-          if (i === 0 || t.punkte !== liste[i - 1].punkte) platz = i + 1;
-          return { ...t, platz };
-        }),
-      };
+      // Gleiche Punkte: wie Epic nach Siegen, Elims je Spiel, mittlerer Platzierung trennen -
+      // soweit die Zahlen da sind, sonst bleibt der geteilte Platz (lib/endstandGleichstand).
+      const gleichstand = liste.some((t, i) => i > 0 && t.punkte === liste[i - 1].punkte);
+      const werte = gleichstand
+        ? await gleichstandWerte(fenster, Number(letzterTag[1]), { eventId: (daten as { eventId?: string }).eventId, epic: true })
+        : null;
+      daten = { ...daten, teams: platzeMitGleichstand(liste, werte) };
       gesamt = true;
     }
   }
