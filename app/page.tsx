@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type KeyboardEvent } from 'react';
 import { useSprache } from '@/app/components/SprachProvider';
 import { ortVon } from '@/app/lib/ort';
 import Link from 'next/link';
@@ -219,7 +219,7 @@ function XWerbung() {
 }
 
 export default function Startseite() {
-  const { sprache } = useSprache();
+  const { sprache, t } = useSprache();
   const [stand, setStand] = useState<Stand | null>(null);
   /**
    * Wird noch geholt?
@@ -229,6 +229,19 @@ export default function Startseite() {
    * oder ob es nichts zu zeigen gibt.
    */
   const [laedt, setLaedt] = useState(true);
+  /*
+   * Die genaue Zahl der ausgewerteten Matches (Betreiber, 31.10.2026): "lass die Funktion so (1M+), aber wenn ich draufklicke - egal welcher
+   * User - sehe ich die genaue Zahl". Ein Klick zeigt sie ausgeschrieben und holt dabei den neuesten Stand; nach dem Neuladen steht wieder 1M+.
+   */
+  const [genau, setGenau] = useState(false);
+  const genauZeigen = () => {
+    setGenau((g) => !g);
+    fetch('/api/replays?zahl=1', { signal: AbortSignal.timeout(10_000) }).then((r) => r.json())
+      .then((j: { ausgewertet?: number | null }) => {
+        const n = j?.ausgewertet;
+        if (typeof n === 'number' && n > 0) setStand((s) => (s && (s.replays ?? 0) < n ? { ...s, replays: n } : s));
+      }).catch(() => { /* dann bleibt die bisherige Zahl */ });
+  };
 
   useEffect(() => {
     void Promise.resolve().then(async () => {
@@ -362,10 +375,12 @@ export default function Startseite() {
               [stand?.saisons ?? null, 'Saisons erfasst'],
               [stand?.regionen ?? null, 'Regionen'],
               // Ab einer Million abgerundet auf die Zehntelmillion mit Plus (Betreiber, 30.10.2026: '1M+, 1.1M+, 1.2M+ usw.').
-              [stand?.replays == null ? null : stand.replays >= 1e6
+              [stand?.replays == null ? null : stand.replays >= 1e6 && !genau
                 ? `${(Math.floor(stand.replays / 1e5) / 10).toLocaleString(ort, { maximumFractionDigits: 1 })}M+` : stand.replays, 'Matches ausgewertet'],
             ] as Array<[number | string | null, string]>).map(([wert, titel]) => (
-              <div key={titel} className="rounded-2xl border border-zinc-800 bg-zinc-900/85 px-4 py-6 text-center shadow-[0_10px_30px_rgba(15,23,42,.12)] backdrop-blur">
+              <div key={titel} className={`rounded-2xl border border-zinc-800 bg-zinc-900/85 px-4 py-6 text-center shadow-[0_10px_30px_rgba(15,23,42,.12)] backdrop-blur ${titel === 'Matches ausgewertet' ? 'cursor-pointer select-none transition hover:border-sky-500/60' : ''}`}
+                {...(titel === 'Matches ausgewertet' ? { role: 'button', tabIndex: 0, title: t('Genaue Zahl anzeigen'), onClick: genauZeigen,
+                  onKeyDown: (e: KeyboardEvent<HTMLDivElement>) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); genauZeigen(); } } } : {})}>
                 <p className="schrift-anzeige text-3xl font-extrabold tabular-nums text-sky-500 sm:text-4xl"><Rollzahl wert={wert} los={!laedt} ort={ort} /></p>
                 <p className="mt-2 flex items-center justify-center gap-1.5 text-[10px] font-semibold uppercase tracking-[0.16em] text-slate-500">
                   {/* Der Punkt sagt: diese Zahl laeuft live mit. */}
