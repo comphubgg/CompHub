@@ -233,9 +233,11 @@ export function Karte({ f, bild, rotAb = 2 }: {
   useEffect(() => {
     const amRad = (e: WheelEvent) => {
       const el = flaeche.current;
-      if (!el) return;
+      if (!el || !huelle.current) return;
       const r = el.getBoundingClientRect();
-      if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) return;
+      // Das Rad wirkt auf der ganzen blauen Flaeche (dort waechst die Karte beim Zoomen hin), gerechnet wird weiter im Quadrat der Karte.
+      const h = huelle.current.getBoundingClientRect();
+      if (e.clientX < h.left || e.clientX > h.right || e.clientY < h.top || e.clientY > h.bottom) return;
       e.preventDefault();
       stopp();
       zielZoom.current = null;
@@ -348,10 +350,22 @@ export function Karte({ f, bild, rotAb = 2 }: {
         */}
       <div ref={huelle}
         // Auch ausserhalb des Vollbilds fuellt das Meer die ganze Breite (Betreiber, 30.10.2026: die Knoepfe duerfen nicht aus dem Blauen ragen - "das Blaue groesser").
-        className={voll ? 'relative flex h-screen w-screen items-center justify-center' : 'relative block overflow-hidden rounded-2xl pb-12'}
-        style={{ background: voll ? meer : (meer || '#084687') }}>
+        className={voll ? 'relative flex h-screen w-screen items-center justify-center overflow-hidden' : 'relative block overflow-hidden rounded-2xl pb-12'}
+        style={{ background: voll ? meer : (meer || '#084687') }}
+        // Ziehen auf der ganzen blauen Flaeche, nicht nur im Quadrat der Karte - beim Zoomen fuellt die Karte die ganze Breite.
+        onMouseDown={(e) => {
+          if (e.button !== 0 || zoomRef.current <= 1 || !flaeche.current) return;
+          if ((e.target as HTMLElement).closest('button, input, a, ul')) return;
+          stopp();
+          zug.current = {
+            sx: e.clientX, sy: e.clientY, mitte: { ...mitteRef.current },
+            kasten: flaeche.current.getBoundingClientRect(),
+          };
+        }}>
         <div ref={flaeche}
-          className={`${kartenSchrift.variable} relative select-none ${voll ? 'h-screen' : 'mx-auto aspect-square w-full overflow-hidden bg-transparent'} ${gezoomt ? 'cursor-grab active:cursor-grabbing' : ''}`}
+          // Ohne overflow-hidden (Betreiber, 31.10.2026, "wie bei Noble"): gezoomt waechst die Karte ueber das Quadrat hinaus und fuellt die ganze
+          // blaue Flaeche, statt im Quadrat abgeschnitten zu werden und links und rechts Blau zu lassen. Abgeschnitten wird erst an der Huelle.
+          className={`${kartenSchrift.variable} relative select-none ${voll ? 'h-screen' : 'mx-auto aspect-square w-full bg-transparent'} ${gezoomt ? 'cursor-grab active:cursor-grabbing' : ''}`}
           style={voll
             ? { containerType: 'inline-size', aspectRatio: '1 / 1', background: 'transparent' }
             : { containerType: 'inline-size', maxWidth: 'min(100%, calc(100vh - 7rem))' }}
@@ -363,14 +377,6 @@ export function Karte({ f, bild, rotAb = 2 }: {
             const sp = formBei(e);
             const ziel = doppelKlickZiel(sp ? formRahmen(sp.punkte) : null, p, zielZoom.current ?? zoomRef.current);
             gleite(ziel.zoom, ziel.mitte);
-          }}
-          onMouseDown={(e) => {
-            if (e.button !== 0 || zoomRef.current <= 1 || !flaeche.current) return;
-            stopp();
-            zug.current = {
-              sx: e.clientX, sy: e.clientY, mitte: { ...mitteRef.current },
-              kasten: flaeche.current.getBoundingClientRect(),
-            };
           }}
           onMouseMove={(e) => {
             if (zug.current) return;
@@ -389,8 +395,6 @@ export function Karte({ f, bild, rotAb = 2 }: {
               style={bildStil(voll)}
               className="pointer-events-none absolute inset-0 h-full w-full object-cover" />
 
-            {/* thecomphub.com, wie auf jeder Karte - unter den Formen. */}
-            <div className="pointer-events-none absolute inset-0 overflow-hidden"><KartenWasserzeichen /></div>
 
             <svg viewBox="0 0 100 100" preserveAspectRatio="none"
               className="pointer-events-none absolute inset-0 h-full w-full">
@@ -482,6 +486,16 @@ export function Karte({ f, bild, rotAb = 2 }: {
             </button>
           )}
 
+        </div>
+        {/*
+          * thecomphub.com klein und oft ueber der ganzen Flaeche, auch ueber dem Meer, und das Logo ganz rechts unten am Rand (Betreiber, 31.10.2026:
+          * "wie bei Noble", "mein Logo ganz rechts am Rand"). Beides zoomt nicht mit.
+          */}
+        <div className="pointer-events-none absolute inset-0 z-20"><KartenWasserzeichen dicht /></div>
+        <div aria-hidden className={`pointer-events-none absolute right-3 z-30 flex flex-col items-end opacity-90 ${voll ? 'bottom-14' : 'bottom-12'}`} style={{ width: 'clamp(56px, 7%, 110px)' }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img src="/logos/CompHub-Logo-frei.png" alt="" draggable={false} className="w-full drop-shadow-[0_2px_6px_rgba(0,0,0,0.55)]" />
+          <span className="mt-0.5 whitespace-nowrap text-[10px] font-semibold text-white/85 drop-shadow-[0_1px_3px_rgba(0,0,0,0.6)]">thecomphub.com</span>
         </div>
         {/* Unten rechts ganz am Rand (Betreiber, 30.10.2026: "ganz am Rand", nicht in der Karte): Lupe, Vollbild und fuer den Admin Bild kopieren. */}
         <div className="absolute bottom-2 right-2 z-40 flex items-center gap-1.5" onMouseDown={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
