@@ -446,7 +446,7 @@ export default function FncsSeite() {
             {/* Wie beim Vorbild: FNCS Winners, All-Time Leaderboard, Nationalities, Rekorde in einem Grand Finals. */}
             <div className="mb-5 rounded-xl border border-sky-500/25 bg-sky-950 px-4 py-3">
               <p className="text-[13px] font-bold text-slate-100"><T>Nur FNCS: diese Zahlen kommen aus den Grand Finals, seit Chapter 5 Season 3.</T></p>
-              <p className="mt-0.5 text-[11px] text-slate-400"><T>Die Titel zählen alle FNCS-Endspiele seit Chapter 1.</T></p>
+              <p className="mt-0.5 text-[11px] text-slate-400"><T>Die Titel zählen die europäischen Grand Finals, die Globals, das Invitational und den Summit seit Chapter 1.</T></p>
             </div>
             {alt && (
               <div className="mb-10 grid gap-4 lg:grid-cols-3">
