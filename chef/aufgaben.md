@@ -2,6 +2,12 @@
 
 Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der Bestandsaufnahme vom 31.10.2026 (vier Pruefer, nur gelesen). Der Chef pflegt diese Liste selbst: Erledigtes abhaken (`- [x]`), Neues aufnehmen. Jeder Punkt vor dem Bau selbst am Code nachpruefen - die Pruefer koennen sich geirrt haben.
 
+## Neu entdeckt (Runde 5, 31.10.2026)
+
+- [ ] **Auch die Spielerliste S42 ist veraltet, nicht nur die Startantwort** _(Statistik · Wirkung 5/5, Betrieb)_ - /api/szene-stats?saison=S42&sort=elims&limit=300: peterbot 57 Matches / 152 Elims, Profil 83 / 208 (ebenso Veno 56/64, CURVE 48/74). Die Liste endet bei PerformanceEvaluation_Event7Round2; Heat2, Event9, Solo Finals fehlen. Formel und Rundung stimmen (300 Zeilen nachgerechnet). Ursache: vorgerechnete Antwort (Schlüssel szene|limit=500|saison=S42|sort=elims) seit ~9.10. nicht neu abgelegt – gehört zu chef-61.
+- [ ] **Jahresbilanz-Auswahl (jahr, Region, Saison) noch nicht in der Adresse** - Folgeschritt zu chef-72; ebenso Regionsseite.
+- [ ] **KopfAnKopf.tsx wird nirgends eingebunden** - toter Baustein, Kandidat zum Entfernen (wie chef-60).
+
 ## Neu entdeckt (Runde 4, 31.10.2026)
 
 - [ ] **Stundenlauf „Daten erneuern“ wartet über eine Stunde auf einen Rechner** _(Daten · Wirkung 5/5, Betrieb)_ - Lauf 1661 steht seit 18:30 UTC auf „pending“, Lauf 1659 brauchte 17:27–20:05 (Antworten vorrechnen allein 1 h 50). Darum ist die Startantwort der Statistik noch alt (Spieltage bis 10.10., Elims-Liste Schaden 0). Passt zu „GitHub-Rechner sind überbucht“ unten - Vorschlag an den Betrieb.
@@ -10,7 +16,7 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
 - [x] **Spielerwerte je Cup: Rang bei Gleichstand** (chef-58) und Team-Kacheln (chef-57).
 - [x] **„230/64 Matches“ in der Spieltag-Liste** (chef-55).
 - [x] **Statistik-Startseite stand bei Ausfall leer da** (chef-64).
-- [ ] **Weitere stille Fehler auf der Statistikseite** - Turnierverzeichnis erledigt (chef-65); weitere Abrufe mit `.catch(() => {})` zeigen bei Ausfall nur Leere. Muster aus chef-64 übernehmen.
+- [ ] **Weitere stille Fehler auf der Statistikseite** - Turnierverzeichnis erledigt (chef-65), Spielerliste/Saisonliste/Regionen (chef-67), Cup-Seite Teams/Spieler (chef-66); weitere Abrufe mit `.catch(() => {})` zeigen bei Ausfall nur Leere. Muster aus chef-64 übernehmen.
 
 ## Neu entdeckt (Runde 3, 31.10.2026 – Statistik-Prüfung)
 
@@ -143,7 +149,7 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
   - Problem: Der Admin kann einem Manager einzelne Bereiche geben (lib/rechte.ts: Karten, Beiträge, Prognosen, Replays, Player Center, Bildvorrat, Kontakt). Die Middleware lässt Manager in /admin hinein (middleware.ts:96), und der Manager sieht die Kacheln (app/admin/page.tsx:359-364). Die Server-Routen lassen aber nur den Admin speichern: prognosen/route.ts:223 und 276 ('nur fuer den Betreiber'), assets/route.ts:96 und 142, posts/route.ts:19 und 31, replays/route.ts:354, kontakt/route.ts:46-57. Ein Manager mit dem Haken 'Prognosen' öffnet also das Werkzeug, und jedes Speichern endet mit 403. Keine Server-Route prüft die angehakten Bereiche (grep nach rechte.includes in app/api findet nur 'globals').
   - Vorschlag: In lib/adminPruefung.ts einen zweiten Baustein darfBereichAnfrage(bereich) anlegen. Er gilt für den Admin und für Manager, die genau diesen Bereich angehakt haben, und prüft auch gesperrte Konten. Die genannten Routen rufen ihn mit ihrem Bereich auf ('prognosen', 'assets', 'tweets', 'replays', 'kontakt', 'spieler', 'karten'). Die Kontoverwaltung bleibt reine Admin-Sache, wie in lib/rechte.ts festgelegt.
   - Dateien: lib/adminPruefung.ts, lib/rechte.ts, app/api/prognosen/route.ts, app/api/assets/route.ts, app/api/posts/route.ts, app/api/replays/route.ts, app/api/kontakt/route.ts, app/api/spieler-profile/route.ts
-- [ ] **Eine einzige Admin-Prüfung statt fünfzehn Kopien** (Teil 1: chef-63 – sieben Kopien prüfen jetzt die Sperre; Zusammenlegen steht noch aus) _(Bereich: Werkzeuge fuer Betreiber/VIPs/Streamer · Wirkung 3/5 · Aufwand mittel · Risiko mittel)_
+- [x] **Eine einzige Admin-Prüfung statt fünfzehn Kopien** (Teil 1: chef-63, Teil 2: chef-68 – 17 Routen auf lib/adminPruefung; übrig mit eigener Rollenlogik: admin/tiktok, tiktok-clips, twitch-*, pov/*, org-konto, org-pov) _(Bereich: Werkzeuge fuer Betreiber/VIPs/Streamer · Wirkung 3/5 · Aufwand mittel · Risiko mittel)_
   - Problem: 15 Routen haben eine eigene, abgeschriebene Funktion istAdmin oder darfSehen, zum Beispiel admin/konten/route.ts:38, admin/vip-zugaenge/route.ts:96, admin/vip-panel/route.ts:32, admin/tiktok/route.ts:31, admin/anwesend/route.ts:21, orgs, sektionen und vips. Fünf davon fragen nicht ab, ob das Konto gesperrt ist (konten:38-58, vip-zugaenge:96-109, vip-panel:32-43, tiktok:31-39, anwesend:21-29). Die zentrale Prüfung tut das (lib/adminPruefung.ts:65). Ein gesperrtes Admin-Konto mit noch gültigem Cookie (30 Tage, lib/konten.ts:39) könnte damit weiter Rollen vergeben und Zugänge löschen. Wie gefährlich auseinanderlaufende Kopien sind, steht schon im Code: Laut Kommentar in lib/adminPruefung.ts sprangen bis zum 30.9.2026 Einstellungen zurück, weil eine Prüfung nur den alten Schlüssel kannte.
   - Vorschlag: Alle eigenen istAdmin- und darfSehen-Funktionen durch istAdminAnfrage() aus lib/adminPruefung.ts ersetzen, den gemeinsamen Baustein, der Konto-Rolle, Betreiber-Schlüssel, Zugang mit Adminrolle und Sperre gleich behandelt. Fällt die Ablage aus, weiterhin 'Ausfall' melden statt 'nicht erlaubt' (wie in admin/tiktok/route.ts:41-45). Danach gibt es nur noch eine Stelle, an der der Chef künftig Rechte ändert.
   - Dateien: lib/adminPruefung.ts, app/api/admin/konten/route.ts, app/api/admin/vip-zugaenge/route.ts, app/api/admin/vip-panel/route.ts, app/api/admin/tiktok/route.ts, app/api/admin/anwesend/route.ts, app/api/admin/dienste/route.ts, app/api/admin/discord-aufbau/route.ts, app/api/admin/konto-wechsel/route.ts, app/api/orgs/route.ts, app/api/sektionen/route.ts, app/api/vips/route.ts, app/api/karten-ausblenden/route.ts

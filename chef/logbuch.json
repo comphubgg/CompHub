@@ -1470,5 +1470,50 @@
     "modell": "Sonnet",
     "status": "wartet",
     "runde": 5
+  },
+  {
+    "id": "chef-71",
+    "datum": "2026-10-31T20:45:00Z",
+    "titel": "Vergleich und Organisationen: Ausfall zeigt einen Hinweis",
+    "kurz": "Unsichtbar: Vergleich zeigt bei Ausfall nicht mehr fälschlich „nicht angetreten“.",
+    "markieren": [
+      "css:main"
+    ],
+    "bereich": "Statistik",
+    "warum": "Fiel im Vergleich die Quelle aus, stand bei einem Spieler „nicht angetreten“ – obwohl er gespielt hatte. Bei den Organisationen blieb ein Fehlerkasten ohne neuen Versuch.",
+    "was": "Beide zeigen jetzt „gerade nicht erreichbar“ und laden nach 10 Sekunden von selbst neu.",
+    "ansehen": [
+      "/statistics?bereich=vergleich",
+      "/statistics?bereich=orgs"
+    ],
+    "commits": [
+      "273853357e9df81ddf2c6ff981f910ed0c1ce039"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 5
+  },
+  {
+    "id": "chef-72",
+    "datum": "2026-10-31T20:46:00Z",
+    "titel": "Statistik: Bereich, Sortierung, Region und Saison stehen in der Adresse",
+    "kurz": "Statistik → Spieler nach Damage sortieren: Adresse merkt es, Link teilbar.",
+    "markieren": [
+      "css:main"
+    ],
+    "bereich": "Statistik",
+    "warum": "Wer eine nach Schaden sortierte Bestenliste teilen wollte, schickte nur „/statistics“ – der Empfänger landete auf der Startseite der Statistik.",
+    "was": "Die Adresse trägt jetzt Bereich, Sortierung, Region und Saison (z. B. ?bereich=spieler&sort=damage&saison=S41). Wer den Link öffnet, sieht genau dieselbe Liste.",
+    "ansehen": [
+      "/statistics?bereich=spieler&sort=damage&saison=S41"
+    ],
+    "commits": [
+      "c65029539316b9f9e0a0523ac1979e3665e86951"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 5
   }
 ]
