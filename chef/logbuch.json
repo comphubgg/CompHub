@@ -1897,5 +1897,25 @@
     "modell": "Sonnet",
     "status": "wartet",
     "runde": 5
+  },
+  {
+    "id": "chef-92",
+    "datum": "2026-10-31T21:20:00Z",
+    "titel": "Team-Seite hat eigenen Titel",
+    "kurz": "Team-Seite: Browser-Tab und geteilte Links zeigen „CLUE Esports Team“.",
+    "markieren": [
+      "css:head title"
+    ],
+    "bereich": "Teams",
+    "warum": "Die neue Team-Seite trug den allgemeinen Seitentitel; beim Teilen auf Discord sah man nicht, um welches Team es geht.",
+    "was": "Tab-Titel und Vorschau nennen jetzt den Namen der Org. Ist die Org unbekannt, steht schlicht „Team“.",
+    "ansehen": [
+      "/team/clue-esports"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "commits": [],
+    "status": "wartet",
+    "runde": 6
   }
 ]
