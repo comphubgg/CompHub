@@ -482,8 +482,12 @@ function grossName(name: string, gepflegt = false) {
  * also wird die Reihe daraus gelesen statt eine Liste zu pflegen, die bei
  * jedem neuen Cup nachgezogen werden muesste.
  */
-function reiheVon(name: string): string {
+function reiheVon(name: string, windowId = ''): string {
   const n = name.toLowerCase();
+  /* Die Globals sind eine LAN mit allen Regionen, kein Online-Cup: eigene Reihe, nicht in "FNCS" mitgezaehlt. */
+  if (/global\s*championship|globals/.test(n) || /^(MannekenPis|Dinosauron|BambiRaptor)_/i.test(windowId)) {
+    return 'FNCS Global Championship';
+  }
   if (/reload elite championship|escargo/.test(n)) return 'RES Championship';
   if (/reload elite/.test(n)) return 'Reload Elite Series';
   if (/division/.test(n)) return 'FNCS Division 1';
@@ -3272,7 +3276,7 @@ export default function StatistikSeite() {
     const gruppen = new Map<string, Turnier[]>();
     for (const t of turniere) {
       if (t.region !== regionAktiv) continue;
-      const r = reiheVon(t.name);
+      const r = reiheVon(t.name, t.windowId);
       (gruppen.get(r) ?? gruppen.set(r, []).get(r)!).push(t);
     }
     return [...gruppen.entries()]
