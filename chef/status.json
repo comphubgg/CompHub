@@ -1,11 +1,11 @@
 {
-  "letzteRunde": "2026-10-31T19:56:00Z",
-  "macheGerade": "Runde 4 läuft",
+  "letzteRunde": "2026-10-31T20:24:00Z",
+  "macheGerade": "Runde 4 fertig – 14 neue Verbesserungen warten auf dich (chef-51 bis chef-65), dazu chef-14 nach deiner zweiten Notiz neu gebaut: kleines, dezentes Suchfeld oben rechts auf der Startseite, Lupe in der Kopfzeile ist weg. Neu: Schalter „Kopfzeile automatisch ausblenden“ im Zahnrad (chef-51). Statistik: Gleichstand im Endstand zweitägiger Finals wie bei Epic (chef-54), gleiche Werte = gleicher Platz in den Cup-Kacheln (chef-57/58), „230/64 Matches“ weg (chef-55), Ausfälle zeigen Hinweis statt Leere (chef-64/65). Sicherheit: gesperrte Admins an sieben weiteren Stellen abgewiesen (chef-63). Vorschlag chef-61: Der Stundenlauf wartet seit 18:30 auf einen Rechner – darum ist die Statistik-Startliste noch alt.",
   "naechstes": [
-    "Gleichstand im Endstand zweitägiger Finals (Platz und Preisgeld) wie Epic auflösen",
-    "Nach dem nächsten Stundenlauf prüfen: Saisonlisten mit Finals 26./27.10. und Schaden in der Elims-Liste"
+    "Nach dem nächsten Stundenlauf prüfen: Saisonlisten mit Finals 26./27.10. und Schaden in der Elims-Liste",
+    "Weitere stille Fehler auf der Statistikseite (Muster chef-64/65)",
+    "Admin-Prüfung an einer Stelle zusammenlegen (Teil 2 nach chef-63)"
   ],
   "pause": false,
-  "modell": "Opus (Planung, Prüfung, Statistik) + Sonnet (Unteragenten)",
-  "laeuftSeit": "2026-10-31T20:00:30Z"
+  "modell": "Opus (Planung, Prüfung, Statistik) + Sonnet (Unteragenten)"
 }
