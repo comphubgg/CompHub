@@ -154,7 +154,10 @@ async function main() {
     }
     bilder[e.id] = { stand: (e.commits ?? []).join(',') + (e.runde ?? 1) + (e.markieren ?? []).join('|'), zeit: new Date().toISOString(), fotos };
     fs.writeFileSync(LISTE, `${JSON.stringify(bilder, null, 1)}\n`);
-  }
+    }
+    await seite.close();
+  };
+  await Promise.all([arbeiter(), arbeiter(), arbeiter()]);
   await browser.close();
 }
 
