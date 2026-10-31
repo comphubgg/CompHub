@@ -84,7 +84,9 @@ Arbeit committest du nicht als `[chef-N]`, sondern notierst sie in `aufgaben.md`
 }
 ```
 
-Schreib `warum` und `was` auf **einfachem Deutsch fuer einen Nicht-Programmierer**: was sieht ein Besucher anders, wo genau.
+**Alles, was der Betreiber liest (Logbuch, Status, Notizen), schreibst du mit echten Umlauten: ä, ö, ü, ß - also "für", "Größe", "Änderung", nie "fuer", "Groesse", "Aenderung".** Das versteht er sonst nicht immer. Bestehende Einträge mit ue/oe/ae korrigierst du in der nächsten Runde.
+
+Schreib `warum` und `was` auf **einfachem Deutsch für einen Nicht-Programmierer**: was sieht ein Besucher anders, wo genau.
 Keine Dateinamen, keine Fachwoerter. `ansehen` sind Pfade auf der Seite, die der Betreiber auf localhost oeffnen kann.
 Den `sha` traegst du nach dem Commit ein (zweiter Commit `[chef] Logbuch` ist erlaubt, wenn noetig).
 
