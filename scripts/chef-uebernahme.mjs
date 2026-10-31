@@ -61,13 +61,13 @@ function ergebnis(stand, text, extra = {}) {
 async function netlify() {
   const marke = path.join(hauptOrdner(), 'data', 'chef-netlify.txt');
   const zuletzt = Number((() => { try { return fs.readFileSync(marke, 'utf8'); } catch { return '0'; } })()) || 0;
-  if (Date.now() - zuletzt < 6 * 3600_000) return 'Netlify folgt mit dem naechsten Bau (hoechstens alle 6 Stunden).';
+  if (Date.now() - zuletzt < 6 * 3600_000) return 'Netlify folgt mit dem nächsten Bau (höchstens alle 6 Stunden).';
   const r = await fetch('https://api.github.com/repos/comphubgg/CompHub/actions/workflows/netlify-bereitstellen.yml/dispatches', {
     method: 'POST',
     headers: { Authorization: `Bearer ${token()}`, Accept: 'application/vnd.github+json', 'Content-Type': 'application/json' },
     body: JSON.stringify({ ref: 'main', inputs: { ziel: 'live', konto: '2' } }),
   }).catch(() => null);
-  if (!r?.ok) return 'Netlify liess sich gerade nicht anstossen.';
+  if (!r?.ok) return 'Netlify ließ sich gerade nicht anstoßen.';
   fs.mkdirSync(path.dirname(marke), { recursive: true });
   fs.writeFileSync(marke, String(Date.now()));
   return 'Netlify baut neu.';
@@ -86,24 +86,38 @@ async function main() {
   let mainSha = '';
   try {
     git(CHEF_ORDNER, ['worktree', 'add', '-q', '--detach', weg, 'origin/main']);
-    try {
-      git(weg, ['cherry-pick', '-x', ...commits]);
-    } catch (e) {
-      try { git(weg, ['cherry-pick', '--abort']); } catch { /* schon weg */ }
-      return ergebnis('konflikt', 'Passt nicht ohne Weiteres auf den aktuellen Stand der Seite - der Chef loest das in seiner naechsten Runde.');
+    /*
+     * Jeden Commit einzeln, ohne ihn gleich festzuschreiben: die Chef-Dateien (Logbuch usw.) stehen im selben Commit, gibt es auf main aber
+     * nicht - ein gewoehnliches cherry-pick meldete deshalb bei jedem Eintrag einen Konflikt (31.10.2026, alle vier ersten Freigaben).
+     * Sie werden hier herausgenommen; bleibt danach ein echter Konflikt im Code, uebernimmt der Chef in seiner Runde.
+     */
+    const CHEF_PFADE = /^(chef\/|app\/chef\/|app\/api\/chef\/|scripts\/chef-uebernahme)/;
+    let gesetzt = 0;
+    for (const sha of commits) {
+      try { git(weg, ['cherry-pick', '--no-commit', sha]); } catch { /* Konflikte unten pruefen */ }
+      const beruehrt = git(weg, ['status', '--porcelain']).split(/\r?\n/).map((z) => z.slice(3).trim().replace(/^"|"$/g, '')).filter(Boolean);
+      const chefDa = beruehrt.filter((d) => CHEF_PFADE.test(d));
+      if (chefDa.length) {
+        git(weg, ['rm', '-rq', '--cached', '--ignore-unmatch', '--', ...chefDa]);
+        for (const d of chefDa) fs.rmSync(path.join(weg, d), { recursive: true, force: true });
+      }
+      const offen = git(weg, ['diff', '--name-only', '--diff-filter=U']);
+      if (offen) {
+        try { git(weg, ['cherry-pick', '--abort']); } catch { git(weg, ['reset', '-q', '--hard']); }
+        return ergebnis('konflikt', `Passt nicht ohne Weiteres auf den aktuellen Stand der Seite (${offen.split(/\r?\n/).slice(0, 3).join(', ')}) - der Chef löst das in seiner nächsten Runde.`);
+      }
+      if (!git(weg, ['diff', '--cached', '--name-only'])) { try { git(weg, ['cherry-pick', '--quit']); } catch { /* nichts offen */ } continue; }
+      const nachricht = git(weg, ['log', '-1', '--format=%B', sha]);
+      git(weg, ['commit', '-q', '-m', `${nachricht}\n\n(übernommen aus ${sha.slice(0, 8)} nach Freigabe des Betreibers)`]);
+      try { git(weg, ['cherry-pick', '--quit']); } catch { /* nichts offen */ }
+      gesetzt += 1;
     }
-    // Nie Chef-Dateien nach main: falls ein Commit sie doch beruehrt, hier wieder herausnehmen.
-    const chefDateien = git(weg, ['diff', '--name-only', 'origin/main', 'HEAD']).split('\n').filter((d) => /^(chef\/|app\/chef\/|app\/api\/chef\/|scripts\/chef-uebernahme)/.test(d));
-    if (chefDateien.length) {
-      git(weg, ['checkout', 'origin/main', '--', ...chefDateien.filter((d) => { try { git(weg, ['cat-file', '-e', `origin/main:${d}`]); return true; } catch { return false; } })]);
-      for (const d of chefDateien) { try { git(weg, ['cat-file', '-e', `origin/main:${d}`]); } catch { git(weg, ['rm', '-q', '--cached', '--ignore-unmatch', d]); fs.rmSync(path.join(weg, d), { force: true }); } }
-      git(weg, ['commit', '-q', '-m', `[${ID}] Chef-Dateien ausgenommen`]);
-    }
+    if (!gesetzt) return ergebnis('live', 'Diese Änderung steckte schon in der echten Seite - nichts weiter zu tun.');
     git(weg, ['push', '-q', 'origin', 'HEAD:main']);
     mainSha = git(weg, ['rev-parse', '--short', 'HEAD']);
     log(`auf main: ${mainSha}`);
   } catch (e) {
-    return ergebnis('fehler', `GitHub hat die Uebernahme abgelehnt: ${String(e.message).slice(0, 160)}`);
+    return ergebnis('fehler', `GitHub hat die Übernahme abgelehnt: ${String(e.message).slice(0, 160)}`);
   } finally {
     try { git(CHEF_ORDNER, ['worktree', 'remove', '--force', weg]); } catch { fs.rmSync(weg, { recursive: true, force: true }); }
   }
@@ -118,12 +132,12 @@ async function main() {
     if (zweig === 'main' && !offen) {
       git(h, ['pull', '-q', '--ff-only', 'origin', 'main']);
       const aus = fs.openSync(path.join(h, 'chef-veroeffentlichen.log'), 'a');
-      spawn('npm run veroeffentlichen', { cwd: h, shell: true, detached: true, stdio: ['ignore', aus, aus], windowsHide: true,
-        env: { ...process.env, NEXT_PUBLIC_BASE_URL: 'https://www.thecomphub.com' } }).unref();
+      // Ueber die Warteschlange (scripts/chef-bauen.mjs): mehrere Freigaben kurz hintereinander ergeben einen Bau nach dem anderen, nie zwei zugleich.
+      spawn(process.execPath, [path.join(CHEF_ORDNER, 'scripts', 'chef-bauen.mjs')], { cwd: h, detached: true, stdio: ['ignore', aus, aus], windowsHide: true }).unref();
       stand = 'live';
       text = `Auf GitHub (main ${mainSha}); die Seite wird neu gebaut und ist in etwa 10 Minuten live.`;
     } else {
-      text += ' Der Projektordner auf dem PC hatte gerade offene Arbeit - live geht es mit dem naechsten Veroeffentlichen.';
+      text += ' Der Projektordner auf dem PC hatte gerade offene Arbeit - live geht es mit dem nächsten Veröffentlichen.';
     }
   } catch (e) { text += ` Neu bauen ging nicht: ${String(e.message).slice(0, 120)}`; }
   text += ` ${await netlify()}`;
