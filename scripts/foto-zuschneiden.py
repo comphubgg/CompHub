@@ -13,6 +13,10 @@ import os
 import sys
 
 import cv2
+import numpy as np
+
+# Namen wie DEMUŚ: OpenCV liest und schreibt unter Windows keine Pfade ausserhalb der Systemcodepage, und die Ausgabe darf daran nicht abbrechen.
+sys.stdout.reconfigure(encoding='utf-8', errors='replace')
 
 MITTE_X, MITTE_Y, BREITE = 0.50, 0.36, 0.45
 ZIEL_B, ZIEL_H = 800, 1000
@@ -21,8 +25,11 @@ muster = [cv2.CascadeClassifier(os.path.join(cv2.data.haarcascades, n))
           for n in ('haarcascade_frontalface_default.xml', 'haarcascade_frontalface_alt2.xml', 'haarcascade_profileface.xml')]
 
 
-def gesicht(bild):
-    """(x, y, w, h) des Gesichts in Pixeln, oder None."""
+ANZAHL = {}  # Dateiname -> wie viele Gesichter (fuer --bericht: Gruppenfotos nicht blind uebernehmen)
+
+
+def gesicht(bild, name=None):
+    """(x, y, w, h) des groessten Gesichts in Pixeln, oder None. Zaehlt nebenbei alle Gesichter, die mindestens halb so gross sind."""
     grau = cv2.equalizeHist(cv2.cvtColor(bild, cv2.COLOR_BGR2GRAY))
     h, b = grau.shape
     for i, m in enumerate(muster):
@@ -38,8 +45,26 @@ def gesicht(bild):
                     if (y + hh / 2) / h < 0.66:
                         funde.append((x, y, w, hh))
             if funde:
-                return max(funde, key=lambda f: f[2] * f[3])
+                gross = max(funde, key=lambda f: f[2] * f[3])
+                if name is not None:
+                    einzeln = [gross]
+                    for f in sorted(funde, key=lambda f: -f[2] * f[3]):
+                        if f[2] >= gross[2] * 0.5 and not any(ueberlappt(f, e) for e in einzeln):
+                            einzeln.append(f)
+                    ANZAHL[name] = len(einzeln)
+                return gross
+    if name is not None:
+        ANZAHL[name] = 0
     return None
+
+
+def ueberlappt(a, b):
+    """Dasselbe Gesicht zweimal gefunden (ein Muster meldet oft leicht versetzte Doppel)."""
+    if a is b:
+        return True
+    ax, ay = a[0] + a[2] / 2, a[1] + a[3] / 2
+    bx, by = b[0] + b[2] / 2, b[1] + b[3] / 2
+    return abs(ax - bx) < max(a[2], b[2]) * 0.6 and abs(ay - by) < max(a[3], b[3]) * 0.6
 
 
 def ausschnitt(b, h, g):
@@ -71,15 +96,18 @@ def ausschnitt(b, h, g):
 
 
 def zuschneiden(eingang, ziel, probe=False):
-    bild = cv2.imread(eingang)
+    try:
+        bild = cv2.imdecode(np.fromfile(eingang, dtype=np.uint8), cv2.IMREAD_COLOR)
+    except Exception:
+        bild = None
     if bild is None:
         print(f'  {os.path.basename(eingang)}: nicht lesbar')
         return None
     h, b = bild.shape[:2]
-    g = gesicht(bild)
-    x, y, cb, ch = ausschnitt(b, h, g)
     name = os.path.splitext(os.path.basename(eingang))[0]
     name = os.path.splitext(name)[0]  # "FASTROKI.png.jpg"
+    g = gesicht(bild, name)
+    x, y, cb, ch = ausschnitt(b, h, g)
     aus = os.path.join(ziel, name + '.jpg')
     print(f'  {os.path.basename(eingang)} ({b}x{h}): Gesicht {"gefunden" if g is not None else "NICHT gefunden - Mitte oben"}, Ausschnitt {cb}x{ch} bei {x},{y} -> {aus}')
     if probe:
@@ -88,7 +116,9 @@ def zuschneiden(eingang, ziel, probe=False):
     zb = min(ZIEL_B, cb)
     teil = cv2.resize(teil, (zb, int(zb / 0.8)), interpolation=cv2.INTER_AREA)
     os.makedirs(ziel, exist_ok=True)
-    cv2.imwrite(aus, teil, [cv2.IMWRITE_JPEG_QUALITY, 92])
+    ok, puffer = cv2.imencode('.jpg', teil, [cv2.IMWRITE_JPEG_QUALITY, 92])
+    if ok:
+        puffer.tofile(aus)
     return aus
 
 
@@ -98,6 +128,17 @@ if __name__ == '__main__':
     ziel = '.'
     if '--ziel' in args:
         ziel = args[args.index('--ziel') + 1]
-    dateien = [a for i, a in enumerate(args) if not a.startswith('--') and (i == 0 or args[i - 1] != '--ziel')]
+    bericht = args[args.index('--bericht') + 1] if '--bericht' in args else None
+    dateien = [a for i, a in enumerate(args) if not a.startswith('--') and (i == 0 or args[i - 1] not in ('--ziel', '--bericht'))]
     for d in dateien:
         zuschneiden(d, ziel, probe)
+    if bericht:
+        # Ergaenzt eine vorhandene Datei (das Skript laeuft in Haeppchen zu 50 Bildern).
+        import json
+        alt = {}
+        if os.path.exists(bericht):
+            with open(bericht, encoding='utf8') as f:
+                alt = json.load(f)
+        alt.update(ANZAHL)
+        with open(bericht, 'w', encoding='utf8') as f:
+            json.dump(alt, f, ensure_ascii=False)
