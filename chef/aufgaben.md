@@ -185,7 +185,7 @@ Nach Wichtigkeit sortiert (Wirkung zuerst, dann Aufwand). Erste Fassung aus der 
   - Problem: app/api/match-finder/route.ts:40-41 antwortet bei einem Fehler der Epic-Anmeldung oder einer Zeitüberschreitung mit ok true und treffer null. Das ist dieselbe Antwort wie 'Diesen Spieler gibt es nicht'. Der VIP denkt dann, er habe sich vertippt.
   - Vorschlag: Fehler von Epic getrennt melden (ok false, Status 424, Text 'Epic antwortet gerade nicht'). Auf der Seite dazu einen Knopf 'nochmal versuchen' zeigen.
   - Dateien: app/api/match-finder/route.ts
-- [ ] **Ordner-Listen vom Release gleichzeitig statt nacheinander holen** _(Bereich: Daten und Verlaesslichkeit · Wirkung 2/5 · Aufwand klein · Risiko niedrig)_
+- [x] **Ordner-Listen vom Release gleichzeitig statt nacheinander holen** (chef-62) _(Bereich: Daten und Verlaesslichkeit · Wirkung 2/5 · Aufwand klein · Risiko niedrig)_
   - Problem: lib/ablageGithub.ts:267 holt die Manifeste beim Auflisten eines Ordners eins nach dem anderen. Für Ordner wie 'epic-spieltage/' oder 'replays/' liefert tagsFuer (lib/releaseTags.mjs:82-84) alle Saison-Releases von S58 bis S42 plus das alte, also 18 Abrufe hintereinander mit je bis zu 30 Sekunden Frist (LESEN_MS, Zeile 54). Alle 5 Minuten verfällt der Zwischenspeicher (MANIFEST_MS), und der nächste Besucher wartet dann die ganze Kette ab.
   - Vorschlag: Die Manifeste mit Promise.all gleichzeitig holen. Zusätzlich ein fehlendes Saison-Release (404) länger als 5 Minuten merken, zum Beispiel bis zum nächsten Saisonwechsel.
   - Dateien: lib/ablageGithub.ts, lib/releaseTags.mjs

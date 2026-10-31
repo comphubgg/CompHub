@@ -1206,5 +1206,22 @@
     "modell": "Sonnet",
     "status": "wartet",
     "runde": 4
+  },
+  {
+    "id": "chef-62",
+    "datum": "2026-10-31T20:50:00Z",
+    "titel": "Datenablage: Listen der Releases gleichzeitig holen",
+    "kurz": "Unsichtbar: erster Besucher nach 5 Minuten wartet nicht mehr auf 18 Abrufe hintereinander.",
+    "bereich": "Technik",
+    "warum": "Beim Auflisten eines Ordners holte die Seite bis zu 18 Release-Listen nacheinander – alle 5 Minuten wartete ein Besucher die ganze Kette ab.",
+    "was": "Die Listen kommen jetzt gleichzeitig. Ein Release, das es noch nicht gibt (künftige Saison), merkt sich die Seite eine Stunde statt fünf Minuten.",
+    "ansehen": [
+      "/statistics"
+    ],
+    "commits": [],
+    "groesse": "klein",
+    "modell": "Opus",
+    "status": "wartet",
+    "runde": 4
   }
 ]

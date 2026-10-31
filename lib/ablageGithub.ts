@@ -245,6 +245,7 @@ async function lies(name: string): Promise<Buffer | null> {
  */
 const manifeste = new Map<string, { bis: number; namen: string[] }>();
 const MANIFEST_MS = 5 * 60_000;
+const FEHLT_MS = 60 * 60_000;
 
 async function manifestNamen(tag: string): Promise<string[]> {
   const da = manifeste.get(tag);
@@ -252,7 +253,8 @@ async function manifestNamen(tag: string): Promise<string[]> {
   const r = await fetch(basis(tag) + 'manifest.json', {
     redirect: 'follow', cache: 'no-store', signal: AbortSignal.timeout(LESEN_MS),
   });
-  if (r.status === 404) { manifeste.set(tag, { bis: Date.now() + MANIFEST_MS, namen: [] }); return []; }
+  // Ein Release, das es (noch) nicht gibt - meist eine kuenftige Saison -, eine Stunde merken statt fuenf Minuten.
+  if (r.status === 404) { manifeste.set(tag, { bis: Date.now() + FEHLT_MS, namen: [] }); return []; }
   if (!r.ok) throw new Error(`GitHub-Ablage ${r.status} beim Manifest ${tag}`);
   const roh = await r.json() as Record<string, unknown>;
   const namen = Object.keys(roh).filter((k) => k !== 'manifest.json').map(ablageName);
@@ -264,7 +266,9 @@ async function manifestNamen(tag: string): Promise<string[]> {
 async function liste(ordner: string): Promise<string[]> {
   const praefix = ordner.replace(/\/+$/, '') + '/';
   const namen: string[] = [];
-  for (const tag of tagsFuer(praefix)) namen.push(...await manifestNamen(tag));
+  // Alle Manifeste gleichzeitig: fuer epic-spieltage/ oder replays/ sind das bis zu 18 Releases, nacheinander wartete der erste
+  // Besucher nach Ablauf des Zwischenspeichers die ganze Kette ab (je bis zu LESEN_MS).
+  for (const teil of await Promise.all(tagsFuer(praefix).map((tag) => manifestNamen(tag)))) namen.push(...teil);
   const raus = new Set<string>();
   for (const n of namen) {
     if (!n.startsWith(praefix)) continue;
