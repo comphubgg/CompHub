@@ -2689,6 +2689,10 @@ export default function StatistikSeite() {
   const [epicZeilen, setEpicZeilen] = useState<VerlaufZeile[]>([]);
   /** Jedes FNCS-Finale seit CH1 SX und die Top-3-Plaetze sonst (lib/profilTafeln). */
   const [fncsTafel, setFncsTafel] = useState<TafelZeile[]>([]);
+  /** Die Grand-Finals-Plaetze fuers Profil: aus der Tafel (vollstaendig bis heute), sonst aus der Liste der Quelle. */
+  const fncsGrandFinals = useMemo(() => (fncsTafel.length ? fncsTafel : (fncs?.saisons ?? []))
+    .filter((x) => x.platz > 0)
+    .map((x) => ({ saison: x.saison, platz: x.platz })), [fncsTafel, fncs]);
   const [erfolge, setErfolge] = useState<Erfolg[]>([]);
   /** Welche Marke gerade aufgeklappt ist. */
   const [marke, setMarke] = useState<'fncs' | 'tage' | null>(null);
@@ -6556,8 +6560,10 @@ export default function StatistikSeite() {
                     </section>
                   )}
 
-                  {/* Die Grand Finals */}
-                  {fncs && fncs.saisons.some((x) => x.platz > 0) && (
+                  {/* Die Grand Finals.
+                      Die Liste der Quelle (fncs.saisons) endet bei den Globals 2025; die Tafel traegt dieselben Plaetze und dazu
+                      Chapter 7 (CH7 S2, Summit, Globals 2026 ...). Darum die Tafel, wo sie da ist - gleiche Werte, nur vollstaendig. */}
+                  {fncs && fncsGrandFinals.length > 0 && (
                     <section>
                       <div className="mb-3 flex flex-wrap items-baseline gap-3">
                         <p className="text-[10px] font-semibold uppercase
@@ -6575,7 +6581,7 @@ export default function StatistikSeite() {
                         </span>
                       </div>
                       <div className="grid gap-2 sm:grid-cols-3 lg:grid-cols-4">
-                        {fncs.saisons.filter((x) => x.platz > 0).map((x) => (
+                        {fncsGrandFinals.map((x) => (
                           <div key={x.saison}
                             className="flex items-center justify-between gap-3 rounded-lg
                                        border border-zinc-800 bg-zinc-900/30 px-3 py-2.5">

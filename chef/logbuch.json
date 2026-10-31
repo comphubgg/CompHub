@@ -1650,5 +1650,26 @@
     "modell": "Sonnet",
     "status": "wartet",
     "runde": 5
+  },
+  {
+    "id": "chef-80",
+    "datum": "2026-10-31T21:10:00Z",
+    "titel": "Spielerprofil: FNCS Grand Finals bis heute",
+    "kurz": "Spielerprofil → „FNCS Grand Finals“: jetzt auch Chapter 7 (Summit, Globals 2026 …).",
+    "markieren": [
+      "text:FNCS Grand Finals",
+      "text:CH7 S2"
+    ],
+    "bereich": "Statistik",
+    "warum": "Die Kacheln endeten bei den Globals 2025. Bei peterbot fehlten sechs Ergebnisse, z. B. Platz 2 beim Summit und Platz 23 bei den Globals 2026 – obwohl die Seite sie kennt.",
+    "was": "Der Block nimmt jetzt die vollständige Liste (dieselben Plätze, nur bis heute). Alle älteren Kacheln bleiben gleich.",
+    "ansehen": [
+      "/statistics?spieler=45ce4565b6db452c9419119b12e7eac3"
+    ],
+    "commits": [],
+    "groesse": "klein",
+    "modell": "Opus",
+    "status": "wartet",
+    "runde": 5
   }
 ]
