@@ -260,5 +260,23 @@
     "modell": "Opus",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-19",
+    "titel": "Datum und Zahlen folgen der gewählten Sprache (Startseite, Maps, FNCS)",
+    "bereich": "Sprache",
+    "warum": "Auf der Startseite, den Turnier-Maps und der FNCS-Seite stand das Datum fest im britischen Format („26 Oct 2026“) und die Punkte der FNCS-Tabelle mit englischem Tausender-Komma – auch wenn man Deutsch gewählt hatte. Der Rest der Seite richtet sich schon nach der Sprache.",
+    "was": "Diese drei Stellen benutzen jetzt dieselbe Regel wie der Rest: auf Deutsch „26. Okt. 2026“ und „1.234“, auf Englisch wie bisher. Für englische Besucher ändert sich nichts.",
+    "ansehen": [
+      "/tournament-maps",
+      "/fncs",
+      "/"
+    ],
+    "groesse": "klein",
+    "datum": "2026-10-31T19:04:42Z",
+    "commits": [],
+    "modell": "Opus",
+    "status": "wartet",
+    "runde": 1
   }
 ]
