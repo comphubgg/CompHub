@@ -4203,6 +4203,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Die Zahlen: Turnierkalender, Bestenlisten, Platzierungen und Mitspieler aus Epics offizieller Schnittstelle; Eliminierungen, Knocks und Waffe je Match selbst ausgewertet aus Epics Server-Replays. Fehlt eine Zahl bei der Quelle, bleibt sie leer — statt geschätzt zu werden.': 'The numbers: tournament calendar, leaderboards, placements and teammates come from the official Epic interface; eliminations, knocks and weapon per match are evaluated by us from the Epic server replays. If a number is missing at the source, it stays empty instead of being estimated.',
   'Werte aus dem ganzen Archiv.': 'Values from the entire archive.',
   'Spielerprofile.': 'player profiles.',
+  'Genaue Zahl anzeigen': 'Show exact number',
   'Werte, Titel, FNCS-Ergebnisse, Mitspieler und Landepunkte zu jedem Spieler im Archiv.': 'Stats, titles, FNCS results, teammates and landing spots for every player in the archive.',
   'Alle Spieler ansehen': 'Browse all players',
   'Jahresbilanz': 'Year in review',
