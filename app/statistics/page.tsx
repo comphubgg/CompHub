@@ -59,8 +59,11 @@ function nachRegionReihe(regionen: string[]): string[] {
 
 type Bereich = 'start' | 'turniere' | 'regional' | 'spieler' | 'jahr' | 'orgs' | 'vergleich' | 'bilder';
 
-/** Das Jahr der Jahresansicht - siehe JAHR_SAISONS in lib/szeneStats. */
-const JAHR = 2026;
+/**
+ * Das Jahr der Jahresansicht: das neueste Jahr in JAHR_SAISONS (lib/saisonJahre). Stand frueher fest auf 2026 - kommt 2027 dort hinzu,
+ * zieht die Statistik jetzt von selbst mit, statt weiter 2026 zu oeffnen.
+ */
+const JAHR = Math.max(...Object.keys(JAHR_SAISONS).map(Number));
 
 /**
  * Wer einen Bereich sehen darf - vom Betreiber je Bereich schaltbar.
@@ -2645,7 +2648,7 @@ export default function StatistikSeite() {
     if (gewuenscht && ['turniere', 'regional', 'spieler', 'jahr', 'orgs', 'vergleich', 'bilder'].includes(gewuenscht)) {
       setBereich(gewuenscht as Bereich);
       const j = suchParameter?.get('jahr');
-      if (j === 'alle') setJahrWahl('alle');
+      if (j === 'alle' || (j && JAHR_SAISONS[Number(j)])) setJahrWahl(j);
     }
 
     /*
@@ -4820,7 +4823,7 @@ export default function StatistikSeite() {
               </div>
               <div className="mb-4 flex flex-wrap items-center gap-3">
                 <div className="flex max-w-full items-center gap-1 overflow-x-auto rounded-full border border-zinc-800 bg-zinc-900 p-1 shadow-sm [scrollbar-width:none]">
-                  {[['alle', t('Alle Zeit')], ['2026', '2026'], ['2025', '2025'], ['2024', '2024'], ['2023', '2023'], ['2022', '2022'], ['2021', '2021'], ['2020', '2020'], ['2019', '2019']].map(([w, titel]) => (
+                  {[['alle', t('Alle Zeit')], ...Object.keys(JAHR_SAISONS).sort((x, y) => Number(y) - Number(x)).map((j) => [j, j])].map(([w, titel]) => (
                     <button key={w} onClick={() => setJahrWahl(w)}
                       className={`shrink-0 rounded-full px-4 py-1.5 text-sm font-bold transition ${
                         jahrWahl === w

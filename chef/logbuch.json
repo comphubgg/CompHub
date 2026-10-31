@@ -92,5 +92,23 @@
     "modell": "Opus",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-6",
+    "titel": "Jahreswechsel: Preisgeld-Block und Jahresbilanz zeigen das richtige Jahr",
+    "bereich": "Statistik",
+    "warum": "Ab dem 1. Januar 2027 hätte die Startseite unter „Meistes Preisgeld 2027“ die Werte aller Zeiten gezeigt – für 2027 ist noch nichts gerechnet, und der Block wich still auf „alle Zeit“ aus. Die Jahresbilanz der Statistik war fest auf 2026 eingestellt.",
+    "was": "Fehlt das neue Jahr noch, zeigt der Preisgeld-Block das Vorjahr und schreibt auch dieses Jahr in die Überschrift. Die Überschrift nennt immer das, was wirklich darunter steht. „Alle anzeigen“ öffnet genau dieses Jahr in der Statistik. Die Jahresbilanz der Statistik nimmt das neueste Jahr aus der Saison-Liste; kommt 2027 dort hinzu, erscheint der Knopf von selbst. Heute sieht alles gleich aus wie vorher.",
+    "ansehen": [
+      "/",
+      "/statistics?bereich=jahr&jahr=2025",
+      "/statistics?bereich=jahr&jahr=alle"
+    ],
+    "groesse": "klein",
+    "datum": "2026-10-31T18:52:18Z",
+    "commits": [],
+    "modell": "Opus",
+    "status": "wartet",
+    "runde": 1
   }
 ]
