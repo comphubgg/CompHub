@@ -1784,5 +1784,28 @@
     "modell": "Sonnet",
     "status": "wartet",
     "runde": 5
+  },
+  {
+    "id": "chef-88",
+    "datum": "2026-10-31T21:20:00Z",
+    "titel": "Jahresbilanz alter Jahre: keine Karriere-Zahlen mehr in der Zeile",
+    "kurz": "Statistik → Jahr 2022 → Meistes Preisgeld: peterbot nicht mehr „772 Matches“ (Karriere).",
+    "markieren": [
+      "text:Most Earnings",
+      "text:Matches"
+    ],
+    "bereich": "Statistik",
+    "warum": "In den Jahren 2019–2023 stand neben dem Preisgeld die Zahl der Spieltage und Matches der ganzen Karriere (peterbot 2022: 147 Spieltage, 772 Matches).",
+    "was": "Für diese Jahre stehen dort keine falschen Zahlen mehr. Alle übrigen Werte (Elims, Schaden, Preisgeld je Jahr und gesamt) wurden nachgerechnet und stimmen.",
+    "ansehen": [
+      "/statistics?bereich=jahr&jahr=2022"
+    ],
+    "commits": [
+      "a3c4eb46f10fb768c68acd6a2a0021ce8bd4f2f3"
+    ],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 5
   }
 ]
