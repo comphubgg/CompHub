@@ -12,7 +12,9 @@
       "/admin/plakate",
       "/admin/replay"
     ],
-    "commits": [],
+    "commits": [
+      "9699471b103cb4553f8169c6688db5537c54c35f"
+    ],
     "groesse": "klein",
     "modell": "Opus",
     "status": "wartet",
@@ -28,7 +30,9 @@
     "ansehen": [
       "/sign-in"
     ],
-    "commits": [],
+    "commits": [
+      "69affce96b7d9da52ba544b771ac474291d284e7"
+    ],
     "groesse": "klein",
     "modell": "Opus",
     "status": "wartet",
@@ -44,7 +48,9 @@
     "ansehen": [
       "/admin/tweets"
     ],
-    "commits": [],
+    "commits": [
+      "04ce0c8edf589d9f10d7c37973cc59b82f660e65"
+    ],
     "groesse": "klein",
     "modell": "Opus",
     "status": "wartet",
@@ -61,7 +67,9 @@
       "/tournament-maps",
       "/events"
     ],
-    "commits": [],
+    "commits": [
+      "86a2ac1d672f81a28cc41935ebd54d47612ec545"
+    ],
     "groesse": "klein",
     "modell": "Opus",
     "status": "wartet",

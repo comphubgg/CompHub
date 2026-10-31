@@ -191,3 +191,20 @@ Diese beiden Punkte erledigt der Assistent des Betreibers direkt (Zugriffspruefu
   - Problem: Die Anmeldung mit Name und Zugangsschlüssel (app/api/auth/vip/route.ts:61-74) begrenzt die Zahl der Fehlversuche nicht. Alle neun Zugänge in data/vip-users.json sind aktiv, die meisten Schlüssel haben nur 8 Zeichen, darunter auch der Admin-Zugang 'admin-juanito'. Wer ihn errät, hat die ganze Verwaltung. Auch die Passwort-Anmeldung in app/api/konto/route.ts:292 zählt keine Fehlversuche. Umgekehrt antwortet die Registrierung bei zu schnellen Versuchen mit Status 429 (konto/route.ts:204 und 209). Genau diesen Status wertet der Cloudflare-Lastverteiler als Ausfall (cloudflare/lastverteilung.worker.js:75). Ist der Rechner daheim aus, schickt er die Anfrage dann ein zweites Mal an die andere Netlify-Seite.
   - Vorschlag: Fehlversuche je Anschluss und Zugangsname in der Ablage zählen. Nach 5 falschen Versuchen sperrt diese Kombination für 15 Minuten, mit der Meldung 'Zu viele Versuche – in 15 Minuten erneut'. Das gilt für die VIP- und die Passwort-Anmeldung. Für normale Nutzer ändert sich nichts, es gibt keinen zusätzlichen Schritt; der Betreiber hatte einen zweiten Anmeldeschritt als 'übertrieben viel Sicherheit' abbestellt (Kommentar in auth/vip/route.ts). Die beiden 429-Antworten der Registrierung auf 400 mit derselben Meldung umstellen. Langfristig für den Admin-Zugang einen längeren Schlüssel vergeben (über 'Neuer Schlüssel' in /admin/accounts).
   - Dateien: app/api/auth/vip/route.ts, app/api/konto/route.ts, lib/vipZugaenge.ts, cloudflare/lastverteilung.worker.js
+
+## Vom Chef ergaenzt (Runde 1, 31.10.)
+
+- [ ] **Zeitplan-Schnittstellen antworten mit 503** _(Daten und Verlaesslichkeit · Wirkung 2/5 · Aufwand klein)_ - `app/api/cron/*` melden
+  Fehler mit 503. Pruefen, ob der Betrieb den Code auswertet; wenn nicht, auf 424 umstellen.
+- [ ] **Alte Schluessel-Uebersetzungen** _(Besucher-Seiten · Wirkung 1/5 · Aufwand klein)_ - `DemoPanel`, `NotificationBell`,
+  `MultiviewDashboard`, `QuickEditItem` rufen `t()` mit Schluesseln wie `notifications_aktivieren` auf, die in der Tabelle fehlen.
+  Pruefen, ob diese Bausteine noch sichtbar sind; sonst als Vorschlag zum Entfernen.
+- Werkzeug fuer Uebersetzungsluecken: alle `t('...')`/`<T>...</T>` gegen die Tabelle in `app/lib/sprache.ts` (Tabelle per
+  `new Function` auswerten, da Schluessel mit `+` zusammengesetzt sind). Stand 31.10.: oeffentliche Seiten und Admin vollstaendig.
+
+## Erledigt
+
+- [x] chef-1: 33 fehlende englische Texte (Admin + Turnierkarten) - 31.10.
+- [x] chef-2: Registrierung antwortet nicht mehr mit 429 - 31.10.
+- [x] chef-3: Beitrag-Holen im Admin antwortet nicht mehr mit 502 - 31.10.
+- [x] chef-4: fuenf weitere deutsche Reste auf Englisch - 31.10.
