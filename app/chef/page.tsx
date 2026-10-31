@@ -98,6 +98,8 @@ export default function ChefSeite() {
         </div>
         <h3 className="mt-3 text-2xl font-extrabold tracking-tight text-slate-100">{x.kurz || x.titel}</h3>
         {x.kurz && <p className="mt-1 text-sm text-slate-500">{x.titel}</p>}
+        {/* Ohne kurzen Satz (aeltere Eintraege) steht "Was ist neu" gleich offen da - sonst stuende nur der Titel (Betreiber, 31.10.2026: "ich sehe keinen Text"). */}
+        {!x.kurz && <p className="mt-3 max-w-3xl text-base leading-relaxed text-slate-300">{x.was}</p>}
         {/* Das markierte Bild zuerst - rot umrandet, was neu ist (scripts/chef-bilder.mjs). Klick vergroessert. */}
         {(daten?.bilder?.[x.id]?.fotos ?? []).map((f) => (
           <figure key={f.nachher} className="mt-5">
@@ -143,7 +145,10 @@ export default function ChefSeite() {
                   <span className="font-bold text-slate-200">{f.titel}</span>
                   <a href={f.url} target="_blank" rel="noreferrer" className="text-sky-400 hover:text-sky-300"><T>Groß öffnen</T> ↗</a>
                 </div>
-                <iframe src={f.url} title={f.titel} loading="lazy" className="h-[36rem] w-full bg-zinc-950" />
+                {/* In Computerbreite (dreifach breit, auf ein Drittel verkleinert) - sonst zeigte der schmale Rahmen die Handy-Ansicht. */}
+                <div className="relative h-[36rem] overflow-hidden">
+                  <iframe src={f.url} title={f.titel} loading="lazy" className="absolute left-0 top-0 h-[300%] w-[300%] origin-top-left scale-[0.3333] bg-zinc-950" />
+                </div>
               </div>
             ))}
           </div>
