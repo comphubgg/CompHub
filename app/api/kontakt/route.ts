@@ -3,11 +3,10 @@ import path from 'path';
 import { DATEN_ORT } from '@/lib/datenOrt';
 import { cookies } from 'next/headers';
 import { kontoAus, nachId } from '@/lib/konten';
-import { istBetreiber, vipAus } from '@/lib/vipCookie';
-import { zugangNach, rechteVon } from '@/lib/vipZugaenge';
 import { alle, lege, aendere, entferne } from '@/lib/kontakt';
 import { sendeMail, betreiberAdresse } from '@/lib/mail';
 import { schickeSupport } from '@/lib/discord';
+import { istAdminAnfrage } from '@/lib/adminPruefung';
 
 /*
  * Das Kontaktformular.
@@ -43,21 +42,8 @@ async function angemeldet() {
  * dazu der alte VIP-Weg - solange das Konto des Betreibers nur darueber
  * besteht, kaeme er sonst an seinen eigenen Posteingang nicht heran.
  */
-async function darfLesen(): Promise<boolean> {
-  const konto = await angemeldet();
-  if (konto?.rolle === 'admin') return true;
-
-  const laden = await cookies();
-  const vipWert = laden.get('streamer_dashboard_auth')?.value;
-  if (!vipWert) return false;
-  if (istBetreiber(vipWert)) return true;
-  const name = vipAus(vipWert);
-  if (!name) return false;
-  return rechteVon(await zugangNach(name)).rolle === 'admin';
-}
-
 export async function GET() {
-  if (!await darfLesen()) {
+  if (!await istAdminAnfrage()) {
     return NextResponse.json({ fehler: 'nicht erlaubt' }, { status: 403 });
   }
   return NextResponse.json({ meldungen: await alle() });
@@ -166,7 +152,7 @@ export async function POST(request: Request) {
 }
 
 export async function PATCH(request: Request) {
-  if (!await darfLesen()) {
+  if (!await istAdminAnfrage()) {
     return NextResponse.json({ fehler: 'nicht erlaubt' }, { status: 403 });
   }
   const k = await request.json().catch(() => ({}));
@@ -202,7 +188,7 @@ export async function PATCH(request: Request) {
 }
 
 export async function DELETE(request: Request) {
-  if (!await darfLesen()) {
+  if (!await istAdminAnfrage()) {
     return NextResponse.json({ fehler: 'nicht erlaubt' }, { status: 403 });
   }
   const k = await request.json().catch(() => ({}));

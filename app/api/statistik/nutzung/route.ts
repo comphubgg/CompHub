@@ -1,9 +1,8 @@
 import { NextResponse, type NextRequest } from 'next/server';
-import { cookies } from 'next/headers';
-import { alleKonten, kontoAus, nachId } from '@/lib/konten';
+import { alleKonten } from '@/lib/konten';
 import { alleZugaenge } from '@/lib/vipZugaenge';
-import { vipAus } from '@/lib/vipCookie';
 import { besucheJeTag, zaehltSeit, tagVon } from '@/lib/besuche';
+import { istBetreiberOderAdminKonto } from '@/lib/adminPruefung';
 
 /*
  * Die Nutzungszahlen fuer das Dashboard.
@@ -34,20 +33,6 @@ import { besucheJeTag, zaehltSeit, tagVon } from '@/lib/besuche';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-const KONTO_COOKIE = 'streamer_dashboard_konto';
-const VIP_COOKIE = 'streamer_dashboard_auth';
-
-/** Die Zahlen sind Betriebsangaben - sie gehen nur den Betreiber etwas an. */
-async function darfSehen(): Promise<boolean> {
-  const laden = await cookies();
-  if (vipAus(laden.get(VIP_COOKIE)?.value)?.trim().toLowerCase() === 'admin-juanito') {
-    return true;
-  }
-  const id = kontoAus(laden.get(KONTO_COOKIE)?.value);
-  if (!id) return false;
-  const k = await nachId(id);
-  return !!k && !k.gesperrt && k.rolle === 'admin';
-}
 
 /** Der Tag eines Zeitstempels in Ortszeit - oder null, wenn er unbrauchbar ist. */
 function tagAus(wert: string | number | undefined | null): string | null {
@@ -57,7 +42,7 @@ function tagAus(wert: string | number | undefined | null): string | null {
 }
 
 export async function GET(request: NextRequest) {
-  if (!await darfSehen()) {
+  if (!await istBetreiberOderAdminKonto()) {
     return NextResponse.json({ fehler: 'Nicht erlaubt.' }, { status: 403 });
   }
 

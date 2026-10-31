@@ -1,3 +1,4 @@
+import { istBetreiberOderAdminKonto } from '@/lib/adminPruefung';
 import { NextResponse } from 'next/server';
 import { cookies } from 'next/headers';
 import { zaehleAufruf, BESUCH_COOKIE } from '@/lib/besuche';
@@ -35,17 +36,6 @@ const VIP_COOKIE = 'streamer_dashboard_auth';
  * allem ein Bild seiner eigenen Arbeitszeit und nicht der Besucher, nach
  * denen er gefragt hat.
  */
-async function istBetreiber(laden: Awaited<ReturnType<typeof cookies>>): Promise<boolean> {
-  // Der alte Weg: der Zugangsschluessel des Betreibers.
-  if (vipAus(laden.get(VIP_COOKIE)?.value)?.trim().toLowerCase() === 'admin-juanito') {
-    return true;
-  }
-  // Der neue Weg: die Rolle am CompHub-Konto.
-  const id = kontoAus(laden.get(KONTO_COOKIE)?.value);
-  if (!id) return false;
-  return (await nachId(id))?.rolle === 'admin';
-}
-
 export async function POST(request: Request) {
   try {
     const laden = await cookies();
@@ -83,7 +73,7 @@ export async function POST(request: Request) {
       return new NextResponse(null, { status: 204 });
     }
 
-    if (await istBetreiber(laden)) return new NextResponse(null, { status: 204 });
+    if (await istBetreiberOderAdminKonto()) return new NextResponse(null, { status: 204 });
 
     const neuesCookie = await zaehleAufruf(laden.get(BESUCH_COOKIE)?.value);
 

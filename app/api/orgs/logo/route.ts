@@ -1,11 +1,8 @@
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
 import sharp from 'sharp';
 import { speicher } from '@/lib/ablage';
-import { kontoAus, nachId } from '@/lib/konten';
-import { istBetreiber, vipAus } from '@/lib/vipCookie';
-import { zugangNach, rechteVon } from '@/lib/vipZugaenge';
 import { orgBild } from '@/lib/bildAdressen';
+import { istAdminAnfrage } from '@/lib/adminPruefung';
 
 /*
  * Die Logos der Organisationen, die der Betreiber selbst hochlaedt.
@@ -27,22 +24,6 @@ import { orgBild } from '@/lib/bildAdressen';
 export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 
-const KONTO_COOKIE = 'streamer_dashboard_konto';
-const VIP_COOKIE = 'streamer_dashboard_auth';
-
-async function istAdmin(): Promise<boolean> {
-  const laden = await cookies();
-  const id = kontoAus(laden.get(KONTO_COOKIE)?.value);
-  if (id) {
-    const k = await nachId(id);
-    if (k?.rolle === 'admin' && !k.gesperrt) return true;
-  }
-  const wert = laden.get(VIP_COOKIE)?.value;
-  if (istBetreiber(wert)) return true;
-  const name = vipAus(wert);
-  if (!name) return false;
-  return rechteVon(await zugangNach(name)).rolle === 'admin';
-}
 
 export async function GET(request: Request) {
   const datei = new URL(request.url).searchParams.get('datei') ?? '';
@@ -103,7 +84,7 @@ async function bannerBild(roh: Buffer): Promise<Buffer> {
 }
 
 export async function POST(request: Request) {
-  if (!await istAdmin()) return NextResponse.json({ fehler: 'Only the admin.' }, { status: 403 });
+  if (!await istAdminAnfrage()) return NextResponse.json({ fehler: 'Only the admin.' }, { status: 403 });
   const form = await request.formData().catch(() => null);
   const datei = form?.get('datei');
   const org = String(form?.get('org') ?? '').toLowerCase().replace(/[^a-z0-9-]/g, '').slice(0, 60) || 'org';

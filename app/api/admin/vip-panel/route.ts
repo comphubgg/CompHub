@@ -1,8 +1,5 @@
+import { istAdminAnfrage } from '@/lib/adminPruefung';
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { kontoAus, nachId } from '@/lib/konten';
-import { istBetreiber, vipAus } from '@/lib/vipCookie';
-import { zugangNach, rechteVon } from '@/lib/vipZugaenge';
 import {
   vipUebersicht, vipChat, vipFrist, vipLoeschen, vipVerknuepfen, mitgliederSuchen,
   abgelaufeneVipsLoeschen, discordDa,
@@ -26,24 +23,9 @@ export const dynamic = 'force-dynamic';
 export const runtime = 'nodejs';
 export const maxDuration = 60;
 
-const KONTO_COOKIE = 'streamer_dashboard_konto';
-const VIP_COOKIE = 'streamer_dashboard_auth';
-
-async function istAdmin(): Promise<boolean> {
-  const laden = await cookies();
-  const id = kontoAus(laden.get(KONTO_COOKIE)?.value);
-  if (id) {
-    const k = await nachId(id);
-    if (k && !k.gesperrt && k.rolle === 'admin') return true;
-  }
-  const vipName = vipAus(laden.get(VIP_COOKIE)?.value);
-  if (!vipName) return false;
-  if (istBetreiber(laden.get(VIP_COOKIE)?.value)) return true;
-  return rechteVon(await zugangNach(vipName)).rolle === 'admin';
-}
 
 export async function GET() {
-  if (!await istAdmin()) return NextResponse.json({ fehler: 'nicht erlaubt' }, { status: 403 });
+  if (!await istAdminAnfrage()) return NextResponse.json({ fehler: 'nicht erlaubt' }, { status: 403 });
   try {
     // Wer hier nachsieht, soll keinen laengst abgelaufenen Zugang mehr sehen.
     const abgelaufen = await abgelaufeneVipsLoeschen().catch(() => []);
@@ -55,7 +37,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  if (!await istAdmin()) return NextResponse.json({ fehler: 'nicht erlaubt' }, { status: 403 });
+  if (!await istAdminAnfrage()) return NextResponse.json({ fehler: 'nicht erlaubt' }, { status: 403 });
   const e = await request.json().catch(() => ({})) as {
     aktion?: string; name?: string; bis?: string | null; grund?: string;
     q?: string; discordId?: string; discordName?: string;

@@ -1,8 +1,5 @@
+import { istAdminAnfrage } from '@/lib/adminPruefung';
 import { NextResponse } from 'next/server';
-import { cookies } from 'next/headers';
-import { kontoAus, nachId } from '@/lib/konten';
-import { istBetreiber, vipAus } from '@/lib/vipCookie';
-import { zugangNach, rechteVon } from '@/lib/vipZugaenge';
 import {
   richteServerEin, schluesselAufraeumen, discordDa, knoepfeMoeglich,
   richteUpdatesEin, richteZugangEin, richteAdminEin, werkzeugEinrichten, richteCommunityEin,
@@ -34,26 +31,10 @@ export const runtime = 'nodejs';
  */
 export const maxDuration = 300;
 
-const KONTO_COOKIE = 'streamer_dashboard_konto';
-const VIP_COOKIE = 'streamer_dashboard_auth';
-
-async function istAdmin(): Promise<boolean> {
-  const laden = await cookies();
-  const id = kontoAus(laden.get(KONTO_COOKIE)?.value);
-  if (id) {
-    const k = await nachId(id);
-    if (k?.rolle === 'admin' && !k.gesperrt) return true;
-  }
-  const wert = laden.get(VIP_COOKIE)?.value;
-  if (istBetreiber(wert)) return true;
-  const name = vipAus(wert);
-  if (!name) return false;
-  return rechteVon(await zugangNach(name)).rolle === 'admin';
-}
 
 /** Was eingerichtet ist - damit die Oberflaeche nicht raten muss. */
 export async function GET() {
-  if (!await istAdmin()) {
+  if (!await istAdminAnfrage()) {
     return NextResponse.json({ fehler: 'nicht erlaubt' }, { status: 403 });
   }
   return NextResponse.json({
@@ -64,7 +45,7 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  if (!await istAdmin()) {
+  if (!await istAdminAnfrage()) {
     return NextResponse.json({ fehler: 'nicht erlaubt' }, { status: 403 });
   }
   const koerper = await request.json().catch(() => ({}));
