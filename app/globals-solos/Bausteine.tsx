@@ -1,5 +1,6 @@
 'use client';
 
+import { ortJetzt } from '@/app/lib/ort';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { PlatzhalterRund } from '@/app/components/SpielerPlatzhalter';
 import T from '@/app/components/T';
@@ -33,10 +34,10 @@ export function kartenQuelle(bild?: string | null): string {
 }
 
 export const datum = (iso: string | null) => (iso
-  ? new Intl.DateTimeFormat('de-DE', { weekday: 'short', day: '2-digit', month: '2-digit', timeZone: 'Europe/Brussels' }).format(new Date(iso))
+  ? new Intl.DateTimeFormat(ortJetzt(), { weekday: 'short', day: '2-digit', month: '2-digit', timeZone: 'Europe/Brussels' }).format(new Date(iso))
   : '');
 export const uhr = (iso: string | null) => (iso
-  ? new Intl.DateTimeFormat('de-DE', { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Brussels' }).format(new Date(iso))
+  ? new Intl.DateTimeFormat(ortJetzt(), { hour: '2-digit', minute: '2-digit', timeZone: 'Europe/Brussels' }).format(new Date(iso))
   : '');
 
 export function Gesicht({ s, gross }: { s: SolosSpieler; gross?: boolean }) {

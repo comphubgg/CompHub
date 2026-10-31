@@ -13,3 +13,8 @@
 export function ortVon(sprache: string): string {
   return sprache === 'en' ? 'en-GB' : 'de-DE';
 }
+
+/** Dasselbe ohne Hook - fuer Formatierer ausserhalb von Komponenten; auf dem Server gilt Englisch, die Grundsprache der Seite. */
+export function ortJetzt(): string {
+  return ortVon(typeof document !== 'undefined' ? document.documentElement.lang : 'en');
+}

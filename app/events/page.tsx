@@ -171,6 +171,13 @@ const TYPEN: Array<[Typ, string]> = [
   ['ranked', 'Ranked Cup'], ['skin', 'Skin Cup'], ['victory', 'Victory Cup'], ['andere', 'Andere'],
 ];
 
+/** Der Name der Serie ohne Stufe: "FNCS Solos Reload Heats" -> "fncs solos reload". */
+function serieVon(titel: string): string {
+  return titel.toLowerCase()
+    .replace(/\b(last chance qualifiers?|lcq|qualifiers?|heats?|semi-?finals?|grand finals?|finals?|round \d+|day \d+)\b/g, '')
+    .replace(/\s+/g, ' ').trim();
+}
+
 function typenVon(c: Cup): Set<Typ> {
   const text = `${c.titel} ${c.untertitel ?? ''}`;
   const t = new Set<Typ>();
@@ -514,7 +521,13 @@ export default function EventsPage() {
       ...basis.filter((c) => von(c).status === 'kommt')
         .sort((a, b) => gewicht(a) - gewicht(b) || (von(a).naechster ?? 0) - (von(b).naechster ?? 0)),
     // Ein wichtiger Cup, der bald kommt, steht vor einem unwichtigen, der gerade laeuft (stabil sortiert: sonst live vor demnaechst).
-    ].sort((a, b) => gewicht(a) - gewicht(b)).slice(0, 4);
+    ].sort((a, b) => gewicht(a) - gewicht(b))
+      /*
+       * Je Serie nur die naechste Stufe (31.10.2026): oben standen viermal dieselben "SOLOS"-Kacheln - Qualifiers, Heats, Last Chance Qualifier
+       * und Finals von FNCS Solos Reload. Die weiteren Stufen stehen weiter unten in der Liste.
+       */
+      .filter((c, i, a) => a.findIndex((x) => serieVon(x.titel) === serieVon(c.titel)) === i)
+      .slice(0, 4);
   }, [cups, region, lage, jetzt]);
   /*
    * Das Bild im Kopf: der Cup, der gerade laeuft - sonst der naechste -, und

@@ -197,6 +197,8 @@ export default function Home() {
   const [liveStatusMap, setLiveStatusMap] = useState<{ [key: string]: boolean }>({});
   /** Der Titel des laufenden Streams je Kanal (klein) - fuer den Titelfilter in der Seitenleiste. */
   const [liveTitelMap, setLiveTitelMap] = useState<{ [key: string]: string }>({});
+  const [zuschauerMap, setZuschauerMap] = useState<{ [key: string]: number }>({});
+  const [bildMap, setBildMap] = useState<{ [key: string]: string }>({});
   const liveStatusAbortRef = useRef<AbortController | null>(null);
   const DEFAULT_STREAM_VOLUME = 0.45;
   const [streamVolume, setStreamVolume] = useState<number>(DEFAULT_STREAM_VOLUME);
@@ -613,14 +615,20 @@ const response = await fetch(getApiUrl(`/api/search?q=${encodeURIComponent(twitc
       const liveData = await response.json();
       const newStatusMap: { [key: string]: boolean } = {};
       const newTitelMap: { [key: string]: string } = {};
+      const neueZuschauer: { [key: string]: number } = {};
+      const neueBilder: { [key: string]: string } = {};
 
       usernames.forEach(name => {
         const normalizedName = normalizeLiveStatusUsername(name);
         newStatusMap[normalizedName] = liveData[normalizedName]?.isLive || false;
         newTitelMap[normalizedName] = liveData[normalizedName]?.isLive ? String(liveData[normalizedName]?.title ?? '') : '';
+        neueZuschauer[normalizedName] = liveData[normalizedName]?.isLive ? Number(liveData[normalizedName]?.viewers) || 0 : 0;
+        if (liveData[normalizedName]?.bild) neueBilder[normalizedName] = String(liveData[normalizedName].bild);
       });
       setLiveStatusMap(prev => ({ ...prev, ...newStatusMap }));
       setLiveTitelMap(prev => ({ ...prev, ...newTitelMap }));
+      setZuschauerMap(prev => ({ ...prev, ...neueZuschauer }));
+      setBildMap(prev => ({ ...prev, ...neueBilder }));
     } catch (error) {
       console.error('Failed to load live status:', error);
     }
@@ -1909,6 +1917,8 @@ const response = await fetch(getApiUrl(`/api/search?q=${encodeURIComponent(twitc
       }}
       live={liveStatusMap}
       liveTitel={liveTitelMap}
+      zuschauer={zuschauerMap}
+      profilBilder={bildMap}
       favoriten={favoriteStreamers}
       favoritUmschalten={toggleFavorite}
       namen={namenKarte}

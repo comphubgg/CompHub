@@ -4517,6 +4517,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Ordner umbenennen': 'Rename folder',
   'Ordner löschen': 'Delete folder',
   'Streamer suchen …': 'Search streamers …',
+  'Streamer oder Stream-Titel suchen …': 'Search streamers or stream titles …',
   'Chat an': 'Chat on',
   'Chat aus': 'Chat off',
   'Wähle links einen Streamer oder ein Pro-POV.': 'Pick a streamer or a pro POV on the left.',

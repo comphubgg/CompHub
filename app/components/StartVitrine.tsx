@@ -8,6 +8,7 @@ import T from '@/app/components/T';
 import TeamFlagge from '@/components/TeamFlagge';
 import Rollzahl from '@/app/components/Rollzahl';
 import { fokusVon } from '@/lib/fotoFokus';
+import { ortJetzt } from '@/app/lib/ort';
 
 /*
  * Die Schaukaesten der Startseite.
@@ -85,7 +86,9 @@ function useSichtbar<E extends HTMLElement>(): [(el: E | null) => void, boolean]
   return [setHalter, drin];
 }
 
-const zahl = (n: number) => n.toLocaleString('de-DE');
+// Das Zahlenformat der eingestellten Sprache (app/lib/ort): fest 'de-DE' las sich auf der englischen Startseite als "300.283" Schaden und
+// "39.859" PR, waehrend direkt darueber "867,907" stand (31.10.2026). Die Zahlen erscheinen erst nach dem Laden - kein Unterschied zum Server-Bild.
+const zahl = (n: number) => n.toLocaleString(ortJetzt());
 
 function Gesicht({ name, bild, px }: { name: string; bild: string | null; px: number }) {
   return bild

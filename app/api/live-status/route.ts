@@ -3,7 +3,26 @@ import { detectTwitchLiveStatusFromHtml } from "@/app/lib/liveStatus";
 import { twitchToken, erneuereTwitchToken, twitchEingerichtet } from "@/lib/twitchToken";
 
 /** title: der Titel des laufenden Streams - fuer den Titelfilter der Streams-Seite (Betreiber, 19.10.2026: nach "LCQ" und Co. filtern). */
-type Status = { isLive: boolean; viewers: number; title?: string };
+/** bild: das Twitch-Profilbild - die Streamer-Liste zeigt es neben dem Namen (Idee 28, 31.10.2026). */
+type Status = { isLive: boolean; viewers: number; title?: string; bild?: string | null };
+
+// Profilbilder aendern sich selten - einen Tag merken, damit nicht jede Abfrage der Liste auch /helix/users fragt.
+const bildMerker = new Map<string, { bild: string | null; bis: number }>();
+async function bilderHolen(namen: string[], clientId: string, token: string): Promise<void> {
+  const offen = namen.map((n) => n.toLowerCase()).filter((n) => !((bildMerker.get(n)?.bis ?? 0) > Date.now()));
+  for (let i = 0; i < offen.length; i += 100) {
+    const teil = offen.slice(i, i + 100);
+    try {
+      const r = await fetch(`https://api.twitch.tv/helix/users?${teil.map((n) => `login=${encodeURIComponent(n)}`).join('&')}`, {
+        headers: { 'Client-ID': clientId, Authorization: `Bearer ${token}` }, cache: 'no-store', signal: AbortSignal.timeout(10_000),
+      });
+      if (!r.ok) return;
+      const j = await r.json() as { data?: Array<{ login: string; profile_image_url?: string }> };
+      const da = new Map((j.data ?? []).map((u) => [u.login.toLowerCase(), u.profile_image_url || null]));
+      for (const n of teil) bildMerker.set(n, { bild: da.get(n) ?? null, bis: Date.now() + 24 * 3600_000 });
+    } catch { return; }
+  }
+}
 
 // Kurzes Gedaechtnis, damit dieselbe Frage nicht mehrfach hintereinander
 // bei Twitch landet. Ein Stream wechselt nicht sekuendlich den Zustand.
@@ -120,13 +139,14 @@ export async function POST(req: Request) {
           liveUsers.set(stream.user_login.toLowerCase(), { viewers: stream.viewer_count || 0, title: String(stream.title ?? '') });
         });
 
+        await bilderHolen(chunk, clientId, accessToken);
         // Set results
         chunk.forEach((name: string) => {
           const treffer = liveUsers.get(name.toLowerCase());
           if (treffer !== undefined) {
-            result[name.toLowerCase()] = { isLive: true, viewers: treffer.viewers, title: treffer.title };
+            result[name.toLowerCase()] = { isLive: true, viewers: treffer.viewers, title: treffer.title, bild: bildMerker.get(name.toLowerCase())?.bild ?? null };
           } else {
-            result[name.toLowerCase()] = { isLive: false, viewers: 0 };
+            result[name.toLowerCase()] = { isLive: false, viewers: 0, bild: bildMerker.get(name.toLowerCase())?.bild ?? null };
           }
         });
       } catch (error) {
