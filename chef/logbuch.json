@@ -798,5 +798,21 @@
     "modell": "Sonnet",
     "status": "wartet",
     "runde": 1
+  },
+  {
+    "id": "chef-47",
+    "datum": "2026-10-31T19:47:59Z",
+    "titel": "Cup-Gesamtwertung über mehrere Tage: alle Werte zusammengerechnet",
+    "bereich": "Statistik",
+    "warum": "In der Gesamtwertung mehrtägiger Cups (z. B. FNCS Solo Final, Tag 1 + Tag 2) wurden nur Punkte, Elims, Spiele, Siege, Schaden, Kopftreffer und Lebenszeit addiert. K/D, Strecke, Heilung, Schild, Kisten, Material und die Aufteilung der Punkte standen mit den Werten des ersten Tages da – Beispiel: K/D 1,8 statt 2,45, Heilung 141 statt 571. Die Statistik-Kacheln derselben Seite zeigten die richtigen Werte, also zwei verschiedene Zahlen für dasselbe.",
+    "was": "Die Gesamtwertung rechnet jetzt genau wie die Statistik-Kacheln: alle Werte über alle Tage addiert, K/D und Durchschnitte neu berechnet. Die Prozent-Marke eines einzelnen Tages („Top 5 %“) steht in der Summe nicht mehr.",
+    "ansehen": [
+      "/events/s42_fncssolos_final"
+    ],
+    "commits": [],
+    "groesse": "klein",
+    "modell": "Opus",
+    "status": "wartet",
+    "runde": 1
   }
 ]

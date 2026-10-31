@@ -53,6 +53,7 @@ const hoechstens = (p: Promise<void>, ms: number) => Promise.race([p, new Promis
 import { abgesagtFuer, ohneAbgesagte } from '@/lib/abgesagt';
 import { holeKatalog, regionAus, wertungVon, type WertungsRegel } from '@/lib/cupWertung';
 import { GLOBALS_EVENT, GLOBALS_TAGE, istGlobalsEvent, istGlobalsFenster } from '@/lib/globalsCup';
+import { summiereTage } from '@/lib/globalsGesamt';
 import type { CupEintrag } from '@/lib/epicCups';
 
 /** Die Wertungstabelle eines Spieltags - ohne sie keine Rundenpunkte. */
@@ -98,27 +99,12 @@ async function tageGesamt(event: string, windows: string[]) {
       () => holeBereich(event, w, 0, 2));
     return bereinigt(d, event, w);
   }));
-  const nach = new Map<string, CupEintrag>();
-  for (const d of tage) {
-    for (const e of (d.entries ?? []) as CupEintrag[]) {
-      const k = e.players.map((p) => p.id).sort().join('|');
-      const da = nach.get(k);
-      if (!da) { nach.set(k, { ...e, matches: [...e.matches], players: [...e.players] }); continue; }
-      da.points += e.points; da.elims += e.elims; da.games += e.games; da.wins += e.wins;
-      da.damage += e.damage; da.damageTaken += e.damageTaken; da.headshots += e.headshots;
-      da.timeAlive += e.timeAlive; da.matches.push(...e.matches);
-      if (e.bestPlace !== null && (da.bestPlace === null || e.bestPlace < da.bestPlace)) da.bestPlace = e.bestPlace;
-    }
-  }
-  const eintraege = [...nach.values()].map((e) => {
-    const spiele = Math.max(1, e.games);
-    const plaetze = e.matches.map((m) => m.placement).filter((x): x is number => typeof x === 'number');
-    return {
-      ...e, avgPoints: e.points / spiele, avgElims: e.elims / spiele,
-      avgPlace: plaetze.length ? plaetze.reduce((a, b) => a + b, 0) / plaetze.length : e.avgPlace,
-    };
-  }).sort((a, b) => b.points - a.points || b.wins - a.wins || b.avgElims - a.avgElims || a.avgPlace - b.avgPlace);
-  eintraege.forEach((e, i) => { e.rank = i + 1; });
+  /*
+   * Dieselbe Rechnung wie die Statistik (lib/globalsGesamt summiereTage). Vorher wurden hier nur Punkte, Elims, Spiele, Siege,
+   * Schaden, Kopftreffer und Lebenszeit addiert - K/D, Strecke, Heilung, Schild, Kisten, Material und die Punkteaufteilung
+   * standen in der Gesamtwertung mit den Werten des ersten Tages da (Beispiel FNCS Solo Final EU: K/D 1,8 statt 2,45).
+   */
+  const eintraege = summiereTage(tage.map((d) => (d.entries ?? []) as CupEintrag[]));
   return {
     eventId: event, windowId: 'gesamt', page: 0, totalPages: 1,
     updated: tage.map((d) => d.updated).filter(Boolean).sort().pop() ?? '',
