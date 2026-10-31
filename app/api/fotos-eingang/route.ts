@@ -6,7 +6,7 @@ import { liesJson, schreibJson } from '@/lib/ablage';
  * downloaden muss, mein Speicher wird knapp"). Der Befehl schickt von einer fremden Seite aus nur Namen und Bild-Adressen - keine Bilder. Geholt,
  * zugeschnitten und eingebaut wird spaeter von Hand (scripts/fotos-eingang-holen.mjs), nach einer Vorher/Nachher-Uebersicht fuer den Betreiber.
  *
- * Offen fuer jede Herkunft (CORS), weil der Befehl auf fremden Seiten laeuft. Deshalb streng begrenzt: nur Text, hoechstens 6000 Eintraege, kurze Namen,
+ * Offen fuer jede Herkunft (CORS), weil der Befehl auf fremden Seiten laeuft. Deshalb streng begrenzt: nur Text, hoechstens 20.000 Eintraege je Sendung, kurze Namen,
  * http(s)-Adressen; gespeichert wird eine einzige Datei, nichts wird beim Empfang heruntergeladen oder angezeigt.
  */
 
@@ -32,7 +32,8 @@ export async function POST(request: Request) {
   try { roh = await request.json(); } catch { return NextResponse.json({ ok: false, fehler: 'kein JSON' }, { status: 400, headers: KOPF }); }
   const j = roh as { quelle?: unknown; eintraege?: unknown };
   const quelle = String(j.quelle ?? '').slice(0, 120);
-  const liste = Array.isArray(j.eintraege) ? j.eintraege.slice(0, 6000) : [];
+  // 20.000 statt 6000 (31.10.2026: EU Competitive schickte 7237, 1237 fielen weg).
+  const liste = Array.isArray(j.eintraege) ? j.eintraege.slice(0, 20000) : [];
   const zeit = new Date().toISOString();
   const neu: Eintrag[] = [];
   for (const e of liste as Array<{ name?: unknown; url?: unknown; vorhanden?: unknown }>) {
@@ -46,7 +47,7 @@ export async function POST(request: Request) {
   const alt = await liesJson<Eintrag[]>(DATEI, []).catch(() => [] as Eintrag[]);
   const nachUrl = new Map(alt.map((e) => [e.url, e]));
   for (const e of neu) nachUrl.set(e.url, e);
-  const alle = [...nachUrl.values()].slice(-12000);
+  const alle = [...nachUrl.values()].slice(-40000);
   try {
     await schreibJson(DATEI, alle);
   } catch {

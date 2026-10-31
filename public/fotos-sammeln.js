@@ -14,9 +14,16 @@
    * "Load more", "Mehr anzeigen" ... so schnell es die Seite zulaesst, bis keiner mehr da ist oder nichts mehr dazukommt (hoechstens 20 Minuten).
    */
   const MEHR = /^\s*(show|load|see|view)\s+more|^\s*mehr\s+(anzeigen|laden)/i;
-  // Nur Aufklapp-Knoepfe - keine Links, die auf eine andere Seite fuehren ("Show all ->").
+  /*
+   * Nur echte Aufklapp-Knoepfe (31.10.2026: auf EU Competitive klickte der Befehl ganze Spielerkarten an, jede oeffnete einen Tab, die Seite wurde
+   * schwarz): der Text des Elements selbst muss kurz sein und so anfangen, und es darf keinen ebenso passenden Knopf darin geben. Keine Links mit Adresse.
+   */
   const knopf = () => [...document.querySelectorAll('button, [role="button"], a:not([href]), a[href="#"]')]
-    .find((el) => MEHR.test(el.innerText || el.textContent || '') && el.offsetParent !== null && !el.disabled);
+    .filter((el) => { const t = (el.innerText || el.textContent || '').trim(); return t.length <= 40 && MEHR.test(t) && el.offsetParent !== null && !el.disabled; })
+    .find((el) => !el.querySelector('button, [role="button"]'));
+  // Waehrend des Aufklappens oeffnet nichts einen neuen Tab, und eine andere Adresse beendet es sofort.
+  const offenAlt = window.open; window.open = () => null;
+  const adresse = location.href;
   const anzeige = document.createElement('div');
   anzeige.style.cssText = 'position:fixed;top:12px;right:12px;z-index:2147483647;background:#1d9bf0;color:#fff;font:700 14px system-ui;padding:10px 14px;border-radius:10px';
   // Bis zu 20 Minuten (31.10.2026: nach 3 Minuten stand es bei 7000 von 10.000). Schluss erst, wenn 15 Sekunden lang nichts mehr dazukommt -
@@ -28,6 +35,7 @@
     const k = knopf();
     if (!k) { if (Date.now() - zuletztNeu > 4000) break; await new Promise((r) => setTimeout(r, 250)); continue; }
     k.click(); klicks += 1;
+    if (location.href !== adresse) break;
     anzeige.textContent = `CompHub: klappe auf ... ${klicks} Klicks (${Math.round((bis - Date.now()) / 60000)} min Rest)`;
     await new Promise((r) => requestAnimationFrame(() => setTimeout(r, 0)));
     const jetzt = alleElemente.length;
@@ -36,6 +44,7 @@
     else if (Date.now() - zuletztNeu > 1500) await new Promise((r) => setTimeout(r, 200));
   }
   anzeige.remove();
+  window.open = offenAlt;
   // Nachgeladene Bilder (loading=lazy) einmal anstossen: einmal ganz runter und zurueck.
   if (klicks) { window.scrollTo(0, document.body.scrollHeight); await new Promise((r) => setTimeout(r, 1500)); window.scrollTo(0, 0); }
   for (const img of document.querySelectorAll('img[loading="lazy"]')) img.loading = 'eager';

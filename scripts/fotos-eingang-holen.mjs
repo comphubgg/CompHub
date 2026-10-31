@@ -36,7 +36,7 @@ await Promise.all(Array.from({ length: 6 }, async () => {
     while (gesehen.has(name)) name += '_2';
     gesehen.add(name);
     try {
-      const r = await fetch(e.url, { headers: { 'User-Agent': 'Mozilla/5.0', Referer: `https://${e.quelle}/` }, signal: AbortSignal.timeout(30_000) });
+      const r = await fetch(e.url, { signal: AbortSignal.timeout(30_000) });
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const typ = r.headers.get('content-type') ?? '';
       const endung = /png/.test(typ) ? 'png' : /webp/.test(typ) ? 'webp' : 'jpg';
