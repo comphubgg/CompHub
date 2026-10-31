@@ -269,7 +269,9 @@ export default function Organisationen({ aufSpieler }: {
   if (org) {
     const kanal = kanaele(org);
     const gruppen = GRUPPEN.filter(([r]) => org.spieler.some((s) => rolleVon(s) === r));
-    const turniere = org.spieler.reduce((a, s) => a + (s.turniere ?? 0), 0);
+    // Wie beim Preisgeld: nur das Pro Roster, und ueber alle Jahre auch die Ehemaligen.
+    const turniere = org.spieler.filter((s) => rolleVon(s) === 'pro').reduce((a, s) => a + (s.turniere ?? 0), 0)
+      + (daten?.jahr === 'alle' ? (org.ehemalige ?? []).reduce((a, e) => a + (e.turniere ?? 0), 0) : 0);
     return (
       <div className="space-y-8">
         <button type="button" onClick={() => setOffen(null)}
