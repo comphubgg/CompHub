@@ -5,6 +5,7 @@ import SpielerPlatzhalter, { PlatzhalterRund } from '@/app/components/SpielerPla
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import T from '@/app/components/T';
+import { useT } from '@/app/components/SprachProvider';
 import TeamFlagge from '@/components/TeamFlagge';
 import Rollzahl from '@/app/components/Rollzahl';
 import { fokusVon } from '@/lib/fotoFokus';
@@ -136,6 +137,7 @@ const RAD_MS = 4600;
 
 /** Ein Spieler im Rampenlicht: das Foto gross hinter dem Namen, darunter die Zahlen - wechselt reihum, bleibt stehen, solange die Maus darauf liegt. */
 function SpotlightKarte({ daten, fertig }: { daten: Vitrine | null; fertig: boolean }) {
+  const uebersetze = useT();
   const liste = daten?.spieler ?? [];
   const [halt, setHalt] = useState(false);
   const i = useRad(liste.length, RAD_MS + 1400, halt);
@@ -164,8 +166,10 @@ function SpotlightKarte({ daten, fertig }: { daten: Vitrine | null; fertig: bool
               </span>
             </Link>
             <div className="mt-4 grid grid-cols-3 gap-2">
-              {([['Quote', s.quote.toFixed(2), 'text-emerald-400'], ['Elims', zahl(s.elims), 'text-[#fff]'], ['Schaden', zahl(s.schaden), 'text-[#fff]']] as const).map(([t, w, farbe]) => (
-                <div key={t} className="rounded-xl border border-[rgba(255,255,255,.14)] bg-[rgba(6,10,18,.55)] px-2 py-3 text-center backdrop-blur">
+              {/* "Quote" sagte nicht, was geteilt wird (SALKO: 917 Elims in 441 Matches, Quote 1,2). Es ist Schaden ausgeteilt durch Schaden
+                  eingesteckt - so heisst sie jetzt, mit demselben Namen wie in der Statistik. Ohne eingesteckten Schaden ein Strich, keine 0,00. */}
+              {([['Schadensquote', s.quote > 0 ? s.quote.toFixed(2) : null, 'text-emerald-400', 'Schaden ausgeteilt geteilt durch Schaden eingesteckt'], ['Elims', zahl(s.elims), 'text-[#fff]', ''], ['Schaden', zahl(s.schaden), 'text-[#fff]', '']] as const).map(([t, w, farbe, hilfe]) => (
+                <div key={t} title={hilfe ? uebersetze(hilfe) : undefined} className="rounded-xl border border-[rgba(255,255,255,.14)] bg-[rgba(6,10,18,.55)] px-2 py-3 text-center backdrop-blur">
                   <p className="text-[9px] font-semibold uppercase tracking-[0.16em] text-[#94a3b8]"><T>{t}</T></p>
                   <p className={`mt-0.5 text-2xl font-black tabular-nums ${farbe}`}><Rollzahl wert={w} los dauer={900} /></p>
                 </div>

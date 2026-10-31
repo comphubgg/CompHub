@@ -304,6 +304,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Schaden je Match': 'Damage per match',
   'Schaden erlitten': 'Damage taken',
   'Schadensquote': 'Damage ratio',
+  'Schaden ausgeteilt geteilt durch Schaden eingesteckt': 'Damage dealt divided by damage taken',
   'Quote': 'Ratio',
   'Treffer': 'Hits',
   'Trefferquote': 'Accuracy',
