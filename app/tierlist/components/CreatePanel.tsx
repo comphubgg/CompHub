@@ -1,5 +1,6 @@
 'use client';
 
+import { flaggenPfad } from '@/components/TeamFlagge';
 import React, { useEffect, useState } from 'react';
 import { Region } from '../types';
 import { storageService } from '../services/storageService';
@@ -109,7 +110,7 @@ export const CreatePanel: React.FC<CreatePanelProps> = ({
         <div key={v.name} className="autocomplete-item"
           // Vor dem blur, sonst schliesst sich die Liste vor dem Klick.
           onMouseDown={(e) => { e.preventDefault(); vorschlagNehmen(feld, v); }}>
-          <img src={`/flags/${/^[a-z]{2}$/.test(v.land) ? v.land : 'flag-GLOBE'}.png`} alt=""
+          <img src={flaggenPfad(v.land)} alt=""
             style={{ width: 20, height: 14, marginRight: 8, borderRadius: 2, objectFit: 'cover' }} />
           <span>{v.name.toUpperCase()}</span>
         </div>

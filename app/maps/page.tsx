@@ -1028,6 +1028,11 @@ export default function KartenSeite(
   useEffect(() => {
     fetch('/api/auth/check-admin').then((r) => r.json())
       .then((j) => {
+        // Ohne Karte in der Adresse ist /maps der leere Editor - Besucher (alte Links, Suchmaschinen) gehoeren in die Kartenuebersicht (31.10.2026).
+        if (j.isAdmin !== true && !nurText(suchParameter.id) && !nurText(suchParameter.window)) {
+          window.location.replace('/tournament-maps');
+          return;
+        }
         setIstAdmin(j.isAdmin === true);
         setMeinEpic(typeof j.epicId === 'string' ? j.epicId : null);
         setMeineRolle(typeof j.rolle === 'string' ? j.rolle : null);

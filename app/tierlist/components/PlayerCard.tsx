@@ -1,5 +1,6 @@
 'use client';
 
+import { flaggenPfad } from '@/components/TeamFlagge';
 import React from 'react';
 import { createPortal } from 'react-dom';
 import { FlaggenWahl } from './FlaggenWahl';
@@ -226,8 +227,8 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
     // Vorher stand hier die Flagge der Vereinigten Staaten als Rueckfall -
     // das ist keine fehlende Angabe, sondern eine falsche: jeder Spieler
     // ohne gepflegtes Land sah nach einem Amerikaner aus.
-    if (!countryCode) return '/flags/flag-GLOBE.png';
-    return `/flags/${countryCode.toLowerCase()}.png`;
+    // Laender ohne eigene Datei (Kuba, Chile ...) bekommen ebenfalls die Weltkugel statt eines kaputten Bildes (31.10.2026).
+    return flaggenPfad(countryCode);
   };
 
   // Das Profil geht vor dem Kuerzel im Eintrag.
@@ -501,7 +502,7 @@ export const PlayerCard: React.FC<PlayerCardProps> = ({
                       onWahl={(code) => onLand(name, code === 'flag-GLOBE' ? '' : code)} />
                   ) : (
                     // eslint-disable-next-line @next/next/no-img-element
-                    <img src={`/flags/${land || 'flag-GLOBE'}.png`} alt=""
+                    <img src={flaggenPfad(land)} alt=""
                       style={{ width: 26, height: 26, borderRadius: '50%',
                                objectFit: 'cover', flex: '0 0 26px' }} />
                   )}

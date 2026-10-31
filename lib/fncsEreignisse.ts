@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { mapsVerzeichnis, type MapEintrag } from '@/lib/mapsVerzeichnis';
 import { liesAltStore } from '@/lib/alteMaps';
 import { spielerKontext } from '@/lib/globalsSolos';
@@ -87,6 +89,29 @@ interface ArchivEintrag { windowId?: string; eventId?: string }
  */
 const ausgefallen = new Set<string>();
 const letzteGute = new Map<string, { teams: number | null; spitze: FncsSpitze[] }>();
+/*
+ * Die letzten guten Spitzen ueberdauern auch den Neustart (31.10.2026): nach einem Neustart waehrend eines widerrufenen Epic-Zugangs standen bei
+ * allen Grand Finals seit S40 und der Global Championship 2026 wieder "Teams -" und "Placements will be added" - die Merkliste lebte nur im Speicher.
+ */
+const SPITZEN_DATEI = path.join(process.cwd(), 'data', '.zuletzt', 'fncs-spitzen.json');
+function spitzenLaden() {
+  if (letzteGute.size) return;
+  for (const datei of [SPITZEN_DATEI, path.join(process.cwd(), 'data', '.zuletzt', 'fncs-ereignisse-v3.json')]) {
+    try {
+      const roh = JSON.parse(fs.readFileSync(datei, 'utf8')) as Record<string, { teams: number | null; spitze: FncsSpitze[] }> | { wert?: FncsEreignis[] };
+      const eintraege = 'wert' in roh && Array.isArray(roh.wert)
+        ? roh.wert.map((e) => [e.key, { teams: e.teams, spitze: e.spitze }] as const)
+        : Object.entries(roh as Record<string, { teams: number | null; spitze: FncsSpitze[] }>);
+      for (const [k, v] of eintraege) if (v?.spitze?.length && !letzteGute.has(k)) letzteGute.set(k, v);
+    } catch { /* noch keine Datei */ }
+  }
+}
+function spitzenSichern() {
+  try {
+    fs.mkdirSync(path.dirname(SPITZEN_DATEI), { recursive: true });
+    fs.writeFileSync(SPITZEN_DATEI, JSON.stringify(Object.fromEntries(letzteGute)));
+  } catch { /* kein beschreibbarer Ort - dann nur der Speicher */ }
+}
 
 async function mitWiederholung<T>(f: () => Promise<T>, versuche = 3): Promise<T> {
   for (let v = 1; ; v += 1) {
@@ -310,6 +335,7 @@ export async function fncsEreignisse(): Promise<FncsEreignis[]> {
 }
 
 async function baueEreignisse(): Promise<FncsEreignis[]> {
+  spitzenLaden();
   const [liste, archivListe] = await Promise.all([
     mapsVerzeichnis(),
     liesJson<ArchivEintrag[]>('cup-archiv.json', []).catch(() => [] as ArchivEintrag[]),
@@ -380,6 +406,7 @@ async function baueEreignisse(): Promise<FncsEreignis[]> {
   }
 
   raus.sort((a, b) => (a.datum ?? 0) - (b.datum ?? 0));
+  spitzenSichern();
   merker = { bis: Date.now() + (fehler ? 60_000 : 15 * 60_000), liste: raus };
   return raus;
 }

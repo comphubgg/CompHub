@@ -8,6 +8,17 @@ import { liesJson } from '@/lib/ablage';
 import { saisonName } from '@/lib/szeneStats';
 import { GET as prLesen } from '../power-rankings/route';
 import { ueberdauernd } from '@/lib/ueberdauernd';
+import fs from 'node:fs';
+import path from 'node:path';
+
+let letzteCups: VCup[] | null = null;
+/** Die Cups der zuletzt abgelegten Antwort (data/.zuletzt, siehe lib/ueberdauernd) - nach einem Neustart der einzige Vorrat. */
+function vorigeCups(): VCup[] {
+  try {
+    const roh = JSON.parse(fs.readFileSync(path.join(process.cwd(), 'data', '.zuletzt', 'startvitrine.json'), 'utf8')) as { wert?: { cups?: VCup[] } };
+    return roh.wert?.cups ?? [];
+  } catch { return []; }
+}
 
 /*
  * Die Schaukaesten der Startseite - ein paar Kilobyte statt der ganzen Startansicht.
@@ -185,6 +196,12 @@ async function rechnen(request: Request) {
 
   let cups: VCup[] = [];
   try { cups = await cupsHolen(); } catch { /* ohne Cups bleibt die Karte leer */ }
+  /*
+   * Kommen keine Cups (Epic-Anmeldung ungueltig, Epic antwortet nicht), bleiben die zuletzt guten stehen - am 31.10.2026 rechnete die Vitrine waehrend
+   * eines widerrufenen Epic-Zugangs "0 Cups", legte das ab, und die Startseite zeigte bei "Tournaments" einen Tag lang "Not reachable right now".
+   */
+  if (cups.length) letzteCups = cups;
+  else cups = letzteCups ?? (letzteCups = vorigeCups());
   // Die ersten fuenf der Power Rankings - mit dem Namen aus den Profilen statt Epics Anzeigenamen samt Teamkuerzel.
   let rangliste: Array<{ rang: number; name: string; land: string | null; wertung: number; delta: number }> = [];
   try {
