@@ -21,6 +21,8 @@ interface Spieler {
   epicId: string | null; name: string; role: 'pro' | 'academy' | 'creator'; country: string | null; homeRegion: string | null;
   matches: number | null; elims: number | null; damagePerMatch: number | null; elimsPerMatch: number | null; damageRatio: number | null;
   earnings: number | null; photo: string | null; profileUrl: string | null; x: string | null;
+  twitch: string | null; since: string | null; events: number | null; accuracy: number | null; damage: number | null;
+  recentResults: Array<{ date: string | null; event: string; prize: number }>;
 }
 interface Antwort {
   ok: boolean; reason?: string;
@@ -35,6 +37,14 @@ export default function TeamSeite() {
   const { sprache, t } = useSprache();
   const ort = sprache === 'de' ? 'de-DE' : 'en-GB';
   const [daten, setDaten] = useState<Antwort | null>(null);
+  /** Das kleine Fenster mit mehr zu einem Spieler (Betreiber, 31.10.2026: "ein kleiner HUD mit Infos, Latest Results - keine extra Seite"). */
+  const [offen, setOffen] = useState<Spieler | null>(null);
+  useEffect(() => {
+    if (!offen) return undefined;
+    const taste = (e: KeyboardEvent) => { if (e.key === 'Escape') setOffen(null); };
+    document.addEventListener('keydown', taste);
+    return () => document.removeEventListener('keydown', taste);
+  }, [offen]);
 
   useEffect(() => {
     let weg = false;
@@ -113,13 +123,59 @@ export default function TeamSeite() {
                 );
                 return (
                   <li key={`${p.epicId ?? p.name}`} className="rounded-3xl border border-zinc-800 bg-zinc-900 p-3 transition hover:border-[var(--org)]">
-                    {p.epicId ? <Link href={`/statistics?spieler=${p.epicId}`} className="block">{inhalt}</Link> : inhalt}
+                    <button type="button" onClick={() => setOffen(p)} className="block w-full text-left">{inhalt}</button>
                   </li>
                 );
               })}
             </ul>
           </section>
         ))}
+        {offen && (
+          <div className="fixed inset-0 z-50 grid place-items-center p-4" role="dialog" aria-modal="true">
+            <button type="button" aria-label={t('Schließen')} onClick={() => setOffen(null)} className="absolute inset-0 bg-[rgba(6,10,18,.7)] backdrop-blur-sm" />
+            <div className="relative flex max-h-[90vh] w-full max-w-2xl flex-col overflow-hidden rounded-3xl border border-zinc-700 bg-zinc-900 shadow-2xl sm:flex-row">
+              <div className="relative aspect-square w-full shrink-0 bg-zinc-800 sm:w-56">
+                {offen.photo
+                  // eslint-disable-next-line @next/next/no-img-element
+                  ? <img src={offen.photo} alt={offen.name} className="h-full w-full object-cover" />
+                  : <div className="grid h-full w-full place-items-center text-6xl font-extrabold text-zinc-600">{offen.name.slice(0, 1).toUpperCase()}</div>}
+              </div>
+              <div className="min-w-0 flex-1 overflow-y-auto p-6">
+                <button type="button" onClick={() => setOffen(null)} className="absolute right-4 top-4 rounded-full bg-zinc-800/90 px-3 py-1 text-sm text-slate-300 hover:text-white">✕</button>
+                <p className="text-xs font-bold uppercase tracking-[0.2em]" style={{ color: farbe }}>
+                  <T>{ROLLEN.find(([r]) => r === offen.role)?.[1] ?? 'Pro Roster'}</T>{offen.homeRegion ? ` · ${offen.homeRegion}` : ''}{offen.since ? ` · ${t('seit')} ${offen.since.slice(0, 7)}` : ''}
+                </p>
+                <h3 className="mt-1 flex items-center gap-2 text-3xl font-extrabold uppercase text-slate-50">
+                  {offen.country && <TeamFlagge laender={[offen.country]} groesse={24} />}<span className="truncate">{offen.name}</span>
+                </h3>
+                <dl className="mt-4 grid grid-cols-3 gap-2 text-center">
+                  {([
+                    ['Preisgeld', geld(offen.earnings)], ['Matches', zahl(offen.matches)], ['Turniere', zahl(offen.events)],
+                    ['Elims', zahl(offen.elims)], ['Elims je Match', zahl(offen.elimsPerMatch, 2)], ['Schaden je Match', zahl(offen.damagePerMatch)],
+                  ] as Array<[string, string]>).map(([k, v]) => (
+                    <div key={k} className="rounded-xl bg-zinc-800/70 px-1 py-2"><dt className="text-[10px] font-semibold uppercase tracking-wider text-slate-500"><T>{k}</T></dt><dd className="text-base font-bold tabular-nums text-slate-100">{v}</dd></div>
+                  ))}
+                </dl>
+                <p className="mt-5 text-xs font-bold uppercase tracking-[0.18em] text-slate-500"><T>Letzte Ergebnisse</T></p>
+                {offen.recentResults?.length ? (
+                  <ul className="mt-2 grid gap-1.5 text-sm">
+                    {offen.recentResults.slice(0, 5).map((r) => (
+                      <li key={`${r.date}-${r.event}`} className="flex items-center justify-between gap-3 rounded-lg bg-zinc-800/50 px-3 py-1.5">
+                        <span className="min-w-0 truncate text-slate-200">{r.event}</span>
+                        <span className="shrink-0 tabular-nums text-slate-400">{r.date ? new Date(r.date).toLocaleDateString(ort, { day: '2-digit', month: 'short' }) : ''} · <span className="font-semibold text-slate-100">{geld(r.prize)}</span></span>
+                      </li>
+                    ))}
+                  </ul>
+                ) : <p className="mt-2 text-sm text-slate-500">{offen.epicId ? t('Noch keine Ergebnisse mit Preisgeld.') : t('Noch keinem Epic-Konto zugeordnet - deshalb noch keine Werte.')}</p>}
+                <div className="mt-5 flex flex-wrap gap-2">
+                  {offen.epicId && <Link href={`/statistics?spieler=${offen.epicId}`} className="rounded-full px-5 py-2 text-sm font-bold text-zinc-950" style={{ background: farbe }}><T>Volles Profil</T> →</Link>}
+                  {offen.x && <a href={`https://x.com/${offen.x}`} target="_blank" rel="noreferrer" className="rounded-full border border-zinc-700 px-4 py-2 text-sm font-semibold text-slate-200 hover:border-[var(--org)]">X ↗</a>}
+                  {offen.twitch && <a href={`https://twitch.tv/${offen.twitch}`} target="_blank" rel="noreferrer" className="rounded-full border border-zinc-700 px-4 py-2 text-sm font-semibold text-slate-200 hover:border-[var(--org)]">Twitch ↗</a>}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
         <p className="mt-14 text-center text-sm text-slate-500">
           <T>Alle Werte aus offiziellen Turnier-Replays - ein Strich heißt: noch keine gewerteten Spiele.</T>
         </p>
