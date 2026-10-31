@@ -48,6 +48,7 @@ const AUF_ENGLISCH: Record<string, string> = {
   'Aus „Deine Spieler“ entfernen': 'Remove from “Your players”',
   // ------------------------------------------------------------ Allgemein
   'Spieler, aus den Replays': 'players, from the replays',
+  'Aus den Match-Replays': 'From the match replays',
   'Schaden, Treffer und Kopftreffer: {m} von {v} Spielen voll gelesen, der Rest folgt. Bis dahin stehen Werte nur bei Spielern, deren Spiele alle gelesen sind.': 'Damage, hits and headshots: {m} of {v} matches fully read, the rest follows. Until then, values only show for players whose matches are all read.',
   'Dein Anmelde-Link': 'Your sign-in link',
   'Passwort vergessen? Dieser Link meldet dich immer an - speichere ihn als Lesezeichen.': 'Forgot your password? This link always signs you in - save it as a bookmark.',

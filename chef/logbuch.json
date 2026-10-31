@@ -1184,5 +1184,25 @@
     "modell": "Sonnet",
     "status": "wartet",
     "runde": 4
+  },
+  {
+    "id": "chef-59",
+    "datum": "2026-10-31T20:47:00Z",
+    "titel": "Cup-Seite: Spielerwerte sagen, dass sie aus den Replays stammen",
+    "kurz": "FNCS Solo Final → Reiter „Players“: über den Kacheln steht „From the match replays“.",
+    "markieren": [
+      "text:From the match replays"
+    ],
+    "bereich": "Statistik",
+    "warum": "Team-Werte (laut Epic) und Spielerwerte (aus den Replays) zeigen im selben Cup verschiedene Kopftreffer und Schaden – ohne Erklärung wirkt das wie ein Fehler.",
+    "was": "Über den Spielerwerten steht klein und grau „From the match replays“. Bei den Team-Werten steht schon „direkt von Epic“.",
+    "ansehen": [
+      "/events/s42_fncssolos_final"
+    ],
+    "commits": [],
+    "groesse": "klein",
+    "modell": "Sonnet",
+    "status": "wartet",
+    "runde": 4
   }
 ]
